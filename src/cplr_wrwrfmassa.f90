@@ -1708,7 +1708,7 @@ contains
     use constants, only: one,zero_single,rd_over_cp_mass,one_tenth,r10,r100
     use gsi_io, only: lendian_in, lendian_out
     use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge,&
-         i_use_2mq4b
+         i_use_2mq4b,i_use_2mt4b
     use chemmod, only: laeroana_gocart,wrf_pm2_5
     use gsi_bundlemod, only: GSI_BundleGetPointer
     use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
@@ -1737,7 +1737,7 @@ contains
     integer(i_kind) i_sst,i_skt,i_th2,i_q2,i_soilt1,i_tslb,i_smois,ktslb,ksmois
     integer(i_kind) :: iv, n_gocart_var,i_snowT_check
     integer(i_kind),allocatable :: i_chem(:), kchem(:)
-    integer(i_kind) num_mass_fields,num_all_fields,num_all_pad
+    integer(i_kind) num_mass_fields,num_all_fields,num_all_pad,num_mass_fields_base
     integer(i_kind) regional_time0(6),nlon_regional0,nlat_regional0,nsig0,nsoil
     integer(i_kind) n_actual_clouds,ier,istatus
     real(r_kind) psfc_this,psfc_this_dry
@@ -1805,10 +1805,13 @@ contains
     jm=nlat_regional
     lm=nsig
   
-    num_mass_fields=4+4*lm
-    if(l_cloud_analysis .or. n_actual_clouds>0) num_mass_fields=4+4*lm + 7*lm
-    if(l_gsd_soilTQ_nudge) num_mass_fields=4+4*lm+2*nsig_soil+2
-    if(l_gsd_soilTQ_nudge .and. l_cloud_analysis) num_mass_fields=4+4*lm+2*nsig_soil+2+7*lm
+    num_mass_fields_base=2+4*lm + 1
+    num_mass_fields=num_mass_fields_base
+!    The 9 3D cloud analysis fields are: ql,qi,qr,qs,qg,qnr,qni,qnc,tt
+    if(l_cloud_analysis .and. n_actual_clouds>0) num_mass_fields=num_mass_fields + 7*lm
+    if(l_gsd_soilTQ_nudge) num_mass_fields=num_mass_fields+2*nsig_soil+1
+    if(i_use_2mt4b > 0 ) num_mass_fields=num_mass_fields+2
+    if(i_use_2mt4b <= 0 .and. i_use_2mq4b > 0) num_mass_fields=num_mass_fields+1
     if ( laeroana_gocart ) then
        call gsi_chemguess_get ( 'aerosols::3d', n_gocart_var, ier )
        if ( n_gocart_var > 0 ) then
@@ -1838,20 +1841,27 @@ contains
     i_u=i_q+lm
     i_v=i_u+lm
     i_sst=i_v+lm
-    if(l_gsd_soilTQ_nudge) then
+    if(i_use_2mt4b > 0) then
        i_th2=i_sst+1
+    else
+       i_th2=i_sst
+    endif
+    if(l_gsd_soilTQ_nudge) then
        i_tslb=i_th2+1
        i_smois=i_tslb+nsig_soil
        i_soilt1=i_smois+nsig_soil
        i_skt=i_soilt1+1
     else
-       i_skt=i_sst+1
-       i_th2=0
+       i_skt=i_th2+1
        i_tslb=0
        i_smois=0
        i_soilt1=0
     endif
-    i_q2=i_skt+1
+    if(i_use_2mt4b > 0 .or. i_use_2mq4b > 0) then
+       i_q2=i_skt+1
+    else
+       i_q2=i_skt
+    endif
   
   ! for hydrometeors
     if(l_cloud_analysis .or. n_actual_clouds>0) then
@@ -2212,8 +2222,6 @@ contains
              end do
           end do
        end do
-       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q2m',   ges_q2,  istatus );ier=ier+istatus
-       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'th2m',  ges_th2, istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tsoil', ges_soilt1, istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tskn' , ges_tsk , istatus );ier=ier+istatus
        if (ier/=0) then ! doesn't have to die - code can be generalized to bypass missing vars
@@ -2223,12 +2231,29 @@ contains
        do i=1,lon2
           do j=1,lat2
              all_loc(j,i,i_skt)=ges_tsk(j,i)
-             all_loc(j,i,i_th2)=ges_th2(j,i)
              all_loc(j,i,i_soilt1)=ges_soilt1(j,i)
           end do
        end do
     endif ! l_gsd_soilTQ_nudge
-    if (i_use_2mq4b >0) then
+
+    if(i_use_2mt4b > 0 ) then
+       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'th2m', ges_th2,istatus );ier=ier+istatus
+       if (ier/=0) then ! doesn't have to die - code can be generalized to bypass
+           write(6,*)'wrwrfmassa_netcdf: getpointer failed, cannot retrieve th2'
+           call stop2(999)
+       endif
+       do i=1,lon2
+          do j=1,lat2
+             all_loc(j,i,i_th2)=ges_th2(j,i)
+          end do
+       end do
+    endif
+    if(i_use_2mt4b > 0 .or. i_use_2mq4b > 0) then
+       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q2m',   ges_q2, istatus );ier=ier+istatus
+       if (ier/=0) then ! doesn't have to die - code can be generalized to bypass missing vars          
+           write(6,*)'wrwrfmassa_netcdf: getpointer failed, cannot retrieve q2m'
+           call stop2(999)
+       endif
        do i=1,lon2
           do j=1,lat2
   ! Convert 2m specific humidity to mixing ratio
@@ -2371,27 +2396,29 @@ contains
     end if
   
   ! Update Q2
-    if(mype == 0) read(lendian_in)temp1
-    if (mype==0)write(6,*)' at 10.11 in wrwrfmassa,max,min(temp1)=', &
+    if( i_use_2mq4b>0 .or. i_use_2mt4b > 0) then
+       if(mype == 0) read(lendian_in)temp1
+       if (mype==0)write(6,*)' at 10.11 in wrwrfmassa,max,min(temp1)=', &
                                            maxval(temp1),minval(temp1)
-    call strip(all_loc(:,:,i_q2),strp)
-    tempa=zero_single
-    call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+       call strip(all_loc(:,:,i_q2),strp)
+       tempa=zero_single
+       call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
             tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
-    if(mype == 0) then
-       write(6,*)' at 10.12 in wrwrfmassa,max,min(tempa)=', &
+       if(mype == 0) then
+          write(6,*)' at 10.12 in wrwrfmassa,max,min(tempa)=', &
                             maxval(tempa),minval(tempa)
-       call fill_mass_grid2t(temp1,im,jm,tempb,2)
-       do i=1,iglobal
+          call fill_mass_grid2t(temp1,im,jm,tempb,2)
+          do i=1,iglobal
              tempa(i)=tempa(i)-tempb(i)
-       end do
-       write(6,*)' at 10.13 in wrwrfmassa,max,min(tempa)=', &
+          end do
+          write(6,*)' at 10.13 in wrwrfmassa,max,min(tempa)=', &
                              maxval(tempa),minval(tempa)
-       call unfill_mass_grid2t(tempa,im,jm,temp1)
-       write(6,*)' at 10.14 in wrwrfmassa,max,min(temp1)=', &
+          call unfill_mass_grid2t(tempa,im,jm,temp1)
+          write(6,*)' at 10.14 in wrwrfmassa,max,min(temp1)=', &
                              maxval(temp1),minval(temp1)
-       write(lendian_out)temp1
-    end if     !endif mype==0
+          write(lendian_out)temp1
+       end if     !endif mype==0
+    endif
   
     if(l_gsd_soilTQ_nudge) then
   ! update soilt1
@@ -2414,7 +2441,9 @@ contains
           write(6,*)' at 10.4 in wrwrfmassa,max,min(temp1)=',maxval(temp1),minval(temp1)
           write(lendian_out)temp1
        end if     !endif mype==0
+    endif  !  l_gsd_soilTQ_nudge
   ! update TH2
+    if( i_use_2mt4b>0 ) then
        if(mype == 0) read(lendian_in)temp1
        if (mype==0)write(6,*)' at 10.5 in wrwrfmassa,max,min(temp1)=',maxval(temp1),minval(temp1)
        call strip(all_loc(:,:,i_th2),strp)
@@ -2435,7 +2464,7 @@ contains
           write(6,*)' at 10.8 in wrwrfmassa,max,min(temp1)=',maxval(temp1),minval(temp1)
           write(lendian_out)temp1
        end if     !endif mype==0
-    endif  !  l_gsd_soilTQ_nudge
+    endif  ! i_use_2mt4b>0
   !
   ! for saving cloud analysis results
     if(l_cloud_analysis .or. n_actual_clouds>0) then

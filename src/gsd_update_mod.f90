@@ -37,7 +37,7 @@ module gsd_update_mod
 
 contains
 
-subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
+subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q,it)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    update_surface    change surface and soil based on analysis increment
@@ -78,6 +78,7 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
   integer(i_kind) is_t,is_q
   real(r_kind),dimension(lat2,lon2), intent(in) :: tinc
   real(r_kind),dimension(lat2,lon2), intent(in) :: qinc
+  integer,intent(in) ::  it   ! guess time level
 
 ! Declare local variables
   real(r_kind),dimension(lat2,lon2) :: csza
@@ -90,7 +91,7 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
   integer(i_kind) :: iderivative
   real(r_kind),allocatable,dimension(:,:,:):: rhgues
 
-  integer(i_kind) i,j,k,it,ier,istatus
+  integer(i_kind) i,j,k,ier,istatus
   real(r_kind) :: ainc, tinct
   real(r_kind) :: coast_fac,temp,temp_fac,dts_min,tincf
   real(r_kind) :: snowthreshold
@@ -109,7 +110,7 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
 !
 
   snowthreshold=1.0e-10_r_kind
-  itsig=1
+  itsig=it
   ier=0
   call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'ql',ges_qc,istatus);ier=ier+istatus
   call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'qi',ges_qi,istatus);ier=ier+istatus
@@ -151,7 +152,7 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
 !      - allow only up to 1.0 K (half of negative ainc for temp)
 !      - don't allow if snow water is > 6 mm
 
-     do it=1,nfldsig
+!     do it=1,nfldsig
         ier=0
         call gsi_bundlegetpointer (GSI_MetGuess_Bundle(it),'tskn' ,ges_tsk   ,istatus)
         ier=ier+istatus
@@ -225,7 +226,7 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
               endif ! sno(i,j,it) < snowthreshold
            end do
         end do
-     end do
+!     end do ! it
 
 !---------------------------------------------------------
 !  Nudge soil moisture
@@ -242,11 +243,11 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
      end if
 
      ice=.true.
-     call genqsat(qsatg,ges_tsen(1,1,1,ntguessig),ges_prsl(1,1,1,ntguessig), &
+     call genqsat(qsatg,ges_tsen(1,1,1,it),ges_prsl(1,1,1,it), &
                   lat2,lon2,nsig,ice,iderivative)
      allocate(rhgues(lat2,lon2,nsig))
 
-     call gsi_bundlegetpointer (GSI_MetGuess_Bundle(ntguessig),'q',ges_q,istatus)
+     call gsi_bundlegetpointer (GSI_MetGuess_Bundle(it),'q',ges_q,istatus)
      if(istatus/=0) then
 !       code doesn't have to die here ... needs attention for generalization
         call die('gsd_update_soil_tq',': cannot find q in guess')
@@ -260,7 +261,7 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
      end do
 
      if( is_q > 0) then
-     do it=1,nfldsig
+!     do it=1,nfldsig
         call gsi_bundlegetpointer (GSI_MetGuess_Bundle(it),'q',ges_q,istatus)
         ier=istatus
         call gsi_bundlegetpointer (GSI_MetGuess_Bundle(it),'smoist',ges_smois,istatus)
@@ -363,7 +364,7 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
               endif
            end do
         end do
-     end do
+!     end do ! it
      endif ! is_q > 0
      deallocate(rhgues)
   endif
@@ -371,7 +372,7 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
   return
 end subroutine gsd_update_soil_tq
 
-subroutine gsd_limit_ocean_q(qinc)
+subroutine gsd_limit_ocean_q(qinc,it)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    gsd_limit_ocean_q Rlimits to analysis increments over oceans
@@ -405,10 +406,11 @@ subroutine gsd_limit_ocean_q(qinc)
 ! Declare passed variables
   integer(i_kind) istatus
   real(r_kind),dimension(lat2,lon2,nsig), intent(inout) :: qinc
+  integer,intent(in) ::  it   ! guess time level
 
 ! Declare local variables
   logical ice
-  integer(i_kind) :: i,j,k,iderivative,it
+  integer(i_kind) :: i,j,k,iderivative
   real(r_kind),allocatable,dimension(:,:,:):: rhgues
   real(r_kind) :: qinc_rh
   real(r_kind),dimension(:,:,:),pointer:: ges_q=>NULL()
@@ -424,10 +426,10 @@ subroutine gsd_limit_ocean_q(qinc)
   end if
 
   ice=.true.
-  call genqsat(qsatg,ges_tsen(1,1,1,ntguessig),ges_prsl(1,1,1,ntguessig),lat2,lon2,nsig,ice,iderivative)
+  call genqsat(qsatg,ges_tsen(1,1,1,it),ges_prsl(1,1,1,it),lat2,lon2,nsig,ice,iderivative)
   allocate(rhgues(lat2,lon2,nsig))
 
-  call gsi_bundlegetpointer (GSI_MetGuess_Bundle(ntguessig),'q',ges_q,istatus)
+  call gsi_bundlegetpointer (GSI_MetGuess_Bundle(it),'q',ges_q,istatus)
   if(istatus/=0) then
 !    code doesn't have to die here ... needs attention for generalization
      call die('gsd_update_soil_tq',': cannot find q in guess')
@@ -440,7 +442,7 @@ subroutine gsd_limit_ocean_q(qinc)
      end do
   end do
 
-  do it=1,nfldsig
+!  do it=1,nfldsig
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
@@ -463,12 +465,12 @@ subroutine gsd_limit_ocean_q(qinc)
            end do
         end do
      end do
-  end do
+!  end do
 
   deallocate(rhgues)
 end subroutine gsd_limit_ocean_q 
 
-subroutine gsd_update_th2(tinc)
+subroutine gsd_update_th2(tinc,it)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    gsd_update_th2    adjust 2-m t based on analysis increment
@@ -503,10 +505,11 @@ subroutine gsd_update_th2(tinc)
 
 ! Declare passed variables
   real(r_kind),dimension(lat2,lon2), intent(in) :: tinc
+  integer,intent(in) ::  it   ! guess time level
 
   real(r_kind),parameter:: r10=10.0_r_kind
   real(r_kind),parameter:: r100=100.0_r_kind
-  integer(i_kind) i,j,it,ier,ihaveq
+  integer(i_kind) i,j,ier,ihaveq
   real(r_kind) :: dth2, work_prsl,work_prslk
 
   real(r_kind),dimension(:,:  ),pointer:: ges_ps =>NULL()
@@ -516,14 +519,14 @@ subroutine gsd_update_th2(tinc)
 !*******************************************************************************
 !
 ! 2-m temperature
-  do it=1,nfldsig
+!  do it=1,nfldsig
      call gsi_bundlegetpointer(gsi_metguess_bundle(it),'th2m',ges_th2,ier)
-     if(ier/=0) cycle
+     if(ier/=0) return
      call gsi_bundlegetpointer(gsi_metguess_bundle(it),'ps',ges_ps,ier)
-     if(ier/=0) cycle
+     if(ier/=0) return
 ! NOTE: for some odd reason the orig. code before bundle change was getting q
 !       from slot it=1 - to preserve zero diff I left as such - RTodling
-     call gsi_bundlegetpointer(gsi_metguess_bundle(1),'q' ,ges_q ,ihaveq)
+     call gsi_bundlegetpointer(gsi_metguess_bundle(it),'q' ,ges_q ,ihaveq)
      do j=1,lon2
         do i=1,lat2
            if(tsensible) then
@@ -539,12 +542,12 @@ subroutine gsd_update_th2(tinc)
            ges_th2(i,j) = ges_th2(i,j) + dth2/work_prslk
         end do
      end do
-  end do
+!  end do
 
   return
 end subroutine gsd_update_th2
 
-subroutine gsd_update_q2(qinc)
+subroutine gsd_update_q2(qinc,it)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    gsd_update_q2    adjust 2-m q based on analysis increment
@@ -575,22 +578,23 @@ subroutine gsd_update_q2(qinc)
 
 ! Declare passed variables
   real(r_kind),dimension(lat2,lon2), intent(in) :: qinc
+  integer,intent(in) ::  it   ! guess time level
 
   real(r_kind),dimension(:,:  ),pointer:: ges_q2=>NULL()
-  integer(i_kind) i,j,it,ier
+  integer(i_kind) i,j,ier
 
 !*******************************************************************************
 !
 ! 2-m temperature
-  do it=1,nfldsig
+!  do it=1,nfldsig
      call gsi_bundlegetpointer(gsi_metguess_bundle(it),'q2m',ges_q2,ier)
-     if(ier/=0) cycle
+     if(ier/=0) return
      do j=1,lon2
         do i=1,lat2
            ges_q2(i,j) = ges_q2(i,j) + qinc(i,j)
         end do
      end do
-  end do
+!  end do
 
   return
 end subroutine gsd_update_q2
@@ -674,8 +678,8 @@ subroutine gsd_gen_coast_prox
                 nip = 0
                 do jc=ja,jb
                 do ic=ia,ib
-                   if (abs(hwork(1,i,j)-1.0_r_kind) <0.001_r_kind .or. &
-                       abs(hwork(1,i,j)-2.0_r_kind) <0.001_r_kind ) nco = nco+1
+                   if (abs(hwork(1,ic,jc)-1.0_r_kind) <0.001_r_kind .or. &
+                       abs(hwork(1,ic,jc)-2.0_r_kind) <0.001_r_kind ) nco = nco+1
                    nip = nip+1
                 end do
                 end do

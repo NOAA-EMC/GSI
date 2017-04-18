@@ -104,7 +104,7 @@ contains
     use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,h300,r10,r100
     use constants, only: r0_01
     use gsi_io, only: lendian_in
-    use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge,i_use_2mq4b
+    use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge,i_use_2mq4b,i_use_2mt4b
     use wrf_mass_guess_mod, only: soil_temp_cld,isli_cld,ges_xlon,ges_xlat,ges_tten,create_cld_grids
     use gsi_bundlemod, only: GSI_BundleGetPointer
     use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
@@ -227,8 +227,9 @@ contains
        end if
   
   !    Following is for convenient WRF MASS input
-       num_mass_fields=14+5*lm+2*nsig_soil
-       if(l_cloud_analysis .or. n_actual_clouds>0) num_mass_fields=num_mass_fields+7*lm+2
+       num_mass_fields=15+5*lm+2*nsig_soil
+!    The 9 3D cloud analysis fields are: ql,qi,qr,qs,qg,qnr,qni,qnc,tt
+       if(l_cloud_analysis .and. n_actual_clouds>0) num_mass_fields=num_mass_fields+7*lm+2    
        if(l_gsd_soilTQ_nudge) num_mass_fields=num_mass_fields+2
        num_loc_groups=num_mass_fields/npe
        if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, lm            =",i6)')lm
@@ -276,9 +277,13 @@ contains
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q' ,ges_q_it, istatus );ier=ier+istatus
           if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
   
+          if (l_gsd_soilTQ_nudge .or.i_use_2mt4b>0) then
+             call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'th2m', ges_th2_it,istatus );ier=ier+istatus 
+             if (ier/=0) call die(trim(myname),'cannot get pointers for th2m, ier=',ier)
+          endif
+
           if (l_gsd_soilTQ_nudge) then
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tskn', ges_tsk_it,istatus );ier=ier+istatus
-             call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'th2m', ges_th2_it,istatus );ier=ier+istatus
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tsoil',ges_soilt1_it,istatus );ier=ier+istatus
              if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
           endif
@@ -529,12 +534,12 @@ contains
              read(lendian_in) n_position
              offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
              if(mype == 0) write(6,*)' soilt1 i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
-  
-             i=i+1 ; i_th2=i                                               ! th2
-             read(lendian_in) n_position
-             offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
-             if(mype == 0) write(6,*)' th2 i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
           endif
+  
+          i=i+1 ; i_th2=i                                               ! th2
+          read(lendian_in) n_position
+          offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
+          if(mype == 0) write(6,*)' th2 i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
   
   ! for cloud array
           if(l_cloud_analysis .or. n_actual_clouds>0) then
@@ -1259,7 +1264,8 @@ contains
     use gsi_io, only: lendian_in
     use chemmod, only: laeroana_gocart,nh4_mfac,oc_mfac,&
          aerotot_guess,init_aerotot_guess,wrf_pm2_5,aero_ratios
-    use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soiltq_nudge,i_use_2mq4b
+    use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soiltq_nudge
+    use rapidrefresh_cldsurf_mod, only: i_use_2mq4b,i_use_2mt4b
     use wrf_mass_guess_mod, only: soil_temp_cld,isli_cld,ges_xlon,ges_xlat,ges_tten,create_cld_grids
     use gsi_bundlemod, only: GSI_BundleGetPointer
     use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
@@ -1289,7 +1295,7 @@ contains
     character(60),allocatable::identity(:)
     character(6) filename 
     integer(i_kind) irc_s_reg(npe),ird_s_reg(npe)
-    integer(i_kind) ifld,im,jm,lm,num_mass_fields
+    integer(i_kind) ifld,im,jm,lm,num_mass_fields,num_mass_fields_base
     integer(i_kind) num_all_fields,num_loc_groups,num_all_pad
     integer(i_kind) i,icount,icount_prev,it,j,k
     integer(i_kind) i_0,i_psfc,i_fis,i_t,i_q,i_u,i_v,i_sno,i_u10,i_v10,i_smois,i_tslb
@@ -1383,7 +1389,6 @@ contains
        end if
        if (l_gsd_soilTQ_nudge) then
           ier=0
-          call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'th2m', ges_th2_it, istatus );ier=ier+istatus
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tskn', ges_tsk_it, istatus );ier=ier+istatus
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tsoil',ges_soilt1_it,istatus);ier=ier+istatus
           if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
@@ -1394,12 +1399,14 @@ contains
        lm=nsig
   
   !    Following is for convenient WRF MASS input
-       num_mass_fields=15+4*lm
-       if(l_cloud_analysis .or.n_actual_clouds>0) num_mass_fields=15+4*lm+7*lm+2
-       if(l_gsd_soilTQ_nudge) num_mass_fields=15+4*lm+2*nsig_soil
-       if(l_gsd_soilTQ_nudge .and. l_cloud_analysis) &
-                            num_mass_fields=15+4*lm+7*lm+2+2*nsig_soil
-  
+       num_mass_fields_base=14+4*lm
+       num_mass_fields=num_mass_fields_base
+!    The 9 3D cloud analysis fields are: ql,qi,qr,qs,qg,qnr,qni,qnc,tt
+       if(l_cloud_analysis .and.n_actual_clouds>0) num_mass_fields=num_mass_fields+7*lm+2
+       if(l_gsd_soilTQ_nudge) num_mass_fields=num_mass_fields+2*(nsig_soil-1)+1
+       if(i_use_2mt4b > 0 ) num_mass_fields=num_mass_fields + 2
+       if(i_use_2mq4b > 0 .and. i_use_2mt4b <=0 ) num_mass_fields=num_mass_fields + 1
+
        if (laeroana_gocart .and. wrf_pm2_5 ) then
           if(mype==0) write(6,*)'laeroana_gocart canoot be both true'
           call stop2(2)
@@ -1549,13 +1556,17 @@ contains
        i=i+1 ; i_tsk=i                                               ! tsk
        write(identity(i),'("record ",i3,"--sst")')i
        jsig_skip(i)=0 ; igtype(i)=1
-       i=i+1 ; i_q2=i                                                ! q2
-       write(identity(i),'("record ",i3,"--q2")')i
-       jsig_skip(i)=0 ; igtype(i)=1
+       if(i_use_2mq4b > 0 .or. i_use_2mt4b >0 ) then
+          i=i+1 ; i_q2=i                                                ! q2
+          write(identity(i),'("record ",i3,"--q2")')i
+          jsig_skip(i)=0 ; igtype(i)=1
+       endif
        if(l_gsd_soilTQ_nudge) then
           i=i+1 ; i_soilt1=i                                         ! soilt1
           write(identity(i),'("record ",i3,"--soilt1(",i2,")")')i,k
           jsig_skip(i)=0 ; igtype(i)=1
+       endif
+       if(i_use_2mt4b > 0 ) then
           i=i+1 ; i_th2=i                                            ! th2 
           write(identity(i),'("record ",i3,"--th2(",i2,")")')i,k
           jsig_skip(i)=0 ; igtype(i)=1
@@ -1731,12 +1742,15 @@ contains
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tv',ges_tv_it,istatus );ier=ier+istatus
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q' ,ges_q_it, istatus );ier=ier+istatus
           if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
-          if(i_use_2mq4b>0) then
+          if(i_use_2mt4b > 0 .or. i_use_2mq4b > 0) then
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it),'q2m',ges_q2_it,istatus ); ier=ier+istatus
              if (ier/=0) call die(trim(myname),'cannot get pointers for q2m, ier =',ier)
           endif
-          if (l_gsd_soilTQ_nudge) then
+          if (i_use_2mt4b > 0) then
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'th2m',ges_th2_it, istatus );ier=ier+istatus
+             if (ier/=0) call die(trim(myname),'cannot get pointers for th2m,ier =',ier)
+          endif
+          if (l_gsd_soilTQ_nudge) then
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tskn',ges_tsk_it, istatus );ier=ier+istatus 
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tsoil',ges_soilt1_it,istatus);ier=ier+istatus
              if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
@@ -2010,14 +2024,16 @@ contains
                 ges_ps_it(j,i)=one_tenth*psfc_this   ! convert from mb to cb
                 sno(j,i,it)=all_loc(j,i,i_0+i_sno)
                 sfc_rough(j,i,it)=rough_default
+                if(i_use_2mt4b > 0 ) then
+                   ges_th2_it(j,i)=all_loc(j,i,i_0+i_th2)
+                endif
   ! for GSD soil nudging
                 if(l_gsd_soilTQ_nudge) then
-                   ges_th2_it(j,i)=all_loc(j,i,i_0+i_th2)
                    ges_tsk_it(j,i)=all_loc(j,i,i_0+i_tsk)
                    ges_soilt1_it(j,i)=all_loc(j,i,i_0+i_soilt1)
                 endif
   ! Convert 2m guess mixing ratio to specific humidity
-                if(i_use_2mq4b>0) then
+                if(i_use_2mt4b > 0 .or. i_use_2mq4b>0) then
                    ges_q2_it(j,i)=all_loc(j,i,i_0+i_q2)
                    ges_q2_it(j,i)=ges_q2_it(j,i)/(one+ges_q2_it(j,i))
                 endif
