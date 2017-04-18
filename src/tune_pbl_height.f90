@@ -96,6 +96,6 @@ subroutine tune_pbl_height(mype,station_id,dx,dy,prestsfc,thisPBL_height,diffsfc
                              pblfact_cool*(ges_ps(ix,iyp)*ten-pbl_height(ix,iyp,itime)))
   pbl_height(ixp,iyp,itime)= ges_ps(ixp,iyp)*ten - max(zero,&
                              pblfact_cool*(ges_ps(ixp,iyp)*ten-pbl_height(ixp,iyp,itime)))
-  write(*,'(a,a8,10f10.2)') 'tuned PBL height=', station_id,diffsfc,pblfact_cool,prestsfc,thisPBL_height,oldPBL_height 
+!  write(*,'(a,a8,10f10.2)') 'tuned PBL height=', station_id,diffsfc,pblfact_cool,prestsfc,thisPBL_height,oldPBL_height 
 
 end subroutine tune_pbl_height
