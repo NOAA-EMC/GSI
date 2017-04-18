@@ -197,6 +197,9 @@ echo plot = $PLOT, plot_horiz = $PLOT_HORIZ
 
 prev_cycle=`$NDATE -6 $PDATE`
 
+pid=${pid:-$$}
+export PLOT_WORK_DIR=${PLOT_WORK_DIR}.${pid}
+
 if [[ -d $PLOT_WORK_DIR ]]; then
    rm -rf $PLOT_WORK_DIR
 fi
