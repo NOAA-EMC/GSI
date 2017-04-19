@@ -235,7 +235,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      muse(i)=nint(data(iuse,i)) <= jiter
   end do
 
-  hr_offset=min_offset/60.0
+  hr_offset=min_offset/60.0_r_kind
 !  Check for duplicate observations at same location
   dup=one
   do k=1,nobs

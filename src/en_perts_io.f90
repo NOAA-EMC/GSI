@@ -28,7 +28,6 @@ subroutine en_perts_get_from_save_fulldomain
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpimod, only: ierror,mype
   use kinds, only: r_kind,i_kind,r_single
-  use constants, only: max_varname_length
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   use mpeu_util, only: die
@@ -46,11 +45,10 @@ subroutine en_perts_get_from_save_fulldomain
 
   integer(i_kind) n
   character(255) filename
-  character(len=max_varname_length) varname
   integer(i_kind) istatus
 
   integer(i_kind) ic3,ic2
-  integer(i_kind) iunit,nn
+  integer(i_kind) iunit
 
   integer(i_kind) :: count
   integer(i_kind) :: i,j,k,im,jm,km

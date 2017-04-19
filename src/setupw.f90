@@ -329,7 +329,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end do
 
 !  handle multiple-report observations at a station
-  hr_offset=min_offset/60.0
+  hr_offset=min_offset/60.0_r_kind
   dup=one
   do k=1,nobs
      do l=k+1,nobs
