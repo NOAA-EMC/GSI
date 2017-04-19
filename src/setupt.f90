@@ -333,7 +333,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   var_jb=zero
 
 !  handle multiple reported data at a station
-  hr_offset=min_offset/60.0
+  hr_offset=min_offset/60.0_r_kind
   dup=one
   do k=1,nobs
      do l=k+1,nobs
@@ -1078,7 +1078,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
              mype,nfldsig)
 !
         if (dthetav< -1.0_r_kind) then
-           call tune_pbl_height(mype,station_id,dlat,dlon,prestsfc,thisPBL_height,dthetav)
+           call tune_pbl_height(mype,dlat,dlon,prestsfc,thisPBL_height,dthetav)
         endif
 !
         ratio_PBL_height = (prest - thisPBL_height) * pblh_ration

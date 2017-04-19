@@ -488,7 +488,7 @@ tcv_mod.o : tcv_mod.f90 constants.o kinds.o
 tendsmod.o : tendsmod.f90 mpeu_util.o gsi_chemguess_mod.o gsi_metguess_mod.o gsi_bundlemod.o mpimod.o gridmod.o constants.o kinds.o 
 test_obsens.o : test_obsens.f90 control_vectors.o obs_sensitivity.o mpimod.o obsmod.o jfunc.o constants.o kinds.o 
 timermod.o : timermod.f90 kinds.o 
-tintrp2a.o : tintrp2a.f90 constants.o gridmod.o kinds.o 
+tintrp2a.o : tintrp2a.f90 guess_grids.o constants.o gridmod.o kinds.o 
 tintrp3.o : tintrp3.f90 constants.o gridmod.o kinds.o 
 tpause.o : tpause.f90 gsi_metguess_mod.o gsi_bundlemod.o gridmod.o guess_grids.o constants.o kinds.o 
 tpause_t.o : tpause_t.F90 constants.o kinds.o 

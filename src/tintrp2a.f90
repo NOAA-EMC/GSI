@@ -249,7 +249,6 @@ subroutine tintrp2a11_csln(f,g,gw,dx,dy,obstime,gridtime, &
   real(r_kind) dely,delt,deltp
 !
   real(r_kind) gwater,gland,wt_water,wt_land,gone,wt_one
-  integer(i_kind) lwsum
 
   m1=mype+1
 

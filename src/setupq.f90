@@ -204,7 +204,6 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   type(qNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
   real(r_kind) :: thispbl_height,ratio_PBL_height,prestsfc,diffsfc
-  real(r_single) :: qv,ee,dwpt
   real(r_kind) :: hr_offset
 
   equivalence(rstation_id,station_id)
@@ -263,7 +262,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! choose only one observation--arbitrarily choose the one with positive time departure
 !  handle multiple-reported data at a station
 
-  hr_offset=min_offset/60.0
+  hr_offset=min_offset/60.0_r_kind
   dup=one
   do k=1,nobs
      do l=k+1,nobs

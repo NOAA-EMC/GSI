@@ -115,7 +115,7 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,infile,obstype,lunout,sis,nob
   lwp_l =-9.0_r_kind
   phase_l=-9
   call read_NASALaRC_cloud_bufr_survey(satfile,east_time, west_time)
-  call read_NASALaRC_cloud_bufr(satfile,atime,east_time, west_time,   &
+  call read_NASALaRC_cloud_bufr(satfile,atime, &
             maxobs,numobs, ptop_l, teff_l, phase_l, lwp_l,lat_l, lon_l)
 
 !    write(6,*)'LaRC ptop =', (ptop_l(j),j=1,numobs,5000)
@@ -175,7 +175,7 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,infile,obstype,lunout,sis,nob
    return
 end subroutine read_NASA_LaRC_cloud
 
-subroutine read_NASALaRC_cloud_bufr(satfile,atime,east_time, west_time, &
+subroutine read_NASALaRC_cloud_bufr(satfile,atime,&
              maxobs,numobs,ptop, teff, phase, lwp_iwp,lat, lon)
 !
 !   PRGMMR: Ming Hu          ORG: GSD        DATE: 2010-07-09
@@ -230,7 +230,6 @@ subroutine read_NASALaRC_cloud_bufr(satfile,atime,east_time, west_time, &
 !  For NASA LaRC 
 !
   CHARACTER*40   satfile
-  integer(i_kind) :: east_time, west_time
 
   INTEGER ::   maxobs, numobs  ! dimension
   INTEGER(i_kind) ::  obs_time
