@@ -52,7 +52,6 @@ subroutine stpspd(spdhead,rval,sval,out,sges,nstep)
 !   2006-07-28  derber  - modify to use new inner loop obs data structure
 !                       - unify NL qc
 !   2006-09-18  derber  - modify output b1 and b3
-!   2007-02-15  rancic  - add foto
 !   2007-03-19  tremolet - binning of observations
 !   2007-05-10  tremolet - add opt to run as linear procedure
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
@@ -82,8 +81,6 @@ subroutine stpspd(spdhead,rval,sval,out,sges,nstep)
   use kinds, only: r_kind,i_kind,r_quad
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
-  use gridmod, only: latlon1n
-  use jfunc, only: l_foto,xhat_dt,dhat_dt
   use gsi_4dvar, only: ltlint
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -107,8 +104,6 @@ subroutine stpspd(spdhead,rval,sval,out,sges,nstep)
   real(r_kind),dimension(max(1,nstep)):: pen
   real(r_kind) cg_spd,pencur,wgross,wnotgross
   real(r_kind) pg_spd,pentl
-  real(r_kind),pointer,dimension(:) :: xhat_dt_u,xhat_dt_v
-  real(r_kind),pointer,dimension(:) :: dhat_dt_u,dhat_dt_v
   real(r_kind),pointer,dimension(:) :: su,sv
   real(r_kind),pointer,dimension(:) :: ru,rv
   type(spdNode), pointer :: spdptr
@@ -126,18 +121,7 @@ subroutine stpspd(spdhead,rval,sval,out,sges,nstep)
   call gsi_bundlegetpointer(sval,'v',sv,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'u',ru,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'v',rv,istatus);ier=istatus+ier
-  if(l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'u',xhat_dt_u,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'v',xhat_dt_v,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'u',dhat_dt_u,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'v',dhat_dt_v,istatus);ier=istatus+ier
-  endif
   if(ier/=0)return
-
-  if(ltlint.and.l_foto) then
-     write(6,*)'ltlint & foto not compatible at this time',ltlint,l_foto
-     call stop2(314)
-  end if
 
   spdptr => spdNode_typecast(spdhead)
   do while (associated(spdptr))
@@ -158,21 +142,6 @@ subroutine stpspd(spdhead,rval,sval,out,sges,nstep)
            ucur=w1* su(j1)+w2* su(j2)+w3* su(j3)+w4* su(j4)+spdptr%uges
            vcur=w1* sv(j1)+w2* sv(j2)+w3* sv(j3)+w4* sv(j4)+spdptr%vges
 
-           if(l_foto) then 
-              time_spd=spdptr%time*r3600
-              valu=valu +&
-                  (w1*dhat_dt_u(j1)+w2*dhat_dt_u(j2)+ &
-                   w3*dhat_dt_u(j3)+w4*dhat_dt_u(j4))*time_spd
-              valv=valv +&
-                  (w1*dhat_dt_v(j1)+w2*dhat_dt_v(j2)+ &
-                   w3*dhat_dt_v(j3)+w4*dhat_dt_v(j4))*time_spd
-              ucur=ucur +&
-                  (w1*xhat_dt_u(j1)+w2*xhat_dt_u(j2)+ &
-                   w3*xhat_dt_u(j3)+w4*xhat_dt_u(j4))*time_spd
-              vcur=vcur +&
-                  (w1*xhat_dt_v(j1)+w2*xhat_dt_v(j2)+ &
-                   w3*xhat_dt_v(j3)+w4*xhat_dt_v(j4))*time_spd
-           endif
            if (ltlint) then
               spd=sqrt(ucur*ucur+vcur*vcur)-spdptr%res
               pencur=spd*spd*spdptr%err2

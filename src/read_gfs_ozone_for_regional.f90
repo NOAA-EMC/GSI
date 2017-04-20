@@ -41,7 +41,7 @@ subroutine read_gfs_ozone_for_regional
 
   use gridmod, only: nlat,nlon,lat2,lon2,nsig,region_lat,region_lon,check_gfs_ozone_date
   use gridmod, only: jcap_gfs,nlat_gfs,nlon_gfs,wrf_nmm_regional,use_gfs_nemsio
-  use constants,only: zero,half,fv,rd_over_cp,one,h300,rad2deg
+  use constants,only: zero,half,rd_over_cp,one,h300
   use constants, only: max_varname_length
   use mpimod, only: mpi_comm_world,ierror,mype,mpi_rtype,mpi_min,mpi_max,npe
   use mpeu_util, only: die
