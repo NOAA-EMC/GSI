@@ -2908,7 +2908,6 @@ contains
     use mpeu_util, only: die,getindex
     use control_vectors, only: cvars3d
     use guess_grids, only: ntguessig
-    use obsmod, only: iadate
     use netcdf_mod, only: nc_check
   ! use wrf_data
     implicit none

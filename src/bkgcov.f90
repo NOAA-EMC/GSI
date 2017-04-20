@@ -38,7 +38,7 @@ subroutine bkgcov(cstate)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: nlat,nlon,lat2,lon2,nsig
+  use gridmod, only: nlat,nlon
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
@@ -129,7 +129,7 @@ subroutine ckgcov(z,cstate,nval_lenz)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: nlat,nlon,lat2,lon2,nsig
+  use gridmod, only: nlat,nlon
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use general_sub2grid_mod, only: general_grid2sub
@@ -214,7 +214,7 @@ subroutine ckgcov_ad(z,cstate,nval_lenz)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: nlat,nlon,lat2,lon2,nsig
+  use gridmod, only: nlat,nlon
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use general_sub2grid_mod, only: general_sub2grid

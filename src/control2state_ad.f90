@@ -51,7 +51,7 @@ use control_vectors, only: control_vector
 use control_vectors, only: cvars3d,cvars2d
 use bias_predictors, only: predictors
 use gsi_4dvar, only: nsubwin, lsqrtb
-use gridmod, only: latlon1n,latlon11,regional,lat2,lon2,nsig,twodvar_regional
+use gridmod, only: regional,lat2,lon2,nsig,twodvar_regional
 use jfunc, only: nsclen,npclen,ntclen
 use cwhydromod, only: cw2hydro_ad
 use gsi_bundlemod, only: gsi_bundlecreate
