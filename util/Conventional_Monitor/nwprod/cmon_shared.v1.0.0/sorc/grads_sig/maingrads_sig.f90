@@ -5,16 +5,56 @@
 !    data file.  The data is from a vertical profile having multiple levels.
 !
 !-----------------------------------------------------------------------------
+program maingrads_sig
+
+
+   use generic_list
+   use data
 
    implicit none
 
+   interface
+
+      subroutine read_conv2grads(ctype,stype,itype,nreal,nobs,isubtype,subtype,list)
+         use generic_list
+         character(3)           :: ctype
+         character(10)          :: stype
+         integer                :: itype
+         integer                :: nreal
+         integer                :: nobs
+         integer                :: isubtype
+         character(2)           :: subtype
+         type(list_node_t),pointer   :: list      
+      end subroutine read_conv2grads
+
+
+      subroutine grads_sig(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype, &
+                           subtype,list)
+         use generic_list
+
+         integer ifileo
+         character(ifileo)              :: fileo
+         integer                        :: nobs,nreal,nlev,igrads,isubtype
+         real(4),dimension(nlev)        :: plev
+         character(2) subtype
+         type(list_node_t), pointer     :: list
+      end subroutine grads_sig
+
+   end interface
+
+
    real(4),dimension(46) :: psig 
-   character(10) :: fileo,stype 
+   character(10) :: fileo,stype,time
    character(3) :: intype
    character(2) :: subtype
    integer nreal,nreal_m2,iscater,igrads,isubtype 
    integer n_alllev,n_acft,n_lowlev,n_upair,nobs,lstype
-   integer itype,n_sig
+   integer itype,n_sig,ii
+
+   type(list_node_t), pointer   :: list => null() 
+   type(list_node_t), pointer   :: next => null() 
+   type(data_ptr)               :: ptr
+
 
    namelist /input/intype,stype,itype,nreal,iscater,igrads,subtype,isubtype
 
@@ -27,23 +67,27 @@
              428.,400.,361.,329.,300.,271.,250.,219.,200.,& 
              175.,156.,138.,122.,100.,95.,83.,73.,64.,55.,48. /
 
+
+   call date_and_time(TIME=time)
+   print *, 'time = ', time
+
    read(5,input)
+
    write(6,*)' User input: '
    write(6,input)
 
    lstype=len_trim(stype) 
 
-   call read_conv2grads(intype,stype,itype,nreal,nobs,isubtype,subtype)
+   call read_conv2grads(intype,stype,itype,nreal,nobs,isubtype,subtype,list)
 
-   !------------------------------------------------------------------------
-   !  here's what's going on with nreal_m2:  
-   !  
-   !  The read_conv2grads routine reads all input fields from the intended
-   !  obs (nreals) but only writes fields 3:nreal to the temporary file.
-   !  So we need to send grads_lev nreal_m2 (minus 2). 
-   !    
-   nreal_m2 = nreal -2
-   call grads_sig(stype,lstype,nobs,nreal_m2,n_sig,psig,iscater,igrads,isubtype,subtype) 
+   call grads_sig(stype,lstype,nobs,nreal,n_sig,psig,iscater,igrads, &
+                  isubtype,subtype,list) 
+
+   call list_free( list )
+
+   call date_and_time( TIME=time )
+   print *, 'time = ', time
 
    stop
-end
+
+end program maingrads_sig

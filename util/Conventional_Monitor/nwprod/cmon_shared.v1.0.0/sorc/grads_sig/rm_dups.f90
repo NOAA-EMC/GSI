@@ -33,6 +33,14 @@ subroutine rm_dups(duparr,n,m,ilat,ilon,ipress,itime,iweight,nndup)
              .and. dpress < match ) then 
 
             duparr(iweight,i)=-1.0
+!            print *, 'dup found: duparr(ilat,i), duparr(ilat,jj) = ', &
+!                                 duparr(ilat,i), duparr(ilat,jj) 
+!            print *, '           duparr(ilon,i), duparr(ilon,jj) = ', &
+!                                 duparr(ilon,i), duparr(ilon,jj) 
+!            print *, '           duparr(itime,i), duparr(itime,jj) = ', &
+!                                 duparr(itime,i), duparr(itime,jj) 
+!            print *, '           duparr(ipress,i), duparr(ipress,jj) = ', &
+!                                 duparr(ipress,i), duparr(ipress,jj) 
             nndup=nndup+1
          endif
       enddo

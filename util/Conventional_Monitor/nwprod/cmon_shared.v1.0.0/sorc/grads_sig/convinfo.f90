@@ -9,13 +9,13 @@ subroutine convinfo_read(dtype,idtype,insubtype,ituse,ntumgrp,ntgroup,ntmiter,is
 
    implicit none
 
-   character(120):: crecord
-   character(7) :: obstype1
-   character(15) :: obstype
-   character(1) :: cflg
-   character(7):: iotype
+   character(120)       :: crecord
+   character(7)         :: obstype1
+   character(15)        :: obstype
+   character(1)         :: cflg
+   character(7)         :: iotype
+   character(idtype)    :: dtype
    integer idtype,insubtype
-   character(idtype) :: dtype
 
    integer(4):: ittype,ituse,ntumgrp,ntgroup,ntmiter,isubtype
    integer(4) :: lunin,ithin,npred,iflag
