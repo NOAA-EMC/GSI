@@ -1387,13 +1387,17 @@ subroutine read_obs(ndata,mype)
 
 !            Process  lightning
              else if (obstype == 'lghtn' ) then
-                call read_lightning(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
+                if(i_gsdcldanal_type==2) then
+                   call read_lightning(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
+                else if( i_gsdcldanal_type==1 .or. i_gsdcldanal_type==6 ) then
+                   call read_lightning_grid(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
+                endif
                 string='READ_LIGHTNING'
 
 !            Process  NASA LaRC 
              else if (obstype == 'larccld' ) then
                 if(i_gsdcldanal_type==2) then
-                   call read_NASA_LaRC_cloud(nread,npuse,nouse,obstype,lunout,sis,nobs_sub1(1,i))
+                   call read_NASA_LaRC_cloud(nread,npuse,nouse,infile,obstype,lunout,sis,nobs_sub1(1,i))
                 else if( i_gsdcldanal_type==1) then
                    call read_nasa_larc(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
                 end if
@@ -1674,7 +1678,7 @@ subroutine read_obs(ndata,mype)
 8000         format(1x,a22,': file=',a15,&
                   ' type=',a10,  ' sis=',a20,  ' nread=',i10,&
                   ' ithin=',i2, ' rmesh=',f11.6,' isfcalc=',i2,&
-                  ' ndata=',i10,' ntask=',i3)
+                  ' nkeep=',i10,' ntask=',i3)
 
           endif
        endif task_belongs

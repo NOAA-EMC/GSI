@@ -1,4 +1,4 @@
-subroutine tune_pbl_height(mype,station_id,dx,dy,prestsfc,thisPBL_height,diffsfc)
+subroutine tune_pbl_height(mype,dx,dy,prestsfc,thisPBL_height,diffsfc)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    tune_pbl_height
@@ -40,7 +40,6 @@ subroutine tune_pbl_height(mype,station_id,dx,dy,prestsfc,thisPBL_height,diffsfc
 !
 ! Declare passed variables
   integer(i_kind)                              ,intent(in   ) :: mype
-  character(8)                                 ,intent(in   ) :: station_id
   real(r_kind)                                 ,intent(in   ) :: dx,dy
   real(r_kind)                                 ,intent(in   ) :: prestsfc
   real(r_kind)                                 ,intent(inout) :: thisPBL_height
@@ -96,6 +95,5 @@ subroutine tune_pbl_height(mype,station_id,dx,dy,prestsfc,thisPBL_height,diffsfc
                              pblfact_cool*(ges_ps(ix,iyp)*ten-pbl_height(ix,iyp,itime)))
   pbl_height(ixp,iyp,itime)= ges_ps(ixp,iyp)*ten - max(zero,&
                              pblfact_cool*(ges_ps(ixp,iyp)*ten-pbl_height(ixp,iyp,itime)))
-  write(*,'(a,a8,10f10.2)') 'tuned PBL height=', station_id,diffsfc,pblfact_cool,prestsfc,thisPBL_height,oldPBL_height 
 
 end subroutine tune_pbl_height

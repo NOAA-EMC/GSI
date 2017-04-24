@@ -124,7 +124,8 @@
                             l_cloud_analysis,nesdis_npts_rad, & 
                             iclean_hydro_withRef,iclean_hydro_withRef_allcol, &
                             i_use_2mq4b,i_use_2mt4b,i_gsdcldanal_type,i_gsdsfc_uselist, &
-                            i_lightpcp,i_sfct_gross,l_use_hydroretrieval_all
+                            i_lightpcp,i_sfct_gross,l_use_hydroretrieval_all,l_closeobs,&
+                            i_coastline,i_gsdqc
   use gsi_metguess_mod, only: gsi_metguess_init,gsi_metguess_final
   use gsi_chemguess_mod, only: gsi_chemguess_init,gsi_chemguess_final
   use tcv_mod, only: init_tcps_errvals,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
@@ -318,6 +319,7 @@
 !  05-02-2015 Parrish   add option rtma_bkerr_sub2slab to allow dual resolution for application of
 !                       anisotropic recursive filter (RTMA application only for now).
 !  05-13-2015 wu        remove check to turn off regional 4densvar
+!  09-01-2015 Hu        added option l_closeobs
 !  10-01-2015 guo       option to redistribute observations in 4d observer mode
 !  03-02-2016 s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
 !  03-10-2016 ejones    add control for gmi noise reduction
@@ -328,6 +330,10 @@
 !                       option
 !  08-28-2016 li - tic591: add use_readin_anl_sfcmask for consistent sfcmask
 !                          between analysis grids and others
+!  02-02-2017 Hu        added option i_coastline to turn on the observation
+!                              operator for surface observations along the coastline area
+!  04-01-2017 Hu        added option i_gsdqc to turn on special observation qc
+!                              from GSD (for RAP/HRRR application)
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -906,6 +912,22 @@
 !                         =1 for cold surface, threshold for gross check is
 !                         enlarged to bring more large negative innovation into
 !                         analysis.
+!      l_use_hydroretrieval_all - the precipitation analysis use reflectivity
+!                                 purely
+!      l_closeobs        - namelist logical to pick the obs close to analysis
+!                          time.
+!                         =false do not pick, use obs error inflation with duplication
+!                         =true only pick the obs close to analysis time only.
+!      i_coastline        - options to turn on observation operator for coastline surface observations
+!                         =0. turn off observation operator for coastline
+!                         surface observations (default)
+!                         =1.  for temperature surface observations
+!                         =2.  for moisture surface observations
+!                         =3.  for temperature and moisture surface observations
+!      i_gsdqc            - option i_gsdqc to turn on special observation qc
+!                              from GSD (for RAP/HRRR application)
+!                         =0 turn off
+!                         =2 turn on
 !
   namelist/rapidrefresh_cldsurf/dfi_radar_latent_heat_time_period, &
                                 metar_impact_radius,metar_impact_radius_lowcloud, &
@@ -920,7 +942,8 @@
                                 nesdis_npts_rad, &
                                 iclean_hydro_withRef,iclean_hydro_withRef_allcol,&
                                 i_use_2mq4b,i_use_2mt4b,i_gsdcldanal_type,i_gsdsfc_uselist, &
-                                i_lightpcp,i_sfct_gross,l_use_hydroretrieval_all
+                                i_lightpcp,i_sfct_gross,l_use_hydroretrieval_all,l_closeobs,&
+                                i_coastline,i_gsdqc
 
 ! chem(options for gsi chem analysis) :
 !     berror_chem       - .true. when background  for chemical species that require
@@ -1288,6 +1311,16 @@
   if (i_gsdcldanal_type==0) then
      l_cloud_analysis = .false.
      if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** set l_cloud_analysis=false'
+  endif
+  if((i_coastline == 1 .or. i_coastline == 3) .and. i_use_2mt4b==0) then
+     i_coastline=0
+     if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** ',&
+                    'set i_coastline=0 because i_use_2mt4b=0'
+  endif
+  if((i_coastline == 2 .or. i_coastline == 3) .and. i_use_2mq4b==0) then
+     i_coastline=0
+     if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** ',&
+                    'set i_coastline=0 because i_use_2mq4b=0'
   endif
 
 ! Finish initialization of observation setup

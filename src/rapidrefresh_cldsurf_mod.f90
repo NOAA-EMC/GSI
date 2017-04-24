@@ -14,6 +14,12 @@ module rapidrefresh_cldsurf_mod
 !                              i_gsdsfc_uselist,i_lightpcp,i_sfct_gross under
 !                              rapidrefresh_cldsurf
 !   2016-02-29 S.Liu        added options l_use_hydroretrieval_all
+!   2016-09-01 Hu       added option l_closeobs
+!   02-02-2017 Hu       added option i_coastline to turn on the observation
+!                              operator for surface observations along the
+!                              coastline area
+!  04-01-2017 Hu        added option i_gsdqc to turn on special observation qc
+!                              from GSD (for RAP/HRRR application)
 ! 
 ! Subroutines Included:
 !   sub init_rapidrefresh_cldsurf  - initialize RR related variables to default values
@@ -90,6 +96,21 @@ module rapidrefresh_cldsurf_mod
 !                         =1 for cold surface, threshold for gross check is
 !                         enlarged to bring more large negative innovation into
 !                         analysis.
+!      l_closeobs   - logical for pick the observation close to analysis time 
+!                         when there are duplicated observations. This will turn
+!                         off the obs error inflation from duplication.
+!      i_coastline   - options to turn on observation operator for coastline
+!                                surface observations
+!                         =0. turn off observation operator for coastline
+!                         surface observations (default)
+!                         =1.  for temperature surface observations
+!                         =2.  for moisture surface observations
+!                         =3.  for temperature and moisture surface observations
+!      i_gsdqc            - option i_gsdqc to turn on special observation qc
+!                              from GSD (for RAP/HRRR application)
+!                         =0 turn off
+!                         =2 turn on
+!
 !
 ! attributes:
 !   language: f90
@@ -139,6 +160,9 @@ module rapidrefresh_cldsurf_mod
   public :: i_gsdsfc_uselist
   public :: i_lightpcp
   public :: l_use_hydroretrieval_all
+  public :: l_closeobs
+  public :: i_coastline
+  public :: i_gsdqc
 
   logical l_cloud_analysis
   real(r_kind)  dfi_radar_latent_heat_time_period
@@ -175,6 +199,9 @@ module rapidrefresh_cldsurf_mod
   integer(i_kind)      i_gsdcldanal_type
   integer(i_kind)      i_gsdsfc_uselist 
   integer(i_kind)      i_lightpcp
+  logical              l_closeobs
+  integer(i_kind)      i_coastline
+  integer(i_kind)      i_gsdqc
 
 contains
 
@@ -261,7 +288,9 @@ contains
     i_gsdsfc_uselist   = 0                            !  turn gsd surface uselist off           
     i_lightpcp         = 0                            !  don't add light pcp over warm section           
     l_use_hydroretrieval_all=.false.
-
+    l_closeobs = .false.                              ! .true. = pick the obs close to analysis time
+    i_coastline = 0                                   !  turn coastline surface observation operator off  
+    i_gsdqc  = 0                                      !  turn gsd obs QC off
     return
   end subroutine init_rapidrefresh_cldsurf
 
