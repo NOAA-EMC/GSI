@@ -202,7 +202,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                            destroy_aircraft_rjlists
   use adjust_cloudobs_mod, only: adjust_convcldobs,adjust_goescldobs
   use mpimod, only: npe
-  use rapidrefresh_cldsurf_mod, only: i_gsdsfc_uselist
+  use rapidrefresh_cldsurf_mod, only: i_gsdsfc_uselist,i_gsdqc
 
   implicit none
 
@@ -1854,6 +1854,16 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     call get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
                                             dlon_earth,dlat_earth,idate,t4dv-toff,      &
                                             obsdat(5,k),obsdat(6,k),usage)
+                 endif
+              endif
+              if (sfctype .and. i_gsdqc==2) then  ! filter bad 2-m dew point and  0 mesonet wind obs
+                 if (kx==288) then ! for mesonet wind
+                    if(abs(obsdat(5,k))<0.01_r_kind .and. abs(obsdat(6,k))<0.01_r_kind) usage=115._r_kind
+                 endif
+                 if (qob .and. (kx >=180 .and. kx<=189) .and. obsdat(2,k) < 1.0e10_r_kind)  then ! for 2-m dew point
+                    if(obsdat(12,k) < min(-40.0_r_kind,obsdat(3,k)-10.0_r_kind)) usage=116._r_kind     ! < min(-40C or T-Td)                
+                    if((obsdat(3,k)-obsdat(12,k))  >  70.0_r_kind)  usage=117._r_kind ! <70C         
+                    if(obsdat(12,k) > 32.2_r_kind) usage=118._r_kind  ! > 90F
                  endif
               endif
 

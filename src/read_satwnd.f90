@@ -943,7 +943,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            if ( qifn == zero) qifn=r110
            if ( ee == zero)   ee=r110
 
-           nread=nread+1
+           nread=nread+2
            dlon_earth_deg=hdrdat(3)
            dlat_earth_deg=hdrdat(2)
            dlon_earth=hdrdat(3)*deg2rad
