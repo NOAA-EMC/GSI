@@ -8,8 +8,42 @@
 !    hint value is the vertical level thickness, for example, level 925 
 !    includes the range of 925-hint to 925+hint.
 !-----------------------------------------------------------------------------
+
+   use generic_list
+   use data
  
    implicit none
+
+   interface
+
+      subroutine read_conv2grads(ctype,stype,itype,nreal,nobs,isubtype,subtype,list)
+         use generic_list
+         character(3)           :: ctype
+         character(10)          :: stype
+         integer                :: itype
+         integer                :: nreal
+         integer                :: nobs
+         integer                :: isubtype
+         character(2)           :: subtype
+         type(list_node_t),pointer   :: list
+      end subroutine read_conv2grads
+
+
+      subroutine grads_lev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads, &
+                           levcard,hint,isubtype,subtype,list)
+         use generic_list
+
+         integer ifileo
+         character(ifileo)              :: fileo
+         integer                        :: nobs,nreal,nlev,igrads,isubtype
+         real(4),dimension(nlev)        :: plev
+         character(10)                  :: levcard
+         real*4                         :: hint
+         character(2) subtype
+         type(list_node_t), pointer     :: list
+      end subroutine grads_lev
+
+   end interface
 
    integer itype
    real(4),dimension(3) :: plowlev 
@@ -19,10 +53,13 @@
    character(10) :: levcard,fileo,stype 
    character(3) :: intype
    character(2) :: subtype
-   integer nreal,nreal_m2,iscater,igrads 
+   integer nreal,iscater,igrads 
    integer n_alllev,n_acft,n_lowlev,n_upair,nobs,lstype,intv,isubtype
    real hint
 
+   type(list_node_t), pointer   :: list => null()
+   type(list_node_t), pointer   :: next => null()
+   type(data_ptr)               :: ptr
 
    namelist /input/intype,stype,itype,nreal,iscater,igrads,levcard,intv,subtype,isubtype
    data pacft /700.,600.,500.,400.,300.,100./
@@ -43,28 +80,21 @@
    lstype=len_trim(stype) 
    hint=real(intv)
 
-   call read_conv2grads( intype,stype,itype,nreal,nobs,isubtype,subtype )
+   call read_conv2grads( intype,stype,itype,nreal,nobs,isubtype,subtype,list )
 
    print *, 'AFTER read_conv2grads, nreal =', nreal
 
-   !------------------------------------------------------------------------
-   !  here's what's going on with nreal_m2:  
-   !  
-   !  The read_conv2grads routine reads all input fields from the intended
-   !  obs (nreals) but only writes fields 3:nreal to the temporary file.
-   !  So we need to send grads_lev nreal_m2 (minus 2). 
-   !    
-   nreal_m2 = nreal -2
+   if(trim(levcard) == 'alllev' ) call grads_lev(stype,lstype,nobs,nreal,n_alllev,&
+                           palllev,iscater,igrads,levcard,hint,isubtype,subtype,list)
+   if(trim(levcard) == 'acft' ) call grads_lev(stype,lstype,nobs,nreal,n_acft,&
+                           pacft,iscater,igrads,levcard,hint,isubtype,subtype,list)
+   if(trim(levcard) == 'lowlev' ) call grads_lev(stype,lstype,nobs,nreal,n_lowlev,&
+                           plowlev,iscater,igrads,levcard,hint,isubtype,subtype,list)
+   if(trim(levcard) == 'upair' ) call grads_lev(stype,lstype,nobs,nreal,n_upair,&
+                           pupair,iscater,igrads,levcard,hint,isubtype,subtype,list)
+    
 
-   if(trim(levcard) == 'alllev' ) call grads_lev(stype,lstype,nobs,nreal_m2,n_alllev,&
-                               palllev,iscater,igrads,levcard,hint,isubtype,subtype)
-   if(trim(levcard) == 'acft' ) call grads_lev(stype,lstype,nobs,nreal_m2,n_acft,&
-                               pacft,iscater,igrads,levcard,hint,isubtype,subtype)
-   if(trim(levcard) == 'lowlev' ) call grads_lev(stype,lstype,nobs,nreal_m2,n_lowlev,&
-                               plowlev,iscater,igrads,levcard,hint,isubtype,subtype)
-   if(trim(levcard) == 'upair' ) call grads_lev(stype,lstype,nobs,nreal_m2,n_upair,&
-                               pupair,iscater,igrads,levcard,hint,isubtype,subtype)
-     
+   call list_free( list ) 
 
    stop
 end

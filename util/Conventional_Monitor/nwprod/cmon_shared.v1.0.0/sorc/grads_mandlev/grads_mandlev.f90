@@ -6,11 +6,19 @@
 !
 !-------------------------------------------------------------
 
-subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,subtype)
+subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
+                isubtype,subtype,list)
+
+   use generic_list
+   use data
 
    implicit none
-  
-   real(4),allocatable,dimension(:,:)  :: rdiag
+ 
+   type(list_node_t), pointer   :: list
+   type(list_node_t), pointer   :: next => null()
+   type(data_ptr)               :: ptr
+ 
+   real(4),allocatable,dimension(:,:)  :: rdiag_m2
    character(8),allocatable,dimension(:) :: cdiag
   
    real(4),dimension(nreal) :: rdummy
@@ -24,12 +32,12 @@ subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubty
    character(30)  :: files,filegrads 
    character(8)  :: stidend
    integer nobs,nreal,nlfag,nflag0,nlev,nlev0,getlev,iscater,igrads,nflg0
-   real*4 rtim,xlat0,xlon0
-   character(30) filein
+   real*4               :: rtim,xlat0,xlon0
+   character(30)        :: filein
 
-   integer ifileo,i,j,ii,k
-   integer ilat,ilon,ipres,itime,iweight,ndup
-   integer(4):: isubtype
+   integer              :: ifileo,i,j,ii,k,nreal_m2,ctr,obs_ctr
+   integer              :: ilat,ilon,ipres,itime,iweight,ndup
+   integer(4)           :: isubtype
  
    stid='        '
    nflag0=0
@@ -43,72 +51,99 @@ subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubty
    print *,'nobs=',nobs
    print *,'nlev',nlev
 
-   allocate(rdiag(nreal,nobs),cdiag(nobs))
+   if( nobs > 0 ) then
+      allocate(cdiag(nobs))
 
-   filein=trim(fileo)//'_'//trim(subtype)//'.tmp'
-   open(11,file=filein,form='unformatted')
+      nreal_m2 = nreal - 2
+      allocate(rdiag_m2(nreal-2,nobs))        ! this will contain rdiag except
+                                              ! for the first 2 fields (type and
+                                              ! subtype)
 
-   do i=1,nobs
-      read(11) cdiag(i),rdiag(1:nreal,i) 
-   enddo
-
-   if(iscater ==1) then
-      files=trim(fileo)//'_'//trim(subtype)//'.scater'
-      open(51,file=files,form='unformatted')
-      write(51) nobs,nreal
-      write(51) rdiag
-      close(51)
-   endif
-
-   if (igrads ==1) then 
-      filegrads=trim(fileo)//'_'//trim(subtype)//'_grads'
-
-      open(21,file=filegrads,form='unformatted')
-
-
-      ilat=1                           ! the position of lat
-      ilon=2                           ! the position of lon
-      ipres=4                          ! the position of pressure
-      itime=6                          ! the position of relative time
-      iweight=11                       ! the position of weight 
-
-
-
-      ! ####################################
-      !  remove any duplicate data
+      !---------------------------------------------
+      ! Retrieve data from the linked list and load
+      !   into the cdiag and rdiag_m2 arrays
       !
-      call rm_dups( rdiag,nobs,nreal,ilat,ilon,ipres,itime,iweight,ndup )
+!      print *, 'Associated(list)   = ', associated( list )
+      obs_ctr = 0
+      next => list
 
-      ii=0
-      do  i=1,nobs
-         if(rdiag(iweight,i) >0.0 ) then
+      do while ( associated( next ) == .TRUE. )
+         ptr = transfer(list_get( next ), ptr)
+!         print *, 'node data:', ptr%p
+         next => list_next( next )
 
-            stid=cdiag(i)
-            rlat=rdiag(ilat,i)
-            rlon=rdiag(ilon,i)
-            rp=rdiag(ipres,i)              ! bug was here -- rp must be real, not integer.
+         obs_ctr = obs_ctr + 1
+         cdiag( obs_ctr ) = ptr%p%stn_id
+         do i=3, nreal
+            rdiag_m2(i-2, obs_ctr) = ptr%p%rdiag( i )
+         end do
+      end do
 
-            k=0
-            k=getlev(rp,plev,nlev)
-            if(k /=0)  then
-               write(21) stid,rlat,rlon,rtim,1,0
+      print *, 'obs_ctr (list) = ', obs_ctr
 
-               !  I wonder about this j=3,nreal write.  see grads_lev for more
-               !  info.
-               write(21) plev(k),(rdiag(j,i),j=3,nreal)
-               print *, 'added obs to level plev(k) ', plev(k)
-            endif   
 
-         endif
-      enddo
+      if(iscater ==1) then
+         files=trim(fileo)//'_'//trim(subtype)//'.scater'
+         open(51,file=files,form='unformatted')
+         write(51) nobs,nreal_m2
+         write(51) rdiag_m2
+         close(51)
+      endif
+
+      if (igrads ==1) then 
+         filegrads=trim(fileo)//'_'//trim(subtype)//'_grads'
+
+         open(21,file=filegrads,form='unformatted')
+
+
+         ilat      = idx_obs_lat -2        ! modified position of lat
+         ilon      = idx_obs_lon -2        ! modified position of lon
+         ipres     = idx_pres -2           ! modified position of pressure
+         itime     = idx_time -2           ! modified position of relative time
+         iweight   = idx_rwgt -2           ! modofied position of weight
+
+
+         ! ####################################
+         !  remove any duplicate data
+         !
+         call rm_dups( rdiag_m2,nobs,nreal_m2,ilat,ilon,ipres,itime,iweight,ndup )
+
+         ctr=0
+         ii=0
+         do  i=1,nobs
+            if(rdiag_m2(iweight,i) >0.0 ) then
+
+               stid=cdiag(i)
+               rlat=rdiag_m2(ilat,i)
+               rlon=rdiag_m2(ilon,i)
+               rp=rdiag_m2(ipres,i)       ! bug was here -- rp must be real, not integer
+
+               k=0
+               k=getlev(rp,plev,nlev)
+               if(k /=0)  then
+                  write(21) stid,rlat,rlon,rtim,1,0
+
+                  write(21) plev(k),(rdiag_m2(j,i),j=3,nreal)
+!                  print *, 'added obs to level plev(k) ', plev(k)
+                  ctr = ctr + 1
+               endif   
+
+            endif
+         enddo
    
-      stidend='        '
-      write(21) stidend,xlat0,xlon0,rtim,nlev0,nflag0 
-      close(21)
+         stidend='        '
+         write(21) stidend,xlat0,xlon0,rtim,nlev0,nflag0 
+         close(21)
 
+         print *, 'num recs written to GrADS file = ', ctr
+
+      endif
+
+      deallocate(rdiag_m2,cdiag)
+
+   else
+      write(6,*) "No output file generated, nobs, igrads = ", nobs, igrads
    endif
-
-   deallocate(rdiag,cdiag)
 
    return 
 end
