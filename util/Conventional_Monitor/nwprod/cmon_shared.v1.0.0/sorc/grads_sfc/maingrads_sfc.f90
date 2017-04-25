@@ -5,8 +5,40 @@
 !    data files.  The data is a profile type having multiple levels.
 !
 !-----------------------------------------------------------------------------
+program maingrads_sfc
+
+   use generic_list
+   use data
 
    implicit none
+
+   interface
+
+      subroutine read_conv2grads(ctype,stype,itype,nreal,nobs,isubtype,subtype,list)
+         use generic_list
+         character(3)           :: ctype
+         character(10)          :: stype
+         integer                :: itype
+         integer                :: nreal
+         integer                :: nobs
+         integer                :: isubtype
+         character(2)           :: subtype
+         type(list_node_t),pointer   :: list
+      end subroutine read_conv2grads
+
+
+      subroutine grads_sfc(fileo,ifileo,nobs,nreal,iscater,igrads,&
+                           isubtype, subtype, list)
+         use generic_list
+
+         integer ifileo
+         character(ifileo)              :: fileo
+         integer                        :: nobs,nreal,iscater,igrads,isubtype
+         character(2)                   :: subtype
+         type(list_node_t), pointer     :: list
+      end subroutine grads_sfc
+
+   end interface
 
    real(4),dimension(21) :: pmand 
    character(10) :: fileo,stype 
@@ -15,6 +47,10 @@
    integer nreal,nreal_m2,iscater,igrads,isubtype 
    integer n_alllev,n_acft,n_lowlev,n_upair,nobs,lstype
    integer n_mand,itype
+
+   type(list_node_t), pointer   :: list => null()
+   type(list_node_t), pointer   :: next => null()
+   type(data_ptr)               :: ptr
 
    namelist /input/intype,stype,itype,nreal,iscater,igrads,subtype,isubtype
 
@@ -28,7 +64,7 @@
 
    lstype=len_trim(stype) 
 
-   call read_conv2grads( intype,stype,itype,nreal,nobs,isubtype,subtype )
+   call read_conv2grads( intype,stype,itype,nreal,nobs,isubtype,subtype,list )
  
    !------------------------------------------------------------------------
    !  here's what's going on with nreal_m2:  
@@ -38,7 +74,9 @@
    !  So we need to send grads_lev nreal_m2 (minus 2). 
    !    
    nreal_m2 = nreal -2 
-   call grads_sfc(stype,lstype,nobs,nreal_m2,iscater,igrads,isubtype,subtype) 
+   call grads_sfc(stype,lstype,nobs,nreal_m2,iscater,igrads,isubtype,subtype,list) 
+
+   call list_free( list )
 
    stop
 end

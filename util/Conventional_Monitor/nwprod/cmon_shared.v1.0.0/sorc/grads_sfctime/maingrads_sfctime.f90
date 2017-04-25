@@ -5,8 +5,49 @@
 !    data file.  The data is a profile type having multiple levels.
 !
 !-----------------------------------------------------------------------------
+program maingrads_sfctime
+
+   use generic_list
+   use data
 
    implicit none
+
+
+   interface
+
+      subroutine read_conv2grads(ctype,stype,itype,nreal,nobs,&
+                                 isubtype,subtype,list)
+         use generic_list
+         character(3)           :: ctype
+         character(10)          :: stype
+         integer                :: itype
+         integer                :: nreal
+         integer                :: nobs
+         integer                :: isubtype
+         character(2)           :: subtype
+         type(list_node_t),pointer   :: list
+      end subroutine read_conv2grads
+
+
+      subroutine grads_sfctime(fileo,ifileo,nobs,nreal,&
+                    nreal2,nlev,plev,iscater,igrads,isubtype,subtype,list)
+
+         use generic_list
+         character(ifileo)       :: fileo
+         integer                 :: ifileo,nobs,nreal,nreal2,nlev 
+         real(4),dimension(nlev) :: plev
+         integer                 :: iscater,igrdas,isubtype
+         character(2)            :: subtype
+         type(list_node_t),pointer   :: list
+         
+      end subroutine grads_sfctime
+
+   end interface
+
+
+   type(list_node_t), pointer   :: list => null()
+   type(list_node_t), pointer   :: next => null()
+   type(data_ptr)               :: ptr
 
    real(4),dimension(11) :: ptime11 
    real(4),dimension(7) :: ptime7
@@ -30,7 +71,7 @@
 
    lstype=len_trim(stype) 
 
-   call read_conv2grads(intype,stype,itype,nreal,nobs,isubtype,subtype)
+   call read_conv2grads(intype,stype,itype,nreal,nobs,isubtype,subtype,list)
 
    !------------------------------------------------------------------------
    !  here's what's going on with nreal_m2:  
@@ -46,16 +87,21 @@
    !  nreal2 and assume it's all good.  Seems like it should really only use
    !  nreal-2 but what do I know?!
    !
-   nreal_m2 = nreal -2
-   nreal_m4 = nreal -4
+!   nreal_m2 = nreal -2
+!   nreal_m4 = nreal -4
 
    if( trim(timecard) == 'time11') then
-      call grads_sfctime(stype,lstype,nobs,nreal_m2,nreal_m4,n_time11,ptime11,iscater,igrads,isubtype,subtype) 
+      print *, 'time11'
+      call grads_sfctime(stype,lstype,nobs,nreal,nreal,n_time11,ptime11,iscater,igrads,isubtype,subtype, list) 
    endif
 
    if( trim(timecard) == 'time7') then 
-      call grads_sfctime(stype,lstype,nobs,nreal_m2,nreal_m4,n_time7,ptime7,iscater,igrads,isubtype,subtype) 
+      print *, 'time7'
+      call grads_sfctime(stype,lstype,nobs,nreal,nreal,n_time7,ptime7,iscater,igrads,isubtype,subtype,list) 
    endif
+
+
+   call list_free( list )
 
    stop
 end

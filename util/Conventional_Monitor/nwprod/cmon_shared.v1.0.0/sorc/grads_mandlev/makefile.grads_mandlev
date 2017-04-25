@@ -6,9 +6,9 @@ SHELL=/bin/sh
 
 BINDIR = ../../exec
 
-SRCS=  maingrads_mandlev.f90 read_conv2grads.f90 grads_mandlev.f90 rm_dups.f90 convinfo.f90 
+SRCS=  data_mod.f90 generic_list.f90 maingrads_mandlev.f90 read_conv2grads.f90 grads_mandlev.f90 rm_dups.f90 convinfo.f90 
 
-OBJS=  maingrads_mandlev.o read_conv2grads.o grads_mandlev.o rm_dups.o convinfo.o 
+OBJS=  data_mod.o generic_list.o maingrads_mandlev.o read_conv2grads.o grads_mandlev.o rm_dups.o convinfo.o 
 
 
 CMD=    grads_mandlev.x 
@@ -41,4 +41,8 @@ grads_mandlev.o : grads_mandlev.f90
 rm_dups.o : rm_dups.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 convinfo.o : convinfo.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+generic_list.o : generic_list.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+data_mod.o : data_mod.f90
 	$(CF) $(FFLAGS) -c $(*).f90

@@ -98,7 +98,7 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,s
       if(iscater == 1) then
          files=trim(fileo)//'_'//trim(subtype)//'.scater'
          open(51,file=files,form='unformatted')
-         write(51) nobs,nreal
+         write(51) nobs,nreal_m2
          write(51) rdiag_m2
 
 !         print *, 'writing nobs, nreal =', nobs, nreal
@@ -166,7 +166,7 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,s
          write(6,*) "No output file generated, nobs, igrads = ", nobs, igrads
       endif
 
-      deallocate(cdiag)
+      deallocate(cdiag,rdiag_m2)
 
    else
       print *, 'exiting grads_sig, nobs = ', nobs

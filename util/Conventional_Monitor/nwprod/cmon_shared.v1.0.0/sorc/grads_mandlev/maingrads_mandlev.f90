@@ -1,7 +1,48 @@
-!  the program is a driver to read the data and convert into grads format, 
-!  the data type is profile type which has multilevel 
+!--------------------------------------------------------------------------
+!  maingrads_mandlev
+!
+!  This program reads the conventional data and converts it into a GrADS
+!  data file. 
+!--------------------------------------------------------------------------
+
+program maingrads_mandlev
+
+   use generic_list
+   use data
 
    implicit none
+
+   interface
+
+      subroutine read_conv2grads(ctype,stype,itype,nreal,nobs,isubtype,subtype,list)
+         use generic_list
+         character(3)           :: ctype
+         character(10)          :: stype
+         integer                :: itype
+         integer                :: nreal
+         integer                :: nobs
+         integer                :: isubtype
+         character(2)           :: subtype
+         type(list_node_t),pointer   :: list
+      end subroutine read_conv2grads
+
+
+      subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
+                isubtype,subtype,list)
+
+         use generic_list
+
+         integer                :: ifileo
+         character(ifileo)      :: fileo
+         integer                        :: nobs,nreal,nlev
+         integer                        :: iscater,igrads,isubtype
+         real(4),dimension(nlev)        :: plev
+         character(2)                   :: subtype
+         type(list_node_t), pointer     :: list
+      end subroutine grads_mandlev
+
+   end interface
+
 
    real(4),dimension(13) :: pmand 
    character(10) :: fileo,stype 
@@ -9,6 +50,10 @@
    character(2) :: subtype
    integer nreal,nreal_m2,iscater,igrads,isubtype,itype
    integer n_alllev,n_acft,n_lowlev,n_upair,nobs,lstype
+
+   type(list_node_t), pointer   :: list => null()
+   type(list_node_t), pointer   :: next => null()
+   type(data_ptr)               :: ptr
 
 
    namelist /input/intype,stype,itype,nreal,iscater,igrads,subtype,isubtype
@@ -19,9 +64,8 @@
               70.,50./
 
 
-
    read(5,input)
-   write(6,*)' User input below'
+   write(6,*)' User input :'
    write(6,input)
 
    print *, 'intype   = ', intype
@@ -35,7 +79,7 @@
 
    lstype=len_trim(stype) 
 
-   call read_conv2grads(intype,stype,itype,nreal,nobs,isubtype,subtype)
+   call read_conv2grads( intype,stype,itype,nreal,nobs,isubtype,subtype,list )
 
    !------------------------------------------------------------------------
    !  here's what's going on with nreal_m2:  
@@ -44,9 +88,12 @@
    !  obs (nreals) but only writes fields 3:nreal to the temporary file.
    !  So we need to send grads_lev nreal_m2 (minus 2). 
    !    
-   nreal_m2 = nreal -2
+!   nreal_m2 = nreal -2
  
-   call grads_mandlev(stype,lstype,nobs,nreal_m2,n_mand,pmand,iscater,igrads,isubtype,subtype) 
+   call grads_mandlev(stype,lstype,nobs,nreal,n_mand,pmand,iscater,igrads,&
+                isubtype,subtype,list) 
+
+    call list_free( list )
 
     stop
     end
