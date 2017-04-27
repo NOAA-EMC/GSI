@@ -71,13 +71,6 @@ subroutine grads_sfc(fileo,ifileo,nobs,nreal,iscater,igrads,isubtype,subtype,lis
    print *, 'obs_ctr (list) = ', obs_ctr
 
 
-!   open(11,file=filein,form='unformatted')
-!   rewind(11)
-!
-!   do i=1,nobs
-!      read(11) cdiag(i),rdiag(1:nreal,i)
-!   enddo
-
    !-------------------------------
    !  write the scatter data file
    !
@@ -134,8 +127,6 @@ subroutine grads_sfc(fileo,ifileo,nobs,nreal,iscater,igrads,isubtype,subtype,lis
 
             ctr = ctr + 1
 
-!            !  really not sure of this j=3,nreal write
-!            write(21) (rdiag(j,i),j=3,nreal)
          endif
       enddo
 

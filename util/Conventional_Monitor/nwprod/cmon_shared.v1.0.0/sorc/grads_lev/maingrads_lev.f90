@@ -84,15 +84,23 @@
 
    print *, 'AFTER read_conv2grads, nreal =', nreal
 
-   if(trim(levcard) == 'alllev' ) call grads_lev(stype,lstype,nobs,nreal,n_alllev,&
-                           palllev,iscater,igrads,levcard,hint,isubtype,subtype,list)
-   if(trim(levcard) == 'acft' ) call grads_lev(stype,lstype,nobs,nreal,n_acft,&
-                           pacft,iscater,igrads,levcard,hint,isubtype,subtype,list)
-   if(trim(levcard) == 'lowlev' ) call grads_lev(stype,lstype,nobs,nreal,n_lowlev,&
-                           plowlev,iscater,igrads,levcard,hint,isubtype,subtype,list)
-   if(trim(levcard) == 'upair' ) call grads_lev(stype,lstype,nobs,nreal,n_upair,&
-                           pupair,iscater,igrads,levcard,hint,isubtype,subtype,list)
-    
+   if( nobs > 0 ) then
+      if(trim(levcard) == 'alllev' ) then
+         call grads_lev(stype,lstype,nobs,nreal,n_alllev,palllev,iscater, &
+                        igrads,levcard,hint,isubtype,subtype,list)
+      else if (trim(levcard) == 'acft' ) then
+         call grads_lev(stype,lstype,nobs,nreal,n_acft,pacft,iscater,igrads,&
+                        levcard,hint,isubtype,subtype,list)
+      else if(trim(levcard) == 'lowlev' ) then
+         call grads_lev(stype,lstype,nobs,nreal,n_lowlev,plowlev,iscater,&
+                        igrads,levcard,hint,isubtype,subtype,list)
+      else if(trim(levcard) == 'upair' ) then
+         call grads_lev(stype,lstype,nobs,nreal,n_upair,pupair,iscater,&
+                        igrads,levcard,hint,isubtype,subtype,list)
+      end if
+   else
+      print *, 'NOBS <= 0, NO OUTPUT GENERATED' 
+   end if
 
    call list_free( list ) 
 

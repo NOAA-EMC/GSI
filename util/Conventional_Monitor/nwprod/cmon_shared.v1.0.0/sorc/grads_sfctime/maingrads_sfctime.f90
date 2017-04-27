@@ -54,7 +54,7 @@ program maingrads_sfctime
    character(10) :: fileo,stype,timecard 
    character(3) :: intype
    character(2) :: subtype
-   integer nreal,nreal_m2,nreal_m4,iscater,igrads,isubtype 
+   integer nreal,iscater,igrads,isubtype 
    integer nobs,lstype
    integer n_time7,n_time11,itype
 
@@ -73,33 +73,21 @@ program maingrads_sfctime
 
    call read_conv2grads(intype,stype,itype,nreal,nobs,isubtype,subtype,list)
 
-   !------------------------------------------------------------------------
-   !  here's what's going on with nreal_m2:  
-   !  
-   !  The read_conv2grads routine reads all input fields from the intended
-   !  obs (nreals) but only writes fields 3:nreal to the temporary file.
-   !  So we need to send grads_lev nreal_m2 (minus 2). 
-   !    
-   !  NOTE:  grads_sfctime.f90 is more confused than the other programs.  The
-   !  grads_sfctime.f90 file uses both nreal (now renamed as nreal_m2) and 
-   !  nreal2 (now renamed nreal_m4).  Not sure it's using nreal_m4
-   !  correctly, but for the moment I'm going to send in nreal_m4 for 
-   !  nreal2 and assume it's all good.  Seems like it should really only use
-   !  nreal-2 but what do I know?!
-   !
-!   nreal_m2 = nreal -2
-!   nreal_m4 = nreal -4
+   if( nobs > 0 ) then
 
-   if( trim(timecard) == 'time11') then
-      print *, 'time11'
-      call grads_sfctime(stype,lstype,nobs,nreal,nreal,n_time11,ptime11,iscater,igrads,isubtype,subtype, list) 
-   endif
-
-   if( trim(timecard) == 'time7') then 
-      print *, 'time7'
-      call grads_sfctime(stype,lstype,nobs,nreal,nreal,n_time7,ptime7,iscater,igrads,isubtype,subtype,list) 
-   endif
-
+      if( trim(timecard) == 'time11') then
+!         print *, 'time11'
+         call grads_sfctime(stype,lstype,nobs,nreal,nreal,n_time11,&
+                            ptime11,iscater,igrads,isubtype,subtype, list) 
+      else if( trim(timecard) == 'time7') then 
+!         print *, 'time7'
+         call grads_sfctime(stype,lstype,nobs,nreal,nreal,n_time7,&
+                            ptime7,iscater,igrads,isubtype,subtype,list) 
+      endif
+   
+   else
+      print *, 'NOBS <= 0, NO OUTPUT GENERATED'
+   end if
 
    call list_free( list )
 
