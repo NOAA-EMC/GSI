@@ -65,16 +65,13 @@ program maingrads_sfc
    lstype=len_trim(stype) 
 
    call read_conv2grads( intype,stype,itype,nreal,nobs,isubtype,subtype,list )
+
  
-   !------------------------------------------------------------------------
-   !  here's what's going on with nreal_m2:  
-   !  
-   !  The read_conv2grads routine reads all input fields from the intended
-   !  obs (nreals) but only writes fields 3:nreal to the temporary file.
-   !  So we need to send grads_lev nreal_m2 (minus 2). 
-   !    
-   nreal_m2 = nreal -2 
-   call grads_sfc(stype,lstype,nobs,nreal_m2,iscater,igrads,isubtype,subtype,list) 
+   if( nobs > 0 ) then
+      call grads_sfc(stype,lstype,nobs,nreal,iscater,igrads,isubtype,subtype,list) 
+   else
+      print *, 'NOBS <= 0, NO OUTPUT GENERATED'
+   end if
 
    call list_free( list )
 

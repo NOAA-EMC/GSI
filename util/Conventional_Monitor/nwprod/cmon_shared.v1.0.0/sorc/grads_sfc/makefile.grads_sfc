@@ -8,7 +8,7 @@ BIINDIR = ../../exec
 
 SRCS=         data_mod.f90 generic_list.f90 maingrads_sfc.f90 read_conv2grads.f90 grads_sfc.f90 rm_dups.f90 convinfo.f90 
 
-OBJS=         data_mod.f90 generic_list.f90 maingrads_sfc.o read_conv2grads.o grads_sfc.o rm_dups.o convinfo.o 
+OBJS=         data_mod.o generic_list.o maingrads_sfc.o read_conv2grads.o grads_sfc.o rm_dups.o convinfo.o 
 
 
 CMD=            grads_sfc.x 

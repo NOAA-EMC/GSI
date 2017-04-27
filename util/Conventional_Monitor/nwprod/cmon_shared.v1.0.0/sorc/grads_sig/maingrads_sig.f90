@@ -80,8 +80,14 @@ program maingrads_sig
 
    call read_conv2grads(intype,stype,itype,nreal,nobs,isubtype,subtype,list)
 
-   call grads_sig(stype,lstype,nobs,nreal,n_sig,psig,iscater,igrads, &
-                  isubtype,subtype,list) 
+
+   if( nobs > 0 ) then
+      call grads_sig(stype,lstype,nobs,nreal,n_sig,psig,iscater,igrads, &
+                     isubtype,subtype,list) 
+   else
+      print *, 'NOBS <= 0, NO OUTPUT GENERATED'
+   end if
+
 
    call list_free( list )
 
