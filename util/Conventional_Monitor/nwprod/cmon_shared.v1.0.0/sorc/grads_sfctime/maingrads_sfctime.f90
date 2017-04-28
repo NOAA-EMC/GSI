@@ -30,11 +30,11 @@ program maingrads_sfctime
 
 
       subroutine grads_sfctime(fileo,ifileo,nobs,nreal,&
-                    nreal2,nlev,plev,iscater,igrads,isubtype,subtype,list)
+                    nlev,plev,iscater,igrads,isubtype,subtype,list)
 
          use generic_list
          character(ifileo)       :: fileo
-         integer                 :: ifileo,nobs,nreal,nreal2,nlev 
+         integer                 :: ifileo,nobs,nreal,nlev 
          real(4),dimension(nlev) :: plev
          integer                 :: iscater,igrdas,isubtype
          character(2)            :: subtype
@@ -77,11 +77,11 @@ program maingrads_sfctime
 
       if( trim(timecard) == 'time11') then
 !         print *, 'time11'
-         call grads_sfctime(stype,lstype,nobs,nreal,nreal,n_time11,&
+         call grads_sfctime(stype,lstype,nobs,nreal,n_time11,&
                             ptime11,iscater,igrads,isubtype,subtype, list) 
       else if( trim(timecard) == 'time7') then 
 !         print *, 'time7'
-         call grads_sfctime(stype,lstype,nobs,nreal,nreal,n_time7,&
+         call grads_sfctime(stype,lstype,nobs,nreal,n_time7,&
                             ptime7,iscater,igrads,isubtype,subtype,list) 
       endif
    

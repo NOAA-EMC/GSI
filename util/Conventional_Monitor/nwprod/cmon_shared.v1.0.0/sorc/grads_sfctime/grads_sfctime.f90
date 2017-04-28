@@ -6,7 +6,7 @@
 !    depending on the iscater and igrads parameters.
 !---------------------------------------------------------------------------------
 
-subroutine grads_sfctime(fileo,ifileo,nobs,nreal,nreal2,nlev,plev,iscater,&
+subroutine grads_sfctime(fileo,ifileo,nobs,nreal,nlev,plev,iscater,&
                          igrads,isubtype,subtype,list)
 
    use generic_list
@@ -54,7 +54,7 @@ subroutine grads_sfctime(fileo,ifileo,nobs,nreal,nreal2,nlev,plev,iscater,&
    integer      :: first, second
  
    integer(4):: isubtype
-   integer nt,ifileo,k,i,ii,j,nflag,nreal2,obs_ctr
+   integer nt,ifileo,k,i,ii,j,nflag,obs_ctr
    integer ilat,ilon,ipres,itime,iweight,ndup
 
    data rmiss/-999.0/
@@ -62,9 +62,9 @@ subroutine grads_sfctime(fileo,ifileo,nobs,nreal,nreal2,nlev,plev,iscater,&
    ndata=0
 
    if( nobs > 0 ) then 
-      print *,'fileo=',fileo
-      print *,'nobs=',nobs
-      print *,'nreal, nreal2 = ', nreal, nreal2
+      print *,'fileo =',fileo
+      print *,'nobs  =',nobs
+      print *,'nreal = ', nreal
 
       allocate( tobs(nreal-4,nobs,nlev) )
       tobs = rmiss  
