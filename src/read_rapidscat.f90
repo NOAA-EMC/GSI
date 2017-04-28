@@ -485,7 +485,7 @@ loopd : do
            endif
 
 
-           nread=nread+1
+           nread=nread+2
            dlon_earth_deg = obsdat(2)
            dlat_earth_deg = obsdat(1)
            dlon_earth=obsdat(2)*deg2rad
@@ -606,13 +606,13 @@ loopd : do
               if (.not. luse) cycle loop_readsb
               if(iiout > 0) isort(iiout)=0
               if (ndata > ntmp) then
-                 nodata=nodata+1
+                 nodata=nodata+2
               endif
               isort(ntb)=iout
 
            else
               ndata=ndata+1
-              nodata=nodata+1
+              nodata=nodata+2
               iout=ndata
               isort(ntb)=iout
            endif
