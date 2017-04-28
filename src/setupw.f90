@@ -22,7 +22,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_wNode, only: wNode
   use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
-  use gsi_4dvar, only: nobs_bins,hr_obsbin
+  use gsi_4dvar, only: nobs_bins,hr_obsbin,min_offset
   use qcmod, only: npres_print,ptop,pbot,dfact,dfact1,qc_satwnds,njqc,vqc
   use oneobmod, only: oneobtest,oneob_type,magoberr,maginnov 
   use gridmod, only: get_ijk,nsig,twodvar_regional,regional,rotate_wind_xy2ll
@@ -39,6 +39,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use converr_uv, only: ptabl_uv
   use converr, only: ptabl
   use rapidrefresh_cldsurf_mod, only: l_PBL_pseudo_SurfobsUV, pblH_ration,pps_press_incr
+  use rapidrefresh_cldsurf_mod, only: l_closeobs, i_gsdqc
 
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
 
@@ -152,6 +153,9 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
 !                       . removed (%dlat,%dlon) debris.
+!   2017-03-31  Hu      -  addd option l_closeobs to use closest obs to analysis
+!                                     time in analysis
+!
 !
 ! REMARKS:
 !   language: f90
@@ -243,6 +247,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   type(wNode),pointer :: my_head
   type(obs_diag),pointer :: my_diag
   real(r_kind) :: thisPBL_height,ratio_PBL_height,prest,prestsfc,dudiffsfc,dvdiffsfc
+  real(r_kind) :: hr_offset
 
   equivalence(rstation_id,station_id)
   equivalence(r_prvstg,c_prvstg)
@@ -324,6 +329,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end do
 
 !  handle multiple-report observations at a station
+  hr_offset=min_offset/60.0_r_kind
   dup=one
   do k=1,nobs
      do l=k+1,nobs
@@ -333,9 +339,20 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
            muse(k) .and. muse(l))then
 
-           tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
-           dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
-           dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
+           if(l_closeobs) then
+              if(abs(data(itime,k)-hr_offset)<abs(data(itime,l)-hr_offset)) then
+                  muse(l)=.false.
+              else
+                  muse(k)=.false.
+              endif
+!              write(*,'(a,2f10.5,2I8,2L10)') 'chech wind obs time==',&
+!              data(itime,k)-hr_offset,data(itime,l)-hr_offset,k,l,&
+!                           muse(k),muse(l)
+           else
+              tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
+              dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
+              dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
+           endif
         end if
      end do
   end do
@@ -719,7 +736,12 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         endif  
    
         if(itype >=240 .and. itype <=260) then
-           if( presw >950.0_r_kind) error =zero    !  screen data beloww 950mb
+           if(i_gsdqc==2) then
+              prsfc = r10*psges
+              if( prsfc-presw < 100.0_r_kind) error =zero ! add check for obs within 100 hPa of sfc
+           else
+              if( presw >950.0_r_kind) error =zero       ! screen data beloww 950mb
+           endif
         endif
         if(itype ==242 .or. itype ==243 ) then  !  visible winds from JMA and EUMETSAT
            if(presw <700.0_r_kind) error=zero    !  no visible winds above 700mb
