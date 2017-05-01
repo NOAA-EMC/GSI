@@ -66,9 +66,13 @@ contains
   !   2011-04-29  todling - introduce MetGuess and wrf_mass_guess_mod
   !   2011-09-20  hclin   - added 15 wrfchem/gocart fields for aod
   !   2012-04-13  whitaker - don't call GSI_BundleGetPointer if n_actual_clouds = 0
-  !   2013-10-19  todling - metguess now holds background !   2013-10-24  todling - general interface to strip !   2014-03-12  hu     - add code to read ges_q2 (2m Q), 
+  !   2013-10-19  todling - metguess now holds background 
+  !   2013-10-24  todling - general interface to strip 
+  !   2014-03-12  hu      - add code to read ges_q2 (2m Q), 
   !                               Qnr(rain number concentration), 
   !                               and nsoil (number of soil levels)
+  !   2015-01-13  ladwig   - add code to read Qni and Qnc (cloud ice and water
+  !                               number concentration)
   !
   !   input argument list:
   !     mype     - pe number
