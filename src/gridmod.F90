@@ -84,7 +84,8 @@ module gridmod
 !                        to allow spectral to grid transformation to a lower resolution grid
 !   2015-02-03 todling - update max nlayers to 200
 !   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
-!                      
+!   2017-03-23  Hu      - add code to get eta2_ll and aeta2_ll ready for hybrid vertical coodinate in WRF MASS CORE
+!
 !                        
 !
 !
@@ -146,6 +147,7 @@ module gridmod
   public :: use_readin_anl_sfcmask
   public :: jcap_gfs,nlat_gfs,nlon_gfs
   public :: use_sp_eqspace,jcap_cut
+  public :: wrf_mass_hybridcord
 
   interface strip
      module procedure strip_single_rank33_
@@ -163,6 +165,7 @@ module gridmod
   logical wrf_nmm_regional  !
   logical nems_nmmb_regional! .t. to run with NEMS NMMB model
   logical wrf_mass_regional !
+  logical wrf_mass_hybridcord
   logical cmaq_regional     ! .t. to run with cmaq
   logical twodvar_regional  ! .t. to run code in regional 2D-var mode
   logical use_gfs_ozone     ! .t. to use gfs ozone in regional analysis
@@ -419,6 +422,7 @@ contains
     periodic = .false.
     wrf_nmm_regional = .false.
     wrf_mass_regional = .false.
+    wrf_mass_hybridcord = .false.
     cmaq_regional=.false.
     nems_nmmb_regional = .false.
     twodvar_regional = .false. 
@@ -1259,20 +1263,22 @@ contains
 ! Get vertical info for wrf mass core
        allocate(aeta1_ll(nsig),eta1_ll(nsig+1))
        allocate(aeta1(nsig),eta1(nsig+1))
+       allocate(aeta2_ll(nsig),eta2_ll(nsig+1))
+       allocate(aeta2(nsig),eta2(nsig+1))
        allocate(glat(nlon_regional,nlat_regional),glon(nlon_regional,nlat_regional))
        allocate(dx_mc(nlon_regional,nlat_regional),dy_mc(nlon_regional,nlat_regional))
-       read(lendian_in) aeta1
-       read(lendian_in) eta1
+       read(lendian_in) aeta1,aeta2
+       read(lendian_in) eta1,eta2
  
        if(diagnostic_reg.and.mype==0) write(6,*)' in init_reg_glob_ll, pt=',pt
        if(diagnostic_reg.and.mype==0) then
-          write(6,*)' in init_reg_glob_ll, aeta1 follows:'
+          write(6,*)' in init_reg_glob_ll, aeta1,aeta2 follows:'
           do k=1,nsig
-             write(6,'(" k,aeta1=",i3,f10.4)') k,aeta1(k)
+             write(6,'(" k,aeta1=",i3,2f10.4)') k,aeta1(k),aeta2(k)
           end do
-          write(6,*)' in init_reg_glob_ll, eta1 follows:'
+          write(6,*)' in init_reg_glob_ll, eta1,eta2 follows:'
           do k=1,nsig+1
-             write(6,'(" k,eta1=",i3,f10.4)') k,eta1(k)
+             write(6,'(" k,eta1=",i3,2f10.4)') k,eta1(k),eta2(k)
           end do
        end if
 
@@ -1281,6 +1287,9 @@ contains
        if(diagnostic_reg.and.mype==0) write(6,*)' in init_reg_glob_ll, pt_ll=',pt_ll
        eta1_ll=eta1
        aeta1_ll=aeta1
+       eta2_ll=eta2*r0_01
+       aeta2_ll=aeta2*r0_01
+
        read(lendian_in) glat,dx_mc
        read(lendian_in) glon,dy_mc
        close(lendian_in)

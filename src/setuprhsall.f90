@@ -661,7 +661,10 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
   if (conv_diagsave) close(7)
 
-  call obsdiags_sort()
+  if(l_PBL_pseudo_SurfobsT.or.l_PBL_pseudo_SurfobsQ.or.l_PBL_pseudo_SurfobsUV) then
+  else
+     call obsdiags_sort()
+  endif
 
 ! for temporary testing purposes, _write and _read.
   if(OBSDIAGS_RELOAD) then
