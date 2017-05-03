@@ -47,7 +47,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
   PROF= #-pg
   OMP = #-qsmp=noauto
 
-  FFLAGS_F90    = -DWRF -D_REAL8_
+  FFLAGS_F90    =  -D_REAL8_
 
   FFLAGS_COM_N  = -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) -I $(INCnemsio) \
 		-I $(INCnetcdf) -I $(INCw3) -O3 -xHOST -traceback -assume byterecl -convert big_endian $(OMP)
