@@ -247,9 +247,9 @@ subroutine  gsdcloudanalysis(mype)
   real(r_kind)    :: Temp, watwgt
   real(r_kind)    :: cloudwater, cloudice
 
-  real(r_kind),parameter    :: pi = 4.*atan(1.)
-  real(r_kind),parameter    :: rho_w = 999.97, rho_a = 1.2
-  real(r_kind),parameter    :: cldDiameter = 10.0D3
+  real(r_kind),parameter    :: pi = 4._r_kind*atan(1._r_kind)
+  real(r_kind),parameter    :: rho_w = 999.97_r_kind, rho_a = 1.2_r_kind
+  real(r_kind),parameter    :: cldDiameter = 10.0D3_r_kind
 
 
 !
@@ -789,7 +789,7 @@ subroutine  gsdcloudanalysis(mype)
 ! 4.10 radar temperature tendency for DFI
 !
   dfi_lhtp=dfi_radar_latent_heat_time_period
-  if (istat_NESDIS .ne. 1) sat_ctp=miss_obs_real
+  if (istat_NESDIS /= 1) sat_ctp=miss_obs_real
   call radar_ref2tten(mype,istat_radar,istat_lightning,lon2,lat2,nsig,ref_mos_3d_tten, &
                        cld_cover_3d,p_bk,t_bk,ges_tten(:,:,:,1),dfi_lhtp,krad_bot,pblh,sat_ctp)
 
@@ -816,12 +816,12 @@ subroutine  gsdcloudanalysis(mype)
                  cloudice=0.001_r_kind*cldice_3d(i,j,k)
                  cldwater_3d(i,j,k) = max(cloudwater,ges_ql(j,i,k))
                  cldice_3d(i,j,k)   = max(cloudice,ges_qi(j,i,k))
-                 if(cloudwater > 1.0e-7 .and. cloudwater >= ges_ql(j,i,k)) then
+                 if(cloudwater > 1.0e-7_r_kind .and. cloudwater >= ges_ql(j,i,k)) then
                     nwater_3d(i,j,k)   = 1.0E8_r_single
                  else
                     nwater_3d(i,j,k)   = ges_qnc(j,i,k)
                  endif
-                 if(cloudice > 1.0e-7 .and. cloudice >= ges_qi(j,i,k)) then
+                 if(cloudice > 1.0e-7_r_kind .and. cloudice >= ges_qi(j,i,k)) then
                     nice_3d(i,j,k) = 1.0E6_r_single
                  else
                     nice_3d(i,j,k) = ges_qni(j,i,k)
