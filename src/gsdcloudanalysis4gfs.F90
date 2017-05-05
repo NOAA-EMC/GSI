@@ -240,8 +240,8 @@ subroutine  gsdcloudanalysis4gfs(mype)
   real(r_kind)    :: snowadd,ratio2
   integer(i_kind) :: imax, jmax, ista, iob, job
   real(r_kind)    :: dfi_lhtp, qmixr, tsfc
-  integer :: ntsig,ntsfc
-  integer :: ii,jj
+  integer(i_kind) :: ntsig,ntsfc
+  integer(i_kind) :: ii,jj
 
 !
 !
@@ -482,7 +482,7 @@ subroutine  gsdcloudanalysis4gfs(mype)
      if(istat_nasalarc == 1 ) then
         do j=2,lat2-1
            do i=2,lon2-1
-             if(sat_ctp(i,j) < -99990.0) then   ! missing value is -999999.0
+             if(sat_ctp(i,j) < -99990.0_r_kind) then   ! missing value is -999999.0
                 sat_ctp(i,j) = nasalarc_cld(i,j,1)
                 sat_tem(i,j) = nasalarc_cld(i,j,2)
                 w_frac(i,j)  = nasalarc_cld(i,j,3)
@@ -569,8 +569,8 @@ subroutine  gsdcloudanalysis4gfs(mype)
 
   if(istat_surface==1) then
      do ista=1,numsao
-        iob = min(max(int(oistation(ista)+0.5),1),im)
-        job = min(max(int(ojstation(ista)+0.5),1),jm)
+        iob = min(max(int(oistation(ista)+0.5_r_kind),1),im)
+        job = min(max(int(ojstation(ista)+0.5_r_kind),1),jm)
         wimaxstation(ista)=temp1(iob,job)
         if(wimaxstation(ista) > 0._r_single) then
             i=int(oi(ista))
@@ -831,7 +831,7 @@ endif
 
   if(i_gsdcldanal_type==30 ) then
     !if(istat_nasalarc == 1) then
-    if((istat_nasalarc + istat_nesdis + istat_surface) .gt. 1) then
+    if((istat_nasalarc + istat_nesdis + istat_surface) > 1) then
      do k=1,nsig
         do j=2,lat2-1
            do i=2,lon2-1
@@ -877,7 +877,7 @@ endif
      do j=2,lat2-1
         do i=2,lon2-1
            ges_cwmr(j,i,k)=cldwater_3d(i,j,k) 
-            if(ges_cwmr(j,i,k)<0.0) ges_cwmr(j,i,k)=0.0
+            if(ges_cwmr(j,i,k)<0.0_r_kind) ges_cwmr(j,i,k)=0.0_r_kind
         enddo
      enddo
   enddo

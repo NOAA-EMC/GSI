@@ -85,11 +85,7 @@ module rapidrefresh_cldsurf_mod
 !                         =0. no cloud analysis (default)
 !                         for ARW
 !                         =1.  cloud analysis after var analysis
-!                         =5.  skip cloud analysis and NETCDF file update
-!                         =6.  cloud analysis only and do hybrometeors NETCDF/O
-!                         for NAM
 !                         =2  cloud analysis for NAM
-!                         for GFS
 !                         =30  cloud analysis for GFS
 !      i_gsdsfc_uselist  - options for how to use surface observation use or
 !                          rejection list
