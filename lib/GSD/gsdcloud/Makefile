@@ -83,7 +83,7 @@ GNRLCLDOBJS = kinds.o                    constants.o \
               build_missing_REFcone.o    get_sfm_1d_gnl.o       read_radar_ref.o     \
               cloudCover_NESDIS.o        smooth.o      \
               cloudCover_Surface.o       map_ctp.o              vinterp_radar_ref.o  \
-              hydro_mxr_thompson.o       pbl_height.o
+              hydro_mxr_thompson.o       pbl_height.o map_ctp_lar.o
 
 
 #-----------------------------------------------------------------------
