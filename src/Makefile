@@ -327,6 +327,7 @@ clean:
 	gsd_terrain_match_surfTobs.f90 \
 	gsdcloudanalysis.F90 \
 	gsdcloudanalysis4NMMB.F90 \
+	gsdcloudanalysis4gfs.F90 \
         gsd_update_mod.f90 \
 	gsi_4dvar.f90 \
 	gsi_4dcouplermod.f90 \

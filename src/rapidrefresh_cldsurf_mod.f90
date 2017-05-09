@@ -14,6 +14,7 @@ module rapidrefresh_cldsurf_mod
 !                              i_gsdsfc_uselist,i_lightpcp,i_sfct_gross under
 !                              rapidrefresh_cldsurf
 !   2016-02-29 S.Liu        added options l_use_hydroretrieval_all
+!   2015-01-13 Ladwig   added option l_numconc
 !   2016-09-01 Hu       added option l_closeobs
 !   02-02-2017 Hu       added option i_coastline to turn on the observation
 !                              operator for surface observations along the
@@ -82,8 +83,10 @@ module rapidrefresh_cldsurf_mod
 !                         =1  use 2m T as part of background 
 !      i_gsdcldanal_type    - options for how GSD cloud analysis should be conducted  
 !                         =0. no cloud analysis (default)
+!                         for ARW
 !                         =1.  cloud analysis after var analysis
-!                         =5.  skip cloud analysis and NETCDF file update
+!                         =2  cloud analysis for NAM
+!                         =30  cloud analysis for GFS
 !      i_gsdsfc_uselist  - options for how to use surface observation use or
 !                          rejection list
 !                         =0 . EMC method (default)
@@ -96,6 +99,8 @@ module rapidrefresh_cldsurf_mod
 !                         =1 for cold surface, threshold for gross check is
 !                         enlarged to bring more large negative innovation into
 !                         analysis.
+!      l_numconc    - logical for updating cloud water & cloud ice number
+!                         concentration 
 !      l_closeobs   - logical for pick the observation close to analysis time 
 !                         when there are duplicated observations. This will turn
 !                         off the obs error inflation from duplication.
@@ -160,6 +165,7 @@ module rapidrefresh_cldsurf_mod
   public :: i_gsdsfc_uselist
   public :: i_lightpcp
   public :: l_use_hydroretrieval_all
+  public :: l_numconc
   public :: l_closeobs
   public :: i_coastline
   public :: i_gsdqc
@@ -199,6 +205,7 @@ module rapidrefresh_cldsurf_mod
   integer(i_kind)      i_gsdcldanal_type
   integer(i_kind)      i_gsdsfc_uselist 
   integer(i_kind)      i_lightpcp
+  logical              l_numconc
   logical              l_closeobs
   integer(i_kind)      i_coastline
   integer(i_kind)      i_gsdqc
@@ -288,6 +295,7 @@ contains
     i_gsdsfc_uselist   = 0                            !  turn gsd surface uselist off           
     i_lightpcp         = 0                            !  don't add light pcp over warm section           
     l_use_hydroretrieval_all=.false.
+    l_numconc = .false.                               ! .true. = update number concentration  
     l_closeobs = .false.                              ! .true. = pick the obs close to analysis time
     i_coastline = 0                                   !  turn coastline surface observation operator off  
     i_gsdqc  = 0                                      !  turn gsd obs QC off
