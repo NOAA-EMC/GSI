@@ -74,7 +74,7 @@ SUBROUTINE PrecipType(nlat,nlon,nsig,t_bk,p_bk,q_bk,radar_3d,   &
 !
 ! temp.
 !
-  INTEGER(i_kind):: i,j,k,ilvl,nlvl
+  INTEGER(i_kind):: i,j,k
   real(r_single) :: temp_3d(nlon,nlat,nsig)   ! temperature (C)
   real(r_single) :: rh_3d(nlon,nlat,nsig)   ! relative humidity
   real(r_single) :: p_pa_3d(nlon,nlat,nsig)   ! 
