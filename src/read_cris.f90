@@ -31,6 +31,9 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2015-10-01  guo      - keep the original {dlat,dlon}_earth_deg values to avoid round-off errors.
 !   2016-04-28  jung - added logic for RARS and direct broadcast from NESDIS/UW
 !   2016-06-03  Collard - Added changes to allow for historical naming conventions
+!   2017-05-09  jung - mods to include all fovs, sensor twist in scan angle,
+!                      thinning routine including cloud info, and test 431
+!                      subset.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -127,7 +130,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_double),dimension(4)  :: linele
   real(r_double),dimension(13) :: allspot
   real(r_double),allocatable,dimension(:,:) :: allchan
-  real(r_double),dimension(2):: cloud_frac
+  real(r_double),dimension(2):: cloud_properties
   character(len=3) :: char_mtyp
   
   real(r_kind)      :: step, start
@@ -181,10 +184,22 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind):: bufr_size
   character(len=20),dimension(1):: sensorlist
 
-!  real(r_kind),dimension(9) :: fov_dist(1:9) = (/1.5556,1.1,1.5556,1.1,0.0,1.1,1.5556,1.1,1.5556/)  ! degrees
+! scan angle calculation geometry based on:
+! C. Root 2014: JPSS Ground Project Code 474-00032
+! Joint Polar Satellite System Cross Track Infrared Sounder Sensor Data Records
+! Algorithm Theoretical Basis Document
+!          and
+! NWP SAF NWPSAF-MO-UD-027
+! N. C. Atkinson 2011: Pre-processing of ATMS and CrIS 
+!
+! Each FOV has a 1.1 degree separation 
+! The orientation of the 9 FOVs rotates across the scan by an angle equal to the
+! scan angle.
+! across the scan by an angle equal to the scan angle.
+! distance from the FOR center (FOV=5) in radians used for scan angle
   real(r_kind),dimension(9) :: fov_dist(1:9) = (/2.71510e-2,1.91986e-2,2.71510e-2,1.91986e-2,0.0,1.91986e-2,2.71510e-2,1.91986e-2,2.71510e-2/)  !radians
-!  real(r_kind),dimension(9) :: fov_ang(1:9) = (/270.0,225.0,180.0,315.0,0.0,135.0,0.0,45.0,90.0/)   ! degrees
-  real(r_kind),dimension(9) :: fov_ang(1:9) = (/4.71239,3.92699,3.14159,5.49779,0.0,2.35619,0.0,0.78540,1.57080/)  !radians
+! direction to FOV from the FOR center in radians reference is FOR=1 
+  real(r_kind),dimension(9) :: fov_ang(1:9) = (/4.77057,3.98517,3.19977,5.55597,0.0,2.41437,0.05818,0.84358,1.62897/)  !radians
 
 ! Set standard parameters
   character(8),parameter:: fov_flag="crosstrk"
@@ -562,26 +577,20 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !          Observational info
            sat_zenang  = allspot(10)            ! satellite zenith angle
-
 !          Check satellite zenith angle (SAZA)
            if(sat_zenang > 90._r_kind ) then
               write(6,*)'READ_CRIS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
                  ' STRANGE OBS INFO(SAZA):', allspot(10)
               cycle read_loop
            endif
+!          Change sign for right side of scan line.
+           if( ifor <= 15 )  sat_zenang = -sat_zenang
 
-!          Compare CRIS satellite scan angle and zenith angle
-           if( ifor <= 15 ) then
-              sat_zenang = -sat_zenang
-              look_angle_est = (start + float((ifor-1))*step) * deg2rad + &
-                      fov_dist(ifov) * sin(fov_ang(ifov) - float((ifor-1))*5.60999e-2_r_kind)
-           else
-              look_angle_est = (start + float((ifor-1))*step) * deg2rad  + &
-                      fov_dist(ifov) * sin(fov_ang(ifov) - float((ifor-2))*5.60999e-2_r_kind)
-           endif
+!          Compute scan angle including sensor twist. 
+           look_angle_est = (start + float((ifor-1))*step) * deg2rad + &
+              fov_dist(ifov) * sin(fov_ang(ifov) - float(ifor-1)*step*deg2rad)
 
            sat_look_angle=asin(rato*sin(sat_zenang*deg2rad))
-
            if(abs(sat_look_angle)*rad2deg > MAX_SENSOR_ZENITH_ANGLE) then
               write(6,*)'READ_CRIS WARNING lza error ',sat_look_angle,look_angle_est
               cycle read_loop
@@ -668,18 +677,18 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          Cloud information  may be missing depending on how the VIIRS granules align
 !          with the CrIS granules.  
 !          Cloud Amount, TOCC is total cloud cover [%], HOCT is cloud height [m] 
-           call ufbint(lnbufr,cloud_frac,2,1,iret,'TOCC HOCT')
-           if ( cloud_frac(1) <= r100 .and. cloud_frac(1) >= zero .and. &
-                cloud_frac(2) < 1.0e6_r_kind ) then
+           call ufbint(lnbufr,cloud_properties,2,1,iret,'TOCC HOCT')
+           if ( cloud_properties(1) <= r100 .and. cloud_properties(1) >= zero .and. &
+                cloud_properties(2) < 1.0e6_r_kind ) then
 !             Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
-              if ( cloud_frac(1) < one ) then     !Assume clear
+              if ( cloud_properties(1) < one ) then     !Assume clear
                  clear = .true.
               else                                ! Assume a lapse rate to convert hgt to delta TB.
-                 pred = cloud_frac(2) *7.0_r_kind / r1000
+                 pred = cloud_properties(2) *7.0_r_kind / r1000
               endif
            else
 
-!          If cloud_frac is missing from BUFR, use proxy of warmest fov. 
+!          If cloud_properties is missing from BUFR, use proxy of warmest fov. 
 !          the surface channel is fixed and set earlier in the code (501).
 
              radiance = allchan(1,sfc_channel_index) * r1000    ! Conversion from W to mW
