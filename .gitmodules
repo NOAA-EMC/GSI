@@ -1,0 +1,6 @@
+[submodule "fix"]
+	path = fix
+	url = ../fix.git
+[submodule "libsrc"]
+	path = libsrc
+	url = ../external-libs.git
