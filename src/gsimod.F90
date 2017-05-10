@@ -124,7 +124,7 @@
                             l_cloud_analysis,nesdis_npts_rad, & 
                             iclean_hydro_withRef,iclean_hydro_withRef_allcol, &
                             i_use_2mq4b,i_use_2mt4b,i_gsdcldanal_type,i_gsdsfc_uselist, &
-                            i_lightpcp,i_sfct_gross,l_use_hydroretrieval_all,l_closeobs,&
+                            i_lightpcp,i_sfct_gross,l_use_hydroretrieval_all,l_numconc,l_closeobs,&
                             i_coastline,i_gsdqc
   use gsi_metguess_mod, only: gsi_metguess_init,gsi_metguess_final
   use gsi_chemguess_mod, only: gsi_chemguess_init,gsi_chemguess_final
@@ -319,6 +319,7 @@
 !  05-02-2015 Parrish   add option rtma_bkerr_sub2slab to allow dual resolution for application of
 !                       anisotropic recursive filter (RTMA application only for now).
 !  05-13-2015 wu        remove check to turn off regional 4densvar
+!  01-13-2015 Ladwig    added option l_numconc
 !  09-01-2015 Hu        added option l_closeobs
 !  10-01-2015 guo       option to redistribute observations in 4d observer mode
 !  03-02-2016 s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
@@ -912,6 +913,10 @@
 !                         =1 for cold surface, threshold for gross check is
 !                         enlarged to bring more large negative innovation into
 !                         analysis.
+!      l_numconc         - namelist logical to update cloud water and cloud ice
+!                          number concentrations. 
+!                         =false do not update num conc
+!                         =true update num conc
 !      l_use_hydroretrieval_all - the precipitation analysis use reflectivity
 !                                 purely
 !      l_closeobs        - namelist logical to pick the obs close to analysis
@@ -942,7 +947,7 @@
                                 nesdis_npts_rad, &
                                 iclean_hydro_withRef,iclean_hydro_withRef_allcol,&
                                 i_use_2mq4b,i_use_2mt4b,i_gsdcldanal_type,i_gsdsfc_uselist, &
-                                i_lightpcp,i_sfct_gross,l_use_hydroretrieval_all,l_closeobs,&
+                                i_lightpcp,i_sfct_gross,l_use_hydroretrieval_all,l_numconc,l_closeobs,&
                                 i_coastline,i_gsdqc
 
 ! chem(options for gsi chem analysis) :

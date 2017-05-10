@@ -1,5 +1,5 @@
 SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
-                        xlong,xlat,t_bk,p_bk,h_bk,zh,xland, &
+                        xlong,xlat,t_bk,p_bk,h_bk,xland, &
                         soil_tbk,sat_ctp,sat_tem,w_frac,&
                         l_cld_bld,cld_bld_hgt,build_cloud_frac_p,clear_cloud_frac_p,nlev_cld, &
                         cld_cover_3d,cld_type_3d,wthr_type,Osfc_station_map)
@@ -31,7 +31,6 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
 !     t_bk        - 3D background potential temperature (K)
 !     p_bk        - 3D background pressure  (hPa)
 !     h_bk        - 3D background height  
-!     zh          - terrain
 !     xland       - surface type (water, land)
 !     soil_tbk    - background soil temperature
 !     sat_ctp     - GOES cloud top pressure in analysis grid
@@ -81,7 +80,6 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
   real(r_single),intent(in)    :: t_bk(nlon,nlat,nsig)   ! potentional temperature
   real(r_single),intent(inout) :: p_bk(nlon,nlat,nsig)   ! pressure
   real(r_single),intent(in)    :: h_bk(nlon,nlat,nsig)   ! height
-  real(r_single),intent(in)    :: zh(nlon,nlat)          ! terrain
   real(r_single),intent(in)    :: xland(nlon,nlat)       ! surface
   real(r_single),intent(in)    :: soil_tbk(nlon,nlat)    ! soil tmperature
 !  real(r_single),intent(in)    :: q_bk(nlon,nlat,nsig)   ! moisture, water vapor mixing ratio (kg/kg)
@@ -108,17 +106,8 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
 !
 !-------------------------------------------------------------------------
 ! --- Key parameters
-!     Cloud_def_p       = 0.000001      g/g cloud top threshold for model
 !     Min_cloud_lev_p   = 3             Lowest model level to check for cloud
-!     Rh_clear_p        = 0.80          RH to use when clearing cloud
 !     Sat_cloud_pthick_p=  50.          Depth (mb) of new sat-sensed cloud layer
-!     cloud_zthick_p    = 300.          Depth (m) of new cloud layer
-!     Cloud_q_qvis_rat_p= 0.10          Ratio of cloud water to water/ice
-!                                        saturation mixing ratio for new cloud
-!     Max_cloud_top_p   = 150.          Max cloud top (mb)
-!     RH_makecloud_p    = 0.90          RH threshold for making cloud if bkg
-!                                         rh is at least this high at
-!                                         neighboring points
 !     Cloud_up_p        = 10            Pressure thickness for
 !                                         Upward extrapolation of cloud
 !                                        (if model level is within cloud_up_p
@@ -132,36 +121,22 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
 !                                         high enough to trust the
 !                                         GOES cloud data
 
-  real(r_kind)    ::    Cloud_def_p
   integer(i_kind) ::    min_cloud_lev_p
-  real(r_kind)    ::    Rh_clear_p
   real(r_kind)    ::    sat_cloud_pthick_p
-  real(r_kind)    ::    cloud_zthick_p
-  real(r_kind)    ::    Cloud_q_qvis_rat_p
-  real(r_kind)    ::    Max_cloud_top_p
-  real(r_kind)    ::    RH_makecloud_p
   real(r_kind)    ::    cloud_up_p
   real(r_kind)    ::    min_cloud_p_p
   real(r_kind)    ::    co2_preslim_p
-  real(r_kind)    ::    auto_conver
   real(r_kind)    ::    zen_limit
   real(r_kind)    ::    dt_remap_pcld_limit_p
 
 ! --- Key parameters
-  data  Cloud_def_p        / 0.000001_r_kind/
   data  Min_cloud_lev_p    / 1_i_kind  /        !  w/ sfc cld assim
 !  data  Min_cloud_lev_p    / 3_i_kind  /        !  w/ sfc cld assim
-  data  Rh_clear_p         / 0.80_r_kind/
   data  Sat_cloud_pthick_p / 30._r_kind/
 !  data  Sat_cloud_pthick_p / 50._r_kind/
-  data  cloud_zthick_p     / 300._r_kind/
-  data  Cloud_q_qvis_rat_p / 0.05_r_kind/
-  data  Max_cloud_top_p    / 150._r_kind/
-  data  RH_makecloud_p     / 0.90_r_kind/
   data  cloud_up_p         / 0._r_kind /
   data  min_cloud_p_p      / 1080._r_kind/      ! w/ sfc cld assim
   data  co2_preslim_p      / 620._r_kind/
-  data  auto_conver        / 0.0002_r_kind/
 ! -- change to 82 deg per Patrick Minnis - 4 Nov 09
   data  zen_limit          / 0.14_r_kind/
 ! data  zen_limit          / 0.20_r_kind /
@@ -176,7 +151,6 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
   PARAMETER ( spval_p    =  99999.0 )
 
   INTEGER(i_kind)  :: i,j,k,k1,i1,j1,jp1,jm1,ip1,im1
-  REAL(r_kind)     :: ri, rj
   INTEGER(i_kind)  :: gmt,nday,iyear,imonth,iday
   REAL(r_kind)     :: declin
   real(r_kind)     :: hrang,xxlat
@@ -197,8 +171,8 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
 
   real(r_kind)     :: firstcloud, pdiff,pdiffabove
 
-  INTEGER(i_kind)  :: ista, k_closest, cld_warm_strat(nlon,nlat)
-  REAL(r_kind)     :: dist, tdiff
+  INTEGER(i_kind)  :: k_closest, cld_warm_strat(nlon,nlat)
+  REAL(r_kind)     :: tdiff
 
 !
 !====================================================================
@@ -558,28 +532,38 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
 !          - during night
 !          - lower than co2_preslim_p
 !          - clear from satellite
-             elseif( (csza(i,j)<zen_limit .and.                      &
-                     p_bk(i,j,k)/100._r_kind>=co2_preslim_p) .and.    &   
-                     abs(xland(i,j)-0._r_single) > 0.0001_r_single .and. &
-                     cld_cover_3d(i,j,k) >0.0001_r_kind)  then
-                    if(Osfc_station_map(i,j) == 1) then  
+             else  ! mhu Dec 2016: turn off this night low cloud check
+                    if(Osfc_station_map(i,j) == 1 .and. &
+                       cld_cover_3d(i,j,k) >0.0001_r_kind) then  
                     else
-                       cld_cover_3d(i,j,k) = - 77777.0_r_single     ! set to unknown
+                       cld_cover_3d(i,j,k) = 0.0_r_single 
+                       wthr_type(i,j) = 0
                     endif
+!mhu             elseif( (csza(i,j)<zen_limit .and.                      &
+!mhu                     p_bk(i,j,k)/100._r_kind>=co2_preslim_p) .and.    &   
+!mhu                     abs(xland(i,j)-0._r_single) > 0.0001_r_single .and. &
+!mhu                     cld_cover_3d(i,j,k) >0.0001_r_kind)  then
+!mhu                    if(Osfc_station_map(i,j) == 1) then  
+!mhu                    else
+!mhu                       cld_cover_3d(i,j,k) = - 77777.0_r_single     ! set to unknown
+!mhu                    endif
              end if
           end do
 !mhu: use 1060hps cloud top pressure to clean above the low cloud top
         elseif (abs(sat_ctp(i,j)-1060.0_r_kind) < 1.0_r_kind) then !clear since the low cloud top
           do k=1,nsig
-             if (csza(i,j)<zen_limit                             &
-                .and. p_bk(i,j,k)/100._r_kind<co2_preslim_p      &
-                 .or. abs(xland(i,j)) < 0.0001_r_single          &
-                 .or. csza(i,j)>=zen_limit) then
-                   if( abs(cld_cover_3d(i,j,k)) > 2.0_r_single ) then
                        cld_cover_3d(i,j,k) = 0.0_r_single
                        wthr_type(i,j) = 0
-                  endif
-             end if
+!mhu mhu Dec 2016: turn off this night low cloud check
+!mhu             if (csza(i,j)<zen_limit                             &
+!mhu                .and. p_bk(i,j,k)/100._r_kind<co2_preslim_p      &
+!mhu                 .or. abs(xland(i,j)) < 0.0001_r_single          &
+!mhu                 .or. csza(i,j)>=zen_limit) then
+!mhu                   if( abs(cld_cover_3d(i,j,k)) > 2.0_r_single ) then
+!mhu                       cld_cover_3d(i,j,k) = 0.0_r_single
+!mhu                       wthr_type(i,j) = 0
+!mhu                  endif
+!mhu             end if
           end do 
         end if
       enddo
@@ -591,27 +575,37 @@ SUBROUTINE cloudCover_NESDIS(mype,regional_time,nlat,nlon,nsig,&
     do  j=2,nlat-1
       do  i=2,nlon-1
         do k=1,nsig-1
+           if (sat_ctp(i,j)<1010._r_kind .and.          &
+               sat_ctp(i,j)>p_bk(i,j,k)/100._r_kind) then
+               if(sat_ctp(i,j) >= 800.0_r_kind .and. Osfc_station_map(i,j) == 1) then
+                  cld_cover_3d(i,j,k+1) =                  &
+                       max(0.0_r_single, cld_cover_3d(i,j,k+1))
+               else
+                  cld_cover_3d(i,j,k+1) = 0.0_r_single
+               endif
+           endif
+
 ! - return to previous (but experimental) version - 12 Oct 04
-          if (csza(i,j) < zen_limit                           &
-              .and. p_bk(i,j,k)/100._r_kind<co2_preslim_p     &
-               .or. abs(xland(i,j)) < 0.0001_r_single         &
-               .or. csza(i,j)>=zen_limit) then
+!mhu          if (csza(i,j) < zen_limit                           &
+!mhu              .and. p_bk(i,j,k)/100._r_kind<co2_preslim_p     &
+!mhu               .or. abs(xland(i,j)) < 0.0001_r_single         &
+!mhu               .or. csza(i,j)>=zen_limit) then
 ! --- since we set GOES to nearest RUC level, only clear at least
 !       1 RUC level above cloud top
-                 if (sat_ctp(i,j)<1010._r_kind .and.          &
-                     sat_ctp(i,j)>p_bk(i,j,k)/100._r_kind) then
+!mhu                 if (sat_ctp(i,j)<1010._r_kind .and.          &
+!mhu                     sat_ctp(i,j)>p_bk(i,j,k)/100._r_kind) then
 !
 !  mhu, some low cloud top press (> 800 hpa) over clean the cloud that observed by METAR
 ! so add these check to keep cloud base correct
 !
-                   if(sat_ctp(i,j) >= 800.0_r_kind ) then
-                     cld_cover_3d(i,j,k+1) =                  &
-                          max(0.0_r_single, cld_cover_3d(i,j,k+1))
-                   else
-                     cld_cover_3d(i,j,k+1) = 0.0_r_single
-                   endif
-                 endif
-          end if
+!mhu                   if(sat_ctp(i,j) >= 800.0_r_kind ) then
+!mhu                     cld_cover_3d(i,j,k+1) =                  &
+!mhu                          max(0.0_r_single, cld_cover_3d(i,j,k+1))
+!mhu                   else
+!mhu                     cld_cover_3d(i,j,k+1) = 0.0_r_single
+!mhu                   endif
+!mhu                 endif
+!mhu          end if
         end do
       enddo
     enddo
