@@ -519,7 +519,7 @@ contains
     implicit none
     character(10) :: obstype
     type(rad_obs_type) :: radmod
-    integer i
+    integer(i_kind) i
 
     if (total_rad_type<=0) return
     

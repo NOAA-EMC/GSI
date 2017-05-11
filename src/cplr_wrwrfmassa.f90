@@ -52,6 +52,8 @@ contains
   !   2014-03-12  hu     - add code to read ges_q2 (2m Q), 
   !                               Qnr(rain number concentration), 
   !                               and nsoil (number of soil levels)
+  !   2015-01-13  ladwig - add code to read Qni and Qnc (cloud ice and water
+  !                        number concentration)
   !   2015-01-15  hu     - add i_snowT_check to control temperature adjustment
   !                               over snow  
   !   2017-03-23  Hu      - add code to use hybrid vertical coodinate in WRF MASS
@@ -117,8 +119,8 @@ contains
     integer(i_kind) num_loc_groups,num_j_groups
     integer(i_kind) i,it,j,k
     integer(i_kind) i_mu,i_t,i_q,i_u,i_v
-    integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,i_qnr
-    integer(i_kind) kqc,kqi,kqr,kqs,kqg,kqnr,i_tt,ktt
+    integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,i_qnr,i_qni,i_qnc
+    integer(i_kind) kqc,kqi,kqr,kqs,kqg,kqnr,kqni,kqnc,i_tt,ktt
     integer(i_kind) i_th2,i_q2,i_soilt1,i_tslb,i_smois,ktslb,ksmois,ksize
     integer(i_kind) i_sst,i_tsk
     real(r_kind) psfc_this,psfc_this_dry
@@ -160,6 +162,8 @@ contains
     real(r_kind), pointer :: ges_qs(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qg(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qnr(:,:,:)=>NULL()
+    real(r_kind), pointer :: ges_qni(:,:,:)=>NULL()
+    real(r_kind), pointer :: ges_qnc(:,:,:)=>NULL()
   
     it=ntguessig
   
@@ -176,6 +180,8 @@ contains
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr,istatus );ier=ier+istatus
+       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qni',ges_qni,istatus );ier=ier+istatus
+       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnc',ges_qnc,istatus );ier=ier+istatus
        if (ier/=0) n_actual_clouds=0
     end if
   
@@ -188,9 +194,9 @@ contains
     lm=nsig
   
     num_mass_fields=4*lm+4
-    if(l_cloud_analysis .or. n_actual_clouds>0) num_mass_fields=4*lm+4+7*lm
+    if(l_cloud_analysis .and. n_actual_clouds>0) num_mass_fields=4*lm+4+9*lm
     if(l_gsd_soilTQ_nudge) num_mass_fields=4*lm+4+2*nsig_soil+2
-    if(l_cloud_analysis .and. l_gsd_soilTQ_nudge) num_mass_fields=4*lm+4+7*lm+2*nsig_soil+2
+    if(l_cloud_analysis .and. l_gsd_soilTQ_nudge) num_mass_fields=4*lm+4+9*lm+2*nsig_soil+2
     allocate(offset(num_mass_fields))
     allocate(igtype(num_mass_fields),kdim(num_mass_fields),kord(num_mass_fields))
     allocate(length(num_mass_fields))
@@ -400,7 +406,7 @@ contains
     endif
   
   ! for cloud/hydrometeor analysis fields
-    if(l_cloud_analysis .or. n_actual_clouds>0) then
+    if(l_cloud_analysis .and. n_actual_clouds>0) then
   
        i_qc=i+1
        read(lendian_in) n_position,memoryorder
@@ -491,6 +497,36 @@ contains
           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
           if(mype == 0.and.k==1) write(6,*)' qnr i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
        end do
+
+       i_qni=i+1
+       read(lendian_in) n_position,memoryorder
+       do k=1,lm
+          i=i+1                                                       !  qni(k)
+          if(trim(memoryorder)=='XZY') then
+             iadd=0
+             kord(i)=lm
+          else
+             iadd=(k-1)*im*jm*4
+             kord(i)=1
+          end if
+          offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
+          if(mype == 0.and.k==1) write(6,*)' qni i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+       end do
+
+       i_qnc=i+1
+       read(lendian_in) n_position,memoryorder
+       do k=1,lm
+          i=i+1                                                       !  qnc(k)
+          if(trim(memoryorder)=='XZY') then
+             iadd=0
+             kord(i)=lm
+          else
+             iadd=(k-1)*im*jm*4
+             kord(i)=1
+          end if
+          offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
+          if(mype == 0.and.k==1) write(6,*)' qnc i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+       end do
   
        i_tt=i+1
        read(lendian_in) n_position,memoryorder
@@ -564,7 +600,7 @@ contains
     q_integral=one
     q_integralc4h=zero_single
   ! for hydrometeors
-    if(l_cloud_analysis .or. n_actual_clouds>0) then
+    if(l_cloud_analysis .and. n_actual_clouds>0) then
   !    get pointer to relevant instance of cloud-related backgroud
        ier=0
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ier=ier+istatus
@@ -573,6 +609,8 @@ contains
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr,istatus );ier=ier+istatus
+       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qni',ges_qni,istatus );ier=ier+istatus
+       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnc',ges_qnc,istatus );ier=ier+istatus
        if (ier/=0) then
            write(6,*)'wrwrfmassa_binary: getpointer failed, cannot do cloud analysis'
            call stop2(999)
@@ -583,6 +621,8 @@ contains
        kqs=i_qs-1
        kqg=i_qg-1
        kqnr=i_qnr-1
+       kqni=i_qni-1
+       kqnc=i_qnc-1
        ktt=i_tt-1
     endif
     ier=0
@@ -602,13 +642,15 @@ contains
        ku=ku+1
        kv=kv+1
   ! for hydrometeors
-       if(l_cloud_analysis .or. n_actual_clouds>0) then
+       if(l_cloud_analysis .and. n_actual_clouds>0) then
           kqc=kqc+1
           kqi=kqi+1
           kqr=kqr+1
           kqs=kqs+1
           kqg=kqg+1
           kqnr=kqnr+1
+          kqni=kqni+1
+          kqnc=kqnc+1
           ktt=ktt+1
        endif
        do i=1,lon1
@@ -640,6 +682,8 @@ contains
                 all_loc(j,i,kqs)=ges_qs(jp1,ip1,k)
                 all_loc(j,i,kqg)=ges_qg(jp1,ip1,k)
                 all_loc(j,i,kqnr)=ges_qnr(jp1,ip1,k)
+                all_loc(j,i,kqni)=ges_qni(jp1,ip1,k)
+                all_loc(j,i,kqnc)=ges_qnc(jp1,ip1,k)
                 all_loc(j,i,ktt)=ges_tten(jp1,ip1,k,it)
              endif
   
@@ -858,7 +902,7 @@ contains
     endif
   
   ! read hydrometeors
-    if(l_cloud_analysis .or. n_actual_clouds>0) then
+    if(l_cloud_analysis .and. n_actual_clouds>0) then
   !                                    read qc
        if(kord(i_qc)/=1) then
           allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
@@ -946,6 +990,36 @@ contains
           end if
           call read_wrf%transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                            jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_qnr,i_qnr+lm-1)
+          deallocate(jbuf)
+       end if
+
+  !                                    read qni
+       if(kord(i_qni)/=1) then
+          allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
+          this_offset=offset(i_qni)+(jbegin(mype)-1)*4*im*lm
+          this_length=(jend(mype)-jbegin(mype)+1)*im*lm
+          call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
+          if(byte_swap) then
+             num_swap=this_length
+             call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
+          end if
+          call read_wrf%transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                           jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_qni,i_qni+lm-1)
+          deallocate(jbuf)
+       end if
+  
+  !                                    read qnc
+       if(kord(i_qnc)/=1) then
+          allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
+          this_offset=offset(i_qnc)+(jbegin(mype)-1)*4*im*lm
+          this_length=(jend(mype)-jbegin(mype)+1)*im*lm
+          call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
+          if(byte_swap) then
+             num_swap=this_length
+             call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
+          end if
+          call read_wrf%transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                           jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_qnc,i_qnc+lm-1)
           deallocate(jbuf)
        end if
   
@@ -1139,7 +1213,7 @@ contains
     endif
   
   !  write hydrometeors
-    if(l_cloud_analysis .or. n_actual_clouds>0) then
+    if(l_cloud_analysis .and. n_actual_clouds>0) then
   !                                    write qc
        if(kord(i_qc)/=1) then
           allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
@@ -1221,6 +1295,36 @@ contains
           call this%transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                            jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_qnr,i_qnr+lm-1)
           this_offset=offset(i_qnr)+(jbegin(mype)-1)*4*im*lm
+          this_length=(jend(mype)-jbegin(mype)+1)*im*lm
+          if(byte_swap) then
+             num_swap=this_length
+             call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
+          end if
+          call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
+          deallocate(jbuf)
+       end if
+  
+  !                                    write qni
+       if(kord(i_qni)/=1) then
+          allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
+          call this%transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                           jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_qni,i_qni+lm-1)
+          this_offset=offset(i_qni)+(jbegin(mype)-1)*4*im*lm
+          this_length=(jend(mype)-jbegin(mype)+1)*im*lm
+          if(byte_swap) then
+             num_swap=this_length
+             call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
+          end if
+          call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
+          deallocate(jbuf)
+       end if
+  
+  !                                    write qnc
+       if(kord(i_qnc)/=1) then
+          allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
+          call this%transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                           jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_qnc,i_qnc+lm-1)
+          this_offset=offset(i_qnc)+(jbegin(mype)-1)*4*im*lm
           this_length=(jend(mype)-jbegin(mype)+1)*im*lm
           if(byte_swap) then
              num_swap=this_length
@@ -1683,6 +1787,8 @@ contains
   !   2014-03-12  hu     - add code to read ges_q2 (2m Q), 
   !                               Qnr(rain number concentration), 
   !                               and nsoil (number of soil levels)
+  !   2015-01-13  ladwig - add code to read Qni (cloud water number
+  !                               concentration)
   !   2017-03-23  Hu     - add code to use hybrid vertical coodinate in WRF MASS
   !                        core
   !
@@ -1732,8 +1838,8 @@ contains
     real(r_single),allocatable::landmask(:),snow(:),seaice(:)
     character(6) filename
     integer(i_kind) i,j,k,kt,kq,ku,kv,it,i_psfc,i_t,i_q,i_u,i_v
-    integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,i_qnr
-    integer(i_kind) kqc,kqi,kqr,kqs,kqg,kqnr,i_tt,ktt
+    integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,i_qnr,i_qni,i_qnc
+    integer(i_kind) kqc,kqi,kqr,kqs,kqg,kqnr,kqni,kqnc,i_tt,ktt
     integer(i_kind) i_sst,i_skt,i_th2,i_q2,i_soilt1,i_tslb,i_smois,ktslb,ksmois
     integer(i_kind) :: iv, n_gocart_var,i_snowT_check
     integer(i_kind),allocatable :: i_chem(:), kchem(:)
@@ -1765,6 +1871,8 @@ contains
     real(r_kind), pointer :: ges_qs(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qg(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qnr(:,:,:)=>NULL()
+    real(r_kind), pointer :: ges_qni(:,:,:)=>NULL()
+    real(r_kind), pointer :: ges_qnc(:,:,:)=>NULL()
   
     real(r_kind), pointer :: ges_sulf (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_bc1  (:,:,:)=>NULL()
@@ -1798,6 +1906,8 @@ contains
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr,istatus );ier=ier+istatus
+       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qni',ges_qni,istatus );ier=ier+istatus
+       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnc',ges_qnc,istatus );ier=ier+istatus
        if (ier/=0) n_actual_clouds=0
     end if
   
@@ -1808,7 +1918,7 @@ contains
     num_mass_fields_base=2+4*lm + 1
     num_mass_fields=num_mass_fields_base
 !    The 9 3D cloud analysis fields are: ql,qi,qr,qs,qg,qnr,qni,qnc,tt
-    if(l_cloud_analysis .and. n_actual_clouds>0) num_mass_fields=num_mass_fields + 7*lm
+    if(l_cloud_analysis .and. n_actual_clouds>0) num_mass_fields=num_mass_fields + 9*lm
     if(l_gsd_soilTQ_nudge) num_mass_fields=num_mass_fields+2*nsig_soil+1
     if(i_use_2mt4b > 0 ) num_mass_fields=num_mass_fields+2
     if(i_use_2mt4b <= 0 .and. i_use_2mq4b > 0) num_mass_fields=num_mass_fields+1
@@ -1864,14 +1974,16 @@ contains
     endif
   
   ! for hydrometeors
-    if(l_cloud_analysis .or. n_actual_clouds>0) then
+    if(l_cloud_analysis .and. n_actual_clouds>0) then
        i_qc=i_q2+1
        i_qr=i_qc+lm
        i_qs=i_qr+lm
        i_qi=i_qs+lm
        i_qg=i_qi+lm
        i_qnr=i_qg+lm
-       i_tt=i_qnr+lm
+       i_qni=i_qnr+lm
+       i_qnc=i_qni+lm
+       i_tt=i_qnc+lm
        if ( laeroana_gocart ) then
           do iv = 1, n_gocart_var
              i_chem(iv)=i_tt+(iv-1)*lm+1
@@ -1921,9 +2033,11 @@ contains
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr,istatus );ier=ier+istatus
+       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qni',ges_qni,istatus );ier=ier+istatus
+       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnc',ges_qnc,istatus );ier=ier+istatus
        if (ier/=0) then
            write(6,*)'READ_WRF_MASS_BINARY_GUESS: getpointer failed, cannot do cloud analysis'
-           if (l_cloud_analysis .or. n_actual_clouds>0) call stop2(999)
+           if (l_cloud_analysis .and. n_actual_clouds>0) call stop2(999)
        endif
     endif
   
@@ -1952,6 +2066,8 @@ contains
        kqs=i_qs-1
        kqg=i_qg-1
        kqnr=i_qnr-1
+       kqni=i_qni-1
+       kqnc=i_qnc-1
        ktt=i_tt-1
     endif
     if ( laeroana_gocart ) then
@@ -2001,13 +2117,15 @@ contains
        ku=ku+1
        kv=kv+1
   ! for hydrometeors
-       if(l_cloud_analysis .or. n_actual_clouds>0) then
+       if(l_cloud_analysis .and. n_actual_clouds>0) then
           kqc=kqc+1
           kqi=kqi+1
           kqr=kqr+1
           kqs=kqs+1
           kqg=kqg+1
           kqnr=kqnr+1
+          kqni=kqni+1
+          kqnc=kqnc+1
           ktt=ktt+1
        endif
        if ( laeroana_gocart ) then
@@ -2036,13 +2154,15 @@ contains
              all_loc(j,i,kq)= ges_q(j,i,k)/(one-ges_q(j,i,k))
              	
   ! for hydrometeors      
-             if(l_cloud_analysis .or. n_actual_clouds>0) then
+             if(l_cloud_analysis .and. n_actual_clouds>0) then
                 all_loc(j,i,kqc)=ges_qc(j,i,k)
                 all_loc(j,i,kqi)=ges_qi(j,i,k)
                 all_loc(j,i,kqr)=ges_qr(j,i,k)
                 all_loc(j,i,kqs)=ges_qs(j,i,k)
                 all_loc(j,i,kqg)=ges_qg(j,i,k)
                 all_loc(j,i,kqnr)=ges_qnr(j,i,k)
+                all_loc(j,i,kqni)=ges_qni(j,i,k)
+                all_loc(j,i,kqnc)=ges_qnc(j,i,k)
                 all_loc(j,i,ktt)=ges_tten(j,i,k,it)
              endif
   
@@ -2467,7 +2587,7 @@ contains
     endif  ! i_use_2mt4b>0
   !
   ! for saving cloud analysis results
-    if(l_cloud_analysis .or. n_actual_clouds>0) then
+    if(l_cloud_analysis .and. n_actual_clouds>0) then
   ! Update qc
        kqc=i_qc-1
        do k=1,nsig
@@ -2564,6 +2684,42 @@ contains
           kqnr=kqnr+1
           if(mype == 0) read(lendian_in)temp1
           call strip(all_loc(:,:,kqnr),strp)
+          call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+               tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+          if(mype == 0) then
+             call fill_mass_grid2t(temp1,im,jm,tempb,2)
+             do i=1,iglobal
+                tempa(i)=tempa(i)-tempb(i)
+             end do
+             call unfill_mass_grid2t(tempa,im,jm,temp1)
+             write(lendian_out)temp1
+          end if
+       end do
+   
+  ! Update qni     
+       kqni=i_qni-1
+       do k=1,nsig
+          kqni=kqni+1
+          if(mype == 0) read(lendian_in)temp1
+          call strip(all_loc(:,:,kqni),strp)
+          call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+               tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+          if(mype == 0) then
+             call fill_mass_grid2t(temp1,im,jm,tempb,2)
+             do i=1,iglobal
+                tempa(i)=tempa(i)-tempb(i)
+             end do
+             call unfill_mass_grid2t(tempa,im,jm,temp1)
+             write(lendian_out)temp1
+          end if
+       end do
+   
+  ! Update qnc     
+       kqnc=i_qnc-1
+       do k=1,nsig
+          kqnc=kqnc+1
+          if(mype == 0) read(lendian_in)temp1
+          call strip(all_loc(:,:,kqnc),strp)
           call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
                tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
           if(mype == 0) then
