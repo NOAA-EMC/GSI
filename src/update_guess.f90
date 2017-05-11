@@ -358,7 +358,7 @@ subroutine update_guess(sval,sbias)
         endif
         call  gsd_update_soil_tq(tinc_1st,is_t,qinc_1st,is_q,it)
      endif  ! l_gsd_soilTQ_nudge
-     if (i_use_2mt4b.and. is_t>0) then
+     if (i_use_2mt4b > 0 .and. is_t>0) then
         do j=1,lon2
            do i=1,lat2
               tinc_1st(i,j)=p_tv(i,j,1)
@@ -366,7 +366,7 @@ subroutine update_guess(sval,sbias)
         end do
         call  gsd_update_th2(tinc_1st,it)
      endif ! l_gsd_th2_adjust
-     if (i_use_2mq4b.and. is_q>0) then
+     if (i_use_2mq4b > 0 .and. is_q>0) then
         do j=1,lon2
            do i=1,lat2
               qinc_1st(i,j)=p_q(i,j,1)

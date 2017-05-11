@@ -597,7 +597,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !             skip this kind of data because they are not used in the var analysis
               else if(obstype == 'mta_cld' .or. obstype == 'gos_ctp' .or. &
                       obstype == 'rad_ref' .or. obstype=='lghtn' .or. &
-                      obstype == 'larccld' ) then
+                      obstype == 'larccld' .or. obstype == 'larcglb') then
                  read(lunin,iostat=ier)
                  if(ier/=0) call die('setuprhsall','read(), iostat =',ier)
 
