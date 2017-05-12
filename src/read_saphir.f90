@@ -1,7 +1,7 @@
 subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
      rmesh,jsatid,gstime,infile,lunout,obstype,&
      nread,ndata,nodata,twind,sis, &
-     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs,dval_use,radmod)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs,dval_use)
 ! subprogram:    read_saphir                 read bufr format saphir data
 ! prgmmr :   ejones          org: jcsda               date: 2015-01-02
 ! code copied from read_atms.f90
@@ -15,7 +15,6 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
 !
 ! program history log:
 !  2015-01-02  ejones  - adapted from read_atms.f90
-!  2015-08-20  zhu - add radmod for all-sky and aerosol usages in radiance assimilation
 !  2015-09-17  Thomas  - add l4densvar and thin4d to data selection procedure
 !  2016-03-09  ejones  - update mnemonics for operational SAPHIR bufr
 !  2016-04-01  ejones  - add binning of fovs for scan angle bias correction 
@@ -85,7 +84,6 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) ,intent(in   ) :: mype_sub
   integer(i_kind) ,intent(in   ) :: npe_sub
   integer(i_kind) ,intent(in   ) :: mpi_comm_sub
-  type(rad_obs_type),intent(in ) :: radmod
   integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
   logical         ,intent(in   ) :: dval_use
 
@@ -120,7 +118,6 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind)       :: ilat,ilon,nadir
   integer(i_kind),dimension(5):: idate5
   integer(i_kind)       :: instr,ichan
-  integer(i_kind)       :: ier
   integer(i_kind)       :: radedge_min, radedge_max
   integer(i_kind), POINTER :: ifov  
 

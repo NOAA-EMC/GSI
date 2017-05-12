@@ -1,6 +1,6 @@
 subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
-     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs,nrec_start,dval_use,radmod)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs,nrec_start,dval_use)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_airs                  read bufr format airs data
@@ -70,7 +70,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2012-03-05  akella  nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
-!   2015-08-20  zhu - add radmod for all-sky and aerosol usages in radiance assimilation
 !   2015-10-22  Jung    - added logic to allow subset changes based on the satinfo file
 !
 !   input argument list:
@@ -144,7 +143,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)  ,intent(in   ) :: npe_sub
   integer(i_kind)  ,intent(in   ) :: mpi_comm_sub  
   logical          ,intent(in   ) :: dval_use
-  type(rad_obs_type),intent(in  ) :: radmod  
 
 ! Output variables
   integer(i_kind)  ,intent(inout) :: nread

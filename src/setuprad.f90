@@ -1133,14 +1133,14 @@
            call qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n),goessndr, &
               cris,zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,  &
               wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,                 &
-              id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole(n),radmod)
+              id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole(n))
 
 !  --------- MSU -------------------
 !       QC MSU data
         else if (msu) then
 
            call qc_msu(nchanl,is,ndat,nsig,sea,land,ice,snow,luse(n), &
-              zsges,cenlat,tbc,ptau5,emissivity_k,ts,id_qc,aivals,errf,varinv,radmod)
+              zsges,cenlat,tbc,ptau5,emissivity_k,ts,id_qc,aivals,errf,varinv)
 
 !  ---------- AMSU-A -------------------
 !       QC AMSU-A data
@@ -1173,7 +1173,7 @@
 
            call qc_mhs(nchanl,ndat,nsig,is,sea,land,ice,snow,mhs,luse(n),   &
               zsges,tbc,tb_obs,ptau5,emissivity_k,ts,      &
-              id_qc,aivals,errf,varinv,clw,tpwc,radmod)
+              id_qc,aivals,errf,varinv,clw,tpwc)
 
 !  ---------- ATMS -------------------
 !       QC ATMS data
@@ -1203,7 +1203,7 @@
            end do
            call qc_goesimg(nchanl,is,ndat,nsig,ich,dplat(is),sea,land,ice,snow,luse(n), &
               zsges,cld,tzbgr,tb_obs,tb_obs_sdv,tbc,tnoise,temp,wmix,emissivity_k,ts,id_qc, &
-              aivals,errf,varinv,radmod)
+              aivals,errf,varinv)
            
 
 !  ---------- SEVIRI  -------------------
@@ -1214,7 +1214,7 @@
            cld = 100-data_s(iclr_sky,n)
 
            call qc_seviri(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n), &
-              zsges,tzbgr,tbc,tnoise,temp,wmix,emissivity_k,ts,id_qc,aivals,errf,varinv,radmod)
+              zsges,tzbgr,tbc,tnoise,temp,wmix,emissivity_k,ts,id_qc,aivals,errf,varinv)
 !
 
 !  ---------- AVRHRR --------------
@@ -1246,7 +1246,7 @@
            call qc_avhrr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n),   &
               zsges,cenlat,frac_sea,pangs,trop5,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
               wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts, &
-              id_qc,aivals,errf,varinv,varinv_use,cld,cldp,radmod)
+              id_qc,aivals,errf,varinv,varinv_use,cld,cldp)
 
 
 !  ---------- SSM/I , SSMIS, AMSRE  -------------------
@@ -1267,7 +1267,7 @@
               zsges,luse(n),sea,mixed, &
               temp,wmix,ts,emissivity_k,ierrret,kraintype,tpwc,clw,sgagl,tzbgr, &
               tbc,tbcnob,tsim,tnoise,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
-              varinv,errf,aivals(1,is),id_qc,radmod)
+              varinv,errf,aivals(1,is),id_qc)
 
 !  ---------- AMSR2  -------------------
 !       AMSR2 Q C
@@ -1278,7 +1278,7 @@
            sun_zenith=data_s(iszen_ang,n)
 
            call qc_amsr2(nchanl,zsges,luse(n),sea,kraintype,clw_obs,tsavg5, &
-              tb_obs,sun_azimuth,sun_zenith,amsr2,varinv,aivals(1,is),id_qc,radmod)
+              tb_obs,sun_azimuth,sun_zenith,amsr2,varinv,aivals(1,is),id_qc)
 
 !  ---------- GMI  -------------------
 !       GMI Q C
@@ -1286,7 +1286,7 @@
         else if (gmi) then
 
            call qc_gmi(nchanl,zsges,luse(n),sea,cenlat, &
-              kraintype,clw_obs,tsavg5,tb_obs,gmi,varinv,aivals(1,is),id_qc,radmod)
+              kraintype,clw_obs,tsavg5,tb_obs,gmi,varinv,aivals(1,is),id_qc)
 
 !  ---------- SAPHIR -----------------
 !       SAPHIR Q C
@@ -1294,7 +1294,7 @@
         else if (saphir) then
 
         call qc_saphir(nchanl,zsges,luse(n),sea, &
-              kraintype,varinv,aivals(1,is),id_qc,radmod)
+              kraintype,varinv,aivals(1,is),id_qc)
         
 !  ---------- SSU  -------------------
 !       SSU Q C

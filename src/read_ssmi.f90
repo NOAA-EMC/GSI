@@ -1,7 +1,7 @@
 subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
      mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs, &
-     nrec_start,dval_use,radmod)
+     nrec_start,dval_use)
 
 !$$$  subprogram documentation block
 ! subprogram:    read_ssmi           read SSM/I  bufr1b data
@@ -53,7 +53,6 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 !   2014-05-02  sienkiewicz- modify gross check screening to allow data to be used with bad ch6, if
 !                              ch6 data has been turned off - only toss if do85GHz is true
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
-!   2015-08-20  zhu - add radmod for all-sky and aerosol usages in radiance assimilation
 !   2015-10-01  guo     - consolidate use of ob location (in deg)
 !
 !   input argument list:
@@ -118,7 +117,6 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 
   integer(i_kind),intent(inout):: ndata,nodata
   logical        ,intent(in   ):: dval_use
-  type(rad_obs_type),intent(in) :: radmod
 
 ! Declare local parameters
   integer(i_kind),parameter :: n1bhdr=14

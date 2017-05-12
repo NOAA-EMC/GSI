@@ -1,7 +1,7 @@
 subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
      mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs, &
-     nrec_start,nrec_start_ears,nrec_start_db,dval_use,radmod)
+     nrec_start,nrec_start_ears,nrec_start_db,dval_use)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_cris                  read bufr format cris data
@@ -27,7 +27,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-01-27  parrish - assign initial value to pred (to allow successful debug compile on WCOSS)
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
-!   2015-08-20  zhu - add radmod for all-sky and aerosol usages in radiance assimilation
 !   2015-09-04  Jung    - Added mods for CrIS full spectral resolution (FSR).
 !   2015-10-01  guo      - keep the original {dlat,dlon}_earth_deg values to avoid round-off errors.
 !   2016-04-28  jung - added logic for RARS and direct broadcast from NESDIS/UW
@@ -114,7 +113,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind)     ,intent(in   ) :: gstime
   real(r_kind)     ,intent(in   ) :: rmesh
   logical          ,intent(in   ) :: dval_use
-  type(rad_obs_type),intent(in  ) :: radmod
 
 ! Output variables
   integer(i_kind)  ,intent(inout) :: nread

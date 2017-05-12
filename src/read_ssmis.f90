@@ -1,7 +1,7 @@
 subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
            infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
            mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs, &
-           nrec_start,dval_use,radmod)
+           nrec_start,dval_use)
 
 ! subprogram:    read_ssmis            read ssmis data
 ! prgmmr: okamoto          org: np23                date: 2005-01-05
@@ -61,7 +61,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2013-01-26  parrish - WCOSS debug compile error--change mype from intent(inout) to intent(in)
 !   2014-12-03  derber remove unused variables
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
-!   2015-08-20  zhu - add radmod for all-sky and aerosol usages in radiance assimilation
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -129,7 +128,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind) ,intent(in   ) :: npe_sub
   integer(i_kind) ,intent(in   ) :: mpi_comm_sub
   logical         ,intent(in   ) :: dval_use
-  type(rad_obs_type),intent(in ) :: radmod
 
 ! Declare local variables
   character(7),parameter    :: fov_flag="conical"
