@@ -1,6 +1,6 @@
 subroutine read_amsr2(mype,val_amsr2,ithin,rmesh,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
-     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs,radmod)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs)
 
 ! subprogram:    read_amsr2                  read bufr format amsr2 data
 !   prgmmr: ejones         copied from read_amsre.f90         date: 2014-03-15
@@ -15,7 +15,6 @@ subroutine read_amsr2(mype,val_amsr2,ithin,rmesh,gstime,&
 ! program history log:
 !   2014-03-15  ejones   - read amsr2
 !   2015-09-17  Thomas   - add l4densvar and thin4d to data selection procedure
-!   2015-08-20  zhu - add radmod for all-sky and aerosol usages in radiance assimilation
 !   2015-09-30  ejones   - modify solar angle info passed for calculating
 !                          sunglint in QC routine, get rid of old sun glint calc
 !   2016-03-11  j. guo   - Fixed {dlat,dlon}_earth_deg in the obs data stream
@@ -87,7 +86,6 @@ subroutine read_amsr2(mype,val_amsr2,ithin,rmesh,gstime,&
   integer(i_kind)  ,intent(in   ) :: mype_sub
   integer(i_kind)  ,intent(in   ) :: npe_sub
   integer(i_kind)  ,intent(in   ) :: mpi_comm_sub
-  type(rad_obs_type),intent(in  ) :: radmod
 
 ! Output variables
   integer(i_kind)  ,intent(inout) :: nread

@@ -194,7 +194,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) ilat,ilon,ifovmod
   integer(i_kind),dimension(5):: idate5
   integer(i_kind) instr,ichan
-  integer(i_kind) error_status,ier,irecx,ierr
+  integer(i_kind) error_status,irecx,ierr
   integer(i_kind) radedge_min, radedge_max
   integer(i_kind),allocatable,dimension(:)::nrec
   character(len=20),dimension(1):: sensorlist

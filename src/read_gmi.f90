@@ -1,6 +1,6 @@
 subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
-     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs,dval_use,radmod)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs,dval_use)
 
 !$$$  subprogram documentation block
 ! subprogram:    read_gmi           read  GMI  bufr data
@@ -33,7 +33,6 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 !                         in the GSI, allowing the observations from ch1-9
 !                         through. If the logical is set to false, the swath
 !                         edge obs are skipped in the read loop. 
-!   2015-08-20  zhu - add radmod for all-sky and aerosol usages in radiance assimilation
 !   2015-09-17  Thomas  - add l4densvar and thin4d to data selection procedure
 !   2015-10-01  guo     - Fixed dlxx_earth_deg, to avoid truncation errors
 !   2016-03-04  ejones  - add spatial averaging capability (use SSMI/S spatial averaging)
@@ -111,7 +110,6 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   integer(i_kind),intent(inout)  :: ndata,nodata
   integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
   logical         ,intent(in   ) :: dval_use
-  type(rad_obs_type),intent(in ) :: radmod
 
 ! Declare local parameters
   logical                   :: use_swath_edge

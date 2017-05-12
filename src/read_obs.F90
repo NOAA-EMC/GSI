@@ -1494,7 +1494,7 @@ subroutine read_obs(ndata,mype)
                 call read_saphir(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),  &
-                     nobs_sub1(1,i),dval_use,radmod)
+                     nobs_sub1(1,i),dval_use)
                 string='READ_SAPHIR'
 
 
@@ -1504,7 +1504,7 @@ subroutine read_obs(ndata,mype)
                 call read_airs(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
-                     nobs_sub1(1,i),read_rec(i),dval_use,radmod)
+                     nobs_sub1(1,i),read_rec(i),dval_use)
                 string='READ_AIRS'
 
 !            Process iasi data
@@ -1512,7 +1512,7 @@ subroutine read_obs(ndata,mype)
                 call read_iasi(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),nobs_sub1(1,i), &
-                     read_rec(i),read_ears_rec(i),read_db_rec(i),dval_use,radmod)
+                     read_rec(i),read_ears_rec(i),read_db_rec(i),dval_use)
                 string='READ_IASI'
 
 !            Process cris data
@@ -1520,7 +1520,7 @@ subroutine read_obs(ndata,mype)
                 call read_cris(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),nobs_sub1(1,i), &
-                     read_rec(i),read_ears_rec(i),read_db_rec(i),dval_use,radmod)
+                     read_rec(i),read_ears_rec(i),read_db_rec(i),dval_use)
                 string='READ_CRIS'
 
 !            Process GOES sounder data
@@ -1531,7 +1531,7 @@ subroutine read_obs(ndata,mype)
                 call read_goesndr(mype,val_dat,ithin,rmesh,platid,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,gstime,sis,&
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
-                     nobs_sub1(1,i),read_rec(i),dval_use,radmod)
+                     nobs_sub1(1,i),read_rec(i),dval_use)
                 string='READ_GOESNDR'
 
 !            Process ssmi data
@@ -1539,7 +1539,7 @@ subroutine read_obs(ndata,mype)
                 call read_ssmi(mype,val_dat,ithin,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
-                     nobs_sub1(1,i),read_rec(i),dval_use,radmod)
+                     nobs_sub1(1,i),read_rec(i),dval_use)
                 string='READ_SSMI'
 
 !            Process amsre data
@@ -1548,7 +1548,7 @@ subroutine read_obs(ndata,mype)
                 call read_amsre(mype,val_dat,ithin,isfcalc,rmesh,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
-                     nobs_sub1(1,i),read_rec(i),dval_use,radmod)
+                     nobs_sub1(1,i),read_rec(i),dval_use)
                 string='READ_AMSRE'
                 
 !            Process ssmis data
@@ -1558,7 +1558,7 @@ subroutine read_obs(ndata,mype)
                 call read_ssmis(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
                       infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
                       mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
-                      nobs_sub1(1,i),read_rec(i),dval_use,radmod)
+                      nobs_sub1(1,i),read_rec(i),dval_use)
                 string='READ_SSMIS'
 
 !            Process AMSR2 data
@@ -1566,7 +1566,7 @@ subroutine read_obs(ndata,mype)
                 call read_amsr2(mype,val_dat,ithin,rmesh,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),  &
-                     nobs_sub1(1,i),radmod)
+                     nobs_sub1(1,i))
                 string='READ_AMSR2'
 
 !            Process GOES IMAGER RADIANCE  data
@@ -1574,7 +1574,7 @@ subroutine read_obs(ndata,mype)
                 call read_goesimg(mype,val_dat,ithin,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
-                     nobs_sub1(1,i),read_rec(i),dval_use,radmod)
+                     nobs_sub1(1,i),read_rec(i),dval_use)
                 string='READ_GOESMIMG'
 
 !            Process GMI data
@@ -1582,7 +1582,7 @@ subroutine read_obs(ndata,mype)
                 call read_gmi(mype,val_dat,ithin,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),  &
-                     nobs_sub1(1,i),dval_use,radmod)
+                     nobs_sub1(1,i),dval_use)
                 string='READ_GMI'
 
 !            Process Meteosat SEVIRI RADIANCE  data
@@ -1590,7 +1590,7 @@ subroutine read_obs(ndata,mype)
                  call read_seviri(mype,val_dat,ithin,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
-                     nobs_sub1(1,i),read_rec(i),dval_use,radmod)
+                     nobs_sub1(1,i),read_rec(i),dval_use)
                 string='READ_SEVIRI'
 
         !    Process Himawari-8 AHI RADIANCE  data
@@ -1598,7 +1598,7 @@ subroutine read_obs(ndata,mype)
                 call read_ahi(mype,val_dat,ithin,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),  &
-                     nobs_sub1(1,i),radmod)
+                     nobs_sub1(1,i))
                 string='READ_AHI'
 
 
@@ -1607,7 +1607,7 @@ subroutine read_obs(ndata,mype)
                   call read_avhrr_navy(mype,val_dat,ithin,rmesh,platid,gstime,&
                        infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
                        mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
-                       nobs_sub1(1,i),read_rec(i),dval_use,radmod)
+                       nobs_sub1(1,i),read_rec(i),dval_use)
                   string='READ_AVH_NAVY'
 
   !            Process NESDIS AVHRR RADIANCE  data
@@ -1615,7 +1615,7 @@ subroutine read_obs(ndata,mype)
                   call read_avhrr(mype,val_dat,ithin,rmesh,platid,gstime,&
                        infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
                        mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
-                       nobs_sub1(1,i),read_rec(i),dval_use,radmod)
+                       nobs_sub1(1,i),read_rec(i),dval_use)
                   string='READ_AVHRR'
                end if rad_obstype_select
 
