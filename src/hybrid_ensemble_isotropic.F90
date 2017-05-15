@@ -1321,6 +1321,8 @@ end subroutine normal_new_factorization_rf_y
 
                 if(i_en_perts_io==2) then ! get en_perts from save files
                    call en_perts_get_from_save
+                elseif(i_en_perts_io==3) then ! get en_perts from save files
+                   call en_perts_get_from_save_fulldomain
                 else
                    call get_gefs_for_regional
                 endif
