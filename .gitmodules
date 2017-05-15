@@ -1,6 +1,6 @@
 [submodule "fix"]
 	path = fix
-	url = ../fix.git
+	url = ../fix
 [submodule "libsrc"]
 	path = libsrc
-	url = ../external-libs.git
+	url = ../comgsi-external-libs
