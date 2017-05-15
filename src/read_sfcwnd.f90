@@ -478,7 +478,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            endif
 
 
-           nread=nread+1
+           nread=nread+2
            dlon_earth_deg=hdrdat(3)
            dlat_earth_deg=hdrdat(2)
            dlon_earth=hdrdat(3)*deg2rad
@@ -664,13 +664,13 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               if (.not. luse) cycle loop_readsb
               if(iiout > 0) isort(iiout)=0
               if (ndata > ntmp) then
-                 nodata=nodata+1
+                 nodata=nodata+2
               endif
               isort(ntb)=iout
 
            else
               ndata=ndata+1
-              nodata=nodata+1
+              nodata=nodata+2
               iout=ndata
               isort(ntb)=iout
            endif

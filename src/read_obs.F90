@@ -802,7 +802,7 @@ subroutine read_obs(ndata,mype)
            obstype == 'td2m' .or. obstype=='mxtm' .or. &
            obstype == 'mitm' .or. obstype=='pmsl' .or. &
            obstype == 'howv' .or. obstype=='tcamt' .or. &
-           obstype=='lcbas' .or. obstype=='cldch') then
+           obstype=='lcbas' .or. obstype=='cldch' .or. obstype == 'larcglb' ) then
           ditype(i) = 'conv'
        else if( hirs   .or. sndr      .or.  seviri .or. &
                obstype == 'airs'      .or. obstype == 'amsua'     .or.  &
@@ -1387,16 +1387,25 @@ subroutine read_obs(ndata,mype)
 
 !            Process  lightning
              else if (obstype == 'lghtn' ) then
-                call read_lightning(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
+                if(i_gsdcldanal_type==2) then
+                   call read_lightning(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
+                else if( i_gsdcldanal_type==1 .or. i_gsdcldanal_type==6 ) then
+                   call read_lightning_grid(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
+                endif
                 string='READ_LIGHTNING'
 
 !            Process  NASA LaRC 
+             ! for regional obs that are already mapped to analysis grid
              else if (obstype == 'larccld' ) then
                 if(i_gsdcldanal_type==2) then
-                   call read_NASA_LaRC_cloud(nread,npuse,nouse,obstype,lunout,sis,nobs_sub1(1,i))
+                   call read_NASA_LaRC_cloud(nread,npuse,nouse,infile,obstype,lunout,sis,nobs_sub1(1,i))
                 else if( i_gsdcldanal_type==1) then
                    call read_nasa_larc(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
                 end if
+                string='READ_NASA_LaRC'
+             ! for global NASA LaRC obs 
+             else if (obstype == 'larcglb' ) then
+                call read_NASA_LaRC_cloud(nread,npuse,nouse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
                 string='READ_NASA_LaRC'
 
 !            Process radar winds
@@ -1674,7 +1683,7 @@ subroutine read_obs(ndata,mype)
 8000         format(1x,a22,': file=',a15,&
                   ' type=',a10,  ' sis=',a20,  ' nread=',i10,&
                   ' ithin=',i2, ' rmesh=',f11.6,' isfcalc=',i2,&
-                  ' ndata=',i10,' ntask=',i3)
+                  ' nkeep=',i10,' ntask=',i3)
 
           endif
        endif task_belongs

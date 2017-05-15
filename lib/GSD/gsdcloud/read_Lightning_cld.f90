@@ -1,4 +1,4 @@
-SUBROUTINE read_Lightning2cld(mype,lunin,regional_time,istart,jstart,  &
+SUBROUTINE read_Lightning2cld(mype,lunin,istart,jstart,  &
                               nlon,nlat,numlight,lightning)
 !
 !
@@ -18,7 +18,6 @@ SUBROUTINE read_Lightning2cld(mype,lunin,regional_time,istart,jstart,  &
 !   input argument list:
 !     mype        - processor ID
 !     lunin       - unit in which data are read in
-!     regional_time - analysis time
 !     jstart      - start lon of the whole array on each pe
 !     istart      - start lat of the whole array on each pe
 !     nlon        - no. of lons on subdomain (buffer points on ends)
@@ -50,7 +49,6 @@ SUBROUTINE read_Lightning2cld(mype,lunin,regional_time,istart,jstart,  &
   integer(i_kind),intent(in) :: lunin
   integer(i_kind),intent(in) :: mype
   INTEGER(i_kind),intent(in) :: nlon,nlat
-  integer(i_kind),intent(in) :: regional_time(6)
   integer(i_kind),intent(in) :: istart
   integer(i_kind),intent(in) :: jstart
   INTEGER(i_kind),intent(in) :: numlight 
@@ -65,7 +63,7 @@ SUBROUTINE read_Lightning2cld(mype,lunin,regional_time,istart,jstart,  &
   integer(i_kind):: nreal,nchanl,ilat1s,ilon1s
   character(20) :: isis
 
-  INTEGER(i_kind) :: i,j, ii,jj,k2, k
+  INTEGER(i_kind) :: i,ii,jj
   INTEGER(i_kind) :: ib,jb
 
 !

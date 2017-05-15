@@ -143,6 +143,7 @@ grtest.o : grtest.f90 control_vectors.o mpimod.o constants.o kinds.o
 gscond_ad.o : gscond_ad.f90 constants.o kinds.o 
 gsdcloudanalysis4NMMB.o : gsdcloudanalysis4NMMB.F90 kinds.o 
 gsdcloudanalysis.o : gsdcloudanalysis.F90 kinds.o 
+gsdcloudanalysis4gfs.o : gsdcloudanalysis4gfs.F90 gsi_bundlemod.o gsi_metguess_mod.o rapidrefresh_cldsurf_mod.o mpimod.o jfunc.o wrf_mass_guess_mod.o obsmod.o guess_grids.o gridmod.o kinds.o constants.o 
 gsd_terrain_match_surfTobs.o : gsd_terrain_match_surfTobs.f90 mpeu_util.o gsi_bundlemod.o gsi_metguess_mod.o convinfo.o guess_grids.o constants.o kinds.o 
 gsd_update_mod.o : gsd_update_mod.f90 general_commvars_mod.o general_sub2grid_mod.o mpimod.o rapidrefresh_cldsurf_mod.o wrf_mass_guess_mod.o guess_grids.o gridmod.o constants.o derivsmod.o jfunc.o kinds.o mpeu_util.o gsi_bundlemod.o gsi_metguess_mod.o 
 gsi_4dcouplermod.o : gsi_4dcouplermod.f90 constants.o kinds.o gsi_bundlemod.o 
@@ -486,7 +487,7 @@ tcv_mod.o : tcv_mod.f90 constants.o kinds.o
 tendsmod.o : tendsmod.f90 mpeu_util.o gsi_chemguess_mod.o gsi_metguess_mod.o gsi_bundlemod.o mpimod.o gridmod.o constants.o kinds.o 
 test_obsens.o : test_obsens.f90 control_vectors.o obs_sensitivity.o mpimod.o obsmod.o jfunc.o constants.o kinds.o 
 timermod.o : timermod.f90 kinds.o 
-tintrp2a.o : tintrp2a.f90 constants.o gridmod.o kinds.o 
+tintrp2a.o : tintrp2a.f90 guess_grids.o constants.o gridmod.o kinds.o 
 tintrp3.o : tintrp3.f90 constants.o gridmod.o kinds.o 
 tpause.o : tpause.f90 gsi_metguess_mod.o gsi_bundlemod.o gridmod.o guess_grids.o constants.o kinds.o 
 tpause_t.o : tpause_t.F90 constants.o kinds.o 
