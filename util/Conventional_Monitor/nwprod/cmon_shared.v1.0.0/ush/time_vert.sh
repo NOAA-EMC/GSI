@@ -9,7 +9,8 @@ set -xa
 
 echo "--> time_vert.sh"
 
-`pwd`
+echo " $CWD"
+#`pwd`
 
 rc=0
 export nregion=10
@@ -22,6 +23,8 @@ mkdir -p ${savedir}
 echo "convinfo = $convinfo"			# defined in calling script
 
 export execfile=${EXECcmon}/conv_time.x
+cp ${execfile} ./execfile
+
 export CYA=`echo $PDATE | cut -c9-10`
 
 
@@ -31,9 +34,11 @@ dday=`echo $PDATE | cut -c7-8`
 
 
 for cycle in ges anl;do
-
+   echo " cycle = $cycle "
+   
    rm -f ./conv_diag
    ln -s ./diag_conv_${cycle}.${PDATE} conv_diag
+   
 #   cp $DATDIR/diag_conv_${cycle}.${PDATE} conv_diag
 
    cat << EOF > input
@@ -52,11 +57,21 @@ for cycle in ges anl;do
 /
 EOF
 
-   cp ${execfile} ./execfile
-   cp ${convinfo} ./convinfo
+
+#   cp ${execfile} ./execfile
+#   cp ${convinfo} ./convinfo
    ./execfile <input  > stdout  2>&1
 
-   mv stdout ${cycle}_stdout
+   echo " after execfile completed "
+
+#   mv stdout ${cycle}_stdout
+   if [[ ! -e ${cycle}_stdout ]]; then
+      mv stdout ${cycle}_stdout
+   else      
+      cat stdout >> ${cycle}_stdout
+      rm -f stdout
+   fi
+
 
 #   for type in u v; do
 #     cp ${cycle}_uv_stas.ctl ${cycle}_${type}_stas.ctl

@@ -4,7 +4,8 @@
 #  makeall.sh
 #
 #  This scripts makes each of the ConvMon executables in the 
-#  ./nwprod/cmon_shared.v1.0.0/sorc directory.
+#  ./nwprod/cmon_shared.v1.0.0/sorc and ./image_gen/sorc
+#  directories.
 #
 #  An optional argument to this script is "clean".  Use this if 
 #  you wish to remove *.o, *.mod, and *.x files in the sorc
@@ -29,15 +30,21 @@ echo machine = $machine
 sorc_path="${top_level}/nwprod/cmon_shared.v${cmon_shared_ver}/sorc"
 echo "sorc_path = $sorc_path"
 
+ig_sorc_path="${top_level}/image_gen/sorc"
+
 exec_path="${top_level}/nwprod/cmon_shared.v${cmon_shared_ver}/exec"
 mod_path="${top_level}/nwprod/cmon_shared.v${cmon_shared_ver}/modulefiles/${machine}"
 echo "mod_path = $mod_path"
 
+ig_exec_path="${top_level}/image_gen/exec"
+
 mod_path="${top_level}/nwprod/cmon_shared.v${cmon_shared_ver}/modulefiles/${machine}"
 echo "mod_path = ${mod_path}"
 
+executables="conv_time grads_sfc grads_lev grads_sfctime grads_mandlev grads_sig"
 
-executables="conv_time grads_sfc read_t read_q grads_lev grads_sfctime read_ps read_uv grads_mandlev grads_sig read_pw"
+ig_executables="read_ps read_pw read_q read_t read_uv"
+
 
 if [[ ${machine} = "wcoss" ]]; then
    . /usrx/local/Modules/3.2.10/init/ksh
@@ -73,6 +80,26 @@ if [[ ${machine} = "wcoss" || ${machine} = "theia" || ${machine} = "cray" ]]; th
       fi
 
    done
+
+   for var in ${ig_executables}; do
+      cd ${ig_sorc_path}/${var}
+
+      echo make ${var} ${mode}
+      echo ""
+      echo ""
+
+      make -f makefile.${var} ${mode}
+      echo ""
+      echo ""
+
+      if [[ ${mode} = "all" ]]; then
+         make -f makefile.${var} install
+         echo ""
+         echo ""
+      fi
+
+   done
+
 
    module unload CMonBuild 
 

@@ -151,7 +151,7 @@ SUBROUTINE build_missing_REFcone(mype,nlon,nlat,nsig,krad_bot_in,ref_mos_3d,h_bk
   INTEGER(i_kind) :: season   ! 1= summer, 2=winter
 
   REAL(r_kind)    :: heightGSI,upref,downref,wght
-  INTEGER(i_kind) :: ilvl,numref
+  INTEGER(i_kind) :: ilvl
   REAL(r_kind)    :: lowest,highest,tempref(nsig), tempprofile(maxlvl)
   REAL(r_kind)    :: maxref
 

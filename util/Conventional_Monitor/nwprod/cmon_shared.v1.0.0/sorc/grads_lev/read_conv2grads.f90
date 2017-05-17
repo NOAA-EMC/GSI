@@ -72,6 +72,9 @@ subroutine read_conv2grads(ctype,stype,intype,target_nreal,nobs,isubtype,subtype
          itype = int(rdiag(1,i)) 
          jsubtype = int(rdiag(2,i)) 
 
+!         print *, 'if itype == intype ', itype, intype
+!         print *, 'and jsubtype == isubtype ', itype, intype
+
          if(itype == intype .and. jsubtype ==isubtype)  then 
             nobs=nobs+1
 

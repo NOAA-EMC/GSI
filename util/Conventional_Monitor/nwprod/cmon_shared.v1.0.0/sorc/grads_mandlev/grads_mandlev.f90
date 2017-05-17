@@ -123,7 +123,7 @@ subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
                if(k /=0)  then
                   write(21) stid,rlat,rlon,rtim,1,0
 
-                  write(21) plev(k),(rdiag_m2(j,i),j=3,nreal)
+                  write(21) plev(k),(rdiag_m2(j,i),j=3,nreal_m2)
 !                  print *, 'added obs to level plev(k) ', plev(k)
                   ctr = ctr + 1
                endif   

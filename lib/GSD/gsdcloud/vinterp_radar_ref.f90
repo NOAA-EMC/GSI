@@ -59,7 +59,6 @@ SUBROUTINE vinterp_radar_ref(mype,nlon,nlat,nsig,Nmsclvl,ref_mos_3d,ref_mosaic31
 !  local
 !
   real(r_kind)    :: msclvl21(21),msclvlAll(31)
-  INTEGER(i_kind) :: mscX,mscY
   DATA msclvl21/1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7,  &
               8, 9, 10, 11, 12, 13, 14, 15, 16, 17/
   DATA msclvlAll/0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, &

@@ -87,10 +87,8 @@ SUBROUTINE cloudLWC_stratiform(mype,nlat,nlon,nsig,q_bk,t_bk,p_bk, &
 ! temp.
 !
   INTEGER(i_kind) :: i,j,k,ilvl,nlvl
-  INTEGER(i_kind) :: kb,kt,k1
+  INTEGER(i_kind) :: kb,kt
   real(r_single) :: p_pa_1d(nsig), thv(nsig)
-  real(r_single) :: cld_base_m, cld_top_m
-  real(r_single) :: cld_base_qc_m, cld_top_qc_m
   real(r_single) :: cloudqvis(nlon,nlat,nsig)
   real(r_single) :: rh(nlon,nlat,nsig)
 
@@ -100,13 +98,9 @@ SUBROUTINE cloudLWC_stratiform(mype,nlat,nlon,nsig,q_bk,t_bk,p_bk, &
 
   real(r_single)    Cloud_q_qvis_rat_p, cloud_q_qvis_ratio
   real(r_single)    auto_conver
-  real(r_single)    cloud_def_p
-  real(r_single)    rh_cld3_p
   real(r_single)    rh_clear_p
   data  Cloud_q_qvis_rat_p/ 0.05_r_single/
   data  auto_conver       /0.0002_r_single/
-  data  cloud_def_p       /0.000001_r_single/
-  data  rh_cld3_p         /0.98_r_single/    ! mhu, do we need to adjust this number to 0.94, WPP has PBL top set as 0.95
   data  rh_clear_p        /0.8_r_single/
 
   real(r_kind) ::  es0_p
@@ -118,8 +112,6 @@ SUBROUTINE cloudLWC_stratiform(mype,nlat,nlon,nsig,q_bk,t_bk,p_bk, &
   data temp_qvis1, temp_qvis2 /268.15_r_kind, 263.15_r_kind/
 
   REAL(r_kind) stab, stab_threshold
-  LOGICAL :: l_prt
-  INTEGER(i_kind) :: iflag_slwc
   INTEGER(i_kind) :: kp3,km3
 
   REAL(r_kind) :: q, Temp, tv, evs, qvs1, eis, qvi1, watwgt, qavail
@@ -201,11 +193,21 @@ SUBROUTINE cloudLWC_stratiform(mype,nlat,nlon,nsig,q_bk,t_bk,p_bk, &
 ! ph - 2/7/2012 - use a temperature-dependent cloud_q_qvis_ratio 
 !                 and with 0.1 smaller condensate mixing ratio building also for temp < 263.15
                Temp = cloudtmp_3d(i,j,k)
-               watwgt = max(0._r_kind,min(1._r_kind,(Temp-temp_qvis2)/&
-                                     (temp_qvis1-temp_qvis2)))
-               cloud_q_qvis_ratio = watwgt*cloud_q_qvis_rat_p  &
-                                    + (1.0-watwgt)*0.1*cloud_q_qvis_rat_p
-               qavail = min(0.5_r_single*auto_conver,cloud_q_qvis_ratio*cloudqvis(i,j,k))
+!              watwgt = max(0._r_kind,min(1._r_kind,(Temp-temp_qvis2)/&
+!                                    (temp_qvis1-temp_qvis2)))
+! sgb - 1/13/2017 - change to discrete change from building water cloud or ice
+! cloud (at temp_qvis2)
+               if (temp >= temp_qvis2) then
+                  watwgt = 1.
+                  cloud_q_qvis_ratio = watwgt*cloud_q_qvis_rat_p
+                  qavail = min(0.25_r_single*auto_conver,cloud_q_qvis_ratio*cloudqvis(i,j,k))
+               else
+                  watwgt = 0.
+                  cloud_q_qvis_ratio = 0.1*cloud_q_qvis_rat_p
+                  qavail = min(0.1_r_single*auto_conver,cloud_q_qvis_ratio*cloudqvis(i,j,k))
+               endif
+!              qavail = min(0.5_r_single*auto_conver,cloud_q_qvis_ratio*cloudqvis(i,j,k))
+! change cloud water from 0.5 g/kg to 0.25 g/kg
 
 !    -------------------------------------------------------------------
 !   - set cloud water mixing ratio  - no more than 0.1 g/kg,
@@ -318,7 +320,6 @@ SUBROUTINE cloudLWC_Cumulus(nlat,nlon,nsig,h_bk,t_bk,p_bk,                      
   INTEGER(i_kind) :: i,j,k,ilvl,nlvl
   INTEGER(i_kind) :: kb,kt,k1
   real (r_single) :: zs_1d(nsig)
-  real (r_single) :: cv_1d(nsig)
   real (r_single) :: t_1d(nsig)
   real (r_single) :: p_pa_1d(nsig)
   real (r_single) :: p_mb_1d(nsig)
