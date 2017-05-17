@@ -78,12 +78,13 @@ subroutine grads_lev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
 
          obs_ctr = obs_ctr + 1
          cdiag( obs_ctr ) = ptr%p%stn_id
+
          do i=3, nreal
             rdiag_m2(i-2, obs_ctr) = ptr%p%rdiag( i )
          end do
       end do
 
-      print *, 'obs_ctr (list) = ', obs_ctr
+!      print *, 'obs_ctr (list) = ', obs_ctr
 
       filegrad=trim(fileo)//'_'//trim(subtype)//'_grads'
    
@@ -95,7 +96,7 @@ subroutine grads_lev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
 
          files=trim(fileo)//'_'//trim(subtype)//'.scater'
          open(51,file=files,form='unformatted')
-         write(51) nobs,nreal
+         write(51) nobs,nreal_m2
          write(51) rdiag_m2
          close(51)
 
@@ -133,7 +134,7 @@ subroutine grads_lev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
                   ! note this writes the rdiag_m2 record starting at station
                   ! elevation; lat and lon are written in the line above with
                   ! the station id info
-                  write(31) plev2(k),(rdiag_m2(j,i),j=3,nreal)
+                  write(31) plev2(k),(rdiag_m2(j,i),j=3,nreal_m2)
                   ctr = ctr + 1
 !              else
 !                 print *, 'rdiag_m2(ipres,i), no match: ', rdiag_m2(ipres,i)

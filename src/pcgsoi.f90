@@ -783,9 +783,11 @@ subroutine pcgsoi()
 ! if(jiter == miter .and. i_gsdcldanal_type==1) then
   if(jiter == miter) then
     if(i_gsdcldanal_type==2) then
-     call gsdcloudanalysis4nmmb(mype)
+       call gsdcloudanalysis4nmmb(mype)
     else if(i_gsdcldanal_type==1) then
-     call gsdcloudanalysis(mype)
+       call gsdcloudanalysis(mype)
+    else if(i_gsdcldanal_type==30) then
+       call gsdcloudanalysis4gfs(mype)
     endif
   endif
 

@@ -1,3 +1,125 @@
+SUBROUTINE  BackgroundCldgfs(mype,lon2,lat2,nsig,tbk,pbk,psbk,q,hbk)
+!
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:  BackgroundCld  Ingest gfs background fields for cloud analysis
+!
+!   PRGMMR: Ming Hu          ORG: GSD/AMB        DATE: 2006-10-27
+!
+! ABSTRACT: 
+!  This subroutine reads in background hydrometeor fields for cloud analysis
+!
+! PROGRAM HISTORY LOG:
+!    2009-01-02  Hu  Add NCO document block
+!    2010-04-26  Hu  delete the module gridmod and guess_grids.
+!                    transfer information subroutine dummy variables
+!
+!
+!   input argument list:
+!     mype         - processor ID
+!     lon2        - no. of lons on subdomain (buffer points on ends)
+!     lat2        - no. of lats on subdomain (buffer points on ends)
+!     nsig        - no. of vertical levels
+!     tbk         - 3D background potential temperature (K)
+!     psbk        - 2D background surface pressure (hPa)
+!     q           - 3D moisture (water vapor mixing ratio kg/kg)
+!     pbk         - 3D background pressure  (hPa)
+!
+!   output argument list:
+!     hbk         - 3D height above the ground (not the sea level)
+!!!!     z_lcl       - lifting condensation level
+!
+! USAGE:
+!   INPUT FILES: 
+!
+!   OUTPUT FILES:
+!
+! REMARKS:
+!
+! ATTRIBUTES:
+!   LANGUAGE: FORTRAN 90 
+!   MACHINE:  Linux cluster (WJET)
+!
+!$$$
+!
+!_____________________________________________________________________
+!
+
+  use kinds, only: r_single,i_kind,r_kind
+  use constants, only: rd_over_cp, h1000
+  use constants, only: rd, grav, half, rad2deg
+
+  implicit none
+
+  integer(i_kind),intent(in):: mype
+  integer(i_kind),intent(in):: lon2
+  integer(i_kind),intent(in):: lat2
+  integer(i_kind),intent(in):: nsig
+
+! background
+!
+! read in from WRF
+!
+  real(r_single),intent(inout) :: tbk(lon2,lat2,nsig)     ! temperature
+  real(r_single),intent(in)    :: psbk(lon2,lat2)         ! surface pressure
+  real(r_single),intent(inout) :: q(lon2,lat2,nsig)       ! moisture
+  real(r_single),intent(in)    :: pbk(lon2,lat2,nsig)     ! pressure  hPa
+!
+! derived fields
+!
+  real(r_single),intent(out) :: hbk(lon2,lat2,nsig)! height
+!
+!  misc.
+!
+  INTEGER :: i,j,k
+
+  REAL(r_single) :: rdog, h, dz
+  REAL(r_single) :: height(nsig+1)
+  
+!
+!================================================================
+!
+  do k=1,nsig
+    do j=1,lat2
+      do i=1,lon2
+         q(i,j,k) = q(i,j,k)/(1.0_r_kind-q(i,j,k))   ! water vapor mixing ratio (kg/kg)
+      enddo
+    enddo
+  enddo
+
+!
+!   Compute geopotential height above the ground at midpoint of each layer
+!
+  rdog = rd/grav
+  do j=1,lat2
+    do i=1,lon2
+      k  = 1
+      h  = rdog * tbk(i,j,k)
+      dz = h * log(psbk(i,j)/pbk(i,j,k))
+      height(k) = dz
+      
+      do k=2,nsig
+        h  = rdog * half * (tbk(i,j,k-1)+tbk(i,j,k))
+        dz = h * log(pbk(i,j,k-1)/pbk(i,j,k))
+        height(k) = height(k-1) + dz
+      end do
+    
+      do k=1,nsig
+       hbk(i,j,k)=height(k)
+      end do
+    end do
+  end do
+
+  do k=1,nsig
+    do j=1,lat2
+      do i=1,lon2
+         tbk(i,j,k)=tbk(i,j,k)*(h1000/pbk(i,j,k))**rd_over_cp
+      enddo
+    enddo
+  enddo
+
+END SUBROUTINE BackgroundCldgfs
+
 SUBROUTINE  BackgroundCld(mype,lon2,lat2,nsig,tbk,pbk,psbk,q,hbk, &
              zh,pt_ll,eta1_ll,aeta1_ll,eta2_ll,aeta2_ll,regional,wrf_mass_regional)
 !
@@ -89,15 +211,11 @@ SUBROUTINE  BackgroundCld(mype,lon2,lat2,nsig,tbk,pbk,psbk,q,hbk, &
   real(r_single),intent(out) :: pbk(lon2,lat2,nsig)! pressure  hPa
 !  real(r_single),intent(out) :: z_lcl(lon2,lat2)   ! lifting condensation level
 !
-  real(r_single) :: cv_bk(lon2,lat2,nsig)          !  cloud cover
-  real(r_single) :: t_k(lon2,lat2,nsig)            ! temperature in C
-
-!
 !  misc.
 !
   INTEGER :: i,j,k
 
-  REAL(r_single) :: rdog, h, dz, rl
+  REAL(r_single) :: rdog, h, dz
   REAL(r_single) :: height(nsig+1)
   real(r_single) :: q_integral(lon2,lat2),q_integralc4h(lon2,lat2)   
   real(r_single) :: deltasigma, deltasigmac4h,psfc_this
@@ -193,8 +311,5 @@ SUBROUTINE  BackgroundCld(mype,lon2,lat2,nsig,tbk,pbk,psbk,q,hbk, &
       enddo
     enddo
   enddo
-
-!mhu  call BckgrndCC(lon2,lat2,nsig,tbk,pbk,q,hbk,zh,  &
-!mhu                 cv_bk,t_k,z_lcl)    ! out
 
 END SUBROUTINE BackgroundCld

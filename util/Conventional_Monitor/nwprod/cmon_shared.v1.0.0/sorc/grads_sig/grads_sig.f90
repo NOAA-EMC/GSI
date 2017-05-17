@@ -145,7 +145,7 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,s
                   ! note this writes the rdiag_m2 record starting at station
                   ! elevation; lat and lon are written in the line above with the
                   ! station id info
-                  write(21) plev(k),rdiag_m2(3:nreal,i) 
+                  write(21) plev(k),rdiag_m2(3:nreal_m2,i) 
 
                   ctr = ctr + 1
 !               else

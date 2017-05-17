@@ -624,7 +624,7 @@ contains
           write(lendian_out)n_position     !  TH2
        endif
   
-       if(l_cloud_analysis .or. n_actual_clouds>0) then
+       if(l_cloud_analysis .and. n_actual_clouds>0) then
   !      QCLOUD
           call this%retrieve_index(index,'QCLOUD',varname_all,nrecs)
           if(index<0) stop
@@ -666,6 +666,20 @@ contains
           n_position=file_offset(index+1)
           write(6,*)'  byte offset, memoryorder for QNRAIN(',k,' = ',n_position,memoryorder_all(index)
           write(lendian_out)n_position,memoryorder_all(index)    ! offset for QNRAIN(k)
+  
+  !      QNRIC
+          call this%retrieve_index(index,'QNICE',varname_all,nrecs)
+          if(index<0) stop
+          n_position=file_offset(index+1)
+          write(6,*)'  byte offset, memoryorder for QNICE(',k,' = ',n_position,memoryorder_all(index)
+          write(lendian_out)n_position,memoryorder_all(index)    ! offset for QNICE(k)
+  
+  !      QNCLOUD
+          call this%retrieve_index(index,'QNCLOUD',varname_all,nrecs)
+          if(index<0) stop
+          n_position=file_offset(index+1)
+          write(6,*)'  byte offset, memoryorder for QNCLOUD(',k,' = ',n_position,memoryorder_all(index)
+          write(lendian_out)n_position,memoryorder_all(index)    ! offset for QNCLOUD(k)
   
   !      RAD_TTEN_DFI
           call this%retrieve_index(index,'RAD_TTEN_DFI',varname_all,nrecs)
