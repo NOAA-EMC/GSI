@@ -20,7 +20,6 @@
 #                   defaults to CYC; required
 #
 #   Imported Shell Variables:
-#     RAD_AREA      flag for global or regional
 #     C_TANKDIR     repository for cmon data files
 #     DATA          data working space
 #     FIXgdascmon   fixed file directory, gdas specific
@@ -42,29 +41,13 @@
 #                   defaults to 0 (big endian)
 #
 #   Exported Shell Variables:
-#     RAD_AREA      flag for global or regional
-#     PDATE	    Processing date
-#     MAKE_CTL      Signal to make ctl files, set to 1 (on)
-#     MAKE_DATA     Signal to make data files, set to 1 (on)
-#     USE_ANL       Signal to use analysis input files 
-#                     in addition to ges files, set to 0 (off)
-#     USE_MAIL      Signal to send error reports by mail, set to 0 (off)
-#     SATYPE        list of satellite/instrument sources to process
 #     err           last return code
-#     DO_DIAG_RPT   Signal to build the diag report, set to 1 (on)
-#     DO_DATA_RPT   Signal to build the data report, set to 1 (on)
-#     MAIL_TO       Mail recipients list, set to "" (no recipients)
-#     MAIL_CC       Mail cc recipients list, set to "" (no recipients)
 #
 #   Modules and files referenced:
 #     scripts    : $INISCRIPT
 #                  $LOGSCRIPT
 #                  $ERRSCRIPT 
 #                  $ENDSCRIPT
-#                 x ${USHcmon}/radmon_verf_angle.sh
-#                 x ${USHcmon}/radmon_verf_bcoef.sh
-#                 x ${USHcmon}/radmon_verf_bcor.sh
-#                 x ${USHcmon}/radmon_verf_time.sh
 #
 #     programs   : $NDATE
 #
@@ -84,10 +67,6 @@
 #       1 Command line argument.
 #       2 Environment variable.
 #       3 Inline default.
-#
-#  Attributes:
-#    Language:  POSIX shell
-#    Machine:   IBM SP
 #
 ################################################################################
 #  Set environment
@@ -145,7 +124,6 @@ export ENDSCRIPT=${ENDSCRIPT}
 
 #  Other variables
 export CMON_AREA=${CMON_AREA:-glb}
-#export USE_ANL=${USE_ANL:-1}
 export NCP=${NCP:-/bin/cp -f}
 export NDATE=${NDATE:-/nwprod/util/exec/ndate}
 export pgm=exgdas_vrfyconv.sh.sms
@@ -221,13 +199,13 @@ if [[ -s ${cnvstat} && -s ${pgrbf00} && -s ${pgrbf06} ]]; then
    tar -xvf ./cnvstat.$PDATE
    $UNCOMPRESS ./*.${Z}
 
-#   rm ./cnvstat.$PDATE
 
    #------------------------------------------------------------------
-   #  NOTE:  The anal (really f00) and guess (really f06) grib files
+   #  NOTE:  The anal (f00) and guess (f06) grib files
    #         contain more information than we need for the subsequent
    #         image generation.  Use wgrib and awk to reduce the file
-   #         size.
+   #         size.  The resulting files contain only RH, PRES, TMP,
+   #         and UV data.
    #           
    #  NOTE:  The f06 file is taken from the GDATE cycle (the previous 
    #         cycle but is stored in TANKDIR in the 
@@ -242,21 +220,10 @@ if [[ -s ${cnvstat} && -s ${pgrbf00} && -s ${pgrbf06} ]]; then
    if [[ $grib2 -eq 0 ]]; then
 
       wgrib -s pgbanl.${PDATE} | awk '(/:RH:/ && /mb:/) || (/:RH:/ && /:2 m/) || (/:PRES:sfc/) || (/:UGRD:/ && /mb:/) || (/:VGRD:/ && /mb:/) || (/:TMP:/ && /mb:/)' | wgrib -i -grib pgbanl.${PDATE} -o ./pared_anal.${PDATE}
-#      ${USHcmon}/grib2ctl.pl pared_anal.$PDATE > pared_anal_${PDATE}.ctl
-
-#      echo "using ${USHcmon}/grib2ctl.pl"
-#      ${USHcmon}/grib2ctl.pl pgbanl.$PDATE > anal_${PDATE}.ctl
 
   
       wgrib -s pgbf06.${GDATE} | awk '(/:RH:/ && /mb:/) || (/:RH:/ && /:2 m/) || (/:PRES:sfc/) || (/:UGRD:/ && /mb:/) || (/:VGRD:/ && /mb:/) || (/:TMP:/ && /mb:/)' | wgrib -i -grib pgbf06.${GDATE} -o ./pared_guess.${PDATE}
-#      ${USHcmon}/grib2ctl.pl pared_guess.$PDATE > pared_guess_${PDATE}.ctl
 
-#      echo "using ${USHcmon}/grib2ctl.pl"
-#      ${USHcmon}/grib2ctl.pl pgbf06.$GDATE > guess_${PDATE}.ctl
-#      gribmap -i anal_${PDATE}.ctl -0
-
-#      ${USHcmon}/grib2ctl.pl -verf pgbf06.$GDATE > guess_${PDATE}.ctl
-#      gribmap -i guess_${PDATE}.ctl 
    else
       #---------------------
       #  wgrib2 is untested
@@ -272,14 +239,6 @@ if [[ -s ${cnvstat} && -s ${pgrbf00} && -s ${pgrbf06} ]]; then
    ${NCP} ./pared_anal.${PDATE} ${TANKDIR_cmon}/horz_hist/anl/anal.${PDATE}
    ${NCP} ./pared_guess.${PDATE} ${TANKDIR_cmon}/horz_hist/ges/guess.${PDATE}
 
-#   cp anal_*.ctl ${TANKDIR_cmon}/horz_hist/anl/.
-#   cp pared_pgbanl.${PDATE} ${TANKDIR_cmon}/horz_hist/anl/pgbanl.${PDATE}
-#   cp pgbanl.${PDATE}.idx ${TANKDIR_cmon}/horz_hist/anl/.
-
-#   cp guess_*.ctl ${TANKDIR_cmon}/horz_hist/ges/.
-#   cp pared_pgbf06.${PDATE} ${TANKDIR_cmon}/horz_hist/ges/.
-#   cp pgbf06.${PDATE}.idx ${TANKDIR_cmon}/horz_hist/ges/.
-   
  
    #------------------------------------------------------------------
    #   Run the child sccripts.

@@ -1,24 +1,28 @@
 #!/bin/sh
 set -xa
 
-#--------------------------------------------------
+#----------------------------------------------------
+#  This script performs the data extraction for the     
+#  the time and vertical profile plots.
 #
 #  time_vert.sh
 #
-#--------------------------------------------------
+#----------------------------------------------------
 
 echo "--> time_vert.sh"
 
 echo " $CWD"
-#`pwd`
 
 rc=0
 export nregion=10
 
-# set up TANKDIR directories
+#------------------------------------------
+# set up TANKDIR (output) sub-directories
+#
 echo TANKDIR_cmon = $TANKDIR_cmon
 export savedir=$TANKDIR_cmon/time_vert
 mkdir -p ${savedir}
+
 
 echo "convinfo = $convinfo"			# defined in calling script
 
@@ -28,7 +32,6 @@ cp ${execfile} ./execfile
 export CYA=`echo $PDATE | cut -c9-10`
 
 
-#gdate=`$NDATE -720 $PDATE`
 hour=`echo $PDATE | cut -c9-10`
 dday=`echo $PDATE | cut -c7-8`
 
@@ -39,8 +42,6 @@ for cycle in ges anl;do
    rm -f ./conv_diag
    ln -s ./diag_conv_${cycle}.${PDATE} conv_diag
    
-#   cp $DATDIR/diag_conv_${cycle}.${PDATE} conv_diag
-
    cat << EOF > input
 &input
    filein='conv_diag', nregion=${nregion},
@@ -58,13 +59,14 @@ for cycle in ges anl;do
 EOF
 
 
-#   cp ${execfile} ./execfile
-#   cp ${convinfo} ./convinfo
    ./execfile <input  > stdout  2>&1
 
    echo " after execfile completed "
 
-#   mv stdout ${cycle}_stdout
+
+   # ----------------------------------
+   #  pack stdout into 2 common files
+   #
    if [[ ! -e ${cycle}_stdout ]]; then
       mv stdout ${cycle}_stdout
    else      
@@ -72,10 +74,6 @@ EOF
       rm -f stdout
    fi
 
-
-#   for type in u v; do
-#     cp ${cycle}_uv_stas.ctl ${cycle}_${type}_stas.ctl
-#   done
 
    cp uv_stas.ctl u_stas.ctl
    cp uv_stas.ctl v_stas.ctl
@@ -90,12 +88,9 @@ EOF
          mv -f ${file3} ${savedir}/${cycle}_${file3}
       done
 
-#      /bin/sh  make_timesers_ctl.sh ${gdate} ${PDATE} $savedir $cycle $type
-
    done
 
 done
-
 
 
 echo "<-- time_vert.sh"
