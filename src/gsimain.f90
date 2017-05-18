@@ -10,7 +10,7 @@
    program gsi
 
    use gsimod, only: gsimain_initialize,gsimain_run,gsimain_finalize
-   use gsi_4dvar, only: l4dvar,idmodel
+   use gsi_4dvar, only: l4dvar
    use gsi_4dcouplermod, only: gsi_4dcoupler_init_traj
    use gsi_4dcouplermod, only: gsi_4dcoupler_final_traj
    use timermod, only: timer_pri

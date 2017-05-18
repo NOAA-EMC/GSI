@@ -455,7 +455,7 @@ SUBROUTINE get_sfm_1d (nz,zcb,zctop,zs_1d,p_mb_1d,t_1d,ql,qi,cldt,      &
   REAL(r_single) :: temp,press,zbase,alw,zht,ht,y
   REAL(r_single) :: rl,es,qvs1,p,des,dtz,es2,qvs2
   INTEGER(i_kind):: i,j,k,nlevel,nlm1,ip,kctop,kctop1,kcb,kcb1
-  REAL(r_single) :: dtdz,dttdz,zcloud,entc,tmpk
+  REAL(r_single) :: zcloud,entc,tmpk
   LOGICAL :: l_prt
 !
 !@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@

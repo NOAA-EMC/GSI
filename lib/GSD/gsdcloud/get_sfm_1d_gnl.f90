@@ -128,7 +128,7 @@ SUBROUTINE get_sfm_1d_gnl (nz,zcb,zctop,zs_1d,p_mb_1d,t_1d,ql,qi,cldt,      &
   REAL :: temp,press,zbase,alw,zht,ht,y
   REAL :: rl,es,qvs1,p,des,dtz,es2,qvs2
   INTEGER :: i,j,k,nlevel,nlm1,ip,kctop,kctop1,kcb,kcb1
-  REAL :: dtdz,dttdz,zcloud,entc,tmpk
+  REAL :: zcloud,entc,tmpk
   LOGICAL :: l_prt
 !
 !@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@

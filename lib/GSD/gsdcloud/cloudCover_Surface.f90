@@ -1,8 +1,8 @@
 SUBROUTINE cloudCover_Surface(mype,nlat,nlon,nsig,r_radius,thunderRadius,&
-                        t_bk,p_bk,q,h_bk,zh,  &
+                        cld_bld_hgt,t_bk,p_bk,q,h_bk,zh,  &
                         mxst_p,NVARCLD_P,numsao,OI,OJ,OCLD,OWX,Oelvtn,Odist,&
                         cld_cover_3d,cld_type_3d,wthr_type,pcp_type_3d,     &
-                        watericemax, kwatericemax)
+                        watericemax, kwatericemax,vis2qc)
 !
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -25,6 +25,7 @@ SUBROUTINE cloudCover_Surface(mype,nlat,nlon,nsig,r_radius,thunderRadius,&
 !     nsig        - no. of levels
 !     r_radius    - influence radius of the cloud observation
 !     thunderRadius -
+!     cld_bld_hgt - Height below which cloud building is done 
 !
 !     t_bk        - 3D background potentional temperature (K)
 !     p_bk        - 3D background pressure  (hPa)
@@ -73,6 +74,7 @@ SUBROUTINE cloudCover_Surface(mype,nlat,nlon,nsig,r_radius,thunderRadius,&
   REAL(r_single), intent(in) :: r_radius
   integer(i_kind),intent(in) :: nlat,nlon,nsig
   real(r_single), intent(in) :: thunderRadius
+  real(r_kind),   intent(in) :: cld_bld_hgt
 !
 !  surface observation
 !
@@ -107,23 +109,23 @@ SUBROUTINE cloudCover_Surface(mype,nlat,nlon,nsig,r_radius,thunderRadius,&
   integer(i_kind),intent(inout) :: cld_type_3d(nlon,nlat,nsig)
   integer(i_kind),intent(inout) :: wthr_type(nlon,nlat)
   integer(i_kind),intent(inout) :: pcp_type_3d(nlon,nlat,nsig)
+  real (r_single),intent(inout) :: vis2qc(nlon,nlat)
 !
 !  local
 !
-  real (r_single) :: vis2qc(nlon,nlat)
   real (r_single) :: cloud_zthick_p
   data  cloud_zthick_p    /300._r_kind/
 !
   REAL (r_kind)   :: spval_p
   PARAMETER ( spval_p    =  99999.0_r_kind )
 
-  INTEGER(i_kind) :: i,j,k,k1
+  INTEGER(i_kind) :: i,j,k
   INTEGER(i_kind) :: i1,j1,ic
   INTEGER(i_kind) :: nx_p, ny_p, nztn_p
   INTEGER(i_kind) :: ista
-  INTEGER(i_kind) :: ich, iob,job 
+  INTEGER(i_kind) :: ich !, iob,job 
   
-  REAL(r_kind) :: min_dist, dist
+  REAL(r_kind) :: min_dist !, dist
   REAL(r_kind) :: zdiff
   REAL(r_kind) :: zlev_clr,cloud_dz,cl_base_ista,betav
 !
@@ -154,6 +156,7 @@ SUBROUTINE cloudCover_Surface(mype,nlat,nlon,nsig,r_radius,thunderRadius,&
 
    vis2qc=-9999.0_r_kind
    npts_near_clr=0
+   zlev_clr = 3650.
 !
 !
 !*****************************************************************
@@ -201,7 +204,8 @@ SUBROUTINE cloudCover_Surface(mype,nlat,nlon,nsig,r_radius,thunderRadius,&
 !            zlev_clr = Oelvtn(ista)+3650.
 ! Upcoming mods commented out below for this commit - 4/3/2010
 ! PH: added in column cleaning up to ceilometer height if ob is CLR
-        zlev_clr = 3650.
+!  move this check out of this if block. Because it will be used later.
+!        zlev_clr = 3650.
 
         do k=1,nztn_p
            if (h_bk(i1,j1,k) < zlev_clr) then
@@ -290,6 +294,7 @@ SUBROUTINE cloudCover_Surface(mype,nlat,nlon,nsig,r_radius,thunderRadius,&
                  if (zdiff<underlim) then
                     if((cl_base_ista >= 1.0 .and. (firstcloud==0 .or. abs(zdiff)<cloud_dz)) .or. &
                        (cl_base_ista < 1.0 .and. (abs(zdiff)<cloud_dz)) ) then
+                       if (h_bk(i1,j1,k) < cld_bld_hgt) then !limit cloud building to below a specified height 
                        if(ocld(ic,ista) == 1 ) then
                           cld_cover_3d(i1,j1,k)=max(cld_cover_3d(i1,j1,k),0.1_r_single)
                           pcp_type_3d(i1,j1,k)=0
@@ -312,6 +317,7 @@ SUBROUTINE cloudCover_Surface(mype,nlat,nlon,nsig,r_radius,thunderRadius,&
                        else
                            write(6,*) 'cloudCover_Surface: wrong cloud coverage observation!'
                            call stop2(114)
+                       endif
                        endif
                        firstcloud = firstcloud + 1
                     end if  ! zdiff < cloud_dz
@@ -344,7 +350,9 @@ SUBROUTINE cloudCover_Surface(mype,nlat,nlon,nsig,r_radius,thunderRadius,&
             else
                 if(ocld(1,ista) == 1 .or. ocld(1,ista) == 2 ) then
                    do k=1, nztn_p
-                     if( cld_cover_3d(i1,j1,k) < -0.001_r_kind )  cld_cover_3d(i1,j1,k)=0
+                     if (h_bk(i1,j1,k) < zlev_clr) then
+                        if( cld_cover_3d(i1,j1,k) < -0.001_r_kind )  cld_cover_3d(i1,j1,k)=0
+                     endif
                    enddo
                 endif
             endif
@@ -353,7 +361,8 @@ SUBROUTINE cloudCover_Surface(mype,nlat,nlon,nsig,r_radius,thunderRadius,&
 
 ! -- Use visibility for low-level cloud whether
      if (wthr_type(i1,j1) < 30 .and. wthr_type(i1,j1) > 20 .and. &
-         ocld(13,ista)  < 5000 .and. ocld(13,ista) > 1) then
+         ocld(13,ista)  < 5000 .and. ocld(13,ista) > 1 .and.     &
+         min_dist < 20.0_r_single) then
            cld_type_3d(i1,j1,1) = 2
            cld_type_3d(i1,j1,2) = 2
            betav = 3.912_r_kind / (float(ocld(13,ista)) / 1000._r_kind)
