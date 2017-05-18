@@ -969,7 +969,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use gsi_metguess_mod,  only: gsi_metguess_bundle   ! for now, a common block
   use gsi_metguess_mod,  only: gsi_metguess_get
   use gridmod, only: istart,jstart,nlon,nlat,lon1
-  use regional_io, only: cold_start
+  use wrf_params_mod, only: cold_start
   use constants, only: zero,one,one_tenth,fv,r0_05,r10,r100,r1000,constoz,grav,rad2deg,deg2rad, &
       sqrt_tiny_r_kind,constoz, rd, rd_over_g, two, three, four,five,t0c
   use constants, only: max_varname_length,pi  
