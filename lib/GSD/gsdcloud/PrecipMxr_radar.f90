@@ -86,13 +86,13 @@ SUBROUTINE PrecipMxR_radar(mype,nlat,nlon,nsig,   &
 
   REAL(r_single) :: t_3d(nlon,nlat,nsig)  
   REAL(r_single) :: p_3d(nlon,nlat,nsig)  
-  REAL(r_kind) ::  qs_max
+!  REAL(r_kind) ::  qs_max
 
   INTEGER(i_kind) :: cldqropt
   INTEGER(i_kind) :: istatus_pcp
   INTEGER(i_kind) :: i,j,k
-  INTEGER(i_kind) :: k_qs_max
-  REAL(r_kind) ::    threshold_t_1st
+!  INTEGER(i_kind) :: k_qs_max
+!  REAL(r_kind) ::    threshold_t_1st
   
 !
 !====================================================================
