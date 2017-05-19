@@ -137,7 +137,7 @@ contains
     use nemsio_module, only: nemsio_init,nemsio_open,nemsio_getfilehead,nemsio_close,nemsio_setheadvar
     use nemsio_module, only: nemsio_getheadvar
     use constants, only: zero
-    use regional_io, only: preserve_restart_date
+    use wrf_params_mod, only: preserve_restart_date
     implicit none
 
     character(*)   ,intent(in   ) :: file_name        !  input file name

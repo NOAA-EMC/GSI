@@ -453,7 +453,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
            else
               if (abs(tdiff)>twind) cycle loop_readsb2
            endif
-           nread = nread+1 
+           nread = nread+2
 
 !          Read QC control flag for HDOB positional data
 !          QHDOP: 0  all parameters of nominal accuracy
@@ -944,16 +944,16 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 
               if(iiout > 0) isort(iiout) = 0
               if (ndata > ntmp) then
-                 nodata = nodata+1
+                 nodata = nodata+2
                  if (luvob) &
-                 nodata = nodata+1
+                 nodata = nodata+2
               endif
               isort(igood) = iout
            else
               ndata        = ndata+1
-              nodata       = nodata+1
+              nodata       = nodata+2
               if (luvob) &
-              nodata       = nodata+1
+              nodata       = nodata+2
               iout         = ndata
               isort(igood) = iout
            endif ! ithin

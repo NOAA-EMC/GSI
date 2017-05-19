@@ -53,7 +53,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
   PROF= #-g -pg -qfullpath
 
-  FFLAGS_F90    = -fp-model strict -assume byterecl -free -traceback -D_REAL8_ -DWRF -openmp -axavx -xsse4.2
+  FFLAGS_F90    = -fp-model strict -assume byterecl -free -traceback -D_REAL8_  -openmp -axavx -xsse4.2
 #  FFLAGS_F90    = -O2 -fp-model strict -assume byterecl -convert big_endian -free -xHOST -traceback \
 		 -openmp
 

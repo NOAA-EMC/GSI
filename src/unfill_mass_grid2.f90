@@ -261,9 +261,9 @@ subroutine unfill_mass_grid2t_ldmk(gout,nx,ny,gin,landmask, &
      call wrfmass_a_to_h4(ba,b)
   endif
 ! only add analysis increment over land
-  if(nlon == nx .and. nlat == ny) then
+!  if(nlon == nx .and. nlat == ny) then
 ! do nothing
-  else
+!  else
      if(maxval(landmask) > 1.01_r_single .or. minval(landmask) < -0.01_r_single .or. &
         maxval(seaice)   > 1.01_r_single .or. minval(seaice)   < -0.01_r_single) then
        write(*,*) 'bad landmask or seaice, do not use landmask filter soil nudging field'
@@ -275,7 +275,7 @@ subroutine unfill_mass_grid2t_ldmk(gout,nx,ny,gin,landmask, &
            end do
         end do
      endif
-  endif
+!  endif
 ! Mass grids--just copy
   do j=1,ny
      do i=1,nx
