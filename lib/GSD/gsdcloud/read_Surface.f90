@@ -1,4 +1,4 @@
-SUBROUTINE read_Surface(mype,lunin,regional_time,istart,jstart,nlon,nlat,& 
+SUBROUTINE read_Surface(mype,lunin,istart,jstart,nlon,nlat,& 
                   numsao,NVARCLD_P,OI,OJ,OCLD,OWX,Oelvtn,Odist,cstation, &
                   OIstation,OJstation)
 !
@@ -18,7 +18,6 @@ SUBROUTINE read_Surface(mype,lunin,regional_time,istart,jstart,nlon,nlat,&
 !   input argument list:
 !     mype        - processor ID
 !     lunin       - unit in which data are read in
-!     regional_time - analysis time
 !     jstart      - start lon of the whole array on each pe
 !     istart      - start lat of the whole array on each pe
 !     nlon        - no. of lons on subdomain (buffer points on ends)
@@ -58,7 +57,6 @@ SUBROUTINE read_Surface(mype,lunin,regional_time,istart,jstart,nlon,nlat,&
 
   integer(i_kind), intent(in) :: mype
   integer(i_kind), intent(in) :: lunin
-  integer(i_kind), intent(in) :: regional_time(6)
   integer(i_kind), intent(in) :: istart
   integer(i_kind), intent(in) :: jstart
   INTEGER(i_kind), intent(in) :: nlon,nlat
@@ -79,16 +77,7 @@ SUBROUTINE read_Surface(mype,lunin,regional_time,istart,jstart,nlon,nlat,&
 !
 ! temp.
 !
-  character*12   :: adate
-  character*9    :: STANAM  ! stattion name
-  real(r_single) :: LAT     ! latitude
-  real(r_single) :: LON     ! longitude
-
   real(r_single) :: VIS     ! horizontal visibility
-  real(r_single) :: CLD(3)  ! cloud base height
-  character*10   :: WX      ! weather
-  character*8    :: sky(3)  ! cloud cover or amount
-
 !
 !  misc.
 !
@@ -100,15 +89,15 @@ SUBROUTINE read_Surface(mype,lunin,regional_time,istart,jstart,nlon,nlat,&
 
   INTEGER(i_kind) :: nn_obs
   real(r_kind)    ::  cldamt,awx,cldhgt
-  character*3     :: msky,mwx
-  INTEGER(i_kind) :: i,j,k,k2,ic,jb,ib
+  character*3     :: mwx
+  INTEGER(i_kind) :: i,j,jb,ib
   integer(i_kind) :: start, end
 
   real(r_kind)    ::     spval_p
   parameter (spval_p = 99999.)
 
   real(r_double) rstation_id
-  character(8) :: cstation1,cc,ci
+  character(8) :: cstation1
   equivalence(cstation1,rstation_id)
 
 

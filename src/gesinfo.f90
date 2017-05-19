@@ -74,7 +74,7 @@ subroutine gesinfo(mype)
   use gridmod, only: idvc5,ak5,bk5,ck5,tref5,&
       regional,nsig,regional_fhr,regional_time,&
       wrf_nmm_regional,wrf_mass_regional,twodvar_regional,nems_nmmb_regional,cmaq_regional,&
-      ntracer,ncloud,nlat,nlon,idvm5,&
+      ntracer,ncloud,idvm5,&
       ncepgfs_head,ncepgfs_headv,idpsfc5,idthrm5,idsl5,cp5,jcap_b, use_gfs_nemsio
   use sigio_module, only: sigio_head,sigio_srhead,sigio_sclose,&
       sigio_sropen
@@ -83,6 +83,8 @@ subroutine gesinfo(mype)
 
   use constants, only: zero,h300,r60,r3600,i_missing
 
+  use read_wrf_mass_files_mod, only: read_wrf_mass_files_class
+  use read_wrf_nmm_files_mod, only: read_wrf_nmm_files_class
   implicit none
 
 ! Declare passed variables
@@ -91,6 +93,8 @@ subroutine gesinfo(mype)
 ! Declare local parameters
   integer(i_kind),parameter:: lunges=11
   real(r_kind),parameter::  zero_001=0.001_r_kind
+  type(read_wrf_nmm_files_class):: wrf_nmm_files
+  type(read_wrf_mass_files_class):: wrf_mass_files
 
 ! Declare local variables
 
@@ -476,11 +480,11 @@ subroutine gesinfo(mype)
 ! Get information about date/time and number of guess files
   if (regional) then
      if(wrf_nmm_regional) then
-        call read_wrf_nmm_files(mype)
+        call wrf_nmm_files%read_wrf_nmm_files(mype)
      else if(nems_nmmb_regional) then
-        call read_nems_nmmb_files(mype)
+        call wrf_nmm_files%read_nems_nmmb_files(mype)
      else if(wrf_mass_regional) then
-        call read_wrf_mass_files(mype)
+        call wrf_mass_files%read_wrf_mass_files(mype)
      else if(twodvar_regional) then
         call read_2d_files(mype)
      else if(cmaq_regional) then
