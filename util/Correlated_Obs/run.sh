@@ -1,11 +1,11 @@
 #!/bin/sh
 #date of first radstat file
-bdate=2014040200
+bdate=2014040700
 #date of last radstat file
-edate=2014060118
+edate=2014041718
 #instrument name, as it would appear in the title of a diag file
-instr=airs_aqua
-#instr=iasi_metop-b
+#instr=airs_aqua
+instr=iasi_metop-b
 #location of radstat file
 exp=prCtl
 diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
@@ -33,10 +33,12 @@ kreq=-150
 method=1
 #method to compute covariances: 1 for Hollingsworth-Lonnberg, 2 for Desroziers
 cov_method=2
+#maximum time between observations in a pair, in minutes
+time_sep=1.0
 #bin size for obs pairs in km
-bsize=30
+bsize=1
 #bin center, in km, needed for Hollingsworth-Lonnberg
-bcen=70
+bcen=80
 #channel set choice:  0 to only use active channels, 1 to use all channels
 chan_set=0
 #Have the radstats already been processed? 1 for yes, 0 for no
@@ -55,7 +57,7 @@ cd $wrkdir
 while [[ $cdate -le $edate ]] ; do
    while [[ ! -f $diagdir/radstat.gdas.$cdate ]] ; do 
      cdate=`$ndate +06 $cdate`
-     if [ $cdate -gt $edate ] ; then
+     if [ $cdate -ge $edate ] ; then
         break
      fi
    done
@@ -93,7 +95,7 @@ while [[ $cdate -le $edate ]] ; do
    cdate=`$ndate +06 $cdate`
 done
 ./cov_calc <<EOF
-$ntt $type $cloud $angle $instr $wave_out $err_out $corr_out $kreq $method $cov_method $chan_set $bsize $bcen
+$ntt $type $cloud $angle $instr $wave_out $err_out $corr_out $kreq $method $cov_method $chan_set $time_sep $bsize $bcen
 EOF
 
 cp Rcov_$instr $savdir

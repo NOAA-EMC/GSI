@@ -16,6 +16,7 @@ SUBROUTINE cloud_saturation(mype,l_conserve_thetaV,i_conserve_thetaV_iternum, &
 ! PROGRAM HISTORY LOG:
 !    2010-10-06  Hu  check whole 3D mositure field and get rid of supersaturation
 !    2009-01-20  Hu  Add NCO document block
+!    2017-04-13  Ladwig Add comments & theta-v conservation for missing obs case
 !
 !
 !   input argument list:
@@ -81,10 +82,8 @@ SUBROUTINE cloud_saturation(mype,l_conserve_thetaV,i_conserve_thetaV_iternum, &
 !
 ! temp.
 !
-  INTEGER(i_kind) :: i,j,k,ilvl,nlvl
-  INTEGER(i_kind) :: kb,kt,k1
-  real(r_single) :: thv(nsig)
-  real(r_single) :: cloudqvis,cloudqvis2,ruc_saturation
+  INTEGER(i_kind) :: i,j,k
+  real(r_single) :: cloudqvis,ruc_saturation
 
 ! --- Key parameters
 !     Rh_clear_p        = 0.80          RH to use when clearing cloud
@@ -96,13 +95,11 @@ SUBROUTINE cloud_saturation(mype,l_conserve_thetaV,i_conserve_thetaV_iternum, &
 
   real(r_kind) ::  es0_p
   parameter (es0_p=6.1121_r_kind)     ! saturation vapor pressure (mb)
-  real(r_kind) SVP1,SVP2,SVP3
-  data SVP1,SVP2,SVP3/es0_p,17.67_r_kind,29.65_r_kind/
 
-  INTEGER(i_kind) :: kp3,km3,miter,nnn
+  INTEGER(i_kind) :: miter,nnn
 
-  REAL(r_kind) :: constantTv, Temp, evs, qvs1, eis, qvi1, watwgt
-  real(r_single) :: qtemp, qinc
+  REAL(r_kind) :: constantTv, Temp
+  real(r_single) :: qtemp
 !
 !====================================================================
 !  Begin
@@ -132,14 +129,22 @@ SUBROUTINE cloud_saturation(mype,l_conserve_thetaV,i_conserve_thetaV_iternum, &
 ! now, calculate constant virtual temperature
         constantTv=Temp*(one + fv*q_bk(i,j,k))     
 !
+
+
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        ! If valid cld_cover_3d
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         if(cld_cover_3d(i,j,k) > -0.0001_r_kind .and.           &
            cld_cover_3d(i,j,k) < 2.0_r_kind) then
+          !#############################################
+          ! if clear ob
+          !#############################################
           if(cld_cover_3d(i,j,k) <= 0.0001_r_kind) then
-! adjust RH to be below 85 percent(50%?) if
-!     1) cloudyn = 0
-!     2) at least 100 mb above sfc
-!     3) no precip from sfc obs
-!make sure that clear volumes are no more than rh_clear_p RH.
+          ! adjust RH to be below 85 percent(50%?) if
+          !     1) cloudyn = 0
+          !     2) at least 100 mb above sfc
+          !     3) no precip from sfc obs
+          !make sure that clear volumes are no more than rh_clear_p RH.
             if( (sumqci(i,j,k))>1.0e-12_r_kind .and.  &
                 (p_bk(i,j,1) - p_bk(i,j,k))>100._r_kind  .and.  &
                  wthr_type(i,j) <=0 ) then 
@@ -156,7 +161,7 @@ SUBROUTINE cloud_saturation(mype,l_conserve_thetaV,i_conserve_thetaV_iternum, &
                     q_bk(i,j,k) =  qtemp
                  endif
             endif
-!C  - moisten layers above and below cloud layer
+            !C  - moisten layers above and below cloud layer
             if(cld_cover_3d(i,j,k+1) > 0.6_r_kind .or.          &
                cld_cover_3d(i,j,k-1) > 0.6_r_kind  ) then
                  if( cloudqvis > q_bk(i,j,k) ) then
@@ -172,8 +177,10 @@ SUBROUTINE cloud_saturation(mype,l_conserve_thetaV,i_conserve_thetaV_iternum, &
                     q_bk(i,j,k)=qtemp
                  endif
             endif
-! -- If SCT/FEW present, reduce RH only down to rh_cld3_p (0.98)
-!         corresponding with cloudyn=3
+          !#############################################
+          ! -- If SCT/FEW present, reduce RH only down to rh_cld3_p (0.98)
+          !         corresponding with cloudyn=3
+          !#############################################
           elseif(cld_cover_3d(i,j,k) > 0.0001_r_kind .and.      &
                  cld_cover_3d(i,j,k) < 0.6_r_kind ) then
              if( q_bk(i,j,k) > cloudqvis * rh_cld3_p) then
@@ -188,6 +195,9 @@ SUBROUTINE cloud_saturation(mype,l_conserve_thetaV,i_conserve_thetaV_iternum, &
                  endif
                  q_bk(i,j,k) = qtemp
              endif
+          !#############################################
+          ! else: cld_cover_3d is > 0.6: cloudy case
+          !#############################################
           else   ! set qv at 102%RH
              if( q_bk(i,j,k) < cloudqvis * 1.00_r_single ) then
                 qtemp = cloudqvis * 1.00_r_single
@@ -202,22 +212,35 @@ SUBROUTINE cloud_saturation(mype,l_conserve_thetaV,i_conserve_thetaV_iternum, &
                 q_bk(i,j,k) = qtemp
              endif
           endif
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        ! cld_cover_3d is missing
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         else    ! cloud cover is missing
-!  Ensure saturation in all cloudy volumes.
-!  Since saturation has already been ensured for new cloudy areas (cld_cover_3d > 0.6)
-!  we now ensure saturation for all cloud 3-d points, whether cloudy from background
-!   (and not changed - cld_cover_3d < 0)
-!  If cloud cover is missing, (cldwater_3d(i,j,k)+cldice_3d(i,j,k) = sumqci(i,j,k), 
-!    which is background cloud liquid water.
-          cloudqvis2 = min (cloudqvis, 0.018_r_single)  ! Limit new water vapor mixing ratio
-                                                     ! in cloud to 18 g/kg
-          if ((cldwater_3d(i,j,k)+cldice_3d(i,j,k))>1.0e-5_r_kind) &
-                   q_bk(i,j,k) = max(cloudqvis2,q_bk(i,j,k))
+        !  Ensure saturation in all cloudy volumes.
+        !  Since saturation has already been ensured for new cloudy areas (cld_cover_3d > 0.6)
+        !  we now ensure saturation for all cloud 3-d points, whether cloudy from background
+        !   (and not changed - cld_cover_3d < 0)
+        !  If cloud cover is missing, (cldwater_3d(i,j,k)+cldice_3d(i,j,k) = sumqci(i,j,k), 
+        !    which is background cloud liquid water.
+          if ((cldwater_3d(i,j,k)+cldice_3d(i,j,k))>1.0e-5_r_kind) then 
+              !conserve
+              qtemp = cloudqvis * 1.00_r_single
+              if(l_conserve_thetaV) then
+                   do nnn=1,miter
+                      Temp=constantTv/(one + fv*qtemp)
+                      cloudqvis= ruc_saturation(Temp,p_bk(i,j,k))
+                      qtemp = cloudqvis * 1.00_r_single
+                   enddo
+                   t_bk(i,j,k) = Temp*(h1000/p_bk(i,j,k))**rd_over_cp
+              endif
+              !limit increment to 5g/kg
+              q_bk(i,j,k) = min(qtemp, q_bk(i,j,k)+0.005_r_single)
+          endif
         endif   
 !
 ! check each grid point to make sure no supersaturation
 !
-!        q_bk(i,j,k) = min(q_bk(i,j,k), cloudqvis * 1.00_r_single)
+        q_bk(i,j,k) = min(q_bk(i,j,k), cloudqvis * 1.00_r_single)
 !
 
       enddo ! k

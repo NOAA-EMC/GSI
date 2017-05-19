@@ -1,11 +1,11 @@
 #!/bin/sh
 #date of first radstat file
-bdate=2014040200
+bdate=2014040700
 #date of last radstat file
-edate=2014060118
+edate=2014041718
 #instrument name, as it would appear in the title of a diag file
-instr=airs_aqua
-#instr=iasi_metop-a
+#instr=airs_aqua
+instr=iasi_metop-a
 #location of radstat file
 exp=prCtl
 diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
@@ -33,25 +33,28 @@ kreq=-150
 method=1
 #method to compute covariances: 1 for Hollingsworth-Lonnberg, 2 for Desroziers
 cov_method=2
+#maximum time between observations in a pair, in minutes
+time_sep=1.0
 #bin size for obs pairs in km
-bsize=30
+bsize=1
 #bin center, in km, needed for Hollingsworth-Lonnberg
-bcen=70
+bcen=80
 #channel set choice:  0 to only use active channels, 1 to use all channels
 chan_set=0
 #number of processors to use to unpack radstat files-most efficient if # of radstats/$num_proc has a small remainder
-num_proc=20
+num_proc=11
+#number of processors to run cov_calc on
+NP=16
 #wall time to unpack radstat files format hh:mm:ss for theia, hh:mm for wcoss
 unpack_walltime=02:30:00
 #wall time to run cov_calc hh:mm:ss for theia, hh:mm for wcoss
-wall_time=00:30:00
+wall_time=01:00:00
 #job account name (needed on theia only)
-account=cloud
+account=da-cpu
 #job project code (needed on wcoss only)
 project_code=GFS-T2O
 #machine-theia or wcoss, all lower case
 machine=theia
-
 ndate=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/util/exec/ndate
 
 ####################################################################
@@ -63,7 +66,7 @@ one=1
 while [[ $cdate -le $edate ]] ; do
    while [[ ! -f $diagdir/radstat.gdas.$cdate ]] ; do 
       cdate=`$ndate +06 $cdate`
-      if [ $cdate -gt $edate ] ; then
+      if [ $cdate -ge $edate ] ; then
          break
       fi
    done
@@ -226,7 +229,7 @@ cat << EOF > params.sh
 #PBS -e comp_err
 #PBS -q batch
 #PBS -l walltime=$wall_time
-#PBS -l procs=1
+#PBS -l nodes=1:ppn=$NP
 #PBS -N cov_calc
 #PBS -W depend=afterany:${jobid}
 bdate=$bdate
@@ -244,10 +247,12 @@ corr_out=$corr_out
 kreq=$kreq
 method=$method
 cov_method=$cov_method
+time_sep=$time_sep
 bsize=$bsize
 bcen=$bcen
 chan_set=$chan_set
 ntot=$dattot
+NP=$NP
 EOF
 chmod +rwx params.sh
 cat par_run.sh >> params.sh
@@ -258,11 +263,11 @@ cat << EOF > params.sh
 #!/bin/sh
 #BSUB -o comp_out
 #BSUB -e comp_err
+#BSUB -openmp
 #BSUB -q dev
-#BSUB -n 1
+#BSUB -n $NP
 #BSUB -W $wall_time
-#BSUB -R affinity[core]
-#BSUB -R span[ptile=1]
+#BSUB -R span[ptile=$NP]
 #BSUB -P ${project_code}
 #BSUB -J cov_calc
 bdate=$bdate
@@ -280,10 +285,12 @@ corr_out=$corr_out
 kreq=$kreq
 method=$method
 cov_method=$cov_method
+time_sep=$time_sep
 bsize=$bsize
 bcen=$bcen
 chan_set=$chan_set
 ntot=$dattot
+NP=$NP
 EOF
 chmod +rwx params.sh
 cat par_run.sh >> params.sh

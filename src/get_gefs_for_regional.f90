@@ -36,7 +36,7 @@ subroutine get_gefs_for_regional
   use gridmod, only: idsl5,regional,use_gfs_nemsio
   use gridmod, only: nlon,nlat,lat2,lon2,nsig,rotate_wind_ll2xy
   use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
-  use hybrid_ensemble_parameters, only: en_perts,ps_bar
+  use hybrid_ensemble_parameters, only: en_perts,ps_bar,nelen
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,grd_a1,grd_e1,p_e2a,uv_hyb_ens,dual_res
   use hybrid_ensemble_parameters, only: full_ensemble,q_hyb_ens,l_ens_in_diff_time,write_ens_sprd
   use hybrid_ensemble_parameters, only: ntlevs_ens,ensemble_path
@@ -74,10 +74,11 @@ subroutine get_gefs_for_regional
   use nemsio_module, only: nemsio_init,nemsio_open,nemsio_close
   use ncepnems_io, only: error_msg
   use nemsio_module, only: nemsio_gfile,nemsio_getfilehead
-  use ens_spread_mod, only: ens_spread_dualres_regional
+  use get_wrf_mass_ensperts_mod, only: get_wrf_mass_ensperts_class
   implicit none
 
   type(sub2grid_info) grd_gfs,grd_mix,grd_gfst
+  type(get_wrf_mass_ensperts_class) :: wrf_mass_ensperts
   type(spec_vars) sp_gfs
   real(r_kind),allocatable,dimension(:,:,:) :: pri,prsl,prsl1000
   real(r_kind),pointer,dimension(:,:,:) :: vor =>null()
@@ -1270,7 +1271,7 @@ subroutine get_gefs_for_regional
 ! CALCULATE ENSEMBLE SPREAD
   if(write_ens_sprd)then
      call mpi_barrier(mpi_comm_world,ierror)
-     call ens_spread_dualres_regional
+     call wrf_mass_ensperts%ens_spread_dualres_regional(mype,en_perts,nelen)
      call mpi_barrier(mpi_comm_world,ierror)
   end if
 
