@@ -39,7 +39,6 @@ subroutine Set_CRTM_Aerosol_ ( km, na, na_crtm, aero_name, aero_conc, rh, aeroso
 
   use kinds, only: i_kind,r_kind
   use constants, only: tiny_r_kind
-  use mpimod, only: mype
   use CRTM_Aerosol_Define, only: CRTM_Aerosol_type
   use mpeu_util, only: getindex
   use crtm_module, only: SULFATE_AEROSOL,BLACK_CARBON_AEROSOL,ORGANIC_CARBON_AEROSOL,&

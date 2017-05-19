@@ -55,16 +55,17 @@ subroutine bkerror(gradx,grady)
   use berror, only: varprd,fpsproj,fut2ps
   use balmod, only: balance,tbalance
   use gsi_4dvar, only: nsubwin, lsqrtb
-  use gridmod, only: lat2,lon2,nlat,nlon,periodic,latlon11
+  use gridmod, only: nlat,nlon,periodic
   use jfunc, only: nsclen,npclen,ntclen
   use jfunc, only: set_sqrt_2dsize
   use constants, only:  zero
   use control_vectors, only: control_vector,assignment(=)
-  use control_vectors, only: mvars,nrf,nrf_var,nrf_3d,cvarsmd
+  use control_vectors, only: mvars,nrf,nrf_var,nrf_3d
   use timermod, only: timer_ini,timer_fnl
   use gsi_bundlemod, only: gsi_bundlegetpointer,gsi_bundlemerge,gsi_bundle,gsi_bundledup,gsi_bundledestroy
   use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
-  use general_commvars_mod, only: s2g_raf,s2g_cv
+! use general_commvars_mod, only: s2g_raf
+  use general_commvars_mod, only: s2g_cv
   use hybrid_ensemble_isotropic, only: sqrt_beta_s_mult
   use hybrid_ensemble_parameters, only: l_hyb_ens
   implicit none

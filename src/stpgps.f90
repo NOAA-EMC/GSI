@@ -61,7 +61,6 @@ subroutine stpgps(gpshead,rval,sval,out,sges,nstep)
 !   2006-09-06  cucurull - generalize code to hybrid vertical coordinate and modify to use 
 !                          surface pressure
 !   2007-01-13  derber - clean up code and use coding standards
-!   2007-02-15  rancic - add foto
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2007-07-26  cucurull - input 3d pressure to update code to generalized vertical coordinate
 !   2008-04-11  safford - rm unused vars
@@ -91,8 +90,7 @@ subroutine stpgps(gpshead,rval,sval,out,sges,nstep)
   use kinds, only: r_kind,i_kind,r_quad
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,one,two,half,tiny_r_kind,cg_term,zero_quad,r3600
-  use gridmod, only: latlon1n,nsig
-  use jfunc, only: l_foto,xhat_dt,dhat_dt
+  use gridmod, only: nsig
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use m_obsNode, only: obsNode
@@ -113,14 +111,12 @@ subroutine stpgps(gpshead,rval,sval,out,sges,nstep)
   integer(i_kind),dimension(nsig):: i1,i2,i3,i4
   real(r_kind) :: val,val2
   real(r_kind) :: w1,w2,w3,w4
-  real(r_kind) :: q_TL,p_TL,t_TL,time_gps
+  real(r_kind) :: q_TL,p_TL,t_TL
   real(r_kind) :: rq_TL,rp_TL,rt_TL
   real(r_kind),pointer,dimension(:) :: st,sq
   real(r_kind),pointer,dimension(:) :: rt,rq
   real(r_kind),pointer,dimension(:) :: sp
   real(r_kind),pointer,dimension(:) :: rp
-  real(r_kind),pointer,dimension(:) :: xhat_dt_t,xhat_dt_q,xhat_dt_prse
-  real(r_kind),pointer,dimension(:) :: dhat_dt_t,dhat_dt_q,dhat_dt_prse
   type(gpsNode), pointer :: gpsptr
 
   real(r_kind) cg_gps,wgross,wnotgross
@@ -143,15 +139,6 @@ subroutine stpgps(gpshead,rval,sval,out,sges,nstep)
   call gsi_bundlegetpointer(rval,'q'   ,rq,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'prse',rp,istatus);ier=istatus+ier
   if(ier/=0)return
-  if (l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'tv',  xhat_dt_t,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'q',   xhat_dt_q,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'prse',xhat_dt_prse,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'tv',  dhat_dt_t,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'q',   dhat_dt_q,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'prse',dhat_dt_prse,istatus);ier=istatus+ier
-     if(ier/=0)return
-  endif
 
 
 ! Loop over observations
@@ -184,21 +171,6 @@ subroutine stpgps(gpshead,rval,sval,out,sges,nstep)
               rq_TL=w1* rq(i1(j))+w2* rq(i2(j))+w3* rq(i3(j))+w4* rq(i4(j))
               p_TL =w1* sp(i1(j))+w2* sp(i2(j))+w3* sp(i3(j))+w4* sp(i4(j))
               rp_TL=w1* rp(i1(j))+w2* rp(i2(j))+w3* rp(i3(j))+w4* rp(i4(j))
-              if(l_foto)then
-                 time_gps=gpsptr%time*r3600
-                 t_TL=t_TL+(w1*xhat_dt_t(i1(j))+w2*xhat_dt_t(i2(j))+ &
-                            w3*xhat_dt_t(i3(j))+w4*xhat_dt_t(i4(j)))*time_gps
-                 rt_TL=rt_TL+(w1*dhat_dt_t(i1(j))+w2*dhat_dt_t(i2(j))+ &
-                              w3*dhat_dt_t(i3(j))+w4*dhat_dt_t(i4(j)))*time_gps
-                 q_TL=q_TL+(w1*xhat_dt_q(i1(j))+w2*xhat_dt_q(i2(j))+ &
-                            w3*xhat_dt_q(i3(j))+w4*xhat_dt_q(i4(j)))*time_gps
-                 rq_TL=rq_TL+(w1*dhat_dt_q(i1(j))+w2*dhat_dt_q(i2(j))+ &
-                              w3*dhat_dt_q(i3(j))+w4*dhat_dt_q(i4(j)))*time_gps
-                 p_TL=p_TL+(w1*xhat_dt_prse(i1(j))+w2*xhat_dt_prse(i2(j))+ &
-                            w3*xhat_dt_prse(i3(j))+w4*xhat_dt_prse(i4(j)))*time_gps
-                 rp_TL=rp_TL+(w1*dhat_dt_prse(i1(j))+w2*dhat_dt_prse(i2(j))+ &
-                              w3*dhat_dt_prse(i3(j))+w4*dhat_dt_prse(i4(j)))*time_gps
-              end if
               val2 = val2 + t_tl*gpsptr%jac_t(j)+ q_tl*gpsptr%jac_q(j)+p_tl*gpsptr%jac_p(j) 
               val  = val + rt_tl*gpsptr%jac_t(j)+rq_tl*gpsptr%jac_q(j)+rp_tl*gpsptr%jac_p(j)
 

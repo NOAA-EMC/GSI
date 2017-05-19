@@ -152,7 +152,6 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !   2006-09-18  derber - modify output from nonlinear operators to make same as linear operators
 !   2006-09-20  derber - add sensible temperatures for conventional obs.
 !   2006-10-12  treadon - replace virtual temperature with sensible in stppcp
-!   2007-02-15  rancic  - add foto
 !   2007-04-16  kleist  - modified calls to tendency and constraint routines
 !   2007-06-04  derber  - use quad precision to get reproduceability over number of processors
 !   2007-07-26  cucurull - update gps code to generalized vertical coordinate;
@@ -216,7 +215,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   use constants, only: zero,one_quad,zero_quad
   use gsi_4dvar, only: nobs_bins,ltlint,ibin_anl
   use jfunc, only: iout_iter,nclen,xhatsave,yhatsave,&
-       l_foto,xhat_dt,dhat_dt,nvals_len,iter
+       iter
   use jcmod, only: ljcpdry,ljc4tlevs,ljcdfi
   use obsmod, only: nobs_type
   use stpjcmod, only: stplimq,stplimg,stplimv,stplimp,stplimw10m,&
@@ -260,7 +259,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   real(r_quad),parameter:: one_tenth_quad = 0.1_r_quad 
 
 ! Declare local variables
-  integer(i_kind) i,j,mm1,ii,iis,ibin,ipenloc,ier,istatus,it
+  integer(i_kind) i,j,mm1,ii,iis,ibin,ipenloc,it
   integer(i_kind) istp_use,nstep,nsteptot,kprt
   real(r_quad),dimension(4,ipen):: pbc
   real(r_quad),dimension(4,nobs_type):: pbcjo 
@@ -277,7 +276,6 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   real(r_kind) outpensave
   real(r_kind),dimension(4)::sges
   real(r_kind),dimension(ioutpen):: outpen,outstp
-  real(r_kind),pointer,dimension(:,:,:):: xhat_dt_t,xhat_dt_q,xhat_dt_tsen
   logical :: cxterm,change_dels,ifound
 
 
@@ -394,11 +392,6 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !  two terms in next line should be the same, but roundoff makes average more accurate.
 
 ! Contraint and 3dvar terms
-  if(l_foto )then
-     call allocate_state(dhat_dt)
-     dhat_dt=zero
-     call stp3dvar(dval(1),dhat_dt)
-  end if
 
   if (ljcdfi .and. nobs_bins>1) then
     call stpjcdfi(dval,sval,pstart(1,2),pstart(2,2),pstart(3,2))
@@ -790,24 +783,6 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      xhatsave%values(i)=xhatsave%values(i)+stpinout*dirx%values(i)
      yhatsave%values(i)=yhatsave%values(i)+stpinout*diry%values(i)
   end do
-
-! Update time derivative of solution if required
-  if(l_foto) then
-     do i=1,nvals_len
-        xhat_dt%values(i)=xhat_dt%values(i)+stpinout*dhat_dt%values(i)
-     end do
-     ier=0
-     call gsi_bundlegetpointer(xhat_dt,'t',   xhat_dt_t,   istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'q',   xhat_dt_q,   istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'tsen',xhat_dt_tsen,istatus);ier=istatus+ier
-     if (ier==0) then
-        call tv_to_tsen(xhat_dt_t,xhat_dt_q,xhat_dt_tsen)
-     else
-        write(6,*) 'stpcalc: trouble getting pointers to xhat_dt'
-        call stop2(999)
-     endif
-     call deallocate_state(dhat_dt)
-  end if
 
 
 ! Finalize timer

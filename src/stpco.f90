@@ -60,7 +60,6 @@ subroutine stpco(colvkhead,rval,sval,out,sges,nstep)
 !
 !$$$  
   use kinds, only: r_kind,r_quad,i_kind
-  use gridmod, only: latlon1n
   use constants, only: zero_quad
   use gsi_bundlemod, only: gsi_bundle
   use m_obsNode,  only: obsNode
