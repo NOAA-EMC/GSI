@@ -69,7 +69,6 @@ subroutine intt_(thead,rval,sval,rpred,spred)
 !   2006-07-28  derber  - modify to use new inner loop obs data structure
 !                       - unify NL qc
 !   2006-09-20  derber - add sensible temperature for conventional temperatures
-!   2006-10-20  rancic - add foto
 !   2007-03-19  tremolet - binning of observations
 !   2007-06-05  tremolet - use observation diagnostics structure
 !   2007-07-09  tremolet - observation sensitivity
@@ -119,7 +118,7 @@ subroutine intt_(thead,rval,sval,rpred,spred)
   use constants, only: half,one,zero,tiny_r_kind,cg_term,r3600,two
   use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
-  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_bundlemod, only: gsi_bundleprint
@@ -141,8 +140,6 @@ subroutine intt_(thead,rval,sval,rpred,spred)
   real(r_kind),dimension(:),pointer :: rt,rtv,rq,ru,rv
   real(r_kind),dimension(:),pointer :: rsst
   real(r_kind),dimension(:),pointer :: rp
-  real(r_kind),dimension(:),pointer :: xhat_dt_tsen,xhat_dt_t,xhat_dt_q,xhat_dt_u,xhat_dt_v,xhat_dt_prse
-  real(r_kind),dimension(:),pointer :: dhat_dt_tsen,dhat_dt_t,dhat_dt_q,dhat_dt_u,dhat_dt_v,dhat_dt_prse
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,ier,istatus,isst,ix,n
@@ -179,22 +176,6 @@ subroutine intt_(thead,rval,sval,rpred,spred)
   call gsi_bundlegetpointer(rval,'sst',rsst,istatus);isst=istatus+isst
   if(ier/=0) return
 
-  if (l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'tsen',xhat_dt_tsen,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'tv',     xhat_dt_t,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'q',      xhat_dt_q,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'u',      xhat_dt_u,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'v',      xhat_dt_v,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'prse',xhat_dt_prse,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'tsen',dhat_dt_tsen,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'tv',     dhat_dt_t,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'q',      dhat_dt_q,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'u',      dhat_dt_u,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'v',      dhat_dt_v,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'prse',dhat_dt_prse,istatus);ier=istatus+ier
-     if(ier/=0)return
-  endif
-
   time_t=zero
   !tptr => thead
   tptr => tNode_typecast(thead)
@@ -217,7 +198,6 @@ subroutine intt_(thead,rval,sval,rpred,spred)
      w7=tptr%wij(7)
      w8=tptr%wij(8)
 
-     if(l_foto) time_t=tptr%time*r3600
      if(tptr%use_sfc_model) then
 
 !----------use surface model----------------------
@@ -236,23 +216,6 @@ subroutine intt_(thead,rval,sval,rpred,spred)
         us_prime0=w1*   su(j1)+w2*  su(j2)+w3*  su(j3)+w4*  su(j4)
         vs_prime0=w1*   sv(j1)+w2*  sv(j2)+w3*  sv(j3)+w4*  sv(j4)
         psfc_prime0=w1* sp(j1)+w2*  sp(j2)+w3*  sp(j3)+w4*  sp(j4)
-        if ( l_foto ) then
-           ts_prime0=ts_prime0+ &
-                    (w1*xhat_dt_tsen(j1)+w2*xhat_dt_tsen(j2)+ &
-                     w3*xhat_dt_tsen(j3)+w4*xhat_dt_tsen(j4))*time_t
-           qs_prime0=qs_prime0+ &
-                    (w1*xhat_dt_q(j1)+w2*xhat_dt_q(j2)+ &
-                     w3*xhat_dt_q(j3)+w4*xhat_dt_q(j4))*time_t
-           us_prime0=us_prime0+&
-                    (w1*xhat_dt_u(j1)+w2*xhat_dt_u(j2)+ &
-                     w3*xhat_dt_u(j3)+w4*xhat_dt_u(j4))*time_t
-           vs_prime0=vs_prime0+&
-                    (w1*xhat_dt_v(j1)+w2*xhat_dt_v(j2)+ &
-                     w3*xhat_dt_v(j3)+w4*xhat_dt_v(j4))*time_t
-           psfc_prime0=psfc_prime0+ &
-                    (w1*xhat_dt_prse(j1)+w2*xhat_dt_prse(j2)+ &
-                     w3*xhat_dt_prse(j3)+w4*xhat_dt_prse(j4))*time_t
-        endif
 
         val=psfc_prime0*tptr%tlm_tsfc(1) + tg_prime0*tptr%tlm_tsfc(2) + &
             ts_prime0  *tptr%tlm_tsfc(3) + qs_prime0*tptr%tlm_tsfc(4) + &
@@ -264,23 +227,9 @@ subroutine intt_(thead,rval,sval,rpred,spred)
         if(tptr%tv_ob)then
            val=w1*stv(j1)+w2*stv(j2)+w3*stv(j3)+w4*stv(j4)&
               +w5*stv(j5)+w6*stv(j6)+w7*stv(j7)+w8*stv(j8)
-           if ( l_foto ) then
-              val=val&
-              +(w1*xhat_dt_t(j1)+w2*xhat_dt_t(j2)+ &
-                w3*xhat_dt_t(j3)+w4*xhat_dt_t(j4)+ &
-                w5*xhat_dt_t(j5)+w6*xhat_dt_t(j6)+ &
-                w7*xhat_dt_t(j7)+w8*xhat_dt_t(j8))*time_t
-           endif
         else
            val=w1*    st(j1)+w2*    st(j2)+w3*    st(j3)+w4*    st(j4)&
               +w5*    st(j5)+w6*    st(j6)+w7*    st(j7)+w8*    st(j8)
-           if ( l_foto ) then
-              val=val&
-              +(w1*xhat_dt_tsen(j1)+w2*xhat_dt_tsen(j2)+ &
-                w3*xhat_dt_tsen(j3)+w4*xhat_dt_tsen(j4)+ &
-                w5*xhat_dt_tsen(j5)+w6*xhat_dt_tsen(j6)+ &
-                w7*xhat_dt_tsen(j7)+w8*xhat_dt_tsen(j8))*time_t
-           endif
         end if
 
      end if
@@ -369,24 +318,6 @@ subroutine intt_(thead,rval,sval,rpred,spred)
               rsst(j3)=rsst(j3)+w3*tg_grad
               rsst(j4)=rsst(j4)+w4*tg_grad
            end if
-           if (l_foto) then
-              dhat_dt_prse(j1)=dhat_dt_prse(j1)+w1*psfc_grad*time_t
-              dhat_dt_prse(j2)=dhat_dt_prse(j2)+w2*psfc_grad*time_t
-              dhat_dt_prse(j3)=dhat_dt_prse(j3)+w3*psfc_grad*time_t
-              dhat_dt_prse(j4)=dhat_dt_prse(j4)+w4*psfc_grad*time_t
-              dhat_dt_v(j1)=dhat_dt_v(j1)+w1*vs_grad*time_t
-              dhat_dt_v(j2)=dhat_dt_v(j2)+w2*vs_grad*time_t
-              dhat_dt_v(j3)=dhat_dt_v(j3)+w3*vs_grad*time_t
-              dhat_dt_v(j4)=dhat_dt_v(j4)+w4*vs_grad*time_t
-              dhat_dt_u(j1)=dhat_dt_u(j1)+w1*us_grad*time_t
-              dhat_dt_u(j2)=dhat_dt_u(j2)+w2*us_grad*time_t
-              dhat_dt_u(j3)=dhat_dt_u(j3)+w3*us_grad*time_t
-              dhat_dt_u(j4)=dhat_dt_u(j4)+w4*us_grad*time_t
-              dhat_dt_q(j1)=dhat_dt_q(j1)+w1*qs_grad*time_t
-              dhat_dt_q(j2)=dhat_dt_q(j2)+w2*qs_grad*time_t
-              dhat_dt_q(j3)=dhat_dt_q(j3)+w3*qs_grad*time_t
-              dhat_dt_q(j4)=dhat_dt_q(j4)+w4*qs_grad*time_t
-           endif
 
 
            ts_grad  =tptr%tlm_tsfc(3)*grad
@@ -396,26 +327,12 @@ subroutine intt_(thead,rval,sval,rpred,spred)
               rtv(j3)=rtv(j3)+w3*ts_grad
               rtv(j4)=rtv(j4)+w4*ts_grad
 
-              if (l_foto) then
-                 dhat_dt_t(j1)=dhat_dt_t(j1)+w1*ts_grad*time_t
-                 dhat_dt_t(j2)=dhat_dt_t(j2)+w2*ts_grad*time_t
-                 dhat_dt_t(j3)=dhat_dt_t(j3)+w3*ts_grad*time_t
-                 dhat_dt_t(j4)=dhat_dt_t(j4)+w4*ts_grad*time_t
-              endif
-
            else
               rt(j1)=rt(j1)+w1*ts_grad
               rt(j2)=rt(j2)+w2*ts_grad
               rt(j3)=rt(j3)+w3*ts_grad
               rt(j4)=rt(j4)+w4*ts_grad
  
-              if (l_foto) then
-                 dhat_dt_tsen(j1)=dhat_dt_tsen(j1)+w1*ts_grad*time_t
-                 dhat_dt_tsen(j2)=dhat_dt_tsen(j2)+w2*ts_grad*time_t
-                 dhat_dt_tsen(j3)=dhat_dt_tsen(j3)+w3*ts_grad*time_t
-                 dhat_dt_tsen(j4)=dhat_dt_tsen(j4)+w4*ts_grad*time_t
-              endif
-
            end if
 
         else
@@ -432,17 +349,6 @@ subroutine intt_(thead,rval,sval,rpred,spred)
               rtv(j7)=rtv(j7)+w7*grad
               rtv(j8)=rtv(j8)+w8*grad
  
-              if ( l_foto ) then
-                 dhat_dt_t(j1)=dhat_dt_t(j1)+w1*grad*time_t
-                 dhat_dt_t(j2)=dhat_dt_t(j2)+w2*grad*time_t
-                 dhat_dt_t(j3)=dhat_dt_t(j3)+w3*grad*time_t
-                 dhat_dt_t(j4)=dhat_dt_t(j4)+w4*grad*time_t
-                 dhat_dt_t(j5)=dhat_dt_t(j5)+w5*grad*time_t
-                 dhat_dt_t(j6)=dhat_dt_t(j6)+w6*grad*time_t
-                 dhat_dt_t(j7)=dhat_dt_t(j7)+w7*grad*time_t
-                 dhat_dt_t(j8)=dhat_dt_t(j8)+w8*grad*time_t
-              endif
-
            else
               rt(j1)=rt(j1)+w1*grad
               rt(j2)=rt(j2)+w2*grad
@@ -453,17 +359,6 @@ subroutine intt_(thead,rval,sval,rpred,spred)
               rt(j7)=rt(j7)+w7*grad
               rt(j8)=rt(j8)+w8*grad
  
-              if ( l_foto ) then
-                 dhat_dt_tsen(j1)=dhat_dt_tsen(j1)+w1*grad*time_t
-                 dhat_dt_tsen(j2)=dhat_dt_tsen(j2)+w2*grad*time_t
-                 dhat_dt_tsen(j3)=dhat_dt_tsen(j3)+w3*grad*time_t
-                 dhat_dt_tsen(j4)=dhat_dt_tsen(j4)+w4*grad*time_t
-                 dhat_dt_tsen(j5)=dhat_dt_tsen(j5)+w5*grad*time_t
-                 dhat_dt_tsen(j6)=dhat_dt_tsen(j6)+w6*grad*time_t
-                 dhat_dt_tsen(j7)=dhat_dt_tsen(j7)+w7*grad*time_t
-                 dhat_dt_tsen(j8)=dhat_dt_tsen(j8)+w8*grad*time_t
-              endif
-
            end if
 
         end if

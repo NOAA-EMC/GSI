@@ -78,9 +78,7 @@ subroutine stpoz(ozhead,o3lhead,rval,sval,out,sges,nstep)
 !
 !$$$  
   use kinds, only: r_kind,r_quad,i_kind
-  use obsmod   , only: nloz_omi
   use m_obsNode, only: obsNode
-  use gridmod, only: latlon1n
   use constants, only: zero_quad,zero
   use gsi_bundlemod, only: gsi_bundle
   implicit none
@@ -128,11 +126,9 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
 !   2006-07-28  derber  - modify to use new inner loop obs data structure
 !                       - unify NL qc
 !   2006-09-18  derber  - modify output values of b1 and b3
-!   2007-02-15  rancic  - add foto
 !   2007-03-19  tremolet - binning of observations
 !   2007-05-30  h.liu   - move interpolation weights w1-w4 inside k loop
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
-!   2008-12-03  todling - update handle of foto
 !   2010-05-13  todling - udpate to use gsi_bundle
 !   2012-09-10  wargan  - add OMI with efficiency factors
 !
@@ -155,7 +151,6 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
   use obsmod, only: nloz_omi
   use constants, only: one,half,two,zero_quad,r3600,zero
   use gridmod, only: lat2,lon2,nsig
-  use jfunc, only: l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use m_obsNode, only: obsNode
@@ -174,12 +169,10 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
 
 ! Declare local variables
   integer(i_kind) i,j,ij,ier,istatus
-  integer(i_kind) k,j1,j2,j3,j4,iz1,iz2,j1x,j2x,j3x,j4x,kk,kl
+  integer(i_kind) k,j1,j2,j3,j4,iz1,iz2,kk,kl
   real(r_kind) dz1,pob,delz
-  real(r_kind) w1,w2,w3,w4,time_oz,oz
+  real(r_kind) w1,w2,w3,w4,oz
   real(r_kind),dimension(max(1,nstep))::pen
-  real(r_kind),pointer,dimension(:) :: xhat_dt_oz
-  real(r_kind),pointer,dimension(:) :: dhat_dt_oz
   real(r_kind),allocatable,dimension(:,:) :: roz,soz
   real(r_kind),pointer,dimension(:,:,:)   :: rozp,sozp
   real(r_kind),dimension(nloz_omi):: val_lay, val_lay1
@@ -191,10 +184,6 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
   ier=0
   call gsi_bundlegetpointer(sval,'oz',sozp,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'oz',rozp,istatus);ier=istatus+ier
-  if(l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'oz',xhat_dt_oz,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'oz',dhat_dt_oz,istatus);ier=istatus+ier
-  endif
   if(ier/=0) return
 
 ! Can't do rank-2 pointer into rank-2, therefore, allocate work space
@@ -223,7 +212,6 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
            j2=ozptr%ij(2)
            j3=ozptr%ij(3)
            j4=ozptr%ij(4)
-           if(l_foto)time_oz=ozptr%time*r3600
 
 !          Accumulate contribution from layer observations
            dz1=nsig+1
@@ -258,22 +246,6 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
                          w2* soz(j2,kk)+ &
                          w3* soz(j3,kk)+ &
                          w4* soz(j4,kk))*delz
-                    if(l_foto) then
-                       j1x=j1+(kk-1)*lat2*lon2
-                       j2x=j2+(kk-1)*lat2*lon2
-                       j3x=j3+(kk-1)*lat2*lon2
-                       j4x=j4+(kk-1)*lat2*lon2
-                       val=val + ( &
-                         (w1*dhat_dt_oz(j1x)+ &
-                          w2*dhat_dt_oz(j2x)+ &
-                          w3*dhat_dt_oz(j3x)+ &
-                          w4*dhat_dt_oz(j4x))*time_oz )*delz
-                       val1=val1 + ( &
-                         (w1*xhat_dt_oz(j1x)+ &
-                          w2*xhat_dt_oz(j2x)+ &
-                          w3*xhat_dt_oz(j3x)+ &
-                          w4*xhat_dt_oz(j4x))*time_oz )*delz
-                    end if
                  end do
                  do kk=1,nstep
                     oz=val1+sges(kk)*val
@@ -313,22 +285,6 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
                       w2* soz(j2,kk)+ &
                       w3* soz(j3,kk)+ & 
                       w4* soz(j4,kk))
-                 if(l_foto)then
-                    j1x=j1+(kk-1)*lat2*lon2
-                    j2x=j2+(kk-1)*lat2*lon2
-                    j3x=j3+(kk-1)*lat2*lon2
-                    j4x=j4+(kk-1)*lat2*lon2
-                    val=val+ ( &
-                         (w1*xhat_dt_oz(j1x)+ &
-                         w2*xhat_dt_oz(j2x)+ &
-                         w3*xhat_dt_oz(j3x)+ & 
-                         w4*xhat_dt_oz(j4x))*time_oz )
-                    val1=val1 + ( &
-                         (w1*dhat_dt_oz(j1x)+ &
-                         w2*dhat_dt_oz(j2x)+ &
-                         w3*dhat_dt_oz(j3x)+ &
-                         w4*dhat_dt_oz(j4x))*time_oz )
-                 end if
               enddo
            else ! OMI total ozone
               do kl=1,nloz_omi
@@ -432,8 +388,6 @@ subroutine stpozlev_(o3lhead,rval,sval,out,sges,nstep)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use constants, only: zero,one,half,two,r3600
-  use gridmod, only: latlon1n
-  use jfunc, only: l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use m_obsNode, only: obsNode
@@ -453,9 +407,7 @@ subroutine stpozlev_(o3lhead,rval,sval,out,sges,nstep)
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk,ier,istatus
   real(r_kind) oz
   real(r_kind),dimension(max(1,nstep))::pen
-  real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,val,val2, time_oz
-  real(r_kind),pointer,dimension(:) :: xhat_dt_oz
-  real(r_kind),pointer,dimension(:) :: dhat_dt_oz
+  real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,val,val2
   real(r_kind),pointer,dimension(:) :: roz1d,soz1d
   type(o3lNode), pointer :: o3lptr
 
@@ -463,15 +415,9 @@ subroutine stpozlev_(o3lhead,rval,sval,out,sges,nstep)
   ier=0
   call gsi_bundlegetpointer(sval,'oz',soz1d,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'oz',roz1d,istatus);ier=istatus+ier
-  if(l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'oz',xhat_dt_oz,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'oz',dhat_dt_oz,istatus);ier=istatus+ier
-  endif
   if(ier/=0) return
 
 ! Initialize output variables to zero
-
-  time_oz = zero
 
   o3lptr => o3lNode_typecast(o3lhead)
 
@@ -502,18 +448,6 @@ subroutine stpozlev_(o3lhead,rval,sval,out,sges,nstep)
                 w5*roz1d(j5)+w6*roz1d(j6)+w7*roz1d(j7)+w8*roz1d(j8)   
            val2=w1*soz1d(j1)+w2*soz1d(j2)+w3*soz1d(j3)+w4*soz1d(j4)+ &
                 w5*soz1d(j5)+w6*soz1d(j6)+w7*soz1d(j7)+w8*soz1d(j8)-o3lptr%res
-
-           if(l_foto) then
-              time_oz=o3lptr%time*r3600
-              val=val+ (w1*dhat_dt_oz(j1)+w2*dhat_dt_oz(j2)+ &
-                        w3*dhat_dt_oz(j3)+w4*dhat_dt_oz(j4)+ &
-                        w5*dhat_dt_oz(j5)+w6*dhat_dt_oz(j6)+ &
-                        w7*dhat_dt_oz(j7)+w8*dhat_dt_oz(j8))*time_oz
-              val2=val2+ (w1*xhat_dt_oz(j1)+w2*xhat_dt_oz(j2)+ &
-                          w3*xhat_dt_oz(j3)+w4*xhat_dt_oz(j4)+ &
-                          w5*xhat_dt_oz(j5)+w6*xhat_dt_oz(j6)+ &
-                          w7*xhat_dt_oz(j7)+w8*xhat_dt_oz(j8))*time_oz
-           end if
 
            do kk=1,nstep
               oz=val2+sges(kk)*val

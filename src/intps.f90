@@ -65,7 +65,6 @@ subroutine intps_(pshead,rval,sval)
 !   2005-09-28  derber  - consolidate location and weight arrays
 !   2005-10-21  su      - modify for variational qc
 !   2006-07-28  derber  - modify to use new inner loop obs data structure
-!   2007-02-15  rancic - add foto
 !   2007-03-19  tremolet - binning of observations
 !   2007-06-05  tremolet - use observation diagnostics structure
 !   2007-07-09  tremolet - observation sensitivity
@@ -95,7 +94,7 @@ subroutine intps_(pshead,rval,sval)
   use constants, only: half,one,tiny_r_kind,cg_term,r3600,two
   use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
-  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_4dvar, only: ladtest_obs
@@ -111,9 +110,7 @@ subroutine intps_(pshead,rval,sval)
   integer(i_kind) j1,j2,j3,j4
 ! real(r_kind) penalty
   real(r_kind) cg_ps,val,p0,grad,wnotgross,wgross,ps_pg
-  real(r_kind) w1,w2,w3,w4,time_ps
-  real(r_kind),pointer,dimension(:) :: xhat_dt_prse
-  real(r_kind),pointer,dimension(:) :: dhat_dt_prse
+  real(r_kind) w1,w2,w3,w4
   real(r_kind),pointer,dimension(:) :: sp
   real(r_kind),pointer,dimension(:) :: rp
   type(psNode), pointer :: psptr
@@ -125,10 +122,6 @@ subroutine intps_(pshead,rval,sval)
   ier=0
   call gsi_bundlegetpointer(sval,'prse',sp,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'prse',rp,istatus);ier=istatus+ier
-  if(l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'prse',xhat_dt_prse,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'prse',dhat_dt_prse,istatus);ier=istatus+ier
-  endif
   if(ier/=0)return
 
   !psptr => pshead
@@ -146,12 +139,6 @@ subroutine intps_(pshead,rval,sval)
 
 !    Forward model
      val=w1* sp(j1)+w2* sp(j2)+w3* sp(j3)+w4* sp(j4)
-     if (l_foto) then
-        time_ps=psptr%time*r3600
-        val=val+&
-          (w1*xhat_dt_prse(j1)+w2*xhat_dt_prse(j2)+ &
-           w3*xhat_dt_prse(j3)+w4*xhat_dt_prse(j4))*time_ps
-     endif
 
      if(luse_obsdiag)then
         if (lsaveobsens) then
@@ -191,15 +178,6 @@ subroutine intps_(pshead,rval,sval)
         rp(j2)=rp(j2)+w2*grad
         rp(j3)=rp(j3)+w3*grad
         rp(j4)=rp(j4)+w4*grad
-
-
-        if (l_foto) then
-           grad=grad*time_ps
-           dhat_dt_prse(j1)=dhat_dt_prse(j1)+w1*grad
-           dhat_dt_prse(j2)=dhat_dt_prse(j2)+w2*grad
-           dhat_dt_prse(j3)=dhat_dt_prse(j3)+w3*grad
-           dhat_dt_prse(j4)=dhat_dt_prse(j4)+w4*grad
-        endif
 
      endif
 
