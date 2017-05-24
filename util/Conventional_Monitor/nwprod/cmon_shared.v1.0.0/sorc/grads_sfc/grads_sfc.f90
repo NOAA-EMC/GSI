@@ -27,7 +27,7 @@ subroutine grads_sfc(fileo,ifileo,nobs,nreal,iscater,igrads,isubtype,subtype,lis
    real(4) rtim,xlat0,xlon0,rlat,rlon
  
    integer(4):: isubtype
-   integer i,j,ii,ilat,ilon,ipres,itime,iweight,ndup
+   integer i,j,ilat,ilon,ipres,itime,iweight,ndup
 
    rtim=0.0
    nflg0=0
@@ -45,6 +45,8 @@ subroutine grads_sfc(fileo,ifileo,nobs,nreal,iscater,igrads,isubtype,subtype,lis
 
    allocate(cdiag(nobs))
    nreal_m2 = nreal - 2
+   print *, 'nreal_m2 = ', nreal_m2
+
    allocate(rdiag_m2(nreal-2,nobs))        ! this will contain rdiag except for
                                            ! for the first 2 fields (type and subtype
 
@@ -109,22 +111,18 @@ subroutine grads_sfc(fileo,ifileo,nobs,nreal,iscater,igrads,isubtype,subtype,lis
       call rm_dups( rdiag_m2,nobs,nreal_m2,ilat,ilon,ipres,itime,iweight,ndup )
 
       ctr = 0
-      ii=0
-      do  i=1,nobs
+      do i=1,nobs
 
          if(rdiag_m2(iweight,i) >0.0) then
-            ii=ii+1
             stid=cdiag(i)
             rlat=rdiag_m2(ilat,i)
             rlon=rdiag_m2(ilon,i)
             write(21) stid,rlat,rlon,rtim,1,1
-
             !---------------------------------------------------------------
             ! note this writes the rdiag_m2 record starting at station
             ! elevation; lat and lon are written in the line above with
             ! the station id info
-            write(21) rdiag_m2(3:nreal_m2,i)
-
+            write(21) (rdiag_m2(j,i),j=3,nreal_m2)
             ctr = ctr + 1
 
          endif
@@ -138,7 +136,6 @@ subroutine grads_sfc(fileo,ifileo,nobs,nreal,iscater,igrads,isubtype,subtype,lis
       
       print *, 'num recs written to GrADS file = ', ctr 
       close(21)
-!      close(11)
    else
       write(6,*) "No output file generated, nobs, igrads = ", nobs, igrads
    endif

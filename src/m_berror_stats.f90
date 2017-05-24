@@ -261,6 +261,7 @@ subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwopt
 
    use kinds,only : r_single,r_kind
    use gridmod,only : nlat,nlon,nsig
+      use radiance_mod, only: n_clouds_fwd,cloud_names_fwd
 
    implicit none
 
@@ -297,6 +298,8 @@ subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwopt
 !       05Feb14 - Todling - Allow for overwrite of cw with q cov
 !       07Jun14 - Zhu - set up new error variance and corr. lengths 
 !                       of cw for allsky radiance
+!       09Sept15 - Zhu - use centralized cloud_names_fwd and n_clouds_fwd to add 
+!                        flexibility for all-sky radiance assimilation
 !EOP ___________________________________________________________________
 
    character(len=*),parameter :: myname_=myname//'::read_wgt'
@@ -304,7 +307,7 @@ subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwopt
    real(r_single),dimension(nlat,nsig,nsig):: agvin
    real(r_single),dimension(nlat,nsig) :: wgvin,bvin
 
-   integer(i_kind) :: i,n,k,iq,icw
+   integer(i_kind) :: i,n,k,iq,icw,ivar,ic
    integer(i_kind) :: inerr,istat,ier
    integer(i_kind) :: nsigstat,nlatstat
    integer(i_kind) :: isig
@@ -459,28 +462,46 @@ subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwopt
       endif
    enddo
 
-   ! if so, overwrite cw-cov with q-cov
-   iq=-1 ; icw=-1
+!  if so, overwrite cw-cov with q-cov
+   iq=-1;icw=-1
    do n=1,size(cvars3d)
-      if ( trim(cvars3d(n))=='q'  ) iq =n
-      if ( trim(cvars3d(n))=='cw' ) icw=n
+      if(trim(cvars3d(n))=='q' ) iq =n
+      if(trim(cvars3d(n))=='cw') icw=n
    enddo
-   if ( cwcoveqqcov_ ) then
-      if ( iq>0 .and. icw>0 ) then
-         hwll(:,:,icw)=hwll(:,:,iq)
-         vz  (:,:,icw)=vz  (:,:,iq)
-      endif
-   endif
-   if ( cwoption==1 .or. cwoption==3 ) then
-      do k=1,nsig
-         do i=1,nlat
-            corz(i,k,icw)=one
-         enddo
-      enddo
-      if ( iq>0 .and. icw>0 ) then
+   if (cwcoveqqcov_) then
+      if(iq>0.and.icw>0) then
+        hwll(:,:,icw)=hwll(:,:,iq)
+        vz  (:,:,icw)=vz  (:,:,iq)
+      end if
+   end if
+   if (cwoption==1 .or. cwoption==3) then
+      if (iq>0.and.icw>0) then
+         do k=1,nsig
+            do i=1,nlat
+               corz(i,k,icw)=one
+            end do
+         end do
          hwll(:,:,icw)=0.5_r_kind*hwll(:,:,iq)
          vz  (:,:,icw)=0.5_r_kind*vz  (:,:,iq)
-      endif 
+      end if 
+
+      if (n_clouds_fwd>0 .and. icw<=0) then
+         do n=1,size(cvars3d)
+            do ic=1,n_clouds_fwd
+               if(trim(cvars3d(n))==trim(cloud_names_fwd(ic))) then
+                  ivar=n
+                  do k=1,nsig
+                     do i=1,nlat
+                        corz(i,k,ivar)=one
+                     end do
+                  end do
+                  hwll(:,:,ivar)=0.5_r_kind*hwll(:,:,iq)
+                  vz  (:,:,ivar)=0.5_r_kind*vz  (:,:,iq)
+                  exit
+               end if   
+            end do
+         end do
+      end if
    endif
 
    ! need simliar general template for undefined 2d variables ...

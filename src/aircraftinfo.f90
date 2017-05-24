@@ -49,7 +49,7 @@ module aircraftinfo
   public :: upd_pred_t
   public :: upd_aircraft
   public :: nsort,itail_sort,idx_sort
-
+  public :: hdist_aircraft
   logical :: aircraft_t_bc ! logical to turn off or on the aircraft temperature bias correction
   logical :: aircraft_t_bc_pof ! logical to turn off or on the aircraft temperature bias correction with pof
   logical :: aircraft_t_bc_ext ! logical to turn off or on the externally supplied aircraft bias correction
@@ -70,6 +70,7 @@ module aircraftinfo
   integer(i_kind),dimension(max_tail):: timelist    ! time stamp
   real(r_kind):: biaspredt                          ! berror var for temperature bias correction coefficients
   real(r_kind):: upd_pred_t                         ! =1 update bias; =0 no update
+  real(r_kind):: hdist_aircraft                     ! horizontal distance threshold for errormod_aircraft
   real(r_kind),allocatable,dimension(:,:):: predt        ! coefficients for predictor part of bias correction
 
   real(r_kind),allocatable,dimension(:,:):: varA_t
@@ -119,6 +120,8 @@ contains
 
     upd_aircraft=.true.
     upd_pred_t=one
+
+    hdist_aircraft=60000.0_r_kind
 
   end subroutine init_aircraft
 
