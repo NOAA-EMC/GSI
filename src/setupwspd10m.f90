@@ -19,6 +19,8 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
 !                       . removed (%dlat,%dlon) debris.
+!   2016-10-07  pondeca - if(.not.proceed) advance through input file first
+!                          before retuning to setuprhsall.f90
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -39,7 +41,7 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use kinds, only: r_kind,r_single,r_double,i_kind
 
   use guess_grids, only: hrdifsig,nfldsig,ges_lnprsl, &
-               geop_hgtl,sfcmod_gfs,sfcmod_mm5,comp_fact10,pt_ll     
+               sfcmod_gfs,sfcmod_mm5,comp_fact10,pt_ll     
   use m_obsdiags, only: wspd10mhead
   use obsmod, only: rmiss_single,i_wspd10m_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
@@ -53,8 +55,8 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gridmod, only: get_ij,twodvar_regional,regional
   use constants, only: zero,tiny_r_kind,one,one_tenth,half,wgtlim,rd,grav,&
             two,cg_term,three,four,five,ten,huge_single,r1000,r3600,&
-            grav_ratio,flattening,grav,deg2rad,grav_equator,somigliana, &
-            semi_major_axis,eccentricity
+            grav_ratio,flattening,grav,grav_equator,somigliana, &
+            semi_major_axis
   use jfunc, only: jiter,last,miter
   use qcmod, only: dfact,dfact1,npres_print,qc_satwnds
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
@@ -96,15 +98,15 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) presw,factw,dpres,sfcchk,ugesin,vgesin,dpressave
   real(r_kind) ugesin_scaled,vgesin_scaled
   real(r_kind) qcu,qcv
-  real(r_kind) ratio_errors,tfact,fact,wflate,psges,goverrd,zsges,spdob
-  real(r_kind) slat,sin2,termg,termr,termrg,pobl,uob,vob
-  real(r_kind) dz,zob,z1,z2,p1,p2,dz21,dlnp21,spdb,dstn
+  real(r_kind) ratio_errors,tfact,wflate,psges,goverrd,spdob
+  real(r_kind) uob,vob
+  real(r_kind) spdb
   real(r_kind) dudiff_opp, dvdiff_opp, vecdiff, vecdiff_opp
   real(r_kind) ascat_vec
   real(r_kind) errinv_input,errinv_adjst,errinv_final
   real(r_kind) err_input,err_adjst,err_final,skint,sfcr
   real(r_kind),dimension(nobs):: dup
-  real(r_kind),dimension(nsig)::prsltmp,zges,tges
+  real(r_kind),dimension(nsig)::prsltmp,tges
   real(r_kind) wdirob,wdirgesin,wdirdiffmax
   real(r_kind),dimension(nele,nobs):: data
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
@@ -112,7 +114,7 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   integer(i_kind) ier,ier2,ilon,ilat,ihgt,iuob,ivob,ipres,id,itime,ikx,iqc
   integer(i_kind) iuse,ilate,ilone,ielev,izz,iprvd,isprvd
-  integer(i_kind) i,nchar,nreal,k,k1,k2,ii,ikxx,nn,isli,ibin,ioff,ioff0,jj,itype
+  integer(i_kind) i,nchar,nreal,k,ii,ikxx,nn,isli,ibin,ioff,ioff0,jj,itype
   integer(i_kind) l,mm1
   integer(i_kind) istat
   integer(i_kind) idomsfc,iskint,iff10,isfcr
@@ -149,7 +151,10 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
-  if(.not.proceed) return  ! not all vars available, simply return
+  if(.not.proceed) then
+     read(lunin)data,luse   !advance through input file
+     return  ! not all vars available, simply return
+  endif
 
 ! If require guess vars available, extract from bundle ...
   call init_vars_
@@ -169,7 +174,7 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   ipres=4     ! index of pressure
   ihgt=5      ! index of observation elevation
   iuob=6      ! index of u observation
-  ivob=7      ! index of wspd10m observation
+  ivob=7      ! index of v observation
   id=8        ! index of station id
   itime=9     ! index of observation time in data array
   ikxx=10     ! index of ob type
@@ -322,144 +327,16 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      uob = data(iuob,i)
      vob = data(ivob,i)
      spdob=sqrt(uob*uob+vob*vob)
+     call tintrp2a11(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
+          mype,nfldsig)
+     call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
 
 ! Interpolate to get wspd10m at obs location/time
      call tintrp2a11(ges_wspd10m,spdges,dlat,dlon,dtime,hrdifsig,&
           mype,nfldsig)
 
      itype=ictype(ikx)
-
-   GOTO 1111
-!   Process observations with reported height
-    drpx = zero
-    dpres = data(ihgt,i)
-    dstn = data(ielev,i)
-
-!   Get guess surface elevation and geopotential height profile
-!   at observation location.
-    call tintrp2a11(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
-            mype,nfldsig)
-!   Subtract off combination of surface station elevation and
-!   model elevation depending on how close to surface
-    fact = zero
-    if(dpres-dstn > 10._r_kind)then
-      if(dpres-dstn > 1000._r_kind)then
-         fact = one
-      else
-         fact=(dpres-dstn)/990._r_kind
-      end if
-    end if
-    dpres=dpres-(dstn+fact*(zsges-dstn))
-    drpx=0.003*abs(dstn-zsges)*(one-fact)
-
-    if (.not. twodvar_regional) then
-       call tintrp2a1(geop_hgtl,zges,dlat,dlon,dtime,hrdifsig,&
-               nsig,mype,nfldsig)
-!      For observation reported with geometric height above sea level,
-!      convert geopotential to geometric height.
-!      Convert geopotential height at layer midpoints to geometric
-!      height using equations (17, 20, 23) in MJ Mahoney's note
-!      "A discussion of various measures of altitude" (2001).
-!      Available on the web at
-!      http://mtp.jpl.nasa.gov/notes/altitude/altitude.html
-!
-!      termg  = equation 17
-!      termr  = equation 21
-!      termrg = first term in the denominator of equation 23
-!      zges  = equation 23
-
-       slat = data(ilate,i)*deg2rad
-       sin2  = sin(slat)*sin(slat)
-       termg = grav_equator * &
-            ((one+somigliana*sin2)/sqrt(one-eccentricity*eccentricity*sin2))
-       termr = semi_major_axis /(one + flattening + grav_ratio -  &
-            two*flattening*sin2)
-       termrg = (termg/grav)*termr
-       do k=1,nsig
-          zges(k) = (termr*zges(k)) / (termrg-zges(k))  ! eq (23)
-       end do
-    else
-       zges(1) = ten
-    end if
-
-!   Given observation height, (1) adjust 10 meter wind factor if
-!   necessary, (2) convert height to grid relative units, (3) compute
-!   compute observation pressure (for diagnostic purposes only), and
-!   (4) compute location of midpoint of first model layer above surface
-!   in grid relative units
-
-!   Convert observation height (in dpres) from meters to grid relative
-!   units.  Save the observation height in zob for later use.
-    zob = dpres
-    call grdcrd1(dpres,zges,nsig,1)
-
-    if (zob >= zges(1)) then
-       factw=one
-    else
-       factw = data(iff10,i)
-       if(sfcmod_gfs .or. sfcmod_mm5) then
-          sfcr = data(isfcr,i)
-          skint = data(iskint,i)
-          call comp_fact10(dlat,dlon,dtime,skint,sfcr,isli,mype,factw)
-       end if
-       if (.not. twodvar_regional) then
-         if (zob <= ten) then
-            if(zob < ten)then
-              term = max(zob,zero)/ten
-              factw = term*factw
-            end if
-         else
-            term = (zges(1)-zob)/(zges(1)-ten)
-            factw = one-term+factw*term
-         end if
-       else
-          if(zob < ten)then
-             term = max(zob,zero)/ten
-             factw = term*factw
-          end if
-       end if
-       spdges=factw*spdges
-    endif
-
-!   Compute observation pressure (only used for diagnostics & for type 2**)
-!   Get guess surface pressure and mid layer pressure
-!   at observation location.
-    if (ictype(ikx)>=280 .and. ictype(ikx)<290) then
-       call tintrp2a11(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
-            mype,nfldsig)
-       call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
-            nsig,mype,nfldsig)
-       if (dpres<one) then
-          z1=zero;    p1=log(psges)
-          z2=zges(1); p2=prsltmp(1)
-       elseif (dpres>nsig) then
-          z1=zges(nsig-1); p1=prsltmp(nsig-1)
-          z2=zges(nsig);   p2=prsltmp(nsig)
-          drpx = 1.e6_r_kind
-       else
-          k=dpres
-          k1=min(max(1,k),nsig)
-          k2=max(1,min(k+1,nsig))
-          z1=zges(k1); p1=prsltmp(k1)
-          z2=zges(k2); p2=prsltmp(k2)
-       endif
-
-       dz21     = z2-z1
-       dlnp21   = p2-p1
-       dz       = zob-z1
-       pobl     = p1 + (dlnp21/dz21)*dz
-       presw    = ten*exp(pobl)
-    else
-       presw = ten*exp(data(ipres,i))
-    end if
-
-
-!   Determine location in terms of grid units for midpoint of
-!   first layer above surface
-    sfcchk=zero
-    call grdcrd1(sfcchk,zges,nsig,1)
-
-1111  CONTINUE
 
 !    Process observations with reported pressure
         dpres = data(ipres,i)
@@ -806,13 +683,13 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if (err_final>tiny_r_kind) errinv_final = one/err_final
 
         rdiagbuf(13,ii) = rwgt               ! nonlinear qc relative weight
-        rdiagbuf(14,ii) = errinv_input       ! prepbufr inverse obs error (K**-1)
-        rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error (K**-1)
-        rdiagbuf(16,ii) = errinv_final       ! final inverse observation error (K**-1)
+        rdiagbuf(14,ii) = errinv_input       ! prepbufr inverse obs error (ms*-1)
+        rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error (ms**-1)
+        rdiagbuf(16,ii) = errinv_final       ! final inverse observation error (ms**-1)
  
-        rdiagbuf(17,ii) = spdob              ! 10m wind speed observation (K)
-        rdiagbuf(18,ii) = ddiff              ! obs-ges used in analysis (K)
-        rdiagbuf(19,ii) = spdob-spdges       ! obs-ges w/o bias correction (K) (future slot)
+        rdiagbuf(17,ii) = spdob              ! 10m wind speed observation (ms**-1)
+        rdiagbuf(18,ii) = ddiff              ! obs-ges used in analysis (ms**-1)
+        rdiagbuf(19,ii) = spdob-spdges       ! obs-ges w/o bias correction (ms**-1) (future slot)
  
         rdiagbuf(20,ii) = factw              ! 10m wind reduction factor
 
@@ -889,6 +766,8 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   call gsi_metguess_get ('var::v' , ivar, istatus )
   proceed=proceed.and.ivar>0
   call gsi_metguess_get ('var::tv', ivar, istatus )
+  proceed=proceed.and.ivar>0
+  call gsi_metguess_get ('var::wspd10m', ivar, istatus )
   proceed=proceed.and.ivar>0
   end subroutine check_vars_ 
 
@@ -1019,6 +898,9 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   subroutine final_vars_
     if(allocated(ges_z   )) deallocate(ges_z   )
     if(allocated(ges_ps  )) deallocate(ges_ps  )
+    if(allocated(ges_tv  )) deallocate(ges_tv  )
+    if(allocated(ges_u   )) deallocate(ges_u   )
+    if(allocated(ges_v   )) deallocate(ges_v   )
     if(allocated(ges_wspd10m)) deallocate(ges_wspd10m)
   end subroutine final_vars_
 
