@@ -624,6 +624,7 @@ clean:
 	obs_para.f90 \
 	observer.F90 \
 	oneobmod.F90 \
+	radiance_mod.f90 \
 	radinfo.f90 \
 	read_Lightning.f90 \
 	read_nasa_larc.f90 \

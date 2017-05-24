@@ -63,11 +63,11 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   use crtm_module, only : max_sensor_zenith_angle
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen,l4densvar,thin4d
-  use gsi_metguess_mod, only: gsi_metguess_get
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth,gsi_nstcoupler_deter
   use mpimod, only: npe
+  use radiance_mod, only: rad_obs_type
 
   implicit none
 
@@ -117,8 +117,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind)       :: lnbufr,ksatid,isflg  
   integer(i_kind)       :: ilat,ilon,nadir
   integer(i_kind),dimension(5):: idate5
-  integer(i_kind)       :: instr,ichan,icw4crtm,iql4crtm
-  integer(i_kind)       :: ier
+  integer(i_kind)       :: instr,ichan
   integer(i_kind)       :: radedge_min, radedge_max
   integer(i_kind), POINTER :: ifov  
 
@@ -175,10 +174,6 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   if(nst_gsi>0) then
      call gsi_nstcoupler_skindepth(obstype,zob)
   endif
-
-! Determine whether CW used in CRTM
-  call gsi_metguess_get ( 'i4crtm::cw', icw4crtm, ier )
-  call gsi_metguess_get ( 'i4crtm::ql', iql4crtm, ier )
 
 ! Make thinning grids
   call makegrids(rmesh,ithin)
