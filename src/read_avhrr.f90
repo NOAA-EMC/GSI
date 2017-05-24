@@ -86,6 +86,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use mpimod, only: npe
+! use radiance_mod, only: rad_obs_type
   implicit none
 
 
@@ -103,7 +104,6 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   integer(i_kind) ,intent(in   ) :: npe_sub
   integer(i_kind) ,intent(in   ) :: mpi_comm_sub
   logical         ,intent(in   ) :: dval_use
-
 
 ! Declare local parameters
   character(6),parameter:: file_sst='SST_AN'
