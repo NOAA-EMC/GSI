@@ -37,7 +37,7 @@ program getsigensstatp
     implicit none
 
     integer,parameter :: r_single=4,r_double=8
-    integer,parameter :: iunit=21 
+    integer,parameter :: iunit=21
     integer,parameter :: idrt=4
     character(nemsio_charkind8) :: dtype
     character(len=3)   :: charnanal
@@ -118,7 +118,7 @@ program getsigensstatp
 ! Process input files (one file per task)
     if ( mype1 <= nanals ) then
 
-        call nemsio_init(iret)
+        call nemsio_init(iret=iret)
 
         write(charnanal,'(i3.3)') mype1
         filenamein = trim(adjustl(datapath)) // trim(adjustl(filepref)) // '_mem' // charnanal
@@ -207,7 +207,7 @@ program getsigensstatp
 
         elseif ( nemsio ) then
 
-            call nemsio_readrecv(gfile,'pres','sfc',1,rwork_mem(:,1),iret)
+            call nemsio_readrecv(gfile,'pres','sfc',1,rwork_mem(:,1),iret=iret)
             do k = 1,nlevs
                 krecu    = 1 + 0*nlevs + k
                 krecv    = 1 + 1*nlevs + k
@@ -215,14 +215,14 @@ program getsigensstatp
                 krecq    = 1 + 3*nlevs + k
                 krecoz   = 1 + 4*nlevs + k
                 kreccwmr = 1 + 5*nlevs + k
-                call nemsio_readrecv(gfile,'ugrd', 'mid layer',k,rwork_mem(:,krecu),   iret)
-                call nemsio_readrecv(gfile,'vgrd', 'mid layer',k,rwork_mem(:,krecv),   iret)
-                call nemsio_readrecv(gfile,'tmp',  'mid layer',k,rwork_mem(:,krect),   iret)
-                call nemsio_readrecv(gfile,'spfh', 'mid layer',k,rwork_mem(:,krecq),   iret)
-                call nemsio_readrecv(gfile,'o3mr', 'mid layer',k,rwork_mem(:,krecoz),  iret)
-                call nemsio_readrecv(gfile,'clwmr','mid layer',k,rwork_mem(:,kreccwmr),iret)
+                call nemsio_readrecv(gfile,'ugrd', 'mid layer',k,rwork_mem(:,krecu),   iret=iret)
+                call nemsio_readrecv(gfile,'vgrd', 'mid layer',k,rwork_mem(:,krecv),   iret=iret)
+                call nemsio_readrecv(gfile,'tmp',  'mid layer',k,rwork_mem(:,krect),   iret=iret)
+                call nemsio_readrecv(gfile,'spfh', 'mid layer',k,rwork_mem(:,krecq),   iret=iret)
+                call nemsio_readrecv(gfile,'o3mr', 'mid layer',k,rwork_mem(:,krecoz),  iret=iret)
+                call nemsio_readrecv(gfile,'clwmr','mid layer',k,rwork_mem(:,kreccwmr),iret=iret)
             enddo
-            call nemsio_close(gfile,iret)
+            call nemsio_close(gfile,iret=iret)
 
         endif
 
