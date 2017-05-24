@@ -23,7 +23,7 @@
      lwrite_peakwt,use_limit,lrun_subdirs,l_foreaft_thin,&
      obsmod_init_instr_table,obsmod_final_instr_table
   use obsmod, only: luse_obsdiag
-  use aircraftinfo, only: init_aircraft,aircraft_t_bc_pof,aircraft_t_bc, &
+  use aircraftinfo, only: init_aircraft,hdist_aircraft,aircraft_t_bc_pof,aircraft_t_bc, &
                           aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail
   use obs_sensitivity, only: lobsensfc,lobsensincr,lobsensjb,lsensrecompute, &
                              lobsensadj,lobsensmin,iobsconv,llancdone,init_obsens
@@ -139,6 +139,8 @@
   use gfs_stratosphere, only: init_gfs_stratosphere,use_gfs_stratosphere,pblend0,pblend1
   use gfs_stratosphere, only: broadcast_gfs_stratosphere_vars
   use general_commvars_mod, only: init_general_commvars,destroy_general_commvars
+  use radiance_mod, only: radiance_mode_init,radiance_mode_destroy, &
+       radiance_obstype_destroy,radiance_parameter_cloudy_destroy
   use gsi_nstcouplermod, only: gsi_nstcoupler_init_nml
   use gsi_nstcouplermod, only: nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl
 
@@ -322,6 +324,8 @@
 !  01-13-2015 Ladwig    added option l_numconc
 !  09-01-2015 Hu        added option l_closeobs
 !  10-01-2015 guo       option to redistribute observations in 4d observer mode
+!  07-20-2015 zhu       re-structure codes for enabling all-sky/aerosol radiance assimilation, 
+!                       add radiance_mode_init, radiance_mode_destroy & radiance_obstype_destroy
 !  03-02-2016 s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
 !  03-10-2016 ejones    add control for gmi noise reduction
 !  03-25-2016 ejones    add control for amsr2 noise reduction
@@ -731,7 +735,7 @@
        vadfile,noiqc,c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,&
        tcp_ermin,tcp_ermax,qc_noirjaco3,qc_noirjaco3_pole,qc_satwnds,njqc,vqc,&
        aircraft_t_bc_pof,aircraft_t_bc,aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail,&
-       buddycheck_t,buddydiag_save
+       hdist_aircraft,buddycheck_t,buddydiag_save
 
 ! OBS_INPUT (controls input data):
 !      dmesh(max(dthin))- thinning mesh for each group
@@ -1039,6 +1043,7 @@
   call gsi_chemguess_init
   call init_anasv
   call init_anacv
+  call radiance_mode_init
 
   call init_constants_derived
   call init_oneobmod
@@ -1581,6 +1586,8 @@
      call final_fgrid2agrid(pf2aP2)
      call final_fgrid2agrid(pf2aP1)
   endif
+  call radiance_obstype_destroy
+  call radiance_parameter_cloudy_destroy
   call final_aero_vars
   call final_rad_vars
   if(passive_bc) call prad_destroy()    ! replacing -- call destroyobs_passive
@@ -1589,6 +1596,7 @@
   call destroy_general_commvars
   call final_grid_vars
 !_TBDone  call final_reg_glob_ll ! gridmod
+  call radiance_mode_destroy
   call final_anacv
   call final_anasv
   call obsmod_final_instr_table
