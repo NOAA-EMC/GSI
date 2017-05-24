@@ -41,6 +41,7 @@ module radinfo
 !   2014-04-23   li     - change scan bias correction mode for avhrr and avhrr_navy
 !   2014-04-24   li     - apply abs (absolute) to AA and be for safeguarding
 !   2015-03-01   li     - add zsea1 & zsea2 to handle the vertical mean temperature based on NSST T-Profile
+!   2015-7-10   zhu     - add two additional columns to satinfo file: icloud4crtm & iaerosol4crtm
 !   2016-03-10  ejones  - add control for GMI noise reduction
 !   2016-03-24  ejones  - add control for AMSR2 noise reduction
 !   2016-06-03  Collard - Added changes to allow for historical naming conventions
@@ -102,6 +103,7 @@ module radinfo
   public :: radedge1, radedge2
   public :: ssmis_precond
   public :: radinfo_adjust_jacobian
+  public :: icloud4crtm,iaerosol4crtm
   public :: radinfo_get_rsqrtinv
 
   public :: dec2bin
@@ -173,6 +175,8 @@ module radinfo
   logical,allocatable,dimension(:):: inew_rad  ! indicator if it needs initialized for satellite radiance data
   logical,allocatable,dimension(:):: update_tlapmean ! indicator if tlapmean update is needed
 
+  integer(i_kind),allocatable,dimension(:):: icloud4crtm  ! provide cloud info to crtm if icloud4crtm=0 & 1
+  integer(i_kind),allocatable,dimension(:):: iaerosol4crtm  ! provide aerosol info to crtm if iaerosol4crtm=0 & 1
   integer(i_kind),allocatable,dimension(:):: ifactq    ! scaling parameter for d(Tb)/dq sensitivity
 
   character(len=20),allocatable,dimension(:):: nusis   ! sensor/instrument/satellite indicator
@@ -294,11 +298,11 @@ contains
     implicit none
 
     integer(i_kind) ii,jj,mxlvs,isum,ndim,ib,ie,ier
-    integer(i_kind) nvarjac,n_meteo,n_clouds,n_aeros
+    integer(i_kind) nvarjac,n_meteo,n_clouds_jac,n_aeros_jac
     integer(i_kind),allocatable,dimension(:)::aux,all_levels
     character(len=20),allocatable,dimension(:)::meteo_names
-    character(len=20),allocatable,dimension(:)::clouds_names
-    character(len=20),allocatable,dimension(:)::aeros_names
+    character(len=20),allocatable,dimension(:)::clouds_names_jac
+    character(len=20),allocatable,dimension(:)::aeros_names_jac
 
 !   the following vars are wired-in until MetGuess handles all guess fiedls
 !   character(len=3),parameter :: wirednames(6) = (/ 'tv ','q  ','oz ', 'u  ', 'v  ', 'sst' /)
@@ -347,14 +351,14 @@ contains
     endif
 
 !   inquire number of clouds to participate in CRTM calculations
-    call gsi_metguess_get ( 'clouds_4crtm_jac::3d', n_clouds, ier )
-    n_clouds=max(0,n_clouds)
+    call gsi_metguess_get ( 'clouds_4crtm_jac::3d', n_clouds_jac, ier )
+    n_clouds_jac=max(0,n_clouds_jac)
 
 !   inquire number of aerosols to participate in CRTM calculations
-    call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', n_aeros, ier )
-    n_aeros=max(0,n_aeros)
+    call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', n_aeros_jac, ier )
+    n_aeros_jac=max(0,n_aeros_jac)
 
-    nvarjac=size(wirednames)+n_meteo+n_clouds+n_aeros
+    nvarjac=size(wirednames)+n_meteo+n_clouds_jac+n_aeros_jac
     allocate(radjacnames(nvarjac))
     allocate(radjacindxs(nvarjac))
 
@@ -376,31 +380,31 @@ contains
     endif
 !   Fill in clouds next 
     jj=0
-    if (n_clouds>0) then
-       allocate(clouds_names(n_clouds))
-       call gsi_metguess_get ( 'clouds_4crtm_jac::3d', clouds_names, ier )
+    if (n_clouds_jac>0) then
+       allocate(clouds_names_jac(n_clouds_jac))
+       call gsi_metguess_get ( 'clouds_4crtm_jac::3d', clouds_names_jac, ier )
        ib=size(wirednames)+n_meteo+1
-       ie=ib+n_clouds-1
+       ie=ib+n_clouds_jac-1
        do ii=ib,ie
           jj=jj+1
-          radjacnames(ii) = trim(clouds_names(jj))
+          radjacnames(ii) = trim(clouds_names_jac(jj))
           radjacindxs(ii) = mxlvs
        enddo
-       deallocate(clouds_names)
+       deallocate(clouds_names_jac)
     endif
 !   Fill in aerosols next 
     jj=0
-    if (n_aeros>0) then
-        allocate(aeros_names(n_aeros))
-        call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', aeros_names, ier )
-       ib=size(wirednames)+n_meteo+n_clouds+1
-       ie=ib+n_aeros-1
+    if (n_aeros_jac>0) then
+        allocate(aeros_names_jac(n_aeros_jac))
+        call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', aeros_names_jac, ier )
+       ib=size(wirednames)+n_meteo+n_clouds_jac+1
+       ie=ib+n_aeros_jac-1
        do ii=ib,ie
           jj=jj+1
-          radjacnames(ii) = trim(aeros_names(jj))
+          radjacnames(ii) = trim(aeros_names_jac(jj))
           radjacindxs(ii) = mxlvs
        enddo
-       deallocate(aeros_names)
+       deallocate(aeros_names_jac)
     endif
 
 !   Overwrite levels for certain fields (this must be revisited)
@@ -524,6 +528,9 @@ contains
 !                             reset in non adp_anglebc case
 !   2014-12-19  W. Gu   - update the obs error in satinfo for instruments accounted for the correlated R-covariance
 !   2015-04-01  W. Gu   - add the hook to scale the bias correction term for inter-channel correlated obs errors.
+!   2015-07-10  zhu     - read in and determine icloud4crtm & iaerosol4crtm for all channels
+!                         for generalized all-sky radiance assimilation, as all-sky
+!                         may be enabled for part of the channels for certain instruments
 !   2016-07-14  jung    - mods to make SEVIRI channel numbers consistent with other instruments.
 !   2016-09-08  sienkiewicz - revert again to allocate cbias, cbiasx after maxscan reset in non adp_anglebc case
 !
@@ -550,7 +557,7 @@ contains
 
 
     integer(i_kind) i,j,k,ich,lunin,lunout,nlines
-    integer(i_kind) ip,istat,n,ichan,nstep,edge1,edge2,ntlapupdate
+    integer(i_kind) ip,istat,n,ichan,nstep,edge1,edge2,ntlapupdate,icw,iaeros
     real(r_kind),dimension(npred):: predr
     real(r_kind) tlapm
     real(r_kind) tsum
@@ -633,10 +640,8 @@ contains
          ifactq(jpch_rad),varch(jpch_rad),varch_cld(jpch_rad), &
          ermax_rad(jpch_rad),b_rad(jpch_rad),pg_rad(jpch_rad), &
          ang_rad(jpch_rad),air_rad(jpch_rad),inew_rad(jpch_rad),&
-         icld_det(jpch_rad)) 
-
+         icld_det(jpch_rad),icloud4crtm(jpch_rad),iaerosol4crtm(jpch_rad))
     allocate(nfound(jpch_rad))
-
     iuse_rad(0)=-999
     inew_rad=.true.
     ifactq=15
@@ -656,9 +661,9 @@ contains
     do k=1,nlines
        read(lunin,100) cflg,crecord
        if (cflg == '!') cycle
-       read(crecord,*,iostat=istat) nusis(j),nuchan(j),iuse_rad(j),&
-            varch(j),varch_cld(j),ermax_rad(j),b_rad(j),pg_rad(j),icld_det(j) 
-             
+       read(crecord,*,iostat=istat) nusis(j),nuchan(j),iuse_rad(j),varch(j), &
+            varch_cld(j),ermax_rad(j),b_rad(j),pg_rad(j),icld_det(j),icw,iaeros
+
        ! The following is to sort out some historical naming conventions
        select case (nusis(j)(1:4))
          case ('airs')
@@ -681,9 +686,11 @@ contains
        if(iuse_rad(j) == 4 .or. iuse_rad(j) == 2) air_rad(j)=zero
        if(iuse_rad(j) == 4 .or. iuse_rad(j) == 3) ang_rad(j)=zero
 
+       icloud4crtm(j)=icw
+       iaerosol4crtm(j)=iaeros
        if (mype==mype_rad) write(iout_rad,110) j,nusis(j), &
             nuchan(j),varch(j),varch_cld(j),iuse_rad(j),ermax_rad(j), &
-            b_rad(j),pg_rad(j),icld_det(j) 
+            b_rad(j),pg_rad(j),icld_det(j),icloud4crtm(j),iaerosol4crtm(j)
 
        j=j+1
     end do
@@ -691,7 +698,7 @@ contains
 100 format(a1,a120)
 110 format(i4,1x,a20,' chan= ',i4,  &
           ' var= ',f7.3,' varch_cld=',f7.3,' use= ',i2,' ermax= ',F7.3, &
-          ' b_rad= ',F7.2,' pg_rad=',F7.2,' icld_det=',I2) 
+          ' b_rad= ',F7.2,' pg_rad=',F7.2,' icld_det=',I2,' icloud=',I2,' iaeros=',I2)
 
 !   Allocate arrays for additional preconditioning info
 !   Read in information for data number and preconditioning
@@ -1171,7 +1178,7 @@ contains
 !   information from satinfo file.
 
     deallocate (predx,cbias,tlapmean,nuchan,nusis,iuse_rad,air_rad,ang_rad, &
-         ifactq,varch,varch_cld,inew_rad,icld_det)
+         ifactq,varch,varch_cld,inew_rad,icld_det,icloud4crtm,iaerosol4crtm)
 
     if (adp_anglebc) deallocate(count_tlapmean,update_tlapmean,tsum_tlapmean)
     if (newpc4pred) deallocate(ostats,rstats,varA)
