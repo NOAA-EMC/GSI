@@ -56,7 +56,9 @@ module qcmod
 !   2015-09-04  J.Jung  - Added mods for CrIS full spectral resolution (FSR)
 !   2015-05-29  ejones  - tighten clw threshold for qc_gmi 
 !   2015-09-04  J.Jung  - Added mods for CrIS full spectral resolution (FSR)
+!   2015-09-20  zhu     - use radmod to generalize cloud and aerosol usages in radiance assimilation
 !   2015-09-30  ejones  - add sun glint check in qc_amsr2 
+!   2016-05-22  zhu     - add errormod_aircraft
 !   2016-10-20  acollard- Ensure AMSU-A channels 1-6,15 are not assimilated if
 !                         any of these are missing.
 !   2016-11-22  sienkiewicz - fix a couple of typos in HIRS qc
@@ -66,6 +68,7 @@ module qcmod
 !   sub create_qcvars
 !   sub destroy_qcvars
 !   sub errormod
+!   sub errormod_aircraft
 !   sub setup_tzr_qc    - set up QC with Tz retrieval
 !   sub tz_retrieval    - Apply Tz retrieval
 !   sub qc_ssmi         - qc ssmi data
@@ -109,13 +112,14 @@ module qcmod
 !
 !$$$ end documentation block
 
-  use kinds, only: i_kind,r_kind
+  use kinds, only: i_kind,r_kind,r_double
   use constants, only: zero,quarter,half,one,two,three,four,five,tiny_r_kind,rd,grav
   use constants, only: r0_01,r0_02,r0_03,r0_04,r0_05,r10,r60,r100,h300,r400,r1000,r2000,r2400,r4000
-  use constants, only: deg2rad,rad2deg,t0c,one_tenth
+  use constants, only: deg2rad,rad2deg,t0c,one_tenth,rearth_equator
   use obsmod, only: rmiss_single
   use radinfo, only: iuse_rad,passive_bc
   use radinfo, only: tzr_qc
+  use radiance_mod, only: rad_obs_type
   implicit none
 
 ! set default to private
@@ -125,6 +129,7 @@ module qcmod
   public :: create_qcvars
   public :: destroy_qcvars
   public :: errormod
+  public :: errormod_aircraft
   public :: setup_tzr_qc
   public :: qc_ssmi
   public :: qc_seviri
@@ -600,6 +605,138 @@ contains
     return
 end subroutine errormod
 
+  subroutine errormod_aircraft(pq,vq,levs,plevs,errout,k,presl,dpres,nsig,lim_qm,hdr3)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    errormod_aircraft
+!   prgmmr: zhu           org: np23                date: 2016-05-22
+!
+! abstract: adjust observation error for conventional obs
+!
+! program history log:
+!   2016-05-22  zhu - adapted from errormod
+!                   - add hdr3 and horizontal distance check for aircraft data
+!
+!   input argument list:
+!     pq     - pressure quality mark
+!     vq     - observation quality mark (t,q,wind)
+!     levs   - number of levels in profile for observation
+!     plevs  - observation pressures
+!     errout - observation error 
+!     k      - observation level 
+!     presl  - model pressure at half sigma levels
+!     dpres  - delta pressure between model pressure levels
+!     nsig   - number of vertical levels
+!     lim_qm - qc limit 
+!     hdr3   - observation lat/lon locations
+!
+!   output argument list:
+!     errout - adjusted observation error
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
+    use aircraftinfo, only: hdist_aircraft
+    implicit none
+
+    integer(i_kind)                     ,intent(in   ) :: levs,k,nsig,lim_qm
+    real(r_kind)   ,dimension(255)      ,intent(in   ) :: plevs
+    real(r_kind)   ,dimension(nsig)     ,intent(in   ) :: presl
+    real(r_kind)   ,dimension(nsig-1)   ,intent(in   ) :: dpres
+    integer(i_kind),dimension(255)      ,intent(in   ) :: pq,vq
+    real(r_kind)                        ,intent(inout) :: errout
+    real(r_double),dimension(3,255),optional,intent(in) :: hdr3
+
+    integer(i_kind) n,l,ilev
+    real(r_kind):: vmag,pdiffu,pdiffd,con
+    real(r_kind):: rlatk,rlonk,rlatl,rlonl,dist1,dist2,dist3,dist
+    logical latlon_check
+
+    errout=one
+    if(levs == 1)return
+
+    latlon_check=.false.
+    if (present(hdr3)) latlon_check=.true.
+    if (latlon_check) then
+       rlatk=hdr3(2,k)*deg2rad
+       rlonk=hdr3(1,k)*deg2rad
+    end if
+
+    ilev=1
+    do n=2,nsig-1
+       if(plevs(k) < presl(n))ilev=n
+    end do
+    con=grav*500._r_kind/(273._r_kind*rd)
+    vmag=min(max(half*dpres(ilev),r0_02*presl(ilev)),con*plevs(k))
+
+!   vmag=max(half*dpres(ilev),r0_02*presl(ilev))
+    pdiffu=vmag
+    pdiffd=vmag
+    if(pq(k) < lim_qm .and. vq(k) < lim_qm)then
+! Move up through the profile.  
+       l=k
+
+! Array plevs is only defined from l=1 to l=levs.  Hence the check below
+       if (l+1<=levs) then
+          upprof: do while (abs(plevs(k)-plevs(l+1)) < vmag .and. l <= levs-1)
+             l=l+1
+             if(pq(l) < lim_qm .and. vq(l) < lim_qm)then
+                pdiffu=abs(plevs(k)-plevs(l))
+                if (latlon_check) then  ! chord length
+                   rlatl=hdr3(2,l)*deg2rad
+                   rlonl=hdr3(1,l)*deg2rad
+                   dist1=cos(rlatk)*cos(rlonk)-cos(rlatl)*cos(rlonl)
+                   dist2=cos(rlatk)*sin(rlonk)-cos(rlatl)*sin(rlonl)
+                   dist3=sin(rlatk)-sin(rlatl)
+                   dist=min(one,sqrt(dist1*dist1+dist2*dist2+dist3*dist3))
+                   dist=rearth_equator*two*asin(dist/two)
+                   if (dist>hdist_aircraft) pdiffu=vmag
+                end if
+                exit upprof
+             end if
+             if (l==levs) exit upprof
+          end do upprof
+       endif
+
+! Reset the level and move down through the profile
+       l=k
+
+! The check (l>=2) ensures that plevs(l-1) is defined
+       if (l>=2) then
+          dwprof: do while (abs(plevs(l-1)-plevs(k)) < vmag .and. l >= 2)
+             l=l-1
+             if(pq(l) < lim_qm .and. vq(l) < lim_qm)then
+                pdiffd=abs(plevs(l)-plevs(k))
+                if (latlon_check) then
+                   rlatl=hdr3(2,l)*deg2rad
+                   rlonl=hdr3(1,l)*deg2rad
+                   dist1=cos(rlatk)*cos(rlonk)-cos(rlatl)*cos(rlonl)
+                   dist2=cos(rlatk)*sin(rlonk)-cos(rlatl)*sin(rlonl)
+                   dist3=sin(rlatk)-sin(rlatl)
+                   dist=min(one,sqrt(dist1*dist1+dist2*dist2+dist3*dist3))
+                   dist=rearth_equator*two*asin(dist/two)
+                   if (dist>60000.0_r_kind) pdiffd=vmag
+                end if
+                exit dwprof
+             end if
+             if (l==1) exit dwprof
+          end do dwprof
+       endif
+
+! Set adjusted error
+       errout=sqrt(two*vmag/max(pdiffd+pdiffu,five*tiny_r_kind))
+
+! Quality marks indicate bad data.  Set error to large value.
+    else
+       errout=1.e6_r_kind
+    end if
+
+    return
+end subroutine errormod_aircraft
+
+
 subroutine tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,iud,iall,dtz,ts_ave) 
 
 !subprogram:    tz_retrieval  compute tz retrieval with radiances
@@ -742,7 +879,8 @@ end subroutine tz_retrieval
 subroutine qc_ssmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
      temp,wmix,ts,pems,ierrret,kraintype,tpwc,clw,sgagl,tzbgr,   &
      tbc,tbcnob,tb_ges,tnoise,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
-     varinv,errf,aivals,id_qc )
+     varinv,errf,aivals,id_qc)
+!    varinv,errf,aivals,id_qc,radmod) ! all-sky
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -1116,6 +1254,7 @@ end subroutine qc_ssmi
 
 subroutine qc_gmi(nchanl,sfchgt,luse,sea,cenlat, &
      kraintype,clw,tsavg5,tbobs,gmi,varinv,aivals,id_qc)
+!    kraintype,clw,tsavg5,tbobs,gmi,varinv,aivals,id_qc,radmod) ! all-sky
 !$$$ subprogram documentation block
 !               .      .    .
 ! subprogram:  qc_gmi     QC for gmi TBs
@@ -1346,6 +1485,7 @@ end subroutine qc_gmi
 
 subroutine qc_amsr2(nchanl,sfchgt,luse,sea, &
      kraintype,clw,tsavg5,tbobs,solazi,solzen,amsr2,varinv,aivals,id_qc)
+!    kraintype,clw,tsavg5,tbobs,solazi,solzen,amsr2,varinv,aivals,id_qc,radmod) ! all-sky
 !$$$ subprogram documentation block
 !               .      .    .
 ! subprogram:  qc_amsr2     QC for amsr2 TBs
@@ -1607,6 +1747,7 @@ end subroutine qc_amsr2
 
 subroutine qc_saphir(nchanl,sfchgt,luse,sea, &
      kraintype,varinv,aivals,id_qc)
+!    kraintype,varinv,aivals,id_qc,radmod) ! all-sky
 !$$$ subprogram documentation block
 !               .      .    .
 ! subprogram:  qc_saphir     QC for SAPHIR TBs
@@ -1698,6 +1839,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
      cris, zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
      wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,                    &
      id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole)
+!    id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole,radmod) ! all-sky
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -2052,6 +2194,7 @@ subroutine qc_avhrr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
      zsges,cenlat,frac_sea,pangs,trop5,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
      wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts, &
      id_qc,aivals,errf,varinv,varinv_use,cld,cldp)
+!    id_qc,aivals,errf,varinv,varinv_use,cld,cldp,radmod) ! all-sky
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -2341,7 +2484,7 @@ end subroutine qc_avhrr
 subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
      zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts, &  
      pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs5,factch6, &
-     cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp)                     
+     cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp,radmod)                     
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -2367,6 +2510,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
 !     2015-03-31  zhu     - observation error adjustments based on mis-matched
 !                           cloud info, diff_clw, scattering and surface wind
 !                           speed for AMSUA/ATMS cloudy radiance assimilation
+!     2015-09-20  zhu     - add radmod to generalize all-sky condition for radiance
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -2431,6 +2575,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
   real(r_kind),dimension(nchanl),      intent(inout) :: errf,errf0,varinv
   real(r_kind),dimension(nchanl),      intent(in   ) :: error0
   real(r_kind),dimension(nchanl),      intent(in   ) :: cld_rbc_idx
+  type(rad_obs_type),                  intent(in   ) :: radmod
 
 ! Declare local parameters
 
@@ -2447,9 +2592,9 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
   real(r_kind)    :: factch4
   real(r_kind)    :: ework,clwtmp
   real(r_kind)    :: icol
-  integer(i_kind) :: i,icw4crtm,ier
-  logical lcw4crtm
+  integer(i_kind) :: i
   logical qc4emiss
+  logical eff_area
 
   integer(i_kind) :: ich238, ich314, ich503, ich528, ich536 ! set chan indices
   integer(i_kind) :: ich544, ich549, ich890                 ! for amsua/atms
@@ -2495,10 +2640,6 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
      dtempf = 4.5_r_kind
   end if
 
-! Determine whether or not CW fed into CRTM
-  lcw4crtm=.false.
-  call gsi_metguess_get ('clouds_4crtm_jac::3d', icw4crtm, ier)
-  if(icw4crtm >0) lcw4crtm = .true.
   
 ! Reduce qc bounds in tropics
   cenlatx=abs(cenlat)*r0_04     
@@ -2537,7 +2678,6 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
 !                  available for ATMS).
   latms_surfaceqc = (latms .AND. .NOT.(sea .OR. land))
 
-  if (latms) lcw4crtm=.false.  !assimilate clear ATMS (for now)
 
 ! If window channels are missing, skip the following QC and do not
 ! assimilate channels 1-6 & 15.
@@ -2565,7 +2705,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
   else
 
 ! QC for all-sky condition
-     if (lcw4crtm) then
+     if (radmod%lcloud_fwd) then
         qc4emiss=.false.
         if(.not. sea) then  
            if(factch6 >= one .or. latms_surfaceqc) then   
@@ -2851,7 +2991,11 @@ end if
 ! Observation error adjustment for cloudy radiance based on mis-matched cloud, 
 ! diff_clw, scattering index, surface wind speed. The coefficient 13.0 for 
 ! clwtmp may be re-tuned with model physics changes. 
-  if (lcw4crtm .and. sea) then
+  eff_area=.false.
+  if (radmod%lcloud_fwd) then
+     eff_area=(radmod%cld_sea_only .and. sea) .or. (.not. radmod%cld_sea_only)
+  end if
+  if (radmod%lcloud_fwd .and. eff_area) then
      icol=one
      if (any(cld_rbc_idx==zero)) icol=zero
      do i=1,nchanl
@@ -2875,6 +3019,7 @@ end subroutine qc_amsua
 subroutine qc_mhs(nchanl,ndat,nsig,is,sea,land,ice,snow,mhs,luse,   &
      zsges,tbc,tb_obs,ptau5,emissivity_k,ts,      &
      id_qc,aivals,errf,varinv,dsi,fact1)
+!    id_qc,aivals,errf,varinv,dsi,fact1,radmod) ! all-sky
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -3028,7 +3173,7 @@ end subroutine qc_mhs
 subroutine qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
                  zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts, &  
                  pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs5,factch6, &
-                 cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp)                     
+                 cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp,radmod)                     
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -3046,6 +3191,7 @@ subroutine qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
 !     2015-03-31  zhu     - observation error adjustments based on mis-matched
 !                           cloud info, diff_clw, scattering and surface wind
 !                           speed for AMSUA/ATMS cloudy radiance assimilation
+!     2015-09-20  zhu     - use rad_obs_type/radmod for enabling all-sky radiance
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -3108,12 +3254,13 @@ subroutine qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
   real(r_kind),dimension(nchanl),      intent(inout) :: errf,errf0,varinv
   real(r_kind),dimension(nchanl),      intent(in   ) :: error0
   real(r_kind),dimension(nchanl),      intent(in   ) :: cld_rbc_idx
+  type(rad_obs_type),                  intent(in   ) :: radmod
 
 ! For now, just pass all channels to qc_amsua
   call qc_amsua (nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
                  zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts, &   
                  pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs5,factch6, &
-                 cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp)                    
+                 cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp,radmod)                    
 
   return
 
@@ -3378,6 +3525,7 @@ end subroutine qc_msu
 subroutine qc_seviri(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
      zsges,tzbgr,tbc,tnoise,temp,wmix,emissivity_k,ts,      &
      id_qc,aivals,errf,varinv)
+!    id_qc,aivals,errf,varinv,radmod) ! all-sky
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -3557,6 +3705,7 @@ end subroutine qc_seviri
 subroutine qc_goesimg(nchanl,is,ndat,nsig,ich,dplat,sea,land,ice,snow,luse,   &
      zsges,cld,tzbgr,tb_obs,tb_obs_sdv,tbc,tnoise,temp,wmix,emissivity_k,ts,      &
      id_qc,aivals,errf,varinv)
+!    id_qc,aivals,errf,varinv,radmod) ! all-sky
 
 !$$$ subprogram documentation block
 !               .      .    .
