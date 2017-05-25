@@ -58,6 +58,7 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use file_utility, only : get_lun     
   use mpimod, only: npe
+! use radiance_mod, only: rad_obs_type
   implicit none
 
 ! Declare passed variables
