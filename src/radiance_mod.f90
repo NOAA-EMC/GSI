@@ -306,7 +306,7 @@ contains
 !$$$ end documentation block
 
     use kinds, only: i_kind,r_kind
-    use radinfo, only: nusis,jpch_rad,nuchan,icloud4crtm,iaerosol4crtm
+    use radinfo, only: nusis,jpch_rad,icloud4crtm,iaerosol4crtm
     use obsmod, only: ndat,dtype,dsis
     implicit none
 

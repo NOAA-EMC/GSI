@@ -300,7 +300,6 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
   use radinfo, only: radjacindxs,radjacnames,jpch_rad,nusis,nuchan
   use aeroinfo, only: aerojacindxs
   use guess_grids, only: ges_tsen,ges_prsl,nfldsig
-  use control_vectors, only: cvars3d
   use mpeu_util, only: getindex
   use constants, only: zero,max_varname_length
   use obsmod, only: dval_use
