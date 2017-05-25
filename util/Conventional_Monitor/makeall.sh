@@ -48,6 +48,8 @@ ig_executables="read_ps read_pw read_q read_t read_uv"
 
 if [[ ${machine} = "wcoss" ]]; then
    . /usrx/local/Modules/3.2.10/init/ksh
+   module unload ics		# ics12.1 is still automatically loaded at login, and this
+				# conflicts with ics14.x which is the default ics version.
 elif [[ ${machine} = "theia" ]]; then
    echo "loading lmod"
    . /apps/lmod/6.0.1/init/ksh
