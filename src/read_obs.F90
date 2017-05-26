@@ -693,7 +693,7 @@ subroutine read_obs(ndata,mype)
     character(15):: infile
     character(20):: sis
     integer(i_kind) i,j,k,ii,nmind,lunout,isfcalc,ithinx,ithin,nread,npuse,nouse
-    integer(i_kind) nprof_gps1,npem1,krsize,len4file,npemax,ilarge,nlarge,npestart
+    integer(i_kind) nprof_gps1,npem1,krsize,len4file,npemax,npestart
     integer(i_llong) :: lenbytes
     integer(i_kind):: npetot,npeextra,mmdat
     integer(i_kind):: iworld,iworld_group,next_mype,mm1,iix
@@ -1079,27 +1079,20 @@ subroutine read_obs(ndata,mype)
 
 !   Set up locations of first processor
 
-    ilarge=0
     npestart=0
-    npe_sub3=npe_sub
     mype_root_sub=0
     mmdat=0
-    loopx: do j=1,ndat
-       nlarge=0
-       do i=1,ndat
-          if(npe_sub3(i) > nlarge .and. npe_sub3(i)+npestart <= npe)then
-             ilarge=i
-             nlarge=npe_sub3(i)
-          end if
-       end do
-       if(nlarge == 0)exit loopx
-       npe_order(j)=ilarge
-       mype_root_sub(ilarge)=npestart
-       npestart=npestart+npe_sub3(ilarge)
-       mmdat=mmdat+1
-       if(npestart == npe)npestart=0
-       npe_sub3(ilarge)=0
-    end do loopx
+    do i = 1, ndat
+       if (npe_sub(i) > 0) then
+          mmdat = mmdat + 1
+          npe_order(mmdat) = i
+          if (npestart + npe_sub(i) > npe) then
+             npestart = 0
+          endif
+          mype_root_sub(i) = npestart
+          npestart = npestart + npe_sub(i)
+       endif
+    enddo
 
 !   Define sub-communicators for each data file
     mm1=mype+1
