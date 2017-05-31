@@ -34,7 +34,8 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    shell=sh
    . /usrx/local/Modules/default/init/${shell}
    module load lsf
-   module load GrADS
+   module unload GrADS		# version 2.0.1 is loaded automatically, but it's out of
+   module load GrADS		# date -- curent default is 2.0.2
    export GRADS=grads
 
    export UTILS_BIN=
