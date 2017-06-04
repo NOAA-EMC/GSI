@@ -178,7 +178,7 @@ contains
 
     ! Define local variables
 
-    if (debug) print *,'writing to ',trim(increment_filename)
+    print *,'writing to ',trim(increment_filename)
     ncstatus    = nf90_create(trim(increment_filename),                 &
          cmode=ior(NF90_CLOBBER,NF90_64BIT_OFFSET),ncid=ncfileid)
     if (ncstatus /= nf90_noerr) then
@@ -208,7 +208,7 @@ contains
     dimid_1d(1) = dimid_lon
     ncstatus    = nf90_def_var(ncfileid,'lon',nf90_float,dimid_1d,         &
          & varid_lon)
-    print *,'dims',grid%nx,grid%ny,grid%nz,grid%nzp1
+    if (debug) print *,'dims',grid%nx,grid%ny,grid%nz,grid%nzp1
     if (ncstatus /= nf90_noerr) then
        print *, 'error creating lon ',trim(nf90_strerror(ncstatus))
        stop 1
@@ -357,49 +357,49 @@ contains
        print *, 'error writing hybi ',trim(nf90_strerror(ncstatus))
        stop 1
     endif
-    print *,'writing u_inc, min/max =',&
+    if (debug) print *,'writing u_inc, min/max =',&
      minval(grid%u_inc),maxval(grid%u_inc)
     ncstatus    = nf90_put_var(ncfileid,varid_u_inc,grid%u_inc)
     if (ncstatus /= nf90_noerr) then
        print *, trim(nf90_strerror(ncstatus))
        stop 1
     endif
-    print *,'writing v_inc, min/max =',&
+    if (debug) print *,'writing v_inc, min/max =',&
     minval(grid%v_inc),maxval(grid%v_inc)
     ncstatus    = nf90_put_var(ncfileid,varid_v_inc,grid%v_inc)
     if (ncstatus /= nf90_noerr) then
        print *, trim(nf90_strerror(ncstatus))
        stop 1
     endif
-    print *,'writing delp_inc, min/max =',&
+    if (debug) print *,'writing delp_inc, min/max =',&
     minval(grid%delp_inc),maxval(grid%delp_inc)
     ncstatus    = nf90_put_var(ncfileid,varid_delp_inc,grid%delp_inc)
     if (ncstatus /= nf90_noerr) then
        print *, trim(nf90_strerror(ncstatus))
        stop 1
     endif
-    print *,'writing temp_inc, min/max =',&
+    if (debug) print *,'writing temp_inc, min/max =',&
     minval(grid%temp_inc),maxval(grid%temp_inc)
     ncstatus    = nf90_put_var(ncfileid,varid_t_inc,grid%temp_inc)
     if (ncstatus /= nf90_noerr) then
        print *, trim(nf90_strerror(ncstatus))
        stop 1
     endif
-    print *,'writing sphum_inc, min/max =',&
+    if (debug) print *,'writing sphum_inc, min/max =',&
     minval(grid%sphum_inc),maxval(grid%sphum_inc)
     ncstatus    = nf90_put_var(ncfileid,varid_sphum_inc,grid%sphum_inc)
     if (ncstatus /= nf90_noerr) then
        print *, trim(nf90_strerror(ncstatus))
        stop 1
     endif
-    print *,'writing clwmr_inc, min/max =',&
+    if (debug) print *,'writing clwmr_inc, min/max =',&
     minval(grid%clwmr_inc),maxval(grid%clwmr_inc)
     ncstatus    = nf90_put_var(ncfileid,varid_liq_wat_inc,grid%clwmr_inc)
     if (ncstatus /= nf90_noerr) then
        print *, trim(nf90_strerror(ncstatus))
        stop 1
     endif
-    print *,'writing o3mr_inc, min/max =',&
+    if (debug) print *,'writing o3mr_inc, min/max =',&
     minval(grid%o3mr_inc),maxval(grid%o3mr_inc)
     ncstatus    = nf90_put_var(ncfileid,varid_o3mr_inc,grid%o3mr_inc)
     if (ncstatus /= nf90_noerr) then
@@ -546,13 +546,13 @@ contains
 
     ! Define local variables
 
-    print *,'lats',meta_nemsio%lat(1), meta_nemsio%lat(meta_nemsio%dimx*meta_nemsio%dimy)
+    if (debug) print *,'lats',meta_nemsio%lat(1), meta_nemsio%lat(meta_nemsio%dimx*meta_nemsio%dimy)
     if (meta_nemsio%lat(1) > meta_nemsio%lat(meta_nemsio%dimx*meta_nemsio%dimy)) then
       flip_lats = .true.
     else
       flip_lats = .false.
     endif
-    print *,'flip_lats',flip_lats
+    if (debug) print *,'flip_lats',flip_lats
     call gfs_nems_vcoord(meta_nemsio,grid%filename,vcoord)
     grid%ak           = vcoord(:,1,1)
     grid%bk           = vcoord(:,2,1)
@@ -582,7 +582,7 @@ contains
        ! defined as higher pressure minus lower pressure
        grid%dpres(:,:,meta_nemsio%dimz - k + 1) = pressi(:,:,k) -          &
             & pressi(:,:,k+1)
-       !print *,'dpres',k,minval(grid%dpres(:,:,meta_nemsio%dimz - k + 1)),&
+       !if (debug) print *,'dpres',k,minval(grid%dpres(:,:,meta_nemsio%dimz - k + 1)),&
        !maxval(grid%dpres(:,:,meta_nemsio%dimz - k + 1))
 
        ! Define local variables

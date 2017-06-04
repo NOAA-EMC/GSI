@@ -34,7 +34,6 @@ module calc_increment_interface
   !-----------------------------------------------------------------------
 
   use fv3_interface
-  use namelist_def
 
   !-----------------------------------------------------------------------
 
@@ -60,10 +59,6 @@ contains
   subroutine calc_increment()
 
     !=====================================================================
-
-    ! Define local variables
-
-    call namelistparams()
 
     ! Check local variable and proceed accordingly
 
