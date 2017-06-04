@@ -28,7 +28,7 @@ elif [ $machine = "theia" ]; then
     module load w3emc/v2.2.0
     module load w3nco/v2.0.6
 
-    export FCMP="ifort"
+    export FCMP="mpiifort"
 
 else
 

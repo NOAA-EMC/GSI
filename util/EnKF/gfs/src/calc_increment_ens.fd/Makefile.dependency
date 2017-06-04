@@ -31,4 +31,4 @@ namelist_def.o: namelist_def.f90 kinds.o
 variable_interface.o: variable_interface.f90 constants.o kinds.o 
 gfs_nems_interface.o: gfs_nems_interface.f90 constants.o kinds.o namelist_def.o 
 fv3_interface.o: fv3_interface.f90 variable_interface.o constants.o kinds.o namelist_def.o gfs_nems_interface.o 
-calc_increment_interface.o: calc_increment_interface.f90 namelist_def.o fv3_interface.o
+calc_increment_interface.o: calc_increment_interface.f90 fv3_interface.o

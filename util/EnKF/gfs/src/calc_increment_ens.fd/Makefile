@@ -1,6 +1,6 @@
 #==============================================================================
 #
-# CALC_INCREMENT Makefile
+# CALC_INCREMENT_ENS Makefile
 #
 #==============================================================================
 
@@ -35,6 +35,7 @@ MAKE_FILE = Makefile
 # -----------
 
 EXE_FILE = calc_increment.x
+PEXE_FILE = calc_increment_ens.x
 
 # --------------------
 # Installing directory
@@ -47,6 +48,7 @@ INSTALL_DIR = ../../exec/
 # --------
 
 LOG_FILE = log.make.$(EXE_FILE)
+PLOG_FILE = log.make.$(PEXE_FILE)
 
 # ---------------
 # Call child make
@@ -73,7 +75,9 @@ install:
 	  mkdir -p $(INSTALL_DIR) ;\
 	fi
 	cp $(EXE_FILE) $(INSTALL_DIR)
+	cp $(PEXE_FILE) $(INSTALL_DIR)
 	@cd $(INSTALL_DIR) ; ls -l `pwd`/$(EXE_FILE)
+	@cd $(INSTALL_DIR) ; ls -l `pwd`/$(PEXE_FILE)
 
 #-----------
 # Make clean
@@ -82,8 +86,8 @@ install:
 clean:
 	@echo
 	@echo '==== CLEAN ==================================================='
-	- $(RM) $(EXE_FILE) *.o *.mod
-	- $(RM) log.make.$(EXE_FILE)
+	- $(RM) $(EXE_FILE) $(PEXE_FILE) *.o *.mod
+	- $(RM) log.make.$(EXE_FILE) log.make.$(PEXE_FILE)
 
 #-----------------------------------------------------------------------------
 #                          -- Child make --
@@ -146,10 +150,13 @@ include $(MAKE_DEPEND)
 # Call compiler and linker
 # ------------------------
 
-all: CALC_INCREMENT
+all: CALC_INCREMENT CALC_INCREMENT_ENS
 
 CALC_INCREMENT: $(OBJS)
 	$(LD) $(LDFLAGS) $(OBJS) main.f90 $(LIBS) -o $(EXE_FILE) > $(LOG_FILE)
+
+CALC_INCREMENT_ENS: $(OBJS)
+	$(LD) $(LDFLAGS) $(OBJS) pmain.f90 $(LIBS) -o $(PEXE_FILE) > $(PLOG_FILE)
 
 help:
 	@ echo "Available targets:"
