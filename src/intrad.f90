@@ -285,7 +285,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   use radinfo, only: npred,jpch_rad,pg_rad,b_rad
   use radinfo, only: nsigradjac
   use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
-  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use jfunc, only: jiter
   use gridmod, only: latlon11,nsig
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,half,one,tiny_r_kind,cg_term,r3600
@@ -311,7 +311,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   real(r_kind),allocatable,dimension(:):: val
   real(r_kind) w1,w2,w3,w4
   real(r_kind),dimension(nsigradjac):: tval,tdir
-  real(r_kind) cg_rad,p0,wnotgross,wgross,time_rad
+  real(r_kind) cg_rad,p0,wnotgross,wgross
   type(radNode), pointer :: radptr
   real(r_kind),allocatable,dimension(:,:) :: rsqrtinv
   integer(i_kind) :: ic1,ix1
@@ -320,8 +320,6 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   real(r_kind),pointer,dimension(:) :: sst
   real(r_kind),pointer,dimension(:) :: rt,rq,rcw,roz,ru,rv,rqg,rqh,rqi,rql,rqr,rqs
   real(r_kind),pointer,dimension(:) :: rst
-  real(r_kind),pointer,dimension(:) :: xhat_dt_t,xhat_dt_q,xhat_dt_oz,xhat_dt_u,xhat_dt_v
-  real(r_kind),pointer,dimension(:) :: dhat_dt_t,dhat_dt_q,dhat_dt_oz,dhat_dt_u,dhat_dt_v
 
 !  If no rad observations return
   if(.not.associated(radhead)) return
@@ -384,32 +382,6 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
     call gsi_bundlegetpointer(sval,'qs' ,sqs,istatus)
     call gsi_bundlegetpointer(rval,'qs' ,rqs,istatus)
   end if
-
-  if(l_foto) then
-     ier=0
-     if(luseu)then
-       call gsi_bundlegetpointer(xhat_dt,'u',  xhat_dt_u, istatus);ier=istatus+ier
-       call gsi_bundlegetpointer(dhat_dt,'u',  dhat_dt_u, istatus);ier=istatus+ier
-     end if
-     if(lusev)then
-       call gsi_bundlegetpointer(xhat_dt,'v',  xhat_dt_v, istatus);ier=istatus+ier
-       call gsi_bundlegetpointer(dhat_dt,'v',  dhat_dt_v, istatus);ier=istatus+ier
-     end if
-     if(luset)then
-       call gsi_bundlegetpointer(xhat_dt,'tv' ,xhat_dt_t, istatus);ier=istatus+ier
-       call gsi_bundlegetpointer(dhat_dt,'tv' ,dhat_dt_t, istatus);ier=istatus+ier
-     end if
-     if(luseq)then
-       call gsi_bundlegetpointer(xhat_dt,'q',  xhat_dt_q, istatus);ier=istatus+ier
-       call gsi_bundlegetpointer(dhat_dt,'q',  dhat_dt_q, istatus);ier=istatus+ier
-     end if
-     if(luseoz)then
-       call gsi_bundlegetpointer(xhat_dt,'oz' ,xhat_dt_oz,istatus);ier=istatus+ier
-       call gsi_bundlegetpointer(dhat_dt,'oz' ,dhat_dt_oz,istatus);ier=istatus+ier
-     end if
-
-     if(ier/=0)return
-  endif
 
   !radptr => radhead
   radptr => radNode_typecast(radhead)
@@ -506,42 +478,6 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
      end if
 
 
-
-     if (l_foto) then
-        time_rad=radptr%time*r3600
-        do k=1,nsig
-           i1 = i1n(k)
-           i2 = i2n(k)
-           i3 = i3n(k)
-           i4 = i4n(k)
-           if(luset)then 
-              tdir(itv+k)= tdir(itv+k)+&
-                           (w1* xhat_dt_t(i1)+w2*xhat_dt_t(i2)+ &
-                            w3* xhat_dt_t(i3)+w4*xhat_dt_t(i4))*time_rad
-           endif
-           if(luseq)then 
-              tdir(iqv+k)= tdir(iqv+k)+&
-                           (w1* xhat_dt_q(i1)+w2*xhat_dt_q(i2)+ &
-                            w3* xhat_dt_q(i3)+w4*xhat_dt_q(i4))*time_rad
-           endif
-           if(luseoz)then 
-              tdir(ioz+k)= tdir(ioz+k)+&
-                          (w1*xhat_dt_oz(i1)+w2*xhat_dt_oz(i2)+ &
-                           w3*xhat_dt_oz(i3)+w4*xhat_dt_oz(i4))*time_rad
-           endif
-        end do
-        if(luseu)then 
-           tdir(ius+1)=   tdir(ius+1)+&
-                          (w1*xhat_dt_u(j1) +w2*xhat_dt_u(j2)+ &
-                           w3*xhat_dt_u(j3) +w4*xhat_dt_u(j4))*time_rad
-        endif
-        if(lusev)then 
-           tdir(ivs+1)=   tdir(ivs+1)+&
-                          (w1*xhat_dt_v(j1) +w2*xhat_dt_v(j2)+ &
-                           w3*xhat_dt_v(j3) +w4*xhat_dt_v(j4))*time_rad
-        endif
- 
-     endif
 
 !  For all other configurations
 !  begin channel specific calculations
@@ -736,47 +672,6 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
               rqs(i4)=rqs(i4)+w4*tval(mm)
            end if
         end do
-        if (l_foto) then
-           if(luseu) then
-              dhat_dt_u(j1)=dhat_dt_u(j1)+w1*tval(ius+1)*time_rad
-              dhat_dt_u(j2)=dhat_dt_u(j2)+w2*tval(ius+1)*time_rad
-              dhat_dt_u(j3)=dhat_dt_u(j3)+w3*tval(ius+1)*time_rad
-              dhat_dt_u(j4)=dhat_dt_u(j4)+w4*tval(ius+1)*time_rad
-           endif
-           if(lusev) then
-              dhat_dt_v(j1)=dhat_dt_v(j1)+w1*tval(ivs+1)*time_rad
-              dhat_dt_v(j2)=dhat_dt_v(j2)+w2*tval(ivs+1)*time_rad
-              dhat_dt_v(j3)=dhat_dt_v(j3)+w3*tval(ivs+1)*time_rad
-              dhat_dt_v(j4)=dhat_dt_v(j4)+w4*tval(ivs+1)*time_rad
-           endif
-           do k=1,nsig
-              i1 = i1n(k)
-              i2 = i2n(k)
-              i3 = i3n(k)
-              i4 = i4n(k)
-              if(luset)then
-                 mm=itv+k
-                 dhat_dt_t(i1)=dhat_dt_t(i1)+w1*tval(mm)*time_rad
-                 dhat_dt_t(i2)=dhat_dt_t(i2)+w2*tval(mm)*time_rad
-                 dhat_dt_t(i3)=dhat_dt_t(i3)+w3*tval(mm)*time_rad
-                 dhat_dt_t(i4)=dhat_dt_t(i4)+w4*tval(mm)*time_rad
-              endif
-              if(luseq)then
-                 mm=iqv+k
-                 dhat_dt_q(i1)=dhat_dt_q(i1)+w1*tval(mm)*time_rad
-                 dhat_dt_q(i2)=dhat_dt_q(i2)+w2*tval(mm)*time_rad
-                 dhat_dt_q(i3)=dhat_dt_q(i3)+w3*tval(mm)*time_rad
-                 dhat_dt_q(i4)=dhat_dt_q(i4)+w4*tval(mm)*time_rad
-              endif
-              if(luseoz)then
-                 mm=ioz+k
-                 dhat_dt_oz(i1)=dhat_dt_oz(i1)+w1*tval(mm)*time_rad
-                 dhat_dt_oz(i2)=dhat_dt_oz(i2)+w2*tval(mm)*time_rad
-                 dhat_dt_oz(i3)=dhat_dt_oz(i3)+w3*tval(mm)*time_rad
-                 dhat_dt_oz(i4)=dhat_dt_oz(i4)+w4*tval(mm)*time_rad
-              end if
-           end do
-        endif
 
      endif ! < l_do_adjoint >
      deallocate(val)

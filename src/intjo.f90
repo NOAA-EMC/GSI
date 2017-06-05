@@ -194,7 +194,7 @@ subroutine intjo_(yobs,rval,qpred,sval,sbias,ibin)
 !
 !$$$
 use kinds, only: r_kind,i_kind,r_quad
-use jfunc, only: nrclen,nsclen,npclen,ntclen,l_foto,xhat_dt
+use jfunc, only: nrclen,nsclen,npclen,ntclen
 use bias_predictors, only: predictors
 use intaodmod, only: intaod
 use inttmod, only: intt
@@ -244,19 +244,9 @@ type(gsi_bundle), intent(inout) :: rval
 real(r_quad),dimension(max(1,nrclen)), intent(inout) :: qpred
 
 ! Declare local variables
-integer(i_kind) :: ier
-real(r_kind),pointer,dimension(:,:,:) :: xhat_dt_tsen,xhat_dt_q,xhat_dt_t
 
 
 !******************************************************************************
-
-! Calculate sensible temperature time derivative
-  if(l_foto)then
-     call gsi_bundlegetpointer(xhat_dt,'tv'  ,xhat_dt_t,   ier)
-     call gsi_bundlegetpointer(xhat_dt,'q'   ,xhat_dt_q,   ier)
-     call gsi_bundlegetpointer(xhat_dt,'tsen',xhat_dt_tsen,ier)
-     call tv_to_tsen(xhat_dt_t,xhat_dt_q,xhat_dt_tsen)
-  endif
 
 ! RHS for conventional temperatures
   if (ntclen>0) then

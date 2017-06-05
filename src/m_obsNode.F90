@@ -147,7 +147,7 @@ module m_obsNode
   end interface
 
   abstract interface
-    function intrfc_mytype_
+    function intrfc_mytype_()
       import:: obsNode
       implicit none
       character(len=:),allocatable:: intrfc_mytype_

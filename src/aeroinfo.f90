@@ -86,7 +86,6 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use mpimod, only: npe       ! contains the number of mpi tasks, variable "npe"
 
     jpch_aero = 0               ! number of enteries read from aeroinfo
     diag_aero = .true.          ! default is to generate aerosol diagnostic file

@@ -202,7 +202,6 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep,nobs_bins)
 !   2006-09-18  derber - modify output from nonlinear operators to make same as linear operators
 !   2006-09-20  derber - add sensible temperatures for conventional obs.
 !   2006-10-12  treadon - replace virtual temperature with sensible in stppcp
-!   2007-02-15  rancic  - add foto
 !   2007-03-19  tremolet - binning of observations
 !   2007-04-13  tremolet - split jo from other components of stpcalc
 !   2007-04-16  kleist  - modified calls to tendency and constraint routines

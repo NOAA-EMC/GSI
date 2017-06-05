@@ -300,9 +300,8 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
   use radinfo, only: radjacindxs,radjacnames,jpch_rad,nusis,nuchan
   use aeroinfo, only: aerojacindxs
   use guess_grids, only: ges_tsen,ges_prsl,nfldsig
-  use control_vectors, only: cvars3d
   use mpeu_util, only: getindex
-  use constants, only: zero,tiny_r_kind,max_varname_length
+  use constants, only: zero,max_varname_length
   use obsmod, only: dval_use
 
   implicit none
@@ -753,7 +752,7 @@ endif
     end do
  end if
 
-! Mapping land surface type of NMM to CRTM
+! Mapping land surface type to CRTM surface fields
  if (regional .or. nvege_type==IGBP_N_TYPES) then
     allocate(map_to_crtm_ir(nvege_type))
     allocate(map_to_crtm_mwave(nvege_type))
@@ -953,8 +952,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use kinds, only: r_kind,i_kind
   use mpimod, only: mype
   use radinfo, only: ifactq
-  use radinfo, only: radjacindxs,nsigradjac
-  use gsi_nstcouplermod, only: nst_gsi,nstinfo,fac_dtl,fac_tsl
+  use radinfo, only: nsigradjac
+  use gsi_nstcouplermod, only: nst_gsi
   use guess_grids, only: ges_tsen,&
       ges_prsl,ges_prsi,tropprs,dsfct,add_rtm_layers, &
       hrdifsig,nfldsig,hrdifsfc,nfldsfc,ntguessfc,isli2,sno2
@@ -967,8 +966,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use gsi_metguess_mod,  only: gsi_metguess_get
   use gridmod, only: istart,jstart,nlon,nlat,lon1
   use wrf_params_mod, only: cold_start
-  use constants, only: zero,one,one_tenth,fv,r0_05,r10,r100,r1000,constoz,grav,rad2deg,deg2rad, &
-      sqrt_tiny_r_kind,constoz, rd, rd_over_g, two, three, four,five,t0c
+  use constants, only: zero,one,one_tenth,fv,r0_05,r10,r100,r1000,constoz,grav,rad2deg, &
+      sqrt_tiny_r_kind,constoz,two, three, four,five,t0c
   use constants, only: max_varname_length,pi  
   use set_crtm_aerosolmod, only: set_crtm_aerosol
   use set_crtm_cloudmod, only: set_crtm_cloud
@@ -1294,7 +1293,11 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
            if (regional .or. nvege_type==IGBP_N_TYPES) then
               itype  = min(max(1,itype),nvege_type)
               istype = min(max(1,istype),SOIL_N_TYPES)
-              surface(1)%land_type = max(1,map_to_crtm_ir(itype))
+              if (ChannelInfo(sensorindex)%sensor_type == crtm_microwave_sensor)then
+                 surface(1)%land_type = max(1,map_to_crtm_mwave(itype))
+              else
+                 surface(1)%land_type = max(1,map_to_crtm_ir(itype))
+              end if
               surface(1)%Vegetation_Type = max(1,map_to_crtm_mwave(itype))
               surface(1)%Soil_Type = map_soil_to_crtm(istype)
               lai_type = map_to_crtm_mwave(itype)

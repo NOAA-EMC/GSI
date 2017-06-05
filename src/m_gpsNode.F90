@@ -116,7 +116,7 @@ function nextcast_(aNode) result(ptr_)
 return
 end function nextcast_
 
-function mytype
+function mytype()
   implicit none
   character(len=:),allocatable:: mytype
   mytype="[gpsNode]"
