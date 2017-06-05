@@ -3,4 +3,4 @@
 	url = ../fix
 [submodule "libsrc"]
 	path = libsrc
-	url = ../comgsi-external-libs
+	url = ../external-libs
