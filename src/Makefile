@@ -349,7 +349,6 @@ clean:
 	inc2guess.f90 \
 	init_jcdfi.f90 \
 	insitu_info.f90 \
-	int3dvar.f90 \
 	intall.f90 \
         intaod.f90 \
 	intco.f90 \
@@ -544,7 +543,6 @@ clean:
 	statspcp.f90 \
 	statsrad.f90 \
 	stop1.f90 \
-	stp3dvar.f90 \
         stpaod.f90 \
 	stpcalc.f90 \
 	stpco.f90 \
@@ -607,7 +605,6 @@ clean:
 	unfill_nmm_grid2.f90 \
 	unhalf_nmm_grid2.f90 \
 	update_guess.f90 \
-	update_geswtend.f90 \
 	wind_fft.f90 \
         wrf_mass_guess_mod.f90 \
         wrf_params_mod.f90 \

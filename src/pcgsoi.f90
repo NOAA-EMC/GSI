@@ -127,7 +127,7 @@ subroutine pcgsoi()
   use jfunc, only: iter,jiter,jiterstart,niter,miter,iout_iter,&
        nclen,penorig,gnormorig,xhatsave,yhatsave,&
        iguess,read_guess_solution,diag_precon,step_start, &
-       niter_no_qc,l_foto,xhat_dt,print_diag_pcg,lgschmidt
+       niter_no_qc,print_diag_pcg,lgschmidt
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, iwrtinc, ladtest, &
                        iorthomax
   use gridmod, only: twodvar_regional
@@ -777,7 +777,6 @@ subroutine pcgsoi()
 ! Update guess (model background, bias correction) fields
 ! if (mype==0) write(6,*)'pcgsoi: Updating guess'
   if(iwrtinc<=0) call update_guess(sval,sbias)
-  if(l_foto) call update_geswtend(xhat_dt)
 
 ! cloud analysis  after iteration
 ! if(jiter == miter .and. i_gsdcldanal_type==1) then
@@ -885,10 +884,6 @@ subroutine init_
   xdiff=zero
   xhat=zero
 
-  if(l_foto)then
-     call allocate_state(xhat_dt)
-     xhat_dt=zero
-  end if
 
 end subroutine init_
 
@@ -946,9 +941,6 @@ subroutine clean_
   do ii=1,ntlevs_ens
      call deallocate_state(eval(ii))
   end do
-  if(l_foto)then
-     call deallocate_state(xhat_dt)
-  end if
 ! call inquire_state
 
 end subroutine clean_

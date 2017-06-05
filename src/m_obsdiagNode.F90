@@ -589,6 +589,7 @@ function lsize_(diagLL) result(lobs_)
 end function lsize_
 
 function lcount_(diagLL,luseonly,recount,nuse,nooo,ndup,ksum,leadNode) result(lobs_)
+  use mpeu_util, only: assert_
   implicit none
   integer(kind=i_kind):: lobs_
   type(_obsLList_),   target, intent(in):: diagLL
@@ -620,7 +621,7 @@ _ENTRY_(myname_)
   !if(.not.recount_) recount_ = checksum_
 
   if(present(ksum)) then
-    ALWAYS_ASSERT(size(ksum)==size(kprev))
+    ALWAYS_ASSERT( size(ksum)==size(kprev) )
   endif
 
   if(.not.(luseonly_.or.recount_)) then

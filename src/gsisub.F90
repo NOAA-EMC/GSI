@@ -75,9 +75,7 @@ subroutine gsisub(mype,init_pass,last_pass)
   use kinds, only: i_kind
   use obsmod, only: iadate,lobserver
   use observermod, only: observer_init,observer_run,observer_finalize
-  use gridmod, only: twodvar_regional,regional,&
-       create_grid_vars,&
-       destroy_grid_vars
+  use gridmod, only: twodvar_regional,create_grid_vars,destroy_grid_vars
   use gridmod, only: wrf_mass_regional,wrf_nmm_regional,nems_nmmb_regional,cmaq_regional
   use mpimod, only: npe,mpi_comm_world,ierror
   use radinfo, only: radinfo_read

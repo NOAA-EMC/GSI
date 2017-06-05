@@ -57,7 +57,6 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
       finalcheck,map2tgrid,score_crit
   use radinfo, only: iuse_rad,nusis,jpch_rad, &
       use_edges,radedge1,radedge2,radstart,radstep
-  use radinfo, only: crtm_coeffs_path,adp_anglebc
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad,zero,one,two,three,rad2deg,r60inv
   use crtm_module, only : max_sensor_zenith_angle

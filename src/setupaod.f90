@@ -46,12 +46,12 @@
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,i_kind
   use crtm_spccoeff, only: sc
-  use obsmod, only: ianldate,iadate,ndat,mype_diaghdr,nchan_total, &
+  use obsmod, only: ianldate,mype_diaghdr,nchan_total, &
            dplat,obsdiags,obsptr,lobsdiagsave,lobsdiag_allocated,&
            dirname,time_offset
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
-  use gridmod, only: nsig,regional,msig,get_ij
+  use gridmod, only: nsig,get_ij
   use constants, only: tiny_r_kind,zero,one,three,r10
   use jfunc, only: jiter,miter
   use m_dtime, only: dtime_setup, dtime_check, dtime_show

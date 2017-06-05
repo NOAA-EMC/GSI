@@ -50,7 +50,6 @@ subroutine stpsrw(srwhead,rval,sval,out,sges,nstep)
 !   2006-07-28  derber  - modify to use new inner loop obs data structure
 !                       - unify NL qc
 !   2006-09-18  derber  - modify output values of b1 and b3
-!   2007-02-15  rancic - add foto
 !   2007-03-19  tremolet - binning of observations
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2008-06-02  safford - rm unused var and uses
@@ -81,8 +80,6 @@ subroutine stpsrw(srwhead,rval,sval,out,sges,nstep)
   use kinds, only: r_kind,i_kind,r_quad
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
-  use gridmod, only: latlon1n
-  use jfunc, only: l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use m_obsNode, only: obsNode
@@ -101,13 +98,11 @@ subroutine stpsrw(srwhead,rval,sval,out,sges,nstep)
 ! Declare local variables
   integer(i_kind) ier,istatus
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk
-  real(r_kind) valu,facu,valv,facv,w1,w2,w3,w4,w5,w6,w7,w8,time_srw
+  real(r_kind) valu,facu,valv,facv,w1,w2,w3,w4,w5,w6,w7,w8
   real(r_kind) bigu11,bigu12,bigu21,bigu22,facsrw1,facsrw2,valsrw1,valsrw2
   real(r_kind) cg_srw,uu,vv,wgross,wnotgross
   real(r_kind),dimension(max(1,nstep))::pen
   real(r_kind) pg_srw
-  real(r_kind),pointer,dimension(:) :: xhat_dt_u,xhat_dt_v
-  real(r_kind),pointer,dimension(:) :: dhat_dt_u,dhat_dt_v
   real(r_kind),pointer,dimension(:) :: su,sv
   real(r_kind),pointer,dimension(:) :: ru,rv
   type(srwNode), pointer :: srwptr
@@ -124,12 +119,6 @@ subroutine stpsrw(srwhead,rval,sval,out,sges,nstep)
   call gsi_bundlegetpointer(sval,'v',sv,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'u',ru,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'v',rv,istatus);ier=istatus+ier
-  if(l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'u',xhat_dt_u,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'v',xhat_dt_v,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'u',dhat_dt_u,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'v',dhat_dt_v,istatus);ier=istatus+ier
-  endif
   if(ier/=0)return
 
   srwptr => srwNode_typecast(srwhead)
@@ -170,26 +159,6 @@ subroutine stpsrw(srwhead,rval,sval,out,sges,nstep)
            facv=w1* sv(j1)+w2* sv(j2)+w3* sv(j3)+w4* sv(j4) &
                +w5* sv(j5)+w6* sv(j6)+w7* sv(j7)+w8* sv(j8) 
        
-           if(l_foto) then
-              time_srw=srwptr%time*r3600
-              valu=valu+(w1*dhat_dt_u(j1)+w2*dhat_dt_u(j2)+ &
-                         w3*dhat_dt_u(j3)+w4*dhat_dt_u(j4)+ &
-                         w5*dhat_dt_u(j5)+w6*dhat_dt_u(j6)+ &
-                         w7*dhat_dt_u(j7)+w8*dhat_dt_u(j8))*time_srw
-              valv=valv+(w1*dhat_dt_v(j1)+w2*dhat_dt_v(j2)+ &
-                         w3*dhat_dt_v(j3)+w4*dhat_dt_v(j4)+ &
-                         w5*dhat_dt_v(j5)+w6*dhat_dt_v(j6)+ &
-                         w7*dhat_dt_v(j7)+w8*dhat_dt_v(j8))*time_srw
-              facu=facu+(w1*xhat_dt_u(j1)+w2*xhat_dt_u(j2)+ &
-                         w3*xhat_dt_u(j3)+w4*xhat_dt_u(j4)+ &
-                         w5*xhat_dt_u(j5)+w6*xhat_dt_u(j6)+ &
-                         w7*xhat_dt_u(j7)+w8*xhat_dt_u(j8))*time_srw
-              facv=facv+(w1*xhat_dt_v(j1)+w2*xhat_dt_v(j2)+ &
-                         w3*xhat_dt_v(j3)+w4*xhat_dt_v(j4)+ &
-                         w5*xhat_dt_v(j5)+w6*xhat_dt_v(j6)+ &
-                         w7*xhat_dt_v(j7)+w8*xhat_dt_v(j8))*time_srw
-           end if
-
            valsrw1=bigu11*valu+bigu12*valv
            valsrw2=bigu21*valu+bigu22*valv
            facsrw1=bigu11*facu+bigu12*facv-srwptr%res1
