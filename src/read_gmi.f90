@@ -92,6 +92,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   use ssmis_spatial_average_mod, only : ssmis_spatial_average
   use m_sortind
   use mpimod, only: npe
+! use radiance_mod, only: rad_obs_type
 
   implicit none
 

@@ -2199,7 +2199,7 @@ subroutine check_iostat_(ierror,myname,message)
 
    if ( ierror /= 0 ) then
       if ( mype == 0 ) &
-      write(6,'(A,I)') 'Error occured in ' // trim(myname) // ' during ' // trim(message) // ', iostat = ', ierror
+      write(6,'(A,I1)') 'Error occured in ' // trim(myname) // ' during ' // trim(message) // ', iostat = ', ierror
       call die(myname)
    endif
    return

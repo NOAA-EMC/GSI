@@ -111,7 +111,6 @@ subroutine intozlay_(ozhead,rval,sval)
 !   2005-09-28  derber  - consolidate location and weight arrays
 !   2006-07-28  derber  - modify to use new inner loop obs data structure
 !                       - unify NL qc
-!   2007-02-15  rancic - add foto
 !   2007-02-16  sienkiewicz - add call to routine for level ozone contrib.
 !   2007-03-19  tremolet - binning of observations
 !   2007-05-30  h.liu   - move interpolation weights w1-w4 inside k loop
@@ -143,7 +142,7 @@ subroutine intozlay_(ozhead,rval,sval)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: lsaveobsens,l_do_adjoint,nloz_omi,luse_obsdiag
   use gridmod, only: lat2,lon2,nsig
-  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use jfunc, only: jiter
   use constants, only: one,zero,r3600,zero_quad
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -160,12 +159,10 @@ subroutine intozlay_(ozhead,rval,sval)
 
 ! Declare local variables
   integer(i_kind) i,j,ij,ier,istatus
-  integer(i_kind) k,j1,j2,j3,j4,kk,iz1,iz2,j1x,j2x,j3x,j4x,kl
-  real(r_kind) dz1,pob,delz,time_oz
+  integer(i_kind) k,j1,j2,j3,j4,kk,iz1,iz2,kl
+  real(r_kind) dz1,pob,delz
   real(r_quad) val1,valx
   real(r_kind) w1,w2,w3,w4
-  real(r_kind),pointer,dimension(:) :: xhat_dt_oz
-  real(r_kind),pointer,dimension(:) :: dhat_dt_oz
   real(r_kind),pointer,dimension(:,:,:)  :: sozp
   real(r_kind),pointer,dimension(:,:,:)  :: rozp
   real(r_kind),allocatable,dimension(:,:) :: soz
@@ -181,10 +178,6 @@ subroutine intozlay_(ozhead,rval,sval)
   ier=0 
   call gsi_bundlegetpointer(sval,'oz',sozp,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'oz',rozp,istatus);ier=istatus+ier
-  if(l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'oz',xhat_dt_oz,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'oz',dhat_dt_oz,istatus);ier=istatus+ier
-  endif
   if(ier/=0)return
 
 ! Can't do rank-2 pointer into rank-2, therefore, allocate work space
@@ -217,7 +210,6 @@ subroutine intozlay_(ozhead,rval,sval)
      dz1=nsig+1
      if ( ozptr%nloz >= 1 ) then
 
-        if(l_foto) time_oz = ozptr%time*r3600
         do k=1,ozptr%nloz
            val1= zero_quad
            pob = ozptr%prs(k)
@@ -237,17 +229,6 @@ subroutine intozlay_(ozhead,rval,sval)
                    w2* soz(j2,kk)+ &
                    w3* soz(j3,kk)+ &
                    w4* soz(j4,kk))*delz
-              if (l_foto) then
-                 j1x=w1+(kk-1)*lat2*lon2
-                 j2x=w2+(kk-1)*lat2*lon2
-                 j3x=w3+(kk-1)*lat2*lon2
-                 j4x=w4+(kk-1)*lat2*lon2
-                 val1=val1 + ( &
-                     (w1*xhat_dt_oz(j1x)+ &
-                      w2*xhat_dt_oz(j2x)+ &
-                      w3*xhat_dt_oz(j3x)+ &
-                      w4*xhat_dt_oz(j4x))*time_oz)*delz
-              endif
            enddo
 
            if(luse_obsdiag)then
@@ -284,25 +265,6 @@ subroutine intozlay_(ozhead,rval,sval)
                  roz(j3,kk)  =  roz(j3,kk) + valx*w3*delz
                  roz(j4,kk)  =  roz(j4,kk) + valx*w4*delz
               enddo
-              if (l_foto) then
-                 do kk=iz1,iz2,-1
-                    delz=one
-                    if(kk==iz1)delz=dz1-iz1
-                    if(kk==iz2)delz=delz-pob+iz2
-                    w1=ozptr%wij(1,kk)
-                    w2=ozptr%wij(2,kk)
-                    w3=ozptr%wij(3,kk)
-                    w4=ozptr%wij(4,kk)
-                    j1x=w1+(kk-1)*lat2*lon2
-                    j2x=w2+(kk-1)*lat2*lon2
-                    j3x=w3+(kk-1)*lat2*lon2
-                    j4x=w4+(kk-1)*lat2*lon2
-                    dhat_dt_oz(j1x) = dhat_dt_oz(j1x) + valx*w1*delz*time_oz
-                    dhat_dt_oz(j2x) = dhat_dt_oz(j2x) + valx*w2*delz*time_oz
-                    dhat_dt_oz(j3x) = dhat_dt_oz(j3x) + valx*w3*delz*time_oz
-                    dhat_dt_oz(j4x) = dhat_dt_oz(j4x) + valx*w4*delz*time_oz
-                 enddo
-              endif
               dz1=pob
            endif
         end do
@@ -324,23 +286,6 @@ subroutine intozlay_(ozhead,rval,sval)
                 w3* soz(j3,kk)+ &
                 w4* soz(j4,kk)
         enddo
-        if (l_foto) then
-           do kk=nsig,1,-1
-              w1=ozptr%wij(1,kk)
-              w2=ozptr%wij(2,kk)
-              w3=ozptr%wij(3,kk)
-              w4=ozptr%wij(4,kk)
-              j1x=w1+(kk-1)*lat2*lon2
-              j2x=w2+(kk-1)*lat2*lon2
-              j3x=w3+(kk-1)*lat2*lon2
-              j4x=w4+(kk-1)*lat2*lon2
-              val1=val1 + &
-                   (w1*xhat_dt_oz(j1x)+ &
-                   w2*xhat_dt_oz(j2x)+ &
-                   w3*xhat_dt_oz(j3x)+ &
-                   w4*xhat_dt_oz(j4x))*time_oz
-           enddo
-        endif
      else  ! OMI ozone with efficiency factor
 ! Integrate ozone within each layer
         dz1=nsig+1
@@ -407,22 +352,6 @@ subroutine intozlay_(ozhead,rval,sval)
               roz(j3,kk)  = roz(j3,kk) + valx*w3
               roz(j4,kk)  = roz(j4,kk) + valx*w4
            enddo
-           if (l_foto) then
-              do kk=nsig,1,-1
-                 w1=ozptr%wij(1,kk)
-                 w2=ozptr%wij(2,kk)
-                 w3=ozptr%wij(3,kk)
-                 w4=ozptr%wij(4,kk)
-                 j1x=w1+(kk-1)*lat2*lon2
-                 j2x=w2+(kk-1)*lat2*lon2
-                 j3x=w3+(kk-1)*lat2*lon2
-                 j4x=w4+(kk-1)*lat2*lon2
-                 dhat_dt_oz(j1x) =dhat_dt_oz(j1x) + valx*w1*time_oz
-                 dhat_dt_oz(j2x) =dhat_dt_oz(j2x) + valx*w2*time_oz
-                 dhat_dt_oz(j3x) =dhat_dt_oz(j3x) + valx*w3*time_oz
-                 dhat_dt_oz(j4x) =dhat_dt_oz(j4x) + valx*w4*time_oz
-              enddo
-           endif
         else  ! OMI ozone with efficiency factor
            if (lsaveobsens) then
               valx = ozptr%diags(k)%ptr%obssen(jiter)              
@@ -525,7 +454,7 @@ subroutine intozlev_(o3lhead,rval,sval)
   use kinds, only: r_kind,i_kind
   use obsmod, only: lsaveobsens, l_do_adjoint,luse_obsdiag
   use constants, only: r3600
-  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_4dvar, only: ladtest_obs
@@ -543,9 +472,7 @@ subroutine intozlev_(o3lhead,rval,sval)
   integer(i_kind) ier,istatus
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8
   real(r_kind) val,grad
-  real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,time_o3l
-  real(r_kind),pointer,dimension(:) :: xhat_dt_oz
-  real(r_kind),pointer,dimension(:) :: dhat_dt_oz
+  real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8
   real(r_kind),pointer,dimension(:) :: soz1d
   real(r_kind),pointer,dimension(:) :: roz1d
   type(o3lNode), pointer :: o3lptr
@@ -558,10 +485,6 @@ subroutine intozlev_(o3lhead,rval,sval)
   ier=0 
   call gsi_bundlegetpointer(sval,'oz',soz1d,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'oz',roz1d,istatus);ier=istatus+ier
-  if(l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'oz',xhat_dt_oz,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'oz',dhat_dt_oz,istatus);ier=istatus+ier
-  endif
   if(ier/=0)return
 
 ! LEVEL-OZONE OBSERVATIONS
@@ -593,15 +516,6 @@ subroutine intozlev_(o3lhead,rval,sval)
      val=w1*soz1d(j1)+w2*soz1d(j2)+w3*soz1d(j3)+w4*soz1d(j4)+ &
           w5*soz1d(j5)+w6*soz1d(j6)+w7*soz1d(j7)+w8*soz1d(j8)
 
-     if ( l_foto ) then
-        time_o3l=o3lptr%time*r3600
-        val=val+&
-            (w1*xhat_dt_oz(j1)+w2*xhat_dt_oz(j2)+ &
-             w3*xhat_dt_oz(j3)+w4*xhat_dt_oz(j4)+ &
-             w5*xhat_dt_oz(j5)+w6*xhat_dt_oz(j6)+ &
-             w7*xhat_dt_oz(j7)+w8*xhat_dt_oz(j8))*time_o3l
-     endif
-
      if (luse_obsdiag ) then
         if (lsaveobsens) then
            grad = val*o3lptr%raterr2*o3lptr%err2
@@ -631,18 +545,6 @@ subroutine intozlev_(o3lhead,rval,sval)
         roz1d(j6)=roz1d(j6)+w6*grad
         roz1d(j7)=roz1d(j7)+w7*grad
         roz1d(j8)=roz1d(j8)+w8*grad
-
-        if ( l_foto ) then
-           grad=grad*time_o3l
-           dhat_dt_oz(j1)=dhat_dt_oz(j1)+w1*grad
-           dhat_dt_oz(j2)=dhat_dt_oz(j2)+w2*grad
-           dhat_dt_oz(j3)=dhat_dt_oz(j3)+w3*grad
-           dhat_dt_oz(j4)=dhat_dt_oz(j4)+w4*grad
-           dhat_dt_oz(j5)=dhat_dt_oz(j5)+w5*grad
-           dhat_dt_oz(j6)=dhat_dt_oz(j6)+w6*grad
-           dhat_dt_oz(j7)=dhat_dt_oz(j7)+w7*grad
-           dhat_dt_oz(j8)=dhat_dt_oz(j8)+w8*grad
-        endif
 
      endif
 
