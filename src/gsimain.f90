@@ -106,7 +106,6 @@
 !   2006-10-25  sienkiewicz - add blacklist flag to namelist
 !   2006-11-30  todling - add fpsproj parameter to bkgerr namelist
 !   2007-03-12       su - add perturb_obs,perturb_fact,c_varqc
-!   2007-03-20  rancic  - incorporate foto
 !   2007-04-10  todling - split following C.Cruz and da Silva's modification to ESMF
 !   2007-04-13  tremolet - add error code 100
 !   2007-06-08  kleist/treadon - add init_directories
@@ -243,6 +242,7 @@
 !          =  51 - invalid pflag (convthin:make3grids)
 !          =  54 - data handling mix up(setuprhsall)
 !          =  55 - NOBS > NSDATA (setuprhsall-tran)
+!          =  56 - iobs > maxobs (read_amsr2)
 !          =  59 - problems reading sst analysis (rdgrbsst)
 !          =  60 - inconsistent dimensions (rdgrbsst)
 !          =  61 - odd number of longitudes (inisph)
@@ -495,7 +495,6 @@
 !          = 311 - control2state_ad: not for sqrt(B)
 !          = 312 - allocate_state: state already allocated
 !          = 313 - allocate_state:  error length
-!          = 314 - stpspd:ltlint & foto not compatible at this time
 !          = 315 - test_obsens: only for validation
 !          = 316 - write_obsdiags: error open
 !          = 317 - bkerror: not for use with lsqrtb
@@ -523,6 +522,7 @@
 !          = 339 - error:more than one MLS  data type not allowed
 !          = 340 - error reading aircraft temperature bias file
 !          = 341 - aircraft tail number exceeds maximum
+!          = 899 - foto no longer available
 !
 !
 ! remarks: resolution, unit numbers and several constants are

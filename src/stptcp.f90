@@ -63,8 +63,6 @@ subroutine stptcp(tcphead,rval,sval,out,sges,nstep)
   use kinds, only: r_kind,i_kind,r_quad
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
-  use gridmod, only: latlon1n1
-  use jfunc, only: l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use m_obsNode, only: obsNode
@@ -82,11 +80,9 @@ subroutine stptcp(tcphead,rval,sval,out,sges,nstep)
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,kk,ier,istatus
-  real(r_kind) val,val2,w1,w2,w3,w4,time_tcp
+  real(r_kind) val,val2,w1,w2,w3,w4
   real(r_kind) cg_ps,wgross,wnotgross,ps_pg,ps
   real(r_kind),dimension(max(1,nstep))::pen
-  real(r_kind),pointer,dimension(:) :: xhat_dt_prse
-  real(r_kind),pointer,dimension(:) :: dhat_dt_prse
   real(r_kind),pointer,dimension(:) :: sp
   real(r_kind),pointer,dimension(:) :: rp
   type(tcpNode), pointer :: tcpptr
@@ -101,10 +97,6 @@ subroutine stptcp(tcphead,rval,sval,out,sges,nstep)
   ier=0
   call gsi_bundlegetpointer(sval,'prse',sp,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'prse',rp,istatus);ier=istatus+ier
-  if(l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'prse',xhat_dt_prse,istatus);ier=istatus+ier 
-     call gsi_bundlegetpointer(dhat_dt,'prse',dhat_dt_prse,istatus);ier=istatus+ier
-  endif
   if(ier/=0)return
 
   tcpptr => tcpNode_typecast(tcphead)
@@ -121,13 +113,6 @@ subroutine stptcp(tcphead,rval,sval,out,sges,nstep)
            w4 = tcpptr%wij(4)
            val =w1* rp(j1)+w2* rp(j2)+w3* rp(j3)+w4* rp(j4)
            val2=w1* sp(j1)+w2* sp(j2)+w3* sp(j3)+w4* sp(j4)-tcpptr%res
-           if(l_foto) then
-              time_tcp = tcpptr%time*r3600
-              val =val +(w1*dhat_dt_prse(j1)+w2*dhat_dt_prse(j2)+ &
-                         w3*dhat_dt_prse(j3)+w4*dhat_dt_prse(j4))*time_tcp
-              val2=val2+(w1*xhat_dt_prse(j1)+w2*xhat_dt_prse(j2)+ &
-                         w3*xhat_dt_prse(j3)+w4*xhat_dt_prse(j4))*time_tcp
-           end if
        
            do kk=1,nstep
               ps=val2+sges(kk)*val

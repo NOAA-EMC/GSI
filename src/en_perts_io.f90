@@ -20,16 +20,15 @@ subroutine en_perts_get_from_save_fulldomain
 !
 !$$$ end documentation block
 
-  use gridmod, only: nlon,nlat,lat2,lon2,nsig,regional
-  use hybrid_ensemble_parameters, only: nelen,en_perts,ps_bar
-  use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl
+  use gridmod, only: regional
+  use hybrid_ensemble_parameters, only: en_perts
+  use hybrid_ensemble_parameters, only: n_ens,grd_ens
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpimod, only: ierror,mype
   use kinds, only: r_kind,i_kind,r_single
   use gsi_bundlemod, only: GSI_BundleGetPointer
-  use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   use mpeu_util, only: die
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
   use general_sub2grid_mod, only: general_grid2sub
@@ -186,17 +185,15 @@ subroutine en_perts_get_from_save
 !
 !$$$ end documentation block
 
-  use gridmod, only: nlon,nlat,lat2,lon2,nsig
-  use hybrid_ensemble_parameters, only: en_perts,ps_bar,nelen
-  use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl
+  use hybrid_ensemble_parameters, only: en_perts,ps_bar
+  use hybrid_ensemble_parameters, only: n_ens
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use mpimod, only: ierror,mype
+  use mpimod, only: mype
   use kinds, only: r_kind,i_kind,r_single
   use constants, only: max_varname_length
   use gsi_bundlemod, only: GSI_BundleGetPointer
-  use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   use mpeu_util, only: die
   implicit none
 
@@ -284,16 +281,14 @@ subroutine en_perts_save
 !
 !$$$ end documentation block
 
-  use gridmod, only: nlon,nlat,lat2,lon2,nsig
-  use hybrid_ensemble_parameters, only: en_perts,ps_bar,nelen
-  use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl
+  use hybrid_ensemble_parameters, only: en_perts,ps_bar
+  use hybrid_ensemble_parameters, only: n_ens
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use mpimod, only: ierror,mype
+  use mpimod, only: mype
   use kinds, only: r_kind,i_kind,r_single
   use gsi_bundlemod, only: GSI_BundleGetPointer
-  use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   use mpeu_util, only: die
   implicit none
 
