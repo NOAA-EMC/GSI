@@ -197,7 +197,6 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   external:: setupref
   external:: setuprw
   external:: setupspd
-  external:: setupsrw
   external:: setupsst
   external:: setupt
   external:: setuptcp
@@ -232,7 +231,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   character(len=12) :: clfile
 
   integer(i_kind) lunin,nobs,nchanl,nreal,nele,&
-       is,idate,i_dw,i_rw,i_srw,i_sst,i_tcp,i_gps,i_uv,i_ps,i_lag,&
+       is,idate,i_dw,i_rw,i_sst,i_tcp,i_gps,i_uv,i_ps,i_lag,&
        i_t,i_pw,i_q,i_co,i_gust,i_vis,i_ref,i_pblh,i_wspd10m,i_td2m,&
        i_mxtm,i_mitm,i_pmsl,i_howv,i_tcamt,i_lcbas,i_cldch,iobs,nprt,ii,jj
   integer(i_kind) it,ier,istatus
@@ -282,24 +281,23 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   i_pw = 5
   i_rw = 6
   i_dw = 7
-  i_srw= 8
-  i_gps= 9
-  i_sst= 10
-  i_tcp= 11
-  i_lag= 12
-  i_co = 13
-  i_gust=14
-  i_vis =15
-  i_pblh=16
-  i_wspd10m=17
-  i_td2m=18
-  i_mxtm=19
-  i_mitm=20
-  i_pmsl=21
-  i_howv=22
-  i_tcamt=23
-  i_lcbas=24
-  i_cldch=25
+  i_gps= 8
+  i_sst= 9 
+  i_tcp= 10
+  i_lag= 11
+  i_co = 12
+  i_gust=13
+  i_vis =14
+  i_pblh=15
+  i_wspd10m=16
+  i_td2m=17
+  i_mxtm=18
+  i_mitm=19
+  i_pmsl=20
+  i_howv=21
+  i_tcamt=22
+  i_lcbas=23
+  i_cldch=24
   i_ref =i_cldch
 
   allocate(awork1(7*nsig+100,i_ref))
@@ -529,10 +527,6 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
               else if(obstype=='pw')then
                  call setuppw(lunin,mype,bwork,awork(1,i_pw),nele,nobs,is,conv_diagsave)
 
-!             Set up superob radar wind data
-              else if(obstype=='srw')then
-                 call setupsrw(lunin,mype,bwork,awork(1,i_srw),nele,nobs,is,conv_diagsave)
-
 !             Set up conventional sst data
               else if(obstype=='sst' .and. getindex(svars2d,'sst')>0) then 
                  call setupsst(lunin,mype,bwork,awork(1,i_sst),nele,nobs,is,conv_diagsave)
@@ -743,7 +737,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
 !    Compute and print statistics for "conventional" data
      call statsconv(mype,&
-          i_ps,i_uv,i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag, &
+          i_ps,i_uv,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag, &
           i_gust,i_vis,i_pblh,i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv, &
           i_tcamt,i_lcbas,i_cldch,i_ref,bwork1,awork1,ndata)
 
