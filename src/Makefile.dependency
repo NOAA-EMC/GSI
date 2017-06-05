@@ -176,7 +176,7 @@ intgps.o : intgps.f90 gsi_4dvar.o gsi_bundlemod.o jfunc.o constants.o gridmod.o 
 intgust.o : intgust.f90 gsi_4dvar.o gsi_bundlemod.o jfunc.o qcmod.o obsmod.o constants.o kinds.o m_gustNode.o m_obsNode.o 
 inthowv.o : inthowv.f90 gsi_4dvar.o gsi_bundlemod.o jfunc.o qcmod.o obsmod.o constants.o kinds.o m_howvNode.o m_obsNode.o 
 intjcmod.o : intjcmod.f90 state_vectors.o gsi_4dvar.o jcmod.o mpl_allreduce.o mpimod.o derivsmod.o guess_grids.o gsi_metguess_mod.o jfunc.o gridmod.o gsi_bundlemod.o constants.o kinds.o 
-intjo.o : intjo.f90 m_obsHeadBundle.o gsi_bundlemod.o intcldch.o intlcbas.o inttcamt.o inthowv.o intpmsl.o intmitm.o intmxtm.o inttd2m.o intwspd10m.o intpblh.o intvis.o intgust.o intlag.o intpm10.o intpm2_5.o intco.o intoz.o intpcp.o intdw.o intsst.o intsrw.o intspd.o intrw.o intgps.o inttcp.o intrad.o intq.o intpw.o intps.o intw.o intt.o intaod.o bias_predictors.o jfunc.o kinds.o 
+intjo.o : intjo.f90 m_obsHeadBundle.o gsi_bundlemod.o intcldch.o intlcbas.o inttcamt.o inthowv.o intpmsl.o intmitm.o intmxtm.o inttd2m.o intwspd10m.o intpblh.o intvis.o intgust.o intlag.o intpm10.o intpm2_5.o intco.o intoz.o intpcp.o intdw.o intsst.o intspd.o intrw.o intgps.o inttcp.o intrad.o intq.o intpw.o intps.o intw.o intt.o intaod.o bias_predictors.o jfunc.o kinds.o 
 intlag.o : intlag.f90 mpimod.o lag_traj.o lag_fields.o gsi_bundlemod.o jfunc.o gridmod.o qcmod.o obsmod.o constants.o kinds.o m_lagNode.o m_obsNode.o 
 intlcbas.o : intlcbas.f90 gsi_bundlemod.o jfunc.o qcmod.o obsmod.o constants.o kinds.o m_lcbasNode.o m_obsNode.o 
 intmitm.o : intmitm.f90 gsi_4dvar.o gsi_bundlemod.o jfunc.o qcmod.o obsmod.o constants.o kinds.o m_mitmNode.o m_obsNode.o 
@@ -196,7 +196,6 @@ intrp3oz.o : intrp3oz.f90 constants.o gridmod.o guess_grids.o kinds.o
 intrp_msk.o : intrp_msk.f90 gridmod.o constants.o kinds.o 
 intrw.o : intrw.f90 gsi_4dvar.o gsi_bundlemod.o jfunc.o qcmod.o obsmod.o constants.o kinds.o m_rwNode.o m_obsNode.o 
 intspd.o : intspd.f90 gsi_bundlemod.o jfunc.o gsi_4dvar.o constants.o qcmod.o obsmod.o kinds.o m_spdNode.o m_obsNode.o 
-intsrw.o : intsrw.f90 gsi_4dvar.o gsi_bundlemod.o jfunc.o qcmod.o obsmod.o constants.o kinds.o m_srwNode.o m_obsNode.o 
 intsst.o : intsst.f90 gsi_4dvar.o gsi_bundlemod.o jfunc.o gsi_nstcouplermod.o qcmod.o obsmod.o constants.o kinds.o m_sstNode.o m_obsNode.o 
 inttcamt.o : inttcamt.f90 gsi_bundlemod.o jfunc.o qcmod.o obsmod.o constants.o kinds.o m_tcamtNode.o m_obsNode.o 
 inttcp.o : inttcp.f90 gsi_4dvar.o gsi_bundlemod.o jfunc.o qcmod.o obsmod.o constants.o kinds.o m_tcpNode.o m_obsNode.o 
@@ -243,11 +242,11 @@ m_mitmNode.o : m_mitmNode.F90 mytrace.H myassert.H m_cvgridLookup.o m_obsdiagNod
 m_mxtmNode.o : m_mxtmNode.F90 mytrace.H myassert.H m_cvgridLookup.o m_obsdiagNode.o m_obsNode.o mpeu_util.o kinds.o obsmod.o 
 m_o3lNode.o : m_o3lNode.F90 mytrace.H myassert.H m_cvgridLookup.o constants.o m_obsdiagNode.o m_obsNode.o mpeu_util.o kinds.o obsmod.o 
 m_obsdiagNode.o : m_obsdiagNode.F90 mytrace.H myassert.H m_cvgridLookup.o mpimod.o timermod.o jfunc.o obs_sensitivity.o m_latlonRange.o mpeu_util.o obsmod.o kinds.o 
-m_obsdiags.o : m_obsdiags.F90 myassert.H mytrace.H jfunc.o gsi_unformatted.o m_obsNode.o m_obsdiagNode.o m_latlonRange.o mpimod.o obsmod.o gsi_4dvar.o m_obsNodeTypeManager.o m_cldchNode.o m_pm10Node.o m_lcbasNode.o m_tcamtNode.o m_howvNode.o m_pmslNode.o m_mitmNode.o m_mxtmNode.o m_td2mNode.o m_wspd10mNode.o m_pblhNode.o m_visNode.o m_gustNode.o m_pm2_5Node.o m_aerolNode.o m_aeroNode.o m_colvkNode.o m_lagNode.o m_tcpNode.o m_radNode.o m_gpsNode.o m_o3lNode.o m_ozNode.o m_pcpNode.o m_pwNode.o m_sstNode.o m_dwNode.o m_rwNode.o m_srwNode.o m_spdNode.o m_qNode.o m_wNode.o m_tNode.o m_psNode.o m_obsLList.o mpeu_mpif.o mpeu_util.o kinds.o 
-m_obsHeadBundle.o : m_obsHeadBundle.F90 myassert.H mpeu_util.o m_obsdiags.o kinds.o m_obsLList.o m_cldchNode.o m_pm10Node.o m_lcbasNode.o m_tcamtNode.o m_howvNode.o m_pmslNode.o m_mitmNode.o m_mxtmNode.o m_td2mNode.o m_wspd10mNode.o m_pblhNode.o m_visNode.o m_gustNode.o m_pm2_5Node.o m_aerolNode.o m_aeroNode.o m_colvkNode.o m_lagNode.o m_tcpNode.o m_radNode.o m_gpsNode.o m_o3lNode.o m_ozNode.o m_pcpNode.o m_pwNode.o m_sstNode.o m_dwNode.o m_rwNode.o m_srwNode.o m_spdNode.o m_qNode.o m_wNode.o m_tNode.o m_psNode.o m_obsNode.o 
+m_obsdiags.o : m_obsdiags.F90 myassert.H mytrace.H jfunc.o gsi_unformatted.o m_obsNode.o m_obsdiagNode.o m_latlonRange.o mpimod.o obsmod.o gsi_4dvar.o m_obsNodeTypeManager.o m_cldchNode.o m_pm10Node.o m_lcbasNode.o m_tcamtNode.o m_howvNode.o m_pmslNode.o m_mitmNode.o m_mxtmNode.o m_td2mNode.o m_wspd10mNode.o m_pblhNode.o m_visNode.o m_gustNode.o m_pm2_5Node.o m_aerolNode.o m_aeroNode.o m_colvkNode.o m_lagNode.o m_tcpNode.o m_radNode.o m_gpsNode.o m_o3lNode.o m_ozNode.o m_pcpNode.o m_pwNode.o m_sstNode.o m_dwNode.o m_rwNode.o m_spdNode.o m_qNode.o m_wNode.o m_tNode.o m_psNode.o m_obsLList.o mpeu_mpif.o mpeu_util.o kinds.o 
+m_obsHeadBundle.o : m_obsHeadBundle.F90 myassert.H mpeu_util.o m_obsdiags.o kinds.o m_obsLList.o m_cldchNode.o m_pm10Node.o m_lcbasNode.o m_tcamtNode.o m_howvNode.o m_pmslNode.o m_mitmNode.o m_mxtmNode.o m_td2mNode.o m_wspd10mNode.o m_pblhNode.o m_visNode.o m_gustNode.o m_pm2_5Node.o m_aerolNode.o m_aeroNode.o m_colvkNode.o m_lagNode.o m_tcpNode.o m_radNode.o m_gpsNode.o m_o3lNode.o m_ozNode.o m_pcpNode.o m_pwNode.o m_sstNode.o m_dwNode.o m_rwNode.o m_spdNode.o m_qNode.o m_wNode.o m_tNode.o m_psNode.o m_obsNode.o 
 m_obsLList.o : m_obsLList.F90 mytrace.H myassert.H m_latlonRange.o obsmod.o m_obsNode.o mpeu_util.o kinds.o 
 m_obsNode.o : m_obsNode.F90 myassert.H mytrace.H m_obsdiagNode.o m_cvgridLookup.o mpimod.o obsmod.o mpeu_util.o kinds.o 
-m_obsNodeTypeManager.o : m_obsNodeTypeManager.F90 mpeu_util.o m_obsNode.o kinds.o m_cldchNode.o m_pm10Node.o m_lcbasNode.o m_tcamtNode.o m_howvNode.o m_pmslNode.o m_mitmNode.o m_mxtmNode.o m_td2mNode.o m_wspd10mNode.o m_pblhNode.o m_visNode.o m_gustNode.o m_pm2_5Node.o m_aerolNode.o m_aeroNode.o m_colvkNode.o m_lagNode.o m_tcpNode.o m_radNode.o m_gpsNode.o m_o3lNode.o m_ozNode.o m_pcpNode.o m_pwNode.o m_sstNode.o m_dwNode.o m_rwNode.o m_srwNode.o m_spdNode.o m_qNode.o m_wNode.o m_tNode.o m_psNode.o obsmod.o 
+m_obsNodeTypeManager.o : m_obsNodeTypeManager.F90 mpeu_util.o m_obsNode.o kinds.o m_cldchNode.o m_pm10Node.o m_lcbasNode.o m_tcamtNode.o m_howvNode.o m_pmslNode.o m_mitmNode.o m_mxtmNode.o m_td2mNode.o m_wspd10mNode.o m_pblhNode.o m_visNode.o m_gustNode.o m_pm2_5Node.o m_aerolNode.o m_aeroNode.o m_colvkNode.o m_lagNode.o m_tcpNode.o m_radNode.o m_gpsNode.o m_o3lNode.o m_ozNode.o m_pcpNode.o m_pwNode.o m_sstNode.o m_dwNode.o m_rwNode.o m_spdNode.o m_qNode.o m_wNode.o m_tNode.o m_psNode.o obsmod.o 
 model_ad.o : model_ad.F90 lag_traj.o lag_fields.o mpimod.o mpeu_util.o timermod.o m_tick.o gsi_4dcouplermod.o gsi_bundlemod.o state_vectors.o constants.o gsi_4dvar.o kinds.o 
 model_tl.o : model_tl.F90 lag_traj.o lag_fields.o mpeu_util.o timermod.o m_tick.o gsi_4dcouplermod.o gsi_bundlemod.o state_vectors.o constants.o gsi_4dvar.o kinds.o 
 mod_nmmb_to_a.o : mod_nmmb_to_a.f90 constants.o kinds.o 
@@ -276,7 +275,6 @@ m_rhs.o : m_rhs.F90 mytrace.H convinfo.o gridmod.o qcmod.o coinfo.o ozinfo.o rad
 m_rwNode.o : m_rwNode.F90 mytrace.H myassert.H m_cvgridLookup.o m_obsdiagNode.o m_obsNode.o mpeu_util.o kinds.o obsmod.o 
 m_sortind.o : m_sortind.f90 kinds.o 
 m_spdNode.o : m_spdNode.F90 mytrace.H myassert.H m_cvgridLookup.o m_obsdiagNode.o m_obsNode.o mpeu_util.o kinds.o obsmod.o 
-m_srwNode.o : m_srwNode.F90 mytrace.H myassert.H m_cvgridLookup.o m_obsdiagNode.o m_obsNode.o mpeu_util.o kinds.o obsmod.o 
 m_sstNode.o : m_sstNode.F90 mytrace.H myassert.H m_cvgridLookup.o m_obsdiagNode.o m_obsNode.o mpeu_util.o kinds.o obsmod.o 
 m_stats.o : m_stats.f90 mpimod.o constants.o kinds.o 
 m_tcamtNode.o : m_tcamtNode.F90 mytrace.H myassert.H m_cvgridLookup.o m_obsdiagNode.o m_obsNode.o mpeu_util.o kinds.o obsmod.o 
@@ -379,7 +377,6 @@ read_seviri.o : read_seviri.f90 mpimod.o gsi_nstcouplermod.o deter_sfc_mod.o gsi
 read_sfcwnd.o : read_sfcwnd.f90 mpimod.o deter_sfc_mod.o gsi_4dvar.o convinfo.o obsmod.o convb_uv.o converr_uv.o converr.o constants.o convthin.o qcmod.o gridmod.o kinds.o 
 read_ssmi.o : read_ssmi.f90 mpimod.o gsi_nstcouplermod.o deter_sfc_mod.o gsi_4dvar.o constants.o gridmod.o radinfo.o obsmod.o satthin.o kinds.o 
 read_ssmis.o : read_ssmis.f90 mpimod.o m_sortind.o ssmis_spatial_average_mod.o gsi_nstcouplermod.o deter_sfc_mod.o calc_fov_conical.o gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o kinds.o 
-read_superwinds.o : read_superwinds.f90 mpimod.o deter_sfc_mod.o gsi_4dvar.o obsmod.o convinfo.o gridmod.o constants.o kinds.o 
 read_tcps.o : read_tcps.f90 mpimod.o gsi_4dvar.o tcv_mod.o obsmod.o convinfo.o constants.o gridmod.o kinds.o 
 reorg_metar_cloud.o : reorg_metar_cloud.f90 rapidrefresh_cldsurf_mod.o constants.o gridmod.o kinds.o 
 rfdpar.o : rfdpar.f90 constants.o kinds.o 
@@ -413,7 +410,6 @@ setupref.o : setupref.f90 gsi_metguess_mod.o gsi_bundlemod.o m_gpsrhs.o m_dtime.
 setuprhsall.o : setuprhsall.f90 m_obsdiags.o gsi_metguess_mod.o gsi_bundlemod.o genstats_gps.o m_rhs.o rapidrefresh_cldsurf_mod.o berror.o aeroinfo.o mpl_allreduce.o mpeu_util.o state_vectors.o lag_fields.o timermod.o convinfo.o qcmod.o jfunc.o gsi_4dvar.o gridmod.o mpimod.o coinfo.o ozinfo.o pcpinfo.o aircraftinfo.o radinfo.o obs_sensitivity.o obsmod.o guess_grids.o constants.o kinds.o 
 setuprw.o : setuprw.f90 gsi_metguess_mod.o gsi_bundlemod.o m_dtime.o convinfo.o jfunc.o constants.o gridmod.o guess_grids.o qcmod.o gsi_4dvar.o m_obsLList.o m_rwNode.o m_obsNode.o obsmod.o m_obsdiags.o kinds.o mpeu_util.o 
 setupspd.o : setupspd.f90 m_dtime.o gsi_metguess_mod.o gsi_bundlemod.o convinfo.o jfunc.o constants.o qcmod.o gridmod.o guess_grids.o gsi_4dvar.o m_obsLList.o m_spdNode.o m_obsNode.o obsmod.o m_obsdiags.o kinds.o mpeu_util.o 
-setupsrw.o : setupsrw.f90 gsi_metguess_mod.o gsi_bundlemod.o m_dtime.o convinfo.o jfunc.o constants.o qcmod.o gridmod.o guess_grids.o gsi_4dvar.o m_obsLList.o m_srwNode.o m_obsNode.o obsmod.o m_obsdiags.o kinds.o mpeu_util.o 
 setupsst.o : setupsst.f90 m_dtime.o gsi_nstcouplermod.o convinfo.o qcmod.o jfunc.o constants.o gridmod.o oneobmod.o gsi_4dvar.o m_obsLList.o m_sstNode.o m_obsNode.o obsmod.o m_obsdiags.o guess_grids.o kinds.o mpeu_util.o 
 setuptcamt.o : setuptcamt.f90 gsi_metguess_mod.o gsi_bundlemod.o m_dtime.o convinfo.o qcmod.o jfunc.o constants.o gridmod.o oneobmod.o gsi_4dvar.o m_obsLList.o m_tcamtNode.o m_obsNode.o obsmod.o m_obsdiags.o guess_grids.o kinds.o mpeu_util.o 
 setuptcp.o : setuptcp.f90 gsi_metguess_mod.o gsi_bundlemod.o m_dtime.o jfunc.o convinfo.o constants.o gridmod.o guess_grids.o qcmod.o gsi_4dvar.o m_obsLList.o m_tcpNode.o m_obsNode.o obsmod.o m_obsdiags.o kinds.o mpeu_util.o 
@@ -449,7 +445,7 @@ stpgps.o : stpgps.f90 m_gpsNode.o m_obsNode.o gsi_bundlemod.o gridmod.o constant
 stpgust.o : stpgust.f90 m_gustNode.o m_obsNode.o gsi_bundlemod.o constants.o qcmod.o kinds.o 
 stphowv.o : stphowv.f90 gsi_bundlemod.o constants.o qcmod.o kinds.o m_howvNode.o m_obsNode.o 
 stpjcmod.o : stpjcmod.f90 state_vectors.o gsi_4dvar.o jcmod.o mpl_allreduce.o mpimod.o derivsmod.o guess_grids.o jfunc.o gridmod.o gsi_metguess_mod.o gsi_bundlemod.o constants.o kinds.o 
-stpjo.o : stpjo.f90 m_obsHeadBundle.o mpeu_util.o control_vectors.o gsi_bundlemod.o aircraftinfo.o bias_predictors.o stpcldch.o stplcbas.o stptcamt.o stphowv.o stppmsl.o stpmitm.o stpmxtm.o stptd2m.o stpwspd10m.o stppblh.o stpvis.o stpgust.o stpaod.o stppm10.o stppm2_5.o stpco.o stpoz.o stppcp.o stpdw.o stptcp.o stpsst.o stpsrw.o stpspd.o stprw.o stpgps.o stprad.o stpq.o stppw.o stpps.o stpw.o stpt.o obsmod.o kinds.o 
+stpjo.o : stpjo.f90 m_obsHeadBundle.o mpeu_util.o control_vectors.o gsi_bundlemod.o aircraftinfo.o bias_predictors.o stpcldch.o stplcbas.o stptcamt.o stphowv.o stppmsl.o stpmitm.o stpmxtm.o stptd2m.o stpwspd10m.o stppblh.o stpvis.o stpgust.o stpaod.o stppm10.o stppm2_5.o stpco.o stpoz.o stppcp.o stpdw.o stptcp.o stpsst.o stpspd.o stprw.o stpgps.o stprad.o stpq.o stppw.o stpps.o stpw.o stpt.o obsmod.o kinds.o 
 stplcbas.o : stplcbas.f90 gsi_bundlemod.o constants.o qcmod.o kinds.o m_lcbasNode.o m_obsNode.o 
 stpmitm.o : stpmitm.f90 gsi_bundlemod.o constants.o qcmod.o kinds.o m_mitmNode.o m_obsNode.o 
 stpmxtm.o : stpmxtm.f90 gsi_bundlemod.o constants.o qcmod.o kinds.o m_mxtmNode.o m_obsNode.o 
@@ -465,7 +461,6 @@ stpq.o : stpq.f90 m_qNode.o m_obsNode.o gsi_bundlemod.o constants.o qcmod.o kind
 stprad.o : stprad.f90 m_radNode.o m_obsNode.o intrad.o mpeu_util.o gsi_metguess_mod.o gsi_bundlemod.o gridmod.o constants.o qcmod.o radinfo.o kinds.o 
 stprw.o : stprw.f90 m_rwNode.o m_obsNode.o gsi_bundlemod.o constants.o qcmod.o kinds.o 
 stpspd.o : stpspd.f90 m_spdNode.o m_obsNode.o gsi_bundlemod.o gsi_4dvar.o constants.o qcmod.o kinds.o 
-stpsrw.o : stpsrw.f90 m_srwNode.o m_obsNode.o gsi_bundlemod.o constants.o qcmod.o kinds.o 
 stpsst.o : stpsst.f90 m_sstNode.o m_obsNode.o gsi_bundlemod.o gsi_nstcouplermod.o constants.o qcmod.o kinds.o 
 stptcamt.o : stptcamt.f90 gsi_bundlemod.o constants.o qcmod.o kinds.o m_tcamtNode.o m_obsNode.o 
 stptcp.o : stptcp.f90 m_tcpNode.o m_obsNode.o gsi_bundlemod.o constants.o qcmod.o kinds.o 

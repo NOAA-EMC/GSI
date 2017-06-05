@@ -798,7 +798,7 @@ subroutine read_obs(ndata,mype)
        if (obstype == 't'  .or. obstype == 'uv' .or. &
            obstype == 'q'  .or. obstype == 'ps' .or. &
            obstype == 'pw' .or. obstype == 'spd'.or. &
-           obstype == 'sst'.or. obstype == 'srw'.or. &
+           obstype == 'sst'.or. &
            obstype == 'tcp'.or. obstype == "lag".or. &
            obstype == 'dw' .or. obstype == 'rw' .or. &
            obstype == 'mta_cld' .or. obstype == 'gos_ctp' .or. &
@@ -1438,12 +1438,6 @@ subroutine read_obs(ndata,mype)
                 call read_tcps(nread,npuse,nouse,infile,obstype,lunout,sis, &
                      nobs_sub1(1,i))
                 string='READ_TCPS'
-
-!            Process radar superob winds
-             else if (obstype == 'srw') then
-                call read_superwinds(nread,npuse,nouse,infile,obstype,lunout, &
-                     twind,sis,nobs_sub1(1,i))
-                string='READ_SUPRWNDS'
 
              else if (obstype == 'pm2_5' .or. obstype == 'pm10') then
 
