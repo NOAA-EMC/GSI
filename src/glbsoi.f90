@@ -106,12 +106,11 @@ subroutine glbsoi(mype)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: rearth
   use mpimod, only: npe
   use adjtest_obs, only: adtest_obs
   use jfunc, only: miter,jiter,jiterstart,jiterend,iguess,&
       write_guess_solution,R_option,&
-      tendsflag,xhatsave,yhatsave,create_jfunc,destroy_jfunc
+      xhatsave,yhatsave,create_jfunc,destroy_jfunc
   use anberror, only: anisotropic, &
       create_anberror_vars_reg,destroy_anberror_vars_reg,&
       create_anberror_vars,destroy_anberror_vars
@@ -123,8 +122,7 @@ subroutine glbsoi(mype)
   use balmod, only: create_balance_vars_reg,create_balance_vars, &
       destroy_balance_vars_reg,destroy_balance_vars,prebal,prebal_reg
   use compact_diffs, only: create_cdiff_coefs,inisph
-  use gridmod, only: nlat,nlon,nsig,rlats,regional,&
-      twodvar_regional,wgtlats
+  use gridmod, only: regional,twodvar_regional
   use guess_grids, only: nfldsig
   use obsmod, only: write_diag,perturb_obs,ditype,iadate
   use qcmod,only: njqc

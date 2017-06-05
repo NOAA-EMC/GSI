@@ -42,10 +42,9 @@ subroutine read_lightning(nread,ndata,infile,obstype,lunout,twind,sis,nobs)
 !
   use kinds, only: r_kind,r_double,i_kind
   use constants, only: zero,one,deg2rad
-  use convinfo, only: nconvtype,ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
-        ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype
+  use convinfo, only: nconvtype,ctwind,icuse,ioctype
   use gsi_4dvar, only: l4dvar,l4densvar,winlen
-  use gridmod, only: nlon,nlat,nlon_regional,nlat_regional,regional,rlats,rlons,tll2xy
+  use gridmod, only: nlon,nlat,regional,rlats,rlons,tll2xy
   use obsmod,only: iadate
   use mod_wrfmass_to_a, only: wrfmass_obs_to_a8
   use mpimod, only: npe
@@ -317,8 +316,8 @@ subroutine read_lightning_grid(nread,ndata,infile,obstype,lunout,twind,sis,nobs)
 !
   use kinds, only: r_kind,r_double,i_kind
   use constants, only: zero,one
-  use convinfo, only: nconvtype,ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
-        ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype
+  use convinfo, only: nconvtype,ctwind, &
+        icuse,ioctype
   use gsi_4dvar, only: l4dvar,l4densvar,winlen
   use gridmod, only: nlon,nlat,nlon_regional,nlat_regional
   use mod_wrfmass_to_a, only: wrfmass_obs_to_a8

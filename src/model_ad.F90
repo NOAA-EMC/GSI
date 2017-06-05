@@ -13,7 +13,8 @@ subroutine model_ad(xini,xobs,ldprt)
 
 use kinds, only: r_kind,i_kind
 use gsi_4dvar, only: nsubwin,nobs_bins,winlen,winsub,hr_obsbin
-use gsi_4dvar, only: iadateend,idmodel
+use gsi_4dvar, only: iadateend
+! use gsi_4dvar, only: idmodel
 use gsi_4dvar, only: liauon
 use constants, only: zero,r3600
 use state_vectors, only: allocate_state,deallocate_state,dot_product

@@ -116,7 +116,7 @@ end function nextcast_
 
 ! obsNode implementations
 
-function mytype
+function mytype()
   implicit none
   character(len=:),allocatable:: mytype
   mytype="[srwNode]"

@@ -65,7 +65,6 @@ subroutine intq_(qhead,rval,sval)
 !   2005-09-28  derber  - consolidate location and weight arrays
 !   2005-10-21  su      - modify for variational qc
 !   2006-07-28  derber  - modify to use new inner loop obs data structure
-!   2007-02-15  rancic - add foto
 !   2007-03-19  tremolet - binning of observations
 !   2007-06-05  tremolet - use observation diagnostics structure
 !   2007-07-09  tremolet - observation sensitivity
@@ -94,8 +93,7 @@ subroutine intq_(qhead,rval,sval)
   use constants, only: half,one,tiny_r_kind,cg_term,r3600,two
   use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
-  use gridmod, only: latlon1n
-  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_4dvar, only: ladtest_obs
@@ -108,10 +106,8 @@ subroutine intq_(qhead,rval,sval)
 
 ! Declare local variables  
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,ier,istatus
-  real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,time_q
+  real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8
 ! real(r_kind) penalty
-  real(r_kind),pointer,dimension(:) :: xhat_dt_q
-  real(r_kind),pointer,dimension(:) :: dhat_dt_q
   real(r_kind) cg_q,val,p0,grad,wnotgross,wgross,q_pg
   real(r_kind),pointer,dimension(:) :: sq
   real(r_kind),pointer,dimension(:) :: rq
@@ -124,10 +120,6 @@ subroutine intq_(qhead,rval,sval)
   ier=0
   call gsi_bundlegetpointer(sval,'q',sq,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'q',rq,istatus);ier=istatus+ier
-  if(l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'q',xhat_dt_q,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'q',dhat_dt_q,istatus);ier=istatus+ier
-  endif
   if(ier/=0) return
 
   !qptr => qhead
@@ -153,14 +145,6 @@ subroutine intq_(qhead,rval,sval)
 !    Forward model
      val=w1* sq(j1)+w2* sq(j2)+w3* sq(j3)+w4* sq(j4)+ &
          w5* sq(j5)+w6* sq(j6)+w7* sq(j7)+w8* sq(j8)
-     if ( l_foto ) then
-        time_q=qptr%time*r3600
-        val=val+&
-          (w1*xhat_dt_q(j1)+w2*xhat_dt_q(j2)+ &
-           w3*xhat_dt_q(j3)+w4*xhat_dt_q(j4)+ &
-           w5*xhat_dt_q(j5)+w6*xhat_dt_q(j6)+ &
-           w7*xhat_dt_q(j7)+w8*xhat_dt_q(j8))*time_q
-     endif
 
      if(luse_obsdiag)then
         if (lsaveobsens) then
@@ -208,17 +192,6 @@ subroutine intq_(qhead,rval,sval)
         rq(j7)=rq(j7)+w7*grad
         rq(j8)=rq(j8)+w8*grad
 
-        if ( l_foto ) then
-           grad=grad*time_q
-           dhat_dt_q(j1)=dhat_dt_q(j1)+w1*grad
-           dhat_dt_q(j2)=dhat_dt_q(j2)+w2*grad
-           dhat_dt_q(j3)=dhat_dt_q(j3)+w3*grad
-           dhat_dt_q(j4)=dhat_dt_q(j4)+w4*grad
-           dhat_dt_q(j5)=dhat_dt_q(j5)+w5*grad
-           dhat_dt_q(j6)=dhat_dt_q(j6)+w6*grad
-           dhat_dt_q(j7)=dhat_dt_q(j7)+w7*grad
-           dhat_dt_q(j8)=dhat_dt_q(j8)+w8*grad
-        endif
      endif
 
      !qptr => qptr%llpoint
