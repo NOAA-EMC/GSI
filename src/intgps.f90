@@ -100,7 +100,7 @@ subroutine intgps_(gpshead,rval,sval)
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: nsig
   use constants, only: zero,one,half,tiny_r_kind,cg_term,r3600
-  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_4dvar, only: ladtest_obs
@@ -116,14 +116,12 @@ subroutine intgps_(gpshead,rval,sval)
   integer(i_kind),dimension(nsig):: i1,i2,i3,i4
   real(r_kind) :: w1,w2,w3,w4
   real(r_kind) :: p_TL,p_AD,t_TL,t_AD,q_TL,q_AD
-  real(r_kind) :: val,time_gps,pg_gps
+  real(r_kind) :: val,pg_gps
   real(r_kind) ::cg_gps,grad,p0,wnotgross,wgross
   real(r_kind),pointer,dimension(:) :: st,sq
   real(r_kind),pointer,dimension(:) :: rt,rq
   real(r_kind),pointer,dimension(:) :: sp
   real(r_kind),pointer,dimension(:) :: rp
-  real(r_kind),pointer,dimension(:) :: xhat_dt_t,xhat_dt_q,xhat_dt_prse
-  real(r_kind),pointer,dimension(:) :: dhat_dt_t,dhat_dt_q,dhat_dt_prse
   type(gpsNode), pointer :: gpsptr
 
 !  If no gps obs return
@@ -137,14 +135,6 @@ subroutine intgps_(gpshead,rval,sval)
   call gsi_bundlegetpointer(rval,'tv'  ,rt,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'q'   ,rq,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'prse',rp,istatus);ier=istatus+ier
-  if (l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'tv',  xhat_dt_t,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'q',   xhat_dt_q,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'prse',xhat_dt_prse,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'tv',  dhat_dt_t,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'q',   dhat_dt_q,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'prse',dhat_dt_prse,istatus);ier=istatus+ier
-  endif
   if(ier/=0)return
 
   !gpsptr => gpshead
@@ -172,18 +162,6 @@ subroutine intgps_(gpshead,rval,sval)
         t_TL=w1* st(i1(j))+w2* st(i2(j))+w3* st(i3(j))+w4* st(i4(j))
         q_TL=w1* sq(i1(j))+w2* sq(i2(j))+w3* sq(i3(j))+w4* sq(i4(j))
         p_TL=w1* sp(i1(j))+w2* sp(i2(j))+w3* sp(i3(j))+w4* sp(i4(j))
-        if (l_foto) then
-           time_gps=gpsptr%time*r3600
-           t_TL=t_TL+&
-              (w1*xhat_dt_t(i1(j))+w2*xhat_dt_t(i2(j))+ &
-               w3*xhat_dt_t(i3(j))+w4*xhat_dt_t(i4(j)))*time_gps
-           q_TL=q_TL+&
-              (w1*xhat_dt_q(i1(j))+w2*xhat_dt_q(i2(j))+ &
-               w3*xhat_dt_q(i3(j))+w4*xhat_dt_q(i4(j)))*time_gps
-           p_TL=p_TL+&
-              (w1*xhat_dt_prse(i1(j))+w2*xhat_dt_prse(i2(j))+ &
-               w3*xhat_dt_prse(i3(j))+w4*xhat_dt_prse(i4(j)))*time_gps
-        endif
         val = val + p_TL*gpsptr%jac_p(j) + t_TL*gpsptr%jac_t(j)+q_TL*gpsptr%jac_q(j)
      end do
 
@@ -240,27 +218,6 @@ subroutine intgps_(gpshead,rval,sval)
            rp(i3(j))=rp(i3(j))+w3*p_AD
            rp(i4(j))=rp(i4(j))+w4*p_AD
         enddo
-
-        if (l_foto) then
-           grad=grad*time_gps
-           do j=1,nsig
-              t_AD = grad*gpsptr%jac_t(j)
-              dhat_dt_t(i1(j))=dhat_dt_t(i1(j))+w1*t_AD
-              dhat_dt_t(i2(j))=dhat_dt_t(i2(j))+w2*t_AD
-              dhat_dt_t(i3(j))=dhat_dt_t(i3(j))+w3*t_AD
-              dhat_dt_t(i4(j))=dhat_dt_t(i4(j))+w4*t_AD
-              q_AD = grad*gpsptr%jac_q(j)
-              dhat_dt_q(i1(j))=dhat_dt_q(i1(j))+w1*q_AD
-              dhat_dt_q(i2(j))=dhat_dt_q(i2(j))+w2*q_AD
-              dhat_dt_q(i3(j))=dhat_dt_q(i3(j))+w3*q_AD
-              dhat_dt_q(i4(j))=dhat_dt_q(i4(j))+w4*q_AD
-              p_AD = grad*gpsptr%jac_p(j)
-              dhat_dt_prse(i1(j))=dhat_dt_prse(i1(j))+w1*p_AD
-              dhat_dt_prse(i2(j))=dhat_dt_prse(i2(j))+w2*p_AD
-              dhat_dt_prse(i3(j))=dhat_dt_prse(i3(j))+w3*p_AD
-              dhat_dt_prse(i4(j))=dhat_dt_prse(i4(j))+w4*p_AD
-           enddo
-        endif
 
      endif
 

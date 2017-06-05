@@ -24,9 +24,9 @@ subroutine ensctl2model(xhat,mval,eval)
 use constants, only:  zero,max_varname_length
 use kinds, only: r_kind,i_kind
 use control_vectors, only: control_vector,cvars3d
-use gsi_4dvar, only: l4dvar,l4densvar,nobs_bins,ibin_anl
+use gsi_4dvar, only: ibin_anl
 use hybrid_ensemble_parameters, only: uv_hyb_ens,dual_res,ntlevs_ens
-use hybrid_ensemble_parameters, only: nval_lenz_en,n_ens,q_hyb_ens
+use hybrid_ensemble_parameters, only: n_ens,q_hyb_ens
 use hybrid_ensemble_isotropic, only: ensemble_forward_model,ensemble_forward_model_dual_res
 use hybrid_ensemble_isotropic, only: sqrt_beta_s_mult,sqrt_beta_e_mult, &
         ckgcov_a_en_new_factorization

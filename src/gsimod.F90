@@ -63,7 +63,7 @@
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax, &
      factv,factl,factp,factg,factw10m,facthowv,factcldch,niter,niter_no_qc,biascor,&
-     init_jfunc,qoption,cwoption,switch_on_derivatives,tendsflag,l_foto,jiterstart,jiterend,R_option,&
+     init_jfunc,qoption,cwoption,switch_on_derivatives,tendsflag,jiterstart,jiterend,R_option,&
      bcoption,diurnalbc,print_diag_pcg,tsensible,lgschmidt,diag_precon,step_start,pseudo_q2,&
      clip_supersaturation
   use state_vectors, only: init_anasv,final_anasv
@@ -344,7 +344,7 @@
 !-------------------------------------------------------------------------
 
 ! Declare variables.
-  logical:: writediag
+  logical:: writediag,l_foto
   integer(i_kind) i,ngroup
 
 
@@ -419,7 +419,6 @@
 !                           (to be used eventually for time derivatives, dynamic constraints,
 !                            and observation forward models that need horizontal derivatives)
 !     tendsflag - if true, compute time tendencies
-!     l_foto   - option for First-Order Time extrapolation to Observation
 !     sfcmodel - if true, then use boundary layer forward model for surface temperature data.
 !     dtbduv_on - if true, use d(microwave brightness temperature)/d(uv wind) in inner loop
 !     ifact10 - flag for recomputing 10m wind factor
@@ -1370,8 +1369,9 @@
 ! For now if wrf mass or 2dvar no dynamic constraint
   if (l_tlnmc) tendsflag=.true.
   if (l_foto) then
-     tendsflag=.true.
-     if(mype == 0)write(6,*) 'Warning foto option will be removed in the near future'
+     if(mype == 0)write(6,*) 'Warning foto option has been removed'
+     call stop2(899)
+      
   end if
   if (tendsflag) switch_on_derivatives=.true.
 

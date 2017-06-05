@@ -40,13 +40,12 @@ subroutine compute_qvar3d
   use jfunc, only: varq,qoption,varcw,cwoption,clip_supersaturation
   use derivsmod, only: qsatg,qgues
   use control_vectors, only: cvars3d
-  use gridmod, only: lat2,lon2,nsig,nlat,nlon
+  use gridmod, only: lat2,lon2,nsig
   use constants, only: zero,one,fv,r100,qmin
   use guess_grids, only: fact_tv,ntguessig,nfldsig,ges_tsen,ges_prsl,ges_qsat
   use mpeu_util, only: getindex
   use gsi_metguess_mod,  only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use general_commvars_mod, only: g3
   use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
   use radiance_mod, only: icloud_cv,n_clouds_fwd,cloud_names_fwd
 

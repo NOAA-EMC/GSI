@@ -213,7 +213,7 @@
    print "\n";
 
 
-   my $account = "export ACCOUNT=\${ACCOUNT:-fv3 cpu}";
+   my $account = "export ACCOUNT=\${ACCOUNT:-fv3-cpu}";
    if( $machine ne "theia" ) {
       $account = "export ACCOUNT=\${ACCOUNT:-}";
    }
