@@ -1,0 +1,6 @@
+[submodule "fix"]
+	path = fix
+	url = ../fix
+[submodule "libsrc"]
+	path = libsrc
+	url = ../comgsi-external-libs
