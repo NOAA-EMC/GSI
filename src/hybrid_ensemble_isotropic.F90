@@ -3170,7 +3170,7 @@ subroutine sf_xy(f,k_start,k_end)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use hybrid_ensemble_parameters, only: grd_ens,sp_loc,grd_loc,p_sploc2ens,grd_sploc
+  use hybrid_ensemble_parameters, only: grd_ens,sp_loc,p_sploc2ens,grd_sploc
   use hybrid_ensemble_parameters,only: use_localization_grid
   use egrid2agrid_mod,only: g_egrid2agrid,g_egrid2agrid_ad  
   implicit none
@@ -3233,7 +3233,7 @@ subroutine sqrt_sf_xy(z,f,k_start,k_end)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use hybrid_ensemble_parameters, only: grd_ens,sp_loc,grd_loc,p_sploc2ens,grd_sploc
+  use hybrid_ensemble_parameters, only: grd_ens,sp_loc,p_sploc2ens,grd_sploc
   use hybrid_ensemble_parameters,only: use_localization_grid
   use egrid2agrid_mod,only: g_egrid2agrid
   implicit none
@@ -4368,7 +4368,6 @@ subroutine grads1_ens(f,nvert,mype,fname)
   use kinds, only: r_single,r_kind,i_kind
   use constants, only: one
   use gridmod, only: nlat,nlon,lon2,lat2
-  use hybrid_ensemble_parameters, only: grd_ens
   implicit none
 
   integer(i_kind),intent(in   ) :: nvert,mype

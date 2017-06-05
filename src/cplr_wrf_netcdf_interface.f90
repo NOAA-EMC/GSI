@@ -2162,7 +2162,6 @@ contains
     use kinds, only: r_single,i_kind,r_kind
     use constants, only: h300,tiny_single
     use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge
-    use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
     use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
     use rapidrefresh_cldsurf_mod, only: i_use_2mt4b,i_use_2mq4b
     use gsi_bundlemod, only: GSI_BundleGetPointer
@@ -3017,7 +3016,6 @@ contains
     use mpeu_util, only: die,getindex
     use control_vectors, only: cvars3d
     use guess_grids, only: ntguessig
-    use obsmod, only: iadate
     use netcdf_mod, only: nc_check
   ! use wrf_data
     implicit none
