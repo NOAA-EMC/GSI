@@ -28,7 +28,6 @@ program calc_increment_pmain
   call getarg(6, bufchar)
   read(bufchar,'(I5)') nens
 
-
   if ( mype == 0 ) then
     write(6,*) 'DATAPATH        = ', trim(datapath)
     write(6,*) 'ANALYSIS TMPL   = ', trim(analysis_tmpl)
@@ -36,6 +35,16 @@ program calc_increment_pmain
     write(6,*) 'INCREMENT TMPL  = ', trim(increment_tmpl)
     write(6,*) 'DEBUG           = ', debug
     write(6,*) 'NENS            = ', nens
+  endif
+
+  call mpi_barrier(mpi_comm_world, ierr)
+
+  if ( npes < nens ) then
+    if ( mype == 0 ) then
+       write(6,*) 'npes, nens = ', npes, nens
+       write(6,*) 'npes must be greater than nens, ABORT!'
+    endif
+    call mpi_abort(mpi_comm_world, 99, ierr)
   endif
 
   mype1 = mype + 1
@@ -62,4 +71,5 @@ program calc_increment_pmain
   call mpi_barrier(mpi_comm_world, ierr)
   call mpi_finalize(ierr)
 
+  stop
 end program calc_increment_pmain

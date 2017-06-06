@@ -286,7 +286,7 @@ subroutine write_to_disk(statstr)
 
    filenameout = trim(adjustl(datapath)) // trim(adjustl(filepref)) // '_ens' // trim(adjustl(statstr)) // '.nc4'
 
-   call nc_check( nf90_create(trim(filenameout),ior(NF90_CLOBBER,NF90_64BIT_OFFSET),ncid),myname,'create '//trim(filenameout) )
+   call nc_check( nf90_create(trim(adjustl(filenameout)),cmode=ior(NF90_CLOBBER,NF90_64BIT_OFFSET),ncid=ncid),myname,'create '//trim(filenameout) )
    call nc_check( nf90_def_dim(ncid,'lon',lonb,vardim(1)),myname,'def_dim lon '//trim(filenameout) )
    call nc_check( nf90_def_dim(ncid,'lat',latb,vardim(2)),myname,'def_dim lat '//trim(filenameout) )
    call nc_check( nf90_def_dim(ncid,'lev',nlevs,vardim(3)),myname,'def_dim lev '//trim(filenameout) )
@@ -326,7 +326,7 @@ subroutine write_to_disk(statstr)
    call nc_check( nf90_enddef(ncid),myname,'enddef, '//trim(filenameout) )
    call nc_check( nf90_close(ncid),myname,'close, '//trim(filenameout) )
 
-   call nc_check( nf90_open(trim(filenameout),NF90_WRITE,ncid),myname,'open '//trim(filenameout) )
+   call nc_check( nf90_open(trim(adjustl(filenameout)),NF90_WRITE,ncid),myname,'open '//trim(filenameout) )
    call nc_check( nf90_inq_varid(ncid,'lon',varid),myname,'inq_varid, lon '// trim(filenameout) )
    call nc_check( nf90_put_var(ncid,varid,glons,(/1/),(/lonb/)),myname, 'put_var, lon '//trim(filenameout) )
    call nc_check( nf90_inq_varid(ncid,'lat',varid),myname,'inq_varid, lat '// trim(filenameout) )
