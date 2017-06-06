@@ -1,6 +1,6 @@
 #==============================================================================
 #
-# CALC_INCREMENT_ENS Makefile
+# Makefile
 #
 #==============================================================================
 
@@ -14,14 +14,14 @@
 
 SHELL=/bin/sh
 
-RM              = /bin/rm -f
-MKDIR           = /bin/mkdir -p
+RM     = /bin/rm -f
+MKDIR  = /bin/mkdir -p
 
 #------------
 # Include machine dependent compile & load options
 #------------
 
-MAKE_CONF =
+MAKE_CONF = Makefile.conf
 include $(MAKE_CONF)
 
 # -------------
@@ -86,8 +86,9 @@ install:
 clean:
 	@echo
 	@echo '==== CLEAN ==================================================='
-	- $(RM) $(EXE_FILE) $(PEXE_FILE) *.o *.mod
-	- $(RM) log.make.$(EXE_FILE) log.make.$(PEXE_FILE)
+	- $(RM) *.o *.mod
+	- $(RM) $(EXE_FILE) log.make.$(EXE_FILE)
+	- $(RM) $(PEXE_FILE) log.make.$(PEXE_FILE)
 
 #-----------------------------------------------------------------------------
 #                          -- Child make --
@@ -96,9 +97,6 @@ clean:
 # ---------
 # Libraries
 # ---------
-
-INCS = $(NETCDF_INCLUDE) -I$(NEMSIO_INC)
-LIBS = $(NEMSIO_LIB) $(BACIO_LIB4) $(W3NCO_LIBd) $(NETCDF_LDFLAGS)
 
 # ------------
 # Source files
@@ -139,12 +137,12 @@ include $(MAKE_DEPEND)
 .f90.o  :
 	@echo
 	@echo '---> Compiling $<'
-	$(F90) $(FCFFLAGS) $(INCS) $(OPTIMIZATION) $(DEBUG) -c $<
+	$(CF) $(FFLAGS_N) -c $<
 
 .f.o  :
 	@echo
 	@echo '---> Compiling $<'
-	$(F77) $(FCFFLAGS) $(OPTIMIZATION) $(DEBUG) -c $<
+	$(CF) $(FFLAGS_N) -c $<
 
 # ------------------------
 # Call compiler and linker
@@ -153,10 +151,14 @@ include $(MAKE_DEPEND)
 all: CALC_INCREMENT CALC_INCREMENT_ENS
 
 CALC_INCREMENT: $(OBJS)
-	$(LD) $(LDFLAGS) $(OBJS) main.f90 $(LIBS) -o $(EXE_FILE) > $(LOG_FILE)
+	@echo
+	@echo '---> Linking $@'
+	$(LD) $(LDFLAGS_N) $(OBJS) main.f90 $(LIBS_N) -o $(EXE_FILE) > $(LOG_FILE)
 
 CALC_INCREMENT_ENS: $(OBJS)
-	$(LD) $(LDFLAGS) $(OBJS) pmain.f90 $(LIBS) -o $(PEXE_FILE) > $(PLOG_FILE)
+	@echo
+	@echo '---> Linking $@'
+	$(LD) $(LDFLAGS_N) $(OBJS) pmain.f90 $(LIBS_N) -o $(PEXE_FILE) > $(PLOG_FILE)
 
 help:
 	@ echo "Available targets:"
