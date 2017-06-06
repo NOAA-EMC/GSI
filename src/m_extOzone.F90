@@ -456,7 +456,6 @@ subroutine oztot_ncread_(dfile,dtype,dsis, ozout,nmrecs,ndata,nodata, &
   use netcdf, only: nf90_get_var
   use netcdf, only: nf90_close
 
-  use satthin, only: satthin_itxmax       => itxmax
   use satthin, only: satthin_makegrids    => makegrids
   use satthin, only: satthin_map2tgrid    => map2tgrid
   use satthin, only: satthin_finalcheck   => finalcheck
@@ -466,7 +465,7 @@ subroutine oztot_ncread_(dfile,dtype,dsis, ozout,nmrecs,ndata,nodata, &
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen,l4densvar,thin4d
   use obsmod, only: nloz_omi
 
-  use constants, only: deg2rad,zero,rad2deg,r60inv
+  use constants, only: deg2rad,zero,r60inv
 !  use mpeu_util, only: mprefix,stdout
 
   implicit none
@@ -812,7 +811,7 @@ subroutine ozlev_ncread_(dfile, ozout,nmrecs,ndata,nodata, gstime,twind)
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen,l4densvar
 
-  use constants, only: deg2rad,zero,rad2deg,one_tenth,r60inv
+  use constants, only: deg2rad,zero,one_tenth,r60inv
   use ozinfo, only: jpch_oz,nusis_oz,iuse_oz
   use mpeu_util, only: perr,die
 !  use mpeu_util, only: mprefix,stdout
@@ -1117,7 +1116,7 @@ subroutine ozlev_bufrread_(dfile,dtype,dsis, ozout,nmrecs,ndata,nodata, &
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen,l4densvar
 
-  use constants, only: deg2rad,zero,rad2deg,r60inv
+  use constants, only: deg2rad,zero,r60inv
   use ozinfo, only: jpch_oz,nusis_oz,iuse_oz
   use radinfo, only: dec2bin
 

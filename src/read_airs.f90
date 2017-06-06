@@ -121,6 +121,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use mpimod, only: npe
+! use radiance_mod, only: rad_obs_type
 
   implicit none
 
@@ -142,7 +143,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)  ,intent(in   ) :: npe_sub
   integer(i_kind)  ,intent(in   ) :: mpi_comm_sub  
   logical          ,intent(in   ) :: dval_use
-  
 
 ! Output variables
   integer(i_kind)  ,intent(inout) :: nread

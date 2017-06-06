@@ -97,6 +97,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use mpimod, only: npe
+! use radiance_mod, only: rad_obs_type
 
   implicit none
 
@@ -116,7 +117,6 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 
   integer(i_kind),intent(inout):: ndata,nodata
   logical        ,intent(in   ):: dval_use
-
 
 ! Declare local parameters
   integer(i_kind),parameter :: n1bhdr=14

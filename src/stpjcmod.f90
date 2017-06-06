@@ -73,7 +73,7 @@ subroutine stplimq(rval,sval,sges,outmin,outmax,nstep,itbin)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use gridmod, only: lat1,lon1,lat2,lon2,nsig
+  use gridmod, only: lat1,lon1,nsig
   use jfunc, only: factqmin,factqmax
   use guess_grids, only: ges_qsat
   implicit none
@@ -178,7 +178,7 @@ subroutine stplimg(rval,sval,sges,out,nstep)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use gridmod, only: lat1,lon1,lat2,lon2,nsig
+  use gridmod, only: lat1,lon1
   use derivsmod, only: ggues
   use jfunc, only: factg
   implicit none
@@ -253,7 +253,7 @@ subroutine stplimp(rval,sval,sges,out,nstep)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use gridmod, only: lat1,lon1,lat2,lon2,nsig
+  use gridmod, only: lat1,lon1
   use derivsmod, only: pgues
   use jfunc, only: factp
   implicit none
@@ -328,7 +328,7 @@ subroutine stplimv(rval,sval,sges,out,nstep)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use gridmod, only: lat1,lon1,lat2,lon2,nsig
+  use gridmod, only: lat1,lon1
   use jfunc, only: factv
   use derivsmod, only: vgues
   implicit none
@@ -403,7 +403,7 @@ subroutine stplimw10m(rval,sval,sges,out,nstep)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use gridmod, only: lat1,lon1,lat2,lon2,nsig
+  use gridmod, only: lat1,lon1
   use jfunc, only: factw10m
   use derivsmod, only: w10mgues
   implicit none
@@ -478,7 +478,7 @@ subroutine stplimhowv(rval,sval,sges,out,nstep)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use gridmod, only: lat1,lon1,lat2,lon2,nsig
+  use gridmod, only: lat1,lon1
   use jfunc, only: facthowv
   use derivsmod, only: howvgues
   implicit none
@@ -553,7 +553,7 @@ subroutine stplimcldch(rval,sval,sges,out,nstep)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use gridmod, only: lat1,lon1,lat2,lon2,nsig
+  use gridmod, only: lat1,lon1
   use jfunc, only: factcldch
   use derivsmod, only: cldchgues
   implicit none
@@ -628,7 +628,7 @@ subroutine stpliml(rval,sval,sges,out,nstep)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use gridmod, only: lat1,lon1,lat2,lon2,nsig
+  use gridmod, only: lat1,lon1
   use jfunc, only: factl
   use derivsmod, only: lgues
   implicit none

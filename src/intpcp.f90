@@ -61,7 +61,6 @@ subroutine intpcp_(pcphead,rval,sval)
 !   2006-07-28  derber  - modify to use new inner loop obs data structure
 !                       - unify NL qc
 !   2007-01-19  derber  - limit pcp_ges* > zero
-!   2007-02-15  rancic  - add foto
 !   2007-03-19  tremolet - binning of observations
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2007-06-05  tremolet - use observation diagnostics structure
@@ -77,7 +76,6 @@ subroutine intpcp_(pcphead,rval,sval)
 !                        - add treatment when cw is not control variable
 !                        - use pointer_state
 !   2010-05-13 todling   - update to use gsi_bundle
-!                        - BUG FIX: foto was using TV instead of TSENS
 !                        - on-the-spot handling of non-essential vars
 !   2011-11-01 eliu      - add handling for ql and qi increments  
 !   2014-12-03  derber  - modify so that use of obsdiags can be turned off
@@ -112,11 +110,11 @@ subroutine intpcp_(pcphead,rval,sval)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
-  use pcpinfo, only: npcptype,npredp,b_pcp,pg_pcp,tinym1_obs
+  use pcpinfo, only: b_pcp,pg_pcp,tinym1_obs
   use constants, only: zero,one,half,tiny_r_kind,cg_term,r3600
-  use gridmod, only: nsig,latlon11,latlon1n
+  use gridmod, only: nsig,latlon11
   use gsi_4dvar, only: ltlint
-  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt  
+  use jfunc, only: jiter  
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
@@ -131,7 +129,7 @@ subroutine intpcp_(pcphead,rval,sval)
   integer(i_kind) j1,j2,j3,j4,nq,nu,nv,ncwm,n,nt,kx,ier,istatus,icw,iql,iqi
   real(r_kind) dt,dq,du,dv,dcwm,dcwm_ad,termges_ad,w1,w2,w3,w4
   real(r_kind) pcp_ges_ad,dq_ad,dt_ad,dv_ad,du_ad,pcp_ges
-  real(r_kind) obsges,termges,time_pcp,termges_tl,pcp_ges_tl,pcp_cur,termcur
+  real(r_kind) obsges,termges,termges_tl,pcp_ges_tl,pcp_cur,termcur
   real(r_kind) cg_pcp,p0,wnotgross,wgross
   type(pcpNode), pointer :: pcpptr
 
@@ -139,8 +137,6 @@ subroutine intpcp_(pcphead,rval,sval)
   real(r_kind),pointer,dimension(:):: sql,sqi,scwm   
   real(r_kind),pointer,dimension(:):: rql,rqi,rcwm  
   real(r_kind),pointer,dimension(:):: rt,rq,ru,rv
-  real(r_kind),pointer,dimension(:):: xhat_dt_tsen,xhat_dt_q,xhat_dt_u,xhat_dt_v,xhat_dt_cw
-  real(r_kind),pointer,dimension(:):: dhat_dt_tsen,dhat_dt_q,dhat_dt_u,dhat_dt_v,dhat_dt_cw
  
 ! If no pcp obs return
   if(.not. associated(pcphead))return
@@ -168,23 +164,6 @@ subroutine intpcp_(pcphead,rval,sval)
   call gsi_bundlegetpointer(rval,'ql', rql,istatus) ;iql=istatus+iql
   call gsi_bundlegetpointer(rval,'qi', rqi,istatus) ;iqi=istatus+iqi
 
-  if(l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'u',      xhat_dt_u,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'v',      xhat_dt_v,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'tsen',xhat_dt_tsen,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'q',      xhat_dt_q,istatus);ier=istatus+ier
-
-     call gsi_bundlegetpointer(dhat_dt,'u',      dhat_dt_u,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'v',      dhat_dt_v,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'tsen',dhat_dt_tsen,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'q',      dhat_dt_q,istatus);ier=istatus+ier
-     if(ier/=0)return
-
-! Non-essentials:
-     call gsi_bundlegetpointer(xhat_dt,'cw',    xhat_dt_cw,istatus);icw=istatus+icw
-     call gsi_bundlegetpointer(dhat_dt,'cw',    dhat_dt_cw,istatus);icw=istatus+icw
-  endif
-
   lcld = (icw==0 .or. (iql+iqi)==0)
 
   !pcpptr => pcphead
@@ -202,7 +181,6 @@ subroutine intpcp_(pcphead,rval,sval)
      pcp_ges_tl = zero
 
 
-     if(l_foto) time_pcp=pcpptr%time*r3600
 !    Compute updated simulated rain rate based on changes in t,q,u,v,cwm
      do n = 1,nsig
         dt = w1* st(j1)+w2* st(j2)+ w3* st(j3)+w4* st(j4)
@@ -223,26 +201,6 @@ subroutine intpcp_(pcphead,rval,sval)
            dcwm=zero
         endif
 
-        if (l_foto) then
-           dt = dt+&
-               (w1*xhat_dt_tsen(j1)+w2*xhat_dt_tsen(j2)+ &
-                w3*xhat_dt_tsen(j3)+w4*xhat_dt_tsen(j4))*time_pcp
-           dq = dq+&
-               (w1*xhat_dt_q(j1)+w2*xhat_dt_q(j2)+ &
-                w3*xhat_dt_q(j3)+w4*xhat_dt_q(j4))*time_pcp
-           du = du+&
-               (w1*xhat_dt_u(j1)+w2*xhat_dt_u(j2)+ &
-                w3*xhat_dt_u(j3)+w4*xhat_dt_u(j4))*time_pcp
-           dv = dv+&
-               (w1*xhat_dt_v(j1)+w2*xhat_dt_v(j2)+ &
-                w3*xhat_dt_v(j3)+w4*xhat_dt_v(j4))*time_pcp
-           if (icw==0) then
-              dcwm=dcwm+&
-                  (w1*xhat_dt_cw(j1)+w2*xhat_dt_cw(j2)+  &
-                   w3*xhat_dt_cw(j3)+w4*xhat_dt_cw(j4))*time_pcp
-           end if
-        endif
-        
         nt=n; nq=nt+nsig; nu=nq+nsig; nv=nu+nsig; ncwm=nv+nsig
         pcp_ges_tl = pcp_ges_tl +&
                      pcpptr%dpcp_dvar(nt)*dt + &
@@ -366,41 +324,6 @@ subroutine intpcp_(pcphead,rval,sval)
            rt(j3) = rt(j3) + w3*dt_ad
            rt(j2) = rt(j2) + w2*dt_ad
            rt(j1) = rt(j1) + w1*dt_ad
-
-           if (l_foto) then
-              if (icw==0) dcwm_ad = time_pcp*dcwm_ad
-              dv_ad   = time_pcp*dv_ad
-              du_ad   = time_pcp*du_ad
-              dq_ad   = time_pcp*dq_ad
-              dt_ad   = time_pcp*dt_ad
-
-              if (icw==0) then
-                 dhat_dt_cw(j4) = dhat_dt_cw(j4) + w4*dcwm_ad
-                 dhat_dt_cw(j3) = dhat_dt_cw(j3) + w3*dcwm_ad
-                 dhat_dt_cw(j2) = dhat_dt_cw(j2) + w2*dcwm_ad
-                 dhat_dt_cw(j1) = dhat_dt_cw(j1) + w1*dcwm_ad
-              end if
-
-              dhat_dt_v(j4) = dhat_dt_v(j4) + w4*dv_ad
-              dhat_dt_v(j3) = dhat_dt_v(j3) + w3*dv_ad
-              dhat_dt_v(j2) = dhat_dt_v(j2) + w2*dv_ad
-              dhat_dt_v(j1) = dhat_dt_v(j1) + w1*dv_ad
-
-              dhat_dt_u(j4) = dhat_dt_u(j4) + w4*du_ad
-              dhat_dt_u(j3) = dhat_dt_u(j3) + w3*du_ad
-              dhat_dt_u(j2) = dhat_dt_u(j2) + w2*du_ad
-              dhat_dt_u(j1) = dhat_dt_u(j1) + w1*du_ad
- 
-              dhat_dt_q(j4) = dhat_dt_q(j4) + w4*dq_ad
-              dhat_dt_q(j3) = dhat_dt_q(j3) + w3*dq_ad
-              dhat_dt_q(j2) = dhat_dt_q(j2) + w2*dq_ad
-              dhat_dt_q(j1) = dhat_dt_q(j1) + w1*dq_ad
-
-              dhat_dt_tsen(j4) = dhat_dt_tsen(j4) + w4*dt_ad
-              dhat_dt_tsen(j3) = dhat_dt_tsen(j3) + w3*dt_ad
-              dhat_dt_tsen(j2) = dhat_dt_tsen(j2) + w2*dt_ad
-              dhat_dt_tsen(j1) = dhat_dt_tsen(j1) + w1*dt_ad
-           endif
 
            j1=j1+latlon11
            j2=j2+latlon11

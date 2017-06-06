@@ -67,9 +67,10 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q,it)
   use constants, only: zero,one,fv,one_tenth,deg2rad,pi
   use gridmod, only: lat2,lon2,nsig,nsig_soil
   use gridmod, only: regional_time
-  use guess_grids, only: ges_tsen,nfldsig,sno,coast_prox
+  use guess_grids, only: ges_tsen,sno,coast_prox
   use wrf_mass_guess_mod, only: ges_xlon,ges_xlat
-  use guess_grids, only: ges_prsl,nfldsig,ntguessig
+  use guess_grids, only: ges_prsl
+! use guess_grids, only: nfldsig
   use rapidrefresh_cldsurf_mod, only: l_gsd_soiltq_nudge
 
   implicit none
@@ -398,8 +399,9 @@ subroutine gsd_limit_ocean_q(qinc,it)
   use derivsmod, only:  qsatg
   use constants, only: zero,one,one_tenth
   use gridmod, only: lat2,lon2,nsig
-  use guess_grids, only: ges_tsen,ges_prsl,nfldsig,ntguessig
+  use guess_grids, only: ges_tsen,ges_prsl
   use guess_grids, only: isli
+! use guess_grids, only: nfldsig
   
   implicit none
   
@@ -499,7 +501,7 @@ subroutine gsd_update_th2(tinc,it)
   use jfunc, only:  tsensible
   use constants, only: zero,one,fv,rd_over_cp_mass,one_tenth
   use gridmod, only: lat2,lon2,aeta1_ll,pt_ll,aeta2_ll
-  use guess_grids, only: nfldsig
+! use guess_grids, only: nfldsig
 
   implicit none
 
@@ -572,7 +574,7 @@ subroutine gsd_update_q2(qinc,it)
 !$$$
   use kinds, only: r_kind,i_kind
   use gridmod, only: lat2,lon2
-  use guess_grids, only: nfldsig
+! use guess_grids, only: nfldsig
 
   implicit none
 
