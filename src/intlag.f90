@@ -66,7 +66,7 @@ subroutine intlag(laghead,rval,sval,obsbin)
   use constants, only: half,one,zero,tiny_r_kind,cg_term,rad2deg
   use obsmod, only: lsaveobsens, l_do_adjoint
   use qcmod, only: nlnqc_iter
-  use gridmod, only: latlon1n,iglobal
+  use gridmod, only: iglobal
   use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer

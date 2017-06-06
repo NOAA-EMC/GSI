@@ -55,7 +55,6 @@ subroutine stppw(pwhead,rval,sval,out,sges,nstep)
 !   2006-07-28  derber  - modify to use new inner loop obs data structure
 !                       - unify NL qc
 !   2006-09-18  derber  - modify to output for b1 and b3
-!   2007-02-15  rancic  - add foto
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2008-06-02  safford - rm unused var and uses
 !   2008-12-03  todling - changed handling of ptr%time
@@ -83,8 +82,7 @@ subroutine stppw(pwhead,rval,sval,out,sges,nstep)
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,tpwcon,half,one,two,tiny_r_kind,cg_term,zero_quad,&
        r3600
-  use gridmod, only: latlon1n,latlon11,nsig
-  use jfunc, only: l_foto,xhat_dt,dhat_dt
+  use gridmod, only: latlon11,nsig
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use m_obsNode, only: obsNode
@@ -103,12 +101,10 @@ subroutine stppw(pwhead,rval,sval,out,sges,nstep)
 ! Declare local variables  
   integer(i_kind) ier,istatus
   integer(i_kind) i1,i2,i3,i4,k,kk
-  real(r_kind) val,val2,w1,w2,w3,w4,time_pw,pg_pw
+  real(r_kind) val,val2,w1,w2,w3,w4,pg_pw
   real(r_kind) cg_pw,wgross,wnotgross,pwx
   real(r_kind),dimension(max(1,nstep))::pen
   real(r_kind),pointer,dimension(:) :: rq,sq
-  real(r_kind),pointer,dimension(:) :: xhat_dt_q
-  real(r_kind),pointer,dimension(:) :: dhat_dt_q
   type(pwNode), pointer :: pwptr
 
 
@@ -121,10 +117,6 @@ subroutine stppw(pwhead,rval,sval,out,sges,nstep)
   ier=0
   call gsi_bundlegetpointer(sval,'q',sq, istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'q',rq, istatus);ier=istatus+ier
-  if(l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'q',xhat_dt_q,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'q',dhat_dt_q,istatus);ier=istatus+ier
-  endif
   if(ier/=0)return
 
   pwptr => pwNode_typecast(pwhead)
@@ -151,22 +143,6 @@ subroutine stppw(pwhead,rval,sval,out,sges,nstep)
               val2=val2+(w1* sq(i1)+w2* sq(i2)&
                        + w3* sq(i3)+w4* sq(i4))*tpwcon * pwptr%dp(k)
            end do
-           if(l_foto) then
-              time_pw=pwptr%time*r3600
-              do k=1,nsig
-  
-                 i1 = pwptr%ij(1)+(k-1)*latlon11
-                 i2 = pwptr%ij(2)+(k-1)*latlon11
-                 i3 = pwptr%ij(3)+(k-1)*latlon11
-                 i4 = pwptr%ij(4)+(k-1)*latlon11
-                 val =val +(w1*dhat_dt_q(i1)+w2*dhat_dt_q(i2)&
-                          + w3*dhat_dt_q(i3)+w4*dhat_dt_q(i4))*time_pw*tpwcon &
-                          * pwptr%dp(k)
-                 val2=val2+(w1*xhat_dt_q(i1)+w2*xhat_dt_q(i2)&
-                          + w3*xhat_dt_q(i3)+w4*xhat_dt_q(i4))*time_pw*tpwcon &
-                          * pwptr%dp(k)
-              end do
-           end if
      
            val2=val2-pwptr%res
            do kk=1,nstep

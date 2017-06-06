@@ -176,7 +176,6 @@ subroutine intall(sval,sbias,rval,rbias)
   use gsi_4dvar, only: nobs_bins,ltlint,ibin_anl
   use constants, only: zero,zero_quad
   use jcmod, only: ljcpdry,ljc4tlevs,ljcdfi
-  use jfunc, only: l_foto,dhat_dt
   use jfunc, only: nrclen,nsclen,npclen,ntclen
   use intradmod, only: setrad
   use intjomod, only: intjo
@@ -216,10 +215,6 @@ subroutine intall(sval,sbias,rval,rbias)
   call timer_ini('intall')
 
 ! Zero gradient arrays
-  if (l_foto) then
-     call allocate_state(dhat_dt)
-     dhat_dt=zero
-  endif
 
   do ii=1,nobs_bins
      rval(ii)=zero
@@ -311,14 +306,6 @@ subroutine intall(sval,sbias,rval,rbias)
 
 ! RHS for Jc DFI
   if (ljcdfi .and. nobs_bins>1) call intjcdfi(rval,sval)
-
-  if(l_foto) then
-!    RHS calculation for Jc and other 3D-Var terms
-     call int3dvar(rval(1),dhat_dt)
-
-! Release local memory
-     call deallocate_state(dhat_dt)
-  end if
 
   if(nsclen > 0)then
      do i=1,nsclen
