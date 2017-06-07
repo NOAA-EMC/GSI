@@ -175,7 +175,7 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
    use sigio_module, only: sigio_intkind,sigio_head,sigio_srhead
    use constants, only: zero,one_tenth,half,one,ten,r0_01,r60,r3600
    use blendmod, only: init_blend,blend_f,blend_df
-   use gridmod, only: lat2,lon2,use_gfs_nemsio
+   use gridmod, only: use_gfs_nemsio
    use nemsio_module, only: nemsio_init,nemsio_open,nemsio_close
    use ncepnems_io, only: error_msg
    use nemsio_module, only: nemsio_gfile,nemsio_getfilehead
