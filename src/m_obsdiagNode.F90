@@ -90,7 +90,6 @@ module m_obsdiagNode
 
 !#define NDEBUG
 !#define DEBUG_TRACE
-!#define DEBUG_VERBOSE
 
 #include "myassert.H"
 #include "mytrace.H"
@@ -274,20 +273,6 @@ _ENTRY_(myname_)
         call perr(myname_,'     expecting jj =',jj_type)
         call perr(myname_,'        actual jj =',kj)
         call  die(myname_)
-#ifdef DEBUG_VERBOSE
-      else
-        call tell(myname_,'obsHeader_read_(), current jiter =',jiter)
-        call tell(myname_,'                 expecting miter =',miter)
-        call tell(myname_,'                    expecting ii =',ii_bin)
-        call tell(myname_,'                    expecting jj =',jj_type)
-        call tell(myname_,'                    actual miter =',miter_read)
-        call tell(myname_,'                    actual jiter =',kiter)
-        call tell(myname_,'                       actual ii =',ki)
-        call tell(myname_,'                       actual jj =',kj)
-        call tell(myname_,'                       lobsensfc =',lobsensfc)
-        call tell(myname_,'                  lsensrecompute =',lsensrecompute)
-        call tell(myname_,'                       lobserver =',lobserver)
-#endif
       endif
 
     if(.not.ignore_iter_) then

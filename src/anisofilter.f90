@@ -715,6 +715,7 @@ subroutine get_aspect_reg_2d
 !
 !$$$ end documentation block
   use anberror, only: afact0
+  use gsi_io, only: verbose
   implicit none
 
 ! Declare passed variables
@@ -728,7 +729,10 @@ subroutine get_aspect_reg_2d
 
   integer(i_kind):: nlatf,nlonf
   character(len=8) cvar
+  logical print_verbose
 
+  print_verbose=.false.
+  if(verbose) print_verbose=.true.
   nlatf=pf2aP1%nlatf
   nlonf=pf2aP1%nlonf
 
@@ -854,7 +858,7 @@ subroutine get_aspect_reg_2d
      asp3=asp30f(i,j)
      asp1=scalex1*asp1
      asp2=scalex2*asp2
-     call writeout_isoscaleinfo(ivar,k1,asp1,asp2,asp3,dxf(i,j),dyf(i,j))
+     if(print_verbose)call writeout_isoscaleinfo(ivar,k1,asp1,asp2,asp3,dxf(i,j),dyf(i,j))
 
   end do
 
@@ -1179,6 +1183,7 @@ subroutine init_anisofilter_reg(mype)
 !
 !$$$ end documentation block
   use anberror, only: afact0
+  use gsi_io, only: verbose
   implicit none
 
 ! Declare passed variables
@@ -1193,7 +1198,7 @@ subroutine init_anisofilter_reg(mype)
 
 ! Declare local variables
   integer(i_kind):: i,n
-  logical:: fexist
+  logical:: fexist,print_verbose
   integer(i_kind)           :: nlatf,nlonf
 
   real(r_double) svpsi,svchi,svpsfc,svtemp,svshum,svgust,svvis,svpblh,svwspd10m, &
@@ -1230,6 +1235,8 @@ subroutine init_anisofilter_reg(mype)
           sclwspd10m_w,scltd2m_w,sclmxtm_w,sclmitm_w,scltcamt_w,scllcbas_w
 !*******************************************************************
 
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
   nlatf=pf2aP1%nlatf
   nlonf=pf2aP1%nlonf
 
@@ -1566,7 +1573,7 @@ subroutine init_anisofilter_reg(mype)
         end select
      end do
 
-     if (mype==0) then
+     if (mype==0 .and. print_verbose) then
         print*,'in init_anisofilter_reg: hsteep=',hsteep
         print*,'in init_anisofilter_reg: hsmooth_len=',hsmooth_len
         print*,'in init_anisofilter_reg: hsmooth_len_lcbas=',hsmooth_len_lcbas
@@ -1678,7 +1685,7 @@ subroutine init_anisofilter_reg(mype)
      endif
   endif
 
-  if (mype==0) then
+  if (mype==0 .and. print_verbose) then
      do i=1,nvars
         print*,'in init_anisofilter_reg: i,rfact0h,rfact0v,afact0,an_amp(1,i)=',i,rfact0h(i),rfact0v(i),afact0(i),an_amp(1,i)
      enddo
@@ -1703,7 +1710,7 @@ subroutine init_anisofilter_reg(mype)
   dyf=pf2aP1%grid_ratio_lat*dyf             !  note that dyf = grid_ratio_lat*dy
   call agrid2fgrid(pf2aP1,rllat,rllatf)
 
-  if(mype==0) then
+  if(mype==0 .and. print_verbose) then
      write(6,*)'in anisofilter_reg, nlatf,nlonf=',nlatf,nlonf
      write(6,*)'in anisofilter_reg, min,max(rllat)=',minval(rllat),maxval(rllat)
      write(6,*)'in anisofilter_reg, min,max(rllatf)=',minval(rllatf),maxval(rllatf)
@@ -4383,6 +4390,7 @@ subroutine get2berr_reg_subdomain_option(mype)
   use raflib, only: init_raf4
   use anberror, only: s2g_rff
   use general_commvars_mod, only: s2g_raf
+  use gsi_io, only: verbose
   implicit none
 
 ! Declare passed variables
@@ -4423,7 +4431,10 @@ subroutine get2berr_reg_subdomain_option(mype)
   integer(i_kind):: idsf,idef,jdsf,jdef,ipsf,ipef,jpsf,jpef
   integer(i_kind):: imsf,imef,jmsf,jmef
   integer(i_kind):: nlata,nlona,nlatf,nlonf,inner_vars
+  logical print_verbose
 
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
   nlata=s2g_raf%nlat
   nlona=s2g_raf%nlon
   nlatf=s2g_rff%nlat
@@ -4574,7 +4585,7 @@ subroutine get2berr_reg_subdomain_option(mype)
            endif
 
 
-           if(i==nlata/2.and.j==nlona/2) then
+           if(i==nlata/2.and.j==nlona/2 .and. print_verbose) then
               write(6,'("at domain center, var,k1,asp1,asp2,asp3 =",2i4,3f11.3)') &
                      jdvar(k),k1,asp1,asp2,asp3
               write(6,'("at domain center, var,k1,dxf,dyf =",2i4,3f11.3)') &
@@ -4641,7 +4652,7 @@ subroutine get2berr_reg_subdomain_option(mype)
      aspectf=aspect
   end if
 
-  if(mype==0) write(6,*)'rltop_wind,rltop_temp,rltop_q,rltop_psfc,rltop_gust,rltop_vis,rltop_pblh, &
+  if(mype==0 .and. print_verbose) write(6,*)'rltop_wind,rltop_temp,rltop_q,rltop_psfc,rltop_gust,rltop_vis,rltop_pblh, &
                          &rltop_wspd10m,rltop_td2m,rltop_mxtm,rltop_mitm,rltop_pmsl,rltop_howv,rltop_tcamt,rltop_lcbas,rltop_cldch=',&
                          rltop_wind,rltop_temp,rltop_q,rltop_psfc,rltop_gust,rltop_vis,rltop_pblh, &
                          &rltop_wspd10m,rltop_td2m,rltop_mxtm,rltop_mitm,rltop_pmsl,rltop_howv,rltop_tcamt,rltop_lcbas,rltop_cldch
@@ -4649,7 +4660,7 @@ subroutine get2berr_reg_subdomain_option(mype)
   if(lreadnorm) normal=0
 
   allocate(ampsub(ngauss,ipsf:ipef,jpsf:jpef,kps:kpe))
-        write(6,'(" before sub2slab_init_raf4, min,max(aspectf)=",2e12.3)') &
+  if(print_verbose)write(6,'(" before sub2slab_init_raf4, min,max(aspectf)=",2e12.3)') &
                    minval(aspectf),maxval(aspectf)
   if(rtma_bkerr_sub2slab) then
      call sub2slab_init_raf4(aspectf,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,filter_all, &

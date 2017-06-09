@@ -238,12 +238,14 @@ contains
        if(l_cloud_analysis .and. n_actual_clouds>0) num_mass_fields=num_mass_fields+9*lm+2    
        if(l_gsd_soilTQ_nudge) num_mass_fields=num_mass_fields+2
        num_loc_groups=num_mass_fields/npe
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, lm            =",i6)')lm
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, nsig_soil     =",i6)')nsig_soil
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, num_mass_fields=",i6)')num_mass_fields
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, nfldsig       =",i6)')nfldsig
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, npe           =",i6)')npe
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, num_loc_groups=",i6)')num_loc_groups
+       if(mype==0) then
+          write(6,'(" read_wrf_mass_guess: lm            =",i6)')lm
+          write(6,'(" read_wrf_mass_guess: nsig_soil     =",i6)')nsig_soil
+          write(6,'(" read_wrf_mass_guess: num_mass_fields=",i6)')num_mass_fields
+          write(6,'(" read_wrf_mass_guess: nfldsig       =",i6)')nfldsig
+          write(6,'(" read_wrf_mass_guess: npe           =",i6)')npe
+          write(6,'(" read_wrf_mass_guess: num_loc_groups=",i6)')num_loc_groups
+       end if
   
        allocate(offset(num_mass_fields))
        allocate(igtype(num_mass_fields),kdim(num_mass_fields),kord(num_mass_fields))
@@ -267,11 +269,13 @@ contains
        do it=1,nfldsig
           write(filename,'("sigf",i2.2)')ifilesig(it)
           open(lendian_in,file=filename,form='unformatted') ; rewind lendian_in
-          write(6,*)'READ_WRF_MASS_BINARY_GUESS:  open lendian_in=',lendian_in,&
+          if(mype == 0)then
+             write(6,*)'READ_WRF_MASS_BINARY_GUESS:  open lendian_in=',lendian_in,&
                ' to filename=',filename,' on it=',it
-          if(mype == 0) write(6,*)'READ_WRF_MASS_OFFSET_FILE:  open lendian_in=',lendian_in,' to file=',filename
+             write(6,*)'READ_WRF_MASS_OFFSET_FILE:  open lendian_in=',lendian_in,' to file=',filename
+          end if
           read(lendian_in) dummy9,pt_regional_single
-          write(6,*)'READ_WRF_MASS_BINARY_GUESS:  dummy9=',dummy9
+          if(mype == 0)write(6,*)'READ_WRF_MASS_BINARY_GUESS:  dummy9=',dummy9
   
   ! get pointers for typical meteorological fields
           ier=0
@@ -719,10 +723,10 @@ contains
           do k=0,npe-1
              kend(k)=kbegin(k+1)-1
           end do
-          if(mype == 0) then
-             write(6,*)' kbegin=',kbegin
-             write(6,*)' kend= ',kend
-          end if
+!         if(mype == 0) then
+!            write(6,*)' kbegin=',kbegin
+!            write(6,*)' kend= ',kend
+!         end if
           num_j_groups=jm/npe
           jextra=jm-num_j_groups*npe
           jbegin(0)=1
@@ -737,10 +741,10 @@ contains
           do j=0,npe-1
              jend(j)=min(jbegin(j+1)-1,jm)
           end do
-          if(mype == 0) then
-             write(6,*)' jbegin=',jbegin
-             write(6,*)' jend= ',jend
-          end if
+!         if(mype == 0) then
+!            write(6,*)' jbegin=',jbegin
+!            write(6,*)' jend= ',jend
+!         end if
           
           allocate(ibuf((im+1)*(jm+1),kbegin(mype):kend(mype)))
           call mpi_file_open(mpi_comm_world,trim(wrfges),mpi_mode_rdonly,mpi_info_null,mfcst,ierror)
@@ -1514,19 +1518,23 @@ contains
   
        num_all_fields=num_mass_fields*nfldsig
        num_loc_groups=num_all_fields/npe
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, lm            =",i6)')lm
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, num_mass_fields=",i6)')num_mass_fields
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, nfldsig       =",i6)')nfldsig
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, num_all_fields=",i6)')num_all_fields
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, npe           =",i6)')npe
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, num_loc_groups=",i6)')num_loc_groups
+       if(mype == 0)then
+          write(6,'(" read_wrf_mass_guess: lm            =",i6)')lm
+          write(6,'(" read_wrf_mass_guess: num_mass_fields=",i6)')num_mass_fields
+          write(6,'(" read_wrf_mass_guess: nfldsig       =",i6)')nfldsig
+          write(6,'(" read_wrf_mass_guess: num_all_fields=",i6)')num_all_fields
+          write(6,'(" read_wrf_mass_guess: npe           =",i6)')npe
+          write(6,'(" read_wrf_mass_guess: num_loc_groups=",i6)')num_loc_groups
+       end if
        do 
           num_all_pad=num_loc_groups*npe
           if(num_all_pad >= num_all_fields) exit
           num_loc_groups=num_loc_groups+1
        end do
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, num_all_pad   =",i6)')num_all_pad
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, num_loc_groups=",i6)')num_loc_groups
+       if(mype==0) then
+          write(6,'(" read_wrf_mass_guess, num_all_pad   =",i6)')num_all_pad
+          write(6,'(" read_wrf_mass_guess, num_loc_groups=",i6)')num_loc_groups
+       end if
   
        allocate(all_loc(lat2,lon2,num_all_pad))
        allocate(jsig_skip(num_mass_fields))
@@ -2209,18 +2217,21 @@ contains
        
        call mpi_reduce(num_doubtful_sfct,num_doubtful_sfct_all,1,mpi_integer,mpi_sum,&
             0,mpi_comm_world,ierror)
-       if(mype==0) write(6,*)' in read_wrf_mass_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
-       if(mype==0) write(6,*)' in read_wrf_mass_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
-       if(mype==10) write(6,*)' in read_wrf_mass_guess, min,max(sfct)=', &
+       if(mype==0) then
+          write(6,*)' in read_wrf_mass_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
+          write(6,*)' in read_wrf_mass_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
+       else if(mype==10) then
+          write(6,*)' in read_wrf_mass_guess, min,max(sfct)=', &
             minval(sfct),maxval(sfct)
-       if(mype==10) write(6,*)' in read_wrf_mass_guess, min,max(veg_type)=', &
+          write(6,*)' in read_wrf_mass_guess, min,max(veg_type)=', &
             minval(veg_type),maxval(veg_type)
-       if(mype==10) write(6,*)' in read_wrf_mass_guess, min,max(veg_frac)=', &
+          write(6,*)' in read_wrf_mass_guess, min,max(veg_frac)=', &
             minval(veg_frac),maxval(veg_frac)
-       if(mype==10) write(6,*)' in read_wrf_mass_guess, min,max(soil_type)=', &
+          write(6,*)' in read_wrf_mass_guess, min,max(soil_type)=', &
             minval(soil_type),maxval(soil_type)
-       if(mype==10) write(6,*)' in read_wrf_mass_guess, min,max(isli)=', &
+          write(6,*)' in read_wrf_mass_guess, min,max(isli)=', &
             minval(isli),maxval(isli)
+       end if
        
        deallocate(all_loc,jsig_skip,igtype,identity)
        deallocate(temp1,itemp1,temp1u,temp1v)

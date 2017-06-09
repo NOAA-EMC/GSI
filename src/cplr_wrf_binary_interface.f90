@@ -121,7 +121,7 @@ contains
   
     use kinds, only: r_single,i_llong,i_kind
     use gsi_4dvar, only: nhr_assimilation
-    use gsi_io, only: lendian_out
+    use gsi_io, only: lendian_out, verbose
     use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge
     use gsi_metguess_mod, only: gsi_metguess_get
     use gridmod, only: wrf_mass_hybridcord
@@ -156,6 +156,10 @@ contains
     real(r_single)rdx,rdy
     integer(i_kind) ksize
     integer(i_kind) index
+    logical print_verbose
+
+    print_verbose=.false.
+    if(verbose)print_verbose=.true.
   
   ! Inquire about cloud guess fields
     call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
@@ -171,8 +175,10 @@ contains
        write(filename,'("sigf",i2.2)')n
   
        open(in_unit,file=wrfges,form='unformatted')
-       write(6,*)' convert_binary_mass: in_unit,lendian_out=',in_unit,lendian_out
-       write(6,*)' convert_binary_mass: in_unit,out_unit=',wrfges,',',filename
+       if(print_verbose)then
+          write(6,*)' convert_binary_mass: in_unit,lendian_out=',in_unit,lendian_out
+          write(6,*)' convert_binary_mass: in_unit,out_unit=',wrfges,',',filename
+       end if
      
   ! Check for valid input file
        read(in_unit,iostat=status_hdr)hdrbuf
@@ -217,21 +223,25 @@ contains
        if(index<0) stop
        read(datestr_all(index),'(i4,1x,i2,1x,i2,1x,i2,1x,i2,1x,i2)') &
             iyear,imonth,iday,ihour,iminute,isecond
-       write(6,*)' convert_binary_mass: START_DATE =',&
+       if(print_verbose)then
+          write(6,*)' convert_binary_mass: START_DATE =',&
             iyear,imonth,iday,ihour,iminute,isecond
+       end if
      
   !                  nsig_soil_regional
-    call this%retrieve_index(index,'SMOIS',varname_all,nrecs)
-    if(index<0) stop
+       call this%retrieve_index(index,'SMOIS',varname_all,nrecs)
+       if(index<0) stop
   
-    if(trim(memoryorder_all(index))=='XZY') then
-       nsig_soil_regional=domainend_all(2,index)
-    end if
-    if(trim(memoryorder_all(index))=='XYZ') then
-       nsig_soil_regional=domainend_all(3,index)
-    end if
-    write(6,*)' convert_binary_mass: sig_soil_regional=',&
-         nsig_soil_regional
+       if(trim(memoryorder_all(index))=='XZY') then
+          nsig_soil_regional=domainend_all(2,index)
+       end if
+       if(trim(memoryorder_all(index))=='XYZ') then
+          nsig_soil_regional=domainend_all(3,index)
+       end if
+       if(print_verbose)then
+          write(6,*)' convert_binary_mass: sig_soil_regional=',&
+            nsig_soil_regional
+       end if
   
   !                  nlon_regional, nlat_regional, nsig_regional
        call this%retrieve_index(index,'T',varname_all,nrecs)
@@ -249,10 +259,12 @@ contains
        end if
        read(datestr_all(index),'(i4,1x,i2,1x,i2,1x,i2,1x,i2,1x,i2)') &
             iyear,imonth,iday,ihour,iminute,isecond
-       write(6,*)' convert_binary_mass: iy,m,d,h,m,s=',&
+       if(print_verbose)then
+          write(6,*)' convert_binary_mass: iy,m,d,h,m,s=',&
             iyear,imonth,iday,ihour,iminute,isecond
-       write(6,*)' convert_binary_mass: nlon,lat,sig_regional=',&
+          write(6,*)' convert_binary_mass: nlon,lat,sig_regional=',&
             nlon_regional,nlat_regional,nsig_regional
+       end if
        
   !                  pt_regional
        call this%retrieve_index(index,'P_TOP',varname_all,nrecs)
@@ -260,7 +272,7 @@ contains
        call this%retrieve_field_r1(in_unit,wrfges,pt_regional,start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
      
-       write(6,*)' convert_binary_mass: pt_regional=',pt_regional
+       if(print_verbose)write(6,*)' convert_binary_mass: pt_regional=',pt_regional
      
        write(lendian_out) iyear,imonth,iday,ihour,iminute,isecond, &
             nlon_regional,nlat_regional,nsig_regional,pt_regional,nsig_soil_regional
@@ -275,18 +287,22 @@ contains
           call retrieve_field_rn1(in_unit,wrfges,field1,nsig_regional, &
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
-          do k=1,nsig_regional
-             write(6,*)' convert_binary_mass: k,c3h(k)=',k,field1(k)
-          end do
+          if(print_verbose)then
+             do k=1,nsig_regional
+                write(6,*)' convert_binary_mass: k,c3h(k)=',k,field1(k)
+             end do
+          end if
 !                    c4h
           call retrieve_index(index,'C4H',varname_all,nrecs)
           if(index<0) stop
           call retrieve_field_rn1(in_unit,wrfges,field1a,nsig_regional, &
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
-          do k=1,nsig_regional
-             write(6,*)' convert_binary_mass: k,c4h(k)=',k,field1a(k)
-          end do
+          if(print_verbose)then
+             do k=1,nsig_regional
+                write(6,*)' convert_binary_mass: k,c4h(k)=',k,field1a(k)
+             end do
+          end if
           write(lendian_out)field1,field1a             !  C3H, C4H
    
 !                    c3f
@@ -295,18 +311,22 @@ contains
           call retrieve_field_rn1(in_unit,wrfges,field1p,nsig_regional+1, &
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
-          do k=1,nsig_regional+1
-             write(6,*)' convert_binary_mass: k,c3f(k)=',k,field1p(k)
-          end do
+          if(print_verbose)then
+             do k=1,nsig_regional+1
+                write(6,*)' convert_binary_mass: k,c3f(k)=',k,field1p(k)
+             end do
+          end if
 !                    c4f
           call retrieve_index(index,'C4F',varname_all,nrecs)
           if(index<0) stop
           call retrieve_field_rn1(in_unit,wrfges,field1pa,nsig_regional+1, &
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
-          do k=1,nsig_regional+1
-             write(6,*)' convert_binary_mass: k,c4f(k)=',k,field1pa(k)
-          end do
+          if(print_verbose)then
+             do k=1,nsig_regional+1
+                write(6,*)' convert_binary_mass: k,c4f(k)=',k,field1pa(k)
+             end do
+          end if
           write(lendian_out)field1p,field1pa            !  c4f,c4f
        else
 !                    znu
@@ -315,9 +335,11 @@ contains
           call this%retrieve_field_rn1(in_unit,wrfges,field1,nsig_regional, &
                                          start_block(index+1),end_block(index+1), &
                                          start_byte(index+1),end_byte(index+1))
-          do k=1,nsig_regional
-             write(6,*)' convert_binary_mass: k,znu(k)=',k,field1(k)
-          end do
+          if(print_verbose)then
+             do k=1,nsig_regional
+                write(6,*)' convert_binary_mass: k,znu(k)=',k,field1(k)
+             end do
+          end if
           field1a=0.0_r_single
           write(lendian_out)field1,field1a             !  ZNU
      
@@ -327,9 +349,11 @@ contains
           call this%retrieve_field_rn1(in_unit,wrfges,field1p,nsig_regional+1, &
                                          start_block(index+1),end_block(index+1), &
                                          start_byte(index+1),end_byte(index+1))
-          do k=1,nsig_regional+1
-             write(6,*)' convert_binary_mass: k,znw(k)=',k,field1p(k)
-          end do
+          if(print_verbose)then
+             do k=1,nsig_regional+1
+                write(6,*)' convert_binary_mass: k,znw(k)=',k,field1p(k)
+             end do
+          end if
           field1pa=0.0_r_single
           write(lendian_out)field1p,field1pa            !  ZNW
        endif   ! no hybrid vertical coordinate
@@ -343,7 +367,7 @@ contains
        call this%retrieve_field_r1(in_unit,wrfges,rdx,start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
      
-       write(6,*)' convert_binary_mass: 1/rdx=',&
+       if(print_verbose)write(6,*)' convert_binary_mass: 1/rdx=',&
             one_single/rdx   ! 1._4 necessary only to get bit reproducibility
   
   !                  rdy
@@ -352,7 +376,7 @@ contains
        call this%retrieve_field_r1(in_unit,wrfges,rdy,start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
      
-       write(6,*)' convert_binary_mass: 1/rdy=',&
+       if(print_verbose)write(6,*)' convert_binary_mass: 1/rdy=',&
             one_single/rdy  ! 1._4 necessary only to get bit reproducibility
        
        allocate(field2(nlon_regional,nlat_regional))
@@ -366,15 +390,17 @@ contains
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
      
-       write(6,*)' convert_binary_mass: max,min mapfac_m=',maxval(field2),minval(field2)
-       write(6,*)' convert_binary_mass: max,min MAPFAC_M(:,1)=', &
+       if(print_verbose)then
+          write(6,*)' convert_binary_mass: max,min mapfac_m=',maxval(field2),minval(field2)
+          write(6,*)' convert_binary_mass: max,min MAPFAC_M(:,1)=', &
             maxval(field2(:,1)),minval(field2(:,1))
-       write(6,*)' convert_binary_mass: max,min MAPFAC_M(1,:)=', &
+          write(6,*)' convert_binary_mass: max,min MAPFAC_M(1,:)=', &
             maxval(field2(1,:)),minval(field2(1,:))
-       write(6,*)' convert_binary_mass: mapfac_m(1,1),mapfac_m(nlon,1)=', &
+          write(6,*)' convert_binary_mass: mapfac_m(1,1),mapfac_m(nlon,1)=', &
             field2(1,1),field2(nlon_regional,1)
-       write(6,*)' convert_binary_mass: mapfac_m(1,nlat),mapfac_m(nlon,nlat)=', &
+          write(6,*)' convert_binary_mass: mapfac_m(1,nlat),mapfac_m(nlon,nlat)=', &
             field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
+       end if
        field2b=one_single/(field2*rdx)  !DX_MC
        field2c=one_single/(field2*rdy)  !DY_MC
      
@@ -387,14 +413,16 @@ contains
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
   
-       write(6,*)' convert_binary_mass: max,min XLAT(:,1)=',&
+       if(print_verbose)then
+          write(6,*)' convert_binary_mass: max,min XLAT(:,1)=',&
             maxval(field2(:,1)),minval(field2(:,1))
-       write(6,*)' convert_binary_mass: max,min XLAT(1,:)=',&
+          write(6,*)' convert_binary_mass: max,min XLAT(1,:)=',&
             maxval(field2(1,:)),minval(field2(1,:))
-       write(6,*)' convert_binary_mass: xlat(1,1),xlat(nlon,1)=',&
+          write(6,*)' convert_binary_mass: xlat(1,1),xlat(nlon,1)=',&
             field2(1,1),field2(nlon_regional,1)
-       write(6,*)' convert_binary_mass: xlat(1,nlat),xlat(nlon,nlat)=', &
+          write(6,*)' convert_binary_mass: xlat(1,nlat),xlat(nlon,nlat)=', &
             field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
+       end if
        field2=field2/rad2deg_single
        write(lendian_out)field2,field2b,n_position     !  XLAT,DX_MC
      
@@ -406,14 +434,16 @@ contains
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
   
-       write(6,*)' convert_binary_mass: max,min XLONG(:,1)=',&
+       if(print_verbose)then
+          write(6,*)' convert_binary_mass: max,min XLONG(:,1)=',&
             maxval(field2(:,1)),minval(field2(:,1))
-       write(6,*)' convert_binary_mass: max,min XLONG(1,:)=',&
+          write(6,*)' convert_binary_mass: max,min XLONG(1,:)=',&
             maxval(field2(1,:)),minval(field2(1,:))
-       write(6,*)' convert_binary_mass: xlong(1,1),xlong(nlon,1)=',&
+          write(6,*)' convert_binary_mass: xlong(1,1),xlong(nlon,1)=',&
             field2(1,1),field2(nlon_regional,1)
-       write(6,*)' convert_binary_mass: xlong(1,nlat),xlong(nlon,nlat)=', &
+          write(6,*)' convert_binary_mass: xlong(1,nlat),xlong(nlon,nlat)=', &
             field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
+       end if
        field2=field2/rad2deg_single
      
        write(lendian_out)field2,field2c,n_position     !  XLONG,DY_MC
@@ -431,7 +461,7 @@ contains
        if(index<0) stop
        n_position=file_offset(index+1)
      
-       write(6,*)'  byte offset for MUB = ',n_position
+       if(print_verbose)write(6,*)'  byte offset for MUB = ',n_position
   
        write(lendian_out)n_position    ! offset for mub
   
@@ -440,7 +470,7 @@ contains
        if(index<0) stop
        n_position=file_offset(index+1)
      
-       write(6,*)'  byte offset for MU = ',n_position
+       if(print_verbose)write(6,*)'  byte offset for MU = ',n_position
   
        write(lendian_out)n_position    ! offset for mu
     
@@ -449,7 +479,7 @@ contains
        call this%retrieve_index(index,'PHB',varname_all,nrecs)
        if(index<0) stop
        n_position=file_offset(index+1)
-       write(6,*)'  byte offset, memoryorder for PHB(',k+1,') = ',n_position,memoryorder_all(index)
+       if(print_verbose)write(6,*)'  byte offset, memoryorder for PHB(',k+1,') = ',n_position,memoryorder_all(index)
        write(lendian_out)n_position,memoryorder_all(index)    ! offset for PHB 
                                                            !     (zsfc*g is 1st level of this 3d field)
                                  !  but more efficient to read in whole 3-d field because of ikj order
@@ -458,7 +488,7 @@ contains
        call this%retrieve_index(index,'T',varname_all,nrecs)
        if(index<0) stop
        n_position=file_offset(index+1)
-       write(6,*)'  byte offset, memoryorder for T(',k,') = ',n_position,memoryorder_all(index)
+       if(print_verbose)write(6,*)'  byte offset, memoryorder for T(',k,') = ',n_position,memoryorder_all(index)
        write(lendian_out)n_position,memoryorder_all(index)  ! offset for T(k)    ! POT TEMP (sensible)
   
   
@@ -466,21 +496,21 @@ contains
        call this%retrieve_index(index,'QVAPOR',varname_all,nrecs)
        if(index<0) stop
        n_position=file_offset(index+1)
-       write(6,*)'  byte offset, memoryorder for QVAPOR(',k,' = ',n_position,memoryorder_all(index)
+       if(print_verbose)write(6,*)'  byte offset, memoryorder for QVAPOR(',k,' = ',n_position,memoryorder_all(index)
        write(lendian_out)n_position,memoryorder_all(index)    ! offset for QVAPOR(k)
        
   !                   U                  
        call this%retrieve_index(index,'U',varname_all,nrecs)
        if(index<0) stop
        n_position=file_offset(index+1)
-       write(6,*)'  byte offset, memoryorder for U(',k,' = ',n_position,memoryorder_all(index)
+       if(print_verbose)write(6,*)'  byte offset, memoryorder for U(',k,' = ',n_position,memoryorder_all(index)
        write(lendian_out)n_position,memoryorder_all(index)    ! offset for U(k)
   
   !                   V                  
        call this%retrieve_index(index,'V',varname_all,nrecs)
        if(index<0) stop
        n_position=file_offset(index+1)
-       write(6,*)'  byte offset, memoryorder for V(',k,' = ',n_position,memoryorder_all(index)
+       if(print_verbose)write(6,*)'  byte offset, memoryorder for V(',k,' = ',n_position,memoryorder_all(index)
        write(lendian_out)n_position,memoryorder_all(index)    ! offset for V(k)
   
   !                   LANDMASK          
@@ -488,7 +518,7 @@ contains
        if(index<0) stop
        n_position=file_offset(index+1)
   
-       write(6,*)'  byte offset for LANDMASK = ',n_position
+       if(print_verbose)write(6,*)'  byte offset for LANDMASK = ',n_position
   
        write(lendian_out)n_position     !  LANDMASK  (1=land, 0=water)
   
@@ -497,7 +527,7 @@ contains
        if(index<0) stop
        n_position=file_offset(index+1)
      
-       write(6,*)'  byte offset for XICE = ',n_position
+       if(print_verbose)write(6,*)'  byte offset for XICE = ',n_position
   
        write(lendian_out)n_position     !  XICE
   
@@ -506,7 +536,7 @@ contains
        if(index<0) stop
        n_position=file_offset(index+1)
   
-       write(6,*)'  byte offset for SST = ',n_position
+       if(print_verbose)write(6,*)'  byte offset for SST = ',n_position
   
        write(lendian_out)n_position     !  SST
   
@@ -515,7 +545,7 @@ contains
        if(index<0) stop
        n_position=file_offset(index+1)
   
-       write(6,*)'  byte offset for IVGTYP = ',n_position
+       if(print_verbose)write(6,*)'  byte offset for IVGTYP = ',n_position
   
        write(lendian_out)n_position     !  IVGTYP
   
@@ -524,7 +554,7 @@ contains
        if(index<0) stop
        n_position=file_offset(index+1)
      
-       write(6,*)'  byte offset for ISLTYP = ',n_position
+       if(print_verbose)write(6,*)'  byte offset for ISLTYP = ',n_position
   
        write(lendian_out)n_position     !  ISLTYP
     
@@ -533,7 +563,7 @@ contains
        if(index<0) stop
        n_position=file_offset(index+1)
   
-       write(6,*)'  byte offset for VEGFRA = ',n_position
+       if(print_verbose)write(6,*)'  byte offset for VEGFRA = ',n_position
   
        write(lendian_out)n_position     !  VEGFRA
   
@@ -542,7 +572,7 @@ contains
        if(index<0) stop
        n_position=file_offset(index+1)
   
-       write(6,*)'  byte offset for SNOW = ',n_position
+       if(print_verbose)write(6,*)'  byte offset for SNOW = ',n_position
   
        write(lendian_out)n_position     !  SNOW
   
@@ -551,7 +581,7 @@ contains
        if(index<0) stop
        n_position=file_offset(index+1)
   
-       write(6,*)'  byte offset for U10 = ',n_position
+       if(print_verbose)write(6,*)'  byte offset for U10 = ',n_position
   
        write(lendian_out)n_position     !  U10
     
@@ -560,7 +590,7 @@ contains
        if(index<0) stop
        n_position=file_offset(index+1)
      
-       write(6,*)'  byte offset for V10 = ',n_position
+       if(print_verbose)write(6,*)'  byte offset for V10 = ',n_position
   
        write(lendian_out)n_position     !  V10
   
@@ -574,7 +604,7 @@ contains
           ksize=domainend_all(3,index)
        end if
        n_position=file_offset(index+1)
-       write(6,*)'  byte offset, ksize, memoryorder for SMOIS(',ksize,') = ', &
+       if(print_verbose)write(6,*)'  byte offset, ksize, memoryorder for SMOIS(',ksize,') = ', &
                                              n_position,ksize,memoryorder_all(index)
        write(lendian_out)n_position,ksize,memoryorder_all(index)     !  SMOIS
   
@@ -588,7 +618,7 @@ contains
           ksize=domainend_all(3,index)
        end if
        n_position=file_offset(index+1)
-       write(6,*)'  byte offset, ksize, memoryorder for TSLB(',ksize,') = ', &
+       if(print_verbose)write(6,*)'  byte offset, ksize, memoryorder for TSLB(',ksize,') = ', &
                                                 n_position,ksize,memoryorder_all(index)
        write(lendian_out)n_position,ksize,memoryorder_all(index)     !  TSLB
   
@@ -597,7 +627,7 @@ contains
        if(index<0) stop
        n_position=file_offset(index+1)
   
-       write(6,*)'  byte offset for TSK = ',n_position
+       if(print_verbose)write(6,*)'  byte offset for TSK = ',n_position
   
        write(lendian_out)n_position     !  TSK
   
@@ -605,7 +635,7 @@ contains
        call this%retrieve_index(index,'Q2',varname_all,nrecs)
        if(index<0) stop
        n_position=file_offset(index+1)
-       write(6,*)'  byte offset for Q2 = ',n_position
+       if(print_verbose)write(6,*)'  byte offset for Q2 = ',n_position
        write(lendian_out)n_position     !  Q2
   
   
@@ -614,13 +644,13 @@ contains
           call this%retrieve_index(index,'SOILT1',varname_all,nrecs)
           if(index<0) stop
           n_position=file_offset(index+1)
-          write(6,*)'  byte offset for SOILT1= ',n_position
+          if(print_verbose)write(6,*)'  byte offset for SOILT1= ',n_position
           write(lendian_out)n_position     ! SOILT1 
   !                   TH2                
           call this%retrieve_index(index,'TH2',varname_all,nrecs)
           if(index<0) stop
           n_position=file_offset(index+1)
-          write(6,*)'  byte offset for TH2 = ',n_position
+          if(print_verbose)write(6,*)'  byte offset for TH2 = ',n_position
           write(lendian_out)n_position     !  TH2
        endif
   
@@ -629,63 +659,63 @@ contains
           call this%retrieve_index(index,'QCLOUD',varname_all,nrecs)
           if(index<0) stop
           n_position=file_offset(index+1)
-          write(6,*)'  byte offset, memoryorder for QCLOUD(',k,' = ',n_position,memoryorder_all(index)
+          if(print_verbose)write(6,*)'  byte offset, memoryorder for QCLOUD(',k,' = ',n_position,memoryorder_all(index)
           write(lendian_out)n_position,memoryorder_all(index)    ! offset for QCLOUD(k)
   
   !      QRAIN
           call this%retrieve_index(index,'QRAIN',varname_all,nrecs)
           if(index<0) stop
           n_position=file_offset(index+1)
-          write(6,*)'  byte offset, memoryorder for QRAIN(',k,' = ',n_position,memoryorder_all(index)
+          if(print_verbose)write(6,*)'  byte offset, memoryorder for QRAIN(',k,' = ',n_position,memoryorder_all(index)
           write(lendian_out)n_position,memoryorder_all(index)    ! offset for QRAIN(k)
   
   !      QICE
           call this%retrieve_index(index,'QICE',varname_all,nrecs)
           if(index<0) stop
           n_position=file_offset(index+1)
-          write(6,*)'  byte offset, memoryorder for QICE(',k,' = ',n_position,memoryorder_all(index)
+          if(print_verbose)write(6,*)'  byte offset, memoryorder for QICE(',k,' = ',n_position,memoryorder_all(index)
           write(lendian_out)n_position,memoryorder_all(index)    ! offset for QICE(k)
   
   !      QSNOW
           call this%retrieve_index(index,'QSNOW',varname_all,nrecs)
           if(index<0) stop
           n_position=file_offset(index+1)
-          write(6,*)'  byte offset, memoryorder for QSNOW(',k,' = ',n_position,memoryorder_all(index)
+          if(print_verbose)write(6,*)'  byte offset, memoryorder for QSNOW(',k,' = ',n_position,memoryorder_all(index)
           write(lendian_out)n_position,memoryorder_all(index)    ! offset for QSNOW(k)
   
   !      QGRAUP
           call this%retrieve_index(index,'QGRAUP',varname_all,nrecs)
           if(index<0) stop
           n_position=file_offset(index+1)
-          write(6,*)'  byte offset, memoryorder for QGRAUP(',k,' = ',n_position,memoryorder_all(index)
+          if(print_verbose)write(6,*)'  byte offset, memoryorder for QGRAUP(',k,' = ',n_position,memoryorder_all(index)
           write(lendian_out)n_position,memoryorder_all(index)    ! offset for QGRAUP(k)
   
   !      QNRAIN
           call this%retrieve_index(index,'QNRAIN',varname_all,nrecs)
           if(index<0) stop
           n_position=file_offset(index+1)
-          write(6,*)'  byte offset, memoryorder for QNRAIN(',k,' = ',n_position,memoryorder_all(index)
+          if(print_verbose)write(6,*)'  byte offset, memoryorder for QNRAIN(',k,' = ',n_position,memoryorder_all(index)
           write(lendian_out)n_position,memoryorder_all(index)    ! offset for QNRAIN(k)
   
   !      QNRIC
           call this%retrieve_index(index,'QNICE',varname_all,nrecs)
           if(index<0) stop
           n_position=file_offset(index+1)
-          write(6,*)'  byte offset, memoryorder for QNICE(',k,' = ',n_position,memoryorder_all(index)
+          if(print_verbose)write(6,*)'  byte offset, memoryorder for QNICE(',k,' = ',n_position,memoryorder_all(index)
           write(lendian_out)n_position,memoryorder_all(index)    ! offset for QNICE(k)
   
   !      QNCLOUD
           call this%retrieve_index(index,'QNCLOUD',varname_all,nrecs)
           if(index<0) stop
           n_position=file_offset(index+1)
-          write(6,*)'  byte offset, memoryorder for QNCLOUD(',k,' = ',n_position,memoryorder_all(index)
+          if(print_verbose)write(6,*)'  byte offset, memoryorder for QNCLOUD(',k,' = ',n_position,memoryorder_all(index)
           write(lendian_out)n_position,memoryorder_all(index)    ! offset for QNCLOUD(k)
   
   !      RAD_TTEN_DFI
           call this%retrieve_index(index,'RAD_TTEN_DFI',varname_all,nrecs)
           if(index<0) stop
           n_position=file_offset(index+1)
-          write(6,*)'  byte offset, memoryorder for RAD_TTEN_DFI(',k,' = ',n_position,memoryorder_all(index)
+          if(print_verbose)write(6,*)'  byte offset, memoryorder for RAD_TTEN_DFI(',k,' = ',n_position,memoryorder_all(index)
           write(lendian_out)n_position,memoryorder_all(index)    ! offset for RAD_TTEN_DFI(k)
   
        endif     ! l_cloud_analysis
@@ -695,42 +725,42 @@ contains
        call this%retrieve_field_rn1n2(in_unit,wrfges,field2,nlon_regional,nlat_regional, &
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
-       write(6,*)' convert_binary_mass: max,min Z0=', &
+       if(print_verbose)write(6,*)' convert_binary_mass: max,min Z0=', &
             maxval(field2),minval(field2)
        write(lendian_out)field2        !  Z0
        call this%retrieve_index(index,'SST',varname_all,nrecs)
        call this%retrieve_field_rn1n2(in_unit,wrfges,field2,nlon_regional,nlat_regional, &
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
-       write(6,*)' convert_binary_mass: max,min SST=', &
+       if(print_verbose)write(6,*)' convert_binary_mass: max,min SST=', &
             maxval(field2),minval(field2)
        write(lendian_out)field2        !  SST
        call this%retrieve_index(index,'TSK',varname_all,nrecs)
        call this%retrieve_field_rn1n2(in_unit,wrfges,field2,nlon_regional,nlat_regional, &
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
-       write(6,*)' convert_binary_mass: max,min TSK=', &
+       if(print_verbose)write(6,*)' convert_binary_mass: max,min TSK=', &
             maxval(field2),minval(field2)
        write(lendian_out)field2        !  TSK
        call this%retrieve_index(index,'LANDMASK',varname_all,nrecs)
        call this%retrieve_field_rn1n2(in_unit,wrfges,field2,nlon_regional,nlat_regional, &
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
-       write(6,*)' convert_binary_mass: max,min LANDMASK=', &
+       if(print_verbose)write(6,*)' convert_binary_mass: max,min LANDMASK=', &
             maxval(field2),minval(field2)
        write(lendian_out)field2        !  LANDMASK
        call this%retrieve_index(index,'SEAICE',varname_all,nrecs)
        call this%retrieve_field_rn1n2(in_unit,wrfges,field2,nlon_regional,nlat_regional, &
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
-       write(6,*)' convert_binary_mass: max,min XICE=', &
+       if(print_verbose)write(6,*)' convert_binary_mass: max,min XICE=', &
             maxval(field2),minval(field2)
        write(lendian_out)field2        !  XICE
        call this%retrieve_index(index,'SNOW',varname_all,nrecs)
        call this%retrieve_field_rn1n2(in_unit,wrfges,field2,nlon_regional,nlat_regional, &
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
-       write(6,*)' convert_binary_mass: max,min SNOW=', &
+       if(print_verbose)write(6,*)' convert_binary_mass: max,min SNOW=', &
             maxval(field2),minval(field2)
        write(lendian_out)field2        !  SNOW
      
@@ -802,7 +832,7 @@ contains
     use kinds, only: r_single,i_llong,r_kind,i_kind
     use constants, only: zero,half,rad2deg
     use gsi_4dvar, only: nhr_assimilation
-    use gsi_io, only: lendian_out
+    use gsi_io, only: lendian_out, verbose
     use gsi_metguess_mod, only: gsi_metguess_get
     use gfs_stratosphere, only: mix_gfs_nmmb_vcoords,use_gfs_stratosphere,nsig_max,nsig_save                                                                            
     implicit none
@@ -839,6 +869,10 @@ contains
     real(r_single),allocatable::aeta2_new(:),deta2_new(:),eta2_new(:)
     integer(i_kind) ksize
     integer(i_kind) index
+    logical :: print_verbose
+
+    print_verbose=.false.
+    if(verbose)print_verbose=.true.
      
   ! Inquire about cloud guess fields
     call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
@@ -854,8 +888,10 @@ contains
        write(fileout,'("sigf",i2.2)')n
   
        open(in_unit,file=trim(wrfges),form='unformatted')
-       write(6,*)' convert_binary_nmm: in_unit,lendian_out=',in_unit,lendian_out
-       write(6,*)' convert_binary_nmm: in_unit,out_unit=',wrfges,',',fileout
+       if(print_verbose)then
+          write(6,*)' convert_binary_nmm: in_unit,lendian_out=',in_unit,lendian_out
+          write(6,*)' convert_binary_nmm: in_unit,out_unit=',wrfges,',',fileout
+       end if
   
   !    Check for valid input file
        read(in_unit,iostat=status_hdr)hdrbuf
@@ -883,7 +919,7 @@ contains
   !    first determine if endian mismatch between machine and file, and set logical byte_swap accordingly.
        call this%initialize_byte_swap_wrf_binary_file(in_unit,wrfges)
        call count_recs_wrf_binary_file(this,in_unit,wrfges,nrecs)
-       write(6,*) '  after count_recs_wrf_binary_file, nrecs=',nrecs
+       if(print_verbose)write(6,*) '  after count_recs_wrf_binary_file, nrecs=',nrecs
   
        allocate(datestr_all(nrecs),varname_all(nrecs),domainend_all(3,nrecs))
        allocate(memoryorder_all(nrecs))
@@ -900,7 +936,7 @@ contains
        if(index<0) stop
        read(datestr_all(index),'(i4,1x,i2,1x,i2,1x,i2,1x,i2,1x,i2)') &
                   iyear,imonth,iday,ihour,iminute,isecond
-       write(6,*)' convert_binary_nmm: START_DATE =',&
+       if(print_verbose)write(6,*)' convert_binary_nmm: START_DATE =',&
             iyear,imonth,iday,ihour,iminute,isecond
     
   !                  nlon_regional, nlat_regional, nsig_regional
@@ -923,10 +959,12 @@ contains
   
        read(datestr_all(index),'(i4,1x,i2,1x,i2,1x,i2,1x,i2,1x,i2)') &
             iyear,imonth,iday,ihour,iminute,isecond
-       write(6,*)' convert_binary_nmm: iy,m,d,h,m,s=',&
+       if(print_verbose)then
+          write(6,*)' convert_binary_nmm: iy,m,d,h,m,s=',&
             iyear,imonth,iday,ihour,iminute,isecond
-       write(6,*)' convert_binary_nmm: nlon,lat,sig_regional=',&
+          write(6,*)' convert_binary_nmm: nlon,lat,sig_regional=',&
             nlon_regional,nlat_regional,nsig_regional
+       end if
   
   !                  NSTART_HOUR
        call this%retrieve_index(index,'NSTART_HOUR',varname_all,nrecs)
@@ -935,7 +973,7 @@ contains
        else
           call this%retrieve_field_i1(in_unit,wrfges,nstart_hour,start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
-          write(6,*)' convert_binary_nmm: nstart_hour=',nstart_hour
+          if(print_verbose)write(6,*)' convert_binary_nmm: nstart_hour=',nstart_hour
        end if 
   
   
@@ -945,7 +983,7 @@ contains
        call this%retrieve_field_r1(in_unit,wrfges,dlmd_regional,start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
   
-       write(6,*)' convert_binary_nmm: dlmd_regional=',dlmd_regional
+       if(print_verbose)write(6,*)' convert_binary_nmm: dlmd_regional=',dlmd_regional
     
   !                  dphd_regional
        call this%retrieve_index(index,'DPHD',varname_all,nrecs)
@@ -953,21 +991,21 @@ contains
        call this%retrieve_field_r1(in_unit,wrfges,dphd_regional,start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
   
-       write(6,*)' convert_binary_nmm: dphd_regional=',dphd_regional
+       if(print_verbose)write(6,*)' convert_binary_nmm: dphd_regional=',dphd_regional
   
   !                  pt_regional
        call this%retrieve_index(index,'PT',varname_all,nrecs)
        if(index<0) stop
        call this%retrieve_field_r1(in_unit,wrfges,pt_regional,start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
-       write(6,*)' convert_binary_nmm: pt_regional=',pt_regional
+       if(print_verbose)write(6,*)' convert_binary_nmm: pt_regional=',pt_regional
   
   !                  pdtop_regional
        call this%retrieve_index(index,'PDTOP',varname_all,nrecs)
        if(index<0) stop
        call this%retrieve_field_r1(in_unit,wrfges,pdtop_regional,start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
-       write(6,*)' convert_binary_nmm: pdtop_regional=',pdtop_regional
+       if(print_verbose)write(6,*)' convert_binary_nmm: pdtop_regional=',pdtop_regional
   
   !     write(lendian_out) iyear,imonth,iday,ihour,iminute,isecond, &
   !          nlon_regional,nlat_regional,nsig_regional, &
@@ -983,7 +1021,7 @@ contains
                                     start_byte(index+1),end_byte(index+1))
   
        do k=1,nsig_regional
-          write(6,*)' convert_binary_nmm: k,deta1(k)=',k,field1(k)
+          if(print_verbose)write(6,*)' convert_binary_nmm: k,deta1(k)=',k,field1(k)
           deta1(k)=field1(k)   
        end do
   
@@ -996,7 +1034,7 @@ contains
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
        do k=1,nsig_regional
-          write(6,*)' convert_binary_nmm: k,aeta1(k)=',k,field1(k)
+          if(print_verbose)write(6,*)' convert_binary_nmm: k,aeta1(k)=',k,field1(k)
           aeta1(k)=field1(k) 
        end do
   
@@ -1009,7 +1047,7 @@ contains
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
        do k=1,nsig_regional+1
-          write(6,*)' convert_binary_nmm: k,eta1(k)=',k,field1p(k)
+          if(print_verbose)write(6,*)' convert_binary_nmm: k,eta1(k)=',k,field1p(k)
           eta1(k)=field1p(k)   
        end do
   
@@ -1022,7 +1060,7 @@ contains
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
        do k=1,nsig_regional
-          write(6,*)' convert_binary_nmm: k,deta2(k)=',k,field1(k)
+          if(print_verbose)write(6,*)' convert_binary_nmm: k,deta2(k)=',k,field1(k)
           deta2(k)=field1(k)     
        end do
   
@@ -1036,7 +1074,7 @@ contains
                                     start_byte(index+1),end_byte(index+1))
   
        do k=1,nsig_regional
-          write(6,*)' convert_binary_nmm: k,aeta2(k)=',k,field1(k)
+          if(print_verbose)write(6,*)' convert_binary_nmm: k,aeta2(k)=',k,field1(k)
           aeta2(k)=field1(k)    
        end do
   
@@ -1050,7 +1088,7 @@ contains
                                     start_byte(index+1),end_byte(index+1))
   
        do k=1,nsig_regional+1
-          write(6,*)' convert_binary_nmm: k,eta2(k)=',k,field1p(k)
+          if(print_verbose)write(6,*)' convert_binary_nmm: k,eta2(k)=',k,field1p(k)
           eta2(k)=field1p(k)    
        end do
   !    write(lendian_out)field1p            !  ETA2
@@ -1066,11 +1104,15 @@ contains
                                     pdtop_regional,pt_regional,nsig_regional, &
                                     deta1_new,aeta1_new,eta1_new,deta2_new,aeta2_new,eta2_new,nsig_regional_new)
           nsig_read=nsig_save
-          write(6,*)' in convert_netcdf_nmm, compute new vertical coordinate which is merged with gfs'   
-          write(6,*)' previous nsig_regional=',nsig_regional
+          if(print_verbose)then
+             write(6,*)' in convert_netcdf_nmm, compute new vertical coordinate which is merged with gfs'   
+             write(6,*)' previous nsig_regional=',nsig_regional
+          end if
           nsig_regional=nsig_regional_new    !new nsig
-          write(6,*)'      new nsig_regional=',nsig_regional
-          write(6,*)'              nsig_read=',nsig_read 
+          if(print_verbose)then
+             write(6,*)'      new nsig_regional=',nsig_regional
+             write(6,*)'              nsig_read=',nsig_read 
+          end if
           deallocate(deta1,aeta1,eta1)
           deallocate(deta2,aeta2,eta2)
           allocate(deta1(nsig_regional),aeta1(nsig_regional),eta1(nsig_regional+1))
@@ -1109,14 +1151,16 @@ contains
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
   
-       write(6,*)' convert_binary_nmm: max,min GLAT=', &
+       if(print_verbose)then
+          write(6,*)' convert_binary_nmm: max,min GLAT=', &
             rad2deg*maxval(field2),rad2deg*minval(field2)
-       write(6,*)' convert_binary_nmm: glat(1,1),glat(nlon,1)=', &
+          write(6,*)' convert_binary_nmm: glat(1,1),glat(nlon,1)=', &
             rad2deg*field2(1,1),rad2deg*field2(nlon_regional,1)
-       write(6,*)' convert_binary_nmm: glat(1,nlat),glat(nlon,nlat)=', &
+          write(6,*)' convert_binary_nmm: glat(1,nlat),glat(nlon,nlat)=', &
             rad2deg*field2(1,nlat_regional),rad2deg*field2(nlon_regional,nlat_regional)
-       write(6,*)' convert_binary_nmm: my guess at tph0d = ', &
+          write(6,*)' convert_binary_nmm: my guess at tph0d = ', &
             rad2deg*field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)
+       end if
        ctph0=cos(field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
        stph0=sin(field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
   
@@ -1127,12 +1171,14 @@ contains
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
   
-       write(6,*)' convert_binary_nmm: max,min DX_NMM=', &
+       if(print_verbose)then
+          write(6,*)' convert_binary_nmm: max,min DX_NMM=', &
             maxval(field2b),minval(field2b)
-       write(6,*)' convert_binary_nmm: dx_nmm(1,1),dx_nmm(nlon,1)=', &
+          write(6,*)' convert_binary_nmm: dx_nmm(1,1),dx_nmm(nlon,1)=', &
             field2b(1,1),field2b(nlon_regional,1)
-       write(6,*)' convert_binary_nmm: dx_nmm(1,nlat),dx_nmm(nlon,nlat)=', &
+          write(6,*)' convert_binary_nmm: dx_nmm(1,nlat),dx_nmm(nlon,nlat)=', &
             field2b(1,nlat_regional),field2b(nlon_regional,nlat_regional)
+       end if
   
        write(lendian_out)field2,field2b     !  GLAT,DX_NMM
   
@@ -1143,15 +1189,17 @@ contains
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
   
-       write(6,*)' convert_binary_nmm: max,min GLON=', &
+       if(print_verbose)then
+          write(6,*)' convert_binary_nmm: max,min GLON=', &
             rad2deg*maxval(field2),rad2deg*minval(field2)
-       write(6,*)' convert_binary_nmm: glon(1,1),glon(nlon,1)=', &
+          write(6,*)' convert_binary_nmm: glon(1,1),glon(nlon,1)=', &
             rad2deg*field2(1,1),rad2deg*field2(nlon_regional,1)
-       write(6,*)' convert_binary_nmm: glon(1,nlat),glon(nlon,nlat)=', &
+          write(6,*)' convert_binary_nmm: glon(1,nlat),glon(nlon,nlat)=', &
             rad2deg*field2(1,nlat_regional),rad2deg*field2(nlon_regional,nlat_regional)
-       write(6,*)' convert_binary_nmm: my guess at tlm0d = ', &
+          write(6,*)' convert_binary_nmm: my guess at tlm0d = ', &
             half*rad2deg*(field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)+ &
                         field2(2+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
+       end if
        tlm0=half*(field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)+ &
                 field2(2+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
   
@@ -1160,7 +1208,7 @@ contains
        if(index<0) stop
        call this%retrieve_field_r1(in_unit,wrfges,dy_nmm,start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
-       write(6,*)' convert_binary_nmm: DY_NMM=',dy_nmm
+       if(print_verbose)write(6,*)' convert_binary_nmm: DY_NMM=',dy_nmm
        field2b=dy_nmm
   
        write(lendian_out)field2,field2b     !  GLON,DY_NMM
@@ -1194,7 +1242,7 @@ contains
        if(index<0) stop
        n_position=file_offset(index+1)
   
-       write(6,*)'  byte offset for FIS = ',n_position
+       if(print_verbose)write(6,*)'  byte offset for FIS = ',n_position
   
        write(lendian_out)n_position  !  offset for FIS
   
@@ -1204,7 +1252,7 @@ contains
        if(index>0) then
           update_pint=.true.
           n_position=file_offset(index+1)
-          write(6,*)'  byte offset, memoryorder for PINT = ',n_position,memoryorder_all(index)
+          if(print_verbose)write(6,*)'  byte offset, memoryorder for PINT = ',n_position,memoryorder_all(index)
           write(lendian_out)n_position,memoryorder_all(index)    ! offset for PINT !
        end if
   
@@ -1212,91 +1260,91 @@ contains
        call this%retrieve_index(index,'T',varname_all,nrecs)
        if(index<0) stop
        n_position=file_offset(index+1)
-       write(6,*)'  byte offset, memoryorder for T = ',n_position,memoryorder_all(index)
+       if(print_verbose)write(6,*)'  byte offset, memoryorder for T = ',n_position,memoryorder_all(index)
        write(lendian_out)n_position,memoryorder_all(index)    ! offset for T    !
     
   !                   Q                  
        call this%retrieve_index(index,'Q',varname_all,nrecs)
        if(index<0) stop
        n_position=file_offset(index+1)
-       write(6,*)'  byte offset, memoryorder for Q = ',n_position,memoryorder_all(index)
+       if(print_verbose)write(6,*)'  byte offset, memoryorder for Q = ',n_position,memoryorder_all(index)
        write(lendian_out)n_position,memoryorder_all(index)    ! offset for Q    !
   
   !                   U                  
        call this%retrieve_index(index,'U',varname_all,nrecs)
        if(index<0) stop
        n_position=file_offset(index+1)
-       write(6,*)'  byte offset, memoryorder for U = ',n_position,memoryorder_all(index)
+       if(print_verbose)write(6,*)'  byte offset, memoryorder for U = ',n_position,memoryorder_all(index)
        write(lendian_out)n_position,memoryorder_all(index)    ! offset for U    !
   
   !                   V                  
        call this%retrieve_index(index,'V',varname_all,nrecs)
        if(index<0) stop
        n_position=file_offset(index+1)
-       write(6,*)'  byte offset, memoryorder for V = ',n_position,memoryorder_all(index)
+       if(print_verbose)write(6,*)'  byte offset, memoryorder for V = ',n_position,memoryorder_all(index)
        write(lendian_out)n_position,memoryorder_all(index)    ! offset for V    !
   
   !                   SM                
        call this%retrieve_index(index,'SM',varname_all,nrecs)
        if(index<0) stop
        n_position=file_offset(index+1)
-       write(6,*)'  byte offset for SM = ',n_position
+       if(print_verbose)write(6,*)'  byte offset for SM = ',n_position
        write(lendian_out)n_position    ! offset for SM    !
   
   !                   SICE                
        call this%retrieve_index(index,'SICE',varname_all,nrecs)
        if(index<0) stop
        n_position=file_offset(index+1)
-       write(6,*)'  byte offset for SICE = ',n_position
+       if(print_verbose)write(6,*)'  byte offset for SICE = ',n_position
        write(lendian_out)n_position    ! offset for SICE  !
   
   !                   SST                
        call this%retrieve_index(index,'SST',varname_all,nrecs)
        if(index<0) stop
        n_position=file_offset(index+1)
-       write(6,*)'  byte offset for SST = ',n_position
+       if(print_verbose)write(6,*)'  byte offset for SST = ',n_position
        write(lendian_out)n_position    ! offset for SST   !
   
   !                   IVGTYP                
        call this%retrieve_index(index,'IVGTYP',varname_all,nrecs)
        if(index<0) stop
        n_position=file_offset(index+1)
-       write(6,*)'  byte offset for IVGTYP = ',n_position
+       if(print_verbose)write(6,*)'  byte offset for IVGTYP = ',n_position
        write(lendian_out)n_position    ! offset for IVGTYP    !
   
   !                   ISLTYP                
        call this%retrieve_index(index,'ISLTYP',varname_all,nrecs)
        if(index<0) stop
        n_position=file_offset(index+1)
-       write(6,*)'  byte offset for ISLTYP = ',n_position
+       if(print_verbose)write(6,*)'  byte offset for ISLTYP = ',n_position
        write(lendian_out)n_position    ! offset for ISLTYP    !
   
   !                   VEGFRC                
        call this%retrieve_index(index,'VEGFRC',varname_all,nrecs)
        if(index<0) stop
        n_position=file_offset(index+1)
-       write(6,*)'  byte offset for VEGFRC = ',n_position
+       if(print_verbose)write(6,*)'  byte offset for VEGFRC = ',n_position
        write(lendian_out)n_position    ! offset for VEGFRC    !
   
   !                   SNO                
        call this%retrieve_index(index,'SNO',varname_all,nrecs)
        if(index<0) stop
        n_position=file_offset(index+1)
-       write(6,*)'  byte offset for SNO = ',n_position
+       if(print_verbose)write(6,*)'  byte offset for SNO = ',n_position
        write(lendian_out)n_position    ! offset for SNO   !
   
   !                   U10                
        call this%retrieve_index(index,'U10',varname_all,nrecs)
        if(index<0) stop
        n_position=file_offset(index+1)
-       write(6,*)'  byte offset for U10 = ',n_position
+       if(print_verbose)write(6,*)'  byte offset for U10 = ',n_position
        write(lendian_out)n_position    ! offset for U10   !
   
   !                   V10                
        call this%retrieve_index(index,'V10',varname_all,nrecs)
        if(index<0) stop
        n_position=file_offset(index+1)
-       write(6,*)'  byte offset for V10 = ',n_position
+       if(print_verbose)write(6,*)'  byte offset for V10 = ',n_position
        write(lendian_out)n_position    ! offset for V10   !
   
   !                   SMC                
@@ -1309,7 +1357,7 @@ contains
        if(trim(memoryorder_all(index))=='XYZ') then
           ksize=domainend_all(3,index)
        end if
-       write(6,*)'  byte offset, ksize, memoryorder for SMC = ',n_position,ksize,memoryorder_all(index)
+       if(print_verbose)write(6,*)'  byte offset, ksize, memoryorder for SMC = ',n_position,ksize,memoryorder_all(index)
        write(lendian_out)n_position,ksize,memoryorder_all(index)    ! offset for SMC   !
   
   !                   STC                
@@ -1322,14 +1370,14 @@ contains
        if(trim(memoryorder_all(index))=='XYZ') then
           ksize=domainend_all(3,index)
        end if
-       write(6,*)'  byte offset, ksize, memoryorder for STC = ',n_position,ksize,memoryorder_all(index)
+       if(print_verbose)write(6,*)'  byte offset, ksize, memoryorder for STC = ',n_position,ksize,memoryorder_all(index)
        write(lendian_out)n_position,ksize,memoryorder_all(index)    ! offset for STC   !
     
   !                   TSK                
        call this%retrieve_index(index,'TSK',varname_all,nrecs)
        if(index<0) stop
        n_position=file_offset(index+1)
-       write(6,*)'  byte offset for TSK = ',n_position
+       if(print_verbose)write(6,*)'  byte offset for TSK = ',n_position
        write(lendian_out)n_position    ! offset for TSK   !
   
        if (n_actual_clouds>0) then
@@ -1337,28 +1385,28 @@ contains
           call this%retrieve_index(index,'CWM',varname_all,nrecs)
           if(index<0) stop
           n_position=file_offset(index+1)
-          write(6,*)'  byte offset, memoryorder for CWM = ',n_position,memoryorder_all(index)
+          if(print_verbose)write(6,*)'  byte offset, memoryorder for CWM = ',n_position,memoryorder_all(index)
           write(lendian_out)n_position,memoryorder_all(index)    ! offset for CWM    !
   
   !                   F_ICE
           call this%retrieve_index(index,'F_ICE',varname_all,nrecs)
           if(index<0) stop
           n_position=file_offset(index+1)
-          write(6,*)'  byte offset, memoryorder for F_ICE = ',n_position,memoryorder_all(index)
+          if(print_verbose)write(6,*)'  byte offset, memoryorder for F_ICE = ',n_position,memoryorder_all(index)
           write(lendian_out)n_position,memoryorder_all(index)    ! offset for F_ICE    !
   
   !                   F_RAIN
           call this%retrieve_index(index,'F_RAIN',varname_all,nrecs)
           if(index<0) stop
           n_position=file_offset(index+1)
-          write(6,*)'  byte offset, memoryorder for F_RAIN = ',n_position,memoryorder_all(index)
+          if(print_verbose)write(6,*)'  byte offset, memoryorder for F_RAIN = ',n_position,memoryorder_all(index)
           write(lendian_out)n_position,memoryorder_all(index)    ! offset for F_RAIN    !
   
   !                   F_RIMEF
           call this%retrieve_index(index,'F_RIMEF',varname_all,nrecs)
           if(index<0) stop
           n_position=file_offset(index+1)
-          write(6,*)'  byte offset, memoryorder for F_RIMEF = ',n_position,memoryorder_all(index)
+          if(print_verbose)write(6,*)'  byte offset, memoryorder for F_RIMEF = ',n_position,memoryorder_all(index)
           write(lendian_out)n_position,memoryorder_all(index)    ! offset for F_RIMEF    !
        end if  ! end of n_actual_clouds>0
   
@@ -1367,7 +1415,7 @@ contains
        call this%retrieve_field_rn1n2(in_unit,wrfges,field2b,nlon_regional,nlat_regional, &
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
-       write(6,*)' convert_binary_nmm: max,min Z0=', &
+       if(print_verbose)write(6,*)' convert_binary_nmm: max,min Z0=', &
             maxval(field2b),minval(field2b)
        write(lendian_out)field2b     !  Z0
   !?????????????????????????????????????????????????????????????????
@@ -1375,35 +1423,35 @@ contains
        call this%retrieve_field_rn1n2(in_unit,wrfges,field2b,nlon_regional,nlat_regional, &
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
-       write(6,*)' convert_binary_nmm: max,min SST=', &
+       if(print_verbose)write(6,*)' convert_binary_nmm: max,min SST=', &
             maxval(field2b),minval(field2b)
        write(lendian_out)field2b     !  SST
        call this%retrieve_index(index,'TSK',varname_all,nrecs)
        call this%retrieve_field_rn1n2(in_unit,wrfges,field2b,nlon_regional,nlat_regional, &
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
-       write(6,*)' convert_binary_nmm: max,min TSK=', &
+       if(print_verbose)write(6,*)' convert_binary_nmm: max,min TSK=', &
             maxval(field2b),minval(field2b)
        write(lendian_out)field2b     !  TSK
        call this%retrieve_index(index,'SM',varname_all,nrecs)
        call this%retrieve_field_rn1n2(in_unit,wrfges,field2b,nlon_regional,nlat_regional, &
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
-       write(6,*)' convert_binary_nmm: max,min SM=', &
+       if(print_verbose)write(6,*)' convert_binary_nmm: max,min SM=', &
             maxval(field2b),minval(field2b)
        write(lendian_out)field2b     !  SM
        call this%retrieve_index(index,'SICE',varname_all,nrecs)
        call this%retrieve_field_rn1n2(in_unit,wrfges,field2b,nlon_regional,nlat_regional, &
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
-       write(6,*)' convert_binary_nmm: max,min SICE=', &
+       if(print_verbose)write(6,*)' convert_binary_nmm: max,min SICE=', &
             maxval(field2b),minval(field2b)
        write(lendian_out)field2b     !  SICE
        call this%retrieve_index(index,'SNO',varname_all,nrecs)
        call this%retrieve_field_rn1n2(in_unit,wrfges,field2b,nlon_regional,nlat_regional, &
                                     start_block(index+1),end_block(index+1), &
                                     start_byte(index+1),end_byte(index+1))
-       write(6,*)' convert_binary_nmm: max,min SNO=', &
+       if(print_verbose)write(6,*)' convert_binary_nmm: max,min SNO=', &
             maxval(field2b),minval(field2b)
        write(lendian_out)field2b     !  SNO
        deallocate(field2,field2b)
@@ -3005,6 +3053,7 @@ contains
   !
   !$$$
     use kinds, only: i_kind
+    use gsi_io, only: verbose
     IMPLICIT NONE
   
   ! INCLUDE 'intio_tags.h'
@@ -3028,8 +3077,8 @@ contains
     call int_unpack_string ( Data   , hdrbuf( i ), n ) ; i = i + n
     call int_unpack_string ( VarName  , hdrbuf( i ), n ) ; i = i + n
     hdrbufsize = hdrbuf(1)
-                         write(6,*)' in int_get_ti_header_char, hdrbufsize,itypesize,typesize=',&
-                                                                hdrbufsize,itypesize,typesize
+    if(verbose)write(6,*)' in int_get_ti_header_char, hdrbufsize,itypesize,typesize=',&
+                  hdrbufsize,itypesize,typesize
   
     RETURN
   END SUBROUTINE int_get_ti_header_char

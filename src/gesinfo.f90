@@ -496,8 +496,8 @@ subroutine gesinfo(mype)
      
 
   if(mype==mype_out) then
-     write(6,*)'GESINFO:  Guess    date is ',idate4,hourg
-     write(6,*)'GESINFO:  Analysis date is ',iadate,ianldate,time_offset
+     write(6,'(1x,a17,4i5,E22.10)')'GESINFO:  Guess    date is ',idate4,hourg
+     write(6,'(1x,a27,5i5,i12,E22.10)')'GESINFO:  Analysis date is ',iadate,ianldate,time_offset
   endif
 
   if (allocated(nems_vcoord))     deallocate(nems_vcoord)

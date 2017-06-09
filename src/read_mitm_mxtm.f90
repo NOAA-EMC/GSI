@@ -45,6 +45,7 @@ subroutine read_mitm_mxtm(nread,ndata,nodata,infile,obstype,lunout,gstime,sis,no
   use hilbertcurve,only: init_hilbertcurve, accum_hilbertcurve, &
                          apply_hilbertcurve,destroy_hilbertcurve
   use mpimod, only:npe
+  use gsi_io, only: verbose
   implicit none
 
 ! Declare passed variables
@@ -99,6 +100,7 @@ subroutine read_mitm_mxtm(nread,ndata,nodata,infile,obstype,lunout,gstime,sis,no
   logical lhilbert
   logical  linvalidkx, linvalidob
   logical  fexist
+  logical print_verbose
 
   real(r_double) :: rstation_id
   real(r_double) :: r_prvstg
@@ -136,6 +138,8 @@ subroutine read_mitm_mxtm(nread,ndata,nodata,infile,obstype,lunout,gstime,sis,no
   data maxtmint_oberrors(198)     / 1.2_r_single /
   data maxtmint_oberrors(199)     / 1.2_r_single /
 
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
   mxtmob = obstype == 'mxtm'
   mitmob = obstype == 'mitm'
 
@@ -182,7 +186,7 @@ subroutine read_mitm_mxtm(nread,ndata,nodata,infile,obstype,lunout,gstime,sis,no
       maxobs=maxobs+1
       goto 100
   101 continue
-   write(6,*)myname,': maxobs=',maxobs
+   if(print_verbose)write(6,*)myname,': maxobs=',maxobs
 
   if (maxobs == 0) then
      write(6,*)myname,': No reports found.  returning to read_obs.F90...'
@@ -210,11 +214,13 @@ subroutine read_mitm_mxtm(nread,ndata,nodata,infile,obstype,lunout,gstime,sis,no
     close(55)
   endif
 
-  write(6,*)myname,': ------ observation errors ------'
-  do k=kx_min,kx_max
-     write(6,*) 'maxtmint_oberrors(',k,')=',maxtmint_oberrors(k)
-  enddo
-  write(6,*)myname,': --------------------------------'
+  if(print_verbose)then
+     write(6,*)myname,': ------ observation errors ------'
+     do k=kx_min,kx_max
+        write(6,*) 'maxtmint_oberrors(',k,')=',maxtmint_oberrors(k)
+     enddo
+     write(6,*)myname,': --------------------------------'
+  end if
 
   allocate(cdata_all(nreal,maxobs))
 
@@ -293,7 +299,7 @@ subroutine read_mitm_mxtm(nread,ndata,nodata,infile,obstype,lunout,gstime,sis,no
 
       call time_4dvar(ianldate,toff)
 
-      if (mod(iout-1,100)==0) then
+      if (mod(iout-1,100)==0 .and. print_verbose) then
          write(6,*)myname,': t4dv is ',t4dv
          write(6,*)myname,': file date is ',ianldate
          write(6,*)myname,': time offset is ',toff,' hours'
