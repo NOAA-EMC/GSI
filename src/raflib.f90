@@ -67,6 +67,7 @@ use kinds,only: r_double,r_quad,r_single,i_byte,i_long,i_llong,i_short
 use mpimod,only: mpi_comm_world,mpi_integer,mpi_integer1,mpi_integer2,mpi_integer4, &
               mpi_integer8,mpi_max,mpi_min,mpi_real4,mpi_real8,mpi_real16,mpi_sum
 use constants, only: zero,half,one,two,zero_quad,zero_single
+use gsi_io, only: verbose
 
 implicit none
 
@@ -1595,9 +1596,11 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
   real(r_single) srgauss_min,srgauss_max
   integer(i_long) istat
 ! DEBUG
-  logical:: ldebug
+  logical:: ldebug,print_verbose
   real(r_single),allocatable:: rout(:,:),routa(:,:)
 
+  print_verbose = .false.
+  if(verbose)print_verbose=.true.
 !    nsmooth_shapiro has priority over nsmooth
   if(nsmooth_shapiro>0) nsmooth=0
 !      set up halo update (only if nsmooth and/or nsmooth_shapiro > 0)
@@ -1659,7 +1662,7 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
      binomial(1:kk,kk)=binomial0(1:kk,k)
   end do
   if(ifilt_ord==-4_i_long) binomial=two*binomial
-  if(mype==0) write(6,*)'INIT_RAF4:  binomial weightings used:',binomial(1:npass,npass)
+  if(mype==0 .and. print_verbose) write(6,*)'INIT_RAF4:  binomial weightings used:',binomial(1:npass,npass)
 
 !  gather some stats on input aspect tensor for informational purposes
 
@@ -1681,7 +1684,7 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
   end do
   call mpi_reduce(aspect_max,aspect_max_all,3*nvars,mpi_real4,mpi_max,0,mpi_comm_world,ierr)
   call mpi_reduce(aspect_min,aspect_min_all,3*nvars,mpi_real4,mpi_min,0,mpi_comm_world,ierr)
-  if(mype==0) then
+  if(mype==0 .and. print_verbose) then
 
      write(6,*)' corlen multipliers for additive gaussians: '
      do igauss=1,ngauss
@@ -2014,7 +2017,7 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
 
 !  print out diagnostics for each variable
 
-  if(mype==0) then
+  if(mype==0 .and. print_verbose) then
      do ivar=1,nvars
 
         write(6,*)' STRING STATS FOLLOW FOR VARIABLE #',ivar,':  ',trim(var_names(ivar))
@@ -2048,7 +2051,7 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
 !DEBUG test output
   ldebug=.false.
   if(ldebug) then
-     if(mype==0) write(6,*) 'normalization finished'
+     if(mype==0 .and. print_verbose) write(6,*) 'normalization finished'
      allocate(rout (ips:ipe,jps:jpe))
      allocate(routa(ips:ipe,jps:jpe))
      if(mype==0) open(32,form='unformatted')
@@ -2065,7 +2068,7 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
         end if
         call mpi_reduce(rout,routa,(ipe-ips+1)*(jpe-jps+1), &
                         mpi_real4,mpi_sum,0,mpi_comm_world,ierr)
-        if(mype==0) then
+        if(mype==0 .and. print_verbose) then
            write(32) routa
            write(6,*) 'amp:',k,maxval(routa),minval(routa)
         end if
@@ -2111,7 +2114,6 @@ subroutine normalize2_raf4(filter,ngauss,normal, &
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-
   implicit none
 
   INTEGER(i_long)  ,INTENT(IN   ) :: ids, ide, jds, jde, kde, &   ! domain indices
@@ -2132,7 +2134,10 @@ subroutine normalize2_raf4(filter,ngauss,normal, &
   integer(i_llong) jj,j1,j2,j3
   integer(i_byte) flips(2**27-8)
 
-  logical:: independent_of_npes
+  logical:: independent_of_npes,print_verbose
+
+  print_verbose = .false.
+  if(verbose)print_verbose=.true.
 
   deallocate(filter(1)%amp,stat=istat)
   allocate(filter(1)%amp(ngauss,ips:ipe,jps:jpe,kps:kpe))
@@ -2161,7 +2166,7 @@ subroutine normalize2_raf4(filter,ngauss,normal, &
   end if
 
   do loop=1,nsamples
-     if(mype==0.and.mod(loop-1,10_i_long)==0) write(6,*) 'normalization step:',loop,'/',nsamples
+     if(mype==0.and.mod(loop-1,10_i_long)==0 .and. print_verbose) write(6,*) 'normalization step:',loop,'/',nsamples
      j1=(int(loop,i_llong)-1)*kde
      ranvec=zero_single
      do k=kps,kpe

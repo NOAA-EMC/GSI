@@ -93,7 +93,6 @@ module m_obsLList
 
   character(len=*),parameter:: MYNAME="m_obsLList"
 
-!#define CHECKSUM_VERBOSE
 !#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
@@ -582,20 +581,6 @@ _ENTRY_(myname_)
 
   jtype=itype
   jbin =ibin
-#ifdef CHECKSUM_VERBOSE
-  if(headLL%n_alloc>0) then
-    jtype=0
-    jbin =0
-    if(present(itype)) jtype=itype
-    if(present(ibin )) jbin =ibin
-
-    if(nooo/=0.or.ndup/=0) then
-      write(stdout,'(a,2x,2i4,5i6,2i10,a)') stdout_lead(myname_,''),jtype,jbin,headLL%n_alloc,lrecount,nuse,nooo,ndup,ksum,' >>> WARNING <<<'
-    else
-      write(stdout,'(a,2x,2i4,5i6,2i10  )') stdout_lead(myname_,''),jtype,jbin,headLL%n_alloc,lrecount,nuse,nooo,ndup,ksum
-    endif
-  endif
-#endif
 _EXIT_(myname_)
 return
 end subroutine lchecksum_

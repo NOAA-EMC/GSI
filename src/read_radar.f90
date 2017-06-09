@@ -1258,25 +1258,28 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
      write(6,'(" fit of 2, 2.5, 3 data to vad station, lat, lon = ",a8,2f14.2)') &
         vadid(ivad),vadlat(ivad)*rad2deg,vadlon(ivad)*rad2deg
      do ivadz=1,maxvadbins
-        if(vadcount2(ivad,ivadz)>half) then
-           vadfit2(ivad,ivadz)=sqrt(vadfit2(ivad,ivadz)/vadwgt2(ivad,ivadz))
-        else
-           vadfit2(ivad,ivadz)=zero
-        end if
-        if(vadcount2_5(ivad,ivadz)>half) then
-           vadfit2_5(ivad,ivadz)=sqrt(vadfit2_5(ivad,ivadz)/vadwgt2_5(ivad,ivadz))
-        else
-           vadfit2_5(ivad,ivadz)=zero
-        end if
-        if(vadcount3(ivad,ivadz)>half) then
-           vadfit3(ivad,ivadz)=sqrt(vadfit3(ivad,ivadz)/vadwgt3(ivad,ivadz))
-        else
-           vadfit3(ivad,ivadz)=zero
-        end if
-        write(6,'(" h,f2,f2.5,f3=",i7,f10.2,"/",i5,f10.2,"/",i5,f10.2,"/",i5)')nint(ivadz*dzvad),&
+        if(vadcount2(ivad,ivadz) > half .and. vadcount2_5(ivad,ivadz) > half &
+              .and. vadcount(ivad,ivadz) > half)then
+          if(vadcount2(ivad,ivadz)>half) then
+             vadfit2(ivad,ivadz)=sqrt(vadfit2(ivad,ivadz)/vadwgt2(ivad,ivadz))
+          else
+             vadfit2(ivad,ivadz)=zero
+          end if
+          if(vadcount2_5(ivad,ivadz)>half) then
+             vadfit2_5(ivad,ivadz)=sqrt(vadfit2_5(ivad,ivadz)/vadwgt2_5(ivad,ivadz))
+          else
+             vadfit2_5(ivad,ivadz)=zero
+          end if
+          if(vadcount3(ivad,ivadz)>half) then
+             vadfit3(ivad,ivadz)=sqrt(vadfit3(ivad,ivadz)/vadwgt3(ivad,ivadz))
+          else
+             vadfit3(ivad,ivadz)=zero
+          end if
+          write(6,'(" h,f2,f2.5,f3=",i7,f10.2,"/",i5,f10.2,"/",i5,f10.2,"/",i5)')nint(ivadz*dzvad),&
            vadfit2(ivad,ivadz),nint(vadcount2(ivad,ivadz)),&
            vadfit2_5(ivad,ivadz),nint(vadcount2_5(ivad,ivadz)),&
            vadfit3(ivad,ivadz),nint(vadcount3(ivad,ivadz))
+        end if
      end do
   end do
 

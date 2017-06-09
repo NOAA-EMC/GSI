@@ -627,21 +627,22 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
         !* for new vad wind
         if(kx==224 .and. .not.newvad) then
            call ufbint(lunin,hdrtsb,1,1,iret,'TSB')
-            if(hdrtsb(1)==2) then
-            newvad=.true.
-            go to 288
+           if(hdrtsb(1)==2) then
+              newvad=.true.
+              go to 288
            end if
            call ufbint(lunin,obsdat,13,255,levs,obstr)
            if(levs>1)then
-           do k=1, levs-1
-             diffuu=abs(obsdat(4,k+1)-obsdat(4,k))
-             if(diffuu==50.0) then
-                   newvad=.true.
-                   go to 288
-             end if
-           end do
+              do k=1, levs-1
+                diffuu=abs(obsdat(4,k+1)-obsdat(4,k))
+                if(diffuu==50.0) then
+                      newvad=.true.
+                      go to 288
+                end if
+              end do
            end if
-288     continue
+288        continue
+           if(newvad)write(6,*)'new vad flag::', newvad 
         end if
         !* END new vad wind
 
@@ -815,7 +816,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
        
 
      call closbf(lunin)
-     write(6,*)'new vad flag::', newvad 
      open(lunin,file=infile,form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
@@ -1148,9 +1148,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                        var_jb(3,k)=(one-del_t)*btabl_t(itypex,k1_t,ierr_t)+del_t*btabl_t(itypex,k2_t,ierr_t)
                        var_jb(3,k)=max(var_jb(3,k),tjbmin)
                        if (var_jb(3,k) >=10.0_r_kind) var_jb(3,k)=zero
-                        if(itypey==180) then
-                          write(6,*) 'READ_PREPBUFR:180_t,obserr,var_jb=',obserr(3,k),var_jb(3,k),ppb
-                        endif
+!                       if(itypey==180) then
+!                         write(6,*) 'READ_PREPBUFR:180_t,obserr,var_jb=',obserr(3,k),var_jb(3,k),ppb
+!                       endif
                     enddo
                  endif
                  if (qob) then

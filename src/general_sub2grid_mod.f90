@@ -47,7 +47,7 @@ module general_sub2grid_mod
 !                             lnames:    optional level index for each variable (assigned as user desires)
 !                             names:     optional names for each variable (assigned as desired)
 !   2012-06-25  parrish  - add subroutine general_sub2grid_destroy_info.
-!   2013-08-03  todling  - protect write-out with verbose (set to false)
+!   2013-08-03  todling  - protect write-out with print_verbose (set to false)
 !   2013-10-25  todling  - nullify work pointers
 !   2014-12-03  derber   - optimization changes
 !
@@ -202,7 +202,7 @@ module general_sub2grid_mod
 
    end type sub2grid_info
 
-   logical :: verbose=.false.
+   logical :: print_verbose=.false.
 
 !  other declarations  ...
 
@@ -431,7 +431,7 @@ module general_sub2grid_mod
       if(.not.present(nskip).and.s%num_fields<s%npe) then
          call get_iuse_pe(s%npe,s%num_fields,idoit)
          npe_used=s%num_fields
-         if(s%mype==0.and.verbose) &
+         if(s%mype==0.and.print_verbose) &
            write(6,*)' npe,num_fields,npe_used,idoit=',s%npe,s%num_fields,npe_used,idoit
       else
          idoit=0
@@ -455,7 +455,7 @@ module general_sub2grid_mod
       do k=0,s%npe-1
          s%kend(k)=s%kbegin(k+1)-1
       end do
-      if(s%mype == 0.and.verbose) then
+      if(s%mype == 0.and.print_verbose) then
          do k=0,s%npe-1
             write(6,*)' in general_sub2grid_create_info, k,kbegin,kend,nlevs_loc,nlevs_alloc=', &
                k,s%kbegin(k),s%kend(k),s%kend(k)-s%kbegin(k)+1,max(s%kbegin(k),s%kend(k))-s%kbegin(k)+1
@@ -535,7 +535,7 @@ subroutine get_iuse_pe(npe,nz,iuse_pe)
            write(6,*)' get_pe2 - inconsistent icount,nz ',nz,icount,'program stops',npe,skip2
            call stop2(999)
         end if
-        if(mype == 0)write(6,*) ' in get_pe2 ',nz,icount,npe,skip2
+        if(mype == 0 .and. print_verbose)write(6,*) ' in get_pe2 ',nz,icount,npe,skip2
    
      end if
      return
@@ -758,7 +758,7 @@ end subroutine get_iuse_pe
      END DO
   END DO
 
-  if ( verbose ) then
+  if ( print_verbose ) then
      do k=1,nxpe*nype
         if(mype == 0) &
              write(6,100) k,istart(k),jstart(k),ilat1(k),jlon1(k)
@@ -913,7 +913,7 @@ end subroutine get_iuse_pe
                periodic=.true.
                periodic_s(k)=.true.
             endif
-            if(mype == 0 .and. verbose) &
+            if(mype == 0 .and. print_verbose) &
                  write(6,100) k-1,istart(k),jstart(k),ilat1(k),jlon1(k)
          end do
       end do

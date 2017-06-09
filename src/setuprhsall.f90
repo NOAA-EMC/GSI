@@ -466,7 +466,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
            read(lunin,iostat=ier) obstype,isis,nreal,nchanl
            if(mype == mype_diaghdr(is)) then
               write(6,300) obstype,isis,nreal,nchanl
- 300          format(' SETUPALL:,obstype,isis,nreal,nchanl=',a12,a20,i7,i7)
+ 300          format(' SETUPALL:,obstype,isis,nreal,nchanl=',a12,a20,i5,i5)
            endif
            if(ier/=0) call die('setuprhsall','read(), iostat =',ier)
            nele=nreal+nchanl

@@ -160,7 +160,7 @@ contains
     conv_bias_ps = zero       ! magnitude of ps bias(mb)
     conv_bias_t  = zero       ! magnitude of t  bias(deg K)
     conv_bias_spd= zero       ! magnitude of spd bias(m/sec)
-				
+
     conv_bias_pm2_5= zero
     conv_bias_pm10= zero
 
@@ -168,7 +168,7 @@ contains
     id_drifter=.false.        ! modify KX of drifting buoys
 
     call init_pm2_5
-		  
+
   end subroutine init_convinfo
 
   subroutine convinfo_read

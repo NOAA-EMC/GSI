@@ -1,4 +1,3 @@
-!#define VERBOSE
 subroutine gsisub(mype,init_pass,last_pass)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -90,6 +89,7 @@ subroutine gsisub(mype,init_pass,last_pass)
   use aircraftinfo, only: aircraftinfo_read,aircraft_t_bc_pof,aircraft_t_bc,&
      aircraft_t_bc_ext
   use radiance_mod, only: radiance_obstype_init,radiance_parameter_cloudy_init,radiance_parameter_aerosol_init
+  use gsi_io, only: verbose
 #ifndef HAVE_ESMF
   use guess_grids, only: destroy_gesfinfo
 #endif
@@ -102,17 +102,21 @@ subroutine gsisub(mype,init_pass,last_pass)
   integer(i_kind),intent(in   ) :: mype
   logical        ,intent(in) :: init_pass
   logical        ,intent(in) :: last_pass
+  logical print_verbose
+  
+  print_verbose=.false.
+  if(verbose) print_verbose=.true.
 
-  if(mype==0) call tell('gsisub',': starting ...')
-#ifdef VERBOSE
-  call tell('gsisub','init_pass =',init_pass)
-  call tell('gsisub','last_pass =',last_pass)
-  call tell('gsisub','iadate(1)=',iadate(1))
-  call tell('gsisub','iadate(2)=',iadate(2))
-  call tell('gsisub','iadate(3)=',iadate(3))
-  call tell('gsisub','iadate(4)=',iadate(4))
-  call tell('gsisub','iadate(5)=',iadate(5))
-#endif
+  if(print_verbose)then
+     if(mype==0) call tell('gsisub',': starting ...')
+     call tell('gsisub','init_pass =',init_pass)
+     call tell('gsisub','last_pass =',last_pass)
+     call tell('gsisub','iadate(1)=',iadate(1))
+     call tell('gsisub','iadate(2)=',iadate(2))
+     call tell('gsisub','iadate(3)=',iadate(3))
+     call tell('gsisub','iadate(4)=',iadate(4))
+     call tell('gsisub','iadate(5)=',iadate(5))
+  end if
 
 #ifndef HAVE_ESMF
 
@@ -151,32 +155,32 @@ subroutine gsisub(mype,init_pass,last_pass)
            call aircraftinfo_read
      endif
      call convinfo_read
-#ifdef VERBOSE
-     call tell('gsisub','returned from convinfo_read()')
-#endif
+     if(print_verbose)then
+        call tell('gsisub','returned from convinfo_read()')
+     end if
   endif
 
 ! Compute random number for precipitation forward model.  
   if(init_pass) then
      call create_pcp_random(iadate,mype)
-#ifdef VERBOSE
-     call tell('gsisub','returned from create_pcp_random()')
-#endif
+     if(print_verbose)then
+        call tell('gsisub','returned from create_pcp_random()')
+     end if
   endif
 
 ! Complete setup and execute external and internal minimization loops
-#ifdef VERBOSE
-  call tell('gsisub','lobserver=',lobserver)
-#endif
+  if(print_verbose)then
+     call tell('gsisub','lobserver=',lobserver)
+  end if
   if (lobserver) then
     if(init_pass) call observer_init()
-#ifdef VERBOSE
-    call tell('gsisub','calling observer_run()')
-#endif
+    if(print_verbose)then
+       call tell('gsisub','calling observer_run()')
+    end if
     call observer_run(init_pass=init_pass,last_pass=last_pass)
-#ifdef VERBOSE
-    call tell('gsisub','returned from observer_run()')
-#endif
+    if(print_verbose)then
+       call tell('gsisub','returned from observer_run()')
+    end if
     if(last_pass) call observer_finalize()
 #ifndef HAVE_ESMF
       call destroy_gesfinfo()	! paired with gesinfo()
