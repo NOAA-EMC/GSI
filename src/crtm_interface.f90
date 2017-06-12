@@ -328,8 +328,11 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
   integer(i_kind) :: ig
   integer(i_kind) :: n_absorbers
   logical quiet
+  logical print_verbose
 
 
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
   isst=-1
   ivs=-1
   ius=-1
@@ -517,9 +520,10 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
 ! Initialize radiative transfer
 
  sensorlist(1)=isis
- quiet=.not. verbose
+ quiet=.not. print_verbose
  if( crtm_coeffs_path /= "" ) then
-    if(init_pass .and. mype==mype_diaghdr) write(6,*)myname_,': crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
+    if(init_pass .and. mype==mype_diaghdr .and. print_verbose) &
+        write(6,*)myname_,': crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
     error_status = crtm_init(sensorlist,channelinfo,&
        Process_ID=mype,Output_Process_ID=mype_diaghdr, &
        Load_CloudCoeff=Load_CloudCoeff,Load_AerosolCoeff=Load_AerosolCoeff, &
