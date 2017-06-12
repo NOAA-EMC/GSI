@@ -212,6 +212,7 @@ contains
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use mpeu_util, only: die
+    use gsi_io, only: verbose
     implicit none
 
 !   Declare passed variables
@@ -237,9 +238,12 @@ contains
     integer(i_kind) workpe,ier,istatus
     integer(i_kind) lpivot(nsig),mpivot(nsig)
     real(r_quad) qmatinv_quad(nsig,nsig),detqmat_quad
+    logical print_verbose
 
 !   get work pe:
 
+    print_verbose=.false.
+    if(verbose .and. g1%mype==workpe) print_verbose=.true.
     allocate(numlevs(0:g1%npe-1))
     numlevs(0:g1%npe-1)=g1%kend(0:g1%npe-1)-g1%kbegin(0:g1%npe-1)+1
     if(g1%mype==0) then
@@ -312,7 +316,7 @@ contains
        end if
     end do
   
-    if(g1%mype==workpe) then
+    if(print_verbose) then
        do k=1,nsig
           write(6,'(" k,pbar,tbar = ",i5,2f18.9)')k,pbar(k),tbar(k)
        end do
@@ -796,6 +800,7 @@ subroutine special_eigvv(qmat0,hmat0,smat0,nmat,swww0,szzz0,swwwd0,szzzd0,nvmode
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind,r_quad
+  use gsi_io, only: verbose
 
   implicit none
 
@@ -819,8 +824,10 @@ subroutine special_eigvv(qmat0,hmat0,smat0,nmat,swww0,szzz0,swwwd0,szzzd0,nvmode
   real(r_quad) dist_to_closest_eigval,perturb_eigval
   real(r_quad) err_aminv
   real(r_kind) atemp8(nmat*nmat),btemp8(nmat,nmat)
-  logical noskip
+  logical noskip,print_verbose
 
+  print_verbose = .false.
+  if(verbose) print_verbose=.true.
   zero_quad=0.0_r_quad
   half_quad=0.5_r_quad
   one_quad =1.0_r_quad
@@ -909,17 +916,17 @@ subroutine special_eigvv(qmat0,hmat0,smat0,nmat,swww0,szzz0,swwwd0,szzzd0,nvmode
         if(noskip)  call iterative_improvement0(qtildemat,eigval_this,aminv,aminvt,nmat,iret,err_aminv)
         noskip=.true.
         if(iret==1) then
-           write(6,*)' det=0 in iterative_improvement0, eigenvalue converged, it = ',j
+           if(print_verbose)write(6,*)' det=0 in iterative_improvement0, eigenvalue converged, it = ',j
            exit
         end if
         call iterative_improvement(eigval_this,eigval_next,aminv,aminvt,szzz(:,i),szzzd(:,i),nmat,istop)
         if(eigval_this==eigval_next) then
-           write(6,*)' no change in eigenvalue, convergence to machine precision achieved, it = ',j
+           if(print_verbose)write(6,*)' no change in eigenvalue, convergence to machine precision achieved, it = ',j
            exit
         end if
         eigval_this=eigval_next
         if(istop==1) then
-           write(6,*)' eigval relative change less than 10**(-24), no further iteration necessary, it = ',j
+           if(print_verbose)write(6,*)' eigval relative change less than 10**(-24), no further iteration necessary, it = ',j
            exit
         end if
      end do
@@ -1053,6 +1060,7 @@ subroutine iterative_improvement0(a,mu,aminv,aminvt,na,iret,errormax)
 !$$$ end documentation block
 
   use kinds, only: r_quad,i_kind
+  use gsi_io, only: verbose
   implicit none
 
   integer(i_kind),intent(in)::na
@@ -1066,7 +1074,10 @@ subroutine iterative_improvement0(a,mu,aminv,aminvt,na,iret,errormax)
   real(r_quad) sum,detam,errlimit
   integer(i_kind) i,j,k,lpivot(na),mpivot(na)
   real(r_quad) zero_quad,one_quad
+  logical print_verbose
 
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
   errlimit=1000._r_quad
   zero_quad=0._r_quad
   one_quad=1._r_quad
@@ -1109,7 +1120,7 @@ subroutine iterative_improvement0(a,mu,aminv,aminvt,na,iret,errormax)
         errormax=max(abs(sum),errormax)
      end do
   end do
-  write(6,*)' delta in aminv =',errormax
+  if(print_verbose)write(6,*)' delta in aminv =',errormax
   if(errormax>errlimit) iret=-1
 
 end subroutine iterative_improvement0
