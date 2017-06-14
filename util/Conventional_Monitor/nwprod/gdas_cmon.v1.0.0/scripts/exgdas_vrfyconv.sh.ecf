@@ -1,0 +1,289 @@
+#/bin/sh
+################################################################################
+####  UNIX Script Documentation Block
+#                      .                                             .
+# Script name:         exgdas_vrfyconv.sh.sms
+# Script description:  Runs data extract/validation for global conventional diag data
+#
+# Author:        Ed Safford       Org: NP23         Date: 2015-09
+#
+# Abstract: This script runs the data extract/validation portion of the 
+#           CMon package.  
+#
+# Script history log:
+# 2015-09     Ed Safford
+#
+#   Input script positional parameters:
+#     1             Current analysis date in yyyymmddhh format
+#                   defaults to PDY; required
+#     2             cycle time in cc format
+#                   defaults to CYC; required
+#
+#   Imported Shell Variables:
+#     C_TANKDIR     repository for cmon data files
+#     DATA          data working space
+#     FIXgdascmon   fixed file directory, gdas specific
+#     FIXcmon       fixed file directory
+#     USHcmon       scripts directory
+#     PDY           processing day; 
+#                   overridden by 1
+#     CYC	    processing cycle; 
+#                   overridden by 2
+#     INISCRIPT     Preprocessing script
+#                   defaults to none
+#     LOGSCRIPT     Log posting script
+#                   defaults to none
+#     ERRSCRIPT     Error processing script
+#                   defaults to 'eval [[ $err = 0 ]]'
+#     ENDSCRIPT     Postprocessing script
+#                   defaults to none
+#     LITTLE_ENDIAN Flag to indicate LE machine
+#                   defaults to 0 (big endian)
+#
+#   Exported Shell Variables:
+#     err           last return code
+#
+#   Modules and files referenced:
+#     scripts    : $INISCRIPT
+#                  $LOGSCRIPT
+#                  $ERRSCRIPT 
+#                  $ENDSCRIPT
+#
+#     programs   : $NDATE
+#
+#     input data : $cnvstat
+#                  $pgrbf00
+#                  $pgrbf06
+#
+#     output data:  
+#
+#  Remarks:
+#
+#    Condition codes
+#       0 - no problem encountered
+#      >0 - some problem encountered
+#
+#    Control variable resolution priority
+#       1 Command line argument.
+#       2 Environment variable.
+#       3 Inline default.
+#
+################################################################################
+#  Set environment
+export VERBOSE=${VERBOSE:-"NO"} 
+if [[ "$VERBOSE" = "YES" ]]
+then
+   echo start exgdas_vrfyconv.sh.sms
+   set -x
+fi
+export RUN_ENVIR=${RUN_ENVIR:-prod}
+export NET=${NET:-gfs}
+export RUN=${RUN:-gdas}
+export envir=${envir:-prod}
+
+#  Command line arguments
+export PDY=${1:-${PDY:?}} 
+export CYC=${2:-${CYC:?}}
+
+#  Directories
+export DATA=${DATA:-$(pwd)}			# work directory
+export C_COM_IN=${C_COM_IN:-/com/${NET}/${envir}}
+export C_COMIN=${C_COMIN:-$C_COM_IN/${RUN}.${PDY}}
+
+export HOMEgdascmon=${HOMEgdascmon:-/nw${envir}/gdas_cmon.v${gdas_cmon_ver}}
+export FIXgdascmon=${FIXgdascmon:-$HOMEgdascmon/fix}
+export FIXcmon=${FIXcmon:-${FIXgdascmon}}
+
+export HOMEcmon=${HOMEcmon:-/nw${envir}/cmon_shared.v${cmon_shared_ver}}
+export EXECcmon=${EXECcmon:-$HOMEcmon/exec}
+export USHcmon=${USHcmon:-$HOMEcmon/ush}
+
+export C_TANKDIR=${C_TANKDIR:-/com/verf/prod}
+export TANKDIR_cmon=${C_TANKDIR}/cmon.${PDY}
+
+export GDATE=`$NDATE -06 $PDY$CYC`
+export PDYm6h=`echo $GDATE|cut -c1-8`
+export GCYC=`echo $GDATE|cut -c9-10`
+export C_COMINm6h=${C_COMINm6h:-${C_COM_IN}/${RUN}.${PDYm6h}}
+export TANKDIR_prev_cmon=${C_TANKDIR}/cmon.${PDYm6h}
+
+#  Filenames
+export cnvstat=${cnvstat:-${C_COMIN}/gdas1.t${CYC}z.cnvstat}
+export pgrbf00=${pgrbf00:-${C_COMIN}/gdas1.t${CYC}z.pgrbf00}
+export pgrbf06=${pgrbf06:-${C_COMINm6h}/gdas1.t${GCYC}z.pgrbf06}
+export convinfo=${convinfo:-${FIXgdascmon}/global_convinfo.txt}	
+						
+echo "cnvstat = $cnvstat"
+echo "pgrbf00 = $pgrbf00"
+echo "pgrbf06 = $pgrbf06"
+
+export INISCRIPT=${INISCRIPT}
+export ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
+export LOGSCRIPT=${LOGSCRIPT}
+export ENDSCRIPT=${ENDSCRIPT}
+
+#  Other variables
+export CMON_AREA=${CMON_AREA:-glb}
+export NCP=${NCP:-/bin/cp -f}
+export NDATE=${NDATE:-/nwprod/util/exec/ndate}
+export pgm=exgdas_vrfyconv.sh.sms
+
+$LOGSCRIPT
+
+#####################################################################
+# Preprocessing
+$INISCRIPT
+
+if [[ ! -d ${DATA} ]]; then
+   mkdir $DATA
+fi
+cd $DATA
+export workdir=$DATA
+
+#--------------------------------------------------------
+#  Ensure necessary TANKDIR directories are in place
+#--------------------------------------------------------
+if [[ ! -d ${TANKDIR_cmon} ]]; then
+   mkdir -p ${TANKDIR_cmon}
+fi
+if [[ ! -d ${TANKDIR_prev_cmon} ]]; then
+   mkdir -p ${TANKDIR_prev_cmon}
+fi
+
+if [[ ! -d ${TANKDIR_cmon}/horz_hist ]]; then
+   mkdir -p ${TANKDIR_cmon}/horz_hist
+   mkdir -p ${TANKDIR_cmon}/horz_hist/anl
+   mkdir -p ${TANKDIR_cmon}/horz_hist/ges
+fi
+if [[ ! -d ${TANKDIR_prev_cmon}/horz_hist ]]; then
+   mkdir -p ${TANKDIR_prev_cmon}/horz_hist
+   mkdir -p ${TANKDIR_prev_cmon}/horz_hist/anl
+   mkdir -p ${TANKDIR_prev_cmon}/horz_hist/ges
+fi
+
+if [[ ! -d ${TANKDIR_cmon}/time_vert ]]; then
+   mkdir -p ${TANKDIR_cmon}/time_vert
+fi
+if [[ ! -d ${TANKDIR_prev_cmon}/time_vert ]]; then
+   mkdir -p ${TANKDIR_prev_cmon}/time_vert
+fi
+
+
+if [[ "$VERBOSE" = "YES" ]]; then
+   if [[ -s ${cnvstat} ]]; then
+      echo "$cnvstat is available"
+   fi
+   if [[ -s ${pgrbf00} ]]; then
+      echo "$pgrbf00 is available"
+   fi
+   if [[ -s ${pgrbf06} ]]; then
+      echo "$pgrbf06 is available"
+   fi
+fi
+#####################################################################
+
+data_available=0
+if [[ -s ${cnvstat} && -s ${pgrbf00} && -s ${pgrbf06} ]]; then
+   data_available=1                                         
+
+   #------------------------------------------------------------------
+   #  Copy data files file to local data directory.  
+   #  Untar cnvstat file.  
+   #------------------------------------------------------------------
+
+   export grib2=${grib2:-0}   
+   $NCP $cnvstat ./cnvstat.$PDATE
+   $NCP $pgrbf00 ./pgbanl.$PDATE
+   $NCP $pgrbf06 ./pgbf06.$GDATE
+
+   tar -xvf ./cnvstat.$PDATE
+   $UNCOMPRESS ./*.${Z}
+
+
+   #------------------------------------------------------------------
+   #  NOTE:  The anal (f00) and guess (f06) grib files
+   #         contain more information than we need for the subsequent
+   #         image generation.  Use wgrib and awk to reduce the file
+   #         size.  The resulting files contain only RH, PRES, TMP,
+   #         and UV data.
+   #           
+   #  NOTE:  The f06 file is taken from the GDATE cycle (the previous 
+   #         cycle but is stored in TANKDIR in the 
+   #         cmon.$PDATE/horz_hist/ges subdirectory.
+   #  
+   #  NOTE:  In order to use the anal and guess files in GrADS we 
+   #         need an index (.idx) and control (.ctl) file.  These can
+   #         be created in the plot process and don't need to be 
+   #         stored.
+   #------------------------------------------------------------------
+   echo "grib2 = $grib2"
+   if [[ $grib2 -eq 0 ]]; then
+
+      wgrib -s pgbanl.${PDATE} | awk '(/:RH:/ && /mb:/) || (/:RH:/ && /:2 m/) || (/:PRES:sfc/) || (/:UGRD:/ && /mb:/) || (/:VGRD:/ && /mb:/) || (/:TMP:/ && /mb:/)' | wgrib -i -grib pgbanl.${PDATE} -o ./pared_anal.${PDATE}
+
+  
+      wgrib -s pgbf06.${GDATE} | awk '(/:RH:/ && /mb:/) || (/:RH:/ && /:2 m/) || (/:PRES:sfc/) || (/:UGRD:/ && /mb:/) || (/:VGRD:/ && /mb:/) || (/:TMP:/ && /mb:/)' | wgrib -i -grib pgbf06.${GDATE} -o ./pared_guess.${PDATE}
+
+   else
+      #---------------------
+      #  wgrib2 is untested
+      #---------------------
+      wgrib2 -s pgbanl.${PDATE} | awk '(/:RH:/ && /mb:/) || (/:PRES:sfc/) || (/:UGRD:/ && /mb:/) || (/:VGRD:/ && /mb:/) || (/:TMP:/ && /mb:/)' | wgrib2 -i -grib pgbanl.${PDATE} -o ./pared_pgbanl.${PDATE}
+      echo "using g2ctl.pl"
+      ${USHcmon}/g2ctl.pl -0 pared_pgbanl.$PDATE > pared_anal_${PDATE}.ctl
+#      gribmap -0 -i anal_${PDATE}.ctl
+      ${USHcmon}/g2ctl.pl pared_pgbf06.$GDATE > guess_${GDATE}.ctl
+#      gribmap -i guess_${PDATE}.ctl
+   fi
+
+   ${NCP} ./pared_anal.${PDATE} ${TANKDIR_cmon}/horz_hist/anl/anal.${PDATE}
+   ${NCP} ./pared_guess.${PDATE} ${TANKDIR_cmon}/horz_hist/ges/guess.${PDATE}
+
+ 
+   #------------------------------------------------------------------
+   #   Run the child sccripts.
+   #    -->  get unique rc values for each child, use in error reporting below
+   #------------------------------------------------------------------
+
+   #---------------------------------------
+   #  run the horz-hist extraction script
+   #
+   ${USHcmon}/horz_hist.sh # ${PDATE}
+   rc_horz_hist=$?
+   echo "rc_horz_hist = $rc_horz_hist"
+
+   #---------------------------------------
+   #  run the time-vert extraction script
+   #
+   ${USHcmon}/time_vert.sh 
+   rc_time_vert=$?
+   echo "rc_time_vert = $rc_time_vert"
+
+fi
+
+#####################################################################
+# Postprocessing
+#$ENDSCRIPT
+
+err=0
+if [[ ${data_available} -ne 1 ]]; then
+   err=1
+elif [[ $rc_horz_hist -ne 0 ]]; then
+   echo "ERROR repored from horz_hist.sh:  $rc_horz_hist"
+   err=$rc_horz_hist
+elif [[ $rc_time_vert -ne 0 ]]; then
+   echo "ERROR repored from time_vert.sh:  $rc_time_vert"
+   err=$rc_time_vert
+fi
+
+if [[ "$VERBOSE" = "YES" ]]; then
+   echo "end exgdas_vrfyconv.sh.sms, exit value = ${err}"
+fi
+
+if [[ ${err} -ne 0 ]]; then
+   export err=$err; err_chr
+fi
+
+set +x
+exit ${err}
+
