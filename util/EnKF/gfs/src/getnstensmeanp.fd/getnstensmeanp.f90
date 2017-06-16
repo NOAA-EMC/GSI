@@ -159,7 +159,7 @@ program getnstensmeanp
 ! Process input files (one file per task)
   if (mype1 <= nanals) then
 
-     call nemsio_init(iret)
+     call nemsio_init(iret=iret)
 
      write(charnanal,'(i3.3)') mype1
      filenamein = trim(adjustl(datapath))// &
@@ -172,7 +172,7 @@ program getnstensmeanp
         sfcio = .true.
         call nstio_srohdc(lunin,filenamein,nstheadi,nstdatai,iret)
      else
-        call nemsio_open(gfile,trim(filenamein),'READ',iret)
+        call nemsio_open(gfile,trim(filenamein),'READ',iret=iret)
         if (iret == 0 ) then
            nemsio = .true.
         else
@@ -240,7 +240,7 @@ program getnstensmeanp
 
      if (mype==0) then
         gfileo=gfile         ! copy gfile header to gfileo header
-        call nemsio_open(gfileo,trim(filenameout),'WRITE',iret )
+        call nemsio_open(gfileo,trim(filenameout),'WRITE',iret=iret )
      end if
 
      npts=lonb*latb
@@ -252,13 +252,13 @@ program getnstensmeanp
 !
      do n=1,nrec
         rwork1d=zero
-        call nemsio_readrec (gfile, n,rwork1d,iret)
+        call nemsio_readrec (gfile, n,rwork1d,iret=iret)
         swork1d=zero
         call mpi_allreduce(rwork1d,swork1d,npts,mpi_real,mpi_sum,new_comm,iret)
         swork1d = swork1d * rnanals
 
         if (mype==0) then
-           call nemsio_writerec(gfileo,n,swork1d,iret)
+           call nemsio_writerec(gfileo,n,swork1d,iret=iret)
         end if
      end do
 
@@ -268,12 +268,12 @@ program getnstensmeanp
 
         if (mype==0) then
            rwork1d=zero
-           call nemsio_readrecv(gfile,'land','sfc',1,rwork1d,iret)
-           call nemsio_writerecv(gfileo,'land','sfc',1,rwork1d,iret)
+           call nemsio_readrecv(gfile,'land','sfc',1,rwork1d,iret=iret)
+           call nemsio_writerecv(gfileo,'land','sfc',1,rwork1d,iret=iret)
 
            rwork1d=zero
-           call nemsio_readrecv(gfile,'ifd','sfc',1,rwork1d,iret)
-           call nemsio_writerecv(gfileo,'ifd','sfc',1,rwork1d,iret)
+           call nemsio_readrecv(gfile,'ifd','sfc',1,rwork1d,iret=iret)
+           call nemsio_writerecv(gfileo,'ifd','sfc',1,rwork1d,iret=iret)
         end if
 
         deallocate(rwork1d)
@@ -281,7 +281,7 @@ program getnstensmeanp
 
         call nemsio_close(gfile, iret)
         if (mype==0) then
-           call nemsio_close(gfileo,iret)
+           call nemsio_close(gfileo,iret=iret)
            write(6,*)'Write ensmemble mean ',trim(filenameout),' iret=',iret
         endif
      endif
