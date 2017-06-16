@@ -127,7 +127,7 @@ include $(MAKE_CONF)
 # Installing directory
 # --------------------
 
-  INSTALL_DIR = ../bin
+  INSTALL_DIR = ../../exec
 
 
 # --------
