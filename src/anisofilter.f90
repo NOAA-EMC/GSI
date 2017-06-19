@@ -1781,6 +1781,7 @@ subroutine read_bckgstats(mype)
 !$$$ end documentation block
 
   use m_berror_stats_reg, only: berror_get_dims_reg,berror_read_wgt_reg
+  use gsi_io, only: verbose
   implicit none
 
 ! Declare passed variables
@@ -1796,6 +1797,10 @@ subroutine read_bckgstats(mype)
   real(r_kind),allocatable:: corzavg(:,:),hwllavg(:,:)
   real(r_kind),allocatable:: corpavg(:),hwllpavg(:)
 
+  logical :: print_verbose
+ 
+  print_verbose=.false. .and. mype == 0
+  if(verbose .and. mype == 0) print_verbose=.true.
 ! Read dimension of stats file
   inerr=22
   call berror_get_dims_reg(msig,mlat,inerr)
@@ -1813,7 +1818,7 @@ subroutine read_bckgstats(mype)
 ! to that specified in namelist
   call berror_read_wgt_reg(msig,mlat,corz,corp,hwll,hwllp,vz,rlsig,varq,qoption,varcw,cwoption,mype,inerr)
 
-  if(mype==0) write(6,*)'in read_bckgstats,mlat=',mlat
+  if(print_verbose) write(6,*)'in read_bckgstats,mlat=',mlat
 
 ! Normalize vz with del sigma and convert to vertical grid units!
   if(.not.twodvar_regional) then
@@ -1838,7 +1843,7 @@ subroutine read_bckgstats(mype)
 !----- apply scaling to vertical length scales.
 !      note:  parameter vs needs to be inverted
 
-  if(mype==0) write(6,*)'in read_bckgstats,an_vs=',an_vs
+  if(print_verbose) write(6,*)'in read_bckgstats,an_vs=',an_vs
   an_vs=one/an_vs
   vz=vz/an_vs
   if (twodvar_regional) vz(1:nsig,0:mlat+1,1:nrf3)=sqrt(one)
@@ -1855,7 +1860,7 @@ subroutine read_bckgstats(mype)
         vzimin(k,n)=minval(one/vz(k,0:mlat+1,n))
         vziavg(k,n)=sum((one/vz(k,0:mlat+1,n)))/float(mlat+2)
      end do
-     if(mype==0) then
+     if(print_verbose) then
         do k=1,nsig
            write(6,'(" var,k,max,min,avg vert corlen =",2i4,3f11.3)') &
                        n,k,vzimax(k,n),vzimin(k,n),vziavg(k,n)
@@ -2436,6 +2441,7 @@ subroutine get_theta_corrl_lenghts(mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$  end documentation block
+  use gsi_io, only: verbose
   implicit none
 
 ! Declare passed variables
@@ -2453,7 +2459,10 @@ subroutine get_theta_corrl_lenghts(mype)
                qltv,qlth
 
   integer(i_kind) nlatf,nlonf,it
+  logical print_verbose
 
+  print_verbose=.false. .and. mype == 0
+  if(verbose .and. mype == 0)print_verbose=.true.
   nlatf=pf2aP1%nlatf
   nlonf=pf2aP1%nlonf
 
@@ -2470,7 +2479,7 @@ subroutine get_theta_corrl_lenghts(mype)
      call mpi_allreduce(pbar4a,pbar4(k),1,mpi_real8,mpi_sum,mpi_comm_world,ierror)
      call mpi_allreduce(mcount0,mcount,1,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
      pbar4(k)=pbar4(k)/float(mcount)
-     if(mype==0) write(6,*)'in get_theta_corrl_lenghts,k,pbar4=',k,pbar4(k)
+     if(print_verbose) write(6,*)'in get_theta_corrl_lenghts,k,pbar4=',k,pbar4(k)
      call w3fa03(pbar4(k),hgt4(k),tbar4(k),thetabar4(k))
   end do
 
@@ -2481,16 +2490,16 @@ subroutine get_theta_corrl_lenghts(mype)
      dzi=one/(kp-km)
      dthetabarz(k)=dzi*(thetabar4(kp)-thetabar4(km))
      dthetabarzmax=max(dthetabarz(k),dthetabarzmax)
-     if(mype==0) then
+     if(print_verbose)then
         write(6,'("in get_theta_corrl_lenghts,k,pbar4,hgt4,tbar4=",i4,3f11.3)') k,pbar4(k),hgt4(k),tbar4(k)
         write(6,'("in get_theta_corrl_lenghts,k,thetabar4,dthetabarz=",i4,2f11.3)') k,thetabar4(k),dthetabarz(k)
      endif
   end do
-  if(mype==0) write(6,*)'in get_theta_corrl_lenghts,dthetabarzmax=',dthetabarzmax
+  if(print_verbose) write(6,*)'in get_theta_corrl_lenghts,dthetabarzmax=',dthetabarzmax
 
   do k=1,nsig
      dthetabarz(k)=dthetabarz(k)/dthetabarzmax
-     if(mype==0) then
+     if(print_verbose) then
         write(6,*)'in get_theta_corrl_lenghts,k,normalized dthetabarz=',k,dthetabarz(k)
      endif
   end do
@@ -2510,7 +2519,7 @@ subroutine get_theta_corrl_lenghts(mype)
   call hanning_smther(qltv_temp, nsig, 5)
   call hanning_smther(qltv_wind, nsig, 5)
 
-  if (mype==0) then
+  if (print_verbose) then
      do k=1,nsig
         write(6,*)'in get3berr_reg,k,qltv_temp,qltv_wind=',k,qltv_temp(k),qltv_wind(k)
      enddo

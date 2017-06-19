@@ -678,9 +678,9 @@
         if (newpc4pred) inewpc=1
         write(4) isis,dplat(is),obstype,jiter,nchanl_diag,npred,ianldate,ireal_radiag,ipchan_radiag,iextra,jextra,&
            idiag,angord,iversion_radiag,inewpc,ioff0
-        write(6,*)'SETUPRAD:  write header record for ',&
-           isis,npred,ireal_radiag,ipchan_radiag,iextra,jextra,idiag,angord,iversion_radiag,&
-                      ' to file ',trim(diag_rad_file),' ',ianldate
+!       write(6,*)'SETUPRAD:  write header record for ',&
+!          isis,npred,ireal_radiag,ipchan_radiag,iextra,jextra,idiag,angord,iversion_radiag,&
+!                     ' to file ',trim(diag_rad_file),' ',ianldate
         do i=1,nchanl
            n=ich(i)
            if( n < 1  .or. (reduce_diag .and. iuse_rad(n) < 1))cycle
@@ -699,7 +699,7 @@
   read(lunin) data_s,luse,ioid
 
   if (nobskeep>0) then
-     write(6,*)'setuprad: nobskeep',nobskeep
+!    write(6,*)'setuprad: nobskeep',nobskeep
      call stop2(275)
   end if
 

@@ -309,6 +309,7 @@ contains
     use gsi_metguess_mod, only: gsi_metguess_get
     use gsi_chemguess_mod, only: gsi_chemguess_get
     use gridmod, only: nsig
+    use gsi_io, only: verbose
     implicit none
 
     integer(i_kind) ii,jj,mxlvs,isum,ndim,ib,ie,ier
@@ -322,7 +323,10 @@ contains
 !   character(len=3),parameter :: wirednames(6) = (/ 'tv ','q  ','oz ', 'u  ', 'v  ', 'sst' /)
     character(len=3),parameter :: wirednames(1) = (/ 'sst' /)
     integer(i_kind) ,parameter :: wiredlevs (1) = (/ 1 /)
+    logical print_verbose
 
+    print_verbose = .false. .and. mype == 0
+    if(verbose .and. mype == 0)print_verbose=.true.
 !   safeguard angord value for option adp_anglebc
     if (adp_anglebc) then 
        if (angord==0) then 
@@ -443,7 +447,7 @@ contains
     deallocate(aux)
     deallocate(meteo_names)
 
-    if(mype==0) then
+    if(print_verbose) then
       print*, 'Vars in Rad-Jacobian (dims)'
       print*, '--------------------------'
       do ii=1,nvarjac

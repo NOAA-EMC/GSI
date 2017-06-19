@@ -982,6 +982,8 @@ subroutine read_obs(ndata,mype)
                 if(.not. lexistears)read_ears_rec1(i) = 999999
                 lexist=lexist .or. lexistears
                 len4file=len4file+lenbytes/4
+             else
+               read_ears_rec1(i) = 999999
              end if
              if (db_possible(i))then
 
@@ -995,6 +997,8 @@ subroutine read_obs(ndata,mype)
                 if(.not. lexistdb)read_db_rec1(i) = 999999
                 lexist=lexist .or. lexistdb
                 len4file=len4file+lenbytes/4
+             else
+               read_db_rec1(i) = 999999
              end if
 
  
@@ -1375,7 +1379,7 @@ subroutine read_obs(ndata,mype)
                    call read_modsbufr(nread,npuse,nouse,gstime,infile,obstype, &
                         lunout,twind,sis,nobs_sub1(1,i))
                    string='READ_MODSBUFR'
-                elseif ( platid == 'prep') then
+                else
                    if(nst_gsi>0)then
                       write(6,*)'read_obs: should not handle SST via read_prepbufr when NSST on'
                       call stop2(999)

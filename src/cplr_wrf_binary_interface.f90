@@ -206,7 +206,7 @@ contains
   !    first determine if endian mismatch between machine and file, and set logical byte_swap accordingly.
        call this%initialize_byte_swap_wrf_binary_file(in_unit,wrfges)
        call count_recs_wrf_binary_file(this,in_unit,wrfges,nrecs)
-                      write(6,*) '  after count_recs_wrf_binary_file, nrecs=',nrecs
+       if(print_verbose)write(6,*) '  after count_recs_wrf_binary_file, nrecs=',nrecs
      
        allocate(datestr_all(nrecs),varname_all(nrecs),domainend_all(3,nrecs))
        allocate(memoryorder_all(nrecs))
@@ -2215,10 +2215,10 @@ contains
     return
   
   900 continue
-    write(6,*)' normal end of file reached in count_recs_wrf_binary_file'
-    write(6,*)'        nblocks=',thisblock
-    write(6,*)'          nrecs=',nrecs
-    write(6,*)'         nreads=',nreads
+!   write(6,*)' normal end of file reached in count_recs_wrf_binary_file'
+!   write(6,*)'        nblocks=',thisblock
+!   write(6,*)'          nrecs=',nrecs
+!   write(6,*)'         nreads=',nreads
     call closefile(in_unit,ierr)
   
   end subroutine count_recs_wrf_binary_file
@@ -2294,8 +2294,8 @@ contains
     end do
     byte_swap = lenrec(1) <= 0 .or. lenrec(1) > 4096
        
-    write(6,*)' byte_swap,lenrec4,lenrec4_swap=',byte_swap,lenrec4,lenrec4_swap
-    write(6,*)' byte_swap,lenrec,lenrec_swap=',byte_swap,lenrec(1),lenrec_swap
+!   write(6,*)' byte_swap,lenrec4,lenrec4_swap=',byte_swap,lenrec4,lenrec4_swap
+!   write(6,*)' byte_swap,lenrec,lenrec_swap=',byte_swap,lenrec(1),lenrec_swap
   
     call closefile(in_unit,ierr)
   
@@ -2574,9 +2574,7 @@ contains
   
   900 continue
     write(6,*)' normal end of file reached in inventory_wrf_binary_file'
-    write(6,*)'        nblocks=',thisblock
-    write(6,*)'          irecs,nrecs=',irecs,nrecs
-    write(6,*)'         nreads=',nreads
+    write(6,*)'  nblocks=',thisblock,' irecs,nrecs=',irecs,nrecs,' nreads=',nreads
     call closefile(in_unit,ierr)
   
   end subroutine inventory_wrf_binary_file
@@ -2744,6 +2742,7 @@ contains
   
     use kinds, only: i_byte,i_kind,i_llong,i_long
     use native_endianness, only: byte_swap
+    use gsi_io, only: verbose
     implicit none
   
     integer(i_kind),intent(in   ) :: in_unit
@@ -2759,10 +2758,13 @@ contains
     integer(i_byte) out(4)
     equivalence(buf4(1),buf(1))
     integer(i_kind) i,ii,k,ibegin,iend,ierr
+    logical print_verbose
   
+    print_verbose=.false.
+    if(verbose)print_verbose=.true.
     open(in_unit,file=trim(wrfges),access='direct',recl=lrecl)
   
-    write(6,*)'RETRIEVE_FIELD:  start_block,end_block,s_,e_byte=',&
+    if(print_verbose)write(6,*)'RETRIEVE_FIELD:  start_block,end_block,s_,e_byte=',&
          start_block,end_block,start_byte,end_byte
     if(mod(start_byte-1,4)/=0) write(6,*)' PROBLEM WITH RETRIEVE_FIELD, mod(start_byte-1,4) /= 0'
     if(mod(end_byte,4)/=0) write(6,*)' PROBLEM WITH RETRIEVE_FIELD, mod(end_byte,4) /= 0'
@@ -2961,7 +2963,7 @@ contains
     do i=min(nretrieved,n1)+1,n1
        outrn1(i)=zero
     end do
-    write(6,*)' in retrieve_field_rn1, num expected=',n1, ' num retrieved=',nretrieved
+!   write(6,*)' in retrieve_field_rn1, num expected=',n1, ' num retrieved=',nretrieved
     
   end subroutine retrieve_field_rn1
   
