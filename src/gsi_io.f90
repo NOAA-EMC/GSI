@@ -28,7 +28,8 @@ module gsi_io
   implicit none
 
   integer(i_kind):: lendian_in,lendian_out
-  integer(i_kind):: mype_io,verbose
+  integer(i_kind):: mype_io
+  logical verbose
 
   private
   public lendian_in, lendian_out

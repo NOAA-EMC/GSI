@@ -226,10 +226,13 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   real(r_kind) disterr,disterrmax,cdist,dlon00,dlat00
 
   logical :: critical_channels_missing,quiet
+  logical :: print_verbose
 
 !**************************************************************************
 ! Initialize variables
 
+  print_verbose=.false.
+  if(verbose) print_verbose=.true.
   maxinfo=31
   lnbufr = 15
   disterrmax=zero
@@ -497,7 +500,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
         allocate(data1b8x(nchanl))
         sensorlist(1)=sis
         if( crtm_coeffs_path /= "" ) then
-           if(mype_sub==mype_root) write(6,*)'READ_BUFRTOVS: crtm_spccoeff_load() on path "'//trim(crtm_coeffs_path)//'"'
+           if(mype_sub==mype_root .and. print_verbose) write(6,*)'READ_BUFRTOVS: crtm_spccoeff_load() on path "'//trim(crtm_coeffs_path)//'"'
            error_status = crtm_spccoeff_load(sensorlist,&
               File_Path = crtm_coeffs_path, quiet=quiet )
            else

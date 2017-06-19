@@ -252,8 +252,8 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 ! Check profile quality flags
         if ( ((said > 739).and.(said < 746)).or.(said == 820).or.(said == 786)) then  !CDAAC processing
            if(pcc==zero) then
-              write(6,*)'READ_GPS:  bad profile said=',said,'ptid=',ptid,&
-                  ' SKIP this report'
+!             write(6,*)'READ_GPS:  bad profile said=',said,'ptid=',ptid,&
+!                 ' SKIP this report'
               cycle read_loop
            endif
         endif

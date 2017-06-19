@@ -531,8 +531,8 @@ contains
     do i=1,total_rad_type
 !      if (index(trim(obstype),trim(rad_type_info(i)%rtype)) /= 0) then
        if (trim(obstype)==trim(rad_type_info(i)%rtype)) then
-          if (mype==0) write(6,*) 'radiance_obstype_search: obstype=',obstype, &
-                                  ' rtype=',rad_type_info(i)%rtype
+!         if (mype==0) write(6,*) 'radiance_obstype_search: obstype=',obstype, &
+!                                 ' rtype=',rad_type_info(i)%rtype
           radmod%rtype = rad_type_info(i)%rtype
           radmod%nchannel = rad_type_info(i)%nchannel
           radmod%cld_sea_only = rad_type_info(i)%cld_sea_only
@@ -547,9 +547,11 @@ contains
           radmod%laerosol_fwd = rad_type_info(i)%laerosol_fwd
           radmod%laerosol = rad_type_info(i)%laerosol
           radmod%laerosol4crtm => rad_type_info(i)%laerosol4crtm
-          exit
+          return
        end if
     end do
+    if (mype==0) write(6,*) 'radiance_obstype_search type not found: obstype=',obstype
+
 
   end subroutine radiance_obstype_search
 

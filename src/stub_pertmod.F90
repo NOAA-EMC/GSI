@@ -302,7 +302,6 @@ subroutine pertmod_TLrun_(xini,xobs,iymd,ihms,ndt,rc)
 !! yo(t+n) = G(t+n)*z(t)
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   character(len=*),parameter :: myname_=MYNAME//'::pertmod_TLrun_'
-  integer(i_kind):: ier
   logical print_verbose
 
 _ENTRY_(myname_)
@@ -521,7 +520,6 @@ subroutine pertmod_ADrun_(xini,xobs,iymd,ihms,ndt,rc)
 !! xo(t) = A'(t)*e(t)
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   character(len=*),parameter :: myname_=MYNAME//'::pertmod_ADrun_'
-  integer(i_kind):: ier
   logical print_verbose
 
 _ENTRY_(myname_)

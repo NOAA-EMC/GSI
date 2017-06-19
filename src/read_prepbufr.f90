@@ -168,7 +168,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use convinfo, only: nconvtype,ctwind, &
       ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
       ithin_conv,rmesh_conv,pmesh_conv, &
-      id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t,use_prepb_satwnd
+      use_prepb_satwnd
   use convinfo, only: id_drifter
 
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
@@ -753,7 +753,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      end do loop_report
   enddo msg_report
   if (nmsg==0) goto 900
-  write(6,*)'READ_PREPBUFR: messages/reports = ',nmsg,'/',ntb,' ntread = ',ntread
+  if(print_verbose)write(6,*)'READ_PREPBUFR: messages/reports = ',nmsg,'/',ntb,' ntread = ',ntread
 
 
 
@@ -1504,11 +1504,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  qcmark(i,k) = min(qcmark(i,k),qcmark_huge)
               end do
 
-              if (kx == id_bias_ps) then
-                 plevs(k)=one_tenth*obsdat(1,k)+conv_bias_ps   ! convert mb to cb
-              else
-                 plevs(k)=one_tenth*obsdat(1,k)   ! convert mb to cb
-              endif
+              plevs(k)=one_tenth*obsdat(1,k)   ! convert mb to cb
               if (kx == 290) plevs(k)=101.0_r_kind  ! Assume 1010 mb = 101.0 cb
               if (goesctpobs) plevs(k)=goescld(1,k)/1000.0_r_kind ! cloud top pressure in cb
               pqm(k)=nint(qcmark(1,k))
@@ -1926,12 +1922,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(3,iout)=dlat                    ! grid relative latitude
                  cdata_all(4,iout)=dlnpob                  ! ln(pressure in cb)
 
-                 if (kx == id_bias_t) then
-                    cdata_all(5,iout)=obsdat(3,k)+t0c+conv_bias_t   ! temperature ob.+bias
-                 else
-                    cdata_all(5,iout)=obsdat(3,k)+t0c               ! temperature ob.
-                 endif
-
+                 cdata_all(5,iout)=obsdat(3,k)+t0c               ! temperature ob.
                  cdata_all(6,iout)=rstation_id             ! station id
                  cdata_all(7,iout)=t4dv                    ! time
                  cdata_all(8,iout)=nc                      ! type
@@ -2770,7 +2761,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   if (ndata == 0) then 
      call closbf(lunin)
-     write(6,*)'READ_PREPBUFR:  closbf(',lunin,')'
+     if(print_verbose)write(6,*)'READ_PREPBUFR:  closbf(',lunin,')'
   endif
 
   close(lunin)

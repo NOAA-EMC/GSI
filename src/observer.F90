@@ -274,7 +274,7 @@ _ENTRY_(Iam)
      call tell('observer.init_','allocate(ndata)')
      call tell('observer.init_','exiting')
   end if
-  if(mype==0) write(6,*) Iam, ': successfully initialized'
+  if(print_verbose .and. mype==0) write(6,*) Iam, ': successfully initialized'
 ! End of routine
   call timer_fnl('observer.init_')
 _EXIT_(Iam)
@@ -521,6 +521,7 @@ subroutine final_
 !$$$
   use compact_diffs,only: destroy_cdiff_coefs
   use mp_compact_diffs_mod1, only: destroy_mp_compact_diffs1
+  use gsi_io, only : verbose
   use mpeu_util, only: tell,die
   implicit none
 
@@ -528,10 +529,13 @@ subroutine final_
 
 ! Declare local variables
   character(len=*),parameter:: Iam="observer_final"
+  logical print_verbose
 
 !*******************************************************************************************
 _ENTRY_(Iam)
   call timer_ini('observer.final_')
+  print_verbose=.false.
+  if(verbose) print_verbose=.true.
 
   if(.not.ob_initialized_) call die(Iam,'not initialized')
   ob_initialized_=.false.
@@ -551,7 +555,7 @@ _ENTRY_(Iam)
   call convinfo_destroy
 
   deallocate(ndata)
-  if(mype==0) write(6,*) Iam, ': successfully finalized'
+  if(mype==0 .and. print_verbose) write(6,*) Iam, ': successfully finalized'
 
 ! Finalize timer for this procedure
   call timer_fnl('observer.final_')
