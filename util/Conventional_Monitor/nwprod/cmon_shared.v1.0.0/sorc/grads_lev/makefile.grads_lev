@@ -1,0 +1,48 @@
+SHELL=/bin/sh
+
+#--------------------------------------------------------
+#  makefile.grads_lev
+#
+#     load module CMonBuild before running this script.
+#--------------------------------------------------------
+
+BINDIR = ../../exec
+
+SRCS=         data_mod.f90 generic_list.f90 maingrads_lev.f90 read_conv2grads.f90 grads_lev.f90 rm_dups.f90 convinfo.f90 
+
+OBJS=         data_mod.o generic_list.o maingrads_lev.o read_conv2grads.o grads_lev.o rm_dups.o convinfo.o 
+
+
+CMD=    grads_lev.x 
+
+all:    $(CMD)
+
+clean:
+	rm -f *.o
+	rm -f *.mod
+	rm -f *.x
+
+check_prereqs:
+	$(PRE_REQ) $(LIBS)
+
+install:
+	cp -f $(CMD) $(BINDIR)/
+
+
+$(CMD):         $(OBJS)
+	$(FC)    -o $(@) $(OBJS) $(FFLAGS)
+
+maingrads_lev.o : maingrads_lev.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+read_conv2grads.o : read_conv2grads.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+grads_lev.o : grads_lev.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+rm_dups.o : rm_dups.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+convinfo.o : convinfo.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+generic_list.o : generic_list.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+data_mod.o : data_mod.f90
+	$(CF) $(FFLAGS) -c $(*).f90
