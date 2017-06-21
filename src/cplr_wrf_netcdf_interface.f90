@@ -1429,10 +1429,10 @@ contains
             start_index,end_index1,                   & !mem
             start_index,end_index1,                   & !pat
             ierr                                 )
-       if(guess)write(6,*)'CONVERT_NETCDF_NMM:' 
+       if(guess .and. n==nhr_assimilation)write(6,*)'CONVERT_NETCDF_NMM:' 
        do k=1,nsig_regional
           deta1(k)=field1(k)    
-          if(guess)write(6,*)' k,deta1(k)=',k,field1(k)
+          if(guess .and. n==nhr_assimilation)write(6,*)' k,deta1(k)=',k,field1(k)
        end do
   !    write(iunit)field1(1:nsig_regional)  ! DETA1    
        
@@ -1449,10 +1449,10 @@ contains
             start_index,end_index1,                   & !mem
             start_index,end_index1,                   & !pat
             ierr                                 )
-       if(guess)write(6,*)'CONVERT_NETCDF_NMM:' 
+       if(guess .and. n==nhr_assimilation)write(6,*)'CONVERT_NETCDF_NMM:' 
        do k=1,nsig_regional
           aeta1(k)=field1(k)
-          if(guess)write(6,*)' k,aeta1(k)=',k,field1(k)
+          if(guess .and. n==nhr_assimilation)write(6,*)' k,aeta1(k)=',k,field1(k)
        end do
   !    write(iunit)field1(1:nsig_regional)  ! AETA1
     
@@ -1467,10 +1467,10 @@ contains
             start_index,end_index1,                   & !mem
             start_index,end_index1,                   & !pat
             ierr                                 )
-       if(guess)write(6,*)'CONVERT_NETCDF_NMM:' 
+       if(guess .and. n==nhr_assimilation)write(6,*)'CONVERT_NETCDF_NMM:' 
        do k=1,nsig_regional+1
          eta1(k)=field1(k)  
-         if(guess)write(6,*)' k, eta1(k)=',k,field1(k)
+         if(guess .and. n==nhr_assimilation)write(6,*)' k, eta1(k)=',k,field1(k)
        end do
   !    write(iunit)field1(1:nsig_regional+1)  !  ETA1
     
@@ -1485,10 +1485,10 @@ contains
             start_index,end_index1,                   & !mem
             start_index,end_index1,                   & !pat
             ierr                                 )
-       if(guess)write(6,*)'CONVERT_NETCDF_NMM:' 
+       if(guess .and. n==nhr_assimilation)write(6,*)'CONVERT_NETCDF_NMM:' 
        do k=1,nsig_regional
           deta2(k)=field1(k) 
-          if(guess)write(6,*)' k,deta2(k)=',k,field1(k)
+          if(guess .and. n==nhr_assimilation)write(6,*)' k,deta2(k)=',k,field1(k)
        end do
   !    write(iunit)field1(1:nsig_regional)  ! DETA2 
        
@@ -1503,10 +1503,10 @@ contains
             start_index,end_index1,                   & !mem
             start_index,end_index1,                   & !pat
             ierr                                 )
-       if(guess)write(6,*)'CONVERT_NETCDF_NMM:' 
+       if(guess .and. n==nhr_assimilation)write(6,*)'CONVERT_NETCDF_NMM:' 
        do k=1,nsig_regional
           aeta2(k)=field1(k) 
-          if(guess)write(6,*)' k,aeta2(k)=',k,field1(k)
+          if(guess .and. n==nhr_assimilation)write(6,*)' k,aeta2(k)=',k,field1(k)
        end do
   !    write(iunit)field1(1:nsig_regional)  ! AETA2 
        
@@ -1521,10 +1521,10 @@ contains
             start_index,end_index1,                   & !mem
             start_index,end_index1,                   & !pat
             ierr                                 )
-       if(guess)write(6,*)'CONVERT_NETCDF_NMM:' 
+       if(guess .and. n==nhr_assimilation)write(6,*)'CONVERT_NETCDF_NMM:' 
        do k=1,nsig_regional+1
           eta2(k)=field1(k) 
-          if(guess)write(6,*)' k,eta2(k)=',k,field1(k)
+          if(guess .and. n==nhr_assimilation)write(6,*)' k,eta2(k)=',k,field1(k)
        end do
   !    write(iunit)field1(1:nsig_regional+1)  ! ETA2
   !    Create new vertical coordinate structure if use_gfs_stratosphere is true 
