@@ -1,0 +1,121 @@
+#
+#  Conventional Monitor package configuration file
+#
+
+echo "begin CMon_config"
+
+export MY_MACHINE=wcoss
+
+#
+# MY_CMON should point to your working directory which contains the
+# top level directory to the CMon package.  If you checked out the package
+# as part of the GSI point to the GSI's util/Conventional_Monitor directory.
+# if you checked out only the Radiance_Monitor portion of the branch then
+# MY_CMON should point to that.
+#
+
+export MY_CMON=/gpfs/gd2/emc/da/noscrub/Edward.Safford/CMon_486/util/Conventional_Monitor
+
+#
+#  The CMON_TANKDIR will be the location for the extracted data files and
+#  the control files used for image plotting.  This is the base definition
+#  and the succedding scripts will construct and use subdirectories under
+#  this location.
+#
+
+export CMON_TANKDIR=/u/${LOGNAME}/nbns
+export C_TANKverf=${C_TANKverf:-${CMON_TANKDIR}}
+
+export C_TANKDIR=${CMON_TANKDIR}/stats/${CMON_SUFFIX}
+export C_IMGNDIR=${CMON_TANKDIR}/imgn/${CMON_SUFFIX}
+
+
+if [[ $MY_MACHINE = "wcoss" ]]; then
+   shell=sh
+   . /usrx/local/Modules/default/init/${shell}
+   module load lsf
+   module unload GrADS		# version 2.0.1 is loaded automatically, but it's out of
+   module load GrADS		# date -- curent default is 2.0.2
+   export GRADS=grads
+
+   export UTILS_BIN=
+   export LLQ=
+   export SUB="bsub"
+   export NCP=/bin/cp
+   export NWPROD=/nwprod
+   export FIXDIR=/nwprod/fix
+   export COMPRESS=gzip
+   export UNCOMPRESS="gunzip -f"
+   export Z="gz"
+   export TIMEX=
+   export PROJECT=${PROJECT:-GDAS-T2O}
+   export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
+
+elif [[ $MY_MACHINE = "cray" ]]; then
+   module load prod_util        # defines $NDATE among other things
+   module load prod_envir
+
+   export SUB="bsub"
+   export NWPROD=${COMROOTp1}
+   export COMPRESS=gzip
+   export UNCOMPRESS="gunzip -f"
+   export PROJECT=${PROJECT:-GDAS-T2O}
+   export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
+   export Z="gz"
+   
+elif [[ $MY_MACHINE = "theia" ]]; then
+   export SUB=/apps/torque/default/bin/qsub
+   export NWPROD=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod
+   export COMPRESS=gzip
+   export UNCOMPRESS="gunzip -f"
+   export Z="gz"
+fi
+
+export NDATE=${NWPROD}/util/exec/ndate
+
+export ACCOUNT=${ACCOUNT:-}
+ 
+export C_STMP=${C_STMP:-/stmpp1}
+export C_STMP_USER=${C_STMP_USER:-${C_STMP}/${LOGNAME}}
+export C_PTMP=${C_PTMP:-/ptmpp1}
+export C_PTMP_USER=${C_PTMP_USER:-${C_PTMP}/${LOGNAME}}
+
+export C_LOGDIR=${C_PTMP_USER}/logs/${CMON_SUFFIX}/ConMon/
+export LOGSverf_cmon=${LOGSverf_cmon:-${C_LOGDIR}}
+export WORKverf_cmon=${WORKverf_cmon:-${C_STMP_USER}}
+
+export CONVINFO_FILE=${FIXDIR}/global_convinfo.txt  # does this belong in this config file? IMG/parm?
+
+
+#
+#  Web server resources include the sever name (WEB_SVR), the user name
+#  on the web server (WEB_USER), and location of the top level directory
+#  for the html on the web server (WEBDIR).
+#
+export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/es_conv
+export WEBUSER=${LOGNAME}
+export WEBSVR=emcrzdm
+
+
+#
+#  Definitions for internal reference
+#
+export CMON_DATA_EXTRACT=${CMON_DATA_EXTRACT:-${MY_CMON}/data_extract}
+export C_DE_EXEC=${C_DE_EXEC:-${CMON_DATA_EXTRACT}/exec}
+export C_DE_PARM=${C_DE_PARM:-${CMON_DATA_EXTRACT}/parm}
+export C_DE_SCRIPTS=${C_DE_SCRIPTS:-${CMON_DATA_EXTRACT}/ush}
+
+export CMON_IMAGE_GEN=${CMON_IMAGE_GEN:-${MY_CMON}/image_gen}
+export C_IG_EXEC=${C_IG_EXEC:-${CMON_IMAGE_GEN}/exec}
+export C_IG_GSCRIPTS=${C_IG_GSCRIPTS:-${CMON_IMAGE_GEN}/gscripts}
+export C_IG_PARM=${C_IG_PARM:-${CMON_IMAGE_GEN}/parm}
+export C_IG_SCRIPTS=${C_IG_SCRIPTS:-${CMON_IMAGE_GEN}/ush}
+export C_IG_FIX=${C_IG_FIX:-${CMON_IMAGE_GEN}/fix}
+export C_IG_HTML=${C_IG_HTML:-${CMON_IMAGE_GEN}/html}
+
+export CMON_PARM=${CMON_PARM:-${MY_CMON}/parm}
+. $CMON_PARM/CMon.ver
+
+export HOMEgdascmon=${HOMEgdascmon:-${MY_CMON}/nwprod/gdas_cmon.v${gdas_cmon_ver}}
+export HOMEcmon=${HOMEcmon:-${MY_CMON}/nwprod/cmon_shared.v${cmon_shared_ver}}
+

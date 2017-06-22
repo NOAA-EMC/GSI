@@ -1571,7 +1571,7 @@ contains
        do k=1,nsig_regional
           deta1(k)=field1(k)    
        end do
-       if(guess .and. print_verbose)then
+       if(guess .and. print_verbose .and. n==nhr_assimilation)then
           write(6,*)'CONVERT_NETCDF_NMM:' 
           do k=1,nsig_regional
              write(6,*)' k,deta1(k)=',k,field1(k)
@@ -1595,7 +1595,7 @@ contains
        do k=1,nsig_regional
           aeta1(k)=field1(k)
        end do
-       if(guess .and. print_verbose)then
+       if(guess .and. print_verbose .and. n==nhr_assimilation)then
           write(6,*)'CONVERT_NETCDF_NMM:' 
           do k=1,nsig_regional
              write(6,*)' k,aeta1(k)=',k,field1(k)
@@ -1617,7 +1617,7 @@ contains
        do k=1,nsig_regional+1
          eta1(k)=field1(k)  
        end do
-       if(guess .and. print_verbose) then
+       if(guess .and. print_verbose .and. n==nhr_assimilation) then
           write(6,*)'CONVERT_NETCDF_NMM:' 
           do k=1,nsig_regional+1
              write(6,*)' k, eta1(k)=',k,field1(k)
@@ -1639,7 +1639,7 @@ contains
        do k=1,nsig_regional
           deta2(k)=field1(k) 
        end do
-       if(guess .and. print_verbose) then
+       if(guess .and. print_verbose .and. n==nhr_assimilation) then
           write(6,*)'CONVERT_NETCDF_NMM:' 
           do k=1,nsig_regional
              write(6,*)' k,deta2(k)=',k,field1(k)
@@ -1661,7 +1661,7 @@ contains
        do k=1,nsig_regional
           aeta2(k)=field1(k) 
        end do
-       if(guess .and. print_verbose)then
+       if(guess .and. print_verbose .and. n==nhr_assimilation)then
           write(6,*)'CONVERT_NETCDF_NMM:' 
           do k=1,nsig_regional
              write(6,*)' k,aeta2(k)=',k,field1(k)
@@ -1683,7 +1683,7 @@ contains
        do k=1,nsig_regional+1
           eta2(k)=field1(k) 
        end do
-       if(guess .and. print_verbose)then
+       if(guess .and. print_verbose .and. n==nhr_assimilation)then
           write(6,*)'CONVERT_NETCDF_NMM:' 
           do k=1,nsig_regional+1
              write(6,*)' k,eta2(k)=',k,field1(k)
