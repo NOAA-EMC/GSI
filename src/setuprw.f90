@@ -90,7 +90,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
-  use qcmod, only: npres_print,ptop,pbot,tdrerr_inflate,tdrgross_fact
+  use qcmod, only: npres_print,ptop,pbot,tdrerr_inflate
   use guess_grids, only: hrdifsig,geop_hgtl,nfldsig,&
        ges_lnprsl,sfcmod_gfs,sfcmod_mm5,comp_fact10
   use gridmod, only: nsig,get_ijk
@@ -419,13 +419,6 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         pobl   = prsltmp(k1)
      end if
         
-
-     if(data(iobs_type,i) > three .and. k1 == k2)then
-       dz     = zges(k1)-zsges 
-       dlnp   = prsltmp(k1)-log(psges) 
-       pobl   = log(psges) + (dlnp/dz)*(zob-zsges)
-     endif
-
      presw  = ten*exp(pobl)
 
 !    Determine location in terms of grid units for midpoint of
@@ -435,11 +428,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 !    Check to see if observation is below midpoint of first
 !    above surface layer.  If so, set rlow to that difference
-     if(data(iobs_type,i) > three)then
-       rlow=max(1-dpres,zero)
-     else
-       rlow=max(sfcchk-dpres,zero)
-     endif
+     rlow=max(sfcchk-dpres,zero)
 
 !    Check to see if observation is above midpoint of layer
 !    at the top of the model.  If so, set rhgh to that difference.
@@ -563,11 +552,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
      residual = abs(ddiff)
      ratio    = residual/obserrlm
-     if(data(iobs_type,i) > three) then
-        qcgross=cgross(ikx)*tdrgross_fact
-     else
-        qcgross=cgross(ikx)
-     end if
+     qcgross=cgross(ikx)
 
      if (ratio > qcgross .or. ratio_errors < tiny_r_kind) then
         if (luse(i)) awork(4) = awork(4)+one

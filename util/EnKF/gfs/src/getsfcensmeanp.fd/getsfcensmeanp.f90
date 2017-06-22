@@ -110,7 +110,7 @@ program getsfcensmeanp
 ! Process input files (one file per task)
   if (mype1 <= nanals) then
 
-     call nemsio_init(iret)
+     call nemsio_init(iret=iret)
 
      write(charnanal,'(i3.3)') mype1
      filenamein = trim(adjustl(datapath))// &
@@ -119,7 +119,7 @@ program getsfcensmeanp
      if (iret == 0 ) then
         sfcio = .true.
      else
-        call nemsio_open(gfile,trim(filenamein),'READ',iret)
+        call nemsio_open(gfile,trim(filenamein),'READ',iret=iret)
         if (iret == 0 ) then
            nemsio = .true.
         else
@@ -128,7 +128,7 @@ program getsfcensmeanp
      endif
      if (.not.nemsio .and. .not.sfcio) goto 100
      if (mype==0) write(6,*)'computing mean with nemsio=',nemsio,' sfcio=',sfcio
-        
+
 
      if (sfcio) then
         call sfcio_aldata(sfcheadi,sfcdatao,iret)
@@ -216,29 +216,29 @@ program getsfcensmeanp
            call sfcio_swohdc(lunout,filenameout,sfcheado,sfcdatao,iret)
            write(6,*)'Write ensemble mean ',trim(filenameout),' iret=',iret
         endif
-        
+
 !    Use mpi_reduce to sum fields.  Compute mean
      elseif (nemsio) then
         call nemsio_getfilehead(gfile, nrec=nrec, idate=idate, dimx=lonb, dimy=latb, iret=iret)
 
         if (mype==0) then
            gfileo=gfile
-           call nemsio_open(gfileo,trim(filenameout),'WRITE',iret )
+           call nemsio_open(gfileo,trim(filenameout),'WRITE',iret=iret )
         end if
 
         npts=lonb*latb
         if (.not.allocated(rwork1d)) allocate(rwork1d(npts))
         if (.not.allocated(swork1d)) allocate(swork1d(npts))
-        
+
         do n=1,nrec
            rwork1d=zero
-           call nemsio_readrec (gfile, n,rwork1d,iret)
+           call nemsio_readrec (gfile, n,rwork1d,iret=iret)
            swork1d=zero
            call mpi_allreduce(rwork1d,swork1d,npts,mpi_real,mpi_sum,new_comm,iret)
            swork1d = swork1d * rnanals
-           
+
            if (mype==0) then
-              call nemsio_writerec(gfileo,n,swork1d,iret)
+              call nemsio_writerec(gfileo,n,swork1d,iret=iret)
            end if
         end do
 
@@ -251,33 +251,34 @@ program getsfcensmeanp
 
         if (mype==0) then
            rwork1d=zero
-           call nemsio_readrecv(gfile,'land','sfc',1,rwork1d,iret)
-           call nemsio_writerecv(gfileo,'land','sfc',1,rwork1d,iret)
+           call nemsio_readrecv(gfile,'land','sfc',1,rwork1d,iret=iret)
+           call nemsio_writerecv(gfileo,'land','sfc',1,rwork1d,iret=iret)
 
            rwork1d=zero
-           call nemsio_readrecv(gfile,'vtype','sfc',1,rwork1d,iret)
-           call nemsio_writerecv(gfileo,'vtype','sfc',1,rwork1d,iret)
+           call nemsio_readrecv(gfile,'vtype','sfc',1,rwork1d,iret=iret)
+           call nemsio_writerecv(gfileo,'vtype','sfc',1,rwork1d,iret=iret)
 
            rwork1d=zero
-           call nemsio_readrecv(gfile,'sotyp','sfc',1,rwork1d,iret)
-           call nemsio_writerecv(gfileo,'sotyp','sfc',1,rwork1d,iret)
+           call nemsio_readrecv(gfile,'sotyp','sfc',1,rwork1d,iret=iret)
+           call nemsio_writerecv(gfileo,'sotyp','sfc',1,rwork1d,iret=iret)
 
            rwork1d=zero
-           call nemsio_readrecv(gfile,'sltyp','sfc',1,rwork1d,iret)
-           call nemsio_writerecv(gfileo,'sltyp','sfc',1,rwork1d,iret)
+           call nemsio_readrecv(gfile,'sltyp','sfc',1,rwork1d,iret=iret)
+           if (iret==0 ) &
+              call nemsio_writerecv(gfileo,'sltyp','sfc',1,rwork1d,iret=iret)
 
            rwork1d=zero
-           call nemsio_readrecv(gfile,'orog','sfc',1,rwork1d,iret)
-           call nemsio_writerecv(gfileo,'orog','sfc',1,rwork1d,iret)
+           call nemsio_readrecv(gfile,'orog','sfc',1,rwork1d,iret=iret)
+           call nemsio_writerecv(gfileo,'orog','sfc',1,rwork1d,iret=iret)
 
         end if
-        
+
         deallocate(rwork1d)
         deallocate(swork1d)
-        
+
         call nemsio_close(gfile, iret)
         if (mype==0) then
-           call nemsio_close(gfileo,iret)
+           call nemsio_close(gfileo,iret=iret)
            write(6,*)'Write ensmemble mean ',trim(filenameout),' iret=',iret
         endif
      endif
