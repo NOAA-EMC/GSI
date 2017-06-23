@@ -235,6 +235,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   use m_obsHeadBundle, only: obsHeadBundle
   use m_obsHeadBundle, only: obsHeadBundle_create
   use m_obsHeadBundle, only: obsHeadBundle_destroy
+  use gsi_io, only: verbose
   implicit none
 
 ! Declare passed variables
@@ -277,6 +278,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   real(r_kind),dimension(4)::sges
   real(r_kind),dimension(ioutpen):: outpen,outstp
   logical :: cxterm,change_dels,ifound
+  logical :: print_verbose
 
 
   type(obsHeadBundle),pointer,dimension(:):: yobs
@@ -285,6 +287,8 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   call timer_ini('stpcalc')
 
 ! Initialize variable
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
   cxterm=.false.
   mm1=mype+1
   stp(0)=stpinout
@@ -609,28 +613,30 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !    estimate various terms in penalty on first iteration
      if(ii == 1)then
         do i=1,ipen
-           pen_save(i)=pbc(1,i)+pbc(ipenloc,i)
+           pen_save(i)=pbc(1,i)
            bsum_save(i)=bsum(i)
            csum_save(i)=csum(i)
         end do
-        pjcost(1) =  pen_save(1)                                   ! Jb
+        pjcost(1) =  pen_save(1)+pbc(ipenloc,1)                    ! Jb
         pjcost(2) = zero_quad
         do i=1,nobs_type
-           pjcost(2) = pjcost(2)+pen_save(n0+i)                    ! Jo
+           pjcost(2) = pjcost(2)+pen_save(n0+i)+pbc(ipenloc,n0+i)  ! Jo
         end do
-        pjcost(3) = pen_save(2)   + pen_save(3)                    ! Jc
+        pjcost(3) = pen_save(2)   + pen_save(3)+pbc(ipenloc,3)     ! Jc
         pjcost(4) = zero_quad
         do i=4,n0
-           pjcost(4) = pjcost(4) + pen_save(i)                     ! Jl
+           pjcost(4) = pjcost(4) + pen_save(i)+pbc(ipenloc,i)      ! Jl
         end do
 
         penalty=pjcost(1)+pjcost(2)+pjcost(3)+pjcost(4)    ! J = Jb + Jo + Jc +Jl
 
 !    Write out detailed results to iout_iter
         if(mype == 0) then
-           write(iout_iter,100) (pen_save(i),i=1,ipen)
-           write(iout_iter,105) (bsum(i),i=1,ipen)
-           write(iout_iter,110) (csum(i),i=1,ipen)
+           write(iout_iter,100) (pen_save(i)+pbc(i,ipenloc),i=1,ipen)
+           if(print_verbose)then
+              write(iout_iter,105) (bsum(i),i=1,ipen)
+              write(iout_iter,110) (csum(i),i=1,ipen)
+           end if
         end if
      endif
 
@@ -643,8 +649,10 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
            write(iout_iter,*) ' minimization has converged '
            write(iout_iter,140) ii,delpen,bx,cx,stp(ii)
            write(iout_iter,100) (pbc(1,i)+pbc(ipenloc,i),i=1,ipen)
-           write(iout_iter,105) (bsum(i),i=1,ipen)
-           write(iout_iter,110) (csum(i),i=1,ipen)
+           if(print_verbose)then
+              write(iout_iter,105) (bsum(i),i=1,ipen)
+              write(iout_iter,110) (csum(i),i=1,ipen)
+           end if
         end if
         end_iter = .true.
 !       Finalize timer
@@ -731,10 +739,10 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
   stpinout=stp(istp_use)
 ! Estimate terms in penalty
-  if(mype == 0)then
+  if(mype == 0 .and. print_verbose)then
      do i=1,ipen
-         pen_est(i)=pen_save(i)-stp(istp_use)*(2.0_r_quad*bsum_save(i)- &
-                       stp(istp_use)*csum_save(i))
+         pen_est(i)=pen_save(i)-(stpinout-stp(0))*(2.0_r_quad*bsum_save(i)- &
+                       (stpinout-stp(0))*csum_save(i))
      end do
      write(iout_iter,101) (pbc(1,i)-pen_est(i),i=1,ipen)
   end if
@@ -750,7 +758,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   end do
   penaltynew=pjcostnew(1)+pjcostnew(2)+pjcostnew(3)+pjcostnew(4)
 
-  if(mype == 0)then
+  if(mype == 0 .and. print_verbose)then
      write(iout_iter,200) (stp(i),i=0,istp_use)
      write(iout_iter,199) (stprat(ii),ii=1,istp_use)
      write(iout_iter,201) (outstp(i),i=1,nsteptot)

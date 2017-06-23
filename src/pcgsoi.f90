@@ -155,7 +155,8 @@ subroutine pcgsoi()
   use gsi_bundlemod, only : self_add,assignment(=)
   use gsi_bundlemod, only : gsi_bundleprint
   use gsi_4dcouplermod, only : gsi_4dcoupler_grtests
-    use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
+  use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
+  use gsi_io, only: verbose
 
   use stpjomod, only: stpjo_setup
   use m_obsHeadBundle, only: obsHeadBundle
@@ -191,6 +192,7 @@ subroutine pcgsoi()
   type(control_vector), allocatable, dimension(:) :: cglworkhat
   integer(i_kind) :: iortho
   real(r_quad) :: zdla
+  logical :: print_verbose
 !    note that xhatt,dirxt,xhatp,dirxp are added to carry corrected grid fields
 !      of t and p from implicit normal mode initialization (strong constraint option)
 !     inmi generates a linear correction to t,u,v,p.  already have xhatuv which can
@@ -207,6 +209,8 @@ subroutine pcgsoi()
 ! Initialize timer
   call timer_ini('pcgsoi')
 
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
   if (ladtest) call adtest()
 
 ! Set constants.  Initialize variables.
@@ -454,7 +458,7 @@ subroutine pcgsoi()
         endif
         b=zero
      endif
-     if (mype==0) write(6,888)'pcgsoi: gnorm(1:2),b=',gnorm,b
+     if (mype==0 .and. print_verbose) write(6,888)'pcgsoi: gnorm(1:2),b=',gnorm,b
 
 !    Calculate new search direction
      if (.not. restart) then
@@ -535,20 +539,24 @@ subroutine pcgsoi()
      penx=penalty/penorig
 
      if (mype==0) then
-        write(iout_iter,888)'pcgsoi: gnorm(1:2)',gnorm
-        write(iout_iter,999)'costterms Jb,Jo,Jc,Jl  =',jiter,iter,fjcost
+        if(print_verbose)then
+           write(iout_iter,888)'pcgsoi: gnorm(1:2)',gnorm
+           write(iout_iter,999)'costterms Jb,Jo,Jc,Jl  =',jiter,iter,fjcost
+        end if
         istep=1
         if (stp<small_step) istep=2
         write(6,9992)'cost,grad,step,b,step? =',jiter,iter,penalty,sqrt(gnorm(1)),stp,b,step(istep)
         write(iout_iter,9992)'cost,grad,step,b,step? =',jiter,iter,penalty,sqrt(gnorm(1)),stp,b,step(istep)
-        if (zgini>tiny_r_kind .and. zfini>tiny_r_kind) then
-           write(iout_iter,9993) 'estimated penalty reduction this iteration',&
-                 jiter,iter,(penalty-penaltynew),(penalty-penaltynew)/penorig,'%'
-           write(iout_iter,999)'penalty and grad reduction WRT outer and initial iter=', &
-               jiter,iter,penalty/zfini,sqrt(gnorm(1)/zgini),penx,gnormx
-        else
-           write(iout_iter,999)'grad and penalty reduction WRT outer and initial iter=N/A'
-        endif
+        if(print_verbose)then
+           if (zgini>tiny_r_kind .and. zfini>tiny_r_kind) then
+              write(iout_iter,9993) 'estimated penalty reduction this iteration',&
+                    jiter,iter,(penalty-penaltynew),(penalty-penaltynew)/penorig,'%'
+              write(iout_iter,999)'penalty and grad reduction WRT outer and initial iter=', &
+                  jiter,iter,penalty/zfini,sqrt(gnorm(1)/zgini),penx,gnormx
+           else
+              write(iout_iter,999)'grad and penalty reduction WRT outer and initial iter=N/A'
+           endif
+        end if
 
      endif
 999  format(A,2(1X,I3),6(1X,ES25.18))
