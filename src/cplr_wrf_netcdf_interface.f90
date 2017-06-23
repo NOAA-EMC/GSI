@@ -1502,7 +1502,7 @@ contains
        rmse_var='SMC' ! soil moisture volume fraction
        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
             start_index,end_index1, WrfType, ierr    )
-       write(6,*)' rmse_var=',trim(rmse_var)
+       if(print_verbose)write(6,*)' rmse_var=',trim(rmse_var)
   
   !    Read in east-west angular distance (degrees) H-to-V points 
        rmse_var='DLMD'
@@ -1766,7 +1766,7 @@ contains
           rmse_var='DX_NMM' ! east-west distance (m) H-to-V points 
           call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
                start_index,end_index1, WrfType, ierr    )
-          write(6,*)' rmse_var=',trim(rmse_var)
+          if(print_verbose)write(6,*)' rmse_var=',trim(rmse_var)
           call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
                field2b,WRF_REAL,0,0,0,ordering,           &
                staggering, dimnames ,               &
@@ -1813,7 +1813,7 @@ contains
           rmse_var='DY_NMM' ! north-south distance (m) H-to-V points
           call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
                start_index,end_index1, WrfType, ierr    )
-          write(6,*)' rmse_var=',trim(rmse_var)
+          if(print_verbose)write(6,*)' rmse_var=',trim(rmse_var)
           call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
                dy_nmm,WRF_REAL,0,0,0,ordering,       &
                staggering, dimnames ,               &
@@ -1821,7 +1821,7 @@ contains
                start_index,end_index1,               & !mem
                start_index,end_index1,               & !pat
                ierr                                 )
-          write(6,*)' dy_nmm=',dy_nmm
+          if(print_verbose)write(6,*)' dy_nmm=',dy_nmm
           field2b=dy_nmm
        end if
        if(guess)then
@@ -2046,7 +2046,7 @@ contains
           rmse_var='SM' ! land-sea mask (sea=1 land=0) 
           call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
                start_index,end_index1, WrfType, ierr    )
-          write(6,*)' rmse_var=',trim(rmse_var)
+          if(print_verbose)write(6,*)' rmse_var=',trim(rmse_var)
           call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
                field2,WRF_REAL,0,0,0,ordering,           &
                staggering, dimnames ,               &
@@ -2225,7 +2225,7 @@ contains
           rmse_var='CWM' ! cloud water mixing ratio    
           call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
                start_index,end_index1, WrfType, ierr    )
-          if(guess)write(6,*)' ierr,rmse_var=',ierr,trim(rmse_var)
+          if(guess .and. print_verbose)write(6,*)' ierr,rmse_var=',ierr,trim(rmse_var)
           call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
                field3,WRF_REAL,0,0,0,ordering,           &
                staggering, dimnames ,               &
@@ -2233,7 +2233,7 @@ contains
                start_index,end_index1,               & !mem
                start_index,end_index1,               & !pat
                ierr                                 )
-          if(guess .and. verbose)then
+          if(guess .and. print_verbose)then
              do k=1,nsig_read
                 write(6,*)' k,max,min,mid CWM=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
                   field3(nlon_regional/2,nlat_regional/2,k)
