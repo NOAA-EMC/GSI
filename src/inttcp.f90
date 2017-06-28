@@ -13,6 +13,7 @@ module inttcpmod
 !   2009-08-13  lueken - update documentation
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !   2013-10-28  todling - rename p3d to prse
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub inttcp_
@@ -25,6 +26,10 @@ module inttcpmod
 !
 !$$$ end documentation block
 
+use m_obsNode, only: obsNode
+use m_tcpNode, only: tcpNode
+use m_tcpNode, only: tcpNode_typecast
+use m_tcpNode, only: tcpNode_nextcast
 implicit none
 
 PRIVATE
@@ -65,30 +70,27 @@ subroutine inttcp_(tcphead,rval,sval)
 
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term
-  use obsmod, only: tcp_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
+  use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
-  use gridmod, only: latlon1n1
-  use jfunc, only: jiter,xhat_dt,dhat_dt,l_foto
+  use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_4dvar, only: ladtest_obs
   implicit none
 
 ! Declare passed variables
-  type(tcp_ob_type),pointer,intent(in   ) :: tcphead
+  class(obsNode),  pointer, intent(in   ) :: tcphead
   type(gsi_bundle),         intent(in   ) :: sval
   type(gsi_bundle),         intent(inout) :: rval
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,ier,istatus
 ! real(r_kind) penalty
-  real(r_kind),pointer,dimension(:) :: xhat_dt_prse
-  real(r_kind),pointer,dimension(:) :: dhat_dt_prse
   real(r_kind) cg_ps,val,p0,grad,wnotgross,wgross,ps_pg
-  real(r_kind) w1,w2,w3,w4,time_tcp
+  real(r_kind) w1,w2,w3,w4
   real(r_kind),pointer,dimension(:) :: sp
   real(r_kind),pointer,dimension(:) :: rp
-  type(tcp_ob_type), pointer :: tcpptr
+  type(tcpNode), pointer :: tcpptr
 
 !  If no tcp data return
   if(.not. associated(tcphead))return
@@ -98,13 +100,10 @@ subroutine inttcp_(tcphead,rval,sval)
   ier=0
   call gsi_bundlegetpointer(sval,'prse',sp,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'prse',rp,istatus);ier=istatus+ier
-  if(l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'prse',xhat_dt_prse,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'prse',dhat_dt_prse,istatus);ier=istatus+ier
-  endif
   if(ier/=0)return
 
-  tcpptr => tcphead
+  !tcpptr => tcphead
+  tcpptr => tcpNode_typecast(tcphead)
   do while (associated(tcpptr))
      j1=tcpptr%ij(1)
      j2=tcpptr%ij(2)
@@ -117,12 +116,6 @@ subroutine inttcp_(tcphead,rval,sval)
      
 !    Forward model
      val=w1* sp(j1)+w2* sp(j2)+w3* sp(j3)+w4* sp(j4)
-     if(l_foto)then
-        time_tcp=tcpptr%time
-        val=val+ &
-         (w1*xhat_dt_prse(j1)+w2*xhat_dt_prse(j2)+ &
-          w3*xhat_dt_prse(j3)+w4*xhat_dt_prse(j4))*time_tcp
-     end if
 
      if(luse_obsdiag)then
         if (lsaveobsens) then
@@ -161,16 +154,9 @@ subroutine inttcp_(tcphead,rval,sval)
         rp(j3)=rp(j3)+w3*grad
         rp(j4)=rp(j4)+w4*grad
    
-        if (l_foto) then
-           grad=grad*time_tcp
-           dhat_dt_prse(j1)=dhat_dt_prse(j1)+w1*grad
-           dhat_dt_prse(j2)=dhat_dt_prse(j2)+w2*grad
-           dhat_dt_prse(j3)=dhat_dt_prse(j3)+w3*grad
-           dhat_dt_prse(j4)=dhat_dt_prse(j4)+w4*grad
-        endif
-
      end if
-     tcpptr => tcpptr%llpoint
+     !tcpptr => tcpptr%llpoint
+     tcpptr => tcpNode_nextcast(tcpptr)
   end do
   return
 end subroutine inttcp_

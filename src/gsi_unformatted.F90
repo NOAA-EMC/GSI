@@ -125,17 +125,20 @@ module gsi_unformatted
 ! name/class    convert
 
 contains
-subroutine open_(unit,file,class,action,position,status,iostat)
+subroutine open_(unit,file,class,newunit,action,position,status,iostat,silent)
   implicit none
-  integer(i_kind) ,intent(in):: unit                    ! logical unit
-  character(len=*),intent(in):: file                    ! filename
+  integer(i_kind) ,intent(inout):: unit                 ! logical unit
+  character(len=*),intent(in   ):: file                 ! filename
   character(len=*),optional,intent(in ):: class         ! file class of convert specifier
+  logical         ,optional,intent(in ):: newunit       ! file class of convert specifier
   character(len=*),optional,intent(in ):: action        ! 'read', 'write', or 'readwrite'
   character(len=*),optional,intent(in ):: position      ! 'rewind', 'append', or 'asis'
   character(len=*),optional,intent(in ):: status        ! 'old', 'new', 'unknown', or 'scratch'
   integer(i_kind) ,optional,intent(out):: iostat        ! the return status
+  logical         ,optional,intent(in ):: silent        ! not complain on missing fileinfo
 
   integer(i_kind):: iostat_
+  logical        :: newunit_
   character(len=FILEINFO_LEN):: class_
   character(len=FILEINFO_LEN):: action_
   character(len=FILEINFO_LEN):: position_
@@ -146,29 +149,46 @@ subroutine open_(unit,file,class,action,position,status,iostat)
   class_   ='.default.'; if(present(class   )) class_   =class
   action_  ='readwrite'; if(present(action  )) action_  =action
   position_='rewind'   ; if(present(position)) position_=position
+  newunit_ =.false.    ; if(present(newunit )) newunit_ =newunit
   status_  ='unknown'  ; if(present(status  )) status_  =status
 
   if(present(iostat)) iostat=0
 
 #ifdef _DO_NOT_SUPPORT_OPEN_WITH_CONVERT_
   convert_="_NOT_SUPPORTED_"    ! open(file with the compiler default convert
-  open(unit=unit,file=file,access='sequential',form='unformatted', &
+  if(newunit_) then
+     open(newunit=unit,file=file,access='sequential',form='unformatted', &
         action=action_,position=position_,status=status_,iostat=iostat_)
+  else
+     open(   unit=unit,file=file,access='sequential',form='unformatted', &
+        action=action_,position=position_,status=status_,iostat=iostat_)
+  endif
 
 #else
   convert_="_NOT_FOUND_"        ! set a difault value
-  call lookup_(class_,convert_) ! may override convert value, if an entry of class_ is found.
-  call lookup_(file  ,convert_) ! may override convert value, if an entry of file is found.
+  call lookup_(class_,convert_,silent=silent) ! may override convert value, if an entry of class_ is found.
+  call lookup_(file  ,convert_,silent=silent) ! may override convert value, if an entry of file is found.
 
   select case(convert_)
   case("","_NOT_FOUND_")        ! open(file) with the compiler default convert
-     open(unit=unit,file=file,access='sequential',form='unformatted', &
-        action=action_,position=position_,status=status_,iostat=iostat_)
+     if(newunit_) then
+        open(newunit=unit,file=file,access='sequential',form='unformatted', &
+           action=action_,position=position_,status=status_,iostat=iostat_)
+     else
+        open(   unit=unit,file=file,access='sequential',form='unformatted', &
+           action=action_,position=position_,status=status_,iostat=iostat_)
+     endif
 
   case default                  ! open(file) with user specified convert
-     open(unit=unit,file=file,access='sequential',form='unformatted', &
-        action=action_,position=position_,status=status_,iostat=iostat_, &
-        convert=convert_)
+     if(newunit_) then
+        open(newunit=unit,file=file,access='sequential',form='unformatted', &
+           action=action_,position=position_,status=status_,iostat=iostat_, &
+           convert=convert_)
+     else
+        open(   unit=unit,file=file,access='sequential',form='unformatted', &
+           action=action_,position=position_,status=status_,iostat=iostat_, &
+           convert=convert_)
+     endif
   end select
 #endif
 
@@ -189,14 +209,18 @@ subroutine open_(unit,file,class,action,position,status,iostat)
   endif
 end subroutine open_
 
-subroutine lookup_(class,convert)
+subroutine lookup_(class,convert,silent)
   implicit none
   character(len=*),intent(in   ):: class        ! class or filename itself
   character(len=*),intent(inout):: convert      ! may be override if an entry of class is found
+  logical,optional,intent(in   ):: silent       ! not complain on missing fileinfo file
 
   character(len=*),parameter:: myname_=myname//'::lookup_'
   integer(i_kind):: l
-  if(.not.fileinfo_initialized_) call init_()
+  logical:: silent_
+  silent_=.false.
+  if(present(silent)) silent_=silent
+  if(.not.fileinfo_initialized_) call init_(.not.silent_)
 
   if(fileinfo_lsize_<=0) return
 
@@ -227,8 +251,9 @@ subroutine reset_(fileinfo)
               fileinfo_cnvrt_, &
               fileinfo_index_  )
 end subroutine reset_
-subroutine init_()
+subroutine init_(verbose)
   implicit none
+  logical,intent(in):: verbose
 
 ! local variables
   integer(i_kind):: lu,ier,i,n
@@ -243,14 +268,18 @@ subroutine init_()
 
   fileinfo_initialized_=.true.
 
-  if(.not.CONVERT_SUPPORTED_) call warn(myname_,'Not supported, open(convert=..)')
+  if(.not.CONVERT_SUPPORTED_.and.verbose) call warn(myname_,'Not supported, open(convert=..)')
 
         ! read in the fileinfo table anyway
   lu=mpeu_luavail()
   open(lu,file=fileinfo_name_,status='old',form='formatted',iostat=ier)
         if(ier/=0) then
-           call warn(myname_,'Can not open, file =',trim(fileinfo_name_))
-           call warn(myname_,'Compiler specified convert value will be used.')
+#ifndef _DO_NOT_SUPPORT_OPEN_WITH_CONVERT_
+           if(verbose) then
+             call warn(myname_,'Can not open, file =',trim(fileinfo_name_))
+             call warn(myname_,'Will use default convert values in code')
+           endif
+#endif
 
            fileinfo_lsize_=0
            allocate( fileinfo_class_(0), &
@@ -300,7 +329,7 @@ subroutine init_()
 
 end subroutine init_
 
-subroutine lookitup_(lsize_,index_,class_,cnvrt_,classi,cnvrti)
+subroutine lookitup_(lsize_,index_,class_,cnvrt_,classi,convert)
   implicit none
   integer(i_kind) ,intent(in):: lsize_
   integer(i_kind) ,dimension(:),intent(in):: index_
@@ -308,7 +337,7 @@ subroutine lookitup_(lsize_,index_,class_,cnvrt_,classi,cnvrti)
   character(len=*),dimension(:),intent(in):: cnvrt_
 
   character(len=*),intent(in   ):: classi
-  character(len=*),intent(inout):: cnvrti
+  character(len=*),intent(inout):: convert
 
   logical:: done
   integer(i_kind):: lb,ub,i,l
@@ -325,7 +354,7 @@ subroutine lookitup_(lsize_,index_,class_,cnvrt_,classi,cnvrti)
         lb=i+1
      else
         done=.true.
-        cnvrti=cnvrt_(l)
+        convert=cnvrt_(l)
         exit
      endif
   enddo

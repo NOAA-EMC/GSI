@@ -15,6 +15,7 @@ module stpqmod
 !   2010-05-13  todling - uniform interface across stp routines
 !   2014-04-12       su - add non linear qc from Purser's scheme
 !   2015-02-26       su - add njqc as an option to choose Purser's non-linear qc 
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stpq
@@ -54,7 +55,6 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
 !   2005-10-21  su      - modify for variational qc
 !   2007-03-19  tremolet - binning of observations
 !   2007-07-28  derber  - modify to use new inner loop obs data structure
-!   2007-02-15  rancic  - add foto
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2008-12-03  todling - changed handling of ptr%time
 !   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
@@ -77,17 +77,18 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: q_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
-  use gridmod, only: latlon1n
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
-  use jfunc, only: l_foto,dhat_dt,xhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use m_obsNode, only: obsNode
+  use m_qNode  , only: qNode
+  use m_qNode  , only: qNode_typecast
+  use m_qNode  , only: qNode_nextcast
   implicit none
 
 ! Declare passed variables
-  type(q_ob_type),pointer             ,intent(in   ) :: qhead
+  class(obsNode), pointer             ,intent(in   ) :: qhead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
@@ -98,11 +99,9 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk
   real(r_kind) cg_q,val,val2,wgross,wnotgross,q_pg
   real(r_kind),dimension(max(1,nstep))::pen
-  real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,time_q,qq
-  real(r_kind),pointer,dimension(:) :: xhat_dt_q
-  real(r_kind),pointer,dimension(:) :: dhat_dt_q
+  real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,qq
   real(r_kind),pointer,dimension(:):: rq,sq
-  type(q_ob_type), pointer :: qptr
+  type(qNode), pointer :: qptr
 
   out=zero_quad
 
@@ -112,13 +111,9 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
   ier=0
   call gsi_bundlegetpointer(sval,'q',sq,istatus);ier=ier+istatus
   call gsi_bundlegetpointer(rval,'q',rq,istatus);ier=ier+istatus
-  if(l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'q',xhat_dt_q,istatus);ier=ier+istatus
-     call gsi_bundlegetpointer(xhat_dt,'q',dhat_dt_q,istatus);ier=ier+istatus
-  endif
   if(ier/=0) return
 
-  qptr => qhead
+  qptr => qNode_typecast(qhead)
   do while (associated(qptr))
      if(qptr%luse)then
         if(nstep > 0)then
@@ -144,17 +139,6 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
                 w5* rq(j5)+w6* rq(j6)+w7* rq(j7)+w8* rq(j8)
            val2=w1* sq(j1)+w2* sq(j2)+w3* sq(j3)+w4* sq(j4)+ &
                 w5* sq(j5)+w6* sq(j6)+w7* sq(j7)+w8* sq(j8)-qptr%res
-           if(l_foto)then
-              time_q=qptr%time*r3600
-              val =val +(w1*dhat_dt_q(j1)+w2*dhat_dt_q(j2)+ &
-                         w3*dhat_dt_q(j3)+w4*dhat_dt_q(j4)+ &
-                         w5*dhat_dt_q(j5)+w6*dhat_dt_q(j6)+ &
-                         w7*dhat_dt_q(j7)+w8*dhat_dt_q(j8))*time_q
-              val2=val2+(w1*xhat_dt_q(j1)+w2*xhat_dt_q(j2)+ &
-                         w3*xhat_dt_q(j3)+w4*xhat_dt_q(j4)+ &
-                         w5*xhat_dt_q(j5)+w6*xhat_dt_q(j6)+ &
-                         w7*xhat_dt_q(j7)+w8*xhat_dt_q(j8))*time_q
-           end if
            do kk=1,nstep
               qq=val2+sges(kk)*val
               pen(kk)=qq*qq*qptr%err2
@@ -192,7 +176,8 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
         endif
 
      end if
-     qptr => qptr%llpoint
+
+     qptr => qNode_nextcast(qptr)
 
   end do
 

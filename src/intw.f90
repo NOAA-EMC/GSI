@@ -14,6 +14,7 @@ module intwmod
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
 !   2014-04-12       su - add non linear qc from Purser's scheme
 !   2015-02-26       su - add njqc as an option to chose new non linear qc
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intw_
@@ -26,6 +27,10 @@ module intwmod
 !
 !$$$ end documentation block
 
+use m_obsNode, only: obsNode
+use m_wNode, only: wNode
+use m_wNode, only: wNode_typecast
+use m_wNode, only: wNode_nextcast
 implicit none
 
 PRIVATE
@@ -59,7 +64,6 @@ subroutine intw_(whead,rval,sval)
 !   2005-10-21  su      - modify for variational qc
 !   2006-07-28  derber  - modify to use new inner loop obs data structure
 !                       - unify NL qc
-!   2006-10-20  rancic  - add foto
 !   2007-03-19  tremolet - binning of observations
 !   2007-06-05  tremolet - use observation diagnostics structure
 !   2007-07-09  tremolet - observation sensitivity
@@ -89,49 +93,40 @@ subroutine intw_(whead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term,r3600,two
-  use obsmod, only: w_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
+  use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
-  use gridmod, only: latlon1n
-  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_4dvar, only: ladtest_obs 
   implicit none
 
 ! Declare passed variables
-  type(w_ob_type),pointer,intent(in   ) :: whead
+  class(obsNode), pointer,intent(in   ) :: whead
   type(gsi_bundle),       intent(in   ) :: sval
   type(gsi_bundle),       intent(inout) :: rval
 
 ! Declare local variables
   integer(i_kind) i1,i2,i3,i4,i5,i6,i7,i8,ier,istatus
 ! real(r_kind) penalty
-  real(r_kind),pointer,dimension(:) :: xhat_dt_u,xhat_dt_v
-  real(r_kind),pointer,dimension(:) :: dhat_dt_u,dhat_dt_v
-  real(r_kind) valu,valv,w1,w2,w3,w4,w5,w6,w7,w8,time_w
+  real(r_kind) valu,valv,w1,w2,w3,w4,w5,w6,w7,w8
   real(r_kind) cg_w,p0,gradu,gradv,wnotgross,wgross,term,w_pg
   real(r_kind),pointer,dimension(:) :: su,sv
   real(r_kind),pointer,dimension(:) :: ru,rv
-  type(w_ob_type), pointer :: wptr
+  type(wNode), pointer :: wptr
 
 !  If no w data return
   if(.not. associated(whead))return
 
-! Retrieve pointers from xhat_dt and dhat_dt
   ier=0
   call gsi_bundlegetpointer(sval,'u',su,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(sval,'v',sv,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'u',ru,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'v',rv,istatus);ier=istatus+ier
-  if(l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'u',xhat_dt_u,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'v',xhat_dt_v,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'u',dhat_dt_u,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'v',dhat_dt_v,istatus);ier=istatus+ier
-  endif
   if(ier/=0)return
 
-  wptr => whead
+  !wptr => whead
+  wptr => wNode_typecast(whead)
   do while(associated(wptr))
      i1=wptr%ij(1)
      i2=wptr%ij(2)
@@ -155,19 +150,6 @@ subroutine intw_(whead,rval,sval)
           w5* su(i5)+w6* su(i6)+w7* su(i7)+w8* su(i8)
      valv=w1* sv(i1)+w2* sv(i2)+w3* sv(i3)+w4* sv(i4)+&
           w5* sv(i5)+w6* sv(i6)+w7* sv(i7)+w8* sv(i8)
-     if (l_foto) then
-        time_w=wptr%time*r3600
-        valu=valu+&
-          (w1*xhat_dt_u(i1)+w2*xhat_dt_u(i2)+ &
-           w3*xhat_dt_u(i3)+w4*xhat_dt_u(i4)+ &
-           w5*xhat_dt_u(i5)+w6*xhat_dt_u(i6)+ &
-           w7*xhat_dt_u(i7)+w8*xhat_dt_u(i8))*time_w
-        valv=valv+&
-          (w1*xhat_dt_v(i1)+w2*xhat_dt_v(i2)+ &
-           w3*xhat_dt_v(i3)+w4*xhat_dt_v(i4)+ &
-           w5*xhat_dt_v(i5)+w6*xhat_dt_v(i6)+ &
-           w7*xhat_dt_v(i7)+w8*xhat_dt_v(i8))*time_w
-     endif
 
      if(luse_obsdiag)then
         if (lsaveobsens) then
@@ -238,30 +220,10 @@ subroutine intw_(whead,rval,sval)
         rv(i7)=rv(i7)+w7*gradv
         rv(i8)=rv(i8)+w8*gradv
      
-        if (l_foto) then
-           gradu=gradu*time_w
-           gradv=gradv*time_w
-           dhat_dt_u(i1)=dhat_dt_u(i1)+w1*gradu
-           dhat_dt_u(i2)=dhat_dt_u(i2)+w2*gradu
-           dhat_dt_u(i3)=dhat_dt_u(i3)+w3*gradu
-           dhat_dt_u(i4)=dhat_dt_u(i4)+w4*gradu
-           dhat_dt_u(i5)=dhat_dt_u(i5)+w5*gradu
-           dhat_dt_u(i6)=dhat_dt_u(i6)+w6*gradu
-           dhat_dt_u(i7)=dhat_dt_u(i7)+w7*gradu
-           dhat_dt_u(i8)=dhat_dt_u(i8)+w8*gradu
-
-           dhat_dt_v(i1)=dhat_dt_v(i1)+w1*gradv
-           dhat_dt_v(i2)=dhat_dt_v(i2)+w2*gradv
-           dhat_dt_v(i3)=dhat_dt_v(i3)+w3*gradv
-           dhat_dt_v(i4)=dhat_dt_v(i4)+w4*gradv
-           dhat_dt_v(i5)=dhat_dt_v(i5)+w5*gradv
-           dhat_dt_v(i6)=dhat_dt_v(i6)+w6*gradv
-           dhat_dt_v(i7)=dhat_dt_v(i7)+w7*gradv
-           dhat_dt_v(i8)=dhat_dt_v(i8)+w8*gradv
-        endif
      endif
 
-     wptr => wptr%llpoint
+     !wptr => wptr%llpoint
+     wptr => wNode_nextcast(wptr)
 
   end do
   return

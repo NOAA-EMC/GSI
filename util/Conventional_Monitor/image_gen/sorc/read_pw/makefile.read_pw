@@ -1,0 +1,46 @@
+SHELL=/bin/sh
+
+#--------------------
+#  makefile.read_pw
+#--------------------
+
+BINDIR = ../../exec
+
+SRCS=   mainread_pw.f90 read_pw.f90 read_pw_mor.f90 histgram.f90 rm_dups.f90 convinfo.f90 
+
+OBJS=   mainread_pw.o read_pw.o read_pw_mor.o histgram.o rm_dups.o convinfo.o 
+
+
+
+CMD=    read_pw.x    
+
+all:    $(CMD)
+
+clean:
+	rm -f *.o
+	rm -f *.mod
+	rm -f *.x
+
+check_prereqs:
+	$(PRE_REQ) $(LIBS)
+
+install:
+	cp $(CMD) $(BINDIR)/
+
+$(CMD):         $(OBJS)
+	$(FC)    -o $(@) $(OBJS) $(FFLAGS)
+
+
+mainread_pw.o : mainread_pw.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+read_pw.o : read_pw.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+read_pw_mor.o : read_pw_mor.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+histgram.o : histgram.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+rm_dups.o : rm_dups.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+convinfo.o : convinfo.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+

@@ -9,6 +9,7 @@ module intpblhmod
 ! program history log:
 !
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intpblh
@@ -21,6 +22,10 @@ module intpblhmod
 !
 !$$$ end documentation block
 
+use m_obsNode, only: obsNode
+use m_pblhNode, only: pblhNode
+use m_pblhNode, only: pblhNode_typecast
+use m_pblhNode, only: pblhNode_nextcast
 implicit none
 
 PRIVATE
@@ -57,9 +62,8 @@ subroutine intpblh(pblhhead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term
-  use obsmod, only: pblh_ob_type, lsaveobsens, l_do_adjoint,luse_obsdiag
+  use obsmod, only: lsaveobsens, l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
-  use gridmod, only: latlon11
   use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -67,7 +71,7 @@ subroutine intpblh(pblhhead,rval,sval)
   implicit none
 
 ! Declare passed variables
-  type(pblh_ob_type),pointer,intent(in   ) :: pblhhead
+  class(obsNode  ),pointer, intent(in   ) :: pblhhead
   type(gsi_bundle),         intent(in   ) :: sval
   type(gsi_bundle),         intent(inout) :: rval
 
@@ -80,7 +84,7 @@ subroutine intpblh(pblhhead,rval,sval)
   real(r_kind) cg_pblh,p0,grad,wnotgross,wgross,pg_pblh
   real(r_kind),pointer,dimension(:) :: spblh
   real(r_kind),pointer,dimension(:) :: rpblh
-  type(pblh_ob_type), pointer :: pblhptr
+  type(pblhNode), pointer :: pblhptr
 
 ! Retrieve pointers
 ! Simply return if any pointer not found
@@ -89,7 +93,8 @@ subroutine intpblh(pblhhead,rval,sval)
   call gsi_bundlegetpointer(rval,'pblh',rpblh,istatus);ier=istatus+ier
   if(ier/=0)return
 
-  pblhptr => pblhhead
+  !pblhptr => pblhhead
+  pblhptr => pblhNode_typecast(pblhhead)
   do while (associated(pblhptr))
      j1=pblhptr%ij(1)
      j2=pblhptr%ij(2)
@@ -141,7 +146,8 @@ subroutine intpblh(pblhhead,rval,sval)
         rpblh(j4)=rpblh(j4)+w4*grad
      endif
 
-     pblhptr => pblhptr%llpoint
+     !pblhptr => pblhptr%llpoint
+     pblhptr => pblhNode_nextcast(pblhptr)
 
   end do
 

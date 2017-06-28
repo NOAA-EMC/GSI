@@ -13,6 +13,7 @@ module intpwmod
 !   2008-11-26  Todling - remove intpw_tl; add interface back
 !   2009-08-13  lueken - update documentation
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intpw_
@@ -25,6 +26,10 @@ module intpwmod
 !
 !$$$ end documentation block
 
+use m_obsNode, only: obsNode
+use m_pwNode, only: pwNode
+use m_pwNode, only: pwNode_typecast
+use m_pwNode, only: pwNode_nextcast
 implicit none
 
 PRIVATE
@@ -60,7 +65,6 @@ subroutine intpw_(pwhead,rval,sval)
 !   2006-03-30  wu - add vertical index k to i1,i2,i3,i4 in adjoint (bug fix)
 !   2006-07-28  derber  - modify to use new inner loop obs data structure
 !                       - unify NL qc
-!   2007-02-15  rancic - add foto
 !   2007-03-19  tremolet - binning of observations
 !   2007-06-05  tremolet - use observation diagnostics structure
 !   2007-07-09  tremolet - observation sensitivity
@@ -87,18 +91,18 @@ subroutine intpw_(pwhead,rval,sval)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use obsmod, only: pw_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
-  use gridmod, only: latlon11,latlon1n,nsig
+  use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
+  use gridmod, only: latlon11,nsig
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,tpwcon,half,one,tiny_r_kind,cg_term,r3600
-  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_4dvar, only: ladtest_obs
   implicit none
 
 ! Declare passed variables
-  type(pw_ob_type),pointer,intent(in   ) :: pwhead
+  class(obsNode), pointer, intent(in   ) :: pwhead
   type(gsi_bundle)        ,intent(in   ) :: sval
   type(gsi_bundle)        ,intent(inout) :: rval
 
@@ -106,13 +110,11 @@ subroutine intpw_(pwhead,rval,sval)
   integer(i_kind) k,ier,istatus
   integer(i_kind),dimension(nsig):: i1,i2,i3,i4
 ! real(r_kind) penalty
-  real(r_kind),pointer,dimension(:) :: xhat_dt_q
-  real(r_kind),pointer,dimension(:) :: dhat_dt_q
   real(r_kind) val,pwcon1,w1,w2,w3,w4,time_pw
   real(r_kind) cg_pw,grad,p0,wnotgross,wgross,pg_pw
   real(r_kind),pointer,dimension(:) :: sq
   real(r_kind),pointer,dimension(:) :: rq
-  type(pw_ob_type), pointer :: pwptr
+  type(pwNode), pointer :: pwptr
 
 !  If no pw data return
   if(.not. associated(pwhead))return
@@ -122,15 +124,12 @@ subroutine intpw_(pwhead,rval,sval)
   call gsi_bundlegetpointer(sval,'q',sq,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'q',rq,istatus);ier=istatus+ier
 
-  if(l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'q',xhat_dt_q,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'q',dhat_dt_q,istatus);ier=istatus+ier
-  endif
   if(ier/=0)return
    
   time_pw = zero
 
-  pwptr => pwhead
+  !pwptr => pwhead
+  pwptr => pwNode_typecast(pwhead)
   do while (associated(pwptr))
      w1=pwptr%wij(1)
      w2=pwptr%wij(2)
@@ -154,14 +153,6 @@ subroutine intpw_(pwhead,rval,sval)
                + w3* sq(i3(k))+w4* sq(i4(k)))*          &
                  tpwcon*pwptr%dp(k)
      end do
-     if ( l_foto ) then
-        time_pw = pwptr%time*r3600
-        do k=1,nsig
-           val=val+(w1*xhat_dt_q(i1(k))+w2*xhat_dt_q(i2(k))           &
-                  + w3*xhat_dt_q(i3(k))+w4*xhat_dt_q(i4(k)))*time_pw* &
-                    tpwcon*pwptr%dp(k)
-        end do
-     endif
 
      if(luse_obsdiag)then
         if (lsaveobsens) then
@@ -201,18 +192,10 @@ subroutine intpw_(pwhead,rval,sval)
            rq(i3(k))   =   rq(i3(k))+w3*pwcon1
            rq(i4(k))   =   rq(i4(k))+w4*pwcon1
         end do
-        if ( l_foto ) then
-           do k=1,nsig
-              pwcon1=tpwcon*pwptr%dp(k)*grad
-              dhat_dt_q(i1(k))=dhat_dt_q(i1(k))+w1*pwcon1*time_pw
-              dhat_dt_q(i2(k))=dhat_dt_q(i2(k))+w2*pwcon1*time_pw
-              dhat_dt_q(i3(k))=dhat_dt_q(i3(k))+w3*pwcon1*time_pw
-              dhat_dt_q(i4(k))=dhat_dt_q(i4(k))+w4*pwcon1*time_pw
-           end do
-        endif
      endif
 
-     pwptr => pwptr%llpoint
+     !pwptr => pwptr%llpoint
+     pwptr => pwNode_nextcast(pwptr)
 
   end do
 

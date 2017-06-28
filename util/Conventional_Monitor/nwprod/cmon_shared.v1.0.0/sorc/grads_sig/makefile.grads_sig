@@ -1,0 +1,48 @@
+SHELL=/bin/sh
+
+#-----------------------
+#  makefile.grads_sig
+#-----------------------
+
+BINDIR = ../../exec
+
+SRCS=   data_mod.f90 generic_list.f90 maingrads_sig.f90 read_conv2grads.f90 grads_sig.f90 rm_dups.f90 convinfo.f90
+
+OBJS=   data_mod.o generic_list.o maingrads_sig.o read_conv2grads.o grads_sig.o rm_dups.o convinfo.o 
+
+
+
+CMD=    grads_sig.x 
+
+all:    $(CMD)
+
+clean:
+	rm -f *.o
+	rm -f *.mod
+	rm -f *.x
+
+check_prereqs:
+	$(PRE_REQ) $(LIBS)
+
+install:
+	cp $(CMD) $(BINDIR)/
+
+$(CMD):         $(OBJS)
+	$(FC)    -o $(@) $(OBJS) $(FFLAGS)
+
+
+maingrads_sig.o : maingrads_sig.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+read_conv2grads.o : read_conv2grads.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+grads_sig.o : grads_sig.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+rm_dups.o : rm_dups.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+convinfo.o : convinfo.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+generic_list.o : generic_list.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+data_mod.o : data_mod.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+

@@ -14,6 +14,9 @@ module intallmod
 !   2009-08-13  lueken - update documentation
 !   2012-02-08  kleist - changes related to 4d-ensemble-var additions and consolidation of 
 !                   int... individual modules to one intjcmod
+!   2015-09-03  guo     - obsmod::yobs has been replaced with m_obsHeadBundle,
+!                         where yobs is created and destroyed when and where it
+!                         is needed.
 !
 ! subroutines included:
 !   sub intall
@@ -173,9 +176,7 @@ subroutine intall(sval,sbias,rval,rbias)
   use gsi_4dvar, only: nobs_bins,ltlint,ibin_anl
   use constants, only: zero,zero_quad
   use jcmod, only: ljcpdry,ljc4tlevs,ljcdfi
-  use jfunc, only: l_foto,dhat_dt
   use jfunc, only: nrclen,nsclen,npclen,ntclen
-  use obsmod, only: yobs
   use intradmod, only: setrad
   use intjomod, only: intjo
   use bias_predictors, only : predictors,assignment(=)
@@ -187,9 +188,12 @@ subroutine intall(sval,sbias,rval,rbias)
   use gsi_bundlemod, only: assignment(=)
   use state_vectors, only: svars2d
   use mpeu_util, only: getindex
-  use mpimod, only: mype
   use guess_grids, only: ntguessig,nfldsig
   use mpl_allreducemod, only: mpl_allreduce
+
+  use m_obsHeadBundle, only: obsHeadBundle
+  use m_obsHeadBundle, only: obsHeadBundle_create
+  use m_obsHeadBundle, only: obsHeadBundle_destroy
   implicit none
 
 ! Declare passed variables
@@ -204,15 +208,13 @@ subroutine intall(sval,sbias,rval,rbias)
 ! Declare local variables
   integer(i_kind) :: ibin,ii,it,i
 
+  type(obsHeadBundle),pointer,dimension(:):: yobs
+
 !******************************************************************************
 ! Initialize timer
   call timer_ini('intall')
 
 ! Zero gradient arrays
-  if (l_foto) then
-     call allocate_state(dhat_dt)
-     dhat_dt=zero
-  endif
 
   do ii=1,nobs_bins
      rval(ii)=zero
@@ -221,18 +223,19 @@ subroutine intall(sval,sbias,rval,rbias)
 ! Compute RHS in physical space
   call setrad(sval(1))
   qpred_bin=zero_quad
+  call obsHeadBundle_create(yobs,nobs_bins)
 ! RHS for Jo
 !$omp parallel do  schedule(dynamic,1) private(ibin)
-  do ibin=1,nobs_bins
+  do ibin=1,size(yobs)  ! == nobs_bins
      call intjo(yobs(ibin),rval(ibin),qpred_bin(:,ibin),sval(ibin),sbias,ibin)
   end do
   qpred=zero_quad
-  do ibin=1,nobs_bins
+  do ibin=1,size(yobs)  ! == nobs_bins
      do i=1,nrclen
         qpred(i)=qpred(i)+qpred_bin(i,ibin)
      end do
   end do
-
+  call obsHeadBundle_destroy(yobs)
 
   if(.not.ltlint)then
 ! RHS for moisture constraint
@@ -274,16 +277,18 @@ subroutine intall(sval,sbias,rval,rbias)
 
 ! RHS for dry ps constraint: part 1
   if(ljcpdry)then
+
     if (.not.ljc4tlevs) then
       call intjcpdry1(sval(ibin_anl),1,mass)
     else 
       call intjcpdry1(sval,nobs_bins,mass)
     end if
-  end if
 
-! Put reduces together to minimize wait time
-! First, use MPI to get global mean increment
-  call mpl_allreduce(2*nobs_bins,qpvals=mass)
+!   Put reduces together to minimize wait time
+!   First, use MPI to get global mean increment
+    call mpl_allreduce(2*nobs_bins,qpvals=mass)
+
+  end if
 
 ! Take care of background error for bias correction terms
 
@@ -301,14 +306,6 @@ subroutine intall(sval,sbias,rval,rbias)
 
 ! RHS for Jc DFI
   if (ljcdfi .and. nobs_bins>1) call intjcdfi(rval,sval)
-
-  if(l_foto) then
-!    RHS calculation for Jc and other 3D-Var terms
-     call int3dvar(rval(1),dhat_dt)
-
-! Release local memory
-     call deallocate_state(dhat_dt)
-  end if
 
   if(nsclen > 0)then
      do i=1,nsclen

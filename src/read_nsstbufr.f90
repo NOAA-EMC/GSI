@@ -16,6 +16,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !   2015-03-06  Thomas  - added l4densvar logical to remove thinning in time
 !   2015-05-30  Li      - Modify to use deter_sfc instead of deter_sfc2
 !   2015-06-01  Li      - Modify to make it work when nst_gsi = 0 and nsstbufr data file exists
+!   2016-03-11  j. guo  - Fixed {dlat,dlon}_earth_deg in the obs data stream
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -36,7 +37,6 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !
 !$$$
   use kinds, only: r_kind,r_double,i_kind,r_single
-  use mpimod, only: mype
   use constants, only: zero,one_tenth,quarter,half,one,deg2rad,&
       two,three,four,rad2deg,r60inv
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,&
@@ -47,7 +47,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   use insitu_info, only: n_comps,n_scripps,n_triton,n_3mdiscus,cid_mbuoy,n_ship,ship
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc,deter_sfc2
-  use gsi_nstcouplermod, only: nst_gsi,nstinfo,fac_dtl,fac_tsl
+  use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_deter
   use mpimod, only: npe
   implicit none
@@ -106,6 +106,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   real(r_kind) :: tdiff,sstime,usage,sfcr,t4dv,rsc
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
   real(r_kind) :: dlat,dlon,sstoe,dlat_earth,dlon_earth
+  real(r_kind) :: dlat_earth_deg,dlon_earth_deg
   real(r_kind) :: zob,tz,tref,dtw,dtc,tz_tr
 
   real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
@@ -263,6 +264,8 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            if(clonh >= r360)  clonh = clonh - r360
            if(clonh <  zero)  clonh = clonh + r360
 
+           dlon_earth_deg = clonh
+           dlat_earth_deg = clath
            dlon_earth=clonh*deg2rad
            dlat_earth=clath*deg2rad
 
@@ -529,8 +532,8 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            data_all(13,ndata) = usage                   ! usage parameter
            data_all(14,ndata) = idomsfc+0.001_r_kind    ! dominate surface type
            data_all(15,ndata) = tz                      ! Tz: Background temperature at depth of zob
-           data_all(16,ndata) = dlon_earth*rad2deg      ! earth relative longitude (degrees)
-           data_all(17,ndata) = dlat_earth*rad2deg      ! earth relative latitude (degrees)
+           data_all(16,ndata) = dlon_earth_deg          ! earth relative longitude (degrees)
+           data_all(17,ndata) = dlat_earth_deg          ! earth relative latitude (degrees)
            data_all(18,ndata) = hdr(6)                  ! station elevation
  
 

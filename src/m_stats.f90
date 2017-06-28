@@ -56,12 +56,12 @@ contains
 !    use m_stats,only : stats_allreduce
 !
 !    type vectors
-!      real,dimension(:),pointer :: v
+!      real(r_kind),dimension(:),pointer :: v
 !    endtype vectors
 !    type(vectors),dimension(:) :: a
 !
-!    real :: vdot,vsum,vmin,vmax
-!    integer :: vnum
+!    real(r_kind) :: vdot,vsum,vmin,vmax
+!    integer(i_kind) :: vnum
 !
 !    do i=1,size(a)
 !      call stats_sum(a(i)%v,vdot,vsum,vmin,vmax,vnum,add=i>1)
