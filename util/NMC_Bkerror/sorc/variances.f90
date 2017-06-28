@@ -23,7 +23,7 @@ subroutine variances(numcases,mype)
   real(r_kind),dimension(nlat,nlon):: workgrd
 
 ! Normalized RH variance arrays
-  real(r_kind),dimension(25,nsig):: qcount,qamp,qcount2
+  real(r_kind),dimension(25,nsig):: qcount,qamp,qamp2,qcount2
   real(r_kind),dimension(25):: qcavg
   real(r_kind) qctot,qdiff
 
@@ -48,7 +48,7 @@ subroutine variances(numcases,mype)
   sfvar=zero ; vpvar=zero ; tvar=zero ; qvar=zero ; ozvar=zero ; cvar=zero ; 
   nrhvar=zero ; psvar=zero
   sf3=zero ; vp3=zero ; t3=zero ; rh3=zero ; oz3=zero ; cw3=zero ; ps3=zero
-  qcount=zero ; qamp=zero
+  qcount=zero ; qamp=zero ; qcount2=zero ; qamp2=zero
 
 
   open(filunit1,form='unformatted',action='read')
@@ -231,10 +231,12 @@ subroutine variances(numcases,mype)
     end do
   end if
 
-  call mpi_reduce(qamp,qamp,ibin*nsig,mpi_rtype,mpi_sum,mype_work, &
+  call mpi_reduce(qamp,qamp2,ibin*nsig,mpi_rtype,mpi_sum,mype_work, &
        mpi_comm_world,ierror)
-  call mpi_reduce(qcount,qcount,ibin*nsig,mpi_rtype,mpi_sum,mype_work, &
+  qamp = qamp2
+  call mpi_reduce(qcount,qcount2,ibin*nsig,mpi_rtype,mpi_sum,mype_work, &
        mpi_comm_world,ierror)
+  qcount = qcount2
 
   if (mype==mype_work) then
     qcavg=zero

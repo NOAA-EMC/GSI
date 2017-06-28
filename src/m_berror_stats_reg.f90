@@ -13,6 +13,7 @@
       use constants, only: zero,one,max_varname_length
       use gridmod, only: nsig
       use chemmod, only : berror_chem,upper2lower,lower2upper
+      use m_berror_stats, only: berror_stats
 
       implicit none
 
@@ -32,12 +33,21 @@
 !                     - extract from rdgstat_reg
 !                     - change sructure of error file
 !                     - make changes for generalized control variables
+!       01Oct15   Zhu - use centralized cloud_names_fwd and n_clouds_fwd to add 
+!                       flexibility for clouds (either cw or individual hydrometeros) 
+!                       variances/correlations for all-sky radiance assimilation  
+!       24Jun16 - Guo - replaced the local berror_stats, with a global user
+!                       configurable m_berror_stats::berror_stats, for the
+!                       filename.  This ensure the consistency, as well as the
+!                       reconfigurability of this variable through the GSI.
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname='m_berror_stats_reg'
 
-     ! Reconfigurable parameters, vai NAMELISt/setup/
-  character(len=256),save :: berror_stats = "berror_stats"   ! filename
+        ! The same default filename is used as in m_berror_stats,  to take the
+        ! advantage of the same berror_stats= entry in the /setup/ namelist, to
+        ! override the default value.  Otherwise, a special entry would have to
+        ! be defined for this module in the /setup/ namelist.
 
   integer(i_kind),parameter :: default_unit_ = 22
   integer(i_kind),parameter :: ERRCODE=2
@@ -126,7 +136,6 @@ end subroutine berror_set_reg
 
     subroutine berror_read_bal_reg(msig,mlat,agvi,bvi,wgvi,mype,unit)
       use kinds,only : r_single
-      use gridmod,only : nlat,nlon
       use guess_grids, only:  ges_psfcavg,ges_prslavg
 
       implicit none
@@ -268,13 +277,14 @@ end subroutine berror_read_bal_reg
     subroutine berror_read_wgt_reg(msig,mlat,corz,corp,hwll,hwllp,vz,rlsig,varq,qoption,varcw,cwoption,mype,unit)
 
       use kinds,only : r_single,r_kind
-      use gridmod,only : nlat,nlon,nsig
+      use gridmod,only : nsig
       use control_vectors,only: nrf,nc2d,nc3d,mvars,nvars
       use control_vectors,only: cvars => nrf_var
       use control_vectors,only: cvars2d,cvars3d,cvarsmd
       use guess_grids, only:  ges_psfcavg,ges_prslavg
       use constants, only: zero,one,ten,three
       use mpeu_util,only: getindex
+      use radiance_mod, only: icloud_cv,n_clouds_fwd,cloud_names_fwd
 
       implicit none
 
@@ -316,6 +326,9 @@ end subroutine berror_read_bal_reg
 !                     all-sky radiance assimilation
 !       19Jun14 carley/zhu - add tcamt and lcbas
 !       10Jul15 pondeca - add cldch
+!       01Oct15 Zhu - use centralized cloud_names_fwd and n_clouds_fwd to add 
+!                     flexibility for clouds (either cw or individual hydrometeros) 
+!                     variances/correlations for all-sky radiance assimilation
 !
 !EOP ___________________________________________________________________
 
@@ -346,7 +359,7 @@ end subroutine berror_read_bal_reg
   integer(i_kind) :: nrf3_sfwter,nrf3_vpwter
   integer(i_kind) :: inerr,istat
   integer(i_kind) :: nsigstat,nlatstat,isig
-  integer(i_kind) :: loc,m1,m,i,n,j,k,n0
+  integer(i_kind) :: loc,m1,m,i,n,j,k,n0,ivar,ic
   integer(i_kind),allocatable,dimension(:) :: nrf2_loc,nrf3_loc,nmotl_loc
   real(r_kind) :: factoz
   real(r_kind) :: raux
@@ -566,6 +579,7 @@ end subroutine berror_read_bal_reg
      hwll(:,:,nrf3_cw)=hwll(:,:,nrf3_q)
      vz(:,:,nrf3_cw)=vz(:,:,nrf3_q)
   end if
+
   if ((.not. cwcoveqqcov_) .and. nrf3_cw>0) then
      corz(:,:,nrf3_cw)=zero
      if (cwoption==2) then
@@ -578,6 +592,7 @@ end subroutine berror_read_bal_reg
            end if
         enddo
      end if
+
      if (cwoption==1 .or. cwoption==3) then
         do k=1,nsig
            if (ges_prslavg(k)>15.0_r_kind) then
@@ -586,10 +601,28 @@ end subroutine berror_read_bal_reg
               end do
            end if
         end do
+        hwll(:,:,nrf3_cw)=0.5_r_kind*hwll(:,:,nrf3_q)
+        vz(:,:,nrf3_cw)=0.5_r_kind*vz(:,:,nrf3_q)
      end if
-     hwll(:,:,nrf3_cw)=0.5_r_kind*hwll(:,:,nrf3_q)
-     vz(:,:,nrf3_cw)=0.5_r_kind*vz(:,:,nrf3_q)
   end if
+
+  if (icloud_cv .and. n_clouds_fwd>0 .and. nrf3_cw<=0 .and. cwoption==3) then
+     do n=1,size(cvars3d)
+        do ic=1,n_clouds_fwd
+           if(trim(cvars3d(n))==trim(cloud_names_fwd(ic))) then
+              ivar=n
+              do k=1,nsig
+                 do i=1,mlat
+                    corz(i,k,ivar)=one
+                 end do
+              end do
+              hwll(:,:,ivar)=0.5_r_kind*hwll(:,:,nrf3_q)
+              vz  (:,:,ivar)=0.5_r_kind*vz  (:,:,nrf3_q)
+              exit
+           end if
+        end do
+     end do
+  end if ! n_clouds_fwd>0 .and. nrf3_cw<=0 .and. cwoption==3
 
 
   if (nrf3_sfwter>0) then

@@ -73,7 +73,7 @@ SUBROUTINE cloudLayers(nlat,nlon,nsig,h_bk,zh,cld_cover_3d,cld_type_3d, &
 !
 ! temp.
 !
-  INTEGER :: i,j,k,k1,nlvl
+  INTEGER :: i,j,k,nlvl
   INTEGER :: k_top,k_base
   real (r_single) :: zs_1d(nsig)
   real (r_single) :: cv_1d(nsig)

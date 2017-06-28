@@ -9,6 +9,8 @@ module read_obsmod
 ! program history log:
 !   2009-01-05  todling - add gsi_inquire
 !   2015-05-01  Liu Ling - Add call to read_rapidscat 
+!   2015-08-20  zhu  - add flexibility for enabling all-sky and using aerosol info in radiance 
+!                      assimilation. Use radiance_obstype_search from radiance_mod.  
 !
 ! subroutines included:
 !   sub gsi_inquire   -  inquire statement supporting fortran earlier than 2003
@@ -127,6 +129,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
 !   2013-07-01  todling/guo - allow user to bypass this check (old bufr support)
 !   2014-10-01  ejones   - add gmi and amsr2
 !   2015-01-16  ejones   - add saphir
+!   2016-09-19  guo      - properly initialized nread, in case of for quick-return cases.
 !                           
 !
 !   input argument list:
@@ -167,11 +170,13 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
 
   satid=1      ! debug executable wants default value ???
   idate=0
+  nread=0; if(lexist) nread=1   ! in case of a quick return
 #ifdef _SKIP_READ_OBS_CHECK_
   return
 #endif
   if(trim(dtype) == 'tcp' .or. trim(filename) == 'tldplrso')return
   if(trim(filename) == 'mitmdat' .or. trim(filename) == 'mxtmdat')return
+
 ! Use routine as usual
   if(lexist)then
       lnbufr = 15
@@ -382,11 +387,17 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
        else if(trim(filename) == 'satwndbufr')then
          lexist = .false.
          loop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
+!        5 GOES-R AMVs (NC005030, NC005031, NC005032, NC005034 and NC005039)
+!        are added as the GOES-R bufr file provide do not contain other winds.
+!        May not be necessary with the operational satwnd BUFR
             if(trim(subset) == 'NC005010' .or. trim(subset) == 'NC005011' .or.&
                trim(subset) == 'NC005070' .or. trim(subset) == 'NC005071' .or.&
                trim(subset) == 'NC005044' .or. trim(subset) == 'NC005045' .or.&
                trim(subset) == 'NC005046' .or. trim(subset) == 'NC005064' .or.&
-               trim(subset) == 'NC005065' .or. trim(subset) == 'NC005066') then 
+               trim(subset) == 'NC005065' .or. trim(subset) == 'NC005066' .or.& 
+               trim(subset) == 'NC005030' .or. trim(subset) == 'NC005031' .or.& 
+               trim(subset) == 'NC005032' .or. trim(subset) == 'NC005034' .or.&
+               trim(subset) == 'NC005039') then
                lexist = .true.
                exit loop
             endif
@@ -604,9 +615,12 @@ subroutine read_obs(ndata,mype)
 !                        to use deter_sfc in read_nsstbufr.f90)
 !   2015-07-10  pondeca - add cloud ceiling height (cldch)
 !   2015-08-12  pondeca - add capability to read min/maxT obs from ascii file
+!   2015-08-20  zhu     - use centralized radiance info from radiance_mod to specify
+!                         all-sky and aerosol usages in radiance assimilation
 !   2015-09-04  J. Jung - Added mods for CrIS full spectral resolution (FSR)
 !   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
 !   2016-04-28  J. Jung - added logic for RARS and direct broadcast data from NESDIS/UW.
+!   2016-09-19  Guo     - replaced open(obs_input_common) with "call unformatted_open(obs_input_common)"
 !   
 !
 !   input argument list:
@@ -628,7 +642,7 @@ subroutine read_obs(ndata,mype)
     use general_commvars_mod, only: ltosi,ltosj
     use obsmod, only: iadate,ndat,time_window,dplat,dsfcalc,dfile,dthin, &
            dtype,dval,dmesh,obsfile_all,ref_obs,nprof_gps,dsis,ditype,&
-           oberrflg,perturb_obs,lobserver,lread_obs_save,obs_input_common, &
+           perturb_obs,lobserver,lread_obs_save,obs_input_common, &
            reduce_diag,nobs_sub,dval_use
     use qcmod, only: njqc
     use gsi_4dvar, only: l4dvar
@@ -659,9 +673,12 @@ subroutine read_obs(ndata,mype)
     use gsi_nstcouplermod, only: gsi_nstcoupler_set,gsi_nstcoupler_final
     use gsi_io, only: mype_io
     use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
+    use radiance_mod, only: rad_obs_type,radiance_obstype_search
 
     use m_extOzone, only: is_extOzone
     use m_extOzone, only: extOzone_read
+    use mpeu_util, only: warn
+    use gsi_unformatted, only: unformatted_open
     implicit none
 
 !   Declare passed variables
@@ -703,6 +720,8 @@ subroutine read_obs(ndata,mype)
     real(r_kind) gstime,val_dat,rmesh,twind,rseed
     real(r_kind),allocatable,dimension(:) :: prslsm,hgtlsm,work1
     real(r_kind),allocatable,dimension(:,:,:):: prsl_full,hgtl_full
+
+    type(rad_obs_type) :: radmod
 
     data lunout / 81 /
     data lunsave  / 82 /
@@ -796,7 +815,7 @@ subroutine read_obs(ndata,mype)
            obstype == 'td2m' .or. obstype=='mxtm' .or. &
            obstype == 'mitm' .or. obstype=='pmsl' .or. &
            obstype == 'howv' .or. obstype=='tcamt' .or. &
-           obstype=='lcbas' .or. obstype=='cldch') then
+           obstype=='lcbas' .or. obstype=='cldch' .or. obstype == 'larcglb' ) then
           ditype(i) = 'conv'
        else if( hirs   .or. sndr      .or.  seviri .or. &
                obstype == 'airs'      .or. obstype == 'amsua'     .or.  &
@@ -1084,8 +1103,8 @@ subroutine read_obs(ndata,mype)
        mype_root_sub(ilarge)=npestart
        npestart=npestart+npe_sub3(ilarge)
        mmdat=mmdat+1
-       if(npestart == npe)npestart=0
        npe_sub3(ilarge)=0
+       if(npestart + minval(npe_sub3, mask=npe_sub3>0)>= npe) npestart=0
     end do loopx
 
 !   Define sub-communicators for each data file
@@ -1263,6 +1282,7 @@ subroutine read_obs(ndata,mype)
           endif
 
 !         Process conventional (prepbufr) data
+          string="--"//trim(ditype(i))
           ditype_select: &
           if(ditype(i) == 'conv')then
              conv_obstype_select: &
@@ -1352,6 +1372,7 @@ subroutine read_obs(ndata,mype)
 
 !            Process conventional SST (nsstbufr, at this moment) data
              elseif ( obstype == 'sst' ) then
+                string="--"//trim(ditype(i))//":sst:"//trim(platid)
                 if ( platid == 'nsst') then
                    call read_nsstbufr(nread,npuse,nouse,gstime,infile,obstype, &
                         lunout,twind,sis,nobs_sub1(1,i))
@@ -1379,16 +1400,25 @@ subroutine read_obs(ndata,mype)
 
 !            Process  lightning
              else if (obstype == 'lghtn' ) then
-                call read_lightning(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
+                if(i_gsdcldanal_type==2) then
+                   call read_lightning(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
+                else if( i_gsdcldanal_type==1 .or. i_gsdcldanal_type==6 ) then
+                   call read_lightning_grid(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
+                endif
                 string='READ_LIGHTNING'
 
 !            Process  NASA LaRC 
+             ! for regional obs that are already mapped to analysis grid
              else if (obstype == 'larccld' ) then
                 if(i_gsdcldanal_type==2) then
-                   call read_NASA_LaRC_cloud(nread,npuse,nouse,obstype,lunout,sis,nobs_sub1(1,i))
+                   call read_NASA_LaRC_cloud(nread,npuse,nouse,infile,obstype,lunout,sis,nobs_sub1(1,i))
                 else if( i_gsdcldanal_type==1) then
                    call read_nasa_larc(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
                 end if
+                string='READ_NASA_LaRC'
+             ! for global NASA LaRC obs 
+             else if (obstype == 'larcglb' ) then
+                call read_NASA_LaRC_cloud(nread,npuse,nouse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
                 string='READ_NASA_LaRC'
 
 !            Process radar winds
@@ -1442,6 +1472,7 @@ subroutine read_obs(ndata,mype)
 
           else if (ditype(i) == 'rad')then
 
+             call radiance_obstype_search(obstype,radmod)
 
 !            Process TOVS 1b data
              rad_obstype_select: &
@@ -1453,7 +1484,7 @@ subroutine read_obs(ndata,mype)
                 call read_bufrtovs(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), nobs_sub1(1,i), &
-                     read_rec(i),read_ears_rec(i),read_db_rec(i),dval_use)
+                     read_rec(i),read_ears_rec(i),read_db_rec(i),dval_use,radmod)
                 string='READ_BUFRTOVS'
 
 !            Process atms data
@@ -1461,7 +1492,7 @@ subroutine read_obs(ndata,mype)
                 call read_atms(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),nobs_sub1(1,i),&
-                     read_rec(i),read_ears_rec(i),read_db_rec(i),dval_use)
+                     read_rec(i),read_ears_rec(i),read_db_rec(i),dval_use,radmod)
                 string='READ_ATMS'
 
 !            Process saphir data
@@ -1652,12 +1683,21 @@ subroutine read_obs(ndata,mype)
              ndata1(i,2)=ndata1(i,2)+nread
              ndata1(i,3)=ndata1(i,3)+nouse
 
+             if(string(1:2)=='--') then
+               call warn('read_obs','task without reader, i =',i)
+               call warn('read_obs','                infile =',trim(infile))
+               call warn('read_obs','             ditype(i) =',trim(ditype(i)))
+               call warn('read_obs','               obstype =',trim(obstype))
+               call warn('read_obs','                platid =',trim(platid))
+               call warn('read_obs','                string =',trim(string))
+             endif
+
              write(6,8000) adjustl(string),infile,obstype,sis,nread,ithin,&
                   rmesh,isfcalc,nouse,npe_sub(i)
 8000         format(1x,a22,': file=',a15,&
                   ' type=',a10,  ' sis=',a20,  ' nread=',i10,&
                   ' ithin=',i2, ' rmesh=',f11.6,' isfcalc=',i2,&
-                  ' ndata=',i10,' ntask=',i3)
+                  ' nkeep=',i10,' ntask=',i3)
 
           endif
        endif task_belongs
@@ -1702,7 +1742,7 @@ subroutine read_obs(ndata,mype)
 !   Write collective obs selection information to scratch file.
     if (lread_obs_save .and. mype==0) then
        write(6,*)'READ_OBS:  write collective obs selection info to ',trim(obs_input_common)
-       open(lunsave,file=obs_input_common,form='unformatted')
+       call unformatted_open(lunsave,file=obs_input_common,class=".obs_input.")
        write(lunsave) ndata,ndat,npe,superp,nprof_gps,ditype
        write(lunsave) super_val1
        write(lunsave) nobs_sub

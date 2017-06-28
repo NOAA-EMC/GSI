@@ -36,6 +36,9 @@ subroutine obs_para(ndata,mype)
 !                          buddy check QC to distinguish among pe subdomains 
 !                          with and without obs (only for t obs and twodvar_regional 
 !                          at the moment) 
+!   2015-10-28  guo     - added ioid_s(:) to support split-observer GSI with a
+!                         control vector grid different from the guess state
+!                         grid.
 !
 !   input argument list:
 !     ndata(*,1)- number of prefiles retained for further processing
@@ -205,7 +208,6 @@ subroutine disobs(ndata,nobs,mm1,lunout,obsfile,obstypeall)
 !$$$
   use kinds, only: r_kind,i_kind
   use gridmod, only: periodic_s,nlon,nlat,jlon1,ilat1,istart,jstart
-  use mpimod, only: npe
   implicit none
 
 ! Declare passed variables
@@ -219,6 +221,12 @@ subroutine disobs(ndata,nobs,mm1,lunout,obsfile,obstypeall)
   integer(i_kind) ndata_s
   integer(i_kind),dimension(mm1):: ibe,ibw,ibn,ibs
   logical,allocatable,dimension(:):: luse_s
+  integer(i_kind),allocatable,dimension(:):: ioid_s
+        ! IOID represents Initial-Obs-ID, which is the serial index of given
+        ! observation record of a given observation source, before they are
+        ! distributed according to the guess-grid partition.  This ID is saved
+        ! for all future needs of obs. redistribution, such that the sorted
+        ! sequences can be reproduced.
   real(r_kind),allocatable,dimension(:,:):: obs_data,data1_s
   character(10):: obstype
   character(20):: isis
@@ -249,7 +257,7 @@ subroutine disobs(ndata,nobs,mm1,lunout,obsfile,obstypeall)
   close(lunin)
 
   ndata_s=0
-  allocate(data1_s(nn_obs,nobs),luse_s(nobs))
+  allocate(data1_s(nn_obs,nobs),luse_s(nobs),ioid_s(nobs))
 
 ! Loop over all observations.  Locate each observation with respect
 ! to subdomains.
@@ -264,6 +272,7 @@ subroutine disobs(ndata,nobs,mm1,lunout,obsfile,obstypeall)
            (lon == 0   .and. ibe(mm1) >=nlon) .or.  &
            (lon == nlon    .and. ibw(mm1) <=1) .or. periodic_s(mm1)) then
            ndata_s=ndata_s+1
+           ioid_s(ndata_s)=n
            luse_s(ndata_s)= .true.
            do jj= 1,nn_obs
               data1_s(jj,ndata_s) = obs_data(jj,n)
@@ -287,8 +296,8 @@ subroutine disobs(ndata,nobs,mm1,lunout,obsfile,obstypeall)
 
 ! Write observations for given task to output file
   write(lunout) obstypeall,isis,nreal,nchanl
-  write(lunout) data1_s,luse_s
-  deallocate(data1_s,luse_s)
+  write(lunout) data1_s,luse_s,ioid_s
+  deallocate(data1_s,luse_s,ioid_s)
 
 
   return

@@ -74,22 +74,30 @@ module GSI_BundleMod
           module procedure print_
    end interface
    interface GSI_BundleGetVar        ! get fiedl(s) from bundle
-          module procedure getvar1dr4_ !   real*4 rank-1 field
-          module procedure getvar1dr8_ !   real*8 rank-1 field
-          module procedure getvar2dr4_ !   real*8 real*4 rank-2 field
-          module procedure getvar2dr8_ !   real*8 rank-2 field
-          module procedure getvar3dr4_ !   real*4 rank-3 field
-          module procedure getvar3dr8_ !   real*8 rank-3 field
+          module procedure getvar1dr4_   ! real*4 rank-1 field
+          module procedure getvar1dr8_   ! real*8 rank-1 field
+          module procedure getvar2dr4_   ! real*4 rank-2 field
+          module procedure getvar2dr8_   ! real*8 rank-2 field
+          module procedure getvar2dp1r4_ ! real*4 rank-2+1 field
+          module procedure getvar2dp1r8_ ! real*8 rank-2+1 field
+          module procedure getvar3dr4_   ! real*4 rank-3 field
+          module procedure getvar3dr8_   ! real*8 rank-3 field
+          module procedure getvar3dp1r4_ ! real*4 rank-3+1 field
+          module procedure getvar3dp1r8_ ! real*8 rank-3+1 field
    end interface
    interface GSI_BundlePutVar          ! put field(s) in bundle ...
-          module procedure putvar0dr4_ !  assign field to real*4 constant
-          module procedure putvar0dr8_ !  assign field to real*8 constant
-          module procedure putvar1dr4_ !  write to real*4 rank-1 content
-          module procedure putvar1dr8_ !  write to real*8 rank-1 content
-          module procedure putvar2dr4_ !  write to real*4 rank-2 content
-          module procedure putvar2dr8_ !  write to real*8 rank-2 content
-          module procedure putvar3dr4_ !  write to real*4 rank-3 content
-          module procedure putvar3dr8_ !  write to real*8 rank-3 content
+          module procedure putvar0dr4_   !  assign field to real*4 constant
+          module procedure putvar0dr8_   !  assign field to real*8 constant
+          module procedure putvar1dr4_   !  write to real*4 rank-1 content
+          module procedure putvar1dr8_   !  write to real*8 rank-1 content
+          module procedure putvar2dr4_   !  write to real*4 rank-2 content
+          module procedure putvar2dr8_   !  write to real*8 rank-2 content
+          module procedure putvar2dp1r4_ !  write to real*4 rank-2+1 content
+          module procedure putvar2dp1r8_ !  write to real*8 rank-2+1 content
+          module procedure putvar3dr4_   !  write to real*4 rank-3 content
+          module procedure putvar3dr8_   !  write to real*8 rank-3 content
+          module procedure putvar3dp1r4_ !  write to real*4 rank-3+1 content
+          module procedure putvar3dp1r8_ !  write to real*8 rank-3+1 content
    end interface
    interface GSI_BundleGetPointer    ! get pointer to field(s) in bundle
           module procedure get1_     !   single-field 
@@ -270,6 +278,7 @@ module GSI_BundleMod
 !  28Apr2011 Todling - complete overload to support REAL*4 and REAL*8
 !  04Jul2011 Todling - large revision of REAL*4 or REAL*8 implementation
 !  27Jun2012 Parrish - set verbose_ to .false. to turn off diagnostic print in subroutine merge_.
+!  05Oct2014 Todling - add 4d-like interfaces to getvars
 !
 ! !SEE ALSO:  
 !           gsi_metguess_mod.F90
@@ -2384,6 +2393,106 @@ CONTAINS
     endif
 
   end subroutine putvar2dr4_
+!............................................................................................
+!BOP
+!
+! !IROUTINE:  PutVar2dp1r8_ ---  Set request field to given input field values; 2d to 2d
+!
+! !INTERFACE:
+  subroutine putvar2dp1r8_ ( Bundle, fldname, fld, istatus )
+    
+! !INPUT PARAMETERS:
+    character(len=*),intent(in) :: fldname
+    real(r_double),  intent(in) :: fld(:,:,:)
+
+! !INPUT/OUTPUT PARAMETERS:
+    type(GSI_Bundle),intent(inout) :: Bundle(:)
+
+! !OUTPUT PARAMETERS:
+    integer(i_kind),intent(out) :: istatus
+
+! !DESCRIPTION: Set user-specified field in bundle the given input field. 
+!               2d-input to 2d output, for each instance of Bundle.
+!
+!
+! !REVISION HISTORY:
+!
+!  05Oct2014 Todling  Initial code.
+!
+!EOP
+!-------------------------------------------------------------------------
+!noBOC
+    
+    integer(i_kind) :: irank,ipnt,ii,nt
+
+    istatus=0
+    nt=size(Bundle)
+
+!   loop over bundle instances
+    do ii=1,nt
+
+!     get pointer to desired variable
+      call GSI_BundleGetPointer ( Bundle(ii), fldname, ipnt, istatus, irank=irank )
+      if(istatus/=0) return
+
+!     retrieve variable
+      if( irank==2 ) then
+          Bundle(ii)%r2(ipnt)%qr8 = fld(:,:,ii)
+      endif
+
+    enddo
+
+  end subroutine putvar2dp1r8_
+!............................................................................................
+!BOP
+!
+! !IROUTINE:  PutVar2dp1r4_ ---  Set request field to given input field values; 2d to 2d
+!
+! !INTERFACE:
+  subroutine putvar2dp1r4_ ( Bundle, fldname, fld, istatus )
+    
+! !INPUT PARAMETERS:
+    character(len=*),intent(in) :: fldname
+    real(r_single),  intent(in) :: fld(:,:,:)
+
+! !INPUT/OUTPUT PARAMETERS:
+    type(GSI_Bundle),intent(inout) :: Bundle(:)
+
+! !OUTPUT PARAMETERS:
+    integer(i_kind),intent(out) :: istatus
+
+! !DESCRIPTION: Set user-specified field in bundle the given input field. 
+!               2d-input to 2d output, for each instance of Bundle.
+!
+!
+! !REVISION HISTORY:
+!
+!  05Oct2014 Todling  Initial code.
+!
+!EOP
+!-------------------------------------------------------------------------
+!noBOC
+    
+    integer(i_kind) :: irank,ipnt,ii,nt
+
+    istatus=0
+    nt=size(Bundle)
+
+!   loop over bundle instances
+    do ii=1,nt
+
+!      get pointer to desired variable
+       call GSI_BundleGetPointer ( Bundle(ii), fldname, ipnt, istatus, irank=irank )
+       if(istatus/=0) return
+
+!      retrieve variable
+       if( irank==2 ) then
+           Bundle(ii)%r2(ipnt)%qr4 = fld(:,:,ii)
+       endif
+
+    enddo
+
+  end subroutine putvar2dp1r4_
   subroutine putvar3dr8_ ( Bundle, fldname, fld, istatus )
 ! This routine also allows putting a 1d-array into a 2d-/3d-array
     
@@ -2428,6 +2537,62 @@ CONTAINS
     endif
 
   end subroutine putvar3dr4_
+  subroutine putvar3dp1r8_ ( Bundle, fldname, fld, istatus )
+! This routine also allows putting a 1d-array into a 2d-/3d-array+1
+    
+    type(GSI_Bundle),intent(inout) :: Bundle(:)
+    character(len=*),intent(in) :: fldname
+    real(r_double),  intent(in) :: fld(:,:,:,:)
+    integer(i_kind),intent(out) :: istatus
+    
+    integer(i_kind) :: irank,ipnt,ii,nt
+
+    istatus=0
+    nt=size(Bundle)
+
+!   loop over bundle instances
+    do ii=1,nt
+
+!      get pointer to desired variable
+       call GSI_BundleGetPointer ( Bundle(ii), fldname, ipnt, istatus, irank=irank )
+       if(istatus/=0) return
+
+!      retrieve variable
+       if( irank==3 ) then
+           Bundle(ii)%r3(ipnt)%qr8 = fld(:,:,:,ii)
+       endif
+
+    enddo
+
+  end subroutine putvar3dp1r8_
+  subroutine putvar3dp1r4_ ( Bundle, fldname, fld, istatus )
+! This routine also allows putting a 1d-array into a 2d-/3d-array+1
+    
+    type(GSI_Bundle),intent(inout) :: Bundle(:)
+    character(len=*),intent(in) :: fldname
+    real(r_single),  intent(in) :: fld(:,:,:,:)
+    integer(i_kind),intent(out) :: istatus
+    
+    integer(i_kind) :: irank,ipnt,ii,nt
+
+    istatus=0
+    nt=size(Bundle)
+
+!   loop over bundle instances
+    do ii=1,nt
+
+!      get pointer to desired variable
+       call GSI_BundleGetPointer ( Bundle(ii), fldname, ipnt, istatus, irank=irank )
+       if(istatus/=0) return
+
+!      retrieve variable
+       if( irank==3 ) then
+           Bundle(ii)%r3(ipnt)%qr4 = fld(:,:,:,ii)
+       endif
+
+    enddo
+
+  end subroutine putvar3dp1r4_
 !noEOC
 !............................................................................................
 !BOP
@@ -2585,6 +2750,55 @@ CONTAINS
     fld = Bundle%r2(ipnt)%qr4
 
   end subroutine getvar2dr4_
+  subroutine getvar2dp1r8_ ( Bundle, fldname, fld, istatus )
+    
+    type(GSI_Bundle),intent(in) :: Bundle(:)
+    character(len=*),intent(in) :: fldname
+    real(r_double),intent(inout) :: fld(:,:,:)
+    integer(i_kind),intent(out) :: istatus
+    
+    integer(i_kind) :: irank,ipnt,ii,nt
+
+    istatus=0
+    nt=size(Bundle)
+
+!   loop over bundle instances
+    do ii=1,nt
+
+!      get pointer to desired variable
+       call GSI_BundleGetPointer ( Bundle(ii), fldname, ipnt, istatus, irank=irank )
+       if(istatus/=0) return
+
+!      retrieve variable
+       fld(:,:,ii) = Bundle(ii)%r2(ipnt)%qr8
+
+    enddo
+
+  end subroutine getvar2dp1r8_
+  subroutine getvar2dp1r4_ ( Bundle, fldname, fld, istatus )
+    
+    type(GSI_Bundle),intent(in) :: Bundle(:)
+    character(len=*),intent(in) :: fldname
+    real(r_single),  intent(inout) :: fld(:,:,:)
+    integer(i_kind),intent(out) :: istatus
+    
+    integer(i_kind) :: irank,ipnt,ii,nt
+
+    istatus=0
+    nt=size(Bundle)
+
+    do ii=1,nt
+
+!      get pointer to desired variable
+       call GSI_BundleGetPointer ( Bundle(ii), fldname, ipnt, istatus, irank=irank )
+       if(istatus/=0) return
+
+!      retrieve variable
+       fld(:,:,ii) = Bundle(ii)%r2(ipnt)%qr4
+
+    enddo
+
+  end subroutine getvar2dp1r4_
   subroutine getvar3dr8_ ( Bundle, fldname, fld, istatus )
     
     type(GSI_Bundle),intent(in) :: Bundle
@@ -2623,6 +2837,56 @@ CONTAINS
     fld = Bundle%r3(ipnt)%qr4
 
   end subroutine getvar3dr4_
+  subroutine getvar3dp1r8_ ( Bundle, fldname, fld, istatus )
+    
+    type(GSI_Bundle),intent(in) :: Bundle(:)
+    character(len=*),intent(in) :: fldname
+    real(r_double),intent(inout) :: fld(:,:,:,:)
+    integer(i_kind),intent(out) :: istatus
+   
+    integer(i_kind) :: irank,ipnt,ii,nt
+
+    istatus=0
+    nt = size(Bundle)
+
+!   loop over bundle instances
+    do ii=1,nt
+
+!      get pointer to desired variable
+       call GSI_BundleGetPointer ( Bundle(ii), fldname, ipnt, istatus, irank )
+       if(istatus/=0) return
+
+!      retrieve variable
+       fld(:,:,:,ii) = Bundle(ii)%r3(ipnt)%qr8
+
+    enddo
+
+  end subroutine getvar3dp1r8_
+  subroutine getvar3dp1r4_ ( Bundle, fldname, fld, istatus )
+    
+    type(GSI_Bundle),intent(in) :: Bundle(:)
+    character(len=*),intent(in) :: fldname
+    real(r_single),  intent(inout) :: fld(:,:,:,:)
+    integer(i_kind),intent(out) :: istatus
+   
+    integer(i_kind) :: irank,ipnt,ii,nt
+
+    istatus=0
+    nt=size(Bundle)
+ 
+!   loop over bundle instances
+    do ii=1,nt
+
+!      get pointer to desired variable
+       call GSI_BundleGetPointer ( Bundle(ii), fldname, ipnt, istatus, irank )
+       if(istatus/=0) return
+
+!      retrieve variable
+       fld(:,:,:,ii) = Bundle(ii)%r3(ipnt)%qr4
+
+    enddo
+
+  end subroutine getvar3dp1r4_
 !noEOC
 !............................................................................................
 !BOP

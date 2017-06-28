@@ -8,6 +8,7 @@ module intvismod
 !
 ! program history log:
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intvis
@@ -20,6 +21,10 @@ module intvismod
 !
 !$$$ end documentation block
 
+use m_obsNode, only: obsNode
+use m_visNode, only: visNode
+use m_visNode, only: visNode_typecast
+use m_visNode, only: visNode_nextcast
 implicit none
 
 PRIVATE
@@ -56,9 +61,8 @@ subroutine intvis(vishead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term
-  use obsmod, only: vis_ob_type, lsaveobsens, l_do_adjoint,luse_obsdiag
+  use obsmod, only: lsaveobsens, l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
-  use gridmod, only: latlon11
   use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -66,7 +70,7 @@ subroutine intvis(vishead,rval,sval)
   implicit none
 
 ! Declare passed variables
-  type(vis_ob_type),pointer,intent(in   ) :: vishead
+  class(obsNode),  pointer, intent(in   ) :: vishead
   type(gsi_bundle),         intent(in   ) :: sval
   type(gsi_bundle),         intent(inout) :: rval
 
@@ -79,7 +83,7 @@ subroutine intvis(vishead,rval,sval)
   real(r_kind) cg_vis,p0,grad,wnotgross,wgross,pg_vis
   real(r_kind),pointer,dimension(:) :: svis
   real(r_kind),pointer,dimension(:) :: rvis
-  type(vis_ob_type), pointer :: visptr
+  type(visNode), pointer :: visptr
 
 ! Retrieve pointers
 ! Simply return if any pointer not found
@@ -88,7 +92,8 @@ subroutine intvis(vishead,rval,sval)
   call gsi_bundlegetpointer(rval,'vis',rvis,istatus);ier=istatus+ier
   if(ier/=0)return
 
-  visptr => vishead
+  !visptr => vishead
+  visptr => visNode_typecast(vishead)
   do while (associated(visptr))
      j1=visptr%ij(1)
      j2=visptr%ij(2)
@@ -140,7 +145,8 @@ subroutine intvis(vishead,rval,sval)
         rvis(j4)=rvis(j4)+w4*grad
      endif
 
-     visptr => visptr%llpoint
+     !visptr => visptr%llpoint
+     visptr => visNode_nextcast(visptr)
 
   end do
 

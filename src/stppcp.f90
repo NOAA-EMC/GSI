@@ -13,6 +13,7 @@ module stppcpmod
 !   2008-12-02  Todling - remove stppcp_tl
 !   2009-08-12  lueken - update documentation
 !   2010-05-13  todling - uniform interface across stp routines
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stppcp
@@ -51,7 +52,6 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
 !                        - unify NL qc
 !   2006-09-18  derber   - modify output b1 and b3 
 !   2007-01-19  derber   - limit pcp_ges* > zero
-!   2007-02-15  rancic   - add foto
 !   2007-03-19  tremolet - binning of observations
 !   2007-05-10  tremolet - add opt to run as linear procedure
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
@@ -93,18 +93,20 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use pcpinfo, only: b_pcp,pg_pcp,tinym1_obs
-  use obsmod, only: pcp_ob_type
   use constants, only: zero,one,half,two,tiny_r_kind,cg_term,zero_quad,r3600
   use qcmod, only: nlnqc_iter,varqc_iter
-  use gridmod, only: latlon11,nsig,latlon1n
+  use gridmod, only: latlon11,nsig
   use gsi_4dvar, only: ltlint
-  use jfunc, only: l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use m_obsNode, only: obsNode
+  use m_pcpNode, only: pcpNode
+  use m_pcpNode, only: pcpNode_typecast
+  use m_pcpNode, only: pcpNode_nextcast
   implicit none
 
 ! Declare passed variables
-  type(pcp_ob_type),pointer           ,intent(in   ) :: pcphead
+  class(obsNode), pointer             ,intent(in   ) :: pcphead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
@@ -115,7 +117,7 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
   logical:: lcld 
   integer(i_kind) n,ncwm,nq,nt,nu,nv,kx,ier,istatus,icw,iql,iqi
   integer(i_kind) j1,j2,j3,j4,kk
-  real(r_kind) dt,dt0,w1,w2,w3,w4,time_pcp
+  real(r_kind) dt,dt0,w1,w2,w3,w4
   real(r_kind) dq,dq0
   real(r_kind) du,du0
   real(r_kind) dv,dv0
@@ -123,11 +125,9 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
   real(r_kind) pcp_gest,pcp_ges0,pcp_ges,obsges,termges,termgtl,obsgtl
   real(r_kind),dimension(max(1,nstep)):: pen
   real(r_kind) cg_pcp,wgross,wnotgross,pentl,pencur
-  type(pcp_ob_type), pointer :: pcpptr
+  type(pcpNode), pointer :: pcpptr
   real(r_kind),pointer,dimension(:):: rt,st,rq,sq,ru,su,rv,sv,rcwm,scwm
   real(r_kind),pointer,dimension(:):: rql,rqi,sql,sqi
-  real(r_kind),pointer,dimension(:):: xhat_dt_tsen,xhat_dt_q,xhat_dt_u,xhat_dt_v,xhat_dt_cw
-  real(r_kind),pointer,dimension(:):: dhat_dt_tsen,dhat_dt_q,dhat_dt_u,dhat_dt_v,dhat_dt_cw
 
 ! Initialize penalty, b1, and b3 to zero  
   out=zero_quad
@@ -155,26 +155,10 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
   call gsi_bundlegetpointer(dval,'qi',  rqi,istatus);iqi=istatus+iqi
   if(ier/=0)return
 
-  if(l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'u',      xhat_dt_u,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'v',      xhat_dt_v,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'tsen',xhat_dt_tsen,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'q',      xhat_dt_q,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'cw',    xhat_dt_cw,istatus);icw=istatus+icw
-     if(ier/=0)return
-
-     call gsi_bundlegetpointer(dhat_dt,'u',      dhat_dt_u,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'v',      dhat_dt_v,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'tsen',dhat_dt_tsen,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'q',      dhat_dt_q,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'cw',    dhat_dt_cw,istatus);icw=istatus+icw
-     if(ier/=0)return
-  endif
-
   lcld = (icw==0 .or. (iql+iqi)==0)
 
 ! Loop over number of observations.
-  pcpptr => pcphead
+  pcpptr => pcpNode_typecast(pcphead)
   do while(associated(pcpptr))
      if(pcpptr%luse)then
         pcp_ges0 = pcpptr%ges
@@ -227,32 +211,6 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
                  dcwm0=zero
               endif
 
-              if(l_foto) then
-                 time_pcp=pcpptr%time*r3600
-                 dt=dt+(w1*  xhat_dt_tsen(j1)+w2*  xhat_dt_tsen(j2)+ &
-                        w3*  xhat_dt_tsen(j3)+w4*  xhat_dt_tsen(j4))*time_pcp
-                 dq=dq+(w1*  xhat_dt_q(j1)+w2*  xhat_dt_q(j2)+ &
-                        w3*  xhat_dt_q(j3)+w4*  xhat_dt_q(j4))*time_pcp
-                 du=du+(w1*  xhat_dt_u(j1)+w2*  xhat_dt_u(j2)+ &
-                        w3*  xhat_dt_u(j3)+w4*  xhat_dt_u(j4))*time_pcp
-                 dv=dv+(w1*  xhat_dt_v(j1)+w2*  xhat_dt_v(j2)+ &
-                        w3*  xhat_dt_v(j3)+w4*  xhat_dt_v(j4))*time_pcp
-                 if (icw==0) &
-                 dcwm=dcwm+(w1*xhat_dt_cw(j1)+w2*xhat_dt_cw(j2)+ &
-                            w3*xhat_dt_cw(j3)+w4*xhat_dt_cw(j4))*time_pcp
-                 dt0=dt0+(w1*  dhat_dt_tsen(j1)+w2*  dhat_dt_tsen(j2)+  &
-                          w3*  dhat_dt_tsen(j3)+w4*  dhat_dt_tsen(j4))*time_pcp
-                 dq0=dq0+(w1*  dhat_dt_q(j1)+w2*  dhat_dt_q(j2)+  &
-                          w3*  dhat_dt_q(j3)+w4*  dhat_dt_q(j4))*time_pcp
-                 du0=du0+(w1*  dhat_dt_u(j1)+w2*  dhat_dt_u(j2)+  &
-                          w3*  dhat_dt_u(j3)+w4*  dhat_dt_u(j4))*time_pcp
-                 dv0=dv0+(w1*  dhat_dt_v(j1)+w2*  dhat_dt_v(j2)+  &
-                          w3*  dhat_dt_v(j3)+w4*  dhat_dt_v(j4))*time_pcp
-                 if (icw==0) &
-                 dcwm0=dcwm0+(w1*dhat_dt_cw(j1)+w2*dhat_dt_cw(j2)+ &
-                              w3*dhat_dt_cw(j3)+w4*dhat_dt_cw(j4))*time_pcp
-              end if
-        
               nt=n; nq=nt+nsig; nu=nq+nsig; nv=nu+nsig; ncwm=nv+nsig
               pcp_ges0 = pcp_ges0 +  pcpptr%dpcp_dvar(nt)  *dt + &
                                      pcpptr%dpcp_dvar(nq)  *dq + &
@@ -324,7 +282,7 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
 
      end if ! <luse>
      
-     pcpptr => pcpptr%llpoint
+     pcpptr => pcpNode_nextcast(pcpptr)
   end do
  
   return

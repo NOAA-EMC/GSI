@@ -20,6 +20,7 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
 !   2014-12-23 zaizhong cleaned up and finalized with the proxy data
 !   2015-03-23 zaizhong cleaned up and finalized with the real sample data
 !   2015-09-17 Thomas   add l4densvar and thin4d to data selection procedure
+!   2016-03-11 j. guo   Fixed {dlat,dlon}_earth_deg in the obs data stream
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -53,10 +54,11 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
   use radinfo, only: iuse_rad,jpch_rad,nusis
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen,l4densvar,thin4d
   use deter_sfc_mod, only: deter_sfc
-  use gsi_nstcouplermod, only: nst_gsi,nstinfo,fac_dtl,fac_tsl
+  use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use file_utility, only : get_lun     
   use mpimod, only: npe
+! use radiance_mod, only: rad_obs_type
   implicit none
 
 ! Declare passed variables
@@ -99,6 +101,7 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
   real(r_kind) dg2ew,sstime,tdiff,t4dv,sfcr
   real(r_kind) dlon,dlat,timedif,crit1,dist1
   real(r_kind) dlon_earth,dlat_earth
+  real(r_kind) dlon_earth_deg,dlat_earth_deg
   real(r_kind) pred
   real(r_kind),dimension(0:3):: sfcpct
   real(r_kind),dimension(0:3):: ts
@@ -235,6 +238,8 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
         if (hdrh8arr(ilonh)>=r360) hdrh8arr(ilonh)=hdrh8arr(ilonh)-r360
         if (hdrh8arr(ilonh)< zero) hdrh8arr(ilonh)=hdrh8arr(ilonh)+r360
 
+        dlon_earth_deg = hdrh8arr(ilonh)
+        dlat_earth_deg = hdrh8arr(ilath)
         dlon_earth=hdrh8arr(ilonh)*deg2rad
         dlat_earth=hdrh8arr(ilath)*deg2rad
 
@@ -388,8 +393,8 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
         data_all(27,itx)= idomsfc + 0.001_r_kind      ! dominate surface type
         data_all(28,itx)= sfcr                        ! surface roughness
         data_all(29,itx)= ff10                        ! ten meter wind factor
-        data_all(30,itx)= dlon_earth*rad2deg          ! earth relative longitude (degrees)
-        data_all(31,itx)= dlat_earth*rad2deg          ! earth relative latitude (degrees)
+        data_all(30,itx)= dlon_earth_deg              ! earth relative longitude (degrees)
+        data_all(31,itx)= dlat_earth_deg              ! earth relative latitude (degrees)
         data_all(32,itx) = val_img
         data_all(33,itx) = itt
 
@@ -415,19 +420,21 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
      nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
 ! If no observations read, jump to end of routine.
-  do n=1,ndata
-     do k=1,nchanl
-        if(data_all(k+nreal,n) > tbmin .and. &
-           data_all(k+nreal,n) < tbmax)nodata=nodata+1
-    end do
-    itt=nint(data_all(maxinfo,n))
-    super_val(itt)=super_val(itt)+val_img
-  end do
+  if (mype_sub==mype_root.and.ndata>0) then
+     do n=1,ndata
+        do k=1,nchanl
+           if(data_all(k+nreal,n) > tbmin .and. &
+              data_all(k+nreal,n) < tbmax)nodata=nodata+1
+        end do
+        itt=nint(data_all(maxinfo,n))
+        super_val(itt)=super_val(itt)+val_img
+     end do
 
 ! Write final set of "best" observations to output file
-  call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
-  write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-  write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
+     call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
+     write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+     write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
+  end if
 
 ! Deallocate local arrays
   deallocate(data_all,nrec)
