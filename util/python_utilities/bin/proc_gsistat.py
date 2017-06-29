@@ -2,10 +2,10 @@
 
 ###############################################################
 # < next few lines under version control, D O  N O T  E D I T >
-# $Date$
-# $Revision$
-# $Author$
-# $Id$
+# $Date: 2016-09-26 11:18:55 -0400 (Mon, 26 Sep 2016) $
+# $Revision: 82099 $
+# $Author: Michael.Lueken@noaa.gov $
+# $Id: proc_gsistat.py 82099 2016-09-26 15:18:55Z Michael.Lueken@noaa.gov $
 ###############################################################
 
 import os

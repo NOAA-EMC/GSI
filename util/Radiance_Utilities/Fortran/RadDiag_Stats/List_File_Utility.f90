@@ -187,7 +187,7 @@ MODULE List_File_Utility
   ! -----------------
 
   CHARACTER( * ), PARAMETER, PRIVATE :: MODULE_RCS_ID = &
-  '$Id$'
+  '$Id: List_File_Utility.f90 9040 2010-07-29 17:01:49Z Michael.Lueken@noaa.gov $'
 
   INTEGER, PRIVATE, PARAMETER :: SET = 1
   INTEGER, PRIVATE, PARAMETER :: STRLEN = 5000
@@ -2688,11 +2688,11 @@ END MODULE List_File_Utility
 !                          -- MODIFICATION HISTORY --
 !-------------------------------------------------------------------------------
 !
-! $Id$
+! $Id: List_File_Utility.f90 9040 2010-07-29 17:01:49Z Michael.Lueken@noaa.gov $
 !
 ! $Date: 2006/07/26 21:37:50 $
 !
-! $Revision$
+! $Revision: 9040 $
 !
 ! $Name:  $
 !
