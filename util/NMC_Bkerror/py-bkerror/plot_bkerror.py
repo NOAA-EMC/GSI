@@ -6,6 +6,13 @@ from matplotlib import pyplot as plt
 import numpy as np
 from bkerror import bkerror
 from splat import splat
+try:
+    plot_map = True
+    import lib_mapping as lmapping
+except:
+    plot_map = False
+    print 'lib_mapping module is not in your path'
+    print 'No maps will be produced'
 
 # bkerror file to read; e.g. global_berror.l64y258.f77
 parser = ArgumentParser(description='read background error file and plot',formatter_class=ArgumentDefaultsHelpFormatter)
@@ -42,57 +49,93 @@ glev = np.arange(1,nsig+1)
 
 zg,xg = np.meshgrid(glev,glat)
 
-# First plot bgvin and wgvin
-plt.figure(figsize=(8,11))
+cmapdiv = 'Spectral_r'
+cmappos = 'Spectral_r'
 
+aglevs = [1,10,20,40,50,60]
+for lev in aglevs:
+    print 'plotting agv at level = %d'  % lev
+    plt.figure()
+    z = agvin[:,:,lev-1]
+    plt.contourf(xg,zg,z,21,vmin=-z.max(),cmap=cmapdiv,extend='both')
+    plt.colorbar()
+    plt.title('agv at level = %d' % lev)
+    plt.savefig('agvl%02d.pdf' % lev)
+
+
+print 'plotting bgv and wgv'
+plt.figure()
 plt.subplot(2,1,1)
-plt.contourf(xg,zg,bgvin,cmap='jet');
-plt.colorbar();
-plt.title('bgvin')
-
+plt.contourf(xg,zg,bgvin,21,vmin=-bgvin.max(),cmap=cmapdiv,extend='both')
+plt.colorbar()
+plt.title('bgv')
 plt.subplot(2,1,2)
-plt.contourf(xg,zg,wgvin,cmap='jet');
-plt.colorbar();
-plt.title('wgvin')
-
-plt.savefig('bgvinwgvin.jpg')
+plt.contourf(xg,zg,wgvin,21,vmin=-wgvin.max(),cmap=cmapdiv,extend='both')
+plt.colorbar()
+plt.title('wgv')
+plt.savefig('bgvwgv.pdf')
 
 for i in range(6):
 
     varname = var[i].strip()
 
-    print 'plotting variable %s'  % varname
+    print 'plotting %s'  % varname
 
-    plt.figure(figsize=(8,11))
-
+    plt.figure()
     plt.subplot(3,1,1)
-    plt.contourf(xg,zg,corzin[:,:,i],cmap='jet');
-    plt.colorbar();
+    z = corzin[:,:,i]
+    plt.contourf(xg,zg,z,21,cmap=cmappos,extend='both')
+    plt.colorbar()
     plt.title('corz')
 
     plt.subplot(3,1,2)
-    plt.contourf(xg,zg,hscalesin[:,:,i],cmap='jet');
-    plt.colorbar();
-    plt.title('horizontal scales')
+    z = hscalesin[:,:,i]/1000.
+    plt.contourf(xg,zg,z,21,cmap=cmappos,extend='both')
+    plt.colorbar()
+    plt.title('horizontal scales (km)')
 
     plt.subplot(3,1,3)
-    plt.contourf(xg,zg,vscalesin[:,:,i],cmap='jet');
-    plt.colorbar();
+    z = 1./vscalesin[:,:,i]
+    plt.contourf(xg,zg,z,21,cmap=cmappos,extend='both')
+    plt.colorbar()
     plt.title('vertical scales')
 
     plt.suptitle('variable = %s' % varname)
+    plt.savefig('%s.pdf' % varname)
 
-    plt.savefig('%s.jpg' % varname)
-
-# Plot corq2in
-plt.figure(figsize=(8,11))
-
+print 'plotting corq2'
+plt.figure()
 plt.subplot(1,1,1)
-plt.contourf(xg,zg,corq2in,cmap='jet');
-plt.colorbar();
-plt.title('corq2in')
-plt.savefig('corq2in.jpg')
+z = corq2in
+plt.contourf(xg,zg,z,21,cmap=cmappos)
+plt.colorbar()
+plt.title('corq2')
+plt.savefig('corq2.pdf')
 
-plt.show()
+if plot_map:
+    proj = lmapping.Projection('mill',resolution='c',llcrnrlat=-80.,urcrnrlat=80.)
+    bmap = lmapping.createMap(proj)
+    gglon,gglat = np.meshgrid(glon,glat)
+    xm,ym = bmap(gglon,gglat)
 
+    print 'plotting sst'
+    plt.figure()
+    plt.subplot(2,1,1)
+    lmapping.drawMap(bmap,proj)
+    z = corsstin
+    c = bmap.contourf(xm,ym,z,21,cmap=cmappos,extend='both')
+    bmap.colorbar(c,'right',size='5%',pad='2%')
+    plt.title('cor')
+
+    plt.subplot(2,1,2)
+    lmapping.drawMap(bmap,proj)
+    z = hsstin
+    c = bmap.contourf(xm,ym,z,21,cmap=cmappos,extend='both')
+    bmap.colorbar(c,'right',size='5%',pad='2%')
+    plt.title('horizontal scales (km)')
+
+    plt.suptitle('variable = sst')
+    plt.savefig('sst.pdf')
+
+#plt.show()
 sys.exit(0)
