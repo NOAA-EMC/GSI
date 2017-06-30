@@ -414,6 +414,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !   2014-05-07  pondeca - add howv
 !   2014-06-18  carley/zhu - add tcamt and lcbas
 !   2014-08-18  pondeca - add sfwter and vpwter
+!   2016-03-07  pondeca  - add uwnd10m,vwnd10m
 !
 !   input argument list:
 !     nv
@@ -457,6 +458,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
   integer(i_kind),save :: nrf3_sf,nrf3_vp,nrf3_t,nrf3_q,nrf3_oz,nrf3_cw
   integer(i_kind),save :: nrf2_ps,nrf2_sst,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_cldch,nrf2_wspd10m,&
                           nrf2_td2m,nrf2_mxtm,nrf2_mitm,nrf2_pmsl,nrf2_howv,nrf2_tcamt,nrf2_lcbas,&
+                          nrf2_uwnd10m,nrf2_vwnd10m,&
                           nrf3_sfwter,nrf3_vpwter
 
   integer(i_kind) i,k,k1,k2,lun,ifield,icase,ii,istatus
@@ -484,7 +486,29 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
                                   'vpwter' /)  
   character(2) clun1
   character(3) clun2
+
+  integer(i_kind),save:: indexmax_of_gradvectors
+  logical fexist
+
+  namelist /gradvectors_writeout/indexmax_of_gradvectors
 !*************************************************************************
+  if (iter==0) then
+     lun=19
+     inquire(file='parmcard_input',exist=fexist)
+     if (fexist) then
+        open(lun,file='parmcard_input',form='formatted')
+        read(lun,gradvectors_writeout)
+        close(lun)
+      else
+        indexmax_of_gradvectors=nv
+     endif
+
+     if (mype==0) print*,'in writeout_gradients: indexmax_of_gradvectors=', &
+                                                 indexmax_of_gradvectors
+  endif
+
+  if (iter > indexmax_of_gradvectors) return
+
 ! Get control variable indices
   if (iter==0) then
      nrf3_sf   = getindex(cvars3d,'sf')
@@ -509,6 +533,8 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
      nrf2_howv = getindex(cvars2d,'howv')
      nrf2_tcamt = getindex(cvars2d,'tcamt')
      nrf2_lcbas = getindex(cvars2d,'lcbas')
+     nrf2_uwnd10m = getindex(cvars2d,'uwnd10m')
+     nrf2_vwnd10m = getindex(cvars2d,'vwnd10m')
   endif
 
 
@@ -535,7 +561,8 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
      write (lun) nlon,nlat,nsig,jpch_rad,npred,npcptype,npredp,jiter,nv,alpha,gamma, &
                  nrf3_sf,nrf3_vp,nrf3_t,nrf3_q,nrf3_oz,nrf3_cw,nrf3_sfwter,nrf3_vpwter, & 
                  nrf2_ps,nrf2_sst,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_cldch,nrf2_wspd10m, &
-                 nrf2_td2m,nrf2_mxtm,nrf2_mitm,nrf2_pmsl,nrf2_howv,nrf2_tcamt,nrf2_lcbas
+                 nrf2_td2m,nrf2_mxtm,nrf2_mitm,nrf2_pmsl,nrf2_howv,nrf2_tcamt,nrf2_lcbas, & 
+                 nrf2_uwnd10m,nrf2_vwnd10m
 
      ii=1
      do ifield=1,my3d
@@ -761,6 +788,36 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 
 !                               gradient wrt lcbas
      call gsi_bundlegetpointer(dz%step(ii),'lcbas',ptr2d,istatus)
+     if (istatus==0) then
+        call strip(ptr2d,strp)
+        call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
+             tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
+
+        if(mype == 0) then
+           do i=1,iglobal
+              slab(ltosj(i),ltosi(i))=tempa(i)
+           end do
+           write(lun) slab
+        endif
+     endif !ip>0
+
+!                               gradient wrt uwnd10m
+     call gsi_bundlegetpointer(dz%step(ii),'uwnd10m',ptr2d,istatus)
+     if (istatus==0) then
+        call strip(ptr2d,strp)
+        call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
+             tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
+
+        if(mype == 0) then
+           do i=1,iglobal
+              slab(ltosj(i),ltosi(i))=tempa(i)
+           end do
+           write(lun) slab
+        endif
+     endif !ip>0
+
+!                               gradient wrt vwnd10m
+     call gsi_bundlegetpointer(dz%step(ii),'vwnd10m',ptr2d,istatus)
      if (istatus==0) then
         call strip(ptr2d,strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
