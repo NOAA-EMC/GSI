@@ -16,6 +16,7 @@ subroutine dtast(work1,nlev,pbot,ptop,mesage,jiter,iout,pflag)
 !   2006-02-24  derber  - modify to take advantage of convinfo module
 !   2006-04-03  derber  - modify to print individual ob types
 !   2008-06-04  safford - rm unused var
+!   2016-12-20  pondeca - adjust output format for vis & cldch
 !
 !   input argument list:
 !     work1    - array containing innovation (o-g) sums
@@ -53,7 +54,7 @@ subroutine dtast(work1,nlev,pbot,ptop,mesage,jiter,iout,pflag)
   real(r_kind),dimension(nlev):: rmsall,biasall,ratall,qcratall
   real(r_kind),dimension(nlev):: rmsx,biasx,ratx,qcratx
   real(r_kind),dimension(nlev,nconvtype,3):: rms,bias,rat,qcrat
-  
+  logical vis_or_cldch 
 
   ! Initialize variables
   count=0; rms=zero; bias=zero; rat=zero; qcrat=zero 
@@ -104,6 +105,8 @@ subroutine dtast(work1,nlev,pbot,ptop,mesage,jiter,iout,pflag)
   ! Print statistics for single level obs (e.g., surface pressure)     
   if (nlev == 1) then
 
+     vis_or_cldch=.false.
+
      write(iout,600) ptop(1),pbot(1)
      write(iout,700) 'it','obs','use','typ','styp','count','bias','rms','cpen','qcpen'
      do nn=1,3
@@ -123,7 +126,12 @@ subroutine dtast(work1,nlev,pbot,ptop,mesage,jiter,iout,pflag)
               rmsall(1)=rmsall(1)+rms(1,i,nn)
               ratall(1)=ratall(1)+rat(1,i,nn)
               qcratall(1)=qcratall(1)+qcrat(1,i,nn)
-              write(iout,701) jiter,trim(ioctype(i)),typx(nn),ictype(i),icsubtype(i),count(nlev,i,nn),biasx(1),rmsx(1),ratx(1),qcratx(1)
+              if (trim(ioctype(i))=='vis' .or. trim(ioctype(i))=='cldch') then
+                 write(iout,901) jiter,trim(ioctype(i)),typx(nn),ictype(i),icsubtype(i),count(nlev,i,nn),biasx(1),rmsx(1),ratx(1),qcratx(1)
+                 vis_or_cldch=.true.
+                else
+                 write(iout,701) jiter,trim(ioctype(i)),typx(nn),ictype(i),icsubtype(i),count(nlev,i,nn),biasx(1),rmsx(1),ratx(1),qcratx(1)
+              endif
            end if
         end do
         if(countall(1) > 0)then
@@ -131,7 +139,11 @@ subroutine dtast(work1,nlev,pbot,ptop,mesage,jiter,iout,pflag)
            rmsx(1)=sqrt(rmsall(1)/countall(1))
            ratx(1)=ratall(1)/countall(1)
            qcratx(1)=qcratall(1)/countall(1)
-           write(iout,702) jiter,'',typx(nn),'all','',countall(1),biasx(1),rmsx(1),ratx(1),qcratx(1)
+           if (vis_or_cldch) then
+              write(iout,902) jiter,'',typx(nn),'all','',countall(1),biasx(1),rmsx(1),ratx(1),qcratx(1)
+             else
+              write(iout,702) jiter,'',typx(nn),'all','',countall(1),biasx(1),rmsx(1),ratx(1),qcratx(1)
+           endif
         end if
      end do
 
@@ -202,6 +214,8 @@ subroutine dtast(work1,nlev,pbot,ptop,mesage,jiter,iout,pflag)
 802  format(1x,'o-g',1x,i2.2,1x,a7,1x,a3,1x,i3.3,1x,i4.4,1x,a5,1x,12(f8.2,1x))
 803  format(1x,'o-g',1x,i2.2,1x,a7,1x,a3,1x,a3,  1x,a4,  1x,a5,1x,12(i8,  1x))
 804  format(1x,'o-g',1x,i2.2,1x,a7,1x,a3,1x,a3,  1x,a4,  1x,a5,1x,12(f8.2,1x))
+901  format(1x,'o-g',1x,i2.2,1x,a7,1x,a3,1x,i3.3,1x,i4.4,1x,i9,1x, 2(f12.4,1x),2(f9.4,1x))
+902  format(1x,'o-g',1x,i2.2,1x,a7,1x,a3,1x,a3,  1x,a4,  1x,i9,1x, 2(f12.4,1x),2(f9.4,1x))
 
   return
 end subroutine dtast
