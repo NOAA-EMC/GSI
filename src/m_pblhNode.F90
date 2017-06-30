@@ -71,7 +71,6 @@ module m_pblhNode
 
   character(len=*),parameter:: MYNAME="m_pblhNode"
 
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains

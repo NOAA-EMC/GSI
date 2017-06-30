@@ -79,7 +79,6 @@ module m_lagNode
 
   character(len=*),parameter:: MYNAME="m_lagNode"
 
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains

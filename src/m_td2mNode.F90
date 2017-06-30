@@ -73,7 +73,6 @@ module m_td2mNode
  
   character(len=*),parameter:: MYNAME="m_td2mNode"
 
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains

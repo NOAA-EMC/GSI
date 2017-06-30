@@ -75,7 +75,6 @@ module m_rwNode
 
   character(len=*),parameter:: MYNAME="m_rwNode"
 
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains

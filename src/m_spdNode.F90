@@ -74,7 +74,6 @@ module m_spdNode
 
   character(len=*),parameter:: MYNAME="m_spdNode"
 
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains

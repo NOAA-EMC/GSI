@@ -83,7 +83,6 @@ module m_ozNode
 
   character(len=*),parameter:: MYNAME="m_ozNode"
 
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains

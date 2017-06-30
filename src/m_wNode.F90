@@ -80,7 +80,6 @@ module m_wNode
 
   character(len=*),parameter:: MYNAME="m_wNode"
 
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains
