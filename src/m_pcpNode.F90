@@ -74,7 +74,6 @@ module m_pcpNode
 
   character(len=*),parameter:: MYNAME="m_pcpNode"
 
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains

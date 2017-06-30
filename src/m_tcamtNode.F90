@@ -73,7 +73,6 @@ module m_tcamtNode
  
   character(len=*),parameter:: MYNAME="m_tcamtNode"
 
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains

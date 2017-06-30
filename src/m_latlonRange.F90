@@ -141,7 +141,6 @@ module m_latlonRange
 
   logical,parameter:: alwaysLocal_   =.true.
 
-!#define NDEBUG
 #include "myassert.H"
 
 #define _TIMER_ON_

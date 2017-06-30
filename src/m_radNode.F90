@@ -93,7 +93,6 @@ module m_radNode
 
   character(len=*),parameter:: MYNAME="m_radNode"
 
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains

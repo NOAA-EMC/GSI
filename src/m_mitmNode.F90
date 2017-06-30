@@ -73,7 +73,6 @@ module m_mitmNode
  
   character(len=*),parameter:: MYNAME="m_mitmNode"
 
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains
