@@ -27,6 +27,7 @@ subroutine convert_binary_2d
 !   2014-05-07  pondeca - add howv
 !   2014-06-16  carley/zhu - add tcamt and ceiling
 !   2015-07-10  pondeca - add cloud ceiling height (cldch)
+!   2016-05-03  pondeca - add uwnd10m, vwnd10m
 !
 !   input argument list:
 !
@@ -320,6 +321,16 @@ subroutine convert_binary_2d
      write(6,*)' convert_binary_2d: mid LCBAS=',field2(nlon_regional/2,nlat_regional/2)
      write(lendian_out)field2
 
+     read(in_unit)field2             !  UWND10M
+     write(6,*)' convert_binary_2d: max,min UWND10M=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid UWND10M=',field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
+
+     read(in_unit)field2             !  VWND10M
+     write(6,*)' convert_binary_2d: max,min VWND10M=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid VWND10M=',field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
+
      close(in_unit)
      close(lendian_out)
 
@@ -349,6 +360,7 @@ subroutine read_2d_files(mype)
 !                         obs changed. Adjust guess times accordingly by using time_offset
 !                         and thus ensure that fgat works properly
 !   2010-04-20  jing    - set hrdifsig_all and hrdifsfc_all for non-ESMF cases.
+!   2016-06-07  yang    - add iadatemn
 !
 !   input argument list:
 !     mype     - pe number
@@ -368,7 +380,7 @@ subroutine read_2d_files(mype)
   use guess_grids, only: hrdifsig_all,hrdifsfc_all
   use gsi_4dvar, only: nhr_assimilation
   use constants, only: zero,one,r60inv
-  use obsmod, only: iadate,time_offset
+  use obsmod, only: time_offset,iadatemn
   implicit none
 
 ! Declare passed variables
@@ -385,7 +397,7 @@ subroutine read_2d_files(mype)
   integer(i_kind) nhr_half
   integer(i_kind) nminanl,nmings,nming2,ndiff
   integer(i_kind),dimension(5):: idate5
-  real(r_kind) hourg,temp
+  real(r_kind) temp
   real(r_kind),dimension(202):: time_ges
 
 !-----------------------------------------------------------------------------
@@ -406,8 +418,10 @@ subroutine read_2d_files(mype)
   if(mype==npem1) then
 
 !    Convert analysis time to minutes relative to fixed date
-     call w3fs21(iadate,nminanl)
-     write(6,*)'READ_2d_ FILES:  analysis date,minutes ',iadate,nminanl
+!    use iadatemn to get nminal--confirm with Manuel: for hourly RTMA, the
+!    minutes value is alway hardcoded as 0, right?
+     call w3fs21(iadatemn,nminanl)
+     write(6,*)'READ_2d_FILES:  analysis date,minutes ',iadatemn,nminanl
 
 !    Check for consistency of times from sigma guess files.
      in_unit=15
@@ -419,13 +433,12 @@ subroutine read_2d_files(mype)
         if(fexist)then
            open(in_unit,file=filename,form='unformatted')
            read(in_unit) idate5
+           write(6,*) 'READ_2D_FILES: input file name and idate(1-5)',filename,idate5
            close(in_unit)
-           idate5(5)=0
            call w3fs21(idate5,nmings)
-           hourg=zero
-           nming2=nmings+60*hourg
-           write(6,*)' READ_2d_FILES:  sigma guess file, nming2 ',hourg,idate5,nming2
+           nming2=nmings
            ndiff=nming2-nminanl
+           write(6,*)'READ_2d_FILES: sigma guess file time in minutes',nming2
            if(abs(ndiff) > 60*nhr_half ) go to 110
            iwan=iwan+1
            time_ges(iwan) = (nming2-nminanl)*r60inv + time_offset
@@ -433,6 +446,7 @@ subroutine read_2d_files(mype)
         end if
 110     continue
      end do
+     write(6,*)'READ_2d_FILES:iwan=',iwan,(time_ges(i),i=1,iwan)
      time_ges(201)=one
      time_ges(202)=one
      if(iwan > 1)then
@@ -532,6 +546,7 @@ subroutine read_2d_guess(mype)
 !   2014-05-07  pondeca - add howv
 !   2014-06-16  carley/zhu - add tcamt and ceiling
 !   2015-07-10  pondeca - add cloud ceiling height
+!   2016-05-03  pondeca - add uwnd10m, vwnd10m
 !
 !   input argument list:
 !     mype     - pe number
@@ -583,12 +598,13 @@ subroutine read_2d_guess(mype)
   integer(i_kind) i_0,i_psfc,i_fis,i_t,i_q,i_u,i_v,i_sno,i_smois,i_tslb
   integer(i_kind) i_sm,i_xice,i_sst,i_tsk,i_ivgtyp,i_isltyp,i_vegfrac,i_gust,i_vis,i_pblh
   integer(i_kind) i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv,i_tcamt,i_lcbas,i_cldch
+  integer(i_kind) i_uwnd10m,i_vwnd10m
   integer(i_kind) isli_this
   real(r_kind) psfc_this,sm_this,xice_this
   integer(i_kind) icwmr,ier,istatus
   logical ihave_gust,ihave_pblh,ihave_vis,ihave_tcamt,ihave_lcbas
   logical ihave_wspd10m,ihave_td2m,ihave_mxtm,ihave_mitm,ihave_pmsl,ihave_howv
-  logical ihave_cldch
+  logical ihave_cldch,ihave_uwnd10m,ihave_vwnd10m
 
   real(r_kind),pointer,dimension(:,:  )::ges_gust   =>NULL()
   real(r_kind),pointer,dimension(:,:  )::ges_vis    =>NULL()
@@ -602,6 +618,8 @@ subroutine read_2d_guess(mype)
   real(r_kind),pointer,dimension(:,:  )::ges_tcamt  =>NULL()
   real(r_kind),pointer,dimension(:,:  )::ges_lcbas  =>NULL()
   real(r_kind),pointer,dimension(:,:  )::ges_cldch  =>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_uwnd10m=>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_vwnd10m=>NULL()
   real(r_kind),pointer,dimension(:,:  )::ges_ps_it  =>NULL()
   real(r_kind),pointer,dimension(:,:  )::ges_z_it   =>NULL()
   real(r_kind),pointer,dimension(:,:,:)::ges_u_it   =>NULL()
@@ -632,7 +650,7 @@ subroutine read_2d_guess(mype)
   lm=nsig
 
 ! Following is for convenient 2D input
-  num_2d_fields=28! Adjust according to content of RTMA restart file ---- should this number be in a namelist or anavinfo file at some point?
+  num_2d_fields=30! Adjust according to content of RTMA restart file ---- should this number be in a namelist or anavinfo file at some point?
   num_all_fields=num_2d_fields*nfldsig
   num_loc_groups=num_all_fields/npe
 ! if(mype==0) write(6,'(" at 1 in read_2d_guess, lm            =",i6)')lm
@@ -784,6 +802,14 @@ subroutine read_2d_guess(mype)
 
   i=i+1 ; i_lcbas=i                                           ! lcbas
   write(identity(i),'("record ",i3,"--lcbas")')i
+  jsig_skip(i)=0 ; igtype(i)=1
+
+  i=i+1 ; i_uwnd10m=i                                         ! uwnd10m
+  write(identity(i),'("record ",i3,"--uwnd10m")')i
+  jsig_skip(i)=0 ; igtype(i)=1
+
+  i=i+1 ; i_vwnd10m=i                                         ! vwnd10m
+  write(identity(i),'("record ",i3,"--vwnd10m")')i
   jsig_skip(i)=0 ; igtype(i)=1
 
   if (mype==0) then
@@ -970,6 +996,11 @@ subroutine read_2d_guess(mype)
         call gsi_bundlegetpointer(gsi_metguess_bundle(it),'lcbas',ges_lcbas,ier)
         ihave_lcbas =ier==0
 
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'uwnd10m',ges_uwnd10m,ier)
+        ihave_uwnd10m=ier==0
+
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vwnd10m',ges_vwnd10m,ier)
+        ihave_vwnd10m=ier==0
 
         i_0=(it-1)*num_2d_fields
         do i=1,lon1+2
@@ -1030,11 +1061,17 @@ subroutine read_2d_guess(mype)
               if (ihave_lcbas) & 
                  ges_lcbas(j,i)=max(min(all_loc(j,i,i_0+i_lcbas),20000.0_r_kind),one_tenth) !Enforce upper and lower bounds on lowest cloud base
 
+              if (ihave_uwnd10m) & 
+                 ges_uwnd10m(j,i)=all_loc(j,i,i_0+i_uwnd10m)
+
+              if (ihave_vwnd10m) & 
+                 ges_vwnd10m(j,i)=all_loc(j,i,i_0+i_vwnd10m)
+
            end do
         end do
      end do
 
-     deallocate(all_loc,jsig_skip,igtype,identity)
+     deallocate(all_loc,jsig_skip,igtype,identity,temp1)
 
 
      return
@@ -1070,6 +1107,7 @@ subroutine wr2d_binary(mype)
 !   2014-06-16  carley/zhu - add tcamt and ceiling
 !   2014-06-27  carley - slight change to specification of num_2d_fields
 !   2015-07-10  pondeca - add cloud ceiling height
+!   2016-05-03  pondeca - add uwnd10m, vwnd10m
 !
 !   input argument list:
 !     mype     - pe number
@@ -1107,6 +1145,7 @@ subroutine wr2d_binary(mype)
 
   character(len=*),parameter::myname='wr2d_binary'
   integer(i_kind) im,jm,lm
+  integer(i_kind),allocatable::itemp1(:)
   real(r_single),allocatable::temp1(:),tempa(:),tempb(:)
   real(r_single),allocatable::all_loc(:,:,:)
   real(r_single),allocatable::strp(:)
@@ -1114,7 +1153,7 @@ subroutine wr2d_binary(mype)
   character(2) ch2
   integer(i_kind) iog,ioan,i,j,k,kt,kq,ku,kv,it,i_psfc,i_t,i_q,i_u,i_v
   integer(i_kind) i_sst,i_skt,i_gust,i_vis,i_pblh,ier,istatus,i_tcamt,i_lcbas,i_cldch
-  integer(i_kind) i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv
+  integer(i_kind) i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv,i_uwnd10m,i_vwnd10m
   integer(i_kind) num_2d_fields,num_all_fields,num_all_pad
   integer(i_kind) regional_time0(6),nlon_regional0,nlat_regional0,nsig0
   real(r_kind) psfc_this
@@ -1154,8 +1193,10 @@ subroutine wr2d_binary(mype)
   i_howv= i_pmsl+1
   i_tcamt=i_howv+1
   i_lcbas=i_tcamt+1
+  i_uwnd10m=i_lcbas+1
+  i_vwnd10m=i_uwnd10m+1
 
-  num_2d_fields=i_lcbas        ! - should always equal the last integer from the
+  num_2d_fields=i_vwnd10m      ! - should always equal the last integer from the
                                ! -   preceding list
   num_all_fields=num_2d_fields
   num_all_pad=num_all_fields
@@ -1166,6 +1207,7 @@ subroutine wr2d_binary(mype)
 
 
 
+  allocate(itemp1(im*jm))
   allocate(temp1(im*jm))
   allocate(temp1_prh(im*jm))
 
@@ -1360,8 +1402,13 @@ subroutine wr2d_binary(mype)
 
   if (mype == 0) then
      do k=7,16 ! SM,SICE,SST,IVGTYP,ISLTYP,VEGFRA,SNOW,SMOIS,TSLB,TSK
-        read(iog)temp1
-        write(ioan)temp1
+        if (k==10 .or. k==11) then
+           read(iog)itemp1
+           write(ioan)itemp1
+         else
+           read(iog)temp1
+           write(ioan)temp1
+        endif
      end do
   end if
 
@@ -1377,8 +1424,10 @@ subroutine wr2d_binary(mype)
   caux(10)='howv'   ; iaux(10)=i_howv
   caux(11)='tcamt'  ; iaux(11)=i_tcamt
   caux(12)='lcbas'  ; iaux(12)=i_lcbas
+  caux(13)='uwnd10m'; iaux(13)=i_uwnd10m
+  caux(14)='vwnd10m'; iaux(14)=i_vwnd10m
 
-  kaux=12  !Adjust as you add variables
+  kaux=14  !Adjust as you add variables
 
   do k=1,kaux
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),trim(caux(k)),ptr2d, ier)
@@ -1433,6 +1482,7 @@ subroutine wr2d_binary(mype)
   end do
 
   deallocate(all_loc)
+  deallocate(itemp1)
   deallocate(temp1)
   deallocate(tempa)
   deallocate(tempb)
@@ -1541,7 +1591,7 @@ subroutine init_ndfdgrid
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use constants, only: five
+  use constants, only: five,zero_single
   use mpimod, only: mype
   implicit none
 
@@ -1592,6 +1642,9 @@ subroutine init_ndfdgrid
   open (55,file='rtma_terrain.dat',form='unformatted')
   read(55) terrain
   close(55)
+
+  terrain(:,:)=max(zero_single,terrain(:,:))
+  print*,'in init_ndfdgrid: terrain,min,max=',minval(terrain),maxval(terrain)
 
   allocate(valleys(nx,ny))
 
@@ -2135,6 +2188,12 @@ subroutine mkvalley_file
   enddo
   enddo
 
+  if (mype==0) then 
+    open (55,file='valley_map_unsmoothed.dat',form='unformatted')
+    write(55) valleys
+    close(55)
+  endif
+
   call smther_one(valleys,1,nx,1,ny,npassvalley)
 
   print*,'in mkvalley_file: valleys,min,max=',minval(valleys),maxval(valleys)
@@ -2255,6 +2314,7 @@ module hilbertcurve
 !                         tobs,qobs,vobs,etc., wih obstype
 !   2014-04-10  pondeca - add cross-validation for td2m,mxtm,mitm,pmsl
 !   2014-05-07  pondeca - add cross-validation for howv
+!   2016-05-03  pondeca - add cross-validtaion for uwnd10m, vwnd10m
 !                        
 !
 ! subroutines included:
@@ -2316,6 +2376,8 @@ module hilbertcurve
   integer(i_kind) ngrps_tcamtob
   integer(i_kind) ngrps_lcbasob
   integer(i_kind) ngrps_cldchob
+  integer(i_kind) ngrps_uwnd10mob
+  integer(i_kind) ngrps_vwnd10mob
 
   logical random_cvgrp
   real(r_kind) usagecv
@@ -2359,7 +2421,8 @@ subroutine init_hilbertcurve(maxobs)
                     ngrps_pwob,ngrps_sstob,ngrps_gustob,ngrps_visob, &
                     ngrps_td2mob, ngrps_mxtmob,ngrps_mitmob, &
                     ngrps_pmslob, ngrps_howvob, &
-                    ngrps_tcamtob,ngrps_lcbasob,ngrps_cldchob
+                    ngrps_tcamtob,ngrps_lcbasob,ngrps_cldchob, & 
+                    ngrps_uwnd10mob,ngrps_vwnd10mob
 
   random_cvgrp=.false.
   usagecv=3._r_kind
@@ -2391,6 +2454,8 @@ subroutine init_hilbertcurve(maxobs)
   endif
 
   ngrps_wspd10mob=ngrps_uvob
+  ngrps_uwnd10mob=ngrps_uvob
+  ngrps_vwnd10mob=ngrps_uvob
 
   if(mype == 0)then
     print*,'in init_hilbertcurve: random_cvgrp=',random_cvgrp
@@ -2413,6 +2478,8 @@ subroutine init_hilbertcurve(maxobs)
     print*,'in init_hilbertcurve: ngrps_tcamtob=',ngrps_tcamtob
     print*,'in init_hilbertcurve: ngrps_lcbasob=',ngrps_lcbasob
     print*,'in init_hilbertcurve: ngrps_cldchob=',ngrps_cldchob
+    print*,'in init_hilbertcurve: ngrps_uwnd10mob=',ngrps_uwnd10mob
+    print*,'in init_hilbertcurve: ngrps_vwnd10mob=',ngrps_vwnd10mob
   end if
 
 
@@ -2644,6 +2711,8 @@ subroutine apply_hilbertcurve(maxobs,obstype,cdata_usage)
             if(obstype == 'tcamt'  ) ncnumgrp0=ngrps_tcamtob
             if(obstype == 'lcbas'  ) ncnumgrp0=ngrps_lcbasob
             if(obstype == 'cldch'  ) ncnumgrp0=ngrps_cldchob
+            if(obstype == 'uwnd10m') ncnumgrp0=ngrps_uwnd10mob
+            if(obstype == 'vwnd10m') ncnumgrp0=ngrps_vwnd10mob
           else
             ncnumgrp0=ncnumgrp(hilikx(ncross)) ! number of cross-validating datasets is
                                                ! chosen to be the last "number of groups" 
@@ -2664,7 +2733,7 @@ subroutine apply_hilbertcurve(maxobs,obstype,cdata_usage)
                                                                 !is the same group element for all ob subtypes 
                                                                 !of a given ob type 
 
-           if (i==1) print*,'in apply_hilbertcurve: ncnumgrp0,ncgroup0=',ncnumgrp0,ncgroup0 
+           if (i==1) print*,'in apply_hilbertcurve: obstype,ncnumgrp0,ncgroup0=',trim(obstype),ncnumgrp0,ncgroup0 
 
            if (test_set(i).eq.ncgroup0) then
               if (     random_cvgrp) usage=usagecv           !3.
@@ -2717,6 +2786,8 @@ subroutine apply_hilbertcurve(maxobs,obstype,cdata_usage)
         if(obstype=='tcamt')   outfile='tcamtobs_allcv_groups'
         if(obstype=='lcbas')   outfile='lcbasobs_allcv_groups'
         if(obstype=='cldch')   outfile='cldchobs_allcv_groups'
+        if(obstype=='uwnd10m') outfile='uwnd10mobs_allcv_groups'
+        if(obstype=='vwnd10m') outfile='vwnd10mobs_allcv_groups'
         open (92,file=trim(outfile),form='unformatted')
 
         write(92) ncross,ncnumgrp0,ncgroup0
@@ -3185,7 +3256,7 @@ subroutine landlake_uvmerge(u,v,uland,vland,uwter,vwter,iflg)
               flat=region_lat(iglob,jglob)*rad2deg
               flon=region_lon(iglob,jglob)*rad2deg
               glerlarea=(flat>=flat1.and.flat<=flat2).and.(flon>=flon1.and.flon<=flon2)
-              glerlarea=glerlarea.or.((flat>=slat1.and.flat<=slat2).and.(flon>=slon1.and.flon<=slon2))
+              !glerlarea=glerlarea.or.((flat>=slat1.and.flat<=slat2).and.(flon>=slon1.and.flon<=slon2))
 
               if(isli2(i,j) == 1 .or. .not.glerlarea) then
                  do k=1,nsig                           !note: this subroutine is always called with nsig=1
@@ -3210,7 +3281,7 @@ subroutine landlake_uvmerge(u,v,uland,vland,uwter,vwter,iflg)
               flat=region_lat(iglob,jglob)*rad2deg
               flon=region_lon(iglob,jglob)*rad2deg
               glerlarea=(flat>=flat1.and.flat<=flat2).and.(flon>=flon1.and.flon<=flon2)
-              glerlarea=glerlarea.or.((flat>=slat1.and.flat<=slat2).and.(flon>=slon1.and.flon<=slon2))
+              !glerlarea=glerlarea.or.((flat>=slat1.and.flat<=slat2).and.(flon>=slon1.and.flon<=slon2))
 
               if(isli2(i,j) == 1 .or. .not.glerlarea) then
                  do k=1,nsig
@@ -3227,3 +3298,103 @@ subroutine landlake_uvmerge(u,v,uland,vland,uwter,vwter,iflg)
         enddo
   endif
 end subroutine landlake_uvmerge
+!===========================================================================
+!===========================================================================
+subroutine get_fldstd(field,i1,i2,j1,j2,k1,k2,radius,npass,mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       
+! subprogram:    get_fldstd
+!   prgmmr: pondeca          org: np22                date: 2017-04-17
+!
+! abstract:
+! 
+!
+! program history log:
+!   2017-04-17 pondeca
+!
+!   input argument list:
+!     field     - input field
+!     i1,i2     - i-dimensions of field (south->north direction)
+!     j1,j2     - j-dimensions of field (west->east direction)
+!     k1,k2     - k-dimensions of field
+!     radius    - radius in meters for variance estimation
+!
+!   output argument list:
+!     field     - output variance
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+
+  use kinds, only: r_single,r_kind,r_double,i_kind
+  use gridmod, only: region_dx,region_dy
+  use anisofilter, only: smther_one
+  implicit none
+
+! Declare passed variables
+  integer(i_kind) ,intent(in) :: i1,i2,j1,j2,k1,k2,npass
+  integer(i_kind) ,intent(in) :: mype
+  real(r_kind)  ,intent(in) :: radius
+  real(r_single),dimension(i1:i2,j1:j2,k1:k2),intent(inout) :: field
+
+! Declare local variables
+  integer(i_kind) i,j,k
+  integer(i_kind) ijdel,m,n,ncount
+  real(r_double) f0,var,stdmean
+  real(r_kind) ds
+  real(r_single), allocatable, dimension(:,:,:):: fieldaux
+
+  allocate (fieldaux(i1:i2,j1:j2,k1:k2))
+
+  ds=min(minval(region_dx),minval(region_dy))
+  ijdel=nint(radius/ds)
+  if (mype==0) print*,'in get_fldstd: radius,ds,ijdel=',radius,ds,ijdel
+
+  do k=k1,k2
+     do j=j1,j2
+        do i=i1,i2
+           fieldaux(i,j,k)=field(i,j,k)
+        enddo
+     enddo
+  enddo
+  do k=k1,k2
+     do j=j1,j2
+        do i=i1,i2
+           f0=real(fieldaux(i,j,k),kind=r_double)
+           var=0._r_double
+           ncount=0
+           do n=max(j1,j-ijdel),min(j2,j+ijdel)
+              do m=max(i1,i-ijdel),min(i2,i+ijdel)
+                 ncount=ncount+1
+                 var=var+(real(fieldaux(m,n,k),kind=r_double)-f0)* &
+                   (real(fieldaux(m,n,k),kind=r_double)-f0)
+              enddo
+           enddo
+           field(i,j,k)=sqrt(var/real(ncount,kind=r_double))
+        enddo
+     enddo
+     call smther_one(field(:,:,k),i1,i2,j1,j2,npass)
+  enddo
+
+!==> for convenience, renormalize by mean std and take log (1+std)
+
+  ncount=(j2-j1+1)*(i2-i1+1)
+
+  do k=k1,k2
+     stdmean=0._r_double
+     do j=j1,j2
+        do i=i1,i2
+           stdmean=stdmean+real(field(i,j,k),kind=r_double)
+        enddo
+     enddo
+     stdmean=stdmean/real(ncount,kind=r_double)
+     if (stdmean > 0._r_double) field(:,:,k)=field(:,:,k)/stdmean
+     field(:,:,k)=log(1._r_single+field(:,:,k))
+  enddo
+  
+  deallocate (fieldaux)
+end subroutine get_fldstd
+!===========================================================================
+!===========================================================================

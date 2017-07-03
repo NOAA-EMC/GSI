@@ -1,7 +1,7 @@
 subroutine statsconv(mype,&
      i_ps,i_uv,i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag, &
      i_gust,i_vis,i_pblh,i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv, & 
-     i_tcamt,i_lcbas,i_cldch,i_ref,bwork,awork,ndata)
+     i_tcamt,i_lcbas,i_cldch,i_uwnd10m,i_vwnd10m,i_ref,bwork,awork,ndata)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    statconv    prints statistics for conventional data
@@ -41,6 +41,7 @@ subroutine statsconv(mype,&
 !   2014-05-07  pondeca - add howv
 !   2014-06-06  carley/zhu - add tcamt and lcbas
 !   2015-07-10  pondeca - add cldch
+!   2016-05-05  pondeca - add uwnd10m, vwnd10m
 !
 !   input argument list:
 !     mype     - mpi task number
@@ -68,6 +69,8 @@ subroutine statsconv(mype,&
 !     i_tcamt   - index in awork array holding tcamt info
 !     i_lcbas   - index in awork array holding lcbas info
 !     i_cldch   - index in awork array holding cldch info
+!     i_uwnd10m- index in awork array holding uwnd10m info
+!     i_vwnd10m- index in awork array holding vwnd10m info
 !     i_ref    - size of second dimension of awork array
 !     bwork    - array containing information for statistics
 !     awork    - array containing information for data counts and gross checks
@@ -88,10 +91,11 @@ subroutine statsconv(mype,&
        iout_srw,iout_uv,iout_gps,iout_ps,iout_q,iout_tcp,iout_lag,&
        iout_gust,iout_vis,iout_pblh,iout_wspd10m,iout_td2m,& 
        iout_mxtm,iout_mitm,iout_pmsl,iout_howv,iout_tcamt,iout_lcbas,iout_cldch,&
+       iout_uwnd10m,iout_vwnd10m,&
        mype_dw,mype_rw,mype_srw,mype_sst,mype_gps,mype_uv,mype_ps,&
        mype_t,mype_pw,mype_q,mype_tcp,ndat,dtype,mype_lag,mype_gust,&
        mype_vis,mype_pblh,mype_wspd10m,mype_td2m,mype_mxtm,mype_mitm,&
-       mype_pmsl,mype_howv,mype_tcamt,mype_lcbas,mype_cldch
+       mype_pmsl,mype_howv,mype_tcamt,mype_lcbas,mype_cldch,mype_uwnd10m,mype_vwnd10m
   use qcmod, only: npres_print,ptop,pbot,ptopq,pbotq
   use jfunc, only: first,jiter
   use gridmod, only: nsig
@@ -101,7 +105,8 @@ subroutine statsconv(mype,&
 ! Declare passed variables
   integer(i_kind)                                  ,intent(in   ) :: mype,i_ps,i_uv,&
        i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag,i_gust,i_vis,i_pblh,&
-       i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv,i_tcamt,i_lcbas,i_cldch,i_ref
+       i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv,i_tcamt,i_lcbas,&
+       i_cldch,i_uwnd10m,i_vwnd10m,i_ref
   real(r_kind),dimension(7*nsig+100,i_ref)     ,intent(in   ) :: awork
   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(in   ) :: bwork
   integer(i_kind),dimension(ndat,3)                ,intent(in   ) :: ndata
@@ -110,7 +115,7 @@ subroutine statsconv(mype,&
   character(100) mesage
 
   integer(i_kind) numgrspw,numsst,nsuperp,nump,nhitopo,ntoodif
-  integer(i_kind) numgrsq,numhgh,numgust,numvis,numpblh,numwspd10m
+  integer(i_kind) numgrsq,numhgh,numgust,numvis,numpblh,numwspd10m,numuwnd10m,numvwnd10m
   integer(i_kind) numtd2m,nummxtm,nummitm,numpmsl,numhowv,numtcamt,numlcbas,numcldch
   integer(i_kind) ntot,numlow,k,numssm,i,j
   integer(i_kind) numgross,numfailqc,numfailqc_ssmi,nread,nkeep
@@ -1016,6 +1021,84 @@ subroutine statsconv(mype,&
      write(iout_cldch,951) 'cldch',awork(4,i_cldch),awork(22,i_cldch),pw,pw3
 
      close(iout_cldch)
+  end if
+
+! Summary report for conventional uwnd10m
+  if(mype==mype_uwnd10m) then
+     if(first)then
+        open(iout_uwnd10m)
+     else
+        open(iout_uwnd10m,position='append')
+     end if
+
+     numuwnd10m=nint(awork(5,i_uwnd10m))
+     pw=zero ; pw3=zero
+     nread=0
+     nkeep=0
+     do i=1,ndat
+        if(dtype(i)== 'uwnd10m')then
+           nread=nread+ndata(i,2)
+           nkeep=nkeep+ndata(i,3)
+        end if
+     end do
+     if(nkeep > 0)then
+        mesage='current fit of conventional uwnd10m data, ranges in  m/s$'
+        do j=1,nconvtype
+           pflag(j)=trim(ioctype(j)) == 'uwnd10m'
+        end do
+        call dtast(bwork,1,pbotall,ptopall,mesage,jiter,iout_uwnd10m,pflag)
+
+        numgross=nint(awork(6,i_uwnd10m))
+        numfailqc=nint(awork(21,i_uwnd10m))
+        if(numuwnd10m > 0)then
+           pw=awork(4,i_uwnd10m)/numuwnd10m
+           pw3=awork(22,i_uwnd10m)/numuwnd10m
+        end if
+        write(iout_uwnd10m,925) 'uwnd10m',numgross,numfailqc
+     end if
+     write(iout_uwnd10m,950) 'uwnd10m',jiter,nread,nkeep,numuwnd10m
+     write(iout_uwnd10m,951) 'uwnd10m',awork(4,i_uwnd10m),awork(22,i_uwnd10m),pw,pw3
+
+     close(iout_uwnd10m)
+  end if
+
+! Summary report for conventional vwnd10m
+  if(mype==mype_vwnd10m) then
+     if(first)then
+        open(iout_vwnd10m)
+     else
+        open(iout_vwnd10m,position='append')
+     end if
+
+     numvwnd10m=nint(awork(5,i_vwnd10m))
+     pw=zero ; pw3=zero
+     nread=0
+     nkeep=0
+     do i=1,ndat
+        if(dtype(i)== 'vwnd10m')then
+           nread=nread+ndata(i,2)
+           nkeep=nkeep+ndata(i,3)
+        end if
+     end do
+     if(nkeep > 0)then
+        mesage='current fit of conventional vwnd10m data, ranges in  m/s$'
+        do j=1,nconvtype
+           pflag(j)=trim(ioctype(j)) == 'vwnd10m'
+        end do
+        call dtast(bwork,1,pbotall,ptopall,mesage,jiter,iout_vwnd10m,pflag)
+
+        numgross=nint(awork(6,i_vwnd10m))
+        numfailqc=nint(awork(21,i_vwnd10m))
+        if(numvwnd10m > 0)then
+           pw=awork(4,i_vwnd10m)/numvwnd10m
+           pw3=awork(22,i_vwnd10m)/numvwnd10m
+        end if
+        write(iout_vwnd10m,925) 'vwnd10m',numgross,numfailqc
+     end if
+     write(iout_vwnd10m,950) 'vwnd10m',jiter,nread,nkeep,numvwnd10m
+     write(iout_vwnd10m,951) 'vwnd10m',awork(4,i_vwnd10m),awork(22,i_vwnd10m),pw,pw3
+
+     close(iout_vwnd10m)
   end if
 
 ! Summary report for temperature  
