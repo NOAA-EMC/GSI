@@ -113,7 +113,7 @@ use params, only: sprd_tol, paoverpb_thresh, ndim, datapath, nanals,&
                   iassim_order,sortinc,deterministic,numiter,nlevs,nvars,&
                   zhuberleft,zhuberright,varqc,lupd_satbiasc,huber,univaroz,&
                   covl_minfact,covl_efold,nbackgrounds,nhr_anal,fhr_assim,&
-                  iseed_perturbed_obs,lupd_obspace_serial
+                  iseed_perturbed_obs,lupd_obspace_serial,fso_cycling
 use radinfo, only: npred,nusis,nuchan,jpch_rad,predx
 use radbias, only: apply_biascorr, update_biascorr
 use gridinfo, only: nlevs_pres,index_pres,nvarozone
@@ -706,27 +706,30 @@ if (nproc == 0) print *,'time to broadcast obsprd_post = ',mpi_wtime()-t1
 predx = predx + deltapredx ! add increment to bias coeffs.
 deltapredx = 0.0
 
-! Gathering analysis perturbations projected on the observation space   
-if(nproc /= 0) then   
-   call mpi_send(anal_obchunk,numobsperproc(nproc+1)*nanals,mpi_real,0, &   
-                 1,mpi_comm_world,ierr)   
-else   
-   allocate(anal_ob(1:nanals,nobstot))   
-   allocate(buffertmp3(nanals,nobs_max))   
-   do np=1,numproc-1   
-      call mpi_recv(buffertmp3,numobsperproc(np+1)*nanals,mpi_real,np, &   
-                    1,mpi_comm_world,mpi_status,ierr)   
-      do nob1=1,numobsperproc(np+1)   
-         nob2 = indxproc_obs(np+1,nob1)   
-         anal_ob(:,nob2) = buffertmp3(:,nob1)   
+! Gathering analysis perturbations 
+! in observation space for EFSO
+if(fso_cycling) then  
+   if(nproc /= 0) then   
+      call mpi_send(anal_obchunk,numobsperproc(nproc+1)*nanals,mpi_real,0, &   
+                    1,mpi_comm_world,ierr)   
+   else   
+      allocate(anal_ob(1:nanals,nobstot))   
+      allocate(buffertmp3(nanals,nobs_max))   
+      do np=1,numproc-1   
+         call mpi_recv(buffertmp3,numobsperproc(np+1)*nanals,mpi_real,np, &   
+                       1,mpi_comm_world,mpi_status,ierr)   
+         do nob1=1,numobsperproc(np+1)   
+            nob2 = indxproc_obs(np+1,nob1)   
+            anal_ob(:,nob2) = buffertmp3(:,nob1)   
+         end do   
       end do   
-   end do   
-   do nob1=1,numobsperproc(1)   
-      nob2 = indxproc_obs(1,nob1)   
-      anal_ob(:,nob2) = anal_obchunk(:,nob1)   
-   end do   
-   deallocate(buffertmp3)   
-end if   
+      do nob1=1,numobsperproc(1)   
+         nob2 = indxproc_obs(1,nob1)   
+         anal_ob(:,nob2) = anal_obchunk(:,nob1)   
+      end do   
+      deallocate(buffertmp3)   
+   end if   
+end if
 
 ! free local temporary arrays.
 deallocate(taper_disob,taper_disgrd)
