@@ -41,6 +41,7 @@ subroutine control2state(xhat,sval,bval)
 !   2014-06-16  carley/zhu - add tcamt and lcbas
 !   2014-12-03  derber   - introduce parallel regions for optimization
 !   2015-07-10  pondeca  - add cldch
+!   2016-05-03  pondeca  - add uwnd10m and vwnd10m
 !
 !   input argument list:
 !     xhat - Control variable
@@ -97,7 +98,7 @@ integer(i_kind) :: icps(ncvars)
 integer(i_kind) :: icpblh,icgust,icvis,icoz,icwspd10m
 integer(i_kind) :: ictd2m,icmxtm,icmitm,icpmsl,ichowv
 integer(i_kind) :: icsfwter,icvpwter,ictcamt,iclcbas
-integer(i_kind) :: iccldch
+integer(i_kind) :: iccldch,icuwnd10m,icvwnd10m
 character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed here
                                'sf ', 'vp ', 'ps ', 't  ',    &
                                'q  ', 'cw ', 'ql ', 'qi ' /)
@@ -122,6 +123,7 @@ logical :: ls_u,ls_v,ls_prse,ls_q,ls_tsen,ls_ql,ls_qi
 real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst
 real(r_kind),pointer,dimension(:,:)   :: sv_gust,sv_vis,sv_pblh,sv_wspd10m,sv_tcamt,sv_lcbas
 real(r_kind),pointer,dimension(:,:)   :: sv_td2m,sv_mxtm,sv_mitm,sv_pmsl,sv_howv,sv_cldch
+real(r_kind),pointer,dimension(:,:)   :: sv_uwnd10m,sv_vwnd10m
 real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_prse,sv_q,sv_tsen,sv_tv,sv_oz
 real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
 real(r_kind),pointer,dimension(:,:)   :: sv_rank2
@@ -196,6 +198,8 @@ call gsi_bundlegetpointer (xhat%step(1),'vpwter',icvpwter,istatus)
 call gsi_bundlegetpointer (xhat%step(1),'tcamt',ictcamt,istatus)
 call gsi_bundlegetpointer (xhat%step(1),'lcbas',iclcbas,istatus)
 call gsi_bundlegetpointer (xhat%step(1),'cldch',iccldch,istatus)
+call gsi_bundlegetpointer (xhat%step(1),'uwnd10m',icuwnd10m,istatus)
+call gsi_bundlegetpointer (xhat%step(1),'vwnd10m',icvwnd10m,istatus)
 
 ! Loop over control steps
 do jj=1,nsubwin
@@ -362,6 +366,14 @@ do jj=1,nsubwin
       call gsi_bundlegetpointer (sval(jj),'cldch'  ,sv_cldch , istatus)
       !  Convert log(cldch) to cldch
       call logcldch_to_cldch(cv_cldch,sv_cldch)
+   end if
+   if (icuwnd10m>0) then
+      call gsi_bundlegetpointer (sval(jj),'uwnd10m' ,sv_uwnd10m, istatus)
+      call gsi_bundlegetvar ( wbundle, 'uwnd10m', sv_uwnd10m, istatus )
+   end if
+   if (icvwnd10m>0) then
+      call gsi_bundlegetpointer (sval(jj),'vwnd10m' ,sv_vwnd10m, istatus)
+      call gsi_bundlegetvar ( wbundle, 'vwnd10m', sv_vwnd10m, istatus )
    end if
 
 !  Same one-to-one map for chemistry-vars; take care of them together 
