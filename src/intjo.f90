@@ -162,6 +162,7 @@ subroutine intjo_(yobs,rval,qpred,sval,sbias,ibin)
 !   2014-04-10  pondeca  - add inttd2m,intmxtm,intmitm,intpmsl
 !   2014-05-07  pondeca  - add inthowv
 !   2015-07-10  pondeca  - add intcldch
+!   2016-03-07  pondeca  - add intuwnd10m,intvwnd10m
 !
 !   input argument list:
 !     ibin
@@ -229,6 +230,8 @@ use inthowvmod, only: inthowv
 use inttcamtmod, only: inttcamt
 use intlcbasmod, only: intlcbas
 use intcldchmod, only: intcldch
+use intuwnd10mmod, only: intuwnd10m
+use intvwnd10mmod, only: intvwnd10m
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: gsi_bundlegetpointer
 
@@ -348,6 +351,12 @@ real(r_quad),dimension(max(1,nrclen)), intent(inout) :: qpred
 
 ! RHS for cldch observations
   call intcldch(yobs%cldch,rval,sval)
+
+! RHS for conventional uwnd10m observations
+  call intuwnd10m(yobs%uwnd10m,rval,sval)
+
+! RHS for conventional vwnd10m observations
+  call intvwnd10m(yobs%vwnd10m,rval,sval)
 
 ! Take care of background error for bias correction terms
 

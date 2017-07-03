@@ -53,6 +53,9 @@ module m_obsNodeTypeManager
   use obsmod, only: iobsType_pblh  =>  i_pblh_ob_type
 
   use obsmod, only: iobsType_wspd10m => i_wspd10m_ob_type
+  use obsmod, only: iobsType_uwnd10m => i_uwnd10m_ob_type
+  use obsmod, only: iobsType_vwnd10m => i_vwnd10m_ob_type
+
   use obsmod, only: iobsType_td2m  =>  i_td2m_ob_type
   use obsmod, only: iobsType_mxtm  =>  i_mxtm_ob_type
   use obsmod, only: iobsType_mitm  =>  i_mitm_ob_type
@@ -89,7 +92,10 @@ module m_obsNodeTypeManager
   use m_visNode  , only:   visNode ! 23
   use m_pblhNode , only:  pblhNode ! 24
 
-  use m_wspd10mNode , only:  wspd10mNode ! 25
+  use m_wspd10mNode, only: wspd10mNode ! 25
+  use m_uwnd10mNode, only: uwnd10mNode
+  use m_vwnd10mNode, only: vwnd10mNode
+
   use m_td2mNode , only:  td2mNode ! 26
   use m_mxtmNode , only:  mxtmNode ! 27
   use m_mitmNode , only:  mitmNode ! 28
@@ -146,6 +152,9 @@ module m_obsNodeTypeManager
   type(pblhNode ), target, save::  pblh_mold ! 24
 
   type(wspd10mNode), target, save:: wspd10m_mold ! 25
+  type(uwnd10mNode), target, save:: uwnd10m_mold
+  type(vwnd10mNode), target, save:: vwnd10m_mold
+
   type(   td2mNode), target, save::    td2m_mold ! 26
   type(   mxtmNode), target, save::    mxtm_mold ! 27
   type(   mitmNode), target, save::    mitm_mold ! 28
@@ -189,7 +198,7 @@ function vname2index_(vname) result(index_)
   character(len=len(vname)):: vname_
   vname_=lowercase(vname)
 
-  index_=0
+  index_=0      ! a default return value, if the given name is unknown.
   select case(vname_)
   case("ps"   ,   "[psnode]"); index_ = iobsType_ps
   case("t"    ,    "[tnode]"); index_ = iobsType_t
@@ -218,6 +227,11 @@ function vname2index_(vname) result(index_)
 
   case("wspd10m", &
              "[wspd10mnode]"); index_ = iobsType_wspd10m
+  case("uwnd10m", &
+             "[uwnd10mnode]"); index_ = iobsType_uwnd10m
+  case("vwnd10m", &
+             "[vwnd10mnode]"); index_ = iobsType_vwnd10m
+
   case("td2m" , "[td2mnode]"); index_ = iobsType_td2m
   case("mxtm" , "[mxtmnode]"); index_ = iobsType_mxtm
   case("mitm" , "[mitmnode]"); index_ = iobsType_mitm
@@ -273,6 +287,9 @@ function vmold2index_select_(mold) result(index_)
   type is( pblhNode); index_ = iobstype_pblh
 
   type is(wspd10mNode); index_ = iobsType_wspd10m
+  type is(uwnd10mNode); index_ = iobsType_uwnd10m
+  type is(vwnd10mNode); index_ = iobsType_vwnd10m
+
   type is( td2mNode); index_ = iobsType_td2m
   type is( mxtmNode); index_ = iobsType_mxtm
   type is( mitmNode); index_ = iobsType_mitm
@@ -283,6 +300,7 @@ function vmold2index_select_(mold) result(index_)
 
   type is( pm10Node); index_ = iobsType_pm10
   type is(cldchNode); index_ = iobsType_cldch
+
   end select
 end function vmold2index_select_
 
@@ -320,8 +338,10 @@ function index2vmold_(i_obType) result(obsmold_)
   case(iobsType_vis  ); obsmold_ =>   vis_mold
   case(iobsType_pblh ); obsmold_ =>  pblh_mold
 
-  case(iobsType_wspd10m)
-                        obsmold_ => wspd10m_mold
+  case(iobsType_wspd10m); obsmold_ => wspd10m_mold
+  case(iobsType_uwnd10m); obsmold_ => uwnd10m_mold
+  case(iobsType_vwnd10m); obsmold_ => vwnd10m_mold
+
   case(iobsType_td2m ); obsmold_ =>    td2m_mold
   case(iobsType_mxtm ); obsmold_ =>    mxtm_mold
   case(iobsType_mitm ); obsmold_ =>    mitm_mold
@@ -332,6 +352,7 @@ function index2vmold_(i_obType) result(obsmold_)
 
   case(iobsType_pm10 ); obsmold_ =>    pm10_mold
   case(iobsType_cldch); obsmold_ =>   cldch_mold
+
   end select
 end function index2vmold_
 
