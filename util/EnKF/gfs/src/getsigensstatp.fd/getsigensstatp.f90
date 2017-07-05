@@ -1,8 +1,8 @@
 !< --- next few lines under version control, D O  N O T  E D I T --->
-! $Date$
-! $Revision$
-! $Author$
-! $Id$
+! $Date: 2017-06-16 14:38:14 -0400 (Fri, 16 Jun 2017) $
+! $Revision: 94539 $
+! $Author: Michael.Lueken@noaa.gov $
+! $Id: getsigensstatp.f90 94539 2017-06-16 18:38:14Z Michael.Lueken@noaa.gov $
 !<------------------------------------------------------------------>
 program getsigensstatp
 !$$$  main program documentation block

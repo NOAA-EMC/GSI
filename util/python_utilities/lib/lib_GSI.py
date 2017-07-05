@@ -2,10 +2,10 @@
 
 ###############################################################
 # < next few lines under version control, D O  N O T  E D I T >
-# $Date$
-# $Revision$
-# $Author$
-# $Id$
+# $Date: 2016-10-11 08:58:01 -0400 (Tue, 11 Oct 2016) $
+# $Revision: 82928 $
+# $Author: Michael.Lueken@noaa.gov $
+# $Id: lib_GSI.py 82928 2016-10-11 12:58:01Z Michael.Lueken@noaa.gov $
 ###############################################################
 
 '''
