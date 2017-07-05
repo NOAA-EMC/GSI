@@ -52,7 +52,7 @@ MODULE RadDiag_Data_Define
   REAL, PARAMETER :: ZERO = 0.0_sp
   ! Version Id for the module
   CHARACTER(*), PARAMETER :: MODULE_VERSION_ID = &
-  '$Id$'
+  '$Id: RadDiag_Data_Define.f90 83616 2016-10-26 12:20:42Z Michael.Lueken@noaa.gov $'
 
 
   ! -------------------------
