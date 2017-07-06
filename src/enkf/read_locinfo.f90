@@ -1,5 +1,5 @@
 subroutine read_locinfo()
-   ! read localization scales from text file (hybens_info)
+   ! read localization scales from text file (hybens_locinfo)
    use kinds, only : r_kind,i_kind,r_single
    use params, only : nlevs,corrlengthnh,corrlengthtr,corrlengthsh,letkf_flag
    use enkf_obsmod, only: obloc, oblnp, corrlengthsq, lnsigl, nobstot, &
@@ -10,7 +10,7 @@ subroutine read_locinfo()
    use gridinfo, only: gridloc, logp
    use mpisetup
    logical lexist
-   character(len=40)  :: fname = 'hybens_info'
+   character(len=40)  :: fname = 'hybens_locinfo'
    real(r_kind) oblnp_indx(1)
    real(r_single), allocatable, dimension(:) :: &
    hlength,vlength,lnsigl1,corrlengthsq1
@@ -18,7 +18,6 @@ subroutine read_locinfo()
    type(kdtree2),pointer :: kdtree_grid
    type(kdtree2_result),dimension(:),allocatable :: sresults
    integer(i_kind) k, msig, iunit, n1, n2 ,ideln, nob, ierr
-   real(r_kind) :: tmp
    iunit = 91
    ! read in vertical profile of horizontal and vertical localization length
    ! scales, set values for each ob.
@@ -37,7 +36,7 @@ subroutine read_locinfo()
          call stop2(123)
       endif
       do k=1,nlevs
-        read(iunit,101) hlength(k),vlength(k),tmp,tmp
+        read(iunit,101) hlength(k),vlength(k)
         hlength(k) = hlength(k)/0.388
         vlength(k) = abs(vlength(k))/0.388
         ! factor of 0.388 to convert from e-folding scale
@@ -50,7 +49,7 @@ subroutine read_locinfo()
      call stop2(124)
    end if 
    100 format(I4)
-   101 format(F8.1,3x,F5.1,2(3x,F8.4))
+   101 format(F8.1,3x,F6.2)
     kdtree_grid => kdtree2_create(gridloc,sort=.false.,rearrange=.true.)
     allocate(sresults(1))
     if (nobstot > numproc) then

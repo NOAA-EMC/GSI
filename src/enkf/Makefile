@@ -170,7 +170,7 @@ install:
 clean:
 	@echo
 	@echo '==== CLEAN ==================================================='
-	- $(RM) $(EXE_FILE) *.o *.mod *.MOD *.lst *.a *.x *__genmod*
+	- $(RM) $(EXE_FILE) *.o *.mod *.MOD *.lst *.a *.x
 	- $(RM) loadmap.txt log.make.$(EXE_FILE)
 	- $(MAKE) -f ${MAKE_FILE} doclean
 
@@ -189,8 +189,8 @@ clean:
 	enkf_main.f90 \
 	fftpack.f90 \
 	genqsat1.f90 \
-	gridinfo_gfs.f90 \
-	gridio_gfs.f90 \
+	gridinfo.F90 \
+	gridio.F90 \
 	inflation.f90 \
 	innovstats.f90 \
 	kdtree2.f90 \
@@ -209,7 +209,7 @@ clean:
 	readsatobs.f90 \
 	reducedgrid.f90 \
 	rnorm.f90 \
-	smooth_gfs.f90 \
+	smooth.F90 \
 	specmod.f90 \
 	statevec.f90 \
 	write_logfile.f90

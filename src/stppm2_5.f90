@@ -9,7 +9,6 @@ module stppm2_5mod
 !
 ! program history log:
 !   2010-10-15  pagowski - initial code for pm2_5
-!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stppm2_5
@@ -19,10 +18,6 @@ module stppm2_5mod
 !   machine:
 !
 !$$$ end documentation block
-  use m_obsNode  , only: obsNode
-  use m_pm2_5Node, only: pm2_5Node
-  use m_pm2_5Node, only: pm2_5Node_typecast
-  use m_pm2_5Node, only: pm2_5Node_nextcast
   implicit none
 
   private
@@ -59,6 +54,7 @@ contains
 !
 !$$$
     use kinds, only: r_kind,i_kind,r_quad
+    use obsmod, only: pm2_5_ob_type
     use qcmod, only: nlnqc_iter,varqc_iter
     use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,max_varname_length,zero
     use gsi_bundlemod, only: gsi_bundle
@@ -68,7 +64,7 @@ contains
     implicit none
     
 ! declare passed variables
-    class(obsNode), pointer             ,intent(in   ) :: pm2_5head
+    type(pm2_5_ob_type),pointer             ,intent(in   ) :: pm2_5head
     integer(i_kind)                     ,intent(in   ) :: nstep
     real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
     type(gsi_bundle)                    ,intent(in   ) :: rval,sval
@@ -81,7 +77,7 @@ contains
     real(r_kind),dimension(max(1,nstep))::pen
     real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,qq
     real(r_kind),pointer,dimension(:):: rpm2_5,spm2_5
-    type(pm2_5Node), pointer :: pm2_5ptr
+    type(pm2_5_ob_type), pointer :: pm2_5ptr
 
     character(len=max_varname_length) :: aeroname    
 
@@ -98,8 +94,7 @@ contains
 
        if(ier/=0) return
 
-       !pm2_5ptr => pm2_5head
-       pm2_5ptr => pm2_5Node_typecast(pm2_5head)
+       pm2_5ptr => pm2_5head
        do while (associated(pm2_5ptr))
           if(pm2_5ptr%luse)then
              if(nstep > 0)then
@@ -154,8 +149,7 @@ contains
              end do
           end if
 
-          !pm2_5ptr => pm2_5ptr%llpoint
-          pm2_5ptr => pm2_5Node_nextcast(pm2_5ptr)
+          pm2_5ptr => pm2_5ptr%llpoint
 
        end do
 
@@ -163,8 +157,7 @@ contains
 
     if (wrf_mass_regional .and. laeroana_gocart) then
 
-       !pm2_5ptr => pm2_5head
-       pm2_5ptr => pm2_5Node_typecast(pm2_5head)
+       pm2_5ptr => pm2_5head
 
        do while (associated(pm2_5ptr))
           if(pm2_5ptr%luse)then
@@ -486,8 +479,7 @@ contains
              end do
           end if
           
-          !pm2_5ptr => pm2_5ptr%llpoint
-          pm2_5ptr => pm2_5Node_nextcast(pm2_5ptr)
+          pm2_5ptr => pm2_5ptr%llpoint
 
        end do
 

@@ -521,10 +521,11 @@ contains
 !
 !$$$ end documentation block
 
-    use gridmod, only: nsig1o,vlevs
+    use gridmod, only: nsig,nsig1o,vlevs
     use mpimod, only: levs_id,nvar_id,npe,ierror,mpi_comm_world, &
            mpi_max,mpi_integer4
-    use control_vectors, only: nrf_var
+    use control_vectors, only: nrf_var,nrf
+    use control_vectors, only: cvars2d
     use mpeu_util, only: getindex
     implicit none
 
@@ -700,6 +701,7 @@ contains
 
     use gridmod, only: nsig,vlevs
     use control_vectors, only: nrf_var,nrf,nrf_3d,mvars
+    use control_vectors, only: cvars2d
     use mpeu_util, only: getindex
     implicit none
 

@@ -1009,6 +1009,7 @@ end function scale_jac_
 !
 subroutine rsqrtinv_(jpch_rad,iuse,nchasm,ich,ichasm,varinv,rsqrtinv,ErrorCov)
 ! !USES:
+use constants, only: tiny_r_kind
 use mpeu_util, only: die
 implicit none
 ! !INPUT PARAMETERS:
@@ -1252,13 +1253,13 @@ implicit none
      enddo
      if (iii/=ncp) then
        if (iamroot_) then
-          write(6,*) myname, ' iii,ncp= ',iii,ncp
+          write(6,'') myname, ' iii,ncp= ',iii,ncp
        endif
        call die(myname_,' serious dimensions insconsistency, aborting')
      endif
      if (jjj/=ncp) then
        if (iamroot_) then
-          write(6,*) myname, ' jjj,ncp= ',jjj,ncp
+          write(6,'') myname, ' jjj,ncp= ',jjj,ncp
        endif
        call die(myname_,' serious dimensions insconsistency, aborting')
      endif

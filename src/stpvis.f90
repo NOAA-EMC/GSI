@@ -9,7 +9,6 @@ module stpvismod
 !
 ! program history log:
 !   2009-02-24  zhu
-!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stpvis
@@ -55,18 +54,16 @@ subroutine stpvis(vishead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
+  use obsmod, only: vis_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad
+  use gridmod, only: latlon11
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use m_obsNode, only: obsNode
-  use m_visNode, only: visNode
-  use m_visNode, only: visNode_typecast
-  use m_visNode, only: visNode_nextcast
   implicit none
 
 ! Declare passed variables
-  class(obsNode), pointer             ,intent(in   ) :: vishead
+  type(vis_ob_type),pointer           ,intent(in   ) :: vishead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
@@ -81,7 +78,7 @@ subroutine stpvis(vishead,rval,sval,out,sges,nstep)
   real(r_kind) pg_vis
   real(r_kind),pointer,dimension(:) :: svis
   real(r_kind),pointer,dimension(:) :: rvis
-  type(visNode), pointer :: visptr
+  type(vis_ob_type), pointer :: visptr
 
   out=zero_quad
 
@@ -92,7 +89,7 @@ subroutine stpvis(vishead,rval,sval,out,sges,nstep)
   call gsi_bundlegetpointer(rval,'vis',rvis,istatus);ier=istatus+ier
   if(ier/=0)return
 
-  visptr => visNode_typecast(vishead)
+  visptr => vishead
   do while (associated(visptr))
      if(visptr%luse)then
         if(nstep > 0)then
@@ -134,7 +131,7 @@ subroutine stpvis(vishead,rval,sval,out,sges,nstep)
         end do
      end if
 
-     visptr => visNode_nextcast(visptr)
+     visptr => visptr%llpoint
 
   end do
   

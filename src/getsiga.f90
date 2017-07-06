@@ -25,8 +25,8 @@ subroutine getsiga ()
 use kinds, only: i_kind, r_kind
 use mpimod, only: mype
 use constants, only: zero,one
-use gsi_4dvar, only: ibdate,lsqrtb,jsiga
-use jfunc, only: jiter
+use gsi_4dvar, only: nsubwin,ibdate,lsqrtb,jsiga
+use jfunc, only: jiter,miter
 use lanczos, only : congrad_siga
 use state_vectors, only: allocate_state,deallocate_state
 use gsi_4dcouplermod, only: gsi_4dcoupler_putpert
@@ -99,6 +99,7 @@ use kinds, only: i_kind, r_kind
 use mpimod, only: mype
 use constants, only: zero,one
 use gsi_4dvar, only: nsubwin,lsqrtb
+use jfunc, only: jiter,miter
 use state_vectors, only: allocate_state,deallocate_state
 use gsi_4dcouplermod, only: gsi_4dcoupler_putpert
 use gsi_bundlemod, only: gsi_bundle
@@ -189,6 +190,7 @@ use kinds, only: i_kind, r_kind
 use mpimod, only: mype
 use constants, only: zero,one
 use gsi_4dvar, only: nsubwin,lsqrtb
+use jfunc, only: jiter,miter
 use state_vectors, only: allocate_state,deallocate_state
 use gsi_4dcouplermod, only: gsi_4dcoupler_getpert
 use gsi_bundlemod, only: gsi_bundle

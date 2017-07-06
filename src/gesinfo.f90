@@ -67,14 +67,14 @@ subroutine gesinfo(mype)
 !
 !$$$
   use kinds, only: i_kind,r_kind,r_single
-  use obsmod, only: iadate,ianldate,time_offset,iadatemn
+  use obsmod, only: iadate,ianldate,time_offset
   use gsi_4dvar, only: ibdate, iedate, iadatebgn, iadateend, iwinbgn,time_4dvar
   use gsi_4dvar, only: nhr_assimilation,min_offset
   use mpimod, only: npe
   use gridmod, only: idvc5,ak5,bk5,ck5,tref5,&
       regional,nsig,regional_fhr,regional_time,&
       wrf_nmm_regional,wrf_mass_regional,twodvar_regional,nems_nmmb_regional,cmaq_regional,&
-      ntracer,ncloud,idvm5,&
+      ntracer,ncloud,nlat,nlon,idvm5,&
       ncepgfs_head,ncepgfs_headv,idpsfc5,idthrm5,idsl5,cp5,jcap_b, use_gfs_nemsio
   use sigio_module, only: sigio_head,sigio_srhead,sigio_sclose,&
       sigio_sropen
@@ -83,8 +83,6 @@ subroutine gesinfo(mype)
 
   use constants, only: zero,h300,r60,r3600,i_missing
 
-  use read_wrf_mass_files_mod, only: read_wrf_mass_files_class
-  use read_wrf_nmm_files_mod, only: read_wrf_nmm_files_class
   implicit none
 
 ! Declare passed variables
@@ -93,8 +91,6 @@ subroutine gesinfo(mype)
 ! Declare local parameters
   integer(i_kind),parameter:: lunges=11
   real(r_kind),parameter::  zero_001=0.001_r_kind
-  type(read_wrf_nmm_files_class):: wrf_nmm_files
-  type(read_wrf_mass_files_class):: wrf_mass_files
 
 ! Declare local variables
 
@@ -142,13 +138,7 @@ subroutine gesinfo(mype)
      idate4(3)=regional_time(3)  !  day
      idate4(4)=regional_time(1)  !  year
      hourg=regional_fhr          !  fcst hour
-! Handle RURTMA date:  get iadatemn 
-     iadatemn(1)=regional_time(1)  !  year
-     iadatemn(2)=regional_time(2)  !  month
-     iadatemn(3)=regional_time(3)  !  day
-     iadatemn(4)=regional_time(4)  !  hour
-     iadatemn(5)=regional_time(5)  !  minute
-     write (6,*) 'in gesinfo: iadatemn with minutes', iadatemn
+
 ! Handle NCEP global cases
   else
 
@@ -486,11 +476,11 @@ subroutine gesinfo(mype)
 ! Get information about date/time and number of guess files
   if (regional) then
      if(wrf_nmm_regional) then
-        call wrf_nmm_files%read_wrf_nmm_files(mype)
+        call read_wrf_nmm_files(mype)
      else if(nems_nmmb_regional) then
-        call wrf_nmm_files%read_nems_nmmb_files(mype)
+        call read_nems_nmmb_files(mype)
      else if(wrf_mass_regional) then
-        call wrf_mass_files%read_wrf_mass_files(mype)
+        call read_wrf_mass_files(mype)
      else if(twodvar_regional) then
         call read_2d_files(mype)
      else if(cmaq_regional) then
@@ -502,13 +492,8 @@ subroutine gesinfo(mype)
      
 
   if(mype==mype_out) then
-     if (twodvar_regional) then
-        write(6,*)'GESINFO: 2dvar-Guess-date is',regional_time
-        write(6,*)'GESINFO: Analysis date with minute: ',iadatemn
-     else
-        write(6,*)'GESINFO:  Guess    date is ',idate4,hourg
-        write(6,*)'GESINFO:  Analysis date is ',iadate,ianldate,time_offset
-     endif
+     write(6,*)'GESINFO:  Guess    date is ',idate4,hourg
+     write(6,*)'GESINFO:  Analysis date is ',iadate,ianldate,time_offset
   endif
 
   if (allocated(nems_vcoord))     deallocate(nems_vcoord)

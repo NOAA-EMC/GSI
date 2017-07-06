@@ -1,0 +1,24 @@
+# This config file contains the compile options for compilation
+# of the ConvMon on WCOSS.
+
+# ----------------------------------
+# Redefine variables for WCOSS
+# ----------------------------------
+  CORELIB  = /nwprod/lib
+
+# ----------------------------
+# Fortran compiler and options
+# ----------------------------
+
+  CF            = ifort
+  FC            = $(CF)
+
+  FFLAGS        = -O3 -fp-model strict -D_REAL8_ -traceback -convert big_endian -assume byterecl
+
+# ------------------
+# Linker and options
+# ------------------
+
+  LIBS          = -L$(CORELIB) -lw3nco_4
+  LDFLAGS       = 
+

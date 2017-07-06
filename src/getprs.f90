@@ -15,7 +15,6 @@ subroutine getprs(ps,prs)
 !   2008-09-05  lueken  - merged ed's changes into q1fy09 code
 !   2010-09-15  pagowski  - added cmaq
 !   2013-10-19  todling - metguess now holds background
-!   2017-03-23  Hu      - add code to use hybrid vertical coodinate in WRF MASS core
 !
 !   input argument list:
 !     ps       - surface pressure
@@ -67,20 +66,11 @@ subroutine getprs(ps,prs)
               end do
            end do
         end do
-     elseif (twodvar_regional) then
+     elseif (wrf_mass_regional .or. twodvar_regional) then
         do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
                  prs(i,j,k)=one_tenth*(eta1_ll(k)*(ten*ps(i,j)-pt_ll) + pt_ll)
-              end do
-           end do
-        end do
-     elseif (wrf_mass_regional) then
-        do k=1,nsig+1
-           do j=1,lon2
-              do i=1,lat2
-                 prs(i,j,k)=one_tenth*(eta1_ll(k)*(ten*ps(i,j)-pt_ll) + &
-                                       eta2_ll(k) + pt_ll)
               end do
            end do
         end do
@@ -160,7 +150,7 @@ subroutine getprs_horiz(ps_x,ps_y,prs,prs_x,prs_y)
   
   use kinds,only: r_kind,i_kind
   use constants,only: zero
-  use gridmod,only: nsig,lat2,lon2
+  use gridmod,only: nsig,lat2,lon2,nlat,nlon
   use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll,&
        cmaq_regional
   use compact_diffs, only: compact_dlat,compact_dlon
@@ -385,7 +375,7 @@ subroutine getprs_horiz_tl(ps_x,ps_y,prs,prs_x,prs_y)
 
   use kinds,only: r_kind,i_kind
   use constants,only: zero
-  use gridmod,only: nsig,lat2,lon2
+  use gridmod,only: nsig,lat2,lon2,nlat,nlon
   use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll,&
        cmaq_regional
   use compact_diffs, only: compact_dlat,compact_dlon
@@ -627,7 +617,7 @@ subroutine getprs_horiz_ad(ps_x,ps_y,prs,prs_x,prs_y)
 
   use kinds,only: r_kind,i_kind
   use constants,only: zero
-  use gridmod,only: nsig,lat2,lon2
+  use gridmod,only: nsig,lat2,lon2,nlat,nlon
   use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll,&
        cmaq_regional
   use compact_diffs, only: tcompact_dlat,tcompact_dlon

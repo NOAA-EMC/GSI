@@ -73,6 +73,8 @@ SUBROUTINE hydro_mxr_thompson (nx, ny, nz, t_3d, p_3d, ref_3d, qr_3d, qnr_3d, qs
   REAL(r_kind) :: tc          ! temperature (Celsius)
   REAL(r_kind) :: rfract      ! rain fraction
   REAL(r_kind) :: tc0  
+  REAL(r_kind) :: smo2
+  REAL(r_kind) :: rs
   REAL(r_kind) :: f
   REAL(r_kind) :: loga_
   REAL(r_kind) :: a_

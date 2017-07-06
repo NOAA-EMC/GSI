@@ -130,13 +130,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2015-03-23  Su      -fix array size with maximum message and subset  number from fixed number to
 !                        dynamic allocated array
 !   2015-07-10  pondeca - add cloud ceiling height (cldch)
-!   2015-10-01  guo     - consolidate use of ob location (in deg)
-!   2016-02-09  Sienkiewicz - explicit KX definition for drifting buoys (formerly ID'd by subtype 562)
 !   2016-02-10  s.liu  - thin new VAD wind in time level
 !   2016-03-15  Su      - modified the code so that the program won't stop when no subtype
 !                         is found in non linear qc error tables and b table
-!   2016-05-05  pondeca - add 10-m u-wind and v-wind (uwnd10m, vwnd10m)
-!   2016-06-01  zhu    - use errormod_aircraft
 !
 
 !   input argument list:
@@ -170,7 +166,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
       ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
       ithin_conv,rmesh_conv,pmesh_conv, &
       id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t,use_prepb_satwnd
-  use convinfo, only: id_drifter
 
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
   use obsmod, only: blacklst,offtime_data,bmiss,ext_sonde
@@ -187,7 +182,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use convb_t,only: btabl_t
   use convb_uv,only: btabl_uv
   use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,winlen,thin4d
-  use qcmod, only: errormod,errormod_aircraft,noiqc,newvad,njqc
+  use qcmod, only: errormod,noiqc,newvad,njqc,vqc
   use convthin, only: make3grids,map3grids,del3grids,use_all
   use blacklist, only : blacklist_read,blacklist_destroy
   use blacklist, only : blkstns,blkkx,ibcnt
@@ -204,7 +199,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                            destroy_aircraft_rjlists
   use adjust_cloudobs_mod, only: adjust_convcldobs,adjust_goescldobs
   use mpimod, only: npe
-  use rapidrefresh_cldsurf_mod, only: i_gsdsfc_uselist,i_gsdqc
+  use rapidrefresh_cldsurf_mod, only: i_gsdsfc_uselist
 
   implicit none
 
@@ -247,7 +242,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   logical sfctype
   logical luse,ithinp,windcorr
   logical patch_fog
-  logical aircraftset,aircraftobs,aircraftobst,aircrafttype
+  logical aircraftset,aircraftobst,aircrafttype
   logical acft_profl_file
   logical,allocatable,dimension(:,:):: lmsg           ! set true when convinfo entry id found in a message
 
@@ -297,7 +292,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind),allocatable,dimension(:):: isort,iloc,nrep
   integer(i_kind),allocatable,dimension(:,:):: tab
   integer(i_kind) ibfms,thisobtype_usage
-  integer(i_kind) iwmo,ios
   integer(i_kind) ierr_ps,ierr_q,ierr_t,ierr_uv,ierr_pw !  the position of error table collum
   real(r_kind) time,timex,time_drift,timeobs,toff,t4dv,zeps
   real(r_kind) qtflg,tdry,rmesh,ediff,usage,ediff_ps,ediff_q,ediff_t,ediff_uv,ediff_pw
@@ -305,7 +299,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind) qoe,qobcon,pwoe,pwmerr,dlnpob,ppb,poe,gustoe,visoe,qmaxerr
   real(r_kind) toe,woe,errout,oelev,dlat,dlon,sstoe,dlat_earth,dlon_earth
   real(r_kind) tdoe,mxtmoe,mitmoe,pmoe,howvoe,cldchoe
-  real(r_kind) dlat_earth_deg,dlon_earth_deg
   real(r_kind) selev,elev,stnelev
   real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
   real(r_kind) vdisterrmax,u00,v00
@@ -409,7 +402,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   nreal=0
   satqc=zero
   tob = obstype == 't'
-  uvob = obstype == 'uv'  ; if (twodvar_regional) uvob = uvob .or. obstype == 'wspd10m' .or. obstype == 'uwnd10m' .or. obstype == 'vwnd10m'
+  uvob = obstype == 'uv'  ; if (twodvar_regional) uvob = uvob .or. obstype == 'wspd10m'
   spdob = obstype == 'spd'
   psob = obstype == 'ps'
   qob = obstype == 'q'
@@ -520,8 +513,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   var_jb=zero
   do nc=1,nconvtype
      if(trim(ioctype(nc)) == trim(obstype))then
-       if(.not.use_prepb_satwnd .and. (trim(ioctype(nc)) == 'uv' .or. trim(ioctype(nc)) == 'wspd10m' .or. & 
-                                       trim(ioctype(nc)) == 'uwnd10m' .or. trim(ioctype(nc)) == 'vwnd10m') .and. ictype(nc) >=241 &
+       if(.not.use_prepb_satwnd .and. (trim(ioctype(nc)) == 'uv' .or. trim(ioctype(nc)) == 'wspd10m') .and. ictype(nc) >=241 &
           .and. ictype(nc) <260) then 
           cycle
        else
@@ -536,8 +528,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
        endif
      end if
      if(trim(ioctype(nc)) == trim(obstype) .and. abs(icuse(nc)) <= 1)then
-        if(.not.use_prepb_satwnd .and. (trim(ioctype(nc)) == 'uv' .or. trim(ioctype(nc)) == 'wspd10m' .or. &
-                                        trim(ioctype(nc)) == 'uwnd10m' .or. trim(ioctype(nc)) == 'vwnd10m' ) .and. ictype(nc) >=241 &
+        if(.not.use_prepb_satwnd .and. (trim(ioctype(nc)) == 'uv' .or. trim(ioctype(nc)) == 'wspd10m') .and. ictype(nc) >=241 &
             .and. ictype(nc) <260) then
             cycle
         else
@@ -647,18 +638,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 288     continue
         end if
         !* END new vad wind
-
-! identify drifting buoys - TYP=180/280 T29=562 and last three digits of SID between 500 and 999
-!  (see https://www.wmo.int/pages/prog/amp/mmop/wmo-number-rules.html)  Set kx to 199/299
-        if (id_drifter .and. (kx==180 .or. kx==280) .and. nint(hdr(3))==562) then
-           rstation_id=hdr(4)
-           read(c_station_id,*,iostat=ios) iwmo
-           if (ios == 0 .and. iwmo > 0) then
-              if(mod(iwmo,1000) >=500) then
-                 kx = kx + 19
-              end if
-           end if
-        end if
 
         if(twodvar_regional)then
 !          If running in 2d-var (surface analysis) mode, check to see if observation
@@ -867,25 +846,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if(abs(hdr(3))>r90 .or. abs(hdr(2))>r360) cycle loop_readsb
               if(hdr(2)== r360)hdr(2)=hdr(2)-r360
               if(hdr(2) < zero)hdr(2)=hdr(2)+r360
-              dlon_earth_deg=hdr(2)
-              dlat_earth_deg=hdr(3)
               dlon_earth=hdr(2)*deg2rad
               dlat_earth=hdr(3)*deg2rad
-
-
-!
-! identify drifting buoys - TYP=180/280 T29=562 and last three digits of SID between 500 and 999
-!  (see https://www.wmo.int/pages/prog/amp/mmop/wmo-number-rules.html)  Set kx to 199/299
-              if (id_drifter .and. (kx==180 .or. kx==280) .and.  nint(hdr(8))==562 ) then
-                 rstation_id=hdr(1)
-                 read(c_station_id,*,iostat=ios) iwmo
-                 if (ios == 0 .and. iwmo > 0) then
-                    if(mod(iwmo,1000) >=500) then
-                       kx = kx + 19
-                    end if
-                 end if
-              end if
-
 
 !             check VAD subtype. 1--old, 2--new, other--old 
               if(kx==224) then
@@ -1033,7 +995,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !          If available, get obs errors from error table
            
-           if(oberrflg .and. kx<= 300)then
+           if(oberrflg)then
 
 !             Set lower limits for observation errors
               terrmin=half
@@ -1350,8 +1312,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            if(ext_sonde .and. kx==120) call sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levs,kx,vtcd)
 
            nread=nread+levs
-           aircraftobs = (kx==130) .or. (kx==131) .or. (kx>=133 .and. kx<140) .or. &
-                         (kx==230) .or. (kx==231) .or. (kx>=233 .and. kx<240)
            aircraftobst = .false.
            if(uvob)then
               nread=nread+levs
@@ -1419,6 +1379,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            end if
 
 !          Check for valid reported pressure (POB).  Set POB=bmiss if POB<tiny_r_kind
+           rstation_id=hdr(1)
            do k=1,levs
               if (obsdat(1,k)<tiny_r_kind) then
                  write(6,*)'READ_PREPBUFR:  ***WARNING*** invalid pressure pob=',&
@@ -1435,15 +1396,15 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
             if (aircraftobst .and. (aircraft_t_bc_pof .or. &
                 aircraft_t_bc .or. aircraft_t_bc_ext)) then
 !             Determine if the tail number is included in the taillist
+              do j=1,nsort
 !                special treatment since kx130 has only flight NO. info, no
 !                aircraft type info
-              if (kx==130) then
-                 cc_station_id = 'KX130'
-              else
-                 cc_station_id = c_station_id
-              end if
-              cb = cc_station_id(1:1)
-              do j=1,nsort
+                 if (kx==130) then
+                    cc_station_id = 'KX130'
+                 else
+                    cc_station_id = c_station_id
+                 end if
+                 cb = cc_station_id(1:1)
                  if (cb==itail_sort(j)) then
                     start = idx_sort(j)
                     if (j==nsort) then
@@ -1671,8 +1632,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if(abs(hdr3(2,k))>r90 .or. abs(hdr3(1,k))>r360) cycle LOOP_K_LEVS
                  if(hdr3(1,k)== r360)hdr3(1,k)=hdr3(1,k)-r360
                  if(hdr3(1,k) < zero)hdr3(1,k)=hdr3(1,k)+r360
-                 dlon_earth_deg=hdr3(1,k)
-                 dlat_earth_deg=hdr3(2,k)
                  dlon_earth=hdr3(1,k)*deg2rad
                  dlat_earth=hdr3(2,k)*deg2rad
 
@@ -1736,8 +1695,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     t4dv = toff + time_drift
                  endif
 
-                 dlat_earth_deg = drfdat(2,k)
-                 dlon_earth_deg = drfdat(1,k)
                  dlat_earth = drfdat(2,k) * deg2rad
                  dlon_earth = drfdat(1,k) * deg2rad
  
@@ -1779,9 +1736,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     end do
                  endif
               end if
-
-!             Missing Values ==>  Cycling! In this case for howv only.  #ww3 
-              if (howvob  .and. owave(1,k) > r0_1_bmiss) cycle LOOP_K_LEVS
 
 !             Special block for data thinning - if requested
               if (ithin > 0) then
@@ -1865,16 +1819,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                                             obsdat(5,k),obsdat(6,k),usage)
                  endif
               endif
-              if (sfctype .and. i_gsdqc==2) then  ! filter bad 2-m dew point and  0 mesonet wind obs
-                 if (kx==288) then ! for mesonet wind
-                    if(abs(obsdat(5,k))<0.01_r_kind .and. abs(obsdat(6,k))<0.01_r_kind) usage=115._r_kind
-                 endif
-                 if (qob .and. (kx >=180 .and. kx<=189) .and. obsdat(2,k) < 1.0e10_r_kind)  then ! for 2-m dew point
-                    if(obsdat(12,k) < min(-40.0_r_kind,obsdat(3,k)-10.0_r_kind)) usage=116._r_kind     ! < min(-40C or T-Td)                
-                    if((obsdat(3,k)-obsdat(12,k))  >  70.0_r_kind)  usage=117._r_kind ! <70C         
-                    if(obsdat(12,k) > 32.2_r_kind) usage=118._r_kind  ! > 90F
-                 endif
-              endif
 
               if ((kx>129.and.kx<140).or.(kx>229.and.kx<240) ) then
                  call get_aircraft_usagerj(kx,obstype,c_station_id,usage)
@@ -1913,11 +1857,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             Temperature
               if(tob) then
                  ppb=obsdat(1,k)
-                 if (aircraftobs .and. aircraft_t_bc .and. acft_profl_file) then
-                    call errormod_aircraft(pqm,tqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm,hdr3)
-                 else
-                    call errormod(pqm,tqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
-                 end if
+                 call errormod(pqm,tqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
                  toe=obserr(3,k)*errout
                  qtflg=tvflg(k) 
                  if (inflate_error) toe=toe*r1_2
@@ -1946,8 +1886,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(14,iout)=tsavg                  ! skin temperature
                  cdata_all(15,iout)=ff10                   ! 10 meter wind factor
                  cdata_all(16,iout)=sfcr                   ! surface roughness
-                 cdata_all(17,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
-                 cdata_all(18,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
+                 cdata_all(17,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(18,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
                  cdata_all(19,iout)=stnelev                ! station elevation (m)
                  cdata_all(20,iout)=obsdat(4,k)            ! observation height (m)
                  cdata_all(21,iout)=zz                     ! terrain height at ob location
@@ -1966,11 +1906,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !             Winds 
               else if(uvob) then 
-                 if (aircraftobs .and. aircraft_t_bc .and. acft_profl_file) then
-                    call errormod_aircraft(pqm,wqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm,hdr3)
-                 else
-                    call errormod(pqm,wqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
-                 end if
+                 call errormod(pqm,wqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
                  woe=obserr(5,k)*errout
                  if (inflate_error) woe=woe*r1_2
                  if(obsdat(1,k) < r50)woe=woe*r1_2
@@ -2076,8 +2012,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(16,iout)=tsavg                  ! skin temperature
                  cdata_all(17,iout)=ff10                   ! 10 meter wind factor
                  cdata_all(18,iout)=sfcr                   ! surface roughness
-                 cdata_all(19,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
-                 cdata_all(20,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
+                 cdata_all(19,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(20,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
                  cdata_all(21,iout)=zz                     ! terrain height at ob location
                  cdata_all(22,iout)=r_prvstg(1,1)          ! provider name
                  cdata_all(23,iout)=r_sprvstg(1,1)         ! subprovider name
@@ -2113,8 +2049,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(15,iout)=tsavg                  ! skin temperature
                  cdata_all(16,iout)=ff10                   ! 10 meter wind factor
                  cdata_all(17,iout)=sfcr                   ! surface roughness
-                 cdata_all(18,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
-                 cdata_all(19,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
+                 cdata_all(18,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(19,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
                  cdata_all(20,iout)=stnelev                ! station elevation (m)
                  cdata_all(21,iout)=zz                     ! terrain height at ob location
                  cdata_all(22,iout)=r_prvstg(1,1)          ! provider name
@@ -2142,8 +2078,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (lhilbert) thisobtype_usage=12         ! save INDEX of where usage is stored 
                                                            ! for hilbertcurve cross validation (if requested)
                  cdata_all(13,iout)=idomsfc                ! dominate surface type
-                 cdata_all(14,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
-                 cdata_all(15,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
+                 cdata_all(14,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(15,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
                  cdata_all(16,iout)=stnelev                ! station elevation (m)
                  cdata_all(17,iout)=zz                     ! terrain height at ob location
                  cdata_all(18,iout)=r_prvstg(1,1)          ! provider name
@@ -2156,11 +2092,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             Specific humidity 
               else if(qob) then
                  qmaxerr=emerr
-                 if (aircraftobs .and. aircraft_t_bc .and. acft_profl_file) then
-                    call errormod_aircraft(pqm,qqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm,hdr3)
-                 else
-                    call errormod(pqm,qqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
-                 end if
+                 call errormod(pqm,qqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
                  qoe=obserr(2,k)*one_tenth*errout
                  if (inflate_error) then
                     qmaxerr=emerr*r0_7; qoe=qoe*r1_2
@@ -2183,8 +2115,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(13,iout)=usage                  ! usage parameter
                  if (lhilbert) thisobtype_usage=13         ! save INDEX of where usage is stored for hilbertcurve cross validation (if requested)
                  cdata_all(14,iout)=idomsfc                ! dominate surface type
-                 cdata_all(15,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
-                 cdata_all(16,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
+                 cdata_all(15,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(16,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
                  cdata_all(17,iout)=stnelev                ! station elevation (m)
                  cdata_all(18,iout)=obsdat(4,k)            ! observation height (m)
                  cdata_all(19,iout)=zz                     ! terrain height at ob location
@@ -2213,8 +2145,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(10,iout)=obserr(7,k)            ! original obs error
                  cdata_all(11,iout)=usage                  ! usage parameter
                  if (lhilbert) thisobtype_usage=11         ! save INDEX of where usage is stored for hilbertcurve cross validation (if requested)
-                 cdata_all(12,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
-                 cdata_all(13,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
+                 cdata_all(12,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(13,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
                  cdata_all(14,iout)=stnelev                ! station elevation (m)
                  cdata_all(15,iout)=obsdat(1,k)            ! observation pressure (hPa)
                  cdata_all(16,iout)=obsdat(4,k)            ! observation height (m)
@@ -2244,8 +2176,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (lhilbert) thisobtype_usage=13         ! save INDEX of where usage is stored for hilbertcurve cross validation (if requested)
                  cdata_all(14,iout)=idomsfc                ! dominate surface type
                  cdata_all(15,iout)=tsavg                  ! skin temperature
-                 cdata_all(16,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
-                 cdata_all(17,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
+                 cdata_all(16,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(17,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
                  cdata_all(18,iout)=stnelev                ! station elevation (m)
 
                  if( nst_gsi > 0) then
@@ -2291,7 +2223,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if((kx >= 280 .and. kx < 300).or.(kx >= 180 .and. kx < 200))then
                    oelev=r10+selev
                    if ((kx==280).or.(kx==180)) oelev=r20+selev
-                   if ((kx==299).or.(kx==199)) oelev=r20+selev
                    if ((kx==282).or.(kx==182)) oelev=r20+selev
                    if ((kx==285).or.(kx==185)) then
                       oelev=selev
@@ -2328,8 +2259,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(14,iout)=tsavg                  ! skin temperature
                  cdata_all(15,iout)=ff10                   ! 10 meter wind factor
                  cdata_all(16,iout)=sfcr                   ! surface roughness
-                 cdata_all(17,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
-                 cdata_all(18,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
+                 cdata_all(17,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(18,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
                  cdata_all(19,iout)=selev                  ! station elevation (m)
                  cdata_all(20,iout)=r_prvstg(1,1)          ! provider name
                  cdata_all(21,iout)=r_sprvstg(1,1)         ! subprovider name
@@ -2353,8 +2284,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(10,iout)=usage                  ! usage parameter
                  if (lhilbert) thisobtype_usage=10         ! save INDEX of where usage is stored for hilbertcurve cross validation (if requested)
                  cdata_all(11,iout)=idomsfc                ! dominate surface type
-                 cdata_all(12,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
-                 cdata_all(13,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
+                 cdata_all(12,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(13,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
                  cdata_all(14,iout)=stnelev                ! station elevation (m)
                  cdata_all(15,iout)=obsdat(4,k)            ! observation height (m)
                  cdata_all(16,iout)=zz                     ! terrain height at ob location
@@ -2385,8 +2316,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(15,iout)=tsavg                  ! skin temperature
                  cdata_all(16,iout)=ff10                   ! 10 meter wind factor
                  cdata_all(17,iout)=sfcr                   ! surface roughness
-                 cdata_all(18,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
-                 cdata_all(19,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
+                 cdata_all(18,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(19,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
                  cdata_all(20,iout)=stnelev                ! station elevation (m)
                  cdata_all(21,iout)=obsdat(4,k)            ! observation height (m)
                  cdata_all(22,iout)=zz                     ! terrain height at ob location
@@ -2415,8 +2346,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(14,iout)=tsavg                  ! skin temperature
                  cdata_all(15,iout)=ff10                   ! 10 meter wind factor
                  cdata_all(16,iout)=sfcr                   ! surface roughness
-                 cdata_all(17,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
-                 cdata_all(18,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
+                 cdata_all(17,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(18,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
                  cdata_all(19,iout)=stnelev                ! station elevation (m)
                  cdata_all(20,iout)=obsdat(4,k)            ! observation height (m)
                  cdata_all(21,iout)=zz                     ! terrain height at ob location
@@ -2445,8 +2376,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(14,iout)=tsavg                  ! skin temperature
                  cdata_all(15,iout)=ff10                   ! 10 meter wind factor
                  cdata_all(16,iout)=sfcr                   ! surface roughness
-                 cdata_all(17,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
-                 cdata_all(18,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
+                 cdata_all(17,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(18,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
                  cdata_all(19,iout)=stnelev                ! station elevation (m)
                  cdata_all(20,iout)=obsdat(4,k)            ! observation height (m)
                  cdata_all(21,iout)=zz                     ! terrain height at ob location
@@ -2479,8 +2410,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(15,iout)=tsavg                  ! skin temperature
                  cdata_all(16,iout)=ff10                   ! 10 meter wind factor
                  cdata_all(17,iout)=sfcr                   ! surface roughness
-                 cdata_all(18,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
-                 cdata_all(19,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
+                 cdata_all(18,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(19,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
                  cdata_all(20,iout)=stnelev                ! station elevation (m)
                  cdata_all(21,iout)=zz                     ! terrain height at ob location
                  cdata_all(22,iout)=r_prvstg(1,1)          ! provider name
@@ -2489,7 +2420,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !             Significant wave height
               else if(howvob) then
-                 zz=0_r_kind                               ! #ww3
 
                  howvoe=0.3_r_kind                         ! use temporarily
                  cdata_all(1,iout)=howvoe                  ! significant wave height error (m)
@@ -2510,8 +2440,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(13,iout)=tsavg                  ! skin temperature
                  cdata_all(14,iout)=ff10                   ! 10 meter wind factor
                  cdata_all(15,iout)=sfcr                   ! surface roughness
-                 cdata_all(16,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
-                 cdata_all(17,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
+                 cdata_all(16,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(17,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
                  cdata_all(18,iout)=stnelev                ! station elevation (m)
                  cdata_all(19,iout)=obsdat(4,k)            ! observation height (m)
                  cdata_all(20,iout)=zz                     ! terrain height at ob location
@@ -2607,8 +2537,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     cdata_all(11,iout)=tsavg                  ! skin temperature
                     cdata_all(12,iout)=ff10                   ! 10 meter wind factor
                     cdata_all(13,iout)=sfcr                   ! surface roughness
-                    cdata_all(14,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
-                    cdata_all(15,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
+                    cdata_all(14,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                    cdata_all(15,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
                     cdata_all(16,iout)=stnelev                ! station elevation (m)
                     cdata_all(17,iout)=obsdat(4,k)            ! observation height (m)
                     cdata_all(18,iout)=zz                     ! terrain height at ob location
@@ -2643,8 +2573,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     cdata_all(11,iout)=tsavg                  ! skin temperature
                     cdata_all(12,iout)=ff10                   ! 10 meter wind factor
                     cdata_all(13,iout)=sfcr                   ! surface roughness
-                    cdata_all(14,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
-                    cdata_all(15,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
+                    cdata_all(14,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                    cdata_all(15,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
                     cdata_all(16,iout)=stnelev                ! station elevation (m)
                     cdata_all(17,iout)=obsdat(4,k)            ! observation height (m)
                     cdata_all(18,iout)=zz                     ! terrain height at ob location

@@ -131,7 +131,7 @@ SUBROUTINE convert_lghtn2ref(mype,nlon,nlat,nsig,ref_mos_3d,lightning,h_bk)
   INTEGER(i_kind) :: num_lightning
   INTEGER(i_kind) :: i,j, k2, k, mref
   REAL(r_kind)    :: heightGSI,upref,downref,wght
-  INTEGER(i_kind) :: ilvl
+  INTEGER(i_kind) :: ilvl,numref
   REAL(r_kind)    :: lowest,highest,tempref, tempprofile(maxlvl)
 
 

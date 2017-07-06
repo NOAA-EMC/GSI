@@ -1,0 +1,26 @@
+# This config file contains the compile options for compilation
+# of the ConvMon code on the CCS.
+
+# ----------------------------------
+# Redefine variables for CCS
+# ----------------------------------
+#  CORELIB  = /nwprod/lib
+
+# ----------------------------
+# Fortran compiler and options
+# ----------------------------
+
+  CF            = xlf95
+  FC            = $(CF)
+
+  FFLAGS = -qintsize=4 -qrealsize=4 -qinitauto -qsuffix=f=f90 -g
+
+
+# ------------------
+# Linker and options
+# ------------------
+
+#  LIBS          = -L$(CORELIB) -lw3_4
+  LIBS          =
+  LDFLAGS       =
+

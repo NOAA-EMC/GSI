@@ -10,7 +10,6 @@ module stppmslmod
 ! program history log:
 !   2014-04-10  pondeca
 !   2015-07-10  pondeca  - force return if no pmsl data available
-!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stppmsl
@@ -21,10 +20,6 @@ module stppmslmod
 !
 !$$$ end documentation block
 
-use m_obsNode , only: obsNode
-use m_pmslNode, only: pmslNode
-use m_pmslNode, only: pmslNode_typecast
-use m_pmslNode, only: pmslNode_nextcast
 implicit none
 
 PRIVATE
@@ -59,14 +54,16 @@ subroutine stppmsl(pmslhead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
+  use obsmod, only: pmsl_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad
+  use gridmod, only: latlon11
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  class(obsNode),pointer              ,intent(in   ) :: pmslhead
+  type(pmsl_ob_type),pointer           ,intent(in   ) :: pmslhead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
@@ -81,7 +78,7 @@ subroutine stppmsl(pmslhead,rval,sval,out,sges,nstep)
   real(r_kind) pg_pmsl
   real(r_kind),pointer,dimension(:) :: spmsl
   real(r_kind),pointer,dimension(:) :: rpmsl
-  type(pmslNode), pointer :: pmslptr
+  type(pmsl_ob_type), pointer :: pmslptr
 
   out=zero_quad
 
@@ -95,8 +92,7 @@ subroutine stppmsl(pmslhead,rval,sval,out,sges,nstep)
   call gsi_bundlegetpointer(rval,'pmsl',rpmsl,istatus);ier=istatus+ier
   if(ier/=0)return
 
-  !pmslptr => pmslhead
-  pmslptr => pmslNode_typecast(pmslhead)
+  pmslptr => pmslhead
   do while (associated(pmslptr))
      if(pmslptr%luse)then
         if(nstep > 0)then
@@ -138,8 +134,7 @@ subroutine stppmsl(pmslhead,rval,sval,out,sges,nstep)
         end do
      end if
 
-     !pmslptr => pmslptr%llpoint
-     pmslptr => pmslNode_nextcast(pmslptr)
+     pmslptr => pmslptr%llpoint
 
   end do
   

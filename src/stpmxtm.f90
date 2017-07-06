@@ -10,7 +10,6 @@ module stpmxtmmod
 ! program history log:
 !   2014-04-10  pondeca
 !   2015-07-10  pondeca  - force return if no mxtm data available
-!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stpmxtm
@@ -21,10 +20,6 @@ module stpmxtmmod
 !
 !$$$ end documentation block
 
-use m_obsNode , only: obsNode
-use m_mxtmNode, only: mxtmNode
-use m_mxtmNode, only: mxtmNode_typecast
-use m_mxtmNode, only: mxtmNode_nextcast
 implicit none
 
 PRIVATE
@@ -59,14 +54,16 @@ subroutine stpmxtm(mxtmhead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
+  use obsmod, only: mxtm_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad
+  use gridmod, only: latlon11
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  class(obsNode),pointer              ,intent(in   ) :: mxtmhead
+  type(mxtm_ob_type),pointer           ,intent(in   ) :: mxtmhead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
@@ -81,7 +78,7 @@ subroutine stpmxtm(mxtmhead,rval,sval,out,sges,nstep)
   real(r_kind) pg_mxtm
   real(r_kind),pointer,dimension(:) :: smxtm
   real(r_kind),pointer,dimension(:) :: rmxtm
-  type(mxtmNode), pointer :: mxtmptr
+  type(mxtm_ob_type), pointer :: mxtmptr
 
   out=zero_quad
 
@@ -95,8 +92,7 @@ subroutine stpmxtm(mxtmhead,rval,sval,out,sges,nstep)
   call gsi_bundlegetpointer(rval,'mxtm',rmxtm,istatus);ier=istatus+ier
   if(ier/=0)return
 
-  !mxtmptr => mxtmhead
-  mxtmptr => mxtmNode_typecast(mxtmhead)
+  mxtmptr => mxtmhead
   do while (associated(mxtmptr))
      if(mxtmptr%luse)then
         if(nstep > 0)then
@@ -138,8 +134,7 @@ subroutine stpmxtm(mxtmhead,rval,sval,out,sges,nstep)
         end do
      end if
 
-     !mxtmptr => mxtmptr%llpoint
-     mxtmptr => mxtmNode_nextcast(mxtmptr)
+     mxtmptr => mxtmptr%llpoint
 
   end do
   

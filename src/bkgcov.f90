@@ -38,7 +38,7 @@ subroutine bkgcov(cstate)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: nlat,nlon
+  use gridmod, only: nlat,nlon,lat2,lon2,nsig
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
@@ -111,7 +111,6 @@ subroutine ckgcov(z,cstate,nval_lenz)
 !                         Remove arrays sst, slndt, sicet.  These are now contained as
 !                         motley variables in input/output bundle cstate.  Remove unused variables
 !                         nnnn1o,latlon11,nval_levs.
-!   2016-03-25  todling - revisit beta multiplier term
 !
 !   input argument list:
 !     z        - long vector input control fields
@@ -129,13 +128,11 @@ subroutine ckgcov(z,cstate,nval_lenz)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: nlat,nlon
+  use gridmod, only: nlat,nlon,lat2,lon2,nsig
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use general_sub2grid_mod, only: general_grid2sub
   use general_commvars_mod, only: s2g_raf
-  use hybrid_ensemble_parameters, only: l_hyb_ens
-  use hybrid_ensemble_isotropic, only: sqrt_beta_s_mult
   implicit none
 
 ! Passed Variables
@@ -168,9 +165,6 @@ subroutine ckgcov(z,cstate,nval_lenz)
 ! into skin temperature field
   call bkgvar(cstate,1)
 
-! Apply static betas
-  if(l_hyb_ens) call sqrt_beta_s_mult(cstate)
-
   return
 end subroutine ckgcov
 ! -----------------------------------------------------------------------------
@@ -196,7 +190,6 @@ subroutine ckgcov_ad(z,cstate,nval_lenz)
 !                         Remove arrays sst, slndt, sicet.  These are now contained as
 !                         motley variables in input/output bundle cstate.  Remove unused variables
 !                         nnnn1o,latlon11.
-!   2016-03-25  todling - revisit beta multiplier term
 !
 !   input argument list:
 !     z        - long vector adjoint input/output control fields
@@ -214,13 +207,11 @@ subroutine ckgcov_ad(z,cstate,nval_lenz)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: nlat,nlon
+  use gridmod, only: nlat,nlon,lat2,lon2,nsig
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use general_sub2grid_mod, only: general_sub2grid
   use general_commvars_mod, only: s2g_raf
-  use hybrid_ensemble_parameters, only: l_hyb_ens
-  use hybrid_ensemble_isotropic, only: sqrt_beta_s_mult
   implicit none
 
 ! Passed Variables
@@ -234,9 +225,6 @@ subroutine ckgcov_ad(z,cstate,nval_lenz)
   real(r_kind),dimension(:,:,:),pointer:: ptr3d=>NULL()
 
   nlevs=s2g_raf%nlevs_loc
-
-! Apply static betas
-  if(l_hyb_ens) call sqrt_beta_s_mult(cstate)
 
 ! Multiply by background error variances, and break up skin temp
 ! into components
