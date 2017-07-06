@@ -14,6 +14,8 @@ module stpozmod
 !   2009-01-21  Sienkiewicz - add stpo3l (level ozone) again
 !   2009-08-12  lueken - update documentation
 !   2010-05-13  todling - uniform interface across stp routines
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
+!   2016-08-26  guo     - added interfaces for individual obs-types (oz and o3l).
 !
 ! subroutines included:
 !   sub stpoz
@@ -30,6 +32,16 @@ implicit none
 
 PRIVATE
 PUBLIC stpoz
+public:: stpozlay_      ! Non-generic interfaces are needed for now, to allow
+public:: stpozlev_      ! passing-by-reference involkations, such as
+                        !   call stpoz(..,pbcjo(1,i_oz_ob_type,ib),..)
+
+public:: stpozlay       ! Generic interfaces are disirable, where full TKR
+public:: stpozlev       ! matching are required if they are involked, such as
+                        !   call stpoz(..,pbcjo(:,i_oz_ob_type,ib),..)
+
+        interface stpozlay; module procedure stpozlay_; end interface
+        interface stpozlev; module procedure stpozlev_; end interface
 
 contains
 
@@ -66,16 +78,15 @@ subroutine stpoz(ozhead,o3lhead,rval,sval,out,sges,nstep)
 !
 !$$$  
   use kinds, only: r_kind,r_quad,i_kind
-  use obsmod, only: oz_ob_type,o3l_ob_type,nloz_omi
-  use gridmod, only: latlon1n
+  use m_obsNode, only: obsNode
   use constants, only: zero_quad,zero
   use gsi_bundlemod, only: gsi_bundle
   implicit none
 
 ! Declare passed variables
 
-  type( oz_ob_type),pointer           ,intent(in   ) :: ozhead
-  type(o3l_ob_type),pointer           ,intent(in   ) :: o3lhead
+  class(obsNode), pointer             ,intent(in   ) :: ozhead
+  class(obsNode), pointer             ,intent(in   ) :: o3lhead
   integer(i_kind)                     ,intent(in   ) :: nstep
   type(gsi_bundle)                    ,intent(in   ) :: sval
   type(gsi_bundle)                    ,intent(in   ) :: rval
@@ -115,11 +126,9 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
 !   2006-07-28  derber  - modify to use new inner loop obs data structure
 !                       - unify NL qc
 !   2006-09-18  derber  - modify output values of b1 and b3
-!   2007-02-15  rancic  - add foto
 !   2007-03-19  tremolet - binning of observations
 !   2007-05-30  h.liu   - move interpolation weights w1-w4 inside k loop
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
-!   2008-12-03  todling - update handle of foto
 !   2010-05-13  todling - udpate to use gsi_bundle
 !   2012-09-10  wargan  - add OMI with efficiency factors
 !
@@ -139,16 +148,20 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: oz_ob_type,nloz_omi
+  use obsmod, only: nloz_omi
   use constants, only: one,half,two,zero_quad,r3600,zero
   use gridmod, only: lat2,lon2,nsig
-  use jfunc, only: l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use m_obsNode, only: obsNode
+  use m_ozNode , only: ozNode
+  use m_ozNode , only: ozNode_typecast
+  use m_ozNode , only: ozNode_nextcast
   implicit none
 
 ! Declare passed variables
-  type( oz_ob_type),pointer           ,intent(in   ) ::  ozhead
+
+  class(obsNode), pointer             ,intent(in   ) ::  ozhead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
@@ -156,16 +169,14 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
 
 ! Declare local variables
   integer(i_kind) i,j,ij,ier,istatus
-  integer(i_kind) k,j1,j2,j3,j4,iz1,iz2,j1x,j2x,j3x,j4x,kk,kl
+  integer(i_kind) k,j1,j2,j3,j4,iz1,iz2,kk,kl
   real(r_kind) dz1,pob,delz
-  real(r_kind) w1,w2,w3,w4,time_oz,oz
+  real(r_kind) w1,w2,w3,w4,oz
   real(r_kind),dimension(max(1,nstep))::pen
-  real(r_kind),pointer,dimension(:) :: xhat_dt_oz
-  real(r_kind),pointer,dimension(:) :: dhat_dt_oz
   real(r_kind),allocatable,dimension(:,:) :: roz,soz
   real(r_kind),pointer,dimension(:,:,:)   :: rozp,sozp
   real(r_kind),dimension(nloz_omi):: val_lay, val_lay1
-  type( oz_ob_type), pointer ::  ozptr
+  type(ozNode), pointer ::  ozptr
 
   real(r_quad) val,val1
 
@@ -173,10 +184,6 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
   ier=0
   call gsi_bundlegetpointer(sval,'oz',sozp,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'oz',rozp,istatus);ier=istatus+ier
-  if(l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'oz',xhat_dt_oz,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'oz',dhat_dt_oz,istatus);ier=istatus+ier
-  endif
   if(ier/=0) return
 
 ! Can't do rank-2 pointer into rank-2, therefore, allocate work space
@@ -195,7 +202,7 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
 ! SBUV OZONE: LAYER O3 and TOTAL O3
 !
 ! Loop over ozone observations
-  ozptr => ozhead
+  ozptr => ozNode_typecast(ozhead)
   do while (associated(ozptr))
      if(ozptr%luse)then
 
@@ -205,7 +212,6 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
            j2=ozptr%ij(2)
            j3=ozptr%ij(3)
            j4=ozptr%ij(4)
-           if(l_foto)time_oz=ozptr%time*r3600
 
 !          Accumulate contribution from layer observations
            dz1=nsig+1
@@ -240,22 +246,6 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
                          w2* soz(j2,kk)+ &
                          w3* soz(j3,kk)+ &
                          w4* soz(j4,kk))*delz
-                    if(l_foto) then
-                       j1x=j1+(kk-1)*lat2*lon2
-                       j2x=j2+(kk-1)*lat2*lon2
-                       j3x=j3+(kk-1)*lat2*lon2
-                       j4x=j4+(kk-1)*lat2*lon2
-                       val=val + ( &
-                         (w1*dhat_dt_oz(j1x)+ &
-                          w2*dhat_dt_oz(j2x)+ &
-                          w3*dhat_dt_oz(j3x)+ &
-                          w4*dhat_dt_oz(j4x))*time_oz )*delz
-                       val1=val1 + ( &
-                         (w1*xhat_dt_oz(j1x)+ &
-                          w2*xhat_dt_oz(j2x)+ &
-                          w3*xhat_dt_oz(j3x)+ &
-                          w4*xhat_dt_oz(j4x))*time_oz )*delz
-                    end if
                  end do
                  do kk=1,nstep
                     oz=val1+sges(kk)*val
@@ -295,22 +285,6 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
                       w2* soz(j2,kk)+ &
                       w3* soz(j3,kk)+ & 
                       w4* soz(j4,kk))
-                 if(l_foto)then
-                    j1x=j1+(kk-1)*lat2*lon2
-                    j2x=j2+(kk-1)*lat2*lon2
-                    j3x=j3+(kk-1)*lat2*lon2
-                    j4x=j4+(kk-1)*lat2*lon2
-                    val=val+ ( &
-                         (w1*xhat_dt_oz(j1x)+ &
-                         w2*xhat_dt_oz(j2x)+ &
-                         w3*xhat_dt_oz(j3x)+ & 
-                         w4*xhat_dt_oz(j4x))*time_oz )
-                    val1=val1 + ( &
-                         (w1*dhat_dt_oz(j1x)+ &
-                         w2*dhat_dt_oz(j2x)+ &
-                         w3*dhat_dt_oz(j3x)+ &
-                         w4*dhat_dt_oz(j4x))*time_oz )
-                 end if
               enddo
            else ! OMI total ozone
               do kl=1,nloz_omi
@@ -365,7 +339,7 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
         end do
      end if
 
-     ozptr => ozptr%llpoint
+     ozptr => ozNode_nextcast(ozptr)
 
 ! End of loop over observations
   enddo
@@ -413,16 +387,17 @@ subroutine stpozlev_(o3lhead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: o3l_ob_type
   use constants, only: zero,one,half,two,r3600
-  use gridmod, only: latlon1n
-  use jfunc, only: l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use m_obsNode, only: obsNode
+  use m_o3lNode, only: o3lNode
+  use m_o3lNode, only: o3lNode_typecast
+  use m_o3lNode, only: o3lNode_nextcast
   implicit none
 
 ! Declare passed variables
-  type(o3l_ob_type),pointer           ,intent(in   ) :: o3lhead
+  class(obsNode), pointer             ,intent(in   ) :: o3lhead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
@@ -432,27 +407,19 @@ subroutine stpozlev_(o3lhead,rval,sval,out,sges,nstep)
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk,ier,istatus
   real(r_kind) oz
   real(r_kind),dimension(max(1,nstep))::pen
-  real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,val,val2, time_oz
-  real(r_kind),pointer,dimension(:) :: xhat_dt_oz
-  real(r_kind),pointer,dimension(:) :: dhat_dt_oz
+  real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,val,val2
   real(r_kind),pointer,dimension(:) :: roz1d,soz1d
-  type(o3l_ob_type), pointer :: o3lptr
+  type(o3lNode), pointer :: o3lptr
 
 ! Get pointers and return if not found
   ier=0
   call gsi_bundlegetpointer(sval,'oz',soz1d,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'oz',roz1d,istatus);ier=istatus+ier
-  if(l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'oz',xhat_dt_oz,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'oz',dhat_dt_oz,istatus);ier=istatus+ier
-  endif
   if(ier/=0) return
 
 ! Initialize output variables to zero
 
-  time_oz = zero
-
-  o3lptr => o3lhead
+  o3lptr => o3lNode_typecast(o3lhead)
 
 ! Loop over level ozone observations
 !
@@ -482,18 +449,6 @@ subroutine stpozlev_(o3lhead,rval,sval,out,sges,nstep)
            val2=w1*soz1d(j1)+w2*soz1d(j2)+w3*soz1d(j3)+w4*soz1d(j4)+ &
                 w5*soz1d(j5)+w6*soz1d(j6)+w7*soz1d(j7)+w8*soz1d(j8)-o3lptr%res
 
-           if(l_foto) then
-              time_oz=o3lptr%time*r3600
-              val=val+ (w1*dhat_dt_oz(j1)+w2*dhat_dt_oz(j2)+ &
-                        w3*dhat_dt_oz(j3)+w4*dhat_dt_oz(j4)+ &
-                        w5*dhat_dt_oz(j5)+w6*dhat_dt_oz(j6)+ &
-                        w7*dhat_dt_oz(j7)+w8*dhat_dt_oz(j8))*time_oz
-              val2=val2+ (w1*xhat_dt_oz(j1)+w2*xhat_dt_oz(j2)+ &
-                          w3*xhat_dt_oz(j3)+w4*xhat_dt_oz(j4)+ &
-                          w5*xhat_dt_oz(j5)+w6*xhat_dt_oz(j6)+ &
-                          w7*xhat_dt_oz(j7)+w8*xhat_dt_oz(j8))*time_oz
-           end if
-
            do kk=1,nstep
               oz=val2+sges(kk)*val
               pen(kk)= oz*oz*o3lptr%err2
@@ -508,7 +463,7 @@ subroutine stpozlev_(o3lhead,rval,sval,out,sges,nstep)
         end do
      end if
 
-     o3lptr => o3lptr%llpoint
+     o3lptr => o3lNode_nextcast(o3lptr)
 
   end do
 

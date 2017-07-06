@@ -8,6 +8,7 @@ module inttd2mmod
 !
 ! program history log:
 !   2014-04-10  pondeca
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub inttd2m
@@ -20,6 +21,10 @@ module inttd2mmod
 !
 !$$$ end documentation block
 
+use m_obsNode , only: obsNode
+use m_td2mNode, only: td2mNode
+use m_td2mNode, only: td2mNode_typecast
+use m_td2mNode, only: td2mNode_nextcast
 implicit none
 
 PRIVATE
@@ -56,9 +61,8 @@ subroutine inttd2m(td2mhead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term
-  use obsmod, only: td2m_ob_type, lsaveobsens, l_do_adjoint, luse_obsdiag
+  use obsmod, only: lsaveobsens, l_do_adjoint, luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
-  use gridmod, only: latlon11
   use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -66,7 +70,7 @@ subroutine inttd2m(td2mhead,rval,sval)
   implicit none
 
 ! Declare passed variables
-  type(td2m_ob_type),pointer,intent(in   ) :: td2mhead
+  class(obsNode)  , pointer,intent(in   ) :: td2mhead
   type(gsi_bundle),         intent(in   ) :: sval
   type(gsi_bundle),         intent(inout) :: rval
 
@@ -79,7 +83,7 @@ subroutine inttd2m(td2mhead,rval,sval)
   real(r_kind) cg_td2m,p0,grad,wnotgross,wgross,pg_td2m
   real(r_kind),pointer,dimension(:) :: std2m
   real(r_kind),pointer,dimension(:) :: rtd2m
-  type(td2m_ob_type), pointer :: td2mptr
+  type(td2mNode), pointer :: td2mptr
 
 ! Retrieve pointers
 ! Simply return if any pointer not found
@@ -88,7 +92,8 @@ subroutine inttd2m(td2mhead,rval,sval)
   call gsi_bundlegetpointer(rval,'td2m',rtd2m,istatus);ier=istatus+ier
   if(ier/=0)return
 
-  td2mptr => td2mhead
+  !td2mptr => td2mhead
+  td2mptr => td2mNode_typecast(td2mhead)
   do while (associated(td2mptr))
      j1=td2mptr%ij(1)
      j2=td2mptr%ij(2)
@@ -140,7 +145,8 @@ subroutine inttd2m(td2mhead,rval,sval)
         rtd2m(j4)=rtd2m(j4)+w4*grad
      endif
 
-     td2mptr => td2mptr%llpoint
+     !td2mptr => td2mptr%llpoint
+     td2mptr => td2mNode_nextcast(td2mptr)
 
   end do
 

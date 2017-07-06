@@ -1,4 +1,4 @@
-SUBROUTINE read_NESDIS(mype,lunin,numobs,regional_time,istart,jstart,nlon,nlat,  &
+SUBROUTINE read_NESDIS(mype,lunin,numobs,istart,jstart,nlon,nlat,  &
                        sat_ctp,sat_tem,w_frac,npts_rad)
 !
 !$$$  subprogram documentation block
@@ -18,7 +18,6 @@ SUBROUTINE read_NESDIS(mype,lunin,numobs,regional_time,istart,jstart,nlon,nlat, 
 !     mype        - processor ID
 !     lunin       - unit in which data are read in
 !     numobs      - number of observation
-!     regional_time - analysis time
 !     jstart      - start lon of the whole array on each pe
 !     istart      - start lat of the whole array on each pe
 !     nlon        - no. of lons on subdomain (buffer points on ends)
@@ -54,7 +53,6 @@ SUBROUTINE read_NESDIS(mype,lunin,numobs,regional_time,istart,jstart,nlon,nlat, 
   integer(i_kind),intent(in) :: lunin
   INTEGER(i_kind),intent(in) :: numobs
   INTEGER(i_kind),intent(in) :: nlon,nlat
-  integer(i_kind),intent(in) :: regional_time(6)
   integer(i_kind),intent(in) :: istart
   integer(i_kind),intent(in) :: jstart
   INTEGER(i_kind),intent(in) :: npts_rad
@@ -74,9 +72,8 @@ SUBROUTINE read_NESDIS(mype,lunin,numobs,regional_time,istart,jstart,nlon,nlat, 
   integer(i_kind) :: nreal,nchanl
   character(20)   :: isis
 
-  INTEGER(i_kind) :: i, j, itmp, jtmp
+  INTEGER(i_kind) :: i, j
   INTEGER(i_kind) :: ib, jb
-  character*12    :: adate
 !        
 ! ===============================================================
 !

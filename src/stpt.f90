@@ -15,6 +15,7 @@ module stptmod
 !   2013-10-28  todling - rename p3d to prse
 !   2014-04-12       su - add non linear qc from Purser's scheme
 !   2015-02-26       su - add njqc as an option to choos new non linear qc
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stpt
@@ -56,7 +57,6 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
 !   2007-07-28  derber  - modify to use new inner loop obs data structure
 !                       - unify NL qc
 !   2006-07-28  derber  - modify output for b1 and b3 and add sensible temperature
-!   2007-02-15  rancic  - add foto
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2008-06-02  safford - rm unused var and uses
 !   2008-12-03  todling - changed handling of ptr%time
@@ -99,18 +99,19 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: t_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
   use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
-  use gridmod, only: latlon1n,latlon11,latlon1n1
-  use jfunc, only: l_foto,xhat_dt,dhat_dt
   use aircraftinfo, only: npredt,ntail,aircraft_t_bc_pof,aircraft_t_bc
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use m_obsNode, only: obsNode
+  use m_tNode  , only: tNode
+  use m_tNode  , only: tNode_typecast
+  use m_tNode  , only: tNode_nextcast
   implicit none
 
 ! Declare passed variables
-  type(t_ob_type),pointer             ,intent(in   ) :: thead
+  class(obsNode), pointer             ,intent(in   ) :: thead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
   real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
@@ -130,13 +131,10 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
   real(r_kind) us_prime
   real(r_kind) vs_prime
   real(r_kind) psfc_prime
-  real(r_kind) time_t
-  type(t_ob_type), pointer :: tptr
+  type(tNode), pointer :: tptr
   real(r_kind),pointer,dimension(:) :: rt,st,rtv,stv,rq,sq,ru,su,rv,sv
   real(r_kind),pointer,dimension(:) :: rsst,ssst
   real(r_kind),pointer,dimension(:) :: rp,sp
-  real(r_kind),dimension(:),pointer :: xhat_dt_tsen,xhat_dt_t,xhat_dt_q,xhat_dt_u,xhat_dt_v,xhat_dt_prse
-  real(r_kind),dimension(:),pointer :: dhat_dt_tsen,dhat_dt_t,dhat_dt_q,dhat_dt_u,dhat_dt_v,dhat_dt_prse
 
   out=zero_quad
 
@@ -163,23 +161,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
   call gsi_bundlegetpointer(dval,'sst',rsst,istatus);isst=istatus+isst
   if(ier/=0)return
 
-  if (l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'tsen',xhat_dt_tsen,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'tv',     xhat_dt_t,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'q',      xhat_dt_q,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'u',      xhat_dt_u,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'v',      xhat_dt_v,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'prse',xhat_dt_prse,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'tsen',dhat_dt_tsen,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'tv',     dhat_dt_t,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'q',      dhat_dt_q,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'u',      dhat_dt_u,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'v',      dhat_dt_v,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'prse',dhat_dt_prse,istatus);ier=istatus+ier
-     if(ier/=0)return
-  endif
-
-  tptr => thead
+  tptr => tNode_typecast(thead)
   do while (associated(tptr))
 
      if(tptr%luse)then
@@ -208,32 +190,11 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
  
               val2=w1*stv(j1)+w2*stv(j2)+w3*stv(j3)+w4*stv(j4)+ &
                    w5*stv(j5)+w6*stv(j6)+w7*stv(j7)+w8*stv(j8)
-              if(l_foto)then
-                 time_t=tptr%time*r3600
-                 val =val + (w1*dhat_dt_t(j1)+w2*dhat_dt_t(j2)+ &
-                             w3*dhat_dt_t(j3)+w4*dhat_dt_t(j4)+ &
-                             w5*dhat_dt_t(j5)+w6*dhat_dt_t(j6)+ &
-                             w7*dhat_dt_t(j7)+w8*dhat_dt_t(j8))*time_t
-                 val2=val2+ (w1*xhat_dt_t(j1)+w2*xhat_dt_t(j2)+ &
-                             w3*xhat_dt_t(j3)+w4*xhat_dt_t(j4)+ &
-                             w5*xhat_dt_t(j5)+w6*xhat_dt_t(j6)+ &
-                             w7*xhat_dt_t(j7)+w8*xhat_dt_t(j8))*time_t
-              end if
            else
               val= w1*    rt(j1)+w2*    rt(j2)+w3*    rt(j3)+w4*    rt(j4)+ &
                    w5*    rt(j5)+w6*    rt(j6)+w7*    rt(j7)+w8*    rt(j8)
               val2=w1*    st(j1)+w2*    st(j2)+w3*    st(j3)+w4*    st(j4)+ &
                    w5*    st(j5)+w6*    st(j6)+w7*    st(j7)+w8*    st(j8)
-              if(l_foto)then
-                 val =val + (w1*dhat_dt_tsen(j1)+w2*dhat_dt_tsen(j2)+ &
-                             w3*dhat_dt_tsen(j3)+w4*dhat_dt_tsen(j4)+ &
-                             w5*dhat_dt_tsen(j5)+w6*dhat_dt_tsen(j6)+ &
-                             w7*dhat_dt_tsen(j7)+w8*dhat_dt_tsen(j8))*time_t
-                 val2=val2+ (w1*xhat_dt_tsen(j1)+w2*xhat_dt_tsen(j2)+ &
-                             w3*xhat_dt_tsen(j3)+w4*xhat_dt_tsen(j4)+ &
-                             w5*xhat_dt_tsen(j5)+w6*xhat_dt_tsen(j6)+ &
-                             w7*xhat_dt_tsen(j7)+w8*xhat_dt_tsen(j8))*time_t
-              end if
            end if
 
 !          contribution from bias correction
@@ -266,24 +227,6 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
               valv2=w1* sv(j1)+w2* sv(j2)+w3* sv(j3)+w4* sv(j4)
               valp =w1* rp(j1)+w2* rp(j2)+w3* rp(j3)+w4* rp(j4)
               valp2=w1* sp(j1)+w2* sp(j2)+w3* sp(j3)+w4* sp(j4)
-              if(l_foto)then
-                 valq =valq +(w1*dhat_dt_q(j1)+w2*dhat_dt_q(j2)+ &
-                              w3*dhat_dt_q(j3)+w4*dhat_dt_q(j4))*time_t
-                 valq2=valq2+(w1*xhat_dt_q(j1)+w2*xhat_dt_q(j2)+ &
-                              w3*xhat_dt_q(j3)+w4*xhat_dt_q(j4))*time_t
-                 valu =valu +(w1*dhat_dt_u(j1)+w2*dhat_dt_u(j2)+ &
-                              w3*dhat_dt_u(j3)+w4*dhat_dt_u(j4))*time_t
-                 valu2=valu2+(w1*xhat_dt_u(j1)+w2*xhat_dt_u(j2)+ &
-                              w3*xhat_dt_u(j3)+w4*xhat_dt_u(j4))*time_t
-                 valv =valv +(w1*dhat_dt_v(j1)+w2*dhat_dt_v(j2)+ &
-                              w3*dhat_dt_v(j3)+w4*dhat_dt_v(j4))*time_t
-                 valv2=valv2+(w1*xhat_dt_v(j1)+w2*xhat_dt_v(j2)+ &
-                              w3*xhat_dt_v(j3)+w4*xhat_dt_v(j4))*time_t
-                 valp =valp +(w1*dhat_dt_prse(j1)+w2*dhat_dt_prse(j2)+ &
-                              w3*dhat_dt_prse(j3)+w4*dhat_dt_prse(j4))*time_t
-                 valp2=valp2+(w1*xhat_dt_prse(j1)+w2*xhat_dt_prse(j2)+ &
-                              w3*xhat_dt_prse(j3)+w4*xhat_dt_prse(j4))*time_t
-              end if
               do kk=1,nstep
                  ts_prime=tt(kk)
                  tg_prime=valsst2+sges(kk)*valsst
@@ -342,7 +285,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
         endif
 
      endif
-     tptr => tptr%llpoint
+     tptr => tNode_nextcast(tptr)
 
   end do
   return

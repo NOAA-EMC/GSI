@@ -53,7 +53,7 @@ subroutine get_derivatives (guess,xderivative,yderivative)
 
   use kinds, only: r_kind,i_kind
   use constants, only: zero,max_varname_length
-  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig
+  use gridmod, only: regional,lat2,lon2,nsig
   use compact_diffs, only: compact_dlat,compact_dlon
   use gsi_bundlemod, only: gsi_bundlecreate
   use gsi_bundlemod, only: gsi_bundle
@@ -208,7 +208,7 @@ subroutine tget_derivatives(guess,xderivative,yderivative)
 
   use kinds, only: r_kind,i_kind
   use constants, only: zero,max_varname_length
-  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig
+  use gridmod, only: regional,lat2,lon2,nsig
   use compact_diffs, only: tcompact_dlat,tcompact_dlon
   use gsi_bundlemod, only: gsi_bundlecreate
   use gsi_bundlemod, only: gsi_bundle
@@ -363,7 +363,7 @@ subroutine get_zderivs(z,z_x,z_y,mype)
 
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: regional,nlat,nlon,lat2,lon2
+  use gridmod, only: regional,lat2,lon2
   use compact_diffs, only: compact_dlat,compact_dlon
   use general_sub2grid_mod, only: general_gather2grid,general_scatter2sub
   use general_commvars_mod, only: g1

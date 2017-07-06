@@ -16,6 +16,10 @@ module bicglanczos
 !   2013-01-23  parrish - in subroutine pcgprecond, change variable xcvx from
 !                          intent(in) to intent(inout) (flagged by WCOSS intel debug compiler)
 !   2013-11-17  todling - implement convergence criterium (based on tolerance)
+!   2015-12-08  el akkraoui - add precond calls for new preconditioning of predictors
+!   2016-03-25  todling - beta-mult param now within cov (following Dave Parrish corrections)
+!   2016-05-13  parrish - remove call to beta12mult -- replaced by sqrt_beta_s_mult in
+!                          bkerror, and sqrt_beta_e_mult inside bkerror_a_en.
 !
 ! Subroutines Included:
 !   save_pcgprecond - Save eigenvectors for constructing the next preconditioner
@@ -61,11 +65,11 @@ use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: assignment(=)
 use mpimod  ,  only : mpi_comm_world
 use mpimod,    only: mype
-use jfunc   ,  only : iter, jiter
+use jfunc   ,  only : iter, jiter, diag_precon,step_start
 use gsi_4dvar, only : nwrvecs,l4dvar,lanczosave
 use gsi_4dvar, only : nsubwin, nobs_bins
 use hybrid_ensemble_parameters,only : l_hyb_ens,aniso_a_en
-use hybrid_ensemble_isotropic, only: beta12mult,bkerror_a_en
+use hybrid_ensemble_isotropic, only: bkerror_a_en
 
 implicit none
 private
@@ -187,7 +191,7 @@ real(r_kind)    , intent(inout)         :: preduc
 integer(i_kind) , intent(inout)         :: kmaxit
 logical         , intent(in)            :: lsavevecs
 
-type(control_vector)      :: grad0,xtry,ytry,gradw,dirx,diry
+type(control_vector)      :: grad0,xtry,ytry,gradw,dirx,diry,dirw
 real(r_kind), allocatable :: alpha(:),beta(:),delta(:),gam(:)
 real(r_kind), allocatable :: zdiag(:),ztoff(:),zwork(:)
 real(r_kind), allocatable :: zritz(:),zbnds(:),zevecs(:,:)
@@ -195,7 +199,7 @@ real(r_quad)              :: zg0,zgk,zgnew,zfk,zgg,zge
 real(r_kind)              :: zeta,zreqrd
 integer(i_kind)           :: jj,ilen,ii,info
 integer(i_kind)           :: kminit,kmaxevecs,kconv
-logical                   :: lsavinc,lldone
+logical                   :: lsavinc
 
 ! --------------------------------------
 REAL             :: Z_DEFAULT_REAL      ! intentionally not real(r_kind)
@@ -226,7 +230,6 @@ call timer_ini('pcglanczos')
 
 kminit =  kmaxit
 kmaxevecs = kmaxit
-lldone=.false.
 if (kmaxit>maxiter) then
    write(6,*) 'setup_pcglanczos : kmaxit>maxiter', kmaxit,maxiter
    call stop2(138)
@@ -242,6 +245,7 @@ call allocate_cv(gradw)
 call allocate_cv(dirx)
 call allocate_cv(diry)
 if(nprt>=1.and.ltcost_) call allocate_cv(gradf)
+if(diag_precon) call allocate_cv(dirw)
 
 !--- 'zeta' is an upper bound on the relative error of the gradient.
 
@@ -255,6 +259,8 @@ allocate(alpha(kmaxit),beta(kmaxit),delta(0:kmaxit),gam(0:kmaxit))
 alpha(:)=zero_quad
 beta(:)=zero_quad
 
+if(diag_precon) dirw=zero
+
 !$omp parallel do
 do jj=1,ilen
   grad0%values(jj)=gradx%values(jj)
@@ -262,6 +268,13 @@ do jj=1,ilen
   diry%values(jj)=-gradx%values(jj)
 end do
 !$omp end parallel do
+
+if(diag_precon) then
+  do jj=1,ilen
+     dirw%values(jj)=diry%values(jj)
+  end do 
+  call precond(diry)
+end if
 
 if(LMPCGL) then 
    dirx=zero
@@ -276,6 +289,7 @@ zgk=zg0
 delta(0)=zg0
 zg0=sqrt(zg0)
 gam(0)=one/zg0
+
 
 zgg=dot_product(dirx,dirx,r_quad)
 zgg=sqrt(zgg)
@@ -352,15 +366,12 @@ inner_iteration: do iter=1,kmaxit
          call bkerror_a_en(gradx,grady)
        end if
  
-     ! multiply static (Jb) part of grady by betas_inv(:), and
-     ! multiply ensemble (Je) part of grady by betae_inv(:). [Default: betae_inv(:) = 1 - betas_inv(:) ]
-     !   (this determines relative contributions from static background Jb and
-     !   ensemble background Je)
-
-       call beta12mult(grady)
- 
      end if
   endif
+
+! Add potential additional preconditioner
+  if(diag_precon) call precond(grady)
+
 
 ! Second re-orthogonalization  
 
@@ -388,10 +399,21 @@ inner_iteration: do iter=1,kmaxit
   endif
  
 ! Update search direction
+  if(diag_precon) then
+    do jj=1,ilen
+       diry%values(jj)=dirw%values(jj)
+    enddo 
+  end if 
   do jj=1,ilen
     dirx%values(jj)=-grady%values(jj)+beta(iter)*dirx%values(jj)
     diry%values(jj)=-gradx%values(jj)+beta(iter)*diry%values(jj)
   end do
+  if(diag_precon) then
+    do jj=1,ilen
+       dirw%values(jj)=diry%values(jj)
+    end do 
+    call precond(diry)
+  end if
 
 ! Diagnostics
   if(zgk < zero) then 
@@ -643,6 +665,7 @@ call deallocate_cv(gradw)
 call deallocate_cv(dirx)
 call deallocate_cv(diry)
 if(nprt>=1.and.ltcost_) call deallocate_cv(gradf)
+if(diag_precon) call deallocate_cv(dirw)
 
 call inquire_cv
 
@@ -878,13 +901,6 @@ if(l_hyb_ens) then
   else
     call bkerror_a_en(xcvx,ycvx)
   end if
-
-! multiply static (Jb) part of grady by betas_inv(:), and
-! multiply ensemble (Je) part of grady by betae_inv(:). [Default : betae_inv(:) = 1 - betas_inv(:) ]
-!   (this determines relative contributions from static background Jb and
-!   ensemble background Je)
-
-  call beta12mult(ycvx)
 
 end if
 

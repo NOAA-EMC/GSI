@@ -1227,7 +1227,7 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
 !$$$ end documentation block
 
   use kinds, only: r_kind, i_kind
-  use constants, only: deg2rad,zero,half,one,two,five
+  use constants, only: zero,half,one,two,five
 
   implicit none
 
@@ -1915,6 +1915,7 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret,scat)
 !                            surface temperature
 !      2014-01-17  zhu     - add scattering index scat 
 !      2014-01-31  mkim - add ierrret return flag for cloud qc near seaice edge 
+!      2015-08-20  zhu  - set negative clw to be zero 
 !
 !  input argument list:
 !     tb_obs    - observed brightness temperatures
@@ -1963,8 +1964,8 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret,scat)
 
   if (tsavg5>t0c-one .and. tb_obs(1)<=r284 .and. tb_obs(2)<=r284  .and. &
       tb_obs(1)>zero .and. tb_obs(2)>zero) then
-     clwp_amsua= cos(zasat)*(d0 + d1*log(r285-tb_obs(1)) + d2*log(r285-tb_obs(2))) 
-!    tpwc_amsua= cos(zasat)*(c0 + c1*log(r285-tb_obs(1)) + c2*log(r285-tb_obs(2)))
+     clwp_amsua=cos(zasat)*(d0 + d1*log(r285-tb_obs(1)) + d2*log(r285-tb_obs(2))) 
+!    tpwc_amsua=cos(zasat)*(c0 + c1*log(r285-tb_obs(1)) + c2*log(r285-tb_obs(2)))
      ierrret = 0
      clwp_amsua=max(zero,clwp_amsua)
 !    tpwc_amsua=max(zero,tpwc_amsua)

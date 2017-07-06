@@ -60,8 +60,11 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !   2015-02-26  Genkova - read GOES-R like winds from ASCII files & apply Sharon Nebuda's changes for GOES-R
 !   2015-05-12  Genkova - reading from ASCII files removed, read GOES-R from new BUFR, keep Nebuda's GOES-R related changes 
 !   2015-03-14  Nebuda  - add QC for clear air WV AMV (WVCS) from GOES type 247, removed PCT1 check not applicable to 247
+!   2015-10-01  guo     - consolidate use of ob location (in deg)
 !   2016-03-15  Su      - modified the code so that the program won't stop when
 !                         no subtype is found in non linear qc error table and b table !                         table
+!   2016-05-05  pondeca - add 10-m u-wind and v-wind (uwnd10m, vwnd10m)
+!   2016-12-13  Lim     - Addition of GOES SWIR, CAWV and VIS winds into HWRF
 !
 !   input argument list:
 !     ithin    - flag to thin data
@@ -87,21 +90,21 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   use kinds, only: r_kind,r_double,i_kind,r_single
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
        tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
-       rlats,rlons,twodvar_regional
-  use qcmod, only: errormod,noiqc,njqc
+       rlats,rlons,twodvar_regional,wrf_nmm_regional
+  use qcmod, only: errormod,njqc
   use convthin, only: make3grids,map3grids,map3grids_m,del3grids,use_all
   use convthin_time, only: make3grids_tm,map3grids_tm,map3grids_m_tm,del3grids_tm,use_all_tm
   use constants, only: deg2rad,zero,rad2deg,one_tenth,&
         tiny_r_kind,huge_r_kind,r60inv,one_tenth,&
         one,two,three,four,five,half,quarter,r60inv,r100,r2000
   use converr,only: etabl
-  use converr_uv,only: etabl_uv,ptabl_uv,isuble_uv,maxsub_uv
-  use convb_uv,only: btabl_uv,isuble_buv
-  use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,bmiss
-  use convinfo, only: nconvtype,ctwind, &
-       ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
+  use converr_uv,only: etabl_uv,isuble_uv,maxsub_uv
+  use convb_uv,only: btabl_uv
+  use obsmod, only: perturb_obs,perturb_fact,ran01dom,bmiss
+  use convinfo, only: nconvtype, &
+       icuse,ictype,icsubtype,ioctype, &
        ithin_conv,rmesh_conv,pmesh_conv,pmot_conv,ptime_conv, &
-       id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t,use_prepb_satwnd
+       use_prepb_satwnd
 
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,time_4dvar,thin4d
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
@@ -118,6 +121,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind),dimension(nlat,nlon,nsig),intent(in   ) :: prsl_full
 
 ! Declare local parameters
+
   real(r_kind),parameter:: r1_2= 1.2_r_kind
   real(r_kind),parameter:: r3_33= 3.33_r_kind
   real(r_kind),parameter:: r6= 6.0_r_kind
@@ -184,6 +188,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
   real(r_kind) dlnpob,ppb,ppb2,qifn,qify,ee,ree
   real(r_kind) woe,dlat,dlon,dlat_earth,dlon_earth
+  real(r_kind) dlat_earth_deg,dlon_earth_deg
   real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
   real(r_kind) vdisterrmax,u00,v00,uob1,vob1
   real(r_kind) del,werrmin,obserr,ppb1,var_jb,wjbmin,wjbmax
@@ -270,7 +275,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   ntx(ntread)=0
   ntxall=0
   do nc=1,nconvtype
-     if( (trim(ioctype(nc)) == 'uv' .or. trim(ioctype(nc)) == 'wspd10m') .and.  ictype(nc) >=240 &
+     if( (trim(ioctype(nc)) == 'uv' .or. trim(ioctype(nc)) == 'wspd10m' .or. trim(ioctype(nc)) == 'uwnd10m' .or. trim(ioctype(nc)) == 'vwnd10m') .and.  ictype(nc) >=240 &
              .and. ictype(nc) <=265) then
         ntmatch=ntmatch+1
         ntxall(ntmatch)=nc
@@ -749,10 +754,24 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  if(qifn <85.0_r_kind .and. itype /= 247)  then
                     qm=15
                  endif
+                 if(wrf_nmm_regional) then
+! Minimum speed requirement for CAWV of 8m/s for HWRF. 
+! Tighten QC for 247 winds by removing winds below 450hPa
+                    if(itype == 247 .and. obsdat(4) < 8.0_r_kind .and. ppb > 450.0_r_kind) then
+                       qm=15
+! Tighten QC for 240 winds by remove winds above 700hPa
+                    elseif(itype == 240 .and. ppb < 700.0_r_kind) then
+                       qm=15
+! Tighten QC for 251 winds by remove winds above 750hPa
+                    elseif(itype == 251 .and. ppb < 750.0_r_kind) then
+                       qm=15
+                    endif
+                 else
 ! Minimum speed requirement for CAWV of 10m/s
-                 if(itype == 247 .and. obsdat(4) < 10.0_r_kind)  then
-                   qm=15
-                endif
+                    if(itype == 247 .and. obsdat(4) < 10.0_r_kind)  then
+                       qm=15
+                    endif
+                 endif
               endif
            else if(trim(subset) == 'NC005070' .or. trim(subset) == 'NC005071') then  ! MODIS  
               if(hdrdat(1) >=r700 .and. hdrdat(1) <= r799 ) then
@@ -832,6 +851,10 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                        endif
                     endif
                  enddo
+! Tighten QC for 240 winds by removing winds above 700hPa
+                 if(wrf_nmm_regional) then
+                    if(itype == 240 .and. ppb < 700.0_r_kind) qm=15
+                 endif
               endif
            else if( trim(subset) == 'NC005090') then                   ! VIIRS IR winds 
                if(hdrdat(1) >=r200 .and. hdrdat(1) <=r250 ) then   ! The range of satellite IDS
@@ -917,11 +940,21 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  end if
                  if (experr_norm > 0.9_r_double) qm=15 ! reject data with EE/SPD>0.9
                  pct1=cvwd_dat(1)             ! use of pct1 (a new variable in the BUFR) is introduced by Nebuda/Genkova
-                 if(itype==240 .or. itype==245 .or. itype==246 .or. itype==251) then 
-                ! types 245 and 246 have been used to determine the acceptable pct1 range, but that pct1 range is applied to all GOES-R winds
-           	    if (pct1 < 0.04_r_double) qm=15  
-		    if (pct1 > 0.50_r_double) qm=15
-		 endif
+                 if(wrf_nmm_regional) then
+                    ! type 251 has been determine not suitable to be subjected to pct1 range check
+                    if(itype==240 .or. itype==245 .or. itype==246) then
+                       if (pct1 < 0.04_r_double) qm=15
+                       if (pct1 > 0.50_r_double) qm=15
+                    elseif (itype==251) then
+                       if (pct1 > 0.50_r_double) qm=15
+                    endif
+                 else
+                    if(itype==240 .or. itype==245 .or. itype==246 .or. itype==251) then 
+                    ! types 245 and 246 have been used to determine the acceptable pct1 range, but that pct1 range is applied to all GOES-R winds
+           	       if (pct1 < 0.04_r_double) qm=15  
+		       if (pct1 > 0.50_r_double) qm=15
+		    endif
+                 endif
                 ! winds rejected by qc dont get used
                 if (qm == 15) usage=r100
                 if (qm == 3 .or. qm ==7) woe=woe*r1_2
@@ -940,7 +973,9 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            if ( qifn == zero) qifn=r110
            if ( ee == zero)   ee=r110
 
-           nread=nread+1
+           nread=nread+2
+           dlon_earth_deg=hdrdat(3)
+           dlat_earth_deg=hdrdat(2)
            dlon_earth=hdrdat(3)*deg2rad
            dlat_earth=hdrdat(2)*deg2rad
                               
@@ -1267,8 +1302,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            cdata_all(16,iout)=tsavg               ! skin temperature
            cdata_all(17,iout)=ff10                ! 10 meter wind factor
            cdata_all(18,iout)=sfcr                ! surface roughness
-           cdata_all(19,iout)=dlon_earth*rad2deg  ! earth relative longitude (degrees)
-           cdata_all(20,iout)=dlat_earth*rad2deg  ! earth relative latitude (degrees)
+           cdata_all(19,iout)=dlon_earth_deg      ! earth relative longitude (degrees)
+           cdata_all(20,iout)=dlat_earth_deg      ! earth relative latitude (degrees)
            cdata_all(21,iout)=zz                  ! terrain height at ob location
            cdata_all(22,iout)=r_prvstg(1,1)       ! provider name
            cdata_all(23,iout)=r_sprvstg(1,1)      ! subprovider name

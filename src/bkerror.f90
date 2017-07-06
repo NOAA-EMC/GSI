@@ -37,6 +37,8 @@ subroutine bkerror(gradx,grady)
 !   2013-04-23 Pondecca - bug fix in calling gsi_bundledup
 !   2012-10-09  Gu - add fut2ps to project unbalanced temp to surface pressure in static B modeling
 !   2013-05-23  zhu     - add ntclen and predt for aircraft temperature bias correction
+!   2016-05-11  parrish - add call to sqrt_beta_s_mult before and after multiply by B when
+!                         this is a hybrid ensemble run.
 !
 !   input argument list:
 !     gradx    - input field  
@@ -53,16 +55,19 @@ subroutine bkerror(gradx,grady)
   use berror, only: varprd,fpsproj,fut2ps
   use balmod, only: balance,tbalance
   use gsi_4dvar, only: nsubwin, lsqrtb
-  use gridmod, only: lat2,lon2,nlat,nlon,periodic,latlon11
+  use gridmod, only: nlat,nlon,periodic
   use jfunc, only: nsclen,npclen,ntclen
   use jfunc, only: set_sqrt_2dsize
   use constants, only:  zero
   use control_vectors, only: control_vector,assignment(=)
-  use control_vectors, only: mvars,nrf,nrf_var,nrf_3d,cvarsmd
+  use control_vectors, only: mvars,nrf,nrf_var,nrf_3d
   use timermod, only: timer_ini,timer_fnl
   use gsi_bundlemod, only: gsi_bundlegetpointer,gsi_bundlemerge,gsi_bundle,gsi_bundledup,gsi_bundledestroy
   use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
-  use general_commvars_mod, only: s2g_raf,s2g_cv
+! use general_commvars_mod, only: s2g_raf
+  use general_commvars_mod, only: s2g_cv
+  use hybrid_ensemble_isotropic, only: sqrt_beta_s_mult
+  use hybrid_ensemble_parameters, only: l_hyb_ens
   implicit none
 
 ! Declare passed variables
@@ -108,6 +113,9 @@ subroutine bkerror(gradx,grady)
 
 ! Put things in grady first since operations change input variables
   grady=gradx
+
+!  if ensemble run, multiply by sqrt_beta_s
+   if(l_hyb_ens) call sqrt_beta_s_mult(grady)
 
 ! Only need to get pointer for ii=1 - all other are the same
   call gsi_bundlegetpointer ( grady%step(1), (/'t ','sf','vp','ps'/), &
@@ -190,6 +198,9 @@ subroutine bkerror(gradx,grady)
         grady%predt(i)=grady%predt(i)*varprd(nsclen+npclen+i)
      end do
   end if
+
+!  if ensemble run, multiply by sqrt_beta_s
+   if(l_hyb_ens) call sqrt_beta_s_mult(grady)
 
 ! Finalize timer
   call timer_fnl('bkerror')

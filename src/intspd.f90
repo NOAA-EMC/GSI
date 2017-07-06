@@ -12,6 +12,7 @@ module intspdmod
 !   2008-11-26  Todling - remove intspd_tl; add interface back
 !   2009-08-13  lueken - update documentation
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intspd_
@@ -24,6 +25,10 @@ module intspdmod
 !
 !$$$ end documentation block
 
+use m_obsNode, only: obsNode
+use m_spdNode, only: spdNode
+use m_spdNode, only: spdNode_typecast
+use m_spdNode, only: spdNode_nextcast
 implicit none
 
 PRIVATE
@@ -55,7 +60,6 @@ subroutine intspd_(spdhead,rval,sval)
 !   2005-09-28  derber  - consolidate location and weight arrays
 !   2006-07-28  derber  - modify to use new inner loop obs data structure
 !                       - unify NL qc
-!   2007-02-15  rancic  - add foto
 !   2007-03-19  tremolet - binning of observations
 !   2007-06-05  tremolet - use observation diagnostics structure
 !   2007-07-09  tremolet - observation sensitivity
@@ -84,35 +88,32 @@ subroutine intspd_(spdhead,rval,sval)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use obsmod, only: spd_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
+  use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero, half, one, tiny_r_kind,cg_term,r3600
-  use gridmod, only: latlon1n
   use gsi_4dvar, only: ltlint
-  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_4dvar, only: ladtest_obs
   implicit none
 
 ! Declare passed variables
-  type(spd_ob_type),pointer,intent(in   ) :: spdhead
+  class(obsNode),  pointer, intent(in   ) :: spdhead
   type(gsi_bundle),         intent(in   ) :: sval
   type(gsi_bundle),         intent(inout) :: rval
 
 ! Declare local variables
   integer(i_kind) ier,istatus
   integer(i_kind) j1,j2,j3,j4
-  real(r_kind) w1,w2,w3,w4,term,time_spd
+  real(r_kind) w1,w2,w3,w4,term
 ! real(r_kind) penalty
   real(r_kind) uanl,vanl,spdanl,spd,valv,valu
   real(r_kind) uatl,vatl,spdatl,spdtra,grad
   real(r_kind) cg_spd,p0,wnotgross,wgross,pg_spd
-  real(r_kind),pointer,dimension(:) :: xhat_dt_u,xhat_dt_v
-  real(r_kind),pointer,dimension(:) :: dhat_dt_u,dhat_dt_v
   real(r_kind),pointer,dimension(:) :: su,sv
   real(r_kind),pointer,dimension(:) :: ru,rv
-  type(spd_ob_type), pointer :: spdptr
+  type(spdNode), pointer :: spdptr
   logical :: ltlint_tmp
 
 !  If no spd data return
@@ -125,19 +126,14 @@ subroutine intspd_(spdhead,rval,sval)
   call gsi_bundlegetpointer(sval,'v',sv,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'u',ru,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'v',rv,istatus);ier=istatus+ier
-  if(l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'u',xhat_dt_u,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'v',xhat_dt_v,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'u',dhat_dt_u,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'v',dhat_dt_v,istatus);ier=istatus+ier
-  endif
   if(ier/=0)return
 
   if( ladtest_obs) then
      ltlint_tmp = ltlint   
      ltlint = .true.
   end if
-  spdptr => spdhead
+  !spdptr => spdhead
+  spdptr => spdNode_typecast(spdhead)
   do while (associated(spdptr))
 
      j1 = spdptr%ij(1)
@@ -199,15 +195,6 @@ subroutine intspd_(spdhead,rval,sval)
 !       Forward model
         uanl=spdptr%uges+w1* su(j1)+w2* su(j2)+w3* su(j3)+w4* su(j4)
         vanl=spdptr%vges+w1* sv(j1)+w2* sv(j2)+w3* sv(j3)+w4* sv(j4)
-        if ( l_foto ) then
-           time_spd=spdptr%time*r3600
-           uanl=uanl+&
-                time_spd*(w1*xhat_dt_u(j1)+w2*xhat_dt_u(j2)+ &
-                          w3*xhat_dt_u(j3)+w4*xhat_dt_u(j4))
-           vanl=vanl+&
-                time_spd*(w1*xhat_dt_v(j1)+w2*xhat_dt_v(j2)+ &
-                          w3*xhat_dt_v(j3)+w4*xhat_dt_v(j4))
-        endif
         spdanl=sqrt(uanl*uanl+vanl*vanl)
         if (luse_obsdiag .and. spdptr%luse) spdptr%diags%tldepart(jiter)=spdanl-spdtra
 
@@ -252,21 +239,10 @@ subroutine intspd_(spdhead,rval,sval)
         rv(j3)=rv(j3)+w3*valv
         rv(j4)=rv(j4)+w4*valv
 
-        if (l_foto) then
-           valu=valu*time_spd
-           valv=valv*time_spd
-           dhat_dt_u(j1)=dhat_dt_u(j1)+w1*valu
-           dhat_dt_u(j2)=dhat_dt_u(j2)+w2*valu
-           dhat_dt_u(j3)=dhat_dt_u(j3)+w3*valu
-           dhat_dt_u(j4)=dhat_dt_u(j4)+w4*valu
-           dhat_dt_v(j1)=dhat_dt_v(j1)+w1*valv
-           dhat_dt_v(j2)=dhat_dt_v(j2)+w2*valv
-           dhat_dt_v(j3)=dhat_dt_v(j3)+w3*valv
-           dhat_dt_v(j4)=dhat_dt_v(j4)+w4*valv
-        endif
      endif
 
-     spdptr => spdptr%llpoint
+     !spdptr => spdptr%llpoint
+     spdptr => spdNode_nextcast(spdptr)
 
   end do
   if( ladtest_obs) ltlint = ltlint_tmp

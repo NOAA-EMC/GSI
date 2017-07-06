@@ -44,6 +44,7 @@
 !   2011-08-01  lueken  - added module use deter_sfc_mod 
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2015-02-23  Rancic/Thomas - add l4densvar to time window logical
+!   2015-10-01  guo     - consolidate use of ob location (in deg)
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -65,7 +66,7 @@
 !$$$  end documentation block
   use kinds, only: r_kind,r_double,i_kind
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
-  use constants, only: zero,deg2rad,tiny_r_kind,rad2deg,r60inv,r3600,r100
+  use constants, only: zero,deg2rad,tiny_r_kind,r60inv,r3600,r100
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc_type
   use obsmod, only: bmiss
@@ -101,6 +102,7 @@
 
   real(r_kind) scli,sclw,dlon,dlat,scnt
   real(r_kind) dlat_earth,dlon_earth
+  real(r_kind) dlat_earth_deg,dlon_earth_deg
   real(r_kind) scnv,stdv,spcp,tdiff,sstime,t4dv
   real(r_kind) :: tsavg
   real(r_kind),allocatable,dimension(:,:)::  pcpdata
@@ -267,6 +269,8 @@
   if (abs(dlat_earth)>90._r_kind .or. abs(dlon_earth)>r360) goto 10
   if (dlon_earth< zero) dlon_earth=dlon_earth+r360
   if (dlon_earth==r360) dlon_earth=dlon_earth-r360
+  dlat_earth_deg=dlat_earth
+  dlon_earth_deg=dlon_earth
   dlat_earth=dlat_earth*deg2rad
   dlon_earth=dlon_earth*deg2rad
   if(regional)then
@@ -308,25 +312,25 @@
   if (pcp_ssmi) then
      pcpdata(7,ndata) = stdv               ! standard deviation of superobs
      pcpdata(8,ndata) = scnt               ! number of obs used to make superobs
-     pcpdata(9,ndata) = dlon_earth*rad2deg ! earth relative longitude (degrees)
-     pcpdata(10,ndata)= dlat_earth*rad2deg ! earth relative latitude (degrees)
+     pcpdata(9,ndata) = dlon_earth_deg     ! earth relative longitude (degrees)
+     pcpdata(10,ndata)= dlat_earth_deg     ! earth relative latitude (degrees)
   elseif (pcp_tmi) then
      pcpdata(7,ndata) = scnv               ! convective precipitation (mm/hr)
      pcpdata(8,ndata) = sclw               ! cloud water (mm)
      pcpdata(9,ndata) = scli               ! cloud ice (mm)
      pcpdata(10,ndata)= scnt               ! number of obs used to make superobs
-     pcpdata(11,ndata)= dlon_earth*rad2deg ! earth relative longitude (degrees)
-     pcpdata(12,ndata)= dlat_earth*rad2deg ! earth relative latitude (degrees)
+     pcpdata(11,ndata)= dlon_earth_deg     ! earth relative longitude (degrees)
+     pcpdata(12,ndata)= dlat_earth_deg     ! earth relative latitude (degrees)
   elseif (pcp_amsu) then
      pcpdata(7,ndata) = zero               ! standard deviation of superobs (not yet)
      pcpdata(8,ndata) = itype             ! type of algorithm
-     pcpdata(9,ndata) = dlon_earth*rad2deg ! earth relative longitude (degrees)
-     pcpdata(10,ndata)= dlat_earth*rad2deg ! earth relative latitude (degrees)
+     pcpdata(9,ndata) = dlon_earth_deg     ! earth relative longitude (degrees)
+     pcpdata(10,ndata)= dlat_earth_deg     ! earth relative latitude (degrees)
   elseif (pcp_stage3) then
      pcpdata(7,ndata) = stdv               ! standard deviation of superobs
      pcpdata(8,ndata) = scnt               ! number of obs used to make superobs
-     pcpdata(9,ndata) = dlon_earth*rad2deg ! earth relative longitude (degrees)
-     pcpdata(10,ndata)= dlat_earth*rad2deg ! earth relative latitude (degrees)
+     pcpdata(9,ndata) = dlon_earth_deg     ! earth relative longitude (degrees)
+     pcpdata(10,ndata)= dlat_earth_deg     ! earth relative latitude (degrees)
   endif
 !
 ! End of big loop over bufr file.  Process next observation.
