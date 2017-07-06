@@ -13,6 +13,7 @@ module stpdwmod
 !   2008-12-02  Todling - remove stpdw_tl
 !   2009-08-12  lueken  - updated documentation
 !   2010-05-13  todling - uniform interface across stp routines
+!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stpdw
@@ -50,7 +51,6 @@ subroutine stpdw(dwhead,rval,sval,out,sges,nstep)
 !   2007-03-19  tremolet - binning of observations
 !   2007-07-28  derber   - modify to use new inner loop obs data structure
 !                        - unify NL qc
-!   2007-02-15  rancic - add foto
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2008-04-11  safford - rm unused vars
 !   2008-12-03  todling - changed handling of ptr%time
@@ -75,17 +75,18 @@ subroutine stpdw(dwhead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: dw_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
-  use gridmod, only: latlon1n
-  use jfunc, only: l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use m_obsNode, only: obsNode
+  use m_dwNode , only: dwNode
+  use m_dwNode , only: dwNode_typecast
+  use m_dwNode , only: dwNode_nextcast
   implicit none
 
 ! Declare passed variables
-  type(dw_ob_type),pointer            ,intent(in   ) :: dwhead
+  class(obsNode),pointer,intent(in):: dwhead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
@@ -94,14 +95,12 @@ subroutine stpdw(dwhead,rval,sval,out,sges,nstep)
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk,ier,istatus
   real(r_kind) valdw,facdw,w1,w2,w3,w4,w5,w6,w7,w8
-  real(r_kind),pointer,dimension(:) :: xhat_dt_u,xhat_dt_v
-  real(r_kind),pointer,dimension(:) :: dhat_dt_u,dhat_dt_v
-  real(r_kind) time_dw,pg_dw,dw
+  real(r_kind) pg_dw,dw
   real(r_kind),dimension(max(1,nstep))::pen
   real(r_kind) cg_dw,wgross,wnotgross
   real(r_kind),pointer,dimension(:) :: su,sv
   real(r_kind),pointer,dimension(:) :: ru,rv
-  type(dw_ob_type), pointer :: dwptr
+  type(dwNode), pointer :: dwptr
 
   out=zero_quad
 
@@ -115,15 +114,9 @@ subroutine stpdw(dwhead,rval,sval,out,sges,nstep)
   call gsi_bundlegetpointer(sval,'v',sv,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'u',ru,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'v',rv,istatus);ier=istatus+ier
-  if(l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'u',xhat_dt_u,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'v',xhat_dt_v,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'u',dhat_dt_u,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'v',dhat_dt_v,istatus);ier=istatus+ier
-  endif
   if(ier/=0)return
 
-  dwptr => dwhead
+  dwptr => dwNode_typecast(dwhead)
   do while (associated(dwptr))
      if(dwptr%luse)then
         if(nstep > 0)then
@@ -155,25 +148,6 @@ subroutine stpdw(dwhead,rval,sval,out,sges,nstep)
                  (w1* sv(j1)+w2* sv(j2)+w3* sv(j3)+w4* sv(j4)+&
                   w5* sv(j5)+w6* sv(j6)+w7* sv(j7)+w8* sv(j8))*dwptr%cosazm-&
                  dwptr%res
-           if(l_foto) then
-              time_dw=dwptr%time*r3600
-              valdw=valdw+((w1*dhat_dt_u(j1)+w2*dhat_dt_u(j2)+ &
-                            w3*dhat_dt_u(j3)+w4*dhat_dt_u(j4)+&
-                            w5*dhat_dt_u(j5)+w6*dhat_dt_u(j6)+ &
-                            w7*dhat_dt_u(j7)+w8*dhat_dt_u(j8))*dwptr%sinazm+&
-                           (w1*dhat_dt_v(j1)+w2*dhat_dt_v(j2)+ &
-                            w3*dhat_dt_v(j3)+w4*dhat_dt_v(j4)+&
-                            w5*dhat_dt_v(j5)+w6*dhat_dt_v(j6)+ &
-                            w7*dhat_dt_v(j7)+w8*dhat_dt_v(j8))*dwptr%cosazm)*time_dw
-              facdw=facdw+((w1*xhat_dt_u(j1)+w2*xhat_dt_u(j2)+ &
-                            w3*xhat_dt_u(j3)+w4*xhat_dt_u(j4)+&
-                            w5*xhat_dt_u(j5)+w6*xhat_dt_u(j6)+ &
-                            w7*xhat_dt_u(j7)+w8*xhat_dt_u(j8))*dwptr%sinazm+&
-                           (w1*xhat_dt_v(j1)+w2*xhat_dt_v(j2)+ &
-                            w3*xhat_dt_v(j3)+w4*xhat_dt_v(j4)+&
-                            w5*xhat_dt_v(j5)+w6*xhat_dt_v(j6)+ &
-                            w7*xhat_dt_v(j7)+w8*xhat_dt_v(j8))*dwptr%cosazm)*time_dw 
-           end if
            do kk=1,nstep
               dw=facdw+sges(kk)*valdw
               pen(kk)=dw*dw*dwptr%err2
@@ -199,7 +173,7 @@ subroutine stpdw(dwhead,rval,sval,out,sges,nstep)
         end do
      end if
 
-     dwptr => dwptr%llpoint
+     dwptr => dwNode_nextcast(dwptr)
 
   end do
 

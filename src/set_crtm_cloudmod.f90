@@ -60,8 +60,7 @@ CONTAINS
   subroutine setCloud (cloud_name, icmask, cloud_cont, cloud_efr,jcloud, dp, tp, pr, qh, cloud)
 
   use gridmod, only: regional,wrf_mass_regional
-  use regional_io, only: cold_start
-
+  use wrf_params_mod, only: cold_start
   implicit none
 
 ! !ARGUMENTS:
@@ -93,7 +92,6 @@ CONTAINS
   character(len=*), parameter :: myname = 'setCloud'
   integer(i_kind) :: na, nc, km, n, k
   real(r_kind)    :: tem1,tem2,tem3,tem4
-
   km = size(cloud_cont,1)
   nc = size(cloud_cont,2)
   na = size(cloud_name)

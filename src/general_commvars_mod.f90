@@ -434,7 +434,7 @@ contains
 ! !USES:
 
    use constants, only: zero,one
-   use gridmod, only: iglobal,itotsub,nlon,nlat
+   use gridmod, only: itotsub,nlon,nlat
    implicit none
 
 ! !INPUT PARAMETERS:
@@ -646,7 +646,7 @@ contains
 ! !USES:
 
    use constants, only: zero
-   use gridmod, only: iglobal,itotsub,nlon,nlat
+   use gridmod, only: itotsub,nlon,nlat
    use gridmod, only: coslon,sinlon
    implicit none
 

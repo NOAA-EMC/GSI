@@ -159,10 +159,9 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-    use radinfo, only: npred
     use gridmod, only: nsig
     use obsmod, only: iadate,rmiss_single
-    use constants, only: zero,one,tiny_r_kind,rad2deg,ttp,one_tenth
+    use constants, only: zero,one,tiny_r_kind,ttp,one_tenth
 
     implicit none
 

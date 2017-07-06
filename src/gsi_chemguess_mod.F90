@@ -553,6 +553,7 @@ end subroutine final_
 !   2010-05-17  todling  update create interface to pass a grid
 !   2011-07-03  todling  allow running single or double precision
 !   2011-11-16  todling  allow 2d tracers (e.g., AOD)
+!   2017-02-22  todling  initialized only what needed(2d,3d,or both)
 !
 ! !AUTHOR:
 !   Ricardo Todling  org: gmao      date: 2010-04-10
@@ -576,8 +577,18 @@ end subroutine final_
     nbundles = lm
     allocate(GSI_ChemGuess_Bundle(nbundles))
     do nt=1,nbundles
-       call GSI_BundleCreate ( GSI_ChemGuess_Bundle(nt), grid, 'Trace Gases', istatus, &
-                               names2d=tgases2d,names3d=tgases3d,bundle_kind=r_kind )
+       if (ng2d>0.and.ng3d>0) then
+          call GSI_BundleCreate ( GSI_ChemGuess_Bundle(nt), grid, 'Trace Gases', istatus, &
+                                  names2d=tgases2d,names3d=tgases3d,bundle_kind=r_kind )
+       else if (ng2d>0) then
+          call GSI_BundleCreate ( GSI_ChemGuess_Bundle(nt), grid, 'Trace Gases', istatus, &
+                                  names2d=tgases2d,bundle_kind=r_kind )
+       else if (ng3d>0) then
+          call GSI_BundleCreate ( GSI_ChemGuess_Bundle(nt), grid, 'Trace Gases', istatus, &
+                                  names3d=tgases3d,bundle_kind=r_kind )
+       else
+          istatus=99
+       endif
     enddo
 
     if (istatus/=0) then
@@ -691,6 +702,8 @@ end subroutine final_
 ! !REVISION HISTORY:
 !   2010-04-10  todling  initial code
 !   2011-05-17  todling  protect against use of unavailable label
+!   2015-09-05  zhu      change "i4crtm3d(ii)==11" to "i4crtm3d(ii)>=11" 
+!                        for "aerosols_4crtm::3d"
 !
 ! !REMARKS:
 !   language: f90
@@ -727,7 +740,7 @@ end subroutine final_
      istatus=0
   else if(trim(desc)=='aerosols_4crtm::3d') then
      do ii=1,ng3d
-        if (i4crtm3d(ii)==11) ivar=ivar+1
+        if (i4crtm3d(ii)>=11) ivar=ivar+1
      enddo
      istatus=0
   else if(trim(desc)=='aerosols_4crtm_jac::3d') then
@@ -975,7 +988,7 @@ end subroutine final_
      if(nvar>=0) then
         ii=0
         do i=1,ng3d
-           if(i4crtm3d(i)==11) then
+           if(i4crtm3d(i)>=11) then
               ii=ii+1
               if(ii>nvar)then
                  ii=-1 ! user did not allocate enough space

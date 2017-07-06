@@ -117,7 +117,7 @@ subroutine deter_nst_(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
 !$$$
      use kinds,       only: r_kind,i_kind
      use constants,   only: zero,one,z_w_max
-     use gridmod,     only: nlat,nlon,regional,tll2xy,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc
+     use gridmod,     only: regional,tll2xy,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc
      use guess_grids, only: nfldnst,hrdifnst
      use gsi_nstcouplermod, only: fac_dtl,fac_tsl
      use gsi_nstcouplermod, only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
@@ -392,7 +392,7 @@ subroutine skindepth_(obstype,sd_rad)
 
  use kinds, only: r_kind
  implicit none
- character(*),      intent(in)  :: obstype
+ character(10),     intent(in)  :: obstype
  real(kind=r_kind), intent(out) :: sd_rad
 
   sd_rad = 0.000015_r_kind

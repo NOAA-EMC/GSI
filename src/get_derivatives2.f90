@@ -470,7 +470,7 @@ subroutine get_derivatives2uv(st,vp,t,p3d,u,v, &
 
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig
+  use gridmod, only: regional,lat2,lon2,nsig
   use compact_diffs, only: compact_dlat,compact_dlon
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
   use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
@@ -631,7 +631,7 @@ subroutine tget_derivatives2uv(st,vp,t,p3d,u,v,&
 
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig
+  use gridmod, only: regional,lat2,lon2,nsig
   use compact_diffs, only: tcompact_dlat,tcompact_dlon
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
   use general_sub2grid_mod, only: general_sub2grid,general_grid2sub

@@ -45,9 +45,10 @@ program enkf_main
 !     ozinfo        - ozone retrieval info file
 !     diag_YYYYMMDDHH_ges_mem*  - observation diagnostic files for each ensemble member
 !                     created GSI forward operator.
-!     hybens_locinfo - if parameter readin_localization is true, contains 
+!     hybens_info   - if parameter readin_localization is true, contains 
 !                      vertical profile of horizontal and vertical localization
-!                      length scales.
+!                      length scales (along with static and ensemble weights
+!                      used in hybrid).
 !
 !   output files: 
 !     sanl_YYYYMMDDHH_mem* - analysis ensemble members. A separate program

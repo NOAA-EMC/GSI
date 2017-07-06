@@ -22,12 +22,12 @@ subroutine ensctl2model_ad(eval,mval,grad)
 
 use kinds, only: r_kind,i_kind
 use control_vectors, only: control_vector,cvars3d
-use gsi_4dvar, only: l4dvar,l4densvar,nobs_bins,ibin_anl
+use gsi_4dvar, only: ibin_anl
 use hybrid_ensemble_parameters, only: uv_hyb_ens,dual_res,nval_lenz_en,ntlevs_ens,n_ens,q_hyb_ens
 use hybrid_ensemble_isotropic, only: ensemble_forward_model_ad
 use hybrid_ensemble_isotropic, only: ckgcov_a_en_new_factorization_ad
 use hybrid_ensemble_isotropic, only: ensemble_forward_model_ad_dual_res
-use hybrid_ensemble_isotropic, only: sqrt_beta1mult,sqrt_beta2mult
+use hybrid_ensemble_isotropic, only: sqrt_beta_s_mult,sqrt_beta_e_mult
 use balmod, only: strong_bk_ad
 use gsi_bundlemod, only: gsi_bundlecreate
 use gsi_bundlemod, only: gsi_bundle
@@ -218,10 +218,10 @@ do jj=1,ntlevs_ens
    else
       call ensemble_forward_model_ad(wbundle_c,ebundle,jj)
    end if
-   call sqrt_beta1mult(wbundle_c)
+   call sqrt_beta_s_mult(wbundle_c)
 
 !  Apply square-root of ensemble error covariance
-   call sqrt_beta2mult(ebundle)
+   call sqrt_beta_e_mult(ebundle)
    call ckgcov_a_en_new_factorization_ad(grade,ebundle)
 
    call gsi_bundledestroy(wbundle_c,istatus)

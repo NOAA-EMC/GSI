@@ -23,11 +23,10 @@ subroutine eigdecomp(Ain,n,D,Q)
 use kinds, only: r_kind, i_kind
 use constants, only: zero, one, four_int, one_hundred
 implicit none
-
-real(r_kind),dimension(:,:),intent(in):: Ain
 integer(i_kind),intent(in):: n
-real(r_kind),dimension(:),intent(out):: D
-real(r_kind),dimension(:,:),intent(out):: Q
+real(r_kind),dimension(n,n),intent(in):: Ain
+real(r_kind),dimension(n),intent(out):: D
+real(r_kind),dimension(n,n),intent(out):: Q
 real(r_kind),dimension(:,:),allocatable:: A
 integer(i_kind):: r,c,i,j
 real(r_kind):: num, threshold, dd,gg,rr,qq,r1
@@ -35,8 +34,7 @@ real(r_kind):: gc,gr,gdd,a1,a2
 real(r_kind),dimension(:), allocatable::Bv,Zv
 integer(i_kind),parameter:: niter=50
 real(r_kind):: tt, ss, cc
-
-allocate(Bv(500),Zv(500))
+allocate(Bv(n),Zv(n))
 allocate(A(n,n))
 A=Ain
 Q=zero

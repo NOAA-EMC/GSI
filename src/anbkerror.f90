@@ -50,7 +50,7 @@ subroutine anbkerror(gradx,grady)
   use berror, only: varprd,fpsproj,fut2ps
   use constants, only: zero
   use control_vectors, only: control_vector,assignment(=)
-  use control_vectors, only: mvars,nrf,nrf_var,nrf_3d,cvarsmd
+  use control_vectors, only: mvars,nrf,nrf_var,nrf_3d
   use gsi_4dvar, only: nsubwin
   use timermod, only: timer_ini,timer_fnl
   use gsi_bundlemod, only: gsi_bundlegetpointer,gsi_bundlemerge,gsi_bundle,gsi_bundledup,gsi_bundledestroy
@@ -212,6 +212,7 @@ subroutine anbkgcov(bundle)
 !   2014-03-19  pondeca - add wspd10m
 !   2014-04-10  pondeca - add td2m,mxtm,mitm,pmsl
 !   2014-05-07  pondeca - add howv
+!   2016-05-03  pondeca - add uwnd10m, vwnd10m
 !
 !   input argument list:
 !     t        - t on subdomain
@@ -230,6 +231,11 @@ subroutine anbkgcov(bundle)
 !     mitm     - daily  minimum temperature
 !     pmsl     - pressure at mean sea level
 !     howv     - significant wave height
+!     tcamt    - total cloud amount
+!     lcbas    - lowest cloud base height
+!     cldch    - cloud ceiling height
+!     uwnd10m  - 10m-uwind on subdomain
+!     vwnd10m  - 10m-vwind on subdomain
 !     pswter   - water surface pressure on subdomain
 !     twter    - water 2m-temperature on subdomain
 !     qwter    - water 2m-specific humidity on subdomain
@@ -238,6 +244,8 @@ subroutine anbkgcov(bundle)
 !     td2mwter - water td on subdomain
 !     mxtmwter - water daily maximum temperature
 !     mitmwter - water daily minimum temperature
+!     uwnd10mwter  - water 10m-uwind on subdomain
+!     vwnd10mwter  - water 10m-vwind on subdomain
 !
 !   output argument list:
 !                 all after smoothing, combining scales
@@ -257,6 +265,11 @@ subroutine anbkgcov(bundle)
 !     mitm     - daily minimum temperature
 !     pmsl     - pressure at mean sea level
 !     howv     - significant wave height
+!     tcamt    - total cloud amount
+!     lcbas    - lowest cloud base height
+!     cldch    - cloud ceiling height
+!     uwnd10m  - 10m-uwind on subdomain
+!     vwnd10m  - 10m-vwind on subdomain
 !     pswter   - water surface pressure on subdomain
 !     twter    - water 2m-temperature on subdomain
 !     qwter    - water 2m-specific humidity on subdomain
@@ -265,20 +278,20 @@ subroutine anbkgcov(bundle)
 !     td2mwter - water td on subdomain
 !     mxtmwter - water daily maximum temperature
 !     mitmwter - water daily minimum temperature
+!     uwnd10mwter  - water 10m-uwind on subdomain
+!     vwnd10mwter  - water 10m-vwind on subdomain
 !
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !$$$
   use kinds, only: r_kind,i_kind
-  use gridmod, only: lat2,lon2,nlat,nlon,nsig,nsig1o,twodvar_regional
+  use gridmod, only: lat2,lon2,twodvar_regional
   use anberror, only: rtma_subdomain_option,nsmooth, nsmooth_shapiro,rtma_bkerr_sub2slab
   use constants, only: zero
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
-  use general_commvars_mod, only: s2g_raf
-  USE MPIMOD, only: mype
   implicit none
 
 ! Passed Variables
@@ -288,9 +301,9 @@ subroutine anbkgcov(bundle)
 
   integer(i_kind) n,istatus
   integer(i_kind) i_sst,i_stl,i_sti,i_ps,i_t,i_q,i_gust,i_wspd10m, &
-                  i_td2m,i_mxtm,i_mitm, & 
+                  i_td2m,i_mxtm,i_mitm,i_uwnd10m,i_vwnd10m, & 
                   i_pswter,i_twter,i_qwter,i_gustwter,i_wspd10mwter, &
-                  i_td2mwter,i_mxtmwter,i_mitmwter                 
+                  i_td2mwter,i_mxtmwter,i_mitmwter,i_uwnd10mwter,i_vwnd10mwter                 
 
   real(r_kind),dimension(lat2,lon2) :: skint,sst,stl,sti
   real(r_kind),dimension(lat2,lon2) :: field,fld,fldwter
@@ -306,6 +319,8 @@ subroutine anbkgcov(bundle)
   real(r_kind),dimension(:,:),   pointer :: ptrtd2m=>NULL()
   real(r_kind),dimension(:,:),   pointer :: ptrmxtm=>NULL()
   real(r_kind),dimension(:,:),   pointer :: ptrmitm=>NULL()
+  real(r_kind),dimension(:,:),   pointer :: ptruwnd10m=>NULL()
+  real(r_kind),dimension(:,:),   pointer :: ptrvwnd10m=>NULL()
   real(r_kind),dimension(:,:,:), pointer :: ptr3d=>NULL()
   real(r_kind),dimension(:,:),   pointer :: ptrpswter=>NULL()
   real(r_kind),dimension(:,:),   pointer :: ptrtwter=>NULL()
@@ -315,6 +330,8 @@ subroutine anbkgcov(bundle)
   real(r_kind),dimension(:,:),   pointer :: ptrtd2mwter=>NULL()
   real(r_kind),dimension(:,:),   pointer :: ptrmxtmwter=>NULL()
   real(r_kind),dimension(:,:),   pointer :: ptrmitmwter=>NULL()
+  real(r_kind),dimension(:,:),   pointer :: ptruwnd10mwter=>NULL()
+  real(r_kind),dimension(:,:),   pointer :: ptrvwnd10mwter=>NULL()
 
 
 ! Perform simple vertical smoothing while fields are in sudomain mode.
@@ -386,6 +403,18 @@ subroutine anbkgcov(bundle)
      call gsi_bundlegetpointer (bundle, 'mitmwter', i_mitmwter,  istatus)
      if (i_mitm>0)     call gsi_bundlegetpointer (bundle, 'mitm',     ptrmitm,     istatus)
      if (i_mitmwter>0) call gsi_bundlegetpointer (bundle, 'mitmwter', ptrmitmwter, istatus)
+
+     !10-m UWIND
+     call gsi_bundlegetpointer (bundle, 'uwnd10m',     i_uwnd10m,      istatus)
+     call gsi_bundlegetpointer (bundle, 'uwnd10mwter', i_uwnd10mwter,  istatus)
+     if (i_uwnd10m>0)     call gsi_bundlegetpointer (bundle, 'uwnd10m',     ptruwnd10m,     istatus)
+     if (i_uwnd10mwter>0) call gsi_bundlegetpointer (bundle, 'uwnd10mwter', ptruwnd10mwter, istatus)
+
+     !10-m VWIND
+     call gsi_bundlegetpointer (bundle, 'vwnd10m',     i_vwnd10m,      istatus)
+     call gsi_bundlegetpointer (bundle, 'vwnd10mwter', i_vwnd10mwter,  istatus)
+     if (i_vwnd10m>0)     call gsi_bundlegetpointer (bundle, 'vwnd10m',     ptrvwnd10m,     istatus)
+     if (i_vwnd10mwter>0) call gsi_bundlegetpointer (bundle, 'vwnd10mwter', ptrvwnd10mwter, istatus)
   endif
 
 ! Break up skin temp
@@ -492,6 +521,28 @@ subroutine anbkgcov(bundle)
       ptrmitm=fld
       ptrmitmwter=fldwter
     endif
+
+    if(i_uwnd10m>0.and.i_uwnd10mwter>0) then
+      fld=zero
+      fldwter=zero
+      field=ptruwnd10m
+
+      call anbkgvar_lw(field,fld,fldwter,0)
+
+      ptruwnd10m=fld
+      ptruwnd10mwter=fldwter
+    endif
+
+    if(i_vwnd10m>0.and.i_vwnd10mwter>0) then
+      fld=zero
+      fldwter=zero
+      field=ptrvwnd10m
+
+      call anbkgvar_lw(field,fld,fldwter,0)
+
+      ptrvwnd10m=fld
+      ptrvwnd10mwter=fldwter
+    endif
   endif
 
 ! Apply auto-covariance 
@@ -512,6 +563,28 @@ subroutine anbkgcov(bundle)
   end do
 
   if(twodvar_regional) then
+    if(i_vwnd10m>0.and.i_vwnd10mwter>0) then
+      fld=ptrvwnd10m
+      fldwter=ptrvwnd10mwter
+      field=zero
+
+      call anbkgvar_lw(field,fld,fldwter,1)
+
+      ptrvwnd10m=field
+!     ignore content of remaining arrays
+    endif
+
+    if(i_uwnd10m>0.and.i_uwnd10mwter>0) then
+      fld=ptruwnd10m
+      fldwter=ptruwnd10mwter
+      field=zero
+
+      call anbkgvar_lw(field,fld,fldwter,1)
+
+      ptruwnd10m=field
+!     ignore content of remaining arrays
+    endif
+
     if(i_mitm>0.and.i_mitmwter>0) then
       fld=ptrmitm
       fldwter=ptrmitmwter
@@ -802,7 +875,7 @@ subroutine anbkgvar_lw(field,fld,fldwter,iflg)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use gridmod, only: lat2,lon2,nsig,region_lat,region_lon, &
+  use gridmod, only: lat2,lon2,region_lat,region_lon, &
                      nlon_regional,nlat_regional,istart,jstart
   use guess_grids, only: isli2
   use mpimod, only: mype
@@ -1326,7 +1399,7 @@ subroutine ansmoothrf_reg_sub2slab_option(cstate)
   use kinds, only: r_kind,i_kind,r_single
   use anberror, only: filter_all,ngauss
   use anberror, only: pf2aP1
-  use mpimod, only: mype,npe
+  use mpimod, only: npe
   use constants, only: zero,zero_single
   use gridmod, only: lat2,lon2,nsig
   use raflib, only: raf4_ad,raf4
@@ -1507,7 +1580,7 @@ subroutine ansmoothrf_reg_subdomain_option(cstate)
   use anberror, only: indices, filter_all,ngauss,halo_update_reg
   use mpimod, only: mype,npe
   use constants, only: zero,zero_single
-  use gridmod, only: lat2,lon2,istart,jstart,nsig
+  use gridmod, only: istart,jstart,nsig
   use raflib, only: raf4_ad_wrap,raf4_wrap
   use control_vectors, only: nvars,nrf,nrf_var,nrf_3d
   use gsi_bundlemod, only: gsi_bundle
