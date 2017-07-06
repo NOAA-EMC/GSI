@@ -45,15 +45,15 @@ subroutine get_gefs_ensperts_dualres
 !
 !$$$ end documentation block
 
-  use gridmod, only: idsl5,regional
+  use gridmod, only: idsl5,use_gfs_nemsio,regional
   use hybrid_ensemble_parameters, only: n_ens,write_ens_sprd,oz_univ_static,ntlevs_ens
   use hybrid_ensemble_parameters, only: use_gfs_ens,s_ens_v
   use hybrid_ensemble_parameters, only: en_perts,ps_bar,nelen
   use constants,only: zero,zero_single,half,fv,rd_over_cp,one,qcmin
-  use mpimod, only: mpi_comm_world,mype,npe
+  use mpimod, only: mpi_comm_world,ierror,mype,npe
   use kinds, only: r_kind,i_kind,r_single
-  use hybrid_ensemble_parameters, only: grd_ens,q_hyb_ens
-  use hybrid_ensemble_parameters, only: beta_s0,beta_s,beta_e
+  use hybrid_ensemble_parameters, only: grd_ens,nlat_ens,nlon_ens,beta1_inv,q_hyb_ens
+  use hybrid_ensemble_parameters, only: betas_inv,betae_inv
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_bundlemod, only: gsi_bundlecreate
   use gsi_bundlemod, only: gsi_grid
@@ -61,7 +61,7 @@ subroutine get_gefs_ensperts_dualres
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_bundlemod, only: gsi_bundledestroy
   use gsi_bundlemod, only: gsi_gridcreate
-  use get_gfs_ensmod_mod, only: get_gfs_ensmod_class
+  use gsi_enscouplermod, only: gsi_enscoupler_get_user_ens
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sub2grid_destroy_info
   implicit none
 
@@ -81,14 +81,13 @@ subroutine get_gefs_ensperts_dualres
   real(r_kind) bar_norm,sig_norm,kapr,kap1,rh
   real(r_kind),allocatable,dimension(:,:):: z,sst2
   real(r_kind),allocatable,dimension(:,:,:) :: tsen,prsl,pri,qs
-  
+
 ! integer(i_kind),dimension(grd_ens%nlat,grd_ens%nlon):: idum
   integer(i_kind) istatus,iret,i,ic2,ic3,j,k,n,mm1,iderivative,im,jm,km,m,ipic
   integer(i_kind) inner_vars,num_fields
   integer(i_kind) ipc3d(nc3d),ipc2d(nc2d)
   integer(i_kind) ier
 ! integer(i_kind) il,jl
-  type(get_gfs_ensmod_class) :: enscoupler
   logical ice
   type(sub2grid_info) :: grd_tmp
 
@@ -162,15 +161,15 @@ subroutine get_gefs_ensperts_dualres
 
        en_perts(n,m)%valuesr4=zero
        
-       call enscoupler%get_user_ens_(grd_tmp,n,m,en_read,iret)
+       call gsi_enscoupler_get_user_ens(grd_tmp,n,m,en_read,iret)
 
        ! Check read return code.  Revert to static B if read error detected
        if ( iret /= 0 ) then
-          beta_s0=one
-          beta_s=one
-          beta_e=zero
+          beta1_inv=one
+          betas_inv=one
+          betae_inv=zero
           if ( mype == npe ) &
-             write(6,'(A,I4,A,F6.3)')'***WARNING*** ERROR READING ENS FILE, iret = ',iret,' RESET beta_s0 = ',beta_s0
+             write(6,'(A,2(F7.4,1X))')'***WARNING*** RESET betas_inv, betae_inv = ',betas_inv, betae_inv
           cycle
        endif
 
@@ -462,6 +461,7 @@ subroutine ens_spread_dualres(en_bar,ibin)
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
+  use mpimod, only: mype
   use kinds, only: r_single,r_kind,i_kind
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,p_e2a,uv_hyb_ens
   use hybrid_ensemble_parameters, only: en_perts,nelen
@@ -730,7 +730,6 @@ subroutine general_getprs_glb(ps,tv,prs)
 !   2008-06-04  safford - rm unused uses
 !   2008-09-05  lueken  - merged ed's changes into q1fy09 code
 !   2010-02-23  parrish - copy getprs and generalize for dual resolution.
-!   2017-03-23  Hu      - add code to use hybrid vertical coodinate in WRF MASS CORE.
 !
 !   input argument list:
 !     ps       - surface pressure
@@ -746,10 +745,11 @@ subroutine general_getprs_glb(ps,tv,prs)
 
   use kinds,only: r_kind,i_kind
   use constants,only: zero,half,one_tenth,rd_over_cp,one
-  use gridmod,only: nsig,ak5,bk5,ck5,tref5,idvc5
+  use gridmod,only: nsig,lat2,lon2,ak5,bk5,ck5,tref5,idvc5
   use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta1_ll,eta2_ll,pdtop_ll,pt_ll,&
        regional,wrf_mass_regional,twodvar_regional
   use hybrid_ensemble_parameters, only: grd_ens
+  use mpimod, only: mype
   implicit none
 
 ! Declare passed variables
@@ -779,20 +779,11 @@ subroutine general_getprs_glb(ps,tv,prs)
               end do
            end do
         end do
-     elseif (twodvar_regional) then
+     elseif (wrf_mass_regional .or. twodvar_regional) then
         do k=1,nsig+1
            do j=1,grd_ens%lon2
               do i=1,grd_ens%lat2
                  prs(i,j,k)=one_tenth*(eta1_ll(k)*(ten*ps(i,j)-pt_ll) + pt_ll)
-              end do
-           end do
-        end do
-     elseif (wrf_mass_regional) then
-        do k=1,nsig+1
-           do j=1,grd_ens%lon2
-              do i=1,grd_ens%lat2
-                 prs(i,j,k)=one_tenth*(eta1_ll(k)*(ten*ps(i,j)-pt_ll) + &
-                                       eta2_ll(k) + pt_ll)
               end do
            end do
         end do

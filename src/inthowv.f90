@@ -8,7 +8,6 @@ module inthowvmod
 !
 ! program history log:
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
-!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub inthowv
@@ -21,10 +20,6 @@ module inthowvmod
 !
 !$$$ end documentation block
 
-use m_obsNode , only: obsNode
-use m_howvNode, only: howvNode
-use m_howvNode, only: howvNode_typecast
-use m_howvNode, only: howvNode_nextcast
 implicit none
 
 PRIVATE
@@ -61,8 +56,9 @@ subroutine inthowv(howvhead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term
-  use obsmod, only: lsaveobsens, l_do_adjoint, luse_obsdiag
+  use obsmod, only: howv_ob_type, lsaveobsens, l_do_adjoint, luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
+  use gridmod, only: latlon11
   use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -70,7 +66,7 @@ subroutine inthowv(howvhead,rval,sval)
   implicit none
 
 ! Declare passed variables
-  class(obsNode)  , pointer,intent(in   ) :: howvhead
+  type(howv_ob_type),pointer,intent(in   ) :: howvhead
   type(gsi_bundle),         intent(in   ) :: sval
   type(gsi_bundle),         intent(inout) :: rval
 
@@ -83,7 +79,7 @@ subroutine inthowv(howvhead,rval,sval)
   real(r_kind) cg_howv,p0,grad,wnotgross,wgross,pg_howv
   real(r_kind),pointer,dimension(:) :: showv
   real(r_kind),pointer,dimension(:) :: rhowv
-  type(howvNode), pointer :: howvptr
+  type(howv_ob_type), pointer :: howvptr
 
 ! Retrieve pointers
 ! Simply return if any pointer not found
@@ -92,8 +88,7 @@ subroutine inthowv(howvhead,rval,sval)
   call gsi_bundlegetpointer(rval,'howv',rhowv,istatus);ier=istatus+ier
   if(ier/=0)return
 
-  !howvptr => howvhead
-  howvptr => howvNode_typecast(howvhead)
+  howvptr => howvhead
   do while (associated(howvptr))
      j1=howvptr%ij(1)
      j2=howvptr%ij(2)
@@ -145,8 +140,7 @@ subroutine inthowv(howvhead,rval,sval)
         rhowv(j4)=rhowv(j4)+w4*grad
      endif
 
-     !howvptr => howvptr%llpoint
-     howvptr => howvNode_nextcast(howvptr)
+     howvptr => howvptr%llpoint
 
   end do
 

@@ -1,5 +1,5 @@
-SUBROUTINE cloudCover_radar(mype,nlat,nlon,nsig,h_bk,grid_ref, &
-                            cld_cover_3d,wthr_type)
+SUBROUTINE cloudCover_radar(mype,nlat,nlon,nsig,h_bk,zh,grid_ref, &
+                            cld_cover_3d,cld_type_3d,wthr_type)
 !
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -20,10 +20,12 @@ SUBROUTINE cloudCover_radar(mype,nlat,nlon,nsig,h_bk,grid_ref, &
 !     nlat        - no. of lats on subdomain (buffer points on ends)
 !     nsig        - no. of levels
 !     h_bk        - 3D background height  
+!     zh          - terrain
 !     grid_ref    - radar reflectivity in analysis grid
 !
 !   output argument list:
 !     cld_cover_3d- 3D cloud cover
+!     cld_type_3d - 3D cloud type
 !     wthr_type   - 3D weather type
 !
 ! USAGE:
@@ -53,6 +55,7 @@ SUBROUTINE cloudCover_radar(mype,nlat,nlon,nsig,h_bk,grid_ref, &
 !
 !  background
 !
+  real(r_single), intent(in) :: zh(nlon,nlat)            ! terrain
   real(r_single), intent(in) :: h_bk(nlon,nlat,nsig+1)   ! height
 !
 ! Observation
@@ -62,6 +65,7 @@ SUBROUTINE cloudCover_radar(mype,nlat,nlon,nsig,h_bk,grid_ref, &
 ! Variables for cloud analysis
 !
   real (r_single),intent(inout) :: cld_cover_3d(nlon,nlat,nsig)
+  integer(i_kind),intent(inout) :: cld_type_3d(nlon,nlat,nsig)
   integer(i_kind),intent(inout) :: wthr_type(nlon,nlat)
 !
   REAL(r_kind) :: ref_base         ! "significant" radar echo at upper levels
@@ -80,7 +84,7 @@ SUBROUTINE cloudCover_radar(mype,nlat,nlon,nsig,h_bk,grid_ref, &
 !
 ! temp.
 !
-  INTEGER(i_kind) :: i,j,k
+  INTEGER(i_kind) :: i,j,k,k1
   REAL(r_kind)    :: zs_1d(nsig)
 
 !

@@ -1,0 +1,46 @@
+SHELL=/bin/sh
+
+#------------------
+#  makefile.make_t
+#------------------
+
+SRCS=   mainread_t.f90 read_t.f90 read_t_mor.f90 histgram.f90 dup.f90 convinfo.f90 
+
+OBJS=   mainread_t.o read_t.o read_t_mor.o histgram.o dup.o convinfo.o 
+
+#----------------------------------------------------
+# Include machine dependent compile & load options
+#----------------------------------------------------
+MAKE_CONF = Makefile.conf
+include $(MAKE_CONF)
+
+CMD=    read_t.x    
+
+all:    $(CMD)
+
+clean:
+	rm -f *.o
+	rm -f *.mod
+	rm -f *.x
+
+$(CMD):         $(OBJS)
+	$(FC)    -o $(@) $(OBJS) $(FFLAGS)
+	cp ${CMD} ../exec/.
+
+mainread_t.o : mainread_t.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+
+read_t.o : read_t.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+
+read_t_mor.o : read_t_mor.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+
+histgram.o : histgram.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+
+dup.o : dup.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+
+convinfo.o : convinfo.f90
+	$(CF) $(FFLAGS) -c $(*).f90

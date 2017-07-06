@@ -15,11 +15,6 @@ subroutine setuppmsl(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! program history log:
 !   2014-04-10  pondeca
 !   2015-03-11  pondeca - Modify for possibility of not using obsdiag
-!                          before retuning to setuprhsall.f90
-!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
-!   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
-!                       . removed (%dlat,%dlon) debris.
-!   2016-10-07  pondeca - if(.not.proceed) advance through input file first
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -39,12 +34,8 @@ subroutine setuppmsl(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind
 
-  use guess_grids, only: hrdifsig,nfldsig
-  use m_obsdiags, only: pmslhead
-  use m_obsNode , only: obsNode
-  use m_pmslNode, only: pmslNode
-  use m_obsLList, only: obsLList_appendNode
-  use obsmod, only: rmiss_single,i_pmsl_ob_type, & 
+  use guess_grids, only: hrdifsig,nfldsig,ntguessig
+  use obsmod, only: pmslhead,pmsltail,rmiss_single,pmsl_ob_type,i_pmsl_ob_type, & 
                     obs_diag,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated, & 
                     time_offset,bmiss,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
@@ -66,7 +57,7 @@ subroutine setuppmsl(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
   real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
-  integer(i_kind)                                  ,intent(in   ) :: is ! ndat index
+  integer(i_kind)                                  ,intent(in   ) :: is	! ndat index
 
 ! Declare external calls for code analysis
   external:: tintrp2a11
@@ -102,7 +93,6 @@ subroutine setuppmsl(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) idomsfc
   
   logical,dimension(nobs):: luse,muse
-  integer(i_kind),dimension(nobs):: ioid  ! initial (pre-distribution) obs ID
   logical proceed
 
   character(8) station_id
@@ -114,9 +104,8 @@ subroutine setuppmsl(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   logical:: in_curbin, in_anybin
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
-  class(obsNode), pointer:: my_node
-  type(pmslNode), pointer:: my_head
-  type(obs_diag), pointer:: my_diag
+  type(pmsl_ob_type),pointer:: my_head
+  type(obs_diag),pointer:: my_diag
 
 
   equivalence(rstation_id,station_id)
@@ -129,10 +118,7 @@ subroutine setuppmsl(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
-  if(.not.proceed) then
-     read(lunin)data,luse   !advance through input file
-     return  ! not all vars available, simply return
-  endif
+  if(.not.proceed) return  ! not all vars available, simply return
 
 ! If require guess vars available, extract from bundle ...
   call init_vars_
@@ -141,7 +127,7 @@ subroutine setuppmsl(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   m_alloc(:)=0
 !*********************************************************************************
 ! Read and reformat observations in work arrays.
-  read(lunin)data,luse,ioid
+  read(lunin)data,luse
 !  index information for data array (see reading routine)
   ier=1       ! index of obs error
   ilon=2      ! index of grid relative obs location (x)
@@ -228,7 +214,6 @@ subroutine setuppmsl(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if(luse_obsdiag)then
         if (.not.lobsdiag_allocated) then
            if (.not.associated(obsdiags(i_pmsl_ob_type,ibin)%head)) then
-              obsdiags(i_pmsl_ob_type,ibin)%n_alloc = 0
               allocate(obsdiags(i_pmsl_ob_type,ibin)%head,stat=istat)
               if (istat/=0) then
                  write(6,*)'setuppmsl: failure to allocate obsdiags',istat
@@ -243,15 +228,13 @@ subroutine setuppmsl(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
               end if
               obsdiags(i_pmsl_ob_type,ibin)%tail => obsdiags(i_pmsl_ob_type,ibin)%tail%next
            end if
-           obsdiags(i_pmsl_ob_type,ibin)%n_alloc = obsdiags(i_pmsl_ob_type,ibin)%n_alloc +1
-
            allocate(obsdiags(i_pmsl_ob_type,ibin)%tail%muse(miter+1))
            allocate(obsdiags(i_pmsl_ob_type,ibin)%tail%nldepart(miter+1))
            allocate(obsdiags(i_pmsl_ob_type,ibin)%tail%tldepart(miter))
            allocate(obsdiags(i_pmsl_ob_type,ibin)%tail%obssen(miter))
-           obsdiags(i_pmsl_ob_type,ibin)%tail%indxglb=ioid(i)
+           obsdiags(i_pmsl_ob_type,ibin)%tail%indxglb=i
            obsdiags(i_pmsl_ob_type,ibin)%tail%nchnperobs=-99999
-           obsdiags(i_pmsl_ob_type,ibin)%tail%luse=luse(i)
+           obsdiags(i_pmsl_ob_type,ibin)%tail%luse=.false.
            obsdiags(i_pmsl_ob_type,ibin)%tail%muse(:)=.false.
            obsdiags(i_pmsl_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
            obsdiags(i_pmsl_ob_type,ibin)%tail%tldepart(:)=zero
@@ -261,21 +244,15 @@ subroutine setuppmsl(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            n_alloc(ibin) = n_alloc(ibin) +1
            my_diag => obsdiags(i_pmsl_ob_type,ibin)%tail
            my_diag%idv = is
-           my_diag%iob = ioid(i)
+           my_diag%iob = i
            my_diag%ich = 1
-           my_diag%elat= data(ilate,i)
-           my_diag%elon= data(ilone,i)
-
         else
            if (.not.associated(obsdiags(i_pmsl_ob_type,ibin)%tail)) then
               obsdiags(i_pmsl_ob_type,ibin)%tail => obsdiags(i_pmsl_ob_type,ibin)%head
            else
               obsdiags(i_pmsl_ob_type,ibin)%tail => obsdiags(i_pmsl_ob_type,ibin)%tail%next
            end if
-           if (.not.associated(obsdiags(i_pmsl_ob_type,ibin)%tail)) then
-              call die(myname,'.not.associated(obsdiags(i_pmsl_ob_type,ibin)%tail)')
-           end if
-           if (obsdiags(i_pmsl_ob_type,ibin)%tail%indxglb/=ioid(i)) then
+           if (obsdiags(i_pmsl_ob_type,ibin)%tail%indxglb/=i) then
               write(6,*)'setuppmsl: index error'
               call stop2(297)
            end if
@@ -374,6 +351,7 @@ subroutine setuppmsl(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 !    Fill obs diagnostics structure
      if(luse_obsdiag)then
+        obsdiags(i_pmsl_ob_type,ibin)%tail%luse=luse(i)
         obsdiags(i_pmsl_ob_type,ibin)%tail%muse(jiter)=muse(i)
         obsdiags(i_pmsl_ob_type,ibin)%tail%nldepart(jiter)=ddiff
         obsdiags(i_pmsl_ob_type,ibin)%tail%wgtjo= (error*ratio_errors)**2
@@ -383,43 +361,45 @@ subroutine setuppmsl(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !    in inner loop minimization (int* and stp* routines)
      if (.not. last .and. muse(i)) then
 
-        allocate(my_head)
-        m_alloc(ibin) = m_alloc(ibin) + 1
-        my_node => my_head
-        call obsLList_appendNode(pmslhead(ibin),my_node)
-        my_node => null()
+        if(.not. associated(pmslhead(ibin)%head))then
+           allocate(pmslhead(ibin)%head,stat=istat)
+           if(istat /= 0)write(6,*)' failure to write pmslhead '
+           pmsltail(ibin)%head => pmslhead(ibin)%head
+        else
+           allocate(pmsltail(ibin)%head%llpoint,stat=istat)
+           if(istat /= 0)write(6,*)' failure to write pmsltail%llpoint '
+           pmsltail(ibin)%head => pmsltail(ibin)%head%llpoint
+        end if
 
-        my_head%idv = is
-        my_head%iob = ioid(i)
-        my_head%elat= data(ilate,i)
-        my_head%elon= data(ilone,i)
+	m_alloc(ibin) = m_alloc(ibin) + 1
+	my_head => pmsltail(ibin)%head
+	my_head%idv = is
+	my_head%iob = i
 
 !       Set (i,j) indices of guess gridpoint that bound obs location
-        call get_ij(mm1,dlat,dlon,my_head%ij(1),my_head%wij(1))
+        call get_ij(mm1,dlat,dlon,pmsltail(ibin)%head%ij(1),pmsltail(ibin)%head%wij(1))
 
-        my_head%res     = ddiff
-        my_head%err2    = error**2
-        my_head%raterr2 = ratio_errors**2    
-        my_head%time    = dtime
-        my_head%b       = cvar_b(ikx)
-        my_head%pg      = cvar_pg(ikx)
-        my_head%luse    = luse(i)
-
+        pmsltail(ibin)%head%res     = ddiff
+        pmsltail(ibin)%head%err2    = error**2
+        pmsltail(ibin)%head%raterr2 = ratio_errors**2    
+        pmsltail(ibin)%head%time    = dtime
+        pmsltail(ibin)%head%b       = cvar_b(ikx)
+        pmsltail(ibin)%head%pg      = cvar_pg(ikx)
+        pmsltail(ibin)%head%luse    = luse(i)
         if(luse_obsdiag)then
-           my_head%diags => obsdiags(i_pmsl_ob_type,ibin)%tail
+           pmsltail(ibin)%head%diags => obsdiags(i_pmsl_ob_type,ibin)%tail
  
-           my_diag => my_head%diags
+           my_head => pmsltail(ibin)%head
+           my_diag => pmsltail(ibin)%head%diags
            if(my_head%idv /= my_diag%idv .or. &
               my_head%iob /= my_diag%iob ) then
               call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
-                        (/is,ioid(i),ibin/))
+                    (/is,i,ibin/))
               call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
               call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
               call die(myname)
            endif
         end if
-
-        my_head => null()
      endif
 
 
@@ -537,8 +517,6 @@ subroutine setuppmsl(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   call gsi_metguess_get ('var::ps', ivar, istatus )
   proceed=ivar>0
   call gsi_metguess_get ('var::z' , ivar, istatus )
-  proceed=proceed.and.ivar>0
-  call gsi_metguess_get ('var::pmsl' , ivar, istatus )
   proceed=proceed.and.ivar>0
   end subroutine check_vars_ 
 

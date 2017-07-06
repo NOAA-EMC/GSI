@@ -9,7 +9,7 @@ module intpm10mod
 !
 ! program history log:
 !   2016-02-20  pagowski - based on intpm2_5 but for pm10 
-!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
+
 !
 ! subroutines included:
 !   sub intpm10_
@@ -22,10 +22,6 @@ module intpm10mod
 !
 !$$$ end documentation block
 
-  use m_obsNode , only: obsNode
-  use m_pm10Node, only: pm10Node
-  use m_pm10Node, only: pm10Node_typecast
-  use m_pm10Node, only: pm10Node_nextcast
   implicit none
   
   private
@@ -64,7 +60,7 @@ contains
 !$$$
     use kinds, only: r_kind,i_kind
     use constants, only: half,one,tiny_r_kind,cg_term,max_varname_length
-    use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
+    use obsmod, only: pm10_ob_type,lsaveobsens,l_do_adjoint,luse_obsdiag
     use qcmod, only: nlnqc_iter,varqc_iter
     use jfunc, only: jiter
     use gsi_bundlemod, only: gsi_bundle
@@ -77,7 +73,7 @@ contains
     implicit none
     
 ! declare passed variables
-    class(obsNode), pointer,intent(in   ) :: pm10head
+    type(pm10_ob_type),pointer,intent(in   ) :: pm10head
     type(gsi_bundle)       ,intent(in   ) :: sval
     type(gsi_bundle)       ,intent(inout) :: rval
     
@@ -88,7 +84,7 @@ contains
     real(r_kind) cg_pm10,val,p0,grad,wnotgross,wgross,pm10_pg
     real(r_kind),pointer,dimension(:) :: spm10
     real(r_kind),pointer,dimension(:) :: rpm10
-    type(pm10Node), pointer :: pm10ptr
+    type(pm10_ob_type), pointer :: pm10ptr
 
     character(len=max_varname_length) :: aeroname
     
@@ -107,8 +103,7 @@ contains
 
     if (wrf_mass_regional) then
 
-       !pm10ptr => pm10head
-       pm10ptr => pm10Node_typecast(pm10head)
+       pm10ptr => pm10head
        do while (associated(pm10ptr))
           j1=pm10ptr%ij(1)
           j2=pm10ptr%ij(2)
@@ -609,8 +604,7 @@ contains
 
           endif
 
-          !pm10ptr => pm10ptr%llpoint
-          pm10ptr => pm10Node_nextcast(pm10ptr)
+          pm10ptr => pm10ptr%llpoint
 
        end do
 

@@ -9,7 +9,6 @@ module stppblhmod
 !
 ! program history log:
 !   2009-02-24  zhu
-!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stppblh
@@ -55,18 +54,16 @@ subroutine stppblh(pblhhead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
+  use obsmod, only: pblh_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad
+  use gridmod, only: latlon11
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use m_obsNode, only: obsNode
-  use m_pblhNode, only: pblhNode
-  use m_pblhNode, only: pblhNode_typecast
-  use m_pblhNode, only: pblhNode_nextcast
   implicit none
 
 ! Declare passed variables
-  class(obsNode), pointer             ,intent(in   ) :: pblhhead
+  type(pblh_ob_type),pointer           ,intent(in   ) :: pblhhead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
@@ -81,7 +78,7 @@ subroutine stppblh(pblhhead,rval,sval,out,sges,nstep)
   real(r_kind) pg_pblh
   real(r_kind),pointer,dimension(:) :: spblh
   real(r_kind),pointer,dimension(:) :: rpblh
-  type(pblhNode), pointer :: pblhptr
+  type(pblh_ob_type), pointer :: pblhptr
 
   out=zero_quad
 
@@ -92,7 +89,7 @@ subroutine stppblh(pblhhead,rval,sval,out,sges,nstep)
   call gsi_bundlegetpointer(rval,'pblh',rpblh,istatus);ier=istatus+ier
   if(ier/=0)return
 
-  pblhptr => pblhNode_typecast(pblhhead)
+  pblhptr => pblhhead
   do while (associated(pblhptr))
      if(pblhptr%luse)then
         if(nstep > 0)then
@@ -134,7 +131,7 @@ subroutine stppblh(pblhhead,rval,sval,out,sges,nstep)
         end do
      end if
 
-     pblhptr => pblhNode_nextcast(pblhptr)
+     pblhptr => pblhptr%llpoint
 
   end do
   

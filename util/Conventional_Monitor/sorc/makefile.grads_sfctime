@@ -1,0 +1,44 @@
+SHELL=/bin/sh
+
+#--------------------------
+#  makefile.grads_sfctime
+#--------------------------
+
+SRCS=   maingrads_sfctime.f90 read_conv2grads.f90 grads_sfctime.f90 dup.f90 convinfo.f90 
+
+OBJS=   maingrads_sfctime.o read_conv2grads.o grads_sfctime.o dup.o convinfo.o 
+
+#-----------------------------------------------------
+# Include machine dependent compile & load options
+#-----------------------------------------------------
+MAKE_CONF = Makefile.conf
+include $(MAKE_CONF)
+
+#FC=             xlf95
+#FFLAGS =        -qintsize=4 -qrealsize=4 -qinitauto -qsuffix=f=f90 -g  
+
+CMD=    grads_sfctime.x 
+
+all:    $(CMD)
+
+clean:
+	rm -f *.o
+	rm -f *.mod
+	rm -f *.x
+
+
+$(CMD):         $(OBJS)
+	$(FC)    -o $(@) $(OBJS) $(FFLAGS) -C
+	cp ${CMD} ../exec/.
+
+maingrads_sfctime.o : maingrads_sfctime.f90
+	$(CF) $(FFLAGS) -c -C $(*).f90
+read_conv2grads.o : read_conv2grads.f90
+	$(CF) $(FFLAGS) -c -C $(*).f90
+grads_sfctime.o : grads_sfctime.f90
+	$(CF) $(FFLAGS) -c -C $(*).f90
+dup.o : dup.f90
+	$(CF) $(FFLAGS) -c -C $(*).f90
+convinfo.o : convinfo.f90
+	$(CF) $(FFLAGS) -c -C $(*).f90
+

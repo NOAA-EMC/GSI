@@ -5,7 +5,7 @@ program getsfcnstensupdp
 !
 ! prgmmr: Xu Li         org: EMC               date: 2014-05-01
 !
-! abstract:  update sfc & nst file for ensemble
+! abstract:  update sfc & nst file for ensemble 
 !
 ! program history log:
 !   2014-05-01  Initial version.
@@ -33,7 +33,7 @@ program getsfcnstensupdp
                            nemsio_writerec,nemsio_readrecv,nemsio_writerecv
 
   implicit none
-
+ 
   logical:: nemsio, sfcio
 
   real   (r_kind), parameter :: houra=zero
@@ -156,7 +156,7 @@ program getsfcnstensupdp
 
   nlon_ens = lonb
   nlat_ens = latb + 2
-
+  
   allocate(dtf_gsi(nlat_ens,nlon_ens),isli_gsi(nlat_ens,nlon_ens),work(nlat_ens,nlon_ens))
   allocate(rwork1d(lonb*latb))
   allocate(slmsk_ges(lonb,latb),slmsk_ens(lonb,latb))
@@ -345,7 +345,7 @@ program getsfcnstensupdp
         data_nst%ifd(:,:)     = zero
         data_nst%tref(:,:)    = tfrozen
         data_nst%qrain(:,:)   = zero
-
+  
       end where
 !
 !     update analysis variable: Tref (foundation temperature) for nstanl file
@@ -380,7 +380,7 @@ program getsfcnstensupdp
         where ( slmsk_ens(:,:) == zero )
            data_sfcanl%tsea(:,:) = max(data_nst%tref(:,:) + dtzm(:,:),tfrozen)
         end where
-
+ 
 !       Write updated information to surface analysis file
         call sfcio_swohdc(lun_sfcanl,trim(fname_sfcanl),head_sfcanl,data_sfcanl,iret)
 
@@ -425,7 +425,7 @@ program getsfcnstensupdp
 
 !      copy nstges header info to nstanl header
        gfile_nstanl=gfile_nstges
-!      open nemsio nstanl (with analysis time)
+!      open nemsio nstanl (with analysis time) 
        call nemsio_open(gfile_nstanl,trim(fname_nstanl),'write',iret=iret,idate=idate, nfhour=nfhour,&
                         nfminute=nfminute, nfsecondn=nfsecondn, nfsecondd=nfsecondd )
        if (iret /= 0) call error_msg(0,trim(my_name),trim(fname_nstanl),null,'open',istop,iret)

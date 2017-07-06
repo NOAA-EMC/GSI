@@ -9,7 +9,6 @@ module stptcamtmod
 !
 ! program history log:
 !   2012-01-23  zhu
-!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub stptcamt
@@ -20,10 +19,6 @@ module stptcamtmod
 !
 !$$$ end documentation block
 
-use m_obsNode  , only: obsNode
-use m_tcamtNode, only: tcamtNode
-use m_tcamtNode, only: tcamtNode_typecast
-use m_tcamtNode, only: tcamtNode_nextcast
 implicit none
 
 PRIVATE
@@ -59,14 +54,16 @@ subroutine stptcamt(tcamthead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
+  use obsmod, only: tcamt_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad
+  use gridmod, only: latlon11
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  class(obsNode),pointer              ,intent(in   ) :: tcamthead
+  type(tcamt_ob_type),pointer           ,intent(in   ) :: tcamthead
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
@@ -81,7 +78,7 @@ subroutine stptcamt(tcamthead,rval,sval,out,sges,nstep)
   real(r_kind) pg_tcamt
   real(r_kind),pointer,dimension(:) :: stcamt
   real(r_kind),pointer,dimension(:) :: rtcamt
-  type(tcamtNode), pointer :: tcamtptr
+  type(tcamt_ob_type), pointer :: tcamtptr
 
   out=zero_quad
 
@@ -95,8 +92,7 @@ subroutine stptcamt(tcamthead,rval,sval,out,sges,nstep)
   call gsi_bundlegetpointer(rval,'tcamt',rtcamt,istatus);ier=istatus+ier
   if(ier/=0)return
 
-  !tcamtptr => tcamthead
-  tcamtptr => tcamtNode_typecast(tcamthead)
+  tcamtptr => tcamthead
   do while (associated(tcamtptr))
      if(tcamtptr%luse)then
         if(nstep > 0)then
@@ -138,8 +134,7 @@ subroutine stptcamt(tcamthead,rval,sval,out,sges,nstep)
         end do
      end if
 
-     !tcamtptr => tcamtptr%llpoint
-     tcamtptr => tcamtNode_nextcast(tcamtptr)
+     tcamtptr => tcamtptr%llpoint
 
   end do
   

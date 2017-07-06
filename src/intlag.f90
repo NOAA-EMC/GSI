@@ -11,7 +11,6 @@ module intlagmod
 !   2008-03-23  lmeunier - initial code
 !   2009-08-13  lueken - update documentation
 !   2011-08-01  lueken - changed F90 to f90
-!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !
 ! subroutines included:
 !   sub intlag
@@ -23,10 +22,6 @@ module intlagmod
 !   machine:
 !
 !$$$ end documentation block
-use m_obsNode, only: obsNode
-use m_lagNode, only: lagNode
-use m_lagNode, only: lagNode_typecast
-use m_lagNode, only: lagNode_nextcast
 implicit none
 
 PRIVATE
@@ -64,9 +59,9 @@ subroutine intlag(laghead,rval,sval,obsbin)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,zero,tiny_r_kind,cg_term,rad2deg
-  use obsmod, only: lsaveobsens, l_do_adjoint
+  use obsmod, only: lag_ob_type, lsaveobsens, l_do_adjoint
   use qcmod, only: nlnqc_iter
-  use gridmod, only: iglobal
+  use gridmod, only: latlon1n,iglobal
   use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -82,7 +77,7 @@ subroutine intlag(laghead,rval,sval,obsbin)
   implicit none
 
 ! Declare passed variables
-  class(obsNode),pointer,intent(in   ) :: laghead
+  type(lag_ob_type),pointer,intent(in   ) :: laghead
   type(gsi_bundle),         intent(in   ) :: sval
   type(gsi_bundle),         intent(inout) :: rval
   integer(i_kind),          intent(in   ) :: obsbin
@@ -96,7 +91,7 @@ subroutine intlag(laghead,rval,sval,obsbin)
   real(r_kind) grad_lon,grad_lat,grad_p
   real(r_kind),pointer,dimension(:) :: su,sv
   real(r_kind),pointer,dimension(:) :: ru,rv
-  type(lagNode), pointer :: lagptr
+  type(lag_ob_type), pointer :: lagptr
   integer(i_kind) i,j,ier,istatus
 
   real(r_kind),dimension(:,:),allocatable:: adu_tmp,adv_tmp
@@ -129,8 +124,7 @@ subroutine intlag(laghead,rval,sval,obsbin)
      adu_tmp=zero; adv_tmp=zero
   end if
 
-  !lagptr => laghead
-  lagptr => lagNode_typecast(laghead)
+  lagptr => laghead
   do while (associated(lagptr))
 
     ! Forward model
@@ -212,8 +206,7 @@ subroutine intlag(laghead,rval,sval,obsbin)
 
      endif
 
-     !lagptr => lagptr%llpoint
-     lagptr => lagNode_nextcast(lagptr)
+     lagptr => lagptr%llpoint
 
   end do
 

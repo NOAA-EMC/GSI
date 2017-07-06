@@ -1,0 +1,28 @@
+set vpage 0.0 11.0 0.0 8.5
+set grads off
+set gxout shaded 
+enable print fig.meta
+open satwind.ctl
+
+set lon 180 360
+set lat -65 65
+
+*set lon 260 280 
+*set lat 0 10 
+
+set mproj off
+*set ccolor rainbow
+set ccolor 1 2 7
+set clevs -1 1
+set cthick 5
+set digsize 0.10
+
+d maskout(suf,po-851)
+
+run cbar.gs 
+
+print
+
+
+
+

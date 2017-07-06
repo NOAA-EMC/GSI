@@ -5,28 +5,24 @@
 #PBS -e comperr
 #PBS -N covcalc
 #PBS -q batch
-#PBS -l walltime=01:00:00
-#PBS -A da-cpu
-#PBS -l nodes=1:ppn=16
+#PBS -l walltime=04:00:00
+#PBS -A cloud
+#PBS -l procs=1
+#PBS -V
 
 #WCOSS Job options
 #BSUB -e comperr
 #BSUB -o compout
-#BSUB -J covcalc
-#BSUB -q dev2
-#BSUB -openmp
-#BSUB -n 16
+#BSUB -J cov_calc
+#BSUB -q dev
+#BSUB -n 1
 #BSUB -W 01:00
-#BSUB -R span[ptile=16]
+#BSUB -R affinity[core]
+#BSUB -R span[ptile=1]
+#BSUB -x
 #BSUB -P GFS-T2O
-if [ ! -z "$PBS_NP" ] ; then
-   export OMP_NUM_THREADS=$PBS_NP
-elif [ ! -z "$LSB_DJOB_NUMPROC" ] ; then
-   export OMP_NUM_THREADS=$LSB_DJOB_NUMPROC
-else
-   export OMP_NUM_THREADS=16
-fi
-corrdir=/scratch4/NCEPDEV/da/save/${USER}/GSI/trunk/util/Correlated_Obs
-cd ${corrdir}
+
+rundir=/scratch4/NCEPDEV/da/save/${USER}/GSI/Desroziers/util/Correlated_Obs/
+cd ${rundir}
 ./run.sh 
 

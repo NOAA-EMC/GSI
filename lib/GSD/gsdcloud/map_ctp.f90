@@ -102,13 +102,15 @@ subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac,npts
       integer(i_kind) ::   nfov
       parameter (nfov=60)
 
+      character header*80
 ! Working
       real(r_kind)    ::  Pxx(Nx,Ny,nfov),Txx(Nx,Ny,nfov)  
       real(r_kind)    ::  xdist(Nx,Ny,nfov), xxxdist(nfov)
-      real(r_kind)    ::  fr,sqrt
+      real(r_kind)    ::  fr,sqrt, qc, type
       integer(i_kind) ::  Nxx(Nx,Ny,nfov),index(Nx,Ny), jndex(nfov)
       integer(i_kind) ::  ioption 
-      integer(i_kind) ::  ipt,ii,jj,i,med_pt,ii1,jj1
+      integer(i_kind) ::  ipt,ixx,ii,jj,i,med_pt,igrid,jgrid  &
+                          ,ncount,ncount1,ncount2,ii1,jj1,nobs,n
 
       real(r_kind)    :: xc
       real(r_kind)    :: yc
