@@ -46,11 +46,10 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
 
   use kinds, only: r_single,r_kind,r_double,i_kind
   use constants, only: zero,one_tenth,one,deg2rad,half,&
-      three,four,&
-      r60inv,r10,r100,r2000
+      three,four, r60inv,r10,r100,r2000
 
   use convinfo, only: nconvtype, &
-      icuse,ictype,ioctype, &
+      icuse,ictype,ioctype,&
       ithin_conv,rmesh_conv,pmesh_conv,ctwind
   use convthin, only: make3grids,map3grids,del3grids,use_all
   use gridmod, only: regional,nlon,nlat,nsig,tll2xy,txy2ll,&

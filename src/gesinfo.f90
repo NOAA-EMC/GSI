@@ -67,7 +67,7 @@ subroutine gesinfo(mype)
 !
 !$$$
   use kinds, only: i_kind,r_kind,r_single
-  use obsmod, only: iadate,ianldate,time_offset
+  use obsmod, only: iadate,ianldate,time_offset,iadatemn
   use gsi_4dvar, only: ibdate, iedate, iadatebgn, iadateend, iwinbgn,time_4dvar
   use gsi_4dvar, only: nhr_assimilation,min_offset
   use mpimod, only: npe
@@ -146,7 +146,13 @@ subroutine gesinfo(mype)
      idate4(3)=regional_time(3)  !  day
      idate4(4)=regional_time(1)  !  year
      hourg=regional_fhr          !  fcst hour
-
+! Handle RURTMA date:  get iadatemn 
+     iadatemn(1)=regional_time(1)  !  year
+     iadatemn(2)=regional_time(2)  !  month
+     iadatemn(3)=regional_time(3)  !  day
+     iadatemn(4)=regional_time(4)  !  hour
+     iadatemn(5)=regional_time(5)  !  minute
+     if(print_verbose)write (6,*) 'in gesinfo: iadatemn with minutes', iadatemn
 ! Handle NCEP global cases
   else
 
@@ -500,8 +506,13 @@ subroutine gesinfo(mype)
      
 
   if(mype==mype_out) then
-     write(6,'(1x,a27,4i4,E17.5)')'GESINFO:  Guess    date is ',idate4,hourg
-     write(6,'(1x,a27,5i4,i12,E17.5)')'GESINFO:  Analysis date is ',iadate,ianldate,time_offset
+     if (twodvar_regional) then
+        write(6,*)'GESINFO: 2dvar-Guess-date is',regional_time
+        write(6,*)'GESINFO: Analysis date with minute: ',iadatemn
+     else
+        write(6,*)'GESINFO:  Guess    date is ',idate4,hourg
+        write(6,*)'GESINFO:  Analysis date is ',iadate,ianldate,time_offset
+     endif
   endif
 
   if (allocated(nems_vcoord))     deallocate(nems_vcoord)

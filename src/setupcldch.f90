@@ -14,9 +14,12 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !
 ! program history log:
 !   2015-07-10  pondeca
+!   2016-05-06  yang - add closest_obs to select only one obs. among the multi-reports.
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
 !                       . removed (%dlat,%dlon) debris.
+!   2016-10-07  pondeca - if(.not.proceed) advance through input file first
+!                          before retuning to setuprhsall.f90
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -52,7 +55,7 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use constants, only: zero,tiny_r_kind,one,half,one_tenth,wgtlim, &
             two,cg_term,huge_single
   use jfunc, only: jiter,last,miter
-  use qcmod, only: dfact,dfact1,npres_print
+  use qcmod, only: dfact,dfact1,npres_print,closest_obs
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
@@ -80,6 +83,7 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_double) rstation_id
 
   real(r_kind) cldchges,dlat,dlon,ddiff,dtime,error
+  real(r_kind) cldch_errmax,offtime_k,offtime_l
   real(r_kind) scale,val2,ratio,ressw2,ress,residual
   real(r_kind) obserrlm,obserror,val,valqc
   real(r_kind) term,rwgt
@@ -127,13 +131,17 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
-  if(.not.proceed) return  ! not all vars available, simply return
+  if(.not.proceed) then
+     read(lunin)data,luse   !advance through input file
+     return  ! not all vars available, simply return
+  endif
 
 ! If require guess vars available, extract from bundle ...
   call init_vars_
 
   n_alloc(:)=0
   m_alloc(:)=0
+  cldch_errmax=10000.0_r_kind
 !*********************************************************************************
 ! Read and reformat observations in work arrays.
   read(lunin)data,luse,ioid
@@ -172,22 +180,52 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   set any observations larger than 20000.0 to be 20000.0
     if (data(icldch,i) > 20000.0_r_kind) data(icldch,i)=20000.0_r_kind !REVISE VALUE / MPondeca , 17Jul2015
   end do
-
+  offtime_k=0.0_r_kind
+  offtime_l=0.0_r_kind
   dup=one
-  do k=1,nobs
-     do l=k+1,nobs
-        if(data(ilat,k) == data(ilat,l) .and.  &
-           data(ilon,k) == data(ilon,l) .and.  &
-           data(ier,k) < 10000.0_r_kind .and. data(ier,l) < 10000.0_r_kind .and. &
-           muse(k) .and. muse(l))then
-
-           tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
-           dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
-           dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
-        end if
+!  if closest_obs=.true., choose the timely closest observation among the multi-reports at a station.
+  if (closest_obs) then
+     dup=one
+     do k=1,nobs
+        if( dup(k) < tiny_r_kind .or. .not. muse(k) ) then
+           dup(k)=-99.0_r_kind
+        else
+           do l=k+1,nobs
+              if(data(ilat,k) == data(ilat,l) .and.  &
+                 data(ilon,k) == data(ilon,l) .and.  &
+                 data(ier,k) < cldch_errmax .and. data(ier,l) <cldch_errmax .and. &
+                    muse(k) .and. muse(l))then
+                 offtime_k=data(itime,k) -time_offset
+                 offtime_l=data(itime,l) -time_offset
+                 if(abs(offtime_k) < abs(offtime_l)) then
+                    dup(l)=-99.0_r_kind
+                 endif
+                 if(abs(offtime_k) > abs(offtime_l)) then
+                    dup(k)=-99.0_r_kind
+                 endif
+                 if(abs(offtime_k)==abs(offtime_l)) then
+                    if (offtime_k >= 0.0_r_kind) dup(l)=-99.0_r_kind
+                    if (offtime_l >= 0.0_r_kind) dup(k)=-99.0_r_kind
+                 endif
+              endif
+           enddo
+        endif
+     enddo
+  else
+     dup=one
+     do k=1,nobs
+        do l=k+1,nobs
+           if(data(ilat,k) == data(ilat,l) .and.  &
+              data(ilon,k) == data(ilon,l) .and.  &
+              data(ier,k) < cldch_errmax .and. data(ier,l) < cldch_errmax &
+              .and.  muse(k) .and. muse(l)) then
+              tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
+              dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
+              dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
+           end if
+        end do
      end do
-  end do
-
+  endif
 
 ! If requested, save select data for output to diagnostic file
   if(conv_diagsave)then
@@ -312,8 +350,13 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            error = zero
            ratio_errors=zero
         else
-           ratio_errors=ratio_errors/sqrt(dup(i))
-        end if
+! dup(i) < 0 means closest_obs =.true.
+           if(dup(i)> tiny_r_kind) then
+              ratio_errors=ratio_errors/sqrt(dup(i))
+           else
+              ratio_errors=zero
+           endif
+        endif
      else    ! missing data
         error = zero
         ratio_errors=zero
@@ -531,6 +574,8 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   call gsi_metguess_get ('var::ps', ivar, istatus )
   proceed=ivar>0
   call gsi_metguess_get ('var::z' , ivar, istatus )
+  proceed=proceed.and.ivar>0
+  call gsi_metguess_get ('var::cldch' , ivar, istatus )
   proceed=proceed.and.ivar>0
   end subroutine check_vars_ 
 
