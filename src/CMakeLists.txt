@@ -35,6 +35,7 @@ cmake_minimum_required(VERSION 2.8)
    "${CMAKE_CURRENT_SOURCE_DIR}/hybrid_ensemble_isotropic.F90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/write_all.F90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/glbsoi.f90" 
+   "${CMAKE_CURRENT_SOURCE_DIR}/obsmod.F90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/setupaod.f90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/setuprad.f90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/general_read_nmmb.f90" 
