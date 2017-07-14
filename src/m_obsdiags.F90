@@ -76,6 +76,9 @@ module m_obsdiags
   use m_pblhNode , only:  pblhNode ! 24
 
   use m_wspd10mNode , only:  wspd10mNode ! 25
+  use m_uwnd10mNode , only:  uwnd10mNode
+  use m_vwnd10mNode , only:  vwnd10mNode
+
   use m_td2mNode , only:  td2mNode ! 26
   use m_mxtmNode , only:  mxtmNode ! 27
   use m_mitmNode , only:  mitmNode ! 28
@@ -191,6 +194,9 @@ module m_obsdiags
   public :: pblhhead
 
   public :: wspd10mhead
+  public :: uwnd10mhead
+  public :: vwnd10mhead
+
   public :: td2mhead
   public :: mxtmhead
   public :: mitmhead
@@ -228,6 +234,9 @@ module m_obsdiags
   type(obsLList),dimension(:),pointer ::  pblhhead => null()
 
   type(obsLList),dimension(:),pointer :: wspd10mhead => null()
+  type(obsLList),dimension(:),pointer :: uwnd10mhead => null()
+  type(obsLList),dimension(:),pointer :: vwnd10mhead => null()
+
   type(obsLList),dimension(:),pointer :: td2mhead => null()
   type(obsLList),dimension(:),pointer :: mxtmhead => null()
   type(obsLList),dimension(:),pointer :: mitmhead => null()
@@ -600,6 +609,14 @@ _TRACEV_(myname_,'lobsdiags_allocated_ =',lobsdiags_allocated_)
       endif
 
       mNode_ => obsNode_typeMold(jj)        ! get the ob_type of jj
+        if(.not.associated(mNode_)) then
+          call perr(myname_,'obsNode_typeMold(jtype) not associated, jtype =',jj)
+          call perr(myname_,'                          ubound(obsLLists,1) =',size(obsLLists,1))
+          call perr(myname_,'                                         ibin =',ii)
+          call perr(myname_,'                          ubound(obsLLists,2) =',size(obsLLists,2))
+          call  die(myname_)
+        endif
+
       call obsLList_reset(obsLLists(jj,ii),mold=mNode_, stat=ier)
         if(ier/=0) then
           call perr(myname_,'call obsLList_reset(), stat =',ier)
@@ -693,6 +710,9 @@ _ENTRY_(myname_)
     pblhhead => ptr_obsbins_(obsllists,'pblh')
 
  wspd10mhead => ptr_obsbins_(obsllists,'wspd10m')
+ uwnd10mhead => ptr_obsbins_(obsllists,'uwnd10m')
+ vwnd10mhead => ptr_obsbins_(obsllists,'vwnd10m')
+
     td2mhead => ptr_obsbins_(obsllists,'td2m')
     mxtmhead => ptr_obsbins_(obsllists,'mxtm')
     mitmhead => ptr_obsbins_(obsllists,'mitm')
@@ -740,6 +760,9 @@ _ENTRY_(myname_)
     pblhhead => null()
 
  wspd10mhead => null()
+ uwnd10mhead => null()
+ vwnd10mhead => null()
+
     td2mhead => null()
     mxtmhead => null()
     mitmhead => null()

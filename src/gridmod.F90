@@ -1069,6 +1069,9 @@ contains
        rewind lendian_in
        read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig, &
                    dlmd,dphd,pt,pdtop
+       if(mype==0) write(6,*)'GRIDMOD: inunit: FLNAME: regional_time',lendian_in,filename,  &
+              (regional_time (i),i=1,6)       
+       
        regional_fhr=zero  !  with wrf nmm fcst hr is not currently available.
 
        if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') &
