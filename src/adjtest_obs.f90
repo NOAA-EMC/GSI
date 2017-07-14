@@ -196,5 +196,4 @@ subroutine adtest_obs
   return
 end subroutine adtest_obs
 
-! ----------------------------------------------------------------------
 end module adjtest_obs
