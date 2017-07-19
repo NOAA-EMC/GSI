@@ -412,8 +412,8 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
         clath_sun_glint_calc = pixelloc(1)
         clonh_sun_glint_calc = pixelloc(2)
         if(clonh_sun_glint_calc > 180._r_kind) clonh_sun_glint_calc = clonh_sun_glint_calc - 360.0_r_kind
-        doy = mday( int(bfr1bhdr(2)) ) + int(bfr1bhdr(3))
-        if ((mod( int(bfr1bhdr(1)),4)==0).and.( int(bfr1bhdr(2)) > 2))  then
+        doy = mday(iobsdate(2)) + iobsdate(3)
+        if ( (mod(iobsdate(1),4)==0) .and. (iobsdate(2)>2) ) then
            doy = doy + 1
         end if
         time_4_sun_glint_calc = bfr1bhdr(4)+bfr1bhdr(5)*r60inv+bfr1bhdr(6)*r60inv*r60inv

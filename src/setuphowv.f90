@@ -435,7 +435,7 @@ subroutine setuphowv(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(3,ii)  = data(ilate,i)      ! observation latitude (degrees)
         rdiagbuf(4,ii)  = data(ilone,i)      ! observation longitude (degrees)
         rdiagbuf(5,ii)  = data(istnelv,i)    ! station elevation (meters)
-        rdiagbuf(6,ii)  = r10*exp(data(ipres,i)) ! observation pressure (hPa)
+        rdiagbuf(6,ii)  = r10*data(ipres,i)  ! observation pressure (hPa)
         rdiagbuf(7,ii)  = data(iobshgt,i)    ! observation height (meters)
         rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
 

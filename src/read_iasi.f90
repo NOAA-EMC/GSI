@@ -244,7 +244,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   bad_line=-1
 
   if (nst_gsi > 0 ) then
-    call gsi_nstcoupler_skindepth(trim(obstype), zob)         ! get penetration depth (zob) for the obstype
+    call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
 
   if(jsatid == 'metop-a')kidsat=4

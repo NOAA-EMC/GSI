@@ -221,7 +221,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   end if
 
   if (nst_gsi > 0 ) then
-    call gsi_nstcoupler_skindepth(trim(obstype),zob)
+    call gsi_nstcoupler_skindepth(obstype,zob)
   endif
 
 !  write(6,*)'READ_CRIS: mype, mype_root,mype_sub, npe_sub,mpi_comm_sub', &
