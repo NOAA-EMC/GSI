@@ -605,9 +605,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
               cycle read_loop
            endif
 
-           call checkob(one,crit1,itx,iuse)
-           if(.not. iuse)cycle read_loop
-
 !          "Score" observation.  We use this information to identify "best" obs
 !          Locate the observation on the analysis grid.  Get sst and land/sea/ice
 !          mask.  
@@ -637,8 +634,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          Set common predictor parameters
 
            crit1 = crit1 + rlndsea(isflg)
-           call checkob(one,crit1,itx,iuse)
-           if(.not. iuse)cycle read_loop
 
 !          CrIS data read radiance values and channel numbers
 !          Read CRIS channel number(CHNM) and radiance (SRAD)
