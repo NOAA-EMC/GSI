@@ -331,6 +331,7 @@ clean:
         gsd_update_mod.f90 \
 	gsi_4dvar.f90 \
 	gsi_4dcouplermod.f90 \
+	gsi_bias.f90 \
 	gsi_bundlemod.F90 \
 	gsi_chemguess_mod.F90 \
 	gsi_enscouplermod.f90 \
