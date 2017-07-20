@@ -329,6 +329,8 @@ end subroutine berror_read_bal_reg
 !       01Oct15 Zhu - use centralized cloud_names_fwd and n_clouds_fwd to add 
 !                     flexibility for clouds (either cw or individual hydrometeros) 
 !                     variances/correlations for all-sky radiance assimilation
+!       05May16 pondeca - add uwnd10m, vuwn10m
+!       29Aug16 stelios -  Update the constants for howv #ww3
 !
 !EOP ___________________________________________________________________
 
@@ -356,6 +358,7 @@ end subroutine berror_read_bal_reg
   integer(i_kind) :: nrf3_oz,nrf3_q,nrf3_cw,nrf3_sf,nrf3_vp,nrf2_sst
   integer(i_kind) :: nrf3_t,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_ps,nrf2_wspd10m
   integer(i_kind) :: nrf2_td2m,nrf2_mxtm,nrf2_mitm,nrf2_pmsl,nrf2_howv,nrf2_tcamt,nrf2_lcbas,nrf2_cldch
+  integer(i_kind) :: nrf2_uwnd10m,nrf2_vwnd10m
   integer(i_kind) :: nrf3_sfwter,nrf3_vpwter
   integer(i_kind) :: inerr,istat
   integer(i_kind) :: nsigstat,nlatstat,isig
@@ -366,6 +369,9 @@ end subroutine berror_read_bal_reg
 
   real(r_kind), parameter :: corz_default=one,hwll_default=100000_r_kind,&
                              vz_default=one
+  real(r_kind) ,dimension(mlat,1,2) :: cov_dum
+!  character(256) :: filename 
+!  filename = 'howv_var_berr.bin'
 
   allocate ( clat_avn(mlat) )
   allocate ( sigma_avn(1:msig) )
@@ -557,6 +563,8 @@ end subroutine berror_read_bal_reg
   nrf2_tcamt=getindex(cvars2d,'tcamt')
   nrf2_lcbas=getindex(cvars2d,'lcbas')
   nrf2_cldch=getindex(cvars2d,'cldch')
+  nrf2_uwnd10m=getindex(cvars2d,'uwnd10m')
+  nrf2_vwnd10m=getindex(cvars2d,'vwnd10m')
 
   if(nrf3_q>0 .and. qoption==2)then
      do k=1,nsig
@@ -717,12 +725,23 @@ end subroutine berror_read_bal_reg
         end do
      end if
      if (n==nrf2_howv) then
-        do i=1,mlat
-           corp(i,n)=0.3_r_kind
-        end do
-        do i=0,mlat+1
-           hwllp(i,n)=hwll(i,1,nrf3_sf) !tentatively
-        end do
+         call read_howv_stats(mlat,1,2,cov_dum)
+         do i=1,mlat
+            corp(i,n)=cov_dum(i,1,1)     !#ww3
+            hwllp(i,n) = cov_dum(i,1,2) 
+         end do
+         hwllp(0,n) = hwllp(1,n)
+         hwllp(mlat+1,n) = hwllp(mlat,n)
+
+         if (mype==0) print*, 'corp(i,n) = ', corp(:,n)
+         if (mype==0) print*, ' hwllp(i,n) = ',  hwllp(:,n)
+!         corp(:,n)=cov_dum(:,1)
+        !do i=1,mlat
+        !   corp(i,n)=0.4_r_kind     !#ww3
+        !end do
+!        do i=0,mlat+1
+!           hwllp(i,n)=hwll(i,1,nrf3_sf) !tentatively !#ww3  hwllp(i,n)=150000_r_kind  !
+!        end do
      end if
      if (n==nrf2_tcamt) then
         do i=1,mlat
@@ -749,6 +768,22 @@ end subroutine berror_read_bal_reg
            hwllp(i,n)=hwll(i,1,nrf3_t)
         end do
         print*, 'm_berror_reg: maxhwllp_cldch=',maxval(hwllp(:,n))
+     end if
+     if (n==nrf2_uwnd10m) then
+        do i=1,mlat
+           corp(i,n)=three
+        end do
+        do i=0,mlat+1
+           hwllp(i,n)=hwll(i,1,nrf3_q)
+        end do
+     end if
+     if (n==nrf2_vwnd10m) then
+        do i=1,mlat
+           corp(i,n)=three
+        end do
+        do i=0,mlat+1
+           hwllp(i,n)=hwll(i,1,nrf3_q)
+        end do
      end if
 
   enddo
@@ -831,11 +866,114 @@ end subroutine berror_read_bal_reg
            hwllp(i,n0+n)=hwllp(i,nrf2_mitm)
         end do
      endif
+
+     if (cvarsmd(n)=='uwnd10mwter') then
+        do i=1,mlat
+           corp(i,n0+n)=corp(i,nrf2_uwnd10m)
+        end do
+        do i=0,mlat+1
+           hwllp(i,n0+n)=hwllp(i,nrf2_uwnd10m)
+        end do
+     endif
+
+     if (cvarsmd(n)=='vwnd10mwter') then
+        do i=1,mlat
+           corp(i,n0+n)=corp(i,nrf2_vwnd10m)
+        end do
+        do i=0,mlat+1
+           hwllp(i,n0+n)=hwllp(i,nrf2_vwnd10m)
+        end do
+     endif
   enddo
 
   deallocate(nrf3_loc,nrf2_loc,nmotl_loc)
 
   return
 end subroutine berror_read_wgt_reg
+
+!++++
+subroutine read_howv_stats(nlat,nlon,npar,arrout)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram: read_howv_stats   
+! prgmmr: stelios          org: ???                date: 2016-08-03
+!
+! abstract: improrts the bkerror stats for howv (variance, correlation lengths,
+!           etc). Each quantity has been calculated externaly, it is interpolated at
+!           the grid of URMA and it is saved as binary file. The exact format 
+!           is shown in the code. 
+!           The imported arrays can be 2d or 1d, aka can be lon/lat dependent or
+!           two one of the two (most probably on lat)
+!
+!           For cross reference the MATLAB code is provided
+!           Export ::
+!              fid = fopen(['URMA_variance_Q',num2str(i1),'.bin'],'w');
+!              dum =squeeze(variance(i1,:,:));
+!              fwrite(fid,dum,'double');
+!              fclose(fid);
+!
+!           Import :: 
+!              fid = fopen(['URMA_variance_Q',num2str(i1),'1.bin'],'r');
+!              dum = fread(fid, 'double');
+!              A(:,:,i1) = reshape(dum,1597,2345);
+!              fclose(fid);
+!
+!           To use it: 1. the data files (eg variance, correlation lengths have
+!           to be located at the running path. So the driving scripts have to
+!           copying the file of interest to the tmp dir used for e.g.:  
+!
+!              cp [...]/fix/urma2p5/URMA_variance_lat.bin URMA_variance1d.bin
+!     
+! program history log:
+!   2016-08-03  stelios
+!   2016-08-26  stelios : Compatible with GSI.
+!   input argument list:
+!     filename -  The name of the file 
+!   output argument list:
+!     arr_out   -  One or Two dimensional field of quantity of interest 
+!
+! attributes:
+!   language: f90
+!   machine: theia/gyre 
+!
+!$$$ end documentation block
+!
+   use kinds,only : r_kind, i_kind
+!
+   implicit none
+! Declare passed variables
+   integer(i_kind),   intent(in   )::nlat,nlon,npar
+   real(r_kind), dimension(nlat ,nlon, npar),  intent(  out)::arrout
+! Declare local variables
+   integer(i_kind) :: reclength,i,j,i_npar
+   character(256) ,  parameter :: myname='read_how_stats : '
+   logical :: file_exists
+   integer(i_kind), parameter :: lun34=34
+   character(len=256),dimension(npar) :: filename
+   integer(i_kind), parameter :: dp1 = kind(1D0)
+!
+   filename(1) = 'howv_var_berr.bin'
+   filename(2) = 'howv_lng_berr.bin'
+!
+   arrout(:,:,1)=0.42_r_kind
+   arrout(:,:,2)=50000.0_r_kind
+
+   reclength=nlat*r_kind
+!
+   do i_npar = 1,npar
+      inquire(file=trim(filename(i_npar)), exist=file_exists)
+      if (file_exists)then
+         open (unit=lun34  ,file=trim(filename(i_npar))  ,status='old'  &
+               ,form='unformatted'   ,access='direct' ,recl=reclength )
+         do j = 1,nlon
+            read(unit=lun34 ,rec=j) (arrout(i,j,i_npar), i=1,nlat)
+         enddo
+         close(unit=lun34)
+
+      else 
+         print*,myname, trim(filename(i_npar)) // ' does not exist'
+      end if
+   end do
+end subroutine read_howv_stats
 
 end module m_berror_stats_reg

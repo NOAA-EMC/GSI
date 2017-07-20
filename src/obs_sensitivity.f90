@@ -20,6 +20,7 @@ module obs_sensitivity
 !   2015-07-10 pondeca  - add reference to wspd10m, td2m ,mxtm ,mitm ,pmsl,
 !                         howv ,tcamt, lcbas, cldch
 !   2016-02-20 pagowski - add pm10
+!   2016-05-05 pondeca  - add reference to uwnd10m, vwnd10m
 !
 ! Subroutines Included:
 !   init_fc_sens  - Initialize computations
@@ -46,7 +47,7 @@ use obsmod, only: cobstype, nobs_type, obscounts, &
                   i_pm2_5_ob_type, i_gust_ob_type, i_vis_ob_type, i_pblh_ob_type, &
                   i_wspd10m_ob_type, i_td2m_ob_type, i_mxtm_ob_type, i_mitm_ob_type, &
                   i_pmsl_ob_type, i_howv_ob_type, i_tcamt_ob_type, i_lcbas_ob_type, &
-                  i_cldch_ob_type,i_pm10_ob_type
+                  i_cldch_ob_type, i_uwnd10m_ob_type, i_vwnd10m_ob_type, i_pm10_ob_type
 
 use mpimod, only: mype
 use control_vectors, only: control_vector,allocate_cv,read_cv,deallocate_cv, &
@@ -279,6 +280,8 @@ cobtype(i_howv_ob_type)  ="howv "
 cobtype(i_tcamt_ob_type)  ="tcamt"
 cobtype(i_lcbas_ob_type)  ="lcbas"
 cobtype(i_cldch_ob_type)  ="cldch"
+cobtype(i_uwnd10m_ob_type) ="u10m "
+cobtype(i_vwnd10m_ob_type) ="v10m "
 
 
 return
