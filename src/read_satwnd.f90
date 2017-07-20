@@ -63,6 +63,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !   2015-10-01  guo     - consolidate use of ob location (in deg)
 !   2016-03-15  Su      - modified the code so that the program won't stop when
 !                         no subtype is found in non linear qc error table and b table !                         table
+!   2016-05-05  pondeca - add 10-m u-wind and v-wind (uwnd10m, vwnd10m)
 !   2016-12-13  Lim     - Addition of GOES SWIR, CAWV and VIS winds into HWRF
 !
 !   input argument list:
@@ -274,7 +275,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   ntx(ntread)=0
   ntxall=0
   do nc=1,nconvtype
-     if( (trim(ioctype(nc)) == 'uv' .or. trim(ioctype(nc)) == 'wspd10m') .and.  ictype(nc) >=240 &
+     if( (trim(ioctype(nc)) == 'uv' .or. trim(ioctype(nc)) == 'wspd10m' .or. trim(ioctype(nc)) == 'uwnd10m' .or. trim(ioctype(nc)) == 'vwnd10m') .and.  ictype(nc) >=240 &
              .and. ictype(nc) <=265) then
         ntmatch=ntmatch+1
         ntxall(ntmatch)=nc
