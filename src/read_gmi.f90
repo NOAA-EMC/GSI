@@ -126,7 +126,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   real(r_kind)              :: tbmax, satinfo_v(ninfo)
   real(r_double),dimension(ntime):: bfr1bhdr
 
-  integer(i_kind),parameter :: nloc=4                                      !location dat used for ufbint()
+  integer(i_kind),parameter :: nloc=3                                      !location dat used for ufbint()
   real(r_double),dimension(nloc) :: midat                                  !location data from 
 
   character(40),parameter   :: strloc='CLATH CLONH'                        !use for ufbint() 
@@ -370,7 +370,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 
 
 ! ----- Read header record to extract obs location information  
-        call ufbint(lnbufr,midat(2:4),nloc,1,iret,'SCLAT SCLON HMSL')
+        call ufbint(lnbufr,midat,nloc,1,iret,'SCLAT SCLON HMSL')
         call ufbrep(lnbufr,gmichq,1,nchanl,iret,'TPQC2')
         call ufbrep(lnbufr,gmirfi,1,nchanl,iret,'VIIRSQ')
         call ufbrep(lnbufr,pixelsaza,1,ngs,iret,strsaza)
@@ -399,13 +399,13 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
         sat_azimuth_ang = val_angls(1,1)   
         sun_zenith      = val_angls(2,1)
         sun_azimuth_ang = val_angls(3,1)
-        sat_scan_ang = asin( sin(sat_zen_ang)*rearth/(rearth+midat(4)) )
+        sat_scan_ang = asin( sin(sat_zen_ang)*rearth/(rearth+midat(3)) )
         if (pixelsaza(ngs) < bmiss ) then
           sat_zen_ang2 = pixelsaza(ngs)*deg2rad
         else
           sat_zen_ang2 = sat_def_ang2*deg2rad
         endif
-        sat_scan_ang2 = asin( sin(sat_zen_ang2)*rearth/(rearth+midat(4)) )
+        sat_scan_ang2 = asin( sin(sat_zen_ang2)*rearth/(rearth+midat(3)) )
         sat_azimuth_ang2 = val_angls(1,ngs)     
 
            !  -------- Retreive Sun glint angle -----------
