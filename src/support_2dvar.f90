@@ -66,7 +66,7 @@ subroutine convert_binary_2d
 
   data in_unit / 11 /
 
-  print_verbose=.false.
+  print_verbose=.true.
   if(verbose)print_verbose=.true.
   n_loop: do n=1,9
 
@@ -387,13 +387,17 @@ subroutine convert_binary_2d
      write(lendian_out)field2
 
      read(in_unit)field2             !  UWND10M
-     write(6,*)' convert_binary_2d: max,min UWND10M=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid UWND10M=',field2(nlon_regional/2,nlat_regional/2)
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min UWND10M=',maxval(field2),minval(field2)
+        write(6,*)' convert_binary_2d: mid UWND10M=',field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
 
      read(in_unit)field2             !  VWND10M
-     write(6,*)' convert_binary_2d: max,min VWND10M=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid VWND10M=',field2(nlon_regional/2,nlat_regional/2)
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min VWND10M=',maxval(field2),minval(field2)
+        write(6,*)' convert_binary_2d: mid VWND10M=',field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
 
      close(in_unit)
