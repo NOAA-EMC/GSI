@@ -107,7 +107,7 @@ subroutine delvars(sf1,vp1,t1,rh1,oz1,cw1,ps1,sf2,vp2,t2,rh2,oz2,cw2,ps2,mype)
         do i=1,lat1
           t1(i,j,m) = t1(i,j,m) - bal1(i,j)
         end do
-      end do 
+      end do
     end do !end do m
 
 ! Balanced part of VP
@@ -124,7 +124,7 @@ subroutine delvars(sf1,vp1,t1,rh1,oz1,cw1,ps1,sf2,vp2,t2,rh2,oz2,cw2,ps2,mype)
 
 ! 'Balanced' part of SF
     bal1(:,:)=zero
-    do k=1,nsig 
+    do k=1,1
       do i=1,lat1
         ix=istart(mm1)+i-1
         do j=1,lon1
