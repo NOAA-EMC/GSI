@@ -51,6 +51,9 @@ cmake_minimum_required(VERSION 2.8)
   list( REMOVE_ITEM GSI_SRC ${STUB_SRC} )
   list( REMOVE_ITEM GSI_SRC ${CPLR_SRC} )
 
+# remove stub_nstmod from the rest of the source files
+  list( REMOVE_ITEM GSI_SRC "${CMAKE_CURRENT_SOURCE_DIR}/stub_nstmod.f90" )
+
 # The specific regional/WRF source files
   if(USE_WRF)
     set( REGIONAL_SRC ${CPLR_SRC} )
