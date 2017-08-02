@@ -1109,7 +1109,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         my_head%dlev = dpres
         my_head%factw= factw
-        call get_ijk(mm1,dlat,dlon,dpres,my_head%ij(1),my_head%wij(1))
+        call get_ijk(mm1,dlat,dlon,dpres,my_head%ij,my_head%wij)
 
         do j=1,8
            my_head%wij(j)=factw*my_head%wij(j)
@@ -1337,7 +1337,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !!! Set (i,j,k) indices of guess gridpoint that bound obs location
            my_head%dlev = dpres
            my_head%factw= 1._r_kind
-           call get_ijk(mm1,dlat,dlon,dpres,my_head%ij(1),my_head%wij(1))
+           call get_ijk(mm1,dlat,dlon,dpres,my_head%ij,my_head%wij)
 !!! find ddiff
 
            dudiff = dudiffsfc*(0.5_r_kind + 0.5_r_kind*ratio_PBL_height)

@@ -206,7 +206,14 @@
   if (pcp_ssmi) then
 
      call ufbint(lnbufr,pcpdat,4,1,iret,strsmi4)
-     itype = nint(pcpdat(3))
+     if (pcpdat(3)>99999.0) then
+     !add ths IF block so that "itype=nint(pcpdat(3))" will not crash
+     !the PGI-compiled GSI program when pcpdat(3) is 10^10 (a default
+     !missing value)   -- by Guoqing.Ge 2017/07/26
+        itype=99999
+     else
+        itype = nint(pcpdat(3))
+     endif
      scnt  = pcpdat(4)
      if (itype/=66) goto 10
 
