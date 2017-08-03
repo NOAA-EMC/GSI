@@ -10,6 +10,7 @@ Module ATMS_Spatial_Average_Mod
 !
 ! Program history log:
 !    2011-11-18   collard   - Original version
+!    2017-07-13   yanqiu zhu - fix index bugs in subroutine ATMS_Spatial_Average
 ! 
 
   use kinds, only: r_kind,r_double,i_kind
@@ -165,26 +166,26 @@ CONTAINS
 
        ! If the channel number is present in the channelnumber array we should process it 
        ! (otherwise bt_inout just keeps the same value):
-       IF (ANY(channelnumber(1:nchannels) == ichan)) THEN
+       do i=1,nchannels
+          if (channelnumber(i) == ichan) then
+             CALL MODIFY_BEAMWIDTH ( max_fov, max_scan, bt_image(:,:,ichan), &
+               sampling_dist, beamwidth(i), newwidth(i), &
+               cutoff(i), nxaverage(i), nyaverage(i), &
+               qc_dist(i), MinBT(Ichan), MaxBT(IChan), IOS)
 
-          CALL MODIFY_BEAMWIDTH ( max_fov, max_scan, bt_image(:,:,ichan), &
-               sampling_dist, beamwidth(ichan), newwidth(ichan), &
-               cutoff(ichan), nxaverage(ichan), nyaverage(ichan), &
-               qc_dist(ichan), MinBT(Ichan), MaxBT(IChan), IOS)
-          
-          IF (IOS == 0) THEN
-             do iscan=1,max_scan
-                do ifov=1,max_fov
-                   IF (Scanline_Back(IFov, IScan) > 0) &
-                        bt_inout(channelnumber(ichan),Scanline_Back(IFov, IScan)) = &
-                        BT_Image(ifov,iscan,ichan)
+             IF (IOS == 0) THEN
+                do iscan=1,max_scan
+                   do ifov=1,max_fov
+                      IF (Scanline_Back(IFov, IScan) > 0) &
+                           bt_inout(ichan,Scanline_Back(IFov, IScan)) = &
+                           BT_Image(ifov,iscan,ichan)
+                   end do
                 end do
-             end do
-          ELSE
-             err(ichan)=1
-          END IF
-       END IF
-
+             ELSE
+                err(ichan)=1
+             END IF
+          end if
+       end do
     END DO
     do ichan=1,nchanl
       if(err(ichan) >= 1)then
