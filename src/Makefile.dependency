@@ -77,7 +77,7 @@ convthin.o : convthin.f90 satthin.o constants.o kinds.o
 convthin_time.o : convthin_time.f90 satthin.o constants.o kinds.o 
 correlated_obsmod.o : correlated_obsmod.F90 mpeu_util.o timermod.o mpimod.o constants.o kinds.o 
 cplr_get_pseudo_ensperts.o : cplr_get_pseudo_ensperts.f90 blendmod.o cplr_get_wrf_mass_ensperts.o cplr_get_wrf_nmm_ensperts.o gsi_bundlemod.o control_vectors.o gsi_io.o general_sub2grid_mod.o hybrid_ensemble_parameters.o gsi_4dvar.o kinds.o mpimod.o constants.o gridmod.o class_get_pseudo_ensperts.o 
-cplr_get_wrf_mass_ensperts.o : cplr_get_wrf_mass_ensperts.f90 general_sub2grid_mod.o netcdf_mod.o gridmod.o gsi_bundlemod.o control_vectors.o hybrid_ensemble_parameters.o mpimod.o constants.o kinds.o class_get_wrf_mass_ensperts.o 
+cplr_get_wrf_mass_ensperts.o : cplr_get_wrf_mass_ensperts.f90 general_sub2grid_mod.o netcdf_mod.o gridmod.o gsi_bundlemod.o control_vectors.o hybrid_ensemble_parameters.o mpimod.o constants.o kinds.o class_get_wrf_mass_ensperts.o guess_grids.o
 cplr_get_wrf_nmm_ensperts.o : cplr_get_wrf_nmm_ensperts.f90 blendmod.o cplr_read_wrf_mass_guess.o cplr_wrf_binary_interface.o cplr_get_wrf_mass_ensperts.o aniso_ens_util.o gfs_stratosphere.o gsi_4dvar.o gsi_bundlemod.o egrid2agrid_mod.o general_tll2xy_mod.o general_sub2grid_mod.o gsi_io.o mpeu_util.o control_vectors.o hybrid_ensemble_parameters.o mpimod.o constants.o gridmod.o kinds.o class_get_wrf_nmm_ensperts.o 
 cplr_gfs_ensmod.o : cplr_gfs_ensmod.f90 gsi_bundlemod.o hybrid_ensemble_parameters.o gsi_4dvar.o general_sub2grid_mod.o gridmod.o kinds.o mpimod.o class_gfs_ensmod.o 
 cplr_gfs_nstmod.o : cplr_gfs_nstmod.f90 satthin.o constants.o ncepnems_io.o ncepgfs_io.o kinds.o mpeu_util.o gsi_nstcouplermod.o guess_grids.o gridmod.o mpimod.o 
