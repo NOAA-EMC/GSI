@@ -197,6 +197,7 @@ type ObsErrorCov
      character(len=40) :: name                        ! R covariance name
      character(len=20) :: instrument                  ! instrument
      integer(i_kind)   :: nch_active=-1               ! active channels
+     integer(i_kind)   :: nctot=-1                    ! total number of channels (active+passive)
      integer(i_kind)   :: method    =-1               ! define method of computation
      real(r_kind)      :: kreq      =-99.             ! Weston et al-like spectrum adjustment factor
      character(len=20) :: mask      ='global'         ! Apply covariance for profiles over all globe
@@ -354,7 +355,7 @@ type(ObsErrorCov) :: ErrorCov              ! cov(R) for this instrument
 !BOC
 
 character(len=*),parameter :: myname_=myname//'*set'
-integer(i_kind) nch_active,lu,ii,ioflag,iprec
+integer(i_kind) nch_active,lu,ii,ioflag,iprec,nctot
 
 real(r_single),allocatable, dimension(:,:) :: readR4  ! nch_active x nch_active x ninstruments
 real(r_double),allocatable, dimension(:,:) :: readR8  ! nch_active x nch_active x ninstruments
@@ -368,9 +369,10 @@ real(r_kind),allocatable, dimension(:) :: diag
 
    lu = luavail()
    open(lu,file=trim(fname),convert='little_endian',form='unformatted')
-   read(lu,IOSTAT=ioflag) nch_active, iprec
+   read(lu,IOSTAT=ioflag) nch_active, nctot, iprec
    if(ioflag/=0) call die(myname_,' failed to read nch from '//trim(fname))
    ErrorCov%nch_active = nch_active
+   ErrorCov%nctot = nctot
 
    call create_(nch_active,ErrorCov)
 
@@ -403,7 +405,6 @@ real(r_kind),allocatable, dimension(:) :: diag
       initialized_=.true.
       return
    endif
-
    if (VERBOSE_) then
        allocate(diag(nch_active))
        do ii=1,nch_active
@@ -785,7 +786,7 @@ type(ObsErrorCov) :: ErrorCov              ! ob error covariance for given instr
 !BOC
 
 character(len=*),parameter :: myname_=myname//'*scale_jac'
-integer(i_kind) :: nch_active,ii,jj,iii,jjj,mm,nn,ncp,ifound,nsigjac
+integer(i_kind) :: nch_active,ii,jj,iii,jjj,mm,nn,ncp,ifound,nsigjac,indR
 integer(i_kind),allocatable,dimension(:)   :: ircv
 integer(i_kind),allocatable,dimension(:)   :: ijac
 integer(i_kind),allocatable,dimension(:)   :: IRsubset
@@ -814,7 +815,12 @@ do jj=1,nchanl
    if (varinv(jj)>tiny_r_kind .and. iuse(mm)>=1) then
       ifound=-1
       do ii=1,nch_active
-         if(jj==ErrorCov%indxR(ii)) then
+         if (ErrorCov%nctot>nchanl) then
+            indR=ii
+         else
+            indR=ErrorCov%indxR(ii)
+         end if 
+         if(jj==indR) then
             ifound=ii       
             exit
          endif
@@ -828,7 +834,7 @@ enddo
 ncp=count(ircv>0) ! number of active channels in profile
 ! following should never happen, but just in case ...
 if(ncp==0 .or. ncp>ErrorCov%nch_active) then
-   call die(myname_,'serious inconsitency in handling correlated obs')
+   call die(myname_,'serious inconsistency in handling correlated obs')
 endif
 ! Get subset indexes; without QC and other on-the-fly analysis choices these
 !                     two indexes would be the same, but because the analysis
@@ -1007,12 +1013,13 @@ end function scale_jac_
 !
 ! !INTERFACE:
 !
-subroutine rsqrtinv_(jpch_rad,iuse,nchasm,ich,ichasm,varinv,rsqrtinv,ErrorCov)
+subroutine rsqrtinv_(nchanl,jpch_rad,iuse,nchasm,ich,ichasm,varinv,rsqrtinv,ErrorCov)
 ! !USES:
 use mpeu_util, only: die
 implicit none
 ! !INPUT PARAMETERS:
 integer(i_kind),intent(in) :: nchasm   ! total number of channels in instrument
+integer(i_kind),intent(in) :: nchanl   !number of passive+active channels
 integer(i_kind),intent(in) :: jpch_rad ! total number of channels in GSI
 integer(i_kind),intent(in) :: ich(nchasm)   ! index in from 1 to jpch_rad
 integer(i_kind),intent(in) :: ichasm(nchasm)   ! index in from 1 to nchanl
@@ -1041,7 +1048,7 @@ real(r_kind),intent(inout) :: rsqrtinv(nchasm,nchasm)! inv of square-root of ob 
 !BOC
 
 character(len=*),parameter :: myname_=myname//'*inv_rsqrt'
-integer(i_kind) :: nch_active,ii,jj,mm,nn,ncp,ifound,kk
+integer(i_kind) :: nch_active,ii,jj,mm,nn,ncp,ifound,kk,indR
 integer(i_kind),allocatable,dimension(:)   :: ircv
 real(r_kind),   allocatable,dimension(:,:) :: row
 real(r_kind) coeff,qcadjusted
@@ -1060,7 +1067,12 @@ do jj=1,nchasm
    if (iuse(mm)>=1) then
       ifound=-1
       do ii=1,nch_active
-         if(nn==ErrorCov%indxR(ii)) then
+          if (nchanl<ErrorCov%nctot) then
+             indR=ii
+          else
+             indR=ErrorCov%indxR(ii)
+          end if 
+         if(nn==indR) then
             ifound=ii       
             exit
          endif
@@ -1073,7 +1085,7 @@ enddo
 ncp=count(ircv>0) ! number of active channels in profile
 ! following should never happen, but just in case ...
 if(ncp==0 .or. ncp>ErrorCov%nch_active .or. ncp .ne. nchasm) then
-   call die(myname_,'serious inconsitency in handling correlated obs')
+   call die(myname_,'serious inconsistency in handling correlated obs')
 endif
 
 !wgu
@@ -1168,7 +1180,7 @@ implicit none
    integer(i_kind),allocatable,dimension(:)   :: ijac
    integer(i_kind),allocatable,dimension(:)   :: IRsubset
    integer(i_kind),allocatable,dimension(:)   :: IJsubset
-   integer(i_kind) iinstr
+   integer(i_kind) iinstr,indR
    integer(i_kind),allocatable,dimension(:) :: ich1,tblidx   ! true channel numeber
    integer(i_kind) :: nchanl1,jc   ! total number of channels in instrument
    if(.not.allocated(idnames)) then
@@ -1222,7 +1234,12 @@ implicit none
         if (iuse_rad(mm)>=1) then
           ifound=-1
           do ii=1,nch_active
-            if(jj==GSI_BundleErrorCov(itbl)%indxR(ii)) then
+            if (GSI_BundleErrorCov(itbl)%nctot>nchanl1) then
+               indR=ii
+            else
+               indR=GSI_BundleErrorCov(itbl)%indxR(ii)
+            end if 
+            if(jj==indR) then
                ifound=ii       
                exit
             endif
@@ -1235,7 +1252,7 @@ implicit none
      enddo
      ncp=count(ircv>0) ! number of active channels in profile
      if(ncp/=nch_active) then
-       call die(myname_,'serious inconsitency in handling correlated obs')
+       call die(myname_,'serious inconsistency in handling correlated obs')
      endif
      allocate(IRsubset(ncp)) ! these indexes apply to the matrices/vec in ErrorCov
      allocate(IJsubset(ncp)) ! these indexes in 1 to nchanl

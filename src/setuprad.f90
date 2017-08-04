@@ -1596,7 +1596,7 @@
                  allocate(rsqrtinv(my_head%nchan,my_head%nchan))
                  my_head%rsqrtinv=zero
                  rsqrtinv=zero
-                 call radinfo_get_rsqrtinv(iinstr,my_head%nchan,my_head%icx,my_head%ich,&
+                 call radinfo_get_rsqrtinv(nchanl,iinstr,my_head%nchan,my_head%icx,my_head%ich,&
                       my_head%err2,rsqrtinv)
                  chan_count=0
                  do ii=1,my_head%nchan
