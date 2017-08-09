@@ -206,8 +206,8 @@
   if (pcp_ssmi) then
 
      call ufbint(lnbufr,pcpdat,4,1,iret,strsmi4)
-     if (pcpdat(3)>99999.0) then
-        itype=99999
+     if (pcpdat(3)>99999.0_r_kind) then
+        itype=99999_i_kind
      else
         itype = nint(pcpdat(3))
      endif
