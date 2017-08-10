@@ -61,48 +61,31 @@ def plot_ps(ps):
 
     return fig
 
-def plot_profile(uv,t,q,stat='rms'):
+def plot_profile(uv, t, q, stat='rms'):
 
-    def _collect_data(dfin,stat):
-
-        tmpdf = []
-        for e,expid in enumerate(expids):
-            tmp = dfin[expid].xs(stat,level='stat',drop_level=False).mean()[:-1]
-            tmp.name = expids[e]
-            tmpdf.append(tmp)
-        df_mean = pd.concat(tmpdf,axis=1)
-
-        return df_mean
-
-    uv_mean = _collect_data(uv,stat)
-    t_mean  = _collect_data(t, stat)
-    q_mean  = _collect_data(q, stat)
-
-    fig = plt.figure(figsize=(10,8))
-    plt.subplots_adjust(top=0.875,hspace=0.3)
-    gs = gspec.GridSpec(1,3)
+    fig = plt.figure(figsize=(10, 8))
+    plt.subplots_adjust(top=0.875, hspace=0.3)
+    gs = gspec.GridSpec(1, 3)
 
     lmin,lmax = 1020,95
     levs = [1000, 900, 800, 600, 400, 300, 250, 200, 150, 100, 50]
 
     for v,var in enumerate(['uv','t','q']):
 
+        data_dict = eval(var)
+
         xmin = 1.e10
         xmax = 0
         ax = plt.subplot(gs[v])
 
         for e,expid in enumerate(expids):
-            if var in 'uv':
-                profile = uv_mean[expid].values
-            elif var in 't':
-                profile = t_mean[expid].values
-            elif var in 'q':
-                profile = q_mean[expid].values
+
+            profile = data_dict[expid].xs(stat, level='stat', drop_level=False).mean()[:-1].values
 
             if stat in ['count']:
                 profile = profile / 100.0
 
-            ax.plot(profile,levs,marker='o',label=labels[e],color=mc[e],mfc=mc[e],mec=mc[e],linewidth=2.0,alpha=alpha)
+            ax.plot(profile, levs, marker='o', label=labels[e], color=mc[e], mfc=mc[e], mec=mc[e], linewidth=2.0, alpha=alpha)
 
             if e == 0 and stat == 'bias':
                 plt.vlines(0.,lmin,lmax,colors='k',linestyles='--',linewidth=2.0,label=None)
@@ -411,10 +394,10 @@ if __name__ == '__main__':
                 continue
             gsistat[expid].append(lgsi.GSIstat(fname,adate.to_datetime()))
 
-        ps[expid] = get_data(gsistat[expid],'ps',select=[1,180,'0000'],level=['it','type','stype'])
-        uv[expid] = get_data(gsistat[expid],'uv',select=[1,220],level=['it','type'])
-        t[expid] = get_data(gsistat[expid],'t', select=[1,120],level=['it','type'])
-        q[expid] = get_data(gsistat[expid],'q', select=[1,120],level=['it','type'])
+        ps[expid] = get_data(gsistat[expid],'ps',select=[1,'asm',180,'0000'],level=['it','use','typ','styp'])
+        uv[expid] = get_data(gsistat[expid],'uv',select=[1,'asm',220],level=['it','use','typ'])
+        t[expid] = get_data(gsistat[expid],'t', select=[1,'asm',120],level=['it','use','typ'])
+        q[expid] = get_data(gsistat[expid],'q', select=[1,'asm',120],level=['it','use','typ'])
         minim[expid] = get_data(gsistat[expid],'cost')
         oz[expid] = get_data(gsistat[expid],'oz',select=[1],level=['it'])
         rad[expid] = get_data(gsistat[expid],'rad',select=[1],level=['it'])
