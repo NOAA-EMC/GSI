@@ -9,6 +9,10 @@
 
   echo "begin RadMon_config"
 
+# This defines the monitor value used in TANKDIR.
+#
+export MONITOR=radmon
+
 #
 # MY_RADMON should point to your working directory which contains the 
 # top level directory to the RadMon package.  If you checked out the package
@@ -26,13 +30,28 @@ export MY_RADMON=${MY_RADMON:-}
 #
 export MY_TANKDIR=${MY_TANKDIR:-}
 
+export RUN=${RUN:-gdas}
+
+export TANK_USE_RUN=${USE_TANK_RUN:-1}
+
 if [[ $RADMON_SUFFIX != "" && $RAD_AREA != "" ]]; then
    if [[ $RAD_AREA = "glb" ]]; then
-      export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/${RADMON_SUFFIX}}
-      export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/${RADMON_SUFFIX}}
+      if [[ $TANK_USE_RUN -eq 1 ]]; then
+         export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/${RADMON_SUFFIX}/$monitor}
+         export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/${RADMON_SUFFIX}/${monitor}}
+      else
+         export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/${RADMON_SUFFIX}}
+         export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/${RADMON_SUFFIX}}
+      fi
+
    else
-      export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/regional/${RADMON_SUFFIX}}
-      export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/regional/${RADMON_SUFFIX}}
+      if [[ $TANK_USE_RUN -eq 1 ]]; then
+         export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/regional/${RADMON_SUFFIX}/${monitor}}
+         export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/regional/${RADMON_SUFFIX}/${monitor}}
+      else
+         export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/regional/${RADMON_SUFFIX}}
+         export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/regional/${RADMON_SUFFIX}}
+      fi
    fi
 fi
 
