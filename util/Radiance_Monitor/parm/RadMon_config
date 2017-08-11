@@ -35,24 +35,11 @@ export RUN=${RUN:-gdas}
 export TANK_USE_RUN=${TANK_USE_RUN:-1}
 
 if [[ $RADMON_SUFFIX != "" && $RAD_AREA != "" ]]; then
-   if [[ $RAD_AREA = "glb" ]]; then
-      if [[ $TANK_USE_RUN -eq 1 ]]; then
-         export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/${RADMON_SUFFIX}/$monitor}
-         export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/${RADMON_SUFFIX}/${monitor}}
-      else
-         export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/${RADMON_SUFFIX}}
-         export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/${RADMON_SUFFIX}}
-      fi
-
-   else
-      if [[ $TANK_USE_RUN -eq 1 ]]; then
-         export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/regional/${RADMON_SUFFIX}/${monitor}}
-         export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/regional/${RADMON_SUFFIX}/${monitor}}
-      else
-         export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/regional/${RADMON_SUFFIX}}
-         export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/regional/${RADMON_SUFFIX}}
-      fi
-   fi
+   export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/${RADMON_SUFFIX}}
+   export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/${RADMON_SUFFIX}}
+else
+   export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/regional/${RADMON_SUFFIX}}
+   export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/regional/${RADMON_SUFFIX}}
 fi
 
 #
