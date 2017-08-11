@@ -32,7 +32,7 @@ export MY_TANKDIR=${MY_TANKDIR:-}
 
 export RUN=${RUN:-gdas}
 
-export TANK_USE_RUN=${USE_TANK_RUN:-1}
+export TANK_USE_RUN=${TANK_USE_RUN:-1}
 
 if [[ $RADMON_SUFFIX != "" && $RAD_AREA != "" ]]; then
    if [[ $RAD_AREA = "glb" ]]; then
