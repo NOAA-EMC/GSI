@@ -941,7 +941,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
            gps_alltail(ibin)%head%mmpoint => my_head
 
 !          Set (i,j,k) indices of guess gridpoint that bound obs location
-           call get_ij(mm1,data(ilat,i),data(ilon,i),gps_ij,my_head%wij(1))
+           call get_ij(mm1,data(ilat,i),data(ilon,i),gps_ij,my_head%wij)
 
            do j=1,nsig
               my_head%ij(1,j)=gps_ij(1)+(j-1)*latlon11
