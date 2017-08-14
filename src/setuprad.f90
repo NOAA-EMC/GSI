@@ -1516,7 +1516,7 @@
                        my_head%icx(icc))
               if(luse_obsdiag)allocate(my_head%diags(icc))
 
-              call get_ij(mm1,slats,slons,my_head%ij(:),my_head%wij(:))
+              call get_ij(mm1,slats,slons,my_head%ij,my_head%wij)
               my_head%time=dtime
               my_head%luse=luse(n)
               my_head%ich(:)=-1

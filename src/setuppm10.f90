@@ -606,7 +606,7 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
            my_head%elon= data(ilone,i)
 
            call get_ij(mm1,dlat,dlon,&
-                 my_head%ij(1),tempwij(1))
+                 my_head%ij,tempwij)
 
            my_head%ij (5:8)=my_head%ij(1:4)
            my_head%wij(1:4)=tempwij
