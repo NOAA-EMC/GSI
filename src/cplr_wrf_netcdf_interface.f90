@@ -154,7 +154,7 @@ contains
        write(filename,'("sigf",i2.2)') n
        open(iunit,file=filename,form='unformatted')
   
-       if(print_verbose)write(6,*)' dh1  = ',dh1         !DEDE
+       if(print_verbose)write(6,*)' convert ',trim(flnm1),' to ', trim(filename)
   
   !-------------  get date info
   
@@ -1276,7 +1276,7 @@ contains
        endif
 
 
-       deallocate(field1,field2,field2b,field2c,ifield2,field3,field3u,field3v)
+       deallocate(field1,field1a,field2,field2b,field2c,ifield2,field3,field3u,field3v)
        close(iunit)
        call ext_ncd_ioclose(dh1, Status)
    

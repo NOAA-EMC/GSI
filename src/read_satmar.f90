@@ -89,7 +89,7 @@ subroutine read_satmar (nread, ndata, nodata,                                 &
    integer(i_kind) :: ireadmg,ireadsb,idate
    integer(i_kind) :: iRec,ierr,nc,i1,ilat,ilon,nchanl,nlevp
    integer(i_kind) :: nmind, nrec
-   integer(i_kind) :: thisobtype_usage
+   integer(i_kind) :: thisobtype_usage, iuse
 !  real
    real(r_kind),allocatable,dimension(:, :) :: data_all,data_out
    real(r_kind),allocatable,dimension(:):: DumForThin
@@ -110,7 +110,7 @@ subroutine read_satmar (nread, ndata, nodata,                                 &
    character(len=11), parameter :: myname='read_satmar '
 
 !  logical
-   logical outside, iuse, luse
+   logical outside, luse
    logical lhilbert
 !!!! #####     JS2      ##### !!!!
    integer(i_kind),parameter  :: n_fltJS2 = 7

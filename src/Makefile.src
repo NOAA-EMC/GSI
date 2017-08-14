@@ -65,8 +65,8 @@
 	constants.o \
 	control2model.o \
 	control2state.o \
-	control2state_ad.o \
 	control2model_ad.o \
+	control2state_ad.o \
 	control_vectors.o \
         convb_ps.o \
         convb_q.o \
@@ -125,8 +125,8 @@
 	general_sub2grid_mod.o \
 	general_tll2xy_mod.o \
 	general_transform.o \
-	gengrid_vars.o \
 	general_write_gfsatm.o \
+	gengrid_vars.o \
 	genqsat.o \
 	genstats_gps.o \
 	gesinfo.o \
@@ -157,11 +157,12 @@
 	gsi_bundlemod.o \
 	gsi_chemguess_mod.o \
 	gsi_enscouplermod.o \
-	gsi_metguess_mod.o \
-	gsi_nstcouplermod.o \
 	gsi_io.o \
+	gsi_metguess_mod.o \
 	gsi_nemsio_mod.o \
+	gsi_nstcouplermod.o \
 	gsi_unformatted.o \
+	gsimain.o \
 	gsimod.o \
 	gsisub.o \
 	guess_grids.o \
@@ -172,7 +173,6 @@
 	inc2guess.o \
 	init_jcdfi.o \
 	insitu_info.o \
-	int3dvar.o \
 	intall.o \
 	intaod.o \
 	intcldch.o \
@@ -192,6 +192,7 @@
 	intpcp.o \
 	intpm2_5.o \
 	intpm10.o \
+	intpmsl.o \
 	intps.o \
 	intpw.o \
 	intq.o \
@@ -200,8 +201,6 @@
 	intrp2a.o \
 	intrp3oz.o \
 	intrw.o \
-	intpmsl.o \
-        intvis.o   \
 	intspd.o \
 	intsrw.o \
 	intsst.o \
@@ -209,6 +208,9 @@
 	inttcamt.o \
 	inttcp.o \
 	inttd2m.o \
+        intuwnd10m.o \
+        intvwnd10m.o \
+        intvis.o   \
 	intw.o \
 	intwspd10m.o \
 	jcmod.o \
@@ -278,6 +280,8 @@
 	m_td2mNode.o \
 	m_tick.o \
 	m_uniq.o  \
+        m_uwnd10mNode.o \
+        m_vwnd10mNode.o \
 	m_visNode.o \
 	m_wNode.o \
 	m_wspd10mNode.o \
@@ -334,6 +338,7 @@
 	q_diag.o \
 	qcmod.o \
 	qnewton3.o \
+        radiance_mod.o \
 	radinfo.o \
 	raflib.o \
 	rapidrefresh_cldsurf_mod.o \
@@ -379,6 +384,7 @@
 	read_radarref_mosaic.o  \
 	read_rapidscat.o \
 	read_saphir.o \
+        read_satmar.o \
 	read_satwnd.o \
 	read_seviri.o \
 	read_sfcwnd.o  \
@@ -424,6 +430,8 @@
 	setuptcamt.o \
 	setuptcp.o \
 	setuptd2m.o \
+        setupuwnd10m.o \
+        setupvwnd10m.o \
 	setupvis.o \
 	setupw.o \
 	setupwspd10m.o \
@@ -447,7 +455,6 @@
 	statspcp.o \
 	statsrad.o \
 	stop1.o \
-	stp3dvar.o \
         stpaod.o \
 	stpcalc.o \
 	stpcldch.o \
@@ -479,6 +486,8 @@
 	stptcamt.o \
 	stptcp.o \
 	stptd2m.o \
+        stpuwnd10m.o \
+        stpvwnd10m.o \
 	stpvis.o \
 	stpw.o \
 	stpwspd10m.o \
@@ -509,7 +518,6 @@
 	unfill_nmm_grid2.o \
 	unhalf_nmm_grid2.o \
 	update_guess.o \
-	update_geswtend.o \
 	wind_fft.o \
 	wrf_mass_guess_mod.o \
         wrf_params_mod.o \

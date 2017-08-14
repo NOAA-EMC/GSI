@@ -552,7 +552,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
               my_head%nloz = nlev-1  ! NOTE: for OMI/GOME, nloz=0
 
 !             Set (i,j) indices of guess gridpoint that bound obs location
-              call get_ij(mm1,dlat,dlon,my_head%ij(1),tempwij(1))
+              call get_ij(mm1,dlat,dlon,my_head%ij,tempwij)
 
               call tintrp2a1(ges_prsi,prsitmp,dlat,dlon,dtime,hrdifsig,&
                    nsig+1,mype,nfldsig)
