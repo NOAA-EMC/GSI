@@ -34,7 +34,6 @@ subroutine en_perts_get_from_save_fulldomain
   use general_sub2grid_mod, only: general_grid2sub
   use mpimod, only: mpi_comm_world,ierror,mype,mpi_rtype,mpi_mode_rdonly
   use mpimod, only: mpi_rtype,mpi_info_null,mpi_offset_kind
-  use mpi, only: mpi_status_ignore
 
   implicit none
 
@@ -95,7 +94,7 @@ subroutine en_perts_get_from_save_fulldomain
      allocate(work_grd(grd_arw%inner_vars,grd_arw%nlat,grd_arw%nlon,grd_arw%kbegin_loc:grd_arw%kend_alloc))
      count  = grd_arw%nlat * grd_arw%nlon *  grd_arw%nlevs_alloc
      offset = grd_arw%nlat * grd_arw%nlon * (grd_arw%kbegin_loc-1) * r_kind
-     call mpi_file_read_at(iunit,offset,work_grd,count,mpi_rtype,mpi_status_ignore,ierror)                
+     call mpi_file_read_at(iunit,offset,work_grd,count,mpi_rtype,istatus,ierror)                
      if ( ierror /= 0 ) then
         write(6,'(a,i5,a,i5,a)') '***ERROR***  MPI_FILE_READ_AT failed on task =', &
                                 mype, ' ierror = ', ierror
