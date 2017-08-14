@@ -410,7 +410,7 @@ subroutine setuplcbas(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         my_head%elon= data(ilone,i)
 
 !       Set (i,j) indices of guess gridpoint that bound obs location
-        call get_ij(mm1,dlat,dlon,my_head%ij(1),my_head%wij(1),jlat,jlon)
+        call get_ij(mm1,dlat,dlon,my_head%ij,my_head%wij,jlat,jlon)
        
         if (jiter==jiterstart .and. R_option) then
            wgt_lcbas(jlat,jlon)    =wgt_lcbas(jlat,jlon)+my_head%wij(1)
