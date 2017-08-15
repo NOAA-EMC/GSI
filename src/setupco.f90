@@ -498,7 +498,7 @@ endif   ! (in_curbin)
              my_head%nlco = nlev !  AVT: for MOPITT CO, nlev=10. No single level data
    
 !            Set (i,j) indices of guess gridpoint that bound obs location
-             call get_ij(mm1,dlat,dlon,my_head%ij(1),tempwij(1))
+             call get_ij(mm1,dlat,dlon,my_head%ij,tempwij)
    
              call tintrp2a1(ges_prsi,prsitmp,dlat,dlon,dtime,hrdifsig,&
                   nsig+1,mype,nfldsig)
