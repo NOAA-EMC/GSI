@@ -29,6 +29,7 @@ import numpy as _np
 import pandas as _pd
 import re as _re
 import read_diag as _rd
+from datetime import datetime as _datetime
 
 def _read_diag_conv(fname,endian='big'):
     '''
@@ -196,7 +197,7 @@ class GSIstat(object):
     Object containing the GSI statistics
     '''
 
-    def __init__(self,filename,adate):
+    def __init__(self, filename, adate):
         '''
         Initialize the GSIstat object
         INPUT:
@@ -207,9 +208,12 @@ class GSIstat(object):
         '''
 
         self.filename = filename
-        self.analysis_date = adate
+        if hasattr(adate,'hour'):
+            self.analysis_date = adate
+        else:
+            self.analysis_date = _datetime.strptime(adate, '%Y%m%d%H')
 
-        fh = open(self.filename,'rb')
+        fh = open(self.filename, 'rb')
         self._lines = fh.readlines() # Keep lines private
         fh.close()
 
@@ -218,7 +222,7 @@ class GSIstat(object):
 
         return
 
-    def extract(self,name):
+    def extract(self, name):
         '''
         From the gsistat file, extract information:
         INPUT:
@@ -239,7 +243,7 @@ class GSIstat(object):
             df = self._get_ps()
         elif name in ['oz']:
             df = self._get_ozone()
-        elif name in ['uv','t','q','gps']:
+        elif name in ['uv', 't', 'q', 'gps']:
             df = self._get_conv(name)
         elif name in ['rad']:
             df = self._get_radiance()
@@ -250,7 +254,7 @@ class GSIstat(object):
 
         # Drop the o-g from the indicies list
         if 'o-g' in list(df.index.names):
-            df.reset_index(level='o-g',drop=True,inplace=True)
+            df.reset_index(level='o-g', drop=True, inplace=True)
 
         # Add datetime index
         df = self._add_datetime_index(df)
@@ -260,7 +264,7 @@ class GSIstat(object):
 
         return df
 
-    def _add_datetime_index(self,df):
+    def _add_datetime_index(self, df):
         '''
         Add the datetime as the first index
         INPUT:
@@ -280,7 +284,7 @@ class GSIstat(object):
 
         return df
 
-    def extract_instrument(self,obtype,instrument):
+    def extract_instrument(self, obtype, instrument):
         '''
         From the gsistat file, extract detailed information on an instrument:
         INPUT:
@@ -316,40 +320,40 @@ class GSIstat(object):
             return None
 
         # Handle special instruments
-        if instrument in ['iasi','iasi616']:
-            inst = 'iasi616'
-        elif instrument in ['airs','airs281SUBSET']:
-            inst = 'airs281SUBSET'
+        if instrument in ['iasi', 'iasi616']:
+            inst = 'iasi'
+        elif instrument in ['airs', 'airs281SUBSET']:
+            inst = 'airs'
         else:
             inst = instrument
 
         tmp = []
         pattern = '\s+\d+\s+\d+\s+%s_\S+\s+\d+\s+\d+\s+' % (inst)
         for line in self._lines:
-            if _re.match(pattern,line):
+            if _re.match(pattern, line):
                 tst = line.strip().split()
                 tst = tst[:2] + tst[2].split('_') + tst[3:]
                 tmp.append(tst)
 
-        columns = ['it','channel','instrument','satellite','nassim','nrej','oberr','OmF_bc','OmF_wobc','col1','col2','col3']
+        columns = ['it', 'channel', 'instrument', 'satellite', 'nassim', 'nrej', 'oberr', 'OmF_bc', 'OmF_wobc', 'col1', 'col2', 'col3']
         df = _pd.DataFrame(data=tmp,columns=columns)
-        df.drop(['col1','col2','col3'],inplace=True,axis=1)
-        df[['channel','nassim','nrej']] = df[['channel','nassim','nrej']].astype(_np.int)
-        df[['oberr','OmF_bc','OmF_wobc']] = df[['oberr','OmF_bc','OmF_wobc']].astype(_np.float)
+        df.drop(['col1', 'col2', 'col3'],inplace=True,axis=1) # future columns, drop!
+        df[['channel', 'nassim', 'nrej']] = df[['channel', 'nassim', 'nrej']].astype(_np.int)
+        df[['oberr', 'OmF_bc', 'OmF_wobc']] = df[['oberr', 'OmF_bc', 'OmF_wobc']].astype(_np.float)
 
         # Since iteration number is not readily available, make one
         lendf = len(df)
         nouter = lendf / len(df['it'].unique())
         douter = lendf / nouter
-        it = _np.zeros(lendf,dtype=int)
+        it = _np.zeros(lendf, dtype=int)
         for i in range(nouter):
             its = douter * i
             ite = douter * (i+1)
             it[its:ite] = i+1
         df['it'] = it
 
-        df = df[['it','instrument','satellite','channel','nassim','nrej','oberr','OmF_bc','OmF_wobc']]
-        df.set_index(['it','instrument','satellite','channel'],inplace=True)
+        df = df[['it', 'instrument', 'satellite', 'channel', 'nassim', 'nrej', 'oberr', 'OmF_bc', 'OmF_wobc']]
+        df.set_index(['it', 'instrument', 'satellite', 'channel'],inplace=True)
 
         return df
 
@@ -359,26 +363,30 @@ class GSIstat(object):
         Search for surface pressure
         '''
 
-        pattern = 'obs\s+type\s+stype\s+count'
+        pattern = 'obs\s+use\s+typ\s+styp'
+        header = None
         for line in self._lines:
-            if _re.search(pattern,line):
-                header = 'o-g ' + line.strip()
+            if _re.search(pattern, line):
+                header = line.strip()
                 break
 
+        if header is None:
+            raise 'Unable to get header for ps'
+
         tmp = []
-        pattern = ' o-g (\d\d) %7s' % ('ps')
+        pattern = ' o-g (\d\d) %7s' % 'ps'
         for line in self._lines:
-            if _re.match(pattern,line):
-                # don't add monitored or rejected data
-                if any(x in line for x in ['mon','rej']):
+            if _re.match(pattern, line):
+                # don't add "all" data, this is a sum of the subset (asm, rej, mon)
+                if any(x in line for x in ['all']):
                     continue
                 tmp.append(line.strip().split())
 
         columns = header.split()
-        df = _pd.DataFrame(data=tmp,columns=columns)
-        df[['it','type','count']] = df[['it','type','count']].astype(_np.int)
-        df[['bias','rms','cpen','qcpen']] = df[['bias','rms','cpen','qcpen']].astype(_np.float)
-        df.set_index(columns[:5],inplace=True)
+        df = _pd.DataFrame(data=tmp, columns=columns)
+        df[['it', 'typ', 'count']] = df[['it', 'typ', 'count']].astype(_np.int)
+        df[['bias', 'rms', 'cpen', 'qcpen']] = df[['bias', 'rms', 'cpen', 'qcpen']].astype(_np.float)
+        df.set_index(columns[:6], inplace=True)
 
         return df
 
@@ -389,22 +397,26 @@ class GSIstat(object):
         '''
 
         # Get pressure levels
+        header = None
         for line in self._lines:
             if 'ptop' in line:
-                ptops = _np.asarray(line.strip().split()[1:],dtype=_np.float)
+                ptops = _np.asarray(line.strip().split()[2:], dtype=_np.float)
             if 'pbot' in line:
-                pbots = _np.asarray(line.strip().split()[5:],dtype=_np.float)
-                header = 'o-g ' + line.strip()
-                header = _re.sub('pbot','stat',header)
-                header = _re.sub('2000.0','column',header)
+                pbots = _np.asarray(line.strip().split()[7:], dtype=_np.float)
+                header = line.strip()
+                header = _re.sub('pbot', 'stat', header)
+                header = _re.sub('2000.0', 'column', header)
                 break
 
+        if header is None:
+            raise 'Unable to get header for %s' % name
+
         tmp = []
-        pattern = ' o-g (\d\d) %7s' % (name)
+        pattern = ' o-g (\d\d) %7s' % name
         for line in self._lines:
-            if _re.match(pattern,line):
-                # don't add monitored or rejected data
-                if any(x in line for x in ['mon','rej']):
+            if _re.match(pattern, line):
+                # don't add "all" data, this is a sum of the subset (asm, rej, mon)
+                if any(x in line for x in ['all']):
                     continue
                 # don't add cpen or qcpen either
                 # careful here, cpen here also removes qcpen
@@ -414,10 +426,11 @@ class GSIstat(object):
                 tmp.append(line.strip().split())
 
         columns = header.split()
-        df = _pd.DataFrame(data=tmp,columns=columns)
-        df[['it','type']] = df[['it','type']].astype(_np.int)
-        df.set_index(columns[:6],inplace=True)
-        df = df.astype(_np.float)
+        df = _pd.DataFrame(data=tmp, columns=columns)
+        df[['it', 'typ', 'styp']] = df[['it', 'typ', 'styp']].astype(_np.int)
+        for col in columns[7:]:
+            df[[col]] = df[[col]].astype(_np.float)
+        df.set_index(columns[:7], inplace=True)
 
         return df
 
@@ -430,28 +443,25 @@ class GSIstat(object):
         # Get header
         pattern = 'it\s+sat\s+inst\s+'
         for line in self._lines:
-            if _re.search(pattern,line):
+            if _re.search(pattern, line):
                 header = _re.sub('#',' ',line)
                 header = 'o-g ' + header.strip()
                 break
 
         tmp = []
-        pattern = 'o-g (\d\d) %2s' % ('oz')
+        pattern = 'o-g (\d\d) %2s' % 'oz'
         for line in self._lines:
-            if _re.match(pattern,line):
-                # don't add monitored or rejected data
-                if any(x in line for x in ['mon','rej']):
-                    continue
-                line = _re.sub('oz',' ',line)
+            if _re.match(pattern, line):
+                line = _re.sub('oz', ' ', line)
                 tmp.append(line.strip().split())
 
         columns = header.split()
-        df = _pd.DataFrame(data=tmp,columns=columns)
-        df[['it','read','keep','assim']] = df[['it','read','keep','assim']].astype(_np.int)
-        df[['penalty','cpen','qcpen','qcfail']] = df[['penalty','cpen','qcpen','qcfail']].astype(_np.float)
-        df.set_index(columns[:4],inplace=True)
-        df = df.swaplevel('sat','inst')
-        df.index.rename(['satellite','instrument'],level=['sat','inst'],inplace=True)
+        df = _pd.DataFrame(data=tmp, columns=columns)
+        df[['it', 'read', 'keep', 'assim']] = df[['it', 'read', 'keep', 'assim']].astype(_np.int)
+        df[['penalty', 'cpen', 'qcpen', 'qcfail']] = df[['penalty', 'cpen', 'qcpen', 'qcfail']].astype(_np.float)
+        df.set_index(columns[:4], inplace=True)
+        df = df.swaplevel('sat', 'inst')
+        df.index.rename(['satellite', 'instrument'],level=['sat', 'inst'], inplace=True)
 
         return df
 
@@ -464,27 +474,24 @@ class GSIstat(object):
         # Get header
         pattern = 'it\s+satellite\s+instrument\s+'
         for line in self._lines:
-            if _re.search(pattern,line):
-                header = _re.sub('#',' ',line)
+            if _re.search(pattern, line):
+                header = _re.sub('#', ' ', line)
                 header = 'o-g ' + header.strip()
                 break
 
         tmp = []
-        pattern = 'o-g (\d\d) %3s' % ('rad')
+        pattern = 'o-g (\d\d) %3s' % 'rad'
         for line in self._lines:
-            if _re.match(pattern,line):
-                # don't add monitored or rejected data
-                if any(x in line for x in ['mon','rej']):
-                    continue
-                line = _re.sub('rad',' ',line)
+            if _re.match(pattern, line):
+                line = _re.sub('rad', ' ', line)
                 tmp.append(line.strip().split())
 
         columns = header.split()
-        df = _pd.DataFrame(data=tmp,columns=columns)
-        df[['it','read','keep','assim']] = df[['it','read','keep','assim']].astype(_np.int)
-        df[['penalty','qcpnlty','cpen','qccpen']] = df[['penalty','qcpnlty','cpen','qccpen']].astype(_np.float)
-        df.set_index(columns[:4],inplace=True)
-        df = df.swaplevel('satellite','instrument')
+        df = _pd.DataFrame(data=tmp, columns=columns)
+        df[['penalty', 'qcpnlty', 'cpen', 'qccpen']] = df[['penalty', 'qcpnlty', 'cpen', 'qccpen']].astype(_np.float)
+        df[['it', 'read', 'keep', 'assim']] = df[['it', 'read', 'keep', 'assim']].astype(_np.int)
+        df.set_index(columns[:4], inplace=True)
+        df = df.swaplevel('satellite', 'instrument')
 
         return df
 
@@ -500,20 +507,20 @@ class GSIstat(object):
             if _re.match(pattern,line):
                 tmp.append(line.strip().split('=')[-1].split())
 
-        columns = ['Outer','Inner','Jb','Jo','Jc','Jl']
-        df = _pd.DataFrame(data=tmp,columns=columns)
-        df[['Outer','Inner',]] = df[['Outer','Inner']].astype(_np.int)
-        df.set_index(columns[:2],inplace=True)
+        columns = ['Outer', 'Inner', 'Jb', 'Jo', 'Jc', 'Jl']
+        df = _pd.DataFrame(data=tmp, columns=columns)
+        df[['Outer', 'Inner',]] = df[['Outer', 'Inner']].astype(_np.int)
+        df.set_index(columns[:2], inplace=True)
         df = df.astype(_np.float)
         df['J'] = df.sum(axis=1)
 
         tmp = []
         pattern = 'cost,grad,step,b,step'
         for line in self._lines:
-            if _re.match(pattern,line):
+            if _re.match(pattern, line):
                 tmp.append(line.strip().split('=')[-1].split()[3])
 
-        s = _pd.Series(data=tmp,index=df.index)
+        s = _pd.Series(data=tmp, index=df.index)
         s = s.astype(_np.float)
         df.loc[:,'gJ'] = s
 
