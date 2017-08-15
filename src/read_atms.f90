@@ -280,7 +280,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
 ! IFSCALC setup
   if (isfcalc==1) then
-     instr=20                    ! This section isn't really updated.
+     instr=20                   
      ichan=16                    ! pick a surface sens. channel
      expansion=2.9_r_kind        ! use almost three for microwave sensors.
   endif
