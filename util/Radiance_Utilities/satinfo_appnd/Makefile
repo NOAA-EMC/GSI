@@ -179,7 +179,7 @@ $(EXE_FILE) : $(OBJS)
 # Fortran compiler and options
 # ----------------------------
 
- CF	= f90
+ CF	= ifort
 
 #--- Normal mode options
 
@@ -227,8 +227,8 @@ $(EXE_FILE) : $(OBJS)
 
   LIBS_N= -L/nwprod/lib -lw3_4
 
-  LDFLAGS_N	= -lessl -lmass -bloadmap:loadmap.txt \
-                  -bdatapsize:64K -bstackpsize:64K
+  LDFLAGS_N	= -bloadmap:loadmap.txt \
+                  -bstackpsize:64K
 
 #--- Debug mode options
 

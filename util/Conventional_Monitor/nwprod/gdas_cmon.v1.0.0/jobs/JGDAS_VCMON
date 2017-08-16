@@ -1,0 +1,156 @@
+#!/bin/sh
+#############################################################
+# Set up environment for GDAS Conventional Monitor job
+########################################
+set -xa
+#
+# Specify whether the run is production or development
+#
+export RUN_ENVIR=${RUN_ENVIR:-prod}
+export envir=${envir:-prod}
+
+###############################################################
+# This block can be modified for different test environment
+###############################################################
+if [ $RUN_ENVIR = prod -a $envir != prod ]; then
+  export SENDDBN=${SENDDBN:-NO}
+  export jlogfile=${jlogfile:-/com/logs/${envir}/jlogfile}
+fi
+
+
+echo `date` $0 `date -u` begin
+export PS4='$SECONDS + '
+
+########################################################### 
+# set up working directory space
+###########################################################
+#export pid=$$
+export CMON_WORK_DIR=${CMON_WORK_DIR:-/tmpnwprd}
+export DATA=${DATA:-${CMON_WORK_DIR}/${jobid}}
+mkdir -p $DATA
+cd $DATA
+
+####################################
+# File To Log Msgs
+####################################
+export jlogfile=${jlogfile:-/com/logs/jlogfiles/jlogfile.${jobid}}
+
+####################################
+# Determine Job Output Name on System
+####################################
+export outid="LL$job"
+export cycle=t${CYC}z 
+
+###############################
+# Specify NET and RUN name
+##############################
+export NET=${NET:-gfs}
+export RUN=${RUN:-gdas}
+
+##################################################
+# SENDCOM  - Copy Files From TMPDIR to $COMOUT
+# SENDDBN  - Issue DBNet Client Calls
+##################################################
+export SENDCOM=${SENDCOM:-YES}
+export SENDDBN=${SENDDBN:-NO}
+export VERBOSE=${VERBOSE:-YES}
+export ERRSCRIPT=${ERRSCRIPT:-err_chk}
+
+export HOMEgdascmon=${HOMEgdascmon:-/nw${envir}/gdas_cmon.${gdas_cmon_ver}}
+export SCRIPTSgdascmon=${SCRIPTSgdascmon:-$HOMEgdascmon/scripts}
+export FIXgdascmon=${FIXgdascmon:-$HOMEgdascmon/fix}
+
+export HOMEcmon=${HOMEcmon:-/nw${envir}/cmon_shared.${cmon_shared_ver}}
+export EXECcmon=${EXECcmon:-$HOMEcmon/exec}
+export FIXcmon=${FIXcmon:-${FIXgdascmon}}
+export USHcmon=${USHcmon:-$HOMEcmon/ush}
+
+export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
+export COMPRESS=${COMPRESS:-gzip}
+export UNCOMPRESS=${UNCOMPRESS:-gunzip}
+export Z=${Z:-gz}
+
+
+
+###################################
+# Set up the UTILITIES
+###################################
+export NWPROD=${NWPROD:-/nwprod}
+
+export utilscript=${utilscript:-$UTILROOT/ush}
+export utilexec=${utilexec:-$UTILROOT/exec}
+export NDATE=${NDATE:-$utilexec/ndate}
+
+# Run setup to initialize working directory and utility scripts
+#  per the setup.sh (on wcoss, it's not available on cray), the setup.sh
+#  utility is deprecated and we can call the utilities directly
+#$utilscript/setup.sh
+
+# Run setpdy and initialize PDY variables
+#$utilscript/setpdy.sh
+#source ./PDY
+
+
+##############################################################
+# COMIN    - WHERE GSI OUTPUT (which is input data) RESIDES
+# TANKDIR_cmon - WHERE OUTPUT DATA WILL RESIDE
+##############################################################
+export C_TANKDIR=${C_TANKDIR:-/com/verf/${envir}}
+export TANKDIR_cmon=${C_TANKDIR}/cmon.${PDY}
+export COM_IN=${COM_IN:-/com/${NET}/${envir}}
+export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
+export CMON_SUFFIX=${CMON_SUFFIX:-gdas}
+
+mkdir -p -m 775 $TANKDIR_cmon
+
+m6h_date=`$NDATE -06 $PDATE`
+export CYC_m6h=`echo $m6h_date|cut -c9-10`
+export PDY_m6h=`echo $m6h_date|cut -c1-8`
+
+export COMIN_m6h=${COMIN_m6h:-$COM_IN/${RUN}.${PDY_m6h}}
+
+env
+
+#############################################################################
+#############################################################################
+# Set necessary environment variables
+#  
+# Note:  The CMon used to use the pgrbanl grib file.  But at some point that
+#        file was changed and no longer includes the RHm2 field.  So at Su's  
+#        suggestion I modified the package to use the pgrbf00 grib file
+#        instead of pgrbanl.
+#############################################################################
+#############################################################################
+export CMON_AREA=${CMON_AREA:-glb}
+
+export cnvstat=${cnvstat:-${COMIN}/gdas1.t${CYC}z.cnvstat}
+export pgrbf00=${pgrbf00:-${COMIN}/gdas1.t${CYC}z.pgrbf00}
+export pgrbf06=${pgrbf06:-${COMIN_m6h}/gdas1.t${CYC_m6h}z.pgrbf06}
+
+
+echo "cnvstat = $cnvstat"
+echo "pgrbf00 = $pgrbf00"
+echo "pgrbf06 = $pgrbf06"
+
+msg="JOB HAS STARTED"
+postmsg "$jlogfile" "$msg"
+
+########################################################
+# Execute the script.
+${CMONSH:-$HOMEgdascmon/scripts/exgdas_vrfyconv.sh.ecf} ${PDY} ${CYC}
+########################################################
+
+msg="J-JOB COMPLETED NORMALLY"
+postmsg "$jlogfile" "$msg"
+
+################################
+# Remove the Working Directory
+################################
+#RM_TMPDIR=NO
+#cd $DATA_IN
+#if [ ${RM_TMPDIR:-YES} = YES ] ; then 
+#  rm -rf $DATA 
+#fi
+
+date
+

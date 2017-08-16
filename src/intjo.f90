@@ -162,6 +162,7 @@ subroutine intjo_(yobs,rval,qpred,sval,sbias,ibin)
 !   2014-04-10  pondeca  - add inttd2m,intmxtm,intmitm,intpmsl
 !   2014-05-07  pondeca  - add inthowv
 !   2015-07-10  pondeca  - add intcldch
+!   2016-03-07  pondeca  - add intuwnd10m,intvwnd10m
 !
 !   input argument list:
 !     ibin
@@ -194,7 +195,7 @@ subroutine intjo_(yobs,rval,qpred,sval,sbias,ibin)
 !
 !$$$
 use kinds, only: r_kind,i_kind,r_quad
-use jfunc, only: nrclen,nsclen,npclen,ntclen,l_foto,xhat_dt
+use jfunc, only: nrclen,nsclen,npclen,ntclen
 use bias_predictors, only: predictors
 use intaodmod, only: intaod
 use inttmod, only: intt
@@ -229,6 +230,8 @@ use inthowvmod, only: inthowv
 use inttcamtmod, only: inttcamt
 use intlcbasmod, only: intlcbas
 use intcldchmod, only: intcldch
+use intuwnd10mmod, only: intuwnd10m
+use intvwnd10mmod, only: intvwnd10m
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: gsi_bundlegetpointer
 
@@ -244,19 +247,9 @@ type(gsi_bundle), intent(inout) :: rval
 real(r_quad),dimension(max(1,nrclen)), intent(inout) :: qpred
 
 ! Declare local variables
-integer(i_kind) :: ier
-real(r_kind),pointer,dimension(:,:,:) :: xhat_dt_tsen,xhat_dt_q,xhat_dt_t
 
 
 !******************************************************************************
-
-! Calculate sensible temperature time derivative
-  if(l_foto)then
-     call gsi_bundlegetpointer(xhat_dt,'tv'  ,xhat_dt_t,   ier)
-     call gsi_bundlegetpointer(xhat_dt,'q'   ,xhat_dt_q,   ier)
-     call gsi_bundlegetpointer(xhat_dt,'tsen',xhat_dt_tsen,ier)
-     call tv_to_tsen(xhat_dt_t,xhat_dt_q,xhat_dt_tsen)
-  endif
 
 ! RHS for conventional temperatures
   if (ntclen>0) then
@@ -358,6 +351,12 @@ real(r_kind),pointer,dimension(:,:,:) :: xhat_dt_tsen,xhat_dt_q,xhat_dt_t
 
 ! RHS for cldch observations
   call intcldch(yobs%cldch,rval,sval)
+
+! RHS for conventional uwnd10m observations
+  call intuwnd10m(yobs%uwnd10m,rval,sval)
+
+! RHS for conventional vwnd10m observations
+  call intvwnd10m(yobs%vwnd10m,rval,sval)
 
 ! Take care of background error for bias correction terms
 

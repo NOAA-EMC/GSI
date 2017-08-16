@@ -1,4 +1,4 @@
-subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,obstype,lunout,sis,nobs)
+subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,infile,obstype,lunout,sis,nobs)
 !
 !   PRGMMR: Shun Liu          ORG: EMC        DATE: 2013-05-14
 !
@@ -36,6 +36,7 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,obstype,lunout,sis,nobs)
 ! Declare passed variables
   character(len=*),intent(in   ) :: obstype
   character(len=20),intent(in  ) :: sis
+  character(15), intent(in  ) :: infile
   integer(i_kind) ,intent(in   ) :: lunout
   integer(i_kind) ,intent(inout) :: nread,ndata,nouse
   integer(i_kind) ,dimension(npe),intent(inout) :: nobs
@@ -95,9 +96,11 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,obstype,lunout,sis,nobs)
 !  read in the NASA LaRC cloud data
   write(6,*)'start to read NASA_LaRC_cloud::'
 
-  maxobs=(1800*700 + 1500*850)*1
+  !maxobs=(1800*700 + 1500*850)*1
+  maxobs=(12250000)
   allocate(cdata_all(maxdat,maxobs))
-  satfile='lgycldbufr'
+  !satfile='lgycldbufr'
+  satfile=trim(infile)
   allocate(lat_l(maxobs))
   allocate(lon_l(maxobs))
   allocate(ptop_l(maxobs))
@@ -112,7 +115,7 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,obstype,lunout,sis,nobs)
   lwp_l =-9.0_r_kind
   phase_l=-9
   call read_NASALaRC_cloud_bufr_survey(satfile,east_time, west_time)
-  call read_NASALaRC_cloud_bufr(satfile,atime,east_time, west_time,   &
+  call read_NASALaRC_cloud_bufr(satfile,atime, &
             maxobs,numobs, ptop_l, teff_l, phase_l, lwp_l,lat_l, lon_l)
 
 !    write(6,*)'LaRC ptop =', (ptop_l(j),j=1,numobs,5000)
@@ -144,10 +147,6 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,obstype,lunout,sis,nobs)
         call grdcrd1(dlon,rlons,nlon,1)
      endif
 
-        if (phase_l(i).eq.4) phase_l(i) = 0   ! clear
-        if (phase_l(i).eq.5) phase_l(i) = -9  ! bad data equivalent to "no data"
-!       if (phase_l(i).eq.-9) ptop_l(i) = -9.0_r_kind
-        if (phase_l(i).eq.0) ptop_l(i) = -20.0_r_kind
 !    write(6,*)'dlat, dlon::',dlat,dlon
 
         cdata_all(1,i)=0.0_r_kind   !  time
@@ -171,12 +170,12 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,obstype,lunout,sis,nobs)
    call count_obs(numobs,maxdat,ilat,ilon,cdata_all,nobs)
    write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
    write(lunout) ((cdata_all(k,i),k=1,maxdat),i=1,numobs)
-   write(6,*)'NASA larccld::',nreal,numobs
+   write(6,*)'NASA larcglb::',nreal,numobs
 
    return
 end subroutine read_NASA_LaRC_cloud
 
-subroutine read_NASALaRC_cloud_bufr(satfile,atime,east_time, west_time, &
+subroutine read_NASALaRC_cloud_bufr(satfile,atime,&
              maxobs,numobs,ptop, teff, phase, lwp_iwp,lat, lon)
 !
 !   PRGMMR: Ming Hu          ORG: GSD        DATE: 2010-07-09
@@ -204,7 +203,7 @@ subroutine read_NASALaRC_cloud_bufr(satfile,atime,east_time, west_time, &
 !
 !_____________________________________________________________________
 !
-  use kinds, only: r_kind,i_kind,r_double
+  use kinds, only: r_kind,i_kind,r_double,r_single
 
   implicit none
 !
@@ -231,7 +230,6 @@ subroutine read_NASALaRC_cloud_bufr(satfile,atime,east_time, west_time, &
 !  For NASA LaRC 
 !
   CHARACTER*40   satfile
-  integer(i_kind) :: east_time, west_time
 
   INTEGER ::   maxobs, numobs  ! dimension
   INTEGER(i_kind) ::  obs_time
@@ -241,6 +239,8 @@ subroutine read_NASALaRC_cloud_bufr(satfile,atime,east_time, west_time, &
   REAL*4      lwp_iwp                        (  maxobs)
   REAL*4      teff                           (  maxobs)
   REAL*4      ptop                           (  maxobs)
+!
+  integer     phase_tmp
 !
 !
 !  ** misc
@@ -265,23 +265,35 @@ subroutine read_NASALaRC_cloud_bufr(satfile,atime,east_time, west_time, &
        call ufbint(unit_in,hdr,6,1,iret,hdstr)
        obs_time=int((hdr(1)-2000.0_r_kind)*100000000+hdr(2)*1000000+hdr(3)*10000+hdr(4)*100+hdr(5))
        call ufbint(unit_in,obs,7,1,iret,obstr)
-       if(obs_time == east_time .or. obs_time == west_time ) then
-       if(obs(5,1) < 1.e7 .and. obs(5,1) > 100.0_r_kind ) then
-       if(obs(6,1) < 1.e7 .and. obs(6,1) > 10.0_r_kind) then
-         ntb = ntb+1
-         if(ntb > maxobs) then
-           write(*,*) 'Error: need to increase maxobs',maxobs, ntb
-           stop 1234
-         endif
-         lat(ntb)=obs(1,1)
-         lon(ntb)=obs(2,1)
-         phase(ntb)=int(obs(3,1))
-         lwp_iwp(ntb)=obs(7,1)
-         teff(ntb)=obs(6,1)
-         ptop(ntb)=obs(5,1)/100.0_r_kind ! pa to hpa
+
+       ntb = ntb+1
+       if(ntb > maxobs) then
+          write(*,*) 'Error: need to increase maxobs',maxobs, ntb
+          stop 1234
        endif
-       endif
-       endif   ! east_time, west_time
+
+       lat(ntb)=obs(1,1)
+       lon(ntb)=obs(2,1)
+
+       phase_tmp=-9
+       if(obs(3,1) < 100.0_r_kind .and. obs(3,1) > -0.0_r_kind) phase_tmp=int(obs(3,1))
+       if (phase_tmp==0 .or. phase_tmp==1 .or. phase_tmp==2) then
+          if( (obs(5,1) < 1.e10_r_kind .and. obs(5,1) > 1.0_r_kind ) .and. &
+              (obs(6,1) < 1.e10_r_kind .and. obs(6,1) > 1.0_r_kind) ) then
+            phase(ntb) = 1   !cloud
+            lwp_iwp(ntb)=obs(7,1)
+            teff(ntb)=obs(6,1)
+            ptop(ntb)=obs(5,1)/100.0_r_kind ! pa to hPa
+          else
+            phase(ntb) = -9 ! bad data or no data
+          endif
+        elseif (phase_tmp==4) then
+            phase(ntb) = 0  !clear
+            ptop(ntb)  = -20._r_single
+        else
+            phase(ntb) = -9 ! bad data or no data
+        endif
+
      enddo sb_report
    enddo msg_report
    write(*,*) 'message/reports num=',nmsg,ntb

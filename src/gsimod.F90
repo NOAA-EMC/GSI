@@ -23,7 +23,7 @@
      lwrite_peakwt,use_limit,lrun_subdirs,l_foreaft_thin,&
      obsmod_init_instr_table,obsmod_final_instr_table
   use obsmod, only: luse_obsdiag
-  use aircraftinfo, only: init_aircraft,aircraft_t_bc_pof,aircraft_t_bc, &
+  use aircraftinfo, only: init_aircraft,hdist_aircraft,aircraft_t_bc_pof,aircraft_t_bc, &
                           aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail
   use obs_sensitivity, only: lobsensfc,lobsensincr,lobsensjb,lsensrecompute, &
                              lobsensadj,lobsensmin,iobsconv,llancdone,init_obsens
@@ -57,13 +57,13 @@
   use balmod, only: fstat
   use turblmod, only: use_pbl,init_turbl
   use qcmod, only: dfact,dfact1,create_qcvars,destroy_qcvars,&
-      erradar_inflate,tdrerr_inflate,tdrgross_fact,use_poq7,qc_satwnds,&
+      erradar_inflate,tdrerr_inflate,use_poq7,qc_satwnds,&
       init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3,qc_noirjaco3_pole,&
-      buddycheck_t,buddydiag_save,njqc,vqc
+      buddycheck_t,buddydiag_save,njqc,vqc,closest_obs
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax, &
      factv,factl,factp,factg,factw10m,facthowv,factcldch,niter,niter_no_qc,biascor,&
-     init_jfunc,qoption,cwoption,switch_on_derivatives,tendsflag,l_foto,jiterstart,jiterend,R_option,&
+     init_jfunc,qoption,cwoption,switch_on_derivatives,tendsflag,jiterstart,jiterend,R_option,&
      bcoption,diurnalbc,print_diag_pcg,tsensible,lgschmidt,diag_precon,step_start,pseudo_q2,&
      clip_supersaturation
   use state_vectors, only: init_anasv,final_anasv
@@ -124,7 +124,8 @@
                             l_cloud_analysis,nesdis_npts_rad, & 
                             iclean_hydro_withRef,iclean_hydro_withRef_allcol, &
                             i_use_2mq4b,i_use_2mt4b,i_gsdcldanal_type,i_gsdsfc_uselist, &
-                            i_lightpcp,i_sfct_gross,l_use_hydroretrieval_all
+                            i_lightpcp,i_sfct_gross,l_use_hydroretrieval_all,l_numconc,l_closeobs,&
+                            i_coastline,i_gsdqc
   use gsi_metguess_mod, only: gsi_metguess_init,gsi_metguess_final
   use gsi_chemguess_mod, only: gsi_chemguess_init,gsi_chemguess_final
   use tcv_mod, only: init_tcps_errvals,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
@@ -138,6 +139,8 @@
   use gfs_stratosphere, only: init_gfs_stratosphere,use_gfs_stratosphere,pblend0,pblend1
   use gfs_stratosphere, only: broadcast_gfs_stratosphere_vars
   use general_commvars_mod, only: init_general_commvars,destroy_general_commvars
+  use radiance_mod, only: radiance_mode_init,radiance_mode_destroy, &
+       radiance_obstype_destroy,radiance_parameter_cloudy_destroy
   use gsi_nstcouplermod, only: gsi_nstcoupler_init_nml
   use gsi_nstcouplermod, only: nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl
 
@@ -318,22 +321,31 @@
 !  05-02-2015 Parrish   add option rtma_bkerr_sub2slab to allow dual resolution for application of
 !                       anisotropic recursive filter (RTMA application only for now).
 !  05-13-2015 wu        remove check to turn off regional 4densvar
+!  01-13-2015 Ladwig    added option l_numconc
+!  09-01-2015 Hu        added option l_closeobs
 !  10-01-2015 guo       option to redistribute observations in 4d observer mode
+!  07-20-2015 zhu       re-structure codes for enabling all-sky/aerosol radiance assimilation, 
+!                       add radiance_mode_init, radiance_mode_destroy & radiance_obstype_destroy
 !  03-02-2016 s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
 !  03-10-2016 ejones    add control for gmi noise reduction
 !  03-25-2016 ejones    add control for amsr2 noise reduction
+!  04-18-2016 Yang      add closest_obs for selecting obs. from multi-report at a surface observation.
 !  06-24-2016 j. guo    added alwaysLocal => m_obsdiags::obsdiags_alwaysLocal to
 !                       namelist /SETUP/.
 !  08-12-2016 Mahajan   NST stuff belongs in NST module, Adding a NST namelist
 !                       option
 !  08-28-2016 li - tic591: add use_readin_anl_sfcmask for consistent sfcmask
 !                          between analysis grids and others
+!  02-02-2017 Hu        added option i_coastline to turn on the observation
+!                              operator for surface observations along the coastline area
+!  04-01-2017 Hu        added option i_gsdqc to turn on special observation qc
+!                              from GSD (for RAP/HRRR application)
 !
 !EOP
 !-------------------------------------------------------------------------
 
 ! Declare variables.
-  logical:: writediag
+  logical:: writediag,l_foto
   integer(i_kind) i,ngroup
 
 
@@ -408,7 +420,6 @@
 !                           (to be used eventually for time derivatives, dynamic constraints,
 !                            and observation forward models that need horizontal derivatives)
 !     tendsflag - if true, compute time tendencies
-!     l_foto   - option for First-Order Time extrapolation to Observation
 !     sfcmodel - if true, then use boundary layer forward model for surface temperature data.
 !     dtbduv_on - if true, use d(microwave brightness temperature)/d(uv wind) in inner loop
 !     ifact10 - flag for recomputing 10m wind factor
@@ -697,7 +708,6 @@
 !     dfact1   - time factor for duplicate obs at same location for conv. data
 !     erradar_inflate - radar error inflation factor
 !     tdrerr_inflate - logical for tdr obs error inflation
-!     tdrgross_fact - factor applies to tdr gross error
 !     oberrflg - logical for reading in new obs error table (if set to true)
 !     vadfile  - character(10) variable holding name of vadwnd bufr file
 !     noiqc    - logical flag to bypass OIQC (if set to true)
@@ -719,12 +729,16 @@
 !     buddydiag_save - When true, output files containing buddy check QC info for all
 !                      obs run through the buddy check
 !     njqc  -  When true, use Purser''s non linear QC
+!     vqc   -  when true, use ECMWF's non linear QC
+!     closest_obs- when true, choose the timely closest surface observation from
+!     multiple observations at a station.  Currently only applied to Ceiling
+!     height and visibility.
 
-  namelist/obsqc/ dfact,dfact1,erradar_inflate,tdrerr_inflate,tdrgross_fact,oberrflg,&
+  namelist/obsqc/ dfact,dfact1,erradar_inflate,tdrerr_inflate,oberrflg,&
        vadfile,noiqc,c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,&
        tcp_ermin,tcp_ermax,qc_noirjaco3,qc_noirjaco3_pole,qc_satwnds,njqc,vqc,&
        aircraft_t_bc_pof,aircraft_t_bc,aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail,&
-       buddycheck_t,buddydiag_save
+       hdist_aircraft,buddycheck_t,buddydiag_save,closest_obs
 
 ! OBS_INPUT (controls input data):
 !      dmesh(max(dthin))- thinning mesh for each group
@@ -906,6 +920,26 @@
 !                         =1 for cold surface, threshold for gross check is
 !                         enlarged to bring more large negative innovation into
 !                         analysis.
+!      l_numconc         - namelist logical to update cloud water and cloud ice
+!                          number concentrations. 
+!                         =false do not update num conc
+!                         =true update num conc
+!      l_use_hydroretrieval_all - the precipitation analysis use reflectivity
+!                                 purely
+!      l_closeobs        - namelist logical to pick the obs close to analysis
+!                          time.
+!                         =false do not pick, use obs error inflation with duplication
+!                         =true only pick the obs close to analysis time only.
+!      i_coastline        - options to turn on observation operator for coastline surface observations
+!                         =0. turn off observation operator for coastline
+!                         surface observations (default)
+!                         =1.  for temperature surface observations
+!                         =2.  for moisture surface observations
+!                         =3.  for temperature and moisture surface observations
+!      i_gsdqc            - option i_gsdqc to turn on special observation qc
+!                              from GSD (for RAP/HRRR application)
+!                         =0 turn off
+!                         =2 turn on
 !
   namelist/rapidrefresh_cldsurf/dfi_radar_latent_heat_time_period, &
                                 metar_impact_radius,metar_impact_radius_lowcloud, &
@@ -920,7 +954,8 @@
                                 nesdis_npts_rad, &
                                 iclean_hydro_withRef,iclean_hydro_withRef_allcol,&
                                 i_use_2mq4b,i_use_2mt4b,i_gsdcldanal_type,i_gsdsfc_uselist, &
-                                i_lightpcp,i_sfct_gross,l_use_hydroretrieval_all
+                                i_lightpcp,i_sfct_gross,l_use_hydroretrieval_all,l_numconc,l_closeobs,&
+                                i_coastline,i_gsdqc
 
 ! chem(options for gsi chem analysis) :
 !     berror_chem       - .true. when background  for chemical species that require
@@ -1011,6 +1046,7 @@
   call gsi_chemguess_init
   call init_anasv
   call init_anacv
+  call radiance_mode_init
 
   call init_constants_derived
   call init_oneobmod
@@ -1289,6 +1325,16 @@
      l_cloud_analysis = .false.
      if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** set l_cloud_analysis=false'
   endif
+  if((i_coastline == 1 .or. i_coastline == 3) .and. i_use_2mt4b==0) then
+     i_coastline=0
+     if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** ',&
+                    'set i_coastline=0 because i_use_2mt4b=0'
+  endif
+  if((i_coastline == 2 .or. i_coastline == 3) .and. i_use_2mq4b==0) then
+     i_coastline=0
+     if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** ',&
+                    'set i_coastline=0 because i_use_2mq4b=0'
+  endif
 
 ! Finish initialization of observation setup
   call init_obsmod_vars(nhr_assimilation,mype)
@@ -1327,8 +1373,9 @@
 ! For now if wrf mass or 2dvar no dynamic constraint
   if (l_tlnmc) tendsflag=.true.
   if (l_foto) then
-     tendsflag=.true.
-     if(mype == 0)write(6,*) 'Warning foto option will be removed in the near future'
+     if(mype == 0)write(6,*) 'Warning foto option has been removed'
+     call stop2(899)
+      
   end if
   if (tendsflag) switch_on_derivatives=.true.
 
@@ -1543,6 +1590,8 @@
      call final_fgrid2agrid(pf2aP2)
      call final_fgrid2agrid(pf2aP1)
   endif
+  call radiance_obstype_destroy
+  call radiance_parameter_cloudy_destroy
   call final_aero_vars
   call final_rad_vars
   if(passive_bc) call prad_destroy()    ! replacing -- call destroyobs_passive
@@ -1551,6 +1600,7 @@
   call destroy_general_commvars
   call final_grid_vars
 !_TBDone  call final_reg_glob_ll ! gridmod
+  call radiance_mode_destroy
   call final_anacv
   call final_anasv
   call obsmod_final_instr_table

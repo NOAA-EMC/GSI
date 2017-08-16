@@ -37,7 +37,6 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !
 !$$$
   use kinds, only: r_kind,r_double,i_kind,r_single
-  use mpimod, only: mype
   use constants, only: zero,one_tenth,quarter,half,one,deg2rad,&
       two,three,four,rad2deg,r60inv
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,&
@@ -48,7 +47,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   use insitu_info, only: n_comps,n_scripps,n_triton,n_3mdiscus,cid_mbuoy,n_ship,ship
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc,deter_sfc2
-  use gsi_nstcouplermod, only: nst_gsi,nstinfo,fac_dtl,fac_tsl
+  use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_deter
   use mpimod, only: npe
   implicit none

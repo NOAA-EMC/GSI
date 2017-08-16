@@ -1860,7 +1860,6 @@ subroutine preproc_read_gfsatm(grd,filename,iret)
    use constants, only: zero
    use mpimod, only: mpi_comm_world,ierror,mype
    use mpimod, only: mpi_mode_rdonly,mpi_info_null,mpi_rtype,mpi_offset_kind
-   use mpi, only: mpi_status_ignore
    use general_sub2grid_mod, only: sub2grid_info,general_grid2sub
    use gsi_bundlemod, only: gsi_bundle,gsi_bundlegetpointer
 
@@ -1878,6 +1877,7 @@ subroutine preproc_read_gfsatm(grd,filename,iret)
    integer(i_kind) :: count,lunges
    integer(i_kind) :: i,j,k,im,jm,km
    integer(mpi_offset_kind) :: offset
+   integer(i_kind) :: istatus
  
    ! Assume all goes well
    iret = 0
@@ -1898,7 +1898,7 @@ subroutine preproc_read_gfsatm(grd,filename,iret)
 
    count  = grd%nlat * grd%nlon *  grd%nlevs_alloc
    offset = grd%nlat * grd%nlon * (grd%kbegin_loc-1) * r_kind
-   call mpi_file_read_at(lunges,offset,work_grd,count,mpi_rtype,mpi_status_ignore,ierror)
+   call mpi_file_read_at(lunges,offset,work_grd,count,mpi_rtype,istatus,ierror)
    if ( ierror /= 0 ) then
       write(6,'(a,i5,a,i5,a)') '***ERROR***  MPI_FILE_READ_AT failed on task = ', mype, ' ierror = ', ierror
       iret = ierror
