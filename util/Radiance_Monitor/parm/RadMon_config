@@ -148,7 +148,7 @@ elif [[ $MY_MACHINE = "cray" ]]; then
    module load prod_util        # defines $NDATE among other things
    module load prod_envir
    module load xt-lsfhpc/9.1.3
-   export SUB="/gpfs/llsf/xt-lsfhpc/9.1/linux2.6-glibc2.3-x86_64-cray/bin/bsub"
+   export SUB=`which bsub`
    export NWPROD=${COMROOTp1}
    export COMPRESS="gzip -f"
    export UNCOMPRESS="gunzip -f"
