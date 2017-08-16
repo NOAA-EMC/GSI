@@ -18,6 +18,9 @@ subroutine setuphowv(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
 !                       . removed (%dlat,%dlon) debris.
+!   2016-08-24  stelios - Added check for errors/=0.0
+!   2016-10-07  pondeca - if(.not.proceed) advance through input file first
+!                          before retuning to setuprhsall.f90
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -37,7 +40,7 @@ subroutine setuphowv(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind
 
-  use guess_grids, only: hrdifsig,nfldsig,ntguessig
+  use guess_grids, only: hrdifsig,nfldsig
   use m_obsdiags, only: howvhead
   use m_obsNode , only: obsNode
   use m_howvNode, only: howvNode
@@ -127,7 +130,10 @@ subroutine setuphowv(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
-  if(.not.proceed) return  ! not all vars available, simply return
+  if(.not.proceed) then
+     read(lunin)data,luse   !advance through input file
+     return  ! not all vars available, simply return
+  endif
 
 ! If require guess vars available, extract from bundle ...
   call init_vars_
@@ -285,6 +291,7 @@ subroutine setuphowv(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      ddiff=data(ihowv,i)-howvges
 
 ! Adjust observation error
+     if (error<=tiny_r_kind.and.data(ier,i)<=tiny_r_kind) cycle   !#ww3
      ratio_errors=error/data(ier,i)
      error=one/error
 
@@ -388,7 +395,7 @@ subroutine setuphowv(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         my_head%elon= data(ilone,i)
 
 !       Set (i,j) indices of guess gridpoint that bound obs location
-        call get_ij(mm1,dlat,dlon,my_head%ij(1),my_head%wij(1))
+        call get_ij(mm1,dlat,dlon,my_head%ij,my_head%wij)
 
         my_head%res     = ddiff
         my_head%err2    = error**2
@@ -529,6 +536,8 @@ subroutine setuphowv(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   call gsi_metguess_get ('var::ps', ivar, istatus )
   proceed=ivar>0
   call gsi_metguess_get ('var::z' , ivar, istatus )
+  proceed=proceed.and.ivar>0
+  call gsi_metguess_get ('var::howv' , ivar, istatus )
   proceed=proceed.and.ivar>0
   end subroutine check_vars_ 
 

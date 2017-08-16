@@ -20,7 +20,7 @@ export MONITOR=radmon
 # you checked out only the Radiance_Monitor portion of the branch then
 # MY_RADMON should point to that.
 #
-export MY_RADMON=${MY_RADMON:-}
+export MY_RADMON=${MY_RADMON:-/gpfs/hps3/emc/da/noscrub/Edward.Safford/RadMon_622/util/Radiance_Monitor}
 
 #
 #  The MY_TANKDIR will be the location for the extracted data files and
@@ -28,7 +28,7 @@ export MY_RADMON=${MY_RADMON:-}
 #  and the succedding scripts will construct and use subdirectories under
 #  this location.
 #
-export MY_TANKDIR=${MY_TANKDIR:-}
+export MY_TANKDIR=${MY_TANKDIR:-/u/Edward.Safford/nbns}
 
 export RUN=${RUN:-gdas}
 
@@ -47,9 +47,9 @@ fi
 #  on the web server (WEB_USER), and location of the top level directory
 #  for the html on the web server (WEBDIR).
 #
-export WEB_SVR=${WEB_SVR:-}
-export WEB_USER=${WEB_USER:-}
-export WEBDIR=${WEBDIR:-}
+export WEB_SVR=${WEB_SVR:-emcrzdm}
+export WEB_USER=${WEB_USER:-esafford}
+export WEBDIR=${WEBDIR:-/home/people/emc/www/htdocs/gmb/gdas/radiance/esafford}
 
 
 ###############################################################################
@@ -61,16 +61,16 @@ export WEBDIR=${WEBDIR:-}
 ###############################################################################
 ###############################################################################
 
-export MY_MACHINE=wcoss
+export MY_MACHINE=cray
 export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 
 
 #
 #  Log and work space definitions
 #
-export MY_PTMP=${MY_PTMP:-/ptmpp1}
+export MY_PTMP=${MY_PTMP:-/gpfs/hps/ptmp}
 export PTMP_USER=${PTMP_USER:-${MY_PTMP}/${LOGNAME}}
-export MY_STMP=${MY_STMP:-/stmpp1}
+export MY_STMP=${MY_STMP:-/gpfs/hps/stmp}
 export STMP_USER=${STMP_USER:-${MY_STMP}/${LOGNAME}}
 
 export LOGSverf_rad=${LOGSverf_rad:-${PTMP_USER}/logs}
@@ -147,7 +147,8 @@ elif [[ $MY_MACHINE = "cray" ]]; then
    module use -a /gpfs/hps/nco/ops/nwprod/modulefiles
    module load prod_util        # defines $NDATE among other things
    module load prod_envir
-   module load xt-lsfhpc/9.1.3
+   module load xt-lsfhpc
+#   export SUB="/gpfs/slsf/xt-lsfhpc/9.1/linux2.6-glibc2.3-x86_64-cray/bin/bsub"
    export SUB=`which bsub`
    export NWPROD=${COMROOTp1}
    export COMPRESS="gzip -f"

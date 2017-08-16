@@ -52,7 +52,7 @@ use jfunc, only: xhatsave
 use jfunc, only: nrclen,nsclen,npclen,ntclen
 use jfunc, only: jiter,miter
 use jcmod, only: ljcdfi
-use gridmod, only: lat2,lon2,nsig,twodvar_regional
+use gridmod, only: twodvar_regional
 use hybrid_ensemble_parameters, only: l_hyb_ens,ntlevs_ens
 use obsmod, only: lsaveobsens, l_do_adjoint
 use obs_sensitivity, only: fcsens

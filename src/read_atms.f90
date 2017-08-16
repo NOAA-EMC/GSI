@@ -2,7 +2,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      rmesh,jsatid,gstime,infile,lunout,obstype,&
      nread,ndata,nodata,twind,sis, &
      mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs, &
-     nrec_start,nrec_start_ears,nrec_start_db,dval_use)
+     nrec_start,nrec_start_ears,nrec_start_db,dval_use,radmod)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_atms                  read atms 1b data
@@ -29,6 +29,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !  2013-12-20  eliu - change icw4crtm>0 to icw4crtm>10 (bug fix))
 !  2014-01-31  mkim - add iql4crtm and set qval= 0 for all-sky mw data assimilation
 !  2015-02-23  Rancic/Thomas - add thin4d to time window logical
+!  2015-08-20  zhu - add radmod for all-sky and aerosol usages in radiance assimilation
 !  2016-04-28  jung - added logic for RARS and direct broadcast from NESDIS/UW
 !  2016-10-20  collard - fix to allow monitoring and limited assimilation of spectra when key 
 !                         channels are missing.
@@ -78,12 +79,12 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   use crtm_module, only : max_sensor_zenith_angle
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
-  use gsi_metguess_mod, only: gsi_metguess_get
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
   use atms_spatial_average_mod, only : atms_spatial_average
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth,gsi_nstcoupler_deter
   use mpimod, only: npe
+  use radiance_mod, only: rad_obs_type
 
   implicit none
 
@@ -103,6 +104,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) ,intent(in   ) :: npe_sub
   integer(i_kind) ,intent(in   ) :: mpi_comm_sub
   logical         ,intent(in   ) :: dval_use
+  type(rad_obs_type),intent(in ) :: radmod
 
 ! Declare local parameters
 
@@ -137,8 +139,8 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) lnbufr,ksatid,isflg,ichan3,ich3,ich4,ich6
   integer(i_kind) ilat,ilon, ifovmod, nadir
   integer(i_kind),dimension(5):: idate5
-  integer(i_kind) instr,ichan,icw4crtm
-  integer(i_kind):: ier,ierr
+  integer(i_kind) instr,ichan
+  integer(i_kind):: ierr
   integer(i_kind):: radedge_min, radedge_max
   integer(i_kind), POINTER :: ifov
   integer(i_kind), TARGET :: ifov_save(maxobs)
@@ -200,10 +202,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   if(nst_gsi>0) then
      call gsi_nstcoupler_skindepth(obstype,zob)
   endif
-
-! Determine whether CW used in CRTM
-  call gsi_metguess_get ( 'i4crtm::ql', icw4crtm, ier )
-  icw4crtm=0  !emily: do clear ATMS assimilation for now
 
 ! Make thinning grids
   call makegrids(rmesh,ithin)
@@ -650,7 +648,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
               if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
                  cosza = cos(lza)
                  d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
-                 if (icw4crtm>10) then
+                 if (radmod%lcloud_fwd) then
                     qval  = zero 
                  else 
                     qval  = cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))

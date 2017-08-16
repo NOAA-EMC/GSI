@@ -22,7 +22,7 @@ export PROJECT=${PROJECT:-GDAS-T2O}
 #  JOB_QUEUE is used on wcoss only with the bjob -q flag.  It is 
 #  empty on other platforms.
 #
-export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
+export JOB_QUEUE=${JOB_QUEUE:-dev}
 
 #
 #  RAD_AREA is either glb (global) or rgn (regional)
@@ -88,7 +88,7 @@ export ARCHIVE_DIR=${ARCHIVE_DIR:-' '}
 #
 #  HPSS_DIR is the location for archived data on the hpss.  It will only
 #    be used if DO_ARCHIVE is set to on (1).
-export HPSS_DIR=${HPSS_DIR:-' '}
+export HPSS_DIR=${HPSS_DIR:-/NCEPDEV/hpssuser/g01/Edward.Safford/nbns/stats}
 
 #
 #  USE_STATIC_SATYPE switches on/off use of static satype list.  This is primarily

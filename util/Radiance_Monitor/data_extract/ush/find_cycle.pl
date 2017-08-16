@@ -61,7 +61,9 @@
    closedir DIR;
 
    my @raddirs = grep { /radmon/ } @alldirs;
-
+   if( $#raddirs < 0 ) {
+      @raddirs = grep { /gdas/ } @alldirs;
+   }
    
    #  If there are no radmon.* subdirectories, then exit without 
    #    returning any date string.
@@ -98,6 +100,12 @@
 
          my @tfiles = grep { /time/ } readdir DIR;
          my @timefiles = grep { /ieee_d/ } @tfiles;
+         if( $#timefiles <= 0 ) {
+            $newdir = "${dirpath}/${sortrad[$ctr]}/radmon";
+            opendir DIR, $newdir or die "Cannot open the current directory: $!";
+            @tfiles = grep { /time/ } readdir DIR;
+            @timefiles = grep { /ieee_d/ } @tfiles;
+         }
 
          if( $#timefiles >= 0 ) {
             my @sorttime = sort( @timefiles );
@@ -163,6 +171,13 @@
 
          my @tfiles = grep { /time/ } readdir DIR;
          my @timefiles = grep { /ieee_d/ } @tfiles;
+
+         if( $#timefiles <= 0 ) {
+            $newdir = "${dirpath}/${sortrad[$ctr]}/radmon";
+            opendir DIR, $newdir or die "Cannot open the current directory: $!";
+            @tfiles = grep { /time/ } readdir DIR;
+            @timefiles = grep { /ieee_d/ } @tfiles;
+         }
 
          if( $#timefiles >= 0 ) {
             my @sorttime = sort( @timefiles );

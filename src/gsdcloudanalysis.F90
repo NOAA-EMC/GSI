@@ -21,7 +21,8 @@ subroutine  gsdcloudanalysis(mype)
 !                          reflectivity between 15-28dBZ
 !    2014-12-22  Hu      - Add light rain in precipiation analysis using radar
 !                          reflectivity between 15-28dBZ
-!   2017-03-23  Hu      - add code to use hybrid vertical coodinate in WRF MASS
+!    2015-01-13  ladwig - add code for Qni and Qnc (cloud ice and water number concentration)
+!    2017-03-23  Hu      - add code to use hybrid vertical coodinate in WRF MASS
 !                           core
 !
 !
@@ -74,7 +75,7 @@ subroutine  gsdcloudanalysis(mype)
                                       build_cloud_frac_p, clear_cloud_frac_p, &
                                       nesdis_npts_rad, &
                                       iclean_hydro_withRef, iclean_hydro_withRef_allcol, &
-                                      i_lightpcp
+                                      i_lightpcp, l_numconc
 
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -164,7 +165,9 @@ subroutine  gsdcloudanalysis(mype)
                                                       ! 3,5,... top
 !
   real(r_single),allocatable :: cldwater_3d(:,:,:)    ! cloud water
+  real(r_single),allocatable :: nwater_3d(:,:,:)      ! cloud water number concentration
   real(r_single),allocatable :: cldice_3d(:,:,:)      ! cloud ice
+  real(r_single),allocatable :: nice_3d(:,:,:)        ! cloud ice number concentration
   real(r_single),allocatable :: rain_3d(:,:,:)        ! rain
   real(r_single),allocatable :: nrain_3d(:,:,:)       ! rain number concentration
   real(r_single),allocatable :: snow_3d(:,:,:)        ! snow
@@ -174,6 +177,7 @@ subroutine  gsdcloudanalysis(mype)
   real(r_single),allocatable :: rain_1d_save(:)       ! rain
   real(r_single),allocatable :: nrain_1d_save(:)      ! rain number concentration    
   real(r_single),allocatable :: snow_1d_save(:)       ! snow
+  real(r_single),allocatable :: vis2qc(:,:)           ! fog
 
   real(r_kind)    ::  thunderRadius=2.5_r_kind
   real(r_single)  ::  r_radius          ! influence radius of cloud based on METAR obs
@@ -219,6 +223,8 @@ subroutine  gsdcloudanalysis(mype)
   real(r_kind), pointer :: ges_qs(:,:,:)=>NULL()  ! snow
   real(r_kind), pointer :: ges_qg(:,:,:)=>NULL()  ! graupel
   real(r_kind), pointer :: ges_qnr(:,:,:)=>NULL() ! rain number concentration
+  real(r_kind), pointer :: ges_qni(:,:,:)=>NULL() ! cloud ice number concentration
+  real(r_kind), pointer :: ges_qnc(:,:,:)=>NULL() ! cloud water number concentration
 !
 !  misc.
 !
@@ -238,6 +244,13 @@ subroutine  gsdcloudanalysis(mype)
   real(r_kind)    :: snowadd,ratio2
   integer(i_kind) :: imax, jmax, ista, iob, job
   real(r_kind)    :: dfi_lhtp, qmixr, tsfc
+  real(r_kind)    :: Temp, watwgt
+  real(r_kind)    :: cloudwater, cloudice
+
+  real(r_kind),parameter    :: pi = 4._r_kind*atan(1._r_kind)
+  real(r_kind),parameter    :: rho_w = 999.97_r_kind, rho_a = 1.2_r_kind
+  real(r_kind),parameter    :: cldDiameter = 10.0D3_r_kind
+
 
 !
 !
@@ -256,6 +269,8 @@ subroutine  gsdcloudanalysis(mype)
   call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'qs',ges_qs,istatus);ier=ier+istatus
   call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'qg',ges_qg,istatus);ier=ier+istatus
   call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'qnr',ges_qnr,istatus);ier=ier+istatus
+  call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'qni',ges_qni,istatus);ier=ier+istatus
+  call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'qnc',ges_qnc,istatus);ier=ier+istatus
   if(ier/=0) return ! no guess, nothing to do
 
   if(mype==0) then
@@ -367,10 +382,10 @@ subroutine  gsdcloudanalysis(mype)
                         'Surface cloud observations are read in successfully'
            istat_surface=1
 
-        elseif( dtype(is) == 'gos_ctp' ) then 
 !
 !  1.2.4 read in NESDIS cloud products
 !
+        elseif( dtype(is) == 'gos_ctp' ) then 
 
            call read_NESDIS(mype,lunin,nsat1(is),regional_time,istart(mype+1),            &
                             jstart(mype+1),lon2,lat2,sat_ctp,sat_tem,w_frac,nesdis_npts_rad)
@@ -378,10 +393,11 @@ subroutine  gsdcloudanalysis(mype)
                          'NESDIS cloud products are read in successfully'
            istat_nesdis = 1 
 
-        elseif( dtype(is) == 'rad_ref' ) then
 !
 !  1.2.6 read in reflectivity mosaic
 !
+        elseif( dtype(is) == 'rad_ref' ) then
+
            allocate( ref_mosaic31(lon2,lat2,31) )
            ref_mosaic31=-99999.0_r_kind
 
@@ -391,19 +407,22 @@ subroutine  gsdcloudanalysis(mype)
                          ' radar reflectivity is read in successfully'
            istat_radar=1
 
-        elseif( dtype(is)=='lghtn' ) then
 !
 !  1.2.8 read in lightning
 !
+        elseif( dtype(is)=='lghtn' ) then
+
            call read_Lightning2cld(mype,lunin,regional_time,istart(mype+1),jstart(mype+1), &
                                    lon2,lat2,nsat1(is),lightning)
            if(mype == 0) write(6,*) 'gsdcloudanalysis: Lightning is read in successfully'
            istat_lightning = 1 
 
-        elseif( dtype(is) =='larccld' ) then
 !
 !  1.2.9 read in NASA LaRC cloud products
 !
+        ! these obs are already mapped to analysis grid
+        elseif( dtype(is) =='larccld' ) then
+
            allocate(nasalarc_cld(lon2,lat2,5))
            nasalarc_cld=miss_obs_real
 
@@ -413,10 +432,22 @@ subroutine  gsdcloudanalysis(mype)
                          'NASA LaRC cloud products are read in successfully'
            istat_nasalarc = 1
 
-        else
+        ! these global obs will be mapped to analysis grid
+        elseif( dtype(is) =='larcglb' ) then
+
+           allocate(nasalarc_cld(lon2,lat2,5))
+           nasalarc_cld=miss_obs_real
+
+           call read_map_nasalarc(mype,lunin,nsat1(is),regional_time,istart(mype+1),   &
+                              jstart(mype+1),lon2,lat2,nasalarc_cld)
+           if(mype == 0) write(6,*) 'gsdcloudanalysis:',                       &
+                         'NASA LaRC global cloud products are read in successfully'
+           istat_nasalarc = 1
+
 !
 !  1.2.12  all other observations 
 !
+        else
            read(lunin)  obstype,isis,nreal,nchanl
            read(lunin)
         endif   ! dtype
@@ -570,6 +601,7 @@ subroutine  gsdcloudanalysis(mype)
   allocate(snow_3d(lon2,lat2,nsig))
   allocate(graupel_3d(lon2,lat2,nsig))
   allocate(cldtmp_3d(lon2,lat2,nsig))
+  allocate(vis2qc(lon2,lat2))
   cldwater_3d=miss_obs_real
   cldice_3d=miss_obs_real
   rain_3d=miss_obs_real
@@ -577,12 +609,17 @@ subroutine  gsdcloudanalysis(mype)
   snow_3d=miss_obs_real
   graupel_3d=miss_obs_real
   cldtmp_3d=miss_obs_real
+  vis2qc=miss_obs_real
   allocate(rain_1d_save(nsig))
   allocate(nrain_1d_save(nsig))
   allocate(snow_1d_save(nsig))
   rain_1d_save=miss_obs_real
   nrain_1d_save=miss_obs_real
   snow_1d_save=miss_obs_real
+  allocate(nice_3d(lon2,lat2,nsig))
+  allocate(nwater_3d(lon2,lat2,nsig))
+  nice_3d=miss_obs_real
+  nwater_3d=miss_obs_real
 !          
 ! 2.4 read in background fields
 !          
@@ -652,10 +689,10 @@ subroutine  gsdcloudanalysis(mype)
 !
   if(istat_surface ==  1) then
      call cloudCover_surface(mype,lat2,lon2,nsig,r_radius,thunderRadius,  &
-              t_bk,p_bk,q_bk,h_bk,zh,                                     &
+              cld_bld_hgt,t_bk,p_bk,q_bk,h_bk,zh,                         &
               numsao,nvarcld_p,numsao,oi,oj,ocld,owx,oelvtn,odist,        &
               cld_cover_3d,cld_type_3d,wthr_type_2d,pcp_type_3d,          &
-              wimaxstation, kwatericemax)
+              wimaxstation, kwatericemax,vis2qc)
      if(mype == 0) write(6,*) 'gsdcloudanalysis:',                        &  
                    'success in cloud cover analysis using surface data'
   endif
@@ -752,13 +789,9 @@ subroutine  gsdcloudanalysis(mype)
 ! 4.10 radar temperature tendency for DFI
 !
   dfi_lhtp=dfi_radar_latent_heat_time_period
-  if (istat_nesdis==1) then
-     call radar_ref2tten(mype,istat_radar,istat_lightning,lon2,lat2,nsig,ref_mos_3d_tten, &
+  if (istat_NESDIS /= 1) sat_ctp=miss_obs_real
+  call radar_ref2tten(mype,istat_radar,istat_lightning,lon2,lat2,nsig,ref_mos_3d_tten, &
                        cld_cover_3d,p_bk,t_bk,ges_tten(:,:,:,1),dfi_lhtp,krad_bot,pblh,sat_ctp)
-  else
-     call radar_ref2tten_nosat(mype,istat_radar,istat_lightning,lon2,lat2,nsig,      &
-                       ref_mos_3d_tten,cld_cover_3d,p_bk,t_bk,ges_tten(:,:,:,1),dfi_lhtp,krad_bot,pblh)
-  endif
 
 !
 ! 4.12  temperature adjustment
@@ -777,16 +810,36 @@ subroutine  gsdcloudanalysis(mype)
      do j=2,lat2-1
         do i=2,lon2-1
            if( cld_cover_3d(i,j,k) > -0.001_r_kind ) then 
-              if( cld_cover_3d(i,j,k) > 0.6_r_kind ) then 
-                 cldwater_3d(i,j,k) = max(0.001_r_kind*cldwater_3d(i,j,k),ges_ql(j,i,k))
-                 cldice_3d(i,j,k)   = max(0.001_r_kind*cldice_3d(i,j,k),ges_qi(j,i,k))
+              if( cld_cover_3d(i,j,k) > 0.6_r_kind ) then  ! build cloud
+! mhu: Feb2017: set qnc=1e8 and qni=1e6 when build cloud
+                 cloudwater=0.001_r_kind*cldwater_3d(i,j,k)
+                 cloudice=0.001_r_kind*cldice_3d(i,j,k)
+                 cldwater_3d(i,j,k) = max(cloudwater,ges_ql(j,i,k))
+                 cldice_3d(i,j,k)   = max(cloudice,ges_qi(j,i,k))
+                 if(cloudwater > 1.0e-7_r_kind .and. cloudwater >= ges_ql(j,i,k)) then
+                    nwater_3d(i,j,k)   = 1.0E8_r_single
+                 else
+                    nwater_3d(i,j,k)   = ges_qnc(j,i,k)
+                 endif
+                 if(cloudice > 1.0e-7_r_kind .and. cloudice >= ges_qi(j,i,k)) then
+                    nice_3d(i,j,k) = 1.0E6_r_single
+                 else
+                    nice_3d(i,j,k) = ges_qni(j,i,k)
+                 endif
+                 !nwater_3d(i,j,k) = ((6. * rho_a * cldwater_3d(i,j,k)) / (pi * rho_w * cldDiameter)) /1000.
+                 !Hong et al. 2004
+                 !nice_3d(i,j,k) = 5.38E7*((1.2754*cldice_3d(i,j,k))**0.75)*100.0 
               else   ! clean  cloud
                  cldwater_3d(i,j,k) = zero
                  cldice_3d(i,j,k) = zero
+                 nice_3d(i,j,k) = zero
+                 nwater_3d(i,j,k) = zero
               endif
            else   ! unknown, using background values
               cldwater_3d(i,j,k) = ges_ql(j,i,k)
               cldice_3d(i,j,k) = ges_qi(j,i,k)
+              nice_3d(i,j,k) = ges_qni(j,i,k)
+              nwater_3d(i,j,k) = ges_qnc(j,i,k)
            endif
         end do
      end do
@@ -970,7 +1023,7 @@ subroutine  gsdcloudanalysis(mype)
      end do
   endif
 !
-!  remove any negative hydrometeor mixing ratio values
+!  remove any negative hydrometeor mixing ratio or number concentration values
 !
   do k=1,nsig
      do j=2,lat2-1
@@ -978,8 +1031,11 @@ subroutine  gsdcloudanalysis(mype)
            cldwater_3d(i,j,k)= max(0.0_r_single,cldwater_3d(i,j,k))
            cldice_3d(i,j,k)  = max(0.0_r_single,cldice_3d(i,j,k))
            rain_3d(i,j,k)    = max(0.0_r_single,rain_3d(i,j,k))
+           nrain_3d(i,j,k)   = max(0.0_r_single,nrain_3d(i,j,k))
            snow_3d(i,j,k)    = max(0.0_r_single,snow_3d(i,j,k))
            graupel_3d(i,j,k) = max(0.0_r_single,graupel_3d(i,j,k))
+           nice_3d(i,j,k)    = max(0.0_r_single,nice_3d(i,j,k))
+           nwater_3d(i,j,k)  = max(0.0_r_single,nwater_3d(i,j,k))
         end do
      end do
   end do
@@ -1020,6 +1076,25 @@ subroutine  gsdcloudanalysis(mype)
                  lat2,lon2,nsig,q_bk,t_bk,p_bk,      &
                  cld_cover_3d,wthr_type_2d,cldwater_3d,cldice_3d,sumqci)
 
+!
+!  add fog  (12/08/2015)
+!
+  do j=2,lat2-1
+     do i=2,lon2-1
+        if( vis2qc(i,j) > zero ) then
+
+           do k=1,2
+               Temp = t_bk(i,j,k)*(p_bk(i,j,k)/h1000)**rd_over_cp
+               watwgt = max(0._r_kind,min(1._r_kind,(Temp-263.15_r_kind)/&
+                                     (268.15_r_kind - 263.15_r_kind)))
+              cldwater_3d(i,j,k) = max(watwgt*vis2qc(i,j),cldwater_3d(i,j,k))
+              cldice_3d(i,j,k)   = max((1.0_r_single-watwgt)*vis2qc(i,j),cldice_3d(i,j,k))
+           enddo
+        endif
+     end do
+  end do
+!
+!
 !  call check_cloud(mype,lat2,lon2,nsig,q_bk,rain_3d,snow_3d,graupel_3d, &
 !             cldwater_3d,cldice_3d,t_bk,p_bk,h_bk,                      &
 !             numsao,nvarcld_p,numsao,oi,oj,ocld,owx,oelvtn,cstation,    &
@@ -1052,7 +1127,11 @@ subroutine  gsdcloudanalysis(mype)
            ges_ql(j,i,k)=cldwater_3d(i,j,k)
            ges_qi(j,i,k)=cldice_3d(i,j,k)
            ges_qnr(j,i,k)=nrain_3d(i,j,k)
-        enddo
+           if( l_numconc ) then
+             ges_qni(j,i,k)=nice_3d(i,j,k)
+             ges_qnc(j,i,k)=nwater_3d(i,j,k)
+           endif
+        enddo 
      enddo
   enddo
 !
@@ -1065,6 +1144,8 @@ subroutine  gsdcloudanalysis(mype)
   deallocate(t_bk,h_bk,p_bk,ps_bk,zh,q_bk,sumqci,pblh)
   deallocate(xlon,xlat,xland,soiltbk)
   deallocate(cldwater_3d,cldice_3d,rain_3d,nrain_3d,snow_3d,graupel_3d,cldtmp_3d)
+  deallocate(nice_3d,nwater_3d)
+  deallocate(vis2qc)
 
   if(istat_surface ==  1 ) then
      deallocate(oi,oj,ocld,owx,oelvtn,odist,cstation,oistation,ojstation,wimaxstation)
