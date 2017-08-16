@@ -45,7 +45,10 @@ else
    #-------------------------------------
    #  Make list of extracted satypes
    #  using time.*.pdate.ieee_d* files
-   ext_file_list=`ls -1 $TANKdir/radmon.$pdy/time.*.$pdate.ieee_d*`
+   #
+   ext_file_list=`ls -1 ${IEEE_SRC}/time.*.$pdate.ieee_d*`
+
+
    ext_list=""
  
    if [[ $ext_file_list != "" ]]; then

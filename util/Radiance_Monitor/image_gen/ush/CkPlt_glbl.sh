@@ -168,6 +168,20 @@ export PDY=`echo $PDATE|cut -c1-8`
 
 
 #--------------------------------------------------------------------
+#  Determine which directory structure is in use in $TANKDIR
+#
+
+if [[ $TANK_USE_RUN -eq 1 ]]; then
+   ieee_src=${TANKverf}/${RUN}.${PDY}/${MONITOR}
+else
+   ieee_src=${TANKverf}/${monitor}.${PDY}
+fi
+
+export IEEE_SRC=${ieee_src}
+echo "IEEE_SRC = $IEEE_SRC"
+
+
+#--------------------------------------------------------------------
 #  $PRODATE may be set to "auto", meaning automatically advance 
 #  if data is available (data is being processed by ops or by 
 #  a parallel.  We need to make sure the data for the next cycle
@@ -176,12 +190,15 @@ export PDY=`echo $PDATE|cut -c1-8`
 proceed="NO"
 if [[ "$PRODATE" == "auto" ]]; then
    proceed=`${IG_SCRIPTS}/confirm_data.sh ${RADMON_SUFFIX} ${PDATE}`
+
 elif [[ $PDATE -le $PRODATE ]]; then
-   nfile_src=`ls -l ${TANKDIR}/radmon.${PDY}/*${PDATE}*ieee_d* | egrep -c '^-'` 
+   nfile_src=`ls -l ${IEEE_SRC}/*${PDATE}*ieee_d* | egrep -c '^-'`
+
    if [[ $nfile_src -gt 0 ]]; then
       proceed="YES"
    fi
 fi
+
 echo proceed = $proceed
 
 if [[ "$proceed" != "YES" ]]; then
@@ -215,30 +232,18 @@ cd $PLOT_WORK_DIR
 #-------------------------------------------------------------
 if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
 
-   if [[ -d ${TANKDIR}/radmon.${PDY} ]]; then
-      test_list=`ls ${TANKDIR}/radmon.${PDY}/angle.*${PDATE}.ieee_d*`
-      for test in ${test_list}; do
-         this_file=`basename $test`
-         test_anl=`echo $this_file | grep "_anl"`
-         if [[ $test_anl = "" ]]; then
-            tmp=`echo "$this_file" | cut -d. -f2`
-            echo $tmp
-            SATYPE_LIST="$SATYPE_LIST $tmp"
-         fi
-      done
-   else
-      test_list=`ls ${TANKDIR}/angle/*.${PDATE}.ieee_d*`
-      for test in ${test_list}; do
-         this_file=`basename $test`
-         test_anl=`echo $this_file | grep "_anl"`
-         if [[ $test_anl = "" ]]; then
-            tmp=`echo "$this_file" | cut -d. -f1`
-            echo $tmp
-            SATYPE_LIST="$SATYPE_LIST $tmp"
-         fi
-      done
-   fi
-   
+   test_list=`ls ${IEEE_SRC}/angle.*${PDATE}.ieee_d*`
+
+   for test in ${test_list}; do
+      this_file=`basename $test`
+      test_anl=`echo $this_file | grep "_anl"`
+      if [[ $test_anl = "" ]]; then
+         tmp=`echo "$this_file" | cut -d. -f2`
+         echo $tmp
+         SATYPE_LIST="$SATYPE_LIST $tmp"
+      fi
+   done
+
    SATYPE=$SATYPE_LIST
    echo $SATYPE
 

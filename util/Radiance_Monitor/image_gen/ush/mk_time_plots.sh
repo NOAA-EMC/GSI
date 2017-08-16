@@ -51,16 +51,17 @@ for type in ${SATYPE}; do
          pdy=`echo $test_day|cut -c1-8`
       fi
 
-      if [[ -s ${TANKDIR}/radmon.${pdy}/time.${type}.ctl.${Z} ]]; then
-         $NCP ${TANKDIR}/radmon.${pdy}/time.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
-         if [[ -s ${TANKDIR}/radmon.${pdy}/time.${type}_anl.ctl.${Z} ]]; then
-            $NCP ${TANKDIR}/radmon.${pdy}/time.${type}_anl.ctl.${Z} ${imgndir}/${type}_anl.ctl.${Z}
+
+      if [[ -s ${IEEE_DIR}/time.${type}.ctl.${Z} ]]; then
+         $NCP ${IEEE_DIR}/time.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
+         if [[ -s ${IEEE_DIR}/time.${type}_anl.ctl.${Z} ]]; then
+            $NCP ${IEEE_DIR}/time.${type}_anl.ctl.${Z} ${imgndir}/${type}_anl.ctl.${Z}
          fi
          found=1
-      elif [[ -s ${TANKDIR}/radmon.${pdy}/time.${type}.ctl ]]; then
-         $NCP ${TANKDIR}/radmon.${pdy}/time.${type}.ctl ${imgndir}/${type}.ctl
-         if [[ -s ${TANKDIR}/radmon.${pdy}/time.${type}_anl.ctl ]]; then
-            $NCP ${TANKDIR}/radmon.${pdy}/time.${type}_anl.ctl ${imgndir}/${type}_anl.ctl
+      elif [[ -s ${IEEE_DIR}/time.${type}.ctl ]]; then
+         $NCP ${IEEE_DIR}/time.${type}.ctl ${imgndir}/${type}.ctl
+         if [[ -s ${IEEE_DIR}/time.${type}_anl.ctl ]]; then
+            $NCP ${IEEE_DIR}/time.${type}_anl.ctl ${imgndir}/${type}_anl.ctl
          fi
          found=1
       fi
