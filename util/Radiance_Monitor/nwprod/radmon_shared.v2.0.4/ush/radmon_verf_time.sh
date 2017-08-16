@@ -383,10 +383,10 @@ if [[ $DO_DATA_RPT -eq 1 ]]; then
    prev_bad_chan=bad_chan.${qdate}
 
    do_rpt=0
-   if [[ -s $bad_pen && -s ${TANKverf}/radmon.${pday}/$prev_bad_pen ]]; then
+   if [[ -s $bad_pen && -s ${TANKverf_radM1}/$prev_bad_pen ]]; then
       do_rpt=1
    fi
-   if [[ -s $bad_chan && -s ${TANKverf}/radmon.${pday}/$prev_bad_chan ]]; then
+   if [[ -s $bad_chan && -s ${TANKverf_radM1}/$prev_bad_chan ]]; then
       do_rpt=1
    fi
 
@@ -401,8 +401,8 @@ if [[ $DO_DATA_RPT -eq 1 ]]; then
 #-------------------------------------------------------------------
 #  copy previous cycle's bad_chan and bad_pen files
 #
-   $NCP ${TANKverf}/radmon.${pday}/${prev_bad_pen} ./
-   $NCP ${TANKverf}/radmon.${pday}/${prev_bad_chan} ./
+   $NCP ${TANKverf_radM1}/${prev_bad_pen} ./
+   $NCP ${TANKverf_radM1}/${prev_bad_chan} ./
 
 #-------------------------------------------------------------------
 #  run radmon_err_rpt.sh for chan and pen to create the error files
