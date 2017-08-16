@@ -86,18 +86,19 @@ for type in ${SATYPE2}; do
          day=`echo $cdate | cut -c1-8 `
       fi
 
-      if [[ -d ${TANKDIR}/radmon.${day} ]]; then
+
+      if [[ -d ${IEEE_SRC} ]]; then
          if [[ $REGIONAL_RR -eq 1 ]]; then
-            test_file=${TANKDIR}/radmon.${day}/${rgnHH}.time.${type}.${cdate}.ieee_d.${rgnTM}
+            test_file=${IEEE_SRC}/${rgnHH}.time.${type}.${cdate}.ieee_d.${rgnTM}
          else
-            test_file=${TANKDIR}/radmon.${day}/time.${type}.${cdate}.ieee_d
+            test_file=${IEEE_SRC}/time.${type}.${cdate}.ieee_d
          fi
 
          if [[ $USE_ANL = 1 ]]; then
             if [[ $REGIONAL_RR -eq 1 ]]; then
-               test_file2=${TANKDIR}/radmon.${day}/${rgnHH}.time.${type}_anl.${cdate}.ieee_d.${rgnTM}
+               test_file2=${IEEE_SRC}/${rgnHH}.time.${type}_anl.${cdate}.ieee_d.${rgnTM}
             else
-               test_file2=${TANKDIR}/radmon.${day}/time.${type}_anl.${cdate}.ieee_d
+               test_file2=${IEEE_SRC}/time.${type}_anl.${cdate}.ieee_d
             fi
          else
             test_file2=

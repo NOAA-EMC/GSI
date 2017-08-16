@@ -89,18 +89,19 @@ for type in ${SATYPE2}; do
          day=`echo $cdate | cut -c1-8 `
       fi
 
-      if [[ -d ${TANKDIR}/radmon.${day} ]]; then
+
+      if [[ -d ${IEEE_SRC} ]]; then
          if [[ $REGIONAL_RR -eq 1 ]]; then
-            test_file=${TANKDIR}/radmon.${day}/${rgnHH}.angle.${type}.${cdate}.ieee_d.${rgnTM}
+            test_file=${IEEE_SRC}/${rgnHH}.angle.${type}.${cdate}.ieee_d.${rgnTM}
          else
-            test_file=${TANKDIR}/radmon.${day}/angle.${type}.${cdate}.ieee_d
+            test_file=${IEEE_SRC}/angle.${type}.${cdate}.ieee_d
          fi
 
          if [[ $USE_ANL = 1 ]]; then
             if [[ $REGIONAL_RR -eq 1 ]]; then
-               test_file=${TANKDIR}/radmon.${day}/${rgnHH}.angle.${type}_anl.${cdate}.ieee_d.${rgnTM}
+               test_file=${IEEE_SRC}/${rgnHH}.angle.${type}_anl.${cdate}.ieee_d.${rgnTM}
             else
-               test_file2=${TANKDIR}/radmon.${day}/angle.${type}_anl.${cdate}.ieee_d
+               test_file2=${IEEE_SRC}/angle.${type}_anl.${cdate}.ieee_d
             fi
          else
             test_file2=
@@ -118,6 +119,7 @@ for type in ${SATYPE2}; do
             $NCP ${test_file2}.${Z} ./${type}_anl.${cdate}.ieee_d.${Z}
          fi
       fi
+
 #      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${Z} ]]; then
 #         $NCP $TANKDIR/angle/${type}.${cdate}.ieee_d* ./
 #      fi
