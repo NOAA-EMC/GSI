@@ -403,12 +403,13 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            bufr_nchan = int(linele(5))
 
            bufr_size = size(temperature,1)
-           if ( bufr_size /= bufr_nchan ) then    ! allocation if
+           if ( bufr_size /= bufr_nchan ) then   
 !             Allocate the arrays needed for the channel and radiance array
               deallocate(temperature, allchan, bufr_chan_test)
               allocate(temperature(bufr_nchan))   ! dependent on # of channels in the bufr file
               allocate(allchan(2,bufr_nchan))
               allocate(bufr_chan_test(bufr_nchan))
+              bufr_chan_test(:)=0
            endif    ! allocation if
 
 !          CRIS field-of-view ranges from 1 to 9, corresponding to the 9 sensors measured
