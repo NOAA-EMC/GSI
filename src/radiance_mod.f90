@@ -13,6 +13,14 @@ module radiance_mod
 !
 ! subroutines included:
 !   sub radiance_mode_init           -  guess init
+!   radiance_mode_destroy
+!   radiance_obstype_init
+!   radiance_obstype_search
+!   radiance_obstype_destroy
+!   radiance_parameter_cloudy_init
+!   radiance_parameter_aerosol_init
+!   radiance_ex_obserr
+!   radiance_ex_biascor
 !
 ! attributes:
 !   language: f90
@@ -519,15 +527,21 @@ contains
     implicit none
     character(10) :: obstype
     type(rad_obs_type) :: radmod
+    logical match
     integer(i_kind) i
 
     if (total_rad_type<=0) return
     
+    match=.false.
     do i=1,total_rad_type
-!      if (index(trim(obstype),trim(rad_type_info(i)%rtype)) /= 0) then
-       if (trim(obstype)==trim(rad_type_info(i)%rtype)) then
-          if (mype==0) write(6,*) 'radiance_obstype_search: obstype=',obstype, &
-                                  ' rtype=',rad_type_info(i)%rtype
+       if (trim(rad_type_info(i)%rtype)=='msu') then
+          match=trim(obstype)==trim(rad_type_info(i)%rtype)
+       else
+          match=index(trim(obstype),trim(rad_type_info(i)%rtype)) /= 0
+       end if
+       if (match) then
+!         if (mype==0) write(6,*) 'radiance_obstype_search: obstype=',obstype, &
+!                                 ' rtype=',rad_type_info(i)%rtype
           radmod%rtype = rad_type_info(i)%rtype
           radmod%nchannel = rad_type_info(i)%nchannel
           radmod%cld_sea_only = rad_type_info(i)%cld_sea_only
@@ -546,6 +560,9 @@ contains
        end if
     end do
 
+    if (.not. match) then
+       if (mype==0) write(6,*) 'radiance_obstype_search: #WARNING# obstype=',obstype,' not found in rtype'
+    end if
   end subroutine radiance_obstype_search
 
 
