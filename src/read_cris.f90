@@ -221,7 +221,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   end if
 
   if (nst_gsi > 0 ) then
-    call gsi_nstcoupler_skindepth(trim(obstype),zob)
+    call gsi_nstcoupler_skindepth(obstype,zob)
   endif
 
 !  write(6,*)'READ_CRIS: mype, mype_root,mype_sub, npe_sub,mpi_comm_sub', &
@@ -403,12 +403,13 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            bufr_nchan = int(linele(5))
 
            bufr_size = size(temperature,1)
-           if ( bufr_size /= bufr_nchan ) then    ! allocation if
+           if ( bufr_size /= bufr_nchan ) then   
 !             Allocate the arrays needed for the channel and radiance array
               deallocate(temperature, allchan, bufr_chan_test)
               allocate(temperature(bufr_nchan))   ! dependent on # of channels in the bufr file
               allocate(allchan(2,bufr_nchan))
               allocate(bufr_chan_test(bufr_nchan))
+              bufr_chan_test(:)=0
            endif    ! allocation if
 
 !          CRIS field-of-view ranges from 1 to 9, corresponding to the 9 sensors measured
