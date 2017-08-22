@@ -1038,7 +1038,7 @@ subroutine ansmoothrf(cstate)
   fields=zero
   kk=0
   do n=1,nvars
-     if (n<=nrf .and. nrf_3d(n)) then
+     if (n<=nrf .and. nrf_3d(min(n,nrf))) then
         call gsi_bundlegetpointer (cstate,trim(nrf_var(n)),rank3,istatus)
         if(istatus==0) then
            do k=1,nsig
@@ -1174,7 +1174,7 @@ subroutine ansmoothrf(cstate)
 
   kk=0
   do n=1,nvars
-     if (n<=nrf .and. nrf_3d(n)) then
+     if (n<=nrf .and. nrf_3d(min(n,nrf))) then
         call gsi_bundlegetpointer (cstate,trim(nrf_var(n)),rank3,istatus)
         if(istatus==0) then
            do k=1,nsig
@@ -1444,7 +1444,7 @@ subroutine ansmoothrf_reg_sub2slab_option(cstate)
   worka=zero
   kk=0
   do n=1,nvars
-     if (n<=nrf .and. nrf_3d(n)) then
+     if (n<=nrf .and. nrf_3d(min(n,nrf))) then
         call gsi_bundlegetpointer (cstate,trim(nrf_var(n)),rank3,istatus)
         if(istatus==0) then
            do k=1,nsig
@@ -1524,7 +1524,7 @@ subroutine ansmoothrf_reg_sub2slab_option(cstate)
 
   kk=0
   do n=1,nvars
-     if (n<=nrf .and. nrf_3d(n)) then
+     if (n<=nrf .and. nrf_3d(min(n,nrf))) then
         call gsi_bundlegetpointer (cstate,trim(nrf_var(n)),rank3,istatus)
         if(istatus==0) then
            do k=1,nsig
@@ -1615,7 +1615,7 @@ subroutine ansmoothrf_reg_subdomain_option(cstate)
 !  transfer variables to ngauss copies
   kk=0
   do n=1,nvars
-     if (n<=nrf .and. nrf_3d(n)) then
+     if (n<=nrf .and. nrf_3d(min(n,nrf))) then
         call gsi_bundlegetpointer (cstate,trim(nrf_var(n)),rank3,istatus)
         if(istatus==0) then
            do k=1,nsig
@@ -1656,7 +1656,7 @@ subroutine ansmoothrf_reg_subdomain_option(cstate)
 !  add together ngauss copies
   kk=0
   do n=1,nvars
-     if (n<=nrf .and. nrf_3d(n)) then
+     if (n<=nrf .and. nrf_3d(min(n,nrf))) then
         call gsi_bundlegetpointer (cstate,trim(nrf_var(n)),rank3,istatus)
         if(istatus==0) then
            do k=1,nsig

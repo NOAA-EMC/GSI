@@ -397,6 +397,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
            deallocate(allchan, bufr_chan_test)
            allocate(allchan(3,bufr_nchan))
            allocate(bufr_chan_test(bufr_nchan))
+           bufr_chan_test(:)=0
         endif
 
 !       Read AIRSSPOT , AMSUSPOT and HSBSPOT
