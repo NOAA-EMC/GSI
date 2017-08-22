@@ -174,11 +174,10 @@ export PDY=`echo $PDATE|cut -c1-8`
 if [[ $TANK_USE_RUN -eq 1 ]]; then
    ieee_src=${TANKverf}/${RUN}.${PDY}/${MONITOR}
 else
-   ieee_src=${TANKverf}/${monitor}.${PDY}
+   ieee_src=${TANKverf}/${MONITOR}.${PDY}
 fi
 
-export IEEE_SRC=${ieee_src}
-echo "IEEE_SRC = $IEEE_SRC"
+echo "ieee_src = $ieee_src"
 
 
 #--------------------------------------------------------------------
@@ -192,7 +191,7 @@ if [[ "$PRODATE" == "auto" ]]; then
    proceed=`${IG_SCRIPTS}/confirm_data.sh ${RADMON_SUFFIX} ${PDATE}`
 
 elif [[ $PDATE -le $PRODATE ]]; then
-   nfile_src=`ls -l ${IEEE_SRC}/*${PDATE}*ieee_d* | egrep -c '^-'`
+   nfile_src=`ls -l ${ieee_src}/*${PDATE}*ieee_d* | egrep -c '^-'`
 
    if [[ $nfile_src -gt 0 ]]; then
       proceed="YES"
@@ -232,7 +231,7 @@ cd $PLOT_WORK_DIR
 #-------------------------------------------------------------
 if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
 
-   test_list=`ls ${IEEE_SRC}/angle.*${PDATE}.ieee_d*`
+   test_list=`ls ${ieee_src}/angle.*${PDATE}.ieee_d*`
 
    for test in ${test_list}; do
       this_file=`basename $test`

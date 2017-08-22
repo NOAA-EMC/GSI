@@ -64,7 +64,7 @@
    if( $#raddirs < 0 ) {
       @raddirs = grep { /gdas/ } @alldirs;
    }
-   
+ 
    #  If there are no radmon.* subdirectories, then exit without 
    #    returning any date string.
    #
@@ -95,14 +95,19 @@
          #
          #  If there are no time.*ieee_d* files, step to the next iteration.
          #
-         my $newdir = "${dirpath}/${sortrad[$ctr]}";
-         opendir DIR, $newdir or die "Cannot open the current directory: $!";
+         my $newdir;
+         my @tfiles;
+         my @timefiles;
+         if( -d "${dirpath}/${sortrad[$ctr]}" ){
+            $newdir = "${dirpath}/${sortrad[$ctr]}";
+            opendir DIR, $newdir;
 
-         my @tfiles = grep { /time/ } readdir DIR;
-         my @timefiles = grep { /ieee_d/ } @tfiles;
-         if( $#timefiles <= 0 ) {
+            @tfiles = grep { /time/ } readdir DIR;
+            @timefiles = grep { /ieee_d/ } @tfiles;
+         }
+         elsif( -d "${dirpath}/${sortrad[$ctr]}/radmon" ){
             $newdir = "${dirpath}/${sortrad[$ctr]}/radmon";
-            opendir DIR, $newdir or die "Cannot open the current directory: $!";
+            opendir DIR, $newdir;
             @tfiles = grep { /time/ } readdir DIR;
             @timefiles = grep { /ieee_d/ } @tfiles;
          }
@@ -166,13 +171,17 @@
          #
          #  If there are no time.*ieee_d* files, step to the next iteration.
          #
-         my $newdir = "${dirpath}/${sortrad[$ctr]}";
-         opendir DIR, $newdir or die "Cannot open the current directory: $!";
+         my $newdir;
+         my @tfiles;
+         my @timefiles;
 
-         my @tfiles = grep { /time/ } readdir DIR;
-         my @timefiles = grep { /ieee_d/ } @tfiles;
-
-         if( $#timefiles <= 0 ) {
+         if( -d "${dirpath}/${sortrad[$ctr]}" ){
+            $newdir = "${dirpath}/${sortrad[$ctr]}";
+            opendir DIR, $newdir or die "Cannot open the current directory: $!";
+            @tfiles = grep { /time/ } readdir DIR;
+            @timefiles = grep { /ieee_d/ } @tfiles;
+         }
+         elsif( -d "${dirpath}/${sortrad[$ctr]}/radmon" ){ 
             $newdir = "${dirpath}/${sortrad[$ctr]}/radmon";
             opendir DIR, $newdir or die "Cannot open the current directory: $!";
             @tfiles = grep { /time/ } readdir DIR;
