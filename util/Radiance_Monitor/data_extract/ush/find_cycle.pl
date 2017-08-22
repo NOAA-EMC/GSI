@@ -98,15 +98,15 @@
          my $newdir;
          my @tfiles;
          my @timefiles;
-         if( -d "${dirpath}/${sortrad[$ctr]}" ){
-            $newdir = "${dirpath}/${sortrad[$ctr]}";
+         if( -d "${dirpath}/${sortrad[$ctr]}/radmon" ){
+            $newdir = "${dirpath}/${sortrad[$ctr]}/radmon";
             opendir DIR, $newdir;
 
             @tfiles = grep { /time/ } readdir DIR;
             @timefiles = grep { /ieee_d/ } @tfiles;
          }
-         elsif( -d "${dirpath}/${sortrad[$ctr]}/radmon" ){
-            $newdir = "${dirpath}/${sortrad[$ctr]}/radmon";
+         elsif( -d "${dirpath}/${sortrad[$ctr]}" ){
+            $newdir = "${dirpath}/${sortrad[$ctr]}";
             opendir DIR, $newdir;
             @tfiles = grep { /time/ } readdir DIR;
             @timefiles = grep { /ieee_d/ } @tfiles;
