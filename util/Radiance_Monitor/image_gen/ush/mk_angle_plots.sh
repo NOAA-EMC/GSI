@@ -57,18 +57,23 @@ for type in ${SATYPE}; do
       fi
       echo "testing with pdy = $pdy"
 
+      if [[ $TANK_USE_RUN -eq 1 ]]; then
+         ieee_src=${TANKverf}/${RUN}.${PDY}/${MONITOR}
+      else
+         ieee_src=${TANKverf}/${MONITOR}.${PDY}
+      fi
 
-      if [[ -s ${IEEE_SRC}/angle.${type}.ctl.${Z} ]]; then
-         $NCP ${IEEE_SRC}/angle.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
-         if [[ -s ${IEEE_SRC}/angle.${type}_anl.ctl.${Z} ]]; then
-            $NCP ${IEEE_SRC}/angle.${type}_anl.ctl.${Z} ${imgndir}/${type}_anl.ctl.${Z}
+      if [[ -s ${ieee_src}/angle.${type}.ctl.${Z} ]]; then
+         $NCP ${ieee_src}/angle.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
+         if [[ -s ${ieee_src}/angle.${type}_anl.ctl.${Z} ]]; then
+            $NCP ${ieee_src}/angle.${type}_anl.ctl.${Z} ${imgndir}/${type}_anl.ctl.${Z}
          fi 
          found=1
 
-      elif [[ -s ${IEEE_SRC}/angle.${type}.ctl ]]; then
-         $NCP ${IEEE_SRC}/angle.${type}.ctl ${imgndir}/${type}.ctl
-         if [[ -s ${IEEE_SRC}/angle.${type}_anl.ctl ]]; then
-            $NCP ${IEEE_SRC}/angle.${type}_anl.ctl ${imgndir}/${type}_anl.ctl
+      elif [[ -s ${ieee_src}/angle.${type}.ctl ]]; then
+         $NCP ${ieee_src}/angle.${type}.ctl ${imgndir}/${type}.ctl
+         if [[ -s ${ieee_src}/angle.${type}_anl.ctl ]]; then
+            $NCP ${ieee_src}/angle.${type}_anl.ctl ${imgndir}/${type}_anl.ctl
          fi 
          found=1
       fi

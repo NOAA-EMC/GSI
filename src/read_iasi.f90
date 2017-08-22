@@ -244,7 +244,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   bad_line=-1
 
   if (nst_gsi > 0 ) then
-    call gsi_nstcoupler_skindepth(trim(obstype), zob)         ! get penetration depth (zob) for the obstype
+    call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
 
   if(jsatid == 'metop-a')kidsat=4
@@ -374,7 +374,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   allocate(data_all(nele,itxmax),nrec(itxmax))
   allocate(temperature(1))   ! dependent on # of channels in the bufr file
   allocate(allchan(2,1))     ! actual values set after ireadsb
-  allocate(bufr_chan_test(1))! actural values set after ireadsb
+  allocate(bufr_chan_test(1))! actual values set after ireadsb
 
 ! Big loop to read data file
   next=0
@@ -420,12 +420,13 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            bufr_nchan = int(crchn_reps)
 
            bufr_size = size(temperature,1)
-           if ( bufr_size /= bufr_nchan ) then      ! allocation if
+           if ( bufr_size /= bufr_nchan ) then ! Re-allocation if number of channels has changed
 !             Allocate the arrays needed for the channel and radiance array
               deallocate(temperature,allchan,bufr_chan_test)
               allocate(temperature(bufr_nchan))   ! dependent on # of channels in the bufr file
               allocate(allchan(2,bufr_nchan))
               allocate(bufr_chan_test(bufr_nchan))
+              bufr_chan_test(:)=0
            endif       !  allocation if
 
 !          Read IASI FOV information
@@ -664,7 +665,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
               bufr_chans: do l=1,bufr_nchan
                  bufr_chan_test(l) = int(allchan(1,l))                      ! Copy this bufr channel selection into array for comparison to next profile
                  satinfo_chans: do i=1,satinfo_nchan                        ! Loop through sensor (iasi) channels in the satinfo file
-                    if ( channel_number(i) == int(allchan(1,l)) ) then      ! Channel found in both bufr and stainfo file
+                    if ( channel_number(i) == int(allchan(1,l)) ) then      ! Channel found in both bufr and satinfo file
                        bufr_index(i) = l
                        exit satinfo_chans                                   ! go to next bufr channel
                     endif

@@ -35,6 +35,7 @@ W3NCO_LIBd=$(CORELIB)/w3nco/$(W3NCO_VER)/libw3nco_$(W3NCO_VER)_d.a
 NETCDF_INCLUDE = ${NETCDF}/include
 NETCDF_LDFLAGS_F = -L${NETCDF}/lib -lnetcdf
 
+
 # WRF locations
 WRFPATH = /nwprod/sorc/wrf_shared.fd
 LIBwrfio_int    = $(WRFPATH)/external/io_int/libwrfio_int.a

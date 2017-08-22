@@ -43,7 +43,7 @@ for type in ${SATYPE}; do
    test_day=$PDATE
    ctr=$ndays
 
-   while [[ $found -eq 0 && $finished -ne 1 ]]; do
+   while [[ found -eq 0 && $finished -ne 1 ]]; do
       if [[ $REGIONAL_RR -eq 1 ]]; then		# REGIONAL_RR stores hrs 18-23 in next 
          tdate=`$NDATE +6 ${test_day}`		# day's radmon.yyymmdd directory
          pdy=`echo $test_day|cut -c1-8`
@@ -51,17 +51,22 @@ for type in ${SATYPE}; do
          pdy=`echo $test_day|cut -c1-8`
       fi
 
+      if [[ $TANK_USE_RUN -eq 1 ]]; then
+         ieee_src=${TANKverf}/${RUN}.${PDY}/${MONITOR}
+      else
+         ieee_src=${TANKverf}/${MONITOR}.${PDY}
+      fi
 
-      if [[ -s ${IEEE_DIR}/time.${type}.ctl.${Z} ]]; then
-         $NCP ${IEEE_DIR}/time.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
-         if [[ -s ${IEEE_DIR}/time.${type}_anl.ctl.${Z} ]]; then
-            $NCP ${IEEE_DIR}/time.${type}_anl.ctl.${Z} ${imgndir}/${type}_anl.ctl.${Z}
+      if [[ -s ${ieee_src}/time.${type}.ctl.${Z} ]]; then
+         $NCP ${ieee_src}/time.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
+         if [[ -s ${ieee_src}/time.${type}_anl.ctl.${Z} ]]; then
+            $NCP ${ieee_src}/time.${type}_anl.ctl.${Z} ${imgndir}/${type}_anl.ctl.${Z}
          fi
          found=1
-      elif [[ -s ${IEEE_DIR}/time.${type}.ctl ]]; then
-         $NCP ${IEEE_DIR}/time.${type}.ctl ${imgndir}/${type}.ctl
-         if [[ -s ${IEEE_DIR}/time.${type}_anl.ctl ]]; then
-            $NCP ${IEEE_DIR}/time.${type}_anl.ctl ${imgndir}/${type}_anl.ctl
+      elif [[ -s ${ieee_src}/time.${type}.ctl ]]; then
+         $NCP ${ieee_src}/time.${type}.ctl ${imgndir}/${type}.ctl
+         if [[ -s ${ieee_src}/time.${type}_anl.ctl ]]; then
+            $NCP ${ieee_src}/time.${type}_anl.ctl ${imgndir}/${type}_anl.ctl
          fi
          found=1
       fi

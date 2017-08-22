@@ -52,16 +52,22 @@ for type in ${SATYPE}; do
          pdy=`echo $test_day|cut -c1-8`
       fi
 
-      if [[ -s ${IEEE_SRC}/bcor.${type}.ctl.${Z} ]]; then
-         $NCP ${IEEE_SRC}/bcor.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
-         if [[ -s ${IEEE_SRC}/bcor.${type}_anl.ctl.${Z} ]]; then
-            $NCP ${IEEE_SRC}/bcor.${type}_anl.ctl.${Z} ${imgndir}/${type}_anl.ctl.${Z}
+      if [[ $TANK_USE_RUN -eq 1 ]]; then
+         ieee_src=${TANKverf}/${RUN}.${PDY}/${MONITOR}
+      else
+         ieee_src=${TANKverf}/${MONITOR}.${PDY}
+      fi
+
+      if [[ -s ${ieee_src}/bcor.${type}.ctl.${Z} ]]; then
+         $NCP ${ieee_src}/bcor.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
+         if [[ -s ${ieee_src}/bcor.${type}_anl.ctl.${Z} ]]; then
+            $NCP ${ieee_src}/bcor.${type}_anl.ctl.${Z} ${imgndir}/${type}_anl.ctl.${Z}
          fi
          found=1
-      elif [[ -s ${IEEE_SRC}/bcor.${type}.ctl ]]; then
-         $NCP ${IEEE_SRC}/bcor.${type}.ctl ${imgndir}/${type}.ctl
-         if [[ -s ${IEEE_SRC}/bcor.${type}_anl.ctl ]]; then
-            $NCP ${IEEE_SRC}/bcor.${type}_anl.ctl ${imgndir}/${type}_anl.ctl
+      elif [[ -s ${ieee_src}/bcor.${type}.ctl ]]; then
+         $NCP ${ieee_src}/bcor.${type}.ctl ${imgndir}/${type}.ctl
+         if [[ -s ${ieee_src}/bcor.${type}_anl.ctl ]]; then
+            $NCP ${ieee_src}/bcor.${type}_anl.ctl ${imgndir}/${type}_anl.ctl
          fi
          found=1
       fi

@@ -74,21 +74,27 @@ for type in ${SATYPE2}; do
          . ${IG_SCRIPTS}/rr_set_tz.sh $hh
       fi   
 
+      if [[ $TANK_USE_RUN -eq 1 ]]; then
+         ieee_src=${TANKverf}/${RUN}.${day}/${MONITOR}
+      else
+         ieee_src=${TANKverf}/${MONITOR}.${day}
+      fi
+
 #      echo "rgnHH, rgnTM = $rgnHH, $rgnTM"
 
 
-      if [[ -d ${IEEE_SRC} ]]; then
+      if [[ -d ${ieee_src} ]]; then
          if [[ $REGIONAL_RR -eq 1 ]]; then
-            test_file=${IEEE_SRC}/${rgnHH}.time.${type}.${cdate}.ieee_d.${rgnTM}
+            test_file=${ieee_src}/${rgnHH}.time.${type}.${cdate}.ieee_d.${rgnTM}
          else
-            test_file=${IEEE_SRC}/time.${type}.${cdate}.ieee_d
+            test_file=${ieee_src}/time.${type}.${cdate}.ieee_d
          fi
 
          if [[ $USE_ANL = 1 ]]; then
             if [[ $REGIONAL_RR -eq 1 ]]; then
-               test_file2=${IEEE_SRC}/${rgnHH}.time.${type}_anl.${cdate}.ieee_d.${rgnTM}
+               test_file2=${ieee_src}/${rgnHH}.time.${type}_anl.${cdate}.ieee_d.${rgnTM}
             else
-               test_file2=${IEEE_SRC}/time.${type}_anl.${cdate}.ieee_d
+               test_file2=${ieee_src}/time.${type}_anl.${cdate}.ieee_d
             fi
          else
             test_file2=
