@@ -40,6 +40,8 @@ module mpimod
   use mpeu_mpif, only : mpi_offset_kind
   use mpeu_mpif, only : mpi_info_null
   use mpeu_mpif, only : mpi_mode_rdonly
+  use mpeu_mpif, only : mpi_mode_create
+  use mpeu_mpif, only : mpi_mode_wronly
   use mpeu_mpif, only : mpi_mode_rdwr
   use mpeu_mpif, only : mpi_byte
 #ifndef HAVE_ESMF
@@ -105,6 +107,8 @@ module mpimod
   public :: mpi_status_size,mpi_rtype4,nvar_pe,nype,nxpe
   public :: mpi_mode_rdonly,mpi_info_null,mpi_offset_kind
   public :: mpi_mode_rdwr,mpi_byte
+  public :: mpi_mode_create
+  public :: mpi_mode_wronly
 
 #ifdef HAVE_ESMF
   integer(i_kind) :: mpi_comm_world

@@ -25,7 +25,8 @@ contains
   !   2011-08-31  todling - revisit en_perts (single-prec) in light of extended bundle
   !   2012-02-08  kleist  - add extra dimension to en_perts for 4d application 
   !   (currently use placeholder of value 1, since regional 4d application not 
-  !    available yet).
+  !   2017-07-30  Hu  - added code to read in multiple-time level ensemble forecast to
+  !                     get 4D peerturbations
   !
   !   input argument list:
   !
@@ -41,6 +42,7 @@ contains
       use constants, only: zero,one,half,zero_single,rd_over_cp,one_tenth
       use mpimod, only: mpi_comm_world,ierror,mype
       use hybrid_ensemble_parameters, only: n_ens,grd_ens
+      use hybrid_ensemble_parameters, only: ntlevs_ens,ensemble_path
       use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
       use gsi_bundlemod, only: gsi_bundlecreate
       use gsi_bundlemod, only: gsi_grid
@@ -48,6 +50,8 @@ contains
       use gsi_bundlemod, only: gsi_bundlegetpointer
       use gsi_bundlemod, only: gsi_bundledestroy
       use gsi_bundlemod, only: gsi_gridcreate
+      use guess_grids,   only: ntguessig,ifilesig
+      use gsi_4dvar,     only: nhr_assimilation
   
       implicit none
       class(get_wrf_mass_ensperts_class), intent(inout) :: this
@@ -68,8 +72,10 @@ contains
   
       integer(i_kind):: i,j,k,n,mm1,istatus
       integer(i_kind):: ic2,ic3
-  
-      character(24) filename
+      integer(i_kind):: its,ite, it
+
+      character(255) filelists(ntlevs_ens)
+      character(255) filename
   
       call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
       call gsi_bundlecreate(en_bar,grid_ens,'ensemble',istatus,names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
@@ -78,190 +84,214 @@ contains
          call stop2(999)
       endif
   
+      if(ntlevs_ens > 1) then
+         do i=1,ntlevs_ens
+            write(filelists(i),'("filelist",i2.2)')ifilesig(i)
+         enddo
+         its=1
+         ite=ntlevs_ens
+      else
+         write(filelists(1),'("filelist",i2.2)')nhr_assimilation
+         its=ntguessig
+         ite=ntguessig
+      endif
+
+      do it=its,ite
+         if (mype == 0) write(*,*) 'ensemble file==',it,its,ite,ntlevs_ens,n_ens
+         if(ntlevs_ens > 1) then
+            open(10,file=trim(filelists(it)),form='formatted',err=30)
+         else
+            open(10,file=trim(filelists(1)),form='formatted',err=30)
+         endif
+
+
   !
   ! INITIALIZE ENSEMBLE MEAN ACCUMULATORS
-      en_bar%values=zero
+         en_bar%values=zero
   
-      do n=1,n_ens
-         en_perts(n,1)%valuesr4 = zero
-      enddo
+         do n=1,n_ens
+            en_perts(n,it)%valuesr4 = zero
+         enddo
   
-      mm1=mype+1
-      kap1=rd_over_cp+one
-      kapr=one/rd_over_cp
+         mm1=mype+1
+         kap1=rd_over_cp+one
+         kapr=one/rd_over_cp
   !
   ! LOOP OVER ENSEMBLE MEMBERS 
-      do n=1,n_ens
+         do n=1,n_ens
   !
   ! DEFINE INPUT FILE NAME
-         write(filename,"('wrf_en',i3.3)") n
+             read(10,'(a)',err=20,end=20)filename
+             filename=trim(ensemble_path) // trim(filename)
   ! 
   ! READ ENEMBLE MEMBERS DATA
-         if (mype == 0) write(6,*) 'CALL READ_WRF_MASS_ENSPERTS FOR ENS DATA : ',filename
-         call this%general_read_wrf_mass(filename,ps,u,v,tv,rh,cwmr,oz,mype) 
+            if (mype == 0) write(6,'(a,a)') 'CALL READ_WRF_MASS_ENSPERTS FOR ENS DATA : ',trim(filename)
+            call this%general_read_wrf_mass(filename,ps,u,v,tv,rh,cwmr,oz,mype) 
   
   ! SAVE ENSEMBLE MEMBER DATA IN COLUMN VECTOR
-         do ic3=1,nc3d
+            do ic3=1,nc3d
   
-            call gsi_bundlegetpointer(en_perts(n,1),trim(cvars3d(ic3)),w3,istatus)
-            if(istatus/=0) then
-               write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' for ensemble member ',n
-               call stop2(999)
-            end if
-            call gsi_bundlegetpointer(en_bar,trim(cvars3d(ic3)),x3,istatus)
-            if(istatus/=0) then
-               write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' for en_bar'
-               call stop2(999)
-            end if
+               call gsi_bundlegetpointer(en_perts(n,it),trim(cvars3d(ic3)),w3,istatus)
+               if(istatus/=0) then
+                  write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' for ensemble member ',n
+                  call stop2(999)
+               end if
+               call gsi_bundlegetpointer(en_bar,trim(cvars3d(ic3)),x3,istatus)
+               if(istatus/=0) then
+                  write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' for en_bar'
+                  call stop2(999)
+               end if
   
-            select case (trim(cvars3d(ic3)))
+               select case (trim(cvars3d(ic3)))
   
-               case('sf','SF')
-  
-                  do k=1,grd_ens%nsig
-                     do i=1,grd_ens%lon2
-                        do j=1,grd_ens%lat2
-                           w3(j,i,k) = u(j,i,k)
-                           x3(j,i,k)=x3(j,i,k)+u(j,i,k)
+                  case('sf','SF')
+     
+                     do k=1,grd_ens%nsig
+                        do i=1,grd_ens%lon2
+                           do j=1,grd_ens%lat2
+                              w3(j,i,k) = u(j,i,k)
+                              x3(j,i,k)=x3(j,i,k)+u(j,i,k)
+                           end do
                         end do
                      end do
-                  end do
   
-               case('vp','VP')
+                  case('vp','VP')
   
-                  do k=1,grd_ens%nsig
-                     do i=1,grd_ens%lon2
-                        do j=1,grd_ens%lat2
-                           w3(j,i,k) = v(j,i,k)
-                           x3(j,i,k)=x3(j,i,k)+v(j,i,k)
+                     do k=1,grd_ens%nsig
+                        do i=1,grd_ens%lon2
+                           do j=1,grd_ens%lat2
+                              w3(j,i,k) = v(j,i,k)
+                              x3(j,i,k)=x3(j,i,k)+v(j,i,k)
+                           end do
                         end do
                      end do
-                  end do
   
-               case('t','T')
+                  case('t','T')
   
-                  do k=1,grd_ens%nsig
-                     do i=1,grd_ens%lon2
-                        do j=1,grd_ens%lat2
-                           w3(j,i,k) = tv(j,i,k)
-                           x3(j,i,k)=x3(j,i,k)+tv(j,i,k)
+                     do k=1,grd_ens%nsig
+                        do i=1,grd_ens%lon2
+                           do j=1,grd_ens%lat2
+                              w3(j,i,k) = tv(j,i,k)
+                              x3(j,i,k)=x3(j,i,k)+tv(j,i,k)
+                           end do
                         end do
                      end do
-                  end do
   
-               case('q','Q')
+                  case('q','Q')
   
-                  do k=1,grd_ens%nsig
-                     do i=1,grd_ens%lon2
-                        do j=1,grd_ens%lat2
-                           w3(j,i,k) = rh(j,i,k)
-                           x3(j,i,k)=x3(j,i,k)+rh(j,i,k)
+                     do k=1,grd_ens%nsig
+                        do i=1,grd_ens%lon2
+                           do j=1,grd_ens%lat2
+                              w3(j,i,k) = rh(j,i,k)
+                              x3(j,i,k)=x3(j,i,k)+rh(j,i,k)
+                           end do
                         end do
                      end do
-                  end do
   
-               case('oz','OZ')
+                  case('oz','OZ')
   
-                  do k=1,grd_ens%nsig
-                     do i=1,grd_ens%lon2
-                        do j=1,grd_ens%lat2
-                           w3(j,i,k) = oz(j,i,k)
-                           x3(j,i,k)=x3(j,i,k)+oz(j,i,k)
+                     do k=1,grd_ens%nsig
+                        do i=1,grd_ens%lon2
+                           do j=1,grd_ens%lat2
+                              w3(j,i,k) = oz(j,i,k)
+                              x3(j,i,k)=x3(j,i,k)+oz(j,i,k)
+                           end do
                         end do
                      end do
-                  end do
   
-               case('cw','CW')
+                  case('cw','CW')
   
-                  do k=1,grd_ens%nsig
-                     do i=1,grd_ens%lon2
-                        do j=1,grd_ens%lat2
-                           w3(j,i,k) = cwmr(j,i,k)
-                           x3(j,i,k)=x3(j,i,k)+cwmr(j,i,k)
+                     do k=1,grd_ens%nsig
+                        do i=1,grd_ens%lon2
+                           do j=1,grd_ens%lat2
+                              w3(j,i,k) = cwmr(j,i,k)
+                              x3(j,i,k)=x3(j,i,k)+cwmr(j,i,k)
+                           end do
                         end do
                      end do
-                  end do
   
-            end select
-         end do
+               end select
+            end do
   
-         do ic2=1,nc2d
+            do ic2=1,nc2d
+     
+               call gsi_bundlegetpointer(en_perts(n,it),trim(cvars2d(ic2)),w2,istatus)
+               if(istatus/=0) then
+                  write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for ensemble member ',n
+                  call stop2(999)
+               end if
+               call gsi_bundlegetpointer(en_bar,trim(cvars2d(ic2)),x2,istatus)
+               if(istatus/=0) then
+                  write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for en_bar'
+                  call stop2(999)
+               end if
   
-            call gsi_bundlegetpointer(en_perts(n,1),trim(cvars2d(ic2)),w2,istatus)
-            if(istatus/=0) then
-               write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for ensemble member ',n
-               call stop2(999)
-            end if
-            call gsi_bundlegetpointer(en_bar,trim(cvars2d(ic2)),x2,istatus)
-            if(istatus/=0) then
-               write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for en_bar'
-               call stop2(999)
-            end if
+               select case (trim(cvars2d(ic2)))
   
-            select case (trim(cvars2d(ic2)))
+                  case('ps','PS')
   
-               case('ps','PS')
-  
-                  do i=1,grd_ens%lon2
-                     do j=1,grd_ens%lat2
-                        w2(j,i) = ps(j,i)
-                        x2(j,i)=x2(j,i)+ps(j,i)
+                     do i=1,grd_ens%lon2
+                        do j=1,grd_ens%lat2
+                           w2(j,i) = ps(j,i)
+                           x2(j,i)=x2(j,i)+ps(j,i)
+                        end do
                      end do
-                  end do
   
-               case('sst','SST')
+                  case('sst','SST')
   ! IGNORE SST IN HYBRID for now
   
-                  do i=1,grd_ens%lon2
-                     do j=1,grd_ens%lat2
-                        w2(j,i) = zero
-                        x2(j,i)=zero
+                     do i=1,grd_ens%lon2
+                        do j=1,grd_ens%lat2
+                           w2(j,i) = zero
+                           x2(j,i)=zero
+                        end do
                      end do
-                  end do
   
-            end select
-         end do
-      enddo 
+               end select
+            end do
+         enddo 
   !
   ! CALCULATE ENSEMBLE MEAN
-      bar_norm = one/float(n_ens)
-      en_bar%values=en_bar%values*bar_norm
+         bar_norm = one/float(n_ens)
+         en_bar%values=en_bar%values*bar_norm
   
   ! Copy pbar to module array.  ps_bar may be needed for vertical localization
   ! in terms of scale heights/normalized p/p
-      do ic2=1,nc2d
+         do ic2=1,nc2d
    
-         if(trim(cvars2d(ic2)) == 'ps'.or.trim(cvars2d(ic2)) == 'PS') then
+            if(trim(cvars2d(ic2)) == 'ps'.or.trim(cvars2d(ic2)) == 'PS') then
   
-            call gsi_bundlegetpointer(en_bar,trim(cvars2d(ic2)),x2,istatus)
-            if(istatus/=0) then
-               write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for en_bar to get ps_bar'
-               call stop2(999)
-            end if
+               call gsi_bundlegetpointer(en_bar,trim(cvars2d(ic2)),x2,istatus)
+               if(istatus/=0) then
+                  write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for en_bar to get ps_bar'
+                  call stop2(999)
+               end if
    
-            do i=1,grd_ens%lon2
-               do j=1,grd_ens%lat2
-                  ps_bar(j,i,1)=x2(j,i)
+               do i=1,grd_ens%lon2
+                  do j=1,grd_ens%lat2
+                     ps_bar(j,i,1)=x2(j,i)
+                  end do
                end do
-            end do
-            exit
-         end if
-      end do
+               exit
+            end if
+         end do
   
-      call mpi_barrier(mpi_comm_world,ierror)
+         call mpi_barrier(mpi_comm_world,ierror)
   !
   ! CALCULATE ENSEMBLE SPREAD
-      call this%ens_spread_dualres_regional(mype,en_perts,nelen,en_bar)
-      call mpi_barrier(mpi_comm_world,ierror)
+         call this%ens_spread_dualres_regional(mype,en_perts,nelen,en_bar)
+         call mpi_barrier(mpi_comm_world,ierror)
   !
   ! CONVERT ENSEMBLE MEMBERS TO ENSEMBLE PERTURBATIONS
-      sig_norm=sqrt(one/max(one,n_ens-one))
+         sig_norm=sqrt(one/max(one,n_ens-one))
   
-      do n=1,n_ens
-         do i=1,nelen
-            en_perts(n,1)%valuesr4(i)=(en_perts(n,1)%valuesr4(i)-en_bar%values(i))*sig_norm
+         do n=1,n_ens
+            do i=1,nelen
+               en_perts(n,it)%valuesr4(i)=(en_perts(n,it)%valuesr4(i)-en_bar%values(i))*sig_norm
+            end do
          end do
-      end do
+
+     enddo ! it 4d loop
   !
      call gsi_bundledestroy(en_bar,istatus)
      if(istatus/=0) then
@@ -270,6 +300,12 @@ contains
             endif
   
   return
+
+30 write(6,*) 'get_wrf_mass_ensperts_netcdf: open filelist failed '
+   call stop2(555)
+20 write(6,*) 'get_wrf_mass_ensperts_netcdf: read WRF-ARW ens failed ',n
+   call stop2(555)
+
   end subroutine get_wrf_mass_ensperts_wrf
   
   subroutine general_read_wrf_mass(this,filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,mype)
@@ -325,7 +361,7 @@ contains
       real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),intent(out):: &
                                                     g_u,g_v,g_tv,g_rh,g_cwmr,g_oz
       real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2),intent(out):: g_ps
-      character(24),intent(in):: filename
+      character(255),intent(in):: filename
   !
   ! Declare local parameters
       real(r_kind),parameter:: r0_01 = 0.01_r_kind
@@ -436,7 +472,7 @@ contains
       call nc_check( nf90_get_var(file_id,var_id,temp_3d),&
           myname_,'get_var T '//trim(filename) )
       allocate(tsn(dim(dim_id(2)),dim(dim_id(1)),dim(dim_id(3))))
-      tsn = reshape(temp_3d,(/dim_id(2),dim_id(1),dim_id(3)/),order=(/2,1,3/))
+      tsn = reshape(temp_3d,(/dim(dim_id(2)),dim(dim_id(1)),dim(dim_id(3))/),order=(/2,1,3/))
       deallocate(temp_3d)
       deallocate(dim_id)
   
@@ -571,7 +607,7 @@ contains
   
       call nc_check( nf90_get_var(file_id,var_id,temp_3d),&
           myname_,'get_var QVAPOR '//trim(filename) )
-      gg_rh = reshape(temp_3d,(/dim_id(2),dim_id(1),dim_id(3)/),order=(/2,1,3/))
+      gg_rh = reshape(temp_3d,(/dim(dim_id(2)),dim(dim_id(1)),dim(dim_id(3))/),order=(/2,1,3/))
       deallocate(temp_3d)
       deallocate(dim_id,dim)
   

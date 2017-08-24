@@ -458,7 +458,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
           write(6,1020)'READ_GPS:  LEO_id,nprof_gps = ',gpsro_itype(i),nmrecs_id(i)
   end do
   write(6,1020)'READ_GPS:  ref_obs,nprof_gps= ',ref_obs,nprof_gps
-1020 format(a31,2(i6,1x))
+1020 format(a31,L,i6)
 
 ! Deallocate arrays
   deallocate(gpsro_ctype,gpsro_itype,gpsro_ikx,nmrecs_id)
