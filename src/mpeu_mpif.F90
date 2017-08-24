@@ -100,6 +100,8 @@ module mpeu_mpif
    public :: MPI_INFO_NULL
    public :: MPI_MODE_RDONLY
    public :: MPI_MODE_RDWR
+   public :: MPI_MODE_WRONLY
+   public :: MPI_MODE_CREATE
    public :: MPI_SEEK_SET
 !#endif
    public :: MPI_BYTE

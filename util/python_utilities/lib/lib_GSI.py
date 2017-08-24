@@ -429,7 +429,7 @@ class GSIstat(object):
         df = _pd.DataFrame(data=tmp, columns=columns)
         df[['it', 'typ', 'styp']] = df[['it', 'typ', 'styp']].astype(_np.int)
         for col in columns[7:]:
-            df[[col]] = df[[col]].astype(_np.float)
+            df[[col]] = df[[col]].replace('********', _np.NaN).astype(_np.float)
         df.set_index(columns[:7], inplace=True)
 
         return df

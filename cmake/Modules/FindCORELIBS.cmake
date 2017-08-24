@@ -115,7 +115,15 @@ function (findInc incName version incFile )
 #   file(GLOB_RECURSE INCFILES2 ${CRTM_BASE}/crtm/*${CRTM_VER}*/*/*mod )
 #   list(APPEND INCFILES ${INCFILES2} )
   else()
-    execute_process(COMMAND find ${COREPATH}/${incName} -iname ${incName}_module.mod RESULT_VARIABLE res OUTPUT_VARIABLE INCFILES)
+    if(crayComp)
+      if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+        execute_process(COMMAND find ${COREPATH}/${incName}/v${${version}}/intel -iname ${incName}_module.mod RESULT_VARIABLE res OUTPUT_VARIABLE INCFILES)
+      else()
+        execute_process(COMMAND find ${COREPATH}/${incName}/v${${version}}/cray -iname ${incName}_module.mod RESULT_VARIABLE res OUTPUT_VARIABLE INCFILES)
+      endif()
+    else()
+      execute_process(COMMAND find ${COREPATH}/${incName} -iname ${incName}_module.mod RESULT_VARIABLE res OUTPUT_VARIABLE INCFILES)
+    endif()
     if( NOT (INCFILES) )
       execute_process(COMMAND find ${COREPATH}/sorc -iname ${incName}_module.mod RESULT_VARIABLE res OUTPUT_VARIABLE INCFILES)
     endif()
@@ -222,6 +230,7 @@ if(NOT  BUILD_CRTM )
       ${CRTM_BASE}/lib
       ${CRTM_BASE}/${CRTM_VER}
       ${CRTM_BASE}/${CRTM_VER}/lib
+      ${CRTM_BASE}/v${CRTM_VER}/intel
       ${COREPATH}
       ${COREPATH}/lib
       $ENV{COREPATH} 
@@ -261,6 +270,7 @@ if(NOT  BUILD_EMC  )
       $ENV{COREPATH}/include 
       /usr/local/jcsda/nwprod_gdas_2014/lib/incmod/w3emc_4 
       ${COREPATH}/w3emc/v${W3EMC_VER}/incmod/w3emc_v${W3EMC_VER}_d
+      ${COREPATH}/w3emc/v${W3EMC_VER}/intel/w3emc_v${W3EMC_VER}_d
   )
   find_library( W3EMC_LIBRARY 
     NAMES libw3emc_4.a libw3emc_i4r8.a libw3emc_v${W3EMC_VER}_d.a
@@ -268,6 +278,7 @@ if(NOT  BUILD_EMC  )
       $ENV{COREPATH}/lib 
       /usr/local/jcsda/nwprod_gdas_2014	
       ${COREPATH}/w3emc/v${W3EMC_VER}
+      ${COREPATH}/w3emc/v${W3EMC_VER}/intel
     PATH_SUFFIXES
         lib
     )
@@ -295,6 +306,7 @@ if(NOT  BUILD_NCO )
        $ENV{COREPATH}/lib 
        /usr/local/jcsda/nwprod_gdas_2014	
        ${COREPATH}/w3nco/v${W3NCO_VER}
+       ${COREPATH}/w3nco/v${W3NCO_VER}/intel
     PATH_SUFFIXES
         lib
      ${NO_DEFAULT_PATH})
@@ -320,6 +332,7 @@ if(NOT  BUILD_BACIO  )
       NAMES libbacio.a libbacio_4.a libbacio_v${BACIO_VER}_4.a 
       HINTS $ENV{COREPATH}/lib /usr/local/jcsda/nwprod_gdas_2014	
           ${COREPATH}/bacio/v${BACIO_VER}
+          ${COREPATH}/bacio/v${BACIO_VER}/intel
       PATH_SUFFIXES
         lib
        ${NO_DEFAULT_PATH}
@@ -348,6 +361,7 @@ if(NOT  BUILD_BUFR  )
       $ENV{COREPATH}/lib 
       /usr/local/jcsda/nwprod_gdas_2014	
       ${COREPATH}/bufr/v${BUFR_VER}
+      ${COREPATH}/bufr/v${BUFR_VER}/intel
     PATH_SUFFIXES
         lib
      ${NO_DEFAULT_PATH})
@@ -378,6 +392,7 @@ if(NOT  BUILD_SFCIO )
       $ENV{COREPATH}/lib 
       /usr/local/jcsda/nwprod_gdas_2014	
       ${COREPATH}/sfcio/v${SFCIO_VER}
+      ${COREPATH}/sfcio/v${SFCIO_VER}/intel
     PATH_SUFFIXES
         lib
        ${NO_DEFAULT_PATH})
@@ -409,6 +424,7 @@ if(NOT  BUILD_SIGIO )
      $ENV{COREPATH}/lib 
      /usr/local/jcsda/nwprod_gdas_2014	
      ${COREPATH}/sigio/v${SIGIO_VER}
+     ${COREPATH}/sigio/v${SIGIO_VER}/intel
     PATH_SUFFIXES
         lib
        ${NO_DEFAULT_PATH})
@@ -440,6 +456,7 @@ if(NOT  BUILD_NEMSIO )
       $ENV{COREPATH}/lib 
       /usr/local/jcsda/nwprod_gdas_2014	
       ${COREPATH}/nemsio/v${NEMSIO_VER}
+      ${COREPATH}/nemsio/v${NEMSIO_VER}/intel
     PATH_SUFFIXES
         lib
        ${NO_DEFAULT_PATH})
@@ -468,6 +485,7 @@ if(NOT  BUILD_SP )
       $ENV{COREPATH}/lib 
       /usr/local/jcsda/nwprod_gdas_2014	
       ${COREPATH}/sp/v${SP_VER}
+      ${COREPATH}/sp/v${SP_VER}/intel
     PATH_SUFFIXES
         lib
        ${NO_DEFAULT_PATH})

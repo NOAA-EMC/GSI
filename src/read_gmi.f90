@@ -126,7 +126,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   real(r_kind)              :: tbmax, satinfo_v(ninfo)
   real(r_double),dimension(ntime):: bfr1bhdr
 
-  integer(i_kind),parameter :: nloc=4                                      !location dat used for ufbint()
+  integer(i_kind),parameter :: nloc=3                                      !location dat used for ufbint()
   real(r_double),dimension(nloc) :: midat                                  !location data from 
 
   character(40),parameter   :: strloc='CLATH CLONH'                        !use for ufbint() 
@@ -317,7 +317,6 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   next=0
   irec=0
   iobs=1
-  nrec=999999
 
   read_subset: do while(ireadmg(lnbufr,subset,idate)>=0) ! GMI scans
      irec=irec+1
@@ -371,7 +370,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 
 
 ! ----- Read header record to extract obs location information  
-        call ufbint(lnbufr,midat(2:4),nloc,1,iret,'SCLAT SCLON HMSL')
+        call ufbint(lnbufr,midat,nloc,1,iret,'SCLAT SCLON HMSL')
         call ufbrep(lnbufr,gmichq,1,nchanl,iret,'TPQC2')
         call ufbrep(lnbufr,gmirfi,1,nchanl,iret,'VIIRSQ')
         call ufbrep(lnbufr,pixelsaza,1,ngs,iret,strsaza)
@@ -400,21 +399,21 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
         sat_azimuth_ang = val_angls(1,1)   
         sun_zenith      = val_angls(2,1)
         sun_azimuth_ang = val_angls(3,1)
-        sat_scan_ang = asin( sin(sat_zen_ang)*rearth/(rearth+midat(4)) )
+        sat_scan_ang = asin( sin(sat_zen_ang)*rearth/(rearth+midat(3)) )
         if (pixelsaza(ngs) < bmiss ) then
           sat_zen_ang2 = pixelsaza(ngs)*deg2rad
         else
           sat_zen_ang2 = sat_def_ang2*deg2rad
         endif
-        sat_scan_ang2 = asin( sin(sat_zen_ang2)*rearth/(rearth+midat(4)) )
+        sat_scan_ang2 = asin( sin(sat_zen_ang2)*rearth/(rearth+midat(3)) )
         sat_azimuth_ang2 = val_angls(1,ngs)     
 
            !  -------- Retreive Sun glint angle -----------
         clath_sun_glint_calc = pixelloc(1)
         clonh_sun_glint_calc = pixelloc(2)
         if(clonh_sun_glint_calc > 180._r_kind) clonh_sun_glint_calc = clonh_sun_glint_calc - 360.0_r_kind
-        doy = mday( int(bfr1bhdr(2)) ) + int(bfr1bhdr(3))
-        if ((mod( int(bfr1bhdr(1)),4)==0).and.( int(bfr1bhdr(2)) > 2))  then
+        doy = mday(iobsdate(2)) + iobsdate(3)
+        if ( (mod(iobsdate(1),4)==0) .and. (iobsdate(2)>2) ) then
            doy = doy + 1
         end if
         time_4_sun_glint_calc = bfr1bhdr(4)+bfr1bhdr(5)*r60inv+bfr1bhdr(6)*r60inv*r60inv
@@ -806,6 +805,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   endif
 
 ! Deallocate data arrays
+  deallocate(nrec)
   deallocate(data_all)
 
 

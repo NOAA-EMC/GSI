@@ -838,7 +838,7 @@ subroutine special_eigvv(qmat0,hmat0,smat0,nmat,swww0,szzz0,swwwd0,szzzd0,nvmode
 
 !  get eigenvalues, eigenvectors of symmetrized version 
 !    of qtildemat (gives most accurate eigenvalue estimates):
-
+  atemp=0.0_r_quad
   do i=1,nmat
      do j=i,nmat
         ia=i+(j*j-j)/2
