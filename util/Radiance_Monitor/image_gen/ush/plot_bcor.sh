@@ -80,18 +80,24 @@ for type in ${SATYPE2}; do
          day=`echo $cdate | cut -c1-8 `
       fi
 
-      if [[ -d ${TANKDIR}/radmon.${day} ]]; then
+      source_dir=${IEEE_SRC}
+
+      nfile_src=`ls -l ${IEEE_SRC}/*${PDATE}*ieee_d* | egrep -c '^-'`
+
+      echo "nfile_src = $nfile_src"
+
+      if [[ -d ${IEEE_SRC} ]]; then
          if [[ $REGIONAL_RR -eq 1 ]]; then
-            test_file=${TANKDIR}/radmon.${day}/${rgnHH}.bcor.${type}.${cdate}.ieee_d.${rgnTM}
+            test_file=${IEEE_SRC}/${rgnHH}.bcor.${type}.${cdate}.ieee_d.${rgnTM}
          else 
-            test_file=${TANKDIR}/radmon.${day}/bcor.${type}.${cdate}.ieee_d
+            test_file=${IEEE_SRC}/bcor.${type}.${cdate}.ieee_d
          fi
 
          if [[ $USE_ANL = 1 ]]; then
             if [[ $REGIONAL_RR -eq 1 ]]; then
-               test_file=${TANKDIR}/radmon.${day}/${rgnHH}.bcor.${type}_anl.${cdate}.ieee_d.${rgnTM}
+               test_file=${IEEE_SRC}/${rgnHH}.bcor.${type}_anl.${cdate}.ieee_d.${rgnTM}
             else
-               test_file2=${TANKDIR}/radmon.${day}/bcor.${type}_anl.${cdate}.ieee_d
+               test_file2=${IEEE_SRC}/bcor.${type}_anl.${cdate}.ieee_d
             fi
          else
             test_file2=

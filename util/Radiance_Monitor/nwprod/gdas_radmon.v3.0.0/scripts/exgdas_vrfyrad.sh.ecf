@@ -185,12 +185,14 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
    #  the cycle being processed is 00z.
    #------------------------------------------------------------------
    if [[ $CYC = "00" ]]; then
-      pday=${PDYm1}
+      use_tankdir=${TANKverf_radM1}
+#      pday=${PDYm1}
    else
-      pday=${PDY}
+      use_tankdir=${TANKverf_rad}
+#      pday=${PDY}
    fi
 
-   if [[ ! -e ${TANKverf}/radmon.${pday}/${satype_file} ]]; then
+   if [[ ! -e ${use_tankdir}/${satype_file} ]]; then
       if [[ ! -e ${FIXgdas}/${satype_file} ]]; then 
          export SATYPE=$radstat_satype
          if [[ "$VERBOSE" = "YES" ]]; then
@@ -200,7 +202,7 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
          export SATYPE=`cat ${FIXgdas}/${satype_file}`
       fi
    else
-      export SATYPE=`cat ${TANKverf}/radmon.${pday}/${satype_file}`
+      export SATYPE=`cat ${use_tankdir}/${satype_file}`
    fi
 
 
@@ -228,14 +230,14 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
    #  directory or if changes have occurred in the SATYPE list, then 
    #  add/update the satype_file.
    #------------------------------------------------------------------
-   if [[ ! -s ${TANKverf}/radmon.${PDY}/${satype_file} || $satype_changes -eq 1 ]]; then
-      if [[ ! -d ${TANKverf}/radmon.${PDY} ]]; then
-         mkdir -f ${TANKverf}/radmon.${PDY}
+   if [[ ! -s ${TANKverf_rad}/${satype_file} || $satype_changes -eq 1 ]]; then
+      if [[ ! -d ${TANKverf_rad} ]]; then
+         mkdir -f ${TANKverf_rad}
       fi
-      if [[ -e ${TANKverf}/radmon.${PDY}/${satype_file} ]]; then
-         rm -f ${TANKverf}/radmon.${PDY}/${satype_file}
+      if [[ -e ${TANKverf_rad}/${satype_file} ]]; then
+         rm -f ${TANKverf_rad}/${satype_file}
       fi
-      echo $new_satype > ${TANKverf}/radmon.${PDY}/${satype_file}
+      echo $new_satype > ${TANKverf_rad}/${satype_file}
    fi
    
    #------------------------------------------------------------------
