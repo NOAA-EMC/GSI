@@ -98,9 +98,10 @@ export USHradmon=${USHradmon:-$HOMEradmon/ush}
 #############################################
 # Run setpdy and initialize PDY variables
 #############################################
-${utilscript}/setpdy.sh
-source ./PDY
-
+if [[ $MY_MACHINE != "theia" ]]; then
+   ${utilscript}/setpdy.sh
+   source ./PDY
+fi
 
 #############################################
 # COMOUT - WHERE GSI OUTPUT RESIDES
@@ -178,7 +179,7 @@ case $cyc in
        export rgnTM=tm01;;
 esac
 
-export biascr=${biascr:-$COMIN/${RADMON_SUFFIX}.${rgnHH}.satbias.${rgnTM}}
+export biascr=${biascr:-$COMIN/${RADMON_SUFFIX}.${rgnHH}.satbiasc.${rgnTM}}
 export radstat=${radstat:-$COMIN/${RADMON_SUFFIX}.${rgnHH}.radstat.${rgnTM}}
 
 

@@ -1,4 +1,5 @@
-echo start getbestndas_radstat.sh
+echo "start getbestndas_radstat.sh"
+echo "  RADMON_SUFFIX = ${RADMON_SUFFIX}"
 
 set -ax
 
@@ -30,14 +31,14 @@ rm -f $tmpdir/datem12
 #  $USE_TM is defined in the parm/RadMon_user_settings file as tm12.
 #
 case $HH00 in
- 00) ndas1=$COM/ndas.$PDY12/ndas.t${HH12}z.radstat.${USE_TM}
-     bias1=$COM/ndas.$PDY12/ndas.t${HH12}z.satbiasc.${USE_TM};;
- 06) ndas1=$COM/ndas.$PDY12/ndas.t${HH12}z.radstat.${USE_TM}
-     bias1=$COM/ndas.$PDY12/ndas.t${HH12}z.satbiasc.${USE_TM};;
- 12) ndas1=$COM/ndas.$PDY12/ndas.t${HH12}z.radstat.${USE_TM}
-     bias1=$COM/ndas.$PDY12/ndas.t${HH12}z.satbiasc.${USE_TM};;
- 18) ndas1=$COM/ndas.$PDY12/ndas.t${HH12}z.radstat.${USE_TM}
-     bias1=$COM/ndas.$PDY12/ndas.t${HH12}z.satbiasc.${USE_TM};;
+ 00) ndas1=$COM/${RADMON_SUFFIX}.$PDY12/${RADMON_SUFFIX}.t${HH12}z.radstat.${USE_TM}
+     bias1=$COM/${RADMON_SUFFIX}.$PDY12/${RADMON_SUFFIX}.t${HH12}z.satbiasc.${USE_TM};;
+ 06) ndas1=$COM/${RADMON_SUFFIX}.$PDY12/${RADMON_SUFFIX}.t${HH12}z.radstat.${USE_TM}
+     bias1=$COM/${RADMON_SUFFIX}.$PDY12/${RADMON_SUFFIX}.t${HH12}z.satbiasc.${USE_TM};;
+ 12) ndas1=$COM/${RADMON_SUFFIX}.$PDY12/${RADMON_SUFFIX}.t${HH12}z.radstat.${USE_TM}
+     bias1=$COM/${RADMON_SUFFIX}.$PDY12/${RADMON_SUFFIX}.t${HH12}z.satbiasc.${USE_TM};;
+ 18) ndas1=$COM/${RADMON_SUFFIX}.$PDY12/${RADMON_SUFFIX}.t${HH12}z.radstat.${USE_TM}
+     bias1=$COM/${RADMON_SUFFIX}.$PDY12/${RADMON_SUFFIX}.t${HH12}z.satbiasc.${USE_TM};;
 esac
 
 if [ -s $ndas1 ]
