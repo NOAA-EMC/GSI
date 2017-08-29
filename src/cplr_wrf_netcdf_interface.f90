@@ -113,7 +113,7 @@ contains
     end associate
     
     print_verbose=.false.
-    if(print_verbose) print_verbose=.true.
+    if(verbose) print_verbose=.true.
     wrf_real=104
     end_index=0
     start_index=0

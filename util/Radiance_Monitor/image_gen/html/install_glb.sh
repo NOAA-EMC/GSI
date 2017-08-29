@@ -99,24 +99,35 @@ data_found=0
 while [[ data_found -eq 0 && $PDATE -ge $limit ]]; do
    PDY=`echo $PDATE|cut -c1-8`
 
-   if [[ -d $TANKverf/radmon.${PDY} ]]; then
-      test00=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}00*.ieee_d* | wc -l`
-      test06=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}06*.ieee_d* | wc -l`
-      test12=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}12*.ieee_d* | wc -l`
-      test18=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}18*.ieee_d* | wc -l`
+   if [[ ${TANK_USE_RUN} -eq 1 ]]; then
+      test_dir=${TANKverf}/${RUN}.${PDY}/${MONITOR}
+   else
+      test_dir=${TANKverf}/${MONITOR}.${PDY}
+   fi
+
+   echo "test_dir = ${test_dir}"
+
+   if [[ -d ${test_dir} ]]; then
+      echo " test_dir is GO "
+      test00=`ls ${test_dir}/angle.*${PDY}00*.ieee_d* | wc -l`
+      test06=`ls ${test_dir}/angle.*${PDY}06*.ieee_d* | wc -l`
+      test12=`ls ${test_dir}/angle.*${PDY}12*.ieee_d* | wc -l`
+      test18=`ls ${test_dir}/angle.*${PDY}18*.ieee_d* | wc -l`
       if [[ $test00 -gt 0 ]]; then
-         test_list=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}00*.ieee_d*`
+         test_list=`ls ${test_dir}/angle.*${PDY}00*.ieee_d*`
          data_found=1
       elif [[ $test06 -gt 0 ]]; then
-         test_list=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}06*.ieee_d*`
+         test_list=`ls ${test_dir}/angle.*${PDY}06*.ieee_d*`
          data_found=1
       elif [[ $test12 -gt 0 ]]; then
-         test_list=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}12*.ieee_d*`
+         test_list=`ls ${test_dir}/angle.*${PDY}12*.ieee_d*`
          data_found=1
       elif [[ $test18 -gt 0 ]]; then
-         test_list=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}18*.ieee_d*`
+         test_list=`ls ${test_dir}/angle.*${PDY}18*.ieee_d*`
          data_found=1
       fi
+   else
+      echo "test_dir is NOGO"
    fi
 
    if [[ data_found -eq 0 ]]; then

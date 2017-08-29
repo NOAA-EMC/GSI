@@ -1,4 +1,8 @@
 cmake_minimum_required(VERSION 2.8)
+# need to set CMP0046 when using add_dependencies with cmake version 3.6.2
+  if(crayComp)
+    cmake_policy(SET CMP0046 NEW)
+  endif()
   set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 # get a list of all the fortran source files
   file(GLOB GSI_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*90 )
@@ -46,6 +50,9 @@ cmake_minimum_required(VERSION 2.8)
   list( REMOVE_ITEM GSI_SRC ${LINKED_SRC} )
   list( REMOVE_ITEM GSI_SRC ${STUB_SRC} )
   list( REMOVE_ITEM GSI_SRC ${CPLR_SRC} )
+
+# remove stub_nstmod from the rest of the source files
+  list( REMOVE_ITEM GSI_SRC "${CMAKE_CURRENT_SOURCE_DIR}/stub_nstmod.f90" )
 
 # The specific regional/WRF source files
   if(USE_WRF)
@@ -95,7 +102,7 @@ cmake_minimum_required(VERSION 2.8)
 
   if(BUILD_CORELIBS )
     if(USE_WRF) 
-      add_dependencies(gsilib_wrf${debug_suffix} MODS gsilib_shrd${debug_suffix} ${bacio} ${crtm} ${bufr} ${nemsio} ${sigio} ${sfcio} ${sp} ${w3emc} ${w3nco} )
+      add_dependencies(gsilib_wrf${debug_suffix} gsilib_shrd${debug_suffix} ${bacio} ${crtm} ${bufr} ${nemsio} ${sigio} ${sfcio} ${sp} ${w3emc} ${w3nco} )
     endif()
     if(BUILD_GLOBAL)
 #     add_library(gsilib_global${debug_suffix} STATIC ${GLOBAL_SRC} )
@@ -105,7 +112,7 @@ cmake_minimum_required(VERSION 2.8)
   endif()
 
   if(USE_WRF) 
-    add_dependencies(gsilib_wrf${debug_suffix} MODS gsilib_shrd${debug_suffix} )
+    add_dependencies(gsilib_wrf${debug_suffix} gsilib_shrd${debug_suffix} )
     add_executable(gsi.x${debug_suffix} ${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90 ${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90 )
   endif()
 

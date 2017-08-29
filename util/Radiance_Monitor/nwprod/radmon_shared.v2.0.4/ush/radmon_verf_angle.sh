@@ -148,10 +148,9 @@ else
 
       for dtype in ${gesanl}; do
 
-          echo "pgm    = $pgm"
-          echo "pgmout = $pgmout"
+         echo "pgm    = $pgm"
+         echo "pgmout = $pgmout"
          prep_step
-#         /nwprod2/util/ush/prep_step.sh
 
          ctr=`expr $ctr + 1`
 
