@@ -26,6 +26,8 @@ program summary
    character(len=10),allocatable,dimension(:)::times
    character(len=2), allocatable,dimension(:)::use
 
+   integer,allocatable,dimension(:)::chan_nums
+
    integer luname,ldname,loname,lpname
    integer cyc,ii,iflag,j,k,res,chan,ftyp,open_status
 
@@ -85,6 +87,19 @@ program summary
     
    do ii=1,nchanl
       read(lpname, *) use(ii)
+   end do
+   close(lpname)
+
+!************************************************************************
+! Read chan.txt input file, which is the actual channel number for each 
+! channel.
+!************************************************************************
+   allocate( chan_nums (nchanl) )
+   open( lpname, file='chan.txt' )
+
+   do ii=1,nchanl
+      read(lpname, *) chan_nums(ii)
+      write(6,*) 'read ii, chan_nums(ii) = ', ii, chan_nums(ii)
    end do
    close(lpname)
 
@@ -311,7 +326,8 @@ program summary
 !    format: channel, use flage, ges values cycles 1-4, anl values cycles 1-4
 
    do j=1,nchanl
-      write(loname,71) j, trim(use(j)), int(cnt(1,1,j,1)), int(cnt(1,2,j,1)), &
+!      write(loname,71) j, trim(use(j)), int(cnt(1,1,j,1)), int(cnt(1,2,j,1)), &
+      write(loname,71) chan_nums(j), trim(use(j)), int(cnt(1,1,j,1)), int(cnt(1,2,j,1)), &
                                         int(cnt(1,3,j,1)), int(cnt(1,4,j,1)), &
                                         int(cnt(2,1,j,1)), int(cnt(2,2,j,1)), &
                                         int(cnt(2,3,j,1)), int(cnt(2,4,j,1))
@@ -322,7 +338,8 @@ program summary
 !  write tot_cor/count values to output file 
 !    format: channel, use flage, tot_cor/cnt for 1 cycle, 4 cycles, 120 cycles
    do j=1,nchanl
-      write(loname,72) j, trim(use(j)), &
+!      write(loname,72) j, trim(use(j)), &
+      write(loname,72) chan_nums(j), trim(use(j)), &
             avg_tot_cor(1,j,1), avg_tot_cor(1,j,2), avg_tot_cor(1,j,3), &
             avg_tot_cor(2,j,1), avg_tot_cor(2,j,2), avg_tot_cor(2,j,3) 
    end do
@@ -345,7 +362,8 @@ program summary
          end if
       end do
 
-      write(loname,73) j, trim(use(j)), &
+!      write(loname,73) j, trim(use(j)), &
+      write(loname,73) chan_nums(j), trim(use(j)), &
          avg_omgbc(1,j,1), sdv_omgbc(1,j,1), avg_omgbc(1,j,2), sdv_omgbc(1,j,2), &
          avg_omgbc(2,j,1), sdv_omgbc(2,j,1), avg_omgbc(2,j,2), sdv_omgbc(2,j,2)
    end do
@@ -356,7 +374,8 @@ program summary
 !    format: channel, use flage, avg_pen for 1 cycle, 4 cycles, 120 cycles
 !            ges values), avg_pen for 1 cycle, 4 cycles, 120 cycles (ges values) 
    do j=1,nchanl
-      write(loname,72) j, trim(use(j)), &
+!      write(loname,72) j, trim(use(j)), &
+      write(loname,72) chan_nums(j), trim(use(j)), &
             avg_pen(1,j,1), avg_pen(1,j,2), avg_pen(1,j,3), &
             avg_pen(2,j,1), avg_pen(2,j,2), avg_pen(2,j,3) 
    end do
@@ -367,8 +386,8 @@ program summary
 
    deallocate( cnt, pen, tot_cor, omg_nbc, omg_bc, tot_cor2, omg_nbc2, omg_bc2 )
    deallocate( avg_tot_cor )
-   deallocate ( avg_omgbc, sdv_omgbc, avg_pen )
-
+   deallocate( avg_omgbc, sdv_omgbc, avg_pen )
+   deallocate( chan_nums )
    stop
 
 end program summary

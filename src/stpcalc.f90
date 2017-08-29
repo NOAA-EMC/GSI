@@ -635,7 +635,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 !    Write out detailed results to iout_iter
         if(mype == 0) then
-           write(iout_iter,100) (pen_save(i)+pbc(i,ipenloc),i=1,ipen)
+           write(iout_iter,100) (pen_save(i)+pbc(ipenloc,i),i=1,ipen)
            if(print_verbose)then
               write(iout_iter,105) (bsum(i),i=1,ipen)
               write(iout_iter,110) (csum(i),i=1,ipen)

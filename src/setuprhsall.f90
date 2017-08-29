@@ -114,7 +114,8 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use constants, only: zero,one,fv,zero_quad
   use guess_grids, only: load_prsges,load_geop_hgt,load_gsdpbl_hgt
   use guess_grids, only: ges_tsen,nfldsig
-  use obsmod, only: nsat1,iadate,nobs_type,obscounts,mype_diaghdr,&
+! use obsmod, only: mype_diaghdr
+  use obsmod, only: nsat1,iadate,nobs_type,obscounts,&
        ndat,obs_setup,&
        dirname,write_diag,ditype,obsdiags,lobserver,&
        destroyobs,inquire_obsdiags,lobskeep,nobskeep,lobsdiag_allocated, &
