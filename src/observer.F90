@@ -293,6 +293,7 @@ subroutine set_
 !   1990-10-06  parrish
 !   2007-10-03  todling - created this file from slipt of glbsoi
 !   2009-01-28  todling - split observer into init/set/run/finalize
+!   2017-08-31  li      - add gsi_nstcoupler_final
 !
 !   input argument list:
 !     mype - mpi task id
@@ -306,6 +307,7 @@ subroutine set_
 !$$$
 
   use mpeu_util, only: tell,die
+  use gsi_nstcouplermod, only: nst_gsi,gsi_nstcoupler_final
   use gsi_io, only: mype_io
   implicit none
   character(len=*), parameter :: Iam="observer_set"
@@ -373,6 +375,7 @@ _ENTRY_(Iam)
 !    isli2 and sno2 are used in intppx (called from setuprad) and setuppcp.
      call getsfc(mype,mype_io,.false.,.false.)
      call destroy_sfc
+     if (nst_gsi > 0) call gsi_nstcoupler_final()
 
   endif
   

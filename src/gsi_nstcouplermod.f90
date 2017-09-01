@@ -44,7 +44,7 @@ private
 !
 public GSI_NSTCoupler_init_nml
 public GSI_NSTCoupler_init
-public GSI_NSTCoupler_set
+public GSI_NSTCoupler_read
 public GSI_NSTCoupler_skindepth
 public GSI_NSTCoupler_deter
 public GSI_NSTCoupler_final
@@ -71,14 +71,14 @@ interface gsi_nstcoupler_init
 end interface
 !-------------------
 
-interface gsi_nstcoupler_set
-  subroutine nst_set_(mype_io)
+interface gsi_nstcoupler_read
+  subroutine nst_read_(mype_io)
      use kinds,         only: i_kind
      implicit none
 
      integer(i_kind), intent(in   ) :: mype_io
      
-  end subroutine nst_set_
+  end subroutine nst_read_
 end interface
 !-------------------
 

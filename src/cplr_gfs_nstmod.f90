@@ -11,6 +11,7 @@
 !  07Oct2011 Akella/RT - Initial code
 !  05Mar2012 Akella    - Create_nst and getnst from satthin are now nst_int_ & nst_set_
 !                        Destroy_nst from satthin is nst_final_
+!  31Aug2017 Li        - change nst_set to be nst_read
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -47,7 +48,7 @@ subroutine nst_init_()
 end subroutine nst_init_
 !*******************************************************************************************
 
-subroutine nst_set_(mype_io)
+subroutine nst_read_(mype_io)
 
      use kinds, only: i_kind
      use gridmod, only: use_gfs_nemsio 
@@ -66,7 +67,7 @@ subroutine nst_set_(mype_io)
                          dt_warm_full,z_w_full,c_0_full,c_d_full,w_0_full,w_d_full)
      endif
                          
-end subroutine nst_set_
+end subroutine nst_read_
 !*******************************************************************************************
 
 subroutine nst_final_ ()
