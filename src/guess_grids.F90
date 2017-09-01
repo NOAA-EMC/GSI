@@ -284,9 +284,6 @@ contains
    use gridmod, only: lat2,lon2,nlat,nlon
    use constants, only: zero
 
-
-   use gsi_nstcouplermod, only: nst_gsi
-   use gsi_nstcouplermod, only: gsi_nstcoupler_init
    implicit none
 
 ! !DESCRIPTION: allocate memory for surface related grids
@@ -301,6 +298,8 @@ contains
 !   2008-12-5   todling - add time dimension to dsfct
 !   2009-01-23  todling - zero out arrays
 !   2012-03-06  akella  - add call to initialize arrays for NST analysis
+!   2017-08-31  li      - move gsi_nstcoupler_init & gsi_nstcoupler_final to
+!                         satthin.F90 and read_obs.F90 respectivaly
 !
 ! !REMARKS:
 !   language: f90
@@ -375,9 +374,6 @@ contains
           isli2(i,j)=0
        end do
     end do
-
-!   Create full horizontal nst fields from local fields in guess_grids or read it from nst file
-    if (nst_gsi > 0) call gsi_nstcoupler_init()
 
     return
   end subroutine create_sfc_grids
@@ -821,8 +817,6 @@ contains
 
 ! !USES:
 
-   use gsi_nstcouplermod, only: nst_gsi
-   use gsi_nstcouplermod, only: gsi_nstcoupler_final
    implicit none
    
 ! !DESCRIPTION: deallocate surface related grids
@@ -849,9 +843,6 @@ contains
 !-------------------------------------------------------------------------
 
     integer(i_kind):: istatus
-
-! Deallocate arrays containing full horizontal nst fields
-    if (nst_gsi > 0) call gsi_nstcoupler_final()
 
     if(.not.sfc_grids_allocated_) call die('destroy_sfc_grids_','not allocated')
     sfc_grids_allocated_=.false.
