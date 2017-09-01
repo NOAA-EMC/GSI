@@ -458,7 +458,7 @@ contains
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype,mpi_rtype4
     use constants, only: zero,half,pi,two,one
     use ncepgfs_io, only: read_gfssfc,read_gfssfc_anl
-    use ncepnems_io, only: read_nemssfc,intrp22,read_nemssfc_anl
+    use ncepnems_io, only: read_nemssfc,intrp22,read_nemssfc_anl,read_nems_sfchist
     use sfcio_module, only: sfcio_realfill
     use obsmod, only: lobserver
     use gsi_nstcouplermod, only: nst_gsi,gsi_nstcoupler_init,gsi_nstcoupler_read
