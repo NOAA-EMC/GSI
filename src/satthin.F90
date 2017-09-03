@@ -427,7 +427,7 @@ contains
 !   2015-05-01  li      - modify to handle the single precision sfc fields read from sfc file
 !   2017-08-31  li      - modify to read fv3 regriding sfc history file
 !                         (1) move gsi_nstcoupler_init and gsi_nstcoupler_read from read_obs.F90 to getsfc here
-!                         (2) use use_hist_nemsio from name list
+!                         (2) use use_fv3hist_nemsio from name list
 !                         (3) modify subroutine getsfc to read fv3 regriding sfc history file (both sfc & nst vars) 
 !
 !   input argument list:
@@ -447,7 +447,7 @@ contains
     use gridmod, only:  nlat,nlon,lat2,lon2,lat1,lon1,jstart,&
        iglobal,itotsub,ijn,displs_g,regional,istart, &
        rlats,rlons,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc,strip,&
-       use_gfs_nemsio,use_hist_nemsio,use_readin_anl_sfcmask
+       use_gfs_nemsio,use_fv3hist_nemsio,use_readin_anl_sfcmask
     use general_commvars_mod, only: ltosi,ltosj
     use guess_grids, only: ntguessig,isli,sfct,sno,fact10, &
        nfldsfc,ntguessfc,soil_moi,soil_temp,veg_type,soil_type, &
@@ -549,7 +549,7 @@ contains
 
        if ( use_gfs_nemsio ) then
 
-          if ( use_hist_nemsio .and. nst_gsi > 0 ) then
+          if ( use_fv3hist_nemsio .and. nst_gsi > 0 ) then
 
              call read_nems_sfchist(mype_io, &
                 sst_full,soil_moi_full,sno_full,soil_temp_full, &
@@ -561,7 +561,7 @@ contains
                 sst_full,soil_moi_full,sno_full,soil_temp_full, &
                 veg_frac_full,fact10_full,sfc_rough_full, &
                 veg_type_full,soil_type_full,zs_full_gfs,isli_full,use_sfc_any)
-          endif         ! if ( use_hist_nemsio ) then
+          endif         ! if ( use_fv3hist_nemsio ) then
 
           if ( use_readin_anl_sfcmask ) then
              call read_nemssfc_anl(mype_io,isli_anl)
@@ -579,7 +579,7 @@ contains
 
        end if
 
-       if (nst_gsi > 0 .and. .not. use_hist_nemsio) then
+       if (nst_gsi > 0 .and. .not. use_fv3hist_nemsio) then
           call gsi_nstcoupler_read(mype_io)         ! Read NST fields (each proc needs full NST fields)
        endif
 
