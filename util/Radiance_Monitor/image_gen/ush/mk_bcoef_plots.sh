@@ -49,21 +49,27 @@ for type in ${SATYPE}; do
          pdy=`echo $test_day|cut -c1-8`
       fi
 
-      if [[ -s ${TANKDIR}/radmon.${pdy}/bcoef.${type}.ctl.${Z} ]]; then
-         $NCP ${TANKDIR}/radmon.${pdy}/bcoef.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
-         if [[ -s ${TANKDIR}/radmon.${pdy}/bcoef.${type}_anl.ctl.${Z} ]]; then
-            $NCP ${TANKDIR}/radmon.${pdy}/bcoef.${type}_anl.ctl.${Z} ${imgndir}/${type}_anl.ctl.${Z}
+      if [[ $TANK_USE_RUN -eq 1 ]]; then
+         ieee_src=${TANKverf}/${RUN}.${PDY}/${MONITOR}
+      else
+         ieee_src=${TANKverf}/${MONITOR}.${PDY}
+      fi
+
+      if [[ -s ${ieee_src}/bcoef.${type}.ctl.${Z} ]]; then
+         $NCP ${ieee_src}/bcoef.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
+         if [[ -s ${ieee_src}/bcoef.${type}_anl.ctl.${Z} ]]; then
+            $NCP ${ieee_src}/bcoef.${type}_anl.ctl.${Z} ${imgndir}/${type}_anl.ctl.${Z}
          fi
          found=1
-      elif [[ -s ${TANKDIR}/radmon.${pdy}/bcoef.${type}.ctl ]]; then
-         $NCP ${TANKDIR}/radmon.${pdy}/bcoef.${type}.ctl ${imgndir}/${type}.ctl
-         if [[ -s ${TANKDIR}/radmon.${pdy}/bcoef.${type}_anl.ctl ]]; then
-            $NCP ${TANKDIR}/radmon.${pdy}/bcoef.${type}_anl.ctl ${imgndir}/${type}_anl.ctl
+      elif [[ -s ${ieee_src}/bcoef.${type}.ctl ]]; then
+         $NCP ${ieee_src}/bcoef.${type}.ctl ${imgndir}/${type}.ctl
+         if [[ -s ${ieee_src}/bcoef.${type}_anl.ctl ]]; then
+            $NCP ${ieee_src}/bcoef.${type}_anl.ctl ${imgndir}/${type}_anl.ctl
          fi
          found=1
       fi
 
-      if [[ $found -eq 0 ]]; then
+     if [[ $found -eq 0 ]]; then
          if [[ $ctr -gt 0 ]]; then
             test_day=`$NDATE -24 ${pdy}00`
             ctr=$(($ctr-1))
