@@ -316,13 +316,17 @@ contains
     use kinds, only: i_kind,r_kind
     use radinfo, only: nusis,jpch_rad,icloud4crtm,iaerosol4crtm
     use obsmod, only: ndat,dtype,dsis
+    use gsi_io, only: verbose
     implicit none
 
     logical :: first,diffistr,found
     integer(i_kind) :: i,j,k,ii,nn1,nn2,nn
     integer(i_kind),dimension(ndat) :: k2i
     character(10),dimension(ndat) :: rtype,rrtype,drtype
+    logical print_verbose
 
+    print_verbose=.false.
+    if(verbose)print_verbose=.true.
 !   Cross-check 
     do j=1,jpch_rad
        if (icloud4crtm(j)>=0) then
@@ -490,7 +494,8 @@ contains
              if (iaerosol4crtm(j)==0) rad_type_info(k)%laerosol_fwd=.true.
           end if
        end do
-       if (mype==0) write(6,*) 'radiance_obstype_init: type=', rad_type_info(k)%rtype, &
+       if (mype==0 .and. print_verbose)  &
+                               write(6,*) 'radiance_obstype_init: type=', rad_type_info(k)%rtype, &
                                ' nch=',rad_type_info(k)%nchannel, &
                                ' lcloud_fwd=',rad_type_info(k)%lcloud_fwd, &
                                ' lallsky=',rad_type_info(k)%lallsky, &
@@ -556,9 +561,10 @@ contains
           radmod%laerosol_fwd = rad_type_info(i)%laerosol_fwd
           radmod%laerosol = rad_type_info(i)%laerosol
           radmod%laerosol4crtm => rad_type_info(i)%laerosol4crtm
-          exit
+          return
        end if
     end do
+    if (mype==0) write(6,*) 'radiance_obstype_search type not found: obstype=',obstype
 
     if (.not. match) then
        if (mype==0) write(6,*) 'radiance_obstype_search: #WARNING# obstype=',obstype,' not found in rtype'
@@ -734,6 +740,7 @@ contains
     use kinds, only: i_kind,r_kind
     use mpeu_util, only: gettablesize
     use mpeu_util, only: gettable
+    use gsi_io, only: verbose
     implicit none
 
     character(len=*), intent(in) :: filename
@@ -744,14 +751,17 @@ contains
     integer(i_kind) ii,ntot,nrows,ich0
     real(r_kind) cclr0,ccld0
     character(len=256),allocatable,dimension(:):: utable
+    logical print_verbose
 
+    print_verbose=.false.
+    if(verbose .and. mype == 0)print_verbose=.true.
 !   Initialize the arrays
     cclr(:)=zero
     ccld(:)=zero
 
 !   Scan file for desired table first and get size of table
     call gettablesize(filename,lunin,ntot,nrows)
-    if (mype==0) write(6,*) 'amsua_table: ',filename, nrows
+    if (print_verbose) write(6,*) 'amsua_table: ',filename, nrows
     if(nrows==0) then
        return
     endif
@@ -768,7 +778,7 @@ contains
     enddo
     deallocate(utable)
 
-    if (mype==0) then
+    if (print_verbose) then
        write(6,*) 'amsua_table: ich  cclr  ccld '
        do ii=1,nchal
           write(6,*) ii,cclr(ii),ccld(ii)

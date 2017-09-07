@@ -85,6 +85,7 @@ subroutine gesinfo(mype)
 
   use read_wrf_mass_files_mod, only: read_wrf_mass_files_class
   use read_wrf_nmm_files_mod, only: read_wrf_nmm_files_class
+  use gsi_io, only: verbose
   implicit none
 
 ! Declare passed variables
@@ -118,6 +119,7 @@ subroutine gesinfo(mype)
   type(ncepgfs_head):: gfshead
   type(ncepgfs_headv):: gfsheadv
   type(nemsio_gfile) :: gfile2
+  logical :: print_verbose
 
 !---------------------------------------------------------------------
 ! Get guess date and vertical coordinate structure from atmospheric
@@ -126,6 +128,8 @@ subroutine gesinfo(mype)
   mype_out=npe/2
 
 
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
 ! Handle non-GMAO interface (ie, NCEP interface)
   write(filename,'("sigf",i2.2)')nhr_assimilation
   inquire(file=filename,exist=fexist)
@@ -148,7 +152,7 @@ subroutine gesinfo(mype)
      iadatemn(3)=regional_time(3)  !  day
      iadatemn(4)=regional_time(4)  !  hour
      iadatemn(5)=regional_time(5)  !  minute
-     write (6,*) 'in gesinfo: iadatemn with minutes', iadatemn
+     if(print_verbose)write (6,*) 'in gesinfo: iadatemn with minutes', iadatemn
 ! Handle NCEP global cases
   else
 
@@ -383,7 +387,7 @@ subroutine gesinfo(mype)
 
 
 !    Echo select header information to stdout
-     if(mype==mype_out) then
+     if(mype==mype_out .and. print_verbose) then
         if ( .not. use_gfs_nemsio ) then
            write(6,100) gfshead%jcap,gfshead%levs,gfshead%latb,gfshead%lonb,&
                 gfshead%ntrac,gfshead%ncldt,idvc5,gfshead%nvcoord,&

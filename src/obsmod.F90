@@ -181,8 +181,6 @@ module obsmod
 !   def dwtail       - doppler wind linked list tail
 !   def rwhead       - radial wind linked list head
 !   def rwtail       - radial wind linked list tail
-!   def srwhead      - superobed radial wind linked list head
-!   def srwtail      - superobed radial wind linked list tail
 !   def whead        - conventional wind linked list head
 !   def wtail        - conventional wind linked list tail
 !   def qhead        - moisture linked list head
@@ -258,7 +256,6 @@ module obsmod
 !   def iout_pw      - output unit for precipitable water stats
 !   def iout_rw      - output unit for radar wind stats
 !   def iout_dw      - output unit for doppler wind stats
-!   def iout_srw     - output unit for radar superob wind stats
 !   def iout_gps     - output unit for gps refractivity or bending angle stats
 !   def iout_sst     - output unit for conventional sst stats
 !   def iout_gust    - output unit for conventional gust stats
@@ -287,7 +284,6 @@ module obsmod
 !   def mype_pw      - task to handle precipitable water stats
 !   def mype_rw      - task to handle radar wind stats
 !   def mype_dw      - task to handle doppler wind stats
-!   def mype_srw     - task to handle radar superob wind stats
 !   def mype_gps     - task to handle gps observation stats
 !   def mype_sst     - task to handle conventional sst stats
 !   def mype_gust    - task to handle conventional gust stats
@@ -373,7 +369,7 @@ module obsmod
   public :: iout_pcp,iout_rad,iadate,iadatemn,write_diag,reduce_diag,oberrflg,bflag,ndat,dthin,dmesh,l_do_adjoint
   public :: lsaveobsens
   public :: i_ps_ob_type,i_t_ob_type,i_w_ob_type,i_q_ob_type
-  public :: i_spd_ob_type,i_srw_ob_type,i_rw_ob_type,i_dw_ob_type,i_sst_ob_type
+  public :: i_spd_ob_type,i_rw_ob_type,i_dw_ob_type,i_sst_ob_type
   public :: i_gust_ob_type,i_vis_ob_type,i_pblh_ob_type,i_wspd10m_ob_type,i_td2m_ob_type
   public :: i_uwnd10m_ob_type,i_vwnd10m_ob_type
   public :: i_mxtm_ob_type,i_mitm_ob_type,i_pmsl_ob_type,i_howv_ob_type,i_tcamt_ob_type,i_lcbas_ob_type
@@ -393,8 +389,8 @@ module obsmod
   public :: i_pm10_ob_type
   public :: nloz_v8,nloz_v6,nloz_omi,nlco,nobskeep
   public :: grids_dim,rmiss_single,nchan_total,mype_sst,mype_gps
-  public :: mype_uv,mype_dw,mype_rw,mype_srw,mype_q,mype_tcp,mype_lag,mype_ps,mype_t
-  public :: mype_pw,iout_rw,iout_dw,iout_srw,iout_sst,iout_pw,iout_t,iout_q,iout_tcp
+  public :: mype_uv,mype_dw,mype_rw,mype_q,mype_tcp,mype_lag,mype_ps,mype_t
+  public :: mype_pw,iout_rw,iout_dw,iout_sst,iout_pw,iout_t,iout_q,iout_tcp
   public :: iout_lag,iout_uv,iout_gps,iout_ps
   public :: mype_gust,mype_vis,mype_pblh,iout_gust,iout_vis,iout_pblh
   public :: mype_tcamt,mype_lcbas,iout_tcamt,iout_lcbas
@@ -446,39 +442,38 @@ module obsmod
   integer(i_kind),parameter::   i_w_ob_type= 3    ! w_ob_type
   integer(i_kind),parameter::   i_q_ob_type= 4    ! q_ob_type
   integer(i_kind),parameter:: i_spd_ob_type= 5    ! spd_ob_type
-  integer(i_kind),parameter:: i_srw_ob_type= 6    ! srw_ob_type
-  integer(i_kind),parameter::  i_rw_ob_type= 7    ! rw_ob_type
-  integer(i_kind),parameter::  i_dw_ob_type= 8    ! dw_ob_type
-  integer(i_kind),parameter:: i_sst_ob_type= 9    ! sst_ob_type
-  integer(i_kind),parameter::  i_pw_ob_type=10    ! pw_ob_type
-  integer(i_kind),parameter:: i_pcp_ob_type=11    ! pcp_ob_type
-  integer(i_kind),parameter::  i_oz_ob_type=12    ! oz_ob_type
-  integer(i_kind),parameter:: i_o3l_ob_type=13    ! o3l_ob_type
-  integer(i_kind),parameter:: i_gps_ob_type=14    ! gps_ob_type
-  integer(i_kind),parameter:: i_rad_ob_type=15    ! rad_ob_type
-  integer(i_kind),parameter:: i_tcp_ob_type=16    ! tcp_ob_type
-  integer(i_kind),parameter:: i_lag_ob_type=17    ! lag_ob_type
-  integer(i_kind),parameter:: i_colvk_ob_type= 18 ! colvk_ob_type
-  integer(i_kind),parameter:: i_aero_ob_type =19  ! aero_ob_type
-  integer(i_kind),parameter:: i_aerol_ob_type=20  ! aerol_ob_type
-  integer(i_kind),parameter:: i_pm2_5_ob_type=21  ! pm2_5_ob_type
-  integer(i_kind),parameter:: i_gust_ob_type=22   ! gust_ob_type
-  integer(i_kind),parameter:: i_vis_ob_type=23    ! vis_ob_type
-  integer(i_kind),parameter:: i_pblh_ob_type=24   ! pblh_ob_type
-  integer(i_kind),parameter:: i_wspd10m_ob_type=25! wspd10m_ob_type
-  integer(i_kind),parameter:: i_td2m_ob_type=26   ! td2m_ob_type
-  integer(i_kind),parameter:: i_mxtm_ob_type=27   ! mxtm_ob_type
-  integer(i_kind),parameter:: i_mitm_ob_type=28   ! mitm_ob_type
-  integer(i_kind),parameter:: i_pmsl_ob_type=29   ! pmsl_ob_type
-  integer(i_kind),parameter:: i_howv_ob_type=30   ! howv_ob_type
-  integer(i_kind),parameter:: i_tcamt_ob_type=31  ! tcamt_ob_type
-  integer(i_kind),parameter:: i_lcbas_ob_type=32  ! lcbas_ob_type  
-  integer(i_kind),parameter:: i_pm10_ob_type=33   ! pm10_ob_type
-  integer(i_kind),parameter:: i_cldch_ob_type=34  ! cldch_ob_type
-  integer(i_kind),parameter:: i_uwnd10m_ob_type=35! uwnd10m_ob_type
-  integer(i_kind),parameter:: i_vwnd10m_ob_type=36! vwnd10m_ob_type
+  integer(i_kind),parameter::  i_rw_ob_type= 6    ! rw_ob_type
+  integer(i_kind),parameter::  i_dw_ob_type= 7    ! dw_ob_type
+  integer(i_kind),parameter:: i_sst_ob_type= 8    ! sst_ob_type
+  integer(i_kind),parameter::  i_pw_ob_type= 9    ! pw_ob_type
+  integer(i_kind),parameter:: i_pcp_ob_type=10    ! pcp_ob_type
+  integer(i_kind),parameter::  i_oz_ob_type=11    ! oz_ob_type
+  integer(i_kind),parameter:: i_o3l_ob_type=12    ! o3l_ob_type
+  integer(i_kind),parameter:: i_gps_ob_type=13    ! gps_ob_type
+  integer(i_kind),parameter:: i_rad_ob_type=14    ! rad_ob_type
+  integer(i_kind),parameter:: i_tcp_ob_type=15    ! tcp_ob_type
+  integer(i_kind),parameter:: i_lag_ob_type=16    ! lag_ob_type
+  integer(i_kind),parameter:: i_colvk_ob_type= 17 ! colvk_ob_type
+  integer(i_kind),parameter:: i_aero_ob_type =18  ! aero_ob_type
+  integer(i_kind),parameter:: i_aerol_ob_type=19  ! aerol_ob_type
+  integer(i_kind),parameter:: i_pm2_5_ob_type=20  ! pm2_5_ob_type
+  integer(i_kind),parameter:: i_gust_ob_type=21   ! gust_ob_type
+  integer(i_kind),parameter:: i_vis_ob_type=22    ! vis_ob_type
+  integer(i_kind),parameter:: i_pblh_ob_type=23   ! pblh_ob_type
+  integer(i_kind),parameter:: i_wspd10m_ob_type=24! wspd10m_ob_type
+  integer(i_kind),parameter:: i_td2m_ob_type=25   ! td2m_ob_type
+  integer(i_kind),parameter:: i_mxtm_ob_type=26   ! mxtm_ob_type
+  integer(i_kind),parameter:: i_mitm_ob_type=27   ! mitm_ob_type
+  integer(i_kind),parameter:: i_pmsl_ob_type=28   ! pmsl_ob_type
+  integer(i_kind),parameter:: i_howv_ob_type=29   ! howv_ob_type
+  integer(i_kind),parameter:: i_tcamt_ob_type=30  ! tcamt_ob_type
+  integer(i_kind),parameter:: i_lcbas_ob_type=31  ! lcbas_ob_type  
+  integer(i_kind),parameter:: i_pm10_ob_type=32   ! pm10_ob_type
+  integer(i_kind),parameter:: i_cldch_ob_type=33  ! cldch_ob_type
+  integer(i_kind),parameter:: i_uwnd10m_ob_type=34! uwnd10m_ob_type
+  integer(i_kind),parameter:: i_vwnd10m_ob_type=35! vwnd10m_ob_type
 
-  integer(i_kind),parameter:: nobs_type = 36      ! number of observation types
+  integer(i_kind),parameter:: nobs_type = 35      ! number of observation types
 
 ! Structure for diagnostics
 
@@ -491,7 +486,7 @@ module obsmod
      real(r_kind) :: elat, elon         ! earth lat-lon for redistribution
      integer(i_kind) :: indxglb         ! a combined index similar to (ich,iob)
      integer(i_kind) :: nchnperobs      ! number of channels per observations
-     integer(i_kind) :: idv,iob,ich	! device, obs., and channel indices
+     integer(i_kind) :: idv,iob,ich     ! device, obs., and channel indices
      logical, pointer :: muse(:)          => null()    ! (miter+1), according the setup()s
      logical :: luse
   end type obs_diag
@@ -524,13 +519,13 @@ module obsmod
   integer(i_kind) nlco,use_limit
   integer(i_kind) iout_rad,iout_pcp,iout_t,iout_q,iout_uv, &
                   iout_oz,iout_ps,iout_pw,iout_rw
-  integer(i_kind) iout_dw,iout_srw,iout_gps,iout_sst,iout_tcp,iout_lag
+  integer(i_kind) iout_dw,iout_gps,iout_sst,iout_tcp,iout_lag
   integer(i_kind) iout_co,iout_gust,iout_vis,iout_pblh,iout_tcamt,iout_lcbas
   integer(i_kind) iout_cldch
   integer(i_kind) iout_wspd10m,iout_td2m,iout_mxtm,iout_mitm,iout_pmsl,iout_howv
   integer(i_kind) iout_uwnd10m,iout_vwnd10m
   integer(i_kind) mype_t,mype_q,mype_uv,mype_ps,mype_pw, &
-                  mype_rw,mype_dw,mype_srw,mype_gps,mype_sst, &
+                  mype_rw,mype_dw,mype_gps,mype_sst, &
                   mype_tcp,mype_lag,mype_co,mype_gust,mype_vis,mype_pblh, &
                   mype_wspd10m,mype_td2m,mype_mxtm,mype_mitm,mype_pmsl,mype_howv,&
                   mype_uwnd10m,mype_vwnd10m, mype_tcamt,mype_lcbas
@@ -665,7 +660,6 @@ contains
     iout_pcp=208   ! precipitation rate
     iout_rw=209    ! radar radial wind
     iout_dw=210    ! doppler lidar wind
-    iout_srw=211   ! radar superob wind
     iout_gps=212   ! gps refractivity or bending angle
     iout_sst=213   ! conventional sst
     iout_tcp=214   ! synthetic tc-mslp
@@ -690,13 +684,13 @@ contains
     iout_vwnd10m=234  ! 10-m vwnd
 
     mype_ps = npe-1          ! surface pressure
-    mype_uv = max(0,npe-2)   ! u,v wind components
-    mype_t  = max(0,npe-3)   ! virtual temperature
-    mype_q  = max(0,npe-4)   ! moisture (specific humidity)
-    mype_pw = max(0,npe-5)   ! total column water
-    mype_rw = max(0,npe-6)   ! radar radial wind
-    mype_dw = max(0,npe-7)   ! doppler lidar wind
-    mype_srw= max(0,npe-8)   ! radar superob wind
+    mype_t  = max(0,npe-2)   ! temperature
+    mype_q  = max(0,npe-3)   ! moisture
+    mype_uv = max(0,npe-4)   ! uv
+    mype_pw = max(0,npe-5)   ! precipitable water
+    mype_rw = max(0,npe-6)   ! radial winds
+    mype_dw = max(0,npe-7)   ! doppler lidar winds
+    mype_co = max(0,npe-8)   ! carbon monoxide
     mype_gps= max(0,npe-9)   ! gps refractivity or bending angle
     mype_sst= max(0,npe-10)  ! conventional sst
     mype_tcp= max(0,npe-11)  ! synthetic tc-mslp
@@ -744,7 +738,6 @@ contains
     cobstype(  i_w_ob_type)  ="wind                " ! w_ob_type
     cobstype(  i_q_ob_type)  ="moisture            " ! q_ob_type
     cobstype(i_spd_ob_type)  ="wind speed          " ! spd_ob_type
-    cobstype(i_srw_ob_type)  ="srw                 " ! srw_ob_type
     cobstype( i_rw_ob_type)  ="radial wind         " ! rw_ob_type
     cobstype( i_dw_ob_type)  ="doppler wind        " ! dw_ob_type
     cobstype(i_sst_ob_type)  ="sst                 " ! sst_ob_type
