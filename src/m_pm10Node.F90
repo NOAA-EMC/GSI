@@ -77,8 +77,6 @@ module m_pm10Node
 
   character(len=*),parameter:: MYNAME="m_pm10Node"
 
-!#define CHECKSUM_VERBOSE
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains

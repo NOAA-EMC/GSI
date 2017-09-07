@@ -432,10 +432,10 @@ contains
     do k=0,npe-1
        kend(k)=kbegin(k+1)-1
     end do
-    if(mype == 0) then
-       write(6,*)' kbegin=',kbegin
-       write(6,*)' kend= ',kend
-    end if
+!   if(mype == 0) then
+!      write(6,*)' kbegin=',kbegin
+!      write(6,*)' kend= ',kend
+!   end if
     num_j_groups=jm/npe
     jextra=jm-num_j_groups*npe
     jbegin(0)=1
@@ -450,10 +450,10 @@ contains
     do j=0,npe-1
        jend(j)=min(jbegin(j+1)-1,jm)
     end do
-    if(mype == 0) then
-       write(6,*)' jbegin=',jbegin
-       write(6,*)' jend= ',jend
-    end if
+!   if(mype == 0) then
+!      write(6,*)' jbegin=',jbegin
+!      write(6,*)' jend= ',jend
+!   end if
   
     ier=0
     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ps',ges_ps,iret); ier=iret

@@ -331,6 +331,7 @@ clean:
         gsd_update_mod.f90 \
 	gsi_4dvar.f90 \
 	gsi_4dcouplermod.f90 \
+	gsi_bias.f90 \
 	gsi_bundlemod.F90 \
 	gsi_chemguess_mod.F90 \
 	gsi_enscouplermod.f90 \
@@ -378,7 +379,6 @@ clean:
 	intrp3oz.f90 \
 	intrw.f90 \
 	intspd.f90 \
-	intsrw.f90 \
 	intsst.f90 \
 	intt.f90 \
 	inttcamt.f90 \
@@ -459,7 +459,6 @@ clean:
         m_radNode.F90 \
         m_rwNode.F90 \
         m_spdNode.F90 \
-        m_srwNode.F90 \
         m_sstNode.F90 \
         m_tNode.F90 \
 	m_tcamtNode.F90 \
@@ -572,7 +571,6 @@ clean:
 	stprad.f90 \
 	stprw.f90 \
 	stpspd.f90 \
-	stpsrw.f90 \
 	stpsst.f90 \
 	stpt.f90 \
 	stptcamt.f90 \
@@ -671,7 +669,6 @@ clean:
 	read_seviri.f90 \
 	read_ssmi.f90 \
 	read_ssmis.f90 \
-	read_superwinds.f90 \
 	read_tcps.f90 \
 	setupbend.f90 \
 	setupco.f90 \
@@ -696,7 +693,6 @@ clean:
 	setuprhsall.f90 \
 	setuprw.f90 \
 	setupspd.f90 \
-	setupsrw.f90 \
 	setupsst.f90 \
 	setupt.f90 \
 	setuptcamt.f90 \

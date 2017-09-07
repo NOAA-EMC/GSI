@@ -526,13 +526,17 @@ contains
            mpi_max,mpi_integer4
     use control_vectors, only: nrf_var
     use mpeu_util, only: getindex
+    use gsi_io, only: verbose
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
 
     integer(i_kind) idvar_last,k,kk
     integer(i_kind) nlevs0(0:npe-1),nlevs1(0:npe-1),nvar_id0(nsig1o*npe),nvar_id1(nsig1o*npe)
+    logical print_verbose
 
+    print_verbose = .false.
+    if(verbose)print_verbose=.true.
     indices%kds=  1 ; indices%kde=vlevs
     indices_p%kds=1 ; indices_p%kde=vlevs
 
@@ -560,7 +564,7 @@ contains
     nlevs0=0
     do k=1,nsig1o
        if(levs_id(k)/=0) nlevs0(mype)=nlevs0(mype)+1
-       if(k==1.or.k>=nsig1o-2_i_long) write(6,*)' k,levs_id(k)=',k,levs_id(k)
+       if(k==1.or.k>=nsig1o-2_i_long .and. print_verbose) write(6,*)' k,levs_id(k)=',k,levs_id(k)
     end do
 
     call mpi_allreduce(nlevs0,nlevs1,npe,mpi_integer4,mpi_max,mpi_comm_world,ierror)
@@ -601,7 +605,7 @@ contains
        end if
     end do
 
-    if(mype==0) then
+    if(mype==0 .and. print_verbose) then
        do k=indices%kds,indices%kde
           write(6,*)' in anberror_vert_partition, k,idvar(k),jdvar(k)=',k,idvar(k),jdvar(k)
        end do
@@ -617,7 +621,7 @@ contains
     end do
     indices%kps=indices%kpe-nlevs1(mype)+1
     indices_p%kps=indices_p%kpe-nlevs1(mype)+1
-    write(6,*)' in anberror_vert_partition, kps,kpe=',indices%kps,indices%kpe
+    if(print_verbose)write(6,*)' in anberror_vert_partition, kps,kpe=',indices%kps,indices%kpe
 
   end subroutine anberror_vert_partition
 
@@ -701,6 +705,7 @@ contains
     use gridmod, only: nsig,vlevs
     use control_vectors, only: nrf_var,nrf,nrf_3d,mvars
     use mpeu_util, only: getindex
+    use gsi_io, only: verbose
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
@@ -708,7 +713,10 @@ contains
     integer(i_kind) n,k,kk,klevb,kleve
 
     integer(i_kind),allocatable,dimension(:):: nrf_levb,nrf_leve
+    logical print_verbose
 
+    print_verbose=.false.
+    if(verbose)print_verbose=.true.
     indices%kds=1        ; indices%kde=vlevs
     indices%kps=indices%kds ; indices%kpe=indices%kde
 
@@ -775,7 +783,7 @@ contains
 
     deallocate(nrf_levb,nrf_leve)
 
-    if(mype==0) then
+    if(mype==0 .and. print_verbose) then
        do k=indices%kds,indices%kde
           write(6,*)' in anberror_vert_partition_subdomain_option, k,idvar,jdvar,levs_jdvar=', &
                       k,idvar(k),jdvar(k),levs_jdvar(k)

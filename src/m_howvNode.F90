@@ -73,8 +73,6 @@ module m_howvNode
  
   character(len=*),parameter:: MYNAME="m_howvNode"
 
-!#define CHECKSUM_VERBOSE
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains

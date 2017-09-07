@@ -235,6 +235,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   use m_obsHeadBundle, only: obsHeadBundle
   use m_obsHeadBundle, only: obsHeadBundle_create
   use m_obsHeadBundle, only: obsHeadBundle_destroy
+  use gsi_io, only: verbose
   implicit none
 
 ! Declare passed variables
@@ -277,6 +278,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   real(r_kind),dimension(4)::sges
   real(r_kind),dimension(ioutpen):: outpen,outstp
   logical :: cxterm,change_dels,ifound
+  logical :: print_verbose
 
 
   type(obsHeadBundle),pointer,dimension(:):: yobs
@@ -285,6 +287,8 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   call timer_ini('stpcalc')
 
 ! Initialize variable
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
   cxterm=.false.
   mm1=mype+1
   stp(0)=stpinout
@@ -334,37 +338,36 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !    pbc(*,15) contribution from w observation  term (Jo)
 !    pbc(*,16) contribution from q observation  term (Jo)
 !    pbc(*,17) contribution from spd observation  term (Jo)
-!    pbc(*,18) contribution from srw observation  term (Jo)
-!    pbc(*,19) contribution from rw observation  term (Jo)
-!    pbc(*,20) contribution from dw observation  term (Jo)
-!    pbc(*,21) contribution from sst observation  term (Jo)
-!    pbc(*,22) contribution from pw observation  term (Jo)
-!    pbc(*,23) contribution from pcp observation  term (Jo)
-!    pbc(*,24) contribution from oz observation  term (Jo)
-!    pbc(*,25) contribution from o3l observation  term (Jo)(not used)
-!    pbc(*,26) contribution from gps observation  term (Jo)
-!    pbc(*,27) contribution from rad observation  term (Jo)
-!    pbc(*,28) contribution from tcp observation  term (Jo)
-!    pbc(*,29) contribution from lag observation  term (Jo)
-!    pbc(*,30) contribution from colvk observation  term (Jo)
-!    pbc(*,31) contribution from aero observation  term (Jo)
-!    pbc(*,32) contribution from aerol observation  term (Jo)
-!    pbc(*,33) contribution from pm2_5 observation  term (Jo)
-!    pbc(*,34) contribution from gust observation  term (Jo)
-!    pbc(*,35) contribution from vis observation  term (Jo)
-!    pbc(*,36) contribution from pblh observation  term (Jo)
-!    pbc(*,37) contribution from wspd10m observation  term (Jo)
-!    pbc(*,38) contribution from td2m observation  term (Jo)
-!    pbc(*,39) contribution from mxtm observation  term (Jo)
-!    pbc(*,40) contribution from mitm observation  term (Jo)
-!    pbc(*,41) contribution from pmsl observation  term (Jo)
-!    pbc(*,42) contribution from howv observation  term (Jo)
-!    pbc(*,43) contribution from tcamt observation  term (Jo)
-!    pbc(*,44) contribution from lcbas observation  term (Jo)
-!    pbc(*,45) contribution from pm10 observation  term (Jo)
-!    pbc(*,46) contribution from cldch observation  term (Jo)
-!    pbc(*,47) contribution from uwnd10m observation  term (Jo)
-!    pbc(*,48) contribution from vwnd10m observation  term (Jo)
+!    pbc(*,18) contribution from rw observation  term (Jo)
+!    pbc(*,19) contribution from dw observation  term (Jo)
+!    pbc(*,20) contribution from sst observation  term (Jo)
+!    pbc(*,21) contribution from pw observation  term (Jo)
+!    pbc(*,22) contribution from pcp observation  term (Jo)
+!    pbc(*,23) contribution from oz observation  term (Jo)
+!    pbc(*,24) contribution from o3l observation  term (Jo)(not used)
+!    pbc(*,25) contribution from gps observation  term (Jo)
+!    pbc(*,26) contribution from rad observation  term (Jo)
+!    pbc(*,27) contribution from tcp observation  term (Jo)
+!    pbc(*,28) contribution from lag observation  term (Jo)
+!    pbc(*,29) contribution from colvk observation  term (Jo)
+!    pbc(*,30) contribution from aero observation  term (Jo)
+!    pbc(*,31) contribution from aerol observation  term (Jo)
+!    pbc(*,32) contribution from pm2_5 observation  term (Jo)
+!    pbc(*,33) contribution from gust observation  term (Jo)
+!    pbc(*,34) contribution from vis observation  term (Jo)
+!    pbc(*,35) contribution from pblh observation  term (Jo)
+!    pbc(*,36) contribution from wspd10m observation  term (Jo)
+!    pbc(*,37) contribution from td2m observation  term (Jo)
+!    pbc(*,38) contribution from mxtm observation  term (Jo)
+!    pbc(*,39) contribution from mitm observation  term (Jo)
+!    pbc(*,40) contribution from pmsl observation  term (Jo)
+!    pbc(*,41) contribution from howv observation  term (Jo)
+!    pbc(*,42) contribution from tcamt observation  term (Jo)
+!    pbc(*,43) contribution from lcbas observation  term (Jo)
+!    pbc(*,44) contribution from pm10 observation  term (Jo)
+!    pbc(*,45) contribution from cldch observation  term (Jo)
+!    pbc(*,46) contribution from uwnd10m observation  term (Jo)
+!    pbc(*,47) contribution from vwnd10m observation  term (Jo)
 !
 !    However, users should be aware that under full polymorphism 
 !    the obs-types are defined on the fly, that is to say, e.g.,that 
@@ -385,22 +388,23 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   pstart(1,1) = qdot_prod_sub(xhatsave,yhatsave)
   pj(1,1)=pstart(1,1)
 
-  pstart(2,1) =-0.5_r_quad*(qdot_prod_sub(dirx,yhatsave)+qdot_prod_sub(diry,xhatsave))
-
-! Penalty, b, c for JcDFI
-  pstart(3,1) = qdot_prod_sub(dirx,diry)
-
-! Penalty, b, c for dry pressure
-
 !  two terms in next line should be the same, but roundoff makes average more accurate.
 
-! Contraint and 3dvar terms
+  pstart(2,1) =-0.5_r_quad*(qdot_prod_sub(dirx,yhatsave)+qdot_prod_sub(diry,xhatsave))
+
+  pstart(3,1) = qdot_prod_sub(dirx,diry)
+
+
+! Contraints and 3dvar terms
+
+! Penalty, b, c for JcDFI
 
   if (ljcdfi .and. nobs_bins>1) then
     call stpjcdfi(dval,sval,pstart(1,2),pstart(2,2),pstart(3,2))
     pj(2,1)=pstart(1,2)
   end if
 
+! Penalty, b, c for dry pressure
   if(ljcpdry)then
     if (.not.ljc4tlevs) then
        call stpjcpdry(dval(ibin_anl),sval(ibin_anl),pstart(1,3),pstart(2,3),pstart(3,3),1)
@@ -608,8 +612,6 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
         end if
      end if
 
-!    estimate of change in penalty
-     delpen = stp(ii)*(bx - 0.5_r_quad*stp(ii)*cx ) 
 
 !    estimate various terms in penalty on first iteration
      if(ii == 1)then
@@ -618,29 +620,42 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
            bsum_save(i)=bsum(i)
            csum_save(i)=csum(i)
         end do
-        pjcost(1) =  pbc(ipenloc,1) + pbc(1,1)                                   ! Jb
+        pjcost(1) =  pen_save(1)+pbc(ipenloc,1)                    ! Jb
         pjcost(2) = zero_quad
         do i=1,nobs_type
-           pjcost(2) = pjcost(2)+pbc(ipenloc,n0+i) + pbc(1,n0+i)                 ! Jo
+           pjcost(2) = pjcost(2)+pen_save(n0+i)+pbc(ipenloc,n0+i)  ! Jo
         end do
-        pjcost(3) = (pbc(ipenloc,2) + pbc(1,2))   + (pbc(ipenloc,3)  + pbc(1,3)) ! Jc
+        pjcost(3) = pen_save(2)   + pen_save(3)+pbc(ipenloc,3)     ! Jc
         pjcost(4) = zero_quad
         do i=4,n0
-           pjcost(4) = pjcost(4) + (pbc(ipenloc,i) + pbc(1,i))                   ! Jl
+           pjcost(4) = pjcost(4) + pen_save(i)+pbc(ipenloc,i)      ! Jl
         end do
 
         penalty=pjcost(1)+pjcost(2)+pjcost(3)+pjcost(4)    ! J = Jb + Jo + Jc +Jl
-     end if
+
+!    Write out detailed results to iout_iter
+        if(mype == 0) then
+           write(iout_iter,100) (pen_save(i)+pbc(ipenloc,i),i=1,ipen)
+           if(print_verbose)then
+              write(iout_iter,105) (bsum(i),i=1,ipen)
+              write(iout_iter,110) (csum(i),i=1,ipen)
+           end if
+        end if
+     endif
+
+!    estimate of change in penalty
+     delpen = stp(ii)*(bx - 0.5_r_quad*stp(ii)*cx ) 
 
 !    If change in penalty is very small end stepsize calculation
      if(abs(delpen/penalty) < 1.e-17_r_kind) then
         if(mype == 0)then
-           if(ii == 1)write(iout_iter,100) (pbc(ipenloc,i),i=1,ipen)
+           write(iout_iter,*) ' minimization has converged '
            write(iout_iter,140) ii,delpen,bx,cx,stp(ii)
-           write(iout_iter,105) (bsum(i),i=1,ipen)
-           write(iout_iter,110) (csum(i),i=1,ipen)
-           write(iout_iter,201) (outstp(i),i=1,nsteptot)
-           write(iout_iter,202) (outpen(i)-outpen(1),i=1,nsteptot)
+           write(iout_iter,100) (pbc(1,i)+pbc(ipenloc,i),i=1,ipen)
+           if(print_verbose)then
+              write(iout_iter,105) (bsum(i),i=1,ipen)
+              write(iout_iter,110) (csum(i),i=1,ipen)
+           end if
         end if
         end_iter = .true.
 !       Finalize timer
@@ -675,12 +690,6 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
         end if
      end if
 
-!    Write out detailed results to iout_iter
-     if(ii == 1 .and. mype == 0) then
-        write(iout_iter,100) (pbc(1,i)+pbc(ipenloc,i),i=1,ipen)
-        write(iout_iter,105) (bsum(i),i=1,ipen)
-        write(iout_iter,110) (csum(i),i=1,ipen)
-     endif
 100  format(' J=',3e25.18/,(3x,3e25.18))
 101  format('EJ=',3e25.18/,(3x,3e25.18))
 105  format(' b=',3e25.18/,(3x,3e25.18))
@@ -701,10 +710,12 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      end if
      if(stprat(ii) < 1.e-4_r_kind) exit stepsize
      if(change_dels)dels = one_tenth_quad*dels
+!    If stepsize estimate has not converged use best stepsize estimate or zero
      if( ii == istp_iter)then
         stp(ii)=outstp(ipenloc)
         outpensave=outpen(ipenloc)
         ifound=.false.
+!       Find best stepsize to this point
         do i=1,nsteptot
            if(outpen(i) < outpensave)then
               stp(ii)=outstp(i)
@@ -713,6 +724,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
            end if
         end do
         if(ifound)exit stepsize
+!       If no best stepsize set to zero and end minimization
         if(mype == 0)then
            write(iout_iter,141)(outpen(i),i=1,nsteptot)
         end if
@@ -730,11 +742,11 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
   stpinout=stp(istp_use)
 ! Estimate terms in penalty
-  do i=1,ipen
-      pen_est(i)=pen_save(i)-(stp(ii-1)-stp(0))*(2.0_r_quad*bsum_save(i)- &
-                       (stp(ii-1)-stp(0))*csum_save(i))
-  end do
-  if(mype == 0)then
+  if(mype == 0 .and. print_verbose)then
+     do i=1,ipen
+         pen_est(i)=pen_save(i)-(stpinout-stp(0))*(2.0_r_quad*bsum_save(i)- &
+                       (stpinout-stp(0))*csum_save(i))
+     end do
      write(iout_iter,101) (pbc(1,i)-pen_est(i),i=1,ipen)
   end if
   pjcostnew(1) = pbc(1,1)                                  ! Jb
@@ -749,6 +761,12 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   end do
   penaltynew=pjcostnew(1)+pjcostnew(2)+pjcostnew(3)+pjcostnew(4)
 
+  if(mype == 0 .and. print_verbose)then
+     write(iout_iter,200) (stp(i),i=0,istp_use)
+     write(iout_iter,199) (stprat(ii),ii=1,istp_use)
+     write(iout_iter,201) (outstp(i),i=1,nsteptot)
+     write(iout_iter,202) (outpen(i)-outpen(4),i=1,nsteptot)
+  end if
 ! Check for final stepsize negative (probable error)
   if(stpinout <= zero)then
      if(mype == 0)then
@@ -759,15 +777,6 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      end if
      end_iter = .true.
   end if
-  if(mype == 0)then
-     write(iout_iter,200) (stp(i),i=0,istp_use)
-     write(iout_iter,199) (stprat(ii),ii=1,istp_use)
-     write(iout_iter,201) (outstp(i),i=1,nsteptot)
-     write(iout_iter,202) (outpen(i)-outpen(1),i=1,nsteptot)
-  end if
-  do i=1,ipen
-      pen_est(i)=pbc(1,i)
-  end do
 199 format(' stepsize stprat    = ',6(e25.18,1x))
 200 format(' stepsize estimates = ',6(e25.18,1x))
 201 format(' stepsize guesses   = ',(10(e13.6,1x)))

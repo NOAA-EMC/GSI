@@ -421,7 +421,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      call readmg(lunin,subset,idate,iret)
 
      if (subset == 'NC008012') then
-        write(6,*)'READ_OZONE:  GOME-2 data type, subset=',subset
+!       write(6,*)'READ_OZONE:  GOME-2 data type, subset=',subset
      else
         write(6,*)'READ_OZONE:  *** WARNING: unknown ozone data type, subset=',subset
         write(6,*)' infile=',trim(infile), ', lunin=',lunin, ', obstype=',obstype,', jsatid=',jsatid
@@ -574,7 +574,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      call datelen(10)
      call readmg(lunin,subset,idate,iret)
      if (subset == 'NC008013') then
-        write(6,*)'READ_OZONE:  OMI data type, subset=',subset
+!       write(6,*)'READ_OZONE:  OMI data type, subset=',subset
      else
         write(6,*)'READ_OZONE:  *** WARNING: unknown ozone data type, subset=',subset
         write(6,*)' infile=',trim(infile), ', lunin=',lunin, ', obstype=',obstype,', jsatid=',jsatid

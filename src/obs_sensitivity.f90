@@ -40,7 +40,7 @@ use gsi_4dvar, only: nobs_bins, l4dvar, lsqrtb, nsubwin
 use jfunc, only: jiter, miter, niter, iter
 use obsmod, only: cobstype, nobs_type, obscounts, &
                   i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
-                  i_spd_ob_type, i_srw_ob_type, i_rw_ob_type, i_dw_ob_type, &
+                  i_spd_ob_type, i_rw_ob_type, i_dw_ob_type, &
                   i_sst_ob_type, i_pw_ob_type, i_pcp_ob_type, i_oz_ob_type, &
                   i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type, i_tcp_ob_type, &
                   i_lag_ob_type, i_colvk_ob_type, i_aero_ob_type, i_aerol_ob_type, &
@@ -251,7 +251,6 @@ cobtype(  i_t_ob_type)   ="tem  "
 cobtype(  i_w_ob_type)   ="uv   "
 cobtype(  i_q_ob_type)   ="hum  "
 cobtype(i_spd_ob_type)   ="spd  "
-cobtype(i_srw_ob_type)   ="srw  "
 cobtype( i_rw_ob_type)   ="rw   "
 cobtype( i_dw_ob_type)   ="dw   "
 cobtype(i_sst_ob_type)   ="sst  "

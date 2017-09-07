@@ -26,7 +26,7 @@ module stpjomod
   use obsmod, only: nobs_type
   use obsmod, only: &
                   & i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
-                  & i_spd_ob_type, i_srw_ob_type, i_rw_ob_type, i_dw_ob_type, &
+                  & i_spd_ob_type, i_rw_ob_type, i_dw_ob_type, &
                   & i_sst_ob_type, i_pw_ob_type, i_oz_ob_type, i_o3l_ob_type, i_colvk_ob_type, &
                   & i_gps_ob_type, i_rad_ob_type, i_pcp_ob_type,i_tcp_ob_type, &
                   & i_pm2_5_ob_type, i_gust_ob_type, i_vis_ob_type, i_pblh_ob_type, &
@@ -271,7 +271,6 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep,nobs_bins)
   use stpgpsmod, only: stpgps
   use stprwmod, only: stprw
   use stpspdmod, only: stpspd
-  use stpsrwmod, only: stpsrw
   use stpsstmod, only: stpsst
   use stptcpmod, only: stptcp
   use stpdwmod, only: stpdw
@@ -375,10 +374,6 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep,nobs_bins)
 !   penalty, b, and c for ozone:o3l
        case(i_o3l_ob_type)
           call stpozlev(yobs(ib)%o3l,dval(ib),xval(ib),pbcjo(1,i_o3l_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for radar superob wind
-       case(i_srw_ob_type)
-          call stpsrw(yobs(ib)%srw,dval(ib),xval(ib),pbcjo(1,i_srw_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for GPS local observation
        case(i_gps_ob_type)
@@ -624,13 +619,6 @@ subroutine stpjo_setup(yobs)
              ib_jo(stpcnt) = ib
           end if
 
-       case(i_srw_ob_type)
-!         penalty, b, and c for radar superob wind
-          if(associated(yobs(ib)%srw)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_srw_ob_type
-             ib_jo(stpcnt) = ib
-          end if
        case(i_gps_ob_type)
 !         penalty, b, and c for GPS local observation
           if(associated(yobs(ib)%gps)) then

@@ -74,8 +74,6 @@ module m_psNode
 
   character(len=*),parameter:: MYNAME="m_psNode"
 
-!#define CHECKSUM_VERBOSE
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains
