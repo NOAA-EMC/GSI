@@ -23,7 +23,6 @@ module m_rhs
 !
 !$$$  end subprogram documentation block
 
-!#define VERBOSE
 #include "mytrace.H"
 
 ! module interface:
@@ -91,26 +90,30 @@ subroutine rhs_alloc(aworkdim2)
 
   ! indirectly used counter
   use obsmod  , only: nchan_total
+  use gsi_io, only: verbose
   implicit none
   integer(i_kind),optional,intent(in):: aworkdim2
   character(len=*),parameter:: myname_=myname//'.alloc'
   integer(i_kind):: aworkdim2_
+  logical print_verbose
 _ENTRY_(myname_)
+  print_verbose=.false.
+  if(verbose) print_verbose=.true.
   if(rhs_allocated) call die(myname_,'already allocated')
   aworkdim2_=25
   if(present(aworkdim2)) aworkdim2_=aworkdim2
 
-#ifdef VERBOSE
-  call tell(myname_,'nsig ='       ,nsig)
-  call tell(myname_,'npres_print =',npres_print)
-  call tell(myname_,'nconvtype ='  ,nconvtype)
-  call tell(myname_,'ndat ='       ,ndat)
-  call tell(myname_,'jpch_rad ='   ,jpch_rad)
-  call tell(myname_,'jpch_co ='    ,jpch_co)
-  call tell(myname_,'jpch_oz ='    ,jpch_oz)
-  call tell(myname_,'nprof_gps ='  ,nprof_gps)
-  call tell(myname_,'aworkdim2 ='  ,aworkdim2_)
-#endif
+  if(print_verbose)then
+     call tell(myname_,'nsig ='       ,nsig)
+     call tell(myname_,'npres_print =',npres_print)
+     call tell(myname_,'nconvtype ='  ,nconvtype)
+     call tell(myname_,'ndat ='       ,ndat)
+     call tell(myname_,'jpch_rad ='   ,jpch_rad)
+     call tell(myname_,'jpch_co ='    ,jpch_co)
+     call tell(myname_,'jpch_oz ='    ,jpch_oz)
+     call tell(myname_,'nprof_gps ='  ,nprof_gps)
+     call tell(myname_,'aworkdim2 ='  ,aworkdim2_)
+  end if
 
   rhs_allocated=.true.
   allocate(rhs_awork(7*nsig+100,aworkdim2_))

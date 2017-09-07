@@ -44,12 +44,8 @@
   use ozinfo, only: diag_ozone,init_oz
   use aeroinfo, only: diag_aero, init_aero, init_aero_vars, final_aero_vars
   use coinfo, only: diag_co,init_co
-  use convinfo, only: init_convinfo,npred_conv_max, &
-                      id_bias_ps,id_bias_t,id_bias_spd, &
-                      conv_bias_ps,conv_bias_t,conv_bias_spd, &
-                      stndev_conv_ps,stndev_conv_t,stndev_conv_spd,diag_conv,&
-                      id_bias_pm2_5,conv_bias_pm2_5,&
-                      id_bias_pm10,conv_bias_pm10,&
+  use convinfo, only: init_convinfo, &
+                      diag_conv,&
                       use_prepb_satwnd,id_drifter
 
   use oneobmod, only: oblon,oblat,obpres,obhourset,obdattim,oneob_type,&
@@ -90,7 +86,7 @@
      use_gfs_nemsio,use_readin_anl_sfcmask,use_sp_eqspace,final_grid_vars,&
      jcap_gfs,nlat_gfs,nlon_gfs,jcap_cut,wrf_mass_hybridcord
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop
-  use gsi_io, only: init_io,lendian_in
+  use gsi_io, only: init_io,lendian_in,verbose
   use regional_io_mod, only: regional_io_class
   use wrf_params_mod, only: update_pint, preserve_restart_date
   use constants, only: zero,one,init_constants,gps_constants,init_constants_derived,three
@@ -517,11 +513,7 @@
        diag_rad,diag_pcp,diag_conv,diag_ozone,diag_aero,diag_co,iguess, &
        write_diag,reduce_diag, &
        oneobtest,sfcmodel,dtbduv_on,ifact10,l_foto,offtime_data,&
-       npred_conv_max,&
-       id_bias_ps,id_bias_t,id_bias_spd, &
-       conv_bias_ps,conv_bias_t,conv_bias_spd, &
-       id_bias_pm2_5,conv_bias_pm2_5,id_bias_pm10,conv_bias_pm10, &
-       stndev_conv_ps,stndev_conv_t,stndev_conv_spd,use_pbl,use_compress,nsig_ext,gpstop,&
+       use_pbl,use_compress,nsig_ext,gpstop,&
        perturb_obs,perturb_fact,oberror_tune,preserve_restart_date, &
        crtm_coeffs_path,berror_stats, &
        newpc4pred,adp_anglebc,angord,passive_bc,use_edges,emiss_bc,upd_pred, &
@@ -538,7 +530,7 @@
        lwrite_peakwt, use_gfs_nemsio,liauon,use_prepb_satwnd,l4densvar,ens_nstarthr,&
        use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon,lrun_subdirs,&
        use_sp_eqspace,lnested_loops,lsingleradob,thin4d,use_readin_anl_sfcmask,&
-       luse_obsdiag,id_drifter
+       luse_obsdiag,id_drifter,verbose
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution

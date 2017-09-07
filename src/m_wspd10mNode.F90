@@ -73,8 +73,6 @@ module m_wspd10mNode
  
   character(len=*),parameter:: MYNAME="m_wspd10mNode"
 
-!#define CHECKSUM_VERBOSE
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains

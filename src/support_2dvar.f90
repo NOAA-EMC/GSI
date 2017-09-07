@@ -41,7 +41,7 @@ subroutine convert_binary_2d
 
   use kinds, only: r_single,i_kind
   use gsi_4dvar, only: nhr_assimilation
-  use gsi_io, only: lendian_out
+  use gsi_io, only: lendian_out,verbose
   use mpeu_util, only: die
   implicit none
 
@@ -62,9 +62,12 @@ subroutine convert_binary_2d
   real(r_single),allocatable::field2c(:,:)
   integer(i_kind),allocatable::ifield2(:,:)
   real(r_single) rad2deg_single
+  logical print_verbose
 
   data in_unit / 11 /
 
+  print_verbose=.true.
+  if(verbose)print_verbose=.true.
   n_loop: do n=1,9
 
      if(n==1)then
@@ -73,7 +76,7 @@ subroutine convert_binary_2d
         write(wrfges,'("wrf_inou",i1.1)')n
      endif
      open(in_unit,file=trim(wrfges),form='unformatted')
-     write(6,*)' convert_binary_2d: in_unit,lendian_out=',in_unit,lendian_out
+     if(print_verbose)write(6,*)' convert_binary_2d: in_unit,lendian_out=',in_unit,lendian_out
  
 ! Check for valid input file
      read(in_unit,iostat=status_hdr)hdrbuf
@@ -92,16 +95,18 @@ subroutine convert_binary_2d
      endif
 
      write(filename,'("sigf",i2.2)')n+nhr_assimilation-1
-     write(6,*)' CONVERT_BINARY_2D: in_unit,out_unit=',wrfges,',',filename
+     if(print_verbose)write(6,*)' CONVERT_BINARY_2D: in_unit,out_unit=',wrfges,',',filename
      open(lendian_out,file=filename,form='unformatted')
      rewind lendian_out
  
      read(in_unit) iyear,imonth,iday,ihour,iminute,isecond, &
                    nlon_regional,nlat_regional,nsig_regional
-     write(6,*)' convert_binary_2d: iy,m,d,h,m,s=',&
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: iy,m,d,h,m,s=',&
                  iyear,imonth,iday,ihour,iminute,isecond
-     write(6,*)' convert_binary_2d: nlon,lat,sig_regional=',&
+        write(6,*)' convert_binary_2d: nlon,lat,sig_regional=',&
                  nlon_regional,nlat_regional,nsig_regional
+     end if
      write(lendian_out) iyear,imonth,iday,ihour,iminute,isecond, &
                  nlon_regional,nlat_regional,nsig_regional
  
@@ -116,219 +121,283 @@ subroutine convert_binary_2d
 !                  XLAT
      rad2deg_single=r45/atan(one_single)
      read(in_unit)field2
-     write(6,*)' convert_binary_2d: max,min XLAT(:,1)=',&
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min XLAT(:,1)=',&
                  maxval(field2(:,1)),minval(field2(:,1))
-     write(6,*)' convert_binary_2d: max,min XLAT(1,:)=',&
+        write(6,*)' convert_binary_2d: max,min XLAT(1,:)=',&
                  maxval(field2(1,:)),minval(field2(1,:))
-     write(6,*)' convert_binary_2d: xlat(1,1),xlat(nlon,1)=',&
+        write(6,*)' convert_binary_2d: xlat(1,1),xlat(nlon,1)=',&
                  field2(1,1),field2(nlon_regional,1)
-     write(6,*)' convert_binary_2d: xlat(1,nlat),xlat(nlon,nlat)=', &
+        write(6,*)' convert_binary_2d: xlat(1,nlat),xlat(nlon,nlat)=', &
                  field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
+     end if
      field2=field2/rad2deg_single
      write(lendian_out)field2,field2b    !XLAT,DX_MC
  
 
 !                  XLONG
      read(in_unit)field2
-     write(6,*)' convert_binary_2d: max,min XLONG(:,1)=',&
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min XLONG(:,1)=',&
                  maxval(field2(:,1)),minval(field2(:,1))
-     write(6,*)' convert_binary_2d: max,min XLONG(1,:)=',&
+        write(6,*)' convert_binary_2d: max,min XLONG(1,:)=',&
                  maxval(field2(1,:)),minval(field2(1,:))
-     write(6,*)' convert_binary_2d: xlong(1,1),xlong(nlon,1)=',&
+        write(6,*)' convert_binary_2d: xlong(1,1),xlong(nlon,1)=',&
                  field2(1,1),field2(nlon_regional,1)
-     write(6,*)' convert_binary_2d: xlong(1,nlat),xlong(nlon,nlat)=', &
+        write(6,*)' convert_binary_2d: xlong(1,nlat),xlong(nlon,nlat)=', &
                  field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
+     end if
      field2=field2/rad2deg_single
      write(lendian_out)field2,field2c   !  XLONG,DY_MC
 
 
      read(in_unit)field2             !  psfc0
-     write(6,*)' convert_binary_2d: max,min psfc0=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid psfc0=', &
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min psfc0=',maxval(field2),minval(field2)
+        write(6,*)' convert_binary_2d: mid psfc0=', &
                  field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
 
 
      read(in_unit)field2             !  PHB (zsfc*g)
-     write(6,*)' convert_binary_2d: max,min,mid PHB=', &
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min,mid PHB=', &
                  maxval(field2),minval(field2), &
                  field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
  
 
      read(in_unit)field2             !  T  (sensible)
-     write(6,*)' convert_binary_2d: max,min,mid T=',&
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min,mid T=',&
                  maxval(field2),minval(field2), &
                  field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
 
 
      read(in_unit)field2             !  Q
-     write(6,*)' convert_binary_2d: max,min,mid Q=',&
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min,mid Q=',&
                  maxval(field2),minval(field2), &
                  field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
 
 
      read(in_unit)field2             !  U
-     write(6,*)' convert_binary_2d: max,min,mid U=',&
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min,mid U=',&
                  maxval(field2),minval(field2), &
                  field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
 
 
      read(in_unit)field2             !  V
-     write(6,*)' convert_binary_2d: max,min,mid V=',&
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min,mid V=',&
                  maxval(field2),minval(field2), &
                  field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
 
 
      read(in_unit)field2             !  LANDMASK  (1=land, 0=water)
-     write(6,*)' convert_binary_2d: max,min landmask=', &
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min landmask=', &
                  maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid landmask=', &
+        write(6,*)' convert_binary_2d: mid landmask=', &
                  field2(nlon_regional/2,nlat_regional/2)
-     write(6,*)' convert_binary_2d: landmask(1,1),landmask(nlon,1)=', &
+        write(6,*)' convert_binary_2d: landmask(1,1),landmask(nlon,1)=', &
                  field2(1,1),field2(nlon_regional,1)
-     write(6,*)' convert_binary_2d: landmask(1,nlat),landmask(nlon,nlat)=', &
+        write(6,*)' convert_binary_2d: landmask(1,nlat),landmask(nlon,nlat)=', &
                  field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
+     end if
      write(lendian_out)field2
 
 
      read(in_unit)field2             !  XICE
-     write(6,*)' convert_binary_2d: max,min XICE=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid XICE=', &
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min XICE=',maxval(field2),minval(field2)
+        write(6,*)' convert_binary_2d: mid XICE=', &
                  field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
 
 
      read(in_unit)field2             !  SST
-     write(6,*)' convert_binary_2d: max,min SST=',&
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min SST=',&
                  maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid SST=', &
+        write(6,*)' convert_binary_2d: mid SST=', &
                  field2(nlon_regional/2,nlat_regional/2)
-     write(6,*)' convert_binary_2d: sst(1,1),sst(nlon,1)=',&
+        write(6,*)' convert_binary_2d: sst(1,1),sst(nlon,1)=',&
                  field2(1,1),field2(nlon_regional,1)
-     write(6,*)' convert_binary_2d: sst(1,nlat),sst(nlon,nlat)=', &
+        write(6,*)' convert_binary_2d: sst(1,nlat),sst(nlon,nlat)=', &
                  field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
+     end if
      write(lendian_out)field2
 
 
      read(in_unit)ifield2            !  IVGTYP
-     write(6,*)' convert_binary_2d: max,min IVGTYP=', &
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min IVGTYP=', &
                  maxval(ifield2),minval(ifield2)
-     write(6,*)' convert_binary_2d: mid IVGTYP=', &
+        write(6,*)' convert_binary_2d: mid IVGTYP=', &
                  ifield2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)ifield2
 
 
      read(in_unit)ifield2            !  ISLTYP
-     write(6,*)' convert_binary_2d: max,min ISLTYP=', &
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min ISLTYP=', &
                  maxval(ifield2),minval(ifield2)
-     write(6,*)' convert_binary_2d: mid ISLTYP=', &
+        write(6,*)' convert_binary_2d: mid ISLTYP=', &
                  ifield2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)ifield2
 
 
      read(in_unit)field2             !  VEGFRA
-     write(6,*)' convert_binary_2d: max,min VEGFRA=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid VEGFRA=', &
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min VEGFRA=',maxval(field2),minval(field2)
+        write(6,*)' convert_binary_2d: mid VEGFRA=', &
                  field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
 
 
      read(in_unit)field2             !  SNOW
-     write(6,*)' convert_binary_2d: max,min SNO=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid SNO=',field2(nlon_regional/2,nlat_regional/2)
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min SNO=',maxval(field2),minval(field2)
+        write(6,*)' convert_binary_2d: mid SNO=',field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
  
 
      read(in_unit)field2             !  SMOIS
-     write(6,*)' convert_binary_2d: max,min SMOIS=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid SMOIS=',field2(nlon_regional/2,nlat_regional/2)
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min SMOIS=',maxval(field2),minval(field2)
+        write(6,*)' convert_binary_2d: mid SMOIS=',field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
 
 
      read(in_unit)field2             !  TSLB
-     write(6,*)' convert_binary_2d: max,min TSLB=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid TSLB=',field2(nlon_regional/2,nlat_regional/2)
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min TSLB=',maxval(field2),minval(field2)
+        write(6,*)' convert_binary_2d: mid TSLB=',field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
  
 
      read(in_unit)field2             !  TSK
-     write(6,*)' convert_binary_2d: max,min TSK=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid TSK=',field2(nlon_regional/2,nlat_regional/2)
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min TSK=',maxval(field2),minval(field2)
+        write(6,*)' convert_binary_2d: mid TSK=',field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
  
      read(in_unit)field2             !  GUST
-     write(6,*)' convert_binary_2d: max,min GUST=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid GUST=',field2(nlon_regional/2,nlat_regional/2)
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min GUST=',maxval(field2),minval(field2)
+        write(6,*)' convert_binary_2d: mid GUST=',field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
 
      read(in_unit)field2             !  VIS
-     write(6,*)' convert_binary_2d: max,min VIS=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid VIS=',field2(nlon_regional/2,nlat_regional/2)
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min VIS=',maxval(field2),minval(field2)
+        write(6,*)' convert_binary_2d: mid VIS=',field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
 
      read(in_unit)field2             !  PBLH
-     write(6,*)' convert_binary_2d: max,min PBLH=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid PBLH=',field2(nlon_regional/2,nlat_regional/2)
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min PBLH=',maxval(field2),minval(field2)
+        write(6,*)' convert_binary_2d: mid PBLH=',field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
 
      read(in_unit)field2             !  CLDCH
-     write(6,*)' convert_binary_2d: max,min CLDCH=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid CLDCH=',field2(nlon_regional/2,nlat_regional/2)
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min CLDCH=',maxval(field2),minval(field2)
+        write(6,*)' convert_binary_2d: mid CLDCH=',field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
 
      read(in_unit)field2             !  WSPD10M
-     write(6,*)' convert_binary_2d: max,min WSPD10M=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid WSPD10M=',field2(nlon_regional/2,nlat_regional/2)
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min WSPD10M=',maxval(field2),minval(field2)
+        write(6,*)' convert_binary_2d: mid WSPD10M=',field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
 
      read(in_unit)field2             !  TD2M
-     write(6,*)' convert_binary_2d: max,min TD2M=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid TD2M=',field2(nlon_regional/2,nlat_regional/2)
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min TD2M=',maxval(field2),minval(field2)
+        write(6,*)' convert_binary_2d: mid TD2M=',field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
 
      read(in_unit)field2             !  MXTM
-     write(6,*)' convert_binary_2d: max,min MXTM=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid MXTM=',field2(nlon_regional/2,nlat_regional/2)
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min MXTM=',maxval(field2),minval(field2)
+        write(6,*)' convert_binary_2d: mid MXTM=',field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
 
      read(in_unit)field2             !  MITM
-     write(6,*)' convert_binary_2d: max,min MITM=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid MITM=',field2(nlon_regional/2,nlat_regional/2)
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min MITM=',maxval(field2),minval(field2)
+        write(6,*)' convert_binary_2d: mid MITM=',field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
 
      read(in_unit)field2             !  PMSL
-     write(6,*)' convert_binary_2d: max,min PMSL=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid PMSL=',field2(nlon_regional/2,nlat_regional/2)
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min PMSL=',maxval(field2),minval(field2)
+        write(6,*)' convert_binary_2d: mid PMSL=',field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
 
      read(in_unit)field2             !  HOWV
-     write(6,*)' convert_binary_2d: max,min HOWV=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid HOWV=',field2(nlon_regional/2,nlat_regional/2)
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min HOWV=',maxval(field2),minval(field2)
+        write(6,*)' convert_binary_2d: mid HOWV=',field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
 
      read(in_unit)field2             !  TCAMT
-     write(6,*)' convert_binary_2d: max,min TCAMT=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid TCAMT=',field2(nlon_regional/2,nlat_regional/2)
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min TCAMT=',maxval(field2),minval(field2)
+        write(6,*)' convert_binary_2d: mid TCAMT=',field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
 
      read(in_unit)field2             !  LCBAS
-     write(6,*)' convert_binary_2d: max,min LCBAS=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid LCBAS=',field2(nlon_regional/2,nlat_regional/2)
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min LCBAS=',maxval(field2),minval(field2)
+        write(6,*)' convert_binary_2d: mid LCBAS=',field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
 
      read(in_unit)field2             !  UWND10M
-     write(6,*)' convert_binary_2d: max,min UWND10M=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid UWND10M=',field2(nlon_regional/2,nlat_regional/2)
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min UWND10M=',maxval(field2),minval(field2)
+        write(6,*)' convert_binary_2d: mid UWND10M=',field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
 
      read(in_unit)field2             !  VWND10M
-     write(6,*)' convert_binary_2d: max,min VWND10M=',maxval(field2),minval(field2)
-     write(6,*)' convert_binary_2d: mid VWND10M=',field2(nlon_regional/2,nlat_regional/2)
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min VWND10M=',maxval(field2),minval(field2)
+        write(6,*)' convert_binary_2d: mid VWND10M=',field2(nlon_regional/2,nlat_regional/2)
+     end if
      write(lendian_out)field2
 
      close(in_unit)
@@ -381,6 +450,7 @@ subroutine read_2d_files(mype)
   use gsi_4dvar, only: nhr_assimilation
   use constants, only: zero,one,r60inv
   use obsmod, only: time_offset,iadatemn
+  use gsi_io, only: verbose
   implicit none
 
 ! Declare passed variables
@@ -399,15 +469,19 @@ subroutine read_2d_files(mype)
   integer(i_kind),dimension(5):: idate5
   real(r_kind) temp
   real(r_kind),dimension(202):: time_ges
+  logical print_verbose
 
 !-----------------------------------------------------------------------------
 ! Start read_2d_files here.
 
+! Turning on print_verbose will result in additional prints from this routine only.
+  print_verbose = .false.
+  if(verbose)print_verbose=.true.
   nhr_half=nhr_assimilation/2
   if(nhr_half*2<nhr_assimilation) nhr_half=nhr_half+1
   npem1=npe-1
 
-  if(mype == 0)print*,'in read_2d_files: nhr_assimilation,nhr_half,time_offset=', &
+  if(mype == 0 .and. print_verbose)print*,'in read_2d_files: nhr_assimilation,nhr_half,time_offset=', &
                                          nhr_assimilation,nhr_half,time_offset
 
   do i=1,202
@@ -568,6 +642,7 @@ subroutine read_2d_guess(mype)
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die
+  use gsi_io, only: verbose
   implicit none
 
 ! Declare passed variables
@@ -629,6 +704,7 @@ subroutine read_2d_guess(mype)
   real(r_kind),pointer,dimension(:,:,:)::ges_tv_it  =>NULL()
   real(r_kind),pointer,dimension(:,:,:)::ges_q_it   =>NULL()
   real(r_kind),pointer,dimension(:,:,:)::ges_cwmr_it=>NULL()
+  logical print_verbose
 
 
 !  RESTART FILE input grid dimensions in module gridmod
@@ -638,12 +714,16 @@ subroutine read_2d_guess(mype)
 !          lm -- number of vertical levels ( = nsig for now)
 
 
-! if(mype==0) write(6,*)' at 0 in read_2d_guess'
+! Turning on print_verbose will result in additional prints from this routine only.
+  print_verbose = .false.
+  if(verbose)print_verbose=.true.
+  if(print_verbose .and. mype == 0)then
+     write(6,*)' at 0 in read_2d_guess'
+  end if
 
 
 ! Big section of operations done only on first outer iteration
 
-! if(mype==0) write(6,*)' at 0.1 in read_2d_guess'
 
   im=nlon_regional
   jm=nlat_regional
@@ -653,19 +733,23 @@ subroutine read_2d_guess(mype)
   num_2d_fields=30! Adjust according to content of RTMA restart file ---- should this number be in a namelist or anavinfo file at some point?
   num_all_fields=num_2d_fields*nfldsig
   num_loc_groups=num_all_fields/npe
-! if(mype==0) write(6,'(" at 1 in read_2d_guess, lm            =",i6)')lm
-! if(mype==0) write(6,'(" at 1 in read_2d_guess, num_2d_fields=",i6)')num_2d_fields
-! if(mype==0) write(6,'(" at 1 in read_2d_guess, nfldsig       =",i6)')nfldsig
-! if(mype==0) write(6,'(" at 1 in read_2d_guess, num_all_fields=",i6)')num_all_fields
-! if(mype==0) write(6,'(" at 1 in read_2d_guess, npe           =",i6)')npe
-! if(mype==0) write(6,'(" at 1 in read_2d_guess, num_loc_groups=",i6)')num_loc_groups
+  if(print_verbose .and. mype == 0)then
+     write(6,'(" at 1 in read_2d_guess, lm            =",i6)')lm
+     write(6,'(" at 1 in read_2d_guess, num_2d_fields=",i6)')num_2d_fields
+     write(6,'(" at 1 in read_2d_guess, nfldsig       =",i6)')nfldsig
+     write(6,'(" at 1 in read_2d_guess, num_all_fields=",i6)')num_all_fields
+     write(6,'(" at 1 in read_2d_guess, npe           =",i6)')npe
+     write(6,'(" at 1 in read_2d_guess, num_loc_groups=",i6)')num_loc_groups
+  end if
   do
      num_all_pad=num_loc_groups*npe
      if(num_all_pad >= num_all_fields) exit
      num_loc_groups=num_loc_groups+1
   end do
-! if(mype==0) write(6,'(" at 1 in read_2d_guess, num_all_pad   =",i6)')num_all_pad
-! if(mype==0) write(6,'(" at 1 in read_2d_guess, num_loc_groups=",i6)')num_loc_groups
+  if(print_verbose .and. mype == 0)then
+    write(6,'(" at 1 in read_2d_guess, num_all_pad   =",i6)')num_all_pad
+    write(6,'(" at 1 in read_2d_guess, num_loc_groups=",i6)')num_loc_groups
+  end if
 
   allocate(all_loc(lat1+2,lon1+2,num_all_pad))
   allocate(jsig_skip(num_2d_fields))
@@ -812,7 +896,7 @@ subroutine read_2d_guess(mype)
   write(identity(i),'("record ",i3,"--vwnd10m")')i
   jsig_skip(i)=0 ; igtype(i)=1
 
-  if (mype==0) then
+  if (print_verbose .and. mype==0) then
      print*
      do i=1,num_2d_fields
         print'(a)',trim(identity(i))
@@ -856,7 +940,7 @@ subroutine read_2d_guess(mype)
         if(mype==mod(icount-1,npe)) then
            if(igtype(ifld) > 0) then
               read(nfcst)((temp1(i,j),i=1,im),j=1,jm)
-              if(mype == 0)write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)')ifld,temp1(im/2,jm/2)
+              if(print_verbose .and. mype == 0)write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)')ifld,temp1(im/2,jm/2)
               call fill_mass_grid2t(temp1,im,jm,tempa,1)
            end if
            if(igtype(ifld) < 0) then
@@ -866,7 +950,7 @@ subroutine read_2d_guess(mype)
                     temp1(i,j)=itemp1(i,j)
                  end do
               end do
-              if(mype == 0)write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)')ifld,temp1(im/2,jm/2)
+              if(print_verbose .and. mype == 0)write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)')ifld,temp1(im/2,jm/2)
               call fill_mass_grid2t(temp1,im,jm,tempa,1)
            end if
         else
@@ -1133,6 +1217,7 @@ subroutine wr2d_binary(mype)
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die
+  use gsi_io, only: verbose
   implicit none
 
 ! Declare passed variables
@@ -1163,6 +1248,7 @@ subroutine wr2d_binary(mype)
   
   integer(i_kind) iaux(100),kaux
   character(15) caux(100)
+  logical print_verbose
   
   real(r_kind),dimension(:,:  ),pointer:: ptr2d    =>NULL()
   real(r_kind),dimension(:,:  ),pointer:: ges_ps_it=>NULL()
@@ -1170,6 +1256,8 @@ subroutine wr2d_binary(mype)
   real(r_kind),dimension(:,:,:),pointer:: ges_v_it =>NULL()
   real(r_kind),dimension(:,:,:),pointer:: ges_q_it =>NULL()
 
+  print_verbose = .false.
+  if(verbose)print_verbose=.true.
   im=nlon_regional
   jm=nlat_regional
   lm=nsig
@@ -1277,7 +1365,7 @@ subroutine wr2d_binary(mype)
   end if
 
 ! Update psfc
-! if(mype == 0) write(6,*)' at 6 in wr2d_binary'
+  if( print_verbose .and. mype == 0) write(6,*)' at 6 in wr2d_binary'
 
   allocate(tempa(itotsub),tempb(itotsub))
   if(mype == 0) then
@@ -1593,13 +1681,17 @@ subroutine init_ndfdgrid
 !$$$ end documentation block
   use constants, only: five,zero_single
   use mpimod, only: mype
+  use gsi_io, only: verbose
   implicit none
 
   character(3) clun33
+  logical print_verbose
 
   namelist/parmcardreadprepb/cgrid,ladjusterr,oberrinflfact,valleygcheck, & 
                              ineighbour,jneighbour,slmland,lshoreline
 
+  print_verbose = .false.
+  if(verbose)print_verbose=.true.
   cgrid='conus'
   ladjusterr=.false.
   lshoreline=.false.
@@ -1618,20 +1710,24 @@ subroutine init_ndfdgrid
      print*,'init_ndfdgrid: WARNING - MISSING RTMA NAMELIST FILE: parmcard_input.  RUNNING WITH DEFAULT SETTINGS'
   endif
 
-  print*,'in init_ndfdgrid: cgrid=',cgrid
-  print*,'in init_ndfdgrid: ladjusterr =',ladjusterr
-  print*,'in init_ndfdgrid: oberrinflfact=',oberrinflfact
-  print*,'in init_ndfdgrid: ineighbour=',ineighbour
-  print*,'in init_ndfdgrid: jneighbour=',jneighbour
-  print*,'in init_ndfdgrid: lshoreline=',lshoreline
-  print*,'in init_ndfdgrid: slmland=',slmland
-  print*,'in init_ndfdgrid: valleygcheck=',valleygcheck
+  if(print_verbose)then
+     print*,'in init_ndfdgrid: cgrid=',cgrid
+     print*,'in init_ndfdgrid: ladjusterr =',ladjusterr
+     print*,'in init_ndfdgrid: oberrinflfact=',oberrinflfact
+     print*,'in init_ndfdgrid: ineighbour=',ineighbour
+     print*,'in init_ndfdgrid: jneighbour=',jneighbour
+     print*,'in init_ndfdgrid: lshoreline=',lshoreline
+     print*,'in init_ndfdgrid: slmland=',slmland
+     print*,'in init_ndfdgrid: valleygcheck=',valleygcheck
+  end if
 
   call ndfdgrid_info
 
-  print*,'in init_ndfdgrid: nx,ny,gridspacing=',nx,ny,da8
-  print*,'in init_ndfdgrid: alat18,elon18,elonv8,alatan=',& 
+  if(print_verbose)then
+     print*,'in init_ndfdgrid: nx,ny,gridspacing=',nx,ny,da8
+     print*,'in init_ndfdgrid: alat18,elon18,elonv8,alatan=',& 
                             alat18,elon18,elonv8,alatan8
+  end if
 
   allocate(slmask(nx,ny))
   open (55,file='rtma_slmask.dat',form='unformatted')
@@ -2150,6 +2246,7 @@ end subroutine relocsfcob
 subroutine mkvalley_file
 
   use anisofilter, only: smther_one
+  use gsi_io, only: verbose
 
   implicit none
 
@@ -2157,16 +2254,21 @@ subroutine mkvalley_file
   real(r_single) hmean,hmin,hmax
   integer(i_kind) i,j,ijdel,ii,jj,ncount
   integer(i_kind) npassvalley
+  logical print_verbose
 
   data radius0/100000./  !meters
   data hdiff0/2000./     !meters
   data npassvalley/20/   !# of smoothing passes
 
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
   ijdel=int(radius0/real(da8,kind=r_single))
 
-  print*,'in mkvalley_file: radius0,hdiff0,ijdel=',radius0,hdiff0,ijdel
+  if(print_verbose)then
+    print*,'in mkvalley_file: radius0,hdiff0,ijdel=',radius0,hdiff0,ijdel
 
-  print*,'in mkvalley_file: terrain,min,max=',minval(terrain),maxval(terrain)
+    print*,'in mkvalley_file: terrain,min,max=',minval(terrain),maxval(terrain)
+  end if
 
   valleys(:,:)=1._r_single
   do j=1,ny
@@ -2196,7 +2298,9 @@ subroutine mkvalley_file
 
   call smther_one(valleys,1,nx,1,ny,npassvalley)
 
-  print*,'in mkvalley_file: valleys,min,max=',minval(valleys),maxval(valleys)
+  if(print_verbose)then
+    print*,'in mkvalley_file: valleys,min,max=',minval(valleys),maxval(valleys)
+  end if
 
   if (mype==0) then 
     open (55,file='valley_map.dat',form='unformatted')
@@ -2407,6 +2511,7 @@ subroutine init_hilbertcurve(maxobs)
 !
 !$$$ end documentation block
   use mpimod, only: mype
+  use gsi_io, only: verbose
 
   implicit none
 
@@ -2414,7 +2519,7 @@ subroutine init_hilbertcurve(maxobs)
 
   character(1),parameter::blank=' '
   integer(i_kind) i,k
-  logical fexist
+  logical fexist, print_verbose
 
   namelist/parmcardhcurve/random_cvgrp,usagecv,ngrps_tob,ngrps_uvob, & 
                     ngrps_spdob,ngrps_psob,ngrps_qob, & 
@@ -2443,6 +2548,8 @@ subroutine init_hilbertcurve(maxobs)
   ngrps_tcamtob=8
   ngrps_lcbasob=8
   ngrps_cldchob=8
+  print_verbose = .false.
+  if(verbose)print_verbose=.true.
 
   inquire(file='parmcard_input',exist=fexist)
   if (fexist) then
@@ -2457,7 +2564,7 @@ subroutine init_hilbertcurve(maxobs)
   ngrps_uwnd10mob=ngrps_uvob
   ngrps_vwnd10mob=ngrps_uvob
 
-  if(mype == 0)then
+  if(print_verbose .and. mype == 0)then
     print*,'in init_hilbertcurve: random_cvgrp=',random_cvgrp
     print*,'in init_hilbertcurve: usagecv=',usagecv
     print*,'in init_hilbertcurve: ngrps_tob=',ngrps_tob
@@ -2601,6 +2708,7 @@ subroutine apply_hilbertcurve(maxobs,obstype,cdata_usage)
   use constants, only: zero
   use convinfo, only:  ncmiter,ncgroup,ncnumgrp
   use  gridmod, only: nlon,nlat
+  use gsi_io, only: verbose
 
   implicit none
 
@@ -2625,7 +2733,12 @@ subroutine apply_hilbertcurve(maxobs,obstype,cdata_usage)
   character(30) cstring
   character(2) clun
   logical ldup
+  logical print_verbose
 
+
+! Turning on print_verbose will result in additional prints from this routine only.
+  print_verbose = .false.
+  if(verbose)print_verbose=.true.
 
   allocate(hilflag(maxobs))
   allocate(hilikx(maxobs))
@@ -2640,7 +2753,7 @@ subroutine apply_hilbertcurve(maxobs,obstype,cdata_usage)
       hildlon=zero
       hildlat=zero
 
-      print*,'in apply_hilbertcurve: obstype=',obstype
+      if(print_verbose)print*,'in apply_hilbertcurve: obstype=',obstype
 
 
       nt=ncross
@@ -2649,7 +2762,7 @@ subroutine apply_hilbertcurve(maxobs,obstype,cdata_usage)
          !--deal with duplicate obs. use only the ob that is nearest
          !  to the valid assimilation time
 
-         print*,'in apply_hilbertcurve: before duplicate removal: ncross=',nt
+         if(print_verbose)print*,'in apply_hilbertcurve: before duplicate removal: ncross=',nt
 
          hilflag=+1
          do j=1,nt
@@ -2686,7 +2799,7 @@ subroutine apply_hilbertcurve(maxobs,obstype,cdata_usage)
             endif
          enddo
 
-         print*,'in apply_hilbertcurve: after duplicate removal: ncross=',ncross
+         if(print_verbose)print*,'in apply_hilbertcurve: after duplicate removal: ncross=',ncross
 
         !--evoke the main code for the hilbert curve
 
@@ -2733,7 +2846,7 @@ subroutine apply_hilbertcurve(maxobs,obstype,cdata_usage)
                                                                 !is the same group element for all ob subtypes 
                                                                 !of a given ob type 
 
-           if (i==1) print*,'in apply_hilbertcurve: obstype,ncnumgrp0,ncgroup0=',trim(obstype),ncnumgrp0,ncgroup0 
+           if (i==1 .and. print_verbose) print*,'in apply_hilbertcurve: ncnumgrp0,ncgroup0=',ncnumgrp0,ncgroup0 
 
            if (test_set(i).eq.ncgroup0) then
               if (     random_cvgrp) usage=usagecv           !3.
@@ -2758,7 +2871,7 @@ subroutine apply_hilbertcurve(maxobs,obstype,cdata_usage)
 
       if(ncross.gt.0) then
         ! count number of obs in each cross-validation dataset
-        print*,'obstype,ncnumgrp0=',obstype,ncnumgrp0
+        if(print_verbose)print*,'obstype,ncnumgrp0=',obstype,ncnumgrp0
         ncvcount=0
         do n=1,ncnumgrp0
            do i=1,ncross
@@ -2766,7 +2879,7 @@ subroutine apply_hilbertcurve(maxobs,obstype,cdata_usage)
                  ncvcount(n)=ncvcount(n)+1
               endif
            enddo
-           print*,'n,ncvcount(n)=',n,ncvcount(n)
+           if(print_verbose)print*,'n,ncvcount(n)=',n,ncvcount(n)
         enddo
 
         ! write all groups to a file
@@ -3061,6 +3174,7 @@ subroutine shuffle(ngrps,ngrp0)
 
   use kinds, only: r_kind,i_kind
   use obsmod, only: iadate
+  use gsi_io, only: verbose
   implicit none
 
 !Declare passed variables
@@ -3069,7 +3183,10 @@ subroutine shuffle(ngrps,ngrp0)
 
 !Declare local variables
   integer(i_kind) iseed,nt
+  logical print_verbose
 ! real(r_kind) randx
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
 
   call w3fs21(iadate,iseed) !use # of minutes since 0000, 1 jan 1978
                             !as the seed
@@ -3077,7 +3194,7 @@ subroutine shuffle(ngrps,ngrp0)
   nt=sum(iadate)            !arbitrarily select number of times to call
                             !random number generator
  
-  print*,'in shuffle: iadate,iseed,nt=',iadate,iseed,nt
+  if(print_verbose)print*,'in shuffle: iadate,iseed,nt=',iadate,iseed,nt
 
 
 ! ngrp0=nint(real((ngrps-1),r_kind)*randx+0.001_r_kind)+1
@@ -3087,7 +3204,7 @@ subroutine shuffle(ngrps,ngrp0)
 ! use this instead:  /20Jan2011
   ngrp0=mod(nt,ngrps)
   if (ngrp0==0) ngrp0=ngrps
-  print*,'in shuffle:ngrps,ngrp0=',ngrps,ngrp0
+  if(print_verbose)print*,'in shuffle:ngrps,ngrp0=',ngrps,ngrp0
 
 end subroutine shuffle
 !===========================================================================

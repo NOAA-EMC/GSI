@@ -278,6 +278,7 @@ end subroutine berror_read_bal_reg
 
       use kinds,only : r_single,r_kind
       use gridmod,only : nsig
+      use gsi_io, only : verbose
       use control_vectors,only: nrf,nc2d,nc3d,mvars,nvars
       use control_vectors,only: cvars => nrf_var
       use control_vectors,only: cvars2d,cvars3d,cvarsmd
@@ -369,6 +370,7 @@ end subroutine berror_read_bal_reg
 
   real(r_kind), parameter :: corz_default=one,hwll_default=100000_r_kind,&
                              vz_default=one
+  logical :: print_verbose
   real(r_kind) ,dimension(mlat,1,2) :: cov_dum
 !  character(256) :: filename 
 !  filename = 'howv_var_berr.bin'
@@ -378,6 +380,8 @@ end subroutine berror_read_bal_reg
   allocate ( agv_avn(0:mlat+1,1:msig,1:msig) )
   allocate ( bv_avn(0:mlat+1,1:msig),wgv_avn(0:mlat+1,1:msig) )
 
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
 ! Open background error statistics file
   inerr=default_unit_
   if(present(unit)) inerr=unit
@@ -758,7 +762,7 @@ end subroutine berror_read_bal_reg
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_t)
         end do
-        print*, 'm_berror_reg: maxhwllp_lcbas=',maxval(hwllp(:,n))
+        if(print_verbose)print*, 'm_berror_reg: maxhwllp_lcbas=',maxval(hwllp(:,n))
      end if
      if (n==nrf2_cldch) then
         do i=1,mlat
@@ -767,7 +771,7 @@ end subroutine berror_read_bal_reg
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_t)
         end do
-        print*, 'm_berror_reg: maxhwllp_cldch=',maxval(hwllp(:,n))
+        if(print_verbose)print*, 'm_berror_reg: maxhwllp_cldch=',maxval(hwllp(:,n))
      end if
      if (n==nrf2_uwnd10m) then
         do i=1,mlat

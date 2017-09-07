@@ -73,8 +73,6 @@ module m_mxtmNode
  
   character(len=*),parameter:: MYNAME="m_mxtmNode"
 
-!#define CHECKSUM_VERBOSE
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains
