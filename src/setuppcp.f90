@@ -359,8 +359,8 @@ endif
 ! first outer iteration.
      if (init_pass .and. mype==mype_diaghdr(is)) then
         write(4) isis,dplat(is),obstype,jiter,ianldate,iint,ireal,iextra,ioff0
-        write(6,*)'SETUPPCP:  write header record for ',&
-             isis,iint,ireal,iextra,' to file ',trim(diag_pcp_file),' ',ianldate
+!       write(6,*)'SETUPPCP:  write header record for ',&
+!            isis,iint,ireal,iextra,' to file ',trim(diag_pcp_file),' ',ianldate
      endif
      idiagbuf= 0
      diagbuf = rmiss

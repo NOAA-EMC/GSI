@@ -177,7 +177,7 @@
 !         gsimain, gsisub, guess_grids, half_nmm_grid2, hopers, iceem_amsu,
 !         inguesfc, inisph, intall, intall_qc, intdw, intlimq,
 !         intoz, intpcp, intps, intpw, intq, intrad, intref, intbend, intrp2a, intrp3,
-!         intrp3oz, intrppx, intrw, intspd, intsrw, intsst, intt, intw, jfunc,
+!         intrp3oz, intrppx, intrw, intspd, intsst, intt, intw, jfunc,
 !         kinds, landem, locatelat_reg, mpimod, nlmsas_ad, obs_para, obsmod,
 !         omegas_ad, oneobmod, ozinfo, pcgsoi, pcpinfo, polcarf, precpd_ad,
 !         prewgt, prewgt_reg, psichi2uv_reg, psichi2uvt_reg,
@@ -188,12 +188,12 @@
 !         read_superwinds, read_wrf_mass_files, read_wrf_mass_guess, 
 !         read_wrf_nmm_files, read_wrf_nmm_guess, rfdpar, rsearch, satthin,
 !         setupdw, setupoz, setuppcp, setupps, setuppw, setupq, setuprad,
-!         setupref, setupbend, setuprhsall, setuprw, setupspd, setupsrw, setupsst,
+!         setupref, setupbend, setuprhsall, setuprw, setupspd, setupsst,
 !         setupt, setupw, simpin1, simpin1_init, smooth121, smoothrf,
 !         smoothwwrf, smoothzrf, snwem_amsu, specmod, 
 !         sst_retrieval, statsconv, statsoz, statspcp, statsrad, stop2, stpbend,
 !         stpcalc, stpcalc_qc, stpdw, stplimq, stpoz, stppcp, stpps, stppw,
-!         stpq, stprad, stpref, stprw, stpspd, stpsrw, stpsst, stpt, stpw,
+!         stpq, stprad, stpref, stprw, stpspd, stpsst, stpt, stpw,
 !         stvp2uv, stvp2uv_reg, sub2grid, tbalance, tintrp2a, tintrp3,
 !         tpause, tpause_t, transform, tstvp2uv, tstvp2uv_reg, unfill_mass_grid2,
 !         unfill_nmm_grid2, unhalf_nmm_grid2, update_ggrid, wrf_binary_interface,
@@ -473,9 +473,6 @@
 !          = 289 - setupspd: failure to allocate obsdiags
 !          = 290 - setupspd: failure to allocate obsdiags
 !          = 291 - setupspd: index error
-!          = 292 - setupsrw: failure to allocate obsdiags
-!          = 293 - setupsrw: failure to allocate obsdiags
-!          = 294 - setupsrw: index error
 !          = 295 - setupsst: failure to allocate obsdiags
 !          = 296 - setupsst: failure to allocate obsdiags
 !          = 297 - setupsst: index error

@@ -2862,6 +2862,7 @@ subroutine init_sf_xy(jcap_in)
   use egrid2agrid_mod,only: g_create_egrid2agrid
   use general_sub2grid_mod, only: sub2grid_info
   use gsi_enscouplermod, only: gsi_enscoupler_localization_grid
+  use gsi_io, only: verbose
   implicit none
 
   integer(i_kind),intent(in   ) :: jcap_in
@@ -2881,7 +2882,10 @@ subroutine init_sf_xy(jcap_in)
   logical,allocatable,dimension(:)::ksame
   integer(i_kind) nord_sploc2ens
   integer(i_kind) nlon_sploc0,nlon_sploc,nlat_sploc,num_fields
+  logical print_verbose
 
+  print_verbose = .false. .and. mype == 0
+  if(verbose .and. mype == 0)print_verbose=.true.
   make_test_maps=.false.
   nord_sploc2ens=4
 
@@ -2918,7 +2922,7 @@ subroutine init_sf_xy(jcap_in)
      nlon_sploc=grd_ens%nlon
      nlon_sploc0=nlon_sploc
   end if
-  if(mype == 0)then
+  if(print_verbose)then
      write(6,*)' nlat_sploc,nlon_sploc0,nlon_sploc=',nlat_sploc,nlon_sploc0,nlon_sploc
      write(6,*)' nlat_ens  ,nlon_ens              =',grd_ens%nlat,grd_ens%nlon
   end if
@@ -2928,7 +2932,7 @@ subroutine init_sf_xy(jcap_in)
 !  set up spectral variables for jcap
 
   call general_init_spec_vars(sp_loc,jcap,jcap,nlat_sploc,nlon_sploc,eqspace=use_sp_eqspace)
-  if(mype==0) then
+  if(print_verbose) then
      if( grd_ens%nlon == nlon_sploc .and. grd_ens%nlat == nlat_sploc)then
         write(6,*)' ensemble and analysis nlat,nlon are the same '
      else
@@ -3019,7 +3023,7 @@ subroutine init_sf_xy(jcap_in)
      rkm(grd_sploc%nlat-i)=(asin(one)-asin(sp_loc%slat(i)))*rearth*.001_r_kind
      rkm(1+i)=(asin(one)+asin(sp_loc%slat(i)))*rearth*.001_r_kind
   enddo
-  if(mype == 0) write(6,*)' in init_sf_xy, lat,max(dlat)=', &
+  if(print_verbose) write(6,*)' in init_sf_xy, lat,max(dlat)=', &
            rkm(1+(grd_sploc%nlat-2)/2), &
           -rkm(grd_sploc%nlat-(grd_sploc%nlat-2)/2)+rkm(1+(grd_sploc%nlat-2)/2),' km'
 
@@ -3972,14 +3976,17 @@ subroutine hybens_localization_setup
    use hybrid_ensemble_parameters, only: readin_beta,beta_s,beta_e,beta_s0,sqrt_beta_s,sqrt_beta_e
    use hybrid_ensemble_parameters, only: readin_localization,create_hybens_localization_parameters, &
                                          vvlocal,s_ens_h,s_ens_hv,s_ens_v,s_ens_vv
+   use gsi_io, only: verbose
 
    implicit none
 
    integer(i_kind),parameter   :: lunin = 47
    character(len=40),parameter :: fname = 'hybens_info'
    integer(i_kind) :: k,msig,istat,nz,kl
-   logical         :: lexist
+   logical         :: lexist,print_verbose
    real(r_kind),allocatable:: s_ens_h_gu_x(:),s_ens_h_gu_y(:)
+   print_verbose=.false. .and. mype == 0
+   if(verbose .and. mype == 0)print_verbose=.true.
 
    ! Allocate
    call create_hybens_localization_parameters
@@ -4002,7 +4009,7 @@ subroutine hybens_localization_setup
             close(lunin)
             call stop2(123)
          endif
-         if(mype==0) write(6,'(" LOCALIZATION, BETA_S, BETA_E VERTICAL PROFILES FOLLOW")')
+         if(print_verbose) write(6,'(" LOCALIZATION, BETA_S, BETA_E VERTICAL PROFILES FOLLOW")')
          do k = 1,grd_ens%nsig
             read(lunin,101) s_ens_hv(k), s_ens_vv(k), beta_s(k), beta_e(k)
             if(mype==0) write(6,101) s_ens_hv(k), s_ens_vv(k), beta_s(k), beta_e(k)
@@ -4037,7 +4044,7 @@ subroutine hybens_localization_setup
       do k = 1,grd_ens%nsig
          beta_e(k) = beta_e(k) * blend_rm(k)
          beta_s(k) = one - beta_e(k)
-         if ( mype == 0 ) write(6,*)'beta_s, beta_e=', &
+         if (print_verbose) write(6,*)'beta_s, beta_e=', &
                           k,beta_s(k),beta_e(k)
       enddo
    endif
@@ -4090,7 +4097,7 @@ subroutine hybens_localization_setup
    call setup_pwgt
 
    ! write out final values for s_ens_hv, s_ens_vv, beta_s, beta_e
-   if ( mype == 0 ) then
+   if ( print_verbose ) then
       write(6,*) 'HYBENS_LOCALIZATION_SETUP: s_ens_hv,s_ens_vv,beta_s,beta_e'
       do k=1,grd_ens%nsig
          write(6,101) s_ens_hv(k), s_ens_vv(k), beta_s(k), beta_e(k)
@@ -4129,17 +4136,20 @@ subroutine convert_km_to_grid_units(s_ens_h_gu_x,s_ens_h_gu_y,nz)
   use kinds, only: r_kind,i_kind
   use hybrid_ensemble_parameters, only: grd_loc,n_ens,s_ens_hv
   use hybrid_ensemble_parameters, only: region_dx_ens,region_dy_ens
+  use gsi_io, only: verbose
   implicit none
 
   integer(i_kind) ,intent(in   ) ::nz
   real(r_kind),intent(  out) ::s_ens_h_gu_x(nz),s_ens_h_gu_y(nz)
-  logical,parameter:: debug=.false.
-   real(r_kind) dxmax,dymax
+  logical :: print_verbose
+  real(r_kind) dxmax,dymax
   integer(i_kind) k,n,nk
 
+  print_verbose=.false.
+  if(verbose) print_verbose=.true.
   dxmax=maxval(region_dx_ens)
   dymax=maxval(region_dy_ens)
-  if(debug)then
+  if(print_verbose)then
      write(6,*)' in convert_km_to_grid_units, min, max region_dx_ens*.001=',&
                  .001_r_kind*minval(region_dx_ens),.001_r_kind*dxmax
      write(6,*)' in convert_km_to_grid_units, min, max region_dy_ens*.001=',&
@@ -4149,7 +4159,7 @@ subroutine convert_km_to_grid_units(s_ens_h_gu_x,s_ens_h_gu_y,nz)
   do k=1,nz
      s_ens_h_gu_x(k)=s_ens_hv(k)/(.001_r_kind*dxmax)
      s_ens_h_gu_y(k)=s_ens_hv(k)/(.001_r_kind*dymax)
-     if(debug) write(6,*)' in convert_km_to_grid_units,s_ens_h,s_ens_h_gu_x,y=', &
+     if(print_verbose) write(6,*)' in convert_km_to_grid_units,s_ens_h,s_ens_h_gu_x,y=', &
                     s_ens_hv(k),s_ens_h_gu_x(k),s_ens_h_gu_y(k)
 
   enddo
@@ -4712,7 +4722,7 @@ subroutine get_region_lat_lon_ens(region_lat_ens,region_lon_ens,rlat_e,rlon_e,nl
   use kinds, only: r_kind,i_kind,r_single
   use constants, only: half,one,two,pi
   use gridmod, only: nlon,nlat,txy2ll
-                               use constants, only: rad2deg     ! debug only
+  use constants, only: rad2deg     ! debug only
   use gridmod, only: region_lat,region_lon
   use mpimod, only: mype
   implicit none

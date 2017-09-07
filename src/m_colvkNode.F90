@@ -86,8 +86,6 @@ module m_colvkNode
 
   character(len=*),parameter:: MYNAME="m_colvkNode"
 
-!#define CHECKSUM_VERBOSE
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains

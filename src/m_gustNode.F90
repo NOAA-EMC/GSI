@@ -71,8 +71,6 @@ module m_gustNode
 
   character(len=*),parameter:: MYNAME="m_gustNode"
 
-!#define CHECKSUM_VERBOSE
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains

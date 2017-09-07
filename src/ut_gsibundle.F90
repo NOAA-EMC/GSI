@@ -94,8 +94,6 @@ integer(i_kind)  ipnt, ierr
 type(GSI_Bundle) :: GSI_bundle_mix
 type(GSI_Grid)   :: grid
 
-integer i
-
 ! First create a grid
 call GSI_GridCreate ( grid, lat2, lon2, lev )
 
@@ -332,14 +330,12 @@ type(GSI_Bundle) :: GSI_Bundle_mix
 
 type(GSI_Bundle),allocatable :: GSI_Bundle_new(:) 
 type(GSI_Bundle) :: GSI_Bundle_dup
-integer(i_kind) ii,jj, ipnt, lat2, ierr
+integer(i_kind) jj, ipnt, ierr
 integer(i_kind) nus,nts,nue,nte, ipnts(2), ivals(2)
 integer(i_kind),parameter :: nsub=3
 character(len=256) :: bname
 real(r_kind),dimension(:),pointer :: u
 real(r_kind),dimension(:),pointer :: tv
-real(r_kind),dimension(:,:,:),pointer :: u3
-real(r_kind),dimension(:,:,:),pointer :: tv3
 
 print*, 'TESTING MULTI ...'
 print*, '-----------------'
@@ -481,8 +477,9 @@ integer(i_kind) :: levels(n3d)
 type(GSI_Bundle) :: GSI_Bundle_new 
 type(GSI_Bundle) :: GSI_Bundle_all 
 type(GSI_Grid)   :: grid
-integer(i_kind) ipnt, ival, lat2, lon2, nlev, npes, npee, ierr
-real(r_kind),pointer::pe(:,:,:)
+integer(i_kind) lat2, lon2, nlev, ierr
+! integer(i_kind) ival,ipnt
+! real(r_kind),pointer::pe(:,:,:)
 real(r_kind),pointer::vt(:,:,:)
 
 print*, 'TESTING EDGE  ...'
@@ -562,9 +559,10 @@ implicit none
 !-------------------------------------------------------------------------
 !BOC
 type(gsi_bundle),intent(inout) :: bundle
-real(r_kind),pointer,dimension(:,:,:)::pe
+!real(r_kind),pointer,dimension(:,:,:)::pe
 real(r_kind),pointer,dimension(:)::r1pe
-integer(i_kind) ipe,ierr,ival,nsz
+integer(i_kind) ierr
+!integer(i_kind) npe,nsz,ival
 !    call GSI_BundleGetPointer ( bundle, 'pe', ipe, ierr, ival=ival ) 
      call GSI_BundleGetPointer ( bundle, 'pe', r1pe, ierr )
      if (ierr==0) then
@@ -694,7 +692,7 @@ integer(i_kind), parameter :: lat2_ens=46
 integer(i_kind), parameter :: lon2_ens=72
 integer(i_kind), parameter :: nlev_ens=64
 
-integer(i_kind) ipnt, ival, npes, npee, ierr
+integer(i_kind)  ierr
 integer(i_kind) nn, nval_reg, nval_ens, nval_len, ii
 character(len=80) bname
 

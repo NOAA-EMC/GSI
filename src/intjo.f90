@@ -208,7 +208,6 @@ use inttcpmod, only: inttcp
 use intgpsmod, only: intgps
 use intrwmod, only: intrw
 use intspdmod, only: intspd
-use intsrwmod, only: intsrw
 use intsstmod, only: intsst
 use intdwmod, only: intdw
 use intpcpmod, only: intpcp
@@ -266,9 +265,6 @@ real(r_quad),dimension(max(1,nrclen)), intent(inout) :: qpred
 
 ! RHS for conventional winds
   call intw(yobs%w,rval,sval)
-
-! RHS for radar superob winds
-  call intsrw(yobs%srw,rval,sval)
 
 ! RHS for lidar winds
   call intdw(yobs%dw,rval,sval)

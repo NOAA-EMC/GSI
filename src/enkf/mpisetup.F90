@@ -40,8 +40,11 @@ contains
 
 subroutine mpi_initialize()
 use mpimod, only : mpi_comm_world,npe,mype
-integer ierr,np,nuse,new_group,old_group,nshmemroot
+integer ierr
+#ifdef MPI3
+integer nuse,new_group,old_group,nshmemroot
 integer, dimension(:), allocatable :: useprocs, itasks
+#endif
 call mpi_init(ierr)
 ! nproc is process number, numproc is total number of processes.
 call mpi_comm_rank(mpi_comm_world,nproc,ierr)
