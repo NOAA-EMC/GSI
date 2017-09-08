@@ -1,6 +1,8 @@
 [submodule "fix"]
 	path = fix
 	url = ../GSI-fix
+	branch = rev2
+	shallow = true
 [submodule "libsrc"]
 	path = libsrc
 	url = ../GSI-libsrc
