@@ -1,6 +1,6 @@
 [submodule "fix"]
 	path = fix
-	url = ../fix
+	url = ../GSI-fix
 [submodule "libsrc"]
 	path = libsrc
-	url = ../comgsi-external-libs
+	url = ../GSI-libsrc
