@@ -35,6 +35,7 @@ module gfs_stratosphere
 
    use kinds, only: r_double,i_kind,i_long,r_single,r_kind
    use mpeu_util, only: getindex,die
+   use gsi_io, only: verbose
 
    implicit none
 
@@ -226,6 +227,10 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
    integer(i_kind) :: nvcoord
    real(r_single),allocatable:: nems_vcoord(:,:,:)
    real(r_single),allocatable:: vcoord(:,:)
+   logical print_verbose
+ 
+   print_verbose=.false.
+   if(verbose)print_verbose=.true.
 
    ! First, obtain gfs vertical coordinate information:
    filename='gfs_sigf03'  
@@ -238,9 +243,11 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
       write(6,*) ' sighead%levs=',sighead%levs
       write(6,*) ' sighead%idvc,sighead%nvcoord=',sighead%idvc,sighead%nvcoord
       write(6,*) ' sighead%idsl=',sighead%idsl
-      do k=1,sighead%levs+1
-         write(6,*)' k,vcoord=',k,sighead%vcoord(k,:)
-      enddo
+      if(print_verbose)then
+         do k=1,sighead%levs+1
+            write(6,*)' k,vcoord=',k,sighead%vcoord(k,:)
+         enddo
+      end if
       if (sighead%nvcoord > 2) then
          write(6,*)' MIX_GFS_NMMB_VCOORDS: NOT READY YET FOR ak5,bk5,ck5 vert coordinate'
          call stop2(85)
@@ -287,13 +294,15 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
                      coordinate'
          call stop2(85)
       endif
-      write(6,*) ' nemsio : nvcoord=', nvcoord
 
       allocate(vcoord(levs+1,nvcoord))
       vcoord(:,1:nvcoord) = nems_vcoord(:,1:nvcoord,1)
-      do k=1,levs+1
-         write(6,*)' k,vcoord=',k,vcoord(k,:)
-      enddo
+      if(print_verbose)then
+         write(6,*) ' nemsio : nvcoord=', nvcoord
+         do k=1,levs+1
+            write(6,*)' k,vcoord=',k,vcoord(k,:)
+         enddo
+      end if
       deallocate(nems_vcoord)
 
       call nemsio_close(gfile,iret=iret)
@@ -371,22 +380,24 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
    eta2_save=eta2
 
    ! print out what I think deta1,2 and aeta1,2 might be as function of eta1, eta2
-   do k=1,nsigr
-      write(6,'(" k,deta1,eta1(k)-eta1(k+1),diff=",i4,2f15.6,e11.3)') &
-                  k,deta1(k),eta1(k)-eta1(k+1),abs(deta1(k)-eta1(k)+eta1(k+1))
-   enddo
-   do k=1,nsigr
-      write(6,'(" k,deta2,eta2(k)-eta2(k+1),diff=",i4,2f15.6,e11.3)') &
+   if(print_verbose)then
+      do k=1,nsigr
+         write(6,'(" k,deta1,eta1(k)-eta1(k+1),diff=",i4,2f15.6,e11.3)') &
+                     k,deta1(k),eta1(k)-eta1(k+1),abs(deta1(k)-eta1(k)+eta1(k+1))
+      enddo
+      do k=1,nsigr
+         write(6,'(" k,deta2,eta2(k)-eta2(k+1),diff=",i4,2f15.6,e11.3)') &
                   k,deta2(k),eta2(k)-eta2(k+1),abs(deta2(k)-eta2(k)+eta2(k+1))
-   enddo
-   do k=1,nsigr
-      write(6,'(" k,aeta1,half*(eta1(k)+eta1(k+1)),diff=",i4,2f15.6,e11.3)') &
-                  k,aeta1(k),half*(eta1(k)+eta1(k+1)),abs(aeta1(k)-half*(eta1(k)+eta1(k+1)))
-   enddo
-   do k=1,nsigr
-      write(6,'(" k,aeta2,half*(eta2(k)+eta2(k+1)),diff=",i4,2f15.6,e11.3)') &
-                  k,aeta2(k),half*(eta2(k)+eta2(k+1)),abs(aeta2(k)-half*(eta2(k)+eta2(k+1)))
-   enddo
+      enddo
+      do k=1,nsigr
+         write(6,'(" k,aeta1,half*(eta1(k)+eta1(k+1)),diff=",i4,2f15.6,e11.3)') &
+                     k,aeta1(k),half*(eta1(k)+eta1(k+1)),abs(aeta1(k)-half*(eta1(k)+eta1(k+1)))
+      enddo
+      do k=1,nsigr
+         write(6,'(" k,aeta2,half*(eta2(k)+eta2(k+1)),diff=",i4,2f15.6,e11.3)') &
+                     k,aeta2(k),half*(eta2(k)+eta2(k+1)),abs(aeta2(k)-half*(eta2(k)+eta2(k+1)))
+      enddo
+   end if
 
    ! compute ak_r,bk_r from eta1,eta2,pdtop,pt for icase=1
 
@@ -463,8 +474,12 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
    allocate(pref(-10:nref+10))
    do k=-10,nref+10
       pref(k)=pref0-(k-one)*delp
-      write(6,'(" k,pref(k),pref0,pref1=",i5,3f12.3)') k,pref(k),pref0,pref1
    enddo
+   if(print_verbose)then
+      do k=-10,nref+10
+         write(6,'(" k,pref(k),pref0,pref1=",i5,3f12.3)') k,pref(k),pref0,pref1
+      enddo
+   end if
 
    ! obtain dpref_g, dpref_r
    allocate(dpref_g(-10:nref+10))
@@ -502,7 +517,7 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
       endif
       call blend_f(pref(k),gwgt)
       dpref_m(k)=gwgt*dpref_g(k)+(one-gwgt)*dpref_r(k)
-      write(6,'(" k,pref,dpref_g,dpref_r,dpref_m=",i5,4f12.3)') &
+      if(print_verbose)write(6,'(" k,pref,dpref_g,dpref_r,dpref_m=",i5,4f12.3)') &
                               k,pref(k),dpref_g(k),dpref_r(k),dpref_m(k)
    enddo
 
@@ -551,9 +566,13 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
    adjust=psum/sum
    do k=1,kkend-1
       p_m(k+1)=p_m(k)+delp_m(k)*(one+adjust*wgt_m(k))
-      write(6,'(" j,k,pref0-p_m(k),p_m(k:k+1),p_m(k+1)-pref1=",2i4,4f9.4)') &
-                      j,k,pref0-p_m(k),p_m(k),p_m(k+1),p_m(k+1)-pref1
    enddo
+   if(print_verbose)then
+      do k=1,kkend-1
+         write(6,'(" j,k,pref0-p_m(k),p_m(k:k+1),p_m(k+1)-pref1=",2i4,4f9.4)') &
+                         j,k,pref0-p_m(k),p_m(k),p_m(k+1),p_m(k+1)-pref1
+      enddo
+   end if
 
    ! interpolate ak_r, bk_r, ak5, bk5 to blended bridge pressure levels and construct
    !  ak_m, bk_m, a blended version of original.
@@ -583,7 +602,8 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
       ak_m(k)=gwgt*ak_gthis+(one-gwgt)*ak_rthis
       bk_m(k)=gwgt*bk_gthis+(one-gwgt)*bk_rthis
       if (zero_bkbridge) bk_m(k)=zero
-      write(6,'(" akgrm,bkgrm=",3f15.5,5x,3f15.5)')ak_gthis,ak_rthis,ak_m(k),bk_gthis,bk_rthis,bk_m(k)
+      if(print_verbose) &
+        write(6,'(" akgrm,bkgrm=",3f15.5,5x,3f15.5)')ak_gthis,ak_rthis,ak_m(k),bk_gthis,bk_rthis,bk_m(k)
    enddo
 
    ! create full profile of blended ak, bk
@@ -606,10 +626,11 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
       akm(kk)=ak5(k)
       bkm(kk)=bk5(k)
    enddo
-   write(6,'(" k0r,k0m,k1g,k1m,nsigg=",5i4)')k0r,k0m,k1g,k1m,nsigg
-   write(6,'(" ak_r(k0r),ak_m(k0m),bk_r,bk_m=",4f15.5)') ak_r(k0r),akm(k0m),bk_r(k0r),bkm(k0m)
-   write(6,'(" ak_g(k1g),ak_m(k1m),bk_g,bk_m=",4f15.5)') ak5 (k1g),akm(k1m),bk5 (k1g),bkm(k1m)
-
+   if(print_verbose)then
+      write(6,'(" k0r,k0m,k1g,k1m,nsigg=",5i4)')k0r,k0m,k1g,k1m,nsigg
+      write(6,'(" ak_r(k0r),ak_m(k0m),bk_r,bk_m=",4f15.5)') ak_r(k0r),akm(k0m),bk_r(k0r),bkm(k0m)
+      write(6,'(" ak_g(k1g),ak_m(k1m),bk_g,bk_m=",4f15.5)') ak5 (k1g),akm(k1m),bk5 (k1g),bkm(k1m)
+   end if
    ! plot pressure profiles as function of ps, from ps=1100 to ps=500 and see if anything strange appears.
 
    allocate(plotp(61,nsigm+1))
@@ -637,21 +658,23 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
       aeta2m(k)=half*(eta2m(k)+eta2m(k+1))
    enddo
 
-   do k=1,k0m
-      write(6,'(" k,eta1,eta1m,diff=",i4,2f15.7,e11.3)')k,eta1(k),eta1m(k),eta1m(k)-eta1(k)
-   enddo
-   do k=1,k0m
-      write(6,'(" k,eta2,eta2m,diff=",i4,2f15.7,e11.3)')k,eta2(k),eta2m(k),eta2m(k)-eta2(k)
-   enddo
+   if(print_verbose)then
+      do k=1,k0m
+         write(6,'(" k,eta1,eta1m,diff=",i4,2f15.7,e11.3)')k,eta1(k),eta1m(k),eta1m(k)-eta1(k)
+      enddo
+      do k=1,k0m
+         write(6,'(" k,eta2,eta2m,diff=",i4,2f15.7,e11.3)')k,eta2(k),eta2m(k),eta2m(k)-eta2(k)
+      enddo
 
-   do k=k1g,nsigg+1
-      write(6,'(" k,km,ak5(k),akm(km),diff=",2i4,2f15.7,e11.3)') k,k-k1g+k1m,ak5(k),akm(k-k1g+k1m),&
+      do k=k1g,nsigg+1
+         write(6,'(" k,km,ak5(k),akm(km),diff=",2i4,2f15.7,e11.3)') k,k-k1g+k1m,ak5(k),akm(k-k1g+k1m),&
                                                                  ak5(k)-akm(k-k1g+k1m)
-   enddo
-   do k=k1g,nsigg+1
-      write(6,'(" k,km,bk5(k),bkm(km),diff=",2i4,2f15.7,e11.3)') k,k-k1g+k1m,bk5(k),bkm(k-k1g+k1m),&
+      enddo
+      do k=k1g,nsigg+1
+         write(6,'(" k,km,bk5(k),bkm(km),diff=",2i4,2f15.7,e11.3)') k,k-k1g+k1m,bk5(k),bkm(k-k1g+k1m),&
                                                                  bk5(k)-bkm(k-k1g+k1m)
-   enddo
+      enddo
+   end if
    allocate(blend_rm(nsigm),blend_gm(nsigm))
    do k=1,nsigm
       pthis=aeta1m(k)*pdtop_ll+aeta2m(k)*(psfc-pdtop_ll-pt_ll)+pt_ll
@@ -914,6 +937,7 @@ subroutine add_gfs_stratosphere
    real(r_kind),pointer,dimension(:,:,:):: ges_qs
    real(r_kind),pointer,dimension(:,:,:):: ges_qg
    real(r_kind),pointer,dimension(:,:,:):: ges_qh
+   logical print_verbose
 
    ! allocate space for saving original regional model guess and original blended regional-global guess:
 
@@ -930,6 +954,8 @@ subroutine add_gfs_stratosphere
    allocate(ges_tsen_r   (lat2,lon2,nsig_save,nfldsig))
    allocate(ges_oz_r  (lat2,lon2,nsig_save,nfldsig))
 
+   print_verbose=.false.
+   if(verbose)print_verbose=.true.
    ! Inquire about cloud guess fields
    call gsi_metguess_get('dim',nguess,istatus)
 
@@ -1171,12 +1197,14 @@ subroutine add_gfs_stratosphere
          endif 
       end if
      
-      if (mype==0) write(6,*)' in add_gfs_stratosphere before general_sub2grid_create_info'                                                
-      if (mype==0) write(6,*)' in add_gfs_stratosphere: num_fields = ', num_fields,num_fieldst  
-      if (mype==0) write(6,*)' in add_gfs_stratosphere: jcap_org, jcap_gfs= ', &
+      if (mype==0) then
+         write(6,*)' in add_gfs_stratosphere before general_sub2grid_create_info'                                                
+         write(6,*)' in add_gfs_stratosphere: num_fields = ', num_fields,num_fieldst  
+         write(6,*)' in add_gfs_stratosphere: jcap_org, jcap_gfs= ', &
                   jcap_org, jcap_gfs
-      if (mype==0) write(6,*)' in add_gfs_stratosphere: nlon_b, nlon_gfs, hires=', &
+         write(6,*)' in add_gfs_stratosphere: nlon_b, nlon_gfs, hires=', &
                               nlon_b, nlon_gfs, hires
+      end if
      
       call general_sub2grid_create_info(grd_gfst,inner_vars,nlat_gfs,nlon_gfs,nsig_gfs,num_fieldst, &
                                       .not.regional)
@@ -1291,7 +1319,7 @@ subroutine add_gfs_stratosphere
          do j=1,lon2
             do i=1,lat2
                pri_g(i,j,k)=one_tenth*ak5(k)+bk5(k)*work_sub(1,i,j,kps)
-               if ( mype==0 .and. i==10 .and. j==10) &
+               if ( mype==0 .and. i==10 .and. j==10 .and. print_verbose) &
                write(6,'(" k, pri_g,ak5,bk5,ps=",i3,4f18.3)') k,pri_g(i,j,k),ak5(k),bk5(k),work_sub(1,i,j,kps)
             enddo
          enddo
@@ -1306,7 +1334,7 @@ subroutine add_gfs_stratosphere
          do j=1,lon2
             do i=1,lat2
                prsl_g(i,j,k)=(pri_g(i,j,k)+pri_g(i,j,k+1))*half
-               if ( mype==0 .and. i==10 .and. j==10 ) &
+               if ( mype==0 .and. i==10 .and. j==10 .and. print_verbose ) &
                write(6,'(" k, prsl_g=",i3,f18.3)') k,prsl_g(i,j,k)
             enddo
          enddo

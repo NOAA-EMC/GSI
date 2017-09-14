@@ -92,6 +92,7 @@ subroutine read_files(mype)
   use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
   use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_getheadvar
   use read_obsmod, only: gsi_inquire
+  use gsi_io, only: verbose
   
   implicit none
 
@@ -132,8 +133,11 @@ subroutine read_files(mype)
   type(sigio_head):: sigatm_head
   type(nstio_head):: nst_head
   type(nemsio_gfile) :: gfile_atm,gfile_sfc,gfile_nst
+  logical :: print_verbose
 
 
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
 !-----------------------------------------------------------------------------
 ! Initialize variables
   nhr_half=nhr_assimilation/2
@@ -209,7 +213,7 @@ subroutine read_files(mype)
      iwan=0
      do i=1,nfldsig
         write(filename,'(''sigf'',i2.2)')irec(i,1)
-        write(6,*)'READ_FILES:  process ',trim(filename)
+        if(print_verbose)write(6,*)'READ_FILES:  process ',trim(filename)
         if ( .not. use_gfs_nemsio ) then
            call sigio_sropen(lunatm,filename,iret)
            call sigio_srhead(lunatm,sigatm_head,iret)
@@ -246,7 +250,7 @@ subroutine read_files(mype)
         idate5(3)=idateg(3); idate5(4)=idateg(1); idate5(5)=0
         call w3fs21(idate5,nmings)
         nming2=nmings+60*hourg
-        write(6,*)'READ_FILES:  atm guess file, nming2 ',hourg,idateg,nming2
+        write(6,*)'READ_FILES:  atm guess file',filename,hourg,idateg,nming2
         t4dv=real((nming2-iwinbgn),r_kind)*r60inv
         if (l4dvar.or.l4densvar) then
            if (t4dv<zero .OR. t4dv>winlen) cycle
@@ -264,7 +268,7 @@ subroutine read_files(mype)
      iwan=0
      do i=1,nfldsfc
         write(filename,'(''sfcf'',i2.2)')irec(i,2)
-        write(6,*)'READ_FILES:  process ',trim(filename)        
+        if(print_verbose)write(6,*)'READ_FILES:  process ',trim(filename)        
         if ( .not. use_gfs_nemsio ) then
            call sfcio_sropen(lunsfc,filename,iret)
            call sfcio_srhead(lunsfc,sfc_head,iret)
@@ -279,7 +283,7 @@ subroutine read_files(mype)
            lpl_dum=0
            lpl_dum(1:sfc_head%latb/2)=sfc_head%lpl
            call sfcio_sclose(lunsfc,iret)
-           if(i == 1)write(6,*)' READ_FILES: in sfcio sfc_head%lpl = ', sfc_head%lpl
+           if(i == 1 .and. print_verbose)write(6,*)' READ_FILES: in sfcio sfc_head%lpl = ', sfc_head%lpl
         else
            call nemsio_init(iret=iret)
            call nemsio_open(gfile_sfc,filename,'READ',iret=iret)
@@ -333,7 +337,7 @@ subroutine read_files(mype)
         idate5(3)=idateg(3); idate5(4)=idateg(1); idate5(5)=0
         call w3fs21(idate5,nmings)
         nming2=nmings+60*hourg
-        write(6,*)'READ_FILES:  sfc guess file, nming2 ',hourg,idateg,nming2
+        write(6,*)'READ_FILES:  sfc guess file ',filename,hourg,idateg,nming2
         t4dv=real((nming2-iwinbgn),r_kind)*r60inv
         if (l4dvar.or.l4densvar) then
            if (t4dv<zero .OR. t4dv>winlen) cycle
@@ -353,7 +357,7 @@ subroutine read_files(mype)
         iwan=0
         do i=1,nfldnst
            write(filename,'(''nstf'',i2.2)')irec(i,3)
-           write(6,*)'READ_FILES:  process ',trim(filename)
+           if(print_verbose)write(6,*)'READ_FILES:  process ',trim(filename)
            if ( .not. use_gfs_nemsio ) then
               call nstio_sropen(lunnst,filename,iret)
               call nstio_srhead(lunnst,nst_head,iret)
@@ -397,7 +401,7 @@ subroutine read_files(mype)
            idate5(3)=idateg(3); idate5(4)=idateg(1); idate5(5)=0
            call w3fs21(idate5,nmings)
            nming2=nmings+60*hourg
-           write(6,*)'READ_FILES:  nst guess file, nming2 ',hourg,idateg,nming2
+           write(6,*)'READ_FILES:  nst guess file',filename,hourg,idateg,nming2
            t4dv=real((nming2-iwinbgn),r_kind)*r60inv
            if (l4dvar.or.l4densvar) then
               if (t4dv<zero .OR. t4dv>winlen) cycle
@@ -418,6 +422,8 @@ subroutine read_files(mype)
 ! Broadcast guess file information to all tasks
   call mpi_bcast(nfldsig,1,mpi_itype,npem1,mpi_comm_world,ierror)
   call mpi_bcast(nfldsfc,1,mpi_itype,npem1,mpi_comm_world,ierror)
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
   if (nst_gsi > 0) call mpi_bcast(nfldnst,1,mpi_itype,npem1,mpi_comm_world,ierror)
   if(.not.allocated(time_atm)) allocate(time_atm(nfldsig,2))
   if(.not.allocated(time_sfc)) allocate(time_sfc(nfldsfc,2))

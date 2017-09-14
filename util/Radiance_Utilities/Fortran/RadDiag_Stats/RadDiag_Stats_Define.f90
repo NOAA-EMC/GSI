@@ -82,7 +82,7 @@ MODULE RadDiag_Stats_Define
   REAL, PARAMETER :: ZERO = 0.0_sp
   ! Version Id for the module
   CHARACTER(*), PARAMETER :: MODULE_VERSION_ID = &
-  '$Id$'
+  '$Id: RadDiag_Stats_Define.f90 9040 2010-07-29 17:01:49Z Michael.Lueken@noaa.gov $'
   ! Current valid release and version numbers
   INTEGER, PARAMETER :: RADDIAG_STATS_RELEASE = 2  ! This determines structure and file formats.
   INTEGER, PARAMETER :: RADDIAG_STATS_VERSION = 1  ! This is just the data version for the release.

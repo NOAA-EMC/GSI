@@ -62,7 +62,7 @@ MODULE SatBias_IO
   ! Module parameters
   ! -----------------
   CHARACTER(*), PRIVATE, PARAMETER :: MODULE_RCS_ID = &
-    '$Id$'
+    '$Id: SatBias_IO.f90 9040 2010-07-29 17:01:49Z Michael.Lueken@noaa.gov $'
   CHARACTER(*), PARAMETER :: SATBIASANGLE_HEADER_FMTSTRING = '(i5,1x,a20,1x,i5,es15.6,:,es15.6,i5)'
   CHARACTER(*), PARAMETER :: SATBIASANGLE_BIAS_FMTSTRING   = '(9(4x,10f7.3/))'
   CHARACTER(*), PARAMETER :: SATBIASAIRMASS_FMTSTRING = '(i5,1x,a20,1x,i5,10(f12.6,:))'

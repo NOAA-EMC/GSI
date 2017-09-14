@@ -65,37 +65,36 @@ module m_obsHeadBundle
   use m_wNode    , only:     wNode  !  3
   use m_qNode    , only:     qNode  !  4
   use m_spdNode  , only:   spdNode  !  5
-  use m_srwNode  , only:   srwNode  !  6
-  use m_rwNode   , only:    rwNode  !  7
-  use m_dwNode   , only:    dwNode  !  8
-  use m_sstNode  , only:   sstNode  !  9
-  use m_pwNode   , only:    pwNode  ! 10
-  use m_pcpNode  , only:   pcpNode  ! 11
-  use m_ozNode   , only:    ozNode  ! 12
-  use m_o3lNode  , only:   o3lNode  ! 13
-  use m_gpsNode  , only:   gpsNode  ! 14
-  use m_radNode  , only:   radNode  ! 15
-  use m_tcpNode  , only:   tcpNode  ! 16
-  use m_lagNode  , only:   lagNode  ! 17
-  use m_colvkNode, only: colvkNode  ! 18
-  use m_aeroNode , only:  aeroNode  ! 19
-  use m_aerolNode, only: aerolNode  ! 20
-  use m_pm2_5Node, only: pm2_5Node  ! 21
-  use m_gustNode , only:  gustNode  ! 22
-  use m_visNode  , only:   visNode  ! 23
-  use m_pblhNode , only:  pblhNode  ! 24
+  use m_rwNode   , only:    rwNode  !  6
+  use m_dwNode   , only:    dwNode  !  7
+  use m_sstNode  , only:   sstNode  !  8
+  use m_pwNode   , only:    pwNode  !  9
+  use m_pcpNode  , only:   pcpNode  ! 10
+  use m_ozNode   , only:    ozNode  ! 11
+  use m_o3lNode  , only:   o3lNode  ! 12
+  use m_gpsNode  , only:   gpsNode  ! 13
+  use m_radNode  , only:   radNode  ! 14
+  use m_tcpNode  , only:   tcpNode  ! 15
+  use m_lagNode  , only:   lagNode  ! 16
+  use m_colvkNode, only: colvkNode  ! 17
+  use m_aeroNode , only:  aeroNode  ! 18
+  use m_aerolNode, only: aerolNode  ! 19
+  use m_pm2_5Node, only: pm2_5Node  ! 20
+  use m_gustNode , only:  gustNode  ! 21
+  use m_visNode  , only:   visNode  ! 22
+  use m_pblhNode , only:  pblhNode  ! 23
 
-  use m_wspd10mNode, only: wspd10mNode ! 25
-  use m_td2mNode , only:  td2mNode  ! 26
-  use m_mxtmNode , only:  mxtmNode  ! 27
-  use m_mitmNode , only:  mitmNode  ! 28
-  use m_pmslNode , only:  pmslNode  ! 29
-  use m_howvNode , only:  howvNode  ! 30
-  use m_tcamtNode, only: tcamtNode  ! 31
-  use m_lcbasNode, only: lcbasNode  ! 32
+  use m_wspd10mNode, only: wspd10mNode ! 24
+  use m_td2mNode , only:  td2mNode  ! 25
+  use m_mxtmNode , only:  mxtmNode  ! 26
+  use m_mitmNode , only:  mitmNode  ! 27
+  use m_pmslNode , only:  pmslNode  ! 28
+  use m_howvNode , only:  howvNode  ! 29
+  use m_tcamtNode, only: tcamtNode  ! 30
+  use m_lcbasNode, only: lcbasNode  ! 31
 
-  use m_pm10Node , only:  pm10Node  ! 33
-  use m_cldchNode, only: cldchNode  ! 34
+  use m_pm10Node , only:  pm10Node  ! 32
+  use m_cldchNode, only: cldchNode  ! 33
   use m_uwnd10mNode, only: uwnd10mNode ! 35
   use m_vwnd10mNode, only: vwnd10mNode ! 36
 
@@ -131,35 +130,34 @@ module m_obsHeadBundle
     class(obsNode),pointer::     w => null()   !  3
     class(obsNode),pointer::     q => null()   !  4
     class(obsNode),pointer::   spd => null()   !  5
-    class(obsNode),pointer::   srw => null()   !  6
-    class(obsNode),pointer::    rw => null()   !  7
-    class(obsNode),pointer::    dw => null()   !  8
-    class(obsNode),pointer::   sst => null()   !  9
-    class(obsNode),pointer::    pw => null()   ! 10
-    class(obsNode),pointer::   pcp => null()   ! 11
-    class(obsNode),pointer::    oz => null()   ! 12
-    class(obsNode),pointer::   o3l => null()   ! 13
-    class(obsNode),pointer::   gps => null()   ! 14
-    class(obsNode),pointer::   rad => null()   ! 15
-    class(obsNode),pointer::   tcp => null()   ! 16
-    class(obsNode),pointer::   lag => null()   ! 17
-    class(obsNode),pointer:: colvk => null()   ! 18
-    class(obsNode),pointer::  aero => null()   ! 19
-    class(obsNode),pointer:: aerol => null()   ! 20
-    class(obsNode),pointer:: pm2_5 => null()   ! 21
-    class(obsNode),pointer::  gust => null()   ! 22
-    class(obsNode),pointer::   vis => null()   ! 23
-    class(obsNode),pointer::  pblh => null()   ! 24
-    class(obsNode),pointer:: wspd10m => null()   ! 25
-    class(obsNode),pointer::  td2m => null()   ! 26
-    class(obsNode),pointer::  mxtm => null()   ! 27
-    class(obsNode),pointer::  mitm => null()   ! 28
-    class(obsNode),pointer::  pmsl => null()   ! 29
-    class(obsNode),pointer::  howv => null()   ! 30
-    class(obsNode),pointer:: tcamt => null()   ! 31
-    class(obsNode),pointer:: lcbas => null()   ! 32
-    class(obsNode),pointer::  pm10 => null()   ! 33
-    class(obsNode),pointer:: cldch => null()   ! 34
+    class(obsNode),pointer::    rw => null()   !  6
+    class(obsNode),pointer::    dw => null()   !  7
+    class(obsNode),pointer::   sst => null()   !  8
+    class(obsNode),pointer::    pw => null()   !  9
+    class(obsNode),pointer::   pcp => null()   ! 10
+    class(obsNode),pointer::    oz => null()   ! 11
+    class(obsNode),pointer::   o3l => null()   ! 12
+    class(obsNode),pointer::   gps => null()   ! 13
+    class(obsNode),pointer::   rad => null()   ! 14
+    class(obsNode),pointer::   tcp => null()   ! 15
+    class(obsNode),pointer::   lag => null()   ! 16
+    class(obsNode),pointer:: colvk => null()   ! 17
+    class(obsNode),pointer::  aero => null()   ! 18
+    class(obsNode),pointer:: aerol => null()   ! 19
+    class(obsNode),pointer:: pm2_5 => null()   ! 20
+    class(obsNode),pointer::  gust => null()   ! 21
+    class(obsNode),pointer::   vis => null()   ! 22
+    class(obsNode),pointer::  pblh => null()   ! 23
+    class(obsNode),pointer:: wspd10m => null()   ! 24
+    class(obsNode),pointer::  td2m => null()   ! 25
+    class(obsNode),pointer::  mxtm => null()   ! 26
+    class(obsNode),pointer::  mitm => null()   ! 27
+    class(obsNode),pointer::  pmsl => null()   ! 28
+    class(obsNode),pointer::  howv => null()   ! 29
+    class(obsNode),pointer:: tcamt => null()   ! 30
+    class(obsNode),pointer:: lcbas => null()   ! 31
+    class(obsNode),pointer::  pm10 => null()   ! 32
+    class(obsNode),pointer:: cldch => null()   ! 33
     class(obsNode),pointer:: uwnd10m => null()   ! 35
     class(obsNode),pointer:: vwnd10m => null()   ! 36
 
@@ -237,36 +235,35 @@ subroutine init_(yobs,ibin)
   use m_obsdiags, only: whead           ! = 3
   use m_obsdiags, only: qhead           ! = 4
   use m_obsdiags, only: spdhead         ! = 5
-  use m_obsdiags, only: srwhead         ! = 6
-  use m_obsdiags, only: rwhead          ! = 7
-  use m_obsdiags, only: dwhead          ! = 8
-  use m_obsdiags, only: ssthead         ! = 9
-  use m_obsdiags, only: pwhead          ! =10
-  use m_obsdiags, only: pcphead         ! =11
-  use m_obsdiags, only: ozhead          ! =12
-  use m_obsdiags, only: o3lhead         ! =13
-  use m_obsdiags, only: gpshead         ! =14
-  use m_obsdiags, only: radhead         ! =15
-  use m_obsdiags, only: tcphead         ! =16
-  use m_obsdiags, only: laghead         ! =17
-  use m_obsdiags, only: colvkhead       ! =18
-  use m_obsdiags, only: aerohead        ! =19
-  use m_obsdiags, only: aerolhead       ! =20
-  use m_obsdiags, only: pm2_5head       ! =21
-  use m_obsdiags, only: gusthead        ! =22
-  use m_obsdiags, only: vishead         ! =23
-  use m_obsdiags, only: pblhhead        ! =24
+  use m_obsdiags, only: rwhead          ! = 6
+  use m_obsdiags, only: dwhead          ! = 7
+  use m_obsdiags, only: ssthead         ! = 8
+  use m_obsdiags, only: pwhead          ! = 9
+  use m_obsdiags, only: pcphead         ! =10
+  use m_obsdiags, only: ozhead          ! =11
+  use m_obsdiags, only: o3lhead         ! =12
+  use m_obsdiags, only: gpshead         ! =13
+  use m_obsdiags, only: radhead         ! =14
+  use m_obsdiags, only: tcphead         ! =15
+  use m_obsdiags, only: laghead         ! =16
+  use m_obsdiags, only: colvkhead       ! =17
+  use m_obsdiags, only: aerohead        ! =18
+  use m_obsdiags, only: aerolhead       ! =19
+  use m_obsdiags, only: pm2_5head       ! =20
+  use m_obsdiags, only: gusthead        ! =21
+  use m_obsdiags, only: vishead         ! =22
+  use m_obsdiags, only: pblhhead        ! =23
 
-  use m_obsdiags, only: wspd10mhead     ! =25
-  use m_obsdiags, only:  td2mhead       ! =26
-  use m_obsdiags, only:  mxtmhead       ! =27
-  use m_obsdiags, only:  mitmhead       ! =28
-  use m_obsdiags, only:  pmslhead       ! =29
-  use m_obsdiags, only:  howvhead       ! =30
-  use m_obsdiags, only: tcamthead       ! =31
-  use m_obsdiags, only: lcbashead       ! =32
-  use m_obsdiags, only:  pm10head       ! =33
-  use m_obsdiags, only: cldchhead       ! =34
+  use m_obsdiags, only: wspd10mhead     ! =24
+  use m_obsdiags, only:  td2mhead       ! =25
+  use m_obsdiags, only:  mxtmhead       ! =26
+  use m_obsdiags, only:  mitmhead       ! =27
+  use m_obsdiags, only:  pmslhead       ! =28
+  use m_obsdiags, only:  howvhead       ! =29
+  use m_obsdiags, only: tcamthead       ! =30
+  use m_obsdiags, only: lcbashead       ! =31
+  use m_obsdiags, only:  pm10head       ! =32
+  use m_obsdiags, only: cldchhead       ! =33
   use m_obsdiags, only: uwnd10mhead     ! =35
   use m_obsdiags, only: vwnd10mhead     ! =36
 
@@ -282,35 +279,34 @@ subroutine init_(yobs,ibin)
   ASSERT(ibin<=size(    whead))  ! = 3
   ASSERT(ibin<=size(    qhead))  ! = 4
   ASSERT(ibin<=size(  spdhead))  ! = 5
-  ASSERT(ibin<=size(  srwhead))  ! = 6
-  ASSERT(ibin<=size(   rwhead))  ! = 7
-  ASSERT(ibin<=size(   dwhead))  ! = 8
-  ASSERT(ibin<=size(  ssthead))  ! = 9
-  ASSERT(ibin<=size(   pwhead))  ! =10
-  ASSERT(ibin<=size(  pcphead))  ! =11
-  ASSERT(ibin<=size(   ozhead))  ! =12
-  ASSERT(ibin<=size(  o3lhead))  ! =13
-  ASSERT(ibin<=size(  gpshead))  ! =14
-  ASSERT(ibin<=size(  radhead))  ! =15
-  ASSERT(ibin<=size(  tcphead))  ! =16
-  ASSERT(ibin<=size(  laghead))  ! =17
-  ASSERT(ibin<=size(colvkhead))  ! =18
-  ASSERT(ibin<=size( aerohead))  ! =19
-  ASSERT(ibin<=size(aerolhead))  ! =20
-  ASSERT(ibin<=size(pm2_5head))  ! =21
-  ASSERT(ibin<=size( gusthead))  ! =22
-  ASSERT(ibin<=size(  vishead))  ! =23
-  ASSERT(ibin<=size( pblhhead))  ! =24
-  ASSERT(ibin<=size(wspd10mhead))! =25
-  ASSERT(ibin<=size( td2mhead))  ! =26
-  ASSERT(ibin<=size( mxtmhead))  ! =27
-  ASSERT(ibin<=size( mitmhead))  ! =28
-  ASSERT(ibin<=size( pmslhead))  ! =29
-  ASSERT(ibin<=size( howvhead))  ! =30
-  ASSERT(ibin<=size(tcamthead))  ! =31
-  ASSERT(ibin<=size(lcbashead))  ! =32
-  ASSERT(ibin<=size( pm10head))  ! =33
-  ASSERT(ibin<=size(cldchhead))  ! =34
+  ASSERT(ibin<=size(   rwhead))  ! = 6
+  ASSERT(ibin<=size(   dwhead))  ! = 7
+  ASSERT(ibin<=size(  ssthead))  ! = 8
+  ASSERT(ibin<=size(   pwhead))  ! = 9
+  ASSERT(ibin<=size(  pcphead))  ! =10
+  ASSERT(ibin<=size(   ozhead))  ! =11
+  ASSERT(ibin<=size(  o3lhead))  ! =12
+  ASSERT(ibin<=size(  gpshead))  ! =13
+  ASSERT(ibin<=size(  radhead))  ! =14
+  ASSERT(ibin<=size(  tcphead))  ! =15
+  ASSERT(ibin<=size(  laghead))  ! =16
+  ASSERT(ibin<=size(colvkhead))  ! =17
+  ASSERT(ibin<=size( aerohead))  ! =18
+  ASSERT(ibin<=size(aerolhead))  ! =19
+  ASSERT(ibin<=size(pm2_5head))  ! =20
+  ASSERT(ibin<=size( gusthead))  ! =21
+  ASSERT(ibin<=size(  vishead))  ! =22
+  ASSERT(ibin<=size( pblhhead))  ! =23
+  ASSERT(ibin<=size(wspd10mhead))! =24
+  ASSERT(ibin<=size( td2mhead))  ! =25
+  ASSERT(ibin<=size( mxtmhead))  ! =26
+  ASSERT(ibin<=size( mitmhead))  ! =27
+  ASSERT(ibin<=size( pmslhead))  ! =28
+  ASSERT(ibin<=size( howvhead))  ! =29
+  ASSERT(ibin<=size(tcamthead))  ! =30
+  ASSERT(ibin<=size(lcbashead))  ! =31
+  ASSERT(ibin<=size( pm10head))  ! =32
+  ASSERT(ibin<=size(cldchhead))  ! =33
   ASSERT(ibin<=size(uwnd10mhead))! =35
   ASSERT(ibin<=size(vwnd10mhead))! =36
 
@@ -319,37 +315,36 @@ subroutine init_(yobs,ibin)
   yobs%w     => obsLList_headNode(    whead(ibin))    ! = 3
   yobs%q     => obsLList_headNode(    qhead(ibin))    ! = 4
   yobs%spd   => obsLList_headNode(  spdhead(ibin))    ! = 5
-  yobs%srw   => obsLList_headNode(  srwhead(ibin))    ! = 6
-  yobs%rw    => obsLList_headNode(   rwhead(ibin))    ! = 7
-  yobs%dw    => obsLList_headNode(   dwhead(ibin))    ! = 8
-  yobs%sst   => obsLList_headNode(  ssthead(ibin))    ! = 9
-  yobs%pw    => obsLList_headNode(   pwhead(ibin))    ! =10
-  yobs%pcp   => obsLList_headNode(  pcphead(ibin))    ! =11
-  yobs%oz    => obsLList_headNode(   ozhead(ibin))    ! =12
-  yobs%o3l   => obsLList_headNode(  o3lhead(ibin))    ! =13
-  yobs%gps   => obsLList_headNode(  gpshead(ibin))    ! =14
-  yobs%rad   => obsLList_headNode(  radhead(ibin))    ! =15
-  yobs%tcp   => obsLList_headNode(  tcphead(ibin))    ! =16
-  yobs%lag   => obsLList_headNode(  laghead(ibin))    ! =17
-  yobs%colvk => obsLList_headNode(colvkhead(ibin))    ! =18
-  yobs%aero  => obsLList_headNode( aerohead(ibin))    ! =19
-  yobs%aerol => obsLList_headNode(aerolhead(ibin))    ! =20
-  yobs%pm2_5 => obsLList_headNode(pm2_5head(ibin))    ! =21
-  yobs%gust  => obsLList_headNode( gusthead(ibin))    ! =22
-  yobs%vis   => obsLList_headNode(  vishead(ibin))    ! =23
-  yobs%pblh  => obsLList_headNode( pblhhead(ibin))    ! =24
+  yobs%rw    => obsLList_headNode(   rwhead(ibin))    ! = 6
+  yobs%dw    => obsLList_headNode(   dwhead(ibin))    ! = 7
+  yobs%sst   => obsLList_headNode(  ssthead(ibin))    ! = 8
+  yobs%pw    => obsLList_headNode(   pwhead(ibin))    ! = 9
+  yobs%pcp   => obsLList_headNode(  pcphead(ibin))    ! =10
+  yobs%oz    => obsLList_headNode(   ozhead(ibin))    ! =11
+  yobs%o3l   => obsLList_headNode(  o3lhead(ibin))    ! =12
+  yobs%gps   => obsLList_headNode(  gpshead(ibin))    ! =13
+  yobs%rad   => obsLList_headNode(  radhead(ibin))    ! =14
+  yobs%tcp   => obsLList_headNode(  tcphead(ibin))    ! =15
+  yobs%lag   => obsLList_headNode(  laghead(ibin))    ! =16
+  yobs%colvk => obsLList_headNode(colvkhead(ibin))    ! =17
+  yobs%aero  => obsLList_headNode( aerohead(ibin))    ! =18
+  yobs%aerol => obsLList_headNode(aerolhead(ibin))    ! =19
+  yobs%pm2_5 => obsLList_headNode(pm2_5head(ibin))    ! =20
+  yobs%gust  => obsLList_headNode( gusthead(ibin))    ! =21
+  yobs%vis   => obsLList_headNode(  vishead(ibin))    ! =22
+  yobs%pblh  => obsLList_headNode( pblhhead(ibin))    ! =23
 
-  yobs%wspd10m => obsLList_headNode(wspd10mhead(ibin))! =25
-  yobs%td2m  => obsLList_headNode( td2mhead(ibin))    ! =26
-  yobs%mxtm  => obsLList_headNode( mxtmhead(ibin))    ! =27
-  yobs%mitm  => obsLList_headNode( mitmhead(ibin))    ! =28
-  yobs%pmsl  => obsLList_headNode( pmslhead(ibin))    ! =29
-  yobs%howv  => obsLList_headNode( howvhead(ibin))    ! =30
-  yobs%tcamt => obsLList_headNode(tcamthead(ibin))    ! =31
-  yobs%lcbas => obsLList_headNode(lcbashead(ibin))    ! =32
+  yobs%wspd10m => obsLList_headNode(wspd10mhead(ibin))! =24
+  yobs%td2m  => obsLList_headNode( td2mhead(ibin))    ! =25
+  yobs%mxtm  => obsLList_headNode( mxtmhead(ibin))    ! =26
+  yobs%mitm  => obsLList_headNode( mitmhead(ibin))    ! =27
+  yobs%pmsl  => obsLList_headNode( pmslhead(ibin))    ! =28
+  yobs%howv  => obsLList_headNode( howvhead(ibin))    ! =29
+  yobs%tcamt => obsLList_headNode(tcamthead(ibin))    ! =30
+  yobs%lcbas => obsLList_headNode(lcbashead(ibin))    ! =31
 
-  yobs%pm10  => obsLList_headNode( pm10head(ibin))    ! =33
-  yobs%cldch => obsLList_headNode(cldchhead(ibin))    ! =34
+  yobs%pm10  => obsLList_headNode( pm10head(ibin))    ! =32
+  yobs%cldch => obsLList_headNode(cldchhead(ibin))    ! =33
   yobs%uwnd10m => obsLList_headNode(uwnd10mhead(ibin))! =35
   yobs%vwnd10m => obsLList_headNode(vwnd10mhead(ibin))! =36
 return

@@ -13,6 +13,8 @@
 set -ax
 date
 
+echo "Begin mk_angle_plots.sh"
+
 export NUM_CYCLES=${NUM_CYCLES:-121}
 export CYCLE_INTERVAL=${CYCLE_INTERVAL:-6}
 
@@ -55,16 +57,23 @@ for type in ${SATYPE}; do
       fi
       echo "testing with pdy = $pdy"
 
-      if [[ -s ${TANKDIR}/radmon.${pdy}/angle.${type}.ctl.${Z} ]]; then
-         $NCP ${TANKDIR}/radmon.${pdy}/angle.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
-         if [[ -s ${TANKDIR}/radmon.${pdy}/angle.${type}_anl.ctl.${Z} ]]; then
-            $NCP ${TANKDIR}/radmon.${pdy}/angle.${type}_anl.ctl.${Z} ${imgndir}/${type}_anl.ctl.${Z}
+      if [[ $TANK_USE_RUN -eq 1 ]]; then
+         ieee_src=${TANKverf}/${RUN}.${PDY}/${MONITOR}
+      else
+         ieee_src=${TANKverf}/${MONITOR}.${PDY}
+      fi
+
+      if [[ -s ${ieee_src}/angle.${type}.ctl.${Z} ]]; then
+         $NCP ${ieee_src}/angle.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
+         if [[ -s ${ieee_src}/angle.${type}_anl.ctl.${Z} ]]; then
+            $NCP ${ieee_src}/angle.${type}_anl.ctl.${Z} ${imgndir}/${type}_anl.ctl.${Z}
          fi 
          found=1
-      elif [[ -s ${TANKDIR}/radmon.${pdy}/angle.${type}.ctl ]]; then
-         $NCP ${TANKDIR}/radmon.${pdy}/angle.${type}.ctl ${imgndir}/${type}.ctl
-         if [[ -s ${TANKDIR}/radmon.${pdy}/angle.${type}_anl.ctl ]]; then
-            $NCP ${TANKDIR}/radmon.${pdy}/angle.${type}_anl.ctl ${imgndir}/${type}_anl.ctl
+
+      elif [[ -s ${ieee_src}/angle.${type}.ctl ]]; then
+         $NCP ${ieee_src}/angle.${type}.ctl ${imgndir}/${type}.ctl
+         if [[ -s ${ieee_src}/angle.${type}_anl.ctl ]]; then
+            $NCP ${ieee_src}/angle.${type}_anl.ctl ${imgndir}/${type}_anl.ctl
          fi 
          found=1
       fi
@@ -167,7 +176,7 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw cos 
         $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 20000 -W ${wall_tm} \
              -R affinity[core] -J ${jobname} -cwd ${PWD} $cmdfile
      else	# cray
-        $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 20000 -W ${wall_tm} \
+        $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 600 -W ${wall_tm} \
              -J ${jobname} -cwd ${PWD} $cmdfile
      fi
   else				# Zeus/theia platform
@@ -244,7 +253,7 @@ for sat in ${bigSATLIST}; do
             $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M ${mem} -W ${wall_tm} \
                  -R affinity[core] -J ${jobname} -cwd ${PWD} $cmdfile
          else
-            $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M ${mem} -W ${wall_tm} \
+            $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 600 -W ${wall_tm} \
                  -J ${jobname} -cwd ${PWD} $cmdfile
          fi
 
@@ -288,4 +297,5 @@ for sat in ${bigSATLIST}; do
 done
 
 
+echo "End mk_angle_plots.sh"
 exit

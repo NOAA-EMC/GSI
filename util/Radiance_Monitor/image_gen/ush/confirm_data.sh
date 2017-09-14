@@ -29,10 +29,13 @@ pdate=$2
 CYA=`echo $pdate|cut -c9-10`
 PDY=`echo $pdate|cut -c1-8`
 
-angle_cnt=`ls -la ${TANKDIR}/radmon.${PDY}/angle.*${pdate}.ieee_d* | wc -l`
-bcoef_cnt=`ls -la ${TANKDIR}/radmon.${PDY}/bcoef.*${pdate}.ieee_d* | wc -l`
-bcor_cnt=`ls -la ${TANKDIR}/radmon.${PDY}/bcor.*${pdate}.ieee_d* | wc -l`
-time_cnt=`ls -la ${TANKDIR}/radmon.${PDY}/time.*${pdate}.ieee_d* | wc -l`
+angle_cnt=`ls -la ${IEEE_SRC}/angle.*${pdate}.ieee_d* | wc -l`
+
+bcoef_cnt=`ls -la ${IEEE_SRC}/bcoef.*${pdate}.ieee_d* | wc -l`
+
+bcor_cnt=`ls -la ${IEEE_SRC}/bcor.*${pdate}.ieee_d* | wc -l`
+
+time_cnt=`ls -la ${IEEE_SRC}/time.*${pdate}.ieee_d* | wc -l`
 
 ###########################################
 # if all cnts -gt 0 and equal then proceed

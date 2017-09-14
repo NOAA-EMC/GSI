@@ -124,6 +124,7 @@ contains
     use mpimod, only: mpi_max,mpi_integer4
     use obsmod,only: iadate
     use mpeu_util, only: IndexSet, IndexSort
+    use gsi_io, only: verbose
     implicit none
 
     integer(i_kind),intent(in):: npe,mype
@@ -217,8 +218,10 @@ contains
     equivalence (chdr,hdr(1))
     equivalence (chdr2,hdr2(1))
 
-    logical rite
+    logical rite,print_verbose
     
+    print_verbose=.false.
+    if(verbose) print_verbose=.true.
     rad_per_meter= one/rearth
     erad = rearth
     nazbin=nint(r360/del_azimuth)
@@ -540,34 +543,36 @@ contains
     call mpi_reduce(timemax,timemax1,1,mpi_real8,mpi_max,0,mpi_comm_world,ierror)
     call mpi_reduce(timemin,timemin1,1,mpi_real8,mpi_min,0,mpi_comm_world,ierror)
 
-    if(mype==0) then
+    if(mype==0 ) then
     
        allocate(icount(num_radars_0))
-       write(6,*)'RADAR_BUFR_READ_ALL:  num_radars_0 = ',num_radars_0
+       if(rite)write(6,*)'RADAR_BUFR_READ_ALL:  num_radars_0 = ',num_radars_0
        do irad=1,num_radars_0
           krad=indx(irad)
           icount(krad)=0
           do i=1,nthisrad
             if(ibins2(i,krad) >= minnum)icount(krad)=icount(krad)+1
           end do
-	  write(6,'(" master list radar ",i3," stn id,lat,lon,hgt,num = ",a4,2f10.2,f8.1,i10)') &
+	  if(rite)write(6,'(" master list radar ",i3," stn id,lat,lon,hgt,num = ",a4,2f10.2,f8.1,i10)') &
 	       irad,master_stn_table(krad),master_lat_table(krad),master_lon_table(krad), &
                master_hgt_table(krad),icount(krad)
        end do
-       write(6,*)'RADAR_BUFR_READ_ALL:  ddiffmin,distfact,idups=',ddiffmin0,distfact,idups0
-       write(6,*)' nthisrad=',nthisrad
-       write(6,*)' nthisbins=',nthisbins
-       write(6,*)' timemin,max=',timemin1,timemax1
-       write(6,*)' nradials_in=',nradials_in1
-       write(6,*)' nradials_fail_angmax=',nradials_fail_angmax1
-       write(6,*)' nradials_fail_time=',nradials_fail_time1
-       write(6,*)' nradials_fail_elb=',nradials_fail_elb1
-       write(6,*)' nobs_in=',nobs_in1
-       write(6,*)' nobs_badvr=',nobs_badvr1
-       write(6,*)' nobs_badsr=',nobs_badsr1
-       write(6,*)' nobs_lrbin=',nobs_lrbin1
-       write(6,*)' nobs_hrbin=',nobs_hrbin1
-       write(6,*)' nrange_max=',nrange_max1
+       if(rite)then
+          write(6,*)'RADAR_BUFR_READ_ALL:  ddiffmin,distfact,idups=',ddiffmin0,distfact,idups0
+          write(6,*)' nthisrad=',nthisrad
+          write(6,*)' nthisbins=',nthisbins
+          write(6,*)' timemin,max=',timemin1,timemax1
+          write(6,*)' nradials_in=',nradials_in1
+          write(6,*)' nradials_fail_angmax=',nradials_fail_angmax1
+          write(6,*)' nradials_fail_time=',nradials_fail_time1
+          write(6,*)' nradials_fail_elb=',nradials_fail_elb1
+          write(6,*)' nobs_in=',nobs_in1
+          write(6,*)' nobs_badvr=',nobs_badvr1
+          write(6,*)' nobs_badsr=',nobs_badsr1
+          write(6,*)' nobs_lrbin=',nobs_lrbin1
+          write(6,*)' nobs_hrbin=',nobs_hrbin1
+          write(6,*)' nrange_max=',nrange_max1
+       end if
 
 !    Print out histogram of counts by ielbin to see where angles are
        do ielbin=1,nelbin
@@ -580,7 +585,7 @@ contains
 		end do
 	     end do
 	  end do
-	  write(6,'(" ielbin,histo_el=",i6,i20)')ielbin,histo_el
+	  if(rite)write(6,'(" ielbin,histo_el=",i6,i20)')ielbin,histo_el
        end do
 
 !   Prepare to create superobs and write out.
@@ -735,12 +740,14 @@ contains
        end if
     end do
     if(mype == 0)then
-       write(6,*)' total number of superobs written=',nsuperall
-       write(6,*)'  vrmin,maxall=',vrminall,vrmaxall
-       write(6,*)' errmin,maxall=',errminall,errmaxall
-       write(6,*)' delazmmaxall=',delazmmaxall
-       write(6,*)' deltiltmin,maxall=',deltiltminall,deltiltmaxall
-       write(6,*)' deldistmin,maxall=',deldistminall,deldistmaxall
+       if(rite)then
+          write(6,*)' total number of superobs written=',nsuperall
+          write(6,*)'  vrmin,maxall=',vrminall,vrmaxall
+          write(6,*)' errmin,maxall=',errminall,errmaxall
+          write(6,*)' delazmmaxall=',delazmmaxall
+          write(6,*)' deltiltmin,maxall=',deltiltminall,deltiltmaxall
+          write(6,*)' deldistmin,maxall=',deldistminall,deldistmaxall
+       end if
        close(inbufr)
     end if
     deallocate(bins_work,bins,ibins2)

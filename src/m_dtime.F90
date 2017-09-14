@@ -21,7 +21,6 @@ module m_dtime
 !
 !$$$  end subprogram documentation block
 
-!#define VERBOSE
 #define ZERODIFFTEST
 
 ! module interface:
@@ -187,30 +186,34 @@ subroutine dtime_show(who,what,it)
 
   use kinds, only: r_kind,i_kind
   use mpeu_util, only: tell
+  use gsi_io, only: verbose
   implicit none
   character(len=*),intent(in) :: who
   character(len=*),intent(in) :: what
   integer(i_kind),intent(in):: it
   character(len=*),parameter :: myname_=myname//'::show'
-
-#ifdef VERBOSE
-#ifndef OLDCODE
+  logical print_verbose
   character(len=80):: bufr
-  write(bufr,'(i4,4(i8,f10.5))') it,nt,at,nl,al,nm,am,nr,ar
-  call tell(who,what//' '//trim(bufr))
+
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
+  if(print_verbose)then
+#ifndef OLDCODE
+     write(bufr,'(i4,4(i8,f10.5))') it,nt,at,nl,al,nm,am,nr,ar
+     call tell(who,what//' '//trim(bufr))
 
 #else
-  call tell(who,what//', iobs_type=',it)
-  call tell(who,what//', nt=',nt)
-  call tell(who,what//', at=',at)
+     call tell(who,what//', iobs_type=',it)
+     call tell(who,what//', nt=',nt)
+     call tell(who,what//', at=',at)
 
-  call tell(who,what//', nm=',nm)
-  call tell(who,what//', am=',am)
-  call tell(who,what//', nl=',nl)
-  call tell(who,what//', al=',al)
-  call tell(who,what//', nr=',nr)
-  call tell(who,what//', ar=',ar)
+     call tell(who,what//', nm=',nm)
+     call tell(who,what//', am=',am)
+     call tell(who,what//', nl=',nl)
+     call tell(who,what//', al=',al)
+     call tell(who,what//', nr=',nr)
+     call tell(who,what//', ar=',ar)
 #endif
-#endif
+  end if
 end subroutine dtime_show
 end module m_dtime
