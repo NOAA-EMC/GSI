@@ -73,8 +73,6 @@ module m_tcpNode
 
   character(len=*),parameter:: MYNAME="m_tcpNode"
 
-!#define CHECKSUM_VERBOSE
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains

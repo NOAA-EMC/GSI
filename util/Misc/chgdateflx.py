@@ -2,11 +2,11 @@
 
 ###############################################################
 # < next few lines under version control, D O  N O T  E D I T >
-# $URL$
-# $Revision$
-# $Date$
-# $Author$
-# $Id$
+# $URL: https://svnemc.ncep.noaa.gov/projects/gsi/trunk/util/Misc/chgdateflx.py $
+# $Revision: 43365 $
+# $Date: 2014-07-23 12:28:23 -0400 (Wed, 23 Jul 2014) $
+# $Author: Michael.Lueken@noaa.gov $
+# $Id: chgdateflx.py 43365 2014-07-23 16:28:23Z Michael.Lueken@noaa.gov $
 ###############################################################
 
 ###############################################################

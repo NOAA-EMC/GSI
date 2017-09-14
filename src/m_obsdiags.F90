@@ -55,40 +55,37 @@ module m_obsdiags
   use m_wNode    , only:     wNode !  3
   use m_qNode    , only:     qNode !  4
   use m_spdNode  , only:   spdNode !  5
-  use m_srwNode  , only:   srwNode !  6
-  use m_rwNode   , only:    rwNode !  7
-  use m_dwNode   , only:    dwNode !  8
-  use m_sstNode  , only:   sstNode !  9
-  use m_pwNode   , only:    pwNode ! 10
-  use m_pcpNode  , only:   pcpNode ! 11
-  use m_ozNode   , only:    ozNode ! 12
-  use m_o3lNode  , only:   o3lNode ! 13
-  use m_gpsNode  , only:   gpsNode ! 14
-  use m_radNode  , only:   radNode ! 15
-  use m_tcpNode  , only:   tcpNode ! 16
-  use m_lagNode  , only:   lagNode ! 17
-  use m_colvkNode, only: colvkNode ! 18
-  use m_aeroNode , only:  aeroNode ! 19
-  use m_aerolNode, only: aerolNode ! 20
-  use m_pm2_5Node, only: pm2_5Node ! 21
-  use m_gustNode , only:  gustNode ! 22
-  use m_visNode  , only:   visNode ! 23
-  use m_pblhNode , only:  pblhNode ! 24
-
-  use m_wspd10mNode , only:  wspd10mNode ! 25
+  use m_rwNode   , only:    rwNode !  6
+  use m_dwNode   , only:    dwNode !  7
+  use m_sstNode  , only:   sstNode !  8
+  use m_pwNode   , only:    pwNode !  9
+  use m_pcpNode  , only:   pcpNode ! 10
+  use m_ozNode   , only:    ozNode ! 11
+  use m_o3lNode  , only:   o3lNode ! 12
+  use m_gpsNode  , only:   gpsNode ! 13
+  use m_radNode  , only:   radNode ! 14
+  use m_tcpNode  , only:   tcpNode ! 15
+  use m_lagNode  , only:   lagNode ! 16
+  use m_colvkNode, only: colvkNode ! 17
+  use m_aeroNode , only:  aeroNode ! 18
+  use m_aerolNode, only: aerolNode ! 19
+  use m_pm2_5Node, only: pm2_5Node ! 20
+  use m_gustNode , only:  gustNode ! 21
+  use m_visNode  , only:   visNode ! 22
+  use m_pblhNode , only:  pblhNode ! 23
+  use m_wspd10mNode , only:  wspd10mNode ! 24
+  use m_td2mNode , only:  td2mNode ! 25
+  use m_mxtmNode , only:  mxtmNode ! 26
+  use m_mitmNode , only:  mitmNode ! 27
+  use m_pmslNode , only:  pmslNode ! 28
+  use m_howvNode , only:  howvNode ! 29
+  use m_tcamtNode, only: tcamtNode ! 30
+  use m_lcbasNode, only: lcbasNode ! 31
   use m_uwnd10mNode , only:  uwnd10mNode
   use m_vwnd10mNode , only:  vwnd10mNode
 
-  use m_td2mNode , only:  td2mNode ! 26
-  use m_mxtmNode , only:  mxtmNode ! 27
-  use m_mitmNode , only:  mitmNode ! 28
-  use m_pmslNode , only:  pmslNode ! 29
-  use m_howvNode , only:  howvNode ! 30
-  use m_tcamtNode, only: tcamtNode ! 31
-  use m_lcbasNode, only: lcbasNode ! 32
-
-  use m_pm10Node , only:  pm10Node ! 33
-  use m_cldchNode, only:  cldchNode ! 34
+  use m_pm10Node , only:  pm10Node ! 32
+  use m_cldchNode, only:  cldchNode ! 33
 
   use m_obsNodeTypeManager, only: nobs_type
   use gsi_4dvar           , only: nobs_bins
@@ -174,7 +171,6 @@ module m_obsdiags
   public ::     whead
   public ::     qhead
   public ::   spdhead
-  public ::   srwhead
   public ::    rwhead
   public ::    dwhead
   public ::   ssthead
@@ -214,7 +210,6 @@ module m_obsdiags
   type(obsLList),dimension(:),pointer :: whead => null()
   type(obsLList),dimension(:),pointer :: qhead => null()
   type(obsLList),dimension(:),pointer :: spdhead => null()
-  type(obsLList),dimension(:),pointer :: srwhead => null()
   type(obsLList),dimension(:),pointer :: rwhead => null()
   type(obsLList),dimension(:),pointer :: dwhead => null()
   type(obsLList),dimension(:),pointer :: ssthead => null()
@@ -689,7 +684,6 @@ _ENTRY_(myname_)
        whead => ptr_obsbins_(obsllists,'w')
        qhead => ptr_obsbins_(obsllists,'q')
      spdhead => ptr_obsbins_(obsllists,'spd')
-     srwhead => ptr_obsbins_(obsllists,'srw')
       rwhead => ptr_obsbins_(obsllists,'rw')
       dwhead => ptr_obsbins_(obsllists,'dw')
      ssthead => ptr_obsbins_(obsllists,'sst')
@@ -739,7 +733,6 @@ _ENTRY_(myname_)
        whead => null()
        qhead => null()
      spdhead => null()
-     srwhead => null()
       rwhead => null()
       dwhead => null()
      ssthead => null()

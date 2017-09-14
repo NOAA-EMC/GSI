@@ -89,7 +89,7 @@ subroutine read_guess(iyear,month,idd,mype)
   use guess_grids, only:  nfldsig,ges_tsen,load_prsges,load_geop_hgt,ges_prsl
   use m_gsiBiases,only : bkg_bias_correction,nbc
   use m_gsiBiases, only: gsi_bkgbias_bundle
-  use gsi_io, only: read_bias
+  use gsi_bias, only: read_bias
   use gridmod, only: lat2,lon2
   use gridmod, only: nsig
   use gridmod, only: wrf_mass_regional,wrf_nmm_regional,cmaq_regional,&

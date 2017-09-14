@@ -169,7 +169,6 @@ module m_obsNode
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   character(len=*),parameter :: myname='m_obsNode'
 
-!#define DEBUG_TRACE
 #include "mytrace.H"
 #include "myassert.H"
 

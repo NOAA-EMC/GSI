@@ -223,8 +223,9 @@ module insitu_info
   cid_mbuoy(152) = '46092'
   cid_mbuoy(153) = '46093'
 
-  if(mype == 0) write(6,*) ' in mbuoy_info,n_comps = ',n_comps,' n_scripps = ',n_scripps, &
-                              ' n_triton = ',n_triton,' n_3mdiscus = ',n_3mdiscus
+  if(mype == 0) write(6,1000) n_comps,n_scripps,n_triton,n_3mdiscus
+1000 format(' in mbuoy_info,n_comps = ',i10,' n_scripps = ',i10, &
+        ' n_triton = ',i10,' n_3mdiscus = ',i10)
  end subroutine mbuoy_info
 
  subroutine read_ship_info(mype)

@@ -20,7 +20,6 @@
 !EOP
 !-------------------------------------------------------------------------
 #define MYNAME	"stub"
-!#define VERBOSE
 #include "mytrace.H"
 
 subroutine parallel_init_()
@@ -213,23 +212,27 @@ subroutine pertmod_TLinit_(xini,xobs,iymd,ihms,ndtsec,rc)
   use constants , only: R3600
   use gsi_4dCouplerMod, only: idmodel_
   use mpeu_util, only: tell,perr,die
+  use gsi_io, only: verbose
   implicit none
-  type(gsi_bundle),intent(in ):: xini	! a known state as a template
-  type(gsi_bundle),intent(out):: xobs	! a state container to be defined as xini
-  integer(i_kind ),intent(in ):: iymd	! initial date (YYYYMMDD) of the perturbation state
-  integer(i_kind ),intent(in ):: ihms	! initial time (HHMMSS) of the perturbation state
-  integer(i_kind ),intent(out):: ndtsec	! TL model time step in seconds
-  integer(i_kind ),optional,intent(out):: rc	! return status code
+  type(gsi_bundle),intent(in ):: xini ! a known state as a template
+  type(gsi_bundle),intent(out):: xobs ! a state container to be defined as xini
+  integer(i_kind ),intent(in ):: iymd ! initial date (YYYYMMDD) of the perturbation state
+  integer(i_kind ),intent(in ):: ihms ! initial time (HHMMSS) of the perturbation state
+  integer(i_kind ),intent(out):: ndtsec ! TL model time step in seconds
+  integer(i_kind ),optional,intent(out):: rc ! return status code
 
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   character(len=*),parameter :: myname_=MYNAME//'::pertmod_TLinit_'
   character(len=*),parameter :: xoname_='TLpertState'
   integer(i_kind):: ier
+  logical print_verbose
 
 _ENTRY_(myname_)
-#ifdef VERBOSE
-  call tell(myname_,'at (iymd,ihms) =',(/iymd,ihms/))
-#endif
+ print_verbose=.false.
+ if(verbose)print_verbose=.true.
+ if(print_verbose)then
+   call tell(myname_,'at (iymd,ihms) =',(/iymd,ihms/))
+ end if
 
   if(present(rc)) rc=0
   if(.not.idmodel_) then
@@ -242,13 +245,13 @@ _EXIT_(myname_)
 
   ndtsec=R3600
   call gsi_bundleCreate(xobs,xini,xoname_,ier)	! make xobs as xini
-  	if(ier/=0) then
-	  call perr(myname_,'gsi_bundleCreate("'//xoname_//'"), istatus =',ier)
-	  if(.not.present(rc)) call die(myname_)
-	  rc=ier
+  if(ier/=0) then
+     call perr(myname_,'gsi_bundleCreate("'//xoname_//'"), istatus =',ier)
+     if(.not.present(rc)) call die(myname_)
+     rc=ier
 _EXIT_(myname_)
-	  return
-	endif
+     return
+  endif
   xobs=ZERO
 _EXIT_(myname_)
 end subroutine pertmod_TLinit_
@@ -283,27 +286,30 @@ subroutine pertmod_TLrun_(xini,xobs,iymd,ihms,ndt,rc)
   use gsi_bundlemod, only: gsi_bundle
   use gsi_4dCouplerMod, only: idmodel_
   use mpeu_util, only: tell,perr,die
+  use gsi_io, only: verbose
   implicit none
 
-  type(gsi_bundle),      pointer:: xini	! input: increment perturbation propagated by TLM
-  type(gsi_bundle),intent(inout):: xobs	! inout: TL perturbation state
-  integer(i_kind ),intent(in ):: iymd	! staring date (YYYYMMDD) of the perturbation state
-  integer(i_kind ),intent(in ):: ihms	! staring time (HHMMSS) of the perturbation state
-  integer(i_kind ),intent(in ):: ndt	! Number of time steps to integrate TLM for
-  integer(i_kind ),optional,intent(out):: rc	! return status code
+  type(gsi_bundle),      pointer:: xini ! input: increment perturbation propagated by TLM
+  type(gsi_bundle),intent(inout):: xobs ! inout: TL perturbation state
+  integer(i_kind ),intent(in ):: iymd ! staring date (YYYYMMDD) of the perturbation state
+  integer(i_kind ),intent(in ):: ihms ! staring time (HHMMSS) of the perturbation state
+  integer(i_kind ),intent(in ):: ndt  ! Number of time steps to integrate TLM for
+  integer(i_kind ),optional,intent(out):: rc  ! return status code
 
-  	!! t := (nymdi,nhmsi); n:=ndt; xi:=xini; yo:=xobs
-  	!! e(t) = A(t)*xi(t)
-	!! z(t+n) = M(t+n,t)*[z(t)+e(t)]
-	!! yo(t+n) = G(t+n)*z(t)
+!! t := (nymdi,nhmsi); n:=ndt; xi:=xini; yo:=xobs
+!! e(t) = A(t)*xi(t)
+!! z(t+n) = M(t+n,t)*[z(t)+e(t)]
+!! yo(t+n) = G(t+n)*z(t)
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   character(len=*),parameter :: myname_=MYNAME//'::pertmod_TLrun_'
-  integer(i_kind):: ier
+  logical print_verbose
 
 _ENTRY_(myname_)
-#ifdef VERBOSE
-  call tell(myname_,'with (iymd,ihms) =',(/iymd,ihms/))
-#endif
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
+  if(print_verbose)then
+     call tell(myname_,'with (iymd,ihms) =',(/iymd,ihms/))
+  end if
 
   if(present(rc)) rc=0
   if(.not.idmodel_) then
@@ -348,21 +354,25 @@ subroutine pertmod_TLfin_(xini,xobs,iymd,ihms,rc)
   use gsi_bundlemod, only: gsi_bundleDestroy
   use gsi_4dCouplerMod, only: idmodel_
   use mpeu_util, only: tell,perr,die
+  use gsi_io, only: verbose
   implicit none
 
-  type(gsi_bundle),intent(in   ):: xini	! untouched perturbation increment
-  type(gsi_bundle),intent(inout):: xobs	! destroyed perturbation state
-  integer(i_kind ),intent(in   ):: iymd	! final date (YYYYMMDD) of the perturbation state
-  integer(i_kind ),intent(in   ):: ihms	! final time (HHMMSS) of the perturbation state
-  integer(i_kind ),optional,intent(out):: rc	! return status code
+  type(gsi_bundle),intent(in   ):: xini ! untouched perturbation increment
+  type(gsi_bundle),intent(inout):: xobs ! destroyed perturbation state
+  integer(i_kind ),intent(in   ):: iymd ! final date (YYYYMMDD) of the perturbation state
+  integer(i_kind ),intent(in   ):: ihms ! final time (HHMMSS) of the perturbation state
+  integer(i_kind ),optional,intent(out):: rc ! return status code
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   character(len=*),parameter:: myname_=MYNAME//"::pertmod_TLfin_"
   integer(i_kind):: ier
+  logical print_verbose
 
 _ENTRY_(myname_)
-#ifdef VERBOSE
-  call tell(myname_,'with (iymd,ihms) =',(/iymd,ihms/))
-#endif
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
+  if(print_verbose)then
+    call tell(myname_,'with (iymd,ihms) =',(/iymd,ihms/))
+  end if
 
   if(present(rc)) rc=0
   if(.not.idmodel_) then
@@ -374,13 +384,13 @@ _EXIT_(myname_)
   endif
 
   call gsi_bundleDestroy(xobs,ier)
-  	if(ier/=0) then
-	  call perr(myname_,'gsi_bundleDestroy(), istatus =',ier)
-	  if(.not.present(rc)) call die(myname_)
-	  rc=-huge(rc)
+  if(ier/=0) then
+     call perr(myname_,'gsi_bundleDestroy(), istatus =',ier)
+     if(.not.present(rc)) call die(myname_)
+     rc=-huge(rc)
 _EXIT_(myname_)
-	  return
-	endif
+     return
+   endif
 
 _EXIT_(myname_)
 end subroutine pertmod_TLfin_
@@ -419,24 +429,28 @@ subroutine pertmod_ADinit_(xini,xobs,iymd,ihms,ndtsec,rc)
   use constants , only: R3600
   use gsi_4dCouplerMod, only: idmodel_
   use mpeu_util, only: tell,perr,die
+  use gsi_io, only: verbose
   implicit none
-  type(gsi_bundle),intent(out):: xini	! a state container to be defined as xobs
-  type(gsi_bundle),intent(in ):: xobs	! a known state as a template
-  integer(i_kind ),intent(in ):: iymd	! initial date (YYYYMMDD) of the adjoint perturbation state
-  integer(i_kind ),intent(in ):: ihms	! initial time (HHMMSS) of the adjoint perturbation state
-  integer(i_kind ),intent(out):: ndtsec	! AD model time step in seconds
-  integer(i_kind ),optional,intent(out):: rc	! return status code
+  type(gsi_bundle),intent(out):: xini  ! a state container to be defined as xobs
+  type(gsi_bundle),intent(in ):: xobs  ! a known state as a template
+  integer(i_kind ),intent(in ):: iymd  ! initial date (YYYYMMDD) of the adjoint perturbation state
+  integer(i_kind ),intent(in ):: ihms  ! initial time (HHMMSS) of the adjoint perturbation state
+  integer(i_kind ),intent(out):: ndtsec ! AD model time step in seconds
+  integer(i_kind ),optional,intent(out):: rc  ! return status code
 
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   character(len=*),parameter :: myname_=MYNAME//'::pertmod_ADinit_'
   character(len=*),parameter :: xoname_='ADpertState'
   integer(i_kind):: ier
+  logical print_verbose
 
 
 _ENTRY_(myname_)
-#ifdef VERBOSE
-  call tell(myname_,'at (iymd,ihms) =',(/iymd,ihms/))
-#endif
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
+  if(print_verbose) then
+     call tell(myname_,'at (iymd,ihms) =',(/iymd,ihms/))
+  end if
 
   if(present(rc)) rc=0
   if(.not.idmodel_) then
@@ -449,13 +463,13 @@ _EXIT_(myname_)
 
   ndtsec=R3600
   call gsi_bundleCreate(xini,xobs,xoname_,ier)
-  	if(ier/=0) then
-	  call perr(myname_,'gsi_bundleCreate("'//xoname_//'"), istatus =',ier)
-	  if(.not.present(rc)) call die(myname_)
-	  rc=ier
+  if(ier/=0) then
+    call perr(myname_,'gsi_bundleCreate("'//xoname_//'"), istatus =',ier)
+    if(.not.present(rc)) call die(myname_)
+    rc=ier
 _EXIT_(myname_)
-	  return
-	endif
+    return
+  endif
   xini=ZERO
 _EXIT_(myname_)
 end subroutine pertmod_ADinit_
@@ -490,27 +504,30 @@ subroutine pertmod_ADrun_(xini,xobs,iymd,ihms,ndt,rc)
   use gsi_bundlemod, only: gsi_bundle
   use gsi_4dCouplerMod, only: idmodel_
   use mpeu_util, only: tell,perr,die
+  use gsi_io, only: verbose
   implicit none
 
-  type(gsi_bundle),intent(inout):: xini	! inout: adjoint increment perturbation
+  type(gsi_bundle),intent(inout):: xini ! inout: adjoint increment perturbation
   type(gsi_bundle),      pointer:: xobs ! input: adjoint perturbation state
-  integer(i_kind ),intent(in   ):: iymd	! starting date (YYYYMMDD) of the adjoint perturbation state
-  integer(i_kind ),intent(in   ):: ihms	! starting time (HHMMSS) of the adjoint perturbation state
-  integer(i_kind ),intent(in   ):: ndt	! Number of time steps to integrate TLM for
-  integer(i_kind ),optional,intent(out):: rc	! return status code
+  integer(i_kind ),intent(in   ):: iymd ! starting date (YYYYMMDD) of the adjoint perturbation state
+  integer(i_kind ),intent(in   ):: ihms ! starting time (HHMMSS) of the adjoint perturbation state
+  integer(i_kind ),intent(in   ):: ndt  ! Number of time steps to integrate TLM for
+  integer(i_kind ),optional,intent(out):: rc  ! return status code
 
-  	!! t := (nymdi,nhmsi); n:=ndt; xo:=xini; yi:=xobs
-  	!! z(t+n) = G'(t+n)*yi(t+n)
-	!! e(t) = M'(t+n,t)*[z(t+n)+e(t+n)]
-	!! xo(t) = A'(t)*e(t)
+!! t := (nymdi,nhmsi); n:=ndt; xo:=xini; yi:=xobs
+!! z(t+n) = G'(t+n)*yi(t+n)
+!! e(t) = M'(t+n,t)*[z(t+n)+e(t+n)]
+!! xo(t) = A'(t)*e(t)
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   character(len=*),parameter :: myname_=MYNAME//'::pertmod_ADrun_'
-  integer(i_kind):: ier
+  logical print_verbose
 
 _ENTRY_(myname_)
-#ifdef VERBOSE
-  call tell(myname_,'with (iymd,ihms) =',(/iymd,ihms/))
-#endif
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
+  if(print_verbose)then
+     call tell(myname_,'with (iymd,ihms) =',(/iymd,ihms/))
+  end if
 
   if(present(rc)) rc=0
   if(.not.idmodel_) then
@@ -555,21 +572,26 @@ subroutine pertmod_ADfin_(xini,xobs,iymd,ihms,rc)
   use gsi_bundlemod, only: gsi_bundleDestroy
   use gsi_4dCouplerMod, only: idmodel_
   use mpeu_util, only: tell,perr,die
+  use gsi_io, only: verbose
   implicit none
 
-  type(gsi_bundle),intent(inout):: xini	! destroyed perturbation state
-  type(gsi_bundle),intent(in   ):: xobs	! untouched perturbation increment
-  integer(i_kind ),intent(in   ):: iymd	! final date (YYYYMMDD) of the adjoint perturbation state
-  integer(i_kind ),intent(in   ):: ihms	! final time (HHMMSS) of the adjoint perturbation state
-  integer(i_kind ),optional,intent(out):: rc	! return status code
+  type(gsi_bundle),intent(inout):: xini ! destroyed perturbation state
+  type(gsi_bundle),intent(in   ):: xobs ! untouched perturbation increment
+  integer(i_kind ),intent(in   ):: iymd ! final date (YYYYMMDD) of the adjoint perturbation state
+  integer(i_kind ),intent(in   ):: ihms ! final time (HHMMSS) of the adjoint perturbation state
+  integer(i_kind ),optional,intent(out):: rc ! return status code
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   character(len=*),parameter:: myname_=MYNAME//"::pertmod_ADfin_"
   integer(i_kind):: ier
+  logical print_verbose
 
 _ENTRY_(myname_)
-#ifdef VERBOSE
-  call tell(myname_,'with (iymd,ihms) =',(/iymd,ihms/))
-#endif
+
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
+  if(print_verbose)then
+     call tell(myname_,'with (iymd,ihms) =',(/iymd,ihms/))
+  end if
 
   if(present(rc)) rc=0
   if(.not.idmodel_) then
@@ -581,13 +603,13 @@ _EXIT_(myname_)
   endif
 
   call gsi_bundleDestroy(xini,ier)
-  	if(ier/=0) then
-	  call perr(myname_,'gsi_bundleDestroy(), istatus =',ier)
-	  if(.not.present(rc)) call die(myname_)
-	  rc=-huge(rc)
+  if(ier/=0) then
+     call perr(myname_,'gsi_bundleDestroy(), istatus =',ier)
+     if(.not.present(rc)) call die(myname_)
+     rc=-huge(rc)
 _EXIT_(myname_)
-	  return
-	endif
+     return
+   endif
 
 _EXIT_(myname_)
 end subroutine pertmod_ADfin_

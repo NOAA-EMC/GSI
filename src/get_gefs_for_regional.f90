@@ -75,6 +75,7 @@ subroutine get_gefs_for_regional
   use ncepnems_io, only: error_msg
   use nemsio_module, only: nemsio_gfile,nemsio_getfilehead
   use get_wrf_mass_ensperts_mod, only: get_wrf_mass_ensperts_class
+  use gsi_io, only: verbose
   implicit none
 
   type(sub2grid_info) grd_gfs,grd_mix,grd_gfst
@@ -167,7 +168,10 @@ subroutine get_gefs_for_regional
   real(r_kind), pointer :: ges_v (:,:,:)=>NULL()
   real(r_kind), pointer :: ges_tv(:,:,:)=>NULL()
   real(r_kind), pointer :: ges_q (:,:,:)=>NULL()
+  logical :: print_verbose
 
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
   add_bias_perturbation=.false.  !  not fully activated yet--testing new adjustment of ps perturbions 1st
 
   if(ntlevs_ens > 1) then
@@ -229,9 +233,11 @@ subroutine get_gefs_for_regional
         write(6,*) ' sighead%latf,sighead%lonf=',sighead%latf,sighead%lonf
         write(6,*) ' sighead%idvc,sighead%nvcoord=',sighead%idvc,sighead%nvcoord
         write(6,*) ' sighead%idsl=',sighead%idsl
-        do k=1,sighead%levs+1
-           write(6,*)' k,vcoord=',k,sighead%vcoord(k,:)
-        end do
+        if(print_verbose)then
+           do k=1,sighead%levs+1
+              write(6,*)' k,vcoord=',k,sighead%vcoord(k,:)
+           end do
+        end if
      end if
 
      nlat_gfs=sighead%latf+2
@@ -407,7 +413,7 @@ subroutine get_gefs_for_regional
      endif
   end if
 
-  if(mype == 0)then
+  if(mype == 0 .and. print_verbose)then
      do k=1,nsig_gfs+1
         write(6,*)' ak5,bk5,ck5=',ak5(k),bk5(k),ck5(k)
      end do

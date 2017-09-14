@@ -43,7 +43,7 @@ PROGRAM Compute_RadDiag_Stats
   ! Parameters
   CHARACTER(*), PARAMETER :: PROGRAM_NAME = 'Compute_RadDiag_Stats'
   CHARACTER(*), PARAMETER :: PROGRAM_VERSION_ID = &
-  '$Id$'
+  '$Id: Compute_RadDiag_Stats.f90 9040 2010-07-29 17:01:49Z Michael.Lueken@noaa.gov $'
   
   CHARACTER(*), PARAMETER :: RadDiag_Prefix='diag'
   REAL(sp),     PARAMETER :: ZERO = 0.0_sp                   
@@ -95,7 +95,7 @@ PROGRAM Compute_RadDiag_Stats
   CALL Program_Message( PROGRAM_NAME, &
                         'Program to read GSI radiance diagnostic (RadDiag) files and '//&
                         'compute various statistics over scan position and time.', &
-                        '$Revision$' )
+                        '$Revision: 9040 $' )
   
  ! Get the RadDiag_Stats output filename
   WRITE( *,FMT='("Enter prefix for output filename: ")', ADVANCE='NO' )

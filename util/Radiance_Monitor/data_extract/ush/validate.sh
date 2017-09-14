@@ -39,8 +39,8 @@ echo "       TEST:  RADMON_SUFFIX   = $RADMON_SUFFIX"
 #
 #  Get the gdas_radmon_base.tar file and open it
 #
-#   cp ~/nbns/stats/${RADMON_SUFFIX}/info/gdas_radmon_base.tar* .
-   cp /nwprod2/gdas_radmon.v2.0.2/fix/gdas_radmon_base.tar .
+   cp ${TANKverf}/info/${RUN}_radmon_base.tar* .
+#   cp /nwprod2/gdas_radmon.v2.0.2/fix/gdas_radmon_base.tar .
    if [[ -s gdas_radmon_base.tar.gz ]]; then
       gunzip gdas_radmon_base.tar.gz
    fi
