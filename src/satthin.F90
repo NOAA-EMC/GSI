@@ -425,10 +425,10 @@ contains
 !   2014-10-05  todling - revisit bkg bias-tskin; rename bkg-bias-related interface
 !   2014-12-03  derber  - modify reading of surface fields
 !   2015-05-01  li      - modify to handle the single precision sfc fields read from sfc file
-!   2017-08-31  li      - modify to read fv3 regriding sfc history file
+!   2017-08-31  li      - modify to read a combined sfc & nst file
 !                         (1) move gsi_nstcoupler_init and gsi_nstcoupler_read from read_obs.F90 to getsfc here
-!                         (2) use use_fv3hist_nemsio from name list
-!                         (3) modify subroutine getsfc to read fv3 regriding sfc history file (both sfc & nst vars) 
+!                         (2) use sfcnst_combined from name list
+!                         (3) modify subroutine getsfc to read a sfc & nst combined file
 !
 !   input argument list:
 !      mype        - current processor
@@ -447,7 +447,7 @@ contains
     use gridmod, only:  nlat,nlon,lat2,lon2,lat1,lon1,jstart,&
        iglobal,itotsub,ijn,displs_g,regional,istart, &
        rlats,rlons,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc,strip,&
-       use_gfs_nemsio,use_fv3hist_nemsio,use_readin_anl_sfcmask
+       sfcnst_comb,sfcnst_comb,use_readin_anl_sfcmask
     use general_commvars_mod, only: ltosi,ltosj
     use guess_grids, only: ntguessig,isli,sfct,sno,fact10, &
        nfldsfc,ntguessfc,soil_moi,soil_temp,veg_type,soil_type, &
@@ -458,12 +458,12 @@ contains
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype,mpi_rtype4
     use constants, only: zero,half,pi,two,one
     use ncepgfs_io, only: read_gfssfc,read_gfssfc_anl
-    use ncepnems_io, only: read_nemssfc,intrp22,read_nemssfc_anl,read_nems_sfchist
+    use ncepnems_io, only: read_nemssfc,intrp22,read_nemssfc_anl,read_nems_sfcnst
     use sfcio_module, only: sfcio_realfill
     use obsmod, only: lobserver
     use gsi_nstcouplermod, only: nst_gsi,gsi_nstcoupler_init,gsi_nstcoupler_read
-    use gsi_nstcouplermod,     only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
-                                     c_0_full,c_d_full,w_0_full,w_d_full
+    use gsi_nstcouplermod, only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
+                                 c_0_full,c_d_full,w_0_full,w_d_full
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     implicit none
@@ -547,11 +547,11 @@ contains
 
        allocate(zs_full_gfs(nlat_sfc,nlon_sfc))
 
-       if ( use_gfs_nemsio ) then
+       if ( sfcnst_comb ) then
 
-          if ( use_fv3hist_nemsio .and. nst_gsi > 0 ) then
+          if ( sfcnst_comb .and. nst_gsi > 0 ) then
 
-             call read_nems_sfchist(mype_io, &
+             call read_nems_sfcnst(mype_io, &
                 sst_full,soil_moi_full,sno_full,soil_temp_full, &
                 veg_frac_full,fact10_full,sfc_rough_full, &
                 tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,c_0_full,c_d_full,w_0_full,w_d_full, &
@@ -561,7 +561,7 @@ contains
                 sst_full,soil_moi_full,sno_full,soil_temp_full, &
                 veg_frac_full,fact10_full,sfc_rough_full, &
                 veg_type_full,soil_type_full,zs_full_gfs,isli_full,use_sfc_any)
-          endif         ! if ( use_fv3hist_nemsio ) then
+          endif         ! if ( sfcnst_comb ) then
 
           if ( use_readin_anl_sfcmask ) then
              call read_nemssfc_anl(mype_io,isli_anl)
@@ -579,7 +579,7 @@ contains
 
        end if
 
-       if (nst_gsi > 0 .and. .not. use_fv3hist_nemsio) then
+       if (nst_gsi > 0 .and. .not. sfcnst_comb) then
           call gsi_nstcoupler_read(mype_io)         ! Read NST fields (each proc needs full NST fields)
        endif
 

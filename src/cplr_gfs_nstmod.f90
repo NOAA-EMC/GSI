@@ -19,7 +19,7 @@
 subroutine nst_init_()
 
      use mpimod,      only: mype
-     use gridmod,     only: nlat_sfc,nlon_sfc, nlat, nlon
+     use gridmod,     only: nlat_sfc,nlon_sfc, nlat, nlon, sfcnst_comb
      use guess_grids, only: nfldnst, ntguesnst
      use gsi_nstcouplermod,     only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
                                       c_0_full,c_d_full,w_0_full,w_d_full
@@ -37,13 +37,13 @@ subroutine nst_init_()
      if(.not.allocated(w_0_full))     allocate(w_0_full     (nlat_sfc,nlon_sfc,nfldnst))
      if(.not.allocated(w_d_full))     allocate(w_d_full     (nlat_sfc,nlon_sfc,nfldnst))
 
-     if( ntguesnst < 1 .or. ntguesnst > nfldnst ) then 
+     if( (ntguesnst < 1 .or. ntguesnst > nfldnst) .and. .not. sfcnst_comb ) then 
             call perr('nst_init','ntguesnst = ',ntguesnst)
             call  die('nst_init')
      endif
 
-     if(mype == 0)write(6,*)'GETNST: enter with nlat_sfc,nlon_sfc=',nlat_sfc,nlon_sfc,&
-                            ' and nlat,nlon=',nlat,nlon
+     if(mype == 0)write(6,*)'set NST arrays: nlat_sfc,nlon_sfc=',nlat_sfc,nlon_sfc,&
+                            ' and nlat,nlon=',nlat,nlon,'nfldnst ; ',nfldnst,'ntguesnst ; ',ntguesnst
 
 end subroutine nst_init_
 !*******************************************************************************************
