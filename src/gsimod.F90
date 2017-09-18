@@ -340,7 +340,7 @@
 !                              operator for surface observations along the coastline area
 !  04-01-2017 Hu        added option i_gsdqc to turn on special observation qc
 !                              from GSD (for RAP/HRRR application)
-!  08-31-2017 Li        add sfcnst_comb for option to read sfc & nst combined file
+!  08-31-2017 Li        add sfcnst_comb for option to read sfc & nst combined file 
 !
 !EOP
 !-------------------------------------------------------------------------
