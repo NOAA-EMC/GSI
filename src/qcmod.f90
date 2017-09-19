@@ -65,6 +65,7 @@ module qcmod
 !   2016-10-20  acollard- Ensure AMSU-A channels 1-6,15 are not assimilated if
 !                         any of these are missing.
 !   2016-11-22  sienkiewicz - fix a couple of typos in HIRS qc
+!   2016-12-14  lippi   - add nml option vadwnd_l2rw_qc.
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -157,6 +158,7 @@ module qcmod
             ifail_gross_qc,ifail_cloud_qc,ifail_outside_range,ifail_scanedge_qc
 
   public :: buddycheck_t,buddydiag_save,closest_obs
+  public :: vadwnd_l2rw_qc
 
   logical nlnqc_iter,njqc,vqc
   logical noiqc
@@ -169,6 +171,7 @@ module qcmod
   logical buddycheck_t
   logical buddydiag_save
   logical closest_obs
+  logical vadwnd_l2rw_qc
 
   character(10):: vadfile
   integer(i_kind) npres_print
@@ -358,7 +361,10 @@ contains
     buddycheck_t=.false.   ! When true, run buddy check algorithm on temperature observations
     buddydiag_save=.false. ! When true, output files containing buddy check QC info for all
                            !  obs run through the buddy check
+
     closest_obs=.false.    ! When true, select timely nearest obs.
+
+    vadwnd_l2rw_qc=.true.  ! When false, DO NOT run the vadwnd qc on level 2 radial wind obs.
 
     return
   end subroutine init_qcvars

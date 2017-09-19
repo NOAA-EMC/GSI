@@ -60,6 +60,10 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
 !   2014-12-30  derber - Modify for possibility of not using obsdiag
 !   2015-10-01  guo   - full res obvsr: index to allow redistribution of obsdiags
+!   2016-06-23  lippi  - Add vertical velocity to observation operator. Now,
+!                        costilt is multiplied here instead of factored into wij.
+!                        nml option include_w is used. Add a conditional to use 
+!                        maginnov and magoberr parameters from single ob namelist.   
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
 !                       . removed (%dlat,%dlon) debris.
@@ -90,6 +94,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
+  use oneobmod, only: magoberr,maginnov,oneobtest
   use qcmod, only: npres_print,ptop,pbot,tdrerr_inflate
   use guess_grids, only: hrdifsig,geop_hgtl,nfldsig,&
        ges_lnprsl,sfcmod_gfs,sfcmod_mm5,comp_fact10
@@ -132,6 +137,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) sin2,termg,termr,termrg
   real(r_kind) psges,zsges,zsges0
   real(r_kind),dimension(nsig):: zges,hges,ugesprofile,vgesprofile
+  real(r_kind),dimension(nsig):: wgesprofile!,vTgesprofile,refgesprofile
   real(r_kind) prsltmp(nsig)
   real(r_kind) sfcchk  
   real(r_kind) residual,obserrlm,obserror,ratio,scale,val2
@@ -140,10 +146,10 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) cg_w,wgross,wnotgross,wgt,arg,exp_arg,term,rat_err2
   real(r_double) rstation_id
   real(r_kind) dlat,dlon,dtime,dpres,ddiff,error,slat
-  real(r_kind) sinazm,cosazm,costilt
+  real(r_kind) sinazm,cosazm,sintilt,costilt,cosazm_costilt,sinazm_costilt
   real(r_kind) ratio_errors,qcgross
-  real(r_kind) ugesin,vgesin,factw,skint,sfcr
-  real(r_kind) rwwind,presw
+  real(r_kind) ugesin,vgesin,wgesin,factw,skint,sfcr
+  real(r_kind) rwwind,presw,Vr
   real(r_kind) errinv_input,errinv_adjst,errinv_final
   real(r_kind) err_input,err_adjst,err_final
   real(r_kind),dimension(nele,nobs):: data
@@ -162,6 +168,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   logical,dimension(nobs):: luse,muse
   integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
   logical proceed
+  logical include_w
 
   equivalence(rstation_id,station_id)
   real(r_kind) addelev,wrange,beamdepth,elevtop,elevbot
@@ -182,9 +189,10 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_u
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_v
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_w
 
 ! Check to see if required guess fields are available
-  call check_vars_(proceed)
+  call check_vars_(proceed,include_w)
   if(.not.proceed) return  ! not all vars available, simply return
 
 ! If require guess vars available, extract from bundle ...
@@ -222,6 +230,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   numequal=0
   numnotequal=0
+
 
 ! If requested, save select data for output to diagnostic file
   if(conv_diagsave)then
@@ -491,29 +500,44 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
      if(dpres < zero .or. dpres > rsig)ratio_errors = zero
 
-!    Interpolate guess u and v to observation location and time.
+!    Interpolate guess u, v, and w to observation location and time.
      call tintrp31(ges_u,ugesin,dlat,dlon,dpres,dtime,&
           hrdifsig,mype,nfldsig)
      call tintrp31(ges_v,vgesin,dlat,dlon,dpres,dtime,&
           hrdifsig,mype,nfldsig)
+     if(include_w) then
+          call tintrp31(ges_w,wgesin,dlat,dlon,dpres,dtime,&
+          hrdifsig,mype,nfldsig)
+     end if
+
      call tintrp2a1(ges_u,ugesprofile,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
      call tintrp2a1(ges_v,vgesprofile,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
-     
-
+     if(include_w) then 
+          call tintrp2a1(ges_w,wgesprofile,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig) 
+     end if
 
 !    Convert guess u,v wind components to radial value consident with obs
      cosazm  = cos(data(iazm,i))  ! cos(azimuth angle)
      sinazm  = sin(data(iazm,i))  ! sin(azimuth angle)
-     costilt = cos(data(itilt,i))  ! cos(tilt angle)
+     costilt = cos(data(itilt,i)) ! cos(tilt angle)
+     sintilt = sin(data(itilt,i)) ! sin(tilt angle)
+     cosazm_costilt = cosazm*costilt
+     sinazm_costilt = sinazm*costilt
+     !vTgesprofile= 5.40_r_kind*(exp((refgesprofile -43.1_r_kind)/17.5_r_kind)) 
 !    rwwind = (ugesin*cosazm+vgesin*sinazm)*costilt*factw
      umaxmax=-huge(umaxmax)
      uminmin=huge(uminmin)
      kminmin=kbeambot
      kmaxmax=kbeamtop
      do k=kbeambot,kbeamtop
-        rwwindprofile=(ugesprofile(k)*cosazm+vgesprofile(k)*sinazm)*costilt
+        rwwindprofile=ugesprofile(k)*cosazm_costilt+vgesprofile(k)*sinazm_costilt
+        if(include_w) then
+           rwwindprofile=rwwindprofile+wgesprofile(k)*sintilt 
+        end if
+        
         if(umaxmax<rwwindprofile) then
            umaxmax=rwwindprofile
            kmaxmax=k
@@ -539,6 +563,15 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end if
      
      ddiff = data(irwob,i) - rwwind
+
+!    If requested, setup for single obs test.
+     if(oneobtest) then
+        ddiff=maginnov
+        Vr=ddiff+rwwind
+        error=one/magoberr
+        ratio_errors=one
+     end if
+
 
 !    adjust obs error for TDR data
      if(data(iobs_type,i) > three .and. ratio_errors*error > tiny_r_kind &
@@ -643,11 +676,12 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         call get_ijk(mm1,dlat,dlon,dpres,my_head%ij,my_head%wij)
 
         do j=1,8
-           my_head%wij(j)=factw*costilt*my_head%wij(j)  
+           my_head%wij(j)=factw*my_head%wij(j)  
         end do
         my_head%raterr2 = ratio_errors**2  
-        my_head%cosazm  = cosazm
-        my_head%sinazm  = sinazm
+        my_head%cosazm_costilt = cosazm_costilt
+        my_head%sinazm_costilt = sinazm_costilt
+        my_head%sintilt = sintilt
         my_head%res     = ddiff
         my_head%err2    = error**2
         my_head%time    = dtime
@@ -770,8 +804,9 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   return
   contains
 
-  subroutine check_vars_ (proceed)
+  subroutine check_vars_ (proceed, include_w)
   logical,intent(inout) :: proceed
+  logical,intent(inout) :: include_w
   integer(i_kind) ivar, istatus
 ! Check to see if required guess fields are available
   call gsi_metguess_get ('var::ps', ivar, istatus )
@@ -782,6 +817,12 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   proceed=proceed.and.ivar>0
   call gsi_metguess_get ('var::v' , ivar, istatus )
   proceed=proceed.and.ivar>0
+  call gsi_metguess_get ('var::w' , ivar, istatus )
+  if (ivar>0) then
+     include_w=.true.
+  else
+     include_w=.false.
+  endif
   end subroutine check_vars_ 
 
   subroutine init_vars_
@@ -865,6 +906,26 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
          write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
          call stop2(999)
      endif
+!    get w ...
+     if(include_w) then
+        varname='w'
+        call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+        if (istatus==0) then
+            if(allocated(ges_w))then
+               write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+               call stop2(999)
+            endif
+            allocate(ges_w(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+            ges_w(:,:,:,1)=rank3
+            do ifld=2,nfldsig
+               call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+               ges_w(:,:,:,ifld)=rank3
+            enddo
+        else
+            write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle,ier= ',istatus
+            call stop2(999)
+        endif
+     end if
   else
      write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(metguess_bundle) ',&
                  nfldsig,size(gsi_metguess_bundle)
@@ -873,6 +934,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end subroutine init_vars_
 
   subroutine final_vars_
+    if(allocated(ges_w )) deallocate(ges_w )
     if(allocated(ges_v )) deallocate(ges_v )
     if(allocated(ges_u )) deallocate(ges_u )
     if(allocated(ges_z )) deallocate(ges_z )
