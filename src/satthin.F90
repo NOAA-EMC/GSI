@@ -427,7 +427,7 @@ contains
 !   2015-05-01  li      - modify to handle the single precision sfc fields read from sfc file
 !   2017-08-31  li      - modify to read a combined sfc & nst file
 !                         (1) move gsi_nstcoupler_init and gsi_nstcoupler_read from read_obs.F90 to getsfc here
-!                         (2) use sfcnst_combined from name list
+!                         (2) use sfcnst_comb from name list
 !                         (3) modify subroutine getsfc to read a sfc & nst combined file
 !
 !   input argument list:
