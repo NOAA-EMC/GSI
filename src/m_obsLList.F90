@@ -93,8 +93,6 @@ module m_obsLList
 
   character(len=*),parameter:: MYNAME="m_obsLList"
 
-!#define CHECKSUM_VERBOSE
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains
@@ -582,20 +580,6 @@ _ENTRY_(myname_)
 
   jtype=itype
   jbin =ibin
-#ifdef CHECKSUM_VERBOSE
-  if(headLL%n_alloc>0) then
-    jtype=0
-    jbin =0
-    if(present(itype)) jtype=itype
-    if(present(ibin )) jbin =ibin
-
-    if(nooo/=0.or.ndup/=0) then
-      write(stdout,'(a,2x,2i4,5i6,2i10,a)') stdout_lead(myname_,''),jtype,jbin,headLL%n_alloc,lrecount,nuse,nooo,ndup,ksum,' >>> WARNING <<<'
-    else
-      write(stdout,'(a,2x,2i4,5i6,2i10  )') stdout_lead(myname_,''),jtype,jbin,headLL%n_alloc,lrecount,nuse,nooo,ndup,ksum
-    endif
-  endif
-#endif
 _EXIT_(myname_)
 return
 end subroutine lchecksum_
@@ -808,7 +792,6 @@ end function compare_
 
 subroutine lsort_(headLL,itype,ibin)
 !       lsort_: node-sort diagLL, to line-up nodes according to their keys
-!_DEBUG_USE_
 !_TIMER_USE_
 !  use timermod , only: timer_ini,timer_fnl
   use mpeu_util, only: IndexSet
@@ -824,9 +807,6 @@ subroutine lsort_(headLL,itype,ibin)
   integer(kind=i_kind),allocatable,dimension(:):: indx,idv_,iob_
   integer(kind=i_kind):: i,n
   logical:: sorted
-#ifdef DEBUG_VERIFY
-  logical:: good
-#endif
 
   type fptr_of_obsnode
     class(obsNode),pointer:: ptr
@@ -867,27 +847,6 @@ _ENTRY_(myname_)
   call IndexSort(indx,iob_)
   call IndexSort(indx,idv_)
   lookup(1:n) = lookup(indx(1:n))
-
-#ifdef DEBUG_VERIFY
-  idv_(1:n) = idv_(indx(1:n))
-  iob_(1:n) = iob_(indx(1:n))
-
-  good = .true.
-  do i=1,n
-    pNode => lookup(i)%ptr
-    good = pNode%idv==idv_(i) .and. pNode%iob==iob_(i)
-        if(.not.good) exit
-  enddo
-
-        if(.not.good) then
-          call perr(myname_,'at lookup(i)%ptr, i =',i)
-          call perr(myname_,'               %idv =',pNode%idv)
-          call perr(myname_,'               idv_ =',idv_(i))
-          call perr(myname_,'               %iob =',pNode%iob)
-          call perr(myname_,'               iob_ =',iob_(i))
-          call  die(myname_,'failed verification')
-        endif
-#endif
 
   deallocate(indx,idv_,iob_)
 

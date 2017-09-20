@@ -404,6 +404,7 @@ contains
 !EOP
 !-------------------------------------------------------------------------
     use constants, only: two
+    use gsi_io, only: verbose
     implicit none
 
     integer(i_kind) k
@@ -445,6 +446,7 @@ contains
     lon2 = lon1+2
 
     diagnostic_reg = .false.
+    if(verbose)diagnostic_reg = .true.
     update_regsfc = .false.
     nlon_regional = 0
     nlat_regional = 0
@@ -493,6 +495,7 @@ contains
 
     use mpeu_util, only: getindex
     use general_specmod, only: spec_cut
+    use gsi_io, only: verbose
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -534,7 +537,10 @@ contains
     integer(i_kind) n3d,n2d,nvars,tid,nth
     integer(i_kind) ipsf,ipvp,jpsf,jpvp,isfb,isfe,ivpb,ivpe
     logical,allocatable,dimension(:):: vector
+    logical print_verbose
 
+    print_verbose=.false. .and. mype == 0
+    if(verbose .and. mype == 0)print_verbose=.true.
     spec_cut=jcap_cut
     if(jcap==62) gencode=80.0_r_kind
     ns1=2*nsig+1
@@ -649,11 +655,11 @@ contains
     nth = omp_get_max_threads()
 !#omp end parallel
     nthreads=nth
-    if(mype == 0)write(6,*) 'INIT_GRID_VARS:  number of threads ',nthreads
+    if(print_verbose)write(6,*) 'INIT_GRID_VARS:  number of threads ',nthreads
     allocate(jtstart(nthreads),jtstop(nthreads))
     do tid=1,nthreads
        call looplimits(tid-1, nthreads, 1, lon2, jtstart(tid), jtstop(tid))
-       if(mype == 0)write(6,*)'INIT_GRID_VARS:  for thread ',tid,  &
+       if(print_verbose)write(6,*)'INIT_GRID_VARS:  for thread ',tid,  &
             ' jtstart,jtstop = ',jtstart(tid),jtstop(tid)
     end do
 
@@ -1078,13 +1084,15 @@ contains
        
        regional_fhr=zero  !  with wrf nmm fcst hr is not currently available.
 
-       if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') &
+       if(diagnostic_reg.and.mype==0) then
+           write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') &
                 regional_time
-       if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, nlon_regional=",i6)') &
+           write(6,'(" in init_reg_glob_ll, nlon_regional=",i6)') &
                 nlon_regional
-       if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, nlat_regional=",i6)') &
+           write(6,'(" in init_reg_glob_ll, nlat_regional=",i6)') &
                 nlat_regional
-       if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, nsig=",i6)') nsig 
+           write(6,'(" in init_reg_glob_ll, nsig=",i6)') nsig 
+       end if
  
 ! Get vertical info for hybrid coordinate and sigma coordinate we will interpolate to
        allocate(aeta1_ll(nsig),eta1_ll(nsig+1),aeta2_ll(nsig),eta2_ll(nsig+1))
@@ -1098,8 +1106,8 @@ contains
        read(lendian_in) aeta2
        read(lendian_in) eta2
 
-       if(diagnostic_reg.and.mype==0) write(6,*)' in init_reg_glob_ll, pdtop,pt=',pdtop,pt
        if(diagnostic_reg.and.mype==0) then
+          write(6,*)' in init_reg_glob_ll, pdtop,pt=',pdtop,pt
           write(6,*)' in init_reg_glob_ll, aeta1 aeta2 follow:'
           do k=1,nsig
              write(6,'(" k,aeta1,aeta2=",i3,2f10.4)') k,aeta1(k),aeta2(k)
@@ -1255,14 +1263,13 @@ contains
        read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig,pt,nsig_soil 
        regional_fhr=zero  !  with wrf mass core fcst hr is not currently available.
 
-       if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') &
-                regional_time
-       if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, nlon_regional=",i6)') &
-                nlon_regional
-       if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, nlat_regional=",i6)') &
-                nlat_regional
-       if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, nsig=",i6)') nsig 
-       if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, nsig_soil=",i6)') nsig_soil 
+       if(diagnostic_reg.and.mype==0) then
+          write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') regional_time
+          write(6,'(" in init_reg_glob_ll, nlon_regional=",i6)') nlon_regional
+          write(6,'(" in init_reg_glob_ll, nlat_regional=",i6)') nlat_regional
+          write(6,'(" in init_reg_glob_ll, nsig=",i6)') nsig 
+          write(6,'(" in init_reg_glob_ll, nsig_soil=",i6)') nsig_soil 
+       end if
  
        call init_wrfmass_to_a(grid_ratio_wrfmass,nlon_regional,nlat_regional)
        nlon=nxa_wrfmass ; nlat=nya_wrfmass
@@ -1277,8 +1284,9 @@ contains
        read(lendian_in) aeta1,aeta2
        read(lendian_in) eta1,eta2
  
-       if(diagnostic_reg.and.mype==0) write(6,*)' in init_reg_glob_ll, pt=',pt
+       pt_ll=r0_01*pt                    !  check units--this converts to mb
        if(diagnostic_reg.and.mype==0) then
+          write(6,*)' in init_reg_glob_ll, pt=',pt
           write(6,*)' in init_reg_glob_ll, aeta1,aeta2 follows:'
           do k=1,nsig
              write(6,'(" k,aeta1=",i3,2f10.4)') k,aeta1(k),aeta2(k)
@@ -1287,11 +1295,10 @@ contains
           do k=1,nsig+1
              write(6,'(" k,eta1=",i3,2f10.4)') k,eta1(k),eta2(k)
           end do
+          write(6,*)' in init_reg_glob_ll, pt_ll=',pt_ll
        end if
 
-       pt_ll=r0_01*pt                    !  check units--this converts to mb
 
-       if(diagnostic_reg.and.mype==0) write(6,*)' in init_reg_glob_ll, pt_ll=',pt_ll
        eta1_ll=eta1
        aeta1_ll=aeta1
        eta2_ll=eta2*r0_01
@@ -1395,13 +1402,12 @@ contains
        read(lendian_in) regional_time,regional_fhr,nlon_regional,nlat_regional,nsig, &
                    dlmd,dphd,pt,pdtop,nmmb_verttype
  
-       if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') &
-                regional_time
-       if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, nlon_regional=",i6)') &
-                nlon_regional
-       if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, nlat_regional=",i6)') &
-                nlat_regional
-       if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, nsig=",i6)') nsig
+       if(diagnostic_reg.and.mype==0) then
+          write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') regional_time
+          write(6,'(" in init_reg_glob_ll, nlon_regional=",i6)') nlon_regional
+          write(6,'(" in init_reg_glob_ll, nlat_regional=",i6)') nlat_regional
+          write(6,'(" in init_reg_glob_ll, nsig=",i6)') nsig
+       end if
  
        call init_nmmb_to_a(nmmb_reference_grid,grid_ratio_nmmb,nlon_regional,nlat_regional)
        nlon=nxa ; nlat=nya
@@ -1445,8 +1451,8 @@ contains
        read(lendian_in) aeta2
        read(lendian_in) eta2
 
-       if(diagnostic_reg.and.mype==0) write(6,*)' in init_reg_glob_ll, pdtop,pt=',pdtop,pt
        if(diagnostic_reg.and.mype==0) then
+          write(6,*)' in init_reg_glob_ll, pdtop,pt=',pdtop,pt
           write(6,*)' in init_reg_glob_ll, aeta1 aeta2 follow:'
           do k=1,nsig
              write(6,'(" k,aeta1,aeta2=",i3,2f10.4)') k,aeta1(k),aeta2(k)
@@ -1696,13 +1702,12 @@ contains
        read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig
        regional_fhr=zero  !  with twodvar analysis fcst hr is not currently available.
  
-       if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') &
-                regional_time
-       if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, nlon_regional=",i6)') &
-                nlon_regional
-       if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, nlat_regional=",i6)') &
-                nlat_regional
-       if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, nsig=",i6)') nsig 
+       if(diagnostic_reg.and.mype==0) then
+           write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)')regional_time
+           write(6,'(" in init_reg_glob_ll, nlon_regional=",i6)') nlon_regional
+           write(6,'(" in init_reg_glob_ll, nlat_regional=",i6)') nlat_regional
+           write(6,'(" in init_reg_glob_ll, nsig=",i6)') nsig 
+       end if
  
 ! Get vertical info 
        allocate(aeta1_ll(nsig),eta1_ll(nsig+1))

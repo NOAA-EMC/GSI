@@ -13,6 +13,7 @@ module GSI_BundleMod
    use constants, only: zero_single,zero,zero_quad
    use m_rerank, only: rerank
    use mpeu_util, only: perr, die
+   use gsi_io, only: verbose
 
    implicit none
    private
@@ -339,7 +340,6 @@ module GSI_BundleMod
 !noBOC
 
    character(len=*), parameter :: myname='GSI_BundleMod'
-   logical, parameter :: VERBOSE_=.false.
    integer, parameter :: bundle_kind_def = r_kind ! default kind
 
 CONTAINS
@@ -3121,7 +3121,7 @@ CONTAINS
           deallocate(idi,ido)
        endif
     endif
-    if(verbose_) print*, 'complete merge'
+    if(verbose) print*, 'complete merge'
 
   end subroutine merge_
 !noEOC

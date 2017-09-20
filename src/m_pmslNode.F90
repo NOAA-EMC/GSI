@@ -73,8 +73,6 @@ module m_pmslNode
  
   character(len=*),parameter:: MYNAME="m_pmslNode"
 
-!#define CHECKSUM_VERBOSE
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains

@@ -303,6 +303,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
   use mpeu_util, only: getindex
   use constants, only: zero,max_varname_length
   use obsmod, only: dval_use
+  use gsi_io, only: verbose
 
   implicit none
 
@@ -326,8 +327,12 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
   integer(i_kind) :: j,icount
   integer(i_kind) :: ig
   integer(i_kind) :: n_absorbers
+  logical quiet
+  logical print_verbose
 
 
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
   isst=-1
   ivs=-1
   ius=-1
@@ -515,16 +520,19 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
 ! Initialize radiative transfer
 
  sensorlist(1)=isis
+ quiet=.not. print_verbose
  if( crtm_coeffs_path /= "" ) then
-    if(init_pass .and. mype==mype_diaghdr) write(6,*)myname_,': crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
+    if(init_pass .and. mype==mype_diaghdr .and. print_verbose) &
+        write(6,*)myname_,': crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
     error_status = crtm_init(sensorlist,channelinfo,&
        Process_ID=mype,Output_Process_ID=mype_diaghdr, &
        Load_CloudCoeff=Load_CloudCoeff,Load_AerosolCoeff=Load_AerosolCoeff, &
-       File_Path = crtm_coeffs_path )
+       File_Path = crtm_coeffs_path,quiet=quiet )
  else
     error_status = crtm_init(sensorlist,channelinfo,&
        Process_ID=mype,Output_Process_ID=mype_diaghdr, &
-       Load_CloudCoeff=Load_CloudCoeff,Load_AerosolCoeff=Load_AerosolCoeff)
+       Load_CloudCoeff=Load_CloudCoeff,Load_AerosolCoeff=Load_AerosolCoeff,&
+       quiet=quiet)
  endif
  if (error_status /= success) then
     write(6,*)myname_,':  ***ERROR*** crtm_init error_status=',error_status,&

@@ -105,7 +105,7 @@ contains
          nsig,nsig_soil,eta1_ll,pt_ll,itotsub,aeta1_ll,eta2_ll,aeta2_ll
     use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,h300,r10,r100
     use constants, only: r0_01
-    use gsi_io, only: lendian_in
+    use gsi_io, only: lendian_in,verbose
     use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge,i_use_2mq4b,i_use_2mt4b
     use wrf_mass_guess_mod, only: soil_temp_cld,isli_cld,ges_xlon,ges_xlat,ges_tten,create_cld_grids
     use gsi_bundlemod, only: GSI_BundleGetPointer
@@ -193,6 +193,7 @@ contains
   
     integer(i_kind) iadd
     character(132) memoryorder
+    logical print_verbose
   
   !  WRF MASS input grid dimensions in module gridmod
   !      These are the following:
@@ -200,6 +201,8 @@ contains
   !          jm -- number of y-points on C-grid
   !          lm -- number of vertical levels ( = nsig for now)
   
+       print_verbose = .false. ! want to turn to true only on mype == 0 for printout
+       if(verbose .and. mype == 0)print_verbose=.true.
        num_doubtful_sfct=0
   
        rad2deg_single=45.0_r_single/atan(1.0_r_single)
@@ -213,7 +216,7 @@ contains
           call stop2(1)
        endif
   
-       if(mype==0) write(6,*)' in read_wrf_mass_binary_guess, im,jm,lm=',im,jm,lm
+       if(print_verbose) write(6,*)' in read_wrf_mass_binary_guess, im,jm,lm=',im,jm,lm
   
   !    Inquire about cloud guess fields
        call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
@@ -238,12 +241,14 @@ contains
        if(l_cloud_analysis .and. n_actual_clouds>0) num_mass_fields=num_mass_fields+9*lm+2    
        if(l_gsd_soilTQ_nudge) num_mass_fields=num_mass_fields+2
        num_loc_groups=num_mass_fields/npe
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, lm            =",i6)')lm
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, nsig_soil     =",i6)')nsig_soil
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, num_mass_fields=",i6)')num_mass_fields
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, nfldsig       =",i6)')nfldsig
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, npe           =",i6)')npe
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, num_loc_groups=",i6)')num_loc_groups
+       if(print_verbose) then
+          write(6,'(" read_wrf_mass_guess: lm            =",i6)')lm
+          write(6,'(" read_wrf_mass_guess: nsig_soil     =",i6)')nsig_soil
+          write(6,'(" read_wrf_mass_guess: num_mass_fields=",i6)')num_mass_fields
+          write(6,'(" read_wrf_mass_guess: nfldsig       =",i6)')nfldsig
+          write(6,'(" read_wrf_mass_guess: npe           =",i6)')npe
+          write(6,'(" read_wrf_mass_guess: num_loc_groups=",i6)')num_loc_groups
+       end if
   
        allocate(offset(num_mass_fields))
        allocate(igtype(num_mass_fields),kdim(num_mass_fields),kord(num_mass_fields))
@@ -267,11 +272,13 @@ contains
        do it=1,nfldsig
           write(filename,'("sigf",i2.2)')ifilesig(it)
           open(lendian_in,file=filename,form='unformatted') ; rewind lendian_in
-          write(6,*)'READ_WRF_MASS_BINARY_GUESS:  open lendian_in=',lendian_in,&
+          if(print_verbose)then
+             write(6,*)'READ_WRF_MASS_BINARY_GUESS:  open lendian_in=',lendian_in,&
                ' to filename=',filename,' on it=',it
-          if(mype == 0) write(6,*)'READ_WRF_MASS_OFFSET_FILE:  open lendian_in=',lendian_in,' to file=',filename
+             write(6,*)'READ_WRF_MASS_OFFSET_FILE:  open lendian_in=',lendian_in,' to file=',filename
+          end if
           read(lendian_in) dummy9,pt_regional_single
-          write(6,*)'READ_WRF_MASS_BINARY_GUESS:  dummy9=',dummy9
+          if(print_verbose)write(6,*)'READ_WRF_MASS_BINARY_GUESS:  dummy9=',dummy9
   
   ! get pointers for typical meteorological fields
           ier=0
@@ -324,12 +331,12 @@ contains
              i=i+1 ; i_xlat=i                                                ! xlat
              read(lendian_in) tempa,tempa,n_position
              offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
-             if(mype == 0) write(6,*)' xlat, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+             if(print_verbose) write(6,*)' xlat, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
    
              i=i+1 ; i_xlon=i                                                ! xlon
              read(lendian_in) tempa,tempa,n_position
              offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
-             if(mype == 0) write(6,*)' xlon, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+             if(print_verbose) write(6,*)' xlon, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
              deallocate(tempa)
           else
              do iskip=2,5
@@ -340,17 +347,17 @@ contains
           read(lendian_in) wrfges
           read(lendian_in) ! n_position          !  offset for START_DATE record
   !       if(mype == 0) write(6,*)'READ_WRF_MASS_BINARY_GUESS:  read wrfges,n_position= ',wrfges,' ',n_position
-          if(mype == 0) write(6,*)'READ_WRF_MASS_BINARY_GUESS:  read wrfges= ',wrfges
+          if(print_verbose) write(6,*)'READ_WRF_MASS_BINARY_GUESS:  read wrfges= ',wrfges
           
           i=i+1 ; i_mub=i                                                ! mub
           read(lendian_in) n_position
           offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
-          if(mype == 0) write(6,*)' mub, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+          if(print_verbose) write(6,*)' mub, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
           
           i=i+1 ; i_mu =i                                                ! mu
           read(lendian_in) n_position
           offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
-          if(mype == 0) write(6,*)' mu, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+          if(print_verbose) write(6,*)' mu, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
           
           i_fis=i+1                                               ! sfc geopotential
           read(lendian_in) n_position,memoryorder
@@ -364,7 +371,7 @@ contains
                 kord(i)=1
              end if
              offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm+1
-             if(mype == 0.and.k==1) write(6,*)' sfc geopot i,igtype(i),offset(i),kord(i) = ', &
+             if(print_verbose.and.k==1) write(6,*)' sfc geopot i,igtype(i),offset(i),kord(i) = ', &
                                                                      i,igtype(i),offset(i),kord(i)
           end do
           
@@ -380,7 +387,7 @@ contains
                 kord(i)=1
              end if
              offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
-             if(mype == 0.and.k==1) write(6,*)' temp i,igtype(i),offset(i),kord(i) = ', &
+             if(print_verbose.and.k==1) write(6,*)' temp i,igtype(i),offset(i),kord(i) = ', &
                                                                i,igtype(i),offset(i),kord(i)
           end do
           
@@ -396,7 +403,7 @@ contains
                 kord(i)=1
              end if
              offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
-             if(mype == 0.and.k==1) write(6,*)' q i,igtype(i),offset(i),kord(i) = ', &
+             if(print_verbose.and.k==1) write(6,*)' q i,igtype(i),offset(i),kord(i) = ', &
                                                                i,igtype(i),offset(i),kord(i)
           end do
           
@@ -414,7 +421,7 @@ contains
              offset(i)=n_position+iadd
              igtype(i)=2 ; kdim(i)=lm
              length(i)=(im+1)*jm
-             if(mype == 0.and.k==1) write(6,*)' u i,igtype(i),offset(i),kord(i) = ', &
+             if(print_verbose.and.k==1) write(6,*)' u i,igtype(i),offset(i),kord(i) = ', &
                                                                i,igtype(i),offset(i),kord(i)
           end do
           
@@ -430,54 +437,54 @@ contains
                 kord(i)=1
              end if
              offset(i)=n_position+iadd ; length(i)=im*(jm+1) ; igtype(i)=3 ; kdim(i)=lm
-             if(mype == 0.and.k==1) write(6,*)' v i,igtype(i),offset(i),kord(i) = ', &
+             if(print_verbose.and.k==1) write(6,*)' v i,igtype(i),offset(i),kord(i) = ', &
                                                                i,igtype(i),offset(i),kord(i)
           end do
           
           i=i+1   ; i_sm=i                                              ! landmask
           read(lendian_in) n_position
           offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
-          if(mype == 0) write(6,*)' landmask i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+          if(print_verbose) write(6,*)' landmask i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
           
           i=i+1 ; i_xice=i                                              ! xice
           read(lendian_in) n_position
           offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
-          if(mype == 0) write(6,*)' xice i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+          if(print_verbose) write(6,*)' xice i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
           
           i=i+1 ; i_sst=i                                               ! sst
           read(lendian_in) n_position
           offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
-          if(mype == 0) write(6,*)' sst i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+          if(print_verbose) write(6,*)' sst i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
           
           i=i+1 ; i_ivgtyp=i                                            ! ivgtyp
           read(lendian_in) n_position
           offset(i)=n_position ; length(i)=im*jm ; igtype(i)=-1 ; kdim(i)=1
-          if(mype == 0) write(6,*)' ivgtyp i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+          if(print_verbose) write(6,*)' ivgtyp i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
           
           i=i+1 ; i_isltyp=i                                            ! isltyp
           read(lendian_in) n_position
           offset(i)=n_position ; length(i)=im*jm ; igtype(i)=-1 ; kdim(i)=1
-          if(mype == 0) write(6,*)' isltyp i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+          if(print_verbose) write(6,*)' isltyp i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
           
           i=i+1 ; i_vegfrac=i                                           ! vegfrac
           read(lendian_in) n_position
           offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
-          if(mype == 0) write(6,*)' vegfrac i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+          if(print_verbose) write(6,*)' vegfrac i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
           
           i=i+1 ; i_sno=i                                               ! sno
           read(lendian_in) n_position
           offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
-          if(mype == 0) write(6,*)' sno i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+          if(print_verbose) write(6,*)' sno i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
           
           i=i+1 ; i_u10=i                                               ! u10
           read(lendian_in) n_position
           offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
-          if(mype == 0) write(6,*)' u10 i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+          if(print_verbose) write(6,*)' u10 i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
           
           i=i+1 ; i_v10=i                                               ! v10
           read(lendian_in) n_position
           offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
-          if(mype == 0) write(6,*)' v10 i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+          if(print_verbose) write(6,*)' v10 i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
           
           i=i+1 ; i_smois=i                                             ! smois
           read(lendian_in) n_position,ksize,memoryorder
@@ -487,7 +494,7 @@ contains
              kord(i)=1
           end if
           offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=ksize
-          if(mype == 0) write(6,*)' smois i,igtype(i),offset(i),kord(i) = ', &
+          if(print_verbose) write(6,*)' smois i,igtype(i),offset(i),kord(i) = ', &
                                                                i,igtype(i),offset(i),kord(i)
           do k=2,ksize
              i=i+1
@@ -510,7 +517,7 @@ contains
           end if
   
           offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=ksize
-          if(mype == 0) write(6,*)' tslb i,igtype(i),offset(i),kord(i) = ', &
+          if(print_verbose) write(6,*)' tslb i,igtype(i),offset(i),kord(i) = ', &
                                                                i,igtype(i),offset(i),kord(i)
           do k=2,ksize
              i=i+1
@@ -523,31 +530,31 @@ contains
              end if
   
              offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=ksize
-             if(mype == 0) write(6,*)' i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+             if(print_verbose) write(6,*)' i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
           end do
   
           i=i+1 ; i_tsk=i                                               ! tsk
   
           read(lendian_in) n_position
           offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
-          if(mype == 0) write(6,*)' tsk i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+          if(print_verbose) write(6,*)' tsk i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
   
           i=i+1 ; i_q2=i                                               ! q2 
           read(lendian_in) n_position
           offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
-          if(mype == 0) write(6,*)' q2 i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+          if(print_verbose) write(6,*)' q2 i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
   
           if(l_gsd_soilTQ_nudge) then
              i=i+1 ; i_soilt1=i                                               ! soilt1
              read(lendian_in) n_position
              offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
-             if(mype == 0) write(6,*)' soilt1 i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+             if(print_verbose) write(6,*)' soilt1 i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
           endif
   
           i=i+1 ; i_th2=i                                               ! th2
           read(lendian_in) n_position
           offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
-          if(mype == 0) write(6,*)' th2 i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+          if(print_verbose) write(6,*)' th2 i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
   
   ! for cloud array
           if(l_cloud_analysis .and. n_actual_clouds>0) then
@@ -564,7 +571,7 @@ contains
                    kord(i)=1
                 end if
                 offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
-                if(mype == 0.and.k==1) write(6,*)' qc i,igtype(i),offset(i),kord(i) = ', &
+                if(print_verbose.and.k==1) write(6,*)' qc i,igtype(i),offset(i),kord(i) = ', &
                                                                 i,igtype(i),offset(i),kord(i)
              end do
     
@@ -596,7 +603,7 @@ contains
                    kord(i)=1
                 end if
                 offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
-                if(mype == 0.and.k==1) write(6,*)' qi i,igtype(i),offset(i),kord(i) = ', &
+                if(print_verbose.and.k==1) write(6,*)' qi i,igtype(i),offset(i),kord(i) = ', &
                                                                 i,igtype(i),offset(i),kord(i)
              end do
     
@@ -612,7 +619,7 @@ contains
                    kord(i)=1
                 end if
                 offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
-                if(mype == 0.and.k==1) write(6,*)' qs i,igtype(i),offset(i),kord(i) = ', &
+                if(print_verbose.and.k==1) write(6,*)' qs i,igtype(i),offset(i),kord(i) = ', &
                                                                 i,igtype(i),offset(i),kord(i)
              end do
     
@@ -628,7 +635,7 @@ contains
                    kord(i)=1
                 end if
                 offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
-                if(mype == 0.and.k==1) write(6,*)' qg i,igtype(i),offset(i),kord(i) = ', &
+                if(print_verbose.and.k==1) write(6,*)' qg i,igtype(i),offset(i),kord(i) = ', &
                                                                 i,igtype(i),offset(i),kord(i)
              end do
     
@@ -644,7 +651,7 @@ contains
                    kord(i)=1
                 end if
                 offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
-                if(mype == 0.and.k==1) write(6,*)' qnr i,igtype(i),offset(i),kord(i) = ', &
+                if(print_verbose.and.k==1) write(6,*)' qnr i,igtype(i),offset(i),kord(i) = ', &
                                                                 i,igtype(i),offset(i),kord(i)
              end do
   
@@ -660,7 +667,7 @@ contains
                    kord(i)=1
                 end if
                 offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ;kdim(i)=lm
-                if(mype == 0.and.k==1) write(6,*)' qni i,igtype(i),offset(i),kord(i) = ', &
+                if(print_verbose.and.k==1) write(6,*)' qni i,igtype(i),offset(i),kord(i) = ', &
                                                               i,igtype(i),offset(i),kord(i)
              end do
 
@@ -676,7 +683,7 @@ contains
                    kord(i)=1
                 end if
                 offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1;kdim(i)=lm
-                if(mype == 0.and.k==1) write(6,*)' qnc i,igtype(i),offset(i),kord(i) = ', &
+                if(print_verbose.and.k==1) write(6,*)' qnc i,igtype(i),offset(i),kord(i) = ', &
                                                               i,igtype(i),offset(i),kord(i)
              end do
 
@@ -692,7 +699,7 @@ contains
                    kord(i)=1
                 end if
                 offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
-                if(mype == 0.and.k==1) write(6,*)' tt i,igtype(i),offset(i),kord(i) = ', &
+                if(print_verbose.and.k==1) write(6,*)' tt i,igtype(i),offset(i),kord(i) = ', &
                                                                 i,igtype(i),offset(i),kord(i)
              end do
     
@@ -719,10 +726,10 @@ contains
           do k=0,npe-1
              kend(k)=kbegin(k+1)-1
           end do
-          if(mype == 0) then
-             write(6,*)' kbegin=',kbegin
-             write(6,*)' kend= ',kend
-          end if
+!         if(mype == 0) then
+!            write(6,*)' kbegin=',kbegin
+!            write(6,*)' kend= ',kend
+!         end if
           num_j_groups=jm/npe
           jextra=jm-num_j_groups*npe
           jbegin(0)=1
@@ -737,10 +744,10 @@ contains
           do j=0,npe-1
              jend(j)=min(jbegin(j+1)-1,jm)
           end do
-          if(mype == 0) then
-             write(6,*)' jbegin=',jbegin
-             write(6,*)' jend= ',jend
-          end if
+!         if(mype == 0) then
+!            write(6,*)' jbegin=',jbegin
+!            write(6,*)' jend= ',jend
+!         end if
           
           allocate(ibuf((im+1)*(jm+1),kbegin(mype):kend(mype)))
           call mpi_file_open(mpi_comm_world,trim(wrfges),mpi_mode_rdonly,mpi_info_null,mfcst,ierror)
@@ -1250,10 +1257,12 @@ contains
        
        call mpi_reduce(num_doubtful_sfct,num_doubtful_sfct_all,1,mpi_integer,mpi_sum,&
             0,mpi_comm_world,ierror)
-       if(mype==0) write(6,*)' in read_wrf_mass_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
-       if(mype==0) write(6,*)' in read_wrf_mass_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
-       if(mype==10) write(6,*)' in read_wrf_mass_guess, min,max(sfct)=', &
+       if(print_verbose)then
+          write(6,*)' in read_wrf_mass_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
+          write(6,*)' in read_wrf_mass_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
+          write(6,*)' in read_wrf_mass_guess, min,max(sfct)=', &
             minval(sfct),maxval(sfct)
+       end if
        
        deallocate(all_loc,igtype,kdim,kord)
   
@@ -1342,7 +1351,7 @@ contains
          nsig,nsig_soil,ijn_s,displs_s,eta1_ll,pt_ll,itotsub,aeta1_ll,eta2_ll,aeta2_ll
     use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,r10,r100
     use constants, only: r0_01, tiny_r_kind
-    use gsi_io, only: lendian_in
+    use gsi_io, only: lendian_in,verbose
     use chemmod, only: laeroana_gocart,nh4_mfac,oc_mfac,&
          aerotot_guess,init_aerotot_guess,wrf_pm2_5,aero_ratios
     use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soiltq_nudge
@@ -1439,6 +1448,7 @@ contains
     real(r_kind), pointer :: ges_seas4(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_p25(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_pm2_5(:,:,:)=>NULL()
+    logical print_verbose
     associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
     end associate
   !  WRF MASS input grid dimensions in module gridmod
@@ -1448,13 +1458,13 @@ contains
   !          lm -- number of vertical levels ( = nsig for now)
   
   
+       print_verbose=.false. .and. mype == 0
+       if(verbose .and. mype == 0)print_verbose=.true.
        num_doubtful_sfct=0
-       if(mype==0) write(6,*)' at 0 in read_wrf_mass_guess'
+       if(print_verbose) write(6,*)' at 0 in read_wrf_mass_guess'
   
   
   ! Big section of operations done only on first outer iteration
-  
-       if(mype==0) write(6,*)' at 0.1 in read_wrf_mass_guess'
   
   !    Inquire about cloud guess fields
        call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
@@ -1514,19 +1524,23 @@ contains
   
        num_all_fields=num_mass_fields*nfldsig
        num_loc_groups=num_all_fields/npe
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, lm            =",i6)')lm
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, num_mass_fields=",i6)')num_mass_fields
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, nfldsig       =",i6)')nfldsig
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, num_all_fields=",i6)')num_all_fields
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, npe           =",i6)')npe
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, num_loc_groups=",i6)')num_loc_groups
+       if(print_verbose)then
+          write(6,'(" read_wrf_mass_guess: lm            =",i6)')lm
+          write(6,'(" read_wrf_mass_guess: num_mass_fields=",i6)')num_mass_fields
+          write(6,'(" read_wrf_mass_guess: nfldsig       =",i6)')nfldsig
+          write(6,'(" read_wrf_mass_guess: num_all_fields=",i6)')num_all_fields
+          write(6,'(" read_wrf_mass_guess: npe           =",i6)')npe
+          write(6,'(" read_wrf_mass_guess: num_loc_groups=",i6)')num_loc_groups
+       end if
        do 
           num_all_pad=num_loc_groups*npe
           if(num_all_pad >= num_all_fields) exit
           num_loc_groups=num_loc_groups+1
        end do
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, num_all_pad   =",i6)')num_all_pad
-       if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, num_loc_groups=",i6)')num_loc_groups
+       if(print_verbose) then
+          write(6,'(" read_wrf_mass_guess, num_all_pad   =",i6)')num_all_pad
+          write(6,'(" read_wrf_mass_guess, num_loc_groups=",i6)')num_loc_groups
+       end if
   
        allocate(all_loc(lat2,lon2,num_all_pad))
        allocate(jsig_skip(num_mass_fields))
@@ -1765,7 +1779,7 @@ contains
        do it=1,nfldsig
           write(filename,'("sigf",i2.2)')ifilesig(it)
           open(lendian_in,file=filename,form='unformatted') ; rewind lendian_in
-          write(6,*)'READ_WRF_MASS_GUESS:  open lendian_in=',lendian_in,' to file=',filename
+          if(print_verbose)write(6,*)'READ_WRF_MASS_GUESS:  open lendian_in=',lendian_in,' to file=',filename
   
   !       Read, interpolate, and distribute MASS restart fields
           do ifld=1,num_mass_fields
@@ -2152,9 +2166,9 @@ contains
              end do
           end do
           
-          if(mype==10) write(6,*)' in read_wrf_mass_guess, min,max(soil_moi)=', &
+          if(print_verbose) write(6,*)' in read_wrf_mass_guess, min,max(soil_moi)=', &
                minval(soil_moi),maxval(soil_moi)
-          if(mype==10) write(6,*)' in read_wrf_mass_guess, min,max(soil_temp)=', &
+          if(print_verbose) write(6,*)' in read_wrf_mass_guess, min,max(soil_temp)=', &
                minval(soil_temp),maxval(soil_temp)
   
   !       Convert potenital temperature to temperature
@@ -2209,18 +2223,21 @@ contains
        
        call mpi_reduce(num_doubtful_sfct,num_doubtful_sfct_all,1,mpi_integer,mpi_sum,&
             0,mpi_comm_world,ierror)
-       if(mype==0) write(6,*)' in read_wrf_mass_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
-       if(mype==0) write(6,*)' in read_wrf_mass_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
-       if(mype==10) write(6,*)' in read_wrf_mass_guess, min,max(sfct)=', &
+       if(print_verbose) then
+          write(6,*)' in read_wrf_mass_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
+          write(6,*)' in read_wrf_mass_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
+       else if(mype==10) then
+          write(6,*)' in read_wrf_mass_guess, min,max(sfct)=', &
             minval(sfct),maxval(sfct)
-       if(mype==10) write(6,*)' in read_wrf_mass_guess, min,max(veg_type)=', &
+          write(6,*)' in read_wrf_mass_guess, min,max(veg_type)=', &
             minval(veg_type),maxval(veg_type)
-       if(mype==10) write(6,*)' in read_wrf_mass_guess, min,max(veg_frac)=', &
+          write(6,*)' in read_wrf_mass_guess, min,max(veg_frac)=', &
             minval(veg_frac),maxval(veg_frac)
-       if(mype==10) write(6,*)' in read_wrf_mass_guess, min,max(soil_type)=', &
+          write(6,*)' in read_wrf_mass_guess, min,max(soil_type)=', &
             minval(soil_type),maxval(soil_type)
-       if(mype==10) write(6,*)' in read_wrf_mass_guess, min,max(isli)=', &
+          write(6,*)' in read_wrf_mass_guess, min,max(isli)=', &
             minval(isli),maxval(isli)
+       end if
        
        deallocate(all_loc,jsig_skip,igtype,identity)
        deallocate(temp1,itemp1,temp1u,temp1v)

@@ -108,7 +108,7 @@ contains
         lcount=lcount+1
         itypex=itypey
         read(ietabl,105,IOSTAT=iflag,end=120) (isuble_ps(itypex,n),n=1,5)  
-        if(mype==0) write(6,*) 'READIN ERROR _PS', itypex, (isuble_ps(itypex,n),n=1,5)
+        if(mype==0) write(6,'(a16,6I9)') 'READIN ERROR _PS', itypex, (isuble_ps(itypex,n),n=1,5)
 105     format(8x,5i12)
         do k=1,33
            read(ietabl,110)(etabl_ps(itypex,k,m),m=1,6)
