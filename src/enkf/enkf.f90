@@ -106,13 +106,14 @@ use enkf_obsmod, only: oberrvar, ob, ensmean_ob, obloc, oblnp, &
                   obfit_prior, obfit_post, obsprd_prior, obsprd_post, obtime,&
                   obtype, oberrvarmean, numobspersat, deltapredx, biaspreds,&
                   biasprednorm, oberrvar_orig, probgrosserr, prpgerr,&
-                  corrlengthsq,lnsigl,obtimel,obloclat,obloclon,obpress,stattype
+                  corrlengthsq,lnsigl,obtimel,obloclat,obloclon,obpress,stattype,&
+                  anal_ob
 use constants, only: pi, one, zero
 use params, only: sprd_tol, paoverpb_thresh, ndim, datapath, nanals,&
                   iassim_order,sortinc,deterministic,numiter,nlevs,nvars,&
                   zhuberleft,zhuberright,varqc,lupd_satbiasc,huber,univaroz,&
                   covl_minfact,covl_efold,nbackgrounds,nhr_anal,fhr_assim,&
-                  iseed_perturbed_obs,lupd_obspace_serial
+                  iseed_perturbed_obs,lupd_obspace_serial,fso_cycling
 use radinfo, only: npred,nusis,nuchan,jpch_rad,predx
 use radbias, only: apply_biascorr, update_biascorr
 use gridinfo, only: nlevs_pres,index_pres,nvarozone
@@ -132,7 +133,7 @@ use random_normal, only : rnorm, set_random_seed
 
 ! local variables.
 integer(i_kind) nob,nob1,nob2,nob3,npob,nf,nf2,ii,nobx,nskip,&
-                niter,i,nrej,npt,nuse,ncount,nb
+                niter,i,nrej,npt,nuse,ncount,nb,np
 integer(i_kind) indxens1(nanals),indxens2(nanals)
 real(r_single) hxpost(nanals),hxprior(nanals),hxinc(nanals),&
              dist,lnsig,obt,&
@@ -143,7 +144,7 @@ real(r_single) kfgain,hpfht,hpfhtoberrinv,r_nanals,r_nanalsm1,hpfhtcon
 real(r_single) anal_obtmp(nanals),obinc_tmp,obens(nanals),obganl(nanals)
 real(r_single) normdepart, pnge, width
 real(r_single) buffer(nanals+2)
-real(r_single),allocatable, dimension(:,:) :: anal_obchunk
+real(r_single),allocatable, dimension(:,:) :: anal_obchunk, buffertmp3
 real(r_single),dimension(nobstot):: oberrvaruse
 real(r_single) r,paoverpb
 real(r_single) taper1,taper3
@@ -703,7 +704,32 @@ call mpi_allreduce(buffertmp,obsprd_post,nobstot,mpi_real4,mpi_sum,mpi_comm_worl
 if (nproc == 0) print *,'time to broadcast obsprd_post = ',mpi_wtime()-t1
 
 predx = predx + deltapredx ! add increment to bias coeffs.
-deltapredx = 0.0 
+deltapredx = 0.0
+
+! Gathering analysis perturbations 
+! in observation space for EFSO
+if(fso_cycling) then  
+   if(nproc /= 0) then   
+      call mpi_send(anal_obchunk,numobsperproc(nproc+1)*nanals,mpi_real,0, &   
+                    1,mpi_comm_world,ierr)   
+   else   
+      allocate(anal_ob(1:nanals,nobstot))   
+      allocate(buffertmp3(nanals,nobs_max))   
+      do np=1,numproc-1   
+         call mpi_recv(buffertmp3,numobsperproc(np+1)*nanals,mpi_real,np, &   
+                       1,mpi_comm_world,mpi_status,ierr)   
+         do nob1=1,numobsperproc(np+1)   
+            nob2 = indxproc_obs(np+1,nob1)   
+            anal_ob(:,nob2) = buffertmp3(:,nob1)   
+         end do   
+      end do   
+      do nob1=1,numobsperproc(1)   
+         nob2 = indxproc_obs(1,nob1)   
+         anal_ob(:,nob2) = anal_obchunk(:,nob1)   
+      end do   
+      deallocate(buffertmp3)   
+   end if   
+end if
 
 ! free local temporary arrays.
 deallocate(taper_disob,taper_disgrd)

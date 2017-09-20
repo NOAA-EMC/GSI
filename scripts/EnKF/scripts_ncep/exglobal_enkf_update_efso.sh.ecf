@@ -158,6 +158,7 @@
 #
 #     output data:
 #                  $SIGANLENS
+#                  $OSENSE
 #                  $ENKFSTAT
 #                  $PGMOUT
 #                  $PGMERR
@@ -238,6 +239,7 @@ export OZINFO=${OZINFO:-${FIXgsi}/global_ozinfo.txt}
 export SCANINFO=${SCANINFO:-${FIXgsi}/global_scaninfo.txt}
 export HYBENSINFO=${HYBENSINFO:-${FIXgsi}/global_hybens_locinfo.l${LEVS}.txt}
 export SIGGESENS=${SIGGESENS:-${COMIN}/sigf06_ens}
+export OSENSE=${OSENSE:-${COMOUT}/osense_}
 export SIGANLENS=${SIGANLENS:-${COMOUT}/sanl}
 export USE_NEWRADBC=${USE_NEWRADBC:-"NO"}
 export NMEM_ENKF=${NMEM_ENKF:-0}
@@ -430,9 +432,13 @@ else
    imem=1
    while [[ $imem -le $NMEM_ENKF ]]; do
       member="_mem"`printf %03i $imem`
+      memberni="_nimem"`printf %03i $imem`
       ln -fs ${SIGANLENS}${member} sanl_${CDATE}${member}
+      ln -fs ${SIGANLENS}${memberni} sanl_${CDATE}${memberni}
       (( imem = $imem + 1 ))
    done
+
+   ln -fs ${OSENSE}${CDATE}.dat osense_${CDATE}.dat
 
 fi
 
@@ -463,6 +469,7 @@ cat <<EOF > enkf.nml
   reducedgrid=.true.,readin_localization=.true.,
   use_gfs_nemsio=${use_gfs_nemsio},
   univaroz=.false.,adp_anglebc=.true.,angord=4,use_edges=.false.,emiss_bc=.true.,
+  fso_cycling=.true.,
   $NAM_ENKF
  /
  &END
@@ -561,9 +568,12 @@ then
    imem=1
    while [[ $imem -le $NMEM_ENKF ]]; do
       member="_mem"`printf %03i $imem`
+      memberni="_nimem"`printf %03i $imem`
       $NCP sanl_${CDATE}${member} ${SIGANLENS}${member}
+      $NCP sanl_${CDATE}${memberni} ${SIGANLENS}${memberni}
       (( imem = $imem + 1 ))
    done
+   $NCP osense_${CDATE}.dat ${OSENSE}${CDATE}.dat
 fi
 
 # Cat runtime output files.
