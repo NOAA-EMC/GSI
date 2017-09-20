@@ -121,6 +121,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use mpimod, only: npe
+  use gsi_io, only: verbose
 ! use radiance_mod, only: rad_obs_type
 
   implicit none
@@ -226,8 +227,11 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind) ntest
 
   logical           :: airs, amsua, hsb, airstab
+  logical print_verbose
 
 
+  print_verbose = .false.
+  if(verbose)print_verbose=.true.
 ! Initialize variables
   maxinfo    =  31
   disterrmax=zero
@@ -288,7 +292,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         ichan=-999  ! not used for airs
         expansion=one ! use one for ir sensors
      endif
-     if (mype_sub==mype_root) &
+     if (mype_sub==mype_root .and. print_verbose) &
         write(6,*)'READ_AIRS:  airs offset ',ioff
   else if(amsua)then
      ix=2
@@ -299,7 +303,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         ichan=15  ! for now pick a surface channel
         expansion=2.9_r_kind ! use almost three for microwave
      endif
-     if (mype_sub==mype_root) &
+     if (mype_sub==mype_root .and. print_verbose) &
         write(6,*)'READ_AIRS:  amsu offset ',ioff
   else if(hsb)then
      ix=3
@@ -356,7 +360,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   table_file = 'airs_bufr.table'      ! make table file name
   inquire(file=table_file,exist=airstab)
   if (airstab) then
-     if (mype_sub==mype_root) &
+     if (mype_sub==mype_root .and. print_verbose) &
         write(6,*)'READ_AIRS:  Reading BUFR Table A file: ',trim(table_file)
      open(lnbufrtab,file=trim(table_file))
      call openbf(lnbufr,'IN',lnbufrtab)

@@ -71,8 +71,6 @@ module m_visNode
 
   character(len=*),parameter:: MYNAME="m_visNode"
 
-!#define CHECKSUM_VERBOSE
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains

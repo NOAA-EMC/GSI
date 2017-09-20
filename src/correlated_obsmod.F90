@@ -150,6 +150,7 @@ use mpeu_util, only: gettablesize
 use mpeu_util, only: gettable
 use mpeu_util, only: die
 use mpeu_util, only: luavail
+use gsi_io, only: verbose
 private
 save
 
@@ -214,7 +215,6 @@ type(ObsErrorCov),pointer :: GSI_BundleErrorCov(:)
 ! strictly internal quantities
 character(len=*),parameter :: myname='correlated_obsmod'
 logical :: initialized_=.false.
-logical, parameter :: VERBOSE_=.true.
 integer(i_kind),parameter :: methods_avail(5)=(/-1, & ! do nothing
                                                  0, & ! use dianonal of estimate(R)
                                                  1, & ! use full est(R), but decompose once for all
@@ -360,7 +360,10 @@ integer(i_kind) nch_active,lu,ii,ioflag,iprec,nctot
 real(r_single),allocatable, dimension(:,:) :: readR4  ! nch_active x nch_active x ninstruments
 real(r_double),allocatable, dimension(:,:) :: readR8  ! nch_active x nch_active x ninstruments
 real(r_kind),allocatable, dimension(:) :: diag
+   logical print_verbose
 
+   print_verbose=.false.
+   if(verbose .and. iamroot_)print_verbose=.true.
    ErrorCov%instrument = trim(instrument)
    ErrorCov%mask = trim(mask)
    ErrorCov%name = trim(instrument)//':'//trim(mask)
@@ -405,32 +408,28 @@ real(r_kind),allocatable, dimension(:) :: diag
       initialized_=.true.
       return
    endif
-   if (VERBOSE_) then
+   if (print_verbose) then
        allocate(diag(nch_active))
        do ii=1,nch_active
           diag(ii)=ErrorCov%R(ii,ii)
        enddo
-       if(iamroot_) then
-          write(6,'(2a)') 'Rcov(stdev) for instrument: ', trim(ErrorCov%name)
-          write(6,'(9(1x,es10.3))') sqrt(diag)
-          write(6,'(3a)') 'Channels used in estimating Rcov(', trim(ErrorCov%name), ')'
-          write(6,'(12(1x,i5))') ErrorCov%indxR
-       endif
+       write(6,'(2a)') 'Rcov(stdev) for instrument: ', trim(ErrorCov%name)
+       write(6,'(9(1x,es10.3))') sqrt(diag)
+       write(6,'(3a)') 'Channels used in estimating Rcov(', trim(ErrorCov%name), ')'
+       write(6,'(12(1x,i5))') ErrorCov%indxR
        deallocate(diag)
    endif
 
 !  Now decompose R
    call solver_(ErrorCov)
 
-   if (VERBOSE_ .and. ErrorCov%method>=0) then
+   if (print_verbose .and. ErrorCov%method>=0) then
        allocate(diag(nch_active))
        do ii=1,nch_active
           diag(ii)=ErrorCov%R(ii,ii)
        enddo
-       if(iamroot_) then
-          write(6,'(3a)') 'Rcov(stdev) for instrument: ', trim(ErrorCov%name), ' recond'
-          write(6,'(9(1x,es10.3))') sqrt(diag)
-       endif
+       write(6,'(3a)') 'Rcov(stdev) for instrument: ', trim(ErrorCov%name), ' recond'
+       write(6,'(9(1x,es10.3))') sqrt(diag)
        deallocate(diag)
    endif
 

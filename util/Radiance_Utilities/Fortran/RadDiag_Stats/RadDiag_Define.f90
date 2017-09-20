@@ -72,7 +72,7 @@ MODULE RadDiag_Define
   ! Module parameters
   ! -----------------
   CHARACTER(*), PARAMETER :: MODULE_VERSION_ID = &
-  '$Id$'
+  '$Id: RadDiag_Define.f90 9040 2010-07-29 17:01:49Z Michael.Lueken@noaa.gov $'
 
 
 CONTAINS

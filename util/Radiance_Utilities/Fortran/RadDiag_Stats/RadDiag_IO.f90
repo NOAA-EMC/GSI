@@ -69,7 +69,7 @@ MODULE RadDiag_IO
   CHARACTER(*), PARAMETER :: RADDIAG_MODENAME(3) = (/'read  ','write ','append'/)
   ! Module version id
   CHARACTER(*), PARAMETER :: MODULE_VERSION_ID = &
-  '$Id$'
+  '$Id: RadDiag_IO.f90 9040 2010-07-29 17:01:49Z Michael.Lueken@noaa.gov $'
   ! Default message length
   INTEGER, PARAMETER :: ML = 256
 

@@ -73,8 +73,6 @@ module m_lcbasNode
  
   character(len=*),parameter:: MYNAME="m_lcbasNode"
 
-!#define CHECKSUM_VERBOSE
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains

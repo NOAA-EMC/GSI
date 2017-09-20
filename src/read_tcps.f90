@@ -117,8 +117,8 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis,nobs)
 ! Observation occurs at analysis time as per date check above
 ! Set observation lat, lon, mslp, and default obs-error
      call time_4dvar(ianldate,toff)
-     write(6,*)'READ_TCPS: bufr file date is ',ianldate
-     write(6,*)'READ_TCPS: time offset is ',toff,' hours.'
+!    write(6,*)'READ_TCPS: bufr file date is ',ianldate
+!    write(6,*)'READ_TCPS: time offset is ',toff,' hours.'
      ohr=toff
      olat=stormlat(i)
      olon=stormlon(i)

@@ -92,6 +92,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   use convthin, only: make3grids,map3grids,del3grids,use_all
   use deter_sfc_mod, only: deter_sfc2,deter_zsfc_model
   use mpimod, only: npe
+  use gsi_io, only: verbose
   implicit none 
   
 ! Declare passed variables
@@ -243,8 +244,10 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 
   data ithin / -9 /
   data rmesh / -99.999_r_kind /
-  
+  logical print_verbose 
 !***********************************************************************************
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
 
 ! Check to see if radar wind files exist.  If none exist, exit this routine.
   inquire(file='radar_supobs_from_level2',exist=lexist1)
@@ -281,9 +284,11 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
  !xscale=5000._r_kind
  !xscale=10000._r_kind
   xscale=20000._r_kind
-  write(6,*)'READ_RADAR:  set vad_leash,xscale=',vad_leash,xscale
-  write(6,*)'READ_RADAR:  set maxvadbins,maxbadbins*dzvad=',maxvadbins,&
-     maxvadbins*dzvad
+  if(print_verbose)then
+     write(6,*)'READ_RADAR:  set vad_leash,xscale=',vad_leash,xscale
+     write(6,*)'READ_RADAR:  set maxvadbins,maxbadbins*dzvad=',maxvadbins,&
+        maxvadbins*dzvad
+  end if
   xscalei=one/xscale
   max_rrr=nint(100000.0_r_kind*xscalei)
   nboxmax=1
@@ -347,7 +352,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 
   write(date,'( i10)') idate
   read (date,'(i4,3i2)') iy,im,idd,ihh 
-  write(6,*)'READ_RADAR:  first read vad winds--use vad quality marks to qc 2.5/3 radar winds'
+  if(print_verbose) &
+     write(6,*)'READ_RADAR:  first read vad winds--use vad quality marks to qc 2.5/3 radar winds'
 
 ! Big loop over vadwnd bufr file
 10 call readsb(lnbufr,iret)
@@ -467,11 +473,12 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
            vadu(ivad,ivadz)=vadu(ivad,ivadz)/max(one,vadcount(ivad,ivadz))
            vadv(ivad,ivadz)=vadv(ivad,ivadz)/max(one,vadcount(ivad,ivadz))
         end do
-        write(6,'(" n,lat,lon,qm=",i3,2f8.2,2x,25i3)') &
+        if(print_verbose) &
+           write(6,'(" n,lat,lon,qm=",i3,2f8.2,2x,25i3)') &
            ivad,vadlat(ivad)*rad2deg,vadlon(ivad)*rad2deg,(max(-9,nint(vadqm(ivad,k))),k=1,maxvadbins)
      end do
   end if
-  write(6,*)' errzmax=',errzmax
+  if(print_verbose)write(6,*)' errzmax=',errzmax
   
 !  Allocate thinning grids around each radar
 !  space needed is nvad*max_rrr*max_rrr*8*max_zzz
@@ -1259,28 +1266,31 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 
 ! Write out vad statistics
   do ivad=1,nvad
-     write(6,'(" fit of 2, 2.5, 3 data to vad station, lat, lon = ",a8,2f14.2)') &
+     if(print_verbose)write(6,'(" fit of 2, 2.5, 3 data to vad station, lat, lon = ",a8,2f14.2)') &
         vadid(ivad),vadlat(ivad)*rad2deg,vadlon(ivad)*rad2deg
      do ivadz=1,maxvadbins
-        if(vadcount2(ivad,ivadz)>half) then
-           vadfit2(ivad,ivadz)=sqrt(vadfit2(ivad,ivadz)/vadwgt2(ivad,ivadz))
-        else
-           vadfit2(ivad,ivadz)=zero
-        end if
-        if(vadcount2_5(ivad,ivadz)>half) then
-           vadfit2_5(ivad,ivadz)=sqrt(vadfit2_5(ivad,ivadz)/vadwgt2_5(ivad,ivadz))
-        else
-           vadfit2_5(ivad,ivadz)=zero
-        end if
-        if(vadcount3(ivad,ivadz)>half) then
-           vadfit3(ivad,ivadz)=sqrt(vadfit3(ivad,ivadz)/vadwgt3(ivad,ivadz))
-        else
-           vadfit3(ivad,ivadz)=zero
-        end if
-        write(6,'(" h,f2,f2.5,f3=",i7,f10.2,"/",i5,f10.2,"/",i5,f10.2,"/",i5)')nint(ivadz*dzvad),&
+        if(vadcount2(ivad,ivadz) > half .and. vadcount2_5(ivad,ivadz) > half &
+              .and. vadcount(ivad,ivadz) > half)then
+          if(vadcount2(ivad,ivadz)>half) then
+             vadfit2(ivad,ivadz)=sqrt(vadfit2(ivad,ivadz)/vadwgt2(ivad,ivadz))
+          else
+             vadfit2(ivad,ivadz)=zero
+          end if
+          if(vadcount2_5(ivad,ivadz)>half) then
+             vadfit2_5(ivad,ivadz)=sqrt(vadfit2_5(ivad,ivadz)/vadwgt2_5(ivad,ivadz))
+          else
+             vadfit2_5(ivad,ivadz)=zero
+          end if
+          if(vadcount3(ivad,ivadz)>half) then
+             vadfit3(ivad,ivadz)=sqrt(vadfit3(ivad,ivadz)/vadwgt3(ivad,ivadz))
+          else
+             vadfit3(ivad,ivadz)=zero
+          end if
+          if(print_verbose)write(6,'(" h,f2,f2.5,f3=",i7,f10.2,"/",i5,f10.2,"/",i5,f10.2,"/",i5)')nint(ivadz*dzvad),&
            vadfit2(ivad,ivadz),nint(vadcount2(ivad,ivadz)),&
            vadfit2_5(ivad,ivadz),nint(vadcount2_5(ivad,ivadz)),&
            vadfit3(ivad,ivadz),nint(vadcount3(ivad,ivadz))
+        end if
      end do
   end do
 
