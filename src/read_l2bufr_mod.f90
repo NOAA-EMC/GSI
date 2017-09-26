@@ -105,6 +105,11 @@ contains
 ! program history log:
 !   2008-04-21  safford -- add subprogram doc block, rm unused uses
 !   2010-08-30  treadon - changes for reproducibile results
+!   2016-08-12  lippi   - Logic for running single radar test.
+!   2016-12-14  lippi   - Read 'l2rwbufr' from the OBS_INPUT table rather than
+!                         hardcoding that name into the code. Logic to exit code
+!                         if the infile (l2rwbufr) is not present. Also, added
+!                         new namelist parameter vadwnd_l2rw_qc.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -122,7 +127,9 @@ contains
     use constants, only: zero,half,one,two,rearth,deg2rad,rad2deg,zero_quad,one_quad
     use mpimod, only: mpi_comm_world,mpi_min,mpi_sum,mpi_real8,ierror,mpi_real16
     use mpimod, only: mpi_max,mpi_integer4
-    use obsmod,only: iadate
+    use obsmod,only: iadate,ndat,dsis,dfile,dtype
+    use qcmod, only: vadwnd_l2rw_qc
+    use oneobmod, only: lsingleradar,singleradar
     use mpeu_util, only: IndexSet, IndexSort
     use gsi_io, only: verbose
     implicit none
@@ -209,6 +216,7 @@ contains
 !            var  rbin*azbin*elbin rad#
     character(8) chdr,chdr2,subset
     character(10) date
+    character(20) infile
     character(4),dimension(max_num_radars):: stn_id_table,master_stn_table
     character(4) stn_id_table_all(max_num_radars*npe)
     character(4) stn_id,this_staid
@@ -219,9 +227,29 @@ contains
     equivalence (chdr2,hdr2(1))
 
     logical rite,print_verbose
+    logical lradar
     
     print_verbose=.false.
     if(verbose) print_verbose=.true.
+
+    ! define infile if using either option for radial winds.
+    do i=1,ndat
+       if(trim(dtype(i))=='rw'.and.trim(dsis(i))=='l2rw'.and.vadwnd_l2rw_qc)then
+          infile=trim(dfile(i)) !l2rwbufr
+          exit
+       else if(trim(dtype(i))=='rw'.and.trim(dsis(i))=='l2rw'.and..not.vadwnd_l2rw_qc)then
+          infile=trim(dfile(i)) !l2rwbufr with no VAD QC
+          exit
+       else
+          infile=''
+       end if
+    end do
+    if(mype==0) write(6,*)'RADAR_BUFR_READ_ALL:  radial wind infile for superobbing = ',infile
+    if (infile=='') then
+       if(mype==0) write(6,*) '***WARNING*** NOT USING ANY RADIAL WIND OBSERVATIONS!!!' 
+       return ! Go back to gsisub if nothing to do.    
+    end if
+ 
     rad_per_meter= one/rearth
     erad = rearth
     nazbin=nint(r360/del_azimuth)
@@ -247,7 +275,7 @@ contains
     
 !   Open bufr file with openbf to initialize bufr table, etc in bufrlib
     inbufr=10
-    open(inbufr,file='l2rwbufr',form='unformatted')
+    open(inbufr,file=infile,form='unformatted')
     read(inbufr,iostat=iret)subset
     if(iret/=0) then
        if(rite) write(6,*)'RADAR_BUFR_READ_ALL:  problem opening level 2 bufr file "l2rwbufr"'
@@ -311,7 +339,7 @@ contains
           idate5(1)=nint(hdr2(7)) ; idate5(2)=nint(hdr2(8)) ; idate5(3)=nint(hdr2(9))
           idate5(4)=nint(hdr2(10)) ; idate5(5)=nint(hdr2(11))
           call w3fs21(idate5,nminthis)
-	  t=(real(nminthis-nminref,r_kind)+real(nint(hdr2(12)),r_kind)*rinv60)*rinv60
+          t=(real(nminthis-nminref,r_kind)+real(nint(hdr2(12)),r_kind)*rinv60)*rinv60
           if(abs(t)>del_time) cycle
           nobs_in=nobs_in+n_gates
           stn_id=chdr2 
@@ -426,7 +454,7 @@ contains
 ! reopen and reread the file for data this time
 
     call closbf(inbufr)
-    open(inbufr,file='l2rwbufr',form='unformatted')
+    open(inbufr,file=infile,form='unformatted')
     call openbf(inbufr,'IN',inbufr)
 
     allocate(bins(6,nthisrad,num_radars_0),ibins(nthisrad,num_radars_0))
@@ -634,6 +662,13 @@ contains
 	  this_staid=master_stn_table(krad)
 	  this_stahgt=master_hgt_table(krad)
 	  do iii=1,nthisrad
+! If single radar exp, set lradar false if not the specified radar.
+           lradar=.true.
+           if(lsingleradar) then
+             if(this_staid /= singleradar) lradar=.false.
+           end if
+
+           if(lradar) then ! Logical for when running single radar exp.
 	     if(ibins2(iii,krad) < minnum) cycle
 
 	     thiscount=one_quad/real(ibins2(iii,krad),r_quad)
@@ -719,8 +754,9 @@ contains
 
              write(inbufr) this_staid,this_stalat,this_stalon,this_stahgt, &
                   thistime,thislat,thislon,thishgt,thisvr,corrected_azimuth,&
-                  thiserr,corrected_tilt
+                  thiserr,corrected_tilt,gamma
              nsuper=nsuper+1
+           end if
           end do
           if(nsuper > 0)then
             write(6,*)' for radar ',this_staid,' nsuper=',nsuper,' delazmmax=',delazmmax

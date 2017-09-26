@@ -11,6 +11,9 @@ module m_rwNode
 ! program history log:
 !   2016-05-18  j guo   - added this document block for the initial polymorphic
 !                         implementation.
+!   2016-06-23  lippi   - add costilt and sintilt for radial wind calculations. Also,
+!                         add cosazm_costilt and sinazm_costilt as u, v
+!                         factors respectively.
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -45,6 +48,10 @@ module m_rwNode
      real(r_kind)    :: pg            !  variational quality control parameter
      real(r_kind)    :: cosazm        !  v factor
      real(r_kind)    :: sinazm        !  u factor
+     real(r_kind)    :: costilt       !  u,v factor
+     real(r_kind)    :: sintilt       !  w factor
+     real(r_kind)    :: cosazm_costilt!  u factor
+     real(r_kind)    :: sinazm_costilt!  v factor
      real(r_kind)    :: wij(8)        !  horizontal interpolation weights
      integer(i_kind) :: ij(8)         !  horizontal locations
      !logical         :: luse          !  flag indicating if ob is used in pen.
@@ -149,6 +156,10 @@ _ENTRY_(myname_)
                                 aNode%pg     , &
                                 aNode%cosazm , &
                                 aNode%sinazm , &
+                                aNode%sintilt , &
+                                aNode%costilt , &
+                                aNode%cosazm_costilt , &
+                                aNode%sinazm_costilt , &
                                 aNode%dlev   , &
                                 aNode%factw  , &
                                 aNode%wij    , &
@@ -187,6 +198,10 @@ _ENTRY_(myname_)
                                 aNode%pg     , &
                                 aNode%cosazm , &
                                 aNode%sinazm , &
+                                aNode%sintilt , &
+                                aNode%costilt , &
+                                aNode%cosazm_costilt , &
+                                aNode%sinazm_costilt , &
                                 aNode%dlev   , &
                                 aNode%factw  , &
                                 aNode%wij    , &

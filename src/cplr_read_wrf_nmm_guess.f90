@@ -1667,6 +1667,7 @@ contains
   !   2016_03_02  s.liu/carley   - remove use_reflectivity and use i_gsdcldanal_type
   !   2016_06_21  s.liu   - delete unused variable qhtmp
   !   2016_06_30  s.liu   - delete unused variable gridtype in read fraction
+  !   2016-08-12  lippi   - add include_w. If true, reads in guess vertical velocity (w) profile.
   !
   !   input argument list:
   !     mype     - pe number
@@ -1718,7 +1719,8 @@ contains
   ! Declare local parameters
   
   ! Declare local variables
-  
+    logical include_w  
+
   ! other internal variables
     character(255) wrfges
     character(len=*),parameter :: myname='read_nems_nmmb_guess:: '
@@ -1737,6 +1739,7 @@ contains
     real(r_kind),pointer,dimension(:,:  ):: ges_z   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_u   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_v   =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_w   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_tv  =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_pint=>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_q   =>NULL()
@@ -1795,6 +1798,15 @@ contains
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q'  ,ges_q  ,istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'oz' ,ges_oz ,istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'pd' ,ges_pd,istatus );ier=ier+istatus
+       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'w'  ,ges_w  ,istatus)
+       if (istatus==0) then
+          include_w=.true.
+          if(mype==0) write(6,*)'READ_WRF_NMM_GUESS: Using vertical velocity.'
+       else
+          include_w=.false.
+          if(mype==0) write(6,*)'READ_WRF_NMM_GUESS: NOT using vertical velocity.'
+       end if
+
        if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
   
        if(mype==mype_input) then
@@ -1835,6 +1847,9 @@ contains
           call gsi_nemsio_read('vgrd','mid layer','V',kr,ges_v(:,:,k),   mype,mype_input)
           call gsi_nemsio_read('spfh','mid layer','H',kr,ges_q(:,:,k),   mype,mype_input)
           call gsi_nemsio_read('tmp' ,'mid layer','H',kr,ges_tsen(:,:,k,it),mype,mype_input)
+          if(include_w) then
+             call gsi_nemsio_read('w_tot','mid layer','H',kr,ges_w(:,:,k),mype,mype_input)
+          end if
           do i=1,lon2
              do j=1,lat2
                 ges_tv(j,i,k) = ges_tsen(j,i,k,it) * (one+fv*ges_q(j,i,k))

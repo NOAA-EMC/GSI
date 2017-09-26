@@ -42,6 +42,7 @@ NLN=${NLN:-"/bin/ln -sf"}
 export MPMD=${MPMD:-"NO"}
 export MPMD_OPTS=${MPMD_OPTS:-"-pgmmodel mpmd -ilevel 2 -labelio yes  -stdoutmode ordered"}
 APRUN_EPOS=${APRUN_EPOS:-${APRUN:-""}}
+NTHREADS_EPOS=${NTHREADS_EPOS:-1}
 
 # Ops stuff
 SENDDBN=${SENDDBN:-"NO"}
@@ -62,16 +63,17 @@ SUFFIX=${SUFFIX:-""}
 FHMIN=${FHMIN_ENKF:-${FHMIN:-3}}
 FHMAX=${FHMAX_ENKF:-${FHMAX:-9}}
 FHOUT=${FHOUT_ENKF:-${FHOUT:-1}}
-SMOOTH_ENKF=${SMOOTH_ENKF:-"NO"}
 NMEM_ENKF=${NMEM_ENKF:-80}
+SMOOTH_ENKF=${SMOOTH_ENKF:-"YES"}
 NST_GSI=${NST_GSI:-0}
-ENKF_SUFFIX=""
-[[ $SMOOTH_ENKF = "YES" ]] && ENKF_SUFFIX="s"
 
 ################################################################################
 #  Preprocessing
 if [ ! -d $DATA ]; then mkdir -p $DATA; fi
 cd $DATA || exit 99
+
+ENKF_SUFFIX="s"
+[[ $SMOOTH_ENKF = "NO" ]] && ENKF_SUFFIX=""
 
 ################################################################################
 # Copy executables to working directory
@@ -81,6 +83,8 @@ $NCP $GETATMENSSTATEXEC $DATA
 if [ $NST_GSI -gt 0 ]; then
    $NCP $GETNSTENSMEANEXEC $DATA
 fi
+
+export OMP_NUM_THREADS=$NTHREADS_EPOS
 
 ################################################################################
 # Forecast ensemble member files

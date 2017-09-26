@@ -368,8 +368,9 @@ end subroutine berror_read_bal_reg
   real(r_kind) :: factoz
   real(r_kind) :: raux
 
-  real(r_kind), parameter :: corz_default=one,hwll_default=100000_r_kind,&
-                             vz_default=one
+  ! corz = sqrt(corz)
+  real(r_kind), parameter :: corz_default=one,hwll_default=100000_r_kind,vz_default=one
+  !real(r_kind), parameter :: corz_default=one,hwll_default=27000.00000000,vz_default=one*10
   logical :: print_verbose
   real(r_kind) ,dimension(mlat,1,2) :: cov_dum
 !  character(256) :: filename 

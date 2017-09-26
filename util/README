@@ -60,4 +60,6 @@ Radiance_bias_correction_Utilities:
 global_angupdate:
              Updates the angle dependent part of the radiance bias correction
 
-
+Radar_Monitor/radialwind:
+             Identifies which radars do and do not have radial wind observations
+             as well as radars that have missing data.
