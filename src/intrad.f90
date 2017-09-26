@@ -313,9 +313,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   real(r_kind),dimension(nsigradjac):: tval,tdir
   real(r_kind) cg_rad,p0,wnotgross,wgross
   type(radNode), pointer :: radptr
-  real(r_kind),allocatable,dimension(:,:) :: rsqrtinv
   integer(i_kind) :: ic1,ix1
-  integer(i_kind) :: chan_count, ii, jj
   real(r_kind),pointer,dimension(:) :: st,sq,scw,soz,su,sv,sqg,sqh,sqi,sql,sqr,sqs
   real(r_kind),pointer,dimension(:) :: sst
   real(r_kind),pointer,dimension(:) :: rt,rq,rcw,roz,ru,rv,rqg,rqh,rqi,rql,rqr,rqs
@@ -394,17 +392,6 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
      w2=radptr%wij(2)
      w3=radptr%wij(3)
      w4=radptr%wij(4)
-     if (radptr%use_corr_obs) then
-        allocate(rsqrtinv(radptr%nchan,radptr%nchan))
-        chan_count=0
-        do ii=1,radptr%nchan
-           do jj=ii,radptr%nchan
-              chan_count=chan_count+1
-              rsqrtinv(ii,jj)=radptr%rsqrtinv(chan_count)
-              rsqrtinv(jj,ii)=radptr%rsqrtinv(chan_count)
-           end do
-       end do
-     end if
 !  Begin Forward model
 !  calculate temperature, q, ozone, sst vector at observation location
      i1n(1) = j1
@@ -497,11 +484,11 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 !       Include contributions from remaining bias correction terms
         if( .not. ladtest_obs) then
            if(radptr%use_corr_obs)then
-              do n=1,npred
-                 do mm=1,radptr%nchan
-                    ic1=radptr%icx(mm)
-                    ix1=(ic1-1)*npred
-                    val(nn)=val(nn)+rsqrtinv(nn,mm)*spred(ix1+n)*radptr%pred(n,mm)
+              do mm=1,radptr%nchan
+                 ic1=radptr%icx(mm)
+                 ix1=(ic1-1)*npred
+                 do n=1,npred
+                    val(nn)=val(nn)+radptr%rsqrtinv(mm,nn)*spred(ix1+n)*radptr%pred(n,mm)
                  enddo
               enddo
            else
@@ -543,11 +530,11 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
            if( .not. ladtest_obs) then
               if(radptr%luse)then
                  if(radptr%use_corr_obs)then
-                    do n=1,npred
-                       do mm=1,radptr%nchan
-                          ic1=radptr%icx(mm)
-                          ix1=(ic1-1)*npred
-                          rpred(ix1+n)=rpred(ix1+n)+rsqrtinv(nn,mm)*radptr%pred(n,mm)*val(nn)
+                    do mm=1,radptr%nchan
+                       ic1=radptr%icx(mm)
+                       ix1=(ic1-1)*npred
+                       do n=1,npred
+                          rpred(ix1+n)=rpred(ix1+n)+radptr%rsqrtinv(mm,nn)*radptr%pred(n,mm)*val(nn)
                        enddo
                     enddo
                  else
@@ -561,7 +548,6 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
      end do
 
 !          Begin adjoint
-     if (radptr%use_corr_obs) deallocate(rsqrtinv)
      if (l_do_adjoint) then
         do k=1,nsigradjac
            tval(k)=zero
