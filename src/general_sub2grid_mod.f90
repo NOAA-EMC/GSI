@@ -964,7 +964,7 @@ end subroutine get_iuse_pe
 
       type(sub2grid_info),intent(in   ) :: s
       real(r_single),     intent(in   ) :: sub_vars(:)
-      real(r_single),    intent(  out)  :: grid_vars(:)
+      real(r_single),    intent(inout)  :: grid_vars(:)
 
       real(r_single),pointer,dimension(:,:,:,:) :: sub_vars_r4=>NULL()
       real(r_single),pointer,dimension(:,:,:,:) :: grid_vars_r4=>NULL()
@@ -1144,7 +1144,7 @@ end subroutine get_iuse_pe
 
       type(sub2grid_info),intent(in   ) :: s
       real(r_single), intent(in   )     :: grid_vars(:)
-      real(r_single),     intent(  out) :: sub_vars(:)
+      real(r_single),     intent(inout) :: sub_vars(:)
 
       real(r_single),pointer,dimension(:,:,:,:) :: grid_vars_r4=>NULL()
       real(r_single),pointer,dimension(:,:,:,:) :: sub_vars_r4=>NULL()
@@ -1188,7 +1188,7 @@ end subroutine get_iuse_pe
 
       type(sub2grid_info),intent(in   ) :: s
       real(r_single), intent(in   )     :: grid_vars(s%inner_vars,s%nlat,s%nlon,s%kbegin_loc:s%kend_alloc)
-      real(r_single),     intent(  out) :: sub_vars(:)
+      real(r_single),     intent(inout) :: sub_vars(:)
 
       real(r_single),pointer,dimension(:,:,:,:) :: sub_vars_r4=>NULL()
       integer(i_kind) mold4(2,2,2,2)
@@ -1314,7 +1314,7 @@ end subroutine get_iuse_pe
 
       type(sub2grid_info),intent(in   ) :: s
       real(r_double),     intent(in   ) :: sub_vars(:)
-      real(r_double),     intent(  out) :: grid_vars(:)
+      real(r_double),     intent(inout) :: grid_vars(:)
 
       real(r_double),pointer,dimension(:,:,:,:) :: sub_vars_r4=>NULL()
       real(r_double),pointer,dimension(:,:,:,:) :: grid_vars_r4=>NULL()
@@ -1494,7 +1494,7 @@ end subroutine get_iuse_pe
 
       type(sub2grid_info),intent(in   ) :: s
       real(r_double),     intent(in   ) :: grid_vars(:)
-      real(r_double),     intent(  out) :: sub_vars(:)
+      real(r_double),     intent(inout) :: sub_vars(:)
 
       real(r_double),pointer,dimension(:,:,:,:) :: grid_vars_r4=>NULL()
       real(r_double),pointer,dimension(:,:,:,:) :: sub_vars_r4=>NULL()
@@ -1538,7 +1538,7 @@ end subroutine get_iuse_pe
 
       type(sub2grid_info),intent(in   ) :: s
       real(r_double),     intent(in   ) :: grid_vars(s%inner_vars,s%nlat,s%nlon,s%kbegin_loc:s%kend_alloc)
-      real(r_double),     intent(  out) :: sub_vars(:)
+      real(r_double),     intent(inout) :: sub_vars(:)
 
       real(r_double),pointer,dimension(:,:,:,:) :: sub_vars_r4=>NULL()
       integer(i_kind) mold4(2,2,2,2)
@@ -1661,7 +1661,7 @@ end subroutine get_iuse_pe
 
       type(sub2grid_info),intent(in   ) :: s
       real(r_single),     intent(in   ) :: sub_vars(:)
-      real(r_single),    intent(  out)  :: grid_vars(:)
+      real(r_single),    intent(inout)  :: grid_vars(:)
       integer(i_kind),    intent(in   ) :: gridpe
 
       real(r_single),pointer,dimension(:,:,:) :: sub_vars_r3=>NULL()
@@ -1844,7 +1844,7 @@ end subroutine get_iuse_pe
 
       type(sub2grid_info),intent(in   ) :: s
       real(r_double),     intent(in   ) :: sub_vars(:)
-      real(r_double),     intent(  out) :: grid_vars(:)
+      real(r_double),     intent(inout) :: grid_vars(:)
       integer(i_kind),    intent(in   ) :: gridpe
 
       real(r_double),pointer,dimension(:,:,:) :: sub_vars_r3=>NULL()
@@ -2027,7 +2027,7 @@ end subroutine get_iuse_pe
 
       type(sub2grid_info),intent(in   ) :: s
       real(r_single), intent(in   )     :: grid_vars(:)
-      real(r_single),     intent(  out) :: sub_vars(:)
+      real(r_single),     intent(inout) :: sub_vars(:)
       integer(i_kind),intent(in   )     :: gridpe
 
       real(r_single),pointer,dimension(:,:,:) :: grid_vars_r3=>NULL()
@@ -2072,7 +2072,7 @@ end subroutine get_iuse_pe
 
       type(sub2grid_info),intent(in   ) :: s
       real(r_single), intent(in   )     :: grid_vars(s%inner_vars,s%nlat,s%nlon)
-      real(r_single),     intent(  out) :: sub_vars(:)
+      real(r_single),     intent(inout) :: sub_vars(:)
       integer(i_kind),intent(in   )     :: gridpe
 
       real(r_single),pointer,dimension(:,:,:) :: sub_vars_r3=>NULL()
@@ -2182,7 +2182,7 @@ end subroutine get_iuse_pe
 
       type(sub2grid_info),intent(in   ) :: s
       real(r_double),     intent(in   ) :: grid_vars(:)
-      real(r_double),     intent(  out) :: sub_vars(:)
+      real(r_double),     intent(inout) :: sub_vars(:)
       integer(i_kind),intent(in   )     :: gridpe
 
       real(r_double),pointer,dimension(:,:,:) :: grid_vars_r3=>NULL()
@@ -2227,7 +2227,7 @@ end subroutine get_iuse_pe
 
       type(sub2grid_info),intent(in   ) :: s
       real(r_double),     intent(in   ) :: grid_vars(s%inner_vars,s%nlat,s%nlon)
-      real(r_double),     intent(  out) :: sub_vars(:)
+      real(r_double),     intent(inout) :: sub_vars(:)
       integer(i_kind),    intent(in   ) :: gridpe
 
       real(r_double),pointer,dimension(:,:,:) :: sub_vars_r3=>NULL()
@@ -2341,7 +2341,7 @@ end subroutine get_iuse_pe
       type(sub2grid_info),   intent(in   ) :: se,sa
       type(egrid2agrid_parm),intent(in   ) :: p_e2a
       real(r_single),        intent(in   ) :: sube_vars(:)
-      real(r_single),        intent(  out) :: suba_vars(:)
+      real(r_single),        intent(inout) :: suba_vars(:)
       logical,               intent(in   ) :: regional
 
       real(r_single),pointer,dimension(:,:,:,:) :: sube_vars_r4=>NULL()
@@ -2453,7 +2453,7 @@ end subroutine get_iuse_pe
       type(sub2grid_info),   intent(in   ) :: se,sa
       type(egrid2agrid_parm),intent(in   ) :: p_e2a
       real(r_double),        intent(in   ) :: sube_vars(:)
-      real(r_double),        intent(  out) :: suba_vars(:)
+      real(r_double),        intent(inout) :: suba_vars(:)
       logical,               intent(in   ) :: regional
 
       real(r_double),pointer,dimension(:,:,:,:) :: sube_vars_r4=>NULL()
@@ -2563,7 +2563,7 @@ end subroutine get_iuse_pe
 
       type(sub2grid_info),   intent(in   ) :: se,sa
       type(egrid2agrid_parm),intent(in   ) :: p_e2a
-      real(r_single),        intent(  out) :: sube_vars(:)
+      real(r_single),        intent(inout) :: sube_vars(:)
       real(r_single),        intent(in   ) :: suba_vars(:)
       logical,               intent(in   ) :: regional
 
@@ -2672,7 +2672,7 @@ end subroutine get_iuse_pe
 
       type(sub2grid_info),   intent(in   ) :: se,sa
       type(egrid2agrid_parm),intent(in   ) :: p_e2a
-      real(r_double),        intent(  out) :: sube_vars(:)
+      real(r_double),        intent(inout) :: sube_vars(:)
       real(r_double),        intent(in   ) :: suba_vars(:)
       logical,               intent(in   ) :: regional
 
@@ -2782,7 +2782,7 @@ end subroutine get_iuse_pe
       type(sub2grid_info),   intent(in   ) :: sa,se
       type(egrid2agrid_parm),intent(in   ) :: p_e2a
       real(r_single),        intent(in   ) :: suba_vars(:)
-      real(r_single),        intent(  out) :: sube_vars(:)
+      real(r_single),        intent(inout) :: sube_vars(:)
       logical,               intent(in   ) :: regional
 
       real(r_single),pointer,dimension(:,:,:,:) :: suba_vars_r4=>NULL()
@@ -2893,7 +2893,7 @@ end subroutine get_iuse_pe
       type(sub2grid_info),   intent(in   ) :: sa,se
       type(egrid2agrid_parm),intent(in   ) :: p_e2a
       real(r_double),        intent(in   ) :: suba_vars(:)
-      real(r_double),        intent(  out) :: sube_vars(:)
+      real(r_double),        intent(inout) :: sube_vars(:)
       logical,               intent(in   ) :: regional
 
       real(r_double),pointer,dimension(:,:,:,:) :: suba_vars_r4=>NULL()

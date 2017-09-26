@@ -85,6 +85,7 @@ subroutine update_guess(sval,sbias)
 !                         state variable for all-sky radiance assimilation
 !   2015-07-10  pondeca  - add cldch
 !   2016-04-28  eliu    - revise update for cloud water 
+!   2016-06-23  lippi   - Add update for vertical velocity (w).
 !
 !   input argument list:
 !    sval
@@ -249,6 +250,12 @@ subroutine update_guess(sval,sbias)
            endif
            if (trim(guess(ic))=='oz') then
                call upd_positive_fldr3_(ptr3dges,ptr3dinc,tgmin)
+               cycle
+           endif
+           if (trim(guess(ic))=='w') then
+               call gsi_bundlegetpointer (sval(ii),               guess(ic),ptr3dinc,istatus)
+               call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ptr3dges,istatus)
+               ptr3dges = ptr3dges + ptr3dinc
                cycle
            endif
            if (trim(guess(ic))=='tv') then
