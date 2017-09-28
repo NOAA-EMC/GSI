@@ -23,12 +23,17 @@ output=$6
 
 # Give location of analysis results, and choose location for regression output
 savdir=$savdir/$input
-vfydir=$regression_vfydir
+# pc: Why store the output in yet another location??
+# pc: vfydir=$regression_vfydir
+vfydir=$savdir
 failed_test=0
 ncp=/bin/cp
 
 # Name and create temporary directory
-tmpdir=$savdir/$compare/$input/${exp1}_vs_${exp2}
+# pc: (1) I don't see compare defined anywhere
+#     (2) $savdir already has $input in it, why add another one?
+# pc: tmpdir=$savdir/$compare/$input/${exp1}_vs_${exp2}
+tmpdir=$savdir/${exp1}_vs_${exp2}
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir

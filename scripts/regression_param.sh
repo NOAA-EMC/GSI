@@ -20,6 +20,10 @@ case $regtest in
            topts[1]="1:45:00" ; popts[1]="20/4" ; ropts[1]="/1"
            topts[2]="1:45:00" ; popts[2]="40/2" ; ropts[2]="/2"
            sub_cmd="sub_s4"
+        elif [[ "$machine" = "discover" ]]; then
+           topts[1]="0:30:00" ; popts[1]="36/18"  ; ropts[1]="/1"
+           topts[2]="0:30:00" ; popts[2]="48/12"  ; ropts[2]="/2"
+           sub_cmd="sub_discover"
         fi
 
         if [ "$debug" = ".true." ] ; then
@@ -416,7 +420,9 @@ job[4]=${regtest}_hiproc_contrl
 topts[3]=${topts[1]} ; popts[3]=${popts[1]} ; ropts[3]=${ropts[1]}
 topts[4]=${topts[2]} ; popts[4]=${popts[2]} ; ropts[4]=${ropts[2]}
 
-tmpregdir="tmpreg_$regtest"
+# pc: Why call the directory tmpreg_$regtest
+# pc: tmpregdir="tmpreg_$regtest"
+tmpregdir="regtest/$regtest"
 rcname="return_code_${regtest}.out"
 result="${regtest}_regression_results.txt"
 
@@ -454,4 +460,6 @@ elif [[ "$machine" = "s4" ]]; then
    export MP_STDOUTMODE=ORDERED
    export KMP_STACKSIZE=512MB 
    export KMP_AFFINITY=scatter
+elif [[ "$machine" = "discover" ]]; then
+   export APRUN="mpiexec_mpt -np \$SLURM_NTASKS"
 fi
