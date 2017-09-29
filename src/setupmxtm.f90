@@ -20,6 +20,7 @@ subroutine setupmxtm(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !                       . removed (%dlat,%dlon) debris.
 !   2016-10-07  pondeca - if(.not.proceed) advance through input file first
 !                          before retuning to setuprhsall.f90
+!   2017-02-06  todling - add netcdf_diag capability; hidden as contained code
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -46,7 +47,11 @@ subroutine setupmxtm(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsLList, only: obsLList_appendNode
   use obsmod, only: rmiss_single,i_mxtm_ob_type, & 
                     obs_diag,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated, & 
-                    time_offset,bmiss,luse_obsdiag
+                    time_offset,bmiss,luse_obsdiag,ianldate
+  use obsmod, only: netcdf_diag, binary_diag, dirname
+  use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
+       nc_diag_write, nc_diag_data2d
+  use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: magoberr,maginnov,oneobtest
   use gridmod, only: nsig,get_ij,twodvar_regional
@@ -197,6 +202,7 @@ subroutine setupmxtm(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if (lobsdiagsave) nreal=nreal+4*miter+1
      if (twodvar_regional) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
+     if(netcdf_diag) call init_netcdf_diag_
   end if
 
 
@@ -430,30 +436,9 @@ subroutine setupmxtm(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !    Save stuff for diagnostic output
      if(conv_diagsave .and. luse(i))then
         ii=ii+1
-        rstation_id     = data(id,i)
-        cdiagbuf(ii)    = station_id         ! station id
- 
-        rdiagbuf(1,ii)  = ictype(ikx)        ! observation type
-        rdiagbuf(2,ii)  = icsubtype(ikx)     ! observation subtype
- 
-        rdiagbuf(3,ii)  = data(ilate,i)      ! observation latitude (degrees)
-        rdiagbuf(4,ii)  = data(ilone,i)      ! observation longitude (degrees)
-        rdiagbuf(5,ii)  = data(istnelv,i)    ! station elevation (meters)
-        rdiagbuf(6,ii)  = r10*exp(data(ipres,i)) ! observation pressure (hPa)
-        rdiagbuf(7,ii)  = data(iobshgt,i)    ! observation height (meters)
-        rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
-
-        rdiagbuf(9,ii)  = data(iqc,i)        ! input prepbufr qc or event mark
-        rdiagbuf(10,ii) = rmiss_single       ! setup qc or event mark
-        rdiagbuf(11,ii) = data(iuse,i)       ! read_prepbufr data usage flag
-        if(muse(i)) then
-           rdiagbuf(12,ii) = one             ! analysis usage flag (1=use, -1=not used)
-        else
-           rdiagbuf(12,ii) = -one
-        endif
-
-        err_input = data(ier2,i)
-        err_adjst = data(ier,i)
+        rstation_id = data(id,i)
+        err_input   = data(ier2,i)
+        err_adjst   = data(ier,i)
         if (ratio_errors*error>tiny_r_kind) then
            err_final = one/(ratio_errors*error)
         else
@@ -467,48 +452,8 @@ subroutine setupmxtm(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if (err_adjst>tiny_r_kind) errinv_adjst = one/err_adjst
         if (err_final>tiny_r_kind) errinv_final = one/err_final
 
-        rdiagbuf(13,ii) = rwgt               ! nonlinear qc relative weight
-        rdiagbuf(14,ii) = errinv_input       ! prepbufr inverse obs error (K**-1)
-        rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error (K**-1)
-        rdiagbuf(16,ii) = errinv_final       ! final inverse observation error (K**-1)
- 
-        rdiagbuf(17,ii) = data(imxtm,i)     ! MXTM observation (K)
-        rdiagbuf(18,ii) = ddiff              ! obs-ges used in analysis (K)
-        rdiagbuf(19,ii) = data(imxtm,i)-mxtmges! obs-ges w/o bias correction (K) (future slot)
- 
-
-        ioff=ioff0
-        if (lobsdiagsave) then
-           do jj=1,miter 
-              ioff=ioff+1 
-              if (obsdiags(i_mxtm_ob_type,ibin)%tail%muse(jj)) then
-                 rdiagbuf(ioff,ii) = one
-              else
-                 rdiagbuf(ioff,ii) = -one
-              endif
-           enddo
-           do jj=1,miter+1
-              ioff=ioff+1
-              rdiagbuf(ioff,ii) = obsdiags(i_mxtm_ob_type,ibin)%tail%nldepart(jj)
-           enddo
-           do jj=1,miter
-              ioff=ioff+1
-              rdiagbuf(ioff,ii) = obsdiags(i_mxtm_ob_type,ibin)%tail%tldepart(jj)
-           enddo
-           do jj=1,miter
-              ioff=ioff+1
-              rdiagbuf(ioff,ii) = obsdiags(i_mxtm_ob_type,ibin)%tail%obssen(jj)
-           enddo
-        endif
-
-        if (twodvar_regional) then
-           rdiagbuf(ioff+1,ii) = data(idomsfc,i) ! dominate surface type
-           rdiagbuf(ioff+2,ii) = data(izz,i)     ! model terrain at observation location
-           r_prvstg        = data(iprvd,i)
-           cprvstg(ii)     = c_prvstg            ! provider name
-           r_sprvstg       = data(isprvd,i)
-           csprvstg(ii)    = c_sprvstg           ! subprovider name
-        endif
+        if(binary_diag) call contents_binary_diag_
+        if(netcdf_diag) call contents_netcdf_diag_
  
      end if
   end do
@@ -517,16 +462,19 @@ subroutine setupmxtm(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   call final_vars_
 
 ! Write information to diagnostic file
-  if(conv_diagsave .and. ii>0)then
-     call dtime_show(myname,'diagsave:mxtm',i_mxtm_ob_type)
-     write(7)'mxt',nchar,nreal,ii,mype,ioff0
-     write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
-     deallocate(cdiagbuf,rdiagbuf)
+  if(conv_diagsave) then
+     if(netcdf_diag) call nc_diag_write
+     if(binary_diag .and. ii>0)then
+        call dtime_show(myname,'diagsave:mxtm',i_mxtm_ob_type)
+        write(7)'mxt',nchar,nreal,ii,mype,ioff0
+        write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
+        deallocate(cdiagbuf,rdiagbuf)
 
-    if (twodvar_regional) then
-       write(7)cprvstg(1:ii),csprvstg(1:ii)
-       deallocate(cprvstg,csprvstg)
-    endif
+       if (twodvar_regional) then
+          write(7)cprvstg(1:ii),csprvstg(1:ii)
+          deallocate(cprvstg,csprvstg)
+       endif
+     end if
   end if
 
 ! End of routine
@@ -614,6 +562,160 @@ subroutine setupmxtm(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      call stop2(999)
   endif
   end subroutine init_vars_
+
+  subroutine init_netcdf_diag_
+  character(len=80) string
+  character(len=128) diag_conv_file
+  integer(i_kind) ncd_fileid,ncd_nobs
+  logical append_diag
+  logical,parameter::verbose=.false. 
+     write(string,900) jiter
+900  format('conv_mxtm_',i2.2,'.nc4')
+     diag_conv_file=trim(dirname) // trim(string)
+
+     inquire(file=diag_conv_file, exist=append_diag)
+
+     if (append_diag) then
+        call nc_diag_read_init(diag_conv_file,ncd_fileid)
+        ncd_nobs = nc_diag_read_get_dim(ncd_fileid,'nobs')
+        call nc_diag_read_close(diag_conv_file)
+
+        if (ncd_nobs > 0) then
+           if(verbose) print *,'file ' // trim(diag_conv_file) // ' exists.  Appending.  nobs,mype=',ncd_nobs,mype
+        else
+           if(verbose) print *,'file ' // trim(diag_conv_file) // ' exists but contains no obs.  Not appending. nobs,mype=',ncd_nobs,mype
+           append_diag = .false. ! if there are no obs in existing file, then do not try to append
+        endif
+     end if
+
+     call nc_diag_init(diag_conv_file, append=append_diag)
+
+     if (.not. append_diag) then ! don't write headers on append - the module will break?
+        call nc_diag_header("date_time",ianldate )
+     endif
+  end subroutine init_netcdf_diag_
+  subroutine contents_binary_diag_
+        cdiagbuf(ii)    = station_id         ! station id
+ 
+        rdiagbuf(1,ii)  = ictype(ikx)        ! observation type
+        rdiagbuf(2,ii)  = icsubtype(ikx)     ! observation subtype
+ 
+        rdiagbuf(3,ii)  = data(ilate,i)      ! observation latitude (degrees)
+        rdiagbuf(4,ii)  = data(ilone,i)      ! observation longitude (degrees)
+        rdiagbuf(5,ii)  = data(istnelv,i)    ! station elevation (meters)
+        rdiagbuf(6,ii)  = r10*exp(data(ipres,i)) ! observation pressure (hPa)
+        rdiagbuf(7,ii)  = data(iobshgt,i)    ! observation height (meters)
+        rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
+
+        rdiagbuf(9,ii)  = data(iqc,i)        ! input prepbufr qc or event mark
+        rdiagbuf(10,ii) = rmiss_single       ! setup qc or event mark
+        rdiagbuf(11,ii) = data(iuse,i)       ! read_prepbufr data usage flag
+        if(muse(i)) then
+           rdiagbuf(12,ii) = one             ! analysis usage flag (1=use, -1=not used)
+        else
+           rdiagbuf(12,ii) = -one
+        endif
+
+        rdiagbuf(13,ii) = rwgt               ! nonlinear qc relative weight
+        rdiagbuf(14,ii) = errinv_input       ! prepbufr inverse obs error (K**-1)
+        rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error (K**-1)
+        rdiagbuf(16,ii) = errinv_final       ! final inverse observation error (K**-1)
+ 
+        rdiagbuf(17,ii) = data(imxtm,i)     ! MXTM observation (K)
+        rdiagbuf(18,ii) = ddiff              ! obs-ges used in analysis (K)
+        rdiagbuf(19,ii) = data(imxtm,i)-mxtmges! obs-ges w/o bias correction (K) (future slot)
+ 
+
+        ioff=ioff0
+        if (lobsdiagsave) then
+           do jj=1,miter 
+              ioff=ioff+1 
+              if (obsdiags(i_mxtm_ob_type,ibin)%tail%muse(jj)) then
+                 rdiagbuf(ioff,ii) = one
+              else
+                 rdiagbuf(ioff,ii) = -one
+              endif
+           enddo
+           do jj=1,miter+1
+              ioff=ioff+1
+              rdiagbuf(ioff,ii) = obsdiags(i_mxtm_ob_type,ibin)%tail%nldepart(jj)
+           enddo
+           do jj=1,miter
+              ioff=ioff+1
+              rdiagbuf(ioff,ii) = obsdiags(i_mxtm_ob_type,ibin)%tail%tldepart(jj)
+           enddo
+           do jj=1,miter
+              ioff=ioff+1
+              rdiagbuf(ioff,ii) = obsdiags(i_mxtm_ob_type,ibin)%tail%obssen(jj)
+           enddo
+        endif
+
+        if (twodvar_regional) then
+           rdiagbuf(ioff+1,ii) = data(idomsfc,i) ! dominate surface type
+           rdiagbuf(ioff+2,ii) = data(izz,i)     ! model terrain at observation location
+           r_prvstg        = data(iprvd,i)
+           cprvstg(ii)     = c_prvstg            ! provider name
+           r_sprvstg       = data(isprvd,i)
+           csprvstg(ii)    = c_sprvstg           ! subprovider name
+        endif
+  end subroutine contents_binary_diag_
+  subroutine contents_netcdf_diag_
+! Observation class
+  character(7),parameter     :: obsclass = '   mxtm'
+  real(r_kind),parameter::     missing = -9.99e9
+  real(r_kind),dimension(miter) :: obsdiag_iuse
+           call nc_diag_metadata("Station_ID",              station_id             )
+           call nc_diag_metadata("Observation_Class",       obsclass               )
+           call nc_diag_metadata("Observation_Type",        ictype(ikx)            )
+           call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
+           call nc_diag_metadata("Latitude",                data(ilate,i)          )
+           call nc_diag_metadata("Longitude",               data(ilone,i)          )
+           call nc_diag_metadata("Station_Elevation",       data(istnelv,i)        )
+           call nc_diag_metadata("Pressure",                data(ipres,i)*r10      )
+           call nc_diag_metadata("Height",                  data(iobshgt,i)        )
+           call nc_diag_metadata("Time",                    dtime-time_offset      )
+           call nc_diag_metadata("Prep_QC_Mark",            data(iqc,i)            )
+           call nc_diag_metadata("Prep_Use_Flag",           data(iuse,i)           )
+!          call nc_diag_metadata("Nonlinear_QC_Var_Jb",     var_jb                 )
+           call nc_diag_metadata("Nonlinear_QC_Rel_Wgt",    rwgt                   )                 
+           if(muse(i)) then
+              call nc_diag_metadata("Analysis_Use_Flag",    one                    )
+           else
+              call nc_diag_metadata("Analysis_Use_Flag",    -one                   )              
+           endif
+
+           call nc_diag_metadata("Errinv_Input",            errinv_input           )
+           call nc_diag_metadata("Errinv_Adjust",           errinv_adjst           )
+           call nc_diag_metadata("Errinv_Final",            errinv_final           )
+
+           call nc_diag_metadata("Observation",                   data(imxtm,i)    )
+           call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   ddiff            )
+           call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", data(imxtm,i)-mxtmges )
+ 
+           if (lobsdiagsave) then
+              do jj=1,miter
+                 if (obsdiags(i_mxtm_ob_type,ibin)%tail%muse(jj)) then
+                       obsdiag_iuse(jj) =  one
+                 else
+                       obsdiag_iuse(jj) = -one
+                 endif
+              enddo
+   
+              call nc_diag_data2d("ObsDiagSave_iuse",     obsdiag_iuse                             )
+              call nc_diag_data2d("ObsDiagSave_nldepart", obsdiags(i_mxtm_ob_type,ibin)%tail%nldepart )
+              call nc_diag_data2d("ObsDiagSave_tldepart", obsdiags(i_mxtm_ob_type,ibin)%tail%tldepart )
+              call nc_diag_data2d("ObsDiagSave_obssen",   obsdiags(i_mxtm_ob_type,ibin)%tail%obssen   )             
+           endif
+   
+           if (twodvar_regional) then
+              call nc_diag_metadata("Dominant_Sfc_Type", data(idomsfc,i)              )
+              call nc_diag_metadata("Model_Terrain",     data(izz,i)                  )
+              r_prvstg            = data(iprvd,i)
+              call nc_diag_metadata("Provider_Name",     c_prvstg                     )    
+              r_sprvstg           = data(isprvd,i)
+              call nc_diag_metadata("Subprovider_Name",  c_sprvstg                    )
+           endif
+  end subroutine contents_netcdf_diag_
 
   subroutine final_vars_
     if(allocated(ges_z   )) deallocate(ges_z   )

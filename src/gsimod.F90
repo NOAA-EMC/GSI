@@ -23,6 +23,7 @@
      lwrite_peakwt,use_limit,lrun_subdirs,l_foreaft_thin,&
      obsmod_init_instr_table,obsmod_final_instr_table
   use obsmod, only: luse_obsdiag
+  use obsmod, only: netcdf_diag, binary_diag
   use aircraftinfo, only: init_aircraft,hdist_aircraft,aircraft_t_bc_pof,aircraft_t_bc, &
                           aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail
   use obs_sensitivity, only: lobsensfc,lobsensincr,lobsensjb,lsensrecompute, &
@@ -323,6 +324,7 @@
 !  10-01-2015 guo       option to redistribute observations in 4d observer mode
 !  07-20-2015 zhu       re-structure codes for enabling all-sky/aerosol radiance assimilation, 
 !                       add radiance_mode_init, radiance_mode_destroy & radiance_obstype_destroy
+!  01-28-2016 mccarty   add netcdf_diag capability
 !  03-02-2016 s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
 !  03-10-2016 ejones    add control for gmi noise reduction
 !  03-25-2016 ejones    add control for amsr2 noise reduction
@@ -509,6 +511,8 @@
 !     thin4d - if true, removes thinning of observations due to the location in
 !              the time window
 !     luse_obsdiag - use obsdiags (useful when running EnKF observers; e.g., echo Jo table) 
+!     binary_diag - trigger binary diag-file output (being phased out)
+!     netcdf_diag - trigger netcdf diag-file output
 !
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
@@ -540,6 +544,7 @@
        lwrite_peakwt, use_gfs_nemsio,liauon,use_prepb_satwnd,l4densvar,ens_nstarthr,&
        use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon,lrun_subdirs,&
        use_sp_eqspace,lnested_loops,lsingleradob,thin4d,use_readin_anl_sfcmask,&
+       netcdf_diag,binary_diag,&
        luse_obsdiag,id_drifter,verbose,lsingleradar,singleradar,lnobalance
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):

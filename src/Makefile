@@ -617,6 +617,8 @@ clean:
 	xhat_vordivmod.f90 \
 	zrnmi_mod.f90
 
+  NCDIAG_SRCS = nc_diag_read_mod.f90  nc_diag_write_mod.f90  ncdr_dims.f90
+
   SRCSF90C_NOSWAP = \
 	buddycheck_mod.f90 \
 	get_gefs_ensperts_dualres.f90 \
@@ -704,7 +706,7 @@ clean:
 	setupuwnd10m.f90 \
 	setupvwnd10m.f90 \
 	sst_retrieval.f90 \
-        read_NASA_LaRC_cloud.f90
+        read_NASA_LaRC_cloud.f90 $(NCDIAG_SRCS)
 
   GSIGC_SRCS =
 

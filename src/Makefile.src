@@ -2,6 +2,7 @@
 # Source files
 # ------------
 
+  NCDOBJS = nc_diag_read_mod.o  nc_diag_write_mod.o
   OBJS	= \
 	adjtest.o \
 	adjtest_obs.o \
@@ -524,7 +525,7 @@
 	write_all.o \
 	write_bkgvars_grid.o \
 	xhat_vordivmod.o \
-	zrnmi_mod.o
+	zrnmi_mod.o $(NCDOBJS)
 
 # list-libs_srcs:
 #	@ for f in $(OBJS); do echo $$(basename $$f .o).[Ff]90; done

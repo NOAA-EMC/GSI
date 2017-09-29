@@ -112,6 +112,7 @@ module obsmod
 !                          procedures into module m_prad in file prad_bias.f90.
 !   2015-09-03  guo      - moved type::obs_handle, its instance yobs, and its
 !                          allocation, into m_obsHeadBundle.F90.
+!   2016-01-28  mccarty  - add netcdf_diag capability
 !   2016-03-07  pondeca  - add uwnd10m,vwnd10m
 !   2016-05-04  guo      - moved all ob_type and ob_head type-definitions into
 !                          their *own* class-style-modules, including 9 recent
@@ -348,6 +349,8 @@ module obsmod
 !                           data
 !   def obs_sub        - number of observations of each type in each subdomain
 !                        (nobs_type,npe)
+!   def binary_diag    - trigger binary diag-file output (being phased out)
+!   def netcdf_diag    - trigger netcdf diag-file output
 !
 ! attributes:
 !   langauge: f90
@@ -422,6 +425,8 @@ module obsmod
   public :: obsmod_final_instr_table
   public :: nobs_sub
 
+  public :: netcdf_diag, binary_diag
+
   interface obsmod_init_instr_table
           module procedure init_instr_table_
   end interface
@@ -440,6 +445,8 @@ module obsmod
 #endif
 
   logical luse_obsdiag
+  logical binary_diag, netcdf_diag 
+
 ! Declare types
 
   integer(i_kind),parameter::  i_ps_ob_type= 1    ! ps_ob_type
@@ -786,6 +793,10 @@ contains
     lrun_subdirs     = .false.
     l_foreaft_thin   = .false.
     luse_obsdiag     = .false.
+
+!   set default on diag writing
+    netcdf_diag = .false. ! by default, do not write netcdf_diag
+    binary_diag = .true.  ! by default, do write binary diag
 
     return
   end subroutine init_obsmod_dflts

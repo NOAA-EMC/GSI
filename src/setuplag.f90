@@ -44,6 +44,10 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
 
+  use obsmod, only: netcdf_diag, binary_diag, dirname
+  use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
+       nc_diag_write, nc_diag_data2d
+  use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
   use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar
   use guess_grids, only: nfldsig,hrdifsig
   use gridmod, only: nsig
@@ -534,7 +538,22 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! Save select output for diagnostic file
      if(conv_diagsave)then
         ii=ii+1
-        rstation_id     = orig_lag_num(dnum,1)
+        rstation_id = orig_lag_num(dnum,1)
+        err_input   = data(ier,i)
+        if (ratio_errors*error_lon>tiny_r_kind .and. ratio_errors*error_lat>tiny_r_kind) then
+           err_final_lon = one/(ratio_errors*error_lon)*rad2deg
+           err_final_lat = one/(ratio_errors*error_lat)*rad2deg
+        else
+           err_final_lon = huge_single
+           err_final_lat = huge_single
+        endif
+        errinv_input = huge_single
+        errinv_final_lon = huge_single
+        errinv_final_lat = huge_single
+        if (err_input>tiny_r_kind) errinv_input=one/err_input
+        if (err_final_lon>tiny_r_kind) errinv_final_lon=one/err_final_lon
+        if (err_final_lat>tiny_r_kind) errinv_final_lat=one/err_final_lat
+ 
         write(cdiagbuf(ii),fmt='(I5.5)') int(rstation_id)
  
         rdiagbuf(1,ii)  = ictype(ikx)        ! observation type
@@ -552,21 +571,6 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            rdiagbuf(8,ii) = -one
         endif
 
-        err_input = data(ier,i)
-        if (ratio_errors*error_lon>tiny_r_kind .and. ratio_errors*error_lat>tiny_r_kind) then
-           err_final_lon = one/(ratio_errors*error_lon)*rad2deg
-           err_final_lat = one/(ratio_errors*error_lat)*rad2deg
-        else
-           err_final_lon = huge_single
-           err_final_lat = huge_single
-        endif
-        errinv_input = huge_single
-        errinv_final_lon = huge_single
-        errinv_final_lat = huge_single
-        if (err_input>tiny_r_kind) errinv_input=one/err_input
-        if (err_final_lon>tiny_r_kind) errinv_final_lon=one/err_final_lon
-        if (err_final_lat>tiny_r_kind) errinv_final_lat=one/err_final_lat
- 
         rdiagbuf(9,ii) = rwgt               ! nonlinear qc relative weight
         rdiagbuf(10,ii)= errinv_input       ! prepbufr inverse obs error
         rdiagbuf(11,ii)= errinv_final_lon   ! final inverse observation error
@@ -615,4 +619,19 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end if
 
 ! End of routine
+contains
+  subroutine init_netcdf_diag_
+  character(len=80) string
+  character(len=128) diag_conv_file
+  integer(i_kind) ncd_fileid,ncd_nobs
+  logical append_diag
+  end subroutine init_netcdf_diag_
+  subroutine contents_binary_diag_
+  end subroutine contents_binary_diag_
+  subroutine contents_netcdf_diag_
+! Observation class
+  character(7),parameter     :: obsclass = '    lag'
+  real(r_kind),parameter::     missing = -9.99e9
+  real(r_kind),dimension(miter) :: obsdiag_iuse
+  end subroutine contents_netcdf_diag_
 end subroutine setuplag

@@ -183,6 +183,7 @@
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(n)
 !                       . removed (%dlat,%dlon) debris.
+!   2016-12-09  mccarty - add netcdf_diag capability
 !   2016-07-19  W. Gu   - add isis to obs type
 !   2016-07-19  W. Gu   - include the dependence of the correlated obs errors on the surface types
 !   2016-07-19  kbathmann -move eigendecomposition for correlated obs here
@@ -230,6 +231,9 @@
   use m_obsLList, only: obsLList_appendNode
   use m_obsLList, only: obsLList_tailNode
   use obsmod, only: obs_diag,luse_obsdiag,dval_use
+  use obsmod, only: netcdf_diag, binary_diag, dirname
+  use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
+       nc_diag_write, nc_diag_data2d, nc_diag_chaninfo_dim_set, nc_diag_chaninfo
   use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar
   use gridmod, only: nsig,regional,get_ij
   use satthin, only: super_val1
@@ -660,39 +664,8 @@
 
 ! If diagnostic file requested, open unit to file and write header.
   if (rad_diagsave .and. nchanl_diag > 0) then
-     filex=obstype
-     write(string,1976) jiter
-1976 format('_',i2.2)
-     diag_rad_file= trim(dirname) // trim(filex) // '_' // trim(dplat(is)) // trim(string)
-     if(init_pass) then
-        open(4,file=trim(diag_rad_file),form='unformatted',status='unknown',position='rewind')
-     else
-        open(4,file=trim(diag_rad_file),form='unformatted',status='old',position='append')
-     endif
-     if (lextra) allocate(diagbufex(iextra,jextra))
-
-!    Initialize/write parameters for satellite diagnostic file on
-!    first outer iteration.
-     if (init_pass .and. mype==mype_diaghdr(is)) then
-        inewpc=0
-        if (newpc4pred) inewpc=1
-        write(4) isis,dplat(is),obstype,jiter,nchanl_diag,npred,ianldate,ireal_radiag,ipchan_radiag,iextra,jextra,&
-           idiag,angord,iversion_radiag,inewpc,ioff0
-!       write(6,*)'SETUPRAD:  write header record for ',&
-!          isis,npred,ireal_radiag,ipchan_radiag,iextra,jextra,idiag,angord,iversion_radiag,&
-!                     ' to file ',trim(diag_rad_file),' ',ianldate
-        do i=1,nchanl
-           n=ich(i)
-           if( n < 1  .or. (reduce_diag .and. iuse_rad(n) < 1))cycle
-           varch4=varch(n)
-           tlap4=tlapmean(n)
-           freq4=sc(sensorindex)%frequency(sc_index(i))
-           pol4=sc(sensorindex)%polarization(sc_index(i))
-           wave4=wavenumber(i)
-           write(4)freq4,pol4,wave4,varch4,tlap4,iuse_rad(n),&
-              nuchan(n),ich(i)
-        end do
-     endif
+     if (binary_diag) call init_binary_diag_
+     if (netcdf_diag) call init_netcdf_diag_
   endif
 
 ! Load data array for current satellite
@@ -1800,6 +1773,144 @@
      if(in_curbin) then
 !       Write diagnostics to output file.
         if (rad_diagsave .and. luse(n) .and. nchanl_diag > 0) then
+           if (binary_diag) call contents_binary_diag_
+           if (netcdf_diag) call contents_netcdf_diag_
+
+        end if
+     endif ! (in_curbin)
+
+
+! End of n-loop over obs
+  end do
+
+! If retrieval, close open bufr sst file (output)
+  if (retrieval.and.last_pass) call finish_sst_retrieval
+
+! Jump here when there is no data to process for current satellite
+! Deallocate arrays
+  deallocate(diagbufchan)
+  deallocate(sc_index)
+
+  if (rad_diagsave) then
+     if (netcdf_diag) call nc_diag_write
+     call dtime_show(myname,'diagsave:rad',i_rad_ob_type)
+     if(binary_diag) call final_binary_diag_
+     if (lextra .and. allocated(diagbufex)) deallocate(diagbufex)
+  endif
+
+  call destroy_crtm
+
+135 continue
+
+! End of routine
+  return
+
+  contains
+
+  subroutine init_binary_diag_
+     filex=obstype
+     write(string,1976) jiter
+1976 format('_',i2.2)
+     diag_rad_file= trim(dirname) // trim(filex) // '_' // trim(dplat(is)) // trim(string)
+     if(init_pass) then
+        open(4,file=trim(diag_rad_file),form='unformatted',status='unknown',position='rewind')
+     else
+        open(4,file=trim(diag_rad_file),form='unformatted',status='old',position='append')
+     endif
+     if (lextra) allocate(diagbufex(iextra,jextra))
+
+!    Initialize/write parameters for satellite diagnostic file on
+!    first outer iteration.
+     if (init_pass .and. mype==mype_diaghdr(is)) then
+        inewpc=0
+        if (newpc4pred) inewpc=1
+        write(4) isis,dplat(is),obstype,jiter,nchanl_diag,npred,ianldate,ireal_radiag,ipchan_radiag,iextra,jextra,&
+           idiag,angord,iversion_radiag,inewpc,ioff0
+        write(6,*)'SETUPRAD:  write header record for ',&
+           isis,npred,ireal_radiag,ipchan_radiag,iextra,jextra,idiag,angord,iversion_radiag,&
+                      ' to file ',trim(diag_rad_file),' ',ianldate
+        do i=1,nchanl
+           n=ich(i)
+           if( n < 1  .or. (reduce_diag .and. iuse_rad(n) < 1))cycle
+           varch4=varch(n)
+           tlap4=tlapmean(n)
+           freq4=sc(sensorindex)%frequency(sc_index(i))
+           pol4=sc(sensorindex)%polarization(sc_index(i))
+           wave4=wavenumber(i)
+           write(4)freq4,pol4,wave4,varch4,tlap4,iuse_rad(n),&
+              nuchan(n),ich(i)
+        end do
+     endif
+  end subroutine init_binary_diag_
+  subroutine init_netcdf_diag_
+  character(len=80) string
+  character(len=128) diag_conv_file
+  integer(i_kind) ncd_fileid,ncd_nobs
+  logical append_diag
+        filex=obstype
+        write(string,1976) jiter
+1976 format('_',i2.2)
+        diag_rad_file= trim(dirname) // trim(filex) // '_' // trim(dplat(is)) // trim(string) // '.nc4'
+        if(init_pass .and. nobs .gt. 0) then
+!           open(4,file=trim(diag_rad_file),form='unformatted',status='unknown',position='rewind')
+           call nc_diag_init(diag_rad_file)
+           call nc_diag_chaninfo_dim_set(nchanl)
+
+        else
+!           open(4,file=trim(diag_rad_file),form='unformatted',status='old',position='append')
+        endif
+        if (init_pass .and. .not. reduce_diag) then
+           inewpc=0
+           if (newpc4pred) inewpc=1
+           call nc_diag_header("Satellite_Sensor",     isis           )
+           call nc_diag_header("Satellite",            dplat(is)      )            ! sat type
+           call nc_diag_header("Observation_type",     obstype        )            ! observation type
+           call nc_diag_header("Outer_Loop_Iteration", jiter)
+           call nc_diag_header("Number_of_channels",   nchanl_diag    )         ! number of channels in the sensor
+           call nc_diag_header("Number_of_Predictors", npred          )        ! number of updating bias correction predictors
+           call nc_diag_header("date_time",            ianldate       )        ! time (yyyymmddhh)
+           call nc_diag_header("ireal_radiag",         ireal_radiag   )
+           call nc_diag_header("ipchan_radiag",        ipchan_radiag  )
+           call nc_diag_header("iextra",               iextra         )
+           call nc_diag_header("jextra",               jextra         )
+           call nc_diag_header("idiag",                idiag          )
+           call nc_diag_header("angord",               angord         )
+           call nc_diag_header("iversion_radiag",      iversion_radiag)
+           call nc_diag_header("New_pc4pred",          inewpc         )        ! indicator of newpc4pred (1 on, 0 off)
+           call nc_diag_header("ioff0",                ioff0          )
+!           call nc_diag_header("Outer_Loop_Iteration", headfix%jiter)
+!           call nc_diag_header("Satellite_Sensor", headfix%isis)
+!           call nc_diag_header("Satellite",            headfix%id      )            ! sat type
+!           call nc_diag_header("Observation_type",     headfix%obstype )       ! observation type
+!           call nc_diag_header("Number_of_channels",   headfix%nchan   )         ! number of channels in the sensor
+!           call nc_diag_header("Number_of_Predictors", headfix%npred   )        ! number of updating bias correction predictors
+!           call nc_diag_header("date_time",            headfix%idate   )        ! time (yyyymmddhh)
+
+           ! channel block
+!           call nc_diag_chaninfo_dim_set(nchanl)
+
+
+           do i=1,nchanl
+              n=ich(i)
+              if( n < 1  .or. (reduce_diag .and. iuse_rad(n) < 1))cycle
+              varch4=varch(n)
+              tlap4=tlapmean(n)
+              freq4=sc(sensorindex)%frequency(i)
+              pol4=sc(sensorindex)%polarization(i)
+              wave4=wavenumber(i)
+              call nc_diag_chaninfo("chaninfoidx",     i                               )
+              call nc_diag_chaninfo("frequency",       sc(sensorindex)%frequency(i)    )
+              call nc_diag_chaninfo("polarization",    sc(sensorindex)%polarization(i) )
+              call nc_diag_chaninfo("wavenumber",      wavenumber(i)                   )
+              call nc_diag_chaninfo("error_variance",  varch(n)                        )
+              call nc_diag_chaninfo("mean_lapse_rate", tlapmean(n)                     )
+              call nc_diag_chaninfo("use_flag",        iuse_rad(n)                     )
+              call nc_diag_chaninfo("sensor_chan",     nuchan(n)                       )
+              call nc_diag_chaninfo("satinfo_chan",    ich(i)                          )
+           end do
+        endif
+  end subroutine init_netcdf_diag_
+  subroutine contents_binary_diag_
            diagbuf(1)  = cenlat                         ! observation latitude (degrees)
            diagbuf(2)  = cenlon                         ! observation longitude (degrees)
            diagbuf(3)  = zsges                          ! model (guess) elevation at observation location
@@ -2022,33 +2133,144 @@
               write(4) diagbuf,diagbufchan,diagbufex
            endif
 
-        end if
-     endif ! (in_curbin)
+  end subroutine contents_binary_diag_
+  subroutine contents_netcdf_diag_
+! Observation class
+  character(7),parameter     :: obsclass = '    rad'
+  real(r_kind),parameter::     missing = -9.99e9
+  integer(i_kind),parameter:: imissing = -999999
+  real(r_kind),dimension(miter) :: obsdiag_iuse
+  real(r_kind),dimension(:),allocatable :: predbias_angord
 
-
-! End of n-loop over obs
-  end do
-
-! If retrieval, close open bufr sst file (output)
-  if (retrieval.and.last_pass) call finish_sst_retrieval
-
-! Jump here when there is no data to process for current satellite
-! Deallocate arrays
-  deallocate(diagbufchan)
-  deallocate(sc_index)
-
-  if (rad_diagsave) then
-     call dtime_show(myname,'diagsave:rad',i_rad_ob_type)
-     close(4)
-     if (lextra .and. allocated(diagbufex)) deallocate(diagbufex)
+!  if (adp_anglebc) then
+  if (.true.) then
+    allocate(predbias_angord(5) )
+!    allocate(predbias_angord(angord) )
+    predbias_angord = zero
   endif
 
-  call destroy_crtm
+              do i=1,nchanl_diag
+                 call nc_diag_metadata("Channel_Index",         i                                   )
+                 call nc_diag_metadata("Observation_Class",     obsclass                            )
+                 call nc_diag_metadata("Latitude",              cenlat                              ) ! observation latitude (degrees)
+                 call nc_diag_metadata("Longitude",             cenlon                              ) ! observation longitude (degrees)
 
-135 continue
+                 call nc_diag_metadata("Elevation",             zsges                               ) ! model (guess) elevation at observation location
 
-! End of routine
-  return
+                 call nc_diag_metadata("Obs_Time",              dtime-time_offset                   ) ! observation time (hours relative to analysis time)
 
+                 call nc_diag_metadata("Scan_Position",         data_s(iscan_pos,n)                 ) ! sensor scan position 
+                 call nc_diag_metadata("Sat_Zenith_Angle",      zasat*rad2deg                       ) ! satellite zenith angle (degrees)
+                 call nc_diag_metadata("Sat_Azimuth_Angle",     data_s(ilazi_ang,n)                 ) ! satellite azimuth angle (degrees)
+                 call nc_diag_metadata("Sol_Zenith_Angle",      pangs                               ) ! solar zenith angle (degrees)
+                 call nc_diag_metadata("Sol_Azimuth_Angle",     data_s(isazi_ang,n)                 ) ! solar azimuth angle (degrees)
+                 call nc_diag_metadata("Sun_Glint_Angle",       sgagl                               ) ! sun glint angle (degrees) (sgagl)
+
+                 call nc_diag_metadata("Water_Fraction",        surface(1)%water_coverage           ) ! fractional coverage by water
+                 call nc_diag_metadata("Land_Fraction",         surface(1)%land_coverage            ) ! fractional coverage by land
+                 call nc_diag_metadata("Ice_Fraction",          surface(1)%ice_coverage             ) ! fractional coverage by ice
+                 call nc_diag_metadata("Snow_Fraction",         surface(1)%snow_coverage            ) ! fractional coverage by snow
+
+                 if(.not. retrieval)then
+                    call nc_diag_metadata("Water_Temperature",     surface(1)%water_temperature     ) ! surface temperature over water (K)
+                    call nc_diag_metadata("Land_Temperature",      surface(1)%land_temperature      ) ! surface temperature over land (K)
+                    call nc_diag_metadata("Ice_Temperature",       surface(1)%ice_temperature       ) ! surface temperature over ice (K)
+                    call nc_diag_metadata("Snow_Temperature",      surface(1)%snow_temperature      ) ! surface temperature over snow (K)
+                    call nc_diag_metadata("Soil_Temperature",      surface(1)%soil_temperature      ) ! soil temperature (K)
+                    call nc_diag_metadata("Soil_Moisture",         surface(1)%soil_moisture_content ) ! soil moisture
+                    call nc_diag_metadata("Land_Type_Index",       surface(1)%land_type             ) ! surface land type
+                    call nc_diag_metadata("tsavg5",                missing                          ) ! SST first guess used for SST retrieval
+                    call nc_diag_metadata("sstcu",                 missing                          ) ! NCEP SST analysis at t            
+                    call nc_diag_metadata("sstph",                 missing                          ) ! Physical SST retrieval             
+                    call nc_diag_metadata("sstnv",                 missing                          ) ! Navy SST retrieval               
+                    call nc_diag_metadata("dta",                   missing                          ) ! d(ta) corresponding to sstph
+                    call nc_diag_metadata("dqa",                   missing                          ) ! d(qa) corresponding to sstph
+                    call nc_diag_metadata("dtp_avh",               missing                          ) ! data type             
+                 else
+                    call nc_diag_metadata("Water_Temperature",     missing                          ) ! surface temperature over water (K)
+                    call nc_diag_metadata("Land_Temperature",      missing                          ) ! surface temperature over land (K)
+                    call nc_diag_metadata("Ice_Temperature",       missing                          ) ! surface temperature over ice (K)
+                    call nc_diag_metadata("Snow_Temperature",      missing                          ) ! surface temperature over snow (K)
+                    call nc_diag_metadata("Soil_Temperature",      missing                          ) ! soil temperature (K)
+                    call nc_diag_metadata("Soil_Moisture",         missing                          ) ! soil moisture
+                    call nc_diag_metadata("Land_Type_Index",       imissing                         ) ! surface land type
+                    call nc_diag_metadata("tsavg5",                tsavg5                           ) ! SST first guess used for SST retrieval
+                    call nc_diag_metadata("sstcu",                 sstcu                            ) ! NCEP SST analysis at t            
+                    call nc_diag_metadata("sstph",                 sstph                            ) ! Physical SST retrieval             
+                    call nc_diag_metadata("sstnv",                 sstnv                            ) ! Navy SST retrieval               
+                    call nc_diag_metadata("dta",                   dta                              ) ! d(ta) corresponding to sstph
+                    call nc_diag_metadata("dqa",                   dqa                              ) ! d(qa) corresponding to sstph
+                    call nc_diag_metadata("dtp_avh",               dtp_avh                          ) ! data type             
+                 endif
+
+                 call nc_diag_metadata("Vegetation_Fraction",   surface(1)%vegetation_fraction      )
+                 call nc_diag_metadata("Snow_Depth",            surface(1)%snow_depth               )
+                 call nc_diag_metadata("tpwc_amsua",            tpwc_amsua                          )
+                 call nc_diag_metadata("clw_guess_retrieval",   clw_guess_retrieval                 )
+
+                 call nc_diag_metadata("Sfc_Wind_Speed",        surface(1)%wind_speed               )
+                 call nc_diag_metadata("Cloud_Frac",            cld                                 )
+                 call nc_diag_metadata("CTP",                   cldp                                )
+                 call nc_diag_metadata("CLW",                   clw                                 )
+                 call nc_diag_metadata("TPWC",                  tpwc                                )
+                 call nc_diag_metadata("clw_obs",               clw_obs                             )
+                 call nc_diag_metadata("clw_guess",             clw_guess                           )
+
+                 if (nstinfo==0) then
+                    data_s(itref,n)  = missing
+                    data_s(idtw,n)   = missing
+                    data_s(idtc,n)   = missing
+                    data_s(itz_tr,n) = missing
+                 endif
+
+                 call nc_diag_metadata("Foundation_Temperature",   data_s(itref,n)                   )       ! reference temperature (Tr) in NSST
+                 call nc_diag_metadata("SST_Warm_layer_dt",        data_s(idtw,n)                    )       ! dt_warm at zob
+                 call nc_diag_metadata("SST_Cool_layer_tdrop",     data_s(idtc,n)                    )       ! dt_cool at zob
+                 call nc_diag_metadata("SST_dTz_dTfound",          data_s(itz_tr,n)                  )       ! d(Tz)/d(Tr)
+
+                 call nc_diag_metadata("Observation",                           tb_obs(ich_diag(i))  )     ! observed brightness temperature (K)
+                 call nc_diag_metadata("Obs_Minus_Forecast_adjusted",           tbc(ich_diag(i)   )  )     ! observed - simulated Tb with bias corrrection (K)
+                 call nc_diag_metadata("Obs_Minus_Forecast_unadjusted",         tbcnob(ich_diag(i))  )     ! observed - simulated Tb with no bias correction (K)
+                 errinv = sqrt(varinv(ich_diag(i)))
+                 call nc_diag_metadata("Inverse_Observation_Error",             errinv            )
+
+                 useflag=one
+                 if (iuse_rad(ich(ich_diag(i))) < 1) useflag=-one
+
+                 call nc_diag_metadata("QC_Flag",                               id_qc(ich_diag(i))*useflag  )          ! quality control mark or event indicator
+
+                 call nc_diag_metadata("Emissivity",                            emissivity(ich_diag(i))     )           ! surface emissivity
+                 call nc_diag_metadata("Weighted_Lapse_Rate",                   tlapchn(ich_diag(i))        )           ! stability index
+                 call nc_diag_metadata("dTb_dTs",                               ts(ich_diag(i))             )           ! d(Tb)/d(Ts)
+
+                 call nc_diag_metadata("BC_Constant",                           predbias(1,ich_diag(i))         )             ! constant bias correction term
+                 call nc_diag_metadata("BC_Scan_Angle",                         predbias(2,ich_diag(i))         )             ! scan angle bias correction term
+                 call nc_diag_metadata("BC_Cloud_Liquid_Water",                 predbias(3,ich_diag(i))         )             ! CLW bias correction term
+                 call nc_diag_metadata("BC_Lapse_Rate_Squared",                 predbias(4,ich_diag(i))         )             ! square lapse rate bias correction term
+                 call nc_diag_metadata("BC_Lapse_Rate",                         predbias(5,ich_diag(i))         )             ! lapse rate bias correction term
+                 call nc_diag_metadata("BC_Cosine_Latitude_times_Node",         predbias(6,ich_diag(i))         )             ! node*cos(lat) bias correction term
+                 call nc_diag_metadata("BC_Sine_Latitude",                      predbias(7,ich_diag(i))         )             ! sin(lat) bias correction term
+                 call nc_diag_metadata("BC_Emissivity",                         predbias(8,ich_diag(i))         )             ! emissivity sensitivity bias correction term
+                 call nc_diag_metadata("BC_Fixed_Scan_Position",                predbias(npred+1,ich_diag(i))   )             ! external scan angle
+!                 if (adp_anglebc) then
+!                    do j=npred-angord+1, npred
+!                       predbias_angord(j-npred-angord) = predbias(j,ich_diag(i) )
+                 if (.true.) then
+                    do j=1,5
+                       predbias_angord(j) = j
+                    end do
+                    call nc_diag_data2d("BC_angord",   predbias_angord                                        )
+                 end if
+
+              enddo
+!  if (adp_anglebc) then
+  if (.true.) then
+    deallocate(predbias_angord)
+  endif
+  end subroutine contents_netcdf_diag_
+
+  subroutine final_binary_diag_
+  close(4)
+  end subroutine final_binary_diag_
  end subroutine setuprad
 
