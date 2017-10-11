@@ -53,7 +53,10 @@ cmake_minimum_required(VERSION 2.8)
 
 # remove stub_nstmod from the rest of the source files
   list( REMOVE_ITEM GSI_SRC "${CMAKE_CURRENT_SOURCE_DIR}/stub_nstmod.f90" )
-
+  if( BUILD_NCDIAG )
+    list( REMOVE_ITEM GSI_SRC "${CMAKE_CURRENT_SOURCE_DIR}/nc_diag_read_mod.f90" )
+    list( REMOVE_ITEM GSI_SRC "${CMAKE_CURRENT_SOURCE_DIR}/nc_diag_write_mod.f90" )
+  endif( BUILD_NCDIAG )
 # The specific regional/WRF source files
   if(USE_WRF)
     set( REGIONAL_SRC ${CPLR_SRC} )
@@ -72,8 +75,12 @@ cmake_minimum_required(VERSION 2.8)
 
   set_source_files_properties( ${CMAKE_CURRENT_SOURCE_DIR}/blockIO.c  PROPERTIES COMPILE_FLAGS ${GSI_CFLAGS} )
 
-  include_directories( ${CORE_INCS} ${NETCDF_INCLUDES} ${MPI_Fortran_INCLUDE_PATH} "./" )
+  include_directories( ${CORE_INCS} ${NETCDF_INCLUDES} ${MPI_Fortran_INCLUDE_PATH} "./" ${NCDIAG_INCS} )
+
   add_library(gsilib_shrd${debug_suffix} STATIC ${GSI_SRC} )
+  if( BUILD_NCDIAG )
+      add_dependencies(gsilib_shrd${debug_suffix} ${NCDIAG_LIBRARIES} )
+  endif( BUILD_NCDIAG )
 
   if(USE_WRF) 
     add_library(gsilib_wrf${debug_suffix} STATIC ${REGIONAL_SRC} )
@@ -82,7 +89,7 @@ cmake_minimum_required(VERSION 2.8)
     add_library(gsilib_global${debug_suffix} STATIC ${GLOBAL_SRC} )
     target_link_libraries( gsilib_shrd${debug_suffix} gsilib_global${debug_suffix} ${CORE_LIBRARIES})
     target_link_libraries( gsilib_global${debug_suffix} ${CORE_LIBRARIES})
-    set_target_properties(gsilib_global PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
+    set_target_properties(gsilib_global PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include" )
     target_include_directories(gsilib_global PUBLIC "${PROJECT_BINARY_DIR}/include")
     add_dependencies(gsilib_global${debug_suffix} gsilib_shrd${debug_suffix} )
   endif()
@@ -97,8 +104,6 @@ cmake_minimum_required(VERSION 2.8)
     target_include_directories(gsilib_wrf${debug_suffix} PUBLIC "${PROJECT_BINARY_DIR}/include/wrf")
   endif()
   target_include_directories(gsilib_shrd${debug_suffix} PUBLIC "${PROJECT_BINARY_DIR}/include")
-# add_library(clib${debug_suffix} STATIC ${CMAKE_CURRENT_SOURCE_DIR}/blockIO.c )
-
 
   if(BUILD_CORELIBS )
     if(USE_WRF) 
@@ -153,12 +158,12 @@ cmake_minimum_required(VERSION 2.8)
     list( REMOVE_ITEM LAPACK_LIBRARIES "-lm" )
   endif()
   if(USE_WRF) 
-    target_link_libraries(gsi.x${debug_suffix} gsilib_shrd${debug_suffix} gsilib_wrf${debug_suffix} gsilib_shrd${debug_suffix} ${WRF_LIBRARIES} ${CORE_LIBRARIES}
+    target_link_libraries(gsi.x${debug_suffix} gsilib_shrd${debug_suffix} gsilib_wrf${debug_suffix} gsilib_shrd${debug_suffix} ${WRF_LIBRARIES} ${CORE_LIBRARIES} ${NCDIAG_LIBRARIES}
          ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} 
          ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${GSI_LDFLAGS})
   endif()
   if(BUILD_GLOBAL) 
     target_link_libraries(gsi_global.x${debug_suffix} gsilib_shrd${debug_suffix} gsilib_global${debug_suffix} gsilib_shrd${debug_suffix}  
          ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES}   
-         ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${CORE_LIBRARIES} )
+         ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${CORE_LIBRARIES} ${NCDIAG_LIBRARIES} )
   endif()
