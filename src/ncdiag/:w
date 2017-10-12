@@ -1,0 +1,19 @@
+set(this ncdiag)
+project(${this} Fortran)
+
+cmake_minimum_required(VERSION 2.8)
+if(BUILD_NCDIAG)
+  set(CMAKE_Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
+
+  # NetCDF-4 library
+# include(./cmake/FindBaselibs.cmake)
+  include_directories( ${NETCDF_INCLUDES} ${NCDIAG_INCS} )
+
+  # 32-bit reals, for now
+  add_definitions(-D_REAL4_)
+  FILE(GLOB NCDIAG_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*90 )
+  add_library(ncdiag STATIC ${NCDIAG_SRC})
+  add_dependencies( ncdiag ${PROJECT_BINARY_DIR}/include/kinds.mod )
+
+endif(BUILD_NCDIAG)
+
