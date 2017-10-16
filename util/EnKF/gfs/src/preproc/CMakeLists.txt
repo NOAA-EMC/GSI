@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 2.6)
+if(BUILD_UTIL)
+  file(GLOB LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.f90)
+  set_source_files_properties( ${LOCAL_SRC} PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS} )
+  add_executable(preproc.x  ${LOCAL_SRC} )
+  include_directories( ${CORE_INCS} ) 
+  add_dependencies( preproc.x enkflib enkfdeplib )
+endif()
