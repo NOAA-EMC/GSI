@@ -38,6 +38,7 @@ module gridinfo
 ! program history log:
 !   2009-02-23  Initial version.
 !   2016-04-20  Modify to handle the updated nemsio sig file (P, DP & DPDT removed)
+!   2017-10-15 Li, nssign trunc=nlonsin since jcap not defined any more for 3D file from WriteComponent
 !
 ! attributes:
 !   language: f95
@@ -114,6 +115,10 @@ if (use_gfs_nemsio) then
      endif
      call nemsio_getfilehead(gfile,iret=iret, dimx=nlonsin, dimy=nlatsin,&
                              dimz=nlevsin,jcap=ntrunc,idvc=idvc)
+     if ( ntrunc /= nlonsin ) then
+        ntrunc = nlonsin
+        write(*,'(a,I6)') 'enkf gridinfo, assign ntrunc as nlonsin = ',nlonsin
+     endif
      if (iret/=0) then
         write(6,*)'grdinfo: gfs model: problem with nemsio_getfilehead, iret=',iret
         call stop2(23)

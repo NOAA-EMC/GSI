@@ -9,6 +9,7 @@ program getsigensmeanp_smooth
 !
 ! program history log:
 !   2009-02-23  Initial version.
+!   2017_10-15  Li, assign ntrunc =lonb for WriteComponent
 !
 ! usage:
 !   input files:
@@ -139,6 +140,10 @@ program getsigensmeanp_smooth
            call nemsio_getfilehead(gfile, nrec=nrec, jcap=ntrunc, &
                 dimx=lonb, dimy=latb, dimz=nlevs, ntrac=ntrac, gdatatype=dtype, iret=iret)
            write(6,'(5a,i5)')'Read nemsio ',trim(filenamein), ' dtype = ', trim(adjustl(dtype)),' iret = ',iret
+           if ( ntrunc /= lonb ) then
+              ntrunc = lonb
+              write(6,'(a,i5)') 'getsigensmeanp_smooth, assign ntrunc to be lonb: ',ntrunc
+           endif
            allocate(reclev(nrec),recnam(nrec))
            call nemsio_getfilehead(gfile,reclev=reclev,iret=iret)
            call nemsio_getfilehead(gfile,recname=recnam,iret=iret)
