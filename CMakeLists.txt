@@ -178,7 +178,7 @@ project(GSI)
   endif(BUILD_UTIL) 
   if(BUILD_NCDIAG)
     set(NCDIAG_INCS "${PROJECT_BINARY_DIR}/include")
-    add_subdirectory(src/ncdiag)
+    add_subdirectory(libsrc/ncdiag)
     set(NCDIAG_LIBRARIES ncdiag )
   endif(BUILD_NCDIAG) 
 
