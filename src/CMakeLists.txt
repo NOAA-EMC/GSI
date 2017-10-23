@@ -56,7 +56,6 @@ cmake_minimum_required(VERSION 2.8)
   if( BUILD_NCDIAG )
     list( REMOVE_ITEM GSI_SRC "${CMAKE_CURRENT_SOURCE_DIR}/nc_diag_read_mod.f90" )
     list( REMOVE_ITEM GSI_SRC "${CMAKE_CURRENT_SOURCE_DIR}/nc_diag_write_mod.f90" )
-    list( REMOVE_ITEM GSI_SRC "${CMAKE_CURRENT_SOURCE_DIR}/kinds.F90" )
   endif( BUILD_NCDIAG )
 # The specific regional/WRF source files
   if(USE_WRF)
