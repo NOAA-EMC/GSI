@@ -114,7 +114,7 @@ echo "#SBATCH --output $output"            >> $cfile
 echo "#SBATCH --job-name $jobname"         >> $cfile
 echo "#SBATCH --time=$timew"               >> $cfile
 echo "#SBATCH --ntasks=$procs"             >> $cfile
-echo "#SBATCH --ntasks-per-node=$nodes"    >> $cfile
+echo "#SBATCH --nodes=$nodes"              >> $cfile
 echo "#SBATCH --account $accnt"            >> $cfile
 echo "#SBATCH --constraint=hasw"           >> $cfile
 echo "#SBATCH --qos=advda"                 >> $cfile

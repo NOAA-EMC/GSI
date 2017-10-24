@@ -17,12 +17,12 @@ case $regtest in
            topts[2]="0:30:00" ; popts[2]="72/8/" ; ropts[2]="1024/2" 
            sub_cmd="sub_wcoss_c -a GDAS-T2O -d $PWD"
         elif [[ "$machine" = "s4" ]]; then
-           topts[1]="1:45:00" ; popts[1]="20/4" ; ropts[1]="/1"
-           topts[2]="1:45:00" ; popts[2]="40/2" ; ropts[2]="/2"
+           topts[1]="1:45:00" ; popts[1]="20/4"  ; ropts[1]="/1"
+           topts[2]="1:45:00" ; popts[2]="40/2"  ; ropts[2]="/2"
            sub_cmd="sub_s4"
         elif [[ "$machine" = "discover" ]]; then
-           topts[1]="0:30:00" ; popts[1]="36/18"  ; ropts[1]="/1"
-           topts[2]="0:30:00" ; popts[2]="48/12"  ; ropts[2]="/2"
+           topts[1]="0:30:00" ; popts[1]="36/2"  ; ropts[1]="/1"
+           topts[2]="0:30:00" ; popts[2]="72/3"  ; ropts[2]="/2"
            sub_cmd="sub_discover"
         fi
 
@@ -52,6 +52,10 @@ case $regtest in
            topts[1]="0:25:00" ; popts[1]="16/2/" ; ropts[1]="/1"
            topts[2]="0:25:00" ; popts[2]="16/4/" ; ropts[2]="/2"
            sub_cmd="sub_s4"
+        elif [[ "$machine" = "discover" ]]; then
+           topts[1]="0:30:00" ; popts[1]="16/2"  ; ropts[1]="/1"
+           topts[2]="0:30:00" ; popts[2]="16/1"  ; ropts[2]="/2"
+           sub_cmd="sub_discover"
         fi
 
         if [ "$debug" = ".true." ] ; then
@@ -73,13 +77,17 @@ case $regtest in
             topts[2]="0:25:00" ; popts[2]="16/4/" ; ropts[2]="/2"
             sub_cmd="sub_wcoss -a GDAS-T2O -d $PWD"
         elif [[ "$machine" = "WCOSS_C" ]]; then
-            topts[1]="1:35:00" ; popts[1]="48/12/" ; ropts[1]="1024/1"  # sub_wcoss_c popts are "#tasks/#nodes/"
-            topts[2]="1:25:00" ; popts[2]="60/15/" ; ropts[2]="1024/2"
+            topts[1]="1:35:00" ; popts[1]="48/12/"; ropts[1]="1024/1"  # sub_wcoss_c popts are "#tasks/#nodes/"
+            topts[2]="1:25:00" ; popts[2]="60/15/"; ropts[2]="1024/2"
             sub_cmd="sub_wcoss_c -a GDAS-T2O -d $PWD"
         elif [[ "$machine" = "s4" ]]; then
             topts[1]="0:55:00" ; popts[1]="16/2/" ; ropts[1]="/1"
             topts[2]="0:45:00" ; popts[2]="16/4/" ; ropts[2]="/2"
             sub_cmd="sub_s4"
+        elif [[ "$machine" = "discover" ]]; then
+            topts[1]="2:00:00" ; popts[1]="48/2"  ; ropts[1]="/1"
+            topts[2]="2:00:00" ; popts[2]="60/3"  ; ropts[2]="/2"
+            sub_cmd="sub_discover"
         fi
 
         if [ "$debug" = ".true." ] ; then
@@ -116,6 +124,10 @@ case $regtest in
            topts[1]="0:25:00" ; popts[1]="20/4/" ; ropts[1]="/1"
            topts[2]="0:25:00" ; popts[2]="40/4/" ; ropts[2]="/2"
            sub_cmd="sub_s4"
+        elif [[ "$machine" = "discover" ]]; then
+           topts[1]="0:30:00" ; popts[1]="48/2"  ; ropts[1]="/1"
+           topts[2]="0:30:00" ; popts[2]="60/3"  ; ropts[2]="/2"
+           sub_cmd="sub_discover"
         fi
 
         if [ "$debug" = ".true." ] ; then
@@ -140,6 +152,10 @@ case $regtest in
            topts[1]="0:35:00" ; popts[1]="48/8/" ; ropts[1]="1024/1"  # sub_wcoss_c popts are "#tasks/#nodes/"
            topts[2]="0:35:00" ; popts[2]="60/10/" ; ropts[2]="1024/2"
            sub_cmd="sub_wcoss_c -a GDAS-T2O -d $PWD"
+        elif [[ "$machine" = "discover" ]]; then
+           topts[1]="0:30:00" ; popts[1]="48/2"  ; ropts[1]="/1"
+           topts[2]="0:30:00" ; popts[2]="60/3"  ; ropts[2]="/2"
+           sub_cmd="sub_discover"
         fi
 
         if [ "$debug" = ".true." ] ; then
@@ -168,6 +184,10 @@ case $regtest in
            topts[1]="0:30:00" ; popts[1]="16/2/" ; ropts[1]="/1"
            topts[2]="0:30:00" ; popts[2]="16/4/" ; ropts[2]="/2"
            sub_cmd="sub_s4"
+        elif [[ "$machine" = "discover" ]]; then
+           topts[1]="0:30:00" ; popts[1]="48/2"  ; ropts[1]="/1"
+           topts[2]="0:30:00" ; popts[2]="60/3"  ; ropts[2]="/2"
+           sub_cmd="sub_discover"
         fi
 
         if [ "$debug" = ".true." ] ; then
@@ -196,6 +216,10 @@ case $regtest in
            topts[1]="0:25:00" ; popts[1]="16/2/" ; ropts[1]="/1"
            topts[2]="0:25:00" ; popts[2]="16/4/" ; ropts[2]="/2"
            sub_cmd="sub_s4"
+        elif [[ "$machine" = "discover" ]]; then
+           topts[1]="0:30:00" ; popts[1]="48/2"  ; ropts[1]="/1"
+           topts[2]="0:30:00" ; popts[2]="60/3"  ; ropts[2]="/2"
+           sub_cmd="sub_discover"
         fi
 
         if [ "$debug" = ".true." ] ; then
@@ -224,6 +248,10 @@ case $regtest in
            topts[1]="0:25:00" ; popts[1]="16/1/" ; ropts[1]="/1"
            topts[2]="0:25:00" ; popts[2]="16/2/" ; ropts[2]="/1"
            sub_cmd="sub_s4"
+        elif [[ "$machine" = "discover" ]]; then
+           topts[1]="0:30:00" ; popts[1]="16/1"  ; ropts[1]="/1"
+           topts[2]="0:30:00" ; popts[2]="20/2"  ; ropts[2]="/2"
+           sub_cmd="sub_discover"
         fi
 
         if [ "$debug" = ".true." ] ; then
@@ -252,6 +280,10 @@ case $regtest in
             topts[1]="0:50:00" ; popts[1]="7/12/" ; ropts[1]="/1"
             topts[2]="0:50:00" ; popts[2]="9/12/" ; ropts[2]="/2"
             sub_cmd="sub_s4"
+        elif [[ "$machine" = "discover" ]]; then
+            topts[1]="0:30:00" ; popts[1]="48/2"  ; ropts[1]="/1"
+            topts[2]="0:30:00" ; popts[2]="60/3"  ; ropts[2]="/2"
+            sub_cmd="sub_discover"
         fi
 
         if [ "$debug" = ".true." ] ; then
@@ -280,6 +312,10 @@ case $regtest in
             topts[1]="0:25:00" ; popts[1]="8/1/"  ; ropts[1]="/1"
             topts[2]="0:25:00" ; popts[2]="16/1/" ; ropts[2]="/2"
             sub_cmd="sub_s4"
+        elif [[ "$machine" = "discover" ]]; then
+            topts[1]="0:30:00" ; popts[1]="8/1"  ; ropts[1]="/1"
+            topts[2]="0:30:00" ; popts[2]="16/1"  ; ropts[2]="/2"
+            sub_cmd="sub_discover"
         fi
 
         if [ "$debug" = ".true." ] ; then
@@ -420,9 +456,7 @@ job[4]=${regtest}_hiproc_contrl
 topts[3]=${topts[1]} ; popts[3]=${popts[1]} ; ropts[3]=${ropts[1]}
 topts[4]=${topts[2]} ; popts[4]=${popts[2]} ; ropts[4]=${ropts[2]}
 
-# pc: Why call the directory tmpreg_$regtest
-# pc: tmpregdir="tmpreg_$regtest"
-tmpregdir="regtest/$regtest"
+tmpregdir="tmpreg_$regtest"
 rcname="return_code_${regtest}.out"
 result="${regtest}_regression_results.txt"
 

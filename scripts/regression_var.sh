@@ -22,7 +22,7 @@ if [ "$#" = 8 ] ; then
 else
 # Name of the branch being tested
   updat="ProdGSI"
-  contrl="ProdGSI"
+  contrl="gsicontrol"
   export cmaketest="false"
   export clean="false"
   export ptmpName=""
