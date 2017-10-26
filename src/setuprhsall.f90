@@ -121,6 +121,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
        destroyobs,inquire_obsdiags,lobskeep,nobskeep,lobsdiag_allocated, &
        luse_obsdiag
   use obsmod, only: lobsdiagsave
+  use obsmod, only: binary_diag
   use obs_sensitivity, only: lobsensfc, lsensrecompute
   use radinfo, only: newpc4pred
   use radinfo, only: mype_rad,diag_rad,jpch_rad,retrieval,fbias,npred,ostats,rstats
@@ -413,7 +414,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
  
   
 !    If requested, create conventional diagnostic files
-     if(conv_diagsave)then
+     if(conv_diagsave.and.binary_diag)then
         write(string,900) jiter
 900     format('conv_',i2.2)
         diag_conv_file=trim(dirname) // trim(string)
@@ -667,7 +668,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   call gpsStats_destroy()       ! replacing ...
   ! -- call genstats_gps(bwork,awork(1,i_gps),toss_gps_sub,conv_diagsave,mype)
 
-  if (conv_diagsave) close(7)
+  if (conv_diagsave.and.binary_diag) close(7)
 
   if(l_PBL_pseudo_SurfobsT.or.l_PBL_pseudo_SurfobsQ.or.l_PBL_pseudo_SurfobsUV) then
   else

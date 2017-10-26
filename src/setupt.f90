@@ -381,6 +381,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
      if(l_pbl_pseudo_surfobst) allocate(cdiagbufp(nobs*3),rdiagbufp(nreal,nobs*3))
      rdiagbuf=zero
+     if(netcdf_diag) call init_netcdf_diag_
   end if
   scale=one
   rsig=float(nsig)

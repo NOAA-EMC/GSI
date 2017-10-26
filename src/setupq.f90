@@ -305,6 +305,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if (twodvar_regional) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
      if(l_pbl_pseudo_surfobsq) allocate(cdiagbufp(nobs*3),rdiagbufp(nreal,nobs*3))
+     if(netcdf_diag) call init_netcdf_diag_
   end if
   rsig=nsig
 
