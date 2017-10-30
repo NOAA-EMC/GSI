@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.6)
 if(BUILD_UTIL)
   file(GLOB LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.f90)
-  list( REMOVE_ITEM LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/pmain.f90 )
+  list( REMOVE_ITEM LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/main.f90 )
 
   set_source_files_properties( ${LOCAL_SRC} PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS} )
   add_executable(calc_inc.x  ${LOCAL_SRC} )
