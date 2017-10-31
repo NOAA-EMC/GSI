@@ -60,6 +60,7 @@ subroutine gsisub(mype,init_pass,last_pass)
 !   2014-02-27  sienkiewicz - add additional aircraft bias option (external table)
 !   2015-07-20  zhu     - centralize radiance info for the usages of clouds & aerosols
 !                       - add radiance_obstype_init,radiance_parameter_cloudy_init,radiance_parameter_aerosol_init 
+!   2016-07-28  lippi   - add oneobmakerwsupob if 'rw' single ob test and skips radar_bufr_read_all.
 !
 !   input argument list:
 !     mype - mpi task id
@@ -85,7 +86,7 @@ subroutine gsisub(mype,init_pass,last_pass)
   use ozinfo, only: ozinfo_read
   use coinfo, only: coinfo_read
   use read_l2bufr_mod, only: radar_bufr_read_all
-  use oneobmod, only: oneobtest,oneobmakebufr
+  use oneobmod, only: oneobtest,oneobmakebufr,oneobmakerwsupob,oneob_type
   use aircraftinfo, only: aircraftinfo_read,aircraft_t_bc_pof,aircraft_t_bc,&
      aircraft_t_bc_ext
   use radiance_mod, only: radiance_obstype_init,radiance_parameter_cloudy_init,radiance_parameter_aerosol_init
@@ -131,13 +132,18 @@ subroutine gsisub(mype,init_pass,last_pass)
 
 ! If single ob test, create prep.bufr file with single ob in it
   if (oneobtest) then
-     if(mype==0)call oneobmakebufr
+     if(mype==0 .and. oneob_type=='rw') then
+        call oneobmakerwsupob
+     else if(mype==0 .and. oneob_type/='rw') then
+        call oneobmakebufr
+     end if
      call mpi_barrier(mpi_comm_world,ierror)
   end if
 
 ! Process any level 2 bufr format land doppler radar winds and create radar wind superob file
-  if(wrf_nmm_regional.or.wrf_mass_regional.or.nems_nmmb_regional &
-       .or. cmaq_regional) call radar_bufr_read_all(npe,mype)
+  if(wrf_nmm_regional.or.wrf_mass_regional.or.nems_nmmb_regional .or. cmaq_regional) then
+     if(.not. oneobtest) call radar_bufr_read_all(npe,mype)
+  end if
 !at some point cmaq will become also an online met/chem model (?)
 
 ! Read info files for assimilation of various obs

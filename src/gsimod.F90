@@ -49,13 +49,14 @@
                       use_prepb_satwnd,id_drifter
 
   use oneobmod, only: oblon,oblat,obpres,obhourset,obdattim,oneob_type,&
-     oneobtest,magoberr,maginnov,init_oneobmod,pctswitch,lsingleradob,obchan
-  use balmod, only: fstat
+     oneobtest,magoberr,maginnov,init_oneobmod,pctswitch,lsingleradob,obchan,&
+     anaz_rw,anel_rw,range_rw,sstn,lsingleradar,singleradar,learthrel_rw
+  use balmod, only: init_balmod,fstat,lnobalance
   use turblmod, only: use_pbl,init_turbl
   use qcmod, only: dfact,dfact1,create_qcvars,destroy_qcvars,&
       erradar_inflate,tdrerr_inflate,use_poq7,qc_satwnds,&
       init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3,qc_noirjaco3_pole,&
-      buddycheck_t,buddydiag_save,njqc,vqc,closest_obs
+      buddycheck_t,buddydiag_save,njqc,vqc,closest_obs,vadwnd_l2rw_qc
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax, &
      factv,factl,factp,factg,factw10m,facthowv,factcldch,niter,niter_no_qc,biascor,&
@@ -328,10 +329,19 @@
 !  04-18-2016 Yang      add closest_obs for selecting obs. from multi-report at a surface observation.
 !  06-24-2016 j. guo    added alwaysLocal => m_obsdiags::obsdiags_alwaysLocal to
 !                       namelist /SETUP/.
+!  08-12-2016 lippi     added namelist parameters for single radial wind
+!                       experiment (anaz_rw,anel_rw,range_rw,sstn,lsingleradar,
+!                       singleradar,learthrel_rw). added a radar station look-up
+!                       table.
 !  08-12-2016 Mahajan   NST stuff belongs in NST module, Adding a NST namelist
 !                       option
+!  08-24-2016 lippi     added nml option lnobalance to zero out all balance correlation
+!                       matricies for univariate analysis.
 !  08-28-2016 li - tic591: add use_readin_anl_sfcmask for consistent sfcmask
 !                          between analysis grids and others
+!  12-14-2016 lippi     added nml variable learthrel_rw for single radial
+!                       wind observation test, and nml option for VAD QC
+!                       vadwnd_l2rw_qc of level 2 winds.
 !  02-02-2017 Hu        added option i_coastline to turn on the observation
 !                              operator for surface observations along the coastline area
 !  04-01-2017 Hu        added option i_gsdqc to turn on special observation qc
@@ -530,7 +540,7 @@
        lwrite_peakwt, use_gfs_nemsio,liauon,use_prepb_satwnd,l4densvar,ens_nstarthr,&
        use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon,lrun_subdirs,&
        use_sp_eqspace,lnested_loops,lsingleradob,thin4d,use_readin_anl_sfcmask,&
-       luse_obsdiag,id_drifter,verbose
+       luse_obsdiag,id_drifter,verbose,lsingleradar,singleradar,lnobalance
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -730,7 +740,7 @@
        vadfile,noiqc,c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,&
        tcp_ermin,tcp_ermax,qc_noirjaco3,qc_noirjaco3_pole,qc_satwnds,njqc,vqc,&
        aircraft_t_bc_pof,aircraft_t_bc,aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail,&
-       hdist_aircraft,buddycheck_t,buddydiag_save,closest_obs
+       hdist_aircraft,buddycheck_t,buddydiag_save,closest_obs,vadwnd_l2rw_qc
 
 ! OBS_INPUT (controls input data):
 !      dmesh(max(dthin))- thinning mesh for each group
@@ -757,7 +767,7 @@
 
   namelist/singleob_test/maginnov,magoberr,oneob_type,&
        oblat,oblon,obpres,obdattim,obhourset,pctswitch,&
-       obchan
+       obchan,anel_rw,anaz_rw,range_rw,sstn,learthrel_rw
 
 ! SUPEROB_RADAR (level 2 bufr file to radar wind superobs):
 !      del_azimuth     - azimuth range for superob box  (default 5 degrees)
@@ -1051,6 +1061,7 @@
   call init_co
   call init_convinfo
   call init_jfunc
+  call init_balmod
   call init_berror
   call init_anberror  ! RTodling: alloc vectors should move to create
   call init_grid
@@ -1435,6 +1446,11 @@
      dtype(1)=oneob_type
      if(dtype(1)=='u' .or. dtype(1)=='v')dtype(1)='uv'
      dsis(1)=dtype(1)
+     if(trim(dtype(1))=='rw') then ! Reset some values for radial wind single ob.
+        dfile(1)='l2rwbufr'
+        dplat='null'
+        dsis(1)='l2rw'
+     endif
   endif
 
 ! Single radiance assimilation case
