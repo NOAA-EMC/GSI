@@ -175,13 +175,13 @@ program enkf_main
  ! Output non-inflated
  ! analyses for FSO
  if(fso_cycling) then
-   no_inflate_flag=.true.
-   t1 = mpi_wtime()
-   call write_ensemble(no_inflate_flag)
-   t2 = mpi_wtime()
-   if (nproc == 0) print *,'time in write_ensemble wo/inflation =',t2-t1,'on proc',nproc
-   no_inflate_flag=.false.
+    no_inflate_flag=.true.
+    t1 = mpi_wtime()
+    call write_ensemble(no_inflate_flag)
+    t2 = mpi_wtime()
+    if (nproc == 0) print *,'time in write_ensemble wo/inflation =',t2-t1,'on proc',nproc
  end if
+ no_inflate_flag=.false.
 
  ! posterior inflation.
  t1 = mpi_wtime()
