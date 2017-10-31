@@ -953,17 +953,17 @@ contains
   
        do i=1,grd%lon2
           do j=1,grd%lat2
-             u(j,i,k) = all_loc(j,i,ku)
-             v(j,i,k) = all_loc(j,i,kv)
-             q(j,i,k) = all_loc(j,i,kq)
-             tsen(j,i,k) = all_loc(j,i,kt) ! actually holds sensible temperature
+             u(j,i,k) = real(all_loc(j,i,ku),r_kind)
+             v(j,i,k) = real(all_loc(j,i,kv),r_kind)
+             q(j,i,k) = real(all_loc(j,i,kq),r_kind)
+             tsen(j,i,k) = real(all_loc(j,i,kt),r_kind)! actually holds sensible temperature
           end do
        end do
     end do
   
     do i=1,grd%lon2
        do j=1,grd%lat2
-          g_pd(j,i)=all_loc(j,i,i_pd)
+          g_pd(j,i)=real(all_loc(j,i,i_pd),r_kind)
        end do
     end do
   
@@ -972,7 +972,7 @@ contains
   ! convert wrf nmm pd variable to psfc in mb, and then to log(psfc) in cb
     do i=1,grd%lon2
        do j=1,grd%lat2
-          pd=r0_01*all_loc(j,i,i_0+i_pd)
+          pd=r0_01*real(all_loc(j,i,i_0+i_pd),r_kind)
           psfc_this=pd+pdtop_ll+pt_ll
           ps(j,i)=one_tenth*psfc_this   ! convert from mb to cb
        end do

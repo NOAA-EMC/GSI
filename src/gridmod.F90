@@ -1119,14 +1119,14 @@ contains
           end do
        end if
 
-       pdtop_ll=r0_01*pdtop                    !  check units--this converts to mb
-       pt_ll=r0_01*pt                          !  same here
+       pdtop_ll=r0_01*real(pdtop,r_kind)            !  check units--this converts to mb
+       pt_ll=r0_01*real(pt,r_kind)                  !  same here
  
        if(diagnostic_reg.and.mype==0) write(6,*)' in init_reg_glob_ll, pdtop_ll,pt_ll=',pdtop_ll,pt_ll
-       eta1_ll=eta1
-       aeta1_ll=aeta1
-       eta2_ll=eta2
-       aeta2_ll=aeta2
+       eta1_ll=real(eta1,r_kind)
+       aeta1_ll=real(aeta1,r_kind)
+       eta2_ll=real(eta2,r_kind)
+       aeta2_ll=real(aeta2,r_kind)
        read(lendian_in) glat,dx_nmm
        read(lendian_in) glon,dy_nmm
        close(lendian_in)
@@ -1191,8 +1191,8 @@ contains
           allocate(gytemp(nlon_regional,nlat_regional))
           allocate(glon8(nlon_regional,nlat_regional))
           allocate(glat8(nlon_regional,nlat_regional))
-          glon8=glon
-          glat8=glat
+          glon8=real(glon,r_kind)
+          glat8=real(glat,r_kind)
           i0=nlon_regional/2
           j0=nlat_regional/2
           call ll2rpolar(glat8,glon8,nlon_regional*nlat_regional, &
@@ -1203,8 +1203,8 @@ contains
           call fill_nmm_grid2a3(gytemp,nlon_regional,nlat_regional,gytemp_an)
           call rpolar2ll(gxtemp_an,gytemp_an,nlon*nlat, &
                          glat_an,glon_an,glat8(i0,j0),glon8(i0,j0),zero)
-          gxtemp=dx_nmm
-          gytemp=dy_nmm
+          gxtemp=real(dx_nmm,r_kind)
+          gytemp=real(dy_nmm,r_kind)
           call fill_nmm_grid2a3(gxtemp,nlon_regional,nlat_regional,dx_an)
           call fill_nmm_grid2a3(gytemp,nlon_regional,nlat_regional,dy_an)
           deallocate(gxtemp,gytemp,gxtemp_an,gytemp_an,glon8,glat8)
@@ -2515,7 +2515,7 @@ end subroutine init_general_transform
      do j=1,ny,2
         jj=jj+1
         do i=1,nx
-           gout(i,jj)=gin(i,j)
+           gout(i,jj)=real(gin(i,j),r_kind)
         end do
      end do
   else
@@ -2527,7 +2527,7 @@ end subroutine init_general_transform
         do i=1,nx
            im=i-1 ; if(im<1) im=i
            i0=i      ; if(i==nx)   i0=im
-           gout(i,jj)=quarter*(gin(im,j)+gin(i0,j)+gin(i,jp)+gin(i,jm))
+           gout(i,jj)=quarter*(real(gin(im,j)+gin(i0,j)+gin(i,jp)+gin(i,jm),r_kind))
         end do
      end do
   end if

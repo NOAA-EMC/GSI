@@ -1759,8 +1759,8 @@ contains
             rad2deg*field2(1,nlat_regional),rad2deg*field2(nlon_regional,nlat_regional)
           write(6,*)' my guess at tph0d = ',rad2deg*field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)
        end if
-       ctph0=cos(field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
-       stph0=sin(field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
+       ctph0=cos(real(field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2),r_kind))
+       stph0=sin(real(field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2),r_kind))
        
        if(guess)then
           rmse_var='DX_NMM' ! east-west distance (m) H-to-V points 
@@ -1806,8 +1806,8 @@ contains
             rad2deg*field2(1,nlat_regional),rad2deg*field2(nlon_regional,nlat_regional)
           write(6,*)' my guess at tlm0d = ',rad2deg*field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)
        end if
-       tlm0=half*(field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)+ &
-                field2(2+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
+       tlm0=half*real((field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)+ &
+                field2(2+(nlon_regional-1)/2,1+(nlat_regional-1)/2)),r_kind)
   
        if(guess)then
           rmse_var='DY_NMM' ! north-south distance (m) H-to-V points
