@@ -15,6 +15,7 @@
 !   2011-09-13  gayno             improve module's error handling
 !   2015-03-24  ejones            changed maxinstr to accomodate the addition of
 !                                 megha tropiques
+!   2016-11-11  gayno             add ATMS 3.3
 !
 ! subroutines included:
 !   sub fov_ellipse_crosstrk   - calc lat/lon of fov polygon
@@ -59,14 +60,14 @@
  private
 
  integer(i_kind) , parameter, public    :: npoly = 30
- integer(i_kind) , parameter, private   :: maxinstr = 19
+ integer(i_kind) , parameter, private   :: maxinstr = 20
  integer(i_kind) , dimension(maxinstr), private:: maxfov = (/ 2048,2048,2048, &
                                                               56,56,56, &
                                                               56,56, 8, &
                                                               11,30,90, &
                                                               90,96,96, &
                                                               96,90,30, &
-                                                              130 /)
+                                                              130,96 /)
 
  real(r_kind) , dimension(:), allocatable, private :: alongtrackangle
  real(r_kind) , dimension(:), allocatable, private :: crosstrackangle
@@ -85,6 +86,7 @@
  public fov_ellipse_crosstrk
 
  real(r_kind), pointer, private, dimension(:,:,:) :: amsucoeff
+ real(r_kind), pointer, private, dimension(:,:,:) :: atmscoeff
 
 ! Variables for AMSUA power determination. the number after the underscore is the
 ! satellite number.  
@@ -730,6 +732,7 @@
 !                       if inputs are incorrect.  use amsua
 !                       noaa19 coefficients as default for aqua.
 !   2015-03-24  ejones    - Add SAPHIR
+!   2016-11-11  gayno - add ATMS 3.3
 !
 ! input argument list:
 !   instr      - Instrument number
@@ -752,6 +755,7 @@
 !                17 = AIRS
 !                18 = IASI
 !                19 = SAPHIR
+!                20 = ATMS 3.3 DEG
 !   satid     - satellite id
 !   expansion - expansion factor.  Must be 1.0 for accurate renderine, 
 !               > 1.0 makes bigger ellipses, < 1.0 makes smaller ellipses.
@@ -864,6 +868,12 @@
     end select
  endif
 
+ nullify(atmscoeff)
+ if (instr == 20) then ! atms 3.3.  we don't have coefficients for atms.
+                       ! but it is similar to amsua.
+    atmscoeff=>amsucoeff_20
+ endif
+
 ! set antenna power coefficients for mhs sensor.  each satellite
 ! has different coefficients.  i had to create separate data
 ! statements becuase a single data statement had too many elements
@@ -942,6 +952,7 @@
 !   2007-08-13  gayno - modified for gsi software standards
 !   2009-03-05  kleespies - Add AMSU-MHS Antenna Patterns
 !   2009-09-21  kleespies - Add AIRS-IASI
+!   2016-11-11  gayno   - add ATMS 3.3
 !
 ! input argument list:
 !   ifov            - fov number  min = 1, max as below
@@ -979,6 +990,7 @@
 !                      16 = ATMS 1.1 DEG
 !                      17 = AIRS
 !                      18 = IASI
+!                      20 = ATMS 3.3 DEG
 !   satellite_azimuth - satellite azimuth angle
 !   lat               - latitude of center of fov 
 !   lon               - longitude of center of fov
@@ -1070,6 +1082,7 @@
 !   2007-08-13  gayno - modified for gsi software standards
 !   2009-09-21  kleespies - add AIRS and IASI
 !   2015-03-24  ejones    - add SAPHIR
+!   2016-11-11  gayno     - add ATMS 3.3
 !
 ! input argument list:
 !   instr     - Instrument number
@@ -1092,6 +1105,7 @@
 !            17 = AIRS
 !            18 = IASI
 !            19 = SAPHIR
+!            20 = ATMS 3.3 DEG
 !   height    - height of satellite in km
 !   fov       - fov number  min = 1, max as below
 !               2048 = AVHRR-2 LAC/HRPT
@@ -1153,25 +1167,27 @@
                                                       9.4737e0_r_kind, 3.e0_r_kind+one/three,                 &
                                                       1.1e0_r_kind , 10.e0_r_kind/9.e0_r_kind , 1.1e0_r_kind, &
                                                       1.1e0_r_kind, 1.1e0_r_kind,                             & 
-                                                      1.1e0_r_kind, 3.e0_r_kind+one/three, 0.6660465_r_kind  /)
+                                                      1.1e0_r_kind, 3.e0_r_kind+one/three, 0.6660465_r_kind,  & 
+                                                      1.1e0_r_kind  /)
  real(r_kind) , dimension(maxinstr) :: fovangle  = (/ 0.0745_r_kind,   0.0745_r_kind,  0.0745_r_kind,         &
                                                       1.22_r_kind,  1.40_r_kind,  1.40_r_kind,                &
                                                       1.40_r_kind,  0.70_r_kind,  10.0_r_kind,                &
                                                       7.5_r_kind,  3.3_r_kind,    1.1_r_kind,                 &
                                                       1.1_r_kind ,   5.2_r_kind,   2.2_r_kind,   1.1_r_kind,  &
-                                                      1.1_r_kind, 0.839383_r_kind, 0.6660465_r_kind /)
+                                                      1.1_r_kind, 0.839383_r_kind, 0.6660465_r_kind,          &
+                                                      3.3_r_kind /)
  real(r_kind) , dimension(maxinstr) :: halfscan  = (/ 55.37_r_kind, 55.37_r_kind, 55.25_r_kind, 49.5_r_kind,  &
                                                       49.5_r_kind,  49.5_r_kind,  49.5_r_kind,  49.5_r_kind,  &
                                                       35.0_r_kind,  47.3685_r_kind,                           &
                                                       48._r_kind+one/three,  48.95_r_kind,          &
                                                       48.95_r_kind, 52.73_r_kind, 52.73_r_kind, 52.73_r_kind, &
                                                       44.5_r_kind*10.0_r_kind/9.0_r_kind,                     &
-                                                      48._r_kind+one/three, 42.96_r_kind  /)
+                                                      48._r_kind+one/three, 42.96_r_kind, 52.73_r_kind  /)
  real(r_kind) , dimension(maxinstr) :: assymetry = (/ zero,         zero,         zero,         zero,         &
                                                       zero,         zero,        -1.8_r_kind,   zero,         &
                                                       zero,         zero,         zero,         zero,         &
                                                       zero,         zero,         zero,         zero,         &
-                                                      zero,         zero,         zero       /)
+                                                      zero,         zero,         zero,         zero       /)
 
 ! declare local variables
  real(r_kind) nadirangle, nadirangle_m, nadirangle_p
@@ -1295,6 +1311,7 @@
 !   2008-11-06  gayno - modified for gsi software standards
 !   2009-03-05  kleespies - modify to include all amsu-a and mhs instruments and all channels
 !   2009-09-21  kleespies - add AIRS and IASI
+!   2016-11-11  gayno     - add ATMS 3.3
 !
 ! input argument list:
 !   instr                 - instrument number
@@ -1317,6 +1334,7 @@
 !                          17 = AIRS
 !                          18 - IASI
 !                          19 = SAPHIR
+!                          20 = ATMS 3.3 DEG
 !   ifov                  - fov number
 !   satellite_azimuth     - satellite azimuth angle (degrees)
 !   lat                   - latitude of fov center
@@ -1377,7 +1395,8 @@
                                                      1.40_r_kind,   0.70_r_kind,   10.0_r_kind,             &
                                                      7.5_r_kind,    3.3_r_kind,    1.1_r_kind,              &
                                                      1.1_r_kind,    5.2_r_kind,    2.2_r_kind, 1.1_r_kind,  &
-                                                     1.1_r_kind, 0.839383_r_kind, 0.6660465_r_kind /)
+                                                     1.1_r_kind, 0.839383_r_kind, 0.6660465_r_kind,         &
+                                                     3.3_r_kind /)
 
 ! Declare local variables.
  integer(i_kind) :: fov
@@ -1466,6 +1485,30 @@
        if(p > one) p = one
        inside = p  
     endif ! amsuA
+
+    if(instr == 20) then ! ATMS 3.3 DEG. Use amsua channel 15 coeffs, which is sfc sensitive.
+       fovanglesize = fovangle(instr)
+       rat = d / r * expansion * fovanglesize * half
+
+       x = rat * cos(psi)
+       y = rat * sin(psi)
+       px = atmscoeff(0,1,15) + atmscoeff(1,1,15)*x    + atmscoeff(2,1,15)*x**2 &
+                              + atmscoeff(3,1,15)*x**3 + atmscoeff(4,1,15)*x**4 &
+                              + atmscoeff(5,1,15)*x**5 + atmscoeff(6,1,15)*x**6 &
+                              + atmscoeff(7,1,15)*x**7
+       py = atmscoeff(0,2,15) + atmscoeff(1,2,15)*y    + atmscoeff(2,2,15)*y**2 &
+                              + atmscoeff(3,2,15)*y**3 + atmscoeff(4,2,15)*y**4 &
+                              + atmscoeff(5,2,15)*y**5 + atmscoeff(6,2,15)*y**6 &
+                              + atmscoeff(7,2,15)*y**7
+
+       p = -(px+py) ! power in dB (positive)
+
+     ! convert to fraction of max power
+
+       p = 10._r_kind**(-p*one_tenth)  ! convert to fraction of max power
+       if(p > one) p = one
+       inside = p
+    endif ! atms
 
     if(instr == 13) then ! mhs
        fovanglesize = fovangle(instr)
