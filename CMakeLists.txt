@@ -119,7 +119,6 @@ project(GSI)
   
   find_package( NetCDF REQUIRED)
   if(NETCDF4)
-    set(HDF5_USE_STATIC_LIBRARIES "OFF")
     if(CMAKE_MAJOR_VERSION GREATER 2)
       find_package( HDF5 COMPONENTS C HL Fortran_HL REQUIRED )
     else()
