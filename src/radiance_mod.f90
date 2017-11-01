@@ -10,6 +10,7 @@ module radiance_mod
 !
 ! program history log:
 !   2015-07-20 Yanqiu Zhu
+!   2016-10-27 Yanqiu - add ATMS
 !
 ! subroutines included:
 !   sub radiance_mode_init           -  guess init
@@ -59,6 +60,7 @@ module radiance_mod
   public :: total_rad_type
   public :: rad_type_info
   public :: cloudy_amsua
+  public :: cloudy_atms
 
   public :: rad_obs_type
   public :: amsua_type
@@ -106,6 +108,7 @@ module radiance_mod
 
   type(rad_obs_type),save,dimension(:),allocatable :: rad_type_info
   type(amsua_type),save :: cloudy_amsua
+  type(amsua_type),save :: cloudy_atms 
 
 contains
 
@@ -617,6 +620,7 @@ contains
 !
 ! program history log:
 !   2015-07-20  zhu
+!   2016-10-27  zhu - add ATMS
 !
 !   input argument list:
 !
@@ -696,6 +700,16 @@ contains
                 cloudy_amsua%laerosol=rad_type_info(i)%laerosol
                 cloudy_amsua%laerosol4crtm=>rad_type_info(i)%laerosol4crtm
              end if
+
+             if (trim(obsname)=='atms') then
+                cloudy_atms%nchannel=rad_type_info(i)%nchannel
+                cloudy_atms%lcloud_fwd=rad_type_info(i)%lcloud_fwd
+                cloudy_atms%lallsky=rad_type_info(i)%lallsky
+                cloudy_atms%lcloud4crtm=>rad_type_info(i)%lcloud4crtm
+                cloudy_atms%laerosol_fwd=rad_type_info(i)%laerosol_fwd
+                cloudy_atms%laerosol=rad_type_info(i)%laerosol
+                cloudy_atms%laerosol4crtm=>rad_type_info(i)%laerosol4crtm
+             end if
              exit
           end if
        end do
@@ -708,6 +722,13 @@ contains
           allocate(cloudy_amsua%cclr(cloudy_amsua%nchannel), & 
                    cloudy_amsua%ccld(cloudy_amsua%nchannel))
           call amsua_table(trim(tablename),lunin,cloudy_amsua%nchannel,cloudy_amsua%cclr,cloudy_amsua%ccld)
+       end if
+
+!      atms
+       if (trim(obsname)=='atms') then
+          allocate(cloudy_atms%cclr(cloudy_atms%nchannel), &
+                   cloudy_atms%ccld(cloudy_atms%nchannel))
+          call amsua_table(trim(tablename),lunin,cloudy_atms%nchannel,cloudy_atms%cclr,cloudy_atms%ccld)
        end if
 
     enddo ! end of nrows
@@ -799,6 +820,7 @@ contains
 !
 ! program history log:
 !   2015-07-20  zhu
+!   2016-10-27  zhu - add ATMS
 !
 !   input argument list:
 !
@@ -812,6 +834,8 @@ contains
     
     if (allocated(cloudy_amsua%cclr)) deallocate(cloudy_amsua%cclr)
     if (allocated(cloudy_amsua%ccld)) deallocate(cloudy_amsua%ccld)
+    if (allocated(cloudy_atms%cclr)) deallocate(cloudy_atms%cclr)
+    if (allocated(cloudy_atms%ccld)) deallocate(cloudy_atms%ccld)
 
   end subroutine radiance_parameter_cloudy_destroy
 
@@ -833,6 +857,7 @@ contains
 !
 ! program history log:
 !   2015-09-10  zhu
+!   2016-10-27  zhu - add ATMS
 !
 !   input argument list:
 !
@@ -854,24 +879,35 @@ contains
 
     integer(i_kind) :: i
     real(r_kind) :: clwtmp
+    real(r_kind),dimension(nchanl) :: cclr,ccld
 
     if (.not. radmod%ex_obserr) return  
 
-! -- amsua
     if (trim(radmod%rtype) =='amsua') then
        do i=1,nchanl
-          clwtmp=half*(clwp_amsua+clw_guess_retrieval)
-          if(clwtmp <= cloudy_amsua%cclr(i)) then
-             error0(i) = tnoise(i)
-          else if(clwtmp > cloudy_amsua%cclr(i) .and. clwtmp < cloudy_amsua%ccld(i)) then
-             error0(i) = tnoise(i) + (clwtmp-cloudy_amsua%cclr(i))* &
-                         (tnoise_cld(i)-tnoise(i))/(cloudy_amsua%ccld(i)-cloudy_amsua%cclr(i))
-          else
-             error0(i) = tnoise_cld(i)
-          endif
+          cclr(i)=cloudy_amsua%cclr(i)
+          ccld(i)=cloudy_amsua%ccld(i)
        end do
-       return
     end if
+    if (trim(radmod%rtype) =='atms') then
+       do i=1,nchanl
+          cclr(i)=cloudy_atms%cclr(i)
+          ccld(i)=cloudy_atms%ccld(i)
+       end do
+    end if
+
+    do i=1,nchanl
+       clwtmp=half*(clwp_amsua+clw_guess_retrieval)
+       if(clwtmp <= cclr(i)) then
+          error0(i) = tnoise(i)
+       else if(clwtmp > cclr(i) .and. clwtmp < ccld(i)) then
+          error0(i) = tnoise(i) + (clwtmp-cclr(i))* &
+                      (tnoise_cld(i)-tnoise(i))/(ccld(i)-cclr(i))
+       else
+          error0(i) = tnoise_cld(i)
+       endif
+    end do
+    return
 
   end subroutine radiance_ex_obserr_1
 
@@ -887,6 +923,7 @@ contains
 !
 ! program history log:
 !   2015-09-20  zhu
+!   2016-10-27  zhu - add ATMS
 !
 !   input argument list:
 !
@@ -911,17 +948,27 @@ contains
     integer(i_kind)                   ,intent(  out) :: ierrret
 
     integer(i_kind) :: i
+    real(r_kind),dimension(nchanl) :: cclr
 
-! -- amsua
+!   call ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret)
+    call ret_amsua(tsim_bc,nchanl,tsavg5,zasat,clw_guess_retrieval,ierrret)
+
     if (trim(radmod%rtype) =='amsua') then
-!      call ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret) 
-       call ret_amsua(tsim_bc,nchanl,tsavg5,zasat,clw_guess_retrieval,ierrret)
        do i=1,nchanl
-          if ((clwp_amsua-cloudy_amsua%cclr(i))*(clw_guess_retrieval-cloudy_amsua%cclr(i))<zero  &
-             .and. abs(clwp_amsua-clw_guess_retrieval)>=0.005_r_kind) cld_rbc_idx(i)=zero
+          cclr(i)=cloudy_amsua%cclr(i)
        end do
-       return
     end if
+    if (trim(radmod%rtype) =='atms') then
+       do i=1,nchanl
+          cclr(i)=cloudy_atms%cclr(i)
+       end do
+    end if
+
+    do i=1,nchanl
+       if ((clwp_amsua-cclr(i))*(clw_guess_retrieval-cclr(i))<zero  &
+          .and. abs(clwp_amsua-clw_guess_retrieval)>=0.005_r_kind) cld_rbc_idx(i)=zero
+    end do
+    return
 
   end subroutine radiance_ex_biascor_1
 end module radiance_mod
