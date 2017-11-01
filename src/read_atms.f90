@@ -33,6 +33,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !  2016-04-28  jung - added logic for RARS and direct broadcast from NESDIS/UW
 !  2016-10-20  collard - fix to allow monitoring and limited assimilation of spectra when key 
 !                         channels are missing.
+!  2016-10-25  zhu - add changes for assimilating radiances affected by non-precipitating clouds
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -279,8 +280,8 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
 ! IFSCALC setup
   if (isfcalc==1) then
-     instr=14                    ! This section isn't really updated.
-     ichan=15                    ! pick a surface sens. channel
+     instr=20                    
+     ichan=16                    ! pick a surface sens. channel
      expansion=2.9_r_kind        ! use almost three for microwave sensors.
   endif
 !   Set rlndsea for types we would prefer selecting
@@ -639,18 +640,27 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
               if (adp_anglebc .and. newpc4pred) then
                  ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifovmod,ichan1)
                  ch2 = bt_in(ich2)-ang_rad(ichan2)*cbias(ifovmod,ichan2)
+                 ch16= bt_in(ich16)-ang_rad(ichan16)*cbias(ifovmod,ichan16)
               else
                  ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifovmod,ichan1)+ &
                       air_rad(ichan1)*cbias(nadir,ichan1)
                  ch2 = bt_in(ich2)-ang_rad(ichan2)*cbias(ifovmod,ichan2)+ &
                       air_rad(ichan2)*cbias(nadir,ichan2)   
+                 ch16= bt_in(ich16)-ang_rad(ichan16)*cbias(ifovmod,ichan16)+ &
+                      air_rad(ichan16)*cbias(nadir,ichan16)
               end if
               if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
                  cosza = cos(lza)
-                 d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
                  if (radmod%lcloud_fwd) then
-                    qval  = zero 
+                    qval=-113.2_r_kind+(2.41_r_kind-0.0049_r_kind*ch1)*ch1 +  &
+                               0.454_r_kind*ch2-ch16
+                    if (qval>=9.0_r_kind) then
+                       qval=1000.0_r_kind*qval
+                    else
+                       qval  = zero
+                    end if
                  else 
+                    d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
                     qval  = cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
                  endif
                  pred  = max(zero,qval)*100.0_r_kind
@@ -659,12 +669,9 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !          and ATMS Ch16 is at a slightly different frequency to AMSU-A Ch 15.
                  if (adp_anglebc .and. newpc4pred) then
                     ch3 = bt_in(ich3)-ang_rad(ichan3)*cbias(ifovmod,ichan3)
-                    ch16 = bt_in(ich16)-ang_rad(ichan16)*cbias(ifovmod,ichan16)
                  else
                     ch3  = bt_in(ich3)-ang_rad(ichan3)*cbias(ifovmod,ichan3)+ &
                          air_rad(ichan3)*cbias(nadir,ichan3)   
-                    ch16 = bt_in(ich16)-ang_rad(ichan16)*cbias(ifovmod,ichan16)+ &
-                         air_rad(ichan16)*cbias(nadir,ichan16)
                  end if
                  pred = abs(ch1-ch16)
                  if(ch1-ch16 >= three) then
