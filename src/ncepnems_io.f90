@@ -35,16 +35,16 @@ module ncepnems_io
 !   2016-04-20 Li       Modify to handle the updated nemsio sig file (P, DP & DPDT removed)
 !   2016-08-18 li     - tic591: add read_sfc_anl & read_nemssfc_anl to read nemsio sfc file (isli only) with analysis resolution
 !                               change/modify sfc_interpolate to be intrp22 to handle more general interpolation (2d to 2d)
-!   2016-11-18 li     - tic615: change nst mask name from slmsk to land 
+!   2016-11-18 li     - tic615: change nst mask name from slmsk to land
 !
 ! Subroutines Included:
 !   sub read_nems       - driver to read ncep nems atmospheric and surface
 !   sub read_nems_chem
 !   sub read_nemsatm    - read ncep nems atmospheric file, scatter
 !                         on grid to analysis subdomains
-!   sub read_nemssfc    - read ncep nems surface file, scatter on grid to 
+!   sub read_nemssfc    - read ncep nems surface file, scatter on grid to
 !                         analysis subdomains
-!   sub read_nemssfc_anl- read ncep EnKF nems surface file, scatter on grid to 
+!   sub read_nemssfc_anl- read ncep EnKF nems surface file, scatter on grid to
 !                         analysis subdomains
 !   sub write_nems      - driver to write ncep nems atmospheric and surface
 !                         analysis files
@@ -58,7 +58,7 @@ module ncepnems_io
 !   The difference of time Info between operational GFS IO (gfshead%, sfc_head%),
 !      analysis time (iadate), and NEMSIO (idate=)
 !
-!       gfshead & sfc_head            NEMSIO Header           Analysis time (obsmod)    
+!       gfshead & sfc_head            NEMSIO Header           Analysis time (obsmod)
 !       ===================   ============================  ==========================
 !         %idate(1)  Hour     idate(1)  Year                iadate(1)  Year
 !         %idate(2)  Month    idate(2)  Month               iadate(2)  Month
@@ -71,7 +71,7 @@ module ncepnems_io
 !   The difference of header forecasting hour Info bewteen operational GFS IO
 !      (gfshead%, sfc_head%) and NEMSIO
 !
-!           gfshead & sfc_head                NEMSIO Header       
+!           gfshead & sfc_head                NEMSIO Header
 !       ==========================     ============================
 !       %fhour  FCST Hour (r_kind)     nfhour     FCST Hour (i_kind)
 !                                      nfminute   FCST Mins (i_kind)
@@ -87,7 +87,7 @@ module ncepnems_io
 !                size of record (1D) to be read from file header. The
 !                normal record size should be delx*dely, i.e., total model
 !                grid points.  However, some regional models also ouput
-!                additional data of grids around the modeling domain 
+!                additional data of grids around the modeling domain
 !                (buffer zone). For this type of output, nframe needs to
 !                be know to calculate the size of record, i.e.,
 !                   array size = (delx+2*nframe) * (dely+2*nframe)
@@ -95,7 +95,7 @@ module ncepnems_io
 !                However, nframe should always be zero for global model.
 !                To simplify the code for reading and writing global model
 !                files, we will not factor in the nframe for computing
-!                array size or array index shift (by nframe) between 
+!                array size or array index shift (by nframe) between
 !                input/output array and internal GSI array.  The normal
 !                size of I/O record remains as delx*dely.  Add a checking
 !                routine to assure nframe=zero.
@@ -104,11 +104,11 @@ module ncepnems_io
 !   language: f90
 !   machine:
 !
-! NOTE: When global meteorology switched to NEMS/GFS, all routines and 
+! NOTE: When global meteorology switched to NEMS/GFS, all routines and
 !       modules of old GFS (sigio) can be deactivated.  To keep the code
-!       clean, all "nems" can be replaced by "gfs" for minimal changes 
+!       clean, all "nems" can be replaced by "gfs" for minimal changes
 !       of GSI code structure.  For dual purpose, two distincit routine
-!       names are used to accomodiate old and new systems.  It is now 
+!       names are used to accomodiate old and new systems.  It is now
 !       controled by a namelist argument "use_gfs_nemsio"
 !
 !
@@ -191,7 +191,7 @@ contains
 !   2013-10-19  todling - metguess now holds background
 !   2016-03-30  todling - update interface to general read (pass bundle)
 !   2016-06-23  Li      - Add cloud partitioning, which was missed (based on GFS
-!                         ticket #239, comment 18) 
+!                         ticket #239, comment 18)
 !
 !   input argument list:
 !
@@ -270,7 +270,7 @@ contains
     do it=1,nfldsig
 
        write(filename,'(''sigf'',i2.2)') ifilesig(it)
-       
+
 !      Read background fields into bundle
        call general_read_gfsatm_nems(grd_t,sp_a,filename,.true.,.true.,.true.,&
             atm_bundle,.true.,istatus)
@@ -328,7 +328,7 @@ contains
     endif
     call gsi_bundlegetpointer (atm_bundle,'div',ptr3d,istatus)
     if (istatus==0) then
-       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'div',ges_div_it,istatus) 
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'div',ges_div_it,istatus)
        if(istatus==0) ges_div_it = ptr3d
     endif
     call gsi_bundlegetpointer (atm_bundle,'tv',ptr3d,istatus)
@@ -371,14 +371,14 @@ contains
 !
 !   prgrmmr: todling
 !
-! abstract: fills chemguess_bundle with GFS chemistry. 
+! abstract: fills chemguess_bundle with GFS chemistry.
 !
 ! remarks:
 !    1. Right now, only CO2 is done and even this is treated
 !        as constant througout the assimialation window.
 !    2. iyear and month could come from obsmod, but logically
 !       this program should never depend on obsmod
-! 
+!
 !
 ! program history log:
 !   2010-12-23  Huang   - initial code, based on read_gfs_chem
@@ -449,7 +449,7 @@ contains
 ! subprogram:    read_nemsatm    read nems atm and send to all mpi tasks
 !   prgmmr: Huang            org: np23                date: 2010-02-22
 !
-! abstract: read ncep nems/gfs atmospheric guess field and 
+! abstract: read ncep nems/gfs atmospheric guess field and
 !           scatter to subdomains
 !
 ! program history log:
@@ -494,7 +494,7 @@ contains
     use egrid2agrid_mod,only: g_egrid2agrid,g_create_egrid2agrid,egrid2agrid_parm,destroy_egrid2agrid
     use constants, only: two,pi,half,deg2rad
     implicit none
-    
+
 !   Declare local parameters
     real(r_kind),parameter:: r0_001 = 0.001_r_kind
 
@@ -506,7 +506,7 @@ contains
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig),intent(  out) :: g_u,g_v,&
          g_vor,g_div,g_cwmr,g_q,g_oz,g_tv
     type(spec_vars)                       ,intent(in   ) :: sp_a
-    
+
 !   Declare local variables
     character(len=120) :: my_name = 'READ_NEMSATM'
     character(len=1)   :: null = ' '
@@ -534,8 +534,8 @@ contains
     logical diff_res,eqspace
     logical,dimension(1) :: vector
     type(egrid2agrid_parm) :: p_high
-    
-!******************************************************************************  
+
+!******************************************************************************
 !   Initialize variables used below
     mm1=mype+1
     mype_hs=min(1,npe-1)
@@ -564,7 +564,7 @@ contains
       call nemsio_getfilehead(gfile,iret=iret, nframe=nframe, &
            nfhour=nfhour, nfminute=nfminute, nfsecondn=nfsecondn, nfsecondd=nfsecondd, &
            idate=idate, dimx=lonb, dimy=latb,dimz=levs)
-  
+
       if( nframe /= 0 ) then
          if ( mype == 0 ) &
          write(6,*)trim(my_name),': ***ERROR***  nframe /= 0 for global model read, nframe = ', nframe
@@ -734,7 +734,7 @@ contains
           end if
 
           if(vordivflag .or. .not. uvflag)then
-             
+
              allocate( grid_vor(grd%nlon,nlatm2), grid_div(grd%nlon,nlatm2) )
              call general_sptez_v(sp_a,spec_div,spec_vor,grid,grid_v,-1)
              call general_sptez_s_b(sp_a,sp_a,spec_div,grid_div,1)
@@ -919,7 +919,7 @@ contains
     end if
     deallocate(work,sub)
 
-!   Print date/time stamp 
+!   Print date/time stamp
     if ( mype == 0 ) write(6, &
        '(a,'': ges read/scatter,lonb,latb,levs= '',3i6,'',hour= '',f4.1,'',idate= '',4i5)') &
        trim(my_name),lonb,latb,levs,fhour,odate
@@ -940,7 +940,7 @@ contains
 !   2011-02-14  Huang    Re-arrange the read sequence to be same as model
 !                        write sequence.  Also remove unused array.
 !   2016-03-13  xuli     Modify to follow read_sfc in ncepgfs_io for more effective I/O
-!  
+!
 !   input argument list:
 !     use_sfc_any - true if any processor uses extra surface fields
 !
@@ -1061,9 +1061,15 @@ contains
 
           elseif(n == 2 .and. use_sfc_any) then          ! soil moisture
 
-!            smc
+!            smc/soilw
              call nemsio_readrecv(gfile, 'smc', 'soil layer', 1, rwork2d, iret=iret)
-             if (iret /= 0) call error_msg(trim(my_name),trim(filename),'smc','read',istop,iret)
+             ! FV3 nemsio files use 'soilw 0-10cm down' insted of 'smc soil layer 1'
+             if (iret /= 0) then
+               if ( mype == 0 ) print *,'could not read smc, try to read soilw 0-10 cm down instead...'
+               call nemsio_readrecv(gfile,'soilw','0-10 cm down',1,rwork2d,iret=iret)
+               if (iret /= 0) &
+               call error_msg(trim(my_name),trim(filename),'smc/soilw','read',istop,iret)
+             endif
              work(:,:)=reshape(rwork2d(:),(/size(work,1),size(work,2)/))
              call tran_gfssfc(work,soil_moi(1,1,it),lonb,latb)
 
@@ -1077,9 +1083,15 @@ contains
 
           elseif(n == 4 .and. use_sfc_any) then          ! soil temperature
 
-!            stc
+!            stc/tmp
              call nemsio_readrecv(gfile, 'stc', 'soil layer', 1, rwork2d, iret=iret)
-             if (iret /= 0) call error_msg(trim(my_name),trim(filename),'stc','read',istop,iret)
+             if (iret /= 0) then
+               ! FV3 nemsio files use 'tmp 0-10cm down' insted of 'stc soil layer 1'
+               if ( mype == 0 ) print *,'could not read stc, try to read tmp 0-10 cm down instead...'
+               call nemsio_readrecv(gfile,'tmp','0-10 cm down',1,rwork2d,iret=iret)
+               if (iret /= 0) &
+               call error_msg(trim(my_name),trim(filename),'stc/tmp','read',istop,iret)
+             endif
              work(:,:)=reshape(rwork2d(:),(/size(work,1),size(work,2)/))
              call tran_gfssfc(work,soil_temp(1,1,it),lonb,latb)
 
@@ -1259,7 +1271,7 @@ contains
 ! abstract: read nems surface file at analysis grids when nlon /= nlon_sfc or nlat /= nlat_sfc
 !
 ! program history log:
-!  
+!
 !   input argument list:
 !
 !   output argument list:
@@ -1421,7 +1433,7 @@ contains
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    read_nst_     read nems nst surface guess file (quadratic 
+! subprogram:    read_nst_     read nems nst surface guess file (quadratic
 !                                 Gaussin grids) without scattering to tasks
 !   prgmmr: Huang            org: np23                date: 2011-11-01
 !
@@ -1676,13 +1688,13 @@ contains
 
 !$$$  subprogram documentation block
 !                .      .    .
-! subprogram:    write_nemsatm --- Gather, transform, and write out 
-!      
+! subprogram:    write_nemsatm --- Gather, transform, and write out
+!
 !   prgmmr: Huang            org: np23                date: 2010-02-22
 !
 ! abstract: This routine gathers fields needed for the GSI analysis
 !           file from subdomains and then transforms the fields from
-!           analysis grid to model guess grid, then written to an 
+!           analysis grid to model guess grid, then written to an
 !           atmospheric analysis file.
 !
 ! program history log:
@@ -1708,26 +1720,26 @@ contains
 
 ! !USES:
     use kinds, only: r_kind,i_kind
-    
+
     use constants, only: r1000,fv,one,zero,qcmin
-  
+
     use mpimod, only: mpi_rtype
     use mpimod, only: mpi_comm_world
     use mpimod, only: ierror
     use mpimod, only: mype
-    
+
     use guess_grids, only: ifilesig
     use guess_grids, only: ges_prsl,ges_prsi
-    
+
     use gridmod, only: ntracer
     use gridmod, only: ncloud
     use gridmod, only: strip,jcap_b
-    
+
     use general_commvars_mod, only: load_grid,fill2_ns,filluv2_ns
     use general_specmod, only: spec_vars
 
     use obsmod, only: iadate
-    
+
     use nemsio_module, only: nemsio_gfile,nemsio_open,nemsio_init,&
          nemsio_getfilehead,nemsio_close,nemsio_writerecv,nemsio_readrecv
     use gsi_4dvar, only: ibdate,nhr_obsbin
@@ -1736,7 +1748,7 @@ contains
     use constants, only: two,pi,half,deg2rad
     use gsi_bundlemod, only: gsi_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
-  
+
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -1768,7 +1780,7 @@ contains
     real(r_kind),pointer,dimension(:,:) :: sub_ps
     real(r_kind),pointer,dimension(:,:,:) :: sub_u,sub_v,sub_tv
     real(r_kind),pointer,dimension(:,:,:) :: sub_q,sub_oz,sub_cwmr
-    
+
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) :: sub_prsl
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig+1) :: sub_prsi
 
@@ -1844,7 +1856,7 @@ contains
 
        ! copy input header info to output header info
        gfileo=gfile
- 
+
        ! Update header information (with ibdate) and write it to analysis file (w/ _open statement).
        mydate=ibdate
        fha(:)=zero ; ida=0; jda=0
@@ -1867,8 +1879,8 @@ contains
        jdate(7) = idate(7)   ! analysis seconds multiplier
 
        nfhour   =0       !  new forecast hour, zero at analysis time
-       nfminute =0    
-       nfsecondn=0     
+       nfminute =0
+       nfsecondn=0
        nfsecondd=100      ! default for denominator
 
        fhour = zero
@@ -1877,7 +1889,7 @@ contains
        odate(3) = jdate(3)  !day
        odate(4) = jdate(1)  !year
 
-       ! open new output file with new header gfileo with "write" access. 
+       ! open new output file with new header gfileo with "write" access.
        ! Use this call to update header as well
 
        call nemsio_open(gfileo,trim(filename),'write',iret=iret, &
@@ -1954,7 +1966,7 @@ contains
 
     ! Generate and write analysis fields
 
-    ! Surface pressure.  
+    ! Surface pressure.
     call mpi_gatherv(psm,grd%ijn(mm1),mpi_rtype,&
          work1,grd%ijn,grd%displs_g,mpi_rtype,&
          mype_out,mpi_comm_world,ierror)
@@ -2149,7 +2161,7 @@ contains
           if (iret /= 0) call error_msg(trim(my_name),trim(filename),'o3mr','write',istop,iret)
        endif
     end do
-       
+
 !   Cloud condensate mixing ratio
     if (ntracer>2 .or. ncloud>=1) then
        do k=1,grd%nsig
@@ -2214,15 +2226,15 @@ contains
 !   prgmmr: Huang            org: np23                date: 2010-02-22
 !
 ! abstract:     This routine writes the updated surface analysis.  At
-!               this point (20101020) the only surface field update by 
+!               this point (20101020) the only surface field update by
 !               the gsi is the skin temperature.  The current (20101020)
 !               GDAS setup does use the updated surface file.  Rather,
 !               the output from surface cycle is used as the surface
 !               analysis for subsequent NEMS/GFS runs.
 !
-!               The routine gathers surface fields from subdomains, 
+!               The routine gathers surface fields from subdomains,
 !               reformats the data records, and then writes each record
-!               to the output file.  
+!               to the output file.
 !
 !               Since the gsi only update the skin temperature, all
 !               other surface fields are simply read from the guess
@@ -2248,12 +2260,12 @@ contains
 
 ! !USES:
     use kinds, only: r_kind,i_kind,r_single
-  
+
     use mpimod, only: mpi_rtype
     use mpimod, only: mpi_comm_world
     use mpimod, only: ierror
     use mpimod, only: mype
-    
+
     use gridmod, only: nlat,nlon
     use gridmod, only: lat1,lon1
     use gridmod, only: lat2,lon2
@@ -2262,13 +2274,13 @@ contains
     use gridmod, only: displs_g
     use gridmod, only: itotsub
     use gridmod, only: rlats,rlons,rlats_sfc,rlons_sfc
-    
+
     use general_commvars_mod, only: ltosi,ltosj
 
     use obsmod, only: iadate
-    
+
     use constants, only: zero
-    
+
     use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close,nemsio_readrecv
     use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead
     use nemsio_module, only:  nemsio_readrec, nemsio_writerec, nemsio_writerecv
@@ -2314,7 +2326,7 @@ contains
     mm1=mype+1
     nlatm2=nlat-2
 
-!   Gather skin temperature information from all tasks.  
+!   Gather skin temperature information from all tasks.
     do j=1,lon1
        jp1 = j+1
        do i=1,lat1
@@ -2376,7 +2388,7 @@ contains
        odate(4) = jdate(1)  !year
 !
 ! Start to write output sfc file : filename
-!      open new output file with new header gfileo with "write" access. 
+!      open new output file with new header gfileo with "write" access.
 !      Use this call to update header as well
 !
 !
@@ -2482,12 +2494,12 @@ contains
 
 ! !USES:
     use kinds, only: r_kind,i_kind,r_single
-  
+
     use mpimod, only: mpi_rtype,mpi_itype
     use mpimod, only: mpi_comm_world
     use mpimod, only: ierror
     use mpimod, only: mype
-    
+
     use gridmod, only: nlat,nlon
     use gridmod, only: lat1,lon1
     use gridmod, only: lat2,lon2
@@ -2496,14 +2508,14 @@ contains
     use gridmod, only: ijn
     use gridmod, only: displs_g
     use gridmod, only: itotsub
-    
+
     use general_commvars_mod, only: ltosi,ltosj
 
     use obsmod, only: iadate
-    
+
     use constants, only: zero,two,tfrozen,z_w_max
     use constants, only: zero_single
-    
+
     use guess_grids, only: isli2
     use gsi_nstcouplermod, only: nst_gsi,zsea1,zsea2
     use gridmod, only: rlats,rlons,rlats_sfc,rlons_sfc
@@ -2655,7 +2667,7 @@ contains
                      'latb+2,lonb :',latb+2,lonb
           call stop2(81)
        endif
-!      
+!
        allocate(slmsk_ges(lonb,latb),slmsk_anl(lonb,latb))
        allocate(rwork1d(lonb*latb))
 
@@ -2736,27 +2748,27 @@ contains
 
 !
 ! Start to write output sfc file : fname_sfcanl & fname_nstanl
-!      open new output file with new header gfile_sfcanl and gfile_nstanl with "write" access. 
+!      open new output file with new header gfile_sfcanl and gfile_nstanl with "write" access.
 !      Use this call to update header as well
 !
 !      copy input header info to output header info for sfcanl, need to do this before nemsio_close(gfile)
-! 
-       gfile_sfcanl=gfile_sfcgcy         
-!      open nemsio sfcanl                                        
+!
+       gfile_sfcanl=gfile_sfcgcy
+!      open nemsio sfcanl
        call nemsio_open(gfile_sfcanl,trim(fname_sfcanl),'write',iret=iret, idate=jdate, nfhour=nfhour,&
           nfminute=nfminute, nfsecondn=nfsecondn, nfsecondd=nfsecondd )
        if (iret /= 0) call error_msg(trim(my_name),trim(fname_sfcanl),null,'open',istop,iret)
 
-       gfile_sfctsk=gfile_sfcgcy         
-!      open nemsio sfctsk                                        
+       gfile_sfctsk=gfile_sfcgcy
+!      open nemsio sfctsk
        call nemsio_open(gfile_sfctsk,trim(fname_sfctsk),'write',iret=iret, idate=jdate, nfhour=nfhour,&
           nfminute=nfminute, nfsecondn=nfsecondn, nfsecondd=nfsecondd )
        if (iret /= 0) call error_msg(trim(my_name),trim(fname_sfctsk),null,'open',istop,iret)
 !
 !      copy input header info to output header info for nstanl, need to do this before nemsio_close(gfile)
-! 
-       gfile_nstanl=gfile_nstges       
-!      open nemsio nstanl                                        
+!
+       gfile_nstanl=gfile_nstges
+!      open nemsio nstanl
        call nemsio_open(gfile_nstanl,trim(fname_nstanl),'write',iret=iret, idate=jdate, nfhour=nfhour,&
           nfminute=nfminute, nfsecondn=nfsecondn, nfsecondd=nfsecondd )
        if (iret /= 0) call error_msg(trim(my_name),trim(fname_nstanl),null,'open',istop,iret)
@@ -2796,7 +2808,7 @@ contains
           if ( iret /= 0 ) write(6,*) 'writerec for gfile_sfctsk, nrec_sfc = ', n, '  Status = ', iret
        end do
 
-       write(*,*) 'read gfile_sfcgcy, and the write to gfile_sfcanl, gfile_sfctsk' 
+       write(*,*) 'read gfile_sfcgcy, and the write to gfile_sfcanl, gfile_sfctsk'
 !
 !      For sfcanl, Only tsea (sea surface temperature) will be updated in the SFC
 !                  Need values from nstges for tref update
@@ -2806,13 +2818,13 @@ contains
        tsea=reshape(rwork1d,(/size(tsea,1),size(tsea,2)/))
 
 !      For nstanl, Only tref (foundation temperature) is updated by analysis
-!                  others are updated for snow melting case  
+!                  others are updated for snow melting case
 !      read 18 nsst variables from nstges
 ! xt
        call nemsio_readrecv(gfile_nstges, 'xt',    'sfc', 1, rwork1d, iret=iret)
        if (iret /= 0) call error_msg(trim(my_name),trim(fname_nstges),'xt','read',istop,iret)
        xt=reshape(rwork1d,(/size(xt,1),size(xt,2)/))
-! xs 
+! xs
        call nemsio_readrecv(gfile_nstges, 'xs',    'sfc', 1, rwork1d, iret=iret)
        if (iret /= 0) call error_msg(trim(my_name),trim(fname_nstges),'xs','read',istop,iret)
        xs=reshape(rwork1d,(/size(xs,1),size(xs,2)/))
@@ -2889,7 +2901,7 @@ contains
 !         For the new open water (sea ice just melted) grids, (1) set dsfct_anl = zero; (2) reset the NSSTM variables
 !
 !         Notes: slmsk_ges is the mask of the background
-!                slmsk_anl is the mask of the analysis 
+!                slmsk_anl is the mask of the analysis
 !
           where ( slmsk_anl(:,:) == zero .and. slmsk_ges(:,:) == two )
 
@@ -3130,11 +3142,11 @@ contains
                      b,rlons_b,rlats_b,nlon_b,nlat_b)
 !$$$  subprogram documentation block
 !                .      .    .
-! subprogram:    intrp22 --- interpolates from one 2-d grid to another 2-d grid 
+! subprogram:    intrp22 --- interpolates from one 2-d grid to another 2-d grid
 !                            like analysis to surface grid or vice versa
 !   prgrmmr:     li -  initial version; org: np2
 !
-! abstract:      This routine interpolates a grid to b grid 
+! abstract:      This routine interpolates a grid to b grid
 !
 ! program history log:
 !
@@ -3147,7 +3159,7 @@ contains
 !     rlats_b - latitudes of output array
 !     nlon_b  - number of longitude of output array
 !     nlat_b  - number of latitude of output array
-!     a       - input values 
+!     a       - input values
 !
 !   output argument list:
 !     b       - output values
@@ -3161,7 +3173,7 @@ contains
 ! !USES:
     use kinds, only: r_kind,i_kind,r_single
     use constants, only: zero,one
-    
+
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -3171,10 +3183,10 @@ contains
     real(r_kind), dimension(nlon_b) ,intent(in   ) :: rlons_b
     real(r_kind), dimension(nlat_b) ,intent(in   ) :: rlats_b
 
-    real(r_single), dimension(nlon_a,nlat_a),intent(in   ) :: a  
+    real(r_single), dimension(nlon_a,nlat_a),intent(in   ) :: a
 
 ! !OUTPUT PARAMETERS:
-    real(r_single), dimension(nlon_b,nlat_b),intent(  out) :: b 
+    real(r_single), dimension(nlon_b,nlat_b),intent(  out) :: b
 
 !   Declare local variables
     integer(i_kind) i,j,ix,iy,ixp,iyp
@@ -3212,7 +3224,7 @@ contains
        end do
     end do
 
-    
+
 !   End of routine
     return
   end subroutine intrp22
