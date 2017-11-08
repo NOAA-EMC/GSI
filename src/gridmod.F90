@@ -468,7 +468,7 @@ contains
     nthreads = 1  ! initialize the number of threads
 
     use_gfs_nemsio  = .false.
-    sfcnst_comb = .false.
+    sfcnst_comb = .true.
     use_readin_anl_sfcmask = .false.
 
     use_sp_eqspace = .false.

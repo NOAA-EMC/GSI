@@ -37,6 +37,8 @@ export COMIN_OBS=${COMIN_OBS:-$COMIN}
 export COMIN_GES=${COMIN_GES:-$COMIN}
 export COMIN_GES_ENS=${COMIN_GES_ENS:-$COMIN}
 export COMOUT=${COMOUT:-$COMIN}
+export FIXgsm=${FIXgsm:-$BASE_GSM/fix/fix_am}
+export FIXfv3=${FIXfv3:-$BASE_GSM/fix/fix_fv3}
 
 # Utilities
 export NCP=${NCP:-"/bin/cp"}
@@ -50,6 +52,20 @@ UNCOMPRESS=${UNCOMPRESS:-gunzip}
 APRUNCFP=${APRUNCFP:-""}
 APRUN_GSI=${APRUN_GSI:-${APRUN:-""}}
 NTHREADS_GSI=${NTHREADS_GSI:-${NTHREADS:-1}}
+
+# Surface cycle related parameters
+DOGCYCLE=${DOGCYCLE:-"YES"}
+CYCLESH=${CYCLESH:-$BASE_GSM/ush/global_cycle.sh}
+export CYCLEXEC=${CYCLEXEC:-$BASE_GSM/exec/global_cycle}
+export OMP_NUM_THREADS_CY=${OMP_NUM_THREADS_CY:-24}
+export APRUNCY=${APRUNCY:-"time"}
+export CYCLVARS=${CYCLVARS:-"FSNOL=-2.,FSNOS=99999.,"}
+export FHOUR=${FHOUR:-0}
+export DELTSFC=${DELTSFC:-6}
+
+# FV3 specific info
+export CASE=${CASE:-"C192"}
+ntiles=${ntiles:-6}
 
 # Dependent Scripts and Executables
 NTHREADS_CALCINC=${NTHREADS_CALCINC:-1}
@@ -136,13 +152,6 @@ ATMGES=${ATMGES:-${COMIN_GES}/${GPREFIX}atmf006${GSUFFIX}}
 ATMG07=${ATMG07:-${COMIN_GES}/${GPREFIX}atmf007${GSUFFIX}}
 ATMG08=${ATMG08:-${COMIN_GES}/${GPREFIX}atmf008${GSUFFIX}}
 ATMG09=${ATMG09:-${COMIN_GES}/${GPREFIX}atmf009${GSUFFIX}}
-NSTG03=${NSTG03:-${COMIN_GES}/${GPREFIX}nstf003${GSUFFIX}}
-NSTG04=${NSTG04:-${COMIN_GES}/${GPREFIX}nstf004${GSUFFIX}}
-NSTG05=${NSTG05:-${COMIN_GES}/${GPREFIX}nstf005${GSUFFIX}}
-NSTGES=${NSTGES:-${COMIN_GES}/${GPREFIX}nstf006${GSUFFIX}}
-NSTG07=${NSTG07:-${COMIN_GES}/${GPREFIX}nstf007${GSUFFIX}}
-NSTG08=${NSTG08:-${COMIN_GES}/${GPREFIX}nstf008${GSUFFIX}}
-NSTG09=${NSTG09:-${COMIN_GES}/${GPREFIX}nstf009${GSUFFIX}}
 GBIAS=${GBIAS:-${COMIN_GES}/${GPREFIX}abias}
 GBIASPC=${GBIASPC:-${COMIN_GES}/${GPREFIX}abias_pc}
 GBIASAIR=${GBIASAIR:-${COMIN_GES}/${GPREFIX}abias_air}
@@ -152,9 +161,8 @@ GRADSTAT=${GRADSTAT:-${COMIN_GES}/${GPREFIX}radstat}
 APREFIX=${APREFIX:-""}
 ASUFFIX=${ASUFFIX:-""}
 SFCANL=${SFCANL:-${COMOUT}/${APREFIX}sfcanl${ASUFFIX}}
-DTFANL=${DTFANL:-${COMOUT}/${APREFIX}dtfanl}
+DTFANL=${DTFANL:-${COMOUT}/${APREFIX}dtfanl.nc}
 ATMANL=${ATMANL:-${COMOUT}/${APREFIX}atmanl${ASUFFIX}}
-NSTANL=${NSTANL:-${COMOUT}/${APREFIX}nstanl${ASUFFIX}}
 ABIAS=${ABIAS:-${COMOUT}/${APREFIX}abias}
 ABIASPC=${ABIASPC:-${COMOUT}/${APREFIX}abias_pc}
 ABIASAIR=${ABIASAIR:-${COMOUT}/${APREFIX}abias_air}
@@ -177,31 +185,36 @@ USE_CFP=${USE_CFP:-"NO"}
 # Set script / GSI control parameters
 DOHYBVAR=${DOHYBVAR:-"NO"}
 NMEM_ENKF=${NMEM_ENKF:-0}
+DONST=${DONST:-"NO"}
 NST_GSI=${NST_GSI:-0}
 NSTINFO=${NSTINFO:-0}
 ZSEA1=${ZSEA1:-0}
 ZSEA2=${ZSEA2:-0}
-FAC_DTL=${FAC_DTL:-0}
-FAC_TSL=${FAC_TSL:-0}
-TZR_QC=${TZR_QC:-0}
+FAC_DTL=${FAC_DTL:-1}
+FAC_TSL=${FAC_TSL:-1}
+TZR_QC=${TZR_QC:-1}
 USE_READIN_ANL_SFCMASK=${USE_READIN_ANL_SFCMASK:-.false.}
 SMOOTH_ENKF=${SMOOTH_ENKF:-"YES"}
 DOIAU=${DOIAU:-"NO"}
 DO_CALC_INCREMENT=${DO_CALC_INCREMENT:-"YES"}
 
 # Get header information from Guess files
-JCAP=${JCAP:-$($NEMSIOGET $ATMGES jcap | grep -i "jcap" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
 LONB=${LONB:-$($NEMSIOGET $ATMGES dimx | grep -i "dimx" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
 LATB=${LATB:-$($NEMSIOGET $ATMGES dimy | grep -i "dimy" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
+JCAP=`expr ${LATB} - 2`
 LEVS=${LEVS:-$($NEMSIOGET $ATMGES dimz | grep -i "dimz" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
+
+CDATE=${CDATE:-$($NEMSIOGET $ATMGES fcstdate | grep -i "fcstdate_ymdh" | awk -F= '{print $2}')}
+PDY=$(echo $CDATE | cut -c1-8)
+cyc=$(echo $CDATE | cut -c9-10)
 
 # Get header information from Ensemble Guess files
 if [ $DOHYBVAR = "YES" ]; then
    SFCGES_ENSMEAN=${SFCGES_ENSMEAN:-${COMIN_GES_ENS}/${GPREFIX}sfcf006.ensmean${GSUFFIX}}
    ATMGES_ENSMEAN=${ATMGES_ENSMEAN:-${COMIN_GES_ENS}/${GPREFIX}atmf006.ensmean${GSUFFIX}}
-   JCAP_ENKF=${JCAP_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN jcap | grep -i "jcap" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
    LONB_ENKF=${LONB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimx | grep -i "dimx" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
    LATB_ENKF=${LATB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimy | grep -i "dimy" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
+   JCAP_ENKF=`expr ${LATB_ENKF} - 2`
    NLON_ENKF=${NLON_ENKF:-$LONB_ENKF}
    NLAT_ENKF=${NLAT_ENKF:-$(($LATB_ENKF+2))}
 fi
@@ -220,7 +233,6 @@ NLON_A=${NLON_A:-$LONA}
 NLAT_A=${NLAT_A:-$(($LATA+2))}
 
 DELTIM=${DELTIM:-$((3600/($JCAP_A/20)))}
-CDATE=${CDATE:-$($NEMSIOGET $ATMGES fcstdate | grep -i "fcstdate_ymdh" | awk -F= '{print $2}')}
 
 # GSI Fix files
 RTMFIX=${RTMFIX:-$NWROOT/lib/crtm/${crtm_ver}/fix}
@@ -429,17 +441,6 @@ $NLN $SFCG03 sfcf03
 $NLN $SFCGES sfcf06
 $NLN $SFCG09 sfcf09
 
-if [ $NST_GSI -gt 0 ]; then
-   $NLN $NSTG03 nstf03
-   $NLN $NSTGES nstf06
-   $NLN $NSTG09 nstf09
-   if [ $NST_GSI -eq 3 ]; then
-      $NLN $SFCGCY sfcgcy
-   else
-      $NLN $SFCANL sfcgcy # $SFCANL is no longer created before GSI is executed!
-   fi
-fi
-
 # Link hourly backgrounds (if present)
 if [ -f $ATMG04 -a -f $ATMG05 -a -f $ATMG07 -a -f $ATMG08 ]; then
    nhr_obsbin=1
@@ -454,13 +455,6 @@ fi
 [[ -f $SFCG05 ]] && $NLN $SFCG05 sfcf05
 [[ -f $SFCG07 ]] && $NLN $SFCG07 sfcf07
 [[ -f $SFCG08 ]] && $NLN $SFCG08 sfcf08
-
-if [ $NST_GSI -gt 0 ]; then
-   [[ -f $NSTG04 ]] && $NLN $NSTG04 nstf04
-   [[ -f $NSTG05 ]] && $NLN $NSTG05 nstf05
-   [[ -f $NSTG07 ]] && $NLN $NSTG07 nstf07
-   [[ -f $NSTG08 ]] && $NLN $NSTG08 nstf08
-fi
 
 if [ $DOHYBVAR = "YES" ]; then
 
@@ -511,20 +505,10 @@ if [ $DOHYBVAR = "YES" -a $l4densvar = ".true." -a $lwrite4danl = ".true." ]; th
    $NLN $ATMA08   siga08
    $NLN $ATMA09   siga09
 fi
+$NLN $DTFANL dtfanl
 $NLN $ABIAS    satbias_out
 $NLN $ABIASPC  satbias_pc.out
 $NLN $ABIASAIR aircftbias_out
-
-if [ $NST_GSI -gt 0 ] ; then
-   $NLN $NSTANL nstanl
-   $NLN $SFCTSK sfctsk
-   if [ $DOHYBVAR = "YES" ]; then
-      $NLN $DTFANL dtfanl
-   fi
-   if [ $NST_GSI -eq 3 ] ; then
-      $NLN $SFCANL sfcanl
-   fi
-fi
 
 # If requested, link and de-tar obs_input
 if [ $USE_SELECT = "YES" ]; then
@@ -817,6 +801,43 @@ if [ $DO_CALC_INCREMENT = "YES" ]; then
   $ERRSCRIPT || exit 3
 fi
 
+##############################################################
+# Update surface fields in the FV3 restart's using global_cycle
+if [ $DOGCYCLE = "YES" ]; then
+
+    # Global cycle requires these files
+    export FNTSFA=${FNTSFA:-$COMIN_OBS/${OPREFIX}rtgssthr.grb}
+    export FNACNA=${FNACNA:-$COMIN_OBS/${OPREFIX}seaice.5min.blend.grb}
+    export FNSNOA=${FNSNOA:-$COMIN_OBS/${OPREFIX}snogrb_t${JCAP}.${LONB}.${LATB}}
+    [[ ! -f $FNSNOA ]] && export FNSNOA=$COMIN_OBS/${OPREFIX}snogrb
+
+    if [ $DONST = "YES" ]; then
+        export NST_ANL=".true."
+        export GSI_FILE=${GSI_FILE:-$COMOUT/${APREFIX}dtfanl.nc}
+    else
+        export NST_ANL=".false."
+    fi
+
+    mkdir -p $COMOUT/RESTART
+
+    rc=0
+    for n in $(seq 1 $ntiles); do
+
+        export TILE_NUM=$n
+
+        SFCGES_TMP=$COMIN_GES/RESTART/$PDY.${cyc}0000.sfc_data.tile${n}.nc
+        SFCANL_TMP=$COMOUT/RESTART/$PDY.${cyc}0000.sfcanl_data.tile${n}.nc
+
+        $CYCLESH $SFCGES_TMP $SFCANL_TMP
+        ra=$?
+        ((rc+=ra))
+
+    done
+    export ERR=$rc
+    export err=$ERR
+    $ERRSCRIPT || exit 11
+
+fi
 ##############################################################
 # For eupd
 if [ -s satbias_out.int ]; then

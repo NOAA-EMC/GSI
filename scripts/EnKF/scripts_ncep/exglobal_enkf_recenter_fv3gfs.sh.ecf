@@ -29,11 +29,21 @@ pwd=$(pwd)
 export NWPROD=${NWPROD:-$pwd}
 export BASE_GSM=${BASE_GSM:-$NWPROD}
 export BASE_GSI=${BASE_GSI:-$NWPROD}
+export BASEDIR
 export DATA=${DATA:-$pwd}
+export CASE=$CASE_ENKF
+CDATE=${CDATE:-$($NEMSIOGET $ATMGESNAME fcstdate | grep -i "fcstdate_ymdh" | awk -F= '{print $2}')}
+PDY=$(echo $CDATE | cut -c1-8)
+cyc=$(echo $CDATE | cut -c9-10)
+COMIN_OBS=${COMIN_OBS:-${COMIN_ENS:-$pwd}}
 COMIN=${COMIN:-$pwd}
 COMIN_ENS=${COMIN_ENS:-$pwd}
 COMIN_GES_ENS=${COMIN_GES_ENS:-${COMIN_ENS:-$pwd}}
+COMOUT_ANL_ENS=${COMOUT_ANL_ENS:-${COMOUT_ENS:-$pwd}}
 COMOUT=${COMOUT:-$COMIN}
+export FIXgsm=${FIXgsm:-$BASE_GSM/fix/fix_am}
+export FIXfv3=${FIXfv3:-$BASE_GSM/fix/fix_fv3}
+APREFIX=${APREFIX:-""}
 
 # Utilities
 ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
@@ -113,8 +123,12 @@ ATMANL_HI=${ATMANL_HI:-$COMIN/${APREFIX}atmanl$ASUFFIX}
 
 $NLN $ATMANL_HI atmanl_hires
 
-JCAP=${JCAP:-$($NEMSIOGET atmanl_hires jcap | awk '{print $2}')}
-JCAP_ENKF=${JCAP_ENKF:-$($NEMSIOGET atmanl_ensmean jcap | awk '{print $2}')}
+LATB=${LATB:-$($NEMSIOGET atmanl_hires dimy | grep -i "dimy" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
+JCAP=`expr ${LATB} - 2`
+
+LONB_ENKF=${LONB_ENKF:-$($NEMSIOGET atmanl_ensmean dimx | grep -i "dimy" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
+LATB_ENKF=${LATB_ENKF:-$($NEMSIOGET atmanl_ensmean dimy | grep -i "dimy" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
+JCAP_ENKF=`expr ${LATB_ENKF} - 2`
 
 if [ $JCAP = $JCAP_ENKF ]; then
    echo "Ensemble and deterministic analysis are at same resolution"
@@ -189,6 +203,7 @@ fi
 DATAPATH="./"
 ATMGESNAME="atmf006"
 ATMINCNAME="atminc"
+
 if [ $RECENTER_ENKF = "YES" ]; then
     ATMANLNAME='ratmanl'
 else
@@ -210,6 +225,62 @@ $ERRSCRIPT || exit 4
 # Update surface and NST analysis
 # Since we don't have NST in the FV3 system,
 # we will revisit this section at a later time
+DTFANL=${DTFANL:-${COMOUT}/${APREFIX}dtfanl.nc}
+# Surface cycle related parameters
+DOGCYCLE=${DOGCYCLE:-"YES"}
+CYCLESH=${CYCLESH:-$BASE_GSM/ush/global_cycle.sh}
+export ADJT_NST_ONLY=${ADJT_NST_ONLY:-.true.}
+export CYCLEXEC=${CYCLEXEC:-$BASE_GSM/exec/global_cycle}
+export OMP_NUM_THREADS_CY=${OMP_NUM_THREADS_CY:-24}
+export APRUNCY=${APRUNCY:-"time"}
+export CYCLVARS=${CYCLVARS:-"FSNOL=-2.,FSNOS=99999.,"}
+export FHOUR=${FHOUR:-0}
+export DELTSFC=${DELTSFC:-6}
+$NLN $DTFANL dtfanl
+
+##############################################################
+# Update surface fields in the FV3 restart's using global_cycle
+if [ $DOGCYCLE = "YES" ]; then
+
+    # Global cycle requires these files
+    export FNTSFA=${FNTSFA:-$COMIN_OBS/${APREFIX}rtgssthr.grb}
+    export FNACNA=${FNACNA:-$COMIN_OBS/${APREFIX}seaice.5min.blend.grb}
+    export FNSNOA=${FNSNOA:-$COMIN_OBS/${APREFIX}snogrb_t${JCAP}.${LONB_ENKF}.${LATB_ENKF}}
+    [[ ! -f $FNSNOA ]] && export FNSNOA=$COMIN_OBS/${APREFIX}snogrb
+
+    if [ $DONST = "YES" ]; then
+        export NST_ANL=".true."
+        export GSI_FILE=$COMOUT/${APREFIX}dtfanl.nc
+    else
+        export NST_ANL=".false."
+    fi
+
+ntiles=${ntiles:-6}
+# Link ensemble member sfc guess
+    for imem in `seq 1 $NMEM_ENKF`; do
+       memchar="mem"`printf %03i $imem`
+       mkdir -p $COMOUT_ANL_ENS/$memchar/RESTART
+
+       rc=0
+       for n in $(seq 1 $ntiles); do
+
+           export TILE_NUM=$n
+
+           SFCGES=$COMIN_GES_ENS/$memchar/RESTART/$PDY.${cyc}0000.sfc_data.tile$n.nc
+           SFCANL=$COMOUT_ANL_ENS/$memchar/RESTART/$PDY.${cyc}0000.sfcanl_data.tile$n.nc
+
+           $CYCLESH $SFCGES $SFCANL
+           ra=$?
+           ((rc+=ra))
+
+       done
+       export ERR=$rc
+       export err=$ERR
+       $ERRSCRIPT || exit 11
+    done
+
+fi
+##############################################################
 
 ################################################################################
 # Postprocessing

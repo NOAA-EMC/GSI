@@ -239,8 +239,8 @@ subroutine gesinfo(mype)
            dimx=gfshead%lonb, dimy=gfshead%latb,   dimz=gfshead%levs, &
            jcap=gfshead%jcap, ntrac=gfshead%ntrac, idvc=gfshead%idvc, &
            idsl=gfshead%idsl,   ncldt=gfshead%ncldt, iret=iret2)
-        if ( gfshead%jcap /= gfshead%lonb ) then
-           gfshead%jcap = gfshead%lonb
+        if ( gfshead%jcap /= gfshead%latb - 2 ) then
+           gfshead%jcap = gfshead%latb - 2
         endif
         if ( iret2 /= 0 .or. TRIM(filetype) /= 'NEMSIO' ) then
            write(6,*)' GESINFO:  UNKNOWN FORMAT FOR GFSATM file = ', &
