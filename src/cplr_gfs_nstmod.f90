@@ -374,7 +374,7 @@ subroutine cal_tztr_(dt_warm,c_0,c_d,w_0,w_d,zc,zw,z,tztr)
     endif
   endif
 
-  if ( tztr <= one .and. tztr > half ) then
+  if ( tztr <= 1.5_r_kind .and. tztr > half ) then
     tztr = tztr
   else
     write(*,'(a,2I2,3F12.6,F9.3,5F12.6,F8.3,F9.6,F8.3)') ' cal_tztr : ',fac_dtl,fac_tsl,c1,c2,c3,dt_warm,c_0,c_d,w_0,w_d,zc,zw,z,tztr
