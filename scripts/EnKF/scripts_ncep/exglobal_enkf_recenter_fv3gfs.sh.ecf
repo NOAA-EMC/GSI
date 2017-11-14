@@ -241,45 +241,47 @@ $NLN $DTFANL dtfanl
 
 ##############################################################
 # Update surface fields in the FV3 restart's using global_cycle
-if [ $DOGCYCLE = "YES" ]; then
+if [ $NST_GSI -gt 0 ]; then
+   if [ $DOGCYCLE = "YES" ]; then
 
-    # Global cycle requires these files
-    export FNTSFA=${FNTSFA:-$COMIN_OBS/${APREFIX}rtgssthr.grb}
-    export FNACNA=${FNACNA:-$COMIN_OBS/${APREFIX}seaice.5min.blend.grb}
-    export FNSNOA=${FNSNOA:-$COMIN_OBS/${APREFIX}snogrb_t${JCAP}.${LONB_ENKF}.${LATB_ENKF}}
-    [[ ! -f $FNSNOA ]] && export FNSNOA=$COMIN_OBS/${APREFIX}snogrb
+       # Global cycle requires these files
+       export FNTSFA=${FNTSFA:-$COMIN_OBS/${APREFIX}rtgssthr.grb}
+       export FNACNA=${FNACNA:-$COMIN_OBS/${APREFIX}seaice.5min.blend.grb}
+       export FNSNOA=${FNSNOA:-$COMIN_OBS/${APREFIX}snogrb_t${JCAP}.${LONB_ENKF}.${LATB_ENKF}}
+       [[ ! -f $FNSNOA ]] && export FNSNOA=$COMIN_OBS/${APREFIX}snogrb
 
-    if [ $DONST = "YES" ]; then
-        export NST_ANL=".true."
-        export GSI_FILE=$COMOUT/${APREFIX}dtfanl.nc
-    else
-        export NST_ANL=".false."
-    fi
+       if [ $DONST = "YES" ]; then
+           export NST_ANL=".true."
+           export GSI_FILE=$COMOUT/${APREFIX}dtfanl.nc
+       else
+           export NST_ANL=".false."
+       fi
 
-ntiles=${ntiles:-6}
-# Link ensemble member sfc guess
-    for imem in `seq 1 $NMEM_ENKF`; do
-       memchar="mem"`printf %03i $imem`
-       mkdir -p $COMOUT_ANL_ENS/$memchar/RESTART
+     ntiles=${ntiles:-6}
+   # Link ensemble member sfc guess
+       for imem in `seq 1 $NMEM_ENKF`; do
+          memchar="mem"`printf %03i $imem`
+          mkdir -p $COMOUT_ANL_ENS/$memchar/RESTART
 
-       rc=0
-       for n in $(seq 1 $ntiles); do
+          rc=0
+          for n in $(seq 1 $ntiles); do
 
-           export TILE_NUM=$n
+              export TILE_NUM=$n
 
-           SFCGES=$COMIN_GES_ENS/$memchar/RESTART/$PDY.${cyc}0000.sfc_data.tile$n.nc
-           SFCANL=$COMOUT_ANL_ENS/$memchar/RESTART/$PDY.${cyc}0000.sfcanl_data.tile$n.nc
+              SFCGCY=$COMOUT_ANL_ENS/$memchar/$PDY.${cyc}0000.sfcgcy_data.tile$n.nc
+              SFCANL=$COMOUT_ANL_ENS/$memchar/RESTART/$PDY.${cyc}0000.sfcanl_data.tile$n.nc
 
-           $CYCLESH $SFCGES $SFCANL
-           ra=$?
-           ((rc+=ra))
+              $CYCLESH $SFCGCY $SFCANL
+              ra=$?
+              ((rc+=ra))
 
+          done
+          export ERR=$rc
+          export err=$ERR
+          $ERRSCRIPT || exit 11
        done
-       export ERR=$rc
-       export err=$ERR
-       $ERRSCRIPT || exit 11
-    done
 
+   fi
 fi
 ##############################################################
 
