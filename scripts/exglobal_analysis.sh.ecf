@@ -301,11 +301,11 @@
 #     CRISDB        Input direct broadcast CRIS radiance file (bufr format)
 #                   defaults to ${COMIN}/${PREINP}crisdb.tm00.bufr_d${SUFINP}
 #     CRISFSBF      Input CRIS radiance file (bufr format)
-#                   defaults to ${COMIN}/${PREINP}crisfs.tm00.bufr_d${SUFINP}
+#                   defaults to ${COMIN}/${PREINP}crisf4.tm00.bufr_d${SUFINP}
 #     ESCRISFS      Input EARS/RARS CRIS-FSR radiance file (bufr format)
-#                   defaults to ${COMIN}/${PREINP}escrisfs.tm00.bufr_d${SUFINP}
+#                   defaults to ${COMIN}/${PREINP}escrisf4.tm00.bufr_d${SUFINP}
 #     CRISFSDB      Input direct broadcast CRIS-FSR radiance file (bufr format)
-#                   defaults to ${COMIN}/${PREINP}crisfsdb.tm00.bufr_d${SUFINP}
+#                   defaults to ${COMIN}/${PREINP}crisf4db.tm00.bufr_d${SUFINP}
 #     ATMSBF        Input ATMS radiance file (bufr format)
 #                   defaults to ${COMIN}/${PREINP}atms.tm00.bufr_d${SUFINP}
 #     ESATMS        Input EARS/RARS ATMS radiance file (bufr format)
@@ -672,9 +672,9 @@ export AHIBF=${AHIBF:-${COMIN}/${PREINP}ahi.tm00.bufr_d${SUFINP}}
 export CRISBF=${CRISBF:-${COMIN}/${PREINP}cris.tm00.bufr_d${SUFINP}}
 export ESCRIS=${ESCRIS:-${COMIN}/${PREINP}escris.tm00.bufr_d${SUFINP}}
 export CRISDB=${CRISDB:-${COMIN}/${PREINP}crisdb.tm00.bufr_d${SUFINP}}
-export CRISFSBF=${CRISFSBF:-${COMIN}/${PREINP}crisfs.tm00.bufr_d${SUFINP}}
-export ESCRISFS=${ESCRISFS:-${COMIN}/${PREINP}escrisfs.tm00.bufr_d${SUFINP}}
-export CRISFSDB=${CRISFSDB:-${COMIN}/${PREINP}crisfsdb.tm00.bufr_d${SUFINP}}
+export CRISFSBF=${CRISFSBF:-${COMIN}/${PREINP}crisf4.tm00.bufr_d${SUFINP}}
+export ESCRISFS=${ESCRISFS:-${COMIN}/${PREINP}escrisf4.tm00.bufr_d${SUFINP}}
+export CRISFSDB=${CRISFSDB:-${COMIN}/${PREINP}crisf4db.tm00.bufr_d${SUFINP}}
 export ATMSBF=${ATMSBF:-${COMIN}/${PREINP}atms.tm00.bufr_d${SUFINP}}
 export ESATMS=${ESATMS:-${COMIN}/${PREINP}esatms.tm00.bufr_d${SUFINP}}
 export ATMSDB=${ATMSDB:-${COMIN}/${PREINP}atmsdb.tm00.bufr_d${SUFINP}}

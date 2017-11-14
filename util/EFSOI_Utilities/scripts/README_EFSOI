@@ -21,11 +21,10 @@ sandbox project are provided by instruction
 # Instructions for performing EFSOI calculations #
 ##################################################
 1) Run a 3DEnVar, 4DEnVar or pure EnKF GFS experiment.  When doing this 
-   make sure to utilize the exglobal_enkf_update_efso.sh.ecf script in place
-   of the exglobal_enkf_update.sh.ecf script, and set $ARCHIVE_ENSEMBLE 
-   to YES in your para config file to output EnKF products (FG files) 
-   necessary for the EFSOI calculations.  Modify your rlist file to add 
-   archival of files with the naming convention sanl_${CDATE}_nimemxxx 
+   make sure to set fso_cycling to .true. in the exglobal_enkf_update.sh.ecf 
+   script, and set $ARCHIVE_ENSEMBLE to YES in your para config file to output 
+   EnKF products (FG files) necessary for the EFSOI calculations.  Modify your 
+   rlist file to add archival of files with the naming convention sanl_${CDATE}_nimemxxx 
    (where xxx refers to the ensemble member number) and osense_${CDATE}.dat.  
    The additional sanl* files correspond to the direct result of the EnKF update, 
    and represent a non-inflated set of EnKF analyses.  If you do not see

@@ -627,7 +627,7 @@ $ncp $datobs/${prefix_obs}amsre.${suffix}    ./amsrebufr
 $ncp $datobs/${prefix_obs}ssmisu.${suffix}   ./ssmisbufr   
 $ncp $datobs/${prefix_obs}atms.${suffix}     ./atmsbufr
 $ncp $datobs/${prefix_obs}cris.${suffix}     ./crisbufr
-$ncp $datobs/${prefix_obs}crisfs.${suffix}   ./crisfsbufr
+$ncp $datobs/${prefix_obs}crisf4.${suffix}   ./crisfsbufr
 $ncp $datobs/${prefix_obs}syndata.tcvitals.tm00 ./tcvitl
 if ls ${fixgsi}/Rcov* 1> /dev/null 2>&1;
 then
