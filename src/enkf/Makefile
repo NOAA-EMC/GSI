@@ -189,8 +189,8 @@ clean:
 	enkf_main.f90 \
 	fftpack.f90 \
 	genqsat1.f90 \
-	gridinfo_gfs.f90 \
-	gridio_gfs.f90 \
+	gridinfo_wrf.f90 \
+	gridio_wrf.f90 \
 	inflation.f90 \
 	innovstats.f90 \
 	kdtree2.f90 \
@@ -209,7 +209,7 @@ clean:
 	readsatobs.f90 \
 	reducedgrid.f90 \
 	rnorm.f90 \
-	smooth_gfs.f90 \
+	smooth_wrf.f90 \
 	specmod.f90 \
 	statevec.f90 \
 	write_logfile.f90
