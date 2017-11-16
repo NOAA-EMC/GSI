@@ -130,6 +130,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
 !   2014-10-01  ejones   - add gmi and amsr2
 !   2015-01-16  ejones   - add saphir
 !   2016-09-19  guo      - properly initialized nread, in case of for quick-return cases.
+!   2017-11-16  dutta    - adding KOMPSAT5 bufr i.d for reading the data.
 !                           
 !
 !   input argument list:
@@ -351,7 +352,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
            end if 
  
            said=nint(satid) 
-           if(((said > 739) .and.(said < 746)).or.(said == 820) .or. &
+           if(((said > 739) .and.(said < 746)).or.(said == 820) .or. (said == 825) .or. &
                (said == 786).or. (said == 4)  .or.(said == 3).or. &
                (said == 421).or. (said == 440).or.(said == 821)) then
              lexist=.true. 
