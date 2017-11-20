@@ -87,6 +87,7 @@ elif [ $RUN_SELECT = "NO" -a $USE_SELECT = "YES" ]; then
    lread_obs_skip=".true."
 fi
 
+DOGCYCLE=${DOGCYCLE:-"YES"}
 ################################################################################
 # Innovation Specific setup for ANALYSISSH
 export DIAG_SUFFIX=${DIAG_SUFFIX:-""}

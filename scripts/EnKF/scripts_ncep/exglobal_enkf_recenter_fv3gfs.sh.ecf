@@ -232,55 +232,54 @@ DOGCYCLE=${DOGCYCLE:-"YES"}
 CYCLESH=${CYCLESH:-$BASE_GSM/ush/global_cycle.sh}
 export ADJT_NST_ONLY=${ADJT_NST_ONLY:-.true.}
 export CYCLEXEC=${CYCLEXEC:-$BASE_GSM/exec/global_cycle}
-export OMP_NUM_THREADS_CY=${OMP_NUM_THREADS_CY:-24}
-export APRUNCY=${APRUNCY:-"time"}
+#export OMP_NUM_THREADS_CY=${OMP_NUM_THREADS_CY:-24}
+export OMP_NUM_THREADS_CY=1
+export APRUNCY=${APRUN_CYCLE:-${APRUN:-""}}
+CRES=$(echo $CASE | cut -c2-)
 export CYCLVARS=${CYCLVARS:-"FSNOL=-2.,FSNOS=99999.,"}
 export FHOUR=${FHOUR:-0}
 export DELTSFC=${DELTSFC:-6}
-$NLN $DTFANL dtfanl
 
+if [ $DONST = "YES" ]; then
+    export NST_ANL=".true."
+    export GSI_FILE=$COMOUT/${APREFIX}dtfanl.nc
+else
+    export NST_ANL=".false."
+fi
 ##############################################################
 # Update surface fields in the FV3 restart's using global_cycle
-if [ $NST_GSI -gt 0 ]; then
+# Link ensemble member sfc guess
+if [ $DONST = "YES" ]; then
    if [ $DOGCYCLE = "YES" ]; then
 
-       # Global cycle requires these files
-       export FNTSFA=${FNTSFA:-$COMIN_OBS/${APREFIX}rtgssthr.grb}
-       export FNACNA=${FNACNA:-$COMIN_OBS/${APREFIX}seaice.5min.blend.grb}
-       export FNSNOA=${FNSNOA:-$COMIN_OBS/${APREFIX}snogrb_t${JCAP}.${LONB_ENKF}.${LATB_ENKF}}
-       [[ ! -f $FNSNOA ]] && export FNSNOA=$COMIN_OBS/${APREFIX}snogrb
+      # Global cycle requires these files
+      export FNTSFA=${FNTSFA:-$COMIN_OBS/${APREFIX}rtgssthr.grb}
+      export FNACNA=${FNACNA:-$COMIN_OBS/${APREFIX}seaice.5min.blend.grb}
+      export FNSNOA=${FNSNOA:-$COMIN_OBS/${APREFIX}snogrb_t${JCAP}.${LONB_ENKF}.${LATB_ENKF}}
+      [[ ! -f $FNSNOA ]] && export FNSNOA=$COMIN_OBS/${APREFIX}snogrb
 
-       if [ $DONST = "YES" ]; then
-           export NST_ANL=".true."
-           export GSI_FILE=$COMOUT/${APREFIX}dtfanl.nc
-       else
-           export NST_ANL=".false."
-       fi
+      ntiles=${ntiles:-6}
+# Link ensemble member sfc guess
+      for n in $(seq 1 $ntiles); do
+         rc=0
+         export TILE_NUM=$n
+         for imem in `seq 1 $NMEM_ENKF`; do
+            memchar="mem"`printf %03i $imem`
+            chm=`printf %03i $imem`
+            mkdir -p $COMOUT_ANL_ENS/$memchar/RESTART
 
-     ntiles=${ntiles:-6}
-   # Link ensemble member sfc guess
-       for imem in `seq 1 $NMEM_ENKF`; do
-          memchar="mem"`printf %03i $imem`
-          mkdir -p $COMOUT_ANL_ENS/$memchar/RESTART
-
-          rc=0
-          for n in $(seq 1 $ntiles); do
-
-              export TILE_NUM=$n
-
-              SFCGCY=$COMOUT_ANL_ENS/$memchar/$PDY.${cyc}0000.sfcgcy_data.tile$n.nc
-              SFCANL=$COMOUT_ANL_ENS/$memchar/RESTART/$PDY.${cyc}0000.sfcanl_data.tile$n.nc
-
-              $CYCLESH $SFCGCY $SFCANL
-              ra=$?
-              ((rc+=ra))
-
-          done
-          export ERR=$rc
-          export err=$ERR
-          $ERRSCRIPT || exit 11
-       done
-
+            ln -fs $COMOUT_ANL_ENS/$memchar/$PDY.${cyc}0000.sfcgcy_data.tile${n}.nc          $DATA/fnbgsi.$chm
+            ln -fs $COMOUT_ANL_ENS/$memchar/RESTART/$PDY.${cyc}0000.sfcanl_data.tile${n}.nc  $DATA/fnbgso.$chm
+            ln -fs $FIXfv3/C${CRES}/C${CRES}_grid.tile${n}.nc                                $DATA/fngrid.$chm
+            ln -fs $FIXfv3/C${CRES}/C${CRES}_oro_data.tile${n}.nc                            $DATA/fnorog.$chm
+         done
+         $CYCLESH
+         ra=$?
+         ((rc+=ra))
+         export ERR=$rc
+         export err=$ERR
+         $ERRSCRIPT || exit 11
+      done
    fi
 fi
 ##############################################################
