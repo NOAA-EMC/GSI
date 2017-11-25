@@ -132,15 +132,6 @@ if [ $RECENTER_ENKF = "YES" ]; then
 
    # GSI EnVar analysis
    ATMANL_GSI=${ATMANL_GSI:-$COMIN/${APREFIX}atmanl$ASUFFIX}
-
-<<<<<<< HEAD
-LATB=${LATB:-$($NEMSIOGET atmanl_hires dimy | grep -i "dimy" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
-JCAP=`expr ${LATB} - 2`
-
-LONB_ENKF=${LONB_ENKF:-$($NEMSIOGET atmanl_ensmean dimx | grep -i "dimy" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
-LATB_ENKF=${LATB_ENKF:-$($NEMSIOGET atmanl_ensmean dimy | grep -i "dimy" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
-JCAP_ENKF=`expr ${LATB_ENKF} - 2`
-=======
    LONB=${LONB:-$($NEMSIOGET $ATMANL_GSI dimx | awk '{print $2}')}
    LATB=${LATB:-$($NEMSIOGET $ATMANL_GSI dimy | awk '{print $2}')}
    if [ $QUILTING = ".false." -o $OUTPUT_GRID = "cubed_sphere_grid" ]; then
@@ -148,7 +139,6 @@ JCAP_ENKF=`expr ${LATB_ENKF} - 2`
    else
       JCAP=$((LATB-2))
    fi
->>>>>>> e6a48812b2b0dcb9b0da705335fdc35f7cfe892b
 
    # If GSI EnVar analysis is at ensemble resolution, no chgres is required
    if [ $JCAP = $JCAP_ENKF -a $LATB = $LATB_ENKF -a $LONB = $LONB_ENKF ]; then

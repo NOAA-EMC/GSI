@@ -217,12 +217,8 @@ LONB=${LONB:-$($NEMSIOGET $ATMGES dimx | grep -i "dimx" | awk -F"= " '{print $2}
 status=$?
 [[ $status -ne 0 ]] && exit $status
 LATB=${LATB:-$($NEMSIOGET $ATMGES dimy | grep -i "dimy" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
-<<<<<<< HEAD
-JCAP=`expr ${LATB} - 2`
-=======
 status=$?
 [[ $status -ne 0 ]] && exit $status
->>>>>>> e6a48812b2b0dcb9b0da705335fdc35f7cfe892b
 LEVS=${LEVS:-$($NEMSIOGET $ATMGES dimz | grep -i "dimz" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
 status=$?
 [[ $status -ne 0 ]] && exit $status
@@ -242,8 +238,6 @@ GDATE=$($NDATE -$assim_freq $CDATE)
 gPDY=$(echo $GDATE | cut -c1-8)
 gcyc=$(echo $GDATE | cut -c9-10)
 
-<<<<<<< HEAD
-=======
 # Update surface fields in the FV3 restart's using global_cycle
 if [ $DOGCYCLE = "YES" ]; then
 
@@ -302,7 +296,6 @@ if [ $DOGCYCLE = "YES" ]; then
     done
 
 fi
->>>>>>> e6a48812b2b0dcb9b0da705335fdc35f7cfe892b
 
 # Get header information from Ensemble Guess files
 if [ $DOHYBVAR = "YES" ]; then
@@ -312,12 +305,8 @@ if [ $DOHYBVAR = "YES" ]; then
    status=$?
    [[ $status -ne 0 ]] && exit $status
    LATB_ENKF=${LATB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimy | grep -i "dimy" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
-<<<<<<< HEAD
-   JCAP_ENKF=`expr ${LATB_ENKF} - 2`
-=======
    status=$?
    [[ $status -ne 0 ]] && exit $status
->>>>>>> e6a48812b2b0dcb9b0da705335fdc35f7cfe892b
    NLON_ENKF=${NLON_ENKF:-$LONB_ENKF}
    NLAT_ENKF=${NLAT_ENKF:-$(($LATB_ENKF+2))}
    if [ $QUILTING = ".false." ]; then
