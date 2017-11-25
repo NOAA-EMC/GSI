@@ -141,11 +141,15 @@ program getsigensstatp
                 call nemsio_getfilehead(gfile, nrec=nrec, jcap=ntrunc, &
                 dimx=lonb, dimy=latb, dimz=nlevs, ntrac=ntrac, gdatatype=dtype, iret=iret)
                 write(6,'(5a,i5)')'Read nemsio ',trim(filenamein), ' dtype = ', trim(adjustl(dtype)),' iret = ',iret
+<<<<<<< HEAD
                 if ( ntrunc /= latb -2  ) then
                    ntrunc = latb -2 
                    write(6,'(a,i5)') 'getsigensstatp, assign ntrunc to be latb -2 : ',ntrunc
                 endif
 
+=======
+                if ( ntrunc < 0 ) ntrunc = latb - 2
+>>>>>>> e6a48812b2b0dcb9b0da705335fdc35f7cfe892b
                 allocate(reclev(nrec),recnam(nrec))
                 call nemsio_getfilehead(gfile,reclev=reclev,iret=iret)
                 call nemsio_getfilehead(gfile,recname=recnam,iret=iret)
