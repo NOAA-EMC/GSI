@@ -115,17 +115,10 @@ if (use_gfs_nemsio) then
      endif
      call nemsio_getfilehead(gfile,iret=iret, dimx=nlonsin, dimy=nlatsin,&
                              dimz=nlevsin,jcap=ntrunc,idvc=idvc)
-<<<<<<< HEAD
-     if ( ntrunc /= nlatsin-2 ) then
-        ntrunc = nlatsin-2
-        write(*,'(a,I6)') 'enkf gridinfo, assign ntrunc as nlatsin-2 = ',ntrunc
-     endif
-=======
      ! set ntrunc to nlats if missing
      ! (only used for inflation smoothing and mass balance adjustment if use_gfsnemsio = T)
      ! FV3GFS write component does not include JCAP, infer from nlatsin
      if (ntrunc < 0) ntrunc = nlatsin-2
->>>>>>> e6a48812b2b0dcb9b0da705335fdc35f7cfe892b
      if (iret/=0) then
         write(6,*)'grdinfo: gfs model: problem with nemsio_getfilehead, iret=',iret
         call stop2(23)
