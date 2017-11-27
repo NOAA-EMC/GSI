@@ -29,7 +29,6 @@ pwd=$(pwd)
 export NWPROD=${NWPROD:-$pwd}
 export BASE_GSM=${BASE_GSM:-$NWPROD}
 export BASE_GSI=${BASE_GSI:-$NWPROD}
-export BASEDIR
 export DATA=${DATA:-$pwd}
 export CASE=$CASE_ENKF
 CDATE=${CDATE:-$($NEMSIOGET $ATMGESNAME fcstdate | grep -i "fcstdate_ymdh" | awk -F= '{print $2}')}
