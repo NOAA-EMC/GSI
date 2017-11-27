@@ -120,6 +120,7 @@ subroutine gesinfo(mype)
   type(ncepgfs_headv):: gfsheadv
   type(nemsio_gfile) :: gfile2
   logical :: print_verbose
+  logical :: fatal = .false.
 
 !---------------------------------------------------------------------
 ! Get guess date and vertical coordinate structure from atmospheric
@@ -146,7 +147,7 @@ subroutine gesinfo(mype)
      idate4(3)=regional_time(3)  !  day
      idate4(4)=regional_time(1)  !  year
      hourg=regional_fhr          !  fcst hour
-! Handle RURTMA date:  get iadatemn 
+! Handle RURTMA date:  get iadatemn
      iadatemn(1)=regional_time(1)  !  year
      iadatemn(2)=regional_time(2)  !  month
      iadatemn(3)=regional_time(3)  !  day
@@ -169,7 +170,7 @@ subroutine gesinfo(mype)
         endif
         if (mype==mype_out) &
              write(6,*)'GESINFO:  Read NCEP sigio format file, ',filename
-           
+
 !       Extract information from NCEP atmospheric guess using sigio
 !       Fill structure with NCEP sigio header information
         gfshead%fhour=sighead%fhour
@@ -184,10 +185,10 @@ subroutine gesinfo(mype)
         gfshead%idsl=sighead%idsl
         gfshead%ncldt=sighead%ncldt
         gfshead%nvcoord=sighead%nvcoord
-        
+
         allocate(gfsheadv%vcoord(gfshead%levs+1,gfshead%nvcoord))
         gfsheadv%vcoord=sighead%vcoord
-        
+
         allocate(gfsheadv%cpi(gfshead%ntrac+1))
         if (mod(gfshead%idvm/10,10) == 3) then
            do k=1,gfshead%ntrac+1
@@ -358,7 +359,7 @@ subroutine gesinfo(mype)
         call stop2(85)
      endif
 
-!    Load reference temperature array (used by general coordinate)        
+!    Load reference temperature array (used by general coordinate)
      do k=1,nsig
         tref5(k)=h300
      end do
@@ -377,12 +378,28 @@ subroutine gesinfo(mype)
         end do
      end if
 
-!    Check for consistency with namelist settings           
-     if ((gfshead%jcap/=jcap_b.and..not.regional) .or. gfshead%levs/=nsig) then
-        write(6,*)'GESINFO:  ***ERROR*** guess res. inconsistent with namelist'
-        write(6,*)'      guess jcap_b,nsig=',gfshead%jcap,gfshead%levs
-        write(6,*)'   namelist jcap_b,nsig=',jcap_b,nsig
-        call stop2(85)
+!    Check for consistency with namelist settings
+     if (gfshead%jcap/=jcap_b.and..not.regional .or. gfshead%levs/=nsig) then
+        if (gfshead%levs/=nsig) then
+           write(6,*)'GESINFO:  ***ERROR*** guess levels inconsistent with namelist'
+           write(6,*)'      guess nsig=',gfshead%levs
+           write(6,*)'   namelist nsig=',nsig
+           fatal = .true.
+        endif
+        if (gfshead%jcap/=jcap_b.and..not.regional ) then
+           if (gfshead%jcap < 0) then
+              ! FV3GFS write component does not write JCAP to the NEMSIO file
+              write(6,*)'GESINFO:  ***WARNING*** guess jcap inconsistent with namelist'
+              write(6,*)'GESINFO:  ***WARNING*** this is a FV3GFS NEMSIO file'
+              fatal = .false.
+           else
+              write(6,*)'GESINFO:  ***ERROR*** guess jcap inconsistent with namelist'
+              fatal = .true.
+           endif
+           write(6,*)'      guess jcap_b=',gfshead%jcap
+           write(6,*)'   namelist jcap_b=',jcap_b
+        endif
+        if ( fatal ) call stop2(85)
      endif
 
 
@@ -503,7 +520,7 @@ subroutine gesinfo(mype)
   else
      call read_files(mype)
   endif
-     
+
 
   if(mype==mype_out) then
      if (twodvar_regional) then
