@@ -1,14 +1,14 @@
 module gridinfo
 !$$$  module documentation block
 !
-! module: gridinfo                     read horizontal (lons, lats) and 
+! module: gridinfo                     read horizontal (lons, lats) and
 !                                      vertical (pressure) information from
 !                                      ensemble mean first guess file.
 !
 ! prgmmr: whitaker         org: esrl/psd               date: 2009-02-23
 !
 ! abstract: This module reads gfg_YYYYMMDDHH_fhr06_ensmean, and
-! extracts information about the analysis grid, including the 
+! extracts information about the analysis grid, including the
 ! longitudes and latitudes of the analysis grid points and
 ! the pressure on each grid point/vertical level.
 !
@@ -16,14 +16,14 @@ module gridinfo
 !   getgridinfo: read latitudes, longitudes, pressures and orography for analysis grid,
 !    broadcast to each task. Compute spherical cartesian coordinate values
 !    for each analysis horizontal grid point.
-!   gridinfo_cleanup: deallocate allocated module variables. 
+!   gridinfo_cleanup: deallocate allocated module variables.
 !
 ! Public Variables:
 !   npts: number of analysis grid points in the horizontal (from module params).
 !   nlevs: number of analysis vertical levels (from module params).
 !   ntrac: number of 'tracer' model state variables (3 for GFS,
 !    specific humidity, ozone and cloud condensate).
-!   nvars: number of 'non-tracer' model state variables (usually 4 
+!   nvars: number of 'non-tracer' model state variables (usually 4
 !    for hydrostatic models).  See grdinfo in gridio for a description
 !    of how these variables must be laid out in input/output files.
 !   ptop: (real scalar) pressure (hPa) at top model layer interface.
@@ -32,7 +32,7 @@ module gridinfo
 !   logp(npts,ndim):  -log(press) for all 2d analysis grids. Assumed invariant
 !   in assimilation window, computed fro ensemble mean at middle of window.
 !   gridloc(3,npts): spherical cartesian coordinates (x,y,z) for analysis grid.
-!   
+!
 ! Modules Used: mpisetup, params, kinds
 !
 ! program history log:
@@ -114,6 +114,10 @@ if (use_gfs_nemsio) then
      endif
      call nemsio_getfilehead(gfile,iret=iret, dimx=nlonsin, dimy=nlatsin,&
                              dimz=nlevsin,jcap=ntrunc,idvc=idvc)
+     ! set ntrunc to nlats if missing
+     ! (only used for inflation smoothing and mass balance adjustment if use_gfsnemsio = T)
+     ! FV3GFS write component does not include JCAP, infer from nlatsin
+     if (ntrunc < 0) ntrunc = nlatsin-2
      if (iret/=0) then
         write(6,*)'grdinfo: gfs model: problem with nemsio_getfilehead, iret=',iret
         call stop2(23)
@@ -224,7 +228,7 @@ if (nproc .eq. 0) then
          bk = sighead%vcoord(1:nlevs+1,2)
       else if (sighead%idvc == 2 .or. sighead%idvc == 3) then  ! hybrid coordinate
          ak = 0.01_r_kind*sighead%vcoord(1:nlevs+1,1)          ! convert to mb
-         bk = sighead%vcoord(1:nlevs+1,2) 
+         bk = sighead%vcoord(1:nlevs+1,2)
       else
          print *,'unknown vertical coordinate type',sighead%idvc
          call stop2(24)
@@ -328,7 +332,7 @@ end do
 
 if (massbal_adjust) index_pres(ndim-1)=nlevs+1 ! ps tend
 index_pres(ndim)=nlevs+1 ! ps
-  
+
 !==> precompute cartesian coords of analysis grid points.
 do nn=1,npts
    gridloc(1,nn) = cos(latsgrd(nn))*cos(lonsgrd(nn))
