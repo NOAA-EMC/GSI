@@ -119,6 +119,11 @@ module obsmod
 !                        - cleaned some debris left from this and previous changes.
 !   2016-05-18  collard  - Added code to allow for historical naming conventions
 !                          for satellite instruments
+!   2015-03-31  wgu      - add isis(sensor/instrument/satellite id) in rad_ob_type to handle
+!                          instruments id in intrad inter-channel correlation
+!                          implementation.
+!   2016-07-19  wgu      - add isfctype - mask for surface type - to radiance obtype
+!   2016-07-19  kbathmann - add rsqrtinv and use_corr_obs to rad_ob_type
 !   2016-07-26  guo      - moved away most cldch_ob_type contents to a new module, m_cldchNode
 !   2016-08-20  guo      - moved (stpcnt,ll_jo,ib_jo) to stpjo.f90.
 !   2016-09-19  guo      - moved function dfile_format() to m_extOzone.F90
