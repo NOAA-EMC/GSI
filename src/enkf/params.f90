@@ -128,6 +128,7 @@ logical,public :: massbal_adjust = .false.
 ! when pseudo_rh=.true.  If pseudo_rh=.false, use_qsatensmean
 ! is ignored.
 logical,public :: use_qsatensmean = .false.
+logical,public :: gfdl_mp = .false.
 
 namelist /nam_enkf/datestring,datapath,iassim_order,&
                    covinflatemax,covinflatemin,deterministic,sortinc,&
@@ -145,7 +146,8 @@ namelist /nam_enkf/datestring,datapath,iassim_order,&
                    paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
                    lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
                    newpc4pred,nmmb,nhr_anal,fhr_assim,nbackgrounds,save_inflation,nobsl_max,&
-                   letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs,npefiles
+                   letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs,&
+                   npefiles,gfdl_mp
 namelist /nam_wrf/arw,nmm,nmm_restart
 namelist /satobs_enkf/sattypes_rad,dsis
 namelist /ozobs_enkf/sattypes_oz
