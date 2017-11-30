@@ -34,7 +34,7 @@
  use constants, only: zero,one,cp,fv,rd,grav,zero
  use params, only: nlons,nlats,ndim,reducedgrid,nvars,nlevs,use_gfs_nemsio,pseudo_rh, &
                    cliptracers,nlons,nlats,datestring,datapath,massbal_adjust,&
-                   nbackgrounds,fgfileprefixes,anlfileprefixes
+                   nbackgrounds,fgfileprefixes,anlfileprefixes,gfdl_mp
  use kinds, only: i_kind,r_double,r_kind,r_single
  use gridinfo, only: ntrunc,npts,ptop  ! gridinfo must be called first!
  use specmod, only: sptezv_s, sptez_s, init_spec_vars, ndimspec => nc, &
@@ -268,6 +268,14 @@
               write(6,*)'gridio/readgriddata: gfs model: problem with nemsio_readrecv(clwmr), iret=',iret
               call stop2(23)
            endif
+           if (gfdl_mp) then
+              call nemsio_readrecv(gfile,'ice_wat','mid layer',k,nems_wrk,iret=iret)
+              if (iret/=0) then
+                 write(6,*)'gridio/readgriddata: gfs model: problem with nemsio_readrecv(ice_wat), iret=',iret
+                 call stop2(23)
+              endif
+              nems_wrk2 = nems_wrk2 + nems_wrk
+           endif
            if (cliptracers)  where (nems_wrk2 < clip) nems_wrk2 = clip
            ug = nems_wrk2
            if (reducedgrid) then
@@ -375,6 +383,7 @@
                            nemsio_readrec,nemsio_writerec,nemsio_intkind,&
                            nemsio_getheadvar,nemsio_realkind,nemsio_getfilehead,&
                            nemsio_readrecv,nemsio_init,nemsio_setheadvar,nemsio_writerecv
+  use constants, only: t0c, r0_05
   implicit none
 
   character(len=500):: filenamein, filenameout
@@ -384,7 +393,7 @@
   real(r_kind), allocatable, dimension(:,:) :: vmassdivinc
   real(r_kind), allocatable, dimension(:,:) :: ugtmp,vgtmp
   real(r_kind), allocatable,dimension(:) :: psg,pstend1,pstend2,pstendfg,vmass
-  real(r_kind), dimension(nlons*nlats) :: ug,vg,uginc,vginc,psfg
+  real(r_kind), dimension(nlons*nlats) :: ug,vg,uginc,vginc,psfg,work
   real(r_kind), dimension(ndimspec) :: vrtspec,divspec
   integer iadate(4),idate(4),nfhour,idat(7),iret,nrecs,jdate(7)
   integer:: nfminute, nfsecondn, nfsecondd
@@ -403,7 +412,7 @@
   type(sigio_data) sigdata
   type(nemsio_gfile) :: gfilein,gfileout
 
-  integer k,nt,ierr,iunitsig,nb
+  integer k,nt,ierr,iunitsig,nb,i
 
   iunitsig = 78
   kapr = cp/rd
@@ -802,6 +811,11 @@
         if (cliptracers)  where (vg < clip) vg = clip
         ! convert Tv back to T
         nems_wrk = ug/(1. + fv*vg)
+        do i=1,nlons*nlats  ! compute work for cloud water partitioning
+           work(i) = -r0_05 * (nems_wrk(i) - t0c)
+           work(i) = max(zero,work(i))
+           work(i) = min(one,work(i))
+        enddo 
         call nemsio_writerecv(gfileout,'tmp','mid layer',k,nems_wrk,iret=iret)
         if (iret/=0) then
            write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(tmp), iret=',iret
@@ -850,14 +864,31 @@
         else
            ug = 0.
         endif
+        if (gfdl_mp) then
+           call nemsio_readrecv(gfilein,'ice_wat','mid layer',k,nems_wrk2,iret=iret)
+           if (iret/=0) then
+              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_readrecv(ice_wat), iret=',iret
+              call stop2(23)
+           endif
+           vg = ug * work  !cloud ice
+           ug = ug * (one - work)  !cloud water
+           nems_wrk2 = nems_wrk2 + vg
+        endif
         nems_wrk = nems_wrk + ug
         if (cliptracers)  where (nems_wrk < clip) nems_wrk = clip
+        if (cliptracers)  where (nems_wrk2 < clip) nems_wrk2 = clip
         call nemsio_writerecv(gfileout,'clwmr','mid layer',k,nems_wrk,iret=iret)
         if (iret/=0) then
            write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(clwmr), iret=',iret
            call stop2(23)
         endif
-
+        if (gfdl_mp) then
+           call nemsio_writerecv(gfileout,'ice_wat','mid layer',k,nems_wrk2,iret=iret)
+           if (iret/=0) then
+              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(ice_wat), iret=',iret
+              call stop2(23)
+           endif
+        endif
     enddo
   endif
 

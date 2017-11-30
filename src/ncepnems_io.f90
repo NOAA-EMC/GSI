@@ -1972,8 +1972,8 @@ contains
 
     ! For GFDL microphysics, partition total cloud condensate
     if (gfdl_mp) then
-      call cloud_calc_gfs(cwlsm,cwism,cwsm,qsm,tvsm,.false.)
-      cwsm = cwlsm
+       call cloud_calc_gfs(cwlsm,cwism,cwsm,qsm,tvsm,.false.)
+       cwsm = cwlsm
     endif  
 
     ! Thermodynamic variable
