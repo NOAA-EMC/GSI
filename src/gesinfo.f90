@@ -31,8 +31,6 @@ subroutine gesinfo(mype)
 !                             (1) remove idvm(5) and derivation of idpsfc5 and idthrm5
 !                             (2) remove cpi, NEMSIO input always is dry tempersture (no
 !                                 conversion from enthalpy w/ cpi is needed)
-!   2017-09-28  li & Whitaker: modify to handle fv3gfs sig file where jcap
-!   becomes unavailable
 !
 !   input argument list:
 !     mype - mpi task id
@@ -240,9 +238,7 @@ subroutine gesinfo(mype)
            dimx=gfshead%lonb, dimy=gfshead%latb,   dimz=gfshead%levs, &
            jcap=gfshead%jcap, ntrac=gfshead%ntrac, idvc=gfshead%idvc, &
            idsl=gfshead%idsl,   ncldt=gfshead%ncldt, iret=iret2)
-        if ( gfshead%jcap /= gfshead%latb - 2 ) then
-           gfshead%jcap = gfshead%latb - 2
-        endif
+
         if ( iret2 /= 0 .or. TRIM(filetype) /= 'NEMSIO' ) then
            write(6,*)' GESINFO:  UNKNOWN FORMAT FOR GFSATM file = ', &
               trim(filename),' Status = ',iret2
