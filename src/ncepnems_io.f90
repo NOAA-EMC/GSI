@@ -1793,6 +1793,7 @@ contains
     real(r_kind),pointer,dimension(:,:,:) :: sub_u,sub_v,sub_tv
     real(r_kind),pointer,dimension(:,:,:) :: sub_q,sub_oz,sub_cwmr
 
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) :: sub_cwl,sub_cwi
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) :: sub_prsl
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig+1) :: sub_prsi
 
@@ -1800,7 +1801,7 @@ contains
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig):: sub_dp
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: tvsm,prslm, usm, vsm
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: dpsm, qsm, ozsm
-    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: cwsm, cwlsm, cwism
+    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: cwsm, cwism
     real(r_kind),dimension(max(grd%iglobal,grd%itotsub))     :: work1,work2
     real(r_kind),dimension(grd%nlon,grd%nlat-2):: grid
     real(r_kind),allocatable,dimension(:) :: rwork1d,rwork1d1,rlats,rlons,clons,slons
@@ -1959,6 +1960,12 @@ contains
        sub_dp(:,:,k) = sub_prsi(:,:,k) - sub_prsi(:,:,k+1)
     end do
 
+    ! For GFDL microphysics, partition total cloud condensate
+    if (gfdl_mp) then
+       call cloud_calc_gfs(sub_cwl,sub_cwi,sub_cwmr,sub_q,sub_tv,.false.)
+       sub_cwmr = sub_cwl
+    endif  
+
     ! Strip off boundary points from subdomains
     call strip(sub_ps  ,psm)
     call strip(sub_tv  ,tvsm  ,grd%nsig)
@@ -1969,12 +1976,7 @@ contains
     call strip(sub_prsl,prslm ,grd%nsig)
     call strip(sub_u   ,usm   ,grd%nsig)
     call strip(sub_v   ,vsm   ,grd%nsig)
-
-    ! For GFDL microphysics, partition total cloud condensate
-    if (gfdl_mp) then
-       call cloud_calc_gfs(cwlsm,cwism,cwsm,qsm,tvsm,.false.)
-       cwsm = cwlsm
-    endif  
+    if (gfdl_mp) call strip(sub_cwi,cwism,grd%nsig)
 
     ! Thermodynamic variable
     ! The GSI analysis variable is virtual temperature (Tv).   For NEMSIO
