@@ -122,7 +122,7 @@ public as3d        ! normalized scale factor for background error 3d-variables
 public as2d        ! normalized scale factor for background error 2d-variables
 public atsfc_sdv   ! standard deviation of surface temperature error over (1) land (and (2) ice
 public an_amp0     ! multiplying factors on reference background error variances
-public gfdl_mp     ! true is GFDL microphsics is used in the model
+public gfdl_mp     ! when .t., GFDL microphysics is used in the model
 
 public nrf2_loc,nrf3_loc,nmotl_loc   ! what are these for??
 public ntracer

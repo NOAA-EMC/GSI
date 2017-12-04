@@ -34,7 +34,7 @@
  use constants, only: zero,one,cp,fv,rd,grav,zero
  use params, only: nlons,nlats,ndim,reducedgrid,nvars,nlevs,use_gfs_nemsio,pseudo_rh, &
                    cliptracers,nlons,nlats,datestring,datapath,massbal_adjust,&
-                   nbackgrounds,fgfileprefixes,anlfileprefixes,gfdl_mp
+                   nbackgrounds,fgfileprefixes,anlfileprefixes
  use kinds, only: i_kind,r_double,r_kind,r_single
  use gridinfo, only: ntrunc,npts,ptop  ! gridinfo must be called first!
  use specmod, only: sptezv_s, sptez_s, init_spec_vars, ndimspec => nc, &
@@ -44,6 +44,7 @@
  implicit none
  private
  public :: readgriddata, writegriddata
+ logical,public :: gfdl_mp
  contains
 
  subroutine readgriddata(nanal,grdin,qsat)
@@ -268,13 +269,12 @@
               write(6,*)'gridio/readgriddata: gfs model: problem with nemsio_readrecv(clwmr), iret=',iret
               call stop2(23)
            endif
-           if (gfdl_mp) then
-              call nemsio_readrecv(gfile,'ice_wat','mid layer',k,nems_wrk,iret=iret)
-              if (iret/=0) then
-                 write(6,*)'gridio/readgriddata: gfs model: problem with nemsio_readrecv(ice_wat), iret=',iret
-                 call stop2(23)
-              endif
+           call nemsio_readrecv(gfile,'ice_wat','mid layer',k,nems_wrk,iret=iret)
+           if (iret==0) then
+              gfdl_mp = .true.
               nems_wrk2 = nems_wrk2 + nems_wrk
+           else
+              gfdl_mp = .false.
            endif
            if (cliptracers)  where (nems_wrk2 < clip) nems_wrk2 = clip
            ug = nems_wrk2
@@ -876,7 +876,7 @@
         endif
         nems_wrk = nems_wrk + ug
         if (cliptracers)  where (nems_wrk < clip) nems_wrk = clip
-        if (cliptracers)  where (nems_wrk2 < clip) nems_wrk2 = clip
+        if (cliptracers.and.gfdl_mp)  where (nems_wrk2 < clip) nems_wrk2 = clip
         call nemsio_writerecv(gfileout,'clwmr','mid layer',k,nems_wrk,iret=iret)
         if (iret/=0) then
            write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(clwmr), iret=',iret
