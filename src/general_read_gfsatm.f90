@@ -1196,13 +1196,14 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
          work=zero
          call nemsio_readrecv(gfile,'clwmr','mid layer',k,rwork1d0,iret=iret)
          if (iret /= 0) call error_msg(trim(my_name),trim(filename),'clwmr','read',istop+9,iret)
-
-         call nemsio_readrecv(gfile,'ice_wat','mid layer',k,rwork1d1,iret=iret)
-         if (iret == 0) then
-            gfdl_mp = .true.
-            rwork1d0 = rwork1d0 + rwork1d1
+         if (gfdl_mp) then
+            call nemsio_readrecv(gfile,'ice_wat','mid layer',k,rwork1d1,iret=iret)
+            if (iret == 0) then
+               rwork1d0 = rwork1d0 + rwork1d1
+            else
+               call error_msg(trim(my_name),trim(filename),'ice_wat','read',istop+10,iret)
+            endif
          endif
-
          if ( diff_res ) then
             grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
             vector(1)=.false.
