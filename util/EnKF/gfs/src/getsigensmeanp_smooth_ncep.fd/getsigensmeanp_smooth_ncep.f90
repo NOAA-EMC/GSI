@@ -142,12 +142,13 @@ program getsigensmeanp_smooth
            write(6,'(5a,i5)')'Read nemsio ',trim(filenamein), ' dtype = ', trim(adjustl(dtype)),' iret = ',iret
            if ( ntrunc /= latb - 2 ) then
               ntrunc = latb - 2
-              write(6,'(a,i5)') 'getsigensmeanp_smooth, assign ntrunc to be latb - 2: ',ntrunc
+              if ( mype == 0 ) then
+                 write(6,'(a,i5)') 'getsigensmeanp_smooth, assign ntrunc to be latb - 2: ',ntrunc
+              endif
            endif
            allocate(reclev(nrec),recnam(nrec))
            call nemsio_getfilehead(gfile,reclev=reclev,iret=iret)
            call nemsio_getfilehead(gfile,recname=recnam,iret=iret)
-           if ( ntrunc < 0 ) ntrunc = latb - 2
         else
            write(6,'(3a)')'***ERROR*** ',trim(filenamein),' contains unrecognized format. ABORT!'
         endif
@@ -252,7 +253,6 @@ program getsigensmeanp_smooth
            end do
            call nemsio_writerecv(gfileo,'hgt','sfc',1,rwork_hgt,iret=iret)
            call nemsio_close(gfileo,iret=iret)
-           write(6,'(3a,i5)')'Write nemsio ensemble mean ',trim(filenameout),' iret = ', iret
         endif
 
      endif
