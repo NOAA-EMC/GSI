@@ -436,6 +436,10 @@ contains
 
     integer                                                              :: i, j, k
 
+    ! Define variable name string
+
+    character(len=10)                                                    :: varname
+
     !=====================================================================
 
     ! Define local variables
@@ -456,6 +460,21 @@ contains
     incr_grid%sphum_inc = an_grid%spfh  - fg_grid%spfh
     incr_grid%clwmr_inc = an_grid%clwmr - fg_grid%clwmr
     incr_grid%o3mr_inc  = an_grid%o3mr  - fg_grid%o3mr
+
+    do i=1,max_vars
+        varname = incvars_to_zero(i)
+        if ( trim(varname) /= 'NONE' ) then
+            if ( trim(varname) == 'u_inc' ) incr_grid%u_inc = zero
+            if ( trim(varname) == 'v_inc' ) incr_grid%v_inc = zero
+            if ( trim(varname) == 'delp_inc' ) incr_grid%delp_inc = zero
+            if ( trim(varname) == 'temp_inc' ) incr_grid%temp_inc = zero
+            if ( trim(varname) == 'sphum_inc' ) incr_grid%sphum_inc = zero
+            if ( trim(varname) == 'clwmr_inc' ) incr_grid%clwmr_inc = zero
+            if ( trim(varname) == 'o3mwr_inc' ) incr_grid%o3mr_inc = zero
+        else
+            cycle
+        endif
+    enddo
 
     ! Define local variables
 
