@@ -493,6 +493,7 @@ contains
     use nemsio_module, only: nemsio_gfile,nemsio_getfilehead,nemsio_readrecv
     use egrid2agrid_mod,only: g_egrid2agrid,g_create_egrid2agrid,egrid2agrid_parm,destroy_egrid2agrid
     use constants, only: two,pi,half,deg2rad
+    use control_vectors, only: gfdl_mp
     implicit none
 
 !   Declare local parameters
@@ -882,7 +883,10 @@ contains
              call nemsio_readrecv(gfile,'clwmr','mid layer',k,rwork1d0,iret=iret)
              if (iret /= 0) call error_msg(trim(my_name),trim(filename),'clwmr','read',istop+9,iret)
              call nemsio_readrecv(gfile,'ice_wat','mid layer',k,rwork1d1,iret=iret)
-             if (iret == 0) rwork1d0 = rwork1d0 + rwork1d1
+             if (iret == 0) then
+                gfdl_mp = .true.   
+                rwork1d0 = rwork1d0 + rwork1d1
+             endif
              if(diff_res)then
                 grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
                 vector(1)=.false.
@@ -1751,6 +1755,7 @@ contains
     use constants, only: two,pi,half,deg2rad
     use gsi_bundlemod, only: gsi_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
+    use control_vectors, only: gfdl_mp
     use cloud_efr_mod, only: cloud_calc_gfs
 
     implicit none
@@ -1802,7 +1807,7 @@ contains
     real(r_kind),allocatable,dimension(:,:,:) :: grid_c, grid3, grid_c2
 
     type(nemsio_gfile) :: gfile,gfileo
-    logical diff_res,eqspace,gfdl_mp
+    logical diff_res,eqspace
     logical,dimension(1) :: vector
     type(egrid2agrid_parm) :: p_low,p_high
 
@@ -1953,9 +1958,7 @@ contains
     end do
 
     ! For GFDL microphysics, partition total cloud condensate
-    call nemsio_readrecv(gfile,'ice_wat','mid layer',1,rwork1d,iret=iret)
-    if (iret == 0) then
-       gfdl_mp = .true.
+    if (gfdl_mp) then
        call cloud_calc_gfs(sub_cwl,sub_cwi,sub_cwmr,sub_q,sub_tv,.false.)
        sub_cwmr = sub_cwl
     endif  
