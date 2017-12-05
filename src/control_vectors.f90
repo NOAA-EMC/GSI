@@ -58,6 +58,9 @@ module control_vectors
 !
 ! variable definitions:
 !   def n_ens     - number of ensemble perturbations (=0 except when hybrid ensemble option turned on)
+!   def gfdl_mp   - .true. if GFDL microphysics is used in the model, adds
+!                   cloud ice to cloud water condensate to create total
+!                   condensate
 !
 ! attributes:
 !   language: f90
@@ -119,6 +122,7 @@ public as3d        ! normalized scale factor for background error 3d-variables
 public as2d        ! normalized scale factor for background error 2d-variables
 public atsfc_sdv   ! standard deviation of surface temperature error over (1) land (and (2) ice
 public an_amp0     ! multiplying factors on reference background error variances
+public gfdl_mp     ! when .t., GFDL microphysics is used in the model
 
 public nrf2_loc,nrf3_loc,nmotl_loc   ! what are these for??
 public ntracer
@@ -142,7 +146,7 @@ character(len=*),parameter:: myname='control_vectors'
 integer(i_kind) :: nclen,nclen1,nsclen,npclen,ntclen,nrclen,nsubwin,nval_len
 integer(i_kind) :: latlon11,latlon1n,lat2,lon2,nsig,n_ens
 integer(i_kind) :: nval_lenz_en
-logical :: lsqrtb
+logical :: lsqrtb,gfdl_mp
 
 integer(i_kind) :: m_vec_alloc, max_vec_alloc, m_allocs, m_deallocs
 
@@ -378,6 +382,8 @@ if (mype==0) then
     write(6,*) myname_,': MOTLEY CONTROL VARIABLES ', cvarsmd
     write(6,*) myname_,': ALL CONTROL VARIABLES    ', nrf_var
 end if
+
+gfdl_mp=.false.
 
 end subroutine init_anacv
 subroutine final_anacv
