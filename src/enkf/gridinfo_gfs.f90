@@ -38,7 +38,6 @@ module gridinfo
 ! program history log:
 !   2009-02-23  Initial version.
 !   2016-04-20  Modify to handle the updated nemsio sig file (P, DP & DPDT removed)
-!   2017-10-15 Li, assign trunc=nlatsin-2 since jcap not defined any more for 3D file from WriteComponent
 !
 ! attributes:
 !   language: f95

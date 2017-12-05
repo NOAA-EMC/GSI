@@ -85,7 +85,7 @@ module gridmod
 !   2015-02-03 todling - update max nlayers to 200
 !   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
 !   2017-03-23  Hu      - add code to get eta2_ll and aeta2_ll ready for hybrid vertical coodinate in WRF MASS CORE
-!   2017-08-31  Li      - add sfcnst_comb to handle surface and nsts combined file
+!   2017-08-31  Li      - add sfcnst_comb to handle surface and nsst combined file
 !
 !                        
 !
@@ -468,7 +468,7 @@ contains
     nthreads = 1  ! initialize the number of threads
 
     use_gfs_nemsio  = .false.
-    sfcnst_comb = .true.
+    sfcnst_comb = .false.
     use_readin_anl_sfcmask = .false.
 
     use_sp_eqspace = .false.

@@ -15,7 +15,6 @@ program getsigensstatp
 !
 ! program history log:
 !   2014-08-23  Initial version.
-!   2017-10-15  Li, assign ntrunc=latb-2 for WriteComponent
 !
 ! usage:
 !   input files:
