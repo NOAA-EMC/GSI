@@ -905,13 +905,27 @@ if [ $DO_CALC_INCREMENT = "YES" ]; then
   export OMP_NUM_THREADS=$NTHREADS_CALCINC
   $NCP $CALCINCEXEC $DATA
 
+  INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"NONE"}
+
+  rm calc_increment.nml
+  cat > calc_increment.nml << EOF
+&setup
+  datapath = './'
+  analysis_filename = 'atmanl'
+  firstguess_filename = 'atmges'
+  increment_filename = 'atminc'
+  debug = .false.
+  nens = $ncmd
+/
+&zeroinc
+  incvars_to_zero = "$INCREMENTS_TO_ZERO"
+/
+EOF
+
+  cat calc_increment.nml
+
   APRUN=$(eval echo $APRUN_CALCINC)
-  DATAPATH="./"
-  ATMANLFNAME="atmanl"
-  ATMGESFNAME="atmges"
-  ATMINCFNAME="atminc"
-  DEBUG_CALCINC=".false."
-  $APRUN $DATA/$(basename $CALCINCEXEC) $DATAPATH $ATMANLFNAME $ATMGESFNAME $ATMINCFNAME $DEBUG_CALCINC $ncmd
+  $APRUN $DATA/$(basename $CALCINCEXEC)
   rc=$?
 
   export ERR=$rc

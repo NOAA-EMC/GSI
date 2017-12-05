@@ -83,7 +83,7 @@ ENKF_SUFFIX="s"
 # Link ensemble member guess, analysis and increment files
 for imem in $(seq 1 $NMEM_ENKF); do
    memchar="mem"$(printf %03i $imem)
-   $NLN $COMIN_GES_ENS/$memchar/${GPREFIX}atmf006${ENKF_SUFFIX}$GSUFFIX ./atmf006_$memchar
+   $NLN $COMIN_GES_ENS/$memchar/${GPREFIX}atmf006${ENKF_SUFFIX}$GSUFFIX ./atmges_$memchar
    $NLN $COMIN_ENS/$memchar/${APREFIX}atmanl$ASUFFIX ./atmanl_$memchar
    $NLN $COMIN_ENS/$memchar/${APREFIX}atminc.nc ./atminc_$memchar
    [[ $RECENTER_ENKF = "YES" ]] && $NLN $COMIN_ENS/$memchar/${APREFIX}ratmanl$ASUFFIX ./ratmanl_$memchar
@@ -199,20 +199,35 @@ fi
 ################################################################################
 # Calculate ensemble analysis increment
 
-DATAPATH="./"
-ATMGESNAME="atmf006"
-ATMINCNAME="atminc"
 if [ $RECENTER_ENKF = "YES" ]; then
     ATMANLNAME='ratmanl'
 else
     ATMANLNAME='atmanl'
 fi
-DEBUG='.false.'
 
 export OMP_NUM_THREADS=1
-
 $NCP $CALCINCEXEC $DATA
-$APRUN_ECEN ${DATA}/$(basename $CALCINCEXEC) $DATAPATH $ATMANLNAME $ATMGESNAME $ATMINCNAME $DEBUG $NMEM_ENKF
+
+INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"NONE"}
+
+rm calc_increment.nml
+cat > calc_increment.nml << EOF
+&setup
+  datapath = './'
+  analysis_filename = '$ATMANLNAME'
+  firstguess_filename = 'atmges'
+  increment_filename = 'atminc'
+  debug = .false.
+  nens = $NMEM_ENKF
+/
+&zeroinc
+  incvars_to_zero = "$INCREMENTS_TO_ZERO"
+/
+EOF
+
+cat calc_increment.nml
+
+$APRUN_ECEN ${DATA}/$(basename $CALCINCEXEC)
 rc=$?
 
 export ERR=$rc
