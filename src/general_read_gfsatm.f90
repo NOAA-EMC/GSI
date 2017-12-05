@@ -625,7 +625,6 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    use constants, only: two,pi,half,deg2rad,r60,r3600
    use gsi_bundlemod, only: gsi_bundle
    use gsi_bundlemod, only: gsi_bundlegetpointer
-   use control_vectors, only: gfdl_mp
 
    implicit none
 
@@ -1198,10 +1197,7 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
          if (iret /= 0) call error_msg(trim(my_name),trim(filename),'clwmr','read',istop+9,iret)
 
          call nemsio_readrecv(gfile,'ice_wat','mid layer',k,rwork1d1,iret=iret)
-         if (iret == 0) then
-            gfdl_mp = .true.
-            rwork1d0 = rwork1d0 + rwork1d1
-         endif
+         if (iret == 0) rwork1d0 = rwork1d0 + rwork1d1
 
          if ( diff_res ) then
             grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
