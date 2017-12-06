@@ -61,7 +61,7 @@ subroutine half_nmm_grid2(gin,nx,ny,gout,igtype,iorder)
 !
 !$$$
   use kinds, only: r_single,i_kind
-  use constants, only: quarter, zero
+  use constants, only: zero_single
   use gridmod, only: iglobal, itotsub
   use general_commvars_mod, only: ltosi, ltosj, ltosi_s, ltosj_s
 
@@ -93,7 +93,7 @@ subroutine half_nmm_grid2(gin,nx,ny,gout,igtype,iorder)
         do i=1,nx
            im=i-1 ; if(im<1) im=i
            i0=i      ; if(i==nx)   i0=im
-           c(i,jj)=quarter*(gin(im,j)+gin(i0,j)+gin(i,jp)+gin(i,jm))
+           c(i,jj)=0.25_r_single*(gin(im,j)+gin(i0,j)+gin(i,jp)+gin(i,jm))
         end do
      end do
   end if
@@ -101,7 +101,7 @@ subroutine half_nmm_grid2(gin,nx,ny,gout,igtype,iorder)
   
 ! Reorganize for eventual distribution to local domains
   do i=1,itotsub
-     gout(i)=zero
+     gout(i)=zero_single
   end do
   if(iorder==1)then
      do i=1,itotsub

@@ -28,7 +28,7 @@ fi
 pwd=$(pwd)
 NWPROD=${NWPROD:-$pwd}
 BASE_GSI=${BASE_GSI:-$NWPROD}
-FIX_GSI=${FIX_GSI:-$BASE_GSI/fix}
+FIXgsi=${FIXgsi:-$BASE_GSI/fix}
 DATA=${DATA:-$pwd/enkf_update.$$}
 COMIN=${COMIN:-$pwd}
 COMIN_GES_ENS=${COMIN_GES_ENS:-$COMIN}
@@ -80,12 +80,12 @@ LONB_ENKF=${LONB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimx | awk '{print $2}')}
 LATA_ENKF=${LATA_ENKF:-$LATB_ENKF}
 LONA_ENKF=${LONA_ENKF:-$LONB_ENKF}
 
-SATANGL=${SATANGL:-${FIX_GSI}/global_satangbias.txt}
-SATINFO=${SATINFO:-${FIX_GSI}/global_satinfo.txt}
-CONVINFO=${CONVINFO:-${FIX_GSI}/global_convinfo.txt}
-OZINFO=${OZINFO:-${FIX_GSI}/global_ozinfo.txt}
-SCANINFO=${SCANINFO:-${FIX_GSI}/global_scaninfo.txt}
-HYBENSINFO=${HYBENSINFO:-${FIX_GSI}/global_hybens_info.l${LEVS_ENKF}.txt}
+SATANGL=${SATANGL:-${FIXgsi}/global_satangbias.txt}
+SATINFO=${SATINFO:-${FIXgsi}/global_satinfo.txt}
+CONVINFO=${CONVINFO:-${FIXgsi}/global_convinfo.txt}
+OZINFO=${OZINFO:-${FIXgsi}/global_ozinfo.txt}
+SCANINFO=${SCANINFO:-${FIXgsi}/global_scaninfo.txt}
+HYBENSINFO=${HYBENSINFO:-${FIXgsi}/global_hybens_info.l${LEVS_ENKF}.txt}
 
 ENKF_SUFFIX="s"
 [[ $SMOOTH_ENKF = "NO" ]] && ENKF_SUFFIX=""
@@ -255,10 +255,12 @@ cat > enkf.nml << EOFnml
    sattypes_rad(56)= 'iasi_metop-b',  dsis(56)= 'iasi_metop-b',
    sattypes_rad(57)= 'avhrr_metop-b', dsis(57)= 'avhrr3_metop-b',
    sattypes_rad(58)= 'atms_npp',      dsis(58)= 'atms_npp',
-   sattypes_rad(59)= 'cris_npp',      dsis(59)= 'cris_npp',
-   sattypes_rad(60)= 'cris-fsr_npp',  dsis(60)= 'cris-fsr_npp',
-   sattypes_rad(61)= 'gmi_gpm',       dsis(61)= 'gmi_gpm',
-   sattypes_rad(62)= 'saphir_meghat', dsis(62)= 'saphir_meghat',
+   sattypes_rad(59)= 'atms_n20',      dsis(59)= 'atms_n20',
+   sattypes_rad(60)= 'cris_npp',      dsis(60)= 'cris_npp',
+   sattypes_rad(61)= 'cris-fsr_npp',  dsis(61)= 'cris-fsr_npp',
+   sattypes_rad(62)= 'cris-fsr_n20',  dsis(62)= 'cris-fsr_n20',
+   sattypes_rad(63)= 'gmi_gpm',       dsis(63)= 'gmi_gpm',
+   sattypes_rad(64)= 'saphir_meghat', dsis(64)= 'saphir_meghat',
    $SATOBS_ENKF
 /
 &ozobs_enkf

@@ -1003,25 +1003,25 @@ subroutine read_2d_guess(mype)
         kv=kv+1
         do i=1,lon1+2
            do j=1,lat1+2
-              ges_u_it(j,i,k) = all_loc(j,i,ku)
-              ges_v_it(j,i,k) = all_loc(j,i,kv)
+              ges_u_it(j,i,k) = real(all_loc(j,i,ku),r_kind)
+              ges_v_it(j,i,k) = real(all_loc(j,i,kv),r_kind)
               ges_vor_it(j,i,k) = zero
-              ges_q_it(j,i,k)   = all_loc(j,i,kq)
-              ges_tsen(j,i,k,it)  = all_loc(j,i,kt)
+              ges_q_it(j,i,k)   = real(all_loc(j,i,kq),r_kind)
+              ges_tsen(j,i,k,it)  = real(all_loc(j,i,kt),r_kind)
            end do
         end do
      end do
      do i=1,lon1+2
         do j=1,lat1+2
-           ges_z_it(j,i)    = all_loc(j,i,i_0+i_fis)/grav ! surface elevation multiplied by g
+           ges_z_it(j,i)    = real(all_loc(j,i,i_0+i_fis))/grav ! surface elevation multiplied by g
 
 !          convert input psfc to psfc in mb, and then to cb
 
-           psfc_this=r0_01*all_loc(j,i,i_0+i_psfc)
+           psfc_this=r0_01*real(all_loc(j,i,i_0+i_psfc),r_kind)
            ges_ps_it(j,i)=one_tenth*psfc_this   ! convert from mb to cb
-           sno(j,i,it)=all_loc(j,i,i_0+i_sno)
-           soil_moi(j,i,it)=all_loc(j,i,i_0+i_smois)
-           soil_temp(j,i,it)=all_loc(j,i,i_0+i_tslb)
+           sno(j,i,it)=real(all_loc(j,i,i_0+i_sno),r_kind)
+           soil_moi(j,i,it)=real(all_loc(j,i,i_0+i_smois),r_kind)
+           soil_temp(j,i,it)=real(all_loc(j,i,i_0+i_tslb),r_kind)
         end do
      end do
 
@@ -1090,9 +1090,9 @@ subroutine read_2d_guess(mype)
         do i=1,lon1+2
            do j=1,lat1+2
               fact10(j,i,it)=one    !  later fix this by using correct w10/w(1)
-              veg_type(j,i,it)=all_loc(j,i,i_0+i_ivgtyp)
-              veg_frac(j,i,it)=r0_01*all_loc(j,i,i_0+i_vegfrac)
-              soil_type(j,i,it)=all_loc(j,i,i_0+i_isltyp)
+              veg_type(j,i,it)=real(all_loc(j,i,i_0+i_ivgtyp),r_kind)
+              veg_frac(j,i,it)=r0_01*real(all_loc(j,i,i_0+i_vegfrac),r_kind)
+              soil_type(j,i,it)=real(all_loc(j,i,i_0+i_isltyp),r_kind)
               sm_this=zero
               if(all_loc(j,i,i_0+i_sm) >= 0.5_r_single) sm_this=one
               xice_this=zero
@@ -1103,53 +1103,53 @@ subroutine read_2d_guess(mype)
               if(xice_this==zero.and.sm_this==one) isli_this=1
               isli(j,i,it)=isli_this
 
-              sfct(j,i,it)=all_loc(j,i,i_0+i_sst)
-              if(isli(j,i,it) /= 0) sfct(j,i,it)=all_loc(j,i,i_0+i_tsk)
+              sfct(j,i,it)=real(all_loc(j,i,i_0+i_sst),r_kind)
+              if(isli(j,i,it) /= 0) sfct(j,i,it)=real(all_loc(j,i,i_0+i_tsk),r_kind)
 
               if(ihave_gust) &
-                 ges_gust(j,i)=all_loc(j,i,i_0+i_gust)
+                 ges_gust(j,i)=real(all_loc(j,i,i_0+i_gust),r_kind)
 
               if (ihave_vis) then
-                 ges_vis(j,i)=all_loc(j,i,i_0+i_vis)
+                 ges_vis(j,i)=real(all_loc(j,i,i_0+i_vis),r_kind)
                  if (ges_vis(j,i)<=zero) ges_vis(j,i)=one_tenth
                  if (ges_vis(j,i)>20000.0_r_kind) ges_vis(j,i)=20000.0_r_kind
               endif
 
               if(ihave_pblh) &
-                 ges_pblh(j,i)=all_loc(j,i,i_0+i_pblh)
+                 ges_pblh(j,i)=real(all_loc(j,i,i_0+i_pblh),r_kind)
 
               if(ihave_cldch) &
-                 ges_cldch(j,i)=max(min(all_loc(j,i,i_0+i_cldch),20000.0_r_kind),one_tenth)
+                 ges_cldch(j,i)=max(min(real(all_loc(j,i,i_0+i_cldch),r_kind),20000.0_r_kind),one_tenth)
 
               if (ihave_wspd10m) & 
-                 ges_wspd10m(j,i)=all_loc(j,i,i_0+i_wspd10m)
+                 ges_wspd10m(j,i)=real(all_loc(j,i,i_0+i_wspd10m),r_kind)
 
               if(ihave_td2m) &
-                 ges_td2m(j,i)=all_loc(j,i,i_0+i_td2m)
+                 ges_td2m(j,i)=real(all_loc(j,i,i_0+i_td2m),r_kind)
 
               if(ihave_mxtm) &
-                 ges_mxtm(j,i)=all_loc(j,i,i_0+i_mxtm)
+                 ges_mxtm(j,i)=real(all_loc(j,i,i_0+i_mxtm),r_kind)
 
               if(ihave_mitm) &
-                 ges_mitm(j,i)=all_loc(j,i,i_0+i_mitm)
+                 ges_mitm(j,i)=real(all_loc(j,i,i_0+i_mitm),r_kind)
 
               if(ihave_pmsl) &
-                 ges_pmsl(j,i)=one_tenth*r0_01*all_loc(j,i,i_0+i_pmsl)    !  convert from Pa to cb
+                 ges_pmsl(j,i)=one_tenth*r0_01*real(all_loc(j,i,i_0+i_pmsl),r_kind)    !  convert from Pa to cb
 
               if(ihave_howv) &
-                 ges_howv(j,i)=all_loc(j,i,i_0+i_howv)
+                 ges_howv(j,i)=real(all_loc(j,i,i_0+i_howv),r_kind)
 
               if (ihave_tcamt) &
-                 ges_tcamt(j,i)=all_loc(j,i,i_0+i_tcamt)
+                 ges_tcamt(j,i)=real(all_loc(j,i,i_0+i_tcamt),r_kind)
 
               if (ihave_lcbas) & 
-                 ges_lcbas(j,i)=max(min(all_loc(j,i,i_0+i_lcbas),20000.0_r_kind),one_tenth) !Enforce upper and lower bounds on lowest cloud base
+                 ges_lcbas(j,i)=max(min(real(all_loc(j,i,i_0+i_lcbas),r_kind),20000.0_r_kind),one_tenth) !Enforce upper and lower bounds on lowest cloud base
 
               if (ihave_uwnd10m) & 
-                 ges_uwnd10m(j,i)=all_loc(j,i,i_0+i_uwnd10m)
+                 ges_uwnd10m(j,i)=real(all_loc(j,i,i_0+i_uwnd10m),r_kind)
 
               if (ihave_vwnd10m) & 
-                 ges_vwnd10m(j,i)=all_loc(j,i,i_0+i_vwnd10m)
+                 ges_vwnd10m(j,i)=real(all_loc(j,i,i_0+i_vwnd10m),r_kind)
 
            end do
         end do
