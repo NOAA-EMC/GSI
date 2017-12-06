@@ -206,11 +206,12 @@ endif
 
 end subroutine read_ensemble
 
-subroutine write_ensemble()
+subroutine write_ensemble(no_inflate_flag)
 ! retrieve pieces of updated ensemble from each task to IO tasks,
 ! write out each ensemble member to a separate file.
 ! for now, first nanals tasks are IO tasks.
 implicit none
+logical no_inflate_flag
 real(r_single), allocatable, dimension(:) :: sendbuf, recvbuf
 real(r_single), allocatable, dimension(:,:,:) :: ensmean
 real(r_double) t1,t2
@@ -340,7 +341,7 @@ if (nproc <= nanals-1) then
       grdin(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs,nb)*qsat(:,:,nb)
       enddo
    end if
-   call writegriddata(nanal,grdin)
+   call writegriddata(nanal,grdin,no_inflate_flag)
    if (nproc == 0) then
      t2 = mpi_wtime()
      print *,'time in writegriddata on root',t2-t1,'secs'
