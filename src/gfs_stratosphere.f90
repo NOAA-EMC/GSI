@@ -356,13 +356,13 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
    else
       if (nvcoord == 1) then
          do k=1,nsigg+1
-            bk5(k) = vcoord(k,1)
+            bk5(k) = real(vcoord(k,1),r_kind)
          end do
       elseif (nvcoord == 2) then
          do k = 1,nsigg+1
-            ak5(k) = vcoord(k,1)*zero_001
+            ak5(k) = real(vcoord(k,1),r_kind)*zero_001
             ak5(k)=ten*ak5(k)
-            bk5(k) = vcoord(k,2)
+            bk5(k) = real(vcoord(k,2),r_kind)
          end do
       end if
       deallocate(vcoord)
@@ -372,12 +372,12 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
    nsig_save=nsigr
    allocate(deta1_save(nsig_save),aeta1_save(nsig_save),eta1_save(nsig_save+1))
    allocate(deta2_save(nsig_save),aeta2_save(nsig_save),eta2_save(nsig_save+1))
-   deta1_save=deta1
-   aeta1_save=aeta1
-   eta1_save=eta1
-   deta2_save=deta2
-   aeta2_save=aeta2
-   eta2_save=eta2
+   deta1_save=real(deta1,r_kind)
+   aeta1_save=real(aeta1,r_kind)
+   eta1_save=real(eta1,r_kind)
+   deta2_save=real(deta2,r_kind)
+   aeta2_save=real(aeta2,r_kind)
+   eta2_save=real(eta2,r_kind)
 
    ! print out what I think deta1,2 and aeta1,2 might be as function of eta1, eta2
    if(print_verbose)then
@@ -401,14 +401,14 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
 
    ! compute ak_r,bk_r from eta1,eta2,pdtop,pt for icase=1
 
-   pdtop_ll=pdtop*r0_01
-   pt_ll=pt*r0_01
+   pdtop_ll=real(pdtop,r_kind)*r0_01
+   pt_ll=real(pt,r_kind)*r0_01
    allocate(p_g(nsigg+1),dp_g(nsigg+1))
    psfc=1000._r_kind
    do k=1,nsigr+1
-      ak_r(k)=eta1(k)*pdtop_ll+pt_ll-eta2(k)*(pdtop_ll+pt_ll)
-      bk_r(k)=eta2(k)
-      p_r(k)=eta1(k)*pdtop_ll+eta2(k)*(psfc-pdtop_ll-pt_ll)+pt_ll
+      ak_r(k)=real(eta1(k),r_kind)*pdtop_ll+pt_ll-real(eta2(k),r_kind)*(pdtop_ll+pt_ll)
+      bk_r(k)=real(eta2(k),r_kind)
+      p_r(k)=real(eta1(k),r_kind)*pdtop_ll+real(eta2(k),r_kind)*(psfc-pdtop_ll-pt_ll)+pt_ll
    enddo
    do k=1,nsigg+1
       p_g(k)=ak5(k)+bk5(k)*psfc

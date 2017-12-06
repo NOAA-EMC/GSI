@@ -354,7 +354,6 @@ subroutine tintrp2a11_csln(f,g,gw,dx,dy,obstime,gridtime, &
      if(wt_land > 0.0_r_kind) then
         g=gland/wt_land
      endif
-!        write(mype+1000,'(I10,10f10.3)') msges,g, gwater,wt_water,gland,wt_land
   endif
 
   return

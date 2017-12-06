@@ -142,6 +142,7 @@ program getsigensmeanp_smooth
            allocate(reclev(nrec),recnam(nrec))
            call nemsio_getfilehead(gfile,reclev=reclev,iret=iret)
            call nemsio_getfilehead(gfile,recname=recnam,iret=iret)
+           if ( ntrunc < 0 ) ntrunc = latb - 2
         else
            write(6,'(3a)')'***ERROR*** ',trim(filenamein),' contains unrecognized format. ABORT!'
         endif
