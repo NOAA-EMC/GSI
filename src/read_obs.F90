@@ -243,6 +243,10 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
          kidsat=223
        else if(jsatid == 'npp')then
          kidsat=224
+       else if(jsatid == 'n20')then
+         kidsat=225
+       else if(jsatid == 'n21')then
+         kidsat=226
        else if(jsatid == 'f08')then
          kidsat=241
        else if(jsatid == 'f10')then
