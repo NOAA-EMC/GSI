@@ -2826,7 +2826,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
                     varinv(i) = zero
                  enddo
               endif
-           else if (latms .and. abs(cldeff_obs(16)-cldeff_obs(17))>7.0_r_kind) then
+           else if (latms .and. abs(cldeff_obs(16)-cldeff_obs(17))>10.0_r_kind) then
               if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch1617_qc
               errf(ich890) = zero
               varinv(ich890) = zero
