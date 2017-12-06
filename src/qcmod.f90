@@ -1949,6 +1949,8 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
   integer(i_kind) :: i,j,k,kk,lcloud
   integer(i_kind), dimension(nchanl) :: irday
   real(r_kind) :: dtz,ts_ave,xindx,tzchks
+  real(r_kind),parameter:: tbmax = 550._r_kind
+  real(r_kind),parameter:: tbmin = 50._r_kind
 
 
 ! Reduce weight given to obs for shortwave ir if
@@ -2018,7 +2020,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 ! Generate q.c. bounds and modified variances for height change and ptau5
   sum3=zero
   do i=1,nchanl
-     if (tb_obs(i) > r1000 .or. tb_obs(i) <= zero) then
+     if (tb_obs(i) >= tbmax .or. tb_obs(i) <= tbmin) then
         varinv(i)=zero
         varinv_use(i)=zero
      end if
