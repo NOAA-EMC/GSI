@@ -71,6 +71,7 @@ NVARS_ENKF=${NVARS_ENKF:-5}
 NAM_ENKF=${NAM_ENKF:-""}
 SATOBS_ENKF=${SATOBS_ENKF:-""}
 OZOBS_ENKF=${OZOBS_ENKF:-""}
+GFDL_MP=${GFDL_MP:-".false."}
 
 ################################################################################
 ATMGES_ENSMEAN=$COMIN_GES_ENS/${GPREFIX}atmf006.ensmean${GSUFFIX}
@@ -192,7 +193,7 @@ cat > enkf.nml << EOFnml
    nlons=$LONA_ENKF,nlats=$LATA_ENKF,nlevs=$LEVS_ENKF,nanals=$NMEM_ENKF,nvars=$NVARS_ENKF,
    deterministic=.true.,sortinc=.true.,lupd_satbiasc=.false.,
    reducedgrid=.true.,readin_localization=.true.,
-   use_gfs_nemsio=.true.,
+   use_gfs_nemsio=.true.,gfdl_mp=$GFDL_MP,
    univaroz=.false.,adp_anglebc=.true.,angord=4,use_edges=.false.,emiss_bc=.true.,
    $NAM_ENKF
 /

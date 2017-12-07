@@ -12,7 +12,7 @@ program calc_increment_pmain
   implicit none
 
   character(len=3) :: memchar
-  integer :: mype, npes, ierr
+  integer :: mype, mype1, npes, ierr
   integer :: i
 
   call mpi_init(ierr)
@@ -29,8 +29,9 @@ program calc_increment_pmain
     endif
     call mpi_abort(mpi_comm_world, 99, ierr)
   endif
-
-  write(memchar,'(I3.3)') mype
+  
+  mype1 = mype + 1 
+  write(memchar,'(I3.3)') mype1
 
   analysis_filename = trim(adjustl(datapath)) // trim(adjustl(analysis_filename)) // '_mem' // trim(adjustl(memchar))
   firstguess_filename = trim(adjustl(datapath)) // trim(adjustl(firstguess_filename)) // '_mem' // trim(adjustl(memchar))

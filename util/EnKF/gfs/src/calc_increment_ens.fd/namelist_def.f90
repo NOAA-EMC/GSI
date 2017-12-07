@@ -28,11 +28,9 @@ module namelist_def
 
 contains
 
-subroutine read_namelist(ierr)
+subroutine read_namelist
 
   implicit none
-
-  integer, intent(out) :: ierr
 
   integer, parameter :: lunit = 10
   logical :: lexist = .false.
