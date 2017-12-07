@@ -165,7 +165,7 @@ subroutine statsrad(aivals,stats,ndata)
 1109 format(t5,'it',t13,'satellite',t23,'instrument',t38, &
           '# read',t49,'# keep',t59,'# assim',&
           t68,'penalty',t81,'qcpnlty',t95,'cpen',t105,'qccpen')
-1115 format('o-g',1x,i2.2,1x,'rad',2x,2A10,2x,3(i9,2x),4(g12.5,1x))
+1115 format('o-g',1x,i2.2,1x,'rad',2x,2A10,2x,3(i11,2x),4(g12.5,1x))
 
 ! Close output unit
   close(iout_rad)

@@ -1323,7 +1323,7 @@
      if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** reset perturb_obs=',perturb_obs
   endif
 
-! Force turn of cloud analysis and hydrometeor IO
+! Force turn off cloud analysis and hydrometeor IO
   if (i_gsdcldanal_type==0) then
      l_cloud_analysis = .false.
      if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** set l_cloud_analysis=false'
