@@ -17,9 +17,6 @@ BACIO_LIB4=$(CORELIB)/bacio/$(BACIO_VER)/libbacio_$(BACIO_VER)_4.a
 NEMSIO_LIB=$(CORELIB)/nemsio/$(NEMSIO_VER)/libnemsio_$(NEMSIO_VER).a
 W3NCO_LIB4=$(CORELIB)/w3nco/$(W3NCO_VER)/libw3nco_$(W3NCO_VER)_4.a
 
-NETCDF_INC=$(NETCDF)/include
-NETCDF_LIB=-L$(NETCDF)/lib -lnetcdf
-
 # ---------------------------
 # General targets/definitions
 # ---------------------------
@@ -35,7 +32,7 @@ NETCDF_LIB=-L$(NETCDF)/lib -lnetcdf
   
   OMP = -openmp
 
-  FFLAGS_INC    = -I $(NEMSIO_INC) -I $(NETCDF_INC)
+  FFLAGS_INC    = -I $(NEMSIO_INC)
 
   FFLAGS_F90    = -convert big_endian -assume byterecl \
 				  -implicitnone -traceback
@@ -74,7 +71,7 @@ NETCDF_LIB=-L$(NETCDF)/lib -lnetcdf
   LD            = $(CF)
 
 #--- Normal mode options
-  LIBS_N        = $(NEMSIO_LIB) $(BACIO_LIB4) $(W3NCO_LIB4) $(NETCDF_LIB)
+  LIBS_N        = $(NEMSIO_LIB) $(BACIO_LIB4) $(W3NCO_LIB4)
 
   LDFLAGS_N     = -Wl,-Map,loadmap.txt $(OMP)
 

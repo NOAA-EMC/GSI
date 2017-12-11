@@ -5,11 +5,6 @@
 # Define derived variables
 # ----------------------------------
 
-NETCDFPATH = $(NETCDF)
-NETCDF_INCLUDE = $(NETCDFPATH)/include
-NETCDF_LDFLAGS_F = -L$(NETCDFPATH)/lib -lnetcdf
-
-
 # ---------------------------
 # General targets/definitions
 # ---------------------------
@@ -25,7 +20,7 @@ NETCDF_LDFLAGS_F = -L$(NETCDFPATH)/lib -lnetcdf
   
   OMP = -openmp
 
-  FFLAGS_INC    = -I $(NEMSIO_INC) -I $(NETCDF_INCLUDE)
+  FFLAGS_INC    = -I $(NEMSIO_INC)
 
   FFLAGS_F90    = -convert big_endian -assume byterecl \
 				  -implicitnone -traceback
@@ -64,7 +59,7 @@ NETCDF_LDFLAGS_F = -L$(NETCDFPATH)/lib -lnetcdf
 
 #--- Normal mode options
 
-  LIBS_N        = $(NEMSIO_LIB) $(BACIO_LIB4) $(W3NCO_LIB4) $(NETCDF_LDFLAGS_F)
+  LIBS_N        = $(NEMSIO_LIB) $(BACIO_LIB4) $(W3NCO_LIB4)
 
   LDFLAGS_N     = -Wl,-Map,loadmap.txt $(OMP)
 
@@ -78,4 +73,4 @@ NETCDF_LDFLAGS_F = -L$(NETCDFPATH)/lib -lnetcdf
 
 #--- Empty out mpi library definition: embedded in compiler
 
-  LIBmpi	= 
+  LIBmpi	=

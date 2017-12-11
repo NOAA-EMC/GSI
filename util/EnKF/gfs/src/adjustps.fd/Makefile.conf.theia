@@ -17,9 +17,6 @@ BACIO_LIB4=$(CORELIB)/bacio/v$(BACIO_VER)/libbacio_v$(BACIO_VER)_4.a
 NEMSIO_LIB=$(CORELIB)/nemsio/v$(NEMSIO_VER)/libnemsio_v$(NEMSIO_VER).a
 W3NCO_LIB4=$(CORELIB)/w3nco/v$(W3NCO_VER)/libw3nco_v$(W3NCO_VER)_4.a
 
-NETCDF_INC=$(NETCDF)/include
-NETCDF_LIB=-L$(NETCDF)/lib -lnetcdf
-
 # ---------------------------
 # General targets/definitions
 # ---------------------------
@@ -30,12 +27,12 @@ NETCDF_LIB=-L$(NETCDF)/lib -lnetcdf
 # Fortran compiler and options
 # ----------------------------
 
-  CF            = mpif90 -f90=ifort
+  CF            = ifort
   FC            = $(CF)
   
   OMP = -openmp
 
-  FFLAGS_INC    = -I $(NEMSIO_INC) -I $(NETCDF_INC)
+  FFLAGS_INC    = -I $(NEMSIO_INC)
 
   FFLAGS_F90    = -convert big_endian -assume byterecl \
 				  -implicitnone -traceback
@@ -75,7 +72,7 @@ NETCDF_LIB=-L$(NETCDF)/lib -lnetcdf
 
 #--- Normal mode options
 
-  LIBS_N        = $(NEMSIO_LIB) $(BACIO_LIB4) $(W3NCO_LIB4) $(NETCDF_LIB)
+  LIBS_N        = $(NEMSIO_LIB) $(BACIO_LIB4) $(W3NCO_LIB4)
 
   LDFLAGS_N     = -Wl,-Map,loadmap.txt $(OMP)
 
