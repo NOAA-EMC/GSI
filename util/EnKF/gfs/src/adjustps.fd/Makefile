@@ -97,7 +97,7 @@ clean:
 # Source files
 # ------------
 
-SRCSF90 = adjusps.f90
+SRCSF90 = adjustps.f90
 
 SRCSF77 =
 
