@@ -141,7 +141,7 @@ all: ADJUSTPS
 ADJUSTPS: $(OBJS)
 	@echo
 	@echo '---> Linking $@'
-	$(LD) $(LDFLAGS_N) $(OBJS) adjustps.f90 $(LIBS_N) -o $(EXE_FILE) > $(LOG_FILE)
+	$(LD) $(LDFLAGS_N) $(OBJS) $(LIBS_N) -o $(EXE_FILE) > $(LOG_FILE)
 
 help:
 	@ echo "Available targets:"
