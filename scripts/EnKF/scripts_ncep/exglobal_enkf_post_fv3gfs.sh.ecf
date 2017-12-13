@@ -51,7 +51,6 @@ HYBENSMOOTH=${HYBENSMOOTH:-$FIXgsi/global_hybens_smoothinfo.l${LEVS}.txt}
 # Executables.
 GETATMENSMEANEXEC=${GETATMENSMEANEXEC:-$BASE_GSI/exec/getsigensmeanp_smooth.x}
 GETSFCENSMEANEXEC=${GETSFCENSMEANEXEC:-$BASE_GSI/exec/getsfcensmeanp.x}
-GETNSTENSMEANEXEC=${GETNSTENSMEANEXEC:-$BASE_GSI/exec/getnstensmeanp.x}
 GETATMENSSTATEXEC=${GETATMENSSTATEXEC:-$BASE_GSI/exec/getsigensstatp.x}
 
 # Other variables.
@@ -62,7 +61,6 @@ FHMAX=${FHMAX_ENKF:-${FHMAX:-9}}
 FHOUT=${FHOUT_ENKF:-${FHOUT:-1}}
 NMEM_ENKF=${NMEM_ENKF:-80}
 SMOOTH_ENKF=${SMOOTH_ENKF:-"YES"}
-NST_GSI=${NST_GSI:-0}
 
 ################################################################################
 #  Preprocessing
