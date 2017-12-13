@@ -36,10 +36,7 @@ export DMPDIR=${DMPDIR:-$NWPROD}
 export COMIN=${COMIN:-$pwd}
 export COMIN_GES=${COMIN_GES:-$COMIN}
 export COMIN_GES_ENS=${COMIN_GES_ENS:-$COMIN}
-export COMOUT_ANL_ENS=${COMOUT_ANL_ENS:-$COMOUT}
 export COMOUT=${COMOUT:-$COMIN}
-export FIXgsm=${FIXgsm:-$BASE_GSM/fix/fix_am}
-export FIXfv3=${FIXfv3:-$BASE_GSM/fix/fix_fv3}
 
 # Base variables
 CDATE=${CDATE:-"2001010100"}
@@ -69,6 +66,8 @@ export SNOW_NUDGE_COEFF=${SNOW_NUDGE_COEFF:-'-2.'}
 export CYCLVARS=${CYCLVARS:-""}
 export FHOUR=${FHOUR:-0}
 export DELTSFC=${DELTSFC:-6}
+export FIXgsm=${FIXgsm:-$BASE_GSM/fix/fix_am}
+export FIXfv3=${FIXfv3:-$BASE_GSM/fix/fix_fv3}
 
 # FV3 specific info (required for global_cycle)
 export CASE=${CASE:-"C384"}
@@ -894,14 +893,15 @@ if [ $DOGCYCLE = "YES" ]; then
     fi
 
     for n in $(seq 1 $ntiles); do
-        $NLN $FIXfv3/$CASE/${CASE}_grid.tile${n}.nc                  $DATA/fngrid.00$n
-        $NLN $FIXfv3/$CASE/${CASE}_oro_data.tile${n}.nc              $DATA/fnorog.00$n
-        $NLN $COMIN_GES/RESTART/$PDY.${cyc}0000.sfc_data.tile${n}.nc $DATA/fnbgsi.00$n
-        $NLN $COMOUT/RESTART/$PDY.${cyc}0000.sfcanl_data.tile${n}.nc $DATA/fnbgso.00$n
+        $NLN $COMIN_GES/RESTART/$gPDY.${gcyc}0000.sfc_data.tile${n}.nc $DATA/fnbgsi.00$n
+        $NLN $COMOUT/RESTART/$PDY.${cyc}0000.sfcanl_data.tile${n}.nc   $DATA/fnbgso.00$n
+        $NLN $FIXfv3/$CASE/${CASE}_grid.tile${n}.nc                    $DATA/fngrid.00$n
+        $NLN $FIXfv3/$CASE/${CASE}_oro_data.tile${n}.nc                $DATA/fnorog.00$n
     done
 
     export APRUNCY=$APRUN_CYCLE
     export OMP_NUM_THREADS_CY=$NTHREADS_CYCLE
+    export MAX_TASKS_CY=$ntiles
 
     $CYCLESH
     rc=$?
