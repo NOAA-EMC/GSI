@@ -198,6 +198,15 @@ contains
        
     end if ! if(trim(adjustl(grid%var_name)) .eq. 'o3mr')
 
+    if(trim(adjustl(grid%var_name)) .eq. 'icmr') then
+       
+       ! Define local variables
+       
+       grid%nems_name   = 'icmr'
+       grid%nems_levtyp = 'mid layer'
+       
+    end if ! if(trim(adjustl(grid%var_name)) .eq. 'icmr')
+    
     !=====================================================================
 
   end subroutine variable_lookup
