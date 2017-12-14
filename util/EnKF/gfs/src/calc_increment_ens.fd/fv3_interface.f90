@@ -53,46 +53,48 @@ module fv3_interface
   ! are variables required by the subroutines within this module
 
   type analysis_grid
-     character(len=500)                                                :: filename
-     real(r_kind),                   dimension(:,:,:),     allocatable :: dpres
-     real(r_kind),                   dimension(:,:,:),     allocatable :: ugrd
-     real(r_kind),                   dimension(:,:,:),     allocatable :: vgrd
-     real(r_kind),                   dimension(:,:,:),     allocatable :: spfh
-     real(r_kind),                   dimension(:,:,:),     allocatable :: tmp
-     real(r_kind),                   dimension(:,:,:),     allocatable :: clwmr
-     real(r_kind),                   dimension(:,:,:),     allocatable :: o3mr
-     real(r_kind),                   dimension(:,:),       allocatable :: psfc
-     real(r_kind),                   dimension(:),         allocatable :: ak
-     real(r_kind),                   dimension(:),         allocatable :: bk
-     real(r_kind),                   dimension(:),         allocatable :: ck
+     character(len=500)                          :: filename
+     real(r_kind), dimension(:,:,:), allocatable :: dpres
+     real(r_kind), dimension(:,:,:), allocatable :: ugrd
+     real(r_kind), dimension(:,:,:), allocatable :: vgrd
+     real(r_kind), dimension(:,:,:), allocatable :: spfh
+     real(r_kind), dimension(:,:,:), allocatable :: tmp
+     real(r_kind), dimension(:,:,:), allocatable :: clwmr
+     real(r_kind), dimension(:,:,:), allocatable :: o3mr
+     real(r_kind), dimension(:,:,:), allocatable :: icmr
+     real(r_kind), dimension(:,:),   allocatable :: psfc
+     real(r_kind), dimension(:),     allocatable :: ak
+     real(r_kind), dimension(:),     allocatable :: bk
+     real(r_kind), dimension(:),     allocatable :: ck
   end type analysis_grid ! type analysis_grid
 
   type increment_grid
-     real(r_kind),                   dimension(:,:,:),     allocatable :: delp_inc
-     real(r_kind),                   dimension(:,:,:),     allocatable :: u_inc
-     real(r_kind),                   dimension(:,:,:),     allocatable :: v_inc
-     real(r_kind),                   dimension(:,:,:),     allocatable :: sphum_inc
-     real(r_kind),                   dimension(:,:,:),     allocatable :: temp_inc
-     real(r_kind),                   dimension(:,:,:),     allocatable :: clwmr_inc
-     real(r_kind),                   dimension(:,:,:),     allocatable :: o3mr_inc
-     real(r_kind),                   dimension(:),         allocatable :: lon
-     real(r_kind),                   dimension(:),         allocatable :: lat
-     real(r_kind),                   dimension(:),         allocatable :: lev
-     real(r_kind),                   dimension(:),         allocatable :: ilev
-     real(r_kind),                   dimension(:),         allocatable :: pfull
-     real(r_kind),                   dimension(:),         allocatable :: hyai
-     real(r_kind),                   dimension(:),         allocatable :: hybi
-     integer                                                           :: nx
-     integer                                                           :: ny
-     integer                                                           :: nz
-     integer                                                           :: nzp1
+     real(r_kind), dimension(:,:,:), allocatable :: delp_inc
+     real(r_kind), dimension(:,:,:), allocatable :: u_inc
+     real(r_kind), dimension(:,:,:), allocatable :: v_inc
+     real(r_kind), dimension(:,:,:), allocatable :: sphum_inc
+     real(r_kind), dimension(:,:,:), allocatable :: temp_inc
+     real(r_kind), dimension(:,:,:), allocatable :: clwmr_inc
+     real(r_kind), dimension(:,:,:), allocatable :: o3mr_inc
+     real(r_kind), dimension(:,:,:), allocatable :: icmr_inc
+     real(r_kind), dimension(:),     allocatable :: lon
+     real(r_kind), dimension(:),     allocatable :: lat
+     real(r_kind), dimension(:),     allocatable :: lev
+     real(r_kind), dimension(:),     allocatable :: ilev
+     real(r_kind), dimension(:),     allocatable :: pfull
+     real(r_kind), dimension(:),     allocatable :: hyai
+     real(r_kind), dimension(:),     allocatable :: hybi
+     integer                                     :: nx
+     integer                                     :: ny
+     integer                                     :: nz
+     integer                                     :: nzp1
   end type increment_grid ! type increment_grid
 
   ! Define global variables
 
-  type(nemsio_meta)                                                    :: meta_nemsio
-  type(analysis_grid)                                                  :: an_grid
-  type(analysis_grid)                                                  :: fg_grid
+  type(nemsio_meta)   :: meta_nemsio
+  type(analysis_grid) :: an_grid
+  type(analysis_grid) :: fg_grid
 
   !-----------------------------------------------------------------------
 
@@ -115,7 +117,7 @@ contains
 
     ! Define variables computed within routine
 
-    type(increment_grid)                                                 :: grid
+    type(increment_grid) :: grid
 
     !=====================================================================
 
@@ -145,34 +147,35 @@ contains
 
     ! Define variables passed to routine
 
-    type(increment_grid)                                                 :: grid
+    type(increment_grid) :: grid
 
     ! Define variables computed within routine
 
-    integer,                    dimension(3)                             :: dimid_3d
-    integer,                    dimension(1)                             :: dimid_1d
-    integer                                                              :: varid_lon
-    integer                                                              :: varid_lat
-    integer                                                              :: varid_lev
-    integer                                                              :: varid_pfull
-    integer                                                              :: varid_ilev
-    integer                                                              :: varid_hyai
-    integer                                                              :: varid_hybi
-    integer                                                              :: varid_u_inc
-    integer                                                              :: varid_v_inc
-    integer                                                              :: varid_delp_inc
-    integer                                                              :: varid_t_inc
-    integer                                                              :: varid_sphum_inc
-    integer                                                              :: varid_liq_wat_inc
-    integer                                                              :: varid_o3mr_inc
-    integer                                                              :: dimid_lon
-    integer                                                              :: dimid_lat
-    integer                                                              :: dimid_lev
-    integer                                                              :: dimid_ilev
-    integer                                                              :: ncfileid
-    integer                                                              :: ncvarid
-    integer                                                              :: ncdimid
-    integer                                                              :: ncstatus
+    integer, dimension(3) :: dimid_3d
+    integer, dimension(1) :: dimid_1d
+
+    integer :: varid_lon
+    integer :: varid_lat
+    integer :: varid_lev
+    integer :: varid_pfull
+    integer :: varid_ilev
+    integer :: varid_hyai
+    integer :: varid_hybi
+    integer :: varid_u_inc
+    integer :: varid_v_inc
+    integer :: varid_delp_inc
+    integer :: varid_t_inc
+    integer :: varid_sphum_inc
+    integer :: varid_liq_wat_inc
+    integer :: varid_o3mr_inc
+    integer :: dimid_lon
+    integer :: dimid_lat
+    integer :: dimid_lev
+    integer :: dimid_ilev
+    integer :: ncfileid
+    integer :: ncvarid
+    integer :: ncdimid
+    integer :: ncstatus
 
     !=====================================================================
 
@@ -406,6 +409,13 @@ contains
        print *, trim(nf90_strerror(ncstatus))
        stop 1
     endif
+    if (debug) print *,'writing icmr_inc, min/max =',&
+    minval(grid%icmr_inc),maxval(grid%icmr_inc)
+    ncstatus    = nf90_put_var(ncfileid,varid_liq_wat_inc,grid%icmr_inc)
+    if (ncstatus /= nf90_noerr) then
+       print *, trim(nf90_strerror(ncstatus))
+       stop 1
+    endif
     ncstatus    = nf90_close(ncfileid)
     if (ncstatus /= nf90_noerr) then
        print *, 'error closing file:',trim(nf90_strerror(ncstatus))
@@ -426,19 +436,19 @@ contains
 
     ! Define variables passed to routine
 
-    type(increment_grid)                                                 :: incr_grid
+    type(increment_grid) :: incr_grid
 
     ! Define variables computed within routine
 
-    type(gfs_grid)                                                       :: grid
+    type(gfs_grid) :: grid
 
     ! Define counting variables
 
-    integer                                                              :: i, j, k
+    integer :: i, j, k
 
     ! Define variable name string
 
-    character(len=10)                                                    :: varname
+    character(len=10) :: varname
 
     !=====================================================================
 
@@ -460,17 +470,19 @@ contains
     incr_grid%sphum_inc = an_grid%spfh  - fg_grid%spfh
     incr_grid%clwmr_inc = an_grid%clwmr - fg_grid%clwmr
     incr_grid%o3mr_inc  = an_grid%o3mr  - fg_grid%o3mr
+    incr_grid%icmr_inc  = an_grid%icmr  - fg_grid%icmr
 
     do i=1,max_vars
         varname = incvars_to_zero(i)
         if ( trim(varname) /= 'NONE' ) then
-            if ( trim(varname) == 'u_inc' ) incr_grid%u_inc = zero
-            if ( trim(varname) == 'v_inc' ) incr_grid%v_inc = zero
-            if ( trim(varname) == 'delp_inc' ) incr_grid%delp_inc = zero
-            if ( trim(varname) == 'temp_inc' ) incr_grid%temp_inc = zero
+            if ( trim(varname) == 'u_inc'     ) incr_grid%u_inc     = zero
+            if ( trim(varname) == 'v_inc'     ) incr_grid%v_inc     = zero
+            if ( trim(varname) == 'delp_inc'  ) incr_grid%delp_inc  = zero
+            if ( trim(varname) == 'temp_inc'  ) incr_grid%temp_inc  = zero
             if ( trim(varname) == 'sphum_inc' ) incr_grid%sphum_inc = zero
             if ( trim(varname) == 'clwmr_inc' ) incr_grid%clwmr_inc = zero
-            if ( trim(varname) == 'o3mwr_inc' ) incr_grid%o3mr_inc = zero
+            if ( trim(varname) == 'o3mwr_inc' ) incr_grid%o3mr_inc  = zero
+            if ( trim(varname) == 'icmr_inc'  ) incr_grid%icmr_inc  = zero
         else
             cycle
         endif
@@ -534,19 +546,21 @@ contains
 
     ! Define variables passed to routine
 
-    type(analysis_grid)                                                  :: grid
+    type(analysis_grid) :: grid
 
     ! Define variables computed within routine
 
-    type(varinfo)                                                        :: var_info
-    real(r_kind),               dimension(:,:,:),            allocatable :: pressi
-    real(r_kind),               dimension(:,:,:),            allocatable :: vcoord
-    real(r_kind),               dimension(:),                allocatable :: workgrid
-    logical flip_lats
+    type(varinfo) :: var_info
+
+    real(r_kind), dimension(:,:,:), allocatable :: pressi
+    real(r_kind), dimension(:,:,:), allocatable :: vcoord
+    real(r_kind), dimension(:),     allocatable :: workgrid
+
+    logical :: flip_lats
 
     ! Define counting variables
 
-    integer                                                              :: i, j, k
+    integer :: i, j, k
 
     !=====================================================================
 
@@ -665,6 +679,14 @@ contains
             & reshape(workgrid,(/meta_nemsio%dimx,meta_nemsio%dimy/))
        if (flip_lats) call gfs_nems_flip_xlat_axis(meta_nemsio,            &
             & grid%o3mr(:,:,meta_nemsio%dimz - k + 1))
+       var_info%var_name                        = 'icmr'
+       call variable_lookup(var_info)
+       call gfs_nems_read(workgrid,var_info%nems_name,                     &
+            & var_info%nems_levtyp,k)
+       grid%icmr(:,:,meta_nemsio%dimz - k + 1)  =                          &
+            & reshape(workgrid,(/meta_nemsio%dimx,meta_nemsio%dimy/))
+       if (flip_lats) call gfs_nems_flip_xlat_axis(meta_nemsio,            &
+            & grid%icmr(:,:,meta_nemsio%dimz - k + 1))
 
     end do ! do k = 1, meta_nemsio%dimz
 
@@ -692,7 +714,7 @@ contains
 
     ! Define variables passed to routine
 
-    type(increment_grid)                                                 :: grid
+    type(increment_grid) :: grid
 
     !=====================================================================
 
@@ -721,6 +743,8 @@ contains
          & allocate(grid%clwmr_inc(grid%nx,grid%ny,grid%nz))
     if(.not. allocated(grid%o3mr_inc))                                     &
          & allocate(grid%o3mr_inc(grid%nx,grid%ny,grid%nz))
+    if(.not. allocated(grid%icmr_inc))                                     &
+         & allocate(grid%icmr_inc(grid%nx,grid%ny,grid%nz))
     if(.not. allocated(grid%lon))                                          &
          & allocate(grid%lon(grid%nx))
     if(.not. allocated(grid%lat))                                          &
@@ -749,6 +773,8 @@ contains
          & allocate(an_grid%clwmr(grid%nx,grid%ny,grid%nz))
     if(.not. allocated(an_grid%o3mr))                                      &
          & allocate(an_grid%o3mr(grid%nx,grid%ny,grid%nz))
+    if(.not. allocated(an_grid%icmr))                                      &
+         & allocate(an_grid%icmr(grid%nx,grid%ny,grid%nz))
     if(.not. allocated(an_grid%psfc))                                      &
          & allocate(an_grid%psfc(grid%nx,grid%ny))
     if(.not. allocated(an_grid%ak))                                        &
@@ -771,6 +797,8 @@ contains
          & allocate(fg_grid%clwmr(grid%nx,grid%ny,grid%nz))
     if(.not. allocated(fg_grid%o3mr))                                      &
          & allocate(fg_grid%o3mr(grid%nx,grid%ny,grid%nz))
+    if(.not. allocated(fg_grid%icmr))                                      &
+         & allocate(fg_grid%icmr(grid%nx,grid%ny,grid%nz))
     if(.not. allocated(fg_grid%psfc))                                      &
          & allocate(fg_grid%psfc(grid%nx,grid%ny))
     if(.not. allocated(fg_grid%ak))                                        &
@@ -794,7 +822,7 @@ contains
 
     ! Define variables passed to routine
 
-    type(increment_grid)                                                 :: grid
+    type(increment_grid) :: grid
 
     !=====================================================================
 
@@ -807,6 +835,7 @@ contains
     if(allocated(grid%temp_inc))  deallocate(grid%temp_inc)
     if(allocated(grid%clwmr_inc)) deallocate(grid%clwmr_inc)
     if(allocated(grid%o3mr_inc))  deallocate(grid%o3mr_inc)
+    if(allocated(grid%icmr_inc))  deallocate(grid%icmr_inc)
     if(allocated(grid%lon))       deallocate(grid%lon)
     if(allocated(grid%lat))       deallocate(grid%lat)
     if(allocated(grid%lev))       deallocate(grid%lev)
@@ -821,6 +850,7 @@ contains
     if(allocated(an_grid%tmp))    deallocate(an_grid%tmp)
     if(allocated(an_grid%clwmr))  deallocate(an_grid%clwmr)
     if(allocated(an_grid%o3mr))   deallocate(an_grid%o3mr)
+    if(allocated(an_grid%icmr))   deallocate(an_grid%icmr)
     if(allocated(an_grid%psfc))   deallocate(an_grid%psfc)
     if(allocated(an_grid%ak))     deallocate(an_grid%ak)
     if(allocated(an_grid%bk))     deallocate(an_grid%bk)
@@ -832,6 +862,7 @@ contains
     if(allocated(fg_grid%tmp))    deallocate(fg_grid%tmp)
     if(allocated(fg_grid%clwmr))  deallocate(fg_grid%clwmr)
     if(allocated(fg_grid%o3mr))   deallocate(fg_grid%o3mr)
+    if(allocated(fg_grid%icmr))   deallocate(fg_grid%icmr)
     if(allocated(fg_grid%psfc))   deallocate(fg_grid%psfc)
     if(allocated(fg_grid%ak))     deallocate(fg_grid%ak)
     if(allocated(fg_grid%bk))     deallocate(fg_grid%bk)
