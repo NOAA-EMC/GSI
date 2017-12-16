@@ -976,6 +976,7 @@ contains
     use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: nlat_sfc,nlon_sfc
     use guess_grids, only: nfldsfc,ifilesfc
+    use gsi_nstcouplermod, only: nst_gsi
     use constants, only: zero,two
     use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
     use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_readrecv
@@ -1169,7 +1170,8 @@ contains
 !      End of loop over data records
        enddo
 
-       if( present(tref) ) then                         
+!      if( present(tref) ) then                         
+       if( nst_gsi > 0 ) then                         
           if ( mype == 0 ) write(6,*) ' read 9 NSST variables '
 
           call nemsio_readrecv(gfile, 'tref', 'sfc', 1, rwork2d, iret=iret)
