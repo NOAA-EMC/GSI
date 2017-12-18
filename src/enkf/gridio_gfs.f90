@@ -271,9 +271,9 @@
               call stop2(23)
            endif
            if (gfdl_mp) then
-              call nemsio_readrecv(gfile,'ice_wat','mid layer',k,nems_wrk,iret=iret)
+              call nemsio_readrecv(gfile,'icmr','mid layer',k,nems_wrk,iret=iret)
               if (iret/=0) then
-                 write(6,*)'gridio/readgriddata: gfs model: problem with nemsio_readrecv(ice_wat), iret=',iret
+                 write(6,*)'gridio/readgriddata: gfs model: problem with nemsio_readrecv(icmr), iret=',iret
                  call stop2(23)
               else
                  nems_wrk2 = nems_wrk2 + nems_wrk
@@ -875,9 +875,9 @@
            ug = 0.
         endif
         if (gfdl_mp) then
-           call nemsio_readrecv(gfilein,'ice_wat','mid layer',k,nems_wrk2,iret=iret)
+           call nemsio_readrecv(gfilein,'icmr','mid layer',k,nems_wrk2,iret=iret)
            if (iret/=0) then
-              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_readrecv(ice_wat), iret=',iret
+              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_readrecv(icmr), iret=',iret
               call stop2(23)
            endif
            vg = ug * work  !cloud ice
@@ -893,9 +893,9 @@
            call stop2(23)
         endif
         if (gfdl_mp) then
-           call nemsio_writerecv(gfileout,'ice_wat','mid layer',k,nems_wrk2,iret=iret)
+           call nemsio_writerecv(gfileout,'icmr','mid layer',k,nems_wrk2,iret=iret)
            if (iret/=0) then
-              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(ice_wat), iret=',iret
+              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(icmr), iret=',iret
               call stop2(23)
            endif
         endif

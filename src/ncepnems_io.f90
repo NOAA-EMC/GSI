@@ -883,11 +883,11 @@ contains
              call nemsio_readrecv(gfile,'clwmr','mid layer',k,rwork1d0,iret=iret)
              if (iret /= 0) call error_msg(trim(my_name),trim(filename),'clwmr','read',istop+9,iret)
              if (gfdl_mp) then
-                call nemsio_readrecv(gfile,'ice_wat','mid layer',k,rwork1d1,iret=iret)
+                call nemsio_readrecv(gfile,'icmr','mid layer',k,rwork1d1,iret=iret)
                 if (iret == 0) then
                    rwork1d0 = rwork1d0 + rwork1d1
                 else
-                   call error_msg(trim(my_name),trim(filename),'ice_wat','read',istop+10,iret)
+                   call error_msg(trim(my_name),trim(filename),'icmr','read',istop+10,iret)
                 endif
              endif
              if(diff_res)then
@@ -2224,8 +2224,8 @@ contains
                   mype_out,mpi_comm_world,ierror)
              if (mype == mype_out) then
                 if(diff_res)then
-                   call nemsio_readrecv(gfile,'ice_wat','mid layer',k,rwork1d,iret=iret)
-                   if (iret /= 0) call error_msg(trim(my_name),trim(filename),'ice_wat','read',istop,iret)
+                   call nemsio_readrecv(gfile,'icmr','mid layer',k,rwork1d,iret=iret)
+                   if (iret /= 0) call error_msg(trim(my_name),trim(filename),'icmr','read',istop,iret)
                    grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
                    vector(1)=.false.
                    call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
@@ -2246,8 +2246,8 @@ contains
                    call load_grid(work1,grid)
                    rwork1d = reshape(grid,(/size(rwork1d)/))
                 endif
-                call nemsio_writerecv(gfileo,'ice_wat','mid layer',k,rwork1d,iret=iret)
-                if (iret /= 0) call error_msg(trim(my_name),trim(filename),'ice_wat','write',istop,iret)
+                call nemsio_writerecv(gfileo,'icmr','mid layer',k,rwork1d,iret=iret)
+                if (iret /= 0) call error_msg(trim(my_name),trim(filename),'icmr','write',istop,iret)
              end if
           end do
        endif
