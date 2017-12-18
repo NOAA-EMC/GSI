@@ -1170,7 +1170,6 @@ contains
 !      End of loop over data records
        enddo
 
-!      if( present(tref) ) then                         
        if( nst_gsi > 0 ) then                         
           if ( mype == 0 ) write(6,*) ' read 9 NSST variables '
 
@@ -1218,17 +1217,17 @@ contains
           if (iret /= 0) call error_msg(trim(my_name),trim(filename),'wd','read',istop,iret)
           work(:,:)=reshape(rwork2d(:),(/size(work,1),size(work,2)/))
           call tran_gfssfc(work,w_d(1,1,it),lonb,latb)
-       endif
 !
-!      Get diurnal warming amout at z=0
+!         Get diurnal warming amout at z=0
 !
-       do j = 1,nlon_sfc
-          do i = 1,nlat_sfc
-             if (z_w(i,j,it) > zero) then
-                dt_warm(i,j,it) = two*xt(i,j,it)/z_w(i,j,it)
-             end if
+          do j = 1,nlon_sfc
+             do i = 1,nlat_sfc
+                if (z_w(i,j,it) > zero) then
+                   dt_warm(i,j,it) = two*xt(i,j,it)/z_w(i,j,it)
+                end if
+             end do
           end do
-       end do
+       endif
 !      Deallocate local work arrays
        deallocate(work,rwork2d)
 
