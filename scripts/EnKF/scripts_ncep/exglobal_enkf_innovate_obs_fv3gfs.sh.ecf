@@ -59,13 +59,15 @@ RERUN_EOMGGRP=${RERUN_EOMGGRP:-"YES"}
 SENDECF=${SENDECF:-"NO"}
 
 export SMOOTH_ENKF=${SMOOTH_ENKF:-"YES"}
+export USE_SELECT=${USE_SELECT:-"NO"}
+export SELECT_OBS=${SELECT_OBS:-${COMOUT}/${APREFIX}obsinput}
 
 ################################################################################
 # Preprocessing
 [[ -d $DATA ]] && rm -rf $DATA
 mkdir -p $DATA
 cd $DATA || exit 99
-DATATOP=$DATA
+export DATATOP=$DATA
 
 ENKF_SUFFIX="s"
 [[ $SMOOTH_ENKF = "NO" ]] && ENKF_SUFFIX=""
@@ -87,6 +89,14 @@ fi
 ################################################################################
 # Save variables from over-writing
 COMOUT_SAVE=$COMOUT
+
+################################################################################
+# If requested, link and de-tar obs_input
+if [ $USE_SELECT = "YES" ]; then
+  rm obs_input*
+  $NLN $SELECT_OBS obs_input.tar
+  tar -xvf obs_input.tar
+fi
 
 ################################################################################
 # Run innovation script for ensemble member
