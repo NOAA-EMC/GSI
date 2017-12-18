@@ -211,7 +211,7 @@ subroutine write_ensemble(no_inflate_flag)
 ! write out each ensemble member to a separate file.
 ! for now, first nanals tasks are IO tasks.
 implicit none
-logical no_inflate_flag
+logical, intent(in) :: no_inflate_flag
 real(r_single), allocatable, dimension(:) :: sendbuf, recvbuf
 real(r_single), allocatable, dimension(:,:,:) :: ensmean
 real(r_double) t1,t2
