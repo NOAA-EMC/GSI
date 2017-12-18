@@ -1290,6 +1290,7 @@ contains
     use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: nlat_sfc,nlon_sfc
     use guess_grids, only: nfldsfc,sfcmod_mm5,sfcmod_gfs
+    use gsi_nstcouplermod, only: nst_gsi
     use mpimod, only: mpi_itype,mpi_rtype4,mpi_comm_world,mype
     use constants, only: zero
     implicit none
@@ -1309,7 +1310,7 @@ contains
 !-----------------------------------------------------------------------------
 !   Read surface history file on processor iope
     if(mype == iope)then
-       if ( present(tref) ) then
+       if ( nst_gsi > 0) then
           call read_sfc_(sfct,soil_moi,sno,soil_temp,veg_frac,fact10,sfc_rough, &
                          veg_type,soil_type,terrain,isli,use_sfc_any, &
                          tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d)
@@ -1343,7 +1344,7 @@ contains
        call mpi_bcast(veg_type, npts,   mpi_rtype4,iope,mpi_comm_world,iret)
        call mpi_bcast(soil_type,npts,   mpi_rtype4,iope,mpi_comm_world,iret)
     endif
-    if ( present(tref) ) then
+    if ( nst_gsi > 0 ) then
        call mpi_bcast(tref,    nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
        call mpi_bcast(dt_cool, nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
        call mpi_bcast(z_c,     nptsall,mpi_rtype4,iope,mpi_comm_world,iret)
