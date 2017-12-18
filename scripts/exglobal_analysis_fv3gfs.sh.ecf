@@ -32,6 +32,7 @@ export BASE_GSI=${BASE_GSI:-$NWPROD}
 FIXgsi=${FIXgsi:-$BASE_GSI/fix}
 GSIEXEC=${GSIEXEC:-$BASE_GSI/exec/global_gsi}
 export DATA=${DATA:-$pwd/analysis.$$}
+export DATATOP=${DATATOP:-../}
 DMPDIR=${DMPDIR:-$NWPROD}
 export COMIN=${COMIN:-$pwd}
 export COMIN_GES=${COMIN_GES:-$COMIN}
@@ -188,7 +189,9 @@ OZNSTAT=${OZNSTAT:-${COMOUT}/${APREFIX}oznstat}
 # Obs diag
 RUN_SELECT=${RUN_SELECT:-"NO"}
 USE_SELECT=${USE_SELECT:-"NO"}
+USE_RADSTAT=${USE_RADSTAT:-"YES"}
 SELECT_OBS=${SELECT_OBS:-${COMOUT}/${APREFIX}obsinput}
+GENDIAG=${GENDIAG:-"YES"}
 DIAG_SUFFIX=${DIAG_SUFFIX:-""}
 DIAG_COMPRESS=${DIAG_COMPRESS:-"YES"}
 DIAG_TARBALL=${DIAG_TARBALL:-"YES"}
@@ -553,16 +556,18 @@ $NLN $ABIASAIR aircftbias_out
 
 # If requested, link and de-tar obs_input
 if [ $USE_SELECT = "YES" ]; then
-  rm obs_input*
-  $NLN $SELECT_OBS obs_input.tar
-  tar -xvf obs_input.tar
+    for filetop in `ls $DATATOP/obs_input* | grep -v tar `; do
+        fileloc=`echo $filetop | cut -d"/" -f2`
+        $NLN $filetop $fileloc
+    done
 fi
 
 ##############################################################
 # If requested, copy and de-tar guess radstat file
-if [ $USE_CFP = "YES" ]; then
+if [ $USE_RADSTAT = "YES" ]; then
+ if [ $USE_CFP = "YES" ]; then
    rm $DATA/unzip.sh $DATA/mp_unzip.sh
-cat > $DATA/unzip.sh << EOFunzip
+ cat > $DATA/unzip.sh << EOFunzip
 #!/bin/sh
    diag_file=\$1
    fname=\$(echo \$diag_file | cut -d'.' -f1)
@@ -572,10 +577,10 @@ cat > $DATA/unzip.sh << EOFunzip
    $NMV \$fname.\$fdate \$fnameges
 EOFunzip
    chmod 755 $DATA/unzip.sh
-fi
+ fi
 
-listdiag=$(tar xvf radstat.gdas | cut -d' ' -f2 | grep _ges)
-for type in $listdiag; do
+ listdiag=$(tar xvf radstat.gdas | cut -d' ' -f2 | grep _ges)
+ for type in $listdiag; do
    diag_file=$(echo $type | cut -d',' -f1)
    if [ $USE_CFP = "YES" ] ; then
       echo "$DATA/unzip.sh $diag_file" | tee -a $DATA/mp_unzip.sh
@@ -586,9 +591,9 @@ for type in $listdiag; do
       fnameges=$(echo $fname|sed 's/_ges//g')
       $NMV $fname.$date $fnameges
    fi
-done
+ done
 
-if [ $USE_CFP = "YES" ] ; then
+ if [ $USE_CFP = "YES" ] ; then
    chmod 755 $DATA/mp_unzip.sh
    ncmd=$(cat $DATA/mp_unzip.sh | wc -l)
    if [ $ncmd -gt 0 ]; then
@@ -596,6 +601,7 @@ if [ $USE_CFP = "YES" ] ; then
       APRUNCFP_UNZIP=$(eval echo $APRUNCFP)
       $APRUNCFP_UNZIP $DATA/mp_unzip.sh
    fi
+ fi
 fi
 
 ##############################################################
@@ -942,6 +948,9 @@ if [ $RUN_SELECT = "YES" ]; then
   echo $(date) END tar obs_input >&2
 fi
 
+# If requested, generate diagnostic files
+if [ $GENDIAG = "YES" ] ; then
+
 # Set up lists and variables for various types of diagnostic files.
 ntype=3
 
@@ -1080,6 +1089,8 @@ if [ $DIAG_TARBALL = "YES" ]; then
 
    echo $(date) END tar diagnostic files >&2
 fi
+
+fi # End diagnostic file generation block
 
 ################################################################################
 # Send alerts
