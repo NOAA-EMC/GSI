@@ -1,0 +1,363 @@
+#!/bin/ksh
+
+#-------------------------------------------------------------------
+#
+#  script:   OznMon_MkBase.sh
+#
+#  purpose:  Generate the baseline stat files for each instrument
+#            by level and region.  Baseline stat includes the 
+#            30 day average number of obs and sdv, and 30 day avg
+#            penalty and sdv.  These files are used only if the 
+#            diagnostic reports are switched on. 
+#
+#  calling:  OznMon_MkBase.sh suffix 1>log 2>err
+#-------------------------------------------------------------------
+
+set -ax
+date
+
+function usage {
+  echo "Usage:  OznMon_MkBase.sh [-s|--sat sat_name] suffix "
+  echo "            Suffix is data source identifier that matches data in "
+  echo "              the TANKverf/stats directory."
+  echo "            Sat (optional) restricts the list of satellite sources."
+  echo "              No sat means all satellite sources will be included." 
+}
+
+nargs=$#
+if [[ $nargs -lt 1 || $nargs -gt 4 ]]; then
+   usage
+   exit 1
+fi
+
+SINGLE_SAT=0
+run=gdas
+
+#-----------------------------------------------
+#  Process command line arguments
+#
+while [[ $# -ge 1 ]]
+do
+   key="$1"
+   echo $key
+
+   case $key in
+      -r|--run)
+         run="$2"
+         shift # past argument
+      ;;
+      -s|--sat)
+         SATYPE="$2"
+         SINGLE_SAT=1
+         shift # past argument
+      ;;
+      *)
+         #any unspecified key is OZNMON_SUFFIX
+         export OZNMON_SUFFIX=$key
+      ;;
+   esac
+
+   shift
+done
+
+this_file=`basename $0`
+this_dir=`dirname $0`
+
+echo "OZNMON_SUFFIX, SATYPE = $OZNMON_SUFFIX, $SATYPE"
+
+#--------------------------------------------------------------------
+# Get the area (glb/rgn) for this suffix
+#--------------------------------------------------------------------
+export GLB_AREA=${GLB_AREA:-1}
+#area=$RAD_AREA
+#echo $area, $REGIONAL_RR
+
+#------------------------------------------------------------------
+# Set environment variables.
+#-------------------------------------------------------------------
+top_parm=${this_dir}/../../parm
+
+export OZNMON_VERSION=${OZNMON_VERSION:-${top_parm}/OznMon.ver}
+if [[ -s ${OZNMON_VERSION} ]]; then
+   . ${OZNMON_VERSION}
+else
+   echo "Unable to source ${OZNMON_VERSION} file"
+   exit 2
+fi
+
+export OZNMON_USER_SETTINGS=${OZNMON_USER_SETTINGS:-${top_parm}/OznMon_user_settings}
+if [[ -s ${OZNMON_USER_SETTINGS} ]]; then
+   . ${OZNMON_USER_SETTINGS}
+else
+   echo "Unable to source ${OZNMON_USER_SETTINGS} file"
+   exit 3
+fi
+
+export OZNMON_CONFIG=${OZNMON_CONFIG:-${top_parm}/OznMon_config}
+if [[ -s ${OZNMON_CONFIG} ]]; then
+   . ${OZNMON_CONFIG}
+else
+   echo "Unable to source ${OZNMON_CONFIG} file"
+   exit 4
+fi
+
+
+#. ${DE_PARM}/data_extract_config
+#
+#
+#
+#REGIONAL_RR=${REGIONAL_RR:-0}
+#echo "REGIONAL_RR    = $REGIONAL_RR"
+#echo "CYCLE_INTERVAL = $CYCLE_INTERVAL"
+
+#-------------------------------------------------------------------
+#  Set dates
+#    BDATE is beginning date for the 30/60 day range
+#    EDATE is ending date for 30/60 day range (always use 00 cycle) 
+#-------------------------------------------------------------------
+EDATE=`${OZN_DE_SCRIPTS}/find_cycle.pl --cyc 1 --run ${run} --dir ${OZN_STATS_TANKDIR}`
+echo $EDATE
+
+sdate=`echo $EDATE|cut -c1-8`
+EDATE=${sdate}00
+BDATE=`$NDATE -1080 $EDATE`
+
+echo EDATE = $EDATE
+echo BDATE = $BDATE
+
+tmpdir=${OZN_WORK_DIR}/base_${OZNMON_SUFFIX}
+rm -rf $tmpdir
+mkdir -p $tmpdir
+cd $tmpdir
+
+#-------------------------------------------------------------------
+#  If no single sat source was supplied at the command line then 
+#  find or build $SATYPE list for this data source.
+#-------------------------------------------------------------------
+if [[ $SINGLE_SAT -eq 0 ]]; then
+
+   if [[ -e ${HOMEgdas_ozn}/fix/gdas_oznmon_satype.txt ]]; then
+      SATYPE=`cat ${HOMEgdas_ozn}/fix/gdas_oznmon_satype.txt`
+   else
+      PDY=`echo $EDATE|cut -c1-8`
+
+      test_dir=${OZN_STATS_TANKDIR}/${run}.${PDY}/oznmon/time
+      if [[ -d ${test_dir} ]]; then
+         test_list=`ls ${test_dir}/*.${EDATE}.ieee_d*`
+
+         for test in ${test_list}; do
+            this_file=`basename $test`
+            tmp=`echo "$this_file" | cut -d. -f1`
+            echo $tmp
+
+            #----------------------------------------------------------   
+            #  remove sat/instrument_anl names so we don't end up
+            #  with both "omi_aura" and "omi_aura_anl" if analysis
+            #  files are being generated for this source.
+            #----------------------------------------------------------   
+            test_anl=`echo $tmp | grep "_anl"`
+            if [[ $test_anl = "" ]]; then
+               SATYPE_LIST="$SATYPE_LIST $tmp"
+            fi
+         done
+      fi
+      SATYPE=$SATYPE_LIST
+
+   fi
+fi
+
+echo $SATYPE
+
+
+#-------------------------------------------------------------------
+#  Loop over $SATYPE and build base files for each
+#-------------------------------------------------------------------
+for type in ${SATYPE}; do
+
+   #-------------------------------------------------------------------
+   #  Create $tmpdir
+   #-------------------------------------------------------------------
+   workdir=${tmpdir}/${type}.$EDATE
+   mkdir -p $workdir
+   cd $workdir
+
+   #-------------------------------------------------------------------
+   #  Create the cycle_hrs.txt file
+   #-------------------------------------------------------------------
+   cdate=$BDATE
+   nfiles=0
+   while [[ $cdate -le $EDATE ]]; do
+      echo $cdate >> cycle_hrs.txt
+      adate=`$NDATE +${CYCLE_INTERVAL} $cdate`
+      cdate=$adate
+      nfiles=`expr $nfiles + 1`
+   done
+
+
+   #-------------------------------------------------------------------
+   #  Copy the data files and ctl file to workdir
+   #-------------------------------------------------------------------
+   have_ctl=0
+   cdate=$BDATE
+   while [[ $cdate -le $EDATE ]]; do
+#      if [[ $REGIONAL_RR -eq 1 ]]; then
+#         tdate=`$NDATE +6 $cdate`
+#         day=`echo $tdate | cut -c1-8 `
+#         hh=`echo $cdate | cut -c9-10`
+#         . ${IG_SCRIPTS}/rr_set_tz.sh $hh
+#      else
+#         day=`echo $cdate | cut -c1-8 `
+#      fi
+
+      pdy=`echo $cdate | cut -c1-8 `
+
+      test_dir=${OZN_STATS_TANKDIR}/${run}.${pdy}/oznmon/time
+      if [[ -d ${test_dir} ]]; then
+         test_file=${test_dir}/${type}.${cdate}.ieee_d
+      fi
+
+#      elif [[ -d ${TANKverf}/radmon.${day} ]]; then
+#         if [[ $REGIONAL_RR -eq 1 ]]; then
+#            test_file=${TANKverf}/radmon.${day}/${rgnHH}.time.${type}.${cdate}.ieee_d.${rgnTM}
+#         else
+#            test_file=${TANKverf}/radmon.${day}/time.${type}.${cdate}.ieee_d
+#         fi
+#      fi
+#
+      if [[ -s $test_file ]]; then
+         $NCP ${test_file} ./${type}.${cdate}.ieee_d
+      elif [[ -s ${test_file}.${Z} ]]; then
+         $NCP ${test_file}.${Z} ./${type}.${cdate}.ieee_d.${Z}
+      else 
+	 echo "WARNING:  unable to loate ${test_file}"
+      fi
+
+
+      if [[ $have_ctl -eq 0 ]]; then
+         test_file=${test_dir}/${type}.ctl
+         if [[ -s ${test_file} ]]; then
+            $NCP ${test_file} ./${type}.ctl
+            have_ctl=1
+         elif [[ -s ${test_file}.${Z} ]]; then
+            $NCP ${test_file}.${Z} ./${type}.ctl.${Z}
+            have_ctl=1
+         fi
+      fi
+      adate=`$NDATE +${CYCLE_INTERVAL} $cdate`
+      cdate=$adate
+   done
+
+#   test_file=${test_dir}${MONITOR}/time.${type}.ctl
+#   else
+#      test_file=${TANKverf}/radmon.${day}/time.${type}.ctl
+#   fi
+# 
+#   if [[ -s ${test_file} ]]; then
+#      $NCP ${test_file} ${type}.ctl
+#   elif [[ -s ${test_file}.${Z} ]]; then
+#      $NCP ${test_file}.${Z} ${type}.ctl.${Z}
+#   else
+#      $NCP $TANKverf/time/${type}.ctl* ./
+#   fi
+#
+   ${UNCOMPRESS} *.${Z}
+
+   #-------------------------------------------------------------------
+   #  Get the number of levels for this $type
+   #-------------------------------------------------------------------
+   line=`cat ${type}.ctl | grep title`
+   nlev=`echo $line|gawk '{print $4}'`
+   echo levels = $nlev
+
+   #-------------------------------------------------------------------
+   #  Cut out the iuse flags from the ctl file and dump them
+   #  into the level.txt file for make_base executable to access
+   #-------------------------------------------------------------------
+   gawk '/iuse/{print $8}' ${type}.ctl >> level.txt
+
+   #-------------------------------------------------------------------
+   #  Copy the executable and run it 
+   #------------------------------------------------------------------
+   out_file=${type}.base
+   $NCP ${OZN_DE_EXEC}/oznmon_make_base.x ./
+
+cat << EOF > input
+ &INPUT
+  satname='${type}',
+  nlev=${nlev},
+  nfile=${nfiles},
+  out_file='${out_file}',
+ /
+EOF
+
+   ./oznmon_make_base.x < input > stdout.${type}.base
+
+   #-------------------------------------------------------------------
+   #  Copy base file back to $tmpdir 
+   #-------------------------------------------------------------------
+   $NCP $out_file ${tmpdir}/.
+
+   #-------------------------------------------------------------------
+   #  Clean up
+   #-------------------------------------------------------------------
+   cd $tmpdir
+
+done
+
+
+#-------------------------------------------------------------------
+#  Pack all basefiles into a tar file and move it to $TANKverf/info.
+#  If a SINGLE_SAT was supplied at the command line then copy the
+#  existing $basefile and add/replace the requested sat, leaving
+#  all others in the $basefile unchanged.
+#-------------------------------------------------------------------
+if [[ ! -d ${OZN_STATS_TANKDIR}/info ]]; then
+   mkdir -p ${OZN_STATS_TANKDIR}/info
+fi
+
+#cd $tmpdir
+basefile=gdas_oznmon_base.tar
+
+if [[ $SINGLE_SAT -eq 0 ]]; then
+   tar -cvf ${basefile} *.base
+
+else
+   newbase=$tmpdir/newbase
+   mkdir $newbase
+   cd $newbase
+
+   #  copy over existing $basefile
+   if [[ -s ${OZN_STATS_TANKDIR}/info/${basefile} ]]; then
+      $NCP ${OZN_STATS_TANKDIR}/info/${basefile} ./${basefile} 
+   elif [[ -s ${HOMEgdas_ozn}/fix/${basefile} ]]; then
+      $NCP ${HOMEgdas_ozn}/fix/${basefile} ./${basefile} 
+   fi
+
+   tar -xvf ${basefile}
+   rm ${basefile}
+
+   #  copy new *.base file from $tmpdir and build new $basefile (tar file)
+   cp -f $tmpdir/*.base .
+   tar -cvf ${basefile} *.base
+   mv -f ${basefile} $tmpdir/.
+   cd $tmpdir
+# keep for testing
+#   rm -rf $newbase
+
+fi
+
+#  Remove the old version of the $basefile
+if [[ -e ${OZN_STATS_TANKDIR}/info/${basefile} || -e ${OZN_STATS_TANKDIR}/info/${basefile}.${Z} ]]; then
+   rm -f ${OZN_STATS_TANKDIR}/info/${basefile}*
+fi
+
+
+$NCP ${basefile} ${OZN_STATS_TANKDIR}/info/.
+
+#-------------------------------------------------------------------
+#  Clean up $tmpdir
+#-------------------------------------------------------------------
+#cd ..
+#rm -rf $tmpdir
+
+exit
