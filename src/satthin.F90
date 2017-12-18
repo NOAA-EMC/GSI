@@ -547,19 +547,19 @@ contains
 
        allocate(zs_full_gfs(nlat_sfc,nlon_sfc))
 
-       if ( sfcnst_comb ) then
+       if ( use_gfs_nemsio ) then
 
-          if ( nst_gsi > 0 ) then
+          if ( sfcnst_comb .and.  nst_gsi > 0  ) then
              call read_nemssfc(mype_io, &
-                sst_full,soil_moi_full,sno_full,soil_temp_full, &
-                veg_frac_full,fact10_full,sfc_rough_full, &
-                veg_type_full,soil_type_full,zs_full_gfs,isli_full,use_sfc_any, &
-                tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,c_0_full,c_d_full,w_0_full,w_d_full)
+                  sst_full,soil_moi_full,sno_full,soil_temp_full, &
+                  veg_frac_full,fact10_full,sfc_rough_full, &
+                  veg_type_full,soil_type_full,zs_full_gfs,isli_full,use_sfc_any,&
+                  tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,c_0_full,c_d_full,w_0_full,w_d_full)
           else
              call read_nemssfc(mype_io, &
-                sst_full,soil_moi_full,sno_full,soil_temp_full, &
-                veg_frac_full,fact10_full,sfc_rough_full, &
-                veg_type_full,soil_type_full,zs_full_gfs,isli_full,use_sfc_any)
+                   sst_full,soil_moi_full,sno_full,soil_temp_full, &
+                   veg_frac_full,fact10_full,sfc_rough_full, &
+                   veg_type_full,soil_type_full,zs_full_gfs,isli_full,use_sfc_any)
           endif         ! if (  nst_gsi > 0 ) then
 
           if ( use_readin_anl_sfcmask ) then
@@ -571,13 +571,10 @@ contains
              sst_full,soil_moi_full,sno_full,soil_temp_full, &
              veg_frac_full,fact10_full,sfc_rough_full, &
              veg_type_full,soil_type_full,zs_full_gfs,isli_full,use_sfc_any)
-
           if ( use_readin_anl_sfcmask ) then
              call read_gfssfc_anl(mype_io,isli_anl) 
           endif
-
-       end if
-
+       endif
 !
 !      read NSST variables while .not. sfcnst_comb (in sigio or nemsio)
 !
