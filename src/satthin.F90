@@ -458,7 +458,7 @@ contains
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype,mpi_rtype4
     use constants, only: zero,half,pi,two,one
     use ncepgfs_io, only: read_gfssfc,read_gfssfc_anl
-    use ncepnems_io, only: read_nemssfc,intrp22,read_nemssfc_anl,read_nemssfc
+    use ncepnems_io, only: read_nemssfc,intrp22,read_nemssfc_anl
     use sfcio_module, only: sfcio_realfill
     use obsmod, only: lobserver
     use gsi_nstcouplermod, only: nst_gsi,gsi_nstcoupler_init,gsi_nstcoupler_read
@@ -571,6 +571,7 @@ contains
              sst_full,soil_moi_full,sno_full,soil_temp_full, &
              veg_frac_full,fact10_full,sfc_rough_full, &
              veg_type_full,soil_type_full,zs_full_gfs,isli_full,use_sfc_any)
+
           if ( use_readin_anl_sfcmask ) then
              call read_gfssfc_anl(mype_io,isli_anl) 
           endif
