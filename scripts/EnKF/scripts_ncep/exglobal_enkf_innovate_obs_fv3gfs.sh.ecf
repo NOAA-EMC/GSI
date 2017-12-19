@@ -67,7 +67,7 @@ export SELECT_OBS=${SELECT_OBS:-${COMOUT}/${APREFIX}obsinput}
 [[ -d $DATA ]] && rm -rf $DATA
 mkdir -p $DATA
 cd $DATA || exit 99
-export DATATOP=$DATA
+DATATOP=$DATA
 
 ENKF_SUFFIX="s"
 [[ $SMOOTH_ENKF = "NO" ]] && ENKF_SUFFIX=""
