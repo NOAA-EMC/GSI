@@ -26,12 +26,14 @@
 !   2015-06-29  Add ability to read/write multiple time levels
 !   2016-04-20  Modify to handle the updated nemsio sig file (P, DP, DPDT removed)
 !               For GFS and NMMB
+!   2017-06-14  Adding functionality to optionally write non-inflated ensembles,  
+!               a required input for EFSO calculations 
 !
 ! attributes:
 !   language: f95
 !
 !$$$
- use constants, only: zero,one,cp,fv,rd,grav,zero
+ use constants, only: zero,one,cp,fv,rd,grav
  use params, only: nlons,nlats,ndim,reducedgrid,nvars,nlevs,use_gfs_nemsio,pseudo_rh, &
                    cliptracers,nlons,nlats,datestring,datapath,massbal_adjust,&
                    nbackgrounds,fgfileprefixes,anlfileprefixes
@@ -367,7 +369,7 @@
 
  end subroutine readgriddata
 
- subroutine writegriddata(nanal,grdin)
+ subroutine writegriddata(nanal,grdin,no_inflate_flag)
   use sigio_module, only: sigio_head, sigio_data, sigio_sclose, sigio_sropen, &
                           sigio_srohdc, sigio_sclose, sigio_axdata, &
                           sigio_aldata, sigio_swohdc
@@ -380,6 +382,7 @@
   character(len=500):: filenamein, filenameout
   integer, intent(in) :: nanal
   real(r_single), dimension(npts,ndim,nbackgrounds), intent(inout) :: grdin
+  logical, intent(in) :: no_inflate_flag
   real(r_kind), allocatable, dimension(:,:) :: vmassdiv,dpanl,dpfg,pressi
   real(r_kind), allocatable, dimension(:,:) :: vmassdivinc
   real(r_kind), allocatable, dimension(:,:) :: ugtmp,vgtmp
@@ -413,7 +416,11 @@
 
   backgroundloop: do nb=1,nbackgrounds
 
-  filenameout = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//"mem"//charnanal
+  if(no_inflate_flag) then
+    filenameout = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//"nimem"//charnanal
+  else
+    filenameout = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//"mem"//charnanal
+  end if
   filenamein = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"mem"//charnanal
   ! for nemsio, analysis file must be copied from first guess at scripting
   ! level.  This file is read in and modified.

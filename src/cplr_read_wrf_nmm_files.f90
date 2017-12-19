@@ -151,7 +151,7 @@ contains
                                 !   ???? the valid time of the file.
              idateg(4)=iadate(1); idateg(2)=iadate(2)
              idateg(3)=iadate(3); idateg(1)=iadate(4)
-             hourg = hourg4
+             hourg = real(hourg4,r_kind)
              idate5(1)=idateg(4); idate5(2)=idateg(2)
              idate5(3)=idateg(3); idate5(4)=idateg(1); idate5(5)=0
              call w3fs21(idate5,nmings)
@@ -395,7 +395,7 @@ contains
                                 !   ???? the valid time of the file.
              idateg(4)=iadate(1); idateg(2)=iadate(2)
              idateg(3)=iadate(3); idateg(1)=iadate(4)
-             hourg = hourg4
+             hourg = real(hourg4,r_kind)
              idate5(1)=idateg(4); idate5(2)=idateg(2)
              idate5(3)=idateg(3); idate5(4)=idateg(1); idate5(5)=0
              call w3fs21(idate5,nmings)
