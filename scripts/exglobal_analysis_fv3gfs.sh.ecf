@@ -32,7 +32,6 @@ export BASE_GSI=${BASE_GSI:-$NWPROD}
 FIXgsi=${FIXgsi:-$BASE_GSI/fix}
 GSIEXEC=${GSIEXEC:-$BASE_GSI/exec/global_gsi}
 export DATA=${DATA:-$pwd/analysis.$$}
-export DATATOP=${DATATOP:-../}
 DMPDIR=${DMPDIR:-$NWPROD}
 export COMIN=${COMIN:-$pwd}
 export COMIN_GES=${COMIN_GES:-$COMIN}
@@ -556,7 +555,7 @@ $NLN $ABIASAIR aircftbias_out
 
 # If requested, link and de-tar obs_input
 if [ $USE_SELECT = "YES" ]; then
-    for filetop in `ls $DATATOP/obs_input* | grep -v tar `; do
+    for filetop in `ls ../obs_input* | grep -v tar `; do
         fileloc=`echo $filetop | cut -d"/" -f2`
         $NLN $filetop $fileloc
     done
