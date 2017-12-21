@@ -983,11 +983,12 @@ contains
     implicit none
 
 !   Declare passed variables
-    logical,                                               intent(in   ) :: use_sfc_any
-    real(r_single),  dimension(nlat_sfc,nlon_sfc,nfldsfc), intent(  out) :: sfct,soil_moi,sno,soil_temp,veg_frac,fact10,sfc_rough
-    real(r_single),  dimension(nlat_sfc,nlon_sfc),         intent(  out) :: veg_type,soil_type,terrain
-    integer(i_kind), dimension(nlat_sfc,nlon_sfc),         intent(  out) :: isli
-    real(r_single),  optional, dimension(nlat_sfc,nlon_sfc,nfldsfc), intent(  out) :: tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d
+    logical,                                               intent(in)  :: use_sfc_any
+    real(r_single),  dimension(nlat_sfc,nlon_sfc,nfldsfc), intent(out) :: sfct,soil_moi,sno,soil_temp,veg_frac,fact10,sfc_rough
+    real(r_single),  dimension(nlat_sfc,nlon_sfc),         intent(out) :: veg_type,soil_type,terrain
+    integer(i_kind), dimension(nlat_sfc,nlon_sfc),         intent(out) :: isli
+    real(r_single),  optional, dimension(nlat_sfc,nlon_sfc,nfldsfc), intent(out) :: tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d
+                                
 !   Declare local parameters
     integer(i_kind), parameter :: nsfc_all=11
     integer(i_kind),dimension(7):: idate
@@ -1170,8 +1171,8 @@ contains
 !      End of loop over data records
        enddo
 
-       if( nst_gsi > 0 ) then                         
-          if ( mype == 0 ) write(6,*) ' read 9 NSST variables '
+       if( present(tref) ) then                         
+          if ( mype == 0 ) write(6,*) ' read 9 optional NSST variables '
 
           call nemsio_readrecv(gfile, 'tref', 'sfc', 1, rwork2d, iret=iret)
           if (iret /= 0) call error_msg(trim(my_name),trim(filename),'tref','read',istop,iret)
@@ -1236,7 +1237,7 @@ contains
 !
 !      Print date/time stamp
        if ( mype == 0 ) write(6, &
-          '(a,'': sfcnst read,nlon,nlat= '',2i6,'',hour= '',f4.1,'',idate= '',4i5)') &
+          '(a,'': sfc read,nlon,nlat= '',2i6,'',hour= '',f4.1,'',idate= '',4i5)') &
           trim(my_name),lonb,latb,fhour,odate
 !   End of loop over time levels
     end do
@@ -1295,12 +1296,12 @@ contains
     implicit none
 
 !   Declare passed variables
-    integer(i_kind),                                       intent(in   ) :: iope
-    logical,                                               intent(in   ) :: use_sfc_any
-    real(r_single),  dimension(nlat_sfc,nlon_sfc,nfldsfc), intent(  out) :: sfct,soil_moi,sno,soil_temp,veg_frac,fact10,sfc_rough
-    real(r_single),  dimension(nlat_sfc,nlon_sfc),         intent(  out) :: veg_type,soil_type,terrain
-    integer(i_kind), dimension(nlat_sfc,nlon_sfc),         intent(  out) :: isli
-    real(r_single),  optional, dimension(nlat_sfc,nlon_sfc,nfldsfc), intent(  out) :: tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d
+    integer(i_kind),                                       intent(in)  :: iope
+    logical,                                               intent(in)  :: use_sfc_any
+    real(r_single),  dimension(nlat_sfc,nlon_sfc,nfldsfc), intent(out) :: sfct,soil_moi,sno,soil_temp,veg_frac,fact10,sfc_rough
+    real(r_single),  dimension(nlat_sfc,nlon_sfc),         intent(out) :: veg_type,soil_type,terrain
+    integer(i_kind), dimension(nlat_sfc,nlon_sfc),         intent(out) :: isli
+    real(r_single), optional, dimension(nlat_sfc,nlon_sfc,nfldsfc), intent(out) :: tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d
 
 !   Declare local variables
     real(r_single), dimension(nlat_sfc,nlon_sfc,nfldsfc) :: xt
@@ -1313,11 +1314,11 @@ contains
           call read_sfc_(sfct,soil_moi,sno,soil_temp,veg_frac,fact10,sfc_rough, &
                          veg_type,soil_type,terrain,isli,use_sfc_any, &
                          tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d)
-          write(*,*) 'read_sfcnst nemsio, with NSST variables'
+          write(*,*) 'read_sfc nemsio, with NSST variables'
        else
           call read_sfc_(sfct,soil_moi,sno,soil_temp,veg_frac,fact10,sfc_rough, &
                          veg_type,soil_type,terrain,isli,use_sfc_any)
-          write(*,*) 'read_sfcnst nemsio, without NSST variables'
+          write(*,*) 'read_sfc nemsio, without NSST variables'
        endif
     endif
 

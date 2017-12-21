@@ -550,7 +550,7 @@ $NLN $ABIAS    satbias_out
 $NLN $ABIASPC  satbias_pc.out
 $NLN $ABIASAIR aircftbias_out
 
-if [ $NST_GSI -gt 0 ] ; then
+if [ $DONST = "YES" ]; then
    $NLN $DTFANL dtfanl
 fi
 
@@ -894,7 +894,6 @@ if [ $DOGCYCLE = "YES" ]; then
     fi
 
     for n in $(seq 1 $ntiles); do
-#       $NLN $COMIN_GES/RESTART/$gPDY.${gcyc}0000.sfc_data.tile${n}.nc $DATA/fnbgsi.00$n
         $NLN $COMIN_GES/RESTART/$PDY.${cyc}0000.sfc_data.tile${n}.nc $DATA/fnbgsi.00$n
         $NLN $COMOUT/RESTART/$PDY.${cyc}0000.sfcanl_data.tile${n}.nc $DATA/fnbgso.00$n
         $NLN $FIXfv3/$CASE/${CASE}_grid.tile${n}.nc                  $DATA/fngrid.00$n

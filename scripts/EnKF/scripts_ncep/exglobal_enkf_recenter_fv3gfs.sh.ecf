@@ -300,9 +300,9 @@ for n in $(seq 1 $ntiles); do
         [[ $TILE_NUM -eq 1 ]] && mkdir -p $COMIN_ENS/$memchar/RESTART
 
         $NLN $COMIN_GES_ENS/$memchar/RESTART/$PDY.${cyc}0000.sfc_data.tile${n}.nc $DATA/fnbgsi.$cmem
-        $NLN $COMIN_ENS/$memchar/RESTART/$PDY.${cyc}0000.sfcanl_data.tile${n}.nc    $DATA/fnbgso.$cmem
-        $NLN $FIXfv3/$CASE/${CASE}_grid.tile${n}.nc                                 $DATA/fngrid.$cmem
-        $NLN $FIXfv3/$CASE/${CASE}_oro_data.tile${n}.nc                             $DATA/fnorog.$cmem
+        $NLN $COMIN_ENS/$memchar/RESTART/$PDY.${cyc}0000.sfcanl_data.tile${n}.nc  $DATA/fnbgso.$cmem
+        $NLN $FIXfv3/$CASE/${CASE}_grid.tile${n}.nc                               $DATA/fngrid.$cmem
+        $NLN $FIXfv3/$CASE/${CASE}_oro_data.tile${n}.nc                           $DATA/fnorog.$cmem
 
     done
 
