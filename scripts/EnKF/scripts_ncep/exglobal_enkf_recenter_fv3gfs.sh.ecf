@@ -157,7 +157,7 @@ if [ $RECENTER_ENKF = "YES" ]; then
       $NLN $ATMANL_GSI atmanl_gsi
 
       OROGRAPHY=${OROGRAPHY:-${FIXgsm}/global_orography.t${JCAP_ENKF}.${LONB_ENKF}.${LATB_ENKF}.grb}
-      SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS_ENKF}.txt}
+      SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS}.txt}
 
       export OMP_NUM_THREADS=$NTHREADS_CHGRES
 
