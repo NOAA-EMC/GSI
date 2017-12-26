@@ -1731,7 +1731,7 @@ contains
 ! !USES:
     use kinds, only: r_kind,i_kind
 
-    use constants, only: r1000,fv,one,zero,qcmin
+    use constants, only: r1000,fv,one,zero,qcmin,r0_05,t0c
 
     use mpimod, only: mpi_rtype
     use mpimod, only: mpi_comm_world
@@ -1807,7 +1807,7 @@ contains
     real(r_kind),allocatable,dimension(:) :: rwork1d,rwork1d1,rlats,rlons,clons,slons
     real(4),allocatable,dimension(:) :: r4lats,r4lons
     real(r_kind),allocatable,dimension(:,:) :: grid_b,grid_b2
-    real(r_kind),allocatable,dimension(:,:,:) :: grid_c, grid3, grid_c2
+    real(r_kind),allocatable,dimension(:,:,:) :: grid_c, grid3, grid_c2, grid3b
 
     type(nemsio_gfile) :: gfile,gfileo
     logical diff_res,eqspace
@@ -1913,7 +1913,8 @@ contains
 
        ! Allocate structure arrays to hold data
        allocate(rwork1d(latb*lonb),rwork1d1(latb*lonb))
-       if ( diff_res ) then
+       if (gfdl_mp) allocate(grid3b(grd%nlat,grd%nlon,1))
+       if ( diff_res .or. gfdl_mp ) then
           allocate( grid_b(lonb,latb),grid_c(latb+2,lonb,1),grid3(grd%nlat,grd%nlon,1))
           allocate( grid_b2(lonb,latb),grid_c2(latb+2,lonb,1))
           allocate( rlats(latb+2),rlons(lonb),clons(lonb),slons(lonb),r4lats(lonb*latb),r4lons(lonb*latb))
@@ -1960,12 +1961,6 @@ contains
        sub_dp(:,:,k) = sub_prsi(:,:,k) - sub_prsi(:,:,k+1)
     end do
 
-    ! For GFDL microphysics, partition total cloud condensate
-    if (gfdl_mp) then
-       call cloud_calc_gfs(sub_cwl,sub_cwi,sub_cwmr,sub_q,sub_tv,.false.)
-       sub_cwmr = sub_cwl
-    endif  
-
     ! Strip off boundary points from subdomains
     call strip(sub_ps  ,psm)
     call strip(sub_tv  ,tvsm  ,grd%nsig)
@@ -1976,7 +1971,6 @@ contains
     call strip(sub_prsl,prslm ,grd%nsig)
     call strip(sub_u   ,usm   ,grd%nsig)
     call strip(sub_v   ,vsm   ,grd%nsig)
-    if (gfdl_mp) call strip(sub_cwi,cwism,grd%nsig)
 
     ! Thermodynamic variable
     ! The GSI analysis variable is virtual temperature (Tv).   For NEMSIO
@@ -2189,11 +2183,27 @@ contains
           call mpi_gatherv(cwsm(1,k),grd%ijn(mm1),mpi_rtype,&
                work1,grd%ijn,grd%displs_g,mpi_rtype,&
                mype_out,mpi_comm_world,ierror)
+          if (gfdl_mp) then
+             call mpi_gatherv(tvsm(1,k),grd%ijn(mm1),mpi_rtype,&
+                  work2,grd%ijn,grd%displs_g,mpi_rtype,&
+                  mype_out,mpi_comm_world,ierror)
+          endif
           if (mype == mype_out) then
-             if(diff_res)then
+             if(diff_res .or. gfdl_mp)then
                 call nemsio_readrecv(gfile,'clwmr','mid layer',k,rwork1d,iret=iret)
                 if (iret /= 0) call error_msg(trim(my_name),trim(filename),'clwmr','read',istop,iret)
                 grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
+                if (gfdl_mp) then
+                   call nemsio_readrecv(gfile,'icmr','mid layer',k,rwork1d1,iret=iret)
+                   if (iret /= 0) call error_msg(trim(my_name),trim(filename),'icmr','read',istop,iret)
+                   grid_b2=reshape(rwork1d1,(/size(grid_b2,1),size(grid_b2,2)/))
+                   grid_b = grid_b + grid_b2
+                   do kk=1,grd%iglobal
+                      work2(kk) = -r0_05*(work2(kk) - t0c)
+                      work2(kk) = max(zero,work2(kk))
+                      work2(kk) = min(one,work2(kk))
+                   enddo
+                endif
                 vector(1)=.false.
                 call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
                 call g_egrid2agrid(p_low,grid_c,grid3,1,1,vector)
@@ -2201,52 +2211,41 @@ contains
                    i=grd%ltosi(kk)
                    j=grd%ltosj(kk)
                    grid3(i,j,1)=work1(kk)-max(grid3(i,j,1),qcmin)
+                   if (gfdl_mp) then
+                      grid3b(i,j,1)=grid3(i,j,1)
+                      grid3(i,j,1)=grid3b(i,j,1)*(one - work2(kk))
+                   endif
                 end do
                 call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
+                if (gfdl_mp) grid_b = grid_b - grid_b2
                 do j=1,latb
                    do i=1,lonb
                       grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
                    end do
                 end do
                 rwork1d = reshape(grid_b,(/size(rwork1d)/))
+                if (gfdl_mp) then
+                   do kk=1,grd%iglobal
+                      i=grd%ltosi(kk)
+                      j=grd%ltosj(kk)
+                      grid3(i,j,1)=grid3b(i,j,1)*work2(kk)
+                   end do
+                   call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
+                   do j=1,latb
+                      do i=1,lonb
+                         grid_b2(i,j)=grid_b2(i,j)+grid_c(latb-j+2,i,1)
+                      end do
+                   end do
+                   rwork1d1 = reshape(grid_b2,(/size(rwork1d1)/))
+                endif
              else
                 call load_grid(work1,grid)
                 rwork1d = reshape(grid,(/size(rwork1d)/))
              endif
              call nemsio_writerecv(gfileo,'clwmr','mid layer',k,rwork1d,iret=iret)
              if (iret /= 0) call error_msg(trim(my_name),trim(filename),'clwmr','write',istop,iret)
-          end if
-       end do
-       if (gfdl_mp) then
-          do k=1,grd%nsig
-             call mpi_gatherv(cwism(1,k),grd%ijn(mm1),mpi_rtype,&
-                  work1,grd%ijn,grd%displs_g,mpi_rtype,&
-                  mype_out,mpi_comm_world,ierror)
-             if (mype == mype_out) then
-                if(diff_res)then
-                   call nemsio_readrecv(gfile,'icmr','mid layer',k,rwork1d,iret=iret)
-                   if (iret /= 0) call error_msg(trim(my_name),trim(filename),'icmr','read',istop,iret)
-                   grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
-                   vector(1)=.false.
-                   call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
-                   call g_egrid2agrid(p_low,grid_c,grid3,1,1,vector)
-                   do kk=1,grd%iglobal
-                      i=grd%ltosi(kk)
-                      j=grd%ltosj(kk)
-                      grid3(i,j,1)=work1(kk)-max(grid3(i,j,1),qcmin)
-                   end do
-                   call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
-                   do j=1,latb
-                      do i=1,lonb
-                         grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
-                      end do
-                   end do
-                   rwork1d = reshape(grid_b,(/size(rwork1d)/))
-                else
-                   call load_grid(work1,grid)
-                   rwork1d = reshape(grid,(/size(rwork1d)/))
-                endif
-                call nemsio_writerecv(gfileo,'icmr','mid layer',k,rwork1d,iret=iret)
+             if (gfdl_mp) then
+                call nemsio_writerecv(gfileo,'icmr','mid layer',k,rwork1d1,iret=iret)
                 if (iret /= 0) call error_msg(trim(my_name),trim(filename),'icmr','write',istop,iret)
 
                 call nemsio_readrecv(gfile,'rwmr','mid layer',k,rwork1d,iret=iret)
@@ -2263,15 +2262,16 @@ contains
                 if (iret /= 0) call error_msg(trim(my_name),trim(filename),'grle','read',istop,iret)
                 call nemsio_writerecv(gfileo,'grle','mid layer',k,rwork1d,iret=iret)
                 if (iret /= 0) call error_msg(trim(my_name),trim(filename),'grle','write',istop,iret)
-             end if
-          end do
-       endif
+             endif
+          endif
+       end do
     endif
 !
 ! Deallocate local array
 !
     if (mype==mype_out) then
        if(diff_res) deallocate(grid_b,grid_b2,grid_c,grid_c2,grid3,clons,slons)
+       if (gfdl_mp) deallocate(grid3b)
        call nemsio_close(gfile,iret)
        if (iret /= 0) call error_msg(trim(my_name),trim(fname_ges),null,'close',istop,iret)
 
