@@ -2248,6 +2248,21 @@ contains
                 endif
                 call nemsio_writerecv(gfileo,'icmr','mid layer',k,rwork1d,iret=iret)
                 if (iret /= 0) call error_msg(trim(my_name),trim(filename),'icmr','write',istop,iret)
+
+                call nemsio_readrecv(gfile,'rwmr','mid layer',k,rwork1d,iret=iret)
+                if (iret /= 0) call error_msg(trim(my_name),trim(filename),'rwmr','read',istop,iret)
+                call nemsio_writerecv(gfileo,'rwmr','mid layer',k,rwork1d,iret=iret)
+                if (iret /= 0) call error_msg(trim(my_name),trim(filename),'rwmr','write',istop,iret)
+
+                call nemsio_readrecv(gfile,'snmr','mid layer',k,rwork1d,iret=iret)
+                if (iret /= 0) call error_msg(trim(my_name),trim(filename),'snmr','read',istop,iret)
+                call nemsio_writerecv(gfileo,'snmr','mid layer',k,rwork1d,iret=iret)
+                if (iret /= 0) call error_msg(trim(my_name),trim(filename),'snmr','write',istop,iret)
+
+                call nemsio_readrecv(gfile,'grle','mid layer',k,rwork1d,iret=iret)
+                if (iret /= 0) call error_msg(trim(my_name),trim(filename),'grle','read',istop,iret)
+                call nemsio_writerecv(gfileo,'grle','mid layer',k,rwork1d,iret=iret)
+                if (iret /= 0) call error_msg(trim(my_name),trim(filename),'grle','write',istop,iret)
              end if
           end do
        endif
