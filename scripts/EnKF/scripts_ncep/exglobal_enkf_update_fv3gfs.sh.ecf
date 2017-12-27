@@ -71,7 +71,12 @@ NVARS_ENKF=${NVARS_ENKF:-5}
 NAM_ENKF=${NAM_ENKF:-""}
 SATOBS_ENKF=${SATOBS_ENKF:-""}
 OZOBS_ENKF=${OZOBS_ENKF:-""}
-GFDL_MP=${GFDL_MP:-".false."}
+if [ $imp_physics = 11 ]; then
+   GFDL_MP=.true.
+else
+   GFDL_MP=.false.
+fi
+
 
 ################################################################################
 ATMGES_ENSMEAN=$COMIN_GES_ENS/${GPREFIX}atmf006.ensmean${GSUFFIX}
