@@ -318,7 +318,11 @@ else
    lwrite4danl=.false.
 fi
 
-GFDL_MP=${GFDL_MP:-".false."}
+if [ $imp_physics = 11 ];then
+   GFDL_MP=.true.
+else
+   GFDL_MP=.false.
+fi
 
 # Set 4D-EnVar specific variables
 if [ $DOHYBVAR = "YES" -a $l4densvar = ".true." -a $lwrite4danl = ".true." ]; then
@@ -865,7 +869,18 @@ if [ $DO_CALC_INCREMENT = "YES" ]; then
   export OMP_NUM_THREADS=$NTHREADS_CALCINC
   $NCP $CALCINCEXEC $DATA
 
-  INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"NONE"}
+  echo "increment ${INCREMENTS_TO_ZERO[1]} ${INCREMENTS_TO_ZERO[2]}"
+
+  zero=${#INCREMENTS_TO_ZERO[@]}
+  if [ $zero = 0];then
+     INCREMENTS_TO_ZERO[1]="NONE"
+     zero=1
+  else
+     for i in `seq 1 $zero`
+     do
+        INCREMENTS_TO_ZERO[$i]=${INCREMENTS_TO_ZERO1[$i]}
+     done
+  fi
 
   rm calc_increment.nml
   cat > calc_increment.nml << EOF
@@ -878,9 +893,12 @@ if [ $DO_CALC_INCREMENT = "YES" ]; then
   nens = $ncmd
 /
 &zeroinc
-  incvars_to_zero = "$INCREMENTS_TO_ZERO"
-/
 EOF
+for i in `seq 1 $zero`
+do
+   echo "incvars_to_zero($i) = '${INCREMENTS_TO_ZERO[$i]}'" >>calc_increment.nml
+done
+echo "/" >> calc_increment.nml
 
   cat calc_increment.nml
 
@@ -937,7 +955,7 @@ if [ $DOGCYCLE = "YES" ]; then
     fi
 
     for n in $(seq 1 $ntiles); do
-        $NLN $COMIN_GES/RESTART/$gPDY.${gcyc}0000.sfc_data.tile${n}.nc $DATA/fnbgsi.00$n
+        $NLN $COMIN_GES/RESTART/$PDY.${cyc}0000.sfc_data.tile${n}.nc $DATA/fnbgsi.00$n
         $NLN $COMOUT/RESTART/$PDY.${cyc}0000.sfcanl_data.tile${n}.nc   $DATA/fnbgso.00$n
         $NLN $FIXfv3/$CASE/${CASE}_grid.tile${n}.nc                    $DATA/fngrid.00$n
         $NLN $FIXfv3/$CASE/${CASE}_oro_data.tile${n}.nc                $DATA/fnorog.00$n
