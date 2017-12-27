@@ -209,6 +209,7 @@ USE_READIN_ANL_SFCMASK=${USE_READIN_ANL_SFCMASK:-.false.}
 SMOOTH_ENKF=${SMOOTH_ENKF:-"YES"}
 DOIAU=${DOIAU:-"NO"}
 DO_CALC_INCREMENT=${DO_CALC_INCREMENT:-"YES"}
+INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"NONE"}
 
 # Get header information from Guess files
 LONB=${LONB:-$($NEMSIOGET $ATMGES dimx | grep -i "dimx" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
@@ -869,18 +870,7 @@ if [ $DO_CALC_INCREMENT = "YES" ]; then
   export OMP_NUM_THREADS=$NTHREADS_CALCINC
   $NCP $CALCINCEXEC $DATA
 
-  echo "increment ${INCREMENTS_TO_ZERO[1]} ${INCREMENTS_TO_ZERO[2]}"
-
-  zero=${#INCREMENTS_TO_ZERO[@]}
-  if [ $zero = 0];then
-     INCREMENTS_TO_ZERO[1]="NONE"
-     zero=1
-  else
-     for i in `seq 1 $zero`
-     do
-        INCREMENTS_TO_ZERO[$i]=${INCREMENTS_TO_ZERO1[$i]}
-     done
-  fi
+  INCREMENTS_TO_ZERO=$(echo $INCREMENTS_TO_ZERO | tr "," "\n")
 
   rm calc_increment.nml
   cat > calc_increment.nml << EOF
@@ -894,11 +884,13 @@ if [ $DO_CALC_INCREMENT = "YES" ]; then
 /
 &zeroinc
 EOF
-for i in `seq 1 $zero`
-do
-   echo "incvars_to_zero($i) = '${INCREMENTS_TO_ZERO[$i]}'" >>calc_increment.nml
-done
-echo "/" >> calc_increment.nml
+  i=1
+  for var in $INCREMENTS_TO_ZERO
+  do
+     echo "incvars_to_zero($i) = '$var'" >>calc_increment.nml
+     i=`expr $i + 1`
+  done
+  echo "/" >> calc_increment.nml
 
   cat calc_increment.nml
 
