@@ -21,7 +21,48 @@ from argparse import ArgumentParser,ArgumentDefaultsHelpFormatter
 sys.path.append('../lib')
 import lib_GSI as lgsi
 
-def get_data(gsistat,varname,select=None,level=None):
+def _float10Power(value):
+    if value == 0:
+        return 0
+    e = np.log10(abs(value))
+    e = np.ceil(e) - 1. if e >= 0 else np.floor(e)
+    return e
+
+def get_data1(gsistat,varname,it=1,use='asm',typ='all'):
+    df = []
+    for i in gsistat:
+        tmp = i.extract(varname)
+        tmp = tmp.xs([it,use],level=['it','use'],drop_level=False)
+        if typ is not 'all':
+            tmp2 = []
+            if not isinstance(typ,list): typ = [typ]
+            indx = tmp.index.get_level_values('typ') == ''
+            for t in typ:
+                indx = np.ma.logical_or(indx,tmp.index.get_level_values('typ') == t)
+            tmp2.append(tmp.iloc[indx])
+            #unique_types = tmp.index.get_level_values('typ').unique()
+            #for t in typ:
+            #    if t in unique_types:
+            #        tmp2.append(tmp.xs(t,level='typ',drop_level=False))
+            #    else:
+            #        print '%s is not present in %s' % (t, i.analysis_date.strftime('%Y%m%d%H'))
+            tmp = pd.concat(tmp2)
+
+        if varname in ['ps']:
+            tmp = tmp.sum(level=['date','it','obs','use'])
+        elif varname in ['uv', 't', 'q']:
+            tmp = tmp.sum(level=['date','it','obs','use','stat'])
+        else:
+            msg = 'get_data2: varname %s is not a valid variable\n' % varname
+            msg += 'try: ps, uv, t, q'
+            raise KeyError(msg)
+
+        df.append(tmp)
+
+    df = pd.concat(df)
+    return df
+
+def get_data2(gsistat,varname,select=None,level=None):
     df = []
     for i in gsistat:
         tmp = i.extract(varname)
@@ -82,8 +123,10 @@ def plot_profile(uv, t, q, stat='rms'):
 
             profile = data_dict[expid].xs(stat, level='stat', drop_level=False).mean()[:-1].values
 
+            # Normalize counts by 10^exponent for clarity
             if stat in ['count']:
-                profile = profile / 100.0
+                exponent = _float10Power(profile.max())
+                profile = profile / np.power(10,exponent)
 
             ax.plot(profile, levs, marker='o', label=labels[e], color=mc[e], mfc=mc[e], mec=mc[e], linewidth=2.0, alpha=alpha)
 
@@ -115,7 +158,7 @@ def plot_profile(uv, t, q, stat='rms'):
             plt.xlabel('magnitude (%s)' % var_unit,fontsize=12)
             plt.suptitle('%s O-F\n%s' % (stat.upper(),title_substr),fontsize='x-large',fontweight='bold')
         elif stat in ['count']:
-            plt.xlabel('count (# x 100)',fontsize=12)
+            plt.xlabel('count (# x $\mathregular{10^%d}$)' % exponent,fontsize=12)
             plt.suptitle('Observation Counts\n%s'%title_substr,fontsize='x-large',fontweight='bold')
         plt.title(var_name,fontsize='large')
         plt.ylim(lmin,lmax)
@@ -125,7 +168,7 @@ def plot_profile(uv, t, q, stat='rms'):
             ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%g"))
         else:
             ax.set_yticklabels([])
-        xmin = xmin - (xmax-xmin)*0.1
+        xmin = 0 if stat in ['count'] else xmin - (xmax-xmin)*0.1
         xmax = xmax + (xmax-xmin)*0.1
         plt.xlim(xmin,xmax)
 
@@ -145,8 +188,9 @@ def plot_cost(minim):
         tmpdf2.append(tmp)
 
     # Scale the cost-function with 1e5
-    df = pd.concat(tmpdf,axis=1) / 1.e5
-    df2 = pd.concat(tmpdf2,axis=1) / 1.e5
+    exponent = 5
+    df = pd.concat(tmpdf,axis=1) / np.power(10,exponent)
+    df2 = pd.concat(tmpdf2,axis=1) / np.power(10,exponent)
 
     fig,ax = plt.subplots(figsize=(10,8))
 
@@ -171,7 +215,7 @@ def plot_cost(minim):
     ax.set_xticks(xticks[:-1])
     ax.set_xticklabels(xticklabels[:-1])
     ax.set_xlabel('Iteration',fontsize=12)
-    ax.set_ylabel('Cost function (x10$^5$)',fontsize=12)
+    ax.set_ylabel('Cost function (x $\mathregular{10^%d}$)' % exponent,fontsize=12)
 
     ymin,ymax = np.min(df2.min()),np.max(df2.max())
     dy = ymax - ymin
@@ -394,13 +438,18 @@ if __name__ == '__main__':
                 continue
             gsistat[expid].append(lgsi.GSIstat(fname,adate.to_datetime()))
 
-        ps[expid] = get_data(gsistat[expid],'ps',select=[1,'asm',180,'0000'],level=['it','use','typ','styp'])
-        uv[expid] = get_data(gsistat[expid],'uv',select=[1,'asm',220],level=['it','use','typ'])
-        t[expid] = get_data(gsistat[expid],'t', select=[1,'asm',120],level=['it','use','typ'])
-        q[expid] = get_data(gsistat[expid],'q', select=[1,'asm',120],level=['it','use','typ'])
-        minim[expid] = get_data(gsistat[expid],'cost')
-        oz[expid] = get_data(gsistat[expid],'oz',select=[1],level=['it'])
-        rad[expid] = get_data(gsistat[expid],'rad',select=[1],level=['it'])
+        pstyp = [120,180,181,187]
+        uvtyp = [220,221,230,231,232,233,280,282]
+        ttyp = [120,130,131,132,133,180,182]
+        qtyp = [120,132,133,180,182]
+
+        ps[expid] = get_data1(gsistat[expid],'ps',it=1,use='asm',typ=pstyp)
+        uv[expid] = get_data1(gsistat[expid],'uv',it=1,use='asm',typ=uvtyp)
+        t[expid] = get_data1(gsistat[expid],'t',it=1,use='asm',typ=ttyp)
+        q[expid] = get_data1(gsistat[expid],'q',it=1,use='asm',typ=qtyp)
+        minim[expid] = get_data2(gsistat[expid],'cost')
+        oz[expid] = get_data2(gsistat[expid],'oz',select=[1],level=['it'])
+        rad[expid] = get_data2(gsistat[expid],'rad',select=[1],level=['it'])
 
     # If instruments are desired, get them too
     if instruments is not None:
