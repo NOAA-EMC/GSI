@@ -232,6 +232,7 @@ export OMP_NUM_THREADS=1
 $NCP $CALCINCEXEC $DATA
 
 INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"NONE"}
+INCREMENTS_TO_ZERO=$(echo $INCREMENTS_TO_ZERO | tr "," "\n")
 
 rm calc_increment.nml
 cat > calc_increment.nml << EOF
@@ -244,9 +245,14 @@ cat > calc_increment.nml << EOF
   nens = $NMEM_ENKF
 /
 &zeroinc
-  incvars_to_zero = "$INCREMENTS_TO_ZERO"
-/
 EOF
+i=1
+for var in $INCREMENTS_TO_ZERO
+do
+   echo "incvars_to_zero($i) = '$var'" >>calc_increment.nml
+   i=`expr $i + 1`
+done
+echo "/" >> calc_increment.nml
 
 cat calc_increment.nml
 
