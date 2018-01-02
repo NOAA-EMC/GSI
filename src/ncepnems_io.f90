@@ -493,7 +493,7 @@ contains
     use nemsio_module, only: nemsio_gfile,nemsio_getfilehead,nemsio_readrecv
     use egrid2agrid_mod,only: g_egrid2agrid,g_create_egrid2agrid,egrid2agrid_parm,destroy_egrid2agrid
     use constants, only: two,pi,half,deg2rad
-    use control_vectors, only: gfdl_mp
+    use control_vectors, only: imp_physics
     implicit none
 
 !   Declare local parameters
@@ -882,7 +882,7 @@ contains
           if (mype==mod(icount-1,npe)) then
              call nemsio_readrecv(gfile,'clwmr','mid layer',k,rwork1d0,iret=iret)
              if (iret /= 0) call error_msg(trim(my_name),trim(filename),'clwmr','read',istop+9,iret)
-             if (gfdl_mp) then
+             if (imp_physics == 11) then
                 call nemsio_readrecv(gfile,'icmr','mid layer',k,rwork1d1,iret=iret)
                 if (iret == 0) then
                    rwork1d0 = rwork1d0 + rwork1d1
@@ -1758,7 +1758,7 @@ contains
     use constants, only: two,pi,half,deg2rad
     use gsi_bundlemod, only: gsi_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
-    use control_vectors, only: gfdl_mp
+    use control_vectors, only: imp_physics
     use cloud_efr_mod, only: cloud_calc_gfs
 
     implicit none
@@ -1913,8 +1913,8 @@ contains
 
        ! Allocate structure arrays to hold data
        allocate(rwork1d(latb*lonb),rwork1d1(latb*lonb))
-       if (gfdl_mp) allocate(grid3b(grd%nlat,grd%nlon,1))
-       if ( diff_res .or. gfdl_mp ) then
+       if (imp_physics == 11) allocate(grid3b(grd%nlat,grd%nlon,1))
+       if ( diff_res .or. imp_physics == 11 ) then
           allocate( grid_b(lonb,latb),grid_c(latb+2,lonb,1),grid3(grd%nlat,grd%nlon,1))
           allocate( grid_b2(lonb,latb),grid_c2(latb+2,lonb,1))
           allocate( rlats(latb+2),rlons(lonb),clons(lonb),slons(lonb),r4lats(lonb*latb),r4lons(lonb*latb))
@@ -2183,17 +2183,17 @@ contains
           call mpi_gatherv(cwsm(1,k),grd%ijn(mm1),mpi_rtype,&
                work1,grd%ijn,grd%displs_g,mpi_rtype,&
                mype_out,mpi_comm_world,ierror)
-          if (gfdl_mp) then
+          if (imp_physics == 11) then
              call mpi_gatherv(tvsm(1,k),grd%ijn(mm1),mpi_rtype,&
                   work2,grd%ijn,grd%displs_g,mpi_rtype,&
                   mype_out,mpi_comm_world,ierror)
           endif
           if (mype == mype_out) then
-             if(diff_res .or. gfdl_mp)then
+             if(diff_res .or. imp_physics == 11)then
                 call nemsio_readrecv(gfile,'clwmr','mid layer',k,rwork1d,iret=iret)
                 if (iret /= 0) call error_msg(trim(my_name),trim(filename),'clwmr','read',istop,iret)
                 grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
-                if (gfdl_mp) then
+                if (imp_physics == 11) then
                    call nemsio_readrecv(gfile,'icmr','mid layer',k,rwork1d1,iret=iret)
                    if (iret /= 0) call error_msg(trim(my_name),trim(filename),'icmr','read',istop,iret)
                    grid_b2=reshape(rwork1d1,(/size(grid_b2,1),size(grid_b2,2)/))
@@ -2211,20 +2211,20 @@ contains
                    i=grd%ltosi(kk)
                    j=grd%ltosj(kk)
                    grid3(i,j,1)=work1(kk)-max(grid3(i,j,1),qcmin)
-                   if (gfdl_mp) then
+                   if (imp_physics == 11) then
                       grid3b(i,j,1)=grid3(i,j,1)
                       grid3(i,j,1)=grid3b(i,j,1)*(one - work2(kk))
                    endif
                 end do
                 call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
-                if (gfdl_mp) grid_b = grid_b - grid_b2
+                if (imp_physics == 11) grid_b = grid_b - grid_b2
                 do j=1,latb
                    do i=1,lonb
                       grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
                    end do
                 end do
                 rwork1d = reshape(grid_b,(/size(rwork1d)/))
-                if (gfdl_mp) then
+                if (imp_physics == 11) then
                    do kk=1,grd%iglobal
                       i=grd%ltosi(kk)
                       j=grd%ltosj(kk)
@@ -2244,7 +2244,7 @@ contains
              endif
              call nemsio_writerecv(gfileo,'clwmr','mid layer',k,rwork1d,iret=iret)
              if (iret /= 0) call error_msg(trim(my_name),trim(filename),'clwmr','write',istop,iret)
-             if (gfdl_mp) then
+             if (imp_physics == 11) then
                 call nemsio_writerecv(gfileo,'icmr','mid layer',k,rwork1d1,iret=iret)
                 if (iret /= 0) call error_msg(trim(my_name),trim(filename),'icmr','write',istop,iret)
 
@@ -2271,7 +2271,7 @@ contains
 !
     if (mype==mype_out) then
        if(diff_res) deallocate(grid_b,grid_b2,grid_c,grid_c2,grid3,clons,slons)
-       if (gfdl_mp) deallocate(grid3b)
+       if (imp_physics == 11) deallocate(grid3b)
        call nemsio_close(gfile,iret)
        if (iret /= 0) call error_msg(trim(my_name),trim(fname_ges),null,'close',istop,iret)
 
