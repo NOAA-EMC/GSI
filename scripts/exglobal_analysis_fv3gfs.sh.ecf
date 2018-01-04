@@ -76,6 +76,9 @@ ntiles=${ntiles:-6}
 # Write component specific
 QUILTING=${QUILTING:-".true."}
 
+# Microphysics in the model; 99:ZC, 11:GFDLMP
+imp_physics=${imp_physics:-99}
+
 # Dependent Scripts and Executables
 NTHREADS_CALCINC=${NTHREADS_CALCINC:-1}
 APRUN_CALCINC=${APRUN_CALCINC:-${APRUN:-""}}
@@ -211,7 +214,7 @@ USE_READIN_ANL_SFCMASK=${USE_READIN_ANL_SFCMASK:-.false.}
 SMOOTH_ENKF=${SMOOTH_ENKF:-"YES"}
 DOIAU=${DOIAU:-"NO"}
 DO_CALC_INCREMENT=${DO_CALC_INCREMENT:-"YES"}
-INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"NONE"}
+INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"'NONE'"}
 
 # Get header information from Guess files
 LONB=${LONB:-$($NEMSIOGET $ATMGES dimx | grep -i "dimx" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
@@ -260,6 +263,12 @@ if [ $DOHYBVAR = "YES" ]; then
        JCAP_ENKF=${JCAP_ENKF:-$((LATB_ENKF-2))}
    fi
 fi
+
+# Get dimension information based on CASE
+res=$(echo $CASE | cut -c2-)
+JCAP_CASE=$((res*2-2))
+LATB_CASE=$((res*2))
+LONB_CASE=$((res*4))
 
 # Set analysis resolution information
 if [ $DOHYBVAR = "YES" ]; then
@@ -320,8 +329,6 @@ else
    l4densvar=.false.
    lwrite4danl=.false.
 fi
-
-imp_physics=${imp_physics:-"99"}
 
 # Set 4D-EnVar specific variables
 if [ $DOHYBVAR = "YES" -a $l4densvar = ".true." -a $lwrite4danl = ".true." ]; then
@@ -463,10 +470,11 @@ $NLN $SSMITBF          ssmitbufr
 $NLN $SSMISBF          ssmisbufr
 $NLN $GPSROBF          gpsrobufr
 $NLN $TCVITL           tcvitl
-$NLN $NSSTBF           nsstbufr
 $NLN $B1AVHAM          avhambufr
 $NLN $B1AVHPM          avhpmbufr
 $NLN $AHIBF            ahibufr
+
+[[ $DONST = "YES" ]] && $NLN $NSSTBF nsstbufr
 
 ##############################################################
 # Required bias guess files
@@ -524,32 +532,32 @@ fi
 
 # Temporary fix
 # Adjust surface pressure and correct elevation
-if [ $DOHYBVAR = "YES" -a $QUILTING = ".true." -a $JCAP -ne $JCAP_CASE -a $JCAP -eq $JCAP_ENKF ]; then
-    if [ $machine = "THEIA" ]; then
-        APRUN_ADJUSTPS="time"
-    elif [ $machine = "WCOSS_C" ]; then
-        APRUN_ADJUSTPS="aprun -j 1 -N 1 -n 1 -d 1 -cc depth"
-    fi
-    ADJUSTPSEXEC=${ADJUSTPSEXEC:-$BASE_GSI/exec/adjustps.x}
-    $NCP $ADJUSTPSEXEC $DATA
-    $NLN $ATMG03 sigf03_raw
-    $NLN $ATMGES sigf06_raw
-    $NLN $ATMG09 sigf09_raw
-    [[ -f $ATMG04 ]] && $NLN $ATMG04 sigf04_raw
-    [[ -f $ATMG05 ]] && $NLN $ATMG05 sigf05_raw
-    [[ -f $ATMG07 ]] && $NLN $ATMG07 sigf07_raw
-    [[ -f $ATMG08 ]] && $NLN $ATMG08 sigf08_raw
-    fhrs="03 04 05 06 07 08 09"
-    for fhr in $fhrs; do
-        if [ -f sigf$fhr ]; then
-            $APRUN_ADJUSTPS $DATA/$(basename $ADJUSTPSEXEC) sigf${fhr}_raw $DATA/ensemble_data/sigf${fhr}_mem001 sigf${fhr}
-            rc=$?
-            export ERR=$rc
-            export err=$ERR
-            $ERRSCRIPT || exit 6
-        fi
-    done
-fi
+#if [ $DOHYBVAR = "YES" -a $QUILTING = ".true." -a $JCAP -ne $JCAP_CASE -a $JCAP -eq $JCAP_ENKF ]; then
+#    if [ $machine = "THEIA" ]; then
+#        APRUN_ADJUSTPS="time"
+#    elif [ $machine = "WCOSS_C" ]; then
+#        APRUN_ADJUSTPS="aprun -j 1 -N 1 -n 1 -d 1 -cc depth"
+#    fi
+#    ADJUSTPSEXEC=${ADJUSTPSEXEC:-$BASE_GSI/exec/adjustps.x}
+#    $NCP $ADJUSTPSEXEC $DATA
+#    $NLN $ATMG03 sigf03_raw
+#    $NLN $ATMGES sigf06_raw
+#    $NLN $ATMG09 sigf09_raw
+#    [[ -f $ATMG04 ]] && $NLN $ATMG04 sigf04_raw
+#    [[ -f $ATMG05 ]] && $NLN $ATMG05 sigf05_raw
+#    [[ -f $ATMG07 ]] && $NLN $ATMG07 sigf07_raw
+#    [[ -f $ATMG08 ]] && $NLN $ATMG08 sigf08_raw
+#    fhrs="03 04 05 06 07 08 09"
+#    for fhr in $fhrs; do
+#        if [ -f sigf$fhr ]; then
+#            $APRUN_ADJUSTPS $DATA/$(basename $ADJUSTPSEXEC) sigf${fhr}_raw $DATA/ensemble_data/sigf${fhr}_mem001 sigf${fhr}
+#            rc=$?
+#            export ERR=$rc
+#            export err=$ERR
+#            $ERRSCRIPT || exit 6
+#        fi
+#    done
+#fi
 
 ##############################################################
 # Handle inconsistent surface mask between background, ensemble and analysis grids
@@ -879,8 +887,6 @@ if [ $DO_CALC_INCREMENT = "YES" ]; then
   export OMP_NUM_THREADS=$NTHREADS_CALCINC
   $NCP $CALCINCEXEC $DATA
 
-  INCREMENTS_TO_ZERO=$(echo $INCREMENTS_TO_ZERO | tr "," "\n")
-
   rm calc_increment.nml
   cat > calc_increment.nml << EOF
 &setup
@@ -890,17 +896,12 @@ if [ $DO_CALC_INCREMENT = "YES" ]; then
   increment_filename = 'atminc'
   debug = .false.
   nens = $ncmd
+  imp_physics = $imp_physics
 /
 &zeroinc
+  incvars_to_zero = $INCREMENTS_TO_ZERO
+/
 EOF
-  i=1
-  for var in $INCREMENTS_TO_ZERO
-  do
-     echo "incvars_to_zero($i) = '$var'" >>calc_increment.nml
-     i=`expr $i + 1`
-  done
-  echo "/" >> calc_increment.nml
-
   cat calc_increment.nml
 
   APRUN=$(eval echo $APRUN_CALCINC)
@@ -916,12 +917,6 @@ fi
 if [ $DOGCYCLE = "YES" ]; then
 
     mkdir -p $COMOUT/RESTART
-
-    # Get dimension information based on CASE
-    res=$(echo $CASE | cut -c2-)
-    JCAP_CASE=$((res*2-2))
-    LATB_CASE=$((res*2))
-    LONB_CASE=$((res*4))
 
     # Global cycle requires these files
     export FNTSFA=${FNTSFA:-$COMIN_OBS/${OPREFIX}rtgssthr.grb}

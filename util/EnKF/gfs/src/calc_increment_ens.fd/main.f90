@@ -1,6 +1,6 @@
 program calc_increment_main
 
-  use namelist_def, only : read_namelist
+  use namelist_def, only : read_namelist, write_namelist
   use namelist_def, only : analysis_filename, firstguess_filename, increment_filename
   use namelist_def, only : datapath
   use namelist_def, only : debug
@@ -12,6 +12,7 @@ program calc_increment_main
   integer :: i
 
   call read_namelist
+  call write_namelist
 
   analysis_filename = trim(adjustl(datapath)) // trim(adjustl(analysis_filename))
   firstguess_filename = trim(adjustl(datapath)) // trim(adjustl(firstguess_filename))

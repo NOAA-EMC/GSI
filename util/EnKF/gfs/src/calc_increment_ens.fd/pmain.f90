@@ -1,7 +1,7 @@
 program calc_increment_pmain
 
   use mpi
-  use namelist_def, only : read_namelist
+  use namelist_def, only : read_namelist, write_namelist
   use namelist_def, only : analysis_filename, firstguess_filename, increment_filename
   use namelist_def, only : datapath
   use namelist_def, only : debug
@@ -21,6 +21,7 @@ program calc_increment_pmain
   call mpi_comm_size(mpi_comm_world, npes, ierr)
 
   call read_namelist
+  if ( mype == 0 ) call write_namelist
 
   if ( npes < nens ) then
     if ( mype == 0 ) then
@@ -29,8 +30,8 @@ program calc_increment_pmain
     endif
     call mpi_abort(mpi_comm_world, 99, ierr)
   endif
-  
-  mype1 = mype + 1 
+
+  mype1 = mype + 1
   write(memchar,'(I3.3)') mype1
 
   analysis_filename = trim(adjustl(datapath)) // trim(adjustl(analysis_filename)) // '_mem' // trim(adjustl(memchar))
