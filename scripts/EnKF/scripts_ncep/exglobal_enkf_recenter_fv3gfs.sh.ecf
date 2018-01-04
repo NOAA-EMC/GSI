@@ -66,6 +66,8 @@ GSUFFIX=${GSUFFIX:-""}
 
 # Variables
 NMEM_ENKF=${NMEM_ENKF:-80}
+imp_physics=${imp_physics:-99}
+INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"'NONE'"}
 
 # global_chgres stuff
 CHGRESEXEC=${CHGRESEXEC:-$BASE_GSM/exec/chgres_recenter.exe}
@@ -221,9 +223,6 @@ fi
 export OMP_NUM_THREADS=1
 $NCP $CALCINCEXEC $DATA
 
-INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"NONE"}
-INCREMENTS_TO_ZERO=$(echo $INCREMENTS_TO_ZERO | tr "," "\n")
-
 rm calc_increment.nml
 cat > calc_increment.nml << EOF
 &setup
@@ -233,17 +232,12 @@ cat > calc_increment.nml << EOF
   increment_filename = 'atminc'
   debug = .false.
   nens = $NMEM_ENKF
+  imp_physics = $imp_physics
 /
 &zeroinc
+  incvars_to_zero = $INCREMENTS_TO_ZERO
+/
 EOF
-i=1
-for var in $INCREMENTS_TO_ZERO
-do
-   echo "incvars_to_zero($i) = '$var'" >>calc_increment.nml
-   i=`expr $i + 1`
-done
-echo "/" >> calc_increment.nml
-
 cat calc_increment.nml
 
 $APRUN_ECEN ${DATA}/$(basename $CALCINCEXEC)
