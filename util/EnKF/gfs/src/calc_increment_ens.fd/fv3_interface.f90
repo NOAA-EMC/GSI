@@ -164,7 +164,7 @@ contains
     integer :: varid_u_inc
     integer :: varid_v_inc
     integer :: varid_delp_inc
-    integer :: varid_t_inc
+    integer :: varid_temp_inc
     integer :: varid_sphum_inc
     integer :: varid_clwmr_inc
     integer :: varid_o3mr_inc
@@ -176,262 +176,185 @@ contains
     integer :: ncfileid
     integer :: ncvarid
     integer :: ncdimid
-    integer :: ncstatus
 
     !=====================================================================
 
     ! Define local variables
 
     print *,'writing to ',trim(increment_filename)
-    ncstatus    = nf90_create(trim(increment_filename),                 &
-         cmode=ior(NF90_CLOBBER,NF90_64BIT_OFFSET),ncid=ncfileid)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error opening file ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_def_dim(ncfileid,'lon',grid%nx,dimid_lon)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error creating lon dim ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_def_dim(ncfileid,'lat',grid%ny,dimid_lat)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error creating lat dim ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_def_dim(ncfileid,'lev',grid%nz,dimid_lev)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error creating lev dim ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_def_dim(ncfileid,'ilev',grid%nzp1,dimid_ilev)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error creating ilev dim ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    dimid_1d(1) = dimid_lon
-    ncstatus    = nf90_def_var(ncfileid,'lon',nf90_float,dimid_1d,         &
-         & varid_lon)
+    call netcdf_check(nf90_create(trim(increment_filename), &
+         cmode=ior(NF90_CLOBBER,NF90_64BIT_OFFSET),ncid=ncfileid), &
+         & 'nf90_create')
+
+    call netcdf_check(nf90_def_dim(ncfileid,'lon',grid%nx,dimid_lon), &
+         & 'nf90_def_dim', context='lon')
+
+    call netcdf_check(nf90_def_dim(ncfileid,'lat',grid%ny,dimid_lat), &
+         & 'nf90_def_dim', context='lat')
+
+    call netcdf_check(nf90_def_dim(ncfileid,'lev',grid%nz,dimid_lev), &
+         & 'nf90_def_dim', context='lev')
+
+    call netcdf_check(nf90_def_dim(ncfileid,'ilev',grid%nzp1,dimid_ilev), &
+         & 'nf90_def_dim', context='ilev')
+
     if (debug) print *,'dims',grid%nx,grid%ny,grid%nz,grid%nzp1
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error creating lon ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_put_att(ncfileid,varid_lon,'units','degrees_east')
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error creating lon units ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
+
+    dimid_1d(1) = dimid_lon
+    call netcdf_check(nf90_def_var(ncfileid,'lon',nf90_float,dimid_1d,varid_lon), &
+         & 'nf90_def_var lon')
+    call netcdf_check(nf90_put_att(ncfileid,varid_lon,'units','degrees_east'), &
+         & 'nf90_put_att', context='lon units')
+
     dimid_1d(1) = dimid_lat
-    ncstatus    = nf90_def_var(ncfileid,'lat',nf90_float,dimid_1d,         &
-         & varid_lat)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error creating lat ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_put_att(ncfileid,varid_lat,'units','degrees_north')
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error creating lat units ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
+    call netcdf_check(nf90_def_var(ncfileid,'lat',nf90_float,dimid_1d,varid_lat), &
+         & 'nf90_def_var', context='lat')
+    call netcdf_check(nf90_put_att(ncfileid,varid_lat,'units','degrees_north'), &
+         & 'nf90_put_att', context='lat units')
+
     dimid_1d(1) = dimid_lev
-    ncstatus    = nf90_def_var(ncfileid,'lev',nf90_float,dimid_1d,         &
-         & varid_lev)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error creating lev ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_def_var(ncfileid,'pfull',nf90_float,dimid_1d,       &
-         & varid_pfull)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error creating pfull ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
+    call netcdf_check(nf90_def_var(ncfileid,'lev',nf90_float,dimid_1d,varid_lev), &
+         & 'nf90_def_var', context='lev')
+
+    call netcdf_check(nf90_def_var(ncfileid,'pfull',nf90_float,dimid_1d,varid_pfull), &
+         & 'nf90_def_var', context='pfull')
+
     dimid_1d(1) = dimid_ilev
-    ncstatus    = nf90_def_var(ncfileid,'ilev',nf90_float,dimid_1d,        &
-         & varid_ilev)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error creating ilev ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_def_var(ncfileid,'hyai',nf90_float,dimid_1d,        &
-         & varid_hyai)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error creating hyai ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_def_var(ncfileid,'hybi',nf90_float,dimid_1d,        &
-         & varid_hybi)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error creating hybi ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
+    call netcdf_check(nf90_def_var(ncfileid,'ilev',nf90_float,dimid_1d,varid_ilev), &
+         & 'nf90_def_var', context='ilev')
+
+    call netcdf_check(nf90_def_var(ncfileid,'hyai',nf90_float,dimid_1d,varid_hyai), &
+         & 'nf90_def_var', context='hyai')
+
+    call netcdf_check(nf90_def_var(ncfileid,'hybi',nf90_float,dimid_1d,varid_hybi), &
+         & 'nf90_def_var', context='hybi')
+
     dimid_3d(1) = dimid_lon
     dimid_3d(2) = dimid_lat
     dimid_3d(3) = dimid_lev
-    ncstatus    = nf90_def_var(ncfileid,'u_inc',nf90_float,dimid_3d,       &
-         & varid_u_inc)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error creating u_inc ',trim(nf90_strerror(ncstatus))
-       stop 1
+
+    call netcdf_check(nf90_def_var(ncfileid,'u_inc',nf90_float,dimid_3d,varid_u_inc), &
+         & 'nf90_def_var', context='u_inc')
+
+    call netcdf_check(nf90_def_var(ncfileid,'v_inc',nf90_float,dimid_3d,varid_v_inc), &
+         & 'nf90_def_var', context='v_inc')
+
+    call netcdf_check(nf90_def_var(ncfileid,'delp_inc',nf90_float,dimid_3d,varid_delp_inc), &
+         & 'nf90_def_var', context='delp_inc')
+
+    call netcdf_check(nf90_def_var(ncfileid,'T_inc',nf90_float,dimid_3d,varid_temp_inc), &
+         & 'nf90_def_var', context='temp_inc')
+
+    call netcdf_check(nf90_def_var(ncfileid,'sphum_inc',nf90_float,dimid_3d,varid_sphum_inc), &
+         & 'nf90_def_var', context='sphum_inc')
+
+    call netcdf_check(nf90_def_var(ncfileid,'liq_wat_inc',nf90_float,dimid_3d,varid_clwmr_inc), &
+         & 'nf90_def_var', context='clwmr_inc')
+
+    call netcdf_check(nf90_def_var(ncfileid,'o3mr_inc',nf90_float,dimid_3d,varid_o3mr_inc), &
+         & 'nf90_def_var', context='o3mr_inc')
+
+    if ( do_icmr ) then
+      call netcdf_check(nf90_def_var(ncfileid,'icmr_inc',nf90_float,dimid_3d, varid_icmr_inc), &
+           & 'nf90_def_var', context='icmr_inc')
     endif
-    ncstatus    = nf90_def_var(ncfileid,'v_inc',nf90_float,dimid_3d,       &
-         & varid_v_inc)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error creating v_inc ',trim(nf90_strerror(ncstatus))
-       stop 1
+
+    call netcdf_check(nf90_put_att(ncfileid,nf90_global,'source','GSI'), &
+         & 'nf90_put_att', context='source')
+
+    call netcdf_check(nf90_put_att(ncfileid,nf90_global,'comment','global analysis increment from calc_increment.x'), &
+         & 'nf90_put_att', context='comment')
+
+    call netcdf_check(nf90_enddef(ncfileid), &
+         & 'nf90_enddef')
+
+    call netcdf_check(nf90_put_var(ncfileid,varid_lon,grid%lon), &
+         & 'nf90_put_var', context='lon')
+
+    call netcdf_check(nf90_put_var(ncfileid,varid_lat,grid%lat), &
+         & 'nf90_put_var', context='lat')
+
+    call netcdf_check(nf90_put_var(ncfileid,varid_lev,grid%lev), &
+         & 'nf90_put_var', context='lev')
+
+    call netcdf_check(nf90_put_var(ncfileid,varid_ilev,grid%ilev), &
+         & 'nf90_put_var', context='ilev')
+
+    call netcdf_check(nf90_put_var(ncfileid,varid_pfull,grid%pfull), &
+         & 'nf90_put_var', context='pfull')
+
+    call netcdf_check(nf90_put_var(ncfileid,varid_hyai,grid%hyai), &
+         & 'nf90_put_var', context='hyai')
+
+    call netcdf_check(nf90_put_var(ncfileid,varid_hybi,grid%hybi), &
+         & 'nf90_put_var', context='hybi')
+
+    if (debug) print*, 'writing u_inc min/max =', minval(grid%u_inc),maxval(grid%u_inc)
+    call netcdf_check(nf90_put_var(ncfileid,varid_u_inc,grid%u_inc), &
+         & 'nf90_put_var', context='u_inc')
+
+    if (debug) print*, 'writing v_inc min/max =', minval(grid%v_inc),maxval(grid%v_inc)
+    call netcdf_check(nf90_put_var(ncfileid,varid_v_inc,grid%v_inc), &
+         & 'nf90_put_var', context='v_inc')
+
+    if (debug) print*, 'writing delp_inc min/max =', minval(grid%delp_inc),maxval(grid%delp_inc)
+    call netcdf_check(nf90_put_var(ncfileid,varid_delp_inc,grid%delp_inc), &
+         & 'nf90_put_var', context='delp_inc')
+
+    if (debug) print*, 'writing temp_inc min/max =', minval(grid%temp_inc),maxval(grid%temp_inc)
+    call netcdf_check(nf90_put_var(ncfileid,varid_temp_inc,grid%temp_inc), &
+         & 'nf90_put_var', context='temp_inc')
+
+    if (debug) print*, 'writing sphum_inc min/max =', minval(grid%sphum_inc),maxval(grid%sphum_inc)
+    call netcdf_check(nf90_put_var(ncfileid,varid_sphum_inc,grid%sphum_inc), &
+         & 'nf90_put_var', context='sphum_inc')
+
+    if (debug) print*, 'writing clwmr_inc min/max =', minval(grid%clwmr_inc),maxval(grid%clwmr_inc)
+    call netcdf_check(nf90_put_var(ncfileid,varid_clwmr_inc,grid%clwmr_inc), &
+         & 'nf90_put_var', context='clwmr_inc')
+
+    if (debug) print*, 'writing o3mr_inc min/max =', minval(grid%o3mr_inc),maxval(grid%o3mr_inc)
+    call netcdf_check(nf90_put_var(ncfileid,varid_o3mr_inc,grid%o3mr_inc), &
+         & 'nf90_put_var', context='o3mr_inc')
+
+    if ( do_icmr ) then
+      if (debug) print*, 'writing icmr_inc min/max =', minval(grid%icmr_inc),maxval(grid%icmr_inc)
+      call netcdf_check(nf90_put_var(ncfileid,varid_icmr_inc,grid%icmr_inc), &
+           & 'nf90_put_var', context='icmr_inc')
     endif
-    ncstatus    = nf90_def_var(ncfileid,'delp_inc',nf90_float,dimid_3d,    &
-         & varid_delp_inc)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error creating delp_inc ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_def_var(ncfileid,'T_inc',nf90_float,dimid_3d,       &
-         & varid_t_inc)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error creating T_inc ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_def_var(ncfileid,'sphum_inc',nf90_float,dimid_3d,   &
-         & varid_sphum_inc)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error creating sphum_inc ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_def_var(ncfileid,'liq_wat_inc',nf90_float,dimid_3d, &
-         & varid_clwmr_inc)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error creating clwmr_inc ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_def_var(ncfileid,'o3mr_inc',nf90_float,dimid_3d,    &
-         & varid_o3mr_inc)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error creating o3mr_inc ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_def_var(ncfileid,'icmr_inc',nf90_float,dimid_3d, &
-         & varid_icmr_inc)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error creating icmr_inc ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_put_att(ncfileid,nf90_global,'source','GSI')
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error creating global attribute source',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_put_att(ncfileid,nf90_global,'comment','global analysis increment from calc_increment.x')
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error creating global attribute comment',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_enddef(ncfileid)
-    if (ncstatus /= nf90_noerr) then
-       print *,'enddef error ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_put_var(ncfileid,varid_lon,grid%lon)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error writing lon ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_put_var(ncfileid,varid_lat,grid%lat)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error writing lat ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_put_var(ncfileid,varid_lev,grid%lev)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error writing lev ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_put_var(ncfileid,varid_pfull,grid%pfull)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error writing pfull ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_put_var(ncfileid,varid_ilev,grid%ilev)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error writing ilev ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_put_var(ncfileid,varid_hyai,grid%hyai)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error writing hyai ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_put_var(ncfileid,varid_hybi,grid%hybi)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error writing hybi ',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    if (debug) print *,'writing u_inc, min/max =',&
-     minval(grid%u_inc),maxval(grid%u_inc)
-    ncstatus    = nf90_put_var(ncfileid,varid_u_inc,grid%u_inc)
-    if (ncstatus /= nf90_noerr) then
-       print *, trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    if (debug) print *,'writing v_inc, min/max =',&
-    minval(grid%v_inc),maxval(grid%v_inc)
-    ncstatus    = nf90_put_var(ncfileid,varid_v_inc,grid%v_inc)
-    if (ncstatus /= nf90_noerr) then
-       print *, trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    if (debug) print *,'writing delp_inc, min/max =',&
-    minval(grid%delp_inc),maxval(grid%delp_inc)
-    ncstatus    = nf90_put_var(ncfileid,varid_delp_inc,grid%delp_inc)
-    if (ncstatus /= nf90_noerr) then
-       print *, trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    if (debug) print *,'writing temp_inc, min/max =',&
-    minval(grid%temp_inc),maxval(grid%temp_inc)
-    ncstatus    = nf90_put_var(ncfileid,varid_t_inc,grid%temp_inc)
-    if (ncstatus /= nf90_noerr) then
-       print *, trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    if (debug) print *,'writing sphum_inc, min/max =',&
-    minval(grid%sphum_inc),maxval(grid%sphum_inc)
-    ncstatus    = nf90_put_var(ncfileid,varid_sphum_inc,grid%sphum_inc)
-    if (ncstatus /= nf90_noerr) then
-       print *, trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    if (debug) print *,'writing clwmr_inc, min/max =',&
-    minval(grid%clwmr_inc),maxval(grid%clwmr_inc)
-    ncstatus    = nf90_put_var(ncfileid,varid_clwmr_inc,grid%clwmr_inc)
-    if (ncstatus /= nf90_noerr) then
-       print *, trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    if (debug) print *,'writing o3mr_inc, min/max =',&
-    minval(grid%o3mr_inc),maxval(grid%o3mr_inc)
-    ncstatus    = nf90_put_var(ncfileid,varid_o3mr_inc,grid%o3mr_inc)
-    if (ncstatus /= nf90_noerr) then
-       print *, trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    if (debug) print *,'writing icmr_inc, min/max =',&
-    minval(grid%icmr_inc),maxval(grid%icmr_inc)
-    ncstatus    = nf90_put_var(ncfileid,varid_icmr_inc,grid%icmr_inc)
-    if (ncstatus /= nf90_noerr) then
-       print *, trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
-    ncstatus    = nf90_close(ncfileid)
-    if (ncstatus /= nf90_noerr) then
-       print *, 'error closing file:',trim(nf90_strerror(ncstatus))
-       stop 1
-    endif
+
+    call netcdf_check(nf90_close(ncfileid), &
+         & 'nf90_close')
 
     !=====================================================================
 
   end subroutine fv3_increment_write
+
+  !=======================================================================
+
+  !=======================================================================
+
+  subroutine netcdf_check(ncstatus, nf90_call, context)
+
+    implicit none
+
+    integer, intent(in) :: ncstatus
+    character(len=*), intent(in) :: nf90_call
+    character(len=*), intent(in), optional :: context
+
+    character(len=500) :: error_msg
+
+    if (ncstatus /= nf90_noerr) then
+      if ( present(context) ) then
+        error_msg = 'error in: ' // trim(nf90_call) // ': ' // trim(context) // ': '//trim(nf90_strerror(ncstatus))
+      else
+        error_msg = 'error in: ' // trim(nf90_call) // ': ' // trim(nf90_strerror(ncstatus))
+      endif
+       print*, trim(error_msg)
+       stop 1
+    endif
+
+  end subroutine netcdf_check
 
   !=======================================================================
 
@@ -477,7 +400,7 @@ contains
     incr_grid%sphum_inc = an_grid%spfh  - fg_grid%spfh
     incr_grid%clwmr_inc = an_grid%clwmr - fg_grid%clwmr
     incr_grid%o3mr_inc  = an_grid%o3mr  - fg_grid%o3mr
-    incr_grid%icmr_inc  = an_grid%icmr  - fg_grid%icmr
+    if ( do_icmr ) incr_grid%icmr_inc  = an_grid%icmr  - fg_grid%icmr
 
     do i=1,max_vars
         varname = incvars_to_zero(i)
@@ -489,7 +412,7 @@ contains
             if ( trim(varname) == 'sphum_inc' ) incr_grid%sphum_inc = zero
             if ( trim(varname) == 'clwmr_inc' ) incr_grid%clwmr_inc = zero
             if ( trim(varname) == 'o3mwr_inc' ) incr_grid%o3mr_inc  = zero
-            if ( trim(varname) == 'icmr_inc'  ) incr_grid%icmr_inc  = zero
+            if ( do_icmr .and. trim(varname) == 'icmr_inc' ) incr_grid%icmr_inc = zero
         else
             cycle
         endif
@@ -686,14 +609,16 @@ contains
             & reshape(workgrid,(/meta_nemsio%dimx,meta_nemsio%dimy/))
        if (flip_lats) call gfs_nems_flip_xlat_axis(meta_nemsio,            &
             & grid%o3mr(:,:,meta_nemsio%dimz - k + 1))
-       var_info%var_name                        = 'icmr'
-       call variable_lookup(var_info)
-       call gfs_nems_read(workgrid,var_info%nems_name,                     &
-            & var_info%nems_levtyp,k)
-       grid%icmr(:,:,meta_nemsio%dimz - k + 1)  =                          &
-            & reshape(workgrid,(/meta_nemsio%dimx,meta_nemsio%dimy/))
-       if (flip_lats) call gfs_nems_flip_xlat_axis(meta_nemsio,            &
-            & grid%icmr(:,:,meta_nemsio%dimz - k + 1))
+       if ( do_icmr ) then
+         var_info%var_name                        = 'icmr'
+         call variable_lookup(var_info)
+         call gfs_nems_read(workgrid,var_info%nems_name,                     &
+              & var_info%nems_levtyp,k)
+         grid%icmr(:,:,meta_nemsio%dimz - k + 1)  =                          &
+              & reshape(workgrid,(/meta_nemsio%dimx,meta_nemsio%dimy/))
+         if (flip_lats) call gfs_nems_flip_xlat_axis(meta_nemsio,            &
+              & grid%icmr(:,:,meta_nemsio%dimz - k + 1))
+       endif
 
     end do ! do k = 1, meta_nemsio%dimz
 
@@ -750,7 +675,7 @@ contains
          & allocate(grid%clwmr_inc(grid%nx,grid%ny,grid%nz))
     if(.not. allocated(grid%o3mr_inc))                                     &
          & allocate(grid%o3mr_inc(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(grid%icmr_inc))                                     &
+    if(do_icmr .and. .not. allocated(grid%icmr_inc))                       &
          & allocate(grid%icmr_inc(grid%nx,grid%ny,grid%nz))
     if(.not. allocated(grid%lon))                                          &
          & allocate(grid%lon(grid%nx))
@@ -780,7 +705,7 @@ contains
          & allocate(an_grid%clwmr(grid%nx,grid%ny,grid%nz))
     if(.not. allocated(an_grid%o3mr))                                      &
          & allocate(an_grid%o3mr(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(an_grid%icmr))                                      &
+    if(do_icmr .and. .not. allocated(an_grid%icmr))                        &
          & allocate(an_grid%icmr(grid%nx,grid%ny,grid%nz))
     if(.not. allocated(an_grid%psfc))                                      &
          & allocate(an_grid%psfc(grid%nx,grid%ny))
@@ -804,7 +729,7 @@ contains
          & allocate(fg_grid%clwmr(grid%nx,grid%ny,grid%nz))
     if(.not. allocated(fg_grid%o3mr))                                      &
          & allocate(fg_grid%o3mr(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(fg_grid%icmr))                                      &
+    if(do_icmr .and. .not. allocated(fg_grid%icmr))                        &
          & allocate(fg_grid%icmr(grid%nx,grid%ny,grid%nz))
     if(.not. allocated(fg_grid%psfc))                                      &
          & allocate(fg_grid%psfc(grid%nx,grid%ny))
@@ -842,7 +767,7 @@ contains
     if(allocated(grid%temp_inc))  deallocate(grid%temp_inc)
     if(allocated(grid%clwmr_inc)) deallocate(grid%clwmr_inc)
     if(allocated(grid%o3mr_inc))  deallocate(grid%o3mr_inc)
-    if(allocated(grid%icmr_inc))  deallocate(grid%icmr_inc)
+    if(do_icmr .and. allocated(grid%icmr_inc)) deallocate(grid%icmr_inc)
     if(allocated(grid%lon))       deallocate(grid%lon)
     if(allocated(grid%lat))       deallocate(grid%lat)
     if(allocated(grid%lev))       deallocate(grid%lev)
@@ -857,7 +782,7 @@ contains
     if(allocated(an_grid%tmp))    deallocate(an_grid%tmp)
     if(allocated(an_grid%clwmr))  deallocate(an_grid%clwmr)
     if(allocated(an_grid%o3mr))   deallocate(an_grid%o3mr)
-    if(allocated(an_grid%icmr))   deallocate(an_grid%icmr)
+    if(do_icmr .and. allocated(an_grid%icmr)) deallocate(an_grid%icmr)
     if(allocated(an_grid%psfc))   deallocate(an_grid%psfc)
     if(allocated(an_grid%ak))     deallocate(an_grid%ak)
     if(allocated(an_grid%bk))     deallocate(an_grid%bk)
@@ -869,7 +794,7 @@ contains
     if(allocated(fg_grid%tmp))    deallocate(fg_grid%tmp)
     if(allocated(fg_grid%clwmr))  deallocate(fg_grid%clwmr)
     if(allocated(fg_grid%o3mr))   deallocate(fg_grid%o3mr)
-    if(allocated(fg_grid%icmr))   deallocate(fg_grid%icmr)
+    if(do_icmr .and. allocated(fg_grid%icmr)) deallocate(fg_grid%icmr)
     if(allocated(fg_grid%psfc))   deallocate(fg_grid%psfc)
     if(allocated(fg_grid%ak))     deallocate(fg_grid%ak)
     if(allocated(fg_grid%bk))     deallocate(fg_grid%bk)

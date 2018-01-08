@@ -149,9 +149,9 @@ contains
   subroutine gfs_nems_initialize(meta_nemsio,filename)
 
     ! Define variables passed to routine
-    
-    type(nemsio_meta)                                                    :: meta_nemsio
-    character(len=500),                        optional,   intent(inout) :: filename
+
+    type(nemsio_meta)                           :: meta_nemsio
+    character(len=500), optional, intent(inout) :: filename
 
     !=====================================================================
 
@@ -168,8 +168,8 @@ contains
          & iret=nemsio_iret)
     call nemsio_getfilehead(gfile,iret=nemsio_iret,                     &
          & dimx=meta_nemsio%dimx,                                       &
-         & nrec=meta_nemsio%nrec,                                       & 
-         & dimy=meta_nemsio%dimy)                                       
+         & nrec=meta_nemsio%nrec,                                       &
+         & dimy=meta_nemsio%dimy)
     if (.not. allocated(meta_nemsio%lon)) &
     allocate(meta_nemsio%lon(meta_nemsio%dimx*meta_nemsio%dimy))
     if (.not. allocated(meta_nemsio%lat)) &
@@ -186,7 +186,12 @@ contains
          & nfhour=meta_nemsio%fhour,                                    &
          & nfminute=meta_nemsio%nfminute,                               &
          & nfsecondn=meta_nemsio%nfsecondn,                             &
-         & nfsecondd=meta_nemsio%nfsecondd)
+         & nfsecondd=meta_nemsio%nfsecondd,                             &
+         & reclev=meta_nemsio%reclev,                                   &
+         & recname=meta_nemsio%recname)
+
+!    call nemsio_getfilehead(gfile,reclev=meta_nemsio%reclev,iret=nemsio_iret)
+!    call nemsio_getfilehead(gfile,reclev=meta_nemsio%recname,iret=nemsio_iret)
 
     ! Define format statements
 
@@ -223,7 +228,7 @@ contains
   subroutine gfs_nems_vcoord(meta_nemsio,filename,vcoord)
 
     ! Define variables passed to routine
-    
+
     type(nemsio_gfile)                                                   :: lgfile
     type(nemsio_meta)                                                    :: meta_nemsio
     character(len=500)                                                   :: filename
@@ -383,7 +388,7 @@ contains
   subroutine gfs_grid_initialize(grid,meta_nemsio)
 
     ! Define variables passed to routine
-    
+
     type(gfs_grid)                                                       :: grid
     type(nemsio_meta)                                                    :: meta_nemsio
 
@@ -404,7 +409,7 @@ contains
     call init_constants_derived()
 
     ! Allocate memory for local variables
-       
+
     if(.not. allocated(grid%rlon))                                         &
          & allocate(grid%rlon(grid%nlons,grid%nlats))
     if(.not. allocated(grid%rlat))                                         &
@@ -413,11 +418,11 @@ contains
          & allocate(workgrid(grid%nlats))
 
     ! Compute local variables
-    
+
     grid%ncoords = grid%nlons*grid%nlats
-    
+
     n = 0
-    do j=1,grid%nlats 
+    do j=1,grid%nlats
     do i=1,grid%nlons
        n = n + 1
        grid%rlon(i,j) = meta_nemsio%lon(n)
@@ -444,7 +449,7 @@ contains
   subroutine gfs_grid_cleanup(grid)
 
     ! Define variables passed to routine
-    
+
     type(gfs_grid)                                                       :: grid
 
     !=====================================================================

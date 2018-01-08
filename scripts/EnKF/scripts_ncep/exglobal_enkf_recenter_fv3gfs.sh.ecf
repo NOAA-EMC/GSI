@@ -66,20 +66,13 @@ GSUFFIX=${GSUFFIX:-""}
 
 # Variables
 NMEM_ENKF=${NMEM_ENKF:-80}
+imp_physics=${imp_physics:-99}
+INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"'NONE'"}
 
 # global_chgres stuff
-CHGRESEXEC=${CHGRESEXEC-$BASE_GSM/exec/chgres_recenter.exe}
+CHGRESEXEC=${CHGRESEXEC:-$BASE_GSM/exec/chgres_recenter.exe}
 NTHREADS_CHGRES=${NTHREADS_CHGRES:-24}
 APRUN_CHGRES=${APRUN_CHGRES:-""}
-export FIXgsm=${FIXgsm:-$BASE_GSM/fix/fix_am}
-
-# global_cycle stuff
-CYCLESH=${CYCLESH:-$BASE_GSM/ush/global_cycle.sh}
-export CYCLEXEC=${CYCLEXEC:-$BASE_GSM/exec/global_cycle}
-export FIXfv3=${FIXfv3:-$BASE_GSM/fix/fix_fv3}
-export CYCLVARS=${CYCLVARS:-"FSNOL=-2.,FSNOS=99999.,"}
-export FHOUR=${FHOUR:-0}
-export DELTSFC=${DELTSFC:-6}
 
 # global_cycle stuff
 CYCLESH=${CYCLESH:-$BASE_GSM/ush/global_cycle.sh}
@@ -165,7 +158,6 @@ if [ $RECENTER_ENKF = "YES" ]; then
 
       $NLN $ATMANL_GSI atmanl_gsi
 
-      OROGRAPHY=${OROGRAPHY:-${FIXgsm}/global_orography.t${JCAP_ENKF}.${LONB_ENKF}.${LATB_ENKF}.grb}
       SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS}.txt}
 
       export OMP_NUM_THREADS=$NTHREADS_CHGRES
@@ -177,7 +169,7 @@ if [ $RECENTER_ENKF = "YES" ]; then
   j_output=$LATB_ENKF
   input_file="atmanl_gsi"
   output_file="atmanl_gsi_ensres"
-  terrain_file="$OROGRAPHY"
+  terrain_file="atmanl_ensmean"
   vcoord_file="$SIGLEVEL"
 /
 EOF
@@ -231,9 +223,6 @@ fi
 export OMP_NUM_THREADS=1
 $NCP $CALCINCEXEC $DATA
 
-INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"NONE"}
-INCREMENTS_TO_ZERO=$(echo $INCREMENTS_TO_ZERO | tr "," "\n")
-
 rm calc_increment.nml
 cat > calc_increment.nml << EOF
 &setup
@@ -243,17 +232,12 @@ cat > calc_increment.nml << EOF
   increment_filename = 'atminc'
   debug = .false.
   nens = $NMEM_ENKF
+  imp_physics = $imp_physics
 /
 &zeroinc
+  incvars_to_zero = $INCREMENTS_TO_ZERO
+/
 EOF
-i=1
-for var in $INCREMENTS_TO_ZERO
-do
-   echo "incvars_to_zero($i) = '$var'" >>calc_increment.nml
-   i=`expr $i + 1`
-done
-echo "/" >> calc_increment.nml
-
 cat calc_increment.nml
 
 $APRUN_ECEN ${DATA}/$(basename $CALCINCEXEC)
