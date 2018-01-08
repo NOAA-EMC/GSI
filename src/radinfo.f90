@@ -256,7 +256,7 @@ contains
     diag_rad = .true.       ! .true.=generate radiance diagnostic file
     mype_rad = 0            ! mpi task to collect and print radiance use information on/from
     npred=7                 ! number of bias correction predictors
-    tzr_qc = 0              ! 0 = no Tz ret in gsi; 1 = retrieve and applied to QC
+    tzr_qc = 1              ! 0 = no Tz ret in gsi; 1 = retrieve and applied to QC
     tzr_bufrsave = .false.  ! .true.=generate bufr file for Tz retrieval
 
     newpc4pred = .false.  ! .true.=turn on new preconditioning for bias coefficients
