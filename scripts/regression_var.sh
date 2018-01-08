@@ -20,10 +20,9 @@ if [ "$#" = 8 ] ; then
   export ptmpName=`echo $builddir | sed -e "s/\//_/g"`
   echo $ptmpName
 else
-#/scratch4/NCEPDEV/da/save/Xu.Li/ProdGSI/scripts
 # Name of the branch being tested
-  updat="ProdGSI"
-  contrl="ProdGSI_master"
+  updat="XXXXXXXX"
+  contrl="XXXXXXXX"
   export cmaketest="false"
   export clean="false"
   export ptmpName=""
@@ -61,11 +60,10 @@ fi
 #  Location of ndate utility, noscrub directory, and account name (accnt = ada by default).
 if [[ "$machine" = "Theia" ]]; then
 
-   export group="da"
+   export group="global"
    export queue="batch"
    if [[ "$cmaketest" = "false" ]]; then
-#    export basedir="/scratch4/home/$LOGNAME/gsi"
-     export basedir="/scratch4/NCEPDEV/da/save/Xu.Li"
+     export basedir="/scratch4/home/$LOGNAME/gsi"
    fi 
 
    export ptmp="/scratch4/NCEPDEV/stmp3/$LOGNAME/$ptmpName"
