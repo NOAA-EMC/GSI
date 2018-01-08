@@ -932,8 +932,36 @@
               call stop2(23)
            endif
         endif
+
+        !Additional variables needed for Unified Post Processor
+        call nemsio_readrecv(gfilein,'vvel','mid layer',k,nems_wrk2,iret=iret)
+        if (iret==0) then
+           call nemsio_writerecv(gfileout,'vvel','mid layer',k,nems_wrk2,iret=iret)
+           if (iret/=0) then
+              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(vvel), iret=',iret
+              call stop2(23)
+           endif
+        endif
+
+        call nemsio_readrecv(gfilein,'delz','mid layer',k,nems_wrk2,iret=iret)
+        if (iret==0) then
+           call nemsio_writerecv(gfileout,'delz','mid layer',k,nems_wrk2,iret=iret)
+           if (iret/=0) then
+              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(delz), iret=',iret
+              call stop2(23)
+           endif
+        endif
+
+        call nemsio_readrecv(gfilein,'dpres','mid layer',k,nems_wrk2,iret=iret)
+        if (iret==0) then
+           call nemsio_writerecv(gfileout,'dpres','mid layer',k,nems_wrk2,iret=iret)
+           if (iret/=0) then
+              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(dpres), iret=',iret
+              call stop2(23)
+           endif
+        endif
     enddo
-  endif
+  endif !if (.not. use_gfs_nemsio)
 
   if (massbal_adjust) then
 
