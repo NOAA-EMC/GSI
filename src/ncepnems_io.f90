@@ -2263,9 +2263,32 @@ contains
                 call nemsio_writerecv(gfileo,'grle','mid layer',k,rwork1d,iret=iret)
                 if (iret /= 0) call error_msg(trim(my_name),trim(filename),'grle','write',istop,iret)
              endif
-          endif
+          endif !mype == mype_out
        end do
-    endif
+    endif !ntracer
+
+! Variables needed by the Unified Post Processor (vvel, delz, delp)
+
+    do k=1,grd%nsig
+       call nemsio_readrecv(gfile,'vvel','mid layer',k,rwork1d,iret=iret)
+       if (iret == 0) then
+          call nemsio_writerecv(gfileo,'vvel','mid layer',k,rwork1d,iret=iret)
+          if (iret /= 0) call error_msg(trim(my_name),trim(filename),'vvel','write',istop,iret)
+       endif
+
+       call nemsio_readrecv(gfile,'delz','mid layer',k,rwork1d,iret=iret)
+       if (iret == 0) then 
+          call nemsio_writerecv(gfileo,'delz','mid layer',k,rwork1d,iret=iret)
+          if (iret /= 0) call error_msg(trim(my_name),trim(filename),'delz','write',istop,iret)
+       endif
+
+       call nemsio_readrecv(gfile,'dpres','mid layer',k,rwork1d,iret=iret)
+       if (iret == 0) then
+          call nemsio_writerecv(gfileo,'dpres','mid layer',k,rwork1d,iret=iret)
+          if (iret /= 0) call error_msg(trim(my_name),trim(filename),'dpres','write',istop,iret)
+       endif
+    enddo
+
 !
 ! Deallocate local array
 !
