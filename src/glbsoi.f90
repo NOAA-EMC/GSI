@@ -1,4 +1,4 @@
-subroutine glbsoi(mype)
+subroutine glbsoi
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    glbsoi               driver for gridpoint statistical 
@@ -96,7 +96,6 @@ subroutine glbsoi(mype)
 !   2015-12-08  el akkraoui - Y. Zhu sat-bias-corr now works with BiCG option
 !
 !   input argument list:
-!     mype - mpi task id
 !
 !   output argument list:
 !
@@ -106,7 +105,7 @@ subroutine glbsoi(mype)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use mpimod, only: npe
+  use mpimod, only: mype,npe
   use adjtest_obs, only: adtest_obs
   use jfunc, only: miter,jiter,jiterstart,jiterend,iguess,&
       write_guess_solution,R_option,&
@@ -162,7 +161,6 @@ subroutine glbsoi(mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
   logical laltmin
