@@ -1303,7 +1303,6 @@ contains
     real(r_single), optional, dimension(nlat_sfc,nlon_sfc,nfldsfc), intent(out) :: tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d
 
 !   Declare local variables
-    real(r_single), dimension(nlat_sfc,nlon_sfc,nfldsfc) :: xt
     integer(i_kind):: iret,npts,nptsall
 
 !-----------------------------------------------------------------------------
