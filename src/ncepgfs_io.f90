@@ -2100,18 +2100,18 @@ end subroutine write_ghg_grid
     real(r_kind),    dimension(nlon,nlat):: dtf
     integer(i_kind), dimension(nlon,nlat):: msk
 
-    integer :: ncid
+    integer(i_kind) :: ncid
     character (len = *), parameter :: lat_name = "latitude"
     character (len = *), parameter :: lon_name = "longitude"
-    integer :: lat_dimid, lon_dimid
+    integer(i_kind) :: lat_dimid, lon_dimid
 !   The start and count arrays will tell the netCDF library where to write our data.
-    integer, dimension(2) :: start,count,dimids
+    integer(i_kind), dimension(2) :: start,count,dimids
 !   These program variables hold the latitudes and longitudes.
-    integer :: lon_varid, lat_varid
+    integer(i_kind) :: lon_varid, lat_varid
 !   We will create two netCDF variables, one each for temperature and slmsk
     character (len = *), parameter :: dtf_name="dtf"
     character (len = *), parameter :: msk_name="msk"
-    integer :: dtf_varid,msk_varid
+    integer(i_kind) :: dtf_varid,msk_varid
 !   define a "units" attribute for each variable.
     character (len = *), parameter :: units = "units"
     character (len = *), parameter :: dtf_units = "kelvin"
