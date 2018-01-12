@@ -2267,28 +2267,29 @@ contains
        end do
     endif !ntracer
 
-! Variables needed by the Unified Post Processor (vvel, delz, delp)
-
-    do k=1,grd%nsig
-       call nemsio_readrecv(gfile,'vvel','mid layer',k,rwork1d,iret=iret)
-       if (iret == 0) then
-          call nemsio_writerecv(gfileo,'vvel','mid layer',k,rwork1d,iret=iret)
-          if (iret /= 0) call error_msg(trim(my_name),trim(filename),'vvel','write',istop,iret)
-       endif
-
-       call nemsio_readrecv(gfile,'delz','mid layer',k,rwork1d,iret=iret)
-       if (iret == 0) then 
-          call nemsio_writerecv(gfileo,'delz','mid layer',k,rwork1d,iret=iret)
-          if (iret /= 0) call error_msg(trim(my_name),trim(filename),'delz','write',istop,iret)
-       endif
-
-       call nemsio_readrecv(gfile,'dpres','mid layer',k,rwork1d,iret=iret)
-       if (iret == 0) then
-          call nemsio_writerecv(gfileo,'dpres','mid layer',k,rwork1d,iret=iret)
-          if (iret /= 0) call error_msg(trim(my_name),trim(filename),'dpres','write',istop,iret)
-       endif
-    enddo
-
+! Variables needed by the Unified Post Processor (dzdt, delz, delp)
+    if (mype == mype_out) then
+       do k=1,grd%nsig
+          call nemsio_readrecv(gfile,'dzdt','mid layer',k,rwork1d,iret=iret)
+          if (iret == 0) then
+             call nemsio_writerecv(gfileo,'dzdt','mid layer',k,rwork1d,iret=iret)
+             if (iret /= 0) call error_msg(trim(my_name),trim(filename),'dzdt','write',istop,iret)
+          endif
+          
+          call nemsio_readrecv(gfile,'delz','mid layer',k,rwork1d,iret=iret)
+          if (iret == 0) then 
+             call nemsio_writerecv(gfileo,'delz','mid layer',k,rwork1d,iret=iret)
+             if (iret /= 0) call error_msg(trim(my_name),trim(filename),'delz','write',istop,iret)
+          endif
+          
+          call nemsio_readrecv(gfile,'dpres','mid layer',k,rwork1d,iret=iret)
+          if (iret == 0) then
+             call nemsio_writerecv(gfileo,'dpres','mid layer',k,rwork1d,iret=iret)
+             if (iret /= 0) call error_msg(trim(my_name),trim(filename),'dpres','write',istop,iret)
+          endif
+       enddo
+    endif
+    
 !
 ! Deallocate local array
 !

@@ -234,10 +234,13 @@ program getsigensmeanp_smooth
               krecv(reclev(n)) = n
               notuv(n) = .false.
            endif
-           if ( index(recnam(n),'vvel') /= 0 ) then
+           if ( index(recnam(n),'dzdt') /= 0 ) then
               smooth_fld(n) = .false.
            endif
            if ( index(recnam(n),'delz') /= 0 ) then
+              smooth_fld(n) = .false.
+           endif
+           if ( index(recnam(n),'dpres') /= 0 ) then
               smooth_fld(n) = .false.
            endif
         enddo
