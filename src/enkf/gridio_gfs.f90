@@ -934,11 +934,11 @@
         endif
 
         !Additional variables needed for Unified Post Processor
-        call nemsio_readrecv(gfilein,'vvel','mid layer',k,nems_wrk2,iret=iret)
+        call nemsio_readrecv(gfilein,'dzdt','mid layer',k,nems_wrk2,iret=iret)
         if (iret==0) then
-           call nemsio_writerecv(gfileout,'vvel','mid layer',k,nems_wrk2,iret=iret)
+           call nemsio_writerecv(gfileout,'dzdt','mid layer',k,nems_wrk2,iret=iret)
            if (iret/=0) then
-              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(vvel), iret=',iret
+              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(dzdt), iret=',iret
               call stop2(23)
            endif
         endif
