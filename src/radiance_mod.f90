@@ -535,7 +535,6 @@ contains
     implicit none
     character(10) :: obstype
     type(rad_obs_type) :: radmod
-    logical match
     integer(i_kind) i
     logical match
 
@@ -569,14 +568,9 @@ contains
     if (mype==0) write(6,*) 'radiance_obstype_search type not found: obstype=',obstype
 
     if (.not. match) then
-<<<<<<< HEAD
        if (mype==0) write(6,*) 'radiance_obstype_search: WARNING! obstype=',obstype,' not found in rtype'
     end if
 
-=======
-       if (mype==0) write(6,*) 'radiance_obstype_search: #WARNING# obstype=',obstype,' not found in rtype'
-    end if
->>>>>>> master
   end subroutine radiance_obstype_search
 
 
