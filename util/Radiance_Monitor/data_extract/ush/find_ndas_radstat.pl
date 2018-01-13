@@ -3,7 +3,7 @@
 #-----------------------------------------------------------------------
 #  find_ndas_radstat.pl
 #
-#    Given a regional data source directory containing ndas.YYYYMMDDHH 
+#    Given a regional data source directory containing nam.YYYYMMDDHH 
 #      subdirectories, determine the first or last cycle for which 
 #      radstat files exist.
 #
@@ -38,7 +38,7 @@
    ##------------------------------------------------------------------
 
    if ($#ARGV != 1 ) {
-	print "usage: find_radstat.pl  first_last /path_to_directory/containing/[gdas/ndas].YYYYMMDDHH subdirectories. \n";
+	print "usage: find_radstat.pl  first_last /path_to_directory/containing/[gdas/nam].YYYYMMDDHH subdirectories. \n";
         print "                           first_last:          0 = first, 1 = last \n";
 	exit;
    }
@@ -49,7 +49,7 @@
    
    my $rad_area = "rgn";
 
-   #  Get list of gdas/ndas.* sub-directories 
+   #  Get list of gdas/nam.* sub-directories 
    #
    opendir(DIR, $dirpath) or die "Cannot open directory $!";
    while (my $file = readdir(DIR)) {
@@ -57,7 +57,7 @@
         push( @alldirs, $file );
    }
 
-   my $filter = "ndas";
+   my $filter = "nam";
    if ( $rad_area eq "glb" ) {
       $filter = "gdas";
    }

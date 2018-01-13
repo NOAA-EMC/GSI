@@ -30,9 +30,6 @@ if [[ $nargs -lt 1 || $nags -gt 3 ]]; then
    exit 1
 fi
 
-. /usrx/local/Modules/3.2.9/init/sh
-module load /nwprod2/modulefiles/prod_util/v1.0.2
-
 this_file=`basename $0`
 this_dir=`dirname $0`
 
@@ -476,7 +473,6 @@ if [[ ${data_available} -ne 1 ]]; then
    exit_value=6
 fi
 
-module unload /nwprod2/modulefiles/prod_util/v1.0.2
 
 echo end VrfyRad_rgn.sh
 exit ${exit_value}

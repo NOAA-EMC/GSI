@@ -32,7 +32,6 @@ module m_obsNodeTypeManager
   use obsmod, only: iobsType_w     =>     i_w_ob_type
   use obsmod, only: iobsType_q     =>     i_q_ob_type
   use obsmod, only: iobsType_spd   =>   i_spd_ob_type
-  use obsmod, only: iobsType_srw   =>   i_srw_ob_type
   use obsmod, only: iobsType_rw    =>    i_rw_ob_type
   use obsmod, only: iobsType_dw    =>    i_dw_ob_type
   use obsmod, only: iobsType_sst   =>   i_sst_ob_type
@@ -72,40 +71,37 @@ module m_obsNodeTypeManager
   use m_wNode    , only:     wNode !  3
   use m_qNode    , only:     qNode !  4
   use m_spdNode  , only:   spdNode !  5
-  use m_srwNode  , only:   srwNode !  6
-  use m_rwNode   , only:    rwNode !  7
-  use m_dwNode   , only:    dwNode !  8
-  use m_sstNode  , only:   sstNode !  9
-  use m_pwNode   , only:    pwNode ! 10
-  use m_pcpNode  , only:   pcpNode ! 11
-  use m_ozNode   , only:    ozNode ! 12
-  use m_o3lNode  , only:   o3lNode ! 13
-  use m_gpsNode  , only:   gpsNode ! 14
-  use m_radNode  , only:   radNode ! 15
-  use m_tcpNode  , only:   tcpNode ! 16
-  use m_lagNode  , only:   lagNode ! 17
-  use m_colvkNode, only: colvkNode ! 18
-  use m_aeroNode , only:  aeroNode ! 19
-  use m_aerolNode, only: aerolNode ! 20
-  use m_pm2_5Node, only: pm2_5Node ! 21
-  use m_gustNode , only:  gustNode ! 22
-  use m_visNode  , only:   visNode ! 23
-  use m_pblhNode , only:  pblhNode ! 24
-
-  use m_wspd10mNode, only: wspd10mNode ! 25
+  use m_rwNode   , only:    rwNode !  6
+  use m_dwNode   , only:    dwNode !  7
+  use m_sstNode  , only:   sstNode !  8
+  use m_pwNode   , only:    pwNode !  9
+  use m_pcpNode  , only:   pcpNode ! 10
+  use m_ozNode   , only:    ozNode ! 11
+  use m_o3lNode  , only:   o3lNode ! 12
+  use m_gpsNode  , only:   gpsNode ! 13
+  use m_radNode  , only:   radNode ! 14
+  use m_tcpNode  , only:   tcpNode ! 15
+  use m_lagNode  , only:   lagNode ! 16
+  use m_colvkNode, only: colvkNode ! 17
+  use m_aeroNode , only:  aeroNode ! 18
+  use m_aerolNode, only: aerolNode ! 19
+  use m_pm2_5Node, only: pm2_5Node ! 20
+  use m_gustNode , only:  gustNode ! 21
+  use m_visNode  , only:   visNode ! 22
+  use m_pblhNode , only:  pblhNode ! 23
+  use m_wspd10mNode, only: wspd10mNode ! 24
   use m_uwnd10mNode, only: uwnd10mNode
   use m_vwnd10mNode, only: vwnd10mNode
 
-  use m_td2mNode , only:  td2mNode ! 26
-  use m_mxtmNode , only:  mxtmNode ! 27
-  use m_mitmNode , only:  mitmNode ! 28
-  use m_pmslNode , only:  pmslNode ! 29
-  use m_howvNode , only:  howvNode ! 30
-  use m_tcamtNode, only: tcamtNode ! 31
-  use m_lcbasNode, only: lcbasNode ! 32
-
-  use m_pm10Node , only:  pm10Node ! 33
-  use m_cldchNode, only: cldchNode ! 34
+  use m_td2mNode , only:  td2mNode ! 25
+  use m_mxtmNode , only:  mxtmNode ! 26
+  use m_mitmNode , only:  mitmNode ! 27
+  use m_pmslNode , only:  pmslNode ! 28
+  use m_howvNode , only:  howvNode ! 29
+  use m_tcamtNode, only: tcamtNode ! 30
+  use m_lcbasNode, only: lcbasNode ! 31
+  use m_pm10Node , only:  pm10Node ! 32
+  use m_cldchNode, only: cldchNode ! 33
 
   use kinds, only: i_kind
   use m_obsNode, only: obsNode
@@ -131,40 +127,38 @@ module m_obsNodeTypeManager
   type(wNode    ), target, save::     w_mold !  3
   type(qNode    ), target, save::     q_mold !  4
   type(spdNode  ), target, save::   spd_mold !  5
-  type(srwNode  ), target, save::   srw_mold !  6
-  type(rwNode   ), target, save::    rw_mold !  7
-  type(dwNode   ), target, save::    dw_mold !  8
-  type(sstNode  ), target, save::   sst_mold !  9
-  type(pwNode   ), target, save::    pw_mold ! 10
-  type(pcpNode  ), target, save::   pcp_mold ! 11
-  type(ozNode   ), target, save::    oz_mold ! 12
-  type(o3lNode  ), target, save::   o3l_mold ! 13
-  type(gpsNode  ), target, save::   gps_mold ! 14
-  type(radNode  ), target, save::   rad_mold ! 15
-  type(tcpNode  ), target, save::   tcp_mold ! 16
-  type(lagNode  ), target, save::   lag_mold ! 17
-  type(colvkNode), target, save:: colvk_mold ! 18
-  type(aeroNode ), target, save::  aero_mold ! 19
-  type(aerolNode), target, save:: aerol_mold ! 20
-  type(pm2_5Node), target, save:: pm2_5_mold ! 21
-  type(gustNode ), target, save::  gust_mold ! 22
-  type(visNode  ), target, save::   vis_mold ! 23
-  type(pblhNode ), target, save::  pblh_mold ! 24
+  type(rwNode   ), target, save::    rw_mold !  6
+  type(dwNode   ), target, save::    dw_mold !  7
+  type(sstNode  ), target, save::   sst_mold !  8
+  type(pwNode   ), target, save::    pw_mold !  9
+  type(pcpNode  ), target, save::   pcp_mold ! 10
+  type(ozNode   ), target, save::    oz_mold ! 11
+  type(o3lNode  ), target, save::   o3l_mold ! 12
+  type(gpsNode  ), target, save::   gps_mold ! 13
+  type(radNode  ), target, save::   rad_mold ! 14
+  type(tcpNode  ), target, save::   tcp_mold ! 15
+  type(lagNode  ), target, save::   lag_mold ! 16
+  type(colvkNode), target, save:: colvk_mold ! 17
+  type(aeroNode ), target, save::  aero_mold ! 18
+  type(aerolNode), target, save:: aerol_mold ! 19
+  type(pm2_5Node), target, save:: pm2_5_mold ! 20
+  type(gustNode ), target, save::  gust_mold ! 21
+  type(visNode  ), target, save::   vis_mold ! 22
+  type(pblhNode ), target, save::  pblh_mold ! 23
 
-  type(wspd10mNode), target, save:: wspd10m_mold ! 25
+  type(wspd10mNode), target, save:: wspd10m_mold ! 24
   type(uwnd10mNode), target, save:: uwnd10m_mold
   type(vwnd10mNode), target, save:: vwnd10m_mold
 
-  type(   td2mNode), target, save::    td2m_mold ! 26
-  type(   mxtmNode), target, save::    mxtm_mold ! 27
-  type(   mitmNode), target, save::    mitm_mold ! 28
-  type(   pmslNode), target, save::    pmsl_mold ! 29
-  type(   howvNode), target, save::    howv_mold ! 30
-  type(  tcamtNode), target, save::   tcamt_mold ! 31
-  type(  lcbasNode), target, save::   lcbas_mold ! 32
-
-  type(   pm10Node), target, save::    pm10_mold ! 33
-  type(  cldchNode), target, save::   cldch_mold ! 34
+  type(   td2mNode), target, save::    td2m_mold ! 25
+  type(   mxtmNode), target, save::    mxtm_mold ! 26
+  type(   mitmNode), target, save::    mitm_mold ! 27
+  type(   pmslNode), target, save::    pmsl_mold ! 28
+  type(   howvNode), target, save::    howv_mold ! 29
+  type(  tcamtNode), target, save::   tcamt_mold ! 30
+  type(  lcbasNode), target, save::   lcbas_mold ! 31
+  type(   pm10Node), target, save::    pm10_mold ! 32
+  type(  cldchNode), target, save::   cldch_mold ! 33
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   character(len=*),parameter :: myname='m_obsNodeTypeManager'
 
@@ -205,7 +199,6 @@ function vname2index_(vname) result(index_)
   case("w"    ,    "[wnode]"); index_ = iobsType_w
   case("q"    ,    "[qnode]"); index_ = iobsType_q
   case("spd"  ,  "[spdnode]"); index_ = iobsType_spd
-  case("srw"  ,  "[srwnode]"); index_ = iobsType_srw
   case("rw"   ,   "[rwnode]"); index_ = iobsType_rw
   case("dw"   ,   "[dwnode]"); index_ = iobsType_dw
   case("sst"  ,  "[sstnode]"); index_ = iobsType_sst
@@ -266,7 +259,6 @@ function vmold2index_select_(mold) result(index_)
   type is(    wNode); index_ = iobstype_w
   type is(    qNode); index_ = iobstype_q
   type is(  spdNode); index_ = iobstype_spd
-  type is(  srwNode); index_ = iobstype_srw
   type is(   rwNode); index_ = iobstype_rw
   type is(   dwNode); index_ = iobstype_dw
   type is(  sstNode); index_ = iobstype_sst
@@ -318,7 +310,6 @@ function index2vmold_(i_obType) result(obsmold_)
   case(iobsType_w    ); obsmold_ =>     w_mold
   case(iobsType_q    ); obsmold_ =>     q_mold
   case(iobsType_spd  ); obsmold_ =>   spd_mold
-  case(iobsType_srw  ); obsmold_ =>   srw_mold
   case(iobsType_rw   ); obsmold_ =>    rw_mold
   case(iobsType_dw   ); obsmold_ =>    dw_mold
   case(iobsType_sst  ); obsmold_ =>   sst_mold

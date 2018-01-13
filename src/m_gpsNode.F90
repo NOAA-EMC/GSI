@@ -79,9 +79,6 @@ module m_gpsNode
 
   character(len=*),parameter:: MYNAME="m_gpsNode"
 
-!#define CHECKSUM_VERBOSE
-!#define DEBUG_TRACE
-!#define NDEBUG
 #include "myassert.H"
 #include "mytrace.H"
 contains

@@ -186,8 +186,8 @@ CONTAINS
              END IF
           end if
        end do
-
     END DO
+
     do ichan=1,nchanl
       if(err(ichan) >= 1)then
          error_status = 1

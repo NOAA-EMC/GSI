@@ -243,6 +243,10 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
          kidsat=223
        else if(jsatid == 'npp')then
          kidsat=224
+       else if(jsatid == 'n20')then
+         kidsat=225
+       else if(jsatid == 'n21')then
+         kidsat=226
        else if(jsatid == 'f08')then
          kidsat=241
        else if(jsatid == 'f10')then
@@ -619,10 +623,16 @@ subroutine read_obs(ndata,mype)
 !   2015-08-20  zhu     - use centralized radiance info from radiance_mod to specify
 !                         all-sky and aerosol usages in radiance assimilation
 !   2015-09-04  J. Jung - Added mods for CrIS full spectral resolution (FSR)
+!   2015-10-19  lippi   - Added logic to read l2rw or rw radial winds.
 !   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
 !   2016-04-28  J. Jung - added logic for RARS and direct broadcast data from NESDIS/UW.
 !   2016-05-05  pondeca - add 10-m u-wind and v-wind (uwnd10m, vwnd10m)
 !   2016-09-19  Guo     - replaced open(obs_input_common) with "call unformatted_open(obs_input_common)"
+!   2016-12-14  lippi   - Fixed bug of using observations twice when both
+!                         l2rwbufr and radarbufr are in the OBS_INPUT table.
+!                         Changed the dsis entries for l2rwbufr and radarbufr to
+!                         l2rw and l3rw respectively. Also make use of nml
+!                         option vadwnd_l2rw_qc. 
 !   
 !
 !   input argument list:
@@ -646,7 +656,7 @@ subroutine read_obs(ndata,mype)
            dtype,dval,dmesh,obsfile_all,ref_obs,nprof_gps,dsis,ditype,&
            perturb_obs,lobserver,lread_obs_save,obs_input_common, &
            reduce_diag,nobs_sub,dval_use
-    use qcmod, only: njqc
+    use qcmod, only: njqc,vadwnd_l2rw_qc
     use gsi_4dvar, only: l4dvar
     use satthin, only: super_val,super_val1,superp,makegvals,getsfc,destroy_sfc
     use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_rtype,mpi_integer,npe,&
@@ -806,7 +816,7 @@ subroutine read_obs(ndata,mype)
        if (obstype == 't'  .or. obstype == 'uv' .or. &
            obstype == 'q'  .or. obstype == 'ps' .or. &
            obstype == 'pw' .or. obstype == 'spd'.or. &
-           obstype == 'sst'.or. obstype == 'srw'.or. &
+           obstype == 'sst'.or. &
            obstype == 'tcp'.or. obstype == "lag".or. &
            obstype == 'dw' .or. obstype == 'rw' .or. &
            obstype == 'mta_cld' .or. obstype == 'gos_ctp' .or. &
@@ -991,6 +1001,8 @@ subroutine read_obs(ndata,mype)
                 if(.not. lexistears)read_ears_rec1(i) = 999999
                 lexist=lexist .or. lexistears
                 len4file=len4file+lenbytes/4
+             else
+               read_ears_rec1(i) = 999999
              end if
              if (db_possible(i))then
 
@@ -1004,6 +1016,8 @@ subroutine read_obs(ndata,mype)
                 if(.not. lexistdb)read_db_rec1(i) = 999999
                 lexist=lexist .or. lexistdb
                 len4file=len4file+lenbytes/4
+             else
+               read_db_rec1(i) = 999999
              end if
 
  
@@ -1399,7 +1413,7 @@ subroutine read_obs(ndata,mype)
                    call read_modsbufr(nread,npuse,nouse,gstime,infile,obstype, &
                         lunout,twind,sis,nobs_sub1(1,i))
                    string='READ_MODSBUFR'
-                elseif ( platid == 'prep') then
+                else
                    if(nst_gsi>0)then
                       write(6,*)'read_obs: should not handle SST via read_prepbufr when NSST on'
                       call stop2(999)
@@ -1441,9 +1455,16 @@ subroutine read_obs(ndata,mype)
 
 !            Process radar winds
              else if (obstype == 'rw') then
-                call read_radar(nread,npuse,nouse,infile,lunout,obstype,twind,sis,&
-                                hgtl_full,nobs_sub1(1,i))
-                string='READ_RADAR'
+                if (vadwnd_l2rw_qc) then
+                    write(6,*)'READ_OBS: radial wind,read_radar,dfile=',infile,',dsis=',sis
+                   call read_radar(nread,npuse,nouse,infile,lunout,obstype,twind,sis,&
+                                   hgtl_full,nobs_sub1(1,i))
+                   string='READ_RADAR'
+                else if (sis == 'l2rw') then
+                    write(6,*)'READ_OBS: radial wind,read_radar_l2rw_novadqc,dfile=',infile,',dsis=',sis
+                   call read_radar_l2rw_novadqc(npuse,nouse,lunout,obstype,sis,nobs_sub1(1,i))
+                   string='READ_RADAR_L2RW_NOVADQC'
+                end if
 
 !            Process lagrangian data
              else if (obstype == 'lag') then
@@ -1462,12 +1483,6 @@ subroutine read_obs(ndata,mype)
                 call read_tcps(nread,npuse,nouse,infile,obstype,lunout,sis, &
                      nobs_sub1(1,i))
                 string='READ_TCPS'
-
-!            Process radar superob winds
-             else if (obstype == 'srw') then
-                call read_superwinds(nread,npuse,nouse,infile,obstype,lunout, &
-                     twind,sis,nobs_sub1(1,i))
-                string='READ_SUPRWNDS'
 
              else if (obstype == 'pm2_5' .or. obstype == 'pm10') then
 

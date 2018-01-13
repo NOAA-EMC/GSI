@@ -1,16 +1,15 @@
 #!/bin/ksh
 
+#PBS -o nam_verfrad.log
+#PBS -e nam_verfrad.err
 #PBS -N nam_verfrad
-#PBS -l procs=1,walltime=00:20
-#PBS -o nam_verfrad.o${JOB_ID}
-#PBS -e nam_verfrad.o${JOB_ID}
-#PBS -m be
 #PBS -A glbss 
+#PBS -l procs=1,walltime=05:00
+#PBS -V
 
 set -x
 
-export PDATE=2016062709
-export NDATE=/home/Edward.Safford/bin/ndate
+export PDATE=${PDATE:-2017020606}
 
 #############################################################
 # Specify whether the run is production or development
@@ -21,89 +20,65 @@ export job=nam_verfrad.${cyc}
 export pid=${pid:-$$}
 export jobid=${job}.${pid}
 export envir=para
-export UTILROOT=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/util
-export DATAROOT=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/test_data
-export COMROOT=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/com
+export DATAROOT=${DATAROOT:-/scratch4/NCEPDEV/da/noscrub/Edward.Safford/test_data}
+export COMROOT=${COMROOT:-/scratch4/NCEPDEV/da/noscrub/Edward.Safford/com}
 
 
 #############################################################
 # Specify versions
 #############################################################
-#export gdas_ver=v13.0.0
-export global_shared_ver=v13.0.0
-export grib_util_ver=v1.0.1
-export prod_util_ver=v1.0.2
-export util_shared_ver=v1.0.2
+export global_shared_ver=v14.1.0
 export nam_radmon_ver=v2.0.0
 export radmon_shared_ver=v2.0.4
 
 
 #############################################################
-# Load modules
+# Add nwpara tools to path
 #############################################################
-#. /usrx/local/Modules/3.2.9/init/ksh
-
-rm -f ${DATAROOT}/startmsg
-rm -f ${DATAROOT}/prep_step
-rm -f ${DATAROOT}/postmsg
-rm -f ${DATAROOT}/setup
-rm -f ${DATAROOT}/err_chk
-
-ln -s ${UTILROOT}/ush/startmsg.sh ${DATAROOT}/startmsg
-ln -s ${UTILROOT}/ush/prep_step.sh ${DATAROOT}/prep_step
-ln -s ${UTILROOT}/ush/postmsg.sh ${DATAROOT}/postmsg
-ln -s ${UTILROOT}/ush/setup.sh ${DATAROOT}/setup
-ln -s ${UTILROOT}/ush/err_chk.sh ${DATAROOT}/err_chk
-
-export PATH=${PATH}:${DATAROOT}
-
-echo "PATH is defined as:"
-echo $PATH
-
-which startmsg
-which prep_step
-which postmsg
-which setup
-which err_chk
-
-#module use /nwprod2/modulefiles
-#module load grib_util/$grib_util_ver
-#module load prod_util/$prod_util_ver
-#module load util_shared/$util_shared_ver
-
-#module unload ics/12.1
-#module load ics/15.0.3
-
-#module list
-
-
-#############################################################
-# WCOSS environment settings
-#############################################################
-#export POE=YES
-
+NWPROD=${NWPROD:-/scratch4/NCEPDEV/global/save/glopara/nwpara/util}
+NWPRODush=${NWPRODush:=${NWPROD}/ush}
+NWPRODexec=${NWPRODexec:=${NWPROD}/exec}
+export PATH=${PATH}:${NWPRODush}:${NWPRODexec}
 
 #############################################################
 # Set user specific variables
 #############################################################
-export RADMON_SUFFIX=testrad
-export NWTEST=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/RadMon_595/util/Radiance_Monitor/nwprod
-export HOMEnam=${NWTEST}/nam_radmon.${nam_radmon_ver}
-export JOBregional=${HOMEnam}/jobs
-export HOMEradmon=${NWTEST}/radmon_shared.${radmon_shared_ver}
-export COM_IN=${DATAROOT}
-export TANKverf=${COMROOT}/${RADMON_SUFFIX}
+export RADMON_SUFFIX=${RADMON_SUFFIX:-testrad}
+export NWTEST=${NWTEST:-/scratch4/NCEPDEV/da/noscrub/Edward.Safford/RadMon_622/util/Radiance_Monitor/nwprod}
+export HOMEnam=${HOMEnam:-${NWTEST}/nam_radmon.${nam_radmon_ver}}
+export JOBregional=${JOBregional:-${HOMEnam}/jobs}
+export HOMEradmon=${HOMEradmon:-${NWTEST}/radmon_shared.${radmon_shared_ver}}
+export COM_IN=${COM_IN:-${DATAROOT}}
+export TANKverf=${TANKverf:-${COMROOT}/${RADMON_SUFFIX}}
+
+export SUB=${SUB:-/apps/torque/default/bin/qsub}
+export NDATE=${NDATE:-ndate}
+
+#######################################################################
+#  theia specific hacks for no prod_utils module & no setpdy.sh script
+#######################################################################
+export MY_MACHINE=theia
+prevday=`$NDATE -24 $PDATE`
+export PDYm1=`echo $prevday | cut -c1-8`
+ln -s ${NWPRODush}/startmsg.sh ${COMROOT}/startmsg
+ln -s ${NWPRODush}/postmsg.sh ${COMROOT}/postmsg
+ln -s ${NWPRODush}/prep_step.sh ${COMROOT}/prep_step
+ln -s ${NWPRODush}/err_chk.sh ${COMROOT}/err_chk
+export PATH=$PATH:${COMROOT}
+export utilscript=${utilscript:-${NWPRODush}}           # err_chk calls postmsg.sh
+                                                        #   directly so need to override
+                                                        #   utilscript location for theia
 
 
 #############################################################
-# Execute job
+# to execute job on theia
+# enter this command:
+#    qsub < test_jnam_verfrad_theia.sh 
+#
 #############################################################
-ACCOUNT=glbss
-jobname=nam_verfrad
-output=./nam_verfrad.out
-SUB=qsub
 
-$SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -V -o ${output} -e ${output} $JOBregional/JNAM_VERFRAD
+
+$JOBregional/JNAM_VERFRAD
 
 exit
 

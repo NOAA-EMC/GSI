@@ -27,7 +27,7 @@ subroutine write_all(increment)
   use m_gsiBiases, only: gsi_bkgbias_bundle
   use m_gsibiases ,only: nbc
 
-  use gsi_io, only: write_bias
+  use gsi_bias, only: write_bias
 
 ! use regional_io, only: write_regional_analysis
   use regional_io_mod, only: regional_io_class

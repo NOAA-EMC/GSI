@@ -23,7 +23,7 @@ subroutine smoothlat(field,nlevs,degs)
    ! get weights for smoothing in lat direction
    call get_weights(degs,weights)
 
-   ! smooth the field array based on weights computed 
+   ! smooth the field array based on weights computed
    do k=1,nlevs
 
       field_sm=0.0
@@ -33,7 +33,7 @@ subroutine smoothlat(field,nlevs,degs)
          enddo
       enddo
 
-      ! redefine field to be smoothed 
+      ! redefine field to be smoothed
       do j=2,nlat-1
          field(j,k)=field_sm(j)
       enddo
@@ -108,7 +108,7 @@ subroutine writefiles
    integer :: i,j,k,m,outf,ncfggg,iret,isig,n
    character(len=255) :: grdfile
    character(len=5) :: var(40)
- 
+
    ! Interpolate sst statistics
    ! go file for use in GSI analysis code
    call create_sstvars(nlat,nlon)
@@ -205,7 +205,7 @@ subroutine writefiles
          write(outf) vscale3d4(:,:,i)
       end if
    enddo
-   
+
    isig=1
    i=7
    write(6,*) i,var(i),isig
@@ -220,7 +220,7 @@ subroutine writefiles
    write(outf) corlsst4
 
    close(outf)
-   
+
    vscale3d4 = 1.0_r_single / vscale3d4
 
    call splat(4,nlat,slat,glat)
@@ -270,7 +270,6 @@ subroutine writefiles
    write(24,'("DSET ",a)') trim(grdfile)
    write(24,'("UNDEF -9.99E+33")')
    write(24,'("TITLE bgstats_sp")')
-   write(24,'("OPTIONS yrev")')
    write(24,'("XDEF 1 LINEAR 1 1")')
    write(24,'("YDEF",i6," LEVELS")') nlat
    write(24,'(5f12.6)') slat

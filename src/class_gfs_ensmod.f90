@@ -7,7 +7,7 @@ module abstract_get_gfs_ensmod_mod
   end type abstract_get_gfs_ensmod_class
 
   abstract interface
-  subroutine get_user_ens_(this,grd,member,ntindex,atm_bundle,iret)
+  subroutine get_user_ens_(this,grd,ntindex,atm_bundle,iret)
     use kinds, only: i_kind
     use general_sub2grid_mod, only: sub2grid_info
     use gsi_bundlemod, only: gsi_bundle
@@ -15,9 +15,8 @@ module abstract_get_gfs_ensmod_mod
     implicit none
     class(abstract_get_gfs_ensmod_class), intent(inout) :: this
     type(sub2grid_info), intent(in   ) :: grd
-    integer(i_kind),     intent(in   ) :: member
     integer(i_kind),     intent(in   ) :: ntindex
-    type(gsi_bundle),    intent(inout) :: atm_bundle                      
+    type(gsi_bundle),    intent(inout) :: atm_bundle(:)
     integer(i_kind),     intent(  out) :: iret
   end subroutine get_user_ens_
   end interface

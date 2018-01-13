@@ -776,7 +776,8 @@ real(r_kind),dimension(nanals,nanals),intent(out) :: trans
 real(r_kind), allocatable, dimension(:,:) :: work1,work2,eivec,pa
 real(r_kind), allocatable, dimension(:) :: rrloc,eival,work3
 real(r_kind) :: rho
-integer(i_kind) :: i,j,nob,nanal,ierr,lwork
+integer(i_kind) :: i,j,nob,nanal,ierr
+!integer(i_kind) :: lwork
 !for dsyevr
 integer(i_kind) iwork(10*nanals),isuppz(2*nanals)
 real(r_kind) vl,vu,work(70*nanals)

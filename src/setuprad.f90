@@ -678,9 +678,9 @@
         if (newpc4pred) inewpc=1
         write(4) isis,dplat(is),obstype,jiter,nchanl_diag,npred,ianldate,ireal_radiag,ipchan_radiag,iextra,jextra,&
            idiag,angord,iversion_radiag,inewpc,ioff0
-        write(6,*)'SETUPRAD:  write header record for ',&
-           isis,npred,ireal_radiag,ipchan_radiag,iextra,jextra,idiag,angord,iversion_radiag,&
-                      ' to file ',trim(diag_rad_file),' ',ianldate
+!       write(6,*)'SETUPRAD:  write header record for ',&
+!          isis,npred,ireal_radiag,ipchan_radiag,iextra,jextra,idiag,angord,iversion_radiag,&
+!                     ' to file ',trim(diag_rad_file),' ',ianldate
         do i=1,nchanl
            n=ich(i)
            if( n < 1  .or. (reduce_diag .and. iuse_rad(n) < 1))cycle
@@ -699,7 +699,7 @@
   read(lunin) data_s,luse,ioid
 
   if (nobskeep>0) then
-     write(6,*)'setuprad: nobskeep',nobskeep
+!    write(6,*)'setuprad: nobskeep',nobskeep
      call stop2(275)
   end if
 
@@ -1523,7 +1523,7 @@
                        my_head%icx(icc))
               if(luse_obsdiag)allocate(my_head%diags(icc))
 
-              call get_ij(mm1,slats,slons,my_head%ij(:),my_head%wij(:))
+              call get_ij(mm1,slats,slons,my_head%ij,my_head%wij)
               my_head%time=dtime
               my_head%luse=luse(n)
               my_head%ich(:)=-1
@@ -1603,7 +1603,7 @@
                  allocate(rsqrtinv(my_head%nchan,my_head%nchan))
                  my_head%rsqrtinv=zero
                  rsqrtinv=zero
-                 call radinfo_get_rsqrtinv(iinstr,my_head%nchan,my_head%icx,my_head%ich,&
+                 call radinfo_get_rsqrtinv(nchanl,iinstr,my_head%nchan,my_head%icx,my_head%ich,&
                       my_head%err2,rsqrtinv)
                  chan_count=0
                  do ii=1,my_head%nchan

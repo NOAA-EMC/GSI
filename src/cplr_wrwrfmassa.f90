@@ -80,7 +80,7 @@ contains
          nsig,nsig_soil,eta1_ll,pt_ll,itotsub,iglobal,update_regsfc,&
          aeta1_ll,eta2_ll,aeta2_ll
     use constants, only: one,zero_single,rd_over_cp_mass,one_tenth,h300,r10,r100
-    use gsi_io, only: lendian_in
+    use gsi_io, only: lendian_in,verbose
     use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge,&
          i_use_2mq4b
     use wrf_mass_guess_mod, only: destroy_cld_grids
@@ -164,7 +164,10 @@ contains
     real(r_kind), pointer :: ges_qnr(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qni(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qnc(:,:,:)=>NULL()
+    logical print_verbose
   
+    print_verbose=.false.
+    if(verbose .and. mype == 0)print_verbose=.true.
     it=ntguessig
   
     ksize=0
@@ -251,7 +254,7 @@ contains
     i=i+1 ; i_mu =i                                                ! mu
     read(lendian_in) n_position
     offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
-    if(mype == 0) write(6,*)' mu, i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+    if(print_verbose) write(6,*)' mu, i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
   
     read(lendian_in) n_position                                    !  geopotential  (should this be updated??)
   
@@ -267,7 +270,7 @@ contains
           kord(i)=1
        end if
        offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
-       if(mype == 0.and.k==1) write(6,*)' temp i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+       if(print_verbose.and.k==1) write(6,*)' temp i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
     end do
   
     i_q=i+1
@@ -282,7 +285,7 @@ contains
           kord(i)=1
        end if
        offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
-       if(mype == 0.and.k==1) write(6,*)' q i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+       if(print_verbose .and.k==1) write(6,*)' q i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
     end do
   
     i_u=i+1
@@ -299,7 +302,7 @@ contains
        offset(i)=n_position+iadd
        igtype(i)=2 ; kdim(i)=lm
        length(i)=(im+1)*jm
-       if(mype == 0.and.k==1) write(6,*)' u i,igtype,offset,kdim(i),kord(i) = ', &
+       if(print_verbose.and.k==1) write(6,*)' u i,igtype,offset,kdim(i),kord(i) = ', &
                                                              i,igtype(i),offset(i),kdim(i),kord(i)
     end do
   
@@ -315,7 +318,7 @@ contains
           kord(i)=1
        end if
        offset(i)=n_position+iadd ; length(i)=im*(jm+1) ; igtype(i)=3 ; kdim(i)=lm
-       if(mype == 0.and.k==1) write(6,*)' v i,igtype,offset,kdim(i),kord(i) = ', &
+       if(print_verbose.and.k==1) write(6,*)' v i,igtype,offset,kdim(i),kord(i) = ', &
                                                               i,igtype(i),offset(i),kdim(i),kord(i)
     end do
   
@@ -330,7 +333,7 @@ contains
     i=i+1 ; i_sst=i                                                ! sst
     read(lendian_in) n_position
     offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
-    if(mype == 0) write(6,*)' sst i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+    if(print_verbose) write(6,*)' sst i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
   
     read(lendian_in)                                                    ! ivgtyp
     read(lendian_in)                                                    ! isltyp
@@ -355,7 +358,7 @@ contains
              kord(i)=1
           end if
           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=ksize
-          if(mype == 0.and.k==1) write(6,*)' smois i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+          if(print_verbose.and.k==1) write(6,*)' smois i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
        end do
   
        i_tslb=i+1
@@ -370,7 +373,7 @@ contains
              kord(i)=1
           end if
           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=ksize
-          if(mype == 0.and.k==1) write(6,*)' tslb i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+          if(print_verbose.and.k==1) write(6,*)' tslb i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
        end do
     else
        i_tslb=0
@@ -382,24 +385,24 @@ contains
     i=i+1 ; i_tsk=i                                                ! tsk
     read(lendian_in) n_position
     offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
-    if(mype == 0) write(6,*)' tsk i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+    if(print_verbose) write(6,*)' tsk i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
   
   
     i=i+1 ; i_q2=i                                                ! q2
     read(lendian_in) n_position
     offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
-    if(mype == 0) write(6,*)' q2 i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+    if(print_verbose) write(6,*)' q2 i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
   
     if(l_gsd_soilTQ_nudge) then
        i=i+1 ; i_soilt1=i                                            ! soilt1
        read(lendian_in) n_position
        offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
-       if(mype == 0) write(6,*)' soilt1 i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+       if(print_verbose) write(6,*)' soilt1 i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
   
        i=i+1 ; i_th2=i                                               ! th2
        read(lendian_in) n_position
        offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
-       if(mype == 0) write(6,*)' th2, i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+       if(print_verbose) write(6,*)' th2, i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
     else
        i_soilt1=0
        i_th2=0
@@ -420,7 +423,7 @@ contains
              kord(i)=1
           end if
           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
-          if(mype == 0.and.k==1) write(6,*)' qc i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+          if(print_verbose.and.k==1) write(6,*)' qc i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
        end do
   
        i_qr=i+1
@@ -435,7 +438,7 @@ contains
              kord(i)=1
            end if
           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
-          if(mype == 0.and.k==1) write(6,*)' qr i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+          if(print_verbose.and.k==1) write(6,*)' qr i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
        end do
   
        i_qi=i+1
@@ -450,7 +453,7 @@ contains
              kord(i)=1
           end if
           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
-          if(mype == 0.and.k==1) write(6,*)' qi i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+          if(print_verbose.and.k==1) write(6,*)' qi i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
        end do
   
        i_qs=i+1
@@ -465,7 +468,7 @@ contains
              kord(i)=1
           end if
           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
-          if(mype == 0.and.k==1) write(6,*)' qs i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+          if(print_verbose.and.k==1) write(6,*)' qs i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
        end do
    
        i_qg=i+1
@@ -480,7 +483,7 @@ contains
              kord(i)=1
           end if
           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
-          if(mype == 0.and.k==1) write(6,*)' qg i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+          if(print_verbose.and.k==1) write(6,*)' qg i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
        end do
   
        i_qnr=i+1
@@ -495,7 +498,7 @@ contains
              kord(i)=1
           end if
           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
-          if(mype == 0.and.k==1) write(6,*)' qnr i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+          if(print_verbose.and.k==1) write(6,*)' qnr i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
        end do
 
        i_qni=i+1
@@ -510,7 +513,7 @@ contains
              kord(i)=1
           end if
           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
-          if(mype == 0.and.k==1) write(6,*)' qni i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+          if(print_verbose.and.k==1) write(6,*)' qni i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
        end do
 
        i_qnc=i+1
@@ -525,7 +528,7 @@ contains
              kord(i)=1
           end if
           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
-          if(mype == 0.and.k==1) write(6,*)' qnc i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+          if(print_verbose.and.k==1) write(6,*)' qnc i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
        end do
   
        i_tt=i+1
@@ -540,7 +543,7 @@ contains
              kord(i)=1
           end if
           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
-          if(mype == 0.and.k==1) write(6,*)' tt i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+          if(print_verbose.and.k==1) write(6,*)' tt i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
        end do
   
     endif    ! l_cloud_analysis
@@ -564,10 +567,10 @@ contains
     do k=0,npe-1
        kend(k)=kbegin(k+1)-1
     end do
-    if(mype == 0) then
-       write(6,*)' kbegin=',kbegin
-       write(6,*)' kend= ',kend
-    end if
+!   if(mype == 0) then
+!      write(6,*)' kbegin=',kbegin
+!      write(6,*)' kend= ',kend
+!   end if
     num_j_groups=jm/npe
     jextra=jm-num_j_groups*npe
     jbegin(0)=1
@@ -582,10 +585,10 @@ contains
     do j=0,npe-1
      jend(j)=min(jbegin(j+1)-1,jm)
     end do
-    if(mype == 0) then
-       write(6,*)' jbegin=',jbegin
-       write(6,*)' jend= ',jend
-    end if
+!   if(mype == 0) then
+!      write(6,*)' jbegin=',jbegin
+!      write(6,*)' jend= ',jend
+!   end if
   
   !     sub2grid to get tempa for fields to be updated
   

@@ -1,5 +1,4 @@
-!#define VERBOSE
-subroutine gsisub(mype,init_pass,last_pass)
+subroutine gsisub(init_pass,last_pass)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:  gsisub                  high level driver for gridpoint 
@@ -61,9 +60,9 @@ subroutine gsisub(mype,init_pass,last_pass)
 !   2014-02-27  sienkiewicz - add additional aircraft bias option (external table)
 !   2015-07-20  zhu     - centralize radiance info for the usages of clouds & aerosols
 !                       - add radiance_obstype_init,radiance_parameter_cloudy_init,radiance_parameter_aerosol_init 
+!   2016-07-28  lippi   - add oneobmakerwsupob if 'rw' single ob test and skips radar_bufr_read_all.
 !
 !   input argument list:
-!     mype - mpi task id
 !
 !   comments:
 !
@@ -77,7 +76,7 @@ subroutine gsisub(mype,init_pass,last_pass)
   use observermod, only: observer_init,observer_run,observer_finalize
   use gridmod, only: twodvar_regional,create_grid_vars,destroy_grid_vars
   use gridmod, only: wrf_mass_regional,wrf_nmm_regional,nems_nmmb_regional,cmaq_regional
-  use mpimod, only: npe,mpi_comm_world,ierror
+  use mpimod, only: mype,npe,mpi_comm_world,ierror
   use radinfo, only: radinfo_read
   use pcpinfo, only: pcpinfo_read,create_pcp_random,&
        destroy_pcp_random
@@ -86,10 +85,11 @@ subroutine gsisub(mype,init_pass,last_pass)
   use ozinfo, only: ozinfo_read
   use coinfo, only: coinfo_read
   use read_l2bufr_mod, only: radar_bufr_read_all
-  use oneobmod, only: oneobtest,oneobmakebufr
+  use oneobmod, only: oneobtest,oneobmakebufr,oneobmakerwsupob,oneob_type
   use aircraftinfo, only: aircraftinfo_read,aircraft_t_bc_pof,aircraft_t_bc,&
      aircraft_t_bc_ext
   use radiance_mod, only: radiance_obstype_init,radiance_parameter_cloudy_init,radiance_parameter_aerosol_init
+  use gsi_io, only: verbose
 #ifndef HAVE_ESMF
   use guess_grids, only: destroy_gesfinfo
 #endif
@@ -99,20 +99,23 @@ subroutine gsisub(mype,init_pass,last_pass)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in   ) :: mype
   logical        ,intent(in) :: init_pass
   logical        ,intent(in) :: last_pass
+  logical print_verbose
+  
+  print_verbose=.false.
+  if(verbose) print_verbose=.true.
 
-  if(mype==0) call tell('gsisub',': starting ...')
-#ifdef VERBOSE
-  call tell('gsisub','init_pass =',init_pass)
-  call tell('gsisub','last_pass =',last_pass)
-  call tell('gsisub','iadate(1)=',iadate(1))
-  call tell('gsisub','iadate(2)=',iadate(2))
-  call tell('gsisub','iadate(3)=',iadate(3))
-  call tell('gsisub','iadate(4)=',iadate(4))
-  call tell('gsisub','iadate(5)=',iadate(5))
-#endif
+  if(print_verbose)then
+     if(mype==0) call tell('gsisub',': starting ...')
+     call tell('gsisub','init_pass =',init_pass)
+     call tell('gsisub','last_pass =',last_pass)
+     call tell('gsisub','iadate(1)=',iadate(1))
+     call tell('gsisub','iadate(2)=',iadate(2))
+     call tell('gsisub','iadate(3)=',iadate(3))
+     call tell('gsisub','iadate(4)=',iadate(4))
+     call tell('gsisub','iadate(5)=',iadate(5))
+  end if
 
 #ifndef HAVE_ESMF
 
@@ -127,13 +130,18 @@ subroutine gsisub(mype,init_pass,last_pass)
 
 ! If single ob test, create prep.bufr file with single ob in it
   if (oneobtest) then
-     if(mype==0)call oneobmakebufr
+     if(mype==0 .and. oneob_type=='rw') then
+        call oneobmakerwsupob
+     else if(mype==0 .and. oneob_type/='rw') then
+        call oneobmakebufr
+     end if
      call mpi_barrier(mpi_comm_world,ierror)
   end if
 
 ! Process any level 2 bufr format land doppler radar winds and create radar wind superob file
-  if(wrf_nmm_regional.or.wrf_mass_regional.or.nems_nmmb_regional &
-       .or. cmaq_regional) call radar_bufr_read_all(npe,mype)
+  if(wrf_nmm_regional.or.wrf_mass_regional.or.nems_nmmb_regional .or. cmaq_regional) then
+     if(.not. oneobtest) call radar_bufr_read_all(npe,mype)
+  end if
 !at some point cmaq will become also an online met/chem model (?)
 
 ! Read info files for assimilation of various obs
@@ -151,38 +159,38 @@ subroutine gsisub(mype,init_pass,last_pass)
            call aircraftinfo_read
      endif
      call convinfo_read
-#ifdef VERBOSE
-     call tell('gsisub','returned from convinfo_read()')
-#endif
+     if(print_verbose)then
+        call tell('gsisub','returned from convinfo_read()')
+     end if
   endif
 
 ! Compute random number for precipitation forward model.  
   if(init_pass) then
      call create_pcp_random(iadate,mype)
-#ifdef VERBOSE
-     call tell('gsisub','returned from create_pcp_random()')
-#endif
+     if(print_verbose)then
+        call tell('gsisub','returned from create_pcp_random()')
+     end if
   endif
 
 ! Complete setup and execute external and internal minimization loops
-#ifdef VERBOSE
-  call tell('gsisub','lobserver=',lobserver)
-#endif
+  if(print_verbose)then
+     call tell('gsisub','lobserver=',lobserver)
+  end if
   if (lobserver) then
     if(init_pass) call observer_init()
-#ifdef VERBOSE
-    call tell('gsisub','calling observer_run()')
-#endif
+    if(print_verbose)then
+       call tell('gsisub','calling observer_run()')
+    end if
     call observer_run(init_pass=init_pass,last_pass=last_pass)
-#ifdef VERBOSE
-    call tell('gsisub','returned from observer_run()')
-#endif
+    if(print_verbose)then
+       call tell('gsisub','returned from observer_run()')
+    end if
     if(last_pass) call observer_finalize()
 #ifndef HAVE_ESMF
       call destroy_gesfinfo()	! paired with gesinfo()
 #endif
   else
-     call glbsoi(mype)
+     call glbsoi
   endif
 
   

@@ -309,6 +309,7 @@ contains
     use gsi_metguess_mod, only: gsi_metguess_get
     use gsi_chemguess_mod, only: gsi_chemguess_get
     use gridmod, only: nsig
+    use gsi_io, only: verbose
     implicit none
 
     integer(i_kind) ii,jj,mxlvs,isum,ndim,ib,ie,ier
@@ -322,7 +323,10 @@ contains
 !   character(len=3),parameter :: wirednames(6) = (/ 'tv ','q  ','oz ', 'u  ', 'v  ', 'sst' /)
     character(len=3),parameter :: wirednames(1) = (/ 'sst' /)
     integer(i_kind) ,parameter :: wiredlevs (1) = (/ 1 /)
+    logical print_verbose
 
+    print_verbose = .false. .and. mype == 0
+    if(verbose .and. mype == 0)print_verbose=.true.
 !   safeguard angord value for option adp_anglebc
     if (adp_anglebc) then 
        if (angord==0) then 
@@ -443,7 +447,7 @@ contains
     deallocate(aux)
     deallocate(meteo_names)
 
-    if(mype==0) then
+    if(print_verbose) then
       print*, 'Vars in Rad-Jacobian (dims)'
       print*, '--------------------------'
       do ii=1,nvarjac
@@ -797,7 +801,8 @@ contains
 !   Allocate arrays to receive angle dependent bias information.
 !   Open file to bias file (satang=satbias_angle).  Read data.
 
-    maxscan=90  ! Default value for old files
+    maxscan=250
+    if (.not.adp_anglebc) maxscan = 90 ! default value for old files
 
     if (adp_anglebc) then 
 
@@ -2152,7 +2157,7 @@ END subroutine dec2bin
                                     iuse_rad,ich,GSI_BundleErrorCov(iinstr))
 end function adjust_jac_
 
-subroutine get_rsqrtinv_ (iinstr,nchasm,ich,ichasm,varinv,rsqrtinv)
+subroutine get_rsqrtinv_ (nchanl,iinstr,nchasm,ich,ichasm,varinv,rsqrtinv)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    get_rsqrtinv_
@@ -2177,6 +2182,7 @@ subroutine get_rsqrtinv_ (iinstr,nchasm,ich,ichasm,varinv,rsqrtinv)
    implicit none
    integer(i_kind), intent(in) :: iinstr
    integer(i_kind), intent(in) :: nchasm
+   integer(i_kind), intent(in) :: nchanl
    integer(i_kind), intent(in) :: ich(nchasm)
    integer(i_kind), intent(in) :: ichasm(nchasm)
    real(r_kind), intent(in) :: varinv(nchasm)    ! inverse of specified ob-error-variance
@@ -2184,7 +2190,7 @@ subroutine get_rsqrtinv_ (iinstr,nchasm,ich,ichasm,varinv,rsqrtinv)
 
    character(len=*),parameter::myname_ = myname//'*get_rsqrtinv_'
 
-   call corr_ob_rsqrtinv (jpch_rad,iuse_rad,nchasm,ich,ichasm,varinv,&
+   call corr_ob_rsqrtinv (nchanl,jpch_rad,iuse_rad,nchasm,ich,ichasm,varinv,&
                           rsqrtinv,GSI_BundleErrorCov(iinstr))
 
 end subroutine get_rsqrtinv_

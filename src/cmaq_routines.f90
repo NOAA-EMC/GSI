@@ -404,10 +404,10 @@ subroutine read_cmaq_guess(mype)
         kv=kv+1
         do i=1,lon2
            do j=1,lat2
-              ges_u_it(j,i,k) = all_loc(j,i,ku)
-              ges_v_it(j,i,k) = all_loc(j,i,kv)
-              ges_tsen(j,i,k,it) = all_loc(j,i,kt)
-              ges_q_it(j,i,k) = all_loc(j,i,kq)
+              ges_u_it(j,i,k) = real(all_loc(j,i,ku),r_kind)
+              ges_v_it(j,i,k) = real(all_loc(j,i,kv),r_kind)
+              ges_tsen(j,i,k,it) = real(all_loc(j,i,kt),r_kind)
+              ges_q_it(j,i,k) = real(all_loc(j,i,kq),r_kind)
 !                convert guess mixing ratio to specific humidity
               ges_q_it(j,i,k) = ges_q_it(j,i,k)/(one+ges_q_it(j,i,k))
               ges_tv_it(j,i,k) = ges_tsen(j,i,k,it) * &
@@ -419,8 +419,8 @@ subroutine read_cmaq_guess(mype)
 
      do i=1,lon2
         do j=1,lat2
-           ges_z_it(j,i) = all_loc(j,i,kfis)
-           ges_ps_it(j,i)=r0_001*all_loc(j,i,kpsfc)! convert from Pa to cb
+           ges_z_it(j,i) = real(all_loc(j,i,kfis),r_kind)
+           ges_ps_it(j,i)=r0_001*real(all_loc(j,i,kpsfc),r_kind)! convert from Pa to cb
         end do
      end do
 
@@ -458,7 +458,7 @@ subroutine read_cmaq_guess(mype)
      
            do i=1,lon2
               do j=1,lat2
-                 pm2_5_guess(j,i,k)=pm2_5_guess(j,i,k)+all_loc(j,i,icount)
+                 pm2_5_guess(j,i,k)=pm2_5_guess(j,i,k)+real(all_loc(j,i,icount),r_kind)
               enddo
            enddo
         enddo

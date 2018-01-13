@@ -579,13 +579,11 @@ end subroutine set_cloud_lower_bound
 
 
       real(r_kind) function fpvsx(t)
-      use constants, only: tmix, xai, xbi, xa, xb, ttp, psatk, init_constants
+      use constants, only: tmix, xai, xbi, xa, xb, ttp, psatk
       implicit none
 
       real(r_kind) :: t
       real(r_kind) :: tr
-
-      call init_constants(.true.)
 
       tr=ttp/t
  

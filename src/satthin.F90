@@ -489,13 +489,13 @@ contains
     endif
     mm1=mype+1
 
-    if(mype == 0)write(6,*)'GETSFC:  enter with nlat_sfc,nlon_sfc=',nlat_sfc,nlon_sfc,&
-      ' and nlat,nlon=',nlat,nlon
+!   if(mype == 0)write(6,*)'GETSFC:  enter with nlat_sfc,nlon_sfc=',nlat_sfc,nlon_sfc,&
+!     ' and nlat,nlon=',nlat,nlon
     if(regional)then
        nlat_sfc=nlat
        nlon_sfc=nlon
     end if
-    if(mype == 0)write(6,*)'GETSFC: set nlat_sfc,nlon_sfc=',nlat_sfc,nlon_sfc
+!   if(mype == 0)write(6,*)'GETSFC: set nlat_sfc,nlon_sfc=',nlat_sfc,nlon_sfc
     allocate(rlats_sfc(nlat_sfc),rlons_sfc(nlon_sfc))
 
     allocate(isli_full(nlat_sfc,nlon_sfc),fact10_full(nlat_sfc,nlon_sfc,nfldsfc))

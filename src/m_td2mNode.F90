@@ -73,8 +73,6 @@ module m_td2mNode
  
   character(len=*),parameter:: MYNAME="m_td2mNode"
 
-!#define CHECKSUM_VERBOSE
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains

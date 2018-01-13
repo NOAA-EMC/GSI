@@ -75,8 +75,6 @@ module m_aeroNode
 
   character(len=*),parameter:: MYNAME="m_aeroNode"
 
-!#define CHECKSUM_VERBOSE
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains
