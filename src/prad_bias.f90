@@ -30,6 +30,7 @@ module m_prad
 
 ! module interface:
 
+  use m_obsNode , only: obsNode
   use m_radNode , only: radNode
   use m_radNode , only: radNode_typecast
   use m_radNode , only: radNode_nextcast
@@ -100,9 +101,19 @@ contains
     implicit none
 
     ALLOCATE(radheadm(nobs_bins))
-
+    call lreset_(radheadm(:))
     return
   end subroutine create_passive_obsmod_vars
+
+  subroutine lreset_(llists)
+    use kinds, only: i_kind
+    implicit none
+    type(obsLList),dimension(:),intent(inout) :: llists
+    integer(kind=i_kind):: ib
+    do ib=lbound(llists,1),ubound(llists,1)
+      call obsLList_reset(llists(ib),mold=radNode_mold)
+    enddo
+  end subroutine lreset_
 
 ! ----------------------------------------------------------------------
   subroutine destroyobs_passive
@@ -126,17 +137,9 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$  end documentation block
-    use gsi_4dvar, only: nobs_bins
-    use kinds, only: i_kind
-
     implicit none
 
-    integer(i_kind) :: ii
-
-    do ii=1,nobs_bins
-       call obsLList_reset(radheadm(ii),mold=radNode_mold)
-    end do
-
+    call lreset_(radheadm(:))
     deallocate(radheadm)
 
     return
@@ -186,6 +189,7 @@ contains
   real(r_kind),allocatable,dimension(:,:) :: AA
   real(r_kind),allocatable,dimension(:) :: be
 
+  class(obsNode),pointer:: obsptrm
   type(radNode),pointer:: radptrm
 
 ! Initialize timer
@@ -219,7 +223,8 @@ contains
 ! Big loop for observations
   do ibin=1,nobs_bins
      !radptrm => obsLList_headNode(radheadm(ibin))
-     radptrm => radNode_typecast(obsLList_headNode(radheadm(ibin)))
+     obsptrm => obsLList_headNode(radheadm(ibin))
+     radptrm => radNode_typecast(obsptrm)
 
      do while (associated(radptrm))
 

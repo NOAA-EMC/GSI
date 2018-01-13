@@ -87,6 +87,7 @@ contains
       use get_wrf_nmm_ensperts_mod, only: get_wrf_nmm_ensperts_class
       use mpimod, only: mpi_comm_world,ierror
       use wrf_params_mod, only: update_pint,cold_start
+      use gsi_io, only: verbose
 
       implicit none
   
@@ -98,12 +99,15 @@ contains
       type(convert_netcdf_class) :: netcdf_converter
       type(get_wrf_nmm_ensperts_class) :: binary_nmm
       type(get_wrf_binary_interface_class) :: wrf_interface
+      logical print_verbose
   
   !   Convert nmm guess file to internal gsi format.  Consider
   !   two possible input formats:  netcdf or binary
       associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
       end associate
   
+      print_verbose=.false.
+      if(verbose)print_verbose=.true.
       update_pint=.false.
       cold_start=.true.
       if (wrf_nmm_regional) then
@@ -126,7 +130,7 @@ contains
          call mpi_bcast(stph0,1,mpi_rtype,0,mpi_comm_world,ierror)
          call mpi_bcast(tlm0,1,mpi_rtype,0,mpi_comm_world,ierror)
          call mpi_bcast(byte_swap,1,mpi_integer4,0,mpi_comm_world,ierror)
-         if(mype == 0)write(6,*)' in convert_regional_guess, for wrf nmm binary input, byte_swap=',byte_swap
+         if(mype == 0 .and. print_verbose)write(6,*)' in convert_regional_guess, for wrf nmm binary input, byte_swap=',byte_swap
   
   !   Convert mass guess file to internal gsi format.  Consider
   !   two possible input formats:  netcdf or binary
@@ -141,7 +145,7 @@ contains
          end if
          call mpi_barrier(mpi_comm_world,ierror)
          call mpi_bcast(byte_swap,1,mpi_integer4,0,mpi_comm_world,ierror)
-         write(6,*)' in convert_regional_guess, for wrf arw binary input, byte_swap=',byte_swap
+         if(print_verbose)write(6,*)' in convert_regional_guess, for wrf arw binary input, byte_swap=',byte_swap
   
       elseif (cmaq_regional) then
          if (mype==0) then

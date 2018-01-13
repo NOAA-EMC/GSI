@@ -88,9 +88,6 @@ module m_obsdiagNode
     type(obs_diag),pointer:: node
   end type fptr_obsdiagNode
 
-!#define NDEBUG
-!#define DEBUG_TRACE
-!#define DEBUG_VERBOSE
 
 #include "myassert.H"
 #include "mytrace.H"
@@ -232,7 +229,6 @@ return
 end subroutine ldump_
 
 subroutine lread_(diagLL,iunit,redistr,jiter,miter,jj_type,ii_bin,jread,leadNode,ignore_iter)
-!_DEBUG_USE_
 !_TIMER_USE_
   use obsmod, only: lobserver
   use obs_sensitivity, only: lobsensfc, lsensrecompute
@@ -274,20 +270,6 @@ _ENTRY_(myname_)
         call perr(myname_,'     expecting jj =',jj_type)
         call perr(myname_,'        actual jj =',kj)
         call  die(myname_)
-#ifdef DEBUG_VERBOSE
-      else
-        call tell(myname_,'obsHeader_read_(), current jiter =',jiter)
-        call tell(myname_,'                 expecting miter =',miter)
-        call tell(myname_,'                    expecting ii =',ii_bin)
-        call tell(myname_,'                    expecting jj =',jj_type)
-        call tell(myname_,'                    actual miter =',miter_read)
-        call tell(myname_,'                    actual jiter =',kiter)
-        call tell(myname_,'                       actual ii =',ki)
-        call tell(myname_,'                       actual jj =',kj)
-        call tell(myname_,'                       lobsensfc =',lobsensfc)
-        call tell(myname_,'                  lsensrecompute =',lsensrecompute)
-        call tell(myname_,'                       lobserver =',lobserver)
-#endif
       endif
 
     if(.not.ignore_iter_) then
@@ -455,20 +437,6 @@ _ENTRY_(myname_)
 
    if(present(itype)) jtype=itype
    if(present(ibin))  jbin =ibin
-#ifdef DEBUG_TRACE
-  if(diagLL%n_alloc>0) then
-    jtype=0
-    jbin =0
-    if(present(itype)) jtype=itype
-    if(present(ibin )) jbin =ibin
-
-    if(nooo/=0.or.ndup/=0) then
-      write(stdout,'(a,2x,2i4,5i6,3i10,a)') stdout_lead(myname_,''),jtype,jbin,diagLL%n_alloc,mcount,nuse,nooo,ndup,ksum,' >>> WARNING <<<'
-    else
-      write(stdout,'(a,2x,2i4,5i6,3i10  )') stdout_lead(myname_,''),jtype,jbin,diagLL%n_alloc,mcount,nuse,nooo,ndup,ksum
-    endif
-  endif
-#endif /* DEBUG_TRACE */
 _EXIT_(myname_)
 return
 end subroutine lchecksum_
@@ -561,11 +529,6 @@ subroutine lsummary_(diagLL,verbose)
   verbose_=.false.
   if(present(verbose)) verbose_=verbose
 _ENTRY_(myname_)
-#ifdef DEBUG_TRACE
-  _TRACEV_(myname_,' depth-of(diagLL) =',diagLL%n_alloc)
-  if(allocated(diagLL%lookup)) &
-  _TRACEV_(myname_,'    size(%lookup) =',size(diagLL%lookup))
-#endif
 
   if(verbose_) then
     tempLL = diagLL
@@ -756,7 +719,6 @@ end subroutine obsNode_append_
 
 subroutine lsort_(diagLL,itype,ibin)
 !       lsort_: node-sort diagLL, to line-up nodes according to their keys
-!_DEBUG_USE_
 !_TIMER_USE_
 !  use timermod , only: timer_ini,timer_fnl
   !use mpeu_util, only: IndexSet
@@ -820,7 +782,6 @@ return
 end subroutine lsort_
 
 subroutine lbuild_(diagLL,leadNode,jiter)
-!_DEBUG_USE_
 !_TIMER_USE_
 !  use timermod , only: timer_ini,timer_fnl
   use mpeu_util, only: IndexSet
@@ -893,7 +854,6 @@ _ENTRY_(myname_)
     lookup(1:n) = lookup(indx(1:n))
   end associate
 
-!#ifdef DEBUG_VERIFY
     idv_(1:n) = idv_(indx(1:n))
     iob_(1:n) = iob_(indx(1:n))
     ich_(1:n) = ich_(indx(1:n))
@@ -918,7 +878,6 @@ _ENTRY_(myname_)
         call die(myname_)
       endif
     end associate
-!#endif
 
   deallocate(indx,idv_,iob_,ich_)
 

@@ -1,4 +1,8 @@
 cmake_minimum_required(VERSION 2.8)
+# need to set CMP0046 when using add_dependencies with cmake version 3.6.2
+  if(crayComp)
+    cmake_policy(SET CMP0046 NEW)
+  endif()
   set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 # get a list of all the fortran source files
   file(GLOB GSI_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*90 )
@@ -46,6 +50,9 @@ cmake_minimum_required(VERSION 2.8)
   list( REMOVE_ITEM GSI_SRC ${LINKED_SRC} )
   list( REMOVE_ITEM GSI_SRC ${STUB_SRC} )
   list( REMOVE_ITEM GSI_SRC ${CPLR_SRC} )
+
+# remove stub_nstmod from the rest of the source files
+  list( REMOVE_ITEM GSI_SRC "${CMAKE_CURRENT_SOURCE_DIR}/stub_nstmod.f90" )
 
 # The specific regional/WRF source files
   if(USE_WRF)
@@ -95,7 +102,7 @@ cmake_minimum_required(VERSION 2.8)
 
   if(BUILD_CORELIBS )
     if(USE_WRF) 
-      add_dependencies(gsilib_wrf${debug_suffix} MODS gsilib_shrd${debug_suffix} ${bacio} ${crtm} ${bufr} ${nemsio} ${sigio} ${sfcio} ${sp} ${w3emc} ${w3nco} )
+      add_dependencies(gsilib_wrf${debug_suffix} gsilib_shrd${debug_suffix} ${bacio} ${crtm} ${bufr} ${nemsio} ${sigio} ${sfcio} ${sp} ${w3emc} ${w3nco} )
     endif()
     if(BUILD_GLOBAL)
 #     add_library(gsilib_global${debug_suffix} STATIC ${GLOBAL_SRC} )
@@ -104,13 +111,17 @@ cmake_minimum_required(VERSION 2.8)
     add_dependencies(gsilib_shrd${debug_suffix} ${bacio} ${crtm} ${bufr} ${nemsio} ${sigio} ${sfcio} ${sp} ${w3emc} ${w3nco} )
   endif()
 
+# add_custom_target(RMIFCORE COMMAND "sed 's/-lifcore//g' " WORKING_DIRECTORY "/gpfs/gd1/emc/global/noscrub/Mark.Potts/ProdGSI/build/src/CMakeFiles/gsi.x.dir" INPUT_FILE "link.txt" )
+# execute_process(COMMAND "sed_cmd" WORKING_DIRECTORY "/gpfs/gd1/emc/global/noscrub/Mark.Potts/ProdGSI/build" ERROR_FILE "sed_err" OUTPUT_FILE "sed_out"  )
   if(USE_WRF) 
-    add_dependencies(gsilib_wrf${debug_suffix} MODS gsilib_shrd${debug_suffix} )
+    add_dependencies(gsilib_wrf${debug_suffix} gsilib_shrd${debug_suffix} )
     add_executable(gsi.x${debug_suffix} ${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90 ${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90 )
+#   add_executable(gsi.x${debug_suffix} ${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90 )
   endif()
 
   if(BUILD_GLOBAL)
     add_executable(gsi_global.x${debug_suffix} ${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90 ${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90 )
+#   add_executable(gsi_global.x${debug_suffix} ${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90 )
   endif()
 
   if(USE_WRF) 
@@ -144,7 +155,7 @@ cmake_minimum_required(VERSION 2.8)
   if(USE_WRF) 
     target_link_libraries(gsi.x${debug_suffix} gsilib_shrd${debug_suffix} gsilib_wrf${debug_suffix} gsilib_shrd${debug_suffix} ${WRF_LIBRARIES} ${CORE_LIBRARIES}
          ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} 
-         ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} )
+         ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${GSI_LDFLAGS})
   endif()
   if(BUILD_GLOBAL) 
     target_link_libraries(gsi_global.x${debug_suffix} gsilib_shrd${debug_suffix} gsilib_global${debug_suffix} gsilib_shrd${debug_suffix}  

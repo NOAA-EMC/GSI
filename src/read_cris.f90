@@ -31,6 +31,9 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2015-10-01  guo      - keep the original {dlat,dlon}_earth_deg values to avoid round-off errors.
 !   2016-04-28  jung - added logic for RARS and direct broadcast from NESDIS/UW
 !   2016-06-03  Collard - Added changes to allow for historical naming conventions
+!   2017-05-09  jung - mods to include all fovs, sensor twist in scan angle,
+!                      thinning routine including cloud info, and test 431
+!                      subset.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -79,13 +82,14 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   use crtm_planck_functions, only: crtm_planck_temperature
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
       tll2xy,txy2ll,rlats,rlons
-  use constants, only: zero,deg2rad,rad2deg,r60inv,one,ten,r100
+  use constants, only: zero,deg2rad,rad2deg,r60inv,one,ten,r100,r1000
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use calc_fov_crosstrk, only: instrument_init, fov_check, fov_cleanup
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth,gsi_nstcoupler_deter
   use mpimod, only: npe
+  use gsi_io, only: verbose
 ! use radiance_mod, only: rad_obs_type
 
   implicit none
@@ -125,10 +129,10 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Variables for BUFR IO    
   real(r_double) :: rchar_mtyp
-  real(r_double),dimension(5)  :: linele
+  real(r_double),dimension(4)  :: linele
   real(r_double),dimension(13) :: allspot
   real(r_double),allocatable,dimension(:,:) :: allchan
-!  real(r_double),dimension(6):: cloud_frac
+  real(r_double),dimension(2):: cloud_properties
   character(len=3) :: char_mtyp
   
   real(r_kind)      :: step, start
@@ -136,7 +140,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   character(len=4)  :: senname
   character(len=80) :: allspotlist
   character(len=40) :: infile2
-  integer(i_kind)   :: jstart, kidsat, ksatid
+  integer(i_kind)   :: kidsat, ksatid
   integer(i_kind)   :: iret,ireadsb,ireadmg,irec,next, nrec_startx
   integer(i_kind)   :: bufr_nchan,maxinfo
   integer(i_kind),allocatable,dimension(:)::nrec
@@ -168,8 +172,8 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),allocatable,dimension(:,:):: data_all
   real(r_kind) cdist,disterr,disterrmax,dlon00,dlat00,r01
 
-  logical          :: outside,iuse,assim,valid
-  logical          :: cris
+  logical          :: outside,iuse,assim,valid,clear
+  logical          :: cris,quiet
 
   integer(i_kind)  :: ifov, ifor, iscn, instr, ioff, ilat, ilon, sensorindex
   integer(i_kind)  :: i, l, iskip, bad_line, llll
@@ -182,9 +186,26 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind):: bufr_size
   character(len=20),dimension(1):: sensorlist
 
+! scan angle calculation geometry based on:
+! C. Root 2014: JPSS Ground Project Code 474-00032
+! Joint Polar Satellite System Cross Track Infrared Sounder Sensor Data Records
+! Algorithm Theoretical Basis Document
+!          and
+! NWP SAF NWPSAF-MO-UD-027
+! N. C. Atkinson 2011: Pre-processing of ATMS and CrIS 
+!
+! Each FOV has a 1.1 degree separation 
+! The orientation of the 9 FOVs rotates across the scan by an angle equal to the
+! scan angle.
+! across the scan by an angle equal to the scan angle.
+! distance from the FOR center (FOV=5) in radians used for scan angle
+  real(r_kind),dimension(9) :: fov_dist(1:9) = (/2.71510e-2,1.91986e-2,2.71510e-2,1.91986e-2,0.0,1.91986e-2,2.71510e-2,1.91986e-2,2.71510e-2/)  !radians
+! direction to FOV from the FOR center in radians reference is FOR=1 
+  real(r_kind),dimension(9) :: fov_ang(1:9) = (/4.77057,3.98517,3.19977,5.55597,0.0,2.41437,0.05818,0.84358,1.62897/)  !radians
 
 ! Set standard parameters
   character(8),parameter:: fov_flag="crosstrk"
+  integer(i_kind),parameter:: sfc_channel=501 !used in thinning routine if cloud informatino is not available
   integer(i_kind),parameter:: ichan=-999  ! fov-based surface code is not channel specific for cris 
   real(r_kind),parameter:: expansion=one         ! exansion factor for fov-based surface code.
                                                  ! use one for ir sensors.
@@ -193,7 +214,10 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),parameter:: tbmin  = 50._r_kind
   real(r_kind),parameter:: tbmax  = 550._r_kind
   real(r_kind),parameter:: rato   = 0.87997285_r_kind 
+  logical print_verbose
 
+  print_verbose = .false.
+  if(verbose)print_verbose=.true.
 ! Initialize variables
   maxinfo    =  31
   disterrmax=zero
@@ -221,7 +245,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   end if
 
   if (nst_gsi > 0 ) then
-    call gsi_nstcoupler_skindepth(trim(obstype),zob)
+    call gsi_nstcoupler_skindepth(obstype,zob)
   endif
 
 !  write(6,*)'READ_CRIS: mype, mype_root,mype_sub, npe_sub,mpi_comm_sub', &
@@ -264,7 +288,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! weighting between observations within a given thinning group.
   if (.not. assim) val_cris=zero
 
-  if (mype_sub==mype_root)write(6,*)'READ_CRIS:  ',nusis(ioff+1),' offset ',ioff
+  if (mype_sub==mype_root .and. print_verbose)write(6,*)'READ_CRIS:  ',nusis(ioff+1),' offset ',ioff
 
   senname = 'CRIS'
   
@@ -273,12 +297,13 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Load spectral coefficient structure  
   sensorlist(1)=sis
+  quiet=.not. verbose
   if( crtm_coeffs_path /= "" ) then
-     if(mype_sub==mype_root) write(6,*)'READ_CRIS: crtm_spccoeff_load() on path "'//trim(crtm_coeffs_path)//'"'
+     if(mype_sub==mype_root .and. print_verbose) write(6,*)'READ_CRIS: crtm_spccoeff_load() on path "'//trim(crtm_coeffs_path)//'"'
      error_status = crtm_spccoeff_load(sensorlist,&
-        File_Path = crtm_coeffs_path )
+        File_Path = crtm_coeffs_path,quiet=quiet )
   else
-     error_status = crtm_spccoeff_load(sensorlist)
+     error_status = crtm_spccoeff_load(sensorlist,quiet=quiet)
   endif
 
   if (error_status /= success) then
@@ -396,19 +421,20 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          Get the size of the channels and radiance (allchan) array and
 !          Read FOV information
            if (char_mtyp == 'FSR') then
-              call ufbint(lnbufr,linele,5,1,iret,'FOVN SLNM QMRKH FORN  (CRCHNM)')
+              call ufbint(lnbufr,linele,4,1,iret,'FOVN SLNM FORN  (CRCHNM)')
            else
-              call ufbint(lnbufr,linele,5,1,iret,'FOVN SLNM QMRKH FORN  (CRCHN)')
+              call ufbint(lnbufr,linele,4,1,iret,'FOVN SLNM FORN  (CRCHN)')
            endif
-           bufr_nchan = int(linele(5))
+           bufr_nchan = int(linele(4))
 
            bufr_size = size(temperature,1)
-           if ( bufr_size /= bufr_nchan ) then    ! allocation if
+           if ( bufr_size /= bufr_nchan ) then   
 !             Allocate the arrays needed for the channel and radiance array
               deallocate(temperature, allchan, bufr_chan_test)
               allocate(temperature(bufr_nchan))   ! dependent on # of channels in the bufr file
               allocate(allchan(2,bufr_nchan))
               allocate(bufr_chan_test(bufr_nchan))
+              bufr_chan_test(:)=0
            endif    ! allocation if
 
 !          CRIS field-of-view ranges from 1 to 9, corresponding to the 9 sensors measured
@@ -420,24 +446,14 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !                ----------------------
 !                FOR#        x    x+1
 !          FORs are scanned from left limb (FOR=1) to right limb (FOR=30)
-!
-!          For now, we will simply choose IFOV=5.  See Fig. 58 of CrIS SDR ATBD (Rev. D) for a picture.
 
 !          Only use central IFOV
            ifov = nint(linele(1))               ! field of view
-           if (ifov /= 5) cycle read_loop
-
-           ifor = nint(linele(4))               ! field of regard
+           ifor = nint(linele(3))               ! field of regard
 
 !          Remove data on edges
            if (.not. use_edges .and. &
               (ifor < radedge_min .OR. ifor > radedge_max )) cycle read_loop
-
-!          Top level QC check:
-           if ( linele(3) /= zero) cycle read_loop  ! problem with profile (QMRKH)
-                                                 ! May want to eventually set to 
-                                                 ! QMRHK <= 1, as data is, and I
-                                                 ! quote, 'slightly suspect'
 
 !          Zenith angle/scan spot mismatch, reject entire line
            if ( bad_line == nint(linele(2))) then
@@ -449,9 +465,9 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          Check that the number of channels in the BUFR file is what we are expecting
 !          Number of channels in the BUFR file must be less than or equal to the number of channels
 !          in the spectral coefficient file.
-           if (nint(linele(5)) > sc(1) % n_channels) then 
+           if (nint(linele(4)) > sc(1) % n_channels) then 
               if (mype_sub==mype_root) write(6,*)'READ_CRIS:  ***ERROR*** CrIS BUFR contains ',&
-                 nint(linele(5)),' channels, but CRTM expects ',sc(1) % n_channels
+                 nint(linele(4)),' channels, but CRTM expects ',sc(1) % n_channels
               exit read_subset
            endif 
        
@@ -568,42 +584,32 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !          Observational info
            sat_zenang  = allspot(10)            ! satellite zenith angle
-
 !          Check satellite zenith angle (SAZA)
            if(sat_zenang > 90._r_kind ) then
               write(6,*)'READ_CRIS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
                  ' STRANGE OBS INFO(SAZA):', allspot(10)
               cycle read_loop
            endif
-           if ( ifor <= 15 ) sat_zenang = -sat_zenang
+!          Change sign for right side of scan line.
+           if( ifor <= 15 )  sat_zenang = -sat_zenang
 
-!          Compare CRIS satellite scan angle and zenith angle
- 
-           look_angle_est = (start + float(ifor)*step)*deg2rad
+!          Compute scan angle including sensor twist. 
+           look_angle_est = (start + float((ifor-1))*step) * deg2rad + &
+              fov_dist(ifov) * sin(fov_ang(ifov) - float(ifor-1)*step*deg2rad)
+
            sat_look_angle=asin(rato*sin(sat_zenang*deg2rad))
-
            if(abs(sat_look_angle)*rad2deg > MAX_SENSOR_ZENITH_ANGLE) then
               write(6,*)'READ_CRIS WARNING lza error ',sat_look_angle,look_angle_est
               cycle read_loop
            end if
 
-           if (ifov == 5 .and. abs(sat_look_angle - look_angle_est)*rad2deg > one) then
+!          Compare scan angle and look angle.  If not close, reject.
+           if ( abs(sat_look_angle - look_angle_est)*rad2deg > one) then
               write(6,*)' READ_CRIS WARNING uncertainty in look angle ', &
                   look_angle_est*rad2deg,sat_look_angle*rad2deg,sat_zenang,sis,ifor,start,step,allspot(11),allspot(12),allspot(13)
               bad_line = iscn
               cycle read_loop
            endif
-
-           pred = 100.0_r_kind    ! pred needs to have a value for WCOSS debug execution to work.
-
-!          As cloud_frac is missing from BUFR, use proxy of warmest fov over
-!          non ice surfaces.  Fixed channels (assuming the 399 set) for now.
-!          This is moved to below where the radiances are read in.
-
-!        if ( pred < zero .or. pred > 100.0_r_kind ) pred = 100.0_r_kind
-           crit1 = crit1 + pred
-           call checkob(dist1,crit1,itx,iuse)
-           if(.not. iuse)cycle read_loop
 
 !          "Score" observation.  We use this information to identify "best" obs
 !          Locate the observation on the analysis grid.  Get sst and land/sea/ice
@@ -634,11 +640,8 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          Set common predictor parameters
 
            crit1 = crit1 + rlndsea(isflg)
-           call checkob(dist1,crit1,itx,iuse)
-           if(.not. iuse)cycle read_loop
 
 !          CrIS data read radiance values and channel numbers
-
 !          Read CRIS channel number(CHNM) and radiance (SRAD)
            call ufbint(lnbufr,allchan,2,bufr_nchan,iret,'SRAD CHNM')
            if( iret /= bufr_nchan)then
@@ -657,7 +660,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
                  satinfo_chans: do i=1,satinfo_nchan                        ! Loop through sensor (cris) channels in the satinfo file
                     if ( channel_number(i) == int(allchan(2,l)) ) then      ! Channel found in both bufr and satinfo file
                        bufr_index(i) = l
-                       if ( channel_number(i) == 501 ) sfc_channel_index = l
+                       if ( channel_number(i) == sfc_channel ) sfc_channel_index = l
                        exit satinfo_chans                                   ! go to next bufr channel
                     endif
                  end do  satinfo_chans
@@ -669,8 +672,52 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
               cycle read_loop
            endif 
 
-           iskip = 0
-           jstart=1
+!          Cloud / clear tests.
+           clear = .false.
+           pred = zero
+
+!          Cloud information  may be missing depending on how the VIIRS granules align
+!          with the CrIS granules.  
+!          Cloud Amount, TOCC is total cloud cover [%], HOCT is cloud height [m] 
+           call ufbint(lnbufr,cloud_properties,2,1,iret,'TOCC HOCT')
+           if ( cloud_properties(1) <= r100 .and. cloud_properties(1) >= zero .and. &
+                cloud_properties(2) < 1.0e6_r_kind ) then
+!             Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
+              if ( cloud_properties(1) < one ) then     !Assume clear
+                 clear = .true.
+              else                                ! Assume a lapse rate to convert hgt to delta TB.
+                 pred = cloud_properties(2) *7.0_r_kind / r1000
+              endif
+           else
+
+!          If cloud_properties is missing from BUFR, use proxy of warmest fov. 
+!          the surface channel is fixed and set earlier in the code (501).
+
+             radiance = allchan(1,sfc_channel_index) * r1000    ! Conversion from W to mW
+             call crtm_planck_temperature(sensorindex,sfc_channel,radiance,temperature(sfc_channel_index))  ! radiance to BT calculation
+             if (temperature(sfc_channel_index) > tbmin .and. temperature(sfc_channel_index) < tbmax ) then
+                if ( tsavg*0.98_r_kind <= temperature(sfc_channel_index)) then   ! 0.98 is a crude estimate of the surface emissivity
+                   clear = .true.
+                else
+                   pred = (tsavg * 0.98_r_kind - temperature(sfc_channel_index)) 
+                endif
+             else
+                cycle read_loop
+             endif ! good surface temperature 
+           endif  ! clearest FOV check
+
+           pred = max(zero,pred)
+           crit1 = crit1 + pred
+
+!          Map obs to grids
+           if ( clear ) then  
+              call checkob(dist1,crit1,itx,iuse)
+           else
+              call checkob(one,crit1,itx,iuse)
+           endif
+           if(.not. iuse) cycle read_loop
+
+!          Convert radiance to BT loop
 !$omp parallel do schedule(dynamic,1) private(i,sc_chan,bufr_chan,radiance)
            channel_loop: do i=1,satinfo_nchan
               sc_chan = sc_index(i)
@@ -680,7 +727,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !             Negative radiance values are entirely possible for shortwave channels due to the high noise, but for
 !             now such spectra are rejected.  
               if (( allchan(1,bufr_chan) > zero .and. allchan(1,bufr_chan) < 99999._r_kind)) then    ! radiance bounds
-                 radiance = allchan(1,bufr_chan) * 1000.0_r_kind    ! Conversion from W to mW
+                 radiance = allchan(1,bufr_chan) * r1000    ! Conversion from W to mW
                  call crtm_planck_temperature(sensorindex,sc_chan,radiance,temperature(bufr_chan))  ! radiance to BT calculation
               else           ! error with channel number or radiance
                  temperature(bufr_chan) = tbmin
@@ -688,43 +735,27 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            end do channel_loop
 
 !          Check for reasonable temperature values
+           iskip = 0
            skip_loop: do i=1,satinfo_nchan
               if ( bufr_index(i) == 0 ) cycle skip_loop
               bufr_chan = bufr_index(i)
-              if(temperature(bufr_chan) <= tbmin .or. temperature(bufr_chan) > tbmax ) then
-                 temperature(bufr_chan) = min(tbmax,max(zero,temperature(bufr_chan)))
-                 if(iuse_rad(ioff+i) >= 0)iskip = iskip + 1
+              if(temperature(bufr_chan) <= tbmin .or. temperature(bufr_chan) >= tbmax ) then
+                 temperature(bufr_chan) = tbmin
+                 if(iuse_rad(ioff+i) >= 0) iskip = iskip + 1
               endif
            end do skip_loop
 
-           if(iskip > 0)write(6,*) ' READ_CRIS : iskip > 0 ',iskip
+           if(iskip > 0 .and. print_verbose)write(6,*) ' READ_CRIS : iskip > 0 ',iskip
 !          if( iskip >= 10 )cycle read_loop 
 
            crit1=crit1 + ten*float(iskip)
 
-!          Cloud / clear tests.
-!          Cloud information  may be missing depending on how the VIIRS granules align
-!          with the CrIS granules.  
-!          Cloud Amount, TOCC is percent cloudy, HOCT is cloud height in meters 
-!JAJ        call ufbint(lnbufr,cloud_frac,2,1,iret,'TOCC HOCT')
-!JAJ        if ( cloud_frac(1) <= 100.0_r_kind .and. cloud_frac(1) >= 0.0_r_kind) then
-!          Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
-!           pred = cloud_frac(1) / 10.0_r_kind
-!JAJ           pred = cloud_frac(2) / 100.0_r_kind
-!JAJ           crit1 = crit1 + pred
-
-!JAJ        else
-!       If cloud_frac is missing from BUFR, use proxy of warmest fov over 
-!       non ice surfaces.  Fixed channels (assuming the 399 set) for now.
-!       This is moved to below where the radiances are read in.
-
-              if (sfcpct(0)+sfcpct(1) > 0.9) &
-                 crit1=crit1+(320.0_r_kind-temperature(sfc_channel_index))
- 
-!JAJ        endif ! clearest FOV check
-
-!          Map obs to grids
-           call finalcheck(dist1,crit1,itx,iuse)
+!          Final map obs to grids
+           if ( clear ) then 
+              call finalcheck(dist1,crit1,itx,iuse)
+           else
+              call finalcheck(one,crit1,itx,iuse)
+           endif
            if(.not. iuse)cycle read_loop
 !
 !          interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
@@ -745,7 +776,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            data_all(4,itx) = dlat                   ! grid relative latitude
            data_all(5,itx) = sat_zenang*deg2rad     ! satellite zenith angle (rad)
            data_all(6,itx) = allspot(11)            ! satellite azimuth angle (deg)
-           data_all(7,itx) = sat_look_angle         ! look angle (rad)
+           data_all(7,itx) = look_angle_est         ! look angle (rad)
            data_all(8,itx) = ifor                   ! field of regard
            data_all(9,itx) = allspot(12)            ! solar zenith angle (deg)
            data_all(10,itx)= allspot(13)            ! solar azimuth angle (deg)

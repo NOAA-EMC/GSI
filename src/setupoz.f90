@@ -321,7 +321,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
  
         if (obstype == 'sbuv2' ) then
            if (nobskeep>0) then
-              write(6,*)'setupozlay: nobskeep',nobskeep
+!             write(6,*)'setupozlay: nobskeep',nobskeep
               call stop2(259)
            end if
  
@@ -552,7 +552,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
               my_head%nloz = nlev-1  ! NOTE: for OMI/GOME, nloz=0
 
 !             Set (i,j) indices of guess gridpoint that bound obs location
-              call get_ij(mm1,dlat,dlon,my_head%ij(1),tempwij(1))
+              call get_ij(mm1,dlat,dlon,my_head%ij,tempwij)
 
               call tintrp2a1(ges_prsi,prsitmp,dlat,dlon,dtime,hrdifsig,&
                    nsig+1,mype,nfldsig)
@@ -747,8 +747,8 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
      iextra=0
      if (init_pass .and. mype==mype_diaghdr(is)) then
         write(4) isis,dplat(is),obstype,jiter,nlevs,ianldate,iint,ireal,iextra
-        write(6,*)'SETUPOZ:   write header record for ',&
-             isis,iint,ireal,iextra,' to file ',trim(diag_ozone_file),' ',ianldate
+!       write(6,*)'SETUPOZ:   write header record for ',&
+!            isis,iint,ireal,iextra,' to file ',trim(diag_ozone_file),' ',ianldate
         do i=1,nlevs
            pob4(i)=pobs(i)
            grs4(i)=gross(i)

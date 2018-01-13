@@ -1,4 +1,4 @@
-subroutine glbsoi(mype)
+subroutine glbsoi
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    glbsoi               driver for gridpoint statistical 
@@ -96,7 +96,6 @@ subroutine glbsoi(mype)
 !   2015-12-08  el akkraoui - Y. Zhu sat-bias-corr now works with BiCG option
 !
 !   input argument list:
-!     mype - mpi task id
 !
 !   output argument list:
 !
@@ -106,7 +105,7 @@ subroutine glbsoi(mype)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use mpimod, only: npe
+  use mpimod, only: mype,npe
   use adjtest_obs, only: adtest_obs
   use jfunc, only: miter,jiter,jiterstart,jiterend,iguess,&
       write_guess_solution,R_option,&
@@ -157,11 +156,11 @@ subroutine glbsoi(mype)
 
   use m_prad, only: prad_updatePredx    ! was -- prad_bias()
   use m_obsdiags, only: obsdiags_write
+  use gsi_io,only: verbose
 
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
   logical laltmin
@@ -169,7 +168,10 @@ subroutine glbsoi(mype)
   integer(i_kind) jiterlast
   real(r_kind) :: zgg,zxy
   character(len=12) :: clfile
+  logical print_verbose
 
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
 
 !*******************************************************************************************
 !
@@ -281,7 +283,7 @@ subroutine glbsoi(mype)
 ! Main outer analysis loop
   do jiter=jiterstart,jiterlast
 
-     if (mype==0) write(6,*)'GLBSOI: jiter,jiterstart,jiterlast,jiterend=', &
+     if (mype==0) write(6,'(a44,4i5)')'GLBSOI: jiter,jiterstart,jiterlast,jiterend=', &
         jiter,jiterstart,jiterlast,jiterend
 
 !    Set up right hand side of analysis equation
@@ -332,7 +334,7 @@ subroutine glbsoi(mype)
            call pcinfo
 
 !          Standard run
-           if (mype==0) write(6,*)'GLBSOI:  START pcgsoi jiter=',jiter
+           if (mype==0 .and. print_verbose) write(6,*)'GLBSOI:  START pcgsoi jiter=',jiter
            call pcgsoi
         end if
 

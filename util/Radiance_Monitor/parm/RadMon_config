@@ -9,6 +9,10 @@
 
   echo "begin RadMon_config"
 
+# This defines the monitor value used in TANKDIR.
+#
+export MONITOR=radmon
+
 #
 # MY_RADMON should point to your working directory which contains the 
 # top level directory to the RadMon package.  If you checked out the package
@@ -16,7 +20,7 @@
 # you checked out only the Radiance_Monitor portion of the branch then
 # MY_RADMON should point to that.
 #
-export MY_RADMON=${MY_RADMON:-}
+export MY_RADMON=${MY_RADMON:-/gpfs/hps3/emc/da/noscrub/Edward.Safford/RadMon_622/util/Radiance_Monitor}
 
 #
 #  The MY_TANKDIR will be the location for the extracted data files and
@@ -24,16 +28,18 @@ export MY_RADMON=${MY_RADMON:-}
 #  and the succedding scripts will construct and use subdirectories under
 #  this location.
 #
-export MY_TANKDIR=${MY_TANKDIR:-}
+export MY_TANKDIR=${MY_TANKDIR:-/u/Edward.Safford/nbns}
+
+export RUN=${RUN:-gdas}
+
+export TANK_USE_RUN=${TANK_USE_RUN:-1}
 
 if [[ $RADMON_SUFFIX != "" && $RAD_AREA != "" ]]; then
-   if [[ $RAD_AREA = "glb" ]]; then
-      export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/${RADMON_SUFFIX}}
-      export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/${RADMON_SUFFIX}}
-   else
-      export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/regional/${RADMON_SUFFIX}}
-      export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/regional/${RADMON_SUFFIX}}
-   fi
+   export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/${RADMON_SUFFIX}}
+   export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/${RADMON_SUFFIX}}
+else
+   export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/regional/${RADMON_SUFFIX}}
+   export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/regional/${RADMON_SUFFIX}}
 fi
 
 #
@@ -41,9 +47,9 @@ fi
 #  on the web server (WEB_USER), and location of the top level directory
 #  for the html on the web server (WEBDIR).
 #
-export WEB_SVR=${WEB_SVR:-}
-export WEB_USER=${WEB_USER:-}
-export WEBDIR=${WEBDIR:-}
+export WEB_SVR=${WEB_SVR:-emcrzdm}
+export WEB_USER=${WEB_USER:-esafford}
+export WEBDIR=${WEBDIR:-/home/people/emc/www/htdocs/gmb/gdas/radiance/esafford}
 
 
 ###############################################################################
@@ -55,16 +61,16 @@ export WEBDIR=${WEBDIR:-}
 ###############################################################################
 ###############################################################################
 
-export MY_MACHINE=wcoss
+export MY_MACHINE=cray
 export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 
 
 #
 #  Log and work space definitions
 #
-export MY_PTMP=${MY_PTMP:-/ptmpp1}
+export MY_PTMP=${MY_PTMP:-/gpfs/hps/ptmp}
 export PTMP_USER=${PTMP_USER:-${MY_PTMP}/${LOGNAME}}
-export MY_STMP=${MY_STMP:-/stmpp1}
+export MY_STMP=${MY_STMP:-/gpfs/hps/stmp}
 export STMP_USER=${STMP_USER:-${MY_STMP}/${LOGNAME}}
 
 export LOGSverf_rad=${LOGSverf_rad:-${PTMP_USER}/logs}
@@ -128,6 +134,7 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    shell=sh
    . /usrx/local/Modules/default/init/${shell}
    module load lsf
+   module load prod_util
 
    export SUB="bsub"
    export NWPROD=/nwprod
@@ -136,19 +143,49 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    export UNCOMPRESS="/usrx/local/bin/unpigz -f"
 
 elif [[ $MY_MACHINE = "cray" ]]; then
-   module load prod_util	# defines $NDATE among other things
+   . /opt/modules/3.2.6.7/init/sh
+   module use -a /gpfs/hps/nco/ops/nwprod/modulefiles
+   module load prod_util        # defines $NDATE among other things
    module load prod_envir
-   export SUB="bsub"
+   module load xt-lsfhpc
+#   export SUB="/gpfs/slsf/xt-lsfhpc/9.1/linux2.6-glibc2.3-x86_64-cray/bin/bsub"
+   export SUB=`which bsub`
    export NWPROD=${COMROOTp1}
-   export COMPRESS=gzip
+   export COMPRESS="gzip -f"
    export UNCOMPRESS="gunzip -f"
 
 elif [[ $MY_MACHINE = "theia" ]]; then
+
    export SUB=/apps/torque/default/bin/qsub
-   export NWPROD=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod
-   export NDATE=${NWPROD}/util/exec/ndate
+   NWPROD=${NWPROD:-/scratch4/NCEPDEV/global/save/glopara/nwpara/util}
+   NWPRODush=${NWPRODush:=${NWPROD}/ush}
+   NWPRODexec=${NWPRODexec:=${NWPROD}/exec}
+   export NDATE=${NDATE:-${NWPRODexec}/ndate}
    export COMPRESS=gzip
    export UNCOMPRESS="gunzip -f"
+
+   #------------------------------------------------------------------------
+   #  The links below are a hack around the modules that are available
+   #  on the wcoss ibm & cray machines but not here on theia.  The alternative
+   #  was a bunch of contitional executions within the scripts to avoid the
+   #  nco mandated log and error requirements.
+   #------------------------------------------------------------------------
+   prevday=`$NDATE -24 $PDATE`
+   export PDYm1=`echo $prevday | cut -c1-8`
+   ln -s ${NWPRODush}/startmsg.sh ${STMP_USER}/startmsg
+   ln -s ${NWPRODush}/postmsg.sh ${STMP_USER}/postmsg
+   ln -s ${NWPRODush}/prep_step.sh ${STMP_USER}/prep_step
+   ln -s ${NWPRODush}/err_chk.sh ${STMP_USER}/err_chk
+   export PATH=$PATH:${STMP_USER}
+
+   #------------------------------------------------------------------------
+   # err_chk "helpfully" calls postmsg.sh directly so we need to override
+   # the utilscript location on theia to defeat err_chk's helpfulness and
+   # avoid a fatal error.
+   #------------------------------------------------------------------------
+   export utilscript=${utilscript:-${NWPRODush}}           
+                                                          
+                                                         
 fi
 
 

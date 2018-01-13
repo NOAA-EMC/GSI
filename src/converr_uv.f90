@@ -105,7 +105,7 @@ contains
         lcount=lcount+1
         itypex=itypey
         read(ietabl_uv,105,IOSTAT=iflag,end=120) (isuble_uv(itypex,n),n=1,7)
-         if (mype == 0) write(6,*)'CONVERR_UV:itypex,itypex=',itypex,itypex
+!        if (mype == 0) write(6,*)'CONVERR_UV:itypex,itypex=',itypex,itypex
 105     format(8x,7i12)
         do k=1,33
            read(ietabl_uv,110)(etabl_uv(itypex,k,m),m=1,8)

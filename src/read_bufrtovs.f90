@@ -146,6 +146,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use mpimod, only: npe
   use radiance_mod, only: rad_obs_type
+  use gsi_io, only: verbose
   implicit none
 
 ! Declare passed variables
@@ -224,11 +225,14 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
   real(r_kind) disterr,disterrmax,cdist,dlon00,dlat00
 
-  logical :: critical_channels_missing
+  logical :: critical_channels_missing,quiet
+  logical :: print_verbose
 
 !**************************************************************************
 ! Initialize variables
 
+  print_verbose=.false.
+  if(verbose) print_verbose=.true.
   maxinfo=31
   lnbufr = 15
   disterrmax=zero
@@ -492,14 +496,15 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      call openbf(lnbufr,'IN',lnbufr)
 
      if(llll >= 2 .and. (amsua .or. amsub .or. mhs))then
+        quiet=.not.verbose
         allocate(data1b8x(nchanl))
         sensorlist(1)=sis
         if( crtm_coeffs_path /= "" ) then
-           if(mype_sub==mype_root) write(6,*)'READ_BUFRTOVS: crtm_spccoeff_load() on path "'//trim(crtm_coeffs_path)//'"'
+           if(mype_sub==mype_root .and. print_verbose) write(6,*)'READ_BUFRTOVS: crtm_spccoeff_load() on path "'//trim(crtm_coeffs_path)//'"'
            error_status = crtm_spccoeff_load(sensorlist,&
-              File_Path = crtm_coeffs_path )
+              File_Path = crtm_coeffs_path, quiet=quiet )
            else
-              error_status = crtm_spccoeff_load(sensorlist)
+              error_status = crtm_spccoeff_load(sensorlist,quiet=quiet)
            endif
            if (error_status /= success) then
               write(6,*)'READ_BUFRTOVS:  ***ERROR*** crtm_spccoeff_load error_status=',error_status,&

@@ -546,10 +546,10 @@ contains
           do k=0,npe-1
              kend(k)=kbegin(k+1)-1
           end do
-          if(mype == 0) then
-             write(6,*)' kbegin=',kbegin
-             write(6,*)' kend= ',kend
-          end if
+!         if(mype == 0) then
+!            write(6,*)' kbegin=',kbegin
+!            write(6,*)' kend= ',kend
+!         end if
           num_j_groups=jm/npe
           jextra=jm-num_j_groups*npe
           jbegin(0)=1
@@ -564,10 +564,10 @@ contains
           do j=0,npe-1
              jend(j)=min(jbegin(j+1)-1,jm)
           end do
-          if(mype == 0) then
-             write(6,*)' jbegin=',jbegin
-             write(6,*)' jend= ',jend
-          end if
+!         if(mype == 0) then
+!            write(6,*)' jbegin=',jbegin
+!            write(6,*)' jend= ',jend
+!         end if
           
           allocate(ibuf(im*jm,kbegin(mype):kend(mype)))
   
@@ -826,16 +826,16 @@ contains
              end if
              do i=1,lon2
                 do j=1,lat2
-                   ges_u(j,i,k) = all_loc(j,i,ku)
-                   ges_v(j,i,k) = all_loc(j,i,kv)
-                   ges_q(j,i,k)   = all_loc(j,i,kq)
-                   ges_tsen(j,i,k,it)  = all_loc(j,i,kt) ! actually holds sensible temperature
+                   ges_u(j,i,k) = real(all_loc(j,i,ku),r_kind)
+                   ges_v(j,i,k) = real(all_loc(j,i,kv),r_kind)
+                   ges_q(j,i,k)   = real(all_loc(j,i,kq),r_kind)
+                   ges_tsen(j,i,k,it)  =real(all_loc(j,i,kt),r_kind) ! actually holds sensible temperature
   
                    if (n_actual_clouds>0) then
-                      clwmr(j,i,k) = all_loc(j,i,kcwm)
-                      fice(j,i,k) = all_loc(j,i,kf_ice)
-                      frain(j,i,k) = all_loc(j,i,kf_rain)
-                      frimef(j,i,k) = all_loc(j,i,kf_rimef)
+                      clwmr(j,i,k) = real(all_loc(j,i,kcwm),r_kind)
+                      fice(j,i,k) = real(all_loc(j,i,kf_ice),r_kind)
+                      frain(j,i,k) = real(all_loc(j,i,kf_rain),r_kind)
+                      frimef(j,i,k) = real(all_loc(j,i,kf_rimef),r_kind)
                    end if
                 end do
              end do
@@ -878,16 +878,17 @@ contains
   
           do i=1,lon2
              do j=1,lat2
-                ges_z(j,i)    = all_loc(j,i,i_fis)/grav ! NMM surface elevation multiplied by g
+                ges_z(j,i)    = real(all_loc(j,i,i_fis),r_kind)/grav ! NMM surface elevation multiplied by g
                 
   !             convert wrf nmm pd variable to psfc in mb, and then to log(psfc) in cb
                 
-                pd=r0_01*all_loc(j,i,i_pd)
+                pd=r0_01*real(all_loc(j,i,i_pd),r_kind)
                 psfc_this=pd+pdtop_ll+pt_ll
                 ges_ps(j,i)=one_tenth*psfc_this   ! convert from mb to cb
-                sno(j,i,it)=all_loc(j,i,i_sno)
-                soil_moi(j,i,it)=all_loc(j,i,i_smc)
-                soil_temp(j,i,it)=all_loc(j,i,i_stc)
+                if(j == 116 .and. i== 12)write(6,*) ' ges ps ',mype,ges_ps(j,i)
+                sno(j,i,it)=real(all_loc(j,i,i_sno),r_kind)
+                soil_moi(j,i,it)=real(all_loc(j,i,i_smc),r_kind)
+                soil_temp(j,i,it)=real(all_loc(j,i,i_stc),r_kind)
              end do
           end do
           if(update_pint) then
@@ -904,7 +905,7 @@ contains
                 kpint=kpint+1
                 do i=1,lon2
                    do j=1,lat2
-                      ges_pint(j,i,k)  = all_loc(j,i,kpint)
+                      ges_pint(j,i,k)  = real(all_loc(j,i,kpint),r_kind)
                    end do
                 end do
              end do
@@ -917,7 +918,7 @@ contains
              enddo
              do i=1,lon2
                 do j=1,lat2
-                   ges_pd(j,i)=all_loc(j,i,i_pd)
+                   ges_pd(j,i)=real(all_loc(j,i,i_pd),r_kind)
                 end do
              end do
           end if
@@ -943,12 +944,12 @@ contains
              do j=1,lat2
                 fact10(j,i,it)=one    !  later fix this by using correct w10/w(1)
                 wmag=sqrt(ges_u(j,i,1)**2+ges_v(j,i,1)**2)
-                if(wmag > zero)fact10(j,i,it)=sqrt(all_loc(j,i,i_u10)**2 + &
-                        all_loc(j,i,i_v10)**2)/wmag
+                if(wmag > zero)fact10(j,i,it)=sqrt(real(all_loc(j,i,i_u10),r_kind)**2 + &
+                        real(all_loc(j,i,i_v10),r_kind)**2)/wmag
                 fact10(j,i,it)=min(max(fact10(j,i,it),half),0.95_r_kind)
-                veg_type(j,i,it)=all_loc(j,i,i_ivgtyp)
-                veg_frac(j,i,it)=all_loc(j,i,i_vegfrac)
-                soil_type(j,i,it)=all_loc(j,i,i_isltyp)
+                veg_type(j,i,it)=real(all_loc(j,i,i_ivgtyp),r_kind)
+                veg_frac(j,i,it)=real(all_loc(j,i,i_vegfrac),r_kind)
+                soil_type(j,i,it)=real(all_loc(j,i,i_isltyp),r_kind)
                 sm_this=zero
                 if(all_loc(j,i,i_sm) /= zero_single) sm_this=one
                 sice_this=zero
@@ -959,12 +960,12 @@ contains
                 if(sice_this == zero.and.sm_this == zero) isli_this=1
                 isli(j,i,it)=isli_this
                 
-                sfct(j,i,it)=all_loc(j,i,i_sst)
-                if(isli(j,i,it) /= 0) sfct(j,i,it)=all_loc(j,i,i_tsk)
+                sfct(j,i,it)=real(all_loc(j,i,i_sst),r_kind)
+                if(isli(j,i,it) /= 0) sfct(j,i,it)=real(all_loc(j,i,i_tsk),r_kind)
                 if(sfct(j,i,it) < one) then
   
   !             For now, replace missing skin temps with 1st sigma level temp
-                   sfct(j,i,it)=all_loc(j,i,i_t) 
+                   sfct(j,i,it)=real(all_loc(j,i,i_t),r_kind)
                    num_doubtful_sfct=num_doubtful_sfct+1
                    if(num_doubtful_sfct <= 100) &
                         write(6,*)' doubtful skint replaced with 1st sigma level t, j,i,mype,sfct=',&
@@ -1075,6 +1076,7 @@ contains
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use mpeu_util, only: die,getindex
     use control_vectors, only: cvars3d
+    use gsi_io, only: verbose
     implicit none
   
   ! Declare passed variables here
@@ -1131,6 +1133,7 @@ contains
     real(r_kind),pointer,dimension(:,:,:):: ges_qs=>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_qg=>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_qh=>NULL()
+    logical print_verbose
   
     associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
     end associate
@@ -1140,6 +1143,8 @@ contains
   !          jm -- number of NMM latitudes (y-points) on E-grid
   !          lm -- number of NMM vertical levels ( = nsig for now)
   
+       print_verbose=.false.
+       if(verbose)print_verbose=.true.
        sfc_rough = 0.05_r_kind   !default value
        good_o3mr=.false.  ! no input guess for ozone; will use gfs ozone
   
@@ -1171,19 +1176,23 @@ contains
        num_all_fields=num_nmm_fields*nfldsig
        num_loc_groups=num_all_fields/npe
   
-       if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, lm            =",i6)')lm
-       if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, num_nmm_fields=",i6)')num_nmm_fields
-       if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, nfldsig       =",i6)')nfldsig
-       if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, num_all_fields=",i6)')num_all_fields
-       if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, npe           =",i6)')npe
-       if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, num_loc_groups=",i6)')num_loc_groups
+       if(mype == 0 .and. print_verbose) then
+          write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, lm            =",i6)')lm
+          write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, num_nmm_fields=",i6)')num_nmm_fields
+          write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, nfldsig       =",i6)')nfldsig
+          write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, num_all_fields=",i6)')num_all_fields
+          write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, npe           =",i6)')npe
+          write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, num_loc_groups=",i6)')num_loc_groups
+       end if
        do 
           num_all_pad=num_loc_groups*npe
           if(num_all_pad >= num_all_fields) exit
           num_loc_groups=num_loc_groups+1
        end do
-       if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, num_all_pad   =",i6)')num_all_pad
-       if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, num_loc_groups=",i6)')num_loc_groups
+       if(mype == 0 .and. print_verbose) then
+           write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, num_all_pad   =",i6)')num_all_pad
+           write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, num_loc_groups=",i6)')num_loc_groups
+       end if
   
        allocate(all_loc(lat2,lon2,num_all_pad))
        allocate(jsig_skip(num_nmm_fields))
@@ -1363,8 +1372,7 @@ contains
                       end do
                    end do
                 end if
-  !             write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)'),ifld,temp1(im/2,jm/2)
-  !             write(6,'(" ifld, temp1(im/2,jm/2)=",i6,5x,a30,e15.5)')ifld,identity(ifld),temp1(im/2,jm/2)                                                  
+!               write(6,'(" ifld, temp1(im/2,jm/2)=",i6,5x,a30,e30.20)')ifld,identity(ifld),temp1(im/2,jm/2)                                                  
                 if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempa,abs(igtype(ifld)),1)
                 if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempa,abs(igtype(ifld)),1)
   
@@ -1422,6 +1430,25 @@ contains
              kf_rimef=i_0+i_f_rimef-1
           end if
   
+          do i=1,lon2
+             do j=1,lat2
+                ges_z(j,i)    = real(all_loc(j,i,i_0+i_fis),r_kind)/grav ! NMM surface elevation multiplied by g
+  
+  !             convert wrf nmm pd variable to psfc in mb, and then to log(psfc) in cb
+                
+                pd=r0_01*real(all_loc(j,i,i_0+i_pd),r_kind)
+                psfc_this=pd+pdtop_ll+pt_ll
+                ges_ps(j,i)=one_tenth*psfc_this   ! convert from mb to cb
+!               if(j+istart(mype+1)-2 == 116 .and. i== 12)write(6,*) ' ges ps ',mype,ges_ps(j,i)
+! ix=ix1-istart(m1)+2
+! iy=iy1-jstart(m1)+2
+
+                sno(j,i,it)=real(all_loc(j,i,i_0+i_sno),r_kind)
+                soil_moi(j,i,it)=real(all_loc(j,i,i_0+i_smc),r_kind)
+                soil_temp(j,i,it)=real(all_loc(j,i,i_0+i_stc),r_kind)
+             end do
+          end do
+
           do k=1,nsig_read
              kt=kt+1
              kq=kq+1
@@ -1436,17 +1463,17 @@ contains
   
              do i=1,lon2
                 do j=1,lat2
-                   ges_u(j,i,k) = all_loc(j,i,ku)
-                   ges_v(j,i,k) = all_loc(j,i,kv)
-                   ges_q(j,i,k)   = all_loc(j,i,kq)
-                   ges_tsen(j,i,k,it)  = all_loc(j,i,kt) ! actually holds sensible temperature
+                   ges_u(j,i,k) = real(all_loc(j,i,ku),r_kind)
+                   ges_v(j,i,k) = real(all_loc(j,i,kv),r_kind)
+                   ges_q(j,i,k)   = real(all_loc(j,i,kq),r_kind)
+                   ges_tsen(j,i,k,it)  = real(all_loc(j,i,kt) ,r_kind)! actually holds sensible temperature
                    ges_oz(j,i,k) = zero                  ! set to zero for now 
   
                    if (n_actual_clouds>0) then
-                      clwmr(j,i,k) = all_loc(j,i,kcwm)
-                      fice(j,i,k) = all_loc(j,i,kf_ice)
-                      frain(j,i,k) = all_loc(j,i,kf_rain)
-                      frimef(j,i,k) = all_loc(j,i,kf_rimef)
+                      clwmr(j,i,k) = real(all_loc(j,i,kcwm),r_kind)
+                      fice(j,i,k) = real(all_loc(j,i,kf_ice),r_kind)
+                      frain(j,i,k) = real(all_loc(j,i,kf_rain),r_kind)
+                      frimef(j,i,k) = real(all_loc(j,i,kf_rimef),r_kind)
                    end if
                 end do
              end do
@@ -1488,27 +1515,13 @@ contains
              if (iret==0) ges_cwmr=clwmr
           end if
   
-          do i=1,lon2
-             do j=1,lat2
-                ges_z(j,i)    = all_loc(j,i,i_0+i_fis)/grav ! NMM surface elevation multiplied by g
   
-  !             convert wrf nmm pd variable to psfc in mb, and then to log(psfc) in cb
-                
-                pd=r0_01*all_loc(j,i,i_0+i_pd)
-                psfc_this=pd+pdtop_ll+pt_ll
-                ges_ps(j,i)=one_tenth*psfc_this   ! convert from mb to cb
-                sno(j,i,it)=all_loc(j,i,i_0+i_sno)
-                soil_moi(j,i,it)=all_loc(j,i,i_0+i_smc)
-                soil_temp(j,i,it)=all_loc(j,i,i_0+i_stc)
-             end do
-          end do
-  
-          if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(ges_ps)=', &          
-               minval(ges_ps),maxval(ges_ps)                                                        
-          if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(soil_moi)=', &
-               minval(soil_moi),maxval(soil_moi)
-          if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(soil_temp)=', &
-               minval(soil_temp),maxval(soil_temp)
+!         if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(ges_ps)=', &          
+!              minval(ges_ps),maxval(ges_ps)                                                        
+!         if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(soil_moi)=', &
+!              minval(soil_moi),maxval(soil_moi)
+!         if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(soil_temp)=', &
+!              minval(soil_temp),maxval(soil_temp)
           if(update_pint) then
              ier=0
              call gsi_bundlegetpointer(gsi_metguess_bundle(it),'pint', ges_pint, istatus)
@@ -1523,7 +1536,7 @@ contains
                 kpint=kpint+1
                 do i=1,lon2
                    do j=1,lat2
-                      ges_pint(j,i,k)  = all_loc(j,i,kpint) ! actually holds sensible temperature
+                      ges_pint(j,i,k)  = real(all_loc(j,i,kpint),r_kind) ! actually holds sensible temperature
                    end do
                 end do
              end do
@@ -1537,7 +1550,7 @@ contains
   
              do i=1,lon2
                 do j=1,lat2
-                   ges_pd(j,i)  = all_loc(j,i,i_0+i_pd)
+                   ges_pd(j,i)  = real(all_loc(j,i,i_0+i_pd),r_kind)
                 end do
              end do
           end if
@@ -1558,19 +1571,19 @@ contains
              end do
           end do
   
-  !    Transfer surface fields
+  !    Transfer rest of surface fields
           do i=1,lon2
              do j=1,lat2
                 fact10(j,i,it)=one    !  later fix this by using correct w10/w(1)
                 wmag=sqrt(ges_u(j,i,1)**2+ges_v(j,i,1)**2)
-                if(wmag > zero)fact10(j,i,it)=sqrt(all_loc(j,i,i_0+i_u10)**2 + &
-                        all_loc(j,i,i_0+i_v10)**2)/wmag
+                if(wmag > zero)fact10(j,i,it)=sqrt(real(all_loc(j,i,i_0+i_u10),r_kind)**2 + &
+                        real(all_loc(j,i,i_0+i_v10),r_kind)**2)/wmag
                 fact10(j,i,it)=min(max(fact10(j,i,it),half),0.95_r_kind)
-                veg_type(j,i,it)=all_loc(j,i,i_0+i_ivgtyp)
-                veg_frac(j,i,it)=all_loc(j,i,i_0+i_vegfrac)
-                soil_type(j,i,it)=all_loc(j,i,i_0+i_isltyp)
-  !             soil_temp(j,i,it)=all_loc(j,i,i_0+i_stc)
-  !             soil_moi(j,i,it)=all_loc(j,i,i_0+i_smc)
+                veg_type(j,i,it)=real(all_loc(j,i,i_0+i_ivgtyp),r_kind)
+                veg_frac(j,i,it)=real(all_loc(j,i,i_0+i_vegfrac),r_kind)
+                soil_type(j,i,it)=real(all_loc(j,i,i_0+i_isltyp),r_kind)
+  !             soil_temp(j,i,it)=real(all_loc(j,i,i_0+i_stc),r_kind)
+  !             soil_moi(j,i,it)=real(all_loc(j,i,i_0+i_smc),r_kind)
                 sm_this=zero
                 if(all_loc(j,i,i_0+i_sm) /= zero_single) sm_this=one
                 sice_this=zero
@@ -1581,12 +1594,12 @@ contains
                 if(sice_this == zero.and.sm_this == zero) isli_this=1
                 isli(j,i,it)=isli_this
                 
-                sfct(j,i,it)=all_loc(j,i,i_0+i_sst)
-                if(isli(j,i,it) /= 0) sfct(j,i,it)=all_loc(j,i,i_0+i_tsk)
+                sfct(j,i,it)=real(all_loc(j,i,i_0+i_sst),r_kind)
+                if(isli(j,i,it) /= 0) sfct(j,i,it)=real(all_loc(j,i,i_0+i_tsk),r_kind)
                 if(sfct(j,i,it) < one) then
   
   !             For now, replace missing skin temps with 1st sigma level temp
-                   sfct(j,i,it)=all_loc(j,i,i_0+i_t) 
+                   sfct(j,i,it)=real(all_loc(j,i,i_0+i_t),r_kind)
                    write(6,*)' doubtful skint replaced with 1st sigma level t, j,i,mype,sfct=',&
                         j,i,mype,sfct(j,i,it)
                    num_doubtful_sfct=num_doubtful_sfct+1
@@ -1597,29 +1610,31 @@ contains
        
        call mpi_reduce(num_doubtful_sfct,num_doubtful_sfct_all,1,mpi_integer,mpi_sum,&
             0,mpi_comm_world,ierror)
-       if(mype == 0) write(6,*)' in read_wrf_nmm_netcdf_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
-       if(mype == 0) write(6,*)' in read_wrf_nmm_netcdf_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
-       if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(sfct)=', &
-            minval(sfct),maxval(sfct)
-       if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(veg_type)=', &
-            minval(veg_type),maxval(veg_type)
-       if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(veg_frac)=', &
-            minval(veg_frac),maxval(veg_frac)
-       if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(soil_type)=', &
-            minval(soil_type),maxval(soil_type)
-       if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(isli)=', &
-            minval(isli),maxval(isli)
+       if(mype == 0 .and. print_verbose) then
+          write(6,*)' in read_wrf_nmm_netcdf_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
+          write(6,*)' in read_wrf_nmm_netcdf_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
+       end if
+!      if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(sfct)=', &
+!           minval(sfct),maxval(sfct)
+!      if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(veg_type)=', &
+!           minval(veg_type),maxval(veg_type)
+!      if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(veg_frac)=', &
+!           minval(veg_frac),maxval(veg_frac)
+!      if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(soil_type)=', &
+!           minval(soil_type),maxval(soil_type)
+!      if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(isli)=', &
+!           minval(isli),maxval(isli)
        
        deallocate(all_loc,jsig_skip,igtype,identity)
        deallocate(temp1,itemp1)
   
        if (use_gfs_stratosphere) then
-          if (mype==0) write(6,*)'in read_wrf_nmm_netcdf: use_gfs_stratosphere ...beg'     
+          if (mype==0 .and. print_verbose) write(6,*)'in read_wrf_nmm_netcdf: use_gfs_stratosphere ...beg'     
           call add_gfs_stratosphere
-          if (mype==0) write(6,*)'in read_wrf_nmm_netcdf: use_gfs_stratosphere ...end'         
+          if (mype==0 .and. print_verbose) write(6,*)'in read_wrf_nmm_netcdf: use_gfs_stratosphere ...end'         
        endif
   
-       if (mype==0) then
+       if (mype==0 .and. print_verbose) then
           do k=1,nsig
              write(6,*)' in read_wrf_nmm_netcdf_k,ges_tv  =',k,ges_tv(10,10,k)   !debug            
              write(6,*)' in read_wrf_nmm_netcdf_k,ges_tsen=',k,ges_tsen(10,10,k,1) !debug        
@@ -1657,6 +1672,7 @@ contains
   !   2016_03_02  s.liu/carley   - remove use_reflectivity and use i_gsdcldanal_type
   !   2016_06_21  s.liu   - delete unused variable qhtmp
   !   2016_06_30  s.liu   - delete unused variable gridtype in read fraction
+  !   2016-08-12  lippi   - add include_w. If true, reads in guess vertical velocity (w) profile.
   !
   !   input argument list:
   !     mype     - pe number
@@ -1708,7 +1724,8 @@ contains
   ! Declare local parameters
   
   ! Declare local variables
-  
+    logical include_w  
+
   ! other internal variables
     character(255) wrfges
     character(len=*),parameter :: myname='read_nems_nmmb_guess:: '
@@ -1727,6 +1744,7 @@ contains
     real(r_kind),pointer,dimension(:,:  ):: ges_z   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_u   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_v   =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_w   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_tv  =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_pint=>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_q   =>NULL()
@@ -1785,6 +1803,15 @@ contains
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q'  ,ges_q  ,istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'oz' ,ges_oz ,istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'pd' ,ges_pd,istatus );ier=ier+istatus
+       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'w'  ,ges_w  ,istatus)
+       if (istatus==0) then
+          include_w=.true.
+          if(mype==0) write(6,*)'READ_WRF_NMM_GUESS: Using vertical velocity.'
+       else
+          include_w=.false.
+          if(mype==0) write(6,*)'READ_WRF_NMM_GUESS: NOT using vertical velocity.'
+       end if
+
        if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
   
        if(mype==mype_input) then
@@ -1803,7 +1830,6 @@ contains
              pd=r0_01*ges_pd(j,i)
              psfc_this=pd+pd_to_ps
              ges_ps(j,i)=one_tenth*psfc_this
-             if(i==1.and.j==1) write(6,*)' it,i,j,psfc_this,ges_ps(j,i)=',it,i,j,psfc_this,ges_ps(j,i)
           end do
        end do
   
@@ -1825,6 +1851,9 @@ contains
           call gsi_nemsio_read('vgrd','mid layer','V',kr,ges_v(:,:,k),   mype,mype_input)
           call gsi_nemsio_read('spfh','mid layer','H',kr,ges_q(:,:,k),   mype,mype_input)
           call gsi_nemsio_read('tmp' ,'mid layer','H',kr,ges_tsen(:,:,k,it),mype,mype_input)
+          if(include_w) then
+             call gsi_nemsio_read('w_tot','mid layer','H',kr,ges_w(:,:,k),mype,mype_input)
+          end if
           do i=1,lon2
              do j=1,lat2
                 ges_tv(j,i,k) = ges_tsen(j,i,k,it) * (one+fv*ges_q(j,i,k))

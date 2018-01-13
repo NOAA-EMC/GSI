@@ -44,22 +44,19 @@
   use ozinfo, only: diag_ozone,init_oz
   use aeroinfo, only: diag_aero, init_aero, init_aero_vars, final_aero_vars
   use coinfo, only: diag_co,init_co
-  use convinfo, only: init_convinfo,npred_conv_max, &
-                      id_bias_ps,id_bias_t,id_bias_spd, &
-                      conv_bias_ps,conv_bias_t,conv_bias_spd, &
-                      stndev_conv_ps,stndev_conv_t,stndev_conv_spd,diag_conv,&
-                      id_bias_pm2_5,conv_bias_pm2_5,&
-                      id_bias_pm10,conv_bias_pm10,&
+  use convinfo, only: init_convinfo, &
+                      diag_conv,&
                       use_prepb_satwnd,id_drifter
 
   use oneobmod, only: oblon,oblat,obpres,obhourset,obdattim,oneob_type,&
-     oneobtest,magoberr,maginnov,init_oneobmod,pctswitch,lsingleradob,obchan
-  use balmod, only: fstat
+     oneobtest,magoberr,maginnov,init_oneobmod,pctswitch,lsingleradob,obchan,&
+     anaz_rw,anel_rw,range_rw,sstn,lsingleradar,singleradar,learthrel_rw
+  use balmod, only: init_balmod,fstat,lnobalance
   use turblmod, only: use_pbl,init_turbl
   use qcmod, only: dfact,dfact1,create_qcvars,destroy_qcvars,&
       erradar_inflate,tdrerr_inflate,use_poq7,qc_satwnds,&
       init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3,qc_noirjaco3_pole,&
-      buddycheck_t,buddydiag_save,njqc,vqc,closest_obs
+      buddycheck_t,buddydiag_save,njqc,vqc,closest_obs,vadwnd_l2rw_qc
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax, &
      factv,factl,factp,factg,factw10m,facthowv,factcldch,niter,niter_no_qc,biascor,&
@@ -90,7 +87,7 @@
      use_gfs_nemsio,use_readin_anl_sfcmask,use_sp_eqspace,final_grid_vars,&
      jcap_gfs,nlat_gfs,nlon_gfs,jcap_cut,wrf_mass_hybridcord
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop
-  use gsi_io, only: init_io,lendian_in
+  use gsi_io, only: init_io,lendian_in,verbose
   use regional_io_mod, only: regional_io_class
   use wrf_params_mod, only: update_pint, preserve_restart_date
   use constants, only: zero,one,init_constants,gps_constants,init_constants_derived,three
@@ -108,9 +105,9 @@
                          regional_ensemble_option,merge_two_grid_ensperts, &
                          full_ensemble,pseudo_hybens,pwgtflg,&
                          beta_s0,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
-                         readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens,enspreproc,&
+                         readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens,&
                          readin_beta,use_localization_grid,use_gfs_ens,q_hyb_ens,i_en_perts_io, &
-                         l_ens_in_diff_time,ensemble_path
+                         l_ens_in_diff_time,ensemble_path,ens_fast_read
   use rapidrefresh_cldsurf_mod, only: init_rapidrefresh_cldsurf, &
                             dfi_radar_latent_heat_time_period,metar_impact_radius,&
                             metar_impact_radius_lowcloud,l_gsd_terrain_match_surftobs, &
@@ -332,10 +329,19 @@
 !  04-18-2016 Yang      add closest_obs for selecting obs. from multi-report at a surface observation.
 !  06-24-2016 j. guo    added alwaysLocal => m_obsdiags::obsdiags_alwaysLocal to
 !                       namelist /SETUP/.
+!  08-12-2016 lippi     added namelist parameters for single radial wind
+!                       experiment (anaz_rw,anel_rw,range_rw,sstn,lsingleradar,
+!                       singleradar,learthrel_rw). added a radar station look-up
+!                       table.
 !  08-12-2016 Mahajan   NST stuff belongs in NST module, Adding a NST namelist
 !                       option
+!  08-24-2016 lippi     added nml option lnobalance to zero out all balance correlation
+!                       matricies for univariate analysis.
 !  08-28-2016 li - tic591: add use_readin_anl_sfcmask for consistent sfcmask
 !                          between analysis grids and others
+!  12-14-2016 lippi     added nml variable learthrel_rw for single radial
+!                       wind observation test, and nml option for VAD QC
+!                       vadwnd_l2rw_qc of level 2 winds.
 !  02-02-2017 Hu        added option i_coastline to turn on the observation
 !                              operator for surface observations along the coastline area
 !  04-01-2017 Hu        added option i_gsdqc to turn on special observation qc
@@ -517,11 +523,7 @@
        diag_rad,diag_pcp,diag_conv,diag_ozone,diag_aero,diag_co,iguess, &
        write_diag,reduce_diag, &
        oneobtest,sfcmodel,dtbduv_on,ifact10,l_foto,offtime_data,&
-       npred_conv_max,&
-       id_bias_ps,id_bias_t,id_bias_spd, &
-       conv_bias_ps,conv_bias_t,conv_bias_spd, &
-       id_bias_pm2_5,conv_bias_pm2_5,id_bias_pm10,conv_bias_pm10, &
-       stndev_conv_ps,stndev_conv_t,stndev_conv_spd,use_pbl,use_compress,nsig_ext,gpstop,&
+       use_pbl,use_compress,nsig_ext,gpstop,&
        perturb_obs,perturb_fact,oberror_tune,preserve_restart_date, &
        crtm_coeffs_path,berror_stats, &
        newpc4pred,adp_anglebc,angord,passive_bc,use_edges,emiss_bc,upd_pred, &
@@ -538,7 +540,7 @@
        lwrite_peakwt, use_gfs_nemsio,liauon,use_prepb_satwnd,l4densvar,ens_nstarthr,&
        use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon,lrun_subdirs,&
        use_sp_eqspace,lnested_loops,lsingleradob,thin4d,use_readin_anl_sfcmask,&
-       luse_obsdiag,id_drifter
+       luse_obsdiag,id_drifter,verbose,lsingleradar,singleradar,lnobalance
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -738,7 +740,7 @@
        vadfile,noiqc,c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,&
        tcp_ermin,tcp_ermax,qc_noirjaco3,qc_noirjaco3_pole,qc_satwnds,njqc,vqc,&
        aircraft_t_bc_pof,aircraft_t_bc,aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail,&
-       hdist_aircraft,buddycheck_t,buddydiag_save,closest_obs
+       hdist_aircraft,buddycheck_t,buddydiag_save,closest_obs,vadwnd_l2rw_qc
 
 ! OBS_INPUT (controls input data):
 !      dmesh(max(dthin))- thinning mesh for each group
@@ -765,7 +767,7 @@
 
   namelist/singleob_test/maginnov,magoberr,oneob_type,&
        oblat,oblon,obpres,obdattim,obhourset,pctswitch,&
-       obchan
+       obchan,anel_rw,anaz_rw,range_rw,sstn,learthrel_rw
 
 ! SUPEROB_RADAR (level 2 bufr file to radar wind superobs):
 !      del_azimuth     - azimuth range for superob box  (default 5 degrees)
@@ -839,7 +841,6 @@
 !     pwgtflg          - if true, use vertical integration function on ensemble contribution of Psfc
 !     grid_ratio_ens   - for regional runs, ratio of ensemble grid resolution to analysis grid resolution
 !                            default value = 1  (dual resolution off)
-!     enspreproc - flag to read(.true.) pre-processed ensemble data already
 !     i_en_perts_io - flag to read in ensemble perturbations in ensemble grid.
 !                         This is to speed up RAP/HRRR hybrid runs because the
 !                         same ensemble perturbations are used in 6 cycles    
@@ -853,14 +854,15 @@
 !                             =true: ensembles available time can be different
 !                                      from analysis time in hybrid analysis
 !     ensemble_path - path to ensemble members; default './'
+!     ens_fast_read - read ensemble in parallel; default '.false.'
 !              
 !                         
   namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
                 pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,full_ensemble,pwgtflg,&
                 jcap_ens_test,beta_s0,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,readin_beta,&
                 grid_ratio_ens, &
-                oz_univ_static,write_ens_sprd,enspreproc,use_localization_grid,use_gfs_ens, &
-                i_en_perts_io,l_ens_in_diff_time,ensemble_path
+                oz_univ_static,write_ens_sprd,use_localization_grid,use_gfs_ens, &
+                i_en_perts_io,l_ens_in_diff_time,ensemble_path,ens_fast_read
 
 ! rapidrefresh_cldsurf (options for cloud analysis and surface 
 !                             enhancement for RR appilcation  ):
@@ -1059,6 +1061,7 @@
   call init_co
   call init_convinfo
   call init_jfunc
+  call init_balmod
   call init_berror
   call init_anberror  ! RTodling: alloc vectors should move to create
   call init_grid
@@ -1320,7 +1323,7 @@
      if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** reset perturb_obs=',perturb_obs
   endif
 
-! Force turn of cloud analysis and hydrometeor IO
+! Force turn off cloud analysis and hydrometeor IO
   if (i_gsdcldanal_type==0) then
      l_cloud_analysis = .false.
      if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** set l_cloud_analysis=false'
@@ -1443,6 +1446,11 @@
      dtype(1)=oneob_type
      if(dtype(1)=='u' .or. dtype(1)=='v')dtype(1)='uv'
      dsis(1)=dtype(1)
+     if(trim(dtype(1))=='rw') then ! Reset some values for radial wind single ob.
+        dfile(1)='l2rwbufr'
+        dplat='null'
+        dsis(1)='l2rw'
+     endif
   endif
 
 ! Single radiance assimilation case
@@ -1556,7 +1564,7 @@
   if(present(last_pass)) last_pass_ =last_pass
 
 ! Call the main gsi driver routine
-  call gsisub(mype, init_pass_,last_pass_)
+  call gsisub(init_pass_,last_pass_)
 
   end subroutine gsimain_run
 

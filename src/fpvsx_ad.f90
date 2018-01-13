@@ -35,7 +35,7 @@ subroutine fpvsx_ad( t, es, t_ad, es_ad, adjoint )
 ! all entries are defined explicitly
 !==============================================
   use kinds, only: r_kind
-  use constants, only: zero, one, tmix, xai, xbi, xa, xb, ttp, psatk, init_constants
+  use constants, only: zero, one, tmix, xai, xbi, xa, xb, ttp, psatk
   implicit none
 
 !==============================================
@@ -66,7 +66,6 @@ subroutine fpvsx_ad( t, es, t_ad, es_ad, adjoint )
 !----------------------------------------------
 ! FUNCTION AND TAPE COMPUTATIONS
 !----------------------------------------------
-call init_constants(.false.)
 
   tr = ttp/t
   if (t >= ttp) then
@@ -124,7 +123,7 @@ subroutine fpvsx_tl( t, es, t_d, es_d )
 ! all entries are defined explicitly
 !==============================================
   use kinds, only: r_kind
-  use constants, only: zero, one, tmix, xai, xbi, xa, xb, ttp, psatk, init_constants
+  use constants, only: zero, one, tmix, xai, xbi, xa, xb, ttp, psatk
   implicit none
 
 !==============================================
@@ -154,7 +153,6 @@ subroutine fpvsx_tl( t, es, t_d, es_d )
 !----------------------------------------------
 ! FUNCTION AND TAPE COMPUTATIONS
 !----------------------------------------------
-call init_constants(.false.)
 
   tr = ttp/t
   tr_d = -ttp*t_d/t**2

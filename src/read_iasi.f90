@@ -121,6 +121,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   use gsi_nstcouplermod, only:nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use mpimod, only: npe
+  use gsi_io, only: verbose
 ! use radiance_mod, only: rad_obs_type
 
   implicit none
@@ -200,7 +201,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind) cdist,disterr,disterrmax,dlon00,dlat00
 
   logical          :: outside,iuse,assim,valid
-  logical          :: iasi
+  logical          :: iasi,quiet
 
   integer(i_kind)  :: ifov, instr, iscn, ioff, sensorindex
   integer(i_kind)  :: i, j, l, iskip, ifovn, bad_line, ksatid, kidsat, llll
@@ -229,6 +230,10 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),parameter:: earth_radius = 6371000._r_kind
   integer(i_kind),parameter :: ilon = 3
   integer(i_kind),parameter :: ilat = 4
+  logical print_verbose
+
+  print_verbose=.false.
+  if(verbose)print_verbose=.true.
 
 ! Initialize variables
   maxinfo    =  31
@@ -244,7 +249,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   bad_line=-1
 
   if (nst_gsi > 0 ) then
-    call gsi_nstcoupler_skindepth(trim(obstype), zob)         ! get penetration depth (zob) for the obstype
+    call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
 
   if(jsatid == 'metop-a')kidsat=4
@@ -300,13 +305,14 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
    'SAID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA BEARAZ SOZA SOLAZI'
 
 ! load spectral coefficient structure  
+  quiet=.not. verbose
   sensorlist(1)=sis
   if( crtm_coeffs_path /= "" ) then
-     if(mype_sub==mype_root) write(6,*)'READ_IASI: crtm_spccoeff_load() on path "'//trim(crtm_coeffs_path)//'"'
+     if(mype_sub==mype_root .and. print_verbose) write(6,*)'READ_IASI: crtm_spccoeff_load() on path "'//trim(crtm_coeffs_path)//'"'
      error_status = crtm_spccoeff_load(sensorlist,&
-        File_Path = crtm_coeffs_path )
+        File_Path = crtm_coeffs_path,quiet=quiet )
   else
-     error_status = crtm_spccoeff_load(sensorlist)
+     error_status = crtm_spccoeff_load(sensorlist,quiet=quiet)
   endif
 
   if (error_status /= success) then
@@ -374,7 +380,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   allocate(data_all(nele,itxmax),nrec(itxmax))
   allocate(temperature(1))   ! dependent on # of channels in the bufr file
   allocate(allchan(2,1))     ! actual values set after ireadsb
-  allocate(bufr_chan_test(1))! actural values set after ireadsb
+  allocate(bufr_chan_test(1))! actual values set after ireadsb
 
 ! Big loop to read data file
   next=0
@@ -420,12 +426,13 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            bufr_nchan = int(crchn_reps)
 
            bufr_size = size(temperature,1)
-           if ( bufr_size /= bufr_nchan ) then      ! allocation if
+           if ( bufr_size /= bufr_nchan ) then ! Re-allocation if number of channels has changed
 !             Allocate the arrays needed for the channel and radiance array
               deallocate(temperature,allchan,bufr_chan_test)
               allocate(temperature(bufr_nchan))   ! dependent on # of channels in the bufr file
               allocate(allchan(2,bufr_nchan))
               allocate(bufr_chan_test(bufr_nchan))
+              bufr_chan_test(:)=0
            endif       !  allocation if
 
 !          Read IASI FOV information
@@ -664,7 +671,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
               bufr_chans: do l=1,bufr_nchan
                  bufr_chan_test(l) = int(allchan(1,l))                      ! Copy this bufr channel selection into array for comparison to next profile
                  satinfo_chans: do i=1,satinfo_nchan                        ! Loop through sensor (iasi) channels in the satinfo file
-                    if ( channel_number(i) == int(allchan(1,l)) ) then      ! Channel found in both bufr and stainfo file
+                    if ( channel_number(i) == int(allchan(1,l)) ) then      ! Channel found in both bufr and satinfo file
                        bufr_index(i) = l
                        exit satinfo_chans                                   ! go to next bufr channel
                     endif
@@ -704,7 +711,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
               endif
            end do skip_loop
 
-           if(iskip > 0)write(6,*) ' READ_IASI : iskip > 0 ',iskip
+           if(iskip > 0 .and. print_verbose)write(6,*) ' READ_IASI : iskip > 0 ',iskip
            if( iskip > 0 )cycle read_loop 
 
            crit1=crit1 + ten*float(iskip)
