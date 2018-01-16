@@ -535,8 +535,8 @@ contains
     implicit none
     character(10) :: obstype
     type(rad_obs_type) :: radmod
-    integer(i_kind) i
     logical match
+    integer(i_kind) i
 
     if (total_rad_type<=0) return
     
@@ -546,6 +546,8 @@ contains
           match=trim(obstype)==trim(rad_type_info(i)%rtype)
        else
           match=index(trim(obstype),trim(rad_type_info(i)%rtype)) /= 0
+       end if
+       if (match) then
 !         if (mype==0) write(6,*) 'radiance_obstype_search: obstype=',obstype, &
 !                                 ' rtype=',rad_type_info(i)%rtype
           radmod%rtype = rad_type_info(i)%rtype
@@ -568,7 +570,7 @@ contains
     if (mype==0) write(6,*) 'radiance_obstype_search type not found: obstype=',obstype
 
     if (.not. match) then
-       if (mype==0) write(6,*) 'radiance_obstype_search: WARNING! obstype=',obstype,' not found in rtype'
+       if (mype==0) write(6,*) 'radiance_obstype_search: #WARNING# obstype=',obstype,' not found in rtype'
     end if
 
   end subroutine radiance_obstype_search
