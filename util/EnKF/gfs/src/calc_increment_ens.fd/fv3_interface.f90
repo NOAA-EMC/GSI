@@ -400,7 +400,7 @@ contains
     incr_grid%sphum_inc = an_grid%spfh  - fg_grid%spfh
     incr_grid%clwmr_inc = an_grid%clwmr - fg_grid%clwmr
     incr_grid%o3mr_inc  = an_grid%o3mr  - fg_grid%o3mr
-    if ( do_icmr ) incr_grid%icmr_inc  = an_grid%icmr  - fg_grid%icmr
+    if ( do_icmr ) incr_grid%icmr_inc = an_grid%icmr - fg_grid%icmr
 
     do i=1,max_vars
         varname = incvars_to_zero(i)
@@ -767,7 +767,7 @@ contains
     if(allocated(grid%temp_inc))  deallocate(grid%temp_inc)
     if(allocated(grid%clwmr_inc)) deallocate(grid%clwmr_inc)
     if(allocated(grid%o3mr_inc))  deallocate(grid%o3mr_inc)
-    if(do_icmr .and. allocated(grid%icmr_inc)) deallocate(grid%icmr_inc)
+    if(allocated(grid%icmr_inc))  deallocate(grid%icmr_inc)
     if(allocated(grid%lon))       deallocate(grid%lon)
     if(allocated(grid%lat))       deallocate(grid%lat)
     if(allocated(grid%lev))       deallocate(grid%lev)
@@ -782,7 +782,7 @@ contains
     if(allocated(an_grid%tmp))    deallocate(an_grid%tmp)
     if(allocated(an_grid%clwmr))  deallocate(an_grid%clwmr)
     if(allocated(an_grid%o3mr))   deallocate(an_grid%o3mr)
-    if(do_icmr .and. allocated(an_grid%icmr)) deallocate(an_grid%icmr)
+    if(allocated(an_grid%icmr))   deallocate(an_grid%icmr)
     if(allocated(an_grid%psfc))   deallocate(an_grid%psfc)
     if(allocated(an_grid%ak))     deallocate(an_grid%ak)
     if(allocated(an_grid%bk))     deallocate(an_grid%bk)
@@ -794,7 +794,7 @@ contains
     if(allocated(fg_grid%tmp))    deallocate(fg_grid%tmp)
     if(allocated(fg_grid%clwmr))  deallocate(fg_grid%clwmr)
     if(allocated(fg_grid%o3mr))   deallocate(fg_grid%o3mr)
-    if(do_icmr .and. allocated(fg_grid%icmr)) deallocate(fg_grid%icmr)
+    if(allocated(fg_grid%icmr))   deallocate(fg_grid%icmr)
     if(allocated(fg_grid%psfc))   deallocate(fg_grid%psfc)
     if(allocated(fg_grid%ak))     deallocate(fg_grid%ak)
     if(allocated(fg_grid%bk))     deallocate(fg_grid%bk)

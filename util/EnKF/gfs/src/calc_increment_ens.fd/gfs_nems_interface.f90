@@ -166,16 +166,18 @@ contains
 
     call nemsio_open(gfile,trim(adjustl(filename)),'read',              &
          & iret=nemsio_iret)
+    if ( nemsio_iret /= 0 ) stop 1
     call nemsio_getfilehead(gfile,iret=nemsio_iret,                     &
          & dimx=meta_nemsio%dimx,                                       &
-         & nrec=meta_nemsio%nrec,                                       &
-         & dimy=meta_nemsio%dimy)
-    if (.not. allocated(meta_nemsio%lon)) &
-    allocate(meta_nemsio%lon(meta_nemsio%dimx*meta_nemsio%dimy))
-    if (.not. allocated(meta_nemsio%lat)) &
-    allocate(meta_nemsio%lat(meta_nemsio%dimx*meta_nemsio%dimy))
-    call nemsio_getfilehead(gfile,iret=nemsio_iret,                     &
+         & dimy=meta_nemsio%dimy,                                       &
          & dimz=meta_nemsio%dimz,                                       &
+         & nrec=meta_nemsio%nrec)
+    if ( nemsio_iret /= 0 ) stop 2
+    if (.not. allocated(meta_nemsio%lon)) &
+        allocate(meta_nemsio%lon(meta_nemsio%dimx*meta_nemsio%dimy))
+    if (.not. allocated(meta_nemsio%lat)) &
+        allocate(meta_nemsio%lat(meta_nemsio%dimx*meta_nemsio%dimy))
+    call nemsio_getfilehead(gfile,iret=nemsio_iret,                     &
          & lat=meta_nemsio%lat,                                         &
          & lon=meta_nemsio%lon,                                         &
          & idate=meta_nemsio%idate,                                     &
@@ -186,12 +188,17 @@ contains
          & nfhour=meta_nemsio%fhour,                                    &
          & nfminute=meta_nemsio%nfminute,                               &
          & nfsecondn=meta_nemsio%nfsecondn,                             &
-         & nfsecondd=meta_nemsio%nfsecondd,                             &
-         & reclev=meta_nemsio%reclev,                                   &
-         & recname=meta_nemsio%recname)
+         & nfsecondd=meta_nemsio%nfsecondd)
+    if ( nemsio_iret /= 0 ) stop 3
 
-!    call nemsio_getfilehead(gfile,reclev=meta_nemsio%reclev,iret=nemsio_iret)
-!    call nemsio_getfilehead(gfile,reclev=meta_nemsio%recname,iret=nemsio_iret)
+    if (.not. allocated(meta_nemsio%reclev)) &
+        allocate(meta_nemsio%reclev(meta_nemsio%nrec))
+    call nemsio_getfilehead(gfile,reclev=meta_nemsio%reclev,iret=nemsio_iret)
+    if ( nemsio_iret /= 0 ) stop 4
+    if (.not. allocated(meta_nemsio%recname)) &
+        allocate(meta_nemsio%recname(meta_nemsio%nrec))
+    call nemsio_getfilehead(gfile,recname=meta_nemsio%recname,iret=nemsio_iret)
+    if ( nemsio_iret /= 0 ) stop 5
 
     ! Define format statements
 
