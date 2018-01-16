@@ -2828,23 +2828,6 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
                     varinv(i) = zero
                  enddo
               endif
-           else if (latms .and. abs(cldeff_obs(16)-cldeff_obs(17))>20.0_r_kind) then
-              efactmc=zero
-              vfactmc=zero
-              errf(1:ich544)=zero
-              varinv(1:ich544)=zero
-              do i=1,ich544
-                 if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch1617_qc
-              end do
-              if (abs(cldeff_obs(16)-cldeff_obs(17))>10.0_r_kind) then
-                 if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch1617_qc
-                 errf(ich890) = zero
-                 varinv(ich890) = zero
-                 do i=17,22   !  AMSU-B/MHS like channels
-                    if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch1617_qc
-                    errf(i) = zero
-                    varinv(i) = zero
-                 enddo
            else if (latms .and. abs(cldeff_obs(16)-cldeff_obs(17))>10.0_r_kind) then
               if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch1617_qc
               errf(ich890) = zero
