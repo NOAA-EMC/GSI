@@ -186,7 +186,7 @@
 !   2016-07-19  W. Gu   - add isis to obs type
 !   2016-07-19  W. Gu   - include the dependence of the correlated obs errors on the surface types
 !   2016-07-19  kbathmann -move eigendecomposition for correlated obs here
-!   2016-10-23  zhu     - add cloudy radiance assimilation for ATMS 
+!   2016-10-23  zhu     - add cloudy radiance assimilation for ATMS
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -1312,8 +1312,8 @@
            if (varinv(i) > tiny_r_kind ) then
               m=ich(i)
               if(radmod%lcloud_fwd .and. eff_area) then 
-                 if (radmod%rtype =='amsua' .and. (i <= 5 .or. i==15)) then         
-                    errf(i) = three*errf(i)    
+                 if (radmod%rtype =='amsua' .and. (i <= 5 .or. i==15)) then
+                    errf(i) = three*errf(i)
                  else if (radmod%rtype =='atms' .and. (i <= 6 .or. i>=16)) then
                     errf(i) = min(three*errf(i), 10.0_r_kind)
                  else

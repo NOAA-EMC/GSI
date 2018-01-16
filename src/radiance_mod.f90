@@ -108,7 +108,7 @@ module radiance_mod
 
   type(rad_obs_type),save,dimension(:),allocatable :: rad_type_info
   type(amsua_type),save :: cloudy_amsua
-  type(amsua_type),save :: cloudy_atms
+  type(amsua_type),save :: cloudy_atms 
 
 contains
 
@@ -817,6 +817,7 @@ contains
 !
 ! program history log:
 !   2015-07-20  zhu
+!   2016-10-27  zhu - add ATMS
 !
 !   input argument list:
 !
@@ -946,7 +947,7 @@ contains
     integer(i_kind) :: i
     real(r_kind),dimension(nchanl) :: cclr
 
-!   call ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret) 
+!   call ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret)
     call ret_amsua(tsim_bc,nchanl,tsavg5,zasat,clw_guess_retrieval,ierrret)
 
     if (trim(radmod%rtype) =='amsua') then

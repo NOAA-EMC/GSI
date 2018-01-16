@@ -280,7 +280,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
 ! IFSCALC setup
   if (isfcalc==1) then
-     instr=20                   
+     instr=20                    
      ichan=16                    ! pick a surface sens. channel
      expansion=2.9_r_kind        ! use almost three for microwave sensors.
   endif
@@ -657,7 +657,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
                     if (qval>=9.0_r_kind) then
                        qval=1000.0_r_kind*qval
                     else
-                       qval  = zero 
+                       qval  = zero
                     end if
                  else 
                     d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza

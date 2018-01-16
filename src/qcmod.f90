@@ -66,6 +66,7 @@ module qcmod
 !                         any of these are missing.
 !   2016-11-22  sienkiewicz - fix a couple of typos in HIRS qc
 !   2016-12-14  lippi   - add nml option vadwnd_l2rw_qc.
+!   2016-10-13  zhu     - modified qc_amsua for all-sky ATMS
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -2844,6 +2845,23 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
                     errf(i) = zero
                     varinv(i) = zero
                  enddo
+           else if (latms .and. abs(cldeff_obs(16)-cldeff_obs(17))>10.0_r_kind) then
+              if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch1617_qc
+              errf(ich890) = zero
+              varinv(ich890) = zero
+              do i=17,22   !  AMSU-B/MHS like channels
+                 if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch1617_qc
+                 errf(i) = zero
+                 varinv(i) = zero
+              enddo
+              if (abs(cldeff_obs(16)-cldeff_obs(17))>15.0_r_kind) then
+                 efactmc=zero
+                 vfactmc=zero
+                 errf(1:ich544)=zero
+                 varinv(1:ich544)=zero
+                 do i=1,ich544
+                    if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch1617_qc
+                 end do
               end if
            else ! QC based on the sensitivity of Tb to the surface emissivity
 !          de1,de2,de3,de15 become smaller as the observation is more cloudy --
@@ -3241,7 +3259,7 @@ subroutine qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
 !                           speed for AMSUA/ATMS cloudy radiance assimilation
 !     2015-09-20  zhu     - use rad_obs_type/radmod for enabling all-sky radiance
 !     2016-10-13  zhu     - change cldeff_obs5 to cldeff_obs in interface for
-!                           non-precipitaing cloudy radiance assimilation 
+!                           non-precipitaing cloudy radiance assimilation
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -3269,13 +3287,13 @@ subroutine qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
 !     aivals       - array holding sums for various statistics as a function of obs type
 !     errf         - criteria of gross error
 !     varinv       - observation weight (modified obs var error inverse)
+!     cldeff_obs   - observed cloud effect 
 !
 ! output argument list:
 !     id_qc        - qc index - see qcmod definition
 !     aivals       - array holding sums for various statistics as a function of obs type
 !     errf         - criteria of gross error
 !     varinv       - observation weight (modified obs var error inverse)
-!     cldeff_obs   - observed cloud effect
 !     factch6      - precipitation screening using channel 6 
 !
 ! attributes:
