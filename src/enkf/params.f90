@@ -73,7 +73,7 @@ logical, public :: deterministic, sortinc, pseudo_rh, &
                    varqc, huber, cliptracers, readin_localization
 integer(i_kind),public ::  iassim_order,nlevs,nanals,nvars,numiter,&
                            nlons,nlats,ndim,nbackgrounds
-integer(i_kind),public :: nsats_rad,nsats_oz
+integer(i_kind),public :: nsats_rad,nsats_oz,imp_physics
 ! random seed for perturbed obs (deterministic=.false.)
 ! if zero, system clock is used.  Also used when
 ! iassim_order=1 (random shuffling of obs for serial assimilation).
@@ -154,7 +154,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,&
                    lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
                    newpc4pred,nmmb,nhr_anal,fhr_assim,nbackgrounds,save_inflation,nobsl_max,&
                    letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs,npefiles,&
-                   fso_cycling,fso_calculate
+                   fso_cycling,fso_calculate,imp_physics
 namelist /nam_wrf/arw,nmm,nmm_restart
 namelist /satobs_enkf/sattypes_rad,dsis
 namelist /ozobs_enkf/sattypes_oz
@@ -229,6 +229,9 @@ deterministic = .true.
 ! if deterministic is false, re-order obs to minimize regression erros
 ! as described in Anderson (2003) (only used for serial filter).
 sortinc = .true.
+! type of GFS microphyics.
+! 99: Zhao-Carr, 11: GFDL
+imp_physics = 99
 ! these are all mandatory.
 ! nlons and nlats are # of lons and lats
 nlons = 0
