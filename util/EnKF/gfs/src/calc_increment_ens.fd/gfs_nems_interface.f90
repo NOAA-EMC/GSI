@@ -191,15 +191,6 @@ contains
          & nfsecondd=meta_nemsio%nfsecondd)
     if ( nemsio_iret /= 0 ) stop 3
 
-    if (.not. allocated(meta_nemsio%reclev)) &
-        allocate(meta_nemsio%reclev(meta_nemsio%nrec))
-    call nemsio_getfilehead(gfile,reclev=meta_nemsio%reclev,iret=nemsio_iret)
-    if ( nemsio_iret /= 0 ) stop 4
-    if (.not. allocated(meta_nemsio%recname)) &
-        allocate(meta_nemsio%recname(meta_nemsio%nrec))
-    call nemsio_getfilehead(gfile,recname=meta_nemsio%recname,iret=nemsio_iret)
-    if ( nemsio_iret /= 0 ) stop 5
-
     ! Define format statements
 
 500 format(a,'nemsio_fhr',i3.3)
