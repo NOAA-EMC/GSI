@@ -77,7 +77,7 @@ APRUN_CHGRES=${APRUN_CHGRES:-""}
 # global_cycle stuff
 CYCLESH=${CYCLESH:-$BASE_GSM/ush/global_cycle.sh}
 export CYCLEXEC=${CYCLEXEC:-$BASE_GSM/exec/global_cycle}
-export FIXfv3=${FIXfv3:-$BASE_GSM/fix/fix_fv3}
+export FIXfv3=${FIXfv3:-$BASE_GSM/fix/fix_fv3_gmted2010}
 export FIXgsm=${FIXgsm:-$BASE_GSM/fix/fix_am}
 export CYCLVARS=${CYCLVARS:-"FSNOL=-2.,FSNOS=99999.,"}
 export FHOUR=${FHOUR:-0}
