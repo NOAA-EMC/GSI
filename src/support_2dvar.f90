@@ -654,7 +654,7 @@ subroutine read_2d_guess(mype)
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die
   use gsi_io, only: verbose
-  use qcmod, only: nltr,powerp
+  use qcmod, only: nltr,powerp,confinelow,confinehigh,confineparm 
   implicit none
 
 ! Declare passed variables
@@ -1124,12 +1124,15 @@ subroutine read_2d_guess(mype)
 
               if (ihave_vis) then
 !*************************************************************
-!RY:  check 1. input data come from sigf06? 
+!RY:  1. check input data come from sigf06? 
+!RY:  2. nonlinear transform --nltr_ges
+!RY:  3. apply the confine function 
 !*************************************************************
                  dummy=real(all_loc(j,i,i_0+i_vis),r_kind)
                  if (dummy .gt. 12000.0)write(6,*)'WARNING:read2dges: VISmax>12000!!'
                  if (nltr) then
-                   ges_vis(j,i)=nltr_ges(dummy,powerp)
+                   gxpvis=nltr_ges(dummy,powerp)
+                   ges_vis(j,i)=confine_ges(confinelow,confinehigh,confineparm,gxpvis)
                  else
                    if (dummy<=zero) ges_vis(j,i)=one_tenth
                    if (dummy>12000.0_r_kind) ges_vis(j,i)=12000.0_r_kind
@@ -1175,14 +1178,28 @@ subroutine read_2d_guess(mype)
         end do
      end do
 
-     deallocate(all_loc,jsig_skip,igtype,identity,temp1)
 
      pure function nltr_ges(rawvis,powerp) result(visresult)
      real(r_kind), intent(in) :: rawvis
      real(r_kind), intent(in) :: powerp
-     real(r_kind) :: scaling
      real(r_kind) :: visresult
 ! local variable
+     real(r_kind) :: scaling
+     real(r_kind), temp
+     scaling=1.0
+     temp=1.0_r_kind
+     visresult = 0.1_r_kind
+     temp = (rawvis/scaling)**powerp
+     visresult =(temp-1.0)/powerp
+     end function nltr_ges
+!
+     pure function confine(zl,zh,s) result(z)
+     real(r_kind), intent(in) :: zl
+     real(r_kind), intent(in) :: zh
+     real(r_kind), intent(in) :: s
+     real(r_kind) :: z
+! local variable
+     real(r_kind) :: scaling
      real(r_kind), temp
      scaling=1.0
      temp=1.0_r_kind
@@ -1191,8 +1208,9 @@ subroutine read_2d_guess(mype)
      visresult =(temp-1.0)/powerp
      end function nltr_ges
 
-pure
 
+
+     deallocate(all_loc,jsig_skip,igtype,identity,temp1)
      return
 end subroutine read_2d_guess
 

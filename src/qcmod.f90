@@ -105,10 +105,11 @@ module qcmod
 !
 !   def nlnqc_iter   - logical flag (T=nonlinear qc on, F=nonlinear qc off) for iteration
 !   def njqc -  logical flag (T=Purse's nonlinear qc on, F=off)
-!
 !   def noiqc        - logic flag for oiqc, noiqc='false' with oiqc on
+
+!   def nltr         - logic flag, nltr=.true., using nonlinear transformation to visibility and ceiling height
 !   def powerp       - value used in nltr
-!   def adjvisoe     - adjust obs vis error 
+!   def adjvisoe     - prescribed obs vis error 
 !
 !
 ! attributes:

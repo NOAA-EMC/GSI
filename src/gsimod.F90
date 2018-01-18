@@ -348,8 +348,8 @@
 !  04-01-2017 Hu        added option i_gsdqc to turn on special observation qc
 !                              from GSD (for RAP/HRRR application)
 !  01-11-2018 Yang      add nml nltr and powerp to use nonlinear transform to visibility field 
-!                              (Jim Purser's scheme); and adjviserr to modifying a hardwired visoberr
-!                              in read_prepbufr. (tentatively)
+!                              (Jim Purser's scheme); add adjvisoe to replace the hardwired prescribed
+!                              vis obs. errort in read_prepbufr. (tentatively)
 !
 !EOP
 !-------------------------------------------------------------------------

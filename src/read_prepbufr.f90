@@ -2790,6 +2790,7 @@ bsvi
      real(r_kind) :: visresult
 ! local variable
      real(r_kind) :: scaling 
+     real(r_kind) :: temp 
      scaling=1.0
      visresult = 0.1_r_kind
      temp = (rawvis/scaling)**powerp 
