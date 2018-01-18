@@ -55,6 +55,7 @@ subroutine convert_binary_2d
   integer(i_kind) in_unit,status_hdr
   integer(i_kind) hdrbuf(512)
   integer(i_kind) n
+  integer(i_kind) i,j
 
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional
@@ -309,7 +310,16 @@ subroutine convert_binary_2d
      end if
      write(lendian_out)field2
 
+!
      read(in_unit)field2             !  VIS
+
+!RY: apply threshold 12000 to visibility fg
+     do j=1,nlon_regional
+        do i=1,nlat_regional
+           if (field2(j,i) .le. 0.0) field2(j,i)=0.1_r_kind
+           if (field2(j,i) .gt. 12000.0) field2(j,i)=12000.0
+         enddo
+     enddo
      if(print_verbose)then
         write(6,*)' convert_binary_2d: max,min VIS=',maxval(field2),minval(field2)
         write(6,*)' convert_binary_2d: mid VIS=',field2(nlon_regional/2,nlat_regional/2)
@@ -621,6 +631,7 @@ subroutine read_2d_guess(mype)
 !   2014-06-16  carley/zhu - add tcamt and ceiling
 !   2015-07-10  pondeca - add cloud ceiling height
 !   2016-05-03  pondeca - add uwnd10m, vwnd10m
+!   2018-01-xx  yang    - test the method of nonlinear transform
 !
 !   input argument list:
 !     mype     - pe number
@@ -643,6 +654,7 @@ subroutine read_2d_guess(mype)
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die
   use gsi_io, only: verbose
+  use qcmod, only: nltr,powerp
   implicit none
 
 ! Declare passed variables
@@ -653,6 +665,7 @@ subroutine read_2d_guess(mype)
 
 ! Declare local variables
   integer(i_kind) kt,kq,ku,kv
+  real(r_single) dummy
 
 ! 2D variable names stuck in here
   integer(i_kind) nfcst
@@ -1110,11 +1123,18 @@ subroutine read_2d_guess(mype)
                  ges_gust(j,i)=real(all_loc(j,i,i_0+i_gust),r_kind)
 
               if (ihave_vis) then
-                 ges_vis(j,i)=real(all_loc(j,i,i_0+i_vis),r_kind)
-                 if (ges_vis(j,i)<=zero) ges_vis(j,i)=one_tenth
-                 if (ges_vis(j,i)>20000.0_r_kind) ges_vis(j,i)=20000.0_r_kind
+!*************************************************************
+!RY:  check 1. input data come from sigf06? 
+!*************************************************************
+                 dummy=real(all_loc(j,i,i_0+i_vis),r_kind)
+                 if (dummy .gt. 12000.0)write(6,*)'WARNING:read2dges: VISmax>12000!!'
+                 if (nltr) then
+                   ges_vis(j,i)=nltr_ges(dummy,powerp)
+                 else
+                   if (dummy<=zero) ges_vis(j,i)=one_tenth
+                   if (dummy>12000.0_r_kind) ges_vis(j,i)=12000.0_r_kind
+                 endif
               endif
-
               if(ihave_pblh) &
                  ges_pblh(j,i)=real(all_loc(j,i,i_0+i_pblh),r_kind)
 
@@ -1157,6 +1177,21 @@ subroutine read_2d_guess(mype)
 
      deallocate(all_loc,jsig_skip,igtype,identity,temp1)
 
+     pure function nltr_ges(rawvis,powerp) result(visresult)
+     real(r_kind), intent(in) :: rawvis
+     real(r_kind), intent(in) :: powerp
+     real(r_kind) :: scaling
+     real(r_kind) :: visresult
+! local variable
+     real(r_kind), temp
+     scaling=1.0
+     temp=1.0_r_kind
+     visresult = 0.1_r_kind
+     temp = (rawvis/scaling)**powerp
+     visresult =(temp-1.0)/powerp
+     end function nltr_ges
+
+pure
 
      return
 end subroutine read_2d_guess
@@ -1208,6 +1243,7 @@ subroutine wr2d_binary(mype)
   use guess_grids, only: ntguessig,ifilesig,&
        ges_tsen
   use mpimod, only: mpi_comm_world,ierror,mpi_real4
+  use qcmod only: nltr,powerp
   use gridmod, only: lat2,iglobal,itotsub,strip,&
        lon2,nsig,lon1,lat1,nlon_regional,nlat_regional,ijn,displs_g
   use mpeu_util, only: getindex
@@ -1242,6 +1278,7 @@ subroutine wr2d_binary(mype)
   integer(i_kind) num_2d_fields,num_all_fields,num_all_pad
   integer(i_kind) regional_time0(6),nlon_regional0,nlat_regional0,nsig0
   real(r_kind) psfc_this
+  real(r_kind) tempvis
   real(r_single) glon0(nlon_regional,nlat_regional),glat0(nlon_regional,nlat_regional)
   real(r_single) dx_mc0(nlon_regional,nlat_regional),dy_mc0(nlon_regional,nlat_regional)
   real(r_single),allocatable::all_loc_qsatg(:,:,:),all_loc_prh(:,:,:),temp1_prh(:)
@@ -1525,11 +1562,22 @@ subroutine wr2d_binary(mype)
            do j=1,lat2
               if (trim(caux(k))=='pmsl') then 
                  all_loc(j,i,iaux(k))=r100*r10*ptr2d(j,i)
-               else
+              elseif(trim(caux(k))=='cldch') then
                  all_loc(j,i,iaux(k))=ptr2d(j,i)
-               endif
+!RY: check the max/min to confirm ptr2d is a full  field
+                 if(mype==0) write(6,*)'wrt2d: cldch=', ptr2d(j,i)
+                 if(nltr) then
+                    tempvis=ptr2d(j,i)
+                    tempvis=inv_nltr(tempvis,powerp)
+!RY:  restriction to all_loc
+                    all_loc(j,i,iaux(k))=max(min(tempvis,12000.0_r_kind),one_tenth)
+                 endif
+              else
+                 all_loc(j,i,iaux(k))=ptr2d(j,i)
+              endif
            end do
         end do
+
 
         if(mype==0) read(iog)temp1
         call strip(all_loc(:,:,iaux(k)),strp)
@@ -1568,6 +1616,22 @@ subroutine wr2d_binary(mype)
         close(94)
      end if
   end do
+****
+  pure function inv_nltr(gxpvis,powerp) result(visout)
+     real(r_kind), intent(in) :: gxpvis
+     real(r_kind), intent(in) :: powerp
+     real(r_kind) :: visout
+! local variable
+     real(r_kind) :: scaling
+     scaling=1.0
+?????
+     visresult = 0.1_r_kind
+     temp = (rawvis/scaling)**powerp
+     visresult =(temp-1.0)/powerp
+    end function nltransform
+????
+
+***
 
   deallocate(all_loc)
   deallocate(itemp1)

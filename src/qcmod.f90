@@ -107,6 +107,8 @@ module qcmod
 !   def njqc -  logical flag (T=Purse's nonlinear qc on, F=off)
 !
 !   def noiqc        - logic flag for oiqc, noiqc='false' with oiqc on
+!   def powerp       - value used in nltr
+!   def adjvisoe     - adjust obs vis error 
 !
 !
 ! attributes:
@@ -159,6 +161,7 @@ module qcmod
 
   public :: buddycheck_t,buddydiag_save,closest_obs
   public :: vadwnd_l2rw_qc
+  public :: nltr,powerp,adjvisoe 
 
   logical nlnqc_iter,njqc,vqc
   logical noiqc
@@ -172,11 +175,13 @@ module qcmod
   logical buddydiag_save
   logical closest_obs
   logical vadwnd_l2rw_qc
+  logical nltr
 
   character(10):: vadfile
   integer(i_kind) npres_print
   real(r_kind) dfact,dfact1,erradar_inflate,c_varqc
   real(r_kind) varqc_iter
+  real(r_kind) powerp,adjvisoe
   real(r_kind),allocatable,dimension(:)::ptop,pbot,ptopq,pbotq,ptopo3,pboto3
 
 ! Declare variables for QC with Tz retrieval
@@ -364,7 +369,11 @@ contains
 
     closest_obs=.false.    ! When true, select timely nearest obs.
 
+    nltr=.false.           ! When true, apply non-linear transformation
+
     vadwnd_l2rw_qc=.true.  ! When false, DO NOT run the vadwnd qc on level 2 radial wind obs.
+    powerp=one
+    adjvisoe=one
 
     return
   end subroutine init_qcvars
