@@ -1,4 +1,4 @@
-subroutine gsisub(mype,init_pass,last_pass)
+subroutine gsisub(init_pass,last_pass)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:  gsisub                  high level driver for gridpoint 
@@ -63,7 +63,6 @@ subroutine gsisub(mype,init_pass,last_pass)
 !   2016-07-28  lippi   - add oneobmakerwsupob if 'rw' single ob test and skips radar_bufr_read_all.
 !
 !   input argument list:
-!     mype - mpi task id
 !
 !   comments:
 !
@@ -77,7 +76,7 @@ subroutine gsisub(mype,init_pass,last_pass)
   use observermod, only: observer_init,observer_run,observer_finalize
   use gridmod, only: twodvar_regional,create_grid_vars,destroy_grid_vars
   use gridmod, only: wrf_mass_regional,wrf_nmm_regional,nems_nmmb_regional,cmaq_regional
-  use mpimod, only: npe,mpi_comm_world,ierror
+  use mpimod, only: mype,npe,mpi_comm_world,ierror
   use radinfo, only: radinfo_read
   use pcpinfo, only: pcpinfo_read,create_pcp_random,&
        destroy_pcp_random
@@ -100,7 +99,6 @@ subroutine gsisub(mype,init_pass,last_pass)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind),intent(in   ) :: mype
   logical        ,intent(in) :: init_pass
   logical        ,intent(in) :: last_pass
   logical print_verbose
@@ -192,7 +190,7 @@ subroutine gsisub(mype,init_pass,last_pass)
       call destroy_gesfinfo()	! paired with gesinfo()
 #endif
   else
-     call glbsoi(mype)
+     call glbsoi
   endif
 
   
