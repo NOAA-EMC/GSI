@@ -77,8 +77,8 @@ APRUN_CHGRES=${APRUN_CHGRES:-""}
 # global_cycle stuff
 CYCLESH=${CYCLESH:-$BASE_GSM/ush/global_cycle.sh}
 export CYCLEXEC=${CYCLEXEC:-$BASE_GSM/exec/global_cycle}
-export FIXfv3=${FIXfv3:-$BASE_GSM/fix/fix_fv3}
 export FIXgsm=${FIXgsm:-$BASE_GSM/fix/fix_am}
+export FIXfv3=${FIXfv3:-$BASE_GSM/fix/fix_fv3}
 export CYCLVARS=${CYCLVARS:-"FSNOL=-2.,FSNOS=99999.,"}
 export FHOUR=${FHOUR:-0}
 export DELTSFC=${DELTSFC:-6}
@@ -161,6 +161,9 @@ if [ $RECENTER_ENKF = "YES" ]; then
       SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS}.txt}
 
       export OMP_NUM_THREADS=$NTHREADS_CHGRES
+      export SIGLEVEL="NULL"
+      export CHGRESVARS=$CHGRESVARS_ENKF
+      export LANDICE_OPT=${LANDICE_OPT:-1}
 
       rm -f fort.43
       cat > fort.43 << EOF
@@ -213,6 +216,10 @@ fi
 
 ################################################################################
 # Calculate ensemble analysis increment
+
+DATAPATH="./"
+ATMGESNAME="atmf006"
+ATMINCNAME="atminc"
 
 if [ $RECENTER_ENKF = "YES" ]; then
     ATMANLNAME='ratmanl'
