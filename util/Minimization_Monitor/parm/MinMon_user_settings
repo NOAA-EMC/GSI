@@ -29,9 +29,9 @@ export JOB_QUEUE=${JOB_QUEUE:-dev}
 export RUN_ONLY_ON_DEV=${RUN_ONLY_ON_DEV:-1}
 
 #
-#  WORKDIR is working directory (temp space)
+#  WORKDIR is working directory (tmp space)
 #
-export WORKDIR=${MY_PTMP}/${LOGNAME}/minmon_${MINMON_SUFFIX} 
+export WORKDIR=${MY_STMP}/${LOGNAME}/${MINMON_SUFFIX}/minmon
 
 # 
 #  GLB_AREA indicates the valid area of the data source
@@ -68,3 +68,11 @@ export MAIL_CC=${MAIL_CC:-""}
 #              NO  = delete the WORKDIR directory and contents
 #
 export KEEPDATA=YES
+
+#
+#  If TANK_USE_RUN =1 then the TANKdir will resolve to :
+#      ${MY_TANKDIR}/${MINMON_SUFFIX}/$RUN.$PDY/minmon/[data_files]
+#  instead of:
+#      ${MY_TANKDIR}/${MINMON_SUFFIX}/minmon.$RUN.$PDY/[data_files]
+#
+export TANK_USE_RUN=1

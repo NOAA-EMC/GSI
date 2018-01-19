@@ -1,6 +1,6 @@
 #!/bin/sh
 ###########################################################
-# GFS Minimization Monitor (MinMon) job
+# GDAS Minimization Monitor (MinMon) job
 ###########################################################
 set -xa
 echo `date` $0 `date -u` begin
@@ -8,13 +8,12 @@ export PS4='$SECONDS + '
 
 export RUN_ENVIR=${RUN_ENVIR:-nco}
 export envir=${envir:-prod}
-export PERL5LIB="/usrx/local/pm5/lib64/perl5:/usrx/local/pm5/share/perl5"
 
 ###############################
 # Specify NET and RUN name
 ##############################
 export NET=${NET:-gfs}
-export RUN=${RUN:-gfs}
+export RUN=${RUN:-gdas}
 
 
 ###########################################################
@@ -40,7 +39,7 @@ cd $DATA
 ########################################################### 
 # obtain unique process id (pid) and make temp directories
 ###########################################################
-export MINMON_SUFFIX=${MINMON_SUFFIX:-GFS}
+export MINMON_SUFFIX=${MINMON_SUFFIX:-GDAS}
 export m_job=${m_job:-${MINMON_SUFFIX}_mmDE}
 
 
@@ -72,11 +71,11 @@ export utilexec=${utilexec:-${UTILROOT}/exec}
 ##############################################
 # Specify Package Areas
 ##############################################
-# JY export HOMEgfs=${HOMEgfs:-${NWROOT}/gfs.${gfs_ver}}
-export HOMEgfs=${HOMEgfs:-${NWROOT}/gfs_minmon.${gfs_minmon_ver}}
-export PARMgfs=${PARMgfs:-$HOMEgfs/parm}
-export SCRgfs=${SCRgfs:-$HOMEgfs/scripts}
-export FIXgfs=${FIXgfs:-$HOMEgfs/fix}
+# JY export HOMEgdas=${HOMEgdas:-${NWROOT}/gdas.${gdas_ver}}
+export HOMEgdas=${HOMEgdas:-${NWROOT}/gdas_minmon.${gdas_minmon_ver}}
+export PARMgdas=${PARMgdas:-$HOMEgdas/parm}
+export SCRgdas=${SCRgdas:-$HOMEgdas/scripts}
+export FIXgdas=${FIXgdas:-$HOMEgdas/fix}
 
 export HOMEminmon=${HOMEminmon:-${NWROOT}/minmon_shared.${minmon_shared_ver}}
 export EXECminmon=${EXECminmon:-$HOMEminmon/exec}
@@ -86,23 +85,36 @@ export FIXminmon=${FIXminmon:-${HOMEminmon/fix}}
 ###################################
 # source the parm file
 ###################################
-.  ${PARMgfs}/gfs_minmon.parm
+.  ${PARMgdas}/gdas_minmon.parm
 
 
 #############################################
 # Run setpdy and initialize PDY variables
 #############################################
-export cycle=t${cyc}z
-setpdy.sh
-. ./PDY
-
+if [[ $MY_MACHINE != "theia" ]]; then
+   export cycle=t${cyc}z
+   setpdy.sh
+   . ./PDY
+fi
 
 #############################################
 # TANKverf - WHERE OUTPUT DATA WILL RESIDE
 #############################################
 M_TANKverf=${M_TANKverf:-${COMROOT}/verf/${envir}}
-M_TANKverfM0=${M_TANKverfM0:-${M_TANKverf}/minmon_${MINMON_SUFFIX}.${PDY}}
-export M_TANKverfM1=${M_TANKverfM1:-${M_TANKverf}/minmon_${MINMON_SUFFIX}.${PDYm1}}
+
+echo "M_TANKverf   = $M_TANKverf"
+echo "TANK_USE_RUN = $TANK_USE_RUN"
+echo "M_TANKverfM0 = $M_TANKverfM0"
+echo "M_TANKverfM1 = $M_TANKverfM1"
+
+if [[ ${TANK_USE_RUN} -ne 1 ]]; then
+   M_TANKverfM0=${M_TANKverfM0:-${M_TANKverf}/minmon_${MINMON_SUFFIX}.${PDY}}
+   export M_TANKverfM1=${M_TANKverfM1:-${M_TANKverf}/minmon_${MINMON_SUFFIX}.${PDYm1}}
+else
+   M_TANKverfM0=${M_TANKverfM0:-${M_TANKverf}/${RUN}.${PDY}/minmon}
+   export M_TANKverfM1=${M_TANKverfM1:-${M_TANKverf}/${RUN}.${PDYm1}/minmon}
+fi
+
 export M_TANKverf=$M_TANKverfM0
 
 export COM_IN=${COM_IN:-${COMROOT}/${NET}/${envir}}
@@ -114,17 +126,28 @@ mkdir -p -m 775 $M_TANKverf
 ########################################
 # Set necessary environment variables
 ########################################
-export gsistat=${gsistat:-${COMIN}/gfs.t${cyc}z.gsistat}
+export CYCLE_INTERVAL=6
+export gsistat=${gsistat:-${COMIN}/gdas.t${cyc}z.gsistat}
+if [[ ! -e ${gsistat} ]]; then
+   export gsistat=${COMIN}/gsistat.gdas.${PDATE}
+fi
 
 msg="JOB HAS STARTED"
 postmsg "$jlogfile" "$msg"
 
 ########################################################
 # Execute the script.
-${GMONSH:-$SCRgfs/exgfs_vrfminmon.sh.ecf} ${PDY} ${cyc}
+${GMONSH:-$SCRgdas/exgdas_vrfminmon.sh.ecf} ${PDY} ${cyc}
+
+err=$?
+
 ########################################################
 
-msg="JOB COMPLETED NORMALLY"
+if [[ ${err} -ne 0 ]]; then
+   msg="WARNING:  JOB DID NOT COMPLETE NORMALLY, error code $err"
+else
+   msg="JOB COMPLETED NORMALLY"
+fi
 postmsg "$jlogfile" "$msg"
 
 ################################

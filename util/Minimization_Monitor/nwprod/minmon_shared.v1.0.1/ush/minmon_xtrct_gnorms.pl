@@ -142,7 +142,7 @@ sub  makeErrMsg {
    my $gross_check = $_[8];  
 
    my $mail_msg    ="";
-   my $out_file = "${suffix}.${cycle}.errmsg.txt";
+   my $out_file = "${cycle}.errmsg.txt";
 
 
    if( $stop_flag > 0 ) {
@@ -212,6 +212,15 @@ my @msgcmd = ("postmsg", $jlogfile, $msg);
 
 #--------------------------------------------------
 
+#
+# This needs to be redesigned to get the gnorm value from the gsistat file
+# using the line that starts "cost,grad,step,b,step?:".  The line formerly 
+# used for the gnorm and reduction values may not be available if the the
+# verbose output flag is set to FALSE.
+#
+# So, using the grad value on that line:
+#   gnorm[i]  = (grad[i]**)/(grad[0]**)
+#   reduct[i] = sqrt(gnorm)
 
 my $igrad_target;
 my $igrad_number;
@@ -239,12 +248,6 @@ if( (-e $gnormfile) ) {
       } elsif( $line =~ /igrad_number/ ) {
          my @termsline = split( /:/, $line );
          $igrad_number = $termsline[1];
-      } elsif( $line =~ /gnorm_target/ ){
-         my @termsline = split( /:/, $line );
-         $gnorm_target = $termsline[1];
-      } elsif( $line =~ /gnorm_number/ ){
-         my @termsline = split( /:/, $line );
-         $gnorm_number = $termsline[1];
       } elsif( $line =~ /expected_gnorms/ ){
          my @termsline = split( /:/, $line );
          $expected_gnorms = $termsline[1];
@@ -262,7 +265,7 @@ if( $rc == 0 ) {
    if( (-e $infile) ) {
       open( INFILE, "<${infile}" ) or die "Can't open ${infile}: $!\n";
 
-      my $found_grad  = 0;
+      my $found_igrad = 0;
       my $final_gnorm = 0.0;
       my $igrad       = 0.0;
       my $header      = 4;
@@ -288,28 +291,35 @@ if( $rc == 0 ) {
          #  current outer & inner iteration number
          ##############################################
          if( $reset_iter_flag == 1 ) {
-            if( $line =~ /${gnorm_target}/ ){
+#            if( $line =~ /${gnorm_target}/ ){
+            if( $line =~ /${igrad_target}/ ) {
                my @iterline  = split( / +/, $line ); 
-               my $iter_str = $iterline[9] . "," . $iterline[10];
+               my $iter_str = $iterline[2] . "," . $iterline[3];
                push( @reset_iter, $iter_str);
                $reset_iter_flag = 0;  
             }
          }
 
 
-         if( $found_grad == 0 ) {
-            if( $line =~ /${igrad_target}/ ) {
-               my @gradline  = split( / +/, $line ); 
+         if( $line =~ /${igrad_target}/ ) {
+            my @gradline  = split( / +/, $line ); 
 
-               $igrad = $gradline[$igrad_number];
-               $found_grad = 1;
+            my $grad = $gradline[$igrad_number];
+
+	    if( $found_igrad == 0 ){
+               $igrad = $grad;
+               $found_igrad = 1;
             }
+
+            my $igrad_sqr = $igrad**2;
+            my $grad_sqr  = $grad**2;
+            my $gnorm     = $grad_sqr/$igrad_sqr;
+          		
+#	    print "grad_sqr, igrad_sqr, gnorm = $grad_sqr, $igrad_sqr, $gnorm\n";
+
+	    push( @gnorm_array, $gnorm );
          }
 
-         if( $line =~ /$gnorm_target/ ) {   
-            my @gnormline = split( / +/, $line );
-            push( @gnorm_array, $gnormline[$gnorm_number] );
-         }
 
          if( $line =~ /${warn_str}/ ) {
             if( $line =~ /${stop_str}/ ) {
@@ -425,6 +435,7 @@ if( $rc == 0 ) {
       my $tankdir = $ENV{"M_TANKverf"};
       print "M_TANKverf = $tankdir \n";
       if(! -d $tankdir) {
+         print "making $tankdir\n";
          system( "mkdir -p $tankdir" );
       }
    
