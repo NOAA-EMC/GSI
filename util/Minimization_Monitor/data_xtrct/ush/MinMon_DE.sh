@@ -14,6 +14,9 @@ function usage {
 #--------------------------------------------------------------------
 #  MinMon_DE.sh begins here
 #--------------------------------------------------------------------
+
+set -x
+
 nargs=$#
 if [[ $nargs -lt 1 || $nargs -gt 2 ]]; then
    usage
@@ -24,6 +27,7 @@ this_file=`basename $0`
 this_dir=`dirname $0`
 
 export MINMON_SUFFIX=$1
+echo "TANK_USE_RUN = $TANK_USE_RUN"
 
 if [[ $nargs -ge 2 ]]; then
    export PDATE=$2;
@@ -102,10 +106,11 @@ echo "PDY, cyc = $PDY, $cyc "
 mdate=`$NDATE -24 $PDATE`
 m1=`echo $mdate|cut -c1-8`
 
-export M_TANKverfM0=${M_TANKverf}/minmon.${PDY}
-export M_TANKverfM1=${M_TANKverf}/minmon.${m1}
 
-lfile=${m_jlogfile}${MINMON_SUFFIX}.${PDY}.${cyc}
+#export M_TANKverfM0=${M_TANKverf}/minmon.${PDY}
+#export M_TANKverfM1=${M_TANKverf}/minmon.${m1}
+
+lfile=${LOGdir}/DE.${PDY}.${cyc}
 export pid=${pid:-$$}
 export jlogfile=${lfile}.o${pid}
 export m_jlogfile="${lfile}.log"
@@ -118,6 +123,8 @@ export envir=prod
 export DATAROOT=${DATA_IN:-${STMP_USER}}
 export COMROOT=${COMROOT:-/com2}
 
+echo "MY_MACHINE = $MY_MACHINE"
+
 #
 #  Note:  J-job's default location for the gsistat file is
 #         /com2/gfs/prod/gdas.yyyymmdd/gdas1.hhz.gsistat
@@ -129,30 +136,30 @@ export COMROOT=${COMROOT:-/com2}
 #############################################################
 # Load modules
 #############################################################
-if [[ $MY_MACHINE = "wcoss" ]]; then
-   . /usrx/local/Modules/3.2.9/init/ksh
+#if [[ $MY_MACHINE = "wcoss" ]]; then
+#   . /usrx/local/Modules/3.2.9/init/ksh
+#
+#   module use /nwprod2/modulefiles
+#   module load grib_util
+#   module load prod_util
+#   module load util_shared
+#
+#   module unload ics/12.1
+#   module load ics/15.0.3
+#
+#if [[ $MY_MACHINE = "cray" ]]; then
+#   . $MODULESHOME/init/ksh
 
-   grib_util_ver=v1.0.0
-   prod_util_ver=v1.0.1
-   util_shared_ver=v1.0.1
-
-   module use /nwprod2/modulefiles
-   module load grib_util/$grib_util_ver
-   module load prod_util/$prod_util_ver
-   module load util_shared/$util_shared_ver
-
-   module unload ics/12.1
-   module load ics/15.0.3
-elif [[ $MY_MACHINE = "cray" ]]; then
-   . $MODULESHOME/init/ksh
-   prod_util_ver=1.0.3
-   export util_shared_ver=v1.0.2
-   export gdas_minmon_ver=v1.0.0
-   export minmon_shared_ver=v1.0.0
-   module load prod_util/${prod_util_ver}
-   module load prod_envir
-   module load pm5
-fi
+#   module use -a /gpfs/hps/nco/ops/nwprod/modulefiles
+#   module use /usrx/local/prod/modulefiles
+#   module use -a /opt/modulefiles
+#
+#   module load prod_util
+#   module load prod_envir
+#   module load pm5/5.10.0
+#   module load xt-lsfhpc
+#
+#fi
 
 module list
 
@@ -160,9 +167,8 @@ module list
 jobname=minmon_de_${MINMON_SUFFIX}
 
 rm -f $m_jlogfile
-rm -rf $DATA_IN
+#rm -rf $DATA_IN
 
-echo "MY_MACHINE = $MY_MACHINE"
 echo "SUB        = $SUB"
 echo "JOB_QUEUE  = $JOB_QUEUE"
 echo "PROJECT    = $PROJECT"
@@ -182,7 +188,5 @@ elif [[ $MY_MACHINE = "theia" ]]; then
    echo "theia job sumission goes here"
 fi
 
-
-#module unload /nwprod2/modulefiles/prod_util/v1.0.2
 
 echo "end MinMon_DE.sh"
