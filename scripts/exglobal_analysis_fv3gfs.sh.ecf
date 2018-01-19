@@ -819,8 +819,8 @@ OBS_INPUT::
    mhsbufr        mhs         metop-b     mhs_metop-b         0.0     1     1
    iasibufr       iasi        metop-b     iasi_metop-b        0.0     1     1
    gomebufr       gome        metop-b     gome_metop-b        0.0     2     0
-   atmsbufr       atms        npp         atms_npp            0.0     1     0
-   atmsbufr       atms        n20         atms_n20            0.0     1     0
+   atmsbufr       atms        npp         atms_npp            0.0     1     1
+   atmsbufr       atms        n20         atms_n20            0.0     1     1
    crisbufr       cris        npp         cris_npp            0.0     1     0
    crisfsbufr     cris-fsr    npp         cris-fsr_npp        0.0     1     0
    crisfsbufr     cris-fsr    n20         cris-fsr_n20        0.0     1     0
@@ -855,6 +855,7 @@ OBS_INPUT::
   s_ens_h=800.,s_ens_v=-0.8,readin_localization=.true.,
   aniso_a_en=.false.,oz_univ_static=.false.,uv_hyb_ens=.true.,
   ensemble_path='./ensemble_data/',
+  ens_fast_read=.true.,
   $HYBRID_ENSEMBLE
 /
 &RAPIDREFRESH_CLDSURF
