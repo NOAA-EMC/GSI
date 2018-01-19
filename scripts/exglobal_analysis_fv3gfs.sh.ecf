@@ -592,7 +592,9 @@ $NLN $ABIAS    satbias_out
 $NLN $ABIASPC  satbias_pc.out
 $NLN $ABIASAIR aircftbias_out
 
-[[ $DONST = "YES" ]] && $NLN $DTFANL dtfanl
+if [ $DONST = "YES" ]; then
+   $NLN $DTFANL dtfanl
+fi
 
 # If requested, link (and if tarred, de-tar obsinput.tar) into obs_input.* files
 if [ $USE_SELECT = "YES" ]; then
@@ -918,6 +920,12 @@ fi
 if [ $DOGCYCLE = "YES" ]; then
 
     mkdir -p $COMOUT/RESTART
+
+    # Get dimension information based on CASE
+    res=$(echo $CASE | cut -c2-)
+    JCAP_CASE=$((res*2-2))
+    LATB_CASE=$((res*2))
+    LONB_CASE=$((res*4))
 
     # Global cycle requires these files
     export FNTSFA=${FNTSFA:-$COMIN_OBS/${OPREFIX}rtgssthr.grb}
