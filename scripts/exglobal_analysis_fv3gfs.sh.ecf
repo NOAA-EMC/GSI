@@ -67,7 +67,7 @@ export CYCLVARS=${CYCLVARS:-""}
 export FHOUR=${FHOUR:-0}
 export DELTSFC=${DELTSFC:-6}
 export FIXgsm=${FIXgsm:-$BASE_GSM/fix/fix_am}
-export FIXfv3=${FIXfv3:-$BASE_GSM/fix/fix_fv3}
+export FIXfv3=${FIXfv3:-$BASE_GSM/fix/fix_fv3_gmted2010}
 
 # FV3 specific info (required for global_cycle)
 export CASE=${CASE:-"C384"}
@@ -291,6 +291,7 @@ RTMFIX=${RTMFIX:-$NWROOT/lib/crtm/${crtm_ver}/fix}
 BERROR=${BERROR:-${FIXgsi}/Big_Endian/global_berror.l${LEVS}y${NLAT_A}.f77}
 SATANGL=${SATANGL:-${FIXgsi}/global_satangbias.txt}
 SATINFO=${SATINFO:-${FIXgsi}/global_satinfo.txt}
+RADCLOUDINFO=${RADCLOUDINFO:-${FIXgsi}/cloudy_radiance_info.txt}
 ATMSFILTER=${ATMSFILTER:-${FIXgsi}/atms_beamwidth.txt}
 ANAVINFO=${ANAVINFO:-${FIXgsi}/global_anavinfo.l${LEVS}.txt}
 CONVINFO=${CONVINFO:-${FIXgsi}/global_convinfo.txt}
@@ -352,6 +353,7 @@ rm berror_stats hybens_info
 rm scaninfo satbias_angle satinfo
 rm anavinfo convinfo ozinfo pcpinfo aeroinfo
 rm errtable atms_beamwidth.txt
+rm cloudy_radiance_info.txt
 
 rm prepbufr prepbufr_profl
 rm gpsrobufr
@@ -388,6 +390,7 @@ rm -rf ensemble_data
 $NLN $BERROR       berror_stats
 $NLN $SATANGL      satbias_angle
 $NLN $SATINFO      satinfo
+$NLN $RADCLOUDINFO cloudy_radiance_info.txt
 $NLN $ATMSFILTER   atms_beamwidth.txt
 $NLN $ANAVINFO     anavinfo
 $NLN $CONVINFO     convinfo
