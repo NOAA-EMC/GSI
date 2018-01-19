@@ -1743,7 +1743,7 @@ contains
 
     use gridmod, only: ntracer
     use gridmod, only: ncloud
-    use gridmod, only: strip,jcap_b
+    use gridmod, only: strip,jcap_b,bk5
 
     use general_commvars_mod, only: load_grid,fill2_ns,filluv2_ns
     use general_specmod, only: spec_vars
@@ -1810,7 +1810,7 @@ contains
     real(r_kind),allocatable,dimension(:,:,:) :: grid_c, grid3, grid_c2, grid3b
 
     type(nemsio_gfile) :: gfile,gfileo
-    logical diff_res,eqspace
+    logical diff_res,eqspace,ldelp
     logical,dimension(1) :: vector
     type(egrid2agrid_parm) :: p_low,p_high
 
@@ -1819,6 +1819,7 @@ contains
     mm1=mype+1
     nlatm2=grd%nlat-2
     diff_res=.false.
+    ldelp=.false.
 
     istatus=0
     call gsi_bundlegetpointer(gfs_bundle,'ps', sub_ps,  iret); istatus=istatus+iret
@@ -1914,7 +1915,9 @@ contains
        ! Allocate structure arrays to hold data
        allocate(rwork1d(latb*lonb),rwork1d1(latb*lonb))
        if (imp_physics == 11) allocate(grid3b(grd%nlat,grd%nlon,1))
-       if ( diff_res .or. imp_physics == 11 ) then
+       call nemsio_readrecv(gfile,'dpres','mid layer',1,rwork1d,iret=iret)
+       if ( iret == 0) ldelp=.true.
+       if ( diff_res .or. imp_physics == 11 .or. ldelp) then
           allocate( grid_b(lonb,latb),grid_c(latb+2,lonb,1),grid3(grd%nlat,grd%nlon,1))
           allocate( grid_b2(lonb,latb),grid_c2(latb+2,lonb,1))
           allocate( rlats(latb+2),rlons(lonb),clons(lonb),slons(lonb),r4lats(lonb*latb),r4lons(lonb*latb))
@@ -1986,7 +1989,7 @@ contains
          work1,grd%ijn,grd%displs_g,mpi_rtype,&
          mype_out,mpi_comm_world,ierror)
     if (mype==mype_out) then
-       if(diff_res)then
+       if(diff_res .or. ldelp)then
           call nemsio_readrecv(gfile,'pres','sfc',1,rwork1d,iret=iret)
           if (iret /= 0) call error_msg(trim(my_name),trim(filename),'pres','read',istop,iret)
           rwork1d1 = r0_001*rwork1d
@@ -1998,8 +2001,34 @@ contains
              i=grd%ltosi(kk)
              j=grd%ltosj(kk)
              grid3(i,j,1)=work1(kk)-grid3(i,j,1)
+             if (ldelp) work1(kk)=grid3(i,j,1)
           end do
-
+          if (ldelp) then
+             do k=1,grd%nsig
+                do kk=1,grd%iglobal
+                   i=grd%ltosi(kk)
+                   j=grd%ltosj(kk)
+                   grid3(i,j,1)=work1(kk)*(bk5(k)-bk5(k+1))
+                enddo
+                call g_egrid2agrid(p_high,grid3,grid_c2,1,1,vector)
+                call nemsio_readrecv(gfile,'dpres','mid layer',k,rwork1d,iret=iret)
+                rwork1d1 = r0_001*rwork1d
+                grid_b2=reshape(rwork1d1,(/size(grid_b2,1),size(grid_b2,2)/))
+                do j=1,latb
+                   do i=1,lonb
+                      grid_b2(i,j)=r1000*grid_b2(i,j)+r1000*(grid_c2(latb-j+2,i,1))
+                   enddo
+                enddo
+                rwork1d = reshape(grid_b2,(/size(rwork1d)/))
+                call nemsio_writerecv(gfileo,'dpres','mid layer',k,rwork1d,iret=iret)
+                if (iret /= 0) call error_msg(trim(my_name),trim(filename),'dpres','write',istop,iret)
+             enddo
+             do kk=1,grd%iglobal
+                i=grd%ltosi(kk)
+                j=grd%ltosj(kk)
+                grid3(i,j,1)=work1(kk)
+             enddo
+          endif
           call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
           do j=1,latb
              do i=1,lonb
@@ -2280,12 +2309,6 @@ contains
           if (iret == 0) then 
              call nemsio_writerecv(gfileo,'delz','mid layer',k,rwork1d,iret=iret)
              if (iret /= 0) call error_msg(trim(my_name),trim(filename),'delz','write',istop,iret)
-          endif
-          
-          call nemsio_readrecv(gfile,'dpres','mid layer',k,rwork1d,iret=iret)
-          if (iret == 0) then
-             call nemsio_writerecv(gfileo,'dpres','mid layer',k,rwork1d,iret=iret)
-             if (iret /= 0) call error_msg(trim(my_name),trim(filename),'dpres','write',istop,iret)
           endif
        enddo
     endif
