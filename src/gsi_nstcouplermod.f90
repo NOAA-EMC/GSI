@@ -13,6 +13,7 @@
 !  2011-10-20 RT/ Akella- Initial code
 !  2012-03-05 SA-         _full fields: tref, dt_cool, dt_warm, z_c, z_w, ... are declared here INSTEAD of satthin     
 !  2015-05-01 Li-         Change the nst fields to be single precision
+!  2017-09-14 LI-         Change the default value to be 1 for fac_dtl & fac_tsl
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -44,7 +45,7 @@ private
 !
 public GSI_NSTCoupler_init_nml
 public GSI_NSTCoupler_init
-public GSI_NSTCoupler_set
+public GSI_NSTCoupler_read
 public GSI_NSTCoupler_skindepth
 public GSI_NSTCoupler_deter
 public GSI_NSTCoupler_final
@@ -71,14 +72,14 @@ interface gsi_nstcoupler_init
 end interface
 !-------------------
 
-interface gsi_nstcoupler_set
-  subroutine nst_set_(mype_io)
+interface gsi_nstcoupler_read
+  subroutine nst_read_(mype_io)
      use kinds,         only: i_kind
      implicit none
 
      integer(i_kind), intent(in   ) :: mype_io
      
-  end subroutine nst_set_
+  end subroutine nst_read_
 end interface
 !-------------------
 
@@ -130,8 +131,8 @@ subroutine gsi_nstcoupler_init_nml
   nstinfo   = 0          ! number of nst fields used in Tr analysis
   zsea1     = 0          ! upper depth to do the mean
   zsea2     = 0          ! lower depth to do the mean
-  fac_dtl   = 0          ! indicator to apply DTL model
-  fac_tsl   = 0          ! indicator to apply TSL model
+  fac_dtl   = 1          ! indicator to apply DTL model
+  fac_tsl   = 1          ! indicator to apply TSL model
 
   return
 

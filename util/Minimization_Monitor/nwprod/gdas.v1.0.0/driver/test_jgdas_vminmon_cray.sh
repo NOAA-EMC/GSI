@@ -6,12 +6,12 @@
 #BSUB -q dev
 #BSUB -M 80
 #BSUB -W 00:05
-#BSUB -P GFS-T2O
+#BSUB -P GDAS-T2O
 #BSUB -R "select[mem>80] rusage[mem=80]"
 
 set -x
 
-export PDATE=2016030706
+export PDATE=${PDATE:-2017111312}
 
 #############################################################
 # Specify whether the run is production or development
@@ -27,13 +27,10 @@ export envir=para
 #############################################################
 # Specify versions
 #############################################################
-export gdas_ver=v13.0.0
-export global_shared_ver=v13.0.0
-export grib_util_ver=v1.0.1
-export prod_util_ver=1.0.3
-export util_shared_ver=v1.0.2
-export gdas_minmon_ver=v1.0.0
-export minmon_shared_ver=v1.0.0
+#export gdas_ver=v14.1.0
+#export global_shared_ver=v14.1.0
+export gdas_ver=v1.0.0
+export minmon_shared_ver=v1.0.1
 
 
 #############################################################
@@ -41,8 +38,7 @@ export minmon_shared_ver=v1.0.0
 #############################################################
 . $MODULESHOME/init/ksh
 
-module load prod_util/${prod_util_ver}
-module load prod_envir
+module load prod_util
 module load pm5
 
 module list
@@ -57,16 +53,16 @@ export POE=YES
 #############################################################
 # Set user specific variables
 #############################################################
-export DATAROOT=/gpfs/hps/emc/da/noscrub/$LOGNAME/test_data
-export COMROOT=/gpfs/hps/ptmp/$LOGNAME/com
-export SUFFIX=testminmon
-export NWTEST=/gpfs/hps/emc/da/noscrub/${LOGNAME}/MinMon_546/util/Minimization_Monitor/nwprod
-export HOMEgdas=${NWTEST}/gdas_minmon.${gdas_minmon_ver}
+export DATAROOT=${DATAROOT:-/gpfs/hps3/emc/da/noscrub/$LOGNAME/test_data}
+export COMROOT=${COMROOT:-/gpfs/hps2/ptmp/$LOGNAME/com}
+export MINMON_SUFFIX=${MINMON_SUFFIX:-testminmon_gdas}
+export NWTEST=${NWTEST:-/gpfs/hps3/emc/da/noscrub/${LOGNAME}/ProdGSI/util/Minimization_Monitor/nwprod}
+export HOMEgdas=${NWTEST}/gdas.${gdas_ver}
 export JOBGLOBAL=${HOMEgdas}/jobs
 export HOMEminmon=${NWTEST}/minmon_shared.${minmon_shared_ver}
 export COM_IN=${DATAROOT}
-export M_TANKverf=${COMROOT}/${SUFFIX}
-
+export M_TANKverf=${M_TANKverf:-${COMROOT}/${MINMON_SUFFIX}}
+export CYCLE_INTERVAL=${CYCLE_INTERVAL:-6}
 
 #############################################################
 # Execute job

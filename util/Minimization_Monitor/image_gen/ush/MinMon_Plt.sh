@@ -1,29 +1,61 @@
 #!/bin/sh
+set -ax
 
 function usage {
-  echo "Usage:  MinMonPlt.sh MINMON_SUFFIX [PDATE]"
+  echo " "
+  echo "Usage:  MinMonPlt.sh MINMON_SUFFIX "
   echo "            MINMON_SUFFIX is data source identifier that matches data in "
   echo "              the $M_TANKverf/stats directory."
-  echo "            PDATE (format:  YYYYMMDDHH) optional, is only/first date to plot"
+  echo "            -p | -pdate yyyymmddcc to specify the cycle to be plotted"
+  echo "              if unspecified the last available date will be plotted"
+  echo "            -r | -run   the gdas|gfs run to be plotted"
+  echo "              use only if data in TANKdir stores both runs" 
+  echo " "
 }
 
-set -ax
 echo start MinMonPlt.sh
 
 nargs=$#
-if [[ $nargs -lt 1 ]]; then
+if [[ $nargs -lt 1 || $nargs -gt 5 ]]; then
    usage
    exit 1
 fi
 
-export MINMON_SUFFIX=$1
 
-if [[ $nargs -ge 2 ]]; then
-   export PDATE=$2
+while [[ $# -ge 1 ]]
+do
+   key="$1"
+   echo $key
+
+   case $key in
+      -p|--pdate)
+         PDATE="$2"
+         shift # past argument
+      ;;
+      -r|--run)
+         export RUN="$2"
+         shift # past argument
+      ;;
+      *)
+         #any unspecified key is MINMON_SUFFIX
+         export MINMON_SUFFIX=$key
+      ;;
+   esac
+
+   shift
+done
+
+echo "MINMON_SUFFIX = $MINMON_SUFFIX"
+echo "PDATE         = $PDATE"
+echo "RUN           = $RUN"
+
+
+
+if [[ ${#RUN} -gt 0 ]]; then 
+   run_suffix=${MINMON_SUFFIX}_${RUN}
+else
+   run_suffix=${MINMON_SUFFIX}
 fi
-#if [[ $nargs -eq 3 ]]; then
-#   export EDATE=$3
-#fi
 
 this_file=`basename $0`
 this_dir=`dirname $0`
@@ -101,20 +133,36 @@ else
    echo "PDATE was specified:  $PDATE"
 fi
 
+
 #--------------------------------------------------------------------
 #  Create the WORKDIR and link the data files to it
 #--------------------------------------------------------------------
-if [[ -d $WORKDIR ]]; then
-  rm -rf $WORKDIR
+pid=${pid:-$$}
+
+if [[ ${#RUN} -gt 0 ]]; then
+   WORKDIR=${WORKDIR}/IG.${RUN}.${PDATE}.o${pid}
+else
+   WORKDIR=${WORKDIR}/IG.${PDATE}.o${pid}
 fi
-mkdir $WORKDIR
+
+if [[ ! -d $WORKDIR ]]; then
+   mkdir -p $WORKDIR
+fi
 cd $WORKDIR
 
 #--------------------------------------------------------------------
 #  Copy gnorm_data.txt file to WORKDIR.
 #--------------------------------------------------------------------
 pdy=`echo $PDATE|cut -c1-8`
-gnorm_dir=${TANKDIR}/minmon.${pdy}
+if [[ ${#RUN} -gt 0 ]]; then
+   gnorm_dir=${TANKDIR}/${RUN}.${pdy}
+   if [[ -d $gnorm_dir/minmon ]]; then
+      gnorm_dir=${gnorm_dir}/minmon
+   fi 
+else
+   gnorm_dir=${TANKDIR}/minmon.${pdy}
+fi
+
 if [[ ! -d $gnorm_dir ]]; then
    gnorm_dir=${TANKDIR}/minmon_${MINMON_SUFFIX}.${pdy}
 fi
@@ -137,7 +185,7 @@ fi
 #  These aren't used for processing but will be pushed to the
 #    server from the tmp dir.
 #------------------------------------------------------------------
-costs=${gnorm_dir}${MINMON_SUFFIX}.${PDATE}.costs.txt
+costs=${gnorm_dir}/${MINMON_SUFFIX}.${PDATE}.costs.txt
 if [[ ! -e $costs ]]; then
    costs=${gnorm_dir}/${PDATE}.costs.txt
 fi
@@ -148,17 +196,16 @@ if [[ ! -e $cost_terms ]]; then
 fi
 
 if [[ -s ${costs} ]]; then
-   cp ${costs} ${WORKDIR}/${MINMON_SUFFIX}.${PDATE}.costs.txt
+   cp ${costs} ${WORKDIR}/${run_suffix}.${PDATE}.costs.txt
 else
    echo "WARNING:  Unable to locate ${costs}"
 fi
 
 if [[ -s ${cost_terms} ]]; then
-  cp ${cost_terms} ${WORKDIR}/${MINMON_SUFFIX}.${PDATE}.cost_terms.txt 
+  cp ${cost_terms} ${WORKDIR}/${run_suffix}.${PDATE}.cost_terms.txt 
 else
    echo "WARNING:  Unable to locate ${cost_terms}"
 fi
-
 
 bdate=`$NDATE -174 $PDATE`
 edate=$PDATE
@@ -172,7 +219,12 @@ while [[ $cdate -le $edate ]]; do
    echo "processing cdate = $cdate"
    pdy=`echo $cdate|cut -c1-8`
 
-   gnorm_dir=${TANKDIR}/minmon.${pdy}
+   if [[ ${#RUN} -gt 0 ]]; then
+      gnorm_dir=${TANKDIR}/${RUN}.${pdy}
+      if [[ -d $gnorm_dir/minmon ]]; then
+         gnorm_dir=${gnorm_dir}/minmon
+      fi 
+   fi
    if [[ ! -d $gnorm_dir ]]; then
       gnorm_dir=${TANKDIR}/minmon_${MINMON_SUFFIX}.${pdy}
    fi
@@ -204,7 +256,6 @@ while [[ $cdate -le $edate ]]; do
    cdate=$adate
 done
 
-
 #--------------------------------------------------------------------
 #  Main processing loop.  
 #  Run extract_all_gnorms.pl script and generate single cycle plot.
@@ -233,13 +284,13 @@ while [ $not_done -eq 1 ] && [ $ctr -le 20 ]; do
    #  according to the $suffix
    #-----------------------------------------------------------------
    if [[ ! -e ${WORKDIR}/allgnorm.ctl ]]; then
-      cp ${M_IG_GRDS}/${area}_allgnorm.ctl ${WORKDIR}/allgnorm.ctl
+      cp ${M_IG_GRDS}/${area}_allgnorm.ctl ${WORKDIR}/orig_allgnorm.ctl
+      cp ${WORKDIR}/orig_allgnorm.ctl ${WORKDIR}/allgnorm.ctl
    fi
  
    if [[ ! -e ${WORKDIR}/reduction.ctl ]]; then
       cp ${M_IG_GRDS}/${area}_reduction.ctl ${WORKDIR}/reduction.ctl
    fi
-
   
    # 
    # update the tdef line in the ctl files
@@ -247,6 +298,7 @@ while [ $not_done -eq 1 ] && [ $ctr -le 20 ]; do
    bdate=`$NDATE -168 $PDATE`
    ${M_IG_SCRIPTS}/update_ctl_tdef.sh ${WORKDIR}/allgnorm.ctl ${bdate}
    ${M_IG_SCRIPTS}/update_ctl_tdef.sh ${WORKDIR}/reduction.ctl ${bdate}
+   
 
 #   if [[ $AREA = "glb" ]]; then
 #      ${SCRIPTS}/update_ctl_xdef.sh ${WORKDIR}/allgnorm.ctl 202 
@@ -269,26 +321,38 @@ while [ $not_done -eq 1 ] && [ $ctr -le 20 ]; do
    if [[ ! -e ${WORKDIR}/plot_reduction.gs ]]; then
       cp ${M_IG_GRDS}/plot_reduction.gs ${WORKDIR}/.
    fi
- 
+   if [[ ! -e ${WORKDIR}/plot_4_gnorms.gs ]]; then
+      cp ${M_IG_GRDS}/plot_4_gnorms.gs ${WORKDIR}/.
+   fi
+
  
 cat << EOF >${PDATE}_plot_gnorms.gs
 'open allgnorm.ctl'
-'run plot_gnorms.gs $MINMON_SUFFIX $PDATE x1100 y850'
+'run plot_gnorms.gs $run_suffix $PDATE x1100 y850'
 'quit'
 EOF
 
 cat << EOF >${PDATE}_plot_reduction.gs
 'open reduction.ctl'
-'run plot_reduction.gs $MINMON_SUFFIX $PDATE x1100 y850'
+'run plot_reduction.gs $run_suffix $PDATE x1100 y850'
 'quit'
 EOF
+
+cat << EOF >${PDATE}_plot_4_gnorms.gs
+'open allgnorm.ctl'
+'run plot_4_gnorms.gs $run_suffix $PDATE x1100 y850'
+'quit'
+EOF
+
 
   #-----------------------------------------------------------------
   #  Run the plot driver script and move the image into ./tmp
   #-----------------------------------------------------------------
   GRADS=`which grads`
+
   $TIMEX $GRADS -blc "run ${PDATE}_plot_gnorms.gs"
   $TIMEX $GRADS -blc "run ${PDATE}_plot_reduction.gs"
+  $TIMEX $GRADS -blc "run ${PDATE}_plot_4_gnorms.gs"
 
   if [[ ! -d ${WORKDIR}/tmp ]]; then
      mkdir ${WORKDIR}/tmp
@@ -298,7 +362,7 @@ EOF
   #-----------------------------------------------------------------
   #  copy the modified gnorm_data.txt file to tmp
   #-----------------------------------------------------------------
-  cp gnorm_data.txt tmp/${MINMON_SUFFIX}.gnorm_data.txt
+  cp gnorm_data.txt tmp/${run_suffix}.gnorm_data.txt
 
  
   ctr=`expr $ctr + 1`
@@ -316,7 +380,12 @@ cp *cost*.txt tmp/.
 #--------------------------------------------------------------------
 if [[ ${DO_ERROR_RPT} -eq 1 ]]; then
 
-   err_msg=${TANKDIR}/minmon.${pdy}/${MINMON_SUFFIX}.${PDATE}.errmsg.txt
+   if [[ ${#RUN} -gt 0 ]]; then 
+      err_msg=${TANKDIR}/${RUN}.${pdy}/minmon/${PDATE}.errmsg.txt
+   else
+      err_msg=${TANKDIR}/minmon.${pdy}/${run_suffix}.${PDATE}.errmsg.txt
+   fi
+
    if [[ -e $err_msg ]]; then
       err_rpt="./err_rpt.txt"
       `cat $err_msg > $err_rpt`
@@ -329,41 +398,21 @@ if [[ ${DO_ERROR_RPT} -eq 1 ]]; then
       echo "*********************** WARNING ***************************" >> $err_rpt
      
       if [[ $MAIL_CC == "" ]]; then
-         /bin/mail -s RadMon_error_report ${MAIL_TO}< ${err_rpt}
+         /bin/mail -s MinMon_error_report ${MAIL_TO}< ${err_rpt}
       else
-         /bin/mail -s RadMon_error_report -c "${MAIL_CC}" ${MAIL_TO}< ${err_rpt}
+         /bin/mail -s MinMon_error_report -c "${MAIL_CC}" ${MAIL_TO}< ${err_rpt}
       fi
    fi
-  
-#if [[ -s ${err_rpt} ]]; then
-#      lines=`wc -l <${err_rpt}`
-#      if [[ $lines -gt 2 ]]; then
-#echo "" >> $err_rpt
-#echo "" >> $err_rpt
-#echo "" >> $err_rpt
-#echo "*********************** WARNING ***************************" >> $err_rpt
-#echo "THIS IS AN AUTOMATED EMAIL.  REPLIES TO SENDER WILL NOT BE"  >> $err_rpt
-#echo "RECEIVED.  PLEASE DIRECT REPLIES TO edward.safford@noaa.gov" >> $err_rpt
-#echo "*********************** WARNING ***************************" >> $err_rpt
-#
-#         if [[ $MAIL_CC == "" ]]; then
-#            /bin/mail -s RadMon_error_report ${MAIL_TO}< ${err_rpt}
-#         else
-#            /bin/mail -s RadMon_error_report -c "${MAIL_CC}" ${MAIL_TO}< ${err_rpt}
-#         fi
-#      fi
-#   fi
-
 
 fi
 
 #--------------------------------------------------------------------
 #  Push the image & txt files over to the server
 #--------------------------------------------------------------------
-   if [[ $MY_MACHINE = "wcoss" ]]; then
+   if [[ ${MY_MACHINE} = "wcoss" || ${MY_MACHINE} = "cray" ]]; then
       cd ./tmp
       $RSYNC -ave ssh --exclude *.ctl*  ./ \
-        ${WEBUSER}@${WEBSERVER}:${WEBDIR}/
+        ${WEBUSER}@${WEBSERVER}:${WEBDIR}/$run_suffix/
    fi
 
 #--------------------------------------------------------------------
@@ -374,9 +423,9 @@ fi
       ${M_IG_SCRIPTS}/nu_make_archive.sh
    fi
 
-#cd ${WORKDIR}
-#cd ..
-#rm -rf ${WORKDIR}
+cd ${WORKDIR}
+cd ..
+rm -rf ${WORKDIR}
 
 echo end MinMonPlt.sh
 exit

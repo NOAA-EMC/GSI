@@ -11,6 +11,7 @@
 !  07Oct2011 Akella/RT - Initial code
 !  05Mar2012 Akella    - Create_nst and getnst from satthin are now nst_int_ & nst_set_
 !                        Destroy_nst from satthin is nst_final_
+!  2017--9-27 Li       - change nst_set to be nst_read and fix a bug in cal_tztr_
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -47,7 +48,7 @@ subroutine nst_init_()
 end subroutine nst_init_
 !*******************************************************************************************
 
-subroutine nst_set_(mype_io)
+subroutine nst_read_(mype_io)
 
      use kinds, only: i_kind
      use gridmod, only: use_gfs_nemsio 
@@ -66,7 +67,7 @@ subroutine nst_set_(mype_io)
                          dt_warm_full,z_w_full,c_0_full,c_d_full,w_0_full,w_d_full)
      endif
                          
-end subroutine nst_set_
+end subroutine nst_read_
 !*******************************************************************************************
 
 subroutine nst_final_ ()
@@ -117,7 +118,7 @@ subroutine deter_nst_(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
 !$$$
      use kinds,       only: r_kind,i_kind
      use constants,   only: zero,one,z_w_max
-     use gridmod,     only: regional,tll2xy,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc
+     use gridmod,     only: nlat,nlon,regional,tll2xy,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc
      use guess_grids, only: nfldnst,hrdifnst
      use gsi_nstcouplermod, only: fac_dtl,fac_tsl
      use gsi_nstcouplermod, only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
@@ -348,34 +349,35 @@ subroutine cal_tztr_(dt_warm,c_0,c_d,w_0,w_d,zc,zw,z,tztr)
 ! tztr     :      d(Tz)/d(Tr)
 
   use kinds, only: r_kind
-  use constants, only: one,half,zero
+  use constants, only: one,two,half,zero
   use gsi_nstcouplermod, only: fac_dtl,fac_tsl
   real(kind=r_kind), intent(in)  :: dt_warm,c_0,c_d,w_0,w_d,zc,zw,z
   real(kind=r_kind), intent(out) :: tztr
 ! local variables
-  real(kind=r_kind) :: c1,c2
+  real(kind=r_kind) :: c1,c2,c3
 
-  c1 = one-fac_dtl*w_0+fac_tsl*c_0
-  c2 = one+fac_tsl*c_0
+  c1 = one-two*(fac_dtl*w_0-fac_tsl*c_0)-(fac_dtl*w_d-fac_tsl*c_d)*z
+  c2 = one-two*(fac_dtl*w_0-fac_tsl*c_0)-fac_dtl*w_d*z
+  c3 = one+fac_tsl*two*c_0+fac_dtl*c_d*z
 
   tztr = one
 
-  if ( dt_warm > zero .and.  c1 /= zero ) then
-    if ( z <= zc  ) then
-      tztr = (one+z*(fac_dtl*w_d-fac_tsl*c_d))/c1
-    elseif ( z > zc .and. z < zw ) then
-      tztr = (one+fac_tsl*c_0+z*fac_dtl*w_d)/c1
+  if ( dt_warm > zero ) then
+    if ( z <= zc  .and. c1 /= zero ) then
+      tztr = (one-fac_dtl*w_0+fac_tsl*c_0)/c1
+    elseif ( z > zc .and. z < zw .and. c2 /= zero ) then
+      tztr = (one-fac_dtl*w_0+fac_tsl*c_0)/c2
     endif
-  elseif ( dt_warm == zero .and. c2 /= zero ) then
+  elseif ( dt_warm == zero .and. c3 /= zero ) then
     if ( z <= zc ) then
-      tztr = (one-z*fac_tsl*c_d)/c2
+      tztr = (one+fac_tsl*c_0)/c3
     endif
   endif
 
   if ( tztr <= one .and. tztr > half ) then
     tztr = tztr
   else
-!   write(*,'(a,2I2,2F12.6,F9.3,5F12.6,F8.3,F9.6,F8.3)') ' cal_tztr : ',fac_dtl,fac_tsl,c1,c2,dt_warm,c_0,c_d,w_0,w_d,zc,zw,z,tztr
+!   write(*,'(a,2I2,3F12.6,F9.3,5F12.6,F8.3,F9.6,F8.3)') ' cal_tztr : ',fac_dtl,fac_tsl,c1,c2,c3,dt_warm,c_0,c_d,w_0,w_d,zc,zw,z,tztr
   endif
 
 end subroutine cal_tztr_

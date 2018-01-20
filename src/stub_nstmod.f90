@@ -12,6 +12,7 @@
 !  05Mar2012 Akella    - Create_nst and getnst from satthin are now nst_int_ & nst_set_
 !                        Destroy_nst from satthin is nst_final_
 !  11Aug2016 Mahajan   - Keep stub as such.
+!  31Aug2017 Li        - change nst_set to be nst_read
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -30,7 +31,7 @@ subroutine nst_init_()
 end subroutine nst_init_
 !*******************************************************************************************
 
-subroutine nst_set_(mype_io)
+subroutine nst_read_(mype_io)
 
     use mpimod, only: mype
     use kinds, only: i_kind
@@ -40,11 +41,11 @@ subroutine nst_set_(mype_io)
     integer(i_kind),intent(in) :: mype_io
 
     if ( mype == 0 ) &
-        write(6,*) 'Doing nothing in dummy routine NST_SET_'
+        write(6,*) 'Doing nothing in dummy routine NST_READ_'
 
     return
 
-end subroutine nst_set_
+end subroutine nst_read_
 !*******************************************************************************************
 
 subroutine nst_final_()
