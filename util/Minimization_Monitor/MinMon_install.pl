@@ -80,14 +80,13 @@
    #
    #  Set ptmp and stmp locations
    #
-   #	(note I'll need to do something here for Zeus defaults)
    #
    my $my_ptmp="";
    my $my_stmp="";
 
    if( $machine eq "cray" ) {
-      $my_ptmp="export MY_PTMP=\${MY_PTMP:-/gpfs/hps/ptmp}";
-      $my_stmp="export MY_STMP=\${MY_STMP:-/gpfs/hps/stmp}";
+      $my_ptmp="export MY_PTMP=\${MY_PTMP:-/gpfs/hps2/ptmp}";
+      $my_stmp="export MY_STMP=\${MY_STMP:-/gpfs/hps2/stmp}";
    }
    elsif( $machine eq "wcoss" ) {
    
