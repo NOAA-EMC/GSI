@@ -101,15 +101,19 @@ module qcmod
 !   def vadfile         - local name of bufr file containing vad winds (used by read_radar)
 !   def use_poq7        - if true, accept sbuv/2 obs with profile ozone quality flag 7
 !
-!    following used for nonlinear qc:
+! following used for nonlinear qc:
 !
 !   def nlnqc_iter   - logical flag (T=nonlinear qc on, F=nonlinear qc off) for iteration
-!   def njqc -  logical flag (T=Purse's nonlinear qc on, F=off)
+!   def njqc -  logical flag (T=Purser's nonlinear qc on, F=off)
 !   def noiqc        - logic flag for oiqc, noiqc='false' with oiqc on
-
-!   def nltr         - logic flag, nltr=.true., using nonlinear transformation to visibility and ceiling height
-!   def powerp       - value used in nltr
+!
+! following used for NonLinear TRansformation to visibility and ceiling height
+!   def nltrcv       - logic flag: nltr=.true. for applying NonLinear TRansformation to visibility and ceiling height
+!   def powerp       - the value of the power in nltrcv
 !   def adjvisoe     - prescribed obs vis error 
+!   def zlow         - low-end value used in nltrcv
+!   def zhigh        - high-end value used in nltrcv
+!   def smpara       - smooth value used in nltrcv
 !
 !
 ! attributes:
@@ -162,7 +166,7 @@ module qcmod
 
   public :: buddycheck_t,buddydiag_save,closest_obs
   public :: vadwnd_l2rw_qc
-  public :: nltr,powerp,adjvisoe 
+  public :: nltr,powerp,adjvisoe,zlow,zhigh,smpara
 
   logical nlnqc_iter,njqc,vqc
   logical noiqc
@@ -182,7 +186,7 @@ module qcmod
   integer(i_kind) npres_print
   real(r_kind) dfact,dfact1,erradar_inflate,c_varqc
   real(r_kind) varqc_iter
-  real(r_kind) powerp,adjvisoe
+  real(r_kind) powerp,adjvisoe,zlow,zhigh,smpara
   real(r_kind),allocatable,dimension(:)::ptop,pbot,ptopq,pbotq,ptopo3,pboto3
 
 ! Declare variables for QC with Tz retrieval
@@ -375,6 +379,9 @@ contains
     vadwnd_l2rw_qc=.true.  ! When false, DO NOT run the vadwnd qc on level 2 radial wind obs.
     powerp=one
     adjvisoe=one
+    zlow=-5.0_r_kind
+    zhigh=20000.0_r_kind
+    smpara=0.01
 
     return
   end subroutine init_qcvars
