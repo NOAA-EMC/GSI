@@ -28,6 +28,7 @@ subroutine convert_binary_2d
 !   2014-06-16  carley/zhu - add tcamt and ceiling
 !   2015-07-10  pondeca - add cloud ceiling height (cldch)
 !   2016-05-03  pondeca - add uwnd10m, vwnd10m
+!   2018-01-23  yang    - using 16000 as threshold value for first guess vis
 !
 !   input argument list:
 !
@@ -48,6 +49,7 @@ subroutine convert_binary_2d
 ! Declare local parameters
   real(r_single),parameter:: one_single = 1.0_r_single
   real(r_single),parameter:: r45 = 45.0_r_single
+  real(r_single) vis_thres
 
   character(6) filename
   character(9) wrfges
@@ -66,6 +68,7 @@ subroutine convert_binary_2d
   logical print_verbose
 
   data in_unit / 11 /
+  data vis_thres / 16000.0 /
 
   print_verbose=.true.
   if(verbose)print_verbose=.true.
@@ -313,11 +316,11 @@ subroutine convert_binary_2d
 !
      read(in_unit)field2             !  VIS
 
-!RY: apply threshold 12000 to visibility fg
+!RY: apply threshold vis_thres to visibility fg
      do j=1,nlon_regional
         do i=1,nlat_regional
            if (field2(j,i) .le. 0.0) field2(j,i)=0.1_r_kind
-           if (field2(j,i) .gt. 12000.0) field2(j,i)=12000.0
+           if (field2(j,i) .gt. vis_thres) field2(j,i)=vis_thres
          enddo
      enddo
      if(print_verbose)then
@@ -654,7 +657,9 @@ subroutine read_2d_guess(mype)
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die
   use gsi_io, only: verbose
-  use qcmod, only: nltr,powerp,confinelow,confinehigh,confineparm 
+  use qcmod, only: nltrcv,powerp,zlow,zhigh,smpara
+  use nltrconfine, only: nltrconfine_forward
+  
   implicit none
 
 ! Declare passed variables
@@ -662,10 +667,11 @@ subroutine read_2d_guess(mype)
 
 ! Declare local parameters
   real(r_kind),parameter:: r0_01=0.01_r_kind
+  real(r_kind),parameter:: vis_thres=16000.0_r_kind
 
 ! Declare local variables
   integer(i_kind) kt,kq,ku,kv
-  real(r_single) dummy
+  real(r_kind) dummy,dummyout
 
 ! 2D variable names stuck in here
   integer(i_kind) nfcst
@@ -1125,17 +1131,16 @@ subroutine read_2d_guess(mype)
               if (ihave_vis) then
 !*************************************************************
 !RY:  1. check input data come from sigf06? 
-!RY:  2. nonlinear transform --nltr_ges
-!RY:  3. apply the confine function 
+!RY:  2. nonlinear transformation and confining
 !*************************************************************
                  dummy=real(all_loc(j,i,i_0+i_vis),r_kind)
-                 if (dummy .gt. 12000.0)write(6,*)'WARNING:read2dges: VISmax>12000!!'
+                 if (dummy .gt. vis_thres) write(6,*)'WARNING:read2dges: VISmax>16000!!'
                  if (nltr) then
-                   gxpvis=nltr_ges(dummy,powerp)
-                   ges_vis(j,i)=confine_ges(confinelow,confinehigh,confineparm,gxpvis)
+                   call forward_(dummy,dummyout)
+                   ges_vis(j,i)=dummyout
                  else
                    if (dummy<=zero) ges_vis(j,i)=one_tenth
-                   if (dummy>12000.0_r_kind) ges_vis(j,i)=12000.0_r_kind
+                   if (dummy> vis_thres) ges_vis(j,i)=vis_thres
                  endif
               endif
               if(ihave_pblh) &
@@ -1177,38 +1182,6 @@ subroutine read_2d_guess(mype)
            end do
         end do
      end do
-
-
-     pure function nltr_ges(rawvis,powerp) result(visresult)
-     real(r_kind), intent(in) :: rawvis
-     real(r_kind), intent(in) :: powerp
-     real(r_kind) :: visresult
-! local variable
-     real(r_kind) :: scaling
-     real(r_kind), temp
-     scaling=1.0
-     temp=1.0_r_kind
-     visresult = 0.1_r_kind
-     temp = (rawvis/scaling)**powerp
-     visresult =(temp-1.0)/powerp
-     end function nltr_ges
-!
-     pure function confine(zl,zh,s) result(z)
-     real(r_kind), intent(in) :: zl
-     real(r_kind), intent(in) :: zh
-     real(r_kind), intent(in) :: s
-     real(r_kind) :: z
-! local variable
-     real(r_kind) :: scaling
-     real(r_kind), temp
-     scaling=1.0
-     temp=1.0_r_kind
-     visresult = 0.1_r_kind
-     temp = (rawvis/scaling)**powerp
-     visresult =(temp-1.0)/powerp
-     end function nltr_ges
-
-
 
      deallocate(all_loc,jsig_skip,igtype,identity,temp1)
      return
@@ -1270,6 +1243,8 @@ subroutine wr2d_binary(mype)
   use jfunc, only: jiter,miter
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use qcmod, only: nltrcv,powerp,zlow,zhigh,smpara
+  use nltrconfine, only: nltrconfine_inverse 
   use mpeu_util, only: die
   use gsi_io, only: verbose
   implicit none
@@ -1296,10 +1271,10 @@ subroutine wr2d_binary(mype)
   integer(i_kind) num_2d_fields,num_all_fields,num_all_pad
   integer(i_kind) regional_time0(6),nlon_regional0,nlat_regional0,nsig0
   real(r_kind) psfc_this
-  real(r_kind) tempvis
   real(r_single) glon0(nlon_regional,nlat_regional),glat0(nlon_regional,nlat_regional)
   real(r_single) dx_mc0(nlon_regional,nlat_regional),dy_mc0(nlon_regional,nlat_regional)
   real(r_single),allocatable::all_loc_qsatg(:,:,:),all_loc_prh(:,:,:),temp1_prh(:)
+  real(r_single) tempvis,visout
   
   integer(i_kind) iaux(100),kaux
   character(15) caux(100)
@@ -1580,15 +1555,16 @@ subroutine wr2d_binary(mype)
            do j=1,lat2
               if (trim(caux(k))=='pmsl') then 
                  all_loc(j,i,iaux(k))=r100*r10*ptr2d(j,i)
-              elseif(trim(caux(k))=='cldch') then
+              elseif(trim(caux(k))=='vis') then
                  all_loc(j,i,iaux(k))=ptr2d(j,i)
-!RY: check the max/min to confirm ptr2d is a full  field
-                 if(mype==0) write(6,*)'wrt2d: cldch=', ptr2d(j,i)
-                 if(nltr) then
+!
+!RY: check the max/min to confirm ptr2d is a full  field  --confirmed
+!                if(mype==0) write(6,*)'wrt2d: vis=', ptr2d(j,i)
+                 if(nltrcv) then
                     tempvis=ptr2d(j,i)
-                    tempvis=inv_nltr(tempvis,powerp)
-!RY:  restriction to all_loc
-                    all_loc(j,i,iaux(k))=max(min(tempvis,12000.0_r_kind),one_tenth)
+                    call inverse_(tempvis,visout) 
+!RY:  restriction to visivility
+                    all_loc(j,i,iaux(k))=max(min(visout,vis_thres),one_tenth)
                  endif
               else
                  all_loc(j,i,iaux(k))=ptr2d(j,i)

@@ -480,6 +480,7 @@ clean:
 	ncepgfs_io.f90 \
 	ncepnems_io.f90 \
 	nlmsas_ad.f90 \
+        nltrconfine.f90 \
 	normal_rh_to_q.f90 \
 	nstio_module.f90 \
 	Nst_Var_ESMFMod.f90 \
