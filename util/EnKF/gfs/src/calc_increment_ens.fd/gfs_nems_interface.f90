@@ -134,6 +134,7 @@ module gfs_nems_interface
   public :: gfs_nems_write
   public :: gfs_nems_vcoord
   public :: gfs_nems_flip_xlat_axis
+  public :: gfs_nems_variable_exist
   public :: nemsio_meta
 
   !-----------------------------------------------------------------------
@@ -158,6 +159,7 @@ contains
     ! Define local variables
 
     call nemsio_init(iret=nemsio_iret)
+    if ( nemsio_iret /= 0 ) stop 1
 
     ! Check local variable and proceed accordingly
 
@@ -166,13 +168,13 @@ contains
 
     call nemsio_open(gfile,trim(adjustl(filename)),'read',              &
          & iret=nemsio_iret)
-    if ( nemsio_iret /= 0 ) stop 1
+    if ( nemsio_iret /= 0 ) stop 2
     call nemsio_getfilehead(gfile,iret=nemsio_iret,                     &
          & dimx=meta_nemsio%dimx,                                       &
          & dimy=meta_nemsio%dimy,                                       &
          & dimz=meta_nemsio%dimz,                                       &
          & nrec=meta_nemsio%nrec)
-    if ( nemsio_iret /= 0 ) stop 2
+    if ( nemsio_iret /= 0 ) stop 3
     if (.not. allocated(meta_nemsio%lon)) &
         allocate(meta_nemsio%lon(meta_nemsio%dimx*meta_nemsio%dimy))
     if (.not. allocated(meta_nemsio%lat)) &
@@ -189,7 +191,17 @@ contains
          & nfminute=meta_nemsio%nfminute,                               &
          & nfsecondn=meta_nemsio%nfsecondn,                             &
          & nfsecondd=meta_nemsio%nfsecondd)
-    if ( nemsio_iret /= 0 ) stop 3
+    if ( nemsio_iret /= 0 ) stop 4
+    if (.not. allocated(meta_nemsio%recname)) &
+        allocate(meta_nemsio%recname(meta_nemsio%nrec))
+    call nemsio_getfilehead(gfile,iret=nemsio_iret,                     &
+         & recname=meta_nemsio%recname)
+    if ( nemsio_iret /= 0 ) stop 5
+    if (.not. allocated(meta_nemsio%reclev)) &
+        allocate(meta_nemsio%reclev(meta_nemsio%nrec))
+    call nemsio_getfilehead(gfile,iret=nemsio_iret,                     &
+         & reclev=meta_nemsio%reclev)
+    if ( nemsio_iret /= 0 ) stop 6
 
     ! Define format statements
 
@@ -216,6 +228,38 @@ contains
     !=====================================================================
 
   end subroutine gfs_nems_finalize
+
+  !=======================================================================
+
+  ! gfs_nems_variable_exist.f90:
+
+  !-----------------------------------------------------------------------
+
+  function gfs_nems_variable_exist(meta_nemsio,varname) result(var_exist)
+
+    ! Define variables passed to routine
+
+    type(nemsio_meta) :: meta_nemsio
+    character(len=*)  :: varname
+    logical           :: var_exist
+
+    !=====================================================================
+
+    ! Define local variables
+
+    integer :: n
+
+    var_exist = .false.
+    do n=1,meta_nemsio%nrec
+        if ( trim(meta_nemsio%recname(n)) == trim(varname) ) then
+            var_exist = .true.
+            return
+        endif
+    enddo
+
+    !=====================================================================
+
+  end function gfs_nems_variable_exist
 
   !=======================================================================
 
