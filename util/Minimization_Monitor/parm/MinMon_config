@@ -3,12 +3,12 @@
 ###################################################################
 #  Note:  MinMon/parm/MinMon.ver file must be sourced before this file
 ###################################################################
-export MY_MACHINE=wcoss
+export MY_MACHINE=cray
 
-export MY_MINMON=${MY_MINMON:-/u/${LOGNAME}}
+export MY_MINMON=${MY_MINMON:-/gpfs/hps3/emc/da/noscrub/Edward.Safford/ProdGSI_MinMon/util/Minimization_Monitor}
 
-export HOMEgdas=${MY_MINMON}/nwprod/gdas_minmon.${gdas_minmon_ver}
-export HOMEgfs=${MY_MINMON}/nwprod/gfs_minmon.${gfs_minmon_ver}
+export HOMEgdas=${MY_MINMON}/nwprod/gdas.${gdas_minmon_ver}
+export HOMEgfs=${MY_MINMON}/nwprod/gfs.${gfs_minmon_ver}
 export HOMEnam=${MY_MINMON}/nwprod/nam_minmon.${nam_minmon_ver}
 export HOMEminmon=${MY_MINMON}/nwprod/minmon_shared.${minmon_shared_ver}
 
@@ -20,21 +20,23 @@ export M_IG_SCRIPTS=${M_IG_SCRIPTS:-${MINMON_IG}/ush}
 export M_IG_GRDS=${M_IG_GRDS:-${MINMON_IG}/grds}
 export M_IG_PARM=${M_IG_PARM:-${MINMON_IG}/parm}
 
-export MY_STMP=${MY_STMP:-/stmpp1}
-export MY_PTMP=${MY_PTMP:-/ptmpp1}
+export MY_STMP=${MY_STMP:-/gpfs/hps2/stmp}
+export MY_PTMP=${MY_PTMP:-/gpfs/hps2/ptmp}
 
 export envir=${RUN_ENVIR:-prod}
-export DATA_IN=${DATA_IN:-${MY_STMP}/${LOGNAME}/minmon}	# working directory
 
-export LOGdir=${LOGdir:-${MY_PTMP}/${LOGNAME}/logs}
-export m_jlogfile=${m_jlogfile:-${LOGdir}/minmon.DE.}
+#
+# working directory
+#
+export DATA_IN=${DATA_IN:-${MY_STMP}/${LOGNAME}/${MINMON_SUFFIX}/minmon}	
+export LOGdir=${LOGdir:-${MY_PTMP}/${LOGNAME}/logs/${MINMON_SUFFIX}/minmon}
 
-export MY_TANKDIR=${MY_TANKDIR:-/u/${LOGNAME}/nbns}
+export MY_TANKDIR=${MY_TANKDIR:-/u/Edward.Safford/nbns}
 export M_TANKverf=${M_TANKverf:-${MY_TANKDIR}}	
 
-export WEBUSER=${WEBUSER:-}
-export WEBSERVER=${WEBSERVER:-}
-export WEBDIR=${WEBDIR:-}
+export WEBUSER=${WEBUSER:-esafford}
+export WEBSERVER=${WEBSERVER:-emcrzdm}
+export WEBDIR=${WEBDIR:-/home/people/emc/www/htdocs/gmb/gdas/radiance/esafford/gsi_stat/pngs}
 
 
 #
@@ -56,14 +58,38 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    export PERL5LIB="/usrx/local/pm5/lib64/perl5:/usrx/local/pm5/share/perl5"
 
 elif [[ $MY_MACHINE = "cray" ]]; then
-   . $MODULESHOME/init/ksh
+
+   sys=`hostname`
+   sys1=`echo $sys | cut -c1`
+   echo $sys1
+
+   # 
+   #  module pm5 needs to have SITE set in order to load
+   #  Why?  Not at all clear, but it sure does fail w/o SITE set. 
+   #
+   if [[ $sys1 == "s" ]]; then
+      export SITE=SURGE
+   else 
+      export SITE=LUNA
+   fi
+
+   . /opt/modules/3.2.6.7/init/sh
+
+   module use /opt/modulefiles
+   module load xt-lsfhpc
+
+   module use /gpfs/hps/nco/ops/nwprod/modulefiles
    module load prod_util        # defines $NDATE among other things
    module load prod_envir
+
+   module use /usrx/local/prod/modulefiles
    module load pm5
+
    export SUB="bsub"
    export NWPROD=${COMROOTp1}
    export COMPRESS=gzip
    export UNCOMPRESS="gunzip -f"
+   export RSYNC=/usr/bin/rsync
 
 elif [[ $MY_MACHINE = "theia" ]]; then
    shell=sh
