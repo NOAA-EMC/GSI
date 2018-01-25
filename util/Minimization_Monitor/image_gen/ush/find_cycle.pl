@@ -9,6 +9,11 @@
 #
 #    Return that first/last cycle as a text string in YYYYMMDDHH format,
 #      or return nothing if none of the expected data files are found.
+#
+#    NOTE:  This has been updated to work with TANK_USE_DIR configuration
+#           of ~/nbns/stats/$suffix, but with the 0 option (first) it's
+#	    returning first+1 for some reason.  I'll have to worry about
+#	    that later.
 #-----------------------------------------------------------------------
 
     use strict;
@@ -57,7 +62,9 @@
    }
    closedir DIR;
    my @mmdirs = grep { /minmon/ } @alldirs;
-
+   if( $#mmdirs < 0 ) {
+      @mmdirs = grep { /gdas/ } @alldirs;
+   }
    
    #  If there are no minmon* subdirectories, then exit without 
    #    returning any date string.
@@ -77,7 +84,7 @@
       my $found_cycle = 0;
 
       #  Start with the latest directory and attempt to locate the 
-      #  ${suffix}_gnorm_data.txt file.  The last line will contain the
+      #  gnorm_data.txt file.  The last line will contain the
       #  latest cycle processed. 
       do {
       
@@ -88,14 +95,21 @@
          #  and parse out all unique date values.  The oldest is the answer
          #  we're looking for. 
          #
-         #  If there are no costs.txt files, step to the next iteration.
+         #  If there are no time.*ieee_d* files, step to the next iteration.
          #
-         my $newdir = "${dirpath}/${sortmm[$ctr]}";
+         my $newdir;
+
+         if( -d "${dirpath}/${sortmm[$ctr]}/minmon" ){
+            $newdir = "${dirpath}/${sortmm[$ctr]}/minmon";
+         }
+         elsif( -d "${dirpath}/${sortmm[$ctr]}" ){
+            $newdir = "${dirpath}/${sortmm[$ctr]}";
+         }
+
+
          opendir DIR, $newdir or die "Cannot open the current directory: $!";
 
-#         my @tfiles = grep { /time/ } readdir DIR;
          my @timefiles = grep { /costs.txt/ } readdir DIR;
-#         my @timefiles = grep { /ieee_d/ } @tfiles;
 
          if( $#timefiles >= 0 ) {
             my @sorttime = sort( @timefiles );
@@ -146,12 +160,18 @@
          #
          #  If there are no time.*ieee_d* files, step to the next iteration.
          #
-         my $newdir = "${dirpath}/${sortmm[$ctr]}";
+         my $newdir;
+
+         if( -d "${dirpath}/${sortmm[$ctr]}/minmon" ){
+            $newdir = "${dirpath}/${sortmm[$ctr]}/minmon";
+         }
+         elsif( -d "${dirpath}/${sortmm[$ctr]}" ){
+            $newdir = "${dirpath}/${sortmm[$ctr]}";
+         }
+
          opendir DIR, $newdir or die "Cannot open the current directory: $!";
 
          my @timefiles = grep { /costs.txt/ } readdir DIR;
-#         my @tfiles = grep { /time/ } readdir DIR;
-#         my @timefiles = grep { /ieee_d/ } @tfiles;
 
          if( $#timefiles >= 0 ) {
             my @sorttime = sort( @timefiles );

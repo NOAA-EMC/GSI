@@ -35,6 +35,7 @@ subroutine read_files(mype)
 !                         files found in first loop of 0,99. Use nfldsig and nfldsfc
 !                         to access needed sigf and sfcf w/ fcst_hr_sig and *_sfc.
 !   2015-02-23  Rancic/Thomas - add l4densvar to time window logical
+!   2017-09-08  li      - add sfcnst_comb to get nfldnst and control when sfc & nst combined 
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -79,7 +80,7 @@ subroutine read_files(mype)
   use guess_grids, only: hrdifsig_all,hrdifsfc_all,hrdifnst_all
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,nhr_assimilation
   use hybrid_ensemble_parameters, only: ntlevs_ens
-  use gridmod, only: nlat_sfc,nlon_sfc,lpl_gfs,dx_gfs, use_gfs_nemsio
+  use gridmod, only: nlat_sfc,nlon_sfc,lpl_gfs,dx_gfs,use_gfs_nemsio,sfcnst_comb
   use constants, only: zero,r60inv,r60,r3600,i_missing
   use obsmod, only: iadate
   use gsi_nstcouplermod, only: nst_gsi
@@ -185,19 +186,23 @@ subroutine read_files(mype)
 
      allocate(time_atm(nfldsig,2),time_sfc(nfldsfc,2))
 
-     if(nst_gsi > 0) then  ! nst application is an option
+     if(nst_gsi > 0 ) then  ! nst application is an option
 !    Check for nsf files with non-zero length
-        do i=0,max_file-1
-           write(filename,'(''nstf'',i2.2)')i
-           call gsi_inquire(lenbytes,fexist,filename,mype)
-           if(fexist .and. lenbytes>0) then
-              nfldnst=nfldnst+1
-              irec(nfldnst,3) = i
+        if ( sfcnst_comb ) then
+           nfldnst = nfldsfc
+        else
+           do i=0,max_file-1
+              write(filename,'(''nstf'',i2.2)')i
+              call gsi_inquire(lenbytes,fexist,filename,mype)
+              if(fexist .and. lenbytes>0) then
+                 nfldnst=nfldnst+1
+                 irec(nfldnst,3) = i
+              end if
+           enddo
+           if(nfldnst==0) then
+              write(6,*)'READ_FILES: ***ERROR*** NO nst fields; aborting'
+              call stop2(170)
            end if
-        enddo
-        if(nfldnst==0) then
-           write(6,*)'READ_FILES: ***ERROR*** NO nst fields; aborting'
-           call stop2(170)
         end if
 
         allocate(time_nst(nfldnst,2))
@@ -354,67 +359,72 @@ subroutine read_files(mype)
 !    Check for consistency of times from nst guess files.
      if ( nst_gsi > 0 ) then
         allocate(nst_ges(2))
-        iwan=0
-        do i=1,nfldnst
-           write(filename,'(''nstf'',i2.2)')irec(i,3)
-           if(print_verbose)write(6,*)'READ_FILES:  process ',trim(filename)
-           if ( .not. use_gfs_nemsio ) then
-              call nstio_sropen(lunnst,filename,iret)
-              call nstio_srhead(lunnst,nst_head,iret)
-              hourg4=nst_head%fhour
-              idateg=nst_head%idate
-              nst_ges(1)=nst_head%lonb
-              nst_ges(2)=nst_head%latb+2
-           else
-              call nemsio_init(iret=iret)
-              call nemsio_open(gfile_nst,filename,'READ',iret=iret)
-              idate         = i_missing
-              nfhour        = i_missing; nfminute      = i_missing
-              nfsecondn     = i_missing; nfsecondd     = i_missing
-              call nemsio_getfilehead(gfile_nst, nfhour=nfhour, nfminute=nfminute,  &
-                 nfsecondn=nfsecondn, nfsecondd=nfsecondd, idate=idate, &
-                 dimx=nst_head%lonb, dimy=nst_head%latb, iret=iret)
-              call nemsio_close(gfile_nst,iret=iret)
-              if ( nfhour == i_missing .or. nfminute == i_missing .or. &
-                   nfsecondn == i_missing .or. nfsecondd == i_missing ) then
-                 write(6,*)'READ_FILES: ***ERROR*** some forecast hour info ', &
-                      'are not defined in ', trim(filename)
-                 write(6,*)'READ_FILES: nfhour, nfminute, nfsecondn, and nfsecondd = ', &
-                      nfhour, nfminute, nfsecondn, nfsecondd
-                 call stop2(80)
+        if ( sfcnst_comb ) then
+           time_nst = time_sfc
+           iamana(3) = iamana(2)
+        else
+           iwan=0
+           do i=1,nfldnst
+              write(filename,'(''nstf'',i2.2)')irec(i,3)
+              write(6,*)'READ_FILES:  process ',trim(filename)
+              if ( .not. use_gfs_nemsio ) then
+                 call nstio_sropen(lunnst,filename,iret)
+                 call nstio_srhead(lunnst,nst_head,iret)
+                 hourg4=nst_head%fhour
+                 idateg=nst_head%idate
+                 nst_ges(1)=nst_head%lonb
+                 nst_ges(2)=nst_head%latb+2
+              else
+                 call nemsio_init(iret=iret)
+                 call nemsio_open(gfile_nst,filename,'READ',iret=iret)
+                 idate         = i_missing
+                 nfhour        = i_missing; nfminute      = i_missing
+                 nfsecondn     = i_missing; nfsecondd     = i_missing
+                 call nemsio_getfilehead(gfile_nst, nfhour=nfhour, nfminute=nfminute,  &
+                    nfsecondn=nfsecondn, nfsecondd=nfsecondd, idate=idate, &
+                    dimx=nst_head%lonb, dimy=nst_head%latb, iret=iret)
+                 call nemsio_close(gfile_nst,iret=iret)
+                 if ( nfhour == i_missing .or. nfminute == i_missing .or. &
+                      nfsecondn == i_missing .or. nfsecondd == i_missing ) then
+                    write(6,*)'READ_FILES: ***ERROR*** some forecast hour info ', &
+                         'are not defined in ', trim(filename)
+                    write(6,*)'READ_FILES: nfhour, nfminute, nfsecondn, and nfsecondd = ', &
+                         nfhour, nfminute, nfsecondn, nfsecondd
+                    call stop2(80)
+                 endif
+                 hourg4   = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
+                 idateg(1) = idate(4)  !hour
+                 idateg(2) = idate(2)  !month
+                 idateg(3) = idate(3)  !day
+                 idateg(4) = idate(1)  !year
+                 nst_ges(1)=nst_head%lonb
+                 nst_ges(2)=nst_head%latb+2
               endif
-              hourg4   = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
-              idateg(1) = idate(4)  !hour
-              idateg(2) = idate(2)  !month
-              idateg(3) = idate(3)  !day
-              idateg(4) = idate(1)  !year
-              nst_ges(1)=nst_head%lonb
-              nst_ges(2)=nst_head%latb+2
-           endif
-           if ( i_ges(1) /= nst_ges(1) .or. i_ges(2) /= nst_ges(2) ) then
-              write(6,'(''READ_FILES: sfc file lat,lon '',2i5,'' do not match with nst file lat,lon '',2i5)') &
-                 i_ges(2)-2,i_ges(1),nst_ges(2)-2,nst_ges(1)
+              if ( i_ges(1) /= nst_ges(1) .or. i_ges(2) /= nst_ges(2) ) then
+                 write(6,'(''READ_FILES: sfc file lat,lon '',2i5,'' do not match with nst file lat,lon '',2i5)') &
+                    i_ges(2)-2,i_ges(1),nst_ges(2)-2,nst_ges(1)
               call stop2(80)
-           end if
-           hourg = hourg4
-           idate5(1)=idateg(4); idate5(2)=idateg(2)
-           idate5(3)=idateg(3); idate5(4)=idateg(1); idate5(5)=0
-           call w3fs21(idate5,nmings)
-           nming2=nmings+60*hourg
-           write(6,*)'READ_FILES:  nst guess file',filename,hourg,idateg,nming2
-           t4dv=real((nming2-iwinbgn),r_kind)*r60inv
-           if (l4dvar.or.l4densvar) then
-              if (t4dv<zero .OR. t4dv>winlen) cycle
-           else
-              ndiff=nming2-nminanl
-              if(abs(ndiff) > 60*nhr_half ) cycle
-           endif
-           iwan=iwan+1
-           if(nminanl==nming2) iamana(3)=iwan
-           time_nst(iwan,1) = t4dv
-           time_nst(iwan,2) = irec(i,3)+r0_001
-        end do
-        deallocate(nst_ges)
+              end if
+              hourg = hourg4
+              idate5(1)=idateg(4); idate5(2)=idateg(2)
+              idate5(3)=idateg(3); idate5(4)=idateg(1); idate5(5)=0
+              call w3fs21(idate5,nmings)
+              nming2=nmings+60*hourg
+              write(6,*)'READ_FILES:  nst guess file',filename,hourg,idateg,nming2
+              t4dv=real((nming2-iwinbgn),r_kind)*r60inv
+              if (l4dvar.or.l4densvar) then
+                 if (t4dv<zero .OR. t4dv>winlen) cycle
+              else
+                 ndiff=nming2-nminanl
+                 if(abs(ndiff) > 60*nhr_half ) cycle
+              endif
+              iwan=iwan+1
+              if(nminanl==nming2) iamana(3)=iwan
+              time_nst(iwan,1) = t4dv
+              time_nst(iwan,2) = irec(i,3)+r0_001
+           end do
+           deallocate(nst_ges)
+        endif                       ! if ( sfcnst_comb ) then
      endif                          ! if ( nst_gsi > 0 ) then
      deallocate( irec )
   end if
@@ -427,10 +437,12 @@ subroutine read_files(mype)
   if (nst_gsi > 0) call mpi_bcast(nfldnst,1,mpi_itype,npem1,mpi_comm_world,ierror)
   if(.not.allocated(time_atm)) allocate(time_atm(nfldsig,2))
   if(.not.allocated(time_sfc)) allocate(time_sfc(nfldsfc,2))
-  if(.not.allocated(time_nst)) allocate(time_nst(nfldnst,2))
+
   call mpi_bcast(time_atm,2*nfldsig,mpi_rtype,npem1,mpi_comm_world,ierror)
   call mpi_bcast(time_sfc,2*nfldsfc,mpi_rtype,npem1,mpi_comm_world,ierror)
-  if (nst_gsi > 0) call mpi_bcast(time_nst,2*nfldnst,mpi_rtype,npem1,mpi_comm_world,ierror)
+  if(.not.allocated(time_nst)) allocate(time_nst(nfldnst,2))
+  if (nst_gsi > 0 ) call mpi_bcast(time_nst,2*nfldnst,mpi_rtype,npem1,mpi_comm_world,ierror)
+
   call mpi_bcast(iamana,3,mpi_rtype,npem1,mpi_comm_world,ierror)
   call mpi_bcast(i_ges,2,mpi_itype,npem1,mpi_comm_world,ierror)
   nlon_sfc=i_ges(1)
@@ -489,20 +501,26 @@ subroutine read_files(mype)
 ! Load time information for nst guess field info into output arrays
   ntguesnst = iamana(3)
   if ( nst_gsi > 0 ) then
-    do i=1,nfldnst
-       hrdifnst(i) = time_nst(i,1)
-       ifilenst(i) = nint(time_nst(i,2))
-       hrdifnst_all(i) = hrdifnst(i)
-    end do
-    if(mype == 0) write(6,*)'READ_FILES:  nst fcst files used in analysis:  ',&
-         (ifilenst(i),i=1,nfldnst),(hrdifnst(i),i=1,nfldnst),ntguesnst
-    if (ntguesnst==0) then
-       write(6,*)'READ_FILES: ***ERROR*** center nst fcst NOT AVAILABLE: PROGRAM STOPS'
-       call stop2(99)
-    endif
-    if (l4densvar .and. nfldnst/=ntlevs_ens) then
-       write(6,*)'READ_FILES: ***ERROR*** insufficient nst fcst for 4densvar:  PROGRAM STOPS'
-       call stop2(99)
+     if ( sfcnst_comb ) then
+        hrdifnst = hrdifsfc
+        hrdifnst_all = hrdifnst
+        if(mype == 0) write(6,*)'READ_FILES: hrdifnst = hrdifsfc'
+     else
+        do i=1,nfldnst
+           hrdifnst(i) = time_nst(i,1)
+           ifilenst(i) = nint(time_nst(i,2))
+           hrdifnst_all(i) = hrdifnst(i)
+        end do
+        if(mype == 0) write(6,*)'READ_FILES:  nst fcst files used in analysis:  ',&
+             (ifilenst(i),i=1,nfldnst),(hrdifnst(i),i=1,nfldnst),ntguesnst
+        if (ntguesnst==0) then
+           write(6,*)'READ_FILES: ***ERROR*** center nst fcst NOT AVAILABLE: PROGRAM STOPS'
+           call stop2(99)
+        endif
+        if (l4densvar .and. nfldnst/=ntlevs_ens) then
+           write(6,*)'READ_FILES: ***ERROR*** insufficient nst fcst for 4densvar:  PROGRAM STOPS'
+           call stop2(99)
+        endif
     endif
     deallocate(time_nst)
   endif
