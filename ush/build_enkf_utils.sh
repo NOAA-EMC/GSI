@@ -38,20 +38,22 @@ else
 fi
 module list
 
-cd $dir_root/src/enkf
-./configure clean
-./configure $conf_target
-make -f Makefile clean
-make -f Makefile -j 8
-cp -p global_enkf $dir_root/exec
+dlist="adderrspec_nmcmeth_spec.fd getsfcensmeanp.fd getsigensstatp.fd getnstensmeanp.fd getsfcnstensupdp.fd getsigensmeanp_smooth_ncep.fd recentersigp.fd calc_increment_ens.fd gribmean.fd"
 
-if [ $clean = YES ]; then
-    make -f Makefile clean
+for dir in $dlist; do
+
+    cd $dir_root/util/EnKF/gfs/src/$dir
     ./configure clean
-    # Now clean the GSI directory
-    cd ..
+    ./configure $conf_target
     make -f Makefile clean
-    ./configure clean
-fi
+    make -f Makefile
+    cp -p *.x $dir_root/exec
+    if [ $clean = YES ]; then
+        rm -f $dir_root/exec/log*.x
+        make -f Makefile clean
+        ./configure clean
+    fi
+
+done
 
 exit 0
