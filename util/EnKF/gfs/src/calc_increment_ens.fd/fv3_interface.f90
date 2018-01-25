@@ -487,6 +487,7 @@ contains
     real(r_kind), dimension(:),     allocatable :: workgrid
 
     logical :: flip_lats
+    logical :: ldpres = .false.
 
     ! Define counting variables
 
@@ -516,51 +517,46 @@ contains
       flip_lats = .false.
     endif
     if (debug) print *,'flip_lats',flip_lats
-    call gfs_nems_vcoord(meta_nemsio,grid%filename,vcoord)
-    grid%ak           = vcoord(:,1,1)
-    grid%bk           = vcoord(:,2,1)
-    var_info%var_name = 'psfc'
-    call variable_lookup(var_info)
-    call gfs_nems_read(workgrid,var_info%nems_name,var_info%nems_levtyp,   &
-         & 1)
-    grid%psfc(:,:)    = reshape(workgrid,(/meta_nemsio%dimx,               &
-         & meta_nemsio%dimy/))
 
-    ! Loop through local variable
+    ldpres = gfs_nems_variable_exist(meta_nemsio,'dpres')
 
-    do k = 1, meta_nemsio%dimz + 1
+    if ( .not. ldpres ) then
 
-       ! Compute local variables
+       call gfs_nems_vcoord(meta_nemsio,grid%filename,vcoord)
+       grid%ak           = vcoord(:,1,1)
+       grid%bk           = vcoord(:,2,1)
+       var_info%var_name = 'psfc'
+       call variable_lookup(var_info)
+       call gfs_nems_read(workgrid,var_info%nems_name,var_info%nems_levtyp,   &
+            & 1)
+       grid%psfc(:,:)    = reshape(workgrid,(/meta_nemsio%dimx,               &
+            & meta_nemsio%dimy/))
 
-       pressi(:,:,k) = grid%ak(k) + grid%bk(k)*grid%psfc(:,:)
+       do k = 1, meta_nemsio%dimz + 1
+          pressi(:,:,k) = grid%ak(k) + grid%bk(k)*grid%psfc(:,:)
+       end do ! do k = 1, meta_nemsio%dimz + 1
 
-    end do ! do k = 1, meta_nemsio%dimz + 1
-
-    ! Loop through local variable
+    endif
 
     do k = 1, meta_nemsio%dimz
 
-       ! Compute local variables
+       ! Define local variables
 
-       ! defined as higher pressure minus lower pressure
-       grid%dpres(:,:,meta_nemsio%dimz - k + 1) = pressi(:,:,k) -          &
-            & pressi(:,:,k+1)
+       if ( ldpres ) then
+          var_info%var_name                        = 'dpres'
+          call variable_lookup(var_info)
+          call gfs_nems_read(workgrid,var_info%nems_name,                  &
+               & var_info%nems_levtyp,k)
+          grid%dpres(:,:,meta_nemsio%dimz - k + 1)  =                      &
+               & reshape(workgrid,(/meta_nemsio%dimx,meta_nemsio%dimy/))
+       else
+          grid%dpres(:,:,meta_nemsio%dimz - k + 1) = pressi(:,:,k) -       &
+               & pressi(:,:,k+1)
+       endif
        !if (debug) print *,'dpres',k,minval(grid%dpres(:,:,meta_nemsio%dimz - k + 1)),&
        !maxval(grid%dpres(:,:,meta_nemsio%dimz - k + 1))
-
-       ! Define local variables
-
        if (flip_lats) call gfs_nems_flip_xlat_axis(meta_nemsio,            &
             & grid%dpres(:,:,meta_nemsio%dimz - k + 1))
-
-    end do ! do k = 1, meta_nemsio%dimz
-
-    ! Loop through local variable
-
-    do k = 1, meta_nemsio%dimz
-
-       ! Define local variables
-
        var_info%var_name                        = 'ugrd'
        call variable_lookup(var_info)
        call gfs_nems_read(workgrid,var_info%nems_name,                     &
