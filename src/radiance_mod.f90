@@ -652,7 +652,10 @@ contains
     if (.not. icloud_fwd .or. total_rad_type<=0) return
 
     inquire(file=fixfilename,exist=pcexist)
-    if (.not. pcexist) return
+    if (.not. pcexist) then 
+       write(6,*)'radiance_parameter_cloudy_init: cloudy_radiance_info.txt is missing' 
+       call stop2(79)
+    end if
     lunin=11
     open(lunin,file=fixfilename,form='formatted')
 
