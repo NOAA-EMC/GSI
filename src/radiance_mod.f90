@@ -645,6 +645,7 @@ contains
     character(len=8)  :: obsloc   ! global, sea, or, land ...
     logical :: ex_obserr,ex_biascor,cld_effect
     logical :: pcexist
+    logical :: obs_found
 
     integer(i_kind) i,ii,istr,ntot,nrows
     character(len=256),allocatable,dimension(:):: utable
@@ -674,8 +675,10 @@ contains
        read(utable(ii),*) obsname,obsloc,ex_obserr,ex_biascor,cld_effect
        if (mype==0) write(6,*) obsname,obsloc,ex_obserr,ex_biascor,cld_effect
 
+       obs_found=.false.
        do i=1,total_rad_type
           if (index(trim(rad_type_info(i)%rtype),trim(obsname)) /= 0) then
+             obs_found=.true.
              istr=i
              if (trim(obsloc)=='sea') rad_type_info(i)%cld_sea_only=.true.
              rad_type_info(i)%ex_obserr=ex_obserr
@@ -716,6 +719,7 @@ contains
              exit
           end if
        end do
+       if (.not. obs_found) cycle
 
 !      allocate space for entries from table, Obtain table contents
        tablename='obs_'//trim(obsname) 
