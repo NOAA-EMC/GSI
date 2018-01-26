@@ -55,6 +55,7 @@ module fv3_interface
   type analysis_grid
      character(len=500)                          :: filename
      real(r_kind), dimension(:,:,:), allocatable :: dpres
+     real(r_kind), dimension(:,:,:), allocatable :: delz
      real(r_kind), dimension(:,:,:), allocatable :: ugrd
      real(r_kind), dimension(:,:,:), allocatable :: vgrd
      real(r_kind), dimension(:,:,:), allocatable :: spfh
@@ -70,6 +71,7 @@ module fv3_interface
 
   type increment_grid
      real(r_kind), dimension(:,:,:), allocatable :: delp_inc
+     real(r_kind), dimension(:,:,:), allocatable :: delz_inc
      real(r_kind), dimension(:,:,:), allocatable :: u_inc
      real(r_kind), dimension(:,:,:), allocatable :: v_inc
      real(r_kind), dimension(:,:,:), allocatable :: sphum_inc
@@ -164,6 +166,7 @@ contains
     integer :: varid_u_inc
     integer :: varid_v_inc
     integer :: varid_delp_inc
+    integer :: varid_delz_inc
     integer :: varid_temp_inc
     integer :: varid_sphum_inc
     integer :: varid_clwmr_inc
@@ -242,6 +245,9 @@ contains
     call netcdf_check(nf90_def_var(ncfileid,'delp_inc',nf90_float,dimid_3d,varid_delp_inc), &
          & 'nf90_def_var', context='delp_inc')
 
+    call netcdf_check(nf90_def_var(ncfileid,'delz_inc',nf90_float,dimid_3d,varid_delz_inc), &
+         & 'nf90_def_var', context='delz_inc')
+
     call netcdf_check(nf90_def_var(ncfileid,'T_inc',nf90_float,dimid_3d,varid_temp_inc), &
          & 'nf90_def_var', context='temp_inc')
 
@@ -300,6 +306,10 @@ contains
     if (debug) print*, 'writing delp_inc min/max =', minval(grid%delp_inc),maxval(grid%delp_inc)
     call netcdf_check(nf90_put_var(ncfileid,varid_delp_inc,grid%delp_inc), &
          & 'nf90_put_var', context='delp_inc')
+
+    if (debug) print*, 'writing delz_inc min/max =', minval(grid%delz_inc),maxval(grid%delz_inc)
+    call netcdf_check(nf90_put_var(ncfileid,varid_delz_inc,grid%delz_inc), &
+         & 'nf90_put_var', context='delz_inc')
 
     if (debug) print*, 'writing temp_inc min/max =', minval(grid%temp_inc),maxval(grid%temp_inc)
     call netcdf_check(nf90_put_var(ncfileid,varid_temp_inc,grid%temp_inc), &
@@ -396,6 +406,7 @@ contains
     incr_grid%u_inc     = an_grid%ugrd  - fg_grid%ugrd
     incr_grid%v_inc     = an_grid%vgrd  - fg_grid%vgrd
     incr_grid%delp_inc  = an_grid%dpres - fg_grid%dpres
+    incr_grid%delz_inc  = an_grid%delz  - fg_grid%delz
     incr_grid%temp_inc  = an_grid%tmp   - fg_grid%tmp
     incr_grid%sphum_inc = an_grid%spfh  - fg_grid%spfh
     incr_grid%clwmr_inc = an_grid%clwmr - fg_grid%clwmr
@@ -408,6 +419,7 @@ contains
             if ( trim(varname) == 'u_inc'     ) incr_grid%u_inc     = zero
             if ( trim(varname) == 'v_inc'     ) incr_grid%v_inc     = zero
             if ( trim(varname) == 'delp_inc'  ) incr_grid%delp_inc  = zero
+            if ( trim(varname) == 'delz_inc'  ) incr_grid%delz_inc  = zero
             if ( trim(varname) == 'temp_inc'  ) incr_grid%temp_inc  = zero
             if ( trim(varname) == 'sphum_inc' ) incr_grid%sphum_inc = zero
             if ( trim(varname) == 'clwmr_inc' ) incr_grid%clwmr_inc = zero
@@ -557,6 +569,14 @@ contains
        !maxval(grid%dpres(:,:,meta_nemsio%dimz - k + 1))
        if (flip_lats) call gfs_nems_flip_xlat_axis(meta_nemsio,            &
             & grid%dpres(:,:,meta_nemsio%dimz - k + 1))
+       var_info%var_name                        = 'delz'
+       call variable_lookup(var_info)
+       call gfs_nems_read(workgrid,var_info%nems_name,                     &
+            & var_info%nems_levtyp,k)
+       grid%delz(:,:,meta_nemsio%dimz - k + 1)  =                          &
+            & reshape(workgrid,(/meta_nemsio%dimx,meta_nemsio%dimy/))
+       if (flip_lats) call gfs_nems_flip_xlat_axis(meta_nemsio,            &
+            & grid%delz(:,:,meta_nemsio%dimz - k + 1))
        var_info%var_name                        = 'ugrd'
        call variable_lookup(var_info)
        call gfs_nems_read(workgrid,var_info%nems_name,                     &
@@ -659,6 +679,8 @@ contains
 
     if(.not. allocated(grid%delp_inc))                                     &
          & allocate(grid%delp_inc(grid%nx,grid%ny,grid%nz))
+    if(.not. allocated(grid%delz_inc))                                     &
+         & allocate(grid%delz_inc(grid%nx,grid%ny,grid%nz))
     if(.not. allocated(grid%u_inc))                                        &
          & allocate(grid%u_inc(grid%nx,grid%ny,grid%nz))
     if(.not. allocated(grid%v_inc))                                        &
@@ -689,6 +711,8 @@ contains
          & allocate(grid%hybi(grid%nzp1))
     if(.not. allocated(an_grid%dpres))                                     &
          & allocate(an_grid%dpres(grid%nx,grid%ny,grid%nz))
+    if(.not. allocated(an_grid%delz))                                      &
+         & allocate(an_grid%delz(grid%nx,grid%ny,grid%nz))
     if(.not. allocated(an_grid%ugrd))                                      &
          & allocate(an_grid%ugrd(grid%nx,grid%ny,grid%nz))
     if(.not. allocated(an_grid%vgrd))                                      &
@@ -713,6 +737,8 @@ contains
          & allocate(an_grid%ck(grid%nz+1))
     if(.not. allocated(fg_grid%dpres))                                     &
          & allocate(fg_grid%dpres(grid%nx,grid%ny,grid%nz))
+    if(.not. allocated(fg_grid%delz))                                      &
+         & allocate(fg_grid%delz(grid%nx,grid%ny,grid%nz))
     if(.not. allocated(fg_grid%ugrd))                                      &
          & allocate(fg_grid%ugrd(grid%nx,grid%ny,grid%nz))
     if(.not. allocated(fg_grid%vgrd))                                      &
@@ -757,6 +783,7 @@ contains
     ! Deallocate memory for local variables
 
     if(allocated(grid%delp_inc))  deallocate(grid%delp_inc)
+    if(allocated(grid%delz_inc))  deallocate(grid%delz_inc)
     if(allocated(grid%u_inc))     deallocate(grid%u_inc)
     if(allocated(grid%v_inc))     deallocate(grid%v_inc)
     if(allocated(grid%sphum_inc)) deallocate(grid%sphum_inc)
@@ -772,6 +799,7 @@ contains
     if(allocated(grid%hyai))      deallocate(grid%hyai)
     if(allocated(grid%hybi))      deallocate(grid%hybi)
     if(allocated(an_grid%dpres))  deallocate(an_grid%dpres)
+    if(allocated(an_grid%delz))   deallocate(an_grid%delz)
     if(allocated(an_grid%ugrd))   deallocate(an_grid%ugrd)
     if(allocated(an_grid%vgrd))   deallocate(an_grid%vgrd)
     if(allocated(an_grid%spfh))   deallocate(an_grid%spfh)
@@ -784,6 +812,7 @@ contains
     if(allocated(an_grid%bk))     deallocate(an_grid%bk)
     if(allocated(fg_grid%ck))     deallocate(an_grid%ck)
     if(allocated(fg_grid%dpres))  deallocate(fg_grid%dpres)
+    if(allocated(fg_grid%delz))   deallocate(fg_grid%delz)
     if(allocated(fg_grid%ugrd))   deallocate(fg_grid%ugrd)
     if(allocated(fg_grid%vgrd))   deallocate(fg_grid%vgrd)
     if(allocated(fg_grid%spfh))   deallocate(fg_grid%spfh)
