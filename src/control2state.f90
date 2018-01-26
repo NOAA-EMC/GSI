@@ -325,10 +325,8 @@ do jj=1,nsubwin
       call gsi_bundlegetvar ( wbundle, 'pblh', sv_pblh, istatus )
    end if
    if (icvis >0) then
-      call gsi_bundlegetpointer (wbundle,'vis',cv_vis,istatus)
       call gsi_bundlegetpointer (sval(jj),'vis'  ,sv_vis , istatus)
-      !  Convert log(vis) to vis
-      call logvis_to_vis(cv_vis,sv_vis)
+      call gsi_bundlegetvar  (wbundle,'vis',sv_vis,istatus)
    end if
    if (icwspd10m>0) then
       call gsi_bundlegetpointer (sval(jj),'wspd10m' ,sv_wspd10m, istatus)

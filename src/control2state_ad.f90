@@ -325,11 +325,8 @@ do jj=1,nsubwin
       call gsi_bundleputvar ( wbundle, 'gust', rv_gust, istatus )
    end if
    if (icvis >0) then
-      call gsi_bundlegetpointer (wbundle,'vis'  ,cv_vis ,istatus)
       call gsi_bundlegetpointer (rval(jj),'vis'  ,rv_vis , istatus)
-      call gsi_bundleputvar ( wbundle, 'vis' , zero   , istatus )
-      !  Adjoint of convert logvis to vis
-      call logvis_to_vis_ad(cv_vis,rv_vis)
+      call gsi_bundleputvar ( wbundle, 'vis' , rv_vis   , istatus )
    end if
    if (icpblh>0)then
       call gsi_bundlegetpointer (rval(jj),'pblh' ,rv_pblh, istatus)

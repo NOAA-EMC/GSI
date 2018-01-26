@@ -128,6 +128,7 @@ subroutine update_guess(sval,sbias)
   use rapidrefresh_cldsurf_mod, only: i_use_2mq4b,i_use_2mt4b
   use gsd_update_mod, only: gsd_limit_ocean_q,gsd_update_soil_tq,&
        gsd_update_th2,gsd_update_q2
+  use qcmod, only: zlow,zhigh
 
   implicit none
 
@@ -289,7 +290,9 @@ subroutine update_guess(sval,sbias)
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ptr2dges,istatus)
            ptr2dges = ptr2dges + ptr2dinc
            if (trim(guess(ic))=='gust')  ptr2dges = max(ptr2dges,zero)
-           if (trim(guess(ic))=='vis')   ptr2dges = max(min(ptr2dges,20000.0_r_kind),one_tenth)
+!RY: after nltrcv,the max/min vis need to be changed.  What values should be?
+!RY:  should be zhigh/zlow?
+           if (trim(guess(ic))=='vis')   ptr2dges = max(min(ptr2dges,zhigh),zlow)
            if (trim(guess(ic))=='wspd10m') ptr2dges = max(ptr2dges,zero)
            if (trim(guess(ic))=='pblh')  ptr2dges = max(ptr2dges,zero)
            if (trim(guess(ic))=='howv')  ptr2dges = max(ptr2dges,zero)

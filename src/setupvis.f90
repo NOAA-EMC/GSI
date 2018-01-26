@@ -66,6 +66,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
+  use nltrconfine, only: nltrconfine_inverse
   implicit none
 
 ! Declare passed variables
@@ -88,6 +89,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_double) rstation_id
 
   real(r_kind) visges,dlat,dlon,ddiff,dtime,error
+  real(r_kind) visgesout,visobout,tempvis
   real(r_kind) vis_errmax,offtime_k,offtime_l
   real(r_kind) scale,val2,ratio,ressw2,ress,residual
   real(r_kind) obserrlm,obserror,val,valqc
@@ -146,7 +148,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   n_alloc(:)=0
   m_alloc(:)=0
-  vis_errmax=5000.0_r_kind
+  vis_errmax=20.0
 !*********************************************************************************
 ! Read and reformat observations in work arrays.
   read(lunin)data,luse,ioid
@@ -183,8 +185,9 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
        data(iobshgt,i)=rmiss_single! for diag output
     end if
 
+!   since the cut is performed in read_prepbufr, following is not needed
 !   set any observations larger than 20000.0 to be 20000.0
-    if (data(ivis,i) > 20000.0_r_kind) data(ivis,i)=20000.0_r_kind
+!    if (data(ivis,i) > 20000.0_r_kind) data(ivis,i)=20000.0_r_kind
   end do
   offtime_k=0.0_r_kind
   offtime_l=0.0_r_kind
@@ -515,10 +518,14 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error (K**-1)
         rdiagbuf(16,ii) = errinv_final       ! final inverse observation error (K**-1)
  
-        rdiagbuf(17,ii) = data(ivis,i)       ! VIS observation (K)
-        rdiagbuf(18,ii) = ddiff              ! obs-ges used in analysis (K)
-        rdiagbuf(19,ii) = data(ivis,i)-visges! obs-ges w/o bias correction (K) (future slot)
- 
+!!!!! RT: both visges and obs. need to do inverse computation
+        call nltrconfine_inverse(visges,visgesout)
+        tempvis=data(ivis,i)
+        call nltrconfine_inverse(tempvis,visobout)
+
+        rdiagbuf(17,ii) = visobout            ! VIS observation (K)
+        rdiagbuf(18,ii) = ddiff        ! obs-ges used in analysis 
+        rdiagbuf(19,ii) = visobout-visgesout  ! obs-ges w/o bias correction (K) (future slot)
         rdiagbuf(20,ii) = rmiss_single       ! type of measurement
 
         rdiagbuf(21,ii) = data(idomsfc,i)    ! dominate surface type

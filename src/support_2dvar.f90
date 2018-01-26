@@ -44,12 +44,12 @@ subroutine convert_binary_2d
   use gsi_4dvar, only: nhr_assimilation
   use gsi_io, only: lendian_out,verbose
   use mpeu_util, only: die
+  use qcmod, only: vis_thres
   implicit none
 
 ! Declare local parameters
   real(r_single),parameter:: one_single = 1.0_r_single
   real(r_single),parameter:: r45 = 45.0_r_single
-  real(r_single) vis_thres
 
   character(6) filename
   character(9) wrfges
@@ -68,7 +68,6 @@ subroutine convert_binary_2d
   logical print_verbose
 
   data in_unit / 11 /
-  data vis_thres / 16000.0 /
 
   print_verbose=.true.
   if(verbose)print_verbose=.true.
@@ -319,7 +318,7 @@ subroutine convert_binary_2d
 !RY: apply threshold vis_thres to visibility fg
      do j=1,nlon_regional
         do i=1,nlat_regional
-           if (field2(j,i) .le. 0.0) field2(j,i)=0.1_r_kind
+           if (field2(j,i) .le. 0.0) field2(j,i)=0.1_r_single
            if (field2(j,i) .gt. vis_thres) field2(j,i)=vis_thres
          enddo
      enddo
@@ -657,7 +656,7 @@ subroutine read_2d_guess(mype)
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die
   use gsi_io, only: verbose
-  use qcmod, only: nltrcv,powerp,zlow,zhigh,smpara
+  use qcmod, only: nltrcv,powerp,zlow,zhigh,smpara,vis_thres
   use nltrconfine, only: nltrconfine_forward
   
   implicit none
@@ -667,7 +666,6 @@ subroutine read_2d_guess(mype)
 
 ! Declare local parameters
   real(r_kind),parameter:: r0_01=0.01_r_kind
-  real(r_kind),parameter:: vis_thres=16000.0_r_kind
 
 ! Declare local variables
   integer(i_kind) kt,kq,ku,kv
@@ -1135,8 +1133,8 @@ subroutine read_2d_guess(mype)
 !*************************************************************
                  dummy=real(all_loc(j,i,i_0+i_vis),r_kind)
                  if (dummy .gt. vis_thres) write(6,*)'WARNING:read2dges: VISmax>16000!!'
-                 if (nltr) then
-                   call forward_(dummy,dummyout)
+                 if (nltrcv) then
+                   call nltrconfine_forward(dummy,dummyout)
                    ges_vis(j,i)=dummyout
                  else
                    if (dummy<=zero) ges_vis(j,i)=one_tenth
@@ -1231,10 +1229,12 @@ subroutine wr2d_binary(mype)
 !
 !$$$
   use kinds, only: r_kind,r_single,i_kind
+  use constants, only: one_tenth
+
   use guess_grids, only: ntguessig,ifilesig,&
        ges_tsen
   use mpimod, only: mpi_comm_world,ierror,mpi_real4
-  use qcmod only: nltr,powerp
+  use qcmod, only: nltrcv,powerp
   use gridmod, only: lat2,iglobal,itotsub,strip,&
        lon2,nsig,lon1,lat1,nlon_regional,nlat_regional,ijn,displs_g
   use mpeu_util, only: getindex
@@ -1243,7 +1243,7 @@ subroutine wr2d_binary(mype)
   use jfunc, only: jiter,miter
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use qcmod, only: nltrcv,powerp,zlow,zhigh,smpara
+  use qcmod, only: nltrcv,powerp,zlow,zhigh,smpara,vis_thres
   use nltrconfine, only: nltrconfine_inverse 
   use mpeu_util, only: die
   use gsi_io, only: verbose
@@ -1274,7 +1274,7 @@ subroutine wr2d_binary(mype)
   real(r_single) glon0(nlon_regional,nlat_regional),glat0(nlon_regional,nlat_regional)
   real(r_single) dx_mc0(nlon_regional,nlat_regional),dy_mc0(nlon_regional,nlat_regional)
   real(r_single),allocatable::all_loc_qsatg(:,:,:),all_loc_prh(:,:,:),temp1_prh(:)
-  real(r_single) tempvis,visout
+  real(r_kind) tempvis,visout
   
   integer(i_kind) iaux(100),kaux
   character(15) caux(100)
@@ -1560,10 +1560,11 @@ subroutine wr2d_binary(mype)
 !
 !RY: check the max/min to confirm ptr2d is a full  field  --confirmed
 !                if(mype==0) write(6,*)'wrt2d: vis=', ptr2d(j,i)
+
                  if(nltrcv) then
                     tempvis=ptr2d(j,i)
-                    call inverse_(tempvis,visout) 
-!RY:  restriction to visivility
+                    call nltrconfine_inverse(tempvis,visout) 
+!RY: confine the visibility values
                     all_loc(j,i,iaux(k))=max(min(visout,vis_thres),one_tenth)
                  endif
               else
@@ -1610,22 +1611,6 @@ subroutine wr2d_binary(mype)
         close(94)
      end if
   end do
-****
-  pure function inv_nltr(gxpvis,powerp) result(visout)
-     real(r_kind), intent(in) :: gxpvis
-     real(r_kind), intent(in) :: powerp
-     real(r_kind) :: visout
-! local variable
-     real(r_kind) :: scaling
-     scaling=1.0
-?????
-     visresult = 0.1_r_kind
-     temp = (rawvis/scaling)**powerp
-     visresult =(temp-1.0)/powerp
-    end function nltransform
-????
-
-***
 
   deallocate(all_loc)
   deallocate(itemp1)

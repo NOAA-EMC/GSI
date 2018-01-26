@@ -57,7 +57,7 @@
       erradar_inflate,tdrerr_inflate,use_poq7,qc_satwnds,&
       init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3,qc_noirjaco3_pole,&
       buddycheck_t,buddydiag_save,njqc,vqc,closest_obs,vadwnd_l2rw_qc, &
-      nltr,powerp,adjvisoe,zlow,zhigh,smpara
+      nltrcv,powerp,adjvisoe,zlow,zhigh,smpara
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax, &
      factv,factl,factp,factg,factw10m,facthowv,factcldch,niter,niter_no_qc,biascor,&
@@ -748,7 +748,7 @@
        tcp_ermin,tcp_ermax,qc_noirjaco3,qc_noirjaco3_pole,qc_satwnds,njqc,vqc,&
        aircraft_t_bc_pof,aircraft_t_bc,aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail,&
        hdist_aircraft,buddycheck_t,buddydiag_save,closest_obs,vadwnd_l2rw_qc,  &
-       nltmrcv,powerp,adjvisoe,zlow,zhigh,smpara
+       nltrcv,powerp,adjvisoe,zlow,zhigh,smpara
 
 ! OBS_INPUT (controls input data):
 !      dmesh(max(dthin))- thinning mesh for each group

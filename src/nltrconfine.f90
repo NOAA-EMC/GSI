@@ -21,7 +21,7 @@ module nltrconfine
 !                .      .    .                                       .
 
   use kinds, only: r_kind, i_kind
-  use qcmod, only: nltrcv,powerp,adjvisoe,zlow,zhigh,smpara 
+  use qcmod, only: nltrcv,powerp,adjvisoe,zlow,zhigh,smpara
 
   implicit none
   private
@@ -51,30 +51,31 @@ module nltrconfine
 
 CONTAINS
 
-subroutine forward_(z,zt)
+subroutine forward_(zin,zout)
 
 !--------------------------------------------------------------
 ! input argument:
-!  z - visibility, could be the one passed the threshold=16000
+!   zin - visibility, could be the one passed the threshold=16000
 ! output argument:
-!  zt - the final zt after the nonlinear transformation and confining
+!   zout - the final visibility after the nonlinear transformation 
+!         and confining
 !--------------------------------------------------------------
   implicit none
-  real(r_kind),intent(in):: z
-  real(r_kind) :: zt
+  real(r_kind),intent(in):: zin
+  real(r_kind) :: zout
 
 ! local variable
   real(r_kind) :: scaling
-  real(r_kind) :: temp
+  real(r_kind) :: temp                      ! after the nltransformation
   real (r_kind):: zc,em,g
   real(r_kind) :: a0,a1,r0,r1,gt
 
   scaling=1.0
 ! default zt value: do not know an appropriate value
-!  zt = 1.0_r_kind
+!  zout = ??? 1.0_r_kind
 
 ! nonlinear transformation
-  temp = (z/scaling)**powerp
+  temp = (zin/scaling)**powerp
   temp =(temp-1.0)/powerp
 ! RY: for check, clean it later
   write(6,*) 'powerp=',powerp
@@ -88,35 +89,44 @@ subroutine forward_(z,zt)
   r0= (sqrt(1.0 + a0**2.0) + a0)/2.0
   r1=(sqrt(1.+a1**2.0) + a1)/2.0
   gt=r0 -r1 -em
-  zt=gt*smpara +zc
+  zout=gt*smpara +zc
+  return
 end subroutine forward_
 
-subroutine inverse_(zt,z)
+subroutine inverse_(zin,zout)
   implicit none
-  real(r_kind),intent(in):: zt
-  real(r_kind) :: z
+  real(r_kind),intent(in):: zin
+  real(r_kind) :: zout
 ! local variable
   real (r_kind):: zc,em,gt
   real(r_kind) :: p,r,g
+  real(r_kind) :: temp      ! apply inverse nltr to it
   real(r_kind) :: powerpinv
-  real(r_kind) :: temp
+  real(r_kind) :: z1
+  real(r_kind) :: scaling
+  real(r_kind) :: scalinginv
   scaling=1.0
+  scalinginv=1.0/scaling
+  powerpinv=1.0/powerp
 
   zc=(zlow+zhigh)/2.0
   em=(zhigh-zlow)/(2.0*smpara)
-  gt=(zt-zc)/smpara
+  gt=(zin-zc)/smpara
   p=gt/em
-  r=1-p**2
-  if (r>0) then
+  r=1.-p**2
+  if (r>0.0) then
     g=p*sqrt(em**2 +1./r)
-  elseif (p >=1) then
+  elseif (p >=1.0) then
      g=1000000.0
-  elseif (p <=-1) then
+  elseif (p <=-1.0) then
      g=-1000000.0
   endif
-  temp=g*s + zc
+  temp=g*smpara + zc
 !RY:  change z back to vis
-  powerpinv=1.0/powerp
-  z=(powerp*temp + 1.0) 
-  z=z**powerpinv
+  z1=(powerp*temp + 1.0) 
+  z1=z1**powerpinv
+  zout=z1*scalinginv
+  return
 end subroutine inverse_
+
+end module nltrconfine

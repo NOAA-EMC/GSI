@@ -1,5 +1,4 @@
 subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
-bsvi
      prsl_full,nobs,nrec_start)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -189,7 +188,8 @@ bsvi
   use convb_uv,only: btabl_uv
   use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,winlen,thin4d
   use qcmod, only: errormod,errormod_aircraft,noiqc,newvad,njqc
-  use qcmod, only: nltr,powerp,adjvisoe
+  use qcmod, only: nltrcv,powerp,adjvisoe,vis_thres
+  use nltrconfine, only: nltrconfine_forward
   use convthin, only: make3grids,map3grids,del3grids,use_all
   use blacklist, only : blacklist_read,blacklist_destroy
   use blacklist, only : blkstns,blkkx,ibcnt
@@ -327,7 +327,7 @@ bsvi
   real(r_kind),allocatable,dimension(:):: presl_thin
   real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
-  real(r_kind) :: tempvis
+  real(r_kind) :: tempvis,visout,scaling
 
   real(r_double) rstation_id,qcmark_huge
   real(r_double) vtcd
@@ -2333,23 +2333,27 @@ bsvi
 
 !             Visibility
               else if(visob) then
-!..............................................
-!RY:  visoe is passed from the namelist
-!     Is this way OK?
-!..............................................
+!......................................................................
+!RY:   visoe is passed from the namelist. Is this OK?  
+!Note: visoe is for variable in the space resulted from the nltrconfine
+!......................................................................
                  visoe=adjvisoe
                  if ((kx==283).or.(kx==183)) visoe=visoe*1_2
                  if (inflate_error) visoe=visoe*r1_2
-                 if (obsdat(9,k) .le. zero) obsdat(9,k)=one_tenth
-                 if (obsdat(9,k) .ge. 12000.0) obsdat(9,k)=12000.0
 
-                 if (nltr) then
-                   tempvis=obsdat(9,k)
-                   cdata_all(4,iout) = nltransform(tempvis,powerp)
+! simple QC check for eleminate the bad observation
+                 if (obsdat(9,k) .le. zero) obsdat(9,k)=bmiss 
+                 if (obsdat(9,k) .ge. vis_thres) obsdat(9,k)=vis_thres
+
+                 if (nltrcv) then
+                   if(obsdat(9,k)>zero .and. obsdat(9,k)<=vis_thres)then
+                      tempvis=obsdat(9,k)
+                      call nltrconfine_forward(tempvis,visout)
+                      cdata_all(4,iout) = visout
+                   endif
                  else
                    cdata_all(4,iout)=obsdat(9,k)             ! visibility obs
                  endif
-
                  cdata_all(1,iout)=visoe                   ! visibility error (cb)
                  cdata_all(2,iout)=dlon                    ! grid relative longitude
                  cdata_all(3,iout)=dlat                    ! grid relative latitude
@@ -2783,19 +2787,6 @@ bsvi
      call closbf(lunin)
      if(print_verbose)write(6,*)'READ_PREPBUFR:  closbf(',lunin,')'
   endif
-
-  pure function nltransform(rawvis,powerp) result(visresult)
-     real(r_kind), intent(in) :: rawvis
-     real(r_kind), intent(in) :: powerp
-     real(r_kind) :: visresult
-! local variable
-     real(r_kind) :: scaling 
-     real(r_kind) :: temp 
-     scaling=1.0
-     visresult = 0.1_r_kind
-     temp = (rawvis/scaling)**powerp 
-     visresult =(temp-1.0)/powerp
-    end function nltransform
 
   close(lunin)
 
