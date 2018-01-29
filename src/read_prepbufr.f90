@@ -2338,6 +2338,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !Note: visoe is for variable in the space resulted from the nltrconfine
 !......................................................................
                  visoe=adjvisoe
+                 write (6,*) 'READ_PREPBUFR VISOE=', adjvisoe,visoe
                  if ((kx==283).or.(kx==183)) visoe=visoe*1_2
                  if (inflate_error) visoe=visoe*r1_2
 

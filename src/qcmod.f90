@@ -111,9 +111,9 @@ module qcmod
 !   def nltrcv       - logic flag: nltr=.true. for applying NonLinear TRansformation to visibility and ceiling height
 !   def powerp       - the value of the power in nltrcv
 !   def adjvisoe     - prescribed obs vis error 
+!   def smpara       - smooth value used in nltrcv
 !   def zlow         - low-end value used in nltrcv
 !   def zhigh        - high-end value used in nltrcv
-!   def smpara       - smooth value used in nltrcv
 !   def vis_thres    - threshold value for vis
 !
 !
@@ -375,15 +375,15 @@ contains
 
     closest_obs=.false.    ! When true, select timely nearest obs.
 
-    nltrcv=.false.         ! When true, apply non-linear transformation
 
     vadwnd_l2rw_qc=.true.  ! When false, DO NOT run the vadwnd qc on level 2 radial wind obs.
+    nltrcv=.false.         ! When true, apply non-linear transformation
     powerp=one
     adjvisoe=one
     zlow=-5.0_r_kind
     zhigh=20000.0_r_kind
     smpara=0.01
-    smpara=2000.0_r_kind
+    vis_thres=1000.0_r_kind
 
     return
   end subroutine init_qcvars

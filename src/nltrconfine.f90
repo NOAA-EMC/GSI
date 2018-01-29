@@ -78,8 +78,8 @@ subroutine forward_(zin,zout)
   temp = (zin/scaling)**powerp
   temp =(temp-1.0)/powerp
 ! RY: for check, clean it later
-  write(6,*) 'powerp=',powerp
-  write(6,*) 'zlow=',zlow,'zhigh=',zhigh,'smpara=',smpara
+!  write(6,*) 'powerp=',powerp
+!  write(6,*) 'zlow=',zlow,'zhigh=',zhigh,'smpara=',smpara
 ! confine function 
   zc=(zlow+zhigh)/2.0
   em=(zhigh-zlow)/(2.0*smpara)
