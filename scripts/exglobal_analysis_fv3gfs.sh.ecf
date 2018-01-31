@@ -78,6 +78,7 @@ QUILTING=${QUILTING:-".true."}
 
 # Microphysics in the model; 99:ZC, 11:GFDLMP
 imp_physics=${imp_physics:-99}
+lupp=${lupp:-".false."}
 
 # Dependent Scripts and Executables
 NTHREADS_CALCINC=${NTHREADS_CALCINC:-1}
@@ -666,7 +667,7 @@ cat > gsiparm.anl << EOF
   crtm_coeffs_path='./crtm_coeffs/',
   newpc4pred=.true.,adp_anglebc=.true.,angord=4,passive_bc=.true.,use_edges=.false.,
   diag_precon=.true.,step_start=1.e-3,emiss_bc=.true.,nhr_obsbin=${nhr_obsbin:-3},
-  cwoption=3,imp_physics=$imp_physics,
+  cwoption=3,imp_physics=$imp_physics,lupp=$lupp,
   $SETUP
 /
 &GRIDOPTS
