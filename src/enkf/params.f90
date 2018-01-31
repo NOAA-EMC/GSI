@@ -70,7 +70,8 @@ character(len=500),public :: datapath
 ! update is used.  If .false, a perturbed obs (stochastic) update
 ! is used.
 logical, public :: deterministic, sortinc, pseudo_rh, &
-                   varqc, huber, cliptracers, readin_localization
+                   varqc, huber, cliptracers, readin_localization,&
+                   lupp
 integer(i_kind),public ::  iassim_order,nlevs,nanals,nvars,numiter,&
                            nlons,nlats,ndim,nbackgrounds
 integer(i_kind),public :: nsats_rad,nsats_oz,imp_physics
@@ -154,7 +155,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,&
                    lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
                    newpc4pred,nmmb,nhr_anal,fhr_assim,nbackgrounds,save_inflation,nobsl_max,&
                    letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs,npefiles,&
-                   fso_cycling,fso_calculate,imp_physics
+                   fso_cycling,fso_calculate,imp_physics,lupp
 namelist /nam_wrf/arw,nmm,nmm_restart
 namelist /satobs_enkf/sattypes_rad,dsis
 namelist /ozobs_enkf/sattypes_oz
@@ -232,6 +233,8 @@ sortinc = .true.
 ! type of GFS microphyics.
 ! 99: Zhao-Carr, 11: GFDL
 imp_physics = 99
+! lupp, if true output extra variables
+lupp = .false.
 ! these are all mandatory.
 ! nlons and nlats are # of lons and lats
 nlons = 0

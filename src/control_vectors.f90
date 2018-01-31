@@ -59,6 +59,7 @@ module control_vectors
 ! variable definitions:
 !   def n_ens     - number of ensemble perturbations (=0 except when hybrid ensemble option turned on)
 !   def imp_physics - type of microphysics used in the GFS.  99: Zhao-Carr, 11: GFDL
+!   def lupp - if T, UPP is used and additional variables are output
 !
 ! attributes:
 !   language: f90
@@ -121,6 +122,7 @@ public as2d        ! normalized scale factor for background error 2d-variables
 public atsfc_sdv   ! standard deviation of surface temperature error over (1) land (and (2) ice
 public an_amp0     ! multiplying factors on reference background error variances
 public imp_physics ! type of GFS microphysics
+public lupp        ! when .t., UPP is used and extra variables are output
 
 public nrf2_loc,nrf3_loc,nmotl_loc   ! what are these for??
 public ntracer
@@ -144,7 +146,7 @@ character(len=*),parameter:: myname='control_vectors'
 integer(i_kind) :: nclen,nclen1,nsclen,npclen,ntclen,nrclen,nsubwin,nval_len
 integer(i_kind) :: latlon11,latlon1n,lat2,lon2,nsig,n_ens
 integer(i_kind) :: nval_lenz_en,imp_physics
-logical :: lsqrtb
+logical :: lsqrtb,lupp
 
 integer(i_kind) :: m_vec_alloc, max_vec_alloc, m_allocs, m_deallocs
 
@@ -382,6 +384,7 @@ if (mype==0) then
 end if
 
 imp_physics=99
+lupp = .false.
 
 end subroutine init_anacv
 subroutine final_anacv

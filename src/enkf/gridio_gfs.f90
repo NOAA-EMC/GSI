@@ -386,7 +386,8 @@
                            nemsio_readrec,nemsio_writerec,nemsio_intkind,&
                            nemsio_getheadvar,nemsio_realkind,nemsio_getfilehead,&
                            nemsio_readrecv,nemsio_init,nemsio_setheadvar,nemsio_writerecv
-  use constants, only: t0c, r0_05
+  use constants, only: t0c, r0_05, rd, grav
+  use params, only: lupp
   implicit none
 
   character(len=500):: filenamein, filenameout
@@ -398,6 +399,7 @@
   real(r_kind), allocatable, dimension(:,:) :: ugtmp,vgtmp
   real(r_kind), allocatable,dimension(:) :: psg,pstend1,pstend2,pstendfg,vmass
   real(r_kind), dimension(nlons*nlats) :: ug,vg,uginc,vginc,psfg,work
+  real(r_kind), allocatable, dimension(:) :: delzb
   real(r_kind), dimension(ndimspec) :: vrtspec,divspec
   integer iadate(4),idate(4),nfhour,idat(7),iret,nrecs,jdate(7)
   integer:: nfminute, nfsecondn, nfsecondd
@@ -485,6 +487,7 @@
   allocate(dpanl(nlons*nlats,nlevs))
   allocate(pressi(nlons*nlats,nlevs+1))
   allocate(pstendfg(nlons*nlats))
+  if (lupp) allocate(delzb(nlons*nlats))
 
 ! Compute analysis time from guess date and forecast length.
   if (.not. use_gfs_nemsio) then
@@ -825,6 +828,7 @@
            write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_readrecv(spfh), iret=',iret
            call stop2(23)
         endif
+        nems_wrk = nems_wrk * ( 1.0 + fv*nems_wrk2 ) !Convert T to Tv
         if (reducedgrid) then
            call reducedtoreg(grdin(:,2*nlevs+k,nb),ug)
            call reducedtoreg(grdin(:,3*nlevs+k,nb),vg)
@@ -832,10 +836,15 @@
            ug = grdin(:,2*nlevs+k,nb)
            vg = grdin(:,3*nlevs+k,nb)
         endif
-        ! ug is Tv increment, nems_wrk is background T, nems_wrk2 is background spfh
-        ug = ug + nems_wrk * ( 1.0 + fv*nems_wrk2 )
+        ! ug is Tv increment, nems_wrk is background Tv, nems_wrk2 is background spfh
+        ug = ug + nems_wrk 
         vg = vg + nems_wrk2 
         if (cliptracers)  where (vg < clip) vg = clip
+        if (lupp) then
+           call nemsio_readrecv(gfilein,'pres','sfc',1,nems_wrk2,iret=iret)
+           delzb=(rd/grav)*nems_wrk
+           delzb=delzb*log((ak(k)+bk(k)*nems_wrk2)/(ak(k+1)+bk(k+1)*nems_wrk2))
+        endif
         ! convert Tv back to T
         nems_wrk = ug/(1. + fv*vg)
         if (imp_physics == 11) then
@@ -850,13 +859,31 @@
            write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(tmp), iret=',iret
            call stop2(23)
         endif
-        nems_wrk2 = vg
-        call nemsio_writerecv(gfileout,'spfh','mid layer',k,nems_wrk2,iret=iret)
+        nems_wrk = vg
+        call nemsio_writerecv(gfileout,'spfh','mid layer',k,nems_wrk,iret=iret)
         if (iret/=0) then
            write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(spfh), iret=',iret
            call stop2(23)
         endif
-
+        if (lupp) then
+           if (reducedgrid) then
+              call reducedtoreg(grdin(:,ndim,nb),vg)
+           else
+              vg = grdin(:,ndim,nb)
+           endif
+           vg = nems_wrk2 + vg           
+           ug=(rd/grav)*ug
+           ug=ug*log((ak(k)+bk(k)*vg)/(ak(k+1)+bk(k+1)*vg))
+           ug=ug-delzb
+           call nemsio_readrecv(gfilein,'delz','mid layer',k,nems_wrk,iret=iret)
+           nems_wrk = nems_wrk + ug
+           call nemsio_writerecv(gfileout,'delz','mid layer',k,nems_wrk,iret=iret)
+           if (iret/=0) then
+              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(delz), iret=',iret
+              call stop2(23)
+           endif
+        endif
+ 
         call nemsio_readrecv(gfilein,'o3mr','mid layer',k,nems_wrk,iret=iret)
         if (iret/=0) then
            write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_readrecv(o3mr), iret=',iret
@@ -961,17 +988,10 @@
               call stop2(23)
            endif
         endif
-
-        call nemsio_readrecv(gfilein,'delz','mid layer',k,nems_wrk2,iret=iret)
-        if (iret==0) then
-           call nemsio_writerecv(gfileout,'delz','mid layer',k,nems_wrk2,iret=iret)
-           if (iret/=0) then
-              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(delz), iret=',iret
-              call stop2(23)
-           endif
-        endif
     enddo
   endif !if (.not. use_gfs_nemsio)
+
+  if (lupp) deallocate(delzb)
 
   if (massbal_adjust) then
 
