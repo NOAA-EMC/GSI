@@ -98,7 +98,7 @@ integer,public :: npefiles = 0
 ! for LETKF, max number of obs in local volume.
 ! default is -1, which means take all obs within
 ! specified localization radius.  if nobsl_max > 0,
-! only the first nobsl_max closest obs within the 
+! only the first nobsl_max closest obs within the
 ! localization radius will be used. Ignored
 ! if letkf_flag = .false.
 integer,public :: nobsl_max = -1
@@ -107,7 +107,7 @@ logical,public :: save_inflation = .false.
 ! do sat bias correction update.
 logical,public :: lupd_satbiasc = .false.
 ! do ob space update with serial filter (only used if letkf_flag=.true.)
-logical,public :: lupd_obspace_serial = .false. 
+logical,public :: lupd_obspace_serial = .false.
 ! disable vertical localization for letkf
 logical,public :: letkf_novlocal = .false.
 ! simple_partition=.false. does more sophisticated
@@ -171,9 +171,9 @@ integer i,nb
 ! time (analysis time YYYYMMDDHH)
 datestring = "0000000000" ! if 0000000000 will not be used.
 ! corrlength (length for horizontal localization in km)
-corrlengthnh = 2800 
-corrlengthtr = 2800 
-corrlengthsh = 2800 
+corrlengthnh = 2800
+corrlengthtr = 2800
+corrlengthsh = 2800
 ! read in localization length scales from an external file.
 readin_localization = .false.
 ! min and max inflation.
@@ -221,7 +221,7 @@ analpertwttr = 0.0_r_single
 paoverpb_thresh = 1.0_r_single! don't skip any obs
 ! set to to 0 for the order they are read in, 1 for random order, or 2 for
 ! order of predicted posterior variance reduction (based on prior)
-iassim_order = 0 
+iassim_order = 0
 ! use 'pseudo-rh' analysis variable, as in GSI.
 pseudo_rh = .false.
 ! if deterministic is true, use LETKF/EnSRF w/o perturbed obs.
@@ -310,7 +310,7 @@ end do
 if(nproc == 0)write(6,*) 'number of satellite ozone files used',nsats_oz
 
 
-! default value of vertical localization for sat radiances 
+! default value of vertical localization for sat radiances
 ! and surface pressure should be same as other data.
 if (lnsigcutoffsatnh < 0._r_single) lnsigcutoffsatnh = lnsigcutoffnh
 if (lnsigcutoffsattr < 0._r_single) lnsigcutoffsattr = lnsigcutofftr
@@ -363,11 +363,11 @@ if (nproc == 0) then
        letkf_flag) then
      print *,'warning: no time localization in LETKF!'
    endif
-   
+
    print *, trim(adjustl(datapath))
    if (datestring .ne. '0000000000') print *, 'analysis time ',datestring
    print *, nanals,' members'
-   
+
 end if
 
 ! background forecast time for analysis
@@ -398,11 +398,11 @@ do nb=1,nbackgrounds
         anlfileprefixes(nb)="analysis."
       endif
      else ! global
-      if (nbackgrounds > 1) then
+!      if (nbackgrounds > 1) then
         anlfileprefixes(nb)="sanl_"//datestring//"_fhr"//charfhr_anal(nb)//"_"
-      else
-        anlfileprefixes(nb)="sanl_"//datestring//"_"
-      endif
+!      else
+!        anlfileprefixes(nb)="sanl_"//datestring//"_"
+!      endif
      endif
    endif
 enddo
@@ -417,7 +417,7 @@ if (massbal_adjust) then
    if (regional .or. nmmb) then
       if (nproc .eq. 0) print *,'mass balance adjustment only implemented for GFS'
       massbal_adjust = .false.
-      ndim = nlevs*nvars+1 
+      ndim = nlevs*nvars+1
    else
       if (nproc .eq. 0) print *,'add ps tend as analysis var, so mass balance adjustment can be done'
       ndim = nlevs*nvars+2 ! including surface pressure and ps tendency.

@@ -150,8 +150,8 @@ else
       tar -xvf $fname
    done
 fi
-for imem in `seq 1 $NMEM_ENKF`; do
-   memchar="mem"`printf %03i $imem`
+for imem in $(seq 1 $NMEM_ENKF); do
+   memchar="mem"$(printf %03i $imem)
    if [ $USE_CFP = "YES" ]; then
       echo "$DATA/untar.sh $memchar" | tee -a $DATA/mp_untar.sh
    else
@@ -161,7 +161,7 @@ for imem in `seq 1 $NMEM_ENKF`; do
       done
    fi
    $NLN $COMIN_GES_ENS/$memchar/${GPREFIX}atmf006${ENKF_SUFFIX}${GSUFFIX}  sfg_${CDATE}_fhr06_${memchar}
-   $NLN $COMOUT_ANL_ENS/$memchar/${APREFIX}atmanl${ASUFFIX}                sanl_${CDATE}_${memchar}
+   $NLN $COMOUT_ANL_ENS/$memchar/${APREFIX}atmanl${ASUFFIX}               sanl_${CDATE}_fhr06_${memchar}
 done
 
 # Ensemble mean guess
