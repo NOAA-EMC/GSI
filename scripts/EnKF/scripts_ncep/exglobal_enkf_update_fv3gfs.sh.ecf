@@ -72,7 +72,7 @@ NAM_ENKF=${NAM_ENKF:-""}
 SATOBS_ENKF=${SATOBS_ENKF:-""}
 OZOBS_ENKF=${OZOBS_ENKF:-""}
 imp_physics=${imp_physics:-"99"}
-lupp=${lupp:-".false."}
+lupp=${lupp:-".true."}
 
 ################################################################################
 ATMGES_ENSMEAN=$COMIN_GES_ENS/${GPREFIX}atmf006.ensmean${GSUFFIX}

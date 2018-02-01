@@ -78,7 +78,7 @@ QUILTING=${QUILTING:-".true."}
 
 # Microphysics in the model; 99:ZC, 11:GFDLMP
 imp_physics=${imp_physics:-99}
-lupp=${lupp:-".false."}
+lupp=${lupp:-".true."}
 
 # Dependent Scripts and Executables
 NTHREADS_CALCINC=${NTHREADS_CALCINC:-1}
