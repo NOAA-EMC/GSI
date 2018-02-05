@@ -2123,11 +2123,11 @@ contains
                 enddo
                 call g_egrid2agrid(p_high,grid3,grid_c2,1,1,vector)
                 call nemsio_readrecv(gfile,'dpres','mid layer',k,rwork1d,iret=iret)
-                rwork1d1 = r0_001*rwork1d
-                grid_b2=reshape(rwork1d1,(/size(grid_b2,1),size(grid_b2,2)/))
+                if (iret /= 0) call error_msg(trim(my_name),trim(filename),'dpres','read',istop,iret)
+                grid_b2=reshape(rwork1d,(/size(grid_b2,1),size(grid_b2,2)/))
                 do j=1,latb
                    do i=1,lonb
-                      grid_b2(i,j)=r1000*grid_b2(i,j)+r1000*(grid_c2(latb-j+2,i,1))
+                      grid_b2(i,j)=grid_b2(i,j)+r1000*(grid_c2(latb-j+2,i,1))
                    enddo
                 enddo
                 rwork1d = reshape(grid_b2,(/size(rwork1d)/))
@@ -2339,11 +2339,6 @@ contains
                    if (iret /= 0) call error_msg(trim(my_name),trim(filename),'icmr','read',istop,iret)
                    grid_b2=reshape(rwork1d1,(/size(grid_b2,1),size(grid_b2,2)/))
                    grid_b = grid_b + grid_b2
-                   do kk=1,grd%iglobal
-                      work2(kk) = -r0_05*(work2(kk) - t0c)
-                      work2(kk) = max(zero,work2(kk))
-                      work2(kk) = min(one,work2(kk))
-                   enddo
                 endif
                 vector(1)=.false.
                 call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
@@ -2353,6 +2348,9 @@ contains
                    j=grd%ltosj(kk)
                    grid3(i,j,1)=work1(kk)-max(grid3(i,j,1),qcmin)
                    if (imp_physics == 11) then
+                      work2(kk) = -r0_05*(work2(kk) - t0c)
+                      work2(kk) = max(zero,work2(kk))
+                      work2(kk) = min(one,work2(kk))
                       grid3b(i,j,1)=grid3(i,j,1)
                       grid3(i,j,1)=grid3b(i,j,1)*(one - work2(kk))
                    endif
@@ -2389,20 +2387,22 @@ contains
                 call nemsio_writerecv(gfileo,'icmr','mid layer',k,rwork1d1,iret=iret)
                 if (iret /= 0) call error_msg(trim(my_name),trim(filename),'icmr','write',istop,iret)
 
-                call nemsio_readrecv(gfile,'rwmr','mid layer',k,rwork1d,iret=iret)
-                if (iret /= 0) call error_msg(trim(my_name),trim(filename),'rwmr','read',istop,iret)
-                call nemsio_writerecv(gfileo,'rwmr','mid layer',k,rwork1d,iret=iret)
-                if (iret /= 0) call error_msg(trim(my_name),trim(filename),'rwmr','write',istop,iret)
+                if (lupp) then
+                   call nemsio_readrecv(gfile,'rwmr','mid layer',k,rwork1d,iret=iret)
+                   if (iret /= 0) call error_msg(trim(my_name),trim(filename),'rwmr','read',istop,iret)
+                   call nemsio_writerecv(gfileo,'rwmr','mid layer',k,rwork1d,iret=iret)
+                   if (iret /= 0) call error_msg(trim(my_name),trim(filename),'rwmr','write',istop,iret)
 
-                call nemsio_readrecv(gfile,'snmr','mid layer',k,rwork1d,iret=iret)
-                if (iret /= 0) call error_msg(trim(my_name),trim(filename),'snmr','read',istop,iret)
-                call nemsio_writerecv(gfileo,'snmr','mid layer',k,rwork1d,iret=iret)
-                if (iret /= 0) call error_msg(trim(my_name),trim(filename),'snmr','write',istop,iret)
+                   call nemsio_readrecv(gfile,'snmr','mid layer',k,rwork1d,iret=iret)
+                   if (iret /= 0) call error_msg(trim(my_name),trim(filename),'snmr','read',istop,iret)
+                   call nemsio_writerecv(gfileo,'snmr','mid layer',k,rwork1d,iret=iret)
+                   if (iret /= 0) call error_msg(trim(my_name),trim(filename),'snmr','write',istop,iret)
 
-                call nemsio_readrecv(gfile,'grle','mid layer',k,rwork1d,iret=iret)
-                if (iret /= 0) call error_msg(trim(my_name),trim(filename),'grle','read',istop,iret)
-                call nemsio_writerecv(gfileo,'grle','mid layer',k,rwork1d,iret=iret)
-                if (iret /= 0) call error_msg(trim(my_name),trim(filename),'grle','write',istop,iret)
+                   call nemsio_readrecv(gfile,'grle','mid layer',k,rwork1d,iret=iret)
+                   if (iret /= 0) call error_msg(trim(my_name),trim(filename),'grle','read',istop,iret)
+                   call nemsio_writerecv(gfileo,'grle','mid layer',k,rwork1d,iret=iret)
+                   if (iret /= 0) call error_msg(trim(my_name),trim(filename),'grle','write',istop,iret)
+                endif
              endif
           endif !mype == mype_out
        end do
@@ -2413,10 +2413,9 @@ contains
        if (mype == mype_out) then
           do k=1,grd%nsig
              call nemsio_readrecv(gfile,'dzdt','mid layer',k,rwork1d,iret=iret)
-             if (iret == 0) then
-                call nemsio_writerecv(gfileo,'dzdt','mid layer',k,rwork1d,iret=iret)
-                if (iret /= 0) call error_msg(trim(my_name),trim(filename),'dzdt','write',istop,iret)
-             endif
+             if (iret /= 0) call error_msg(trim(my_name),trim(filename),'dzdt','read',istop,iret)
+             call nemsio_writerecv(gfileo,'dzdt','mid layer',k,rwork1d,iret=iret)
+             if (iret /= 0) call error_msg(trim(my_name),trim(filename),'dzdt','write',istop,iret)
           enddo
        endif
        do k=1,grd%nsig
@@ -2454,7 +2453,7 @@ contains
 ! Deallocate local array
 !
     if (mype==mype_out) then
-       if (diff_res) deallocate(grid_b,grid_b2,grid_c,grid_c2,grid3,clons,slons)
+       if (diff_res .or. lupp .or. imp_physics == 11) deallocate(grid_b,grid_b2,grid_c,grid_c2,grid3,clons,slons)
        if (imp_physics == 11) deallocate(grid3b)
 
        call nemsio_close(gfile,iret)
