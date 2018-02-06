@@ -26,7 +26,6 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !                       . removed (%dlat,%dlon) debris.
 !   2016-10-07  pondeca - if(.not.proceed) advance through input file first
 !                          before retuning to setuprhsall.f90
-!
 !   input argument list:
 !     lunin    - unit from which to read observations
 !     mype     - mpi task id
@@ -262,10 +261,9 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
     if(in_curbin) then
        dlat=data(ilat,i)
        dlon=data(ilon,i)
-
        ikx  = nint(data(ikxx,i))
        error=data(ier,i)
-     endif
+    endif
 
 !    Link observation to appropriate observation bin
      if (nobs_bins>1) then
@@ -334,25 +332,24 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
      if(.not.in_curbin) cycle
 
-!RY: follow Manuel's way to do a Single Observation test !     --a tentative way
-     rstation_id     = data(id,i)
+!RY--BEGIN -- for Single Obs test: write out the interpolated FG values
+!     rstation_id     = data(id,i)
 !     write (6,*) 'SETUPVIS: trim(station_id=',trim(station_id)
-!RY: for Single obs. at the selected obs. write out the interpolatant value
-     if (trim(station_id) .eq. 'KSXT') then
-        call tintrp2SO (ges_vis,visges,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
-       write (6,*) 'SETUPVIS at KSXT:, error=',trim(station_id),data(ier,i)
-     else
+!     if (trim(station_id) .eq. 'KSXT') then
+!        call tintrp2SO (ges_vis,visges,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
+!       write (6,*) 'SETUPVIS at KSXT:, error=',trim(station_id),data(ier,i)
+!     else
 ! Interpolate to get vis at obs location/time
        call tintrp2a11(ges_vis,visges,dlat,dlon,dtime,hrdifsig,&
         mype,nfldsig)
-     endif
-!RY: ****  END the code for SO
+
+!     endif
+!RY--END  END the code for SO
 
 
 ! Adjust observation error
      ratio_errors=error/data(ier,i)
      error=one/error
-
      ddiff=data(ivis,i)-visges
 
 ! If requested, setup for single obs test.
@@ -368,6 +365,13 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
         residual = abs(ddiff)
         ratio    = residual/obserrlm
+!RY--BEGIN -- for Single Obs. test
+!       if (trim(station_id) .eq. 'KSXT') then 
+!       write (6,*) 'SETUPVIS:',trim(station_id),'ier|error|obs|diff',data(ier,i),error,data(ivis,i),ddiff
+!       write (6,*) 'in GROSSCHECK:',trim(station_id),'ratio=abs(ddiff)/obserrlm', ddiff, obserrlm
+!        endif
+!RY--END --
+
         if (ratio> cgross(ikx) .or. ratio_errors < tiny_r_kind) then
            if (luse(i)) awork(6) = awork(6)+one
            error = zero
@@ -384,18 +388,19 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         error = zero
         ratio_errors=zero
      end if
-!RY: follow Manuel's way to do a Single Observation test !     --a tentative way
-      rstation_id     = data(id,i)
+!RY--BEGIN -- for Single Obs. test follow Manuel's way tentatively 
+! Example:  at station KSXT
+!      rstation_id     = data(id,i)
 !      write (6,*) 'trim(station_id=',trim(station_id)
-      if (trim(station_id) .ne. 'KSXT') then
+!      if (trim(station_id) .ne. 'KSXT') then
 !      write (6,*) 'trim(station_id=',trim(station_id)
-         error = zero
-         ratio_errors=zero
-      else
-        write (6,*) 'trim(station_id=',trim(station_id)
-        write (6,*) 'error=', error,'ddiff=',ddiff
-     endif
-!RY: ****  END Manuel's way to do a Single Observation test 
+!         error = zero
+!         ratio_errors=zero
+!      else
+!        write (6,*) 'trim(station_id=',trim(station_id)
+!        write (6,*) 'error=', error,'ddiff=',ddiff
+!     endif
+!RY--END 
 
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
      if (nobskeep>0.and.luse_obsdiag) muse(i)=obsdiags(i_vis_ob_type,ibin)%tail%muse(nobskeep)
@@ -542,16 +547,15 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error (K**-1)
         rdiagbuf(16,ii) = errinv_final       ! final inverse observation error (K**-1)
  
-!!!!! RT: both visges and obs. need to do inverse computation
+!RY--BEGIN  do nltrconfine_inverse to both visges and obs. 
         call nltrconfine_inverse(visges,visgesout)
         tempvis=data(ivis,i)
         call nltrconfine_inverse(tempvis,visobout)
-
-        rdiagbuf(17,ii) = visobout            ! VIS observation (K)
-        rdiagbuf(18,ii) = ddiff        ! obs-ges used in analysis 
-        rdiagbuf(19,ii) = visobout-visgesout  ! obs-ges w/o bias correction (K) (future slot)
+!RY--END
+        rdiagbuf(17,ii) = visobout           ! VIS observation 
+        rdiagbuf(18,ii) = visobout-visgesout ! obs-ges in physical unit
+        rdiagbuf(19,ii) = visobout-visgesout ! obs-ges w/o bias correction (K) (future slot)
         rdiagbuf(20,ii) = rmiss_single       ! type of measurement
-
         rdiagbuf(21,ii) = data(idomsfc,i)    ! dominate surface type
         rdiagbuf(22,ii) = data(izz,i)        ! model terrain at observation location
         r_prvstg        = data(iprvd,i)

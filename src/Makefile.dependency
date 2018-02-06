@@ -297,7 +297,7 @@ ncepgfs_io.o : ncepgfs_io.f90 mpl_allreduce.o hybrid_ensemble_parameters.o obsmo
 ncepnems_io.o : ncepnems_io.f90 gsi_nstcouplermod.o gsi_4dvar.o obsmod.o egrid2agrid_mod.o general_specmod.o general_commvars_mod.o gsi_chemguess_mod.o ncepgfs_ghg.o cloud_efr_mod.o mpimod.o general_sub2grid_mod.o gsi_bundlemod.o gsi_metguess_mod.o guess_grids.o gridmod.o kinds.o constants.o 
 netcdf_mod.o : netcdf_mod.f90 mpeu_util.o 
 nlmsas_ad.o : nlmsas_ad.f90 constants.o kinds.o 
-nltrconfine.o  : kinds.o qcmod.o
+nltrconfine.o  : nltrconfine.f90 kinds.o qcmod.o
 normal_rh_to_q.o : normal_rh_to_q.f90 constants.o gridmod.o jfunc.o derivsmod.o kinds.o 
 nstio_module.o : nstio_module.f90 
 Nst_Var_ESMFMod.o : Nst_Var_ESMFMod.f90 kinds.o 
