@@ -186,6 +186,7 @@
 !   2016-07-19  W. Gu   - add isis to obs type
 !   2016-07-19  W. Gu   - include the dependence of the correlated obs errors on the surface types
 !   2016-07-19  kbathmann -move eigendecomposition for correlated obs here
+!   2016-10-23  zhu     - add cloudy radiance assimilation for ATMS
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -346,7 +347,6 @@
   real(r_kind) :: ptau5deriv, ptau5derivmax
   real(r_kind) :: clw_guess,clw_guess_retrieval
 ! real(r_kind) :: predchan6_save   
-  real(r_kind) :: cldeff_obs5
   real(r_kind),dimension(:,:), allocatable :: rsqrtinv
 
   integer(i_kind),dimension(nchanl):: ich,id_qc,ich_diag
@@ -797,6 +797,7 @@
 
 !       Interpolate model fields to observation location, call crtm and create jacobians
 !       Output both tsim and tsim_clr for allsky
+        tsim_clr=zero
         if (radmod%lcloud_fwd) then
            call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
                 tvp,qvp,clw_guess,prsltmp,prsitmp, &
@@ -1024,7 +1025,7 @@
            tbc(i)=tbc(i) - predbias(npred+2,i)
 
 !          Calculate cloud effect for QC
-           if (radmod%cld_effect) then
+           if (radmod%cld_effect .and. eff_area) then
               cldeff_obs(i) = tb_obs(i)-tsim_clr(i)    ! observed cloud delta (no bias correction)                
               ! need to apply bias correction ? need to think about this
               bias = zero
@@ -1151,10 +1152,9 @@
            else
               tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))
            end if
-           cldeff_obs5=cldeff_obs(5)   ! observed cloud effect for channel 5       
            call qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse(n),   &
               zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts, & 
-              pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs5,factch6, &
+              pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs,factch6, &
               cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp,radmod)                    
 
 !  If cloud impacted channels not used turn off predictor
@@ -1182,13 +1182,12 @@
 
            if (adp_anglebc) then
               tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))-predx(1,ich(1))
-              cldeff_obs5=cldeff_obs(6)   ! observed cloud effect for ATMS channel 6        
            else
               tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))
            end if
            call qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse(n),    &
               zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts, & 
-              pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs5,factch6, &
+              pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs,factch6, &
               cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp,radmod)                   
 
 !  ---------- GOES imager --------------
@@ -1313,9 +1312,10 @@
            if (varinv(i) > tiny_r_kind ) then
               m=ich(i)
               if(radmod%lcloud_fwd .and. eff_area) then 
-                 if (i <= 5 .or. i==15) then         
-!                if (radmod%lcloud4crtm(i)>=0) then         
-                    errf(i) = 3.00_r_kind*errf(i)    
+                 if (radmod%rtype =='amsua' .and. (i <= 5 .or. i==15)) then
+                    errf(i) = three*errf(i)
+                 else if (radmod%rtype =='atms' .and. (i <= 6 .or. i>=16)) then
+                    errf(i) = min(three*errf(i), 10.0_r_kind)
                  else
                     errf(i) = min(three*errf(i),ermax_rad(m))
                  endif
@@ -1339,8 +1339,9 @@
            end if
         end do
 
-        if(amsua .or. amsub .or. mhs .or. msu .or. hsb)then
+        if(amsua .or. atms .or. amsub .or. mhs .or. msu .or. hsb)then
            if(amsua)nlev=6
+           if(atms)nlev=7
            if(amsub .or. mhs)nlev=5
            if(hsb)nlev=4
            if(msu)nlev=4
@@ -1352,7 +1353,7 @@
                   (passive_bc .and. channel_passive))) then
                  kval=max(i-1,kval)
                  if(amsub .or. hsb .or. mhs)kval=nlev
-                 if(amsua .and. i <= 3)kval = zero
+                 if((amsua .or. atms) .and. i <= 3)kval = zero
               end if
            end do
            if(kval > 0)then
@@ -1363,6 +1364,12 @@
               if(amsua)then
                  varinv(15)=zero
                  if(id_qc(15) == igood_qc)id_qc(15)=ifail_interchan_qc
+              end if
+              if (atms) then
+                 varinv(16:18)=zero
+                 if(id_qc(16) == igood_qc)id_qc(16)=ifail_interchan_qc
+                 if(id_qc(17) == igood_qc)id_qc(17)=ifail_interchan_qc
+                 if(id_qc(18) == igood_qc)id_qc(18)=ifail_interchan_qc
               end if
            end if
         end if
