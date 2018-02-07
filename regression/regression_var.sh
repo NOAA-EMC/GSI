@@ -14,7 +14,8 @@ if [ "$#" = 8 ] ; then
   export gsiexec_contrl=$7
   export enkfexec_contrl=$8
   export fixgsi="$gsisrc/fix"
-  export scripts="$gsisrc/scripts"
+  export scripts="$gsisrc/regression"
+  export ush="$gsisrc/ush"
   export cmaketest="true"
   export clean="false"
   export ptmpName=`echo $builddir | sed -e "s/\//_/g"`
@@ -144,7 +145,8 @@ if [[ "$cmaketest" = "false" ]]; then
   export enkfexec_updat="$gsisrc/enkf/global_enkf"
   export enkfexec_contrl="$basedir/$contrl/src/enkf/global_enkf"
   export fixgsi="$basedir/$updat/fix"
-  export scripts="$basedir/$updat/scripts"
+  export scripts="$basedir/$updat/regression"
+  export ush="$basedir/$updat/ush"
 fi
 # Paths to tmpdir and savedir base on ptmp
 export tmpdir="$ptmp"
