@@ -4,12 +4,16 @@ case $machine in
 
 	Theia)
 	   sub_cmd="sub_zeus"
+    ;;
 	WCOSS)
 	   sub_cmd="sub_wcoss -a GDAS-T2O -d $PWD"
+    ;;
 	WCOSS_C)
 	   sub_cmd="sub_wcoss_c -a GDAS-T2O -d $PWD"
+    ;;
 	s4)
 	   sub_cmd="sub_s4"
+    ;;
     *) # EXIT out for unresolved machine
         echo "unknown $machine"
         exit 1
