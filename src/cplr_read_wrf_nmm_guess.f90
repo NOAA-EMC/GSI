@@ -1908,7 +1908,7 @@ contains
                         efr_ql(:,:,k,it),efr_qi(:,:,k,it),efr_qr(:,:,k,it),efr_qs(:,:,k,it),efr_qg(:,:,k,it),efr_qh(:,:,k,it))
                 end if
              end do
-             if (cold_start) call cloud_calc_gfs(ges_ql,ges_qi,clwmr,ges_q,ges_tv)
+             if (cold_start) call cloud_calc_gfs(ges_ql,ges_qi,clwmr,ges_q,ges_tv,.true.)
   
              call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
              if (iret==0) ges_cwmr=clwmr 

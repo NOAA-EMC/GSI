@@ -34,7 +34,7 @@ program getsigensmeanp_smooth
   integer,parameter :: window=1 ! cosine bell window for smoothing
 
   logical :: lexist,dosmooth,nemsio,sigio
-  logical,allocatable,dimension(:) :: notuv
+  logical,allocatable,dimension(:) :: notuv,smooth_fld
   character(nemsio_charkind8) :: dtype
   character(len=3) :: charnanal
   character(len=500) :: filenamein,filenameout,filenameouts,datapath,fileprefix,fname
@@ -216,10 +216,12 @@ program getsigensmeanp_smooth
         allocate(krecu(nlevs))
         allocate(krecv(nlevs))
         allocate(notuv(nrec ))
+        allocate(smooth_fld(nrec))
 
         krecu = 0
         krecv = 0
         notuv = .true.
+        smooth_fld = .true.
 
         rwork_mem = zero
         do n = 1,nrec
@@ -231,6 +233,15 @@ program getsigensmeanp_smooth
            if ( index(recnam(n),'vgrd') /= 0 ) then
               krecv(reclev(n)) = n
               notuv(n) = .false.
+           endif
+           if ( index(recnam(n),'dzdt') /= 0 ) then
+              smooth_fld(n) = .false.
+           endif
+           if ( index(recnam(n),'delz') /= 0 ) then
+              smooth_fld(n) = .false.
+           endif
+           if ( index(recnam(n),'dpres') /= 0 ) then
+              smooth_fld(n) = .false.
            endif
         enddo
         call nemsio_readrecv(gfile,'hgt','sfc',1,rwork_hgt,iret=iret)
@@ -334,8 +345,9 @@ program getsigensmeanp_smooth
            idrt = 4
 
 !          Smoothing loop over fields (first do scalar fields only)
+!$omp parallel do schedule(dynamic,1) private(n,rwork_lev,rwork_spc)
            do n = 1,nrec
-              if ( notuv(n) .and. smoothparm(reclev(n)) > 0 ) then
+              if ( smooth_fld(n) .and. notuv(n) .and. smoothparm(reclev(n)) > 0 ) then
                  rwork_lev = rwork_mem(:,n) - rwork_avg(:,n)
                  call sptez(0,ntrunc,idrt,lonb,latb,rwork_spc,rwork_lev,-1)
                  call smooth(rwork_spc,ntrunc,smoothfact(:,:,reclev(n)))
@@ -345,6 +357,7 @@ program getsigensmeanp_smooth
            enddo
 
 !          Smoothing loop over vector fields u and v
+!$omp parallel do schedule(dynamic,1) private(k,rwork_lev,rwork_lev2,rwork_spc,rwork_spc2)
            do k = 1,nlevs
               if ( smoothparm(k) > 0 ) then
                  rwork_lev  = rwork_mem(:,krecu(k)) - rwork_avg(:,krecu(k))
@@ -392,7 +405,7 @@ program getsigensmeanp_smooth
         if (allocated(rwork_mem)) deallocate(rwork_mem)
         if (allocated(rwork_avg)) deallocate(rwork_avg)
         if (allocated(rwork_hgt)) deallocate(rwork_hgt)
-        deallocate(krecu,krecv,notuv)
+        deallocate(krecu,krecv,notuv,smooth_fld)
      endif
 
 ! Jump here if more mpi processors than files to process

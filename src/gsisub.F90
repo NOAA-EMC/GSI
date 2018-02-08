@@ -124,7 +124,7 @@ subroutine gsisub(init_pass,last_pass)
 
 
 ! Get date, grid, and other information from model guess files
-  call gesinfo(mype)
+  call gesinfo
 
 #endif /* !HAVE_ESMF */
 
