@@ -64,7 +64,7 @@ if [[ "$machine" = "Theia" ]]; then
    export group="global"
    export queue="batch"
    if [[ "$cmaketest" = "false" ]]; then
-     export basedir="/scratch4/home/$LOGNAME/gsi"
+     export basedir="/scratch4/NCEPDEV/da/save/$LOGNAME/git/gsi"
    fi 
 
    export ptmp="/scratch4/NCEPDEV/stmp3/$LOGNAME/$ptmpName"
