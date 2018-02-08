@@ -1,4 +1,4 @@
-subroutine gesinfo(mype)
+subroutine gesinfo
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:  gesinfo                  get information from model guess files
@@ -33,7 +33,6 @@ subroutine gesinfo(mype)
 !                                 conversion from enthalpy w/ cpi is needed)
 !
 !   input argument list:
-!     mype - mpi task id
 !
 !   comments:
 !     The difference of time Info between operational GFS IO (gfshead%, sfc_head%),
@@ -70,7 +69,7 @@ subroutine gesinfo(mype)
   use obsmod, only: iadate,ianldate,time_offset,iadatemn
   use gsi_4dvar, only: ibdate, iedate, iadatebgn, iadateend, iwinbgn,time_4dvar
   use gsi_4dvar, only: nhr_assimilation,min_offset
-  use mpimod, only: npe
+  use mpimod, only: npe,mype
   use gridmod, only: idvc5,ak5,bk5,ck5,tref5,&
       regional,nsig,regional_fhr,regional_time,&
       wrf_nmm_regional,wrf_mass_regional,twodvar_regional,nems_nmmb_regional,cmaq_regional,&
@@ -89,7 +88,6 @@ subroutine gesinfo(mype)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind), intent(in   ) :: mype
 
 ! Declare local parameters
   integer(i_kind),parameter:: lunges=11
@@ -389,15 +387,18 @@ subroutine gesinfo(mype)
         if (gfshead%jcap/=jcap_b.and..not.regional ) then
            if (gfshead%jcap < 0) then
               ! FV3GFS write component does not write JCAP to the NEMSIO file
-              write(6,*)'GESINFO:  ***WARNING*** guess jcap inconsistent with namelist'
-              write(6,*)'GESINFO:  ***WARNING*** this is a FV3GFS NEMSIO file'
+              if ( mype == mype_out ) then
+                 write(6,*)'GESINFO:  ***WARNING*** guess jcap inconsistent with namelist'
+                 write(6,*)'GESINFO:  ***WARNING*** this is a FV3GFS NEMSIO file'
+              endif
               fatal = .false.
            else
-              write(6,*)'GESINFO:  ***ERROR*** guess jcap inconsistent with namelist'
+              if ( mype == mype_out ) &
+                 write(6,*)'GESINFO:  ***ERROR*** guess jcap inconsistent with namelist'
               fatal = .true.
            endif
-           write(6,*)'      guess jcap_b=',gfshead%jcap
-           write(6,*)'   namelist jcap_b=',jcap_b
+           if ( mype == mype_out ) &
+              write(6,*)'GESINFO:  guess jcap_b, namelist jcap_b = ',gfshead%jcap, jcap_b
         endif
         if ( fatal ) call stop2(85)
      endif

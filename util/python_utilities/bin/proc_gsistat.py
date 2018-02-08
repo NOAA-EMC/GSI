@@ -36,8 +36,16 @@ def get_data1(gsistat,varname,it=1,use='asm',typ='all'):
         if typ is not 'all':
             tmp2 = []
             if not isinstance(typ,list): typ = [typ]
+            indx = tmp.index.get_level_values('typ') == ''
             for t in typ:
-                tmp2.append(tmp.xs(t,level='typ',drop_level=False))
+                indx = np.ma.logical_or(indx,tmp.index.get_level_values('typ') == t)
+            tmp2.append(tmp.iloc[indx])
+            #unique_types = tmp.index.get_level_values('typ').unique()
+            #for t in typ:
+            #    if t in unique_types:
+            #        tmp2.append(tmp.xs(t,level='typ',drop_level=False))
+            #    else:
+            #        print '%s is not present in %s' % (t, i.analysis_date.strftime('%Y%m%d%H'))
             tmp = pd.concat(tmp2)
 
         if varname in ['ps']:
@@ -430,10 +438,15 @@ if __name__ == '__main__':
                 continue
             gsistat[expid].append(lgsi.GSIstat(fname,adate.to_datetime()))
 
-        ps[expid] = get_data1(gsistat[expid],'ps',it=1,use='asm',typ='all') # typ=[180,181]
-        uv[expid] = get_data1(gsistat[expid],'uv',it=1,use='asm',typ='all') # typ=[220] Radiosondes
-        t[expid] = get_data1(gsistat[expid],'t',it=1,use='asm',typ='all') # typ=[120]
-        q[expid] = get_data1(gsistat[expid],'q',it=1,use='asm',typ='all')
+        pstyp = [120,180,181,187]
+        uvtyp = [220,221,230,231,232,233,280,282]
+        ttyp = [120,130,131,132,133,180,182]
+        qtyp = [120,132,133,180,182]
+
+        ps[expid] = get_data1(gsistat[expid],'ps',it=1,use='asm',typ=pstyp)
+        uv[expid] = get_data1(gsistat[expid],'uv',it=1,use='asm',typ=uvtyp)
+        t[expid] = get_data1(gsistat[expid],'t',it=1,use='asm',typ=ttyp)
+        q[expid] = get_data1(gsistat[expid],'q',it=1,use='asm',typ=qtyp)
         minim[expid] = get_data2(gsistat[expid],'cost')
         oz[expid] = get_data2(gsistat[expid],'oz',select=[1],level=['it'])
         rad[expid] = get_data2(gsistat[expid],'rad',select=[1],level=['it'])

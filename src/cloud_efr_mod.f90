@@ -258,7 +258,7 @@ subroutine cloud_calc(p0d,q1d,t1d,clwmr,fice,frain,frimef,&
   return
 end subroutine cloud_calc
 
-subroutine cloud_calc_gfs(g_ql,g_qi,g_cwmr,g_q,g_tv) 
+subroutine cloud_calc_gfs(g_ql,g_qi,g_cwmr,g_q,g_tv,lower_bound) 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    cloud_calc_gfs     calculate cloud mixing ratio
@@ -284,19 +284,22 @@ subroutine cloud_calc_gfs(g_ql,g_qi,g_cwmr,g_q,g_tv)
   real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: g_cwmr ! mixing ratio of total condensates [Kg/Kg]
   real(r_kind),dimension(lat2,lon2,nsig),intent(in   ):: g_q    ! specific humidity [Kg/Kg]
   real(r_kind),dimension(lat2,lon2,nsig),intent(in   ):: g_tv   ! virtual temperature [K]
+  logical,intent(in):: lower_bound                                ! If .true., set lower bound to cloud
 
 ! Declare local variables
   integer(i_kind):: i,j,k
   real(r_kind)   :: work
 
 ! Set lower bound to cloud
-  do k=1,nsig
-     do j=1,lon2
-        do i=1,lat2
-           g_cwmr(i,j,k) =max(qcmin,g_cwmr(i,j,k))
+  if (lower_bound) then
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              g_cwmr(i,j,k) =max(qcmin,g_cwmr(i,j,k))
+           end do
         end do
      end do
-  end do
+  endif
 
 ! Initialize
   g_ql(:,:,:) = zero 
