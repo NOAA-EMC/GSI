@@ -9,7 +9,7 @@ date
 #############################
 # Source relevant config files
 #############################
-configs="base ecen"
+configs="base anal"
 if [ $RUN_ENVIR = "nco" ]; then
     config_path=$NWROOT/gfs.${gfs_ver}/parm/config
 else
@@ -25,7 +25,7 @@ done
 ##########################################
 # Source machine runtime environment
 ##########################################
-. $HOMEgfs/env/${machine}.env ecen
+. $HOMEgfs/env/${machine}.env anal
 status=$?
 [[ $status -ne 0 ]] && exit $status
 
@@ -33,7 +33,7 @@ status=$?
 ##############################################
 # Obtain unique process id (pid) and make temp directory
 ##############################################
-export job=${job:-"ecen"}
+export job=${job:-"anal"}
 export pid=${pid:-$$}
 export outid=${outid:-"LL$job"}
 export jobid=${jobid:-"${outid}.o${pid}"}
@@ -77,7 +77,7 @@ gcyc=$(echo $GDATE | cut -c9-10)
 # Set variables used in the exglobal script
 ##############################################
 export CDATE=${CDATE:-${PDY}${cyc}}
-export CDUMP=${CDUMP:-${RUN:-"gdas"}}
+export CDUMP=${CDUMP:-${RUN:-"gfs"}}
 if [ $RUN_ENVIR = "nco" ]; then
     export ROTDIR=${COMROOT:?}/$NET/$envir
 fi
@@ -87,77 +87,78 @@ fi
 # Begin JOB SPECIFIC work
 ##############################################
 
-export CASE=$CASE_ENKF
-
-
 export OPREFIX="${CDUMP}.t${cyc}z."
+export GPREFIX="gdas.t${gcyc}z."
+export GSUFFIX=".nemsio"
 export APREFIX="${CDUMP}.t${cyc}z."
 export ASUFFIX=".nemsio"
-export GPREFIX="${CDUMP}.t${gcyc}z."
-export GSUFFIX=".nemsio"
 
 
-# COMIN_GES, COMIN_GES_ENS and COMOUT are used in exglobal script
+if [ $RUN_ENVIR = "nco" ]; then
+    export COMIN=${COMIN:-$ROTDIR/$RUN.$PDY/$cyc}
+    export COMOUT=${COMOUT:-$ROTDIR/$RUN.$PDY/$cyc}
+else
+    export COMOUT="$ROTDIR/$CDUMP.$PDY/$cyc"
+fi
+mkdir -m 775 -p $COMOUT
+# COMIN_GES and COMIN_GES_ENS are used in exglobal script
 # TO DO: Map NCO's directory into these variables
-export COMIN_GES="$ROTDIR/$CDUMP.$gPDY/$gcyc"
-export COMIN_GES_ENS="$ROTDIR/enkf.$CDUMP.$gPDY/$gcyc"
-export COMOUT="$ROTDIR/enkf.$CDUMP.$PDY/$cyc"
+export COMIN_GES="$ROTDIR/gdas.$gPDY/$gcyc"
+export COMIN_GES_ENS="$ROTDIR/enkf.gdas.$gPDY/$gcyc"
 
 
-export ATMGES_ENSMEAN="$COMIN_GES_ENS/${GPREFIX}atmf006.ensmean$GSUFFIX"
-if [ ! -f $ATMGES_ENSMEAN ]; then
-    echo "FATAL ERROR: FILE MISSING: ATMGES_ENSMEAN = $ATMGES_ENSMEAN"
+export ATMGES="$COMIN_GES/${GPREFIX}atmf006${GSUFFIX}"
+if [ ! -f $ATMGES ]; then
+    echo "FATAL ERROR: FILE MISSING: ATMGES = $ATMGES"
     exit 1
 fi
 
 
-export LEVS=$($NEMSIOGET $ATMGES_ENSMEAN dimz | awk '{print $2}')
+export LEVS=$($NEMSIOGET $ATMGES dimz | awk '{print $2}')
 status=$?
 [[ $status -ne 0 ]] && exit $status
 
 
-# Guess Bias correction coefficients related to control
-export GBIAS=${COMIN_GES}/${GPREFIX}abias
-export GBIASPC=${COMIN_GES}/${GPREFIX}abias_pc
-export GBIASAIR=${COMIN_GES}/${GPREFIX}abias_air
-export GRADSTAT=${COMIN_GES}/${GPREFIX}radstat
+if [ $DOHYBVAR = "YES" ]; then
+    export ATMGES_ENSMEAN="$COMIN_GES_ENS/${GPREFIX}atmf006.ensmean$GSUFFIX"
+    if [ ! -f $ATMGES_ENSMEAN ]; then
+        echo "FATAL ERROR: FILE MISSING: ATMGES_ENSMEAN = $ATMGES_ENSMEAN"
+        exit 2
+    fi
+fi
 
 
-# Use the selected observations from ensemble mean
-export RUN_SELECT="NO"
-export USE_SELECT="YES"
-export SELECT_OBS="$COMOUT/${APREFIX}obsinput.ensmean"
+# Link observational data
+export PREPQC="${COMOUT}/${OPREFIX}prepbufr"
+export PREPQCPF="${COMOUT}/${OPREFIX}prepbufr.acft_profiles"
+[[ $DONST = "YES" ]] && export NSSTBF="${COMOUT}/${OPREFIX}nsstbufr"
 
 
-# Get ENSBEG/ENSEND from ENSGRP and NMEM_EOMGGRP
-export ENSEND=$((NMEM_EOMGGRP * ENSGRP))
-export ENSBEG=$((ENSEND - NMEM_EOMGGRP + 1))
+# Update surface fields with global_cycle
+export DOGCYCLE="YES"
 
 
 ###############################################################
 # Run relevant exglobal script
+
 env
 msg="HAS BEGUN on `hostname`"
 postmsg "$jlogfile" "$msg"
 $LOGSCRIPT
 
 
-${ENKFINVOBSSH:-$SCRgfs/exglobal_enkf_innovate_obs_fv3gfs.sh.ecf}
+${ANALYSISSH:-$SCRgfs/exglobal_analysis_fv3gfs.sh.ecf}
 status=$?
 [[ $status -ne 0 ]] && exit $status
 
 
-# Double check the status of members in ENSGRP
-EOMGGRP=$ROTDIR/enkf.${CDUMP}.$PDY/$cyc/eomg.grp${ENSGRP}
-npass=0
-if [ -f $EOMGGRP ]; then
-    npass=$(grep "PASS" $EOMGGRP | wc -l)
-fi
-echo "$npass/$NMEM_EOMGGRP members successfull in eomg.grp$ENSGRP"
-if [ $npass -ne $NMEM_EOMGGRP ]; then
-    echo "FATAL ERROR: Failed members in $ENSGRP, ABORT!"
-    cat $EOMGGRP
-    exit 99
+##############################################
+# Send Alerts
+##############################################
+if [ $SENDDBN = YES -a $RUN = gdas ] ; then
+    $DBNROOT/bin/dbn_alert MODEL GDAS_MSC_abias $job $COMOUT/${PREINP}abias
+    $DBNROOT/bin/dbn_alert MODEL GDAS_MSC_abias_pc $job $COMOUT/${PREINP}abias_pc
+    $DBNROOT/bin/dbn_alert MODEL GDAS_MSC_abias_air $job $COMOUT/${PREINP}abias_air
 fi
 
 
