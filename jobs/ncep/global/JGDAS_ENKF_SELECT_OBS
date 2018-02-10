@@ -1,83 +1,65 @@
 #!/bin/ksh
-set -xa
+set -x
+
+export RUN_ENVIR=${RUN_ENVIR:-"nco"}
 export PS4='$SECONDS + '
 date
 
-##############################################
-# Run config file to get input parameters
-##############################################
-if [ "$RUN_ENVIR" != nco ]
-then
-  . ${PARA_CONFIG:-/global/save/${LOGNAME}/para_gfs/pr4devb/para_config}
-  export userid=$LOGNAME
-fi
 
-##############################################
-# Specify NET and RUN Name and model
-##############################################
-export NET=${NET:-gfs}
-export RUN=${RUN:-enkf}
+#############################
+# Source relevant config files
+#############################
+configs="base anal eobs"
+if [ $RUN_ENVIR = "nco" ]; then
+    config_path=$NWROOT/gfs.${gfs_ver}/parm/config
+else
+    config_path=$EXPDIR
+fi
+for config in $configs; do
+    . $config_path/config.$config
+    status=$?
+    [[ $status -ne 0 ]] && exit $status
+done
+
+
+##########################################
+# Source machine runtime environment
+##########################################
+. $HOMEgfs/env/${machine}.env eobs
+status=$?
+[[ $status -ne 0 ]] && exit $status
+
 
 ##############################################
 # Obtain unique process id (pid) and make temp directory
 ##############################################
+export job=${job:-"eobs"}
 export pid=${pid:-$$}
 export outid=${outid:-"LL$job"}
 export jobid=${jobid:-"${outid}.o${pid}"}
-export DATA=$DATAROOT/${jobid}
+if [ $RUN_ENVIR = "nco" ]; then
+    export DATA="$DATAROOT/$jobid"
+else
+    export DATAROOT="$RUNDIR/$CDATE/$CDUMP"
+    export DATA="$DATAROOT/$job"
+fi
+[[ -d $DATA ]] && rm -rf $DATA
 mkdir -p $DATA
 cd $DATA
 
-##############################################
-# Determine Job Output Name on System
-##############################################
-export pgmout="OUTPUT.${pid}"
-export pgmerr=errfile
-export cycle=t${cyc}z
-
-##############################################
-# SENDECF  - Flag Events on ECF
-# SENDCOM  - Copy Files From TMPDIR to $COMOUT
-# SENDDBN  - Issue DBNet Client Calls
-# VERBOSE  - Specify Verbose Output in exglobal
-##############################################
-export SENDCOM=${SENDCOM:-NO}
-export SENDDBN=${SENDDBN:-YES}
-export SENDECF=${SENDECF:-YES}
-export SAVEGES=${SAVEGES:-NO}
-export RERUN=${RERUN:-NO}
-export VERBOSE=${VERBOSE:-YES}
 
 ##############################################
 # Define the Log File directory
 ##############################################
 export jlogfile=${jlogfile:-$COMROOT/logs/jlogfiles/jlogfile.${job}.${pid}}
 
-##############################################
-# Specify Execution Areas
-##############################################
-export HOMEgsm=${HOMEgsm:-$NWROOT/global_shared.$global_shared_ver}
-export EXECgsm=${EXECgsm:-$HOMEgsm/exec}
-export FIXgsm=${FIXgsm:-$HOMEgsm/fix/fix_am}
-export USHgsm=${USHgsm:-$HOMEgsm/ush}
-
-export HOMEgsi=${HOMEgsi:-$NWROOT/global_shared.$global_shared_ver}
-export EXECgsi=${EXECgsi:-$HOMEgsi/exec}
-export FIXgsi=${FIXgsi:-$HOMEgsi/fix}
-export SCRgsi=${SCRgsi:-$HOMEgsi/scripts}
-
-export HOMEgdas=${HOMEgdas:-$NWROOT/gdas.$gdas_ver}
-export PARMgdas=${PARMgdas:-$HOMEgdas/parm}
 
 ##############################################
-# Run setup to initialize working directory and utility scripts
+# Determine Job Output Name on System
 ##############################################
-ERRSCRIPT=${ERRSCRIPT:-err_chk}
-LOGSCRIPT=${LOGSCRIPT:-startmsg}
-export FILESTYLE=${FILESTYLE:-'L'}
+export pgmout="OUTPUT.${pid}"
+export pgmerr=errfile
 
-msg="HAS BEGUN on `hostname`"
-postmsg "$jlogfile" "$msg"
 
 ##############################################
 # Run setpdy and initialize PDY variables
@@ -85,64 +67,131 @@ postmsg "$jlogfile" "$msg"
 setpdy.sh
 . ./PDY
 
+
+GDATE=$($NDATE -$assim_freq $CDATE)
+gPDY=$(echo $GDATE | cut -c1-8)
+gcyc=$(echo $GDATE | cut -c9-10)
+
+
+##############################################
+# Set variables used in the exglobal script
+##############################################
 export CDATE=${CDATE:-${PDY}${cyc}}
-export GDATE=`$NDATE -06 $CDATE`
-export PDYges=`echo $GDATE | cut -c1-8`
-export CYCges=`echo $GDATE | cut -c9-10`
+export CDUMP=${CDUMP:-${RUN:-"gdas"}}
+if [ $RUN_ENVIR = "nco" ]; then
+    export ROTDIR=${COMROOT:?}/$NET/$envir
+fi
+
 
 ##############################################
-# Define COM directories
+# Begin JOB SPECIFIC work
 ##############################################
-export COM_IN=${COM_IN:-$COMROOT/${NET}/${envir}}
-export COM_OUT=${COM_OUT:-$COMROOT/${NET}/${envir}}
-export COMIN=$COM_IN/${RUN}.${PDY}/$cyc
-export COMOUT=$COM_OUT/${RUN}.${PDY}/$cyc
-export COMINGDAS=${COMINGDAS:-$COM_IN/gdas.${PDY}}
-export COMINGES=$COM_IN/${RUN}.${PDYges}/$CYCges
-mkdir -m 775 -p $COMOUT
 
-##############################################
-# Define GES directories
-##############################################
-export gespath=${gespath:-$GESROOT/${envir}}
-export GESOUT=$gespath/gdas.$PDY
-mkdir -m 775 -p $GESOUT
+export CASE=$CASE_ENKF
 
-##############################################
-# Execute parm file
-##############################################
-. ${PARMENKF_SELECT_OBS:-$PARMgdas/gdas_enkf_select_obs.parm}
 
-##############################################
-# WCOSS environment settings
-##############################################
-export machine=${machine:-WCOSS}
-export APRUN=${APRUN:-'mpirun.lsf'}
+export OPREFIX="${CDUMP}.t${cyc}z."
+export APREFIX="${CDUMP}.t${cyc}z."
+export ASUFFIX=".nemsio"
+export GPREFIX="${CDUMP}.t${gcyc}z."
+export GSUFFIX=".ensmean.nemsio"
 
+
+# COMIN_GES, COMIN_ANL COMIN_GES_ENS, and COMOUT  are used in exglobal script
+# TO DO: Map NCO's directory into these variables
+COMIN_GES_CTL="$ROTDIR/$CDUMP.$gPDY/$gcyc"
+export COMIN_ANL="$ROTDIR/$CDUMP.$PDY/$cyc"
+export COMIN_GES_ENS="$ROTDIR/enkf.$CDUMP.$gPDY/$gcyc"
+export COMIN_GES=$COMIN_GES_ENS
+export COMOUT="$ROTDIR/enkf.$CDUMP.$PDY/$cyc"
+
+
+export ATMGES_ENSMEAN="$COMIN_GES_ENS/${GPREFIX}atmf006$GSUFFIX"
+if [ ! -f $ATMGES_ENSMEAN ]; then
+    echo "FATAL ERROR: FILE MISSING: ATMGES_ENSMEAN = $ATMGES_ENSMEAN"
+    exit 1
+fi
+
+export LEVS=$($NEMSIOGET $ATMGES_ENSMEAN dimz | awk '{print $2}')
+status=$?
+[[ $status -ne 0 ]] && exit $status
+
+# Link observational data
+export PREPQC="$COMIN_ANL/${OPREFIX}prepbufr"
+export PREPQCPF="$COMIN_ANL/${OPREFIX}prepbufr.acft_profiles"
+
+# Guess Bias correction coefficients related to control
+export GBIAS=${COMIN_GES_CTL}/${GPREFIX}abias
+export GBIASPC=${COMIN_GES_CTL}/${GPREFIX}abias_pc
+export GBIASAIR=${COMIN_GES_CTL}/${GPREFIX}abias_air
+export GRADSTAT=${COMIN_GES_CTL}/${GPREFIX}radstat
+
+# Bias correction coefficients related to ensemble mean
+export ABIAS="$COMOUT/${APREFIX}abias.ensmean"
+export ABIASPC="$COMOUT/${APREFIX}abias_pc.ensmean"
+export ABIASAIR="$COMOUT/${APREFIX}abias_air.ensmean"
+export ABIASe="$COMOUT/${APREFIX}abias_int.ensmean"
+
+# Diagnostics related to ensemble mean
+export GSISTAT="$COMOUT/${APREFIX}gsistat.ensmean"
+export CNVSTAT="$COMOUT/${APREFIX}cnvstat.ensmean"
+export OZNSTAT="$COMOUT/${APREFIX}oznstat.ensmean"
+export RADSTAT="$COMOUT/${APREFIX}radstat.ensmean"
+
+# Select observations based on ensemble mean
+export RUN_SELECT="YES"
+export USE_SELECT="NO"
+export SELECT_OBS="$COMOUT/${APREFIX}obsinput.ensmean"
+
+export DIAG_SUFFIX="_ensmean"
+
+# GSI namelist options specific to eobs
+export SETUP_INVOBS="passive_bc=.false."
+
+# Ensure clean stat tarballs for ensemble mean
+for fstat in $CNVSTAT $OZNSTAT $RADSTAT; do
+    [[ -f $fstat ]] && rm -f $fstat
+done
+
+
+###############################################################
+# Run relevant exglobal script
 env
+msg="HAS BEGUN on `hostname`"
+postmsg "$jlogfile" "$msg"
+$LOGSCRIPT
 
-##############################################
-# Execute the script
-${ANALYSISSH:-$SCRgsi/exglobal_analysis.sh.ecf}
-##############################################
 
-##############################################
-# Final processing
-##############################################
+${INVOBSSH:-$SCRgfs/exglobal_innovate_obs_fv3gfs.sh.ecf}
+status=$?
+[[ $status -ne 0 ]] && exit $status
+
+
 if [ $SENDDBN = YES ] ; then
    $DBNROOT/bin/dbn_alert MODEL ENKF1_MSC_gsistat $job $COMOUT/gsistat_${CDATE}_ensmean
    $DBNROOT/bin/dbn_alert MODEL GFS_ENKF $job $SFCANL
 fi
 
+
+##############################################
+# End JOB SPECIFIC work
+##############################################
+
+##############################################
+# Final processing
+##############################################
 cat $pgmout
+
 
 msg="ENDED NORMALLY."
 postmsg "$jlogfile" "$msg"
 
-##############################################
+
+##########################################
 # Remove the Temporary working directory
-##############################################
+##########################################
 cd $DATAROOT
-if [ ${KEEPDATA:-NO} != YES ] ; then rm -rf $DATA ; fi
+[[ $KEEPDATA = "NO" ]] && rm -rf $DATA
 
 date
+exit 0
