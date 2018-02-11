@@ -28,9 +28,9 @@ fi
 pwd=$(pwd)
 export NWPROD=${NWPROD:-$pwd}
 export HOMEgfs=${HOMEgfs:-$NWPROD}
-export BASE_GSI=${BASE_GSI:-$NWPROD}
-FIXgsi=${FIXgsi:-$BASE_GSI/fix}
-GSIEXEC=${GSIEXEC:-$BASE_GSI/exec/global_gsi}
+export HOMEgsi=${HOMEgsi:-$NWPROD}
+FIXgsi=${FIXgsi:-$HOMEgsi/fix}
+GSIEXEC=${GSIEXEC:-$HOMEgsi/exec/global_gsi}
 export DATA=${DATA:-$pwd/analysis.$$}
 DMPDIR=${DMPDIR:-$NWPROD}
 export COMIN=${COMIN:-$pwd}
@@ -89,7 +89,7 @@ lupp=${lupp:-".true."}
 # Dependent Scripts and Executables
 NTHREADS_CALCINC=${NTHREADS_CALCINC:-1}
 APRUN_CALCINC=${APRUN_CALCINC:-${APRUN:-""}}
-CALCINCEXEC=${CALCINCEXEC:-$BASE_GSI/exec/calc_increment_ens.x}
+CALCINCEXEC=${CALCINCEXEC:-$HOMEgsi/exec/calc_increment_ens.x}
 
 # OPS flags
 RUN=${RUN:-""}
