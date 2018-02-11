@@ -28,8 +28,8 @@ fi
 # Directories.
 pwd=$(pwd)
 export NWPROD=${NWPROD:-$pwd}
-export BASE_GSM=${BASE_GSM:-$NWPROD}
-export FIX_DIR=${FIX_DIR:-$BASE_GSM/fix}
+export HOMEgfs=${HOMEgfs:-$NWPROD}
+export FIX_DIR=${FIX_DIR:-$HOMEgfs/fix}
 export FIX_AM=${FIX_AM:-$FIX_DIR/fix_am}
 export DATA=${DATA:-$pwd/enkf_fcst.$$}
 export ROTDIR=${ROTDIR:-$pwd}
@@ -42,7 +42,7 @@ export ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
 export NDATE=${NDATE:-/$NWPROD/util/exec/ndate}
 
 # Scripts.
-FORECASTSH=${FORECASTSH:-$BASE_GSM/scripts/exglobal_fcst_nemsfv3gfs.sh.ecf}
+FORECASTSH=${FORECASTSH:-$HOMEgfs/scripts/exglobal_fcst_nemsfv3gfs.sh.ecf}
 
 # Enemble group, begin and end
 ENSGRP=${ENSGRP:-1}
@@ -50,11 +50,11 @@ ENSBEG=${ENSBEG:-1}
 ENSEND=${ENSEND:-1}
 
 # Model builds
-export FCSTEXECDIR=${FCSTEXECDIR:-$BASE_GSM/sorc/fv3gfs.fd/BUILD/bin}
+export FCSTEXECDIR=${FCSTEXECDIR:-$HOMEgfs/sorc/fv3gfs.fd/BUILD/bin}
 export FCSTEXEC=${FCSTEXEC:-fv3gfs.x}
 
 # Get DA specific diag table.
-export PARM_FV3DIAG=${PARM_FV3DIAG:-$BASE_GSM/parm/parm_fv3diag}
+export PARM_FV3DIAG=${PARM_FV3DIAG:-$HOMEgfs/parm/parm_fv3diag}
 export DIAG_TABLE=${DIAG_TABLE_ENKF:-${DIAG_TABLE:-$PARM_FV3DIAG/diag_table_da}}
 
 # Cycling and forecast hour specific parameters
@@ -68,9 +68,9 @@ RERUN_EFCSGRP=${RERUN_EFCSGRP:-"YES"}
 SENDECF=${SENDECF:-"NO"}
 
 # REGRID_NEMSIO_SH specific (To be removed later)
-REGRID_NEMSIO_SH=${REGRID_NEMSIO_SH:-$BASE_GSM/ush/fv3gfs_regrid_nemsio.sh}
-export REGRID_NEMSIO_EXEC=${REGRID_NEMSIO_EXEC:-$BASE_GSM/exec/regrid_nemsio}
-export REGRID_NEMSIO_TBL=${REGRID_NEMSIO_TBL:-$BASE_GSM/parm/parm_fv3diag/variable_table_da.txt}
+REGRID_NEMSIO_SH=${REGRID_NEMSIO_SH:-$HOMEgfs/ush/fv3gfs_regrid_nemsio.sh}
+export REGRID_NEMSIO_EXEC=${REGRID_NEMSIO_EXEC:-$HOMEgfs/exec/regrid_nemsio}
+export REGRID_NEMSIO_TBL=${REGRID_NEMSIO_TBL:-$HOMEgfs/parm/parm_fv3diag/variable_table_da.txt}
 
 ################################################################################
 # Preprocessing
