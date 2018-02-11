@@ -138,6 +138,10 @@ export PREPQCPF="${COMOUT}/${OPREFIX}prepbufr.acft_profiles"
 export DOGCYCLE="YES"
 
 
+# Generate Gaussian surface analysis
+export DOGAUSFCANL="YES"
+
+
 ###############################################################
 # Run relevant exglobal script
 
