@@ -28,7 +28,7 @@ fi
 pwd=$(pwd)
 export NWPROD=${NWPROD:-$pwd}
 export HOMEgfs=${HOMEgfs:-$NWPROD}
-BASE_GSI=${BASE_GSI:-$NWPROD}
+HOMEgsi=${HOMEgsi:-$NWPROD}
 export DATA=${DATA:-$pwd}
 COMIN=${COMIN:-$pwd}
 COMIN_ENS=${COMIN_ENS:-$pwd}
@@ -51,10 +51,10 @@ NEMSIOGET=${NEMSIOGET:-${NWPROD}/exec/nemsio_get}
 # Scripts
 
 # Executables.
-GETATMENSMEANEXEC=${GETATMENSMEANEXEC:-$BASE_GSI/exec/getsigensmeanp_smooth.x}
-GETSFCENSMEANEXEC=${GETSFCENSMEANEXEC:-$BASE_GSI/exec/getsfcensmeanp.x}
-RECENATMEXEC=${RECENATMEXEC:-$BASE_GSI/exec/recentersigp.x}
-CALCINCEXEC=${CALCINCEXEC:-$BASE_GSI/exec/calc_increment_ens.x}
+GETATMENSMEANEXEC=${GETATMENSMEANEXEC:-$HOMEgsi/exec/getsigensmeanp_smooth.x}
+GETSFCENSMEANEXEC=${GETSFCENSMEANEXEC:-$HOMEgsi/exec/getsfcensmeanp.x}
+RECENATMEXEC=${RECENATMEXEC:-$HOMEgsi/exec/recentersigp.x}
+CALCINCEXEC=${CALCINCEXEC:-$HOMEgsi/exec/calc_increment_ens.x}
 
 # Files.
 OPREFIX=${OPREFIX:-""}
