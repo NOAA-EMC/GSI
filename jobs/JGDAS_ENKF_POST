@@ -64,8 +64,14 @@ export pgmerr=errfile
 ##############################################
 # Run setpdy and initialize PDY variables
 ##############################################
-setpdy.sh
-. ./PDY
+if [ $RUN_ENVIR = "nco" ]; then
+    export cycle="t${cyc}z"
+    setpdy.sh
+    . ./PDY
+else
+    export PDY=$(echo $CDATE | cut -c1-8)
+    export cyc=$(echo $CDATE | cut -c9-10)
+fi
 
 
 ##############################################
