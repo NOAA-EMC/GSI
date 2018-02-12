@@ -74,8 +74,7 @@ export REGRID_NEMSIO_TBL=${REGRID_NEMSIO_TBL:-$HOMEgfs/parm/parm_fv3diag/variabl
 
 ################################################################################
 # Preprocessing
-[[ -d $DATA ]] && rm -rf $DATA
-mkdir -p $DATA
+if [ ! -d $DATA ]; then mkdir -p $DATA; fi
 cd $DATA || exit 99
 DATATOP=$DATA
 

@@ -67,8 +67,7 @@ CHEM_INVOBS=${CHEM_INVOBS:-""}
 
 ################################################################################
 #  Preprocessing
-[[ -d $DATA ]] && rm -rf $DATA
-mkdir -p $DATA
+if [ ! -d $DATA ]; then mkdir -p $DATA; fi
 cd $DATA || exit 8
 
 [[ ! -d $COMOUT ]] && mkdir -p $COMOUT
