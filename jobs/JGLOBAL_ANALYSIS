@@ -69,11 +69,6 @@ setpdy.sh
 . ./PDY
 
 
-GDATE=$($NDATE -$assim_freq $CDATE)
-gPDY=$(echo $GDATE | cut -c1-8)
-gcyc=$(echo $GDATE | cut -c9-10)
-
-
 ##############################################
 # Set variables used in the exglobal script
 ##############################################
@@ -87,6 +82,11 @@ fi
 ##############################################
 # Begin JOB SPECIFIC work
 ##############################################
+
+GDATE=$($NDATE -$assim_freq $CDATE)
+gPDY=$(echo $GDATE | cut -c1-8)
+gcyc=$(echo $GDATE | cut -c9-10)
+
 
 export OPREFIX="${CDUMP}.t${cyc}z."
 export GPREFIX="gdas.t${gcyc}z."
@@ -145,7 +145,6 @@ export DOGAUSFCANL=${DOGAUSFCANL:-"YES"}
 
 ###############################################################
 # Run relevant exglobal script
-
 env
 msg="HAS BEGUN on `hostname`"
 postmsg "$jlogfile" "$msg"
