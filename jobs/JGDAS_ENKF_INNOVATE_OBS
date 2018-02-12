@@ -9,7 +9,7 @@ date
 #############################
 # Source relevant config files
 #############################
-configs="base ecen"
+configs="base anal eobs"
 if [ $RUN_ENVIR = "nco" ]; then
     config_path=$NWROOT/gfs.${gfs_ver}/parm/config
 else
@@ -25,7 +25,7 @@ done
 ##########################################
 # Source machine runtime environment
 ##########################################
-. $HOMEgfs/env/${machine}.env ecen
+. $HOMEgfs/env/${machine}.env eobs
 status=$?
 [[ $status -ne 0 ]] && exit $status
 

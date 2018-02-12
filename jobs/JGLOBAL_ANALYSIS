@@ -136,11 +136,11 @@ export PREPQCPF="${COMOUT}/${OPREFIX}prepbufr.acft_profiles"
 
 
 # Update surface fields with global_cycle
-export DOGCYCLE="YES"
+export DOGCYCLE=${DOGCYCLE:-"YES"}
 
 
 # Generate Gaussian surface analysis
-export DOGAUSFCANL="YES"
+export DOGAUSFCANL=${DOGAUSFCANL:-"YES"}
 
 
 ###############################################################

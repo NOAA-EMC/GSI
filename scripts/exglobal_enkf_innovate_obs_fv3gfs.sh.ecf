@@ -64,8 +64,7 @@ export SELECT_OBS=${SELECT_OBS:-${COMOUT}/${APREFIX}obsinput}
 
 ################################################################################
 # Preprocessing
-[[ -d $DATA ]] && rm -rf $DATA
-mkdir -p $DATA
+if [ ! -d $DATA ]; then mkdir -p $DATA; fi
 cd $DATA || exit 99
 DATATOP=$DATA
 
