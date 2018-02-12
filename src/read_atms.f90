@@ -365,7 +365,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      if(ierr /= 0) cycle ears_db_loop
 
      call openbf(lnbufr,'IN',lnbufr)
-     hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH SELV'
+     hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH HMSL'
      hdr2b ='SAZA SOZA BEARAZ SOLAZI'
    
 !    Loop to read bufr file
@@ -443,7 +443,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
            if(ifov <= 48)    lza=-lza
 
            panglr=(start+float(ifov-1)*step)*deg2rad
-           satellite_height=bfr2bhdr(13)
+           satellite_height=bfr1bhdr(13)
 !          Ensure orbit height is reasonable
            if (satellite_height < 780000.0_r_kind .OR. &
               satellite_height > 900000.0_r_kind) satellite_height = 824000.0_r_kind
