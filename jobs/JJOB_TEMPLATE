@@ -10,11 +10,7 @@ date
 # Source relevant config files
 #############################
 configs="base ecen"
-if [ $RUN_ENVIR = "nco" ]; then
-    config_path=$NWROOT/gfs.${gfs_ver}/parm/config
-else
-    config_path=$EXPDIR
-fi
+config_path=${EXPDIR:-$NWROOT/gfs.${gfs_ver}/parm/config}
 for config in $configs; do
     . $config_path/config.$config
     status=$?
@@ -28,6 +24,14 @@ done
 . $HOMEgfs/env/${machine}.env ecen
 status=$?
 [[ $status -ne 0 ]] && exit $status
+
+
+##############################################
+# Run setpdy and initialize PDY variables
+##############################################
+export cycle="t${cyc}z"
+setpdy.sh
+. ./PDY
 
 
 ##############################################
@@ -59,14 +63,6 @@ export jlogfile=${jlogfile:-$COMROOT/logs/jlogfiles/jlogfile.${job}.${pid}}
 ##############################################
 export pgmout="OUTPUT.${pid}"
 export pgmerr=errfile
-
-
-##############################################
-# Run setpdy and initialize PDY variables
-##############################################
-export cycle="t${cyc}z"
-setpdy.sh
-. ./PDY
 
 
 ##############################################
