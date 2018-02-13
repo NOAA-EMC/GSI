@@ -34,6 +34,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !  2016-10-20  collard - fix to allow monitoring and limited assimilation of spectra when key 
 !                         channels are missing.
 !  2016-10-25  zhu - add changes for assimilating radiances affected by non-precipitating clouds
+!  2018-02-05  collard - get orbit height from BUFR file
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -76,7 +77,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
       use_edges,radedge1,radedge2,nusis,radstart,radstep,newpc4pred,maxscan
   use radinfo, only: adp_anglebc
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
-  use constants, only: deg2rad,zero,one,two,three,rad2deg,r60inv,r100
+  use constants, only: deg2rad,zero,one,two,three,rad2deg,r60inv,r100,rearth_equator
   use crtm_module, only : max_sensor_zenith_angle
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
@@ -110,7 +111,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 ! Declare local parameters
 
   character(8),parameter:: fov_flag="crosstrk"
-  integer(i_kind),parameter:: n1bhdr=12
+  integer(i_kind),parameter:: n1bhdr=13
   integer(i_kind),parameter:: n2bhdr=4
   integer(i_kind),parameter:: maxobs = 800000
   integer(i_kind),parameter:: max_chanl = 22
@@ -120,8 +121,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   ! The next two are one minute in hours
   real(r_kind),parameter:: one_minute=0.01666667_r_kind
   real(r_kind),parameter:: minus_one_minute=-0.01666667_r_kind
-  real(r_kind),parameter:: rato=1.1363987_r_kind ! ratio of satellite height to 
-                                                 ! distance from Earth's centre
 
 ! Declare local variables
   logical outside,iuse,assim,valid
@@ -154,6 +153,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   real(r_kind),dimension(0:3):: ts
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
+  real(r_kind) :: satellite_height, rato
 
   real(r_kind) pred
   real(r_kind) dlat,panglr,dlon,tdiff
@@ -365,7 +365,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      if(ierr /= 0) cycle ears_db_loop
 
      call openbf(lnbufr,'IN',lnbufr)
-     hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH'
+     hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH HMSL'
      hdr2b ='SAZA SOZA BEARAZ SOLAZI'
    
 !    Loop to read bufr file
@@ -443,6 +443,11 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
            if(ifov <= 48)    lza=-lza
 
            panglr=(start+float(ifov-1)*step)*deg2rad
+           satellite_height=bfr1bhdr(13)
+!          Ensure orbit height is reasonable
+           if (satellite_height < 780000.0_r_kind .OR. &
+              satellite_height > 900000.0_r_kind) satellite_height = 824000.0_r_kind
+           rato = one + satellite_height/rearth_equator
            lzaest = asin(rato*sin(panglr))
 
            if(abs(lza)*rad2deg > MAX_SENSOR_ZENITH_ANGLE) then
