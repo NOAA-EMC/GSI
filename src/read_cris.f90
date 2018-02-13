@@ -694,7 +694,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          the surface channel is fixed and set earlier in the code (501).
 
              radiance = allchan(1,sfc_channel_index) * r1000    ! Conversion from W to mW
-             call crtm_planck_temperature(sensorindex,sfc_channel,radiance,temperature(sfc_channel_index))  ! radiance to BT calculation
+             call crtm_planck_temperature(sensorindex,sfc_channel_index,radiance,temperature(sfc_channel_index))  ! radiance to BT calculation
              if (temperature(sfc_channel_index) > tbmin .and. temperature(sfc_channel_index) < tbmax ) then
                 if ( tsavg*0.98_r_kind <= temperature(sfc_channel_index)) then   ! 0.98 is a crude estimate of the surface emissivity
                    clear = .true.
