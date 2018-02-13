@@ -27,14 +27,6 @@ status=$?
 
 
 ##############################################
-# Run setpdy and initialize PDY variables
-##############################################
-export cycle="t${cyc}z"
-setpdy.sh
-. ./PDY
-
-
-##############################################
 # Obtain unique process id (pid) and make temp directory
 ##############################################
 export job=${job:-"eobs"}
@@ -44,12 +36,20 @@ export jobid=${jobid:-"${outid}.o${pid}"}
 if [ $RUN_ENVIR = "nco" ]; then
     export DATA="$DATAROOT/$jobid"
 else
-    export DATAROOT="$RUNDIR/$PDY$cyc/$CDUMP"
+    export DATAROOT="$RUNDIR/$CDATE/$CDUMP"
     export DATA="$DATAROOT/$job"
 fi
 [[ -d $DATA ]] && rm -rf $DATA
 mkdir -p $DATA
 cd $DATA
+
+
+##############################################
+# Run setpdy and initialize PDY variables
+##############################################
+export cycle="t${cyc}z"
+setpdy.sh
+. ./PDY
 
 
 ##############################################
