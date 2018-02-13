@@ -33,7 +33,7 @@ status=$?
 ##############################################
 # Obtain unique process id (pid) and make temp directory
 ##############################################
-export job=${job:-"ecen"}
+export job=${job:-"eomg.grp$ENSGRP"}
 export pid=${pid:-$$}
 export outid=${outid:-"LL$job"}
 export jobid=${jobid:-"${outid}.o${pid}"}
