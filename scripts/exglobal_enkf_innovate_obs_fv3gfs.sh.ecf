@@ -27,7 +27,7 @@ fi
 # Directories.
 pwd=$(pwd)
 export NWPROD=${NWPROD:-$pwd}
-export BASE_GSI=${BASE_GSI:-$NWPROD}
+export HOMEgsi=${HOMEgsi:-$NWPROD}
 export COMIN=${COMIN:-$pwd}
 export COMIN_GES_ENS=${COMIN_GES_ENS:-$COMIN}
 export COMOUT=${COMOUT:-$COMIN}
@@ -40,8 +40,8 @@ export NLN=${NLN:-"/bin/ln -sf"}
 export ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
 
 # Scripts.
-INVOBSSH=${INVOBSSH:-$BASE_GSI/scripts/exglobal_innovate_obs_fv3gfs.sh.ecf}
-export ANALYSISSH=${ANALYSISSH:-$BASE_GSI/scripts/exglobal_analysis_fv3gfs.sh.ecf}
+INVOBSSH=${INVOBSSH:-$HOMEgsi/scripts/exglobal_innovate_obs_fv3gfs.sh.ecf}
+export ANALYSISSH=${ANALYSISSH:-$HOMEgsi/scripts/exglobal_analysis_fv3gfs.sh.ecf}
 
 # Enemble group, begin and end
 ENSGRP=${ENSGRP:-1}
@@ -64,8 +64,7 @@ export SELECT_OBS=${SELECT_OBS:-${COMOUT}/${APREFIX}obsinput}
 
 ################################################################################
 # Preprocessing
-[[ -d $DATA ]] && rm -rf $DATA
-mkdir -p $DATA
+if [ ! -d $DATA ]; then mkdir -p $DATA; fi
 cd $DATA || exit 99
 DATATOP=$DATA
 
