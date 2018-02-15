@@ -2222,6 +2222,7 @@ subroutine qc_avhrr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 !
 ! program history log:
 !     2011-04-08  li modified from qc_irsnd
+!     2018-02-15  li : Zeroing dtb since it used outside the loop in which is defined
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -2375,6 +2376,10 @@ subroutine qc_avhrr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
   lcloud=0
   cld=zero
   cldp=r10*prsltmp(1)
+!
+! Zeroing dtb since it used outside the loop in which is defined
+!
+  dtb=zero
 
   do k=1,nsig
      if(prsltmp(k) > trop5)then
