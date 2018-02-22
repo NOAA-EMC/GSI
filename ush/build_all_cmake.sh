@@ -1,19 +1,12 @@
 #!/bin/sh
 
-target=$1
-if [ $# -ne 1 ]; then
-    echo "Usage: $0 wcoss or wcoss_c/cray or theia"
-    exit
-fi
-
-set -x -e
+set -ex
 
 cd ..
-dir_root=$(pwd)
-dir_util=$dir_root/util
-dir_scripts=$dir_root/scripts
-dir_modules=$dir_root/modulefiles
-[ -d $dir_root/exec ] || mkdir -p $dir_root/exec
+pwd=$(pwd)
+
+target=$1
+dir_root=${2:-$pwd}
 
 if [ $target = wcoss ]; then
     . /usrx/local/Modules/3.2.10/init/sh
@@ -29,6 +22,13 @@ else
     exit 9
 fi
 
+dir_modules=$dir_root/modulefiles
+if [ ! -d $dir_modules ]; then
+    echo "modulefiles does not exist in $dir_modules"
+    exit 10
+fi
+[ -d $dir_root/exec ] || mkdir -p $dir_root/exec
+
 rm -rf $dir_root/build
 mkdir -p $dir_root/build
 cd $dir_root/build
@@ -43,6 +43,6 @@ module list
 
 cmake -DBUILD_UTIL=ON ..
 
-make -j 6
+make -j 8
 
 exit
