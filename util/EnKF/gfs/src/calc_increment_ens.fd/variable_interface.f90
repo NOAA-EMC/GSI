@@ -111,92 +111,112 @@ contains
     !=====================================================================
 
     ! Check local variable and proceed accordingly
-    
+
     if(trim(adjustl(grid%var_name)) .eq. 'psfc') then
-       
+
        ! Define local variables
-       
+
        grid%nems_name   = 'pres'
        grid%nems_levtyp = 'sfc'
-       
+
     end if ! if(trim(adjustl(grid%var_name)) .eq. 'psfc')
 
     ! Check local variable and proceed accordingly
-    
+
     if(trim(adjustl(grid%var_name)) .eq. 'dpres') then
-       
+
        ! Define local variables
-       
+
        grid%nems_name   = 'dpres'
        grid%nems_levtyp = 'mid layer'
-       
+
     end if ! if(trim(adjustl(grid%var_name)) .eq. 'dpres')
 
     ! Check local variable and proceed accordingly
-    
-    if(trim(adjustl(grid%var_name)) .eq. 'ugrd') then
-       
+
+    if(trim(adjustl(grid%var_name)) .eq. 'delz') then
+
        ! Define local variables
-       
+
+       grid%nems_name   = 'delz'
+       grid%nems_levtyp = 'mid layer'
+
+    end if ! if(trim(adjustl(grid%var_name)) .eq. 'delz')
+
+    ! Check local variable and proceed accordingly
+
+    if(trim(adjustl(grid%var_name)) .eq. 'ugrd') then
+
+       ! Define local variables
+
        grid%nems_name   = 'ugrd'
        grid%nems_levtyp = 'mid layer'
-       
+
     end if ! if(trim(adjustl(grid%var_name)) .eq. 'ugrd')
 
     ! Check local variable and proceed accordingly
-    
+
     if(trim(adjustl(grid%var_name)) .eq. 'vgrd') then
-       
+
        ! Define local variables
-       
+
        grid%nems_name   = 'vgrd'
        grid%nems_levtyp = 'mid layer'
-       
+
     end if ! if(trim(adjustl(grid%var_name)) .eq. 'vgrd')
 
     ! Check local variable and proceed accordingly
-    
+
     if(trim(adjustl(grid%var_name)) .eq. 'spfh') then
-       
+
        ! Define local variables
-       
+
        grid%nems_name   = 'spfh'
        grid%nems_levtyp = 'mid layer'
-       
+
     end if ! if(trim(adjustl(grid%var_name)) .eq. 'spfh')
 
     ! Check local variable and proceed accordingly
-    
+
     if(trim(adjustl(grid%var_name)) .eq. 'tmp') then
-       
+
        ! Define local variables
-       
+
        grid%nems_name   = 'tmp'
        grid%nems_levtyp = 'mid layer'
-       
+
     end if ! if(trim(adjustl(grid%var_name)) .eq. 'tmp')
 
     ! Check local variable and proceed accordingly
-    
+
     if(trim(adjustl(grid%var_name)) .eq. 'clwmr') then
-       
+
        ! Define local variables
-       
+
        grid%nems_name   = 'clwmr'
        grid%nems_levtyp = 'mid layer'
-       
+
     end if ! if(trim(adjustl(grid%var_name)) .eq. 'clwmr')
-    
+
     ! Check local variable and proceed accordingly
-    
+
     if(trim(adjustl(grid%var_name)) .eq. 'o3mr') then
-       
+
        ! Define local variables
-       
+
        grid%nems_name   = 'o3mr'
        grid%nems_levtyp = 'mid layer'
-       
+
     end if ! if(trim(adjustl(grid%var_name)) .eq. 'o3mr')
+
+    if(trim(adjustl(grid%var_name)) .eq. 'icmr') then
+
+       ! Define local variables
+
+       grid%nems_name   = 'icmr'
+       grid%nems_levtyp = 'mid layer'
+
+    end if ! if(trim(adjustl(grid%var_name)) .eq. 'icmr')
 
     !=====================================================================
 
