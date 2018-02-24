@@ -52,7 +52,7 @@ module load sigio-intel/2.0.1
 module load sp-intel/2.0.2
 module load w3nco-intel/2.0.6
 module load w3emc-intel/2.2.0
-module load crtm-intel/2.2.3
+module load crtm-intel/2.2.5
 
 module use /usrx/local/nceplibs/modulefiles
 module load bacio-intel/2.0.2
