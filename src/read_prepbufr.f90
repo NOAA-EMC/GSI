@@ -188,8 +188,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use convb_uv,only: btabl_uv
   use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,winlen,thin4d
   use qcmod, only: errormod,errormod_aircraft,noiqc,newvad,njqc
-  use qcmod, only: nltrcv,powerp,adjvisoe,vis_thres
-  use nltrconfine, only: nltrconfine_forward
+  use qcmod, only: nltrcv,pvis,pcldch,estvisoe,estcldchoe,vis_thres,cldch_thres
+  use nltransf, only: nltransf_forward
   use convthin, only: make3grids,map3grids,del3grids,use_all
   use blacklist, only : blacklist_read,blacklist_destroy
   use blacklist, only : blkstns,blkkx,ibcnt
@@ -328,6 +328,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
   real(r_kind) :: tempvis,visout,scaling
+  real(r_kind) :: tempcldch,cldchout
 
   real(r_double) rstation_id,qcmark_huge
   real(r_double) vtcd
@@ -2333,31 +2334,34 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !             Visibility
               else if(visob) then
-!......................................................................
-!RY:   visoe is passed from the namelist. Is this OK?  
-!Note: visoe is for variable in the space resulted from the nltrconfine
-!......................................................................
-                 visoe=adjvisoe
-                 write (6,*) 'READ_PREPBUFR VISOE=', adjvisoe,visoe
-                 if ((kx==283).or.(kx==183)) visoe=visoe*1_2
-                 if (inflate_error) visoe=visoe*r1_2
 
-! simple QC check for eleminate the bad observation
-                 if (obsdat(9,k) .le. zero) obsdat(9,k)=bmiss 
-                 if (obsdat(9,k) .ge. vis_thres) obsdat(9,k)=vis_thres
+!......................................................................
+!NLTRCV: must setup as true
+!      visoe is in NLTR space, and is read in from the namelist. Is this OK?  
+!......................................................................
+                 visoe=estvisoe
+                 if ((kx==283).or.(kx==183)) visoe=visoe*1.02
+                 if (inflate_error) visoe=visoe*1.02
 
+                 cdata_all(1,iout)=visoe                   ! visibility error (cb)
+                 cdata_all(2,iout)=dlon                    ! grid relative longitude
+                 cdata_all(3,iout)=dlat                    ! grid relative latitude
+!......................................................................
+! NLTRCV: 
+! simple QC check and designate bad observation
+!......................................................................
+                 if (obsdat(9,k) .le. zero) obsdat(9,k)=bmiss
+                 if (obsdat(9,k) .gt. vis_thres) obsdat(9,k)=vis_thres
                  if (nltrcv) then
-                   if(obsdat(9,k)>zero .and. obsdat(9,k)<=vis_thres)then
+                   if(obsdat(9,k)> zero .and. obsdat(9,k)<=vis_thres)then
                       tempvis=obsdat(9,k)
-                      call nltrconfine_forward(tempvis,visout)
+                      call nltransf_forward(tempvis,visout,pvis)
                       cdata_all(4,iout) = visout
                    endif
                  else
                    cdata_all(4,iout)=obsdat(9,k)             ! visibility obs
                  endif
-                 cdata_all(1,iout)=visoe                   ! visibility error (cb)
-                 cdata_all(2,iout)=dlon                    ! grid relative longitude
-                 cdata_all(3,iout)=dlat                    ! grid relative latitude
+
                  cdata_all(5,iout)=rstation_id             ! station id
                  cdata_all(6,iout)=t4dv                    ! time
                  cdata_all(7,iout)=nc                      ! type
@@ -2676,14 +2680,34 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !             Cloud ceiling height
               else if(cldchob) then
+!......................................................................
+!NLTRCV: must setup as true
+!      cldchoe is in NLTR space, and is read in from the namelist. Is this OK?
+!......................................................................
+                 cldchoe=estcldchoe
+                 if (inflate_error) cldchoe=cldchoe*1.02
 
-                 cldchoe=4000.0  ! temporarily
-                 if (inflate_error) cldchoe=cldchoe*r1_2
-
-                 cdata_all(1,iout)=cldchoe                 ! cloud ceiling height error (m)
+                 cdata_all(1,iout)=cldchoe                 ! cloud ceiling height error 
                  cdata_all(2,iout)=dlon                    ! grid relative longitude
                  cdata_all(3,iout)=dlat                    ! grid relative latitude
-                 cdata_all(4,iout)=cldceilh(1,k)           ! cloud ceiling height obs
+!......................................................................
+! NLTRCV:
+! simple QC check and designate bad observation
+! cldch can be zero denoting fog, right?
+!......................................................................
+                 if (cldceilh(1,k) .lt. zero) cldceilh(1,k)=bmiss
+                 if (cldceilh(1,k) .ge. cldch_thres) cldceilh(1,k)=cldch_thres
+                 if (cldceilh(1,k) .eq. zero) cldceilh(1,k)=1.0 
+                 if (nltrcv) then
+                   if(cldceilh(1,k)> zero .and. cldceilh(1,k)<=cldch_thres)then
+                      tempcldch=cldceilh(1,k)
+                      call nltransf_forward(tempcldch,cldchout,pcldch)
+                      cdata_all(4,iout) = cldchout
+                   endif
+                 else
+                   cdata_all(4,iout)=cldceilh(1,k)         ! ceiling height obs.
+                 endif
+
                  cdata_all(5,iout)=rstation_id             ! station id
                  cdata_all(6,iout)=t4dv                    ! time
                  cdata_all(7,iout)=nc                      ! type

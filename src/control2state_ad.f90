@@ -372,11 +372,8 @@ do jj=1,nsubwin
       call loglcbas_to_lcbas_ad(cv_lcbas,rv_lcbas)
    end if
    if (iccldch >0) then
-      call gsi_bundlegetpointer (wbundle,'cldch'  ,cv_cldch ,istatus)
       call gsi_bundlegetpointer (rval(jj),'cldch' ,rv_cldch , istatus)
-      call gsi_bundleputvar ( wbundle, 'cldch' , zero   , istatus )
-      !  Adjoint of convert logcldch to cldch
-      call logcldch_to_cldch_ad(cv_cldch,rv_cldch)
+      call gsi_bundleputvar ( wbundle, 'cldch' , rv_cldch  , istatus )
    end if
    if (icuwnd10m>0) then
       call gsi_bundlegetpointer (rval(jj),'uwnd10m' ,rv_uwnd10m, istatus)

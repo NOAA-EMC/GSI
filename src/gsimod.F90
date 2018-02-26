@@ -57,7 +57,7 @@
       erradar_inflate,tdrerr_inflate,use_poq7,qc_satwnds,&
       init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3,qc_noirjaco3_pole,&
       buddycheck_t,buddydiag_save,njqc,vqc,closest_obs,vadwnd_l2rw_qc, &
-      nltrcv,powerp,adjvisoe,zlow,zhigh,smpara,vis_thres
+      nltrcv,pvis,pcldch,estvisoe,estcldchoe,vis_thres,cldch_thres
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax, &
      factv,factl,factp,factg,factw10m,facthowv,factcldch,niter,niter_no_qc,biascor,&
@@ -347,9 +347,9 @@
 !                              operator for surface observations along the coastline area
 !  04-01-2017 Hu        added option i_gsdqc to turn on special observation qc
 !                              from GSD (for RAP/HRRR application)
-!  01-11-2018 Yang      add nml nltr and powerp to use nonlinear transform to visibility field 
-!                              (Jim Purser's scheme); add adjvisoe to replace the hardwired prescribed
-!                              vis obs. errort in read_prepbufr. (tentatively)
+!  01-11-2018 Yang      add namelist variables required by the nonlinear transform to vis and cldch
+!                      (Jim Purser 2018). add estvisoe and estcldchoe to replace the hardwired i
+!                       prescribed vis/cldch obs. errort in read_prepbufr. (tentatively?)
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -739,20 +739,20 @@
 !     closest_obs- when true, choose the timely closest surface observation from
 !     multiple observations at a station.  Currently only applied to Ceiling
 !     height and visibility.
-!     nltrcv - when true, apply nonlinear transformation to obsvis
-!     powerp - when nltr true, use powerp as the parameter in the transformation
-!     adjvisoe - modulate to observation vis error
-!     smpara -   degree of smoothing in confine function
-!     zlow   --  low end of variables after nltr (g(p;x))
-!     zhigh  --  high end of variables after nltr (g(p;x))
-!     vis_thres  --  vis_threshold applied to obs. and fg 
+!     nltrcv - set to true, apply nonlinear transformation to vis and cldch 
+!     pvis   - power parameter in nonlinear transformation for vis 
+!     pcldch - power parameter in nonlinear transformation for cldch
+!     estvisoe - estimate of vis observation error
+!     estcldchoe - estimate of cldch observation error
+!     vis_thres  - threshold value for both vis observation and input first guess
+!     cldch_thres  - threshold value for both cldch observation and input first guess
 
-  namelist/obsqc/ dfact,dfact1,erradar_inflate,tdrerr_inflate,oberrflg,&
+  namelist/obsqc/dfact,dfact1,erradar_inflate,tdrerr_inflate,oberrflg,&
        vadfile,noiqc,c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,&
        tcp_ermin,tcp_ermax,qc_noirjaco3,qc_noirjaco3_pole,qc_satwnds,njqc,vqc,&
        aircraft_t_bc_pof,aircraft_t_bc,aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail,&
        hdist_aircraft,buddycheck_t,buddydiag_save,closest_obs,vadwnd_l2rw_qc,  &
-       nltrcv,powerp,adjvisoe,smpara,zlow,zhigh,vis_thres
+       nltrcv,pvis,pcldch,estvisoe,estcldchoe,vis_thres,cldch_thres
 
 ! OBS_INPUT (controls input data):
 !      dmesh(max(dthin))- thinning mesh for each group
@@ -1149,6 +1149,9 @@
   if(ios/=0) call die(myname_,'read(strongopts)',ios)
 
   read(11,obsqc,iostat=ios)
+!RY
+     write(6,obsqc)
+
   if(ios/=0) call die(myname_,'read(obsqc)',ios)
 
   read(11,obs_input,iostat=ios)

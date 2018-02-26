@@ -44,7 +44,7 @@ subroutine convert_binary_2d
   use gsi_4dvar, only: nhr_assimilation
   use gsi_io, only: lendian_out,verbose
   use mpeu_util, only: die
-  use qcmod, only: vis_thres
+  use qcmod, only: vis_thres,cldch_thres
   implicit none
 
 ! Declare local parameters
@@ -314,11 +314,13 @@ subroutine convert_binary_2d
 
 !
      read(in_unit)field2             !  VIS
+!...........................................................
+!NLTR: apply threshold vis_thres to visibility first guess
+!...........................................................
 
-!RY: apply threshold vis_thres to visibility fg
      do j=1,nlon_regional
         do i=1,nlat_regional
-           if (field2(j,i) .le. 0.0) field2(j,i)=0.1_r_single
+           if (field2(j,i) .le. 0.0) field2(j,i)=1.0_r_single
            if (field2(j,i) .gt. vis_thres) field2(j,i)=vis_thres
          enddo
      enddo
@@ -336,6 +338,15 @@ subroutine convert_binary_2d
      write(lendian_out)field2
 
      read(in_unit)field2             !  CLDCH
+!...........................................................
+!NLTR: apply threshold cldch_thres to cldch first guess
+!...........................................................
+     do j=1,nlon_regional
+        do i=1,nlat_regional
+           if (field2(j,i) .le. 0.0) field2(j,i)=1.0_r_single
+           if (field2(j,i) .gt. cldch_thres) field2(j,i)=cldch_thres
+        enddo
+     enddo
      if(print_verbose)then
         write(6,*)' convert_binary_2d: max,min CLDCH=',maxval(field2),minval(field2)
         write(6,*)' convert_binary_2d: mid CLDCH=',field2(nlon_regional/2,nlat_regional/2)
@@ -656,8 +667,8 @@ subroutine read_2d_guess(mype)
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die
   use gsi_io, only: verbose
-  use qcmod, only: nltrcv,powerp,zlow,zhigh,smpara,vis_thres
-  use nltrconfine, only: nltrconfine_forward
+  use qcmod, only: nltrcv,pvis,pcldch,vis_thres,cldch_thres
+  use nltransf, only: nltransf_forward
   
   implicit none
 
@@ -1127,14 +1138,13 @@ subroutine read_2d_guess(mype)
                  ges_gust(j,i)=real(all_loc(j,i,i_0+i_gust),r_kind)
 
               if (ihave_vis) then
-!*************************************************************
-!RY:  1. check input data come from sigf06? 
-!RY:  2. nonlinear transformation and confining
-!*************************************************************
+!..............................................................
+!NOTE:  input data come from sigf06, already using vis_thres, 
+!       min=1.0m and max=vis_thres
+!..............................................................
                  dummy=real(all_loc(j,i,i_0+i_vis),r_kind)
-                 if (dummy .gt. vis_thres) write(6,*)'WARNING:read2dges: VISmax>16000!!'
                  if (nltrcv) then
-                   call nltrconfine_forward(dummy,dummyout)
+                   call nltransf_forward(dummy,dummyout,pvis)
                    ges_vis(j,i)=dummyout
                  else
                    if (dummy<=zero) ges_vis(j,i)=one_tenth
@@ -1144,8 +1154,20 @@ subroutine read_2d_guess(mype)
               if(ihave_pblh) &
                  ges_pblh(j,i)=real(all_loc(j,i,i_0+i_pblh),r_kind)
 
-              if(ihave_cldch) &
-                 ges_cldch(j,i)=max(min(real(all_loc(j,i,i_0+i_cldch),r_kind),20000.0_r_kind),one_tenth)
+              if(ihave_cldch) then 
+!..............................................................
+!NOTE:  input data come from sigf06, already using cldch_thres, 
+!       min=1.0m and max=cldch_thres
+!..............................................................
+                 dummy=real(all_loc(j,i,i_0+i_cldch),r_kind)
+                 if (nltrcv) then
+                   call nltransf_forward(dummy,dummyout,pcldch)
+                   ges_cldch(j,i)=dummyout
+                 else
+                   if (dummy<=zero) ges_cldch(j,i)=one_tenth
+                   if (dummy> cldch_thres) ges_cldch(j,i)=cldch_thres
+                 endif
+              endif
 
               if (ihave_wspd10m) & 
                  ges_wspd10m(j,i)=real(all_loc(j,i,i_0+i_wspd10m),r_kind)
@@ -1229,12 +1251,11 @@ subroutine wr2d_binary(mype)
 !
 !$$$
   use kinds, only: r_kind,r_single,i_kind
-  use constants, only: one_tenth
+  use constants, only: one_tenth,one
 
   use guess_grids, only: ntguessig,ifilesig,&
        ges_tsen
   use mpimod, only: mpi_comm_world,ierror,mpi_real4
-  use qcmod, only: nltrcv,powerp
   use gridmod, only: lat2,iglobal,itotsub,strip,&
        lon2,nsig,lon1,lat1,nlon_regional,nlat_regional,ijn,displs_g
   use mpeu_util, only: getindex
@@ -1243,8 +1264,8 @@ subroutine wr2d_binary(mype)
   use jfunc, only: jiter,miter
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use qcmod, only: nltrcv,powerp,zlow,zhigh,smpara,vis_thres
-  use nltrconfine, only: nltrconfine_inverse 
+  use qcmod, only: nltrcv,pvis,pcldch,vis_thres,cldch_thres
+  use nltransf, only: nltransf_inverse 
   use mpeu_util, only: die
   use gsi_io, only: verbose
   implicit none
@@ -1274,7 +1295,7 @@ subroutine wr2d_binary(mype)
   real(r_single) glon0(nlon_regional,nlat_regional),glat0(nlon_regional,nlat_regional)
   real(r_single) dx_mc0(nlon_regional,nlat_regional),dy_mc0(nlon_regional,nlat_regional)
   real(r_single),allocatable::all_loc_qsatg(:,:,:),all_loc_prh(:,:,:),temp1_prh(:)
-  real(r_kind) tempvis,visout
+  real(r_kind) tempvis,visout,tempcldch,cldchout
   
   integer(i_kind) iaux(100),kaux
   character(15) caux(100)
@@ -1550,30 +1571,29 @@ subroutine wr2d_binary(mype)
   do k=1,kaux
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),trim(caux(k)),ptr2d, ier)
      if (ier==0) then
-
         do i=1,lon2
            do j=1,lat2
               if (trim(caux(k))=='pmsl') then 
                  all_loc(j,i,iaux(k))=r100*r10*ptr2d(j,i)
               elseif(trim(caux(k))=='vis') then
                  all_loc(j,i,iaux(k))=ptr2d(j,i)
-!
-!RY: check the max/min to confirm ptr2d is a full  field  --confirmed
-!                if(mype==0) write(6,*)'wrt2d: vis=', ptr2d(j,i)
-
                  if(nltrcv) then
                     tempvis=ptr2d(j,i)
-                    call nltrconfine_inverse(tempvis,visout) 
-!RY: confine the visibility values
-                    all_loc(j,i,iaux(k))=max(min(visout,vis_thres),one_tenth)
+                    call nltransf_inverse(tempvis,visout,pvis) 
+                    all_loc(j,i,iaux(k))=max(min(visout,vis_thres),one)
                  endif
-              else
+              elseif(trim(caux(k))=='cldch') then
                  all_loc(j,i,iaux(k))=ptr2d(j,i)
-              endif
+                 if(nltrcv) then
+                    tempcldch=ptr2d(j,i)
+                    call nltransf_inverse(tempcldch,cldchout,pcldch)
+                    all_loc(j,i,iaux(k))=max(min(cldchout,cldch_thres),one)
+                 endif
+             else
+                 all_loc(j,i,iaux(k))=ptr2d(j,i)
+             endif
            end do
         end do
-
-
         if(mype==0) read(iog)temp1
         call strip(all_loc(:,:,iaux(k)),strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &

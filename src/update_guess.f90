@@ -128,7 +128,7 @@ subroutine update_guess(sval,sbias)
   use rapidrefresh_cldsurf_mod, only: i_use_2mq4b,i_use_2mt4b
   use gsd_update_mod, only: gsd_limit_ocean_q,gsd_update_soil_tq,&
        gsd_update_th2,gsd_update_q2
-  use qcmod, only: zlow,zhigh
+  use qcmod, only: pvis,pcldch,vis_thres,cldch_thres 
 
   implicit none
 
@@ -146,6 +146,8 @@ subroutine update_guess(sval,sbias)
   integer(i_kind) icloud,ncloud
   integer(i_kind) idq
   real(r_kind) :: zt
+  real(r_kind) :: glow,ghigh,pvis_inv,pcldch_inv
+
   real(r_kind),pointer,dimension(:,:  ) :: ptr2dinc =>NULL()
   real(r_kind),pointer,dimension(:,:  ) :: ptr2dges =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: ptr3dinc =>NULL()
@@ -290,15 +292,28 @@ subroutine update_guess(sval,sbias)
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ptr2dges,istatus)
            ptr2dges = ptr2dges + ptr2dinc
            if (trim(guess(ic))=='gust')  ptr2dges = max(ptr2dges,zero)
-!RY: after nltrcv,the max/min vis need to be changed.  What values should be?
-!RY:  should be zhigh/zlow?
-           if (trim(guess(ic))=='vis')   ptr2dges = max(min(ptr2dges,zhigh),zlow)
+!............................................................................
+!RY--NOTE: vis/cldch are now in nltr space, compute the max/min respectively
+!based on powerp and min/max values of the fields. the physcial vis/max: min=1,
+!max=thres 
+!............................................................................
+           if (trim(guess(ic))=='vis') then
+              glow=(1.0**pvis-1.0)/pvis
+              ghigh=(vis_thres**pvis-1.0)/pvis
+              ptr2dges = max(min(ptr2dges,ghigh),glow)
+           endif
+           if (trim(guess(ic))=='cldch') then
+              glow=(1.0**pcldch -1.0)/pcldch
+              ghigh=(cldch_thres**pcldch -1.0)/pcldch
+              ptr2dges = max(min(ptr2dges,ghigh),glow)
+           endif
+
            if (trim(guess(ic))=='wspd10m') ptr2dges = max(ptr2dges,zero)
            if (trim(guess(ic))=='pblh')  ptr2dges = max(ptr2dges,zero)
            if (trim(guess(ic))=='howv')  ptr2dges = max(ptr2dges,zero)
-           if (trim(guess(ic))=='tcamt') ptr2dges = max(min(ptr2dges,r100),zero) !Cannot have > 100% or < 0% cloud amount
+           if (trim(guess(ic))=='tcamt') ptr2dges = max(min(ptr2dges,r100),zero) !Cannot have>100% or <0% cloud amount
            if (trim(guess(ic))=='lcbas') ptr2dges = max(min(ptr2dges,20000.0_r_kind),one_tenth)
-           if (trim(guess(ic))=='cldch') ptr2dges = max(min(ptr2dges,20000.0_r_kind),one_tenth)
+
            cycle
         endif
      enddo

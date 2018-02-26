@@ -613,10 +613,6 @@ subroutine anprewgt_reg(mype)
                           if (nrf_var(ivar)=='lcbas' .or. nrf_var(ivar)=='LCBAS') then
                              factk=factk/(log(ten)*8000.0_r_kind) 
                           end if
-                          if (nrf_var(ivar)=='cldch' .or. nrf_var(ivar)=='CLDCH') then
-                             this0f=min(cldch0fmax, max(cldch0fmin,cldch0f(i,j,1)))
-                             factk=factk/(log(ten)*this0f)
-                          end if
                        end if
                        exit
                     end if
@@ -5254,10 +5250,6 @@ subroutine get2berr_reg_subdomain_option(mype)
                        factk=dl1*corp(l,n)+dl2*corp(lp,n)
                        if (nrf_var(ivar)=='lcbas' .or. nrf_var(ivar)=='LCBAS') then
                           factk=factk/(log(ten)*8000.0_r_kind)
-                       end if
-                       if (nrf_var(ivar)=='cldch' .or. nrf_var(ivar)=='CLDCH') then
-                          this0f=min(cldch0fmax, max(cldch0fmin,cldch0f(iloc,jloc,1)))
-                          factk=factk/(log(ten)*this0f)
                        end if
                        if (lstdmodel0) then
                           if (stdmodel_z_based) then 

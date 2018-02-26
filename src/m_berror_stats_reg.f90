@@ -767,7 +767,7 @@ end subroutine berror_read_bal_reg
      end if
      if (n==nrf2_cldch) then
         do i=1,mlat
-           corp(i,n)=40000.0_r_kind
+           corp(i,n)=19.03_r_kind
         end do
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_t)

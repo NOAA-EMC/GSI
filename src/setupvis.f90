@@ -60,12 +60,13 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
             two,cg_term,pi,huge_single
   use jfunc, only: jiter,last,miter
   use qcmod, only: dfact,dfact1,npres_print,closest_obs
+  use qcmod, only: pvis
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
-  use nltrconfine, only: nltrconfine_inverse
+  use nltransf, only: nltransf_inverse
   implicit none
 
 ! Declare passed variables
@@ -547,10 +548,10 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error (K**-1)
         rdiagbuf(16,ii) = errinv_final       ! final inverse observation error (K**-1)
  
-!RY--BEGIN  do nltrconfine_inverse to both visges and obs. 
-        call nltrconfine_inverse(visges,visgesout)
+!RY--BEGIN  NLTR _inverse to both visges and obs. 
+        call nltransf_inverse(visges,visgesout,pvis)
         tempvis=data(ivis,i)
-        call nltrconfine_inverse(tempvis,visobout)
+        call nltransf_inverse(tempvis,visobout,pvis)
 !RY--END
         rdiagbuf(17,ii) = visobout           ! VIS observation 
         rdiagbuf(18,ii) = visobout-visgesout ! obs-ges in physical unit

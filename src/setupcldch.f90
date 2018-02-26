@@ -56,11 +56,13 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
             two,cg_term,huge_single
   use jfunc, only: jiter,last,miter
   use qcmod, only: dfact,dfact1,npres_print,closest_obs
+  use qcmod, only: pcldch
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
+  use nltransf, only: nltransf_inverse
   implicit none
 
 ! Declare passed variables
@@ -83,6 +85,7 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_double) rstation_id
 
   real(r_kind) cldchges,dlat,dlon,ddiff,dtime,error
+  real(r_kind) cldchgesout,cldchobout,tempcldch
   real(r_kind) cldch_errmax,offtime_k,offtime_l
   real(r_kind) scale,val2,ratio,ressw2,ress,residual
   real(r_kind) obserrlm,obserror,val,valqc
@@ -505,13 +508,16 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(14,ii) = errinv_input       ! prepbufr inverse obs error (m**-1)
         rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error (m**-1)
         rdiagbuf(16,ii) = errinv_final       ! final inverse observation error (m**-1)
+!RY--BEGIN  NLTR _inverse to both cldchges and obs.
+        call nltransf_inverse(cldchges,cldchgesout,pcldch)
+        tempcldch=data(icldch,i)
+        call nltransf_inverse(tempcldch,cldchobout,pcldch)
+!RY--END
  
-        rdiagbuf(17,ii) = data(icldch,i)     ! CLDCH observation (m)
-        rdiagbuf(18,ii) = ddiff              ! obs-ges used in analysis (m)
-        rdiagbuf(19,ii) = data(icldch,i)-cldchges! obs-ges w/o bias correction (m) (future slot)
- 
+        rdiagbuf(17,ii) = cldchobout              ! CLDCH observation (m)
+        rdiagbuf(18,ii) = cldchobout-cldchgesout  ! obs-ges used in analysis (m)
+        rdiagbuf(19,ii) = cldchobout-cldchgesout  ! obs-ges used in analysis (m) (future slot)
         rdiagbuf(20,ii) = rmiss_single       ! type of measurement
-
         rdiagbuf(21,ii) = data(idomsfc,i)    ! dominate surface type
         rdiagbuf(22,ii) = data(izz,i)        ! model terrain at observation location
         r_prvstg        = data(iprvd,i)
