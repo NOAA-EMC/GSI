@@ -85,7 +85,7 @@
      diagnostic_reg,gencode,nlon_regional,nlat_regional,nvege_type,&
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
      nlayers,use_gfs_ozone,check_gfs_ozone_date,regional_ozone,jcap,jcap_b,vlevs,&
-     use_gfs_nemsio,use_readin_anl_sfcmask,use_sp_eqspace,final_grid_vars,&
+     use_gfs_nemsio,sfcnst_comb,use_readin_anl_sfcmask,use_sp_eqspace,final_grid_vars,&
      jcap_gfs,nlat_gfs,nlon_gfs,jcap_cut,wrf_mass_hybridcord
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop
   use gsi_io, only: init_io,lendian_in,verbose
@@ -106,9 +106,9 @@
                          regional_ensemble_option,merge_two_grid_ensperts, &
                          full_ensemble,pseudo_hybens,pwgtflg,&
                          beta_s0,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
-                         readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens,enspreproc,&
+                         readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens,&
                          readin_beta,use_localization_grid,use_gfs_ens,q_hyb_ens,i_en_perts_io, &
-                         l_ens_in_diff_time,ensemble_path
+                         l_ens_in_diff_time,ensemble_path,ens_fast_read
   use rapidrefresh_cldsurf_mod, only: init_rapidrefresh_cldsurf, &
                             dfi_radar_latent_heat_time_period,metar_impact_radius,&
                             metar_impact_radius_lowcloud,l_gsd_terrain_match_surftobs, &
@@ -347,6 +347,7 @@
 !                              operator for surface observations along the coastline area
 !  04-01-2017 Hu        added option i_gsdqc to turn on special observation qc
 !                              from GSD (for RAP/HRRR application)
+!  08-31-2017 Li        add sfcnst_comb for option to read sfc & nst combined file 
 !  01-11-2018 Yang      add namelist variables required by the nonlinear transform to vis and cldch
 !                      (Jim Purser 2018). add estvisoe and estcldchoe to replace the hardwired i
 !                       prescribed vis/cldch obs. errort in read_prepbufr. (tentatively?)
@@ -472,6 +473,7 @@
 !     nsig_ext - number of layers above the model top which are necessary to compute the bending angle for gpsro
 !     gpstop - maximum height for gpsro data assimilation. Reject anything above this height. 
 !     use_gfs_nemsio  - option to use nemsio to read global model NEMS/GFS first guess
+!     sfcnst_comb   - option to use nemsio sfc history file by regriding FV3 grid
 !     use_readin_anl_sfcmask  - option to use readin surface mask
 !     use_prepb_satwnd - allow using satwnd''s from prepbufr (historical) file
 !     id_drifter  -  option to identify drifting buoy observations (modify KX from 180/280)
@@ -541,7 +543,7 @@
        idmodel,iwrtinc,lwrite4danl,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
        lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip, &
        use_gfs_ozone,check_gfs_ozone_date,regional_ozone,lwrite_predterms,&
-       lwrite_peakwt, use_gfs_nemsio,liauon,use_prepb_satwnd,l4densvar,ens_nstarthr,&
+       lwrite_peakwt,use_gfs_nemsio,sfcnst_comb,liauon,use_prepb_satwnd,l4densvar,ens_nstarthr,&
        use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon,lrun_subdirs,&
        use_sp_eqspace,lnested_loops,lsingleradob,thin4d,use_readin_anl_sfcmask,&
        luse_obsdiag,id_drifter,verbose,lsingleradar,singleradar,lnobalance
@@ -853,7 +855,6 @@
 !     pwgtflg          - if true, use vertical integration function on ensemble contribution of Psfc
 !     grid_ratio_ens   - for regional runs, ratio of ensemble grid resolution to analysis grid resolution
 !                            default value = 1  (dual resolution off)
-!     enspreproc - flag to read(.true.) pre-processed ensemble data already
 !     i_en_perts_io - flag to read in ensemble perturbations in ensemble grid.
 !                         This is to speed up RAP/HRRR hybrid runs because the
 !                         same ensemble perturbations are used in 6 cycles    
@@ -867,14 +868,15 @@
 !                             =true: ensembles available time can be different
 !                                      from analysis time in hybrid analysis
 !     ensemble_path - path to ensemble members; default './'
+!     ens_fast_read - read ensemble in parallel; default '.false.'
 !              
 !                         
   namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
                 pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,full_ensemble,pwgtflg,&
                 jcap_ens_test,beta_s0,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,readin_beta,&
                 grid_ratio_ens, &
-                oz_univ_static,write_ens_sprd,enspreproc,use_localization_grid,use_gfs_ens, &
-                i_en_perts_io,l_ens_in_diff_time,ensemble_path
+                oz_univ_static,write_ens_sprd,use_localization_grid,use_gfs_ens, &
+                i_en_perts_io,l_ens_in_diff_time,ensemble_path,ens_fast_read
 
 ! rapidrefresh_cldsurf (options for cloud analysis and surface 
 !                             enhancement for RR appilcation  ):
@@ -1579,7 +1581,7 @@
   if(present(last_pass)) last_pass_ =last_pass
 
 ! Call the main gsi driver routine
-  call gsisub(mype, init_pass_,last_pass_)
+  call gsisub(init_pass_,last_pass_)
 
   end subroutine gsimain_run
 

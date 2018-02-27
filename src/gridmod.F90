@@ -85,6 +85,7 @@ module gridmod
 !   2015-02-03 todling - update max nlayers to 200
 !   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
 !   2017-03-23  Hu      - add code to get eta2_ll and aeta2_ll ready for hybrid vertical coodinate in WRF MASS CORE
+!   2017-08-31  Li      - add sfcnst_comb to handle surface and nsst combined file
 !
 !                        
 !
@@ -144,6 +145,7 @@ module gridmod
   public :: jcap,jcap_b,hires_b,sp_a,grd_a
   public :: jtstart,jtstop,nthreads
   public :: use_gfs_nemsio
+  public :: sfcnst_comb
   public :: use_readin_anl_sfcmask
   public :: jcap_gfs,nlat_gfs,nlon_gfs
   public :: use_sp_eqspace,jcap_cut
@@ -178,6 +180,7 @@ module gridmod
   logical update_regsfc     !
   logical hires_b           ! .t. when jcap_b requires double FFT
   logical use_gfs_nemsio    ! .t. for using NEMSIO to real global first guess
+  logical sfcnst_comb       ! .t. for using combined sfc & nst file
   logical use_sp_eqspace    ! .t. use equally-space grid in spectral transforms
 
   logical use_readin_anl_sfcmask        ! .t. for using readin surface mask
@@ -464,7 +467,8 @@ contains
     nvege_type = 20
     nthreads = 1  ! initialize the number of threads
 
-    use_gfs_nemsio = .false.
+    use_gfs_nemsio  = .false.
+    sfcnst_comb = .false.
     use_readin_anl_sfcmask = .false.
 
     use_sp_eqspace = .false.
