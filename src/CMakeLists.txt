@@ -6,6 +6,8 @@ cmake_minimum_required(VERSION 2.8)
   set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 # get a list of all the fortran source files
   file(GLOB GSI_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*90 )
+# get a list of all the c source files
+  file(GLOB GSI_C_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*c )
 # get a list of all cplr files
   file(GLOB CLASS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/class*90 )
 # create a list of all corresponding stub files
@@ -65,100 +67,75 @@ cmake_minimum_required(VERSION 2.8)
   set( GLOBAL_SRC ${CPLR_SRC} )
   set( GLOBAL_SRC ${STUB_SRC} )
   list( APPEND GLOBAL_SRC ${LINKED_SRC} )
-  list( APPEND GSI_SRC  "${CMAKE_CURRENT_SOURCE_DIR}/blockIO.c")
+  
+  list( APPEND GSI_SRC  ${GSI_C_SRC} )
 
+# set up the compiler flags
   set_source_files_properties( ${GSI_SRC} PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS} )
   set_source_files_properties( ${GLOBAL_SRC} PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS} )
+  set_source_files_properties( ${GSI_C_SRC} PROPERTIES COMPILE_FLAGS ${GSI_CFLAGS} )
+# set_source_files_properties( ${CMAKE_CURRENT_SOURCE_DIR}/blockIO.c  PROPERTIES COMPILE_FLAGS ${GSI_CFLAGS} )
 
-  set_source_files_properties( ${CMAKE_CURRENT_SOURCE_DIR}/blockIO.c  PROPERTIES COMPILE_FLAGS ${GSI_CFLAGS} )
+# Add the include paths
+  message("MPI include PATH  ${MPI_Fortran_INCLUDE_PATH}")
+  include_directories( ${CORE_INCS} ${NETCDF_INCLUDES} ${MPI_Fortran_INCLUDE_PATH} "./"  )
 
-  include_directories( ${CORE_INCS} ${NETCDF_INCLUDES} ${MPI_Fortran_INCLUDE_PATH} "./" )
-  add_library(gsilib_shrd${debug_suffix} STATIC ${GSI_SRC} )
+#define the name used for GSI Shared lib and add it with properties and include dirs
+  set(GSISHAREDLIB "gsilib_shrd${debug_suffix}" CACHE INTERNAL "")
+  add_library(${GSISHAREDLIB} STATIC ${GSI_SRC} )
+  set_target_properties(${GSISHAREDLIB} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
+  target_include_directories(${GSISHAREDLIB} PUBLIC "${PROJECT_BINARY_DIR}/include")
 
-  if(USE_WRF) 
-    add_library(gsilib_wrf${debug_suffix} STATIC ${REGIONAL_SRC} )
-  endif()
-  if(BUILD_GLOBAL)
-    add_library(gsilib_global${debug_suffix} STATIC ${GLOBAL_SRC} )
-    target_link_libraries( gsilib_shrd${debug_suffix} gsilib_global${debug_suffix} ${CORE_LIBRARIES})
-    target_link_libraries( gsilib_global${debug_suffix} ${CORE_LIBRARIES})
-    set_target_properties(gsilib_global PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-    target_include_directories(gsilib_global PUBLIC "${PROJECT_BINARY_DIR}/include")
-    add_dependencies(gsilib_global${debug_suffix} gsilib_shrd${debug_suffix} )
-  endif()
-
-
-
-  if(USE_WRF) 
-    set_target_properties(gsilib_wrf${debug_suffix} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include/wrf")
-  endif()
-  set_target_properties(gsilib_shrd${debug_suffix} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-  if(USE_WRF) 
-    target_include_directories(gsilib_wrf${debug_suffix} PUBLIC "${PROJECT_BINARY_DIR}/include/wrf")
-  endif()
-  target_include_directories(gsilib_shrd${debug_suffix} PUBLIC "${PROJECT_BINARY_DIR}/include")
-# add_library(clib${debug_suffix} STATIC ${CMAKE_CURRENT_SOURCE_DIR}/blockIO.c )
-
-
-  if(BUILD_CORELIBS )
-    if(USE_WRF) 
-      add_dependencies(gsilib_wrf${debug_suffix} gsilib_shrd${debug_suffix} ${bacio} ${crtm} ${bufr} ${nemsio} ${sigio} ${sfcio} ${sp} ${w3emc} ${w3nco} )
-    endif()
-    if(BUILD_GLOBAL)
-#     add_library(gsilib_global${debug_suffix} STATIC ${GLOBAL_SRC} )
-      add_dependencies(gsilib_global${debug_suffix} gsilib_shrd${debug_suffix} ${bacio} ${crtm} ${bufr} ${nemsio} ${sigio} ${sfcio} ${sp} ${w3emc} ${w3nco} )
-    endif()
-    add_dependencies(gsilib_shrd${debug_suffix} ${bacio} ${crtm} ${bufr} ${nemsio} ${sigio} ${sfcio} ${sp} ${w3emc} ${w3nco} )
-  endif()
-
-# add_custom_target(RMIFCORE COMMAND "sed 's/-lifcore//g' " WORKING_DIRECTORY "/gpfs/gd1/emc/global/noscrub/Mark.Potts/ProdGSI/build/src/CMakeFiles/gsi.x.dir" INPUT_FILE "link.txt" )
-# execute_process(COMMAND "sed_cmd" WORKING_DIRECTORY "/gpfs/gd1/emc/global/noscrub/Mark.Potts/ProdGSI/build" ERROR_FILE "sed_err" OUTPUT_FILE "sed_out"  )
-  if(USE_WRF) 
-    add_dependencies(gsilib_wrf${debug_suffix} gsilib_shrd${debug_suffix} )
-    add_executable(gsi.x${debug_suffix} ${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90 ${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90 )
-#   add_executable(gsi.x${debug_suffix} ${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90 )
-  endif()
-
-  if(BUILD_GLOBAL)
-    add_executable(gsi_global.x${debug_suffix} ${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90 ${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90 )
-#   add_executable(gsi_global.x${debug_suffix} ${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90 )
-  endif()
-
-  if(USE_WRF) 
-    set_target_properties(gsi.x${debug_suffix} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-    set_target_properties(gsi.x${debug_suffix} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include/wrf")
-  endif()
-
-  if(BUILD_GLOBAL)
-    set_target_properties(gsi_global.x${debug_suffix} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-  endif()
-
-  if(BUILD_CORELIBS )
-    if(BUILD_GLOBAL)
-      add_dependencies(gsi_global.x${debug_suffix} gsilib_shrd${debug_suffix} gsilib_global${debug_suffix} ${w3nco} ${bacio} ${crtm} ${bufr} ${nemsio} ${sigio} ${sfcio} ${sp} ${w3emc} )
-    endif()
-    if(USE_WRF) 
-      add_dependencies(gsi.x${debug_suffix} gsilib_shrd${debug_suffix} gsilib_wrf${debug_suffix} ${bacio} ${crtm} ${bufr} ${nemsio} ${sigio} ${sfcio} ${sp} ${w3emc} ${w3nco} )
-    endif()
+# Definte the base name of the executable 
+  if(BUILD_PRODUCTION)
+    set(GSIBASE "global_gsi")
   else()
     if(BUILD_GLOBAL)
-      add_dependencies(gsi_global.x${debug_suffix} gsilib_shrd${debug_suffix} gsilib_global${debug_suffix} )
+      set(GSIBASE "gsi_global")
+    else()
+      set(GSIBASE "gsi")
     endif()
-    if(USE_WRF) 
-      add_dependencies(gsi.x${debug_suffix} gsilib_shrd${debug_suffix} gsilib_wrf${debug_suffix} )
-    endif()
+    set(GSISUFFIX ".x" CACHE INTERNAL "Executable suffix")
   endif()
 
-  if( NOT HOST-Luna AND NOT HOST-Surge )
-    list( REMOVE_ITEM LAPACK_LIBRARIES "-lm" )
-  endif()
+# Set names, libs, and properties depending on if we are building with WRF or not
   if(USE_WRF) 
-    target_link_libraries(gsi.x${debug_suffix} gsilib_shrd${debug_suffix} gsilib_wrf${debug_suffix} gsilib_shrd${debug_suffix} ${WRF_LIBRARIES} ${CORE_LIBRARIES}
+    set(GSIEXEC "${GSIBASE}${debug_suffix}${GSISUFFIX}" CACHE INTERNAL "GSI Executable Name")
+    add_executable(${GSIEXEC} ${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90 ${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90 )
+    set(GSILIB "gsilib_wrf${debug_suffix}" CACHE INTERNAL "")
+    add_library(${GSILIB} STATIC ${REGIONAL_SRC} )
+    set_target_properties(${GSILIB} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include/wrf")
+    target_include_directories(${GSILIB} PUBLIC "${PROJECT_BINARY_DIR}/include/wrf")
+    set_target_properties(${GSIEXEC} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
+    set_target_properties(${GSIEXEC} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include/wrf")
+  endif()
+
+  if(BUILD_GLOBAL)
+    set(GSIEXEC "${GSIBASE}${debug_suffix}${GSISUFFIX}" CACHE INTERNAL "GSI Executable Name")
+    add_executable(${GSIEXEC} ${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90 ${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90 )
+    set(GSILIB "gsilib_global${debug_suffix}" CACHE INTERNAL "")
+    set(WRF_LIBRARIES "")
+    add_library(${GSILIB} STATIC ${GLOBAL_SRC} )
+    target_link_libraries( ${GSISHAREDLIB} ${GSILIB} ${CORE_LIBRARIES})
+    target_link_libraries( ${GSILIB} ${CORE_LIBRARIES})
+    set_target_properties(gsilib_global PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
+    target_include_directories(gsilib_global PUBLIC "${PROJECT_BINARY_DIR}/include")
+    add_dependencies(${GSILIB} ${GSISHAREDLIB} )
+    set_target_properties(${GSIEXEC} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
+  endif()
+
+  add_dependencies(${GSILIB} ${GSISHAREDLIB} )
+
+# Add dependencies if we are building the core libs or are just using pre-built libs 
+  if(CORE_BUILT)
+    add_dependencies(${GSILIB} ${GSISHAREDLIB} ${CORE_BUILT} )
+    add_dependencies(${GSISHAREDLIB} ${bacio} ${CORE_BUILT} )
+    add_dependencies(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} ${CORE_BUILT} )
+  else()
+    add_dependencies(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} )
+  endif()
+# Specify all the libraries to be linked into the executable
+  target_link_libraries(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} ${GSISHAREDLIB} ${WRF_LIBRARIES} ${CORE_LIBRARIES}
          ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} 
-         ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${GSI_LDFLAGS})
-  endif()
-  if(BUILD_GLOBAL) 
-    target_link_libraries(gsi_global.x${debug_suffix} gsilib_shrd${debug_suffix} gsilib_global${debug_suffix} gsilib_shrd${debug_suffix}  
-         ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES}   
-         ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${CORE_LIBRARIES} )
-  endif()
+         ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${GSI_LDFLAGS}
+         ${ZLIB_LIBRARIES} ${CORE_BUILT} ${CORE_LIBRARIES} ${CORE_BUILT} ${wrflib} )

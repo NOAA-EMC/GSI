@@ -4001,7 +4001,7 @@ subroutine hybens_localization_setup
          if ( istat /= 0 ) then
             write(6,*) 'HYBENS_LOCALIZATION_SETUP:  ***ERROR*** error in ',trim(fname)
             write(6,*) 'HYBENS_LOCALIZATION_SETUP:  error reading file, iostat = ',istat
-            stop(123)
+            call stop2(123)
          endif
          if ( msig /= grd_ens%nsig ) then 
             write(6,*) 'HYBENS_LOCALIZATION_SETUP:  ***ERROR*** error in ',trim(fname)

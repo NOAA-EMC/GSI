@@ -3,4 +3,4 @@
 	url = gerrit:GSI-fix
 [submodule "libsrc"]
 	path = libsrc
-	url = gerrit:GSI-libsrc
+	url = gerrit:libsrc

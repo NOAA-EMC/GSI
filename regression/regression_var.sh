@@ -37,6 +37,11 @@ if [ -d /da ]; then # WCOSS
    elif [ -d /global/noscrub/$LOGNAME ]; then
      export noscrub=/global/noscrub/$LOGNAME
    fi
+elif [ -d /glade/scratch ]; then # Cheyenne
+   echo "HEY! in the first Cheyenne section"
+   export machine="Cheyenne"
+   export queue="economy"
+   export noscrub="/glade/scratch/$LOGNAME"
 elif [ -d /scratch4/NCEPDEV/da ]; then # Theia
    export machine="Theia"
    if [ -d /scratch4/NCEPDEV/da/noscrub/$LOGNAME ]; then 
@@ -56,10 +61,25 @@ elif [ -d /data/users ]; then # S4
    export noscrub="/data/users/$LOGNAME"
 fi
 
-#  Handle machine specific paths for:
-#  experiment and control executables, fix, ptmp, and CRTM coefficient files.
-#  Location of ndate utility, noscrub directory, and account name (accnt = ada by default).
-if [[ "$machine" = "Theia" ]]; then
+echo "machine name is $machine"
+echo "looking to see which machine we have"
+if [[ "$machine" = "Cheyenne" ]]; then
+   echo "HEY! in the Cheyenne section 2"
+   export group="global"
+   export queue="economy"
+   if [[ "$cmaketest" = "false" ]]; then
+     export basedir="/glade/scratch/$LOGNAME/gsi"
+   fi 
+   export ptmp="/glade/scratch/$LOGNAME/$ptmpName"
+
+   export fixcrtm="/glade/p/ral/jnt/tools/crtm/2.2.3/fix_update"
+   export casesdir="/glade/p/ral/jnt/tools/CASES"
+   export ndate="$builddir/bin/ndate.x"
+
+   export check_resource="no"
+   export accnt="p48503002"
+
+elif [[ "$machine" = "Theia" ]]; then
 
    export group="global"
    export queue="batch"
@@ -79,7 +99,7 @@ if [[ "$machine" = "Theia" ]]; then
 
    #  On Theia, there are no scrubbers to remove old contents from stmp* directories.
    #  After completion of regression tests, will remove the regression test subdirecories
-   export clean=".true."
+#  export clean=".true."
 
 elif [[ "$machine" = "WCOSS" ]]; then
 
