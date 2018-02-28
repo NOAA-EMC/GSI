@@ -118,6 +118,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
   use calc_fov_crosstrk, only: instrument_init, fov_check, fov_cleanup
   use deter_sfc_mod, only: deter_sfc,deter_sfc_fov
+  use obsmod, only: bmiss
   use gsi_nstcouplermod, only:nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use mpimod, only: npe
@@ -652,8 +653,12 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          In our case (616 channels) there are 10 groups of cscale (dimension :: cscale(3,10))
 !          The units are W/m2..... you need to convert to mW/m2.... (subtract 5 from cscale(3)
            do i=1,10  ! convert exponent scale factor to int and change units
-              iexponent = -(nint(cscale(3,i)) - 5)
-              sscale(i)=ten**iexponent
+              if(cscale(3,i) < bmiss) then
+                iexponent = -(nint(cscale(3,i)) - 5)
+                sscale(i)=ten**iexponent
+              else 
+                sscale(i)=0.0_r_kind
+              endif
            end do
 
 !          Read IASI channel number(CHNM) and radiance (SCRA)
