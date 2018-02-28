@@ -38,6 +38,7 @@ module mod_vtrans
 !                           eigenvalues need be computed.  The complete computation if the eigenvectors
 !                           and eigenvalues without using dgeev uses less than 2 seconds for 8
 !                           eigenvalue/vectors and all related computations.
+!   2018-02-15  wu       - add code for fv3_regional option
 !
 ! subroutines included:
 !   sub init_vtrans              - initialize vertical mode related variables
@@ -501,7 +502,7 @@ end if  ! END MYPE=workpe SECTION !!!!!!!!!!!!!
 !
 !$$$ end documentation block
     use constants,only: zero,ten
-    use gridmod,only: nsig,ak5,bk5,ck5
+    use gridmod,only: nsig,ak5,bk5,ck5,fv3_regional
     use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta1_ll,eta2_ll,pdtop_ll,pt_ll,cmaq_regional
     implicit none
 
@@ -514,6 +515,12 @@ end if  ! END MYPE=workpe SECTION !!!!!!!!!!!!!
     if(wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
        do k=1,nsig+1
           ahat(k)=eta1_ll(k)*pdtop_ll-eta2_ll(k)*(pdtop_ll+pt_ll)+pt_ll
+          bhat(k)=eta2_ll(k)
+          chat(k)=zero
+       end do
+    elseif(fv3_regional) then
+       do k=1,nsig+1
+          ahat(k)=eta1_ll(k)*0.01_r_kind
           bhat(k)=eta2_ll(k)
           chat(k)=zero
        end do

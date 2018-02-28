@@ -20,7 +20,7 @@ subroutine write_all(increment)
   
   use jfunc, only: bcoption
 
-  use gridmod, only: regional
+  use gridmod, only: regional,fv3_regional
   
   use guess_grids, only: ntguessig
 
@@ -31,6 +31,7 @@ subroutine write_all(increment)
 
 ! use regional_io, only: write_regional_analysis
   use regional_io_mod, only: regional_io_class
+  use gsi_rfv3io_mod, only: wrfv3_netcdf
 
   use ncepgfs_io, only: write_gfs
 
@@ -91,6 +92,7 @@ subroutine write_all(increment)
 !   2010-10-18  hcHuang - add flag use_gfs_nemsio and link to read_nems and read_nems_chem
 !   2013-10-19  todling - metguess holds ges fields now
 !   2014-10-05  todling - background biases now held in bundle
+!   2017-10-10  Wu W    - add FV3 option for regional output
 !
 ! !REMARKS:
 !
@@ -113,7 +115,14 @@ subroutine write_all(increment)
 
 
 ! Regional output
-  if (regional) call io%write_regional_analysis(mype)
+  if (regional) then
+     if (fv3_regional) then
+        call wrfv3_netcdf
+     else
+        call io%write_regional_analysis(mype)
+     endif
+  endif
+
 
 
 ! Global output

@@ -303,6 +303,30 @@ case $regtest in
 
     ;;
 
+    netcdf_fv3_regional)
+
+        if [[ "$machine" = "Theia" ]]; then
+            topts[1]="0:15:00" ; popts[1]="4/4/"  ; ropts[1]="/1"
+            topts[2]="0:15:00" ; popts[2]="6/6/"  ; ropts[2]="/1"
+        elif [[ "$machine" = "WCOSS" ]]; then
+            topts[1]="0:15:00" ; popts[1]="16/1/" ; ropts[1]="/1"
+            topts[2]="0:15:00" ; popts[2]="16/2/" ; ropts[2]="/1"
+        elif [[ "$machine" = "WCOSS_C" ]]; then
+            topts[1]="0:15:00" ; popts[1]="20/2/" ; ropts[1]="1024/1"  # sub_wcoss_c popts are "#tasks/#nodes/"
+            topts[2]="0:15:00" ; popts[2]="16/4/" ; ropts[2]="1024/1"
+        elif [[ "$machine" = "s4" ]]; then
+           topts[1]="0:25:00" ; popts[1]="16/1/" ; ropts[1]="/1"
+           topts[2]="0:25:00" ; popts[2]="16/2/" ; ropts[2]="/1"
+        fi
+
+        if [ "$debug" = ".true." ] ; then
+           topts[1]="0:30:00"
+        fi
+
+        scaling[1]=4; scaling[2]=10; scaling[3]=4
+
+    ;;
+
     nmm_binary )
 
         if [[ "$machine" = "Theia" ]]; then

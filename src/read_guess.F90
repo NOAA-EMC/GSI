@@ -72,6 +72,7 @@ subroutine read_guess(iyear,month,idd,mype)
 !   2015-01-14  Hu      - add function gsd_gen_coast_prox to calculate coast
 !                         proximity over full domain instead of subdomain
 !   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type 
+!   2017-10-10  Wu W    - add code for FV3 netcdf guess input 
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -93,6 +94,7 @@ subroutine read_guess(iyear,month,idd,mype)
   use gridmod, only: lat2,lon2
   use gridmod, only: nsig
   use gridmod, only: wrf_mass_regional,wrf_nmm_regional,cmaq_regional,&
+       fv3_regional,&
        twodvar_regional,netcdf,regional,nems_nmmb_regional,use_gfs_ozone
   use gridmod, only: use_gfs_nemsio
   use gfs_stratosphere, only: use_gfs_stratosphere
@@ -105,6 +107,7 @@ subroutine read_guess(iyear,month,idd,mype)
   use gsd_update_mod, only: gsd_gen_coast_prox 
   use read_wrf_mass_guess_mod, only: read_wrf_mass_guess_class
   use read_wrf_nmm_guess_mod, only: read_wrf_nmm_guess_class
+  use gsi_rfv3io_mod, only: read_fv3_netcdf_guess
 
   implicit none
 
@@ -154,6 +157,8 @@ subroutine read_guess(iyear,month,idd,mype)
            call read_2d_guess(mype)
         else if (nems_nmmb_regional) then
            call nmm_binary_guess%read_nems_nmmb_guess(mype)
+        else if (fv3_regional      ) then
+           call  read_fv3_netcdf_guess
         else if (cmaq_regional) then
            call read_cmaq_guess(mype)
         end if

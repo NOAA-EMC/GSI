@@ -34,6 +34,7 @@ subroutine get_gefs_ensperts_dualres
 !                         of vort/div and surface height since not needed
 !   2014-12-05  zhu     - set lower bound for cwmr
 !   2016-07-01  mahajan - use GSI ensemble coupler
+!   2018-02-15  wu      - add code for fv3_regional option 
 !
 !   input argument list:
 !
@@ -755,7 +756,7 @@ subroutine general_getprs_glb(ps,tv,prs)
   use constants,only: zero,half,one_tenth,rd_over_cp,one
   use gridmod,only: nsig,ak5,bk5,ck5,tref5,idvc5
   use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta1_ll,eta2_ll,pdtop_ll,pt_ll,&
-       regional,wrf_mass_regional,twodvar_regional
+       regional,wrf_mass_regional,twodvar_regional,fv3_regional
   use hybrid_ensemble_parameters, only: grd_ens
   implicit none
 
@@ -786,6 +787,15 @@ subroutine general_getprs_glb(ps,tv,prs)
               end do
            end do
         end do
+     elseif (fv3_regional) then
+        do k=1,nsig+1
+           do j=1,grd_ens%lon2
+              do i=1,grd_ens%lat2
+                 prs(i,j,k)=eta1_ll(k)+ eta2_ll(k)*ps(i,j)
+              end do
+           end do
+        end do
+
      elseif (twodvar_regional) then
         do k=1,nsig+1
            do j=1,grd_ens%lon2
