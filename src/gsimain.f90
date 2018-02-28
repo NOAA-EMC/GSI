@@ -124,6 +124,7 @@
 !			  and gsi_4dcoupler_final_traj() from gsimain_finalize(),
 !   2011-08-01  lueken  - replaced F90 with f90 (no machine logic)
 !   2013-07-02  parrish - remove error message 328 - tlnmc_type > 2 not allowed
+!   2018-02-15  wu      - add fv3_regional
 !
 ! usage:
 !   input files:
@@ -569,6 +570,7 @@
 !      new regional model added:
 !
 !             nems_nmmb_regional = .true.  input is from NEMS NMMB model
+!             fv3_regional = .true.  input is from fv3 model
 !             cmaq_regional = .true.  input is from CMAQ model
 !
 !     For a regional run, several additional namelist parameters must be specified:

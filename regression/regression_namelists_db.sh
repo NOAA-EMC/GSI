@@ -1331,6 +1331,139 @@ OBS_INPUT::
 "
 ;;
 
+    netcdf_fv3_regional)
+
+# Define namelist for netcdf fv3 run
+
+export gsi_namelist="
+
+ &SETUP
+   miter=2,niter(1)=50,niter(2)=50,niter_no_qc(1)=20,
+   write_diag(1)=.true.,write_diag(2)=.false.,write_diag(3)=.true.,
+   qoption=2,
+   factqmin=0.0,factqmax=0.0,deltim=$DELTIM,
+   iguess=-1,
+   newpc4pred=.true., adp_anglebc=.true., angord=4,
+   diag_precon=.true., step_start=1.e-3,
+   nhr_assimilation=3,l_foto=.false.,
+   use_pbl=.false.,use_compress=.false.,gpstop=30.,
+   lrun_subdirs=.true.,
+   $SETUP
+ /
+ &GRIDOPTS
+   fv3_regional=.true.,grid_ratio_fv3_regional=3.0,
+ /
+ &BKGERR
+   hzscl=0.373,0.746,1.50,
+   vs=0.6,bw=0.,fstat=.false.,
+ /
+ &ANBKGERR
+   anisotropic=.false.,
+ /
+ &JCOPTS
+ /
+ &STRONGOPTS
+ /
+ &OBSQC
+   dfact=0.75,dfact1=3.0,noiqc=.true.,c_varqc=0.02,
+   vadfile='prepbufr',oberrflg=.false.,njqc=.false.,vqc=.true.,
+ /
+ &OBS_INPUT
+   dmesh(1)=120.0,dmesh(2)=60.0,dmesh(3)=60.0,dmesh(4)=60.0,dmesh(5)=120,time_window_max=1.5,ext_sonde=.true.,
+ /
+OBS_INPUT::
+!  dfile          dtype       dplat       dsis                  dval    dthin  dsfcalc
+   prepbufr       ps          null        ps                    0.0      0      0
+   prepbufr       t           null        t                     0.0      0      0
+   prepbufr       q           null        q                     0.0      0      0
+   prepbufr       pw          null        pw                    0.0      0      0
+   prepbufr       uv          null        uv                    0.0      0      0
+   prepbufr       spd         null        spd                   0.0      0      0
+   prepbufr       dw          null        dw                    0.0      0      0
+   radarbufr      rw          null        rw                    0.0      0      0
+   prepbufr       sst         null        sst                   0.0      0      0
+   gpsrobufr      gps_bnd     null        gps_bnd               0.0      0      0
+   ssmirrbufr     pcp_ssmi    dmsp        pcp_ssmi              0.0     -1      0
+   tmirrbufr      pcp_tmi     trmm        pcp_tmi               0.0     -1      0
+   sbuvbufr       sbuv2       n16         sbuv8_n16             0.0      0      0
+   sbuvbufr       sbuv2       n17         sbuv8_n17             0.0      0      0
+   sbuvbufr       sbuv2       n18         sbuv8_n18             0.0      0      0
+   hirs2bufr      hirs2       n14         hirs2_n14             0.0      1      0
+   hirs3bufr      hirs3       n16         hirs3_n16             0.0      1      0
+   hirs3bufr      hirs3       n17         hirs3_n17             0.0      1      0
+   hirs4bufr      hirs4       n18         hirs4_n18             0.0      1      0
+   hirs4bufr      hirs4       metop-a     hirs4_metop-a         0.0      1      0
+   hirs4bufr      hirs4       metop-b     hirs4_metop-b         0.0      1      0
+   gsndrbufr      sndr        g11         sndr_g11              0.0      1      0
+   gsndrbufr      sndr        g12         sndr_g12              0.0      1      0
+   gimgrbufr      goes_img    g11         imgr_g11              0.0      1      0
+   gimgrbufr      goes_img    g12         imgr_g12              0.0      1      0
+   airsbufr       airs        aqua        airs281_aqua          0.0      1      0
+   msubufr        msu         n14         msu_n14               0.0      1      0
+   amsuabufr      amsua       n15         amsua_n15             0.0      1      0
+   amsuabufr      amsua       n16         amsua_n16             0.0      1      0
+   amsuabufr      amsua       n17         amsua_n17             0.0      1      0
+   amsuabufr      amsua       n18         amsua_n18             0.0      1      0
+   amsuabufr      amsua       metop-a     amsua_metop-a         0.0      1      0
+   amsuabufr      amsua       metop-b     amsua_metop-b         0.0      1      0
+   airsbufr       amsua       aqua        amsua_aqua            0.0      1      0
+   amsubbufr      amsub       n15         amsub_n15             0.0      1      0
+   amsubbufr      amsub       n16         amsub_n16             0.0      1      0
+   amsubbufr      amsub       n17         amsub_n17             0.0      1      0
+   mhsbufr        mhs         n18         mhs_n18               0.0      1      0
+   mhsbufr        mhs         metop-a     mhs_metop-a           0.0      1      0
+   mhsbufr        mhs         metop-b     mhs_metop-b           0.0      1      0
+   ssmitbufr      ssmi        f13         ssmi_f13              0.0      1      0
+   ssmitbufr      ssmi        f14         ssmi_f14              0.0      1      0
+   ssmitbufr      ssmi        f15         ssmi_f15              0.0      1      0
+   amsrebufr      amsre_low   aqua        amsre_aqua            0.0      1      0
+   amsrebufr      amsre_mid   aqua        amsre_aqua            0.0      1      0
+   amsrebufr      amsre_hig   aqua        amsre_aqua            0.0      1      0
+   ssmisbufr      ssmis       f16         ssmis_f16             0.0      1      0
+   iasibufr       iasi        metop-a     iasi_metop-a          0.0      1      0
+   gomebufr       gome        metop-a     gome_metop-a          0.0      1      0
+   iasibufr       iasi        metop-b     iasi_metop-b          0.0      1      0
+   omibufr        omi         aura        omi_aura              0.0      1      0
+   sbuvbufr       sbuv2       n19         sbuv8_n19             0.0      1      0
+   hirs4bufr      hirs4       n19         hirs4_n19             0.0      1      0
+   amsuabufr      amsua       n19         amsua_n19             0.0      1      0
+   mhsbufr        mhs         n19         mhs_n19               0.0      1      0
+   tcvitl         tcp         null        tcp                   0.0      0      0
+   satwndbufr     uv          null        uv                    0.0      0      0
+   atmsbufr       atms        npp         atms_npp              0.0     1     0
+   crisbufr       cris        npp         cris_npp              0.0     1     0
+   crisfsbufr     cris-fsr    npp         cris-fsr_npp          0.0     1     0
+   seviribufr     seviri      m08         seviri_m08            0.0     1     0
+   seviribufr     seviri      m09         seviri_m09            0.0     1     0
+   seviribufr     seviri      m10         seviri_m10            0.0     1     0
+   gsnd1bufr      sndrd1      g15         sndrD1_g15            0.0      1      0
+   gsnd1bufr      sndrd2      g15         sndrD2_g15            0.0      1      0
+   gsnd1bufr      sndrd3      g15         sndrD3_g15            0.0      1      0
+   gsnd1bufr      sndrd4      g15         sndrD4_g15            0.0      1      0
+   prepbufr       mta_cld     null        mta_cld               1.0      0      0
+   prepbufr       gos_ctp     null        gos_ctp               1.0      0      0
+   lgycldbufr     larccld     null        larccld               1.0      0      0
+::
+ &SUPEROB_RADAR
+   del_azimuth=5.,del_elev=.25,del_range=5000.,del_time=.5,elev_angle_max=5.,minnum=50,range_max=100000.,
+   l2superob_only=.false.,
+ /
+ &LAG_DATA
+ /
+ &HYBRID_ENSEMBLE
+ /
+ &RAPIDREFRESH_CLDSURF
+   dfi_radar_latent_heat_time_period=30.0,
+ /
+ &CHEM
+ /
+ &SINGLEOB_TEST
+ /
+ &NST
+ /
+"
+;;
+
 nems_nmmb)
 
 # Define namelist for nems nmmb run

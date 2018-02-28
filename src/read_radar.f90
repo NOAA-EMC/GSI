@@ -59,6 +59,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 !   2016-12-21  lippi/carley - add logic to run l2rw loop (==0) or run loop for l3rw and l2_5rw (==1,2) 
 !                              to help fix a multiple data read bug (when l2rwbufr and radarbufr were both 
 !                              listed in the OBS_INPUT table) and for added flexibility for experimental setups.
+!   2018-02-15  wu      - add code for fv3_regional option
 !
 !
 !   input argument list:
@@ -90,6 +91,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,time_4dvar,thin4d
   use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy,nsig
   use gridmod, only: wrf_nmm_regional,nems_nmmb_regional,cmaq_regional,wrf_mass_regional
+  use gridmod, only: fv3_regional
   use convinfo, only: nconvtype,ctwind, &
       ncmiter,ncgroup,ncnumgrp,icuse,ictype,ioctype,ithin_conv,rmesh_conv,pmesh_conv
   use convthin, only: make3grids,map3grids,del3grids,use_all
@@ -917,7 +919,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
         if (dlon_earth>=r360) dlon_earth=dlon_earth-r360
         if (dlon_earth<zero ) dlon_earth=dlon_earth+r360
    
-        if (wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional.or.wrf_mass_regional) then
+        if (wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional.or.wrf_mass_regional&
+                 .or. fv3_regional ) then
            if(loop==1) then 
               if(dlon_earth>230.0_r_kind .and.  &
                  dlat_earth <54.0_r_kind)then
@@ -1105,7 +1108,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
            error = erradar_inflate*radar_obs(7,k)
    
 !       Increase error for lev2.5 and lev3
-           if (wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional.or.wrf_mass_regional) then
+           if (wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional.or.wrf_mass_regional &
+                 .or. fv3_regional ) then
               if(dlon_earth*rad2deg>230.0_r_kind .and.  &
                  dlat_earth*rad2deg <54.0_r_kind)then
                  error = error+r10

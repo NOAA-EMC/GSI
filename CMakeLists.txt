@@ -237,7 +237,7 @@ project(GSI)
     if(USE_WRF)
       file(WRITE "${PROJECT_BINARY_DIR}/regression_var.out" "${CMAKE_SOURCE_DIR}/regression/regression_var.sh ${host} ${CMAKE_SOURCE_DIR}/.. ${PROJECT_BINARY_DIR} ${CMAKE_SOURCE_DIR} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GSIEXEC} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${ENKFEXEC} ${GSICONTROL} ${ENKFCONTROL} ")
       set( REG_TEST_NAMES "global_T62;global_T62_ozonly;global_4dvar_T62;global_4denvar_T126;global_lanczos_T62;arw_netcdf;
-          arw_binary;nmm_binary;nmm_netcdf;nmmb_nems_4denvar;hwrf_nmm_d2;hwrf_nmm_d3;rtma;global_enkf_T62")
+          arw_binary;nmm_binary;nmm_netcdf;nmmb_nems_4denvar;hwrf_nmm_d2;hwrf_nmm_d3;rtma;global_enkf_T62;netcdf_fv3_regional")
     else()
       file(WRITE "${PROJECT_BINARY_DIR}/regression_var.out" "${CMAKE_SOURCE_DIR}/regression/regression_var.sh ${host} ${CMAKE_SOURCE_DIR}/.. ${PROJECT_BINARY_DIR} ${CMAKE_SOURCE_DIR} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GSIEXEC} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${ENKFEXEC} ${GSICONTROL} ${ENKFCONTROL} ")
       set( REG_TEST_NAMES "global_T62;global_T62_ozonly;global_4dvar_T62;global_lanczos_T62;global_nemsio_T62")

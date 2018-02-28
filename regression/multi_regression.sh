@@ -10,6 +10,7 @@ regtests_all="global_T62
               nmm_binary
               nmm_netcdf
               nmmb_nems_4denvar
+              netcdf_fv3_regional
               hwrf_nmm_d2
               hwrf_nmm_d3
               rtma
@@ -24,6 +25,7 @@ regtests_debug="global_T62
                 nmm_binary
                 nmm_netcdf
                 nmmb_nems_4denvar
+                netcdf_fv3_regional
                 hwrf_nmm_d2
                 hwrf_nmm_d3"
 

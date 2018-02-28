@@ -133,13 +133,13 @@ case $machine in
    export clean=".true."
    ;;
    WCOSS_C)
-   if [ -d /gpfs/hps/emc/global/noscrub/$LOGNAME ]; then
-      export noscrub="/gpfs/hps/emc/global/noscrub/$LOGNAME"
-   elif [ -d /gpfs/hps/emc/da/noscrub/$LOGNAME ]; then
-      export noscrub="/gpfs/hps/emc/da/noscrub/$LOGNAME"
+   if [ -d /gpfs/hps3/emc/global/noscrub/$LOGNAME ]; then
+      export noscrub="/gpfs/hps3/emc/global/noscrub/$LOGNAME"
+   elif [ -d /gpfs/hps3/emc/da/noscrub/$LOGNAME ]; then
+      export noscrub="/gpfs/hps3/emc/da/noscrub/$LOGNAME"
    fi
    if [[ "$cmaketest" = "false" ]]; then
-     export basedir="/gpfs/hps/emc/global/noscrub/$LOGNAME/svn/gsi"
+     export basedir="/gpfs/hps3/emc/global/noscrub/$LOGNAME/svn/gsi"
    fi
    export group="dev"
    export queue="dev"
@@ -147,7 +147,7 @@ case $machine in
    export ptmp="/gpfs/hps/ptmp/$LOGNAME/$ptmpName"
 
    export fixcrtm="/gpfs/hps/nco/ops/nwprod/lib/crtm/v2.2.4/fix"
-   export casesdir="/gpfs/hps/emc/da/noscrub/Michael.Lueken/CASES"
+   export casesdir="/gpfs/hps3/emc/da/noscrub/Michael.Lueken/CASES"
    export ndate=$NDATE
 
    export check_resource="no"
@@ -228,6 +228,7 @@ export nmm_binary_adate="2010021600"
 export nmm_netcdf_adate="2007122000"
 export rtma_adate="2017031218"
 export hwrf_nmm_adate="2012102812"
+export fv3_netcdf_adate="2017030100"
 
 # Paths for canned case data.
 export global_T62_obs="$casesdir/global/sigmap/$global_T62_adate"
@@ -258,6 +259,8 @@ export rtma_obs="$casesdir/regional/rtma_binary/$rtma_adate"
 export rtma_ges="$casesdir/regional/rtma_binary/$rtma_adate"
 export hwrf_nmm_obs="$casesdir/regional/hwrf_nmm/$hwrf_nmm_adate"
 export hwrf_nmm_ges="$casesdir/regional/hwrf_nmm/$hwrf_nmm_adate"
+export fv3_netcdf_obs="$casesdir/regional/fv3_netcdf/$fv3_netcdf_adate"
+export fv3_netcdf_ges="$casesdir/regional/fv3_netcdf/$fv3_netcdf_adate"
 
 # Define type of GPSRO data to be assimilated (refractivity or bending angle)
 export gps_dtype="gps_bnd"
