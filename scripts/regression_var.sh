@@ -38,8 +38,8 @@ if [ -d /da ]; then # WCOSS
    fi
 elif [ -d /scratch4/NCEPDEV/da ]; then # Theia
    export machine="Theia"
-   if [ -d /scratch4/NCEPDEV/da/noscrub/$LOGNAME ]; then 
-     export noscrub="/scratch4/NCEPDEV/da/noscrub/$LOGNAME"
+   if [ -d /scratch4/NCEPDEV/meso/noscrub/$LOGNAME ]; then 
+     export noscrub="/scratch4/NCEPDEV/meso/noscrub/$LOGNAME"
    elif [ -d /scratch4/NCEPDEV/global/noscrub/$LOGNAME ]; then 
      export noscrub="/scratch4/NCEPDEV/global/noscrub/$LOGNAME"
    fi
@@ -74,7 +74,7 @@ if [[ "$machine" = "Theia" ]]; then
 
    export check_resource="no"
 
-   export accnt="da-cpu"
+   export accnt="fv3-cpu"
 
    #  On Theia, there are no scrubbers to remove old contents from stmp* directories.
    #  After completion of regression tests, will remove the regression test subdirecories

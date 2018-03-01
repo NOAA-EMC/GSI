@@ -3,15 +3,12 @@ module nltransf
 !$$$   module documentation block
 ! module:    nltransf
 ! program history log:
-! 2018-01-18 yang/Guo ! Jim Purser's nonlinear transformation and confine function  for vis and cldch.
+! 2018-01-18 yang/Guo ! Jim Purser's nonlinear transformation for vis and cldch.
 !  will work on the document late 
-!  zlow and zhigh values given a power p value, given scaling =1. with
 !$$$   end documentation block
 !                .      .    .                                       .
 
   use kinds, only: r_kind, i_kind
-! SEEMS NOT NEEDED,check late  ??
-  use qcmod, only: nltrcv,pvis,pcldch,estvisoe,estcldchoe
 
   implicit none
   private

@@ -56,6 +56,6 @@ if [ "$debug" == ".false." ]; then
 fi
 
 # Clean-up
-rm -f ${regtest}.out
+#rm -f ${regtest}.out
 
 exit

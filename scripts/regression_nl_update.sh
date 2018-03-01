@@ -19,7 +19,7 @@ if [[ `expr substr $exp 1 6` = "global" ]]; then
    fi
 fi
 if [[ `expr substr $exp $((${#exp}-4)) ${#exp}` = "updat" ]]; then
-   export OBSQC_update="closest_obs=.false."
+   export OBSQC_update="closest_obs=.false.,nltrcv=.true.,pvis=0.2,pcldch=0.1,estvisoe=3.0,estcldchoe=1.875,vis_thres=16000.,cldch_thres=12000.,"
 else
    export OBSQC_update=""
 fi

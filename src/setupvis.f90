@@ -332,21 +332,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      endif
 
      if(.not.in_curbin) cycle
-
-!RY--BEGIN -- for Single Obs test: write out the interpolated FG values
-!     rstation_id     = data(id,i)
-!     write (6,*) 'SETUPVIS: trim(station_id=',trim(station_id)
-!     if (trim(station_id) .eq. 'KSXT') then
-!        call tintrp2SO (ges_vis,visges,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
-!       write (6,*) 'SETUPVIS at KSXT:, error=',trim(station_id),data(ier,i)
-!     else
-! Interpolate to get vis at obs location/time
-       call tintrp2a11(ges_vis,visges,dlat,dlon,dtime,hrdifsig,&
-        mype,nfldsig)
-
-!     endif
-!RY--END  END the code for SO
-
+     call tintrp2a11(ges_vis,visges,dlat,dlon,dtime,hrdifsig, mype,nfldsig)
 
 ! Adjust observation error
      ratio_errors=error/data(ier,i)
@@ -366,13 +352,6 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
         residual = abs(ddiff)
         ratio    = residual/obserrlm
-!RY--BEGIN -- for Single Obs. test
-!       if (trim(station_id) .eq. 'KSXT') then 
-!       write (6,*) 'SETUPVIS:',trim(station_id),'ier|error|obs|diff',data(ier,i),error,data(ivis,i),ddiff
-!       write (6,*) 'in GROSSCHECK:',trim(station_id),'ratio=abs(ddiff)/obserrlm', ddiff, obserrlm
-!        endif
-!RY--END --
-
         if (ratio> cgross(ikx) .or. ratio_errors < tiny_r_kind) then
            if (luse(i)) awork(6) = awork(6)+one
            error = zero
@@ -389,20 +368,6 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         error = zero
         ratio_errors=zero
      end if
-!RY--BEGIN -- for Single Obs. test follow Manuel's way tentatively 
-! Example:  at station KSXT
-!      rstation_id     = data(id,i)
-!      write (6,*) 'trim(station_id=',trim(station_id)
-!      if (trim(station_id) .ne. 'KSXT') then
-!      write (6,*) 'trim(station_id=',trim(station_id)
-!         error = zero
-!         ratio_errors=zero
-!      else
-!        write (6,*) 'trim(station_id=',trim(station_id)
-!        write (6,*) 'error=', error,'ddiff=',ddiff
-!     endif
-!RY--END 
-
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
      if (nobskeep>0.and.luse_obsdiag) muse(i)=obsdiags(i_vis_ob_type,ibin)%tail%muse(nobskeep)
 
