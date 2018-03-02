@@ -197,7 +197,7 @@ module ncepgfs_ghg
                (367 * (month -2 -12 * ((month -14)/12)))/12 - &
                (3 * ((iyear + 4900 + (month - 14)/12)/100))/4 + idd - 32075
    
-      co2_glb = 0.00602410 * (julday - 2455563.0_r_kind) + 389.5_r_kind
+      co2_glb = 0.00602410_r_kind * (julday - 2455563.0_r_kind) + 389.5_r_kind
 
       do k = 1, nlev
          do j = 1, lon2
