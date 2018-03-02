@@ -27,8 +27,8 @@ fi
 # Directories.
 pwd=$(pwd)
 export NWPROD=${NWPROD:-$pwd}
-export BASE_GSM=${BASE_GSM:-$NWPROD}
-BASE_GSI=${BASE_GSI:-$NWPROD}
+export HOMEgfs=${HOMEgfs:-$NWPROD}
+HOMEgsi=${HOMEgsi:-$NWPROD}
 export DATA=${DATA:-$pwd}
 COMIN=${COMIN:-$pwd}
 COMIN_ENS=${COMIN_ENS:-$pwd}
@@ -51,10 +51,10 @@ NEMSIOGET=${NEMSIOGET:-${NWPROD}/exec/nemsio_get}
 # Scripts
 
 # Executables.
-GETATMENSMEANEXEC=${GETATMENSMEANEXEC:-$BASE_GSI/exec/getsigensmeanp_smooth.x}
-GETSFCENSMEANEXEC=${GETSFCENSMEANEXEC:-$BASE_GSI/exec/getsfcensmeanp.x}
-RECENATMEXEC=${RECENATMEXEC:-$BASE_GSI/exec/recentersigp.x}
-CALCINCEXEC=${CALCINCEXEC:-$BASE_GSI/exec/calc_increment_ens.x}
+GETATMENSMEANEXEC=${GETATMENSMEANEXEC:-$HOMEgsi/exec/getsigensmeanp_smooth.x}
+GETSFCENSMEANEXEC=${GETSFCENSMEANEXEC:-$HOMEgsi/exec/getsfcensmeanp.x}
+RECENATMEXEC=${RECENATMEXEC:-$HOMEgsi/exec/recentersigp.x}
+CALCINCEXEC=${CALCINCEXEC:-$HOMEgsi/exec/calc_increment_ens.x}
 
 # Files.
 OPREFIX=${OPREFIX:-""}
@@ -70,15 +70,15 @@ imp_physics=${imp_physics:-99}
 INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"'NONE'"}
 
 # global_chgres stuff
-CHGRESEXEC=${CHGRESEXEC:-$BASE_GSM/exec/chgres_recenter.exe}
+CHGRESEXEC=${CHGRESEXEC:-$HOMEgfs/exec/chgres_recenter.exe}
 NTHREADS_CHGRES=${NTHREADS_CHGRES:-24}
 APRUN_CHGRES=${APRUN_CHGRES:-""}
 
 # global_cycle stuff
-CYCLESH=${CYCLESH:-$BASE_GSM/ush/global_cycle.sh}
-export CYCLEXEC=${CYCLEXEC:-$BASE_GSM/exec/global_cycle}
-export FIXfv3=${FIXfv3:-$BASE_GSM/fix/fix_fv3_gmted2010}
-export FIXgsm=${FIXgsm:-$BASE_GSM/fix/fix_am}
+CYCLESH=${CYCLESH:-$HOMEgfs/ush/global_cycle.sh}
+export CYCLEXEC=${CYCLEXEC:-$HOMEgfs/exec/global_cycle}
+export FIXfv3=${FIXfv3:-$HOMEgfs/fix/fix_fv3_gmted2010}
+export FIXgsm=${FIXgsm:-$HOMEgfs/fix/fix_am}
 export CYCLVARS=${CYCLVARS:-"FSNOL=-2.,FSNOS=99999.,"}
 export FHOUR=${FHOUR:-0}
 export DELTSFC=${DELTSFC:-6}
@@ -255,6 +255,7 @@ $ERRSCRIPT || exit 4
 PDY=$(echo $CDATE | cut -c1-8)
 cyc=$(echo $CDATE | cut -c9-10)
 
+GDATE=$($NDATE -$assim_freq $CDATE)
 gPDY=$(echo $GDATE | cut -c1-8)
 gcyc=$(echo $GDATE | cut -c9-10)
 GDUMP=${GDUMP:-"gdas"}
