@@ -249,6 +249,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !44  => PAZ
 !750-755 => COSMIC-2 Equatorial
 !724-729 => COSMIC-2 Polar
+!825 => KOMPSAT-5
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)

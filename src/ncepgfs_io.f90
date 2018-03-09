@@ -53,6 +53,7 @@ module ncepgfs_io
 !$$$ end documentation block
   use sigio_module, only: sigio_head
   use ncepnems_io, only: tran_gfssfc
+  use gridmod, only: sfcnst_comb
   implicit none
 
   private
@@ -220,7 +221,7 @@ contains
        if (mype==0) write(6,*)'READ_GFS: l_cld_derived = ', l_cld_derived
 
        if (l_cld_derived) then
-          call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q_it,ges_tv_it) 
+          call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q_it,ges_tv_it,.true.) 
        end if
 
     end do
@@ -1335,20 +1336,24 @@ end subroutine write_ghg_grid
             call write_gfssfc(filename,mype_sfc,dsfct(1,1,ntguessfc))
         endif
     else
-        if ( nst_gsi > 0 ) then
-          if ( use_gfs_nemsio ) then
-              call write_nems_sfc_nst(mype_sfc,dsfct(:,:,ntguessfc))
+       if ( nst_gsi > 0 ) then
+          if ( sfcnst_comb ) then
+             call write_tf_inc_nc(mype_sfc,dsfct(:,:,ntguessfc))
           else
-              call write_gfs_sfc_nst (mype_sfc,dsfct(1,1,ntguessfc))
+             if ( use_gfs_nemsio ) then
+                 call write_nems_sfc_nst(mype_sfc,dsfct(:,:,ntguessfc))
+             else
+                 call write_gfs_sfc_nst (mype_sfc,dsfct(1,1,ntguessfc))
+             endif
           endif
-        else
-            filename='sfcanl.gsi'
-            if ( use_gfs_nemsio ) then
-                call write_nemssfc(filename,mype_sfc,dsfct(:,:,ntguessfc))
-            else
-                call write_gfssfc (filename,mype_sfc,dsfct(1,1,ntguessfc))
-            endif
-        endif
+       else
+           filename='sfcanl.gsi'
+           if ( use_gfs_nemsio ) then
+               call write_nemssfc(filename,mype_sfc,dsfct(:,:,ntguessfc))
+           else
+               call write_gfssfc (filename,mype_sfc,dsfct(1,1,ntguessfc))
+           endif
+       endif
     endif
 
   end subroutine write_gfs
@@ -2031,6 +2036,159 @@ end subroutine write_ghg_grid
 !   End of routine
   end subroutine write_gfs_sfc_nst
 
+  subroutine write_tf_inc_nc(mype_so,xvar2)
+!
+! abstract: get a global dtf and msk used in GSI by gatjering sub-domanin ones and write them in netCDF 
+!
+!  REMARKS:
+!
+!   language: f90
+!   machines: ibm RS/6000 SP; SGI Origin 2000; Compaq HP
+!
+!  AUTHOR:
+!
+!   2017-09-12  xu li -  initial version; org: np22
+!   REVISION HISTORY:
+!
+!EOP
+
+!  DESCRIPTION:
+!  input:
+!        mype_so : mpi task no
+!        xvar2   : variable in subdomain
+!
+!  USES:
+!
+    use netcdf
+    use netcdf_mod, only: nc_check
+
+    use kinds, only: r_kind,i_kind
+
+    use mpimod, only: mpi_rtype,mpi_itype
+    use mpimod, only: mpi_comm_world
+    use mpimod, only: ierror
+    use mpimod, only: mype
+
+    use gridmod, only: nlat,nlon,lat1,lon1,lat2,lon2
+    use gridmod, only: iglobal,ijn,displs_g,itotsub
+    use gridmod, only: rlats,rlons
+    use guess_grids, only: isli2
+    use general_commvars_mod, only: ltosi,ltosj
+
+    use obsmod,  only: iadate
+    use constants, only: rad2deg
+
+    implicit none
+!
+!  INPUT PARAMETERS:
+!
+    integer(i_kind),                   intent(in) :: mype_so          
+    real(r_kind),dimension(lat2,lon2), intent(in) :: xvar2            
+!
+!  OUTPUT PARAMETERS:
+!
+!-------------------------------------------------------------------------
+
+!   Declare local variables
+    integer(i_kind):: i,j,ip1,jp1,ilat,ilon,mm1
+    real(r_kind),    dimension(lat1,lon1):: dtf_sub
+    integer(i_kind), dimension(lat1,lon1):: msk_sub
+
+    real(r_kind),    dimension(max(iglobal,itotsub)):: dtf_all
+    integer(i_kind), dimension(max(iglobal,itotsub)):: msk_all
+
+    real(r_kind),    dimension(nlon,nlat):: dtf
+    integer(i_kind), dimension(nlon,nlat):: msk
+
+    integer(i_kind) :: ncid
+    character (len = *), parameter :: lat_name = "latitude"
+    character (len = *), parameter :: lon_name = "longitude"
+    integer(i_kind) :: lat_dimid, lon_dimid
+!   The start and count arrays will tell the netCDF library where to write our data.
+    integer(i_kind), dimension(2) :: start,count,dimids
+!   These program variables hold the latitudes and longitudes.
+    integer(i_kind) :: lon_varid, lat_varid
+!   We will create two netCDF variables, one each for temperature and slmsk
+    character (len = *), parameter :: dtf_name="dtf"
+    character (len = *), parameter :: msk_name="msk"
+    integer(i_kind) :: dtf_varid,msk_varid
+!   define a "units" attribute for each variable.
+    character (len = *), parameter :: units = "units"
+    character (len = *), parameter :: dtf_units = "kelvin"
+    character (len = *), parameter :: msk_units = "none"
+    character (len = *), parameter :: lat_units = "degrees_north"
+    character (len = *), parameter :: lon_units = "degrees_east"
+!*****************************************************************************
+!   Initialize local variables
+    mm1 = mype + 1
+!
+!   Extract the xvar and surface mask in subdomain without the buffer
+!
+    do j=1,lon1
+       jp1 = j+1
+       do i=1,lat1
+          ip1 = i+1
+          dtf_sub(i,j) = xvar2(ip1,jp1)
+          msk_sub(i,j) = isli2(ip1,jp1)
+       end do
+    end do
+!
+!   Gather analysis increment and surface mask info from subdomains
+!
+    call mpi_gatherv(dtf_sub,ijn(mm1),mpi_rtype,&
+         dtf_all,ijn,displs_g,mpi_rtype,mype_so ,&
+         mpi_comm_world,ierror)
+
+    call mpi_gatherv(msk_sub,ijn(mm1),mpi_itype,&
+         msk_all,ijn,displs_g,mpi_itype,mype_so ,&
+         mpi_comm_world,ierror)
+!
+!   Only MPI task mype_so, writes the surface & nst file.
+!
+    if ( mype == mype_so ) then
+       do i=1,iglobal
+          ilon=ltosj(i)
+          ilat=ltosi(i)
+          dtf(ilon,ilat) = dtf_all(i)
+          msk(ilon,ilat) = msk_all(i)
+       end do
+!      Create the netCDF file.
+       call nc_check( nf90_create('dtfanl', cmode=ior(nf90_clobber,nf90_64bit_offset), ncid=ncid),'create_nc','dtfanl' )
+!      Define the dimensions.
+       call nc_check( nf90_def_dim(ncid, lat_name, nlat, lat_dimid),'lat_name','dtfanl' )
+       call nc_check( nf90_def_dim(ncid, lon_name, nlon, lon_dimid),'lon_name','dtfanl' )
+
+!      Define the coordinate variables.
+       call nc_check( nf90_def_var(ncid, lat_name, nf90_real, lat_dimid, lat_varid),'lat_dim','dtfanl' )
+       call nc_check( nf90_def_var(ncid, lon_name, nf90_real, lon_dimid, lon_varid),'lon_dim','dtfanl' )
+! Assign units attributes to coordinate variables
+       call nc_check( nf90_put_att(ncid, lat_varid, units, lat_units),'lat_unit','dtfanl' )
+       call nc_check( nf90_put_att(ncid, lon_varid, units, lon_units),'lon_unit','dtfanl' )
+!      The dimids array is used to pass the dimids of the dimensions of the netCDF variables.
+       dimids = (/ lon_dimid, lat_dimid /)
+!      Define the netCDF variables for the Tf and slmsk data.
+       call nc_check( nf90_def_var(ncid, dtf_name, nf90_double, dimids, dtf_varid),'dtf_type','dtfanl' )
+       call nc_check( nf90_def_var(ncid, msk_name, nf90_byte,   dimids, msk_varid),'msk_type','dtfanl' )
+!      Assign units attributes to the netCDF variables.
+       call nc_check( nf90_put_att(ncid, dtf_varid, units, dtf_units),'lat_name','dtfanl' )
+       call nc_check( nf90_put_att(ncid, msk_varid, units, msk_units),'lat_name','dtfanl' )
+!      End define mode.
+       call nc_check( nf90_enddef(ncid),'Att_End','dtfanl' )
+!      Write the coordinate variable data. 
+       call nc_check( nf90_put_var(ncid, lat_varid, rlats*rad2deg),'write_lats','dtfanl' )
+       call nc_check( nf90_put_var(ncid, lon_varid, rlons*rad2deg),'write_lons','dtfanl' )
+!      These settings tell netcdf to write one timestep of data.
+       count = (/ nlon, nlat /)
+       start = (/ 1, 1 /)
+!      Write the data. 
+       call nc_check( nf90_put_var(ncid, dtf_varid, dtf, start, count),'write_dtf','dtfanl' )
+       call nc_check( nf90_put_var(ncid, msk_varid, msk, start, count),'write_msk','dtfanl' )
+
+       call nc_check( nf90_close(ncid),'close','dtfanl' )
+       print *,"*** SUCCESS writing dtf & msk file ", 'dtfanl', "!"
+    endif                               ! if (mype == mype_so ) then
+  end subroutine write_tf_inc_nc
+
   subroutine write_ens_sfc_nst(mype_so,dsfct)
 !
 ! abstract: write sfc and nst analysis files (nst_gsi dependent) for
@@ -2195,9 +2353,6 @@ end subroutine write_ghg_grid
     nlatm2  = nlat - 2
 !   get analysis date (yyyymmddhh) in character
     write(canldate,'(I10)') ianldate
-!   get file names
-    write(canldate,'(I10)') ianldate
-
 !
 !   Extract the analysis increment and surface mask in subdomain without the
 !   buffer
