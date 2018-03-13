@@ -2299,16 +2299,23 @@ contains
        kcwm=i_cwm-1
        do k=1,nsig_write   
           kcwm=kcwm+1
-          if(mype == 0) temp1=zero  ! no read-in of guess fields
+          if(mype == 0) read(lendian_in)temp1 
+          if(mype == 0) write(6,*)' k,max,min(temp1) CWM in   =',k,maxval(temp1),minval(temp1) 
           call strip(all_loc(:,:,kcwm),strp)
           call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
                tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
           if(mype == 0) then
              call this%get_bndy_file(temp1,pdbg,tbg,qbg,cwmbg,ubg,vbg,kcwm,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
                                 n_actual_clouds,im,jm,lm,bdim,igtypeh)
+             if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
+             if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
+             do i=1,iglobal
+               tempa(i)=tempa(i)-tempb(i)
+             end do
              if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
              if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
              write(lendian_out)temp1
+             write(6,*)' k,max,min(temp1) CWM out  =',k,maxval(temp1),minval(temp1)
              call this%get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,kcwm,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
                                 n_actual_clouds,im,jm,lm,bdim,igtypeh)
           end if
@@ -2318,14 +2325,21 @@ contains
        kf_ice=i_f_ice-1
        do k=1,nsig_write
           kf_ice=kf_ice+1
-          if(mype == 0) temp1=zero  ! no read-in of guess fields
+          if(mype == 0) read(lendian_in)temp1 
+          if(mype == 0) write(6,*)' k,max,min(temp1) F_ICE in   =',k,maxval(temp1),minval(temp1) 
           call strip(all_loc(:,:,kf_ice),strp)
           call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
                tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
           if(mype == 0) then
+             if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
+             if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
+             do i=1,iglobal
+               tempa(i)=tempa(i)-tempb(i)
+             end do
              if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
              if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
              write(lendian_out)temp1
+             write(6,*)' k,max,min(temp1) F_ICE out  =',k,maxval(temp1),minval(temp1)
           end if
        end do
   
@@ -2334,13 +2348,21 @@ contains
        do k=1,nsig_write
           kf_rain=kf_rain+1
           if(mype == 0) temp1=zero  ! no read-in of guess fields
+          if(mype == 0) read(lendian_in)temp1
+          if(mype == 0) write(6,*) ' k,max,min(temp1) F_RAIN in    =',k,maxval(temp1),minval(temp1)
           call strip(all_loc(:,:,kf_rain),strp)
           call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
                tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
           if(mype == 0) then
+             if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
+             if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
+             do i=1,iglobal
+               tempa(i)=tempa(i)-tempb(i)
+             end do
              if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
              if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
              write(lendian_out)temp1
+             write(6,*) ' k,max,min(temp1) F_RAIN out   =',k,maxval(temp1),minval(temp1)
           end if
        end do
   

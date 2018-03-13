@@ -41,6 +41,7 @@ use mpeu_util, only: getindex
 use gsi_metguess_mod, only: gsi_metguess_get
 use mod_strong, only: tlnmc_option
 use cwhydromod, only: cw2hydro_ad
+use cwhydromod, only: cw2hydro_ad_hwrf
 use timermod, only: timer_ini,timer_fnl
 implicit none
 
@@ -63,11 +64,13 @@ character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed he
 logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_cw
 real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_rh
 ! Declare required local state variables
-integer(i_kind), parameter :: nsvars = 7 
+integer(i_kind), parameter :: nsvars = 11 
 integer(i_kind) :: isps(nsvars)
 character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed here
-                               'u   ', 'v   ', 'prse', 'q   ', 'tsen','ql  ','qi  ' /)                                
+                               'u   ', 'v   ', 'prse', 'q   ', 'tsen','ql  ','qi  ', &
+                               'qr  ', 'qs  ', 'qg  ', 'qh  ' /)                                
 logical :: ls_u,ls_v,ls_prse,ls_q,ls_tsen,ls_ql,ls_qi
+logical :: ls_qr,ls_qs,ls_qg,ls_qh
 real(r_kind),pointer,dimension(:,:)   :: rv_ps,rv_sst
 real(r_kind),pointer,dimension(:,:,:) :: rv_u,rv_v,rv_prse,rv_q,rv_tsen,rv_tv,rv_oz
 real(r_kind),pointer,dimension(:,:,:) :: rv_rank3
@@ -75,6 +78,7 @@ real(r_kind),pointer,dimension(:,:,:) :: rv_rank3
 logical :: do_getuv,do_tv_to_tsen_ad,do_normal_rh_to_q_ad,do_getprs_ad,lstrong_bk_vars
 logical :: do_tlnmc,do_q_copy
 logical :: do_cw_to_hydro_ad
+logical :: do_cw_to_hydro_ad_hwrf
 
 !****************************************************************************
 
@@ -99,6 +103,8 @@ lc_t  =icps(4)>0; lc_rh =icps(5)>0; lc_cw =icps(6)>0
 call gsi_bundlegetpointer (eval(1),mysvars,isps,istatus)
 ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_prse=isps(3)>0
 ls_q  =isps(4)>0; ls_tsen=isps(5)>0; ls_ql =isps(6)>0; ls_qi =isps(7)>0                                      
+ls_qr  =isps(8)>0; ls_qs  =isps(9)>0
+ls_qg  =isps(10)>0; ls_qh =isps(11)>0
 
 ! Define what to do depending on what's in CV and SV
 lstrong_bk_vars     =lc_sf.and.lc_vp.and.lc_ps .and.lc_t
@@ -114,6 +120,8 @@ do_getprs_ad        =lc_t .and.lc_ps.and.ls_prse
 
 do_cw_to_hydro_ad=.false.
 do_cw_to_hydro_ad=lc_cw.and.ls_ql.and.ls_qi
+do_cw_to_hydro_ad_hwrf=.false.
+do_cw_to_hydro_ad_hwrf=lc_cw.and.ls_ql.and.ls_qi.and.ls_qr.and.ls_qs.and.ls_qg.and.ls_qh
 
 ! Initialize
 mval%values=zero
@@ -184,10 +192,14 @@ do jj=1,ntlevs_ens
 
 !$omp section
 
-   if (do_cw_to_hydro_ad) then
+   if (do_cw_to_hydro_ad .and. .not.do_cw_to_hydro_ad_hwrf) then
 !     Case when cloud-vars do not map one-to-one
 !     e.g. cw-to-ql&qi
       call cw2hydro_ad(eval(jj),wbundle_c,clouds,nclouds)
+   elseif (do_cw_to_hydro_ad_hwrf) then
+!!     Case when cloud-vars do not map one-to-one
+!!     e.g. cw-to-ql&qi&qr&qs&qg&qh
+      call cw2hydro_ad_hwrf(eval(jj),wbundle_c,rv_tsen)
    else
 !  Since cloud-vars map one-to-one, take care of them together
       do ic=1,nclouds
