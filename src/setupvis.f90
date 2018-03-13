@@ -89,7 +89,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_double) rstation_id
 
   real(r_kind) visges,dlat,dlon,ddiff,dtime,error
-  real(r_kind) visgesout,visobout,tempvis
+  real(r_kind) visgesout,visobout,tempvis,visdiff
   real(r_kind) vis_errmax,offtime_k,offtime_l
   real(r_kind) scale,val2,ratio,ressw2,ress,residual
   real(r_kind) obserrlm,obserror,val,valqc
@@ -410,8 +410,18 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         end if
         if (abs(data(ivis,i)-rmiss_single) >=tiny_r_kind) then
            bwork(1,ikx,1,nn)  = bwork(1,ikx,1,nn)+one           ! count
-           bwork(1,ikx,2,nn)  = bwork(1,ikx,2,nn)+ress          ! (o-g)
-           bwork(1,ikx,3,nn)  = bwork(1,ikx,3,nn)+ressw2        ! (o-g)**2
+! in nltr  bwork(1,ikx,2,nn)  = bwork(1,ikx,2,nn)+ress          ! (o-g)
+! in nltr  bwork(1,ikx,3,nn)  = bwork(1,ikx,3,nn)+ressw2        ! (o-g)**2
+
+!.........................................................................
+!RY--BEGIN  NLTR _inverse, convert vis from nltr to physical space
+           call nltransf_inverse(visges,visgesout,pvis)
+           tempvis=data(ivis,i)
+           call nltransf_inverse(tempvis,visobout,pvis)
+           visdiff=(visobout-visgesout)*scale
+           bwork(1,ikx,2,nn)  = bwork(1,ikx,2,nn)+visdiff            ! (o-g)
+           bwork(1,ikx,3,nn)  = bwork(1,ikx,3,nn)+visdiff*visdiff    ! (o-g)**2
+!RY--END
            bwork(1,ikx,4,nn)  = bwork(1,ikx,4,nn)+val2*rat_err2 ! penalty
            bwork(1,ikx,5,nn)  = bwork(1,ikx,5,nn)+valqc         ! nonlin qc penalty
         end if
@@ -513,14 +523,9 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error (K**-1)
         rdiagbuf(16,ii) = errinv_final       ! final inverse observation error (K**-1)
  
-!RY--BEGIN  NLTR _inverse to both visges and obs. 
-        call nltransf_inverse(visges,visgesout,pvis)
-        tempvis=data(ivis,i)
-        call nltransf_inverse(tempvis,visobout,pvis)
-!RY--END
         rdiagbuf(17,ii) = visobout           ! VIS observation 
-        rdiagbuf(18,ii) = visobout-visgesout ! obs-ges in physical unit
-        rdiagbuf(19,ii) = visobout-visgesout ! obs-ges w/o bias correction (K) (future slot)
+        rdiagbuf(18,ii) = visdiff            ! obs-ges in physical unit
+        rdiagbuf(19,ii) = visdiff            ! obs-ges w/o bias correction (K) (future slot)
         rdiagbuf(20,ii) = rmiss_single       ! type of measurement
         rdiagbuf(21,ii) = data(idomsfc,i)    ! dominate surface type
         rdiagbuf(22,ii) = data(izz,i)        ! model terrain at observation location

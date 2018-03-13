@@ -85,9 +85,9 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_double) rstation_id
 
   real(r_kind) cldchges,dlat,dlon,ddiff,dtime,error
-  real(r_kind) cldchgesout,cldchobout,tempcldch
+  real(r_kind) cldchgesout,cldchobout,tempcldch,cldchdiff
   real(r_kind) cldch_errmax,offtime_k,offtime_l
-  real(r_kind) scale,val2,ratio,ressw2,ress,residual
+  real(r_kind) scale,val2,ratio,residual
   real(r_kind) obserrlm,obserror,val,valqc
   real(r_kind) term,rwgt
   real(r_kind) cg_cldch,wgross,wnotgross,wgt,arg,exp_arg,rat_err2
@@ -325,9 +325,25 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
      if(.not.in_curbin) cycle
 
+!------------------------------------------------------------------------------
+! RTMA SO test-part one:check the interpolated fields at the selected station
+
+!     rstation_id     = data(id,i)
+!    if (trim(station_id) .ne. 'CYYY') then
 ! Interpolate to get cldch at obs location/time
-     call tintrp2a11(ges_cldch,cldchges,dlat,dlon,dtime,hrdifsig,&
-        mype,nfldsig)
+!        call tintrp2a11(ges_cldch,cldchges,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
+!     endif
+!     if (trim(station_id) .eq. 'CYYY') then
+!        write (6,*) 'CYYY trim(station_id=',trim(station_id)
+! Interpolate to get cldch at obs location/time--print out the interplator's
+! grid value
+!        call tintrp2so(ges_cldch,cldchges,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
+!     endif
+! END RTMA SO test-part one
+!------------------------------------------------------------------------------
+
+! Interpolate to get cldch at obs location/time
+     call tintrp2a11(ges_cldch,cldchges,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
 
 ! Adjust observation error
      ratio_errors=error/data(ier,i)
@@ -365,6 +381,25 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         ratio_errors=zero
      end if
 
+!-------------------------------------------------------------------
+! RTMA SO test-part two: assign obs. error as zero at all stations 
+!         except the selected station
+!     rstation_id     = data(id,i)
+!     if (trim(station_id) .ne. 'CYYY') then
+!      write (6,*) 'trim(station_id=',trim(station_id)
+!        error = zero
+!        ratio_errors=zero
+!     else
+!        write (6,*) 'CYYY: trim(station_id=)',trim(station_id)
+!     endif
+! END RTMA SO test part two
+!-------------------------------------------------------------------
+
+!NLTR _inverse to both cldchges and obs.
+     call nltransf_inverse(cldchges,cldchgesout,pcldch)
+     tempcldch=data(icldch,i)
+     call nltransf_inverse(tempcldch,cldchobout,pcldch)
+     cldchdiff=(cldchobout-cldchgesout)*scale
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
      if (nobskeep>0 .and. luse_obsdiag) muse(i)=obsdiags(i_cldch_ob_type,ibin)%tail%muse(nobskeep)
 
@@ -401,15 +436,18 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            if(ratio_errors*error >=tiny_r_kind)nn=3 !monitored obs
         end if
 
-        ress   = ddiff*scale
-        ressw2 = ress*ress
+!       ress   = ddiff*scale
+!       ressw2 = ress*ress
 
         if (abs(data(icldch,i)-rmiss_single) >=tiny_r_kind) then
-           bwork(1,ikx,1,nn)  = bwork(1,ikx,1,nn)+one           ! count
-           bwork(1,ikx,2,nn)  = bwork(1,ikx,2,nn)+ress          ! (o-g)
-           bwork(1,ikx,3,nn)  = bwork(1,ikx,3,nn)+ressw2        ! (o-g)**2
-           bwork(1,ikx,4,nn)  = bwork(1,ikx,4,nn)+val2*rat_err2 ! penalty
-           bwork(1,ikx,5,nn)  = bwork(1,ikx,5,nn)+valqc         ! nonlin qc penalty
+           bwork(1,ikx,1,nn)  = bwork(1,ikx,1,nn)+one                  ! count
+           bwork(1,ikx,2,nn)  = bwork(1,ikx,2,nn)+cldchdiff            ! (o-g)
+           bwork(1,ikx,3,nn)  = bwork(1,ikx,3,nn)+cldchdiff*cldchdiff  ! (o-g)**2
+           bwork(1,ikx,4,nn)  = bwork(1,ikx,4,nn)+val2*rat_err2        ! penalty
+           bwork(1,ikx,5,nn)  = bwork(1,ikx,5,nn)+valqc                ! nonlin qc penalty
+! previous o-g 
+!          bwork(1,ikx,2,nn)  = bwork(1,ikx,2,nn)+ress          ! (o-g)
+!          bwork(1,ikx,3,nn)  = bwork(1,ikx,3,nn)+ressw2        ! (o-g)**2
         end if
 
      endif
@@ -488,11 +526,18 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         else
            rdiagbuf(12,ii) = -one
         endif
+!-------------------------------------------------------------------------
+!Choose to write out error statistics and cldch field in physical space.
+!NOTE:  No linear conversion in error stats between logcldch and cldch space.
+!-------------------------------------------------------------------------
+        err_input = 4000.0_r_kind
+        err_adjst = 4000.0_r_kind
+        error  = one/4000.0_r_kind
 
-        err_input = data(ier,i)
-        err_adjst = data(ier,i)
+!        err_input = data(ier,i)
+!        err_adjst = data(ier,i)
         if (ratio_errors*error>tiny_r_kind) then
-           err_final = one/(ratio_errors*error)
+           err_final = one/error
         else
            err_final = huge_single
         endif
@@ -508,15 +553,10 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(14,ii) = errinv_input       ! prepbufr inverse obs error (m**-1)
         rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error (m**-1)
         rdiagbuf(16,ii) = errinv_final       ! final inverse observation error (m**-1)
-!RY--BEGIN  NLTR _inverse to both cldchges and obs.
-        call nltransf_inverse(cldchges,cldchgesout,pcldch)
-        tempcldch=data(icldch,i)
-        call nltransf_inverse(tempcldch,cldchobout,pcldch)
-!RY--END
  
-        rdiagbuf(17,ii) = cldchobout              ! CLDCH observation (m)
-        rdiagbuf(18,ii) = cldchobout-cldchgesout  ! obs-ges used in analysis (m)
-        rdiagbuf(19,ii) = cldchobout-cldchgesout  ! obs-ges used in analysis (m) (future slot)
+        rdiagbuf(17,ii) = cldchobout         ! CLDCH observation (m)
+        rdiagbuf(18,ii) = cldchdiff          ! obs-ges used in analysis (m)
+        rdiagbuf(19,ii) = cldchdiff          ! obs-ges used in analysis (m) (future slot)
         rdiagbuf(20,ii) = rmiss_single       ! type of measurement
         rdiagbuf(21,ii) = data(idomsfc,i)    ! dominate surface type
         rdiagbuf(22,ii) = data(izz,i)        ! model terrain at observation location

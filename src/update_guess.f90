@@ -293,9 +293,10 @@ subroutine update_guess(sval,sbias)
            ptr2dges = ptr2dges + ptr2dinc
            if (trim(guess(ic))=='gust')  ptr2dges = max(ptr2dges,zero)
 !............................................................................
-!RY--NOTE: vis/cldch are now in nltr space, compute the max/min respectively
-!based on powerp and min/max values of the fields. the physcial vis/max: min=1,
-!max=thres 
+!RY--NOTE: vis/cldch are now in nltr space.
+! (1) ptr2dges is in full field.
+! (2) compute the max/min respectively based on powerp and min/max values in nltr space.
+!     in physcial vis/max: min=1, max=vis_thres 
 !............................................................................
            if (trim(guess(ic))=='vis') then
               glow=(1.0**pvis-1.0)/pvis

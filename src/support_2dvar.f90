@@ -1146,11 +1146,9 @@ subroutine read_2d_guess(mype)
                  if (nltrcv) then
                    call nltransf_forward(dummy,dummyout,pvis)
                    ges_vis(j,i)=dummyout
-                 else
-                   if (dummy<=zero) ges_vis(j,i)=one_tenth
-                   if (dummy> vis_thres) ges_vis(j,i)=vis_thres
                  endif
               endif
+
               if(ihave_pblh) &
                  ges_pblh(j,i)=real(all_loc(j,i,i_0+i_pblh),r_kind)
 
@@ -1163,9 +1161,6 @@ subroutine read_2d_guess(mype)
                  if (nltrcv) then
                    call nltransf_forward(dummy,dummyout,pcldch)
                    ges_cldch(j,i)=dummyout
-                 else
-                   if (dummy<=zero) ges_cldch(j,i)=one_tenth
-                   if (dummy> cldch_thres) ges_cldch(j,i)=cldch_thres
                  endif
               endif
 
