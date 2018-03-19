@@ -74,6 +74,8 @@ module ncepgfs_ghg
 
 !  ---  co2 2-d monthly data and global mean from observed data
    real(r_kind), save        :: co2_glb = co2vmr_def
+   real(r_kind)              :: julday ! Used in calculating default value with
+                                       ! annual trend
 
    integer(i_kind), save :: kyrsav  = 0       ! year of data saved 
    integer(i_kind), save :: kmonsav = 0       ! month of data saved
@@ -189,18 +191,25 @@ module ncepgfs_ghg
    endif
 
    if ( ico2 == 0 ) then
-!  --- ...  use prescribed global mean co2 data
+!  --- ...  use prescribed global mean co2 data based on date
+
+      julday = (1461  * (iyear + 4800 + (month -14)/12))/4 + &
+               (367 * (month -2 -12 * ((month -14)/12)))/12 - &
+               (3 * ((iyear + 4900 + (month - 14)/12)/100))/4 + idd - 32075
+   
+      co2_glb = 0.00602410_r_kind * (julday - 2455563.0_r_kind) + 389.5_r_kind
 
       do k = 1, nlev
          do j = 1, lon2
             do i = 1, lat2
-               atmco2(i,j,k) = co2vmr_def
+               atmco2(i,j,k) = co2_glb
             enddo
          enddo
       enddo
 
       if ( mype == 0 ) then
-         write(6,*) ' - Using prescribed co2 global mean value=',co2vmr_def
+         write(6,*) ' - Using prescribed co2 global mean value=',co2_glb,&
+            'for Julian Day',julday
       endif
 
       return
@@ -208,10 +217,10 @@ module ncepgfs_ghg
 !  --- ...  auto select co2 data table for required month and year
 
    else if ( ico2 == 1 ) then
-		if ( mype == 0 ) then
-			write(6,*) '  ico2 == 1 not valid '
-			write(6,*) '   *** Stopped in subroutine read_gfsco2 !!'
-		endif
+      if ( mype == 0 ) then
+         write(6,*) '  ico2 == 1 not valid '
+         write(6,*) '   *** Stopped in subroutine read_gfsco2 !!'
+      endif
       call stop2(332) 
 
    else if ( ico2 == 2 ) then
@@ -226,10 +235,10 @@ module ncepgfs_ghg
 
       inquire (file=cfile, exist=file_exist)
       if ( .not. file_exist ) then
-			if ( mype == 0 ) then
-				write(6,*) '   Can not find co2 data source file'
-				write(6,*) ' *** Stopped in subroutine read_gfsco2 !!'
-			endif
+         if ( mype == 0 ) then
+            write(6,*) '   Can not find co2 data source file'
+            write(6,*) ' *** Stopped in subroutine read_gfsco2 !!'
+        endif
         call stop2(332) 
 
       endif   ! end if_file_exist_block
@@ -237,23 +246,23 @@ module ncepgfs_ghg
 !  --- ...  read in co2 2-d data for the requested month
 
       open (luco2,file=cfile,form='formatted',status='old',iostat=ierr)
-		if (ierr /= 0) then
-			if ( mype == 0 ) then
-				write(6,*) '   error opening file = '//cfile
-				write(6,*) '   *** Stopped in subroutine read_gfsco2 !!'
-			endif
-      	call stop2(332) 
-		endif
+      if (ierr /= 0) then
+         if ( mype == 0 ) then
+            write(6,*) '   error opening file = '//cfile
+            write(6,*) '   *** Stopped in subroutine read_gfsco2 !!'
+         endif
+         call stop2(332) 
+      endif
       rewind luco2
       read (luco2, 36,iostat=ierr) iyr, nmxlon, nmxlat, ires, co2g1
  36   format(i4,t25,2i4,t58,i3,t99,f7.2)
-		if (ierr /= 0) then
-			if ( mype == 0 ) then
-				write(6,*) '   error reading  file = '//cfile
-				write(6,*) '   *** Stopped in subroutine read_gfsco2 !!'
-                        endif
-			call stop2(332)
-		endif
+      if (ierr /= 0) then
+         if ( mype == 0 ) then
+            write(6,*) '   error reading  file = '//cfile
+            write(6,*) '   *** Stopped in subroutine read_gfsco2 !!'
+         endif
+         call stop2(332)
+      endif
 
       resco2 = ires
       co2_glb = co2g1
