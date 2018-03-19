@@ -220,6 +220,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
          kidsat = 56 
        else if(jsatid == 'm10')then
          kidsat = 57 
+       else if(jsatid == 'm11')then
+         kidsat = 70 
        else if(jsatid == 'n08')then
          kidsat=200
        else if(jsatid == 'n09')then
