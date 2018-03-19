@@ -572,6 +572,7 @@ contains
     if (.not. match) then
        if (mype==0) write(6,*) 'radiance_obstype_search: #WARNING# obstype=',obstype,' not found in rtype'
     end if
+
   end subroutine radiance_obstype_search
 
 
@@ -671,7 +672,6 @@ contains
     call gettable(toptablename,lunin,ntot,nrows,utable)
 
     do ii=1,nrows
-!      read(utable(ii),*) obsname,obsloc,ex_obserr,ex_biascor,cld_effect,cfoption
        read(utable(ii),*) obsname,obsloc,ex_obserr,ex_biascor,cld_effect
        if (mype==0) write(6,*) obsname,obsloc,ex_obserr,ex_biascor,cld_effect
 
@@ -737,7 +737,6 @@ contains
                    cloudy_atms%ccld(cloudy_atms%nchannel))
           call amsua_table(trim(tablename),lunin,cloudy_atms%nchannel,cloudy_atms%cclr,cloudy_atms%ccld)
        end if
-
     enddo ! end of nrows
     deallocate(utable)
     close(lunin)

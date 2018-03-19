@@ -169,16 +169,16 @@ CONTAINS
        do i=1,nchannels
           if (channelnumber(i) == ichan) then
              CALL MODIFY_BEAMWIDTH ( max_fov, max_scan, bt_image(:,:,ichan), &
-               sampling_dist, beamwidth(i), newwidth(i), &
-               cutoff(i), nxaverage(i), nyaverage(i), &
-               qc_dist(i), MinBT(Ichan), MaxBT(IChan), IOS)
+                  sampling_dist, beamwidth(i), newwidth(i), &
+                  cutoff(i), nxaverage(i), nyaverage(i), &
+                  qc_dist(i), MinBT(Ichan), MaxBT(IChan), IOS)
 
              IF (IOS == 0) THEN
                 do iscan=1,max_scan
                    do ifov=1,max_fov
                       IF (Scanline_Back(IFov, IScan) > 0) &
-                           bt_inout(ichan,Scanline_Back(IFov, IScan)) = &
-                           BT_Image(ifov,iscan,ichan)
+                        bt_inout(ichan,Scanline_Back(IFov, IScan)) = &
+                        BT_Image(ifov,iscan,ichan)
                    end do
                 end do
              ELSE
@@ -187,6 +187,7 @@ CONTAINS
           end if
        end do
     END DO
+
     do ichan=1,nchanl
       if(err(ichan) >= 1)then
          error_status = 1

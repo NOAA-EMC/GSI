@@ -65,6 +65,10 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !                         no subtype is found in non linear qc error table and b table !                         table
 !   2016-05-05  pondeca - add 10-m u-wind and v-wind (uwnd10m, vwnd10m)
 !   2016-12-13  Lim     - Addition of GOES SWIR, CAWV and VIS winds into HWRF
+!   2017-08-22  Genkova - Testing Git / Add Goes-16 and JPSS SatID
+!                       - Read WMO pre-approved new BUFR Goes-16 AMVs (Goes-R)
+!
+!   
 !
 !   input argument list:
 !     ithin    - flag to thin data
