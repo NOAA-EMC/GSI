@@ -148,7 +148,7 @@ postmsg "$jlogfile" "$msg"
 $LOGSCRIPT
 
 
-${ANALYSISSH:-$SCRgfs/exglobal_analysis_fv3gfs.sh.ecf}
+${ANALYSISSH:-$SCRgsi/exglobal_analysis_fv3gfs.sh.ecf}
 status=$?
 [[ $status -ne 0 ]] && exit $status
 

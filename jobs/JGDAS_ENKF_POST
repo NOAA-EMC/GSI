@@ -100,7 +100,7 @@ postmsg "$jlogfile" "$msg"
 $LOGSCRIPT
 
 
-${ENKFPOSTSH:-$SCRgfs/exglobal_enkf_post_fv3gfs.sh.ecf}
+${ENKFPOSTSH:-$SCRgsi/exglobal_enkf_post_fv3gfs.sh.ecf}
 status=$?
 [[ $status -ne 0 ]] && exit $status
 

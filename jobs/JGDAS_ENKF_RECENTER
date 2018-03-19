@@ -109,7 +109,7 @@ postmsg "$jlogfile" "$msg"
 $LOGSCRIPT
 
 
-${ENKFRECENSH:-$SCRgfs/exglobal_enkf_recenter_fv3gfs.sh.ecf}
+${ENKFRECENSH:-$SCRgsi/exglobal_enkf_recenter_fv3gfs.sh.ecf}
 status=$?
 [[ $status -ne 0 ]] && exit $status
 
