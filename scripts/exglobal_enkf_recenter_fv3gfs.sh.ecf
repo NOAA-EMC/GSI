@@ -163,6 +163,7 @@ if [ $RECENTER_ENKF = "YES" ]; then
       SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS}.txt}
 
       export OMP_NUM_THREADS=$NTHREADS_CHGRES
+
       rm -f fort.43
       cat > fort.43 << EOF
 &nam_setup
