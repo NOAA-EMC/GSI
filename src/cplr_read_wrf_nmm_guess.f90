@@ -1133,6 +1133,10 @@ contains
     real(r_kind),pointer,dimension(:,:,:):: ges_qs=>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_qg=>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_qh=>NULL()
+
+    real(r_kind),pointer,dimension(:,:,:):: ges_fice=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_frain=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_frimef=>NULL()
     logical print_verbose
   
     associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
@@ -1513,6 +1517,12 @@ contains
           if (n_actual_clouds>0) then
              call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
              if (iret==0) ges_cwmr=clwmr
+             call gsi_bundlegetpointer (gsi_metguess_bundle(it),'fice',ges_fice,iret)
+             if (iret==0) ges_fice=fice
+             call gsi_bundlegetpointer (gsi_metguess_bundle(it),'frain',ges_frain,iret)
+             if (iret==0) ges_frain=frain
+             call gsi_bundlegetpointer (gsi_metguess_bundle(it),'frimef',ges_frimef,iret)
+             if (iret==0) ges_frimef=frimef
           end if
   
   

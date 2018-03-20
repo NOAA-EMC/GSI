@@ -390,6 +390,8 @@ clean:
 	intwspd10m.f90 \
 	intuwnd10m.f90 \
 	intvwnd10m.f90 \
+        intswcp.f90 \
+        intlwcp.f90 \
 	jcmod.f90 \
 	jfunc.f90 \
 	jgrad.f90 \
@@ -470,6 +472,8 @@ clean:
 	m_wspd10mNode.F90 \
 	m_uwnd10mNode.F90 \
 	m_vwnd10mNode.F90 \
+        m_swcpNode.F90 \
+        m_lwcpNode.F90 \
 	mp_compact_diffs_mod1.f90 \
 	mp_compact_diffs_support.f90 \
 	mpimod.F90 \
@@ -582,6 +586,8 @@ clean:
 	stpwspd10m.f90 \
 	stpuwnd10m.f90 \
 	stpvwnd10m.f90 \
+        stpswcp.f90 \
+        stplwcp.f90 \
 	strong_bal_correction.f90 \
 	strong_baldiag_inc.f90 \
 	strong_fast_global_mod.f90 \
@@ -661,6 +667,7 @@ clean:
 	read_pblh.f90 \
 	read_pcp.f90 \
 	read_prepbufr.f90 \
+	read_wcpbufr.f90 \
 	read_radar.f90 \
 	read_saphir.f90 \
 	read_satwnd.f90 \
@@ -704,6 +711,8 @@ clean:
 	setupwspd10m.f90 \
 	setupuwnd10m.f90 \
 	setupvwnd10m.f90 \
+        setupswcp.f90 \
+        setuplwcp.f90 \
 	sst_retrieval.f90 \
         read_NASA_LaRC_cloud.f90
 

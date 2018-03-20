@@ -87,6 +87,9 @@ module m_obsdiags
   use m_pm10Node , only:  pm10Node ! 32
   use m_cldchNode, only:  cldchNode ! 33
 
+  use m_swcpNode , only:  swcpNode ! 34
+  use m_lwcpNode , only:  lwcpNode ! 35
+
   use m_obsNodeTypeManager, only: nobs_type
   use gsi_4dvar           , only: nobs_bins
 
@@ -204,6 +207,9 @@ module m_obsdiags
   public :: pm10head
   public :: cldchhead
 
+  public :: swcphead
+  public :: lwcphead
+
   type(obsLList),dimension(:),pointer :: pshead => null()
   type(obsLList),dimension(:),pointer :: tcphead => null()
   type(obsLList),dimension(:),pointer :: thead => null()
@@ -242,6 +248,9 @@ module m_obsdiags
 
   type(obsLList),dimension(:),pointer :: pm10head => null()
   type(obsLList),dimension(:),pointer :: cldchhead => null()
+
+  type(obsLList),dimension(:),pointer :: swcphead => null()
+  type(obsLList),dimension(:),pointer :: lwcphead => null()
 
   type(obsLList),dimension(:,:),pointer :: obsLLists => null()
 
@@ -718,6 +727,9 @@ _ENTRY_(myname_)
     pm10head => ptr_obsbins_(obsllists,'pm10')
    cldchhead => ptr_obsbins_(obsllists,'cldch')
 
+    swcphead => ptr_obsbins_(obsllists,'swcp')
+    lwcphead => ptr_obsbins_(obsllists,'lwcp')
+
 _EXIT_(myname_)
 return
 end subroutine aliasesCreate_
@@ -766,6 +778,9 @@ _ENTRY_(myname_)
 
     pm10head => null()
    cldchhead => null()
+
+    swcphead => null()
+    lwcphead => null()
 
 _EXIT_(myname_)
 return

@@ -346,6 +346,21 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
           end do 
           nread = nread + 1
          end do fileloop
+        else if(trim(filename) == 'wcpbufr')then
+         lexist = .false.
+         file2loop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
+          do while(ireadsb(lnbufr)>=0)
+           call ufbint(lnbufr,rtype,1,1,iret,'TYP')
+           kx=nint(rtype)
+           do nc=1,nconvtype
+             if(trim(ioctype(nc)) == trim(dtype) .and. kx == ictype(nc) .and. icuse(nc) > minuse)then
+               lexist = .true.
+               exit file2loop
+             end if
+           end do
+          end do
+          nread = nread + 1
+         end do file2loop
        else if(trim(filename) == 'gps_ref' .or.  trim(filename) == 'gps_bnd')then
          lexist = .false.
          gpsloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
@@ -834,6 +849,8 @@ subroutine read_obs(ndata,mype)
            obstype=='lcbas' .or. obstype=='cldch' .or. obstype == 'larcglb' .or. &
            obstype=='uwnd10m' .or. obstype=='vwnd10m') then
           ditype(i) = 'conv'
+       else if (obstype == 'swcp' .or. obstype == 'lwcp') then
+          ditype(i) = 'wcp'
        else if( hirs   .or. sndr      .or.  seviri .or. &
                obstype == 'airs'      .or. obstype == 'amsua'     .or.  &
                obstype == 'msu'       .or. obstype == 'iasi'      .or.  &
@@ -1503,7 +1520,13 @@ subroutine read_obs(ndata,mype)
                     nobs_sub1(1,i))
                 string='READ_PBLH'
              end if conv_obstype_select
-
+!            Process swcp and lwcp
+          else if (ditype(i) == 'wcp') then
+             if ( obstype == 'swcp' .or. obstype == 'lwcp' ) then
+                call read_wcpbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis, &
+                   prsl_full,nobs_sub1(1,i),read_rec(i))
+                string='READ_WCPBUFR'
+             end if
           else if (ditype(i) == 'rad')then
 
              call radiance_obstype_search(obstype,radmod)
