@@ -48,6 +48,7 @@ subroutine compute_qvar3d
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
   use radiance_mod, only: icloud_cv,n_clouds_fwd,cloud_names_fwd
+  use obsmod, only: l_wcp_cwm
 
   implicit none
 
@@ -58,11 +59,15 @@ subroutine compute_qvar3d
   real(r_kind) d,dn1,dn2
   real(r_kind),allocatable,dimension(:,:,:):: rhgues
 
-  integer(i_kind):: istatus,ier
+  integer(i_kind):: istatus,ier,ier6
   real(r_kind):: cwtmp
   real(r_kind),pointer,dimension(:,:,:):: ges_var=>NULL()
   real(r_kind),pointer,dimension(:,:,:):: ges_ql=>NULL()
   real(r_kind),pointer,dimension(:,:,:):: ges_qi=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qr=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qs=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qg=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qh=>NULL()
   real(r_kind),pointer,dimension(:,:,:):: ges_q =>NULL()
   integer(i_kind):: maxvarq1
 
@@ -154,6 +159,11 @@ subroutine compute_qvar3d
      call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'ql',ges_ql,istatus);ier=istatus
      call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qi',ges_qi,istatus);ier=ier+istatus
      if (ier/=0) return
+     call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qr',ges_qr,istatus);ier6=istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qs',ges_qs,istatus);ier6=ier6+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qg',ges_qg,istatus);ier6=ier6+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qh',ges_qh,istatus);ier6=ier6+istatus
+     if (l_wcp_cwm .and. ier6/=0) return
 
      if (cwoption==3) then
         do k = 1,nsig
@@ -163,6 +173,11 @@ subroutine compute_qvar3d
                     dssv(i,j,k,nrf3_cw)=zero
                  else
                     cwtmp=ges_ql(i,j,k)+ges_qi(i,j,k)
+                    if (l_wcp_cwm .and. ier6==0) then
+                       cwtmp=cwtmp &
+                           +ges_qr(i,j,k)+ges_qs(i,j,k) &
+                           +ges_qg(i,j,k)+ges_qh(i,j,k)
+                    endif
                     if (cwtmp<1.0e-10_r_kind) cwtmp=1.0e-10_r_kind
                     dn1=0.05_r_kind*cwtmp
                     dssv(i,j,k,nrf3_cw)=dn1*dssv(i,j,k,nrf3_cw)
@@ -176,6 +191,11 @@ subroutine compute_qvar3d
            do j = 1,lon2
               do i = 1,lat2
                  cwtmp=ges_ql(i,j,k)+ges_qi(i,j,k)
+                 if (l_wcp_cwm .and. ier6==0) then
+                    cwtmp=cwtmp &
+                        +ges_qr(i,j,k)+ges_qs(i,j,k) &
+                        +ges_qg(i,j,k)+ges_qh(i,j,k)
+                 endif
                  if (cwtmp<1.0e-10_r_kind) cwtmp=1.0e-10_r_kind
                  d=-2.0_r_kind*log(cwtmp) + one
                  n=int(d)

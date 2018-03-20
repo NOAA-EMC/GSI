@@ -42,6 +42,7 @@ use mpeu_util, only: getindex
 use gsi_metguess_mod, only: gsi_metguess_get
 use mod_strong, only: tlnmc_option
 use cwhydromod, only: cw2hydro_tl
+use cwhydromod, only: cw2hydro_tl_hwrf
 use timermod, only: timer_ini,timer_fnl
 implicit none
 
@@ -64,11 +65,13 @@ character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed he
 logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_cw
 real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_rh
 ! Declare required local state variables
-integer(i_kind), parameter :: nsvars = 7
+integer(i_kind), parameter :: nsvars = 11
 integer(i_kind) :: isps(nsvars)
 character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed here
-             'u   ', 'v   ', 'prse', 'q   ', 'tsen', 'ql  ','qi  ' /)
+             'u   ', 'v   ', 'prse', 'q   ', 'tsen', 'ql  ','qi  ', &
+             'qr  ', 'qs  ', 'qg  ', 'qh  ' /)
 logical :: ls_u,ls_v,ls_prse,ls_q,ls_tsen,ls_ql,ls_qi
+logical :: ls_qr,ls_qs,ls_qg,ls_qh
 real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst
 real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_prse,sv_q,sv_tsen,sv_tv,sv_oz
 real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
@@ -76,6 +79,7 @@ real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
 logical :: do_getprs_tl,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,lstrong_bk_vars
 logical :: do_tlnmc,do_q_copy
 logical :: do_cw_to_hydro
+logical :: do_cw_to_hydro_hwrf
 
 ! ****************************************************************************
 
@@ -100,6 +104,8 @@ lc_t  =icps(4)>0; lc_rh =icps(5)>0; lc_cw =icps(6)>0
 call gsi_bundlegetpointer (eval(1),mysvars,isps,istatus)
 ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_prse=isps(3)>0
 ls_q  =isps(4)>0; ls_tsen=isps(5)>0; ls_ql =isps(6)>0; ls_qi =isps(7)>0
+ls_qr  =isps(8)>0; ls_qs  =isps(9)>0
+ls_qg  =isps(10)>0; ls_qh =isps(11)>0
 
 ! Define what to do depending on what's in CV and SV
 lstrong_bk_vars  =lc_ps.and.lc_sf.and.lc_vp.and.lc_t
@@ -121,6 +127,8 @@ endif
 
 do_cw_to_hydro = .false.
 do_cw_to_hydro = lc_cw .and. ls_ql .and. ls_qi
+do_cw_to_hydro_hwrf = .false.
+do_cw_to_hydro_hwrf = lc_cw.and.ls_ql.and.ls_qi.and.ls_qr.and.ls_qs.and.ls_qg.and.ls_qh
 
 ! Initialize ensemble contribution to zero
 !$omp parallel do schedule(dynamic,1) private(jj)
@@ -188,10 +196,17 @@ do jj=1,ntlevs_ens
 
    end if
 
-   if (do_cw_to_hydro) then
+   if (do_cw_to_hydro .and. .not.do_cw_to_hydro_hwrf) then
 !     Case when cloud-vars do not map one-to-one (cv-to-sv)
 !     e.g. cw-to-ql&qi
       call cw2hydro_tl(eval(jj),wbundle_c,clouds,nclouds)
+   elseif (do_cw_to_hydro_hwrf) then
+!     Case when cloud-vars do not map one-to-one (cv-to-sv)
+!     e.g. cw-to-ql&qi&qr&qs&qg&qh
+      if (.not.do_tv_to_tsen) then
+        call tv_to_tsen(sv_tv,sv_q,sv_tsen)
+      endif
+      call cw2hydro_tl_hwrf(eval(jj),wbundle_c,sv_tsen)
    else
 !  Since cloud-vars map one-to-one, take care of them together
       do ic=1,nclouds
