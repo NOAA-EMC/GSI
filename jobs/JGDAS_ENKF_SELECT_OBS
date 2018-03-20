@@ -91,15 +91,15 @@ export CDUMP_OBS=$CDUMP_ENKF
 export OPREFIX="${CDUMP_OBS}.t${cyc}z."
 export APREFIX="${CDUMP}.t${cyc}z."
 export ASUFFIX=".nemsio"
-export GPREFIX="${CDUMP}.t${gcyc}z."
+export GPREFIX="gdas.t${gcyc}z."
 export GSUFFIX=".ensmean.nemsio"
 
 
 # COMIN_GES, COMIN_ANL COMIN_GES_ENS, and COMOUT  are used in exglobal script
 # TO DO: Map NCO's directory into these variables
-COMIN_GES_CTL="$ROTDIR/$CDUMP.$gPDY/$gcyc"
+COMIN_GES_CTL="$ROTDIR/gdas.$gPDY/$gcyc"
 export COMIN_ANL="$ROTDIR/$CDUMP.$PDY/$cyc"
-export COMIN_GES_ENS="$ROTDIR/enkf.$CDUMP.$gPDY/$gcyc"
+export COMIN_GES_ENS="$ROTDIR/enkf.gdas.$gPDY/$gcyc"
 export COMIN_GES=$COMIN_GES_ENS
 export COMOUT="$ROTDIR/enkf.$CDUMP.$PDY/$cyc"
 
