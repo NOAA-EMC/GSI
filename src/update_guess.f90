@@ -128,6 +128,7 @@ subroutine update_guess(sval,sbias)
   use rapidrefresh_cldsurf_mod, only: i_use_2mq4b,i_use_2mt4b
   use gsd_update_mod, only: gsd_limit_ocean_q,gsd_update_soil_tq,&
        gsd_update_th2,gsd_update_q2
+  use obsmod, only: l_wcp_cwm
 
   implicit none
 
@@ -154,6 +155,10 @@ subroutine update_guess(sval,sbias)
   real(r_kind),pointer,dimension(:,:,:) :: ptr3daux =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: ges_ql   =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: ges_qi   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_qr   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_qs   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_qg   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_qh   =>NULL()
 
   real(r_kind),dimension(lat2,lon2)     :: tinc_1st,qinc_1st
 
@@ -307,6 +312,19 @@ subroutine update_guess(sval,sbias)
         if (ier==0) then
            ptr3dges = ges_ql + ges_qi
         endif
+        if ( l_wcp_cwm .and. &
+             getindex(svars3d,'qr')>0 .and. getindex(svars3d,'qs')>0 .and. &
+             getindex(svars3d,'qg')>0 .and. getindex(svars3d,'qh')>0) then
+           ier=0
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr,  istatus) ; ier=istatus 
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qs',ges_qs,  istatus) ; ier=ier+istatus                        
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qg',ges_qg,  istatus) ; ier=ier+istatus                        
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qh',ges_qh,  istatus) ; ier=ier+istatus                        
+           if (ier==0) then
+              ptr3dges = ptr3dges + ges_qr + ges_qs + ges_qg + ges_qh
+           endif
+        endif
+
      endif
 !    At this point, handle the Tv exception since by now Q has been updated 
 !    NOTE 1: This exceptions is unnecessary: all we need to do is put tsens in the

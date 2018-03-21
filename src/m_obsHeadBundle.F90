@@ -98,6 +98,9 @@ module m_obsHeadBundle
   use m_uwnd10mNode, only: uwnd10mNode ! 35
   use m_vwnd10mNode, only: vwnd10mNode ! 36
 
+  use m_swcpNode , only:  swcpNode  ! 37
+  use m_lwcpNode , only:  lwcpNode  ! 38
+
   use m_obsLList , only: obsLList_headNode
 
   implicit none
@@ -160,6 +163,8 @@ module m_obsHeadBundle
     class(obsNode),pointer:: cldch => null()   ! 33
     class(obsNode),pointer:: uwnd10m => null()   ! 35
     class(obsNode),pointer:: vwnd10m => null()   ! 36
+    class(obsNode),pointer::  swcp => null()   ! 37
+    class(obsNode),pointer::  lwcp => null()   ! 38
 
   end type obsHeadBundle
 
@@ -266,6 +271,8 @@ subroutine init_(yobs,ibin)
   use m_obsdiags, only: cldchhead       ! =33
   use m_obsdiags, only: uwnd10mhead     ! =35
   use m_obsdiags, only: vwnd10mhead     ! =36
+  use m_obsdiags, only:  swcphead       ! =37
+  use m_obsdiags, only:  lwcphead       ! =38
 
   use kinds, only: i_kind
   use mpeu_util, only: assert_
@@ -309,6 +316,8 @@ subroutine init_(yobs,ibin)
   ASSERT(ibin<=size(cldchhead))  ! =33
   ASSERT(ibin<=size(uwnd10mhead))! =35
   ASSERT(ibin<=size(vwnd10mhead))! =36
+  ASSERT(ibin<=size( swcphead))  ! =37
+  ASSERT(ibin<=size( lwcphead))  ! =38
 
   yobs%ps    => obsLList_headNode(   pshead(ibin))    ! = 1
   yobs%t     => obsLList_headNode(    thead(ibin))    ! = 2
@@ -347,6 +356,9 @@ subroutine init_(yobs,ibin)
   yobs%cldch => obsLList_headNode(cldchhead(ibin))    ! =33
   yobs%uwnd10m => obsLList_headNode(uwnd10mhead(ibin))! =35
   yobs%vwnd10m => obsLList_headNode(vwnd10mhead(ibin))! =36
+
+  yobs%swcp  => obsLList_headNode( swcphead(ibin))    ! =37
+  yobs%lwcp  => obsLList_headNode( lwcphead(ibin))    ! =38
 return
 end subroutine init_
 
