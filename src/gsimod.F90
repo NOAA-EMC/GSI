@@ -56,7 +56,7 @@
   use qcmod, only: dfact,dfact1,create_qcvars,destroy_qcvars,&
       erradar_inflate,tdrerr_inflate,use_poq7,qc_satwnds,&
       init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3,qc_noirjaco3_pole,&
-      buddycheck_t,buddydiag_save,njqc,vqc,closest_obs,vadwnd_l2rw_qc, &
+      buddycheck_t,buddydiag_save,njqc,vqc,vadwnd_l2rw_qc, &
       nltrcv,pvis,pcldch,estvisoe,estcldchoe,vis_thres,cldch_thres
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax, &
@@ -349,8 +349,11 @@
 !                              from GSD (for RAP/HRRR application)
 !  08-31-2017 Li        add sfcnst_comb for option to read sfc & nst combined file 
 !  01-11-2018 Yang      add namelist variables required by the nonlinear transform to vis and cldch
-!                      (Jim Purser 2018). add estvisoe and estcldchoe to replace the hardwired i
+!                      (Jim Purser 2018). Add estvisoe and estcldchoe to replace the hardwired 
 !                       prescribed vis/cldch obs. errort in read_prepbufr. (tentatively?)
+!  03-22-2018 Yang      remove "logical closest_obs", previously applied to the analysis of vis and cldch.
+!                       The option to use only the closest ob to the analysis time is now handled
+!                       by Ming Hu's "logical l_closeobs" for all variables.
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -753,7 +756,7 @@
        vadfile,noiqc,c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,&
        tcp_ermin,tcp_ermax,qc_noirjaco3,qc_noirjaco3_pole,qc_satwnds,njqc,vqc,&
        aircraft_t_bc_pof,aircraft_t_bc,aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail,&
-       hdist_aircraft,buddycheck_t,buddydiag_save,closest_obs,vadwnd_l2rw_qc,  &
+       hdist_aircraft,buddycheck_t,buddydiag_save,vadwnd_l2rw_qc,  &
        nltrcv,pvis,pcldch,estvisoe,estcldchoe,vis_thres,cldch_thres
 
 ! OBS_INPUT (controls input data):

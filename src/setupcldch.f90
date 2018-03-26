@@ -20,6 +20,12 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !                       . removed (%dlat,%dlon) debris.
 !   2016-10-07  pondeca - if(.not.proceed) advance through input file first
 !                          before retuning to setuprhsall.f90
+!   2018-03-01  yang -  use module nltransf to cldch
+
+!   2018-03-22  pondeca/yang -  for code consistency across all analyzed variables,replace
+!                      the  original "dup"-based implementation of the option to
+!                      assimilate the closest ob to the analysis time only with
+!                      Ming Hu's "muse"-based implementationusing.
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -48,14 +54,14 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use obsmod, only: rmiss_single,i_cldch_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,bmiss
   use obsmod, only: obs_diag,luse_obsdiag
-  use gsi_4dvar, only: nobs_bins,hr_obsbin
+  use gsi_4dvar, only: nobs_bins,hr_obsbin,min_offset
   use oneobmod, only: magoberr,maginnov,oneobtest
   use gridmod, only: nsig
   use gridmod, only: get_ij
   use constants, only: zero,tiny_r_kind,one,half,one_tenth,wgtlim, &
-            two,cg_term,huge_single
+            two,cg_term,huge_single,r1000
   use jfunc, only: jiter,last,miter
-  use qcmod, only: dfact,dfact1,npres_print,closest_obs
+  use qcmod, only: dfact,dfact1,npres_print
   use qcmod, only: pcldch
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
@@ -63,6 +69,7 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use nltransf, only: nltransf_inverse
+  use rapidrefresh_cldsurf_mod, only: l_closeobs
   implicit none
 
 ! Declare passed variables
@@ -115,6 +122,7 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   character(8),allocatable,dimension(:):: cprvstg,csprvstg
   character(8) c_prvstg,c_sprvstg
   real(r_double) r_prvstg,r_sprvstg
+  real(r_kind) :: hr_offset
 
   logical:: in_curbin, in_anybin
   integer(i_kind),dimension(nobs_bins) :: n_alloc
@@ -179,56 +187,35 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
        data(icldch,i)=rmiss_single   ! for diag output
        data(iobshgt,i)=rmiss_single  ! for diag output
     end if
-
-!   set any observations larger than 20000.0 to be 20000.0
-    if (data(icldch,i) > 20000.0_r_kind) data(icldch,i)=20000.0_r_kind !REVISE VALUE / MPondeca , 17Jul2015
   end do
-  offtime_k=0.0_r_kind
-  offtime_l=0.0_r_kind
+
+  hr_offset=min_offset/60.0_r_kind
+!  Check for duplicate observations at same location
   dup=one
-!  if closest_obs=.true., choose the timely closest observation among the multi-reports at a station.
-  if (closest_obs) then
-     dup=one
-     do k=1,nobs
-        if( dup(k) < tiny_r_kind .or. .not. muse(k) ) then
-           dup(k)=-99.0_r_kind
-        else
-           do l=k+1,nobs
-              if(data(ilat,k) == data(ilat,l) .and.  &
-                 data(ilon,k) == data(ilon,l) .and.  &
-                 data(ier,k) < cldch_errmax .and. data(ier,l) <cldch_errmax .and. &
-                    muse(k) .and. muse(l))then
-                 offtime_k=data(itime,k) -time_offset
-                 offtime_l=data(itime,l) -time_offset
-                 if(abs(offtime_k) < abs(offtime_l)) then
-                    dup(l)=-99.0_r_kind
-                 endif
-                 if(abs(offtime_k) > abs(offtime_l)) then
-                    dup(k)=-99.0_r_kind
-                 endif
-                 if(abs(offtime_k)==abs(offtime_l)) then
-                    if (offtime_k >= 0.0_r_kind) dup(l)=-99.0_r_kind
-                    if (offtime_l >= 0.0_r_kind) dup(k)=-99.0_r_kind
-                 endif
+  do k=1,nobs
+     do l=k+1,nobs
+        if(data(ilat,k) == data(ilat,l) .and. &
+           data(ilon,k) == data(ilon,l) .and. &
+           data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
+           muse(k) .and. muse(l))then
+           if(l_closeobs) then
+              if(abs(data(itime,k)-hr_offset)<abs(data(itime,l)-hr_offset)) then
+                  muse(l)=.false.
+              else if( abs(data(itime,k)-hr_offset)==abs(data(itime,l)-hr_offset)) then
+                 if((data(itime,k)-hr_offset)>=zero) muse(k)=.false.
+                 if((data(itime,l)-hr_offset)>=zero) muse(l)=.false.
+              else
+                  muse(k)=.false.
               endif
-           enddo
-        endif
-     enddo
-  else
-     dup=one
-     do k=1,nobs
-        do l=k+1,nobs
-           if(data(ilat,k) == data(ilat,l) .and.  &
-              data(ilon,k) == data(ilon,l) .and.  &
-              data(ier,k) < cldch_errmax .and. data(ier,l) < cldch_errmax &
-              .and.  muse(k) .and. muse(l)) then
+           else
               tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
               dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
               dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
-           end if
-        end do
+           endif
+        end if
      end do
-  endif
+  end do
+
 
 ! If requested, save select data for output to diagnostic file
   if(conv_diagsave)then
@@ -369,16 +356,8 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            error = zero
            ratio_errors=zero
         else
-! dup(i) < 0 means closest_obs =.true.
-           if(dup(i)> tiny_r_kind) then
-              ratio_errors=ratio_errors/sqrt(dup(i))
-           else
-              ratio_errors=zero
-           endif
+           ratio_errors=ratio_errors/sqrt(dup(i))
         endif
-     else    ! missing data
-        error = zero
-        ratio_errors=zero
      end if
 
 !-------------------------------------------------------------------

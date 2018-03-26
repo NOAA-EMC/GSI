@@ -68,6 +68,9 @@ module qcmod
 !   2016-11-22  sienkiewicz - fix a couple of typos in HIRS qc
 !   2016-12-14  lippi   - add nml option vadwnd_l2rw_qc.
 !   2018-02-21  yang    - add nltrcv namelist variables
+!   2018-03-21  yang    - remove "logical closest_obs", previously applied to the analysis of vis and cldch.
+!                         The option to use only the closest ob to the analysis time is now handled
+!                         by Ming Hu's "logical l_closeobs" for all variables.
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -168,7 +171,7 @@ module qcmod
   public :: igood_qc,ifail_crtm_qc,ifail_satinfo_qc,ifail_interchan_qc,&
             ifail_gross_qc,ifail_cloud_qc,ifail_outside_range,ifail_scanedge_qc
 
-  public :: buddycheck_t,buddydiag_save,closest_obs
+  public :: buddycheck_t,buddydiag_save
   public :: vadwnd_l2rw_qc
   public :: nltrcv,pvis,pcldch,estvisoe,estcldchoe,vis_thres,cldch_thres
 
@@ -182,7 +185,6 @@ module qcmod
   logical qc_satwnds
   logical buddycheck_t
   logical buddydiag_save
-  logical closest_obs
   logical vadwnd_l2rw_qc
   logical nltrcv
 
@@ -380,7 +382,6 @@ contains
     buddydiag_save=.false. ! When true, output files containing buddy check QC info for all
                            !  obs run through the buddy check
 
-    closest_obs=.false.    ! When true, select timely nearest obs.
 
 
     vadwnd_l2rw_qc=.true.  ! When false, DO NOT run the vadwnd qc on level 2 radial wind obs.
