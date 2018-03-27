@@ -85,7 +85,14 @@ gcyc=$(echo $GDATE | cut -c9-10)
 
 
 export CASE=$CASE_ENKF
-export CDUMP_ENKF=${CDUMP_ENKF:-"gdas"}
+
+
+EUPD_CYC=$(echo ${EUPD_CYC:-"gdas"} | tr a-z A-Z)
+if [ $EUPD_CYC = "GFS" ]; then
+    CDUMP_ENKF="gfs"
+else
+    CDUMP_ENKF=$CDUMP
+fi
 
 
 export OPREFIX="${CDUMP}.t${cyc}z."
