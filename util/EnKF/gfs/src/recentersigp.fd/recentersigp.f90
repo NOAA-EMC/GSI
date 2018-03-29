@@ -137,7 +137,7 @@ program recentersigp
         write(charnanal,'(i3.3)') mype1
         call nemsio_open(gfilei,trim(filenamein)//"_mem"//charnanal,'READ',iret=iret)
 
-        gfileo=gfilemo
+        gfileo=gfilei
         call nemsio_open(gfileo,trim(filenameout)//"_mem"//charnanal,'WRITE',iret=iret)
 
         npts=lonb*latb
