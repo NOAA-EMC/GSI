@@ -53,6 +53,9 @@ contains
     class(regional_io_class), intent(inout) :: this
     integer(i_kind),intent(in   ) :: mype
     real(r_kind)   ,intent(  out) :: ctph0,stph0,tlm0
+    ctph0 = 0.0_r_kind
+    stph0 = 0.0_r_kind
+    tlm0 = 0.0_r_kind
     write(6,*) 'DUMMY CALL to convert_regional_guess'
     return
   end subroutine convert_regional_guess_dummy
