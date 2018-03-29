@@ -90,6 +90,8 @@ SMOOTH_ENKF=${SMOOTH_ENKF:-"YES"}
 
 APRUN_ECEN=${APRUN_ECEN:-${APRUN:-""}}
 NTHREADS_ECEN=${NTHREADS_ECEN:-${NTHREADS:-1}}
+APRUN_CALCINC=${APRUN_CALCINC:-${APRUN:-""}}
+NTHREADS_CALCINC=${NTHREADS_CALCINC:-${NTHREADS:-1}}
 
 ################################################################################
 # Preprocessing
@@ -225,7 +227,7 @@ else
     ATMANLNAME='atmanl'
 fi
 
-export OMP_NUM_THREADS=1
+export OMP_NUM_THREADS=$NTHREADS_CALCINC
 $NCP $CALCINCEXEC $DATA
 
 rm calc_increment.nml
@@ -245,7 +247,7 @@ cat > calc_increment.nml << EOF
 EOF
 cat calc_increment.nml
 
-$APRUN_ECEN ${DATA}/$(basename $CALCINCEXEC)
+$APRUN_CALCINC ${DATA}/$(basename $CALCINCEXEC)
 rc=$?
 
 export ERR=$rc
