@@ -46,7 +46,7 @@ module statevec
 !
 !$$$
 
-use gridio, only: readgriddata, writegriddata
+use gridio, only: readgriddata,writegriddata_wrf
 use mpisetup
 use gridinfo, only: lonsgrd, latsgrd, ptop, npts, nvarhumid
 use params, only: nlevs,nvars,ndim,nbackgrounds,&
@@ -341,10 +341,11 @@ if (nproc <= nanals-1) then
       grdin(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs,nb)*qsat(:,:,nb)
       enddo
    end if
-   call writegriddata(nanal,grdin,no_inflate_flag)
+!   call writegriddata(nanal,grdin,no_inflate_flag)
+   call writegriddata_wrf(nanal,grdin)
    if (nproc == 0) then
      t2 = mpi_wtime()
-     print *,'time in writegriddata on root',t2-t1,'secs'
+     print *,'time in writegriddata_wrf on root',t2-t1,'secs'
    endif 
 end if
 

@@ -43,7 +43,7 @@ module gridio
 
   private
   public :: readgriddata
-  public :: writegriddata
+  public :: writegriddata_wrf
 
   !-------------------------------------------------------------------------
 
@@ -1036,7 +1036,7 @@ contains
 
   !-------------------------------------------------------------------------
 
-  subroutine writegriddata(nanal,vargrid)
+  subroutine writegriddata_wrf(nanal,vargrid)
 
     use netcdf, only: nf90_open,nf90_close
     use netcdf, only: nf90_write
@@ -1111,7 +1111,7 @@ contains
     zdim = dimensions%zdim
 
     if (nbackgrounds > 1) then
-       write(6,*)'gridio/writegriddata: writing multiple backgrounds not yet supported'
+       write(6,*)'gridio/writegriddata_wrf: writing multiple backgrounds not yet supported'
        call stop2(23)
     endif
 
@@ -1459,7 +1459,7 @@ contains
 
     !======================================================================
 
-  end subroutine writegriddata
+  end subroutine writegriddata_wrf
 
   !========================================================================
 
