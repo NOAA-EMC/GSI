@@ -41,7 +41,7 @@ else
 fi
 module list
 
-cmake -DBUILD_UTIL=ON ..
+cmake -DBUILD_UTIL=ON -DCMAKE_BUILD_TYPE=PRODUCTION ..
 
 make -j 8
 

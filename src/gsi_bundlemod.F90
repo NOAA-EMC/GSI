@@ -4,6 +4,11 @@
 ! !MODULE:  GSI_BundleMod --- GSI Bundle
 !
 ! !INTERFACE:
+!
+! program change log:
+! 2018-01-18 G. Ge: change pointer,intent(out) to pointer,intent(inout)
+!                   to solve the GSI crash under INTEL v18+
+!
 
 module GSI_BundleMod
    
@@ -13,7 +18,6 @@ module GSI_BundleMod
    use constants, only: zero_single,zero,zero_quad
    use m_rerank, only: rerank
    use mpeu_util, only: perr, die
-   use gsi_io, only: verbose
 
    implicit none
    private
@@ -280,6 +284,8 @@ module GSI_BundleMod
 !  04Jul2011 Todling - large revision of REAL*4 or REAL*8 implementation
 !  27Jun2012 Parrish - set verbose_ to .false. to turn off diagnostic print in subroutine merge_.
 !  05Oct2014 Todling - add 4d-like interfaces to getvars
+!  26Aug2017   G. Ge - change names(nd) to names(:) to make the passing of assumed size character
+!                      array consistent between nested calls                   
 !
 ! !SEE ALSO:  
 !           gsi_metguess_mod.F90
@@ -340,6 +346,7 @@ module GSI_BundleMod
 !noBOC
 
    character(len=*), parameter :: myname='GSI_BundleMod'
+   logical, parameter :: VERBOSE_=.false.
    integer, parameter :: bundle_kind_def = r_kind ! default kind
 
 CONTAINS
@@ -357,7 +364,7 @@ CONTAINS
 ! !INPUT PARAMETERS:
 
  integer(i_kind), intent(in):: nd
- character(len=*),intent(in):: names(nd)
+ character(len=*),intent(in):: names(:)
  character(len=*),OPTIONAL,intent(in):: longnames(nd)
  character(len=*),OPTIONAL,intent(in):: units(nd)
  integer(i_kind), OPTIONAL,intent(in):: thisKind
@@ -417,7 +424,7 @@ CONTAINS
  subroutine init2d_(flds,nd,names,istatus,longnames,units,thisKind)
  integer(i_kind), intent(in) :: nd
  type(GSI_2D),    intent(inout):: flds(nd)
- character(len=*),intent(in):: names(nd)
+ character(len=*),intent(in):: names(:)
  integer(i_kind), intent(out):: istatus
  character(len=*),OPTIONAL,intent(in):: longnames(nd)
  character(len=*),OPTIONAL,intent(in):: units(nd)
@@ -459,7 +466,7 @@ CONTAINS
  subroutine init3d_(flds,nd,names,istatus,longnames,units,thisKind)
  integer(i_kind), intent(in) :: nd
  type(GSI_3D),    intent(inout):: flds(nd)
- character(len=*),intent(in):: names(nd)
+ character(len=*),intent(in):: names(:)
  integer(i_kind), intent(out):: istatus
  character(len=*),OPTIONAL,intent(in):: longnames(nd)
  character(len=*),OPTIONAL,intent(in):: units(nd)
@@ -1820,7 +1827,7 @@ CONTAINS
 
 ! !OUTPUT PARAMETERS:
 
-    real(r_double),pointer,intent(out) :: pntr(:)  ! actual pointer to individual field
+    real(r_double),pointer,intent(inout) :: pntr(:)  ! actual pointer to individual field
     integer(i_kind),       intent(out) :: istatus  ! status error code
 
 ! !DESCRIPTION: Retrieve pointer to specific rank-1 field.
@@ -1876,7 +1883,7 @@ CONTAINS
 
 ! !OUTPUT PARAMETERS:
 
-    real(r_single),pointer,intent(out) :: pntr(:)  ! actual pointer to individual field
+    real(r_single),pointer,intent(inout) :: pntr(:)  ! actual pointer to individual field
     integer(i_kind),       intent(out) :: istatus  ! status error code
 
 ! !DESCRIPTION: Retrieve pointer to specific rank-1 field.
@@ -1930,7 +1937,7 @@ CONTAINS
 
 ! !OUTPUT PARAMETERS:
 
-    real(r_double),pointer,intent(out) :: pntr(:,:)  ! actual pointer to individual field
+    real(r_double),pointer,intent(inout) :: pntr(:,:)  ! actual pointer to individual field
     integer(i_kind),       intent(out) :: istatus  ! status error code
 
 ! !DESCRIPTION: Retrieve pointer to specific rank-2 field.
@@ -1971,7 +1978,7 @@ CONTAINS
 
 ! !OUTPUT PARAMETERS:
 
-    real(r_single),pointer,intent(out) :: pntr(:,:)  ! actual pointer to individual field
+    real(r_single),pointer,intent(inout) :: pntr(:,:)  ! actual pointer to individual field
     integer(i_kind),intent(out) :: istatus  ! status error code
 
 ! !DESCRIPTION: Retrieve pointer to specific rank-2 field.
@@ -2011,7 +2018,7 @@ CONTAINS
 
 ! !OUTPUT PARAMETERS:
 
-    real(r_double),pointer,intent(out) :: pntr(:,:,:)  ! actual pointer to individual field
+    real(r_double),pointer,intent(inout) :: pntr(:,:,:)  ! actual pointer to individual field
     integer(i_kind),intent(out) :: istatus  ! status error code
 
 ! !DESCRIPTION: Retrieve pointer to specific rank-3 field.
@@ -2051,7 +2058,7 @@ CONTAINS
 
 ! !OUTPUT PARAMETERS:
 
-    real(r_single),pointer,intent(out) :: pntr(:,:,:)  ! actual pointer to individual field
+    real(r_single),pointer,intent(inout) :: pntr(:,:,:)  ! actual pointer to individual field
     integer(i_kind),intent(out) :: istatus  ! status error code
 
 ! !DESCRIPTION: Retrieve pointer to specific rank-3 field.
@@ -3121,7 +3128,7 @@ CONTAINS
           deallocate(idi,ido)
        endif
     endif
-    if(verbose) print*, 'complete merge'
+    if(verbose_) print*, 'complete merge'
 
   end subroutine merge_
 !noEOC
