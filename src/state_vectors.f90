@@ -82,7 +82,7 @@ private
   public  svars3d
   public  svars
   public  levels
-  public  ns2d,ns3d
+  public  ns2d,ns3d,nsdim
 
 ! State vector definition
 ! Could contain model state fields plus other fields required
@@ -95,7 +95,7 @@ integer(i_kind) :: nval_len,latlon11,latlon1n,latlon1n1,lat2,lon2,nsig
 logical :: llinit = .false.
 integer(i_kind) :: m_st_alloc, max_st_alloc, m_allocs, m_deallocs
 
-integer(i_kind) :: nvars,ns2d,ns3d
+integer(i_kind) :: nvars,ns2d,ns3d,nsdim
 character(len=max_varname_length),allocatable,dimension(:) :: svars
 character(len=max_varname_length),allocatable,dimension(:) :: svars3d
 character(len=max_varname_length),allocatable,dimension(:) :: svars2d
@@ -197,13 +197,15 @@ close(luin)
 ! variables participating in state vector
 
 ! Count variables first
-ns3d=0; ns2d=0
+ns3d=0; ns2d=0; nsdim=0;
 do ii=1,nvars
    read(utable(ii),*) var, ilev, itracer, source, funcof
    if(ilev==1) then
        ns2d=ns2d+1
+       nsdim=nsdim+1
    else
        ns3d=ns3d+1
+       nsdim=nsdim+ilev
    endif
 enddo
 

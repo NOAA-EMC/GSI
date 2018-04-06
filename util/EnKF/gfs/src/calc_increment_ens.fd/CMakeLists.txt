@@ -3,7 +3,7 @@ if(BUILD_UTIL)
   file(GLOB LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.f90)
   list( REMOVE_ITEM LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/main.f90 )
 
-  set_source_files_properties( ${LOCAL_SRC} PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS} )
+  set_source_files_properties( ${LOCAL_SRC} PROPERTIES COMPILE_FLAGS ${UTIL_Fortran_FLAGS} )
   add_executable(calc_increment_ens.x  ${LOCAL_SRC} )
   set_target_properties( calc_increment_ens.x PROPERTIES COMPILE_FLAGS ${UTIL_Fortran_FLAGS} )
   SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${OMPFLAG}" )

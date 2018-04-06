@@ -39,7 +39,7 @@ module constants
 
 ! Declare constants
   integer(i_kind) izero,ione
-  real(r_kind) rearth,grav,omega,rd,rv,cp,cv,cvap,cliq
+  real(r_kind) rearth,grav,omega,rd,rv,cp,cv,cvap,cliq,rgas,rvap
   real(r_kind) csol,hvap,hfus,psat,t0c,ttp,jcal,cp_mass,cg_term
   real(r_kind) fv,deg2rad,rad2deg,pi,tiny_r_kind,huge_r_kind,huge_i_kind
   real(r_kind) ozcon,rozcon,tpwcon,rd_over_g,rd_over_cp,g_over_rd
@@ -66,6 +66,8 @@ module constants
 !           ----     -----                  -----------                     -----
   parameter(rearth_equator= 6.37813662e6_r_kind) ! equatorial earth radius (m)
   parameter(omega  = 7.2921e-5_r_kind)  !  angular velocity of earth       (1/s)
+  parameter(rgas   = 2.8705e+2_r_kind)
+  parameter(rvap   = 4.6150e+2_r_kind)
   parameter(cp     = 1.0046e+3_r_kind)  !  specific heat of air @pressure  (J/kg/K)
   parameter(cvap   = 1.8460e+3_r_kind)  !  specific heat of h2o vapor      (J/kg/K)
   parameter(csol   = 2.1060e+3_r_kind)  !  specific heat of solid h2o (ice)(J/kg/K)

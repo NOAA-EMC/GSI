@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.6)
 if(BUILD_UTIL)
   
-  file(GLOB LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.f90)
+  file(GLOB LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.F90 ${CMAKE_CURRENT_SOURCE_DIR}/*.f90)
   set(CMAKE_Fortran_MODULE_DIRECTORY "${UTIL_INC}/getsfcnstensupdp/")
   set_source_files_properties( ${LOCAL_SRC} PROPERTIES COMPILE_FLAGS ${UTIL_Fortran_FLAGS} )
   add_executable(getsfcnstensupdp.x  ${LOCAL_SRC} )

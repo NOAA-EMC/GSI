@@ -45,8 +45,8 @@ contains
      ! Declare passed variables
      class(get_gfs_ensmod_class), intent(inout) :: this
      type(sub2grid_info), intent(in   ) :: grd
-     integer(i_kind),     intent(in   ) :: member
      integer(i_kind),     intent(in   ) :: ntindex
+     integer(i_kind),     intent(in   ) :: member
      type(gsi_bundle),    intent(inout) :: atm_bundle
      integer(i_kind),     intent(  out) :: iret
 
