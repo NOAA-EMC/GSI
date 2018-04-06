@@ -1,14 +1,18 @@
 # - Find the Control version of GSI to use for regression testing
 
 set( NO_DEFAULT_PATH )
+message("Control path is ${CONTROLPATH}")
 find_file( CONTROL_EXE 
-    NAMES gsi.x global_gsi
+    NAMES gsi.x global_gsi ${GSIEXEC}
     HINTS
+        ${CONTROLPATH}
+        ${CONTROLPATH}/bin
+        $ENV{CONTROLPATH}
+        $ENV{CONTROLPATH}/bin
+        $ENV{CONTROLPATH}/src
         ${CMAKE_SOURCE_DIR}/../trunk/src
         ${CMAKE_SOURCE_DIR}/../../trunk/src
         ${PROJECT_BINARY_DIR}/../build-trunk/bin
-        $ENV{CONTROLPATH}
-        $ENV{CONTROLPATH}/src
         /da/save/Michael.Lueken/svn1/build/bin
         /da/save/Michael.Lueken/svn1/src
         /gpfs/hps/emc/da/noscrub/Michael.Lueken/svn1/build/bin
@@ -21,8 +25,12 @@ find_file( CONTROL_EXE
 set( GSICONTROL ${CONTROL_EXE} CACHE STRING "GSI control executable for regression testing" FORCE )
 
 find_file( ENKF_CONTROL_EXE 
-    NAMES enkf_gfs.x global_enkf
+    NAMES enkf_gfs.x global_enkf ${ENKFEXEC}
     HINTS
+        ${CONTROLPATH}
+        ${CONTROLPATH}/bin
+        $ENV{CONTROLPATH}
+        $ENV{CONTROLPATH}/bin
         ${CMAKE_SOURCE_DIR}/../trunk/src/enkf
         ${PROJECT_BINARY_DIR}/../build-trunk/bin
         $ENV{CONTROLPATH}/enkf
