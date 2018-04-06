@@ -28,6 +28,8 @@ failed_test=0
 ncp=/bin/cp
 
 # Name and create temporary directory
+# pc: (1) Where is "compare" defined?
+#     (2) $savdir already has $input in it, why add another one?
 tmpdir=$savdir/$compare/$input/${exp1}_vs_${exp2}
 rm -rf $tmpdir
 mkdir -p $tmpdir

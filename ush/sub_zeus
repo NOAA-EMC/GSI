@@ -88,7 +88,14 @@ output=${output:-$jobname.out}
 myuser=$LOGNAME
 myhost=$(hostname)
 
-DATA=/scratch4/NCEPDEV/stmp4/$LOGNAME/tmp
+if [ -d /scratch4/NCEPDEV/stmp4/$LOGNAME ]; then
+  DATA=/scratch4/NCEPDEV/stmp4/$LOGNAME/tmp
+elif [ -d /scratch3/BMC/gsienkf/$LOGNAME ]; then
+  DATA=/scratch3/BMC/gsienkf/$LOGNAME/tmp/tmp
+fi
+
+#DATA=/scratch4/NCEPDEV/stmp4/$LOGNAME/tmp
+#DATA=/scratch3/BMC/gsienkf/$LOGNAME/tmp/tmp
 mkdir -p $DATA
 
 #partition=${partition:-c1ms}

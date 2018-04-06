@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 2.6)
   file(GLOB NDATE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.f)
-  set(NDATE_Fortran_FLAGS "-fp-model source -ftz -assume byterecl -convert big_endian -heap-arrays  -DCOMMCODE -DLINUX -DUPPLITTLEENDIAN -O3 -Wl,-noinhibit-exec ")
   set_source_files_properties( ${NDATE_SRC} PROPERTIES COMPILE_FLAGS ${NDATE_Fortran_FLAGS} )
   add_executable(ndate.x  ${NDATE_SRC} )
   set_target_properties( ndate.x PROPERTIES COMPILE_FLAGS ${NDATE_Fortran_FLAGS} )

@@ -35,12 +35,12 @@ subroutine setuplwcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use mpeu_util, only: die,perr
+  use mpeu_util, only: die,perr,getindex
   use kinds, only: r_kind,r_single,r_double,i_kind
   use guess_grids, only: ges_prsi,ges_prsl,ges_tsen,hrdifsig,nfldsig
   use gridmod, only: lat2,lon2,nsig,get_ij,latlon11
   use m_obsdiags, only: lwcphead
-  use obsmod, only: rmiss_single,i_lwcp_ob_type,obsdiags,&
+  use obsmod, only: rmiss_single,i_lwcp_ob_type,obsdiags,lobsdiag_forenkf,ianldate,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use obsmod, only: l_wcp_cwm
   use m_obsNode, only: obsNode
@@ -48,10 +48,17 @@ subroutine setuplwcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
+
+  use obsmod, only: netcdf_diag, binary_diag, dirname
+  use nc_diag_write_mod, only: nc_diag_init, nc_diag_header,nc_diag_metadata, &
+       nc_diag_write, nc_diag_data2d
+  use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim,nc_diag_read_close
+  use state_vectors, only: svars3d, levels, nsdim
+
   use constants, only: zero,one,tpwcon,r1000,r10, &
        tiny_r_kind,three,half,two,cg_term,huge_single,&
        wgtlim, rd, ttp, tmix, psatk, xa, xai, xb, xbi
-  use jfunc, only: jiter,last,miter
+  use jfunc, only: jiter,last,jiterstart,miter
   use qcmod, only: dfact,dfact1,npres_print
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
@@ -59,6 +66,9 @@ subroutine setuplwcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use gfs_stratosphere, only: use_gfs_stratosphere, nsig_save
+
+  use sparsearr, only: sparr2, new, size, writearray, fullarray
+
   implicit none
 
 ! Declare passed variables
@@ -98,10 +108,14 @@ subroutine setuplwcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
   logical proceed
   
+  type(sparr2) :: dhx_dx
+  real(r_single), dimension(nsdim) :: dhx_dx_array
+  integer(i_kind) :: qi_ind, nind, nnz
+
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf
 
-  logical:: in_curbin, in_anybin
+  logical:: in_curbin, in_anybin,save_jacobian
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   class(obsNode),pointer:: my_node
@@ -128,6 +142,7 @@ subroutine setuplwcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),dimension(lat2,lon2,nsig,nfldsig)::qv, esi, esl, es, qvsl, ssqvl
   real(r_kind),dimension(lat2,lon2,nsig,nfldsig)::ges_tr, ges_w
 
+  save_jacobian = conv_diagsave .and. jiter==jiterstart .and. lobsdiag_forenkf
 
   n_alloc(:)=0
   m_alloc(:)=0
@@ -255,11 +270,18 @@ subroutine setuplwcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! If requested, save select data for output to diagnostic file
   if(conv_diagsave)then
      nchar=1
-     ioff0=19
+     ioff0=20
      nreal=ioff0
      if (lobsdiagsave) nreal=nreal+4*miter+1
+     if (save_jacobian) then
+        nnz   = nsig                   ! number of non-zero elements in dH(x)/dx profile
+        nind   = 1
+        call new(dhx_dx, nnz, nind)
+        nreal = nreal + size(dhx_dx)
+     endif
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
      ii=0
+     if(netcdf_diag) call init_netcdf_diag_
   end if
 
 
@@ -378,6 +400,20 @@ subroutine setuplwcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            hrdifsig,nsig,mype,nfldsig)
      endif
 
+     if (save_jacobian) then
+        qi_ind = getindex(svars3d, 'qi')
+        if (qi_ind < 0) then
+           print *, 'Error: no variable q in state vector. Exiting.'
+           call stop2(1300)
+        endif
+
+        dhx_dx%st_ind(1)  = 1    + sum(levels(1:qi_ind-1))
+        dhx_dx%end_ind(1) = nsig + sum(levels(1:qi_ind-1))
+
+        do k = 1, nsig
+           dhx_dx%val(k) = tpwcon*r10*(piges(k)-piges(k+1))
+        enddo
+     endif
 !=============================================================================================================
          
      ! Compute innovation
@@ -583,27 +619,6 @@ subroutine setuplwcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if(conv_diagsave .and. luse(i))then
         ii=ii+1
         rstation_id     = data(id,i)
-        cdiagbuf(ii)    = station_id         ! station id
-
-        rdiagbuf(1,ii)  = ictype(ikx)        ! observation type
-        rdiagbuf(2,ii)  = icsubtype(ikx)     ! observation subtype
-    
-        rdiagbuf(3,ii)  = data(ilate,i)      ! observation latitude (degrees)
-        rdiagbuf(4,ii)  = data(ilone,i)      ! observation longitude (degrees)
-        rdiagbuf(5,ii)  = data(istnelv,i)    ! station elevation (meters)
-        rdiagbuf(6,ii)  = data(iobsprs,i)    ! observation pressure (hPa)
-        rdiagbuf(7,ii)  = data(iobshgt,i)    ! observation height (meters)
-        rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
-
-        rdiagbuf(9,ii)  = data(iqc,i)        ! input prepbufr qc or event mark
-        rdiagbuf(10,ii) = rmiss_single       ! setup qc or event mark
-        rdiagbuf(11,ii) = data(iuse,i)       ! read_prepbufr data usage flag
-        if(muse(i)) then
-           rdiagbuf(12,ii) = one             ! analysis usage flag (1=use, -1=not used)
-        else
-           rdiagbuf(12,ii) = -one
-        endif
-
         err_input = data(ier2,i)
         err_adjst = data(ier,i)
         if (ratio_errors*error>tiny_r_kind) then
@@ -619,39 +634,10 @@ subroutine setuplwcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if (err_adjst>tiny_r_kind) errinv_adjst=one/err_adjst
         if (err_final>tiny_r_kind) errinv_final=one/err_final
 
-        rdiagbuf(13,ii) = rwgt               ! nonlinear qc relative weight
-        rdiagbuf(14,ii) = errinv_input       ! prepbufr inverse obs error
-        rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error
-        rdiagbuf(16,ii) = errinv_final       ! final inverse observation error
-
-        rdiagbuf(17,ii) = dlwcp              ! solid-water content path obs (kg/m**2)
-        rdiagbuf(18,ii) = ddiff              ! obs-ges used in analysis (kg/m**2)
-        rdiagbuf(19,ii) = dlwcp-lwcpges          ! obs-ges w/o bias correction (kg/m**2) (future slot)
-
         ioff=ioff0
-        if (lobsdiagsave) then
-           do jj=1,miter 
-              ioff=ioff+1 
-              if (obsdiags(i_lwcp_ob_type,ibin)%tail%muse(jj)) then
-                 rdiagbuf(ioff,ii) = one
-              else
-                 rdiagbuf(ioff,ii) = -one
-              endif
-           enddo
-           do jj=1,miter+1
-              ioff=ioff+1
-              rdiagbuf(ioff,ii) = obsdiags(i_lwcp_ob_type,ibin)%tail%nldepart(jj)
-           enddo
-           do jj=1,miter
-              ioff=ioff+1
-              rdiagbuf(ioff,ii) = obsdiags(i_lwcp_ob_type,ibin)%tail%tldepart(jj)
-           enddo
-           do jj=1,miter
-              ioff=ioff+1
-              rdiagbuf(ioff,ii) = obsdiags(i_lwcp_ob_type,ibin)%tail%obssen(jj)
-           enddo
-        endif
 
+        if(binary_diag) call contents_binary_diag_
+        if(netcdf_diag) call contents_netcdf_diag_
      end if
 
 
@@ -661,11 +647,14 @@ subroutine setuplwcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   call final_vars_
 
 ! Write information to diagnostic file
-  if(conv_diagsave .and. ii>0)then
-     call dtime_show(myname,'diagsave:lwcp',i_lwcp_ob_type)
-     write(7)'lwc',nchar,nreal,ii,mype,ioff0
-     write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
-     deallocate(cdiagbuf,rdiagbuf)
+  if(conv_diagsave)then
+     if(netcdf_diag) call nc_diag_write
+     if(binary_diag.and. ii>0)then
+        call dtime_show(myname,'diagsave:lwcp',i_lwcp_ob_type)
+        write(7)'lwc',nchar,nreal,ii,mype,ioff0
+        write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
+        deallocate(cdiagbuf,rdiagbuf)
+     end if
   end if
 
 ! End of routine
@@ -771,6 +760,163 @@ subroutine setuplwcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   endif
 
   end subroutine init_vars_
+
+  subroutine init_netcdf_diag_
+  
+  character(len=80) string
+  character(len=128) diag_conv_file
+  integer(i_kind) ncd_fileid,ncd_nobs
+  logical append_diag
+  logical,parameter::verbose=.false.
+
+! open netcdf diag file
+     write(string,900) jiter
+900  format('conv_lwcp_',i2.2,'.nc4')
+     diag_conv_file=trim(dirname) // trim(string)
+
+     inquire(file=diag_conv_file, exist=append_diag)
+
+     if (append_diag) then
+        call nc_diag_read_init(diag_conv_file,ncd_fileid)
+        ncd_nobs = nc_diag_read_get_dim(ncd_fileid,'nobs')
+        call nc_diag_read_close(diag_conv_file)
+
+        if (ncd_nobs > 0) then
+           if(verbose) print *,'file ' // trim(diag_conv_file) // ' exists.  Appending.  nobs,mype=',ncd_nobs,mype
+        else
+           if(verbose) print *,'file ' // trim(diag_conv_file) // ' exists but contains no obs.  Not appending. nobs,mype=',ncd_nobs,mype
+           append_diag = .false. ! if there are no obs in existing file, then do not try to append
+        endif
+     end if
+
+     call nc_diag_init(diag_conv_file)
+
+     if (.not. append_diag) then ! don't write headers on append - the module will break?
+        call nc_diag_header("date_time",ianldate )
+        call nc_diag_header("Number_of_state_vars", nsdim          )
+     endif
+
+  end subroutine init_netcdf_diag_
+
+  subroutine contents_binary_diag_
+
+     cdiagbuf(ii)    = station_id         ! station id
+
+     rdiagbuf(1,ii)  = ictype(ikx)        ! observation type
+     rdiagbuf(2,ii)  = icsubtype(ikx)     ! observation subtype
+    
+     rdiagbuf(3,ii)  = data(ilate,i)      ! observation latitude (degrees)
+     rdiagbuf(4,ii)  = data(ilone,i)      ! observation longitude (degrees)
+     rdiagbuf(5,ii)  = data(istnelv,i)    ! station elevation (meters)
+     rdiagbuf(6,ii)  = data(iobsprs,i)    ! observation pressure (hPa)
+     rdiagbuf(7,ii)  = data(iobshgt,i)    ! observation height (meters)
+     rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
+
+     rdiagbuf(9,ii)  = data(iqc,i)        ! input prepbufr qc or event mark
+     rdiagbuf(10,ii) = rmiss_single       ! setup qc or event mark
+     rdiagbuf(11,ii) = data(iuse,i)       ! read_prepbufr data usage flag
+     if(muse(i)) then
+        rdiagbuf(12,ii) = one             ! analysis usage flag (1=use, -1=not used)
+     else
+        rdiagbuf(12,ii) = -one
+     endif
+
+     rdiagbuf(13,ii) = rwgt               ! nonlinear qc relative weight
+     rdiagbuf(14,ii) = errinv_input       ! prepbufr inverse obs error
+     rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error
+     rdiagbuf(16,ii) = errinv_final       ! final inverse observation error
+
+     rdiagbuf(17,ii) = dlwcp              ! solid-water content path obs (kg/m**2)
+     rdiagbuf(18,ii) = ddiff              ! obs-ges used in analysis (kg/m**2)
+     rdiagbuf(19,ii) = dlwcp-lwcpges      ! obs-ges w/o bias correction (kg/m**2) (future slot)
+     rdiagbuf(20,ii) = 1.e10_r_single     ! spread (filled in by EnKF)
+
+     ioff=ioff0
+     if (lobsdiagsave) then
+        do jj=1,miter 
+           ioff=ioff+1 
+           if (obsdiags(i_lwcp_ob_type,ibin)%tail%muse(jj)) then
+              rdiagbuf(ioff,ii) = one
+           else
+              rdiagbuf(ioff,ii) = -one
+           endif
+        enddo
+        do jj=1,miter+1
+           ioff=ioff+1
+           rdiagbuf(ioff,ii) = obsdiags(i_lwcp_ob_type,ibin)%tail%nldepart(jj)
+        enddo
+        do jj=1,miter
+           ioff=ioff+1
+           rdiagbuf(ioff,ii) = obsdiags(i_lwcp_ob_type,ibin)%tail%tldepart(jj)
+        enddo
+        do jj=1,miter
+           ioff=ioff+1
+           rdiagbuf(ioff,ii) = obsdiags(i_lwcp_ob_type,ibin)%tail%obssen(jj)
+        enddo
+     endif
+
+     if (save_jacobian) then
+        call writearray(dhx_dx, rdiagbuf(ioff+1:nreal,ii))
+        ioff = ioff + size(dhx_dx)
+     endif
+
+  end subroutine contents_binary_diag_
+
+  subroutine contents_netcdf_diag_
+! Observation class
+  character(7),parameter     :: obsclass = '   lwcp'
+  real(r_kind),parameter::     missing = -9.99e9_r_kind
+
+  real(r_kind),dimension(miter) :: obsdiag_iuse
+
+    call nc_diag_metadata("Station_ID",              station_id             )
+    call nc_diag_metadata("Observation_Class",       obsclass               )
+    call nc_diag_metadata("Observation_Type",        ictype(ikx)            )
+    call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
+    call nc_diag_metadata("Latitude",                sngl(data(ilate,i))    )
+    call nc_diag_metadata("Longitude",               sngl(data(ilone,i))    )
+    call nc_diag_metadata("Station_Elevation",       sngl(data(istnelv,i))  )
+    call nc_diag_metadata("Pressure",                sngl(data(iobsprs,i))  )
+    call nc_diag_metadata("Height",                  sngl(data(iobshgt,i))  )
+    call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
+    call nc_diag_metadata("Prep_QC_Mark",            sngl(data(iqc,i))      )
+    call nc_diag_metadata("Setup_QC_Mark",           sngl(rmiss_single)     )
+    call nc_diag_metadata("Prep_Use_Flag",           sngl(data(iuse,i))     )
+    if(muse(i)) then
+       call nc_diag_metadata("Analysis_Use_Flag",    sngl(one)              )
+    else
+       call nc_diag_metadata("Analysis_Use_Flag",    sngl(-one)             )
+    endif
+
+    call nc_diag_metadata("Nonlinear_QC_Rel_Wgt",    sngl(rwgt)             )
+    call nc_diag_metadata("Errinv_Input",            sngl(errinv_input)     )
+    call nc_diag_metadata("Errinv_Adjust",           sngl(errinv_adjst)     )
+    call nc_diag_metadata("Errinv_Final",            sngl(errinv_final)     )
+    call nc_diag_metadata("Observation",             sngl(dlwcp)            )
+    call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)      )
+    call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(dlwcp-lwcpges))
+
+    if (lobsdiagsave) then
+       do jj=1,miter
+          if (obsdiags(i_lwcp_ob_type,ibin)%tail%muse(jj)) then
+             obsdiag_iuse(jj) = one
+          else
+             obsdiag_iuse(jj) = -one
+          endif
+       enddo
+
+       call nc_diag_data2d("ObsDiagSave_iuse",     obsdiag_iuse                             )
+       call nc_diag_data2d("ObsDiagSave_nldepart", obsdiags(i_lwcp_ob_type,ibin)%tail%nldepart )
+       call nc_diag_data2d("ObsDiagSave_tldepart", obsdiags(i_lwcp_ob_type,ibin)%tail%tldepart )
+       call nc_diag_data2d("ObsDiagSave_obssen",   obsdiags(i_lwcp_ob_type,ibin)%tail%obssen   )              
+    endif
+
+    if (save_jacobian) then
+       call fullarray(dhx_dx, dhx_dx_array)
+       call nc_diag_data2d("Observation_Operator_Jacobian", dhx_dx_array)
+    endif
+
+  end subroutine contents_netcdf_diag_
 
   subroutine final_vars_
     if(allocated(ges_q )) deallocate(ges_q )

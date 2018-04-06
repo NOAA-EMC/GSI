@@ -5,18 +5,17 @@ set -ex
 cd ..
 pwd=$(pwd)
 
-target=$1
-dir_root=${2:-$pwd}
+dir_root=${1:-$pwd}
 
-if [ $target = wcoss ]; then
+if [[ -d /dcom && -d /hwrf ]] ; then
     . /usrx/local/Modules/3.2.10/init/sh
-    conf_target=nco
-elif [ $target = cray -o $target = wcoss_c ]; then
+    target=wcoss
+elif [[ -d /gpfs/hps && -e /etc/SuSE-release ]] ; then
     . $MODULESHOME/init/sh
-    conf_target=nco
-elif [ $target = theia ]; then
+    target=cray
+elif [[ -d /scratch3 ]] ; then
     . /apps/lmod/lmod/init/sh
-    conf_target=theia
+    target=theia
 else
     echo "unknown target = $target"
     exit 9

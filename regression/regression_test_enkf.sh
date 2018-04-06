@@ -222,16 +222,17 @@ if [[ $(grep -c 'ens. mean anal. increment' increment.${exp1}-${exp2}.txt) = 0 ]
       echo
    else
       echo 'The results between the two runs are nonreproducible,'
-      echo 'thus the regression test has failed for '${exp1}' and '${exp2}' analyses.'
-#     echo 'thus the regression test has failed for '${exp1}' and '${exp2}' analyses with '$(grep -c 'ens. mean anal. increment' increment.${exp1}-${exp2}.txt)' lines different.'
+#      echo 'thus the regression test has failed for '${exp1}' and '${exp2}' analyses.'
+      echo 'thus the regression test has failed for '${exp1}' and '${exp2}' analyses with '$(grep -c 'ens. mean anal. increment' increment.${exp1}-${exp2}.txt)' lines different.'
       echo
-      exit 1
+#      exit 1
    fi
 else
    echo 'The results between the two runs are nonreproducible,'
-   echo 'thus the regression test has failed for '${exp1}' and '${exp2}' analyses.'
+#   echo 'thus the regression test has failed for '${exp1}' and '${exp2}' analyses.'
+   echo 'thus the regression test has failed for '${exp1}' and '${exp2}' analyses with '$(grep -c 'ens. mean anal. increment' increment.${exp1}-${exp2}.txt)' lines different.'
    echo
-   exit 1
+#   exit 1
 fi
 
 } >> $output
@@ -314,16 +315,17 @@ else
          echo
       else
          echo 'The results between the two runs are nonreproducible,'
-         echo 'thus the regression test has failed for '${exp1}' and '${exp3}' analyses.'
-#        echo 'thus the regression test has failed for '${exp1}' and '${exp3}' analyses with '$(grep -c 'ens. mean anal. increment' increment.${exp1}-${exp3}.txt)' lines different.'
+#         echo 'thus the regression test has failed for '${exp1}' and '${exp3}' analyses.'
+         echo 'thus the regression test has failed for '${exp1}' and '${exp3}' analyses with '$(grep -c 'ens. mean anal. increment' increment.${exp1}-${exp3}.txt)' lines different.'
          echo
-         exit 1
+#         exit 1
       fi
    else
       echo 'The results between the two runs are nonreproducible,'
-      echo 'thus the regression test has failed for '${exp1}' and '${exp3}' analyses.'
+#      echo 'thus the regression test has failed for '${exp1}' and '${exp3}' analyses.'
+         echo 'thus the regression test has failed for '${exp1}' and '${exp3}' analyses with '$(grep -c 'ens. mean anal. increment' increment.${exp1}-${exp3}.txt)' lines different.'
       echo
-      exit 1
+#      exit 1
    fi
 
 } >> $output

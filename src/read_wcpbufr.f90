@@ -602,7 +602,7 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cycle
               endif
 
-              if(ncnumgrp(nc) )then                 ! default cross validation on
+              if(ncnumgrp(nc)>0 )then                 ! default cross validation on
                  if(mod(ndata+1,ncnumgrp(nc))== ncgroup(nc)-1)usage=ncmiter(nc)
               end if
 

@@ -32,7 +32,7 @@ fi
 # First determine what machine are we on:
 if [ -d /da ]; then # WCOSS
    export machine="WCOSS"
-   if [ -d /da/noscrub/$LOGNAME ]; then 
+   if [ -d /da/noscrub/$LOGNAME ]; then
      export noscrub=/da/noscrub/$LOGNAME
    elif [ -d /global/noscrub/$LOGNAME ]; then
      export noscrub=/global/noscrub/$LOGNAME
@@ -44,10 +44,12 @@ elif [ -d /glade/scratch ]; then # Cheyenne
    export noscrub="/glade/scratch/$LOGNAME"
 elif [ -d /scratch4/NCEPDEV/da ]; then # Theia
    export machine="Theia"
-   if [ -d /scratch4/NCEPDEV/da/noscrub/$LOGNAME ]; then 
+   if [ -d /scratch4/NCEPDEV/da/noscrub/$LOGNAME ]; then
      export noscrub="/scratch4/NCEPDEV/da/noscrub/$LOGNAME"
-   elif [ -d /scratch4/NCEPDEV/global/noscrub/$LOGNAME ]; then 
+   elif [ -d /scratch4/NCEPDEV/global/noscrub/$LOGNAME ]; then
      export noscrub="/scratch4/NCEPDEV/global/noscrub/$LOGNAME"
+   elif [ -d /scratch3/BMC/gsienkf/$LOGNAME ]; then
+     export noscrub="/scratch3/BMC/gsienkf/$LOGNAME"
    fi
 elif [ -d /gpfs/hps/ptmp ]; then # LUNA or SURGE
    export machine="WCOSS_C"
@@ -59,7 +61,12 @@ elif [ -d /gpfs/hps/ptmp ]; then # LUNA or SURGE
 elif [ -d /data/users ]; then # S4
    export machine="s4"
    export noscrub="/data/users/$LOGNAME"
+elif [ -d /discover/nobackup ]; then # NCCS Discover
+   export machine="discover"
 fi
+
+# We are dealing with *which* endian files
+export endianness="Big_Endian"
 
 echo "machine name is $machine"
 echo "looking to see which machine we have"
@@ -85,9 +92,13 @@ elif [[ "$machine" = "Theia" ]]; then
    export queue="batch"
    if [[ "$cmaketest" = "false" ]]; then
      export basedir="/scratch4/NCEPDEV/da/save/$LOGNAME/git/gsi"
-   fi 
+   fi
 
-   export ptmp="/scratch4/NCEPDEV/stmp3/$LOGNAME/$ptmpName"
+   if [ -d /scratch4/NCEPDEV/stmp3/$LOGNAME ]; then
+     export ptmp="/scratch4/NCEPDEV/stmp3/$LOGNAME/$ptmpName"
+   elif [ -d /scratch3/BMC/gsienkf/$LOGNAME ]; then
+     export ptmp="/scratch3/BMC/gsienkf/$LOGNAME/tmp/$ptmpName"
+   fi
 
    export fixcrtm="/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/lib/crtm/2.2.3/fix_update"
    export casesdir="/scratch4/NCEPDEV/da/noscrub/Michael.Lueken/CASES"
@@ -99,13 +110,13 @@ elif [[ "$machine" = "Theia" ]]; then
 
    #  On Theia, there are no scrubbers to remove old contents from stmp* directories.
    #  After completion of regression tests, will remove the regression test subdirecories
-#  export clean=".true."
+   export clean=".true."
 
 elif [[ "$machine" = "WCOSS" ]]; then
 
    if [[ "$cmaketest" = "false" ]]; then
      export basedir="/global/save/$LOGNAME/gsi"
-   fi 
+   fi
    export group="dev"
    export queue="dev"
 
@@ -123,7 +134,7 @@ elif [[ "$machine" = "WCOSS_C" ]]; then
 
    if [[ "$cmaketest" = "false" ]]; then
      export basedir="/gpfs/hps/emc/global/noscrub/$LOGNAME/svn/gsi"
-   fi 
+   fi
    export group="dev"
    export queue="dev"
 
@@ -139,7 +150,7 @@ elif [[ "$machine" = "WCOSS_C" ]]; then
 elif [[ "$machine" = "s4" ]]; then
    if [[ "$cmaketest" = "false" ]]; then
      export basedir="/home/$LOGNAME/gsi"
-   fi 
+   fi
    export group="dev"
    export queue="dev"
    export NWPROD="/usr/local/jcsda/nwprod_gdas_2014"
@@ -154,7 +165,18 @@ elif [[ "$machine" = "s4" ]]; then
    export check_resource="no"
 
    export accnt="star"
-
+elif [ "$machine" == "discover" ]; then
+   export basedir="/gpfsm/dnb31/pchakrab/code/ext/gsi"
+   export group="global"
+   export queue="batch"
+   export ptmp=$basedir
+   export noscrub=$basedir
+   export fixcrtm="/discover/nobackup/projects/gmao/share/gmao_ops/fvInput_4dvar/gsi/etc/fix_ncep20170329/REL-2.2.3-r60152_local-rev_1/CRTM_Coeffs/$endianness"
+   export casesdir="/discover/nobackup/projects/gmao/obsdev/wrmccart/NCEP_regression/CASES"
+   export ndate="$basedir/$updat/scripts/ndate"
+   export check_resource="no"
+   export accnt="g0613"
+   export clean=".false."
 fi
 
 if [[ "$cmaketest" = "false" ]]; then
@@ -171,9 +193,6 @@ fi
 # Paths to tmpdir and savedir base on ptmp
 export tmpdir="$ptmp"
 export savdir="$ptmp"
-
-# We are dealing with *which* endian files
-export endianness="Big_Endian"
 
 # Variables with the same values are defined below.
 
@@ -205,7 +224,7 @@ export global_hybrid_T126_datobs="$casesdir/global/sigmap/$global_hybrid_T126_ad
 export global_4denvar_T126_datges="$casesdir/global/sigmap/$global_4denvar_T126_adate"
 export global_4denvar_T126_datobs="$casesdir/global/sigmap/$global_4denvar_T126_adate"
 export global_hybrid_T126_datges="$casesdir/global/sigmap/$global_hybrid_T126_adate/ges"
-export global_enkf_T62_datobs="$casesdir/global/sigmap/$global_enkf_T62_adate/obs"
+export global_enkf_T62_datobs="$casesdir/global/sigmap/$global_enkf_T62_adate/new_obs"
 export global_enkf_T62_datges="$casesdir/global/sigmap/$global_enkf_T62_adate/ges"
 export global_lanczos_T62_obs="$casesdir/global/sigmap/$global_lanczos_T62_adate"
 export global_lanczos_T62_ges="$casesdir/global/sigmap/$global_lanczos_T62_adate"

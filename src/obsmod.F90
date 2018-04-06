@@ -112,6 +112,7 @@ module obsmod
 !                          procedures into module m_prad in file prad_bias.f90.
 !   2015-09-03  guo      - moved type::obs_handle, its instance yobs, and its
 !                          allocation, into m_obsHeadBundle.F90.
+!   2016-01-28  mccarty  - add netcdf_diag capability
 !   2016-03-07  pondeca  - add uwnd10m,vwnd10m
 !   2016-05-04  guo      - moved all ob_type and ob_head type-definitions into
 !                          their *own* class-style-modules, including 9 recent
@@ -127,6 +128,8 @@ module obsmod
 !   2016-07-26  guo      - moved away most cldch_ob_type contents to a new module, m_cldchNode
 !   2016-08-20  guo      - moved (stpcnt,ll_jo,ib_jo) to stpjo.f90.
 !   2016-09-19  guo      - moved function dfile_format() to m_extOzone.F90
+!   2016-11-29 shlyaeva  - add lobsdiag_forenkf option for writing out linearized
+!                           H(x) for EnKF
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -356,6 +359,8 @@ module obsmod
 !                           data
 !   def obs_sub        - number of observations of each type in each subdomain
 !                        (nobs_type,npe)
+!   def binary_diag    - trigger binary diag-file output (being phased out)
+!   def netcdf_diag    - trigger netcdf diag-file output
 !   def l_wcp_cwm      - namelist logical whether to use operator that
 !                        includes cwm for both swcp and lwcp or not
 !
@@ -396,7 +401,7 @@ module obsmod
   public :: cobstype,nprof_gps,time_offset,ianldate
   public :: iout_oz,iout_co,dsis,ref_obs,obsfile_all,lobserver,perturb_obs,ditype,dsfcalc,dplat
   public :: time_window,dval,dtype,dfile,dirname,obs_setup,oberror_tune,offtime_data
-  public :: lobsdiagsave,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel,ext_sonde
+  public :: lobsdiagsave,lobsdiag_forenkf,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel,ext_sonde
   public :: perturb_fact,dtbduv_on,nsat1,obs_sub_comm,mype_diaghdr
   public :: lobsdiag_allocated
   public :: i_aero_ob_type
@@ -434,6 +439,8 @@ module obsmod
   public :: obsmod_final_instr_table
   public :: nobs_sub
 
+  public :: netcdf_diag, binary_diag
+
   public :: l_wcp_cwm
 
   interface obsmod_init_instr_table
@@ -454,6 +461,8 @@ module obsmod
 #endif
 
   logical luse_obsdiag
+  logical binary_diag, netcdf_diag 
+
 ! Declare types
 
   integer(i_kind),parameter::  i_ps_ob_type= 1    ! ps_ob_type
@@ -579,7 +588,7 @@ module obsmod
 
   logical oberrflg,bflag,oberror_tune,perturb_obs,ref_obs,sfcmodel,dtbduv_on,dval_use
   logical blacklst,lobsdiagsave,lobsdiag_allocated,lobskeep,lsaveobsens
-  logical lobserver,l_do_adjoint
+  logical lobserver,l_do_adjoint, lobsdiag_forenkf
   logical,dimension(0:50):: write_diag
   logical reduce_diag
   logical offtime_data
@@ -654,6 +663,7 @@ contains
     use_limit = -1
     lobsdiagsave=.false.
     lobsdiag_allocated=.false.
+    lobsdiag_forenkf = .false.
     lobskeep=.false.
     nobskeep=0
     lsaveobsens=.false.
@@ -813,6 +823,10 @@ contains
     lrun_subdirs     = .false.
     l_foreaft_thin   = .false.
     luse_obsdiag     = .false.
+
+!   set default on diag writing
+    netcdf_diag = .false. ! by default, do not write netcdf_diag
+    binary_diag = .true.  ! by default, do write binary diag
 
     l_wcp_cwm          = .false.                 ! .true. = use operator that involves cwm
 

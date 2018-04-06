@@ -1,0 +1,8 @@
+To build on discover, do the following
+
+(0) cd /path/to/ProdGSI
+(1) source g5_modules.sh
+(2) source SetenvDiscover.sh (this sets CRTM_SRC etc.)
+(3) mkdir bld && cd bld
+(4) cmake -DBASEDIR=$BASEDIR/Linux -DBUILD_CORELIBS=ON -DUSE_WRF=OFF -DBUILD_GLOBAL=ON -DBUILD_NCDIAG=ON ..
+(5) make -j N
