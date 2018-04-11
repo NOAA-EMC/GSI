@@ -43,7 +43,7 @@ program getsigensstatp
     character(len=3)   :: charnanal
     character(len=500) :: filenamein,datapath,filepref
     integer :: nanals,nlevs,ntrac,ntrunc,latb,lonb,iret
-    integer :: k,krecu,krecv,krect,krecq,krecoz,kreccwmr
+    integer :: k,krecu,krecv,krect,krecq,krecoz,kreccwmr,krecicmr
     integer :: nsize,npts,nrec,nflds
     real(r_double) :: rnanals,rnanalsm1
     character(len=16),allocatable,dimension(:) :: recnam
@@ -52,6 +52,7 @@ program getsigensstatp
     real(r_single),allocatable,dimension(:,:) :: rwork_mem,rwork_avg
     real(r_single),allocatable,dimension(:) :: glats,gwts
     logical :: sigio,nemsio
+    logical :: do_icmr = .false.
 
     type(sigio_head)   :: sigheadi
     type(sigio_data)   :: sigdatai
@@ -149,6 +150,8 @@ program getsigensstatp
                 call mpi_abort(mpi_comm_world,99,iret)
                 stop
             endif
+            do_icmr = variable_exist('icmr')
+            do_icmr = .false. ! keep this .false. to keep file size small until we actually analyze ice mr
         endif
 
         if ( mype == 0 ) then
@@ -216,12 +219,14 @@ program getsigensstatp
                 krecq    = 1 + 3*nlevs + k
                 krecoz   = 1 + 4*nlevs + k
                 kreccwmr = 1 + 5*nlevs + k
+                if ( do_icmr ) krecicmr = 1 + 6*nlevs + k
                 call nemsio_readrecv(gfile,'ugrd', 'mid layer',k,rwork_mem(:,krecu),   iret=iret)
                 call nemsio_readrecv(gfile,'vgrd', 'mid layer',k,rwork_mem(:,krecv),   iret=iret)
                 call nemsio_readrecv(gfile,'tmp',  'mid layer',k,rwork_mem(:,krect),   iret=iret)
                 call nemsio_readrecv(gfile,'spfh', 'mid layer',k,rwork_mem(:,krecq),   iret=iret)
                 call nemsio_readrecv(gfile,'o3mr', 'mid layer',k,rwork_mem(:,krecoz),  iret=iret)
                 call nemsio_readrecv(gfile,'clwmr','mid layer',k,rwork_mem(:,kreccwmr),iret=iret)
+                if ( do_icmr ) call nemsio_readrecv(gfile,'icwr', 'mid layer',k,rwork_mem(:,krecicmr),iret=iret)
             enddo
             call nemsio_close(gfile,iret=iret)
 
@@ -396,5 +401,22 @@ SUBROUTINE nc_check(ierr,subr_name,context)
 
   return
 END SUBROUTINE nc_check
+
+function variable_exist(varname) result(varexist)
+
+  character(len=*) :: varname
+  logical :: varexist
+
+  integer :: n
+
+  varexist = .false.
+  do n=1,nrec
+    if ( trim(recnam(n)) == trim(varname) ) then
+      varexist = .true.
+      return
+    endif
+  enddo
+
+end function variable_exist
 
 end program getsigensstatp
