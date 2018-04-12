@@ -4,8 +4,8 @@
 #  CORE_LIBRARIES
 #    Full list of libraries required to link GSI executable
 include(findHelpers)
-if(DEFINED ENV{W3EMC_VERd})
-  set(W3EMC_VER $ENV{W3EMC_VERd})
+if(DEFINED ENV{W3EMC_VER})
+  set(W3EMC_VER $ENV{W3EMC_VER})
   set(W3EMCINC $ENV{W3EMC_INCd} )
   STRING(REGEX REPLACE "v" "" W3EMC_VER ${W3EMC_VER})
 endif()
