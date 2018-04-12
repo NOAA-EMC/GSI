@@ -24,7 +24,7 @@ program maingrads_sfctime
          integer                :: nreal
          integer                :: nobs
          integer                :: isubtype
-         character(2)           :: subtype
+         character(3)           :: subtype
          type(list_node_t),pointer   :: list
       end subroutine read_conv2grads
 
@@ -37,7 +37,7 @@ program maingrads_sfctime
          integer                 :: ifileo,nobs,nreal,nlev 
          real(4),dimension(nlev) :: plev
          integer                 :: iscater,igrdas,isubtype
-         character(2)            :: subtype
+         character(3)            :: subtype
          type(list_node_t),pointer   :: list
          
       end subroutine grads_sfctime
@@ -53,7 +53,7 @@ program maingrads_sfctime
    real(4),dimension(7) :: ptime7
    character(10) :: fileo,stype,timecard 
    character(3) :: intype
-   character(2) :: subtype
+   character(3) :: subtype
    integer nreal,iscater,igrads,isubtype 
    integer nobs,lstype
    integer n_time7,n_time11,itype

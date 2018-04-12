@@ -99,22 +99,25 @@
             my @times;
             my $idx = 0;
 
-            #  Find the first string of 10 digits; that's the date.  Use that $idx
-            #  number to process all files.
+            #  Find the first string of 10 digits; that's the date.  Use that 
+            #  $idx nubmer to process all files.
             #
-            my @vals = split( '\.', $timefiles[0] ); 
-            for ( my $ii=$#vals; $ii >= 0; $ii-- ) {
-               if( looks_like_number( $vals[$ii] )  && length($vals[$ii] ) == 10 ){
-                     $idx = $ii;
-               }
-            }
+#            my @vals = split( '\.', $timefiles[0] ); 
+#            for ( my $ii=$#vals; $ii >= 0; $ii-- ) {
+#               if( looks_like_number( $vals[$ii] )  && length($vals[$ii] ) == 10 ){
+#                     $idx = $ii;
+#               }
+#            }
  
             for ( my $ii=$#sorttime; $ii >= 0; $ii-- ) {
-               my $teststr = $sorttime[$ii];
 
-               my @values = split( '\.', $teststr );
-               if( $values[$idx] ne "ctl" ){ 
-                  push( @times, $values[$idx] );
+               my @vals = split( '\.', $sorttime[$ii] );
+               for( my $jj=$#vals; $jj>=0; $jj-- ) {
+                  if( looks_like_number( $vals[$jj] ) && length($vals[$jj] ) == 10) {
+ 
+#                  push( @times, $values[$idx] );
+                     push( @times, $vals[$jj] );
+                  }
                }
             }
 

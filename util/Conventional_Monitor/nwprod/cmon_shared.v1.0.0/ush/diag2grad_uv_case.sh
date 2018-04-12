@@ -32,9 +32,9 @@ echo "mtype     = ", ${mtype}
 
 ctype=`echo ${mtype} | cut -c3-5`
 
-if [ "$mtype" = 'uv221' -o "$mtype" = 'uv230' -o "$mtype" = 'uv231' -o "$mtype" = 'uv232' -o "$mtype" = 'uv233' -o "$mtype" = 'uv234' -o "$mtype" = 'uv235' -o "$mtype" = 'uv242' -o "$mtype" = 'uv243'  -o "$mtype" = 'uv245' -o "$mtype" = 'uv246' -o "$mtype" = 'uv247' -o "$mtype" = 'uv248' -o "$mtype" = 'uv249' -o "$mtype" = 'uv250' -o "$mtype" = 'uv251' -o "$mtype" = 'uv252' -o "$mtype" = 'uv253' -o "$mtype" = 'uv254' -o "$mtype" = 'uv255' -o "$mtype" = 'uv256' -o "$mtype" = 'uv257' -o "$mtype" = 'uv258' ]; then
+if [ "$mtype" = 'uv221' -o "$mtype" = 'uv224' -o "$mtype" = 'uv229' -o "$mtype" = 'uv230' -o "$mtype" = 'uv231' -o "$mtype" = 'uv232' -o "$mtype" = 'uv233' -o "$mtype" = 'uv234' -o "$mtype" = 'uv235' -o "$mtype" = 'uv242' -o "$mtype" = 'uv243'  -o "$mtype" = 'uv245' -o "$mtype" = 'uv246' -o "$mtype" = 'uv247' -o "$mtype" = 'uv248' -o "$mtype" = 'uv249' -o "$mtype" = 'uv250' -o "$mtype" = 'uv251' -o "$mtype" = 'uv252' -o "$mtype" = 'uv253' -o "$mtype" = 'uv254' -o "$mtype" = 'uv255' -o "$mtype" = 'uv256' -o "$mtype" = 'uv257' -o "$mtype" = 'uv258' ]; then
 
-   echo "IN if condition 1"
+   echo "IN if condition 1, using GRADS_LEV.X"
    rm -f diag2grads
    cp ${EXECcmon}/grads_lev.x ./diag2grads
 
@@ -60,7 +60,7 @@ if [ "$mtype" = 'uv221' -o "$mtype" = 'uv230' -o "$mtype" = 'uv231' -o "$mtype" 
 EOF
 
 elif  [ "$mtype" = 'uv223' -o "$mtype" = 'uv224' -o "$mtype" = 'uv228' ]; then
-   echo "IN if condition 2"
+   echo "IN if condition 2, using GRADS_SIG.X"
 
    rm -f diag2grads
    cp ${EXECcmon}/grads_sig.x ./diag2grads
@@ -85,7 +85,7 @@ elif  [ "$mtype" = 'uv223' -o "$mtype" = 'uv224' -o "$mtype" = 'uv228' ]; then
 EOF
 
 elif [ "$mtype" = 'uv220' ]; then
-   echo "IN if condition 3"
+   echo "IN if condition 3, using GRADS_MANDLEV.X"
 
    rm -f diag2grads
    cp ${EXECcmon}/grads_mandlev.x ./diag2grads
@@ -98,7 +98,7 @@ elif [ "$mtype" = 'uv220' ]; then
 EOF
 
 elif [ "$mtype" = 'uv280' -o "$mtype" = 'uv281' -o "$mtype" = 'uv282' -o "$mtype" = 'uv284'  -o "$mtype" = 'uv287' ]; then
-   echo "IN if condition 4"
+   echo "IN if condition 4, using GRADS_SFCTIME.X"
 
    rm -f diag2grads
    cp ${EXECcmon}/grads_sfctime.x ./diag2grads
@@ -111,7 +111,7 @@ elif [ "$mtype" = 'uv280' -o "$mtype" = 'uv281' -o "$mtype" = 'uv282' -o "$mtype
 EOF
 
 elif [ "$mtype" = 'uv229' ]; then
-   echo "IN if condition 5"
+   echo "IN if condition 5, using GRADS_SFCTIME.X"
    rm -f diag2grads
    cp ${EXECcmon}/grads_sfctime.x ./diag2grads
    rm -f input
@@ -144,11 +144,13 @@ mv stdout stdout_diag2grads_${mtype}_${subtype}.${cycle}
 
 dest_dir="${TANKDIR_cmon}/horz_hist/${cycle}"
 
-for file in uv*grads; do
+grads_list=`ls uv*grads`
+for file in $grads_list; do
    mv ${file} ${dest_dir}/${file}.${PDATE}
 done
 
-for file in uv*scater; do
+scatter_list=`ls uv*scater`
+for file in $scatter_list; do
    mv ${file} ${dest_dir}/${file}.${PDATE}
 done
 

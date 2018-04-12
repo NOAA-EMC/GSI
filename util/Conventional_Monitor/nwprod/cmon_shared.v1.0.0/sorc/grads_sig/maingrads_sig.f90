@@ -23,7 +23,7 @@ program maingrads_sig
          integer                :: nreal
          integer                :: nobs
          integer                :: isubtype
-         character(2)           :: subtype
+         character(3)           :: subtype
          type(list_node_t),pointer   :: list      
       end subroutine read_conv2grads
 
@@ -36,7 +36,7 @@ program maingrads_sig
          character(ifileo)              :: fileo
          integer                        :: nobs,nreal,nlev,igrads,isubtype
          real(4),dimension(nlev)        :: plev
-         character(2) subtype
+         character(3) subtype
          type(list_node_t), pointer     :: list
       end subroutine grads_sig
 
@@ -46,7 +46,7 @@ program maingrads_sig
    real(4),dimension(46) :: psig 
    character(10) :: fileo,stype,time
    character(3) :: intype
-   character(2) :: subtype
+   character(3) :: subtype
    integer nreal,nreal_m2,iscater,igrads,isubtype 
    integer n_alllev,n_acft,n_lowlev,n_upair,nobs,lstype
    integer itype,n_sig,ii

@@ -71,10 +71,10 @@ function uvsatwind (args)
       endwhile
    endif
 
-   if(plotfile = uv245 | plotfile = uv246 )
+   if(plotfile = uv245 | plotfile = uv246 | plotfile = uv247 )
       he=1
       while(he <=13)
-         if(plotfile = uv245)
+         if(plotfile = uv245 | plotfile = uv246 | plotfile = uv247 )
             plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,925,1,hint,u)
             plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,850,2,hint,u)
             plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,700,3,hint,u)
@@ -83,7 +83,7 @@ function uvsatwind (args)
             plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,700,3,hint,v)
          endif
 
-         if(plotfile = uv245 | plotfile = uv246)
+         if(plotfile = uv245 | plotfile = uv246 | plotfile = uv247 )
             plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,500,4,hint,u)
             plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,300,5,hint,u)
             plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,250,6,hint,u)
@@ -270,59 +270,59 @@ function setmap(plotfile,he)
    if(he=2)
       if(plotfile = uv242 | plotfile = uv252 ); 'set lat 0 60';'set lon 100 210';endif
       if(plotfile = uv243); 'set lat 0 60';'set lon 0 120';endif
-      if(plotfile = uv245 | plotfile = uv246); 'set lat 0 30';'set lon 180 240';endif
+      if(plotfile = uv245 | plotfile = uv246 | plotfile = uv247 ); 'set lat 0 30';'set lon 180 240';endif
       if(plotfile = uv253); 'set lat 0 60';'set lon 0 120';endif
       if(plotfile = uv257 | plotfile = uv258); 'set lat 60 90';'set lon 0 60';endif
    endif
    if(he=3)
       if(plotfile = uv242 | plotfile = uv252 ); 'set lat -60 0';'set lon 90 200';endif
       if(plotfile = uv243); 'set lat -60 0';'set lon 0 120';endif
-      if(plotfile = uv245 | plotfile = uv246); 'set lat 30  60';'set lon 180 240 ';endif
+      if(plotfile = uv245 | plotfile = uv246 | plotfile = uv247 ); 'set lat 30  60';'set lon 180 240 ';endif
       if(plotfile = uv253); 'set lat -60  0';'set lon 0 120';endif
       if(plotfile = uv257 | plotfile = uv258); 'set lat 60 90';'set lon 60 120';endif
    endif
    if(he=4)
       if(plotfile = uv243); 'set lat 0 35';'set lon 300 360';endif
-      if(plotfile = uv245 | plotfile = uv246); 'set lat 0 30';'set lon 240 300';endif
+      if(plotfile = uv245 | plotfile = uv246 | plotfile = uv247 ); 'set lat 0 30';'set lon 240 300';endif
       if(plotfile = uv253); 'set lat 0 60';'set lon 260 360';endif
       if(plotfile = uv257 | plotfile = uv258); 'set lat 60 90';'set lon 120 180';endif
    endif
    if(he=5)
       if(plotfile = uv243); 'set lat -35 0';'set lon 300 360';endif
-      if(plotfile = uv245 | plotfile = uv246); 'set lat 30 60';'set lon 240 300';endif
+      if(plotfile = uv245 | plotfile = uv246 | plotfile = uv247 ); 'set lat 30 60';'set lon 240 300';endif
       if(plotfile = uv253); 'set lat -60 0';'set lon 260 360';endif
       if(plotfile = uv257 | plotfile = uv258); 'set lat 60 90';'set lon 180 240';endif
    endif
    if(he=6)
-      if(plotfile = uv245 | plotfile = uv246); 'set lat 0 30';'set lon 300 360';endif
+      if(plotfile = uv245 | plotfile = uv246 | plotfile = uv247 ); 'set lat 0 30';'set lon 300 360';endif
       if(plotfile = uv257 | plotfile = uv258); 'set lat 60 90';'set lon 240 300';endif
    endif
    if(he=7)
-      if(plotfile = uv245 | plotfile = uv246); 'set lat 30 60';'set lon 300 360';endif
+      if(plotfile = uv245 | plotfile = uv246 | plotfile = uv247 ); 'set lat 30 60';'set lon 300 360';endif
       if(plotfile = uv257 | plotfile = uv258); 'set lat 60 90';'set lon 300 360';endif
    endif
    if(he=8)
-      if(plotfile = uv245 | plotfile = uv246); 'set lat -30 0';'set lon 180 240';endif
+      if(plotfile = uv245 | plotfile = uv246 | plotfile = uv247 ); 'set lat -30 0';'set lon 180 240';endif
       if(plotfile = uv257 | plotfile = uv258); 'set lat -90 -60';'set lon  0 60';endif
    endif
    if(he=9)
-      if(plotfile = uv245 | plotfile = uv246); 'set lat -60 -30';'set lon 180 240';endif
+      if(plotfile = uv245 | plotfile = uv246 | plotfile = uv247 ); 'set lat -60 -30';'set lon 180 240';endif
       if(plotfile = uv257 | plotfile = uv258); 'set lat -90 -60';'set lon 60 120';endif
    endif
    if(he=10)
-      if(plotfile = uv245 | plotfile = uv246); 'set lat -30 0';'set lon 240 300';endif
+      if(plotfile = uv245 | plotfile = uv246 | plotfile = uv247 ); 'set lat -30 0';'set lon 240 300';endif
       if(plotfile = uv257 | plotfile = uv258); 'set lat -90 -60';'set lon 120 180';endif
    endif
    if(he=11)
-      if(plotfile = uv245 | plotfile = uv246); 'set lat -60 -30';'set lon 240 300';endif
+      if(plotfile = uv245 | plotfile = uv246 | plotfile = uv247 ); 'set lat -60 -30';'set lon 240 300';endif
       if(plotfile = uv257 | plotfile = uv258); 'set lat -90 -60';'set lon 180 240';endif
    endif
    if(he=12)
-      if(plotfile = uv245 | plotfile = uv246); 'set lat -30 0';'set lon 300 360';endif
+      if(plotfile = uv245 | plotfile = uv246 | plotfile = uv247 ); 'set lat -30 0';'set lon 300 360';endif
       if(plotfile = uv257 | plotfile = uv258); 'set lat -90 -60';'set lon 240 300';endif
    endif
    if(he=13)
-      if(plotfile = uv245 | plotfile = uv246); 'set lat -60 -30';'set lon 300 360';endif
+      if(plotfile = uv245 | plotfile = uv246 | plotfile = uv247 ); 'set lat -60 -30';'set lon 300 360';endif
       if(plotfile = uv257 | plotfile = uv258); 'set lat -90 -60';'set lon 300 360';endif
    endif
 

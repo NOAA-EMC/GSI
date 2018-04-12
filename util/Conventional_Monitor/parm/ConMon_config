@@ -14,7 +14,7 @@ export MY_MACHINE=wcoss
 # MY_CMON should point to that.
 #
 
-export MY_CMON=/gpfs/gd2/emc/da/noscrub/Edward.Safford/CMon_486/util/Conventional_Monitor
+export MY_CMON=/gpfs/td2/emc/da/noscrub/Edward.Safford/ProdGSI/util/Conventional_Monitor
 
 #
 #  The CMON_TANKDIR will be the location for the extracted data files and
@@ -23,7 +23,7 @@ export MY_CMON=/gpfs/gd2/emc/da/noscrub/Edward.Safford/CMon_486/util/Conventiona
 #  this location.
 #
 
-export CMON_TANKDIR=/u/${LOGNAME}/nbns
+export CMON_TANKDIR=/u/Edward.Safford/nbns
 export C_TANKverf=${C_TANKverf:-${CMON_TANKDIR}}
 
 export C_TANKDIR=${CMON_TANKDIR}/stats/${CMON_SUFFIX}
@@ -80,7 +80,7 @@ export C_STMP_USER=${C_STMP_USER:-${C_STMP}/${LOGNAME}}
 export C_PTMP=${C_PTMP:-/ptmpp1}
 export C_PTMP_USER=${C_PTMP_USER:-${C_PTMP}/${LOGNAME}}
 
-export C_LOGDIR=${C_PTMP_USER}/logs/${CMON_SUFFIX}/ConMon/
+export C_LOGDIR=${C_PTMP_USER}/logs/${CMON_SUFFIX}/ConMon
 export LOGSverf_cmon=${LOGSverf_cmon:-${C_LOGDIR}}
 export WORKverf_cmon=${WORKverf_cmon:-${C_STMP_USER}}
 
@@ -92,8 +92,8 @@ export CONVINFO_FILE=${FIXDIR}/global_convinfo.txt  # does this belong in this c
 #  on the web server (WEB_USER), and location of the top level directory
 #  for the html on the web server (WEBDIR).
 #
-export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/es_conv
-export WEBUSER=${LOGNAME}
+export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas
+export WEBUSER=esafford
 export WEBSVR=emcrzdm
 
 
@@ -114,7 +114,7 @@ export C_IG_FIX=${C_IG_FIX:-${CMON_IMAGE_GEN}/fix}
 export C_IG_HTML=${C_IG_HTML:-${CMON_IMAGE_GEN}/html}
 
 export CMON_PARM=${CMON_PARM:-${MY_CMON}/parm}
-. $CMON_PARM/CMon.ver
+. $CMON_PARM/ConMon.ver
 
 export HOMEgdascmon=${HOMEgdascmon:-${MY_CMON}/nwprod/gdas_cmon.v${gdas_cmon_ver}}
 export HOMEcmon=${HOMEcmon:-${MY_CMON}/nwprod/cmon_shared.v${cmon_shared_ver}}

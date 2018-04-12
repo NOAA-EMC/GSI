@@ -28,18 +28,19 @@ subroutine read_conv2grads(ctype,stype,intype,target_nreal,nobs,isubtype,subtype
    character(8),allocatable,dimension(:)  :: cdiag 
 
    character(3)   :: dtype,ctype
-   character(2)   :: subtype 
+   character(3)   :: subtype 
    character(10)  :: stype,otype
    character(15)  :: fileo,fileo_subtyp
 
    integer nchar,file_nreal,i,ii,mype,idate,iflag,itype,iscater,igrads
    integer lunin,lunot,target_nreal,ldtype,intype,isubtype,jsubtype
-   integer nobs,idx
+   integer nobs,idx,ioff02
 
    data lunin / 11 /
 
    nobs=0
    print *, '--> read_conv2grads'
+   print *, '     itype, isubtype = ', itype, isubtype
 
    open(lunin,file='conv_diag',form='unformatted')  
    rewind(lunin)
@@ -49,7 +50,8 @@ subroutine read_conv2grads(ctype,stype,intype,target_nreal,nobs,isubtype,subtype
 
    loopd: do  
 
-      read(lunin,IOSTAT=iflag) dtype,nchar,file_nreal,ii,mype
+      read(lunin,IOSTAT=iflag) dtype,nchar,file_nreal,ii,mype,ioff02
+!      print *, 'iflag from header read = ', iflag
       if( iflag /= 0 ) exit loopd
 
       if( trim(dtype) == trim(ctype) .and. file_nreal /= target_nreal ) then
@@ -64,6 +66,7 @@ subroutine read_conv2grads(ctype,stype,intype,target_nreal,nobs,isubtype,subtype
       allocate(cdiag(ii),rdiag(file_nreal,ii))
       read(lunin,IOSTAT=iflag) cdiag,rdiag
       if( iflag /= 0 ) then
+!         print *, 'iflag from cdiag,rdiag read = ', iflag
          deallocate( cdiag,rdiag )
          exit loopd
       end if
@@ -72,16 +75,24 @@ subroutine read_conv2grads(ctype,stype,intype,target_nreal,nobs,isubtype,subtype
          itype = int(rdiag(1,i)) 
          jsubtype = int(rdiag(2,i)) 
 
-!         print *, 'if itype == intype ', itype, intype
-!         print *, 'and jsubtype == isubtype ', itype, intype
+         if( itype == intype .AND. itype == 245 ) then
+            print *, 'itype == intype ', itype, intype
+            print *, 'jsubtype == isubtype ', jsubtype, isubtype
+         end if 
+         
+!         if( jsubtype == isubtype ) then
+!            print *, 'and jsubtype == isubtype ', itype, intype
+!         end if
 
-         if(itype == intype .and. jsubtype ==isubtype)  then 
+         if(itype == intype .AND. jsubtype == isubtype)  then 
+!         if( itype == intype )  then 
             nobs=nobs+1
 
             !---------------------------------------------
             ! Allocate a new data element and load
             !
 !            print *, 'Allocating new data element'
+
             allocate(ptr%p)
             ptr%p%stn_id = cdiag(i)
             do idx=1,max_rdiag_reals

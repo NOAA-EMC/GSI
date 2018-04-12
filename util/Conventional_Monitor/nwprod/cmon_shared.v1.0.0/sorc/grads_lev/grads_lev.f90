@@ -24,7 +24,7 @@ subroutine grads_lev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
    character(8),allocatable,dimension(:) :: cdiag
    real(4),dimension(nlev) :: plev,plev2
    character(8) :: stid
-   character(2) ::  subtype
+   character(3) ::  subtype
    character(ifileo) :: fileo 
 
    character(30) :: files,filegrad

@@ -2,23 +2,22 @@
 
 #--------------------------------------------------------------------
 #
-#  CMon_DE.sh (FKA:  CheckCmon.sh)
+#  ConMon_DE.sh 
 #
 #  This is the top level data extractionscript for the Conventional 
-#  Data Monitor (Cmon) package.  
+#  Data Monitor (ConMon) package.  
 #
 #  C_DATDIR and C_GDATDIR (source directories for the cnvstat files) 
 #  point to the operational data (GDAS).  They can be overriden 
 #  either in your interactive shell or in a script in order to point 
 #  to another source.
 #--------------------------------------------------------------------
-set -ax
 
 #--------------------------------------------------------------------
 #  usage
 #--------------------------------------------------------------------
 function usage {
-  echo "Usage:  CMon_DE.sh suffix [pdate]"
+  echo "Usage:  ConMon_DE.sh suffix [pdate]"
   echo "            Suffix is the indentifier for this data source."
   echo "            Pdate is the full YYYYMMDDHH cycle to run.  This 
 		    param is optional"
@@ -34,7 +33,8 @@ if [[ $nargs -lt 1 || $nargs -gt 2 ]]; then
    exit 1
 fi
 
-echo "Begin CMon_DE.sh"
+set -ax
+echo "Begin ConMon_DE.sh"
 
 this_file=`basename $0`
 this_dir=`dirname $0`
@@ -67,7 +67,7 @@ echo RUN_ENVIR = $RUN_ENVIR
 
 top_parm=${this_dir}/../../parm
 
-cmon_version_file=${cmon_version:-${top_parm}/CMon.ver}
+cmon_version_file=${cmon_version:-${top_parm}/ConMon.ver}
 if [[ -s ${cmon_version_file} ]]; then
    . ${cmon_version_file}
    echo "able to source ${cmon_version_file}"
@@ -76,7 +76,7 @@ else
    exit 2
 fi
 
-cmon_config=${cmon_config:-${top_parm}/CMon_config}
+cmon_config=${cmon_config:-${top_parm}/ConMon_config}
 if [[ -s ${cmon_config} ]]; then
    . ${cmon_config}
    echo "able to source ${cmon_config}"
@@ -86,18 +86,7 @@ else
 fi
 
 
-#minmon_user_settings=${minmon_user_settings:-${top_parm}/MinMon_user_settings}
-#if [[ -s ${minmon_user_settings} ]]; then
-#   . ${minmon_user_settings}
-#   echo "able to source ${minmon_user_settings}"
-#else
-#   echo "Unable to source ${minmon_user_settings} file"
-#   exit 4
-#fi
-
-
-
-jobname=CMon_de_${CMON_SUFFIX}
+jobname=ConMon_de_${CMON_SUFFIX}
 
 #--------------------------------------------------------------------
 # Create any missing directories
@@ -153,7 +142,7 @@ export PDYm6h=`echo $GDATE|cut -c1-8`
 echo PDYm6h = $PDYm6h
 
 
-export CNVSTAT_LOCATION=${CNVSTAT_LOCATION:-/com2/gfs/prod}
+export CNVSTAT_LOCATION=${CNVSTAT_LOCATION:-/gpfs/hps/nco/ops/com/gfs/prod}
 export C_DATDIR=${C_DATDIR:-${CNVSTAT_LOCATION}/gdas.$PDY}
 export C_GDATDIR=${C_GDATDIR:-${CNVSTAT_LOCATION}/gdas.$PDYm6h}
 
@@ -177,17 +166,17 @@ export jobid=cmon_DE_${CMON_SUFFIX}.${pid}
 # GSI. 
 
 export grib2=${grib2:-0}
-export cnvstat="${C_DATDIR}/gdas1.t${CYC}z.cnvstat"
+export cnvstat="${C_DATDIR}/gdas.t${CYC}z.cnvstat"
 if [[ ! -s ${cnvstat} ]]; then
    export cnvstat=${C_DATDIR}/cnvstat.gdas.${PDATE}
 fi
 
-export pgrbf00="${C_DATDIR}/gdas1.t${CYC}z.pgrbf00"
+export pgrbf00="${C_DATDIR}/gdas.t${CYC}z.pgrbf00"
 if [[ ! -s ${pgrbf00} ]]; then
    export pgrbf00=${C_DATDIR}/pgbanl.gdas.${PDATE}
 fi
 
-export pgrbf06="${C_GDATDIR}/gdas1.t${GCYC}z.pgrbf06"
+export pgrbf06="${C_GDATDIR}/gdas.t${GCYC}z.pgrbf06"
 if [[ ! -s ${pgrbf06} ]]; then
    export pgrbf06=${C_DATDIR}/pgbf06.gdas.${GDATE}
 fi
@@ -200,10 +189,10 @@ if [ -s $cnvstat  -a -s $pgrbf00 -a -s $pgrbf06 ]; then
    if [ -s $pgrbf06 ]; then
 
       if [[ $MY_MACHINE = "wcoss" ]]; then
-        $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/DE.${PDY}.${CYC}.log -M 100 -R affinity[core] -W 0:25 -J ${jobname} -cwd $PWD ${HOMEgdascmon}/jobs/JGDAS_VCMON
+        $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/DE.${PDY}.${CYC}.log -M 500 -R affinity[core] -W 0:25 -J ${jobname} -cwd $PWD ${HOMEgdascmon}/jobs/JGDAS_VCMON
 
       elif [[ $MY_MACHINE = "theia" ]]; then
-         $SUB -A $ACCOUNT -l procs=1,walltime=0:15:00 -N ${jobname} -V -o $C_LOGDIR/DE.${PDY}.${CYC}.log -e $C_LOGDIR/DE.${PDY}.${CYC}.err $HOMEgdascmon/jobs/JGDAS_VCMON
+         $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -V -o $C_LOGDIR/DE.${PDY}.${CYC}.log -e $C_LOGDIR/DE.${PDY}.${CYC}.err $HOMEgdascmon/jobs/JGDAS_VCMON
       fi
 
    else
@@ -222,5 +211,5 @@ fi
 #cd ../
 #rm -rf $tmpdir
 
-echo "End CMon_DE.sh"
+echo "End ConMon_DE.sh"
 exit ${exit_value}

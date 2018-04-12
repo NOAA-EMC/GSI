@@ -162,7 +162,7 @@ for type in uv; do
 
 
       mkdir -p ${C_IMGNDIR}/pngs/horz/${CYC}
-      ${NCP} -f *.png ${C_IMGNDIR}/pngs/horz/${CYC}/.
+      ${NCP} *.png ${C_IMGNDIR}/pngs/horz/${CYC}/.
 #      rm *.png
 
    done      ### dtype loop 

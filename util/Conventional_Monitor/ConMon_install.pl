@@ -1,7 +1,7 @@
 #! /usr/bin/perl
 
 #-------------------------------------------------------------------
-#  CMon_install.pl
+#  ConMon_install.pl
 #
 #  This script makes sets all necessary configuration definitions
 #  and calls the makeall.sh script to build all the necessary
@@ -12,7 +12,7 @@
    use IO::File;
    use File::Copy qw(move);
 
-   print "--> CMon_install.sh\n";
+   print "--> ConMon_install.sh\n";
    my $machine = `/usr/bin/perl ./get_hostname.pl`;
    my $my_machine="export MY_MACHINE=$machine";
 
@@ -38,7 +38,7 @@
    #  Idenfity basedir location of package
    #
    print "\n";
-   print "locating and saving CMon package location\n";
+   print "locating and saving ConMon package location\n";
    my $cmondir;
    $cmondir = `dirname $0`;
    $cmondir =~ s/^\s+|\s+$//g;
@@ -180,9 +180,10 @@
       if( length($new_ptmp ) > 0 ) {
          $ptmp = $new_ptmp;
       }
-      my $my_ptmp="export C_PTMP=\${C_PTMP:-$ptmp}";
+      $my_ptmp="export C_PTMP=\${C_PTMP:-$ptmp}";
       print "\n\n";
       sleep( 1 );
+
 
       print "Please specify STMP location.  This is used for temporary work space.\n";
       print "  Available options are: \n";
@@ -202,7 +203,7 @@
       if( length($new_stmp ) > 0 ) {
          $stmp = $new_stmp;
       }
-      my $my_stmp="export C_STMP=\${C_STMP:-$stmp}";
+      $my_stmp="export C_STMP=\${C_STMP:-$stmp}";
       print "my_stmp = $my_stmp\n";
       print "\n\n";
       sleep( 1 );
@@ -221,7 +222,7 @@
    #
    #  Update the conv_conf with the configuration information
    #
-   my $conv_conf = "parm/CMon_config";
+   my $conv_conf = "parm/ConMon_config";
    open my $in,  '<',  $conv_conf      or die "Can't read $conv_conf: $!";
    open my $out, '>', "$conv_conf.new" or die "Can't write $conv_conf.new: $!";
 
@@ -286,6 +287,6 @@
 #   `/usr/bin/perl ./scripts/update_data_map.pl ./parm/data_map.xml global_default account $glbl_account`;
 
 
-   print "<-- CMon_install.sh\n";
+   print "<-- ConMon_install.sh\n";
 
 exit 0;
