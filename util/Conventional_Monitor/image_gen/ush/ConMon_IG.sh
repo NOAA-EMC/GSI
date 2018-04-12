@@ -2,10 +2,10 @@
 
 #--------------------------------------------------------------------
 #
-#  CMon_IG.sh 
+#  ConMon_IG.sh 
 #
 #  This is the top level image generation script for the Conventional 
-#  Data Monitor (Cmon) package.  
+#  Data Monitor (ConMon) package.  
 #
 #--------------------------------------------------------------------
 
@@ -14,7 +14,7 @@
 #--------------------------------------------------------------------
 function usage {
   echo " "
-  echo "Usage:  CMon_IG.sh suffix [plot_date]"
+  echo "Usage:  ConMon_IG.sh suffix [plot_date]"
   echo "            Suffix is data source identifier that matches data in "
   echo "              the $C_TANKDIR/stats directory."
   echo "            Plot_date, format YYYYMMDDHH is optional.  If included the plot"
@@ -28,7 +28,7 @@ function usage {
 #  CMon_IG.sh begins here
 #--------------------------------------------------------------------
 
-echo "Begin CMon_IG.sh"
+echo "Begin ConMon_IG.sh"
 
 nargs=$#
 if [[ $nargs -lt 1 || $nargs -gt 2 ]]; then
@@ -66,7 +66,7 @@ fi
 #--------------------------------------------------------------------
 top_parm=${this_dir}/../../parm
 
-cmon_version_file=${cmon_version:-${top_parm}/CMon.ver}
+cmon_version_file=${cmon_version:-${top_parm}/ConMon.ver}
 if [[ -s ${cmon_version_file} ]]; then
    . ${cmon_version_file}
    echo "able to source ${cmon_version_file}"
@@ -75,7 +75,7 @@ else
    exit 2
 fi
 
-cmon_config=${cmon_config:-${top_parm}/CMon_config}
+cmon_config=${cmon_config:-${top_parm}/ConMon_config}
 if [[ -s ${cmon_config} ]]; then
    . ${cmon_config}
    echo "able to source ${cmon_config}"
@@ -155,8 +155,10 @@ cd $C_PLOT_WORKDIR
 #--------------------------------------------------------------------
 # Set the START_DATE for the plot
 #--------------------------------------------------------------------
+ncycles=`expr $NUM_CYCLES - 1`
 
-hrs=`expr $NUM_CYCLES \\* -6`
+#hrs=`expr $NUM_CYCLES \\* -6`
+hrs=`expr $ncycles \\* -6`
 echo "hrs = $hrs"
 
 export START_DATE=`$NDATE ${hrs} $PDATE`
@@ -187,5 +189,5 @@ ${C_IG_SCRIPTS}/mk_time_vert.sh
 #cd ../
 #rm -rf $tmpdir
 
-echo "End CMon_IG.sh"
+echo "End ConMon_IG.sh"
 exit

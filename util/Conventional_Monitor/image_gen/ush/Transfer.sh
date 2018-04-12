@@ -20,8 +20,8 @@ this_file=`basename $0`
 this_dir=`dirname $0`
 
 top_parm=${this_dir}/../../parm
-export CMON_CONFIG=${CMON_CONFIG:-${top_parm}/CMon_config}
-export CMON_USER_SETTINGS=${CMON_USER_SETTINGS:-${top_parm}/CMon_user_settings}
+export CMON_CONFIG=${CMON_CONFIG:-${top_parm}/ConMon_config}
+export CMON_USER_SETTINGS=${CMON_USER_SETTINGS:-${top_parm}/ConMon_user_settings}
 
 if [[ -s ${CMON_CONFIG} ]]; then
    . ${CMON_CONFIG}

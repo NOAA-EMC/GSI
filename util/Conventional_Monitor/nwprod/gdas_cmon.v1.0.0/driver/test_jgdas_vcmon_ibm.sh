@@ -6,14 +6,14 @@
 #BSUB -q dev_shared
 #BSUB -n 1
 #BSUB -R affinity[core]
-#BSUB -M 80
-#BSUB -W 00:15
+#BSUB -M 160
+#BSUB -W 00:30
 #BSUB -a poe
 #BSUB -P GFS-T2O
 
 set -x
 
-export PDATE=${PDATE:-2017030600}
+export PDATE=${PDATE:-2018041200}
 
 
 #############################################################
@@ -58,7 +58,8 @@ export POE=YES
 # Set user specific variables
 #############################################################
 export CMON_SUFFIX=${CMON_SUFFIX:-testcmon}
-export NWTEST=${NWTEST:-/gpfs/${ihost}d2/emc/da/noscrub/Edward.Safford/CMon_486/util/Conventional_Monitor/nwprod}
+#export NWTEST=${NWTEST:-/gpfs/${ihost}d2/emc/da/noscrub/Edward.Safford/CMon_486/util/Conventional_Monitor/nwprod}
+export NWTEST=${NWTEST:-/ptmpp1/Edward.Safford/ProdGSI/util/Conventional_Monitor/nwprod}
 export HOMEgdascmon=${HOMEgdascmon:-${NWTEST}/gdas_cmon.${gdas_cmon_ver}}
 export JOBGLOBAL=${JOBGLOBAL:-${HOMEgdascmon}/jobs}
 export HOMEcmon=${HOMEcmon:-${NWTEST}/cmon_shared.${cmon_shared_ver}}

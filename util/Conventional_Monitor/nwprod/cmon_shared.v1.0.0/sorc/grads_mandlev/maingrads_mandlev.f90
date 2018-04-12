@@ -22,7 +22,7 @@ program maingrads_mandlev
          integer                :: nreal
          integer                :: nobs
          integer                :: isubtype
-         character(2)           :: subtype
+         character(3)           :: subtype
          type(list_node_t),pointer   :: list
       end subroutine read_conv2grads
 
@@ -37,7 +37,7 @@ program maingrads_mandlev
          integer                        :: nobs,nreal,nlev
          integer                        :: iscater,igrads,isubtype
          real(4),dimension(nlev)        :: plev
-         character(2)                   :: subtype
+         character(3)                   :: subtype
          type(list_node_t), pointer     :: list
       end subroutine grads_mandlev
 
@@ -47,7 +47,7 @@ program maingrads_mandlev
    real(4),dimension(13) :: pmand 
    character(10) :: fileo,stype 
    character(3) :: intype
-   character(2) :: subtype
+   character(3) :: subtype
    integer nreal,nreal_m2,iscater,igrads,isubtype,itype
    integer n_alllev,n_acft,n_lowlev,n_upair,nobs,lstype
 

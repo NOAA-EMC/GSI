@@ -26,7 +26,7 @@ subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
    real(4),dimension(nlev) :: plev
 
    real(4) rlat,rlon,rp
-   character(2) subtype 
+   character(3) subtype 
    character(8) stid
    character(ifileo) :: fileo 
    character(30)  :: files,filegrads 

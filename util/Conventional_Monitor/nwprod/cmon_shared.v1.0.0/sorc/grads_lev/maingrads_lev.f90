@@ -24,7 +24,7 @@
          integer                :: nreal
          integer                :: nobs
          integer                :: isubtype
-         character(2)           :: subtype
+         character(3)           :: subtype
          type(list_node_t),pointer   :: list
       end subroutine read_conv2grads
 
@@ -39,7 +39,7 @@
          real(4),dimension(nlev)        :: plev
          character(10)                  :: levcard
          real*4                         :: hint
-         character(2) subtype
+         character(3)                   :: subtype
          type(list_node_t), pointer     :: list
       end subroutine grads_lev
 
@@ -52,7 +52,7 @@
    real(4),dimension(10) :: palllev
    character(10) :: levcard,fileo,stype 
    character(3) :: intype
-   character(2) :: subtype
+   character(3) :: subtype
    integer nreal,iscater,igrads 
    integer n_alllev,n_acft,n_lowlev,n_upair,nobs,lstype,intv,isubtype
    real hint
@@ -73,6 +73,7 @@
 
 
 
+   write(6,*) '----> BEGIN maingrads_lev'
    read(5,input)
    write(6,*)' User input:'
    write(6,input)
@@ -103,6 +104,7 @@
    end if
 
    call list_free( list ) 
+   write(6,*) '<---- END maingrads_lev'
 
    stop
 end

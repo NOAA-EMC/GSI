@@ -33,7 +33,7 @@ subroutine read_conv(filein,mregion,nregion,np,ptop,pbot,ptopq,pbotq,&
    integer nchar,nreal,ii,mype,idate,iflag,itype
    integer lunin,lunot,nreal1,nreal2,ldtype,intype
    integer ilat,ilon,ipress,iqc,iuse,imuse,iwgt,ierr1
-   integer ierr2,ierr3,ipsobs,iqobs
+   integer ierr2,ierr3,ipsobs,iqobs,ioff02
    integer i,j,k,np,nregion,ltype,iregion,ntype_uv
    integer iobg,iobgu,iobgv,ntype_ps,ntype_q,ntype_t
 
@@ -62,7 +62,7 @@ subroutine read_conv(filein,mregion,nregion,np,ptop,pbot,ptopq,pbotq,&
    print *,pbot(1),pbot(5)
 
    loopd: do  
-      read(lunin,IOSTAT=iflag) dtype,nchar,nreal,ii,mype
+      read(lunin,IOSTAT=iflag) dtype,nchar,nreal,ii,mype,ioff02
       if( iflag /= 0 ) exit loopd
 !        print *, dtype,nchar,nreal,ii,mype
       allocate(cdiag(ii),rdiag(nreal,ii))

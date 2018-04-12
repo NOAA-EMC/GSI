@@ -23,7 +23,7 @@
    namelist /input/nreal,mtype,fname,fileo,rlev,insubtype
  
    read (5,input)
-!   write(6,input)
+   write(6,input)
 
    ncount=0
    rpress=rmiss
