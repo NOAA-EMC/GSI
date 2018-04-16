@@ -335,11 +335,11 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
         residual = abs(ddiff)
         ratio    = residual/obserrlm
+        ratio_errors=ratio_errors/sqrt(dup(i))
         if (ratio> cgross(ikx) .or. ratio_errors < tiny_r_kind) then
            if (luse(i)) awork(6) = awork(6)+one
            error = zero
            ratio_errors=zero
-           ratio_errors=ratio_errors/sqrt(dup(i))
         end if
      else    ! missing data
         error = zero
