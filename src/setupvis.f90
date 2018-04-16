@@ -343,14 +343,16 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
         residual = abs(ddiff)
         ratio    = residual/obserrlm
+        ratio_errors=ratio_errors/sqrt(dup(i))
         if (ratio> cgross(ikx) .or. ratio_errors < tiny_r_kind) then
            if (luse(i)) awork(6) = awork(6)+one
            error = zero
            ratio_errors=zero
-        else
-          ratio_errors=ratio_errors/sqrt(dup(i))
         endif
-     endif
+     else    ! missing data
+        error = zero
+        ratio_errors=zero
+     end if
 
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
      if (nobskeep>0.and.luse_obsdiag) muse(i)=obsdiags(i_vis_ob_type,ibin)%tail%muse(nobskeep)
@@ -462,19 +464,25 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         my_head => null()
      endif ! (.not. last .and. muse(i))
 
-
 !    Save stuff for diagnostic output
      if(conv_diagsave .and. luse(i))then
         ii=ii+1
-        rstation_id = data(id,i)
-        err_input   = data(ier,i)
-        err_adjst   = data(ier,i)
+        rstation_id     = data(id,i)
+!-------------------------------------------------------------------------
+!In diag file, write out VIS error statistics and field in physical space.
+!NOTE:  No linear conversion in error stats between logcldch and cldch space.
+!-------------------------------------------------------------------------
+        err_input = 4000.0_r_kind
+        err_adjst = 4000.0_r_kind
+        error  = one/4000.0_r_kind
+
+
         if (ratio_errors*error>tiny_r_kind) then
-           err_final = one/(ratio_errors*error)
+           err_final = one/error
         else
            err_final = huge_single
         endif
- 
+
         errinv_input = huge_single
         errinv_adjst = huge_single
         errinv_final = huge_single
@@ -482,12 +490,10 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if (err_adjst>tiny_r_kind) errinv_adjst = one/err_adjst
         if (err_final>tiny_r_kind) errinv_final = one/err_final
 
-        if(binary_diag) call contents_binary_diag_
-        if(netcdf_diag) call contents_netcdf_diag_
- 
+        if (binary_diag) call contents_binary_diag_
+        if (netcdf_diag) call contents_netcdf_diag_
+
      end if
-
-
   end do
 
 ! Release memory of local guess arrays

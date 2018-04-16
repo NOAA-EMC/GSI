@@ -357,13 +357,15 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
         residual = abs(ddiff)
         ratio    = residual/obserrlm
+        ratio_errors=ratio_errors/sqrt(dup(i))
         if (ratio> cgross(ikx) .or. ratio_errors < tiny_r_kind) then
            if (luse(i)) awork(6) = awork(6)+one
            error = zero
            ratio_errors=zero
-        else
-           ratio_errors=ratio_errors/sqrt(dup(i))
-        endif
+        end if
+     else    ! missing data
+        error = zero
+        ratio_errors=zero
      end if
 
 !-------------------------------------------------------------------
@@ -492,36 +494,15 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if(conv_diagsave .and. luse(i))then
         ii=ii+1
         rstation_id     = data(id,i)
-        cdiagbuf(ii)    = station_id         ! station id
- 
-        rdiagbuf(1,ii)  = ictype(ikx)        ! observation type
-        rdiagbuf(2,ii)  = icsubtype(ikx)     ! observation subtype
- 
-        rdiagbuf(3,ii)  = data(ilate,i)      ! observation latitude (degrees)
-        rdiagbuf(4,ii)  = data(ilone,i)      ! observation longitude (degrees)
-        rdiagbuf(5,ii)  = data(istnelv,i)    ! station elevation (meters)
-        rdiagbuf(6,ii)  = rmiss_single       ! observation pressure (hPa)
-        rdiagbuf(7,ii)  = data(iobshgt,i)    ! observation height (meters)
-        rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
-
-        rdiagbuf(9,ii)  = data(iqc,i)        ! input prepbufr qc or event mark
-        rdiagbuf(10,ii) = rmiss_single       ! setup qc or event mark
-        rdiagbuf(11,ii) = data(iuse,i)       ! read_prepbufr data usage flag
-        if(muse(i)) then
-           rdiagbuf(12,ii) = one             ! analysis usage flag (1=use, -1=not used)
-        else
-           rdiagbuf(12,ii) = -one
-        endif
 !-------------------------------------------------------------------------
-!Choose to write out error statistics and cldch field in physical space.
+!In diag file, write out error statistics and cldch field in physical space.
 !NOTE:  No linear conversion in error stats between logcldch and cldch space.
 !-------------------------------------------------------------------------
         err_input = 4000.0_r_kind
         err_adjst = 4000.0_r_kind
         error  = one/4000.0_r_kind
 
-!        err_input = data(ier,i)
-!        err_adjst = data(ier,i)
+
         if (ratio_errors*error>tiny_r_kind) then
            err_final = one/error
         else
