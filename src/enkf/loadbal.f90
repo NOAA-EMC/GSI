@@ -15,6 +15,8 @@ module loadbal
 !   The decomposition uses "Graham's rule", which simply
 !   stated, assigns each new work item to the task that currently has the 
 !   smallest load.
+!  scatter_chunks: distribute ensemble members according to decomposition
+!  gather_chunks:  gather ensemble members from decomposed chunks
 !  loadbal_cleanup: deallocate allocated arrays.
 !
 ! Private Subroutines:
@@ -52,9 +54,9 @@ module loadbal
 !   of ob priors being updated on this task.
 !  grdloc_chunk(3,npts_max): real array of spherical cartesian coordinates
 !   of analysis grid points being updated on this task.
-!  lnp_chunk(npts_max,ndim): real array of log(pressures) of state variables
+!  lnp_chunk(npts_max,ncdim): real array of log(pressures) of control variables
 !   being updated on this task.
-!  oblnp_chunk(nobs_max,ndim): (serial enkf only) real array of log(pressures) of ob priors
+!  oblnp_chunk(nobs_max,ncdim): (serial enkf only) real array of log(pressures) of ob priors
 !   being updated on this task.
 !  obtime_chunk(nobs_max): (serial enkf only) real array of ob times of ob priors
 !   being updated on this task (expressed as an offset from the analysis time in
@@ -67,15 +69,27 @@ module loadbal
 !   for observations (only searches ob locations assigned to this task).
 !  kdtree_obs2: (LETKF only) pointer to kd-tree structure used for nearest neighbor searches
 !   for observations (searches all observations)
+!  anal_chunk(nanals,npts_max,ncdim,nbackgrounds): real array of ensemble perturbations
+!   updated on each task.
+!  anal_chunk_prior(nanals,npts_max,ncdim,nbackgrounds): real array of prior ensemble
+!   perturbations.  Before analysis anal_chunk=anal_chunk_prior, after
+!   analysis anal_chunk contains posterior perturbations.
+!  ensmean_chunk(npts_max,ncdim,nbackgrounds): real array containing pieces of ensemble
+!   mean to be updated on each task.
+!  ensmean_chunk_prior(npts_max,ncdim,nbackgrounds): as above, for ensemble mean prior.
+!   Before analysis ensmean_chunk=ensmean_chunk_prior, after analysis
+!   ensmean_chunk contains posterior ensemble mean.
 !   
 !
 ! Modules Used: mpisetup, params, kinds, constants, enkf_obsmod, gridinfo,
-!               kdtree_module, covlocal
+!               kdtree_module, covlocal, controlvec
 !
 ! program history log:
 !   2009-02-23  Initial version.
 !   2011-06-21  Added the option of observation box selection for LETKF.
 !   2015-07-25  Remove observation box selection (use kdtree instead).
+!   2016-05-02  shlyaeva: modification for reading state vector from table
+!   2016-09-07  shlyaeva: moved distribution of chunks here from controlvec
 !
 ! attributes:
 !   language: f95
@@ -83,7 +97,7 @@ module loadbal
 !$$$
 
 use mpisetup
-use params, only: ndim, datapath, nanals, simple_partition, letkf_flag,&
+use params, only: datapath, nanals, simple_partition, letkf_flag,&
                   corrlengthnh, corrlengthsh, corrlengthtr, lupd_obspace_serial
 use enkf_obsmod, only: nobstot, obloc, oblnp, ensmean_ob, obtime, anal_ob, corrlengthsq
 use kinds, only: r_kind, i_kind, r_double, r_single
@@ -94,10 +108,13 @@ use constants, only: zero, rad2deg, deg2rad
 
 implicit none
 private
-public :: load_balance, loadbal_cleanup
+public :: load_balance, loadbal_cleanup, gather_chunks, scatter_chunks
 
 real(r_single),public, allocatable, dimension(:,:) :: lnp_chunk, &
                                                       anal_obchunk_prior
+real(r_single),public, allocatable, dimension(:,:,:,:) :: anal_chunk, anal_chunk_prior
+real(r_single),public, allocatable, dimension(:,:,:) :: ensmean_chunk, ensmean_chunk_prior
+
 ! arrays passed to kdtree2 routines need to be single
 real(r_single),public, allocatable, dimension(:,:) :: obloc_chunk, grdloc_chunk
 real(r_single),public, allocatable, dimension(:) :: oblnp_chunk, &
@@ -275,9 +292,6 @@ if (.not. letkf_flag .or. lupd_obspace_serial) then
       totsize = nobstot
       totsize = totsize*nanals
       print *,'nobstot*nanals',totsize
-      totsize = npts
-      totsize = totsize*ndim
-      print *,'npts*ndim',totsize
       t1 = mpi_wtime()
       ! send one big message to each task.
       do np=1,numproc-1
@@ -330,6 +344,164 @@ if (.not. letkf_flag .or. lupd_obspace_serial) then
 end if ! end if (.not. letkf_flag .or. lupd_obspace_serial)
 
 end subroutine load_balance
+
+
+
+subroutine scatter_chunks
+! distribute chunks from grdin (read in controlvec) according to
+! decomposition from load_balance
+use controlvec, only: ncdim, grdin
+use params, only: nbackgrounds
+implicit none
+
+integer(i_kind), allocatable, dimension(:) :: scounts, displs, rcounts
+real(r_single), allocatable, dimension(:) :: sendbuf,recvbuf
+integer(i_kind) :: np, nb, nn, n, nanal, i, ierr
+
+allocate(scounts(0:numproc-1))
+allocate(displs(0:numproc-1))
+allocate(rcounts(0:numproc-1))
+! only IO tasks send any data.
+! scounts is number of data elements to send to processor np.
+! rcounts is number of data elements to recv from processor np.
+! displs is displacement into send array for data to go to proc np
+do np=0,numproc-1
+   displs(np) = np*npts_max*ncdim
+enddo
+if (nproc <= nanals-1) then
+   scounts = npts_max*ncdim
+else
+   scounts = 0
+endif
+! displs is also the displacement into recv array for data to go into anal_chunk
+! on
+! task np.
+do np=0,numproc-1
+   if (np <= nanals-1) then
+      rcounts(np) = npts_max*ncdim
+   else
+      rcounts(np) = 0
+   end if
+enddo
+
+! allocate array to hold pieces of state vector on each proc.
+allocate(anal_chunk(nanals,npts_max,ncdim,nbackgrounds))
+if (nproc == 0) print *,'anal_chunk size = ',size(anal_chunk)
+
+allocate(anal_chunk_prior(nanals,npts_max,ncdim,nbackgrounds))
+allocate(ensmean_chunk(npts_max,ncdim,nbackgrounds))
+allocate(ensmean_chunk_prior(npts_max,ncdim,nbackgrounds))
+ensmean_chunk = 0.
+allocate(sendbuf(numproc*npts_max*ncdim))
+allocate(recvbuf(numproc*npts_max*ncdim))
+
+! send and receive buffers.
+do nb=1,nbackgrounds ! loop over time levels in background
+
+if (nproc <= nanals-1) then
+   ! fill up send buffer.
+   do np=1,numproc
+     do nn=1,ncdim
+      do i=1,numptsperproc(np)
+       n = ((np-1)*ncdim + (nn-1))*npts_max + i
+       sendbuf(n) = grdin(indxproc(np,i),nn,nb)
+     enddo
+    enddo
+   enddo
+end if
+call mpi_alltoallv(sendbuf, scounts, displs, mpi_real4, recvbuf, rcounts, displs,&
+                   mpi_real4, mpi_comm_world, ierr)
+
+!==> compute ensemble of first guesses on each task, remove mean from anal.
+!$omp parallel do schedule(dynamic,1)  private(nn,i,nanal,n)
+do nn=1,ncdim
+   do i=1,numptsperproc(nproc+1)
+      do nanal=1,nanals
+         n = ((nanal-1)*ncdim + (nn-1))*npts_max + i
+         anal_chunk(nanal,i,nn,nb) = recvbuf(n)
+      enddo
+      ensmean_chunk(i,nn,nb) = sum(anal_chunk(:,i,nn,nb))/float(nanals)
+      ensmean_chunk_prior(i,nn,nb) = ensmean_chunk(i,nn,nb)
+! remove mean from ensemble.
+      do nanal=1,nanals
+         anal_chunk(nanal,i,nn,nb) = anal_chunk(nanal,i,nn,nb)-ensmean_chunk(i,nn,nb)
+         anal_chunk_prior(nanal,i,nn,nb)=anal_chunk(nanal,i,nn,nb)
+      end do
+   end do
+end do
+!$omp end parallel do
+
+enddo ! loop over nbackgrounds
+
+deallocate(sendbuf, recvbuf)
+
+end subroutine scatter_chunks
+
+
+
+subroutine gather_chunks
+! gather chunks into grdin to write out the ensemble members
+use controlvec, only: ncdim, grdin
+use params, only: nbackgrounds
+implicit none
+integer(i_kind), allocatable, dimension(:) :: scounts, displs, rcounts
+real(r_single), allocatable, dimension(:) :: sendbuf,recvbuf
+integer(i_kind) :: np, nb, nn, nanal, n, i, ierr
+
+allocate(scounts(0:numproc-1))
+allocate(displs(0:numproc-1))
+allocate(rcounts(0:numproc-1))
+! all tasks send data, but only IO tasks receive any data.
+! scounts is number of data elements to send to processor np.
+! rcounts is number of data elements to recv from processor np.
+! displs is displacement into send array for data to go to proc np
+if (nproc <= nanals-1) then
+   rcounts = npts_max*ncdim
+else
+   rcounts = 0
+endif
+do np=0,numproc-1
+   displs(np) = np*npts_max*ncdim
+   if (np <= nanals-1) then
+      scounts(np) = npts_max*ncdim
+   else
+      scounts(np) = 0
+   end if
+enddo
+allocate(recvbuf(numproc*npts_max*ncdim))
+allocate(sendbuf(numproc*npts_max*ncdim))
+
+do nb=1,nbackgrounds ! loop over time levels in background
+  do nn=1,ncdim
+   do i=1,numptsperproc(nproc+1)
+    do nanal=1,nanals
+      n = ((nanal-1)*ncdim + (nn-1))*npts_max + i
+      ! add ensemble mean back in.
+      sendbuf(n) = anal_chunk(nanal,i,nn,nb)+ensmean_chunk(i,nn,nb)
+      ! convert to increment (A-F).
+      sendbuf(n) = sendbuf(n)-(anal_chunk_prior(nanal,i,nn,nb)+ensmean_chunk_prior(i,nn,nb))
+    enddo
+   enddo
+  enddo
+  call mpi_alltoallv(sendbuf, scounts, displs, mpi_real4, recvbuf, rcounts, displs,&
+                     mpi_real4, mpi_comm_world, ierr)
+  if (nproc <= nanals-1) then
+     do np=1,numproc
+      do nn=1,ncdim
+       do i=1,numptsperproc(np)
+         n = ((np-1)*ncdim + (nn-1))*npts_max + i
+         grdin(indxproc(np,i),nn,nb) = recvbuf(n)
+       enddo
+      enddo
+     enddo
+     !print *,nproc,'min/max ps',minval(grdin(:,ncdim)),maxval(grdin(:,ncdim))
+  end if
+enddo ! end loop over background time levels
+
+deallocate(sendbuf, recvbuf)
+
+end subroutine gather_chunks
+
 
 subroutine estimate_work_enkf1(numobs)
 ! estimate work needed to update each analysis grid
@@ -411,6 +583,10 @@ end subroutine estimate_work_enkf2
 
 subroutine loadbal_cleanup()
 ! deallocate module-level allocatable arrays
+if (allocated(anal_chunk)) deallocate(anal_chunk)
+if (allocated(anal_chunk_prior)) deallocate(anal_chunk_prior)
+if (allocated(ensmean_chunk)) deallocate(ensmean_chunk)
+if (allocated(ensmean_chunk_prior)) deallocate(ensmean_chunk_prior)
 if (allocated(obloc_chunk)) deallocate(obloc_chunk)
 if (allocated(grdloc_chunk)) deallocate(grdloc_chunk)
 if (allocated(lnp_chunk)) deallocate(lnp_chunk)

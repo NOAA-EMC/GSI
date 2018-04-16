@@ -112,6 +112,7 @@ module obsmod
 !                          procedures into module m_prad in file prad_bias.f90.
 !   2015-09-03  guo      - moved type::obs_handle, its instance yobs, and its
 !                          allocation, into m_obsHeadBundle.F90.
+!   2016-01-28  mccarty  - add netcdf_diag capability
 !   2016-03-07  pondeca  - add uwnd10m,vwnd10m
 !   2016-05-04  guo      - moved all ob_type and ob_head type-definitions into
 !                          their *own* class-style-modules, including 9 recent
@@ -127,6 +128,8 @@ module obsmod
 !   2016-07-26  guo      - moved away most cldch_ob_type contents to a new module, m_cldchNode
 !   2016-08-20  guo      - moved (stpcnt,ll_jo,ib_jo) to stpjo.f90.
 !   2016-09-19  guo      - moved function dfile_format() to m_extOzone.F90
+!   2016-11-29 shlyaeva  - add lobsdiag_forenkf option for writing out linearized
+!                           H(x) for EnKF
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -248,6 +251,10 @@ module obsmod
 !   def uwnd10mtail  - 10m-uwind linked list tail
 !   def vwnd10mhead  - 10m-vwind linked list head
 !   def vwnd10mtail  - 10m-vwind linked list tail
+!   def swcphead     - solid-water content path linked list head
+!   def swcptail     - solid-water content path linked list tail
+!   def lwcphead     - liquid-water content path linked list head
+!   def lwcptail     - liquid-water content path linked list tail
 !   def lunobs_obs   - unit to save satellite observation
 !   def iout_rad     - output unit for satellite stats
 !   def iout_pcp     - output unit for precipitation stats
@@ -282,6 +289,8 @@ module obsmod
 !   def iout_vwnd10m - output unit for conventional 10-m vwind stats
 !   def iout_pm2_5   - output unit for pm2_5 stats
 !   def iout_pm10    - output unit for pm10 stats
+!   def iout_swcp    - output unit for swcp stats
+!   def iout_lwcp    - output unit for lwcp stats
 !   def mype_t       - task to handle temperature stats
 !   def mype_q       - task to handle moisture stats
 !   def mype_uv      - task to handle wind stats
@@ -309,6 +318,8 @@ module obsmod
 !   def mype_aero    - task to handle aerosol stats
 !   def mype_pm2_5   - task to handle pm2_5
 !   def mype_pm10    - task to handle pm10
+!   def mype_swcp    - task to handle swcp
+!   def mype_lwcp    - task to handle lwcp
 !   def oberrflg     - logical for reading in new observation error table
 !                      .true.  will read in obs errors from file 'errtable'
 !                      .false. will not read in new obs errors
@@ -348,6 +359,10 @@ module obsmod
 !                           data
 !   def obs_sub        - number of observations of each type in each subdomain
 !                        (nobs_type,npe)
+!   def binary_diag    - trigger binary diag-file output (being phased out)
+!   def netcdf_diag    - trigger netcdf diag-file output
+!   def l_wcp_cwm      - namelist logical whether to use operator that
+!                        includes cwm for both swcp and lwcp or not
 !
 ! attributes:
 !   langauge: f90
@@ -381,11 +396,12 @@ module obsmod
   public :: i_cldch_ob_type, iout_cldch, mype_cldch
   public :: i_pw_ob_type,i_pcp_ob_type,i_oz_ob_type,i_o3l_ob_type,i_colvk_ob_type,i_gps_ob_type
   public :: i_rad_ob_type,i_tcp_ob_type,i_lag_ob_type
+  public :: i_swcp_ob_type, i_lwcp_ob_type
   public :: obscounts,nobs_type
   public :: cobstype,nprof_gps,time_offset,ianldate
   public :: iout_oz,iout_co,dsis,ref_obs,obsfile_all,lobserver,perturb_obs,ditype,dsfcalc,dplat
   public :: time_window,dval,dtype,dfile,dirname,obs_setup,oberror_tune,offtime_data
-  public :: lobsdiagsave,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel,ext_sonde
+  public :: lobsdiagsave,lobsdiag_forenkf,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel,ext_sonde
   public :: perturb_fact,dtbduv_on,nsat1,obs_sub_comm,mype_diaghdr
   public :: lobsdiag_allocated
   public :: i_aero_ob_type
@@ -403,6 +419,7 @@ module obsmod
   public :: mype_uwnd10m,mype_vwnd10m,iout_uwnd10m,iout_vwnd10m
   public :: mype_mxtm,mype_mitm,iout_mxtm,iout_mitm
   public :: mype_pmsl,mype_howv,iout_pmsl,iout_howv
+  public :: mype_swcp,mype_lwcp,iout_swcp,iout_lwcp
   public :: lread_obs_save,obs_input_common,lread_obs_skip
   public :: ndat_times,lwrite_predterms,lwrite_peakwt
   public :: bmiss
@@ -422,6 +439,10 @@ module obsmod
   public :: obsmod_final_instr_table
   public :: nobs_sub
 
+  public :: netcdf_diag, binary_diag
+
+  public :: l_wcp_cwm
+
   interface obsmod_init_instr_table
           module procedure init_instr_table_
   end interface
@@ -440,6 +461,8 @@ module obsmod
 #endif
 
   logical luse_obsdiag
+  logical binary_diag, netcdf_diag 
+
 ! Declare types
 
   integer(i_kind),parameter::  i_ps_ob_type= 1    ! ps_ob_type
@@ -477,8 +500,10 @@ module obsmod
   integer(i_kind),parameter:: i_cldch_ob_type=33  ! cldch_ob_type
   integer(i_kind),parameter:: i_uwnd10m_ob_type=34! uwnd10m_ob_type
   integer(i_kind),parameter:: i_vwnd10m_ob_type=35! vwnd10m_ob_type
+  integer(i_kind),parameter:: i_swcp_ob_type=36   ! swcp_ob_type
+  integer(i_kind),parameter:: i_lwcp_ob_type=37   ! lwcp_ob_type
 
-  integer(i_kind),parameter:: nobs_type = 35      ! number of observation types
+  integer(i_kind),parameter:: nobs_type = 37      ! number of observation types
 
 ! Structure for diagnostics
 
@@ -535,6 +560,8 @@ module obsmod
                   mype_wspd10m,mype_td2m,mype_mxtm,mype_mitm,mype_pmsl,mype_howv,&
                   mype_uwnd10m,mype_vwnd10m, mype_tcamt,mype_lcbas
   integer(i_kind) mype_cldch
+  integer(i_kind) iout_swcp, iout_lwcp
+  integer(i_kind) mype_swcp, mype_lwcp
   integer(i_kind) nlaero, iout_aero, mype_aero
   integer(i_kind) iout_pm2_5, mype_pm2_5
   integer(i_kind) iout_pm10, mype_pm10
@@ -561,7 +588,7 @@ module obsmod
 
   logical oberrflg,bflag,oberror_tune,perturb_obs,ref_obs,sfcmodel,dtbduv_on,dval_use
   logical blacklst,lobsdiagsave,lobsdiag_allocated,lobskeep,lsaveobsens
-  logical lobserver,l_do_adjoint
+  logical lobserver,l_do_adjoint, lobsdiag_forenkf
   logical,dimension(0:50):: write_diag
   logical reduce_diag
   logical offtime_data
@@ -573,6 +600,8 @@ module obsmod
   logical ext_sonde
   logical lrun_subdirs
   logical l_foreaft_thin
+
+  logical l_wcp_cwm
 
   character(len=*),parameter:: myname='obsmod'
 contains
@@ -634,6 +663,7 @@ contains
     use_limit = -1
     lobsdiagsave=.false.
     lobsdiag_allocated=.false.
+    lobsdiag_forenkf = .false.
     lobskeep=.false.
     nobskeep=0
     lsaveobsens=.false.
@@ -687,6 +717,9 @@ contains
     iout_cldch=232 ! cloud ceiling height
     iout_uwnd10m=233  ! 10-m uwnd
     iout_vwnd10m=234  ! 10-m vwnd
+    iout_swcp=235  ! solid-water content path
+    iout_lwcp=236  ! liquid-water content path
+
 
     mype_ps = npe-1          ! surface pressure
     mype_t  = max(0,npe-2)   ! temperature
@@ -717,6 +750,9 @@ contains
     mype_cldch=max(0,npe-27) ! cloud ceiling height
     mype_uwnd10m= max(0,npe-28)! uwnd10m
     mype_vwnd10m= max(0,npe-29)! vwnd10m
+    mype_swcp=max(0,npe-30)  ! solid-water content path
+    mype_lwcp=max(0,npe-31)  ! liquid-water content path
+
 
 
 !   Initialize arrays used in namelist obs_input 
@@ -773,7 +809,8 @@ contains
     cobstype(i_cldch_ob_type)="cldch               " ! cldch_ob_type
     cobstype(i_uwnd10m_ob_type) ="uwnd10m          " ! uwnd10m_ob_type
     cobstype(i_vwnd10m_ob_type) ="vwnd10m          " ! vwnd10m_ob_type
-
+    cobstype(i_swcp_ob_type) ="swcp                " ! swcp_ob_type
+    cobstype(i_lwcp_ob_type) ="lwcp                " ! lwcp_ob_type
 
 
     hilbert_curve=.false.
@@ -786,6 +823,12 @@ contains
     lrun_subdirs     = .false.
     l_foreaft_thin   = .false.
     luse_obsdiag     = .false.
+
+!   set default on diag writing
+    netcdf_diag = .false. ! by default, do not write netcdf_diag
+    binary_diag = .true.  ! by default, do write binary diag
+
+    l_wcp_cwm          = .false.                 ! .true. = use operator that involves cwm
 
     return
   end subroutine init_obsmod_dflts

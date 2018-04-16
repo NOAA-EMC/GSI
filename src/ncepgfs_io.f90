@@ -221,7 +221,7 @@ contains
        if (mype==0) write(6,*)'READ_GFS: l_cld_derived = ', l_cld_derived
 
        if (l_cld_derived) then
-          call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q_it,ges_tv_it) 
+          call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q_it,ges_tv_it,.true.) 
        end if
 
     end do
@@ -2075,7 +2075,6 @@ end subroutine write_ghg_grid
     use guess_grids, only: isli2
     use general_commvars_mod, only: ltosi,ltosj
 
-    use obsmod,  only: iadate
     use constants, only: rad2deg
 
     implicit none

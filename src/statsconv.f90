@@ -1,7 +1,8 @@
 subroutine statsconv(mype,&
      i_ps,i_uv,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag, &
      i_gust,i_vis,i_pblh,i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv, & 
-     i_tcamt,i_lcbas,i_cldch,i_uwnd10m,i_vwnd10m,i_ref,bwork,awork,ndata)
+     i_tcamt,i_lcbas,i_cldch,i_uwnd10m,i_vwnd10m,&
+     i_swcp,i_lwcp,i_ref,bwork,awork,ndata)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    statconv    prints statistics for conventional data
@@ -70,6 +71,8 @@ subroutine statsconv(mype,&
 !     i_cldch   - index in awork array holding cldch info
 !     i_uwnd10m- index in awork array holding uwnd10m info
 !     i_vwnd10m- index in awork array holding vwnd10m info
+!     i_swcp   - index in awork array holding swcp info
+!     i_lwcp   - index in awork array holding lwcp info
 !     i_ref    - size of second dimension of awork array
 !     bwork    - array containing information for statistics
 !     awork    - array containing information for data counts and gross checks
@@ -91,10 +94,12 @@ subroutine statsconv(mype,&
        iout_gust,iout_vis,iout_pblh,iout_wspd10m,iout_td2m,& 
        iout_mxtm,iout_mitm,iout_pmsl,iout_howv,iout_tcamt,iout_lcbas,iout_cldch,&
        iout_uwnd10m,iout_vwnd10m,&
+       iout_swcp,iout_lwcp,&
        mype_dw,mype_rw,mype_sst,mype_gps,mype_uv,mype_ps,&
        mype_t,mype_pw,mype_q,mype_tcp,ndat,dtype,mype_lag,mype_gust,&
        mype_vis,mype_pblh,mype_wspd10m,mype_td2m,mype_mxtm,mype_mitm,&
-       mype_pmsl,mype_howv,mype_tcamt,mype_lcbas,mype_cldch,mype_uwnd10m,mype_vwnd10m
+       mype_pmsl,mype_howv,mype_tcamt,mype_lcbas,mype_cldch,mype_uwnd10m,mype_vwnd10m,&
+       mype_swcp,mype_lwcp
   use qcmod, only: npres_print,ptop,pbot,ptopq,pbotq
   use jfunc, only: first,jiter
   use gridmod, only: nsig
@@ -105,7 +110,7 @@ subroutine statsconv(mype,&
   integer(i_kind)                                  ,intent(in   ) :: mype,i_ps,i_uv,&
        i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag,i_gust,i_vis,i_pblh,&
        i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv,i_tcamt,i_lcbas,&
-       i_cldch,i_uwnd10m,i_vwnd10m,i_ref
+       i_cldch,i_uwnd10m,i_vwnd10m,i_swcp,i_lwcp,i_ref
   real(r_kind),dimension(7*nsig+100,i_ref)     ,intent(in   ) :: awork
   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(in   ) :: bwork
   integer(i_kind),dimension(ndat,3)                ,intent(in   ) :: ndata
@@ -116,6 +121,7 @@ subroutine statsconv(mype,&
   integer(i_kind) numgrspw,numsst,nsuperp,nump,nhitopo,ntoodif
   integer(i_kind) numgrsq,numhgh,numgust,numvis,numpblh,numwspd10m,numuwnd10m,numvwnd10m
   integer(i_kind) numtd2m,nummxtm,nummitm,numpmsl,numhowv,numtcamt,numlcbas,numcldch
+  integer(i_kind) numgrsswcp,numgrslwcp
   integer(i_kind) ntot,numlow,k,numssm,i,j
   integer(i_kind) numgross,numfailqc,numfailqc_ssmi,nread,nkeep
   integer(i_kind) numfail1_gps,numfail2_gps,numfail3_gps,nreadspd,nkeepspd
@@ -123,9 +129,11 @@ subroutine statsconv(mype,&
 
   real(r_kind) grsmlt,tq,pw,rat,tgps,qmplty,tpw,tdw,rwmplty,trw
   real(r_kind) tmplty,tt,dwmplty,gpsmplty,umplty,tssm,qctssm,tu,tv,tuv
+  real(r_kind) tswcp,tlwcp
   real(r_kind) vmplty,uvqcplty,rat1,rat2,rat3
   real(r_kind) dwqcplty,tqcplty,qctt,qctrw,rwqcplty,qctdw,qqcplty,qctgps
   real(r_kind) gpsqcplty,tpw3,pw3,qctq
+  real(r_kind) tswcp3,tlwcp3
   real(r_kind),dimension(1):: pbotall,ptopall
   
   logical,dimension(nconvtype):: pflag
@@ -1303,7 +1311,93 @@ subroutine statsconv(mype,&
      close(iout_lag)
   endif
 
- 
+! Summary report for solid-water content path
+  if(mype==mype_swcp) then
+     if(first)then
+        open(iout_swcp)
+     else
+        open(iout_swcp,position='append')
+     end if
+
+     nsuperp=nint(awork(4,i_swcp))
+
+     tswcp=zero ; tswcp3=zero
+     nread=0
+     nkeep=0
+     do i=1,ndat
+        if(dtype(i)== 'swcp')then
+           nread=nread+ndata(i,2)
+           nkeep=nkeep+ndata(i,3)
+        end if
+     end do
+     if(nkeep > 0)then
+        mesage='current fit of solid-water content path, ranges in kg/m^2$'
+        do j=1,nconvtype
+           pflag(j)=trim(ioctype(j)) == 'swcp'
+        end do
+        call dtast(bwork,1,pbotall,ptopall,mesage,jiter,iout_swcp,pflag)
+
+        numgrsswcp=nint(awork(6,i_swcp))
+        numfailqc=nint(awork(21,i_swcp))
+        grsmlt=three
+        tswcp=zero
+        tswcp3=zero
+        if(nsuperp > 0)then
+           tswcp=awork(5,i_swcp)/nsuperp
+           tswcp3=awork(22,i_swcp)/nsuperp
+        end if
+        write(iout_swcp,925) 'swcp',numgrsswcp,numfailqc
+        write(iout_swcp,975) grsmlt,'swcp',awork(7,i_swcp)
+     end if
+     write(iout_swcp,950) 'swcp',jiter,nread,nkeep,nsuperp
+     write(iout_swcp,951) 'swcp',awork(5,i_swcp),awork(22,i_swcp),tswcp,tswcp3
+
+     close(iout_swcp)
+  end if
+
+! Summary report for liquid-water content path
+  if(mype==mype_lwcp) then
+     if(first)then
+        open(iout_lwcp)
+     else
+        open(iout_lwcp,position='append')
+     end if
+
+     nsuperp=nint(awork(4,i_lwcp))
+
+     tlwcp=zero ; tlwcp3=zero
+     nread=0
+     nkeep=0
+     do i=1,ndat
+        if(dtype(i)== 'lwcp')then
+           nread=nread+ndata(i,2)
+           nkeep=nkeep+ndata(i,3)
+        end if
+     end do
+     if(nkeep > 0)then
+        mesage='current fit of liquid-water content path, ranges in kg/m^2$'
+        do j=1,nconvtype
+           pflag(j)=trim(ioctype(j)) == 'lwcp'
+        end do
+        call dtast(bwork,1,pbotall,ptopall,mesage,jiter,iout_lwcp,pflag)
+
+        numgrslwcp=nint(awork(6,i_lwcp))
+        numfailqc=nint(awork(21,i_lwcp))
+        grsmlt=three
+        tlwcp=zero
+        tlwcp3=zero
+        if(nsuperp > 0)then
+           tlwcp=awork(5,i_lwcp)/nsuperp
+           tlwcp3=awork(22,i_lwcp)/nsuperp
+        end if
+        write(iout_lwcp,925) 'lwcp',numgrslwcp,numfailqc
+        write(iout_lwcp,975) grsmlt,'lwcp',awork(7,i_lwcp)
+     end if
+     write(iout_lwcp,950) 'lwcp',jiter,nread,nkeep,nsuperp
+     write(iout_lwcp,951) 'lwcp',awork(5,i_lwcp),awork(22,i_lwcp),tlwcp,tlwcp3
+
+     close(iout_lwcp)
+  end if
 
 
 ! Format statements used above

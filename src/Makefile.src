@@ -2,6 +2,7 @@
 # Source files
 # ------------
 
+  NCDOBJS = nc_diag_read_mod.o  nc_diag_write_mod.o
   OBJS	= \
 	adjtest.o \
 	adjtest_obs.o \
@@ -213,6 +214,8 @@
         intvis.o   \
 	intw.o \
 	intwspd10m.o \
+        intswcp.o \
+        intlwcp.o \
 	jcmod.o \
 	jfunc.o \
         jgrad.o  \
@@ -285,6 +288,8 @@
 	m_visNode.o \
 	m_wNode.o \
 	m_wspd10mNode.o \
+        m_swcpNode.o \
+        m_lwcpNode.o \
 	mpeu_mpif.o \
 	mpeu_util.o \
 	mod_nmmb_to_a.o \
@@ -380,6 +385,7 @@
 	read_pblh.o \
 	read_pcp.o \
 	read_prepbufr.o \
+	read_wcpbufr.o \
 	read_radar.o \
 	read_radarref_mosaic.o  \
 	read_rapidscat.o \
@@ -435,6 +441,8 @@
 	setupvis.o \
 	setupw.o \
 	setupwspd10m.o \
+        setupswcp.o \
+        setuplwcp.o \
 	sfc_model.o \
 	sfcobsqc.o \
 	simpin1.o \
@@ -491,6 +499,8 @@
 	stpvis.o \
 	stpw.o \
 	stpwspd10m.o \
+        stpswcp.o \
+        stplwcp.o \
 	strong_bal_correction.o \
 	strong_baldiag_inc.o \
 	strong_fast_global_mod.o \
@@ -524,7 +534,7 @@
 	write_all.o \
 	write_bkgvars_grid.o \
 	xhat_vordivmod.o \
-	zrnmi_mod.o
+	zrnmi_mod.o $(NCDOBJS)
 
 # list-libs_srcs:
 #	@ for f in $(OBJS); do echo $$(basename $$f .o).[Ff]90; done

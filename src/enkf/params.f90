@@ -22,6 +22,9 @@ module params
 !
 ! program history log:
 !   2009-02-23  Initial version.
+!   2016-05-02  shlyaeva - Modification for reading state vector from table
+!   2016-11-29  shlyaeva - added nhr_state (hours for state fields to 
+!                          calculate Hx; nhr_anal is for IAU)
 !
 ! attributes:
 !   language: f95
@@ -48,11 +51,13 @@ integer(i_kind), public, parameter :: nsatmax_oz = 100
 character(len=20), public, dimension(nsatmax_rad) ::sattypes_rad, dsis
 character(len=20), public, dimension(nsatmax_oz) ::sattypes_oz
 ! forecast times for first-guess forecasts to be updated (in hours)
-integer,dimension(7),public ::  nhr_anal = (/6,-1,-1,-1,-1,-1,-1/)
+integer,dimension(7),public ::  nhr_anal  = (/6,-1,-1,-1,-1,-1,-1/)
+integer,dimension(7),public ::  nhr_state = (/6,-1,-1,-1,-1,-1,-1/)
 ! forecast hour at middle of assimilation window
 real(r_single),public :: fhr_assim=6.0
 ! character string version of nhr_anal with leading zeros.
 character(len=2),dimension(7),public :: charfhr_anal
+character(len=2),dimension(7),public :: charfhr_state
 ! prefix for background and analysis file names (mem### appended)
 ! For global, default is "sfg_"//datestring//"_fhr##_" and
 ! "sanl_"//datestring//"_fhr##_". If only one time level
@@ -61,6 +66,7 @@ character(len=2),dimension(7),public :: charfhr_anal
 ! "analysis_fhr##." If only one time level
 ! in background, default is "firstguess." and "analysis.".
 character(len=120),dimension(7),public :: fgfileprefixes
+character(len=120),dimension(7),public :: statefileprefixes
 character(len=120),dimension(7),public :: anlfileprefixes
 ! analysis date string (YYYYMMDDHH)
 character(len=10), public ::  datestring
@@ -71,9 +77,10 @@ character(len=500),public :: datapath
 ! is used.
 logical, public :: deterministic, sortinc, pseudo_rh, &
                    varqc, huber, cliptracers, readin_localization
-integer(i_kind),public ::  iassim_order,nlevs,nanals,nvars,numiter,&
-                           nlons,nlats,ndim,nbackgrounds
-integer(i_kind),public :: nsats_rad,nsats_oz
+logical, public :: lupp
+integer(i_kind),public ::  iassim_order,nlevs,nanals,numiter,&
+                           nlons,nlats,nbackgrounds,nstatefields
+integer(i_kind),public :: nsats_rad,nsats_oz,imp_physics
 ! random seed for perturbed obs (deterministic=.false.)
 ! if zero, system clock is used.  Also used when
 ! iassim_order=1 (random shuffling of obs for serial assimilation).
@@ -97,7 +104,7 @@ integer,public :: npefiles = 0
 ! for LETKF, max number of obs in local volume.
 ! default is -1, which means take all obs within
 ! specified localization radius.  if nobsl_max > 0,
-! only the first nobsl_max closest obs within the 
+! only the first nobsl_max closest obs within the
 ! localization radius will be used. Ignored
 ! if letkf_flag = .false.
 integer,public :: nobsl_max = -1
@@ -106,7 +113,7 @@ logical,public :: save_inflation = .false.
 ! do sat bias correction update.
 logical,public :: lupd_satbiasc = .false.
 ! do ob space update with serial filter (only used if letkf_flag=.true.)
-logical,public :: lupd_obspace_serial = .false. 
+logical,public :: lupd_obspace_serial = .false.
 ! disable vertical localization for letkf
 logical,public :: letkf_novlocal = .false.
 ! simple_partition=.false. does more sophisticated
@@ -121,7 +128,10 @@ logical,public :: nmm = .true.
 logical,public :: nmm_restart = .true.
 logical,public :: nmmb = .false.
 logical,public :: letkf_flag = .false.
-logical,public :: massbal_adjust = .false.
+
+! next two are no longer used, instead they are inferred from anavinfo
+logical,public :: massbal_adjust = .false. 
+integer(i_kind),public :: nvars = -1 
 
 ! if true generate additional input files
 ! required for EFSO calculations
@@ -136,8 +146,14 @@ logical,public :: fso_calculate = .false.
 ! when pseudo_rh=.true.  If pseudo_rh=.false, use_qsatensmean
 ! is ignored.
 logical,public :: use_qsatensmean = .false.
+logical,public :: write_spread_diag = .false.
+! if true, use jacobian from GSI stored in diag file to compute
+! ensemble perturbations in observation space.
+logical,public :: lobsdiag_forenkf = .false.
+! if true, use netcdf diag files, otherwise use binary diags
+logical,public :: netcdf_diag = .false.
 
-namelist /nam_enkf/datestring,datapath,iassim_order,&
+namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    covinflatemax,covinflatemin,deterministic,sortinc,&
                    corrlengthnh,corrlengthtr,corrlengthsh,&
                    varqc,huber,nlons,nlats,smoothparm,use_qsatensmean,&
@@ -146,15 +162,17 @@ namelist /nam_enkf/datestring,datapath,iassim_order,&
                    lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh,&
                    lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh,&
                    lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh,&
-                   fgfileprefixes,anlfileprefixes,covl_minfact,covl_efold,&
+                   fgfileprefixes,anlfileprefixes,statefileprefixes,&
+                   covl_minfact,covl_efold,lupd_obspace_serial,letkf_novlocal,&
                    analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,&
-                   fgfileprefixes,anlfileprefixes,lupd_obspace_serial,letkf_novlocal,&
-                   nlevs,nanals,nvars,saterrfact,univaroz,regional,use_gfs_nemsio,&
+                   nlevs,nanals,saterrfact,univaroz,regional,use_gfs_nemsio,&
                    paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
                    lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
-                   newpc4pred,nmmb,nhr_anal,fhr_assim,nbackgrounds,save_inflation,nobsl_max,&
+                   newpc4pred,nmmb,nhr_anal,nhr_state, fhr_assim,nbackgrounds,nstatefields, &
+                   save_inflation,nobsl_max,lobsdiag_forenkf,netcdf_diag,&
                    letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs,npefiles,&
-                   fso_cycling,fso_calculate
+                   fso_cycling,fso_calculate,imp_physics,lupp,write_spread_diag
+
 namelist /nam_wrf/arw,nmm,nmm_restart
 namelist /satobs_enkf/sattypes_rad,dsis
 namelist /ozobs_enkf/sattypes_oz
@@ -170,9 +188,9 @@ integer i,nb
 ! time (analysis time YYYYMMDDHH)
 datestring = "0000000000" ! if 0000000000 will not be used.
 ! corrlength (length for horizontal localization in km)
-corrlengthnh = 2800 
-corrlengthtr = 2800 
-corrlengthsh = 2800 
+corrlengthnh = 2800
+corrlengthtr = 2800
+corrlengthsh = 2800
 ! read in localization length scales from an external file.
 readin_localization = .false.
 ! min and max inflation.
@@ -202,7 +220,7 @@ covl_minfact = 1.0
 ! factor of 1-1/e ~ 0.632. When paoverpb==>1, localization scales go to zero.
 ! When paoverpb==>1, localization scales not reduced.
 covl_efold = 1.e-10
-! path to data directory (include trailing slash)
+! path to data directory
 datapath = " " ! mandatory
 ! tolerance for background check.
 ! obs are not used if they are more than sqrt(S+R) from mean,
@@ -220,7 +238,7 @@ analpertwttr = 0.0_r_single
 paoverpb_thresh = 1.0_r_single! don't skip any obs
 ! set to to 0 for the order they are read in, 1 for random order, or 2 for
 ! order of predicted posterior variance reduction (based on prior)
-iassim_order = 0 
+iassim_order = 0
 ! use 'pseudo-rh' analysis variable, as in GSI.
 pseudo_rh = .false.
 ! if deterministic is true, use LETKF/EnSRF w/o perturbed obs.
@@ -229,6 +247,11 @@ deterministic = .true.
 ! if deterministic is false, re-order obs to minimize regression erros
 ! as described in Anderson (2003) (only used for serial filter).
 sortinc = .true.
+! type of GFS microphyics.
+! 99: Zhao-Carr, 11: GFDL
+imp_physics = 99
+! lupp, if true output extra variables
+lupp = .false.
 ! these are all mandatory.
 ! nlons and nlats are # of lons and lats
 nlons = 0
@@ -237,9 +260,6 @@ nlats = 0
 nlevs = 0
 ! number of ensemble members
 nanals = 0
-! nvars is number of 3d variables to update.
-! for hydrostatic models, typically 5 (u,v,T,q,ozone).
-nvars = 5
 ! background error variance for rad bias coeffs  (used in radbias.f90)
 ! default is (old) GSI value.
 ! if negative, bias coeff error variace is set to -biasvar/N, where
@@ -275,7 +295,7 @@ dsis=' '
 
 ! Initialize first-guess and analysis file name prefixes.
 ! (blank means use default names)
-fgfileprefixes = ''; anlfileprefixes=''
+fgfileprefixes = ''; anlfileprefixes=''; statefileprefixes=''
 
 ! read from namelist file, doesn't seem to work from stdin with mpich
 open(912,file='enkf.nml',form="formatted")
@@ -304,7 +324,7 @@ end do
 if(nproc == 0)write(6,*) 'number of satellite ozone files used',nsats_oz
 
 
-! default value of vertical localization for sat radiances 
+! default value of vertical localization for sat radiances
 ! and surface pressure should be same as other data.
 if (lnsigcutoffsatnh < 0._r_single) lnsigcutoffsatnh = lnsigcutoffnh
 if (lnsigcutoffsattr < 0._r_single) lnsigcutoffsattr = lnsigcutofftr
@@ -320,7 +340,7 @@ latboundmm=-latbound-p5delat
 delatinv=1.0_r_single/delat
 
 ! have to do ob space update for serial filter (not for LETKF).
-if (.not. letkf_flag .and. numiter < 1) numiter = 1
+if ((.not. letkf_flag .or. lupd_obspace_serial) .and. numiter < 1) numiter = 1
 
 if (nproc == 0) then
 
@@ -357,10 +377,16 @@ if (nproc == 0) then
        letkf_flag) then
      print *,'warning: no time localization in LETKF!'
    endif
-   
+
    print *, trim(adjustl(datapath))
    if (datestring .ne. '0000000000') print *, 'analysis time ',datestring
    print *, nanals,' members'
+
+! check for deprecated namelist variables
+   if (nvars > 0 .or. massbal_adjust) then
+      print *,'WARNING: nvars and massbal_adjust are no longer used!'
+      print *,'They are inferred from the anavinfo file instead.'
+   endif
    
 end if
 
@@ -382,6 +408,26 @@ do while (nhr_anal(nbackgrounds+1) > 0)
    endif
    nbackgrounds = nbackgrounds+1
 end do
+
+! state fields
+nstatefields=0
+do while (nhr_state(nstatefields+1) > 0)
+   write(charfhr_state(nstatefields+1),'(i2.2)') nhr_state(nstatefields+1)
+   if (trim(statefileprefixes(nstatefields+1)) .eq. "") then
+     ! default first-guess file prefix
+     if (regional) then
+      if (nstatefields > 1) then
+        statefileprefixes(nstatefields+1)="firstguess_fhr"//charfhr_state(nstatefields+1)//"."
+      else
+        statefileprefixes(nstatefields+1)="firstguess."
+      endif
+     else  ! global
+      statefileprefixes(nstatefields+1)="sfg_"//datestring//"_fhr"//charfhr_state(nstatefields+1)//"_"
+     endif
+   endif
+   nstatefields = nstatefields+1
+end do
+
 do nb=1,nbackgrounds
    if (trim(anlfileprefixes(nb)) .eq. "") then
      ! default analysis file prefix
@@ -392,44 +438,31 @@ do nb=1,nbackgrounds
         anlfileprefixes(nb)="analysis."
       endif
      else ! global
-      if (nbackgrounds > 1) then
+!      if (nbackgrounds > 1) then
         anlfileprefixes(nb)="sanl_"//datestring//"_fhr"//charfhr_anal(nb)//"_"
-      else
-        anlfileprefixes(nb)="sanl_"//datestring//"_"
-      endif
+!      else
+!        anlfileprefixes(nb)="sanl_"//datestring//"_"
+!      endif
      endif
    endif
 enddo
+
+if (nproc .eq. 0) then
+  print *,'number of background forecast times to be used for H(x) = ',nstatefields
+  print *,'first-guess forecast hours for observation operator = ',&
+  charfhr_state(1:nstatefields)
+endif
+
 if (nproc .eq. 0) then
   print *,'number of background forecast times to be updated = ',nbackgrounds
   print *,'first-guess forecast hours for analysis = ',&
   charfhr_anal(1:nbackgrounds)
 endif
 
-! total number of 2d grids to update.
-if (massbal_adjust) then
-   if (regional .or. nmmb) then
-      if (nproc .eq. 0) print *,'mass balance adjustment only implemented for GFS'
-      massbal_adjust = .false.
-      ndim = nlevs*nvars+1 
-   else
-      if (nproc .eq. 0) print *,'add ps tend as analysis var, so mass balance adjustment can be done'
-      ndim = nlevs*nvars+2 ! including surface pressure and ps tendency.
-   endif
-else
-   ndim = nlevs*nvars+1 ! including surface pressure and ps tendency.
-endif
-
 call init_constants(.false.) ! initialize constants.
 call init_constants_derived()
 
 if (nproc == 0) then
-    print *,nvars,'3d vars to update'
-    if (massbal_adjust) then
-     print *,'total of',ndim,' 2d grids will be updated (including ps and ps tend)'
-    else
-     print *,'total of',ndim,' 2d grids will be updated (including ps)'
-    endif
     if (analpertwtnh > 0) then
        print *,'using multiplicative inflation based on Pa/Pb'
     else if (analpertwtnh < 0) then
@@ -454,6 +487,22 @@ if (.not. letkf_flag .and. lupd_obspace_serial) then
    print *,'setting lupd_obspace_serial to .false., since letkf_flag is .false.'
   endif
 endif
+
+! set lupd_obspace_serial to .true. if letkf_flag is true
+! and numiter > 0.
+if (letkf_flag .and. .not. lupd_obspace_serial .and. numiter > 0) then
+  lupd_obspace_serial = .true.
+  if (nproc == 0) then
+   print *,'setting lupd_obspace_serial to .true., since letkf_flag is .true. and numiter > 0'
+  endif
+endif
+
+if (datapath(len_trim(datapath):len_trim(datapath)) .ne. '/') then
+   ! add trailing slash if needed
+   if (nproc .eq. 0) print *,'adding trailing slash to datapath..'
+   datapath = trim(datapath)//'/'
+endif
+
 end subroutine read_namelist
 
 end module params

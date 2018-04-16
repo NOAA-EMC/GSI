@@ -33,6 +33,10 @@ program enkf_main
 !   2009-02-23  Initial version.
 !   2011-06-03  Added the option for LETKF.
 !   2016-02-01  Initialize mpi communicator for IO tasks (1st nanals tasks).
+!   2016-05-02  shlyaeva: Modification for reading state vector from table
+!   2016-11-29  shlyaeva: Initialize state vector separately from control; 
+!               separate routines for scatter and gather chunks; write out diag files
+!               with spread
 !
 ! usage:
 !   input files:
@@ -49,6 +53,7 @@ program enkf_main
 !                      vertical profile of horizontal and vertical localization
 !                      length scales (along with static and ensemble weights
 !                      used in hybrid).
+!     anavinfo      - state/control variables table
 !
 !   output files: 
 !     sanl_YYYYMMDDHH_mem* - analysis ensemble members. A separate program
@@ -58,8 +63,8 @@ program enkf_main
 !                         
 ! comments:
 !
-! This program is run after the forward operator code is run on each ensemble
-! member to create the diag*mem* input files.
+! This program is run after the forward operator code (with saving linearized H) 
+! is run on the ensemble mean to create the diag*ensmean input file.
 !
 ! attributes:
 !   language: f95
@@ -69,22 +74,26 @@ program enkf_main
  use kinds, only: r_kind,r_double,i_kind
  ! reads namelist parameters.
  use params, only : read_namelist,letkf_flag,readin_localization,lupd_satbiasc,&
-                    numiter, nanals, lupd_obspace_serial, fso_cycling
+                    numiter, nanals, lupd_obspace_serial, write_spread_diag,   &
+                    lobsdiag_forenkf, netcdf_diag, fso_cycling
  ! mpi functions and variables.
  use mpisetup, only:  mpi_initialize, mpi_initialize_io, mpi_cleanup, nproc, &
-                      numproc, mpi_wtime
+                       mpi_wtime, mpi_comm_world
  ! obs and ob priors, associated metadata.
- use enkf_obsmod, only : readobs, obfit_prior, obsprd_prior, &
-                    deltapredx, nobs_sat, obfit_post, obsprd_post, &
+ use enkf_obsmod, only : readobs, write_obsstats, obfit_prior, obsprd_prior, &
+                    nobs_sat, obfit_post, obsprd_post, &
                     obsmod_cleanup, biasprednorminv
  ! innovation statistics.
  use innovstats, only: print_innovstats
- ! grid information
- use gridinfo, only: getgridinfo, gridinfo_cleanup, npts,lonsgrd,latsgrd
- ! model state vector 
- use statevec, only: read_ensemble, write_ensemble, statevec_cleanup
+ ! model control vector 
+ use controlvec, only: read_control, write_control, controlvec_cleanup, &
+                     init_controlvec
+ ! model state vector
+ use statevec, only: read_state, statevec_cleanup, init_statevec
+ ! EnKF linhx observer
+ use observer_enkf, only: init_observer_enkf
  ! load balancing
- use loadbal, only: load_balance, loadbal_cleanup
+ use loadbal, only: load_balance, loadbal_cleanup, scatter_chunks, gather_chunks
  ! enkf update
  use enkf, only: enkf_update
  ! letkf update
@@ -96,11 +105,12 @@ program enkf_main
  ! initialize radinfo variables
  use radinfo, only: init_rad, init_rad_vars
  use omp_lib, only: omp_get_max_threads
+ use read_diag, only: set_netcdf_read
  ! Observation sensitivity usage
  use enkf_obs_sensitivity, only: init_ob_sens, print_ob_sens, destroy_ob_sens
 
  implicit none
- integer(i_kind) j,n,nth
+ integer(i_kind) j,n,nth,ierr
  real(r_double) t1,t2
  logical no_inflate_flag
 
@@ -120,12 +130,27 @@ program enkf_main
  ! Initialize derived radinfo variables
  call init_rad_vars()
 
+ ! Initialize read_diag
+ call set_netcdf_read(netcdf_diag)
+
+
  nth= omp_get_max_threads()
  if(nproc== 0)write(6,*) 'enkf_main:  number of threads ',nth
 
- ! read horizontal grid information and pressure fields from
- ! 6-h forecast ensemble mean file.
- call getgridinfo()
+ ! Init and read state vector only if needed for linearized Hx
+ if (lobsdiag_forenkf) then
+    ! read state/control vector info from anavinfo
+    call init_statevec()
+
+    ! initialize observer
+    call init_observer_enkf()
+
+    ! read in ensemble members
+    t1 = mpi_wtime()
+    call read_state()
+    t2 = mpi_wtime()
+    if (nproc == 0) print *,'time in read_state =',t2-t1,'on proc',nproc
+ endif
 
  ! read obs, initial screening.
  t1 = mpi_wtime()
@@ -133,11 +158,27 @@ program enkf_main
  t2 = mpi_wtime()
  if (nproc == 0) print *,'time in read_obs =',t2-t1,'on proc',nproc
 
+ call mpi_barrier(mpi_comm_world, ierr)
+
+ ! cleanup state vectors after observation operator is done if lin Hx
+ if (lobsdiag_forenkf) then
+    call statevec_cleanup()
+ endif
+
  ! print innovation statistics for prior on root task.
  if (nproc == 0) then
     print *,'innovation statistics for prior:'
     call print_innovstats(obfit_prior, obsprd_prior)
  end if
+
+ ! read state/control vector info from anavinfo
+ call init_controlvec()
+
+ ! read in ensemble members
+ t1 = mpi_wtime()
+ call read_control()
+ t2 = mpi_wtime()
+ if (nproc == 0) print *,'time in read_control =',t2-t1,'on proc',nproc
 
  ! Initialization for writing
  ! observation sensitivity files
@@ -154,11 +195,11 @@ program enkf_main
  t2 = mpi_wtime()
  if (nproc == 0) print *,'time in load_balance =',t2-t1,'on proc',nproc
 
- ! read in ensemble members, distribute pieces to each task.
+ ! distribute pieces to each task.
  t1 = mpi_wtime()
- call read_ensemble()
+ call scatter_chunks()
  t2 = mpi_wtime()
- if (nproc == 0) print *,'time in read_ensemble =',t2-t1,'on proc',nproc
+ if (nproc == 0) print *,'time in scatter_chunks = ',t2-t1,'on proc',nproc
 
  t1 = mpi_wtime()
  ! state and bias correction coefficient update iteration.
@@ -177,7 +218,8 @@ program enkf_main
  if(fso_cycling) then
     no_inflate_flag=.true.
     t1 = mpi_wtime()
-    call write_ensemble(no_inflate_flag)
+    call gather_chunks()
+    call write_control(no_inflate_flag)
     t2 = mpi_wtime()
     if (nproc == 0) print *,'time in write_ensemble wo/inflation =',t2-t1,'on proc',nproc
  end if
@@ -188,6 +230,13 @@ program enkf_main
  call inflate_ens()
  t2 = mpi_wtime()
  if (nproc == 0) print *,'time in inflate_ens =',t2-t1,'on proc',nproc
+
+ if (write_spread_diag) then
+    t1 = mpi_wtime()
+    call write_obsstats()
+    t2 = mpi_wtime()
+    if (nproc == 0) print *,'time in write_obsstats =',t2-t1,'on proc',nproc
+  endif
 
  ! print EFSO sensitivity i/o on root task.
  if(fso_cycling) call print_ob_sens()
@@ -213,12 +262,16 @@ program enkf_main
  call obsmod_cleanup()
 
  t1 = mpi_wtime()
- call write_ensemble(no_inflate_flag)
+ call gather_chunks()
  t2 = mpi_wtime()
- if (nproc == 0) print *,'time in write_ensemble =',t2-t1,'on proc',nproc
+ if (nproc == 0) print *,'time in gather_chunks =',t2-t1,'on proc',nproc
 
- call gridinfo_cleanup()
- call statevec_cleanup()
+ t1 = mpi_wtime()
+ call write_control(no_inflate_flag)
+ t2 = mpi_wtime()
+ if (nproc == 0) print *,'time in write_control =',t2-t1,'on proc',nproc
+
+ call controlvec_cleanup()
  call loadbal_cleanup()
  if(fso_cycling) call destroy_ob_sens()
 

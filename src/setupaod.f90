@@ -50,6 +50,10 @@
            dplat,obsdiags,obsptr,lobsdiagsave,lobsdiag_allocated,&
            dirname,time_offset
   use obsmod, only: obs_diag,luse_obsdiag
+  use obsmod, only: dirname
+  use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
+       nc_diag_write, nc_diag_data2d
+  use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use gridmod, only: nsig,get_ij
   use constants, only: tiny_r_kind,zero,one,three,r10
@@ -637,4 +641,13 @@
 
   return
 
+contains
+  subroutine init_netcdf_diag_
+  end subroutine init_netcdf_diag_
+  subroutine contents_binary_diag_
+  end subroutine contents_binary_diag_
+  subroutine contents_netcdf_diag_
+! Observation class
+  character(7),parameter     :: obsclass = '    aod'
+  end subroutine contents_netcdf_diag_
 end subroutine setupaod

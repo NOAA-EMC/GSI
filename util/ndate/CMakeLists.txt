@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 2.6)
+  file(GLOB NDATE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.f)
+  set_source_files_properties( ${NDATE_SRC} PROPERTIES COMPILE_FLAGS ${NDATE_Fortran_FLAGS} )
+  add_executable(ndate.x  ${NDATE_SRC} )
+  set_target_properties( ndate.x PROPERTIES COMPILE_FLAGS ${NDATE_Fortran_FLAGS} )
+  include_directories( ${CORE_INCS} ) 
+  target_link_libraries( ndate.x ${W3NCO_LIBRARY} )
+  if(BUILD_W3NCO)
+    add_dependencies( ndate.x ${W3NCO_LIBRARY} )
+  endif()
+

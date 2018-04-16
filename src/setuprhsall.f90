@@ -121,6 +121,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
        destroyobs,inquire_obsdiags,lobskeep,nobskeep,lobsdiag_allocated, &
        luse_obsdiag
   use obsmod, only: lobsdiagsave
+  use obsmod, only: binary_diag
   use obs_sensitivity, only: lobsensfc, lsensrecompute
   use radinfo, only: newpc4pred
   use radinfo, only: mype_rad,diag_rad,jpch_rad,retrieval,fbias,npred,ostats,rstats
@@ -217,6 +218,8 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   external:: setupcldch
   external:: setupuwnd10m
   external:: setupvwnd10m
+  external:: setupswcp
+  external:: setuplwcp
   external:: statsconv
   external:: statsoz
   external:: statspcp
@@ -237,7 +240,8 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   integer(i_kind) lunin,nobs,nchanl,nreal,nele,&
        is,idate,i_dw,i_rw,i_sst,i_tcp,i_gps,i_uv,i_ps,i_lag,&
        i_t,i_pw,i_q,i_co,i_gust,i_vis,i_ref,i_pblh,i_wspd10m,i_td2m,&
-       i_mxtm,i_mitm,i_pmsl,i_howv,i_tcamt,i_lcbas,i_cldch,i_uwnd10m,i_vwnd10m,iobs,nprt,ii,jj
+       i_mxtm,i_mitm,i_pmsl,i_howv,i_tcamt,i_lcbas,i_cldch,i_uwnd10m,i_vwnd10m,&
+       i_swcp,i_lwcp,iobs,nprt,ii,jj
   integer(i_kind) it,ier,istatus
 
   real(r_quad):: zjo
@@ -304,7 +308,9 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   i_cldch=24
   i_uwnd10m=26
   i_vwnd10m=27
-  i_ref =i_vwnd10m
+  i_swcp=28
+  i_lwcp=29
+  i_ref =i_lwcp
 
   allocate(awork1(7*nsig+100,i_ref))
   if(.not.rhs_allocated) call rhs_alloc(aworkdim2=size(awork1,2))
@@ -413,7 +419,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
  
   
 !    If requested, create conventional diagnostic files
-     if(conv_diagsave)then
+     if(conv_diagsave.and.binary_diag)then
         write(string,900) jiter
 900     format('conv_',i2.2)
         diag_conv_file=trim(dirname) // trim(string)
@@ -615,6 +621,14 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
               end if
 
+!          Set up solid/liquid-water content path data
+           else if(ditype(is) == 'wcp')then
+              if(obstype=='swcp')then
+                 call setupswcp(lunin,mype,bwork,awork(1,i_swcp),nele,nobs,is,conv_diagsave)
+              else if (obstype=='lwcp')then
+                 call setuplwcp(lunin,mype,bwork,awork(1,i_lwcp),nele,nobs,is,conv_diagsave)
+              endif
+
 !          set up ozone (sbuv/omi/mls) data
            else if(ditype(is) == 'ozone' .and. ihave_oz)then
               if (obstype == 'o3lev' .or. index(obstype,'mls')/=0 ) then
@@ -633,11 +647,11 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !          Set up GPS local refractivity data
            else if(ditype(is) == 'gps')then
               if(obstype=='gps_ref')then
-                 call setupref(lunin,mype,awork(1,i_gps),nele,nobs,toss_gps_sub,is,init_pass,last_pass)
+                 call setupref(lunin,mype,awork(1,i_gps),nele,nobs,toss_gps_sub,is,init_pass,last_pass,conv_diagsave)
 
 !             Set up GPS local bending angle data
               else if(obstype=='gps_bnd')then
-                 call setupbend(lunin,mype,awork(1,i_gps),nele,nobs,toss_gps_sub,is,init_pass,last_pass)
+                 call setupbend(lunin,mype,awork(1,i_gps),nele,nobs,toss_gps_sub,is,init_pass,last_pass,conv_diagsave)
               end if
            end if
 
@@ -667,7 +681,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   call gpsStats_destroy()       ! replacing ...
   ! -- call genstats_gps(bwork,awork(1,i_gps),toss_gps_sub,conv_diagsave,mype)
 
-  if (conv_diagsave) close(7)
+  if (conv_diagsave.and.binary_diag) close(7)
 
   if(l_PBL_pseudo_SurfobsT.or.l_PBL_pseudo_SurfobsQ.or.l_PBL_pseudo_SurfobsUV) then
   else
@@ -753,7 +767,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
      call statsconv(mype,&
           i_ps,i_uv,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag, &
           i_gust,i_vis,i_pblh,i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv, &
-          i_tcamt,i_lcbas,i_cldch,i_uwnd10m,i_vwnd10m,i_ref,bwork1,awork1,ndata)
+          i_tcamt,i_lcbas,i_cldch,i_uwnd10m,i_vwnd10m,i_swcp,i_lwcp,i_ref,bwork1,awork1,ndata)
 
   endif  ! < .not. lobserver >
 

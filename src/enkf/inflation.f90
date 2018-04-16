@@ -36,25 +36,28 @@ module inflation
 !
 ! Public Variables: None
 !   
-! Modules Used: mpisetup, params, kinds, covlocal, statevec, gridinfo, loadal
+! Modules Used: mpisetup, params, kinds, covlocal, controlvec, gridinfo, loadal
 !
 ! program history log:
-!   2009-02-23  Initial version.
+!   2009-02-23:  Initial version.
+!   2016-05-02:  shlyaeva: Modification for reading state vector from table
+!   2016-11-29:  shlyaeva: Modification for using control vector (control and state
+!                used to be the same) and the "chunks" come from loadbal 
 ! attributes:
 !   language: f95
 !
 !$$$
 
 use mpisetup
-use params, only: analpertwtnh,analpertwtsh,analpertwttr,ndim,nanals,nlevs,ndim,&
+use params, only: analpertwtnh,analpertwtsh,analpertwttr,nanals,nlevs,&
                   latbound, delat, datapath, covinflatemax, save_inflation, &
                   covinflatemin, nlons, nlats, smoothparm, nbackgrounds
 use kinds, only: r_single, i_kind
 use constants, only: one, zero, rad2deg, deg2rad
 use covlocal, only: latval
-use statevec, only: anal_chunk, anal_chunk_prior
-use gridinfo, only: latsgrd, logp, npts, nvarhumid
-use loadbal, only: indxproc, numptsperproc, npts_max
+use controlvec, only: ncdim, cvars3d, cvars2d, nc3d, nc2d
+use gridinfo, only: latsgrd, logp, npts
+use loadbal, only: indxproc, numptsperproc, npts_max, anal_chunk, anal_chunk_prior
 use smooth_mod, only: smooth
 
 implicit none
@@ -97,7 +100,7 @@ nbloop: do nb=1,nbackgrounds ! loop over time levels in background
 ! Impact of initial estimate and observations. 
 ! Mon. Wea. Rev., 132, 1238-1253. 
 if (analpertwtnh < 0) then
-   do nn=1,ndim
+   do nn=1,ncdim
     do i=1,numptsperproc(nproc+1)
       deglat = rad2deg*latsgrd(indxproc(nproc+1,i))
       ! coefficent can be different in NH, TR, SH.
@@ -111,7 +114,7 @@ if (analpertwtnh < 0) then
 end if
 
 ! adaptive posterior inflation based upon ratio of posterior to prior spread.
-allocate(tmp_chunk2(npts_max,ndim))
+allocate(tmp_chunk2(npts_max,ncdim))
 tmp_chunk2 = covinflatemin
 
 ! compute inflation.
@@ -121,7 +124,7 @@ sumcoslat = zero
 sprdmax = -9.9e31_r_single
 sprdmin = 9.9e31_r_single
 
-do nn=1,ndim
+do nn=1,ncdim
  do i=1,numptsperproc(nproc+1)
    deglat = rad2deg*latsgrd(indxproc(nproc+1,i))
 
@@ -139,7 +142,7 @@ do nn=1,ndim
 
    ! area mean surface pressure posterior and prior spread.
    ! (this diagnostic only makes sense for grids that are regular in longitude)
-   if (nn == ndim) then 
+   if (nn == ncdim) then 
       coslat=cos(latsgrd(indxproc(nproc+1,i)))
       if (fsprd > sprdmax) sprdmax = fsprd
       if (fsprd < sprdmin) sprdmin = fsprd
@@ -175,13 +178,13 @@ filename = trim(adjustl(datapath))//"covinflate.dat"
 if (smoothparm .gt. zero) then
    ! inflation smoothing.
    ! (warning: this requires a lot of memory)
-   allocate(covinfglobal(npts,ndim))
+   allocate(covinfglobal(npts,ncdim))
    covinfglobal=zero
    do i=1,numptsperproc(nproc+1)
       covinfglobal(indxproc(nproc+1,i),:) = tmp_chunk2(i,:)
    end do
-   !call mpi_allreduce(mpi_in_place,covinfglobal,npts*ndim,mpi_real4,mpi_sum,mpi_comm_world,ierr)
-   do nn=1,ndim
+   !call mpi_allreduce(mpi_in_place,covinfglobal,npts*ncdim,mpi_real4,mpi_sum,mpi_comm_world,ierr)
+   do nn=1,ncdim
      call mpi_allreduce(mpi_in_place,covinfglobal(1,nn),npts,mpi_real4,mpi_sum,mpi_comm_world,ierr)
    enddo
    call smooth(covinfglobal)
@@ -191,33 +194,31 @@ if (smoothparm .gt. zero) then
       tmp_chunk2(i,:) = covinfglobal(indxproc(nproc+1,i),:)
    end do
    if(nproc == 0)then
-      print *,'min/max var 1 inflation = ',minval(covinfglobal(:,1:nlevs)),maxval(covinfglobal(:,1:nlevs))
-      print *,'min/max var 2 inflation = ',minval(covinfglobal(:,nlevs+1:2*nlevs)),maxval(covinfglobal(:,nlevs+1:2*nlevs))
-      print *,'min/max var 3 inflation = ',minval(covinfglobal(:,2*nlevs+1:3*nlevs)),maxval(covinfglobal(:,2*nlevs+1:3*nlevs))
-      if (nvarhumid .gt. 0) then
-      print *,'min/max spfh inflation = ',minval(covinfglobal(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs)),&
-           maxval(covinfglobal(:,(nvarhumid-1)*nlevs+1:nvarhumid*nlevs))
-      endif
-      print *,'min/max ps inflation = ',minval(covinfglobal(:,ndim)),maxval(covinfglobal(:,ndim))
+      do i=1,nc3d
+        print *,'min/max ',cvars3d(i),' inflation = ',minval(covinfglobal(:,(i-1)*nlevs+1:i*nlevs)),maxval(covinfglobal(:,(i-1)*nlevs+1:i*nlevs))
+      enddo
+      do i=1,nc2d
+        print *,'min/max ',cvars2d(i),' inflation = ',minval(covinfglobal(:,nc3d*nlevs+i)),maxval(covinfglobal(:,nc3d*nlevs+i))
+      enddo
       ! write out inflation.
       if (save_inflation) then
-         open(iunit,form='unformatted',file=filename,access='direct',recl=npts*ndim*4)
+         open(iunit,form='unformatted',file=filename,access='direct',recl=npts*ncdim*4)
          write(iunit,rec=1) covinfglobal 
          close(iunit)
       endif
    end if
    deallocate(covinfglobal)
 else if (save_inflation) then
-   allocate(covinfglobal(npts,ndim))
+   allocate(covinfglobal(npts,ncdim))
    covinfglobal=zero
    do i=1,numptsperproc(nproc+1)
       covinfglobal(indxproc(nproc+1,i),:) = tmp_chunk2(i,:)
    end do
-   do nn=1,ndim
+   do nn=1,ncdim
      call mpi_allreduce(mpi_in_place,covinfglobal(1,nn),npts,mpi_real4,mpi_sum,mpi_comm_world,ierr)
    enddo
    if (nproc == 0) then
-      open(iunit,form='unformatted',file=filename,access='direct',recl=npts*ndim*4)
+      open(iunit,form='unformatted',file=filename,access='direct',recl=npts*ncdim*4)
       write(iunit,rec=1) covinfglobal 
       close(iunit)
       deallocate(covinfglobal)
@@ -228,7 +229,7 @@ suma2 = zero
 sumi = zero
 
 ! apply inflation.
-do nn=1,ndim
+do nn=1,ncdim
  do i=1,numptsperproc(nproc+1)
 
    ! inflate posterior perturbations.
@@ -236,7 +237,7 @@ do nn=1,ndim
 
    ! area mean surface pressure posterior spread, inflation.
    ! (this diagnostic only makes sense for grids that are regular in longitude)
-   if (nn == ndim) then 
+   if (nn == ncdim) then 
       coslat=cos(latsgrd(indxproc(nproc+1,i)))
       deglat = rad2deg*latsgrd(indxproc(nproc+1,i))
       if (deglat > latbound) then 
@@ -268,28 +269,12 @@ call mpi_reduce(suma,sumatot,ndiag,mpi_real4,mpi_sum,0,mpi_comm_world,ierr)
 call mpi_reduce(suma2,suma2tot,ndiag,mpi_real4,mpi_sum,0,mpi_comm_world,ierr)
 call mpi_reduce(sumcoslat,sumcoslattot,ndiag,mpi_real4,mpi_sum,0,mpi_comm_world,ierr)
 if (nproc == 0) then
-   do i=1,ndiag
-      if (sumcoslattot(i) .gt. 1.E-6 .and. sumftot(i) .gt. 1.E-6) then
-         sumftot(i) = sqrt(sumftot(i)/sumcoslattot(i))
-      else
-         sumftot(i)=-99.0
-      endif
-      if (sumcoslattot(i) .gt. 1.E-6 .and. sumatot(i) .gt. 1.E-6) then
-         sumatot(i) = sqrt(sumatot(i)/sumcoslattot(i))
-      else
-         sumatot(i)=-99.0
-      endif
-      if (sumcoslattot(i) .gt. 1.E-6 .and. suma2tot(i) .gt. 1.E-6) then
-         suma2tot(i) = sqrt(suma2tot(i)/sumcoslattot(i))
-      else
-         suma2tot(i)=-99.0
-      endif
-      if (sumcoslattot(i) .gt. 1.E-6 .and. sumitot(i) .gt. 1.E-6) then
-         sumitot(i) = sumitot(i)/sumcoslattot(i)
-      else
-         sumitot(i)=-99.0
-      endif
-   end do
+   print *,'inflation stats, time level: ',nb
+   print *,'---------------------------------'
+   sumftot = sqrt(sumftot/sumcoslattot)
+   sumatot = sqrt(sumatot/sumcoslattot)
+   suma2tot = sqrt(suma2tot/sumcoslattot)
+   sumitot = sumitot/sumcoslattot
    print *,'global ps prior std. dev min/max = ',sqrt(sprdminall),sqrt(sprdmaxall)
 ! NH first.
    if (sumcoslattot(1) .gt. tiny(sumcoslattot(1))) then

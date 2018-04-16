@@ -3,7 +3,7 @@ subroutine read_locinfo()
    use kinds, only : r_kind,i_kind,r_single
    use params, only : nlevs,corrlengthnh,corrlengthtr,corrlengthsh,letkf_flag
    use enkf_obsmod, only: obloc, oblnp, corrlengthsq, lnsigl, nobstot, &
-   obpress, obtype, nobs_conv, nobs_oz, oberrvar
+                          oberrvar
    use kdtree2_module, only: kdtree2, kdtree2_create, kdtree2_destroy, &
                              kdtree2_result, kdtree2_n_nearest
    use constants, only: zero, rearth

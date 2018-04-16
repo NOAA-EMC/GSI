@@ -50,6 +50,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
 !                       . removed (%dlat,%dlon) debris.
+!   2017-02-06  todling - add netcdf_diag capability; hidden as contained code
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -77,6 +78,10 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_sstNode, only: sstNode
   use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
+  use obsmod, only: netcdf_diag, binary_diag, dirname,ianldate
+  use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
+       nc_diag_write, nc_diag_data2d
+  use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: magoberr,maginnov,oneobtest
   use gridmod, only: nsig
@@ -219,6 +224,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      nreal=ioff0
      if (lobsdiagsave) nreal=nreal+4*miter+1
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
+     if(netcdf_diag) call init_netcdf_diag_
   end if
 
   halfpi = half*pi
@@ -469,6 +475,73 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if(conv_diagsave .and. luse(i))then
         ii=ii+1
         rstation_id     = data(id,i)
+        err_input = data(ier2,i)
+        err_adjst = data(ier,i)
+        if (ratio_errors*error>tiny_r_kind) then
+           err_final = one/(ratio_errors*error)
+        else
+           err_final = huge_single
+        endif
+ 
+        errinv_input = huge_single
+        errinv_adjst = huge_single
+        errinv_final = huge_single
+        if (err_input>tiny_r_kind) errinv_input = one/err_input
+        if (err_adjst>tiny_r_kind) errinv_adjst = one/err_adjst
+        if (err_final>tiny_r_kind) errinv_final = one/err_final
+ 
+        if (binary_diag) call contents_binary_diag_
+        if (netcdf_diag) call contents_netcdf_diag_
+     end if
+
+  end do                    ! do i=1,nobs
+
+! Write information to diagnostic file
+  if(conv_diagsave)then
+     if(netcdf_diag) call nc_diag_write
+     if(binary_diag .and. ii>0)then
+        call dtime_show(myname,'diagsave:sst',i_sst_ob_type)
+        write(7)'sst',nchar,nreal,ii,mype,ioff0
+        write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
+        deallocate(cdiagbuf,rdiagbuf)
+     end if
+  end if
+
+! End of routine
+
+contains
+  subroutine init_netcdf_diag_
+  character(len=80) string
+  character(len=128) diag_conv_file
+  integer(i_kind) ncd_fileid,ncd_nobs
+  logical append_diag
+  logical,parameter::verbose=.false. 
+     write(string,900) jiter
+900  format('conv_sst_',i2.2,'.nc4')
+     diag_conv_file=trim(dirname) // trim(string)
+
+     inquire(file=diag_conv_file, exist=append_diag)
+
+     if (append_diag) then
+        call nc_diag_read_init(diag_conv_file,ncd_fileid)
+        ncd_nobs = nc_diag_read_get_dim(ncd_fileid,'nobs')
+        call nc_diag_read_close(diag_conv_file)
+
+        if (ncd_nobs > 0) then
+           if(verbose) print *,'file ' // trim(diag_conv_file) // ' exists.  Appending.  nobs,mype=',ncd_nobs,mype
+        else
+           if(verbose) print *,'file ' // trim(diag_conv_file) // ' exists but contains no obs.  Not appending. nobs,mype=',ncd_nobs,mype
+           append_diag = .false. ! if there are no obs in existing file, then do not try to append
+        endif
+     end if
+
+     call nc_diag_init(diag_conv_file, append=append_diag)
+
+     if (.not. append_diag) then ! don't write headers on append - the module will break?
+        call nc_diag_header("date_time",ianldate )
+     endif
+  end subroutine init_netcdf_diag_
+  subroutine contents_binary_diag_
         cdiagbuf(ii)    = station_id         ! station id
  
         rdiagbuf(1,ii)  = ictype(ikx)        ! observation type
@@ -490,20 +563,6 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            rdiagbuf(12,ii) = -one
         endif
 
-        err_input = data(ier2,i)
-        err_adjst = data(ier,i)
-        if (ratio_errors*error>tiny_r_kind) then
-           err_final = one/(ratio_errors*error)
-        else
-           err_final = huge_single
-        endif
- 
-        errinv_input = huge_single
-        errinv_adjst = huge_single
-        errinv_final = huge_single
-        if (err_input>tiny_r_kind) errinv_input = one/err_input
-        if (err_adjst>tiny_r_kind) errinv_adjst = one/err_adjst
-        if (err_final>tiny_r_kind) errinv_final = one/err_final
 
         rdiagbuf(13,ii) = rwgt               ! nonlinear qc relative weight
         rdiagbuf(14,ii) = errinv_input       ! prepbufr inverse obs error (K**-1)
@@ -546,19 +605,55 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
               rdiagbuf(ioff,ii) = obsdiags(i_sst_ob_type,ibin)%tail%obssen(jj)
            enddo
         endif
+  end subroutine contents_binary_diag_
+  subroutine contents_netcdf_diag_
+! Observation class
+  character(7),parameter     :: obsclass = '    sst'
+  real(r_single),parameter::     missing = -9.99e9_r_single
+  real(r_kind),dimension(miter) :: obsdiag_iuse
+           call nc_diag_metadata("Station_ID",              station_id             )
+           call nc_diag_metadata("Observation_Class",       obsclass               )
+           call nc_diag_metadata("Observation_Type",        ictype(ikx)            )
+           call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
+           call nc_diag_metadata("Latitude",                sngl(data(ilate,i))    )
+           call nc_diag_metadata("Longitude",               sngl(data(ilone,i))    )
+           call nc_diag_metadata("Station_Elevation",       sngl(data(istnelv,i))  )
+           call nc_diag_metadata("Pressure",                missing                )
+           call nc_diag_metadata("Height",                  sngl(data(izob,i))     )
+           call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
+           call nc_diag_metadata("Prep_QC_Mark",            sngl(data(ipct,i))     )
+           call nc_diag_metadata("Prep_Use_Flag",           sngl(data(iuse,i))     )
+!          call nc_diag_metadata("Nonlinear_QC_Var_Jb",     var_jb                 )
+           call nc_diag_metadata("Nonlinear_QC_Rel_Wgt",    sngl(rwgt)             )                 
+           if(muse(i)) then
+              call nc_diag_metadata("Analysis_Use_Flag",    sngl(one)              )
+           else
+              call nc_diag_metadata("Analysis_Use_Flag",    sngl(-one)             )              
+           endif
+
+           call nc_diag_metadata("Errinv_Input",            sngl(errinv_input)     )
+           call nc_diag_metadata("Errinv_Adjust",           sngl(errinv_adjst)     )
+           call nc_diag_metadata("Errinv_Final",            sngl(errinv_final)     )
+
+           call nc_diag_metadata("Observation",                   sngl(data(isst,i)) )
+           call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)      )
+           call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(data(isst,i)-sstges) )
  
-     end if
-
-  end do                    ! do i=1,nobs
-
-! Write information to diagnostic file
-  if(conv_diagsave .and. ii>0)then
-     call dtime_show(myname,'diagsave:sst',i_sst_ob_type)
-     write(7)'sst',nchar,nreal,ii,mype,ioff0
-     write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
-     deallocate(cdiagbuf,rdiagbuf)
-  end if
-
-! End of routine
+           if (lobsdiagsave) then
+              do jj=1,miter
+                 if (obsdiags(i_sst_ob_type,ibin)%tail%muse(jj)) then
+                       obsdiag_iuse(jj) =  one
+                 else
+                       obsdiag_iuse(jj) = -one
+                 endif
+              enddo
+   
+              call nc_diag_data2d("ObsDiagSave_iuse",     obsdiag_iuse                             )
+              call nc_diag_data2d("ObsDiagSave_nldepart", obsdiags(i_sst_ob_type,ibin)%tail%nldepart )
+              call nc_diag_data2d("ObsDiagSave_tldepart", obsdiags(i_sst_ob_type,ibin)%tail%tldepart )
+              call nc_diag_data2d("ObsDiagSave_obssen",   obsdiags(i_sst_ob_type,ibin)%tail%obssen   )             
+           endif
+   
+  end subroutine contents_netcdf_diag_
 end subroutine setupsst
 

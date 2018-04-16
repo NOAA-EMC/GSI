@@ -20,9 +20,11 @@
      blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver,hilbert_curve,&
      lread_obs_save,lread_obs_skip
   use obsmod, only: lwrite_predterms, &
-     lwrite_peakwt,use_limit,lrun_subdirs,l_foreaft_thin,&
+     lwrite_peakwt,use_limit,lrun_subdirs,l_foreaft_thin,lobsdiag_forenkf,&
      obsmod_init_instr_table,obsmod_final_instr_table
   use obsmod, only: luse_obsdiag
+  use obsmod, only: netcdf_diag, binary_diag
+  use obsmod, only: l_wcp_cwm
   use aircraftinfo, only: init_aircraft,hdist_aircraft,aircraft_t_bc_pof,aircraft_t_bc, &
                           aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail
   use obs_sensitivity, only: lobsensfc,lobsensincr,lobsensjb,lsensrecompute, &
@@ -65,7 +67,8 @@
      bcoption,diurnalbc,print_diag_pcg,tsensible,lgschmidt,diag_precon,step_start,pseudo_q2,&
      clip_supersaturation
   use state_vectors, only: init_anasv,final_anasv
-  use control_vectors, only: init_anacv,final_anacv,nrf,nvars,nrf_3d,cvars3d,cvars2d,nrf_var
+  use control_vectors, only: init_anacv,final_anacv,nrf,nvars,nrf_3d,cvars3d,cvars2d,&
+     nrf_var,imp_physics,lupp
   use berror, only: norh,ndeg,vs,bw,init_berror,hzscl,hswgt,pert_berr,pert_berr_fct,&
      bkgv_flowdep,bkgv_rewgtfct,bkgv_write,fpsproj,nhscrf,adjustozvar,fut2ps,cwcoveqqcov
   use anberror, only: anisotropic,ancovmdl,init_anberror,npass,ifilt_ord,triad4, &
@@ -324,6 +327,7 @@
 !  10-01-2015 guo       option to redistribute observations in 4d observer mode
 !  07-20-2015 zhu       re-structure codes for enabling all-sky/aerosol radiance assimilation, 
 !                       add radiance_mode_init, radiance_mode_destroy & radiance_obstype_destroy
+!  01-28-2016 mccarty   add netcdf_diag capability
 !  03-02-2016 s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
 !  03-10-2016 ejones    add control for gmi noise reduction
 !  03-25-2016 ejones    add control for amsr2 noise reduction
@@ -340,6 +344,8 @@
 !                       matricies for univariate analysis.
 !  08-28-2016 li - tic591: add use_readin_anl_sfcmask for consistent sfcmask
 !                          between analysis grids and others
+!  11-29-2016 shlyaeva  add lobsdiag_forenkf option for writing out linearized
+!                       H(x) for EnKF
 !  12-14-2016 lippi     added nml variable learthrel_rw for single radial
 !                       wind observation test, and nml option for VAD QC
 !                       vadwnd_l2rw_qc of level 2 winds.
@@ -517,7 +523,16 @@
 !                    density - follows Hayden and Purser (1995) (twodvar_regional only)
 !     thin4d - if true, removes thinning of observations due to the location in
 !              the time window
+!     lobsdiag_forenkf - if true, save linearized H operator (jacobian) in
+!     diagnostic file on 1st outer iteration.  The Jacobian can then be used by
+!     the EnKF to compute ensemble perturbations in observation space.
 !     luse_obsdiag - use obsdiags (useful when running EnKF observers; e.g., echo Jo table) 
+!     imp_physics - type of GFS microphysics
+!     lupp - if T, UPP is used and extra variables are output
+!     binary_diag - trigger binary diag-file output (being phased out)
+!     netcdf_diag - trigger netcdf diag-file output
+!
+!      l_wcp_cwm      - namelist logical whether to use swcp/lwcp operator that includes cwm
 !
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
@@ -537,7 +552,7 @@
        crtm_coeffs_path,berror_stats, &
        newpc4pred,adp_anglebc,angord,passive_bc,use_edges,emiss_bc,upd_pred, &
        ssmis_method, ssmis_precond, gmi_method, amsr2_method, &
-       lobsdiagsave, &
+       lobsdiagsave, lobsdiag_forenkf, &
        l4dvar,lbicg,lsqrtb,lcongrad,lbfgsmin,ltlint,nhr_obsbin,nhr_subwin,&
        mPES_observer,&
        alwaysLocal,&
@@ -549,7 +564,8 @@
        lwrite_peakwt,use_gfs_nemsio,sfcnst_comb,liauon,use_prepb_satwnd,l4densvar,ens_nstarthr,&
        use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon,lrun_subdirs,&
        use_sp_eqspace,lnested_loops,lsingleradob,thin4d,use_readin_anl_sfcmask,&
-       luse_obsdiag,id_drifter,verbose,lsingleradar,singleradar,lnobalance
+       luse_obsdiag,id_drifter,verbose,lsingleradar,singleradar,lnobalance,imp_physics,&
+       lupp,netcdf_diag,binary_diag,l_wcp_cwm
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
