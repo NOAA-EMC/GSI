@@ -103,7 +103,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   real(r_kind) visges,dlat,dlon,ddiff,dtime,error
   real(r_kind) visgesout,visobout,tempvis,visdiff
-  real(r_kind) vis_errmax,offtime_k,offtime_l
+  real(r_kind) vis_errmax
   real(r_kind) scale,val2,ratio,ressw2,ress,residual
   real(r_kind) obserrlm,obserror,val,valqc
   real(r_kind) term,halfpi,rwgt
@@ -140,6 +140,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   class(obsNode),pointer:: my_node
   type(visNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
+  real(r_kind) :: hr_offset
 
 
   equivalence(rstation_id,station_id)
@@ -200,8 +201,8 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
     end if
   end do
 
+! Check for duplicate observations at same location
   hr_offset=min_offset/60.0_r_kind
-!  Check for duplicate observations at same location
   dup=one
   do k=1,nobs
      do l=k+1,nobs
@@ -212,9 +213,6 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            if(l_closeobs) then
               if(abs(data(itime,k)-hr_offset)<abs(data(itime,l)-hr_offset)) then
                   muse(l)=.false.
-              else if(abs(data(itime,k)-hr_offset)==abs(data(itime,l)-hr_offset)) then
-                 if(data(itime,k)-hr_offset >=zero) muse(k)=.false.
-                 if(data(itime,l)-hr_offset >=zero) muse(l)=.false.
               else
                   muse(k)=.false.
               endif
@@ -226,7 +224,6 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         end if
      end do
   end do
-
 
 ! If requested, save select data for output to diagnostic file
   if(conv_diagsave)then

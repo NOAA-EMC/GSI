@@ -67,10 +67,12 @@ module qcmod
 !                         any of these are missing.
 !   2016-11-22  sienkiewicz - fix a couple of typos in HIRS qc
 !   2016-12-14  lippi   - add nml option vadwnd_l2rw_qc.
+!   2016-10-13  zhu     - modified qc_amsua for all-sky ATMS
 !   2018-02-21  yang    - add nltrcv namelist variables
-!   2018-03-21  yang    - remove "logical closest_obs", previously applied to the analysis of vis and cldch.
-!                         The option to use only the closest ob to the analysis time is now handled
-!                         by Ming Hu's "logical l_closeobs" for all variables.
+!   2018-03-22  yang    - remove "logical closest_obs", previously applied to the analysis
+!                         of vis and cldch. the option to use the closest ob to the
+!                         analysis time only is now handled by Ming Hu's "logical l_closeobs"
+!                         for all variables
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -382,8 +384,6 @@ contains
     buddydiag_save=.false. ! When true, output files containing buddy check QC info for all
                            !  obs run through the buddy check
 
-
-
     vadwnd_l2rw_qc=.true.  ! When false, DO NOT run the vadwnd qc on level 2 radial wind obs.
     nltrcv=.true.          ! must use true, since no switch choice from non-linear transformation
     pvis=one
@@ -391,7 +391,7 @@ contains
     estvisoe=one
     estcldchoe=one
     vis_thres=16000.0_r_kind
-    cldch_thres=12000.0_r_kind
+    cldch_thres=16000.0_r_kind
 
     return
   end subroutine init_qcvars
