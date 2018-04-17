@@ -8,7 +8,6 @@ if(DEFINED ENV{BACIO_VER})
   set(BACIO_VER $ENV{BACIO_VER})
   STRING(REGEX REPLACE "v" "" BACIO_VER ${BACIO_VER})
 endif()
-
 if(NOT BUILD_BACIO )
   if(DEFINED ENV{BACIO_LIB4})
     set(BACIO_LIBRARY $ENV{BACIO_LIB4} )
@@ -18,6 +17,7 @@ if(NOT BUILD_BACIO )
       HINTS $ENV{COREPATH}/lib /usr/local/jcsda/nwprod_gdas_2014	
           ${COREPATH}/bacio/v${BACIO_VER}
           ${COREPATH}/bacio/v${BACIO_VER}/intel
+          ${COREPATH}/bacio/v${BACIO_VER}/ips/${COMPILER_VERSION}
       PATH_SUFFIXES
         lib
        ${NO_DEFAULT_PATH}

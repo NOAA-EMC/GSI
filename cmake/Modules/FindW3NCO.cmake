@@ -22,6 +22,7 @@ if(NOT BUILD_W3NCO )
        /usr/local/jcsda/nwprod_gdas_2014	
        ${COREPATH}/w3nco/v${W3NCO_VER}
        ${COREPATH}/w3nco/v${W3NCO_VER}/intel
+       ${COREPATH}/w3nco/v${W3NCO_VER}/ips/${COMPILER_VERSION}
     PATH_SUFFIXES
         lib
      ${NO_DEFAULT_PATH})
@@ -56,5 +57,6 @@ else( NOT W3NCO_LIBRARY )
   endif()
 endif( NOT W3NCO_LIBRARY )
 
+set( W3NCO_DIR ${CMAKE_SOURCE_DIR}/libsrc/w3nco CACHE STRING "W3NCO Source Location")
 set( W3NCO_LIBRARY_PATH ${W3NCO_LIBRARY} CACHE STRING "W3NCO Library Location" )
 
