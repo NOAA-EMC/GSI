@@ -140,7 +140,6 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   class(obsNode),pointer:: my_node
   type(visNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
-  real(r_kind) :: hr_offset
 
 
   equivalence(rstation_id,station_id)

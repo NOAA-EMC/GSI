@@ -32,8 +32,8 @@ fi
 # First determine what machine are we on:
 if [ -d /da ]; then # WCOSS
    export machine="WCOSS"
-   if [ -d /da/noscrub/$LOGNAME ]; then
-     export noscrub=/da/noscrub/$LOGNAME
+   if [ -d /meso/noscrub/$LOGNAME ]; then
+     export noscrub=/meso/noscrub/$LOGNAME
    elif [ -d /global/noscrub/$LOGNAME ]; then
      export noscrub=/global/noscrub/$LOGNAME
    fi

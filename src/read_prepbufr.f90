@@ -2372,19 +2372,22 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(2,iout)=dlon                    ! grid relative longitude
                  cdata_all(3,iout)=dlat                    ! grid relative latitude
 !......................................................................
-! NLTRCV: 
-! simple QC check and designate bad observation
+! simple QC check: if an observation vis is negative, do not use this data
+! about bmiss:  
+! #ifdef ibm_sp !  real(r_kind), parameter:: bmiss = 1.0e11_r_kind !#else
+!  real(r_kind), parameter:: bmiss = 1.0e9_r_kind !#endif
+! in setupvis: missing data is checked and assigned not use in muse
+! visthres is much smaller than bmiss
+! i.e: this holds: (obsdat(9,k)> zero .and. obsdat(9,k)<=vis_thres)
 !......................................................................
-                 if (obsdat(9,k) .le. zero) obsdat(9,k)=bmiss
+                 if (obsdat(9,k) .lt. zero) cdata_all(4,iout) = bmiss
                  if (obsdat(9,k) .gt. vis_thres) obsdat(9,k)=vis_thres
-                 if (nltrcv) then
-                   if(obsdat(9,k)> zero .and. obsdat(9,k)<=vis_thres)then
-                      tempvis=obsdat(9,k)
-                      call nltransf_forward(tempvis,visout,pvis)
-                      cdata_all(4,iout) = visout
-                   endif
-                 else
-                   cdata_all(4,iout)=obsdat(9,k)             ! visibility obs
+                 if (obsdat(9,k) .eq. zero) obsdat(9,k)=1.0
+!Applying NLTR 
+                 if(obsdat(9,k)> zero .and. obsdat(9,k)<=vis_thres)then
+                   tempvis=obsdat(9,k)
+                   call nltransf_forward(tempvis,visout,pvis)
+                   cdata_all(4,iout) = visout
                  endif
 
                  cdata_all(5,iout)=rstation_id             ! station id
@@ -2707,7 +2710,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               else if(cldchob) then
 !......................................................................
 !NLTRCV: must setup as true
-!      cldchoe is in NLTR space, and is read in from the namelist. Is this OK?
+!      cldchoe is in NLTR space, and is read in via the namelist. Is this OK?
 !......................................................................
                  cldchoe=estcldchoe
                  if (inflate_error) cldchoe=cldchoe*1.02
@@ -2717,21 +2720,25 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(3,iout)=dlat                    ! grid relative latitude
 !......................................................................
 ! NLTRCV:
-! simple QC check and designate bad observation
+! simple QC check and designate bad observation, if obs. cldch < zero
 ! cldch can be zero denoting fog, right?
+! about bmiss:
+! #ifdef ibm_sp !  real(r_kind), parameter:: bmiss = 1.0e11_r_kind !#else
+!  real(r_kind), parameter:: bmiss = 1.0e9_r_kind !#endif
+! in setupcldch: missing data is checked and assigned as not-use 
+! cldchthres is much smaller than bmiss
+! i.e: this holds: (obsdat(x,k)> zero .and. obsdat(x,k)<=cldch_thres)
 !......................................................................
-                 if (cldceilh(1,k) .lt. zero) cldceilh(1,k)=bmiss
+
+                 if (cldceilh(1,k) .lt. zero) cdata_all(4,iout)=bmiss
                  if (cldceilh(1,k) .ge. cldch_thres) cldceilh(1,k)=cldch_thres
                  if (cldceilh(1,k) .eq. zero) cldceilh(1,k)=1.0 
-                 if (nltrcv) then
-                   if(cldceilh(1,k)> zero .and. cldceilh(1,k)<=cldch_thres)then
-                      tempcldch=cldceilh(1,k)
-                      call nltransf_forward(tempcldch,cldchout,pcldch)
-                      cdata_all(4,iout) = cldchout
-                   endif
-                 else
-                   cdata_all(4,iout)=cldceilh(1,k)         ! ceiling height obs.
-                 endif
+
+                 if (cldceilh(1,k)> zero .and. cldceilh(1,k)<=cldch_thres)then
+                   tempcldch=cldceilh(1,k)
+                   call nltransf_forward(tempcldch,cldchout,pcldch)
+                   cdata_all(4,iout) = cldchout
+                 endif                                     | ceiling height obs
 
                  cdata_all(5,iout)=rstation_id             ! station id
                  cdata_all(6,iout)=t4dv                    ! time
