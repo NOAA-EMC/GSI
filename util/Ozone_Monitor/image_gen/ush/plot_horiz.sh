@@ -58,7 +58,7 @@ for type in ${SATYPE2}; do
 
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
-'run ${OZN_IG_GSCRPTS}/plot_horiz_${string}.gs ${type} ${var} x800 y700'
+'run ${OZN_IG_GSCRPTS}/plot_horiz_${string}.gs ${OZNMON_SUFFIX} ${RUN} ${type} ${var} x800 y700'
 'quit'
 EOF
       $GRADS -blc "run ${tmpdir}/${type}_${var}.gs"   
