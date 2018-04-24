@@ -510,7 +510,11 @@ contains
     ! Define local variables
 
     call gfs_nems_initialize(meta_nemsio,filename=grid%filename)
+
     ! Allocate memory for local variables
+
+    if(.not. allocated(workgrid))                                          &
+         & allocate(workgrid(meta_nemsio%dimx*meta_nemsio%dimy))
 
     ! Define local variables
 
@@ -531,8 +535,6 @@ contains
             & meta_nemsio%dimz + 1))
        if(.not. allocated(vcoord))                                            &
             & allocate(vcoord(meta_nemsio%dimz + 1,3,2))
-       if(.not. allocated(workgrid))                                          &
-            & allocate(workgrid(meta_nemsio%dimx*meta_nemsio%dimy))
 
        call gfs_nems_vcoord(meta_nemsio,grid%filename,vcoord)
        grid%ak = vcoord(:,1,1)
