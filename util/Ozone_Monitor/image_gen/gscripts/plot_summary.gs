@@ -1,13 +1,20 @@
 * Script to plot given bias correction term for given satellite instrument
 * 
-* Two arguments are expected
+* Expected arguments:       
+*    net      = $NET value, or identifying source (e.g. GFS|fv3rt1)
+*    run      = $RUN value (e.g. gfs|gdas)
 *    plotfile = satellite id (name and number ... e.g., msu.014 = noaa-14 msu)
+*    xsize    = horiz image size
+*    ysize    = vert image size
+
 
 function plotsummary (args)
 
-plotfile=subwrd(args,1)
-xsize=subwrd(args,3)
-ysize=subwrd(args,4)
+net=subwrd(args,1)
+run=subwrd(args,2)
+plotfile=subwrd(args,3)
+xsize=subwrd(args,4)
+ysize=subwrd(args,5)
 platform=plotfile
 
 say 'process plotfile 'plotfile
@@ -21,7 +28,7 @@ nlev=subwrd(lin1,6)
 *say 'nlev='nlev
 
 nfield=3
-field.1=count
+field.1=cnt
 field.2=omg
 field.3=cpen
 
@@ -66,8 +73,8 @@ i=1
 while (i<=nfield)
 
 * Counts plot
-if (field.i = "count")
-   y1=8.1
+if (field.i = "cnt")
+   y1=7.5
    t1=t1day
    t2=tlast
    'set t 't1' 't2
@@ -528,10 +535,11 @@ endwhile
 
 'set string 1 l 6'
 'set strsiz 0.15 0.15'
-'draw string 0.2 10.80 platform:  'plotfile
-'draw string 0.2 10.55 valid   :  'date1
+'draw string 0.2 10.80 Net, run:  'net','run
+'draw string 0.2 10.55 platform:  'plotfile
+'draw string 0.2 10.30 valid   :  'date1
 'set string 1 c 6'
-'draw string 4.05 2.5  l  e  v  e  l      n  u  m  b  e  r'
+'draw string 4.05 2.0  l  e  v  e  l      n  u  m  b  e  r'
 
 outfile=plotfile'.summary.png'
 'printim 'outfile' 'xsize' 'ysize' white'

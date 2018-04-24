@@ -19,6 +19,37 @@
 #------------------------------------------------------------------
 
 set -ax
+
+#--------------------------------------------------
+#  check_diag_files
+#  
+#  Compare SATYPE (which contains the contents of 
+#  gdas_oznmon_satype.txt to $avail_satype which is
+#  determined by the contents of the oznstat file.
+#  Report any missing diag files in a file named
+#  bad_diag.$PDATE
+#
+check_diag_files() {
+   PDATE=$1
+   SATYPE=$2
+   avail_satype=$3
+
+   out_file="bad_diag.${PDATE}"
+   echo "--> check_diag_files"
+
+   for type in ${SATYPE}; do
+      check=`echo $avail_satype | grep $type`    
+      len_check=`echo -n "$check" | wc -c`
+
+      if [[ $len_check -le 1 ]]; then
+         echo "missing diag file -- diag_$type.${PDATE}.gz not found " >> ./$out_file   
+      fi
+   done
+
+   echo "<-- check_diag_files"
+}
+
+
 echo "start ozn_xtrct.sh"
 
 msg="ozn_xtrct.sh HAS STARTED"
@@ -26,7 +57,35 @@ postmsg "$jlogfile" "$msg"
 
 iret=0
 export NCP=${NCP:-/bin/cp}
+VALIDATE_DATA=${VALIDATE_DATA:-0}
 nregion=${nregion:-6}
+DO_DATA_RPT=${DO_DATA_RPT:-1}
+
+OZNMON_NEW_HDR=${OZNMON_NEW_HDR:-0}
+new_hdr="F"
+if [[ $OZNMON_NEW_HDR -eq 1 ]]; then
+   new_hdr="T"
+fi
+
+#------------------------------------------------------------------
+# if VALIDATE_DATA then locate and untar base file
+#
+validate=".FALSE."
+if [[ $VALIDATE_DATA -eq 1 ]]; then
+   if [[ ! -e $ozn_val_file ]]; then
+      echo "WARNING:  VALIDATE_DATA set to 1, but unable to locate $ozn_val_file"
+      echo "          Setting VALIDATE_DATA to 0/OFF"
+      VALIDATE_DATA=0
+   else
+      validate=".TRUE."
+      val_file=`basename ${ozn_val_file}`
+      ${NCP} $ozn_val_file $val_file 
+      tar -xvf $val_file
+   fi
+fi
+echo "VALIDATE_DATA, validate = $VALIDATE_DATA, $validate "
+
+
 
 #------------------------------------------------------------------
 # ptype here is the processing type which is intended to be "ges" 
@@ -49,12 +108,32 @@ ozn_ptype=${ozn_ptype:-"ges"}
 #  An empty SATYPE list means there are no diag files to process.  That's
 #  a problem, reported by an iret value of 2
 #
-SATYPE=`ls -l d*ges* | sed -e 's/_/ /g;s/\./ /' | gawk '{ print $11 "_" $12 }'`
+
+avail_satype=`ls -l d*ges* | sed -e 's/_/ /g;s/\./ /' | gawk '{ print $11 "_" $12 }'`
+
+if [[ $DO_DATA_RPT -eq 1 ]]; then
+   if [[ -e ${satype_file} ]]; then
+      SATYPE=`cat ${satype_file}`
+      check_diag_files ${PDATE} "${SATYPE}" "${avail_satype}"
+   else
+      echo "WARNING:  missing ${satype_file}"
+   fi
+fi
+
 echo $SATYPE
 
 len_satype=`echo -n "$SATYPE" | wc -c`
 
-if [[ $len_satype -lt 1 ]]; then
+if [[ $len_satype -le 1 ]]; then
+   SATYPE=$aval_satype
+fi
+
+echo $SATYPE
+
+
+len_satype=`echo -n "$SATYPE" | wc -c`
+
+if [[ $DO_DATA_RPT -eq 1 && $len_satype -lt 1 ]]; then
    iret=2 
 
 else
@@ -117,6 +196,8 @@ cat << EOF > input
          region(4)='20S-20N',   rlonmin(4)=-180.0,rlonmax(4)=180.0,rlatmin(4)=-20.0,rlatmax(4)= 20.0,
          region(5)='20S-70S',   rlonmin(5)=-180.0,rlonmax(5)=180.0,rlatmin(5)=-70.0,rlatmax(5)=-20.0,
          region(6)='70S-90S',   rlonmin(6)=-180.0,rlonmax(6)=180.0,rlatmin(6)=-90.0,rlatmax(6)=-70.0,
+         validate=$validate,
+         new_hdr=${new_hdr}
       /
 EOF
 
@@ -135,18 +216,20 @@ EOF
       $NCP ${type}.ctl              ${TANKverf_ozn}/time/
       $NCP ${type}.${PDATE}.ieee_d  ${TANKverf_ozn}/time/
       $NCP stdout.time.${type}      ${TANKverf_ozn}/time/
+      $NCP bad*                     ${TANKverf_ozn}/time/
 
-      rm -f input
+     rm -f input
 
 cat << EOF > input
-         &INPUT
-         satname='${type}',
-         iyy=${iyy},
-         imm=${imm},
-         idd=${idd},
-         ihh=${ihh},
-         idhh=-18,
-         incr=6,
+        &INPUT
+        satname='${type}',
+        iyy=${iyy},
+        imm=${imm},
+        idd=${idd},
+        ihh=${ihh},
+        idhh=-18,
+        incr=6,
+        new_hdr=${new_hdr}
       /
 EOF
 
@@ -164,7 +247,6 @@ EOF
       $NCP ${type}.ctl              ${TANKverf_ozn}/horiz/
       $NCP ${type}.${PDATE}.ieee_d  ${TANKverf_ozn}/horiz/
       $NCP stdout.horiz.${type}     ${TANKverf_ozn}/horiz/
-
    done
 fi
 
