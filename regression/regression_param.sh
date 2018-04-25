@@ -14,7 +14,7 @@ case $machine in
 	WCOSS_D)
 	   sub_cmd="sub_wcoss_d -a ibm -d $PWD"
     ;;
-	discover)
+	Discover)
 	   sub_cmd="sub_discover"
     ;;
 	s4)
@@ -51,7 +51,7 @@ case $regtest in
         elif [[ "$machine" = "s4" ]]; then
            topts[1]="1:45:00" ; popts[1]="20/4" ; ropts[1]="/1"
            topts[2]="1:45:00" ; popts[2]="40/2" ; ropts[2]="/2"
-        elif [[ "$machine" = "discover" ]]; then
+        elif [[ "$machine" = "Discover" ]]; then
            topts[1]="0:30:00" ; popts[1]="36/2"  ; ropts[1]="/1"
            topts[2]="0:30:00" ; popts[2]="72/3"  ; ropts[2]="/2"
         fi
@@ -81,9 +81,9 @@ case $regtest in
         elif [[ "$machine" = "WCOSS_D" ]]; then
            topts[1]="0:15:00" ; popts[1]="28/2/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="28/4/" ; ropts[2]="/2"
-        elif [[ "$machine" = "discover" ]]; then
-           topts[1]="0:30:00" ; popts[1]="16/2"  ; ropts[1]="/1"
-           topts[2]="0:30:00" ; popts[2]="16/1"  ; ropts[2]="/2"
+        elif [[ "$machine" = "Discover" ]]; then
+           topts[1]="0:30:00" ; popts[1]="16/1"  ; ropts[1]="/1"
+           topts[2]="0:30:00" ; popts[2]="16/2"  ; ropts[2]="/2"
         elif [[ "$machine" = "s4" ]]; then
            topts[1]="0:25:00" ; popts[1]="16/2/" ; ropts[1]="/1"
            topts[2]="0:25:00" ; popts[2]="16/4/" ; ropts[2]="/2"
@@ -117,7 +117,7 @@ case $regtest in
         elif [[ "$machine" = "WCOSS_D" ]]; then
            topts[1]="0:15:00" ; popts[1]="28/2/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="28/4/" ; ropts[2]="/2"
-        elif [[ "$machine" = "discover" ]]; then
+        elif [[ "$machine" = "Discover" ]]; then
             topts[1]="2:00:00" ; popts[1]="48/2"  ; ropts[1]="/1"
             topts[2]="2:00:00" ; popts[2]="60/3"  ; ropts[2]="/2"
         fi
@@ -161,7 +161,7 @@ case $regtest in
         elif [[ "$machine" = "WCOSS_D" ]]; then
            topts[1]="0:15:00" ; popts[1]="28/2/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="28/4/" ; ropts[2]="/2"
-        elif [[ "$machine" = "discover" ]]; then
+        elif [[ "$machine" = "Discover" ]]; then
            topts[1]="0:30:00" ; popts[1]="48/2"  ; ropts[1]="/1"
            topts[2]="0:30:00" ; popts[2]="60/3"  ; ropts[2]="/2"
         fi
@@ -182,7 +182,7 @@ case $regtest in
         elif [[ "$machine" = "WCOSS" ]]; then
            topts[1]="1:59:00" ; popts[1]="6/8/" ; ropts[1]="/1"
            topts[2]="0:35:00" ; popts[2]="6/10/" ; ropts[2]="/2"
-        elif [[ "$machine" = "discover" ]]; then
+        elif [[ "$machine" = "Discover" ]]; then
            topts[1]="0:30:00" ; popts[1]="48/2"  ; ropts[1]="/1"
            topts[2]="0:30:00" ; popts[2]="60/3"  ; ropts[2]="/2"
         elif [[ "$machine" = "Cheyenne" ]]; then
@@ -221,7 +221,7 @@ case $regtest in
         elif [[ "$machine" = "WCOSS_D" ]]; then
            topts[1]="0:20:00" ; popts[1]="28/2/" ; ropts[1]="/1"
            topts[2]="0:20:00" ; popts[2]="28/4/" ; ropts[2]="/2"
-        elif [[ "$machine" = "discover" ]]; then
+        elif [[ "$machine" = "Discover" ]]; then
            topts[1]="0:30:00" ; popts[1]="48/2"  ; ropts[1]="/1"
            topts[2]="0:30:00" ; popts[2]="60/3"  ; ropts[2]="/2"
         elif [[ "$machine" = "s4" ]]; then
@@ -257,7 +257,7 @@ case $regtest in
         elif [[ "$machine" = "WCOSS_D" ]]; then
            topts[1]="0:15:00" ; popts[1]="28/2/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="28/4/" ; ropts[2]="/2"
-        elif [[ "$machine" = "discover" ]]; then
+        elif [[ "$machine" = "Discover" ]]; then
            topts[1]="0:30:00" ; popts[1]="48/2"  ; ropts[1]="/1"
            topts[2]="0:30:00" ; popts[2]="60/3"  ; ropts[2]="/2"
         fi
@@ -287,7 +287,7 @@ case $regtest in
         elif [[ "$machine" = "WCOSS_D" ]]; then
            topts[1]="0:15:00" ; popts[1]="28/1/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="28/2/" ; ropts[2]="/2"
-        elif [[ "$machine" = "discover" ]]; then
+        elif [[ "$machine" = "Discover" ]]; then
            topts[1]="0:30:00" ; popts[1]="16/1"  ; ropts[1]="/1"
            topts[2]="0:30:00" ; popts[2]="20/2"  ; ropts[2]="/2"
         elif [[ "$machine" = "s4" ]]; then
@@ -323,7 +323,7 @@ case $regtest in
         elif [[ "$machine" = "WCOSS_D" ]]; then
            topts[1]="0:30:00" ; popts[1]="7/24/" ; ropts[1]="/1"
            topts[2]="0:30:00" ; popts[2]="9/24/" ; ropts[2]="/2"
-        elif [[ "$machine" = "discover" ]]; then
+        elif [[ "$machine" = "Discover" ]]; then
             topts[1]="0:30:00" ; popts[1]="48/2"  ; ropts[1]="/1"
             topts[2]="0:30:00" ; popts[2]="60/3"  ; ropts[2]="/2"
         fi
@@ -356,7 +356,7 @@ case $regtest in
         elif [[ "$machine" = "WCOSS_D" ]]; then
            topts[1]="0:15:00" ; popts[1]="14/1/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="28/2/" ; ropts[2]="/2"
-        elif [[ "$machine" = "discover" ]]; then
+        elif [[ "$machine" = "Discover" ]]; then
             topts[1]="0:30:00" ; popts[1]="8/1"  ; ropts[1]="/1"
             topts[2]="0:30:00" ; popts[2]="16/1"  ; ropts[2]="/2"
         fi
@@ -557,6 +557,6 @@ elif [[ "$machine" = "s4" ]]; then
    export MP_STDOUTMODE=ORDERED
    export KMP_STACKSIZE=512MB 
    export KMP_AFFINITY=scatter
-elif [[ "$machine" = "discover" ]]; then
+elif [[ "$machine" = "Discover" ]]; then
    export APRUN="mpiexec_mpt -np \$SLURM_NTASKS"
 fi
