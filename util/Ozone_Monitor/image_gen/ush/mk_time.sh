@@ -37,7 +37,7 @@ fi
 # Loop over sat types & create entry in cmdfile for each.
 #
 suffix=a
-list="cnt omg cpen"
+list="count omg cpen"
 
 cmdfile=cmdfile_ptime
 rm -f $cmdfile
