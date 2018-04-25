@@ -3,25 +3,19 @@
 OZN_SUFFIX=fv3rt1
 run=gdas
 
-MY_MACHINE=wcoss
-package="ProdGSI/util/Ozone_Monitor"
+MY_MACHINE=cray
 
 if [[ $MY_MACHINE = "cray" ]]; then
    . /opt/modules/3.2.6.7/init/sh
    module use -a /gpfs/hps/nco/ops/nwprod/modulefiles
-elif [[ $MY_MACHINE = "wcoss" ]]; then
-   shell=sh
-   . /usrx/local/Modules/default/init/${shell}
+   module load prod_util
 fi
 
-module load prod_util
-
-scripts=/gpfs/gd2/emc/da/noscrub/Edward.Safford/${package}/data_xtrct/ush
+scripts=/gpfs/hps3/emc/da/noscrub/Edward.Safford/ProdGSI/util/Ozone_Monitor/data_xtrct
 
 idate=`${scripts}/find_cycle.pl -dir ~/nbns/stats/${OZN_SUFFIX} -cyc 1 -run ${run}`
-echo "idate = $idate"
 
-#START_DATE=2018041300
+#START_DATE=2017112306
 export START_DATE=`${NDATE} +06 $idate`
 
 PDY=`echo $START_DATE | cut -c1-8`
