@@ -18,7 +18,7 @@
 ##------------------------------------------------------------
 
 set -x
-
+export OZNMON_NEW_HDR=${OZN_NEW_HDR:-0}
 export PDATE=${PDATE:-2017072212}
 export NET=${NET:-gfs}
 export RUN=${RUN:-gdas}
