@@ -224,17 +224,13 @@ my @msgcmd = ("postmsg", $jlogfile, $msg);
 
 my $igrad_target;
 my $igrad_number;
-my $gnorm_target;
-my $gnorm_number;
 my $expected_gnorms;
 my $gross_check_val;
 
 my $rc    = 0;
 my $cdate = sprintf '%s%s', $pdy, $cyc;
 
-#my $FIXminmon = $ENV{"FIXminmon"};
 my $gnormfile = $ENV{"mm_gnormfile"};
-#my $gnormfile = sprintf '%s', "./minmon_gnorm.txt";
 
 
 if( (-e $gnormfile) ) {
@@ -291,7 +287,6 @@ if( $rc == 0 ) {
          #  current outer & inner iteration number
          ##############################################
          if( $reset_iter_flag == 1 ) {
-#            if( $line =~ /${gnorm_target}/ ){
             if( $line =~ /${igrad_target}/ ) {
                my @iterline  = split( / +/, $line ); 
                my $iter_str = $iterline[2] . "," . $iterline[3];
@@ -346,9 +341,9 @@ if( $rc == 0 ) {
 
          my @lines = reverse <INFILE>;
          foreach $line (@lines) {
-            if( $line =~ /${gnorm_target}/ ){
+            if( $line =~ /${igrad_target}/ ){
                my @iterline  = split( / +/, $line ); 
-               $stop_iter = $iterline[9] . "," . $iterline[10];
+               $stop_iter = $iterline[2] . "," . $iterline[3];
                last;
             }
          }
