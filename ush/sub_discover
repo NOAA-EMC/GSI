@@ -88,8 +88,7 @@ output=${output:-$jobname.out}
 myuser=$LOGNAME
 myhost=$(hostname)
 
-#DATA=/discover/nobackup/projects/gmao/advda/rtodling/NCEP/tmp
-DATA=/gpfsm/dnb31/pchakrab/code/ext/gsi/ProdGSI/scripts/data
+DATA=$regdir/regtests/data
 mkdir -p $DATA
 
 #partition=${partition:-c1ms}
@@ -115,22 +114,23 @@ echo "#SBATCH --job-name $jobname"         >> $cfile
 echo "#SBATCH --time=$timew"               >> $cfile
 echo "#SBATCH --ntasks=$procs"             >> $cfile
 echo "#SBATCH --nodes=$nodes"              >> $cfile
-echo "#SBATCH --account $accnt"            >> $cfile
+echo "#SBATCH --account=$accnt"            >> $cfile
 echo "#SBATCH --constraint=hasw"           >> $cfile
-echo "#SBATCH --qos=advda"                 >> $cfile
+#echo "#SBATCH --qos=advda"                >> $cfile
 echo "#SBATCH --export=ALL"                >> $cfile
-#echo "#SBATCH --partition=preops"         >> $cfile
+echo "#SBATCH --partition=$queue"          >> $cfile
 #. $exec                                   >> $cfile
 #echo "/bin/sh -x $exec"                   >> $cfile
 
 echo "" >>$cfile
 echo "set -x"
 echo "" >>$cfile
-echo "export OMP_NUM_THREADS=$threads"      >> $cfile
-#echo "source /discover/swdev/rtodling/Latest/GSIsa_m0/Linux/bin/g5_modules" >> $cfile
-echo "source /discover/nobackup/pchakrab/code/gmao/adas/g5165p3ops/Linux/bin/g5_modules.sh" >> $cfile
+echo "export OMP_NUM_THREADS=$threads"     >> $cfile
 echo "" >>$cfile
-echo ". "$(awk '{ print $1 }' regression_var.out)  >>$cfile
+echo ". "$(awk '{ print $1, $2, $3, $4, $5, $6, $7, $8, $9 }' $regdir/regression_var.out)  >>$cfile
+echo "" >>$cfile
+echo "module use -a $gsisrc/modulefiles"   >> $cfile
+echo "module load modulefile.ProdGSI.discover" >> $cfile
 echo "" >>$cfile
 echo "jobname=$jobname" >>$cfile
 echo "" >>$cfile
