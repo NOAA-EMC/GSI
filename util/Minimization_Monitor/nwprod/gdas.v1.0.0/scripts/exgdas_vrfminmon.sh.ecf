@@ -10,48 +10,7 @@
 # Abstract: This script runs the data extract/validation portion of the 
 #           MinMon package.  
 #
-# Script history log:
-# 2015-04-10  Ed Safford
-#
-#   Input script positional parameters:
-#     1             Current analysis date in yyyymmddhh format
-#                   defaults to PDY; required
-#     2             cycle time in cc format
-#                   defaults to cyc; required
-#
-#   Imported Shell Variables:
-#     M_TANKverf    repository for minmon data files
-#     DATA          data working space
-#     MINMON_SUFFIX data set identifier, defaults to GDAS
-#     FIXgdas       fixed file directory, gdas specific
-#     FIXminmon     fixed file directory
-#     USHminmon     scripts directory
-#     PDY           processing day; 
-#                   overridden by 1
-#     cyc	    processing cycle; 
-#                   overridden by 2
-#     
-#   Exported Shell Variables:
-#     PDATE	    Processing date
-#     err           last return code
-#     VERBOSE       switches on more/less log output
-#     mm_gnormfile  $GDASfix/gdas_minmon_gnorm.txt file
-#     mm_costfile   $GDASfix/gdas_minmon_cost.txt file
-#
-#   Modules and files referenced:
-#     scripts    : ${USHminmon}/minmon_xtrct_gnorms.pl
-#                  ${USHminmon}/minmon_xtrct_costs.pl
-#                  ${USHminmon}/minmon_xtrct_reduction.pl
-#
-#     programs   : $NDATE
-#
-#     input data : $gsistat=${COMIN}/gdas.t${cyc}z.gsistat
-#
-#     output data:  
-#
-#  Remarks:
-#
-#    Condition codes
+# Condition codes
 #       0 - no problem encountered
 #      >0 - some problem encountered
 #
@@ -83,7 +42,6 @@ export envir=${envir:-prod}
 export PDY=${1:-${PDY:?}} 
 export cyc=${2:-${cyc:?}}
 
-
 ########################################
 #  Directories
 ########################################
@@ -94,8 +52,8 @@ export DATA=${DATA:-$(pwd)}
 #  Filenames
 ########################################
 gsistat=${gsistat:-$COMIN/gdas.t${cyc}z.gsistat}
-export mm_gnormfile=${gnormfile:-${FIXgdas}/gdas_minmon_gnorm.txt}
-export mm_costfile=${costfile:-${FIXgdas}/gdas_minmon_cost.txt}
+export mm_gnormfile=${gnormfile:-${M_FIXgdas}/gdas_minmon_gnorm.txt}
+export mm_costfile=${costfile:-${M_FIXgdas}/gdas_minmon_cost.txt}
 
 ########################################
 #  Other variables
@@ -109,8 +67,8 @@ export pgm=exgdas_vrfminmon.sh.ecf
 #########################################################
 # M_TANKverf is storage location for generated files
 #########################################################
-export M_TANKverf=${M_TANKverf:-${COMROOT}/${NET}/${envir}/minmon_${MINMON_SUFFIX}.${PDY}}
-export M_TANKverfM1=${M_TANKverfM1:-${COMROOT}/${NET}/${envir}/minmmon_${MINMON_SUFFIX}.${PDYm1}}
+export M_TANKverf=${M_TANKverf:-${COMROOT}/${NET}/${envir}/minmon.${PDY}}
+export M_TANKverfM1=${M_TANKverfM1:-${COMROOT}/${NET}/${envir}/minmmon.${PDYm1}}
 #####################################################################
 
 if [[ ! -d ${DATA} ]]; then
@@ -130,12 +88,8 @@ if [[ -s ${gsistat} ]]; then
    #  Copy the $MINMON_SUFFIX.gnorm_data.txt file to the working directory
    #  It's ok if it doesn't exist; we'll create a new one if needed.
    #------------------------------------------------------------------
-   if [[ -s ${M_TANKverf}/${MINMON_SUFFIX}.gnorm_data.txt ]]; then
-      $NCP ${M_TANKverf}/${MINMON_SUFFIX}.gnorm_data.txt gnorm_data.txt 
-   elif [[ -s ${M_TANKverf}/gnorm_data.txt ]]; then
+   if [[ -s ${M_TANKverf}/gnorm_data.txt ]]; then
       $NCP ${M_TANKverf}/gnorm_data.txt gnorm_data.txt 
-   elif [[ -s ${M_TANKverfM1}/${MINMON_SUFFIX}.gnorm_data.txt ]]; then
-      $NCP ${M_TANKverfM1}/${MINMON_SUFFIX}.gnorm_data.txt gnorm_data.txt 
    elif [[ -s ${M_TANKverfM1}/gnorm_data.txt ]]; then
       $NCP ${M_TANKverfM1}/gnorm_data.txt gnorm_data.txt
    fi
@@ -170,7 +124,6 @@ elif [[ $rc_gnorms -ne 0 ]]; then
 elif [[ $rc_reduct -ne 0 ]]; then
    err=$rc_reduct
 fi
-
 
 if [[ "$VERBOSE" = "YES" ]]; then
    echo "end exgdas_vrfminmon.sh.ecf, exit value = ${err}"

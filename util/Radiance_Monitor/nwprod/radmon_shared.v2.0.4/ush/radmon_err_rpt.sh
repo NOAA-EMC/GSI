@@ -14,7 +14,7 @@
 #            All unique satellite instrument/channel/region combinations that appear
 #            in both files are reported.
 #
-#            This script is a child script of radmon_verf_time.sh.  The parent
+#            This script is run as a child script of radmon_verf_time.sh.  The parent
 #            script creates/copies the error files into a temporary working 
 #            directory before invoking this script.
 #
@@ -44,17 +44,12 @@
 #
 #     HOMEradmon        package's nwprod subdirectory
 #                       defaults to pwd
-#     VERBOSE           Verbose flag (YES or NO)
-#                       defaults to NO
 #
 #   Exported Shell Variables:
 #     err           Last return code
 #
 #   Modules and files referenced:
 #     scripts    : 
-#
-#     programs   : radmon_getchgrp.pl 
-#                 
 #
 #     fixed data : $ctlfile
 #
@@ -110,7 +105,7 @@ fi
 #  search $file2 for the same satname, channel, and region 
 #  if same combination is in both files, add the values to the output file
 #  
-{ while read myline;do
+{ while read myline; do
    bound=""
 
    echo $myline
@@ -143,7 +138,24 @@ fi
    if [[ $diag_match_len == 0 ]]; then  
 
       if [[ $type == "chan" ]]; then
-         match=`gawk "/$satname/ && /channel=  $channel/" $file2`
+         echo "looking for match for $satname and $channel"
+         { while read myline2; do
+            echo $myline
+            satname2=`echo $myline2 | gawk '{print $1}'`
+            echo satname = $satname
+            channel2=`echo $myline2 | gawk '{print $3}'`
+            echo channel = $channel
+
+            if [[ $satname == $satname2 && $channel == $channel2 ]]; then
+               match="$satname  channel=  $channel" 
+               echo "match from gawk = $match"
+	       break;
+            else 
+	       match=""
+            fi
+
+         done } < $file2
+
       else
          match=`gawk "/$satname/ && /channel= $channel / && /region= $region /" $file2`
          echo match = $match
@@ -166,7 +178,7 @@ fi
          bound2=`echo $match | gawk '{print $9}'`
 
          if [[ $type == "chan" ]]; then
-            tmpa="$satname  channel= $channel"
+            tmpa="    $satname              channel= $channel"
             tmpb=""
 
          elif [[ $type == "pen" ]]; then
@@ -202,7 +214,7 @@ fi
          #  Update: with the new js plotting the actual channel number
          #  can be sent so the chgrp is no longer used here. 
 
-         line3="   http://www.emc.ncep.noaa.gov/gmb/gdas/radiance/esafford/${RADMON_SUFFIX}/index.html?sat=${satname}&region=${region}&channel=${channel}&stat=${type}"
+         line3="   http://www.emc.ncep.noaa.gov/gmb/gdas/radiance/es_rad/${RADMON_SUFFIX}/index.html?sat=${satname}&region=${region}&channel=${channel}&stat=${type}"
          if [[ $channel -gt 0 ]]; then
             echo "$line3" >> $outfile
             echo "" >> $outfile
