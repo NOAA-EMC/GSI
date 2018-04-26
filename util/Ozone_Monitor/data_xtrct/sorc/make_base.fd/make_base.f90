@@ -83,7 +83,9 @@ program oznmon_make_base
          max_penalty(j,k)   = rmiss
       end do
    end do
-   
+  
+   file_ctr=0
+ 
    do j=1,nlev
       iuse(j) = -1
    end do
@@ -172,17 +174,18 @@ program oznmon_make_base
 !
 !  accumulate sums and min/max values
 !
-   do ii=1,nfile
-      do k=1,nregion
-         do j=1,nlev
-            if( (count(j,k,ii) > 0.0) .AND. (iuse(j) > 0) ) then
-               temp = penalty(j,k,ii)/count(j,k,ii)
-               penalty(j,k,ii) = temp
-!               write(6,*)'penalty(j,k,ii),count(j,k,ii)',j,k,ii,penalty(j,k,ii), count(j,k,ii)
-            end if
-         end do
-      end do
-   end do
+
+!   do ii=1,nfile
+!      do k=1,nregion
+!         do j=1,nlev
+!            if( (count(j,k,ii) > 0.0) .AND. (iuse(j) > 0) ) then
+!               temp = penalty(j,k,ii)/count(j,k,ii)
+!               penalty(j,k,ii) = temp
+!!               write(6,*)'penalty(j,k,ii),count(j,k,ii)',j,k,ii,penalty(j,k,ii), count(j,k,ii)
+!            end if
+!         end do
+!      end do
+!   end do
 
    write(6,*) ' number of files read = ', read_ctr
    do ii=1,nfile
@@ -192,6 +195,7 @@ program oznmon_make_base
                total_count(j,k)   = total_count(j,k) + count(j,k,ii)          
                total_penalty(j,k) = total_penalty(j,k) + penalty(j,k,ii)
                file_ctr(j,k)      = file_ctr(j,k) + 1
+               write(6,*) 'file_ctr(j,k),filenum = ', j, k, file_ctr(j,k),ii
 
                if( min_count(j,k) == rmiss ) then
                   min_count(j,k) = count( j,k,ii )
@@ -261,7 +265,7 @@ program oznmon_make_base
    write(6,*) 'writing output to ', out_file
    open(lunout,file=out_file,form='formatted')
    write(lunout,*) satname, nlev, nregion
-   write(lunout,*) 'fields:  region, level, avg_count, sdv_count, min_count, max_count, avg_pen, sdv_pen, min_pen, max_pen'
+   write(lunout,*) 'fields:  level, region, avg_count, sdv_count, min_count, max_count, avg_pen, sdv_pen, min_pen, max_pen'
    
    do k=1,nregion
       do j=1,nlev

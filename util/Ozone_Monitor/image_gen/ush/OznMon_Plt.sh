@@ -183,6 +183,9 @@ ${OZN_IG_SCRIPTS}/mk_horiz.sh
 ${OZN_IG_SCRIPTS}/mk_time.sh
 ${OZN_IG_SCRIPTS}/mk_summary.sh
 
+if [[ $DO_DATA_RPT -eq 1 ]]; then
+   ${OZN_IG_SCRIPTS}/mk_err_rpt.sh
+fi
 
 echo "end OznMon_Plt.sh"
 exit
