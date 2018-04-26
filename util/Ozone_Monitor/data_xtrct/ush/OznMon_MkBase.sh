@@ -20,18 +20,20 @@ function usage {
   echo "Usage:  OznMon_MkBase.sh [-s|--sat sat_name] suffix "
   echo "            Suffix is data source identifier that matches data in "
   echo "              the TANKverf/stats directory."
-  echo "            Sat (optional) restricts the list of satellite sources."
-  echo "              No sat means all satellite sources will be included." 
+  echo "            -s|--sat (optional) restricts the list of sat/instrument "
+  echo "              sources.  If no sat is specified then all "
+  echo "              sat/instrument sources will be included." 
+  echo "            -r|--run indicates RUN value, usually gfs|gdas"
 }
 
 nargs=$#
-if [[ $nargs -lt 1 || $nargs -gt 4 ]]; then
+if [[ $nargs -lt 1 || $nargs -gt 5 ]]; then
    usage
    exit 1
 fi
 
 SINGLE_SAT=0
-run=gdas
+RUN=gdas
 
 #-----------------------------------------------
 #  Process command line arguments
@@ -43,7 +45,7 @@ do
 
    case $key in
       -r|--run)
-         run="$2"
+         RUN="$2"
          shift # past argument
       ;;
       -s|--sat)
@@ -77,50 +79,44 @@ export GLB_AREA=${GLB_AREA:-1}
 #-------------------------------------------------------------------
 top_parm=${this_dir}/../../parm
 
-export OZNMON_VERSION=${OZNMON_VERSION:-${top_parm}/OznMon.ver}
-if [[ -s ${OZNMON_VERSION} ]]; then
-   . ${OZNMON_VERSION}
+oznmon_version=${oznmon_version:-${top_parm}/OznMon.ver}
+if [[ -s ${oznmon_version} ]]; then
+   . ${oznmon_version}
 else
-   echo "Unable to source ${OZNMON_VERSION} file"
+   echo "Unable to source ${oznmon_version} file"
    exit 2
 fi
 
-export OZNMON_USER_SETTINGS=${OZNMON_USER_SETTINGS:-${top_parm}/OznMon_user_settings}
-if [[ -s ${OZNMON_USER_SETTINGS} ]]; then
-   . ${OZNMON_USER_SETTINGS}
+oznmon_user_settings=${oznmon_user_settings:-${top_parm}/OznMon_user_settings}
+if [[ -s ${oznmon_user_settings} ]]; then
+   . ${oznmon_user_settings}
 else
-   echo "Unable to source ${OZNMON_USER_SETTINGS} file"
+   echo "Unable to source ${oznmon_user_settings} file"
    exit 3
 fi
 
-export OZNMON_CONFIG=${OZNMON_CONFIG:-${top_parm}/OznMon_config}
-if [[ -s ${OZNMON_CONFIG} ]]; then
-   . ${OZNMON_CONFIG}
+
+oznmon_config=${oznmon_config:-${top_parm}/OznMon_config}
+if [[ -s ${oznmon_config} ]]; then
+   . ${oznmon_config}
 else
-   echo "Unable to source ${OZNMON_CONFIG} file"
+   echo "Unable to source ${oznmon_config} file"
    exit 4
 fi
 
-
-#. ${DE_PARM}/data_extract_config
-#
-#
-#
-#REGIONAL_RR=${REGIONAL_RR:-0}
-#echo "REGIONAL_RR    = $REGIONAL_RR"
-#echo "CYCLE_INTERVAL = $CYCLE_INTERVAL"
 
 #-------------------------------------------------------------------
 #  Set dates
 #    BDATE is beginning date for the 30/60 day range
 #    EDATE is ending date for 30/60 day range (always use 00 cycle) 
 #-------------------------------------------------------------------
-EDATE=`${OZN_DE_SCRIPTS}/find_cycle.pl --cyc 1 --run ${run} --dir ${OZN_STATS_TANKDIR}`
+EDATE=`${OZN_DE_SCRIPTS}/find_cycle.pl --cyc 1 --run ${RUN} --dir ${OZN_STATS_TANKDIR}`
 echo $EDATE
 
 sdate=`echo $EDATE|cut -c1-8`
 EDATE=${sdate}00
-BDATE=`$NDATE -1080 $EDATE`
+BDATE=`$NDATE -1080 $EDATE`	# 45 days
+#BDATE=`$NDATE -240 $EDATE`	# 10 days
 
 echo EDATE = $EDATE
 echo BDATE = $BDATE
@@ -141,7 +137,7 @@ if [[ $SINGLE_SAT -eq 0 ]]; then
    else
       PDY=`echo $EDATE|cut -c1-8`
 
-      test_dir=${OZN_STATS_TANKDIR}/${run}.${PDY}/oznmon/time
+      test_dir=${OZN_STATS_TANKDIR}/${RUN}.${PDY}/oznmon/time
       if [[ -d ${test_dir} ]]; then
          test_list=`ls ${test_dir}/*.${EDATE}.ieee_d*`
 
@@ -200,30 +196,14 @@ for type in ${SATYPE}; do
    have_ctl=0
    cdate=$BDATE
    while [[ $cdate -le $EDATE ]]; do
-#      if [[ $REGIONAL_RR -eq 1 ]]; then
-#         tdate=`$NDATE +6 $cdate`
-#         day=`echo $tdate | cut -c1-8 `
-#         hh=`echo $cdate | cut -c9-10`
-#         . ${IG_SCRIPTS}/rr_set_tz.sh $hh
-#      else
-#         day=`echo $cdate | cut -c1-8 `
-#      fi
 
       pdy=`echo $cdate | cut -c1-8 `
 
-      test_dir=${OZN_STATS_TANKDIR}/${run}.${pdy}/oznmon/time
+      test_dir=${OZN_STATS_TANKDIR}/${RUN}.${pdy}/oznmon/time
       if [[ -d ${test_dir} ]]; then
          test_file=${test_dir}/${type}.${cdate}.ieee_d
       fi
 
-#      elif [[ -d ${TANKverf}/radmon.${day} ]]; then
-#         if [[ $REGIONAL_RR -eq 1 ]]; then
-#            test_file=${TANKverf}/radmon.${day}/${rgnHH}.time.${type}.${cdate}.ieee_d.${rgnTM}
-#         else
-#            test_file=${TANKverf}/radmon.${day}/time.${type}.${cdate}.ieee_d
-#         fi
-#      fi
-#
       if [[ -s $test_file ]]; then
          $NCP ${test_file} ./${type}.${cdate}.ieee_d
       elif [[ -s ${test_file}.${Z} ]]; then
@@ -247,19 +227,6 @@ for type in ${SATYPE}; do
       cdate=$adate
    done
 
-#   test_file=${test_dir}${MONITOR}/time.${type}.ctl
-#   else
-#      test_file=${TANKverf}/radmon.${day}/time.${type}.ctl
-#   fi
-# 
-#   if [[ -s ${test_file} ]]; then
-#      $NCP ${test_file} ${type}.ctl
-#   elif [[ -s ${test_file}.${Z} ]]; then
-#      $NCP ${test_file}.${Z} ${type}.ctl.${Z}
-#   else
-#      $NCP $TANKverf/time/${type}.ctl* ./
-#   fi
-#
    ${UNCOMPRESS} *.${Z}
 
    #-------------------------------------------------------------------
@@ -315,7 +282,6 @@ if [[ ! -d ${OZN_STATS_TANKDIR}/info ]]; then
    mkdir -p ${OZN_STATS_TANKDIR}/info
 fi
 
-#cd $tmpdir
 basefile=gdas_oznmon_base.tar
 
 if [[ $SINGLE_SAT -eq 0 ]]; then
@@ -326,7 +292,9 @@ else
    mkdir $newbase
    cd $newbase
 
+   #---------------------------------------
    #  copy over existing $basefile
+   #
    if [[ -s ${OZN_STATS_TANKDIR}/info/${basefile} ]]; then
       $NCP ${OZN_STATS_TANKDIR}/info/${basefile} ./${basefile} 
    elif [[ -s ${HOMEgdas_ozn}/fix/${basefile} ]]; then
@@ -336,17 +304,19 @@ else
    tar -xvf ${basefile}
    rm ${basefile}
 
+   #----------------------------------------------------------------------
    #  copy new *.base file from $tmpdir and build new $basefile (tar file)
+   #
    cp -f $tmpdir/*.base .
    tar -cvf ${basefile} *.base
    mv -f ${basefile} $tmpdir/.
    cd $tmpdir
-# keep for testing
-#   rm -rf $newbase
 
 fi
 
+#---------------------------------------------
 #  Remove the old version of the $basefile
+#
 if [[ -e ${OZN_STATS_TANKDIR}/info/${basefile} || -e ${OZN_STATS_TANKDIR}/info/${basefile}.${Z} ]]; then
    rm -f ${OZN_STATS_TANKDIR}/info/${basefile}*
 fi

@@ -1,16 +1,22 @@
 * Script to plot given bias correction term for given satellite instrument
 * 
-* Two arguments are expected
+* Expected arguments:
+*    net      = $NET value or identifying source (e.g. GFS|fv3rt1)
+*    run      = $RUN value (e.g. gfs|gdas)
 *    plotfile = satellite id (name and number ... e.g., msu.014 = noaa-14 msu)
-*    field  = field to plot  (valid strings are:  count total fixang lapse lapse2 const scangl clw
+*    field  = field to plot  (valid strings are:  cnt total fixang lapse lapse2 const scangl clw
+*    xsize    = horiz image size
+*    ysize    = vert image size
 
 *'reinit'
 function plottime (args)
 
-plotfile=subwrd(args,1)
-field=subwrd(args,2)
-xsize=subwrd(args,3)
-ysize=subwrd(args,4)
+net=subwrd(args,1)
+run=subwrd(args,2)
+plotfile=subwrd(args,3)
+field=subwrd(args,4)
+xsize=subwrd(args,5)
+ysize=subwrd(args,6)
 platform=plotfile
 
 *say 'process 'field' from 'plotfile
@@ -24,7 +30,7 @@ satnam=subwrd(lin1,4)
 satnum=subwrd(lin1,5)
 nlev=subwrd(lin1,6)
 
-if (field = count)
+if (field = cnt)
  type="number of observations"
 endif
 
@@ -184,10 +190,11 @@ while (levn<=nlev)
       fr=fr+1
       'set string 1 l 6'
       'set strsiz 0.15 0.15'
-      'draw string 0.2 10.80 platform:  'plotfile
-      'draw string 0.2 10.55 region  :  'area
-      'draw string 0.2 10.30 variable:  'type
-      'draw string 0.2 10.05 valid   :  'date1' to 'date2
+      'draw string 02. 10.80 Net, run:  'net','run
+      'draw string 0.2 10.55 platform:  'plotfile
+      'draw string 0.2 10.30 region  :  'area
+      'draw string 0.2 10.05 variable:  'type
+      'draw string 0.2 09.80 valid   :  'date1' to 'date2
       outfile=plotfile'.'field'_region'region'_fr'fr'.png'
       'printim 'outfile' 'xsize' 'ysize' white'
 *      say 'output to file 'outfile
