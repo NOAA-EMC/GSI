@@ -138,12 +138,6 @@ else
    nchanl=-999
    npredr=5
 
-#   if [[ $REGIONAL_RR -eq 1 ]]; then
-#      incr=1 
-#   else
-#      incr=6
-#   fi
-
    for type in ${SATYPE}; do
 
       if [[ ! -s ${type} ]]; then
@@ -209,14 +203,14 @@ EOF
 
       if [[ -s ${data_file} ]]; then
          mv ${data_file} ${bcoef_file}
-         mv ${bcoef_file} $TANKverf_rad/.
-         ${COMPRESS} -f $TANKverf_rad/${bcoef_file}
+         ${COMPRESS} -f ${bcoef_file}
+         mv ${bcoef_file}* $TANKverf_rad/.
       fi
 
       if [[ -s ${ctl_file} ]]; then
          mv ${ctl_file} ${bcoef_ctl}
-         mv ${bcoef_ctl}  ${TANKverf_rad}/.
-         ${COMPRESS} -f ${TANKverf_rad}/${bcoef_ctl}
+         ${COMPRESS} -f ${bcoef_ctl}
+         mv ${bcoef_ctl}*  ${TANKverf_rad}/.
       fi
 
       done  # dtype in $gesanl loop
