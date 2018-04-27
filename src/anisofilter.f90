@@ -183,8 +183,8 @@ module anisofilter
   public :: theta0zf,theta0f,asp3_max,u0f,v0zf,v0f,u0zf,tx1_slab,hfilter,hfine,tx2_slab,asp2_max,asp1_max,tx3_slab
   public :: vis0f,cldch0f,valleys0f
   public :: z0f_std
-  public :: bckg0f_stdz,bckg0f_stdp
-  public :: bckg_stdmax_z,bckg_stdbump_z,bckg_stdmax_p,bckg_stdbump_p
+  public :: bckg_stdz0f,bckg_stdp0f
+  public :: bckg_stdmax_z,bckg_stdfact_z,bckg_valleyfact_z,bckg_stdmax_p,bckg_stdfact_p,bckg_valleyfact_p
   public :: qltv_wind,qlth_wind,qltv_temp,eampmax,pgesmax,pgesmin,eampmin,asp10f,rh0f,z0f,z0f2,z0f3,asp20f,qlth_temp,psg,asp30f
   public :: qlth_wind0,qltv_temp0,qlth_temp0,qltv_wind0,scalex3,scalex2,scalex1,lreadnorm
   public :: r015,corp,corz,rfact0v,hwll,aspect,vz,hwllp,hwllp_lcbas,stpcode_ensdata,stpcode_namelist,stpcode_alloc
@@ -235,7 +235,7 @@ module anisofilter
   real(r_single),allocatable,dimension(:,:,:)  :: theta0f,theta0zf,u0f,u0zf,v0f,v0zf,z0f,z0f2,z0f3,rh0f ! for regional / zonal patch
   real(r_single),allocatable,dimension(:,:,:)  :: vis0f,cldch0f,valleys0f
   real(r_single),allocatable,dimension(:,:,:)  :: z0f_std
-  real(r_single),allocatable,dimension(:,:,:,:):: bckg0f_stdz,bckg0f_stdp
+  real(r_single),allocatable,dimension(:,:,:,:):: bckg_stdz0f,bckg_stdp0f
   real(r_kind)  ,allocatable,dimension(:,:)    :: asp10f,asp20f,asp30f ! for regional / zonal patch
   real(r_kind)  ,allocatable,dimension(:,:,:)  :: psg
   real(r_single),allocatable,dimension(:,:,:)  :: wgt0f
@@ -244,8 +244,8 @@ module anisofilter
   real(r_kind),allocatable::asp1_max(:,:),asp2_max(:,:),asp3_max(:,:)
   real(r_kind),allocatable::qlth_temp(:),qltv_temp(:)
   real(r_kind),allocatable::qlth_wind(:),qltv_wind(:)
-  real(r_kind),allocatable::bckg_stdmax_z(:),bckg_stdbump_z(:)
-  real(r_kind),allocatable::bckg_stdmax_p(:),bckg_stdbump_p(:)
+  real(r_kind),allocatable::bckg_stdmax_z(:),bckg_stdfact_z(:),bckg_valleyfact_z(:)
+  real(r_kind),allocatable::bckg_stdmax_p(:),bckg_stdfact_p(:),bckg_valleyfact_p(:)
 
 !--- For Ensemble Aspect
   integer(i_kind),parameter::ngrds=3        !# of supported grids
@@ -293,7 +293,8 @@ module anisofilter
                  lstdmodel_mitm, lstdmodel_pmsl, lstdmodel_howv, lstdmodel_tcamt, lstdmodel_lcbas, lstdmodel_cldch, & 
                  lstdmodel_uwnd10m, lstdmodel_vwnd10m, lstdmodel_lst, lstdmodel_ist, lstdmodel_sfwter, lstdmodel_vpwter, & 
                  lstdmodel_twter, lstdmodel_qwter, lstdmodel_pswter, lstdmodel_gustwter, lstdmodel_wspd10mwter, & 
-                 lstdmodel_td2mwter, lstdmodel_mxtmwter, lstdmodel_mitmwter, lstdmodel_uwnd10mwter, lstdmodel_vwnd10mwter
+                 lstdmodel_td2mwter, lstdmodel_mxtmwter, lstdmodel_mitmwter, lstdmodel_uwnd10mwter, lstdmodel_vwnd10mwter, & 
+                 writeout_stdmodel_diagnostics
 
   real(r_kind):: fstdmax_st, fstdmax_vp, fstdmax_t, fstdmax_q, fstdmax_oz, fstdmax_qw, fstdmax_ps, fstdmax_sst, & 
                  fstdmax_gust, fstdmax_vis, fstdmax_pblh, fstdmax_wspd10m, fstdmax_td2m, fstdmax_mxtm, & 
@@ -303,12 +304,21 @@ module anisofilter
                  fstdmax_td2mwter, fstdmax_mxtmwter, fstdmax_mitmwter, fstdmax_uwnd10mwter, fstdmax_vwnd10mwter
 
   real(r_kind):: std_radius, & 
-                 stdbump_st, stdbump_vp, stdbump_t, stdbump_q, stdbump_oz, stdbump_qw, stdbump_ps, stdbump_sst, & 
-                 stdbump_gust, stdbump_vis, stdbump_pblh, stdbump_wspd10m, stdbump_td2m, stdbump_mxtm, & 
-                 stdbump_mitm, stdbump_pmsl, stdbump_howv, stdbump_tcamt, stdbump_lcbas, stdbump_cldch, & 
-                 stdbump_uwnd10m, stdbump_vwnd10m, stdbump_lst, stdbump_ist, stdbump_sfwter, stdbump_vpwter, & 
-                 stdbump_twter, stdbump_qwter, stdbump_pswter, stdbump_gustwter, stdbump_wspd10mwter, & 
-                 stdbump_td2mwter, stdbump_mxtmwter, stdbump_mitmwter, stdbump_uwnd10mwter, stdbump_vwnd10mwter
+                 stdfact_st, stdfact_vp, stdfact_t, stdfact_q, stdfact_oz, stdfact_qw, stdfact_ps, stdfact_sst, & 
+                 stdfact_gust, stdfact_vis, stdfact_pblh, stdfact_wspd10m, stdfact_td2m, stdfact_mxtm, & 
+                 stdfact_mitm, stdfact_pmsl, stdfact_howv, stdfact_tcamt, stdfact_lcbas, stdfact_cldch, & 
+                 stdfact_uwnd10m, stdfact_vwnd10m, stdfact_lst, stdfact_ist, stdfact_sfwter, stdfact_vpwter, & 
+                 stdfact_twter, stdfact_qwter, stdfact_pswter, stdfact_gustwter, stdfact_wspd10mwter, & 
+                 stdfact_td2mwter, stdfact_mxtmwter, stdfact_mitmwter, stdfact_uwnd10mwter, stdfact_vwnd10mwter
+
+  real(r_kind):: & 
+                 valleyfact_st, valleyfact_vp, valleyfact_t, valleyfact_q, valleyfact_oz, valleyfact_qw, valleyfact_ps, valleyfact_sst, & 
+                 valleyfact_gust, valleyfact_vis, valleyfact_pblh, valleyfact_wspd10m, valleyfact_td2m, valleyfact_mxtm, & 
+                 valleyfact_mitm, valleyfact_pmsl, valleyfact_howv, valleyfact_tcamt, valleyfact_lcbas, valleyfact_cldch, & 
+                 valleyfact_uwnd10m, valleyfact_vwnd10m, valleyfact_lst, valleyfact_ist, valleyfact_sfwter, valleyfact_vpwter, & 
+                 valleyfact_twter, valleyfact_qwter, valleyfact_pswter, valleyfact_gustwter, valleyfact_wspd10mwter, & 
+                 valleyfact_td2mwter, valleyfact_mxtmwter, valleyfact_mitmwter, valleyfact_uwnd10mwter, valleyfact_vwnd10mwter
+
   integer(i_kind):: npass_for_std 
 
   integer(i_kind):: nrf3_oz,nrf3_t,nrf3_sf,nrf3_vp,nrf3_q,nrf3_cw
@@ -384,7 +394,6 @@ subroutine anprewgt_reg(mype)
   real(r_kind)  ,allocatable,dimension(:,:):: bckgvar,bckgvar0f,zaux,zsmooth
   real(r_single),allocatable,dimension(:,:):: bckgvar4,zsmooth4
   real(r_single),allocatable,dimension(:,:):: region_dx4,region_dy4,psg4
-  real(r_single) this0f
 
   character(len=12):: chvarname
   character(len= 4):: clun
@@ -610,16 +619,8 @@ subroutine anprewgt_reg(mype)
                           factk=zero_3
                        else
                           factk=dl1*corp(l,n)+dl2*corp(lp,n)
-                          if (nrf_var(ivar)=='vis' .or. nrf_var(ivar)=='VIS') then
-                             this0f=min(vis0fmax, max(vis0fmin,vis0f(i,j,1)))
-                             factk=factk/(log(ten)*this0f)
-                          end if
                           if (nrf_var(ivar)=='lcbas' .or. nrf_var(ivar)=='LCBAS') then
                              factk=factk/(log(ten)*8000.0_r_kind) 
-                          end if
-                          if (nrf_var(ivar)=='cldch' .or. nrf_var(ivar)=='CLDCH') then
-                             this0f=min(cldch0fmax, max(cldch0fmin,cldch0f(i,j,1)))
-                             factk=factk/(log(ten)*this0f)
                           end if
                        end if
                        exit
@@ -1214,10 +1215,10 @@ end function fvarname
 
 !=======================================================================
 !=======================================================================
-function stdbump(chvarname)
+function stdfact(chvarname)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:   stdbump
+! subprogram:   stdfact
 ! prgmmr: pondeca          org: np22                date: 2017-04-20
 !
 ! abstract: retrieve parameter of background error model
@@ -1240,50 +1241,124 @@ function stdbump(chvarname)
   implicit none
 
 ! Declare passed variables
-  real(r_kind) stdbump
+  real(r_kind) stdfact
   character(12),intent(in   ) :: chvarname
 
-  stdbump=zero
+  stdfact=zero
 
 
-  if ( trim(chvarname) =='psi'         )  stdbump=stdbump_st 
-  if ( trim(chvarname) =='chi'         )  stdbump=stdbump_vp
-  if ( trim(chvarname) =='t'           )  stdbump=stdbump_t
-  if ( trim(chvarname) =='pseudorh'    )  stdbump=stdbump_q
-  if ( trim(chvarname) =='oz'          )  stdbump=stdbump_oz
-  if ( trim(chvarname) =='qw'          )  stdbump=stdbump_qw
-  if ( trim(chvarname) =='ps'          )  stdbump=stdbump_ps
-  if ( trim(chvarname) =='sst'         )  stdbump=stdbump_sst
-  if ( trim(chvarname) =='gust'        )  stdbump=stdbump_gust
-  if ( trim(chvarname) =='vis'         )  stdbump=stdbump_vis
-  if ( trim(chvarname) =='pblh'        )  stdbump=stdbump_pblh
-  if ( trim(chvarname) =='wspd10m'     )  stdbump=stdbump_wspd10m
-  if ( trim(chvarname) =='td2m'        )  stdbump=stdbump_td2m
-  if ( trim(chvarname) =='mxtm'        )  stdbump=stdbump_mxtm
-  if ( trim(chvarname) =='mitm'        )  stdbump=stdbump_mitm
-  if ( trim(chvarname) =='pmsl'        )  stdbump=stdbump_pmsl
-  if ( trim(chvarname) =='howv'        )  stdbump=stdbump_howv
-  if ( trim(chvarname) =='tcamt'       )  stdbump=stdbump_tcamt
-  if ( trim(chvarname) =='lcbas'       )  stdbump=stdbump_lcbas
-  if ( trim(chvarname) =='cldch'       )  stdbump=stdbump_cldch
-  if ( trim(chvarname) =='uwnd10m'     )  stdbump=stdbump_uwnd10m
-  if ( trim(chvarname) =='vwnd10m'     )  stdbump=stdbump_vwnd10m
-  if ( trim(chvarname) =='lst'         )  stdbump=stdbump_lst
-  if ( trim(chvarname) =='ist'         )  stdbump=stdbump_ist
-  if ( trim(chvarname) =='sfwter'      )  stdbump=stdbump_sfwter
-  if ( trim(chvarname) =='vpwter'      )  stdbump=stdbump_vpwter
-  if ( trim(chvarname) =='twter'       )  stdbump=stdbump_twter
-  if ( trim(chvarname) =='qwter'       )  stdbump=stdbump_qwter
-  if ( trim(chvarname) =='pswter'      )  stdbump=stdbump_pswter
-  if ( trim(chvarname) =='gustwter'    )  stdbump=stdbump_gustwter
-  if ( trim(chvarname) =='wspd10mwter' )  stdbump=stdbump_wspd10mwter
-  if ( trim(chvarname) =='td2mwter'    )  stdbump=stdbump_td2mwter
-  if ( trim(chvarname) =='mxtmwter'    )  stdbump=stdbump_mxtmwter
-  if ( trim(chvarname) =='mitmwter'    )  stdbump=stdbump_mitmwter
-  if ( trim(chvarname) =='uwnd10mwter' )  stdbump=stdbump_uwnd10mwter
-  if ( trim(chvarname) =='vwnd10mwter' )  stdbump=stdbump_vwnd10mwter
+  if ( trim(chvarname) =='psi'         )  stdfact=stdfact_st 
+  if ( trim(chvarname) =='chi'         )  stdfact=stdfact_vp
+  if ( trim(chvarname) =='t'           )  stdfact=stdfact_t
+  if ( trim(chvarname) =='pseudorh'    )  stdfact=stdfact_q
+  if ( trim(chvarname) =='oz'          )  stdfact=stdfact_oz
+  if ( trim(chvarname) =='qw'          )  stdfact=stdfact_qw
+  if ( trim(chvarname) =='ps'          )  stdfact=stdfact_ps
+  if ( trim(chvarname) =='sst'         )  stdfact=stdfact_sst
+  if ( trim(chvarname) =='gust'        )  stdfact=stdfact_gust
+  if ( trim(chvarname) =='vis'         )  stdfact=stdfact_vis
+  if ( trim(chvarname) =='pblh'        )  stdfact=stdfact_pblh
+  if ( trim(chvarname) =='wspd10m'     )  stdfact=stdfact_wspd10m
+  if ( trim(chvarname) =='td2m'        )  stdfact=stdfact_td2m
+  if ( trim(chvarname) =='mxtm'        )  stdfact=stdfact_mxtm
+  if ( trim(chvarname) =='mitm'        )  stdfact=stdfact_mitm
+  if ( trim(chvarname) =='pmsl'        )  stdfact=stdfact_pmsl
+  if ( trim(chvarname) =='howv'        )  stdfact=stdfact_howv
+  if ( trim(chvarname) =='tcamt'       )  stdfact=stdfact_tcamt
+  if ( trim(chvarname) =='lcbas'       )  stdfact=stdfact_lcbas
+  if ( trim(chvarname) =='cldch'       )  stdfact=stdfact_cldch
+  if ( trim(chvarname) =='uwnd10m'     )  stdfact=stdfact_uwnd10m
+  if ( trim(chvarname) =='vwnd10m'     )  stdfact=stdfact_vwnd10m
+  if ( trim(chvarname) =='lst'         )  stdfact=stdfact_lst
+  if ( trim(chvarname) =='ist'         )  stdfact=stdfact_ist
+  if ( trim(chvarname) =='sfwter'      )  stdfact=stdfact_sfwter
+  if ( trim(chvarname) =='vpwter'      )  stdfact=stdfact_vpwter
+  if ( trim(chvarname) =='twter'       )  stdfact=stdfact_twter
+  if ( trim(chvarname) =='qwter'       )  stdfact=stdfact_qwter
+  if ( trim(chvarname) =='pswter'      )  stdfact=stdfact_pswter
+  if ( trim(chvarname) =='gustwter'    )  stdfact=stdfact_gustwter
+  if ( trim(chvarname) =='wspd10mwter' )  stdfact=stdfact_wspd10mwter
+  if ( trim(chvarname) =='td2mwter'    )  stdfact=stdfact_td2mwter
+  if ( trim(chvarname) =='mxtmwter'    )  stdfact=stdfact_mxtmwter
+  if ( trim(chvarname) =='mitmwter'    )  stdfact=stdfact_mitmwter
+  if ( trim(chvarname) =='uwnd10mwter' )  stdfact=stdfact_uwnd10mwter
+  if ( trim(chvarname) =='vwnd10mwter' )  stdfact=stdfact_vwnd10mwter
 
-end function stdbump
+end function stdfact
+!=======================================================================
+!=======================================================================
+function valleyfact(chvarname)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:   valleyfact
+! prgmmr: pondeca          org: np22                date: 2017-08-21
+!
+! abstract: retrieve parameter of background error model
+!
+!
+! program history log:
+!   2017-04-20  pondeca
+!
+!   input argument list:
+!    mype     - mpi task id
+!
+!   output argument list:
+!
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+  implicit none
+
+! Declare passed variables
+  real(r_kind) valleyfact
+  character(12),intent(in   ) :: chvarname
+
+  valleyfact=one
+
+
+  if ( trim(chvarname) =='psi'         )  valleyfact=valleyfact_st 
+  if ( trim(chvarname) =='chi'         )  valleyfact=valleyfact_vp
+  if ( trim(chvarname) =='t'           )  valleyfact=valleyfact_t
+  if ( trim(chvarname) =='pseudorh'    )  valleyfact=valleyfact_q
+  if ( trim(chvarname) =='oz'          )  valleyfact=valleyfact_oz
+  if ( trim(chvarname) =='qw'          )  valleyfact=valleyfact_qw
+  if ( trim(chvarname) =='ps'          )  valleyfact=valleyfact_ps
+  if ( trim(chvarname) =='sst'         )  valleyfact=valleyfact_sst
+  if ( trim(chvarname) =='gust'        )  valleyfact=valleyfact_gust
+  if ( trim(chvarname) =='vis'         )  valleyfact=valleyfact_vis
+  if ( trim(chvarname) =='pblh'        )  valleyfact=valleyfact_pblh
+  if ( trim(chvarname) =='wspd10m'     )  valleyfact=valleyfact_wspd10m
+  if ( trim(chvarname) =='td2m'        )  valleyfact=valleyfact_td2m
+  if ( trim(chvarname) =='mxtm'        )  valleyfact=valleyfact_mxtm
+  if ( trim(chvarname) =='mitm'        )  valleyfact=valleyfact_mitm
+  if ( trim(chvarname) =='pmsl'        )  valleyfact=valleyfact_pmsl
+  if ( trim(chvarname) =='howv'        )  valleyfact=valleyfact_howv
+  if ( trim(chvarname) =='tcamt'       )  valleyfact=valleyfact_tcamt
+  if ( trim(chvarname) =='lcbas'       )  valleyfact=valleyfact_lcbas
+  if ( trim(chvarname) =='cldch'       )  valleyfact=valleyfact_cldch
+  if ( trim(chvarname) =='uwnd10m'     )  valleyfact=valleyfact_uwnd10m
+  if ( trim(chvarname) =='vwnd10m'     )  valleyfact=valleyfact_vwnd10m
+  if ( trim(chvarname) =='lst'         )  valleyfact=valleyfact_lst
+  if ( trim(chvarname) =='ist'         )  valleyfact=valleyfact_ist
+  if ( trim(chvarname) =='sfwter'      )  valleyfact=valleyfact_sfwter
+  if ( trim(chvarname) =='vpwter'      )  valleyfact=valleyfact_vpwter
+  if ( trim(chvarname) =='twter'       )  valleyfact=valleyfact_twter
+  if ( trim(chvarname) =='qwter'       )  valleyfact=valleyfact_qwter
+  if ( trim(chvarname) =='pswter'      )  valleyfact=valleyfact_pswter
+  if ( trim(chvarname) =='gustwter'    )  valleyfact=valleyfact_gustwter
+  if ( trim(chvarname) =='wspd10mwter' )  valleyfact=valleyfact_wspd10mwter
+  if ( trim(chvarname) =='td2mwter'    )  valleyfact=valleyfact_td2mwter
+  if ( trim(chvarname) =='mxtmwter'    )  valleyfact=valleyfact_mxtmwter
+  if ( trim(chvarname) =='mitmwter'    )  valleyfact=valleyfact_mitmwter
+  if ( trim(chvarname) =='uwnd10mwter' )  valleyfact=valleyfact_uwnd10mwter
+  if ( trim(chvarname) =='vwnd10mwter' )  valleyfact=valleyfact_vwnd10mwter
+
+end function valleyfact
+!=======================================================================
+!=======================================================================
 !=======================================================================
 !=======================================================================
 function fstdmax(chvarname)
@@ -1531,18 +1606,25 @@ subroutine init_anisofilter_reg(mype)
                  lstdmodel_twter, lstdmodel_qwter, lstdmodel_pswter, lstdmodel_gustwter, lstdmodel_wspd10mwter, & 
                  lstdmodel_td2mwter, lstdmodel_mxtmwter, lstdmodel_mitmwter, lstdmodel_uwnd10mwter, lstdmodel_vwnd10mwter, &
                  std_radius, npass_for_std, &
-                 stdbump_st, stdbump_vp, stdbump_t, stdbump_q, stdbump_oz, stdbump_qw, stdbump_ps, stdbump_sst, & 
-                 stdbump_gust, stdbump_vis, stdbump_pblh, stdbump_wspd10m, stdbump_td2m, stdbump_mxtm, & 
-                 stdbump_mitm, stdbump_pmsl, stdbump_howv, stdbump_tcamt, stdbump_lcbas, stdbump_cldch, & 
-                 stdbump_uwnd10m, stdbump_vwnd10m, stdbump_lst, stdbump_ist, stdbump_sfwter, stdbump_vpwter, & 
-                 stdbump_twter, stdbump_qwter, stdbump_pswter, stdbump_gustwter, stdbump_wspd10mwter, & 
-                 stdbump_td2mwter, stdbump_mxtmwter, stdbump_mitmwter, stdbump_uwnd10mwter, stdbump_vwnd10mwter, &
+                 stdfact_st, stdfact_vp, stdfact_t, stdfact_q, stdfact_oz, stdfact_qw, stdfact_ps, stdfact_sst, & 
+                 stdfact_gust, stdfact_vis, stdfact_pblh, stdfact_wspd10m, stdfact_td2m, stdfact_mxtm, & 
+                 stdfact_mitm, stdfact_pmsl, stdfact_howv, stdfact_tcamt, stdfact_lcbas, stdfact_cldch, & 
+                 stdfact_uwnd10m, stdfact_vwnd10m, stdfact_lst, stdfact_ist, stdfact_sfwter, stdfact_vpwter, & 
+                 stdfact_twter, stdfact_qwter, stdfact_pswter, stdfact_gustwter, stdfact_wspd10mwter, & 
+                 stdfact_td2mwter, stdfact_mxtmwter, stdfact_mitmwter, stdfact_uwnd10mwter, stdfact_vwnd10mwter, &
+                 valleyfact_st, valleyfact_vp, valleyfact_t, valleyfact_q, valleyfact_oz, valleyfact_qw, valleyfact_ps, valleyfact_sst, & 
+                 valleyfact_gust, valleyfact_vis, valleyfact_pblh, valleyfact_wspd10m, valleyfact_td2m, valleyfact_mxtm, & 
+                 valleyfact_mitm, valleyfact_pmsl, valleyfact_howv, valleyfact_tcamt, valleyfact_lcbas, valleyfact_cldch, & 
+                 valleyfact_uwnd10m, valleyfact_vwnd10m, valleyfact_lst, valleyfact_ist, valleyfact_sfwter, valleyfact_vpwter, & 
+                 valleyfact_twter, valleyfact_qwter, valleyfact_pswter, valleyfact_gustwter, valleyfact_wspd10mwter, & 
+                 valleyfact_td2mwter, valleyfact_mxtmwter, valleyfact_mitmwter, valleyfact_uwnd10mwter, valleyfact_vwnd10mwter, &
                  fstdmax_st, fstdmax_vp, fstdmax_t, fstdmax_q, fstdmax_oz, fstdmax_qw, fstdmax_ps, fstdmax_sst, & 
                  fstdmax_gust, fstdmax_vis, fstdmax_pblh, fstdmax_wspd10m, fstdmax_td2m, fstdmax_mxtm, & 
                  fstdmax_mitm, fstdmax_pmsl, fstdmax_howv, fstdmax_tcamt, fstdmax_lcbas, fstdmax_cldch, & 
                  fstdmax_uwnd10m, fstdmax_vwnd10m, fstdmax_lst, fstdmax_ist, fstdmax_sfwter, fstdmax_vpwter, & 
                  fstdmax_twter, fstdmax_qwter, fstdmax_pswter, fstdmax_gustwter, fstdmax_wspd10mwter, & 
-                 fstdmax_td2mwter, fstdmax_mxtmwter, fstdmax_mitmwter, fstdmax_uwnd10mwter, fstdmax_vwnd10mwter
+                 fstdmax_td2mwter, fstdmax_mxtmwter, fstdmax_mitmwter, fstdmax_uwnd10mwter, fstdmax_vwnd10mwter, & 
+                 writeout_stdmodel_diagnostics
 
 !*******************************************************************
 
@@ -2057,6 +2139,7 @@ subroutine init_anisofilter_reg(mype)
 
 
   turnoff_all_stdmodels=.true.
+  writeout_stdmodel_diagnostics=.false.
   stdmodel_z_based=.false.
 
   lstdmodel_st=.false. ;      lstdmodel_vp=.false. ;   lstdmodel_t=.false. ;      lstdmodel_q=.false. ;      lstdmodel_oz=.false.
@@ -2077,24 +2160,32 @@ subroutine init_anisofilter_reg(mype)
   std_radius=40000._r_kind !meters
   npass_for_std=0
 
-  stdbump_st=zero ;      stdbump_vp=zero ;   stdbump_t=zero ;      stdbump_q=zero ;      stdbump_oz=zero ;   stdbump_qw=zero
-  stdbump_ps=zero ;      stdbump_sst=zero;   stdbump_gust=zero ;   stdbump_vis=zero ;    stdbump_pblh=zero  
-  stdbump_wspd10m=zero ; stdbump_td2m=zero ; stdbump_mxtm=zero ;   stdbump_mitm=zero ;   stdbump_pmsl=zero ;  stdbump_howv=zero
-  stdbump_tcamt=zero ;   stdbump_lcbas=zero ; stdbump_cldch=zero ; stdbump_uwnd10m=zero ;stdbump_vwnd10m=zero ;stdbump_lst=zero
-  stdbump_ist=zero   ;   stdbump_sfwter=zero ;stdbump_vpwter=zero; stdbump_twter=zero ;  stdbump_qwter=zero ;  stdbump_pswter=zero
+  stdfact_st=zero ;      stdfact_vp=zero ;   stdfact_t=zero ;      stdfact_q=zero ;      stdfact_oz=zero ;   stdfact_qw=zero
+  stdfact_ps=zero ;      stdfact_sst=zero;   stdfact_gust=zero ;   stdfact_vis=zero ;    stdfact_pblh=zero  
+  stdfact_wspd10m=zero ; stdfact_td2m=zero ; stdfact_mxtm=zero ;   stdfact_mitm=zero ;   stdfact_pmsl=zero ;  stdfact_howv=zero
+  stdfact_tcamt=zero ;   stdfact_lcbas=zero ; stdfact_cldch=zero ; stdfact_uwnd10m=zero ;stdfact_vwnd10m=zero ;stdfact_lst=zero
+  stdfact_ist=zero   ;   stdfact_sfwter=zero ;stdfact_vpwter=zero; stdfact_twter=zero ;  stdfact_qwter=zero ;  stdfact_pswter=zero
 
-  stdbump_gustwter=zero ;    stdbump_wspd10mwter=zero ; stdbump_td2mwter=zero ; stdbump_mxtmwter=zero ; stdbump_mitmwter=zero
-  stdbump_uwnd10mwter=zero ; stdbump_vwnd10mwter=zero 
+  stdfact_gustwter=zero ;    stdfact_wspd10mwter=zero ; stdfact_td2mwter=zero ; stdfact_mxtmwter=zero ; stdfact_mitmwter=zero
+  stdfact_uwnd10mwter=zero ; stdfact_vwnd10mwter=zero 
 
-  fstdmax_st=zero ;      fstdmax_vp=zero ;   fstdmax_t=zero ;      fstdmax_q=zero ;      fstdmax_oz=zero ;   fstdmax_qw=zero
-  fstdmax_ps=zero ;      fstdmax_sst=zero;   fstdmax_gust=zero ;   fstdmax_vis=zero ;    fstdmax_pblh=zero  
-  fstdmax_wspd10m=zero ; fstdmax_td2m=zero ; fstdmax_mxtm=zero ;   fstdmax_mitm=zero ;   fstdmax_pmsl=zero ;  fstdmax_howv=zero
-  fstdmax_tcamt=zero ;   fstdmax_lcbas=zero ; fstdmax_cldch=zero ; fstdmax_uwnd10m=zero ;fstdmax_vwnd10m=zero ;fstdmax_lst=zero
-  fstdmax_ist=zero   ;   fstdmax_sfwter=zero ;fstdmax_vpwter=zero; fstdmax_twter=zero ;  fstdmax_qwter=zero ;  fstdmax_pswter=zero
+  valleyfact_st=one ;      valleyfact_vp=one ;   valleyfact_t=one ;      valleyfact_q=one ;      valleyfact_oz=one ;   valleyfact_qw=one
+  valleyfact_ps=one ;      valleyfact_sst=one;   valleyfact_gust=one ;   valleyfact_vis=one ;    valleyfact_pblh=one  
+  valleyfact_wspd10m=one ; valleyfact_td2m=one ; valleyfact_mxtm=one ;   valleyfact_mitm=one ;   valleyfact_pmsl=one ;  valleyfact_howv=one
+  valleyfact_tcamt=one ;   valleyfact_lcbas=one ; valleyfact_cldch=one ; valleyfact_uwnd10m=one ;valleyfact_vwnd10m=one ;valleyfact_lst=one
+  valleyfact_ist=one   ;   valleyfact_sfwter=one ;valleyfact_vpwter=one; valleyfact_twter=one ;  valleyfact_qwter=one ;  valleyfact_pswter=one
 
-  fstdmax_gustwter=zero ;    fstdmax_wspd10mwter=zero ; fstdmax_td2mwter=zero ; fstdmax_mxtmwter=zero ; fstdmax_mitmwter=zero
-  fstdmax_uwnd10mwter=zero ; fstdmax_vwnd10mwter=zero 
+  valleyfact_gustwter=one ;    valleyfact_wspd10mwter=one ; valleyfact_td2mwter=one ; valleyfact_mxtmwter=one ; valleyfact_mitmwter=one
+  valleyfact_uwnd10mwter=one ; valleyfact_vwnd10mwter=one 
 
+  fstdmax_st=one ;      fstdmax_vp=one ;   fstdmax_t=one ;      fstdmax_q=one ;      fstdmax_oz=one ;   fstdmax_qw=one
+  fstdmax_ps=one ;      fstdmax_sst=one;   fstdmax_gust=one ;   fstdmax_vis=one ;    fstdmax_pblh=one  
+  fstdmax_wspd10m=one ; fstdmax_td2m=one ; fstdmax_mxtm=one ;   fstdmax_mitm=one ;   fstdmax_pmsl=one ;  fstdmax_howv=one
+  fstdmax_tcamt=one ;   fstdmax_lcbas=one ; fstdmax_cldch=one ; fstdmax_uwnd10m=one ;fstdmax_vwnd10m=one ;fstdmax_lst=one
+  fstdmax_ist=one   ;   fstdmax_sfwter=one ;fstdmax_vpwter=one; fstdmax_twter=one ;  fstdmax_qwter=one ;  fstdmax_pswter=one
+
+  fstdmax_gustwter=one ;    fstdmax_wspd10mwter=one ; fstdmax_td2mwter=one ; fstdmax_mxtmwter=one ; fstdmax_mitmwter=one
+  fstdmax_uwnd10mwter=one ; fstdmax_vwnd10mwter=one 
 
   inquire(file='bckg_std_errormodel_input',exist=fexist)
   if (fexist) then
@@ -2102,7 +2193,8 @@ subroutine init_anisofilter_reg(mype)
      read(55,bckg_std_errormodel)
      close(55)
   else
-        print*,'init_anisofilter_reg: WARNING - MISSING BCKG ERROR MODEL NAMELIST FILE: bckg_std_errormodel_input. RUNNING WITH DEFAULT SETTINGS'
+        print*,'init_anisofilter_reg: WARNING - MISSING BCKG ERROR MODEL NAMELIST FILE: bckg_std_errormodel_input. RUNNING WITH DEFAULT SETTINGS, &
+        &WHICH MEANS THAT THE VALLEY-MAP (AND BCKG FIELD VARIANCE)- DEPENDENT BCKG ERROR ENHANCEMENT IS TURNED OFF'
   endif
 
   if (mype==0) then
@@ -2146,6 +2238,7 @@ subroutine init_anisofilter_reg(mype)
      print*,'in init_anisofilter_reg: lstdmodel_vwnd10mwter=',lstdmodel_vwnd10mwter
      print*,'in init_anisofilter_reg: std_radius=',std_radius
      print*,'in init_anisofilter_reg: npass_for_std=',npass_for_std
+     print*,'in init_anisofilter_reg: writeout_stdmodel_diagnostics=',writeout_stdmodel_diagnostics
   endif
 !
 !-----------------------------------------------------------------------
@@ -2254,7 +2347,7 @@ subroutine read_bckgstats(mype)
   real(r_kind),allocatable:: corpavg(:),hwllpavg(:)
 
   logical :: print_verbose
- 
+
   print_verbose=.false. .and. mype == 0
   if(verbose .and. mype == 0) print_verbose=.true.
 ! Read dimension of stats file
@@ -4869,6 +4962,7 @@ subroutine get2berr_reg_subdomain_option(mype)
 
 ! Declare local variables
   integer(i_kind) n,i,j,k,l,lp,k1,kvar,ivar,im,ip,jm,jp,mm1,iloc,iploc,imloc,jloc,jploc,jmloc,igauss
+  integer(i_kind) nn
   integer(i_kind) iglob,jglob
   logical no_elev_grad
 
@@ -4878,7 +4972,6 @@ subroutine get2berr_reg_subdomain_option(mype)
   real(r_kind) fx2,fx1,fx3,dxi,dyi
   real(r_kind) asp1,asp2,asp3,factoz,afact
   real(r_kind) deta0,deta1
-  real(r_single) this0f
 
   real(r_kind) rstd,berrmax 
 
@@ -4891,8 +4984,7 @@ subroutine get2berr_reg_subdomain_option(mype)
   real(r_single),allocatable,dimension(:,:)::region_dx4,region_dy4,psg4,psg4a
   real(r_single),allocatable,dimension(:,:,:):: fltvals0,fltvals
   logical lstdmodel0
-!  real(r_single),allocatable,dimension(:,:):: slab00,slab11   !for diagnostic purposes only
-!  character*2 clun                                            !for diagnostic purposes only
+  real(r_single),allocatable,dimension(:,:):: slab00,slab11   !for diagnostic purposes only
   character(12) chvarname
   character(8) cvar
 
@@ -5242,11 +5334,8 @@ subroutine get2berr_reg_subdomain_option(mype)
                     if (nrf3_loc(n)==ivar) then
                        factk=dl1*corz(l,kvar,n)+dl2*corz(lp,kvar,n)
                        if (lstdmodel0) then
-                          if (stdmodel_z_based) then 
-                             rstd=z0f_std (iloc,jloc,1)+bckg_stdbump_z(n) 
-                           else
-                              rstd=bckg0f_stdz (iloc,jloc,1,n)+bckg_stdbump_z(n)
-                          endif
+                          factk=max(bckg_stdfact_z(n)*bckg_stdz0f(iloc,jloc,1,n),factk)
+                          rstd=(bckg_valleyfact_z(n)-one)*(one-valleys0f(iloc,jloc,1))+one
                           berrmax=bckg_stdmax_z(n)
                        endif
                        exit
@@ -5256,23 +5345,12 @@ subroutine get2berr_reg_subdomain_option(mype)
                  do n=1,nrf2
                     if (nrf2_loc(n)==ivar) then
                        factk=dl1*corp(l,n)+dl2*corp(lp,n)
-                       if (nrf_var(ivar)=='vis' .or. nrf_var(ivar)=='VIS') then
-                          this0f=min(vis0fmax, max(vis0fmin,vis0f(iloc,jloc,1)))
-                          factk=factk/(log(ten)*this0f)
-                       end if
                        if (nrf_var(ivar)=='lcbas' .or. nrf_var(ivar)=='LCBAS') then
                           factk=factk/(log(ten)*8000.0_r_kind)
                        end if
-                       if (nrf_var(ivar)=='cldch' .or. nrf_var(ivar)=='CLDCH') then
-                          this0f=min(cldch0fmax, max(cldch0fmin,cldch0f(iloc,jloc,1)))
-                          factk=factk/(log(ten)*this0f)
-                       end if
                        if (lstdmodel0) then
-                          if (stdmodel_z_based) then 
-                             rstd=z0f_std (iloc,jloc,1)+bckg_stdbump_p(n) 
-                           else
-                             rstd=bckg0f_stdp (iloc,jloc,1,n)+bckg_stdbump_p(n)
-                          endif
+                          factk=max(bckg_stdfact_p(n)*bckg_stdp0f(iloc,jloc,1,n),factk)
+                          rstd=(bckg_valleyfact_p(n)-one)*(one-valleys0f(iloc,jloc,1))+one
                           berrmax=bckg_stdmax_p(n)
                        endif
                        exit
@@ -5284,11 +5362,8 @@ subroutine get2berr_reg_subdomain_option(mype)
                  if (nmotl_loc(n)==ivar) then
                     factk=dl1*corp(l,nrf2+n)+dl2*corp(lp,nrf2+n)
                     if (lstdmodel0) then
-                       if (stdmodel_z_based) then 
-                          rstd=z0f_std (iloc,jloc,1)+bckg_stdbump_p(nrf2+n)
-                        else
-                          rstd=bckg0f_stdp (iloc,jloc,1,nrf2+n)+bckg_stdbump_p(nrf2+n)
-                       endif
+                       factk=max(bckg_stdfact_p(nrf2+n)*bckg_stdp0f(iloc,jloc,1,nrf2+n),factk)
+                       rstd=(bckg_valleyfact_p(nrf2+n)-one)*(one-valleys0f(iloc,jloc,1))+one
                        berrmax=bckg_stdmax_p(nrf2+n)
                     endif
                     exit
@@ -5330,10 +5405,10 @@ subroutine get2berr_reg_subdomain_option(mype)
 
 
   do k=kps,kpe
-     bckgvar4t=zero
+     bckgvar4t=0.0_r_kind
      do j=jpsf,jpef
         do i=ipsf,ipef
-           bckgvar4t(i,j)=bckgvar0f(i,j,k)
+           bckgvar4t(i,j)=real(bckgvar0f(i,j,k),kind=r_single)
         end do
      end do
      call mpi_reduce(bckgvar4t,bckgvar4f,nlatf*nlonf,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
@@ -5436,30 +5511,120 @@ subroutine get2berr_reg_subdomain_option(mype)
 
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 !simple diagnostic output 
-!allocate(slab00(nlat,nlon),slab11(nlat,nlon))
-!do n=1,14
-!    slab00=zero_single
-!    slab11=zero_single
-!    do j=2,lon2-1
-!       jglob=j+jstart(mm1)-2
-!       do i=2,lat2-1
-!          iglob=i+istart(mm1)-2
-!          if (n<=4) slab00(iglob,jglob)=bckg0f_stdz(i,j,1,N)
-!          if (n>4 .and. n<13) slab00(iglob,jglob)=bckg0f_stdp(i,j,1,N-4)
-!          if (n==13) slab00(iglob,jglob)=z0f_std(i,j,1)
-!          if (n==14) slab00(iglob,jglob)=valleys0f(i,j,1)
-!       end do
-!    end do
-!    call mpi_reduce(slab00,slab11,nlat*nlon,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
-!    if (mype==0) print*,'3D-n:slab11,min,max=',n,minval(slab11),maxval(slab11)
-!    if (mype==0) then
-!       write(clun,'(i2.2)') n
-!       open (54,file='FLD_STD_'//clun//'.dat',form='unformatted')
-!       write(54) slab11
-!       close(54)
-!    endif
-!enddo
-!deallocate(slab00,slab11)
+ if (.not.turnoff_all_stdmodels .and. writeout_stdmodel_diagnostics) then
+    allocate(slab00(nlat,nlon),slab11(nlat,nlon))
+
+    do n=1,nrf3
+       ivar=nrf3_loc(n)
+       chvarname=fvarname(ivar)
+       lstdmodel0=lstdmodel(chvarname) 
+       if (.not.lstdmodel0) cycle
+
+       slab00=zero_single
+       slab11=zero_single
+       do j=2,lon2-1
+          jglob=j+jstart(mm1)-2
+          do i=2,lat2-1
+             iglob=i+istart(mm1)-2
+             slab00(iglob,jglob)=bckg_stdz0f(i,j,1,n)
+          end do
+       end do
+       call mpi_reduce(slab00,slab11,nlat*nlon,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
+       if (mype==0) print*,'3D-n:chvarname,slab11,min,max=',n,trim(chvarname),minval(slab11),maxval(slab11)
+       if (mype==0) then
+          open (54,file='FLD_STD.dat_'//trim(chvarname),form='unformatted')
+          write(54) slab11
+          close(54)
+       endif
+    enddo
+
+    do n=1,nrf2
+       ivar=nrf2_loc(n)
+       chvarname=fvarname(ivar)
+       lstdmodel0=lstdmodel(chvarname) 
+       if (.not.lstdmodel0) cycle
+
+       slab00=zero_single
+       slab11=zero_single
+       do j=2,lon2-1
+          jglob=j+jstart(mm1)-2
+          do i=2,lat2-1
+             iglob=i+istart(mm1)-2
+             slab00(iglob,jglob)=bckg_stdp0f(i,j,1,n)
+          end do
+       end do
+       call mpi_reduce(slab00,slab11,nlat*nlon,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
+       if (mype==0) print*,'2D-n:chvarname,slab11,min,max=',n,trim(chvarname),minval(slab11),maxval(slab11)
+       if (mype==0) then
+          open (54,file='FLD_STD.dat_'//trim(chvarname),form='unformatted')
+          write(54) slab11
+          close(54)
+       endif
+    enddo
+
+    do n=1,mvars
+       ivar=nmotl_loc(n)
+       lstdmodel0=lstdmodel(chvarname) 
+       if (.not.lstdmodel0) cycle
+
+       nn=nrf2+n
+
+       slab00=zero_single
+       slab11=zero_single
+       do j=2,lon2-1
+          jglob=j+jstart(mm1)-2
+          do i=2,lat2-1
+             iglob=i+istart(mm1)-2
+             slab00(iglob,jglob)=bckg_stdp0f(i,j,1,nn)
+          end do
+       end do
+       call mpi_reduce(slab00,slab11,nlat*nlon,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
+       if (mype==0) print*,'2D-n:chvarname,slab11,min,max=',n,trim(chvarname),minval(slab11),maxval(slab11)
+       if (mype==0) then
+          open (54,file='FLD_STD.dat_'//trim(chvarname),form='unformatted')
+          write(54) slab11
+          close(54)
+       endif
+    enddo
+
+    chvarname='terrain'
+    slab00=zero_single
+    slab11=zero_single
+    do j=2,lon2-1
+       jglob=j+jstart(mm1)-2
+       do i=2,lat2-1
+          iglob=i+istart(mm1)-2
+          slab00(iglob,jglob)=z0f_std(i,j,1)
+       end do
+    end do
+    call mpi_reduce(slab00,slab11,nlat*nlon,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
+    if (mype==0) print*,'2D-n:chvarname,slab11,min,max=',n,trim(chvarname),minval(slab11),maxval(slab11)
+    if (mype==0) then
+       open (54,file='FLD_STD.dat_'//trim(chvarname),form='unformatted')
+       write(54) slab11
+       close(54)
+    endif
+
+    chvarname='valleymap'
+    slab00=zero_single
+    slab11=zero_single
+    do j=2,lon2-1
+       jglob=j+jstart(mm1)-2
+       do i=2,lat2-1
+          iglob=i+istart(mm1)-2
+          slab00(iglob,jglob)=valleys0f(i,j,1)
+       end do
+    end do
+    call mpi_reduce(slab00,slab11,nlat*nlon,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
+    if (mype==0) print*,'2D-n:chvarname,slab11,min,max=',n,trim(chvarname),minval(slab11),maxval(slab11)
+    if (mype==0) then
+       open (54,file='FLD_STD.dat_'//trim(chvarname),form='unformatted')
+       write(54) slab11
+       close(54)
+    endif
+
+    deallocate(slab00,slab11)
+ endif
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
   deallocate(region_dy4,region_dx4)
@@ -5472,9 +5637,9 @@ subroutine get2berr_reg_subdomain_option(mype)
   deallocate(u0f,v0f,z0f,z0f2,z0f3)
   deallocate(vis0f,cldch0f,valleys0f)
   deallocate(z0f_std)
-  deallocate(bckg0f_stdz,bckg0f_stdp)
-  deallocate(bckg_stdmax_z,bckg_stdbump_z)
-  deallocate(bckg_stdmax_p,bckg_stdbump_p)
+  deallocate(bckg_stdz0f,bckg_stdp0f)
+  deallocate(bckg_stdmax_z,bckg_stdfact_z,bckg_valleyfact_z)
+  deallocate(bckg_stdmax_p,bckg_stdfact_p,bckg_valleyfact_p)
   deallocate(zsmooth4a,psg4a)
   deallocate(zsmooth4,psg4)
   deallocate(fltvals0)
@@ -5578,7 +5743,7 @@ subroutine get_background_subdomain_option(mype)
   logical lstdmodel0
   real(r_kind) :: fstdmax0
 
-  logical fexist
+  logical fexist,gexist
 
   real(r_kind) flon,flat
   logical glerlarea
@@ -5792,24 +5957,28 @@ subroutine get_background_subdomain_option(mype)
   endif
 
   allocate( z0f_std(lat2,lon2,nsig) )
-  allocate( bckg0f_stdz(lat2,lon2,nsig,nrf3) )
-  allocate( bckg0f_stdp(lat2,lon2,nsig,nvars-nrf3) )
+  allocate( bckg_stdz0f(lat2,lon2,nsig,nrf3) )
+  allocate( bckg_stdp0f(lat2,lon2,nsig,nvars-nrf3) )
 
   allocate (bckg_stdmax_z(nrf3))
-  allocate (bckg_stdbump_z(nrf3))
+  allocate (bckg_stdfact_z(nrf3))
+  allocate (bckg_valleyfact_z(nrf3))
   allocate (bckg_stdmax_p(nvars-nrf3))
-  allocate (bckg_stdbump_p(nvars-nrf3))
+  allocate (bckg_stdfact_p(nvars-nrf3))
+  allocate (bckg_valleyfact_p(nvars-nrf3))
 
   allocate(slab0(ids:ide , jds:jde , 1:nsig))
   allocate(slab1(ids:ide , jds:jde , 1:nsig))
 
   z0f_std=sone
-  bckg0f_stdz=sone
-  bckg0f_stdp=sone
-  bckg_stdbump_z=one
-  bckg_stdmax_z=one
-  bckg_stdbump_p=one
-  bckg_stdmax_p=one
+  bckg_stdz0f=sone
+  bckg_stdp0f=sone
+  bckg_stdfact_z=zero
+  bckg_valleyfact_z=one
+  bckg_stdmax_z=huge(bckg_stdmax_z)
+  bckg_stdfact_p=zero
+  bckg_valleyfact_p=one
+  bckg_stdmax_p=huge(bckg_stdmax_p)
 
   do kk=kps,kpe!    Looping through analysis variables
 
@@ -5827,50 +5996,51 @@ subroutine get_background_subdomain_option(mype)
      if (trim(cvarstype(ivar))=='static3d') then
         do n=1,nrf3
            if (nrf3_loc(n)==ivar) then
-             if (.not.stdmodel_z_based) then
-
-             if (l_nostd) then 
-                 bckg0f_stdz(:,:,:,n) = 1._r_single
-               else
-                 do k=1,nsig
-                    do j=2,lon2-1
-                       jglob=j+jstart(mm1)-2
-                       if(jglob<1.or.jglob>nlona) cycle
-                       do i=2,lat2-1
-                          iglob=i+istart(mm1)-2
-                          if(iglob<1.or.iglob>nlata) cycle
-                          if (trim(chvarname)=='t')        slab0 (iglob,jglob,k) = ges_tv_it (i,j,k)/(one+fv*ges_q_it(i,j,k))
-                          if (trim(chvarname)=='pseudorh') slab0 (iglob,jglob,k) = ges_q_it  (i,j,k)
-                       end do 
-                    end do
-                 end do
-
-                 call mpi_allreduce(slab0,slab1,(ide-ids+1)*(jde-jds+1)*(nsig-1+1),mpi_real4,mpi_sum,mpi_comm_world,ierror)
-                 call get_fldstd(slab1,ids,ide,jds,jde,1,nsig,std_radius,npass_for_std,mype)
-
-                 do k=1,nsig
-                    do j=1,lon2
-                       jglob=j+jstart(mm1)-2
-                       if(jglob<1.or.jglob>nlona) cycle
-                       do i=1,lat2
-                          iglob=i+istart(mm1)-2
-                          if(iglob<1.or.iglob>nlata) cycle
-                          bckg0f_stdz (i,j,k,n) = slab1 (iglob,jglob,k)
-                       end do
-                    end do
-                 end do
-             end if
-             end if !stdmodel_z_based condition
              if (lstdmodel0) then
-                bckg_stdbump_z(n)=stdbump(chvarname)
-                fstdmax0=fstdmax(chvarname)
-                bckg_stdmax_z(n)=maxval(corz(:,kvar,n))*an_amp(1,ivar)*fstdmax0
-                if (mype==0) print*,'chvarname=',trim(chvarname)
-                if (mype==0) print*,'kk,n,bckg_stdbump_z(n),bckg_stdmax_z(n)=',kk,n,bckg_stdbump_z(n),bckg_stdmax_z(n)
-                if (mype==0) print*,'kk,n,ivar,an_amp(1,ivar)=',kk,n,ivar,an_amp(1,ivar)
-                if (mype==0) print*,'kk,slab1,min,max=',kk,minval(slab1),maxval(slab1)
-                if (mype==0) print*,'================================='
-                if (mype==0) print*,'================================='
+
+               if (l_nostd) then 
+                   bckg_stdz0f(:,:,:,n) = 1._r_single
+                 else
+                   do k=1,nsig
+                      do j=2,lon2-1
+                         jglob=j+jstart(mm1)-2
+                         if(jglob<1.or.jglob>nlona) cycle
+                         do i=2,lat2-1
+                            iglob=i+istart(mm1)-2
+                            if(iglob<1.or.iglob>nlata) cycle
+                            if (trim(chvarname)=='t')        slab0 (iglob,jglob,k) = ges_tv_it (i,j,k)/(one+fv*ges_q_it(i,j,k))
+                            if (trim(chvarname)=='pseudorh') slab0 (iglob,jglob,k) = ges_q_it  (i,j,k)
+                         end do 
+                      end do
+                   end do
+
+                   call mpi_allreduce(slab0,slab1,(ide-ids+1)*(jde-jds+1)*nsig,mpi_real4,mpi_sum,mpi_comm_world,ierror)
+                   call get_fldstd(slab1,ids,ide,jds,jde,1,nsig,std_radius,npass_for_std,mype)
+
+                   do k=1,nsig
+                      do j=1,lon2
+                         jglob=j+jstart(mm1)-2
+                         if(jglob<1.or.jglob>nlona) cycle
+                         do i=1,lat2
+                            iglob=i+istart(mm1)-2
+                            if(iglob<1.or.iglob>nlata) cycle
+                            bckg_stdz0f (i,j,k,n) = slab1 (iglob,jglob,k)
+                         end do
+                      end do
+                   end do
+               end if
+
+               bckg_stdfact_z(n)=stdfact(chvarname)
+               bckg_valleyfact_z(n)=valleyfact(chvarname)
+               fstdmax0=fstdmax(chvarname)
+               bckg_stdmax_z(n)=maxval(corz(:,kvar,n))*an_amp(1,ivar)*fstdmax0
+               if (mype==0) print*,'chvarname=',trim(chvarname)
+               if (mype==0) print*,'kk,n,bckg_stdfact_z(n),bckg_stdmax_z(n)=',kk,n,bckg_stdfact_z(n),bckg_stdmax_z(n)
+               if (mype==0) print*,'kk,n,bckg_valleyfact_z(n)=',kk,n,bckg_valleyfact_z(n)
+               if (mype==0) print*,'kk,n,ivar,an_amp(1,ivar)=',kk,n,ivar,an_amp(1,ivar)
+               if (mype==0) print*,'kk,slab1,min,max=',kk,minval(slab1),maxval(slab1)
+               if (mype==0) print*,'================================='
+               if (mype==0) print*,'================================='
              end if
              exit
            end if
@@ -5879,47 +6049,48 @@ subroutine get_background_subdomain_option(mype)
       else if (trim(cvarstype(ivar))=='static2d') then
         do n=1,nrf2
            if (nrf2_loc(n)==ivar) then
-              if (.not.stdmodel_z_based) then
-              call gsi_bundlegetpointer (gsi_metguess_bundle(it),trim(chvarname), ges_wrk2d, istatus)
-
-              do k=1,nsig
-                 do j=2,lon2-1
-                    jglob=j+jstart(mm1)-2
-                    if(jglob<1.or.jglob>nlona) cycle
-                    do i=2,lat2-1
-                       iglob=i+istart(mm1)-2
-                       if(iglob<1.or.iglob>nlata) cycle
-                       slab0 (iglob,jglob,k) = ges_wrk2d(i,j)
-                    end do 
-                 end do
-              end do
-              if (trim(chvarname)=='ps')    slab0 = slab0*1000._r_single
-
-              call mpi_allreduce(slab0,slab1,(ide-ids+1)*(jde-jds+1)*(nsig-1+1),mpi_real4,mpi_sum,mpi_comm_world,ierror)
-              call get_fldstd(slab1,ids,ide,jds,jde,1,nsig,std_radius,npass_for_std,mype)
-
-              do k=1,nsig
-                 do j=1,lon2
-                    jglob=j+jstart(mm1)-2
-                    if(jglob<1.or.jglob>nlona) cycle
-                    do i=1,lat2
-                       iglob=i+istart(mm1)-2
-                       if(iglob<1.or.iglob>nlata) cycle
-                       bckg0f_stdp (i,j,k,n) = slab1 (iglob,jglob,k)
-                    end do
-                 end do
-              end do
-              end if!stdmodel_z_based condition
               if (lstdmodel0) then
-                 bckg_stdbump_p(n)=stdbump(chvarname)
-                 fstdmax0=fstdmax(chvarname)
-                 bckg_stdmax_p(n)=maxval(corp(:,n))*an_amp(1,ivar)*fstdmax0
-                 if (mype==0) print*,'chvarname=',trim(chvarname)
-                 if (mype==0) print*,'kk,n,bckg_stdbump_p(n),bckg_stdmax_p(n)=',kk,n,bckg_stdbump_p(n),bckg_stdmax_p(n)
-                 if (mype==0) print*,'kk,n,ivar,an_amp(1,ivar)=',kk,n,ivar,an_amp(1,ivar)
-                 if (mype==0) print*,'kk,slab1,min,max=',kk,minval(slab1),maxval(slab1)
-                 if (mype==0) print*,'================================='
-                 if (mype==0) print*,'================================='
+                call gsi_bundlegetpointer (gsi_metguess_bundle(it),trim(chvarname), ges_wrk2d, istatus)
+
+                do k=1,nsig
+                   do j=2,lon2-1
+                      jglob=j+jstart(mm1)-2
+                      if(jglob<1.or.jglob>nlona) cycle
+                      do i=2,lat2-1
+                         iglob=i+istart(mm1)-2
+                         if(iglob<1.or.iglob>nlata) cycle
+                         slab0 (iglob,jglob,k) = ges_wrk2d(i,j)
+                      end do 
+                   end do
+                end do
+                if (trim(chvarname)=='ps')    slab0 = slab0*1000._r_single
+
+                call mpi_allreduce(slab0,slab1,(ide-ids+1)*(jde-jds+1)*nsig,mpi_real4,mpi_sum,mpi_comm_world,ierror)
+                call get_fldstd(slab1,ids,ide,jds,jde,1,nsig,std_radius,npass_for_std,mype)
+  
+                do k=1,nsig
+                   do j=1,lon2
+                      jglob=j+jstart(mm1)-2
+                      if(jglob<1.or.jglob>nlona) cycle
+                      do i=1,lat2
+                         iglob=i+istart(mm1)-2
+                         if(iglob<1.or.iglob>nlata) cycle
+                         bckg_stdp0f (i,j,k,n) = slab1 (iglob,jglob,k)
+                      end do
+                   end do
+                end do
+
+                bckg_stdfact_p(n)=stdfact(chvarname)
+                bckg_valleyfact_p(n)=valleyfact(chvarname)
+                fstdmax0=fstdmax(chvarname)
+                bckg_stdmax_p(n)=maxval(corp(:,n))*an_amp(1,ivar)*fstdmax0
+                if (mype==0) print*,'chvarname=',trim(chvarname)
+                if (mype==0) print*,'kk,n,bckg_stdfact_p(n),bckg_stdmax_p(n)=',kk,n,bckg_stdfact_p(n),bckg_stdmax_p(n)
+                if (mype==0) print*,'kk,n,bckg_valleyfact_p(n)=',kk,n,bckg_valleyfact_p(n)
+                if (mype==0) print*,'kk,n,ivar,an_amp(1,ivar)=',kk,n,ivar,an_amp(1,ivar)
+                if (mype==0) print*,'kk,slab1,min,max=',kk,minval(slab1),maxval(slab1)
+                if (mype==0) print*,'================================='
+                if (mype==0) print*,'================================='
               end if
               exit
            end if
@@ -5940,25 +6111,27 @@ subroutine get_background_subdomain_option(mype)
               do k=1,nsig
                  do j=1,lon2
                     do i=1,lat2
-                       if (trim(chvarname)=='twter')       bckg0f_stdp(i,j,k,nn) = bckg0f_stdz(i,j,k,nrf3_t)
-                       if (trim(chvarname)=='qwter')       bckg0f_stdp(i,j,k,nn) = bckg0f_stdz(i,j,k,nrf3_q)
-                       if (trim(chvarname)=='pswter')      bckg0f_stdp(i,j,k,nn) = bckg0f_stdp(i,j,k,nrf2_ps)
-                       if (trim(chvarname)=='gustwter')    bckg0f_stdp(i,j,k,nn) = bckg0f_stdp(i,j,k,nrf2_gust)
-                       if (trim(chvarname)=='wspd10mwter') bckg0f_stdp(i,j,k,nn) = bckg0f_stdp(i,j,k,nrf2_wspd10m)
-                       if (trim(chvarname)=='td2mwter')    bckg0f_stdp(i,j,k,nn) = bckg0f_stdp(i,j,k,nrf2_td2m)
-                       if (trim(chvarname)=='mxtmwter')    bckg0f_stdp(i,j,k,nn) = bckg0f_stdp(i,j,k,nrf2_mxtm)
-                       if (trim(chvarname)=='mitmwter')    bckg0f_stdp(i,j,k,nn) = bckg0f_stdp(i,j,k,nrf2_mitm)
-                       if (trim(chvarname)=='uwnd10mwter') bckg0f_stdp(i,j,k,nn) = bckg0f_stdp(i,j,k,nrf2_uwnd10m)
-                       if (trim(chvarname)=='vwnd10mwter') bckg0f_stdp(i,j,k,nn) = bckg0f_stdp(i,j,k,nrf2_vwnd10m)
+                       if (trim(chvarname)=='twter')       bckg_stdp0f(i,j,k,nn) = bckg_stdz0f(i,j,k,nrf3_t)
+                       if (trim(chvarname)=='qwter')       bckg_stdp0f(i,j,k,nn) = bckg_stdz0f(i,j,k,nrf3_q)
+                       if (trim(chvarname)=='pswter')      bckg_stdp0f(i,j,k,nn) = bckg_stdp0f(i,j,k,nrf2_ps)
+                       if (trim(chvarname)=='gustwter')    bckg_stdp0f(i,j,k,nn) = bckg_stdp0f(i,j,k,nrf2_gust)
+                       if (trim(chvarname)=='wspd10mwter') bckg_stdp0f(i,j,k,nn) = bckg_stdp0f(i,j,k,nrf2_wspd10m)
+                       if (trim(chvarname)=='td2mwter')    bckg_stdp0f(i,j,k,nn) = bckg_stdp0f(i,j,k,nrf2_td2m)
+                       if (trim(chvarname)=='mxtmwter')    bckg_stdp0f(i,j,k,nn) = bckg_stdp0f(i,j,k,nrf2_mxtm)
+                       if (trim(chvarname)=='mitmwter')    bckg_stdp0f(i,j,k,nn) = bckg_stdp0f(i,j,k,nrf2_mitm)
+                       if (trim(chvarname)=='uwnd10mwter') bckg_stdp0f(i,j,k,nn) = bckg_stdp0f(i,j,k,nrf2_uwnd10m)
+                       if (trim(chvarname)=='vwnd10mwter') bckg_stdp0f(i,j,k,nn) = bckg_stdp0f(i,j,k,nrf2_vwnd10m)
                     end do
                  end do
               end do
               if (lstdmodel0) then
-                 bckg_stdbump_p(nn)=stdbump(chvarname)
+                 bckg_stdfact_p(nn)=stdfact(chvarname)
+                 bckg_valleyfact_p(nn)=valleyfact(chvarname)
                  fstdmax0=fstdmax(chvarname)
                  bckg_stdmax_p(nn)=maxval(corp(:,nn))*an_amp(1,ivar)*fstdmax0
                  if (mype==0) print*,'chvarname=',trim(chvarname)
-                 if (mype==0) print*,'kk,nn,bckg_stdbump_p(nn),bckg_stdmax_p(nn)=',kk,n,bckg_stdbump_p(nn),bckg_stdmax_p(nn)
+                 if (mype==0) print*,'kk,nn,bckg_stdfact_p(nn),bckg_stdmax_p(nn)=',kk,n,bckg_stdfact_p(nn),bckg_stdmax_p(nn)
+                 if (mype==0) print*,'kk,nn,bckg_valleyfact_p(nn)=',kk,n,bckg_valleyfact_p(nn)
                  if (mype==0) print*,'kk,nn,ivar,an_amp(1,ivar)=',kk,nn,ivar,an_amp(1,ivar)
                  if (mype==0) print*,'kk,slab1,min,max=',kk,minval(slab1),maxval(slab1)
                  if (mype==0) print*,'================================='
@@ -5985,7 +6158,7 @@ subroutine get_background_subdomain_option(mype)
   end do
 
   slab1=zero_single
-  call mpi_allreduce(slab0,slab1,(ide-ids+1)*(jde-jds+1)*(nsig-1+1),mpi_real4,mpi_sum,mpi_comm_world,ierror)
+  call mpi_allreduce(slab0,slab1,(ide-ids+1)*(jde-jds+1)*nsig,mpi_real4,mpi_sum,mpi_comm_world,ierror)
   call get_fldstd(slab1,ids,ide,jds,jde,1,nsig,std_radius,npass_for_std,mype)
 
   do k=1,nsig
@@ -6008,46 +6181,79 @@ subroutine get_background_subdomain_option(mype)
   allocate( valleys0f(lat2,lon2,nsig) )
   valleys0f=1._r_single
 
-  inquire(file='valley_map_unsmoothed.dat',exist=fexist)
-  if (fexist) then
-     allocate(valleys(jds:jde , ids:ide))                             !Note the transposing
-     open (55,file='valley_map_unsmoothed.dat',form='unformatted')
-     read(55) valleys
-     close(55)
+  if (.not.turnoff_all_stdmodels) then
+     allocate(valleys(jds:jde , ids:ide))                             !Note the transpose
 
-     do k=kps0,kpe0
-        do j=jps,jpe
-           do i=ips,ipe
-              field(i,j,k)=valleys(j,i)
+     inquire(file='valley_map_unsmoothed.dat',exist=fexist)
+     if (fexist) then
+        if (mype==0) then
+            open (55,file='valley_map_unsmoothed.dat',form='unformatted')
+            read(55) valleys
+            close(55)
+        endif
+        call mpi_bcast (valleys, (jde-jds+1)*(ide-ids+1), mpi_real4, 0, mpi_comm_world, ierror)
+
+        do k=kps0,kpe0
+           do j=jps,jpe
+              do i=ips,ipe
+                 field(i,j,k)=valleys(j,i)
+              enddo
            enddo
         enddo
-     enddo
 
-     do n=1,n_valley_pass
-        call raf_sm4(field,filter_all,ngauss_smooth,ips,ipe,jps,jpe,kps0,kpe0,npe)
-        call raf_sm4_ad(field,filter_all,ngauss_smooth,ips,ipe,jps,jpe,kps0,kpe0,npe)
-     enddo
+        do n=1,n_valley_pass
+           call raf_sm4(field,filter_all,ngauss_smooth,ips,ipe,jps,jpe,kps0,kpe0,npe)
+           call raf_sm4_ad(field,filter_all,ngauss_smooth,ips,ipe,jps,jpe,kps0,kpe0,npe)
+        enddo
 
-     do k=kps0,kpe0
-        do j=jps,jpe
-           jloc=j-jstart(mm1)+2
-           do i=ips,ipe
-              iloc=i-istart(mm1)+2
-              field2(iloc,jloc,k)=field(i,j,k)
+        do k=kps0,kpe0
+           do j=jps,jpe
+              jloc=j-jstart(mm1)+2
+              do i=ips,ipe
+                 iloc=i-istart(mm1)+2
+                 field2(iloc,jloc,k)=field(i,j,k)
+              end do
            end do
         end do
-     end do
-     call halo_update_reg(field2,nsig)
+        call halo_update_reg(field2,nsig)
 
-     do k=1,nsig
-        do j=1,lon2
-           do i=1,lat2
-              valleys0f(i,j,k)=field2(i,j,k)
+        do k=1,nsig
+           do j=1,lon2
+              do i=1,lat2
+                 valleys0f(i,j,k)=field2(i,j,k)
+              end do
            end do
         end do
-     end do
 
-    deallocate(valleys)
+      else
+        inquire(file='valley_map.dat',exist=gexist)
+        if (gexist) then
+           if (mype==0) then
+               open (55,file='valley_map.dat',form='unformatted')
+               read(55) valleys
+               close(55)
+           endif
+
+           call mpi_bcast (valleys, (jde-jds+1)*(ide-ids+1), mpi_real4, 0, mpi_comm_world, ierror)
+
+           do k=1,nsig
+              do j=1,lon2
+                 jglob=j+jstart(mm1)-2
+                 if(jglob<1.or.jglob>nlona) cycle
+                 do i=1,lat2
+                    iglob=i+istart(mm1)-2
+                    if(iglob<1.or.iglob>nlata) cycle
+                    valleys0f(i,j,k)=valleys(jglob,iglob)
+                 enddo
+              enddo
+           enddo
+         else
+           if (mype==0) print*,'in get_background_subdomain_option: could not find valley_map.dat ... aborting'
+           call mpi_finalize(ierror)
+           stop
+        endif
+     endif
+     deallocate(valleys)
   endif
 
 

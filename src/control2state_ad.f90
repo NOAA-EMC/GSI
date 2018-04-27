@@ -96,7 +96,6 @@ character(len=3), parameter :: mycvars(ncvars) = (/  &
                 'sf ', 'vp ', 'ps ', 't  ', 'q  ', 'cw ', 'ql ', 'qi ', 'w  ' /)
 logical :: lc_sf,lc_vp,lc_w,lc_ps,lc_t,lc_rh,lc_cw,lc_ql,lc_qi
 real(r_kind),pointer,dimension(:,:)   :: cv_ps=>NULL()
-real(r_kind),pointer,dimension(:,:)   :: cv_vis=>NULL()
 real(r_kind),pointer,dimension(:,:)   :: cv_lcbas=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_sf=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_vp=>NULL()
@@ -105,7 +104,6 @@ real(r_kind),pointer,dimension(:,:,:) :: cv_t=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_rh=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_sfwter=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_vpwter=>NULL()
-real(r_kind),pointer,dimension(:,:)   :: cv_cldch=>NULL()
 
 ! Declare required local state variables
 integer(i_kind), parameter :: nsvars = 12
@@ -340,11 +338,8 @@ do jj=1,nsubwin
       call gsi_bundleputvar ( wbundle, 'gust', rv_gust, istatus )
    end if
    if (icvis >0) then
-      call gsi_bundlegetpointer (wbundle,'vis'  ,cv_vis ,istatus)
       call gsi_bundlegetpointer (rval(jj),'vis'  ,rv_vis , istatus)
-      call gsi_bundleputvar ( wbundle, 'vis' , zero   , istatus )
-      !  Adjoint of convert logvis to vis
-      call logvis_to_vis_ad(cv_vis,rv_vis)
+      call gsi_bundleputvar ( wbundle, 'vis' , rv_vis   , istatus )
    end if
    if (icpblh>0)then
       call gsi_bundlegetpointer (rval(jj),'pblh' ,rv_pblh, istatus)
@@ -390,11 +385,8 @@ do jj=1,nsubwin
       call loglcbas_to_lcbas_ad(cv_lcbas,rv_lcbas)
    end if
    if (iccldch >0) then
-      call gsi_bundlegetpointer (wbundle,'cldch'  ,cv_cldch ,istatus)
       call gsi_bundlegetpointer (rval(jj),'cldch' ,rv_cldch , istatus)
-      call gsi_bundleputvar ( wbundle, 'cldch' , zero   , istatus )
-      !  Adjoint of convert logcldch to cldch
-      call logcldch_to_cldch_ad(cv_cldch,rv_cldch)
+      call gsi_bundleputvar ( wbundle, 'cldch' , rv_cldch  , istatus )
    end if
    if (icuwnd10m>0) then
       call gsi_bundlegetpointer (rval(jj),'uwnd10m' ,rv_uwnd10m, istatus)

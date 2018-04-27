@@ -105,7 +105,6 @@ character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed he
                 'sf ', 'vp ', 'ps ', 't  ', 'q  ', 'cw ', 'ql ', 'qi ', 'w  ' /)
 logical :: lc_sf,lc_vp,lc_w,lc_ps,lc_t,lc_rh,lc_cw,lc_ql,lc_qi
 real(r_kind),pointer,dimension(:,:)   :: cv_ps=>NULL()
-real(r_kind),pointer,dimension(:,:)   :: cv_vis=>NULL()
 real(r_kind),pointer,dimension(:,:)   :: cv_lcbas=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_sf=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_vp=>NULL()
@@ -114,7 +113,6 @@ real(r_kind),pointer,dimension(:,:,:) :: cv_t=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_rh=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_sfwter=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_vpwter=>NULL()
-real(r_kind),pointer,dimension(:,:)   :: cv_cldch=>NULL()
 
 ! Declare required local state variables
 integer(i_kind), parameter :: nsvars = 12
@@ -285,7 +283,6 @@ do jj=1,nsubwin
    call gsi_bundlegetpointer (sval(jj),'tv'  ,sv_tv,  istatus)
    call gsi_bundlegetpointer (sval(jj),'tsen',sv_tsen,istatus)
    call gsi_bundlegetpointer (sval(jj),'q'   ,sv_q ,  istatus)
-
    call gsi_bundlegetpointer (wbundle,'ps' ,cv_ps ,istatus)
    call gsi_bundlegetpointer (wbundle,'t'  ,cv_t,  istatus)
    call gsi_bundlegetpointer (wbundle,'q'  ,cv_rh ,istatus)
@@ -345,10 +342,8 @@ do jj=1,nsubwin
       call gsi_bundlegetvar ( wbundle, 'pblh', sv_pblh, istatus )
    end if
    if (icvis >0) then
-      call gsi_bundlegetpointer (wbundle,'vis',cv_vis,istatus)
       call gsi_bundlegetpointer (sval(jj),'vis'  ,sv_vis , istatus)
-      !  Convert log(vis) to vis
-      call logvis_to_vis(cv_vis,sv_vis)
+      call gsi_bundlegetvar  (wbundle,'vis',sv_vis,istatus)
    end if
    if (icwspd10m>0) then
       call gsi_bundlegetpointer (sval(jj),'wspd10m' ,sv_wspd10m, istatus)
@@ -389,10 +384,8 @@ do jj=1,nsubwin
       call loglcbas_to_lcbas(cv_lcbas,sv_lcbas)
    end if
    if (iccldch >0) then
-      call gsi_bundlegetpointer (wbundle,'cldch',cv_cldch,istatus)
       call gsi_bundlegetpointer (sval(jj),'cldch'  ,sv_cldch , istatus)
-      !  Convert log(cldch) to cldch
-      call logcldch_to_cldch(cv_cldch,sv_cldch)
+      call gsi_bundlegetvar (wbundle,'cldch',sv_cldch,istatus)
    end if
    if (icuwnd10m>0) then
       call gsi_bundlegetpointer (sval(jj),'uwnd10m' ,sv_uwnd10m, istatus)

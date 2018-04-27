@@ -165,6 +165,8 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2016-12-13  pondeca - add Tyndall & Horel QC for mesonet winds (WAF 2013, Vol. 8, pg. 285) to GSI's 2dvar option
 !   2017-03-31  Hu      -  addd option l_closeobs to use closest obs to analysis
 !                                     time in analysis
+!   2018-04-09  pondeca -  introduce duplogic to correctly handle the characterization of
+!                          duplicate obs in twodvar_regional applications
 !
 !
 ! REMARKS:
@@ -251,7 +253,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   logical z_height,sfc_data
   logical,dimension(nobs):: luse,muse
   integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
-  logical lowlevelsat
+  logical lowlevelsat,duplogic
   logical proceed
 
   logical:: in_curbin, in_anybin, save_jacobian
@@ -358,12 +360,20 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   dup=one
   do k=1,nobs
      do l=k+1,nobs
-        if(data(ilat,k) == data(ilat,l) .and.  &
+        if (twodvar_regional) then
+           duplogic=data(ilat,k) == data(ilat,l) .and.  &
+           data(ilon,k) == data(ilon,l) .and.  &
+           data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
+           muse(k) .and. muse(l)
+         else
+           duplogic=data(ilat,k) == data(ilat,l) .and.  &
            data(ilon,k) == data(ilon,l) .and.  &
            data(ipres,k) == data(ipres,l) .and. &
            data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
-           muse(k) .and. muse(l))then
+           muse(k) .and. muse(l)
+        end if
 
+        if (duplogic) then
            if(l_closeobs) then
               if(abs(data(itime,k)-hr_offset)<abs(data(itime,l)-hr_offset)) then
                   muse(l)=.false.

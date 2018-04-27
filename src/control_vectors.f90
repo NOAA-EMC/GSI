@@ -335,7 +335,7 @@ allocate(an_amp0(nvars))
 
 ! want to rid code from the following ...
 nrf=nc2d+nc3d
-allocate(nrf_3d(nrf),nrf2_loc(nc2d),nrf3_loc(nc3d),nmotl_loc(mvars))
+allocate(nrf_3d(nrf),nrf2_loc(nc2d),nrf3_loc(nc3d),nmotl_loc(max(1,mvars)))
 
 ! Now load information from table
 nc3d=0;nc2d=0;mvars=0
