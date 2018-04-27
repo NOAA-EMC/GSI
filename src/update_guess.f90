@@ -86,6 +86,7 @@ subroutine update_guess(sval,sbias)
 !   2015-07-10  pondeca  - add cldch
 !   2016-04-28  eliu    - revise update for cloud water 
 !   2016-06-23  lippi   - Add update for vertical velocity (w).
+!   2018-05-01  yang    - modify the constrains to C and V in g-space, or using NLTF transfermation to C/V
 !
 !   input argument list:
 !    sval
@@ -105,7 +106,7 @@ subroutine update_guess(sval,sbias)
   use kinds, only: r_kind,i_kind
   use mpimod, only: mype
   use constants, only: zero,one,fv,max_varname_length,qmin,qcmin,tgmin,&
-                       r100,one_tenth
+                       r100,one_tenth,tiny_r_kind
   use jfunc, only: iout_iter,bcoption,tsensible,clip_supersaturation
   use gridmod, only: lat2,lon2,nsig,&
        regional,twodvar_regional,regional_ozone
@@ -128,6 +129,7 @@ subroutine update_guess(sval,sbias)
   use rapidrefresh_cldsurf_mod, only: i_use_2mq4b,i_use_2mt4b
   use gsd_update_mod, only: gsd_limit_ocean_q,gsd_update_soil_tq,&
        gsd_update_th2,gsd_update_q2
+  use qcmod, only: pvis,pcldch,scale_cv,vis_thres,cldch_thres 
   use obsmod, only: l_wcp_cwm
 
   implicit none
@@ -146,6 +148,8 @@ subroutine update_guess(sval,sbias)
   integer(i_kind) icloud,ncloud
   integer(i_kind) idq
   real(r_kind) :: zt
+  real(r_kind) :: glow,ghigh
+
   real(r_kind),pointer,dimension(:,:  ) :: ptr2dinc =>NULL()
   real(r_kind),pointer,dimension(:,:  ) :: ptr2dges =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: ptr3dinc =>NULL()
@@ -182,6 +186,7 @@ subroutine update_guess(sval,sbias)
   endif
 
 ! Inquire about clouds
+
   call gsi_metguess_get('clouds::3d',ncloud,istatus)
   if (ncloud>0) then
      allocate(cloud(ncloud))
@@ -294,13 +299,36 @@ subroutine update_guess(sval,sbias)
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ptr2dges,istatus)
            ptr2dges = ptr2dges + ptr2dinc
            if (trim(guess(ic))=='gust')  ptr2dges = max(ptr2dges,zero)
-           if (trim(guess(ic))=='vis')   ptr2dges = max(min(ptr2dges,20000.0_r_kind),one_tenth)
+           if (trim(guess(ic))=='vis') then
+             if(abs(pvis)<tiny_r_kind) then
+! log transformation 
+               glow=one
+               ghigh=vis_thres
+             else
+! non-log transformation 
+               glow=(one**pvis-one)/pvis
+               ghigh=(vis_thres**pvis-one)/pvis
+               ptr2dges = max(min(ptr2dges,ghigh),glow)
+             endif
+           endif
+           if (trim(guess(ic))=='cldch') then
+             if(abs(pcldch)<tiny_r_kind) then
+! log transformation 
+               glow=one
+               ghigh=cldch_thres
+             else
+               glow=(one**pcldch -one)/pcldch
+               ghigh=(cldch_thres**pcldch-one)/pcldch
+               ptr2dges = max(min(ptr2dges,ghigh),glow)
+             endif
+           endif
+
            if (trim(guess(ic))=='wspd10m') ptr2dges = max(ptr2dges,zero)
            if (trim(guess(ic))=='pblh')  ptr2dges = max(ptr2dges,zero)
            if (trim(guess(ic))=='howv')  ptr2dges = max(ptr2dges,zero)
-           if (trim(guess(ic))=='tcamt') ptr2dges = max(min(ptr2dges,r100),zero) !Cannot have > 100% or < 0% cloud amount
+           if (trim(guess(ic))=='tcamt') ptr2dges = max(min(ptr2dges,r100),zero) !Cannot have>100% or <0% cloud amount
            if (trim(guess(ic))=='lcbas') ptr2dges = max(min(ptr2dges,20000.0_r_kind),one_tenth)
-           if (trim(guess(ic))=='cldch') ptr2dges = max(min(ptr2dges,20000.0_r_kind),one_tenth)
+
            cycle
         endif
      enddo

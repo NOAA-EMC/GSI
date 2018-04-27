@@ -43,6 +43,7 @@ subroutine convert_binary_2d
   use gsi_4dvar, only: nhr_assimilation
   use gsi_io, only: lendian_out,verbose
   use mpeu_util, only: die
+  use qcmod, only: vis_thres,cldch_thres
   implicit none
 
 ! Declare local parameters
@@ -55,6 +56,7 @@ subroutine convert_binary_2d
   integer(i_kind) in_unit,status_hdr
   integer(i_kind) hdrbuf(512)
   integer(i_kind) n
+  integer(i_kind) i,j
 
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional
@@ -309,7 +311,18 @@ subroutine convert_binary_2d
      end if
      write(lendian_out)field2
 
+!
      read(in_unit)field2             !  VIS
+!...........................................................
+!NLTR: apply threshold vis_thres to visibility first guess
+!...........................................................
+
+     do j=1,nlon_regional
+        do i=1,nlat_regional   
+           if (field2(j,i) <= 0.0_r_single) field2(j,i)=one_single
+           if (field2(j,i) >= vis_thres) field2(j,i)=vis_thres
+         enddo
+     enddo
      if(print_verbose)then
         write(6,*)' convert_binary_2d: max,min VIS=',maxval(field2),minval(field2)
         write(6,*)' convert_binary_2d: mid VIS=',field2(nlon_regional/2,nlat_regional/2)
@@ -324,6 +337,15 @@ subroutine convert_binary_2d
      write(lendian_out)field2
 
      read(in_unit)field2             !  CLDCH
+!...........................................................
+!NLTR: apply threshold cldch_thres to cldch first guess
+!...........................................................
+     do j=1,nlon_regional
+        do i=1,nlat_regional
+           if (field2(j,i) <= 0.0_r_single) field2(j,i)=one_single
+           if (field2(j,i) > cldch_thres) field2(j,i)=cldch_thres
+        enddo
+     enddo
      if(print_verbose)then
         write(6,*)' convert_binary_2d: max,min CLDCH=',maxval(field2),minval(field2)
         write(6,*)' convert_binary_2d: mid CLDCH=',field2(nlon_regional/2,nlat_regional/2)
@@ -620,6 +642,7 @@ subroutine read_2d_guess(mype)
 !   2014-06-16  carley/zhu - add tcamt and ceiling
 !   2015-07-10  pondeca - add cloud ceiling height
 !   2016-05-03  pondeca - add uwnd10m, vwnd10m
+!   2018-01-xx  yang    - test the method of nonlinear transform
 !
 !   input argument list:
 !     mype     - pe number
@@ -642,6 +665,9 @@ subroutine read_2d_guess(mype)
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die
   use gsi_io, only: verbose
+  use qcmod, only: pvis,pcldch,scale_cv,vis_thres,cldch_thres
+  use nltransf, only: nltransf_forward
+  
   implicit none
 
 ! Declare passed variables
@@ -652,6 +678,7 @@ subroutine read_2d_guess(mype)
 
 ! Declare local variables
   integer(i_kind) kt,kq,ku,kv
+  real(r_kind) dummy,dummyout
 
 ! 2D variable names stuck in here
   integer(i_kind) nfcst
@@ -1012,7 +1039,7 @@ subroutine read_2d_guess(mype)
      end do
      do i=1,lon1+2
         do j=1,lat1+2
-           ges_z_it(j,i)    = real(all_loc(j,i,i_0+i_fis))/grav ! surface elevation multiplied by g
+           ges_z_it(j,i)    = real(all_loc(j,i,i_0+i_fis),r_kind)/grav ! surface elevation multiplied by g
 
 !          convert input psfc to psfc in mb, and then to cb
 
@@ -1109,16 +1136,27 @@ subroutine read_2d_guess(mype)
                  ges_gust(j,i)=real(all_loc(j,i,i_0+i_gust),r_kind)
 
               if (ihave_vis) then
-                 ges_vis(j,i)=real(all_loc(j,i,i_0+i_vis),r_kind)
-                 if (ges_vis(j,i)<=zero) ges_vis(j,i)=one_tenth
-                 if (ges_vis(j,i)>20000.0_r_kind) ges_vis(j,i)=20000.0_r_kind
+!..............................................................
+!NOTE:  input data come from sigf06, already using vis_thres, 
+!       min=1.0 m and max=vis_thres
+!..............................................................
+                 dummy=real(all_loc(j,i,i_0+i_vis),r_kind)
+                 call nltransf_forward(dummy,dummyout,pvis,scale_cv)
+                 ges_vis(j,i)=dummyout
               endif
 
               if(ihave_pblh) &
                  ges_pblh(j,i)=real(all_loc(j,i,i_0+i_pblh),r_kind)
 
-              if(ihave_cldch) &
-                 ges_cldch(j,i)=max(min(real(all_loc(j,i,i_0+i_cldch),r_kind),20000.0_r_kind),one_tenth)
+              if(ihave_cldch) then 
+!..............................................................
+!NOTE:  input data come from sigf06, already using cldch_thres, 
+!       min=1.0 m and max=cldch_thres
+!..............................................................
+                 dummy=real(all_loc(j,i,i_0+i_cldch),r_kind)
+                 call nltransf_forward(dummy,dummyout,pcldch,scale_cv)
+                 ges_cldch(j,i)=dummyout
+              endif
 
               if (ihave_wspd10m) & 
                  ges_wspd10m(j,i)=real(all_loc(j,i,i_0+i_wspd10m),r_kind)
@@ -1155,8 +1193,6 @@ subroutine read_2d_guess(mype)
      end do
 
      deallocate(all_loc,jsig_skip,igtype,identity,temp1)
-
-
      return
 end subroutine read_2d_guess
 
@@ -1204,6 +1240,8 @@ subroutine wr2d_binary(mype)
 !
 !$$$
   use kinds, only: r_kind,r_single,i_kind
+  use constants, only: one_tenth,one
+
   use guess_grids, only: ntguessig,ifilesig,&
        ges_tsen
   use mpimod, only: mpi_comm_world,ierror,mpi_real4
@@ -1215,6 +1253,8 @@ subroutine wr2d_binary(mype)
   use jfunc, only: jiter,miter
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use qcmod, only: pvis,pcldch,scale_cv,vis_thres,cldch_thres
+  use nltransf, only: nltransf_inverse 
   use mpeu_util, only: die
   use gsi_io, only: verbose
   implicit none
@@ -1244,6 +1284,7 @@ subroutine wr2d_binary(mype)
   real(r_single) glon0(nlon_regional,nlat_regional),glat0(nlon_regional,nlat_regional)
   real(r_single) dx_mc0(nlon_regional,nlat_regional),dy_mc0(nlon_regional,nlat_regional)
   real(r_single),allocatable::all_loc_qsatg(:,:,:),all_loc_prh(:,:,:),temp1_prh(:)
+  real(r_kind) tempvis,visout,tempcldch,cldchout
   
   integer(i_kind) iaux(100),kaux
   character(15) caux(100)
@@ -1519,17 +1560,23 @@ subroutine wr2d_binary(mype)
   do k=1,kaux
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),trim(caux(k)),ptr2d, ier)
      if (ier==0) then
-
         do i=1,lon2
            do j=1,lat2
               if (trim(caux(k))=='pmsl') then 
                  all_loc(j,i,iaux(k))=r100*r10*ptr2d(j,i)
-               else
+              elseif(trim(caux(k))=='vis') then
+                 tempvis=ptr2d(j,i)
+                 call nltransf_inverse(tempvis,visout,pvis,scale_cv) 
+                 all_loc(j,i,iaux(k))=max(min(visout,vis_thres),one)
+              elseif(trim(caux(k))=='cldch') then
+                 tempcldch=ptr2d(j,i)
+                 call nltransf_inverse(tempcldch,cldchout,pcldch,scale_cv)
+                 all_loc(j,i,iaux(k))=max(min(cldchout,cldch_thres),one)
+              else
                  all_loc(j,i,iaux(k))=ptr2d(j,i)
-               endif
+              endif
            end do
         end do
-
         if(mype==0) read(iog)temp1
         call strip(all_loc(:,:,iaux(k)),strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
@@ -2249,63 +2296,235 @@ subroutine mkvalley_file
   implicit none
 
   real(r_single) radius0,hdiff0
+  real(r_single) radius2,hstdmin
+  real(r_single) radius3
   real(r_single) hmean,hmin,hmax
+  real(r_single) stdmax
+  real(r_single) rminsq0,rminsq
   integer(i_kind) i,j,ijdel,ii,jj,ncount
   integer(i_kind) npassvalley
+  integer(i_kind) npassstd
+  integer(i_kind) npasscomposite
+  real(r_single),allocatable::fldstd(:,:,:)
+  real(r_single),allocatable::auxfld(:,:)
+  logical truevalleymap
+  logical std_based_valleymap
+  logical composite_valleymap
+  logical smooth_composite
   logical print_verbose
+
+  namelist/valleymapsettings/radius0,hdiff0,npassvalley,radius2,hstdmin, & 
+                             npassstd,radius3,npasscomposite, &
+                             truevalleymap,std_based_valleymap, & 
+                             composite_valleymap,smooth_composite
 
   data radius0/100000./  !meters
   data hdiff0/2000./     !meters
-  data npassvalley/20/   !# of smoothing passes
+  data npassvalley/0/    !# of smoothing passes  /3/
+  data radius2/40000./   !meters
+  data hstdmin/1.5/      !minimum value of the std that is kept in the std-based 'valleymap'
+  data radius3/100000./  !meters
+  data npassstd/0/       !# of smoothing passes
+  data npasscomposite/2/ !# of smoothing passes
+  data truevalleymap/.false./
+  data std_based_valleymap/.false./
+  data composite_valleymap/.true./
+  data smooth_composite/.false./
 
   print_verbose=.false.
   if(verbose)print_verbose=.true.
-  ijdel=int(radius0/real(da8,kind=r_single))
 
-  if(print_verbose)then
-    print*,'in mkvalley_file: radius0,hdiff0,ijdel=',radius0,hdiff0,ijdel
+  inquire(file='valley_map.dat',exist=fexist)
+  if (fexist) then
+     if (print_verbose .and. mype==0) print*,'in mkvalley_file: read in valley map from external file'
+     open(55,file='valley_map.dat',form='unformatted')
+     read(55) valleys
+     close(55)
+     if (print_verbose .and. mype==0) print*,'in mkvalley_file: valleys,min,max=',minval(valleys),maxval(valleys)
+     return
+  endif
 
-    print*,'in mkvalley_file: terrain,min,max=',minval(terrain),maxval(terrain)
-  end if
 
-  valleys(:,:)=1._r_single
-  do j=1,ny
-  do i=1,nx
-     hmean=0._r_single; ncount=0 
-     hmin=+huge(hmin) ; hmax=-huge(hmax)
-     do jj=max(1,j-ijdel),min(ny,j+ijdel)
-     do ii=max(1,i-ijdel),min(nx,i+ijdel)
-        hmean=hmean+terrain(ii,jj)
-        ncount=ncount+1
-        hmin=min(hmin,terrain(ii,jj))
-        hmax=max(hmax,terrain(ii,jj))
-     enddo
-     enddo
-     hmean=hmean/max(1.,float(ncount))
 
-     if ((hmax-hmin)>=hdiff0 .and. terrain(i,j)<hmean) & 
-         valleys(i,j)=terrain(i,j)/hmean   
-  enddo
-  enddo
-
-  if (mype==0) then 
-    open (55,file='valley_map_unsmoothed.dat',form='unformatted')
-    write(55) valleys
+  inquire(file='parmcard_input',exist=fexist)
+  if(fexist) then
+    open (55,file='parmcard_input',form='formatted')
+    read (55,valleymapsettings)
     close(55)
   endif
 
-  call smther_one(valleys,1,nx,1,ny,npassvalley)
 
-  if(print_verbose)then
-    print*,'in mkvalley_file: valleys,min,max=',minval(valleys),maxval(valleys)
-  end if
 
-  if (mype==0) then 
-    open (55,file='valley_map.dat',form='unformatted')
-    write(55) valleys
-    close(55)
+  if (composite_valleymap) then
+     if (print_verbose .and. mype==0) print*,'in mkvalley_file: since composite_valleymap is .true.,&
+                         &force truevalleymap and std_based_valleymap to be .true. as well'
+     truevalleymap=.true.
+     std_based_valleymap=.true.
   endif
 
+
+
+  if (print_verbose .and. mype==0) then
+     print*,' -----in  mkvalley_file -----'
+     print*,'radius0,hdiff0,npassvalley=',radius0,hdiff0,npassvalley
+     print*,'radius2,hstdmin,npassstd=',radius2,hstdmin,npassstd
+     print*,'radius3,npasscomposite=',radius3,npasscomposite
+     print*,'truevalleymap=',truevalleymap
+     print*,'std_based_valleymap=',std_based_valleymap
+     print*,'composite_valleymap=',composite_valleymap
+     print*,'smooth_composite=',smooth_composite
+     print*,' ---------------------- -----'
+  endif
+  if (print_verbose .and. mype==0) print*,'in mkvalley_file: terrain,min,max=',minval(terrain),maxval(terrain)
+
+ 
+
+  if (truevalleymap) then
+     ijdel=nint(radius0/real(da8,kind=r_single))
+     if (print_verbose .and. mype==0) print*,'in mkvalley_file: for true valley map: radius0,hdiff0,ijdel=',radius0,hdiff0,ijdel
+
+     valleys(:,:)=1._r_single
+     do j=1,ny
+        do i=1,nx
+           hmean=0._r_single; ncount=0 
+           hmin=+huge(hmin) ; hmax=-huge(hmax)
+           do jj=max(1,j-ijdel),min(ny,j+ijdel)
+              do ii=max(1,i-ijdel),min(nx,i+ijdel)
+                 if ( ((i-ii)*(i-ii) + (j-jj)*(j-jj)) <= (ijdel*ijdel) )  then
+                    hmean=hmean+terrain(ii,jj)
+                    ncount=ncount+1
+                    hmin=min(hmin,terrain(ii,jj))
+                    hmax=max(hmax,terrain(ii,jj))
+                 endif
+              enddo
+           enddo
+           hmean=hmean/max(1._r_single,float(ncount))
+
+           if ((hmax-hmin)>=hdiff0 .and. terrain(i,j)<hmean) & 
+           valleys(i,j)=terrain(i,j)/hmean   
+        enddo
+     enddo
+
+     if (.not.composite_valleymap) then
+        if (mype==0) then 
+          open (55,file='valley_map_unsmoothed.dat',form='unformatted')
+          write(55) valleys
+          close(55)
+        endif
+
+        call smther_one(valleys,1,nx,1,ny,npassvalley)
+        if (print_verbose .and. mype==0)print*,'in mkvalley_file: valleys,min,max=',minval(valleys),maxval(valleys)
+
+        if (mype==0) then
+          open (55,file='valley_map.dat',form='unformatted')
+          write(55) valleys
+          close(55)
+        endif
+     endif
+  endif
+
+
+
+  if (std_based_valleymap) then
+     allocate(fldstd(nx,ny,1))
+     fldstd(1:nx,1:ny,1)=terrain(1:nx,1:ny)
+
+     call get_fldstd(fldstd,1,nx,1,ny,1,1,real(radius2,kind=r_kind),npassstd,mype)
+
+     do j=1,ny
+        do i=1,nx
+           if (fldstd(i,j,1) < hstdmin) fldstd(i,j,1)=0._r_single
+        enddo
+     enddo
+     fldstd=-(fldstd-maxval(fldstd)) !sort of convert to valleys of stds
+
+     ijdel=nint(radius3/real(da8,kind=r_single))
+     if (print_verbose .and. mype==0) print*,'in mkvalley_file: search area to renormalize std of terrain: radius3,ijdel=',radius3,ijdel
+
+     allocate(auxfld(nx,ny))
+     auxfld(:,:)=1._r_single
+     do j=1,ny
+        do i=1,nx
+           stdmax=-huge(stdmax)
+           do jj=max(1,j-ijdel),min(ny,j+ijdel)
+              do ii=max(1,i-ijdel),min(nx,i+ijdel)
+                 if ( ((i-ii)*(i-ii) + (j-jj)*(j-jj)) <= (ijdel*ijdel) ) stdmax=max(stdmax,fldstd(ii,jj,1))
+              enddo
+           enddo
+           if (stdmax > 0._r_single) auxfld(i,j)=fldstd(i,j,1)/stdmax
+        enddo
+     enddo
+
+     if (.not.composite_valleymap) then
+        valleys(:,:)=auxfld(:,:)
+        if (mype==0) then 
+          open (55,file='valley_map_unsmoothed.dat',form='unformatted')
+          write(55) valleys
+          close(55)
+        endif
+
+        if (mype==0) then
+          open (55,file='valley_map.dat',form='unformatted')
+          write(55) valleys
+          close(55)
+        endif
+
+        if (print_verbose) print*,'in mkvalley_file: valleys,min,max=',minval(valleys),maxval(valleys)
+     endif
+  endif
+
+
+
+  if (composite_valleymap) then
+     if (smooth_composite) then
+        fldstd(1:nx,1:ny,1)=auxfld(1:nx,1:ny)
+        ijdel=nint(radius3/real(da8,kind=r_single))
+        do j=1,ny
+           do i=1,nx
+              if (fldstd(i,j,1) >=1._r_single .and. valleys(i,j) < 1._r_single) then
+                 rminsq=+huge(rminsq)
+                 do jj=max(1,j-ijdel),min(ny,j+ijdel)
+                    do ii=max(1,i-ijdel),min(nx,i+ijdel)
+                       if (ii==i .and. jj==j) cycle
+                       if (fldstd(ii,jj,1) < 1._r_single) then
+                          rminsq0=float((i-ii)*(i-ii)) + float((j-jj)*(j-jj))
+                          if (rminsq0 < rminsq .and. rminsq0 <= float(ijdel*ijdel)) then 
+                             rminsq=rminsq0
+                             auxfld(i,j)=fldstd(ii,jj,1)  !Note that you are changing auxfld, not fldstd
+                          endif
+                       endif
+                    enddo
+                 enddo
+              endif
+           enddo
+        enddo
+        valleys(:,:)=auxfld(:,:)
+     elseif (.not.smooth_composite) then
+        valleys(:,:)=min(valleys(:,:),auxfld(:,:))
+     endif
+
+     if (mype==0) then 
+       open (55,file='valley_map_unsmoothed.dat',form='unformatted')
+       write(55) valleys
+       close(55)
+     endif
+
+     call smther_one(valleys,1,nx,1,ny,npasscomposite)
+     if (print_verbose)print*,'in mkvalley_file: valleys,min,max=',minval(valleys),maxval(valleys)
+
+     if (mype==0) then
+       open (55,file='valley_map.dat',form='unformatted')
+       write(55) valleys
+       close(55)
+     endif
+  endif
+
+
+
+  if (std_based_valleymap) then
+     deallocate(fldstd)
+     deallocate(auxfld)
+  endif
 end subroutine mkvalley_file
 !****************************************************************
 !****************************************************************
@@ -2482,7 +2701,7 @@ module hilbertcurve
   integer(i_kind) ngrps_vwnd10mob
 
   logical random_cvgrp
-  real(r_kind) usagecv
+  real(r_kind) usagecv,usage_dup
 
 contains
 
@@ -2519,7 +2738,7 @@ subroutine init_hilbertcurve(maxobs)
   integer(i_kind) i,k
   logical fexist, print_verbose
 
-  namelist/parmcardhcurve/random_cvgrp,usagecv,ngrps_tob,ngrps_uvob, & 
+  namelist/parmcardhcurve/random_cvgrp,usagecv,usage_dup,ngrps_tob,ngrps_uvob, & 
                     ngrps_spdob,ngrps_psob,ngrps_qob, & 
                     ngrps_pwob,ngrps_sstob,ngrps_gustob,ngrps_visob, &
                     ngrps_td2mob, ngrps_mxtmob,ngrps_mitmob, &
@@ -2529,6 +2748,7 @@ subroutine init_hilbertcurve(maxobs)
 
   random_cvgrp=.false.
   usagecv=3._r_kind
+  usage_dup=3._r_kind
   ngrps_tob=5
   ngrps_uvob=8
   ngrps_spdob=0
@@ -2549,6 +2769,7 @@ subroutine init_hilbertcurve(maxobs)
   print_verbose = .false.
   if(verbose)print_verbose=.true.
 
+
   inquire(file='parmcard_input',exist=fexist)
   if (fexist) then
      open(55,file='parmcard_input',form='formatted')
@@ -2565,6 +2786,7 @@ subroutine init_hilbertcurve(maxobs)
   if(print_verbose .and. mype == 0)then
     print*,'in init_hilbertcurve: random_cvgrp=',random_cvgrp
     print*,'in init_hilbertcurve: usagecv=',usagecv
+    print*,'in init_hilbertcurve: usage_dup=',usage_dup
     print*,'in init_hilbertcurve: ngrps_tob=',ngrps_tob
     print*,'in init_hilbertcurve: ngrps_uvob=',ngrps_uvob
     print*,'in init_hilbertcurve: ngrps_spdob=',ngrps_spdob
@@ -2717,9 +2939,6 @@ subroutine apply_hilbertcurve(maxobs,obstype,cdata_usage)
   integer(i_kind),intent(in   ) :: maxobs
   real(r_kind)   ,intent(inout) :: cdata_usage(maxobs)
 
-!Declare local parameter
-  real(r_kind),parameter::usage_dup=8.
-
 !Declare local variables
   real(r_kind),parameter:: epsilon=1.e-03_r_kind
   integer(i_kind) i,j,n,nt,ncnumgrp0,ncgroup0
@@ -2734,7 +2953,8 @@ subroutine apply_hilbertcurve(maxobs,obstype,cdata_usage)
   logical print_verbose
 
 
-! Turning on print_verbose will result in additional prints from this routine only.
+! Turning on print_verbose will result in additional prints from this routine
+! only.
   print_verbose = .false.
   if(verbose)print_verbose=.true.
 
@@ -2844,13 +3064,13 @@ subroutine apply_hilbertcurve(maxobs,obstype,cdata_usage)
                                                                 !is the same group element for all ob subtypes 
                                                                 !of a given ob type 
 
-           if (i==1 .and. print_verbose) print*,'in apply_hilbertcurve: ncnumgrp0,ncgroup0=',ncnumgrp0,ncgroup0 
+           if (i==1 .and. print_verbose) print*,'in apply_hilbertcurve: obstype,ncnumgrp0,ncgroup0=',trim(obstype),ncnumgrp0,ncgroup0 
 
            if (test_set(i).eq.ncgroup0) then
-              if (     random_cvgrp) usage=usagecv           !3.
+              if (     random_cvgrp) usage=usagecv
               if (.not.random_cvgrp) usage=ncmiter(hilikx(i))
 
-              cdata_usage(hili(i))=usage
+              cdata_usage(hili(i))=usage + ( cdata_usage(hili(i))-real(int(cdata_usage(hili(i))),kind=r_kind) )
 
               j=ipoint(i)
               do n=1,nt
@@ -2858,7 +3078,7 @@ subroutine apply_hilbertcurve(maxobs,obstype,cdata_usage)
                  ldup=abs(hil_dlon(j)-hil_dlon(n))<epsilon .and. &
                       abs(hil_dlat(j)-hil_dlat(n))<epsilon  
                  if ( ldup ) then 
-                    cdata_usage(hil_i(n))=usage_dup
+                    cdata_usage(hil_i(n))=usage_dup + ( cdata_usage(hil_i(n))-real(int(cdata_usage(hil_i(n))),kind=r_kind) )
                  endif
               enddo
            endif
@@ -2877,7 +3097,7 @@ subroutine apply_hilbertcurve(maxobs,obstype,cdata_usage)
                  ncvcount(n)=ncvcount(n)+1
               endif
            enddo
-           if(print_verbose)print*,'n,ncvcount(n)=',n,ncvcount(n)
+        if(print_verbose)print*,'n,ncvcount(n)=',n,ncvcount(n)
         enddo
 
         ! write all groups to a file
@@ -3463,7 +3683,7 @@ subroutine get_fldstd(field,i1,i2,j1,j2,k1,k2,radius,npass,mype)
 
   allocate (fieldaux(i1:i2,j1:j2,k1:k2))
 
-  ds=min(minval(region_dx),minval(region_dy))
+  ds=max(maxval(region_dx),maxval(region_dy)) !min(minval(region_dx),minval(region_dy))
   ijdel=nint(radius/ds)
   if (mype==0) print*,'in get_fldstd: radius,ds,ijdel=',radius,ds,ijdel
 
@@ -3482,9 +3702,11 @@ subroutine get_fldstd(field,i1,i2,j1,j2,k1,k2,radius,npass,mype)
            ncount=0
            do n=max(j1,j-ijdel),min(j2,j+ijdel)
               do m=max(i1,i-ijdel),min(i2,i+ijdel)
-                 ncount=ncount+1
-                 var=var+(real(fieldaux(m,n,k),kind=r_double)-f0)* &
-                   (real(fieldaux(m,n,k),kind=r_double)-f0)
+                 if ( ((i-m)*(i-m) + (j-n)*(j-n)) <= (ijdel*ijdel) )  then
+                    ncount=ncount+1
+                    var=var+(real(fieldaux(m,n,k),kind=r_double)-f0)* &
+                      (real(fieldaux(m,n,k),kind=r_double)-f0)
+                 endif
               enddo
            enddo
            field(i,j,k)=sqrt(var/real(ncount,kind=r_double))

@@ -683,7 +683,7 @@ export gsi_namelist="
    miter=2,niter(1)=2,niter(2)=1,
    write_diag(1)=.true.,write_diag(2)=.true.,write_diag(3)=.true.,
    gencode=78,qoption=1,tsensible=.true.
-   factqmin=1.0,factqmax=1.0,factv=0.1,factcldch=0.1,factw10m=1.0,deltim=$DELTIM,
+   factqmin=1.0,factqmax=1.0,factv=0.0,factcldch=0.0,factw10m=1.0,deltim=$DELTIM,
    iguess=-1,
    oneobtest=.false.,retrieval=.false.,
    diag_rad=.false.,diag_pcp=.false.,diag_ozone=.false.,diag_aero=.false.,
@@ -715,7 +715,7 @@ export gsi_namelist="
  /
  &OBSQC
    dfact=0.75,dfact1=3.0,noiqc=.true.,oberrflg=.false.,c_varqc=0.02,vadfile='prepbufr',
-   hilbert_curve=.true.,buddycheck_t=.false.,buddydiag_save=.true.,oberrflg=.true.,njqc=.true.,vqc=.false.,
+   hilbert_curve=.true.,buddycheck_t=.false.,buddydiag_save=.false.,oberrflg=.true.,njqc=.true.,vqc=.false.,
  /
  &OBS_INPUT
    dmesh(1)=600.0,dmesh(2)=600.0,dmesh(3)=600.0,dmesh(4)=600.0,time_window_max=0.5,
@@ -737,6 +737,7 @@ OBS_INPUT::
    prepbufr       pmsl        null        pmsl         1.0     0      0
    prepbufr       howv        null        howv         1.0     0      0
    prepbufr       tcamt       null        tcamt        1.0     0      0
+   prepbufr       cldch       null        cldch        1.0     0      0
 ::
  &SUPEROB_RADAR
  /
