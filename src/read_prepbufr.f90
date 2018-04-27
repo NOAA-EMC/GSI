@@ -2738,7 +2738,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                    tempcldch=cldceilh(1,k)
                    call nltransf_forward(tempcldch,cldchout,pcldch)
                    cdata_all(4,iout) = cldchout
-                 endif                                     | ceiling height obs
+                 endif                                     ! ceiling height obs
 
                  cdata_all(5,iout)=rstation_id             ! station id
                  cdata_all(6,iout)=t4dv                    ! time
