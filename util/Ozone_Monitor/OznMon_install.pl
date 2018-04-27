@@ -123,17 +123,19 @@
    #
    #  Web directory
    #
-#   my $webdir = "/home/people/emc/www/htdocs/gmb/gdas/radiance/${webuser}";
-#   print "Please specify the top level web site directory $server.\n";
-#   print "  Return to accept default directory location or enter new location.\n";
-#   print " \n";
-#   print "  Default directory on $server:  $webdir\n";
-#   print "    ?\n";
-#   my $new_webdir =<>;
-#   $new_webdir =~ s/^\s+|\s+$//g;
-#   if( length($new_webdir ) > 0 ) {
-#      $webdir = $new_webdir;
-#   }
+   my $webdir = "/home/people/emc/www/htdocs/gmb/gdas/es_ozn";
+
+   print "Please specify the top level web site directory $server.\n";
+   print "  Return to accept default directory location or enter new location.\n";
+   print " \n";
+   print "  Default directory on $server:  $webdir\n";
+   print "    ?\n";
+   my $new_webdir =<>;
+   $new_webdir =~ s/^\s+|\s+$//g;
+   if( length($new_webdir ) > 0 ) {
+      $webdir = $new_webdir;
+   }
+
    my $my_webdir="export WEBDIR=\${WEBDIR:-$webdir}";
    print "my_webdir = $my_webdir\n";
    print "\n\n";

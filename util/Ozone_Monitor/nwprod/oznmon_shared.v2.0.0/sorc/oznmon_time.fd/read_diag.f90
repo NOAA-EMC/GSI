@@ -105,19 +105,19 @@ module read_diag
   ! Read a header record of a diagnostic file
   !------------------------------------------------------------
 
-  subroutine read_diag_header( ftin, header_fix, header_nlev )
+  subroutine read_diag_header( ftin, header_fix, header_nlev, new_hdr )
 
     !--- interface
 
     integer                    ,intent(in)  :: ftin
     type(diag_header_fix_list ),intent(out) :: header_fix
     type(diag_header_nlev_list),pointer     :: header_nlev(:)
-
+    logical                                 :: new_hdr
     
     !--- variables
     
     integer,save :: nlevs_last = -1
-    integer :: ilev,k
+    integer :: ilev,k,ioff
     character(len=10):: id,obstype
     character(len=20):: isis
     integer(i_kind):: jiter,nlevs,ianldate,iint,ireal,iextra
@@ -126,7 +126,14 @@ module read_diag
     
     !--- read header (fix part)
 
-    read(ftin) isis,id,obstype,jiter,nlevs,ianldate,iint,ireal,iextra
+    if ( new_hdr ) then
+       read(ftin) isis,id,obstype,jiter,nlevs,ianldate,iint,ireal,iextra,ioff
+       print*,'new header format'
+    else
+       read(ftin) isis,id,obstype,jiter,nlevs,ianldate,iint,ireal,iextra
+       print*,'old header format'
+    endif 
+
     header_fix%isis      = isis
     header_fix%id        = id
     header_fix%obstype   = obstype

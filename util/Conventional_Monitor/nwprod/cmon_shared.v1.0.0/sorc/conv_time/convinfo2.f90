@@ -1,9 +1,9 @@
 !   the subroutine to read convention information file
 
-subroutine convinfo(iotype_ps,iotype_q,iotype_t,iotype_uv,ntype_ps,&
-                    ntype_q,ntype_t,ntype_uv,varqc_ps,varqc_q,varqc_t,varqc_uv,&
-                    ituse_ps,ituse_q,ituse_t,ituse_uv,&
-                    iosubtype_ps,iosubtype_q,iosubtype_t,iosubtype_uv)
+   subroutine convinfo(iotype_ps,iotype_q,iotype_t,iotype_uv,ntype_ps,&
+                       ntype_q,ntype_t,ntype_uv,varqc_ps,varqc_q,varqc_t,varqc_uv,&
+                       ituse_ps,ituse_q,ituse_t,ituse_uv,&
+                       iosubtype_ps,iosubtype_q,iosubtype_t,iosubtype_uv)
 
    implicit none
 
@@ -13,9 +13,8 @@ subroutine convinfo(iotype_ps,iotype_q,iotype_t,iotype_uv,ntype_ps,&
    real(4),dimension(100,2) :: varqc_ps,varqc_q,varqc_t,varqc_uv
 
    integer ittype,ituse,ntumgrp,ntgroup,ntmiter,isubtype
-   integer  lunin,ntype_ps,ntype_q,ntype_t,ntype_uv,ithin,npred
-   real(8) :: ttwind,gtross,etrmax,etrmin,vtar_b,vtar_pg,rmesh,pmesh
-   integer iflag
+   integer  lunin,ntype_ps,ntype_q,ntype_t,ntype_uv,iflag
+   real(8) :: ttwind,gtross,etrmax,etrmin,vtar_b,vtar_pg
 
    character(120):: crecord
    character(7) :: ctype 
@@ -48,19 +47,21 @@ subroutine convinfo(iotype_ps,iotype_q,iotype_t,iotype_uv,ntype_ps,&
    loopd: do
       read(lunin,1030,IOSTAT=iflag)cflg,ctype,crecord
       if(cflg == '!')cycle
+
       if( iflag /= 0 ) exit loopd
 
       read(crecord,*)ittype,isubtype,ituse,ttwind,ntumgrp,ntgroup,ntmiter,&
-                     gtross,etrmax,etrmin,vtar_b,vtar_pg,ithin,rmesh,pmesh,npred
-!       print *,cflg,ctype,ittype,isubtype,ituse,ntype_ps,ntype_q,ntype_t,ntype_uv
+                      gtross,etrmax,etrmin,vtar_b,vtar_pg
+
       if(trim(ctype) == 'ps' ) then
          ntype_ps=ntype_ps+1
-!        print *,ntype_ps
          iotype_ps(ntype_ps)=ittype
          iosubtype_ps(ntype_ps)=isubtype
+
          varqc_ps(ntype_ps,1)=vtar_b
          varqc_ps(ntype_ps,2)=vtar_pg
          ituse_ps(ntype_ps)=ituse
+
       else if(trim(ctype) == 'q') then
          ntype_q=ntype_q+1
          iotype_q(ntype_q)=ittype
@@ -68,25 +69,31 @@ subroutine convinfo(iotype_ps,iotype_q,iotype_t,iotype_uv,ntype_ps,&
          varqc_q(ntype_q,1)=vtar_b
          varqc_q(ntype_q,2)=vtar_pg
          ituse_q(ntype_q)=ituse
+
       else if(trim(ctype) == 't') then
          ntype_t=ntype_t+1
          iotype_t(ntype_t)=ittype
          iosubtype_t(ntype_t)=isubtype
+
          varqc_t(ntype_t,1)=vtar_b
          varqc_t(ntype_t,2)=vtar_pg
          ituse_t(ntype_t)=ituse
-!         print *, 'ctype, ntype_t, iotype_t(ntype_t), iosubtype_t(ntype_t), ituse_t = ', ctype, ntype_t, iotype_t(ntype_t), iosubtype_t(ntype_t), ituse_t(ntype_t)
+
       else if(trim(ctype) == 'uv') then
          ntype_uv=ntype_uv+1
          iotype_uv(ntype_uv)=ittype
          iosubtype_uv(ntype_uv)=isubtype
+
          varqc_uv(ntype_uv,1)=vtar_b
          varqc_uv(ntype_uv,2)=vtar_pg
          ituse_uv(ntype_uv)=ituse
+
       endif
+
    enddo  loopd
 
 1030 format(a1,a7,2x,a120)
 
    return
+
 end

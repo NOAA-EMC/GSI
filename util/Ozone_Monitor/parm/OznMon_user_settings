@@ -22,7 +22,7 @@ export PROJECT=${PROJECT:-GDAS-T2O}
 #  JOB_QUEUE is used on ibm only with the bjob -q flag.  It is 
 #  empty on other platforms.
 #
-export JOB_QUEUE=${JOB_QUEUE:-dev}
+export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
 
 #
 #  GLB_AREA is either 1 (global) or 0 (regional)
@@ -72,7 +72,7 @@ export OZN_USE_RUN=${OZN_USE_RUN:-1}
 #  of drifting channel(s) on specific sat/instrument sources is 
 #  desirable.  It is not normally necesary to apply this to parallels.  
 #  0 = off, 1 = on
-export DO_DATA_RPT=${DO_DATA_RPT:-0}
+export DO_DATA_RPT=${DO_DATA_RPT:-1}
 
 #  MAIL_TO is the the primary recipient of generated email warning messages
 #  (if DO_DATA_RPT = 1).

@@ -52,13 +52,12 @@ for type in ${SATYPE2}; do
    #  Modify tdef line in .ctl file to start at bdate.
    #
    if [[ -e ${type}.ctl ]]; then
-#      ${OZN_IG_SCRIPTS}/update_ctl_tdef.sh ${type}.ctl ${bdate} 28
       ${OZN_IG_SCRIPTS}/update_ctl_tdef.sh ${type}.ctl ${bdate} 29
    fi
 
 cat << EOF > ${type}.gs
 'open ${type}.ctl'
-'run ${OZN_IG_GSCRPTS}/plot_summary.gs ${type} x750 y700'
+'run ${OZN_IG_GSCRPTS}/plot_summary.gs ${OZNMON_SUFFIX} ${RUN} ${type} x750 y700'
 'quit'
 EOF
 

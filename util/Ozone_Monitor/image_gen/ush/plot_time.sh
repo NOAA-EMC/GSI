@@ -13,12 +13,6 @@ export PTYPE=$3
 echo "SATYPE2, PVAR, PTYPE = $SATYPE2, $PVAR, $PTYPE"
 echo "RUN = $RUN"
 
-#if [[ "$SUFFIX" != "opr" ]]; then
-#  export plot_2files=0
-#else 
-#  export plot_2files=0
-#fi
-
 #------------------------------------------------------------------
 # Set work space for this SATYPE2 source.
 #
@@ -64,38 +58,18 @@ for type in ${SATYPE2}; do
    fi
 
 
-#   if [[ $plot_2files == 1 ]] ; then
-#      ln -s /da/noscrub/Haixia.Liu/ozone/monitor/stats/opr/ges/time time_opr
-#
-#      for var in ${PTYPE}; do
-#         echo $var
-#cat << EOF > ${type}_${var}.gs
-#'reinit'
-#'clear'
-#'open  ${type}.ctl'
-#'open  time_opr/${type}.ctl'
-#'run ${OZN_IG_GSCRPTS}/plot_time_${string}.gs.2files ${type} ${var} x750 y700'
-#'quit'
-#EOF
-#
-#         echo ${tmpdir}/${type}_${var}.gs
-#
-#         $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
-#      done 
-#
-#   else
-      for var in ${PTYPE}; do
-         echo $var
+   for var in ${PTYPE}; do
+      echo $var
 
 cat << EOF > ${type}_${var}.gs
 'reinit'
 'clear'
 'open  ${type}.ctl'
-'run ${OZN_IG_GSCRPTS}/plot_time_${string}.gs ${type} ${var} x750 y700'
+'run ${OZN_IG_GSCRPTS}/plot_time_${string}.gs ${OZNMON_SUFFIX} ${RUN} ${type} ${var} x750 y700'
 'quit'
 EOF
 
-         echo ${tmpdir}/${type}_${var}.gs
+      echo ${tmpdir}/${type}_${var}.gs
 
          $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
 

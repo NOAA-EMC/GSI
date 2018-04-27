@@ -96,6 +96,11 @@ title.2="rms(used)"
 title.3="o-g(monitored)"
 title.4="rms(monitored)"
 
+'set t 1'
+'query time'
+fdmy=sublin(result,1)
+fti=subwrd(fdmy,5)
+
 nf=1
 while(nf <=nfield)
 y1=10.6-(nf-1)*2.5
@@ -135,6 +140,9 @@ say ' ystring='ystring
 'set parea 1.0 8.0 'y2' 'y1
 'set gxout line'
 'set t 1 last'
+dmy=sublin(result,1)
+ti=subwrd(dmy,5)
+
 'set datawarn off'
 'set tlsupp year'
 'set grads off'
@@ -170,7 +178,8 @@ say ' ystring='ystring
 'draw string 3.5 0.55  final outloop'
 *'set line 3 1'
 *'draw line 5.1 0.6 5.4 0.6'
-*'draw string 5.5 0.55   second outloop'
+'draw string 5.5 0.55   'fti'-'ti
+
 nf=nf+1
 endwhile
 

@@ -55,7 +55,7 @@ export ysize=y600
    for cycle in ges anl; do
 
       cp -f ${tv_tankdir}/${cycle}_${type}_stas.ctl      tmp.ctl
-      new_dset=" dset ${cycle}_${type}_stas.%y4%m2%d2%h2"
+      new_dset="dset ${cycle}_${type}_stas.%y4%m2%d2%h2"
 
       tdef=`${C_IG_SCRIPTS}/make_tdef.sh ${START_DATE} ${NUM_CYCLES} 06`
       echo "tdef = $tdef"
@@ -103,6 +103,10 @@ export ysize=y600
       #-------------------------
       grads -bpc "run ./${local_plot_script}"
       cp -f *.png ${outdir}/.
+
+      num_pngs=`ls -1 *.png | wc -l`
+      echo "num_pngs = ${num_pngs}"
+
       rm -f ./*.png
 
    done

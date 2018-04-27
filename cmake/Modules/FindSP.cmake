@@ -22,6 +22,7 @@ if(NOT BUILD_SP )
       /usr/local/jcsda/nwprod_gdas_2014	
       ${COREPATH}/sp/v${SP_VER}
       ${COREPATH}/sp/v${SP_VER}/intel
+      ${COREPATH}/sp/v${SP_VER}/ips/${COMPILER_VERSION}
     PATH_SUFFIXES
         lib
      ${NO_DEFAULT_PATH})

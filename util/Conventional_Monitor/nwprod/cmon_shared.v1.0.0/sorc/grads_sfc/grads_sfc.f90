@@ -22,7 +22,7 @@ subroutine grads_sfc(fileo,ifileo,nobs,nreal,iscater,igrads,isubtype,subtype,lis
    character(8) :: stid
    character(ifileo) :: fileo
    character(30) :: files,filein,filegrads
-   character(2) :: subtype
+   character(3) :: subtype
    integer nobs,nreal,nlfag,nflg0,nlev,nlev0,iscater,igrads
    real(4) rtim,xlat0,xlon0,rlat,rlon
  
@@ -40,7 +40,6 @@ subroutine grads_sfc(fileo,ifileo,nobs,nreal,iscater,igrads,isubtype,subtype,lis
    print *, 'nobs=',nobs
    print *, 'fileo=',fileo
 
-!   write(subtype,'(i2)') isubtype
    filein=trim(fileo)//'_'//trim(subtype)//'.tmp'
 
    allocate(cdiag(nobs))

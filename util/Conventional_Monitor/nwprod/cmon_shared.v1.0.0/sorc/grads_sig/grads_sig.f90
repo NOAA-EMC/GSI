@@ -22,7 +22,7 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,s
    real(4),dimension(nlev) :: plev
    real(4) :: rlat,rlon
 
-   character(2) subtype 
+   character(3) subtype 
    character(8) :: stidend,stdid
    character(ifileo) :: fileo
    character(30) :: files,filegrads
