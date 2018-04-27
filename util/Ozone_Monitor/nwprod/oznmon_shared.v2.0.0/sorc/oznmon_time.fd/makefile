@@ -25,11 +25,12 @@ BINDIR = $(dir_root)/exec
 
 LIBS   = $(W3NCO_LIB4)
 
-SRCS = kinds.f90 read_diag.f90 valid.f90 time.f90 create_ctl_time.f90 avgsdv.f90 \
+SRCS = kinds.f90 read_diag.f90 \
+	valid.f90 time.f90 create_ctl_time.f90 avgsdv.f90 \
 	update_ctl_time.f90
 
-OBJS = kinds.o read_diag.o valid.o time.o create_ctl_time.o avgsdv.o \
-	update_ctl_time.o
+OBJS = kinds.o read_diag.o valid.o time.o \
+	create_ctl_time.o avgsdv.o update_ctl_time.o
 
 #
 # *****************************************************************

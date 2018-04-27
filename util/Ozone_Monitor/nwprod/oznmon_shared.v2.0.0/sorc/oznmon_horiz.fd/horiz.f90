@@ -41,7 +41,9 @@ program horiz
   type(diag_data_extra_list) ,pointer :: data_extra(:,:)
 
 
-  namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr
+! Namelist with defaults
+  logical               :: new_hdr            = .true.
+  namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,new_hdr
 
   data luname,lungrd,lunctl,lndiag / 5, 100, 51, 21 /
   data rmiss /-999./
@@ -83,7 +85,7 @@ program horiz
 
 ! File exists.  Read header
   write(6,*)'call read_diag_header'
-  call read_diag_header( lndiag, header_fix, header_nlev )
+  call read_diag_header( lndiag, header_fix, header_nlev, new_hdr )
 
 ! Extract observation type, satellite id, and number of levels
   satype = header_fix%obstype
