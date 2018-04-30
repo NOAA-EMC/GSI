@@ -672,7 +672,7 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
    use ncepnems_io, only: error_msg
    use nemsio_module, only: nemsio_gfile,nemsio_getfilehead,nemsio_readrecv
    use nemsio_module, only: nemsio_getrechead
-   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
+   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d,imp_physics
    use general_sub2grid_mod, only: sub2grid_info
 
    implicit none
@@ -699,7 +699,7 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
    integer(i_kind) nrec
    character(len=120) :: myname_ = 'parallel_read_nemsio_state_'
    character(len=1)   :: null = ' '
-   real(r_single),allocatable,dimension(:) :: work
+   real(r_single),allocatable,dimension(:) :: work,work2
 ! NOTE:  inportant to keep 8 byte precision for work array, even though what is
 ! on ensemble NEMS file is 4 byte precision.  The NEMSIO automatically (through
 ! interfaces presumably) must be able to read 4 byte and 8 byte records and pass
@@ -761,6 +761,7 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
    odate(4) = idate(1)  !year
 
    allocate(work(nlon*(nlat-2)))
+   if (imp_physics == 11) allocate(work2(nlon*(nlat-2)))
    allocate(temp3(nlat,nlon,nsig,nc3d))
    allocate(temp2(nlat,nlon,nc2d))
    k3u=0 ; k3v=0 ; k3t=0 ; k3q=0 ; k3cw=0 ; k3oz=0
@@ -775,6 +776,14 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
          if(trim(cvars3d(k3))=='cw') then
             call nemsio_readrecv(gfile,'clwmr','mid layer',k,work,iret=iret)
             if (iret /= 0) call error_msg(trim(myname_),trim(filename),'clwmr','read',istop+6,iret)
+            if (imp_physics == 11) then
+               call nemsio_readrecv(gfile,'icmr','mid layer',k,work2,iret=iret)
+               if (iret /= 0) then
+                  call error_msg(trim(myname_),trim(filename),'icmr','read',istop+7,iret)
+               else
+                  work = work + work2
+               endif
+            endif
             call move1_(work,temp3(:,:,k,k3),nlon,nlat)
          elseif(trim(cvars3d(k3))=='oz') then
             call nemsio_readrecv(gfile,'o3mr','mid layer',k,work,iret=iret)
@@ -820,6 +829,7 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
       endif
    enddo
    deallocate(work)
+   if (imp_physics == 11) deallocate(work2)
 
 !  move temp2,temp3 to en_full
    kf=0
