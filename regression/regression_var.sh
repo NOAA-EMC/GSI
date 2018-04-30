@@ -21,7 +21,7 @@ if [ "$#" = 8 ] ; then
   export ptmpName=`echo $builddir | sed -e "s/\//_/g"`
   echo $ptmpName
 else
-# Name of the branch being tested
+  # Name of the branch being tested
   updat="XXXXXXXX"
   contrl="XXXXXXXX"
   export cmaketest="false"
@@ -45,7 +45,7 @@ if [ -z ${machine+x} ]; then
   elif [ -d /data/users ]; then # S4
    export machine="s4"
 elif [ -d /discover/nobackup ]; then # NCCS Discover
-   export machine="discover"
+   export machine="Discover"
   fi
 else echo "machine is set to '$machine'"; 
 fi
@@ -172,17 +172,19 @@ case $machine in
 
    export accnt="star"
    ;;
-   discover)
-   export basedir="/gpfsm/dnb31/pchakrab/code/ext/gsi"
-   export group="global"
-   export queue="batch"
+   Discover)
+   if [[ "$cmaketest" = "false" ]]; then
+       echo "Regression tests on Discover need to be run via ctest"
+       exit 1
+   fi
    export ptmp=$basedir
    export noscrub=$basedir
    export fixcrtm="/discover/nobackup/projects/gmao/share/gmao_ops/fvInput_4dvar/gsi/etc/fix_ncep20170329/REL-2.2.3-r60152_local-rev_1/CRTM_Coeffs/$endianness"
    export casesdir="/discover/nobackup/projects/gmao/obsdev/wrmccart/NCEP_regression/CASES"
-   export ndate="$basedir/$updat/scripts/ndate"
+   export ndate="/home/pchakrab/.local/bin/ndate"
    export check_resource="no"
    export accnt="g0613"
+   export queue="compute"
    export clean=".false."
    ;;
 esac
