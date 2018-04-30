@@ -35,7 +35,7 @@ module load ics/15.0.3
 module load ibmpe
 
 # Loading nceplibs modules
-module load NetCDF/3.6.3
+module load NetCDF/4.2
 module load bufr/v11.0.0
 module load nemsio/v2.2.1
 module load sfcio/v1.0.0

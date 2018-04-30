@@ -3,13 +3,13 @@
 # (BUG #0014363).
 
 # include the default FindHDF5.cmake.
-if(CMAKE_VERSION VERSION_LESS 3.6.1) 
+#if(CMAKE_VERSION VERSION_LESS 3.6.1) 
 if(CMAKE_VERSION VERSION_GREATER 3.0 )
   include(${CMAKE_CURRENT_LIST_DIR}/NewCMake/FindHDF5.cmake)
 else()
   include(${CMAKE_ROOT}/Modules/FindHDF5.cmake)
 endif()
-endif()
+#endif()
 
 if(HDF5_FOUND AND (HDF5_IS_PARALLEL OR HDF5_ENABLE_PARALLEL))
   include(vtkMPI)

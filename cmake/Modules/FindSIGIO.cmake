@@ -4,14 +4,12 @@
 #  CORE_LIBRARIES
 #    Full list of libraries required to link GSI executable
 include(findHelpers)
-message("in find sigio, checking env")
 if(DEFINED ENV{SIGIO_VER})
   set(SIGIO_VER $ENV{SIGIO_VER})
   STRING(REGEX REPLACE "v" "" SIGIO_VER ${SIGIO_VER})
 endif()
 
 set( NO_DEFAULT_PATH )
-message("in find sigio, BUILD_SIGIO is ${BUILD_SIGIO}")
 if(NOT BUILD_SIGIO )
   if(DEFINED ENV{SIGIO_LIB4} )
     set(SIGIO_LIBRARY $ENV{SIGIO_LIB4} )
@@ -26,6 +24,7 @@ if(NOT BUILD_SIGIO )
      /usr/local/jcsda/nwprod_gdas_2014	
      ${COREPATH}/sigio/v${SIGIO_VER}
      ${COREPATH}/sigio/v${SIGIO_VER}/intel
+     ${COREPATH}/sigio/v${SIGIO_VER}/ips/${COMPILER_VERSION}
     PATH_SUFFIXES
         lib
      ${NO_DEFAULT_PATH})

@@ -17,6 +17,7 @@ find_file( CONTROL_EXE
         /da/save/Michael.Lueken/svn1/src
         /gpfs/hps/emc/da/noscrub/Michael.Lueken/svn1/build/bin
         /gpfs/hps/emc/da/noscrub/Michael.Lueken/svn1/src
+        /scratch4/NCEPDEV/da/save/Michael.Lueken/ProdGSI/build/bin
         /scratch4/NCEPDEV/da/save/Michael.Lueken/svn1/build/bin
         /scratch4/NCEPDEV/da/save/Michael.Lueken/svn1/src
    
@@ -39,6 +40,7 @@ find_file( ENKF_CONTROL_EXE
         /da/save/Michael.Lueken/svn1/src/enkf
         /gpfs/hps/emc/da/noscrub/Michael.Lueken/svn1/build/bin
         /gpfs/hps/emc/da/noscrub/Michael.Lueken/svn1/src/enkf
+        /scratch4/NCEPDEV/da/save/Michael.Lueken/ProdGSI/build/bin
         /scratch4/NCEPDEV/da/save/Michael.Lueken/svn1/build/bin
         /scratch4/NCEPDEV/da/save/Michael.Lueken/svn1/src/enkf
    

@@ -55,7 +55,10 @@ cmake_minimum_required(VERSION 2.8)
 
 # remove stub_nstmod from the rest of the source files
   list( REMOVE_ITEM GSI_SRC "${CMAKE_CURRENT_SOURCE_DIR}/stub_nstmod.f90" )
-
+  if( BUILD_NCDIAG )
+    list( REMOVE_ITEM GSI_SRC "${CMAKE_CURRENT_SOURCE_DIR}/nc_diag_read_mod.f90" )
+    list( REMOVE_ITEM GSI_SRC "${CMAKE_CURRENT_SOURCE_DIR}/nc_diag_write_mod.f90" )
+  endif( BUILD_NCDIAG )
 # The specific regional/WRF source files
   if(USE_WRF)
     set( REGIONAL_SRC ${CPLR_SRC} )
@@ -85,6 +88,9 @@ cmake_minimum_required(VERSION 2.8)
   add_library(${GSISHAREDLIB} STATIC ${GSI_SRC} )
   set_target_properties(${GSISHAREDLIB} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
   target_include_directories(${GSISHAREDLIB} PUBLIC "${PROJECT_BINARY_DIR}/include")
+  if( BUILD_NCDIAG )
+      add_dependencies(${GSISHAREDLIB} ${NCDIAG_LIBRARIES} )
+  endif( BUILD_NCDIAG )
 
 # Definte the base name of the executable 
   if(BUILD_PRODUCTION)
@@ -135,7 +141,7 @@ cmake_minimum_required(VERSION 2.8)
     add_dependencies(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} )
   endif()
 # Specify all the libraries to be linked into the executable
-  target_link_libraries(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} ${GSISHAREDLIB} ${WRF_LIBRARIES} ${CORE_LIBRARIES}
+  target_link_libraries(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} ${GSISHAREDLIB} ${WRF_LIBRARIES} 
          ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} 
-         ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${GSI_LDFLAGS}
-         ${ZLIB_LIBRARIES} ${CORE_BUILT} ${CORE_LIBRARIES} ${CORE_BUILT} ${wrflib} )
+         ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${CORE_LIBRARIES} ${CORE_BUILT}
+         ${GSI_LDFLAGS} ${NCDIAG_LIBRARIES} ${ZLIB_LIBRARIES} ${wrflib} )

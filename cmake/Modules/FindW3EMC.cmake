@@ -4,14 +4,19 @@
 #  CORE_LIBRARIES
 #    Full list of libraries required to link GSI executable
 include(findHelpers)
-if(DEFINED ENV{W3EMC_VERd})
-  set(W3EMC_VER $ENV{W3EMC_VERd})
+if(DEFINED ENV{W3EMC_VER})
+  set(W3EMC_VER $ENV{W3EMC_VER})
   set(W3EMCINC $ENV{W3EMC_INCd} )
   STRING(REGEX REPLACE "v" "" W3EMC_VER ${W3EMC_VER})
 endif()
+if(DEFINED ENV{W3EMC_LIBd})
+    set(W3EMC_LIBRARY $ENV{W3EMC_LIBd} )
+    set(W3EMCINC $ENV{W3EMC_INCd} )
+    message("Setting W3EMC library via environment variable ${W3EMC_LIBRARY}")
+endif()
 
 set( NO_DEFAULT_PATH )
-if(NOT BUILD_W3EMC )
+if((NOT BUILD_W3EMC ) AND ( NOT DEFINED W3EMC_LIBRARY ))
   if(DEFINED ENV{W3EMC_LIB} )
     set(W3EMC_LIBRARY $ENV{W3EMC_LIB} )
     set(W3EMCINC $ENV{W3EMC_INC} )
@@ -25,6 +30,8 @@ if(NOT BUILD_W3EMC )
         /usr/local/jcsda/nwprod_gdas_2014/lib/incmod/w3emc_4 
         ${COREPATH}/w3emc/v${W3EMC_VER}/incmod/w3emc_v${W3EMC_VER}_d
         ${COREPATH}/w3emc/v${W3EMC_VER}/intel/w3emc_v${W3EMC_VER}_d
+        ${COREPATH}/w3emc/v${W3EMC_VER}/ips/${COMPILER_VERSION}/impi/${COMPILER_VERSION}/include/w3emc_v${W3EMC_VER}_d
+        ${COREPATH}/w3emc/v${W3EMC_VER}/ips/${COMPILER_VERSION}/smpi/${COMPILER_VERSION}/include/w3emc_v${W3EMC_VER}_d
     )
     find_library( W3EMC_LIBRARY 
     NAMES libw3emc_4.a libw3emc_i4r8.a libw3emc_v${W3EMC_VER}_d.a
@@ -33,6 +40,8 @@ if(NOT BUILD_W3EMC )
       /usr/local/jcsda/nwprod_gdas_2014	
       ${COREPATH}/w3emc/v${W3EMC_VER}
       ${COREPATH}/w3emc/v${W3EMC_VER}/intel
+      ${COREPATH}/w3emc/v${W3EMC_VER}/ips/${COMPILER_VERSION}/impi/${COMPILER_VERSION}
+      ${COREPATH}/w3emc/v${W3EMC_VER}/ips/${COMPILER_VERSION}/smpi/${COMPILER_VERSION}
     PATH_SUFFIXES
         lib
      ${NO_DEFAULT_PATH})
