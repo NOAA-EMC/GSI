@@ -24,6 +24,8 @@ if(NOT BUILD_NEMSIO )
       /usr/local/jcsda/nwprod_gdas_2014	
       ${COREPATH}/nemsio/v${NEMSIO_VER}
       ${COREPATH}/nemsio/v${NEMSIO_VER}/intel
+      ${COREPATH}/nemsio/v${NEMSIO_VER}//ips/${COMPILER_VERSION}/impi/${COMPILER_VERSION}
+      ${COREPATH}/nemsio/v${NEMSIO_VER}//ips/${COMPILER_VERSION}/smpi/${COMPILER_VERSION}
     PATH_SUFFIXES
         lib
      ${NO_DEFAULT_PATH})
