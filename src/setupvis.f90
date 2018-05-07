@@ -26,6 +26,8 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !                       . removed (%dlat,%dlon) debris.
 !   2016-10-07  pondeca - if(.not.proceed) advance through input file first
 !                          before retuning to setuprhsall.f90
+!   2017-02-09  guo     - Remove m_alloc, n_alloc.
+!                       . Remove my_node with corrected typecast().
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -51,7 +53,8 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,bmiss
   use m_obsNode, only: obsNode
   use m_visNode, only: visNode
-  use m_obsLList, only: obsLList_appendNode
+  use m_visNode, only: visNode_appendto
+  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: magoberr,maginnov,oneobtest
@@ -119,9 +122,6 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_double) r_prvstg,r_sprvstg
 
   logical:: in_curbin, in_anybin
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
-  class(obsNode),pointer:: my_node
   type(visNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
 
@@ -144,9 +144,6 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! If require guess vars available, extract from bundle ...
   call init_vars_
 
-  n_alloc(:)=0
-  m_alloc(:)=0
-  vis_errmax=5000.0_r_kind
 !*********************************************************************************
 ! Read and reformat observations in work arrays.
   read(lunin)data,luse,ioid
@@ -186,8 +183,6 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   set any observations larger than 20000.0 to be 20000.0
     if (data(ivis,i) > 20000.0_r_kind) data(ivis,i)=20000.0_r_kind
   end do
-  offtime_k=0.0_r_kind
-  offtime_l=0.0_r_kind
 
 ! if closest_obs=.true., choose the timely closest obs. among the multi-reports
 ! at a station.
@@ -306,7 +301,6 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            obsdiags(i_vis_ob_type,ibin)%tail%wgtjo=-huge(zero)
            obsdiags(i_vis_ob_type,ibin)%tail%obssen(:)=zero
     
-           n_alloc(ibin) = n_alloc(ibin) +1
            my_diag => obsdiags(i_vis_ob_type,ibin)%tail
            my_diag%idv = is
            my_diag%iob = ioid(i)
@@ -431,10 +425,8 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if (.not. last .and. muse(i)) then
 
         allocate(my_head)
-	m_alloc(ibin) = m_alloc(ibin) + 1
-        my_node => my_head        ! this is a workaround
-        call obsLList_appendNode(vishead(ibin),my_node)
-        my_node => null()
+        call visNode_appendto(my_head,vishead(ibin))
+        !call obsLList_appendNode(vishead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

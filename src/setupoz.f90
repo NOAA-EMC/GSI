@@ -71,6 +71,8 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
 !                       . removed (%dlat,%dlon) debris.
+!   2017-02-09  guo     - Remove m_alloc, n_alloc.
+!                       . Remove my_node with corrected typecast().
 !
 !   input argument list:
 !     lunin          - unit from which to read observations
@@ -107,7 +109,8 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use obsmod, only : obsdiags,lobsdiag_allocated,lobsdiagsave
   use m_obsNode, only: obsNode
   use m_ozNode, only : ozNode, ozNode_typecast
-  use m_obsLList, only : obsLList_appendNode
+  use m_ozNode, only : ozNode_appendto
+  !use m_obsLList, only : obsLList_appendNode
   use m_obsLList, only : obsLList_tailNode
   use obsmod, only : nloz_omi
   use obsmod, only : obs_diag,luse_obsdiag
@@ -200,9 +203,6 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   logical:: l_may_be_passive, proceed
 
   logical:: in_curbin, in_anybin
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
-  class(obsNode),pointer:: my_node
   type(ozNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
 
@@ -215,12 +215,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 ! If require guess vars available, extract from bundle ...
   call init_vars_
 
-  n_alloc(:)=0
-  m_alloc(:)=0
-
   mm1=mype+1
-
-
 !
 !*********************************************************************************
 ! Initialize arrays
@@ -524,10 +519,8 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
            if (.not. last .and. ikeep==1) then
  
               allocate(my_head)
-              m_alloc(ibin) = m_alloc(ibin) +1
-              my_node => my_head        ! this is a workaround
-              call obsLList_appendNode(ozhead(ibin),my_node)
-              my_node => null()
+              call ozNode_appendto(my_head,ozhead(ibin))
+              !call obsLList_appendNode(ozhead(ibin),my_head)
 
               my_head%idv = is
               my_head%iob = ioid(i)
@@ -624,7 +617,6 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
                     obsdiags(i_oz_ob_type,ibin)%tail%wgtjo=-huge(zero)
                     obsdiags(i_oz_ob_type,ibin)%tail%obssen(:)=zero
        
-                    n_alloc(ibin) = n_alloc(ibin) +1
                     my_diag => obsdiags(i_oz_ob_type,ibin)%tail
                     my_diag%idv = is
                     my_diag%iob = ioid(i)
@@ -655,14 +647,9 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
               endif
  
               if (.not. last .and. ikeep==1) then
-                 !my_head => ozNode_typecast(obsLList_tailNode(ozhead(ibin)))
-                 my_node => obsLList_tailNode(ozhead(ibin))
-                 if(.not.associated(my_node)) &
-                    call die(myname,'unexpected, associated(my_node) =',associated(my_node))
-                 my_head => ozNode_typecast(my_node)
+                 my_head => ozNode_typecast(obsLList_tailNode(ozhead(ibin)))
                  if(.not.associated(my_head)) &
                     call die(myname,'unexpected, associated(my_head) =',associated(my_head))
-                 my_node => my_head
 
                  my_head%ipos(k)    = ipos(k)
                  my_head%res(k)     = ozone_inv(k)
@@ -853,6 +840,8 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
 !                       . removed (%dlat,%dlon) debris.
+!   2017-02-09  guo     - Remove m_alloc, n_alloc.
+!                       . Remove my_node with corrected typecast().
 !
 !   input argument list:
 !     lunin          - unit from which to read observations
@@ -886,7 +875,8 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use obsmod, only : obsdiags,lobsdiag_allocated,lobsdiagsave
   use m_obsNode, only: obsNode
   use m_o3lNode, only : o3lNode
-  use m_obsLList, only : obsLList_appendNode
+  use m_o3lNode, only : o3lNode_appendto
+  !use m_obsLList, only : obsLList_appendNode
   use obsmod, only : obs_diag,luse_obsdiag
 
   use guess_grids, only : nfldsig,ges_lnprsl,hrdifsig
@@ -974,9 +964,6 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   logical proceed
 
   logical:: in_curbin, in_anybin
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
-  class(obsNode),pointer:: my_node
   type(o3lNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
 
@@ -991,9 +978,6 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
 ! If require guess vars available, extract from bundle ...
   call init_vars_
-
-  n_alloc(:)=0
-  m_alloc(:)=0
 
   mm1=mype+1
 
@@ -1097,7 +1081,6 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
            obsdiags(i_o3l_ob_type,ibin)%tail%wgtjo=-huge(zero)
            obsdiags(i_o3l_ob_type,ibin)%tail%obssen(:)=zero
     
-           n_alloc(ibin) = n_alloc(ibin) +1
            my_diag => obsdiags(i_o3l_ob_type,ibin)%tail
            my_diag%idv = is
            my_diag%iob = ioid(i)
@@ -1259,10 +1242,8 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
      if (.not. last .and. muse(i) ) then
 
         allocate(my_head)
-        m_alloc(ibin) = m_alloc(ibin) +1
-        my_node => my_head        ! this is a workaround
-        call obsLList_appendNode(o3lhead(ibin),my_node)
-        my_node => null()
+        call o3lNode_appendto(my_head,o3lhead(ibin))
+        !call obsLList_appendNode(o3lhead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

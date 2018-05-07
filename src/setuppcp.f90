@@ -52,7 +52,8 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   use obsmod, only: mype_diaghdr,nobskeep,lobsdiag_allocated,dirname
   use m_obsNode, only: obsNode
   use m_pcpNode, only: pcpNode
-  use m_obsLList, only: obsLList_appendNode
+  use m_pcpNode, only: pcpNode_appendto
+  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar,l4densvar
 
@@ -159,6 +160,8 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(n)
 !                       . removed (%dlat,%dlon) debris.
+!   2017-02-09  guo     - Remove m_alloc, n_alloc.
+!                       . Remove my_node with corrected typecast().
 !
 !
 ! !REMARKS:  This routine is NOT correctly set up if running
@@ -260,9 +263,6 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
 
   logical:: in_curbin, in_anybin
   logical   proceed
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
-  class(obsNode),pointer:: my_node
   type(pcpNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
 
@@ -295,8 +295,6 @@ if(.not. (drv_initialized.and.tnd_initialized) ) then
   call die(myname)
 endif
 
-  n_alloc(:)=0
-  m_alloc(:)=0
 !*********************************************************************************
 ! ONE TIME, INITIAL SETUP PRIOR TO PROCESSING SATELLITE DATA
 !
@@ -555,7 +553,6 @@ endif
            obsdiags(i_pcp_ob_type,ibin)%tail%wgtjo=-huge(zero)
            obsdiags(i_pcp_ob_type,ibin)%tail%obssen(:)=zero
     
-           n_alloc(ibin) = n_alloc(ibin) +1
            my_diag => obsdiags(i_pcp_ob_type,ibin)%tail
            my_diag%idv = is
            my_diag%iob = ioid(n)
@@ -980,10 +977,8 @@ endif
         ncnt  = ncnt+1
 
         allocate(my_head)
-        m_alloc(ibin) = m_alloc(ibin) +1
-        my_node => my_head        ! this is a workaround
-        call obsLList_appendNode(pcphead(ibin),my_node)
-        my_node => null()
+        call pcpNode_appendto(my_head,pcphead(ibin))
+        !call obsLList_appendNode(pcphead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(n)

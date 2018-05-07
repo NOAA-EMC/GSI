@@ -25,6 +25,8 @@ subroutine setuppblh(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
 !                       . removed (%dlat,%dlon) debris.
 !   2016-10-07  pondeca - if(.not.proceed) advance through input file first
+!   2017-02-09  guo     - Remove m_alloc, n_alloc.
+!                       . Remove my_node with corrected typecast().
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -50,7 +52,8 @@ subroutine setuppblh(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use m_obsNode, only: obsNode
   use m_pblhNode, only: pblhNode
-  use m_obsLList, only: obsLList_appendNode
+  use m_pblhNode, only: pblhNode_appendto
+  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,bmiss,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: magoberr,maginnov,oneobtest
@@ -109,9 +112,6 @@ subroutine setuppblh(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   character(8),allocatable,dimension(:):: cdiagbuf
 
   logical:: in_curbin, in_anybin
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
-  class(obsNode),pointer:: my_node
   type(pblhNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
   character(len=*),parameter:: myname='setuppblh'
@@ -132,8 +132,6 @@ subroutine setuppblh(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! If require guess vars available, extract from bundle ...
   call init_vars_
 
-  n_alloc(:)=0
-  m_alloc(:)=0
 !*********************************************************************************
 ! Read and reformat observations in work arrays.
   read(lunin)data,luse,ioid
@@ -252,7 +250,6 @@ subroutine setuppblh(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            obsdiags(i_pblh_ob_type,ibin)%tail%wgtjo=-huge(zero)
            obsdiags(i_pblh_ob_type,ibin)%tail%obssen(:)=zero
     
-           n_alloc(ibin) = n_alloc(ibin) +1
            my_diag => obsdiags(i_pblh_ob_type,ibin)%tail
            my_diag%idv = is
            my_diag%iob = ioid(i)
@@ -373,10 +370,8 @@ subroutine setuppblh(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if (.not. last .and. muse(i)) then
 
         allocate(my_head)
-	m_alloc(ibin) = m_alloc(ibin) + 1
-        my_node => my_head        ! this is a workaround
-        call obsLList_appendNode(pblhhead(ibin),my_node)
-        my_node => null()
+        call pblhNode_appendto(my_head,pblhhead(ibin))
+        !call obsLList_appendNode(pblhhead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

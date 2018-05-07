@@ -20,6 +20,8 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
 !                       . removed (%dlat,%dlon) debris.
+!   2017-02-09  guo     - Remove m_alloc, n_alloc.
+!                       . Remove my_node with corrected typecast().
 !
 !   input argument list:
 !     lunin          - unit from which to read observations
@@ -50,7 +52,8 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   use m_obsdiags, only : pm10head
   use m_obsNode , only : obsNode
   use m_pm10Node, only : pm10Node
-  use m_obsLList, only : obsLList_appendNode
+  use m_pm10Node, only : pm10Node_appendto
+  !use m_obsLList, only : obsLList_appendNode
   use obsmod    , only : i_pm10_ob_type,time_offset
   use obsmod, only : obsdiags,lobsdiag_allocated,lobsdiagsave
   use obsmod, only : obs_diag,luse_obsdiag
@@ -134,9 +137,6 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 
   logical:: in_curbin, in_anybin
   logical proceed
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
-  class(obsNode), pointer:: my_node
   type(pm10Node), pointer:: my_head
   type(obs_diag), pointer:: my_diag
 
@@ -156,9 +156,6 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 
 ! If require guess vars available, extract from bundle ...
   call init_vars_
-
-  n_alloc(:)=0
-  m_alloc(:)=0
 
   nchar=1
   nrealdiag=19
@@ -482,7 +479,6 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
               obsdiags(i_pm10_ob_type,ibin)%tail%wgtjo=-huge(zero)
               obsdiags(i_pm10_ob_type,ibin)%tail%obssen(:)=zero
            
-              n_alloc(ibin) = n_alloc(ibin) +1
               my_diag => obsdiags(i_pm10_ob_type,ibin)%tail
               my_diag%idv = is
               my_diag%iob = ioid(i)
@@ -595,10 +591,8 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         if (.not. last .and. muse(i)) then
            
            allocate(my_head)
-           m_alloc(ibin) = m_alloc(ibin) +1
-           my_node => my_head
-           call obsLList_appendNode(pm10head(ibin),my_node)
-           my_node => null()
+           call pm10Node_appendto(my_head,pm10head(ibin))
+           !call obsLList_appendNode(pm10head(ibin),my_head)
 
            my_head%idv = is
            my_head%iob = ioid(i)

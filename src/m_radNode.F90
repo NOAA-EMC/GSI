@@ -83,13 +83,16 @@ module m_radNode
     procedure, nopass:: headerRead  => obsHeader_read_
     procedure, nopass:: headerWrite => obsHeader_write_
     ! procedure:: init  => obsNode_init_
-    ! procedure:: clean => obsNode_clean_
+    procedure:: clean => obsNode_clean_
   end type radNode
 
   public:: radNode_typecast
   public:: radNode_nextcast
         interface radNode_typecast; module procedure typecast_ ; end interface
         interface radNode_nextcast; module procedure nextcast_ ; end interface
+
+  public:: radNode_appendto
+        interface radNode_appendto; module procedure appendto_ ; end interface
 
   character(len=*),parameter:: MYNAME="m_radNode"
 
@@ -99,17 +102,16 @@ contains
 function typecast_(aNode) result(ptr_)
 !-- cast a class(obsNode) to a type(radNode)
   use m_obsNode, only: obsNode
+  use m_obsNode, only: nonNull => obsNode_nonNull
   implicit none
   type(radNode),pointer:: ptr_
-  class(obsNode),pointer,intent(in):: aNode
-  character(len=*),parameter:: myname_=MYNAME//"::typecast_"
+  class(obsNode),target,intent(in):: aNode
   ptr_ => null()
-  if(.not.associated(aNode)) return
+  if(.not.nonNull(aNode)) return
+        ! logically, typecast of a null-reference is a null pointer.
   select type(aNode)
   type is(radNode)
     ptr_ => aNode
-  class default
-    call die(myname_,'unexpected type, aNode%mytype() =',aNode%mytype())
   end select
 return
 end function typecast_
@@ -120,12 +122,23 @@ function nextcast_(aNode) result(ptr_)
   implicit none
   type(radNode),pointer:: ptr_
   class(obsNode),target,intent(in):: aNode
-
-  class(obsNode),pointer:: anode_
-  anode_ => obsNode_next(aNode)
-  ptr_ => typecast_(anode_)
+  ptr_ => typecast_(obsNode_next(aNode))
 return
 end function nextcast_
+
+subroutine appendto_(aNode,oll)
+!-- append aNode to linked-list oLL
+  use m_obsNode , only: obsNode
+  use m_obsLList, only: obsLList,obsLList_appendNode
+  implicit none
+  type(radNode),pointer,intent(in):: aNode
+  type(obsLList),intent(inout):: oLL
+
+  class(obsNode),pointer:: inode_
+  inode_ => aNode
+  call obsLList_appendNode(oLL,inode_)
+  inode_ => null()
+end subroutine appendto_
 
 ! obsNode implementations
 
@@ -179,6 +192,26 @@ _EXIT_(myname_)
 return
 end subroutine obsHeader_write_
 
+subroutine obsNode_clean_(aNode)
+  implicit none
+  class(radNode),intent(inout):: aNode
+
+  character(len=*),parameter:: myname_=MYNAME//'.obsNode_clean_'
+_ENTRY_(myname_)
+!_TRACEV_(myname_,'%mytype() =',aNode%mytype())
+  if(associated(aNode%diags   )) deallocate(aNode%diags   )
+  if(associated(aNode%ich     )) deallocate(aNode%ich     )
+  if(associated(aNode%res     )) deallocate(aNode%res     )
+  if(associated(aNode%err2    )) deallocate(aNode%err2    )
+  if(associated(aNode%raterr2 )) deallocate(aNode%raterr2 )
+  if(associated(aNode%pred    )) deallocate(aNode%pred    )
+  if(associated(aNode%dtb_dvar)) deallocate(aNode%dtb_dvar)
+  if(associated(aNode%rsqrtinv)) deallocate(aNode%rsqrtinv)
+  if(associated(aNode%icx     )) deallocate(aNode%icx     )
+_EXIT_(myname_)
+return
+end subroutine obsNode_clean_
+
 subroutine obsNode_xread_(aNode,iunit,istat,diagLookup,skip)
   use m_obsdiagNode, only: obsdiagLookup_locate
   use radinfo, only: npred,nsigradjac
@@ -200,7 +233,7 @@ _ENTRY_(myname_)
   if(skip_) then
     read(iunit,iostat=istat)
                 if (istat/=0) then
-                  call perr(myname_,'skipping read(%nchan), iostat =',istat)
+                  call perr(myname_,'skipping read(%(nchan,use_corr_obs)), iostat =',istat)
                   _EXIT_(myname_)
                   return
                 end if
@@ -212,10 +245,17 @@ _ENTRY_(myname_)
                   return
                 endif
 
+    read(iunit,iostat=istat)
+                if(istat/=0) then
+                  call perr(myname_,'skipping read(%(rsqrtinv)), iostat =',istat)
+                  _EXIT_(myname_)
+                  return
+                endif
+
   else
-    read(iunit,iostat=istat) aNode%nchan
+    read(iunit,iostat=istat) aNode%nchan,aNode%use_corr_obs
                 if (istat/=0) then
-                  call perr(myname_,'read(%nchan), iostat =',istat)
+                  call perr(myname_,'read(%(nchan,use_corr_obs)), iostat =',istat)
                   _EXIT_(myname_)
                   return
                 end if
@@ -240,11 +280,6 @@ _ENTRY_(myname_)
                   aNode%ich  (nchan), &
                   aNode%icx  (nchan)  )
 
-        if (aNode%use_corr_obs) then
-            deallocate(aNode%rsqrtinv, stat=istat)
-            if (istat/=0) write(6,*)'DESTROYOBS:  deallocate error for rad rsqrtinv, istatus=',istat
-        endif
-
         read(iunit,iostat=istat)    aNode%ich     , &
                                     aNode%res     , &
                                     aNode%err2    , &
@@ -261,6 +296,7 @@ _ENTRY_(myname_)
                 end if
 
         if (aNode%use_corr_obs) then
+            allocate(aNode%rsqrtinv(nchan*(nchan+1)/2))
             read(iunit,iostat=istat)    aNode%rsqrtinv
                 if (istat/=0) then
                   call perr(myname_,'read(%(rsqrtinv)), iostat =',istat)
@@ -295,9 +331,9 @@ subroutine obsNode_xwrite_(aNode,junit,jstat)
 _ENTRY_(myname_)
 
   jstat=0
-  write(junit,iostat=jstat) aNode%nchan
+  write(junit,iostat=jstat) aNode%nchan,aNode%use_corr_obs
                 if (jstat/=0) then
-                  call perr(myname_,'write(%nchan), iostat =',jstat)
+                  call perr(myname_,'write(%(nchan,use_corr_obs)), iostat =',jstat)
                   _EXIT_(myname_)
                   return
                 end if
@@ -316,6 +352,7 @@ _ENTRY_(myname_)
                   _EXIT_(myname_)
                   return
                 end if
+
   if (aNode%use_corr_obs) then
       write(junit,iostat=jstat) aNode%rsqrtinv
            if (jstat/=0) then

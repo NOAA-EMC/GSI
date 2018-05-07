@@ -911,12 +911,20 @@ subroutine clean_(lanlerr)
   use jfunc, only: diag_precon
   use m_obsdiags, only: obsdiags_reset
   use obsmod, only: destroyobs,lobsdiagsave
+  use mpeu_util, only: tell
   implicit none
   logical,intent(in):: lanlerr
 
 ! Deallocate obs file
   if (.not.l4dvar) call destroyobs()      ! phasing out, by gradually reducing its funtionality
+!xx  if(mype==0) then
+!xx    call tell("pcgsoi::clean_","obsdiags_reset(), entering with l4dvar =",l4dvar)
+!xx    call tell("pcgsoi::clean_","                          lobsdiagsave =",lobsdiagsave)
+!xx  endif
   if (.not.l4dvar) call obsdiags_reset(obsdiags_keep=lobsdiagsave)   ! replacing destroyobs()
+!xx  if(mype==0) then
+!xx    call tell("pcgsoi::clean_","obsdiags_reset(), returned")
+!xx  endif
 
 ! Release state-vector memory
   call deallocate_cv(xhat)

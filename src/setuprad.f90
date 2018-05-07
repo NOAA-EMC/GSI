@@ -187,6 +187,8 @@
 !   2016-07-19  W. Gu   - include the dependence of the correlated obs errors on the surface types
 !   2016-07-19  kbathmann -move eigendecomposition for correlated obs here
 !   2016-10-23  zhu     - add cloudy radiance assimilation for ATMS
+!   2017-02-09  guo     - Remove m_alloc, n_alloc.
+!                       . Remove my_node with corrected typecast().
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -228,7 +230,8 @@
       dirname,time_offset,lwrite_predterms,lwrite_peakwt,reduce_diag
   use m_obsNode, only: obsNode
   use m_radNode, only: radNode, radNode_typecast
-  use m_obsLList, only: obsLList_appendNode
+  use m_radNode, only: radNode_appendto
+  !use m_obsLList, only: obsLList_appendNode
   use m_obsLList, only: obsLList_tailNode
   use obsmod, only: obs_diag,luse_obsdiag,dval_use
   use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar
@@ -350,8 +353,6 @@
   real(r_kind),dimension(:,:), allocatable :: rsqrtinv
 
   integer(i_kind),dimension(nchanl):: ich,id_qc,ich_diag
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
   integer(i_kind),dimension(nchanl):: kmax
   integer(i_kind):: iinstr
   integer(i_kind) :: chan_count
@@ -364,13 +365,10 @@
   character(10) filex
   character(12) string
 
-  class(obsNode),pointer:: my_node
   type(radNode),pointer:: my_head,my_headm
   type(obs_diag),pointer:: my_diag
   type(rad_obs_type) :: radmod
 
-  n_alloc(:)=0
-  m_alloc(:)=0
 !**************************************************************************************
 ! Initialize variables and constants.
   mm1        = mype+1
@@ -1504,10 +1502,8 @@
               nchan_total=nchan_total+icc
  
               allocate(my_head)
-              m_alloc(ibin) = m_alloc(ibin) +1
-              my_node => my_head        ! this is a workaround
-              call obsLList_appendNode(radhead(ibin),my_node)
-              my_node => null()
+              call radNode_appendto(my_head,radhead(ibin))
+              !call obsLList_appendNode(radhead(ibin),my_head)
 
               my_head%idv = is
               my_head%iob = ioid(n)
@@ -1660,7 +1656,6 @@
                obsdiags(i_rad_ob_type,ibin)%tail%wgtjo=-huge(zero)
                obsdiags(i_rad_ob_type,ibin)%tail%obssen(:)=zero
   
-               n_alloc(ibin) = n_alloc(ibin) +1
                my_diag => obsdiags(i_rad_ob_type,ibin)%tail
                my_diag%idv = is
                my_diag%iob = ioid(n)
@@ -1686,14 +1681,9 @@
             if (ii==1) obsptr => obsdiags(i_rad_ob_type,ibin)%tail
   
             if(in_curbin.and.icc>0) then
-               !my_head => radNode_typecast(obsLList_tailNode(radhead(ibin)))
-               my_node => obsLList_tailNode(radhead(ibin))
-               if(.not.associated(my_node)) &
-                  call die(myname,'unexpected, associated(my_node) =',associated(my_node))
-               my_head => radNode_typecast(my_node)
+               my_head => radNode_typecast(obsLList_tailNode(radhead(ibin)))
                if(.not.associated(my_head)) &
                   call die(myname,'unexpected, associated(my_head) =',associated(my_head))
-               my_node => null()
 
                if (ii==1) obsdiags(i_rad_ob_type,ibin)%tail%nchnperobs = nchanl
                obsdiags(i_rad_ob_type,ibin)%tail%nldepart(jiter) = utbc(ii)
@@ -1742,9 +1732,8 @@
         if(in_curbin) then
            if(iccm > 0)then
               allocate(my_headm)
-              my_node => my_headm        ! this is a workaround
-              call obsLList_appendNode(radheadm(ibin),my_node)
-              my_node => null()
+              call radNode_appendto(my_headm,radheadm(ibin))
+              !call obsLList_appendNode(radheadm(ibin),my_headm)
 
               my_headm%idv = is
               my_headm%iob = ioid(n)

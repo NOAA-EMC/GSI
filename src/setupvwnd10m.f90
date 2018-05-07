@@ -14,10 +14,12 @@ subroutine setupvwnd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !
 ! program history log:
 !   2016-03-07  pondeca
+!   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
+!                       . removed (%dlat,%dlon) debris.
 !   2016-10-07  pondeca - if(.not.proceed) advance through input file first
 !                         before retuning to setuprhsall.f90
-!   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i) 
-!                         . removed (%dlat,%dlon) debris.
+!   2017-02-09  guo     - Remove m_alloc, n_alloc.
+!                       . Remove my_node with corrected typecast().
 !   2017-03-15  Yang    - modify code to use polymorphic code.
 !
 !   input argument list:
@@ -45,7 +47,8 @@ subroutine setupvwnd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use m_obsNode    , only: obsNode
   use m_vwnd10mNode, only: vwnd10mNode
-  use m_obsLList   , only: obsLList_appendNode
+  use m_vwnd10mNode, only: vwnd10mNode_appendto
+  !use m_obsLList   , only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: magoberr,maginnov,oneobtest
@@ -130,9 +133,6 @@ subroutine setupvwnd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_double) r_prvstg,r_sprvstg
 
   logical:: in_curbin, in_anybin
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
-  class(obsNode   ), pointer:: my_node
   type(vwnd10mNode), pointer:: my_head
   type(obs_diag   ), pointer:: my_diag
 
@@ -159,8 +159,6 @@ subroutine setupvwnd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! If require guess vars available, extract from bundle ...
   call init_vars_
 
-  n_alloc(:)=0
-  m_alloc(:)=0
 !*********************************************************************************
 ! Read and reformat observations in work arrays.
   spdb=zero
@@ -308,7 +306,6 @@ subroutine setupvwnd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            obsdiags(i_vwnd10m_ob_type,ibin)%tail%wgtjo=-huge(zero)
            obsdiags(i_vwnd10m_ob_type,ibin)%tail%obssen(:)=zero
 
-           n_alloc(ibin) = n_alloc(ibin) +1
            my_diag => obsdiags(i_vwnd10m_ob_type,ibin)%tail
            my_diag%idv = is
            my_diag%iob = ioid(i)
@@ -616,10 +613,8 @@ subroutine setupvwnd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !    in inner loop minimization (int* and stp* routines)
      if (.not. last .and. muse(i)) then
         allocate(my_head)
-        m_alloc(ibin) = m_alloc(ibin) + 1
-        my_node => my_head
-        call obsLList_appendNode(vwnd10mhead(ibin),my_node)
-        my_node => null()
+        call vwnd10mNode_appendto(my_head,vwnd10mhead(ibin))
+        !call obsLList_appendNode(vwnd10mhead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

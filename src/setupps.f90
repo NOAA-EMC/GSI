@@ -67,6 +67,8 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
 !                       . removed (%dlat,%dlon) debris.
+!   2017-02-09  guo     - Remove m_alloc, n_alloc.
+!                       . Remove my_node with corrected typecast().
 !   2017-03-31  Hu      -  addd option l_closeobs to use closest obs to analysis
 !                                     time in analysis
 !
@@ -94,7 +96,8 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
                     time_offset
   use m_obsNode, only: obsNode
   use m_psNode, only: psNode
-  use m_obsLList, only: obsLList_appendNode
+  use m_psNode, only: psNode_appendto
+  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin,min_offset
   use oneobmod, only: magoberr,maginnov,oneobtest
@@ -166,9 +169,6 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) :: hr_offset
 
   logical:: in_curbin, in_anybin
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
-  class(obsNode),pointer:: my_node
   type(psNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
 
@@ -180,8 +180,6 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
 
-  n_alloc(:)=0
-  m_alloc(:)=0
 !*******************************************************************************
 ! Read observations in work arrays.
 
@@ -332,7 +330,6 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            obsdiags(i_ps_ob_type,ibin)%tail%wgtjo=-huge(zero)
            obsdiags(i_ps_ob_type,ibin)%tail%obssen(:)=zero
     
-           n_alloc(ibin) = n_alloc(ibin) +1
            my_diag => obsdiags(i_ps_ob_type,ibin)%tail
            my_diag%idv = is
            my_diag%iob = ioid(i)
@@ -561,10 +558,8 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !    if no minimization (inner loop), do not load arrays
 
         allocate(my_head)
-        m_alloc(ibin) = m_alloc(ibin) +1
-        my_node => my_head        ! this is a workaround
-        call obsLList_appendNode(pshead(ibin),my_node)
-        my_node => null()
+        call psNode_appendto(my_head,pshead(ibin))
+        !call obsLList_appendNode(pshead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

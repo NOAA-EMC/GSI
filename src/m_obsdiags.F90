@@ -553,6 +553,7 @@ subroutine reset_(obsdiags_keep)
   use obsmod, only: lobsdiag_allocated
 
   use m_obsdiagNode, only: obsdiagLList_reset
+  use m_obsdiagNode, only: obsdiagLList_rewind
   use m_obsLList, only: obsLList_reset
   use m_obsNode , only: obsNode
   use m_obsNodeTypeManager, only: obsNode_typeMold
@@ -609,6 +610,9 @@ _TRACEV_(myname_,'lobsdiags_allocated_ =',lobsdiags_allocated_)
         if(.not.obsdiags_keep_) then
           call obsdiagLList_reset(obsdiags(jj,ii))
           lobsdiag_allocated=.false.
+        else
+          call obsdiagLList_rewind(obsdiags(jj,ii))
+          lobsdiag_allocated=.true.
         endif
       endif
 

@@ -19,6 +19,8 @@
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
 !                       . removed (%dlat,%dlon) debris.
+!   2017-02-09  guo     - Remove m_alloc, n_alloc.
+!                       . Remove my_node with corrected typecast().
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -62,8 +64,9 @@
   use m_obsdiags, only: aerohead
   use m_obsNode, only: obsNode
   use m_aeroNode, only: aeroNode, aeroNode_typecast
-  use m_obsLList, only: obsLList_appendNode
-  use m_obsLlist, only: obsLList_tailNode
+  use m_aeroNode, only: aeroNode_appendto
+  !use m_obsLList, only: obsLList_appendNode
+  use m_obsLList, only: obsLList_tailNode
   use obsmod, only: rmiss_single
   use qcmod, only: ifail_crtm_qc
   use radiance_mod, only: rad_obs_type,radiance_obstype_search
@@ -128,9 +131,6 @@
   integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
 
   logical:: in_curbin, in_anybin
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
-  class(obsNode),pointer:: my_node
   type(aeroNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
   type(rad_obs_type) :: radmod
@@ -153,8 +153,6 @@
      return
   endif
 
-  n_alloc(:)=0
-  m_alloc(:)=0
 !**************************************************************************************
 ! Initialize variables and constants.
   mm1        = mype+1
@@ -396,10 +394,7 @@
               nchan_total=nchan_total+icc
 
               allocate(my_head)
-              m_alloc(ibin) = m_alloc(ibin) +1
-              my_node => my_head        ! this is a workaround
-              call obsLList_appendNode(aerohead(ibin),my_node)
-              my_node => null()
+              call aeroNode_appendto(my_head,aerohead(ibin))
 
               my_head%idv = is
               my_head%iob = ioid(n)
@@ -476,7 +471,6 @@
                  obsdiags(i_aero_ob_type,ibin)%tail%wgtjo=-huge(zero)
                  obsdiags(i_aero_ob_type,ibin)%tail%obssen(:)=zero
     
-                 n_alloc(ibin) = n_alloc(ibin) +1
                  my_diag => obsdiags(i_aero_ob_type,ibin)%tail
                  my_diag%idv = is
                  my_diag%iob = ioid(n)
@@ -499,14 +493,9 @@
               endif
 
               if (in_curbin.and.icc>0) then
-                 !my_head => aeroNode_typecast(obsLList_tailNode(aerohead(ibin)))
-                 my_node => obsLList_tailNode(aerohead(ibin))
-                 if(.not.associated(my_node)) &
-                    call die(myname,'unexpected, associated(my_node) =',associated(my_node))
-                 my_head => aeroNode_typecast(my_node)
+                 my_head => aeroNode_typecast(obsLList_tailNode(aerohead(ibin)))
                  if(.not.associated(my_head)) &
                     call die(myname,'unexpected, associated(my_head) =',associated(my_head))
-                 my_node => null()
 
                  if (ii==1) obsptr => obsdiags(i_aero_ob_type,ibin)%tail
                  if (ii==1) obsdiags(i_aero_ob_type,ibin)%tail%nchnperobs = nchanl

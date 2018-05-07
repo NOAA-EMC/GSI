@@ -55,6 +55,8 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
 !                       . removed (%dlat,%dlon) debris.
+!   2017-02-09  guo     - Remove m_alloc, n_alloc.
+!                       . Remove my_node with corrected typecast().
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -80,7 +82,8 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use m_obsNode, only: obsNode
   use m_pwNode, only: pwNode
-  use m_obsLList, only: obsLList_appendNode
+  use m_pwNode, only: pwNode_appendto
+  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use constants, only: zero,one,tpwcon,r1000,r10, &
@@ -141,9 +144,6 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   character(8),allocatable,dimension(:):: cdiagbuf
 
   logical:: in_curbin, in_anybin
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
-  class(obsNode),pointer:: my_node
   type(pwNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
 
@@ -152,9 +152,6 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
-
-  n_alloc(:)=0
-  m_alloc(:)=0
 
   grsmlt=three  ! multiplier factor for gross check
   mm1=mype+1
@@ -293,7 +290,6 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            obsdiags(i_pw_ob_type,ibin)%tail%wgtjo=-huge(zero)
            obsdiags(i_pw_ob_type,ibin)%tail%obssen(:)=zero
     
-           n_alloc(ibin) = n_alloc(ibin) +1
            my_diag => obsdiags(i_pw_ob_type,ibin)%tail
            my_diag%idv = is
            my_diag%iob = ioid(i)
@@ -434,10 +430,8 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if ( .not. last .and. muse(i)) then
 
         allocate(my_head)
-        m_alloc(ibin) = m_alloc(ibin) +1
-        my_node => my_head        ! this is a workaround
-        call obsLList_appendNode(pwhead(ibin),my_node)
-        my_node => null()
+        call pwNode_appendto(my_head,pwhead(ibin))
+        !call obsLList_appendNode(pwhead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

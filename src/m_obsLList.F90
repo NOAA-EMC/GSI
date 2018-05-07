@@ -203,9 +203,11 @@ subroutine lreset_(headLL,mold,stat)
 !
 !$$$ end documentation block
   use m_obsNode, only: obsNode_next
+  use m_obsNode, only: obsNode_clean
+  use m_obsNode, only: obsNode_type
   implicit none
   type(obsLList), intent(inout):: headLL
-  class(obsNode), intent(in):: mold
+  class(obsNode), intent(in   ):: mold
   integer(i_kind),optional,intent(out):: stat
 
   character(len=*),parameter:: myname_=MYNAME//"::lreset_"
@@ -215,59 +217,60 @@ subroutine lreset_(headLL,mold,stat)
   integer(i_kind):: n
   integer(i_kind):: ier
 _ENTRY_(myname_)
-  !call tell(myname_,'         mold%mytype() =',mold%mytype())
-  !if(allocated(headLL%mold)) then
-  !  call tell(myname_,'obsLList%mold%mytype() =',headLL%mold%mytype())
-  !  call tell(myname_,'      obsLList%n_alloc =',headLL%n_alloc)
-  !endif
 
   if(present(stat)) stat=0
-  n=0
 
-  l_obsNode => lheadNode_(headLL)
-  do while(associated(l_obsNode))
-        ! Steps of forward resetting (not a recursive resetting),
-        ! (1) hold the %next node;
-        ! (2) clean then deallocate the current node, while leave the %next node untouched;
-        ! (3) switch the current node to the held %next node.
-    n=n+1
-    n_obsNode => obsNode_next(l_obsNode)
-    mytype_=l_obsNode%mytype()
-    call nodeDestroy_(l_obsNode,stat=ier)
-        if(ier/=0) then
-          call perr(myname_,'call nodeDestroy_(), stat =',ier)
-          call perr(myname_,'                    count =',n)
-          call perr(myname_,'       l_obsNode%mytype() =',mytype_)
-          call perr(myname_,'     headLL%mold%mytype() =',headLL%mold%mytype())
+  call obsNode_clean(headLL%head,deep=.true.,depth=n,stat=ier)
+        if(ier/=0.or.n/=0) then
+          call perr(myname_,'obsNode_clean(.deep.), stat =',ier)
+          call perr(myname_,'                      depth =',n)
+          call perr(myname_,'              lsize(headLL) =',lsize_(headLL))
+          call perr(myname_,'       headLL%head%mytype() =',obsNode_type(headLL%head))
+          call perr(myname_,'       headLL%mold%mytype() =',obsNode_type(headLL%mold))
           if(.not.present(stat)) call die(myname_)
           stat=ier
           _EXIT_(myname_)
           return
         endif
-    l_obsNode => n_obsNode
-  enddo
+
+  call nodeDestroy_(headLL%head)
 
   headLL%n_alloc = 0
   headLL%l_alloc = 0
   headLL%head    => null()
   headLL%tail    => null()
+
+  ! Since headLL%mold is defined as allocatable, nodeDestroy_() won't apply.
+  ! So for the time being, it is explicitly deallocated.  Should I change its
+  ! asstribute to POINTER?
+
   if(allocated(headLL%mold)) then
-    mytype_=headLL%mold%mytype()
     deallocate(headLL%mold,stat=ier)
         if(ier/=0) then
           call perr(myname_,'deallocate(headLL%mold), stat =',ier)
-          call perr(myname_,'         headLL%mold%mytype() =',mytype_)
+          call perr(myname_,'    obsNode_type(headLL%mold) =',obsNode_type(headLL%mold))
           if(.not.present(stat)) call die(myname_)
           stat=ier
           _EXIT_(myname_)
           return
         endif
   endif
+
   allocate(headLL%mold,mold=mold)
 _EXIT_(myname_)
 return
 end subroutine lreset_
 
+!xx function nodetype_(aNode)
+!xx   use m_obsNode,only: obsNode_nonNull
+!xx   implicit none
+!xx   character(len=:),allocatable:: nodetype_
+!xx   class(obsNode),target,intent(in):: aNode
+!xx   class(obsNode),pointer:: llmold_
+!xx   nodetype_="[obsNode].null."
+!xx   if(obsNode_nonNull(aNode)) nodetype_=aNode%mytype()
+!xx end function nodetype_
+!xx 
 subroutine lappendNode_(headLL,targetNode)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -291,12 +294,16 @@ subroutine lappendNode_(headLL,targetNode)
         ! Link the next node of the list to the given targetNode.  The return
         ! result is a pointer associated to the same targetNode.
   use m_obsNode, only: obsNode_append
+  use m_obsNode, only: nonNull => obsNode_nonNull
   implicit none
   type(obsLList), intent(inout):: headLL
-  class(obsNode), target, intent(in):: targetNode
+  !class(obsNode), target, intent(in):: targetNode
+  class(obsNode), pointer, intent(in):: targetNode
 
   character(len=*),parameter:: myname_=MYNAME//'::lappendNode_'
 !_ENTRY_(myname_)
+        !ASSERT(nonNull(targetNode))
+        ASSERT(associated(targetNode))
 
   if(.not.associated(headLL%head)) then
                 ! this is a fresh starting -node- for this linked-list ...
@@ -425,6 +432,7 @@ _ENTRY_(myname_)
     enddo  ! < mobs >
 
     call nodeDestroy_(aNode)  ! Clean up the working-space an_onsNode
+    
 _EXIT_(myname_)
 return
 end subroutine lread_
@@ -893,28 +901,20 @@ function alloc_nodeCreate_(mold) result(ptr_)
 return
 end function alloc_nodeCreate_
 
-subroutine nodeDestroy_(node,stat)
+subroutine nodeDestroy_(node)
 !-- clean() + deallocate()
+  use m_obsNode, only: obsNode_type
   implicit none
   class(obsNode),pointer,intent(inout):: node
-  integer(i_kind),optional,intent(out):: stat
-
-  character(len=*),parameter:: myname_=myname//"::nodeDestroy_"
+  character(len=*),parameter:: myname_=myname//'::nodeDestroy_'
   integer(i_kind):: ier
-  character(len=:),allocatable:: mytype_
-  if(present(stat)) stat=0
-  !call tell(  myname_,'associated(node) =',associated(node))
   if(associated(node)) then
-    !call tell(myname_,'   node%mytype() =',node%mytype())
-    mytype_=node%mytype()
     call node%clean()
-    !call tell(myname_,'associated(node) =',associated(node))
     deallocate(node,stat=ier)
     if(ier/=0) then
       call perr(myname_,'can not deallocate(node), stat =',ier)
-      call perr(myname_,'                     %mytype() =',mytype_)
-      if(.not.present(stat)) call die(myname_)
-      stat=ier
+      call perr(myname_,'            obsNode_type(node) =',obsNode_type(node))
+      call die(myname_)
     endif
   endif
 return
@@ -928,7 +928,7 @@ subroutine obsHeader_read_(aNode,iunit,iobs,itype,istat)
   integer(i_kind),intent(in ):: iunit
   integer(i_kind),intent(out):: iobs,itype
   integer(i_kind),intent(out):: istat
-  call aNode%header_read(iunit,iobs,itype,istat)
+  call aNode%headerRead(iunit,iobs,itype,istat)
 end subroutine obsHeader_read_
 
 subroutine obsHeader_write_(aNode,junit,mobs,mtype,istat)
@@ -939,6 +939,6 @@ subroutine obsHeader_write_(aNode,junit,mobs,mtype,istat)
   integer(i_kind),intent(in ):: junit
   integer(i_kind),intent(in ):: mobs,mtype
   integer(i_kind),intent(out):: istat
-  call aNode%header_write(junit,mobs,mtype,istat)
+  call aNode%headerWrite(junit,mobs,mtype,istat)
 end subroutine obsHeader_write_
 end module m_obsLList

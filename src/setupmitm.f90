@@ -20,6 +20,8 @@ subroutine setupmitm(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !                       . removed (%dlat,%dlon) debris.
 !   2016-10-07  pondeca - if(.not.proceed) advance through input file first
 !                          before retuning to setuprhsall.f90
+!   2017-02-09  guo     - Remove m_alloc, n_alloc.
+!                       . Remove my_node with corrected typecast().
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -43,7 +45,8 @@ subroutine setupmitm(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsdiags, only: mitmhead
   use m_obsNode , only: obsNode
   use m_mitmNode, only: mitmNode
-  use m_obsLList, only: obsLList_appendNode
+  use m_mitmNode, only: mitmNode_appendto
+  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: rmiss_single,i_mitm_ob_type, & 
                     obs_diag,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated, & 
                     time_offset,bmiss,luse_obsdiag
@@ -112,9 +115,6 @@ subroutine setupmitm(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_double) r_prvstg,r_sprvstg
 
   logical:: in_curbin, in_anybin
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
-  class(obsNode), pointer:: my_node
   type(mitmNode), pointer:: my_head
   type(obs_diag), pointer:: my_diag
 
@@ -137,8 +137,6 @@ subroutine setupmitm(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! If require guess vars available, extract from bundle ...
   call init_vars_
 
-  n_alloc(:)=0
-  m_alloc(:)=0
 !*********************************************************************************
 ! Read and reformat observations in work arrays.
   read(lunin)data,luse,ioid
@@ -259,7 +257,6 @@ subroutine setupmitm(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            obsdiags(i_mitm_ob_type,ibin)%tail%wgtjo=-huge(zero)
            obsdiags(i_mitm_ob_type,ibin)%tail%obssen(:)=zero
 
-           n_alloc(ibin) = n_alloc(ibin) +1
            my_diag => obsdiags(i_mitm_ob_type,ibin)%tail
            my_diag%idv = is
            my_diag%iob = ioid(i)
@@ -388,10 +385,8 @@ subroutine setupmitm(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if (.not. last .and. muse(i)) then
 
         allocate(my_head)
-        m_alloc(ibin) = m_alloc(ibin) + 1
-        my_node => my_head
-        call obsLList_appendNode(mitmhead(ibin),my_node)
-        my_node => null()
+        call mitmNode_appendto(my_head,mitmhead(ibin))
+        !call obsLList_appendNode(mitmhead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

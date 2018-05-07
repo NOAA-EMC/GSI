@@ -43,6 +43,7 @@ module m_obsdiagNode
   private
         ! Primery behaviors:
   public:: obsdiagLList_reset   ! destructor + initializer
+  public:: obsdiagLList_rewind  ! destructor + initializer
   public:: obsdiagLList_read    ! reader, for input
   public:: obsdiagLList_write   ! writer, for otuput
   public:: obsdiagLList_lsize   ! size inquiry
@@ -51,8 +52,9 @@ module m_obsdiagNode
   public:: obsdiagLList_checksum! size consistency checking
   public:: obsdiagLList_summary ! status report
 
-        interface obsdiagLList_reset; module procedure lreset_; end interface
-        interface obsdiagLList_read ; module procedure  lread_; end interface
+        interface obsdiagLList_reset ; module procedure  lreset_; end interface
+        interface obsdiagLList_rewind; module procedure lrewind_; end interface
+        interface obsdiagLList_read  ; module procedure   lread_; end interface
         interface obsdiagLList_checksum; module procedure &
           lchecksum_  , &
           lchecksum1_ , &
@@ -377,6 +379,12 @@ _ENTRY_(myname_)
 _EXIT_(myname_)
 return
 end subroutine lreset_
+subroutine lrewind_(diagLL)
+  implicit none
+  type(_obsLList_),target,intent(inout):: diagLL
+  diagLL%tail => null()
+return
+end subroutine lrewind_
 
 subroutine lchecksum_(diagLL,leadNode,itype,ibin,sorted)
 !$$$  subprogram documentation block

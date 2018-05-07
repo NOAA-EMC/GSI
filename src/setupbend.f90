@@ -86,6 +86,8 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
 !                       . removed (%dlat,%dlon) debris.
+!   2017-02-09  guo     - Remove m_alloc, n_alloc.
+!                       . Remove my_node with corrected typecast().
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -110,7 +112,8 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
       time_offset
   use m_obsNode, only: obsNode
   use m_gpsNode , only: gpsNode
-  use m_obsLList, only: obsLList_appendNode
+  use m_gpsNode , only: gpsNode_appendto
+  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
@@ -216,9 +219,6 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   logical proceed
 
   logical:: in_curbin, in_anybin, obs_check,qc_layer_SR
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
-  class(obsNode),pointer:: my_node
   type(gpsNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
 
@@ -780,8 +780,6 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 
 
 ! Loop to load arrays used in statistics output
-  n_alloc(:)=0
-  m_alloc(:)=0
   call dtime_setup()
   do i=1,nobs
      dtime=data(itime,i)
@@ -873,7 +871,6 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
           obsdiags(i_gps_ob_type,ibin)%tail%wgtjo=-huge(zero)
           obsdiags(i_gps_ob_type,ibin)%tail%obssen(:)=zero
    
-          n_alloc(ibin) = n_alloc(ibin) +1
           my_diag => obsdiags(i_gps_ob_type,ibin)%tail
           my_diag%idv = is
           my_diag%iob = ioid(i)
@@ -976,10 +973,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
         if (in_curbin .and. muse(i)) then
 
            allocate(my_head)
-           m_alloc(ibin) = m_alloc(ibin)+1
-           my_node => my_head        ! this is a workaround
-           call obsLList_appendNode(gpshead(ibin),my_node)
-           my_node => null()
+           call gpsNode_appendto(my_head,gpshead(ibin))
 
            my_head%idv = is
            my_head%iob = ioid(i)

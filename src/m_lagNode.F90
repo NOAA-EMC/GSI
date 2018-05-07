@@ -77,6 +77,9 @@ module m_lagNode
         interface lagNode_typecast; module procedure typecast_ ; end interface
         interface lagNode_nextcast; module procedure nextcast_ ; end interface
 
+  public:: lagNode_appendto
+        interface lagNode_appendto; module procedure appendto_ ; end interface
+
   character(len=*),parameter:: MYNAME="m_lagNode"
 
 #include "myassert.H"
@@ -85,17 +88,16 @@ contains
 function typecast_(aNode) result(ptr_)
 !-- cast a class(obsNode) to a type(lagNode)
   use m_obsNode, only: obsNode
+  use m_obsNode, only: nonNull => obsNode_nonNull
   implicit none
   type(lagNode),pointer:: ptr_
-  class(obsNode),pointer,intent(in):: aNode
-  character(len=*),parameter:: myname_=MYNAME//"::typecast_"
+  class(obsNode),target,intent(in):: aNode
   ptr_ => null()
-  if(.not.associated(aNode)) return
+  if(.not.nonNull(aNode)) return
+        ! logically, typecast of a null-reference is a null pointer.
   select type(aNode)
   type is(lagNode)
     ptr_ => aNode
-  class default
-    call die(myname_,'unexpected type, aNode%mytype() =',aNode%mytype())
   end select
 return
 end function typecast_
@@ -106,12 +108,23 @@ function nextcast_(aNode) result(ptr_)
   implicit none
   type(lagNode),pointer:: ptr_
   class(obsNode),target,intent(in):: aNode
-
-  class(obsNode),pointer:: anode_
-  anode_ => obsNode_next(aNode)
-  ptr_ => typecast_(anode_)
+  ptr_ => typecast_(obsNode_next(aNode))
 return
 end function nextcast_
+
+subroutine appendto_(aNode,oll)
+!-- append aNode to linked-list oLL
+  use m_obsNode , only: obsNode
+  use m_obsLList, only: obsLList,obsLList_appendNode
+  implicit none
+  type(lagNode),pointer,intent(in):: aNode
+  type(obsLList),intent(inout):: oLL
+
+  class(obsNode),pointer:: inode_
+  inode_ => aNode
+  call obsLList_appendNode(oLL,inode_)
+  inode_ => null()
+end subroutine appendto_
 
 ! obsNode implementations
 
@@ -135,7 +148,7 @@ end subroutine obsNode_init_
 
 subroutine obsNode_clean_(aNode)
   implicit none
-  class(lagNode) ,intent(inout):: aNode
+  class(lagNode),intent(inout):: aNode
 
   character(len=*),parameter:: myname_=MYNAME//'::obsNode_clean_'
 _ENTRY_(myname_)
@@ -248,13 +261,10 @@ subroutine obsNode_setHop_(aNode)
   class(lagNode),intent(inout):: aNode
 
   character(len=*),parameter:: myname_=MYNAME//'::obsNode_setHop_'
-  real(r_kind) :: dum
 _ENTRY_(myname_)
   !-- yet to be defined
   call perr(myname_,'nothing about setHop has been defined')
   call  die(myname_)
-  !-- following is here to satisfy var-usage requirement
-  dum=aNode%elat
 _EXIT_(myname_)
 return
 end subroutine obsNode_setHop_

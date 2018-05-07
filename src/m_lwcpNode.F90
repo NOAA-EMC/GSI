@@ -81,27 +81,27 @@ module m_lwcpNode
         interface lwcpNode_typecast; module procedure typecast_ ; end interface
         interface lwcpNode_nextcast; module procedure nextcast_ ; end interface
 
+  public:: lwcpNode_appendto
+        interface lwcpNode_appendto; module procedure appendto_ ; end interface
+
   character(len=*),parameter:: MYNAME="m_lwcpNode"
 
-!#define CHECKSUM_VERBOSE
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains
 function typecast_(aNode) result(ptr_)
 !-- cast a class(obsNode) to a type(lwcpNode)
   use m_obsNode, only: obsNode
+  use m_obsNode, only: nonNull => obsNode_nonNull
   implicit none
   type(lwcpNode),pointer:: ptr_
-  class(obsNode),pointer,intent(in):: aNode
-  character(len=*),parameter:: myname_=MYNAME//"::typecast_"
+  class(obsNode),target,intent(in):: aNode
   ptr_ => null()
-  if(.not.associated(aNode)) return
+  if(.not.nonNull(aNode)) return
+        ! logically, typecast of a null-reference is a null pointer.
   select type(aNode)
   type is(lwcpNode)
     ptr_ => aNode
-  class default
-    call die(myname_,'unexpected type, aNode%mytype() =',aNode%mytype())
   end select
 return
 end function typecast_
@@ -112,12 +112,23 @@ function nextcast_(aNode) result(ptr_)
   implicit none
   type(lwcpNode),pointer:: ptr_
   class(obsNode),target,intent(in):: aNode
-
-  class(obsNode),pointer:: anode_
-  anode_ => obsNode_next(aNode)
-  ptr_ => typecast_(anode_)
+  ptr_ => typecast_(obsNode_next(aNode))
 return
 end function nextcast_
+
+subroutine appendto_(aNode,oll)
+!-- append aNode to linked-list oLL
+  use m_obsNode , only: obsNode
+  use m_obsLList, only: obsLList,obsLList_appendNode
+  implicit none
+  type(lwcpNode),pointer,intent(in):: aNode
+  type(obsLList),intent(inout):: oLL
+
+  class(obsNode),pointer:: inode_
+  inode_ => aNode
+  call obsLList_appendNode(oLL,inode_)
+  inode_ => null()
+end subroutine appendto_
 
 ! obsNode implementations
 

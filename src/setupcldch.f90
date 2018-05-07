@@ -20,6 +20,8 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !                       . removed (%dlat,%dlon) debris.
 !   2016-10-07  pondeca - if(.not.proceed) advance through input file first
 !                          before retuning to setuprhsall.f90
+!   2017-02-09  guo     - Remove m_alloc, n_alloc.
+!                       . Remove my_node with corrected typecast().
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -41,8 +43,9 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   use m_obsNode  , only: obsNode
   use m_cldchNode, only: cldchNode
+  use m_cldchNode, only: cldchNode_appendto
   use m_obsdiags , only: cldchhead
-  use m_obsLList , only: obsLList_appendNode
+  !use m_obsLList , only: obsLList_appendNode
 
   use guess_grids, only: hrdifsig,nfldsig
   use obsmod, only: rmiss_single,i_cldch_ob_type,obsdiags,&
@@ -114,10 +117,7 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_double) r_prvstg,r_sprvstg
 
   logical:: in_curbin, in_anybin
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
 
-  class(obsNode ),pointer:: my_node
   type(cldchNode),pointer:: my_head
   type(obs_diag ),pointer:: my_diag
 
@@ -139,8 +139,6 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! If require guess vars available, extract from bundle ...
   call init_vars_
 
-  n_alloc(:)=0
-  m_alloc(:)=0
   cldch_errmax=10000.0_r_kind
 !*********************************************************************************
 ! Read and reformat observations in work arrays.
@@ -297,7 +295,6 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            obsdiags(i_cldch_ob_type,ibin)%tail%wgtjo=-huge(zero)
            obsdiags(i_cldch_ob_type,ibin)%tail%obssen(:)=zero
 
-           n_alloc(ibin) = n_alloc(ibin) +1
            my_diag => obsdiags(i_cldch_ob_type,ibin)%tail
            my_diag%idv = is
            my_diag%iob = ioid(i)
@@ -422,10 +419,8 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if (.not. last .and. muse(i)) then
 
         allocate(my_head)
-        m_alloc(ibin) = m_alloc(ibin) + 1
-        my_node => my_head
-        call obsLList_appendNode(cldchhead(ibin),my_node)
-        my_node => null()
+        call cldchNode_appendto(my_head,cldchhead(ibin))
+        !call obsLList_appendNode(cldchhead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

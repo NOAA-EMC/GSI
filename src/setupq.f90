@@ -81,6 +81,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
 !                       . removed (%dlat,%dlon) debris.
+!   2017-02-09  guo     - Remove m_alloc, n_alloc.
+!                       . Remove my_node with corrected typecast().
 !   2017-03-31  Hu      -  addd option l_closeobs to use closest obs to analysis
 !                                     time in analysis
 !   2017-03-31  Hu      -  addd option i_coastline to use observation operater
@@ -111,7 +113,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
        time_offset
   use m_obsNode, only: obsNode
   use m_qNode, only: qNode
-  use m_obsLList, only: obsLList_appendNode
+  use m_qNode, only: qNode_appendto
+  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin,min_offset
   use oneobmod, only: oneobtest,maginnov,magoberr
@@ -198,9 +201,6 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
 
   logical:: in_curbin, in_anybin
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
-  class(obsNode),pointer:: my_node
   type(qNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
   real(r_kind) :: thispbl_height,ratio_PBL_height,prestsfc,diffsfc
@@ -221,8 +221,6 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! If require guess vars available, extract from bundle ...
   call init_vars_
 
-  n_alloc(:)=0
-  m_alloc(:)=0
 !*******************************************************************************
 ! Read and reformat observations in work arrays.
   read(lunin)data,luse,ioid
@@ -381,7 +379,6 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            obsdiags(i_q_ob_type,ibin)%tail%wgtjo=-huge(zero)
            obsdiags(i_q_ob_type,ibin)%tail%obssen(:)=zero
     
-           n_alloc(ibin) = n_alloc(ibin) +1
            my_diag => obsdiags(i_q_ob_type,ibin)%tail
            my_diag%idv = is
            my_diag%iob = ioid(i)
@@ -644,10 +641,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if (.not. last .and. muse(i)) then
 
         allocate(my_head)
-        m_alloc(ibin) = m_alloc(ibin) +1
-        my_node => my_head        ! this is a workaround
-        call obsLList_appendNode(qhead(ibin),my_node)
-        my_node => null()
+        call qNode_appendto(my_head,qhead(ibin))
+        !call obsLList_appendNode(qhead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)
@@ -807,10 +802,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            ratio_PBL_height=1.0_r_kind-(prestsfc-prest)/(prestsfc-thisPBL_height)
 
            allocate(my_head)
-           m_alloc(ibin) = m_alloc(ibin) +1
-           my_node => my_head        ! this is a workaround
-           call obsLList_appendNode(qhead(ibin),my_node)
-           my_node => null()
+           call qNode_appendto(my_head,qhead(ibin))
+           !call obsLList_appendNode(qhead(ibin),my_head)
 
 !!! find qob 
            qob = data(iqob,i)

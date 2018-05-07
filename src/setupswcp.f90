@@ -45,7 +45,8 @@ subroutine setupswcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use obsmod, only: l_wcp_cwm
   use m_obsNode, only: obsNode
   use m_swcpNode, only: swcpNode
-  use m_obsLList, only: obsLList_appendNode
+  use m_swcpNode, only: swcpNode_appendto
+  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use constants, only: zero,one,tpwcon,r1000,r10, &
@@ -102,9 +103,6 @@ subroutine setupswcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   character(8),allocatable,dimension(:):: cdiagbuf
 
   logical:: in_curbin, in_anybin
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
-  class(obsNode),pointer:: my_node
   type(swcpNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
 
@@ -130,9 +128,6 @@ subroutine setupswcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),dimension(lat2,lon2,nsig,nfldsig)::qv, esi, esl, es, qvsi, ssqvi
   real(r_kind),dimension(lat2,lon2,nsig,nfldsig)::ges_tr, ges_w
 
-
-  n_alloc(:)=0
-  m_alloc(:)=0
 
   grsmlt=three  ! multiplier factor for gross check
   mm1=mype+1
@@ -327,7 +322,6 @@ subroutine setupswcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            obsdiags(i_swcp_ob_type,ibin)%tail%wgtjo=-huge(zero)
            obsdiags(i_swcp_ob_type,ibin)%tail%obssen(:)=zero
     
-           n_alloc(ibin) = n_alloc(ibin) +1
            my_diag => obsdiags(i_swcp_ob_type,ibin)%tail
            my_diag%idv = is
            my_diag%iob = ioid(i)
@@ -472,10 +466,8 @@ subroutine setupswcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if ( .not. last .and. muse(i)) then
 
         allocate(my_head)
-        m_alloc(ibin) = m_alloc(ibin) +1
-        my_node => my_head        ! this is a workaround
-        call obsLList_appendNode(swcphead(ibin),my_node)
-        my_node => null()
+        call swcpNode_appendto(my_head,swcphead(ibin))
+        !call obsLList_appendNode(swcphead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

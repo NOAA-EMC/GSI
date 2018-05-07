@@ -1,7 +1,7 @@
 module m_wspd10mNode
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:	 module m_wspd10mlNode
+! subprogram:	 module m_wspd10mNode
 !   prgmmr:	 j guo <jguo@nasa.gov>
 !      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 610.3
 !     date:	 2016-05-18
@@ -71,6 +71,9 @@ module m_wspd10mNode
         interface wspd10mNode_typecast; module procedure typecast_ ; end interface
         interface wspd10mNode_nextcast; module procedure nextcast_ ; end interface
  
+  public:: wspd10mNode_appendto
+        interface wspd10mNode_appendto; module procedure appendto_ ; end interface
+
   character(len=*),parameter:: MYNAME="m_wspd10mNode"
 
 #include "myassert.H"
@@ -78,17 +81,16 @@ module m_wspd10mNode
 contains
 function typecast_(aNode) result(ptr_)
   use m_obsNode, only: obsNode
+  use m_obsNode, only: nonNull => obsNode_nonNull
   implicit none
   type(wspd10mNode),pointer:: ptr_
-  class(obsNode),pointer,intent(in):: aNode
-  character(len=*),parameter:: myname_=MYNAME//"::typecast_"
+  class(obsNode),target,intent(in):: aNode
   ptr_ => null()
-  if(.not.associated(aNode)) return
+  if(.not.nonNull(aNode)) return
+        ! logically, typecast of a null-reference is a null pointer.
   select type(aNode)
   type is(wspd10mNode)
     ptr_ => aNode
-  class default
-    call die(myname_,'unexpected type, aNode%mytype() =',aNode%mytype())
   end select
 return
 end function typecast_
@@ -98,11 +100,23 @@ function nextcast_(aNode) result(ptr_)
   implicit none
   type(wspd10mNode),pointer:: ptr_
   class(obsNode),target,intent(in):: aNode
-  class(obsNode),pointer:: anode_
-  anode_ => obsNode_next(aNode)
-  ptr_ => typecast_(anode_)
+  ptr_ => typecast_(obsNode_next(aNode))
 return
 end function nextcast_
+
+subroutine appendto_(aNode,oll)
+!-- append aNode to linked-list oLL
+  use m_obsNode , only: obsNode
+  use m_obsLList, only: obsLList,obsLList_appendNode
+  implicit none
+  type(wspd10mNode),pointer,intent(in):: aNode
+  type(obsLList),intent(inout):: oLL
+
+  class(obsNode),pointer:: inode_
+  inode_ => aNode
+  call obsLList_appendNode(oLL,inode_)
+  inode_ => null()
+end subroutine appendto_
 
 ! obsNode implementations
 
