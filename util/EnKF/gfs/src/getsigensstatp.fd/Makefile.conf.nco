@@ -23,7 +23,7 @@ NETCDF_LDFLAGS_F = -L$(NETCDFPATH)/lib -lnetcdf
   CF            = $(COMP_MP)
   FC            = $(CF)
   
-  OMP = -openmp
+  OMP = $(OMPFLAG)
 
   FFLAGS_INC    = -I $(SIGIO_INC4) -I $(NEMSIO_INC) -I $(NETCDF_INCLUDE)
 

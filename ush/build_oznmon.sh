@@ -14,6 +14,8 @@ if [ $target = wcoss ]; then
     . /usrx/local/Modules/3.2.10/init/sh
 elif [ $target = cray -o $target = wcoss_c ]; then
     . $MODULESHOME/init/sh
+elif [ $target = dell -o $target = wcoss_d ]; then
+    . $MODULESHOME/init/sh
 elif [ $target = theia ]; then
     . /apps/lmod/lmod/init/sh
 else
@@ -31,6 +33,9 @@ fi
 module purge
 if [ $target = wcoss -o $target = cray ]; then
     module load $dir_modules/OznMonBuild
+elif [ $target = dell -o $target = wcoss_d ] ; then
+    module use $dir_modules/
+    module load OznMonBuild
 else
     source $dir_modules/OznMonBuild
 fi

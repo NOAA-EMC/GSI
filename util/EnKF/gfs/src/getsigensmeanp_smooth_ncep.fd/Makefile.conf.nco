@@ -22,7 +22,7 @@
 
 #--- Normal mode options
   PROF= 
-  OMP = -openmp
+  OMP = $(OMPFLAG)
 
   FFLAGS_F90    = 
   FFLAGS_COM_N  = -I ./ -I $(SIGIO_INC4) -I $(NEMSIO_INC) -O3 -fp-model source \

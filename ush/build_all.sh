@@ -23,6 +23,9 @@ if [ $target = wcoss ]; then
 elif [ $target = cray -o $target = wcoss_c ]; then
     . $MODULESHOME/init/sh
     conf_target=nco
+elif [ $target = dell -o $target = wcoss_d ]; then
+    . $MODULESHOME/init/sh
+    conf_target=nco
 elif [ $target = theia ]; then
     . /apps/lmod/lmod/init/sh
     conf_target=theia
