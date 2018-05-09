@@ -41,18 +41,18 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
 #--- Normal mode options
   PROF= #-pg
-  OMP = -openmp
+  OMP = $(OMPFLAG)
 
   FFLAGS_F90    = -D_REAL8_ 
 
   FFLAGS_COM_N  = -I ./ -I $(CRTM_INC) -I $(SFCIO_INC4) -I $(SIGIO_INC4) \
   		-I $(NEMSIO_INC) -I $(NETCDF_INCLUDE) -I $(W3EMC_INCd) \
-                -O3 -convert big_endian -assume byterecl \
+                -O1 -convert big_endian -assume byterecl \
                 -implicitnone $(OMP) $(FFLAGS_COM)
 
   FFLAGS_COM_N_NOSWAP  = -I ./ -I $(CRTM_INC) -I $(SFCIO_INC4) -I $(SIGIO_INC4) \
   		       -I $(NEMSIO_INC) -I $(NETCDF_INCLUDE) -I $(W3EMC_INCd) \
-                       -O3 -convert big_endian -assume byterecl \
+                       -O1 -convert big_endian -assume byterecl \
                        -implicitnone $(OMP) $(FFLAGS_COM)
 
   FFLAGS_N  = $(FFLAGS_F90) $(FFLAGS_COM_N) $(PROF) 
@@ -87,7 +87,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
 #--- Normal mode options
 
-  CFLAGS_N      = -DLINUX -Dfunder -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O3 $(OMP)
+  CFLAGS_N      = -DLINUX -Dfunder -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O1 $(OMP)
 
 #--- Debug mode options
 

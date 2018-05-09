@@ -17,10 +17,11 @@ set COMP_MPI mpiifort
 
 set C_COMP icc
 
-module purge
 # Known conflicts
-#module use /usrx/local/prod/modulefiles
+
+# Loading pe environment
 module load lsf/10.1
+
 # Loading Intel Compiler Suite
 module load ips/18.0.1.163
 
@@ -37,10 +38,10 @@ module load w3nco/2.0.6
 module load w3emc/2.3.0
 module load crtm/2.2.5
 module load bacio/2.0.2
-#
-#export LMOD_EXACT_MATCH=NO
-#module load HDF5-serial 
-#module load NetCDF
-module use -a /usrx/local/dev/modulefiles
+
+# Loading netcdf modules
+module load NetCDF/3.6.3
+
+# Loading cmake
 module load cmake/3.10.0
 
