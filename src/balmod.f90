@@ -958,10 +958,9 @@ contains
                    rllat(i,j)=float(m)
                    llmax=max0(m,llmax)
                    llmin=min0(m,llmin)
-                   go to 1234
+                   exit
                 end if
              end do
-1234         continue
              rllat(i,j)=rllat(i,j)+(region_lat(i,j)-clat_avn(m))/(clat_avn(m1)-clat_avn(m))
           endif
        end do

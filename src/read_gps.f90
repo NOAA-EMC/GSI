@@ -169,6 +169,18 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
      return
   end if
 
+! Open file for input, then read bufr data
+  open(lnbufr,file=trim(infile),form='unformatted')
+  call openbf(lnbufr,'IN',lnbufr)
+  call datelen(10)
+  call readmg(lnbufr,subset,idate,iret)
+  if (iret/=0) then
+     call closbf(lnbufr)
+     write(6,*)' GPS file not read '
+     write(6,1020)'READ_GPS:  ref_obs,nprof_gps= ',ref_obs,nprof_gps
+     return
+  end if
+
 ! Allocate and load arrays to contain gpsro types.
   ngpsro_type=ikx
   allocate(gpsro_ctype(ngpsro_type), gpsro_itype(ngpsro_type), &
@@ -184,13 +196,6 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
      endif
   end do
 
-
-! Open file for input, then read bufr data
-  open(lnbufr,file=trim(infile),form='unformatted')
-  call openbf(lnbufr,'IN',lnbufr)
-  call datelen(10)
-  call readmg(lnbufr,subset,idate,iret)
-  if (iret/=0) goto 1010
 
 ! Allocate work array to hold observations
   allocate(cdata_all(nreal,maxobs))
@@ -450,7 +455,6 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   deallocate(cdata_all)
   
 ! Close unit to input file
-1010 continue
   call closbf(lnbufr)
 
   nprof_gps = nmrecs
