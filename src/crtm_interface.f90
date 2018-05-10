@@ -2173,11 +2173,10 @@ subroutine get_lai(data_s,nchanl,nreal,itime,ilate,lai_type,lai)
         IF(RJDAY.GE.DAYHF(MMM).AND.RJDAY.LT.DAYHF(MMP)) THEN
             N1=MMM
             N2=MMP
-            GO TO 10
+            EXIT
         ENDIF
+        if(mm == 2)PRINT *,'WRONG RJDAY',RJDAY
       ENDDO
-      PRINT *,'WRONG RJDAY',RJDAY
-   10 CONTINUE
       WEI1S = (DAYHF(N2)-RJDAY)/(DAYHF(N2)-DAYHF(N1))
       WEI2S = (RJDAY-DAYHF(N1))/(DAYHF(N2)-DAYHF(N1))
       IF(N2.EQ.3) N2=1

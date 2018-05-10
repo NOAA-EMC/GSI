@@ -825,10 +825,9 @@ END SUBROUTINE PREFFT
             IFAX(NFAX) = 3
             NN = NN/3
          ELSE
-            GO TO 20
+            EXIT
          END IF
    10 CONTINUE
-   20 CONTINUE
 !     EXTRACT FACTORS OF 2
       DO 30 II = NFAX+1,20
          IF (NN==2*(NN/2)) THEN
@@ -836,10 +835,9 @@ END SUBROUTINE PREFFT
             IFAX(NFAX) =2
             NN = NN/2
          ELSE
-            GO TO 40
+            EXIT
          END IF
    30 CONTINUE
-   40 CONTINUE
       IF (NN/=1) THEN
          write(6,*) 'PORRA 4'
          STOP

@@ -271,7 +271,10 @@ subroutine setwtt(wtaxt,wtbat,inaxt,inbat,rs,df,qr,nxe,nxg,mrr,nrr,mf,nf,nor)
   real(r_kind),dimension(20):: dw
   real(r_kind),dimension(0:20):: ys,qy
 
-  if(mod(nor,2)/=0.or.nor<=0)goto 803
+  if(mod(nor,2)/=0.or.nor<=0)then
+    write(6,*)'invalid nor in setwtt; must be even and at least 2'
+    return
+  end if
   piq=quarter*pi
   dx=piq/nxe
   dxi=one/dx
@@ -293,29 +296,37 @@ subroutine setwtt(wtaxt,wtbat,inaxt,inbat,rs,df,qr,nxe,nxg,mrr,nrr,mf,nf,nor)
   ia=mf
   ir=mrr-1
   r=ia*secx
-  irp=ir
-410 irp=irp+1
-  if(rs(irp)<=r)goto 410
+  irp=ir + 1
+  do while (rs(irp) <= r)
+    irp=irp+1
+  end do
   ir=irp-1
   mra=irp-norh ! the lowest radial grid source index actually used
 !      write(6,'("lowest radial grid source index, mra=",i4)') mra
   if(mra<0)mra=0
-  if(mra<mrr)goto 801
+  if(mra<mrr)then
+    write(6,*)'mrr must be decreased for interpolations required in polca'
+    return
+  end if
   ix=nxgm
   secx=df/c(ix)
   ia=nf
   r=ia*secx
-  irp=ir
-411 irp=irp+1
-  if(irp>nrr)then
-     write(6,'(" irp,r,rs(nrr)=",i5,2(1x,e13.6))') irp,r,rs(nrr)
-     goto 800
-  endif
-  if(rs(irp)<=r)goto 411
+  irp=ir+1
+  do while(rs(irp)<=r)        
+    if(irp>nrr)then
+       write(6,'(" irp,r,rs(nrr)=",i5,2(1x,e13.6))') irp,r,rs(nrr)
+       write(6,*)'nrr must be increased for interpolations required in polca'
+       return
+    endif
+    irp=irp+1
+  end do
   ir=irp-1
   nra=ir+norh ! the highest radial grid source index actually used
 !      write(6,'(" highest radial grid source index, nra=",i4)') nra
-  if(nra>nrr)goto 800
+  if(nra>nrr)then
+     write(6,*)'nrr must be increased for interpolations required in polca'
+  end if
   do ir=mra,nra-norm
      call setq(qr(0,ir),rs(ir),nor) ! lagrange denomimators for radial grid.
   enddo
@@ -325,18 +336,19 @@ subroutine setwtt(wtaxt,wtbat,inaxt,inbat,rs,df,qr,nxe,nxg,mrr,nrr,mf,nf,nor)
      irp=mra+norh-1
      do ia=mf,nf
         r=ia*secx
-400     continue
-        if(rs(irp)>r) go to 402
-        irp=irp+1
-        go to 400
-402     continue
+        do while (rs(irp) <= r)           
+           irp=irp+1
+        end do
         ic0=irp-norh
         inaxt(ia,ix)=ic0
         call lagw(rs(ic0),r,qr(0,ic0),wtaxt(0,ia,ix),dw,nor)
      enddo
   enddo
   
-  if(mf<=0)goto 802
+  if(mf<=0)then
+    write(6,*)'mf must exceed 0 for interpolations of polca'
+    return
+  end if
   do ia=mf,nf
      fsai=one/ia
      do ib=0,ia
@@ -359,10 +371,6 @@ subroutine setwtt(wtaxt,wtbat,inaxt,inbat,rs,df,qr,nxe,nxg,mrr,nrr,mf,nf,nor)
   enddo
   
   return
-800 write(6,*)'nrr must be increased for interpolations required in polca'
-801 write(6,*)'mrr must be decreased for interpolations required in polca'
-802 write(6,*)'mf must exceed 0 for interpolations of polca'
-803 write(6,*)'invalid nor in setwtt; must be even and at least 2'
 end subroutine setwtt
 
 subroutine setwts(wtaxs,wtxrs,inaxs,inxrs,rs,df,nor,nxe,nf,mr,nr)

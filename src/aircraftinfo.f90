@@ -420,42 +420,43 @@ contains
       l = n/2 + 1
       ir = n
 
-   33 continue
-      if(l.gt.1) then
-         l = l - 1
-         indxt = indx(l)
-         cc = carrin(indxt)
-      else
-         indxt = indx(ir)
-         cc = carrin(indxt)
-         indx(ir) = indx(1)
-         ir = ir - 1
-         if(ir.eq.1) then
-            indx(1) = indxt
-            return
+      do 
+         if(l.gt.1) then
+            l = l - 1
+            indxt = indx(l)
+            cc = carrin(indxt)
+         else
+            indxt = indx(ir)
+            cc = carrin(indxt)
+            indx(ir) = indx(1)
+            ir = ir - 1
+            if(ir.eq.1) then
+               indx(1) = indxt
+               return
+            endif
          endif
-      endif
 
-      i = l
-      j = l * 2
+         i = l
+         j = l * 2
 
-   30 continue
-      if(j.le.ir)  then
-        if(j.lt.ir)  then
-          if(carrin(indx(j)).lt.carrin(indx(j+1)))  j = j + 1
-        endif
-        if(cc.lt.carrin(indx(j))) then
-          indx(i) = indx(j)
-          i = j
-          j = j + i
-        else
-          j = ir + 1
-        endif
-      endif
+         do 
+            if(j.le.ir)  then
+              if(j.lt.ir)  then
+                if(carrin(indx(j)).lt.carrin(indx(j+1)))  j = j + 1
+              endif
+              if(cc.lt.carrin(indx(j))) then
+                indx(i) = indx(j)
+                i = j
+                j = j + i
+              else
+                j = ir + 1
+              endif
+            endif
 
-      if(j.le.ir) go to 30
-      indx(i) = indxt
-      go to 33
+            if(j > ir) exit
+         end do
+         indx(i) = indxt
+      end do
 
       end subroutine indexc40
 

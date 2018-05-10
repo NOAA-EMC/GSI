@@ -188,14 +188,14 @@ function isrchf(nx1,x,y,flg)
      do k=1,nx1
         if(y<=x(k)) then
            isrchf=k
-           go to 100
+           return
         end if
      end do
   else
      do k=1,nx1
         if(y>=x(k)) then
            isrchf=k
-           go to 100
+           return
         end if
      end do
   end if
@@ -203,6 +203,5 @@ function isrchf(nx1,x,y,flg)
   isrchf=nx1+1
   if(nx1<=0) isrchf=0
 
-100 continue
   return
 end function isrchf

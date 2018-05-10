@@ -669,7 +669,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
             data(ier,i) = zero
             ratio_errors(i) = zero
             muse(i)=.false.
-            goto 3000
+            cycle loopoverobs1 
          endif
 
 !        bending angle (radians)
@@ -757,7 +757,6 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
        end if ! obs above super-refraction and shadow layers
      end if ! obs inside the vertical grid
 
-3000 continue
   end do loopoverobs1 ! end of loop over observations
 
   if (nobs_out>=1) then

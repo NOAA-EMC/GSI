@@ -125,7 +125,11 @@ subroutine general_write_gfsatm(grd,sp_a,sp_b,filename,mype_out,&
 
         ! All tasks should also open output file for random write
         call sigio_rwopen(lunanl,filename,iret_write)
-        if ( iret_write /= 0 ) goto 1000
+        if ( iret_write /= 0 ) then
+           write(6,*)'GENERAL_WRITE_GFSATM:  ***ERROR*** writing ',&
+               trim(filename),' mype,iret_write=',mype,iret_write
+           return
+        end if
     endif
 
     ! Load date and write header
@@ -326,15 +330,11 @@ subroutine general_write_gfsatm(grd,sp_a,sp_b,filename,mype_out,&
         call sigio_rclose(lunges,iret)
         call sigio_rclose(lunanl,iret)
         iret_write=iret_write+iret
-        if ( iret_write /= 0 ) goto 1000
-    endif
-    return
-
-
-    ! ERROR detected while reading file
-1000 continue
-    write(6,*)'GENERAL_WRITE_GFSATM:  ***ERROR*** writing ',&
+        if ( iret_write /= 0 ) then
+           write(6,*)'GENERAL_WRITE_GFSATM:  ***ERROR*** writing ',&
                trim(filename),' mype,iret_write=',mype,iret_write
+        end if
+    endif
     return
 
 end subroutine general_write_gfsatm
