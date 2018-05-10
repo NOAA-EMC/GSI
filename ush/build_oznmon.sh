@@ -36,6 +36,9 @@ if [ $target = wcoss -o $target = cray ]; then
 elif [ $target = dell -o $target = wcoss_d ] ; then
     module use $dir_modules/
     module load OznMonBuild
+elif [ $target = theia ] ; then
+    module use -a $dir_modules
+    module load OznMonBuild
 else
     source $dir_modules/OznMonBuild
 fi
