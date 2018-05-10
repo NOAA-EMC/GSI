@@ -39,7 +39,7 @@ module enkf
 !  coefficient update using the latest estimate of the observation increment
 !  (observation minus ensemble mean observation variable).  The model state
 !  variables are only updated during the last iteration.  After the update is
-!  complete, the variables anal_chunk and ensmean_chunk (from module statevec)
+!  complete, the variables anal_chunk and ensmean_chunk (from module controlvec)
 !  contain the updated model state ensemble perturbations and ensemble mean,
 !  and predx (from module radinfo) contains the updated bias coefficients.
 !  obfit_post and obsprd_post contain the observation increments and observation
@@ -79,12 +79,15 @@ module enkf
 !
 ! Public Variables: None
 !
-! Modules Used: kinds, constants, params, covlocal, mpisetup, loadbal, statevec,
+! Modules Used: kinds, constants, params, covlocal, mpisetup, loadbal, controlvec,
 !               kdtree2_module, enkf_obsmod, radinfo, radbias, gridinfo
 !
 ! program history log:
 !   2009-02-23:  Initial version.
 !   2016-02-01:  Ensure posterior perturbation mean remains zero.
+!   2016-05-02:  shlyaeva: Modification for reading state vector from table
+!   2016-11-29:  shlyaeva: Modification for using control vector (control and state 
+!                used to be the same) and the "chunks" come from loadbal
 !
 ! attributes:
 !   language: f95
@@ -99,8 +102,9 @@ use loadbal, only: numobsperproc, numptsperproc, indxproc_obs, iprocob, &
                    indxproc, lnp_chunk, kdtree_obs, kdtree_grid, &
                    ensmean_obchunk, indxob_chunk, oblnp_chunk, nobs_max, &
                    obtime_chunk, grdloc_chunk, obloc_chunk, &
-                   npts_max, anal_obchunk_prior
-use statevec, only: ensmean_chunk, anal_chunk, ensmean_chunk_prior
+                   npts_max, anal_obchunk_prior, ensmean_chunk, anal_chunk, &
+                   ensmean_chunk_prior
+use controlvec, only: cvars3d,  ncdim, index_pres
 use enkf_obsmod, only: oberrvar, ob, ensmean_ob, obloc, oblnp, &
                   nobstot, nobs_conv, nobs_oz, nobs_sat,&
                   obfit_prior, obfit_post, obsprd_prior, obsprd_post, obtime,&
@@ -109,15 +113,17 @@ use enkf_obsmod, only: oberrvar, ob, ensmean_ob, obloc, oblnp, &
                   corrlengthsq,lnsigl,obtimel,obloclat,obloclon,obpress,stattype,&
                   anal_ob
 use constants, only: pi, one, zero
-use params, only: sprd_tol, paoverpb_thresh, ndim, datapath, nanals,&
-                  iassim_order,sortinc,deterministic,numiter,nlevs,nvars,&
+use params, only: sprd_tol, paoverpb_thresh, datapath, nanals,&
+                  iassim_order,sortinc,deterministic,numiter,nlevs,&
                   zhuberleft,zhuberright,varqc,lupd_satbiasc,huber,univaroz,&
                   covl_minfact,covl_efold,nbackgrounds,nhr_anal,fhr_assim,&
                   iseed_perturbed_obs,lupd_obspace_serial,fso_cycling
 use radinfo, only: npred,nusis,nuchan,jpch_rad,predx
 use radbias, only: apply_biascorr, update_biascorr
-use gridinfo, only: nlevs_pres,index_pres,nvarozone
+use gridinfo, only: nlevs_pres
 use sorting, only: quicksort, isort
+use mpeu_util, only: getindex
+use mpeu_util, only: getindex
 !use innovstats, only: print_innovstats
 
 implicit none
@@ -156,7 +162,7 @@ real(r_single), allocatable, dimension(:) :: paoverpb_min, paoverpb_min1, paover
 integer(i_kind) ierr
 ! kd-tree search results
 type(kdtree2_result),dimension(:),allocatable :: sresults1,sresults2 
-integer(i_kind) nanal,nn,nnn,nobm,nsame,nn1,nn2
+integer(i_kind) nanal,nn,nnn,nobm,nsame,nn1,nn2,oz_ind
 real(r_single),dimension(nlevs_pres):: taperv
 logical lastiter, kdgrid, kdobs
 
@@ -538,15 +544,16 @@ do niter=1,numiter
       t1 = mpi_wtime()
 
       ! only need to update state variables on last iteration.
-      if (univaroz .and. obtype(nob)(1:3) .eq. ' oz' .and. nvars .ge. nvarozone) then ! ozone obs only affect ozone
-          nn1 = (nvarozone-1)*nlevs+1
-          nn2 = nvarozone*nlevs
+      oz_ind = getindex(cvars3d, 'oz')
+      if (univaroz .and. obtype(nob)(1:3) .eq. ' oz' .and. oz_ind > 0) then ! ozone obs only affect ozone
+          nn1 = (oz_ind-1)*nlevs+1
+          nn2 = oz_ind*nlevs
       else
           nn1 = 1
-          nn2 = ndim
+          nn2 = ncdim
       end if
       if (nf2 > 0) then
-!$omp parallel do schedule(dynamic,1) private(ii,i,nb,obt,nn,nnn,lnsig,kfgain,taper1,taperv)
+!$omp parallel do schedule(dynamic,1) private(ii,i,nb,obt,nn,nnn,lnsig,kfgain,taper1,taper3,taperv)
           do ii=1,nf2 ! loop over nearby horiz grid points
              do nb=1,nbackgrounds ! loop over background time levels
              obt = abs(obtime(nob)-(nhr_anal(nb)-fhr_assim))
@@ -629,7 +636,7 @@ do niter=1,numiter
      !$omp parallel do schedule(dynamic) private(npt,nb,i)
      do npt=1,npts_max
         do nb=1,nbackgrounds
-           do i=1,ndim
+           do i=1,ncdim
               anal_chunk(1:nanals,npt,i,nb) = anal_chunk(1:nanals,npt,i,nb)-&
               sum(anal_chunk(1:nanals,npt,i,nb),1)*r_nanals
            end do

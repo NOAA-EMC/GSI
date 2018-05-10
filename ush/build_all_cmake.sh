@@ -5,18 +5,23 @@ set -ex
 cd ..
 pwd=$(pwd)
 
-target=$1
-dir_root=${2:-$pwd}
+dir_root=${1:-$pwd}
 
-if [ $target = wcoss ]; then
+if [[ -d /dcom && -d /hwrf ]] ; then
     . /usrx/local/Modules/3.2.10/init/sh
-    conf_target=nco
-elif [ $target = cray -o $target = wcoss_c ]; then
+    target=wcoss
+    . $MODULESHOME/init/sh
+elif [[ -d /cm ]] ; then
     . $MODULESHOME/init/sh
     conf_target=nco
-elif [ $target = theia ]; then
+    target=cray
+elif [[ -d /ioddev_dell ]]; then
+    . $MODULESHOME/init/sh
+    conf_target=nco
+    target=dell
+elif [[ -d /scratch3 ]] ; then
     . /apps/lmod/lmod/init/sh
-    conf_target=theia
+    target=theia
 else
     echo "unknown target = $target"
     exit 9
@@ -33,13 +38,30 @@ rm -rf $dir_root/build
 mkdir -p $dir_root/build
 cd $dir_root/build
 
-module purge
 if [ $target = wcoss -o $target = cray ]; then
+    module purge
     module load $dir_modules/modulefile.ProdGSI.$target
-else
+elif [ $target = theia ]; then
+    module purge
     source $dir_modules/modulefile.ProdGSI.$target
+elif [ $target = dell ]; then
+    module purge
+    source $dir_modules/modulefile.ProdGSI.$target
+    export NETCDF_INCLUDE=-I/usrx/local/prod/packages/ips/18.0.1/netcdf/4.5.0/include
+    export NETCDF_CFLAGS=-I/usrx/local/prod/packages/ips/18.0.1/netcdf/4.5.0/include
+    export NETCDF_LDFLAGS_CXX="-L/usrx/local/prod/packages/ips/18.0.1/netcdf/4.5.0/lib -lnetcdf -lnetcdf_c++"
+    export NETCDF_LDFLAGS_CXX4="-L/usrx/local/prod/packages/ips/18.0.1/netcdf/4.5.0/lib -lnetcdf -lnetcdf_c++4"
+    export NETCDF_CXXFLAGS=-I/usrx/local/prod/packages/ips/18.0.1/netcdf/4.5.0/include
+    export NETCDF_FFLAGS=-I/usrx/local/prod/packages/ips/18.0.1/netcdf/4.5.0/include
+    export NETCDF_ROOT=/usrx/local/prod/packages/ips/18.0.1/netcdf/4.5.0
+    export NETCDF_LIB=/usrx/local/prod/packages/ips/18.0.1/netcdf/4.5.0/lib
+    export NETCDF_LDFLAGS_F="-L/usrx/local/prod/packages/ips/18.0.1/netcdf/4.5.0/lib -lnetcdff"
+    export NETCDF_LDFLAGS_C="-L/usrx/local/prod/packages/ips/18.0.1/netcdf/4.5.0/lib -lnetcdf"
+    export NETCDF_LDFLAGS="-L/usrx/local/prod/packages/ips/18.0.1/netcdf/4.5.0/lib -lnetcdff"
+    export NETCDF=/usrx/local/prod/packages/ips/18.0.1/netcdf/4.5.0
+    export NETCDF_INC=/usrx/local/prod/packages/ips/18.0.1/netcdf/4.5.0/include
+    export NETCDF_CXX4FLAGS=-I/usrx/local/prod/packages/ips/18.0.1/netcdf/4.5.0/include
 fi
-module list
 
 cmake -DBUILD_UTIL=ON -DCMAKE_BUILD_TYPE=PRODUCTION ..
 

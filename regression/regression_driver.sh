@@ -17,8 +17,15 @@ fi
 export scripts=${scripts_updat:-$scripts}
 . $scripts/regression_param.sh $regtest
 
+# allow regression tests to be set by environment variable
+if [ -z "$RSTART" ]; then
+    export RSTART=1
+fi  
+if [ -z "$REND" ]; then
+    export REND=4
+fi  
 # Launch the individual control and update runs, one-after-another
-for jn in `seq 1 4`; do
+for jn in `seq ${RSTART} ${REND}`; do
 
    if [ $jn -le 2 ]; then
       export scripts=${scripts_updat:-$scripts}

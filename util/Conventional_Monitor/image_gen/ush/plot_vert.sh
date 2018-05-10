@@ -55,7 +55,8 @@ echo "--> plot_vert.sh "
 
       cp -f ${tv_tankdir}/${cycle}_${type}_stas.ctl      tmp.ctl
       new_dset=" dset ${cycle}_${type}_stas.%y4%m2%d2%h2"
-      num_cycles=`expr ${NUM_CYCLES} + 1`
+#      num_cycles=`expr ${NUM_CYCLES} + 1`
+      num_cycles=${NUM_CYCLES}
 
       tdef=`${C_IG_SCRIPTS}/make_tdef.sh ${START_DATE} ${num_cycles} 06`
       echo "tdef = $tdef"

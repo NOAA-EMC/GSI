@@ -26,6 +26,8 @@ if(NOT BUILD_CRTM )
       ${CRTM_BASE}/${CRTM_VER}
       ${CRTM_BASE}/${CRTM_VER}/lib
       ${CRTM_BASE}/v${CRTM_VER}/intel
+      ${CRTM_BASE}/v${CRTM_VER}/ips/${COMPILER_VERSION}
+      ${COREPATH}/v${CRTM_VER}/ips/${COMPILER_VERSION}
       ${COREPATH}
       ${COREPATH}/lib
       $ENV{COREPATH} 

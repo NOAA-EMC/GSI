@@ -1,4 +1,4 @@
-subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pass)
+subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pass,conv_diagsave)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setupref    compute rhs of oi for gps refractivity
@@ -119,13 +119,13 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use mpeu_util, only: die,perr
+  use mpeu_util, only: die,perr,getindex
   use kinds, only: r_kind,i_kind
   use m_gpsStats, only: gps_allhead,gps_alltail
   use m_obsdiags, only: gpshead
   use obsmod, only: nprof_gps,&
        i_gps_ob_type,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated,&
-       time_offset
+       time_offset,lobsdiag_forenkf
   use m_obsNode, only: obsNode
   use m_gpsNode, only: gpsNode
   use m_gpsNode, only: gpsNode_appendto
@@ -140,7 +140,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   use constants, only: zero,one,two,eccentricity,semi_major_axis,&
        grav_equator,somigliana,flattening,grav_ratio,grav,rd,eps,&
        three,four,five,half,r0_01
-  use jfunc, only: jiter,miter
+  use jfunc, only: jiter,miter,jiterstart
   use convinfo, only: cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   use m_gpsrhs, only: muse
@@ -158,8 +158,10 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   use m_gpsrhs, only: gpsrhs_aliases
   use m_gpsrhs, only: gpsrhs_unaliases
 
+  use state_vectors, only: levels, svars3d
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
+  use sparsearr, only: sparr2, new, size, writearray
 
   implicit none
 
@@ -185,6 +187,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   integer(i_kind)                            ,intent(in   ) :: is       ! ndat index
   logical                                    ,intent(in   ) :: init_pass        ! the pass with the first set of background bins
   logical                                    ,intent(in   ) :: last_pass        ! the pass with all background bins processed
+  logical, intent(in):: conv_diagsave   ! save diagnostics file
 
 ! Declare external calls for code analysis
   external:: tintrp2a1,tintrp2a11
@@ -214,9 +217,12 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   integer(i_kind),dimension(4):: gps_ij
   integer(i_kind):: satellite_id,transmitter_id
 
+  type(sparr2) :: dhx_dx
+  integer(i_kind) :: iz, t_ind, q_ind, p_ind, nnz, nind
+
   logical,dimension(nobs):: luse
   integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
-  logical proceed
+  logical proceed, save_jacobian
 
   logical:: in_curbin, in_anybin
   type(gpsNode),pointer:: my_head
@@ -225,6 +231,8 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
+
+  save_jacobian = conv_diagsave .and. jiter==jiterstart .and. lobsdiag_forenkf
 
 !*******************************************************************************
 ! List of GPS RO satellites and corresponding BUFR id
@@ -283,9 +291,15 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   call init_vars_
 
 ! Allocate arrays for output to diagnostic file
-  mreal=21
+  mreal=22
   nreal=mreal
   if (lobsdiagsave) nreal=nreal+4*miter+1
+  if (save_jacobian) then
+    nnz = nsig * 3         ! number of non-zero elements in dH(x)/dx profile
+    nind   = 3             ! number of dense subarrays 
+    call new(dhx_dx, nnz, nind)
+    nreal = nreal + size(dhx_dx)
+  endif
 
   if(init_pass) call gpsrhs_alloc(is,'ref',nobs,nsig,nreal,-1,-1)
   call gpsrhs_aliases(is)
@@ -490,6 +504,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
         rdiagbuf(9,i)         = elev-zsges     ! height above model terrain (m)      
         rdiagbuf(11,i)        = data(iuse,i)   ! data usage flag
         rdiagbuf(19,i)        = hobl           ! model vertical grid  (midpoint)
+        rdiagbuf(22,i)        = 1.e+10_r_kind  ! spread (filled in by EnKF)
 
         if (ratio_errors(i) > tiny_r_kind) then  ! obs inside vertical grid
 
@@ -725,7 +740,6 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
      end do
   endif ! (last_pass)
 
-
 ! Loop to load arrays used in statistics output
   call dtime_setup()
   do i=1,nobs
@@ -737,6 +751,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
         if (ratio_errors(i)*data(ier,i) <= tiny_r_kind) muse(i) = .false.
         ikx=nint(data(ikxx,i))
         dtime=data(itime,i)
+
  
         ! flags for observations that failed qc checks
         ! zero = observation is good
@@ -966,6 +981,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
                  my_head%jac_p(j)=my_head%jac_p(j)-termpl2(j,i)
               end do
            end if
+
 !          delz=dpres-float(k1)
            kl=dpresl(i)
            k1l=min(max(1,kl),nsig)
@@ -983,6 +999,41 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
            my_head%b         = cvar_b(ikx)
            my_head%pg        = cvar_pg(ikx)
            my_head%luse      = luse(i)
+
+           if (save_jacobian) then
+
+              t_ind = getindex(svars3d, 'tv')
+              q_ind = getindex(svars3d, 'q')
+              p_ind = getindex(svars3d, 'prse')
+              if (t_ind < 0) then
+                 print *, 'Error: no variable tv in state vector. Exiting.'
+                 call stop2(1300)
+              endif
+              if (q_ind < 0) then
+                 print *, 'Error: no variable q in state vector. Exiting.'
+                 call stop2(1300)
+              endif
+              if (p_ind < 0) then
+                 print *, 'Error: no variable prse in state vector. Exiting.'
+                 call stop2(1300)
+              endif
+
+              dhx_dx%st_ind(1)  = sum(levels(1:t_ind-1)) + 1
+              dhx_dx%end_ind(1) = sum(levels(1:t_ind-1)) + nsig
+              dhx_dx%st_ind(2)  = sum(levels(1:q_ind-1)) + 1
+              dhx_dx%end_ind(2) = sum(levels(1:q_ind-1)) + nsig
+              dhx_dx%st_ind(3)  = sum(levels(1:p_ind-1)) + 1
+              dhx_dx%end_ind(3) = sum(levels(1:p_ind-1)) + nsig
+
+              do iz = 1, nsig
+                 dhx_dx%val(iz)        = my_head%jac_t(iz)
+                 dhx_dx%val(iz+nsig)   = my_head%jac_q(iz)
+                 dhx_dx%val(iz+2*nsig) = my_head%jac_p(iz)
+              enddo
+
+              call writearray(dhx_dx, rdiagbuf(ioff+1:nreal, i))
+              ioff = ioff + size(dhx_dx)
+           endif
 
            if (luse_obsdiag) then
               my_head%diags => obsdiags(i_gps_ob_type,ibin)%tail

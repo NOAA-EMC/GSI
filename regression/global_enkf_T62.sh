@@ -11,7 +11,6 @@ exp=$jobname
 export JCAP=62
 export LEVS=64
 export NMEM_ENKF=20
-export NVARS=6
 
 # Set runtime and save directories
 tmpdir=$tmpdir/$tmpregdir/${exp}
@@ -89,6 +88,7 @@ $gsi_namelist
 EOF
 
 # Set fixed files
+#   anavinfo = text file with information about control vector
 #   satinfo  = text file with information about assimilation of brightness temperatures
 #   satangl  = angle dependent bias correction file (fixed in time)
 #   scaninfo = text file with scan angle information
@@ -102,6 +102,7 @@ satinfo=$fixgsi/global_satinfo.txt
 convinfo=$fixgsi/global_convinfo_reg_test.txt
 ozinfo=$fixgsi/global_ozinfo.txt
 hybens_info=$fixgsi/global_hybens_info.l64.txt
+anavinfo=$fixgsi/global_anavinfo.l64.txt
 ### add 9 tables
 errtable_pw=$fixgsi/prepobs_errtable_pw.global
 errtable_ps=$fixgsi/prepobs_errtable_ps.global_nqcf
@@ -128,6 +129,8 @@ $ncp $satinfo  ./satinfo
 $ncp $ozinfo   ./ozinfo
 $ncp $convinfo ./convinfo
 $ncp $hybens_info ./hybens_info
+$ncp $anavinfo ./anavinfo
+
 #add 9 tables for new varqc
 $ncp $errtable_pw           ./errtable_pw
 $ncp $errtable_ps           ./errtable_ps
@@ -143,6 +146,7 @@ $ncp $btable_uv           ./btable_uv
 
 # Copy ensemble data to $tmpdir
 list="cnvstat oznstat radstat"
+
 for type in $list; do
    $ncp $global_enkf_T62_datobs/${type}_${adate}_ensmean ./${type}_ensmean
    tar -xvf ${type}_ensmean
@@ -170,6 +174,7 @@ $ncp $global_enkf_T62_datges/bfg_${gdate}_fhr06_ensmean ./bfg_${global_enkf_T62_
 
 cd $tmpdir
 echo "run enkf now"
-eval "$APRUN $tmpdir/enkf.x > stdout 2>&1"
+\rm stdout stderr
+eval "$APRUN $tmpdir/enkf.x 1>stdout 2>stderr"
 rc=$?
 exit $rc

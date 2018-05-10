@@ -510,13 +510,9 @@ contains
     ! Define local variables
 
     call gfs_nems_initialize(meta_nemsio,filename=grid%filename)
+
     ! Allocate memory for local variables
 
-    if(.not. allocated(pressi))                                            &
-         & allocate(pressi(meta_nemsio%dimx,meta_nemsio%dimy,              &
-         & meta_nemsio%dimz + 1))
-    if(.not. allocated(vcoord))                                            &
-         & allocate(vcoord(meta_nemsio%dimz + 1,3,2))
     if(.not. allocated(workgrid))                                          &
          & allocate(workgrid(meta_nemsio%dimx*meta_nemsio%dimy))
 
@@ -534,9 +530,15 @@ contains
 
     if ( .not. ldpres ) then
 
+       if(.not. allocated(pressi))                                            &
+            & allocate(pressi(meta_nemsio%dimx,meta_nemsio%dimy,              &
+            & meta_nemsio%dimz + 1))
+       if(.not. allocated(vcoord))                                            &
+            & allocate(vcoord(meta_nemsio%dimz + 1,3,2))
+
        call gfs_nems_vcoord(meta_nemsio,grid%filename,vcoord)
-       grid%ak           = vcoord(:,1,1)
-       grid%bk           = vcoord(:,2,1)
+       grid%ak = vcoord(:,1,1)
+       grid%bk = vcoord(:,2,1)
        var_info%var_name = 'psfc'
        call variable_lookup(var_info)
        call gfs_nems_read(workgrid,var_info%nems_name,var_info%nems_levtyp,   &

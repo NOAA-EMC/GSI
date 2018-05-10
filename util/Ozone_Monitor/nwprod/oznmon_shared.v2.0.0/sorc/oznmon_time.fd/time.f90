@@ -1,5 +1,6 @@
 program main
   use read_diag
+  use valid
 
   implicit none
   integer ntype,mregion,mls2_levs,mls3_levs
@@ -9,21 +10,25 @@ program main
   character(20) satname,stringd,satsis
   character(10) dum,satype,dplat
   character(40) string,diag_oz,grad_file,ctl_file
+  character(40) bad_pen_file, bad_cnt_file
   character(40),dimension(mregion):: region
 
   integer luname,lungrd,lunctl,lndiag,nregion
-  integer iyy,imm,idd,ihh,idhh,incr,iflag
+  integer lupen, lucnt, fiosp, fiosc
+  integer iyy,imm,idd,ihh,idhh,incr,iflag,ier,iret
   integer n_levs,j,idsat,i,k,ii,nreg,nlevs,iobs,iread,nobs
   integer,dimension(mregion):: jsub
   real,allocatable,dimension(:):: prs_nlev
 
-  real pen
+  real pen,pbound,cbound
   real weight,rlat,rlon,rmiss,obs,biascor,obsges,obsgesnbc,rterm
   real,dimension(2):: cor_omg
   real,dimension(mregion):: rlatmin,rlatmax,rlonmin,rlonmax
 
-  real,allocatable,dimension(:,:):: count,error,use,penalty
+  real,allocatable,dimension(:,:):: cnt,error,use,penalty
   real,allocatable,dimension(:,:,:):: omg_cor
+  logical validate, valid_penalty, valid_count
+  character(60) penformat,cntformat
 
 
 ! Variables for reading ozone data
@@ -33,16 +38,19 @@ program main
   type(diag_data_nlev_list  ),pointer :: data_nlev(:,:)
   type(diag_data_extra_list) ,pointer :: data_extra(:,:)
 
-
+! Namelist with defaults
+  logical               :: new_hdr            = .false.
   namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,&
-       nregion,region,rlonmin,rlonmax,rlatmin,rlatmax
+       nregion,region,rlonmin,rlonmax,rlatmin,rlatmax,validate,new_hdr
 
-  data luname,lungrd,lunctl,lndiag / 5, 100, 51, 21 /
+  data luname,lungrd,lunctl,lndiag,lupen,lucnt / 5, 100, 51, 21, 52, 53 /
   data rmiss /-999./
   data stringd / '.%y4%m2%d2%h2' /
-  data ftype / 'count', 'cpen', 'avgomg', 'sdvomg' /
+  data ftype / 'cnt', 'cpen', 'avgomg', 'sdvomg' /
 
 
+  penformat = "(A15,A7,I3,A8,I1,A10,ES13.7E2,A8,ES13.7E2)"
+  cntformat = "(A15,A7,I3,A8,I1,A10,F7.2,A8,F7.2)"
 
 !************************************************************************
 !
@@ -72,10 +80,14 @@ program main
   grad_file= trim(satname) // trim(stringd) // '.ieee_d'
   ctl_file = trim(satname) // '.ctl'
 
+  bad_pen_file = 'bad_pen' // trim(stringd)
+  bad_cnt_file = 'bad_cnt' // trim(stringd)
+ 
   write(6,*)'diag_oz =',diag_oz
   write(6,*)'grad_file=',grad_file
   write(6,*)'ctl_file =',ctl_file
-
+  write(6,*)'bad_pen_file =', bad_pen_file
+  write(6,*)'bad_cnt_file =', bad_cnt_file
 
 ! Open unit to diagnostic file.  Read portion of header to 
 ! see if file exists
@@ -87,7 +99,7 @@ program main
 
 ! File exists.  Read header
   write(6,*)'call read_diag_header'
-  call read_diag_header( lndiag, header_fix, header_nlev )
+  call read_diag_header( lndiag, header_fix, header_nlev, new_hdr )
 
 ! Extract observation type, satellite id, and number of levels
   satype = header_fix%obstype
@@ -102,10 +114,10 @@ program main
     n_levs = mls3_levs
   end if
 
-  write(6,*)'satype,dplat,n_levs=',satype,' ',dplat,n_levs
+!  write(6,*)'satype,dplat,n_levs=',satype,' ',dplat,n_levs
 
   string = trim(satype)//'_'//trim(dplat)
-  write(6,*)'string,satname=',string,' ',satname
+!  write(6,*)'string,satname=',string,' ',satname
   if ( trim(string) /= trim(satname) ) then
      write(6,*)'***ERROR*** inconsistent instrument types'
      write(6,*)'  satname,string  =',satname,' ',string
@@ -114,11 +126,11 @@ program main
 
 
 ! Allocate arrays to hold observational information
-  write(6,*)' '
-  write(6,*)'allocate arrays'
+!  write(6,*)' '
+!  write(6,*)'allocate arrays'
   allocate ( prs_nlev(n_levs))
   allocate (omg_cor(n_levs,mregion,2), &
-       count(n_levs,mregion), & 
+       cnt(n_levs,mregion), & 
        penalty(n_levs,mregion), &
        error(n_levs,mregion), use(n_levs,mregion))
 
@@ -127,7 +139,7 @@ program main
      do k=1,mregion
         do j=1,n_levs
            if (ii==1) then
-              count(j,k) = 0.0
+              cnt(j,k) = 0.0
               penalty(j,k) = 0.0
            endif
            omg_cor(j,k,ii) = 0.0
@@ -187,16 +199,17 @@ program main
      nreg=ii
 
      if(index(satype,'mls')==0 ) then
+
 !       Level loop
         do j = 1, n_levs
 !          If observation was assimilated, accumulate sums in appropriate regions
 !          if (data_nlev(j,iobs)%varinv > 1.e-6) then
-              pen           =  data_nlev(j,iobs)%varinv*(data_nlev(j,iobs)%ozone_inv)**2
+              pen         =  data_nlev(j,iobs)%varinv*(data_nlev(j,iobs)%ozone_inv)**2
               cor_omg(1)  =  data_nlev(j,iobs)%ozone_inv
               cor_omg(2)  =  (cor_omg(1))**2
               do i=1,nreg
                  k=jsub(i)
-                 count(j,k) = count(j,k) +1.0 
+                 cnt(j,k) = cnt(j,k) +1.0 
                  penalty(j,k) = penalty(j,k) + pen
                  do ii=1,2
                     omg_cor(j,k,ii)  = omg_cor(j,k,ii)  + cor_omg(ii)
@@ -205,20 +218,23 @@ program main
 !          endif
         enddo ! level loop
      else
+
+!       -----------------------------------------------------------------------
 !       If observation was assimilated, accumulate sums in appropriate regions
+!
         if (data_nlev(1,iobs)%varinv > 1.e-6) then
 !       since the old gsi executable contains the case where the obs is above model top and ratio_error is set to 0 
 !       but varinv is not set to 0 and the ozone_inv is still calculated.
 !       if (abs(data_nlev(1,iobs)%ozone_inv) < 1.0e+02 .and. data_nlev(1,iobs)%varinv<1.0e+04) then  
 !       if (abs(data_nlev(1,iobs)%ozone_inv) < 1.0e+02 ) then  
-           pen           =  data_nlev(1,iobs)%varinv*(data_nlev(1,iobs)%ozone_inv)**2
+           pen         =  data_nlev(1,iobs)%varinv*(data_nlev(1,iobs)%ozone_inv)**2
            cor_omg(1)  =  data_nlev(1,iobs)%ozone_inv
            cor_omg(2)  =  (cor_omg(1))**2
            j=mod(iobs,n_levs)
            if(j==0) j=n_levs
            do i=1,nreg
               k=jsub(i)
-              count(j,k) = count(j,k) +1.0 
+              cnt(j,k) = cnt(j,k) +1.0 
               penalty(j,k) = penalty(j,k) + pen
               do ii=1,2
                  omg_cor(j,k,ii)  = omg_cor(j,k,ii)  + cor_omg(ii)
@@ -233,36 +249,92 @@ program main
   enddo loopd
 
   close(lndiag)
-  print*, 'read in ', nobs, ' observations in total',count(12,1),count(12,4),sum(omg_cor),sum(penalty)
+  print*, 'read in ', nobs, ' observations in total',cnt(12,1),cnt(12,4),sum(omg_cor),sum(penalty)
   write(6,*)' '
   write(6,*)' '
 
 ! Compute average and standard deviation
   do k=1,nregion
      do j=1,n_levs
-        call avgsdv(count(j,k),omg_cor(j,k,1), omg_cor(j,k,2), rmiss)
-          write(6,*)'level j=',j,', region k=',k,' with count,avg,sdv=', &
-               count(j,k),omg_cor(j,k,1),omg_cor(j,k,2)
-        if (count(j,k)>0) then
-           penalty(j,k)=penalty(j,k)/count(j,k) ! convert penalty to cpen
+        call avgsdv(cnt(j,k),omg_cor(j,k,1), omg_cor(j,k,2), rmiss)
+!          write(6,*)'level j=',j,', region k=',k,' with cnt,avg,sdv=', &
+!               cnt(j,k),omg_cor(j,k,1),omg_cor(j,k,2)
+        if (cnt(j,k)>0) then
+
+
+           write(6,*)'converting pen to cpen, level,region ',j,k,':'
+           write(6,*)' pen, cnt cpen = ', &
+                  penalty(j,k), cnt(j,k), penalty(j,k)/cnt(j,k)
+
+           penalty(j,k)=penalty(j,k)/cnt(j,k) ! convert penalty to cpen
+           write(6,*)' now pen = ', penalty(j,k)
+
         else
-           count(j,k)=rmiss
+           cnt(j,k)=rmiss
            penalty(j,k)=rmiss
         endif
      end do
   end do
 
+! Do validation
+  if( validate == .TRUE. ) then
+     call load_base( satname, ier )
+     write(6,*) 'ier from load_base = ', ier
+
+     open(lupen,file=bad_pen_file,form='formatted')
+     open(lucnt,file=bad_cnt_file,form='formatted')
+
+  endif
+
+! Validate penalty values
+
+  k=1
+  do j=1,n_levs
+     if ( use(j,k) > 0.0 ) then
+
+        if( validate == .TRUE. ) then
+
+           pbound = 0.00
+           call validate_penalty( j, k, penalty(j,k), valid_penalty, pbound, iret )
+
+           if( (iret == 0) .AND. (valid_penalty .eqv. .FALSE.) ) then
+              write(6,*) 'BAD PEN j,k,penalty, valid_penalty,bound = ', &
+                        j,k,penalty(j,k), valid_penalty, pbound
+              write(lupen,penformat) satname, ' level= ',j, ' region= ', k, &
+                        ' penalty= ', penalty(j,k), ' bound= ', pbound
+           endif
+
+           cbound = 0.00
+           call validate_count( j, k, cnt(j,k), valid_count, cbound, iret )
+
+           if( (iret == 0) .AND. (valid_count .eqv. .FALSE.) ) then
+              write(6,*) 'BAD CNT j,k, count = ', j,k,cnt(j,k), valid_count
+              write(lucnt,cntformat) satname, ' level= ',j, ' region= ', k, &
+                        ' count= ', cnt(j,k), ' bound= ', cbound
+           endif
+
+        endif
+     endif
+  end do
+
+  if( validate == .TRUE. ) then
+     close( lupen )
+     close( lucnt )
+  endif
+  
 ! Write output to GrADS ready file
   write(6,*)' '
   open(lungrd,file=grad_file,form='unformatted')
-  write(lungrd) ((count(j,k),j=1,n_levs),k=1,nregion)
+  write(lungrd) ((cnt(j,k),j=1,n_levs),k=1,nregion)
   write(lungrd) ((penalty(j,k),j=1,n_levs),k=1,nregion)
+
 if(index(satype,'mls')/=0 ) then
   print*,  ' write out the data to temp.txt'
   open(8,file='temp.txt',form='formatted')
-  write(8,*) ((count(j,k),j=1,n_levs),k=1,nregion)
+  write(8,*) ((cnt(j,k),j=1,n_levs),k=1,nregion)
   write(8,*) ((penalty(j,k),j=1,n_levs),k=1,nregion)
 end if
+
   do ii=1,2
      write(lungrd) ((omg_cor (j,k,ii),j=1,n_levs),k=1,nregion)
      if(index(satype,'mls')/=0 ) then
@@ -279,7 +351,7 @@ end if
 ! Deallocate arrays
   write(6,*)' '
   write(6,*)'deallocate arrays'
-  deallocate(prs_nlev,omg_cor,count,penalty,error,use)
+  deallocate(prs_nlev,omg_cor,cnt,penalty,error,use)
   goto 950
 
 ! Jump to here if eof or error reading diagnostic file.
@@ -298,7 +370,7 @@ end if
 
   write(6,*)'load missing value ',rmiss,' into output arrays.  ',&
        nregion,n_levs
-  allocate(count(n_levs,nregion),penalty(n_levs,nregion))
+  allocate(cnt(n_levs,nregion),penalty(n_levs,nregion))
   allocate(omg_cor(n_levs,mregion,2))
 
   write(6,*)'load missing value ',rmiss,' into output arrays'
@@ -306,7 +378,7 @@ end if
      do k=1,nregion
         do j=1,n_levs
            if (ii==1) then
-              count(j,k)  =rmiss
+              cnt(j,k)  =rmiss
               penalty(j,k)=rmiss
            endif
            omg_cor(j,k,ii) =rmiss
@@ -314,11 +386,11 @@ end if
      end do
   end do
   open(lungrd,file=grad_file,form='unformatted')
-  write(lungrd) ((count(j,k),j=1,n_levs),k=1,nregion)
+  write(lungrd) ((cnt(j,k),j=1,n_levs),k=1,nregion)
   write(lungrd) ((penalty(j,k),j=1,n_levs),k=1,nregion)
 if(index(satype,'mls')/=0 ) then
   open(8,file='temp.txt',form='formatted',status='new')
-  write(8,*) ((count(j,k),j=1,n_levs),k=1,nregion)
+  write(8,*) ((cnt(j,k),j=1,n_levs),k=1,nregion)
   write(8,*) ((penalty(j,k),j=1,n_levs),k=1,nregion)
 end if
   do ii=1,2
@@ -332,7 +404,7 @@ end if
 if(index(satype,'mls')/=0 ) then
   close(8)
 end if
-  deallocate(count,penalty,omg_cor)
+  deallocate(cnt,penalty,omg_cor)
 
 ! End of program
 950 continue

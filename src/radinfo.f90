@@ -48,6 +48,7 @@ module radinfo
 !   2016-08-12  mahajan - moved nst related variables from radinfo to gsi_nstcouplermod
 !   2016-09-20  Guo     - added SAVE attributes to module variables *_method, to
 !                         improve standard conformance of the code.
+!   2016-11-29  shlyaeva - make nvarjac public
 !
 ! subroutines included:
 !   sub init_rad            - set satellite related variables to defaults
@@ -97,7 +98,7 @@ module radinfo
   public :: radstart,radstep
   public :: newpc4pred
   public :: biaspredvar
-  public :: radjacnames,radjacindxs,nsigradjac
+  public :: radjacnames,radjacindxs,nsigradjac,nvarjac
   public :: tzr_bufrsave,tzr_qc
 
   public :: radedge1, radedge2
@@ -196,7 +197,7 @@ module radinfo
   character(len=20),allocatable,dimension(:):: nusis   ! sensor/instrument/satellite indicator
   character(len=256),save:: crtm_coeffs_path = "./" ! path of CRTM_Coeffs files
 
-  integer(i_kind) :: nsigradjac
+  integer(i_kind) :: nsigradjac, nvarjac
   character(len=20),allocatable,dimension(:):: radjacnames
   integer(i_kind),  allocatable,dimension(:):: radjacindxs
 
@@ -295,6 +296,7 @@ contains
 !   2013-10-26  todling - revisit given that metguess now holds upper air
 !   2013-11-21  todling - add set_radiag; should be revisited to accommodate all
 !                         versions of diag-file, but perhaps done somewhere else
+!   2016-11-29  shlyaeva - make nvarjac public (for saving linearized H(x) for EnKF)
 !
 !   input argument list:
 !
@@ -314,7 +316,7 @@ contains
     implicit none
 
     integer(i_kind) ii,jj,mxlvs,isum,ndim,ib,ie,ier
-    integer(i_kind) nvarjac,n_meteo,n_clouds_jac,n_aeros_jac
+    integer(i_kind) n_meteo,n_clouds_jac,n_aeros_jac
     integer(i_kind),allocatable,dimension(:)::aux,all_levels
     character(len=20),allocatable,dimension(:)::meteo_names
     character(len=20),allocatable,dimension(:)::clouds_names_jac
@@ -338,11 +340,13 @@ contains
        if (angord/=0) angord=0
     end if
 
-    call set_radiag ('version',30303,ier)
+!    call set_radiag ('version',30303,ier)
+    call set_radiag ('version',40000,ier)
     if (adp_anglebc) npred=npred+angord
     if (emiss_bc) then
         npred=npred+1
-        call set_radiag ('version',30303,ier)
+!        call set_radiag ('version',30303,ier)
+        call set_radiag ('version',40000,ier)
     endif
     
 !   inquire about variables in guess
@@ -1467,8 +1471,8 @@ contains
       edge1 = 5
       edge2 = 56
    else if (index(isis,'cris')/=0) then
-      step  = 3.322_r_kind
-      start = -51.675_r_kind
+      step  = 3.3331_r_kind
+      start = -48.33_r_kind
       nstep = 30
       edge1 = 1
       edge2 = 30

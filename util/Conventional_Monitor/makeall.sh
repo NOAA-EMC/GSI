@@ -15,7 +15,7 @@
 mode=${1:-all}
 
 top_level=`pwd`
-cmon_version_file=${cmon_version_file:-${top_level}/parm/CMon.ver}
+cmon_version_file=${cmon_version_file:-${top_level}/parm/ConMon.ver}
 if [[ -s ${cmon_version_file} ]]; then
    . ${cmon_version_file}
    echo "able to source ${cmon_version_file}"

@@ -24,6 +24,7 @@ if(NOT BUILD_SFCIO )
       /usr/local/jcsda/nwprod_gdas_2014	
       ${COREPATH}/sfcio/v${SFCIO_VER}
       ${COREPATH}/sfcio/v${SFCIO_VER}/intel
+      ${COREPATH}/sfcio/v${SFCIO_VER}/ips/${COMPILER_VERSION}
     PATH_SUFFIXES
         lib
      ${NO_DEFAULT_PATH})

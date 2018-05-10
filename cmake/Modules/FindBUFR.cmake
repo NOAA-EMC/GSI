@@ -22,6 +22,7 @@ if(NOT BUILD_BUFR )
       /usr/local/jcsda/nwprod_gdas_2014	
       ${COREPATH}/bufr/v${BUFR_VER}
       ${COREPATH}/bufr/v${BUFR_VER}/intel
+      ${COREPATH}/bufr/v${BUFR_VER}/ips/${COMPILER_VERSION}
     PATH_SUFFIXES
         lib
      ${NO_DEFAULT_PATH})

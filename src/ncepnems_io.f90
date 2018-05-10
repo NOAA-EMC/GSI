@@ -1299,7 +1299,6 @@ contains
     use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: nlat_sfc,nlon_sfc
     use guess_grids, only: nfldsfc,sfcmod_mm5,sfcmod_gfs
-    use gsi_nstcouplermod, only: nst_gsi
     use mpimod, only: mpi_itype,mpi_rtype4,mpi_comm_world,mype
     use constants, only: zero
     implicit none

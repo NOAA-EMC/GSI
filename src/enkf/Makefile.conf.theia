@@ -18,6 +18,7 @@ W3NCO_VER = 2.0.6
 
 CORELIB  = /scratch3/NCEPDEV/nwprod/lib
 CORECRTM = /scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/lib
+SHTNSLIB = /scratch3/BMC/gsienkf/whitaker/contrib/pythonextras/Anaconda-1.8.0/lib
 
 INCsfcio = $(CORELIB)/sfcio/v$(SFCIO_VER)/incmod/sfcio_v$(SFCIO_VER)_4
 INCsigio = $(CORELIB)/sigio/v$(SIGIO_VER)/incmod/sigio_v$(SIGIO_VER)_4
@@ -32,6 +33,8 @@ SIGIO_LIB=$(CORELIB)/sigio/v$(SIGIO_VER)/libsigio_v$(SIGIO_VER)_4.a
 SP_LIBd=$(CORELIB)/sp/v$(SP_VER)/libsp_v$(SP_VER)_d.a
 W3EMC_LIBd=$(CORELIB)/w3emc/v$(W3EMC_VER)/libw3emc_v$(W3EMC_VER)_d.a
 W3NCO_LIBd=$(CORELIB)/w3nco/v$(W3NCO_VER)/libw3nco_v$(W3NCO_VER)_d.a
+#SHTNS_LIB = -L $(SHTNSLIB) -lshtns -lfftw3
+SHTNS_LIB =
 
 WRFPATH = /scratch3/NCEPDEV/nceplibs/ext/WRF/3.7/WRFV3
 LIBwrfio_int    = $(WRFPATH)/external/io_int/libwrfio_int.a
@@ -40,8 +43,8 @@ OBJwrf_frame_pk = $(WRFPATH)/frame/pack_utils.o
 OBJwrf_sizeof_int = $(WRFPATH)/frame/module_machine.o
 WRFLIB = $(LIBwrfio_int) $(LIBwrfio_netcdf) $(OBJwrf_frame_pk) $(OBJwrf_sizeof_int)
 
-INCnetcdf  = ${NETCDF}/include
-LIBnetcdf  = -L${NETCDF}/lib -lnetcdf
+INCnetcdf       = ${NETCDF}/include
+LIBnetcdf       = -L$(NETCDF)/lib -lnetcdf
 
 # Empty out definition of libs use by GMAO GSI building structure
 LIBtransf = #-L$(CORELIB) -ltransf
@@ -68,9 +71,8 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
   PROF= #-pg
   OMP = -openmp
 
-  FFLAGS_F90    = -DGFS
-  #FFLAGS_F90    = -DGFS -DMPI3 # use this if MPI-3 is available (saves memory for LETKF)
-  EXE_FILE = global_enkf
+  FFLAGS_F90    =
+  #FFLAGS_F90    = -DMPI3 # use this if MPI-3 is available (saves memory for LETKF)
 
   FFLAGS_COM_N  = -I ./ -I ../ -I $(INCsfcio) -I $(INCsigio) -I $(INCnemsio) \
                 -I $(INCnetcdf) -O3 -xHOST -warn all -implicitnone -traceback -fp-model strict -convert big_endian $(OMP)
@@ -121,7 +123,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 #      -lsfcio_4 -lbufr_d_64 -lw3lib-2.0_d $(LIBcrtm) $(WRFLIB) $(LIBnetcdf)
 # LIBS_N        = -L$(CORELIB) -lsp_d -lnemsio -lbacio_4 -lsigio_4 \
 #      -lsfcio -lbufr_d_64 -lw3nco_d -lw3emc_d -lcrtm_v2.1.3 $(WRFLIB) $(LIBnetcdf)
-  LIBS_N        = $(SP_LIBd) $(NEMSIO_LIB) $(BACIO_LIB4) $(SIGIO_LIB) \
+  LIBS_N        = $(SHTNS_LIB) $(SP_LIBd) $(NEMSIO_LIB) $(BACIO_LIB4) $(SIGIO_LIB) \
                 $(SFCIO_LIB) $(BUFR_LIBd) $(W3NCO_LIBd) $(W3EMC_LIBd) \
                 $(CRTM_LIB) $(WRFLIB) $(LIBnetcdf)
 #      -L../lib/GSD/gsdcloud4nmmb -lgsdcloud

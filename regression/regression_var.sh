@@ -21,52 +21,77 @@ if [ "$#" = 8 ] ; then
   export ptmpName=`echo $builddir | sed -e "s/\//_/g"`
   echo $ptmpName
 else
-# Name of the branch being tested
+  # Name of the branch being tested
   updat="XXXXXXXX"
   contrl="XXXXXXXX"
   export cmaketest="false"
   export clean="false"
   export ptmpName=""
 fi
+echo "beginning regression_var.sh, machine is $machine"
+# If we don't know already determine what machine are we on:
+if [ -z ${machine+x} ]; then 
+  echo "machine is unset"; 
+  if [ -d /da ]; then # WCOSS
+     export machine="WCOSS"
+  elif [ -d /glade/scratch ]; then # Cheyenne
+   export machine="Cheyenne"
+  elif [ -d /scratch4/NCEPDEV/da ]; then # Theia
+   export machine="Theia"
+  elif [ -d /gpfs/hps/ptmp ]; then # LUNA or SURGE
+   export machine="WCOSS_C"
+  elif [ -d /gpfs/dell1/ptmp ]; then # venus or mars
+   export machine="WCOSS_D"
+  elif [ -d /data/users ]; then # S4
+   export machine="s4"
+elif [ -d /discover/nobackup ]; then # NCCS Discover
+   export machine="Discover"
+  fi
+else echo "machine is set to '$machine'"; 
+fi
 
-# First determine what machine are we on:
-if [ -d /da ]; then # WCOSS
-   export machine="WCOSS"
+case $machine in
+   WCOSS_D)
+   export noscrub=/gpfs/dell2/emc/noscrub/$LOGNAME
+   export group="dev"
+   export queue="dev"
+
+   export ptmp="/gpfs/dell2/ptmp/$LOGNAME/$ptmpName"
+
+   export fixcrtm="/gpfs/dell2/emc/noscrub/Mark.Potts/fix_update"
+   export casesdir="/gpfs/dell2/emc/noscrub/Mark.Potts/CASES"
+   export ndate="$builddir/bin/ndate.x"
+
+   export check_resource="yes"
+
+   export accnt=""
+   ;;
+   WCOSS)
    if [ -d /da/noscrub/$LOGNAME ]; then 
      export noscrub=/da/noscrub/$LOGNAME
    elif [ -d /global/noscrub/$LOGNAME ]; then
      export noscrub=/global/noscrub/$LOGNAME
    fi
-elif [ -d /glade/scratch ]; then # Cheyenne
-   echo "HEY! in the first Cheyenne section"
-   export machine="Cheyenne"
+   if [[ "$cmaketest" = "false" ]]; then
+     export basedir="/global/save/$LOGNAME/gsi"
+   fi
+   export group="dev"
+   export queue="dev"
+
+   export ptmp="/ptmpp1/$LOGNAME/$ptmpName"
+
+   export fixcrtm="/da/save/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update"
+   export casesdir="/da/noscrub/Michael.Lueken/CASES"
+   export ndate="/nwprod/util/exec/ndate"
+
+   export check_resource="yes"
+
+   export accnt=""
+   ;;
+   Cheyenne)
    export queue="economy"
    export noscrub="/glade/scratch/$LOGNAME"
-elif [ -d /scratch4/NCEPDEV/da ]; then # Theia
-   export machine="Theia"
-   if [ -d /scratch4/NCEPDEV/da/noscrub/$LOGNAME ]; then 
-     export noscrub="/scratch4/NCEPDEV/da/noscrub/$LOGNAME"
-   elif [ -d /scratch4/NCEPDEV/global/noscrub/$LOGNAME ]; then 
-     export noscrub="/scratch4/NCEPDEV/global/noscrub/$LOGNAME"
-   fi
-elif [ -d /gpfs/hps/ptmp ]; then # LUNA or SURGE
-   export machine="WCOSS_C"
-   if [ -d /gpfs/hps/emc/global/noscrub/$LOGNAME ]; then
-      export noscrub="/gpfs/hps/emc/global/noscrub/$LOGNAME"
-   elif [ -d /gpfs/hps/emc/da/noscrub/$LOGNAME ]; then
-      export noscrub="/gpfs/hps/emc/da/noscrub/$LOGNAME"
-   fi
-elif [ -d /data/users ]; then # S4
-   export machine="s4"
-   export noscrub="/data/users/$LOGNAME"
-fi
-
-echo "machine name is $machine"
-echo "looking to see which machine we have"
-if [[ "$machine" = "Cheyenne" ]]; then
-   echo "HEY! in the Cheyenne section 2"
    export group="global"
-   export queue="economy"
    if [[ "$cmaketest" = "false" ]]; then
      export basedir="/glade/scratch/$LOGNAME/gsi"
    fi 
@@ -78,9 +103,15 @@ if [[ "$machine" = "Cheyenne" ]]; then
 
    export check_resource="no"
    export accnt="p48503002"
-
-elif [[ "$machine" = "Theia" ]]; then
-
+   ;;
+   Theia)
+   if [ -d /scratch4/NCEPDEV/da/noscrub/$LOGNAME ]; then 
+     export noscrub="/scratch4/NCEPDEV/da/noscrub/$LOGNAME"
+   elif [ -d /scratch4/NCEPDEV/global/noscrub/$LOGNAME ]; then 
+     export noscrub="/scratch4/NCEPDEV/global/noscrub/$LOGNAME"
+    elif [ -d /scratch3/BMC/gsienkf/$LOGNAME ]; then
+     export noscrub="/scratch3/BMC/gsienkf/$LOGNAME"
+   fi
    export group="global"
    export queue="batch"
    if [[ "$cmaketest" = "false" ]]; then
@@ -99,31 +130,17 @@ elif [[ "$machine" = "Theia" ]]; then
 
    #  On Theia, there are no scrubbers to remove old contents from stmp* directories.
    #  After completion of regression tests, will remove the regression test subdirecories
-#  export clean=".true."
-
-elif [[ "$machine" = "WCOSS" ]]; then
-
-   if [[ "$cmaketest" = "false" ]]; then
-     export basedir="/global/save/$LOGNAME/gsi"
-   fi 
-   export group="dev"
-   export queue="dev"
-
-   export ptmp="/ptmpp1/$LOGNAME/$ptmpName"
-
-   export fixcrtm="/da/save/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update"
-   export casesdir="/da/noscrub/Michael.Lueken/CASES"
-   export ndate="/nwprod/util/exec/ndate"
-
-   export check_resource="yes"
-
-   export accnt=""
-
-elif [[ "$machine" = "WCOSS_C" ]]; then
-
+   export clean=".true."
+   ;;
+   WCOSS_C)
+   if [ -d /gpfs/hps/emc/global/noscrub/$LOGNAME ]; then
+      export noscrub="/gpfs/hps/emc/global/noscrub/$LOGNAME"
+   elif [ -d /gpfs/hps/emc/da/noscrub/$LOGNAME ]; then
+      export noscrub="/gpfs/hps/emc/da/noscrub/$LOGNAME"
+   fi
    if [[ "$cmaketest" = "false" ]]; then
      export basedir="/gpfs/hps/emc/global/noscrub/$LOGNAME/svn/gsi"
-   fi 
+   fi
    export group="dev"
    export queue="dev"
 
@@ -136,26 +153,41 @@ elif [[ "$machine" = "WCOSS_C" ]]; then
    export check_resource="no"
 
    export accnt=""
-elif [[ "$machine" = "s4" ]]; then
+   ;;
+   s4)
+   export noscrub="/data/users/$LOGNAME"
    if [[ "$cmaketest" = "false" ]]; then
      export basedir="/home/$LOGNAME/gsi"
-   fi 
+   fi
    export group="dev"
    export queue="dev"
    export NWPROD="/usr/local/jcsda/nwprod_gdas_2014"
    export ptmp="/scratch/short/$LOGNAME/$ptmpName"
 
    export fixcrtm="/home/mpotts/gsi/trunk/lib/CRTM_REL-2.2.3/fix_update"
-#  export fixcrtm="/usr/local/jcsda/nwprod_gdas_2014/lib/sorc/crtm_v2.1.3/fix/"
    export casesdir="/data/users/mpotts/CASES"
-#  export casesdir="/scratch/mpotts/CASES"
    export ndate="$NWPROD/util/exec/ndate"
 
    export check_resource="no"
 
    export accnt="star"
-
-fi
+   ;;
+   Discover)
+   if [[ "$cmaketest" = "false" ]]; then
+       echo "Regression tests on Discover need to be run via ctest"
+       exit 1
+   fi
+   export ptmp=$basedir
+   export noscrub=$basedir
+   export fixcrtm="/discover/nobackup/projects/gmao/share/gmao_ops/fvInput_4dvar/gsi/etc/fix_ncep20170329/REL-2.2.3-r60152_local-rev_1/CRTM_Coeffs/$endianness"
+   export casesdir="/discover/nobackup/projects/gmao/obsdev/wrmccart/NCEP_regression/CASES"
+   export ndate="/home/pchakrab/.local/bin/ndate"
+   export check_resource="no"
+   export accnt="g0613"
+   export queue="compute"
+   export clean=".false."
+   ;;
+esac
 
 if [[ "$cmaketest" = "false" ]]; then
   export builddir=$noscrub/build
@@ -168,12 +200,13 @@ if [[ "$cmaketest" = "false" ]]; then
   export scripts="$basedir/$updat/regression"
   export ush="$basedir/$updat/ush"
 fi
-# Paths to tmpdir and savedir base on ptmp
-export tmpdir="$ptmp"
-export savdir="$ptmp"
 
 # We are dealing with *which* endian files
 export endianness="Big_Endian"
+
+# Paths to tmpdir and savedir base on ptmp
+export tmpdir="$ptmp"
+export savdir="$ptmp"
 
 # Variables with the same values are defined below.
 
@@ -205,7 +238,7 @@ export global_hybrid_T126_datobs="$casesdir/global/sigmap/$global_hybrid_T126_ad
 export global_4denvar_T126_datges="$casesdir/global/sigmap/$global_4denvar_T126_adate"
 export global_4denvar_T126_datobs="$casesdir/global/sigmap/$global_4denvar_T126_adate"
 export global_hybrid_T126_datges="$casesdir/global/sigmap/$global_hybrid_T126_adate/ges"
-export global_enkf_T62_datobs="$casesdir/global/sigmap/$global_enkf_T62_adate/obs"
+export global_enkf_T62_datobs="$casesdir/global/sigmap/$global_enkf_T62_adate/new_obs"
 export global_enkf_T62_datges="$casesdir/global/sigmap/$global_enkf_T62_adate/ges"
 export global_lanczos_T62_obs="$casesdir/global/sigmap/$global_lanczos_T62_adate"
 export global_lanczos_T62_ges="$casesdir/global/sigmap/$global_lanczos_T62_adate"

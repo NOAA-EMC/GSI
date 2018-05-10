@@ -1,4 +1,4 @@
-subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pass)
+subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pass,conv_diagsave)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setupbend    compute rhs of oi for gps bending angle
@@ -86,6 +86,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
 !                       . removed (%dlat,%dlon) debris.
+!   2016-11-29  shlyaeva - save linearized H(x) for EnKF
 !   2017-02-09  guo     - Remove m_alloc, n_alloc.
 !                       . Remove my_node with corrected typecast().
 !
@@ -103,13 +104,13 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use mpeu_util, only: die,perr,tell
+  use mpeu_util, only: die,perr,tell,getindex
   use kinds, only: r_kind,i_kind
   use m_gpsStats, only: gps_allhead,gps_alltail
   use m_obsdiags, only: gpshead
   use obsmod , only: nprof_gps,grids_dim,lobsdiag_allocated,&
       i_gps_ob_type,obsdiags,lobsdiagsave,nobskeep,&
-      time_offset
+      time_offset,lobsdiag_forenkf
   use m_obsNode, only: obsNode
   use m_gpsNode , only: gpsNode
   use m_gpsNode , only: gpsNode_appendto
@@ -126,7 +127,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
       grav_equator,somigliana,flattening,grav_ratio,grav,rd,eps,three,four,five
   use lagmod, only: setq, setq_TL
   use lagmod, only: slagdw, slagdw_TL
-  use jfunc, only: jiter,miter
+  use jfunc, only: jiter,miter,jiterstart
   use convinfo, only: cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
 
@@ -145,9 +146,10 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   use m_gpsrhs, only: gpsrhs_aliases
   use m_gpsrhs, only: gpsrhs_unaliases
 
+  use state_vectors, only: levels, svars3d
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
-
+  use sparsearr, only: sparr2, new, size, writearray
   implicit none
 
 ! Declare passed variables
@@ -158,6 +160,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   integer, intent(in):: is              ! index to GPSbend buffer variables
   logical, intent(in):: init_pass       ! flag the pass for the first background bin
   logical, intent(in):: last_pass       ! flag the pass for the last background bin
+  logical, intent(in):: conv_diagsave   ! save diagnostics file
 
 ! Declare local parameters
   real(r_kind),parameter::  r240 = 240.0_r_kind
@@ -201,6 +204,9 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   integer(i_kind),dimension(4) :: gps_ij
   integer(i_kind):: satellite_id,transmitter_id
 
+  type(sparr2) :: dhx_dx
+  integer(i_kind) :: iz, t_ind, q_ind, p_ind, nnz, nind
+
   real(r_kind),dimension(3,nsig+nsig_ext) :: q_w,q_w_tl
   real(r_kind),dimension(nsig) :: hges,irefges,zges,dhdt,dhdp
   real(r_kind),dimension(nsig+1) :: prsltmp
@@ -218,13 +224,15 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
   logical proceed
 
-  logical:: in_curbin, in_anybin, obs_check,qc_layer_SR
+  logical:: in_curbin, in_anybin, obs_check,qc_layer_SR, save_jacobian
   type(gpsNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
 
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
+
+  save_jacobian = conv_diagsave .and. jiter==jiterstart .and. lobsdiag_forenkf
 
 !*******************************************************************************
 ! List of GPS RO satellites and corresponding BUFR id
@@ -290,10 +298,15 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 
 
 ! Allocate arrays for output to diagnostic file
-  mreal=21
+  mreal=22
   nreal=mreal
   if (lobsdiagsave) nreal=nreal+4*miter+1
-
+  if (save_jacobian) then
+    nnz = nsig * 3         ! number of non-zero elements in dH(x)/dx profile
+    nind   = 3             ! number of dense subarrays 
+    call new(dhx_dx, nnz, nind)
+    nreal = nreal + size(dhx_dx)
+  endif
   if(init_pass) call gpsrhs_alloc(is,'bend',nobs,nsig,nreal,grids_dim,nsig_ext)
   call gpsrhs_aliases(is)
   if(nreal/=size(rdiagbuf,1)) then
@@ -501,6 +514,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
      rdiagbuf(11,i)        = data(iuse,i)       ! data usage flag
      rdiagbuf(17,i)        = data(igps,i)       ! bending angle observation (radians)
      rdiagbuf(19,i)        = hob                ! model vertical grid (interface) if monotone grid
+     rdiagbuf(22,i)        = 1.e+10_r_kind      ! spread (filled in by EnKF)
 
      if(ratio_errors(i) > tiny_r_kind)  then ! obs inside model grid
 
@@ -778,7 +792,6 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
      end do
   endif ! (last_pass)
 
-
 ! Loop to load arrays used in statistics output
   call dtime_setup()
   do i=1,nobs
@@ -939,8 +952,8 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
         endif
 
 !       Load additional obs diagnostic structure
+        ioff = mreal
         if (lobsdiagsave) then
-           ioff=mreal
            do jj=1,miter
               ioff=ioff+1
               if (obsdiags(i_gps_ob_type,ibin)%tail%muse(jj)) then
@@ -1098,6 +1111,46 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
                  my_head%jac_p(k)=my_head%jac_p(k)+dbenddxi(j)*dxidp(j,k)+ &
                                                    dbenddn(j) * dndp(j,k)
               end do
+           end do
+
+           my_head%jac_p(nsig+1) = zero
+
+           if (save_jacobian) then
+              t_ind = getindex(svars3d, 'tv')
+              if (t_ind < 0) then
+                 print *, 'Error: no variable tv in state vector. Exiting.'
+                 call stop2(1300)
+              endif
+              q_ind = getindex(svars3d, 'q')
+              if (q_ind < 0) then
+                 print *, 'Error: no variable q in state vector. Exiting.'
+                 call stop2(1300)
+              endif
+              p_ind = getindex(svars3d, 'prse')
+              if (p_ind < 0) then
+                 print *, 'Error: no variable prse in state vector. Exiting.'
+                 call stop2(1300)
+              endif
+
+              dhx_dx%st_ind(1)  = sum(levels(1:t_ind-1)) + 1
+              dhx_dx%end_ind(1) = sum(levels(1:t_ind-1)) + nsig
+              dhx_dx%st_ind(2)  = sum(levels(1:q_ind-1)) + 1
+              dhx_dx%end_ind(2) = sum(levels(1:q_ind-1)) + nsig
+              dhx_dx%st_ind(3)  = sum(levels(1:p_ind-1)) + 1
+              dhx_dx%end_ind(3) = sum(levels(1:p_ind-1)) + nsig
+
+              do iz = 1, nsig
+                 dhx_dx%val(iz)        = my_head%jac_t(iz)
+                 dhx_dx%val(iz+nsig)   = my_head%jac_q(iz)
+                 dhx_dx%val(iz+2*nsig) = my_head%jac_p(iz)
+              enddo
+
+              call writearray(dhx_dx, rdiagbuf(ioff+1:nreal,i))
+              ioff = ioff + size(dhx_dx)
+           endif
+
+           do j=1,nreal
+              gps_alltail(ibin)%head%rdiag(j)= rdiagbuf(j,i)
            end do
 
            my_head%jac_p(nsig+1) = zero

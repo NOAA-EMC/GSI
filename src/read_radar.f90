@@ -2407,8 +2407,8 @@ subroutine read_radar_l2rw_novadqc(ndata,nodata,lunout,obstype,sis,nobs)
   use constants, only: zero,half,one,two,deg2rad,rearth,rad2deg,r1000,r100,r400
   use qcmod, only: erradar_inflate
   use oneobmod, only: oneobtest,learthrel_rw
-  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,time_4dvar,thin4d
-  use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy,nsig
+  use gsi_4dvar, only: l4dvar,l4densvar,winlen,time_4dvar
+  use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy
   use convinfo, only: nconvtype,ncmiter,ncgroup,ncnumgrp,icuse,ioctype
   use deter_sfc_mod, only: deter_sfc2
   use mpimod, only: npe

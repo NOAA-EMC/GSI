@@ -177,7 +177,7 @@ subroutine intrp3oz(f,g,dx,dy,dz,obstime,n,nlevs,mype)
   return
 end subroutine intrp3oz
 
-subroutine intrp3oz1(f,g,dx,dy,dz,obstime,nlevs,mype)
+subroutine intrp3oz1(f,g,dx,dy,dz,obstime,nlevs,mype,dg_dz)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    intrp3oz    space-time linear interpolation for ozone
@@ -190,6 +190,7 @@ subroutine intrp3oz1(f,g,dx,dy,dz,obstime,nlevs,mype)
 !
 ! program history log:
 !   2013-01-26  parrish
+!   2016-11-29  shlyaeva - save dg/dz for linearized H(x) for EnKF
 !
 !   input argument list:
 !     f        - input interpolator (gridded guess ozone fields)
@@ -200,6 +201,7 @@ subroutine intrp3oz1(f,g,dx,dy,dz,obstime,nlevs,mype)
 !
 !   output argument list:
 !     g        - output interpolatees (guess ozone at observation location)
+!     dg_dz    - output (nsig,nlevs) derivatives
 !
 ! attributes:
 !   language: f90
@@ -219,6 +221,7 @@ subroutine intrp3oz1(f,g,dx,dy,dz,obstime,nlevs,mype)
   real(r_kind),dimension(nlevs-1)               ,intent(in   ) :: dz
   real(r_kind),dimension(lat2,lon2,nsig,nfldsig),intent(in   ) :: f
   real(r_kind),dimension(nlevs)                 ,intent(  out) :: g
+  real(r_kind),dimension(nsig,nlevs)            ,intent(  out) :: dg_dz
 
 ! Declare local variables
   integer(i_kind) j,k,ix,ix1,iy,iy1,kk,itsig,itsigp,iz1,iz2
@@ -285,6 +288,8 @@ subroutine intrp3oz1(f,g,dx,dy,dz,obstime,nlevs,mype)
 !    Given horizontal (spatial) and temporal interpolate weights, loop 
 !    over the number of layered ozone observations at the given location
 
+     dg_dz = zero
+
      dz1=nsig+1
      do k=1,nlevs-1
         pob = dz(k)
@@ -312,6 +317,7 @@ subroutine intrp3oz1(f,g,dx,dy,dz,obstime,nlevs,mype)
                 + f(ixp,iy ,kk,itsigp)*w10*rozcon*delp6 &
                 + f(ix ,iyp,kk,itsigp)*w01*rozcon*delp7 &
                 + f(ixp,iyp,kk,itsigp)*w11*rozcon*delp8)*delz)*dtsigp  
+           dg_dz(kk,k) = rozcon*delz*(delp1+delp2+delp3+delp4+delp5+delp6+delp7+delp8) / 8._r_kind
         enddo
         dz1=pob
      enddo
@@ -337,6 +343,7 @@ subroutine intrp3oz1(f,g,dx,dy,dz,obstime,nlevs,mype)
              + f(ixp,iy ,kk,itsigp)*w10*rozcon*delp6 &
              + f(ix ,iyp,kk,itsigp)*w01*rozcon*delp7 &
              + f(ixp,iyp,kk,itsigp)*w11*rozcon*delp8)*dtsigp
+        dg_dz(kk,nlevs) = rozcon*(delp1+delp2+delp3+delp4+delp5+delp6+delp7+delp8) / 8._r_kind
      enddo
 
 ! End of routine

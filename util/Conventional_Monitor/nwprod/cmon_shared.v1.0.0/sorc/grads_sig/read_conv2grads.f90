@@ -28,13 +28,13 @@ subroutine read_conv2grads(ctype,stype,intype,target_nreal,nobs,isubtype,subtype
    character(8),allocatable,dimension(:)  :: cdiag 
 
    character(3)   :: dtype,ctype
-   character(2)   :: subtype 
+   character(3)   :: subtype 
    character(10)  :: stype,otype
    character(15)  :: fileo,fileo_subtyp
 
    integer nchar,file_nreal,i,ii,mype,idate,iflag,itype,iscater,igrads
    integer lunin,lunot,target_nreal,ldtype,intype,isubtype,jsubtype
-   integer nobs,idx
+   integer nobs,idx,ioff02
 
    data lunin / 11 /
 
@@ -49,7 +49,7 @@ subroutine read_conv2grads(ctype,stype,intype,target_nreal,nobs,isubtype,subtype
 
    loopd: do  
 
-      read(lunin,IOSTAT=iflag) dtype,nchar,file_nreal,ii,mype
+      read(lunin,IOSTAT=iflag) dtype,nchar,file_nreal,ii,mype,ioff02
       if( iflag /= 0 ) exit loopd
 
       if( trim(dtype) == trim(ctype) .and. file_nreal /= target_nreal ) then

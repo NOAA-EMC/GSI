@@ -2075,7 +2075,6 @@ end subroutine write_ghg_grid
     use guess_grids, only: isli2
     use general_commvars_mod, only: ltosi,ltosj
 
-    use obsmod,  only: iadate
     use constants, only: rad2deg
 
     implicit none

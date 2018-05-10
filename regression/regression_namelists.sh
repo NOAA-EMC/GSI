@@ -2168,7 +2168,7 @@ export gsi_namelist="
   obtimelnh=1.e30,obtimelsh=1.e30,obtimeltr=1.e30,
   saterrfact=1.0,numiter=1,
   sprd_tol=1.e30,paoverpb_thresh=0.98,
-  nlons=$LONA,nlats=$LATA,nlevs=$LEVS,nanals=$NMEM_ENKF,nvars=$NVARS,
+  nlons=$LONA,nlats=$LATA,nlevs=$LEVS,nanals=$NMEM_ENKF,
   deterministic=.true.,sortinc=.true.,lupd_satbiasc=$lupd_satbiasc,
   reducedgrid=.true.,readin_localization=.true.,
   $NAM_ENKF
