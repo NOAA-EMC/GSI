@@ -36,6 +36,9 @@ if [ $target = wcoss -o $target = cray ]; then
 elif [ $target = dell -o $target = wcoss_d ] ; then
     module use $dir_modules/
     module load RadMonBuild
+elif [ $target = theia ] ; then
+    module use -a $dir_modules
+    module load RadMonBuild
 else
     source $dir_modules/RadMonBuild
 fi
