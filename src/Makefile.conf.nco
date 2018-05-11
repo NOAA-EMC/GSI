@@ -47,12 +47,12 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
   FFLAGS_COM_N  = -I ./ -I $(CRTM_INC) -I $(SFCIO_INC4) -I $(SIGIO_INC4) \
   		-I $(NEMSIO_INC) -I $(NETCDF_INCLUDE) -I $(W3EMC_INCd) \
-                -O1 -convert big_endian -assume byterecl \
+                -O3 -convert big_endian -assume byterecl \
                 -implicitnone $(OMP) $(FFLAGS_COM)
 
   FFLAGS_COM_N_NOSWAP  = -I ./ -I $(CRTM_INC) -I $(SFCIO_INC4) -I $(SIGIO_INC4) \
   		       -I $(NEMSIO_INC) -I $(NETCDF_INCLUDE) -I $(W3EMC_INCd) \
-                       -O1 -convert big_endian -assume byterecl \
+                       -O3 -convert big_endian -assume byterecl \
                        -implicitnone $(OMP) $(FFLAGS_COM)
 
   FFLAGS_N  = $(FFLAGS_F90) $(FFLAGS_COM_N) $(PROF) 
