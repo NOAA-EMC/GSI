@@ -46,7 +46,6 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_cldchNode, only: cldchNode
   use m_cldchNode, only: cldchNode_appendto
   use m_obsdiags , only: cldchhead
-  !use m_obsLList , only: obsLList_appendNode
 
   use guess_grids, only: hrdifsig,nfldsig
   use obsmod, only: rmiss_single,i_cldch_ob_type,obsdiags,&
@@ -426,7 +425,6 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         allocate(my_head)
         call cldchNode_appendto(my_head,cldchhead(ibin))
-        !call obsLList_appendNode(cldchhead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

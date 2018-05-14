@@ -613,8 +613,9 @@ subroutine deepclean_(aNode,deep,depth,stat)
         endif
 
   else
-    ! Full-clean aNode itself, but not %llpoint.  This includes any dynamic
-    ! component of aNode defined in its type/endtype block.
+    ! Full-clean aNode itself, but not %llpoint.  This needs to be overriden
+    ! by obsNode extension types, to include deallocation of their dynamic
+    ! component, if any.
     call aNode%clean()
   endif
 

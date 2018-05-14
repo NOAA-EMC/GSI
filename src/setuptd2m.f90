@@ -47,7 +47,6 @@ subroutine setuptd2m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode , only: obsNode
   use m_td2mNode, only: td2mNode
   use m_td2mNode, only: td2mNode_appendto
-  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: rmiss_single,i_td2m_ob_type, & 
                     obs_diag,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated, & 
                     time_offset,bmiss,luse_obsdiag,ianldate
@@ -394,7 +393,6 @@ subroutine setuptd2m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         allocate(my_head)
         call td2mNode_appendto(my_head,td2mhead(ibin))
-        !call obsLList_appendNode(td2mhead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

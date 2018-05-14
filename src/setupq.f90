@@ -680,7 +680,6 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         allocate(my_head)
         call qNode_appendto(my_head,qhead(ibin))
-        !call obsLList_appendNode(qhead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)
@@ -779,7 +778,6 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
            allocate(my_head)
            call qNode_appendto(my_head,qhead(ibin))
-           !call obsLList_appendNode(qhead(ibin),my_head)
 
 !!! find qob 
            qob = data(iqob,i)

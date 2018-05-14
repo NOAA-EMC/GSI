@@ -116,7 +116,6 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use m_obsNode, only: obsNode
   use m_ozNode, only : ozNode, ozNode_typecast
   use m_ozNode, only : ozNode_appendto
-  !use m_obsLList, only : obsLList_appendNode
   use m_obsLList, only : obsLList_tailNode
   use obsmod, only : nloz_omi
   use obsmod, only : obs_diag,luse_obsdiag
@@ -600,7 +599,6 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
  
               allocate(my_head)
               call ozNode_appendto(my_head,ozhead(ibin))
-              !call obsLList_appendNode(ozhead(ibin),my_head)
 
               my_head%idv = is
               my_head%iob = ioid(i)
@@ -1020,7 +1018,6 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use m_obsNode, only: obsNode
   use m_o3lNode, only : o3lNode
   use m_o3lNode, only : o3lNode_appendto
-  !use m_obsLList, only : obsLList_appendNode
   use obsmod, only : obs_diag,luse_obsdiag
 
   use guess_grids, only : nfldsig,ges_lnprsl,hrdifsig
@@ -1416,7 +1413,6 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
         allocate(my_head)
         call o3lNode_appendto(my_head,o3lhead(ibin))
-        !call obsLList_appendNode(o3lhead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

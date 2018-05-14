@@ -59,7 +59,6 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode, only: obsNode
   use m_visNode, only: visNode
   use m_visNode, only: visNode_appendto
-  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: magoberr,maginnov,oneobtest
@@ -149,6 +148,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! If require guess vars available, extract from bundle ...
   call init_vars_
 
+  vis_errmax=5000.0_r_kind
 !*********************************************************************************
 ! Read and reformat observations in work arrays.
   read(lunin)data,luse,ioid
@@ -188,6 +188,8 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   set any observations larger than 20000.0 to be 20000.0
     if (data(ivis,i) > 20000.0_r_kind) data(ivis,i)=20000.0_r_kind
   end do
+  offtime_k=0.0_r_kind
+  offtime_l=0.0_r_kind
 
 ! if closest_obs=.true., choose the timely closest obs. among the multi-reports
 ! at a station.
@@ -432,7 +434,6 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         allocate(my_head)
         call visNode_appendto(my_head,vishead(ibin))
-        !call obsLList_appendNode(vishead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

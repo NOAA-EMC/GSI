@@ -100,7 +100,6 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode, only: obsNode
   use m_psNode, only: psNode
   use m_psNode, only: psNode_appendto
-  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin,min_offset
   use oneobmod, only: magoberr,maginnov,oneobtest
@@ -591,7 +590,6 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         allocate(my_head)
         call psNode_appendto(my_head,pshead(ibin))
-        !call obsLList_appendNode(pshead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

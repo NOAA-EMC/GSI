@@ -157,6 +157,7 @@ subroutine pcgsoi()
   use gsi_4dcouplermod, only : gsi_4dcoupler_grtests
   use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
   use gsi_io, only: verbose
+  use berror, only: vprecond
 
   use stpjomod, only: stpjo_setup
   use m_obsHeadBundle, only: obsHeadBundle
@@ -178,11 +179,11 @@ subroutine pcgsoi()
   real(r_double) pennorm
   real(r_quad) zjo
   real(r_quad) :: zdla
-  real(r_quad),dimension(3):: dprod
-  real(r_kind),dimension(2):: gnorm
+  real(r_quad),dimension(4):: dprod
+  real(r_kind),dimension(3):: gnorm
   real(r_kind) :: zgini,zfini,fjcost(4),fjcostnew(4),zgend,zfend
   real(r_kind) :: fjcost_e
-  type(control_vector) :: xhat,gradx,grady,dirx,diry,dirw,ydiff,xdiff
+  type(control_vector) :: xhat,gradx,grady,dirx,diry,ydiff,xdiff
   type(gsi_bundle) :: sval(nobs_bins), rval(nobs_bins)
   type(gsi_bundle) :: eval(ntlevs_ens)
   type(gsi_bundle) :: mval(nsubwin)
@@ -233,7 +234,7 @@ subroutine pcgsoi()
   lanlerr=.false.
   if ( twodvar_regional .and. jiter==1 ) lanlerr=.true.
 ! Allocate required memory and initialize fields
-  call init_(lanlerr)
+  call init_
   if(print_diag_pcg)call prt_guess('guess')
 
   if ( lanlerr .and. lgschmidt ) call init_mgram_schmidt
@@ -404,43 +405,66 @@ subroutine pcgsoi()
         end if
      end if
 
-!    Add potential additional preconditioner 
-     if(diag_precon)call precond(grady)
-
      if (iter==0 .and. print_diag_pcg) then
         call prt_control_norms(grady,'grady')
      endif
 
-     if (iter>0) gsave=gnorm(1)
-     b=zero
 !    Calculate new norm of gradients
-     if (lanlerr) then
-        dprod(1) = qdot_prod_sub(gradx,grady)
-        call mpl_allreduce(1,qpvals=dprod)
-        gnorm(1)=dprod(1)
-        gnorm(2)=gnorm(1)
+     if (iter>0) gsave=gnorm(3)
+     dprod(1) = qdot_prod_sub(gradx,grady)
+     if(diag_precon)then
+        if (lanlerr) then
+! xdiff used as a temporary array
+           do i=1,nclen
+              xdiff%values(i)=vprecond(i)*gradx%values(i)
+           end do
+           dprod(2) = qdot_prod_sub(xdiff,grady)
+           call mpl_allreduce(2,qpvals=dprod)
+           gnorm(2)=dprod(2)
+           gnorm(3)=dprod(2)
+        else
+           do i=1,nclen
+              xdiff%values(i)=vprecond(i)*(gradx%values(i)-xdiff%values(i))
+              ydiff%values(i)=vprecond(i)*(grady%values(i)-ydiff%values(i))
+           end do
+           dprod(2) = qdot_prod_sub(xdiff,grady)
+           dprod(3) = qdot_prod_sub(ydiff,gradx)
+! xdiff used as a temporary array
+           do i=1,nclen
+              xdiff%values(i)=vprecond(i)*gradx%values(i)
+           end do
+           dprod(4) = qdot_prod_sub(xdiff,grady)
+           call mpl_allreduce(4,qpvals=dprod)
+!          Two dot products in gnorm(2) should be same, but are slightly
+!          different due to round off, so use average.
+           gnorm(2)=0.5_r_quad*(dprod(2)+dprod(3))
+           gnorm(3)=dprod(4)
+        end if
      else
-        do i=1,nclen
-           xdiff%values(i)=gradx%values(i)-xdiff%values(i)
-           ydiff%values(i)=grady%values(i)-ydiff%values(i)
-        end do
-        dprod(1) = qdot_prod_sub(gradx,grady)
-        dprod(2) = qdot_prod_sub(xdiff,grady)
-        dprod(3) = qdot_prod_sub(ydiff,gradx)
-        call mpl_allreduce(3,qpvals=dprod)
-        gnorm(1)=dprod(1)
-
-!       Two dot products in gnorm(2) should be same, but are slightly 
-!       different due to round-off so use average.
-        gnorm(2)=0.5_r_quad*(dprod(2)+dprod(3))
-        do i=1,nclen
-           xdiff%values(i)=gradx%values(i)
-           ydiff%values(i)=grady%values(i)
-        end do
+        if (lanlerr) then
+           call mpl_allreduce(1,qpvals=dprod)
+           gnorm(2)=dprod(1)
+           gnorm(3)=dprod(1)
+        else
+           do i=1,nclen
+              xdiff%values(i)=gradx%values(i)-xdiff%values(i)
+              ydiff%values(i)=grady%values(i)-ydiff%values(i)
+           end do
+           dprod(2) = qdot_prod_sub(xdiff,grady)
+           dprod(3) = qdot_prod_sub(ydiff,gradx)
+           call mpl_allreduce(3,qpvals=dprod)
+!          Two dot products in gnorm(2) should be same, but are slightly
+!          different due to round off, so use average.
+           gnorm(2)=0.5_r_quad*(dprod(2)+dprod(3))
+           gnorm(3)=dprod(1)
+        end if
      end if
 
-     if(mype == 0)write(iout_iter,*)'Minimization iteration',iter
+     gnorm(1)=dprod(1)
+
+     b=zero
      if (gsave>1.e-16_r_kind .and. iter>0) b=gnorm(2)/gsave
+     if(mype == 0)write(iout_iter,*)'Minimization iteration',iter
      if (b<zero .or. b>five) then
         if (mype==0) then
            if (iout_6) write(6,105) gnorm(2),gsave,b
@@ -448,33 +472,35 @@ subroutine pcgsoi()
         endif
         b=zero
      endif
-     if (mype==0 .and. print_verbose) write(6,888)'pcgsoi: gnorm(1:2),b=',gnorm,b
+     if (mype==0 .and. print_verbose) write(6,888)'pcgsoi: gnorm(1:3),b=',gnorm,b
 
 !    Calculate new search direction
      if (.not. restart) then
-        if(diag_precon)then
-          do i=1,nclen
-             diry%values(i)=dirw%values(i)
-          end do
+       if(.not. lanlerr)then
+           do i=1,nclen
+              xdiff%values(i)=gradx%values(i)
+              ydiff%values(i)=grady%values(i)
+           end do
         end if
-        do i=1,nclen
-           dirx%values(i)=-grady%values(i)+b*dirx%values(i)
-           diry%values(i)=-gradx%values(i)+b*diry%values(i)
-        end do
         if(diag_precon)then
-          do i=1,nclen
-             dirw%values(i)=diry%values(i)
-          end do
-          call precond(diry)
+           do i=1,nclen
+              dirx%values(i)=-vprecond(i)*grady%values(i)+b*dirx%values(i)
+              diry%values(i)=-vprecond(i)*gradx%values(i)+b*diry%values(i)
+           end do
+        else
+           do i=1,nclen
+              dirx%values(i)=-grady%values(i)+b*dirx%values(i)
+              diry%values(i)=-gradx%values(i)+b*diry%values(i)
+           end do
         end if
      else
 !    If previous solution available, transfer into local arrays.
-        call read_guess_solution(dirx,diry,mype)
-        stp=one
-        if(.not. lanlerr)then
+        if( .not. lanlerr)then
            xdiff=zero
            ydiff=zero
         end if
+        call read_guess_solution(dirx,diry,mype)
+        stp=one
      endif
 
 !    Convert search direction from control space to physical space
@@ -624,7 +650,7 @@ subroutine pcgsoi()
      call penal(sval(1))
      xhatsave=zero
      yhatsave=zero
-     call clean_(lanlerr)
+     call clean_
      return
   endif
 
@@ -710,10 +736,6 @@ subroutine pcgsoi()
        end if
 
      end if
-
-!    Add potential additional preconditioner 
-     if(diag_precon)call precond(grady)
-
 
 ! Print final Jo table
      zgend=dot_product(gradx,grady,r_quad)
@@ -815,7 +837,7 @@ subroutine pcgsoi()
   call xhat_vordiv_clean
 
 ! Clean up major fields
-  call clean_(lanlerr)
+  call clean_
 
 ! Finalize timer
   call timer_fnl('pcgsoi')
@@ -825,7 +847,7 @@ subroutine pcgsoi()
 
 contains
 
-subroutine init_(lanlerr)
+subroutine init_
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    init_    initialize pcgsoi
@@ -848,7 +870,6 @@ subroutine init_(lanlerr)
 
   use jfunc, only: diag_precon
   implicit none
-  logical,intent(in):: lanlerr
 
 ! Allocate local variables
   call allocate_cv(xhat)
@@ -856,13 +877,8 @@ subroutine init_(lanlerr)
   call allocate_cv(grady)
   call allocate_cv(dirx)
   call allocate_cv(diry)
-  if(diag_precon)call allocate_cv(dirw)
-  if(.not. lanlerr)then
-     call allocate_cv(ydiff)
-     call allocate_cv(xdiff)
-     ydiff=zero
-     xdiff=zero
-  end if
+  call allocate_cv(ydiff)
+  call allocate_cv(xdiff)
   do ii=1,nobs_bins
      call allocate_state(sval(ii))
      call allocate_state(rval(ii))
@@ -881,13 +897,14 @@ subroutine init_(lanlerr)
   grady=zero
   dirx=zero
   diry=zero
-  if(diag_precon)dirw=zero
+  ydiff=zero
+  xdiff=zero
   xhat=zero
 
 
 end subroutine init_
 
-subroutine clean_(lanlerr)
+subroutine clean_
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    clean_    clean pcgsoi
@@ -911,20 +928,11 @@ subroutine clean_(lanlerr)
   use jfunc, only: diag_precon
   use m_obsdiags, only: obsdiags_reset
   use obsmod, only: destroyobs,lobsdiagsave
-  use mpeu_util, only: tell
   implicit none
-  logical,intent(in):: lanlerr
 
 ! Deallocate obs file
   if (.not.l4dvar) call destroyobs()      ! phasing out, by gradually reducing its funtionality
-!xx  if(mype==0) then
-!xx    call tell("pcgsoi::clean_","obsdiags_reset(), entering with l4dvar =",l4dvar)
-!xx    call tell("pcgsoi::clean_","                          lobsdiagsave =",lobsdiagsave)
-!xx  endif
   if (.not.l4dvar) call obsdiags_reset(obsdiags_keep=lobsdiagsave)   ! replacing destroyobs()
-!xx  if(mype==0) then
-!xx    call tell("pcgsoi::clean_","obsdiags_reset(), returned")
-!xx  endif
 
 ! Release state-vector memory
   call deallocate_cv(xhat)
@@ -932,11 +940,8 @@ subroutine clean_(lanlerr)
   call deallocate_cv(grady)
   call deallocate_cv(dirx)
   call deallocate_cv(diry)
-  if(diag_precon)call deallocate_cv(dirw)
-  if(.not. lanlerr)then
-     call deallocate_cv(ydiff)
-     call deallocate_cv(xdiff)
-  end if
+  call deallocate_cv(ydiff)
+  call deallocate_cv(xdiff)
  
 ! Release bias-predictor memory
   call deallocate_preds(sbias)

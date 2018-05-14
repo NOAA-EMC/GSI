@@ -22,7 +22,7 @@ export PROJECT=${PROJECT:-GDAS-T2O}
 #  JOB_QUEUE is used on wcoss only with the bjob -q flag.  It is 
 #  empty on other platforms.
 #
-export JOB_QUEUE=${JOB_QUEUE:-dev}
+export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
 
 #
 #  RAD_AREA is either glb (global) or rgn (regional)
@@ -135,3 +135,11 @@ export REGIONAL_RR=${REGIONAL_RR:-0}
 #  data source.  This is generally 6 hrs, but can be 3 or 1 hr for rapid refresh sources.
 #
 export CYCLE_INTERVAL=${CYCLE_INTERVAL:-6}
+
+#
+#  RUN_TRANSFER allows for an immediate invocation of the Transfer.sh script
+#  after plotting is complete.
+#
+#  0 = do not run transfer, 1 = run transfer
+#
+export RUN_TRANSFER=${RUN_TRANSFER:-0}

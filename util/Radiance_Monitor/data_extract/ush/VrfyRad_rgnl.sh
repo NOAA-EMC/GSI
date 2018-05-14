@@ -15,7 +15,6 @@ echo start VrfyRad_rgnl.sh
 #--------------------------------------------------------------------
 function usage {
   echo "Usage:  VrfyRad_rgnl.sh suffix [pdate] "
-  echo "            File name for VrfyRad_rgnl.sh can be full or relative path"
   echo "            Suffix is the indentifier for this data source."
   echo "            Pdate is the full YYYYMMDDHH cycle to run.  This param is optional"
 }
@@ -182,7 +181,7 @@ if [[ $RUN_ENVIR = dev ]]; then
    export com=${RADSTAT_LOCATION}
 
    if [[ $PDATE = "" ]]; then
-      pdate=`${DE_SCRIPTS}/find_cycle.pl 1 ${TANKverf}`
+      pdate=`${DE_SCRIPTS}/find_cycle.pl --cyc 1 --dir ${TANKverf}`
 
       if [[ ${#pdate} -ne 10 ]]; then
          echo "ERROR:  Unable to locate any previous cycle's data files"

@@ -58,7 +58,6 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   use m_obsNode, only: obsNode
   use m_pcpNode, only: pcpNode
   use m_pcpNode, only: pcpNode_appendto
-  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar,l4densvar
 
@@ -983,7 +982,6 @@ endif
 
         allocate(my_head)
         call pcpNode_appendto(my_head,pcphead(ibin))
-        !call obsLList_appendNode(pcphead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(n)

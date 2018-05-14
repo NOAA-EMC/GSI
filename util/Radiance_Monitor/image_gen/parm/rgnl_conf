@@ -12,8 +12,7 @@
 #
 # rename WEBDIR for this RADMON_SUFFIX
 #
-export WEBDIR=${WEBDIR}/regional/${RADMON_SUFFIX}
-
+export WEBDIR=${WEBDIR}/regional/${RADMON_SUFFIX}/pngs
 
 #
 # internal package reference   

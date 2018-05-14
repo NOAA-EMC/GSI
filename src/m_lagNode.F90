@@ -261,10 +261,13 @@ subroutine obsNode_setHop_(aNode)
   class(lagNode),intent(inout):: aNode
 
   character(len=*),parameter:: myname_=MYNAME//'::obsNode_setHop_'
+  real(r_kind) :: dum
 _ENTRY_(myname_)
   !-- yet to be defined
   call perr(myname_,'nothing about setHop has been defined')
   call  die(myname_)
+  !-- following is here to satisfy var-usage requirement
+  dum=aNode%elat
 _EXIT_(myname_)
 return
 end subroutine obsNode_setHop_

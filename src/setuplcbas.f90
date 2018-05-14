@@ -53,7 +53,6 @@ subroutine setuplcbas(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode  , only: obsNode
   use m_lcbasNode, only: lcbasNode
   use m_lcbasNode, only: lcbasNode_appendto
-  !use m_obsLList , only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: magoberr,maginnov,oneobtest
@@ -402,7 +401,6 @@ subroutine setuplcbas(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         allocate(my_head)
         call lcbasNode_appendto(my_head,lcbashead(ibin))
-        !call obsLList_appendNode(lcbashead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

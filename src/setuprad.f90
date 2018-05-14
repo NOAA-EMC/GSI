@@ -191,6 +191,7 @@
 !   2016-10-23  zhu     - add cloudy radiance assimilation for ATMS
 !   2017-02-09  guo     - Remove m_alloc, n_alloc.
 !                       . Remove my_node with corrected typecast().
+!   2017-07-27  kbathmann -introduce Rinv into the rstats computation for correlated error
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -233,7 +234,6 @@
   use m_obsNode, only: obsNode
   use m_radNode, only: radNode, radNode_typecast
   use m_radNode, only: radNode_appendto
-  !use m_obsLList, only: obsLList_appendNode
   use m_obsLList, only: obsLList_tailNode
   use obsmod, only: obs_diag,luse_obsdiag,dval_use
   use obsmod, only: netcdf_diag, binary_diag, dirname
@@ -260,7 +260,7 @@
   use qcmod, only: setup_tzr_qc,ifail_scanedge_qc,ifail_outside_range
   use state_vectors, only: svars3d, levels, svars2d, ns3d, nsdim
   use oneobmod, only: lsingleradob,obchan,oblat,oblon,oneob_type
-  use radinfo, only: radinfo_adjust_jacobian,radinfo_get_rsqrtinv 
+  use radinfo, only: radinfo_adjust_jacobian
   use radiance_mod, only: rad_obs_type,radiance_obstype_search,radiance_ex_obserr,radiance_ex_biascor
   use sparsearr, only: sparr2, new, writearray, size, fullarray
 
@@ -356,15 +356,15 @@
   real(r_kind),dimension(nsig+1):: prsitmp
   real(r_kind),dimension(nchanl):: weightmax
   real(r_kind),dimension(nchanl):: cld_rbc_idx
+  real(r_kind),dimension(nchanl):: Rinv
+  real(r_kind),dimension(nchanl,nchanl):: rsqrtinv
   real(r_kind) :: ptau5deriv, ptau5derivmax
   real(r_kind) :: clw_guess,clw_guess_retrieval
 ! real(r_kind) :: predchan6_save   
-  real(r_kind),dimension(:,:), allocatable :: rsqrtinv
 
   integer(i_kind),dimension(nchanl):: ich,id_qc,ich_diag
   integer(i_kind),dimension(nchanl):: kmax
   integer(i_kind):: iinstr
-  integer(i_kind) :: chan_count
   integer(i_kind),allocatable,dimension(:) :: sc_index
   integer(i_kind)  :: state_ind, nind, nnz
 
@@ -1496,7 +1496,6 @@
  
               allocate(my_head)
               call radNode_appendto(my_head,radhead(ibin))
-              !call obsLList_appendNode(radhead(ibin),my_head)
 
               my_head%idv = is
               my_head%iob = ioid(n)
@@ -1522,8 +1521,7 @@
               adaptinf = varinv ! on input
               obvarinv = error0 ! on input
               account_for_corr_obs = radinfo_adjust_jacobian (iinstr,isis,isfctype,nchanl,nsigradjac,ich,varinv,&
-                                                              utbc,obvarinv,adaptinf,wgtjo,jacobian)
-
+                                                              utbc,obvarinv,adaptinf,wgtjo,jacobian,Rinv,rsqrtinv)
               iii=0
               do ii=1,nchanl
                  m=ich(ii)
@@ -1575,39 +1573,30 @@
 
 !                   compute hessian contribution from Jo bias correction terms
                     if (newpc4pred .and. luse(n)) then
-                       do k=1,npred
-                          rstats(k,m)=rstats(k,m)+my_head%pred(k,iii) &
-                               *my_head%pred(k,iii)*varinv(ii)
-                       end do
+                       if (account_for_corr_obs) then
+                          do k=1,npred
+                             rstats(k,m)=rstats(k,m)+my_head%pred(k,iii) &
+                                  *my_head%pred(k,iii)*Rinv(iii)
+                          end do
+                       else
+                         do k=1,npred
+                             rstats(k,m)=rstats(k,m)+my_head%pred(k,iii) &
+                                  *my_head%pred(k,iii)*varinv(ii)
+                          end do
+                       end if
                     end if  ! end of newpc4pred loop
-
                  end if
               end do
               my_head%nchan  = iii         ! profile observation count
 
               my_head%use_corr_obs=.false.
               if (account_for_corr_obs) then
-                 chan_count=(my_head%nchan*(my_head%nchan+1))/2
-                 allocate(my_head%rsqrtinv(chan_count)) 
-                 allocate(rsqrtinv(my_head%nchan,my_head%nchan))
-                 my_head%rsqrtinv=zero
-                 rsqrtinv=zero
-                 call radinfo_get_rsqrtinv(nchanl,iinstr,my_head%nchan,my_head%icx,my_head%ich,&
-                      my_head%err2,rsqrtinv)
-                 chan_count=0
-                 do ii=1,my_head%nchan
-                    do jj=ii,my_head%nchan
-                       chan_count=chan_count+1
-                       my_head%rsqrtinv(chan_count)=rsqrtinv(ii,jj)
-                    end do
-                 end do
-                 deallocate(rsqrtinv)
+                 allocate(my_head%rsqrtinv(my_head%nchan,my_head%nchan))
+                 my_head%rsqrtinv(1:my_head%nchan,1:my_head%nchan)=rsqrtinv(1:my_head%nchan,1:my_head%nchan)
                  my_head%use_corr_obs=.true.
               end if
-
               my_head => null()
            end if ! icc
-
         endif ! (in_curbin)
 
 !       Link obs to diagnostics structure
@@ -1726,7 +1715,6 @@
            if(iccm > 0)then
               allocate(my_headm)
               call radNode_appendto(my_headm,radheadm(ibin))
-              !call obsLList_appendNode(radheadm(ibin),my_headm)
 
               my_headm%idv = is
               my_headm%iob = ioid(n)

@@ -47,7 +47,6 @@ subroutine setuppmsl(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode , only: obsNode
   use m_pmslNode, only: pmslNode
   use m_pmslNode, only: pmslNode_appendto
-  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: rmiss_single,i_pmsl_ob_type, & 
                     obs_diag,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated, & 
                     time_offset,bmiss,luse_obsdiag,ianldate
@@ -389,7 +388,6 @@ subroutine setuppmsl(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         allocate(my_head)
         call pmslNode_appendto(my_head,pmslhead(ibin))
-        !call obsLList_appendNode(pmslhead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

@@ -57,7 +57,6 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode, only: obsNode
   use m_gustNode, only: gustNode
   use m_gustNode, only: gustNode_appendto
-  !use m_obsLList, only: obsLlist_appendNode
   use obsmod, only: obs_diag,bmiss,luse_obsdiag
   use obsmod, only: netcdf_diag, binary_diag, dirname
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
@@ -557,7 +556,6 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         allocate(my_head)
         call gustNode_appendto(my_head,gusthead(ibin))
-        !call obsLList_appendNode(gusthead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

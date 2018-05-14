@@ -100,18 +100,18 @@ export DATA=${DATA:-$(pwd)}
 export COM_IN=${COMROOT}/${NET}/${envir}
 export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
 
-export HOMEgdas=${HOMEgdas:-${NWROOT}/gdas.${gdas_ver}}
-export FIXgdas=${FIXgdas:-$HOMEgdas/fix}
+#export HOMEgdas=${HOMEgdas:-${NWROOT}/gdas.${gdas_ver}}
+#export FIXgdas=${FIXgdas:-$HOMEgdas/fix}
 
-export HOMEradmon=${HOMEradmon:-/${NWROOT}/radmon_shared.v${radmon_shared_ver}}
-export EXECradmon=${EXECradmon:-$HOMEradmon/exec}
-export FIXradmon=${FIXradmon:-${HOMEradmon}/fix}
-export USHradmon=${USHradmon:-$HOMEradmon/ush}
+#export HOMEradmon=${HOMEradmon:-/${NWROOT}/radmon_shared.v${radmon_shared_ver}}
+#export EXECradmon=${EXECradmon:-$HOMEradmon/exec}
+#export FIXradmon=${FIXradmon:-${HOMEradmon}/fix}
+#export USHradmon=${USHradmon:-$HOMEradmon/ush}
 
 
 #  Filenames
-export biascr=${biascr:-$COMIN/gdas1.t${cyc}z.abias}
-export radstat=${radstat:-$COMIN/gdas1.t${cyc}z.radstat}
+export biascr=${biascr:-$COMIN/gdas.t${cyc}z.abias}
+export radstat=${radstat:-$COMIN/gdas.t${cyc}z.radstat}
 export satype_file=${satype_file:-gdas_radmon_satype.txt}
 
 #  Other variables
@@ -177,32 +177,25 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
       echo $radstat_satype
    fi
 
-   echo satype_file = $satype_file
   
    #------------------------------------------------------------------
    #  Get previous cycle's date, and look for the satype_file.  Using 
    #  the previous cycle will get us the previous day's directory if 
    #  the cycle being processed is 00z.
    #------------------------------------------------------------------
-   if [[ $CYC = "00" ]]; then
+   if [[ $cyc = "00" ]]; then
       use_tankdir=${TANKverf_radM1}
-#      pday=${PDYm1}
    else
       use_tankdir=${TANKverf_rad}
-#      pday=${PDY}
    fi
 
-   if [[ ! -e ${use_tankdir}/${satype_file} ]]; then
-      if [[ ! -e ${FIXgdas}/${satype_file} ]]; then 
-         export SATYPE=$radstat_satype
-         if [[ "$VERBOSE" = "YES" ]]; then
-            echo " ${satype_file} not found.  Adding it now using radstat file contents."
-         fi
-      else
-         export SATYPE=`cat ${FIXgdas}/${satype_file}`
-      fi
+   echo satype_file = $satype_file
+   if [[ -e ${FIXgdas}/${satype_file} ]]; then 
+      echo "using SATYPE as cat ${FIXgdas}/${satype_file}"
+      export SATYPE=`cat ${FIXgdas}/${satype_file}`
    else
-      export SATYPE=`cat ${use_tankdir}/${satype_file}`
+      echo "using SATYPE as $radstat_satype"
+      export SATYPE=$radstat_satype
    fi
 
 
@@ -226,11 +219,10 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
    done
 
    #------------------------------------------------------------------
-   #  If there is no satype_file in the current day's radmon.${PDY} 
-   #  directory or if changes have occurred in the SATYPE list, then 
-   #  add/update the satype_file.
+   #  If changes have occurred in the SATYPE list, then 
+   #  update the satype_file and journal a copy to TANKverf_rad.
    #------------------------------------------------------------------
-   if [[ ! -s ${TANKverf_rad}/${satype_file} || $satype_changes -eq 1 ]]; then
+   if [[ $satype_changes -eq 1 ]]; then
       if [[ ! -d ${TANKverf_rad} ]]; then
          mkdir -f ${TANKverf_rad}
       fi

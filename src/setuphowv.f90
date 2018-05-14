@@ -48,7 +48,6 @@ subroutine setuphowv(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode , only: obsNode
   use m_howvNode, only: howvNode
   use m_howvNode, only: howvNode_appendto
-  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: rmiss_single,i_howv_ob_type, & 
                     obs_diag,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated, & 
                     time_offset,bmiss,luse_obsdiag,ianldate
@@ -388,7 +387,6 @@ subroutine setuphowv(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         allocate(my_head)
         call howvNode_appendto(my_head,howvhead(ibin))
-        !call obsLList_appendNode(howvhead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

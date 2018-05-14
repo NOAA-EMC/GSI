@@ -42,6 +42,7 @@ this_dir=`dirname $0`
 RADMON_SUFFIX=$1
 
 echo RADMON_SUFFIX    = ${RADMON_SUFFIX}
+RUN=${RUN:-gdas}
 
 #--------------------------------------------------------------------
 #  Set plot_time if it is included as an argument.
@@ -145,7 +146,8 @@ mkdir -p $LOGdir
 # set PDATE to it.  Otherwise, determie the last cycle processed 
 # (into *.ieee_d files) and use that as the PDATE.
 #--------------------------------------------------------------------
-export PRODATE=`${IG_SCRIPTS}/find_cycle.pl 1 ${TANKDIR}`
+#export PRODATE=`${IG_SCRIPTS}/find_cycle.pl 1 ${TANKDIR}`
+export PRODATE=`${IG_SCRIPTS}/find_cycle.pl --cyc 1 --dir ${TANKDIR} --run ${RUN}`
 
 if [[ $plot_time != "" ]]; then
    export PDATE=$plot_time
@@ -323,6 +325,44 @@ if [[ $DO_DATA_RPT -eq 1 || $DO_DIAG_RPT -eq 1 ]]; then
       ${IG_SCRIPTS}/ck_missing_diags.sh ${PDATE} ${TANKDIR}
       ${IG_SCRIPTS}/extract_err_rpts.sh ${sdate} ${CYA} ${logfile}
    fi
+fi
+
+#----------------------------------------------------------------------
+#  Conditionally queue transfer to run
+# 
+#	None:  The $run_time is a one-hour delay to the Transfer job
+#  	       to ensure the plots are all finished prior to transfer.
+#----------------------------------------------------------------------
+if [[ $RUN_TRANSFER -eq 1 ]]; then
+
+   if [[ $MY_MACHINE = "wcoss" ]]; then
+      cmin=`date +%M`		# minute (MM)
+      ctime=`date +%G%m%d%H`	# YYYYMMDDHH
+      rtime=`$NDATE +1 $ctime`	# ctime + 1 hour
+
+      rhr=`echo $rtime|cut -c9-10`
+      run_time="$rhr:$cmin"	# HH:MM format for lsf (bsub command) 		
+
+      transfer_log=${LOGdir}/Transfer_${RADMON_SUFFIX}.log
+      TRANSFER_QUEUE=transfer
+
+      jobname=transfer_${RADMON_SUFFIX}
+      job="${IG_SCRIPTS}/Transfer.sh --nosrc --area $RAD_AREA ${RADMON_SUFFIX}"
+
+      if [[ $TANK_USE_RUN -eq 1 ]]; then
+         job="${job} --run $RUN"
+      fi
+      echo "job = $job"
+
+      $SUB -P $PROJECT -q $TRANSFER_QUEUE -o ${transfer_log} -M 80 -W 0:45 -R affinity[core] -J ${jobname} -cwd ${PWD} -b $run_time ${job}
+
+   else
+      ${IG_SCRIPTS}/Transfer.sh ${RADMON_SUFFIX} --nosrc \
+          1>/ptmpp1/Edward.Safford/logs/Transfer_${RADMON_SUFFIX}.log \
+          2>/ptmpp1/Edward.Safford/logs/Transfer_${RADMON_SUFFIX}.err
+fi
+
+
 fi
 
 #--------------------------------------------------------------------

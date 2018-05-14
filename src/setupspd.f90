@@ -96,7 +96,6 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode, only: obsNode
   use m_spdNode, only: spdNode
   use m_spdNode, only: spdNode_appendto
-  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use guess_grids, only: nfldsig,hrdifsig,ges_lnprsl, &
@@ -615,7 +614,6 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         allocate(my_head)
         call spdNode_appendto(my_head,spdhead(ibin))
-        !call obsLList_appendNode(spdhead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

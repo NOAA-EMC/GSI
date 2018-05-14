@@ -44,7 +44,6 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode, only: obsNode
   use m_lagNode, only: lagNode
   use m_lagNode, only: lagNode_appendto
-  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
 
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
@@ -468,7 +467,6 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
  
         allocate(my_head)
         call lagNode_appendto(my_head,laghead(ibin))
-        !call obsLList_appendNode(laghead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

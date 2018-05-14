@@ -20,7 +20,6 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode, only: obsNode
   use m_tNode, only: tNode
   use m_tNode, only: tNode_appendto
-  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin,min_offset
 
@@ -920,7 +919,6 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         allocate(my_head)
         call tNode_appendto(my_head,thead(ibin))
-        !call obsLList_appendNode(thead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)
@@ -1071,7 +1069,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
            allocate(my_head)
            call tNode_appendto(my_head,thead(ibin))
-           !call obsLList_appendNode(thead(ibin),my_head)
+
+           allocate(my_head%pred(npredt))
 
 !!! find tob (tint)
            tob=data(itob,i)

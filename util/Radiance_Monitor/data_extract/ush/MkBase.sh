@@ -17,23 +17,56 @@ set -ax
 date
 
 function usage {
-  echo "Usage:  MkBase.sh suffix [sat] 1>log 2>err"
+  echo "Usage:  MkBase.sh suffix [--sat SAT/INSTRUMENT --run gdas|gfs] " 
   echo "            Suffix is data source identifier that matches data in "
   echo "              the $TANKverf/stats directory."
-  echo "            Sat (optional) restricts the list of satellite sources."
-  echo "              No sat means all satellite sources will be included." 
+  echo ""
+  echo "            -s,--sat SAT/INSTRUMENT (optional) limits the action of"
+  echo "              MkBase.sh to processing only this specified source."
+  echo "              Not using --sat means all satellite sources will be"
+  echo "              included in the new base file." 
+  echo ""
+  echo "            -r,--run gdas|gfs (optional) specifies the run.  Use this"
+  echo "              if TANK_USE_RUN=1 in the parm/RadMon_user_settings file"
 }
 
 nargs=$#
-if [[ $nargs -lt 1 || $nargs -gt 2 ]]; then
+if [[ $nargs -lt 1 || $nargs -gt 5 ]]; then
    usage
    exit 1
 fi
 
-RADMON_SUFFIX=$1
+while [[ $# -ge 1 ]]
+do
+   key="$1"
+   echo $key
 
-if [[ $nargs -eq 2 ]]; then
-   SATYPE=$2
+   case $key in
+      -s|--sat)
+         export SATYPE="$2"
+         shift # past argument
+      ;;
+      -r|--run)
+         export RUN="$2"
+         shift # past argument
+      ;;
+      *)
+         #any unspecified key is RADMON_SUFFIX
+         export RADMON_SUFFIX=$key
+      ;;
+   esac
+
+   shift
+done
+
+echo "RADMON_SUFFIX = $RADMON_SUFFIX"
+echo "RUN           = $RUN"
+echo "SATYPE        = $SATYPE"
+satlen=`echo ${#SATYPE}`
+echo "satlen        = $satlen"
+
+SINGLE_SAT=0
+if [[ $satlen -gt 0 ]]; then
    SINGLE_SAT=1
 fi
 
@@ -45,7 +78,7 @@ this_dir=`dirname $0`
 #--------------------------------------------------------------------
 RAD_AREA=${RAD_AREA:-glb}
 area=$RAD_AREA
-echo $area, $REGIONAL_RR
+echo $area
 
 #------------------------------------------------------------------
 # Set environment variables.
@@ -81,19 +114,21 @@ fi
 
 REGIONAL_RR=${REGIONAL_RR:-0}
 echo "REGIONAL_RR   = $REGIONAL_RR"
-echo "CYCLE_ITERVAL = $CYCLE_INTERVAL"
+echo "CYCLE_INTERVAL = $CYCLE_INTERVAL"
 
 #-------------------------------------------------------------------
 #  Set dates
 #    BDATE is beginning date for the 30/60 day range
 #    EDATE is ending date for 30/60 day range (always use 00 cycle) 
 #-------------------------------------------------------------------
-EDATE=`${DE_SCRIPTS}/find_cycle.pl 1 ${TANKverf}`
+echo "TANKverf = $TANKverf"
+EDATE=`${DE_SCRIPTS}/find_cycle.pl --cyc 1 --dir ${TANKverf} --run $RUN`
 echo $EDATE
 
 sdate=`echo $EDATE|cut -c1-8`
 EDATE=${sdate}00
 BDATE=`$NDATE -1080 $EDATE`
+BDATE=`$NDATE -336 $EDATE`
 
 echo EDATE = $EDATE
 echo BDATE = $BDATE
@@ -113,8 +148,15 @@ if [[ $SINGLE_SAT -eq 0 ]]; then
    else
       PDY=`echo $EDATE|cut -c1-8`
 
-      if [[ -d ${TANKverf}/radmon.${PDY} ]]; then
-         test_list=`ls ${TANKverf}/radmon.${PDY}/angle.*${EDATE}.ieee_d*`
+      if [[ $TANK_USE_RUN -eq 1 ]]; then
+         testdir=${TANKverf}/${RUN}.${PDY}/radmon
+      else
+         testdir=${TANKverf}/radmon.${PDY}
+      fi
+      echo "testdir = $testdir"
+
+      if [[ -d ${testdir} ]]; then
+         test_list=`ls ${testdir}/angle.*${EDATE}.ieee_d*`
          for test in ${test_list}; do
             this_file=`basename $test`
             tmp=`echo "$this_file" | cut -d. -f2`
@@ -134,8 +176,8 @@ if [[ $SINGLE_SAT -eq 0 ]]; then
    fi
 fi
 
-echo $SATYPE
-
+echo SATYPE = $SATYPE
+echo TANK_USE_RUN = $TANK_USE_RUN
 
 #-------------------------------------------------------------------
 #  Loop over $SATYPE and build base files for each
@@ -178,11 +220,18 @@ for type in ${SATYPE}; do
 
       day=`echo $cdate | cut -c1-8 `
 
-      if [[ -d ${TANKverf}/radmon.${day} ]]; then
+      if [[ $TANK_USE_RUN -eq 1 ]]; then
+         testday=${TANKverf}/${RUN}.${day}/radmon
+      else
+         testday=${TANKverf}/radmon.${day}
+      fi
+      echo "testday = $testday"
+
+      if [[ -d ${testday} ]]; then
          if [[ $REGIONAL_RR -eq 1 ]]; then
-            test_file=${TANKverf}/radmon.${day}/${rgnHH}.time.${type}.${cdate}.ieee_d.${rgnTM}
+            test_file=${testday}/${rgnHH}.time.${type}.${cdate}.ieee_d.${rgnTM}
          else
-            test_file=${TANKverf}/radmon.${day}/time.${type}.${cdate}.ieee_d
+            test_file=${testday}/time.${type}.${cdate}.ieee_d
          fi
 
          if [[ -s $test_file ]]; then
@@ -198,14 +247,12 @@ for type in ${SATYPE}; do
 
 
 
-   test_file=${TANKverf}/radmon.${day}/time.${type}.ctl
+   test_file=${testday}/time.${type}.ctl
  
    if [[ -s ${test_file} ]]; then
-      $NCP $TANKverf/radmon.${day}/time.${type}.ctl ${type}.ctl
+      $NCP ${test_file} ${type}.ctl
    elif [[ -s ${test_file}.${Z} ]]; then
-      $NCP $TANKverf/radmon.${day}/time.${type}.ctl.${Z} ${type}.ctl.${Z}
-   else
-      $NCP $TANKverf/time/${type}.ctl* ./
+      $NCP $test_file.${Z} ${type}.ctl.${Z}
    fi
 
    ${UNCOMPRESS} *.${Z}
@@ -247,9 +294,6 @@ EOF
    #-------------------------------------------------------------------
    $NCP $out_file ${tmpdir}/.
 
-   #-------------------------------------------------------------------
-   #  Clean up
-   #-------------------------------------------------------------------
    cd $tmpdir
 
 done
@@ -282,7 +326,7 @@ else
          $UNCOMPRESS ${basefile}.${Z}
       fi
       tar -xvf ${basefile}
-      rm ${basefile}
+#      rm ${basefile}
    fi
 
    #  copy new *.base file from $tmpdir and build new $basefile (tar file)

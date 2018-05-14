@@ -43,7 +43,7 @@ module m_obsdiagNode
   private
         ! Primery behaviors:
   public:: obsdiagLList_reset   ! destructor + initializer
-  public:: obsdiagLList_rewind  ! destructor + initializer
+  public:: obsdiagLList_rewind  ! rewind an obsdiagLList
   public:: obsdiagLList_read    ! reader, for input
   public:: obsdiagLList_write   ! writer, for otuput
   public:: obsdiagLList_lsize   ! size inquiry

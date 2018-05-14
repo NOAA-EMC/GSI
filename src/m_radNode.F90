@@ -50,7 +50,7 @@ module m_radNode
      real(r_kind),dimension(:,:),pointer :: dtb_dvar => NULL()
                                       !  radiance jacobian (nsigradjac,nchan)
 
-     real(r_kind),dimension(:),pointer :: rsqrtinv => NULL()
+     real(r_kind),dimension(:,:),pointer :: rsqrtinv => NULL()
                                       !  square root of inverse of R, only used
                                       !  if using correlated obs
      integer(i_kind),dimension(:),pointer :: icx => NULL()
@@ -296,7 +296,7 @@ _ENTRY_(myname_)
                 end if
 
         if (aNode%use_corr_obs) then
-            allocate(aNode%rsqrtinv(nchan*(nchan+1)/2))
+            allocate(aNode%rsqrtinv(nchan,nchan))
             read(iunit,iostat=istat)    aNode%rsqrtinv
                 if (istat/=0) then
                   call perr(myname_,'read(%(rsqrtinv)), iostat =',istat)

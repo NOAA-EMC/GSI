@@ -54,7 +54,6 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   use m_obsNode , only : obsNode
   use m_pm10Node, only : pm10Node
   use m_pm10Node, only : pm10Node_appendto
-  !use m_obsLList, only : obsLList_appendNode
   use obsmod    , only : i_pm10_ob_type,time_offset
   use obsmod, only : obsdiags,lobsdiag_allocated,lobsdiagsave
   use obsmod, only : obs_diag,luse_obsdiag
@@ -600,7 +599,6 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
            
            allocate(my_head)
            call pm10Node_appendto(my_head,pm10head(ibin))
-           !call obsLList_appendNode(pm10head(ibin),my_head)
 
            my_head%idv = is
            my_head%iob = ioid(i)

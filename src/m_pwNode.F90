@@ -189,7 +189,6 @@ subroutine obsNode_clean_(aNode)
   class(pwNode),intent(inout):: aNode
 
   character(len=*),parameter:: myname_=MYNAME//'.obsNode_clean_'
-  integer(i_kind):: ier
 _ENTRY_(myname_)
 !_TRACEV_(myname_,'%mytype() =',aNode%mytype())
     if(associated(aNode%dp)) deallocate(aNode%dp)

@@ -297,13 +297,11 @@ subroutine lappendNode_(headLL,targetNode)
   use m_obsNode, only: nonNull => obsNode_nonNull
   implicit none
   type(obsLList), intent(inout):: headLL
-  !class(obsNode), target, intent(in):: targetNode
   class(obsNode), pointer, intent(in):: targetNode
 
   character(len=*),parameter:: myname_=MYNAME//'::lappendNode_'
 !_ENTRY_(myname_)
-        !ASSERT(nonNull(targetNode))
-        ASSERT(associated(targetNode))
+  ASSERT(associated(targetNode))
 
   if(.not.associated(headLL%head)) then
                 ! this is a fresh starting -node- for this linked-list ...

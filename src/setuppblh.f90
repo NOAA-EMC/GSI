@@ -58,7 +58,6 @@ subroutine setuppblh(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode, only: obsNode
   use m_pblhNode, only: pblhNode
   use m_pblhNode, only: pblhNode_appendto
-  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,bmiss,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: magoberr,maginnov,oneobtest
@@ -377,7 +376,6 @@ subroutine setuppblh(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         allocate(my_head)
         call pblhNode_appendto(my_head,pblhhead(ibin))
-        !call obsLList_appendNode(pblhhead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

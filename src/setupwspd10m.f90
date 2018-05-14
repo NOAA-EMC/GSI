@@ -55,7 +55,6 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode    , only: obsNode
   use m_wspd10mNode, only: wspd10mNode
   use m_wspd10mNode, only: wspd10mNode_appendto
-  !use m_obsLList   , only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: magoberr,maginnov,oneobtest
@@ -607,7 +606,6 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         allocate(my_head)
         call wspd10mNode_appendto(my_head,wspd10mhead(ibin))
-        !call obsLList_appendNode(wspd10mhead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)
