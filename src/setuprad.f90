@@ -233,7 +233,6 @@
   use m_obsNode, only: obsNode
   use m_radNode, only: radNode, radNode_typecast
   use m_radNode, only: radNode_appendto
-  !use m_obsLList, only: obsLList_appendNode
   use m_obsLList, only: obsLList_tailNode
   use obsmod, only: obs_diag,luse_obsdiag,dval_use
   use obsmod, only: netcdf_diag, binary_diag, dirname
@@ -1496,7 +1495,6 @@
  
               allocate(my_head)
               call radNode_appendto(my_head,radhead(ibin))
-              !call obsLList_appendNode(radhead(ibin),my_head)
 
               my_head%idv = is
               my_head%iob = ioid(n)
@@ -1726,7 +1724,6 @@
            if(iccm > 0)then
               allocate(my_headm)
               call radNode_appendto(my_headm,radheadm(ibin))
-              !call obsLList_appendNode(radheadm(ibin),my_headm)
 
               my_headm%idv = is
               my_headm%iob = ioid(n)

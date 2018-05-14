@@ -69,7 +69,6 @@
   use m_obsNode, only: obsNode
   use m_aeroNode, only: aeroNode, aeroNode_typecast
   use m_aeroNode, only: aeroNode_appendto
-  !use m_obsLList, only: obsLList_appendNode
   use m_obsLList, only: obsLList_tailNode
   use obsmod, only: rmiss_single
   use qcmod, only: ifail_crtm_qc

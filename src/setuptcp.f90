@@ -48,7 +48,6 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode, only: obsNode
   use m_tcpNode, only: tcpNode
   use m_tcpNode, only: tcpNode_appendto
-  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use qcmod, only: npres_print
@@ -416,7 +415,6 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         allocate(my_head)
         call tcpNode_appendto(my_head,tcphead(ibin))
-        !call obsLList_appendNode(tcphead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

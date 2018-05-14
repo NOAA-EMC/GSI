@@ -88,7 +88,6 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode, only: obsNode
   use m_pwNode, only: pwNode
   use m_pwNode, only: pwNode_appendto
-  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use constants, only: zero,one,tpwcon,r1000,r10, &
@@ -468,7 +467,6 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         allocate(my_head)
         call pwNode_appendto(my_head,pwhead(ibin))
-        !call obsLList_appendNode(pwhead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

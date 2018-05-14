@@ -50,7 +50,6 @@ subroutine setuptcamt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode  , only: obsNode
   use m_tcamtNode, only: tcamtNode
   use m_tcamtNode, only: tcamtNode_appendto
-  !use m_obsLlist , only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use obsmod, only: netcdf_diag, binary_diag, dirname
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
@@ -387,7 +386,6 @@ subroutine setuptcamt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         allocate(my_head)
         call tcamtNode_appendto(my_head,tcamthead(ibin))
-        !call obsLList_appendNode(tcamthead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

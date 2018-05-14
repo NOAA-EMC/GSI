@@ -129,7 +129,6 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   use m_obsNode, only: obsNode
   use m_gpsNode, only: gpsNode
   use m_gpsNode, only: gpsNode_appendto
-  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use guess_grids, only: ges_lnprsi,hrdifsig,geop_hgti,geop_hgtl,nfldsig,&
@@ -936,7 +935,6 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
  
            allocate(my_head)
            call gpsNode_appendto(my_head,gpshead(ibin))
-           !call obsLList_appendNode(gpshead(ibin),my_head)
 
            my_head%idv = is
            my_head%iob = ioid(i)

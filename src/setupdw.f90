@@ -37,7 +37,6 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode, only: obsNode
   use m_dwNode, only: dwNode
   use m_dwNode, only: dwNode_appendto
-  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use state_vectors, only: svars3d, levels, nsdim
@@ -194,7 +193,6 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   logical proceed
 
   logical:: in_curbin,in_anybin, save_jacobian
-  !class(obsNode),pointer:: my_node
   type(dwNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
   
@@ -631,9 +629,6 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
  
         allocate(my_head)
         call dwNode_appendto(my_head,dwhead(ibin))
-        !my_node => my_head        ! this is a workaround
-        !call obsLList_appendNode(dwhead(ibin),my_node)
-        !my_node => null()
 
         my_head%idv = is
         my_head%iob = ioid(i)

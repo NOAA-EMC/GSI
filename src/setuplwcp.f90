@@ -48,7 +48,6 @@ subroutine setuplwcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode, only: obsNode
   use m_lwcpNode, only: lwcpNode
   use m_lwcpNode, only: lwcpNode_appendto
-  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
 
@@ -499,7 +498,6 @@ subroutine setuplwcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         allocate(my_head)
         call lwcpNode_appendto(my_head,lwcphead(ibin))
-        !call obsLList_appendNode(lwcphead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

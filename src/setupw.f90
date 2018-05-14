@@ -22,7 +22,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode, only: obsNode
   use m_wNode, only: wNode
   use m_wNode, only: wNode_appendto
-  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use obsmod, only: netcdf_diag, binary_diag, dirname
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
@@ -1178,7 +1177,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         allocate(my_head)
         call wNode_appendto(my_head,whead(ibin))
-        !call obsLList_appendNode(whead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)
@@ -1301,7 +1299,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
            allocate(my_head)
            call wNode_appendto(my_head,whead(ibin))
-           !call obsLList_appendNode(whead(ibin),my_head)
 
 !!! find uob and vob 
            uob = data(iuob,i)

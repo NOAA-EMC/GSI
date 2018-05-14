@@ -61,7 +61,6 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   use m_obsNode, only: obsNode
   use m_pm2_5Node, only : pm2_5Node
   use m_pm2_5Node, only : pm2_5Node_appendto
-  !use m_obsLList, only : obsLList_appendNode
   use obsmod, only : i_pm2_5_ob_type,time_offset
   use obsmod, only : obsdiags,lobsdiag_allocated,lobsdiagsave
   use obsmod, only : obs_diag,luse_obsdiag,ianldate
@@ -605,7 +604,6 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
            
            allocate(my_head)
            call pm2_5Node_appendto(my_head,pm2_5head(ibin))
-           !call obsLList_appendNode(pm2_5head(ibin),my_head)
 
            my_head%idv = is
            my_head%iob = ioid(i)

@@ -75,7 +75,6 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
   use m_obsNode, only: obsNode
   use m_colvkNode, only : colvkNode, colvkNode_typecast
   use m_colvkNode, only : colvkNode_appendto
-  !use m_obsLList , only : obsLList_appendNode
   use m_obsLList , only : obsLList_tailNode
   use obsmod, only : obs_diag,luse_obsdiag
 
@@ -165,7 +164,6 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
   logical:: l_may_be_passive,proceed
 
   logical:: in_curbin, in_anybin
-  !class(obsNode),pointer:: my_node
   type(colvkNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
 
@@ -469,9 +467,6 @@ endif   ! (in_curbin)
    
              allocate(my_head)
              call colvkNode_appendto(my_head,colvkhead(ibin))
-             !my_node => my_head        ! this is a workaround
-             !call obsLList_appendNode(colvkhead(ibin),my_node)
-             !my_node => null()
 
              my_head%idv = is
              my_head%iob = ioid(i)

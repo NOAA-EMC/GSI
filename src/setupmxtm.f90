@@ -47,7 +47,6 @@ subroutine setupmxtm(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode , only: obsNode
   use m_mxtmNode, only: mxtmNode
   use m_mxtmNode, only: mxtmNode_appendto
-  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: rmiss_single,i_mxtm_ob_type, & 
                     obs_diag,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated, & 
                     time_offset,bmiss,luse_obsdiag,ianldate
@@ -392,7 +391,6 @@ subroutine setupmxtm(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         allocate(my_head)
         call mxtmNode_appendto(my_head,mxtmhead(ibin))
-        !call obsLList_appendNode(mxtmhead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

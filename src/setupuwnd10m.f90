@@ -49,7 +49,6 @@ subroutine setupuwnd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode    , only: obsNode
   use m_uwnd10mNode, only: uwnd10mNode
   use m_uwnd10mNode, only: uwnd10mNode_appendto
-  !use m_obsLList   , only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
   use obsmod, only: netcdf_diag, binary_diag, dirname, ianldate
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
@@ -621,7 +620,6 @@ subroutine setupuwnd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if (.not. last .and. muse(i)) then
         allocate(my_head)
         call uwnd10mNode_appendto(my_head,uwnd10mhead(ibin))
-        !call obsLList_appendNode(uwnd10mhead(ibin),my_head)
 
         my_head%idv = is
         my_head%iob = ioid(i)

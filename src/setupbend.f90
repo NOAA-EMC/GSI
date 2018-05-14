@@ -114,7 +114,6 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   use m_obsNode, only: obsNode
   use m_gpsNode , only: gpsNode
   use m_gpsNode , only: gpsNode_appendto
-  !use m_obsLList, only: obsLList_appendNode
   use obsmod, only: obs_diag,luse_obsdiag
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
