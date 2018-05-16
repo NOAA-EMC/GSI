@@ -24,6 +24,9 @@ else
 fi
 
 dir_modules=$dir_root/util/Ozone_Monitor/nwprod/oznmon_shared.v$ver/modulefiles/$target
+if [ $target = wcoss ]; then
+    dir_modules=$dir_root/util/Ozone_Monitor/nwprod/oznmon_shared.v$ver/modulefiles/ibm
+fi
 if [ ! -d $dir_modules ]; then
     echo "modulefiles does not exist in $dir_modules"
     exit 10
