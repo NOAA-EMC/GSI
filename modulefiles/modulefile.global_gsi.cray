@@ -23,6 +23,7 @@ set COMPILER intel
 
 setenv FFLAGS_COM "-fp-model strict"
 setenv LDFLAGS_COM " "
+setenv OMPFLAG "-openmp"
 
 set WRF_SHARED_VER v1.1.0
 set WRF_SHARED_ROOT /gpfs/hps/nco/ops/nwprod/wrf_shared
