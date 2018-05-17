@@ -231,9 +231,9 @@ $NCP *.sum.txt ${IMGNDIR}/summary/.
 #--------------------------------------------------------------------
 # Clean $tmpdir. 
 #
-#cd $tmpdir
-#cd ../
-#rm -rf $tmpdir
+cd $tmpdir
+cd ../
+rm -rf $tmpdir
 
 echo "End plot_summary.sh"
 

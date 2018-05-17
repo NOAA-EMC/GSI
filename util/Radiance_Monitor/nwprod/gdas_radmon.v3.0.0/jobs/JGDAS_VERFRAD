@@ -91,7 +91,7 @@ export USHradmon=${USHradmon:-$HOMEradmon/ush}
 #############################################
 # Run setpdy and initialize PDY variables
 #############################################
-if [[ $MY_MACHINE != "theia" ]]; then
+if [[ $MY_MACHINE != "THEIA" ]]; then
    setpdy.sh
    . ./PDY
 fi   
@@ -114,9 +114,9 @@ env
 # Set necessary environment variables
 ########################################
 export RAD_AREA=${RAD_AREA:-glb}
-
-export biascr=${biascr:-$COMIN/gdas1.t${cyc}z.abias}
-export radstat=${radstat:-$COMIN/gdas1.t${cyc}z.radstat}
+export CYCLE_INTERVAL=${CYCLE_INTERVAL:-6}
+export biascr=${biascr:-$COMIN/gdas.t${cyc}z.abias}
+export radstat=${radstat:-$COMIN/gdas.t${cyc}z.radstat}
 
 msg="JOB HAS STARTED"
 postmsg "$jlogfile" "$msg"
@@ -124,10 +124,17 @@ postmsg "$jlogfile" "$msg"
 ########################################################
 # Execute the script.
 ${RADMONSH:-${SCRgdas}/exgdas_vrfyrad.sh.ecf} ${PDY} ${cyc}
+
+err=$?
 ########################################################
 
-msg="JOB COMPLETED NORMALLY"
+if [[ ${err} -ne 0 ]]; then
+   msg="WARNING:  JOB DID NOT COMPLETE NORMALLY, error code $err"
+else
+   msg="JOB COMPLETED NORMALLY"
+fi
 postmsg "$jlogfile" "$msg"
+
 
 ################################
 # Remove the Working Directory

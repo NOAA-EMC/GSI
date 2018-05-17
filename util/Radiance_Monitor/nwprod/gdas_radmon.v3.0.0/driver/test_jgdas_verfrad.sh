@@ -42,12 +42,9 @@ export radmon_shared_ver=v2.0.2
 #############################################################
 . /usrx/local/Modules/3.2.9/init/ksh
 module use /nwprod2/modulefiles
-module load grib_util
+#module load grib_util
 module load prod_util
-module load util_shared
-
-#module unload ics/12.1
-#module load ics/15.0.3
+#module load util_shared
 
 module list
 

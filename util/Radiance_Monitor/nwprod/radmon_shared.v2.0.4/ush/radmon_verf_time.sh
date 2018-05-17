@@ -135,7 +135,6 @@ MAIL_TO=${MAIL_TO:-}
 MAIL_CC=${MAIL_CC:-}
 VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
-CYCLE_INTERVAL=${CYCLE_INTERVAL:-6}
 USE_MAIL=${USE_MAIL:-0}
 
 time_exec=radmon_time
@@ -195,6 +194,7 @@ if [[ $err -eq 0 ]]; then
 
       if [[ ! -s ${type} ]]; then
          echo "ZERO SIZED:  ${type}"
+	 echo ${type} >> ${diag}
          continue
       fi
 
@@ -233,8 +233,8 @@ cat << EOF > input
   imm=${imm},
   idd=${idd},
   ihh=${ihh},
-  idhh=-720
-  incr=${CYCLE_INTERVAL}
+  idhh=-720,
+  incr=${CYCLE_INTERVAL},
   nchanl=${nchanl},
   suffix='${RADMON_SUFFIX}',
   imkctl=${MAKE_CTL},
@@ -265,14 +265,14 @@ EOF
 
          if [[ -s ${data_file} ]]; then
             mv ${data_file} ${time_file}
-            mv ${time_file} $TANKverf_rad/.
-            ${COMPRESS} -f $TANKverf_rad/${time_file}
+            ${COMPRESS} -f  ${time_file}
+            mv ${time_file}* $TANKverf_rad/.
          fi
 
          if [[ -s ${ctl_file} ]]; then
             $NCP ${ctl_file} ${time_ctl}
-            $NCP ${time_ctl}  ${TANKverf_rad}/.
-            ${COMPRESS} -f ${TANKverf_rad}/${time_ctl}
+            ${COMPRESS} -f   ${time_ctl}
+            $NCP ${time_ctl}*  ${TANKverf_rad}/.
          fi
 
       done
@@ -293,7 +293,7 @@ fi
 ####################################################################
 
 if [[ $DO_DIAG_RPT -eq 1 ]]; then
-
+   echo "DOING DIAG RPT!!!"
 #  build the disclaimer and region files 
 
    cat << EOF > ${disclaimer}
@@ -382,12 +382,26 @@ if [[ $DO_DATA_RPT -eq 1 ]]; then
    prev_bad_pen=bad_pen.${qdate}
    prev_bad_chan=bad_chan.${qdate}
 
-   do_rpt=0
-   if [[ -s $bad_pen && -s ${TANKverf_radM1}/$prev_bad_pen ]]; then
-      do_rpt=1
+   if [[ $CYCLE == "00" ]]; then
+      prev_bad_pen=${TANKverf_radM1}/${prev_bad_pen}
+      prev_bad_chan=${TANKverf_radM1}/${prev_bad_chan}
+   else
+      prev_bad_pen=${TANKverf_rad}/${prev_bad_pen}
+      prev_bad_chan=${TANKverf_rad}/${prev_bad_chan}
    fi
-   if [[ -s $bad_chan && -s ${TANKverf_radM1}/$prev_bad_chan ]]; then
-      do_rpt=1
+
+   do_pen=0
+   do_chan=0
+   if [[ -s $bad_pen && -s $prev_bad_pen ]]; then
+      do_pen=1
+   fi
+
+   #--------------------------------------------------------------------  
+   # avoid doing the bad_chan report for REGIONAL_RR sources -- because
+   # they run hourly they often have 0 count channels for off-hour runs.
+   #
+   if [[ -s $bad_chan && -s $prev_bad_chan && REGIONAL_RR -eq 0 ]]; then
+      do_chan=1
    fi
 
 #--------------------------------------------------------------------
@@ -397,18 +411,21 @@ if [[ $DO_DATA_RPT -eq 1 ]]; then
    mv -f tmp.bad_pen $bad_pen
 
 
-   if [[ $do_rpt -eq 1 ]]; then
-#-------------------------------------------------------------------
-#  copy previous cycle's bad_chan and bad_pen files
-#
-   $NCP ${TANKverf_radM1}/${prev_bad_pen} ./
-   $NCP ${TANKverf_radM1}/${prev_bad_chan} ./
+   if [[ $do_pen -eq 1 || $do_chan -eq 1 ]]; then
 
-#-------------------------------------------------------------------
-#  run radmon_err_rpt.sh for chan and pen to create the error files
-#
-   ${radmon_err_rpt} ${prev_bad_pen} ${bad_pen} pen ${qdate} ${PDATE} ${diag_report} ${pen_err}
+      if [[ $do_pen -eq 1 ]]; then   
 
+         $NCP ${TANKverf_radM1}/${prev_bad_pen} ./
+         ${radmon_err_rpt} ${prev_bad_pen} ${bad_pen} pen ${qdate} \
+		${PDATE} ${diag_report} ${pen_err}
+      fi
+
+      if [[ $do_chan -eq 1 ]]; then   
+
+         $NCP ${TANKverf_radM1}/${prev_bad_chan} ./
+         ${radmon_err_rpt} ${prev_bad_chan} ${bad_chan} chan ${qdate} \
+		${PDATE} ${diag_report} ${chan_err}
+      fi
 
 #-------------------------------------------------------------------
 #  put together the unified error report with any obs, chan, and

@@ -20,7 +20,7 @@ export MONITOR=radmon
 # you checked out only the Radiance_Monitor portion of the branch then
 # MY_RADMON should point to that.
 #
-export MY_RADMON=${MY_RADMON:-/gpfs/hps3/emc/da/noscrub/Edward.Safford/RadMon_622/util/Radiance_Monitor}
+export MY_RADMON=${MY_RADMON:-/gpfs/gd2/emc/da/noscrub/Edward.Safford/ProdGSI/util/Radiance_Monitor}
 
 #
 #  The MY_TANKDIR will be the location for the extracted data files and
@@ -34,13 +34,19 @@ export RUN=${RUN:-gdas}
 
 export TANK_USE_RUN=${TANK_USE_RUN:-1}
 
-if [[ $RADMON_SUFFIX != "" && $RAD_AREA != "" ]]; then
-   export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/${RADMON_SUFFIX}}
-   export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/${RADMON_SUFFIX}}
-else
-   export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/regional/${RADMON_SUFFIX}}
-   export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/regional/${RADMON_SUFFIX}}
+TANKverf=${TANKverf:-${MY_TANKDIR}/stats}
+TANKimg=${TANKimg:-${MY_TANKDIR}/imgn}
+
+if [[ $RAD_AREA = "rgn" ]]; then
+   TANKverf=${TANKverf}/regional
+   TANKimg=${TANKimg}/regional
+   export RUN=""
+   export TANK_USE_RUN=""
 fi
+
+export TANKverf=${TANKverf}/${RADMON_SUFFIX}
+export TANKimg=${TANKimg}/${RADMON_SUFFIX}
+
 
 #
 #  Web server resources include the sever name (WEB_SVR), the user name
@@ -61,21 +67,26 @@ export WEBDIR=${WEBDIR:-/home/people/emc/www/htdocs/gmb/gdas/radiance/esafford}
 ###############################################################################
 ###############################################################################
 
-export MY_MACHINE=cray
+export MY_MACHINE=wcoss
 export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 
 
 #
 #  Log and work space definitions
 #
-export MY_PTMP=${MY_PTMP:-/gpfs/hps/ptmp}
+export MY_PTMP=${MY_PTMP:-/ptmpp1}
 export PTMP_USER=${PTMP_USER:-${MY_PTMP}/${LOGNAME}}
-export MY_STMP=${MY_STMP:-/gpfs/hps/stmp}
+export MY_STMP=${MY_STMP:-/stmpp1}
 export STMP_USER=${STMP_USER:-${MY_STMP}/${LOGNAME}}
 
 export LOGSverf_rad=${LOGSverf_rad:-${PTMP_USER}/logs}
 export LOGSverf=${LOGSverf_rad:-${PTMP_USER}/logs/rad${RADMON_SUFFIX}}
-export LOGdir=${LOGdir:-${PTMP_USER}/logs/rad${RADMON_SUFFIX}}
+
+LOGdir=${LOGdir:-${PTMP_USER}/logs/${RADMON_SUFFIX}}
+if [[ $TANK_USE_RUN -eq 1 ]]; then
+   LOGdir=${LOGdir}/${RUN}
+fi 
+export LOGdir=${LOGdir}/radmon
 
 export PLOT_WORK_DIR=${PLOT_WORK_DIR:-${STMP_USER}/plotjobs_${RADMON_SUFFIX}}
 export WORKverf_rad=${WORKverf_rad:-${STMP_USER}}
