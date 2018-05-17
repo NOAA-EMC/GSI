@@ -167,7 +167,7 @@ if [[ $RUN_ENVIR = dev ]]; then
    # Get date of cycle to process.
    #---------------------------------------------------------------
    if [[ $PDATE = "" ]]; then
-      pdate=`${DE_SCRIPTS}/find_cycle.pl 1 ${TANKverf}`
+      pdate=`${DE_SCRIPTS}/find_cycle.pl --cyc 1 --dir ${TANKverf}`
       if [[ ${#pdate} -ne 10 ]]; then
          echo "ERROR:  Unable to locate any previous cycle's data files"
          echo "        Please re-run this script with a specified starting cycle as the last argument"
@@ -188,8 +188,13 @@ if [[ $RUN_ENVIR = dev ]]; then
    if [[ -d ${DATDIR}/gdas.$PDY ]]; then
       export DATDIR=${DATDIR}/gdas.${PDY}
 
-      export biascr=$DATDIR/gdas1.t${CYC}z.abias  
-      export radstat=$DATDIR/gdas1.t${CYC}z.radstat
+      export biascr=$DATDIR/gdas.t${CYC}z.abias  
+      export radstat=$DATDIR/gdas.t${CYC}z.radstat
+   elif [[ -s ${DATDIR}/gdas.t${CYC}z.radstat ]]; then
+
+      export biascr=$DATDIR/gdas.t${CYC}z.abias  
+      export radstat=$DATDIR/gdas.t${CYC}z.radstat
+
    else
       export biascr=$DATDIR/biascr.gdas.${PDATE}  
       export radstat=$DATDIR/radstat.gdas.${PDATE}
@@ -254,7 +259,7 @@ if [[ -e ${radstat} ]]; then
    #  Advance the satype file from previous day.
    #  If it isn't found then create one using the contents of the radstat file.
    #----------------------------------------------------------------------------
-   export satype_file=${TANKverf}/info/${RUN}_radmon_satype.txt
+#   export satype_file=${TANKverf}/info/${RUN}_radmon_satype.txt
 
    if [[ $CYC = "00" ]]; then
       echo "Making new day directory for 00 cycle"
@@ -268,15 +273,15 @@ if [[ -e ${radstat} ]]; then
 #      fi
    fi 
 
-   echo "TESTING for $satype_file"
-   if [[ -s ${satype_file} ]]; then
-      echo "${satype_file} is good to go"
-   else
-      echo "CREATING satype file"
-      radstat_satype=`tar -tvf $radstat | grep _ges | awk -F_ '{ print $2 "_" $3 }'`
-      echo $radstat_satype > ${satype_file}
-      echo "CREATED ${satype_file}"
-   fi
+#   echo "TESTING for $satype_file"
+#   if [[ -s ${satype_file} ]]; then
+#      echo "${satype_file} is good to go"
+#   else
+#      echo "CREATING satype file"
+#      radstat_satype=`tar -tvf $radstat | grep _ges | awk -F_ '{ print $2 "_" $3 }'`
+#      echo $radstat_satype > ${satype_file}
+#      echo "CREATED ${satype_file}"
+#   fi
 
 #   export satype_file=${RADMON_SUFFIX}_radmon_satype.txt
    

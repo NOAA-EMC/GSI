@@ -3,12 +3,17 @@
 #-----------------------------------------------------------------------
 #  find_cycle.pl
 #
-#    Given a directory containing radmon.YYYYMMDDHH subdirectories,
-#      determine the first or last cycle for which ieee_d data files 
-#      exist. 
+#    Arguments:
+#       --dir     : Required string value containing  $TANKdir/$SUFFIX.
+#       --cyc     : Optional integer value:
+#                       1 = last cycle  (default)
+#                       2 = 2nd to last cycle
+#                       0 = first cycle
+#       --run     : Optional run name, generally 'gdas' or 'gfs'.
+#                   This should be used if $TANK_USE_RUN is set to 1.
 #
-#    Return that first/last cycle as a text string in YYYYMMDDHH format,
-#      or return nothing if none of the expected data files are found.
+#    Return the requested cycle time or nothing if none of the expected 
+#    	    data files are found.
 #
 #    NOTE:  This version has been modified to add case 2 returning
 #           the 2nd to latest cycle time.  This is to counter a timing 
@@ -17,7 +22,7 @@
 
     use strict;
     use warnings;
-
+    use Getopt::Long;
     use Scalar::Util qw(looks_like_number);
 
    #-------------------------------------------------------------------
@@ -41,16 +46,20 @@
    ##------------------------------------------------------------------
    ##------------------------------------------------------------------
 
-   if ($#ARGV != 1 ) {
-	print "usage: find_cycle.pl  0|1|2 /path_to_directory/containing/radmon.YYYYMMDDHH subdirectories. \n";
-        print "                0 = first, 1 = last, 2 = 2nd to last \n";
-	exit;
-   }
-   my $target = $ARGV[0];
-   my $dirpath = $ARGV[1];
+   my $run  = 'gdas';
+   my $dir  = '';
+   my $lcm  = 'radmon';
+   my $cyc  = '1';
+
+   GetOptions( 'cyc:i' => \$cyc,
+               'run:s' => \$run,
+               'dir=s' => \$dir,
+               'lcm:s' => \$lcm );
+
+   my $target  = $cyc;
+   my $dirpath = $dir;
    my @alldirs;
 
-   
    #  Get list of radmon.* sub-directories 
    #
    opendir(DIR, $dirpath) or die "Cannot open directory $!";

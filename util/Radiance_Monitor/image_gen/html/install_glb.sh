@@ -33,21 +33,21 @@ RAD_AREA="glb"
 this_file=`basename $0`
 this_dir=`dirname $0`
 
-top_parm=${this_dir}/../../parm
-
-if [[ -s ${top_parm}/RadMon_config ]]; then
-   . ${top_parm}/RadMon_config
-else
-   echo "ERROR:  Unable to source ${top_parm}/RadMon_config"
-   exit
-fi
-
-if [[ -s ${top_parm}/RadMon_user_settings ]]; then
-   . ${top_parm}/RadMon_user_settings
-else
-   echo "ERROR:  Unable to source ${top_parm}/RadMon_user_settings"
-   exit
-fi
+#top_parm=${this_dir}/../../parm
+#
+#if [[ -s ${top_parm}/RadMon_config ]]; then
+#   . ${top_parm}/RadMon_config
+#else
+#   echo "ERROR:  Unable to source ${top_parm}/RadMon_config"
+#   exit
+#fi
+#
+#if [[ -s ${top_parm}/RadMon_user_settings ]]; then
+#   . ${top_parm}/RadMon_user_settings
+#else
+#   echo "ERROR:  Unable to source ${top_parm}/RadMon_user_settings"
+#   exit
+#fi
 
 
 #--------------------------------------------------------------
@@ -85,7 +85,7 @@ cd $workdir
 #  Find the first date with data.  Start at today and work
 #  backwards.  Stop after 90 days and exit.
 #
-PDATE=`${IG_SCRIPTS}/find_cycle.pl 1 ${TANKverf}`
+PDATE=`${IG_SCRIPTS}/find_cycle.pl --dir ${TANKverf} --cyc 1`
 echo PDATE= $PDATE
 
 limit=`$NDATE -2160 $PDATE`		# 90 days

@@ -189,9 +189,9 @@ fi
 
 #--------------------------------------------------------------------
 # Clean $tmpdir.
-#cd $tmpdir
-#cd ../
-#rm -rf $tmpdir
+cd $tmpdir
+cd ../
+rm -rf $tmpdir
 
 echo "Exiting plot_time.sh"
 exit

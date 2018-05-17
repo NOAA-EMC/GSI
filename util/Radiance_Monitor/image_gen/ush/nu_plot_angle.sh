@@ -140,6 +140,6 @@ EOF
 done
 
 
-echo "Exiting nu_plot_time.sh"
+echo "Exiting nu_plot_angle.sh"
 exit
 
