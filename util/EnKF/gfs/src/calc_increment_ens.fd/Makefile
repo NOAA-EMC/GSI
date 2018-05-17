@@ -89,6 +89,7 @@ clean:
 	- $(RM) *.o *.mod
 	- $(RM) $(EXE_FILE) log.make.$(EXE_FILE)
 	- $(RM) $(PEXE_FILE) log.make.$(PEXE_FILE)
+	- $(RM) loadmap.txt
 
 #-----------------------------------------------------------------------------
 #                          -- Child make --
