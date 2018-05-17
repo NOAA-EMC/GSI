@@ -751,6 +751,7 @@ subroutine read_obs(ndata,mype)
     real(r_kind) gstime,val_dat,rmesh,twind,rseed
     real(r_kind),allocatable,dimension(:) :: prslsm,hgtlsm,work1
     real(r_kind),allocatable,dimension(:,:,:):: prsl_full,hgtl_full
+    integer(i_kind):: readRecReq,readEarsReq,readDbReq,istatus
 
     type(rad_obs_type) :: radmod
 
@@ -1068,9 +1069,9 @@ subroutine read_obs(ndata,mype)
 
 !   Distribute optimal number of reader tasks to all mpi tasks
     call mpi_allreduce(ntasks1,ntasks,ndat,mpi_integer,mpi_sum,mpi_comm_world,ierror)
-    call mpi_allreduce(read_rec1,read_rec,ndat,mpi_integer,mpi_sum,mpi_comm_world,ierror) 
-    call mpi_allreduce(read_ears_rec1,read_ears_rec,ndat,mpi_integer,mpi_sum,mpi_comm_world,ierror) 
-    call mpi_allreduce(read_db_rec1,read_db_rec,ndat,mpi_integer,mpi_sum,mpi_comm_world,ierror) 
+    call mpi_Iallreduce(read_rec1,read_rec,ndat,mpi_integer,mpi_sum,mpi_comm_world,readRecReq,ierror) 
+    call mpi_Iallreduce(read_ears_rec1,read_ears_rec,ndat,mpi_integer,mpi_sum,mpi_comm_world,readEarsReq,ierror) 
+    call mpi_Iallreduce(read_db_rec1,read_db_rec,ndat,mpi_integer,mpi_sum,mpi_comm_world,readDbReq,ierror) 
 
 !   Limit number of requested tasks per type to be <= total available tasks
     npemax=0
@@ -1169,6 +1170,9 @@ subroutine read_obs(ndata,mype)
 
     end do
     mype_airobst = mype_root
+    call MPI_Wait(readEarsReq,istatus,ierror)
+    call MPI_Wait(readRecReq,istatus,ierror)
+    call MPI_Wait(readDbReq,istatus,ierror)
     do ii=1,mmdat
        i=npe_order(ii)
        if(mype == 0 .and. npe_sub(i) > 0) write(6,'(1x,a,i4,1x,a,1x,2a,2i4,1x,i6,1x,i6,1x,i6)') &

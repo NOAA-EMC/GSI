@@ -1103,13 +1103,15 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
      enddo
   else
      allocate(powerx(subgrid_lengths_x,subgrid_lengths_y))
+!!$omp parallel do private(j,jj,i,ifull,sfc_mdl,jjj,iii,lat_mdl,lon_mdl),&
+!!$omp  shared(jstart,jend,y_off,rlats_sfc,itsfcp,itsfc,dtsfc,dtsfcp,subgrid_lengths_x,x_off,sfc_sum)
      do j = jstart, jend
         jj = j
         if (j > nlat_sfc/2) jj = nlat_sfc - j + 1
         do i = min_i(j), max_i(j)
            call reduce2full(i,j,ifull)
            call time_int_sfc(ifull,j,itsfc,itsfcp,dtsfc,dtsfcp,sfc_mdl)
-!$omp parallel do  schedule(dynamic,1)private(jjj,iii,lat_mdl,lon_mdl)
+!!!$omp parallel do  schedule(dynamic,1)private(jjj,iii,lat_mdl,lon_mdl)
            do jjj = 1, subgrid_lengths_y
               if (y_off(jjj) >= zero) then
                  lat_mdl = (one-y_off(jjj))*rlats_sfc(j)+y_off(jjj)*rlats_sfc(j+1)
@@ -1117,6 +1119,7 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
                  lat_mdl = (one+y_off(jjj))*rlats_sfc(j)-y_off(jjj)*rlats_sfc(j-1)
               endif
               lat_mdl = lat_mdl * rad2deg
+!!$omp parallel do  schedule(dynamic,1)private(iii,lon_mdl,lat_mdl)
               do iii = 1, subgrid_lengths_x
 !           Note, near greenwich, "i" index may be out of range.  that is
 !           ok here when calculating longitude even if the value is

@@ -105,7 +105,7 @@ project(GSI)
     setGeneric()
   endif()
 
-
+# set(CMAKE_SKIP_RPATH "TRUE")
   MESSAGE(${CMAKE_CURRENT_SOURCE_DIR})
   # make sure that the default is a RELEASE
   if (NOT CMAKE_BUILD_TYPE)
