@@ -281,8 +281,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 
   real(r_single),allocatable,dimension(:,:)::sdiag
   character(8),allocatable,dimension(:):: cdiag
-  integer(i_kind):: highGPSreq,superReq,istatus
-  logical:: first_loop
+  
   type(obs_diag), pointer :: obsptr => NULL()
   type(gps_ob_type), pointer:: gpsptr
   type(gps_all_ob_type), pointer:: gps_allptr
@@ -389,14 +388,16 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   super_gps = zero
   high_gps = zero
 ! Reduce sub-domain specifc superobs factors to global values for each profile
-  call mpi_Iallreduce(super_gps_sub,super_gps,nsig*nprof_gps,mpi_rtype,mpi_sum,&
-       mpi_comm_world,superReq,ierror)
+  call mpi_allreduce(super_gps_sub,super_gps,nsig*nprof_gps,mpi_rtype,mpi_sum,&
+       mpi_comm_world,ierror)
 
 ! Reduce sub-domain specific high_gps values to global values for each profile
-  if(regional) then
-    call mpi_Iallreduce(high_gps_sub,high_gps,nprof_gps,mpi_rtype,mpi_max,&
-       mpi_comm_world,highGPSreq,ierror)
-  endif
+  call mpi_allreduce(high_gps_sub,high_gps,nprof_gps,mpi_rtype,mpi_max,&
+       mpi_comm_world,ierror)
+
+! Convert high_gps from meters to kilometers
+  high_gps = r1em3*high_gps
+  
 
 ! If generating diagnostic output, need to determine dimension of output arrays.
   nreal=0
@@ -423,13 +424,11 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 
 ! Loop over data to apply final qc, superobs factors, accumulate
 ! statistics and (optionally) load diagnostic output arrays
-  call MPI_Wait(superReq,istatus,ierror)
   icnt=0
   DO ii=1,nobs_bins
      gps_allptr => gps_allhead(ii)%head
-     first_loop = .true.
      do while (associated(gps_allptr))
-        
+
 !       Load local work variables
         ratio_errors = gps_allptr%ratio_err
         data_ier     = gps_allptr%obserr
@@ -557,12 +556,6 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 !       Regional QC.  Remove obs if highest good obs in
 !       profile is below platform specific threshold height.
         if(regional) then
-           if(first_loop) then
-             call MPI_Wait(highGPSreq,istatus,ierror)
-           ! Convert high_gps from meters to kilometers
-             high_gps= r1em3*high_gps
-             first_loop = .false.
-           endif
            toss=.false.
            if(ratio_errors*data_ier > tiny_r_kind) then
              if(dtype==zero) then !refractivity
