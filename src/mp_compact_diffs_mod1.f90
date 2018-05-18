@@ -383,7 +383,6 @@ subroutine cdiff_sd2ew1(nlev,mype)
   nallsend_sd2ew=ndsend_sd2ew(npe+1)
   allocate(info_send_sd2ew(4,nallsend_sd2ew))
   nsend_sd2ew=0
-!$omp parallel do private(ilat,ilatm,ilat_1,ilat_2,i12,isig,ipe,ilon,ii0)
   do ivert=1,nlev
      do i=2,lat2-1
         ilat=i+istart(mm1)-2
