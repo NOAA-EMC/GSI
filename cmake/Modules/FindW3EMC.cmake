@@ -12,6 +12,8 @@ endif()
 if(DEFINED ENV{W3EMC_LIBd})
     set(W3EMC_LIBRARY $ENV{W3EMC_LIBd} )
     set(W3EMCINC $ENV{W3EMC_INCd} )
+    set(W3EMC_4_LIBRARY $ENV{W3EMC_LIB4} )
+    set(W3EMC4INC $ENV{W3EMC_INC4} )
     message("Setting W3EMC library via environment variable ${W3EMC_LIBRARY}")
 endif()
 
@@ -20,21 +22,34 @@ if((NOT BUILD_W3EMC ) AND ( NOT DEFINED W3EMC_LIBRARY ))
   if(DEFINED ENV{W3EMC_LIB} )
     set(W3EMC_LIBRARY $ENV{W3EMC_LIB} )
     set(W3EMCINC $ENV{W3EMC_INC} )
+    set(W3EMC_4_LIBRARY $ENV{W3EMC_LIB4} )
+    set(W3EMC4INC $ENV{W3EMC_INC4} )
     message("W3EMC library ${W3EMC_LIBRARY} set via Environment variable")
+    message("W3EMC_4 library ${W3EMC_4_LIBRARY} set via Environment variable")
   else()
     find_path( W3EMCINC 
       NAMES mersenne_twister.mod 
       HINTS 
-        $ENV{COREPATH}/lib/incmod/w3emc_4 
+        $ENV{COREPATH}/lib/incmod/w3emc_d
         $ENV{COREPATH}/include 
-        /usr/local/jcsda/nwprod_gdas_2014/lib/incmod/w3emc_4 
         ${COREPATH}/w3emc/v${W3EMC_VER}/incmod/w3emc_v${W3EMC_VER}_d
         ${COREPATH}/w3emc/v${W3EMC_VER}/intel/w3emc_v${W3EMC_VER}_d
         ${COREPATH}/w3emc/v${W3EMC_VER}/ips/${COMPILER_VERSION}/impi/${COMPILER_VERSION}/include/w3emc_v${W3EMC_VER}_d
         ${COREPATH}/w3emc/v${W3EMC_VER}/ips/${COMPILER_VERSION}/smpi/${COMPILER_VERSION}/include/w3emc_v${W3EMC_VER}_d
     )
+    find_path( W3EMC4INC 
+      NAMES mersenne_twister.mod 
+      HINTS 
+        $ENV{COREPATH}/lib/incmod/w3emc_4 
+        $ENV{COREPATH}/include 
+        /usr/local/jcsda/nwprod_gdas_2014/lib/incmod/w3emc_4 
+        ${COREPATH}/w3emc/v${W3EMC_VER}/incmod/w3emc_v${W3EMC_VER}_4
+        ${COREPATH}/w3emc/v${W3EMC_VER}/intel/w3emc_v${W3EMC_VER}_4
+        ${COREPATH}/w3emc/v${W3EMC_VER}/ips/${COMPILER_VERSION}/impi/${COMPILER_VERSION}/include/w3emc_v${W3EMC_VER}_4
+        ${COREPATH}/w3emc/v${W3EMC_VER}/ips/${COMPILER_VERSION}/smpi/${COMPILER_VERSION}/include/w3emc_v${W3EMC_VER}_4
+    )
     find_library( W3EMC_LIBRARY 
-    NAMES libw3emc_4.a libw3emc_i4r8.a libw3emc_v${W3EMC_VER}_d.a
+    NAMES libw3emc_d.a libw3emc_v${W3EMC_VER}_d.a
     HINTS 
       $ENV{COREPATH}/lib 
       /usr/local/jcsda/nwprod_gdas_2014	
@@ -45,8 +60,19 @@ if((NOT BUILD_W3EMC ) AND ( NOT DEFINED W3EMC_LIBRARY ))
     PATH_SUFFIXES
         lib
      ${NO_DEFAULT_PATH})
-    set( w3emc "w3emc_v${W3EMC_VER}")
-    message("Found W3EMC library ${W3EMC_LIBRARY}")
+    find_library( W3EMC_4_LIBRARY 
+    NAMES libw3emc_4.a libw3emc_i4r4.a libw3emc_v${W3EMC_VER}_4.a
+    HINTS 
+      $ENV{COREPATH}/lib 
+      /usr/local/jcsda/nwprod_gdas_2014	
+      ${COREPATH}/w3emc/v${W3EMC_VER}
+      ${COREPATH}/w3emc/v${W3EMC_VER}/intel
+      ${COREPATH}/w3emc/v${W3EMC_VER}/ips/${COMPILER_VERSION}/impi/${COMPILER_VERSION}
+      ${COREPATH}/w3emc/v${W3EMC_VER}/ips/${COMPILER_VERSION}/smpi/${COMPILER_VERSION}
+    PATH_SUFFIXES
+        lib
+     ${NO_DEFAULT_PATH})
+    message("Found W3EMC_4 library ${W3EMC_4_LIBRARY}")
   endif()
 endif()
 if( NOT W3EMC_LIBRARY ) # didn't find the library, so build it from source
@@ -84,4 +110,6 @@ endif()
 
 set( W3EMC_LIBRARY_PATH ${W3EMC_LIBRARY} CACHE STRING "W3EMC Library Location" )
 set( W3EMC_INCLUDE_PATH ${W3EMCINC} CACHE STRING "W3EMC Include Location" )
+set( W3EMC_4_LIBRARY_PATH ${W3EMC_4_LIBRARY} CACHE STRING "W3EMC_4 Library Location" )
+set( W3EMC_INCLUDE_4_PATH ${W3EMC4INC} CACHE STRING "W3EMC_4 Include Location" )
 
