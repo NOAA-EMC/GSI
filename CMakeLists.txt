@@ -162,7 +162,6 @@ project(GSI)
     add_subdirectory(libsrc/wrflib)
   else()
     message("libsrc/wrflib not pulled from git, looking for WRF dependencies locally")
-    message("libsrc/wrflib not pulled from git, looking for WRF dependencies locally")
     find_package( WRF )
   endif()
 
