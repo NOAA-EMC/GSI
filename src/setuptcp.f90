@@ -38,7 +38,10 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use sparsearr, only: sparr2, new, size, writearray, fullarray
   use kinds, only: r_kind,i_kind,r_single,r_double
   use m_obsdiags, only: tcphead
-  use obsmod, only: obsdiags,i_tcp_ob_type, &
+  use m_obsdiags, only: obsdiags
+  use m_obsdiagNode, only: obs_diag
+
+  use obsmod, only: i_tcp_ob_type, &
              nobskeep,lobsdiag_allocated,oberror_tune,perturb_obs, &
              time_offset,rmiss_single,lobsdiagsave,lobsdiag_forenkf,ianldate
   use obsmod, only: netcdf_diag, binary_diag, dirname
@@ -48,7 +51,7 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode, only: obsNode
   use m_tcpNode, only: tcpNode
   use m_tcpNode, only: tcpNode_appendto
-  use obsmod, only: obs_diag,luse_obsdiag
+  use obsmod, only: luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use qcmod, only: npres_print
   use guess_grids, only: ges_lnprsl,nfldsig,hrdifsig, &

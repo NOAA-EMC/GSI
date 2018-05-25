@@ -244,8 +244,9 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_single
+  use m_obsdiagNode, only: obs_diag
   use obsmod, only: nprof_gps,lobsdiag_forenkf
-  use obsmod, only: obs_diag,lobsdiagsave,luse_obsdiag
+  use obsmod, only: lobsdiagsave,luse_obsdiag
   use obsmod, only: binary_diag,netcdf_diag,dirname,ianldate
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
                           nc_diag_write, nc_diag_data2d

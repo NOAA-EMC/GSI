@@ -23,8 +23,8 @@ module m_lwcpNode
 !$$$  end subprogram documentation block
 
 ! module interface:
-  use obsmod, only: obs_diag
-  use obsmod, only: obs_diags
+  use m_obsdiagNode, only: obs_diag
+  use m_obsdiagNode, only: obs_diags
   use kinds , only: i_kind,r_kind
   use mpeu_util, only: assert_,die,perr,warn,tell
   use m_obsNode, only: obsNode

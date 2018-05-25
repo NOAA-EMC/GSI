@@ -74,12 +74,15 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   use guess_grids, only: dsfct,ntguessfc
   use m_obsdiags, only: ssthead
-  use obsmod, only: rmiss_single,i_sst_ob_type,obsdiags,&
+  use m_obsdiags, only: obsdiags
+  use m_obsdiagNode, only: obs_diag
+
+  use obsmod, only: rmiss_single,i_sst_ob_type,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use m_obsNode, only: obsNode
   use m_sstNode, only: sstNode
   use m_sstNode, only: sstNode_appendto
-  use obsmod, only: obs_diag,luse_obsdiag
+  use obsmod, only: luse_obsdiag
   use obsmod, only: netcdf_diag, binary_diag, dirname,ianldate
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d

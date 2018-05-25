@@ -27,6 +27,8 @@ module m_obsNode
   use kinds, only: i_kind,r_kind
   use mpeu_util, only: tell,perr,die
   use mpeu_util, only: assert_
+  use m_obsdiagNode, only: obs_diag
+  use m_obsdiagNode, only: obs_diags
   implicit none
   private	! except
   public:: obsNode		! data structure
@@ -136,7 +138,7 @@ module m_obsNode
   abstract interface
     subroutine intrfc_xread_(aNode,iunit,istat,diagLookup,skip)
       use kinds,only: i_kind
-      use obsmod, only: obs_diags
+      use m_obsdiagNode, only: obs_diags
       import:: obsNode
       implicit none
       class(obsNode), intent(inout):: aNode
@@ -613,9 +615,8 @@ subroutine deepclean_(aNode,deep,depth,stat)
         endif
 
   else
-    ! Full-clean aNode itself, but not %llpoint.  This needs to be overriden
-    ! by obsNode extension types, to include deallocation of their dynamic
-    ! component, if any.
+    ! Full-clean aNode itself, but not %llpoint.  This includes any dynamic
+    ! component of aNode defined in its type/endtype block.
     call aNode%clean()
   endif
 
@@ -689,8 +690,8 @@ subroutine read_(aNode,iunit,istat,redistr,diagLookup)
 !
 !$$$ end documentation block
   use m_obsdiagNode, only: obsdiagLookup_locate
-  use obsmod, only: obs_diag
-  use obsmod, only: obs_diags
+  use m_obsdiagNode, only: obs_diag
+  use m_obsdiagNode, only: obs_diags
   implicit none
   class(obsNode),intent(inout):: aNode
   integer(i_kind),intent(in   ):: iunit

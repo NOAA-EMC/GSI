@@ -52,13 +52,16 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
 
   use m_obsdiags, only: pcphead
+  use m_obsdiags, only: obsdiags
+  use m_obsdiagNode, only: obs_diag
+
   use obsmod, only: time_offset
-  use obsmod, only: i_pcp_ob_type,obsdiags,lobsdiagsave,ianldate
+  use obsmod, only: i_pcp_ob_type,lobsdiagsave,ianldate
   use obsmod, only: mype_diaghdr,nobskeep,lobsdiag_allocated,dirname
   use m_obsNode, only: obsNode
   use m_pcpNode, only: pcpNode
   use m_pcpNode, only: pcpNode_appendto
-  use obsmod, only: obs_diag,luse_obsdiag
+  use obsmod, only: luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar,l4densvar
 
   use gsi_metguess_mod, only: gsi_metguess_bundle

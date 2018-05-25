@@ -117,8 +117,8 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 ! use obsmod, only: mype_diaghdr
   use obsmod, only: nsat1,iadate,nobs_type,obscounts,&
        ndat,obs_setup,&
-       dirname,write_diag,ditype,obsdiags,lobserver,&
-       destroyobs,inquire_obsdiags,lobskeep,nobskeep,lobsdiag_allocated, &
+       dirname,write_diag,ditype,lobserver,&
+       destroyobs,lobskeep,nobskeep,lobsdiag_allocated, &
        luse_obsdiag
   use obsmod, only: lobsdiagsave
   use obsmod, only: binary_diag
@@ -163,10 +163,12 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
+  use m_obsdiags, only: obsdiags
   use m_obsdiags, only: obsdiags_reset
   use m_obsdiags, only: obsdiags_read
   use m_obsdiags, only: obsdiags_sort
   use m_obsdiags, only: obsdiags_write
+  use m_obsdiags, only: inquire_obsdiags => obsdiags_inquire
 
   use mpeu_util, only: die,warn,perr
   use mpeu_util, only: basename
@@ -326,13 +328,13 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
      if (lobsensfc .and. .not.lsensrecompute) then
         write(clfile(10:12),'(I3.3)') miter
         !call read_obsdiags(clfile)
-        call obsdiags_read(clfile,mPEs=mPEs_observer)      ! replacing read_obsdiags()
+        call obsdiags_read(clfile,mPEs=mPEs_observer,jiter_expected=miter)      ! replacing read_obsdiags()
         call inquire_obsdiags(miter)
      else if (getodiag) then
         if (.not.lobserver) then
            write(clfile(10:12),'(I3.3)') jiter
            !call read_obsdiags(clfile)
-           call obsdiags_read(clfile,mPEs=mPEs_observer)   ! replacing read_obsdiags()
+           call obsdiags_read(clfile,mPEs=mPEs_observer,jiter_expected=jiter)   ! replacing read_obsdiags()
            call inquire_obsdiags(miter)
         endif
      endif
@@ -695,8 +697,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
         ! finished their obsdiags_write().
     if(mPEs_observer>0) call MPI_Barrier(mpi_comm_world,ier)
 
-    call obsdiags_read('obsdiags.ttt',mPEs=mPEs_observer,force=.true., &
-        ignore_iter=.true.)
+    call obsdiags_read('obsdiags.ttt',mPEs=mPEs_observer,force=.true.)
     call inquire_obsdiags(miter)
   endif
 

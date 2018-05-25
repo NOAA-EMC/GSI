@@ -42,13 +42,16 @@ subroutine setuplwcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use guess_grids, only: ges_prsi,ges_prsl,ges_tsen,hrdifsig,nfldsig
   use gridmod, only: lat2,lon2,nsig,get_ij,latlon11
   use m_obsdiags, only: lwcphead
-  use obsmod, only: rmiss_single,i_lwcp_ob_type,obsdiags,lobsdiag_forenkf,ianldate,&
+  use m_obsdiags, only: obsdiags
+  use m_obsdiagNode, only: obs_diag
+
+  use obsmod, only: rmiss_single,i_lwcp_ob_type,lobsdiag_forenkf,ianldate,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use obsmod, only: l_wcp_cwm
   use m_obsNode, only: obsNode
   use m_lwcpNode, only: lwcpNode
   use m_lwcpNode, only: lwcpNode_appendto
-  use obsmod, only: obs_diag,luse_obsdiag
+  use obsmod, only: luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
 
   use obsmod, only: netcdf_diag, binary_diag, dirname

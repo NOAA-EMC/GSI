@@ -49,7 +49,9 @@ subroutine setuppblh(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   use guess_grids, only: hrdifsig,nfldsig
   use m_obsdiags, only: pblhhead
-  use obsmod, only: rmiss_single,i_pblh_ob_type,obsdiags,ianldate,&
+  use m_obsdiags, only: obsdiags
+  use m_obsdiagNode, only: obs_diag
+  use obsmod, only: rmiss_single,i_pblh_ob_type,ianldate,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use obsmod, only: netcdf_diag, binary_diag, dirname
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
@@ -58,7 +60,7 @@ subroutine setuppblh(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode, only: obsNode
   use m_pblhNode, only: pblhNode
   use m_pblhNode, only: pblhNode_appendto
-  use obsmod, only: obs_diag,bmiss,luse_obsdiag
+  use obsmod, only: bmiss,luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: magoberr,maginnov,oneobtest
   use gridmod, only: nsig

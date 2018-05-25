@@ -49,9 +49,9 @@
   use kinds, only: r_kind,r_single,i_kind
   use crtm_spccoeff, only: sc
   use obsmod, only: ianldate,mype_diaghdr,nchan_total, &
-           dplat,obsdiags,obsptr,lobsdiagsave,lobsdiag_allocated,&
+           dplat,lobsdiagsave,lobsdiag_allocated,&
            dirname,time_offset
-  use obsmod, only: obs_diag,luse_obsdiag
+  use obsmod, only: luse_obsdiag
   use obsmod, only: dirname
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d
@@ -66,6 +66,8 @@
        error_aero, gross_aero
   use obsmod, only: i_aero_ob_type
   use m_obsdiags, only: aerohead
+  use m_obsdiags, only: obsdiags
+  use m_obsdiagNode, only: obs_diag
   use m_obsNode, only: obsNode
   use m_aeroNode, only: aeroNode, aeroNode_typecast
   use m_aeroNode, only: aeroNode_appendto
@@ -135,7 +137,7 @@
 
   logical:: in_curbin, in_anybin
   type(aeroNode),pointer:: my_head
-  type(obs_diag),pointer:: my_diag
+  type(obs_diag),pointer:: my_diag, obsptr
   type(rad_obs_type) :: radmod
   character(len=*),parameter:: myname="setupaod"
 

@@ -15,12 +15,15 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use kinds, only: r_kind,r_single,r_double,i_kind
 
   use m_obsdiags, only: thead
+  use m_obsdiags, only: obsdiags
+  use m_obsdiagNode, only: obs_diag
+
   use obsmod, only: sfcmodel,perturb_obs,oberror_tune,lobsdiag_forenkf,ianldate,&
-       i_t_ob_type,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
+       i_t_ob_type,lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use m_obsNode, only: obsNode
   use m_tNode, only: tNode
   use m_tNode, only: tNode_appendto
-  use obsmod, only: obs_diag,luse_obsdiag
+  use obsmod, only: luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin,min_offset
 
   use obsmod, only: netcdf_diag, binary_diag, dirname

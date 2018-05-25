@@ -46,11 +46,13 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_cldchNode, only: cldchNode
   use m_cldchNode, only: cldchNode_appendto
   use m_obsdiags , only: cldchhead
+  use m_obsdiags , only: obsdiags
+  use m_obsdiagNode, only: obs_diag
 
   use guess_grids, only: hrdifsig,nfldsig
-  use obsmod, only: rmiss_single,i_cldch_ob_type,obsdiags,&
+  use obsmod, only: rmiss_single,i_cldch_ob_type,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,bmiss
-  use obsmod, only: obs_diag,luse_obsdiag,ianldate
+  use obsmod, only: luse_obsdiag,ianldate
   use obsmod, only: netcdf_diag, binary_diag, dirname
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d

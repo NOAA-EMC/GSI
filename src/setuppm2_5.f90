@@ -58,12 +58,15 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   use constants, only: r1000,rd,max_varname_length
 
   use m_obsdiags, only : pm2_5head
+  use m_obsdiags, only : obsdiags
+  use m_obsdiagNode, only : obs_diag
+
   use m_obsNode, only: obsNode
   use m_pm2_5Node, only : pm2_5Node
   use m_pm2_5Node, only : pm2_5Node_appendto
   use obsmod, only : i_pm2_5_ob_type,time_offset
-  use obsmod, only : obsdiags,lobsdiag_allocated,lobsdiagsave
-  use obsmod, only : obs_diag,luse_obsdiag,ianldate
+  use obsmod, only : lobsdiag_allocated,lobsdiagsave
+  use obsmod, only : luse_obsdiag,ianldate
 
   use obsmod, only: netcdf_diag, binary_diag, dirname
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &

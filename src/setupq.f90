@@ -110,13 +110,16 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use kinds, only: r_kind,r_single,r_double,i_kind
 
   use m_obsdiags, only: qhead
+  use m_obsdiags, only: obsdiags
+  use m_obsdiagNode, only: obs_diag
+
   use obsmod, only: rmiss_single,perturb_obs,oberror_tune,&
-       i_q_ob_type,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated,&
+       i_q_ob_type,lobsdiagsave,nobskeep,lobsdiag_allocated,&
        time_offset,lobsdiag_forenkf
   use m_obsNode, only: obsNode
   use m_qNode, only: qNode
   use m_qNode, only: qNode_appendto
-  use obsmod, only: obs_diag,luse_obsdiag,ianldate
+  use obsmod, only: luse_obsdiag,ianldate
   use obsmod, only: netcdf_diag, binary_diag, dirname
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d

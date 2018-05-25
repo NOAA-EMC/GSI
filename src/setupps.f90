@@ -94,13 +94,16 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use state_vectors, only: svars2d, levels, ns3d, nsdim
   use kinds, only: r_kind,r_single,r_double,i_kind
   use m_obsdiags, only: pshead
+  use m_obsdiags, only: obsdiags
+  use m_obsdiagNode, only: obs_diag
+
   use obsmod, only: rmiss_single,perturb_obs,oberror_tune,&
-                    i_ps_ob_type,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated,&
+                    i_ps_ob_type,lobsdiagsave,nobskeep,lobsdiag_allocated,&
                     time_offset,lobsdiag_forenkf,ianldate
   use m_obsNode, only: obsNode
   use m_psNode, only: psNode
   use m_psNode, only: psNode_appendto
-  use obsmod, only: obs_diag,luse_obsdiag
+  use obsmod, only: luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin,min_offset
   use oneobmod, only: magoberr,maginnov,oneobtest
   use obsmod, only: netcdf_diag, binary_diag, dirname

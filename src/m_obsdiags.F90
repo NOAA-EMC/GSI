@@ -42,13 +42,15 @@ module m_obsdiags
 
 ! module interface:
 
-  use kinds, only: i_kind
+  use kinds, only: i_kind, r_kind
   use mpeu_util, only: tell,warn,perr,die
   use mpeu_util, only: assert_
   use mpeu_util, only: stdout_open,stdout_close,stdout
   use mpeu_mpif, only: gsi_comm_world => MPI_comm_world
 
   use m_obsLList, only: obsLList
+  use m_obsdiagNode, only: obs_diag
+  use m_obsdiagNode, only: obs_diags
 
   use m_psNode   , only:    psNode !  1
   use m_tNode    , only:     tNode !  2
@@ -93,7 +95,7 @@ module m_obsdiags
   use m_obsNodeTypeManager, only: nobs_type
   use gsi_4dvar           , only: nobs_bins
 
-  use obsmod, only: obsdiags     ! (nobs_type,nobs_bins)
+  !use obsmod, only: obsdiags     ! (nobs_type,nobs_bins)
   implicit none
   private       ! except
 
@@ -109,8 +111,10 @@ module m_obsdiags
 
   public:: obsdiags_create
   public:: obsdiags_destroy
+  public:: obsdiags_inquire
         interface obsdiags_create ; module procedure  create_obsmod_vars; end interface
         interface obsdiags_destroy; module procedure destroy_obsmod_vars; end interface
+        interface obsdiags_inquire; module procedure inquire_obsdiags   ; end interface
 
   public:: obsdiags_summary
 
@@ -252,9 +256,8 @@ module m_obsdiags
   type(obsLList),dimension(:),pointer :: swcphead => null()
   type(obsLList),dimension(:),pointer :: lwcphead => null()
 
-  type(obsLList),dimension(:,:),pointer :: obsLLists => null()
-
-  !type(obs_diags),dimension(:,:),pointer :: obsdiags => null()  ! (nobs_type,nobs_bins)
+  type(obsLList ),dimension(:,:),pointer :: obsLLists => null()
+  type(obs_diags),dimension(:,:),pointer :: obsdiags  => null()  ! (nobs_type,nobs_bins)
 
 
 !#define DEBUG_TRACE
@@ -319,7 +322,7 @@ subroutine lobsdiags_statusCheck_(who,allocated)
   endif
 end subroutine lobsdiags_statusCheck_
 
-subroutine mread_(cdfile,mPEs,force,ignore_iter,alwaysLocal)
+subroutine mread_(cdfile,mPEs,force,jiter_expected,alwaysLocal)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    m_obdiags::mread_
@@ -372,7 +375,7 @@ subroutine mread_(cdfile,mPEs,force,ignore_iter,alwaysLocal)
   character(len=*), intent(in) :: cdfile          ! prefix, "obsdiags.<miter>"
   integer(i_kind),optional,intent(in):: mPEs      ! number of files, from 0 to mPEs-1
   logical        ,optional,intent(in):: force     ! force to read ob_types, regardless l4dvar etc.
-  logical        ,optional,intent(in):: ignore_iter ! ignore iter checking
+  integer(i_kind),optional,intent(in):: jiter_expected  ! expected input jiter
   logical        ,optional,intent(in):: alwaysLocal ! read all files
 
 ! ----------------------------------------------------------
@@ -460,7 +463,7 @@ _TIMER_ON_(myname_)
       if(alwaysLocal_.or.fileislocal) then
         call read_(cdfile,iPE,redistr,fileislocal=fileislocal, &
                 force=force, &
-                ignore_iter=ignore_iter, &
+                jiter_expected=jiter_expected, &
                 verbose=.not.alwaysLocal_.or.myPE==0, &
                 jread=jread)
       endif
@@ -491,7 +494,7 @@ _TIMER_ON_(myname_)
   else  ! of if(redistr)
     call read_(cdfile,myPE,redistr,fileislocal=.true., &
         force=force, &
-        ignore_iter=ignore_iter, &
+        jiter_expected=jiter_expected, &
         verbose=.true.)
 
   endif ! of if(redistr)
@@ -548,7 +551,7 @@ return
 end subroutine mread_
 
 subroutine reset_(obsdiags_keep)
-  use obsmod, only: obsdiags
+  !use obsmod, only: obsdiags
   use obsmod, only: luse_obsdiag
   use obsmod, only: lobsdiag_allocated
 
@@ -581,25 +584,29 @@ _ENTRY_(myname_)
 _TIMER_ON_(myname_)
 
 _TRACEV_(myname_,'lobsdiag_allocated   =',lobsdiag_allocated)
-
 _TRACEV_(myname_,'lobsdiags_allocated_ =',lobsdiags_allocated_)
-  if(luse_obsdiag) then
-    if(.not.lobsdiags_allocated_) then
-      lobsdiags_allocated_=.true.
-      if(.not.associated(obsdiags)) then; call die(myname_,'associated(obsdiags)=',associated(obsdiags)); endif
-      !allocate( obsdiags(nobs_type,nobs_bins))
-    endif
 
-    ASSERT(all(shape(obsdiags)==shape(obsLLists)))
-    ASSERT(size(obsdiags,1)==size(obsLLists,1))
-    ASSERT(size(obsdiags,2)==size(obsLLists,2))
+  ASSERT(nobs_type>0)
+  ASSERT(nobs_bins>0)
 
-  endif
+  ! Both objects, obsdiags and obsLLists are checked for their associated sizes
+  ! and allocated shapes, regardless luse_obsdiag or not.  This is to simplify
+  ! the algorithm logic.  The enforcements of (luse_obsdiag) are done on lower
+  ! levels only.
 
   if(.not.lobstypes_allocated_) then
     lobstypes_allocated_=.true.
-    if(.not.associated(obsLLists)) call die(myname_,'.not.associated(obsLLists)')
+    if(.not.associated(obsLLists)) call die(myname_,'unexpectedly, .not.associated(obsLLists)')
   endif
+
+  if(.not.lobsdiags_allocated_) then
+    lobsdiags_allocated_=.true.
+    if(.not.associated(obsdiags )) call die(myname_,'unexpectedly, .not.associated(obsdiags)')
+  endif
+
+  ASSERT(all(shape(obsdiags  )==shape(obsLLists  )))
+  ASSERT(     size(obsdiags,1)== size(obsLLists,1) )
+  ASSERT(     size(obsdiags,2)== size(obsLLists,2) )
 
   obsdiags_keep_=.false.
   if(present(obsdiags_keep)) obsdiags_keep_=obsdiags_keep
@@ -963,7 +970,7 @@ _EXIT_(myname_)
 return
 end subroutine write_
 
-subroutine read_(cdfile,iPE,redistr,fileislocal,force,ignore_iter,verbose,jread)
+subroutine read_(cdfile,iPE,redistr,fileislocal,force,jiter_expected,verbose,jread)
   use mpeu_util, only: tell,perr,die
   use mpeu_util, only: stdout
   use mpimod, only: mype
@@ -973,12 +980,12 @@ subroutine read_(cdfile,iPE,redistr,fileislocal,force,ignore_iter,verbose,jread)
   _TIMER_USE_
 
   use obsmod, only: lobserver
-  use obsmod, only: obs_diag
 
   use m_obsLList, only: obsLList_read
   use m_obsLList, only: obsLList_lsize
   use m_obsLList, only: obsLList_lcount
 
+  use m_obsdiagNode, only: obs_diag
   use m_obsdiagNode, only: obsdiagLList_read
   use m_obsdiagNode, only: obsdiagLList_lsize
   use m_obsdiagNode, only: obsdiagLList_lcount
@@ -992,7 +999,7 @@ subroutine read_(cdfile,iPE,redistr,fileislocal,force,ignore_iter,verbose,jread)
   logical         , intent(in ):: fileislocal   ! the file to read, is known local
 
   logical,optional, intent(in ):: force         ! (force to read ob_type data
-  logical,optional, intent(in ):: ignore_iter   ! ignore checking of iter
+  integer(i_kind ), optional, intent(in   ):: jiter_expected    ! expecte input jiter
   logical,optional, intent(in ):: verbose       ! report each reading
   integer(i_kind ), optional, intent(inout):: jread     ! jiter read from the input
 
@@ -1060,7 +1067,8 @@ _TIMER_ON_(myname_)
         nsize_diag_= obsdiagLList_lsize (obsdiags(jj,ii)                )
       endif
 
-      call obsdiagLList_read(obsdiags(jj,ii),iunit,redistr,jiter,miter,jj,ii,jread_,leadNode=leadNode,ignore_iter=ignore_iter)
+      call obsdiagLList_read(obsdiags(jj,ii),iunit,redistr,jiter,miter,jj,ii,jread_,leadNode=leadNode, &
+        jiter_expected=jiter_expected)
       if(present(jread)) then
         if(jread/=jread_) then
           if(jread>0) then
@@ -1351,8 +1359,10 @@ subroutine create_obsmod_vars()
 !$$$ end documentation block
     use gsi_4dvar, only: nobs_bins
     implicit none
-    !ALLOCATE(obsdiags(nobs_type,nobs_bins))
+    lobstypes_allocated_=.true.
+    lobsdiags_allocated_=.true.
     allocate(obsllists(nobs_type,nobs_bins))
+    allocate(obsdiags (nobs_type,nobs_bins))
     call aliasesCreate_()
     return
 end subroutine create_obsmod_vars
@@ -1362,7 +1372,77 @@ subroutine destroy_obsmod_vars()
   implicit none
   call aliasesDestroy_()
   deallocate(obsllists)
-  !deallocate(obsdiags)
+  deallocate(obsdiags )
+  lobstypes_allocated_=.false.
+  lobsdiags_allocated_=.false.
   return
 end subroutine destroy_obsmod_vars
+
+! ----------------------------------------------------------------------
+subroutine inquire_obsdiags(kiter)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    inquire_obsdiags
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-07  lueken - added  subprogram doc block
+!
+!   input argument list:
+!    kiter
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+use constants, only:  one,two,three,four,five
+use mpimod, only: mpi_max,mpi_comm_world,ierror,mype
+use mpeu_mpif, only: mpi_type, MPI_IKIND
+implicit none
+
+integer(i_kind), intent(in   ) :: kiter
+
+real(r_kind) :: sizei, sizer, sizel, sizep, ziter, zsize, ztot
+integer(i_kind) :: ii,jj,iobsa(2),iobsb(2)
+type(obs_diag), pointer :: obsptr => null()
+
+! Any better way to determine size or i_kind, r_kind, etc... ?
+sizei=four
+sizer=8.0_r_kind
+sizel=one
+sizep=four
+
+iobsa(:)=0
+do ii=1,size(obsdiags,2)
+   do jj=1,size(obsdiags,1)
+      obsptr => obsdiags(jj,ii)%head
+      do while (associated(obsptr))
+         iobsa(1)=iobsa(1)+1
+         if (ANY(obsptr%muse(:))) iobsa(2)=iobsa(2)+1
+         obsptr => obsptr%next
+      enddo
+   enddo
+enddo
+
+call mpi_reduce(iobsa,iobsb,2_MPI_IKIND,mpi_type(iobsa),mpi_max,0_MPI_IKIND,mpi_comm_world,ierror)
+
+if (mype==0) then
+   ziter=real(kiter,r_kind)
+   zsize = sizer*(three*ziter+two) + sizei + sizel*(ziter+one) + sizep*five
+   ztot=real(iobsb(1),r_kind)*zsize
+   ztot=ztot/(1024.0_r_kind*1024.0_r_kind)
+ 
+   write(6,*)'obsdiags: Bytes per element=',NINT(zsize)
+   write(6,*)'obsdiags: length total, used=',iobsb(1),iobsb(2)
+   write(6,'(A,F8.1,A)')'obsdiags: Estimated memory usage= ',ztot,' Mb'
+endif
+
+end subroutine inquire_obsdiags
+
 end module m_obsdiags

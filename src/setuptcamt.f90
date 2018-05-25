@@ -45,12 +45,15 @@ subroutine setuptcamt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   use guess_grids, only: hrdifsig,nfldsig
   use m_obsdiags, only: tcamthead
-  use obsmod, only: rmiss_single,i_tcamt_ob_type,obsdiags,ianldate,&
+  use m_obsdiags, only: obsdiags
+  use m_obsdiagNode, only: obs_diag
+
+  use obsmod, only: rmiss_single,i_tcamt_ob_type,ianldate,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use m_obsNode  , only: obsNode
   use m_tcamtNode, only: tcamtNode
   use m_tcamtNode, only: tcamtNode_appendto
-  use obsmod, only: obs_diag,luse_obsdiag
+  use obsmod, only: luse_obsdiag
   use obsmod, only: netcdf_diag, binary_diag, dirname
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d

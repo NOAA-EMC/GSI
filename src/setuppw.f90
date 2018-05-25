@@ -79,7 +79,10 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use guess_grids, only: ges_prsi,hrdifsig,nfldsig
   use gridmod, only: lat2,lon2,nsig,get_ij
   use m_obsdiags, only: pwhead
-  use obsmod, only: rmiss_single,i_pw_ob_type,obsdiags,lobsdiag_forenkf,ianldate,&
+  use m_obsdiags, only: obsdiags
+  use m_obsdiagNode, only: obs_diag
+
+  use obsmod, only: rmiss_single,i_pw_ob_type,lobsdiag_forenkf,ianldate,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use obsmod, only: netcdf_diag, binary_diag, dirname
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
@@ -88,7 +91,7 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode, only: obsNode
   use m_pwNode, only: pwNode
   use m_pwNode, only: pwNode_appendto
-  use obsmod, only: obs_diag,luse_obsdiag
+  use obsmod, only: luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use constants, only: zero,one,tpwcon,r1000,r10, &
        tiny_r_kind,three,half,two,cg_term,huge_single,&

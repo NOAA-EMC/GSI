@@ -26,8 +26,8 @@ subroutine evaljo(pjo,kobs,kprt,louter)
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: nobs_type,cobstype,obscounts
-  use obsmod, only: obsdiags
-  use obsmod, only: obs_diag
+  use m_obsdiags   , only: obsdiags
+  use m_obsdiagNode, only: obs_diag
   use gsi_4dvar, only: nobs_bins
   use constants, only: zero_quad
   use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_integer,mype

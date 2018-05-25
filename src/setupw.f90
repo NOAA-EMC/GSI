@@ -16,13 +16,16 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use state_vectors, only: svars3d, levels, nsdim
   use kinds, only: r_kind,r_single,r_double,i_kind
   use m_obsdiags, only: whead
+  use m_obsdiags, only: obsdiags
+  use m_obsdiagNode, only: obs_diag
+
   use obsmod, only: rmiss_single,perturb_obs,oberror_tune,lobsdiag_forenkf,&
-       i_w_ob_type,obsdiags,obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
+       i_w_ob_type,lobsdiagsave,nobskeep,lobsdiag_allocated,&
        time_offset,bmiss,ianldate
   use m_obsNode, only: obsNode
   use m_wNode, only: wNode
   use m_wNode, only: wNode_appendto
-  use obsmod, only: obs_diag,luse_obsdiag
+  use obsmod, only: luse_obsdiag
   use obsmod, only: netcdf_diag, binary_diag, dirname
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d
@@ -257,7 +260,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   logical:: in_curbin, in_anybin, save_jacobian
   type(wNode),pointer :: my_head
-  type(obs_diag),pointer :: my_diag
+  type(obs_diag),pointer :: my_diag, obsptr
   real(r_kind) :: thisPBL_height,ratio_PBL_height,prest,prestsfc,dudiffsfc,dvdiffsfc
   real(r_kind) :: hr_offset
 

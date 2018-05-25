@@ -44,12 +44,15 @@ subroutine setupvwnd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use guess_grids, only: hrdifsig,nfldsig,ges_lnprsl, &
                sfcmod_gfs,sfcmod_mm5,comp_fact10,pt_ll     
   use m_obsdiags, only: vwnd10mhead
-  use obsmod, only: rmiss_single,i_vwnd10m_ob_type,obsdiags, bmiss, &
+  use m_obsdiags, only: obsdiags
+  use m_obsdiagNode, only: obs_diag
+
+  use obsmod, only: rmiss_single,i_vwnd10m_ob_type, bmiss, &
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use m_obsNode    , only: obsNode
   use m_vwnd10mNode, only: vwnd10mNode
   use m_vwnd10mNode, only: vwnd10mNode_appendto
-  use obsmod, only: obs_diag,luse_obsdiag
+  use obsmod, only: luse_obsdiag
   use obsmod, only: netcdf_diag, binary_diag, dirname, ianldate
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d

@@ -25,7 +25,7 @@ module m_psNode
 ! module interface:
   use kinds , only: i_kind,r_kind
   use mpeu_util, only: assert_,die,perr,warn,tell
-  use obsmod, only: obs_diag
+  use m_obsdiagNode, only: obs_diag
   use m_obsNode, only: obsNode
   implicit none
   private
@@ -131,7 +131,7 @@ end function mytype
 
 subroutine obsNode_xread_(aNode,iunit,istat,diagLookup,skip)
   use m_obsdiagNode, only: obsdiagLookup_locate
-  use obsmod, only: obs_diags
+  use m_obsdiagNode, only: obs_diags
   implicit none
   class(psNode), intent(inout):: aNode
   integer(i_kind), intent(in   ):: iunit

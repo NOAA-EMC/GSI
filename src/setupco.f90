@@ -65,9 +65,11 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
                                                      ! use the ozone values for the moment
 
   use m_obsdiags, only : colvkhead
+  use m_obsdiags, only : obsdiags
+  use m_obsdiagNode, only : obs_diag
   use obsmod, only : i_colvk_ob_type,dplat,nobskeep
   use obsmod, only : mype_diaghdr,dirname,time_offset,ianldate
-  use obsmod, only : obsdiags,lobsdiag_allocated,lobsdiagsave
+  use obsmod, only : lobsdiag_allocated,lobsdiagsave
   use obsmod, only: dirname
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d
@@ -76,7 +78,7 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
   use m_colvkNode, only : colvkNode, colvkNode_typecast
   use m_colvkNode, only : colvkNode_appendto
   use m_obsLList , only : obsLList_tailNode
-  use obsmod, only : obs_diag,luse_obsdiag
+  use obsmod, only : luse_obsdiag
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
 

@@ -396,8 +396,8 @@ real(r_kind) function dot_prod_obs()
 !   machine:
 !
 !$$$ end documentation block
-use obsmod, only: obs_diag
-use obsmod, only: obsdiags
+use m_obsdiagNode, only: obs_diag
+use m_obsdiags, only: obsdiags
 implicit none
 
 integer(i_kind) :: ii,jj,ij,it

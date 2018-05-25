@@ -123,13 +123,16 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   use kinds, only: r_kind,i_kind
   use m_gpsStats, only: gps_allhead,gps_alltail
   use m_obsdiags, only: gpshead
+  use m_obsdiags, only: obsdiags
+  use m_obsdiagNode, only: obs_diag
+
   use obsmod, only: nprof_gps,&
-       i_gps_ob_type,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated,&
+       i_gps_ob_type,lobsdiagsave,nobskeep,lobsdiag_allocated,&
        time_offset,lobsdiag_forenkf
   use m_obsNode, only: obsNode
   use m_gpsNode, only: gpsNode
   use m_gpsNode, only: gpsNode_appendto
-  use obsmod, only: obs_diag,luse_obsdiag
+  use obsmod, only: luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use guess_grids, only: ges_lnprsi,hrdifsig,geop_hgti,geop_hgtl,nfldsig,&
        gpstop

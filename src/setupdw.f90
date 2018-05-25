@@ -27,17 +27,19 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
        wgtlim
   use constants, only: tiny_r_kind,half,cg_term,huge_single
 
-  use obsmod, only: rmiss_single,i_dw_ob_type,obsdiags,lobsdiag_forenkf
+  use obsmod, only: rmiss_single,i_dw_ob_type,lobsdiag_forenkf
   use obsmod, only: netcdf_diag, binary_diag, dirname, ianldate
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
   use m_obsdiags, only: dwhead
+  use m_obsdiags, only: obsdiags
+  use m_obsdiagNode, only: obs_diag
   use obsmod, only: lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use m_obsNode, only: obsNode
   use m_dwNode, only: dwNode
   use m_dwNode, only: dwNode_appendto
-  use obsmod, only: obs_diag,luse_obsdiag
+  use obsmod, only: luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use state_vectors, only: svars3d, levels, nsdim
 

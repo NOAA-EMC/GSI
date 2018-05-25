@@ -50,7 +50,10 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   use guess_grids, only: hrdifsig,nfldsig
   use m_obsdiags, only: vishead
-  use obsmod, only: rmiss_single,i_vis_ob_type,obsdiags,&
+  use m_obsdiags, only: obsdiags
+  use m_obsdiagNode, only: obs_diag
+
+  use obsmod, only: rmiss_single,i_vis_ob_type,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,bmiss
   use obsmod, only: netcdf_diag, binary_diag, dirname,ianldate
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
@@ -59,7 +62,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode, only: obsNode
   use m_visNode, only: visNode
   use m_visNode, only: visNode_appendto
-  use obsmod, only: obs_diag,luse_obsdiag
+  use obsmod, only: luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: magoberr,maginnov,oneobtest
   use gridmod, only: nsig

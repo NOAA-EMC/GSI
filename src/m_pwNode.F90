@@ -23,8 +23,8 @@ module m_pwNode
 !$$$  end subprogram documentation block
 
 ! module interface:
-  use obsmod, only: obs_diag
-  use obsmod, only: obs_diags
+  use m_obsdiagNode, only: obs_diag
+  use m_obsdiagNode, only: obs_diags
   use kinds , only: i_kind,r_kind
   use mpeu_util, only: assert_,die,perr,warn,tell
   use m_obsNode, only: obsNode
@@ -189,6 +189,7 @@ subroutine obsNode_clean_(aNode)
   class(pwNode),intent(inout):: aNode
 
   character(len=*),parameter:: myname_=MYNAME//'.obsNode_clean_'
+  integer(i_kind):: ier
 _ENTRY_(myname_)
 !_TRACEV_(myname_,'%mytype() =',aNode%mytype())
     if(associated(aNode%dp)) deallocate(aNode%dp)

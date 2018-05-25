@@ -227,15 +227,18 @@
   use guess_grids, only: sfcmod_gfs,sfcmod_mm5,comp_fact10
   use m_prad, only: radheadm
   use m_obsdiags, only: radhead
+  use m_obsdiags, only: obsdiags
+  use m_obsdiagNode, only: obs_diag
+
   use obsmod, only: ianldate,ndat,mype_diaghdr,nchan_total, &
       dplat,dtbduv_on,lobsdiag_forenkf,&
-      i_rad_ob_type,obsdiags,obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
+      i_rad_ob_type,lobsdiagsave,nobskeep,lobsdiag_allocated,&
       dirname,time_offset,lwrite_predterms,lwrite_peakwt,reduce_diag
   use m_obsNode, only: obsNode
   use m_radNode, only: radNode, radNode_typecast
   use m_radNode, only: radNode_appendto
   use m_obsLList, only: obsLList_tailNode
-  use obsmod, only: obs_diag,luse_obsdiag,dval_use
+  use obsmod, only: luse_obsdiag,dval_use
   use obsmod, only: netcdf_diag, binary_diag, dirname
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d, nc_diag_chaninfo_dim_set, nc_diag_chaninfo
@@ -376,7 +379,7 @@
   character(12) string
 
   type(radNode),pointer:: my_head,my_headm
-  type(obs_diag),pointer:: my_diag
+  type(obs_diag),pointer:: my_diag, obsptr
   type(rad_obs_type) :: radmod
 
   save_jacobian = rad_diagsave .and. jiter==jiterstart .and. lobsdiag_forenkf

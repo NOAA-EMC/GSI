@@ -33,14 +33,15 @@ module m_obsdiagNode
 
 ! module interface:
   use kinds , only: i_kind,r_kind
-  use obsmod, only: obs_diag
-  use obsmod, only: obs_diags
   use mpeu_util, only: assert_,tell,warn,perr,die
-#define _obsNode_   obs_diag
-#define _obsLList_  obs_diags
   implicit none
 
   private
+
+  public:: obs_diag
+  public:: obs_diags
+  public:: fptr_obsdiagNode
+
         ! Primery behaviors:
   public:: obsdiagLList_reset   ! destructor + initializer
   public:: obsdiagLList_rewind  ! rewind an obsdiagLList
@@ -84,17 +85,38 @@ module m_obsdiagNode
   public:: obsdiagNode_next
         interface obsdiagNode_next  ; module procedure   obsNode_next_; end interface
 
-  !public:: fptr_obsdiagNode
+  type obs_diag
+     type(obs_diag), pointer :: next => NULL()
+     real(r_kind), pointer :: nldepart(:) => null()    ! (miter+1)
+     real(r_kind), pointer :: tldepart(:) => null()    ! (miter)
+     real(r_kind), pointer :: obssen(:)   => null()    ! (miter)
+     real(r_kind) :: wgtjo
+     real(r_kind) :: elat, elon         ! earth lat-lon for redistribution
+     integer(i_kind) :: indxglb         ! a combined index similar to (ich,iob)
+     integer(i_kind) :: nchnperobs      ! number of channels per observations
+     integer(i_kind) :: idv,iob,ich     ! device, obs., and channel indices
+     logical, pointer :: muse(:)          => null()    ! (miter+1), according the setup()s
+     logical :: luse
+  end type obs_diag
 
-  type fptr_obsdiagNode
-    type(obs_diag),pointer:: node
+  type fptr_obsdiagNode         ! Fortran array element of a type(obs_diag) pointer
+    type(obs_diag),pointer:: ptr => null()
   end type fptr_obsdiagNode
 
+  type:: obs_diags
+     integer(i_kind):: n_alloc=0
+     type(obs_diag), pointer :: head => NULL()
+     type(obs_diag), pointer :: tail => NULL()
+     type(fptr_obsdiagNode), allocatable, dimension(:):: lookup
+  end type obs_diags
 
 #include "myassert.H"
 #include "mytrace.H"
 
   character(len=*),parameter:: myname="m_obsdiagNode"
+
+#define _obsNode_   obs_diag
+#define _obsLList_  obs_diags
 
 contains
 subroutine lwrite_(diagLL,iunit,luseonly,jiter,miter,jj_type,ii_bin,luseRange)
@@ -230,10 +252,8 @@ _EXIT_(myname_)
 return
 end subroutine ldump_
 
-subroutine lread_(diagLL,iunit,redistr,jiter,miter,jj_type,ii_bin,jread,leadNode,ignore_iter)
+subroutine lread_(diagLL,iunit,redistr,jiter,miter,jj_type,ii_bin,jread,leadNode,jiter_expected)
 !_TIMER_USE_
-  use obsmod, only: lobserver
-  use obs_sensitivity, only: lobsensfc, lsensrecompute
   implicit none
   type(_obsLList_),intent(inout):: diagLL
   integer(kind=i_kind),intent(in   ):: iunit
@@ -243,18 +263,21 @@ subroutine lread_(diagLL,iunit,redistr,jiter,miter,jj_type,ii_bin,jread,leadNode
   integer(kind=i_kind),intent(in   ):: jj_type, ii_bin
   integer(kind=i_kind),intent(  out):: jread
   type(_obsNode_), pointer, intent(out):: leadNode
-  logical    ,optional,intent(in   ):: ignore_iter
+
+  integer(kind=i_kind),intent(in),optional:: jiter_expected
 
   character(len=*),parameter:: myname_=myname//"::lread_"
-  integer(kind=i_kind):: ki,kj,kobs,kiter,miter_read
+  integer(kind=i_kind):: ki,kj,kobs
+  integer(kind=i_kind):: kiter,miter_read
+        ! jiter : current iter count
+        ! miter : maximum iter size
+        ! kiter(read): current iter count as it was written
+        ! miter_read : maximum iter size as it was written
   integer(kind=i_kind):: kk,istat
   type(_obsNode_), pointer:: aNode
-  logical:: ignore_iter_
 _ENTRY_(myname_)
 !_TIMER_ON_(myname_)
 !call timer_ini(myname_)
-      ignore_iter_=.false.
-      if(present(ignore_iter)) ignore_iter_=ignore_iter
 
       call obsHeader_read_(iunit,ki,kj,kobs,kiter,miter_read,istat)
                 if(istat/=0) then
@@ -274,35 +297,19 @@ _ENTRY_(myname_)
         call  die(myname_)
       endif
 
-    if(.not.ignore_iter_) then
-      if (lobsensfc.and..not.lsensrecompute) then       ! a backward iter
-        if(kiter/=miter) then
-          call perr(myname_,'obsHeader_read_(), unexpected header value, kiter =',kiter)
-          call perr(myname_,'                                  expecting miter =',miter)
-          call perr(myname_,'                                        lobsensfc =',lobsensfc)
-          call perr(myname_,'                                   lsensrecompute =',lsensrecompute)
-          call  die(myname_)
-        endif
-
-      else if (lobserver) then  ! a forward iter
-        if(kiter/=jiter-1) then
-          call perr(myname_,'obsHeader_read_(), unexpected header value, kiter =',kiter)
-          call perr(myname_,'                                expecting jiter-1 =',jiter-1)
-          call perr(myname_,'                                        lobserver =',lobserver)
-          call  die(myname_)
-        endif
-
-      else
-        if(kiter/=jiter) then   ! the same iter
-          call perr(myname_,'obsHeader_read_(), unexpected header value, kiter =',kiter)
-          call perr(myname_,'                                  expecting jiter =',jiter)
-          call perr(myname_,'                                        lobserver =',lobserver)
-          call  die(myname_)
+      if(present(jiter_expected)) then
+        if(jiter_expected>=0) then
+          if(kiter/=jiter_expected) then
+            call perr(myname_,'obsHeader_read_(), unexpected input jiter =',kiter)
+            call perr(myname_,'                         with input miter =',miter_read)
+            call perr(myname_,'                    expecting input jiter =',jiter_expected)
+            call perr(myname_,'                                    miter =',miter)
+            call perr(myname_,'                                    jiter =',jiter)
+            call  die(myname_)
+          endif
         endif
       endif
-    endif
-    jread=kiter
-
+      jread=kiter
 
       !-- construct an an_obsNode
       leadNode => null()
@@ -479,7 +486,7 @@ _ENTRY_(myname_)
   if(present(leadNode)) then
     ASSERT(size(diagLL)==size(leadNode))
     do i=1,size(diagLL)
-      call lchecksum_(diagLL(i),itype=itype,ibin=i,leadNode=leadNode(i)%node)
+      call lchecksum_(diagLL(i),itype=itype,ibin=i,leadNode=leadNode(i)%ptr)
     enddo
   else
     do i=1,size(diagLL)

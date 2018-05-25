@@ -44,11 +44,13 @@ subroutine setupmitm(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   use guess_grids, only: hrdifsig,nfldsig
   use m_obsdiags, only: mitmhead
+  use m_obsdiags, only: obsdiags
+  use m_obsdiagNode, only: obs_diag
   use m_obsNode , only: obsNode
   use m_mitmNode, only: mitmNode
   use m_mitmNode, only: mitmNode_appendto
   use obsmod, only: rmiss_single,i_mitm_ob_type, & 
-                    obs_diag,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated, & 
+                    lobsdiagsave,nobskeep,lobsdiag_allocated, & 
                     time_offset,bmiss,luse_obsdiag,ianldate
   use obsmod, only: netcdf_diag, binary_diag, dirname
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &

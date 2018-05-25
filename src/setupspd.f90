@@ -86,7 +86,10 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use mpeu_util, only: die,perr,getindex
   use kinds, only: r_kind,r_single,r_double,i_kind
   use m_obsdiags, only: spdhead
-  use obsmod, only: rmiss_single,i_spd_ob_type,obsdiags,&
+  use m_obsdiags, only: obsdiags
+  use m_obsdiagNode, only: obs_diag
+
+  use obsmod, only: rmiss_single,i_spd_ob_type,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,&
                     lobsdiag_forenkf
   use obsmod, only: netcdf_diag, binary_diag, dirname, ianldate
@@ -96,7 +99,7 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode, only: obsNode
   use m_spdNode, only: spdNode
   use m_spdNode, only: spdNode_appendto
-  use obsmod, only: obs_diag,luse_obsdiag
+  use obsmod, only: luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use guess_grids, only: nfldsig,hrdifsig,ges_lnprsl, &
            comp_fact10,sfcmod_gfs,sfcmod_mm5

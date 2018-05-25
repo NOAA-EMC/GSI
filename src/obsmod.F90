@@ -423,12 +423,12 @@ module obsmod
   public :: lread_obs_save,obs_input_common,lread_obs_skip
   public :: ndat_times,lwrite_predterms,lwrite_peakwt
   public :: bmiss
-  public :: obs_diags                   ! types
-  public :: obs_diag                    ! types
-  public :: aofp_obs_diag               ! types
-  public :: obsptr                      ! a local working pointer (to be removed)
-  public :: obsdiags                    ! objects
-  public :: inquire_obsdiags
+  !public :: obs_diags                   ! types
+  !public :: obs_diag                    ! types
+  !public :: aofp_obs_diag               ! types
+  !public :: obsptr                      ! a local working pointer (to be removed)
+  !public :: obsdiags                    ! objects
+  !public :: inquire_obsdiags
   public :: mype_aero,iout_aero,nlaero
   public :: mype_pm2_5,iout_pm2_5
   public :: mype_pm10,iout_pm10
@@ -507,6 +507,7 @@ module obsmod
 
 ! Structure for diagnostics
 
+#ifdef TO_BE_REMOVED
   type obs_diag
      type(obs_diag), pointer :: next => NULL()
      real(r_kind), pointer :: nldepart(:) => null()    ! (miter+1)
@@ -534,6 +535,7 @@ module obsmod
 
   type(obs_diags), pointer :: obsdiags(:,:) => null()  ! (nobs_type,nobs_bins)
   type(obs_diag), pointer :: obsptr => null()
+#endif
 
 ! Declare interfaces
   interface destroyobs; module procedure destroyobs_; end interface
@@ -925,11 +927,13 @@ contains
     allocate (nsat1(ndat),mype_diaghdr(ndat),obs_sub_comm(ndat))
 
 
+#ifdef TO_BE_REMOVED
     if(luse_obsdiag)then
       ALLOCATE(obsdiags(nobs_type,nobs_bins))
     else
       ALLOCATE(obsdiags(0,0))
     endif
+#endif
 
     return
   end subroutine create_obsmod_vars
@@ -1123,6 +1127,7 @@ contains
     return
   end function ran01dom
 
+#ifdef TO_BE_REMOVED
 ! ----------------------------------------------------------------------
 subroutine inquire_obsdiags(kiter)
 !$$$  subprogram documentation block
@@ -1185,6 +1190,7 @@ if (mype==0) then
 endif
 
 end subroutine inquire_obsdiags
+#endif
 
 ! ----------------------------------------------------------------------
 subroutine init_instr_table_ (nhr_assim,nall,iamroot,rcname)

@@ -110,15 +110,18 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use constants, only : rozcon,cg_term,wgtlim,h300,r10
 
   use m_obsdiags, only : ozhead
+  use m_obsdiags, only : obsdiags
+  use m_obsdiagNode, only : obs_diag
+
   use obsmod, only : i_oz_ob_type,dplat,nobskeep
   use obsmod, only : mype_diaghdr,dirname,time_offset,ianldate
-  use obsmod, only : obsdiags,lobsdiag_allocated,lobsdiagsave,lobsdiag_forenkf
+  use obsmod, only : lobsdiag_allocated,lobsdiagsave,lobsdiag_forenkf
   use m_obsNode, only: obsNode
   use m_ozNode, only : ozNode, ozNode_typecast
   use m_ozNode, only : ozNode_appendto
   use m_obsLList, only : obsLList_tailNode
   use obsmod, only : nloz_omi
-  use obsmod, only : obs_diag,luse_obsdiag
+  use obsmod, only : luse_obsdiag
 
   use obsmod, only: netcdf_diag, binary_diag, dirname
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
@@ -1008,9 +1011,12 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use sparsearr, only : sparr2, new, size, writearray
 
   use m_obsdiags, only : o3lhead
+  use m_obsdiags, only : obsdiags
+  use m_obsdiagNode, only : obs_diag
+
   use obsmod, only : i_o3l_ob_type,dplat,nobskeep
   use obsmod, only : mype_diaghdr,dirname,time_offset,ianldate
-  use obsmod, only : obsdiags,lobsdiag_allocated,lobsdiagsave,lobsdiag_forenkf
+  use obsmod, only : lobsdiag_allocated,lobsdiagsave,lobsdiag_forenkf
   use obsmod, only: netcdf_diag, binary_diag, dirname
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d
@@ -1018,7 +1024,7 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use m_obsNode, only: obsNode
   use m_o3lNode, only : o3lNode
   use m_o3lNode, only : o3lNode_appendto
-  use obsmod, only : obs_diag,luse_obsdiag
+  use obsmod, only : luse_obsdiag
 
   use guess_grids, only : nfldsig,ges_lnprsl,hrdifsig
 

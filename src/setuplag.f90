@@ -38,13 +38,15 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind
   use m_obsdiags, only: laghead
-  use obsmod, only: i_lag_ob_type,obsdiags,&
-      obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
+  use m_obsdiags, only: obsdiags
+  use m_obsdiagNode, only: obs_diag
+  use obsmod, only: i_lag_ob_type,&
+      lobsdiagsave,nobskeep,lobsdiag_allocated,&
       time_offset
   use m_obsNode, only: obsNode
   use m_lagNode, only: lagNode
   use m_lagNode, only: lagNode_appendto
-  use obsmod, only: obs_diag,luse_obsdiag
+  use obsmod, only: luse_obsdiag
 
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d
@@ -116,7 +118,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
   logical:: in_curbin, in_anybin
   type(lagNode),pointer :: my_head
-  type(obs_diag),pointer :: my_diag
+  type(obs_diag),pointer :: my_diag, obsptr
 
   call die('setuplag','I don''t believe this code is working -- J.Guo')
   ! Problems include, data(ilone) and data(ilate) are expected to be in degrees
