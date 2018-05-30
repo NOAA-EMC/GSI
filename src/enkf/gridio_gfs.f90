@@ -981,6 +981,15 @@
                  write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(grle), iret=',iret
                  call stop2(23)
               endif
+
+              call nemsio_readrecv(gfilein,'cld_amt','mid layer',k,nems_wrk2,iret=iret)
+              if (iret == 0 ) then
+                 call nemsio_writerecv(gfileout,'cld_amt','mid layer',k,nems_wrk2,iret=iret)
+                 if (iret/=0) then
+                    write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(cld_amt), iret=',iret
+                    call stop2(23)
+                 endif
+              endif
            endif
         endif
 

@@ -2402,6 +2402,13 @@ contains
                    call nemsio_writerecv(gfileo,'grle','mid layer',k,rwork1d,iret=iret)
                    if (iret /= 0) call error_msg(trim(my_name),trim(filename),'grle','write',istop,iret)
                 endif
+
+                call nemsio_readrecv(gfile,'cld_amt','mid layer',k,rwork1d,iret=iret)
+                if (iret == 0) then
+                   call nemsio_writerecv(gfileo,'cld_amt','mid layer',k,rwork1d,iret=iret)
+                   if (iret /= 0) call error_msg(trim(my_name),trim(filename),'cld_amt','write',istop,iret)
+                endif
+
              endif
           endif !mype == mype_out
        end do
