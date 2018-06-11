@@ -112,7 +112,7 @@ fi
 transfer_script=${OZN_IG_SCRIPTS}/transfer.sh
 job=${OZNMON_SUFFIX}_ozn_transfer
 
-if [[ $MY_MACHINE = "ibm" ]]; then
+if [[ $MY_MACHINE = "wcoss" ]]; then
 
    JOB_QUEUE="transfer"
    echo "PROJECT = $PROJECT"

@@ -68,7 +68,7 @@ if [[ ${string} = "ges" ]]; then
       rm -f $errf
    fi
 
-   if [[ ${MY_MACHINE} = "ibm" ]]; then
+   if [[ ${MY_MACHINE} = "wcoss" ]]; then
 
       $SUB -q ${JOB_QUEUE} -P ${PROJECT} -M 50 -R affinity[core] \
            -o ${logf} -e ${errf} -W 0:05 -J ${job} -cwd ${WORKDIR} ${WORKDIR}/${cmdfile}
