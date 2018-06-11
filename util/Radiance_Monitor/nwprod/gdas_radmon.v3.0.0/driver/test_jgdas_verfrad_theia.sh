@@ -3,7 +3,7 @@
 #PBS -o gdas_verfrad.log
 #PBS -e gdas_verfrad.err
 #PBS -N gdas_verfrad
-#PBS -A glbss
+#PBS -A fv3-cpu
 #PBS -l procs=1,walltime=0:10:00
 #PBS -V
 
@@ -29,6 +29,8 @@ export COMROOT=${COMROOT:-/scratch4/NCEPDEV/stmp3/$LOGNAME/com}
 #############################################################
 export gdas_ver=v14.1.0
 export global_shared_ver=v14.1.0
+export gdas_radmon_ver=v3.0.0
+export radmon_shared_ver=v3.0.0
 
 
 #############################################################
@@ -44,13 +46,16 @@ export PATH=${PATH}:${NWPRODush}:${NWPRODexec}
 #############################################################
 
 export RADMON_SUFFIX=${RADMON_SUFFIX:-testrad}
-export NWTEST=${NWTEST:-/scratch4/NCEPDEV/da/noscrub/${LOGNAME}/gfs_q3fy17}
-export HOMEgdas=${HOMEgdas:-${NWTEST}/gdas.${gdas_ver}}
+export NWTEST=${NWTEST:-/scratch4/NCEPDEV/da/noscrub/${LOGNAME}/ProdGSI/util/Radiance_Monitor/nwprod}
+export HOMEgdas=${HOMEgdas:-${NWTEST}/gdas_radmon.${gdas_radmon_ver}}
+export HOMEgfs=${HOMEgfs:-${HOMEgdas}}
+export FIXgdas=${FIXgdas:-${HOMEgdas}/fix}
 export JOBGLOBAL=${JOBGLOBAL:-${HOMEgdas}/jobs}
-export HOMEradmon=${HOMEradmon:-${NWTEST}/global_shared.${global_shared_ver}}
+export HOMEradmon=${HOMEradmon:-${NWTEST}/radmon_shared.${radmon_shared_ver}}
 export COM_IN=${COM_IN:-${DATAROOT}}
 export TANKverf=${TANKverf:-${COMROOT}/${RADMON_SUFFIX}}
 
+export PARMmon=${PARMmon:-${HOMEgdas}/parm}
 export SUB=${SUB:-/apps/torque/default/bin/qsub}
 export NDATE=${NDATE:-ndate}
 
