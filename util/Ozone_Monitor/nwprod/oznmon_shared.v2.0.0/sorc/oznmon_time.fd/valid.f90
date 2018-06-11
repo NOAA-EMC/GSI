@@ -276,10 +276,10 @@ module valid
             !  all unassimilated level in the base files will have an rmiss
             !  value and are considered valid for verification purposes
             !
-            sdv2 = 2 * sdv_penalty( level, region )
-!            sdv2 = sdv_penalty( level, region )
+!            sdv2 = 2 * sdv_penalty( level, region )
 
-            bound = avg_penalty(level,region) + sdv2
+!            bound = avg_penalty(level,region) + sdv2
+            bound = max_penalty(level,region) * 1.2
 
 !            write(6,*)'check pen vs bound = ', penalty, bound
 
@@ -298,7 +298,7 @@ module valid
          end if
 
          if ( valid .eqv. .FALSE. ) then
-            write(*,*) ' BAD:  penalty, avg_penalty(level,region), sdv2, bound = ', penalty, avg_penalty(level,region), sdv2, bound
+            write(*,*) ' BAD:  penalty, max_penalty(level,region), bound = ', penalty, max_penalty(level,region), bound
          end if
          write (*,*) '<-- valid, iret=', valid, iret
       else 

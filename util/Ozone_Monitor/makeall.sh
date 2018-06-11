@@ -30,7 +30,7 @@ echo "machine = $machine"
 HOMEoznmon=${MY_OZNMON}/nwprod/oznmon_shared.${shared_oznmon_ver}
 echo HOMEoznmon = $HOMEoznmon
 
-if [[ ${machine} = "theia" || ${machine} = "ibm" || ${machine} = "cray" ]]; then
+if [[ ${machine} = "theia" || ${machine} = "wcoss" || ${machine} = "cray" || ${machine} = "dell" ]]; then
    echo Building executables on ${machine}
    echo
 
@@ -43,6 +43,7 @@ if [[ ${machine} = "theia" || ${machine} = "ibm" || ${machine} = "cray" ]]; then
 
    executables="oznmon_horiz oznmon_time"
    echo "Making executables in nwprod/oznmon_shared.${shared_oznmon_ver}/sorc:"
+   export dir_root=${HOMEoznmon}
    for var in ${executables}; do
       cd ${HOMEoznmon}/sorc/${var}.fd
 
@@ -57,8 +58,9 @@ if [[ ${machine} = "theia" || ${machine} = "ibm" || ${machine} = "cray" ]]; then
 
    executables="make_base"
    echo "Making executables in data_xtrc/sorc:"
+   export dir_root=${MY_OZNMON}/data_xtrct/
    for var in ${executables}; do
-      cd ${OZN_DE_SORC}/data_xtrct/sorc/${var}.fd
+      cd ${OZN_DE_SORC}/${var}.fd
 
       make ${mode}
       if [[ $mode = "" ]]; then
