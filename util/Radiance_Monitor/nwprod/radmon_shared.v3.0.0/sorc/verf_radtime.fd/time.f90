@@ -24,7 +24,7 @@ program time
   character(8) stid
   character(20) satname,stringd,satsis
   character(10) dum,satype,dplat
-  character(40) string,diag_rad,data_file,dfile,ctl_file
+  character(80) string,diag_rad,data_file,dfile,ctl_file
   character(40),dimension(max_surf_region):: region
   character(40),dimension(mregion):: surf_region
   character :: command
