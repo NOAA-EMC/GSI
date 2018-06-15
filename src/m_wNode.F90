@@ -59,6 +59,9 @@ module m_wNode
      !real   (r_kind) :: dlat, dlon      ! earth lat-lon for redistribution
      real   (r_kind) :: dlev            ! reference to the vertical grid
      real   (r_kind) :: factw           ! factor of 10m wind
+
+     integer(i_kind) :: ich0=0  ! ich code to mark derived data.  See
+                                ! wNode_ich0 and wNode_ich0_PBL_Pseudo below
   contains
     procedure,nopass::  mytype
     procedure::  setHop => obsNode_setHop_
@@ -80,6 +83,15 @@ module m_wNode
 
   public:: wNode_appendto
         interface wNode_appendto; module procedure appendto_ ; end interface
+
+  ! Because there are two components in wNode for an ordinary wind obs,
+  ! ich values are set to (1,2).  Therefore, ich values for PBL_pseudo_surfobsUV
+  ! are set to (3,4), and wNode_ich0_pbl_pseudo is set to 2.
+
+  public:: wNode_ich0
+  public:: wNode_ich0_PBL_pseudo
+        integer(i_kind),parameter :: wNode_ich0            = 0            ! (1,2)
+        integer(i_kind),parameter :: wNode_ich0_PBL_pseudo = wNode_ich0+2 ! (3,4)
 
   character(len=*),parameter:: MYNAME="m_wNode"
 
@@ -173,6 +185,7 @@ _ENTRY_(myname_)
                                 aNode%kx     , &
                                 aNode%dlev   , &
                                 aNode%factw  , &
+                                aNode%ich0   , &
                                 aNode%wij    , &
                                 aNode%ij
                 if (istat/=0) then
@@ -181,17 +194,18 @@ _ENTRY_(myname_)
                   return
                 end if
 
-    aNode%diagu => obsdiagLookup_locate(diagLookup,aNode%idv,aNode%iob,1_i_kind)
-    aNode%diagv => obsdiagLookup_locate(diagLookup,aNode%idv,aNode%iob,2_i_kind)
+    aNode%diagu => obsdiagLookup_locate(diagLookup,aNode%idv,aNode%iob,aNode%ich0+1_i_kind)
+    aNode%diagv => obsdiagLookup_locate(diagLookup,aNode%idv,aNode%iob,aNode%ich0+2_i_kind)
 
                 if(.not. (associated(aNode%diagu) .and. &
                           associated(aNode%diagv) )     ) then
                   call perr(myname_,'obsdiagLookup_locate(u,v), %idv =',aNode%idv)
                   call perr(myname_,'                           %iob =',aNode%iob)
+                  call perr(myname_,'                          %ich0 =',aNode%ich0)
                   if(.not.associated(aNode%diagu)) &
-                  call perr(myname_,'     can not locate %diagu, ich =',1_i_kind)
+                  call perr(myname_,'   .not.associated(%diagu), ich =',aNode%ich0+1_i_kind)
                   if(.not.associated(aNode%diagv)) &
-                  call perr(myname_,'     can not locate %diagv, ich =',2_i_kind)
+                  call perr(myname_,'   .not.associated(%diagv), ich =',aNode%ich0+2_i_kind)
                   call  die(myname_)
                 endif
   endif
@@ -222,6 +236,7 @@ _ENTRY_(myname_)
                                 aNode%kx     , &
                                 aNode%dlev   , &
                                 aNode%factw  , &
+                                aNode%ich0   , &
                                 aNode%wij    , &
                                 aNode%ij
                 if (jstat/=0) then

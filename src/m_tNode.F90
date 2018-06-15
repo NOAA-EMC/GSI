@@ -62,6 +62,9 @@ module m_tNode
      !real   (r_kind) :: elat, elon      ! earth lat-lon for redistribution
      !real   (r_kind) :: dlat, dlon      ! earth lat-lon for redistribution
      real   (r_kind) :: dlev            ! reference to the vertical grid
+
+     integer(i_kind) :: ich0=0  ! ich code to mark derived data.  See
+                                ! tNode_ich0 and tNode_ich0_PBL_Pseudo below
   contains
     procedure,nopass::  mytype
     procedure::  setHop => obsNode_setHop_
@@ -83,6 +86,11 @@ module m_tNode
 
   public:: tNode_appendto
         interface tNode_appendto; module procedure appendto_ ; end interface
+
+  public:: tNode_ich0
+  public:: tNode_ich0_pbl_pseudo
+        integer(i_kind),parameter:: tNode_ich0            = 0
+        integer(i_kind),parameter:: tNode_ich0_pbl_pseudo = tNode_ich0+1
 
   character(len=*),parameter:: MYNAME="m_tNode"
 
@@ -218,6 +226,7 @@ _ENTRY_(myname_)
                                 aNode%k1        , &
                                 aNode%kx        , &
                                 aNode%dlev      , &
+                                aNode%ich0      , &
                                 aNode%wij       , &
                                 aNode%ij
                 if(istat/=0) then
@@ -243,6 +252,7 @@ _ENTRY_(myname_)
                                 aNode%k1        , &
                                 aNode%kx        , &
                                 aNode%dlev      , &
+                                aNode%ich0      , &
                                 aNode%wij       , &
                                 aNode%ij
                 if(istat/=0) then
@@ -254,10 +264,11 @@ _ENTRY_(myname_)
                 endif
     end if
 
-    aNode%diags => obsdiagLookup_locate(diagLookup,aNode%idv,aNode%iob,1_i_kind)
+    aNode%diags => obsdiagLookup_locate(diagLookup,aNode%idv,aNode%iob,aNode%ich0+1_i_kind)
                 if(.not.associated(aNode%diags)) then
                   call perr(myname_,'obsdiagLookup_locate(), %idv =',aNode%idv)
                   call perr(myname_,'                        %iob =',aNode%iob)
+                  call perr(myname_,'                       %ich0 =',aNode%ich0)
                   call  die(myname_)
                 endif
   endif
@@ -290,6 +301,7 @@ _ENTRY_(myname_)
                                 aNode%k1        , &
                                 aNode%kx        , &
                                 aNode%dlev      , &
+                                aNode%ich0      , &
                                 aNode%wij       , &
                                 aNode%ij
                 if(jstat/=0) then
@@ -315,6 +327,7 @@ _ENTRY_(myname_)
                                 aNode%k1        , &
                                 aNode%kx        , &
                                 aNode%dlev      , &
+                                aNode%ich0      , &
                                 aNode%wij       , &
                                 aNode%ij
                 if(jstat/=0) then

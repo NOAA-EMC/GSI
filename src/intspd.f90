@@ -29,6 +29,7 @@ use m_obsNode, only: obsNode
 use m_spdNode, only: spdNode
 use m_spdNode, only: spdNode_typecast
 use m_spdNode, only: spdNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -162,9 +163,11 @@ subroutine intspd_(spdhead,rval,sval)
            if(luse_obsdiag)then
               if (lsaveobsens) then
                  grad=spdptr%raterr2*spdptr%err2*spdatl
-                 spdptr%diags%obssen(jiter)=grad
+                 !-- spdptr%diags%obssen(jiter)=grad
+                 call obsdiagNode_set(spdptr%diags,jiter=jiter,obssen=grad)
               else
-                 if (spdptr%luse) spdptr%diags%tldepart(jiter)=spdatl
+                 !-- if (spdptr%luse) spdptr%diags%tldepart(jiter)=spdatl
+                 if (spdptr%luse) call obsdiagNode_set(spdptr%diags,jiter=jiter,tldepart=spdatl)
               endif
            endif
 

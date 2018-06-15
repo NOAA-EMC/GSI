@@ -34,6 +34,7 @@ use m_obsNode, only: obsNode
 use m_radNode, only: radNode
 use m_radNode, only: radNode_typecast
 use m_radNode, only: radNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -502,9 +503,11 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
         if(luse_obsdiag)then
            if (lsaveobsens) then
               val(nn) = val(nn)*radptr%err2(nn)*radptr%raterr2(nn)
-              radptr%diags(nn)%ptr%obssen(jiter) = val(nn)
+              !-- radptr%diags(nn)%ptr%obssen(jiter) = val(nn)
+              call obsdiagNode_set(radptr%diags(nn)%ptr,jiter=jiter,obssen=val(nn))
            else
-              if (radptr%luse) radptr%diags(nn)%ptr%tldepart(jiter) = val(nn)
+              !-- if (radptr%luse) radptr%diags(nn)%ptr%tldepart(jiter) = val(nn)
+              if (radptr%luse) call obsdiagNode_set(radptr%diags(nn)%ptr,jiter=jiter,tldepart=val(nn))
            endif
         endif
 

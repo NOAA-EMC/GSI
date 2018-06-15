@@ -40,6 +40,12 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsdiags, only: laghead
   use m_obsdiags, only: obsdiags
   use m_obsdiagNode, only: obs_diag
+  use m_obsdiagNode, only: obs_diags
+  use m_obsdiagNode, only: obsdiagLList_nextNode
+  use m_obsdiagNode, only: obsdiagNode_set
+  use m_obsdiagNode, only: obsdiagNode_get
+  use m_obsdiagNode, only: obsdiagNode_assert
+
   use obsmod, only: i_lag_ob_type,&
       lobsdiagsave,nobskeep,lobsdiag_allocated,&
       time_offset
@@ -118,7 +124,9 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
   logical:: in_curbin, in_anybin
   type(lagNode),pointer :: my_head
-  type(obs_diag),pointer :: my_diag, obsptr
+  type(obs_diag),pointer :: my_diag
+  type(obs_diag),pointer :: my_diagLon,my_diagLat
+  type(obs_diags),pointer :: my_diagLL
 
   call die('setuplag','I don''t believe this code is working -- J.Guo')
   ! Problems include, data(ilone) and data(ilate) are expected to be in degrees
@@ -195,53 +203,32 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         print '(A,I2.2,A,I4.4,A,I4)'      ,'mype ',mype,' data ',i,' obsbin ',ibin
      end if
 
+     if (luse_obsdiag) my_diagLL => obsdiags(i_lag_ob_type,ibin)
+
 !    Link obs to diagnostics structure
      if (luse_obsdiag) then
         do jj=1,2
-           if (.not.lobsdiag_allocated) then
-              if (.not.associated(obsdiags(i_lag_ob_type,ibin)%head)) then
-                 obsdiags(i_lag_ob_type,ibin)%n_alloc = 0
-                 allocate(obsdiags(i_lag_ob_type,ibin)%head,stat=istat)
-                 if (istat/=0) call die('setuplag: failure to allocate obsdiags')
-                 obsdiags(i_lag_ob_type,ibin)%tail => obsdiags(i_lag_ob_type,ibin)%head
-              else
-                 allocate(obsdiags(i_lag_ob_type,ibin)%tail%next,stat=istat)
-                 if (istat/=0) call die('setuplag: failure to allocate obsdiags')
-                 obsdiags(i_lag_ob_type,ibin)%tail => obsdiags(i_lag_ob_type,ibin)%tail%next
-              end if
-              obsdiags(i_lag_ob_type,ibin)%n_alloc = obsdiags(i_lag_ob_type,ibin)%n_alloc +1
-    
-              allocate(obsdiags(i_lag_ob_type,ibin)%tail%muse(miter+1))
-              allocate(obsdiags(i_lag_ob_type,ibin)%tail%nldepart(miter+1))
-              allocate(obsdiags(i_lag_ob_type,ibin)%tail%tldepart(miter))
-              allocate(obsdiags(i_lag_ob_type,ibin)%tail%obssen(miter))
-              obsdiags(i_lag_ob_type,ibin)%tail%indxglb=ioid(i)
-              obsdiags(i_lag_ob_type,ibin)%tail%nchnperobs=-99999
-              obsdiags(i_lag_ob_type,ibin)%tail%luse=luse(i)
-              obsdiags(i_lag_ob_type,ibin)%tail%muse(:)=.false.
-              obsdiags(i_lag_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-              obsdiags(i_lag_ob_type,ibin)%tail%tldepart(:)=zero
-              obsdiags(i_lag_ob_type,ibin)%tail%wgtjo=-huge(zero)
-              obsdiags(i_lag_ob_type,ibin)%tail%obssen(:)=zero
-    
-              my_diag => obsdiags(i_lag_ob_type,ibin)%tail
-              my_diag%idv = is
-              my_diag%iob = ioid(i)
-              my_diag%ich = jj
-              my_diag%elat= data(ilate,i)
-              my_diag%elon= data(ilone,i)
-           else
-              if (.not.associated(obsdiags(i_lag_ob_type,ibin)%tail)) then
-                 obsdiags(i_lag_ob_type,ibin)%tail => obsdiags(i_lag_ob_type,ibin)%head
-              else
-                 obsdiags(i_lag_ob_type,ibin)%tail => obsdiags(i_lag_ob_type,ibin)%tail%next
-              end if
-              if (.not.associated(obsdiags(i_lag_ob_type,ibin)%tail)) then
-                 call die(myname,'.not.associated(obsdiags(i_lag_ob_type,ibin)%tail)')
-              end if
-              if (obsdiags(i_lag_ob_type,ibin)%tail%indxglb/=ioid(i)) call die('setuplag: index error')
-           endif
-           if (jj==1) obsptr => obsdiags(i_lag_ob_type,ibin)%tail
+          my_diag => obsdiagLList_nextNode(my_diagLL    ,&
+                create = .not.lobsdiag_allocated        ,&
+                   idv = is             ,&
+                   iob = ioid(i)        ,&
+                   ich = jj             ,&
+                  elat = data(ilate,i)  ,&
+                  elon = data(ilone,i)  ,&
+                  luse = luse(i)        ,&
+                 miter = miter          )
+
+          if(.not.associated(my_diag)) then
+            call perr(myname,'obsdiagLList_nextNode(), create =', .not.lobsdiag_allocated)
+            call perr(myname,'                            ich =', jj)
+            call  die(myname)
+          endif
+
+          select case(jj)
+          case(1); my_diagLon => my_diag
+          case(2); my_diagLat => my_diag
+          end select
+          my_diag => null()
         end do
      end if
 
@@ -385,7 +372,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      
      if ((ratio_errors*error_lat <= tiny_r_kind) .or. &
          (ratio_errors*error_lon <= tiny_r_kind)) muse(i)=.false.
-     if (nobskeep>0.and.luse_obsdiag) muse(i)=obsdiags(i_lag_ob_type,ibin)%tail%muse(nobskeep)
+     if (nobskeep>0.and.luse_obsdiag) call obsdiagNode_get(my_diagLat, jiter=nobskeep, muse=muse(i))
  
      if (iv_debug>=1) then
         print '(A,I2.2,A,I4.4,A,F12.6,F12.6)','mype ',mype,' data ',i,' ratios ',ratio_lon,ratio_lat
@@ -445,15 +432,13 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
  
      endif
 
-     ! lon
-     obsptr%muse(jiter)=muse(i)
-     obsptr%nldepart(jiter)=reslon
-     obsptr%wgtjo= (error_lon*ratio_errors)**2
-     ! lat
      if (luse_obsdiag) then
-        obsdiags(i_lag_ob_type,ibin)%tail%muse(jiter)=muse(i)
-        obsdiags(i_lag_ob_type,ibin)%tail%nldepart(jiter)=reslat
-        obsdiags(i_lag_ob_type,ibin)%tail%wgtjo= (error_lat*ratio_errors)**2
+       ! lon
+        call obsdiagNode_set(my_diagLon,wgtjo=(error_lon*ratio_errors)**2, &
+                jiter=jiter,muse=muse(i),nldepart=reslon)
+       ! lat
+        call obsdiagNode_set(my_diagLat,wgtjo=(error_lat*ratio_errors)**2, &
+                jiter=jiter,muse=muse(i),nldepart=reslat)
      endif
  
      if (iv_debug>=1) then
@@ -500,30 +485,11 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         my_head%diag_lat => null()
 
         if (luse_obsdiag) then
-           my_head%diag_lon => obsptr
-           my_head%diag_lat => obsdiags(i_lag_ob_type,ibin)%tail
+           call obsdiagNode_assert(my_diagLon, my_head%idv,my_head%iob,1,myname,'my_diagLon:my_head')
+           call obsdiagNode_assert(my_diagLat, my_head%idv,my_head%iob,2,myname,'my_diagLat:my_head')
 
-           my_diag => my_head%diag_lon
-           if(my_head%idv /= my_diag%idv .or. &
-              my_head%iob /= my_diag%iob .or. &
-                        1 /= my_diag%ich ) then
-              call perr(myname,'mismatching %[head,diags]%(idv,iob,ich,ibin) =', &
-                        (/is,ioid(i),1,ibin/))
-              call perr(myname,'my_head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,1/))
-              call perr(myname,'my_diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
-              call die(myname)
-           endif
-
-           my_diag => my_head%diag_lat
-           if(my_head%idv /= my_diag%idv .or. &
-              my_head%iob /= my_diag%iob .or. &
-                        2 /= my_diag%ich ) then
-              call perr(myname,'mismatching %[head,diags]%(idv,iob,ich,ibin) =', &
-                        (/is,ioid(i),2,ibin/))
-              call perr(myname,'my_head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,2/))
-              call perr(myname,'my_diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
-              call die(myname)
-           endif
+           my_head%diag_lon => my_diagLon
+           my_head%diag_lat => my_diagLat
         endif
 
         my_head => null()
@@ -578,9 +544,13 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         ioff=ioff0
         if (lobsdiagsave) then
+          associate(odiag => my_diagLat)
+                ! Logic here seems to be only for one of two diag components,
+                ! according to its original implementation, for my_diagLat only.
+                ! Is it the original intention, or just a bug?
            do jj=1,miter
               ioff=ioff+1
-              if (obsdiags(i_lag_ob_type,ibin)%tail%muse(jj)) then
+              if (odiag%muse(jj)) then
                  rdiagbuf(ioff,ii) = one
               else
                  rdiagbuf(ioff,ii) = -one
@@ -588,16 +558,17 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            enddo
            do jj=1,miter+1
               ioff=ioff+1
-              rdiagbuf(ioff,ii) = obsdiags(i_lag_ob_type,ibin)%tail%nldepart(jj)
+              rdiagbuf(ioff,ii) = odiag%nldepart(jj)
            enddo
            do jj=1,miter
               ioff=ioff+1
-              rdiagbuf(ioff,ii) = obsdiags(i_lag_ob_type,ibin)%tail%tldepart(jj)
+              rdiagbuf(ioff,ii) = odiag%tldepart(jj)
            enddo
            do jj=1,miter
               ioff=ioff+1
-              rdiagbuf(ioff,ii) = obsdiags(i_lag_ob_type,ibin)%tail%obssen(jj)
+              rdiagbuf(ioff,ii) = odiag%obssen(jj)
            enddo
+          end associate ! odiag
         endif
 
      end if

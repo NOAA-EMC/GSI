@@ -67,6 +67,12 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
   use m_obsdiags, only : colvkhead
   use m_obsdiags, only : obsdiags
   use m_obsdiagNode, only : obs_diag
+  use m_obsdiagNode, only : obs_diags
+  use m_obsdiagNode, only : obsdiagLList_nextNode
+  use m_obsdiagNode, only : obsdiagNode_set
+  use m_obsdiagNode, only : obsdiagNode_get
+  use m_obsdiagNode, only : obsdiagNode_assert
+
   use obsmod, only : i_colvk_ob_type,dplat,nobskeep
   use obsmod, only : mype_diaghdr,dirname,time_offset,ianldate
   use obsmod, only : lobsdiag_allocated,lobsdiagsave
@@ -168,6 +174,7 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
   logical:: in_curbin, in_anybin
   type(colvkNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
+  type(obs_diags),pointer:: my_diagLL
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
@@ -463,6 +470,8 @@ endif   ! (in_curbin)
         endif
         IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
+        if(luse_obsdiag) my_diagLL => obsdiags(i_colvk_ob_type,ibin)
+
         if(in_curbin) then
 !       Process obs have at least one piece of information that passed qc checks
           if (.not. last .and. ikeep==1) then
@@ -544,66 +553,24 @@ endif   ! (in_curbin)
 !       Link obs to diagnostics structure
         do k=1,nlevs
            if(luse_obsdiag)then
-             if (.not.lobsdiag_allocated) then
-                if (.not.associated(obsdiags(i_colvk_ob_type,ibin)%head)) then
-                   obsdiags(i_colvk_ob_type,ibin)%n_alloc = 0
-                   allocate(obsdiags(i_colvk_ob_type,ibin)%head,stat=istat)
-                   if (istat/=0) then
-                      write(6,*)'setupco: failure to allocate obsdiags',istat
-                      call stop2(260)
-                   end if
-                   obsdiags(i_colvk_ob_type,ibin)%tail => obsdiags(i_colvk_ob_type,ibin)%head
-                else
-                   allocate(obsdiags(i_colvk_ob_type,ibin)%tail%next,stat=istat)
-                   if (istat/=0) then
-                      write(6,*)'setupco: failure to allocate obsdiags',istat
-                      call stop2(261)
-                   end if
-                   obsdiags(i_colvk_ob_type,ibin)%tail => obsdiags(i_colvk_ob_type,ibin)%tail%next
-                end if
-                obsdiags(i_colvk_ob_type,ibin)%n_alloc = obsdiags(i_colvk_ob_type,ibin)%n_alloc +1
-   
-                allocate(obsdiags(i_colvk_ob_type,ibin)%tail%muse(miter+1))
-                allocate(obsdiags(i_colvk_ob_type,ibin)%tail%nldepart(miter+1))
-                allocate(obsdiags(i_colvk_ob_type,ibin)%tail%tldepart(miter))
-                allocate(obsdiags(i_colvk_ob_type,ibin)%tail%obssen(miter))
-                obsdiags(i_colvk_ob_type,ibin)%tail%indxglb=ioid(i)
-                obsdiags(i_colvk_ob_type,ibin)%tail%nchnperobs=-99999
-                obsdiags(i_colvk_ob_type,ibin)%tail%luse=luse(i)
-                obsdiags(i_colvk_ob_type,ibin)%tail%muse(:)=.false.
-   
-                obsdiags(i_colvk_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-                obsdiags(i_colvk_ob_type,ibin)%tail%tldepart(:)=zero
-                obsdiags(i_colvk_ob_type,ibin)%tail%wgtjo=-huge(zero)
-                obsdiags(i_colvk_ob_type,ibin)%tail%obssen(:)=zero
-   
-                my_diag => obsdiags(i_colvk_ob_type,ibin)%tail
-                my_diag%idv = is
-                my_diag%iob = ioid(i)
-                my_diag%ich = k
-                my_diag%elat= data(ilate,i)
-                my_diag%elon= data(ilone,i)
-             else
-                if (.not.associated(obsdiags(i_colvk_ob_type,ibin)%tail)) then
-                   obsdiags(i_colvk_ob_type,ibin)%tail => obsdiags(i_colvk_ob_type,ibin)%head
-                else
-                   obsdiags(i_colvk_ob_type,ibin)%tail => obsdiags(i_colvk_ob_type,ibin)%tail%next
-                end if
-                if (.not.associated(obsdiags(i_colvk_ob_type,ibin)%tail)) then
-                   call die(myname,'.not.associated(obsdiags(i_colvk_ob_type,ibin)%tail)')
-                end if
-                if (obsdiags(i_colvk_ob_type,ibin)%tail%indxglb/=ioid(i)) then
-                   write(6,*)'setupco: index error'
-                   call stop2(262)
-                end if
-             endif
+             my_diag => obsdiagLList_nextNode(my_diagLL ,&
+                create = .not.lobsdiag_allocated        ,&
+                   idv = is             ,&
+                   iob = ioid(i)        ,&
+                   ich = k              ,&
+                  elat = data(ilate,i)  ,&
+                  elon = data(ilone,i)  ,&
+                  luse = luse(i)        ,&
+                 miter = miter          )
+
+             if(.not.associated(my_diag)) call die(myname,      &
+                'obsdiagLList_nextNode(), create =', .not.lobsdiag_allocated)
            endif
 
            if(in_curbin) then
               if(luse_obsdiag)then
-                obsdiags(i_colvk_ob_type,ibin)%tail%muse(jiter)= (ikeep==1)
-                obsdiags(i_colvk_ob_type,ibin)%tail%nldepart(jiter)=co_inv(k)
-                obsdiags(i_colvk_ob_type,ibin)%tail%wgtjo= varinv3(k)*ratio_errors(k)**2
+                call obsdiagNode_set(my_diag, wgtjo=varinv3(k)*ratio_errors(k)**2, &
+                        jiter=jiter,muse=(ikeep==1), nldepart=co_inv(k) )
               endif
    
               if (.not. last .and. ikeep==1) then
@@ -611,33 +578,27 @@ endif   ! (in_curbin)
                  if(.not.associated(my_head)) &
                     call die(myname,'unexpected, associated(my_head) =',associated(my_head))
 
+                 my_head%idv        = is
+                 my_head%iob        = ioid(i)
+
                  my_head%ipos(k)    = ipos(k)
                  my_head%res(k)     = co_inv(k)
                  my_head%err2(k)    = varinv3(k)
                  my_head%raterr2(k) = ratio_errors(k)**2
 
                  if(luse_obsdiag)then
-                    my_head%diags(k)%ptr => obsdiags(i_colvk_ob_type,ibin)%tail
-
-                    my_diag => my_head%diags(k)%ptr
-                    if(my_head%idv /= my_diag%idv .or. &
-                       my_head%iob /= my_diag%iob .or. &
-                                 k /= my_diag%ich ) then
-                       call perr(myname,'mismatching %[head,diags]%(idv,iob,ich,ibin) =', &
-                          (/is,ioid(i),k,ibin/))
-                       call perr(myname,'my_head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,k/))
-                       call perr(myname,'my_diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
-                       call die(myname)
-                    endif
+                    call obsdiagNode_assert(my_diag,my_head%idv,my_head%iob,k,myname,'my_diag:my_head')
+                    my_head%diags(k)%ptr => my_diag
                  endif
                  my_head => null()
              endif
    
              if (co_diagsave.and.lobsdiagsave) then
+              associate( odiag => my_diag )
                 idia=3
                 do jj=1,miter
                    idia=idia+1
-                   if (obsdiags(i_colvk_ob_type,ibin)%tail%muse(jj)) then
+                   if (odiag%muse(jj)) then
                       rdiagbuf(idia,k,ii) = one
                    else
                       rdiagbuf(idia,k,ii) = -one
@@ -645,16 +606,17 @@ endif   ! (in_curbin)
                 enddo
                 do jj=1,miter+1
                    idia=idia+1
-                   rdiagbuf(idia,k,ii) = obsdiags(i_colvk_ob_type,ibin)%tail%nldepart(jj)
+                   rdiagbuf(idia,k,ii) = odiag%nldepart(jj)
                 enddo
                 do jj=1,miter
                    idia=idia+1
-                   rdiagbuf(idia,k,ii) = obsdiags(i_colvk_ob_type,ibin)%tail%tldepart(jj)
+                   rdiagbuf(idia,k,ii) = odiag%tldepart(jj)
                 enddo
                 do jj=1,miter
                    idia=idia+1
-                   rdiagbuf(idia,k,ii) = obsdiags(i_colvk_ob_type,ibin)%tail%obssen(jj)
+                   rdiagbuf(idia,k,ii) = odiag%obssen(jj)
                 enddo
+              end associate ! odiag
              endif
            endif        ! (in_curbin)
 

@@ -150,6 +150,8 @@ subroutine intozlay_(ozhead,rval,sval)
   use m_ozNode , only:  ozNode
   use m_ozNode , only:  ozNode_typecast
   use m_ozNode , only:  ozNode_nextcast
+  use m_obsdiagNode, only: obsdiagNode_get
+  use m_obsdiagNode, only: obsdiagNode_set
   implicit none
 
 ! Declare passed variables
@@ -162,6 +164,7 @@ subroutine intozlay_(ozhead,rval,sval)
   integer(i_kind) k,j1,j2,j3,j4,kk,iz1,iz2,kl
   real(r_kind) dz1,pob,delz
   real(r_quad) val1,valx
+  !-- real(r_kind) valx_
   real(r_kind) w1,w2,w3,w4
   real(r_kind),pointer,dimension(:,:,:)  :: sozp
   real(r_kind),pointer,dimension(:,:,:)  :: rozp
@@ -234,9 +237,11 @@ subroutine intozlay_(ozhead,rval,sval)
            if(luse_obsdiag)then
               if (lsaveobsens) then
                  valx=val1*ozptr%err2(k)*ozptr%raterr2(k)
-                 ozptr%diags(k)%ptr%obssen(jiter)=valx
+                 !-- ozptr%diags(k)%ptr%obssen(jiter)=valx
+                 call obsdiagNode_set(ozptr%diags(k)%ptr,jiter=jiter,obssen=real(valx,r_kind))
               else
-                 if (ozptr%luse) ozptr%diags(k)%ptr%tldepart(jiter)=val1
+                 !-- if (ozptr%luse) ozptr%diags(k)%ptr%tldepart(jiter)=val1
+                 if (ozptr%luse) call obsdiagNode_set(ozptr%diags(k)%ptr,jiter=jiter,tldepart=real(val1,r_kind))
               endif
            endif
 
@@ -323,9 +328,11 @@ subroutine intozlay_(ozhead,rval,sval)
      if(luse_obsdiag)then
         if (lsaveobsens) then
            valx=val1*ozptr%err2(k)*ozptr%raterr2(k)
-           ozptr%diags(k)%ptr%obssen(jiter)=valx
+           !-- ozptr%diags(k)%ptr%obssen(jiter)=valx
+           call obsdiagNode_set(ozptr%diags(k)%ptr,jiter=jiter,obssen=real(valx,r_kind))
         else
-           if (ozptr%luse) ozptr%diags(k)%ptr%tldepart(jiter)=val1
+           !-- if (ozptr%luse) ozptr%diags(k)%ptr%tldepart(jiter)=val1
+           if (ozptr%luse) call obsdiagNode_set(ozptr%diags(k)%ptr,jiter=jiter,tldepart=real(val1,r_kind))
         endif
      endif
 
@@ -354,7 +361,16 @@ subroutine intozlay_(ozhead,rval,sval)
            enddo
         else  ! OMI ozone with efficiency factor
            if (lsaveobsens) then
-              valx = ozptr%diags(k)%ptr%obssen(jiter)              
+                ! Precondition: luse_obsdiag .or. .not.lsaveobsens
+                ! -------------------------------------------------
+                ! lsaveobsens implies luse_obsdiag in a valid configuration.  So
+                ! there is no need to get valx back from %diags(k)%ptr%obssen(jiter).
+                ! Also, this operation to get the value back from %obssen(jiter) will
+                ! result an accuracy lost due to the kind difference between valx and
+                ! %obssen(:).
+              !-- valx = ozptr%diags(k)%ptr%obssen(jiter)       ! or ...
+              !-- call obsdiagNode_get(ozptr%diags(k)%ptr,jiter=jiter,obssen=valx_)
+              !-- valx=valx_    ! see vlax_ declaration on the top)
            else
               if(ladtest_obs) then
                  valx=val1
@@ -461,6 +477,7 @@ subroutine intozlev_(o3lhead,rval,sval)
   use m_o3lNode, only: o3lNode
   use m_o3lNode, only: o3lNode_typecast
   use m_o3lNode, only: o3lNode_nextcast
+  use m_obsdiagNode, only: obsdiagNode_set
   implicit none
 
 ! Declare passed variables
@@ -516,12 +533,14 @@ subroutine intozlev_(o3lhead,rval,sval)
      val=w1*soz1d(j1)+w2*soz1d(j2)+w3*soz1d(j3)+w4*soz1d(j4)+ &
           w5*soz1d(j5)+w6*soz1d(j6)+w7*soz1d(j7)+w8*soz1d(j8)
 
-     if (luse_obsdiag ) then
+     if (luse_obsdiag ) then ! need to save either obssen=grad or tldepart=val
         if (lsaveobsens) then
            grad = val*o3lptr%raterr2*o3lptr%err2
-           o3lptr%diags%obssen(jiter) = grad
+           !-- o3lptr%diags%obssen(jiter) = grad
+           call obsdiagNode_set(o3lptr%diags,jiter=jiter,obssen=grad)
         else
-           if (o3lptr%luse) o3lptr%diags%tldepart(jiter)=val
+           !-- if (o3lptr%luse) o3lptr%diags%tldepart(jiter)=val
+           if (o3lptr%luse) call obsdiagNode_set(o3lptr%diags,jiter=jiter,tldepart=val)
         endif
      endif
 

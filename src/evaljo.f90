@@ -63,6 +63,11 @@ do ii=1,nobs_bins
    do jj=1,nobs_type
       ij=ij+1
 
+      !++ if(louter) then
+      !++   zprods(ij) = obsLL(jj,ii)%NLDdotprod(jiter,nob=iobsgrp(jj,ii))
+      !++ else
+      !++   zprods(ij) = obsLL(jj,ii)%DELdotprod(jiter,nob=iobsgrp(jj,ii))
+      !++ endif
       obsptr => obsdiags(jj,ii)%head
       do while (associated(obsptr))
          if (obsptr%luse.and.obsptr%muse(jiter)) then
@@ -129,6 +134,7 @@ IF (kprt>=2.and.mype==0) THEN
             IF (iobsglb(ii,jj)>0) THEN
                zz=zjo2(ii,jj)/iobsglb(ii,jj)
                write(6,100)cobstype(ii),jj,iobsglb(ii,jj),real(zjo2(ii,jj),r_kind),real(zz,r_kind)
+               !++ write(6,100) obsLL(ii,jj)%info_cobstype(),jj,iobsglb(ii,jj),real(zjo2(ii,jj),r_kind),real(zz,r_kind)
             ENDIF
          ENDDO
       ENDDO
@@ -139,6 +145,7 @@ IF (kprt>=2.and.mype==0) THEN
       IF (iobs(ii)>0) THEN
          zz=zjo1(ii)/iobs(ii)
          write(6,200)cobstype(ii),iobs(ii),real(zjo1(ii),r_kind),real(zz,r_kind)
+         !++ write(6,200) obsLL(ii,jj)%info_cobstype(),iobs(ii),real(zjo1(ii),r_kind),real(zz,r_kind)
       ENDIF
    ENDDO
 

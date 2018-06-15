@@ -30,6 +30,7 @@ use m_obsNode, only: obsNode
 use m_dwNode , only: dwNode
 use m_dwNode , only: dwNode_typecast
 use m_dwNode , only: dwNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -152,9 +153,11 @@ subroutine intdw_(dwhead,rval,sval)
      if(luse_obsdiag)then
         if (lsaveobsens) then
            grad = val * dwptr%raterr2 * dwptr%err2
-           dwptr%diags%obssen(jiter) = grad
+           !-- dwptr%diags%obssen(jiter) = grad
+           call obsdiagNode_set(dwptr%diags,jiter=jiter,obssen=grad)
         else
-           if (dwptr%luse) dwptr%diags%tldepart(jiter)=val
+           !-- if (dwptr%luse) dwptr%diags%tldepart(jiter)=val
+           if (dwptr%luse) call obsdiagNode_set(dwptr%diags,jiter=jiter,tldepart=val)
         endif
      endif
 

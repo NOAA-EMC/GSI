@@ -53,7 +53,12 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
 
   use m_obsdiags, only: pcphead
   use m_obsdiags, only: obsdiags
-  use m_obsdiagNode, only: obs_diag
+  use m_obsdiagNode, only : obs_diag
+  use m_obsdiagNode, only : obs_diags
+  use m_obsdiagNode, only : obsdiagLList_nextNode
+  use m_obsdiagNode, only : obsdiagNode_set
+  use m_obsdiagNode, only : obsdiagNode_get
+  use m_obsdiagNode, only : obsdiagNode_assert
 
   use obsmod, only: time_offset
   use obsmod, only: i_pcp_ob_type,lobsdiagsave,ianldate
@@ -272,6 +277,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   logical   proceed
   type(pcpNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
+  type(obs_diags),pointer:: my_diagLL
 
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_ps
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_u
@@ -526,60 +532,22 @@ endif
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
+     if (luse_obsdiag) my_diagLL => obsdiags(i_pcp_ob_type,ibin)
+
 !    Link obs to diagnostics structure
      if (luse_obsdiag) then
-        if (.not.lobsdiag_allocated) then
-           if (.not.associated(obsdiags(i_pcp_ob_type,ibin)%head)) then
-              obsdiags(i_pcp_ob_type,ibin)%n_alloc = 0
-              allocate(obsdiags(i_pcp_ob_type,ibin)%head,stat=istat)
-              if (istat/=0) then
-                 write(6,*)'setuppcp: failure to allocate obsdiags',istat
-                 call stop2(263)
-              end if
-              obsdiags(i_pcp_ob_type,ibin)%tail => obsdiags(i_pcp_ob_type,ibin)%head
-           else
-              allocate(obsdiags(i_pcp_ob_type,ibin)%tail%next,stat=istat)
-              if (istat/=0) then
-                 write(6,*)'setuppcp: failure to allocate obsdiags',istat
-                 call stop2(264)
-              end if
-              obsdiags(i_pcp_ob_type,ibin)%tail => obsdiags(i_pcp_ob_type,ibin)%tail%next
-           end if
-           obsdiags(i_pcp_ob_type,ibin)%n_alloc = obsdiags(i_pcp_ob_type,ibin)%n_alloc +1
-    
-           allocate(obsdiags(i_pcp_ob_type,ibin)%tail%muse(miter+1))
-           allocate(obsdiags(i_pcp_ob_type,ibin)%tail%nldepart(miter+1))
-           allocate(obsdiags(i_pcp_ob_type,ibin)%tail%tldepart(miter))
-           allocate(obsdiags(i_pcp_ob_type,ibin)%tail%obssen(miter))
-           obsdiags(i_pcp_ob_type,ibin)%tail%indxglb=ioid(n)
-           obsdiags(i_pcp_ob_type,ibin)%tail%nchnperobs=-99999
-           obsdiags(i_pcp_ob_type,ibin)%tail%luse=luse(n)
-           obsdiags(i_pcp_ob_type,ibin)%tail%muse(:)=.false.
-           obsdiags(i_pcp_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-           obsdiags(i_pcp_ob_type,ibin)%tail%tldepart(:)=zero
-           obsdiags(i_pcp_ob_type,ibin)%tail%wgtjo=-huge(zero)
-           obsdiags(i_pcp_ob_type,ibin)%tail%obssen(:)=zero
-    
-           my_diag => obsdiags(i_pcp_ob_type,ibin)%tail
-           my_diag%idv = is
-           my_diag%iob = ioid(n)
-           my_diag%ich = 1
-           my_diag%elat= data_p(ilate,n)
-           my_diag%elon= data_p(ilone,n)
-        else
-           if (.not.associated(obsdiags(i_pcp_ob_type,ibin)%tail)) then
-              obsdiags(i_pcp_ob_type,ibin)%tail => obsdiags(i_pcp_ob_type,ibin)%head
-           else
-              obsdiags(i_pcp_ob_type,ibin)%tail => obsdiags(i_pcp_ob_type,ibin)%tail%next
-           end if
-           if (.not.associated(obsdiags(i_pcp_ob_type,ibin)%tail)) then
-              call die(myname,'.not.associated(obsdiags(i_pcp_ob_type,ibin)%tail)')
-           end if
-           if (obsdiags(i_pcp_ob_type,ibin)%tail%indxglb/=ioid(n)) then
-              write(6,*)'setuppcp: index error'
-              call stop2(265)
-           end if
-        endif
+        my_diag => obsdiagLList_nextNode(my_diagLL      ,&
+                create = .not.lobsdiag_allocated        ,&
+                   idv = is                     ,&
+                   iob = ioid(n)                ,&
+                   ich = 1                      ,&
+                  elat = data_p(ilate,n)        ,&
+                  elon = data_p(ilone,n)        ,&
+                  luse = luse(n)                ,&
+                 miter = miter                  )
+
+        if(.not.associated(my_diag)) call die(myname, &
+                'obsdiagLList_nextNode(), create =', .not.lobsdiag_allocated)
      endif
 
      if(.not.in_curbin) cycle
@@ -965,12 +933,10 @@ endif
      endif
 
      muse= (varinv>r1em6.and.iusep(kx)>=1)
-     if (nobskeep>0.and.luse_obsdiag) muse=obsdiags(i_pcp_ob_type,ibin)%tail%muse(nobskeep)
 
      if (luse_obsdiag) then
-        obsdiags(i_pcp_ob_type,ibin)%tail%muse(jiter)=muse
-        obsdiags(i_pcp_ob_type,ibin)%tail%nldepart(jiter)= drad
-        obsdiags(i_pcp_ob_type,ibin)%tail%wgtjo= varinv
+        if (nobskeep>0) call obsdiagNode_get(my_diag, jiter=nobskeep, muse=muse)
+        call obsdiagNode_set(my_diag, wgtjo=varinv, jiter=jiter,muse=muse,nldepart=drad)
      endif
 
 
@@ -1020,17 +986,8 @@ endif
         my_head%luse=luse(n)
 
         if (luse_obsdiag) then
-           my_head%diags => obsdiags(i_pcp_ob_type,ibin)%tail
-
-           my_diag => my_head%diags
-           if(my_head%idv /= my_diag%idv .or. &
-              my_head%iob /= my_diag%iob ) then
-              call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
-                        (/is,ioid(n),ibin/))
-              call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
-              call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
-              call die(myname)
-           endif
+           call obsdiagNode_assert(my_diag,my_head%idv,my_head%iob,1,myname,'my_diag:my_head')
+           my_head%diags => my_diag
         endif
         my_head => null()
      end if
@@ -1073,9 +1030,10 @@ endif
  
            ioff=ioff0
            if (lobsdiagsave) then
+             associate(odiag => my_diagLL%tail)
               do jj=1,miter
                  ioff=ioff+1
-                 if (obsdiags(i_pcp_ob_type,ibin)%tail%muse(jj)) then
+                 if (odiag%muse(jj)) then
                     diagbuf(ioff) = one
                  else
                     diagbuf(ioff) = -one
@@ -1083,16 +1041,17 @@ endif
               enddo
               do jj=1,miter+1
                  ioff=ioff+1
-                 diagbuf(ioff) = obsdiags(i_pcp_ob_type,ibin)%tail%nldepart(jj)
+                 diagbuf(ioff) = odiag%nldepart(jj)
               enddo
               do jj=1,miter
                  ioff=ioff+1
-                 diagbuf(ioff) = obsdiags(i_pcp_ob_type,ibin)%tail%tldepart(jj)
+                 diagbuf(ioff) = odiag%tldepart(jj)
               enddo
               do jj=1,miter
                  ioff=ioff+1
-                 diagbuf(ioff) = obsdiags(i_pcp_ob_type,ibin)%tail%obssen(jj)
+                 diagbuf(ioff) = odiag%obssen(jj)
               enddo
+             end associate ! (odiag => my_diagLL%tail)
            endif
 
 !          Write diagnostics to output file.

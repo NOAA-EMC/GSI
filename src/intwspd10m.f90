@@ -25,6 +25,7 @@ use m_obsNode    , only: obsNode
 use m_wspd10mNode, only: wspd10mNode
 use m_wspd10mNode, only: wspd10mNode_typecast
 use m_wspd10mNode, only: wspd10mNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -111,9 +112,11 @@ subroutine intwspd10m(wspd10mhead,rval,sval)
      if(luse_obsdiag)then
         if (lsaveobsens) then
            grad = val*wspd10mptr%raterr2*wspd10mptr%err2
-           wspd10mptr%diags%obssen(jiter) = grad
+           !-- wspd10mptr%diags%obssen(jiter) = grad
+           call obsdiagNode_set(wspd10mptr%diags,jiter=jiter,obssen=grad)
         else
-           if (wspd10mptr%luse) wspd10mptr%diags%tldepart(jiter)=val
+           !-- if (wspd10mptr%luse) wspd10mptr%diags%tldepart(jiter)=val
+           if (wspd10mptr%luse) call obsdiagNode_set(wspd10mptr%diags,jiter=jiter,tldepart=val)
         endif
      endif
 

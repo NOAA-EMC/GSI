@@ -423,12 +423,14 @@ module obsmod
   public :: lread_obs_save,obs_input_common,lread_obs_skip
   public :: ndat_times,lwrite_predterms,lwrite_peakwt
   public :: bmiss
+#ifdef TO_BE_REMOVED
   !public :: obs_diags                   ! types
   !public :: obs_diag                    ! types
   !public :: aofp_obs_diag               ! types
   !public :: obsptr                      ! a local working pointer (to be removed)
   !public :: obsdiags                    ! objects
   !public :: inquire_obsdiags
+#endif
   public :: mype_aero,iout_aero,nlaero
   public :: mype_pm2_5,iout_pm2_5
   public :: mype_pm10,iout_pm10
