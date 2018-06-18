@@ -511,17 +511,17 @@
 
   if(nchanl > jc) write(6,*)'SETUPRAD:  channel number reduced for ', &
      obstype,nchanl,' --> ',jc
-  if(jc == 0) then
-     if(mype == 0) write(6,*)'SETUPRAD: No channels found for ', obstype,isis
-     if(nobs > 0)read(lunin)
-     go to 135
-  end if
+  if(jc == 0 .or. toss)then 
+     if(jc == 0 .and. mype == 0) then
+        write(6,*)'SETUPRAD: No channels found for ', obstype,isis
+     end if
+     if (toss .and. mype == 0) then
+        write(6,*)'SETUPRAD: all obs var > 1e4.  do not use ',&
+           'data from satellite is=',isis
+     endif
 
-  if (toss) then
-     if(mype == 0)write(6,*)'SETUPRAD: all obs var > 1e4.  do not use ',&
-        'data from satellite is=',isis
      if(nobs >0)read(lunin)                    
-     goto 135
+     return
   endif
 
   if ( mype == 0 .and. .not.l_may_be_passive) write(6,*)mype,'setuprad: passive obs',is,isis
@@ -1768,8 +1768,6 @@
   endif
 
   call destroy_crtm
-
-135 continue
 
 ! End of routine
   return

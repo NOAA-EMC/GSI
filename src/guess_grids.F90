@@ -15,7 +15,7 @@ module guess_grids
   use kinds, only: r_single,r_kind,i_kind
   use constants, only: max_varname_length
   use gridmod, only: regional
-  use gridmod, only: wrf_nmm_regional,nems_nmmb_regional
+  use gridmod, only: wrf_nmm_regional,nems_nmmb_regional,fv3_regional
   use gridmod, only: eta1_ll
   use gridmod, only: eta2_ll
   use gridmod, only: aeta1_ll
@@ -106,6 +106,7 @@ module guess_grids
 !                         all tendencies now in a bundle (see tendsmod)
 !                         all derivaties now in a bundle (see derivsmod)
 !   2015-01-15  Hu      - Add coast_prox to hold coast proximity
+!   2017-10-10  wu      - Add code for fv3_regional 
 !
 ! !AUTHOR: 
 !   kleist           org: np20                date: 2003-12-01
@@ -995,8 +996,9 @@ contains
     use constants,only: zero,one,rd_over_cp,one_tenth,half,ten
     use gridmod, only: lat2,lon2,nsig,ak5,bk5,ck5,tref5,idvc5,&
          regional,wrf_nmm_regional,nems_nmmb_regional,wrf_mass_regional,&
-         cmaq_regional,pt_ll,aeta2_ll,&
+         cmaq_regional,pt_ll,aeta2_ll,fv3_regional,&
          aeta1_ll,eta2_ll,pdtop_ll,eta1_ll,twodvar_regional,idsl5
+  use mpimod, only: mype
     implicit none
 
 ! !DESCRIPTION: populate guess pressure arrays
@@ -1034,7 +1036,8 @@ contains
     real(r_kind) kap1,kapr,trk
     real(r_kind),dimension(:,:)  ,pointer::ges_ps=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_tv=>NULL()
-    integer(i_kind) i,j,k,jj,itv,ips
+    real(r_kind) pinc(lat2,lon2)
+    integer(i_kind) i,j,k,jj,itv,ips,kp
     logical ihaveprs(nfldsig)
 
     kap1=rd_over_cp+one
@@ -1048,6 +1051,23 @@ contains
        if(idvc5==3) then
           if(itv/=0) call die(myname_,': tv must be present when idvc5=3, abort',itv)
        endif
+
+!!!!!!!!!!!!  load delp to ges_prsi in read_fv3_netcdf_guess !!!!!!!!!!!!!!!!!
+    if (fv3_regional ) then
+       do j=1,lon2
+          do i=1,lat2
+             pinc(i,j)=(ges_ps(i,j)-ges_prsi(i,j,1,jj))
+          enddo
+       enddo
+       do k=1,nsig+1
+          do j=1,lon2
+             do i=1,lat2
+                ges_prsi(i,j,k,jj)=ges_prsi(i,j,k,jj)+eta2_ll(k)*pinc(i,j)
+             enddo
+          enddo
+       enddo
+    endif
+
        do k=1,nsig+1
           do j=1,lon2
              do i=1,lat2
@@ -1105,6 +1125,22 @@ contains
              end do
           end do
        end if   ! end if wrf_nmm regional block
+
+       if (fv3_regional) then
+          do jj=1,nfldsig
+             do k=1,nsig
+                 kp=k+1
+                do j=1,lon2
+                   do i=1,lat2
+                      ges_prsl(i,j,k,jj)=(ges_prsi(i,j,k,jj)+ges_prsi(i,j,kp,jj))*half
+                      ges_lnprsl(i,j,k,jj)=log(ges_prsl(i,j,k,jj))
+
+                   end do
+                end do
+             end do
+          end do
+       end if   ! end if fv3 regional
+
        if (twodvar_regional .or. cmaq_regional) then
 ! load using aeta coefficients
           do jj=1,nfldsig
@@ -1182,6 +1218,10 @@ contains
        if (wrf_nmm_regional.or.nems_nmmb_regional) then
           do k=1,nsig
              ges_prslavg(k)=aeta1_ll(k)*pdtop_ll+aeta2_ll(k)*(r1013-pdtop_ll-pt_ll)+pt_ll
+          end do
+       elseif (fv3_regional) then
+          do k=1,nsig
+             ges_prslavg(k)=aeta1_ll(k)*ten+r1013*aeta2_ll(k)
           end do
        elseif (wrf_mass_regional) then
           do k=1,nsig
@@ -1469,7 +1509,7 @@ contains
 
     use constants, only: one,rd_over_cp_mass,r1000,ten,zero,two
     use gridmod, only: lat2, lon2, nsig,wrf_mass_regional, &
-         twodvar_regional,nems_nmmb_regional
+         twodvar_regional,nems_nmmb_regional,fv3_regional
 
     implicit none
 
@@ -1503,6 +1543,10 @@ contains
     real(r_kind),dimension(:,:,:),pointer::ges_tv=>NULL()
 
     if (twodvar_regional) return
+    if (fv3_regional) then 
+       if(mype==0)write(6,*)'not setup for fv3_regional in load_gsdpbl_hgt'
+       return 
+    endif
 
 !   Compute geopotential height at midpoint of each layer
     do jj=1,nfldsig

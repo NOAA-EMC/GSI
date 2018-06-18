@@ -1,6 +1,7 @@
 #!/bin/sh
 
 package=ProdGSI/util/Ozone_Monitor
+#package=OznMon
 
 suffix=GFS
 run=gdas

@@ -98,7 +98,7 @@ EOF
  
 
 #   if [[ $transfer_plot -eq 1 ]] ; then
-##     transfer plots from ibm to rzdm
+##     transfer plots from wcoss to rzdm
 #      rm -f $LOGDIR/transfer_horiz_${SATYPE2}.log
 #      export subdir=horiz
 #      export listvar1=PDATE,webpsw,webmch,webid,WEBDIR,LOGDIR,USER,SUB,SUFFIX,SATYPE2,string,PVAR,subdir,tmpdir,listvar1

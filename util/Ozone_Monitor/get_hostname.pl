@@ -4,7 +4,7 @@
 #  get_hostname.pl
 #
 #  This script determines the hostname of the current machine.  The
-#  possiblities are cray, theia, ibm or "" if the host is not  
+#  possiblities are cray, theia, wcoss or "" if the host is not  
 #  one of those three.
 #-------------------------------------------------------------------
 
@@ -29,7 +29,7 @@
   
    #
    # theia login nodes are tfe1-tfe8, and hostname command only returns the node name,
-   # while ccs and (perhaps) ibm return [hostname].ncep.noaa.gov.  Keep only the
+   # while ccs and (perhaps) wcoss return [hostname].ncep.noaa.gov.  Keep only the
    # actual hostname and see if it matches the node names for zeus, tide, or gyre.
    #
    my $host_zeus  = 0;
@@ -48,8 +48,8 @@
    elsif( $host =~ /login/ ) {
       $machine = "cray";
    }
-   elsif( $host =~ /t/ || $host =~ /g/ ){	# ibm nodes are tXXaY and gXXaY
-      $machine = "ibm";
+   elsif( $host =~ /t/ || $host =~ /g/ ){	# wcoss nodes are tXXaY and gXXaY
+      $machine = "wcoss";
    }
 
    print "$machine";

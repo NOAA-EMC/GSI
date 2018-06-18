@@ -8291,7 +8291,7 @@ ns=ism
 ! s- and g-grids are the ones NOT staggered wrt the domain boundaries.)
 !----------------------------------------------------------------------------
 ie=ig0
-do i=is0+1,ism-1 ! Loop over s-grid target points interior to this segment
+iloop: do i=is0+1,ism-1 ! Loop over s-grid target points interior to this segment
    et=i
 !----------------------------------------------------------------------------
 ! Find the g-grid interval containing this target: 
@@ -8312,16 +8312,19 @@ do i=is0+1,ism-1 ! Loop over s-grid target points interior to this segment
       destar=dot_product(dwt,sofg(ie1:ien))    ! <- d(estar)/dg.
       dr=-estar/destar                         ! <- Newton correction to r
       r=r+dr                                   ! <- Refined estimate, r
-      if(abs(dr) <= rcrit)goto 1               ! <- Converged enough yet?
+      if(abs(dr) <= rcrit)then                 ! <- Converged enough yet?
+        wt=wt+dr*dwt                           ! <- Final refinement to wt
+        cofs(i)=dot_product(wt, cofg(ie1:ien)) ! <- Interpolate c(s)
+        cycle iloop
+      end if
    enddo
  ! stop 'Too many Newton iterations'           ! <- It never convergenced! 
    write(6,*)' Too many Newton iterations'           ! <- It never convergenced! 
    ns=-1
    return
-1  wt=wt+dr*dwt                                ! <- Final refinement to wt
-   cofs(i)=dot_product(wt, cofg(ie1:ien))      ! <- Interpolate c(s)
-enddo
+enddo iloop
 cofs(ism)=cofg(igm)                            ! <- End value directly
+return
 end subroutine jfit
 
 

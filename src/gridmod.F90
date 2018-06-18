@@ -86,6 +86,7 @@ module gridmod
 !   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
 !   2017-03-23  Hu      - add code to get eta2_ll and aeta2_ll ready for hybrid vertical coodinate in WRF MASS CORE
 !   2017-08-31  Li      - add sfcnst_comb to handle surface and nsst combined file
+!   2018-02-15  wu      - add fv3_regional & grid_ratio_fv3_regional
 !
 !                        
 !
@@ -140,6 +141,7 @@ module gridmod
   public :: nlat_regional,nlon_regional,update_regsfc,half_grid,gencode
   public :: diagnostic_reg,nmmb_reference_grid,filled_grid
   public :: grid_ratio_nmmb,isd_g,isc_g,dx_gfs,lpl_gfs,nsig5,nmmb_verttype
+  public :: grid_ratio_fv3_regional,fv3_regional
   public :: nsig3,nsig4,grid_ratio_wrfmass
   public :: use_gfs_ozone,check_gfs_ozone_date,regional_ozone,nvege_type
   public :: jcap,jcap_b,hires_b,sp_a,grd_a
@@ -165,6 +167,7 @@ module gridmod
   logical diagnostic_reg    ! .t. to activate regional analysis diagnostics
 
   logical wrf_nmm_regional  !
+  logical fv3_regional      ! .t. to run with fv3 regional model
   logical nems_nmmb_regional! .t. to run with NEMS NMMB model
   logical wrf_mass_regional !
   logical wrf_mass_hybridcord
@@ -186,6 +189,7 @@ module gridmod
   logical use_readin_anl_sfcmask        ! .t. for using readin surface mask
   character(1) nmmb_reference_grid      ! ='H': use nmmb H grid as reference for analysis grid
                                         ! ='V': use nmmb V grid as reference for analysis grid
+  real(r_kind) grid_ratio_fv3_regional  ! ratio of analysis grid to fv3 model grid in fv3 grid units.
   real(r_kind) grid_ratio_nmmb ! ratio of analysis grid to nmmb model grid in nmmb model grid units.
   real(r_kind) grid_ratio_wrfmass ! ratio of analysis grid to wrf model grid in wrf mass grid units.
   character(3) nmmb_verttype   !   'OLD' for old vertical coordinate definition
@@ -403,7 +407,7 @@ contains
 !
 !EOP
 !-------------------------------------------------------------------------
-    use constants, only: two
+    use constants, only: one,two
     use gsi_io, only: verbose
     implicit none
 
@@ -428,6 +432,7 @@ contains
     wrf_mass_regional = .false.
     wrf_mass_hybridcord = .false.
     cmaq_regional=.false.
+    fv3_regional=.false.
     nems_nmmb_regional = .false.
     twodvar_regional = .false. 
     use_gfs_ozone = .false.
@@ -436,8 +441,9 @@ contains
     netcdf = .false.
     filled_grid = .false.
     half_grid = .false.
+    grid_ratio_fv3_regional = one
     grid_ratio_nmmb = sqrt(two)
-    grid_ratio_wrfmass = 1.0_r_kind
+    grid_ratio_wrfmass = one
     nmmb_reference_grid = 'H'
     nmmb_verttype = 'OLD'
     lat1 = nlat
@@ -1002,6 +1008,7 @@ contains
 !   2009-01-02  todling - remove unused vars
 !   2012-01-24  parrish  - correct bug in definition of region_dx, region_dy.
 !   2014-03-12  Hu     - Code for GSI analysis on Mass grid larger than background mass grid   
+!   2017-10-10  Wu,W   - setup FV3
 !
 ! !REMARKS:
 !   language: f90
@@ -1049,6 +1056,19 @@ contains
        rlat_max_dd=rlat_max_ll+deg2rad
        dt_ll=zero
     end if
+
+
+    if(fv3_regional) then     ! begin fv3 regional section
+       if(diagnostic_reg.and.mype==0) write(6,*)' in init_reg_glob_ll for FV3 '
+       rlon_min_ll=one
+       rlat_min_ll=one
+       rlon_max_ll=nlon
+       rlat_max_ll=nlat
+       rlat_min_dd=rlat_min_ll+r1_5/grid_ratio_fv3_regional
+       rlat_max_dd=rlat_max_ll-r1_5/grid_ratio_fv3_regional
+       rlon_min_dd=rlon_min_ll+r1_5/grid_ratio_fv3_regional
+       rlon_max_dd=rlon_max_ll-r1_5/grid_ratio_fv3_regional
+    endif    !  fv3_regional
 
     if(wrf_nmm_regional) then     ! begin wrf_nmm section
 ! This is a wrf_nmm regional run.

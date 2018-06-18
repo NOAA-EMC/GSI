@@ -26,6 +26,7 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
 !   2010-12-17  pagowski - add cmaq
 !   2011-08-15  gu/todling - add pseudo-q2 options
 !   2014-12-03  derber - add additional threading
+!   2018-02-15  wu - add code for fv3_regional option
 !
 !   input argument list:
 !     tsen      - input sensibile temperature field (lat2,lon2,nsig)
@@ -56,6 +57,7 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
   use derivsmod, only:  qgues,dqdt,dqdrh,dqdp
   use jfunc, only:  pseudo_q2
   use gridmod, only:  wrf_nmm_regional,wrf_mass_regional,nems_nmmb_regional,aeta2_ll,regional,cmaq_regional
+  use gridmod, only:  fv3_regional
   use guess_grids, only: tropprs,ges_prslavg,ges_psfcavg
   implicit none
 
@@ -88,7 +90,8 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
            endif
         end do
     end if
-    if (wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
+    if (wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional .or. &
+             fv3_regional) then
         kpres = nsig
         do k=1,nsig
            if (aeta2_ll(k)==zero) then
@@ -177,7 +180,7 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
                   idtupdate=.false.
                 end if
                 if(wrf_nmm_regional .or. nems_nmmb_regional.or.&
-                     cmaq_regional) then
+                     cmaq_regional .or. fv3_regional) then
 !       Decouple T and p at different levels for nmm core
                   if(k >= kpres)idpupdate = .false.
                   if(k >= k150 )idtupdate = .false.

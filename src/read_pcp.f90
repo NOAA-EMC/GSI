@@ -152,7 +152,10 @@
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
   call readmg(lnbufr,subset,idate,iret)
-  if (iret/=0) goto 110
+  if (iret/=0) then
+     call closbf(lnbufr)
+     return
+  end if
 
   iy=0; im=0; idd=0; ihh=0
          
@@ -164,136 +167,137 @@
   pcpdata=zero
 
 ! Big loop over bufr file	
-10 call readsb(lnbufr,iret)
-  if(iret/=0) then
-     call readmg(lnbufr,subset,jdate,iret)
-     if(iret/=0) go to 100
-     go to 10
-  end if
+  obsloop: do
+     call readsb(lnbufr,iret)
+     if(iret/=0) then
+        call readmg(lnbufr,subset,jdate,iret)
+        if(iret/=0) exit obsloop
+        cycle obsloop
+     end if
 
   
-! Extract satellite id and observation date/time
-  call ufbint(lnbufr,hdr7,7,1,iret,strhdr7)
+!    Extract satellite id and observation date/time
+     call ufbint(lnbufr,hdr7,7,1,iret,strhdr7)
 
-  iyr = hdr7(2)
-  imo = hdr7(3)
-  idy = hdr7(4)
-  ihr = hdr7(5)
-  imn = hdr7(6)
+     iyr = hdr7(2)
+     imo = hdr7(3)
+     idy = hdr7(4)
+     ihr = hdr7(5)
+     imn = hdr7(6)
 
-  idate5(1) = iyr
-  idate5(2) = imo
-  idate5(3) = idy
-  idate5(4) = ihr
-  idate5(5) = imn
-  call w3fs21(idate5,minobs)
-  t4dv=real(minobs-iwinbgn,r_kind)*r60inv
-  if (l4dvar.or.l4densvar) then
-     if (t4dv<zero .OR. t4dv>winlen) goto 10
-  else
-     sstime=real(minobs,r_kind)
-     tdiff = (sstime-gstime)*r60inv
-     if (abs(tdiff) > twind) goto 10
-  endif
-
-  if (pcp_ssmi)   kx = 264
-  if (pcp_tmi)    kx = 211
-  if (pcp_amsu)   kx = 258
-  if (pcp_stage3) kx = 260
-
-
-! Extract observation location and value(s)
-  if (pcp_ssmi) then
-
-     call ufbint(lnbufr,pcpdat,4,1,iret,strsmi4)
-     if (pcpdat(3)>99999.0_r_double) then
-        itype=99999
+     idate5(1) = iyr
+     idate5(2) = imo
+     idate5(3) = idy
+     idate5(4) = ihr
+     idate5(5) = imn
+     call w3fs21(idate5,minobs)
+     t4dv=real(minobs-iwinbgn,r_kind)*r60inv
+     if (l4dvar.or.l4densvar) then
+        if (t4dv<zero .OR. t4dv>winlen) cycle obsloop
      else
-        itype = nint(pcpdat(3))
+        sstime=real(minobs,r_kind)
+        tdiff = (sstime-gstime)*r60inv
+        if (abs(tdiff) > twind) cycle obsloop
      endif
-     scnt  = pcpdat(4)
-     if (itype/=66) goto 10
 
-!    Transition across PREPBUFR mnemonic change from REQ6 to REQV
-
-     call ufbrep(lnbufr,pcpprd,2,2,iret,strsmi2_old)
-     if(min(pcpprd(2,1),pcpprd(2,2))>=bmiss) &
-        call ufbrep(lnbufr,pcpprd,2,2,iret,strsmi2)
-     spcp = bmiss
-     if (nint(pcpprd(1,1))==4)  spcp=pcpprd(2,1)*r3600
-     if (nint(pcpprd(1,2))==10) stdv=pcpprd(2,2)*r3600
-
-!    Check for negative, very large, or missing pcp.
-!    If any case is found, skip this observation.
-     if ( (spcp<zero) .or. (spcp>r100) .or. &
-          (abs(spcp-bmiss)<tiny_r_kind) ) goto 10
-
-  elseif (pcp_tmi) then
-     call ufbint(lnbufr,pcpdat,7,1,iret,strtmi7)
-     spcp=bmiss; scnv=bmiss
-     spcp = pcpdat(3)  ! total rain
-     scnv = pcpdat(4)  ! convective rain
-     sclw = pcpdat(5)  ! clw
-     scli = pcpdat(6)  ! cli
-     scnt = pcpdat(7)  ! number of obs used for superobs
-
-!    Check for negative, very large, or missing pcp.
-!    If any case is found, skip this observation.
-     if ( (spcp<zero) .or. (spcp>r100) .or. &
-          (abs(spcp-bmiss)<tiny_r_kind) ) goto 10
-
-  elseif (pcp_amsu) then
-     call ufbint(lnbufr,pcpdat,5,1,iret,stramb5)
-     spcp   = pcpdat(3)*r3600   ! convert to mm/hr
-     lndsea = nint(pcpdat(4))   ! water=0, land=1, coast=2
-     itype  = nint(pcpdat(5))   ! water=0, land=1, coast=-1
-
-     if (lndsea==2 .or. itype==-1) goto 10  ! skip coastal points
-
-!    Check for negative, very large, or missing pcp.
-!    If any case is found, skip this observation.
-     if ( (spcp<zero) .or. (spcp>r100) .or. &
-          (abs(spcp-bmiss)<tiny_r_kind) ) goto 10
+     if (pcp_ssmi)   kx = 264
+     if (pcp_tmi)    kx = 211
+     if (pcp_amsu)   kx = 258
+     if (pcp_stage3) kx = 260
 
 
-  elseif (pcp_stage3) then
-     spcp=bmiss
+!    Extract observation location and value(s)
+     if (pcp_ssmi) then
 
-!    Check for negative, very large, or missing pcp.
-!    If any case is found, skip this observation.
-     if ( (spcp<zero) .or. (spcp>r100) .or. &
-          (abs(spcp-bmiss)<tiny_r_kind) ) goto 10
+        call ufbint(lnbufr,pcpdat,4,1,iret,strsmi4)
+        if (pcpdat(3)>99999.0_r_double) then
+           itype=99999
+        else
+           itype = nint(pcpdat(3))
+        endif
+        scnt  = pcpdat(4)
+        if (itype/=66) cycle obsloop
+
+!       Transition across PREPBUFR mnemonic change from REQ6 to REQV
+   
+        call ufbrep(lnbufr,pcpprd,2,2,iret,strsmi2_old)
+        if(min(pcpprd(2,1),pcpprd(2,2))>=bmiss) &
+           call ufbrep(lnbufr,pcpprd,2,2,iret,strsmi2)
+        spcp = bmiss
+        if (nint(pcpprd(1,1))==4)  spcp=pcpprd(2,1)*r3600
+        if (nint(pcpprd(1,2))==10) stdv=pcpprd(2,2)*r3600
+
+!       Check for negative, very large, or missing pcp.
+!       If any case is found, skip this observation.
+        if ( (spcp<zero) .or. (spcp>r100) .or. &
+             (abs(spcp-bmiss)<tiny_r_kind) ) cycle obsloop
+
+     elseif (pcp_tmi) then
+        call ufbint(lnbufr,pcpdat,7,1,iret,strtmi7)
+        spcp=bmiss; scnv=bmiss
+        spcp = pcpdat(3)  ! total rain
+        scnv = pcpdat(4)  ! convective rain
+        sclw = pcpdat(5)  ! clw
+        scli = pcpdat(6)  ! cli
+        scnt = pcpdat(7)  ! number of obs used for superobs
+
+!       Check for negative, very large, or missing pcp.
+!       If any case is found, skip this observation.
+        if ( (spcp<zero) .or. (spcp>r100) .or. &
+             (abs(spcp-bmiss)<tiny_r_kind) ) cycle obsloop
+
+     elseif (pcp_amsu) then
+        call ufbint(lnbufr,pcpdat,5,1,iret,stramb5)
+        spcp   = pcpdat(3)*r3600   ! convert to mm/hr
+        lndsea = nint(pcpdat(4))   ! water=0, land=1, coast=2
+        itype  = nint(pcpdat(5))   ! water=0, land=1, coast=-1
+
+        if (lndsea==2 .or. itype==-1) cycle obsloop  ! skip coastal points
+
+!       Check for negative, very large, or missing pcp.
+!       If any case is found, skip this observation.
+        if ( (spcp<zero) .or. (spcp>r100) .or. &
+             (abs(spcp-bmiss)<tiny_r_kind) ) cycle obsloop
+
+
+     elseif (pcp_stage3) then
+        spcp=bmiss
+
+!       Check for negative, very large, or missing pcp.
+!       If any case is found, skip this observation.
+        if ( (spcp<zero) .or. (spcp>r100) .or. &
+             (abs(spcp-bmiss)<tiny_r_kind) ) cycle obsloop
         
-  endif
+     endif
 
 
-! If regional mode, see if observation falls within limited area domain
-  dlat_earth = pcpdat(1)
-  dlon_earth = pcpdat(2)
-  if (abs(dlat_earth)>90._r_kind .or. abs(dlon_earth)>r360) goto 10
-  if (dlon_earth< zero) dlon_earth=dlon_earth+r360
-  if (dlon_earth==r360) dlon_earth=dlon_earth-r360
-  dlat_earth_deg=dlat_earth
-  dlon_earth_deg=dlon_earth
-  dlat_earth=dlat_earth*deg2rad
-  dlon_earth=dlon_earth*deg2rad
-  if(regional)then
-     call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
-     if (outside) go to 10
+!    If regional mode, see if observation falls within limited area domain
+     dlat_earth = pcpdat(1)
+     dlon_earth = pcpdat(2)
+     if (abs(dlat_earth)>90._r_kind .or. abs(dlon_earth)>r360) cycle obsloop
+     if (dlon_earth< zero) dlon_earth=dlon_earth+r360
+     if (dlon_earth==r360) dlon_earth=dlon_earth-r360
+     dlat_earth_deg=dlat_earth
+     dlon_earth_deg=dlon_earth
+     dlat_earth=dlat_earth*deg2rad
+     dlon_earth=dlon_earth*deg2rad
+     if(regional)then
+        call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
+        if (outside) cycle obsloop
 
-! Global case.  Convert observation (lat,lon) to radians
-  else
-     dlat = dlat_earth
-     dlon = dlon_earth
-     call grdcrd1(dlat,rlats,nlat,1)
-     call grdcrd1(dlon,rlons,nlon,1)
-  endif
+!    Global case.  Convert observation (lat,lon) to radians
+     else
+        dlat = dlat_earth
+        dlon = dlon_earth
+        call grdcrd1(dlat,rlats,nlat,1)
+        call grdcrd1(dlon,rlons,nlon,1)
+     endif
 
 !
-! Do we want to keep this observation?
-  nread = nread + 1
-  ndata = min(ndata + 1,maxobs)
-  nodata = nodata + 1
+!    Do we want to keep this observation?
+     nread = nread + 1
+     ndata = min(ndata + 1,maxobs)
+     nodata = nodata + 1
 !
 
 !     isflg    - surface flag
@@ -303,48 +307,42 @@
 !                3 snow
 !                4 mixed                        
 
-  call deter_sfc_type(dlat_earth,dlon_earth,t4dv,isflg,tsavg)
+     call deter_sfc_type(dlat_earth,dlon_earth,t4dv,isflg,tsavg)
 
-! Load output array
+!    Load output array
 
-  pcpdata(1,ndata) = kx                    ! satellite id
-  pcpdata(2,ndata) = t4dv                  ! time relative to cycle (hours)
-  pcpdata(3,ndata) = dlon                  ! grid relative longitude
-  pcpdata(4,ndata) = dlat                  ! grid relative latitude
-  pcpdata(5,ndata) = isflg + .001_r_kind   ! surface tag
-  pcpdata(6,ndata) = spcp                  ! total precipitation (mm/hr)
-  if (pcp_ssmi) then
-     pcpdata(7,ndata) = stdv               ! standard deviation of superobs
-     pcpdata(8,ndata) = scnt               ! number of obs used to make superobs
-     pcpdata(9,ndata) = dlon_earth_deg     ! earth relative longitude (degrees)
-     pcpdata(10,ndata)= dlat_earth_deg     ! earth relative latitude (degrees)
-  elseif (pcp_tmi) then
-     pcpdata(7,ndata) = scnv               ! convective precipitation (mm/hr)
-     pcpdata(8,ndata) = sclw               ! cloud water (mm)
-     pcpdata(9,ndata) = scli               ! cloud ice (mm)
-     pcpdata(10,ndata)= scnt               ! number of obs used to make superobs
-     pcpdata(11,ndata)= dlon_earth_deg     ! earth relative longitude (degrees)
-     pcpdata(12,ndata)= dlat_earth_deg     ! earth relative latitude (degrees)
-  elseif (pcp_amsu) then
-     pcpdata(7,ndata) = zero               ! standard deviation of superobs (not yet)
-     pcpdata(8,ndata) = itype             ! type of algorithm
-     pcpdata(9,ndata) = dlon_earth_deg     ! earth relative longitude (degrees)
-     pcpdata(10,ndata)= dlat_earth_deg     ! earth relative latitude (degrees)
-  elseif (pcp_stage3) then
-     pcpdata(7,ndata) = stdv               ! standard deviation of superobs
-     pcpdata(8,ndata) = scnt               ! number of obs used to make superobs
-     pcpdata(9,ndata) = dlon_earth_deg     ! earth relative longitude (degrees)
-     pcpdata(10,ndata)= dlat_earth_deg     ! earth relative latitude (degrees)
-  endif
+     pcpdata(1,ndata) = kx                    ! satellite id
+     pcpdata(2,ndata) = t4dv                  ! time relative to cycle (hours)
+     pcpdata(3,ndata) = dlon                  ! grid relative longitude
+     pcpdata(4,ndata) = dlat                  ! grid relative latitude
+     pcpdata(5,ndata) = isflg + .001_r_kind   ! surface tag
+     pcpdata(6,ndata) = spcp                  ! total precipitation (mm/hr)
+     if (pcp_ssmi) then
+        pcpdata(7,ndata) = stdv               ! standard deviation of superobs
+        pcpdata(8,ndata) = scnt               ! number of obs used to make superobs
+        pcpdata(9,ndata) = dlon_earth_deg     ! earth relative longitude (degrees)
+        pcpdata(10,ndata)= dlat_earth_deg     ! earth relative latitude (degrees)
+     elseif (pcp_tmi) then
+        pcpdata(7,ndata) = scnv               ! convective precipitation (mm/hr)
+        pcpdata(8,ndata) = sclw               ! cloud water (mm)
+        pcpdata(9,ndata) = scli               ! cloud ice (mm)
+        pcpdata(10,ndata)= scnt               ! number of obs used to make superobs
+        pcpdata(11,ndata)= dlon_earth_deg     ! earth relative longitude (degrees)
+        pcpdata(12,ndata)= dlat_earth_deg     ! earth relative latitude (degrees)
+     elseif (pcp_amsu) then
+        pcpdata(7,ndata) = zero               ! standard deviation of superobs (not yet)
+        pcpdata(8,ndata) = itype             ! type of algorithm
+        pcpdata(9,ndata) = dlon_earth_deg     ! earth relative longitude (degrees)
+        pcpdata(10,ndata)= dlat_earth_deg     ! earth relative latitude (degrees)
+     elseif (pcp_stage3) then
+        pcpdata(7,ndata) = stdv               ! standard deviation of superobs
+        pcpdata(8,ndata) = scnt               ! number of obs used to make superobs
+        pcpdata(9,ndata) = dlon_earth_deg     ! earth relative longitude (degrees)
+        pcpdata(10,ndata)= dlat_earth_deg     ! earth relative latitude (degrees)
+     endif
 !
-! End of big loop over bufr file.  Process next observation.
-  go to 10
-
-
-! Jump here when the end of the bufr file is reach or there
-! is some other problem reading the bufr file
-100 continue
-
+!    End of big loop over bufr file.  Process next observation.
+  end do obsloop
 
 ! Write retained data to local file
   call count_obs(ndata,ndatout,ilat,ilon,pcpdata,nobs)

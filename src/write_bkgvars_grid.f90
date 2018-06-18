@@ -102,6 +102,7 @@ subroutine write_bkgvars2_grid
 !   2010-10-20  pagowski - add cmaq
 !   2017-03-23  Hu      - add code to use hybrid vertical coodinate in WRF MASS
 !                           core
+!   2018-02-15  wu      - add code for fv3_regional
 !
 !   input argument list:
 !
@@ -114,11 +115,11 @@ subroutine write_bkgvars2_grid
 !$$$
   use kinds, only: r_kind,i_kind,r_single
   use mpimod, only: mype
-  use constants, only: zero,r1000,one_tenth
+  use constants, only: zero,r1000,one_tenth,r100
   use gridmod, only: nlat,nlon,nsig
   use gridmod, only: ak5,bk5,idvc5,&
          regional,wrf_nmm_regional,nems_nmmb_regional,wrf_mass_regional,&
-         cmaq_regional,pt_ll,&
+         cmaq_regional,pt_ll,fv3_regional,&
          eta2_ll,pdtop_ll,eta1_ll,twodvar_regional
   use control_vectors, only: nc3d,nc2d,mvars
   use control_vectors, only: cvars3d,cvars2d,cvarsmd
@@ -160,6 +161,8 @@ subroutine write_bkgvars2_grid
                    pt_ll)
         if (twodvar_regional) &
            prs(k)=one_tenth*(eta1_ll(k)*(r1000-pt_ll) + pt_ll)
+        if (fv3_regional ) &
+           prs(k)=eta1_ll(k)+r100*eta2_ll(k)
         if (wrf_mass_regional) &
            prs(k)=one_tenth*(eta1_ll(k)*(r1000-pt_ll) + eta2_ll(k) + pt_ll)
      else

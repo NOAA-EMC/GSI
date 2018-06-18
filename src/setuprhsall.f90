@@ -93,6 +93,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !   2015-07-10  pondeca - add cldch
 !   2015-10-01  guo   - full res obvsr: index to allow redistribution of obsdiags
 !   2016-05-05  pondeca - add uwnd10m, vwund10m
+!   2018-02-15  wu      - add code for fv3_regional 
 !
 !   input argument list:
 !     ndata(*,1)- number of prefiles retained for further processing
@@ -132,7 +133,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use coinfo, only: diag_co,mype_co,jpch_co,ihave_co
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum
   use gridmod, only: nsig,twodvar_regional,wrf_mass_regional,nems_nmmb_regional
-  use gridmod, only: cmaq_regional
+  use gridmod, only: cmaq_regional,fv3_regional
   use gsi_4dvar, only: nobs_bins,l4dvar
   use gsi_4dvar, only: mPEs_observer
   use jfunc, only: jiter,jiterstart,miter,first,last
@@ -386,7 +387,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 ! Compute 2d subdomain pbl heights from the guess fields
    if (wrf_mass_regional) then
       call load_gsdpbl_hgt(mype)
-   else if (nems_nmmb_regional) then
+   else if (nems_nmmb_regional .or. fv3_regional) then
       if (l_PBL_pseudo_SurfobsT .or. l_PBL_pseudo_SurfobsQ .or. l_PBL_pseudo_SurfobsUV) then
          call load_gsdpbl_hgt(mype)
       end if
