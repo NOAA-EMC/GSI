@@ -13,7 +13,7 @@ program bcor
   character(10),dimension(ntype):: ftype
   character(20) satname,stringd,satsis,mod_satname
   character(10) dum,satype,dplat
-  character(40) string,diag_rad,data_file,ctl_file
+  character(80) string,diag_rad,data_file,ctl_file
   character(40),dimension(max_surf_region):: region
   character(10) suffix
 

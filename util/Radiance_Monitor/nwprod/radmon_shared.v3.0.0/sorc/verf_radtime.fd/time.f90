@@ -24,7 +24,7 @@ program time
   character(8) stid
   character(20) satname,stringd,satsis
   character(10) dum,satype,dplat
-  character(40) string,diag_rad,data_file,dfile,ctl_file
+  character(80) string,diag_rad,data_file,dfile,ctl_file
   character(40),dimension(max_surf_region):: region
   character(40),dimension(mregion):: surf_region
   character :: command
@@ -43,6 +43,7 @@ program time
   real rread, pen, bound
   real rlat, rlon, rmiss, obs
   real,dimension(2):: cor_tot,nbc_omg,bc_omg
+  real,dimension(2):: omgbc, omgnbc
   real,dimension(max_surf_region):: rlatmin,rlatmax,rlonmin,rlonmax
 
   real,allocatable,dimension(:):: wavenumbr,channel_count
@@ -307,15 +308,20 @@ program time
 
 !          If observation was assimilated, accumulate sums in appropriate regions
            if (data_chan(j)%errinv > 1.e-6) then
-!              pen        =  data_chan(j)%errinv*(data_chan(j)%omgbc)**2
               pen        =  (data_chan(j)%errinv*(data_chan(j)%omgbc))**2
               cor_tot(1) =  (data_chan(j)%omgnbc - data_chan(j)%omgbc)
-              nbc_omg(1) = - data_chan(j)%omgnbc
-              bc_omg(1)  = - data_chan(j)%omgbc
+!              nbc_omg(1) = - data_chan(j)%omgnbc
+!              bc_omg(1)  = - data_chan(j)%omgbc
 
+              omgnbc(1)  =   data_chan(j)%omgnbc
+              omgbc(1)   =   data_chan(j)%omgbc            
+
+              omgnbc(2)  =  (data_chan(j)%omgnbc)**2
+              omgbc(2)   =  (data_chan(j)%omgbc)**2
+ 
               cor_tot(2) =  (data_chan(j)%omgnbc - data_chan(j)%omgbc)**2
-              nbc_omg(2) =  (data_chan(j)%omgnbc)**2
-              bc_omg(2)  =  (data_chan(j)%omgbc)**2
+!              nbc_omg(2) =  (data_chan(j)%omgnbc)**2
+!              bc_omg(2)  =  (data_chan(j)%omgbc)**2
 
               do i=1,nreg
                  k=jsub(i)
@@ -326,8 +332,10 @@ program time
 
                  do ii=1,2
                     tot_cor(j,k,ii) = tot_cor(j,k,ii) + cor_tot(ii)
-                    omg_nbc(j,k,ii) = omg_nbc(j,k,ii) + nbc_omg(ii)
-                    omg_bc(j,k,ii)  = omg_bc(j,k,ii)  + bc_omg(ii)
+!                    omg_nbc(j,k,ii) = omg_nbc(j,k,ii) + nbc_omg(ii)
+                    omg_nbc(j,k,ii) = omg_nbc(j,k,ii) + omgnbc(ii)
+!                    omg_bc(j,k,ii)  = omg_bc(j,k,ii)  + bc_omg(ii)
+                    omg_bc(j,k,ii)  = omg_bc(j,k,ii)  + omgbc(ii)
                  end do
 
               end do
