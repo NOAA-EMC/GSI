@@ -12,7 +12,7 @@ program bcoef
   character(10),dimension(ntype):: ftype
   character(20) dum,satname,stringd,satsis,isis,mod_satname
   character(10) satype,dplat
-  character(40) string,diag_rad,data_file,ctl_file
+  character(80) string,diag_rad,data_file,ctl_file
   character(10) suffix
 
   integer luname,lungrd,lunctl,lncoef,lndiag,ich

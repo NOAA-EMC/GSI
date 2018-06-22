@@ -12,7 +12,7 @@ program angle
   character(20) satname,stringd
   character(10) satype,dplat
   character(20) dum,satsis,satscan_sis
-  character(40) string,diag_rad,data_file,dfile,ctl_file
+  character(80) string,diag_rad,data_file,dfile,ctl_file
   character(40),dimension(max_surf_region):: surf_region
   character(8)  date,suffix,cycle
   character(len=1024) :: command

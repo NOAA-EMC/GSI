@@ -13,7 +13,7 @@
 
 set -x
 
-export PDATE=2016022500
+export PDATE=2018022100
 
 #############################################################
 # Specify whether the run is production or development
@@ -24,17 +24,17 @@ export job=gdas_verfrad.${cyc}
 export pid=${pid:-$$}
 export jobid=${job}.${pid}
 export envir=para
-export DATAROOT=/ptmpp1/$LOGNAME/test_data
+export DATAROOT=/gpfs/td2/emc/da/noscrub/${LOGNAME}/test_data
 export COMROOT=/ptmpp1/$LOGNAME/com
 
 
 #############################################################
 # Specify versions
 #############################################################
-export gdas_ver=v13.0.0
-export global_shared_ver=v13.0.0
-export gdas_radmon_ver=v2.0.0
-export radmon_shared_ver=v2.0.2
+export gdas_ver=v15.0.0
+export global_shared_ver=v15.0.0
+export gdas_radmon_ver=v3.0.0
+export radmon_shared_ver=v3.0.0
 
 
 #############################################################
@@ -59,7 +59,8 @@ export POE=YES
 # Set user specific variables
 #############################################################
 export RADMON_SUFFIX=testrad
-export NWTEST=/da/noscrub/${LOGNAME}/RadMon_545/util/Radiance_Monitor/nwprod
+#export NWTEST=/da/noscrub/${LOGNAME}/RadMon_545/util/Radiance_Monitor/nwprod
+export NWTEST=/gpfs/td2/emc/da/noscrub/Edward.Safford/ProdGSI/util/Radiance_Monitor/nwprod
 export HOMEgdas=${NWTEST}/gdas_radmon.${gdas_radmon_ver}
 export JOBGLOBAL=${HOMEgdas}/jobs
 export HOMEradmon=${NWTEST}/radmon_shared.${radmon_shared_ver}
