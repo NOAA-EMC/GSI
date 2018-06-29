@@ -139,7 +139,7 @@
   use gfs_stratosphere, only: broadcast_gfs_stratosphere_vars
   use general_commvars_mod, only: init_general_commvars,destroy_general_commvars
   use radiance_mod, only: radiance_mode_init,radiance_mode_destroy, &
-       radiance_obstype_destroy,radiance_parameter_cloudy_destroy
+       radiance_obstype_destroy
   use gsi_nstcouplermod, only: gsi_nstcoupler_init_nml
   use gsi_nstcouplermod, only: nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl
 
@@ -1608,7 +1608,6 @@
      call final_fgrid2agrid(pf2aP1)
   endif
   call radiance_obstype_destroy
-  call radiance_parameter_cloudy_destroy
   call final_aero_vars
   call final_rad_vars
   if(passive_bc) call prad_destroy()    ! replacing -- call destroyobs_passive
