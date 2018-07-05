@@ -54,31 +54,11 @@ module fv3_interface
 
   type analysis_grid
      character(len=500)                          :: filename
-     real(r_kind), dimension(:,:,:), allocatable :: dpres
-     real(r_kind), dimension(:,:,:), allocatable :: delz
-     real(r_kind), dimension(:,:,:), allocatable :: ugrd
-     real(r_kind), dimension(:,:,:), allocatable :: vgrd
-     real(r_kind), dimension(:,:,:), allocatable :: spfh
-     real(r_kind), dimension(:,:,:), allocatable :: tmp
-     real(r_kind), dimension(:,:,:), allocatable :: clwmr
-     real(r_kind), dimension(:,:,:), allocatable :: o3mr
-     real(r_kind), dimension(:,:,:), allocatable :: icmr
+     real(r_kind), dimension(:,:,:), allocatable :: var3d
      real(r_kind), dimension(:,:),   allocatable :: psfc
      real(r_kind), dimension(:),     allocatable :: ak
      real(r_kind), dimension(:),     allocatable :: bk
      real(r_kind), dimension(:),     allocatable :: ck
-  end type analysis_grid ! type analysis_grid
-
-  type increment_grid
-     real(r_kind), dimension(:,:,:), allocatable :: delp_inc
-     real(r_kind), dimension(:,:,:), allocatable :: delz_inc
-     real(r_kind), dimension(:,:,:), allocatable :: u_inc
-     real(r_kind), dimension(:,:,:), allocatable :: v_inc
-     real(r_kind), dimension(:,:,:), allocatable :: sphum_inc
-     real(r_kind), dimension(:,:,:), allocatable :: temp_inc
-     real(r_kind), dimension(:,:,:), allocatable :: clwmr_inc
-     real(r_kind), dimension(:,:,:), allocatable :: o3mr_inc
-     real(r_kind), dimension(:,:,:), allocatable :: icmr_inc
      real(r_kind), dimension(:),     allocatable :: lon
      real(r_kind), dimension(:),     allocatable :: lat
      real(r_kind), dimension(:),     allocatable :: lev
@@ -86,459 +66,539 @@ module fv3_interface
      real(r_kind), dimension(:),     allocatable :: pfull
      real(r_kind), dimension(:),     allocatable :: hyai
      real(r_kind), dimension(:),     allocatable :: hybi
-     integer                                     :: nx
-     integer                                     :: ny
-     integer                                     :: nz
-     integer                                     :: nzp1
-  end type increment_grid ! type increment_grid
+     integer                                     :: nx = -1
+     integer                                     :: ny = -1
+     integer                                     :: nz = -1
+     integer                                     :: nzp1 = 0
+     logical                                     :: is_allocated = .false.
+     logical                                     :: flip_lats = .true.
+     logical                                     :: ldpres = .true.
+  end type analysis_grid ! type analysis_grid
+
+  type increment_netcdf
+    integer :: dimid_lon = -1
+    integer :: dimid_lat = -1
+    integer :: dimid_lev = -1
+    integer :: dimid_ilev = -1
+    integer :: ncfileid = -1
+  end type increment_netcdf
+
+  integer, parameter :: n_inc_vars = 9  !! number of known variables
 
   ! Define global variables
 
-  type(nemsio_meta)   :: meta_nemsio
-  type(analysis_grid) :: an_grid
-  type(analysis_grid) :: fg_grid
+  type(nemsio_meta)   :: meta_nemsio !! nemsio metadata for the current file
+  type(analysis_grid) :: an_grid !! analysis grid data
+  type(analysis_grid) :: fg_grid !! first guess grid data
 
-  !-----------------------------------------------------------------------
+  !! All known output variables.  These are the names in the output
+  !! NetCDF file.  The input names are in input_vars.
+  character(len=11), dimension(n_inc_vars) :: output_vars=(/       &
+       'u_inc      ', 'v_inc      ', 'delp_inc   ', 'delz_inc   ', &
+       'T_inc      ', 'sphum_inc  ', 'liq_wat_inc', 'o3mr_inc   ', &
+       'icmr_inc   ' /)
 
-  ! Define interfaces and attributes for module routines
+  !! Synonyms for output_vars needed to be backward-compatible with
+  !! bugs in the prior version of this script.  These are used to
+  !! match to increments_to_zero.
+  character(len=11), dimension(n_inc_vars) :: var_zero_synonyms=(/      &
+       'u_inc      ', 'v_inc      ', 'delp_inc   ', 'delz_inc   ', &
+       'temp_inc   ', 'sphum_inc  ', 'clwmr_inc  ', 'o3mwr_inc  ', &
+       'icmr_inc   ' /)
+
+  !! The input name from nemsio that matches each output filename from
+  !! output_vars.
+  character(len=11), dimension(n_inc_vars) :: input_vars=(/        &
+       'ugrd       ', 'vgrd       ', 'dpres      ', 'delz       ', &
+       'tmp        ', 'spfh       ', 'clwmr      ', 'o3mr       ', &
+       'icmr       ' /)
 
   private
   public :: fv3_calc_increment
 
-  !-----------------------------------------------------------------------
+  !=======================================================================
+  !=======================================================================
 
 contains
 
   !=======================================================================
-
-  ! fv3_calc_increment.f90:
-
-  !-----------------------------------------------------------------------
+  !=======================================================================
 
   subroutine fv3_calc_increment()
 
-    ! Define variables computed within routine
+    type(gfs_grid) :: grid !! GFS analysis grid
 
-    type(increment_grid) :: grid
+    type(increment_netcdf) :: ncdat  !! cached info about NetCDF output file
 
-    !=====================================================================
+    integer :: i, j, k ! loop indices within a variable
+    integer :: ivar !! loop index over variables in input_vars & output_vars
 
-    ! Compute local variables
+    ! Formats for print statements:
+100 format(A,': ',A)
 
-    call fv3_increment_compute(grid)
+    ! ------------------------------------------------------------------
+    ! Initialize memory, read metadata, and read 1D arrays.
 
-    ! Define local variables
+    ! Calculate constants
+    call init_constants_derived()
 
-    call fv3_increment_write(grid)
+    ! Allocate grids for analysis and first guess
+    call fv3_grid_allocate(an_grid,fg_grid)
 
-    ! Deallocate memory for local variables
+    ! Read the analysis and first guess non-increment vars and pressure:
+    an_grid%filename = analysis_filename
+    fg_grid%filename = firstguess_filename
+    call fv3_analysis_read_non_inc_vars(an_grid)
+    call fv3_analysis_read_non_inc_vars(fg_grid)
 
-    call fv3_increment_cleanup(grid)
+    ! ------------------------------------------------------------------
+    ! Deal with everything that is NOT a 3D array:
 
-    !=====================================================================
+    ! Copy horizontal dimensions from analysis grid
+    grid%nlons   = an_grid%nx
+    grid%nlats   = an_grid%ny
 
-  end subroutine fv3_calc_increment
+    ! Read the nemsio header
+    call gfs_nems_initialize(meta_nemsio, firstguess_filename)
+    call gfs_grid_initialize(grid, meta_nemsio)
+
+    an_grid%lon = grid%rlon(:,1)
+
+    ! reverse latitudes (so they are in increasing order, S to N)
+    if (grid%rlat(1,1) > grid%rlat(1,grid%nlats)) then
+       do j=1,grid%nlats
+          an_grid%lat(j) = grid%rlat(1,grid%nlats-j+1)
+       enddo
+    else
+       an_grid%lat = grid%rlat(1,:)
+    endif
+
+    ! Fill 1D vertical arrays with level numbers:
+
+    nz_init: do k = 1, an_grid%nz
+       an_grid%lev(k)   = real(k)
+       an_grid%pfull(k) = real(k)
+    end do nz_init
+
+    nzp1_init: do k = 1, an_grid%nzp1
+       an_grid%ilev(k) = real(k)
+       an_grid%hyai(k) = real(k)
+       an_grid%hybi(k) = real(k)
+    end do nzp1_init
+
+    ! Deallocate entire grid.
+    call gfs_grid_cleanup(grid)
+    call gfs_nems_finalize()
+
+    ! ------------------------------------------------------------------
+    ! Start the NetCDF file creation.  Define vars and write
+    ! non-increment vars.
+
+    call fv3_increment_def_start(an_grid,ncdat)
+
+    var_def_loop: do ivar=1,n_inc_vars
+       call fv3_increment_def_var(ncdat,output_vars(ivar))
+       if(trim(input_vars(ivar)) == 'icmr' .and. .not. do_icmr) then
+          print 100, output_vars(ivar), 'do_icmr = F so var will not be in netcdf'
+          cycle var_def_loop
+       endif
+    enddo var_def_loop
+
+    call fv3_increment_def_end(ncdat)
+    call fv3_increment_write_start(an_grid,ncdat)
+
+    ! ------------------------------------------------------------------
+    ! Deal with 3D arrays
+
+    var_loop: do ivar=1,n_inc_vars
+       ! Skip this var if it is icmr and we're told not to do_icmr:
+       if(trim(input_vars(ivar)) == 'icmr' .and. .not. do_icmr) then
+          print 100, trim(output_vars(ivar)), &
+               'do_icmr = F so will not diff this var'
+          cycle var_loop
+       endif
+
+       ! Skip this var if it is to be zero.  No point in reading it...
+       zero_or_read: if(should_zero_increments_for(var_zero_synonyms(ivar))) then
+          print 100, trim(output_vars(ivar)), &
+               'is in incvars_to_zero; setting increments to zero'
+          an_grid%var3d = 0
+       else
+
+          ! This var should not be skipped.  Let's get the analysis and
+          ! first guess from the input files.
+          if(trim(input_vars(ivar)) == 'dpres') then
+             ! Special case.  We may have to calculate the 3D pressure
+             ! from the 2D surface pressure and coordinate system using
+             ! the hydrostatic approximation.
+             call fv3_analysis_read_or_calc_dpres(an_grid)
+             call fv3_analysis_read_or_calc_dpres(fg_grid)
+          else
+             ! Read the variable from the files directly.
+             print 100, trim(output_vars(ivar)), 'read variable'
+             call fv3_analysis_read_var(an_grid,input_vars(ivar))
+             call fv3_analysis_read_var(fg_grid,input_vars(ivar))
+          endif
+          
+          ! Subtract and write
+          an_grid%var3d = an_grid%var3d - fg_grid%var3d
+       endif zero_or_read
+
+       call fv3_netcdf_write_var3d(ncdat,output_vars(ivar),an_grid%var3d)
+    enddo var_loop
+
+    call fv3_increment_write_end(ncdat)
+
+    call fv3_grid_deallocate(an_grid,fg_grid)
+
+  end subroutine fv3_calc_increment  
 
   !=======================================================================
 
-  ! fv3_increment_write.f90:
+  !! Is this variable in incvars_to_zero?
+  logical function should_zero_increments_for(check_var)
 
-  !-----------------------------------------------------------------------
+    character(len=*), intent(in) :: check_var !! Variable to search for
 
-  subroutine fv3_increment_write(grid)
+    ! Local variables
+
+    character(len=10) :: varname ! temporary string for storing variable names
+    integer :: i ! incvars_to_zero loop index
+
+    should_zero_increments_for=.false.
+
+    zeros_loop: do i=1,max_vars
+       varname = incvars_to_zero(i)
+       if ( trim(varname) == check_var ) then
+          should_zero_increments_for=.true.
+          return
+       endif
+    end do zeros_loop
+
+  end function should_zero_increments_for
+
+  !=======================================================================
+  !== BASIC NETCDF UTILITIES =============================================
+  !=======================================================================
+
+  subroutine fv3_netcdf_def_var(ncdat,varname,ncdimid,att1_name,&
+                                att1_values,att2_name,att2_values)
 
     ! Define variables passed to routine
 
-    type(increment_grid) :: grid
+    type(increment_netcdf) :: ncdat !! NetCDF file ids
+    character(len=*) :: varname !! Name of the variable to define
+    integer, dimension(:) :: ncdimid !! IDs of the file dimensions
+    character(len=*), optional :: att1_name   !! name of the first attribute
+    character(len=*), optional :: att1_values !! value of the first attribute
+    character(len=*), optional :: att2_name   !! name of the second attribute
+    character(len=*), optional :: att2_values !! value of the second attribute
+
+    ! Local variable
+
+    integer :: ncvarid ! NetCDF variable ID of the variable we create.
+
+    ! Define the variable in the NetCDF file.
+    call netcdf_check( &
+         nf90_def_var(ncdat%ncfileid,varname,nf90_float,ncdimid,ncvarid), &
+         'nf90_def_var',context=varname)
+
+    ! If attributes were given, define those too.
+    if(present(att1_name) .and. present(att1_values)) then
+       call netcdf_check( &
+            nf90_put_att(ncdat%ncfileid,ncvarid,att1_name,att1_values), &
+            'nf90_def_var',context=varname // ' ' // att1_name)
+    end if
+    if(present(att2_name) .and. present(att2_values)) then
+       call netcdf_check( &
+            nf90_put_att(ncdat%ncfileid,ncvarid,att2_name,att2_values), &
+            'nf90_def_var',context=varname // ' ' // att2_name)
+    end if
+  end subroutine fv3_netcdf_def_var
+
+  !=======================================================================
+
+  subroutine fv3_netcdf_write_var1d(ncdat,varname,values)
+
+    ! Define variables passed to routine
+
+    type(increment_netcdf) :: ncdat
+    character(len=*) :: varname
+    real(r_kind), intent(in), dimension(:) :: values
 
     ! Define variables computed within routine
 
-    integer, dimension(3) :: dimid_3d
-    integer, dimension(1) :: dimid_1d
-
-    integer :: varid_lon
-    integer :: varid_lat
-    integer :: varid_lev
-    integer :: varid_pfull
-    integer :: varid_ilev
-    integer :: varid_hyai
-    integer :: varid_hybi
-    integer :: varid_u_inc
-    integer :: varid_v_inc
-    integer :: varid_delp_inc
-    integer :: varid_delz_inc
-    integer :: varid_temp_inc
-    integer :: varid_sphum_inc
-    integer :: varid_clwmr_inc
-    integer :: varid_o3mr_inc
-    integer :: varid_icmr_inc
-    integer :: dimid_lon
-    integer :: dimid_lat
-    integer :: dimid_lev
-    integer :: dimid_ilev
-    integer :: ncfileid
     integer :: ncvarid
-    integer :: ncdimid
 
-    !=====================================================================
+    call netcdf_check(nf90_inq_varid(ncdat%ncfileid,varname,ncvarid),&
+                      'nf90_inq_varid',context=varname)
+    call netcdf_check(nf90_put_var(ncdat%ncfileid,ncvarid,values),&
+                      'nf90_put_var',context=varname)
 
-    ! Define local variables
-
-    print *,'writing to ',trim(increment_filename)
-    call netcdf_check(nf90_create(trim(increment_filename), &
-         cmode=ior(NF90_CLOBBER,NF90_64BIT_OFFSET),ncid=ncfileid), &
-         & 'nf90_create')
-
-    call netcdf_check(nf90_def_dim(ncfileid,'lon',grid%nx,dimid_lon), &
-         & 'nf90_def_dim', context='lon')
-
-    call netcdf_check(nf90_def_dim(ncfileid,'lat',grid%ny,dimid_lat), &
-         & 'nf90_def_dim', context='lat')
-
-    call netcdf_check(nf90_def_dim(ncfileid,'lev',grid%nz,dimid_lev), &
-         & 'nf90_def_dim', context='lev')
-
-    call netcdf_check(nf90_def_dim(ncfileid,'ilev',grid%nzp1,dimid_ilev), &
-         & 'nf90_def_dim', context='ilev')
-
-    if (debug) print *,'dims',grid%nx,grid%ny,grid%nz,grid%nzp1
-
-    dimid_1d(1) = dimid_lon
-    call netcdf_check(nf90_def_var(ncfileid,'lon',nf90_float,dimid_1d,varid_lon), &
-         & 'nf90_def_var lon')
-    call netcdf_check(nf90_put_att(ncfileid,varid_lon,'units','degrees_east'), &
-         & 'nf90_put_att', context='lon units')
-
-    dimid_1d(1) = dimid_lat
-    call netcdf_check(nf90_def_var(ncfileid,'lat',nf90_float,dimid_1d,varid_lat), &
-         & 'nf90_def_var', context='lat')
-    call netcdf_check(nf90_put_att(ncfileid,varid_lat,'units','degrees_north'), &
-         & 'nf90_put_att', context='lat units')
-
-    dimid_1d(1) = dimid_lev
-    call netcdf_check(nf90_def_var(ncfileid,'lev',nf90_float,dimid_1d,varid_lev), &
-         & 'nf90_def_var', context='lev')
-
-    call netcdf_check(nf90_def_var(ncfileid,'pfull',nf90_float,dimid_1d,varid_pfull), &
-         & 'nf90_def_var', context='pfull')
-
-    dimid_1d(1) = dimid_ilev
-    call netcdf_check(nf90_def_var(ncfileid,'ilev',nf90_float,dimid_1d,varid_ilev), &
-         & 'nf90_def_var', context='ilev')
-
-    call netcdf_check(nf90_def_var(ncfileid,'hyai',nf90_float,dimid_1d,varid_hyai), &
-         & 'nf90_def_var', context='hyai')
-
-    call netcdf_check(nf90_def_var(ncfileid,'hybi',nf90_float,dimid_1d,varid_hybi), &
-         & 'nf90_def_var', context='hybi')
-
-    dimid_3d(1) = dimid_lon
-    dimid_3d(2) = dimid_lat
-    dimid_3d(3) = dimid_lev
-
-    call netcdf_check(nf90_def_var(ncfileid,'u_inc',nf90_float,dimid_3d,varid_u_inc), &
-         & 'nf90_def_var', context='u_inc')
-
-    call netcdf_check(nf90_def_var(ncfileid,'v_inc',nf90_float,dimid_3d,varid_v_inc), &
-         & 'nf90_def_var', context='v_inc')
-
-    call netcdf_check(nf90_def_var(ncfileid,'delp_inc',nf90_float,dimid_3d,varid_delp_inc), &
-         & 'nf90_def_var', context='delp_inc')
-
-    call netcdf_check(nf90_def_var(ncfileid,'delz_inc',nf90_float,dimid_3d,varid_delz_inc), &
-         & 'nf90_def_var', context='delz_inc')
-
-    call netcdf_check(nf90_def_var(ncfileid,'T_inc',nf90_float,dimid_3d,varid_temp_inc), &
-         & 'nf90_def_var', context='temp_inc')
-
-    call netcdf_check(nf90_def_var(ncfileid,'sphum_inc',nf90_float,dimid_3d,varid_sphum_inc), &
-         & 'nf90_def_var', context='sphum_inc')
-
-    call netcdf_check(nf90_def_var(ncfileid,'liq_wat_inc',nf90_float,dimid_3d,varid_clwmr_inc), &
-         & 'nf90_def_var', context='clwmr_inc')
-
-    call netcdf_check(nf90_def_var(ncfileid,'o3mr_inc',nf90_float,dimid_3d,varid_o3mr_inc), &
-         & 'nf90_def_var', context='o3mr_inc')
-
-    if ( do_icmr ) then
-      call netcdf_check(nf90_def_var(ncfileid,'icmr_inc',nf90_float,dimid_3d, varid_icmr_inc), &
-           & 'nf90_def_var', context='icmr_inc')
-    endif
-
-    call netcdf_check(nf90_put_att(ncfileid,nf90_global,'source','GSI'), &
-         & 'nf90_put_att', context='source')
-
-    call netcdf_check(nf90_put_att(ncfileid,nf90_global,'comment','global analysis increment from calc_increment.x'), &
-         & 'nf90_put_att', context='comment')
-
-    call netcdf_check(nf90_enddef(ncfileid), &
-         & 'nf90_enddef')
-
-    call netcdf_check(nf90_put_var(ncfileid,varid_lon,grid%lon), &
-         & 'nf90_put_var', context='lon')
-
-    call netcdf_check(nf90_put_var(ncfileid,varid_lat,grid%lat), &
-         & 'nf90_put_var', context='lat')
-
-    call netcdf_check(nf90_put_var(ncfileid,varid_lev,grid%lev), &
-         & 'nf90_put_var', context='lev')
-
-    call netcdf_check(nf90_put_var(ncfileid,varid_ilev,grid%ilev), &
-         & 'nf90_put_var', context='ilev')
-
-    call netcdf_check(nf90_put_var(ncfileid,varid_pfull,grid%pfull), &
-         & 'nf90_put_var', context='pfull')
-
-    call netcdf_check(nf90_put_var(ncfileid,varid_hyai,grid%hyai), &
-         & 'nf90_put_var', context='hyai')
-
-    call netcdf_check(nf90_put_var(ncfileid,varid_hybi,grid%hybi), &
-         & 'nf90_put_var', context='hybi')
-
-    if (debug) print*, 'writing u_inc min/max =', minval(grid%u_inc),maxval(grid%u_inc)
-    call netcdf_check(nf90_put_var(ncfileid,varid_u_inc,grid%u_inc), &
-         & 'nf90_put_var', context='u_inc')
-
-    if (debug) print*, 'writing v_inc min/max =', minval(grid%v_inc),maxval(grid%v_inc)
-    call netcdf_check(nf90_put_var(ncfileid,varid_v_inc,grid%v_inc), &
-         & 'nf90_put_var', context='v_inc')
-
-    if (debug) print*, 'writing delp_inc min/max =', minval(grid%delp_inc),maxval(grid%delp_inc)
-    call netcdf_check(nf90_put_var(ncfileid,varid_delp_inc,grid%delp_inc), &
-         & 'nf90_put_var', context='delp_inc')
-
-    if (debug) print*, 'writing delz_inc min/max =', minval(grid%delz_inc),maxval(grid%delz_inc)
-    call netcdf_check(nf90_put_var(ncfileid,varid_delz_inc,grid%delz_inc), &
-         & 'nf90_put_var', context='delz_inc')
-
-    if (debug) print*, 'writing temp_inc min/max =', minval(grid%temp_inc),maxval(grid%temp_inc)
-    call netcdf_check(nf90_put_var(ncfileid,varid_temp_inc,grid%temp_inc), &
-         & 'nf90_put_var', context='temp_inc')
-
-    if (debug) print*, 'writing sphum_inc min/max =', minval(grid%sphum_inc),maxval(grid%sphum_inc)
-    call netcdf_check(nf90_put_var(ncfileid,varid_sphum_inc,grid%sphum_inc), &
-         & 'nf90_put_var', context='sphum_inc')
-
-    if (debug) print*, 'writing clwmr_inc min/max =', minval(grid%clwmr_inc),maxval(grid%clwmr_inc)
-    call netcdf_check(nf90_put_var(ncfileid,varid_clwmr_inc,grid%clwmr_inc), &
-         & 'nf90_put_var', context='clwmr_inc')
-
-    if (debug) print*, 'writing o3mr_inc min/max =', minval(grid%o3mr_inc),maxval(grid%o3mr_inc)
-    call netcdf_check(nf90_put_var(ncfileid,varid_o3mr_inc,grid%o3mr_inc), &
-         & 'nf90_put_var', context='o3mr_inc')
-
-    if ( do_icmr ) then
-      if (debug) print*, 'writing icmr_inc min/max =', minval(grid%icmr_inc),maxval(grid%icmr_inc)
-      call netcdf_check(nf90_put_var(ncfileid,varid_icmr_inc,grid%icmr_inc), &
-           & 'nf90_put_var', context='icmr_inc')
-    endif
-
-    call netcdf_check(nf90_close(ncfileid), &
-         & 'nf90_close')
-
-    !=====================================================================
-
-  end subroutine fv3_increment_write
+  end subroutine fv3_netcdf_write_var1d
 
   !=======================================================================
+
+  subroutine fv3_netcdf_write_var3d(ncdat,varname,values)
+
+    ! Define variables passed to routine
+
+    type(increment_netcdf) :: ncdat
+    character(len=*),intent(in) :: varname
+    real(r_kind), intent(in), dimension(:,:,:) :: values
+
+    ! Define variables computed within routine
+
+    integer :: ncvarid
+
+    call netcdf_check(nf90_inq_varid(ncdat%ncfileid,varname,ncvarid),&
+         'nf90_inq_varid',context=varname)
+    call netcdf_check(nf90_put_var(ncdat%ncfileid,ncvarid,values),&
+                      'nf90_put_var',context=varname)
+
+  end subroutine fv3_netcdf_write_var3d
+
+  !=======================================================================
+
+  integer function fv3_netcdf_def_dim(ncdat,dimname,dimlen)
+    ! Arguments to function
+    type(increment_netcdf) :: ncdat !! storage areas for some netcdf ids
+    character(len=*) :: dimname !! name of the new dimension
+    integer :: dimlen !! length of the new dimension
+
+    call netcdf_check(&
+         nf90_def_dim(ncdat%ncfileid,dimname,dimlen,fv3_netcdf_def_dim),&
+         'nf90_def_dim',context=dimname)
+
+  end function fv3_netcdf_def_dim
 
   !=======================================================================
 
   subroutine netcdf_check(ncstatus, nf90_call, context)
-
+    use mpi
     implicit none
 
-    integer, intent(in) :: ncstatus
-    character(len=*), intent(in) :: nf90_call
-    character(len=*), intent(in), optional :: context
+    ! Arguments to subroutine
+    integer, intent(in) :: ncstatus !! return status from nf90 function
+    character(len=*), intent(in) :: nf90_call !! name of the called function
+    character(len=*), intent(in), optional :: context !! contextual info
 
-    character(len=500) :: error_msg
+    integer :: ierr
 
+    ! Formats for print statements
+100 format('error in: ',A,': ',A,': ',A) ! context was supplied
+200 format('error in: ',A,': ',A) ! context was not supplied
+
+    ! If the nf90 function returned an error status then...
     if (ncstatus /= nf90_noerr) then
+
+      ! send an informative message to stdout and stderr...
       if ( present(context) ) then
-        error_msg = 'error in: ' // trim(nf90_call) // ': ' // trim(context) // ': '//trim(nf90_strerror(ncstatus))
+         write(0,100) trim(nf90_call), trim(context), trim(nf90_strerror(ncstatus))
+         print 100,   trim(nf90_call), trim(context), trim(nf90_strerror(ncstatus))
       else
-        error_msg = 'error in: ' // trim(nf90_call) // ': ' // trim(nf90_strerror(ncstatus))
+         write(0,200) trim(nf90_call), trim(nf90_strerror(ncstatus))
+         print 200,   trim(nf90_call), trim(nf90_strerror(ncstatus))
       endif
-       print*, trim(error_msg)
-       stop 1
+
+      ! ...and abort the whole program.
+      call MPI_Abort(MPI_COMM_WORLD,1,ierr)
     endif
 
   end subroutine netcdf_check
 
   !=======================================================================
+  !== Increment File Output Utilities ====================================
+  !=======================================================================
 
-  ! fv3_increment_compute.f90:
+  subroutine fv3_increment_def_start(grid,ncdat)
 
-  !-----------------------------------------------------------------------
+    ! Define arguments to this subroutine
 
-  subroutine fv3_increment_compute(incr_grid)
+    type(analysis_grid) :: grid !! analysis grid data
+    type(increment_netcdf) :: ncdat !! netcdf file ids
 
-    ! Define variables passed to routine
+    print *,'writing to ',trim(increment_filename)
 
-    type(increment_grid) :: incr_grid
+    ! Create the NetCDF file.
+    
+    call netcdf_check(nf90_create(trim(increment_filename), &
+         cmode=ior(NF90_CLOBBER,NF90_64BIT_OFFSET),ncid=ncdat%ncfileid), &
+         & 'nf90_create')
 
-    ! Define variables computed within routine
+    ! Define the dimensions.
 
-    type(gfs_grid) :: grid
+    ncdat%dimid_lon=fv3_netcdf_def_dim(ncdat,'lon',grid%nx)
+    ncdat%dimid_lat=fv3_netcdf_def_dim(ncdat,'lat',grid%ny)
+    ncdat%dimid_lev=fv3_netcdf_def_dim(ncdat,'lev',grid%nz)
+    ncdat%dimid_ilev=fv3_netcdf_def_dim(ncdat,'ilev',grid%nzp1)
 
-    ! Define counting variables
+    if (debug) print *,'dims',grid%nx,grid%ny,grid%nz,grid%nzp1
 
-    integer :: i, j, k
+    ! Define the variables that are NOT increments:
 
-    ! Define variable name string
+    call fv3_netcdf_def_var(ncdat,'lon',(/ncdat%dimid_lon/),'units','degrees_east')
+    call fv3_netcdf_def_var(ncdat,'lat',(/ncdat%dimid_lat/),'units','degrees_north')
+    call fv3_netcdf_def_var(ncdat,'lev',(/ncdat%dimid_lev/))
+    call fv3_netcdf_def_var(ncdat,'pfull',(/ncdat%dimid_lev/))
+    call fv3_netcdf_def_var(ncdat,'ilev',(/ncdat%dimid_ilev/))
+    call fv3_netcdf_def_var(ncdat,'hyai',(/ncdat%dimid_ilev/))
+    call fv3_netcdf_def_var(ncdat,'hybi',(/ncdat%dimid_ilev/))
 
-    character(len=10) :: varname
-
-    !=====================================================================
-
-    ! Define local variables
-
-    call init_constants_derived()
-    call fv3_increment_initialize(incr_grid)
-    an_grid%filename = analysis_filename
-    fg_grid%filename = firstguess_filename
-    call fv3_increment_define_analysis(an_grid)
-    call fv3_increment_define_analysis(fg_grid)
-
-    ! Compute local variables
-
-    incr_grid%u_inc     = an_grid%ugrd  - fg_grid%ugrd
-    incr_grid%v_inc     = an_grid%vgrd  - fg_grid%vgrd
-    incr_grid%delp_inc  = an_grid%dpres - fg_grid%dpres
-    incr_grid%delz_inc  = an_grid%delz  - fg_grid%delz
-    incr_grid%temp_inc  = an_grid%tmp   - fg_grid%tmp
-    incr_grid%sphum_inc = an_grid%spfh  - fg_grid%spfh
-    incr_grid%clwmr_inc = an_grid%clwmr - fg_grid%clwmr
-    incr_grid%o3mr_inc  = an_grid%o3mr  - fg_grid%o3mr
-    if ( do_icmr ) incr_grid%icmr_inc = an_grid%icmr - fg_grid%icmr
-
-    do i=1,max_vars
-        varname = incvars_to_zero(i)
-        if ( trim(varname) /= 'NONE' ) then
-            if ( trim(varname) == 'u_inc'     ) incr_grid%u_inc     = zero
-            if ( trim(varname) == 'v_inc'     ) incr_grid%v_inc     = zero
-            if ( trim(varname) == 'delp_inc'  ) incr_grid%delp_inc  = zero
-            if ( trim(varname) == 'delz_inc'  ) incr_grid%delz_inc  = zero
-            if ( trim(varname) == 'temp_inc'  ) incr_grid%temp_inc  = zero
-            if ( trim(varname) == 'sphum_inc' ) incr_grid%sphum_inc = zero
-            if ( trim(varname) == 'clwmr_inc' ) incr_grid%clwmr_inc = zero
-            if ( trim(varname) == 'o3mwr_inc' ) incr_grid%o3mr_inc  = zero
-            if ( do_icmr .and. trim(varname) == 'icmr_inc' ) incr_grid%icmr_inc = zero
-        else
-            cycle
-        endif
-    enddo
-
-    ! Define local variables
-
-    grid%nlons   = meta_nemsio%dimx
-    grid%nlats   = meta_nemsio%dimy
-    call gfs_grid_initialize(grid, meta_nemsio)
-    !incr_grid%lon = grid%rlon(:,1)*rad2deg
-    !incr_grid%lat = grid%rlat(1,:)*rad2deg
-    incr_grid%lon = grid%rlon(:,1)
-    ! reverse latitudes (so they are in increasing order, S to N)
-    if (grid%rlat(1,1) > grid%rlat(1,grid%nlats)) then
-       do j=1,grid%nlats
-          incr_grid%lat(j) = grid%rlat(1,grid%nlats-j+1)
-       enddo
-    else
-       incr_grid%lat = grid%rlat(1,:)
-    endif
-
-    ! Loop through local variable
-
-    do k = 1, incr_grid%nz
-
-       ! Define local variables
-
-       incr_grid%lev(k)   = real(k)
-       incr_grid%pfull(k) = real(k)
-
-    end do ! do k = 1, incr_grid%nz
-
-    ! Loop through local variable
-
-    do k = 1, incr_grid%nzp1
-
-       ! Define local variables
-
-       incr_grid%ilev(k) = real(k)
-       incr_grid%hyai(k) = real(k)
-       incr_grid%hybi(k) = real(k)
-
-    end do ! do k = 1, incr_grid%nzp1
-
-    ! Deallocate memory for local variables
-
-    call gfs_grid_cleanup(grid)
-
-    !=====================================================================
-
-  end subroutine fv3_increment_compute
+  end subroutine fv3_increment_def_start
 
   !=======================================================================
 
-  ! fv3_increment_define_analysis.f90:
+  subroutine fv3_increment_def_var(ncdat,var)
 
-  !-----------------------------------------------------------------------
+    type(increment_netcdf) :: ncdat !! netcdf file ids
+    character(len=*) :: var !! Name of the variable to define
 
-  subroutine fv3_increment_define_analysis(grid)
+    ! Locals
+    integer, dimension(3) :: dimid_3d
 
-    ! Define variables passed to routine
+    dimid_3d = (/ ncdat%dimid_lon, ncdat%dimid_lat, ncdat%dimid_lev /)
 
+    call fv3_netcdf_def_var(ncdat,var,dimid_3d)
+  end subroutine fv3_increment_def_var
+
+  !=======================================================================
+
+  subroutine fv3_increment_def_end(ncdat)
+    !Arguments to routine
+    type(increment_netcdf) :: ncdat
+
+    ! Write the global variables: source of this data and comment:
+
+    call netcdf_check(nf90_put_att(ncdat%ncfileid,nf90_global,'source','GSI'), &
+         & 'nf90_put_att', context='source')
+
+    call netcdf_check(nf90_put_att(ncdat%ncfileid,nf90_global, &
+         'comment','global analysis increment from calc_increment.x'), &
+         'nf90_put_att', context='comment')
+
+    ! Terminate the definition phase of the NetCDF output:
+    call netcdf_check(nf90_enddef(ncdat%ncfileid),'nf90_enddef')
+  end subroutine fv3_increment_def_end
+
+  !=======================================================================
+
+  subroutine fv3_increment_write_start(grid,ncdat)
+    !Arguments to routine
     type(analysis_grid) :: grid
+    type(increment_netcdf) :: ncdat
 
-    ! Define variables computed within routine
+    ! Write the variables that are NOT incremented:
+    call fv3_netcdf_write_var1d(ncdat,'lon',grid%lon)
+    call fv3_netcdf_write_var1d(ncdat,'lat',grid%lat)
+    call fv3_netcdf_write_var1d(ncdat,'lev',grid%lev)
+    call fv3_netcdf_write_var1d(ncdat,'ilev',grid%ilev)
+    call fv3_netcdf_write_var1d(ncdat,'lon',grid%lon)
+    call fv3_netcdf_write_var1d(ncdat,'pfull',grid%pfull)
+    call fv3_netcdf_write_var1d(ncdat,'hyai',grid%hyai)
+    call fv3_netcdf_write_var1d(ncdat,'hybi',grid%hybi)
+  end subroutine fv3_increment_write_start
 
-    type(varinfo) :: var_info
+  !=======================================================================
 
-    real(r_kind), dimension(:,:,:), allocatable :: pressi
-    real(r_kind), dimension(:,:,:), allocatable :: vcoord
-    real(r_kind), dimension(:),     allocatable :: workgrid
+  subroutine fv3_increment_write_end(ncdat)
+    !Arguments to routine
+    type(increment_netcdf) :: ncdat
 
-    logical :: flip_lats
-    logical :: ldpres = .false.
+    ! Close the NetCDF file.  This also flushes buffers.
+    call netcdf_check(nf90_close(ncdat%ncfileid),'nf90_close',&
+         context=trim(increment_filename))
+  end subroutine fv3_increment_write_end
 
-    ! Define counting variables
+  !=======================================================================
+  !== Analysis / First Guess Read Utilities ==============================
+  !=======================================================================
 
-    integer :: i, j, k
+  !! Read one variable that is NOT pressure
+  subroutine fv3_analysis_read_var(grid,varname)
+    ! Arguments to function
 
-    !=====================================================================
+    type(analysis_grid) :: grid !! the analysis or first guess grid
+    character(len=*) :: varname !! name of the variable to read
 
-    ! Define local variables
+    ! local variables
 
+    type(varinfo) :: var_info ! to request a variable from gfs_nems_read
+    real(r_kind), allocatable :: workgrid(:) ! for reordering data
+    integer :: k ! Vertical index loop when reading data level-by-level
+
+
+    ! Read the nemsio file header
     call gfs_nems_initialize(meta_nemsio,filename=grid%filename)
 
-    ! Allocate memory for local variables
+    ! Allocate our local work array
+    allocate(workgrid(grid%nx*grid%ny))
 
-    if(.not. allocated(workgrid))                                          &
-         & allocate(workgrid(meta_nemsio%dimx*meta_nemsio%dimy))
+    ! Read in the variable, level-by-level:
+    do k = 1, grid%nz
+       var_info%var_name=varname
+       call variable_lookup(var_info)
+       call gfs_nems_read(workgrid,var_info%nems_name, &
+                          var_info%nems_levtyp,k)
 
-    ! Define local variables
+       grid%var3d(:,:,grid%nz-k+1)=reshape(workgrid,(/grid%nx,grid%ny/))
+       if (grid%flip_lats) then
+          call gfs_nems_flip_xlat_axis( &
+               meta_nemsio,grid%var3d(:,:,grid%nz - k + 1))
+       endif
+    end do
 
-    if (debug) print *,'lats',meta_nemsio%lat(1), meta_nemsio%lat(meta_nemsio%dimx*meta_nemsio%dimy)
-    if (meta_nemsio%lat(1) > meta_nemsio%lat(meta_nemsio%dimx*meta_nemsio%dimy)) then
-      flip_lats = .true.
-    else
-      flip_lats = .false.
-    endif
-    if (debug) print *,'flip_lats',flip_lats
+    ! Close the nemsio file
+    call gfs_nems_finalize()
 
-    ldpres = gfs_nems_variable_exist(meta_nemsio,'dpres')
+    deallocate(workgrid)
 
-    if ( .not. ldpres ) then
+  end subroutine fv3_analysis_read_var
 
-       if(.not. allocated(pressi))                                            &
-            & allocate(pressi(meta_nemsio%dimx,meta_nemsio%dimy,              &
-            & meta_nemsio%dimz + 1))
-       if(.not. allocated(vcoord))                                            &
-            & allocate(vcoord(meta_nemsio%dimz + 1,3,2))
+  !=======================================================================
 
-       call gfs_nems_vcoord(meta_nemsio,grid%filename,vcoord)
-       grid%ak = vcoord(:,1,1)
-       grid%bk = vcoord(:,2,1)
+  !! Read or calculate 3D pressure
+  subroutine fv3_analysis_read_or_calc_dpres(grid)
+    ! Arguments to function
+
+    type(analysis_grid) :: grid !! the analysis or first guess grid
+
+    ! local variables
+
+    type(varinfo) :: var_info ! to request a variable from gfs_nems_read
+    real(r_kind), allocatable :: workgrid(:) ! for reordering data
+    real(r_kind), allocatable :: pressi(:,:,:) ! interface pressure, 3D
+    real(r_kind), allocatable :: vcoord(:,:,:) ! a & b for hydro. approx.
+    integer :: k ! Vertical index loop when reading data level-by-level
+
+100 format(A,': ',A)
+
+    ! Read the nemsio file header
+    call gfs_nems_initialize(meta_nemsio,filename=grid%filename)
+
+    allocate(vcoord(meta_nemsio%dimz + 1,3,2))
+    allocate(workgrid(meta_nemsio%dimx*meta_nemsio%dimy))
+
+    ! Is the 3D pressure in the file?
+    grid%ldpres = gfs_nems_variable_exist(meta_nemsio,'dpres')
+
+    if ( .not. grid%ldpres ) then
+       ! The 3D pressure is NOT in the file.  We need to calculate
+       ! pressure from the hydrostatic approximation and surface
+       ! pressure.
+
+       print 100,'dpres','calculate from 2D psfc and hydro. approx.'
+
+       ! Allocate an array for the interface pressure.
+       if(.not. allocated(pressi)) then
+          allocate(pressi(meta_nemsio%dimx,meta_nemsio%dimy, &
+                   meta_nemsio%dimz + 1))
+       endif
+
+       ! Read the A, B, and surface pressure
+       call gfs_nems_vcoord(meta_nemsio,trim(grid%filename),vcoord)
+       grid%ak           = vcoord(:,1,1)
+       grid%bk           = vcoord(:,2,1)
        var_info%var_name = 'psfc'
        call variable_lookup(var_info)
        call gfs_nems_read(workgrid,var_info%nems_name,var_info%nems_levtyp,   &
@@ -546,290 +606,173 @@ contains
        grid%psfc(:,:)    = reshape(workgrid,(/meta_nemsio%dimx,               &
             & meta_nemsio%dimy/))
 
+       ! Apply the hydrostatic approximation to get 3D interface pressure:
        do k = 1, meta_nemsio%dimz + 1
           pressi(:,:,k) = grid%ak(k) + grid%bk(k)*grid%psfc(:,:)
        end do ! do k = 1, meta_nemsio%dimz + 1
-
+    else
+       print 100,'dpres','read from file; do not calculate'
     endif
 
+    ! Calculate or read the mid-level 3D pressure:
     do k = 1, meta_nemsio%dimz
-
-       ! Define local variables
-
-       if ( ldpres ) then
-          var_info%var_name                        = 'dpres'
+       if ( grid%ldpres ) then
+          ! Pressure is already in the file.  Read the 3D pressure array.
+          var_info%var_name = 'dpres'
           call variable_lookup(var_info)
-          call gfs_nems_read(workgrid,var_info%nems_name,                  &
-               & var_info%nems_levtyp,k)
-          grid%dpres(:,:,meta_nemsio%dimz - k + 1)  =                      &
-               & reshape(workgrid,(/meta_nemsio%dimx,meta_nemsio%dimy/))
+          call gfs_nems_read(workgrid,var_info%nems_name, &
+                            var_info%nems_levtyp,k)
+          grid%var3d(:,:,meta_nemsio%dimz - k + 1) = &
+               reshape(workgrid,(/meta_nemsio%dimx,meta_nemsio%dimy/))
        else
-          grid%dpres(:,:,meta_nemsio%dimz - k + 1) = pressi(:,:,k) -       &
-               & pressi(:,:,k+1)
-       endif
-       !if (debug) print *,'dpres',k,minval(grid%dpres(:,:,meta_nemsio%dimz - k + 1)),&
-       !maxval(grid%dpres(:,:,meta_nemsio%dimz - k + 1))
-       if (flip_lats) call gfs_nems_flip_xlat_axis(meta_nemsio,            &
-            & grid%dpres(:,:,meta_nemsio%dimz - k + 1))
-       var_info%var_name                        = 'delz'
-       call variable_lookup(var_info)
-       call gfs_nems_read(workgrid,var_info%nems_name,                     &
-            & var_info%nems_levtyp,k)
-       grid%delz(:,:,meta_nemsio%dimz - k + 1)  =                          &
-            & reshape(workgrid,(/meta_nemsio%dimx,meta_nemsio%dimy/))
-       if (flip_lats) call gfs_nems_flip_xlat_axis(meta_nemsio,            &
-            & grid%delz(:,:,meta_nemsio%dimz - k + 1))
-       var_info%var_name                        = 'ugrd'
-       call variable_lookup(var_info)
-       call gfs_nems_read(workgrid,var_info%nems_name,                     &
-            & var_info%nems_levtyp,k)
-       grid%ugrd(:,:,meta_nemsio%dimz - k + 1)  =                          &
-            & reshape(workgrid,(/meta_nemsio%dimx,meta_nemsio%dimy/))
-       if (flip_lats) call gfs_nems_flip_xlat_axis(meta_nemsio,            &
-            & grid%ugrd(:,:,meta_nemsio%dimz - k + 1))
-       var_info%var_name                        = 'vgrd'
-       call variable_lookup(var_info)
-       call gfs_nems_read(workgrid,var_info%nems_name,                     &
-            & var_info%nems_levtyp,k)
-       grid%vgrd(:,:,meta_nemsio%dimz - k + 1)  =                          &
-            & reshape(workgrid,(/meta_nemsio%dimx,meta_nemsio%dimy/))
-       if (flip_lats) call gfs_nems_flip_xlat_axis(meta_nemsio,            &
-            & grid%vgrd(:,:,meta_nemsio%dimz - k + 1))
-       var_info%var_name                        = 'spfh'
-       call variable_lookup(var_info)
-       call gfs_nems_read(workgrid,var_info%nems_name,                     &
-            & var_info%nems_levtyp,k)
-       grid%spfh(:,:,meta_nemsio%dimz - k + 1)  =                          &
-            & reshape(workgrid,(/meta_nemsio%dimx,meta_nemsio%dimy/))
-       if (flip_lats) call gfs_nems_flip_xlat_axis(meta_nemsio,            &
-            & grid%spfh(:,:,meta_nemsio%dimz - k + 1))
-       var_info%var_name                        = 'tmp'
-       call variable_lookup(var_info)
-       call gfs_nems_read(workgrid,var_info%nems_name,                     &
-            & var_info%nems_levtyp,k)
-       grid%tmp(:,:,meta_nemsio%dimz - k + 1)   =                          &
-            & reshape(workgrid,(/meta_nemsio%dimx,meta_nemsio%dimy/))
-       if (flip_lats) call gfs_nems_flip_xlat_axis(meta_nemsio,            &
-            & grid%tmp(:,:,meta_nemsio%dimz - k + 1))
-       var_info%var_name                        = 'clwmr'
-       call variable_lookup(var_info)
-       call gfs_nems_read(workgrid,var_info%nems_name,                     &
-            & var_info%nems_levtyp,k)
-       grid%clwmr(:,:,meta_nemsio%dimz - k + 1) =                          &
-            & reshape(workgrid,(/meta_nemsio%dimx,meta_nemsio%dimy/))
-       if (flip_lats) call gfs_nems_flip_xlat_axis(meta_nemsio,            &
-            & grid%clwmr(:,:,meta_nemsio%dimz - k + 1))
-       var_info%var_name                        = 'o3mr'
-       call variable_lookup(var_info)
-       call gfs_nems_read(workgrid,var_info%nems_name,                     &
-            & var_info%nems_levtyp,k)
-       grid%o3mr(:,:,meta_nemsio%dimz - k + 1)  =                          &
-            & reshape(workgrid,(/meta_nemsio%dimx,meta_nemsio%dimy/))
-       if (flip_lats) call gfs_nems_flip_xlat_axis(meta_nemsio,            &
-            & grid%o3mr(:,:,meta_nemsio%dimz - k + 1))
-       if ( do_icmr ) then
-         var_info%var_name                        = 'icmr'
-         call variable_lookup(var_info)
-         call gfs_nems_read(workgrid,var_info%nems_name,                     &
-              & var_info%nems_levtyp,k)
-         grid%icmr(:,:,meta_nemsio%dimz - k + 1)  =                          &
-              & reshape(workgrid,(/meta_nemsio%dimx,meta_nemsio%dimy/))
-         if (flip_lats) call gfs_nems_flip_xlat_axis(meta_nemsio,            &
-              & grid%icmr(:,:,meta_nemsio%dimz - k + 1))
+          ! Convert interface pressure to mass level pressure, using
+          ! the 3D array generated in the prior loop:
+          grid%var3d(:,:,meta_nemsio%dimz - k + 1) = &
+               pressi(:,:,k) - pressi(:,:,k+1)
        endif
 
-    end do ! do k = 1, meta_nemsio%dimz
+       ! Flip the pressure in the latitude direction if needed
+       if (grid%flip_lats) then
+          call gfs_nems_flip_xlat_axis( &
+               meta_nemsio, grid%var3d(:,:,meta_nemsio%dimz - k + 1) )
+       endif
+    enddo
 
-    ! Deallocate memory for local variables
 
-    if(allocated(pressi))   deallocate(pressi)
-    if(allocated(vcoord))   deallocate(vcoord)
-    if(allocated(workgrid)) deallocate(workgrid)
+    ! Deallocate memory for work arrays
 
-    ! Define local variables
+    if(allocated(pressi)) then
+       deallocate(pressi) ! only allocated if hydro. pres. is used
+    endif
+    deallocate(vcoord)
+    deallocate(workgrid)
 
-    call gfs_nems_finalize()
-
-    !=====================================================================
-
-  end subroutine fv3_increment_define_analysis
+  end subroutine fv3_analysis_read_or_calc_dpres
 
   !=======================================================================
 
-  ! fv3_increment_initialize.f90:
+  !! Read everything that is NOT incremented, plus the pressure
+  subroutine fv3_analysis_read_non_inc_vars(grid)
 
-  !-----------------------------------------------------------------------
+    type(analysis_grid) :: grid !! analysis or first guess to read
 
-  subroutine fv3_increment_initialize(grid)
+    ! Local variables
 
-    ! Define variables passed to routine
+    type(varinfo) :: var_info ! to request a variable from gfs_nems_read
+    integer :: k ! Vertical index loop when reading data level-by-level
 
-    type(increment_grid) :: grid
+    ! Read the nemsio file header
+    call gfs_nems_initialize(meta_nemsio,filename=grid%filename)
 
-    !=====================================================================
+    ! Allocate memory for work arrays
+    grid%nx=meta_nemsio%dimx
+    grid%ny=meta_nemsio%dimy
+    grid%nz=meta_nemsio%dimz
 
-    ! Define local variables
+    ! Determine ordering of latitudes:
+    if (debug) then
+       print *,'lats',meta_nemsio%lat(1), meta_nemsio%lat( &
+                meta_nemsio%dimx*meta_nemsio%dimy)
+    endif
+    if (meta_nemsio%lat(1) > meta_nemsio%lat(meta_nemsio%dimx*meta_nemsio%dimy)) then
+       grid%flip_lats = .true.
+    else
+       grid%flip_lats = .false.
+    endif
+    if (debug) print *,'flip_lats',grid%flip_lats
+
+    ! Close this nemsio file.
+    call gfs_nems_finalize()
+
+  end subroutine fv3_analysis_read_non_inc_vars
+
+  !=======================================================================
+  !== Memory Management ==================================================
+  !=======================================================================
+
+  subroutine fv3_grid_allocate(an_grid,fg_grid)
+
+    type(analysis_grid) :: an_grid !! analysis grid
+    type(analysis_grid) :: fg_grid !! first guess grid
+
+    ! Get the grid dimensions from the analysis file
 
     call gfs_nems_initialize(meta_nemsio,filename=analysis_filename)
-    grid%nx   = meta_nemsio%dimx
-    grid%ny   = meta_nemsio%dimy
-    grid%nz   = meta_nemsio%dimz
-    grid%nzp1 = grid%nz + 1
+    an_grid%nx   = meta_nemsio%dimx
+    an_grid%ny   = meta_nemsio%dimy
+    an_grid%nz   = meta_nemsio%dimz
+    an_grid%nzp1 = an_grid%nz + 1
     call gfs_nems_finalize()
 
-    ! Allocate memory for local variables
+    ! Assume the first guess has the same dimensions.
 
-    if(.not. allocated(grid%delp_inc))                                     &
-         & allocate(grid%delp_inc(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(grid%delz_inc))                                     &
-         & allocate(grid%delz_inc(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(grid%u_inc))                                        &
-         & allocate(grid%u_inc(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(grid%v_inc))                                        &
-         & allocate(grid%v_inc(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(grid%sphum_inc))                                    &
-         & allocate(grid%sphum_inc(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(grid%temp_inc))                                     &
-         & allocate(grid%temp_inc(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(grid%clwmr_inc))                                    &
-         & allocate(grid%clwmr_inc(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(grid%o3mr_inc))                                     &
-         & allocate(grid%o3mr_inc(grid%nx,grid%ny,grid%nz))
-    if(do_icmr .and. .not. allocated(grid%icmr_inc))                       &
-         & allocate(grid%icmr_inc(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(grid%lon))                                          &
-         & allocate(grid%lon(grid%nx))
-    if(.not. allocated(grid%lat))                                          &
-         & allocate(grid%lat(grid%ny))
-    if(.not. allocated(grid%lev))                                          &
-         & allocate(grid%lev(grid%nz))
-    if(.not. allocated(grid%ilev))                                         &
-         & allocate(grid%ilev(grid%nzp1))
-    if(.not. allocated(grid%pfull))                                        &
-         & allocate(grid%pfull(grid%nz))
-    if(.not. allocated(grid%hyai))                                         &
-         & allocate(grid%hyai(grid%nzp1))
-    if(.not. allocated(grid%hybi))                                         &
-         & allocate(grid%hybi(grid%nzp1))
-    if(.not. allocated(an_grid%dpres))                                     &
-         & allocate(an_grid%dpres(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(an_grid%delz))                                      &
-         & allocate(an_grid%delz(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(an_grid%ugrd))                                      &
-         & allocate(an_grid%ugrd(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(an_grid%vgrd))                                      &
-         & allocate(an_grid%vgrd(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(an_grid%spfh))                                      &
-         & allocate(an_grid%spfh(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(an_grid%tmp))                                       &
-         & allocate(an_grid%tmp(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(an_grid%clwmr))                                     &
-         & allocate(an_grid%clwmr(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(an_grid%o3mr))                                      &
-         & allocate(an_grid%o3mr(grid%nx,grid%ny,grid%nz))
-    if(do_icmr .and. .not. allocated(an_grid%icmr))                        &
-         & allocate(an_grid%icmr(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(an_grid%psfc))                                      &
-         & allocate(an_grid%psfc(grid%nx,grid%ny))
-    if(.not. allocated(an_grid%ak))                                        &
-         & allocate(an_grid%ak(grid%nz+1))
-    if(.not. allocated(an_grid%bk))                                        &
-         & allocate(an_grid%bk(grid%nz+1))
-    if(.not. allocated(an_grid%ck))                                        &
-         & allocate(an_grid%ck(grid%nz+1))
-    if(.not. allocated(fg_grid%dpres))                                     &
-         & allocate(fg_grid%dpres(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(fg_grid%delz))                                      &
-         & allocate(fg_grid%delz(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(fg_grid%ugrd))                                      &
-         & allocate(fg_grid%ugrd(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(fg_grid%vgrd))                                      &
-         & allocate(fg_grid%vgrd(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(fg_grid%spfh))                                      &
-         & allocate(fg_grid%spfh(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(fg_grid%tmp))                                       &
-         & allocate(fg_grid%tmp(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(fg_grid%clwmr))                                     &
-         & allocate(fg_grid%clwmr(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(fg_grid%o3mr))                                      &
-         & allocate(fg_grid%o3mr(grid%nx,grid%ny,grid%nz))
-    if(do_icmr .and. .not. allocated(fg_grid%icmr))                        &
-         & allocate(fg_grid%icmr(grid%nx,grid%ny,grid%nz))
-    if(.not. allocated(fg_grid%psfc))                                      &
-         & allocate(fg_grid%psfc(grid%nx,grid%ny))
-    if(.not. allocated(fg_grid%ak))                                        &
-         & allocate(fg_grid%ak(grid%nz+1))
-    if(.not. allocated(fg_grid%bk))                                        &
-         & allocate(fg_grid%bk(grid%nz+1))
-    if(.not. allocated(fg_grid%ck))                                        &
-         & allocate(fg_grid%ck(grid%nz+1))
+    fg_grid%nx   = an_grid%nx
+    fg_grid%ny   = an_grid%ny
+    fg_grid%nz   = an_grid%nz
+    fg_grid%nzp1 = an_grid%nzp1
 
-    !=====================================================================
+    if(.not.an_grid%is_allocated) then
+       allocate(an_grid%lon(an_grid%nx))
+       allocate(an_grid%lat(an_grid%ny))
+       allocate(an_grid%lev(an_grid%nz))
+       allocate(an_grid%ilev(an_grid%nzp1))
+       allocate(an_grid%pfull(an_grid%nz))
+       allocate(an_grid%hyai(an_grid%nzp1))
+       allocate(an_grid%hybi(an_grid%nzp1))
 
-  end subroutine fv3_increment_initialize
+       allocate(an_grid%var3d(an_grid%nx,an_grid%ny,an_grid%nz))
+       allocate(an_grid%psfc(an_grid%nx,an_grid%ny))
+       allocate(an_grid%ak(an_grid%nz+1))
+       allocate(an_grid%bk(an_grid%nz+1))
+       allocate(an_grid%ck(an_grid%nz+1))
+       an_grid%is_allocated=.true.
+    endif
+
+    if(.not.fg_grid%is_allocated) then
+       allocate(fg_grid%var3d(fg_grid%nx,fg_grid%ny,fg_grid%nz))
+       allocate(fg_grid%psfc(fg_grid%nx,fg_grid%ny))
+       allocate(fg_grid%ak(fg_grid%nz+1))
+       allocate(fg_grid%bk(fg_grid%nz+1))
+       allocate(fg_grid%ck(fg_grid%nz+1))
+       fg_grid%is_allocated=.true.
+    endif
+
+  end subroutine fv3_grid_allocate
 
   !=======================================================================
 
-  ! fv3_increment_cleanup.f90:
+  subroutine fv3_grid_deallocate(an_grid,fg_grid)
 
-  !-----------------------------------------------------------------------
+    type(analysis_grid) :: an_grid !! analysis grid
+    type(analysis_grid) :: fg_grid !! first guess grid
 
-  subroutine fv3_increment_cleanup(grid)
+    if(an_grid%is_allocated) then
+       deallocate(an_grid%lon)
+       deallocate(an_grid%lat)
+       deallocate(an_grid%lev)
+       deallocate(an_grid%ilev)
+       deallocate(an_grid%pfull)
+       deallocate(an_grid%hyai)
+       deallocate(an_grid%hybi)
 
-    ! Define variables passed to routine
+       deallocate(an_grid%var3d)
+       deallocate(an_grid%psfc)
+       deallocate(an_grid%ak)
+       deallocate(an_grid%bk)
+       deallocate(an_grid%ck)
+       an_grid%is_allocated=.false.
+    endif
 
-    type(increment_grid) :: grid
+    if(fg_grid%is_allocated) then
+       deallocate(fg_grid%var3d)
+       deallocate(fg_grid%psfc)
+       deallocate(fg_grid%ak)
+       deallocate(fg_grid%bk)
+       deallocate(fg_grid%ck)
+       an_grid%is_allocated=.false.
+    endif
 
-    !=====================================================================
-
-    ! Deallocate memory for local variables
-
-    if(allocated(grid%delp_inc))  deallocate(grid%delp_inc)
-    if(allocated(grid%delz_inc))  deallocate(grid%delz_inc)
-    if(allocated(grid%u_inc))     deallocate(grid%u_inc)
-    if(allocated(grid%v_inc))     deallocate(grid%v_inc)
-    if(allocated(grid%sphum_inc)) deallocate(grid%sphum_inc)
-    if(allocated(grid%temp_inc))  deallocate(grid%temp_inc)
-    if(allocated(grid%clwmr_inc)) deallocate(grid%clwmr_inc)
-    if(allocated(grid%o3mr_inc))  deallocate(grid%o3mr_inc)
-    if(allocated(grid%icmr_inc))  deallocate(grid%icmr_inc)
-    if(allocated(grid%lon))       deallocate(grid%lon)
-    if(allocated(grid%lat))       deallocate(grid%lat)
-    if(allocated(grid%lev))       deallocate(grid%lev)
-    if(allocated(grid%ilev))      deallocate(grid%ilev)
-    if(allocated(grid%pfull))     deallocate(grid%pfull)
-    if(allocated(grid%hyai))      deallocate(grid%hyai)
-    if(allocated(grid%hybi))      deallocate(grid%hybi)
-    if(allocated(an_grid%dpres))  deallocate(an_grid%dpres)
-    if(allocated(an_grid%delz))   deallocate(an_grid%delz)
-    if(allocated(an_grid%ugrd))   deallocate(an_grid%ugrd)
-    if(allocated(an_grid%vgrd))   deallocate(an_grid%vgrd)
-    if(allocated(an_grid%spfh))   deallocate(an_grid%spfh)
-    if(allocated(an_grid%tmp))    deallocate(an_grid%tmp)
-    if(allocated(an_grid%clwmr))  deallocate(an_grid%clwmr)
-    if(allocated(an_grid%o3mr))   deallocate(an_grid%o3mr)
-    if(allocated(an_grid%icmr))   deallocate(an_grid%icmr)
-    if(allocated(an_grid%psfc))   deallocate(an_grid%psfc)
-    if(allocated(an_grid%ak))     deallocate(an_grid%ak)
-    if(allocated(an_grid%bk))     deallocate(an_grid%bk)
-    if(allocated(fg_grid%ck))     deallocate(an_grid%ck)
-    if(allocated(fg_grid%dpres))  deallocate(fg_grid%dpres)
-    if(allocated(fg_grid%delz))   deallocate(fg_grid%delz)
-    if(allocated(fg_grid%ugrd))   deallocate(fg_grid%ugrd)
-    if(allocated(fg_grid%vgrd))   deallocate(fg_grid%vgrd)
-    if(allocated(fg_grid%spfh))   deallocate(fg_grid%spfh)
-    if(allocated(fg_grid%tmp))    deallocate(fg_grid%tmp)
-    if(allocated(fg_grid%clwmr))  deallocate(fg_grid%clwmr)
-    if(allocated(fg_grid%o3mr))   deallocate(fg_grid%o3mr)
-    if(allocated(fg_grid%icmr))   deallocate(fg_grid%icmr)
-    if(allocated(fg_grid%psfc))   deallocate(fg_grid%psfc)
-    if(allocated(fg_grid%ak))     deallocate(fg_grid%ak)
-    if(allocated(fg_grid%bk))     deallocate(fg_grid%bk)
-    if(allocated(fg_grid%ck))     deallocate(fg_grid%ck)
-
-    !=====================================================================
-
-  end subroutine fv3_increment_cleanup
+  end subroutine fv3_grid_deallocate
 
   !=======================================================================
 
