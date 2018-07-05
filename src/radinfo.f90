@@ -494,7 +494,7 @@ contains
   end subroutine final_rad_vars
 
 
-  subroutine radinfo_read
+  subroutine radinfo_read(miter)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    radinfo_read
@@ -575,7 +575,7 @@ contains
 
 ! !INPUT PARAMETERS:
 
-
+    integer(i_kind), optional, intent(in):: miter
     integer(i_kind) i,j,k,ich,lunin,lunout,nlines
     integer(i_kind) ip,istat,n,ichan,nstep,edge1,edge2,ntlapupdate,icw,iaeros
     real(r_kind),dimension(npred):: predr
@@ -1117,8 +1117,10 @@ contains
 
 !   Initialize observation error covariance for 
 !   instruments we account for inter-channel correlations
-    call corr_ob_initialize
-    call corr_oberr_qc(jpch_rad,iuse_rad,nusis,varch)
+    if (present(miter)) then
+       call corr_ob_initialize(miter)
+       if (miter>0)  call corr_oberr_qc(jpch_rad,iuse_rad,nusis,varch)
+    end if
 
 !   Close unit for runtime output.  Return to calling routine
     if(mype==mype_rad)close(iout_rad)

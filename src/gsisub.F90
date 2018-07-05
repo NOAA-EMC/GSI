@@ -91,6 +91,7 @@ subroutine gsisub(init_pass,last_pass)
      aircraft_t_bc_ext
   use radiance_mod, only: radiance_obstype_init,radiance_parameter_cloudy_init,radiance_parameter_aerosol_init
   use gsi_io, only: verbose
+  use jfunc, only: miter
 #ifndef HAVE_ESMF
   use guess_grids, only: destroy_gesfinfo
 #endif
@@ -148,7 +149,7 @@ subroutine gsisub(init_pass,last_pass)
 ! Read info files for assimilation of various obs
   if (init_pass) then
      if (.not.twodvar_regional) then
-        call radinfo_read
+        call radinfo_read(miter)
         call radiance_obstype_init
         call radiance_parameter_cloudy_init
         call ozinfo_read
