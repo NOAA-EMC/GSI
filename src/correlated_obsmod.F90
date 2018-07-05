@@ -227,12 +227,14 @@ contains
 !
 ! !INTERFACE:
 !
-subroutine ini_ (iamroot)
+subroutine ini_ (miter,iamroot)
 ! !USES:
 use mpeu_util, only: die
 implicit none
 ! !INPUT PARAMETERS:
+   integer(i_kind), intent(in):: miter
    logical,optional,intent(in) :: iamroot 
+
 ! !DESCRIPTION: Define parameters and setting for handling correlated
 !               observation errors via resouce file reading.
 !
@@ -303,7 +305,7 @@ do ii=1,ninstr
    if(ALL(methods_avail/=method)) then
      call die(myname_,' invalid choice of method, aborting')
    endif
-   call set_(trim(instrument),trim(filename),mask,method,kreq,GSI_BundleErrorCov(ii))
+   call set_(trim(instrument),trim(filename),mask,method,kreq,GSI_BundleErrorCov(ii),miter)
 enddo
 
 ! release table
@@ -319,7 +321,7 @@ end subroutine ini_
 !
 ! !INTERFACE:
 !
-subroutine set_(instrument,fname,mask,method,kreq,ErrorCov)
+subroutine set_(instrument,fname,mask,method,kreq,ErrorCov,miter)
 implicit none
 
 ! !INPUT PARAMETERS:
@@ -328,6 +330,7 @@ character(len=*),intent(in) :: instrument  ! name of instrument
 character(len=*),intent(in) :: fname       ! filename holding cov(R)
 character(len=*),intent(in) :: mask        ! land/sea/etc mask
 integer,intent(in):: method                ! method to apply when using this cov(R)
+integer,intent(in):: miter                 ! if =0 then just check for Rcov file, don't read
 real(r_kind),intent(in) :: kreq            ! conditioning factor for cov(R)
 type(ObsErrorCov) :: ErrorCov              ! cov(R) for this instrument
 
@@ -372,9 +375,9 @@ real(r_kind),allocatable, dimension(:) :: diag
    open(lu,file=trim(fname),convert='little_endian',form='unformatted')
    read(lu,IOSTAT=ioflag) nch_active, nctot, iprec
    if(ioflag/=0) call die(myname_,' failed to read nch from '//trim(fname))
+   if (miter==0) return
    ErrorCov%nch_active = nch_active
    ErrorCov%nctot = nctot
-
    call create_(nch_active,ErrorCov)
 
 !  Read GSI-like channel numbers used in estimating R for this instrument
