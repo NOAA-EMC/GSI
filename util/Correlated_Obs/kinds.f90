@@ -28,6 +28,7 @@ module kinds
 !
 !      i_kind    - generic specification kind for default integer
 !      r_kind    - generic specification kind for default floating point
+!      r_radstat    - specification for precision within radstat files
 !
 !
 ! attributes:
@@ -98,7 +99,11 @@ module kinds
   integer, parameter, private :: default_real = 1  ! 1=single, 
                                                    ! 2=double, 
                                                    ! 3=quad
+  integer, parameter, private :: default_radstat = 1  ! 1=single, 
+                                                   ! 2=double, 
+                                                   ! 3=quad
   integer, parameter, public  :: r_kind = real_kinds( default_real )
+  integer, parameter, public  :: r_radstat = real_kinds( default_radstat )
   integer, parameter, public  :: num_bytes_for_r_kind = &
        real_byte_sizes( default_real )
 

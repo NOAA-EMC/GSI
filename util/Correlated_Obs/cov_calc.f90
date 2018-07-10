@@ -31,11 +31,11 @@ implicit none
 character(*), parameter:: program_name='Compute_Covariance'
 
 !loop counters
-integer:: i,j, r, c, jj,dd,dis
-integer:: tim                                            !time step
-integer:: n_pair                                         !number of pairs made for one analysis obs at one time step
-integer:: ntimes                                         !number of time steps to process
-integer:: nc
+integer(i_kind):: i,j, r, c, jj,dd,dis
+integer(i_kind):: tim                                    !time step
+integer(i_kind):: n_pair                                 !number of pairs made for one analysis obs at one time step
+integer(i_kind):: ntimes                                 !number of time steps to process
+integer(i_kind):: nc
 
 !file variables
 character(5):: ges_stub, anl_stub
@@ -45,39 +45,40 @@ character(256):: wave_file                               !name of outputted file
 character(256):: err_file                                !name of outputted file containing assumed obs errors
 character(256):: corr_file                               !name of outputted correlation file
 character(256):: instr
-integer:: Error_Status, gesid, anlid
-integer, parameter:: dsize=4500                          !cap size on the number of omg's that can be stored at each time step
-integer:: read_status, leninstr
-integer:: lencov, lencorr, lenwave, lenerr
+integer(i_kind):: Error_Status, gesid, anlid
+integer(i_kind), parameter:: dsize=4500                  !cap size on the number of omg's that can be stored at each time step
+integer(i_kind):: read_status, leninstr
+integer(i_kind):: lencov, lencorr, lenwave, lenerr
 integer(i_kind):: reclen
 logical:: out_wave                                       !option to output channel wavenumbers
 logical:: out_err                                        !option to output assigned obs errors
 logical:: out_corr                                       !option to output correlation matrix
 
 !Diag data
-integer:: no_chn                                         !number of instrument channels available
+integer(i_kind):: radver
+integer(i_kind):: no_chn                                 !number of instrument channels available
 type(RadDiag_Hdr_type):: RadDiag_Hdr                     !header info about the diag data
 type(RadDiag_Data_type):: RadDiag_Data                   !diag data
 real(r_kind), dimension(:,:), allocatable:: ges          !background omg data for three files
 real(r_kind),dimension(:),allocatable:: anl              !analysis omg for one file
-integer, dimension(:,:), allocatable:: gesuse            !specifies whether a particular background omg should be used
-integer, dimension(:), allocatable:: anluse              !specifies whether a particular analysis omg should be used
+integer(i_kind), dimension(:,:), allocatable:: gesuse    !specifies whether a particular background omg should be used
+integer(i_kind), dimension(:), allocatable:: anluse      !specifies whether a particular analysis omg should be used
 real(r_kind), dimension(:), allocatable:: chaninfo       !wavenumbers of assimilated channels
 real(r_kind), dimension(:), allocatable:: errout         !assumed obs errors of assimilated channels
 integer(i_kind):: nch_active                             !number of assimilated channels for this instrument
 integer(i_kind),dimension(:),allocatable:: indR          !indices of the assimlated channels
-integer:: ng                                             !the number of background omg's for three time steps
+integer(i_kind):: ng                                     !the number of background omg's for three time steps
 
 !FOV choice
-integer:: Surface_Type, Cloud_Type
-integer, parameter:: Sea=1
-integer, parameter:: Land =2
-integer, parameter:: Snow=3
-integer, parameter:: Mixed=4
-integer, parameter:: Ice=5
-integer, parameter:: Snow_and_Ice=6
-integer, parameter:: Clear_FOV=1
-integer, parameter:: Clear_Channel=2
+integer(i_kind):: Surface_Type, Cloud_Type
+integer(i_kind), parameter:: Sea=1
+integer(i_kind), parameter:: Land =2
+integer(i_kind), parameter:: Snow=3
+integer(i_kind), parameter:: Mixed=4
+integer(i_kind), parameter:: Ice=5
+integer(i_kind), parameter:: Snow_and_Ice=6
+integer(i_kind), parameter:: Clear_FOV=1
+integer(i_kind), parameter:: Clear_Channel=2
 real(r_kind), parameter:: clear_threshold=0.01_r_kind     !if using clear sky data, do not use if above this threshold
 real(r_kind), parameter:: sea_threshold=0.99_r_kind       !if using sea data, do not use if below this threshold
 real(r_kind), parameter:: lower_sea_threshold=0.9_r_kind  !if using mixed data, do not use if above this threshold
@@ -97,19 +98,19 @@ real(r_kind):: anl_time                                  !time of analysis obs, 
 !Data locations
 real(r_kind), dimension(:,:), allocatable::gesloc        !locations (lat,lon) of background obs
 real(r_kind), dimension(2):: anlloc                      !location (lat,lon) of analysis obs
-integer:: num_bin,num_bins
+integer(i_kind):: num_bin,num_bins
 real(r_kind):: bin_size, timeth
 real(r_kind),dimension(:),allocatable:: bin_dist 
 real(r_kind)::bin_center                                 !bin center, km, used for Hollingworth Lonnberg method
 
 !Covariance Definition
-integer, parameter:: hl_method=1
-integer, parameter:: desroziers=2
-integer, parameter:: full_chan=1
-integer:: cov_method, chan_choice
-integer,dimension(:), allocatable:: n_pair_hl
-integer,dimension(:), allocatable:: obs_pairs
-integer,dimension(:,:), allocatable:: obs_pairs_hl
+integer(i_kind), parameter:: hl_method=1
+integer(i_kind), parameter:: desroziers=2
+integer(i_kind), parameter:: full_chan=1
+integer(i_kind):: cov_method, chan_choice
+integer(i_kind),dimension(:), allocatable:: n_pair_hl
+integer(i_kind),dimension(:), allocatable:: obs_pairs
+integer(i_kind),dimension(:,:), allocatable:: obs_pairs_hl
 real(r_kind), dimension(:,:), allocatable:: Rcov         !the covariance matrix
 real(r_kind), dimension(:,:), allocatable:: Rcorr        !the correlation matrix
 real(r_kind), dimension(:,:), allocatable:: anl_ave      !average value of oma
@@ -128,11 +129,12 @@ real(r_kind),dimension(:), allocatable:: eigs            !Eigenvalue array (if r
 real(r_kind),dimension(:,:), allocatable:: eigv          !Eigenvectors (if reconditioning)
 real(r_kind), dimension(:,:), allocatable:: Rout
 real(r_kind):: kreq, mx, mn
-integer:: rec_method
+integer(i_kind):: rec_method
 real(r_kind), parameter:: errt=0.0001_r_kind
 
 read(5,*) ntimes, Surface_Type, Cloud_Type, satang, instr, out_wave, out_err,  &
-   out_corr, kreq, rec_method, cov_method, chan_choice, timeth, bin_size, bin_center
+   out_corr, kreq, rec_method, cov_method, chan_choice, timeth, bin_size, &
+   bin_center, radver
 if (cov_method==desroziers) then
    allocate(bin_dist(1))
    bin_dist(1)=bin_size
@@ -146,6 +148,10 @@ else
 end if
 leninstr=len_trim(instr)
 lencov=len_trim('Rcov_')
+cov_file=''
+corr_file=''
+wave_file=''
+err_file=''
 cov_file(1:lencov)='Rcov_'
 cov_file(lencov+1:lencov+leninstr)=instr
 lencorr=len_trim('Rcorr_')
@@ -174,7 +180,7 @@ do tim=1,ntimes
       stop
    end if
    !read ges header
-   Error_Status=RadDiag_Hdr_ReadFile(gesid,RadDiag_Hdr)
+   Error_Status=RadDiag_Hdr_ReadFile(gesid,radver,RadDiag_Hdr)
    if (Error_Status /= success ) then
       call display_message(program_name,'Error reading ges header',failure)
       stop
@@ -251,7 +257,7 @@ do tim=1,ntimes
    end if !tim=1
    ng=0
    ges_read_loop: do 
-      read_status=RadDiag_Data_ReadFile(gesid,RadDiag_Hdr,RadDiag_Data)
+      read_status=RadDiag_Data_ReadFile(gesid,RadDiag_Hdr,radver,RadDiag_Data)
       select case (read_status)
       case(eof)
          exit ges_read_loop
@@ -295,7 +301,7 @@ do tim=1,ntimes
          j=indR(jj)
          if (((abs(RadDiag_Data%Channel(j)%qcmark)<one)).and. &
             (abs(RadDiag_Data%Channel(j)%errinv)>errt)) then 
-            ges(ng,jj)=RadDiag_Data%Channel(j)%omgbc
+            ges(ng,jj)=real(RadDiag_Data%Channel(j)%omgbc,r_kind)
             gesuse(ng,jj)=1
             nc=nc+1
          else
@@ -321,13 +327,13 @@ do tim=1,ntimes
          stop
       end if
       !read anl header
-      Error_Status=RadDiag_Hdr_ReadFile(anlid,RadDiag_Hdr)
+      Error_Status=RadDiag_Hdr_ReadFile(anlid,radver,RadDiag_Hdr)
       if (Error_Status /= success ) then
          call display_message(program_name,'Error reading anl header',failure)
          stop
       end if
       anl_read_loop: do
-         read_status=RadDiag_Data_ReadFile(anlid,RadDiag_Hdr,RadDiag_Data)
+         read_status=RadDiag_Data_ReadFile(anlid,RadDiag_Hdr,radver,RadDiag_Data)
          select case (read_status)
          case(eof)
             exit anl_read_loop
@@ -365,7 +371,7 @@ do tim=1,ntimes
             j=indR(jj)
             if (((abs(RadDiag_Data%Channel(j)%qcmark)<one)).and.&
                (abs(RadDiag_Data%Channel(j)%errinv)>errt)) then 
-               anl(jj)=RadDiag_Data%Channel(j)%omgbc
+               anl(jj)=real(RadDiag_Data%Channel(j)%omgbc,r_kind)
                anluse(jj)=1
                nc=nc+1
             else
@@ -378,8 +384,8 @@ do tim=1,ntimes
          anl_time=(time_min*sixty)+(threesixty*(tim-1))
          anlloc(1)=RadDiag_Data%Scalar%lat
          anlloc(2)=RadDiag_Data%Scalar%lon
-         n_pair=zero
-         obs_pairs=zero
+         n_pair=zero_int
+         obs_pairs=zero_int
          !find all possible pairs for this one oma
          !cycle through current ges file to find all matches
          call make_pairs(gesloc(:,:),anlloc,ges_times(:),anl_time,ng, &
@@ -412,8 +418,8 @@ do tim=1,ntimes
       close(anlid)
    else if (cov_method==hl_method) then  !end of cov_method=desroziers
       do dd=1,ng
-         obs_pairs_hl=zero
-         n_pair_hl=zero
+         obs_pairs_hl=zero_int
+         n_pair_hl=zero_int
          call make_pairs_hl(gesloc(:,:),gesloc(dd,:),ges_times(:), &
               ges_times(dd),ng,bin_dist,timeth, num_bin, obs_pairs_hl,n_pair_hl)
          do dis=1,num_bins
