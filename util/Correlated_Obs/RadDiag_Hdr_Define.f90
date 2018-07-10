@@ -17,7 +17,7 @@ MODULE RadDiag_Hdr_Define
   ! -----------------
   ! Module usage
 
-  USE kinds, only: sp=>r_kind
+  USE kinds, only: r_radstat
   USE Message_Handler, ONLY: FAILURE, SUCCESS, INFORMATION, Display_Message
   ! Disable implicit typing
   IMPLICIT NONE
@@ -30,6 +30,7 @@ MODULE RadDiag_Hdr_Define
   PRIVATE
   ! Datatypes
   PUBLIC :: RadDiag_Hdr_Scalar_type
+  PUBLIC :: RadDiag_Hdr_Scalar_type_30303
   PUBLIC :: RadDiag_Hdr_Channel_type
   PUBLIC :: RadDiag_Hdr_type
   ! Module subprograms
@@ -44,7 +45,7 @@ MODULE RadDiag_Hdr_Define
   ! Module parameters
   ! -----------------
   ! Literal constants
-  REAL, PARAMETER :: ZERO = 0.0_sp
+  REAL, PARAMETER :: ZERO = 0.0_r_radstat
   ! Version Id for the module
   CHARACTER(*), PARAMETER :: MODULE_VERSION_ID = &
   '$Id: RadDiag_Hdr_Define.f90 9040 2010-07-29 17:01:49Z Michael.Lueken@noaa.gov $'
@@ -54,6 +55,25 @@ MODULE RadDiag_Hdr_Define
   ! Header structure definition
   ! ---------------------------
   ! Scalar part of header
+  TYPE :: RadDiag_Hdr_Scalar_type_30303
+    CHARACTER(20) :: isis    = ' '  ! sat and sensor type
+    CHARACTER(10) :: id      = ' '  ! sat type
+    CHARACTER(10) :: obstype = ' '  ! observation type
+    INTEGER       :: jiter   = 0    ! outer loop counter
+    INTEGER       :: nchan   = 0    ! number of channels in the sensor
+    INTEGER       :: npred   = 0    ! number of updating bias correction predictors
+    INTEGER       :: idate   = 0    ! time (yyyymmddhh)
+    INTEGER       :: ireal   = 0    ! # of real elements in the fix part of a data record
+    INTEGER       :: ipchan  = 0    ! # of elements for each channel except for bias correction terms
+    INTEGER       :: iextra  = 0    ! # of extra elements for each channel
+    INTEGER       :: jextra  = 0    ! # of extra elements
+    INTEGER       :: idiag   = 0
+    INTEGER       :: angord  = 0
+    INTEGER       :: iversion_raddiag = 0
+    INTEGER       :: inewpc  = 0
+    INTEGER       :: ioff0  = 0
+  END TYPE RadDiag_Hdr_Scalar_type_30303
+
   TYPE :: RadDiag_Hdr_Scalar_type
     CHARACTER(20) :: isis    = ' '  ! sat and sensor type
     CHARACTER(10) :: id      = ' '  ! sat type
@@ -71,15 +91,16 @@ MODULE RadDiag_Hdr_Define
     INTEGER       :: iversion_raddiag = 0
     INTEGER       :: inewpc  = 0
     INTEGER       :: ioff0  = 0
+    INTEGER       :: ijacob = 0
   END TYPE RadDiag_Hdr_Scalar_type
 
   ! Channel dependent part of header
   TYPE :: RadDiag_Hdr_Channel_type
-    REAL(sp) :: freq     = ZERO  ! frequency (Hz)
-    REAL(sp) :: polar    = ZERO  ! polarization
-    REAL(sp) :: wave     = ZERO  ! wave number (cm^-1)
-    REAL(sp) :: varch    = ZERO  ! error variance (or SD error?)
-    REAL(sp) :: tlapmean = ZERO  ! mean lapse rate
+    REAL(r_radstat) :: freq     = ZERO  ! frequency (Hz)
+    REAL(r_radstat) :: polar    = ZERO  ! polarization
+    REAL(r_radstat) :: wave     = ZERO  ! wave number (cm^-1)
+    REAL(r_radstat) :: varch    = ZERO  ! error variance (or SD error?)
+    REAL(r_radstat) :: tlapmean = ZERO  ! mean lapse rate
     INTEGER  :: iuse     = -1    ! use flag
     INTEGER  :: nuchan   = -1    ! sensor relative channel number
     INTEGER  :: iochan   = -1    ! satinfo relative channel number
@@ -166,6 +187,7 @@ CONTAINS
 
   ELEMENTAL SUBROUTINE RadDiag_Hdr_Destroy( RadDiag_Hdr )
     TYPE(RadDiag_Hdr_type), INTENT(OUT) :: RadDiag_Hdr
+     if (allocated(RadDiag_Hdr%Channel)) deallocate(RadDiag_Hdr%Channel)
   END SUBROUTINE RadDiag_Hdr_Destroy
   
 
