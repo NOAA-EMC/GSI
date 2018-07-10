@@ -32,6 +32,6 @@ program calc_increment_main
     endif
   enddo
 
-  call calc_increment()
+  call calc_increment(0)
 
 end program calc_increment_main

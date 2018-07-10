@@ -62,7 +62,7 @@ program calc_increment_pmain
 
     write(6,*) 'task mype = ', mype, ' process ', trim(increment_filename)
 
-    call calc_increment()
+    call calc_increment(mype)
 
   else
 
