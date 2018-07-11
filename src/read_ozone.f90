@@ -128,7 +128,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   logical outside,version6,version8,iuse
   
   character(2) version
-  character(8) subset,subset6,subset8
+  character(8) subset,subset6,subset8,subset8_omps
   character(49) ozstr,ozostr
   character(63) lozstr
   character(51) ozgstr
@@ -200,6 +200,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   data lunin / 10 /
   data subset6 / 'NC008010' /
   data subset8 / 'NC008011' /
+  data subset8_omps / 'NC008017'/
 
 !**************************************************************************
 ! Set constants.  Initialize variables
@@ -228,7 +229,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         version6 = .true.
         nloz     = nloz_v6
         version  = 'v6'
-     elseif (subset == subset8) then
+     elseif (subset == subset8 .or. subset == subset8_omps) then
         version8 = .true. 
         nloz     = nloz_v8
         version  = 'v8'
@@ -278,6 +279,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      if(jsatid == 'n17') kidsat = 208
      if(jsatid == 'n18') kidsat = 209
      if(jsatid == 'n19') kidsat = 223
+     if(jsatid == 'npp') kidsat = 224
+     if(jsatid == 'n20') kidsat = 225
 
      if (ksatid /= kidsat) go to 110
 
@@ -563,7 +566,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 
 ! Process OMI data
-  else if ( obstype == 'omi') then
+  else if ( obstype == 'omi' .or. obstype == 'ompstc8') then
 
 !    Make thinning grids
      call makegrids(rmesh,ithin)
@@ -574,7 +577,9 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      call datelen(10)
      call readmg(lunin,subset,idate,iret)
      if (subset == 'NC008013') then
-!       write(6,*)'READ_OZONE:  OMI data type, subset=',subset
+        write(6,*)'READ_OZONE:  OMI data type, subset=',subset
+     else if (subset == 'NC008018') then
+        write(6,*)'READ_OZONE:  OMPS tc8 data type, subset=',subset
      else
         write(6,*)'READ_OZONE:  *** WARNING: unknown ozone data type, subset=',subset
         write(6,*)' infile=',trim(infile), ', lunin=',lunin, ', obstype=',obstype,', jsatid=',jsatid
@@ -613,6 +618,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      rsat = hdrozo(1); ksatid=rsat
 
      if(jsatid == 'aura')kidsat = 785
+     if(jsatid == 'npp')kidsat = 224
+     if(jsatid == 'n20')kidsat = 225
      if (ksatid /= kidsat) go to 130
 
 
@@ -660,6 +667,9 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      call ufbint(lunin,totoz,1,1,iret,'OZON')
      if (totoz > badoz ) goto 130
 
+!    QC for omi_aura
+   if (obstype == 'omi') then
+
 !    Bit 10 in TOQF represents row anomaly. 
      decimal=int(hdrozo2(6))
      call dec2bin(decimal,binary,14)
@@ -667,18 +677,19 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         goto 130
      endif
 
+!    remove the bad scan position data: fovn beyond 25
+     if (hdrozo2(7) >=25.0_r_double) goto 130
+
+   end if
 !    only accept flag 0 1, flag 2 is high SZA data which is not used for now
      toq=hdrozo2(5)
      if (toq/=0 .and. toq/=1) goto 130
-
-!    remove the bad scan position data: fovn beyond 25
-     if (hdrozo2(7) >=25.0_r_double) goto 130
 
 !    remove the data in which the C-pair algorithm ((331 and 360 nm) is used. 
      if (hdrozo2(8) == 3_r_double .or. hdrozo2(8) == 13_r_double) goto 130
 
 
-!    thin OMI data
+!    thin OMI and OMPSTC8 data
 
      if (thin4d) then
         timedif = zero 
@@ -1014,7 +1025,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 150 continue
 
 ! If gome or omi data, compress ozout array to thinned data
-  if (obstype=='omi' .or. obstype=='gome') then
+  if (obstype=='omi' .or. obstype=='gome' .or. obstype == 'ompstc8') then
      kk=0
      do k=1,itxmax
         if (ozout(1,k)>zero) then
@@ -1053,7 +1064,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   close(lunin)
 
 ! Deallocate satthin arrays
-  if (obstype == 'omi' .or. obstype == 'gome')call destroygrids
+  if (obstype == 'omi' .or. obstype == 'gome' .or. obstype == 'ompstc8')call destroygrids
 
   return
   
