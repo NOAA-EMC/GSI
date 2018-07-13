@@ -38,6 +38,7 @@ module mod_vtrans
 !                           eigenvalues need be computed.  The complete computation if the eigenvectors
 !                           and eigenvalues without using dgeev uses less than 2 seconds for 8
 !                           eigenvalue/vectors and all related computations.
+!   2018-02-15  wu       - add code for fv3_regional option
 !
 ! subroutines included:
 !   sub init_vtrans              - initialize vertical mode related variables
@@ -501,7 +502,7 @@ end if  ! END MYPE=workpe SECTION !!!!!!!!!!!!!
 !
 !$$$ end documentation block
     use constants,only: zero,ten
-    use gridmod,only: nsig,ak5,bk5,ck5
+    use gridmod,only: nsig,ak5,bk5,ck5,fv3_regional
     use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta1_ll,eta2_ll,pdtop_ll,pt_ll,cmaq_regional
     implicit none
 
@@ -514,6 +515,12 @@ end if  ! END MYPE=workpe SECTION !!!!!!!!!!!!!
     if(wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
        do k=1,nsig+1
           ahat(k)=eta1_ll(k)*pdtop_ll-eta2_ll(k)*(pdtop_ll+pt_ll)+pt_ll
+          bhat(k)=eta2_ll(k)
+          chat(k)=zero
+       end do
+    elseif(fv3_regional) then
+       do k=1,nsig+1
+          ahat(k)=eta1_ll(k)*0.01_r_kind
           bhat(k)=eta2_ll(k)
           chat(k)=zero
        end do
@@ -1376,18 +1383,20 @@ end subroutine iterative_improvement
 !        final row and column interchange
 !
          k=n
-  100    k=(k-1)
-         if(k) 150,150,105
-  105    i=l(k)
-         if(i-k) 120,120,108
-  108    jq=n*(k-1)
-         jr=n*(i-1)
-         do 110 j=1,n
-            jk=jq+j
-            hold=a(jk)
-            ji=jr+j
-            a(jk)=-a(ji)
-  110       a(ji) =hold
+         do 
+  100       k=(k-1)
+            if(k) 150,150,105
+  105       i=l(k)
+            if(i-k) 120,120,108
+  108       jq=n*(k-1)
+            jr=n*(i-1)
+            do 110 j=1,n
+               jk=jq+j
+               hold=a(jk)
+               ji=jr+j
+               a(jk)=-a(ji)
+               a(ji) =hold
+  110       continue
   120       j=m(k)
             if(j-k) 100,100,125
   125       ki=k-n
@@ -1396,7 +1405,8 @@ end subroutine iterative_improvement
                hold=a(ki)
                ji=ki-k+j
                a(ki)=-a(ji)
-  130          a(ji) =hold
-               go to 100
-  150          return
+               a(ji) =hold
+  130       continue
+         end do
+  150    return
       end subroutine iminv_quad

@@ -189,6 +189,8 @@
 !   2016-07-19  kbathmann -move eigendecomposition for correlated obs here
 !   2016-11-29  shlyaeva - save linearized H(x) for EnKF
 !   2016-10-23  zhu     - add cloudy radiance assimilation for ATMS
+!   2017-07-27  kbathmann -introduce Rinv into the rstats computation for correlated error
+!   2018-04-04  zhu     - add additional radiance_ex_obserr and radiance_ex_biascor calls for all-sky
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -257,14 +259,9 @@
   use qcmod, only: setup_tzr_qc,ifail_scanedge_qc,ifail_outside_range
   use state_vectors, only: svars3d, levels, svars2d, ns3d, nsdim
   use oneobmod, only: lsingleradob,obchan,oblat,oblon,oneob_type
-  use radinfo, only: radinfo_adjust_jacobian,radinfo_get_rsqrtinv 
+  use radinfo, only: radinfo_adjust_jacobian
   use radiance_mod, only: rad_obs_type,radiance_obstype_search,radiance_ex_obserr,radiance_ex_biascor
   use sparsearr, only: sparr2, new, writearray, size, fullarray
-
-
-
-
-
 
   implicit none
 
@@ -344,7 +341,7 @@
   real(r_kind),dimension(nchanl):: tnoise,tnoise_cld
   real(r_kind),dimension(nchanl):: emissivity,ts,emissivity_k
   real(r_kind),dimension(nchanl):: tsim,wavenumber,tsim_bc
-  real(r_kind),dimension(nchanl):: tsim_clr,cldeff_obs
+  real(r_kind),dimension(nchanl):: tsim_clr,cldeff_obs,cldeff_fg
   real(r_kind),dimension(nsig,nchanl):: wmix,temp,ptau5
   real(r_kind),dimension(nsigradjac,nchanl):: jacobian
   real(r_kind),dimension(nreal+nchanl,nobs)::data_s
@@ -353,17 +350,17 @@
   real(r_kind),dimension(nsig+1):: prsitmp
   real(r_kind),dimension(nchanl):: weightmax
   real(r_kind),dimension(nchanl):: cld_rbc_idx
+  real(r_kind),dimension(nchanl):: Rinv
+  real(r_kind),dimension(nchanl,nchanl):: rsqrtinv
   real(r_kind) :: ptau5deriv, ptau5derivmax
   real(r_kind) :: clw_guess,clw_guess_retrieval
 ! real(r_kind) :: predchan6_save   
-  real(r_kind),dimension(:,:), allocatable :: rsqrtinv
 
   integer(i_kind),dimension(nchanl):: ich,id_qc,ich_diag
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   integer(i_kind),dimension(nchanl):: kmax
   integer(i_kind):: iinstr
-  integer(i_kind) :: chan_count
   integer(i_kind),allocatable,dimension(:) :: sc_index
   integer(i_kind)  :: state_ind, nind, nnz
 
@@ -501,17 +498,17 @@
 
   if(nchanl > jc) write(6,*)'SETUPRAD:  channel number reduced for ', &
      obstype,nchanl,' --> ',jc
-  if(jc == 0) then
-     if(mype == 0) write(6,*)'SETUPRAD: No channels found for ', obstype,isis
-     if(nobs > 0)read(lunin)
-     go to 135
-  end if
+  if(jc == 0 .or. toss)then 
+     if(jc == 0 .and. mype == 0) then
+        write(6,*)'SETUPRAD: No channels found for ', obstype,isis
+     end if
+     if (toss .and. mype == 0) then
+        write(6,*)'SETUPRAD: all obs var > 1e4.  do not use ',&
+           'data from satellite is=',isis
+     endif
 
-  if (toss) then
-     if(mype == 0)write(6,*)'SETUPRAD: all obs var > 1e4.  do not use ',&
-        'data from satellite is=',isis
      if(nobs >0)read(lunin)                    
-     goto 135
+     return
   endif
 
   if ( mype == 0 .and. .not.l_may_be_passive) write(6,*)mype,'setuprad: passive obs',is,isis
@@ -871,6 +868,7 @@
         tpwc=zero
         kraintype=0
         cldeff_obs=zero 
+        cldeff_fg=zero 
         if(microwave .and. sea) then 
            if(radmod%lcloud_fwd) then                            
               call ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret,scat)
@@ -1020,6 +1018,7 @@
 !          Calculate cloud effect for QC
            if (radmod%cld_effect .and. eff_area) then
               cldeff_obs(i) = tb_obs(i)-tsim_clr(i)    ! observed cloud delta (no bias correction)                
+              cldeff_fg(i)  = tsim(i)-tsim_clr(i)    ! observed cloud delta (no bias correction)                
               ! need to apply bias correction ? need to think about this
               bias = zero
               do j=1, npred-angord
@@ -1047,8 +1046,13 @@
               tsim_bc(i)=tsim_bc(i)+predbias(npred+1,i)
               tsim_bc(i)=tsim_bc(i)+predbias(npred+2,i)
            end do
-           call radiance_ex_biascor(radmod,nchanl,tsim_bc,tsavg5,zasat, & 
+           if (radmod%ex_obserr=='ex_obserr1') then
+              call radiance_ex_biascor(radmod,nchanl,tsim_bc,tsavg5,zasat, & 
                        clw_guess_retrieval,clwp_amsua,cld_rbc_idx,ierrret)
+           end if
+!          if (radmod%ex_obserr=='ex_obserr2') then     ! comment out for now, need to be tested
+!             call radiance_ex_biascor(radmod,nchanl,cldeff_obs,cldeff_fg,cld_rbc_idx)
+!          end if
 
            if (ierrret /= 0) then
              if (amsua) then 
@@ -1074,8 +1078,11 @@
         end do
 
 !       Assign observation error for all-sky radiances 
-        if (radmod%lcloud_fwd .and. radmod%ex_obserr .and. eff_area)  then   
-           call radiance_ex_obserr(radmod,nchanl,clwp_amsua,clw_guess_retrieval,tnoise,tnoise_cld,error0)
+        if (radmod%lcloud_fwd .and. eff_area)  then   
+           if (radmod%ex_obserr=='ex_obserr1') & 
+              call radiance_ex_obserr(radmod,nchanl,clwp_amsua,clw_guess_retrieval,tnoise,tnoise_cld,error0)
+!          if (radmod%ex_obserr=='ex_obserr2') &  ! comment out for now, waiting for more tests
+!             call radiance_ex_obserr(radmod,nchanl,cldeff_obs,cldeff_fg,tnoise,tnoise_cld,error0)
         end if
 
         do i=1,nchanl
@@ -1309,7 +1316,9 @@
                     errf(i) = three*errf(i)
                  else if (radmod%rtype =='atms' .and. (i <= 6 .or. i>=16)) then
                     errf(i) = min(three*errf(i), 10.0_r_kind)
-                 else
+                 else if (radmod%rtype/='amsua' .and. radmod%rtype/='atms' .and. radmod%lcloud4crtm(i)>=0) then
+                    errf(i) = three*errf(i)
+                 else 
                     errf(i) = min(three*errf(i),ermax_rad(m))
                  endif
               else if (ssmis) then
@@ -1526,8 +1535,7 @@
               adaptinf = varinv ! on input
               obvarinv = error0 ! on input
               account_for_corr_obs = radinfo_adjust_jacobian (iinstr,isis,isfctype,nchanl,nsigradjac,ich,varinv,&
-                                                              utbc,obvarinv,adaptinf,wgtjo,jacobian)
-
+                                                              utbc,obvarinv,adaptinf,wgtjo,jacobian,Rinv,rsqrtinv)
               iii=0
               do ii=1,nchanl
                  m=ich(ii)
@@ -1579,39 +1587,30 @@
 
 !                   compute hessian contribution from Jo bias correction terms
                     if (newpc4pred .and. luse(n)) then
-                       do k=1,npred
-                          rstats(k,m)=rstats(k,m)+my_head%pred(k,iii) &
-                               *my_head%pred(k,iii)*varinv(ii)
-                       end do
+                       if (account_for_corr_obs) then
+                          do k=1,npred
+                             rstats(k,m)=rstats(k,m)+my_head%pred(k,iii) &
+                                  *my_head%pred(k,iii)*Rinv(iii)
+                          end do
+                       else
+                         do k=1,npred
+                             rstats(k,m)=rstats(k,m)+my_head%pred(k,iii) &
+                                  *my_head%pred(k,iii)*varinv(ii)
+                          end do
+                       end if
                     end if  ! end of newpc4pred loop
-
                  end if
               end do
               my_head%nchan  = iii         ! profile observation count
 
               my_head%use_corr_obs=.false.
               if (account_for_corr_obs) then
-                 chan_count=(my_head%nchan*(my_head%nchan+1))/2
-                 allocate(my_head%rsqrtinv(chan_count)) 
-                 allocate(rsqrtinv(my_head%nchan,my_head%nchan))
-                 my_head%rsqrtinv=zero
-                 rsqrtinv=zero
-                 call radinfo_get_rsqrtinv(nchanl,iinstr,my_head%nchan,my_head%icx,my_head%ich,&
-                      my_head%err2,rsqrtinv)
-                 chan_count=0
-                 do ii=1,my_head%nchan
-                    do jj=ii,my_head%nchan
-                       chan_count=chan_count+1
-                       my_head%rsqrtinv(chan_count)=rsqrtinv(ii,jj)
-                    end do
-                 end do
-                 deallocate(rsqrtinv)
+                 allocate(my_head%rsqrtinv(my_head%nchan,my_head%nchan))
+                 my_head%rsqrtinv(1:my_head%nchan,1:my_head%nchan)=rsqrtinv(1:my_head%nchan,1:my_head%nchan)
                  my_head%use_corr_obs=.true.
               end if
-
               my_head => null()
            end if ! icc
-
         endif ! (in_curbin)
 
 !       Link obs to diagnostics structure
@@ -1828,8 +1827,6 @@
   endif
 
   call destroy_crtm
-
-135 continue
 
 ! End of routine
   return

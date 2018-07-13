@@ -2194,7 +2194,8 @@ subroutine init_anisofilter_reg(mype)
      read(55,bckg_std_errormodel)
      close(55)
   else
-        print*,'init_anisofilter_reg: WARNING - MISSING BCKG ERROR MODEL NAMELIST FILE: bckg_std_errormodel_input. RUNNING WITH DEFAULT SETTINGS'
+        print*,'init_anisofilter_reg: WARNING - MISSING BCKG ERROR MODEL NAMELIST FILE: bckg_std_errormodel_input. RUNNING WITH DEFAULT SETTINGS, &
+        &WHICH MEANS THAT THE VALLEY-MAP (AND BCKG FIELD VARIANCE)- DEPENDENT BCKG ERROR ENHANCEMENT IS TURNED OFF'
   endif
 
   if (mype==0) then

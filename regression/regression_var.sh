@@ -21,7 +21,7 @@ if [ "$#" = 8 ] ; then
   export ptmpName=`echo $builddir | sed -e "s/\//_/g"`
   echo $ptmpName
 else
-# Name of the branch being tested
+  # Name of the branch being tested
   updat="XXXXXXXX"
   contrl="XXXXXXXX"
   export cmaketest="false"
@@ -45,7 +45,7 @@ if [ -z ${machine+x} ]; then
   elif [ -d /data/users ]; then # S4
    export machine="s4"
 elif [ -d /discover/nobackup ]; then # NCCS Discover
-   export machine="discover"
+   export machine="Discover"
   fi
 else echo "machine is set to '$machine'"; 
 fi
@@ -105,8 +105,8 @@ case $machine in
    export accnt="p48503002"
    ;;
    Theia)
-   if [ -d /scratch4/NCEPDEV/da/noscrub/$LOGNAME ]; then 
-     export noscrub="/scratch4/NCEPDEV/da/noscrub/$LOGNAME"
+   if [ -d /scratch4/NCEPDEV/meso/noscrub/$LOGNAME ]; then 
+     export noscrub="/scratch4/NCEPDEV/meso/noscrub/$LOGNAME"
    elif [ -d /scratch4/NCEPDEV/global/noscrub/$LOGNAME ]; then 
      export noscrub="/scratch4/NCEPDEV/global/noscrub/$LOGNAME"
     elif [ -d /scratch3/BMC/gsienkf/$LOGNAME ]; then
@@ -133,13 +133,13 @@ case $machine in
    export clean=".true."
    ;;
    WCOSS_C)
-   if [ -d /gpfs/hps/emc/global/noscrub/$LOGNAME ]; then
-      export noscrub="/gpfs/hps/emc/global/noscrub/$LOGNAME"
-   elif [ -d /gpfs/hps/emc/da/noscrub/$LOGNAME ]; then
-      export noscrub="/gpfs/hps/emc/da/noscrub/$LOGNAME"
+   if [ -d /gpfs/hps3/emc/global/noscrub/$LOGNAME ]; then
+      export noscrub="/gpfs/hps3/emc/global/noscrub/$LOGNAME"
+   elif [ -d /gpfs/hps3/emc/da/noscrub/$LOGNAME ]; then
+      export noscrub="/gpfs/hps3/emc/da/noscrub/$LOGNAME"
    fi
    if [[ "$cmaketest" = "false" ]]; then
-     export basedir="/gpfs/hps/emc/global/noscrub/$LOGNAME/svn/gsi"
+     export basedir="/gpfs/hps3/emc/global/noscrub/$LOGNAME/svn/gsi"
    fi
    export group="dev"
    export queue="dev"
@@ -147,7 +147,7 @@ case $machine in
    export ptmp="/gpfs/hps/ptmp/$LOGNAME/$ptmpName"
 
    export fixcrtm="/gpfs/hps/nco/ops/nwprod/lib/crtm/v2.2.4/fix"
-   export casesdir="/gpfs/hps/emc/da/noscrub/Michael.Lueken/CASES"
+   export casesdir="/gpfs/hps3/emc/da/noscrub/Michael.Lueken/CASES"
    export ndate=$NDATE
 
    export check_resource="no"
@@ -172,17 +172,19 @@ case $machine in
 
    export accnt="star"
    ;;
-   discover)
-   export basedir="/gpfsm/dnb31/pchakrab/code/ext/gsi"
-   export group="global"
-   export queue="batch"
+   Discover)
+   if [[ "$cmaketest" = "false" ]]; then
+       echo "Regression tests on Discover need to be run via ctest"
+       exit 1
+   fi
    export ptmp=$basedir
    export noscrub=$basedir
    export fixcrtm="/discover/nobackup/projects/gmao/share/gmao_ops/fvInput_4dvar/gsi/etc/fix_ncep20170329/REL-2.2.3-r60152_local-rev_1/CRTM_Coeffs/$endianness"
    export casesdir="/discover/nobackup/projects/gmao/obsdev/wrmccart/NCEP_regression/CASES"
-   export ndate="$basedir/$updat/scripts/ndate"
+   export ndate="/home/pchakrab/.local/bin/ndate"
    export check_resource="no"
    export accnt="g0613"
+   export queue="compute"
    export clean=".false."
    ;;
 esac
@@ -226,6 +228,7 @@ export nmm_binary_adate="2010021600"
 export nmm_netcdf_adate="2007122000"
 export rtma_adate="2017031218"
 export hwrf_nmm_adate="2012102812"
+export fv3_netcdf_adate="2017030100"
 
 # Paths for canned case data.
 export global_T62_obs="$casesdir/global/sigmap/$global_T62_adate"
@@ -256,6 +259,8 @@ export rtma_obs="$casesdir/regional/rtma_binary/$rtma_adate"
 export rtma_ges="$casesdir/regional/rtma_binary/$rtma_adate"
 export hwrf_nmm_obs="$casesdir/regional/hwrf_nmm/$hwrf_nmm_adate"
 export hwrf_nmm_ges="$casesdir/regional/hwrf_nmm/$hwrf_nmm_adate"
+export fv3_netcdf_obs="$casesdir/regional/fv3_netcdf/$fv3_netcdf_adate"
+export fv3_netcdf_ges="$casesdir/regional/fv3_netcdf/$fv3_netcdf_adate"
 
 # Define type of GPSRO data to be assimilated (refractivity or bending angle)
 export gps_dtype="gps_bnd"

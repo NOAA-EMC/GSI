@@ -18,7 +18,7 @@ if [[ $OZNMON_CONFIG -ne 1 ]]; then
 
    export OZNMON_CONFIG=1   
 
-   export MY_MACHINE=ibm
+export MY_MACHINE=wcoss
 
    #-------------------------------------------------------------------
    #  Note:  The file header in the oznstat file has slightly changed.
@@ -38,7 +38,7 @@ if [[ $OZNMON_CONFIG -ne 1 ]]; then
    # you checked out only the Ozone_Monitor portion of the branch then
    # MY_RADMON should point to that.
    #
-   export MY_OZNMON=${MY_OZNMON:-/gpfs/gd2/emc/da/noscrub/Edward.Safford/ProdGSI/util/Ozone_Monitor}
+export MY_OZNMON=${MY_OZNMON:-/gpfs/td2/emc/da/noscrub/Edward.Safford/ProdGSI/util/Ozone_Monitor}
 
    export OZN_SCRIPTS=${OZN_SCRIPTS:-${MY_OZNMON}/scripts}
    export OZN_DE_SCRIPTS=${OZN_DE_SCRIPTS:-${MY_OZNMON}/data_xtrct/ush}
@@ -57,7 +57,7 @@ if [[ $OZNMON_CONFIG -ne 1 ]]; then
    #  and the succedding scripts will construct and use subdirectories under
    #  this location.
    #
-   export OZN_TANKDIR=${OZN_TANKDIR:-/u/Edward.Safford/nbns}
+export OZN_TANKDIR=${OZN_TANKDIR:-/u/Edward.Safford/nbns}
 
    if [[ $GLB_AREA -eq 1 ]]; then
       OZN_IMGN_TANKDIR=${OZN_TANKDIR}/imgn/${OZNMON_SUFFIX}
@@ -83,9 +83,9 @@ if [[ $OZNMON_CONFIG -ne 1 ]]; then
    #
    #  Log and work space definitions
    #
-   export OZN_PTMP=${OZN_PTMP:-/ptmpp1}
+export OZN_PTMP=${OZN_PTMP:-/ptmpp1}
    export PTMP_USER=${PTMP_USER:-${OZN_PTMP}/${LOGNAME}}
-   export OZN_STMP=${OZN_STMP:-/stmpp1}
+export OZN_STMP=${OZN_STMP:-/stmpp1}
    export STMP_USER=${STMP_USER:-${OZN_STMP}/${LOGNAME}}
 
 
@@ -103,9 +103,9 @@ if [[ $OZNMON_CONFIG -ne 1 ]]; then
    #
    #  Webserver settings
    #
-   export WEB_SVR=${WEB_SVR:-emcrzdm}
-   export WEB_USER=${WEB_USER:-esafford}
-   export WEB_DIR=${WEB_DIR:-/home/people/emc/www/htdocs/gmb/gdas/es_ozn/pngs}
+export WEB_SVR=${WEB_SVR:-emcrzdm}
+export WEB_USER=${WEB_USER:-esafford}
+export WEB_DIR=${WEB_DIR:-/home/people/emc/www/htdocs/gmb/gdas/es_ozn/pngs}
 
 
    #
@@ -114,7 +114,7 @@ if [[ $OZNMON_CONFIG -ne 1 ]]; then
    export NCP=${NCP:-"/bin/cp -f"}
    export Z=${Z:-"gz"}
 
-   if [[ $MY_MACHINE = "ibm" ]]; then
+   if [[ $MY_MACHINE = "wcoss" ]]; then
       shell=sh
       . /usrx/local/Modules/default/init/${shell}
       module load lsf

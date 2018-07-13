@@ -82,8 +82,8 @@
   use mod_vtrans, only: nvmodes_keep,init_vtrans
   use mod_strong, only: l_tlnmc,reg_tlnmc_type,nstrong,tlnmc_option,&
        period_max,period_width,init_strongvars,baldiag_full,baldiag_inc
-  use gridmod, only: nlat,nlon,nsig,wrf_nmm_regional,nems_nmmb_regional,cmaq_regional,&
-     nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_wrfmass,&
+  use gridmod, only: nlat,nlon,nsig,wrf_nmm_regional,nems_nmmb_regional,fv3_regional,cmaq_regional,&
+     nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_wrfmass,grid_ratio_fv3_regional,&
      filled_grid,half_grid,wrf_mass_regional,nsig1o,nnnn1o,update_regsfc,&
      diagnostic_reg,gencode,nlon_regional,nlat_regional,nvege_type,&
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
@@ -141,7 +141,7 @@
   use gfs_stratosphere, only: broadcast_gfs_stratosphere_vars
   use general_commvars_mod, only: init_general_commvars,destroy_general_commvars
   use radiance_mod, only: radiance_mode_init,radiance_mode_destroy, &
-       radiance_obstype_destroy,radiance_parameter_cloudy_destroy
+       radiance_obstype_destroy
   use gsi_nstcouplermod, only: gsi_nstcoupler_init_nml
   use gsi_nstcouplermod, only: nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl
 
@@ -354,6 +354,7 @@
 !  04-01-2017 Hu        added option i_gsdqc to turn on special observation qc
 !                              from GSD (for RAP/HRRR application)
 !  08-31-2017 Li        add sfcnst_comb for option to read sfc & nst combined file 
+!  10-10-2017 Wu,W      added option fv3_regional and rid_ratio_fv3_regional, setup FV3, earthuv
 !  01-11-2018 Yang      add namelist variables required by the nonlinear transform to vis and cldch
 !                      (Jim Purser 2018). Add estvisoe and estcldchoe to replace the hardwired 
 !                       prescribed vis/cldch obs. errort in read_prepbufr. (tentatively?)
@@ -582,12 +583,14 @@
 !                       -   otherwise wrf files are in binary format.
 !     regional          - logical for regional GSI run
 !     wrf_nmm_regional  - logical for input from WRF NMM
+!     fv3_regional      - logical for input from FV3 regional
 !     wrf_mass_regional - logical for input from WRF MASS-CORE
 !     cmaq_regional     - logical for input from CMAQ
 !     nems_nmmb_regional- logical for input from NEMS NMMB
 !     nmmb_reference_grid= 'H', then analysis grid covers H grid domain
 !                                = 'V', then analysis grid covers V grid domain
 !     grid_ratio_nmmb   - ratio of analysis grid to nmmb model grid in nmmb model grid units.
+!     grid_ratio_fv3_regional - ratio of analysis grid to fv3 grid in fv3 grid units.
 !     grid_ratio_wrfmass - ratio of analysis grid to wrf mass grid in wrf grid units.
 !     twodvar_regional  - logical for regional 2d-var analysis
 !     filled_grid       - logical to fill in puts on WRF-NMM E-grid
@@ -604,9 +607,10 @@
 
 
   namelist/gridopts/jcap,jcap_b,nsig,nlat,nlon,nlat_regional,nlon_regional,&
-       diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,nems_nmmb_regional,&
+       diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,nems_nmmb_regional,fv3_regional,&
        wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nvege_type,nlayers,cmaq_regional,&
-       nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_wrfmass,jcap_gfs,jcap_cut,wrf_mass_hybridcord
+       nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_fv3_regional,grid_ratio_wrfmass,jcap_gfs,jcap_cut,&
+       wrf_mass_hybridcord
 
 ! BKGERR (background error related variables):
 !     vs       - scale factor for vertical correlation lengths for background error
@@ -1270,6 +1274,7 @@
 ! Set regional parameters
   if(filled_grid.and.half_grid) filled_grid=.false.
   regional=wrf_nmm_regional.or.wrf_mass_regional.or.twodvar_regional.or.nems_nmmb_regional .or. cmaq_regional
+  regional=regional.or.fv3_regional
 
 ! Currently only able to have use_gfs_stratosphere=.true. for nems_nmmb_regional=.true.
   use_gfs_stratosphere=use_gfs_stratosphere.and.(nems_nmmb_regional.or.wrf_nmm_regional)   
@@ -1551,7 +1556,14 @@
 
 ! If this is a wrf regional run, then run interface with wrf
   update_pint=.false.
-  if (regional) call regional_io%convert_regional_guess(mype,ctph0,stph0,tlm0)
+  if (regional) then
+     if (fv3_regional) then
+        call convert_fv3_regional
+     else
+        call regional_io%convert_regional_guess(mype,ctph0,stph0,tlm0)
+     endif
+  endif
+            
   if (regional.and.use_gfs_stratosphere) call broadcast_gfs_stratosphere_vars
 
 
@@ -1635,7 +1647,6 @@
      call final_fgrid2agrid(pf2aP1)
   endif
   call radiance_obstype_destroy
-  call radiance_parameter_cloudy_destroy
   call final_aero_vars
   call final_rad_vars
   if(passive_bc) call prad_destroy()    ! replacing -- call destroyobs_passive
@@ -1661,4 +1672,3 @@
  end subroutine gsimain_finalize
 
  end module gsimod
-

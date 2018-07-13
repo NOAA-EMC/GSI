@@ -152,22 +152,22 @@ subroutine init_gsd_sfcuselist
   if(gsdsfclistexist) then
     open (use_unit,file='gsd_sfcobs_uselist.txt',form='formatted')
 
-7746 continue
-    read(use_unit,'(a150)',end=7745) cstring
-    if(cstring(1:1) == ';') goto 7746         ! skip comments marked as ;
+    read_use: do
+      read(use_unit,'(a150)',end=7745) cstring
+      if(cstring(1:1) == ';') cycle read_use    ! skip comments marked as ;
 
-    sfcuselist_nt_use=sfcuselist_nt_use+1
-    sfcuselist_use_id(sfcuselist_nt_use)= adjustl(cstring(1:10))
-    w_use_sfcuselist(sfcuselist_nt_use)= adjustl(cstring(11:12))
-    t_use_sfcuselist(sfcuselist_nt_use)= adjustl(cstring(13:14))
-    td_use_sfcuselist(sfcuselist_nt_use)= adjustl(cstring(15:16))
-    if(verbose) print*,'sfcuselist_use_id=',sfcuselist_nt_use,&
+      sfcuselist_nt_use=sfcuselist_nt_use+1
+      sfcuselist_use_id(sfcuselist_nt_use)= adjustl(cstring(1:10))
+      w_use_sfcuselist(sfcuselist_nt_use)= adjustl(cstring(11:12))
+      t_use_sfcuselist(sfcuselist_nt_use)= adjustl(cstring(13:14))
+      td_use_sfcuselist(sfcuselist_nt_use)= adjustl(cstring(15:16))
+      if(verbose) print*,'sfcuselist_use_id=',sfcuselist_nt_use,&
                                     sfcuselist_use_id(sfcuselist_nt_use),&
                                 ",",w_use_sfcuselist(sfcuselist_nt_use),&
                                 ",",t_use_sfcuselist(sfcuselist_nt_use),&
                                 ",",t_use_sfcuselist(sfcuselist_nt_use)
 
-    goto 7746
+    end do read_use
 7745 continue
   endif
   close(use_unit)
@@ -512,10 +512,10 @@ subroutine init_rjlists
  if(listexist2) then
     open (meso_unit,file='mesonet_stnuselist',form='formatted')
     ncount=0
-180 continue
-    ncount=ncount+1
-    read(meso_unit,'(a5,a80)',end=181) csta_winduse(ncount),cstring
-    goto 180
+    do
+       ncount=ncount+1
+       read(meso_unit,'(a5,a80)',end=181) csta_winduse(ncount),cstring
+    end do
 181 continue
     nsta_mesowind_use=ncount-1
     if(verbose)&
@@ -534,10 +534,10 @@ subroutine init_rjlists
     read(meso_unit,'(a16,i2)',end=191) ch16,nbins
     allocate(nwbaccpts(max(1,nbins)))
     nwbaccpts(:)=0
-190 continue    
-    read(meso_unit,'(a8,3x,a8,3x,f7.4,2x,f9.4,3x,i2)',end=191) ach8,bch8,aa1,aa2,ibin
-    nwbaccpts(ibin)=nwbaccpts(ibin)+1 
-    goto 190
+    do         
+       read(meso_unit,'(a8,3x,a8,3x,f7.4,2x,f9.4,3x,i2)',end=191) ach8,bch8,aa1,aa2,ibin
+       nwbaccpts(ibin)=nwbaccpts(ibin)+1 
+    end do
 191 continue
     if(verbose)then
        print*,'wdirbinuselist: number of bins=',nbins 
@@ -553,11 +553,11 @@ subroutine init_rjlists
     rewind(meso_unit)
     read(meso_unit,'(a16,i2)',end=193) ch16,nbins
     nwbaccpts(:)=0
-192 continue    
-    read(meso_unit,'(a8,3x,a8,3x,f7.4,2x,f9.4,3x,i2)',end=193) ach8,bch8,aa1,aa2,ibin
-    nwbaccpts(ibin)=nwbaccpts(ibin)+1 
-    csta_windbin(nwbaccpts(ibin),ibin)=ach8
-    goto 192
+    do     
+       read(meso_unit,'(a8,3x,a8,3x,f7.4,2x,f9.4,3x,i2)',end=193) ach8,bch8,aa1,aa2,ibin
+       nwbaccpts(ibin)=nwbaccpts(ibin)+1 
+       csta_windbin(nwbaccpts(ibin),ibin)=ach8
+    end do
 193 continue
  endif
  close(meso_unit)
@@ -1024,10 +1024,10 @@ subroutine readin_rjlists(clistname,fexist,clist,ndim,ncount)
        read(meso_unit,*,end=131) cstring
     enddo
     n=0
-130 continue
-    n=n+1
-    read(meso_unit,*,end=131) clist(n)
-    goto 130
+    do 
+       n=n+1
+       read(meso_unit,*,end=131) clist(n)
+    end do
 131 continue
     ncount=n-1
     close(meso_unit)

@@ -141,7 +141,7 @@ fi
 # set PDATE to it.  Otherwise, determine the last date processed 
 # (into *.ieee_d files) and use that as the PDATE.
 #--------------------------------------------------------------------
-export PRODATE=`${IG_SCRIPTS}/find_cycle.pl 1 ${TANKDIR}`
+export PRODATE=`${IG_SCRIPTS}/find_cycle.pl --cyc 1 --dir ${TANKDIR}`
 
 if [[ $plot_time != "" ]]; then
    export PDATE=$plot_time

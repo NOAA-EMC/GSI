@@ -50,7 +50,7 @@ module m_radNode
      real(r_kind),dimension(:,:),pointer :: dtb_dvar => NULL()
                                       !  radiance jacobian (nsigradjac,nchan)
 
-     real(r_kind),dimension(:),pointer :: rsqrtinv => NULL()
+     real(r_kind),dimension(:,:),pointer :: rsqrtinv => NULL()
                                       !  square root of inverse of R, only used
                                       !  if using correlated obs
      integer(i_kind),dimension(:),pointer :: icx => NULL()

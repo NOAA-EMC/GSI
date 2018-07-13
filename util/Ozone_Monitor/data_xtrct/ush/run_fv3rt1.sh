@@ -16,12 +16,12 @@ fi
 
 module load prod_util
 
-scripts=/gpfs/gd2/emc/da/noscrub/Edward.Safford/${package}/data_xtrct/ush
+scripts=/gpfs/td2/emc/da/noscrub/Edward.Safford/${package}/data_xtrct/ush
 
 idate=`${scripts}/find_cycle.pl -dir ~/nbns/stats/${OZN_SUFFIX} -cyc 1 -run ${run}`
 echo "idate = $idate"
 
-#START_DATE=2018041300
+#export START_DATE=2018052500
 export START_DATE=`${NDATE} +06 $idate`
 
 PDY=`echo $START_DATE | cut -c1-8`
@@ -30,4 +30,7 @@ cyc=`echo $START_DATE | cut -c9-10`
 export COM_IN=/gpfs/hps3/ptmp/emc.glopara/ROTDIRS/prfv3rt1/${run}.${PDY}/${cyc}
 export oznstat=${COM_IN}/${run}.t${cyc}z.oznstat
 
-${scripts}/OznMon_DE.sh $OZN_SUFFIX -p $START_DATE -r gdas 1>log 2>err
+log=/ptmpp1/Edward.Safford/logs/${OZN_SUFFIX}/${run}/oznmon/OznMon_DE.log
+err=/ptmpp1/Edward.Safford/logs/${OZN_SUFFIX}/${run}/oznmon/OznMon_DE.err
+
+${scripts}/OznMon_DE.sh $OZN_SUFFIX -p $START_DATE -r gdas 1>$log 2>$err

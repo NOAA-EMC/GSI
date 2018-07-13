@@ -1,18 +1,6 @@
 #!/bin/sh --login
 
-regtests_all="global_T62
-              global_T62_ozonly
-              global_4dvar_T62
-              global_4denvar_T126
-              global_lanczos_T62
-              arw_netcdf
-              arw_binary
-              nmm_binary
-              nmm_netcdf
-              nmmb_nems_4denvar
-              hwrf_nmm_d2
-              hwrf_nmm_d3
-              global_enkf_T62"
+regtests_all="rtma"
 
 regtests_debug="global_T62
                 global_4dvar_T62
@@ -23,6 +11,7 @@ regtests_debug="global_T62
                 nmm_binary
                 nmm_netcdf
                 nmmb_nems_4denvar
+                netcdf_fv3_regional
                 hwrf_nmm_d2
                 hwrf_nmm_d3"
 

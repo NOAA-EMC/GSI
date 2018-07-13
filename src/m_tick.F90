@@ -185,18 +185,18 @@ contains
          IF (NM==2 .AND. leap_year(NY))  ND = 29
       ENDIF
 
-      IF (ND==29 .AND. NM==2 .AND. leap_year(ny))  GO TO 20
+      IF (.not. (ND==29 .AND. NM==2 .AND. leap_year(ny)))  then
 
-      IF (ND>NDPM(NM)) THEN
-         ND = 1
-         NM = NM + 1
-         IF (NM>12) THEN
-            NM = 1
-            NY = NY + 1
+         IF (ND>NDPM(NM)) THEN
+            ND = 1
+            NM = NM + 1
+            IF (NM>12) THEN
+               NM = 1
+               NY = NY + 1
+            ENDIF
          ENDIF
-      ENDIF
 
-   20 CONTINUE
+      end if
       INCYMD = NY*10000 + NM*100 + ND
       RETURN
       END function INCYMD

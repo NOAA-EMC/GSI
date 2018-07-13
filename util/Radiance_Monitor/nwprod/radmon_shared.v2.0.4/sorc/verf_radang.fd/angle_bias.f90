@@ -3,7 +3,7 @@ program angle
 
   implicit none
   integer ntype,mregion,mstep,surf_nregion,max_surf_region
-  parameter (ntype=35,mregion=25,mstep=100,max_surf_region=5)
+  parameter (ntype=35,mregion=25,mstep=150,max_surf_region=5)
   integer iglobal, iland, iwater, isnowice, imixed
   parameter (iglobal=1, iland=2, iwater=3, isnowice=4, imixed=5)
  
@@ -129,12 +129,12 @@ program angle
 
   if ( trim(gesanl) == 'ges' ) then
      diag_rad = trim(satname)
-     data_file= trim(satname) // trim(stringd) // '.ieee_d'
-     ctl_file = trim(satname) // '.ctl'
+     data_file= 'angle.' // trim(satname) // trim(stringd) // '.ieee_d'
+     ctl_file = 'angle.' // trim(satname) // '.ctl'
   else 
      diag_rad = trim(satname) // '_anl'
-     data_file= trim(satname) // '_anl' // trim(stringd) // '.ieee_d'
-     ctl_file = trim(satname) // '_anl.ctl'
+     data_file= 'angle.' // trim(satname) // '_anl' // trim(stringd) // '.ieee_d'
+     ctl_file = 'angle.' // trim(satname) // '_anl.ctl'
   endif
 
 

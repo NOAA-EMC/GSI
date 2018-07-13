@@ -27,14 +27,13 @@ fi
 # Launch the individual control and update runs, one-after-another
 for jn in `seq ${RSTART} ${REND}`; do
 
-   if [ $jn -le 2 ]; then
+   if [ $jn -le 1 ]; then
       export scripts=${scripts_updat:-$scripts}
       export fixgsi=${fixgsi_updat:-$fixgsi}
    else
-      export scripts=${scripts_contrl:-$scripts}
-      export fixgsi=${fixgsi_contrl:-$fixgsi}
+      exit 1
    fi
-   rm -f ${job[$jn]}.out
+#   rm -f ${job[$jn]}.out
 
    /bin/sh $ush/$sub_cmd -q $queue -j ${job[$jn]} -t ${topts[$jn]} -p ${popts[$jn]} -r ${ropts[$jn]} $scripts/${regtest}.sh
 

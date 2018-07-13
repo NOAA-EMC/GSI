@@ -1018,149 +1018,148 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
   subgrid_lengths_x = nint(one/dx_fov) + 1
   subgrid_lengths_y = nint(one/dy_fov) + 1
 
-  99 continue
+  loop1:do 
 
-! If the fov is very small compared to the model grid, it
-! is more computationally efficient to take a simple average.
+!    If the fov is very small compared to the model grid, it
+!    is more computationally efficient to take a simple average.
 
-  if (subgrid_lengths_x > 7 .or. subgrid_lengths_y > 7) then
-!   print*,'FOV MUCH SMALLER THAN MODEL GRID POINTS, TAKE SIMPLE AVERAGE.'
+     if (subgrid_lengths_x > 7 .or. subgrid_lengths_y > 7) then
+!      print*,'FOV MUCH SMALLER THAN MODEL GRID POINTS, TAKE SIMPLE AVERAGE.'
+        call init_sfc(sfc_sum)
+        if (regional) then
+           do j = jstart, jend
+              do i = min_i(j), max_i(j)
+                 call time_int_sfc(i,j,itsfc,itsfcp,dtsfc,dtsfcp,sfc_mdl)
+                 power = one
+                 call accum_sfc(i,j,power,sfc_mdl,sfc_sum)
+              enddo
+           enddo
+        else  ! global
+           do j = jstart, jend
+              do i = min_i(j), max_i(j)
+                 ii = i
+                 call reduce2full(ii,j,ifull)
+                 call time_int_sfc(ifull,j,itsfc,itsfcp,dtsfc,dtsfcp,sfc_mdl)
+                 power = one
+                 call accum_sfc(ifull,j,power,sfc_mdl,sfc_sum)
+              enddo
+           enddo
+        endif
+        exit loop1
+     endif
+
+     mid = (float(subgrid_lengths_y)-one)/two + one
+     del = one/ float(subgrid_lengths_y)
+
+     allocate (y_off(subgrid_lengths_y))
+
+     do i= 1, subgrid_lengths_y
+        y_off(i) = (float(i)-mid)*del
+     enddo
+
+     mid = (float(subgrid_lengths_x)-one)/two + one
+     del = one / float(subgrid_lengths_x)
+
+     allocate (x_off(subgrid_lengths_x))
+     do i= 1, subgrid_lengths_x
+        x_off(i) = (float(i)-mid)*del
+     enddo
+
+!    Determine the surface characteristics by integrating over the
+!    fov.
+
      call init_sfc(sfc_sum)
+
      if (regional) then
         do j = jstart, jend
            do i = min_i(j), max_i(j)
               call time_int_sfc(i,j,itsfc,itsfcp,dtsfc,dtsfcp,sfc_mdl)
-              power = one
-              call accum_sfc(i,j,power,sfc_mdl,sfc_sum)
+              do jjj = 1, subgrid_lengths_y
+                 y = float(j) + y_off(jjj)
+                 do iii = 1, subgrid_lengths_x
+                    x = float(i) + x_off(iii)
+                    call txy2ll(x,y,lon_rad,lat_rad)
+                    lat_mdl = lat_rad*rad2deg
+                    lon_mdl = lon_rad*rad2deg
+                    if (lon_mdl < zero) lon_mdl = lon_mdl + 360._r_kind
+                    if (lon_mdl >= 360._r_kind) lon_mdl = lon_mdl - 360._r_kind
+                    if (fov_flag=="crosstrk")then
+                       call inside_fov_crosstrk(instr,ifov,sat_aziang, &
+                                               dlat_earth_deg,dlon_earth_deg, &
+                                               lat_mdl,    lon_mdl,  &
+                                               expansion, ichan, power )
+                    elseif (fov_flag=="conical")then
+                       call inside_fov_conical(instr,ichan,sat_aziang, &
+                                              dlat_earth_deg,dlon_earth_deg,&
+                                              lat_mdl,    lon_mdl,  &
+                                              expansion, power )
+                    endif
+                    call accum_sfc(i,j,power,sfc_mdl,sfc_sum)
+                 enddo
+              enddo
            enddo
         enddo
-     else  ! global
+     else
+        allocate(powerx(subgrid_lengths_x,subgrid_lengths_y))
         do j = jstart, jend
+           jj = j
+           if (j > nlat_sfc/2) jj = nlat_sfc - j + 1
            do i = min_i(j), max_i(j)
-              ii = i
-              call reduce2full(ii,j,ifull)
+              call reduce2full(i,j,ifull)
               call time_int_sfc(ifull,j,itsfc,itsfcp,dtsfc,dtsfcp,sfc_mdl)
-              power = one
-              call accum_sfc(ifull,j,power,sfc_mdl,sfc_sum)
-           enddo
-        enddo
-     endif
-     call calc_sfc(sfc_sum,isflg,idomsfc,sfcpct,vfr,sty,vty,sm,stp,ff10,sfcr,zz,sn,ts,tsavg)
-     deallocate(max_i,min_i)
-     return
-  endif
-
-  mid = (float(subgrid_lengths_y)-one)/two + one
-  del = one/ float(subgrid_lengths_y)
-
-  allocate (y_off(subgrid_lengths_y))
-
-  do i= 1, subgrid_lengths_y
-     y_off(i) = (float(i)-mid)*del
-  enddo
-
-  mid = (float(subgrid_lengths_x)-one)/two + one
-  del = one / float(subgrid_lengths_x)
-
-  allocate (x_off(subgrid_lengths_x))
-  do i= 1, subgrid_lengths_x
-     x_off(i) = (float(i)-mid)*del
-  enddo
-
-! Determine the surface characteristics by integrating over the
-! fov.
-
-  call init_sfc(sfc_sum)
-
-  if (regional) then
-     do j = jstart, jend
-        do i = min_i(j), max_i(j)
-           call time_int_sfc(i,j,itsfc,itsfcp,dtsfc,dtsfcp,sfc_mdl)
-           do jjj = 1, subgrid_lengths_y
-              y = float(j) + y_off(jjj)
-              do iii = 1, subgrid_lengths_x
-                 x = float(i) + x_off(iii)
-                 call txy2ll(x,y,lon_rad,lat_rad)
-                 lat_mdl = lat_rad*rad2deg
-                 lon_mdl = lon_rad*rad2deg
-                 if (lon_mdl < zero) lon_mdl = lon_mdl + 360._r_kind
-                 if (lon_mdl >= 360._r_kind) lon_mdl = lon_mdl - 360._r_kind
-                 if (fov_flag=="crosstrk")then
-                    call inside_fov_crosstrk(instr,ifov,sat_aziang, &
-                                            dlat_earth_deg,dlon_earth_deg, &
-                                            lat_mdl,    lon_mdl,  &
-                                            expansion, ichan, power )
-                 elseif (fov_flag=="conical")then
-                    call inside_fov_conical(instr,ichan,sat_aziang, &
-                                           dlat_earth_deg,dlon_earth_deg,&
-                                           lat_mdl,    lon_mdl,  &
-                                           expansion, power )
-                 endif
-                 call accum_sfc(i,j,power,sfc_mdl,sfc_sum)
-              enddo
-           enddo
-        enddo
-     enddo
-  else
-     allocate(powerx(subgrid_lengths_x,subgrid_lengths_y))
-     do j = jstart, jend
-        jj = j
-        if (j > nlat_sfc/2) jj = nlat_sfc - j + 1
-        do i = min_i(j), max_i(j)
-           call reduce2full(i,j,ifull)
-           call time_int_sfc(ifull,j,itsfc,itsfcp,dtsfc,dtsfcp,sfc_mdl)
 !$omp parallel do  schedule(dynamic,1)private(jjj,iii,lat_mdl,lon_mdl)
-           do jjj = 1, subgrid_lengths_y
-              if (y_off(jjj) >= zero) then
-                 lat_mdl = (one-y_off(jjj))*rlats_sfc(j)+y_off(jjj)*rlats_sfc(j+1)
-              else
-                 lat_mdl = (one+y_off(jjj))*rlats_sfc(j)-y_off(jjj)*rlats_sfc(j-1)
-              endif
-              lat_mdl = lat_mdl * rad2deg
-              do iii = 1, subgrid_lengths_x
-!           Note, near greenwich, "i" index may be out of range.  that is
-!           ok here when calculating longitude even if the value is
-!           greater than 360. the ellipse code works from longitude relative
-!           to the center of the fov.
-                 lon_mdl = (float(i)+x_off(iii) - one) * dx_gfs(jj)
-                 if (fov_flag=="crosstrk")then
-                    call inside_fov_crosstrk(instr,ifov,sat_aziang, &
-                                            dlat_earth_deg,dlon_earth_deg, &
-                                            lat_mdl,    lon_mdl,  &
-                                            expansion, ichan, powerx(iii,jjj) )
-                 elseif (fov_flag=="conical")then
-                    call inside_fov_conical(instr,ichan,sat_aziang, &
-                                           dlat_earth_deg,dlon_earth_deg,&
-                                           lat_mdl,    lon_mdl,  &
-                                           expansion, powerx(iii,jjj) )
+              do jjj = 1, subgrid_lengths_y
+                 if (y_off(jjj) >= zero) then
+                    lat_mdl = (one-y_off(jjj))*rlats_sfc(j)+y_off(jjj)*rlats_sfc(j+1)
+                 else
+                    lat_mdl = (one+y_off(jjj))*rlats_sfc(j)-y_off(jjj)*rlats_sfc(j-1)
                  endif
+                 lat_mdl = lat_mdl * rad2deg
+                 do iii = 1, subgrid_lengths_x
+!              Note, near greenwich, "i" index may be out of range.  that is
+!              ok here when calculating longitude even if the value is
+!              greater than 360. the ellipse code works from longitude relative
+!              to the center of the fov.
+                    lon_mdl = (float(i)+x_off(iii) - one) * dx_gfs(jj)
+                    if (fov_flag=="crosstrk")then
+                       call inside_fov_crosstrk(instr,ifov,sat_aziang, &
+                                               dlat_earth_deg,dlon_earth_deg, &
+                                               lat_mdl,    lon_mdl,  &
+                                               expansion, ichan, powerx(iii,jjj) )
+                    elseif (fov_flag=="conical")then
+                       call inside_fov_conical(instr,ichan,sat_aziang, &
+                                              dlat_earth_deg,dlon_earth_deg,&
+                                              lat_mdl,    lon_mdl,  &
+                                              expansion, powerx(iii,jjj) )
+                    endif
+                 enddo
               enddo
-           enddo
-           do jjj = 1, subgrid_lengths_y
-              do iii = 1, subgrid_lengths_x
-                 call accum_sfc(ifull,j,powerx(iii,jjj),sfc_mdl,sfc_sum)
+              do jjj = 1, subgrid_lengths_y
+                 do iii = 1, subgrid_lengths_x
+                    call accum_sfc(ifull,j,powerx(iii,jjj),sfc_mdl,sfc_sum)
+                 enddo
               enddo
            enddo
         enddo
-     enddo
-     deallocate(powerx)
-  endif  ! regional or global
-  deallocate (x_off, y_off)
+        deallocate(powerx)
+     endif  ! regional or global
+     deallocate (x_off, y_off)
 
-! If there were no model points within the fov, the model points need to be
-! "chopped" into smaller pieces.
+!    If there were no model points within the fov, the model points need to be
+!    "chopped" into smaller pieces.
 
-  if (sum(sfc_sum%count) == zero) then
-     close(9)
-     subgrid_lengths_x = subgrid_lengths_x + 1
-     subgrid_lengths_y = subgrid_lengths_y + 1
-!    print*,'NO GRID POINTS INSIDE FOV, CHOP MODEL BOX INTO FINER PIECES',subgrid_lengths_x,subgrid_lengths_y
-     goto 99
-  else
-     call calc_sfc(sfc_sum,isflg,idomsfc,sfcpct,vfr,sty,vty,sm,stp,ff10,sfcr,zz,sn,ts,tsavg)
-  endif
-
+     if (sum(sfc_sum%count) == zero) then
+        close(9)
+        subgrid_lengths_x = subgrid_lengths_x + 1
+        subgrid_lengths_y = subgrid_lengths_y + 1
+!       print*,'NO GRID POINTS INSIDE FOV, CHOP MODEL BOX INTO FINER PIECES',subgrid_lengths_x,subgrid_lengths_y
+     else
+        exit loop1
+     endif
+  end do loop1
   deallocate (max_i, min_i)
+
+  call calc_sfc(sfc_sum,isflg,idomsfc,sfcpct,vfr,sty,vty,sm,stp,ff10,sfcr,zz,sn,ts,tsavg)
 
   return
 end subroutine deter_sfc_fov

@@ -168,7 +168,10 @@ contains
 
     call nemsio_open(gfile,trim(adjustl(filename)),'read',              &
          & iret=nemsio_iret)
-    if ( nemsio_iret /= 0 ) stop 2
+    if ( nemsio_iret /= 0 ) then
+       write(0,*) 'cannot open for read: ',trim(adjustl(filename))
+       stop 2
+    end if
     call nemsio_getfilehead(gfile,iret=nemsio_iret,                     &
          & dimx=meta_nemsio%dimx,                                       &
          & dimy=meta_nemsio%dimy,                                       &
