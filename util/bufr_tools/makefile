@@ -11,7 +11,10 @@ all: bufr_encode_sample bufr_decode_sample bufr_append_sample \
      prepbufr_decode_all bufr_decode_radiance \
      prepbufr_encode_surface prepbufr_append_surface \
      prepbufr_encode_upperair prepbufr_append_upperair \
-     prepbufr_append_retrieve prepbufr_inventory
+     prepbufr_append_retrieve lghtngbufr_decode \
+     prepbufr_inventory prepbufr_decode_nesdiscld
+
+work: prepbufr_decode_nesdiscld
 
 bufr: bufr_encode_sample bufr_decode_sample bufr_append_sample
 
@@ -20,6 +23,12 @@ sfc: prepbufr_encode_surface prepbufr_append_surface prepbufr_decode_all
 up: prepbufr_encode_upperair prepbufr_append_upperair prepbufr_decode_all
 
 others: bufr_decode_radiance prepbufr_append_retrieve
+
+prepbufr_decode_nesdiscld: prepbufr_decode_nesdiscld.o
+	${FC} -o prepbufr_decode_nesdiscld.exe ${FLAGS} prepbufr_decode_nesdiscld.o ${LIBS} 
+
+lghtngbufr_decode: lghtngbufr_decode.o
+	${FC} -o lghtngbufr_decode.exe ${FLAGS} lghtngbufr_decode.o ${LIBS} 
 
 append_prepbufr_multilevel: append_prepbufr_multilevel.o
 	${FC} -o append_prepbufr_multilevel.exe ${FLAGS} append_prepbufr_multilevel.o ${LIBS} 
