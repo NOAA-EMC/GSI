@@ -1189,6 +1189,13 @@ contains
        end do
     else
        do jch=1,jpch_rad
+          do ip=1,npred
+             if(abs(predx(ip,jch)) > 9999.0_r_kind) then
+                write(6,*) 'Bad coefficient:', jch,nusis(jch),nuchan(jch), &
+                          predx(ip,jch),' reset to 0.0'
+                predx(ip,jch)=0.0_r_kind
+             endif
+          enddo
           write(lunout,'(I5,1x,a20,1x,i5,2e15.6,1x,I5/2(4x,10f12.6/))') jch,nusis(jch),nuchan(jch),&
                tlapmean(jch),tsum_tlapmean(jch),count_tlapmean(jch),(predx(ip,jch),ip=1,npred)
        end do
@@ -1548,7 +1555,7 @@ contains
    character(len=50):: fdiag_rad,dname,fname
 
    integer(i_kind):: ix,ii,iii,iich,ndatppe
-   integer(i_kind):: i,j,jj,n_chan,k,lunout
+   integer(i_kind):: i,j,jj,jjj,n_chan,k,lunout
    integer(i_kind):: istatus,ispot
    integer(i_kind):: np,new_chan,nc
    integer(i_kind):: counttmp, jjstart, sensor_start, sensor_end
@@ -1918,6 +1925,15 @@ contains
             if (all(abs(AA)<atiny)) cycle
             if (all(abs(be)<atiny)) cycle
             call linmm(AA,be,np,1,np,np)
+!
+! quality control to bias coefficients,
+! some bad coefficients could happen in regional case
+!
+            jjj=0
+            do j=1,np
+               if(abs(be(j)) > 200.0_r_kind) jjj=jjj+1
+            enddo
+            if(jjj>0) cycle
 
             predx(1,ich(i))=be(1)
             if (.not. mean_only) then

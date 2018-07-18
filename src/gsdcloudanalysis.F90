@@ -75,7 +75,8 @@ subroutine  gsdcloudanalysis(mype)
                                       build_cloud_frac_p, clear_cloud_frac_p, &
                                       nesdis_npts_rad, &
                                       iclean_hydro_withRef, iclean_hydro_withRef_allcol, &
-                                      i_lightpcp, l_numconc
+                                      l_use_hydroretrieval_all, &
+                                      i_lightpcp, l_numconc, qv_max_inc, ioption
 
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -228,7 +229,6 @@ subroutine  gsdcloudanalysis(mype)
 !
 !  misc.
 !
-  logical :: l_use_hydroretrieval_all
   integer(i_kind) :: i,j,k,itsig,itsfc
   integer(i_kind) :: iglobal,jglobal,ilocal,jlocal
   logical :: ifindomain
@@ -249,7 +249,7 @@ subroutine  gsdcloudanalysis(mype)
 
   real(r_kind),parameter    :: pi = 4._r_kind*atan(1._r_kind)
   real(r_kind),parameter    :: rho_w = 999.97_r_kind, rho_a = 1.2_r_kind
-  real(r_kind),parameter    :: cldDiameter = 10.0D3_r_kind
+  real(r_kind),parameter    :: cldDiameter = 10.0E3_r_kind
 
 
 !
@@ -281,7 +281,6 @@ subroutine  gsdcloudanalysis(mype)
 !
 !
 !
-  l_use_hydroretrieval_all=.false.
   krad_bot=7.0_r_single
   r_radius=metar_impact_radius
   r_radius_lowCloud=metar_impact_radius_lowCloud
@@ -376,7 +375,7 @@ subroutine  gsdcloudanalysis(mype)
            allocate(oistation(numsao))
            allocate(ojstation(numsao))
            allocate(wimaxstation(numsao))
-           call read_Surface(mype,lunin,regional_time,istart(mype+1),jstart(mype+1),lon2,lat2, &
+           call read_Surface(mype,lunin,istart(mype+1),jstart(mype+1),lon2,lat2, &
                              numsao,nvarcld_p,oi,oj,ocld,owx,oelvtn,odist,cstation,oistation,ojstation)
            if(mype == 0) write(6,*) 'gsdcloudanalysis: ',                                  &
                         'Surface cloud observations are read in successfully'
@@ -387,8 +386,8 @@ subroutine  gsdcloudanalysis(mype)
 !
         elseif( dtype(is) == 'gos_ctp' ) then 
 
-           call read_NESDIS(mype,lunin,nsat1(is),regional_time,istart(mype+1),            &
-                            jstart(mype+1),lon2,lat2,sat_ctp,sat_tem,w_frac,nesdis_npts_rad)
+           call read_NESDIS(mype,lunin,nsat1(is),istart(mype+1),            &
+                            jstart(mype+1),lon2,lat2,sat_ctp,sat_tem,w_frac,nesdis_npts_rad,ioption)
            if(mype == 0) write(6,*) 'gsdcloudanalysis: ',                             &
                          'NESDIS cloud products are read in successfully'
            istat_nesdis = 1 
@@ -401,7 +400,7 @@ subroutine  gsdcloudanalysis(mype)
            allocate( ref_mosaic31(lon2,lat2,31) )
            ref_mosaic31=-99999.0_r_kind
 
-           call read_radar_ref(mype,lunin,regional_time,istart(mype+1),jstart(mype+1), &
+           call read_radar_ref(mype,lunin,istart(mype+1),jstart(mype+1), &
                               lon2,lat2,nmsclvl_radar,nsat1(is),ref_mosaic31)
            if(mype == 0) write(6,*) 'gsdcloudanalysis: ',                         &
                          ' radar reflectivity is read in successfully'
@@ -412,7 +411,7 @@ subroutine  gsdcloudanalysis(mype)
 !
         elseif( dtype(is)=='lghtn' ) then
 
-           call read_Lightning2cld(mype,lunin,regional_time,istart(mype+1),jstart(mype+1), &
+           call read_Lightning2cld(mype,lunin,istart(mype+1),jstart(mype+1), &
                                    lon2,lat2,nsat1(is),lightning)
            if(mype == 0) write(6,*) 'gsdcloudanalysis: Lightning is read in successfully'
            istat_lightning = 1 
@@ -426,7 +425,7 @@ subroutine  gsdcloudanalysis(mype)
            allocate(nasalarc_cld(lon2,lat2,5))
            nasalarc_cld=miss_obs_real
 
-           call read_NASALaRC(mype,lunin,nsat1(is),regional_time,istart(mype+1),   &
+           call read_NASALaRC(mype,lunin,nsat1(is),istart(mype+1),   &
                               jstart(mype+1),lon2,lat2,nasalarc_cld)
            if(mype == 0) write(6,*) 'gsdcloudanalysis:',                       &
                          'NASA LaRC cloud products are read in successfully'
@@ -438,8 +437,8 @@ subroutine  gsdcloudanalysis(mype)
            allocate(nasalarc_cld(lon2,lat2,5))
            nasalarc_cld=miss_obs_real
 
-           call read_map_nasalarc(mype,lunin,nsat1(is),regional_time,istart(mype+1),   &
-                              jstart(mype+1),lon2,lat2,nasalarc_cld)
+           call read_map_nasalarc(mype,lunin,nsat1(is),istart(mype+1),   &
+                              jstart(mype+1),lon2,lat2,nasalarc_cld,ioption)
            if(mype == 0) write(6,*) 'gsdcloudanalysis:',                       &
                          'NASA LaRC global cloud products are read in successfully'
            istat_nasalarc = 1
@@ -699,7 +698,7 @@ subroutine  gsdcloudanalysis(mype)
 
   if(istat_nesdis == 1 ) then
      call cloudCover_NESDIS(mype,regional_time,lat2,lon2,nsig,            &
-                         xlon,xlat,t_bk,p_bk,h_bk,zh,xland,               &
+                         xlon,xlat,t_bk,p_bk,h_bk,xland,                  &
                          soiltbk,sat_ctp,sat_tem,w_frac,                  &
                          l_cld_bld,cld_bld_hgt,                           &
                          build_cloud_frac_p,clear_cloud_frac_p,nlev_cld,  &
@@ -711,8 +710,8 @@ subroutine  gsdcloudanalysis(mype)
 ! for Rapid Refresh application, turn off the radar reflectivity impact 
 ! on cloud distribution  (Oct. 14, 2010)
 !  if(istat_radar == 1 .or. istat_lightning == 1 ) then
-!     call cloudCover_radar(mype,lat2,lon2,nsig,h_bk,zh,ref_mos_3d,  &
-!                           cld_cover_3d,cld_type_3d,wthr_type_2d)
+!     call cloudCover_radar(mype,lat2,lon2,nsig,h_bk,ref_mos_3d,  &
+!                           cld_cover_3d,wthr_type_2d)
 !     if(mype == 0) write(6,*) 'gsdcloudanalysis: ',                 & 
 !                   ' success in cloud cover analysis using radar data'
 !  endif
@@ -1074,7 +1073,8 @@ subroutine  gsdcloudanalysis(mype)
 !
   call cloud_saturation(mype,l_conserve_thetaV,i_conserve_thetaV_iternum,  &
                  lat2,lon2,nsig,q_bk,t_bk,p_bk,      &
-                 cld_cover_3d,wthr_type_2d,cldwater_3d,cldice_3d,sumqci)
+                 cld_cover_3d,wthr_type_2d,cldwater_3d,cldice_3d,sumqci,qv_max_inc)
+
 
 !
 !  add fog  (12/08/2015)

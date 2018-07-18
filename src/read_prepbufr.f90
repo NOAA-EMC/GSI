@@ -1548,6 +1548,24 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               end if
            end if
 
+!          AMV acceptance for all obs (E. James)
+           if (kx .ge. 240 .and. kx .le. 260) then
+              do k=1,levs
+                 pqm(k)=2
+                 wqm(k)=2
+              end do
+           end if
+!          END of the AMV acceptance section (E. James)
+!          USE q from 300-10 mb for aircraft and raobs (E. James)
+           if(qob .and. (kx==120 .or. kx==131 .or. kx==133 .or. kx==134)) then
+              do k=1,levs
+                 if(  plevs(k)<=30.0 .and. plevs(k)>=1.0 ) then
+                   if(abs(qqm(k)-9.0) < 0.001) qqm(k)=2.0
+                 endif
+              end do
+           endif
+!          END use q from 300-10 mb
+
            stnelev=hdr(6)
            ithin=ithin_conv(nc)
            ithinp = ithin > 0 .and. pflag /= 0

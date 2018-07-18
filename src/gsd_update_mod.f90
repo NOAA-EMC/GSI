@@ -218,13 +218,27 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q,it)
                  ges_tslb(i,j,3) = ges_tslb(i,j,3) +   &
                                  min(1._r_kind,max(dts_min,tincf*0.2_r_kind))
               endif
-              if (sno(i,j,it) < snowthreshold) THEN
-                 ges_tsk(i,j) = ges_tsk(i,j) + min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
+              if (sno(i,j,it) < 32._r_kind) THEN
+! 32 mm is the threshold for partial snow.
+! When grid cell is partially covered with snow or snow-free - always update TSK and SOILT1
+                 ges_tsk(i,j)    = ges_tsk(i,j)    + min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
                  ges_soilt1(i,j) = ges_soilt1(i,j) + min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
-              else  ! if snow cover, then only adjust TSK and SOILT1
-                 ges_tsk(i,j) = ges_tsk(i,j) + min(1._r_kind,max(-2._r_kind,tincf*0.6_r_kind))
-                 ges_soilt1(i,j) = ges_soilt1(i,j) + min(1._r_kind,max(-2._r_kind,tincf*0.6_r_kind))
-              endif ! sno(i,j,it) < snowthreshold
+              else  
+! grid cell is fully covered with snow
+                 if(tincf < 0._r_kind) then
+! always adjust TSK and SOILT1 when tincf < 0 - cooling
+                    ges_tsk(i,j)    = ges_tsk(i,j)    + min(1._r_kind,max(-2._r_kind,tincf*0.6_r_kind))
+                    ges_soilt1(i,j) = ges_soilt1(i,j) + min(1._r_kind,max(-2._r_kind,tincf*0.6_r_kind))
+                 else
+! if ticnf > 0 - warming, then adjust snow TSK and SOILT1 only if TSK < 273 K.
+! If TSK > 273 K most likely due to melting process, then leave TSK and SOILT1 unchanged.
+                    if(ges_tsk(i,j) < 273.15_r_kind) then
+                       ges_tsk(i,j)    = min(273.15_r_kind,ges_tsk(i,j)    + min(1._r_kind,max(-2._r_kind,tincf*0.6_r_kind)))
+                       ges_soilt1(i,j) = min(273.15_r_kind,ges_soilt1(i,j) + min(1._r_kind,max(-2._r_kind,tincf*0.6_r_kind)))
+                    endif ! tsk < 273 K
+                 endif ! tincf < 0.
+
+              endif ! sno(i,j,it) < 32
            end do
         end do
 !     end do ! it

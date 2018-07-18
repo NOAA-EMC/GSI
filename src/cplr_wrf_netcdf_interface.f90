@@ -2355,6 +2355,7 @@ contains
     use kinds, only: r_single,i_kind,r_kind
     use constants, only: h300,tiny_single
     use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge
+    use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
     use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
     use rapidrefresh_cldsurf_mod, only: i_use_2mt4b,i_use_2mq4b
     use gsi_bundlemod, only: GSI_BundleGetPointer
@@ -2386,6 +2387,7 @@ contains
     character (len= 3) :: ordering
   
     character (len=80), dimension(3)  ::  dimnames
+    character (len=80) :: SysDepInfo
     character(len=24),parameter :: myname_ = 'update_netcdf_mass'
   
   
@@ -2444,7 +2446,7 @@ contains
   
   ! transfer code from diffwrf for converting netcdf wrf nmm restart file
   ! to temporary binary format
-  
+    if( i_gsdcldanal_type==6 .or. i_gsdcldanal_type==3) call ext_ncd_ioinit(sysdepinfo,status)
   !
   !           update mass core netcdf file with analysis variables from 3dvar
   !

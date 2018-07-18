@@ -16,6 +16,7 @@ module gridmod
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
   use omp_lib, only: omp_get_max_threads
   use mpeu_util, only: die
+  use hybrid_ensemble_parameters, only: write_ens_sprd
   implicit none
 
 ! !DESCRIPTION: module containing grid related variable declarations
@@ -1383,6 +1384,14 @@ contains
              coeffy(i,k)=half/dy_mca(i,k)
           end do
        end do
+
+       if(write_ens_sprd) then
+          open(66,file='analatlon.bin',form='unformatted')
+             write(66) nlon,nlat
+             write(66) glat_an
+             write(66) glon_an
+          close(66)
+       endif
 
 ! ???????  later change glat_an,glon_an to region_lat,region_lon, with dimensions flipped
        call init_general_transform(glat_an,glon_an)

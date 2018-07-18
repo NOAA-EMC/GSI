@@ -1462,7 +1462,7 @@ subroutine read_obs(ndata,mype)
              else if (obstype == 'larccld' ) then
                 if(i_gsdcldanal_type==2) then
                    call read_NASA_LaRC_cloud(nread,npuse,nouse,infile,obstype,lunout,sis,nobs_sub1(1,i))
-                else if( i_gsdcldanal_type==1) then
+                else if( i_gsdcldanal_type==1 .or. i_gsdcldanal_type==6 ) then
                    call read_nasa_larc(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
                 end if
                 string='READ_NASA_LaRC'

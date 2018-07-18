@@ -163,6 +163,7 @@ module obsmod
 !   def ditype       - observation group type (set in read_obs, e.g. rad,conv,etc)
 !   def time_window  - half time window for obs type (hours)
 !   def time_window_max - maximum half time window (hours)
+!   def time_window_rad - maximum half time window (hours) for cetain radiance
 !   def obsfile_all  - file containing observations after initial read
 !   def ndat_types   - number of available data types
 !   def ndat_times   - number of available synoptic times
@@ -402,6 +403,7 @@ module obsmod
   public :: iout_oz,iout_co,dsis,ref_obs,obsfile_all,lobserver,perturb_obs,ditype,dsfcalc,dplat
   public :: time_window,dval,dtype,dfile,dirname,obs_setup,oberror_tune,offtime_data
   public :: lobsdiagsave,lobsdiag_forenkf,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel,ext_sonde
+  public :: time_window_rad
   public :: perturb_fact,dtbduv_on,nsat1,obs_sub_comm,mype_diaghdr
   public :: lobsdiag_allocated
   public :: i_aero_ob_type
@@ -540,7 +542,7 @@ module obsmod
 
 ! Declare global variables
 
-  real(r_kind) perturb_fact,time_window_max,time_offset
+  real(r_kind) perturb_fact,time_window_max,time_offset,time_window_rad
   real(r_kind),dimension(50):: dmesh
 
   integer(i_kind) grids_dim,nchan_total,ianldate
@@ -757,6 +759,7 @@ contains
 
 !   Initialize arrays used in namelist obs_input 
     time_window_max = three ! set maximum time window to +/-three hours
+    time_window_rad = three ! set maximum time window to +/-three hours for radiance
 
 
 !   Other initializations
@@ -977,6 +980,16 @@ contains
           time_window(ii) = time_window_max
           limit = .true.
        endif
+! for cris, iasi, atms, regional analysis may want shorter time window
+       if (index(dtype(ii),'cris') /= 0 .or. index(dtype(ii),'atms') /= 0 .or. &
+           index(dtype(ii),'iasi') /= 0 ) then
+          if(time_window(ii)>time_window_rad) then
+             time_window(ii) = time_window_rad
+             if (mype==0) write(6,*) 'reset time window for ',dtype(ii),&
+                               ' to ',time_window_rad
+          endif
+       endif
+!
     end do
     if (mype==0 .and. limit) &
        write(6,*)'INIT_OBSMOD_VARS: reset time window for one or ',&
