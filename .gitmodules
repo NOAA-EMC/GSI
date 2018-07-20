@@ -4,3 +4,4 @@
 [submodule "libsrc"]
 	path = libsrc
 	url = gerrit:GSI-libsrc
+	branch = GSD-dev
