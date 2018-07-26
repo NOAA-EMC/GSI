@@ -161,6 +161,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) ier2,iuse,ilate,ilone,istnelv,idomsfc,izz,iprvd,isprvd
   integer(i_kind) ikxx,nn,istat,ibin,ioff,ioff0
   integer(i_kind) i,nchar,nreal,ii,jj,k,l,mm1
+  integer(i_kind) itype,isubtype 
 
   logical,dimension(nobs):: luse,muse
   integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
@@ -299,6 +300,14 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if(.not.in_anybin) cycle
 
      if(in_curbin) then
+        ikx=nint(data(ikxx,i))
+        itype=ictype(ikx) 
+        isubtype=icsubtype(ikx)
+!  reduce observation error for buoy surface pressure observations
+        if( itype ==180 .and. isubtype == 0) then
+           data(ier2,i)=data(ier2,i)*0.7_r_kind
+           data(ier,i)=data(ier,i)*0.7_r_kind
+        endif
         error=data(ier2,i)
         dlon=data(ilon,i)
         dlat=data(ilat,i)
@@ -306,7 +315,6 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
  
         dhgt=data(ihgt,i)
         dtemp=data(itemp,i)
-        ikx  = nint(data(ikxx,i))
         var_jb=data(ijb,i)
      endif
  
