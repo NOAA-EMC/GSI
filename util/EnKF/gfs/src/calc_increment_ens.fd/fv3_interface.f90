@@ -124,7 +124,9 @@ contains
   !=======================================================================
   !=======================================================================
 
-  subroutine fv3_calc_increment()
+  subroutine fv3_calc_increment(mype)
+
+    integer,intent(in) :: mype
 
     type(gfs_grid) :: grid !! GFS analysis grid
 
@@ -199,7 +201,7 @@ contains
     var_def_loop: do ivar=1,n_inc_vars
        call fv3_increment_def_var(ncdat,output_vars(ivar))
        if(trim(input_vars(ivar)) == 'icmr' .and. .not. do_icmr) then
-          print 100, output_vars(ivar), 'do_icmr = F so var will not be in netcdf'
+          if (mype==0) print 100, output_vars(ivar), 'do_icmr = F so var will not be in netcdf'
           cycle var_def_loop
        endif
     enddo var_def_loop
@@ -213,14 +215,14 @@ contains
     var_loop: do ivar=1,n_inc_vars
        ! Skip this var if it is icmr and we're told not to do_icmr:
        if(trim(input_vars(ivar)) == 'icmr' .and. .not. do_icmr) then
-          print 100, trim(output_vars(ivar)), &
+          if (mype==0) print 100, trim(output_vars(ivar)), &
                'do_icmr = F so will not diff this var'
           cycle var_loop
        endif
 
        ! Skip this var if it is to be zero.  No point in reading it...
        zero_or_read: if(should_zero_increments_for(var_zero_synonyms(ivar))) then
-          print 100, trim(output_vars(ivar)), &
+          if (mype==0) print 100, trim(output_vars(ivar)), &
                'is in incvars_to_zero; setting increments to zero'
           an_grid%var3d = 0
        else
@@ -231,11 +233,11 @@ contains
              ! Special case.  We may have to calculate the 3D pressure
              ! from the 2D surface pressure and coordinate system using
              ! the hydrostatic approximation.
-             call fv3_analysis_read_or_calc_dpres(an_grid)
-             call fv3_analysis_read_or_calc_dpres(fg_grid)
+             call fv3_analysis_read_or_calc_dpres(an_grid,mype)
+             call fv3_analysis_read_or_calc_dpres(fg_grid,mype)
           else
              ! Read the variable from the files directly.
-             print 100, trim(output_vars(ivar)), 'read variable'
+             if (mype==0) print 100, trim(output_vars(ivar)), 'read variable'
              call fv3_analysis_read_var(an_grid,input_vars(ivar))
              call fv3_analysis_read_var(fg_grid,input_vars(ivar))
           endif
@@ -558,10 +560,11 @@ contains
   !=======================================================================
 
   !! Read or calculate 3D pressure
-  subroutine fv3_analysis_read_or_calc_dpres(grid)
+  subroutine fv3_analysis_read_or_calc_dpres(grid,mype)
     ! Arguments to function
 
     type(analysis_grid) :: grid !! the analysis or first guess grid
+    integer,intent(in)  :: mype
 
     ! local variables
 
@@ -587,7 +590,7 @@ contains
        ! pressure from the hydrostatic approximation and surface
        ! pressure.
 
-       print 100,'dpres','calculate from 2D psfc and hydro. approx.'
+       if (mype==0) print 100,'dpres','calculate from 2D psfc and hydro. approx.'
 
        ! Allocate an array for the interface pressure.
        if(.not. allocated(pressi)) then
@@ -611,7 +614,7 @@ contains
           pressi(:,:,k) = grid%ak(k) + grid%bk(k)*grid%psfc(:,:)
        end do ! do k = 1, meta_nemsio%dimz + 1
     else
-       print 100,'dpres','read from file; do not calculate'
+       if (mype==0) print 100,'dpres','read from file; do not calculate'
     endif
 
     ! Calculate or read the mid-level 3D pressure:

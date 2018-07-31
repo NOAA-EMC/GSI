@@ -1,8 +1,7 @@
 #!/bin/sh
-
-#---------------------------------------------------------------
+#############################################################
 # Set up environment for GDAS Ozone Monitor job
-#
+#############################################################
 set -xa
 echo `date` $0 `date -u` begin
 export PS4='$SECONDS + '
@@ -10,15 +9,15 @@ export PS4='$SECONDS + '
 export RUN_ENVIR=${RUN_ENVIR:-nco}
 export envir=${envir:-test}
 
-#------------------------------
+###############################
 # Specify NET and RUN name
-#
+##############################
 export NET=${NET:-gfs}
 export RUN=${RUN:-gdas}
 
-#---------------------------------------------------------------
+###########################################################
 # obtain unique process id (pid) and make temp directories
-#
+###########################################################
 export pid=$$
 export outid=${outid:-"LL$job"}
 export jobid=${jobid:-"${outid}.o${pid}"}
@@ -27,34 +26,33 @@ export DATAROOT=${DATAROOT:-/tmpnwprod2}
 export DATA=${DATA:-${DATAROOT}/${jobid}}
 
 export OZNMON_SUFFIX=${OZNMON_SUFFIX:-${NET}}
-export COMROOT=${COMROOT:-/gpfs/hps/nco/ops/com}
 
-#mkdir -p $DATA
-#cd $DATA
+mkdir -p $DATA
+cd $DATA
 
 
-#-------------------------------------
+####################################
 # File To Log Msgs
-#
+####################################
 export jlogdir=${jlogdir:-${COMROOT}/logs/jlogfiles}
 if [[ ! -d ${jlogdir} ]]; then
    mkdir -p ${jlogdir}
 fi
 export jlogfile=${jlogfile:-${jlogdir}/jlogfile.${job}.${pid}}
 
-#-------------------------------------
+####################################
 # Determine Job Output Name on System
-#
+####################################
 export pgmout="OUTPUT.${pid}"
 export pgmerr=errfile
 export cycle=t${cyc}z
 
-#----------------------------------------------
+##############################################
 # SENDECF  - Flag Events on ECF
 # SENDCOM  - Copy Files From TMPDIR to $COMOUT
 # SENDDBN  - Issue DBNet Client Calls
 # VERBOSE  - Specify Verbose Output in exglobal
-#
+##############################################
 export SENDCOM=${SENDCOM:-YES}
 export SENDDBN=${SENDDBN:-NO}
 export SENDECF=${SENDECF:-NO}
@@ -70,12 +68,12 @@ export utilexec=${utilexec:-${UTILROOT}/exec}
 #---------------------------------------------
 # Specify Execution Areas
 #
-export HOMEgdas_ozn=${HOMEgdas_ozn:-${NWROOT}/gdas.$gdas_oznmon_ver}
-export PARMgdas_ozn=${PARMgdas_ozn:-$HOMEgdas_ozn/parm}
-export SCRgdas_ozn=${SCRgdas_ozn:-$HOMEgdas_ozn/scripts}
-export FIXgdas_ozn=${FIXgdas_ozn:-$HOMEgdas_ozn/fix}
+export HOMEgdas_ozn=${HOMEgfs_ozn:-${NWROOT}/gfs.$gfs_ver}
+export PARMgdas_ozn=${PARMgfs_ozn:-$HOMEgfs_ozn/parm/mon}
+export SCRgdas_ozn=${SCRgfs_ozn:-$HOMEgfs_ozn/scripts}
+export FIXgdas_ozn=${FIXgfs_ozn:-$HOMEgfs_ozn/fix/gdas}
 
-export HOMEoznmon=${HOMEoznmon:-${NWROOT}/global_shared.${shared_oznmon_ver}}
+export HOMEoznmon=${HOMEoznmon:-${HOMEgfs_ozn}}
 export EXECoznmon=${EXECoznmon:-$HOMEoznmon/exec}
 export FIXoznmon=${FIXoznmon:-${HOMEoznmon}/fix}
 export USHoznmon=${USHoznmon:-$HOMEoznmon/ush}
@@ -144,6 +142,15 @@ if [[ $iret  != 0 ]]; then
 fi
 
 postmsg "$jlogfile" "$msg"
+
+################################
+# Remove the Working Directory
+################################
+KEEPDATA=${KEEPDATA:-YES}
+cd $DATAROOT
+if [ ${KEEPDATA} = NO ] ; then
+  rm -rf $DATA
+fi
 
 date
 

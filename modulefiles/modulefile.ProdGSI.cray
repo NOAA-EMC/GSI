@@ -46,8 +46,8 @@ module unuse /usrx/local/dev/modulefiles
 
 # Loading netcdf modules
 module use /usrx/local/prod/modulefiles
-module load HDF5-serial-intel-haswell/1.8.9
 module load NetCDF-intel-haswell/4.2
+module load HDF5-serial-intel-haswell/1.8.9
 
 # Loading nceplibs modules
 module use /gpfs/hps/nco/ops/nwprod/lib/modulefiles

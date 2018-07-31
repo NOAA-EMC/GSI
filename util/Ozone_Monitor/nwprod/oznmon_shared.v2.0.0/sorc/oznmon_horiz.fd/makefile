@@ -20,7 +20,7 @@
 # *****************************************************************
 SHELL=/bin/sh
 
-BINDIR = $(dir_root)/exec
+BINDIR = ${dir_root}/exec
 
 LIBS   = $(W3NCO_LIB4)
 

@@ -88,15 +88,13 @@ export cyc=${2:-${cyc:?}}
 ########################################
 export DATA=${DATA:-$(pwd)}
 
-#export HOMEgfs=${HOMEgfs:-/${NWROOT}/gfs_minmon.v${gfs_minmon_ver}}
-
 
 ########################################
 #  Filenames
 ########################################
 gsistat=${gsistat:-$COMIN/gfs.t${cyc}z.gsistat}
-export mm_gnormfile=${gnormfile:-${FIXgfs}/gfs_minmon_gnorm.txt}
-export mm_costfile=${costfile:-${FIXgfs}/gfs_minmon_cost.txt}
+export mm_gnormfile=${gnormfile:-${M_FIXgfs}/gfs_minmon_gnorm.txt}
+export mm_costfile=${costfile:-${M_FIXgfs}/gfs_minmon_cost.txt}
 
 ########################################
 #  Other variables
@@ -131,12 +129,8 @@ if [[ -s ${gsistat} ]]; then
    #  Copy the $MINMON_SUFFIX.gnorm_data.txt file to the working directory
    #  It's ok if it doesn't exist; we'll create a new one if needed.
    #------------------------------------------------------------------
-   if [[ -s ${M_TANKverf}/${MINMON_SUFFIX}.gnorm_data.txt ]]; then
-      $NCP ${M_TANKverf}/${MINMON_SUFFIX}.gnorm_data.txt gnorm_data.txt 
-   elif [[ -s ${M_TANKverf}/gnorm_data.txt ]]; then
+   if [[ -s ${M_TANKverf}/gnorm_data.txt ]]; then
       $NCP ${M_TANKverf}/gnorm_data.txt gnorm_data.txt 
-   elif [[ -s ${M_TANKverfM1}/${MINMON_SUFFIX}.gnorm_data.txt ]]; then
-      $NCP ${M_TANKverfM1}/${MINMON_SUFFIX}.gnorm_data.txt gnorm_data.txt 
    elif [[ -s ${M_TANKverfM1}/gnorm_data.txt ]]; then
       $NCP ${M_TANKverfM1}/gnorm_data.txt gnorm_data.txt
    fi
