@@ -34,8 +34,8 @@ case $regtest in
     global_T62)
 
         if [[ "$machine" = "Theia" ]]; then
-           topts[1]="0:30:00" ; popts[1]="12/3/" ; ropts[1]="/1"
-           topts[2]="0:30:00" ; popts[2]="12/9/" ; ropts[2]="/2"
+           topts[1]="0:50:00" ; popts[1]="12/3/" ; ropts[1]="/1"
+           topts[2]="0:50:00" ; popts[2]="12/9/" ; ropts[2]="/2"
         elif [[ "$machine" = "Cheyenne" ]]; then
            topts[1]="0:30:00" ; popts[1]="16/2/" ; ropts[1]="/1"
            topts[2]="0:30:00" ; popts[2]="16/4/" ; ropts[2]="/2"

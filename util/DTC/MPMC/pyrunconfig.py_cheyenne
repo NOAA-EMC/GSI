@@ -1,0 +1,83 @@
+#!/usr/bin/env python
+# Platform specific configure script for GSI build test on Cheyenne
+# ---------------------------------------------------------------------------------------------------------------------------------------------------
+# Customize the following  variables in the section below 
+# 1. set full_regression_test to false for build only test
+# 2. set create_build_report; toggles build report which is not supported with older versions of python.
+# 3. batch queue charge code
+# 4. username
+# 5. Set a new location for the creation of the build directory. Default is the current directory location
+# 6. Set a new location for the location of the source code. Default is the current directory location
+full_regression_test = False
+create_build_report = False
+project_code = "P48503002" # "P48500053"
+platform_username = "geguo"
+build_directory_location = '/glade/work/geguo/MPMC/build_v3.7b' # Location for creation of build directories.
+build_directory_root = '/glade/work/geguo/MPMC/MPMCtest'  # Location of python scripts
+gsi_src_directory = '/glade/work/geguo/git_local/ProdGSI'       # Location of GSI source code
+#platform_username = "stark"
+#build_directory_location = '/glade2/scratch2/stark/GSI/Regression/build' # Location for creation of build directories.
+#build_directory_root = '/glade2/scratch2/stark/GSI/gsi_regression_test'  # Location of python scripts
+#gsi_src_directory = '/glade2/scratch2/stark/GSI/ProdGSI'                 # Location of GSI source code
+# ---------------------------------------------------------------------------------------------------------------------------------------------------
+# Each line is a compiler test configuration, add or remove lines as needed. Syntax note: last line has no comma at the end of the line. 
+# ---------------------------------------------------------------------------------------------------------------------------------------------------
+#        compiler module name  |  additional platform modules |  mpi module name  |  lapack module name  |  netcdf module name  |  shell command for CC, CXX, and FC
+# ---------------------------------------------------------------------------------------------------------------------------------------------------
+cfg = [
+       {'id':'ci01', 'comp' : 'intel/18.0.1','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'impi/2018.1.163','lapack' : 'mkl/2018.0.1','netcdf' : 'netcdf/4.6.1','cc' : 'icc','cxx' : 'icpc','fc' : 'mpif90' },
+       {'id':'ci02', 'comp' : 'intel/18.0.1','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'mpt/2.15f'      ,'lapack' : 'mkl/2018.0.1','netcdf' : 'netcdf/4.6.1','cc' : 'icc','cxx' : 'icpc','fc' : 'mpif90' }, 
+       {'id':'ci03', 'comp' : 'intel/18.0.1','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'mvapich2/2.2'   ,'lapack' : 'mkl/2018.0.1','netcdf' : 'netcdf/4.6.1','cc' : 'icc','cxx' : 'icpc','fc' : 'mpif90' }, 
+       {'id':'ci04', 'comp' : 'intel/18.0.1','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'openmpi/3.1.0'  ,'lapack' : 'mkl/2018.0.1','netcdf' : 'netcdf/4.6.1','cc' : 'icc','cxx' : 'icpc','fc' : 'mpif90' }, 
+       {'id':'ci05', 'comp' : 'intel/17.0.1','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'impi/2017.1.132','lapack' : 'mkl/2017.0.1','netcdf' : 'netcdf/4.6.1','cc' : 'icc','cxx' : 'icpc','fc' : 'mpif90' },
+       {'id':'ci06', 'comp' : 'intel/17.0.1','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'mpt/2.15f'      ,'lapack' : 'mkl/2017.0.1','netcdf' : 'netcdf/4.6.1','cc' : 'icc','cxx' : 'icpc','fc' : 'mpif90' },
+       {'id':'ci07', 'comp' : 'intel/17.0.1','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'mvapich2/2.2'   ,'lapack' : 'mkl/2017.0.1','netcdf' : 'netcdf/4.6.1','cc' : 'icc','cxx' : 'icpc','fc' : 'mpif90' },
+       {'id':'ci08', 'comp' : 'intel/17.0.1','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'openmpi/3.0.1'  ,'lapack' : 'mkl/2017.0.1','netcdf' : 'netcdf/4.6.1','cc' : 'icc','cxx' : 'icpc','fc' : 'mpif90' },
+       {'id':'ci09', 'comp' : 'intel/16.0.3','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'impi/5.1.3.210' ,'lapack' : 'mkl/11.3.3','netcdf' : 'netcdf/4.5.0','cc' : 'icc','cxx' : 'icpc','fc' : 'mpif90' },
+       {'id':'ci10', 'comp' : 'intel/16.0.3','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'mpt/2.15f'      ,'lapack' : 'mkl/11.3.3','netcdf' : 'netcdf/4.5.0','cc' : 'icc','cxx' : 'icpc','fc' : 'mpif90' },
+       {'id':'ci11', 'comp' : 'intel/16.0.3','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'openmpi/3.1.0'  ,'lapack' : 'mkl/11.3.3','netcdf' : 'netcdf/4.5.0','cc' : 'icc','cxx' : 'icpc','fc' : 'mpif90' },
+       {'id':'ci12', 'comp' : 'intel/16.0.1','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'impi/5.1.2.150' ,'lapack' : 'mkl/11.3.1','netcdf' : 'netcdf/4.5.0','cc' : 'icc','cxx' : 'icpc','fc' : 'mpif90' },
+#known {'id':'ci13', 'comp' : 'intel/16.0.1','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'mpt/2.15f'      ,'lapack' : 'mkl/11.3.3','netcdf' : 'netcdf/4.5.0','cc' : 'icc','cxx' : 'icpc','fc' : 'mpif90' },
+#known {'id':'ci14', 'comp' : 'intel/16.0.1','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'openmpi/3.1.0'  ,'lapack' : 'mkl/11.3.3','netcdf' : 'netcdf/4.5.0','cc' : 'icc','cxx' : 'icpc','fc' : 'mpif90' },
+
+#known {'id':'cg01', 'comp' : 'gnu/8.1.0','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'mpt/2.15f',    'lapack' : 'openblas/0.2.20','netcdf' : 'netcdf/4.6.1',  'cc' : 'mpicc','cxx' : 'mpicxx','fc' : 'mpif90' },
+       {'id':'cg02', 'comp' : 'gnu/8.1.0','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'mvapich2/2.2', 'lapack' : 'lapack/3.7.0','netcdf' : 'netcdf/4.6.1',  'cc' : 'mpicc','cxx' : 'mpicxx','fc' : 'mpif90' },
+       {'id':'cg03', 'comp' : 'gnu/8.1.0','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'openmpi/3.1.0', 'lapack' : 'lapack/3.7.0','netcdf' : 'netcdf/4.6.1',  'cc' : 'mpicc','cxx' : 'mpicxx','fc' : 'mpif90' },
+#known {'id':'cg04', 'comp' : 'gnu/7.3.0','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'mpt/2.15f',    'lapack' : 'openblas/0.2.20','netcdf' : 'netcdf/4.6.1',  'cc' : 'mpicc','cxx' : 'mpicxx','fc' : 'mpif90' },
+       {'id':'cg05', 'comp' : 'gnu/7.3.0','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'mvapich2/2.2', 'lapack' : 'openblas/0.2.20','netcdf' : 'netcdf/4.6.1',  'cc' : 'mpicc','cxx' : 'mpicxx','fc' : 'mpif90' },
+       {'id':'cg06', 'comp' : 'gnu/7.3.0','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'openmpi/3.0.1','lapack' : 'openblas/0.2.20','netcdf' : 'netcdf/4.6.1',  'cc' : 'mpicc','cxx' : 'mpicxx','fc' : 'mpif90' },
+#known {'id':'cg07', 'comp' : 'gnu/7.2.0','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'mpt/2.15f',    'lapack' : 'openblas/0.2.20','netcdf' : 'netcdf/4.4.1.1','cc' : 'mpicc','cxx' : 'mpicxx','fc' : 'mpif90' },
+#known {'id':'cg08', 'comp' : 'gnu/7.2.0','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'openmpi/3.0.1','lapack' : 'openblas/0.2.20','netcdf' : 'netcdf/4.4.1.1','cc' : 'mpicc','cxx' : 'mpicxx','fc' : 'mpif90' },
+#known {'id':'cg09', 'comp' : 'gnu/7.1.0','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'mpt/2.15f',    'lapack' : 'openblas/0.2.20','netcdf' : 'netcdf/4.6.1',  'cc' : 'mpicc','cxx' : 'mpicxx','fc' : 'mpif90' },
+       {'id':'cg10', 'comp' : 'gnu/7.1.0','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'mvapich2/2.2', 'lapack' : 'openblas/0.2.20','netcdf' : 'netcdf/4.6.1',  'cc' : 'mpicc','cxx' : 'mpicxx','fc' : 'mpif90' },
+#known {'id':'cg11', 'comp' : 'gnu/7.1.0','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'openmpi/3.0.1','lapack' : 'openblas/0.2.20','netcdf' : 'netcdf/4.6.1',  'cc' : 'mpicc','cxx' : 'mpicxx','fc' : 'mpif90' },
+#known {'id':'cg12', 'comp' : 'gnu/6.4.0','comp_post' : 'ncarenv/1.2 ncarcompilers/0.3.5','mpi' : 'mpt/2.15f',    'lapack' : 'openblas/0.2.14','netcdf' : 'netcdf/4.4.1.1','cc' : 'mpicc','cxx' : 'mpicxx','fc' : 'mpif90' },
+       {'id':'cg13', 'comp' : 'gnu/6.3.0','comp_post' : 'ncarenv/1.2 ncarcompilers/0.3.5','mpi' : 'openmpi/3.0.0','lapack' : 'openblas/0.2.14','netcdf' : 'netcdf/4.4.1.1','cc' : 'mpicc','cxx' : 'mpicxx','fc' : 'mpif90' },
+#known {'id':'cg14', 'comp' : 'gnu/6.3.0','comp_post' : 'ncarenv/1.2 ncarcompilers/0.3.5','mpi' : 'mpt/2.15f',    'lapack' : 'openblas/0.2.14','netcdf' : 'netcdf/4.4.1.1','cc' : 'mpicc','cxx' : 'mpicxx','fc' : 'mpif90' },
+#known {'id':'cg15', 'comp' : 'gnu/6.2.0','comp_post' : 'ncarenv/1.2 ncarcompilers/0.3.5','mpi' : 'mpt/2.15f',    'lapack' : 'openblas/0.2.14','netcdf' : 'netcdf/4.4.1.1','cc' : 'mpicc','cxx' : 'mpicxx','fc' : 'mpif90' },
+
+       {'id':'cg16', 'comp' : 'gnu/7.3.0','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'mvapich2/2.2', 'lapack' : 'lapack/3.7.0','netcdf' : 'netcdf/4.6.1',  'cc' : 'mpicc','cxx' : 'mpicxx','fc' : 'mpif90' },
+       {'id':'cg17', 'comp' : 'gnu/7.3.0','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'openmpi/3.0.1','lapack' : 'lapack/3.7.0','netcdf' : 'netcdf/4.6.1',  'cc' : 'mpicc','cxx' : 'mpicxx','fc' : 'mpif90' },
+#known {'id':'cg18', 'comp' : 'gnu/7.2.0','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'openmpi/3.0.1','lapack' : 'lapack/3.7.0','netcdf' : 'netcdf/4.6.1',  'cc' : 'gcc','cxx' : 'g++','fc' : 'mpif90' },
+       {'id':'cg19', 'comp' : 'gnu/7.1.0','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'mvapich2/2.2', 'lapack' : 'lapack/3.7.0','netcdf' : 'netcdf/4.6.1',  'cc' : 'mpicc','cxx' : 'mpicxx','fc' : 'mpif90' },
+       {'id':'cg20', 'comp' : 'gnu/6.3.0','comp_post' : 'ncarenv/1.2 ncarcompilers/0.3.5','mpi' : 'openmpi/3.0.0','lapack' : 'lapack/3.7.0','netcdf' : 'netcdf/4.4.1.1','cc' : 'mpicc','cxx' : 'mpicxx','fc' : 'mpif90' },
+
+       {'id':'cp01', 'comp' : 'pgi/17.9','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'openmpi/2.1.2','lapack' : '','netcdf' : 'netcdf/4.4.1.1','cc' : 'pgcc','cxx' : 'pgc++','fc' : 'mpif90' },
+#known {'id':'cp02', 'comp' : 'pgi/17.9','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'mpt/2.15f',    'lapack' : '','netcdf' : 'netcdf/4.4.1.1','cc' : 'pgcc','cxx' : 'pgc++','fc' : 'mpif90' },
+#known {'id':'cp03', 'comp' : 'pgi/17.5','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'mpt/2.15f',    'lapack' : '','netcdf' : 'netcdf/4.4.1.1','cc' : 'pgcc','cxx' : 'pgc++','fc' : 'mpif90' },
+#known {'id':'cp04', 'comp' : 'pgi/16.5','comp_post' : 'ncarenv/1.2 ncarcompilers/0.4.1','mpi' : 'mpt/2.15f',    'lapack' : '','netcdf' : 'netcdf/4.5.0',  'cc' : 'pgcc','cxx' : 'pgc++','fc' : 'mpif90' }
+      ]
+#                    
+# --------------------------USERS SHOULD NOT NEEED TO EDIT ANYTHING BELOW THIS LINE. EVERYTHING BELOW HERE IS PLATFORM SPECIFIC----------------------
+# Name of machine name 
+machine_name = 'cheyenne'
+# 
+cmake_version = 'cmake/3.9.1'
+# Platform specific (batch queue commands, etc.)
+queue_name = 'premium' #'share' #'economy'
+# Text for batch queue submission script
+batch_queue_pre = '#PBS -N ' 
+batch_queue_varaibles = '#PBS -A ' + project_code + ' \n#PBS -l walltime=00:30:00 \n#PBS -q '  \
+    + queue_name + '\n#PBS -l select=1:ncpus=8:mpiprocs=8\n#PBS -l inception=login\n#PBS -j oe \n\n'
+batch_queue_module_pre = 'source /etc/profile.d/modules.sh \nmodule purge \n'
+dry_mode = False  # When True don't submit to batch queue. Only set up scripts and directories.

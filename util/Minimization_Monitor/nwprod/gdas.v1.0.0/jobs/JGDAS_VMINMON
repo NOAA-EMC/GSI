@@ -29,17 +29,11 @@ export DATA=${DATA:-${DATAROOT}/${jobid}}
 mkdir -p $DATA
 cd $DATA
 
-###############################################################
-# This block can be modified for different test environment
-###############################################################
-#if [ $RUN_ENVIR = prod -a $envir != prod ]; then
-#   export SENDCOM=${SENDCOM:-NO}
-#fi
 
 ########################################################### 
 # obtain unique process id (pid) and make temp directories
 ###########################################################
-export MINMON_SUFFIX=${MINMON_SUFFIX:-GDAS}
+export MINMON_SUFFIX=${MINMON_SUFFIX:-${RUN}}
 export m_job=${m_job:-${MINMON_SUFFIX}_mmDE}
 
 
@@ -61,31 +55,24 @@ export SENDECF=${SENDECF:-NO}
 export VERBOSE=${VERBOSE:-YES}
 
 
-###################################
-# Set up the UTILITIES
-###################################
-export utilscript=${utilscript:-${UTILROOT}/ush}
-export utilexec=${utilexec:-${UTILROOT}/exec}
-
-
 ##############################################
 # Specify Package Areas
 ##############################################
-# JY export HOMEgdas=${HOMEgdas:-${NWROOT}/gdas.${gdas_ver}}
-export HOMEgdas=${HOMEgdas:-${NWROOT}/gdas_minmon.${gdas_minmon_ver}}
-export PARMgdas=${PARMgdas:-$HOMEgdas/parm}
-export SCRgdas=${SCRgdas:-$HOMEgdas/scripts}
-export FIXgdas=${FIXgdas:-$HOMEgdas/fix}
+export HOMEgfs=${HOMEgfs:-${NWROOT}/gfs.${gfs_ver}}
+export SCRgfs=${SCRgfs:-$HOMEgfs/scripts}
 
-export HOMEminmon=${HOMEminmon:-${NWROOT}/minmon_shared.${minmon_shared_ver}}
+export PARMmon=${PARMmon:-$HOMEgfs/parm/mon}
+export M_FIXgdas=${M_FIXgfs:-$HOMEgfs/fix/gdas}
+
+export HOMEminmon=${HOMEminmon:-${HOMEgfs}}
 export EXECminmon=${EXECminmon:-$HOMEminmon/exec}
 export USHminmon=${USHminmon:-$HOMEminmon/ush}
-export FIXminmon=${FIXminmon:-${HOMEminmon/fix}}
+
 
 ###################################
 # source the parm file
 ###################################
-.  ${PARMgdas}/gdas_minmon.parm
+.  ${PARMmon}/da_mon.parm
 
 
 #############################################
@@ -100,44 +87,31 @@ fi
 #############################################
 # TANKverf - WHERE OUTPUT DATA WILL RESIDE
 #############################################
-M_TANKverf=${M_TANKverf:-${COMROOT}/verf/${envir}}
+export COM_IN=${COM_IN:-${COMROOT}/${NET}/${envir}}
 
-echo "M_TANKverf   = $M_TANKverf"
-echo "TANK_USE_RUN = $TANK_USE_RUN"
-echo "M_TANKverfM0 = $M_TANKverfM0"
-echo "M_TANKverfM1 = $M_TANKverfM1"
-
-if [[ ${TANK_USE_RUN} -ne 1 ]]; then
-   M_TANKverfM0=${M_TANKverfM0:-${M_TANKverf}/minmon_${MINMON_SUFFIX}.${PDY}}
-   export M_TANKverfM1=${M_TANKverfM1:-${M_TANKverf}/minmon_${MINMON_SUFFIX}.${PDYm1}}
-else
-   M_TANKverfM0=${M_TANKverfM0:-${M_TANKverf}/${RUN}.${PDY}/minmon}
-   export M_TANKverfM1=${M_TANKverfM1:-${M_TANKverf}/${RUN}.${PDYm1}/minmon}
-fi
-
+M_TANKverf=${M_TANKverf:-${COM_IN}}
+M_TANKverfM0=${M_TANKverfM0:-${M_TANKverf}/${RUN}.${PDY}/minmon}
+export M_TANKverfM1=${M_TANKverfM1:-${M_TANKverf}/${RUN}.${PDYm1}/minmon}
 export M_TANKverf=$M_TANKverfM0
 
-export COM_IN=${COM_IN:-${COMROOT}/${NET}/${envir}}
 export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
 
 mkdir -p -m 775 $M_TANKverf
- 
+
 
 ########################################
 # Set necessary environment variables
 ########################################
 export CYCLE_INTERVAL=6
 export gsistat=${gsistat:-${COMIN}/gdas.t${cyc}z.gsistat}
-if [[ ! -e ${gsistat} ]]; then
-   export gsistat=${COMIN}/gsistat.gdas.${PDATE}
-fi
+
 
 msg="JOB HAS STARTED"
 postmsg "$jlogfile" "$msg"
 
 ########################################################
 # Execute the script.
-${GMONSH:-$SCRgdas/exgdas_vrfminmon.sh.ecf} ${PDY} ${cyc}
+${GMONSH:-$SCRgfs/exgdas_vrfminmon.sh.ecf} ${PDY} ${cyc}
 
 err=$?
 

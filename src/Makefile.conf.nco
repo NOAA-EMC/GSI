@@ -41,7 +41,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
 #--- Normal mode options
   PROF= #-pg
-  OMP = -openmp
+  OMP = $(OMPFLAG)
 
   FFLAGS_F90    = -D_REAL8_ 
 
@@ -87,7 +87,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
 #--- Normal mode options
 
-  CFLAGS_N      = -DLINUX -Dfunder -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O3 $(OMP)
+  CFLAGS_N      = -DLINUX -Dfunder -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O1 $(OMP)
 
 #--- Debug mode options
 

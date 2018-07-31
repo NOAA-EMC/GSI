@@ -1,0 +1,64 @@
+
+                     GSI/EnKF MPMC Test
+        (MPMC=Multiple Platforms Multiple Compilers)
+
+The MPMC test is a test suite developed by the DTC (Development Testbed Center) DA group 
+which builds and runs ProdGSI under different platforms (Theia, Cheyenne, Jet, etc) under
+ all available Fortran compliers in combination with different MPI libraries.
+
+At this time, 18 test cases are selected. They cover runs on single observation, 3DVAR, 
+Hybrid EnVAR 3D and 4D, NMMB, WRFCHEM, CMAQ, GFS, FV3, GSD cloud analysis and EnKF. 
+
+Visit https://dtcenter.org/com-GSI/MPMC/ for more information.
+
+The ultimate goal is to test each major ProdGSI commit automatically so that ProdGSI 
+compatibility and portability can be more easily maintained and R2O2R evolves faster.
+
+The general work flow of the MPMC flow is as follows:
+      build.py  ->  run.py  ->  report.py
+
+**** how to run MPMC scripts ****
+
+1. Get the scripts:
+
+    git clone gerrit:MPMC
+
+  (you will need to contact gsi-help@ucar.edu for access to the MPMC project)
+
+2. If this is the first run, do:
+      
+    ./initmpmc
+
+3. make changes to pyrunconfig.py
+   You will need to put on your charge account, user name, build location, script location and ProdGSI location   
+
+4. run GSI/EnKF compiling tests:
+    
+     ./build.py
+
+  tips: If you receive an error message similar as follows, it means you need to run "initmpmc" first.
+       ./build.py: Command not found.
+
+5. run MPMC cases:
+
+     ./run.py list_file submit
+
+   The list file can be the list file (list.*) generated in the previous compiling test step
+
+6. genereate a report of testing results:
+
+      ./report.py list_file
+
+For more details, please visit: https://vlab.ncep.noaa.gov/redmine/projects/mpmc/wiki
+
+Contact gsi-help@ucar.edu for any questions.
+
+
+
+
+
+
+  
+
+
+

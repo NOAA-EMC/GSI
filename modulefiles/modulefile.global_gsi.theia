@@ -13,6 +13,8 @@ set COMP_MPI mpiifort
 set C_COMP icc
 set C_COMP_MP mpcc
 
+set OMPLAG "-openmp"
+
 # Known conflicts
 
 # Loading Intel Compiler Suite

@@ -26,28 +26,22 @@
 #  target_link_libraries (only_uses_c_interface ${NETCDF_LIBRARIES_C})
 
 
-
-set(NETCDF_DIR $ENV{NETCDF})
-
 if (NETCDF_INCLUDES AND NETCDF_LIBRARIES)
   # Already in cache, be silent
   set (NETCDF_FIND_QUIETLY TRUE)
 endif (NETCDF_INCLUDES AND NETCDF_LIBRARIES)
 
-
-if(DEFINED ENV{NETCDF_DIR})
+if(DEFINED ENV{NETCDF4}) 
+  set(NETCDF_DIR $ENV{NETCDF4})
+elseif(DEFINED ENV{NETCDF_DIR})
   set(NETCDF_DIR $ENV{NETCDF_DIR})
-endif()
-if(DEFINED ENV{NETCDF_HOME})
+elseif(DEFINED ENV{NETCDF_HOME})
   set(NETCDF_DIR $ENV{NETCDF_HOME})
-endif()
-if( DEFINED ENV{NETCDF} )
+elseif( DEFINED ENV{NETCDF} )
   set(NETCDF_DIR $ENV{NETCDF})
-endif()
-if(DEFINED ENV{SSEC_NETCDF4_DIR})
+elseif(DEFINED ENV{SSEC_NETCDF4_DIR})
   set(NETCDF_DIR $ENV{SSEC_NETCDF4_DIR})
-endif()
-if(DEFINED ENV{SSEC_NETCDF_DIR})
+elseif(DEFINED ENV{SSEC_NETCDF_DIR})
   set(NETCDF_DIR $ENV{SSEC_NETCDF_DIR})
 endif()
 find_path (NETCDF_INCLUDES netcdf.h
@@ -75,7 +69,6 @@ find_library (NETCDF_flib
 if (NETCDF_flib)
     set(NETCDF_F90 "YES")
 endif()
-
 find_library (NETCDF_LIBRARIES_C       
     NAMES netcdf
     HINTS ${NETCDF_DIR}/lib )
@@ -110,7 +103,6 @@ if( NETCDF_LIBRARIES_F90 )
 endif()
 
 set (NETCDF_LIBRARIES "${NetCDF_libs}" CACHE STRING "All NetCDF libraries required for interface level")
-
 # handle the QUIETLY and REQUIRED arguments and set NETCDF_FOUND to TRUE if
 # all listed variables are TRUE
 include (FindPackageHandleStandardArgs)
