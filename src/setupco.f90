@@ -1,4 +1,11 @@
-subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
+module colvk_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setupco; end interface
+
+contains
+subroutine setupco(obsLL,odiagLL,lunin,mype,stats_co,nlevs,nreal,nobs,&
      obstype,isis,is,co_diagsave,init_pass)
 
 !$$$  subprogram documentation block
@@ -63,9 +70,6 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
   use constants, only : zero,half,one,two,tiny_r_kind
   use constants, only : cg_term,wgtlim,h300   ! AVT need to find value for co
                                                      ! use the ozone values for the moment
-
-  use m_obsdiags, only : colvkhead
-  use m_obsdiags, only : obsdiags
   use m_obsdiagNode, only : obs_diag
   use m_obsdiagNode, only : obs_diags
   use m_obsdiagNode, only : obsdiagLList_nextNode
@@ -83,6 +87,7 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
   use m_obsNode, only: obsNode
   use m_colvkNode, only : colvkNode, colvkNode_typecast
   use m_colvkNode, only : colvkNode_appendto
+  use m_obsLList , only : obsLList
   use m_obsLList , only : obsLList_tailNode
   use obsmod, only : luse_obsdiag
 
@@ -103,6 +108,8 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
   implicit none
   
 ! !INPUT PARAMETERS:
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
 
   integer(i_kind)                  , intent(in   ) :: lunin  ! unit from which to read observations
   integer(i_kind)                  , intent(in   ) :: mype   ! mpi task id
@@ -175,6 +182,9 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
   type(colvkNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
   type(obs_diags),pointer:: my_diagLL
+
+  type(obsLList),pointer,dimension(:):: colvkhead
+  colvkhead => obsLL(:)
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
@@ -475,7 +485,8 @@ endif   ! (in_curbin)
         endif
         IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
-        if(luse_obsdiag) my_diagLL => obsdiags(i_colvk_ob_type,ibin)
+        !if(luse_obsdiag) my_diagLL => obsdiags(i_colvk_ob_type,ibin)
+        if(luse_obsdiag) my_diagLL => odiagLL(ibin)
 
         if(in_curbin) then
 !       Process obs have at least one piece of information that passed qc checks
@@ -731,3 +742,38 @@ endif   ! (in_curbin)
   end subroutine final_vars_
 
 end subroutine setupco
+end module colvk_setup
+
+subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
+     obstype,isis,is,co_diagsave,init_pass)
+!-- This is a wrapper for a backward compatible interface.
+
+  use m_obsdiags , only: obsLL   => obsLLists
+  use m_obsdiags , only: odiagLL => obsdiags
+  use colvk_setup, only: setup
+
+  use obsmod, only: itype   => i_colvk_ob_type
+  use coinfo, only: jpch_co
+  use kinds , only: i_kind, r_kind
+  implicit none
+  
+  integer(i_kind)                  , intent(in   ) :: lunin  ! unit from which to read observations
+  integer(i_kind)                  , intent(in   ) :: mype   ! mpi task id
+  integer(i_kind)                  , intent(in   ) :: nlevs  ! number of levels (layer amounts + total column) per obs   
+                                                             ! layer amounts only for CO 
+  integer(i_kind)                  , intent(in   ) :: nreal  ! number of pieces of non-co info (location, time, etc) per obs
+  integer(i_kind)                  , intent(in   ) :: nobs   ! number of observations
+  character(20)                    , intent(in   ) :: isis   ! sensor/instrument/satellite id
+  integer(i_kind)                  , intent(in   ) :: is     ! integer(i_kind) counter for number of obs types to process
+
+  character(10)                    , intent(in   ) :: obstype          ! type of co obs
+  logical                          , intent(in   ) :: co_diagsave   ! switch on diagnostic output (.false.=no output)
+  logical                          , intent(in   ) :: init_pass     ! state of "setup" processing
+
+  real(r_kind),dimension(9,jpch_co), intent(inout) :: stats_co ! sums for various statistics as 
+                                                               ! a function of level
+
+call setup(obsLL(itype,:),odiagLL(itype,:),lunin,mype,stats_co,nlevs,nreal,nobs,&
+     obstype,isis,is,co_diagsave,init_pass)
+end subroutine setupco
+!.

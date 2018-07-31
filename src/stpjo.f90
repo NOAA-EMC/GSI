@@ -275,8 +275,8 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep,nobs_bins)
   use stptcpmod, only: stptcp
   use stpdwmod, only: stpdw
   use stppcpmod, only: stppcp
-  use stpozmod, only: stpozlay => stpozlay_
-  use stpozmod, only: stpozlev => stpozlev_
+  use stpozmod, only: stpozlay !=> stpozlay_
+  use stpo3lmod, only: stpozlev !=> stpozlev_
   use stpcomod, only: stpco
   use stppm2_5mod, only: stppm2_5
   use stppm10mod, only: stppm10

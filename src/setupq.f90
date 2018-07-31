@@ -1,4 +1,11 @@
-subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+module q_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setupq; end interface
+
+contains
+subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setupq      compute rhs of oi for moisture observations
@@ -109,8 +116,6 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use mpeu_util, only: die,perr,getindex
   use kinds, only: r_kind,r_single,r_double,i_kind
 
-  use m_obsdiags, only: qhead
-  use m_obsdiags, only: obsdiags
   use m_obsdiagNode, only: obs_diag
   use m_obsdiagNode, only: obs_diags
   use m_obsdiagNode, only: obsdiagLList_nextNode
@@ -125,6 +130,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_qNode, only: qNode
   use m_qNode, only: qNode_appendto
   use m_qNode, only: qNode_ich0, qNode_ich0_PBL_Pseudo
+  use m_obsLList, only: obsLList
   use obsmod, only: luse_obsdiag,ianldate
   use obsmod, only: netcdf_diag, binary_diag, dirname
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
@@ -155,6 +161,9 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   implicit none
 
 ! Declare passed variables
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
+
   logical                                          ,intent(in   ) :: conv_diagsave
   integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
   real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
@@ -240,6 +249,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   logical:: l_pbl_pseudo_itype
   integer(i_kind):: ich0
+  type(obsLList),pointer,dimension(:):: qhead
+  qhead => obsLL(:)
 
   save_jacobian = conv_diagsave .and. jiter==jiterstart .and. lobsdiag_forenkf
 
@@ -386,7 +397,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
-     if (luse_obsdiag) my_diagLL => obsdiags(i_q_ob_type,ibin)
+     !if (luse_obsdiag) my_diagLL => obsdiags(i_q_ob_type,ibin)
+     if (luse_obsdiag) my_diagLL => odiagLL(ibin)
 
 !    Link obs to diagnostics structure
      if (luse_obsdiag) then
@@ -1229,4 +1241,28 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end subroutine final_vars_
 
 end subroutine setupq
+end module q_setup
 
+subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+!-- This is a wrapper for a backward compatible interface.
+
+  use m_obsdiags, only: obsLL   => obsLLists
+  use m_obsdiags, only: odiagLL => obsdiags
+  use q_setup , only: setup
+  use obsmod  , only: itype => i_q_ob_type
+  use gridmod , only: nsig
+  use qcmod   , only: npres_print
+  use convinfo, only: nconvtype
+  use kinds   , only: i_kind, r_kind
+  implicit none
+! Declare passed variables
+  logical                                          ,intent(in   ) :: conv_diagsave
+  integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
+  real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
+  real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
+  integer(i_kind)                                  ,intent(in   ) :: is ! ndat index
+
+  call setup(obsLL(itype,:),odiagLL(itype,:),   &
+        lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+end subroutine setupq
+!.

@@ -1,4 +1,11 @@
-subroutine setupvwnd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+module vwnd10m_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setupvwnd10m; end interface
+
+contains
+subroutine setupvwnd10m(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setupvwnd10m    compute rhs for conventional 10 m vwind 
@@ -43,8 +50,6 @@ subroutine setupvwnd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   use guess_grids, only: hrdifsig,nfldsig,ges_lnprsl, &
                sfcmod_gfs,sfcmod_mm5,comp_fact10,pt_ll     
-  use m_obsdiags, only: vwnd10mhead
-  use m_obsdiags, only: obsdiags
   use m_obsdiagNode, only: obs_diag
   use m_obsdiagNode, only: obs_diags
   use m_obsdiagNode, only: obsdiagLList_nextNode
@@ -57,6 +62,7 @@ subroutine setupvwnd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode    , only: obsNode
   use m_vwnd10mNode, only: vwnd10mNode
   use m_vwnd10mNode, only: vwnd10mNode_appendto
+  use m_obsLList   , only: obsLList
   use obsmod, only: luse_obsdiag
   use obsmod, only: netcdf_diag, binary_diag, dirname, ianldate
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
@@ -81,6 +87,9 @@ subroutine setupvwnd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   implicit none
 
 ! Declare passed variables
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
+
   logical                                          ,intent(in   ) :: conv_diagsave
   integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
   real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
@@ -159,6 +168,9 @@ subroutine setupvwnd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_vwnd10m
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_wspd10m
+
+  type(obsLList),pointer,dimension(:):: vwnd10mhead
+  vwnd10mhead => obsLL(:)
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
@@ -284,7 +296,8 @@ subroutine setupvwnd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
-     if(luse_obsdiag) my_diagLL => obsdiags(i_vwnd10m_ob_type,ibin)
+     !if(luse_obsdiag) my_diagLL => obsdiags(i_vwnd10m_ob_type,ibin)
+     if(luse_obsdiag) my_diagLL => odiagLL(ibin)
 
 !    Link obs to diagnostics structure
      if(luse_obsdiag)then
@@ -1040,4 +1053,28 @@ subroutine setupvwnd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end subroutine final_vars_
 
 end subroutine setupvwnd10m
+end module vwnd10m_setup
 
+subroutine setupvwnd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+!-- This is a wrapper for a backward compatible interface.
+
+  use m_obsdiags, only: obsLL   => obsLLists
+  use m_obsdiags, only: odiagLL => obsdiags
+  use vwnd10m_setup, only: setup
+  use obsmod  , only: itype => i_vwnd10m_ob_type
+  use gridmod , only: nsig
+  use qcmod   , only: npres_print
+  use convinfo, only: nconvtype
+  use kinds   , only: i_kind, r_kind
+  implicit none
+! Declare passed variables
+  logical                                          ,intent(in   ) :: conv_diagsave
+  integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
+  real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
+  real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
+  integer(i_kind)                                  ,intent(in   ) :: is	! ndat index
+
+  call setup(obsLL(itype,:),odiagLL(itype,:),   &
+        lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+end subroutine setupvwnd10m
+!.

@@ -1,4 +1,11 @@
-subroutine setupmitm(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+module mitm_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setupmitm; end interface
+
+contains
+subroutine setupmitm(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setupmitm    compute rhs of oi for conventional daily minimum temperature
@@ -43,8 +50,6 @@ subroutine setupmitm(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use kinds, only: r_kind,r_single,r_double,i_kind
 
   use guess_grids, only: hrdifsig,nfldsig
-  use m_obsdiags, only: mitmhead
-  use m_obsdiags, only: obsdiags
   use m_obsdiagNode, only: obs_diag
   use m_obsdiagNode, only : obs_diags
   use m_obsdiagNode, only : obsdiagLList_nextNode
@@ -55,6 +60,7 @@ subroutine setupmitm(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode , only: obsNode
   use m_mitmNode, only: mitmNode
   use m_mitmNode, only: mitmNode_appendto
+  use m_obsLList, only: obsLList
   use obsmod, only: rmiss_single,i_mitm_ob_type, & 
                     lobsdiagsave,nobskeep,lobsdiag_allocated, & 
                     time_offset,bmiss,luse_obsdiag,ianldate
@@ -77,6 +83,9 @@ subroutine setupmitm(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   implicit none
 
 ! Declare passed variables
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
+
   logical                                          ,intent(in   ) :: conv_diagsave
   integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
   real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
@@ -138,6 +147,9 @@ subroutine setupmitm(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),allocatable,dimension(:,:,:) :: ges_ps     !will need at some point
   real(r_kind),allocatable,dimension(:,:,:) :: ges_z      !will probably need at some point
   real(r_kind),allocatable,dimension(:,:,:) :: ges_mitm
+
+  type(obsLList),pointer,dimension(:):: mitmhead
+  mitmhead => obsLL(:)
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
@@ -236,7 +248,8 @@ subroutine setupmitm(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
-     if(luse_obsdiag) my_diagLL => obsdiags(i_mitm_ob_type,ibin)
+     !if(luse_obsdiag) my_diagLL => obsdiags(i_mitm_ob_type,ibin)
+     if(luse_obsdiag) my_diagLL => odiagLL(ibin)
 
 !    Link obs to diagnostics structure
      if(luse_obsdiag)then
@@ -678,4 +691,26 @@ subroutine setupmitm(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end subroutine final_vars_
 
 end subroutine setupmitm
+end module mitm_setup
 
+subroutine setupmitm(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+!-- This is a wrapper for a backward compatible interface.
+
+  use m_obsdiags, only: obsLL   => obsLLists
+  use m_obsdiags, only: odiagLL => obsdiags
+  use mitm_setup, only: setup
+  use obsmod  , only: itype => i_mitm_ob_type
+  use gridmod , only: nsig
+  use qcmod   , only: npres_print
+  use convinfo, only: nconvtype
+  use kinds   , only: i_kind, r_kind
+  implicit none
+  logical                                          ,intent(in   ) :: conv_diagsave
+  integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
+  real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
+  real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
+  integer(i_kind)                                  ,intent(in   ) :: is ! ndat index
+
+  call setup(obsLL(itype,:),odiagLL(itype,:), &
+        lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+end subroutine setupmitm

@@ -212,7 +212,7 @@ use intsstmod, only: intsst
 use intdwmod, only: intdw
 use intpcpmod, only: intpcp
 use intozmod, only: intozlay
-use intozmod, only: intozlev
+use into3lmod, only: intozlev
 use intcomod, only: intco
 use intpm2_5mod, only: intpm2_5
 use intpm10mod, only: intpm10

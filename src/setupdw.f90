@@ -1,3 +1,10 @@
+module dw_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setupdw; end interface
+
+contains
 !-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
 !-------------------------------------------------------------------------
@@ -7,7 +14,7 @@
 !
 ! !INTERFACE:
 !
-subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+subroutine setupdw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! !USES:
 
@@ -32,8 +39,6 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
-  use m_obsdiags, only: dwhead
-  use m_obsdiags, only: obsdiags
   use m_obsdiagNode, only: obs_diag
   use m_obsdiagNode, only: obs_diags
   use m_obsdiagNode, only: obsdiagLList_nextNode
@@ -45,6 +50,7 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode, only: obsNode
   use m_dwNode, only: dwNode
   use m_dwNode, only: dwNode_appendto
+  use m_obsLList, only: obsLList
   use obsmod, only: luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use state_vectors, only: svars3d, levels, nsdim
@@ -62,6 +68,9 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   implicit none
 
 ! !INPUT PARAMETERS:
+
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
 
   integer(i_kind)                                  ,intent(in   ) :: lunin   ! unit from which to read observations
   integer(i_kind)                                  ,intent(in   ) :: mype    ! mpi task id
@@ -212,6 +221,9 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_u
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_v
 
+  type(obsLList),pointer,dimension(:):: dwhead
+  dwhead => obsLL(:)
+
   save_jacobian = conv_diagsave .and. jiter==jiterstart .and. lobsdiag_forenkf
 
 ! Check to see if required guess fields are available
@@ -313,7 +325,8 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
-     if (luse_obsdiag) my_diagLL => obsdiags(i_dw_ob_type,ibin)
+     !if (luse_obsdiag) my_diagLL => obsdiags(i_dw_ob_type,ibin)
+     if (luse_obsdiag) my_diagLL => odiagLL(ibin)
 
 !    Link obs to diagnostics structure
      if (luse_obsdiag) then
@@ -953,4 +966,36 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
     if(allocated(ges_ps)) deallocate(ges_ps)
   end subroutine final_vars_
 
+end subroutine setupdw
+end module dw_setup
+
+subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+!-- This is a wrapper for a backward compatible interface
+
+  use m_obsdiags, only: obsLL   => obsLLists
+  use m_obsdiags, only: odiagLL => obsdiags
+  use dw_setup  , only: setup
+
+  use obsmod  , only: itype => i_dw_ob_type
+  use gridmod , only: nsig
+  use qcmod   , only: npres_print
+  use convinfo, only: nconvtype
+  use kinds   , only: i_kind, r_kind
+  implicit none
+
+! !INPUT PARAMETERS:
+
+  integer(i_kind)                                  ,intent(in   ) :: lunin   ! unit from which to read observations
+  integer(i_kind)                                  ,intent(in   ) :: mype    ! mpi task id
+  integer(i_kind)                                  ,intent(in   ) :: nele    ! number of data elements per observation
+  integer(i_kind)                                  ,intent(in   ) :: nobs    ! number of observations
+  integer(i_kind)                                  ,intent(in   ) :: is      ! ndat index
+  logical                                          ,intent(in   ) :: conv_diagsave ! logical to save innovation dignostics
+
+! !INPUT/OUTPUT PARAMETERS:
+                                                  ! array containing information about ...
+  real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork !  data counts and gross checks
+  real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork !  obs-ges stats 
+
+  call setup(obsLL(itype,:),odiagLL(itype,:),lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 end subroutine setupdw

@@ -40,6 +40,8 @@ public predictors, allocate_preds, deallocate_preds, &
      assignment(=), setup_predictors, read_preds, write_preds, &
      update_bias_preds
 
+public:: predictors_getdim
+
 type predictors
    real(r_kind), pointer :: values(:) => NULL()
 
@@ -50,7 +52,7 @@ type predictors
    logical :: lallocated = .false.
 end type predictors
 
-integer(i_kind) :: nrclen,nsclen,npclen,ntclen
+integer(i_kind),save :: nrclen,nsclen,npclen,ntclen
 
 logical :: llinit = .false.
 
@@ -97,6 +99,38 @@ subroutine setup_predictors(krclen,ksclen,kpclen,ktclen)
 
   return
 end subroutine setup_predictors
+
+subroutine predictors_getdim(irclen,lrclen,nrclen, &
+                             isclen,lsclen,nsclen, &
+                             ipclen,lpclen,npclen, &
+                             itclen,ltclen,ntclen  )
+  implicit none
+  integer(i_kind),optional,intent(out):: irclen,lrclen,nrclen
+  integer(i_kind),optional,intent(out):: isclen,lsclen,nsclen
+  integer(i_kind),optional,intent(out):: ipclen,lpclen,npclen
+  integer(i_kind),optional,intent(out):: itclen,ltclen,ntclen
+
+! total size of all predictors, (irclen:lrclen) == (1 : nrclen)
+  if(present(irclen)) irclen=1
+  if(present(lrclen)) lrclen=nrclen
+  if(present(nrclen)) nrclen=nrclen
+
+! size of rad predictors, (isclen:lsclen) == (1 : nsclen)
+  if(present(isclen)) isclen=1
+  if(present(lsclen)) lsclen=nsclen
+  if(present(nsclen)) nsclen=nsclen
+
+! size of q predictors, (ipclen:lpclen) == lsclen + (1:npclen)
+  if(present(ipclen)) ipclen=nsclen+1
+  if(present(lpclen)) lpclen=nsclen+npclen
+  if(present(npclen)) npclen=npclen
+
+! size of t predictors, (itclen:ltclen) == lpclen+ (1:ntclen)
+  if(present(itclen)) itclen=nsclen+npclen+1
+  if(present(ltclen)) ltclen=nsclen+npclen+ntclen
+  if(present(ntclen)) ntclen=ntclen
+
+end subroutine predictors_getdim
 ! ----------------------------------------------------------------------
 subroutine allocate_preds(yst)
 !$$$  subprogram documentation block

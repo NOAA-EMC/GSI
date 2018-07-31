@@ -1,4 +1,11 @@
-subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
+module pm10_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setuppm10; end interface
+
+contains
+subroutine setuppm10(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 
 !$$$  subprogram documentation block
 !                .      .    .
@@ -50,8 +57,6 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   use constants, only: huge_single,r10
   use constants, only: r1000,rd,max_varname_length
 
-  use m_obsdiags, only : pm10head
-  use m_obsdiags, only : obsdiags
   use m_obsdiagNode, only : obs_diag
   use m_obsdiagNode, only : obs_diags
   use m_obsdiagNode, only : obsdiagLList_nextNode
@@ -62,6 +67,7 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   use m_obsNode , only : obsNode
   use m_pm10Node, only : pm10Node
   use m_pm10Node, only : pm10Node_appendto
+  use m_obsLList, only : obsLList
   use obsmod    , only : i_pm10_ob_type,time_offset
   use obsmod, only : lobsdiag_allocated,lobsdiagsave
   use obsmod, only : luse_obsdiag
@@ -102,16 +108,19 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 
   implicit none
   
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
+
 ! !input parameters:
 
   character(len=3) :: cvar='pm1'
-  integer(i_kind)                  , intent(in   ) :: lunin  ! unit from which to read observations
-  integer(i_kind)                  , intent(in   ) :: mype   ! mpi task id
-  integer(i_kind)                  , intent(in   ) :: nreal  ! number of pieces of non-co info (location, time, etc) per obs
-  integer(i_kind)                  , intent(inout) :: nobs   ! number of observations
-  character(20)                    , intent(in   ) :: isis   ! sensor/instrument/satellite id
-  integer(i_kind)                  , intent(in   ) :: is     
-  logical                          , intent(in   ) :: conv_diagsave   ! logical to save innovation dignostics
+  integer(i_kind)                  , intent(in) :: lunin  ! unit from which to read observations
+  integer(i_kind)                  , intent(in) :: mype   ! mpi task id
+  integer(i_kind)                  , intent(in) :: nreal  ! number of pieces of non-co info (location, time, etc) per obs
+  integer(i_kind)                  , intent(in) :: nobs   ! number of observations
+  character(20)                    , intent(in) :: isis   ! sensor/instrument/satellite id
+  integer(i_kind)                  , intent(in) :: is     
+  logical                          , intent(in) :: conv_diagsave   ! logical to save innovation dignostics
   
 ! a function of level
 !-------------------------------------------------------------------------
@@ -163,6 +172,8 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   character(len=max_varname_length) :: aeroname
 
   integer(i_kind) :: ipm10,n_gocart_var
+  type(obsLList),pointer,dimension(:):: pm10head
+  pm10head => obsLL(:)
 
 
 ! Check to see if required guess fields are available
@@ -460,7 +471,8 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         if (ibin < 1 .or. ibin > nobs_bins) &
               write(6,*)mype,'error nobs_bins,ibin= ',nobs_bins,ibin
 
-        if(luse_obsdiag) my_diagLL => obsdiags(i_pm10_ob_type,ibin)
+        !if(luse_obsdiag) my_diagLL => obsdiags(i_pm10_ob_type,ibin)
+        if(luse_obsdiag) my_diagLL => odiagLL(ibin)
         
 !    link obs to diagnostics structure
         if(luse_obsdiag)then
@@ -894,4 +906,26 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
     if(allocated(ges_ps)) deallocate(ges_ps)
   end subroutine final_vars_
 
+end subroutine setuppm10
+end module pm10_setup
+
+subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
+!-- This is a wrapper for a backward compatible interface.
+
+  use m_obsdiags, only: obsLL   => obsLLists
+  use m_obsdiags, only: odiagLL => obsdiags
+  use pm10_setup, only: setup
+  use obsmod, only: itype => i_pm10_ob_type
+  use kinds , only: i_kind
+  implicit none
+  integer(i_kind)                  , intent(in) :: lunin  ! unit from which to read observations
+  integer(i_kind)                  , intent(in) :: mype   ! mpi task id
+  integer(i_kind)                  , intent(in) :: nreal  ! number of pieces of non-co info (location, time, etc) per obs
+  integer(i_kind)                  , intent(in) :: nobs   ! number of observations
+  character(20)                    , intent(in) :: isis   ! sensor/instrument/satellite id
+  integer(i_kind)                  , intent(in) :: is     
+  logical                          , intent(in) :: conv_diagsave   ! logical to save innovation dignostics
+
+  call setup(obsLL(itype,:),odiagLL(itype,:),   &
+        lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 end subroutine setuppm10

@@ -1,4 +1,11 @@
-subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+module vis_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setupvis; end interface
+
+contains
+subroutine setupvis(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setupvis    compute rhs for conventional surface vis
@@ -49,8 +56,6 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use kinds, only: r_kind,r_single,r_double,i_kind
 
   use guess_grids, only: hrdifsig,nfldsig
-  use m_obsdiags, only: vishead
-  use m_obsdiags, only: obsdiags
   use m_obsdiagNode, only: obs_diag
   use m_obsdiagNode, only: obs_diags
   use m_obsdiagNode, only: obsdiagLList_nextNode
@@ -67,6 +72,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode, only: obsNode
   use m_visNode, only: visNode
   use m_visNode, only: visNode_appendto
+  use m_obsLList, only: obsLList
   use obsmod, only: luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: magoberr,maginnov,oneobtest
@@ -84,6 +90,9 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   implicit none
 
 ! Declare passed variables
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
+
   logical                                          ,intent(in   ) :: conv_diagsave
   integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
   real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
@@ -145,6 +154,9 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),allocatable,dimension(:,:,:) :: ges_ps
   real(r_kind),allocatable,dimension(:,:,:) :: ges_vis
   real(r_kind),allocatable,dimension(:,:,:) :: ges_z
+
+  type(obsLList),pointer,dimension(:):: vishead
+  vishead => obsLL(:)
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
@@ -283,7 +295,8 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
-     if (luse_obsdiag) my_diagLL => obsdiags(i_vis_ob_type,ibin)
+     !if (luse_obsdiag) my_diagLL => obsdiags(i_vis_ob_type,ibin)
+     if (luse_obsdiag) my_diagLL => odiagLL(ibin)
 
 !    Link obs to diagnostics structure
      if (luse_obsdiag) then
@@ -719,4 +732,28 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end subroutine final_vars_
 
 end subroutine setupvis
+end module vis_setup
 
+subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+!-- This is a wrapper for a backward compatible interface.
+
+  use m_obsdiags, only: obsLL   => obsLLists
+  use m_obsdiags, only: odiagLL => obsdiags
+  use vis_setup , only: setup
+  use obsmod  , only: itype => i_vis_ob_type
+  use gridmod , only: nsig
+  use qcmod   , only: npres_print
+  use convinfo, only: nconvtype
+  use kinds   , only: i_kind, r_kind
+  implicit none
+! Declare passed variables
+  logical                                          ,intent(in   ) :: conv_diagsave
+  integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
+  real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
+  real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
+  integer(i_kind)                                  ,intent(in   ) :: is ! ndat index
+
+  call setup(obsLL(itype,:),odiagLL(itype,:),   &
+        lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+end subroutine setupvis
+!.

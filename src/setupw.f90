@@ -1,3 +1,10 @@
+module w_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setupw; end interface
+
+contains
 !-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
 !-------------------------------------------------------------------------
@@ -8,15 +15,13 @@
 ! !INTERFACE:
 !
 
-subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! !USES:
 
   use mpeu_util, only: die,perr,getindex
   use state_vectors, only: svars3d, levels, nsdim
   use kinds, only: r_kind,r_single,r_double,i_kind
-  use m_obsdiags, only: whead
-  use m_obsdiags, only: obsdiags
   use m_obsdiagNode, only: obs_diag
   use m_obsdiagNode, only: obs_diags
   use m_obsdiagNode, only: obsdiagLList_nextNode
@@ -32,6 +37,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_wNode, only: wNode_appendto
   use m_wNode, only: wNode_ich0
   use m_wNode, only: wNode_ich0_PBL_pseudo
+  use m_obsLList, only: obsLList
 
   use obsmod, only: luse_obsdiag
   use obsmod, only: netcdf_diag, binary_diag, dirname
@@ -66,6 +72,9 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   implicit none
   
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
+
 ! !INPUT PARAMETERS:
 
    integer(i_kind)                                  ,intent(in   ) :: lunin ! unit from which to read observations
@@ -289,6 +298,9 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_v
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
 
+  type(obsLList),pointer,dimension(:):: whead
+  whead => obsLL(:)
+
   save_jacobian = conv_diagsave .and. jiter==jiterstart .and. lobsdiag_forenkf
 
 ! Check to see if required guess fields are available
@@ -431,7 +443,8 @@ loop_for_all_obs: &
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
 !    Link obs to diagnostics structure
-     if (luse_obsdiag) my_diagLL => obsdiags(i_w_ob_type,ibin)
+     !if (luse_obsdiag) my_diagLL => obsdiags(i_w_ob_type,ibin)
+     if (luse_obsdiag) my_diagLL => odiagLL(ibin)
 
      ! Flag static conditions to turn pbl_pseudo_surfobs on
      l_pbl_pseudo_itype = l_PBL_pseudo_SurfobsUV .and.        &
@@ -1757,3 +1770,35 @@ loop_for_all_obs: &
   end subroutine final_vars_
 
 end subroutine setupw
+end module w_setup
+
+subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+!-- This is a wrapper for a backward compatible interface.
+
+  use m_obsdiags, only: obsLL   => obsLLists
+  use m_obsdiags, only: odiagLL => obsdiags
+  use w_setup   , only: setup
+  use obsmod  , only: itype => i_w_ob_type
+  use gridmod , only: nsig
+  use qcmod   , only: npres_print
+  use convinfo, only: nconvtype
+  use kinds   , only: i_kind, r_kind
+  implicit none
+! !INPUT PARAMETERS:
+
+   integer(i_kind)                                  ,intent(in   ) :: lunin ! unit from which to read observations
+   integer(i_kind)                                  ,intent(in   ) :: mype  ! mpi task id
+   integer(i_kind)                                  ,intent(in   ) :: nele  ! number of data elements per observation
+   integer(i_kind)                                  ,intent(in   ) :: nobs  ! number of observations
+   integer(i_kind)                                  ,intent(in   ) :: is    ! ndat index
+   logical                                          ,intent(in   ) :: conv_diagsave ! logical to save innovation dignostics
+   
+! !INPUT/OUTPUT PARAMETERS:
+
+   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork ! obs-ges stats
+   real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork ! data counts and gross checks
+
+  call setup(obsLL(itype,:),odiagLL(itype,:),   &
+        lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+end subroutine setupw
+!.

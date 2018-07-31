@@ -43,6 +43,41 @@ module m_rhs
   public:: rhs_stats_co
   public:: rhs_toss_gps
 
+  ! variable indices to rhs_awork(:,i_work).  e.g.
+  !   ps_awork(:) => rhs_awork(:,i_ps)
+  public:: i_ps
+  public:: i_uv
+  public:: i_t
+  public:: i_q
+  public:: i_pw
+  public:: i_rw
+  public:: i_dw
+  public:: i_gps
+  public:: i_sst
+  public:: i_tcp
+  public:: i_lag
+  public:: i_co
+  public:: i_gust
+  public:: i_vis
+  public:: i_pblh
+  public:: i_wspd10m
+  public:: i_td2m
+  public:: i_mxtm
+  public:: i_mitm
+  public:: i_pmsl
+  public:: i_howv
+  public:: i_tcamt
+  public:: i_lcbas
+  public:: i_cldch
+  public:: i_uwnd10m
+  public:: i_vwnd10m
+  public:: i_swcp
+  public:: i_lwcp
+
+  public:: awork_size
+  public:: awork_lbound
+  public:: awork_ubound
+
 ! Revision history:
 !   2009-08-19  guo     - created to support multi-pass setuprhsall().
 !                         This module contains all statistics variables
@@ -69,6 +104,46 @@ module m_rhs
   real(r_kind),allocatable,dimension(:,:    ),save:: rhs_stats_oz
   real(r_kind),allocatable,dimension(:,:    ),save:: rhs_stats_co
   real(r_kind),allocatable,dimension(:      ),save:: rhs_toss_gps
+
+  enum, bind(C)
+    enumerator:: i_zero = 0
+
+    enumerator:: i_ps
+    enumerator:: i_uv
+    enumerator:: i_t
+    enumerator:: i_q
+    enumerator:: i_pw
+    enumerator:: i_rw
+    enumerator:: i_dw
+    enumerator:: i_gps
+    enumerator:: i_sst
+    enumerator:: i_tcp
+    enumerator:: i_lag
+    enumerator:: i_co
+    enumerator:: i_gust
+    enumerator:: i_vis
+    enumerator:: i_pblh
+    enumerator:: i_wspd10m
+    enumerator:: i_td2m
+    enumerator:: i_mxtm
+    enumerator:: i_mitm
+    enumerator:: i_pmsl
+    enumerator:: i_howv
+    enumerator:: i_tcamt
+    enumerator:: i_lcbas
+    enumerator:: i_cldch
+    enumerator:: i_uwnd10m
+    enumerator:: i_vwnd10m
+    enumerator:: i_swcp
+    enumerator:: i_lwcp
+
+    enumerator:: i_outbound
+  end enum
+
+  integer(i_kind)        ,parameter:: enum_kind=kind(i_zero)
+  integer(kind=enum_kind),parameter:: awork_lbound=i_zero    +1
+  integer(kind=enum_kind),parameter:: awork_ubound=i_outbound-1
+  integer(kind=enum_kind),parameter:: awork_size  =awork_ubound-awork_lbound +1
 
   character(len=*),parameter:: myname="m_rhs"
 

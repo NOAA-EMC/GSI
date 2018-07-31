@@ -48,6 +48,11 @@ cmake_minimum_required(VERSION 2.8)
    "${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90")
 
+  list( REMOVE_ITEM LINKED_SRC 
+   "${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90" 
+   "${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90"
+  )
+
 # remove all stub, cplr and linked files from the rest of the source files
   list( REMOVE_ITEM GSI_SRC ${LINKED_SRC} )
   list( REMOVE_ITEM GSI_SRC ${STUB_SRC} )
@@ -85,7 +90,11 @@ cmake_minimum_required(VERSION 2.8)
 
 #define the name used for GSI Shared lib and add it with properties and include dirs
   set(GSISHAREDLIB "gsilib_shrd${debug_suffix}" CACHE INTERNAL "")
-  add_library(${GSISHAREDLIB} STATIC ${GSI_SRC} )
+  if(BUILD_GLOBAL)
+    add_library(${GSISHAREDLIB} STATIC ${GSI_SRC} ${GLOBAL_SRC})
+  else()
+    add_library(${GSISHAREDLIB} STATIC ${GSI_SRC} ${REGIONAL_SRC})
+  endif()
   set_target_properties(${GSISHAREDLIB} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
   target_include_directories(${GSISHAREDLIB} PUBLIC "${PROJECT_BINARY_DIR}/include")
   if( BUILD_NCDIAG )
@@ -109,7 +118,10 @@ cmake_minimum_required(VERSION 2.8)
     set(GSIEXEC "${GSIBASE}${debug_suffix}${GSISUFFIX}" CACHE INTERNAL "GSI Executable Name")
     add_executable(${GSIEXEC} ${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90 ${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90 )
     set(GSILIB "gsilib_wrf${debug_suffix}" CACHE INTERNAL "")
-    add_library(${GSILIB} STATIC ${REGIONAL_SRC} )
+    add_library(${GSILIB} STATIC 
+      "${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90" 
+      "${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90"
+    )
     set_target_properties(${GSILIB} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include/wrf")
     target_include_directories(${GSILIB} PUBLIC "${PROJECT_BINARY_DIR}/include/wrf")
     set_target_properties(${GSIEXEC} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
@@ -121,12 +133,18 @@ cmake_minimum_required(VERSION 2.8)
     add_executable(${GSIEXEC} ${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90 ${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90 )
     set(GSILIB "gsilib_global${debug_suffix}" CACHE INTERNAL "")
     set(WRF_LIBRARIES "")
-    add_library(${GSILIB} STATIC ${GLOBAL_SRC} )
-    target_link_libraries( ${GSISHAREDLIB} ${GSILIB} ${CORE_LIBRARIES})
+    add_library(${GSILIB} STATIC 
+      "${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90" 
+      "${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90"
+    )
+
+    add_dependencies(${GSILIB} ${GSISHAREDLIB} )
+    add_dependencies(${GSISHAREDLIB} ${crtm} )
+
     target_link_libraries( ${GSILIB} ${CORE_LIBRARIES})
+
     set_target_properties(gsilib_global PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
     target_include_directories(gsilib_global PUBLIC "${PROJECT_BINARY_DIR}/include")
-    add_dependencies(${GSILIB} ${GSISHAREDLIB} )
     set_target_properties(${GSIEXEC} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
   endif()
 
@@ -136,9 +154,9 @@ cmake_minimum_required(VERSION 2.8)
   if(CORE_BUILT)
     add_dependencies(${GSILIB} ${GSISHAREDLIB} ${CORE_BUILT} )
     add_dependencies(${GSISHAREDLIB} ${bacio} ${CORE_BUILT} )
-    add_dependencies(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} ${CORE_BUILT} )
+    add_dependencies(${GSIEXEC} ${GSILIB} ${GSISHAREDLIB} ${CORE_BUILT} )
   else()
-    add_dependencies(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} )
+    add_dependencies(${GSIEXEC} ${GSILIB} ${GSISHAREDLIB} )
   endif()
 # Specify all the libraries to be linked into the executable
   target_link_libraries(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} ${GSISHAREDLIB} ${WRF_LIBRARIES} 

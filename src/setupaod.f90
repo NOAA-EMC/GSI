@@ -1,4 +1,11 @@
-   subroutine setupaod(lunin,mype,nchanl,nreal,nobs,&
+module aero_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setupaod; end interface
+
+contains
+subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
      obstype,isis,is,aero_diagsave,init_pass)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -65,8 +72,6 @@
   use aeroinfo, only: jpch_aero, nusis_aero, nuchan_aero, iuse_aero, &
        error_aero, gross_aero
   use obsmod, only: i_aero_ob_type
-  use m_obsdiags, only: aerohead
-  use m_obsdiags, only: obsdiags
   use m_obsdiagNode, only: obs_diag
   use m_obsdiagNode, only: obs_diags
   use m_obsdiagNode, only: obsdiagLList_nextNode
@@ -77,6 +82,7 @@
   use m_obsNode, only: obsNode
   use m_aeroNode, only: aeroNode, aeroNode_typecast
   use m_aeroNode, only: aeroNode_appendto
+  use m_obsLList, only: obsLList
   use m_obsLList, only: obsLList_tailNode
   use obsmod, only: rmiss_single
   use qcmod, only: ifail_crtm_qc
@@ -85,6 +91,8 @@
   implicit none
 
 ! Declare passed variables
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
   logical                           ,intent(in   ) :: aero_diagsave
   character(10)                     ,intent(in   ) :: obstype
   character(20)                     ,intent(in   ) :: isis
@@ -161,6 +169,9 @@
   real(r_kind),dimension(nsigaerojac,nchanl):: jacobian_aero
   real(r_kind),dimension(nsig,nchanl):: layer_od
   real(r_kind) :: clw_guess, tzbgr, sfc_speed
+
+  type(obsLList),pointer,dimension(:):: aerohead
+  aerohead => obsLL(:)
 
   if ( .not. laeroana_gocart ) then
      return
@@ -400,7 +411,8 @@
         endif
         if (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
-        if(luse_obsdiag) my_diagLL => obsdiags(i_aero_ob_type,ibin)
+        !if(luse_obsdiag) my_diagLL => obsdiags(i_aero_ob_type,ibin)
+        if(luse_obsdiag) my_diagLL => odiagLL(ibin)
 
         if (in_curbin) then
 !          Load data into output arrays
@@ -601,4 +613,27 @@ contains
 ! Observation class
   character(7),parameter     :: obsclass = '    aod'
   end subroutine contents_netcdf_diag_
+end subroutine setupaod
+end module aero_setup
+
+subroutine setupaod(lunin,mype,nchanl,nreal,nobs,&
+     obstype,isis,is,aero_diagsave,init_pass)
+!-- This is a wrapper for a backward compatible interface.
+
+  use m_obsdiags, only: obsLL   => obsLLists
+  use m_obsdiags, only: odiagLL => obsdiags
+  use aero_setup, only: setup
+  use obsmod    , only: itype => i_aero_ob_type
+  use kinds     , only: i_kind
+  implicit none
+
+! Declare passed variables
+  logical                           ,intent(in   ) :: aero_diagsave
+  character(10)                     ,intent(in   ) :: obstype
+  character(20)                     ,intent(in   ) :: isis
+  integer(i_kind)                   ,intent(in   ) :: lunin,mype,nchanl,nreal,nobs,is
+  logical                           ,intent(in   ) :: init_pass  ! state of "setup" processing
+
+  call setup(obsLL(itype,:),odiagLL(itype,:),lunin,mype,nchanl,nreal,nobs,&
+     obstype,isis,is,aero_diagsave,init_pass)
 end subroutine setupaod

@@ -1,3 +1,10 @@
+module pcp_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setuppcp; end interface
+
+contains
 !-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
 !-------------------------------------------------------------------------
@@ -7,7 +14,7 @@
 !
 ! !INTERFACE:
 !
-subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
+subroutine setuppcp(obsLL,odiagLL,lunin,mype,aivals,nele,nobs,&
      obstype,isis,is,pcp_diagsave,init_pass)
 
 ! !USES:
@@ -51,8 +58,6 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
        nc_diag_write, nc_diag_data2d
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
 
-  use m_obsdiags, only: pcphead
-  use m_obsdiags, only: obsdiags
   use m_obsdiagNode, only : obs_diag
   use m_obsdiagNode, only : obs_diags
   use m_obsdiagNode, only : obsdiagLList_nextNode
@@ -66,6 +71,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   use m_obsNode, only: obsNode
   use m_pcpNode, only: pcpNode
   use m_pcpNode, only: pcpNode_appendto
+  use m_obsLList,only: obsLList
   use obsmod, only: luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar,l4densvar
 
@@ -84,6 +90,8 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   implicit none    ! Turn off implicit typing
 
 ! !INPUT PARAMETERS:
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
 
   integer(i_kind)                , intent(in   ) :: lunin          ! unit from which to read 
                                                                    !   precpitation observations
@@ -293,6 +301,8 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   real(r_kind),allocatable,dimension(:,:,:) :: ges_ps_lat
 
   data  rmiss / -999._r_kind /
+  type(obsLList),pointer,dimension(:):: pcphead
+  pcphead => obsLL(:)
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
@@ -532,7 +542,8 @@ endif
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
-     if (luse_obsdiag) my_diagLL => obsdiags(i_pcp_ob_type,ibin)
+     !if (luse_obsdiag) my_diagLL => obsdiags(i_pcp_ob_type,ibin)
+     if (luse_obsdiag) my_diagLL => odiagLL(ibin)
 
 !    Link obs to diagnostics structure
      if (luse_obsdiag) then
@@ -1335,3 +1346,44 @@ endif
   end subroutine final_vars_
 
 end subroutine setuppcp
+end module pcp_setup
+
+subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
+     obstype,isis,is,pcp_diagsave,init_pass)
+!-- This is a wrapper for a backward compatible interface.
+
+  use m_obsdiags, only: obsLL   => obsLLists
+  use m_obsdiags, only: odiagLL => obsdiags
+  use pcp_setup , only: setup
+  use obsmod  , only: itype => i_pcp_ob_type
+  use obsmod  , only: ndat
+  use kinds   , only: i_kind, r_kind
+  implicit none
+
+! !INPUT PARAMETERS:
+
+  integer(i_kind)                , intent(in   ) :: lunin          ! unit from which to read 
+                                                                   !   precpitation observations
+  integer(i_kind)                , intent(in   ) :: mype           ! mpi task id
+  integer(i_kind)                , intent(in   ) :: nele           ! number of pieces of information 
+                                                                   !   per precipitation observation
+  integer(i_kind)                , intent(in   ) :: nobs           ! number of precipitation obs to process
+  character(len=20)              , intent(in   ) :: isis           ! sensor/instrument/satellite id
+  integer(i_kind)                , intent(in   ) :: is             ! counter for number of obs types to process
+ 
+
+  character(10)                  , intent(in   ) :: obstype ! type of precipitation observation
+ 
+  logical                        , intent(in   ) :: pcp_diagsave   ! switch diagnostic output on/off
+                                                                   !   (.false.=no output)
+  logical                        , intent(in   ) :: init_pass      ! state of "setup" processing
+
+
+! !INPUT/OUTPUT PARAMETERS:
+
+  real(r_kind),dimension(40,ndat), intent(inout) :: aivals ! array holding sums for
+                                                           !  various statistical output
+  call setup(obsLL(itype,:),odiagLL(itype,:),lunin,mype,aivals,nele,nobs,&
+     obstype,isis,is,pcp_diagsave,init_pass)
+end subroutine setuppcp
+!.

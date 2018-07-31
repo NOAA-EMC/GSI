@@ -1,4 +1,11 @@
-subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+module tcp_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setuptcp; end interface
+
+contains
+subroutine setuptcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setuptcp                     setup tcpel data
@@ -37,8 +44,6 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use state_vectors, only: ns3d, svars2d, levels, nsdim
   use sparsearr, only: sparr2, new, size, writearray, fullarray
   use kinds, only: r_kind,i_kind,r_single,r_double
-  use m_obsdiags, only: tcphead
-  use m_obsdiags, only: obsdiags
   use m_obsdiagNode, only: obs_diag
   use m_obsdiagNode, only: obs_diags
   use m_obsdiagNode, only: obsdiagLList_nextNode
@@ -56,6 +61,7 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode, only: obsNode
   use m_tcpNode, only: tcpNode
   use m_tcpNode, only: tcpNode_appendto
+  use m_obsLList, only: obsLList
   use obsmod, only: luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use qcmod, only: npres_print
@@ -71,6 +77,9 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   implicit none
+
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
 
   integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
   integer(i_kind)                                  ,intent(in   ) :: is ! ndat index
@@ -131,6 +140,9 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_ps
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
+
+  type(obsLList),pointer,dimension(:):: tcphead
+  tcphead => obsLL(:)
 
   save_jacobian = conv_diagsave .and. jiter==jiterstart .and. lobsdiag_forenkf
 
@@ -211,7 +223,8 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
-     if ( luse_obsdiag ) my_diagLL => obsdiags(i_tcp_ob_type,ibin)
+     !if ( luse_obsdiag ) my_diagLL => obsdiags(i_tcp_ob_type,ibin)
+     if ( luse_obsdiag ) my_diagLL => odiagLL(ibin)
 
 !    Link obs to diagnostics structure
      if ( luse_obsdiag ) then
@@ -701,3 +714,29 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end subroutine final_vars_
 
 end subroutine setuptcp
+end module tcp_setup
+
+subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+!-- This is a wrapper for a backward compatible interface.
+
+  use m_obsdiags, only: obsLL   => obsLLists
+  use m_obsdiags, only: odiagLL => obsdiags
+  use tcp_setup, only: setup
+  use obsmod  , only: itype => i_tcp_ob_type
+  use gridmod , only: nsig
+  use qcmod   , only: npres_print
+  use convinfo, only: nconvtype
+  use kinds   , only: i_kind, r_kind
+  implicit none
+  integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
+  integer(i_kind)                                  ,intent(in   ) :: is ! ndat index
+
+  real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork ! obs-ges stats
+  real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork ! data counts and gross checks
+
+  logical                                          ,intent(in)    :: conv_diagsave
+
+  call setup(obsLL(itype,:),odiagLL(itype,:),   &
+        lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+end subroutine setuptcp
+!.

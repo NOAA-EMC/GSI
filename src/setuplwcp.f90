@@ -1,4 +1,11 @@
-subroutine setuplwcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+module lwcp_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setuplwcp; end interface
+
+contains
+subroutine setuplwcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setuplwcp     compute rhs of oi for liquid-water condensate path
@@ -41,8 +48,6 @@ subroutine setuplwcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use kinds, only: r_kind,r_single,r_double,i_kind
   use guess_grids, only: ges_prsi,ges_prsl,ges_tsen,hrdifsig,nfldsig
   use gridmod, only: lat2,lon2,nsig,get_ij,latlon11
-  use m_obsdiags, only: lwcphead
-  use m_obsdiags, only: obsdiags
   use m_obsdiagNode, only: obs_diag
   use m_obsdiagNode, only: obs_diags
   use m_obsdiagNode, only: obsdiagLList_nextNode
@@ -56,6 +61,7 @@ subroutine setuplwcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode, only: obsNode
   use m_lwcpNode, only: lwcpNode
   use m_lwcpNode, only: lwcpNode_appendto
+  use m_obsLList, only: obsLList
   use obsmod, only: luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
 
@@ -82,6 +88,9 @@ subroutine setuplwcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   implicit none
 
 ! Declare passed variables
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
+
   logical                                          ,intent(in   ) :: conv_diagsave
   integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
   real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
@@ -149,6 +158,9 @@ subroutine setuplwcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) :: tupper, tlower, tcenter
   real(r_kind),dimension(lat2,lon2,nsig,nfldsig)::qv, esi, esl, es, qvsl, ssqvl
   real(r_kind),dimension(lat2,lon2,nsig,nfldsig)::ges_tr, ges_w
+
+  type(obsLList),pointer,dimension(:):: lwcphead
+  lwcphead => obsLL(:)
 
   save_jacobian = conv_diagsave .and. jiter==jiterstart .and. lobsdiag_forenkf
 
@@ -318,7 +330,8 @@ subroutine setuplwcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
   
-     if (luse_obsdiag) my_diagLL => obsdiags(i_lwcp_ob_type,ibin)
+     !if (luse_obsdiag) my_diagLL => obsdiags(i_lwcp_ob_type,ibin)
+     if (luse_obsdiag) my_diagLL => odiagLL(ibin)
 
 !    Link obs to diagnostics structure
      if (luse_obsdiag) then
@@ -878,4 +891,27 @@ subroutine setuplwcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
     if(allocated(ges_qr)) deallocate(ges_qr)
   end subroutine final_vars_
 
+end subroutine setuplwcp
+end module lwcp_setup
+
+subroutine setuplwcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+!-- This is a wrapper for a backward compatible interface.
+
+  use m_obsdiags, only: obsLL   => obsLLists
+  use m_obsdiags, only: odiagLL => obsdiags
+  use lwcp_setup, only: setup
+  use obsmod  , only: itype => i_lwcp_ob_type
+  use gridmod , only: nsig
+  use qcmod   , only: npres_print
+  use convinfo, only: nconvtype
+  use kinds   , only: i_kind, r_kind
+  implicit none
+  logical                                          ,intent(in   ) :: conv_diagsave
+  integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
+  real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
+  real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
+  integer(i_kind)                                  ,intent(in   ) :: is ! ndat index
+
+  call setup(obsLL(itype,:),odiagLL(itype,:), &
+        lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 end subroutine setuplwcp

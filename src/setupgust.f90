@@ -1,4 +1,11 @@
-subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+module gust_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setupgust; end interface
+
+contains
+subroutine setupgust(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setupgust    compute rhs for conventional surface gust
@@ -51,8 +58,6 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   use guess_grids, only: hrdifsig,nfldsig,ges_lnprsl, &
                geop_hgtl,sfcmod_gfs,sfcmod_mm5,comp_fact10     
-  use m_obsdiags, only: gusthead
-  use m_obsdiags, only: obsdiags
   use m_obsdiagNode, only: obs_diag
   use m_obsdiagNode, only: obs_diags
   use m_obsdiagNode, only: obsdiagLList_nextNode
@@ -65,6 +70,7 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode, only: obsNode
   use m_gustNode, only: gustNode
   use m_gustNode, only: gustNode_appendto
+  use m_obsLList, only: obsLList
   use obsmod, only: bmiss,luse_obsdiag
   use obsmod, only: netcdf_diag, binary_diag, dirname
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
@@ -87,6 +93,9 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
 
   implicit none
+
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
 
 ! Declare passed variables
   logical                                          ,intent(in   ) :: conv_diagsave
@@ -153,6 +162,8 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),allocatable,dimension(:,:,:) :: ges_ps
   real(r_kind),allocatable,dimension(:,:,:) :: ges_z
   real(r_kind),allocatable,dimension(:,:,:) :: ges_gust
+  type(obsLList),pointer,dimension(:):: gusthead
+  gusthead => obsLL(:)
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
@@ -267,7 +278,8 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
-     if (luse_obsdiag) my_diagLL => obsdiags(i_gust_ob_type,ibin)
+     !if (luse_obsdiag) my_diagLL => obsdiags(i_gust_ob_type,ibin)
+     if (luse_obsdiag) my_diagLL => odiagLL(ibin)
 
 !    Link obs to diagnostics structure
      if (luse_obsdiag) then
@@ -839,4 +851,27 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end subroutine final_vars_
 
 end subroutine setupgust
+end module gust_setup
 
+subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+!-- This is a wrapper for a backward compatible interface.
+
+  use m_obsdiags, only: obsLL   => obsLLists
+  use m_obsdiags, only: odiagLL => obsdiags
+  use gust_setup, only: setup
+
+  use obsmod  , only: itype => i_gust_ob_type
+  use gridmod , only: nsig
+  use qcmod   , only: npres_print
+  use convinfo, only: nconvtype
+  use kinds   , only: i_kind, r_kind
+  implicit none
+
+  logical                                          ,intent(in   ) :: conv_diagsave
+  integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
+  real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
+  real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
+  integer(i_kind)                                  ,intent(in   ) :: is ! ndat index
+
+  call setup(obsLL(itype,:),odiagLL(itype,:),lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+end subroutine setupgust

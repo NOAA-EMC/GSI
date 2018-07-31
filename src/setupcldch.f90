@@ -1,4 +1,11 @@
-subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+module cldch_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setupcldch; end interface
+
+contains
+subroutine setupcldch(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setupcldch    compute rhs for conventional surface cldch
@@ -45,14 +52,13 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode  , only: obsNode
   use m_cldchNode, only: cldchNode
   use m_cldchNode, only: cldchNode_appendto
-  use m_obsdiags , only: cldchhead
-  use m_obsdiags , only: obsdiags
   use m_obsdiagNode, only: obs_diag
   use m_obsdiagNode, only: obs_diags
   use m_obsdiagNode, only: obsdiagLList_nextNode
   use m_obsdiagNode, only: obsdiagNode_set
   use m_obsdiagNode, only: obsdiagNode_get
   use m_obsdiagNode, only: obsdiagNode_assert
+  use m_obsLList   , only: obsLList
 
   use guess_grids, only: hrdifsig,nfldsig
   use obsmod, only: rmiss_single,i_cldch_ob_type,&
@@ -78,6 +84,8 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   implicit none
 
 ! Declare passed variables
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
   logical                                          ,intent(in   ) :: conv_diagsave
   integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
   real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
@@ -140,6 +148,9 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),allocatable,dimension(:,:,:) :: ges_ps
   real(r_kind),allocatable,dimension(:,:,:) :: ges_cldch
   real(r_kind),allocatable,dimension(:,:,:) :: ges_z
+
+  type(obsLList),pointer,dimension(:):: cldchhead
+  cldchhead => obsLL(:)
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
@@ -274,7 +285,8 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
-     if(luse_obsdiag) my_diagLL => obsdiags(i_cldch_ob_type,ibin)
+     !if(luse_obsdiag) my_diagLL => obsdiags(i_cldch_ob_type,ibin)
+     if(luse_obsdiag) my_diagLL => odiagLL(ibin)
 
 !    Link obs to diagnostics structure
      if(luse_obsdiag)then
@@ -711,4 +723,29 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end subroutine final_vars_
 
 end subroutine setupcldch
+end module cldch_setup
 
+subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+!-- This is a wrapper for a backward compatible interface.
+
+  use m_obsdiags , only: obsLL   => obsLLists
+  use m_obsdiags , only: odiagLL => obsdiags
+  use cldch_setup, only: setup
+
+  use obsmod  , only: itype   => i_cldch_ob_type
+  use gridmod , only: nsig
+  use qcmod   , only: npres_print
+  use convinfo, only: nconvtype
+  use kinds   , only: i_kind,r_kind
+  implicit none
+
+! Declare passed variables
+  logical                                          ,intent(in   ) :: conv_diagsave
+  integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
+  real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
+  real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
+  integer(i_kind)                                  ,intent(in   ) :: is ! ndat index
+
+  call setup(obsLL(itype,:),odiagLL(itype,:),lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+return
+end subroutine setupcldch

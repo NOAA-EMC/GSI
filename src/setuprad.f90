@@ -1,4 +1,11 @@
-   subroutine setuprad(lunin,mype,aivals,stats,nchanl,nreal,nobs,&
+module rad_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setuprad; end interface
+
+contains
+   subroutine setuprad(obsLL,odiagLL,lunin,mype,aivals,stats,nchanl,nreal,nobs,&
      obstype,isis,is,rad_diagsave,init_pass,last_pass)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -226,8 +233,6 @@
   use read_diag, only: get_radiag,ireal_radiag,ipchan_radiag
   use guess_grids, only: sfcmod_gfs,sfcmod_mm5,comp_fact10
   use m_prad, only: radheadm
-  use m_obsdiags, only: radhead
-  use m_obsdiags, only: obsdiags
   use m_obsdiagNode, only: obs_diag
   use m_obsdiagNode, only: obs_diags
   use m_obsdiagNode, only: obsdiagLList_nextNode
@@ -242,6 +247,7 @@
   use m_obsNode, only: obsNode
   use m_radNode, only: radNode, radNode_typecast
   use m_radNode, only: radNode_appendto
+  use m_obsLList, only: obsLList
   use m_obsLList, only: obsLList_tailNode
   use obsmod, only: luse_obsdiag,dval_use
   use obsmod, only: netcdf_diag, binary_diag, dirname
@@ -280,6 +286,8 @@
   implicit none
 
 ! Declare passed variables
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
   logical                           ,intent(in   ) :: rad_diagsave
   character(10)                     ,intent(in   ) :: obstype
   character(20)                     ,intent(in   ) :: isis
@@ -389,7 +397,11 @@
   type(obs_diags),pointer:: my_diagLL
   type(rad_obs_type) :: radmod
 
+  type(obsLList),pointer,dimension(:):: radhead
+
   logical:: muse_ii
+
+  radhead => obsLL(:)
 
   save_jacobian = rad_diagsave .and. jiter==jiterstart .and. lobsdiag_forenkf
   if (save_jacobian) then
@@ -1614,7 +1626,8 @@
 !       Link obs to diagnostics structure
         iii=0
         obsptr => null()
-        if (luse_obsdiag ) my_diagLL => obsdiags(i_rad_ob_type,ibin)
+        !if (luse_obsdiag ) my_diagLL => obsdiags(i_rad_ob_type,ibin)
+        if (luse_obsdiag ) my_diagLL => odiagLL(ibin)
         do ii=1,nchanl
           m=ich(ii)
 
@@ -2308,4 +2321,31 @@
   close(4)
   end subroutine final_binary_diag_
  end subroutine setuprad
+end module rad_setup
 
+subroutine setuprad(lunin,mype,aivals,stats,nchanl,nreal,nobs,&
+     obstype,isis,is,rad_diagsave,init_pass,last_pass)
+!-- This is a wrapper for a backward compatible interface.
+
+  use m_obsdiags, only: obsLL   => obsLLists
+  use m_obsdiags, only: odiagLL => obsdiags
+  use rad_setup , only: setup
+  use obsmod     , only: itype => i_rad_ob_type
+  use obsmod     , only: ndat
+  use radinfo    , only: jpch_rad
+  use kinds      , only: i_kind, r_kind
+  implicit none
+
+! Declare passed variables
+  logical                           ,intent(in   ) :: rad_diagsave
+  character(10)                     ,intent(in   ) :: obstype
+  character(20)                     ,intent(in   ) :: isis
+  integer(i_kind)                   ,intent(in   ) :: lunin,mype,nchanl,nreal,nobs,is
+  real(r_kind),dimension(40,ndat)   ,intent(inout) :: aivals
+  real(r_kind),dimension(7,jpch_rad),intent(inout) :: stats
+  logical                           ,intent(in   ) :: init_pass,last_pass    ! state of "setup" processing
+
+  call setup(obsLL(itype,:),odiagLL(itype,:), &
+        lunin,mype,aivals,stats,nchanl,nreal,nobs,&
+        obstype,isis,is,rad_diagsave,init_pass,last_pass)
+end subroutine setuprad

@@ -1,4 +1,12 @@
-subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pass,conv_diagsave)
+module gpsbend_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setupbend; end interface
+
+contains
+subroutine setupbend(obsLL,odiagLL, &
+        lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pass,conv_diagsave)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setupbend    compute rhs of oi for gps bending angle
@@ -107,14 +115,13 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   use mpeu_util, only: die,perr,tell,getindex
   use kinds, only: r_kind,i_kind
   use m_gpsStats, only: gps_allhead,gps_alltail
-  use m_obsdiags, only: gpshead
-  use m_obsdiags, only: obsdiags
   use obsmod , only: nprof_gps,grids_dim,lobsdiag_allocated,&
       i_gps_ob_type,lobsdiagsave,nobskeep,&
       time_offset,lobsdiag_forenkf
   use m_obsNode, only: obsNode
   use m_gpsNode , only: gpsNode
   use m_gpsNode , only: gpsNode_appendto
+  use m_obsLList, only: obsLList
   use obsmod, only: luse_obsdiag
   use m_obsdiagNode, only: obs_diag
   use m_obsdiagNode, only: obs_diags
@@ -162,6 +169,8 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   implicit none
 
 ! Declare passed variables
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
   integer(i_kind)                         ,intent(in   ) :: lunin,mype,nele,nobs
   real(r_kind),dimension(100+7*nsig)      ,intent(inout) :: awork
   real(r_kind),dimension(max(1,nprof_gps)),intent(inout) :: toss_gps_sub
@@ -241,6 +250,9 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
+
+  type(obsLList),pointer,dimension(:):: gpshead
+  gpshead => obsLL(:)
 
   save_jacobian = conv_diagsave .and. jiter==jiterstart .and. lobsdiag_forenkf
 
@@ -858,7 +870,8 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
         ibin = 1
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins, ibin=',nobs_bins,ibin
-     if(luse_obsdiag) my_diagLL => obsdiags(i_gps_ob_type,ibin)
+     !if(luse_obsdiag) my_diagLL => obsdiags(i_gps_ob_type,ibin)
+     if(luse_obsdiag) my_diagLL => odiagLL(ibin)
 
 !    Link obs to diagnostics structure
      if(luse_obsdiag)then
@@ -1243,4 +1256,32 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
     if(allocated(ges_z )) deallocate(ges_z )
   end subroutine final_vars_
 
+end subroutine setupbend
+end module gpsbend_setup
+
+subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pass,conv_diagsave)
+!-- This is a wrapper for a backward compatible interface.
+
+  use m_obsdiags, only: obsLL   => obsLLists
+  use m_obsdiags, only: odiagLL => obsdiags
+  use gpsbend_setup, only: setup
+
+  use obsmod      , only: itype => i_gps_ob_type
+  use gridmod     , only: nsig
+  use obsmod      , only: nprof_gps
+  use kinds       , only: i_kind, r_kind
+  implicit none
+
+! Declare passed variables
+  integer(i_kind)                         ,intent(in   ) :: lunin,mype,nele,nobs
+  real(r_kind),dimension(100+7*nsig)      ,intent(inout) :: awork
+  real(r_kind),dimension(max(1,nprof_gps)),intent(inout) :: toss_gps_sub
+
+  integer(i_kind), intent(in):: is              ! index to GPSbend buffer variables
+  logical        , intent(in):: init_pass       ! flag the pass for the first background bin
+  logical        , intent(in):: last_pass       ! flag the pass for the last background bin
+  logical        , intent(in):: conv_diagsave   ! save diagnostics file
+
+  call setup(obsLL(itype,:),odiagLL(itype,:), &
+        lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pass,conv_diagsave)
 end subroutine setupbend

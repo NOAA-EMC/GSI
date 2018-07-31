@@ -1,4 +1,11 @@
-subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+module lag_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setuplag; end interface
+
+contains
+subroutine setuplag(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setuplag    compute rhs of oi for lagrangian data    
@@ -37,8 +44,6 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !$$$
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind
-  use m_obsdiags, only: laghead
-  use m_obsdiags, only: obsdiags
   use m_obsdiagNode, only: obs_diag
   use m_obsdiagNode, only: obs_diags
   use m_obsdiagNode, only: obsdiagLList_nextNode
@@ -52,6 +57,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_obsNode, only: obsNode
   use m_lagNode, only: lagNode
   use m_lagNode, only: lagNode_appendto
+  use m_obsLList,only: obsLLIst
   use obsmod, only: luse_obsdiag
 
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
@@ -81,6 +87,9 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   implicit none
 
 ! Declare passed variables
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
+
   logical                                          ,intent(in   ) :: conv_diagsave
   integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
   real(r_kind),dimension(7*nsig+100)               ,intent(inout) :: awork
@@ -127,6 +136,8 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   type(obs_diag),pointer :: my_diag
   type(obs_diag),pointer :: my_diagLon,my_diagLat
   type(obs_diags),pointer :: my_diagLL
+  type(obsLList),pointer,dimension(:):: laghead
+  laghead => obsLL(:)
 
   call die('setuplag','I don''t believe this code is working -- J.Guo')
   ! Problems include, data(ilone) and data(ilate) are expected to be in degrees
@@ -203,7 +214,8 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         print '(A,I2.2,A,I4.4,A,I4)'      ,'mype ',mype,' data ',i,' obsbin ',ibin
      end if
 
-     if (luse_obsdiag) my_diagLL => obsdiags(i_lag_ob_type,ibin)
+     !if (luse_obsdiag) my_diagLL => obsdiags(i_lag_ob_type,ibin)
+     if (luse_obsdiag) my_diagLL => odiagLL(ibin)
 
 !    Link obs to diagnostics structure
      if (luse_obsdiag) then
@@ -593,4 +605,29 @@ contains
 ! Observation class
   character(7),parameter     :: obsclass = '    lag'
   end subroutine contents_netcdf_diag_
+end subroutine setuplag
+end module lag_setup
+
+subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+!-- This is a wrapper for a backward compatible interface.
+
+  use m_obsdiags, only: obsLL   => obsLLists
+  use m_obsdiags, only: odiagLL => obsdiags
+  use lag_setup , only: setup
+
+  use obsmod  , only: itype => i_lag_ob_type
+  use gridmod , only: nsig
+  use qcmod   , only: npres_print
+  use convinfo, only: nconvtype
+  use kinds   , only: i_kind, r_kind
+  implicit none
+
+  logical                                          ,intent(in   ) :: conv_diagsave
+  integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
+  real(r_kind),dimension(7*nsig+100)               ,intent(inout) :: awork
+  real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
+  integer(i_kind)                                  ,intent(in   ) :: is ! ndat index
+
+  call setup(obsLL(itype,:),odiagLL(itype,:), &
+        lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 end subroutine setuplag
