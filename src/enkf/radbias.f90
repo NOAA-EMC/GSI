@@ -67,8 +67,8 @@ subroutine apply_biascorr()
     nn = nn + 1
     if (indxsat(nn) == 0) cycle
     if (.not. adp_anglebc) then
-       ! angle-dependent, non-adaptive correction.
-       ensmean_ob(nob) = ensmean_obnobc(nob) + biaspreds(1,nn)
+       ! total angle-dependent bias correction
+       ensmean_ob(nob) = ensmean_obnobc(nob) + biaspreds(npred+1,nn)
     else
        ! angle dependent correction is included in adaptive part.
        ensmean_ob(nob) = ensmean_obnobc(nob) 
@@ -76,7 +76,7 @@ subroutine apply_biascorr()
     ! adaptive (air-mass) corrections.
     do np=1,npred
        ensmean_ob(nob) = ensmean_ob(nob) + &
-       biaspreds(np+1,nn)*(predx(np,indxsat(nn))+deltapredx(np,indxsat(nn)))
+       biaspreds(np,nn)*(predx(np,indxsat(nn))+deltapredx(np,indxsat(nn)))
     enddo
   enddo  
 end subroutine apply_biascorr
@@ -153,7 +153,7 @@ if (nobs_sat > 0) then
           ! only use the numobspersat(i) obs associated with this channel/instrument
           if (indxsat(m) == i) then
              nn = nn + 1
-             biaspredtmp(n,nn) = biaspreds(n+1,m)/sqrt(oberrvar(nobs_conv+nobs_oz+m))
+             biaspredtmp(n,nn) = biaspreds(n,m)/sqrt(oberrvar(nobs_conv+nobs_oz+m))
           end if
       enddo
       a(n,n) = 1._r_kind/biaserrvar
@@ -181,7 +181,7 @@ if (nobs_sat > 0) then
       do m=1,nobs_sat
           if (indxsat(m) == i) then
              nn = nn + 1
-             biaspredtmp(n,nn) = biaspreds(n+1,m)/oberrvar(nobs_conv+nobs_oz+m)
+             biaspredtmp(n,nn) = biaspreds(n,m)/oberrvar(nobs_conv+nobs_oz+m)
           end if
       enddo
    enddo

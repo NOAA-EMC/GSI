@@ -81,8 +81,7 @@ program enkf_main
                        mpi_wtime, mpi_comm_world
  ! obs and ob priors, associated metadata.
  use enkf_obsmod, only : readobs, write_obsstats, obfit_prior, obsprd_prior, &
-                    nobs_sat, obfit_post, obsprd_post, &
-                    obsmod_cleanup, biasprednorminv
+                    nobs_sat, obfit_post, obsprd_post, obsmod_cleanup
  ! innovation statistics.
  use innovstats, only: print_innovstats
  ! model control vector 
@@ -91,7 +90,7 @@ program enkf_main
  ! model state vector
  use statevec, only: read_state, statevec_cleanup, init_statevec
  ! EnKF linhx observer
- use observer_enkf, only: init_observer_enkf
+ use observer_enkf, only: init_observer_enkf, destroy_observer_enkf
  ! load balancing
  use loadbal, only: load_balance, loadbal_cleanup, scatter_chunks, gather_chunks
  ! enkf update
@@ -110,7 +109,7 @@ program enkf_main
  use enkf_obs_sensitivity, only: init_ob_sens, print_ob_sens, destroy_ob_sens
 
  implicit none
- integer(i_kind) j,n,nth,ierr
+ integer(i_kind) nth,ierr
  real(r_double) t1,t2
  logical no_inflate_flag
 
@@ -163,6 +162,7 @@ program enkf_main
  ! cleanup state vectors after observation operator is done if lin Hx
  if (lobsdiag_forenkf) then
     call statevec_cleanup()
+    call destroy_observer_enkf()
  endif
 
  ! print innovation statistics for prior on root task.
@@ -247,12 +247,6 @@ program enkf_main
     call print_innovstats(obfit_post, obsprd_post)
  ! write out bias coeffs on root.
     if (nobs_sat > 0 .and. lupd_satbiasc) then
-       ! re-scale bias coefficients.
-       do j=1,jpch_rad
-           do n=1,npred
-              predx(n,j) = predx(n,j)*biasprednorminv(n)
-           enddo
-       enddo
        call radinfo_write()
     end if
  end if

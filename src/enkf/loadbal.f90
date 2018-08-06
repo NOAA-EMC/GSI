@@ -63,6 +63,9 @@ module loadbal
 !   hours).
 !  anal_obchunk_prior(nanals,nobs_max): (serial enkf only) real array of observation prior 
 !   ensemble perturbations to be updated on this task (not used in LETKF).
+!  anal_obchunk_modens_prior(nanals*neigv,nobs_max): (serial enkf only) real array of observation prior 
+!   modulate ensemble perturbations to be updated on this task when model space localization
+!   is enabled (modelspace_vloc=T, neigv > 0, not used in LETKF).
 !  kdtree_grid: pointer to kd-tree structure used for nearest neighbor searches
 !   for model grid points (only searches grid points assigned to this task).
 !  kdtree_obs: pointer to kd-tree structure used for nearest neighbor searches
@@ -97,9 +100,9 @@ module loadbal
 !$$$
 
 use mpisetup
-use params, only: datapath, nanals, simple_partition, letkf_flag,&
-                  corrlengthnh, corrlengthsh, corrlengthtr, lupd_obspace_serial
-use enkf_obsmod, only: nobstot, obloc, oblnp, ensmean_ob, obtime, anal_ob, corrlengthsq
+use params, only: datapath, nanals, simple_partition, letkf_flag, nobsl_max,&
+                  neigv, corrlengthnh, corrlengthsh, corrlengthtr, lupd_obspace_serial
+use enkf_obsmod, only: nobstot, obloc, oblnp, ensmean_ob, obtime, anal_ob, anal_ob_modens, corrlengthsq
 use kinds, only: r_kind, i_kind, r_double, r_single
 use kdtree2_module, only: kdtree2, kdtree2_create, kdtree2_destroy, &
                           kdtree2_result, kdtree2_r_nearest
@@ -111,7 +114,8 @@ private
 public :: load_balance, loadbal_cleanup, gather_chunks, scatter_chunks
 
 real(r_single),public, allocatable, dimension(:,:) :: lnp_chunk, &
-                                                      anal_obchunk_prior
+                                                      anal_obchunk_prior, &
+                                                      anal_obchunk_modens_prior
 real(r_single),public, allocatable, dimension(:,:,:,:) :: anal_chunk, anal_chunk_prior
 real(r_single),public, allocatable, dimension(:,:,:) :: ensmean_chunk, ensmean_chunk_prior
 
@@ -146,7 +150,9 @@ logical test_loadbal
 if (letkf_flag) then
    ! used for finding nearest obs to grid point in LETKF.
    ! results are sorted by distance.
-   kdtree_obs2  => kdtree2_create(obloc,sort=.true.,rearrange=.true.)
+   if (nobstot >= 3) then
+      kdtree_obs2  => kdtree2_create(obloc,sort=.true.,rearrange=.true.)
+   endif
 endif
 
 ! partition state vector for using Grahams rule..
@@ -160,6 +166,9 @@ t1 = mpi_wtime()
 call estimate_work_enkf1(numobs) ! fill numobs array with number of obs per horiz point
 ! distribute the results of estimate_work to all processors.
 call mpi_allreduce(mpi_in_place,numobs,npts,mpi_integer,mpi_sum,mpi_comm_world,ierr)
+if (letkf_flag .and. nobsl_max > 0) then
+  where(numobs > nobsl_max) numobs = nobsl_max
+endif
 if (nproc == 0) print *,'time in estimate_work_enkf1 = ',mpi_wtime()-t1,' secs'
 if (nproc == 0) print *,'min/max numobs',minval(numobs),maxval(numobs)
 ! loop over horizontal grid points on analysis grid.
@@ -314,6 +323,38 @@ if (.not. letkf_flag .or. lupd_obspace_serial) then
       call mpi_recv(anal_obchunk_prior,nobs_max*nanals,mpi_real4,0, &
            1,mpi_comm_world,mpi_status,ierr)
    end if
+   if (neigv > 0) then
+      ! if model space vertical localization is enabled, 
+      ! distribute ensemble perturbations in ob space for serial filter.
+      allocate(anal_obchunk_modens_prior(nanals*neigv,nobs_max)) 
+      if(nproc == 0) then
+         print *,'sending out modens observation prior ensemble perts from root ...'
+         totsize = nobstot
+         totsize = totsize*nanals*neigv
+         print *,'nobstot*nanals*neigv',totsize
+         t1 = mpi_wtime()
+         ! send one big message to each task.
+         do np=1,numproc-1
+            do nob1=1,numobsperproc(np+1)
+               nob2 = indxproc_obs(np+1,nob1)
+               anal_obchunk_modens_prior(1:nanals*neigv,nob1) = anal_ob_modens(1:nanals*neigv,nob2)
+            end do
+            call mpi_send(anal_obchunk_modens_prior,nobs_max*nanals*neigv,mpi_real4,np, &
+                 1,mpi_comm_world,ierr)
+         end do
+         ! anal_obchunk_prior on root (no send necessary)
+         do nob1=1,numobsperproc(1)
+            nob2 = indxproc_obs(1,nob1)
+            anal_obchunk_modens_prior(1:nanals*neigv,nob1) = anal_ob_modens(1:nanals*neigv,nob2)
+         end do
+         ! now we don't need anal_ob_modens anymore for serial EnKF.
+         if (.not. lupd_obspace_serial) deallocate(anal_ob_modens)
+      else
+         ! recv one large message on each task.
+         call mpi_recv(anal_obchunk_modens_prior,nobs_max*nanals*neigv,mpi_real4,0, &
+              1,mpi_comm_world,mpi_status,ierr)
+      end if
+   endif
    call mpi_barrier(mpi_comm_world, ierr)
    if(nproc == 0) print *,'... took ',mpi_wtime()-t1,' secs'
    ! these arrays only needed for serial filter
@@ -510,7 +551,7 @@ use covlocal, only:  latval
 
 implicit none
 integer(i_kind), dimension(:), intent(inout) :: numobs
-real(r_single) :: deglat,corrlength,corrsq
+real(r_single) :: deglat,corrlength,corrsq,r
 type(kdtree2_result),dimension(:),allocatable :: sresults
 
 integer nob,n1,n2,i,ideln
@@ -529,8 +570,18 @@ obsloop: do i=n1,n2
        deglat = latsgrd(i)*rad2deg
        corrlength=latval(deglat,corrlengthnh,corrlengthtr,corrlengthsh)
        corrsq = corrlength**2
-       call kdtree2_r_nearest(tp=kdtree_obs2,qv=gridloc(:,i),r2=corrsq,&
-                              nfound=numobs(i),nalloc=nobstot,results=sresults)
+
+       if (associated(kdtree_obs2)) then
+         call kdtree2_r_nearest(tp=kdtree_obs2,qv=gridloc(:,i),r2=corrsq,&
+              nfound=numobs(i),nalloc=nobstot,results=sresults)
+       else
+         do nob = 1, nobstot
+            r = sum( (gridloc(:,i)-obloc(:,nob))**2, 1)
+            if (r < corrsq) then
+              numobs(i) = numobs(i) + 1
+            endif
+         enddo
+       endif
     else
        do nob=1,nobstot
           if (sum((obloc(1:3,nob)-gridloc(1:3,i))**2,1) < corrlengthsq(nob)) &
