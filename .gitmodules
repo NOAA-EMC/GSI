@@ -1,3 +1,6 @@
 [submodule "libsrc"]
 	path = libsrc
 	url = gerrit:GSI-libsrc
+[submodule "fix"]
+	path = fix
+	url = gerrit:GSI-fix
