@@ -149,7 +149,7 @@
 	    #  at least 2 directories.  In order to potentially rerturn the 2nd
             #  to the last time here on the crays.
             #------------------------------------------------------------------
-            if ( $#times >= 0 && $ctr < $#sortrad ) {
+            if ( $#times >= 0 && $ctr <= $#sortrad ) {
                $found_cycle = 1;
                my @utimes = sort( uniq( @times ) );
                if ( $target == 2 ) {				# 2nd to last time

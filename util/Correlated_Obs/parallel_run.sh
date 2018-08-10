@@ -49,12 +49,21 @@ NP=16
 unpack_walltime=02:30:00
 #wall time to run cov_calc hh:mm:ss for theia, hh:mm for wcoss
 wall_time=01:00:00
+#requested memory in MB to unpack radstats, on WCOSS/Cray.  Increases with decreasing $num_proc
+#should be at least 15
+Umem=50
+#requested memory in MB for cov_calc, on WCOSS/Cray
+Mem=50
 #job account name (needed on theia only)
 account=da-cpu
 #job project code (needed on wcoss only)
 project_code=GFS-T2O
 #machine-theia or wcoss, all lower case
 machine=theia
+#radstat version
+#rver=30303, emissivity predictor is added
+#rver=40000, ens spread and optional jacobian added
+rver=40000
 ndate=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/util/exec/ndate
 
 ####################################################################
@@ -160,9 +169,9 @@ cat << EOF > jobarray.sh
 #BSUB -o unpack_out
 #BSUB -e unpack_err
 #BSUB -q dev
+#BSUB -M ${Umem}
 #BSUB -n 1
 #BSUB -W ${unpack_walltime}
-#BSUB -R affinity[core]
 #BSUB -R span[ptile=1]
 #BSUB -P ${project_code}
 #BSUB -J unpack[1-${num_jobs}]
@@ -203,9 +212,9 @@ cat << EOF > params.sh
 #BSUB -o sort_out
 #BSUB -e sort_err
 #BSUB -q dev
+#BSUB -M 30
 #BSUB -n 1
-#BSUB -W 02:00
-#BSUB -R affinity[core]
+#BSUB -W 00:02
 #BSUB -R span[ptile=1]
 #BSUB -P ${project_code}
 #BSUB -J sort_diag
@@ -253,6 +262,7 @@ bcen=$bcen
 chan_set=$chan_set
 ntot=$dattot
 NP=$NP
+rver=$rver
 EOF
 chmod +rwx params.sh
 cat par_run.sh >> params.sh
@@ -265,6 +275,7 @@ cat << EOF > params.sh
 #BSUB -e comp_err
 #BSUB -openmp
 #BSUB -q dev
+#BSUB -M ${Mem}
 #BSUB -n $NP
 #BSUB -W $wall_time
 #BSUB -R span[ptile=$NP]
@@ -287,6 +298,7 @@ method=$method
 cov_method=$cov_method
 time_sep=$time_sep
 bsize=$bsize
+rver=$rver
 bcen=$bcen
 chan_set=$chan_set
 ntot=$dattot

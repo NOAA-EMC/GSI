@@ -27,5 +27,4 @@ real(r_kind), parameter:: threesixty=360.0_r_kind
 !other constants
 real(r_kind), parameter:: rad=6378.137_r_kind          !radius of the earth
 real(r_kind), parameter:: pi=3.1415926535898_r_kind
-
 end module constants

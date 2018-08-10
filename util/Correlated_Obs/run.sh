@@ -43,6 +43,10 @@ bcen=80
 chan_set=0
 #Have the radstats already been processed? 1 for yes, 0 for no
 radstats_processed=1
+#radstat version
+#rver=30303, emissivity predictor is added
+#rver=40000, ens spread and optional jacobian added
+rver=40000
 
 ndate=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/util/exec/ndate
 ####################
@@ -95,7 +99,7 @@ while [[ $cdate -le $edate ]] ; do
    cdate=`$ndate +06 $cdate`
 done
 ./cov_calc <<EOF
-$ntt $type $cloud $angle $instr $wave_out $err_out $corr_out $kreq $method $cov_method $chan_set $time_sep $bsize $bcen
+$ntt $type $cloud $angle $instr $wave_out $err_out $corr_out $kreq $method $cov_method $chan_set $time_sep $bsize $bcen $rver
 EOF
 
 cp Rcov_$instr $savdir

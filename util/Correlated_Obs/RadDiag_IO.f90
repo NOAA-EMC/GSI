@@ -14,6 +14,7 @@ MODULE RadDiag_IO
   USE File_Utility,    ONLY: Get_Lun, File_Open
   USE Message_Handler, ONLY: SUCCESS, FAILURE, EOF, Display_Message
   USE RadDiag_Define,  ONLY: RadDiag_Hdr_Scalar_type , &
+                             RadDiag_Hdr_Scalar_type_30303, &
                              RadDiag_Hdr_Channel_type, &
                              RadDiag_Hdr_type        , &
                              RadDiag_Hdr_Associated  , &
@@ -25,8 +26,11 @@ MODULE RadDiag_IO
                              RadDiag_Data_Scalar_type , &
                              RadDiag_Data_Channel_type, &
                              RadDiag_Data_type        , &
+                             RadDiag_Data_type_30303  , &
                              RadDiag_Data_Associated  , &
                              RadDiag_Data_Destroy     , &
+                             RadDiag_Data_Destroy_30303, &
+                             RadDiag_Data_Create_30303, &
                              RadDiag_Data_Create
   ! Disable implicit typing
   IMPLICIT NONE
@@ -39,6 +43,7 @@ MODULE RadDiag_IO
   ! Inherited derived type definitions
   PUBLIC :: RadDiag_Hdr_type
   PUBLIC :: RadDiag_Data_type
+  PUBLIC :: RadDiag_Data_type_30303
   ! Inherited module subprograms
   PUBLIC :: RadDiag_Hdr_Associated
   PUBLIC :: RadDiag_Hdr_Destroy
@@ -73,7 +78,8 @@ MODULE RadDiag_IO
   '$Id: RadDiag_IO.f90 9040 2010-07-29 17:01:49Z Michael.Lueken@noaa.gov $'
   ! Default message length
   INTEGER, PARAMETER :: ML = 256
-
+  INTEGER, PARAMETER:: radver_30303=30303            !Version when emissivity predictor added
+  INTEGER, PARAMETER:: radver_40000=40000            !Version when ensemble spread (and optional jacobian) addedi
 
 CONTAINS
 
@@ -286,10 +292,12 @@ FUNCTION RadDiag_CloseFile( &
 
   FUNCTION RadDiag_Hdr_ReadFile( &
     FileID      , &  ! Input
+    radver      , &  ! Input
     RadDiag_Hdr ) &  ! Output
   RESULT( err_stat )
     ! Arguments
     INTEGER,                INTENT(IN)  :: FileID
+    INTEGER,                INTENT(IN)  :: radver
     TYPE(RadDiag_Hdr_type), INTENT(OUT) :: RadDiag_Hdr
     ! Function result
     INTEGER :: err_stat
@@ -301,6 +309,7 @@ FUNCTION RadDiag_CloseFile( &
     INTEGER :: io_stat
     INTEGER :: i, reclen
     TYPE(RadDiag_Hdr_Scalar_type) :: Scalar
+    TYPE(RadDiag_Hdr_Scalar_type_30303) :: Scalar_30303
 
     ! Set up
     err_stat = SUCCESS
@@ -314,7 +323,17 @@ FUNCTION RadDiag_CloseFile( &
     inquire(iolength=reclen) Scalar%nchan
 
     ! Read the fixed part of the header
-    READ( FileID, IOSTAT=io_stat ) Scalar 
+    ! Allocate the RadDiag_Hdr structure
+    IF (radver==radver_30303) THEN
+       READ( FileID, IOSTAT=io_stat ) Scalar_30303
+    ELSEIF (radver==radver_40000) THEN
+       READ( FileID, IOSTAT=io_stat ) Scalar
+    ELSE
+      msg = 'Invalid specifiation for rdef'
+      io_stat=10
+      CALL Hdr_Read_CleanUp(); RETURN
+    END IF
+
     IF ( io_stat /= 0 ) THEN
       WRITE( msg,'("Error reading RadDiag header fixed portion from ",a,". IOSTAT = ",i0)' ) &
              TRIM(Filename), io_stat
@@ -330,14 +349,41 @@ FUNCTION RadDiag_CloseFile( &
 
 
     ! Allocate the RadDiag_Hdr structure
-    CALL RadDiag_Hdr_Create( RadDiag_Hdr, Scalar%nchan )
-    IF ( .NOT. RadDiag_Hdr_Associated(RadDiag_Hdr) ) THEN
-      msg = 'Error allocating RadDiag_Hdr structure'
+    IF (radver==radver_30303) THEN
+      CALL RadDiag_Hdr_Create( RadDiag_Hdr, Scalar_30303%nchan )
+      IF ( .NOT. RadDiag_Hdr_Associated(RadDiag_Hdr) ) THEN
+        msg = 'Error allocating RadDiag_Hdr structure'
+        CALL Hdr_Read_CleanUp(); RETURN
+      END IF
+      ! Copy the fixed portion of the header
+      RadDiag_Hdr%Scalar%isis = Scalar_30303%isis
+      RadDiag_Hdr%Scalar%id = Scalar_30303%id
+      RadDiag_Hdr%Scalar%obstype = Scalar_30303%obstype
+      RadDiag_Hdr%Scalar%jiter = Scalar_30303%jiter
+      RadDiag_Hdr%Scalar%nchan = Scalar_30303%nchan
+      RadDiag_Hdr%Scalar%npred = Scalar_30303%npred
+      RadDiag_Hdr%Scalar%idate = Scalar_30303%idate
+      RadDiag_Hdr%Scalar%ireal = Scalar_30303%ireal
+      RadDiag_Hdr%Scalar%ipchan = Scalar_30303%ipchan
+      RadDiag_Hdr%Scalar%iextra = Scalar_30303%iextra
+      RadDiag_Hdr%Scalar%jextra = Scalar_30303%jextra
+      RadDiag_Hdr%Scalar%idiag = Scalar_30303%idiag
+      RadDiag_Hdr%Scalar%angord = Scalar_30303%angord
+      RadDiag_Hdr%Scalar%iversion_raddiag = Scalar_30303%iversion_raddiag
+      RadDiag_Hdr%Scalar%inewpc = Scalar_30303%inewpc
+      RadDiag_Hdr%Scalar%ioff0 = Scalar_30303%ioff0
+    ELSEIF (radver==radver_40000) THEN
+      CALL RadDiag_Hdr_Create( RadDiag_Hdr, Scalar%nchan )
+      IF ( .NOT. RadDiag_Hdr_Associated(RadDiag_Hdr) ) THEN
+        msg = 'Error allocating RadDiag_Hdr structure'
+        CALL Hdr_Read_CleanUp(); RETURN
+      END IF
+      ! Copy the fixed portion of the header
+      RadDiag_Hdr%Scalar = Scalar
+    ELSE
+      msg = 'Invalid specifiation for rdef'
       CALL Hdr_Read_CleanUp(); RETURN
     END IF
-
-    ! Copy the fixed portion of the header
-    RadDiag_Hdr%Scalar = Scalar
 
 
     ! Read the channel portion of the header
@@ -424,12 +470,15 @@ FUNCTION RadDiag_CloseFile( &
   FUNCTION RadDiag_Data_ReadFile( &
     FileID       , &  ! Input
     RadDiag_Hdr  , &  ! Input
+    radver       , &  ! Input
     RadDiag_Data ) &  ! Output
   RESULT( err_stat )
     ! Arguments
     INTEGER,                 INTENT(IN)  :: FileID
     TYPE(RadDiag_Hdr_type),  INTENT(IN)  :: RadDiag_Hdr
+    INTEGER,                 INTENT(IN)  :: radver
     TYPE(RadDiag_Data_type), INTENT(OUT) :: RadDiag_Data
+    TYPE(RadDiag_Data_type_30303):: RadDiag_Data_30303
     ! Function result
     INTEGER :: err_stat
     ! Local parameters
@@ -461,49 +510,52 @@ FUNCTION RadDiag_CloseFile( &
 
 
     ! Read all the data
-    READ( FileID, IOSTAT=io_stat ) &
+    IF (radver==radver_30303) THEN
+      CALL RadDiag_Data_Create_30303( RadDiag_Data_30303, RadDiag_Hdr%n_Channels )
+      IF ( .NOT. RadDiag_Data_Associated(RadDiag_Data) ) THEN
+        msg = 'Error allocating RadDiag_Data structure'
+        CALL Data_Read_CleanUp(); RETURN
+      END IF
+      READ( FileID, IOSTAT=io_stat ) &
       RadDiag_Data%Scalar, &
-      (RadDiag_Data%Channel(i), i=1,RadDiag_Data%n_Channels), &
+      (RadDiag_Data_30303%Channel(i), i=1,RadDiag_Data%n_Channels), &
       Extra
-!      RadDiag_Data%Scalar%lat       , &
-!      RadDiag_Data%Scalar%lon       , &
-!      RadDiag_Data%Scalar%zsges     , &
-!      RadDiag_Data%Scalar%obstime   , &
-!      RadDiag_Data%Scalar%senscn_pos, &
-!      RadDiag_Data%Scalar%satzen_ang, &
-!      RadDiag_Data%Scalar%satazm_ang, &
-!      RadDiag_Data%Scalar%solzen_ang, &
-!      RadDiag_Data%Scalar%solazm_ang, &
-!      RadDiag_Data%Scalar%sungln_ang, &
-!      RadDiag_Data%Scalar%water_frac, &
-!      RadDiag_Data%Scalar%land_frac , &
-!      RadDiag_Data%Scalar%ice_frac  , &
-!      RadDiag_Data%Scalar%snow_frac , &
-!      RadDiag_Data%Scalar%water_temp, &
-!      RadDiag_Data%Scalar%land_temp , &
-!      RadDiag_Data%Scalar%ice_temp  , &
-!      RadDiag_Data%Scalar%snow_temp , &
-!      RadDiag_Data%Scalar%soil_temp , &
-!      RadDiag_Data%Scalar%soil_mois , &
-!      RadDiag_Data%Scalar%land_type , &
-!      RadDiag_Data%Scalar%veg_frac  , &
-!      RadDiag_Data%Scalar%snow_depth, &
-!      RadDiag_Data%Scalar%sfc_wndspd, &
-!      RadDiag_Data%Scalar%qcdiag1   , &
-!      RadDiag_Data%Scalar%qcdiag2   , ( RadDiag_Data%Channel(i)%tbobs , &
-!                                        RadDiag_Data%Channel(i)%omgbc , &
-!                                        RadDiag_Data%Channel(i)%omgnbc, &
-!                                        RadDiag_Data%Channel(i)%errinv, & 
-!                                        RadDiag_Data%Channel(i)%qcmark, & 
-!                                        RadDiag_Data%Channel(i)%emiss , &  
-!                                        RadDiag_Data%Channel(i)%tlap  , & 
-!                                        RadDiag_Data%Channel(i)%bifix , & 
-!                                        RadDiag_Data%Channel(i)%bilap , &
-!                                        RadDiag_Data%Channel(i)%bilap2, &
-!                                        RadDiag_Data%Channel(i)%bicons, & 
-!                                        RadDiag_Data%Channel(i)%biang , &  
-!                                        RadDiag_Data%Channel(i)%biclw , & 
-!                                        i=1,RadDiag_Data%n_Channels      ), Extra
+      DO i=1,RadDiag_Data%n_Channels
+        RadDiag_Data%Channel(i)%tbobs=RadDiag_Data_30303%Channel(i)%tbobs
+        RadDiag_Data%Channel(i)%omgbc=RadDiag_Data_30303%Channel(i)%omgbc
+        RadDiag_Data%Channel(i)%omgnbc=RadDiag_Data_30303%Channel(i)%omgnbc
+        RadDiag_Data%Channel(i)%errinv=RadDiag_Data_30303%Channel(i)%errinv
+        RadDiag_Data%Channel(i)%qcmark=RadDiag_Data_30303%Channel(i)%qcmark
+        RadDiag_Data%Channel(i)%emiss=RadDiag_Data_30303%Channel(i)%emiss
+        RadDiag_Data%Channel(i)%tlap=RadDiag_Data_30303%Channel(i)%tlap
+        RadDiag_Data%Channel(i)%tb_tz=RadDiag_Data_30303%Channel(i)%tb_tz
+        RadDiag_Data%Channel(i)%bicons=RadDiag_Data_30303%Channel(i)%bicons
+        RadDiag_Data%Channel(i)%bicoss=RadDiag_Data_30303%Channel(i)%bicoss
+        RadDiag_Data%Channel(i)%biclw=RadDiag_Data_30303%Channel(i)%biclw
+        RadDiag_Data%Channel(i)%bilap2=RadDiag_Data_30303%Channel(i)%bilap2
+        RadDiag_Data%Channel(i)%bilap=RadDiag_Data_30303%Channel(i)%bilap
+        RadDiag_Data%Channel(i)%bicos=RadDiag_Data_30303%Channel(i)%bicos
+        RadDiag_Data%Channel(i)%bisin=RadDiag_Data_30303%Channel(i)%bisin
+        RadDiag_Data%Channel(i)%biem=RadDiag_Data_30303%Channel(i)%biem
+        RadDiag_Data%Channel(i)%biang=RadDiag_Data_30303%Channel(i)%biang
+        RadDiag_Data%Channel(i)%biang2=RadDiag_Data_30303%Channel(i)%biang2
+        RadDiag_Data%Channel(i)%biang3=RadDiag_Data_30303%Channel(i)%biang3
+        RadDiag_Data%Channel(i)%biang4=RadDiag_Data_30303%Channel(i)%biang4
+        RadDiag_Data%Channel(i)%biang5=RadDiag_Data_30303%Channel(i)%biang5
+        RadDiag_Data%Channel(i)%bisst=RadDiag_Data_30303%Channel(i)%bisst
+      END DO
+      CALL RadDiag_Data_Destroy_30303(RadDiag_Data_30303)
+    ELSEIF (radver==radver_40000) THEN
+      READ( FileID, IOSTAT=io_stat ) &
+        RadDiag_Data%Scalar, &
+        (RadDiag_Data%Channel(i), i=1,RadDiag_Data%n_Channels), &
+        Extra
+    ELSE
+      msg = 'Invalid specifiation for rdef'
+      io_stat=10
+      CALL Data_Read_CleanUp(); RETURN
+    END IF
+
     ! ...Check for error
     IF ( io_stat > 0 ) THEN
       WRITE( msg,'("Error reading RadDiag Data from ",a,". IOSTAT = ",i0)' ) &

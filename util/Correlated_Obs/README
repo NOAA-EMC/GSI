@@ -12,6 +12,9 @@ To use the computed covariance matrix in the GSI:
 2.  Copy the covariance matrix into the data directory.  For parallel GFS, this can be achieved by adding a line such as 'cp $ROTDIR/Rcov* $DATA' to exglobal_analysis.sh.ecf.  For single runs of the GSI, add this line to rungsi_globalprod.sh.
 
 Before running this program, compile it by typing 'make'.
+This utility compiles with gfortran.  To compile on Cray, first load the module PrgEnv-gnu.  It may be necessary to unload PrgEnv-intel first, and PrgEnv-gnu must be loaded when submitting jobs.
+
+It is possible to run this program in single or double precision.  In kinds.f90, set default_real to 1 for single precision, or 2 for double precision.  If the radstat files are double precision, change default_radstat in kinds.f90 to 2.
 
 There are two ways to run cov_calc.  The bottleneck of this program is in dealing with the radstat files.  Using parallel_run.sh will process the radstat files in parallel.  To use this script, edit its first few lines, and then simply run it. Both run.sh and parallel_run.sh contain options to specify which computational method to use (Desroziers or Hollingsworth-Lönnberg), and a choice to use only actively assimialted channels (recommended for Desroziers) or all channels. 
 

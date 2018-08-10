@@ -139,12 +139,12 @@ real(r_kind),intent(in):: kreq               !condition number
 integer(i_kind),intent(in):: n               !number of channels
 real(r_kind),dimension(:,:),allocatable:: Dn !new eigenvalues
 real(r_kind),dimension(:,:),intent(out):: A  !reconditioned covariance
-integer,intent(in)::method
+integer(i_kind),intent(in)::method
 real(r_kind):: mx, mn, K
 real(r_kind):: laminc
-integer:: i,coun, dw
-integer,parameter:: trace=1
-integer,parameter:: weston2=2
+integer(i_kind):: i,coun, dw
+integer(i_kind),parameter:: trace=1
+integer(i_kind),parameter:: weston2=2
 allocate(Dn(n,n))
 Dn=zero
 mn=D(1)
