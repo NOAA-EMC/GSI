@@ -19,6 +19,14 @@
      dtbduv_on,time_window_max,offtime_data,init_directories,oberror_tune,ext_sonde, &
      blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver,hilbert_curve,&
      lread_obs_save,lread_obs_skip
+
+  use obsmod, only: doradaroneob,oneoblat,oneoblon,oneobheight,oneobvalue,oneobddiff,oneobradid,&
+     radar_no_thinning,ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,&
+     rmesh_vr,zmesh_dbz,zmesh_vr,if_vterminal, if_model_dbz,if_vrobs_raw,&
+     minobrangedbz,maxobrangedbz,maxobrangevr,maxtiltvr,missing_to_nopcp,&
+     ntilt_radarfiles,whichradar,&
+     minobrangevr,maxtiltdbz,mintiltvr,mintiltdbz
+
   use obsmod, only: lwrite_predterms, &
      lwrite_peakwt,use_limit,lrun_subdirs,l_foreaft_thin,lobsdiag_forenkf,&
      obsmod_init_instr_table,obsmod_final_instr_table
@@ -354,6 +362,8 @@
 !                              operator for surface observations along the coastline area
 !  04-01-2017 Hu        added option i_gsdqc to turn on special observation qc
 !                              from GSD (for RAP/HRRR application)
+!  02-15-2016 Y. Wang, Johnson, X. Wang - added additional options if_vterminal, if_model_dbz,
+!                                         for radar DA, POC: xuguang.wang@ou.edu
 !  08-31-2017 Li        add sfcnst_comb for option to read sfc & nst combined file 
 !  10-10-2017 Wu,W      added option fv3_regional and rid_ratio_fv3_regional, setup FV3, earthuv
 !  01-11-2018 Yang      add namelist variables required by the nonlinear transform to vis and cldch
@@ -572,8 +582,14 @@
        lwrite_peakwt,use_gfs_nemsio,sfcnst_comb,liauon,use_prepb_satwnd,l4densvar,ens_nstarthr,&
        use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon,lrun_subdirs,&
        use_sp_eqspace,lnested_loops,lsingleradob,thin4d,use_readin_anl_sfcmask,&
-       luse_obsdiag,id_drifter,verbose,lsingleradar,singleradar,lnobalance,imp_physics,&
-       lupp,netcdf_diag,binary_diag,l_wcp_cwm
+       luse_obsdiag,id_drifter,verbose,lsingleradar,singleradar,lnobalance, &
+       missing_to_nopcp,minobrangedbz,minobrangedbz,maxobrangedbz,&
+       maxobrangevr,maxtiltvr,whichradar,doradaroneob,oneoblat,&
+       oneoblon,oneobheight,oneobvalue,oneobddiff,oneobradid,&
+       rmesh_vr,zmesh_dbz,zmesh_vr, ntilt_radarfiles, whichradar,&
+       radar_no_thinning,ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,&
+       minobrangevr, maxtiltdbz, mintiltvr,mintiltdbz,if_vterminal,if_vrobs_raw,&
+       if_model_dbz,imp_physics,lupp,netcdf_diag,binary_diag,l_wcp_cwm
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -1414,6 +1430,16 @@
   if (.not.l_tlnmc) then
      baldiag_full=.false.
      baldiag_inc =.false.
+  end if
+
+! If reflectivity is intended to be assimilated, beta_s0 should be zero.
+  if ( beta_s0 > 0.0_r_kind )then
+    do i=1,ndat
+      if ( index(dtype(i), 'dbz') /= 0 )then
+        write(6,*)'beta_s0 needs to be set to zero in this GSI version, when reflectivity is directly assimilated. Static B extended for radar reflectivity assimilation will be included in future version.'
+        call stop2(8888)
+      end if
+    end do
   end if
 
 ! Turn off uv option if hybrid/ensemble options is false for purposes 

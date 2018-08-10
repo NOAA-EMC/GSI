@@ -51,8 +51,10 @@ module gsi_nemsio_mod
   public :: gsi_nemsio_close
   public :: gsi_nemsio_read
   public :: gsi_nemsio_read_fraction
+  public :: gsi_nemsio_read_fractionnew
   public :: gsi_nemsio_write
   public :: gsi_nemsio_write_fraction
+  public :: gsi_nemsio_write_fractionnew
 
 contains
 
@@ -137,7 +139,6 @@ contains
     use nemsio_module, only: nemsio_init,nemsio_open,nemsio_getfilehead,nemsio_close,nemsio_setheadvar
     use nemsio_module, only: nemsio_getheadvar
     use constants, only: zero
-    use wrf_params_mod, only: preserve_restart_date
     implicit none
 
     character(*)   ,intent(in   ) :: file_name        !  input file name
@@ -179,17 +180,19 @@ contains
        write(6,*)' in gsi_nemsio_update, guess yr,mn,dy,hr,fhr=',idate(1:4),nfhour
        fha=zero ; ida=0 ; jda=0
        fha(2)=nfhour
+       fha(3)=nfminute
        ida(1)=idate(1)    !  year
        ida(2)=idate(2)    !  month
        ida(3)=idate(3)    !  day
        ida(4)=0       !  time zone
        ida(5)=idate(4)    !  hour
+       ida(6)=idate(5)    ! minute
        call w3movdat(fha,ida,jda)
        jdate(1)=jda(1)    !  new year
        jdate(2)=jda(2)    !  new month
        jdate(3)=jda(3)    !  new day
        jdate(4)=jda(5)    !  new hour
-       jdate(5)=0     !  new minute
+       jdate(5)=jda(6)     !  new minute
        jdate(6)=0     !  new scaled seconds
        jdate(7)=idate(7)  !  new seconds multiplier
        nfhour=0       !  new forecast hour
@@ -197,7 +200,6 @@ contains
        nfsecondn=0
        ntimestep=0
 
-       if(.not.preserve_restart_date) then
 
           call nemsio_setheadvar(gfile,'idate',jdate,iret)
           write(6,*)' after setheadvar, jdate,iret=',jdate,iret
@@ -220,7 +222,6 @@ contains
           call nemsio_setheadvar(gfile,'ntimestep',ntimestep,iret)
           write(6,*)' after setheadvar, ntimestep,iret=',ntimestep,iret
  
-       end if
     
 
 !                        Following is diagnostic to check if date updated:
@@ -238,7 +239,6 @@ contains
        call nemsio_getheadvar(gfile,'ntimestep',ntimestep,iret)
        write(6,*)' check new ntimestep after getheadvar, ntimestep,iret=',ntimestep,iret
        call nemsio_close(gfile,iret=iret)
-       if(preserve_restart_date) write(6,*)' RESTART DATE PRESERVED FOR SHORT FORECASTS'
        if(iret/=0) then
           write(6,*)trim(message),'  problem closing file',trim(file_name),', Status = ',iret
           call stop2(74)
@@ -910,4 +910,458 @@ contains
    end if
 
   end subroutine variable2fraction
+  subroutine gsi_nemsio_read_fractionnew(varname_frain,varname_fice,varname_clwmr,varname_frimef, &
+                 vartype,lev,var_qi,var_qs,var_qr,var_qw,mype,mype_io,good_var)
+!$$$  subprogram documentation block
+!                .      .    .                                        .
+! subprogram:    gsi_nemsio_read_fraction
+!   pgrmmr: Shun Liu
+!
+! abstract:  copy from gsi_nemsio_read. To read in NMMB f_rain, f_ice, f_rime and
+!            T together and then convert to rain water mixing ratio and snow
+!            mixing ratio
+!
+! program history log:
+
+!   2015-06-5  S.Liu - read in f_rain, f_ice, f_rimef and T
+!   2016-02-10 S.Liu - remove gridtype if-test since all variables are in mass point
+!   2016-      T. Lei - to add the frimef to be read out 
+!
+!   input argument list:
+!    varname,vartype,gridtype - descriptors for variable to be retrieved from
+!    nmmb file
+!    lev                      - vertical level number
+!    mype     - mpi task id
+!    mype_io  - mpi task where field is read from disk
+!    good_var - optional, on input, set to .false.  if present(good_var) then
+!    error stop is
+!                bypassed and good_var is returned .true. for successful read,
+!                .false. otherwise.
+!
+!   output argument list:
+!    var      - for successful read, contains desired variable on subdomains.
+!    good_var - see above
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+
+!$$$ end documentation block
+    use mpimod, only:        mpi_rtype,mpi_comm_world,ierror,mpi_integer4
+    use gridmod, only:       lat2,lon2,nlon,nlat
+    use gridmod, only:       ijn_s,displs_s,itotsub
+    use general_commvars_mod, only: ltosi_s,ltosj_s
+    use nemsio_module, only: nemsio_readrecv
+    use mod_nmmb_to_a, only: nmmb_h_to_a,nmmb_v_to_a
+    implicit none
+
+    character(*)   ,intent(in   ) :: vartype      !  gridtype='H' or 'V'
+    character(*)   ,intent(in   ) :: varname_frain, varname_fice, varname_clwmr, varname_frimef     !  gridtype='H' or 'V'
+    integer(i_kind),intent(in   ) :: lev              !   vertical level of desired variable
+
+    real(r_kind)   ,intent(  out) :: var_qi(lat2*lon2)
+    real(r_kind)   ,intent(  out) :: var_qs(lat2*lon2)
+    real(r_kind)   ,intent(  out) :: var_qr(lat2*lon2)
+    real(r_kind)   ,intent(  out) :: var_qw(lat2*lon2)
+
+    integer(i_kind),intent(in   ) :: mype,mype_io
+    logical,optional,intent(inout):: good_var
+
+    integer(i_kind) i,iret,j,mm1,n
+
+    real(r_kind) work_qi(itotsub)
+    real(r_kind) work_qs(itotsub)
+    real(r_kind) work_qr(itotsub)
+    real(r_kind) work_qw(itotsub)
+
+    real(r_kind) work_a_qi(nlat,nlon)
+    real(r_kind) work_a_qs(nlat,nlon)
+    real(r_kind) work_a_qr(nlat,nlon)
+    real(r_kind) work_a_qw(nlat,nlon)
+
+    real(r_single) work_b_frain(nlon_regional*nlat_regional)
+    real(r_single) work_b_fice(nlon_regional*nlat_regional)
+    real(r_single) work_b_clwmr(nlon_regional*nlat_regional)
+    real(r_single) work_b_frimef(nlon_regional*nlat_regional)
+
+    real(r_single) work_b_qi(nlon_regional*nlat_regional)
+    real(r_single) work_b_qs(nlon_regional*nlat_regional)
+    real(r_single) work_b_qr(nlon_regional*nlat_regional)
+    real(r_single) work_b_qw(nlon_regional*nlat_regional)
+
+    real(r_single) :: f_rimef, f_ice, f_rain, wc, qi, qs, qr, qw
+    logical good_var_loc
+
+    mm1=mype+1
+
+    if(mype==mype_io) then
+
+!            read field from file with nemsio
+
+       call nemsio_readrecv(gfile,trim(varname_frain),trim(vartype),lev,work_b_frain,iret=iret)
+       call nemsio_readrecv(gfile,trim(varname_fice),trim(vartype),lev,work_b_fice,iret=iret)
+       call nemsio_readrecv(gfile,trim(varname_clwmr),trim(vartype),lev,work_b_clwmr,iret=iret)
+       call nemsio_readrecv(gfile,trim(varname_frimef),trim(vartype),lev,work_b_frimef,iret=iret)
+       if(iret /= 0) then
+         write(6,*)'reading frimef or other variables with errors, stop'
+         stop
+       endif
+
+
+       do n=1,nlon_regional*nlat_regional
+         f_rimef=work_b_frimef(n)
+         f_rain=work_b_frain(n)
+         f_ice=work_b_fice(n)
+         wc=work_b_clwmr(n)
+         call fraction2variablenew(f_ice,f_rain,f_rimef,wc,qi,qs,qr,qw)
+         work_b_qi(n)=qi
+         work_b_qs(n)=qs
+         work_b_qr(n)=qr
+         work_b_qw(n)=qw
+       end do
+
+       if(iret==0) then
+!         work_saved=work_b
+
+!         interpolate to analysis grid
+
+          call nmmb_h_to_a(work_b_qi,work_a_qi)
+          call nmmb_h_to_a(work_b_qs,work_a_qs)
+          call nmmb_h_to_a(work_b_qr,work_a_qr)
+          call nmmb_h_to_a(work_b_qw,work_a_qw)
+
+
+!        scatter to subdomains
+
+          do n=1,itotsub
+             i=ltosi_s(n)
+             j=ltosj_s(n)
+             work_qi(n)=work_a_qi(i,j)
+             work_qs(n)=work_a_qs(i,j)
+             work_qr(n)=work_a_qr(i,j)
+             work_qw(n)=work_a_qw(i,j)
+          end do
+       end if
+    end if
+
+    call mpi_bcast(iret,1,mpi_integer4,mype_io,mpi_comm_world,ierror)
+    good_var_loc=.true.
+    if(iret/=0) then
+       good_var_loc=.false.
+       if(mype==0) then
+          write(6,*)'  problem reading varname=',trim(varname_frain),', vartype=',trim(vartype),', Status = ',iret
+          if(.not.present(good_var)) call stop2(74)
+       end if
+    end if
+    if(present(good_var)) good_var=good_var_loc
+
+    if(good_var_loc) then
+      call mpi_scatterv(work_qi,ijn_s,displs_s,mpi_rtype, &
+                   var_qi,ijn_s(mm1),mpi_rtype,mype_io,mpi_comm_world,ierror)
+      call mpi_scatterv(work_qs,ijn_s,displs_s,mpi_rtype, &
+                   var_qs,ijn_s(mm1),mpi_rtype,mype_io,mpi_comm_world,ierror)
+      call mpi_scatterv(work_qr,ijn_s,displs_s,mpi_rtype, &
+                   var_qr,ijn_s(mm1),mpi_rtype,mype_io,mpi_comm_world,ierror)
+      call mpi_scatterv(work_qw,ijn_s,displs_s,mpi_rtype, &
+                   var_qw,ijn_s(mm1),mpi_rtype,mype_io,mpi_comm_world,ierror)
+    end if
+
+  end subroutine gsi_nemsio_read_fractionnew
+  subroutine gsi_nemsio_write_fractionnew(varname_frain,varname_fice,varname_frimef,vartype,lev,var_s,var_i,var_r,var_l,mype,mype_io)
+!$$$  subprogram documentation block
+!                .      .    .                                        .
+! subprogram:    gsi_nemsio_write_fraction
+!   pgrmmr:    Shun Liu
+!
+! abstract:
+!
+! program history log:
+!   2015-05-12  S.Liu - copy from gsi_nemsio_write and modify to handle NMMB hydrometor fraction variable
+!   2016        T. Lei- to add the frimef to be written out
+!   input argument list:
+!    varname,vartype,gridtype
+!    lev
+!    add_saved
+!    mype     - mpi task id
+!    mype_io
+!
+!   output argument list:
+!    var_frain, var_fice
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+    use mpimod, only:        mpi_rtype,mpi_comm_world,ierror
+    use gridmod, only:       lat2,lon2,nlon,nlat,lat1,lon1
+    use gridmod, only:       ijn,displs_g,itotsub,iglobal
+    use general_commvars_mod, only: ltosi,ltosj
+    use nemsio_module, only: nemsio_writerecv
+    use mod_nmmb_to_a, only: nmmb_a_to_h,nmmb_a_to_v
+    implicit none
+
+    character(*)   ,intent(in   ) :: varname_frain,varname_fice,varname_frimef,vartype      ! gridtype='H' or 'V'
+    integer(i_kind),intent(in   ) :: lev              !   vertical level of desired variable
+    real(r_kind)   ,intent(in   ) :: var_i(lat2,lon2), var_r(lat2,lon2), var_l(lat2,lon2), var_s(lat2,lon2)
+    integer(i_kind),intent(in   ) :: mype,mype_io
+!   logical        ,intent(in   ) :: add_saved
+
+    integer(i_kind) i,iret,j,mm1,n
+    real(r_kind) work_s(itotsub),work_sub_s(lat1,lon1)
+    real(r_kind) work_a_s(nlat,nlon)
+    real(r_single) work_b_s(nlon_regional*nlat_regional)
+
+    real(r_kind) work_i(itotsub),work_sub_i(lat1,lon1)
+    real(r_kind) work_a_i(nlat,nlon)
+    real(r_single) work_b_i(nlon_regional*nlat_regional)
+
+    real(r_kind) work_r(itotsub),work_sub_r(lat1,lon1)
+    real(r_kind) work_a_r(nlat,nlon)
+    real(r_single) work_b_r(nlon_regional*nlat_regional)
+
+    real(r_kind) work_l(itotsub),work_sub_l(lat1,lon1)
+    real(r_kind) work_a_l(nlat,nlon)
+    real(r_single) work_b_l(nlon_regional*nlat_regional)
+
+    real(r_single) work_b_frain(nlon_regional*nlat_regional)
+    real(r_single) work_b_fice(nlon_regional*nlat_regional)
+    real(r_single) work_b_frimef(nlon_regional*nlat_regional)
+    real(r_single) qfs,qfi,qfr,qfw,f_rain,f_ice,f_rimef
+
+    mm1=mype+1
+
+    do i=1,lon1
+       do j=1,lat1
+          work_sub_s(j,i)=var_s(j+1,i+1)
+          work_sub_i(j,i)=var_i(j+1,i+1)
+          work_sub_r(j,i)=var_r(j+1,i+1)
+          work_sub_l(j,i)=var_l(j+1,i+1)
+       end do
+    end do
+    call mpi_gatherv(work_sub_s,ijn(mm1),mpi_rtype, &
+                           work_s,ijn,displs_g,mpi_rtype,mype_io,mpi_comm_world,ierror)
+    call mpi_gatherv(work_sub_i,ijn(mm1),mpi_rtype, &
+                           work_i,ijn,displs_g,mpi_rtype,mype_io,mpi_comm_world,ierror)
+    call mpi_gatherv(work_sub_r,ijn(mm1),mpi_rtype, &
+                           work_r,ijn,displs_g,mpi_rtype,mype_io,mpi_comm_world,ierror)
+    call mpi_gatherv(work_sub_l,ijn(mm1),mpi_rtype, &
+                           work_l,ijn,displs_g,mpi_rtype,mype_io,mpi_comm_world,ierror)
+    if(mype==mype_io) then
+       do n=1,iglobal
+          i=ltosi(n)
+          j=ltosj(n)
+          work_a_s(i,j)=work_s(n)
+          work_a_i(i,j)=work_i(n)
+          work_a_r(i,j)=work_r(n)
+          work_a_l(i,j)=work_l(n)
+       end do
+
+       call nmmb_a_to_h(work_a_s,work_b_s)
+       call nmmb_a_to_h(work_a_i,work_b_i)
+       call nmmb_a_to_h(work_a_r,work_b_r)
+       call nmmb_a_to_h(work_a_l,work_b_l)
+
+!      if(trim(gridtype)=='V') call nmmb_a_to_v(work_a_t,work_b_i)
+!      if(trim(gridtype)=='V') call nmmb_a_to_v(work_a_i,work_b_i)
+!      if(trim(gridtype)=='V') call nmmb_a_to_v(work_a_r,work_b_r)
+!      if(trim(gridtype)=='V') call nmmb_a_to_v(work_a_l,work_b_l)
+
+!      if(add_saved) work_b_t=work_b_t+work_saved_t
+!      if(add_saved) work_b_i=work_b_i+work_saved_i
+!      if(add_saved) work_b_r=work_b_r+work_saved_r
+!      if(add_saved) work_b_l=work_b_l+work_saved_l
+       do n=1,nlon_regional*nlat_regional
+             qfs=work_b_s(n)
+           qfi=work_b_i(n)
+           qfr=work_b_r(n)
+           qfw=work_b_l(n)
+           call variable2fractionnew(qfs, qfi, qfr, qfw, f_ice, f_rain,f_rimef)
+           work_b_frain(n)=f_rain
+           work_b_fice(n)=f_ice
+           work_b_frimef(n)=f_rimef
+!          work_b_frain(n)=qfr
+!          work_b_fice(n)=qfw
+       end do
+
+       call nemsio_writerecv(gfile,trim(varname_frain),trim(vartype),lev,work_b_frain,iret=iret)
+       call nemsio_writerecv(gfile,trim(varname_fice),trim(vartype),lev,work_b_fice,iret=iret)
+       call nemsio_writerecv(gfile,trim(varname_frimef),trim(vartype),lev,work_b_frimef,iret=iret)
+
+       if(iret/=0) then
+          write(6,*)'  problem writing varname=',trim(varname_frain),', vartype=',trim(vartype),', Status = ',iret
+          call stop2(74)
+       end if
+    end if
+
+  end subroutine gsi_nemsio_write_fractionnew
+  Subroutine fraction2variablenew(f_ice,f_rain,f_rimef, wc, qi,qs,qr,qw)
+
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:  gsdcloudanalysis      driver for generalized cloud/hydrometeor
+! analysis
+!
+!   PRGMMR: Ting Lei          ORG: EMC/NCEP        DATE: 2016
+!
+! ABSTRACT:
+!  This subroutine convert fraction to qi, qs, qr, qw exactly
+!  following their theorectical formula in NMMB ferrier-Algo scheme 
+!  and, the exact physical meaning of qi, qs, qr, qw are not considerred
+!  and are only used as the intermidiate variables
+!
+! PROGRAM HISTORY LOG:
+!   input argument list:
+!     mype     - processor ID that does this IO
+!
+!   output argument list:
+!
+! USAGE:
+!   INTPUT:
+!     wc: summation of qi, qr and qw 
+!     f_ice     -  fraction of condensate in form of ice
+!     f_rain    -  fraction of liquid water in form of rain
+!     f_rimef   -  ratio of total ice growth to deposition groth
+!   OUTPUT
+!     qi    -  
+!     qs    -  
+!     qr    -  
+!     qw    -  
+!clt CW=QC+QR+QS
+!    QS=F_ICE*CW
+!   QR=F_RAIN*(1-F_ICE)*CW
+!   QC=(1-F_RAIN)*(1-F_ICE)*CW
+!   QG(qi in the above)=QS*F_RIMEF
+!
+!
+! REMARKS:
+!
+! ATTRIBUTES:
+!   LANGUAGE: FORTRAN 90
+!   MACHINE:  WCOSS at NOAA/ESRL - college park, DC
+!
+!$$$
+
+ use kinds, only: r_kind,r_single
+
+   real(r_single)  qi,qs, qr, qw, wc
+   real(r_single) f_ice, f_rain,f_rimef
+   real(r_single) onemf_ice, onemf_rain
+    
+   onemf_ice=1.0_r_single-f_ice
+   onemf_rain=1.0_r_single-f_rain
+   
+   if(wc > 0.0_r_single) then
+
+     if(f_ice>1.0_r_single) f_ice=1.0_r_single
+     if(f_ice<0.0_r_single) f_ice=0.0_r_single
+     if(f_rain>1.0_r_single) f_rain=1.0_r_single
+     if(f_rain<0.0_r_single) f_rain=0.0_r_single
+     qs=f_ice*wc
+     qr=f_rain*onemf_ice*wc
+     qw=onemf_rain*onemf_ice*wc
+     qi=qs*f_rimef
+else
+   qi=0.0_r_single; qs=0.0_r_single; qr=0.0_r_single; qw=0.0_r_single
+   end if
+
+  end subroutine fraction2variablenew
+  subroutine variable2fractionnew( qs,qi, qr, qw, f_ice, f_rain,f_rimef)
+!clt modified from variable2fraction, see explanation in fration2variablenew
+
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:  gsdcloudanalysis      driver for generalized cloud/hydrometeor analysis
+!
+!   PRGMMR: Ting Lei          ORG: EMC/NCEP        DATE: 2016
+!
+! ABSTRACT:
+!  This subroutine qi qr qw and qs  to fraction
+!  following their theorectical formula in NMMB ferrier-Algo scheme 
+!  and, the exact physical meaning of qi, qs, qr, qw are not considerred
+!  and are only used as the intermidiate variables
+!
+! PROGRAM HISTORY LOG:
+!
+!
+!   input argument list:
+!     mype     - processor ID that does this IO
+!
+!   output argument list:
+!
+! USAGE:
+!   INPUT
+!     qi    -  
+!     qi    -  
+!     qr    -
+!     qw    -  
+!   OUTPUT:
+!     f_ice     -  fraction of condensate in form of ice
+!     f_rain    -  fraction of liquid water in form of rain
+!     f_rimef   -  ratio of total ice growth to deposition groth
+!
+!
+! REMARKS:
+!
+! ATTRIBUTES:
+!   LANGUAGE: FORTRAN 90
+!   MACHINE:  WCOSS at NOAA/ESRL - college park, DC
+!
+!$$$
+
+ use kinds, only: r_kind,r_single
+
+   real(r_single)  qi, qr, qw, wc, dum
+   real(r_single)  qs 
+   real(r_single) f_ice, f_rain,f_rimef
+   real(r_single),parameter:: epsq=1.e-12_r_single
+   real(r_single) onemf_ice
+
+   wc=qs+qr+qw
+   if(wc > 0.0_r_single) then
+     if(qs<epsq)then 
+           f_ice=0.0_r_single
+     else 
+           dum=qs/wc
+           if(dum<1.0_r_single) then
+             f_ice=dum
+           else
+             f_ice=1.0_r_single
+           end if
+     end if
+     onemf_ice=1.0_r_single-f_ice
+     if(qr < epsq) then
+           f_rain=0.0_r_single
+     else
+            dum=qr/(onemf_ice*wc)
+           if(dum<1.0_r_single) then
+             f_rain=dum
+           else
+             f_rain=1.0_r_single
+            endif
+     end if
+     if(qi< epsq) then
+           f_rimef=1.0_r_single
+      else
+           if(qs>epsq) then
+           f_rimef=min(qi/qs,50.0_r_single) 
+           else
+           f_rimef=1.0_r_single !cltthinkdeb
+          endif
+       
+    endif
+        
+
+
+   else
+           f_rain=0.0_r_single
+           f_ice=0.0_r_single
+           f_rimef=1.0_r_single
+   end if
+
+  end subroutine variable2fractionnew
+
+
 end module gsi_nemsio_mod
