@@ -44,6 +44,7 @@ cmake_minimum_required(VERSION 2.8)
    "${CMAKE_CURRENT_SOURCE_DIR}/setupaod.f90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/setuprad.f90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/general_read_nmmb.f90" 
+   "${CMAKE_CURRENT_SOURCE_DIR}/general_read_nmmb_radar.f90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/get_nmmb_ensperts.f90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90" 
    "${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90")

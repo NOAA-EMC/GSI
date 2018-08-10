@@ -12,6 +12,7 @@ subroutine ensctl2state(xhat,mval,eval)
 !   2013-10-28  todling - rename p3d to prse 
 !   2013-11-22  kleist - add option for q perturbations
 !   2014-12-03  derber   - introduce parallel regions for optimization
+!   2017-05-12  Y. Wang and X. Wang - add w as state variable for rw DA, POC: xuguang.wang@ou.edu
 !
 !   input argument list:
 !     xhat - Control variable
@@ -44,6 +45,8 @@ use mod_strong, only: tlnmc_option
 use cwhydromod, only: cw2hydro_tl
 use cwhydromod, only: cw2hydro_tl_hwrf
 use timermod, only: timer_ini,timer_fnl
+use control_vectors, only : w_exist
+use gridmod, only: wrf_mass_regional,nems_nmmb_regional
 implicit none
 
 ! Declare passed variables
@@ -74,7 +77,7 @@ logical :: ls_u,ls_v,ls_prse,ls_q,ls_tsen,ls_ql,ls_qi
 logical :: ls_qr,ls_qs,ls_qg,ls_qh
 real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst
 real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_prse,sv_q,sv_tsen,sv_tv,sv_oz
-real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
+real(r_kind),pointer,dimension(:,:,:) :: sv_rank3,sv_w,sv_dw
 
 logical :: do_getprs_tl,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,lstrong_bk_vars
 logical :: do_tlnmc,do_q_copy
@@ -224,9 +227,21 @@ do jj=1,ntlevs_ens
 !  Get pointers to required state variables
    call gsi_bundlegetpointer (eval(jj),'oz'  ,sv_oz , istatus)
    call gsi_bundlegetpointer (eval(jj),'sst' ,sv_sst, istatus)
+   if(w_exist)then
+     call gsi_bundlegetpointer (eval(jj),'w' ,sv_w, istatus)
+     if(nems_nmmb_regional)then
+        call gsi_bundlegetpointer (eval(jj),'dw' ,sv_dw, istatus)
+     end if
+   end if
 !  Copy variables
    call gsi_bundlegetvar ( wbundle_c, 'oz' , sv_oz,  istatus )
    call gsi_bundlegetvar ( wbundle_c, 'sst', sv_sst, istatus )
+   if(w_exist)then
+      call gsi_bundlegetvar ( wbundle_c, 'w' , sv_w,  istatus )
+      if(nems_nmmb_regional)then
+         call gsi_bundlegetvar ( wbundle_c, 'dw' , sv_dw,  istatus )
+      end if
+   end if
 
 !$omp end parallel sections
 

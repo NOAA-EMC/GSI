@@ -137,7 +137,7 @@ module gridmod
   public :: cp5,idvm5,ncepgfs_head,idpsfc5,nlon_sfc,nlat_sfc
   public :: rlons_sfc,rlats_sfc,jlon1,ilat1,periodic_s,latlon1n1
   public :: nsig2,wgtlats,corlats,rbs2,ncepgfs_headv,regional_time
-  public :: regional_fhr,region_dyi,coeffx,region_dxi,coeffy,nsig_hlf
+  public :: regional_fhr,region_dyi,coeffx,region_dxi,coeffy,nsig_hlf,regional_fmin
   public :: nlat_regional,nlon_regional,update_regsfc,half_grid,gencode
   public :: diagnostic_reg,nmmb_reference_grid,filled_grid
   public :: grid_ratio_nmmb,isd_g,isc_g,dx_gfs,lpl_gfs,nsig5,nmmb_verttype
@@ -308,7 +308,7 @@ module gridmod
   real(r_kind) dt_ll,pdtop_ll,pt_ll
 
   integer(i_kind) nlon_regional,nlat_regional
-  real(r_kind) regional_fhr
+  real(r_kind) regional_fhr,regional_fmin
   integer(i_kind) regional_time(6)
   integer(i_kind) jcap_gfs,nlat_gfs,nlon_gfs
 
@@ -1419,7 +1419,7 @@ contains
        write(filename,'("sigf",i2.2)') ihrmid
        open(lendian_in,file=filename,form='unformatted')
        rewind lendian_in
-       read(lendian_in) regional_time,regional_fhr,nlon_regional,nlat_regional,nsig, &
+       read(lendian_in) regional_time,regional_fhr,regional_fmin,nlon_regional,nlat_regional,nsig, &
                    dlmd,dphd,pt,pdtop,nmmb_verttype
  
        if(diagnostic_reg.and.mype==0) then
