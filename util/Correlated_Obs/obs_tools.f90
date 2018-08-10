@@ -4,21 +4,22 @@
 
 module obs_tools
 
-use kinds, only: r_kind
+use kinds, only: r_kind,i_kind
 
 implicit none
-public:: dist
+public:: cdist
 public:: get_filename
 
 contains
 
-real function dist (po1, po2)
+subroutine cdist(po1,po2,dist)
 !This function takes two points, whose positions are specified by a latitude and
 !longitude, and computes the distance, in km, between the two by converting to
 !cartesian coordinates
 use constants, only: rad, pi
 implicit none
 real(r_kind),dimension(2),intent(in):: po1,po2       !the two points, given by (lat,lon)
+real(r_kind), intent(out):: dist
 real(r_kind):: x1,y1,z1, x2, y2, z2                   !cartesian coordinates
 real(r_kind)::d1
 real(r_kind):: sinphi1, cosphi1, costhe1, sinthe1    !trig functions related to po1
@@ -26,10 +27,10 @@ real(r_kind):: sinphi2, cosphi2, costhe2,sinthe2     !trig functions related to 
 real(r_kind),dimension(2):: p1, p2                   !manipulations on po1 and po2
 
 
-p1(1)=(90.0d0-po1(1))*pi/180.0d0 !phi
-p2(1)=(90.0d0-po2(1))*pi/180.0d0 !phi
-p1(2)=po1(2)*pi/180.0d0 !theta
-p2(2)=po2(2)*pi/180.0d0 !theta
+p1(1)=(90.0_r_kind-po1(1))*pi/180.0_r_kind !phi
+p2(1)=(90.0_r_kind-po2(1))*pi/180.0_r_kind !phi
+p1(2)=po1(2)*pi/180.0_r_kind !theta
+p2(2)=po2(2)*pi/180.0_r_kind !theta
 
 sinphi1=sin(p1(1))
 sinphi2=sin(p2(1))
@@ -49,7 +50,7 @@ z2=cosphi2
 
 d1=(x1-x2)**2+(y1-y2)**2+(z1-z2)**2
 dist=rad*sqrt(d1)
-end function dist
+end subroutine cdist
 
 
 subroutine get_filename(T,ext,filename)
@@ -60,8 +61,8 @@ implicit none
 integer,intent(in):: T                  !Time step of diag file to be read in
 character(5),intent(in)::ext            !specifies either anl or ges diag file
 character(9),intent(out):: filename 
-real:: tem
-integer:: t1i,t2i,t3i, t4i
+real(r_kind):: tem
+integer(i_kind):: t1i,t2i,t3i, t4i
 character(1)::t1,t2,t3, t4
 
 tem=T/1000

@@ -11,6 +11,7 @@ MODULE RadDiag_Define
   ! -----------------
   ! Module usage
   USE RadDiag_Hdr_Define , ONLY: RadDiag_Hdr_Scalar_type  , &
+                                 RadDiag_Hdr_Scalar_type_30303 , &
                                  RadDiag_Hdr_Channel_type , &
                                  RadDiag_Hdr_type         , &
                                  RadDiag_Hdr_Associated   , &
@@ -24,9 +25,12 @@ MODULE RadDiag_Define
                                  RadDiag_Data_Scalar_type  , &
                                  RadDiag_Data_Channel_type , &
                                  RadDiag_Data_type         , &
+                                 RadDiag_Data_type_30303   , &
                                  RadDiag_Data_Associated   , &
                                  RadDiag_Data_Destroy      , &
+                                 RadDiag_Data_Destroy_30303, &
                                  RadDiag_Data_Create       , &
+                                 RadDiag_Data_Create_30303 , &
                                  RadDiag_Data_Inspect      , &
                                  RadDiag_Data_DefineVersion
   ! Disable implicit typing
@@ -41,6 +45,7 @@ MODULE RadDiag_Define
   ! RadDiag_Hdr entities
   ! ...Datatypes
   PUBLIC :: RadDiag_Hdr_Scalar_type
+  PUBLIC :: RadDiag_Hdr_Scalar_type_30303
   PUBLIC :: RadDiag_Hdr_Channel_type
   PUBLIC :: RadDiag_Hdr_type
   ! ...Procedures
@@ -58,10 +63,13 @@ MODULE RadDiag_Define
   PUBLIC :: RadDiag_Data_Scalar_type
   PUBLIC :: RadDiag_Data_Channel_type
   PUBLIC :: RadDiag_Data_type
+  PUBLIC :: RadDiag_Data_type_30303
   ! ...Procedures
   PUBLIC :: RadDiag_Data_Associated
   PUBLIC :: RadDiag_Data_Destroy
+  PUBLIC :: RadDiag_Data_Destroy_30303
   PUBLIC :: RadDiag_Data_Create
+  PUBLIC :: RadDiag_Data_Create_30303
   PUBLIC :: RadDiag_Data_Inspect
   PUBLIC :: RadDiag_Data_DefineVersion
   ! RadDiag entities

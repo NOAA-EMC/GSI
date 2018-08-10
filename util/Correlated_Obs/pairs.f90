@@ -4,8 +4,8 @@
 !5-2015
 module pairs
 
-use kinds, only: r_kind
-use obs_tools, only: dist
+use kinds, only: r_kind,i_kind
+use obs_tools, only: cdist
 use constants, only: five
 implicit none
 public :: make_pairs
@@ -25,11 +25,11 @@ real(r_kind),dimension(:,:),intent(in)::ges_locs !locations of background omg's 
 real(r_kind),dimension(:),intent(in):: ges_times !times of background omg's (minutes)
 real(r_kind), intent(in):: time_threshold        !minutes, max time between the omg's
 real(r_kind), intent(in):: dist_threshold        !km, max distance between the omg's
-integer, dimension(:), intent(out):: obs_pairs                 !indicies of ges that correspond to pairs
-integer,intent(in):: Tg                          !length of ges
-integer,intent(out):: n_pair                     !number of pairs found
+integer(i_kind), dimension(:), intent(out):: obs_pairs   !indicies of ges that correspond to pairs
+integer(i_kind),intent(in):: Tg                          !length of ges
+integer(i_kind),intent(out):: n_pair                     !number of pairs found
 real(r_kind),dimension(2):: p1,p2
-integer:: g
+integer(i_kind):: g
 real(r_kind):: d1
 real(r_kind)::dt
 obs_pairs=0
@@ -39,7 +39,7 @@ do g=1,Tg
    if (dt<=time_threshold) then
       p1=ges_locs(g,:)
       p2=anl_loc(:)
-      d1=dist(p1,p2)
+      call cdist(p1,p2,d1)
       if (d1<=dist_threshold) then
          n_pair=n_pair+1
          obs_pairs(n_pair)=g
@@ -60,14 +60,14 @@ real(r_kind), dimension(:,:), intent(in):: ges_locs
 real(r_kind), dimension(:), intent(in):: current_loc
 real(r_kind), dimension(:), intent(in):: ges_times
 real(r_kind), intent(in):: current_time
-integer, intent(in):: Tg
+integer(i_kind), intent(in):: Tg
 real(r_kind), dimension(:), intent(in):: dist_threshold
-integer, intent(in):: num_bins
+integer(i_kind), intent(in):: num_bins
 real(r_kind), intent(in):: time_threshold  !minutes, max time between the omg's
-integer, dimension(:,:), intent(out):: obs_pairs
-integer, dimension(:), intent(out):: n_pair
+integer(i_kind), dimension(:,:), intent(out):: obs_pairs
+integer(i_kind), dimension(:), intent(out):: n_pair
 real(r_kind),dimension(2):: p1,p2
-integer:: g, dis
+integer(i_kind):: g, dis
 real(r_kind):: d1
 real(r_kind)::dt
 
@@ -78,7 +78,7 @@ do g=1,Tg
    if (dt<=time_threshold) then
       p1=ges_locs(g,:)
       p2=current_loc(:)
-      d1=dist(p1,p2)
+      call cdist(p1,p2,d1)
       do dis=1,num_bins,2
          if (dis==1) then
             if((d1<=dist_threshold(dis))) then

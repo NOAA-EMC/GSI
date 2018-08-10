@@ -17,7 +17,7 @@ MODULE RadDiag_Data_Define
   ! -----------------
   ! Module usage
   USE Message_Handler, ONLY: FAILURE, SUCCESS, INFORMATION, Display_Message
-  USE kinds, only: sp=>r_kind
+  USE kinds, only: r_radstat
   ! Disable implicit typing
   IMPLICIT NONE
 
@@ -34,10 +34,13 @@ MODULE RadDiag_Data_Define
   PUBLIC :: RadDiag_Data_Scalar_type
   PUBLIC :: RadDiag_Data_Channel_type
   PUBLIC :: RadDiag_Data_type
+  PUBLIC :: RadDiag_Data_type_30303
   ! Procedures
   PUBLIC :: RadDiag_Data_Associated
   PUBLIC :: RadDiag_Data_Destroy
+  PUBLIC :: RadDiag_Data_Destroy_30303
   PUBLIC :: RadDiag_Data_Create
+  PUBLIC :: RadDiag_Data_Create_30303
   PUBLIC :: RadDiag_Data_Inspect
   PUBLIC :: RadDiag_Data_DefineVersion
 
@@ -49,7 +52,7 @@ MODULE RadDiag_Data_Define
   INTEGER, PARAMETER :: RADDIAG_N_CHELEMENTS = 7  ! Number of channel elements
   INTEGER, PARAMETER :: RADDIAG_N_PRELEMENTS = 5  ! Number of bias correction terms
   ! Literal constants
-  REAL, PARAMETER :: ZERO = 0.0_sp
+  REAL, PARAMETER :: ZERO = 0.0_r_radstat
   ! Version Id for the module
   CHARACTER(*), PARAMETER :: MODULE_VERSION_ID = &
   '$Id: RadDiag_Data_Define.f90 9040 2010-07-29 17:01:49Z Michael.Lueken@noaa.gov $'
@@ -60,64 +63,89 @@ MODULE RadDiag_Data_Define
   ! -------------------------
   ! Scalar part of data
   TYPE :: RadDiag_Data_Scalar_type
-    REAL(sp) :: lat        = ZERO  ! latitude (deg)
-    REAL(sp) :: lon        = ZERO  ! longitude (deg)
-    REAL(sp) :: zsges      = ZERO  ! guess elevation at obs location (m)
-    REAL(sp) :: obstime    = ZERO  ! observation time relative to analysis
-    REAL(sp) :: senscn_pos = ZERO  ! sensor scan position (integer)
-    REAL(sp) :: satzen_ang = ZERO  ! satellite zenith angle (deg)
-    REAL(sp) :: satazm_ang = ZERO  ! satellite azimuth angle (deg)
-    REAL(sp) :: solzen_ang = ZERO  ! solar zenith angle (deg)
-    REAL(sp) :: solazm_ang = ZERO  ! solar azimumth angle (deg)
-    REAL(sp) :: sungln_ang = ZERO  ! sun glint angle (deg)
-    REAL(sp) :: water_frac = ZERO  ! fractional coverage by water
-    REAL(sp) :: land_frac  = ZERO  ! fractional coverage by land
-    REAL(sp) :: ice_frac   = ZERO  ! fractional coverage by ice
-    REAL(sp) :: snow_frac  = ZERO  ! fractional coverage by snow
-    REAL(sp) :: water_temp = ZERO  ! surface temperature over water (K)
-    REAL(sp) :: land_temp  = ZERO  ! surface temperature over land (K)
-    REAL(sp) :: ice_temp   = ZERO  ! surface temperature over ice (K)
-    REAL(sp) :: snow_temp  = ZERO  ! surface temperature over snow (K)
-    REAL(sp) :: soil_temp  = ZERO  ! soil temperature (K)
-    REAL(sp) :: soil_mois  = ZERO  ! soil moisture 
-    REAL(sp) :: land_type  = ZERO  ! land type (integer)
-    REAL(sp) :: veg_frac   = ZERO  ! vegetation fraction
-    REAL(sp) :: snow_depth = ZERO  ! snow depth
-    REAL(sp) :: sfc_wndspd = ZERO  ! surface wind speed
-    REAL(sp) :: qcdiag1    = ZERO  ! ir=cloud fraction, mw=cloud liquid water
-    REAL(sp) :: qcdiag2    = ZERO  ! ir=cloud top pressure, mw=total column water
-    REAL(sp) :: tref       = ZERO  ! reference temperature
-    REAL(sp) :: dtw        = ZERO  ! diurnal warming: d(Tw) at depth zob
-    REAL(sp) :: dtc        = ZERO  ! sub-layer cooling: d(Tc) at depth zob
-    REAL(sp) :: tz_tr      = ZERO  ! d(Tz)/d(Tr)
+    REAL(r_radstat) :: lat        = ZERO  ! latitude (deg)
+    REAL(r_radstat) :: lon        = ZERO  ! longitude (deg)
+    REAL(r_radstat) :: zsges      = ZERO  ! guess elevation at obs location (m)
+    REAL(r_radstat) :: obstime    = ZERO  ! observation time relative to analysis
+    REAL(r_radstat) :: senscn_pos = ZERO  ! sensor scan position (integer)
+    REAL(r_radstat) :: satzen_ang = ZERO  ! satellite zenith angle (deg)
+    REAL(r_radstat) :: satazm_ang = ZERO  ! satellite azimuth angle (deg)
+    REAL(r_radstat) :: solzen_ang = ZERO  ! solar zenith angle (deg)
+    REAL(r_radstat) :: solazm_ang = ZERO  ! solar azimumth angle (deg)
+    REAL(r_radstat) :: sungln_ang = ZERO  ! sun glint angle (deg)
+    REAL(r_radstat) :: water_frac = ZERO  ! fractional coverage by water
+    REAL(r_radstat) :: land_frac  = ZERO  ! fractional coverage by land
+    REAL(r_radstat) :: ice_frac   = ZERO  ! fractional coverage by ice
+    REAL(r_radstat) :: snow_frac  = ZERO  ! fractional coverage by snow
+    REAL(r_radstat) :: water_temp = ZERO  ! surface temperature over water (K)
+    REAL(r_radstat) :: land_temp  = ZERO  ! surface temperature over land (K)
+    REAL(r_radstat) :: ice_temp   = ZERO  ! surface temperature over ice (K)
+    REAL(r_radstat) :: snow_temp  = ZERO  ! surface temperature over snow (K)
+    REAL(r_radstat) :: soil_temp  = ZERO  ! soil temperature (K)
+    REAL(r_radstat) :: soil_mois  = ZERO  ! soil moisture 
+    REAL(r_radstat) :: land_type  = ZERO  ! land type (integer)
+    REAL(r_radstat) :: veg_frac   = ZERO  ! vegetation fraction
+    REAL(r_radstat) :: snow_depth = ZERO  ! snow depth
+    REAL(r_radstat) :: sfc_wndspd = ZERO  ! surface wind speed
+    REAL(r_radstat) :: qcdiag1    = ZERO  ! ir=cloud fraction, mw=cloud liquid water
+    REAL(r_radstat) :: qcdiag2    = ZERO  ! ir=cloud top pressure, mw=total column water
+    REAL(r_radstat) :: tref       = ZERO  ! reference temperature
+    REAL(r_radstat) :: dtw        = ZERO  ! diurnal warming: d(Tw) at depth zob
+    REAL(r_radstat) :: dtc        = ZERO  ! sub-layer cooling: d(Tc) at depth zob
+    REAL(r_radstat) :: tz_tr      = ZERO  ! d(Tz)/d(Tr)
   END TYPE RadDiag_Data_Scalar_type
 
   ! Channel dependent part of data
   TYPE :: RadDiag_Data_Channel_type
-    REAL(sp) :: tbobs  = ZERO  ! Tb (obs) (K)
-    REAL(sp) :: omgbc  = ZERO  ! Tb_(obs) - Tb_(simulated w/ bc)  (K)
-    REAL(sp) :: omgnbc = ZERO  ! Tb_(obs) - Tb_(simulated_w/o bc) (K)
-    REAL(sp) :: errinv = ZERO  ! inverse error (K**(-1))
-    REAL(sp) :: qcmark = ZERO  ! quality control mark
-    REAL(sp) :: emiss  = ZERO  ! surface emissivity
-    REAL(sp) :: tlap   = ZERO  ! temperature lapse rate
-    REAL(sp) :: tb_tz  = ZERO  ! sst temperature gradient
-    REAL(sp) :: bicons = ZERO  ! bias constant term
-    REAL(sp) :: bicoss = ZERO  ! bias cosine of scan angle term
-    REAL(sp) :: biclw  = ZERO  ! bias clw term
-    REAL(sp) :: bilap2 = ZERO  ! bias lapse rate squared term
-    REAL(sp) :: bilap  = ZERO  ! bias lapse rate term
-    REAL(sp) :: bicos  = ZERO  ! bias cosine of solar zenith term
-    REAL(sp) :: bisin  = ZERO  ! bias sin of solar zenith term
-    REAL(sp) :: biem   = ZERO  ! bias emissivity term
-    REAL(sp) :: biang  = ZERO  ! bias scan angle terms
-    REAL(sp) :: biang2 = ZERO
-    REAL(sp) :: biang3 = ZERO
-    REAL(sp) :: biang4 = ZERO
-    REAL(sp) :: biang5 = ZERO
-    REAL(sp) :: bisst  = ZERO  ! bias sst term
+    REAL(r_radstat) :: tbobs  = ZERO  ! Tb (obs) (K)
+    REAL(r_radstat) :: omgbc  = ZERO  ! Tb_(obs) - Tb_(simulated w/ bc)  (K)
+    REAL(r_radstat) :: omgnbc = ZERO  ! Tb_(obs) - Tb_(simulated_w/o bc) (K)
+    REAL(r_radstat) :: errinv = ZERO  ! inverse error (K**(-1))
+    REAL(r_radstat) :: qcmark = ZERO  ! quality control mark
+    REAL(r_radstat) :: emiss  = ZERO  ! surface emissivity
+    REAL(r_radstat) :: tlap   = ZERO  ! temperature lapse rate
+    REAL(r_radstat) :: tb_tz  = ZERO  ! sst temperature gradient
+    REAL(r_radstat) :: bicons = ZERO  ! bias constant term
+    REAL(r_radstat) :: bicoss = ZERO  ! bias cosine of scan angle term
+    REAL(r_radstat) :: biclw  = ZERO  ! bias clw term
+    REAL(r_radstat) :: bilap2 = ZERO  ! bias lapse rate squared term
+    REAL(r_radstat) :: bilap  = ZERO  ! bias lapse rate term
+    REAL(r_radstat) :: bicos  = ZERO  ! bias cosine of solar zenith term
+    REAL(r_radstat) :: bisin  = ZERO  ! bias sin of solar zenith term
+    REAL(r_radstat) :: biem   = ZERO  ! bias emissivity term
+    REAL(r_radstat) :: biang  = ZERO  ! bias scan angle terms
+    REAL(r_radstat) :: biang2 = ZERO
+    REAL(r_radstat) :: biang3 = ZERO
+    REAL(r_radstat) :: biang4 = ZERO
+    REAL(r_radstat) :: biang5 = ZERO
+    REAL(r_radstat) :: bisst  = ZERO  ! bias sst term
+    REAL(r_radstat) :: sprd   = ZERO  ! ensemble spread
   END TYPE RadDiag_Data_Channel_type
 
+  TYPE :: RadDiag_Data_Channel_type_30303
+    REAL(r_radstat) :: tbobs  = ZERO  ! Tb (obs) (K)
+    REAL(r_radstat) :: omgbc  = ZERO  ! Tb_(obs) - Tb_(simulated w/ bc)  (K)
+    REAL(r_radstat) :: omgnbc = ZERO  ! Tb_(obs) - Tb_(simulated_w/o bc) (K)
+    REAL(r_radstat) :: errinv = ZERO  ! inverse error (K**(-1))
+    REAL(r_radstat) :: qcmark = ZERO  ! quality control mark
+    REAL(r_radstat) :: emiss  = ZERO  ! surface emissivity
+    REAL(r_radstat) :: tlap   = ZERO  ! temperature lapse rate
+    REAL(r_radstat) :: tb_tz  = ZERO  ! sst temperature gradient
+    REAL(r_radstat) :: bicons = ZERO  ! bias constant term
+    REAL(r_radstat) :: bicoss = ZERO  ! bias cosine of scan angle term
+    REAL(r_radstat) :: biclw  = ZERO  ! bias clw term
+    REAL(r_radstat) :: bilap2 = ZERO  ! bias lapse rate squared term
+    REAL(r_radstat) :: bilap  = ZERO  ! bias lapse rate term
+    REAL(r_radstat) :: bicos  = ZERO  ! bias cosine of solar zenith term
+    REAL(r_radstat) :: bisin  = ZERO  ! bias sin of solar zenith term
+    REAL(r_radstat) :: biem   = ZERO  ! bias emissivity term
+    REAL(r_radstat) :: biang  = ZERO  ! bias scan angle terms
+    REAL(r_radstat) :: biang2 = ZERO
+    REAL(r_radstat) :: biang3 = ZERO
+    REAL(r_radstat) :: biang4 = ZERO
+    REAL(r_radstat) :: biang5 = ZERO
+    REAL(r_radstat) :: bisst  = ZERO  ! bias sst term
+  END TYPE RadDiag_Data_Channel_type_30303
   ! The complete data structure
   TYPE :: RadDiag_Data_type
     INTEGER :: n_Channels  = 0  ! Structure dimensions
@@ -125,7 +153,10 @@ MODULE RadDiag_Data_Define
     TYPE(RadDiag_Data_Channel_type), ALLOCATABLE :: Channel(:)
   END TYPE RadDiag_Data_type
 
-
+  TYPE :: RadDiag_Data_type_30303
+    INTEGER :: n_Channels  = 0  ! Structure dimensions
+    TYPE(RadDiag_Data_Channel_type_30303), ALLOCATABLE :: Channel(:)
+  END TYPE RadDiag_Data_type_30303
 CONTAINS
 
 
@@ -199,8 +230,12 @@ CONTAINS
 
   ELEMENTAL SUBROUTINE RadDiag_Data_Destroy( RadDiag_Data )
     TYPE(RadDiag_Data_type), INTENT(OUT) :: RadDiag_Data
+    if (allocated(RadDiag_Data%Channel)) deallocate(RadDiag_Data%Channel)
   END SUBROUTINE RadDiag_Data_Destroy
-  
+  ELEMENTAL SUBROUTINE RadDiag_Data_Destroy_30303( RadDiag_Data_30303 )
+    TYPE(RadDiag_Data_type_30303), INTENT(OUT) :: RadDiag_Data_30303
+    if (allocated(RadDiag_Data_30303%Channel)) deallocate(RadDiag_Data_30303%Channel)
+  END SUBROUTINE RadDiag_Data_Destroy_30303 
 
 !--------------------------------------------------------------------------------
 !:sdoc+:
@@ -254,6 +289,27 @@ CONTAINS
 
   END SUBROUTINE RadDiag_Data_Create
   
+  ELEMENTAL SUBROUTINE RadDiag_Data_Create_30303( &
+    RadDiag_Data_30303, &  ! Output
+    n_Channels   )  ! Input
+    ! Arguments
+    TYPE(RadDiag_Data_type_30303), INTENT(OUT) :: RadDiag_Data_30303
+    INTEGER,                INTENT(IN)  :: n_Channels
+    ! Local variables
+    INTEGER :: alloc_stat
+
+    ! Check input
+    IF ( n_Channels < 1 ) RETURN
+
+    ! Perform the allocation
+    ALLOCATE( RadDiag_Data_30303%Channel(n_Channels), &
+              STAT = alloc_stat )
+    IF ( alloc_stat /= 0 ) RETURN
+
+    ! Initialise dimensions
+    RadDiag_Data_30303%n_Channels = n_Channels
+
+  END SUBROUTINE RadDiag_Data_Create_30303
   
 !--------------------------------------------------------------------------------
 !:sdoc+:
