@@ -22,6 +22,9 @@ subroutine jgrad(xhat,yhat,fjcost,gradx,lupdfgs,nprt,calledby)
 !                         where yobs is created and destroyed when and where it
 !                         is needed.
 !   2016-05-09  todling - allow increment to be written out at end of outer iter
+!   2018-08-10  guo     - removed obsHeadBundle references.
+!                       - replaced intjo() related implementations to a new
+!                         polymorphic implementation of intjpmod::intjo().
 !
 !$$$
 
@@ -49,15 +52,11 @@ use bias_predictors, only: predictors,allocate_preds,deallocate_preds,assignment
 use bias_predictors, only: update_bias_preds
 use intjomod, only: intjo
 use intjcmod, only: intjcdfi
-use intradmod, only: setrad
 use gsi_4dcouplermod, only: gsi_4dcoupler_grtests
 use xhat_vordivmod, only : xhat_vordiv_init, xhat_vordiv_calc, xhat_vordiv_clean
 use hybrid_ensemble_parameters,only : l_hyb_ens,ntlevs_ens
 use mpl_allreducemod, only: mpl_allreduce
 
-use m_obsHeadBundle, only: obsHeadBundle
-use m_obsHeadBundle, only: obsHeadBundle_create
-use m_obsHeadBundle, only: obsHeadBundle_destroy
 implicit none
 
 ! Declare passed variables
@@ -83,7 +82,6 @@ character(len=255)   :: seqcalls
 character(len=8)     :: xincfile
 real(r_quad),dimension(max(1,nrclen)) :: qpred
 
-type(obsHeadBundle),pointer,dimension(:):: yobs
 
 !**********************************************************************
 
@@ -158,14 +156,10 @@ do ii=1,nsubwin
    mval(ii)=zero
 end do
 
-call setrad(sval(1))
 qpred=zero_quad
 ! Compare obs to solution and transpose back to grid (H^T R^{-1} H)
-call obsHeadBundle_create(yobs,nobs_bins)
+call intjo(rval,qpred,sval,sbias)
 
-do ibin=1,size(yobs)    ! == nobs_bins
-   call intjo(yobs(ibin),rval(ibin),qpred,sval(ibin),sbias,ibin)
-end do
 ! Take care of background error for bias correction terms
 
 call mpl_allreduce(nrclen,qpvals=qpred)
@@ -181,8 +175,6 @@ if (ntclen>0) then
       rbias%predt(i)=rbias%predt(i)+qpred(nsclen+npclen+i)
    end do
 end if
-
-call obsHeadBundle_destroy(yobs)
 
 ! Evaluate Jo
 call evaljo(zjo,iobs,nprt,llouter)

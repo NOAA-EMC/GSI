@@ -12,6 +12,7 @@ module bias_predictors
 !   2012-07-13  todling - add read and write
 !   2013-05-21  zhu    - add aircraft temperature bias correction coefficients
 !   2014-02-07  todling - move bias preds update inside this module
+!   2018-08-10  guo     - added a []_getdim() interface.
 !
 ! subroutines included:
 !   sub setup_predictors
@@ -100,35 +101,35 @@ subroutine setup_predictors(krclen,ksclen,kpclen,ktclen)
   return
 end subroutine setup_predictors
 
-subroutine predictors_getdim(irclen,lrclen,nrclen, &
-                             isclen,lsclen,nsclen, &
-                             ipclen,lpclen,npclen, &
-                             itclen,ltclen,ntclen  )
+subroutine predictors_getdim(lbnd_r,ubnd_r,size_r, &
+                             lbnd_s,ubnd_s,size_s, &
+                             lbnd_p,ubnd_p,size_p, &
+                             lbnd_t,ubnd_t,size_t  )
   implicit none
-  integer(i_kind),optional,intent(out):: irclen,lrclen,nrclen
-  integer(i_kind),optional,intent(out):: isclen,lsclen,nsclen
-  integer(i_kind),optional,intent(out):: ipclen,lpclen,npclen
-  integer(i_kind),optional,intent(out):: itclen,ltclen,ntclen
+  integer(i_kind),optional,intent(out):: lbnd_r,ubnd_r,size_r
+  integer(i_kind),optional,intent(out):: lbnd_s,ubnd_s,size_s
+  integer(i_kind),optional,intent(out):: lbnd_p,ubnd_p,size_p
+  integer(i_kind),optional,intent(out):: lbnd_t,ubnd_t,size_t
 
-! total size of all predictors, (irclen:lrclen) == (1 : nrclen)
-  if(present(irclen)) irclen=1
-  if(present(lrclen)) lrclen=nrclen
-  if(present(nrclen)) nrclen=nrclen
+! total size of all predictors, (lbnd_r:ubnd_r) == (1 : size_r)
+  if(present(lbnd_r)) lbnd_r=1
+  if(present(ubnd_r)) ubnd_r=nrclen
+  if(present(size_r)) size_r=nrclen
 
-! size of rad predictors, (isclen:lsclen) == (1 : nsclen)
-  if(present(isclen)) isclen=1
-  if(present(lsclen)) lsclen=nsclen
-  if(present(nsclen)) nsclen=nsclen
+! size of rad predictors, (lbnd_s:ubnd_s) == (1 : size_s)
+  if(present(lbnd_s)) lbnd_s=1
+  if(present(ubnd_s)) ubnd_s=nsclen
+  if(present(size_s)) size_s=nsclen
 
-! size of q predictors, (ipclen:lpclen) == lsclen + (1:npclen)
-  if(present(ipclen)) ipclen=nsclen+1
-  if(present(lpclen)) lpclen=nsclen+npclen
-  if(present(npclen)) npclen=npclen
+! size of q predictors, (lbnd_p:ubnd_p) == ubnd_s + (1:size_p)
+  if(present(lbnd_p)) lbnd_p=nsclen+1
+  if(present(ubnd_p)) ubnd_p=nsclen+npclen
+  if(present(size_p)) size_p=npclen
 
-! size of t predictors, (itclen:ltclen) == lpclen+ (1:ntclen)
-  if(present(itclen)) itclen=nsclen+npclen+1
-  if(present(ltclen)) ltclen=nsclen+npclen+ntclen
-  if(present(ntclen)) ntclen=ntclen
+! size of t predictors, (lbnd_t:ubnd_t) == ubnd_p+ (1:size_t)
+  if(present(lbnd_t)) lbnd_t=nsclen+npclen+1
+  if(present(ubnd_t)) ubnd_t=nsclen+npclen+ntclen
+  if(present(size_t)) size_t=ntclen
 
 end subroutine predictors_getdim
 ! ----------------------------------------------------------------------

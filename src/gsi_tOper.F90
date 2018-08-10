@@ -1,5 +1,28 @@
 module gsi_tOper
-! a template for conv.obs. without bias correction
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:	 module gsi_tOper
+!   prgmmr:	 j guo <jguo@nasa.gov>
+!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 610.3
+!     date:	 2018-08-10
+!
+! abstract: an obOper extension for tNode type
+!
+! program history log:
+!   2018-08-10  j guo   - added this document block
+!
+!   input argument list: see Fortran 90 style document below
+!
+!   output argument list: see Fortran 90 style document below
+!
+! attributes:
+!   language: Fortran 90 and/or above
+!   machine:
+!
+!$$$  end subprogram documentation block
+
+! module interface:
+
   use gsi_obOper, only: obOper
   implicit none
   public:: tOper      ! data stracture
@@ -89,7 +112,7 @@ contains
 
     !----------------------------------------
     character(len=*),parameter:: myname_=myname//"::intjo1_"
-    integer(i_kind):: it,lt,nt
+    integer(i_kind):: i,l,n
     class(obsNode),pointer:: headNode
 
 ! Are the different calls to intt() with optional arguments realy needed? 
@@ -97,10 +120,10 @@ contains
 ! anyway.  Other logic is used to avoid accessing non-present rpred(:) and
 ! spred(:).
 
-    call predictors_getdim(itclen=it,ltclen=lt,ntclen=nt)
+    call predictors_getdim(lbnd_t=i,ubnd_t=l,size_t=n)
     headNode => obsLList_headNode(self%obsLL(ibin))
-    if(nt>0) then
-      call intjo(headNode, rval,sval, qpred(it:lt),sbias%predt)
+    if(n>0) then
+      call intjo(headNode, rval,sval, qpred(i:l),sbias%predt)
     else
       call intjo(headNode, rval,sval)
     endif
@@ -132,7 +155,7 @@ contains
     character(len=*),parameter:: myname_=myname//"::stpjo1_"
     class(obsNode),pointer:: headNode
     real(r_kind),pointer,dimension(:,:) :: dpred,xpred
-    integer(i_kind):: nt
+    integer(i_kind):: n
 
 ! Are the different calls to stpt() with optional arguments realy needed? 
 ! There is no checking of present(rpred) or present(spred) inside intt_()
@@ -140,12 +163,12 @@ contains
 ! spred(:).
 
     headNode => obsLList_headNode(self%obsLL(ibin))
-    call predictors_getdim(ntclen=nt)
-    if(nt==0 .or. .not. (aircraft_t_bc_pof .or. aircraft_t_bc)) then
+    call predictors_getdim(size_t=n)
+    if(n<=0 .or. .not. (aircraft_t_bc_pof .or. aircraft_t_bc)) then
       call stpjo(headNode,dval,xval,pbcjo(:),sges,nstep)
     else
-      dpred(1:npredt,1:ntail) => dbias%predt(1:nt)
-      xpred(1:npredt,1:ntail) => xbias%predt(1:nt)
+      dpred(1:npredt,1:ntail) => dbias%predt(1:n)
+      xpred(1:npredt,1:ntail) => xbias%predt(1:n)
       call stpjo(headNode,dval,xval,pbcjo(:),sges,nstep,dpred,xpred)
       dpred => null()
       xpred => null()

@@ -1,4 +1,28 @@
 module gsi_radOper
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:	 module gsi_radOper
+!   prgmmr:	 j guo <jguo@nasa.gov>
+!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 610.3
+!     date:	 2018-08-10
+!
+! abstract: an obOper extension for radNode type
+!
+! program history log:
+!   2018-08-10  j guo   - added this document block for initial implementation
+!
+!   input argument list: see Fortran 90 style document below
+!
+!   output argument list: see Fortran 90 style document below
+!
+! attributes:
+!   language: Fortran 90 and/or above
+!   machine:
+!
+!$$$  end subprogram documentation block
+
+! module interface:
+
   use gsi_obOper, only: obOper
   implicit none
   public:: radOper      ! data stracture
@@ -95,12 +119,12 @@ contains
         ! enddo
 
     character(len=*),parameter:: myname_=myname//"::intjo1_"
-    integer(i_kind):: ip,lp
+    integer(i_kind):: i,l
     class(obsNode),pointer:: headNode
 
-    call predictors_getdim(isclen=ip,lsclen=lp)
+    call predictors_getdim(lbnd_s=i,ubnd_s=l)
     headNode => obsLList_headNode(self%obsLL(ibin))
-    call intjo(headNode, rval,sval, qpred(ip:lp),sbias%predr)
+    call intjo(headNode, rval,sval, qpred(i:l),sbias%predr)
     headNode => null()
 
   end subroutine intjo1_
@@ -129,13 +153,13 @@ contains
     character(len=*),parameter:: myname_=myname//"::stpjo1_"
     class(obsNode),pointer:: headNode
     real(r_kind),pointer,dimension(:,:):: dpred,xpred
-    integer(i_kind):: np
+    integer(i_kind):: n
 
     headNode => obsLList_headNode(self%obsLL(ibin))
 
-    call predictors_getdim(nsclen=np)
-    dpred(1:npred,1:jpch_rad) => dbias%predr(1:np)
-    xpred(1:npred,1:jpch_rad) => xbias%predr(1:np)
+    call predictors_getdim(size_s=n)
+    dpred(1:npred,1:jpch_rad) => dbias%predr(1:n)
+    xpred(1:npred,1:jpch_rad) => xbias%predr(1:n)
 
     call stpjo(headNode,dval,xval, dpred,xpred,pbcjo(:),sges,nstep)
 

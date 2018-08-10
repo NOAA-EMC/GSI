@@ -12,6 +12,11 @@ module m_rhs
 !   2010-03-22  j guo   - added this document block
 !   2010-04-22  tangborn- add co knobs
 !   2010-05-27  j guo   - cut off GPS related variables to m_gpsrhs
+!   2018-08-10  j guo   - moved in all type-indices from setuprhsall().  These
+!                         type-indices are now defined from this module itself,
+!                         through an enum block.
+!                       - removed external dimension argument aworkdim2 of
+!                         rhs_alloc().
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -140,15 +145,15 @@ module m_rhs
     enumerator:: i_outbound
   end enum
 
-  integer(i_kind)        ,parameter:: enum_kind=kind(i_zero)
-  integer(kind=enum_kind),parameter:: awork_lbound=i_zero    +1
-  integer(kind=enum_kind),parameter:: awork_ubound=i_outbound-1
-  integer(kind=enum_kind),parameter:: awork_size  =awork_ubound-awork_lbound +1
+  integer(i_kind)        ,parameter:: enum_kind    = kind(i_zero)
+  integer(kind=enum_kind),parameter:: awork_lbound = i_zero    +1
+  integer(kind=enum_kind),parameter:: awork_ubound = i_outbound-1
+  integer(kind=enum_kind),parameter:: awork_size   = awork_ubound-awork_lbound +1
 
   character(len=*),parameter:: myname="m_rhs"
 
 contains
-subroutine rhs_alloc(aworkdim2)
+subroutine rhs_alloc()
   ! supporting information
   use kinds, only: i_kind
   use constants, only: zero
@@ -167,16 +172,12 @@ subroutine rhs_alloc(aworkdim2)
   use obsmod  , only: nchan_total
   use gsi_io, only: verbose
   implicit none
-  integer(i_kind),optional,intent(in):: aworkdim2
   character(len=*),parameter:: myname_=myname//'.alloc'
-  integer(i_kind):: aworkdim2_
   logical print_verbose
 _ENTRY_(myname_)
   print_verbose=.false.
   if(verbose) print_verbose=.true.
   if(rhs_allocated) call die(myname_,'already allocated')
-  aworkdim2_=25
-  if(present(aworkdim2)) aworkdim2_=aworkdim2
 
   if(print_verbose)then
      call tell(myname_,'nsig ='       ,nsig)
@@ -187,11 +188,10 @@ _ENTRY_(myname_)
      call tell(myname_,'jpch_co ='    ,jpch_co)
      call tell(myname_,'jpch_oz ='    ,jpch_oz)
      call tell(myname_,'nprof_gps ='  ,nprof_gps)
-     call tell(myname_,'aworkdim2 ='  ,aworkdim2_)
   end if
 
   rhs_allocated=.true.
-  allocate(rhs_awork(7*nsig+100,aworkdim2_))
+  allocate(rhs_awork(7*nsig+100,awork_size))
   allocate(rhs_bwork(npres_print,nconvtype,5,3))
   allocate(rhs_aivals(40,ndat))
   allocate(rhs_stats(7,jpch_rad))

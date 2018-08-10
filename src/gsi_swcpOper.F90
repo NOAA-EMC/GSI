@@ -1,5 +1,28 @@
 module gsi_swcpOper
-! a template for conv.obs. without bias correction
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:	 module gsi_swcpOper
+!   prgmmr:	 j guo <jguo@nasa.gov>
+!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 610.3
+!     date:	 2018-08-10
+!
+! abstract: an obOper extension for swcpNode type
+!
+! program history log:
+!   2018-08-10  j guo   - added this document block
+!
+!   input argument list: see Fortran 90 style document below
+!
+!   output argument list: see Fortran 90 style document below
+!
+! attributes:
+!   language: Fortran 90 and/or above
+!   machine:
+!
+!$$$  end subprogram documentation block
+
+! module interface:
+
   use gsi_obOper, only: obOper
   implicit none
   public:: swcpOper      ! data stracture

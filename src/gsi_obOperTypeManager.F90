@@ -9,7 +9,9 @@ module gsi_obOperTypeManager
 ! abstract: GSI observation operator (obOper) type manager
 !
 ! program history log:
-!   2018-07-12  j guo   - added this document block
+!   2018-07-12  j guo   - a type-manager for all obOper extensions.
+!                       - an enum mapping of obsinput::dtype(:) to obOper type
+!                         extensions.
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -82,6 +84,44 @@ module gsi_obOperTypeManager
   public:: obOper_lbound
   public:: obOper_ubound
   public:: obOper_size
+
+  public:: iobOper_ps
+  public:: iobOper_t
+  public:: iobOper_w
+  public:: iobOper_q
+  public:: iobOper_spd
+  public:: iobOper_rw
+  public:: iobOper_dw
+  public:: iobOper_sst
+  public:: iobOper_pw
+  public:: iobOper_pcp
+  public:: iobOper_oz
+  public:: iobOper_o3l
+  public:: iobOper_gps
+  public:: iobOper_rad
+  public:: iobOper_tcp
+ !public:: iobOper_lag
+  public:: iobOper_colvk
+  public:: iobOper_aero
+ !public:: iobOper_aerol
+  public:: iobOper_pm2_5
+  public:: iobOper_gust
+  public:: iobOper_vis
+  public:: iobOper_pblh
+  public:: iobOper_wspd10m
+  public:: iobOper_td2m
+  public:: iobOper_mxtm
+  public:: iobOper_mitm
+  public:: iobOper_pmsl
+  public:: iobOper_howv
+  public:: iobOper_tcamt
+  public:: iobOper_lcbas
+  public:: iobOper_pm10
+  public:: iobOper_cldch
+  public:: iobOper_uwnd10m
+  public:: iobOper_vwnd10m
+  public:: iobOper_swcp
+  public:: iobOper_lwcp
 
   enum, bind(C)
     enumerator:: iobOper_zero_   = 0
@@ -195,7 +235,10 @@ function dtype2index_(dtype) result(index_)
   case("dw"     ,"[dwoper]"     ); index_= iobOper_dw
   case("sst"    ,"[sstoper]"    ); index_= iobOper_sst
   case("pw"     ,"[pwoper]"     ); index_= iobOper_pw
+
   case("pcp"    ,"[pcpoper]"    ); index_= iobOper_pcp
+    case("pcp_ssmi"); index_= iobOper_pcp
+    case("pcp_tmi" ); index_= iobOper_pcp
 
   case("oz"     ,"[ozoper]"     ); index_= iobOper_oz
     case("sbuv2"  ); index_= iobOper_oz
@@ -274,6 +317,7 @@ function dtype2index_(dtype) result(index_)
 
   case("aero"   ,"[aerooper]"   ); index_= iobOper_aero
     case("aod"    ); index_= iobOper_aero
+
     case("modis_aod"); index_= iobOper_aero
 
  !case("aerol"  ,"[aeroloper]"  ); index_= iobOper_aerol

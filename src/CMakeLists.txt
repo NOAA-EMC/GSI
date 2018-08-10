@@ -139,7 +139,9 @@ cmake_minimum_required(VERSION 2.8)
     )
 
     add_dependencies(${GSILIB} ${GSISHAREDLIB} )
-    add_dependencies(${GSISHAREDLIB} ${crtm} )
+    if(crtm)
+      add_dependencies(${GSISHAREDLIB} ${crtm} )
+    endif()
 
     target_link_libraries( ${GSILIB} ${CORE_LIBRARIES})
 

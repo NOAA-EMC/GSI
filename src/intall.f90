@@ -17,6 +17,9 @@ module intallmod
 !   2015-09-03  guo     - obsmod::yobs has been replaced with m_obsHeadBundle,
 !                         where yobs is created and destroyed when and where it
 !                         is needed.
+!   2018-08-10  guo     - removed obsHeadBundle references.
+!                       - replaced intjo() related implementations with a new
+!                         polymorphic implementation of intjomod::intjo().
 !
 ! subroutines included:
 !   sub intall
@@ -177,7 +180,6 @@ subroutine intall(sval,sbias,rval,rbias)
   use constants, only: zero,zero_quad
   use jcmod, only: ljcpdry,ljc4tlevs,ljcdfi
   use jfunc, only: nrclen,nsclen,npclen,ntclen
-  use intradmod, only: setrad
   use intjomod, only: intjo
   use bias_predictors, only : predictors,assignment(=)
   use state_vectors, only: allocate_state,deallocate_state
@@ -191,9 +193,9 @@ subroutine intall(sval,sbias,rval,rbias)
   use guess_grids, only: ntguessig,nfldsig
   use mpl_allreducemod, only: mpl_allreduce
 
-  use m_obsHeadBundle, only: obsHeadBundle
-  use m_obsHeadBundle, only: obsHeadBundle_create
-  use m_obsHeadBundle, only: obsHeadBundle_destroy
+  use gsi_obOper, only: obOper
+  use gsi_obOper, only: obOper_create
+  use gsi_obOper, only: obOper_destroy
   implicit none
 
 ! Declare passed variables
@@ -201,14 +203,13 @@ subroutine intall(sval,sbias,rval,rbias)
   type(predictors), intent(in   ) :: sbias
   type(gsi_bundle), intent(inout) :: rval(nobs_bins)
   type(predictors), intent(inout) :: rbias
-  real(r_quad),dimension(max(1,nrclen),nobs_bins) :: qpred_bin
   real(r_quad),dimension(max(1,nrclen)) :: qpred
   real(r_quad),dimension(2*nobs_bins) :: mass
 
 ! Declare local variables
   integer(i_kind) :: ibin,ii,it,i
 
-  type(obsHeadBundle),pointer,dimension(:):: yobs
+  class(obOper),pointer:: it_obOper
 
 !******************************************************************************
 ! Initialize timer
@@ -220,22 +221,10 @@ subroutine intall(sval,sbias,rval,rbias)
      rval(ii)=zero
   enddo
 
-! Compute RHS in physical space
-  call setrad(sval(1))
-  qpred_bin=zero_quad
-  call obsHeadBundle_create(yobs,nobs_bins)
-! RHS for Jo
-!$omp parallel do  schedule(dynamic,1) private(ibin)
-  do ibin=1,size(yobs)  ! == nobs_bins
-     call intjo(yobs(ibin),rval(ibin),qpred_bin(:,ibin),sval(ibin),sbias,ibin)
-  end do
   qpred=zero_quad
-  do ibin=1,size(yobs)  ! == nobs_bins
-     do i=1,nrclen
-        qpred(i)=qpred(i)+qpred_bin(i,ibin)
-     end do
-  end do
-  call obsHeadBundle_destroy(yobs)
+
+! Compute RHS in physical space (rval,qpred)
+  call intjo(rval,qpred,sval,sbias)
 
   if(.not.ltlint)then
 ! RHS for moisture constraint

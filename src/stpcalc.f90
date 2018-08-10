@@ -16,6 +16,8 @@ module stpcalcmod
 !   2015-09-03  guo     - obsmod::yobs has been replaced with m_obsHeadBundle,
 !                         where yobs is created and destroyed when and where it
 !                         is needed.
+!   2018-08-10  guo     - removed obsHeadBundle references.
+!                       - replaced stpjo() with a new polymorphic stpjomod::stpjo().
 !
 ! subroutines included:
 !   sub stpcalc
@@ -229,12 +231,8 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   use guess_grids, only: ntguessig,nfldsig
   use mpl_allreducemod, only: mpl_allreduce
   use mpeu_util, only: getindex
-  use intradmod, only: setrad
   use timermod, only: timer_ini,timer_fnl
   use stpjomod, only: stpjo
-  use m_obsHeadBundle, only: obsHeadBundle
-  use m_obsHeadBundle, only: obsHeadBundle_create
-  use m_obsHeadBundle, only: obsHeadBundle_destroy
   use gsi_io, only: verbose
   implicit none
 
@@ -281,7 +279,6 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   logical :: print_verbose
 
 
-  type(obsHeadBundle),pointer,dimension(:):: yobs
 !************************************************************************************  
 ! Initialize timer
   call timer_ini('stpcalc')
@@ -519,31 +516,27 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
         if(ii == 1)pj(12,1)=pbc(1,12)+pbc(ipenloc,12)
      end if
 
-     call setrad(sval(1))
-
 !    penalties for Jo
      pbcjoi=zero_quad 
-     call obsHeadBundle_create(yobs,nobs_bins)
-     call stpjo(yobs,dval,dbias,sval,sbias,sges,pbcjoi,nstep,nobs_bins) 
-     call obsHeadBundle_destroy(yobs)
+     call stpjo(dval,dbias,sval,sbias,sges,pbcjoi,nstep)
 
      pbcjo=zero_quad
-     do ibin=1,size(yobs)       ! == obs_bins
-        do j=1,nobs_type 
-           do i=1,nstep 
+     do ibin=1,size(pbcjoi,3)       ! == obs_bins
+        do j=1,size(pbcjoi,2)
+           do i=1,size(pbcjoi,1)
               pbcjo(i,j)=pbcjo(i,j)+pbcjoi(i,j,ibin) 
            end do 
         end do 
      enddo
      if(ii == 1)then
-        do ibin=1,nobs_bins
-           do j=1,nobs_type 
+        do ibin=1,size(pbcjoi,3)
+           do j=1,size(pbcjoi,2)
               pj(n0+j,ibin)=pj(n0+j,ibin)+pbcjoi(ipenloc,j,ibin)+pbcjoi(1,j,ibin)
            end do 
         enddo
      endif
-     do j=1,nobs_type 
-        do i=1,nstep 
+     do j=1,size(pbcjo,2)
+        do i=1,size(pbcjo,1)
            pbc(i,n0+j)=pbcjo(i,j) 
         end do 
      end do 

@@ -6,10 +6,10 @@ module gsi_obOper
 !      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 610.3
 !     date:	 2018-06-26
 !
-! abstract: GSI observation operator, bunlding obs_diags and obsLList lists
+! abstract: GSI observation operator, bundling obs_diags and obsLList objects
 !
 ! program history log:
-!   2018-06-26  j guo   - added this document block
+!   2018-06-26  j guo   - a new module for abstract GSI obOper.
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -31,6 +31,7 @@ module gsi_obOper
   use m_obsLList   , only: obsLList
 
   use kinds, only: i_kind
+  use mpeu_util, only: assert_
   implicit none
   private	! except
   public :: obOper		! data structure
@@ -216,30 +217,9 @@ abstract interface
   end subroutine setup_
 end interface
 
-#ifdef _TO_BE_REMOVED_
 abstract interface
-  subroutine intjo_(self, rval, sval, qpred, sbias)
-    use gsi_bundlemod  , only: gsi_bundle
-    use bias_predictors, only: predictors
-    use kinds          , only: r_quad
-    import:: obOper
-    implicit none
-    class(obOper   ), intent(inout):: self
-    type(gsi_bundle), dimension(  :),intent(inout):: rval
-    type(gsi_bundle), dimension(  :),intent(in   ):: sval
-    real(r_quad    ), dimension(:,:),intent(inout):: qpred ! a buffer of rbias
-    type(predictors)                ,intent(in   ):: sbias
+  !>> call self%intjo(ib,rval(ib),sval(ib),qpred(:,ib),sbias)
 
-        ! This implementation can be used both to an obOper instance with
-        ! multiple bins, or a "slice" of obOper instance with a single bin,
-        ! where the slice of self contains arrays (ibin:ibin) of components.
-
-    ! call self%intjo(rval(1:nbins),sval(1:nbins),qpred(:,1:nbins),sbias)
-  end subroutine intjo_
-end interface
-#endif
-
-abstract interface
   subroutine intjo1_(self, ibin, rval, sval, qpred, sbias)
     use gsi_bundlemod  , only: gsi_bundle
     use bias_predictors, only: predictors
@@ -262,51 +242,6 @@ abstract interface
     !enddo
   end subroutine intjo1_
 end interface
-
-#ifdef _TO_BE_REMOVED_
-abstract interface
-  ! in stpjo()
-  !
-  !   do mm=1,stpcnt
-  !     ll=ll_jo(mm)    ! itype
-  !     ib=ib_jo(mm)
-  !
-  !     llop => obOper_create(obOper_typeMold(ll))
-  !     ibop => obOper_slice(llop,ib)
-  !
-  !     call ibop%stpjo(dval(ib:ib),dbias,xval(ib:ib),xbias,pbcjo(:,ll,ib:ib),sges,nstep)
-  !
-  !     call obOper_destroy(ibop)
-  !     call obOper_destroy(itop)
-  !   enddo
-
-  subroutine stpjo_(self, dval,xval,pbcjo,sges,nstep,dbias,xbias)
-    use gsi_bundlemod  , only: gsi_bundle
-    use bias_predictors, only: predictors
-    use kinds          , only: r_quad,r_kind,i_kind
-    import:: obOper
-    implicit none
-    class(obOper), intent(in):: self
-
-    type(gsi_bundle),dimension(  :),intent(in   ):: dval  ! (1:nbins)
-    type(gsi_bundle),dimension(  :),intent(in   ):: xval  ! (1:nbins)
-    real(r_quad    ),dimension(:,:),intent(inout):: pbcjo ! (1:4,:)
-    real(r_kind    ),dimension(:  ),intent(in   ):: sges
-    integer(i_kind ),               intent(in   ):: nstep
-    type(predictors),intent(in):: dbias
-    type(predictors),intent(in):: xbias
-
-    !integer(i_kind):: ibin
-    !real(r_quad),pointer,dimension(:):: pbc_ibin
-    !
-    !do ibin=lbound(self%obsLL,1),ubound(self%obsLL,1)
-    !  pbc_ibin => pbcjo(1:4,ibin)
-    !  call stprad(self%obsLL(ibin), dval(ibin),xval(ibin),dbias%predr,xbias%predr,pbc_ibin,sges,nstep)
-    !  pbc_ibin => null()
-    !enddo
-  end subroutine stpjo_
-end interface
-#endif
 
 abstract interface
   !>> call self%stpjo(ib,dval(ib),xval(ib),pbcjo(:,it,ib),sges,nstep,dbias,xbias)
