@@ -129,6 +129,8 @@ OBS_INPUT::
    crisfsbufr     cris-fsr    n20       cris-fsr_n20         0.0     1     0
    mlsbufr        mls30       aura      mls30_aura           0.0     0     0
    oscatbufr      uv          null      uv                   0.0     0     0
+   ompsnpbufr     ompsnp      npp       ompsnp_npp           0.0     0     0
+   ompstcbufr     ompstc8     npp       ompstc8_npp          0.0     2     0
 ::
   &SUPEROB_RADAR
    $SUPERRAD
@@ -223,6 +225,8 @@ OBS_INPUT::
    sbuvbufr       sbuv2       n19       sbuv8_n19            0.0     0     0
    gomebufr       gome        metop-b   gome_metop-b         0.0     2     0
    mlsbufr        mls30       aura      mls30_aura           0.0     0     0
+   ompsnpbufr     ompsnp      npp       ompsnp_npp           0.0     0     0
+   ompstcbufr     ompstc8     npp       ompstc8_npp          0.0     2     0
 ::
   &SUPEROB_RADAR
    $SUPERRAD
@@ -369,6 +373,8 @@ OBS_INPUT::
    seviribufr     seviri      m09       seviri_m09            0.0     7     0
    seviribufr     seviri      m10       seviri_m10            0.0     7     0
    oscatbufr      uv          null      uv                    1.0     0     0
+   ompsnpbufr     ompsnp      npp       ompsnp_npp            1.0     0     0
+   ompstcbufr     ompstc8     npp       ompstc8_npp           1.0     6     0
 ::
   &SUPEROB_RADAR
    $SUPERRAD
@@ -530,6 +536,8 @@ OBS_INPUT::
    gsnd1bufr      sndrd2      g15       sndrD2_g15          0.0      1     0
    gsnd1bufr      sndrd3      g15       sndrD3_g15          0.0      1     0
    gsnd1bufr      sndrd4      g15       sndrD4_g15          0.0      1     0
+   ompsnpbufr     ompsnp      npp       ompsnp_npp           0.0     0     0
+   ompstcbufr     ompstc8     npp       ompstc8_npp          0.0     2     0
 ::
   &SUPEROB_RADAR
    $SUPERRAD
@@ -706,6 +714,8 @@ OBS_INPUT::
    saphirbufr     saphir      meghat      saphir_meghat       0.0     3     0
    ahibufr        ahi         himawari8   ahi_himawari8       0.0     3     0
    rapidscatbufr  uv          null        uv                  0.0     0     0
+   ompsnpbufr     ompsnp      npp       ompsnp_npp            0.0     0     0
+   ompstcbufr     ompstc8     npp       ompstc8_npp           0.0     2     0
 ::
   &SUPEROB_RADAR
    $SUPERRAD
@@ -943,6 +953,8 @@ OBS_INPUT::
    gomebufr       gome        metop-a     gome_metop-a          1.0      6       0
    mlsbufr        mls30       aura        mls30_aura            1.0      0       0
    oscatbufr      uv          null        uv                    1.0      0       0
+   ompsnpbufr     ompsnp      npp       ompsnp_npp              1.0      0       0
+   ompstcbufr     ompstc8     npp       ompstc8_npp             1.0      6       0
 ::
  &SUPEROB_RADAR
    del_azimuth=5.,del_elev=.25,del_range=5000.,del_time=.5,elev_angle_max=5.,minnum=50,range_max=100000.,
@@ -1088,6 +1100,8 @@ OBS_INPUT::
    gomebufr       gome        metop-a     gome_metop-a          1.0     6       0
    mlsbufr        mls30       aura        mls30_aura            1.0     0       0
    oscatbufr      uv          null        uv                    1.0     0       0
+   ompsnpbufr     ompsnp      npp       ompsnp_npp              1.0      0       0
+   ompstcbufr     ompstc8     npp       ompstc8_npp             1.0      6       0
 ::
  &SUPEROB_RADAR
    del_azimuth=5.,del_elev=.25,del_range=5000.,del_time=.5,elev_angle_max=5.,minnum=50,range_max=100000.,
@@ -1233,6 +1247,8 @@ OBS_INPUT::
    gomebufr       gome        metop-a     gome_metop-a          1.0      6       0
    mlsbufr        mls30       aura        mls30_aura            1.0      0       0
    oscatbufr      uv          null        uv                    1.0      0       0
+   ompsnpbufr     ompsnp      npp       ompsnp_npp              1.0      0       0
+   ompstcbufr     ompstc8     npp       ompstc8_npp             1.0      6       0
 ::
  &SUPEROB_RADAR
    del_azimuth=5.,del_elev=.25,del_range=5000.,del_time=.5,elev_angle_max=5.,minnum=50,range_max=100000.,
@@ -1378,6 +1394,8 @@ OBS_INPUT::
    gomebufr       gome        metop-a     gome_metop-a          1.0      6       0
    mlsbufr        mls30       aura        mls30_aura            1.0      0       0
    oscatbufr      uv          null        uv                    1.0      0       0
+   ompsnpbufr     ompsnp      npp       ompsnp_npp              1.0      0       0
+   ompstcbufr     ompstc8     npp       ompstc8_npp             1.0      6       0
 ::
  &SUPEROB_RADAR
    del_azimuth=5.,del_elev=.25,del_range=5000.,del_time=.5,elev_angle_max=5.,minnum=50,range_max=100000.,
@@ -1529,6 +1547,8 @@ OBS_INPUT::
    tcvitl         tcp         null        tcp                   1.0      0      0
    mlsbufr        mls30       aura        mls30_aura            1.0      0      0
    oscatbufr      uv          null        uv                    1.0      0      0
+   ompsnpbufr     ompsnp      npp       ompsnp_npp              1.0      0       0
+   ompstcbufr     ompstc8     npp       ompstc8_npp             1.0      6       0
 ::
  &SUPEROB_RADAR
    del_azimuth=5.,del_elev=.25,del_range=5000.,del_time=.5,elev_angle_max=5.,minnum=50,range_max=100000.,
@@ -1692,6 +1712,8 @@ OBS_INPUT::
    gsnd1bufr      sndrd2      g15         sndrD2_g15            0.0      1      0
    gsnd1bufr      sndrd3      g15         sndrD3_g15            0.0      1      0
    gsnd1bufr      sndrd4      g15         sndrD4_g15            0.0      1      0
+   ompsnpbufr     ompsnp      npp       ompsnp_npp              0.0      0      0
+   ompstcbufr     ompstc8     npp       ompstc8_npp             0.0      1      0
 ::
  &SUPEROB_RADAR
    del_azimuth=5.,del_elev=.25,del_range=5000.,del_time=.5,elev_angle_max=5.,minnum=50,range_max=100000.,
@@ -1954,6 +1976,8 @@ OBS_INPUT::
    gsnd1bufr      sndrd2      g15       sndrD2_g15          0.0      5     0
    gsnd1bufr      sndrd3      g15       sndrD3_g15          0.0      5     0
    gsnd1bufr      sndrd4      g15       sndrD4_g15          0.0      5     0
+   ompsnpbufr     ompsnp      npp       ompsnp_npp           0.0     0     0
+   ompstcbufr     ompstc8     npp       ompstc8_npp          0.0     2     0
 ::
  &SUPEROB_RADAR
    del_azimuth=5.,del_elev=.25,del_range=5000.,del_time=.5,elev_angle_max=5.,minnum=50,range_max=100000.,
@@ -2120,6 +2144,8 @@ OBS_INPUT::
    gsnd1bufr      sndrd2      g15       sndrD2_g15          0.0      5     0
    gsnd1bufr      sndrd3      g15       sndrD3_g15          0.0      5     0
    gsnd1bufr      sndrd4      g15       sndrD4_g15          0.0      5     0
+   ompsnpbufr     ompsnp      npp       ompsnp_npp          0.0      0     0
+   ompstcbufr     ompstc8     npp       ompstc8_npp         0.0      2     0
 ::
  &SUPEROB_RADAR
    del_azimuth=5.,del_elev=.25,del_range=5000.,del_time=.5,elev_angle_max=5.,minnum=50,range_max=100000.,
@@ -2247,6 +2273,8 @@ export gsi_namelist="
   sattypes_oz(6) = 'gome_metop-a',
   sattypes_oz(7) = 'gome_metop-b',
   sattypes_oz(8) = 'mls30_aura',
+  sattypes_oz(9) = 'ompsnp_npp',
+  sattypes_oz(10) = 'ompstc8_npp',
   $OZOBS_ENKF
  /"
 ;;
