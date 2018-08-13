@@ -1464,7 +1464,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
            if(obs_time(2) > 2) day_of_year = day_of_year + leap_day
 
            call ssu_input_setvalue( options%SSU, &
-              Time=float(obs_time(1)) + float(day_of_year)/(365.0_r_kind+leap_day))
+              Time=dble(obs_time(1)) + dble(day_of_year)/(365.0_r_kind+leap_day))
 
         endif
 
