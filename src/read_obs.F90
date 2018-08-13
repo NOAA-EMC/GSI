@@ -868,6 +868,7 @@ subroutine read_obs(ndata,mype)
        else if (obstype == 'sbuv2' &
            .or. obstype == 'omi' &
            .or. obstype == 'ompstc8' &
+           .or. obstype == 'ompsnp' &
            .or. obstype == 'gome' &
            .or. mls &
            ) then
