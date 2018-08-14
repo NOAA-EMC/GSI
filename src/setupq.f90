@@ -449,6 +449,16 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      rmaxerr=rmaxerr*qsges
      rmaxerr=max(small2,rmaxerr)
      errorx =(data(ier,i)+dprpx)*qsges
+  
+!    Setup dynamic ob error specification for aircraft recon in hurricanes 
+     if (itype == 136 ) then
+         errorx = 1.4_r_kind*abs(ddiff)+.0003_r_kind
+     endif
+
+     if (itype == 137 ) then
+        errorx = abs(ddiff)+0.0002_r_kind
+     endif
+
      errorx =max(small1,errorx)
     
 

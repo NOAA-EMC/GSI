@@ -670,6 +670,17 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end if
      
      ratio_errors=error/(data(ier,i)+drpx+1.0e6_r_kind*rhgh+r8*ramp)
+    
+!    Setup dynamic error specification for aircraft recon in hurricanes
+ 
+     if ( itype == 136 ) then
+        ratio_errors=error/(1.15_r_kind*(abs(ddiff)+0.2_r_kind)+1.0e6_r_kind*rhgh+r8*ramp)
+     endif
+     
+     if ( itype == 137 ) then
+        ratio_errors=error/(abs(ddiff)+0.2_r_kind+1.0e6_r_kind*rhgh+r8*ramp)
+     endif
+
      error=one/error
 !    if (dpres > rsig) ratio_errors=zero
      if (dpres > rsig )then

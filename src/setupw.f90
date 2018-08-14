@@ -250,6 +250,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   type(obs_diag),pointer :: my_diag
   real(r_kind) :: thisPBL_height,ratio_PBL_height,prest,prestsfc,dudiffsfc,dvdiffsfc
   real(r_kind) :: hr_offset
+  real(r_kind) :: magomb
 
   equivalence(rstation_id,station_id)
   equivalence(r_prvstg,c_prvstg)
@@ -680,6 +681,16 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if(rhgh/=zero) awork(3) = awork(3) + one
      end if
      ratio_errors=error/(data(ier,i)+drpx+1.0e6_r_kind*rhgh+four*rlow)
+    
+!    Setup dynamic ob error specification for aircraft recon in hurricanes 
+     if (itype==236) then
+        magomb=sqrt(dudiff*dudiff+dvdiff*dvdiff)
+        ratio_errors=error/((0.75_r_kind*magomb+0.5_r_kind)+drpx+1.0e6_r_kind*rhgh+four*rlow)
+     endif
+     if (itype==237) then
+        magomb=sqrt(dudiff*dudiff+dvdiff*dvdiff)
+        ratio_errors=error/((0.75_r_kind*magomb+0.3_r_kind)+drpx+1.0e6_r_kind*rhgh+four*rlow)
+     endif
 
 !    Invert observation error
      error=one/error
