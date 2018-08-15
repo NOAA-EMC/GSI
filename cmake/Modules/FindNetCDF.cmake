@@ -44,6 +44,9 @@ endif()
 if( DEFINED ENV{NETCDF} )
   set(NETCDF_DIR $ENV{NETCDF})
 endif()
+if( DEFINED ENV{NETCDF4} )
+  set(NETCDF_DIR $ENV{NETCDF4})
+endif()
 if(DEFINED ENV{SSEC_NETCDF4_DIR})
   set(NETCDF_DIR $ENV{SSEC_NETCDF4_DIR})
 endif()
@@ -80,6 +83,23 @@ find_library (NETCDF_LIBRARIES_C
     NAMES netcdf
     HINTS ${NETCDF_DIR}/lib )
 mark_as_advanced(NETCDF_LIBRARIES_C)
+
+find_file (NETCDF_NCDUMP
+    NAMES ncdump
+    HINTS ${NETCDF_DIR}/bin )
+mark_as_advanced(NETCDF_NCDUMP)
+execute_process(COMMAND ${NETCDF_NCDUMP} 
+  ERROR_VARIABLE  NCDUMP_INFO)
+string(FIND ${NCDUMP_INFO} "version" VERSION_LOC REVERSE)
+math(EXPR VERSION_LOC "${VERSION_LOC} + 9")
+string(SUBSTRING ${NCDUMP_INFO} ${VERSION_LOC} 1  NETCDF_MAJOR_VERSION)
+if (${NETCDF_MAJOR_VERSION} LESS 4)
+  message(FATAL_ERROR "
+         Current NETCDF is ${NETCDF_DIR} 
+         !!!! NETCDF version 4.0 and above is required !!!!
+
+         ")
+endif()
 
 set (NetCDF_has_interfaces "YES") # will be set to NO if we're missing any interfaces
 set (NetCDF_libs "${NETCDF_LIBRARIES_C}")
