@@ -105,7 +105,7 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use constants, only: quarter,one,two,half,zero,deg2rad,rearth
+  use constants, only: quarter,one,two,half,zero,deg2rad,rearth,rad2deg
   use gridmod,  only:grid_ratio_fv3_regional, region_lat,region_lon,nlat,nlon
   use gridmod,  only: region_dy,region_dx,region_dyi,region_dxi,coeffy,coeffx
   use gridmod,  only:init_general_transform,region_dy,region_dx 
@@ -160,9 +160,9 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
   allocate(gcrlon(nx,ny))
   do j=1,ny
      do i=1,nx
-        xc(i,j)=cosd(grid_latt(i,j))*cosd(grid_lont(i,j))
-        yc(i,j)=cosd(grid_latt(i,j))*sind(grid_lont(i,j))
-        zc(i,j)=sind(grid_latt(i,j))
+        xc(i,j)=cos(grid_latt(i,j)*deg2rad)*cos(grid_lont(i,j)*deg2rad)
+        yc(i,j)=cos(grid_latt(i,j)*deg2rad)*sin(grid_lont(i,j)*deg2rad)
+        zc(i,j)=sin(grid_latt(i,j)*deg2rad)
      enddo
   enddo
 
@@ -176,8 +176,8 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
   xcent=rnorm*xcent
   ycent=rnorm*ycent
   zcent=rnorm*zcent
-  centlat=asind(zcent)
-  centlon=atan2d(ycent,xcent)
+  centlat=asin(zcent)*rad2deg
+  centlon=atan2(ycent,xcent)*rad2deg
 
 !!  compute new lats, lons
   call rotate2deg(grid_lont,grid_latt,gcrlon,gcrlat, &
@@ -255,7 +255,7 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
   enddo
 
   do i=1,nlat
-     dxx=rearth*cosd(rlat_in(i,1))*adlon*deg2rad
+     dxx=rearth*cos(rlat_in(i,1)*deg2rad)*adlon*deg2rad
      dxxi=one/dxx
      dxxh=half/dxx
      do j=1,nlon
@@ -503,9 +503,9 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
 
   do j=1,ny+1
      do i=1,nx+1
-        x(i,j)=cosd(grid_lat(i,j))*cosd(grid_lon(i,j))
-        y(i,j)=cosd(grid_lat(i,j))*sind(grid_lon(i,j))
-        z(i,j)=sind(grid_lat(i,j))
+        x(i,j)=cos(grid_lat(i,j)*deg2rad)*cos(grid_lon(i,j)*deg2rad)
+        y(i,j)=cos(grid_lat(i,j)*deg2rad)*sin(grid_lon(i,j)*deg2rad)
+        z(i,j)=sin(grid_lat(i,j)*deg2rad)
      enddo
   enddo
 
@@ -517,9 +517,9 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
         rlat=half*(grid_lat(i,j)+grid_lat(i+1,j))
         rlon=half*(grid_lon(i,j)+grid_lon(i+1,j))
 !    vector to center of the edge
-        xr=cosd(rlat)*cosd(rlon)
-        yr=cosd(rlat)*sind(rlon)
-        zr=sind(rlat)
+        xr=cos(rlat*deg2rad)*cos(rlon*deg2rad)
+        yr=cos(rlat*deg2rad)*sin(rlon*deg2rad)
+        zr=sin(rlat*deg2rad)
 !     vector of the edge
         xu= x(i+1,j)-x(i,j)
         yu= y(i+1,j)-y(i,j)
@@ -538,9 +538,9 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
      do i=1,nx+1
         rlat=half*(grid_lat(i,j)+grid_lat(i,j+1))
         rlon=half*(grid_lon(i,j)+grid_lon(i,j+1))
-        xr=cosd(rlat)*cosd(rlon)
-        yr=cosd(rlat)*sind(rlon)
-        zr=sind(rlat)
+        xr=cos(rlat*deg2rad)*cos(rlon*deg2rad)
+        yr=cos(rlat*deg2rad)*sin(rlon*deg2rad)
+        zr=sin(rlat*deg2rad)
         xv= x(i,j+1)-x(i,j)
         yv= y(i,j+1)-y(i,j)
         zv= z(i,j+1)-z(i,j)
@@ -846,26 +846,26 @@ subroutine rotate2deg(rlon_in,rlat_in,rlon_out,rlat_out,rlon0,rlat0,nx,ny)
      do i=1,nx
 !   1.  compute x,y,z from rlon_in, rlat_in
 
-        x=cosd(rlat_in(i,j))*cosd(rlon_in(i,j))
-        y=cosd(rlat_in(i,j))*sind(rlon_in(i,j))
-        z=sind(rlat_in(i,j))
+        x=cos(rlat_in(i,j)*deg2rad)*cos(rlon_in(i,j)*deg2rad)
+        y=cos(rlat_in(i,j)*deg2rad)*sin(rlon_in(i,j)*deg2rad)
+        z=sin(rlat_in(i,j)*deg2rad)
 
 !   2.  rotate (x,y,z) about z axis by amount rlon0 -- (x,y,z) --> (xt,yt,zt)
 
-        xt= x*cosd(rlon0)+y*sind(rlon0)
-        yt=-x*sind(rlon0)+y*cosd(rlon0)
+        xt= x*cos(rlon0*deg2rad)+y*sin(rlon0*deg2rad)
+        yt=-x*sin(rlon0*deg2rad)+y*cos(rlon0*deg2rad)
         zt=z
 
 !   3.  rotate (xt,yt,zt) about yt axis by amount rlat0 --- (xt,yt,zt) --> (xtt,ytt,ztt)
 
-        xtt= xt*cosd(rlat0)+zt*sind(rlat0)
+        xtt= xt*cos(rlat0*deg2rad)+zt*sin(rlat0*deg2rad)
         ytt= yt
-        ztt=-xt*sind(rlat0)+zt*cosd(rlat0)
+        ztt=-xt*sin(rlat0*deg2rad)+zt*cos(rlat0*deg2rad)
 
 !   4.  compute rlon_out, rlat_out from xtt,ytt,ztt
 
-        rlat_out(i,j)=asind(ztt)
-        rlon_out(i,j)=atan2d(ytt,xtt)
+        rlat_out(i,j)=asin(ztt)*rad2deg
+        rlon_out(i,j)=atan2(ytt,xtt)*rad2deg
      enddo
   enddo
 end subroutine rotate2deg
@@ -899,20 +899,20 @@ subroutine unrotate2deg(rlon_in,rlat_in,rlon_out,rlat_out,rlon0,rlat0,nx,ny)
   integer(i_kind) i,j
   do j=1,ny
      do i=1,nx
-        xtt=cosd(rlat_out(i,j))*cosd(rlon_out(i,j))
-        ytt=cosd(rlat_out(i,j))*sind(rlon_out(i,j))
-        ztt=sind(rlat_out(i,j))
+        xtt=cos(rlat_out(i,j)*deg2rad)*cos(rlon_out(i,j)*deg2rad)
+        ytt=cos(rlat_out(i,j)*deg2rad)*sin(rlon_out(i,j)*deg2rad)
+        ztt=sin(rlat_out(i,j)*deg2rad)
 
-        xt= xtt*cosd(rlat0)-ztt*sind(rlat0)
+        xt= xtt*cos(rlat0*deg2rad)-ztt*sin(rlat0*deg2rad)
         yt= ytt
-        zt= xtt*sind(rlat0)+ztt*cosd(rlat0)
+        zt= xtt*sin(rlat0*deg2rad)+ztt*cos(rlat0*deg2rad)
 
-        x= xt*cosd(rlon0)-yt*sind(rlon0)
-        y= xt*sind(rlon0)+yt*cosd(rlon0)
+        x= xt*cos(rlon0*deg2rad)-yt*sin(rlon0*deg2rad)
+        y= xt*sin(rlon0*deg2rad)+yt*cos(rlon0*deg2rad)
         z= zt
 
-        rlat_in(i,j)=asind(z)
-        rlon_in(i,j)=atan2d(y,x)
+        rlat_in(i,j)=asin(z)*rad2deg
+        rlon_in(i,j)=atan2(y,x)*rad2deg
      enddo
   enddo
 
