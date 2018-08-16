@@ -48,9 +48,9 @@ if(BUILD_ENKF)
   gridinfo_${ENKF_SUFFIX}.f90
   enkf_obs_sensitivity.f90 
   )
-  if( NOT HOST-Luna )
-    find_package( LAPACK REQUIRED )
-  endif()
+#  if( NOT HOST-Luna )
+#    find_package( LAPACK REQUIRED ) ## this is already done in main CMakeList.txt
+#  endif()
   
   add_definitions(${MPI_Fortran_FLAGS})
   
