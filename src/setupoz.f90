@@ -1445,8 +1445,7 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
 !       Set (i,j,k) indices of guess gridpoint that bound obs location
         my_head%dlev = dpres
-        call get_ijk(mm1,dlat,dlon,dpres,&
-        my_head%ij(1),my_head%wij(1))
+        call get_ijk(mm1,dlat,dlon,dpres,my_head%ij,my_head%wij)
 
         do k=1,8
            my_head%wij(k)=my_head%wij(k)*constoz
