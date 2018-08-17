@@ -49,7 +49,7 @@ if(BUILD_ENKF)
   enkf_obs_sensitivity.f90 
   )
 #  if( NOT HOST-Luna )
-#    find_package( LAPACK REQUIRED ) ## this is already done in main CMakeList.txt
+#    find_package( LAPACK REQUIRED ) ##G.Ge: this is already done in main CMakeList.txt and it fails compiling under some GNU versions
 #  endif()
   
   add_definitions(${MPI_Fortran_FLAGS})
