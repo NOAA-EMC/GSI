@@ -1,9 +1,9 @@
-\chapter{GSI Diagnostics and Tuning}
+\chapter{GSI Diagnostics and Tuning}\label{gsi_diag}
 \setlength{\parskip}{12pt}
 
-The guidance in this chapter will help users to understand how and where to check the output from GSI to determine whether a run was successful. Properly checking the GSI output will also provide useful information to diagnose potential errors in the system. The chapter starts with an introduction to the content and structure of the GSI standard output (\textbf{stdout}). It continues with the use of a single observation to check the features of the GSI analysis. Then, observation usage control, analysis domain partition, fit files, and the optimization process will all be presented from information within the GSI output files (including stdout).
+The guidance in this chapter will help users understand how and where to check output from GSI to determine whether a run was successful. Properly checking the GSI output will also provide useful information to diagnose potential errors in the system. This chapter starts with an introduction to the content and structure of the GSI standard output file: (\textbf{stdout}). It continues with the use of a single observation to check the features of the GSI analysis. Then, observation usage control, analysis domain partitioning, fit files, and the optimization process will all be presented from information within the GSI output files (including \textbf{stdout}).
 
-This chapter follows the online case example for 2014061700. This case uses a WRF-ARW NetCDF file as the background and analyzes several observations typical for operations, including most conventional observation data, several radiance data (AMSU-A, HIRS4, and MHS), and GPSRO data. The case was run on a Linux cluster supercomputer, using 4 processors. Users can follow this test to reproduce the following results by visiting: 
+This chapter follows the online case example for 2014061700. This case uses a WRF-ARW NetCDF file as the background and analyzes several observations typical for operations, including most conventional observation data, several radiance data sets (AMSU-A, HIRS4, and MHS), and GPSRO data. The case was run on a Linux cluster supercomputer, using four processors. Users can execute this test to reproduce the following results by visiting: 
 
 \begin{center}
 \url{http://www.dtcenter.org/com-GSI/users/tutorial/index.php}
@@ -16,25 +16,25 @@ This chapter follows the online case example for 2014061700. This case uses a WR
 
 In Section \ref{sec3.3}, we listed the files present in the GSI run directory following a successful GSI analysis and briefly introduced the contents of several important files. Of these, \textbf{stdout} is the most useful because critical information about the GSI analysis can be obtained from the file. From \textbf{stdout}, users can check if the GSI has successfully completed, if optimal iterations look correct, and if the background and analysis fields are reasonable. Understanding the content of this file can also be very helpful for users to find where and why the GSI failed if it crashes. 
 
-The structure of \textbf{stdout} follows the typical steps in a meteorological data analysis system:
+The structure of \textbf{stdout} follows the typical steps of a meteorological data analysis system:
 
 \begin{enumerate}
 \item Read in all data and prepare analysis:
 \begin{itemize}
 \item Read in configuration (namelist)
-\item Read in background
+\item Read in the background
 \item Read in observations
 \item Partition domain and data for parallel analysis
 \item Read in constant fields (fixed files)
 \end{itemize}
 \item Calculate observation innovations
 \item Optimal iteration (analysis)
-\item Save analysis result
+\item Save analysis results
 \end{enumerate}
 
-In this section, the detailed structure and content of \textbf{stdout} are explained using the v3.5 online example case: 2014061700. To keep the output concise and make it more readable, most repeated content was deleted (shown by the dotted line). For the same reason, the accuracy of some numbers has been reduced to avoid line breaks in \textbf{stdout}.
+In this section, the detailed structure and content of \textbf{stdout} are explained using the online example case: 2014061700. To keep the output concise and make it more readable, most repeated content was deleted (shown with a dotted line). For the same reason, the precision of some numbers has been reduced to avoid line breaks in \textbf{stdout}.
 
-The following indicates the start of the GSI analysis. It shows the beginning time of this run:
+The following indicates the start of the GSI analysis. It shows the date and time that GSI started running:
 
 \begin{scriptsize}
 \begin{verbatim}
@@ -44,7 +44,7 @@ The following indicates the start of the GSI analysis. It shows the beginning ti
 \end{verbatim}
 \end{scriptsize}
 
-This part shows the content of anavinfo, a list of state and control variables.
+The following shows the content of anavinfo, a list of state and control variables:
 
 \begin{scriptsize}
 \begin{verbatim}
@@ -101,7 +101,7 @@ This part shows the content of anavinfo, a list of state and control variables.
 \end{verbatim}
 \end{scriptsize}
 
-Next is the content of all namelist variables used in this analysis. The 1st part shows the 4DVAR setups. Please note that while this version of the GSI includes some 4DVAR interface, it is untested in this release. The general set up for the GSI analysis (3DVAR) is located in the \verb|&SETUP| section of the GSI namelist. Please check Appendix B for definitions and default values of each namelist variable. 
+Next is the content of all namelist variables used in this analysis. The 1st part shows 4DVAR setup information. Please note that while this version of the GSI includes a 4DVAR option, it remains untested. The general setup for the GSI analysis (3DVAR) is located in the \verb|&SETUP| section of the GSI namelist. Please check Appendix B for definitions and default values of each namelist variable. 
 
 \begin{scriptsize}
 \begin{verbatim}
@@ -193,16 +193,16 @@ calling gsisub with following input parameters:
  ...
 \end{verbatim}
 \end{scriptsize}
-This version of GSI attempts to read multi-time-level backgrounds for option FGAT (First Guess at Appropriate Time), however we only have provided one in this test case. Therefore, there is error information at the beginning of the reading background portion:
+This version of GSI attempts to read multiple time level backgrounds for option FGAT (First Guess at Appropriate Time), however we only have provided one time level in this test case. Therefore, there is an error while reading background information:
 \begin{scriptsize}
 \begin{verbatim}
 CONVERT_NETCDF_MASS:  problem with flnm1 = wrf_inou1, Status =        -1021
 \end{verbatim}
 \end{scriptsize}
 
-We can ignore these errors for missing files \textit{wrf\_inou1}, \textit{wrf\_inou2}, \ldots , \textit{wrf\_inou9} because we only ran 3DVAR with one background.
+We can ignore errors for missing files \textit{wrf\_inou1}, \textit{wrf\_inou2}, \ldots, and \textit{wrf\_inou9}, because we are only running 3DVAR with one background.
 
-Next, the background fields for the analysis are read in and the maximum, minimum and median values of the fields at each vertical level are displayed. Here, only part of the variables ZNU and T are shown, and all other variables read by the GSI are listed only as the variable name in the NetCDF file(rmse\_var = T). The maximum and minimum values are useful for a quick verification that the background fields have been read successfully. From this section, we also know the time (\verb|iy,m,d,h,m,s|) and dimension (\verb|nlon,lat,sig_regional|) of the background field.
+Next, the background fields for the analysis are read in, and the maximum, minimum, and median values of the fields at each vertical level are displayed. Here, only part of the variables ZNU and T are shown, with all other variables read by the GSI listed solely as the variable name in the NetCDF file(rmse\_var = T). Maximum and minimum values are useful for a quick verification that the background fields have been read successfully. From this section, we also know the time (\verb|iy,m,d,h,m,s|) and dimension (\verb|nlon,lat,sig_regional|) of the background field.
 
 \begin{scriptsize}
 \begin{verbatim}
@@ -326,7 +326,7 @@ Next, the background fields for the analysis are read in and the maximum, minimu
 \end{verbatim}
 \end{scriptsize}
 
-For some variables, the following NETCDF error information might show up when the variables are not in the background fields. These errors don\textquotesingle t affect the GSI run so you can ignore them.
+For some variables, the following NETCDF error information might show up when they are not in the background fields. These errors don\textquotesingle t affect the GSI run so you can ignore them.
 
 \begin{scriptsize}
 \begin{verbatim}
@@ -343,21 +343,21 @@ For some variables, the following NETCDF error information might show up when th
 
 \end{verbatim}
 \end{scriptsize}
-Again, some error information on missing background files shows up. Ignore if you are not doing FGAT:
+Again, some error information on missing background files shows up. Ignore if you are not doing FGAT.
 \begin{scriptsize}
 \begin{verbatim}
   CONVERT_NETCDF_MASS:  problem with flnm1 = wrf_inou4, Status =        -1021
 \end{verbatim}
 \end{scriptsize}
 
-Following this is information on the byte order of the binary background files. Because we used a NetCDF file, there is no need to be concerned with byte order. When using a binary format background, byte-order can be a problem. Beginning with the release version v3.2, GSI can automatically check the background byte-order and read it in right order:
+Following this is information on the byte order of the binary background files. Since we used a NetCDF file, there is no need to be concerned with byte order. When using a binary format background, byte-order can be a problem. Beginning with the release version v3.2, GSI can automatically check the background byte-order and read it in the right order:
 
 \begin{scriptsize}
 \begin{verbatim}
   in convert_regional_guess, for wrf arw binary input, byte_swap= F
 \end{verbatim}
 \end{scriptsize}
-Information on setting the grid related variables, and the beginning and ending indices for thread 1:
+Information on setting the grid related variables, and the beginning and ending indices for thread one:
 \begin{scriptsize}
 \begin{verbatim}
  INIT_GRID_VARS:  number of threads            1
@@ -365,7 +365,7 @@ Information on setting the grid related variables, and the beginning and ending 
          168
 \end{verbatim}
 \end{scriptsize} 
-Information on the initial pointer location for each variable in the Jacobian for the use of the satellite radiance data: 
+Information on the initial pointer location for each variable in the Jacobian for the use of satellite radiance data: 
 \begin{scriptsize}
 \begin{verbatim}
  Vars in Rad-Jacobian (dims)
@@ -399,7 +399,7 @@ Starting subroutine \textit{gsisub} (major GSI control subroutine) and displayin
   using restart file date =         2014           6          17           0
 \end{verbatim}
 \end{scriptsize}
-Read in radar station information and generate superobs for radar Level-II radial velocity. This case didn\textquotesingle t have radar Level-II velocity data linked. There is warning information about opening the file but this will not impact the rest of the GSI analysis.
+Read in radar location information and generate superobs for radar level-II radial velocity. This case didn\textquotesingle t have radar level-II velocity data linked, therefore there is warning about when opening the file, but this will not impact the rest of the GSI analysis.
 \begin{scriptsize}
 \begin{verbatim}
  RADAR_BUFR_READ_ALL: analysis time is          2014            6           17
@@ -418,7 +418,7 @@ Read in information from fix file \textit{scaninfo} (see table 3.2) and \textit{
  PCPINFO_READ:  no pcpbias file.  set predxp=0.0
 \end{verbatim}
 \end{scriptsize}
-Read in and show the content of the conventional observation information files (\textit{convinfo}; see Section \ref{sec4.3} for details). Here is part of the stdout shown \textit{convinfo}:
+Read in and show the content of the conventional observation information file (\textit{convinfo}; see Section \ref{sec4.3} for details). Here is the part of the \textbf{stdout} file showing information from \textit{convinfo}:
 \begin{tiny}
 \begin{verbatim} 
 
@@ -443,7 +443,7 @@ READ_CONVINFO: gps      44    0 -1   3.00000       0   0   0   10.0000      10.0
 
 \end{verbatim}
 \end{tiny}
-Starting subroutine \textit{glbsoi} and information on reading in background fields from intermediate binary file \textit{sigf03} and partitioning the whole 2D field into subdomains for parallel analysis:
+Starting subroutine \textit{glbsoi} with information on reading in background fields from the intermediate binary file \textit{sigf03} and partitioning the whole 2D field into subdomains for parallel analysis:
 
 \begin{scriptsize}
 \begin{verbatim}
@@ -468,7 +468,7 @@ Starting subroutine \textit{glbsoi} and information on reading in background fie
 \end{verbatim}
 \end{scriptsize}
 
-Show observation observer is successfully initialized and inquire about the control vectors (space for analysis variables).
+Show observation observer as successfully initialized and inquire about the control vectors (space for analysis variables).
 
 \begin{scriptsize}
 \begin{verbatim}
@@ -488,9 +488,9 @@ Show the source of observation error used in the analysis (details see Section \
 \end{verbatim}
 \end{scriptsize}
 
-The following information is related to observation ingest processes, which are distributed over all the processors with each processor reading in at least one observation type. To speed up reading process, some of the large datasets will use more than one (ntasks) processor to read.
+The following information is related to the observation ingest processes, which is distributed over all the processors with each processor reading in at least one observation type. To speed up the reading process, some of the large datasets will use more than one (ntasks) processor for the ingest process.
 
-Before reading in the data from BUFR files, GSI checks the file status on whether the observation time matches the analysis time and how namelist option \textit{offtime\_data} is set (can be used to turn off the time consistent check between observation and analysis time). This step also checks for consistency between the satellite radiance data types in the BUFR files and the usage setups in the \textit{satinfo} files. The following shows stdout information from this step:
+Before reading in data from BUFR files, GSI checks the file status to insure the observation time matches the analysis time and whether the namelist option \textit{offtime\_data} is set (can be used to turn off the time consistency check between observation and analysis time). This step also checks for consistency between the satellite radiance data types in the BUFR files and the usage setups in the \textit{satinfo} files. The following shows \textbf{stdout} information from this step:
 
 \begin{scriptsize}
 \begin{verbatim}
@@ -533,7 +533,7 @@ Before reading in the data from BUFR files, GSI checks the file status on whethe
 \end{verbatim}
 \end{scriptsize}
 
-The list of observation types that will be read in and processors used to read them:
+The list of observation types that were read in and processors used to read them:
 
 \begin{scriptsize}
 \begin{verbatim}
@@ -559,7 +559,7 @@ The list of observation types that will be read in and processors used to read t
  READ_OBS:  read   30 amsua      amsua_metop-b        using ntasks=   1   2      2      0
 \end{verbatim}
 \end{scriptsize}
-Display basic statistics for full horizontal surface fields (If radiance BUFR files are not linked, this section will not be in the stdout file):
+Display basic statistics for full horizontal surface fields (If radiance BUFR files are not linked, this section will not be in the \textbf{stdout} file):
 
 \begin{scriptsize}
 \begin{verbatim}
@@ -581,7 +581,7 @@ sfcges2 STYP   1.137135051835E+01   1.000000000000E+00   1.600000000000E+01
 ================================================================================
 \end{verbatim}
 \end{scriptsize}
-Loop over all data files to read in observations, also reads in rejection list for surface observations and show GPS observations outside the time window:
+Loop over all data files to read in observations, also read in rejection list for surface observations and show GPS observations outside the time window:
 
 \begin{tiny}
 \begin{verbatim}
@@ -628,10 +628,9 @@ Loop over all data files to read in observations, also reads in rejection list f
 \end{verbatim}
 \end{tiny}
  
-Using the above output information, many details on the observations can be obtained. For example, the last line indicates that subroutine \textit{READ\_BUFRTOVS} was called to read in NOAA-19 AMSU-A (\verb|sis=amsua_n19|) from the BUFR file \textit{amsuabufr} (\verb|file=amsuabufr|). Furthermore, this kind of data has 20370 observations in the file (\verb|nread=20370|) and 16912 in analysis domain and time-window (\verb|ndata=16912|). The data was thinned on a 60 km coarse grid (\verb|rmesh=60.000000|).
+Using the above output information, many details on the observations can be obtained. For example, the last line indicates that subroutine \textit{READ\_BUFRTOVS} was called to read in NOAA-19 AMSU-A (\verb|sis=amsua_n19|) data from the BUFR file \textit{amsuabufr} (\verb|file=amsuabufr|). Furthermore, there are 20370 observations in this file (\verb|nread=20370|) and 16912 in the analysis domain and within the time window (\verb|ndata=16912|). The data was thinned on a 60 km coarse grid (\verb|rmesh=60.000000|).
 
-
-The next step partitions observations into subdomains. The observation distribution is summarized below by listing the number of observations for each observation variable in each subdomain (see Section \ref{sec4.4} for more information):
+The next step partitions observations into subdomains. The observation distribution is summarized below by listing the number of observations for each variable per subdomain (see Section \ref{sec4.4} for more information):
 
 \begin{scriptsize}
 \begin{verbatim}
@@ -669,9 +668,9 @@ Information on ingesting background error statistics:
 \end{verbatim}
 \end{scriptsize}
 
-From this point forward in the stdout, the output shows many repeated entries. This is because the information is written from inside the outer loop. Typically the outer loop is iterated twice.
+From this point forward in the \textbf{stdout} file, the output shows many repeated entries. This is because the information is written from inside the outer loop. Typically the outer loop is run twice.
 
-For each outer loop, the work begins with the calculation of the observation innovation. This calculation is done by the subroutine setuprhsall, which sets up the right hand side (rhs) of the analysis equation. This information is contained within the stdout file, which is shown in the following sections: 
+For each outer loop, the work begins with the calculation of the observation innovation. This calculation is done by the subroutine \textbf{setuprhsall}, which sets up the right hand side (rhs) of the analysis equation. This information is contained within the \textbf{stdout} file, which is shown in the following sections: 
 
 Start the first outer analysis loop:
 
@@ -708,7 +707,7 @@ Calculate observation innovation for each data type in the first outer loop:
 ...
 \end{verbatim}
 \end{scriptsize}
-In the above section, when computing the radiance observation innovation, information on reading in CRTM coefficients follows SETUPALL information. In stdout, only information related to available radiance data are printed. The complete innovation can be found in the diagnostic files for each observation (for details see Appendix A.2): 
+In the above section, when computing the radiance observation innovation, information on reading in CRTM coefficients follows SETUPALL information. In the \textbf{stdout} file, only information related to available radiance data are printed. The complete innovation information can be found in the diagnostic files for each observation (for details see Appendix A.2): 
 
 \begin{scriptsize}
 \begin{verbatim}
@@ -760,7 +759,7 @@ cost,grad,step,b,step? =   1  50  4.142125025938593171E+04  1.407135218172236746
  update_guess: successfully complete
 \end{verbatim}
 \end{tiny}
-At the end of the 1st outer loop, print some diagnostics about the guess fields after adding the analysis increment to the guess and diagnostics about the analysis increment: 
+At the end of the 1\textsuperscript{st} outer loop, print some diagnostics about the analysis increments as well as information on the guess fields after adding the analysis increments to the background: 
 \begin{scriptsize}
 \begin{verbatim}
 ================================================================================
@@ -810,7 +809,7 @@ Calculate observation innovations for each data type in the second outer loop:
 \end{verbatim}
 \end{scriptsize}
 
-When calculating the radiance data innovation, there is no need to read in CRTM coefficients again because they were already read in the first outer loop: 
+When calculating the radiance data innovation, there is no need to read in CRTM coefficients again because they were already read in during the first outer loop: 
 \begin{scriptsize}
 \begin{verbatim}
  SETUPALL:,obstype,isis,nreal,nchanl=  ps        ps                       20      0
@@ -874,7 +873,7 @@ cost,grad,step,b,step? =   2  50  4.548938474781232799E+04  5.623738694383008108
 \end{verbatim}
 \end{tiny}
 
-Diagnostics of the analysis results after adding the analysis increment to the guess and diagnostics about the analysis increment: 
+Diagnostics of the analysis results after adding the analysis increment to the guess, as well as diagnostics about the analysis increments: 
 \begin{scriptsize}
 \begin{verbatim}
 ================================================================================
@@ -908,7 +907,7 @@ increment sst                               -2.077555444927E-03  -3.656869699698
 \end{verbatim}
 \end{scriptsize}
 
-Because the outer loop is set to 2, the completion of the 2nd outer loop is the end of the analysis. The next step is to save the analysis results. Again, only a portion of variable T is shown and all other variables are listed according to variable name in the NetCDF file (\verb|rmse_var = T|). The maximum and minimum values are useful information for a quick check of the reasonableness of the analysis:
+Because the outer loop is set to two, the completion of the 2\textsuperscript{nd} outer loop marks the end of the analysis. The next step is to save the analysis results. Again, only a portion of variable "T" is shown and all other variables are listed according to variable name in the NetCDF file (\verb|rmse_var = T|). The maximum and minimum values are useful information for a quick sanity check of the analysis:
 
 \begin{scriptsize}
 \begin{verbatim} 
@@ -974,7 +973,7 @@ Because the outer loop is set to 2, the completion of the 2nd outer loop is the 
 ...
 \end{verbatim}
 \end{scriptsize}
-After completion of the analysis, the subroutine setuprhsall is called again if \verb|write_diag(3)=.true.|,to calculate analysis O-A information (the third time seeing this information):
+After completion of the analysis, the subroutine "setuprhsall" is called again if \verb|write_diag(3)=.true.|, to calculate analysis and O-A information (this marks the third time this information is presented):
 \begin{scriptsize}
 \begin{verbatim}
 
@@ -1004,7 +1003,7 @@ Deallocate the data arrays and finalize the GSI run:
 [000]gsisub(): : complete.
 \end{verbatim}
 \end{scriptsize}
-The end of the GSI analysis (a successful analysis must reach this end, but to reach this end is not necessarily a successful analysis), which shows the time of ending this GSI run and some additional resource statistics:
+The end of the GSI analysis (reaching this point does not necessarily guarantee a successful analysis), which shows the date and time when GSI finished and some additional resource statistics:
 \begin{scriptsize}
 \begin{verbatim}
      ENDING DATE-TIME    JUL 02,2016  20:43:40.422  184  SAT   2457572
@@ -1025,7 +1024,7 @@ Number of InVoluntary Context Switches               = 851
 \end{verbatim}
 \end{scriptsize}
 
-Different GSI applications may write out slightly different stdout information but the major flow and information are the same. A good knowledge of the stdout file gives users a clear picture how GSI runs through each part and the key information on a GSI run like data distribution and inner iterations.
+Different GSI applications may write out slightly different \textbf{stdout} file information but the major flow and information are the same. A good knowledge of the \textbf{stdout} file gives users a clear picture of how GSI runs and the key information provided during a GSI run like data distribution and inner iterations.
 
 
 %-------------------------------------------------------------------------------
@@ -1033,7 +1032,7 @@ Different GSI applications may write out slightly different stdout information b
 \label{sec4.2}
 %-------------------------------------------------------------------------------
 
-A single observation test is a GSI run with only one (pseudo) observation at a specific location of the analysis domain. By examining the analysis increments from a single observation test, one can visualize the important features of the analysis, such as the ratio of background error and observation error variance and the pattern of the background error covariance. Therefore, the single observation test is the first check that users should do after successfully installing the GSI.
+A single observation test is a GSI where only one (pseudo) observation is assimilated from a specific time and location within the analysis domain. By examining the analysis increments from a single observation test, one can visualize the important features of the analysis, such as the ratio of background error and observation error variance and the pattern of the background error covariance. Therefore, the single observation test is the first thing that users should run after successfully installing the GSI.
 
 %-------------------------------------------------------------------------------
 \subsection{Setup a Single Observation Test}
@@ -1067,7 +1066,7 @@ obhourset=0.,
 Note:
 
 \begin{itemize}
-\item Please check Appendix C in this User\textquotesingle s Guide for the explanation of each parameter. From these parameters, we can see that a useful observation in the analysis should include information like the observation type (\verb|oneob_type|), value (\verb|maginnov|), error (\verb|magoberr|), location (\verb|oblat|, \verb|oblong|, \verb|obpres|), and time (\verb|obdattim|, \verb|obhourset|). Users can dump out (use \textit{ncdump}) the global attributes from the NetCDF background file and set \verb|oblat|=\textit{CEN\_LAT}, \verb|oblong|=\textit{360-CEN\_LON} to have the observation at the center of the domain.
+\item Please check Appendix C in the User\textquotesingle s Guide for the explanation of each parameter. From these parameters, we can see that a useful observation in the analysis should include information like the observation type (\verb|oneob_type|), value (\verb|maginnov|), observation error (\verb|magoberr|), location (\verb|oblat|, \verb|oblong|, \verb|obpres|), and time (\verb|obdattim|, \verb|obhourset|). Users can dump out (use \textit{ncdump}) the global attributes from the NetCDF background file and set \verb|oblat|=\textit{CEN\_LAT}, \verb|oblong|=\textit{360-CEN\_LON} to have the observation at the center of the domain.
 \item In the analysis, the GSI first generates a prepbufr file including only one observation based on the information given in the namelist \verb|&SINGLEOB_TEST| section. To generate this prepbufr file, the GSI needs to read in a PrepBUFR table, which is not needed when running a GSI analysis with real observations. The BUFR table is in the \textit{fix/} directory and needs to be copied to the run directory. We have put the following lines in the GSI run script for the single observation test:
 \begin{scriptsize}
 \begin{verbatim}
@@ -1081,7 +1080,7 @@ Note:
 \subsection{Examples of Single Observation Tests for GSI}
 %-------------------------------------------------------------------------------
 
-Figure \ref{fig:singleobs} is a single observation test that has a temperature observation (\verb|oneob_type='t'|) with a 1 degree innovation (\verb|maginnov=1.0|) and a 0.8 degree observation error (\verb|magoberr=0.8|). The background error covariance converted from global (GFS) BE was picked for better illustration.
+Figure \ref{fig:singleobs} is a single observation test that has a temperature observation (\verb|oneob_type='t'|) with a one degree innovation (\verb|maginnov=1.0|) and a 0.8 degree observation error (\verb|magoberr=0.8|). The background error covariance converted from global (GFS) BE was picked to provide for better illustration.
 
 \begin{figure}[h!]
   \centering
@@ -1090,7 +1089,7 @@ Figure \ref{fig:singleobs} is a single observation test that has a temperature o
   \label{fig:singleobs}
 \end{figure}
 
-This single observation was located at the center of the domain. The results are shown with figures of the horizontal and vertical cross sections through the point of maximum analysis increment. The Figure \ref{fig:singleobs} was generated using NCL scripts, which can be found in the \textit{util/Analysis\_Utilities/plots\_ncl} directory, introduced in Section A.4 .
+This single observation was located at the center of the domain. The results are shown with figures of the horizontal and vertical cross sections through the point of maximum analysis increment. The Figure \ref{fig:singleobs} was generated using NCL scripts, which can be found in the \textit{util/Analysis\_Utilities/plots\_ncl} directory, introduced in Section A.4.
 
 %-------------------------------------------------------------------------------
 \section{Control Data Usage}
@@ -1100,30 +1099,30 @@ This single observation was located at the center of the domain. The results are
 Observation data used in the GSI analysis can be controlled through three parts of the GSI system:
 
 \begin{enumerate}
-\item In GSI run script, through linking observation BUFR files to working directory 
-\item In GSI namelist (inside \textit{comgsi\_namelist.sh}), through section \verb|&OBS_INPUT|
-\item Through parameters in info files (e.g.: convinfo, satinfo, etc)
+\item In the GSI run script, by linking observation BUFR files to the working directory 
+\item In section \verb|&OBS_INPUT| of the GSI namelist (inside \textit{comgsi\_namelist.sh})
+\item Through parameters in info files (e.g.: convinfo, satinfo, etc.)
 \end{enumerate}
 
-Each part gives different levels of control to the data usage in the GSI, which is introduced below:
+Each part provides different levels of control for data usage in the GSI, which is introduced below:
 
 \begin{enumerate}[leftmargin=*]
-\item Link observation BUFR files to working directory in GSI run script:\\
+\item Link observation BUFR files to the working directory in the GSI run script:\\
 
-All BUFR/PrepBUFR observation files need to be linked to the working directory with GSI recognized names before can be used by GSI analysis. The run script (\textit{run\_gsi\_regional.ksh}) makes these links after locating the working directory. Turning on or off these links can control the use of all the data contained in the BUFR files. Table \ref{tab41} provides a list of all default observation file names recognized by GSI and the corresponding examples of the observation BUFR files from NCEP. The following is the first 3 rows of the table as an example:
+All BUFR/PrepBUFR observation files need to be linked to the working directory with GSI recognizable names before they can be used in a GSI analysis. The run script (\textit{run\_gsi\_regional.ksh}) makes these links after locating the working directory. Turning these links on or off can control the use of all the data contained in the BUFR files. Table \ref{tab41} provides a list of all default observation file names recognized by GSI and the corresponding examples of the observation BUFR files from NCEP. The following is the first three rows of the table as an example:
 \begin{table}[htbp]
 \centering
-\caption{list of all default observation file names recognized by GSI}
+\caption{List of all default observation file names recognized by GSI.}
 \begin{tabular}{|p{2cm}|p{9cm}|p{5cm}|}
 \hline
 \hline
 GSI Name & Content & Example file names \\
 \hline
-prepbufr & Conventional observations, including ps, t, q, pw, uv, spd, dw, sst, from observation platforms such as METAR, sounding, et al. & \textit{gdas1.t12z.prepbufr} \\
+prepbufr & Conventional observations, including ps, t, q, pw, uv, spd, dw, sst, from observation platforms such as METAR, soundings, etc. & \textit{gdas1.t12z.prepbufr} \\
 \hline
 satwndbufr & satellite winds &	\textit{gdas1.t12z.satwnd.tm00.bufr\_d} \\
 \hline
-amsuabufr & AMSU-A 1b radiance (brightness temperatures) from satellites NOAA-15, 16, 17,18, 19 and METOP-A/B &	\textit{gdas1.t12z.1bamua.tm00.bufr\_d} \\
+amsuabufr & AMSU-A 1b radiance (brightness temperatures) from satellites NOAA-15, 16, 17,18, 19, and METOP-A/B &	\textit{gdas1.t12z.1bamua.tm00.bufr\_d} \\
 \hline
 \end{tabular}
 \label{tab41}
@@ -1140,11 +1139,11 @@ ln -s ${PREPBUFR} ./prepbufr
  ln -s ${OBS_ROOT}/gdas1.t12z.1bamua.tm00.bufr_d amsuabufr
 \end{verbatim}
 \end{scriptsize}
-The GSI recognized default observation filenames are set up in the namelist section \verb|&OBS_INPUT|, which certainly can be changed based on application needs (details see below). \\
+The GSI recognized default observation filenames are set up in the namelist section \verb|&OBS_INPUT|, which can be changed based on application needs (see below for details). \\
 
-\item In GSI namelist (inside \textit{comgsi\_namelist.sh}), section \verb|&OBS_INPUT|:\\
+\item In the GSI namelist (inside \textit{comgsi\_namelist.sh}), section \verb|&OBS_INPUT|:\\
 
-In this namelist section, observation files (column of dfile) are tied to the observation variables used inside the GSI code (column of dsis), for example, part of section \verb|OBS_INPUT| shows:
+In this namelist section, observation files ("dfile" column) are tied to the observation variables used inside the GSI code ("dsis" column). For example, part of section \verb|OBS_INPUT| shows:
 
 \begin{scriptsize}
 \begin{verbatim}
@@ -1173,7 +1172,7 @@ OBS_INPUT::
 \end{verbatim}
 \end{scriptsize}
 
-This setup tells GSI that conventional observation variables \verb|ps|, \verb|t|, and \verb|q| should be read in from the file prepbufr and AMSU-A radiances from NOAA-15 and -18 satellites should be read in from the file amsuabufr. Deleting a particular line in \verb|&OBS_INPUT| will turn off the use of the observation variable presented by the line in the GSI analysis but other variables under the same type still can be used. For example, if we delete: 
+This setup tells GSI that conventional observation variables \verb|ps|, \verb|t|, and \verb|q| should be read in from the file prepbufr, while AMSU-A radiances from NOAA-15 and NOAA-18 satellites should be read in from the file \textbf{amsuabufr}. Deleting a particular line in \verb|&OBS_INPUT| will turn off the use of the observation variable presented by the line in the GSI analysis but other variables under the same type can still be used. For example, if we delete: 
 
 \begin{scriptsize}
 \begin{verbatim}
@@ -1184,7 +1183,7 @@ amsuabufr      amsua       n15       amsua_n15           10.0     2     0
 Then, the AMSU-A observation from NOAA-15 will not be used in the analysis but the AMSU-A observations from NOAA-18 will still be used.\\
 
 
-The observation filename in dfile can be different from the sample script (\textit{comgsi\_namelist.ksh}). If the filename in dfile has been changed, the link from the BUFR files to the GSI recognized name in the run script also needs to be changed correspondingly. For example, if we change the dfile for amsuabufr file for NOAA-15 to be \verb|amsuabufr_n15|
+The observation filename in "dfile" can be different from the sample script (\textit{comgsi\_namelist.ksh}). If the filename in "dfile" has been changed, the link from the BUFR files to the GSI recognized name in the run script also needs to be changed correspondingly. For example, if we change the "dfile" in \textbf{amsuabufr} for NOAA-15 to be \verb|amsuabufr_n15|,
 
 \begin{scriptsize}
 \begin{verbatim}
@@ -1203,12 +1202,12 @@ ln -s ${OBS_ROOT}/le_gdas1.t00z.1bamua.tm00.bufr_d amsuabufr_n15
 \end{verbatim}
 \end{scriptsize}
 
-The GSI will read NOAA-18 AMSU-A observations from file amsuabufr and NOAA-15 AMSU-A observations from file \verb|amsuabufr_n15| based on the above changes to the run scripts and namelist. In this example, both amsuabufr and \verb|amsuabufr_15| are linked to the same BUFR file and NOAA-15 AMSU-A and NOAA-18 AMSU-A observations are still read in from the same BUFR file. If amsuabufr and \verb|amsuabufr_15| link to different BUFR files, then NOAA-15 AMSU-A and NOAA-18 AMSU-A will be read in from different BUFR files. Clearly, the changeable filename in \textit{dfile} gives GSI more capability to handle multiple data resources.\\
+The GSI will read NOAA-18 AMSU-A observations from file \textbf{amsuabufr} and NOAA-15 AMSU-A observations from file \verb|amsuabufr_n15| based on the above changes to the run scripts and namelist. In this example, both \textbf{amsuabufr} and \verb|amsuabufr_15| are linked to the same BUFR file and NOAA-15 AMSU-A and NOAA-18 AMSU-A observations are still read in from the same BUFR file. If \textbf{amsuabufr} and \verb|amsuabufr_15| link to different BUFR files, then NOAA-15 AMSU-A and NOAA-18 AMSU-A will be read in from different BUFR files. The changeable filename in \textit{dfile} gives GSI more flexibility to handle multiple data resources.\\
 
 
 \item Use info files to control data usage\\
 
-For each variable, observations can come from multiple platforms (data types or observation instruments). For example, surface pressure (ps) can come from METAR observation stations (data type 187) and Rawinsonde (data type 120). There are several files named *info in the GSI system (located in \textit{./fix}) to control the usage of observations based on the observation platform. Table \ref{tab42} is a list of info files and their function:
+For each variable, observations can come from multiple platforms (data types or observation instruments). For example, surface pressure (ps) can come from METAR observation stations (data type 187) and rawinsonde (data type 120). There are several files named *info in the GSI system (located in \textit{./fix}) to control the usage of observations based on the observation platform. Table \ref{tab42} is a list of info files and their function:
 \begin{table}[htbp]
 \centering
 \caption{The content of info files }
@@ -1217,13 +1216,13 @@ For each variable, observations can come from multiple platforms (data types or 
 \hline
 File name in GSI & Function and Content \\
 \hline
-convinfo & Control the usage of conventional data, including tcp, ps, t, q, pw, sst, uv, spd, dw, radial wind (Level 2 \textit{rw} and 2.5 \textit{srw}), gps, \textit{pm2\_5} \\
+convinfo & Control the usage of conventional data, including tcp, ps, t, q, pw, sst, uv, spd, dw, radial wind (Level 2 \textit{rw} and 2.5 \textit{srw}), gps, and \textit{pm2\_5} \\
 \hline
-satinfo	 & Control the usage of satellite data. Instruments include AMSU-A/B, HIRS3/4, MHS, ssmi, ssmis, iasi, airs, sndr, cris, amsre, imgr, seviri, atms, avhrr3, etc. and satellites include NOAA 15, 17, 18, 19, aqua, GOES 11, 12, 13, METOP-A/B, NPP, DMSP 15,16,17,18,19,20, 
+satinfo	 & Control the usage of satellite data. Instruments include AMSU-A/B, HIRS3/4, MHS, ssmi, ssmis, iasi, airs, sndr, cris, amsre, imgr, seviri, atms, avhrr3, etc., and satellites include NOAA 15, 17, 18, 19, aqua, GOES 11, 12, 13, METOP-A/B, NPP, DMSP 15,16,17,18,19,20, 
 M08, M09, M10, etc.\\
-ozinfo & Control the usage of ozone data, including sbuv6, 8 from NOAA 14, 16, 17, 18, 19. omi\_aura, gome\_metop-a, mls\_aura \\
+ozinfo & Control the usage of ozone data, including sbuv6, 8 from NOAA 14, 16, 17, 18, 19. omi\_aura, gome\_metop-a, and mls\_aura \\
 \hline
-pcpinfo	& Control the usage of precipitation data, including pcp\_ssmi, pcp\_tmi \\
+pcpinfo	& Control the usage of precipitation data, including pcp\_ssmi and pcp\_tmi \\
 \hline
 aeroinfo & Control the usage of aerosol data, including modis\_aqua and modis\_terra \\
 \hline
@@ -1231,12 +1230,12 @@ aeroinfo & Control the usage of aerosol data, including modis\_aqua and modis\_t
 \label{tab42}
 \end{table} 
 
-The header of each info file includes an explanation of the content of the file. Here we discuss the most commonly used two info files:
+The header of each info file includes an explanation of the content of the file. Here we discuss the two most commonly used info files:
 
 \begin{itemize}[leftmargin=*]
 \item convinfo\\
 
-The convinfo is to control the usage of conventional data. The following is the part of the content of convinfo:
+The \textbf{convinfo} file controls the usage of conventional data. The following is part of the \textbf{convinfo} file:
 
 \begin{tiny}
 \begin{verbatim}
@@ -1283,9 +1282,9 @@ type & prepbufr observation type (if available) \\
 sub	& prepbufr subtype (not yet available) \\
 \hline
 iuse & flag if to use/not use / monitor data; \newline
-=1, use data, the data type will be read and used in the analysis after quality control;\newline
-=0, read in and process data, use for quality control, but do NOT assimilate;\newline
-=-1, monitor data. This data type will be read in and monitored but not be used in the GSI analysis. \\
+= 1, use data, the data type will be read and used in the analysis after quality control;\newline
+= 0, read in and process data, use for quality control, but do NOT assimilate;\newline
+= -1, monitor data. This data type will be read in and monitored but not be used in the GSI analysis. \\
 \hline
 twindow	& time window (+/- hours) for data used in the analysis \\
 \hline
@@ -1295,15 +1294,15 @@ ngroup & cross validation parameter - group to remove from data use \\
 \hline
 nmiter & cross validation parameter - external iteration to introduce removed data \\
 \hline
-gross & gross error parameter  - gross error \\
+gross & gross error parameter - gross error \\
 \hline
 ermax & gross error parameter - maximum error \\
 \hline
 ermin & gross error parameter - minimum error \\
 \hline
-var\_b & variational quality control parameter  -  b parameter \\
+var\_b & variational quality control parameter - b parameter \\
 \hline
-var\_pg & variational quality control parameter  -  pg parameter\\
+var\_pg & variational quality control parameter - pg parameter\\
 \hline
 ithin & Flag to turn on thinning (0, no thinning, 1 - thinning) \\
 \hline
@@ -1313,15 +1312,15 @@ pmesh & size of vertical thinning mesh \\
 \hline
 npred & Number of bias correction predictors \\
 \hline
-pmot & the option to keep thinned data as monitored, 0: not to keep, other values: to keep \\
+pmot & Option to keep thinned data as monitored, 0: do not keep, other values: keep \\
 \hline
-ptime & time interval for thinning, 0, no temporal thinning, other values define time interval (less than 6) \\
+ptime & time interval for thinning, 0, no temporal thinning, other values define time interval (less than six) \\
 \hline
 \end{tabular}
 \label{tab43}
 \end{table} 
 
-From this table, we can see that parameter iuse is used to control the usage of data and parameter twindow is to control the time window of data usage. Parameters gross, ermax, and ermin are for gross quality control.  Through these parameters, GSI can control how to use certain types of the data in the analysis.\\
+From this table, we can see that parameter "iuse" is used to control the usage of data and parameter "twindow" is used to control the time window of data usage. Parameters gross, ermax, and ermin are for gross quality control. Through these parameters, GSI can control how to use certain types of data in the analysis.\\
 
 \item satinfo\\
 
@@ -1370,7 +1369,7 @@ iuse& = 1, use this channel data; \newline
 \hline
 error	& Variance for each satellite channel \\
 \hline
-error\_cld & Variance for each satellite channel if it is cloudy \\
+error\_cld & Variance for each satellite channel if cloudy \\
 \hline
 ermax & Error maximum for gross check to observations \\
 \hline
@@ -1394,7 +1393,7 @@ icld\_det  & Use this channel in cloud detection if > 0 \\
 \label{sec4.4}
 %-------------------------------------------------------------------------------
 
-The standard output file (\textit{stdout}) has an information block that shows the distribution of different kinds of observations in each sub-domain. This block follows the observation input section. The following is the observation distribution of the case shown in Section \ref{sec4.1}. From the case introduction, we know the prepbufr (conventional data), radiance BUFR files, and GPS BUFR files were used. In this list, the conventional observations (\verb|ps|, \verb|t|, \verb|q|, \verb|pw|, and \verb|uv|), GPSRO (\verb|gps_ref|), and radiance data (\verb|amusa|, \verb|hirs4|, and \verb|mhs| from \verb|Metop-a|, \verb|Metop-b|, \verb|NOAA 15| and \verb|18|) were distributed among 4 sub-domains:
+The standard output file (\textit{stdout}) has an information block that shows the distribution of different kinds of observations in each sub-domain. This block follows the observation input section. The following is the observation distribution from the case shown in Section \ref{sec4.1}. From the introduction, we know the prepbufr (conventional data), radiance BUFR files, and GPS BUFR files were used. In this list, the conventional observations (\verb|ps|, \verb|t|, \verb|q|, \verb|pw|, and \verb|uv|), GPSRO (\verb|gps_ref|), and radiance data (\verb|amusa|, \verb|hirs4|, and \verb|mhs| from \verb|Metop-a|, \verb|Metop-b|, \verb|NOAA 15|, and \verb|18|) were distributed among four sub-domains:
 
 \begin{scriptsize}
 \begin{verbatim}
@@ -1426,7 +1425,7 @@ This list is a good way to quickly check which kinds of data are used in the ana
 \section{Observation Innovation Statistics}
 %-------------------------------------------------------------------------------
 
-The GSI analysis gives a group of files named \textit{fort.2*} to summarize observations fitting to the current solution in each outer loop (except for \textit{fort.220}, see explanation on \textit{fort.220} in next section). The content of some of these files is listed in Table \ref{tab45}:
+The GSI analysis provides a set of files named \textit{fort.2*} to summarize observations fit to the current solution in each outer loop (except for \textit{fort.220}, see explanation in the next section). The content of some of these files is listed in Table \ref{tab45}:
 
 \begin{table}[htbp]
 \centering
@@ -1442,16 +1441,16 @@ File Name & Variables in file & Ranges/units \\
 \hline
 \textit{fort.203 or fit\_t1.analysis\_time} & fit of temperature data & K \\
 \hline
-\textit{fort.204 or fit\_q1.analysis\_time} & fit of moisture data & percent of guess qsaturation \\
+\textit{fort.204 or fit\_q1.analysis\_time} & fit of moisture data & percent of qsaturation guess \\
 \hline
 \textit{fort.205} & fit of precipitation water data & mm \\
 \hline
-\textit{fort.206} & fit of ozone observations from sbuv6\_n14 (, \_n16, \_n17, \_n18), sbuv8\_n16 (, \_n17, \_n18, \_n19), omi\_aura, gome\_metop-a/b, mls\_aura &  \\
+\textit{fort.206} & fit of ozone observations from sbuv6\_n14 (, \_n16, \_n17, \_n18), sbuv8\_n16 (, \_n17, \_n18, \_n19), omi\_aura, gome\_metop-a/b, and mls\_aura &  \\
 \hline
 \textit{fort.207 or fit\_rad1.analysis\_time} & fit of satellite radiance data, such as:
-amsua\_n15(, n16, n17, n18, metop-a, aqua, n19), amsub\_n17, hirs3\_n17, hirs4\_n19 (, metop-a), etc & \\
+amsua\_n15(, n16, n17, n18, metop-a, aqua, n19), amsub\_n17, hirs3\_n17, hirs4\_n19 (, metop-a), etc. & \\
 \hline	
-\textit{fort.208} & fit of prepcipitation rate (pcp\_ssmi, pcp\_tmi) & \\	
+\textit{fort.208} & fit of precipitation rate (pcp\_ssmi and pcp\_tmi) & \\	
 \hline
 \textit{fort.209} & fit of radar radial wind (rw) & \\
 \hline
@@ -1463,29 +1462,29 @@ amsua\_n15(, n16, n17, n18, metop-a, aqua, n19), amsub\_n17, hirs3\_n17, hirs4\_
 \hline
 \textit{fort.213} & fit of conventional sst data & C \\
 \hline
-\textit{fort.214} & Tropical cyclone central pressure &  \\
+\textit{fort.214} & fit of tropical cyclone central pressure &  \\
 \hline
-\textit{fort.215} & Lagrangian tracer data &  \\
+\textit{fort.215} & fit of Lagrangian tracer data &  \\
 \hline
-\textit{Fort.217} & Fit of aerosol product (aod) &  \\
+\textit{fort.217} & fit of aerosol product (aod) &  \\
 \hline	
-Fort.218 & Fit of  wind gust &  \\
+\textit{fort.218} & fit of wind gust &  \\
 \hline	
-Fort.219 & Fit of visibility &
+\textit{Fort.219} & fit of visibility &
  \\
 \hline
 \end{tabular}
 \label{tab45}
 \end{table} 
 
-To help users understand the information inside these files, some examples from these files are given in the following sub-sections with corresponding explanations.
+To help users understand the information inside these files, some examples are given in the following sub-sections with corresponding explanations.
 
 %-------------------------------------------------------------------------------
 \subsection{Conventional observations}
 \label{sec4.5.1}
 %-------------------------------------------------------------------------------
 
-Example of files including single level data (\textit{fort.201}, \textit{fort.205}, \textit{fort.213})
+Example of files, including single level data (\textit{fort.201}, \textit{fort.205}, and \textit{fort.213})
 
 \begin{scriptsize}
 \begin{verbatim}
@@ -1516,7 +1515,7 @@ current fit of surface pressure data, ranges in mb
 \end{verbatim}
 \end{scriptsize}
 
-Example of files including multiple level data (\textit{fort.202}, \textit{fort.203}, \textit{fort.204})
+Example of files including multiple level data (\textit{fort.202}, \textit{fort.203}, and \textit{fort.204})
 
 \begin{scriptsize}
 \begin{verbatim}
@@ -1568,13 +1567,13 @@ Example of files including multiple level data (\textit{fort.202}, \textit{fort.
 \end{verbatim}
 \end{scriptsize}
 
-Please note 5 layers from 600 to 150 hPa have been deleted to make each row fit into one line. Only observation type 220 and 223 are shown as an example.
+Please note that five layers from 600 to 150 hPa have been deleted to make each row fit into one line. Only observation type 220 and 223 are shown as an example.
 
-The table \ref{tab46} lists the meaning of each item in file \textit{fort.201-213} except file \textit{fort.207}:
+Table \ref{tab46} lists the meaning of each item in file \textit{fort.201-213} except file \textit{fort.207}:
 
 \begin{table}[htbp]
 \centering
-\caption{list of each item in file fort.201-213 (except fort.207)}
+\caption{List of each item in file fort.201-213 (except fort.207).}
 \begin{tabular}{|p{1cm}|p{10cm}|}
 \hline
 \hline
@@ -1582,29 +1581,29 @@ The table \ref{tab46} lists the meaning of each item in file \textit{fort.201-21
 \hline
 \textit{it} & outer loop number \newline
 = 01: observation - background \newline
-= 02: observation - analysis (after 1st outer loop) \newline
-= 03: observation - analysis (after 2nd outer loop) \\
+= 02: observation - analysis (after 1\textsuperscript{st} outer loop) \newline
+= 03: observation - analysis (after 2\textsuperscript{nd} outer loop) \\
 \hline
-\textit{obs} & observation variable (such as uv, ps) and usage of the type, which include: \newline
+\textit{obs} & observation variable type (such as uv or ps) and usage, which includes: \newline
 blank: used in GSI analysis \newline
-mon: monitored, (read in but not assimilated by GSI). \newline
+mon: monitored (read in but not assimilated by GSI) \newline
 rej: rejected because of quality control in GSI \\
 \hline
-\textit{type} & prepbufr observation type (see BUFR User\textquotesingle s Guide for details) \\
+\textit{type} & prepbufr observation type (see the BUFR User\textquotesingle s Guide for details) \\
 \hline
-\textit{styp} & prepbufr observation subtype (not used now) \\
+\textit{styp} & prepbufr observation subtype (not used) \\
 \hline
 \textit{ptop} & for multiple level data: pressure at the top of the layer \\
 \hline
 \textit{pbot} & for multiple level data: pressure at the bottom of the layer \\
 \hline
-\textit{count} & The number of observations summarized under observation types and vertical layers  \\
+\textit{count} & the number of observations summarized under observation types and vertical layers  \\
 \hline
-\textit{bias} & Bias of observation departure for each outer loop (it) \\
+\textit{bias} & bias of observation departure for each outer loop (it) \\
 \hline
-\textit{rms} & Root Mean Square of observation departure for each outer loop (it)  \\
+\textit{rms} & root mean square error of observation departure for each outer loop (it)  \\
 \hline
-\textit{cpen} & Observation part of penalty (cost function) \\
+\textit{cpen} & observation part of penalty (cost function) \\
 \hline
 \textit{qcpen} & nonlinear qc penalty \\
 \hline
@@ -1612,10 +1611,9 @@ rej: rejected because of quality control in GSI \\
 \label{tab46}
 \end{table} 
 
+The contents of the fit files are calculated based on O-B or O-A for each observation. The detailed departure information about each observation is saved in the diagnostic files. For the content of the diagnostic files, please check the content of the array "rdiagbuf" in one of the setup subroutines for conventional data (for example, setupt.f90). We provide a tool in appendix A.2 to help users read in the information from the diagnostic files.
 
-The contents of the fit files are calculated based on O-B or O-A for each observation. The detailed departure information about each observation is saved in the diagnostic files. For the content of the diagnostic files, please check the content of the array rdiagbuf in one of the setup subroutines for conventional data, for example, setupt.f90. We provide a tool in appendix A.2 to help users read in the information from the diagnostic files.
-
-These fit files give lots of useful information on how data are analyzed by the GSI, such as how many observations are used and rejected, what is the bias and rms for certain data types or for all observations, and how analysis results fit to the observation before and after analysis. Again, we use observation type 220 in \textit{fort.202} (\textit{fit\_w1.2014061700}) as an example to illustrate how to read this information. The fit information for observation type 220 (sounding observation) is listed below. Like the previous example, 5 layers from 600 to 150 hPa were deleted to make each row fit into one line. All fit information of observation type 220 are shown. 
+These fit files give lots of useful information on how data are analyzed by the GSI, such as how many observations are used and rejected, the bias and root mean squared (RMS) error for certain data types or for all observations, and how analysis results fit to the observation before and after analysis. Again, we use observation type 220 in \textit{fort.202} (\textit{fit\_w1.2014061700}) as an example to illustrate how to read this information. The fit information for observation type 220 (soundings) is listed below. Like the previous example, five layers from 600 to 150 hPa were deleted to make each row fit into one line. All fit information of observation type 220 is shown. 
 
 \begin{scriptsize}
 \begin{verbatim}
@@ -1700,9 +1698,9 @@ These fit files give lots of useful information on how data are analyzed by the 
 \end{verbatim}
 \end{scriptsize}
 
-In loop section \verb|o-g 01|, from \verb|count| line, we can see there are 4231 sounding observations used in the analysis. Among them, 44 are within the 1000-1200 hPa layer. Also from the \verb|count| lines, in the rejection and monitoring section, there are 800 observations rejected and 29 observations being monitored. In the same loop section, from the \verb|bias| line and \verb|rms| lines, we can see the total bias and rms of O-B for soundings is 0.59 and 4.18. The bias and rms of each layer for sounding observation can also be found in the file.
+In loop section \verb|o-g 01|, from the \verb|count| line, we can see there were 4231 sounding observations used in the analysis. Among them, 44 were within the 1000-1200 hPa layer. Also from the \verb|count| lines, in the rejection and monitoring section, there were 800 observations rejected and 29 observations monitored. In the same loop section, from the \verb|bias| line and \verb|rms| lines, we can see the total bias and RMS error of O-B for the sounding information is 0.59 and 4.18. The bias and RMS error for each vertical layer can also be found in this file.
 
-When reading bias and rms values from different loops, as shown with the comparison in the following three lines:
+Next we can see bias and RMS error values from different loops, as shown with the comparison in the following three lines:
 
 \begin{scriptsize}
 \begin{verbatim}
@@ -1712,16 +1710,16 @@ o-g 03      uv     220 0000   rms    2.11   2.17   2.20   2.38   5.00   4.46    
 \end{verbatim}
 \end{scriptsize}
 
-These three lines show that the rms reduced from 4.18 (o-g 01, which is O-B) to 3.73 (o-g 02, which is O-A after 1st outer loop) and then to 3.60 (o-g 03, which is O-A after 2nd outer loop, the final analysis result). The reduction in the rms shows the observation type 220 (sounding) was used in the GSI analysis to modify the background fields to fit to the observations. 
+These three lines show that the RMS error reduced from 4.18 (o-g 01, which is O-B) to 3.73 (o-g 02, which is O-A after the 1\textsuperscript{st} outer loop) and then to 3.60 (o-g 03, which is O-A after the 2\textsuperscript{nd} outer loop, which is also the final analysis result). The reduction in the RMS error shows that observation type 220 (sounding) was used in the GSI analysis to modify the background fields to fit to the observations. 
 
 %-------------------------------------------------------------------------------
 \subsection{Satellite Radiance}
 \label{sec4.5.2}
 %-------------------------------------------------------------------------------
 
-The file \textit{fort.207} is the statistic fit file for radiance data. Its content includes important information about the radiance data analysis.
+The file \textit{fort.207} is the fit file for radiance data. Its content includes important information about the radiance data analysis.
 
-The first part of the file \textit{fort.207} lists the content that corresponds to those in the file satinfo, which is the info file to control the data usage for radiance data. 
+The first part of the file \textit{fort.207} lists the content that corresponds to those in the file \textbf{satinfo}, which is the info file to control radiance data usage. 
 
 \begin{tiny}
 \begin{verbatim}
@@ -1737,7 +1735,7 @@ RADINFO_READ:  jpch_rad=   2723
 \end{verbatim}
 \end{tiny}
 
-This shows there are 2723 channels listed in the \textit{satinfo} file and the 2723 lines following this line include the detailed setups in the \textit{satinfo} file for each channel.
+This shows there are 2723 channels listed in the \textit{satinfo} file and the 2723 lines following this line include the details for each channel.
 
 The second part of the file is a list of the coefficients for bias correction, after reading the \textit{satbias\_in} file:
 
@@ -1754,9 +1752,9 @@ The second part of the file is a list of the coefficients for bias correction, a
 \end{verbatim}
 \end{tiny}
 
-Each channel has 12 coefficients listed in a line. Therefore, there are 2723 lines of radiance bias correction coefficients for all channels though some of the coefficients are 0.
+Each channel has 12 coefficients listed in a line. Therefore, there are 2723 lines of radiance bias correction coefficients for all channels, though some of the coefficients are zero.
 
-The 3rd part of the \textit{fort.207} file is similar to other fit files with similar content repeated in 3 sections to give detailed statistic information about the data in stages before the 1st outer loop, between 1st and 2nd outer loop, and after 2nd outer loop. The results before the 1st outer loop are used here as an example to explain the content of the statistic results:
+The 3\textsuperscript{rd} part of the \textit{fort.207} file is similar to other fit files with content repeated in three sections, providing detailed statistics about the data in stages before the 1\textsuperscript{st} outer loop, between the 1\textsuperscript{st} and 2\textsuperscript{nd} outer loops, and after the 2\textsuperscript{nd} outer loop. The results before the 1\textsuperscript{st} outer loop are used here as an example to explain the content of the results:
 
 \begin{itemize}[leftmargin=*]
 
@@ -1785,11 +1783,11 @@ rad total failed nonlinqc=                         0
 \end{verbatim}
 \end{scriptsize}
 
-The Table \ref{tab47} lists the meaning of each item in the above statistics:
+Table \ref{tab47} outlines the meaning of each item in the above statistics:
 
 \begin{table}[htbp]
 \centering
-\caption{content of summarizing radiance observation process in fort.207}
+\caption{Summary of the radiance observation fit file (fort.207)}
 \begin{tabular}{|p{2cm}|p{10cm}|}
 \hline
 \hline
@@ -1812,25 +1810,25 @@ The Table \ref{tab47} lists the meaning of each item in the above statistics:
 \hline
 \textit{ireduce} & number of observations that reduce qc bounds in tropics \\
 \hline
-\textit{ivarl} & number of observations tossed by gross check  \\
+\textit{ivarl} & number of observations removed by gross check  \\
 \hline
-\textit{nlgross} & number of observation tossed by nonlinear qc\\
+\textit{nlgross} & number of observation removed by nonlinear qc\\
 \hline
 \textit{qcpenalty} & nonlinear qc penalty from this data type \\
 \hline
-\textit{qc1-7} & number of observations whose quality control criteria has been adjusted by each qc method (1-7), details see in the Radiance Chapter of the Advanced User?s Guide \\
+\textit{qc1-7} & number of observations whose quality control criteria has been adjusted by each qc method (1-7).  For details, see the Radiance Chapter of the Advanced User\textquotesingle s Guide \\
 \hline
 \textit{rad total penalty\_all} & summary of penalty for all radiance observation types \\
 \hline
 \textit{rad total qcpenalty\_all} & summary of qcpenalty for all radiance observation types \\
 \hline
-\textit{rad total failed nonlinqc} & summary of observation tossed by nonlinear qc for all radiance observation types \\
+\textit{rad total failed nonlinqc} & summary of observations removed by nonlinear qc for all radiance observation types \\
 \hline
 \end{tabular}
 \label{tab47}
 \end{table} 
 
-Note: one radiance observation may include multiple channels, not all channels are used in the analysis.
+Note: One radiance observation may include multiple channels, and not all channels are necessarily used in the analysis.
 
 \item Summaries for various statistics as a function of channel
 
@@ -1861,11 +1859,11 @@ Note: one radiance observation may include multiple channels, not all channels a
 \end{verbatim}
 \end{scriptsize}
 
-The Table \ref{tab48} lists the meaning of each column in above statistics:
+Table \ref{tab48} lists the meaning of each column in the above statistics:
 
 \begin{table}[htbp]
 \centering
-\caption{content of fit statistic for each channel in fort.207}
+\caption{Content of fit statistics for each channel in the fort.207 file.}
 \begin{tabular}{|p{1.5cm}|p{10cm}|}
 \hline
 \hline
@@ -1890,7 +1888,7 @@ The Table \ref{tab48} lists the meaning of each column in above statistics:
 \hline
 \textit{9} & penalty contribution from this channel  \\
 \hline
-\textit{10} & sqrt of (observation-guess with bias correction)**2\\
+\textit{10} & square root of (observation-guess with bias correction)**2\\
 \hline
 \textit{11} & standard deviation \\
 \hline
@@ -1925,11 +1923,11 @@ o-g 01 rad  n17      amsub         0       0        0   0.0000    0.0000  0.0000
 \end{verbatim}
 \end{scriptsize}
 
-The table \ref{tab49} lists the meaning of each column in the above statistics:
+Table \ref{tab49} lists the meaning of each column in the above statistics:
 
 \begin{table}[htbp]
 \centering
-\caption{content of final summary section in fort.207}
+\caption{Content of the final summary section for the fort.207 file.}
 \begin{tabular}{|p{2.0cm}|p{10cm}|}
 \hline
 \hline
@@ -1959,8 +1957,6 @@ The table \ref{tab49} lists the meaning of each column in the above statistics:
 \end{tabular}
 \label{tab49}
 \end{table} 
-
-
 
 Similar to other fit files, a comparison between results from different outer loops can give us very useful information on how much impact each channel and data type has in the GSI.
 
@@ -2023,28 +2019,27 @@ cost,grad,step,b,step? =   2  10  2.474335402213209454E+04  1.533042344486817683
 
 \end{verbatim}
 \end{tiny}
-We can see clearly the number of outer loops and the inner loops (Minimization iteration). The meaning of the names (bold) used in \textit{stdout} are explained in the following:
+Here, we can see the number of outer and inner loops (minimization iteration). The meaning of the names (bold) used in \textit{stdout} are explained in the following:
 
 \begin{itemize}
-\item \verb|cost|: the values of cost function, (=J)
+\item \verb|cost|: the cost function values, (=J)
 \item \verb|grad|: inner product of gradients (norm of the gradient (Y*X))
 \item \verb|step|: stepsize
 \item \verb|b|: parameter to estimate the new search direction 
 \end{itemize}
 
-As a quick check, the cost function reduced from 3.915930707165839704E+04 to 2.479985164931967302E+04 in the 1st outerloop and reduced from 2.792919782749931983E+04 to 2.474335402213209454E+04 in the 2nd outer loop.
+As a quick check, the cost function reduced from 3.915930707165839704E+04 to 2.479985164931967302E+04 in the 1\textsuperscript{st} outer loop and reduced from 2.792919782749931983E+04 to 2.474335402213209454E+04 in the 2\textsuperscript{nd} outer loop.
 
 \item Convergence information in file \textit{fort.220}:\\
 
-
 In file \textit{fort.220}, users can find more detailed minimization information about each iteration. A detailed description and example are provided in the Advanced User\textquotesingle s Guide.
 
-To evaluate the convergence of the iteration, we usually make plots based on the information from \textit{fort.220}, such as the value of the cost function and the norm of the gradient. The following are example plots showing the evolution of the cost function and the norm of gradient in different outer loops:
+To evaluate the iteration convergence, we usually make plots based on the information from \textit{fort.220}, such as the value of the cost function and the norm of the gradient. The following are example plots showing the evolution of the cost function and the norm of the gradient in different outer loops:
 
 \begin{figure}[h!]
   \centering
   \includegraphics[width=0.7\textwidth]{images/CostGrad}
-  \caption{Evolution of cost function (left column) and the norm of gradient (right column) in the first outer loop (top raw) and the second outer loop (bottom raw). The Y-axis is the iteration number}
+  \caption{Evolution of the cost function (left column) and the norm of the gradient (right column) in the first outer loop (top row) and the second outer loop (bottom row). The Y-axis is the iteration number.}
   \label{fig:costgrad}
 \end{figure}
 
@@ -2062,11 +2057,11 @@ Each observation type has its own observation errors. In this section, we introd
 \label{sec4.7.1}
 %-------------------------------------------------------------------------------
 
-For the global GSI analysis, when \verb|oberrflg| (a namelist option in section \verb|&obsqc|) is true, observation errors are generated based on an external observation error table according to the types of observations. Otherwise, observation errors are read in from the PrepBUFR file.
+For the global GSI analysis, when \verb|oberrflg| (a namelist option in section \verb|&obsqc|) is true, observation errors are generated based on an external observation error table according to the observation type. Otherwise, observation errors are read in from the PrepBUFR file.
 
-For regional GSI runs, GSI forces the use of an external observation error table to get observation errors no matter what the \verb|oberrflg| is set to (\verb|oberrflg| is forced to be true for regional runs in \textit{gsimod.F90}).
+For regional analyses, GSI forces the use of an external observation error table to get observation errors no matter what the \verb|oberrflg| is set to (\verb|oberrflg| is forced to be true for regional runs in \textit{gsimod.F90}).
 
-The external observation error table file, \textit{errtable}, includes observation errors for all types of conventional observations. It is copied from the \textit{~/comGSIv3.5\_EnKFv1.1/fix} directory by the run script. This release package has three sample external observation error table files, \textit{nam\_errtable.r3dv}, \textit{prepobs\_errtable.global}, and \textit{rtma/new\_rtma\_nam\_errtable.r3dv} in the \textit{./fix} directory. The \textit{nam\_errtable.r3dv} is used in the sample run script as a default observation error table. The observation error file is a text file that can be easily edited to tune the error values. The following shows a portion of \textit{nam\_errtable.r3dv} for rawinsondes and its description of each column in Table \ref{tab410}:
+The external observation error table file, \textit{errtable}, includes observation errors for all types of conventional observations. It is copied from the \textit{./fix} directory by the run script. This release package has three sample external observation error table files, \textit{nam\_errtable.r3dv}, \textit{prepobs\_errtable.global}, and \textit{rtma/new\_rtma\_nam\_errtable.r3dv} in the \textit{./fix} directory. The \textit{nam\_errtable.r3dv} is used in the sample run script as a default observation error table. The observation error file is a text file that can be easily edited to tune the error values. The following shows a portion of \textit{nam\_errtable.r3dv} file for rawinsondes and its description of each column in Table \ref{tab410}:
 
 \begin{scriptsize}
 \begin{verbatim}
@@ -2107,8 +2102,7 @@ Column # 1         2           3          4           5          6
 \label{tab410}
 \end{table} 
 
-
-For each type of observation, the error table has 6 columns and 33 rows (levels). The 1st column prescribes 33 pressure levels, which cover from 1100 hPa to 0 hPa. The columns 2-6 prescribe the observation errors for temperature (T), relative humidity (RH), horizontal wind component (UV), surface pressure (Ps), and the total column precipitable water (Pw). The missing value is 0.10000E+10. 
+For each observation type, the error table has six columns and 33 rows (levels). The 1\textsuperscript{st} column prescribes 33 pressure levels, covering 1100 hPa to 0 hPa. Columns 2-6 prescribe observation errors for temperature (T), relative humidity (RH), horizontal wind component (UV), surface pressure (Ps), and the total column precipitable water (Pw). The missing value is 0.10000E+10. 
 
 The observation error table for each observation type starts with the observation type number defined for the PrepBUFR files, such as:
 
@@ -2119,7 +2113,7 @@ The observation error table for each observation type starts with the observatio
 \end{verbatim}
 \end{scriptsize}
 
-The PrepBUFR data type number 100-199 are for temperature (T), moisture (q), and surface pressure (Ps) observations, while number 200-299 are horizontal wind component (UV) observations. The detailed explanation of each data type number can be found from the following table in the EMC website: 
+The PrepBUFR data type numbers 100-199 are for temperature (T), moisture (q), and surface pressure (Ps) observations, while numbers 200-299 are for horizontal wind component (UV) observations. A detailed explanation of each data type number can be found in the following table on the EMC website: 
 
 \begin{small}
 \url{http://www.emc.ncep.noaa.gov/mmb/data_processing/prepbufr.doc/table_2.htm}
@@ -2132,10 +2126,10 @@ For more details on PrepBUFR/BUFR, please check the BUFR/PrepBUFR User\textquote
 \end{small}
 
 %-------------------------------------------------------------------------------
-\subsection{Observation Rrror Gross Error Check within GSI}
+\subsection{Observation Error Gross Error Check within GSI}
 %-------------------------------------------------------------------------------
 
-The gross error check is an important quality check step to exclude questionable observations that degrade the analysis. Users can adjust the threshold of the gross error check for each data type within the \textit{convinfo} file to make the gross error check tighter or looser for a certain data type. For example, the following is a part of \textit{convinfo} without the last five columns:
+The gross error check is an important quality control step to exclude questionable observations that degrade the analysis. Users can adjust the threshold of the gross error check for each data type within the \textit{convinfo} file to make the gross error check more or less strict for a certain data type. For example, the following is a part of the \textit{convinfo} file without the last five columns:
 
 \begin{scriptsize}
 \begin{verbatim}
@@ -2147,47 +2141,47 @@ t        126    0   -1     3.0      0      0      0   8.0   5.6   1.3   8.0  0.0
 \end{verbatim}
 \end{scriptsize}
  
-The gross check for each data type is controlled by gross, ermax, and ermin. If an observation has observation error: obserror, then a gross check ratio is calculated:
+The gross check for each data type is controlled by columns "gross", "ermax", and "ermin." If an observation has observation error set to "obserror," then a gross check ratio is calculated:
 
 \textit{ratio = (Observation-Background)/max(ermin,min(ermax,obserror))}
 
-If \textit{ratio > gross}, then this observation fails the gross check and will not be used in the analysis. The unused observation is indicated as "rejection" in the fit files.
+If \textit{ratio > gross}, then this observation fails the gross check and will not be used in the analysis. The unused observation is indicated as a "rejection" in the fit files.
 
 %-------------------------------------------------------------------------------
 \section{Background Error Covariance}
 \label{sec4.8}
 %-------------------------------------------------------------------------------
 
-The GSI package has several files in \textit{~/comGSIv3.5\_EnKFv1.1/fix/} to hold the pre-computed background error statistics for different GSI applications with different grid configurations. Within the ./fix directory subdirectories \textit{./fix/Big\_Endian} and \textit{./fix/Little\_Endian} contain the fix files corresponding to each endianness. Since the GSI code has a build-in mechanism to interpolate the input background error matrix to any desired analysis grid, the following two background error files can be used to specify the B matrix for any GSI regional application.
+The GSI package has several files in \textit{./fix} to hold the pre-computed background error statistics for different GSI applications with different grid configurations. Within the \textit{./fix} subdirectories \textit{./fix/Big\_Endian} and \textit{./fix/Little\_Endian} contain the fix files corresponding to each endianness. Since the GSI code has a build-in mechanism to interpolate the input background error matrix to any desired analysis grid, the following two background error files can be used to specify the B matrix for any GSI regional application.
 
 \begin{itemize}
-\item \textit{nam\_nmmstat\_na.gcv} : contains the regional background error statistics, computed using forecasts from the NCEP\textquotesingle s NAM model covering North America. The values of this B matrix cover the northern hemisphere with 93 latitude lines from -2.5 degree to 89.5 degree with 60 vertical sigma levels from 0.9975289 to 0.01364. 
-\item \textit{nam\_glb\_berror.f77.gcv} : contains the global background errors based on the NCEP\textquotesingle s GFS model, a global forecast model. The values of this B matrix covers global with 192 latitude lines from -90 degree to 90 degree and with 42 vertical sigma levels from 0.99597 to 0.013831.
+\item \textit{nam\_nmmstat\_na.gcv} : contains the regional background error statistics, computed using forecasts from the NCEP\textquotesingle s NAM model covering North America. The values of this B matrix cover the northern hemisphere with 93 latitude lines, from -2.5 degrees to 89.5 degrees with 60 vertical sigma levels from 0.9975289 to 0.01364. 
+\item \textit{nam\_glb\_berror.f77.gcv} : contains the global background errors based on NCEP\textquotesingle s GFS model, a global forecast model. The values of this B matrix cover the globe with 192 latitude lines from -90 degrees to 90 degrees and 42 vertical sigma levels from 0.99597 to 0.013831.
 \end{itemize}
 
-These background error matrix files listed above are Big Endian binary files (therefore located in the \textit{Big\_Endian} directory). In the \textit{Little\_Endian} directory, \textit{nam\_nmmstat\_na.gcv} and \textit{nam\_glb\_berror.f77.gcv} are their Little Endian versions for certain computer platforms that cannot compile GSI with the Big Endian option. In this release version, GSI can be compiled with the Big Endian option with PGI and Intel.
+The background error matrix files listed above are in Big Endian binary form (therefore located in the \textit{Big\_Endian} directory). In the \textit{Little\_Endian} directory, \textit{nam\_nmmstat\_na.gcv} and \textit{nam\_glb\_berror.f77.gcv} are their Little Endian versions for certain computer platforms that cannot compile GSI with the Big Endian option. In this release version, GSI can be compiled with the Big Endian option with PGI and Intel.
 
 %-------------------------------------------------------------------------------
-\subsection{Tuning Background Error Covariance through Namelist and Anavinfo}
+\subsection{Tuning Background Error Covariance through the Namelist and Anavinfo File}
 %-------------------------------------------------------------------------------
 
-The final background error covariance matrix used in the GSI analysis are the content from the fixed file "berror", which is a copy of  \textit{nam\_nmmstat\_na.gcv} or \textit{nam\_glb\_berror.f77.gcv}, multiplied by several factors set by the namelist and the anavinfo.
+The final background error covariance matrix used in the GSI analysis is the content from the fixed file "berror", which is a copy of \textit{nam\_nmmstat\_na.gcv} or \textit{nam\_glb\_berror.f77.gcv}, multiplied by several factors set by the namelist and the \textbf{anavinfo} file.
 
 In GSI namelist, three variables are used for tuning horizontal and vertical impact scales:
 
 \begin{itemize}
 \item \verb|vs|	scale factor for vertical correlation lengths for background error
-\item \verb|hzscl(3)|	scale factor for three scales specified for horizontal smoothing 
-\item \verb|hswgt(3)|	weights to apply to each horizontal scales
+\item \verb|hzscl(3)| scale factor for three scales specified for horizontal smoothing 
+\item \verb|hswgt(3)| weights to apply to each horizontal scales
 \end{itemize}
 
-In the GSI anavinfo files, the column \textbf{as/tsfc\_sdv} in the \textit{control\_vector} section are factors for tuning the variance of each analysis control variable.
+In the GSI anavinfo file, the column \textbf{as/tsfc\_sdv} in the \textit{control\_vector} section are factors for tuning the variance of each analysis control variable.
 
-These values can be used to tuning the background error covariance used in the GSI analysis. For each background error matrix file, there are recommended values for these parameters listed in table \ref{tab411}.
+These values can be used to tune the background error covariance used in the GSI analysis. For each background error matrix file, there are recommended values for these parameters listed in table \ref{tab411}.
 
 \begin{table}[htbp]
 \centering
-\caption{recommended tuning values for the provided B matrix}
+\caption{Recommended tuning values for the provided B matrix.}
 \begin{tabular}{|p{2cm}|p{5cm}|p{5cm}|}
 \hline
 \hline
@@ -2241,7 +2235,7 @@ control_vector::
 \section{Analysis Increments}
 %-------------------------------------------------------------------------------
 
-Analysis increments are defined as the difference of analysis results minus background. A plot of analysis increments can help users to understand how the analysis procedure modifies the background fields according to observations, background and observation error covariance, and other constraints. You can either calculate \textit{analysis-guess} and plot the difference field or use the tools introduced in Appendix A.4 to make analysis increment figures for different analysis fields.
+Analysis increments are defined as the difference between analysis results and the background (A-B). A plot of analysis increments can help users understand how the analysis procedure modifies the background fields according to observations, background and observation error covariances, and other constraints. You can either calculate \textit{analysis-guess} and plot the difference field or use the tools introduced in Appendix A.4 to make analysis increment figures for different analysis fields.
 
 %-------------------------------------------------------------------------------
 \section{Running Time and Memory Usage}
@@ -2249,7 +2243,7 @@ Analysis increments are defined as the difference of analysis results minus back
 
 In addition to analysis increments, run time and memory usage are other important features of an analysis system, especially for operational code like the GSI.
  
-The GSI standard output file (\textit{stdout}) gives the GSI start time and end time at the top and the end of the file. For example:
+The GSI standard output file (\textit{stdout}) gives the GSI start time and end time of the analysis at the beginning and end of the file. For example:
 
 \begin{scriptsize}
 \begin{verbatim}
@@ -2265,7 +2259,7 @@ The GSI standard output file (\textit{stdout}) gives the GSI start time and end 
 \end{verbatim}
 \end{scriptsize}
 
-This tells us this case started at 20:36:21.760  and ended at 20:43:40.422. Meaning GSI used 7 minutes and 19 seconds to finish.
+This tells us the analysis started at 20:36:21.760 and ended at 20:43:40.422, which means GSI used 7 minutes and 19 seconds to finish.
 
 Following the ending date-time, there is a resource statistics section at the end of the \textit{stdout} file, which gives information about run time and memory usage for the analysis:
 

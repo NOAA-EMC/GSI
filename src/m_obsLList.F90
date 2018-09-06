@@ -15,6 +15,8 @@ module m_obsLList
 !                         latlonRange from (elat,elon) values of observations.
 !   2016-07-25  j.guo   - added getTLDdotprod, to accumulate obsNode TLD-dot_produst
 !   2016-09-19  j.guo   - added function lincr_() to extend []_lsize().
+!   2017-08-26  G.Ge    - change allocate(headLL%mold,mold=mold)
+!                             to allocate(headLL%mold,source=mold)
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -263,7 +265,7 @@ _ENTRY_(myname_)
           return
         endif
   endif
-  allocate(headLL%mold,mold=mold)
+  allocate(headLL%mold,source=mold)
 _EXIT_(myname_)
 return
 end subroutine lreset_

@@ -255,7 +255,7 @@ subroutine read_files(mype)
         idate5(3)=idateg(3); idate5(4)=idateg(1); idate5(5)=0
         call w3fs21(idate5,nmings)
         nming2=nmings+60*hourg
-        write(6,*)'READ_FILES:  atm guess file',filename,hourg,idateg,nming2
+        write(6,*)'READ_FILES:  atm guess file ',filename,hourg,idateg,nming2
         t4dv=real((nming2-iwinbgn),r_kind)*r60inv
         if (l4dvar.or.l4densvar) then
            if (t4dv<zero .OR. t4dv>winlen) cycle
