@@ -302,17 +302,6 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
 
-!       Extract satellite id from the 1st MG.  If it is not the one we want, exit reading.
-        call readmg(lnbufr, subset, iret, idate)
-        rd_loop: do while (ireadsb(lnbufr)==0)
-
-          call ufbint(lnbufr,satinfo_v,ninfo,1,iret,satinfo)
-          if(nint(satinfo_v(1)) /= bufsat) then 
-            write(6,*) 'READ_GMI: Bufr satellie ID SAID', nint(satinfo_v(1)), &
-                       ' does not match ', bufsat
-            go to 690
-          endif
-        enddo rd_loop
 ! Big loop to read data file
   next=0
   irec=0
@@ -325,6 +314,12 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
      if(next /= mype_sub)cycle
      read_loop: do while (ireadsb(lnbufr)==0)            ! GMI pixels
 
+        call ufbint(lnbufr,satinfo_v,ninfo,1,iret,satinfo)
+        if(nint(satinfo_v(1)) /= bufsat) then 
+           write(6,*) 'READ_GMI: Bufr satellie ID SAID', nint(satinfo_v(1)), &
+                 ' does not match ', bufsat
+           cycle read_loop
+        end if
         t4dv        => t4dv_save(iobs)
         dlon_earth  => dlon_earth_save(iobs)
         dlat_earth  => dlat_earth_save(iobs)

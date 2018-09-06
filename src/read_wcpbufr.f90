@@ -284,7 +284,12 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
      end do loop_report
   enddo msg_report
-  if (nmsg==0) goto 900
+  if (nmsg==0) then
+     write(6,*)'READ_WCPBUFR: no messages/reports '
+     call closbf(lunin)
+     close(lunin)
+     return
+  end if
   write(6,*)'READ_WCPBUFR: messages/reports = ',nmsg,'/',ntb,' ntread = ',ntread
 !------------------------------------------------------------------------
 
@@ -713,8 +718,6 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   endif
 
   close(lunin)
-
-  close(55)
 
 ! End of routine
   return

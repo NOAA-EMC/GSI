@@ -1274,67 +1274,72 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_distx, sampling_disty, &
 !
       IF ( N .EQ. 1 ) RETURN
 !
- 100  J = 1
+      J = 1
       N1 = N - 1
-      DO 104, I = 1, N1
-         IF ( I .GE. J ) GOTO 101
-         XT = X(J)
-         X(J) = X(I)
-         X(I) = XT
- 101     K = N / 2
- 102     IF ( K .GE. J ) GOTO 103
+      DO 104 I = 1, N1
+         IF ( I < J ) THEN
+            XT = X(J)
+            X(J) = X(I)
+            X(I) = XT
+         END IF
+         K = N / 2
+         DO WHILE ( K < J )           
             J = J - K
             K = K / 2
-            GOTO 102
- 103     J = J + K
+         END DO
+         J = J + K
  104  CONTINUE
 ! 
       IS = 1
       ID = 4
- 70   DO 60, I0 = IS, N, ID
-         I1 = I0 + 1
-         R1 = X(I0)
-         X(I0) = R1 + X(I1)
-         X(I1) = R1 - X(I1)
- 60   CONTINUE
-      IS = 2 * ID - 1
-      ID = 4 * ID
-      IF ( IS .LT. N ) GOTO 70
+      DO
+         DO 60 I0 = IS, N, ID
+            I1 = I0 + 1
+            R1 = X(I0)
+            X(I0) = R1 + X(I1)
+            X(I1) = R1 - X(I1)
+ 60      CONTINUE
+         IS = 2 * ID - 1
+         ID = 4 * ID
+         IF ( IS >= N ) EXIT
+      END DO
 !
       N2 = 2
-      DO 10, K = 2, M
+      DO 10 K = 2, M
          N2 = N2 * 2
          N4 = N2 / 4
          N8 = N2 / 8
          E = TWOPI / N2
          IS = 0
          ID = N2 * 2
- 40      DO 38, I = IS, N-1, ID
-            I1 = I + 1
-            I2 = I1 + N4
-            I3 = I2 + N4
-            I4 = I3 + N4
-            T1 = X(I4) + X(I3)
-            X(I4) = X(I4) - X(I3)
-            X(I3) = X(I1) - T1
-            X(I1) = X(I1) + T1
-            IF ( N4 .EQ. 1 ) GOTO 38
-            I1 = I1 + N8
-            I2 = I2 + N8
-            I3 = I3 + N8
-            I4 = I4 + N8
-            T1 = ( X(I3) + X(I4) ) / SQRT2
-            T2 = ( X(I3) - X(I4) ) / SQRT2
-            X(I4) = X(I2) - T1
-            X(I3) = - X(I2) - T1
-            X(I2) = X(I1) - T2
-            X(I1) = X(I1) + T2
- 38      CONTINUE
-         IS = 2 * ID - N2
-         ID = 4 * ID
-         IF ( IS .LT. N ) GOTO 40
+         DO
+            DO 38 I = IS, N-1, ID
+               I1 = I + 1
+               I2 = I1 + N4
+               I3 = I2 + N4
+               I4 = I3 + N4
+               T1 = X(I4) + X(I3)
+               X(I4) = X(I4) - X(I3)
+               X(I3) = X(I1) - T1
+               X(I1) = X(I1) + T1
+               IF ( N4 == 1 ) CYCLE
+               I1 = I1 + N8
+               I2 = I2 + N8
+               I3 = I3 + N8
+               I4 = I4 + N8
+               T1 = ( X(I3) + X(I4) ) / SQRT2
+               T2 = ( X(I3) - X(I4) ) / SQRT2
+               X(I4) = X(I2) - T1
+               X(I3) = - X(I2) - T1
+               X(I2) = X(I1) - T2
+               X(I1) = X(I1) + T2
+ 38         CONTINUE
+            IS = 2 * ID - N2
+            ID = 4 * ID
+            IF ( IS >= N ) EXIT
+         END DO
          A = E
-         DO 32, J = 2, N8
+         DO 32 J = 2, N8
             A3 = 3 * A
             CC1 = COS(A)
             SS1 = SIN(A)
@@ -1343,39 +1348,41 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_distx, sampling_disty, &
             A = J * E
             IS = 0
             ID = 2 * N2
- 36         DO 30, I = IS, N-1, ID
-               I1 = I + J
-               I2 = I1 + N4
-               I3 = I2 + N4
-               I4 = I3 + N4
-               I5 = I + N4 - J + 2
-               I6 = I5 + N4
-               I7 = I6 + N4
-               I8 = I7 + N4
-               T1 = X(I3) * CC1 + X(I7) * SS1
-               T2 = X(I7) * CC1 - X(I3) * SS1
-               T3 = X(I4) * CC3 + X(I8) * SS3
-               T4 = X(I8) * CC3 - X(I4) * SS3
-               T5 = T1 + T3
-               T6 = T2 + T4
-               T3 = T1 - T3
-               T4 = T2 - T4
-               T2 = X(I6) + T6
-               X(I3) = T6 - X(I6)
-               X(I8) = T2
-               T2 = X(I2) - T3
-               X(I7) = - X(I2) - T3
-               X(I4) = T2
-               T1 = X(I1) + T5
-               X(I6) = X(I1) - T5
-               X(I1) = T1
-               T1 = X(I5) + T4
-               X(I5) = X(I5) - T4
-               X(I2) = T1
- 30         CONTINUE
-            IS = 2 * ID - N2
-            ID = 4 * ID
-            IF ( IS .LT. N ) GOTO 36
+            DO 
+               DO 30 I = IS, N-1, ID
+                  I1 = I + J
+                  I2 = I1 + N4
+                  I3 = I2 + N4
+                  I4 = I3 + N4
+                  I5 = I + N4 - J + 2
+                  I6 = I5 + N4
+                  I7 = I6 + N4
+                  I8 = I7 + N4
+                  T1 = X(I3) * CC1 + X(I7) * SS1
+                  T2 = X(I7) * CC1 - X(I3) * SS1
+                  T3 = X(I4) * CC3 + X(I8) * SS3
+                  T4 = X(I8) * CC3 - X(I4) * SS3
+                  T5 = T1 + T3
+                  T6 = T2 + T4
+                  T3 = T1 - T3
+                  T4 = T2 - T4
+                  T2 = X(I6) + T6
+                  X(I3) = T6 - X(I6)
+                  X(I8) = T2
+                  T2 = X(I2) - T3
+                  X(I7) = - X(I2) - T3
+                  X(I4) = T2
+                  T1 = X(I1) + T5
+                  X(I6) = X(I1) - T5
+                  X(I1) = T1
+                  T1 = X(I5) + T4
+                  X(I5) = X(I5) - T4
+                  X(I2) = T1
+ 30            CONTINUE
+               IS = 2 * ID - N2
+               ID = 4 * ID
+               IF ( IS >= N ) EXIT
+            END DO
  32      CONTINUE
  10   CONTINUE
       RETURN
@@ -1437,40 +1444,42 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_distx, sampling_disty, &
       IF ( N .EQ. 1 ) RETURN
 !
       N2 = 2 * N
-      DO 10, K = 1, M-1
+      DO 10 K = 1, M-1
          IS = 0
          ID = N2
          N2 = N2 / 2
          N4 = N2 / 4
          N8 = N4 / 2
          E = TWOPI / N2
- 17      DO 15, I = IS, N-1, ID
-            I1 = I + 1
-            I2 = I1 + N4
-            I3 = I2 + N4
-            I4 = I3 + N4
-            T1 = X(I1) - X(I3)
-            X(I1) = X(I1) + X(I3)
-            X(I2) = 2 * X(I2)
-            X(I3) = T1 - 2 * X(I4)
-            X(I4) = T1 + 2 * X(I4)
-            IF ( N4 .EQ. 1 ) GOTO 15
-            I1 = I1 + N8
-            I2 = I2 + N8
-            I3 = I3 + N8
-            I4 = I4 + N8
-            T1 = ( X(I2) - X(I1) ) / SQRT2
-            T2 = ( X(I4) + X(I3) ) / SQRT2
-            X(I1) = X(I1) + X(I2)
-            X(I2) = X(I4) - X(I3)
-            X(I3) = 2 * ( - T2 - T1 )
-            X(I4) = 2 * ( -T2 + T1 )
- 15      CONTINUE
-         IS = 2 * ID - N2
-         ID = 4 * ID
-         IF ( IS .LT. N-1 ) GOTO 17
+         DO 
+ 17         DO 15 I = IS, N-1, ID
+               I1 = I + 1
+               I2 = I1 + N4
+               I3 = I2 + N4
+               I4 = I3 + N4
+               T1 = X(I1) - X(I3)
+               X(I1) = X(I1) + X(I3)
+               X(I2) = 2 * X(I2)
+               X(I3) = T1 - 2 * X(I4)
+               X(I4) = T1 + 2 * X(I4)
+               IF ( N4 .EQ. 1 ) CYCLE
+               I1 = I1 + N8
+               I2 = I2 + N8
+               I3 = I3 + N8
+               I4 = I4 + N8
+               T1 = ( X(I2) - X(I1) ) / SQRT2
+               T2 = ( X(I4) + X(I3) ) / SQRT2
+               X(I1) = X(I1) + X(I2)
+               X(I2) = X(I4) - X(I3)
+               X(I3) = 2 * ( - T2 - T1 )
+               X(I4) = 2 * ( -T2 + T1 )
+ 15         CONTINUE
+            IS = 2 * ID - N2
+            ID = 4 * ID
+            IF ( IS >= N-1 ) EXIT
+         END DO
          A = E
-         DO 20, J = 2, N8
+         DO 20 J = 2, N8
             A3 = 3 * A
             CC1 = COS(A)
             SS1 = SIN(A)
@@ -1479,66 +1488,71 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_distx, sampling_disty, &
             A = J * E
             IS = 0
             ID = 2 * N2
- 40         DO 30, I = IS, N-1, ID
-               I1 = I + J
-               I2 = I1 + N4
-               I3 = I2 + N4
-               I4 = I3 + N4
-               I5 = I + N4 - J + 2
-               I6 = I5 + N4
-               I7 = I6 + N4
-               I8 = I7 + N4
-               T1 = X(I1) - X(I6)
-               X(I1) = X(I1) + X(I6)
-               T2 = X(I5) - X(I2)
-               X(I5) = X(I2) + X(I5)
-               T3 = X(I8) + X(I3)
-               X(I6) = X(I8) - X(I3)
-               T4 = X(I4) + X(I7)
-               X(I2) = X(I4) - X(I7)
-               T5 = T1 - T4
-               T1 = T1 + T4
-               T4 = T2 - T3
-               T2 = T2 + T3
-               X(I3) = T5 * CC1 + T4 * SS1
-               X(I7) = - T4 * CC1 + T5 * SS1
-               X(I4) = T1 * CC3 - T2 * SS3
-               X(I8) = T2 * CC3 + T1 * SS3
- 30         CONTINUE
-            IS = 2 * ID - N2
-            ID = 4 * ID
-            IF ( IS .LT. N-1 ) GOTO 40
+            DO 
+               DO 30 I = IS, N-1, ID
+                  I1 = I + J
+                  I2 = I1 + N4
+                  I3 = I2 + N4
+                  I4 = I3 + N4
+                  I5 = I + N4 - J + 2
+                  I6 = I5 + N4
+                  I7 = I6 + N4
+                  I8 = I7 + N4
+                  T1 = X(I1) - X(I6)
+                  X(I1) = X(I1) + X(I6)
+                  T2 = X(I5) - X(I2)
+                  X(I5) = X(I2) + X(I5)
+                  T3 = X(I8) + X(I3)
+                  X(I6) = X(I8) - X(I3)
+                  T4 = X(I4) + X(I7)
+                  X(I2) = X(I4) - X(I7)
+                  T5 = T1 - T4
+                  T1 = T1 + T4
+                  T4 = T2 - T3
+                  T2 = T2 + T3
+                  X(I3) = T5 * CC1 + T4 * SS1
+                  X(I7) = - T4 * CC1 + T5 * SS1
+                  X(I4) = T1 * CC3 - T2 * SS3
+                  X(I8) = T2 * CC3 + T1 * SS3
+ 30           CONTINUE
+              IS = 2 * ID - N2
+              ID = 4 * ID
+              IF ( IS >= N-1 ) EXIT
+           END DO
  20      CONTINUE
  10   CONTINUE
 !
       IS = 1
       ID = 4
- 70   DO 60, I0 = IS, N, ID
-         I1 = I0 + 1
-         R1 = X(I0)
-         X(I0) = R1 + X(I1)
-         X(I1) = R1 - X(I1)
- 60   CONTINUE
-      IS = 2 * ID - 1
-      ID = 4 * ID
-      IF ( IS .LT. N ) GOTO 70
+      DO 
+         DO 60 I0 = IS, N, ID
+            I1 = I0 + 1
+            R1 = X(I0)
+            X(I0) = R1 + X(I1)
+            X(I1) = R1 - X(I1)
+ 60      CONTINUE
+         IS = 2 * ID - 1
+         ID = 4 * ID
+         IF ( IS >= N ) EXIT
+      END DO
 !
- 100  J = 1
+      J = 1
       N1 = N - 1
-      DO 104, I = 1, N1
-         IF ( I .GE. J ) GOTO 101
-         XT = X(J)
-         X(J) = X(I)
-         X(I) = XT
- 101     K = N / 2
- 102     IF ( K .GE. J ) GOTO 103
+      DO 104 I = 1, N1
+         IF ( I < J ) THEN
+            XT = X(J)
+            X(J) = X(I)
+            X(I) = XT
+         END IF
+         K = N / 2
+         DO WHILE ( K < J )         
             J = J - K
             K = K / 2
-            GOTO 102
- 103     J = J + K
+         END DO
+         J = J + K
  104  CONTINUE
       XT = 1.0 / FLOAT( N )
-      DO 99, I = 1, N
+      DO 99 I = 1, N
          X(I) = XT * X(I)
  99   CONTINUE
       RETURN
