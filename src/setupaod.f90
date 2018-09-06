@@ -418,7 +418,7 @@
               if(luse_obsdiag)allocate (my_head%diags(icc))
 
               my_head%nlaero  = icc         ! profile observation count
-              call get_ij(mm1,slats,slons,my_head%ij(1),my_head%wij(1))
+              call get_ij(mm1,slats,slons,my_head%ij,my_head%wij)
 
               my_head%time=dtime
               my_head%luse=luse(n)

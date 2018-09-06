@@ -275,6 +275,7 @@ subroutine get_gefs_for_regional
      nsig_gfs=levs
      jcap_gfs=njcap
 
+     if(allocated(nems_vcoord)) deallocate(nems_vcoord)
      allocate(nems_vcoord(levs+1,3,2))
      call nemsio_getfilehead(gfile,iret=iret,vcoord=nems_vcoord)
      if ( iret /= 0 ) call error_msg(trim(my_name),trim(filename),' ', &
@@ -297,6 +298,7 @@ subroutine get_gefs_for_regional
         call stop2(85)
      endif
 
+     if(allocated(vcoord)) deallocate(vcoord)
      allocate(vcoord(levs+1,nvcoord))
      vcoord(:,1:nvcoord) = nems_vcoord(:,1:nvcoord,1)
      deallocate(nems_vcoord)
