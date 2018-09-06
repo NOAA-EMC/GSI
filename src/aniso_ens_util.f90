@@ -156,13 +156,12 @@ subroutine ens_uv_to_psichi(u,v,truewind)
 !==========================================================================
   n0=max(nlat,nlon)
   ijext=4
-100 continue
-  n1=n0+2*ijext
-  call check_32primes(n1,lprime)
-  if (.not.lprime) then
-     ijext=ijext+1
-     goto 100
-  endif
+  prime_loop: do
+    n1=n0+2*ijext
+    call check_32primes(n1,lprime)
+    if (lprime) exit prime_loop
+    ijext=ijext+1
+  end do prime_loop
 
   nxs=ijext+1
   nxe=ijext+nlon
@@ -218,6 +217,7 @@ subroutine ens_uv_to_psichi(u,v,truewind)
   deallocate(dxy)
   deallocate(dxyb)
   deallocate(tdxyb)
+  return
 end subroutine ens_uv_to_psichi
 !  --------------------------------------------------------------
 !=======================================================================
@@ -259,6 +259,7 @@ subroutine set_grdparm212(iy,jx,jxp,alat1,elon1,ds,elonv,alatan)
   elon1=226.541_r_kind
   elonv=265.000_r_kind
   alatan=25.000_r_kind
+  return
 end subroutine set_grdparm212
 !=======================================================================
 !=======================================================================
@@ -502,17 +503,16 @@ subroutine ens_intpcoeffs_reg(ngrds,igbox,iref,jref,igbox0f,ensmask,enscoeff,gbl
 
      ilateral=2
      jlateral=2
-100  continue
-     ilower=i1+ilateral
-     iupper=i2-ilateral
-     jleft=j1+jlateral
-     jright=j2-jlateral
-     ltest=any(ensmask(ilower:iupper,jleft:jright,kg)<zero)
-     if (ltest) then
+     loop1: do
+        ilower=i1+ilateral
+        iupper=i2-ilateral
+        jleft=j1+jlateral
+        jright=j2-jlateral
+        ltest=any(ensmask(ilower:iupper,jleft:jright,kg)<zero)
+        if (.not. ltest) exit loop1
         ilateral=ilateral+2
         jlateral=jlateral+2
-        goto 100
-     endif
+     end do loop1
      ilateral=ilateral+4  !increase if necessary
      jlateral=jlateral+4
  
@@ -661,6 +661,7 @@ subroutine ens_intpcoeffs_reg(ngrds,igbox,iref,jref,igbox0f,ensmask,enscoeff,gbl
      write(94) gblend
      close(94)
   end if
+  return
 
 end subroutine ens_intpcoeffs_reg
 !=======================================================================
@@ -772,6 +773,7 @@ subroutine fillanlgrd(workin,ngrds,igrid,nx,ny,workout, &
 
   deallocate(tworkin)
   deallocate(asmall)
+  return
 end subroutine fillanlgrd
 !=======================================================================
 !=======================================================================
@@ -865,6 +867,7 @@ subroutine ens_mirror(asmall,alarge,nxs,nxe,nys,nye,nxb,nyb)
              alarge(i,m)=alarge(i,n)
           enddo
        enddo
+       return
 
 end subroutine ens_mirror
 !=======================================================================
@@ -927,6 +930,7 @@ subroutine pges_minmax(mype,nt,pmin,pmax)
         print*,'in pges_minmax,k,pmin(k),pmax(k)=',k,pmin(k),pmax(k)
      enddo
   endif
+  return
 
 end subroutine pges_minmax
 !=======================================================================
@@ -970,27 +974,19 @@ subroutine check_32primes(n,lprime)
 !
 ! check for factors of 3
 !
-  do 10 ii = 1,20
-     if (nn==3*(nn/3)) then
+  prime_loop0:do ii = 1,20
+     if (nn/=3*(nn/3)) exit prime_loop0
         nfax = nfax+1
         nn = nn/3
-     else
-        go to 20
-     end if
-10 continue
-20 continue
+  end do prime_loop0
 !
 ! check for factors of 2
 !
-  do 30 ii = nfax+1,20
-     if (nn==2*(nn/2)) then
-        nfax = nfax +1
-        nn = nn/2
-     else
-        go to 40
-     end if
-30 continue
-40 continue
+  prime_loop:do ii = nfax+1,20
+     if (nn/=2*(nn/2)) exit prime_loop
+     nfax = nfax +1
+     nn = nn/2
+  end do prime_loop
   if (nn==1) lprime=.true.
 
   return
@@ -1096,6 +1092,7 @@ subroutine intp_spl(xi,yi,xo,yo,ni,no)
         yo(kk)=pi(k0)+qi(k0)*xe+ri(k0)*xe**2+si(k0)*xe**3
      end if
   end do
+  return
 end subroutine intp_spl
 
 subroutine ens_fill(ur,na,nb,u,nxx,ny,itap,no_wgt_in)

@@ -366,8 +366,10 @@ subroutine move2bundle_(grd,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret,clons,sl
           write(6,'(A)') trim(myname_) // ': ERROR!'
           write(6,'(A)') trim(myname_) // ': For now, GFS requires all MetFields: ps,u,v,(sf,vp)tv,q,oz,cw'
           write(6,'(A)') trim(myname_) // ': but some have not been found. Aborting ... '
+          write(6,'(A)') trim(myname_) // ': WARNING!'
+          write(6,'(3A,I5)') trim(myname_) // ': Trouble reading ensemble file : ', trim(filename), ', IRET = ', iret
        endif
-       goto 100
+       return
     endif
 
     do m=1,nc2d
@@ -419,8 +421,10 @@ subroutine move2bundle_(grd,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret,clons,sl
           write(6,'(A)') trim(myname_) // ': ERROR!'
           write(6,'(A)') trim(myname_) // ': For now, GFS needs to put all MetFields: ps,u,v,(sf,vp)tv,q,oz,cw'
           write(6,'(A)') trim(myname_) // ': but some have not been found. Aborting ... '
+          write(6,'(A)') trim(myname_) // ': WARNING!'
+          write(6,'(3A,I5)') trim(myname_) // ': Trouble reading ensemble file : ', trim(filename), ', IRET = ', iret
        endif
-       goto 100
+       return
     endif
 
     call general_sub2grid_destroy_info(grd2d,grd)
@@ -428,15 +432,6 @@ subroutine move2bundle_(grd,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret,clons,sl
 
     if ( allocated(scr2) ) deallocate(scr2)
     if ( allocated(scr3) ) deallocate(scr3)
-
-100 continue
-
-    if ( iret /= 0 ) then
-       if ( mype == 0 ) then
-          write(6,'(A)') trim(myname_) // ': WARNING!'
-          write(6,'(3A,I5)') trim(myname_) // ': Trouble reading ensemble file : ', trim(filename), ', IRET = ', iret
-       endif
-    endif
 
     return
 

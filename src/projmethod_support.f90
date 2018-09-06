@@ -168,7 +168,7 @@ subroutine mgram_schmidt(gradx,grady)
            print*,'in mgram_schmidt: likely to happen when using fast version of inner product'
            print*,'in mgram_schmidt: iter,k,prd0=',iter,k,prd0
         endif
-        goto 100
+        return
      endif
      gx(1:nclen,iter)=gx(1:nclen,iter)/sqrt(prd0)
      gy(1:nclen,iter)=gy(1:nclen,iter)/sqrt(prd0)
@@ -179,8 +179,6 @@ subroutine mgram_schmidt(gradx,grady)
   prd0=dplev_mask(gradx%values,grady%values,mype)
   gradx%values(1:nclen)=gx(1:nclen,iter)*sqrt(prd0)
   grady%values(1:nclen)=gy(1:nclen,iter)*sqrt(prd0)
-
-100 continue
 
 contains
 
