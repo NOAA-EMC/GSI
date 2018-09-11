@@ -109,15 +109,16 @@ contains
              write(6,*)'READ_wrf_nmm_FILES:  sigma guess file, nming2 ',hourg,idate5,nming2
              t4dv=real((nming2-iwinbgn),r_kind)*r60inv
              if (l4dvar.or.l4densvar) then
-                if (t4dv<zero .OR. t4dv>winlen) cycle
+                if (t4dv<zero .OR. t4dv>winlen) go to 110
              else
                 ndiff=nming2-nminanl
-                if(abs(ndiff) > 60*nhr_half ) cycle
+                if(abs(ndiff) > 60*nhr_half ) go to 110
              endif
              iwan=iwan+1
              time_ges(iwan,1) =real((nming2-iwinbgn),r_kind)*r60inv
              time_ges(iwan+100,1)=i+r0_001
           end if
+  110     continue
        end do
        time_ges(201,1)=one
        time_ges(202,1)=one
@@ -157,12 +158,12 @@ contains
              nming2=nmings+60*hourg
              write(6,*)'READ_wrf_nmm_FILES:  surface guess file, nming2 ',hourg,idateg,nming2
              ndiff=nming2-nminanl
-             if(abs(ndiff) <= 60*nhr_half )then
-                iwan=iwan+1
-                time_ges(iwan,2) = real((nming2-iwinbgn),r_kind)*r60inv
-                time_ges(iwan+100,2)=i+r0_001
-             end if
+             if(abs(ndiff) > 60*nhr_half ) go to 210
+             iwan=iwan+1
+             time_ges(iwan,2) = real((nming2-iwinbgn),r_kind)*r60inv
+             time_ges(iwan+100,2)=i+r0_001
           end if
+  210     continue
           if(iwan==1) exit
        end do
        time_ges(201,2)=one
@@ -351,16 +352,17 @@ contains
              write(6,*)'READ_nems_nmmb_FILES:  sigma guess file, nming2 ',hourg,idate5,nming2
              t4dv=real((nming2-iwinbgn),r_kind)*r60inv
              if (l4dvar.or.l4densvar) then
-                if (t4dv<zero .OR. t4dv>winlen) cycle
+                if (t4dv<zero .OR. t4dv>winlen) go to 110
              else
                 ndiff=nming2-nminanl
   !for test with the 3 hr files with FGAT
-  !             if(abs(ndiff) > 60*nhr_half ) cycle
+  !             if(abs(ndiff) > 60*nhr_half ) go to 110
              endif
              iwan=iwan+1
              time_ges(iwan,1) =real((nming2-iwinbgn),r_kind)*r60inv
              time_ges(iwan+100,1)=i+r0_001
           end if
+  110     continue
        end do
        time_ges(201,1)=one
        time_ges(202,1)=one
@@ -400,12 +402,12 @@ contains
              nming2=nmings+60*hourg
              write(6,*)'READ_nems_nmmb_FILES:  surface guess file, nming2 ',hourg,idateg,nming2
              ndiff=nming2-nminanl
-             if(abs(ndiff) <= 60*nhr_half ) then
-                iwan=iwan+1
-                time_ges(iwan,2) =real((nming2-iwinbgn),r_kind)*r60inv
-                time_ges(iwan+100,2)=i+r0_001
-             end if
+             if(abs(ndiff) > 60*nhr_half ) go to 210
+             iwan=iwan+1
+             time_ges(iwan,2) =real((nming2-iwinbgn),r_kind)*r60inv
+             time_ges(iwan+100,2)=i+r0_001
           end if
+  210     continue
           if(iwan==1) exit
        end do
        time_ges(201,2)=one

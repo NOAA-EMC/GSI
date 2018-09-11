@@ -172,6 +172,8 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   end do search
   if (.not.assim) val_sev=zero
 
+! Make thinning grids
+  call makegrids(rmesh,ithin)
 
 ! Open bufr file.
   call closbf(lnbufr)
@@ -184,7 +186,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   if( iret/=0) then
      write(6,*) 'READ_SEVIRI: SKIP PROCESSING OF SEVIRI FILE'
      write(6,*) 'infile=', lnbufr, infile
-     return
+     go to 900
   endif
 
   clrsky=.false.
@@ -196,11 +198,8 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   else
      write(6,*) 'READ_SEVIRI: SKIP PROCESSING OF SEVIRI FILE'
      write(6,*) 'infile=', lnbufr, infile,' subset=', subset
-     return
+     go to 900
   endif
-
-! Make thinning grids
-  call makegrids(rmesh,ithin)
 
 ! Set BUFR string based on seviri data set
   if (clrsky) then
@@ -482,6 +481,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   deallocate(hdr,datasev2,datasev1)
 
 ! Deallocate satthin arrays
+900 continue
   call destroygrids
 
 ! Print data counts

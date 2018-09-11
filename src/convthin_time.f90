@@ -283,7 +283,44 @@ contains
 !   Determine "score" for observation.  Lower score is better.
     crit = crit1*dist1
 
-!   TDR fore (Pseudo-dual-Doppler-radars)
+    if(foreswp .or. aftswp) goto 65
+
+!   Case:  obs score > best value at this location, 
+!     -->  do not use this obs, return to calling program.
+    if(crit > score_crit_tm(itx,ip,itm) .and. icount_tm(itx,ip,itm) > 0) then
+       iuse=.false.
+       return
+
+!   Case:  obs score < best value at this location, 
+!     -->  update score, count, and best obs counters
+    elseif (icount_tm(itx,ip,itm) > 0 .and. crit < score_crit_tm(itx,ip,itm)) then
+       score_crit_tm(itx,ip,itm)= crit
+       iobsout=ibest_obs_tm(itx,ip,itm)
+       icount_tm(itx,ip,itm)=icount_tm(itx,ip,itm)+1
+       iiout = ibest_save_tm(itx,ip,itm)
+       ibest_save_tm(itx,ip,itm)=iin
+
+!   Case:  first obs at this location, 
+!     -->  keep this obs as starting point
+    elseif (icount_tm(itx,ip,itm)==0) then
+       iobs=iobs+1
+       iobsout=iobs
+       score_crit_tm(itx,ip,itm)= crit
+       ibest_obs_tm(itx,ip,itm) = iobs
+       icount_tm(itx,ip,itm)=icount_tm(itx,ip,itm)+1
+       ibest_save_tm(itx,ip,itm) = iin
+
+!   Case:  none of the above cases are satisified, 
+!     -->  don't use this obs
+    else
+       iuse = .false.
+    end if
+
+    return
+
+65  continue
+!   TDR fore/aft (Pseudo-dual-Doppler-radars)
+
     if(foreswp) then   !   fore sweeps
 
 !   Case(1):  first obs at this location, keep this obs as starting point
@@ -294,6 +331,7 @@ contains
           icount_fore_tm(itx,ip,itm)=icount_fore_tm(itx,ip,itm)+1
           ibest_obs_tm(itx,ip,itm) = iobs
           ibest_save_tm(itx,ip,itm) = iin
+          return
 
 !   Case(2): obs score < best value at this location, 
 !     -->  update score, count, and best obs counters
@@ -303,20 +341,23 @@ contains
           iobsout=ibest_obs_tm(itx,ip,itm)
           iiout = ibest_save_tm(itx,ip,itm)
           ibest_save_tm(itx,ip,itm)=iin
+          return
 
 !   Case(3): obs score > best value at this location, 
 !    -->  do not use this obs, return to calling program.
        elseif (icount_fore_tm(itx,ip,itm) > 0 .and. crit > score_crit_fore_tm(itx,ip,itm)) then
           iuse=.false.
+          return
 !   Case(4): none of the above cases are satisified, don't use this obs
        else
           iuse = .false.
+          return
        endif                 ! cases
+    end if                ! fore sweeps ended
 
-!   TDR aft (Pseudo-dual-Doppler-radars)
-    else if(aftswp) then   !   aft sweeps
+    if(aftswp) then   !   aft sweeps
 
-!      Case(1):  first obs at this location, keep this obs as starting point
+!   Case(1):  first obs at this location, keep this obs as starting point
        if (icount_aft_tm(itx,ip,itm)==0) then
           iobs=iobs+1
           iobsout=iobs
@@ -324,61 +365,35 @@ contains
           icount_aft_tm(itx,ip,itm)=icount_aft_tm(itx,ip,itm)+1
           ibest_obs_tm(itx,ip,itm) = iobs
           ibest_save_tm(itx,ip,itm) = iin
+          return
 
 
-!      Case(2):  obs score < best value at this location, 
-!        -->  update score, count, and best obs counters
-       elseif (icount_aft_tm(itx,ip,itm) > 0 .and. crit < score_crit_aft_tm(itx,ip,itm)) then
+!   Case(2):  obs score < best value at this location, 
+!     -->  update score, count, and best obs counters
+    elseif (icount_aft_tm(itx,ip,itm) > 0 .and. crit < score_crit_aft_tm(itx,ip,itm)) then
           score_crit_aft_tm(itx,ip,itm)= crit
           icount_aft_tm(itx,ip,itm)=icount_aft_tm(itx,ip,itm)+1
           iobsout=ibest_obs_tm(itx,ip,itm)
           iiout = ibest_save_tm(itx,ip,itm)
           ibest_save_tm(itx,ip,itm)=iin
+          return
 
-!      Case(3): obs score > best value at this location, 
-!       -->  do not use this obs, return to calling program.
-       elseif(icount_aft_tm(itx,ip,itm) > 0 .and. crit > score_crit_aft_tm(itx,ip,itm)) then
+!   Case(3): obs score > best value at this location, 
+!    -->  do not use this obs, return to calling program.
+    elseif(icount_aft_tm(itx,ip,itm) > 0 .and. crit > score_crit_aft_tm(itx,ip,itm)) then
           iuse=.false.
+          return
 
-!       Case(4):  none of the above cases are satisified, 
-!        -->  don't use this obs
-       else
-             iuse = .false.
-       endif                 ! cases
-
-    else
-!      Case:  obs score > best value at this location, 
-!        -->  do not use this obs, return to calling program.
-       if(crit > score_crit_tm(itx,ip,itm) .and. icount_tm(itx,ip,itm) > 0) then
-          iuse=.false.
-
-!      Case:  obs score < best value at this location, 
-!        -->  update score, count, and best obs counters
-       elseif (icount_tm(itx,ip,itm) > 0 .and. crit < score_crit_tm(itx,ip,itm)) then
-          score_crit_tm(itx,ip,itm)= crit
-          iobsout=ibest_obs_tm(itx,ip,itm)
-          icount_tm(itx,ip,itm)=icount_tm(itx,ip,itm)+1
-          iiout = ibest_save_tm(itx,ip,itm)
-          ibest_save_tm(itx,ip,itm)=iin
-
-!      Case:  first obs at this location, 
-!        -->  keep this obs as starting point
-       elseif (icount_tm(itx,ip,itm)==0) then
-          iobs=iobs+1
-          iobsout=iobs
-          score_crit_tm(itx,ip,itm)= crit
-          ibest_obs_tm(itx,ip,itm) = iobs
-          icount_tm(itx,ip,itm)=icount_tm(itx,ip,itm)+1
-          ibest_save_tm(itx,ip,itm) = iin
-
-!      Case:  none of the above cases are satisified, 
-!        -->  don't use this obs
+!   Case(4):  none of the above cases are satisified, 
+!     -->  don't use this obs
        else
           iuse = .false.
-       end if
-    end if
+          return
+       endif                 ! cases
+    end if                ! fore sweeps ended
 
-    return
+       return
+
 
   end subroutine map3grids_tm
 
@@ -504,7 +519,56 @@ contains
 !   Determine "score" for observation.  Lower score is better.
     crit = crit1*dist1
 
-!   TDR fore (Pseudo-dual-Doppler-radars)
+    if(foreswp .or. aftswp) goto 65
+
+!   Case:  obs score > best value at this location, 
+!     -->  do not use this obs, return to calling program.
+    if(crit > score_crit_tm(itx,ip,itm) .and. icount_tm(itx,ip,itm) > 0) then
+       iuse=.false.
+       iobs=iobs+1
+       iobsout=iobs
+       rusage(iobs)=101.0_r_kind
+       return
+
+!   Case:  obs score < best value at this location, 
+!     -->  update score, count, and best obs counters
+    elseif (icount_tm(itx,ip,itm) > 0 .and. crit < score_crit_tm(itx,ip,itm)) then
+       iobs=iobs+1
+       iobsout=iobs
+       score_crit_tm(itx,ip,itm)= crit
+       icount_tm(itx,ip,itm)=icount_tm(itx,ip,itm)+1
+       iiout = ibest_obs_tm(itx,ip,itm)
+       rusage(iiout)=101.0_r_kind
+       rusage(iobs)=usage
+       ibest_save_tm(itx,ip,itm)=iin
+       ibest_obs_tm(itx,ip,itm)=iobs
+
+!   Case:  first obs at this location, 
+!     -->  keep this obs as starting point
+    elseif (icount_tm(itx,ip,itm)==0) then
+       iobs=iobs+1
+       iobsout=iobs
+       rusage(iobs)=usage
+       score_crit_tm(itx,ip,itm)= crit
+       ibest_obs_tm(itx,ip,itm) = iobs
+       icount_tm(itx,ip,itm)=icount_tm(itx,ip,itm)+1
+       ibest_save_tm(itx,ip,itm) = iin 
+
+!   Case:  none of the above cases are satisified, 
+!     -->  don't use this obs
+    else
+       iuse = .false.
+       iobs=iobs+1
+       iobsout=iobs
+       rusage(iobs)=101.0_r_kind
+    end if
+
+    return
+
+65 continue
+
+!   TDR fore/aft (Pseudo-dual-Doppler-radars)
+
     if(foreswp) then   !   fore sweeps
 !   Case:  obs score > best value at this location, 
 !     -->  do not use this obs, return to calling program.
@@ -513,6 +577,7 @@ contains
           iobs=iobs+1
           iobsout=iobs
           rusage(iobs)=101.1_r_kind
+          return
 
 !   Case:  obs score < best value at this location, 
 !     -->  update score, count, and best obs counters
@@ -546,9 +611,10 @@ contains
           iobsout=iobs
           rusage(iobs)=101.0_r_kind
        end if
+     endif
+    return
 
-!   TDR aft (Pseudo-dual-Doppler-radars)
-    else if(aftswp) then   !   fore sweeps
+    if(aftswp) then   !   fore sweeps
 !   Case:  obs score > best value at this location, 
 !     -->  do not use this obs, return to calling program.
        if(crit > score_crit_aft_tm(itx,ip,itm) .and. icount_aft_tm(itx,ip,itm) > 0) then
@@ -588,52 +654,8 @@ contains
           iobsout=iobs
           rusage(iobs)=101.1_r_kind
        end if
-
-    else
-!      Case:  obs score > best value at this location, 
-!        -->  do not use this obs, return to calling program.
-       if(crit > score_crit_tm(itx,ip,itm) .and. icount_tm(itx,ip,itm) > 0) then
-          iuse=.false.
-          iobs=iobs+1
-          iobsout=iobs
-          rusage(iobs)=101.0_r_kind
-
-!      Case:  obs score < best value at this location, 
-!        -->  update score, count, and best obs counters
-       elseif (icount_tm(itx,ip,itm) > 0 .and. crit < score_crit_tm(itx,ip,itm)) then
-          iobs=iobs+1
-          iobsout=iobs
-          score_crit_tm(itx,ip,itm)= crit
-          icount_tm(itx,ip,itm)=icount_tm(itx,ip,itm)+1
-          iiout = ibest_obs_tm(itx,ip,itm)
-          rusage(iiout)=101.0_r_kind
-          rusage(iobs)=usage
-          ibest_save_tm(itx,ip,itm)=iin
-          ibest_obs_tm(itx,ip,itm)=iobs
-
-!      Case:  first obs at this location, 
-!        -->  keep this obs as starting point
-       elseif (icount_tm(itx,ip,itm)==0) then
-          iobs=iobs+1
-          iobsout=iobs
-          rusage(iobs)=usage
-          score_crit_tm(itx,ip,itm)= crit
-          ibest_obs_tm(itx,ip,itm) = iobs
-          icount_tm(itx,ip,itm)=icount_tm(itx,ip,itm)+1
-          ibest_save_tm(itx,ip,itm) = iin 
-
-!      Case:  none of the above cases are satisified, 
-!        -->  don't use this obs
-       else
-          iuse = .false.
-          iobs=iobs+1
-          iobsout=iobs
-          rusage(iobs)=101.0_r_kind
-       end if
-    end if
-
+     endif
     return
-
   end subroutine map3grids_m_tm
 
   subroutine del3grids_tm

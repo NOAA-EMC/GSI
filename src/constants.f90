@@ -98,7 +98,7 @@ module constants
   real(r_kind),parameter::  t0c    = 2.7315e+2_r_kind            !  temperature at zero celsius     (K)
   real(r_kind),parameter::  ttp    = 2.7316e+2_r_kind            !  temperature at h2o triple point (K)
   real(r_kind),parameter::  jcal   = 4.1855e+0_r_kind            !  joules per calorie              ()
-! real(r_kind),parameter::  stndrd_atmos_ps = 1013.25e2_r_kind   ! 1976 US standard atmosphere ps   (Pa)
+  real(r_kind),parameter::  stndrd_atmos_ps = 1013.25e2_r_kind   ! 1976 US standard atmosphere ps   (Pa)
 
 ! Numeric constants
 
@@ -334,6 +334,7 @@ contains
        rv     = r_v
        cv     = cp-r_d
        cliq   = cliq_wrf
+       rd_over_cp_mass = rd / cp_mass
 
 !   Define global constants here
     else
@@ -343,7 +344,8 @@ contains
        rv     = 4.6150e+2_r_kind
        cv     = 7.1760e+2_r_kind
        cliq   = 4.1855e+3_r_kind
-       cp_mass= cp
+       cp_mass= zero
+       rd_over_cp_mass = zero
     endif
 
 
@@ -351,7 +353,6 @@ contains
 !   which differ between global and regional applications.
 
 !   Constants related to ozone assimilation
-    rd_over_cp_mass = rd / cp_mass
     ozcon = grav*21.4e-9_r_kind
     rozcon= one/ozcon
 

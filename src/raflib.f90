@@ -1325,41 +1325,45 @@ subroutine indexxi4(n,arrin4,indx)
   l=n/2+1
   ir=n
 
-  do
+  10 continue
 
-    if(l>1) then
-       l=l-1
-       indxt=indx(l)
-       q4=arrin4(indxt)
-    else
-       indxt=indx(ir)
-       q4=arrin4(indxt)
-       indx(ir)=indx(1)
-       ir=ir-1
-       if(ir==1) then
-          indx(1)=indxt
-          return
-       end if
-    end if
+  if(l>1) then
+     l=l-1
+     indxt=indx(l)
+     q4=arrin4(indxt)
+  else
+     indxt=indx(ir)
+     q4=arrin4(indxt)
+     indx(ir)=indx(1)
+     ir=ir-1
+     if(ir==1) then
+        indx(1)=indxt
+        return
+     end if
+  end if
 
-    i=l
-    j=l+l
+  i=l
+  j=l+l
 
-    do while (j<=ir) 
-       if(j<ir) then
-          if(arrin4(indx(j))<arrin4(indx(j+1)))j=j+1
-       end if
-       if(q4<arrin4(indx(j))) then
-          indx(i)=indx(j)
-          i=j
-          j=j+j
-       else
-          j=ir+1
-       end if
-    end do
+  20 continue
 
-    indx(i)=indxt
-  end do
+  if(j<=ir) then
+     if(j<ir) then
+        if(arrin4(indx(j))<arrin4(indx(j+1)))j=j+1
+     end if
+     if(q4<arrin4(indx(j))) then
+        indx(i)=indx(j)
+        i=j
+        j=j+j
+     else
+        j=ir+1
+     end if
+     go to 20
+
+  end if
+
+  indx(i)=indxt
+  go to 10
 
 end subroutine indexxi4
 
@@ -1407,42 +1411,45 @@ subroutine indexxi8(n,arrin8,indx)
   l=n/2+1
   ir=n
 
-  do
+  10 continue
 
-     if(l>1) then
-        l=l-1
-        indxt=indx(l)
-        q8=arrin8(indxt)
-     else
-        indxt=indx(ir)
-        q8=arrin8(indxt)
-        indx(ir)=indx(1)
-        ir=ir-1
-        if(ir==1) then
-           indx(1)=indxt
-           return
-        end if
+  if(l>1) then
+     l=l-1
+     indxt=indx(l)
+     q8=arrin8(indxt)
+  else
+     indxt=indx(ir)
+     q8=arrin8(indxt)
+     indx(ir)=indx(1)
+     ir=ir-1
+     if(ir==1) then
+        indx(1)=indxt
+        return
      end if
+  end if
 
-     i=l
-     j=l+l
+  i=l
+  j=l+l
 
-     do while (j<=ir) 
-        if(j<ir) then
-           if(arrin8(indx(j))<arrin8(indx(j+1)))j=j+1
-        end if
-        if(q8<arrin8(indx(j))) then
-           indx(i)=indx(j)
-           i=j
-           j=j+j
-        else
-           j=ir+1
-        end if
+  20 continue
 
-     end do
+  if(j<=ir) then
+     if(j<ir) then
+        if(arrin8(indx(j))<arrin8(indx(j+1)))j=j+1
+     end if
+     if(q8<arrin8(indx(j))) then
+        indx(i)=indx(j)
+        i=j
+        j=j+j
+     else
+        j=ir+1
+     end if
+     go to 20
 
-     indx(i)=indxt
-  end do
+  end if
+
+  indx(i)=indxt
+  go to 10
 
 end subroutine indexxi8
 
@@ -1755,7 +1762,7 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
                  jumpx=lhexadlast(1,kk)       !  make all directions positive and
                  jumpy=lhexadlast(2,kk)       !  assign color
                  jumpz=lhexadlast(3,kk)
-                 if(jumpz/=0.and.ivar_start==ivar_end) exit ! if 2-d, strings of interest are x-y only
+                 if(jumpz/=0.and.ivar_start==ivar_end) go to 980 ! if 2-d, strings of interest are x-y only
                  if(jumpz<0) then
                     jumpx=-jumpx ; jumpy=-jumpy ; jumpz=-jumpz
                  end if
@@ -1773,6 +1780,7 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
                  lhexadx(i,j,k,icolor)=jumpx ; lhexady(i,j,k,icolor)=jumpy ; lhexadz(i,j,k,icolor)=jumpz
                  aspect(icolor,i,j,k)=whexad8(kk)
               end if
+980           continue
            end do
            lguess=1
         end do
@@ -4458,35 +4466,34 @@ SUBROUTINE EIGEN(A,R,N,MV)
 !
 !        GENERATE IDENTITY MATRIX
 !
+    5 continue
       RANGE=1.0E-12_r_kind
-      if(mv/=1) then
+      if(mv==1) go to 25
          IQ=-N
          DO J=1,N
             IQ=IQ+N
             DO I=1,N
                IJ=IQ+I
-               if(i==j) then
+               R(IJ)=zero
+               if(i/=j) go to 20
                   R(IJ)=one
-               else
-                  R(IJ)=zero
-               end if
           20   CONTINUE
             end do
          end do
-      end if
 !
 !        COMPUTE INITIAL AND FINAL NORMS (ANORM AND ANORMX)
 !
+   25 continue
       ANORM=zero
       DO I=1,N
          DO J=I,N
-            if(i/=j) then
+            if(i==j) go to 35
                IA=I+(J*J-J)/2
                ANORM=ANORM+A(IA)*A(IA)
-             end if
+   35       CONTINUE
          end do
       end do
-      if(anorm>zero) then
+      if(anorm<=zero) go to 165
          ANORM=1.414_r_kind*SQRT(ANORM)
          ANRMX=ANORM*RANGE/FLOAT(N)
 !
@@ -4494,116 +4501,120 @@ SUBROUTINE EIGEN(A,R,N,MV)
 !
          IND=0
          THR=ANORM
-         loop1: do
-            THR=THR/FLOAT(N)
-            loop2: do
-               L=1
-               loop3: do
-                  M=L+1
+   45    continue
+         THR=THR/FLOAT(N)
+   50    continue
+         L=1
+   55    continue
+         M=L+1
 !
-!              COMPUTE SIN AND COS
+!        COMPUTE SIN AND COS
 !
-                  loop4: do
-                     MQ=(M*M-M)/2
-                     LQ=(L*L-L)/2
-                     LM=L+MQ
-!     62             continue
-                     if(abs(a(lm))-thr>=zero) then
-                        IND=1
-                        LL=L+LQ
-                        MM=M+MQ
-                        X=half*(A(LL)-A(MM))
-                        Y=-A(LM)/ SQRT(A(LM)*A(LM)+X*X)
-                        if(x<zero) then
-                           Y=-Y
-                        end if
+   60    continue
+         MQ=(M*M-M)/2
+         LQ=(L*L-L)/2
+         LM=L+MQ
+   62    continue
+         if(abs(a(lm))-thr<zero) go to 130
+            IND=1
+            LL=L+LQ
+            MM=M+MQ
+            X=half*(A(LL)-A(MM))
+   68       continue
+            Y=-A(LM)/ SQRT(A(LM)*A(LM)+X*X)
+            if(x>=zero) go to 75
+               Y=-Y
 !DP75 SINX=Y/ SQRT(two*(one+( SQRT(one-Y*Y))))
-                        SINX=Y/ SQRT(two*(one+( SQRT(MAX(zero,one-Y*Y)))))
-                        ONEMYY=one-Y*Y
-                        IF(one-Y*Y<zero) write(6,*)' IN EIGEN, 1-Y*Y=',ONEMYY
-                        SINX2=SINX*SINX
+   75       continue
+            SINX=Y/ SQRT(two*(one+( SQRT(MAX(zero,one-Y*Y)))))
+            ONEMYY=one-Y*Y
+            IF(one-Y*Y<zero) write(6,*)' IN EIGEN, 1-Y*Y=',ONEMYY
+            SINX2=SINX*SINX
 !DP78 COSX= SQRT(one-SINX2)
-                        COSX= SQRT(MAX(zero,one-SINX2))
-                        COSX2=COSX*COSX
-                        SINCS =SINX*COSX
+   78       continue
+            COSX= SQRT(MAX(zero,one-SINX2))
+            COSX2=COSX*COSX
+            SINCS =SINX*COSX
 !
-!                    ROTATE L AND M COLUMNS
+!        ROTATE L AND M COLUMNS
 !
-                        ILQ=N*(L-1)
-                        IMQ=N*(M-1)
-                        DO 125 I=1,N
-                           IQ=(I*I-I)/2
-                           if(i /= l .and. i /= m) then
-                              if(i>m) then
-                                 IM=M+IQ
-                              else
-                                 IM=I+MQ
-                              end if
-                              if(i>=l) then
-                                 IL=L+IQ
-                              else
-                                 IL=I+LQ
-                              end if
-                              X=A(IL)*COSX-A(IM)*SINX
-                              A(IM)=A(IL)*SINX+A(IM)*COSX
-                              A(IL)=X
-                           end if
-                           if(mv/=1) then
-                              ILR=ILQ+I
-                              IMR=IMQ+I
-                              X=R(ILR)*COSX-R(IMR)*SINX
-                              R(IMR)=R(ILR)*SINX+R(IMR)*COSX
-                              R(ILR)=X
-                           end if
-      125               continue
-                        X=two*A(LM)*SINCS
-                        Y=A(LL)*COSX2+A(MM)*SINX2-X
-                        X=A(LL)*SINX2+A(MM)*COSX2+X
-                        A(LM)=(A(LL)-A(MM))*SINCS+A(LM)*(COSX2-SINX2)
-                        A(LL)=Y
-                        A(MM)=X
-                     end if
+            ILQ=N*(L-1)
+            IMQ=N*(M-1)
+            DO 125 I=1,N
+               IQ=(I*I-I)/2
+               if(i==l) go to 115
+               if(i==m) go to 115
+                  if(i>m) go to 90
+                     IM=I+MQ
+                     GO TO 95
+    90            continue
+                  IM=M+IQ
+    95            continue
+                  if(i>=l) go to 105
+                     IL=I+LQ
+                     GO TO 110
+   105            continue
+                  IL=L+IQ
+   110            continue
+                  X=A(IL)*COSX-A(IM)*SINX
+                  A(IM)=A(IL)*SINX+A(IM)*COSX
+                  A(IL)=X
+   115         continue
+               if(mv==1) go to 125
+                  ILR=ILQ+I
+                  IMR=IMQ+I
+                  X=R(ILR)*COSX-R(IMR)*SINX
+                  R(IMR)=R(ILR)*SINX+R(IMR)*COSX
+                  R(ILR)=X
+   125      CONTINUE
+            X=two*A(LM)*SINCS
+            Y=A(LL)*COSX2+A(MM)*SINX2-X
+            X=A(LL)*SINX2+A(MM)*COSX2+X
+            A(LM)=(A(LL)-A(MM))*SINCS+A(LM)*(COSX2-SINX2)
+            A(LL)=Y
+            A(MM)=X
 !
-!                    TESTS FOR COMPLETION
+!        TESTS FOR COMPLETION
 !
-!                    TEST FOR M = LAST COLUMN
+!        TEST FOR M = LAST COLUMN
 !
-                     if(m==n) exit loop4
-                     M=M+1
-                  end do loop4
- 
+  130    continue
+         if(m==n) go to 140
+            M=M+1
+            GO TO 60
 !
-!              TEST FOR L = SECOND FROM LAST COLUMN
+!        TEST FOR L = SECOND FROM LAST COLUMN
 !
-                  if(l==n-1) exit loop3
-                  L=L+1
-               end do loop3
-               if(ind/=1) exit loop2
-               IND=0
-            end do loop2
+  140    continue
+         if(l==n-1) go to 150
+            L=L+1
+            GO TO 55
+  150    continue
+         if(ind/=1) go to 160
+            IND=0
+            GO TO 50
 !
 !        COMPARE THRESHOLD WITH FINAL NORM
 !
-            if(thr<=anrmx) exit loop1
-         end do loop1
+  160    continue
+         if(thr>anrmx) go to 45
 !
 !        SORT EIGENVALUES AND EIGENVECTORS
 !
-         end if
-
-         IQ=-N
-         DO I=1,N
-            IQ=IQ+N
-            LL=I+(I*I-I)/2
-            JQ=N*(I-2)
-            DO J=I,N
-               JQ=JQ+N
-               MM=J+(J*J-J)/2
-               if(a(ll)>=a(mm)) cycle
+  165 continue
+      IQ=-N
+      DO I=1,N
+         IQ=IQ+N
+         LL=I+(I*I-I)/2
+         JQ=N*(I-2)
+         DO J=I,N
+            JQ=JQ+N
+            MM=J+(J*J-J)/2
+            if(a(ll)>=a(mm)) go to 1970
                X=A(LL)
                A(LL)=A(MM)
                A(MM)=X
-               if(mv==1) cycle
+            if(mv==1) go to 1970
                DO K=1,N
                   ILR=IQ+K
                   IMR=JQ+K
@@ -4611,9 +4622,10 @@ SUBROUTINE EIGEN(A,R,N,MV)
                   R(ILR)=R(IMR)
                   R(IMR)=X
                end do
-            end do
+1970        continue
          end do
-         RETURN
+      end do
+      RETURN
 END SUBROUTINE EIGEN
 
 
@@ -4763,7 +4775,7 @@ DO i=1,3
    ENDDO
 ENDDO
 
-ITER_LOOP:DO it=1,100 ! 4000       !  this should be ample
+DO it=1,100 ! 4000       !  this should be ample
    DO l=1,3
       IF(wtriad(l)<bcmins)THEN
 	 k=kl(l)
@@ -4783,7 +4795,7 @@ ITER_LOOP:DO it=1,100 ! 4000       !  this should be ample
             ENDDO
             wtriad(j)=wtriad(j)+wl*n
 	 ENDDO
-	 CYCLE ITER_LOOP
+	 GOTO 300
       ENDIF
    ENDDO
    kt=it		   !  report back how many iterations were needed
@@ -4806,7 +4818,8 @@ ITER_LOOP:DO it=1,100 ! 4000       !  this should be ample
       wtriad(3)=wl
    ENDIF
    RETURN
-ENDDO ITER_LOOP
+300 CONTINUE
+ENDDO
 write(6,*)'GETTRI3:  ALL 40 ITERATIONS USED UP.  This should never happen'
 call stop2(68)
 END SUBROUTINE gettri3
