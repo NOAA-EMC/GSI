@@ -769,7 +769,6 @@ OBS_INPUT::
    gomebufr       gome        metop-b     gome_metop-b        0.0     2     0
    atmsbufr       atms        npp         atms_npp            0.0     1     1
    atmsbufr       atms        n20         atms_n20            0.0     1     1
-   crisbufr       cris        npp         cris_npp            0.0     1     0
    crisfsbufr     cris-fsr    npp         cris-fsr_npp        0.0     1     0
    crisfsbufr     cris-fsr    n20         cris-fsr_n20        0.0     1     0
    gsnd1bufr      sndrd1      g15         sndrD1_g15          0.0     1     0
@@ -780,8 +779,6 @@ OBS_INPUT::
    mlsbufr        mls30       aura        mls30_aura          0.0     0     0
    avhambufr      avhrr       metop-a     avhrr3_metop-a      0.0     1     0
    avhpmbufr      avhrr       n18         avhrr3_n18          0.0     1     0
-   amsr2bufr      amsr2       gcom-w1     amsr2_gcom-w1       0.0     3     0
-   gmibufr        gmi         gpm         gmi_gpm             0.0     3     0
    saphirbufr     saphir      meghat      saphir_meghat       0.0     3     0
    ahibufr        ahi         himawari8   ahi_himawari8       0.0     3     0
    rapidscatbufr  uv          null        uv                  0.0     0     0
