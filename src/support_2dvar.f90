@@ -513,11 +513,12 @@ subroutine read_2d_files(mype)
            nming2=nmings
            ndiff=nming2-nminanl
            write(6,*)'READ_2d_FILES: sigma guess file time in minutes',nming2
-           if(abs(ndiff) > 60*nhr_half ) cycle
+           if(abs(ndiff) > 60*nhr_half ) go to 110
            iwan=iwan+1
            time_ges(iwan) = (nming2-nminanl)*r60inv + time_offset
            time_ges(iwan+100)=i+r0_001
         end if
+110     continue
      end do
      write(6,*)'READ_2d_FILES:iwan=',iwan,(time_ges(i),i=1,iwan)
      time_ges(201)=one
@@ -2074,11 +2075,12 @@ subroutine adjust_error(alon,alat,oberr,oberr2)
         if (rsign1*rsign2<zero_single) then
            oberr=oberr*oberrinflfact
            oberr2=oberr2*oberrinflfact
-           return 
+           goto 100 
         endif
      enddo 
   enddo 
-  return
+100 continue
+! print*,'in adjust_error: after, oberr,oberr2=',oberr,oberr2
 end subroutine adjust_error
 !****************************************************************
 subroutine relocsfcob(rlon8,rlat8,cobtypein,cstationin,kxin)
@@ -3082,7 +3084,7 @@ subroutine getwdir(ue,ve,wdir)
   wspd2=ue*ue+ve*ve
   if (wspd2.eq.zero) then
        wdir=zero 
-       return
+       goto 100
   endif
 
   if (ve.eq.zero) then
@@ -3096,7 +3098,7 @@ subroutine getwdir(ue,ve,wdir)
      if (ue.ge.zero .and. ve.le.zero ) wdir = angle + r360
   endif
 
-  return
+100 continue
 end subroutine getwdir
 !************************************************************
 !------------------------------------------------------

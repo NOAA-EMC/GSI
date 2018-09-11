@@ -88,9 +88,7 @@ subroutine en_perts_get_from_save_fulldomain
         write(6,'(a,i5,a,i5,a)') '***ERROR***  MPI_FILE_OPEN failed on task = ', &
                                 mype, ' ierror = ', ierror
         iret = ierror
-        write(6,*)'PREPROC_READ_GFSATM: ***ERROR*** reading ',&
-                 trim(filename),' IRET=',iret
-        return
+        goto 1000
      endif
 
      allocate(work_grd(grd_arw%inner_vars,grd_arw%nlat,grd_arw%nlon,grd_arw%kbegin_loc:grd_arw%kend_alloc))
@@ -101,9 +99,7 @@ subroutine en_perts_get_from_save_fulldomain
         write(6,'(a,i5,a,i5,a)') '***ERROR***  MPI_FILE_READ_AT failed on task =', &
                                 mype, ' ierror = ', ierror
         iret = ierror
-        write(6,*)'PREPROC_READ_GFSATM: ***ERROR*** reading ',&
-                 trim(filename),' IRET=',iret
-        return
+        goto 1000
      endif
 
      call mpi_file_close(iunit,ierror)
@@ -111,9 +107,7 @@ subroutine en_perts_get_from_save_fulldomain
         write(6,'(a,i5,a,i5,a)') '***ERROR***  MPI_FILE_CLOSE failed on task = ',&
                                    mype, ' ierror = ', ierror
         iret = ierror
-        write(6,*)'PREPROC_READ_GFSATM: ***ERROR*** reading ',&
-                 trim(filename),' IRET=',iret
-        return
+        goto 1000
      endif
 
      allocate(work_sub(grd_arw%inner_vars,im,jm,grd_arw%num_fields))
@@ -159,6 +153,12 @@ subroutine en_perts_get_from_save_fulldomain
   end do   ! member n
 
   return
+
+1000 continue
+
+   write(6,*)'PREPROC_READ_GFSATM: ***ERROR*** reading ',&
+              trim(filename),' IRET=',iret
+   return
 
 end subroutine en_perts_get_from_save_fulldomain
 

@@ -420,20 +420,18 @@ end subroutine get_semimp_mats
 !        final row and column interchange
 !
          k=n
-         do 
-  100       k=(k-1)
-            if(k) 150,150,105
-  105       i=l(k)
-            if(i-k) 120,120,108
-  108       jq=n*(k-1)
-            jr=n*(i-1)
-            do 110 j=1,n
-               jk=jq+j
-               hold=a(jk)
-               ji=jr+j
-               a(jk)=-a(ji)
-               a(ji) =hold
-  110       continue
+  100    k=(k-1)
+         if(k) 150,150,105
+  105    i=l(k)
+         if(i-k) 120,120,108
+  108    jq=n*(k-1)
+         jr=n*(i-1)
+         do 110 j=1,n
+            jk=jq+j
+            hold=a(jk)
+            ji=jr+j
+            a(jk)=-a(ji)
+  110       a(ji) =hold
   120       j=m(k)
             if(j-k) 100,100,125
   125       ki=k-n
@@ -442,8 +440,7 @@ end subroutine get_semimp_mats
                hold=a(ki)
                ji=ki-k+j
                a(ki)=-a(ji)
-               a(ji) =hold
-  130       continue
-         end do
-  150    return
+  130          a(ji) =hold
+               go to 100
+  150          return
       end subroutine iminv

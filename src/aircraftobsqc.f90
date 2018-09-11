@@ -92,12 +92,12 @@ subroutine init_aircraft_rjlists
 !    wind,temperature, and humidity if it exists
 
  inquire(file='current_bad_aircraft',exist=listexist_aircraft)
- if(.not. listexist_aircraft)return
- open (aircraft_unit,file='current_bad_aircraft',form='formatted')
- do m=1,16
-    read(aircraft_unit,*,end=141)
- enddo
- read_loop:do
+ if(listexist_aircraft) then
+    open (aircraft_unit,file='current_bad_aircraft',form='formatted')
+    do m=1,16
+       read(aircraft_unit,*,end=141)
+    enddo
+140 continue
     read(aircraft_unit,'(a30)',end=141) cstring
     if(cstring(11:11) == 'T') then
        ntrjs_aircraft=ntrjs_aircraft+1
@@ -114,14 +114,11 @@ subroutine init_aircraft_rjlists
        q_aircraft_rjlist(nqrjs_aircraft,1)=cstring(1:8)
        q_aircraft_rjlist(nqrjs_aircraft,2)=cstring(22:29)
     endif
-    if(max(ntrjs_aircraft,nqrjs_aircraft,nqrjs_aircraft) == nmax)then
-      print*, 'aircraft_rjlist reached maximum ', nmax, ' stop reading list -- increase nmax'
-      exit read_loop
-    end if
- end do read_loop
-141 close(aircraft_unit)
- print*,'aircraft_rejectlist: T, W, R=', ntrjs_aircraft,nwrjs_aircraft,nqrjs_aircraft
- return
+    goto 140
+141 continue
+    print*,'aircraft_rejectlist: T, W, R=', ntrjs_aircraft,nwrjs_aircraft,nqrjs_aircraft
+ endif
+ close(aircraft_unit)
 !
 end subroutine init_aircraft_rjlists
 
@@ -132,10 +129,10 @@ subroutine get_aircraft_usagerj(kx,obstype,c_station_id,usage_rj)
 !   prgmmr:
 !
 ! abstract: determine the usage value of read_prepbufr for aircraft obs. the following
-!           is done: (i) if incoming usage value is >=6 then do nothing, since
+!           is done: (i) if incoming usage value is >=100. then do nothing, since
 !           read_prepbufr has already flagged this ob and assigned a specific usage 
-!           value to it. (ii) use usage=450 for temperature, moisture, or surface pressure
-!           obs which are found in the rejectlist. 
+!           value to it. (ii) use usage=500. for temperature, moisture, or surface pressure
+!           obs which are found in the rejectlist. (iii) 
 !
 ! program history log:
 !   2010-10-28  Hu
@@ -164,12 +161,15 @@ subroutine get_aircraft_usagerj(kx,obstype,c_station_id,usage_rj)
 ! Declare local variables
   integer(i_kind) m,nlen
   character(8)  ch8,ch8MDCRS
+  real(r_kind) usage_rj0
 
 ! Declare local parameters
   real(r_kind),parameter:: r6    = 6.0_r_kind
   real(r_kind),parameter:: r450  = 450._r_kind
 
   if (usage_rj >= r6) return
+
+  usage_rj0=usage_rj
 
   if (kx<190) then  !<==mass obs
 
@@ -210,7 +210,6 @@ subroutine get_aircraft_usagerj(kx,obstype,c_station_id,usage_rj)
      endif
 
   end if
-  return
 end subroutine get_aircraft_usagerj
 
 subroutine destroy_aircraft_rjlists
@@ -239,7 +238,6 @@ subroutine destroy_aircraft_rjlists
   deallocate(t_aircraft_rjlist)
   deallocate(q_aircraft_rjlist)
 
-  return
 end subroutine destroy_aircraft_rjlists
 
 end module aircraftobsqc
