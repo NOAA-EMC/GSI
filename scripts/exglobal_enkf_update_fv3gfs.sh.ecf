@@ -267,6 +267,7 @@ cat > enkf.nml << EOFnml
    sattypes_rad(62)= 'cris-fsr_n20',  dsis(62)= 'cris-fsr_n20',
    sattypes_rad(63)= 'gmi_gpm',       dsis(63)= 'gmi_gpm',
    sattypes_rad(64)= 'saphir_meghat', dsis(64)= 'saphir_meghat',
+   sattypes_rad(65)= 'seviri_m11',    dsis(65)= 'seviri_m11,
    $SATOBS_ENKF
 /
 &ozobs_enkf
@@ -278,6 +279,8 @@ cat > enkf.nml << EOFnml
    sattypes_oz(6) = 'gome_metop-a',
    sattypes_oz(7) = 'gome_metop-b',
    sattypes_oz(8) = 'mls30_aura',
+   sattypes_oz(9) = 'ompsnp_npp',
+   sattypes_oz(10) = 'ompstc8_npp',
    $OZOBS_ENKF
 /
 EOFnml
