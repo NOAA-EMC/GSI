@@ -3036,6 +3036,7 @@ subroutine init_sf_xy(jcap_in)
   do k=2,grd_sploc%nsig
      if(s_ens_hv(k) == s_ens_hv(k-1))ksame(k)=.true.
   enddo
+  spectral_filter=zero
   do k=1,grd_sploc%nsig
      if(ksame(k))then
         spectral_filter(:,k)=spectral_filter(:,k-1)
@@ -3110,6 +3111,9 @@ subroutine init_sf_xy(jcap_in)
      end if
   enddo
   deallocate(g,gsave,pn0_npole,ksame)
+
+! Prior to computing sqrt ensure all elements of spectral_filter are >= zero
+  spectral_filter = max(zero,spectral_filter)
 
   sqrt_spectral_filter=sqrt(spectral_filter)
 
