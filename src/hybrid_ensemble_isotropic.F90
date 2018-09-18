@@ -3112,10 +3112,14 @@ subroutine init_sf_xy(jcap_in)
   enddo
   deallocate(g,gsave,pn0_npole,ksame)
 
-! Prior to computing sqrt ensure all elements of spectral_filter are >= zero
-  spectral_filter = max(zero,spectral_filter)
-
-  sqrt_spectral_filter=sqrt(spectral_filter)
+! Compute sqrt(spectral_filter).  Ensure spectral_filter >=0 zero
+!$omp parallel do schedule(dynamic,1) private(k,i)
+  do k=1,grd_sploc%nsig
+     do i=1,sp_loc%nc
+        if (spectral_filter(i,k) < zero) spectral_filter(i,k)=zero
+        sqrt_spectral_filter(i,k) = sqrt(spectral_filter(i,k))
+     end do
+  end do
 
 !  assign array k_index for each processor, based on grd_loc%kbegin_loc,grd_loc%kend_loc
 
