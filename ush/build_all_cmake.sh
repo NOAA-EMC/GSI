@@ -58,6 +58,6 @@ fi
 
 cmake -DBUILD_UTIL=ON -DCMAKE_BUILD_TYPE=$build_type -DBUILD_CORELIBS=OFF ..
 
-make VERBOSE=1 -j 8
+make -j 8
 
 exit
