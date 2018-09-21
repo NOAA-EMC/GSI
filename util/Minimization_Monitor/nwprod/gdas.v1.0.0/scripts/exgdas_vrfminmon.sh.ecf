@@ -88,11 +88,10 @@ if [[ -s ${gsistat} ]]; then
    #  Copy the $MINMON_SUFFIX.gnorm_data.txt file to the working directory
    #  It's ok if it doesn't exist; we'll create a new one if needed.
    #------------------------------------------------------------------
-   if [[ -s ${M_TANKverf}/gnorm_data.txt ]]; then
-      $NCP ${M_TANKverf}/gnorm_data.txt gnorm_data.txt 
-   elif [[ -s ${M_TANKverfM1}/gnorm_data.txt ]]; then
+   if [[ -s ${M_TANKverfM1}/gnorm_data.txt ]]; then
       $NCP ${M_TANKverfM1}/gnorm_data.txt gnorm_data.txt
    fi
+
 
    #------------------------------------------------------------------
    #   Run the child sccripts.
