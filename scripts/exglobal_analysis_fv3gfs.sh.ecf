@@ -667,7 +667,7 @@ cat > gsiparm.anl << EOF
   write_diag(1)=.true.,write_diag(2)=.false.,write_diag(3)=.true.,
   qoption=2,
   gencode=${IGEN:-0},deltim=$DELTIM,
-  factqmin=5.0,factqmax=0.005,
+  factqmin=0.5,factqmax=0.005,
   iguess=-1,
   tzr_qc=$TZR_QC,
   oneobtest=.false.,retrieval=.false.,l_foto=.false.,
