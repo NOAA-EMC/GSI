@@ -110,7 +110,7 @@ export p_cyc=`echo ${cdate} | cut -c9-10`
 #############################################
 export TANKverf=${TANKverf:-${COMROOT}/${NET}/${envir}}
 export TANKverf_rad=${TANKverf_rad:-${TANKverf}/${RUN}.${PDY}/${cyc}/radmon}
-export TANKverf_radM1=${TANKverf_radM1:-${TANKverf}/${RUN}.${P_PDY}//${p_cyc}/radmon}
+export TANKverf_radM1=${TANKverf_radM1:-${TANKverf}/${RUN}.${P_PDY}/${p_cyc}/radmon}
 export COM_IN=${COM_IN:-${COMROOT}/${NET}/${envir}}
 export COMIN=${COMIN:-${COM_IN}/${RUN}.${PDY}/${cyc}}
 
