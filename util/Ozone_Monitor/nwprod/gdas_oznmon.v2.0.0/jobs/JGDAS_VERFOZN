@@ -110,9 +110,8 @@ export p_cyc=`echo ${cdate} | cut -c9-10`
 # OZN_TANKDIR - WHERE OUTPUT DATA WILL RESIDE
 #
 echo "pre-assignment, OZN_TANKDIR = $OZN_TANKDIR"
-export OZN_TANKDIR=${OZN_TANKDIR:-${COMROOT}/${NET}/${envir}}
-export TANKverf_ozn=${TANKverf_ozn:-${OZN_TANKDIR}/${RUN}.${PDY}/${cyc}/oznmon}
-export TANKverf_oznM1=${TANKverf_oznM1:-${OZN_TANKDIR}/${RUN}.${P_PDY}/${p_cyc}/oznmon}
+export TANKverf_ozn=${TANKverf_ozn:-${COMROOT}/${RUN}.${PDY}/${cyc}/oznmon}
+export TANKverf_oznM1=${TANKverf_oznM1:-${COMROOT}/${RUN}.${P_PDY}/${p_cyc}/oznmon}
 export COM_IN=${COM_IN:-${COMROOT}/${NET}/${envir}}
 export COMIN=${COMIN:-${COM_IN}/${RUN}.${PDY}/${cyc}}
 
