@@ -1,7 +1,7 @@
 FV3GFS DA RELEASE NOTES (v15.0.0)
 
 GIT TAG 
-   * FV3GFS DA tag is in NOAA VLAB as gerrit:ProdGSI/tag/fv3da.v1.0.19.  Note that fv3da.v1.0.19 is intended
+   * FV3GFS DA tag is in NOAA VLAB as gerrit:ProdGSI/tag/fv3da.v1.0.20.  Note that fv3da.v1.0.20 is intended
      to be installed as part of the entire FV3GFS package.   Please see FV3GFS release notes for name and 
      location of FV3GFS tag in NOAA VLAB gerrit.
 
@@ -278,7 +278,7 @@ IMPLEMENTATION INSTRUCTIONS
              developers.  For the fv3gfs project please contact Fanglin.Yang@noaa.gov or Mark.Potts@noaa.gov.  
              For the FV3GFS DA project please contact Michael.Lueken@noaa.gov or Mark.Potts@noaa.gov. 
 
-      5) git checkout q2fy19_nco
+      5) git checkout q2fy19nco
 
       6) cd sorc
 
