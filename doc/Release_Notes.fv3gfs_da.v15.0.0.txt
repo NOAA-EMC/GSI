@@ -1,9 +1,10 @@
 FV3GFS DA RELEASE NOTES (v15.0.0)
 
 GIT TAG 
-   * FV3GFS DA tag is in NOAA VLAB as gerrit:ProdGSI/tag/fv3da.v1.0.21.  Note that this tag is intended
-     to be installed as part of the entire FV3GFS package.   Please see FV3GFS release notes for name and 
-     location of FV3GFS tag in NOAA VLAB gerrit.
+   * The FV3GFS DA is in NOAA VLAB gerrit:ProdGSI.  The FV3GFS DA tag is intended to be installed
+     as part of the entire FV3GFS package.   Please see FV3GFS release notes for name and location 
+     of FV3GFS tag in NOAA VLAB gerrit.   The FV3GFS tag contains a checkout script which checks out
+     the appropriate FV3GFS DA tag.
 
 
 
