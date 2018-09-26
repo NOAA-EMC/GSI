@@ -108,7 +108,7 @@ export p_cyc=`echo ${cdate} | cut -c9-10`
 # COMOUT - WHERE GSI OUTPUT RESIDES
 # TANKverf - WHERE OUTPUT DATA WILL RESIDE
 #############################################
-export TANKverf=${TANKverf:-${COMROOT}}
+export TANKverf=${TANKverf:-${COMROOT}/${NET}/${envir}}
 export TANKverf_rad=${TANKverf_rad:-${TANKverf}/${RUN}.${PDY}/${cyc}/radmon}
 export TANKverf_radM1=${TANKverf_radM1:-${TANKverf}/${RUN}.${P_PDY}/${p_cyc}/radmon}
 export COM_IN=${COM_IN:-${COMROOT}/${NET}/${envir}}
