@@ -1470,8 +1470,8 @@ contains
       edge1 = 5
       edge2 = 56
    else if (index(isis,'cris')/=0) then
-      step  = 3.322_r_kind
-      start = -51.675_r_kind
+      step  = 3.3331_r_kind
+      start = -48.330_r_kind
       nstep = 30
       edge1 = 1
       edge2 = 30
