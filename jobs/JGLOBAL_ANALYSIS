@@ -162,9 +162,9 @@ status=$?
 # Send Alerts
 ##############################################
 if [ $SENDDBN = YES -a $RUN = gdas ] ; then
-    $DBNROOT/bin/dbn_alert MODEL GDAS_MSC_abias $job $COMOUT/${PREINP}abias
-    $DBNROOT/bin/dbn_alert MODEL GDAS_MSC_abias_pc $job $COMOUT/${PREINP}abias_pc
-    $DBNROOT/bin/dbn_alert MODEL GDAS_MSC_abias_air $job $COMOUT/${PREINP}abias_air
+    $DBNROOT/bin/dbn_alert MODEL GDAS_MSC_abias $job $COMOUT/${APREFIX}abias
+    $DBNROOT/bin/dbn_alert MODEL GDAS_MSC_abias_pc $job $COMOUT/${APREFIX}abias_pc
+    $DBNROOT/bin/dbn_alert MODEL GDAS_MSC_abias_air $job $COMOUT/${APREFIX}abias_air
 fi
 
 

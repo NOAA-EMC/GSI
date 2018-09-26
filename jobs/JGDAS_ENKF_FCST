@@ -81,7 +81,6 @@ fi
 
 export CASE=$CASE_ENKF
 
-
 # Forecast length for EnKF forecast
 export FHMIN=$FHMIN_ENKF
 export FHOUT=$FHOUT_ENKF
@@ -117,6 +116,14 @@ if [ $npass -ne $NMEM_EFCSGRP ]; then
     echo "FATAL ERROR: Failed members in group $ENSGRP, ABORT!"
     cat $EFCSGRP
     exit 99
+fi
+
+
+##############################################
+# Send Alerts
+##############################################
+if [ $SENDDBN = YES ] ; then
+   $DBNROOT/bin/dbn_alert MODEL ENKF1_MSC_fcsstat $job $EFCSGRP
 fi
 
 

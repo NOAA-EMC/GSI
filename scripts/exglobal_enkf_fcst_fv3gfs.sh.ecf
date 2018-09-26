@@ -32,7 +32,8 @@ export HOMEgfs=${HOMEgfs:-$NWPROD}
 export FIX_DIR=${FIX_DIR:-$HOMEgfs/fix}
 export FIX_AM=${FIX_AM:-$FIX_DIR/fix_am}
 export DATA=${DATA:-$pwd/enkf_fcst.$$}
-export ROTDIR=${ROTDIR:-$pwd}
+export COMIN=${COMIN:-$pwd}
+export COMOUT=${COMOUT:-$COMIN}
 
 # Utilities
 export NCP=${NCP:-"/bin/cp -p"}
@@ -77,7 +78,7 @@ DATATOP=$DATA
 # Set output data
 cymd=$(echo $CDATE | cut -c1-8)
 chh=$(echo  $CDATE | cut -c9-10)
-EFCSGRP=$ROTDIR/enkf.${CDUMP}.${cymd}/$chh/efcs.grp${ENSGRP}
+EFCSGRP=$COMOUT/efcs.grp${ENSGRP}
 if [ -f $EFCSGRP ]; then
    if [ $RERUN_EFCSGRP = "YES" ]; then
       rm -f $EFCSGRP

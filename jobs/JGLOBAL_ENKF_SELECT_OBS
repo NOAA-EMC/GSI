@@ -173,8 +173,7 @@ status=$?
 
 
 if [ $SENDDBN = YES ] ; then
-   $DBNROOT/bin/dbn_alert MODEL ENKF1_MSC_gsistat $job $COMOUT/gsistat_${PDY}${cyc}_ensmean
-   $DBNROOT/bin/dbn_alert MODEL GFS_ENKF $job $SFCANL
+   $DBNROOT/bin/dbn_alert MODEL ENKF1_MSC_gsistat $job $GSISTAT
 fi
 
 
