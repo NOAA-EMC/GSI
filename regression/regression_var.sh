@@ -214,7 +214,7 @@ export savdir="$ptmp"
 export JCAP="62"
 
 # Case Study analysis dates
-export global_T62_adate="2014080400"
+export global_T62_adate="2016120300"
 export global_4dvar_T62_adate="2014080400"
 export global_hybrid_T126_adate="2014092912"
 export global_4denvar_T126_adate="2016120300"
