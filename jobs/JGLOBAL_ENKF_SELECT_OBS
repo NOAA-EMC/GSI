@@ -172,6 +172,9 @@ status=$?
 [[ $status -ne 0 ]] && exit $status
 
 
+##############################################
+# Send Alerts
+##############################################
 if [ $SENDDBN = YES ] ; then
    $DBNROOT/bin/dbn_alert MODEL ENKF1_MSC_gsistat $job $GSISTAT
 fi
