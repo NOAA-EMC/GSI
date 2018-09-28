@@ -82,10 +82,10 @@ fi
 GDATE=$($NDATE -$assim_freq $CDATE)
 gPDY=$(echo $GDATE | cut -c1-8)
 gcyc=$(echo $GDATE | cut -c9-10)
-
+GDUMP=${GDUMP:-"gdas"}
 
 export OPREFIX="${CDUMP}.t${cyc}z."
-export GPREFIX="gdas.t${gcyc}z."
+export GPREFIX="${GDUMP}.t${gcyc}z."
 export GSUFFIX=".nemsio"
 export APREFIX="${CDUMP}.t${cyc}z."
 export ASUFFIX=".nemsio"
@@ -94,13 +94,17 @@ export ASUFFIX=".nemsio"
 if [ $RUN_ENVIR = "nco" ]; then
     export COMIN=${COMIN:-$ROTDIR/$RUN.$PDY/$cyc}
     export COMOUT=${COMOUT:-$ROTDIR/$RUN.$PDY/$cyc}
+    export COMIN_OBS=${COMIN_OBS:-$ROTDIR/$RUN.$PDY/$cyc}
+    export COMIN_GES_OBS=${COMIN_GES_OBS:-$ROTDIR/$RUN.$gPDY/$gcyc}
 else
     export COMOUT="$ROTDIR/$CDUMP.$PDY/$cyc"
+    export COMIN_OBS="$DMPDIR/$CDATE/$CDUMP"
+    export COMIN_GES_OBS="$DMPDIR/$GDATE/$GDUMP"
 fi
 mkdir -m 775 -p $COMOUT
 # COMIN_GES and COMIN_GES_ENS are used in exglobal script
 # TO DO: Map NCO's directory into these variables
-export COMIN_GES="$ROTDIR/gdas.$gPDY/$gcyc"
+export COMIN_GES="$ROTDIR/$GDUMP.$gPDY/$gcyc"
 export COMIN_GES_ENS="$ROTDIR/enkf.gdas.$gPDY/$gcyc"
 
 
