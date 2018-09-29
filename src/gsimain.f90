@@ -125,6 +125,8 @@
 !   2011-08-01  lueken  - replaced F90 with f90 (no machine logic)
 !   2013-07-02  parrish - remove error message 328 - tlnmc_type > 2 not allowed
 !   2018-02-15  wu      - add fv3_regional
+!   2017-11-29  apodaca - add information, source codes, and exit states
+!                         related to the GOES/GLM lightnig assimilation
 !
 ! usage:
 !   input files:
@@ -138,6 +140,7 @@
 !     satbias_angle - satellite angle dependent file
 !     satbias_in    - satellite bias correction coefficient file
 !     satinfo       - satellite channel info file
+!     lightinfo     - lightning flash rate observation info file
 !     sfcf**        - background surface files (typically sfcf03,sfcf06 and sfcf09)
 !     sigf**        - background forecast files (typically sigf03,sigf06 and sigf09)
 !     spectral_coefficients       - radiative transfer spectral coefficient file
@@ -176,26 +179,26 @@
 !         fill_mass_grid2, fill_nmm_grid2, fpvsx_ad, gengrid_vars, genqsat,
 !         glbsoi, grdcrd, grdsphdp, grid2sub, gridmod, gscond_ad,
 !         gsimain, gsisub, guess_grids, half_nmm_grid2, hopers, iceem_amsu,
-!         inguesfc, inisph, intall, intall_qc, intdw, intlimq,
+!         inguesfc, inisph, intall, intall_qc, intdw, intlight, intlimq,
 !         intoz, intpcp, intps, intpw, intq, intrad, intref, intbend, intrp2a, intrp3,
 !         intrp3oz, intrppx, intrw, intspd, intsst, intt, intw, jfunc,
-!         kinds, landem, locatelat_reg, mpimod, nlmsas_ad, obs_para, obsmod,
-!         omegas_ad, oneobmod, ozinfo, pcgsoi, pcpinfo, polcarf, precpd_ad,
-!         prewgt, prewgt_reg, psichi2uv_reg, psichi2uvt_reg,
+!         kinds, landem, lightbias, lightinfo, locatelat_reg, mpimod, nlmsas_ad, 
+!         obs_para, obsmod, omegas_ad, oneobmod, ozinfo, pcgsoi, pcpinfo, polcarf, 
+!         precpd_ad, prewgt, prewgt_reg, psichi2uv_reg, psichi2uvt_reg,
 !         qcmod, rad_tran_k, radinfo, rdgesig, rdgstat_reg, rdsfull,
 !         read_airs, read_avhrr_navy, read_bufrtovs, read_files, read_goesimg,
-!         read_goesndr, read_gps_ref, read_guess, read_ieeetovs, read_lidar,
-!         read_obs, read_ozone, read_pcp, read_prepbufr, read_radar, 
+!         read_goesglm, read_goesndr, read_gps_ref, read_guess, read_ieeetovs, 
+!         read_lidar, read_obs, read_ozone, read_pcp, read_prepbufr, read_radar, 
 !         read_superwinds, read_wrf_mass_files, read_wrf_mass_guess, 
 !         read_wrf_nmm_files, read_wrf_nmm_guess, rfdpar, rsearch, satthin,
 !         setupdw, setupoz, setuppcp, setupps, setuppw, setupq, setuprad,
-!         setupref, setupbend, setuprhsall, setuprw, setupspd, setupsst,
+!         setupref, setupbend, setuplight, setuprhsall, setuprw, setupspd, setupsst,
 !         setupt, setupw, simpin1, simpin1_init, smooth121, smoothrf,
 !         smoothwwrf, smoothzrf, snwem_amsu, specmod, 
-!         sst_retrieval, statsconv, statsoz, statspcp, statsrad, stop2, stpbend,
-!         stpcalc, stpcalc_qc, stpdw, stplimq, stpoz, stppcp, stpps, stppw,
+!         sst_retrieval, statsconv, statslight, statsoz, statspcp, statsrad, stop2, stpbend,
+!         stpcalc, stpcalc_qc, stpdw, stplight, stplimq, stpoz, stppcp, stpps, stppw,
 !         stpq, stprad, stpref, stprw, stpspd, stpsst, stpt, stpw,
-!         stvp2uv, stvp2uv_reg, sub2grid, tbalance, tintrp2a, tintrp3,
+!         stvp2uv, stvp2uv_reg, sub2grid, sumslightbias, tbalance, tintrp2a, tintrp3,
 !         tpause, tpause_t, transform, tstvp2uv, tstvp2uv_reg, unfill_mass_grid2,
 !         unfill_nmm_grid2, unhalf_nmm_grid2, update_ggrid, wrf_binary_interface,
 !         wrf_netcdf_interface, write_all, wrsfca, wrsiga, wrwrfmassa, wrwrfnmma,
@@ -520,6 +523,9 @@
 !          = 339 - error:more than one MLS  data type not allowed
 !          = 340 - error reading aircraft temperature bias file
 !          = 341 - aircraft tail number exceeds maximum
+!          = 342 - setuplight: failure to allocate obsdiags
+!          = 343 - setuplight: failure to allocate obsdiags
+!          = 344 - setuplight: index error
 !          = 899 - foto no longer available
 !
 !

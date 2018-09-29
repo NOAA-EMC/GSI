@@ -12,6 +12,8 @@ module m_obsNodeTypeManager
 !   2015-08-13  j guo   - added this document block.
 !   2016-05-18  j guo   - finished its initial polymorphic implementation,
 !                         with total 33 obs-types.
+!   2018-01-23  k apodaca - add a new observation type i.e. lightning (light)
+!                           suitable for the GOES/GLM instrument
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -69,6 +71,8 @@ module m_obsNodeTypeManager
   use obsmod, only: iobsType_swcp  => i_swcp_ob_type
   use obsmod, only: iobsType_lwcp  => i_lwcp_ob_type
 
+  use obsmod, only: iobsType_light => i_light_ob_type
+
   use m_psNode   , only:    psNode !  1
   use m_tNode    , only:     tNode !  2
   use m_wNode    , only:     wNode !  3
@@ -108,6 +112,8 @@ module m_obsNodeTypeManager
 
   use m_swcpNode , only:  swcpNode ! 34
   use m_lwcpNode , only:  lwcpNode ! 35
+
+  use m_lightNode, only: lightNode ! 36
 
   use kinds, only: i_kind
   use m_obsNode, only: obsNode
@@ -168,6 +174,7 @@ module m_obsNodeTypeManager
 
   type(   swcpNode), target, save::    swcp_mold ! 34
   type(   lwcpNode), target, save::    lwcp_mold ! 35
+  type(  lightNode), target, save::   light_mold ! 36
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   character(len=*),parameter :: myname='m_obsNodeTypeManager'
 
@@ -248,6 +255,8 @@ function vname2index_(vname) result(index_)
   case("swcp" , "[swcpnode]"); index_ = iobsType_swcp
   case("lwcp" , "[lwcpnode]"); index_ = iobsType_lwcp
 
+  case("light","[lightnode]"); index_ = iobsType_light
+
   end select
 end function vname2index_
 
@@ -308,6 +317,8 @@ function vmold2index_select_(mold) result(index_)
   type is( swcpNode); index_ = iobsType_swcp
   type is( lwcpNode); index_ = iobsType_lwcp
 
+  type is(lightNode); index_ = iobsType_light
+
   end select
 end function vmold2index_select_
 
@@ -361,6 +372,8 @@ function index2vmold_(i_obType) result(obsmold_)
 
   case(iobsType_swcp ); obsmold_ =>    swcp_mold
   case(iobsType_lwcp ); obsmold_ =>    lwcp_mold
+
+  case(iobsType_light); obsmold_ =>   light_mold
 
   end select
 end function index2vmold_
