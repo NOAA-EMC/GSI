@@ -49,6 +49,7 @@
   use convinfo, only: init_convinfo, &
                       diag_conv,&
                       use_prepb_satwnd,id_drifter
+  use lightinfo, only: diag_light,init_light
 
   use oneobmod, only: oblon,oblat,obpres,obhourset,obdattim,oneob_type,&
      oneobtest,magoberr,maginnov,init_oneobmod,pctswitch,lsingleradob,obchan,&
@@ -361,6 +362,8 @@
 !  03-22-2018 Yang      remove "logical closest_obs", previously applied to the analysis of vis and cldch.
 !                       The option to use only the closest ob to the analysis time is now handled
 !                       by Ming Hu's "logical l_closeobs" for all variables.
+!  01-04-2018 Apodaca   add diag_light and lightinfo for GOES/GLM lightning
+!                           data assimilation
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -413,6 +416,7 @@
 !     diag_ozone - logical to turn off or on the diagnostic ozone file (true=on)
 !     diag_aero  - logical to turn off or on the diagnostic aerosol file (true=on)
 !     diag_co - logical to turn off or on the diagnostic carbon monoxide file (true=on)
+!     diag_light - logical to turn off or on the diagnostic lightning file (true=on)
 !     write_diag - logical to write out diagnostic files on outer iteration
 !     lobsdiagsave - write out additional observation diagnostics
 !     ltlint       - linearize inner loop
@@ -545,7 +549,7 @@
        min_offset,pseudo_q2,&
        iout_iter,npredp,retrieval,&
        tzr_qc,tzr_bufrsave,&
-       diag_rad,diag_pcp,diag_conv,diag_ozone,diag_aero,diag_co,iguess, &
+       diag_rad,diag_pcp,diag_conv,diag_ozone,diag_aero,diag_co,diag_light,iguess, &
        write_diag,reduce_diag, &
        oneobtest,sfcmodel,dtbduv_on,ifact10,l_foto,offtime_data,&
        use_pbl,use_compress,nsig_ext,gpstop,&
@@ -1092,6 +1096,7 @@
   call init_qcvars
   call init_obsmod_dflts
   call init_pcp
+  call init_light
   call init_rad
   call init_oz
   call init_aero
@@ -1352,6 +1357,7 @@
      diag_aero=.false.
      diag_co=.false.
      diag_pcp=.false.
+     diag_light=.false.
      use_limit = 0
   end if
   if(reduce_diag) use_limit = 0

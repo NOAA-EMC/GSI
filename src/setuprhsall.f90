@@ -94,6 +94,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !   2015-10-01  guo   - full res obvsr: index to allow redistribution of obsdiags
 !   2016-05-05  pondeca - add uwnd10m, vwund10m
 !   2018-02-15  wu      - add code for fv3_regional 
+!   2018-01-01  Apodaca - add GOES/GLM lightning
 !
 !   input argument list:
 !     ndata(*,1)- number of prefiles retained for further processing
@@ -130,6 +131,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,ostats_t,rstats_t,npredt,ntail
   use pcpinfo, only: diag_pcp
   use ozinfo, only: diag_ozone,mype_oz,jpch_oz,ihave_oz
+  use lightinfo, only: mype_light,diag_light
   use coinfo, only: diag_co,mype_co,jpch_co,ihave_co
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum
   use gridmod, only: nsig,twodvar_regional,wrf_mass_regional,nems_nmmb_regional
@@ -221,25 +223,29 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   external:: setupvwnd10m
   external:: setupswcp
   external:: setuplwcp
+  external:: setuplight
   external:: statsconv
   external:: statsoz
   external:: statspcp
   external:: statsrad
+  external:: statslight
   external:: stop2
   external:: w3tage
 
 ! Delcare local variables
   logical rad_diagsave,ozone_diagsave,pcp_diagsave,conv_diagsave,llouter,getodiag,co_diagsave
   logical aero_diagsave
+  logical light_diagsave
 
   character(80):: string
   character(10)::obstype
   character(20)::isis
   character(128):: diag_conv_file
+  character(128):: diag_light_file
   character(len=12) :: clfile
 
   integer(i_kind) lunin,nobs,nchanl,nreal,nele,&
-       is,idate,i_dw,i_rw,i_sst,i_tcp,i_gps,i_uv,i_ps,i_lag,&
+       is,idate,i_dw,i_rw,i_sst,i_tcp,i_gps,i_uv,i_ps,i_lag,i_light,&
        i_t,i_pw,i_q,i_co,i_gust,i_vis,i_ref,i_pblh,i_wspd10m,i_td2m,&
        i_mxtm,i_mitm,i_pmsl,i_howv,i_tcamt,i_lcbas,i_cldch,i_uwnd10m,i_vwnd10m,&
        i_swcp,i_lwcp,iobs,nprt,ii,jj
@@ -282,6 +288,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   ozone_diagsave= write_diag(jiter) .and. diag_ozone .and. ihave_oz
   co_diagsave   = write_diag(jiter) .and. diag_co    .and. ihave_co
   aero_diagsave = write_diag(jiter) .and. diag_aero
+  light_diagsave= write_diag(jiter) .and. diag_light
 
   i_ps = 1
   i_uv = 2
@@ -311,7 +318,8 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   i_vwnd10m=27
   i_swcp=28
   i_lwcp=29
-  i_ref =i_lwcp
+  i_light=30
+  i_ref =i_light
 
   allocate(awork1(7*nsig+100,i_ref))
   if(.not.rhs_allocated) call rhs_alloc(aworkdim2=size(awork1,2))
@@ -467,6 +475,20 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
      if (aircraft_t_bc_pof .or. aircraft_t_bc) then
         ostats_t=zero_quad
         rstats_t=zero_quad
+     end if
+
+!    If requested, create lightning diagnostic files
+     if(light_diagsave)then
+        write(string,500) jiter
+500     format('light_',i2.2)
+        diag_light_file=trim(dirname) // trim(string)
+        if(init_pass) then
+           open(55,file=trim(diag_light_file),form='unformatted',status='unknown',position='rewind')
+        else
+           open(55,file=trim(diag_light_file),form='unformatted',status='old',position='append')
+        endif
+        idate=iadate(4)+iadate(3)*100+iadate(2)*10000+iadate(1)*1000000
+        if(init_pass .and. mype == 0)write(55)idate
      end if
 
 
@@ -654,11 +676,17 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
               else if(obstype=='gps_bnd')then
                  call setupbend(lunin,mype,awork(1,i_gps),nele,nobs,toss_gps_sub,is,init_pass,last_pass,conv_diagsave)
               end if
-           end if
 
-        end if
+!          Set up lightning (GOES/GLM)  data
+           else if(ditype(is) == 'light')then
+              if(obstype == 'goes_glm')then
+                 call setuplight(lunin,mype,bwork,awork,nele,nobs,is,light_diagsave)
+              end if
 
-     end do
+           endif ! ditype
+        end if !if(nobs > 0)then
+
+     end do !loop over all data types
      close(lunin)
 
   else
@@ -683,6 +711,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   ! -- call genstats_gps(bwork,awork(1,i_gps),toss_gps_sub,conv_diagsave,mype)
 
   if (conv_diagsave.and.binary_diag) close(7)
+  if (light_diagsave) close(55)
 
   if(l_PBL_pseudo_SurfobsT.or.l_PBL_pseudo_SurfobsQ.or.l_PBL_pseudo_SurfobsUV) then
   else
@@ -769,6 +798,9 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
           i_ps,i_uv,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag, &
           i_gust,i_vis,i_pblh,i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv, &
           i_tcamt,i_lcbas,i_cldch,i_uwnd10m,i_vwnd10m,i_swcp,i_lwcp,i_ref,bwork1,awork1,ndata)
+
+!     Compute and print statistics for "lightning" data
+     if (mype==mype_light) call statslight(mype,i_light,bwork,awork,i_ref,ndata)
 
   endif  ! < .not. lobserver >
 

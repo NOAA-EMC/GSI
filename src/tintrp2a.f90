@@ -358,3 +358,97 @@ subroutine tintrp2a11_csln(f,g,gw,dx,dy,obstime,gridtime, &
 
   return
 end subroutine tintrp2a11_csln
+
+
+subroutine tintrp2a11_indx(dx,dy,obstime,gridtime, &
+     mype,nflds,ix,ixp,iy,iyp,itime,itimep)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    tintrp2a11_indx
+!   prgmmr: zupanski      org: CSU/CIRA/Data Assimilation group     date: 2015-07-10
+!
+! abstract: same as tintrp2a11 but for horizontal grid indexes surrounding 
+!           an observation point
+!
+! program history log:
+!   2015-07-10  zupanski: add output grid indexes
+!   2018-01-01  apodaca:  compatibility-related updates
+!
+!   input argument list:
+!     dx,dy    - input x,y,z-coords of interpolation points (grid units)
+!     obstime  - time to interpolate to
+!     gridtime - grid guess times to interpolate from
+!     mype     - mpi task id
+!     nflds    - number of guess times available to interpolate from
+!
+!   output argument list:
+!     ix,iy,ixp,iyp        - horizontal grid indexes
+!     itime,itimep         - time grid indexes
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use kinds, only: r_kind,i_kind
+  use gridmod, only: istart,jstart,nlon,nlat,lon1,lon2,lat2
+  use constants, only: zero,one
+  implicit none
+
+! Declare passed variables
+  integer(i_kind)                              ,intent(in   ) :: mype,nflds
+  real(r_kind)                                 ,intent(in   ) :: dx,dy,obstime
+  real(r_kind),dimension(nflds)                ,intent(in   ) :: gridtime
+  integer(i_kind)                              ,intent(out  ) :: ix,ixp
+  integer(i_kind)                              ,intent(out  ) :: iy,iyp
+  integer(i_kind)                              ,intent(out  ) :: itime,itimep
+
+! Declare local variables
+  integer(i_kind) m1,ix1,iy1
+  integer(i_kind) j
+  real(r_kind) delx
+  real(r_kind) dely,delt
+
+  m1=mype+1
+
+  ix1=int(dx)
+  iy1=int(dy)
+  ix1=max(1,min(ix1,nlat))
+  delx=dx-float(ix1)
+  dely=dy-float(iy1)
+  delx=max(zero,min(delx,one))
+  ix=ix1-istart(m1)+2
+  iy=iy1-jstart(m1)+2
+  if(iy<1) then
+     iy1=iy1+nlon
+     iy=iy1-jstart(m1)+2
+  end if
+  if(iy>lon1+1) then
+     iy1=iy1-nlon
+     iy=iy1-jstart(m1)+2
+  end if
+  ixp=ix+1; iyp=iy+1
+  if(ix1==nlat) then
+     ixp=ix
+  end if
+  if(obstime > gridtime(1) .and. obstime < gridtime(nflds))then
+     do j=1,nflds-1
+        if(obstime > gridtime(j) .and. obstime <= gridtime(j+1))then
+           itime=j
+           itimep=j+1
+           delt=((gridtime(j+1)-obstime)/(gridtime(j+1)-gridtime(j)))
+        end if
+     end do
+  else if(obstime <=gridtime(1))then
+     itime=1
+     itimep=1
+     delt=one
+  else
+     itime=nflds
+     itimep=nflds
+     delt=one
+  end if
+
+  return
+end subroutine tintrp2a11_indx
+
