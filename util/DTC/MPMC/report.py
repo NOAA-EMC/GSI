@@ -1,13 +1,12 @@
 #!/usr/bin/python3
-# the first line does not matter, it will be replaced by running "python initMPMC.py"
+# the first line does not matter, it will be replaced by running "initmpmc"
 ###################################################
-# This python script will generate case running job scripts for most tutorial cases
-# and be able to submit jobs automatically when input "submit" as the second command line parameter
+# This python script will check compiling and running results and generate a report
 #
 # by Guoqing Ge, 2018/8/20, guoqing.ge@noaa.gov
 #
 # Usage:
-#   report.py <build_directory_list_file_name> [report_option]
+#   report.py <build_directory_list_file> [report_option]
 #    where report_option is either 1 (compiling results), or 2 (running results)
 #       if report_option is missing, do both 1 and 2
 #
@@ -15,51 +14,40 @@
 #
 def empty_fun():pass
 import sys,os
-from pyrunconfig import build_directory_location, gsi_src_directory
+from MPMC_config import build_root, ProdGSI_root, hostname
+from CASE_config import allcases
 from datetime import datetime
-import socket
-hostname=socket.gethostname()
-if hostname.startswith("cheyenne"): Cheyenne=True
+if hostname.startswith("Cheyenne"): Cheyenne=True
 else: Cheyenne=False
 
-def confirm_successful_build( build_directory_name ):
-# -----------this funciton is adapted from Donald Stark's original code-----------------------
-# Checks the bin directory in the specified build directory for executables 'enkf_gfs.x' & 'gsi.x'
-# NCEP library files, and reports back if successful/fails
-# Arguments
-#    build_directory_name: full path of each build directory. 
-# Returns 
-#    "PASS   ",
-#    "EXEFAIL" ----compiling error, fail to generate executables
-#    "CMKFAIL" ----CMake error, fail to genereate a Makefile
-# ---------------------------------------------------------------------------------------------
-   executables = [ '/bin/enkf_gfs.x', '/bin/gsi.x', '/bin/nc_diag_cat.x','/bin/test_nc_unlimdims.x' ]
-   return_code = "" 
+def compiling_check( mybuild ):
+# 1-Makefile  2-gsi.x  3-enkf_gfs.x  4-enkf_wrf.x
+# 5-ndate.x, nc_diag_cat.x and test_nc_unlimdims.x
+# 6-community utilities (bufrtools, read_diag, etc)
+# |1|2|3|4|5|6|
+# |Y|Y|Y|Y|Y|Y|==>
+   exelist=[['Makefile'], ['gsi.x'], ['enkf_gfs.x'], ['enkf_wrf.x'] \
+       ,['ndate.x', 'nc_diag_cat.x','test_nc_unlimdims.x'] \
+#      ,[read-diag, bufrtools] \       
+       ]
+   results = "|" 
 
-   path = build_directory_name + "/Makefile"
-   if os.path.isfile(path) and os.access(path, os.R_OK):
-     rrr=1
-   else:
-      return_code = "CMKFAIL"
-      return return_code
+   for x in exelist:
+     allyes=True
+     for y in x:
+       if y=="Makefile":
+         file1=mybuild+'/'+y
+       else:
+         file1=mybuild+'/bin/'+y
+       if not (os.path.isfile(file1) and os.access(file1, os.R_OK)):
+         allyes=False
+     if allyes:
+       results=results+"Y|"
+     else:
+       results=results+"N|"
 
-   count = 0
-   for exe in executables:
-      path = build_directory_name + exe
-      if os.path.isfile(path) and os.access(path, os.R_OK):
-         count = count + 1
-      else:
-         return_code = "EXEFAIL" 
-
-   if count == len( executables ):
-      path=build_directory_name + "/bin/enkf_wrf.x"
-      if os.path.isfile(path) and os.access(path, os.R_OK):
-        return_code = "PASS   "
-      else: ## enkf_wrf.x fail to compile
-        return_code="ENKFWRF" 
-
-   return return_code
-#--------------------  end of function confirm_successful_build(...) 
+   return results
+#--------------------  end of function compiling_check
 #
 ############## fucntion getModuleName: find the full module name in the src string
 def getModuleName(src,target):
@@ -72,15 +60,7 @@ def getModuleName(src,target):
   else:
     return ''
 #--------------------- end of function of getModuleName(...)
-
-allcases=[\
-     "case01-oneobs-glb","case02-oneobs-nam" \
-     ,"case03-conv","case04-allobs","case05-3DEnVar", "case07-4DEnVar" \
-#    ,"case08-nmmb", \  #remove case08 from test suite due to difficulties to fix bugs and nmmb is phasing away to fv3
-     ,"case09-wrfchem", "case10-cmaq", "case11-gfs" \
-#    ,"case12-fv3", "case13-cloudana" \
-     ,"case21-observer-conv", "case22-enkf-conv", "case23-observer-allobs","case24-enkf-allobs","case25-observer-gfs","case26-enkf-gfs" \
-  ]
+#
 row_results={}
 for x in allcases: row_results[x]={}
 
@@ -96,7 +76,7 @@ report_option="all"
 if (arguments >=2):
   report_option=sys.argv[2]
 
-fullpath=build_directory_location +"/"+cmdparam
+fullpath=build_root +"/"+cmdparam
 cwd = os.getcwd()
 if (os.path.isdir(fullpath)):
   print("Check running results in the given directory: "+fullpath)
@@ -107,9 +87,9 @@ elif (os.path.isfile(cwd+"/"+cmdparam)):
     dir_list = f.readlines()
   if(len(dir_list)<=0): print("\nThe list file is empty, exit\n"); exit()
   dir_list = [x.strip() for x in dir_list]  #strip "\n"
-  if (dir_list[0][0]!= "/"):  # if not absolute path, add the prefix based on "build_directory_location"
+  if (dir_list[0][0]!= "/"):  # if not absolute path, add the prefix based on "build_root"
     for i in range(len(dir_list)):
-      dir_list[i]=build_directory_location +"/"+dir_list[i]
+      dir_list[i]=build_root +"/"+dir_list[i]
 else:
   print("You don't run me correctly!")
   print("Usage: report.py  <one_build_directory | list_file_name> [1|2]")
@@ -130,7 +110,7 @@ for mybuild in dir_list:
   build_list.append(mybuild_short)
 
   if(report_option=='1' or report_option=='all'):  #this step takes a little bit time, so only do it when necessary
-    build_result.append(confirm_successful_build(mybuild))
+    build_result.append(compiling_check(mybuild))
     ### read module informatin from compile.sh
     file1=open(mybuild+"/compile.sh", "r")
     found_lapack=False
@@ -186,7 +166,7 @@ for mybuild in dir_list:
   else:
     case_matrix[mybuild_short]={}
 
-commitID=os.popen('git --git-dir '+gsi_src_directory+'/.git log -1 |grep commit | head -1').read()
+commitID=os.popen('git --git-dir '+ProdGSI_root+'/.git log -1 |grep commit | head -1').read()
 print('\n\n'+datetime.now().strftime("%Y%m%d")+ '  Tested on '+commitID,end='')
 tem=max(build_list,key=len)
 longest=(len(tem))
@@ -249,14 +229,18 @@ if (report_option=="1" or report_option=='all'):
   print('')
   title='----- GSI/EnKF Compiling Tests'
   print(title+'-'*(width_tot-len(title)))
+  print('1-Makefile  2-gsi.x  3-enkf_gfs.x  4-enkf_wrf.x 5-ndate.x, nc_diag_cat.x and test_nc_unlimdims.x \
+       \n6-community utilities (read_diag, etc) \
+       \n|1|2|3|4|5|')
   for i in range(len(dir_list)):
     print(build_result[i].ljust(8),end='=>|')
+    print(build_list[i][0:4].ljust(5),end='|')
     print(compiler[i].ljust(max_compiler+1),end='|')
     print(mpi[i].ljust(max_mpi+1),end='|')
     print(netcdf[i].ljust(max_netcdf+1),end='|')
     if (len(lapack)>0):
       print(lapack[i].ljust(max_lapack+1),end='|')
-    print(">/"+build_list[i].ljust(longest),end='')
+    print('>'+build_list[i].ljust(longest),end='')
     print('\n',end='')
 
 print('\n',end='')

@@ -394,13 +394,13 @@ if [[ $DO_DATA_RPT -eq 1 ]]; then
    prev_bad_pen=bad_pen.${qdate}
    prev_bad_chan=bad_chan.${qdate}
 
-   if [[ $CYCLE == "00" ]]; then
+#   if [[ $CYCLE == "00" ]]; then
       prev_bad_pen=${TANKverf_radM1}/${prev_bad_pen}
       prev_bad_chan=${TANKverf_radM1}/${prev_bad_chan}
-   else
-      prev_bad_pen=${TANKverf_rad}/${prev_bad_pen}
-      prev_bad_chan=${TANKverf_rad}/${prev_bad_chan}
-   fi
+#   else
+#      prev_bad_pen=${TANKverf_rad}/${prev_bad_pen}
+#      prev_bad_chan=${TANKverf_rad}/${prev_bad_chan}
+#   fi
 
    do_pen=0
    do_chan=0

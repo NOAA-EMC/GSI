@@ -21,7 +21,7 @@ if(NOT BUILD_W3NCO )
     NAMES libw3nco_v${W3NCO_VER}_d.a libw3nco_d.a  libw3nco_i4r8.a 
     HINTS 
        $ENV{COREPATH}/lib 
-       /usr/local/jcsda/nwprod_gdas_2014	
+       /usr/local/jcsda/nwprod_gdas_2014/lib	
        ${COREPATH}/w3nco/v${W3NCO_VER}
        ${COREPATH}/w3nco/v${W3NCO_VER}/intel
        ${COREPATH}/w3nco/v${W3NCO_VER}/ips/${COMPILER_VERSION}
@@ -35,7 +35,7 @@ if(NOT BUILD_W3NCO )
     NAMES libw3nco_v${W3NCO_VER}_4.a libw3nco_4.a  
     HINTS 
        $ENV{COREPATH}/lib 
-       /usr/local/jcsda/nwprod_gdas_2014	
+       /usr/local/jcsda/nwprod_gdas_2014/lib	
        ${COREPATH}/w3nco/v${W3NCO_VER}
        ${COREPATH}/w3nco/v${W3NCO_VER}/intel
        ${COREPATH}/w3nco/v${W3NCO_VER}/ips/${COMPILER_VERSION}

@@ -13,7 +13,7 @@
 
 set -x
 
-export PDATE=2018022100
+export PDATE=2018091718
 
 #############################################################
 # Specify whether the run is production or development
@@ -59,7 +59,6 @@ export POE=YES
 # Set user specific variables
 #############################################################
 export RADMON_SUFFIX=testrad
-#export NWTEST=/da/noscrub/${LOGNAME}/RadMon_545/util/Radiance_Monitor/nwprod
 export NWTEST=/gpfs/td2/emc/da/noscrub/Edward.Safford/ProdGSI/util/Radiance_Monitor/nwprod
 export HOMEgdas=${NWTEST}/gdas_radmon.${gdas_radmon_ver}
 export JOBGLOBAL=${HOMEgdas}/jobs

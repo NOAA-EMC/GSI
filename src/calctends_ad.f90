@@ -235,7 +235,7 @@ subroutine calctends_ad(fields,fields_dt,mype)
 
 !  loop over threads
 !$omp parallel do schedule(dynamic,1) private(i,j,k,kk,tmp,tmp2,ix,&
-!$omp                  tmp3,sumk,sumvk,sum2k,sum2vk)
+!$omp                  tmp3,sumk,sumvk,sum2k,sum2vk,var)
   do kk=1,nthreads
 
 !   zero arrays

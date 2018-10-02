@@ -95,14 +95,24 @@ if [[ $MY_MACHINE != "THEIA" ]]; then
 fi   
 
 #############################################
+#  determine PDY and cyc for previous cycle
+#############################################
+
+cdate=`${NDATE} -6 ${PDY}${cyc}`
+echo 'pdate = ${pdate}'
+
+export P_PDY=`echo ${cdate} | cut -c1-8`
+export p_cyc=`echo ${cdate} | cut -c9-10`
+
+#############################################
 # COMOUT - WHERE GSI OUTPUT RESIDES
 # TANKverf - WHERE OUTPUT DATA WILL RESIDE
 #############################################
 export TANKverf=${TANKverf:-${COMROOT}/${NET}/${envir}}
-export TANKverf_rad=${TANKverf_rad:-${TANKverf}/${RUN}.${PDY}/radmon}
-export TANKverf_radM1=${TANKverf_radM1:-${TANKverf}/${RUN}.${PDYm1}/radmon}
+export TANKverf_rad=${TANKverf_rad:-${TANKverf}/${RUN}.${PDY}/${cyc}/radmon}
+export TANKverf_radM1=${TANKverf_radM1:-${TANKverf}/${RUN}.${P_PDY}/${p_cyc}/radmon}
 export COM_IN=${COM_IN:-${COMROOT}/${NET}/${envir}}
-export COMIN=${COMIN:-${COM_IN}/${RUN}.${PDY}}
+export COMIN=${COMIN:-${COM_IN}/${RUN}.${PDY}/${cyc}}
 
 mkdir -p -m 775 $TANKverf_rad
  
@@ -112,7 +122,7 @@ env
 # Set necessary environment variables
 ########################################
 export RAD_AREA=${RAD_AREA:-glb}
-export CYCLE_INTERVAL=${CYCLE_INTERVAL:-6}
+
 export biascr=${biascr:-$COMIN/gdas.t${cyc}z.abias}
 export radstat=${radstat:-$COMIN/gdas.t${cyc}z.radstat}
 
@@ -132,7 +142,6 @@ else
    msg="JOB COMPLETED NORMALLY"
 fi
 postmsg "$jlogfile" "$msg"
-
 
 ################################
 # Remove the Working Directory

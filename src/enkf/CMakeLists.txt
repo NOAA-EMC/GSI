@@ -7,7 +7,7 @@ if(BUILD_ENKF)
 
   if(BUILD_PRODUCTION)
     set(ENKF_SUFFIX "gfs")
-    set(ENKF_BASE "global_enkf")
+    set(ENKF_BASE "global_enkf.x")
   elseif(BUILD_WRF)
     set(ENKF_SUFFIX "wrf")
     set(ENKF_BASE "enkf_wrf")

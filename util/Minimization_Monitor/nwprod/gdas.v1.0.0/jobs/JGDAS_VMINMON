@@ -85,16 +85,27 @@ if [[ $MY_MACHINE != "theia" ]]; then
 fi
 
 #############################################
+#  determine PDY and cyc for previous cycle
+#############################################
+
+cdate=`${NDATE} -6 ${PDY}${cyc}`
+echo 'pdate = ${pdate}'
+
+export P_PDY=`echo ${cdate} | cut -c1-8`
+export p_cyc=`echo ${cdate} | cut -c9-10`
+
+
+#############################################
 # TANKverf - WHERE OUTPUT DATA WILL RESIDE
 #############################################
 export COM_IN=${COM_IN:-${COMROOT}/${NET}/${envir}}
 
 M_TANKverf=${M_TANKverf:-${COM_IN}}
-M_TANKverfM0=${M_TANKverfM0:-${M_TANKverf}/${RUN}.${PDY}/minmon}
-export M_TANKverfM1=${M_TANKverfM1:-${M_TANKverf}/${RUN}.${PDYm1}/minmon}
+M_TANKverfM0=${M_TANKverfM0:-${M_TANKverf}/${RUN}.${PDY}/${cyc}/minmon}
+export M_TANKverfM1=${M_TANKverfM1:-${M_TANKverf}/${RUN}.${P_PDY}/${p_cyc}/minmon}
 export M_TANKverf=$M_TANKverfM0
 
-export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
+export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}/${cyc}}
 
 mkdir -p -m 775 $M_TANKverf
 

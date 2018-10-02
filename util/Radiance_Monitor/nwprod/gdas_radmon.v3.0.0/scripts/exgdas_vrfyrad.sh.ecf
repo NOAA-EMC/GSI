@@ -113,6 +113,7 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
       echo $radstat_satype
    fi
 
+   echo satype_file = $satype_file
   
    #------------------------------------------------------------------
    #  Get previous cycle's date, and look for the satype_file.  Using 

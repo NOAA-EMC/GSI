@@ -1,9 +1,9 @@
 #%Module#################################################################
 proc ModulesHelp { } {
-  puts stderr "Set environment variables for WCOSS(dell) radmon build"
+  puts stderr "Set environment variables for WCOSS(cray) radmon build"
 }
 
-module-whatis "Set environment variables for WCOSS(dell) radmon build"
+module-whatis "Set environment variables for WCOSS(cray) radmon build"
 
 set FCOMP ifort
 

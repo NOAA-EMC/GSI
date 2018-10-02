@@ -15,7 +15,7 @@ echo "comgsi version  : v3.7"
 cat /proc/cpuinfo | grep 'vendor' | uniq    
 cat /proc/cpuinfo | grep 'model name' | uniq
 echo "Processors      : `cat /proc/cpuinfo | grep processor | wc -l`"
-echo "Current host    : $HOST"
+echo "Current host    : `hostname`"
 echo "Current OS      : `uname`"
 echo "Current shell   : `ps -o comm= $PPID`"
 echo "NETCDF          : $NETCDF"

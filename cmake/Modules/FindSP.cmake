@@ -19,7 +19,7 @@ if(NOT BUILD_SP )
     NAMES libsp_d.a libsp_i4r8.a libsp_v${SP_VER}_d.a
     HINTS 
       $ENV{COREPATH}/lib 
-      /usr/local/jcsda/nwprod_gdas_2014	
+      /usr/local/jcsda/nwprod_gdas_2014/lib	
       ${COREPATH}/sp/v${SP_VER}
       ${COREPATH}/sp/v${SP_VER}/intel
       ${COREPATH}/sp/v${SP_VER}/ips/${COMPILER_VERSION}
@@ -37,7 +37,7 @@ if(NOT BUILD_SP )
     NAMES libsp_4.a libsp_i4r4.a libsp_v${SP_VER}_4.a
     HINTS 
       $ENV{COREPATH}/lib 
-      /usr/local/jcsda/nwprod_gdas_2014	
+      /usr/local/jcsda/nwprod_gdas_2014/lib	
       ${COREPATH}/sp/v${SP_VER}
       ${COREPATH}/sp/v${SP_VER}/intel
       ${COREPATH}/sp/v${SP_VER}/ips/${COMPILER_VERSION}

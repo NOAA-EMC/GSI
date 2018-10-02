@@ -3,7 +3,7 @@ regtest=$1
 case $machine in
 
 	Theia)
-	   sub_cmd="sub_zeus"
+	   sub_cmd="sub_theia"
     ;;
 	WCOSS)
 	   sub_cmd="sub_wcoss -a GDAS-T2O -d $PWD"
@@ -207,8 +207,8 @@ case $regtest in
     global_lanczos_T62)
 
         if [[ "$machine" = "Theia" ]]; then
-           topts[1]="0:20:00" ; popts[1]="12/3/" ; ropts[1]="/1"
-           topts[2]="0:20:00" ; popts[2]="12/5/" ; ropts[2]="/2"
+           topts[1]="0:30:00" ; popts[1]="12/3/" ; ropts[1]="/1"
+           topts[2]="0:30:00" ; popts[2]="12/5/" ; ropts[2]="/2"
         elif [[ "$machine" = "WCOSS" ]]; then
            topts[1]="0:20:00" ; popts[1]="16/2/" ; ropts[1]="/1"
            topts[2]="0:20:00" ; popts[2]="16/4/" ; ropts[2]="/2"
@@ -314,6 +314,9 @@ case $regtest in
         elif [[ "$machine" = "WCOSS_C" ]]; then
             topts[1]="0:15:00" ; popts[1]="20/2/" ; ropts[1]="1024/1"  # sub_wcoss_c popts are "#tasks/#nodes/"
             topts[2]="0:15:00" ; popts[2]="16/4/" ; ropts[2]="1024/1"
+        elif [[ "$machine" = "WCOSS_D" ]]; then
+           topts[1]="0:15:00" ; popts[1]="28/1/" ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="28/2/" ; ropts[2]="/1"
         elif [[ "$machine" = "s4" ]]; then
            topts[1]="0:25:00" ; popts[1]="16/1/" ; ropts[1]="/1"
            topts[2]="0:25:00" ; popts[2]="16/2/" ; ropts[2]="/1"
@@ -498,8 +501,8 @@ case $regtest in
             topts[1]="0:15:00" ; popts[1]="16/2/" ; ropts[1]="/1"
             topts[2]="0:15:00" ; popts[2]="16/4/" ; ropts[2]="/2"
         elif [[ "$machine" = "WCOSS_C" ]]; then
-            topts[1]="0:15:00" ; popts[1]="20/4/" ; ropts[1]="1024/1"  # sub_wcoss_c popts are "#tasks/#nodes/"
-            topts[2]="0:15:00" ; popts[2]="20/5/" ; ropts[2]="1024/2"
+            topts[1]="0:25:00" ; popts[1]="20/4/" ; ropts[1]="1024/1"  # sub_wcoss_c popts are "#tasks/#nodes/"
+            topts[2]="0:25:00" ; popts[2]="20/5/" ; ropts[2]="1024/2"
         elif [[ "$machine" = "s4" ]]; then
             topts[1]="0:25:00" ; popts[1]="32/2/" ; ropts[1]="/1"
             topts[2]="0:25:00" ; popts[2]="32/4/" ; ropts[2]="/2"
@@ -570,7 +573,9 @@ elif [[ "$machine" = "WCOSS_C" ]]; then
    export FORT_BUFFERED=true
    export APRUN="mpirun -v -np \$PBS_NP"
 elif [[ "$machine" = "WCOSS_D" ]]; then
-   export OMP_STACKSIZE=1024M
+   export KMP_AFFINITY=scatter
+   export KMP_STACKSIZE=2G
+   export FORT_BUFFERED=true
    export APRUN="mpirun"
 elif [[ "$machine" = "s4" ]]; then
    export APRUN="srun"

@@ -65,7 +65,7 @@ program getsfcensmeanp
   call getarg(2,filenameout)
   call getarg(3,fileprefix)
   call getarg(4,charnanal)
-  read(charnanal,'(i3)') nanals
+  read(charnanal,'(i2)') nanals
   rnanals=nanals
   rnanals=1.0_8/rnanals
   filenameout = trim(adjustl(datapath))//filenameout

@@ -63,6 +63,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !                         implemented again in module m_extOzone, if ever needed.
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !   2015-10-01  guo     - consolidate use of ob location (in deg
+!   2018-08-13  H. Liu  - add capability to use OMPS nadir profiler and nadir mapper data
 !
 !   input argument list:
 !     obstype  - observation type to process
@@ -128,7 +129,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   logical outside,version6,version8,iuse
   
   character(2) version
-  character(8) subset,subset6,subset8
+  character(8) subset,subset6,subset8,subset8_ompsnp
   character(49) ozstr,ozostr
   character(63) lozstr
   character(51) ozgstr
@@ -200,6 +201,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   data lunin / 10 /
   data subset6 / 'NC008010' /
   data subset8 / 'NC008011' /
+  data subset8_ompsnp / 'NC008017'/
 
 !**************************************************************************
 ! Set constants.  Initialize variables
@@ -213,7 +215,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 ! Separately process sbuv or omi ozone
   
-  if (obstype == 'sbuv2' ) then
+  if (obstype == 'sbuv2' .or. obstype == 'ompsnp') then
 
      nreal=9
      open(lunin,file=trim(infile),form='unformatted')
@@ -228,7 +230,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         version6 = .true.
         nloz     = nloz_v6
         version  = 'v6'
-     elseif (subset == subset8) then
+     elseif (subset == subset8 .or. subset == subset8_ompsnp) then
         version8 = .true. 
         nloz     = nloz_v8
         version  = 'v8'
@@ -278,6 +280,9 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         if(jsatid == 'n17') kidsat = 208
         if(jsatid == 'n18') kidsat = 209
         if(jsatid == 'n19') kidsat = 223
+        if(jsatid == 'npp') kidsat = 224
+        if(jsatid == 'n20') kidsat = 225
+        if(jsatid == 'n21') kidsat = 226
 
         if (ksatid /= kidsat) cycle read_loop1
 
@@ -419,7 +424,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      call readmg(lunin,subset,idate,iret)
 
      if (subset == 'NC008012') then
-!       write(6,*)'READ_OZONE:  GOME-2 data type, subset=',subset
+        write(6,*)'READ_OZONE:  GOME-2 data type, subset=',subset
      else
         write(6,*)'READ_OZONE:  *** WARNING: unknown ozone data type, subset=',subset
         write(6,*)' infile=',trim(infile), ', lunin=',lunin, ', obstype=',obstype,', jsatid=',jsatid
@@ -565,7 +570,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 
 ! Process OMI data
-  else if ( obstype == 'omi') then
+  else if ( obstype == 'omi' .or. obstype == 'ompstc8') then
 
 
      nmrecs=0
@@ -574,7 +579,9 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      call datelen(10)
      call readmg(lunin,subset,idate,iret)
      if (subset == 'NC008013') then
-!       write(6,*)'READ_OZONE:  OMI data type, subset=',subset
+        write(6,*)'READ_OZONE:  OMI data type, subset=',subset
+     else if (subset == 'NC008018') then
+        write(6,*)'READ_OZONE:  OMPS tc8 data type, subset=',subset
      else
         write(6,*)'READ_OZONE:  *** WARNING: unknown ozone data type, subset=',subset
         write(6,*)' infile=',trim(infile), ', lunin=',lunin, ', obstype=',obstype,', jsatid=',jsatid
@@ -586,7 +593,6 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !    Make thinning grids
      call makegrids(rmesh,ithin)
 
-!    Set dependent variables and allocate arraysn
      nreal=14
      nloz=0
      nchanl=1
@@ -617,6 +623,9 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         rsat = hdrozo(1); ksatid=rsat
 
         if(jsatid == 'aura')kidsat = 785
+        if(jsatid == 'npp') kidsat = 224
+        if(jsatid == 'n20')kidsat = 225
+        if(jsatid == 'n21')kidsat = 226
         if (ksatid /= kidsat) cycle read_loop2
 
 
@@ -664,22 +673,28 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         call ufbint(lunin,totoz,1,1,iret,'OZON')
         if (totoz > badoz ) cycle read_loop2
 
+!    QC for omi_aura
+   if (obstype == 'omi') then
+
 !       Bit 10 in TOQF represents row anomaly. 
         decimal=int(hdrozo2(6))
         call dec2bin(decimal,binary,14)
         if (binary(10) == 1 ) cycle read_loop2
 
+!    remove the bad scan position data: fovn beyond 25
+     if (hdrozo2(7) >=25.0_r_double) cycle read_loop2
+
+   end if
 !       only accept flag 0 1, flag 2 is high SZA data which is not used for now
         toq=hdrozo2(5)
         if (toq/=0 .and. toq/=1) cycle read_loop2
    
 !       remove the bad scan position data: fovn beyond 25
         if (hdrozo2(7) >=25.0_r_double) cycle read_loop2
-
 !       remove the data in which the C-pair algorithm ((331 and 360 nm) is used. 
         if (hdrozo2(8) == 3_r_double .or. hdrozo2(8) == 13_r_double) cycle read_loop2
 
-!       thin OMI data
+!    thin OMI and OMPSTC8 data
 
         if (thin4d) then
            timedif = zero 
@@ -704,7 +719,9 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         ozout(6,itx)=dlat_earth_deg     ! earth relative latitude (degrees)
         ozout(7,itx)=hdrozo2(5)         ! total ozone quality code
         ozout(8,itx)=hdrozo(10)         ! solar zenith angle
-        ozout(9,itx)=binary(10)         ! row anomaly flag
+        if (obstype == 'omi') then
+           ozout(9,itx)=binary(10)         ! row anomaly flag
+        end if
         ozout(10,itx)=hdrozo2(1)        !  cloud amount
         ozout(11,itx)=hdrozo2(4)        !  vzan
         ozout(12,itx)=hdrozo2(2)        !  aerosol index
@@ -715,7 +732,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !       End of loop over observations
      end do read_loop2
 
-! End of OMI block
+! End of OMI and OMPSTC8 block
 
 ! Process MLS bufr data
   else if ( index(obstype,'mls')/=0 ) then
@@ -1023,7 +1040,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
   if(nmrecs > 0)then
 !    If gome or omi data, compress ozout array to thinned data
-     if (obstype=='omi' .or. obstype=='gome') then
+  if (obstype=='omi' .or. obstype=='gome' .or. obstype == 'ompstc8') then
         kk=0
         do k=1,itxmax
            if (ozout(1,k)>zero) then
@@ -1046,7 +1063,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 ! Deallocate local arrays
   if(allocated(ozout))deallocate(ozout)
-  if (obstype == 'sbuv2') deallocate(poz)
+  if (obstype == 'sbuv2' .or. obstype == 'ompsnp') deallocate(poz)
   if (index(obstype,'mls')/=0) then
      if(allocated(hdrmlsl))deallocate(hdrmlsl)
      if(allocated(mlspres))deallocate(mlspres)
@@ -1061,7 +1078,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   close(lunin)
 
 ! Deallocate satthin arrays
-  if (obstype == 'omi' .or. obstype == 'gome')call destroygrids
+  if (obstype == 'omi' .or. obstype == 'gome' .or. obstype == 'ompstc8')call destroygrids
 
   return
   
