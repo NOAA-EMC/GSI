@@ -128,7 +128,7 @@ case $ARCH in
          RUN_COMMAND=""
       else
          ###### Linux workstation -  mpi run
-        RUN_COMMAND="mpirun -np ${GSIPROC} -machinefile ~/mach "
+        RUN_COMMAND="mpirun -np ${GSIPROC} "
       fi ;;
 
    'LINUX_LSF')

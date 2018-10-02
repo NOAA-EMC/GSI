@@ -3370,15 +3370,16 @@ contains
     endif
   end subroutine write_sfc_nst_
 
-  subroutine error_msg_(sub_name,file_name,var_name,action,stop_code,error_code)
+  subroutine error_msg_(sub_name,file_name,var_name,action,stop_code,error_code,lprint)
     use mpimod, only: mype
     use kinds, only: i_kind
     implicit none
 
     character(len=*), intent(in) :: sub_name,file_name,var_name,action
     integer(i_kind),  intent(in) :: stop_code, error_code
-
-    if ( mype == 0 ) then
+    logical, optional,intent(in) :: lprint
+    
+    if ( mype == 0 .or. present(lprint) ) then
        select case (trim(action))
        case('init')
           write(6,'(a,'':  PROBLEM with nemsio_init, Status = '', i3)') &

@@ -32,7 +32,7 @@ setenv enkfscripts "${basedir}/scripts_ncep"
 setenv enkfexec "${basedir}/src/"
 
 # name of enkf executable.
-setenv enkfbin "${enkfexec}/global_enkf_gfs"
+setenv enkfbin "${enkfexec}/global_enkf.x"
 
 # Set archive directories
 setenv archdiskdir ${datapath}/archive
@@ -136,7 +136,7 @@ setenv FIXGLOBAL /nwprod/fix
 setenv FIXGSI /global/save/wx20kd/ensda/ersl/fixgsi
 setenv EXECGLOBAL /global/save/wx20kd/ensda/ersl/bin
 setenv SIGLEVEL ${FIXGLOBAL}/global_hyblev.l64.txt
-setenv GSIEXEC /global/save/wx20kd/gsi/hybrid/src/global_gsi
+setenv GSIEXEC /global/save/wx20kd/gsi/hybrid/src/global_gsi.x
 setenv CHGRESEXEC ${EXECGLOBAL}/global_chgres_thread_moorthi
 setenv USHGLOBAL $EXECGLOBAL
 setenv CHGRESSH ${enkfscripts}/global_chgres.sh

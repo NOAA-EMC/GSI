@@ -356,7 +356,7 @@ fi
 ######################
 # For testing -JYZ
 ######################
-#export GSIEXEC=$EXECGLOBAL/global_gsi
+#export GSIEXEC=$EXECGLOBAL/global_gsi.x
 #export ANGUPDATEXEC=$EXECGLOBAL/global_angupdate
 #export CHGRESEXEC=$EXECGLOBAL/global_chgres
 #export CHGRESSH=$USHGLOBAL/global_chgres.sh
@@ -393,7 +393,7 @@ export NLAT=${NLAT:-$(($LATA+2))}
 export LEVS=${LEVS:-$($SIGHDR $SIGGES LEVS||echo 0)}
 export DELTIM=${DELTIM:-$((3600/($JCAP/20)))}
 export CYCLEXEC=${CYCLEXEC:-${EXECGLOBAL}/global_cycle$XC}
-export GSIEXEC=${GSIEXEC:-${EXECGLOBAL}/global_gsi$XC}
+export GSIEXEC=${GSIEXEC:-${EXECGLOBAL}/global_gsi.x}
 export ANGUPDATEXEC=${ANGUPDATEXEC:-${EXECGLOBAL}/global_angupdate$XC}
 ##export ANGUPDATEXEC=${ANGUPDATEXEC:-/nwprod/exec/global_angupdate}
 export CHGRESSH=${CHGRESSH:-${USHGLOBAL}/global_chgres.sh}

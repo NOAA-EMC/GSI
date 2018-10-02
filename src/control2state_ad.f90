@@ -210,7 +210,7 @@ do jj=1,nsubwin
       call stop2(999)
    endif
 
-!$omp parallel sections private(istatus,ii,ic,id,istatus_oz,rv_u,rv_v,rv_prse,rv_q,rv_tsen)
+!$omp parallel sections private(istatus,ii,ic,id,istatus_oz,rv_u,rv_v,rv_prse,rv_q,rv_tsen,uland,vland,uwter,vwter)
 
 !$omp section
 

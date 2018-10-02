@@ -69,11 +69,6 @@
 ####################################################################
 #  Command line arguments.
 
-echo "---> radmon_verf_angle.sh"
-module list
-echo "locating aprun:"
-which aprun
-
 RAD_AREA=${RAD_AREA:-glb}
 REGIONAL_RR=${REGIONAL_RR:-0}	# rapid refresh model flag
 rgnHH=${rgnHH:-}
@@ -109,7 +104,6 @@ SATYPE=${SATYPE:-}
 VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 USE_ANL=${USE_ANL:-0}
-
 
 if [[ $USE_ANL -eq 1 ]]; then
    gesanl="ges anl"
@@ -171,10 +165,9 @@ else
          fi
 
          if [[ $REGIONAL_RR -eq 1 ]]; then
-!            angl_file=${rgnHH}.angle.${data_file}.${rgnTM}
-            angl_file=${rgnHH}.${data_file}.${rgnTM}
-!         else
-!            angl_file=angle.${data_file}
+            angl_file=${rgnHH}.angle.${data_file}.${rgnTM}
+         else
+            angl_file=angle.${data_file}
          fi
 
 
@@ -210,45 +203,21 @@ EOF
 #-------------------------------------------------------------------
 #  move data, control, and stdout files to $TANKverf_rad and compress
 
-         #-----------------------------------------------------------
-         #  For cfp use, instead of executing these file manipulation 
-	 #  comands directly, journel them instead to a flat file.
-	 #  Then execute cfp (as appropriate for each machine) to
-	 #  perform the file manipulations.  Those manipulation 
-         #  commands should probably go in a parm file so I can not
-	 #  rely on a machine dependent decision here.
-	 #
-	 #  Note that in my esafford_RadMon_45526 branch I've already
-	 #  modified the order of operation to compress before copy.
-	 #  That change should be delivered to trunk soon.
-         #-----------------------------------------------------------
-
-
-         if [[ -s ${angl_file} ]]; then
-            ${COMPRESS} -f ${angl_file}
+         if [[ -s ${data_file} ]]; then
+            mv ${data_file} ${angl_file}
+	    ${COMPRESS} -f ${angle_file}
+            mv ${angl_file}* $TANKverf_rad/.
          fi
 
-         if [[ -s ${angle_ctl} ]]; then
-            ${COMPRESS} -f ${angle_ctl}
+         if [[ -s ${ctl_file} ]]; then
+            mv ${ctl_file} ${angl_ctl}
+	    ${COMPRESS} -f ${angl_ctl}
+            mv ${angl_ctl}*  ${TANKverf_rad}/.
          fi 
-
 
       done    # for dtype in ${gesanl} loop
 
    done    # for type in ${SATYPE} loop
-
-
-   cwd=`pwd`
-   tar_file=radmon_angle.tar 
-
-   tar -cf $tar_file angle*.ieee_d* angle*.ctl*
-     
-   mv $tar_file ${TANKverf_rad}
-   cd ${TANKverf_rad}
-   tar -xf ${tar_file}
-   rm ${tar_file}
-
-   cd ${cwd}
 
    if [[ $fail -eq $ctr || $fail -gt $ctr ]]; then
       err=3
@@ -265,5 +234,4 @@ fi
 msg="${scr} HAS ENDED"
 postmsg "$jlogfile" "$msg"
 
-echo "<-- radmon_verf_angle.sh"
 exit ${err}

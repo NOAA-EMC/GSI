@@ -59,8 +59,12 @@ case $machine in
    export ptmp="/gpfs/dell2/ptmp/$LOGNAME/$ptmpName"
 
    export fixcrtm="/gpfs/dell2/emc/modeling/noscrub/Mark.Potts/fix_update"
-   export casesdir="/gpfs/dell2/emc/modeling/noscrub/Mark.Potts/CASES"
-   export ndate="$builddir/bin/ndate.x"
+   if [ -d /gpfs/td2 ]; then
+       export casesdir="/gpfs/td2/emc/da/noscrub/Michael.Lueken/CASES"
+   elif [ -d /gpfs/gd2 ]; then
+       export casesdir="/gpfs/gd2/emc/da/noscrub/Michael.Lueken/CASES"
+   fi
+   export ndate=${NDATE:-"$builddir/bin/ndate.x"}
 
    export check_resource="yes"
 
@@ -192,10 +196,10 @@ esac
 if [[ "$cmaketest" = "false" ]]; then
   export builddir=$noscrub/build
   export gsisrc="$basedir/$updat/src"
-  export gsiexec_updat="$gsisrc/global_gsi"
-  export gsiexec_contrl="$basedir/$contrl/src/global_gsi"
-  export enkfexec_updat="$gsisrc/enkf/global_enkf"
-  export enkfexec_contrl="$basedir/$contrl/src/enkf/global_enkf"
+  export gsiexec_updat="$gsisrc/global_gsi.x"
+  export gsiexec_contrl="$basedir/$contrl/src/global_gsi.x"
+  export enkfexec_updat="$gsisrc/enkf/global_enkf.x"
+  export enkfexec_contrl="$basedir/$contrl/src/enkf/global_enkf.x"
   export fixgsi="$basedir/$updat/fix"
   export scripts="$basedir/$updat/regression"
   export ush="$basedir/$updat/ush"

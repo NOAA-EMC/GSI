@@ -94,7 +94,7 @@ cmake_minimum_required(VERSION 2.8)
 
 # Definte the base name of the executable 
   if(BUILD_PRODUCTION)
-    set(GSIBASE "global_gsi")
+    set(GSIBASE "global_gsi.x")
   else()
     if(BUILD_GLOBAL)
       set(GSIBASE "gsi_global")

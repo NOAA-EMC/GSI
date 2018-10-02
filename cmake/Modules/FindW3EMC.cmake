@@ -32,6 +32,7 @@ if((NOT BUILD_W3EMC ) AND ( NOT DEFINED W3EMC_LIBRARY ))
       HINTS 
         $ENV{COREPATH}/lib/incmod/w3emc_d
         $ENV{COREPATH}/include 
+        /usr/local/jcsda/nwprod_gdas_2014/lib/incmod/w3emc_d 
         ${COREPATH}/w3emc/v${W3EMC_VER}/incmod/w3emc_v${W3EMC_VER}_d
         ${COREPATH}/w3emc/v${W3EMC_VER}/intel/w3emc_v${W3EMC_VER}_d
         ${COREPATH}/w3emc/v${W3EMC_VER}/ips/${COMPILER_VERSION}/impi/${COMPILER_VERSION}/include/w3emc_v${W3EMC_VER}_d

@@ -8,7 +8,7 @@ exp=$jobname
 # Set path/file for gsi executable
 #basedir=/scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken
 #gsiexec=$gsiexec
-#gsiexec=$basedir/EXP-port/src/global_gsi
+#gsiexec=$basedir/EXP-port/src/global_gsi.x
 
 
 # Set the JCAP resolution which you want.

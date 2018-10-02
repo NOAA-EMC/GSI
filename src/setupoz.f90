@@ -270,7 +270,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
         iouse(jc)=iuse_oz(j)
         tnoise(jc)=error_oz(j)
         gross(jc)=min(r10*gross_oz(j),h300)
-        if (obstype == 'sbuv2' ) then
+        if (obstype == 'sbuv2' .or. obstype == 'ompsnp') then
            pobs(jc)=pob_oz(j) * 1.01325_r_kind
         else
            pobs(jc)=pob_oz(j)
@@ -353,7 +353,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
         dlon=data(ilon,i)
         dtime=data(itime,i)
  
-        if (obstype == 'sbuv2' ) then
+        if (obstype == 'sbuv2' .or. obstype == 'ompsnp') then
            if (nobskeep>0) then
 !             write(6,*)'setupozlay: nobskeep',nobskeep
               call stop2(259)
@@ -519,7 +519,8 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
               errorinv = sqrt(varinv3(k)*rat_err2)
               rdiagbuf(3,k,ii) = errorinv               ! inverse observation error
               if (obstype == 'gome' .or. obstype == 'omieff'  .or. &
-                  obstype == 'omi'  .or. obstype == 'tomseff' ) then
+                  obstype == 'omi'  .or. obstype == 'tomseff' .or. &
+                  obstype == 'ompstc8') then
                  rdiagbuf(4,k,ii) = data(isolz,i)       ! solar zenith angle
                  rdiagbuf(5,k,ii) = data(ifovn,i)       ! field of view number
               else
@@ -656,7 +657,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
               my_head%luse=luse(i)
               my_head%time=dtime
 
-              if (obstype == 'sbuv2' ) then
+              if (obstype == 'sbuv2'.or. obstype == 'ompsnp' ) then
                  do k=1,nlevs-1
                     my_head%prs(k) = ozp(k)
                  enddo

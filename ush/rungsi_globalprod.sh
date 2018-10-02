@@ -52,7 +52,7 @@ exp=globalprod.$adate
 expid=${expnm}.$adate.wcoss
 
 # Set path/file for gsi executable
-gsiexec=/da/save/$USER/trunk/src/global_gsi
+gsiexec=/da/save/$USER/trunk/src/global_gsi.x
 
 # Specify GSI fixed field
 fixgsi=/da/save/$USER/trunk/fix

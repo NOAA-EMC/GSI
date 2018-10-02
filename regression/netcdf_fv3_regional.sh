@@ -14,7 +14,7 @@ exp=$jobname
 
 # Set path/file for gsi executable
 #gsiexec=/meso/save/Wanshu.Wu/Code/trunk/trunk_40320/src/global_gsi_org
-#gsiexec=/da/save/Michael.Lueken/trunk/src/global_gsi
+#gsiexec=/da/save/Michael.Lueken/trunk/src/global_gsi.x
 
 # Set runtime and save directories
 tmpdir=$tmpdir/tmpreg_netcdf_fv3_regional/${exp}

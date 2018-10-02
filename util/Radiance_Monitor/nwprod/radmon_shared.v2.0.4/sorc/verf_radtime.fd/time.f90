@@ -129,12 +129,12 @@ program time
 
   if ( trim(gesanl) == 'ges' ) then
      diag_rad = trim(satname)
-     data_file= 'time.' // trim(satname) // trim(stringd) // '.ieee_d'
-     ctl_file = 'time.' // trim(satname) // '.ctl'
+     data_file= trim(satname) // trim(stringd) // '.ieee_d'
+     ctl_file = trim(satname) // '.ctl'
   else
      diag_rad = trim(satname) // '_anl'
-     data_file= 'time.' // trim(satname) // '_anl' // trim(stringd) // '.ieee_d'
-     ctl_file = 'time.' // trim(satname) // '_anl.ctl'
+     data_file= trim(satname) // '_anl' // trim(stringd) // '.ieee_d'
+     ctl_file = trim(satname) // '_anl.ctl'
   endif
 
   write(6,*)'diag_rad =',diag_rad

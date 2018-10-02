@@ -90,7 +90,7 @@ module radinfo
   public :: air_rad,nuchan,numt,varch,varch_cld,fbias,ermax_rad,tlapmean
   public :: ifactq,mype_rad
   public :: ostats,rstats,varA
-  public :: adp_anglebc,angord,use_edges, maxscan
+  public :: adp_anglebc,angord,use_edges, maxscan, bias_zero_start
   public :: emiss_bc
   public :: passive_bc
   public :: upd_pred
@@ -118,6 +118,7 @@ module radinfo
   logical emiss_bc    ! logical to turn off or on the emissivity predictor
   logical passive_bc  ! logical to turn off or on radiance bias correction for monitored channels
   logical use_edges   ! logical to use data on scan edges (.true.=to use)
+  logical bias_zero_start ! logical to start bias correction from zero (otherwise mode start)
 
   integer(i_kind) tzr_qc        ! indicator of Tz retrieval QC tzr
   integer(i_kind) ssmis_method  !  noise reduction method for SSMIS
@@ -234,6 +235,7 @@ contains
 !   2016-03-24  ejones  - add amsr2_method for using ssmis spatial averaging code
 !                         for amsr2
 !   2017-09-14  li      - change default value of tzr_qc = 1
+!   2018-08-25  collard - Add bias_zero_start
 !
 !   input argument list:
 !
@@ -260,6 +262,7 @@ contains
     newpc4pred = .false.  ! .true.=turn on new preconditioning for bias coefficients
     passive_bc = .false.  ! .true.=turn on bias correction for monitored channels
     adp_anglebc = .false. ! .true.=turn on angle bias correction
+    bias_zero_start = .true. ! .true.=Zero start; .false.=mode start
     emiss_bc = .false.    ! .true.=turn on emissivity bias correction
     angord = 0            ! order of polynomial for angle bias correction
     use_edges = .true.    ! .true.=to use data on scan edges
@@ -754,7 +757,7 @@ contains
              if( isis(1:6) == 'seviri' .and. ichan < 4 ) cold_start_seviri = .true.
 
 !            If not seviri or seviri channels are correct, proceed. 
-             if( .not. cold_start_seviri .or. isis(1:6) /= 'seviri' ) then
+             if( .not. cold_start_seviri .or. isis(1:6) /= 'seviri' .or. .not. bias_zero_start) then
                 do j =1,jpch_rad
                    if(trim(isis) == trim(nusis(j)) .and. ichan == nuchan(j))then
                       cfound = .true.
@@ -988,7 +991,7 @@ contains
           if( isis(1:6) == 'seviri' .and. ichan < 4 ) cold_start_seviri = .true.
 
 !         If not seviri or seviri channels are correct, proceed.
-          if(  .not. cold_start_seviri .or. isis(1:6) /= 'seviri' ) then
+          if(  .not. cold_start_seviri .or. isis(1:6) /= 'seviri' .or. .not. bias_zero_start ) then
              do j =1,jpch_rad
                 if(trim(isis) == trim(nusis(j)) .and. ichan == nuchan(j))then
                    cfound = .true.
@@ -1471,7 +1474,7 @@ contains
       edge2 = 56
    else if (index(isis,'cris')/=0) then
       step  = 3.3331_r_kind
-      start = -48.33_r_kind
+      start = -48.330_r_kind
       nstep = 30
       edge1 = 1
       edge2 = 30
