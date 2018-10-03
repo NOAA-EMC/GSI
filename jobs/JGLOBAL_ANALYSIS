@@ -91,7 +91,7 @@ export APREFIX="${CDUMP}.t${cyc}z."
 export ASUFFIX=".nemsio"
 
 
-if [ $RUN_ENVIR = "nco" ]; then
+if [ $RUN_ENVIR = "nco" -o ${ROTDIR_DUMP:-NO} = "YES" ]; then
     export COMIN=${COMIN:-$ROTDIR/$RUN.$PDY/$cyc}
     export COMOUT=${COMOUT:-$ROTDIR/$RUN.$PDY/$cyc}
     export COMIN_OBS=${COMIN_OBS:-$ROTDIR/$RUN.$PDY/$cyc}
