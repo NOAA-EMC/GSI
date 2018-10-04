@@ -32,6 +32,7 @@ setenv WRF_SHARED_PATH ${WRF_SHARED_ROOT}.${WRF_SHARED_VER}-${COMPILER}
 
 # Loading ncep environment
 module load ncep/1.0
+module load prod_util/1.0.29
 
 # Loading Intel Compiler Suite
 module load PrgEnv-intel/5.2.56
