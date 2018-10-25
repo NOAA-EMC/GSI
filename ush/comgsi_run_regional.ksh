@@ -296,6 +296,8 @@ srcobsfile[20]=${OBS_ROOT}/rap.t${HH}z.nexrad.tm00.bufr_d
 gsiobsfile[20]=l2rwbufr
 srcobsfile[21]=${OBS_ROOT}/rap.t${HH}z.lgycld.tm00.bufr_d
 gsiobsfile[21]=larcglb
+srcobsfile[22]=${OBS_ROOT}/gdas1.t${HH}z.glm.tm00.bufr_d
+gsiobsfile[22]=
 ii=1
 while [[ $ii -le 21 ]]; do
    if [ -r "${srcobsfile[$ii]}" ]; then
@@ -346,6 +348,7 @@ echo " Copy fixed files and link CRTM coefficient files to working directory"
 #   ozinfo   = text file with information about assimilation of ozone data
 #   errtable = text file with obs error for conventional data (regional only)
 #   convinfo = text file with information about assimilation of conventional data
+#   lightinfo= text file with information about assimilation of GLM lightning data
 #   bufrtable= text file ONLY needed for single obs test (oneobstest=.true.)
 #   bftab_sst= bufr table for sst ONLY needed for sst retrieval (retrieval=.true.)
 
@@ -382,6 +385,7 @@ SATINFO=${FIX_ROOT}/global_satinfo.txt
 CONVINFO=${FIX_ROOT}/global_convinfo.txt
 OZINFO=${FIX_ROOT}/global_ozinfo.txt
 PCPINFO=${FIX_ROOT}/global_pcpinfo.txt
+LIGHTINFO=${FIX_ROOT}/global_lightinfo.txt
 
 #  copy Fixed fields to working directory
  cp $ANAVINFO anavinfo
@@ -391,6 +395,7 @@ PCPINFO=${FIX_ROOT}/global_pcpinfo.txt
  cp $CONVINFO convinfo
  cp $OZINFO   ozinfo
  cp $PCPINFO  pcpinfo
+ cp $LIGHTINFO lightinfo
  cp $OBERROR  errtable
 #
 #    # CRTM Spectral and Transmittance coefficients
@@ -564,7 +569,7 @@ esac
 #          omi_aura ssmi_f13 ssmi_f14 ssmi_f15 hirs4_n18 amsua_n18 mhs_n18 \
 #          amsre_low_aqua amsre_mid_aqua amsre_hig_aqua ssmis_las_f16 \
 #          ssmis_uas_f16 ssmis_img_f16 ssmis_env_f16 mhs_metop_b \
-#          hirs4_metop_b hirs4_n19 amusa_n19 mhs_n19"
+#          hirs4_metop_b hirs4_n19 amusa_n19 mhs_n19 goes_glm_16"
  listall=`ls pe* | cut -f2 -d"." | awk '{print substr($0, 0, length($0)-3)}' | sort | uniq `
 
    for type in $listall; do
