@@ -6,79 +6,85 @@
 
 set -ax
 
-SATYPE2=$1
+SATYPE=$1
 
 
 #------------------------------------------------------------------
-# Set work space for this SATYPE2 source.
+# Set work space for this SATYPE source.
 #
-tmpdir=${WORKDIR}/${SATYPE2}.$PDATE
+tmpdir=${WORKDIR}/${SATYPE}.$PDATE
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
 
 
 #------------------------------------------------------------------
-#   Set dates
-bdate=`$NDATE -168 $PDATE`
-edate=$PDATE
-bdate0=`echo $bdate|cut -c1-8`
-edate0=`echo $edate|cut -c1-8`
-
-
-#--------------------------------------------------------------------
-# Copy control and data files to $tmpdir
+#   Set dates and copy data files
 #
-tankdir_bdate0=${TANKDIR}/${RUN}.${bdate0}/oznmon/time
-tankdir_edate0=${TANKDIR}/${RUN}.${edate0}/oznmon/time
+#   120 cycles worth of data (30 days) are required for summary 
+#   plots.  Start with PDATE and back up 119 times.
+#
 
-for type in ${SATYPE2}; do
-   cdate=$bdate
+ctr=0
+cdate=$PDATE
 
-   while [[ $cdate -le $edate ]]; do
-      cdate0=`echo $cdate|cut -c1-8`
-      tankdir_cdate0=${TANKDIR}/${RUN}.${cdate0}/oznmon/time
+while [[ $ctr -le 120 ]]; do
+   c_pdy=`echo $cdate|cut -c1-8`
+   c_cyc=`echo $cdate|cut -c9-10`
+   tankdir_cdate=${TANKDIR}/${RUN}.${c_pdy}/${c_cyc}/oznmon/time
 
-      if [[ ! -e ${type}.ctl ]]; then
-         $NCP ${tankdir_cdate0}/${type}.ctl ./
+   if [[ ! -e ./${SATYPE}.ctl ]]; then
+      $NCP ${tankdir_cdate}/${SATYPE}.ctl ./
+   fi
+   
+   data_file=${tankdir_cdate}/${SATYPE}.${cdate}.ieee_d
+   if [[ -s ${data_file} ]]; then
+      $NCP ${data_file} ./
+   else
+      data_file=${data_file}.${Z}
+      if [[ -s ${data_file} ]]; then
+         $NCP ${data_file} ./
+         $UNCOMPRESS ${data_file}
       fi
-
-      $NCP ${tankdir_cdate0}/${type}.${cdate}.ieee_d ./
-      adate=`$NDATE +6 $cdate`
-      cdate=$adate
-   done
-
-   #----------------------------------------------------------------
-   #  Modify tdef line in .ctl file to start at bdate.
-   #
-   if [[ -e ${type}.ctl ]]; then
-      ${OZN_IG_SCRIPTS}/update_ctl_tdef.sh ${type}.ctl ${bdate} 29
    fi
 
-cat << EOF > ${type}.gs
-'open ${type}.ctl'
-'run ${OZN_IG_GSCRPTS}/plot_summary.gs ${OZNMON_SUFFIX} ${RUN} ${type} x750 y700'
+   cdate=`$NDATE -6 $cdate`
+   ctr=`expr $ctr + 1`
+done
+
+
+#----------------------------------------------------------------
+#  Modify tdef line in .ctl file to start at bdate.  tdef line 
+#  should be 1 more than the total number of cycles so the last
+#  cycle will be the cycle specified by $PDATE.
+#
+if [[ -e ${SATYPE}.ctl ]]; then
+   bdate=`$NDATE -720 $PDATE`
+#   bdate=`$NDATE -366 $PDATE`
+   ${OZN_IG_SCRIPTS}/update_ctl_tdef.sh ${SATYPE}.ctl ${bdate} 121 
+#   ${OZN_IG_SCRIPTS}/update_ctl_tdef.sh ${SATYPE}.ctl ${bdate} 62 
+fi
+
+cat << EOF > ${SATYPE}.gs
+'open ${SATYPE}.ctl'
+'run ${OZN_IG_GSCRPTS}/plot_summary.gs ${OZNMON_SUFFIX} ${RUN} ${SATYPE} x750 y700'
 'quit'
 EOF
 
-    $GRADS -bpc "run ${tmpdir}/${type}.gs"
+$GRADS -bpc "run ${tmpdir}/${SATYPE}.gs"
 
-#   rm -f ${type}.ctl 
-#   rm -f ${type}*.ieee_d
-#   rm -f ${type}.summary.png
-
-done
 
 #--------------------------------------------------------------------
 #  copy image files to TANKDIR
 #
 ${NCP} *.png ${OZN_IMGN_TANKDIR}/.
 
+
 #--------------------------------------------------------------------
 # Clean $tmpdir. 
-#cd $tmpdir
-#cd ../
-#rm -rf $tmpdir
+cd $tmpdir
+cd ../
+rm -rf $tmpdir
 
 exit
 

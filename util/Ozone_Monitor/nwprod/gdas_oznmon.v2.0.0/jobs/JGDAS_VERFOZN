@@ -95,16 +95,27 @@ if [[ $MY_MACHINE != "theia" ]]; then
    . ./PDY
 fi   
 
+#############################################
+#  determine PDY and cyc for previous cycle
+#############################################
+
+cdate=`${NDATE} -6 ${PDY}${cyc}`
+echo 'pdate = ${pdate}'
+
+export P_PDY=`echo ${cdate} | cut -c1-8`
+export p_cyc=`echo ${cdate} | cut -c9-10`
+
 #---------------------------------------------
 # COMOUT - WHERE GSI OUTPUT RESIDES
 # OZN_TANKDIR - WHERE OUTPUT DATA WILL RESIDE
 #
 echo "pre-assignment, OZN_TANKDIR = $OZN_TANKDIR"
 export OZN_TANKDIR=${OZN_TANKDIR:-${COMROOT}/${NET}/${envir}}
-export TANKverf_ozn=${TANKverf_ozn:-${OZN_TANKDIR}/${RUN}.${PDY}/oznmon}
-export TANKverf_oznM1=${TANKverf_oznM1:-${OZN_TANKDIR}/${RUN}.${PDYm1}/oznmon}
+export TANKverf_ozn=${TANKverf_ozn:-${OZN_TANKDIR}/${RUN}.${PDY}/${cyc}/oznmon}
+
+export TANKverf_oznM1=${TANKverf_oznM1:-${OZN_TANKDIR}/${RUN}.${P_PDY}/${p_cyc}/oznmon}
 export COM_IN=${COM_IN:-${COMROOT}/${NET}/${envir}}
-export COMIN=${COMIN:-${COM_IN}/${RUN}.${PDY}}
+export COMIN=${COMIN:-${COM_IN}/${RUN}.${PDY}/${cyc}}
 
 if [[ ! -d ${TANKverf_ozn} ]]; then
    mkdir -p -m 775 $TANKverf_ozn

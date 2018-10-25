@@ -9,8 +9,8 @@
 #       		1 = last cycle  (default)
 #       		2 = 2nd to last cycle 
 #       		0 = first cycle
-#       --run     : Optional run name, generally 'gdas' or 'gfs'.  
-#       	    This should be used if $OZN_USE_RUN is set to 1.
+#       --run     : Run name, generally 'gdas' or 'gfs'.  
+#		    If not specified 'gdas' will be used.
 #
 #    Return that first/last cycle as a text string in YYYYMMDDHH format,
 #      or return nothing if none of the expected data files are found.
@@ -48,7 +48,7 @@
    ##------------------------------------------------------------------
    ##------------------------------------------------------------------
 
-   my $run  = '';
+   my $run  = 'gdas';
    my $dir  = '';
    my $lcm  = 'oznmon';
    my $cyc  = '1';
@@ -72,21 +72,15 @@
    }
    closedir DIR;
 
-   my $run_len = length($run);
-
    my $search_string;
-   my $use_run;
 
    if( length($run) == 0 ){
       $search_string = $lcm;
-      $use_run       = 0;
    } else {
       $search_string = $run;
-      $use_run       = 1;
    }
 
    my @mmdirs = grep { /$search_string/ } @alldirs;
-
 
    #-----------------------------------------------------------------------   
    #  If there are no $run.yyyymmdd subdirectories, then exit without 
@@ -121,11 +115,12 @@
    #  Start with the latest directory and attempt to locate monitor 
    #  subdirectories.
    #
-   do {
-      
-      $ctr = $ctr + $incr;
 
-      
+   my @hrs = qw( 00 06 12 18 );
+
+   do {
+      $ctr = $ctr + $incr;
+ 
       #  In each subdirectory attempt to locate all *ieee_d files
       #  and parse out all unique date values.  The latest is the answer
       #  we're looking for. 
@@ -134,56 +129,59 @@
       #
 
       my $newdir; 
-      if( $use_run == 1 ){
-         $newdir = "${dirpath}/${sortmm[$ctr]}/oznmon/time";
-      } else {
-         $newdir = "${dirpath}/${sortmm[$ctr]}/time";
-         $newdir = "${dirpath}/${sortmm[$ctr]}";
-      }
+      my $hr_ctr = $#hrs + 1;
 
-      if( -d $newdir ) {
-         opendir DIR, $newdir or die "Cannot open the current directory: $!";
+      do {
+ 
+         $hr_ctr = $hr_ctr - 1;
+         
+         $newdir = "${dirpath}/${sortmm[$ctr]}/${hrs[$hr_ctr]}/oznmon/time";
 
-         my @timefiles = grep { /ieee_d/ } readdir DIR;
+         if( -d $newdir ) {
+            opendir DIR, $newdir or die "Cannot open the current directory: $!";
 
-         if( $#timefiles >= 0 ) {
-            my @sorttime = sort( @timefiles );
-            my @times;
-            my $idx = 0;
+            my @timefiles = grep { /ieee_d/ } readdir DIR;
 
-            #  Find the first string of 10 digits; that's the date.  Use that 
-            #  $idx number to process all files.
-            #
-            my @vals = split( '\.', $timefiles[0] ); 
-            for ( my $ii=$#vals; $ii >= 0; $ii-- ) {
-               if( looks_like_number( $vals[$ii] ) && length($vals[$ii] ) == 10 ){
-                  $idx = $ii;
+            if( $#timefiles >= 0 ) {
+               my @sorttime = sort( @timefiles );
+               my @times;
+               my $idx = 0;
+
+               #  Find the first string of 10 digits; that's the date.  Use that 
+               #  $idx number to process all files.
+               #
+               my @vals = split( '\.', $timefiles[0] ); 
+               for ( my $ii=$#vals; $ii >= 0; $ii-- ) {
+                  if( looks_like_number( $vals[$ii] ) && length($vals[$ii] ) == 10 ){
+                     $idx = $ii;
+                  }
+               }
+
+               for ( my $ii=$#sorttime; $ii >= 0; $ii-- ) {
+                  my $teststr = $sorttime[$ii];
+
+                  my @values = split( '\.', $teststr );
+                  push( @times, $values[$idx] );
+
+               }
+               if ( $#times >= 0 ) {
+                  my @utimes = sort( uniq( @times ) );
+                  if( $cyc == 1 ) {
+                     print "$utimes[$#utimes]";
+                     $found_cycle = 1;
+                  } elsif( $cyc == 2 && $#utimes >= 1 ) {
+                     print "$utimes[$#utimes-1]";
+                     $found_cycle = 1;
+                  } else {
+                     print "$utimes[0]";
+                     $found_cycle = 1;
+                  }
                }
             }
 
-            for ( my $ii=$#sorttime; $ii >= 0; $ii-- ) {
-               my $teststr = $sorttime[$ii];
-
-               my @values = split( '\.', $teststr );
-               push( @times, $values[$idx] );
-
-            }
-            if ( $#times >= 0 ) {
-               my @utimes = sort( uniq( @times ) );
-               if( $cyc == 1 ) {
-                  print "$utimes[$#utimes]";
-                  $found_cycle = 1;
-               } elsif( $cyc == 2 && $#utimes >= 1 ) {
-                  print "$utimes[$#utimes-1]";
-                  $found_cycle = 1;
-               } else {
-                  print "$utimes[0]";
-                  $found_cycle = 1;
-               }
-            }
-         }
-
-      }
+         } 
+          
+      } while $hr_ctr > 0 && $found_cycle == 0;
 
    } while $found_cycle == 0 && $ctr > 0;
 

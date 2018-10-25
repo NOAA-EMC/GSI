@@ -1,11 +1,14 @@
 #!/bin/sh
 
-set -ax
+set -xa
 
-OZN_SUFFIX=fv3rt1
+OZN_SUFFIX=GFS
 run=gdas
 
-export MY_MACHINE=wcoss
+NET=gfs
+envir=prod
+
+MY_MACHINE=wcoss
 package="ProdGSI/util/Ozone_Monitor"
 #package="OznMon"
 
@@ -24,14 +27,17 @@ scripts=/gpfs/gd2/emc/da/noscrub/Edward.Safford/${package}/data_xtrct/ush
 idate=`${scripts}/find_cycle.pl -dir ~/nbns/stats/${OZN_SUFFIX} -cyc 1 -run ${run}`
 echo "idate = $idate"
 
-#export START_DATE=2018101900
+#export START_DATE=2018101100
 export START_DATE=`${NDATE} +06 $idate`
 
 PDY=`echo $START_DATE | cut -c1-8`
 cyc=`echo $START_DATE | cut -c9-10`
 
-export COM_IN=/gpfs/dell3/ptmp/emc.glopara/ROTDIRS/prfv3rt1/${run}.${PDY}/${cyc}
+export COM_IN=/gpfs/hps/nco/ops/com/${NET}/${envir}/${run}.${PDY}
+
 export oznstat=${COM_IN}/${run}.t${cyc}z.oznstat
+
+export OZN_TANKDIR=/u/${LOGNAME}/nbns
 
 log=/ptmpd1/Edward.Safford/logs/${OZN_SUFFIX}/${run}/oznmon/OznMon_DE.log
 err=/ptmpd1/Edward.Safford/logs/${OZN_SUFFIX}/${run}/oznmon/OznMon_DE.err
