@@ -6,9 +6,9 @@
 function usage {
   echo "Usage:  OznMon_DE.sh suffix [pdate]"
   echo "            Suffix is the indentifier for this data source."
-  echo "            -p | -pdate yyyymmddcc to specify the cycle to be plotted"
-  echo "              if unspecified the last available date will be plotted"
-  echo "            -r | -run   the gdas|gfs run to be plotted"
+  echo "            -p | -pdate yyyymmddcc to specify the cycle to be processed"
+  echo "              if unspecified the last available date will be processed"
+  echo "            -r | -run   the gdas|gfs run to be processed"
   echo "              use only if data in TANKdir stores both runs"
   echo " "
 }

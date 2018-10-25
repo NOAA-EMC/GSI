@@ -70,11 +70,9 @@ echo "OZNMON_SUFFIX = $OZNMON_SUFFIX"
 echo "PDATE         = $PDATE"
 echo "RUN           = $RUN"
 PDY=`echo $PDATE | cut -c1-8`
+cyc=`echo $PDATE | cut -c9-10`
 
 hyperlink_base="http://www.emc.ncep.noaa.gov/gmb/gdas/es_ozn/index.html?"
-if [ "$OZNMON_SUFFIX" = "fv3rt1" ]; then
-   hyperlink_base="http://www.emc.ncep.noaa.gov/gmb/gdas/es_ozn_fv3rt1/index.html?"
-fi
 
 
 
@@ -126,7 +124,7 @@ else
 fi
 
 
-OZN_TANKDIR_TIME=${TANKDIR}/${RUN}.${PDY}/oznmon/time
+OZN_TANKDIR_TIME=${TANKDIR}/${RUN}.${PDY}/${cyc}/oznmon/time
 echo "OZN_TANKDIR_TIME = $OZN_TANKDIR_TIME"
 
 
@@ -140,8 +138,9 @@ echo "bad_pen  = $bad_pen"
 
 prev_cycle=`$NDATE -6 $PDATE`
 prev_pdy=`echo $prev_cycle | cut -c1-8`
+prev_cyc=`echo $prev_cycle | cut -c9-10`
 
-OZN_TANKDIR_PREV=${TANKDIR}/${RUN}.${prev_pdy}/oznmon/time
+OZN_TANKDIR_PREV=${TANKDIR}/${RUN}.${prev_pdy}/${prev_cyc}/oznmon/time
 echo "OZN_TANKDIR_PREV = $OZN_TANKDIR_PREV"
 
 prev_bad_cnt=`ls $OZN_TANKDIR_PREV/bad_cnt.${prev_cycle}`
@@ -232,6 +231,9 @@ if [[ -s $bad_cnt || -s $bad_diag || -s $bad_pen ]]; then
          link="${link}&level=${lev}"
          link="${link}&region=${reg}"
          link="${link}&stat=${stat}"
+         link="${link}&src=${OZNMON_SUFFIX}/${RUN}"
+
+#         echo "link = $link"
 
          if [[ ${#test} -gt 0 ]]; then   
 
@@ -242,7 +244,7 @@ if [[ -s $bad_cnt || -s $bad_diag || -s $bad_pen ]]; then
 
             echo "   $LINE" >> $err_rpt
             echo "                previous cycle:         $remains" >> $err_rpt
-            echo "       $link" >> $err_rpt
+            echo "          $link" >> $err_rpt
 
          fi
       done
@@ -302,6 +304,7 @@ if [[ -s $bad_cnt || -s $bad_diag || -s $bad_pen ]]; then
          link="${link}&level=${lev}"
          link="${link}&region=${reg}"
          link="${link}&stat=${stat}"
+         link="${link}&src=${OZNMON_SUFFIX}/${RUN}"
 
          if [[ ${#test} -gt 0 ]]; then   
 

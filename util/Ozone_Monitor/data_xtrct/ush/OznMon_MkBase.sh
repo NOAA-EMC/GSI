@@ -136,8 +136,9 @@ if [[ $SINGLE_SAT -eq 0 ]]; then
       SATYPE=`cat ${HOMEgdas_ozn}/fix/gdas_oznmon_satype.txt`
    else
       PDY=`echo $EDATE|cut -c1-8`
+      cyc=`echo $EDATE|cut -c9-10`
 
-      test_dir=${OZN_STATS_TANKDIR}/${RUN}.${PDY}/oznmon/time
+      test_dir=${OZN_STATS_TANKDIR}/${RUN}.${PDY}/${cyc}/oznmon/time
       if [[ -d ${test_dir} ]]; then
          test_list=`ls ${test_dir}/*.${EDATE}.ieee_d*`
 
@@ -180,14 +181,14 @@ for type in ${SATYPE}; do
    #-------------------------------------------------------------------
    #  Create the cycle_hrs.txt file
    #-------------------------------------------------------------------
-   cdate=$BDATE
-   nfiles=0
-   while [[ $cdate -le $EDATE ]]; do
-      echo $cdate >> cycle_hrs.txt
-      adate=`$NDATE +${CYCLE_INTERVAL} $cdate`
-      cdate=$adate
-      nfiles=`expr $nfiles + 1`
-   done
+#   cdate=$BDATE
+#   nfiles=0
+#   while [[ $cdate -le $EDATE ]]; do
+#      echo $cdate >> cycle_hrs.txt
+#      adate=`$NDATE +${CYCLE_INTERVAL} $cdate`
+#      cdate=$adate
+#      nfiles=`expr $nfiles + 1`
+#   done
 
 
    #-------------------------------------------------------------------
@@ -195,21 +196,26 @@ for type in ${SATYPE}; do
    #-------------------------------------------------------------------
    have_ctl=0
    cdate=$BDATE
+    
    while [[ $cdate -le $EDATE ]]; do
 
       pdy=`echo $cdate | cut -c1-8 `
+      cyc=`echo $cdate | cut -c9-10`
 
-      test_dir=${OZN_STATS_TANKDIR}/${RUN}.${pdy}/oznmon/time
+      test_dir=${OZN_STATS_TANKDIR}/${RUN}.${pdy}/${cyc}/oznmon/time
+
       if [[ -d ${test_dir} ]]; then
          test_file=${test_dir}/${type}.${cdate}.ieee_d
-      fi
 
-      if [[ -s $test_file ]]; then
-         $NCP ${test_file} ./${type}.${cdate}.ieee_d
-      elif [[ -s ${test_file}.${Z} ]]; then
-         $NCP ${test_file}.${Z} ./${type}.${cdate}.ieee_d.${Z}
-      else 
-	 echo "WARNING:  unable to loate ${test_file}"
+         if [[ -s $test_file ]]; then
+            $NCP ${test_file} ./${type}.${cdate}.ieee_d
+            echo $cdate >> cycle_hrs.txt
+         elif [[ -s ${test_file}.${Z} ]]; then
+            $NCP ${test_file}.${Z} ./${type}.${cdate}.ieee_d.${Z}
+            echo $cdate >> cycle_hrs.txt
+         else 
+            echo "WARNING:  unable to locate ${test_file}"
+         fi
       fi
 
 
@@ -247,6 +253,8 @@ for type in ${SATYPE}; do
    #------------------------------------------------------------------
    out_file=${type}.base
    $NCP ${OZN_DE_EXEC}/oznmon_make_base.x ./
+
+   nfiles=`ls -1 ${type}*ieee_d | wc -l` 
 
 cat << EOF > input
  &INPUT
@@ -327,7 +335,7 @@ $NCP ${basefile} ${OZN_STATS_TANKDIR}/info/.
 #-------------------------------------------------------------------
 #  Clean up $tmpdir
 #-------------------------------------------------------------------
-#cd ..
+cd ..
 #rm -rf $tmpdir
 
 exit
