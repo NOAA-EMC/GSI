@@ -123,6 +123,7 @@ OBS_INPUT::
    refInGSI       rad_ref     null      rad_ref              1.0     0     0
    lghtInGSI      lghtn       null      lghtn                1.0     0     0
    larcglb        larcglb     null      larcglb              1.0     0     0
+   glmbufr        light       g16         light              0.0     0     0
 ::
  &SUPEROB_RADAR
    del_azimuth=5.,del_elev=.25,del_range=5000.,del_time=.5,elev_angle_max=5.,minnum=50,range_max=100000.,
