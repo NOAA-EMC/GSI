@@ -95,7 +95,7 @@ if [ $RUN_ENVIR = "nco" -o ${ROTDIR_DUMP:-NO} = "YES" ]; then
     export COMIN=${COMIN:-$ROTDIR/$RUN.$PDY/$cyc}
     export COMOUT=${COMOUT:-$ROTDIR/$RUN.$PDY/$cyc}
     export COMIN_OBS=${COMIN_OBS:-$ROTDIR/$RUN.$PDY/$cyc}
-    export COMIN_GES_OBS=${COMIN_GES_OBS:-$ROTDIR/$RUN.$gPDY/$gcyc}
+    export COMIN_GES_OBS=${COMIN_GES_OBS:-$ROTDIR/$GDUMP.$gPDY/$gcyc}
 else
     export COMOUT="$ROTDIR/$CDUMP.$PDY/$cyc"
     export COMIN_OBS="$DMPDIR/$CDATE/$CDUMP"
