@@ -96,7 +96,7 @@ export GSUFFIX=".ensmean.nemsio"
 
 if [ $RUN_ENVIR = "nco" -o ${ROTDIR_DUMP:-NO} = "YES" ]; then
     export COMIN_OBS=${COMIN_OBS:-$ROTDIR/$RUN.$PDY/$cyc}
-    export COMIN_GES_OBS=${COMIN_GES_OBS:-$ROTDIR/$RUN.$gPDY/$gcyc}
+    export COMIN_GES_OBS=${COMIN_GES_OBS:-$ROTDIR/$GDUMP.$gPDY/$gcyc}
 else
     export COMIN_OBS="$DMPDIR/$CDATE/$CDUMP"
     export COMIN_GES_OBS="$DMPDIR/$GDATE/$GDUMP"
