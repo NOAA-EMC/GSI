@@ -26,7 +26,8 @@ ProdGSI_root = os.getcwd()+"/ProdGSI" #copy or link ProdGSI under MPMC_root or s
 #
 MPMC_root = os.getcwd() # the MPMC scripts directory, i.e, current directory
 branchName=os.popen('basename `git --git-dir '+ProdGSI_root+'/.git symbolic-ref HEAD`').read().strip()
-commitID=os.popen('git --git-dir '+ProdGSI_root+'/.git log -1 |grep commit | head -1').read()[7:15]
+commitID_full=os.popen('git --git-dir '+ProdGSI_root+'/.git log -1 |grep commit | head -1').read()[7:]
+commitID=commitID_full[0:8]
 if not commitID: #empty commitID
   build_root = os.getcwd()+"/build"
 else:

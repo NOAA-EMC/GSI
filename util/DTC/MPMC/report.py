@@ -14,7 +14,7 @@
 #
 def empty_fun():pass
 import sys,os
-from MPMC_config import build_root, ProdGSI_root, hostname
+from MPMC_config import build_root, hostname
 from CASE_config import allcases
 from datetime import datetime
 if hostname.startswith("Cheyenne"): Cheyenne=True
@@ -28,7 +28,12 @@ def compiling_check( mybuild ):
 # |Y|Y|Y|Y|Y|Y|==>
    exelist=[['Makefile'], ['gsi.x'], ['enkf_gfs.x'], ['enkf_wrf.x'] \
        ,['ndate.x', 'nc_diag_cat.x','test_nc_unlimdims.x'] \
-#      ,[read-diag, bufrtools] \       
+       ,['bufr_append_sample.x', 'bufr_decode_l2rwbufr.x', 'bufr_decode_radiance.x', \
+       'bufr_decode_sample.x', 'bufr_encode_l2rwbufr.x', 'bufr_encode_radarbufr.x', \
+       'bufr_encode_sample.x', 'prepbufr_append_retrieve.x', 'prepbufr_append_surface.x', \
+       'prepbufr_append_upperair.x', 'prepbufr_decode_all.x', 'prepbufr_encode_surface.x', \
+       'prepbufr_encode_upperair.x', 'prepbufr_inventory.x','enspreproc.x', 'initialens.x', \
+       'process_NSSL_mosaic.x', 'read_diag_conv.x', 'read_diag_rad.x' ] \
        ]
    results = "|" 
 
@@ -40,7 +45,9 @@ def compiling_check( mybuild ):
        else:
          file1=mybuild+'/bin/'+y
        if not (os.path.isfile(file1) and os.access(file1, os.R_OK)):
+         print("NOT_FOUND: "+file1)
          allyes=False
+
      if allyes:
        results=results+"Y|"
      else:
@@ -107,6 +114,7 @@ for mybuild in dir_list:
   if mybuild.endswith('/'): mybuild=mybuild[:-1] #remove trailing '/'
   k=mybuild.rfind('/')
   mybuild_short=mybuild[k+1:len(mybuild)] # get the relative path
+  mybuild_parent=mybuild[0:k]             # get the parent directory
   build_list.append(mybuild_short)
 
   if(report_option=='1' or report_option=='all'):  #this step takes a little bit time, so only do it when necessary
@@ -166,8 +174,12 @@ for mybuild in dir_list:
   else:
     case_matrix[mybuild_short]={}
 
-commitID=os.popen('git --git-dir '+ProdGSI_root+'/.git log -1 |grep commit | head -1').read()
-print('\n\n'+datetime.now().strftime("%Y%m%d")+ '  Tested on '+commitID,end='')
+#read branchName and commitID from branch_commit.txt
+file1=open(mybuild_parent+"/branch_commit.txt", "r")
+branchName=file1.readline().strip()
+commitID=file1.readline().strip()
+file1.close()
+print('\n\n'+datetime.now().strftime("%Y%m%d")+ '  Tested on commit: '+commitID+' branch: '+branchName, end='\n')
 tem=max(build_list,key=len)
 longest=(len(tem))
 #

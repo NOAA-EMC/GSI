@@ -11,14 +11,14 @@ import os
 PBS_extras=""
 MPI_CMD_ORG='      RUN_COMMAND="mpirun -np ${GSIPROC} " ;;\n'
 if hostname.startswith("Theia"):  ## Theia
-  crtm_dir="/scratch4/BMC/comgsi/case_data/CRTM_2.2.3"
+  crtm_dir="/scratch4/BMC/comgsi/case_data/CRTM_v2.3.0"
   data_root="/scratch4/BMC/comgsi/case_data"
   myARCH="  ARCH='LINUX_PBS'\n" 
   few_cpu_res="procs=4"; few_procs="4" 
   many_cpu_res="procs=24"; many_procs="24"  #24 cores/node
 
 elif hostname.startswith("Jet"): ## Jet
-  crtm_dir="/lfs1/projects/wrfruc/gge/MPMC/case_data/CRTM_2.2.3"
+  crtm_dir="/lfs1/projects/wrfruc/gge/MPMC/case_data/CRTM_v2.3.0"
   data_root="/lfs1/projects/wrfruc/gge/MPMC/case_data"
   myARCH="  ARCH='LINUX_PBS'\n" 
   few_cpu_res="procs=4"; few_procs="4" 
@@ -27,14 +27,14 @@ elif hostname.startswith("Jet"): ## Jet
   many_cpu_res="procs=24"; many_procs="24" 
 
 elif hostname.startswith("Cheyenne"):  ## Cheyenne
-  crtm_dir="/glade/p/ral/jntp/DAtask/case_data/CRTM_2.2.3"
+  crtm_dir="/glade/p/ral/jntp/DAtask/case_data/CRTM_v2.3.0"
   data_root="/glade/p/ral/jntp/DAtask/case_data"
   myARCH="  ARCH='LINUX_PBS'\n" 
   few_cpu_res="select=1:ncpus=4:mpiprocs=4"; few_procs="4" 
   many_cpu_res="select=2:ncpus=36:mpiprocs=36"; many_procs="36"  #Dual-socket nodes, 18 cores per socket, 20 ensembles, need at least 20cores
 
 elif hostname.startswith("GSI_Docker"):  ## GSI_Docker
-  crtm_dir="/tutorial/case_data/CRTM_2.2.3"
+  crtm_dir="/tutorial/case_data/CRTM_v2.3.0"
   data_root="/tutorial/case_data"
   myARCH="  ARCH='LINUX'\n" 
   few_cpu_res="docker"; few_procs="1" 
@@ -92,6 +92,7 @@ cases={ \
              "  BK_FILE=${BK_ROOT}":"  BK_FILE=${BK_ROOT}/wrfout_d01_2018-08-12_12:00:00\n", \
              "  OBS_ROOT=":com_obs,"  BK_ROOT=":com_bkg,"  ENS_ROOT=":com_ens,"  GSIPROC=":jobproc_few} \
     ,"case05-3DEnVar":{"  if_hybrid=":hybrid_yes,"  if_nemsio=No":"  if_nemsio=Yes\n", \
+             "#      ln -s ${srcobsfile[$ii]}  ${gsiobsfile[$ii]}":linkallobs, \
              "  PREPBUFR=":"  PREPBUFR=${OBS_ROOT}/rap.t${HH}z.prepbufr.tm00\n", \
              "  ANAL_TIME=":"  ANAL_TIME=2018081212\n", \
              "  BK_FILE=${BK_ROOT}":"  BK_FILE=${BK_ROOT}/wrfout_d01_2018-08-12_12:00:00\n", \
