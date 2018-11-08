@@ -5,7 +5,7 @@
 # and make a tar ball
 #
 release=comGSIv3.7_EnKFv1.3
-GSI="/glade/work/geguo/MPMC/ProdGSI"
+GSI="/glade/work/geguo/MPMC/git_ProdGSI"
 fixlist="/glade/work/geguo/MPMC/releases/fix.list"
 #
 # remove old tarball and its direcotry
@@ -13,7 +13,7 @@ rm -rf $release
 rm -rf ${release}.tar.gz
 #
 ## declare an array variable
-declare -a fROOT=("cmake" "CMakeLists.txt" "libsrc" "src")
+declare -a fROOT=("cmake" "CMakeLists.txt" "libsrc")
 declare -a fUtil=("bufr_tools" "DTC/GEN_BE.comgsi" "gsienvreport.sh" 
     "radar_process" "ndate")
 declare -a fBig_Endian=("cmaq_berror_big_endian"
@@ -27,6 +27,15 @@ mkdir -p $release; cd $release
 for i in "${fROOT[@]}"; do
    ln -sf $GSI/$i .
 done
+mkdir src
+ln -sf $GSI/src/*  src
+rm src/enkf
+mkdir src/enkf
+ln -sf $GSI/src/enkf/*  src/enkf
+
+#rm src/Make* src/enkf/Make*
+rm src/make*
+
 ln -sf $GSI/util/DTC/README.comgsi .
 ln -sf $GSI/util/DTC/README.GSI_Docker .
 ## link ush
@@ -68,7 +77,7 @@ echo "Done!"
 set -x
 mv ${release}.tar.gz /glade/work/geguo/misc
 cd /glade/work/geguo/misc;
-scp ${release}.tar.gz  geguo@mandan.rap.ucar.edu://d2/www/dtcenter/com-GSI/MPMC
+scp ${release}.tar.gz  geguo@mandan.rap.ucar.edu://d2/www/dtcenter/com-GSI/users/downloads/GSI_releases
 
 exit
 

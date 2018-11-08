@@ -9,7 +9,7 @@ cat <<EOF > gsiparm.anl
    iguess=-1,
    oneobtest=.false.,retrieval=.false.,
    nhr_assimilation=3,l_foto=.false.,
-   use_pbl=.false.,
+   use_pbl=.false.,verbose=.true.,
    offtime_data=.true.,diag_aero=.false.,
    newpc4pred=.true.,adp_anglebc=.true.,angord=4,passive_bc=.true.,
    use_edges=.false.,diag_precon=.false.,

@@ -78,11 +78,11 @@ Docker on Windows directly.
 
      comgsi@GSI_Docker:/tutorial$
 
-    NOTE1: This /tutorail is a mapping of the directoryy under your host system where you execute the "rungsidocker" command.
+    NOTE1: This /tutorail is a mapping of the directory under your host system where you execute the "rungsidocker" command.
      This mapping enables you to access files inside docker from your host system and your works will not disappear
      after you exit the docker.
 
-    NOTE2: Four directories build/ case_data/ run/ will be created automatically under /tutorial.
+    NOTE2: Three directories build/ case_data/ run/ will be created automatically under /tutorial.
 
   (5) Lauch more shells of comgsi/docker:
       This step is not required, but very helpful if you want to open two or more shells of comgsi/docker.

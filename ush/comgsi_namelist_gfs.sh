@@ -2,13 +2,13 @@
 cat <<EOF > gsiparm.anl
 
  &SETUP
-   miter=${nummiter},niter(1)=10,niter(2)=10,
+   miter=${nummiter},niter(1)=50,niter(2)=50,
    niter_no_qc(1)=50,niter_no_qc(2)=0,
    write_diag(1)=.true.,write_diag(2)=.false.,write_diag(3)=.true.,
    gencode=82,qoption=2,cwoption=3,
    factqmin=5.0,factqmax=5.0,deltim=1200,
    iguess=-1,
-   oneobtest=.false.,retrieval=.false.,l_foto=.false.,
+   oneobtest=.false.,retrieval=.false.,l_foto=.false.,verbose=.true., 
    use_pbl=.false.,use_compress=.true.,nsig_ext=12,gpstop=50.,
    use_gfs_nemsio=.false.,lrun_subdirs=.false.,
    newpc4pred=.true.,adp_anglebc=.true.,angord=4,passive_bc=.true.,use_edges=.false.,diag_precon=.true.,step_start=1.0e-3,emiss_bc=.true.,cwoption=3,
