@@ -6,9 +6,6 @@ set -xa
 echo `date` $0 `date -u` begin
 export PS4='$SECONDS + '
 
-export RUN_ENVIR=${RUN_ENVIR:-nco}
-export envir=${envir:-prod}
-
 ###############################
 # Specify NET and RUN name
 ##############################
@@ -21,11 +18,7 @@ export RUN=${RUN:-gfs}
 ###########################################################
 export pid=$$
 export outid=${outid:-"LL$job"}
-export jobid=${jobid:-"${outid}.o${pid}"}
-
-export DATAROOT=${DATAROOT:-/tmpnwprod2}
-export DATA=${DATA:-${DATAROOT}/${jobid}}
-
+export DATA=${DATA:-${DATAROOT}/${jobid:?}}
 mkdir -p $DATA
 cd $DATA
 
@@ -34,24 +27,6 @@ cd $DATA
 ###########################################################
 export MINMON_SUFFIX=${MINMON_SUFFIX:-GFS}
 export m_job=${m_job:-${MINMON_SUFFIX}_mmDE}
-
-
-####################################
-# File To Log Msgs
-####################################
-export jlogfile=${jlogfile:-${COMROOT}/logs/jlogfiles/jlogfile.${m_job}.${pid}}
-
-
-##################################################
-# SENDECF  - Flag Events on ECF
-# SENDCOM  - Copy Files From TMPDIR to $COMOUT
-# SENDDBN  - Issue DBNet Client Calls
-# VERBOSE  - Specify Verbose Output 
-##################################################
-export SENDCOM=${SENDCOM:-YES}
-export SENDDBN=${SENDDBN:-NO}
-export SENDECF=${SENDECF:-NO}
-export VERBOSE=${VERBOSE:-YES}
 
 
 ##############################################

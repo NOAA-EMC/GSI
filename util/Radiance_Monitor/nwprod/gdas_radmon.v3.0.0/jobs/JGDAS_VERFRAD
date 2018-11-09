@@ -6,9 +6,6 @@ set -xa
 echo `date` $0 `date -u` begin
 export PS4='$SECONDS + '
 
-export RUN_ENVIR=${RUN_ENVIR:-nco}
-export envir=${envir:-prod}
-
 ###############################
 # Specify NET and RUN name
 ##############################
@@ -20,29 +17,13 @@ export RUN=${RUN:-gdas}
 ###########################################################
 export pid=$$
 export outid=${outid:-"LL$job"}
-export jobid=${jobid:-"${outid}.o${pid}"}
-
-export DATAROOT=${DATAROOT:-/tmpnwprod2}
-export DATA=${DATA:-${DATAROOT}/${jobid}}
+export DATA=${DATA:-${DATAROOT}/${jobid:?}}
 
 export RADMON_SUFFIX=${RADMON_SUFFIX:-${RUN}}
 export CYCLE_INTERVAL=${CYCLE_INTERVAL:-6}
 
 mkdir -p $DATA
 cd $DATA
-
-###############################################################
-# This block can be modified for different test environment
-###############################################################
-if [ $RUN_ENVIR = nco -a $envir != prod ]; then
-  export SENDDBN=${SENDDBN:-NO}
-fi
-
-
-####################################
-# File To Log Msgs
-####################################
-export jlogfile=${jlogfile:-${COMROOT}/logs/jlogfiles/jlogfile.${job}.${pid}}
 
 ####################################
 # Determine Job Output Name on System
@@ -52,22 +33,8 @@ export pgmerr=errfile
 export cycle=t${cyc}z
 
 ##############################################
-# SENDECF  - Flag Events on ECF
-# SENDCOM  - Copy Files From TMPDIR to $COMOUT
-# SENDDBN  - Issue DBNet Client Calls
-# VERBOSE  - Specify Verbose Output in exglobal
-##############################################
-export SENDCOM=${SENDCOM:-YES}
-export SENDDBN=${SENDDBN:-NO}
-export SENDECF=${SENDECF:-NO}
-export VERBOSE=${VERBOSE:-YES}
-
-
-##############################################
 # Specify Execution Areas
 ##############################################
-gfs_ver=${gfs_ver:-v15.0.0}
-
 export HOMEgfs=${HOMEgfs:-${NWROOT}/gfs.${gfs_ver}}
 export SCRgfs=${SCRgfs:-$HOMEgfs/scripts}
 
