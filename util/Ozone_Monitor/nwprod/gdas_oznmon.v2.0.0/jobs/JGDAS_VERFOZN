@@ -6,9 +6,6 @@ set -xa
 echo `date` $0 `date -u` begin
 export PS4='$SECONDS + '
 
-export RUN_ENVIR=${RUN_ENVIR:-nco}
-export envir=${envir:-test}
-
 ###############################
 # Specify NET and RUN name
 ##############################
@@ -20,10 +17,7 @@ export RUN=${RUN:-gdas}
 ###########################################################
 export pid=$$
 export outid=${outid:-"LL$job"}
-export jobid=${jobid:-"${outid}.o${pid}"}
-
-export DATAROOT=${DATAROOT:-/tmpnwprod2}
-export DATA=${DATA:-${DATAROOT}/${jobid}}
+export DATA=${DATA:-${DATAROOT}/${jobid:?}}
 
 export OZNMON_SUFFIX=${OZNMON_SUFFIX:-${NET}}
 
@@ -32,31 +26,12 @@ cd $DATA
 
 
 ####################################
-# File To Log Msgs
-####################################
-export jlogdir=${jlogdir:-${COMROOT}/logs/jlogfiles}
-if [[ ! -d ${jlogdir} ]]; then
-   mkdir -p ${jlogdir}
-fi
-export jlogfile=${jlogfile:-${jlogdir}/jlogfile.${job}.${pid}}
-
-####################################
 # Determine Job Output Name on System
 ####################################
 export pgmout="OUTPUT.${pid}"
 export pgmerr=errfile
 export cycle=t${cyc}z
 
-##############################################
-# SENDECF  - Flag Events on ECF
-# SENDCOM  - Copy Files From TMPDIR to $COMOUT
-# SENDDBN  - Issue DBNet Client Calls
-# VERBOSE  - Specify Verbose Output in exglobal
-##############################################
-export SENDCOM=${SENDCOM:-YES}
-export SENDDBN=${SENDDBN:-NO}
-export SENDECF=${SENDECF:-NO}
-export VERBOSE=${VERBOSE:-YES}
 
 #----------------------------------
 # Set up the UTILITIES
@@ -110,10 +85,8 @@ export p_cyc=`echo ${cdate} | cut -c9-10`
 # OZN_TANKDIR - WHERE OUTPUT DATA WILL RESIDE
 #
 echo "pre-assignment, OZN_TANKDIR = $OZN_TANKDIR"
-export OZN_TANKDIR=${OZN_TANKDIR:-${COMROOT}/${NET}/${envir}}
-export TANKverf_ozn=${TANKverf_ozn:-${OZN_TANKDIR}/${RUN}.${PDY}/${cyc}/oznmon}
-
-export TANKverf_oznM1=${TANKverf_oznM1:-${OZN_TANKDIR}/${RUN}.${P_PDY}/${p_cyc}/oznmon}
+export TANKverf_ozn=${TANKverf_ozn:-${COMROOT}/${RUN}.${PDY}/${cyc}/oznmon}
+export TANKverf_oznM1=${TANKverf_oznM1:-${COMROOT}/${RUN}.${P_PDY}/${p_cyc}/oznmon}
 export COM_IN=${COM_IN:-${COMROOT}/${NET}/${envir}}
 export COMIN=${COMIN:-${COM_IN}/${RUN}.${PDY}/${cyc}}
 
