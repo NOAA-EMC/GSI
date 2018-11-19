@@ -62,7 +62,7 @@ project(GSI)
   option(BUILD_UTIL "Build the Enkf utilities " OFF)
 
   option(BUILD_UTIL_COM "Build community utilities " OFF)
-  option(BUILD_NCDIAG "Build the NCDIAG libraries" OFF)
+  option(BUILD_NCDIAG "Build the NCDIAG libraries" ON)
   option(BUILD_NCDIAG_SERIAL "Build the serial NCDIAG libraries" ON)
   option(BUILD_REG_TESTING "Build the Regression Testing Suite" ON)
   option(BUILD_UNIT_TESTING "Build the Unit Testing Suite" OFF)
