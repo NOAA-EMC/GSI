@@ -21,7 +21,7 @@ export PROJECT=${PROJECT:-GDAS-T2O}
 #  JOB_QUEUE is used on wcoss only with the bjob -q flag.  It is 
 #  empty on other platforms.
 #
-export JOB_QUEUE=${JOB_QUEUE:-dev}
+export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
 
 #
 #  RUN_ONLY_ON_DEV  1 = dev machine only, 0 = run anywhere
@@ -31,7 +31,11 @@ export RUN_ONLY_ON_DEV=${RUN_ONLY_ON_DEV:-1}
 #
 #  WORKDIR is working directory (tmp space)
 #
-export WORKDIR=${MY_STMP}/${LOGNAME}/${MINMON_SUFFIX}/minmon
+if [[ ${#RUN} -le 0 ]]; then
+   export WORKDIR=${MY_STMP}/${LOGNAME}/${MINMON_SUFFIX}/minmon
+else
+   export WORKDIR=${MY_STMP}/${LOGNAME}/${MINMON_SUFFIX}/${RUN}/minmon
+fi
 
 # 
 #  GLB_AREA indicates the valid area of the data source

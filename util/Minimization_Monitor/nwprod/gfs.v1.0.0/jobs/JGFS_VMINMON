@@ -22,6 +22,7 @@ export DATA=${DATA:-${DATAROOT}/${jobid:?}}
 mkdir -p $DATA
 cd $DATA
 
+
 ########################################################### 
 # obtain unique process id (pid) and make temp directories
 ###########################################################
@@ -66,9 +67,15 @@ echo 'pdate = ${pdate}'
 export P_PDY=`echo ${cdate} | cut -c1-8`
 export p_cyc=`echo ${cdate} | cut -c9-10`
 
+
 #############################################
 # TANKverf - WHERE OUTPUT DATA WILL RESIDE
 #############################################
+<<<<<<< HEAD
+TANK_USE_RUN=${TANK_USE_RUN:-1}
+M_TANKverf=${M_TANKverf:-${COMROOT}/verf/${envir}}
+
+=======
 export COM_IN=${COM_IN:-${COMROOT}/${NET}/${envir}}
 
 M_TANKverf=${M_TANKverf:-${COM_IN}}
@@ -76,6 +83,7 @@ M_TANKverfM0=${M_TANKverfM0:-${M_TANKverf}/${RUN}.${PDY}/${cyc}/minmon}
 export M_TANKverfM1=${M_TANKverfM1:-${M_TANKverf}/${RUN}.${P_PDY}/${p_cyc}/minmon}
 export M_TANKverf=$M_TANKverfM0
 
+export COM_IN=${COM_IN:-${COMROOT}/${NET}/${envir}}
 export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}/${cyc}}
 
 mkdir -p -m 775 $M_TANKverf
