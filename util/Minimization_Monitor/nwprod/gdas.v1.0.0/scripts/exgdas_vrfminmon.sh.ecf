@@ -64,13 +64,6 @@ export NCP=${NCP:-/bin/cp}
 export NDATE=${NDATE:-/nwprod/util/exec/ndate}
 export pgm=exgdas_vrfminmon.sh.ecf
 
-#########################################################
-# M_TANKverf is storage location for generated files
-#########################################################
-export M_TANKverf=${M_TANKverf:-${COMROOT}/${NET}/${envir}/minmon.${PDY}}
-export M_TANKverfM1=${M_TANKverfM1:-${COMROOT}/${NET}/${envir}/minmmon.${PDYm1}}
-#####################################################################
-
 if [[ ! -d ${DATA} ]]; then
    mkdir $DATA
 fi
