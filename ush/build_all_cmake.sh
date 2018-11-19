@@ -57,8 +57,9 @@ else
     source $dir_modules/modulefile.ProdGSI.$target
 fi
 
-cmake -DBUILD_UTIL=ON -DCMAKE_BUILD_TYPE=$build_type -DBUILD_CORELIBS=OFF ..
+cmake -DBUILD_UTIL=OFF -DBUILD_ENKF=OFF -DCMAKE_BUILD_TYPE=$build_type -DBUILD_CORELIBS=OFF ..
 
-make -j 8
+make VERBOSE=1
+
 
 exit
