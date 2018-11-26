@@ -9,7 +9,7 @@
 #
 from MPMC_config import MPMC_root, ProdGSI_root, build_root, module_pre, q_directives, \
      cmake_version, build_options, comp_post, hostname, project_acct, queue_name, \
-     XML_native, rocoto_exe, rocoto_scheduler, xml_set_nodesize
+     XML_native, rocoto_exe, rocoto_scheduler, xml_set_nodesize, commitID, branchName
 from CASE_config import create_run_scripts, allcases, many_procs
 from datetime import datetime
 import os, sys
@@ -90,6 +90,12 @@ if os.path.isdir(build_root) and not force:
 else:
   os.system("mkdir -p "+build_root)
 
+###write branchName and commitID to build_root
+file1=open(build_root+'/branch_commit.txt', 'w')
+file1.write(branchName+'\n')
+file1.write(commitID)
+file1.close()
+
 ##### Genereate compiling and running scripts ------------------------
 flist_name="list."+datetime.now().strftime("%Y%m%d_%H:%M:%S")
 flist=open("list.all","w")
@@ -125,21 +131,24 @@ for x in build_options:
   q_ready=q_ready+"#PBS -o output."+build_ID+"\n"
 
   rmfiles1="CMakeCache.txt CMakeFiles Makefile DartConfiguration.tcl src done.compiling"
-  rmfiles2="include bin lib libsrc util Testing regression_var.out cmake_install.cmake CTestTestfile.cmake"
-  cmake1="cmake -DBUILD_WRF=OFF -DBUILD_CORELIBS=ON -DCMAKE_C_COMPILER="+cc_name+" -DCMAKE_CXX_COMPILER="+cxx_name
-  cmake2="cmake -DBUILD_WRF=ON -DBUILD_CORELIBS=ON -DCMAKE_C_COMPILER="+cc_name+" -DCMAKE_CXX_COMPILER="+cxx_name
+  rmfiles2="include lib libsrc util Testing regression_var.out cmake_install.cmake CTestTestfile.cmake"
+  cmake1="cmake -DENKF_MODE=GFS -DBUILD_CORELIBS=ON -DCMAKE_C_COMPILER="+cc_name+" -DCMAKE_CXX_COMPILER="+cxx_name
+  cmake2="cmake -DENKF_MODE=WRF -DBUILD_GSDCLOUD_ARW=ON -DBUILD_UTIL_COM=ON -DBUILD_CORELIBS=ON -DCMAKE_C_COMPILER="+cc_name+" -DCMAKE_CXX_COMPILER="+cxx_name
 
   job_script=q_ready+'\n'+modules+'\n'
   job_script=job_script+"cd "+build_root+"/"+bld_fullname+'\n\n'
-  job_script=job_script+"rm -rf "+rmfiles1+' '+rmfiles2+"\n"  #to get a clean start
+  #### to build enkf_gfs.x, gsi.x
+  job_script=job_script+"rm -rf "+rmfiles1+' '+rmfiles2+" bin\n"  #to get a clean start
   job_script=job_script+cmake1+" "+ProdGSI_root+"\n"
   job_script=job_script+"make -j8\n"
   job_script=job_script+"make -j2\n\n"  ### some build options require to do this to get enkf executables
-  #### now do it again to build enkf_arw.x
-  job_script=job_script+"rm -rf CMakeCache.txt CMakeFiles\n"  # don't remove bin/ directory at this step
+  #### to build enkf_arw.x, gsi.x and all community utilities
+  #job_script=job_script+"rm -rf CMakeCache.txt CMakeFiles\n"  # don't remove bin/ directory at this step
+  job_script=job_script+"rm -rf "+rmfiles1+' '+rmfiles2+"\n"  # don't remove bin/ directory at this step
   job_script=job_script+cmake2+" "+ProdGSI_root+"\n"
   job_script=job_script+"make -j8\n"
   job_script=job_script+"make -j2\n\n"  ### some build options require to do this to get enkf executables
+  ### link executables to get ready for case running test
   job_script=job_script+"ln -sf ../bin/gsi.x run/gsi.x\n" 
   job_script=job_script+"ln -sf ../bin/enkf_wrf.x run/enkf_wrf.x\n" 
   job_script=job_script+"ln -sf ../bin/enkf_gfs.x run/enkf_gfs.x\n\n"  #get ready for case running test
@@ -168,6 +177,7 @@ for x in build_options:
 ###################### generate the list file --------------
 ### this list file records every build directory
 flist.close()
+os.system("/bin/cp list.all "+build_root)  #save a copy in the build_root
 if newlist:
   os.system("/bin/cp list.all "+flist_name)
 if submit:

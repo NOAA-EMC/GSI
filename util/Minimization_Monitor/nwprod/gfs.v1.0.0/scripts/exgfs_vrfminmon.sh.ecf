@@ -10,47 +10,6 @@
 # Abstract: This script runs the data extract/validation portion of the 
 #           MinMon package.  
 #
-# Script history log:
-# 2015-04-10  Ed Safford
-#
-#   Input script positional parameters:
-#     1             Current analysis date in yyyymmddhh format
-#                   defaults to PDY; required
-#     2             cycle time in cc format
-#                   defaults to cyc; required
-#
-#   Imported Shell Variables:
-#     M_TANKverf    repository for minmon data files
-#     DATA          data working space
-#     MINMON_SUFFIX data set identifier, defaults to GFS
-#     FIXgfs        fixed file directory, gfs specific
-#     FIXminmon     fixed file directory
-#     USHminmon     scripts directory
-#     PDY           processing day; 
-#                   overridden by 1
-#     cyc	    processing cycle; 
-#                   overridden by 2
-#     
-#   Exported Shell Variables:
-#     PDATE	    Processing date
-#     err           last return code
-#     VERBOSE       switches on more/less log output
-#     mm_gnormfile  $GFSfix/gfs_minmon_gnorm.txt file
-#     mm_costfile   $GFSfix/gfs_minmon_cost.txt file
-#
-#   Modules and files referenced:
-#     scripts    : ${USHminmon}/minmon_xtrct_gnorms.pl
-#                  ${USHminmon}/minmon_xtrct_costs.pl
-#                  ${USHminmon}/minmon_xtrct_reduction.pl
-#
-#     programs   : $NDATE
-#
-#     input data : $gsistat=${COMIN}/gfs1.t${cyc}z.gsistat
-#
-#     output data:  
-#
-#  Remarks:
-#
 #    Condition codes
 #       0 - no problem encountered
 #      >0 - some problem encountered
@@ -105,12 +64,7 @@ export NCP=${NCP:-/bin/cp}
 export NDATE=${NDATE:-/nwprod/util/exec/ndate}
 export pgm=exgfs_vrfminmon.sh.ecf
 
-#########################################################
-# M_TANKverf is storage location for generated files
-#########################################################
-export M_TANKverf=${M_TANKverf:-${COMROOT}/${NET}/${envir}/minmon.${PDY}}
-export M_TANKverfM1=${M_TANKverfM1:-${COMROOT}/${NET}/${envir}/minmmon.${PDYm1}}
-#####################################################################
+
 
 if [[ ! -d ${DATA} ]]; then
    mkdir $DATA
@@ -132,6 +86,7 @@ if [[ -s ${gsistat} ]]; then
    if [[ -s ${M_TANKverfM1}/gnorm_data.txt ]]; then
       $NCP ${M_TANKverfM1}/gnorm_data.txt gnorm_data.txt
    fi
+
 
    #------------------------------------------------------------------
    #   Run the child sccripts.

@@ -2,14 +2,14 @@
 cat <<EOF > gsiparm.anl
 
  &SETUP
-   miter=${nummiter},niter(1)=10,niter(2)=10,
+   miter=${nummiter},niter(1)=50,niter(2)=50,
    write_diag(1)=.true.,write_diag(2)=.false.,write_diag(3)=.true.,
    gencode=78,qoption=2,
    factqmin=0.0,factqmax=0.0,
    iguess=-1,
    oneobtest=${if_oneobtest},retrieval=.false.,
    nhr_assimilation=2,l_foto=.false.,
-   use_pbl=.false.,
+   use_pbl=.false.,verbose=.true.,
    lread_obs_save=${if_read_obs_save},lread_obs_skip=${if_read_obs_skip},
    newpc4pred=.true.,adp_anglebc=.true.,angord=4,
    passive_bc=.true.,use_edges=.false.,emiss_bc=.true.,

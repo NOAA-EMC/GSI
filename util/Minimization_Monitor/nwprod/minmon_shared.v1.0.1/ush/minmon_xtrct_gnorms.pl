@@ -175,7 +175,7 @@ sub  makeErrMsg {
    }
 
    if( length $mail_msg > 0 ){
-      my $mail_link   = "http://www.emc.ncep.noaa.gov/gmb/gdas/radiance/esafford/gsi_stat/index.html?src=$suffix&typ=gnorm&cyc=$cycle";
+      my $mail_link   = "http://www.emc.ncep.noaa.gov/gmb/gdas/gsi_stat/index.html?src=$suffix&typ=gnorm&cyc=$cycle";
       open( OUTFILE, ">$out_file" ) or die "Can't open ${$out_file}: $!\n";
       print OUTFILE $mail_msg;
       print OUTFILE "\n\n $mail_link";
