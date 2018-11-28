@@ -79,6 +79,7 @@ public call_crtm            ! Subroutine creates profile for crtm, calls crtm, t
 public destroy_crtm         ! Subroutine destroys initialization for crtm
 public sensorindex
 public surface
+public atmosphere
 public isatid               ! = 1  index of satellite id
 public itime                ! = 2  index of analysis relative obs time
 public ilon                 ! = 3  index of grid relative obs location (x)
