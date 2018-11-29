@@ -120,7 +120,9 @@ public itref                ! = 34/36 index of Tr
 public idtw                 ! = 35/37 index of d(Tw)
 public idtc                 ! = 36/38 index of d(Tc)
 public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
- 
+public n_clouds_fwd_wk
+public n_actual_aerosols_wk
+public n_absorbers
 !  Note other module variables are only used within this routine
 
   character(len=*), parameter :: myname='crtm_interface'
@@ -184,6 +186,8 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
   logical        ,save :: cld_sea_only_wk
   logical        ,save :: mixed_use
   integer(i_kind), parameter :: min_n_absorbers = 2
+  integer(i_kind) :: n_absorbers
+
 
   type(crtm_atmosphere_type),save,dimension(1)   :: atmosphere
   type(crtm_surface_type),save,dimension(1)      :: surface
@@ -329,7 +333,6 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
 ! ...all "additional absorber" variables
   integer(i_kind) :: j,icount
   integer(i_kind) :: ig
-  integer(i_kind) :: n_absorbers
   logical quiet
   logical print_verbose
 

@@ -250,7 +250,7 @@
   use crtm_interface, only: init_crtm,call_crtm,destroy_crtm,sensorindex,surface, &
       atmosphere, itime,ilon,ilat,ilzen_ang,ilazi_ang,iscan_ang,iscan_pos,iszen_ang,isazi_ang, &
       ifrac_sea,ifrac_lnd,ifrac_ice,ifrac_sno,itsavg, &
-      izz,idomsfc,isfcr,iff10,ilone,ilate, &
+      izz,idomsfc,isfcr,iff10,ilone,ilate, n_clouds_fwd_wk, n_absorbers, &
       isst_hires,isst_navy,idata_type,iclr_sky,itref,idtw,idtc,itz_tr
   use clw_mod, only: calc_clw, ret_amsua
   use qcmod, only: qc_ssmi,qc_seviri,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms
@@ -2206,7 +2206,7 @@
   real(r_single),parameter::  missing = -9.99e9_r_single
   integer(i_kind),parameter:: imissing = -999999
   real(r_kind),dimension(:),allocatable :: predbias_angord
-
+  character(128) :: fieldname
   if (adp_anglebc) then
     allocate(predbias_angord(angord) )
     predbias_angord = zero
@@ -2376,23 +2376,25 @@
                     endif
                  end if
 
-         call nc_diag_metadata("Vegetation_Type", sngl(surface(1)%vegetation_type))
-         call nc_diag_metadata("Lai",             sngl(surface(1)%lai))
-         call nc_diag_metadata("Soil_Type",  sngl(surface(1)%soil_type))
+                 call nc_diag_metadata("Vegetation_Type", sngl(surface(1)%vegetation_type))
+                 call nc_diag_metadata("Lai",             sngl(surface(1)%lai))
+                 call nc_diag_metadata("Soil_Type",  sngl(surface(1)%soil_type))
 
-         call nc_diag_metadata("Sfc_Wind_Direction", sngl(surface(1)%wind_direction)    )
-         call nc_diag_metadata("Sfc_Height",    sngl(zsges    ) )
-         call nc_diag_data2d("virtual_temperature", sngl(atmosphere(1)%temperature) )  ! K 
-         call nc_diag_data2d("humidity_mixing_ratio", sngl(atmosphere(1)%absorber(:,1)))  ! check %absorber_units
-         call nc_diag_data2d("air_pressure", sngl(atmosphere(1)%pressure))
-         call nc_diag_data2d("air_pressure_levels", sngl(atmosphere(1)%level_pressure) )
-         call nc_diag_data2d("mass_concentration_of_ozone_in_air", sngl(atmosphere(1)%absorber(:,2)))
-         call nc_diag_data2d("mass_concentration_of_carbon_dioxide_in_air", sngl(atmosphere(1)%absorber(:,3)) )
-         call nc_diag_data2d("atmosphere_mass_content_of_cloud_liquid_water", sngl(atmosphere(1)%Cloud(1)%Water_Content))
-         call nc_diag_data2d("atmosphere_mass_content_of_cloud_ice", sngl(atmosphere(1)%Cloud(1)%Water_Content))
-         call nc_diag_data2d("effective_radius_of_cloud_liquid_water_particle", sngl(atmosphere(1)%Cloud(1)%Effective_Radius))
-         call nc_diag_data2d("effective_radius_of_cloud_ice_particle", sngl(atmosphere(1)%Cloud(2)%Effective_Radius))
+                 call nc_diag_metadata("Sfc_Wind_Direction", sngl(surface(1)%wind_direction)    )
+                 call nc_diag_metadata("Sfc_Height",    sngl(zsges    ) )
+                 call nc_diag_data2d("virtual_temperature", sngl(atmosphere(1)%temperature) )  ! K 
+                 call nc_diag_data2d("air_pressure", sngl(atmosphere(1)%pressure))
+                 call nc_diag_data2d("air_pressure_levels", sngl(atmosphere(1)%level_pressure) )
 
+                 do iabsorb = 1, n_absorbers
+                   call nc_diag_data2d(atmosphere(1)%absorber_id(iabsorb), sngl(atmosphere(1)%absorber(:,iabsorb)))  ! check %absorber_units
+                 enddo
+                 do icloud = 1, n_clouds_fwd_wk
+                   write (fieldname, "(A,I0.2)") "atmosphere_mass_content_of_cloud_", atmosphere(1)%Cloud(icloud)%Type
+                   call nc_diag_data2d(trim(fieldname), sngl(atmosphere(1)%Cloud(icloud)%Water_Content))
+                   write (fieldname, "(A,I0.2)") "effective_radius_of_cloud_particle_", atmosphere(1)%Cloud(icloud)%Type
+                   call nc_diag_data2d(trim(fieldname), sngl(atmosphere(1)%Cloud(icloud)%Effective_Radius))
+                 enddo
               enddo
 !  if (adp_anglebc) then
   if (.true.) then
