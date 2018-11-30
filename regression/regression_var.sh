@@ -243,18 +243,8 @@ export global_4dvar_T62_ges="$casesdir/global/sigmap/$global_4dvar_T62_adate"
 export global_hybrid_T126_datobs="$casesdir/global/sigmap/$global_hybrid_T126_adate/obs"
 export global_4denvar_T126_datges="$casesdir/global/sigmap/$global_4denvar_T126_adate"
 export global_4denvar_T126_datobs="$casesdir/global/sigmap/$global_4denvar_T126_adate"
-
-##export global_fv3_4denvar_T126_datges="$casesdir/global/sigmap/$global_fv3_4denvar_T126_adate"
-##export global_fv3_4denvar_T126_datobs="$casesdir/global/sigmap/$global_fv3_4denvar_T126_adate"
-
-# Dell
-export global_fv3_4denvar_T126_datges="/gpfs/dell2/emc/modeling/noscrub/emc.glopara/CASES/prfv3iter"
-
-# Theia
-export global_fv3_4denvar_T126_datges="/scratch4/NCEPDEV/da/noscrub/Russ.Treadon/CASES/prfv3iter"
-
+export global_fv3_4denvar_T126_datges="$casesdir/global/fv3/$global_fv3_4denvar_T126_adate"
 export global_fv3_4denvar_T126_datobs=$global_fv3_4denvar_T126_datges
-
 export global_hybrid_T126_datges="$casesdir/global/sigmap/$global_hybrid_T126_adate/ges"
 export global_enkf_T62_datobs="$casesdir/global/sigmap/$global_enkf_T62_adate/new_obs"
 export global_enkf_T62_datges="$casesdir/global/sigmap/$global_enkf_T62_adate/ges"
