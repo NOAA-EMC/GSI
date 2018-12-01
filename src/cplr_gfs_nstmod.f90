@@ -374,10 +374,10 @@ subroutine cal_tztr_(dt_warm,c_0,c_d,w_0,w_d,zc,zw,z,tztr)
     endif
   endif
 
-  if ( tztr <= one .and. tztr > half ) then
-    tztr = tztr
-  else
-!   write(*,'(a,2I2,3F12.6,F9.3,5F12.6,F8.3,F9.6,F8.3)') ' cal_tztr : ',fac_dtl,fac_tsl,c1,c2,c3,dt_warm,c_0,c_d,w_0,w_d,zc,zw,z,tztr
+  if ( tztr <= -1.0_r_kind .or. tztr > 4.0_r_kind ) then
+     write(6,100) fac_dtl,fac_tsl,c1,c2,c3,dt_warm,c_0,c_d,w_0,w_d,zc,zw,z,tztr
+100  format('CAL_TZTR compute ',2(i2,1x),12(g13.6,1x),' RESET tztr to 1.0')
+     tztr = one
   endif
 
 end subroutine cal_tztr_
