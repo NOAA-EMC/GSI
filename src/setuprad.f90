@@ -2207,6 +2207,7 @@
   integer(i_kind),parameter:: imissing = -999999
   real(r_kind),dimension(:),allocatable :: predbias_angord
   character(128) :: fieldname
+  integer(i_kind) :: iabsorb, icloud
   if (adp_anglebc) then
     allocate(predbias_angord(angord) )
     predbias_angord = zero
@@ -2387,7 +2388,8 @@
                  call nc_diag_data2d("air_pressure_levels", sngl(atmosphere(1)%level_pressure) )
 
                  do iabsorb = 1, n_absorbers
-                   call nc_diag_data2d(atmosphere(1)%absorber_id(iabsorb), sngl(atmosphere(1)%absorber(:,iabsorb)))  ! check %absorber_units
+                   write (fieldname, "(A,I0.2)") "atmosphere_absorber_", atmosphere(1)%absorber_id(iabsorb)
+                   call nc_diag_data2d(trim(fieldname), sngl(atmosphere(1)%absorber(:,iabsorb)))  ! check %absorber_units
                  enddo
                  do icloud = 1, n_clouds_fwd_wk
                    write (fieldname, "(A,I0.2)") "atmosphere_mass_content_of_cloud_", atmosphere(1)%Cloud(icloud)%Type
