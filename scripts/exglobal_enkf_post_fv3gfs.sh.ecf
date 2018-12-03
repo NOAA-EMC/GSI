@@ -162,7 +162,7 @@ if [ $SENDDBN = "YES" ]; then
 
    for imem in $(seq 1 $NMEM_ENKF); do
       memchar="mem"$(printf %03i $imem)
-      for fhr in $(seq 6 $FHOUT $FHMAX); do
+      for fhr in $(seq $FHMIN $FHOUT $FHMAX); do
          fhrchar=$(printf %03i $fhr)
          if [ $(expr $fhr % 3) -eq 0 ]; then
              $DBNROOT/bin/dbn_alert MODEL GFS_ENKF $job $COMOUT/$memchar/${PREFIX}atmf${fhrchar}${ENKF_SUFFIX}${SUFFIX}

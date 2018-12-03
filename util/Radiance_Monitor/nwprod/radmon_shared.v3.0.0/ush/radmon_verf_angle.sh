@@ -67,8 +67,8 @@
 #     >0 - some problem encountered
 #
 ####################################################################
+#  Command line arguments.
 
-# Command line arguments.
 RAD_AREA=${RAD_AREA:-glb}
 REGIONAL_RR=${REGIONAL_RR:-0}	# rapid refresh model flag
 rgnHH=${rgnHH:-}
@@ -260,5 +260,4 @@ fi
 msg="${scr} HAS ENDED"
 postmsg "$jlogfile" "$msg"
 
-echo "<-- radmon_verf_angle.sh"
 exit ${err}
