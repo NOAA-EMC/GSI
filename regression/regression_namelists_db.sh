@@ -703,7 +703,7 @@ export gsi_namelist="
    iguess=-1,
    oneobtest=.false.,retrieval=.false.,l_foto=.false.,
    use_pbl=.false.,use_prepb_satwnd=.false.,
-   nhr_assimilation=6,lrun_subdirs=.true.,
+   nhr_assimilation=6,lrun_subdirs=.true.,sfcnst_comb=.true.,
    $SETUP
  /
  &GRIDOPTS
@@ -843,7 +843,7 @@ OBS_INPUT::
  /
  &HYBRID_ENSEMBLE
    l_hyb_ens=.true.,n_ens=10,beta_s0=0.25,readin_beta=.false.,s_ens_h=800,s_ens_v=-0.7,generate_ens=.false.,uv_hyb_ens=.true.,jcap_ens=62,
-   nlat_ens=96,nlon_ens=192,ANISO_A_EN=.false.,jcap_ens_test=62,oz_univ_static=.true.,readin_localization=.true.,
+   nlat_ens=96,nlon_ens=192,ANISO_A_EN=.false.,jcap_ens_test=62,oz_univ_static=.true.,readin_localization=.true.,ensemble_path='./ensemble_data/',
    write_ens_sprd=.false.,
    $HYBRID_ENSEMBLE
  /
