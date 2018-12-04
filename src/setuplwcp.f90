@@ -5,7 +5,8 @@ module lwcp_setup
         interface setup; module procedure setuplwcp; end interface
 
 contains
-subroutine setuplwcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+subroutine setuplwcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave,&
+  nsig_saved)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setuplwcp     compute rhs of oi for liquid-water condensate path
@@ -55,7 +56,7 @@ subroutine setuplwcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
   use m_obsdiagNode, only: obsdiagNode_get
   use m_obsdiagNode, only: obsdiagNode_assert
 
-  use obsmod, only: rmiss_single,i_lwcp_ob_type,lobsdiag_forenkf,ianldate,&
+  use obsmod, only: rmiss_single,lobsdiag_forenkf,ianldate,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use obsmod, only: l_wcp_cwm
   use m_obsNode, only: obsNode
@@ -78,10 +79,10 @@ subroutine setuplwcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
   use qcmod, only: dfact,dfact1,npres_print
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
-  use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use m_dtime, only: dtime_setup, dtime_check
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
-  use gfs_stratosphere, only: use_gfs_stratosphere, nsig_save
+!--   use gfs_stratosphere, only: use_gfs_stratosphere, nsig_save
 
   use sparsearr, only: sparr2, new, size, writearray, fullarray
 
@@ -97,6 +98,10 @@ subroutine setuplwcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
   integer(i_kind)                                  ,intent(in   ) :: is ! ndat index
 
+  integer(i_kind),optional:: nsig_saved         ! use a saved nsig value.  This is currently
+                                                ! a patch to gradually remove the dependency on
+                                                ! GFS specific background grid.
+  
 ! Declare local parameter
   character(len=*),parameter:: myname='setuplwcp'
 
@@ -181,11 +186,14 @@ subroutine setuplwcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
 !=============================================================================================================
 ! Operator for lwcp (liquid-water content path w.r.t ice forward model)
 
-  if (use_gfs_stratosphere) then
-    nsig_top = nsig_save 
-  else
-    nsig_top = nsig
-  endif
+!--  if (use_gfs_stratosphere) then
+!--    nsig_top = nsig_save 
+!--  else
+!--    nsig_top = nsig
+!--  endif
+
+  nsig_top = nsig
+  if(present(nsig_saved)) nsig_top=nsig_saved
 
   tupper = ttp
   tlower = tmix
@@ -330,7 +338,6 @@ subroutine setuplwcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
   
-     !if (luse_obsdiag) my_diagLL => obsdiags(i_lwcp_ob_type,ibin)
      if (luse_obsdiag) my_diagLL => odiagLL(ibin)
 
 !    Link obs to diagnostics structure
@@ -615,7 +622,6 @@ subroutine setuplwcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
   if(conv_diagsave)then
      if(netcdf_diag) call nc_diag_write
      if(binary_diag.and. ii>0)then
-        call dtime_show(myname,'diagsave:lwcp',i_lwcp_ob_type)
         write(7)'lwc',nchar,nreal,ii,mype,ioff0
         write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
         deallocate(cdiagbuf,rdiagbuf)
@@ -893,25 +899,3 @@ subroutine setuplwcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
 
 end subroutine setuplwcp
 end module lwcp_setup
-
-subroutine setuplwcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
-!-- This is a wrapper for a backward compatible interface.
-
-  use m_obsdiags, only: obsLL   => obsLLists
-  use m_obsdiags, only: odiagLL => obsdiags
-  use lwcp_setup, only: setup
-  use obsmod  , only: itype => i_lwcp_ob_type
-  use gridmod , only: nsig
-  use qcmod   , only: npres_print
-  use convinfo, only: nconvtype
-  use kinds   , only: i_kind, r_kind
-  implicit none
-  logical                                          ,intent(in   ) :: conv_diagsave
-  integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
-  real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
-  real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
-  integer(i_kind)                                  ,intent(in   ) :: is ! ndat index
-
-  call setup(obsLL(itype,:),odiagLL(itype,:), &
-        lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
-end subroutine setuplwcp

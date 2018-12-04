@@ -219,7 +219,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   use jfunc, only: iout_iter,nclen,xhatsave,yhatsave,&
        iter
   use jcmod, only: ljcpdry,ljc4tlevs,ljcdfi
-  use obsmod, only: nobs_type
+  use gsi_obOperTypeManager, only: nobs_type => obOper_count
   use stpjcmod, only: stplimq,stplimg,stplimv,stplimp,stplimw10m,&
        stplimhowv,stplimcldch,stpjcdfi,stpjcpdry,stpliml
   use bias_predictors, only: predictors
@@ -264,7 +264,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   real(r_quad),dimension(4,nobs_type):: pbcjo 
   real(r_quad),dimension(4,nobs_type,nobs_bins):: pbcjoi 
   real(r_quad),dimension(4,nobs_bins):: pbcqmin,pbcqmax
-  real(r_quad) :: pen_est(n0+nobs_type)
+  real(r_quad),dimension(ipen):: pen_est
   real(r_quad),dimension(3,ipenlin):: pstart 
   real(r_quad) bx,cx,ccoef,bcoef,dels,sges1,sgesj
   real(r_quad),dimension(0:istp_iter):: stp   
@@ -821,7 +821,8 @@ subroutine prnt_j(pj,ipen,kprt)
   use constants, only: zero_quad
   use jfunc, only: jiter,iter
   use mpimod, only: mype
-  use obsmod, only: cobstype,nobs_type
+  use gsi_obOperTypeManager, only: nobs_type => obOper_count
+  use gsi_obOperTypeManager, only: obOper_typeInfo
   real(r_quad),dimension(ipen,nobs_bins),intent(in   ) :: pj
   integer(i_kind)                       ,intent(in   ) :: ipen,kprt
 
@@ -844,7 +845,7 @@ subroutine prnt_j(pj,ipen,kprt)
   ctype(11)='negative lcbas      '
   ctype(12)='negative cldch      '
   do ii=1,nobs_type
-    ctype(12+ii)=cobstype(ii)
+    ctype(12+ii)=obOper_typeInfo(ii)
   end do
 
   zjt=zero_quad

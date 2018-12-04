@@ -70,12 +70,16 @@ module gsi_obOperTypeManager
 
   public:: obOper_typeMold
   public:: obOper_typeIndex
+  public:: obOper_typeInfo
         interface obOper_typeMold; module procedure &
                 dtype2vmold_,   &
                 index2vmold_    ; end interface
         interface obOper_typeIndex; module procedure &
                 vmold2index_,   &
                 dtype2index_    ; end interface
+        interface obOper_typeInfo; module procedure &
+                vmold2tinfo_,   &
+                index2tinfo_    ; end interface
 
   !public:: obOper_config
   !      interface obOper_config; module procedure config_; end interface
@@ -83,8 +87,10 @@ module gsi_obOperTypeManager
   public:: obOper_undef
   public:: obOper_lbound
   public:: obOper_ubound
-  public:: obOper_size
+  !public:: obOper_size
+  public:: obOper_count
 
+  public:: iobOper_kind
   public:: iobOper_ps
   public:: iobOper_t
   public:: iobOper_w
@@ -168,15 +174,20 @@ module gsi_obOperTypeManager
   end enum
   
   integer,parameter:: enum_kind = kind(iobOper_zero_)
+  integer,parameter:: iobOper_kind = enum_kind
 
   integer(enum_kind),parameter:: obOper_undef  = -1_enum_kind
   integer(enum_kind),parameter:: obOper_lbound = iobOper_zero_ +1
   integer(enum_kind),parameter:: obOper_ubound = iobOper_extra_-1
   integer(enum_kind),parameter:: obOper_size   = obOper_ubound-obOper_lbound+1
+  integer(enum_kind),parameter:: obOper_count  = obOper_size
 
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   character(len=*),parameter :: myname='gsi_obOperTypeManager'
   logical,save:: obOper_configured_ = .false.
+
+  character(len=20),dimension(obOper_lbound:obOper_ubound):: cobstype
+  logical,save:: cobstype_configured_=.false.
 
   type(     psOper), target, save::       psOper_mold
   type(      tOper), target, save::        tOper_mold
@@ -218,11 +229,12 @@ module gsi_obOperTypeManager
 
 contains
 function dtype2index_(dtype) result(index_)
+  use mpeu_util, only: lowercase
   implicit none
   integer(i_kind):: index_
   character(len=*),intent(in):: dtype
 
-  select case(dtype)
+  select case(lowercase(dtype))
   case("ps"     ,"[psoper]"     ); index_= iobOper_ps
   case("t"      ,"[toper]"      ); index_= iobOper_t
 
@@ -362,6 +374,12 @@ function vmold2index_(mold) result(index_)
   integer(i_kind):: index_
   class(obOper),target,intent(in):: mold
 
+  character(len=*),parameter:: myname_=myname//"::vmold2index_"
+  class(obOper),pointer:: ptr_
+  ptr_ => mold
+  if(.not.associated(ptr_)) call die(myname_,'not assoicated, argument mold')
+  nullify(ptr_)
+
   index_=dtype2index_(mold%mytype())
 
   ! An alternative implementation to cache a managed iobOper value inside each
@@ -435,6 +453,36 @@ function index2vmold_(iobOper) result(vmold_)
   end select
 end function index2vmold_
 
+function vmold2tinfo_(mold) result(info_)
+!>> Simply mold%info(), but just in case one needs some indirection, with
+!>> multiple obOper classes.
+  implicit none
+  character(len=:),allocatable:: info_
+  class(obOper),target,intent(in):: mold
+
+  character(len=*),parameter:: myname_=myname//"::vmold2tinfo_"
+  class(obOper),pointer:: vmold__
+  vmold__ => mold
+
+  if(.not.associated(vmold__)) call die(myname_,'not assoicated, argument mold')
+  nullify(vmold__)
+
+  info_=index2tinfo_(vmold2index_(mold))
+end function vmold2tinfo_
+
+function index2tinfo_(iobOper) result(info_)
+!>> 
+  implicit none
+  character(len=:),allocatable:: info_
+  integer(i_kind),intent(in):: iobOper
+  class(obOper),pointer:: vmold_
+
+  if(.not.cobstype_configured_) call cobstype_config_()
+  info_=""
+  if(iobOper>=obOper_lbound .and. &
+     iobOper<=obOper_ubound) info_=cobstype(iobOper)
+end function index2tinfo_
+
 subroutine config_()
   implicit none
   character(len=*),parameter:: myname_=myname//"::config_"
@@ -468,5 +516,51 @@ subroutine config_()
 
   obOper_configured_ = .true.
 end subroutine config_
+
+subroutine cobstype_config_()
+!>> Should this information be provided by individual obOper extensions, or
+!>> be provided by this manager?  There are pros and cons in either approach.
+
+  implicit none
+    cobstype(iobOper_ps         )  ="surface pressure    " ! ps_ob_type
+    cobstype(iobOper_t          )  ="temperature         " ! t_ob_type
+    cobstype(iobOper_w          )  ="wind                " ! w_ob_type
+    cobstype(iobOper_q          )  ="moisture            " ! q_ob_type
+    cobstype(iobOper_spd        )  ="wind speed          " ! spd_ob_type
+    cobstype(iobOper_rw         )  ="radial wind         " ! rw_ob_type
+    cobstype(iobOper_dw         )  ="doppler wind        " ! dw_ob_type
+    cobstype(iobOper_sst        )  ="sst                 " ! sst_ob_type
+    cobstype(iobOper_pw         )  ="precipitable water  " ! pw_ob_type
+    cobstype(iobOper_pcp        )  ="precipitation       " ! pcp_ob_type
+    cobstype(iobOper_oz         )  ="ozone               " ! oz_ob_type
+    cobstype(iobOper_o3l        )  ="level ozone         " ! o3l_ob_type
+    cobstype(iobOper_gps        )  ="gps                 " ! gps_ob_type
+    cobstype(iobOper_rad        )  ="radiance            " ! rad_ob_type
+    cobstype(iobOper_tcp        )  ="tcp (tropic cyclone)" ! tcp_ob_type
+    !cobstype(iobOper_lag        )  ="lagrangian tracer   " ! lag_ob_type
+    cobstype(iobOper_colvk      )  ="carbon monoxide     " ! colvk_ob_type
+    cobstype(iobOper_aero       )  ="aerosol aod         " ! aero_ob_type
+    !cobstype(iobOper_aerol      )  ="level aero aod      " ! aerol_ob_type
+    cobstype(iobOper_pm2_5      )  ="in-situ pm2_5 obs   " ! pm2_5_ob_type
+    cobstype(iobOper_pm10       )  ="in-situ pm10 obs    " ! pm10_ob_type
+    cobstype(iobOper_gust       )  ="gust                " ! gust_ob_type
+    cobstype(iobOper_vis        )  ="vis                 " ! vis_ob_type
+    cobstype(iobOper_pblh       )  ="pblh                " ! pblh_ob_type
+    cobstype(iobOper_wspd10m    )  ="wspd10m             " ! wspd10m_ob_type
+    cobstype(iobOper_td2m       )  ="td2m                " ! td2m_ob_type
+    cobstype(iobOper_mxtm       )  ="mxtm                " ! mxtm_ob_type
+    cobstype(iobOper_mitm       )  ="mitm                " ! mitm_ob_type
+    cobstype(iobOper_pmsl       )  ="pmsl                " ! pmsl_ob_type
+    cobstype(iobOper_howv       )  ="howv                " ! howv_ob_type
+    cobstype(iobOper_tcamt      )  ="tcamt               " ! tcamt_ob_type
+    cobstype(iobOper_lcbas      )  ="lcbas               " ! lcbas_ob_type
+    cobstype(iobOper_cldch      )  ="cldch               " ! cldch_ob_type
+    cobstype(iobOper_uwnd10m    )  ="uwnd10m             " ! uwnd10m_ob_type
+    cobstype(iobOper_vwnd10m    )  ="vwnd10m             " ! vwnd10m_ob_type
+    cobstype(iobOper_swcp       )  ="swcp                " ! swcp_ob_type
+    cobstype(iobOper_lwcp       )  ="lwcp                " ! lwcp_ob_type
+
+  cobstype_configured_=.true.
+end subroutine cobstype_config_
 
 end module gsi_obOperTypeManager

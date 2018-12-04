@@ -204,7 +204,7 @@ subroutine lreset_(headLL,mold,stat)
 !$$$ end documentation block
   use m_obsNode, only: obsNode_next
   use m_obsNode, only: obsNode_clean
-  use m_obsNode, only: obsNode_type
+  use m_obsNode, only: obsNode_type => obsNode_mytype
   implicit none
   type(obsLList), intent(inout):: headLL
   class(obsNode), intent(in   ):: mold
@@ -904,7 +904,7 @@ end function alloc_nodeCreate_
 
 subroutine nodeDestroy_(node)
 !-- clean() + deallocate()
-  use m_obsNode, only: obsNode_type
+  use m_obsNode, only: obsNode_type => obsNode_mytype
   implicit none
   class(obsNode),pointer,intent(inout):: node
   character(len=*),parameter:: myname_=myname//'::nodeDestroy_'

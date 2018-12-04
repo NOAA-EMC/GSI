@@ -124,7 +124,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use m_obsdiagNode, only: obsdiagNode_assert
 
   use obsmod, only: rmiss_single,perturb_obs,oberror_tune,&
-       i_q_ob_type,lobsdiagsave,nobskeep,lobsdiag_allocated,&
+       lobsdiagsave,nobskeep,lobsdiag_allocated,&
        time_offset,lobsdiag_forenkf
   use m_obsNode, only: obsNode
   use m_qNode, only: qNode
@@ -149,7 +149,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use convinfo, only: icsubtype
   use converr_q, only: ptabl_q 
   use converr, only: ptabl 
-  use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use m_dtime, only: dtime_setup, dtime_check
   use rapidrefresh_cldsurf_mod, only: l_sfcobserror_ramp_q
   use rapidrefresh_cldsurf_mod, only: l_pbl_pseudo_surfobsq,pblh_ration,pps_press_incr, &
                                       i_use_2mq4b,l_closeobs,i_coastline
@@ -397,7 +397,6 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
-     !if (luse_obsdiag) my_diagLL => obsdiags(i_q_ob_type,ibin)
      if (luse_obsdiag) my_diagLL => odiagLL(ibin)
 
 !    Link obs to diagnostics structure
@@ -601,7 +600,6 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      end if
 
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
-     !-- if (nobskeep>0 .and. luse_obsdiag) muse(i)=obsdiags(i_q_ob_type,ibin)%tail%muse(nobskeep)
      if (nobskeep>0 .and. luse_obsdiag) call obsdiagNode_get(my_diag, jiter=nobskeep, muse=muse(i))
 
 !   Oberror Tuning and Perturb Obs
@@ -873,7 +871,6 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   if(conv_diagsave) then
     if(netcdf_diag) call nc_diag_write
     if(binary_diag .and. ii>0)then
-       call dtime_show(myname,'diagsave:q',i_q_ob_type)
        write(7)'  q',nchar,nreal,ii+iip,mype,ioff0
        if(l_pbl_pseudo_surfobsq .and. iip>0) then
           write(7)cdiagbuf(1:ii),cdiagbufp(1:iip),rdiagbuf(:,1:ii),rdiagbufp(:,1:iip)
@@ -1242,27 +1239,3 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
 end subroutine setupq
 end module q_setup
-
-subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
-!-- This is a wrapper for a backward compatible interface.
-
-  use m_obsdiags, only: obsLL   => obsLLists
-  use m_obsdiags, only: odiagLL => obsdiags
-  use q_setup , only: setup
-  use obsmod  , only: itype => i_q_ob_type
-  use gridmod , only: nsig
-  use qcmod   , only: npres_print
-  use convinfo, only: nconvtype
-  use kinds   , only: i_kind, r_kind
-  implicit none
-! Declare passed variables
-  logical                                          ,intent(in   ) :: conv_diagsave
-  integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
-  real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
-  real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
-  integer(i_kind)                                  ,intent(in   ) :: is ! ndat index
-
-  call setup(obsLL(itype,:),odiagLL(itype,:),   &
-        lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
-end subroutine setupq
-!.

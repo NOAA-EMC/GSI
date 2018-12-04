@@ -77,7 +77,7 @@ subroutine setupco(obsLL,odiagLL,lunin,mype,stats_co,nlevs,nreal,nobs,&
   use m_obsdiagNode, only : obsdiagNode_get
   use m_obsdiagNode, only : obsdiagNode_assert
 
-  use obsmod, only : i_colvk_ob_type,dplat,nobskeep
+  use obsmod, only : dplat,nobskeep
   use obsmod, only : mype_diaghdr,dirname,time_offset,ianldate
   use obsmod, only : lobsdiag_allocated,lobsdiagsave
   use obsmod, only: dirname
@@ -104,7 +104,7 @@ subroutine setupco(obsLL,odiagLL,lunin,mype,stats_co,nlevs,nreal,nobs,&
 
   use jfunc, only : jiter,last,miter
   
-  use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use m_dtime, only: dtime_setup, dtime_check
   implicit none
   
 ! !INPUT PARAMETERS:
@@ -485,7 +485,6 @@ endif   ! (in_curbin)
         endif
         IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
-        !if(luse_obsdiag) my_diagLL => obsdiags(i_colvk_ob_type,ibin)
         if(luse_obsdiag) my_diagLL => odiagLL(ibin)
 
         if(in_curbin) then
@@ -683,7 +682,6 @@ endif   ! (in_curbin)
 
 ! clean up
   if(allocated(ges_co)) deallocate(ges_co)
-  call dtime_show('setupco','diagsave:co',i_colvk_ob_type)
   if(co_diagsave) deallocate(rdiagbuf)
 
 ! End of routine
@@ -743,37 +741,3 @@ endif   ! (in_curbin)
 
 end subroutine setupco
 end module colvk_setup
-
-subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
-     obstype,isis,is,co_diagsave,init_pass)
-!-- This is a wrapper for a backward compatible interface.
-
-  use m_obsdiags , only: obsLL   => obsLLists
-  use m_obsdiags , only: odiagLL => obsdiags
-  use colvk_setup, only: setup
-
-  use obsmod, only: itype   => i_colvk_ob_type
-  use coinfo, only: jpch_co
-  use kinds , only: i_kind, r_kind
-  implicit none
-  
-  integer(i_kind)                  , intent(in   ) :: lunin  ! unit from which to read observations
-  integer(i_kind)                  , intent(in   ) :: mype   ! mpi task id
-  integer(i_kind)                  , intent(in   ) :: nlevs  ! number of levels (layer amounts + total column) per obs   
-                                                             ! layer amounts only for CO 
-  integer(i_kind)                  , intent(in   ) :: nreal  ! number of pieces of non-co info (location, time, etc) per obs
-  integer(i_kind)                  , intent(in   ) :: nobs   ! number of observations
-  character(20)                    , intent(in   ) :: isis   ! sensor/instrument/satellite id
-  integer(i_kind)                  , intent(in   ) :: is     ! integer(i_kind) counter for number of obs types to process
-
-  character(10)                    , intent(in   ) :: obstype          ! type of co obs
-  logical                          , intent(in   ) :: co_diagsave   ! switch on diagnostic output (.false.=no output)
-  logical                          , intent(in   ) :: init_pass     ! state of "setup" processing
-
-  real(r_kind),dimension(9,jpch_co), intent(inout) :: stats_co ! sums for various statistics as 
-                                                               ! a function of level
-
-call setup(obsLL(itype,:),odiagLL(itype,:),lunin,mype,stats_co,nlevs,nreal,nobs,&
-     obstype,isis,is,co_diagsave,init_pass)
-end subroutine setupco
-!.

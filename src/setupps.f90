@@ -108,7 +108,7 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   use m_obsdiagNode, only: obsdiagNode_assert
 
   use obsmod, only: rmiss_single,perturb_obs,oberror_tune,&
-                    i_ps_ob_type,lobsdiagsave,nobskeep,lobsdiag_allocated,&
+                    lobsdiagsave,nobskeep,lobsdiag_allocated,&
                     time_offset,lobsdiag_forenkf,ianldate
   use m_obsNode, only: obsNode
   use m_psNode, only: psNode
@@ -130,7 +130,7 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   use guess_grids, only: hrdifsig,ges_lnprsl,nfldsig,ntguessig
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype,icsubtype
 
-  use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use m_dtime, only: dtime_setup, dtime_check
 
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
@@ -345,7 +345,6 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
-     !if (luse_obsdiag) my_diagLL => obsdiags(i_ps_ob_type,ibin)
      if (luse_obsdiag) my_diagLL => odiagLL(ibin)
 
 !    Link obs to diagnostics structure
@@ -652,7 +651,6 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   if(conv_diagsave)then
      if(netcdf_diag) call nc_diag_write
      if(binary_diag .and. ii>0)then
-        call dtime_show(myname,'diagsave:ps',i_ps_ob_type)
         write(7)' ps',nchar,nreal,ii,mype,ioff0
         write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
         deallocate(cdiagbuf,rdiagbuf)
@@ -930,27 +928,3 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
 
 end subroutine setupps
 end module ps_setup
-
-subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
-!-- This is a wrapper for a backward compatible interface.
-
-  use m_obsdiags, only: obsLL   => obsLLists
-  use m_obsdiags, only: odiagLL => obsdiags
-  use ps_setup  , only: setup
-  use obsmod  , only: itype => i_ps_ob_type
-  use gridmod , only: nsig
-  use qcmod   , only: npres_print
-  use convinfo, only: nconvtype
-  use kinds   , only: i_kind, r_kind
-  implicit none
-! Declare passed variables
-  real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
-  real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
-  integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
-  integer(i_kind)                                  ,intent(in   ) :: is     ! ndat index
-  logical                                          ,intent(in   ) :: conv_diagsave
-
-
-  call setup(obsLL(itype,:),odiagLL(itype,:),   &
-        lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
-end subroutine setupps

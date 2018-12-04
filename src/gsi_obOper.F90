@@ -23,10 +23,6 @@ module gsi_obOper
 
 ! module interface:
 
-  use m_obsNodeTypeManager, only: obsNode_typeIndex
-  use m_obsNodeTypeManager, only: obsNode_typeIndex
-  use m_obsdiags   , only: obsdiags
-  use m_obsdiags   , only: obsLLists
   use m_obsdiagNode, only: obs_diags
   use m_obsLList   , only: obsLList
 
@@ -69,43 +65,37 @@ module gsi_obOper
     type(obsLList ),pointer,dimension(:)::   obsLL    ! (1:nobs_bins)
 
   contains
-    procedure(mytype),deferred,nopass:: mytype  ! type information
+    procedure(mytype  ),deferred,nopass:: mytype    ! type information
+    procedure(nodeMold),deferred,nopass:: nodeMold  ! type information
 
     procedure, non_overridable:: init  => init_         ! initialize
-    procedure, non_overridable:: slice => slice_        ! create a slice, 
     procedure, non_overridable:: clean => clean_        ! finalize
 
     generic:: setup => setup_
-      procedure(setup_ ),deferred:: setup_       ! incremental object initialization
+      procedure(setup_ ),deferred:: setup_      ! incremental object initialization
     generic:: intjo => intjo_, intjo1_
       procedure,  non_overridable:: intjo_      ! interface supporting intjo()
-      procedure(intjo1_),deferred:: intjo1_     ! interface supporting intjo()
+      procedure(intjo1_),deferred:: intjo1_     ! interface for 1-bin intjo()
     generic:: stpjo => stpjo_, stpjo1_
       procedure,  non_overridable:: stpjo_      ! interface supporting stpjo()
-      procedure(stpjo1_),deferred:: stpjo1_     ! interface supporting stpjo()
+      procedure(stpjo1_),deferred:: stpjo1_     ! interface for 1-bin stpjo()
 
   end type obOper
 
-  public:: obOper_create
-  public:: obOper_destroy
-  public:: obOper_slice
-        interface obOper_create ; module procedure  create_  ; end interface
-        interface obOper_destroy; module procedure destroy_  ; end interface
-        interface obOper_slice  ; module procedure &
-                slice_, &
-                slices_ ; end interface
-
         ! In setuprhsall(),
         !
+        !   | use m_obsdiags, only: obOper_associate, obOper_dissociate
+        !   | use gsi_obOper, only: obOper
         !   | use gsi_obOperTypeManager, only: obOper_typeMold
         !   | use obsmod, only: ndat,dtype
         !
         ! then in a loop of obs-streams
         !
+        !   | class(obOper),pointer:: my_obOper
         !   | do is=1,ndat
-        !   |   isop => obOper_create(obOper_typeMold(dtype(is)))
-        !   |   call isop%setup(...)
-        !   |   call obOper_destroy(iop)
+        !   |   my_obOper => obOper_associate(obOper_typeMold(dtype(is)))
+        !   |   call my_obOper%setup(...)
+        !   |   call obOper_dissociate(my_obOper)
         !   | enddo
         !
 
@@ -117,10 +107,11 @@ module gsi_obOper
         ! 
         ! then in a loop of obOper
         !
-        !   | do it=lbound_obOper,ubound_obOper
-        !   |   iop => obOper_create(obOper_typeMold(it))
-        !   |   call iop%intjo(...)
-        !   |   call obOper_destroy(iop)
+        !   | class(obOper),pointer:: my_obOper
+        !   | do iOp=lbound_obOper,ubound_obOper
+        !   |   my_obOper => obOper_associate(obOper_typeMold(iOp))
+        !   |   call my_obOper%intjo(...)
+        !   |   call obOper_dissociate(my_obOper)
         !   | enddo
 
 !--- Design Considerations ---
@@ -182,12 +173,32 @@ abstract interface
     ! nodetype_=.false.
     ! if(present(nodetype)) nodetype_=nodetype
     ! if(nodetype_) then
-    !   mytype="rad"
+    !   mytype="radNode"
     ! else
     !   mytype="[radOper]"
     ! endif
 
   end function mytype
+end interface
+
+abstract interface
+  function nodeMold()
+  !> %nodeMold() returns a mold of its corresponding obsNode
+    use m_obsNode, only: obsNode
+    implicit none
+    class(obsNode),pointer:: nodeMold
+
+    !> For a given
+    !>   type(someOper):: myOper
+    !>
+    !> then code
+    !>
+    !>   class(obsNode),pointer:: myNodeMold_
+    !>   myNodeMold_ =>  myOper%nodeMold()
+    !>
+    !> would return a mold of myOper's corresponding obsNode type
+
+  end function nodeMold
 end interface
 
 abstract interface
@@ -218,6 +229,7 @@ abstract interface
 end interface
 
 abstract interface
+  !>> This is the interface for single bin intjo().
   !>> call self%intjo(ib,rval(ib),sval(ib),qpred(:,ib),sbias)
 
   subroutine intjo1_(self, ibin, rval, sval, qpred, sbias)
@@ -244,6 +256,7 @@ abstract interface
 end interface
 
 abstract interface
+  !>> This is the interface for single bin stpjo().
   !>> call self%stpjo(ib,dval(ib),xval(ib),pbcjo(:,it,ib),sges,nstep,dbias,xbias)
 
   subroutine stpjo1_(self, ibin,dval,xval,pbcjo,sges,nstep,dbias,xbias)
@@ -273,89 +286,15 @@ end interface
 contains
 #include "myassert.H"
 
-function create_(mold)
-  implicit none
-  class(obOper),pointer:: create_
-  class(obOper),target,intent(in):: mold
-  create_ => mold
-  if(associated(create_)) then
-    allocate(create_,mold=mold)
-    call create_%init()
-  endif
-end function create_
-
-function slice_(self,i) result(slice)
-!-- slice is a copy of self, except its linked-list pointers, which are
-!-- referenced only to a user specified "slice" of the original linked-
-!-- list pointers of "self".
-
-  implicit none
-  class(obOper  ), pointer   :: slice
-  class(obOper  ), intent(in):: self
-  integer(i_kind), intent(in):: i       ! bin index
-  allocate(slice,source=self)           ! slice is first a full copy of self,
-  slice%odiagLL(i:) => self%odiagLL(i:i)  ! then a slice of %odiagLL(:), and
-  slice%  obsLL(i:) => self%  obsLL(i:i)  ! a slice of %obsLL(:)
-end function slice_
-
-function slices_(self,lbin,ubin) result(slice)
-!-- slices is a copy of self, except its linked-list pointers, which are
-!-- referenced only to a user specified "slice" of the original linked-
-!-- list pointers of "self".
-
-  implicit none
-  class(obOper  ), pointer   :: slice
-  class(obOper  ), intent(in):: self
-  integer(i_kind), intent(in):: lbin    ! lower bin index
-  integer(i_kind), intent(in):: ubin    ! upper bin index
-  allocate(slice,source=self)           ! slice is first a full copy of self,
-  slice%odiagLL(lbin:) => self%odiagLL(lbin:ubin)  ! then a slice of %odiagLL(:), and
-  slice%  obsLL(lbin:) => self%  obsLL(lbin:ubin)  ! a slice of % obsLL(:)
-end function slices_
-
-subroutine destroy_(self)
-  implicit none
-  class(obOper),pointer,intent(inout):: self
-  if(associated(self)) then
-    call self%clean()
-    deallocate(self)
-  endif
-end subroutine destroy_
-
-subroutine init_(self)
+subroutine init_(self,obsLL,odiagLL)
   implicit none
   class(obOper),intent(inout):: self
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
 
-        ! Through its assigned node type, map an obOper type to its
-        ! corresponding obsNode index.
-
-  call initbyindex_(self,obsNode_typeIndex(self%mytype(nodetype=.true.)))
+  self%odiagLL => odiagLL(:)
+  self%  obsLL => obsLL(:)
 end subroutine init_
-
-subroutine initbyvname_(self,vname)
-  implicit none
-  class(obOper   ),intent(inout):: self
-  character(len=*),intent(in   ):: vname
-
-  call initbyindex_(self,obsNode_typeIndex(vname))
-end subroutine initbyvname_
-
-subroutine initbyindex_(self,itype)
-  use m_obsdiags, only: obsdiags
-  use m_obsdiags, only: obsLLists
-  use m_obsNodeTypeManager, only: obsNode_typeIndex
-  implicit none
-  class(obOper   ),intent(inout):: self
-  integer(i_kind ),intent(in   ):: itype
-
-        ASSERT(itype>=lbound(obsLLists,1))
-        ASSERT(itype<=ubound(obsLLists,1))
-        ASSERT(itype>=lbound(obsdiags ,1))
-        ASSERT(itype<=ubound(obsdiags ,1))
-
-  self%odiagLL => obsdiags (itype,:)
-  self%  obsLL => obsLLists(itype,:)
-end subroutine initbyindex_
 
 subroutine clean_(self)
   implicit none
@@ -377,9 +316,9 @@ subroutine intjo_(self, rval,sval,qpred,sbias)
 
         ! nb=nobs_bins
         ! do ityp=1,nobs_type
-        !   iop => obOper_create(mold=obOper_typemold(ityp))
+        !   iop => obOper_associate(mold=obOper_typemold(ityp))
         !   call iop%intjo(rval(:nb),sval(:nb), qpred(:,:nb),sbias)
-        !   iop => null()
+        !   call obOper_dissociate(iop)
         ! enddo
         !
         ! This implementation can be used both to an obOper instance with

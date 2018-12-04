@@ -792,7 +792,7 @@ end function make_or_next_
 subroutine obsNode_append_(diagLL,targetNode)
         ! Link the next node of the list to the given targetNode.  The return
         ! result is a pointer associated to the same targetNode.
-  use jfunc, only: miter
+!--  use jfunc, only: miter
   implicit none
   type(_obsLList_), intent(inout):: diagLL
   type(_obsNode_ ), pointer, intent(in):: targetNode
@@ -833,7 +833,7 @@ end subroutine obsNode_append_
 subroutine obsNode_insert_(diagLL,targetNode)
         ! Insert targetNode to diagLL's current location, mostly %tail.  At the
         ! return, diagLL%tail is associated to targetNode.
-  use jfunc, only: miter
+!--  use jfunc, only: miter
   implicit none
   type(_obsLList_), intent(inout):: diagLL
   type(_obsNode_ ), pointer, intent(in):: targetNode
@@ -1203,7 +1203,7 @@ return
 end subroutine obsHeader_write_
 
 subroutine obsNode_check_(who,aNode)
-  use jfunc, only: miter        ! for debugging
+!--  use jfunc, only: miter        ! for debugging
   implicit none
   character(len=*),intent(in):: who
   type(_obsNode_),intent(in):: aNode
@@ -1224,10 +1224,10 @@ subroutine obsNode_check_(who,aNode)
 
   ASSERT(equival)
 
-  ASSERT(lbound(aNode%muse    ,1)==1.and.ubound(aNode%muse    ,1)==miter+1)
-  ASSERT(lbound(aNode%nldepart,1)==1.and.ubound(aNode%nldepart,1)==miter+1)
-  ASSERT(lbound(aNode%tldepart,1)==1.and.ubound(aNode%tldepart,1)==miter  )
-  ASSERT(lbound(aNode%obssen  ,1)==1.and.ubound(aNode%obssen  ,1)==miter  )
+!--  ASSERT(lbound(aNode%muse    ,1)==1.and.ubound(aNode%muse    ,1)==miter+1)
+!--  ASSERT(lbound(aNode%nldepart,1)==1.and.ubound(aNode%nldepart,1)==miter+1)
+!--  ASSERT(lbound(aNode%tldepart,1)==1.and.ubound(aNode%tldepart,1)==miter  )
+!--  ASSERT(lbound(aNode%obssen  ,1)==1.and.ubound(aNode%obssen  ,1)==miter  )
 
 return
 end subroutine obsNode_check_

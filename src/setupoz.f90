@@ -122,7 +122,7 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use m_obsdiagNode, only : obsdiagNode_get
   use m_obsdiagNode, only : obsdiagNode_assert
 
-  use obsmod, only : i_oz_ob_type,dplat,nobskeep
+  use obsmod, only : dplat,nobskeep
   use obsmod, only : mype_diaghdr,dirname,time_offset,ianldate
   use obsmod, only : lobsdiag_allocated,lobsdiagsave,lobsdiag_forenkf
   use m_obsNode, only: obsNode
@@ -150,7 +150,7 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use jfunc, only : jiter,last,miter,jiterstart
   use sparsearr, only: sparr2, new, size, writearray, fullarray
   
-  use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use m_dtime, only: dtime_setup, dtime_check
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   implicit none
@@ -615,7 +615,6 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
         endif
         IF (ibin<1.OR.ibin>nobs_bins) write(6,*)'SETUPOZLAY: ',mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
-        !if (luse_obsdiag) my_diagLL => obsdiags(i_oz_ob_type,ibin)
         if (luse_obsdiag) my_diagLL => odiagLL(ibin)
 
         if(in_curbin) then
@@ -825,7 +824,6 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   call final_vars_
 
 ! clean up
-  call dtime_show('setupozlay','diagsave:oz',i_oz_ob_type)
   if(ozone_diagsave) deallocate(rdiagbuf)
 
 ! End of routine
@@ -924,42 +922,6 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
 end subroutine setupozlay
 end module oz_setup
 
-subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
-     obstype,isis,is,ozone_diagsave,init_pass)
-!-- This is a wrapper for a backward compatible interface.
-
-  use m_obsdiags, only: obsLL   => obsLLIsts
-  use m_obsdiags, only: odiagLL => obsdiags
-  use oz_setup  , only: setup
-
-  use obsmod, only: itype => i_oz_ob_type
-  use ozinfo, only: jpch_oz
-  use kinds , only: i_kind, r_kind
-  implicit none
-! !INPUT PARAMETERS:
-
-  integer(i_kind)                  , intent(in   ) :: lunin  ! unit from which to read observations
-  integer(i_kind)                  , intent(in   ) :: mype   ! mpi task id
-  integer(i_kind)                  , intent(in   ) :: nlevs  ! number of levels (layer amounts + total column) per obs   
-  integer(i_kind)                  , intent(in   ) :: nreal  ! number of pieces of non-ozone info (location, time, etc) per obs
-  integer(i_kind)                  , intent(in   ) :: nobs   ! number of observations
-  character(20)                    , intent(in   ) :: isis   ! sensor/instrument/satellite id
-  integer(i_kind)                  , intent(in   ) :: is     ! integer(i_kind) counter for number of obs types to process
-
-  character(10)                    , intent(in   ) :: obstype          ! type of ozone obs
-  logical                          , intent(in   ) :: ozone_diagsave   ! switch on diagnostic output (.false.=no output)
-  logical                          , intent(in   ) :: init_pass        ! state of "setup" processing
-
-! !INPUT/OUTPUT PARAMETERS:
-
-  real(r_kind),dimension(9,jpch_oz), intent(inout) :: stats_oz ! sums for various statistics as 
-                                                               ! a function of level
-
-  call setup(obsLL(itype,:),odiagLL(itype,:), &
-        lunin,mype,stats_oz,nlevs,nreal,nobs, &
-     obstype,isis,is,ozone_diagsave,init_pass)
-end subroutine setupozlay
-
 module o3l_setup
   implicit none
   private
@@ -1035,7 +997,7 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use m_obsdiagNode, only : obsdiagNode_get
   use m_obsdiagNode, only : obsdiagNode_assert
 
-  use obsmod, only : i_o3l_ob_type,dplat,nobskeep
+  use obsmod, only : dplat,nobskeep
   use obsmod, only : mype_diaghdr,dirname,time_offset,ianldate
   use obsmod, only : lobsdiag_allocated,lobsdiagsave,lobsdiag_forenkf
   use obsmod, only: netcdf_diag, binary_diag, dirname
@@ -1062,7 +1024,7 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
   use jfunc, only : jiter,last,miter,jiterstart
   
-  use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use m_dtime, only: dtime_setup, dtime_check
 
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
@@ -1233,7 +1195,6 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
         ibin = 1
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*) 'SETUPOZLEV: ', mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
-     !if (luse_obsdiag) my_diagLL => obsdiags(i_o3l_ob_type,ibin)
      if (luse_obsdiag) my_diagLL => odiagLL(ibin)
 
 !    Link obs to diagnostics structure
@@ -1481,7 +1442,6 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   call final_vars_
 
 ! clean up
-  call dtime_show('setupozlev','diagsave:ozlv',i_o3l_ob_type)
   if(ozone_diagsave) deallocate(rdiagbuf)
 
 ! End of routine
@@ -1663,40 +1623,3 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
 end subroutine setupozlev
 end module o3l_setup
-
-subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
-     obstype,isis,is,ozone_diagsave,init_pass)
-!-- This is a wrapper for a backward compatible interface.
-
-  use m_obsdiags, only: obsLL   => obsLLists
-  use m_obsdiags, only: odiagLL => obsdiags
-  use o3l_setup , only: setup
-
-  use obsmod, only: itype => i_o3l_ob_type
-  use ozinfo, only: jpch_oz
-  use kinds , only: i_kind, r_kind
-
-  implicit none
-! !INPUT PARAMETERS:
-
-  integer(i_kind)                  , intent(in   ) :: lunin  ! unit from which to read observations
-  integer(i_kind)                  , intent(in   ) :: mype   ! mpi task id
-  integer(i_kind)                  , intent(in   ) :: nlevs  ! number of levels (layer amounts + total column) per obs   
-  integer(i_kind)                  , intent(in   ) :: nreal  ! number of pieces of non-ozone info (location, time, etc) per obs
-  integer(i_kind)                  , intent(in   ) :: nobs   ! number of observations
-  character(20)                    , intent(in   ) :: isis   ! sensor/instrument/satellite id
-  integer(i_kind)                  , intent(in   ) :: is     ! integer(i_kind) counter for number of obs types to process
-
-  character(10)                    , intent(in   ) :: obstype          ! type of ozone obs
-  logical                          , intent(in   ) :: ozone_diagsave   ! switch on diagnostic output (.false.=no output)
-  logical                          , intent(in   ) :: init_pass        ! state of "setup" processing
-
-! !INPUT/OUTPUT PARAMETERS:
-
-  real(r_kind),dimension(9,jpch_oz), intent(inout) :: stats_oz ! sums for various statistics as 
-                                                               ! a function of level
-
-  call setup(obsLL(itype,:),odiagLL(itype,:),   &
-     lunin,mype,stats_oz,nlevs,nreal,nobs,      &
-     obstype,isis,is,ozone_diagsave,init_pass)
-end subroutine setupozlev

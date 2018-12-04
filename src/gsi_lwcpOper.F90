@@ -24,12 +24,17 @@ module gsi_lwcpOper
 ! module interface:
 
   use gsi_obOper, only: obOper
+  use m_lwcpNode, only: lwcpNode
+  use kinds     , only: i_kind
   implicit none
   public:: lwcpOper      ! data stracture
+  public:: lwcpOper_config
+    interface lwcpOper_config; module procedure config_; end interface
 
   type,extends(obOper):: lwcpOper
   contains
     procedure,nopass:: mytype
+    procedure,nopass:: nodeMold
     procedure:: setup_
     procedure:: intjo1_
     procedure:: stpjo1_
@@ -37,8 +42,54 @@ module gsi_lwcpOper
 
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   character(len=*),parameter :: myname='gsi_lwcpOper'
+  type(lwcpNode),save,target:: myNodeMold_
+
+!> Configurations specific to this observation operator.
+
+  logical,parameter::                         DEFAULT_USE_NSIG_SAVED_=.false.
+  logical             ,save:: use_nsig_saved_=DEFAULT_USE_NSIG_SAVED_
+  integer(kind=i_kind),save::     nsig_saved_
+
+!> At gsi_obOpers coupling time, e.g. 
+!>
+!>   > call obopers_config()
+!>
+!> which does
+!>
+!>   >  use gfs_stratosphere, only: use_gfs_stratosphere, nsig_save
+!>   >  if (use_gfs_stratosphere) then
+!>   >    call lwcpOper_config(nsig_save=nsig_save)
+!>   >  endif
+!>
+
 
 contains
+subroutine config_(nsig_save,use_nsig_save)
+!> config_() is the place to couple configurations external to
+!> gsi_lwOper and gsi_obOper.  Some of these external configurations will
+!> gradually become obsolete through refactorings.
+
+!> call 
+
+  implicit none
+  integer(i_kind),optional::     nsig_save      ! set nsig_save if present
+  logical        ,optional:: use_nsig_save      ! switch the use of nsig_save 
+
+  logical:: reset_
+  reset_=.true.
+  if(present(use_nsig_save)) then
+    use_nsig_saved_=use_nsig_save
+    reset_=.false.
+  endif
+  if(present(    nsig_save)) then
+        nsig_saved_=nsig_save
+    use_nsig_saved_=.true.
+    reset_=.false.
+  endif
+  if(reset_) use_nsig_saved_=DEFAULT_USE_NSIG_SAVED_
+end subroutine config_
+
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   function mytype(nodetype)
     implicit none
     character(len=:),allocatable:: mytype
@@ -48,6 +99,14 @@ contains
       if(nodetype) mytype='lwcp'
     endif
   end function mytype
+
+  function nodeMold()
+  !> %nodeMold() returns a mold of its corresponding obsNode
+    use m_obsNode, only: obsNode
+    implicit none
+    class(obsNode),pointer:: nodeMold
+    nodeMold => myNodeMold_
+  end function nodeMold
 
   subroutine setup_(self, lunin, mype, is, nobs, init_pass,last_pass)
     use lwcp_setup, only: setup
@@ -89,8 +148,14 @@ contains
 
     diagsave  = write_diag(jiter) .and. diag_conv
 
-    call setup(self%obsLL(:), self%odiagLL(:), &
+    if(use_nsig_saved_) then
+      call setup(self%obsLL(:), self%odiagLL(:), &
+        lunin,mype,bwork,awork(:,iwork),nele,nobs,is,diagsave, &
+        nsig_saved=nsig_saved_)
+    else
+      call setup(self%obsLL(:), self%odiagLL(:), &
         lunin,mype,bwork,awork(:,iwork),nele,nobs,is,diagsave)
+    endif
 
   end subroutine setup_
 

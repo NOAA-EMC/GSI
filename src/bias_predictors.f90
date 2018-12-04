@@ -13,6 +13,9 @@ module bias_predictors
 !   2013-05-21  zhu    - add aircraft temperature bias correction coefficients
 !   2014-02-07  todling - move bias preds update inside this module
 !   2018-08-10  guo     - added a []_getdim() interface.
+!   2018-11-29  guo     - replaced CRTM:file_utility::get_lun() with a new but
+!                         standard Fortran open(newunit=iunit)
+!
 !
 ! subroutines included:
 !   sub setup_predictors
@@ -32,7 +35,7 @@ module bias_predictors
 
 use kinds, only: r_kind,i_kind
 use constants, only : zero
-use file_utility, only : get_lun
+!use file_utility, only : get_lun       ! this is no longer needed.
 
 implicit none
 save
@@ -327,8 +330,8 @@ subroutine read_preds (yst,filename)
   allwell=.true.
   allocate(preds(nsclen),predp(npclen),predt(ntclen))
 
-  iunit=get_lun()
-  open(iunit,file=trim(filename),form='unformatted')
+  !iunit=get_lun()      ! no longer needed in Fortran
+  open(newunit=iunit,file=trim(filename),form='unformatted')
   read(iunit)nsclen_in,npclen_in,ntclen_in
   if(nsclen_in/=nsclen .or. npclen_in/=npclen) then
      allwell=.false.
@@ -393,9 +396,9 @@ subroutine write_preds (yst,filename,mype)
     predt = yst%values(ii+1:ii+ntclen)
   endif
 
-  iunit=get_lun()
+  !iunit=get_lun()      ! no longer needed in Fortran
   if (mype==0) then
-     open(iunit,file=trim(filename),form='unformatted')
+     open(newunit=iunit,file=trim(filename),form='unformatted')
      write(iunit)nsclen,npclen,ntclen
      if(ntclen>0) then
         write(iunit)preds,predp,predt

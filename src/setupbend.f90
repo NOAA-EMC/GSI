@@ -116,7 +116,7 @@ subroutine setupbend(obsLL,odiagLL, &
   use kinds, only: r_kind,i_kind
   use m_gpsStats, only: gps_allhead,gps_alltail
   use obsmod , only: nprof_gps,grids_dim,lobsdiag_allocated,&
-      i_gps_ob_type,lobsdiagsave,nobskeep,&
+      lobsdiagsave,nobskeep,&
       time_offset,lobsdiag_forenkf
   use m_obsNode, only: obsNode
   use m_gpsNode , only: gpsNode
@@ -145,7 +145,7 @@ subroutine setupbend(obsLL,odiagLL, &
   use lagmod, only: slagdw, slagdw_TL
   use jfunc, only: jiter,miter,jiterstart
   use convinfo, only: cermin,cermax,cgross,cvar_b,cvar_pg,ictype
-  use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use m_dtime, only: dtime_setup, dtime_check
 
   use m_gpsrhs, only: muse
   use m_gpsrhs, only: dbend_loc,xj
@@ -870,7 +870,6 @@ subroutine setupbend(obsLL,odiagLL, &
         ibin = 1
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins, ibin=',nobs_bins,ibin
-     !if(luse_obsdiag) my_diagLL => obsdiags(i_gps_ob_type,ibin)
      if(luse_obsdiag) my_diagLL => odiagLL(ibin)
 
 !    Link obs to diagnostics structure
@@ -1161,7 +1160,6 @@ subroutine setupbend(obsLL,odiagLL, &
   data_ihgt(:)=data(ihgt,:)
   data_igps(:)=data(igps,:)
 
-  call dtime_show(myname,'diagsave:bend',i_gps_ob_type)
   call gpsrhs_unaliases(is)
   if(last_pass) call gpsrhs_dealloc(is)
 
@@ -1258,30 +1256,3 @@ subroutine setupbend(obsLL,odiagLL, &
 
 end subroutine setupbend
 end module gpsbend_setup
-
-subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pass,conv_diagsave)
-!-- This is a wrapper for a backward compatible interface.
-
-  use m_obsdiags, only: obsLL   => obsLLists
-  use m_obsdiags, only: odiagLL => obsdiags
-  use gpsbend_setup, only: setup
-
-  use obsmod      , only: itype => i_gps_ob_type
-  use gridmod     , only: nsig
-  use obsmod      , only: nprof_gps
-  use kinds       , only: i_kind, r_kind
-  implicit none
-
-! Declare passed variables
-  integer(i_kind)                         ,intent(in   ) :: lunin,mype,nele,nobs
-  real(r_kind),dimension(100+7*nsig)      ,intent(inout) :: awork
-  real(r_kind),dimension(max(1,nprof_gps)),intent(inout) :: toss_gps_sub
-
-  integer(i_kind), intent(in):: is              ! index to GPSbend buffer variables
-  logical        , intent(in):: init_pass       ! flag the pass for the first background bin
-  logical        , intent(in):: last_pass       ! flag the pass for the last background bin
-  logical        , intent(in):: conv_diagsave   ! save diagnostics file
-
-  call setup(obsLL(itype,:),odiagLL(itype,:), &
-        lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pass,conv_diagsave)
-end subroutine setupbend

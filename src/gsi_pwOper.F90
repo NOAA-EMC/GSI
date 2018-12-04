@@ -24,12 +24,14 @@ module gsi_pwOper
 ! module interface:
 
   use gsi_obOper, only: obOper
+  use m_pwNode  , only: pwNode
   implicit none
   public:: pwOper      ! data stracture
 
   type,extends(obOper):: pwOper
   contains
     procedure,nopass:: mytype
+    procedure,nopass:: nodeMold
     procedure:: setup_
     procedure:: intjo1_
     procedure:: stpjo1_
@@ -37,6 +39,7 @@ module gsi_pwOper
 
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   character(len=*),parameter :: myname='gsi_pwOper'
+  type(pwNode),save,target:: myNodeMold_
 
 contains
   function mytype(nodetype)
@@ -48,6 +51,14 @@ contains
       if(nodetype) mytype='pw'
     endif
   end function mytype
+
+  function nodeMold()
+  !> %nodeMold() returns a mold of its corresponding obsNode
+    use m_obsNode, only: obsNode
+    implicit none
+    class(obsNode),pointer:: nodeMold
+    nodeMold => myNodeMold_
+  end function nodeMold
 
   subroutine setup_(self, lunin, mype, is, nobs, init_pass,last_pass)
     use pw_setup, only: setup

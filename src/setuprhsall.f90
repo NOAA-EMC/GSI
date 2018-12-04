@@ -117,7 +117,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use constants, only: zero,one,fv,zero_quad
   use guess_grids, only: load_prsges,load_geop_hgt,load_gsdpbl_hgt
   use guess_grids, only: ges_tsen,nfldsig
-  use obsmod, only: nsat1,iadate,nobs_type,obscounts,&
+  use obsmod, only: nsat1,iadate,&
        ndat,obs_setup,&
        dtype,&
        dirname,write_diag,ditype,lobserver,&
@@ -126,6 +126,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use obsmod, only: lobsdiagsave
   use obsmod, only: binary_diag
   use obs_sensitivity, only: lobsensfc, lsensrecompute
+  use obs_sensitivity, only: obsensCounts_realloc
   use radinfo, only: newpc4pred
   use radinfo, only: mype_rad,jpch_rad,retrieval,fbias,npred,ostats,rstats
   use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,ostats_t,rstats_t,npredt,ntail
@@ -174,11 +175,12 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use m_obsdiags, only: obsdiags_write
   use m_obsdiags, only: inquire_obsdiags => obsdiags_inquire
 
-  use gsi_obOperTypeManager, only: obOper_typeMold
   use gsi_obOperTypeManager, only: obOper_typeIndex
+  use gsi_obOperTypeManager, only: nobs_type => obOper_count
   use gsi_obOper, only: obOper
-  use gsi_obOper, only: obOper_create
-  use gsi_obOper, only: obOper_destroy
+  use m_obsdiags, only: obOpers_config
+  use m_obsdiags, only: obOper_create
+  use m_obsdiags, only: obOper_destroy
 
   use mpeu_util, only: die,warn,perr
   use mpeu_util, only: basename
@@ -242,7 +244,8 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 ! Initialize timer
   call timer_ini('setuprhsall')
 
-
+! Because I have to make a test
+  luse_obsdiag = luse_obsdiag .or. OBSDIAGS_RELOAD
 
 ! Initialize variables and constants.
   first = jiter == jiterstart   ! .true. on first outer iter
@@ -276,41 +279,36 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
         ! often refered as the "split-observer" mode.  In this mode, preloading
         ! of the forecast states of all time steps, is often not practical.
 
-  if(init_pass) call destroyobs()
-  if(init_pass) call obsdiags_reset(obsdiags_keep=lobsdiagsave)   ! replacing destroyobs()
+    call obOpers_config()
+
+    call destroyobs()   ! remaining object, obsmod::nobs_sub(:,:)
+    call obsensCounts_realloc(nobs_type,nobs_bins)
+
+!++     call obOpers_reset(jiter,luse_obsdiag=luse_obsdiag,obsdiags_keep=lobsdiagsave)   ! replacing destroyobs()
+    call obsdiags_reset(obsdiags_keep=lobsdiagsave)   ! replacing destroyobs()
 
 ! Read observation diagnostics if available
-  if (l4dvar) then
-     getodiag=(.not.lobserver) .or. (lobserver.and.jiter>1)
-     clfile='obsdiags.ZZZ'
-     if (lobsensfc .and. .not.lsensrecompute) then
+    if (l4dvar) then
+      getodiag=(.not.lobserver) .or. (lobserver.and.jiter>1)
+      clfile='obsdiags.ZZZ'
+      if (lobsensfc .and. .not.lsensrecompute) then
         write(clfile(10:12),'(I3.3)') miter
-        !call read_obsdiags(clfile)
         call obsdiags_read(clfile,mPEs=mPEs_observer,jiter_expected=miter)      ! replacing read_obsdiags()
         call inquire_obsdiags(miter)
-     else if (getodiag) then
+      else if (getodiag) then
         if (.not.lobserver) then
            write(clfile(10:12),'(I3.3)') jiter
-           !call read_obsdiags(clfile)
            call obsdiags_read(clfile,mPEs=mPEs_observer,jiter_expected=jiter)   ! replacing read_obsdiags()
            call inquire_obsdiags(miter)
         endif
-     endif
-  endif
+      endif
+    endif
 
-  if(init_pass) then
-     if (allocated(obscounts)) then
-        write(6,*)'setuprhsall: obscounts allocated'
-        call stop2(285)
-     end if
-     allocate(obscounts(nobs_type,nobs_bins))
-  endif
-
-  if (jiter>1.and.lobskeep) then
-     nobskeep=1
-  else
-     nobskeep=0
-  endif
+    if (jiter>1.and.lobskeep) then
+      nobskeep=1
+    else
+      nobskeep=0
+    endif
   endif ! <init_pass>
 
 ! The 3d pressure and geopotential grids are initially loaded at
@@ -431,7 +429,8 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !    Loop over data types to process (for polymorphic obOper%setup() calls)
      do is=1,ndat
 
-        is_obOper => obOper_create(obOper_typeMold(dtype(is)))
+        is_obOper => obOper_create(dtype(is))
+
                 if(.not.associated(is_obOper)) then
                   call perr(myname,'unexpected obOper, is =',is)
                   call perr(myname,'                dtype =',dtype(is))

@@ -66,7 +66,7 @@ subroutine setuppcp(obsLL,odiagLL,lunin,mype,aivals,nele,nobs,&
   use m_obsdiagNode, only : obsdiagNode_assert
 
   use obsmod, only: time_offset
-  use obsmod, only: i_pcp_ob_type,lobsdiagsave,ianldate
+  use obsmod, only: lobsdiagsave,ianldate
   use obsmod, only: mype_diaghdr,nobskeep,lobsdiag_allocated,dirname
   use m_obsNode, only: obsNode
   use m_pcpNode, only: pcpNode
@@ -83,7 +83,7 @@ subroutine setuppcp(obsLL,odiagLL,lunin,mype,aivals,nele,nobs,&
 
   use jfunc, only: jiter,miter
 
-  use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use m_dtime, only: dtime_setup, dtime_check
 
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
@@ -542,7 +542,6 @@ endif
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
-     !if (luse_obsdiag) my_diagLL => obsdiags(i_pcp_ob_type,ibin)
      if (luse_obsdiag) my_diagLL => odiagLL(ibin)
 
 !    Link obs to diagnostics structure
@@ -1128,7 +1127,6 @@ endif
   if (pcp_diagsave) then
      close(4)
      deallocate(diagbuf)
-     call dtime_show(myname,'diagsave:pcp',i_pcp_ob_type)
   endif
 
 ! End of routine
@@ -1347,43 +1345,3 @@ endif
 
 end subroutine setuppcp
 end module pcp_setup
-
-subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
-     obstype,isis,is,pcp_diagsave,init_pass)
-!-- This is a wrapper for a backward compatible interface.
-
-  use m_obsdiags, only: obsLL   => obsLLists
-  use m_obsdiags, only: odiagLL => obsdiags
-  use pcp_setup , only: setup
-  use obsmod  , only: itype => i_pcp_ob_type
-  use obsmod  , only: ndat
-  use kinds   , only: i_kind, r_kind
-  implicit none
-
-! !INPUT PARAMETERS:
-
-  integer(i_kind)                , intent(in   ) :: lunin          ! unit from which to read 
-                                                                   !   precpitation observations
-  integer(i_kind)                , intent(in   ) :: mype           ! mpi task id
-  integer(i_kind)                , intent(in   ) :: nele           ! number of pieces of information 
-                                                                   !   per precipitation observation
-  integer(i_kind)                , intent(in   ) :: nobs           ! number of precipitation obs to process
-  character(len=20)              , intent(in   ) :: isis           ! sensor/instrument/satellite id
-  integer(i_kind)                , intent(in   ) :: is             ! counter for number of obs types to process
- 
-
-  character(10)                  , intent(in   ) :: obstype ! type of precipitation observation
- 
-  logical                        , intent(in   ) :: pcp_diagsave   ! switch diagnostic output on/off
-                                                                   !   (.false.=no output)
-  logical                        , intent(in   ) :: init_pass      ! state of "setup" processing
-
-
-! !INPUT/OUTPUT PARAMETERS:
-
-  real(r_kind),dimension(40,ndat), intent(inout) :: aivals ! array holding sums for
-                                                           !  various statistical output
-  call setup(obsLL(itype,:),odiagLL(itype,:),lunin,mype,aivals,nele,nobs,&
-     obstype,isis,is,pcp_diagsave,init_pass)
-end subroutine setuppcp
-!.

@@ -36,11 +36,12 @@ subroutine penal(xhat)
   use m_tNode , only:  tNode, tNode_typecast, tNode_nextcast
   use m_wNode , only:  wNode, wNode_typecast, wNode_nextcast
   use m_psNode, only: psNode,psNode_typecast,psNode_nextcast
-  use m_obsLList, only: obsLList_headNode
-  use m_obsdiags, only:  qhead
-  use m_obsdiags, only:  thead
-  use m_obsdiags, only:  whead
-  use m_obsdiags, only: pshead
+  use m_obsdiags, only: obOper_headNode
+  use gsi_obOperTypeManager, only: iobOper_q
+  use gsi_obOperTypeManager, only: iobOper_t
+  use gsi_obOperTypeManager, only: iobOper_w
+  use gsi_obOperTypeManager, only: iobOper_ps
+
   use jfunc, only: jiterstart,jiter
   use convinfo, only: ictype,nconvtype,ioctype
   use gsi_bundlemod, only: gsi_bundle
@@ -63,7 +64,6 @@ subroutine penal(xhat)
   integer(i_kind) itype,ncat,k1
   real(r_kind),pointer,dimension(:):: xhat_u,xhat_v,xhat_q,xhat_t,xhat_p
 
-  class(obsNode),pointer:: anode
   type( qNode),pointer::  qptr
   type( tNode),pointer::  tptr
   type( wNode),pointer::  wptr
@@ -87,10 +87,11 @@ subroutine penal(xhat)
      do ibin=1,nobs_bins
 
 !       Moisture
-        !qptr =>  qNode_typecast(obsLList_headNode(qhead(ibin)))
-        anode => obsLList_headNode(qhead(ibin))
-        qptr  => qNode_typecast(anode)
-        anode => null()
+        !!qptr =>  qNode_typecast(obsLList_headNode(qhead(ibin)))
+        !anode => obsLList_headNode(qhead(ibin))
+        !qptr  => qNode_typecast(anode)
+        !anode => null()
+        qptr  => qNode_typecast(obOper_headNode(iobOper_q,ibin))
         do while (associated(qptr))
            n=qptr%kx
            itype=ictype(n)
@@ -116,10 +117,11 @@ subroutine penal(xhat)
 !       if(mype==29)write(0,*)'q2 trace,pen=',trace(k1,n),penalty(k1,n),k1,n
 
 !       Temperature
-        !tptr =>  tNode_typecast(obsLList_headNode(thead(ibin)))
-        anode => obsLList_headNode(thead(ibin))
-        tptr  => tNode_typecast(anode)
-        anode => null()
+        !!tptr =>  tNode_typecast(obsLList_headNode(thead(ibin)))
+        !anode => obsLList_headNode(thead(ibin))
+        !tptr  => tNode_typecast(anode)
+        !anode => null()
+        tptr  => tNode_typecast(obOper_headNode(iobOper_t,ibin))
         do while (associated(tptr))
            n=tptr%kx
            itype=ictype(n)
@@ -144,10 +146,11 @@ subroutine penal(xhat)
         end do
      
 !       Surface pressure
-        !psptr => psNode_typecast(obsLList_headNode(pshead(ibin)))
-        anode => obsLList_headNode(pshead(ibin))
-        psptr => psNode_typecast(anode)
-        anode => null()
+        !!psptr => psNode_typecast(obsLList_headNode(pshead(ibin)))
+        !anode => obsLList_headNode(pshead(ibin))
+        !psptr => psNode_typecast(anode)
+        !anode => null()
+        psptr  => psNode_typecast(obOper_headNode(iobOper_ps,ibin))
         do while (associated(psptr))
            n=psptr%kx
            itype=ictype(n)
@@ -165,10 +168,11 @@ subroutine penal(xhat)
         end do
 
 !       Winds
-        !wptr =>  wNode_typecast(obsLList_headNode(whead(ibin)))
-        anode => obsLList_headNode(whead(ibin))
-        wptr  =>  wNode_typecast(anode)
-        anode => null()
+        !!wptr =>  wNode_typecast(obsLList_headNode(whead(ibin)))
+        !anode => obsLList_headNode(whead(ibin))
+        !wptr  =>  wNode_typecast(anode)
+        !anode => null()
+        wptr  => wNode_typecast(obOper_headNode(iobOper_w,ibin))
         do while (associated(wptr))
            n=wptr%kx
            itype=ictype(n)
@@ -206,10 +210,11 @@ subroutine penal(xhat)
  
 !       Moisture
 !       ratiomin=one
-        !qptr =>  qNode_typecast(obsLList_headNode(qhead(ibin)))
-        anode => obsLList_headNode(qhead(ibin))
-        qptr  => qNode_typecast(anode)
-        anode => null()
+        !!qptr =>  qNode_typecast(obsLList_headNode(qhead(ibin)))
+        !anode => obsLList_headNode(qhead(ibin))
+        !qptr  => qNode_typecast(anode)
+        !anode => null()
+        qptr  => qNode_typecast(obOper_headNode(iobOper_q,ibin))
         do while (associated(qptr))
            n=qptr%kx
            itype=ictype(n)
@@ -235,10 +240,11 @@ subroutine penal(xhat)
      
 !       if(mype==29)write(0,*)'q2 trace,pen=',trace(k1,n),cat_num(k1,n),k1,n
 !       Temperature
-        !tptr =>  tNode_typecast(obsLList_headNode(thead(ibin)))
-        anode => obsLList_headNode(thead(ibin))
-        tptr  => tNode_typecast(anode)
-        anode => null()
+        !!tptr =>  tNode_typecast(obsLList_headNode(thead(ibin)))
+        !anode => obsLList_headNode(thead(ibin))
+        !tptr  => tNode_typecast(anode)
+        !anode => null()
+        tptr  => tNode_typecast(obOper_headNode(iobOper_t,ibin))
         do while (associated(tptr))
            n=tptr%kx
            itype=ictype(n)
@@ -262,10 +268,11 @@ subroutine penal(xhat)
            tptr =>  tNode_nextcast(tptr)
         end do
 !       Surface pressure
-        !psptr => psNode_typecast(obsLList_headNode(pshead(ibin)))
-        anode => obsLList_headNode(pshead(ibin))
-        psptr => psNode_typecast(anode)
-        anode => null()
+        !!psptr => psNode_typecast(obsLList_headNode(pshead(ibin)))
+        !anode => obsLList_headNode(pshead(ibin))
+        !psptr => psNode_typecast(anode)
+        !anode => null()
+        psptr  => psNode_typecast(obOper_headNode(iobOper_ps,ibin))
         do while (associated(psptr))
            n=psptr%kx
            itype=ictype(n)
@@ -282,10 +289,11 @@ subroutine penal(xhat)
            psptr => psNode_nextcast(psptr)
         end do
 !       Winds
-        !wptr =>  wNode_typecast(obsLList_headNode(whead(ibin)))
-        anode => obsLList_headNode(whead(ibin))
-        wptr  => wNode_typecast(anode)
-        anode => null()
+        !!wptr =>  wNode_typecast(obsLList_headNode(whead(ibin)))
+        !anode => obsLList_headNode(whead(ibin))
+        !wptr  => wNode_typecast(anode)
+        !anode => null()
+        wptr  => wNode_typecast(obOper_headNode(iobOper_w,ibin))
         do while (associated(wptr))
            n=wptr%kx
            itype=ictype(n)

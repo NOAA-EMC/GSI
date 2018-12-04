@@ -51,7 +51,7 @@ subroutine setuplag(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
   use m_obsdiagNode, only: obsdiagNode_get
   use m_obsdiagNode, only: obsdiagNode_assert
 
-  use obsmod, only: i_lag_ob_type,&
+  use obsmod, only: &
       lobsdiagsave,nobskeep,lobsdiag_allocated,&
       time_offset
   use m_obsNode, only: obsNode
@@ -74,7 +74,7 @@ subroutine setuplag(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype,icuse
 
-  use m_dtime,only: dtime_setup,dtime_check,dtime_show
+  use m_dtime,only: dtime_setup,dtime_check
 
   use lag_fields, only: orig_lag_num,lag_kfirst
   use lag_fields, only: lag_nl_vec,lag_u_full,lag_v_full
@@ -214,7 +214,6 @@ subroutine setuplag(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
         print '(A,I2.2,A,I4.4,A,I4)'      ,'mype ',mype,' data ',i,' obsbin ',ibin
      end if
 
-     !if (luse_obsdiag) my_diagLL => obsdiags(i_lag_ob_type,ibin)
      if (luse_obsdiag) my_diagLL => odiagLL(ibin)
 
 !    Link obs to diagnostics structure
@@ -589,7 +588,6 @@ subroutine setuplag(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
 
 ! Write information to diagnostic file
   if(conv_diagsave .and. ii>0)then
-     call dtime_show('setuplag','diagsave:lag',i_lag_ob_type)
      write(7)'lag',nchar,nreal,ii,mype,ioff0
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
      deallocate(cdiagbuf,rdiagbuf)
@@ -607,27 +605,3 @@ contains
   end subroutine contents_netcdf_diag_
 end subroutine setuplag
 end module lag_setup
-
-subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
-!-- This is a wrapper for a backward compatible interface.
-
-  use m_obsdiags, only: obsLL   => obsLLists
-  use m_obsdiags, only: odiagLL => obsdiags
-  use lag_setup , only: setup
-
-  use obsmod  , only: itype => i_lag_ob_type
-  use gridmod , only: nsig
-  use qcmod   , only: npres_print
-  use convinfo, only: nconvtype
-  use kinds   , only: i_kind, r_kind
-  implicit none
-
-  logical                                          ,intent(in   ) :: conv_diagsave
-  integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
-  real(r_kind),dimension(7*nsig+100)               ,intent(inout) :: awork
-  real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
-  integer(i_kind)                                  ,intent(in   ) :: is ! ndat index
-
-  call setup(obsLL(itype,:),odiagLL(itype,:), &
-        lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
-end subroutine setuplag

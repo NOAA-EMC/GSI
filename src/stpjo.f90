@@ -260,10 +260,9 @@ subroutine stpjo(dval,dbias,xval,xbias,sges,pbcjo,nstep)
   use bias_predictors, only: predictors
   use gsi_bundlemod, only: gsi_bundle
 
-  use gsi_obOperTypeManager, only: obOper_typemold
   use gsi_obOper, only: obOper
-  use gsi_obOper, only: obOper_create
-  use gsi_obOper, only: obOper_destroy
+  use m_obsdiags, only: obOper_create
+  use m_obsdiags, only: obOper_destroy
 
   use intradmod, only: setrad
 
@@ -277,7 +276,7 @@ subroutine stpjo(dval,dbias,xval,xbias,sges,pbcjo,nstep)
   type(predictors)                ,intent(in   ) :: xbias
   integer(i_kind)                 ,intent(in   ) :: nstep
   real(r_kind),dimension(max(1,nstep)) ,intent(in   ) :: sges
-  real(r_quad),dimension(:,:,:)  ,intent(inout) :: pbcjo        !  (:,nobs_type,nobs_bins)
+  real(r_quad),dimension(:,:,:)  ,intent(inout) :: pbcjo        !  (:,obOper_count,nobs_bins)
 
 ! Declare local variables
   character(len=*),parameter:: myname_=myname//"::stpjo"
@@ -293,10 +292,10 @@ subroutine stpjo(dval,dbias,xval,xbias,sges,pbcjo,nstep)
     ll=ll_jo(mm)
     ib=ib_jo(mm)
 
-    it_obOper => obOper_create(mold=obOper_typemold(ll))
+    it_obOper => obOper_create(ll)
         if(.not.associated(it_obOper%obsLL)) then       ! this shouldn't happen.
           call perr(myname_,'unexpected component, associate(%obsLL) =',.false.)
-          call perr(myname_,'                                  itype =',ll)
+          call perr(myname_,'                                  ioper =',ll)
           call perr(myname_,'                                   ibin =',ib)
           call perr(myname_,'                                     mm =',mm)
           call  die(myname_)
@@ -338,11 +337,10 @@ subroutine stpjo_setup(nobs_bins)
 !$$$
   use kinds, only: i_kind,r_kind,r_quad
   use gsi_bundlemod, only: gsi_bundle
-  use gsi_obOperTypeManager, only: obOper_typemold
-  use gsi_obOperTypeManager, only: nobs_type => obOper_size
+  use gsi_obOperTypeManager, only: obOper_count
   use gsi_obOper, only: obOper
-  use gsi_obOper, only: obOper_create
-  use gsi_obOper, only: obOper_destroy
+  use m_obsdiags, only: obOper_create
+  use m_obsdiags, only: obOper_destroy
   use m_obsNode , only: obsNode
   use m_obsLList, only: obsLList_headNode
   use mpeu_util , only: perr, die
@@ -358,22 +356,22 @@ subroutine stpjo_setup(nobs_bins)
   class(obsNode),pointer:: headNode
   class(obOper ),pointer:: it_obOper
 !************************************************************************************
-  call init_(nobs_type,nobs_bins)
+  call init_(obOper_count,nobs_bins)
 
     stpcnt = 0
-    do ll = 1, nobs_type        ! 1:obOper_size, contructing an OMP task list
+    do ll = 1, obOper_count       ! Not nobs_type anymore
 
-      it_obOper => obOper_create(mold=obOper_typemold(ll))
+      it_obOper => obOper_create(ll)
 
         if(.not.associated(it_obOper%obsLL)) then
           call perr(myname_,'unexpected component, associate(%obsLL) =',.false.)
-          call perr(myname_,'                                  itype =',ll)
+          call perr(myname_,'                                  ioper =',ll)
           call  die(myname_)
         endif
 
       do ib = 1,size(it_obOper%obsLL)   ! for all bins
         headNode => obsLList_headNode(it_obOper%obsLL(ib))
-        if(.not.associated(headNode)) cycle
+        if(.not.associated(headNode)) cycle     ! there is no observation node in this bin
 
         stpcnt = stpcnt +1
         ll_jo(stpcnt) = ll
@@ -382,7 +380,7 @@ subroutine stpjo_setup(nobs_bins)
       enddo     ! ib
       headNode => null()
       call obOper_destroy(it_obOper)
-    enddo       ! ll, i.e. itype of 1:obOper_ubound
+    enddo       ! ll, i.e. ioper of 1:obOper_ubound
 
     omptasks_configured_ = .true.
 

@@ -23,13 +23,15 @@ module gsi_pm2_5Oper
 
 ! module interface:
 
-  use gsi_obOper, only: obOper
+  use gsi_obOper , only: obOper
+  use m_pm2_5Node, only: pm2_5Node
   implicit none
   public:: pm2_5Oper      ! data stracture
 
   type,extends(obOper):: pm2_5Oper
   contains
     procedure,nopass:: mytype
+    procedure,nopass:: nodeMold
     procedure:: setup_
     procedure:: intjo1_
     procedure:: stpjo1_
@@ -37,6 +39,7 @@ module gsi_pm2_5Oper
 
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   character(len=*),parameter :: myname='gsi_pm2_5Oper'
+  type(pm2_5Node),save,target:: myNodeMold_
 
 contains
   function mytype(nodetype)
@@ -48,6 +51,14 @@ contains
       if(nodetype) mytype='pm2_5'
     endif
   end function mytype
+
+  function nodeMold()
+  !> %nodeMold() returns a mold of its corresponding obsNode
+    use m_obsNode, only: obsNode
+    implicit none
+    class(obsNode),pointer:: nodeMold
+    nodeMold => myNodeMold_
+  end function nodeMold
 
   subroutine setup_(self, lunin, mype, is, nobs, init_pass,last_pass)
     use pm2_5_setup, only: setup

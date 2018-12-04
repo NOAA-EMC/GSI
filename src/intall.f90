@@ -193,9 +193,6 @@ subroutine intall(sval,sbias,rval,rbias)
   use guess_grids, only: ntguessig,nfldsig
   use mpl_allreducemod, only: mpl_allreduce
 
-  use gsi_obOper, only: obOper
-  use gsi_obOper, only: obOper_create
-  use gsi_obOper, only: obOper_destroy
   implicit none
 
 ! Declare passed variables
@@ -208,8 +205,6 @@ subroutine intall(sval,sbias,rval,rbias)
 
 ! Declare local variables
   integer(i_kind) :: ibin,ii,it,i
-
-  class(obOper),pointer:: it_obOper
 
 !******************************************************************************
 ! Initialize timer

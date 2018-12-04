@@ -49,12 +49,15 @@ module m_obsNode
      real(r_kind)    :: elat = 0._r_kind      ! earth lat-lon for redistribution
      real(r_kind)    :: elon = 0._r_kind      ! earth lat-lon for redistribution
 
-!     real(r_kind)    :: dlat = 0._r_kind      ! for verification, only temorary
-!     real(r_kind)    :: dlon = 0._r_kind      ! for verification, only temorary
-
      integer(i_kind) :: idv  =-1              ! device ID
      integer(i_kind) :: iob  =-1              ! initial obs sequential ID
 
+#ifdef _TO_DO_
+     integer(i_kind):: nprof   ! count of corresponding profile locations
+     integer(i_kind):: idspl   ! cross referencing index to profile locations
+                                ! given i-th observation, corresponding profile
+                                ! is block ([]%idspl+1 : []%idspl+[]%nprof)
+#endif
   contains
 
         !----------- overrideable procedures -----------------------------------
@@ -132,8 +135,8 @@ module m_obsNode
   public:: obsNode_show         ! call obsNode_show(aNode)
         interface obsNode_show   ; module procedure show_   ; end interface
 
-  public:: obsNode_type         ! call obsNode_type(aNode)
-        interface obsNode_type   ; module procedure nodetype_   ; end interface
+  public:: obsNode_mytype       ! call obsNode_type(aNode)
+        interface obsNode_mytype ; module procedure nodetype_   ; end interface
 
   abstract interface
     subroutine intrfc_xread_(aNode,iunit,istat,diagLookup,skip)
@@ -766,7 +769,6 @@ _ENTRY_(myname_)
 
   jstat=0
   write(junit,iostat=jstat) aNode%luse,aNode%time,aNode%elat,aNode%elon, &
-                            !aNode%dlat,aNode%dlon, &
                             aNode%idv,aNode%iob
                 if(jstat/=0) then
                   call perr(myname_,'write(%(luse,elat,elon,...)), jstat =',jstat)

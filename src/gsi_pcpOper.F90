@@ -24,12 +24,14 @@ module gsi_pcpOper
 ! module interface:
 
   use gsi_obOper, only: obOper
+  use m_pcpNode , only: pcpNode
   implicit none
   public:: pcpOper      ! data stracture
 
   type,extends(obOper):: pcpOper
   contains
     procedure,nopass:: mytype
+    procedure,nopass:: nodeMold
     procedure:: setup_
     procedure:: intjo1_
     procedure:: stpjo1_
@@ -37,6 +39,7 @@ module gsi_pcpOper
 
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   character(len=*),parameter :: myname='gsi_pcpOper'
+  type(pcpNode),save,target:: myNodeMold_
 
 contains
   function mytype(nodetype)
@@ -48,6 +51,14 @@ contains
       if(nodetype) mytype='pcp'
     endif
   end function mytype
+
+  function nodeMold()
+  !> %nodeMold() returns a mold of its corresponding obsNode
+    use m_obsNode, only: obsNode
+    implicit none
+    class(obsNode),pointer:: nodeMold
+    nodeMold => myNodeMold_
+  end function nodeMold
 
   subroutine setup_(self, lunin, mype, is, nobs, init_pass,last_pass)
     use pcp_setup, only: setup

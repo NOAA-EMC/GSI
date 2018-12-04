@@ -25,7 +25,9 @@ subroutine evaljo(pjo,kobs,kprt,louter)
 !
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: nobs_type,cobstype,obscounts
+  use obs_sensitivity, only: obsensCounts_set
+  use gsi_obOperTypeManager, only: obOper_typeInfo
+  use gsi_obOperTypeManager, only: nobs_type => obOper_count
   use m_obsdiags   , only: obsdiags
   use m_obsdiagNode, only: obs_diag
   use gsi_4dvar, only: nobs_bins
@@ -52,6 +54,7 @@ subroutine evaljo(pjo,kobs,kprt,louter)
   real(r_quad)    :: zprods(nobs_type*nobs_bins)
   integer(i_kind) :: iobsgrp(nobs_type,nobs_bins),iobsglb(nobs_type,nobs_bins)
   type(obs_diag),pointer:: obsptr
+  character(len=20):: cobstype_ii
 ! ----------------------------------------------------------
 
 zprods(:)=zero_quad
@@ -130,11 +133,11 @@ IF (kprt>=2.and.mype==0) THEN
    IF (kprt>=3.and.nobs_bins>1) THEN
       write(6,400)'Observation Type','Bin','Nobs','Jo','Jo/n'
       DO ii=1,nobs_type
+         cobstype_ii=obOper_typeInfo(ii)
          DO jj=1,nobs_bins
             IF (iobsglb(ii,jj)>0) THEN
                zz=zjo2(ii,jj)/iobsglb(ii,jj)
-               write(6,100)cobstype(ii),jj,iobsglb(ii,jj),real(zjo2(ii,jj),r_kind),real(zz,r_kind)
-               !++ write(6,100) obsLL(ii,jj)%info_cobstype(),jj,iobsglb(ii,jj),real(zjo2(ii,jj),r_kind),real(zz,r_kind)
+               write(6,100)cobstype_ii,jj,iobsglb(ii,jj),real(zjo2(ii,jj),r_kind),real(zz,r_kind)
             ENDIF
          ENDDO
       ENDDO
@@ -142,10 +145,10 @@ IF (kprt>=2.and.mype==0) THEN
 
    write(6,400)'Observation Type',' ','Nobs','Jo','Jo/n'
    DO ii=1,nobs_type
+      cobstype_ii=obOper_typeInfo(ii)
       IF (iobs(ii)>0) THEN
          zz=zjo1(ii)/iobs(ii)
-         write(6,200)cobstype(ii),iobs(ii),real(zjo1(ii),r_kind),real(zz,r_kind)
-         !++ write(6,200) obsLL(ii,jj)%info_cobstype(),iobs(ii),real(zjo1(ii),r_kind),real(zz,r_kind)
+         write(6,200)cobstype_ii,iobs(ii),real(zjo1(ii),r_kind),real(zz,r_kind)
       ENDIF
    ENDDO
 
@@ -164,11 +167,7 @@ IF (kprt>=2.and.mype==0) THEN
    endif
 ENDIF
 
-if (.not.allocated(obscounts)) then
-   write(6,*)'evaljo: obscounts not allocated'
-   call stop2(125)
-end if
-obscounts(:,:)=iobsglb(:,:)
+call obsensCounts_set(iobsglb(:,:))
 
 100 format(a20,2x,i3,2x,i8,2x,es24.16,2x,f10.3)
 200 format(a20,2x,3x,2x,i8,2x,es24.16,2x,f10.3)

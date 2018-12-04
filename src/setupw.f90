@@ -30,7 +30,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use m_obsdiagNode, only: obsdiagNode_assert
 
   use obsmod, only: rmiss_single,perturb_obs,oberror_tune,lobsdiag_forenkf,&
-       i_w_ob_type,lobsdiagsave,nobskeep,lobsdiag_allocated,&
+       lobsdiagsave,nobskeep,lobsdiag_allocated,&
        time_offset,bmiss,ianldate
   use m_obsNode, only: obsNode
   use m_wNode, only: wNode
@@ -64,7 +64,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use rapidrefresh_cldsurf_mod, only: l_PBL_pseudo_SurfobsUV, pblH_ration,pps_press_incr
   use rapidrefresh_cldsurf_mod, only: l_closeobs, i_gsdqc
 
-  use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use m_dtime, only: dtime_setup, dtime_check
 
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
@@ -443,7 +443,6 @@ loop_for_all_obs: &
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
 !    Link obs to diagnostics structure
-     !if (luse_obsdiag) my_diagLL => obsdiags(i_w_ob_type,ibin)
      if (luse_obsdiag) my_diagLL => odiagLL(ibin)
 
      ! Flag static conditions to turn pbl_pseudo_surfobs on
@@ -1377,7 +1376,6 @@ loop_for_all_obs: &
   if(conv_diagsave)then
     if(netcdf_diag) call nc_diag_write
     if(binary_diag .and. ii>0)then
-       call dtime_show(myname,'diagsave:w',i_w_ob_type)
        write(7)' uv',nchar,nreal,ii,mype,ioff0
        write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
        deallocate(cdiagbuf,rdiagbuf)
@@ -1771,34 +1769,3 @@ loop_for_all_obs: &
 
 end subroutine setupw
 end module w_setup
-
-subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
-!-- This is a wrapper for a backward compatible interface.
-
-  use m_obsdiags, only: obsLL   => obsLLists
-  use m_obsdiags, only: odiagLL => obsdiags
-  use w_setup   , only: setup
-  use obsmod  , only: itype => i_w_ob_type
-  use gridmod , only: nsig
-  use qcmod   , only: npres_print
-  use convinfo, only: nconvtype
-  use kinds   , only: i_kind, r_kind
-  implicit none
-! !INPUT PARAMETERS:
-
-   integer(i_kind)                                  ,intent(in   ) :: lunin ! unit from which to read observations
-   integer(i_kind)                                  ,intent(in   ) :: mype  ! mpi task id
-   integer(i_kind)                                  ,intent(in   ) :: nele  ! number of data elements per observation
-   integer(i_kind)                                  ,intent(in   ) :: nobs  ! number of observations
-   integer(i_kind)                                  ,intent(in   ) :: is    ! ndat index
-   logical                                          ,intent(in   ) :: conv_diagsave ! logical to save innovation dignostics
-   
-! !INPUT/OUTPUT PARAMETERS:
-
-   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork ! obs-ges stats
-   real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork ! data counts and gross checks
-
-  call setup(obsLL(itype,:),odiagLL(itype,:),   &
-        lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
-end subroutine setupw
-!.

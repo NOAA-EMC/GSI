@@ -24,12 +24,15 @@ module gsi_dwOper
 ! module interface:
 
   use gsi_obOper, only: obOper
+  use m_dwNode  , only: dwNode
+
   implicit none
   public:: dwOper      ! data stracture
 
   type,extends(obOper):: dwOper
   contains
     procedure,nopass:: mytype
+    procedure,nopass:: nodeMold
     procedure:: setup_
     procedure:: intjo1_
     procedure:: stpjo1_
@@ -37,6 +40,7 @@ module gsi_dwOper
 
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   character(len=*),parameter :: myname='gsi_dwOper'
+  type(dwNode),save,target:: myNodeMold_
 
 contains
   function mytype(nodetype)
@@ -48,6 +52,14 @@ contains
       if(nodetype) mytype='dw'
     endif
   end function mytype
+
+  function nodeMold()
+  !> %nodeMold() returns a mold of its corresponding obsNode
+    use m_obsNode, only: obsNode
+    implicit none
+    class(obsNode),pointer:: nodeMold
+    nodeMold => myNodeMold_
+  end function nodeMold
 
   subroutine setup_(self, lunin, mype, is, nobs, init_pass,last_pass)
     use dw_setup, only: setup

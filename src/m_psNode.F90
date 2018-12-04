@@ -37,6 +37,7 @@ module m_psNode
      type(obs_diag), pointer :: diags => NULL()
      real(r_kind)    :: res    =0._r_kind    !  surface pressure residual
      real(r_kind)    :: err2   =0._r_kind    !  surface pressure error squared
+                                             !  in reciprocal
      real(r_kind)    :: raterr2=0._r_kind    !  square of ratio of final obs error 
                                              !  to original obs error
      real(r_kind)    :: b      =0._r_kind    !  variational quality control parameter

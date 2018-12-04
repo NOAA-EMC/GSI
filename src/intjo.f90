@@ -26,7 +26,7 @@ module intjomod
 !
 !$$$ end documentation block
 
-use gsi_obOperTypeManager, only: obOper_size
+use gsi_obOperTypeManager, only: obOper_count
 use gsi_obOperTypeManager, only: &
   iobOper_t,          iobOper_pw,         iobOper_q,          iobOper_w,          iobOper_dw,           &
   iobOper_rw,         iobOper_spd,        iobOper_oz,         iobOper_o3l,        iobOper_colvk,        &
@@ -51,7 +51,7 @@ end interface
 ! ordering for rval and qpred.  It is not necessary, and can be removed once
 ! some non-zero-diff modifications are introduced.
 
-integer(i_kind),parameter,dimension(obOper_size):: ix_obtype = (/ &
+integer(i_kind),parameter,dimension(obOper_count):: ix_obtype = (/ &
   iobOper_t,          iobOper_pw,         iobOper_q,          iobOper_w,          iobOper_dw,           &
   iobOper_rw,         iobOper_spd,        iobOper_oz,         iobOper_o3l,        iobOper_colvk,        &
   iobOper_pm2_5,      iobOper_pm10,       iobOper_ps,         iobOper_tcp,        iobOper_sst,          &
@@ -224,10 +224,9 @@ subroutine intjo_(rval,qpred,sval,sbias)
 use kinds, only: i_kind,r_quad
 use gsi_bundlemod, only: gsi_bundle
 use bias_predictors, only: predictors
-use gsi_obOperTypeManager, only: obOper_typemold
+use m_obsdiags, only: obOper_create
+use m_obsdiags, only: obOper_destroy
 use gsi_obOper, only: obOper
-use gsi_obOper, only: obOper_create
-use gsi_obOper, only: obOper_destroy
 
 use intradmod, only: setrad
 
@@ -250,11 +249,11 @@ class(obOper),pointer:: it_obOper
 !$omp parallel do  schedule(dynamic,1) private(ibin)
   do ibin=1,size(sval)
 
-    do it=1,obOper_size
+    do it=1,obOper_count
       ix=ix_obtype(it)  ! in the same type sequence as it was in the earlier
                         ! implementation, for reprodecibility
 
-      it_obOper => obOper_create(obOper_typemold(ix))
+      it_obOper => obOper_create(ix)
       call it_obOper%intjo(ibin,rval(ibin),sval(ibin),qpred(:,ibin),sbias)
       call obOper_destroy(it_obOper)
     enddo

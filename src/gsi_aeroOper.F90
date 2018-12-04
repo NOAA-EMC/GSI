@@ -25,6 +25,7 @@ module gsi_aeroOper
 
   use gsi_obOper, only: obOper
   use aero_setup, only: setup
+  use m_aeroNode, only: aeroNode
   use intaodmod , only: intjo => intaod
   use stpaodmod , only: stpjo => stpaod
   implicit none
@@ -33,6 +34,7 @@ module gsi_aeroOper
   type,extends(obOper):: aeroOper
   contains
     procedure,nopass:: mytype
+    procedure,nopass:: nodeMold
     procedure:: setup_
     procedure:: intjo1_
     procedure:: stpjo1_
@@ -40,6 +42,7 @@ module gsi_aeroOper
 
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   character(len=*),parameter :: myname='gsi_aeroOper'
+  type(aeroNode),save,target:: myNodeMold_
 
 contains
   function mytype(nodetype)
@@ -51,6 +54,14 @@ contains
       if(nodetype) mytype='aero'
     endif
   end function mytype
+
+  function nodeMold()
+  !> %nodeMold() returns a mold of its corresponding obsNode
+    use m_obsNode, only: obsNode
+    implicit none
+    class(obsNode),pointer:: nodeMold
+    nodeMold => myNodeMold_
+  end function nodeMold
 
   subroutine setup_(self, lunin, mype, is, nobs, init_pass,last_pass)
     use kinds, only: i_kind

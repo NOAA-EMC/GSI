@@ -67,11 +67,10 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
   use gridmod, only: nsig,get_ij
   use constants, only: tiny_r_kind,zero,one,three,r10
   use jfunc, only: jiter,miter
-  use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use m_dtime, only: dtime_setup, dtime_check
   use chemmod, only: laeroana_gocart, l_aoderr_table
   use aeroinfo, only: jpch_aero, nusis_aero, nuchan_aero, iuse_aero, &
        error_aero, gross_aero
-  use obsmod, only: i_aero_ob_type
   use m_obsdiagNode, only: obs_diag
   use m_obsdiagNode, only: obs_diags
   use m_obsdiagNode, only: obsdiagLList_nextNode
@@ -411,7 +410,6 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
         endif
         if (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
-        !if(luse_obsdiag) my_diagLL => obsdiags(i_aero_ob_type,ibin)
         if(luse_obsdiag) my_diagLL => odiagLL(ibin)
 
         if (in_curbin) then
@@ -594,7 +592,6 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
   deallocate(diagbufchan)
 
   if (aero_diagsave) then
-     call dtime_show(myname,'diagsave:aero',i_aero_ob_type)
      close(4)
   endif
 
@@ -615,25 +612,3 @@ contains
   end subroutine contents_netcdf_diag_
 end subroutine setupaod
 end module aero_setup
-
-subroutine setupaod(lunin,mype,nchanl,nreal,nobs,&
-     obstype,isis,is,aero_diagsave,init_pass)
-!-- This is a wrapper for a backward compatible interface.
-
-  use m_obsdiags, only: obsLL   => obsLLists
-  use m_obsdiags, only: odiagLL => obsdiags
-  use aero_setup, only: setup
-  use obsmod    , only: itype => i_aero_ob_type
-  use kinds     , only: i_kind
-  implicit none
-
-! Declare passed variables
-  logical                           ,intent(in   ) :: aero_diagsave
-  character(10)                     ,intent(in   ) :: obstype
-  character(20)                     ,intent(in   ) :: isis
-  integer(i_kind)                   ,intent(in   ) :: lunin,mype,nchanl,nreal,nobs,is
-  logical                           ,intent(in   ) :: init_pass  ! state of "setup" processing
-
-  call setup(obsLL(itype,:),odiagLL(itype,:),lunin,mype,nchanl,nreal,nobs,&
-     obstype,isis,is,aero_diagsave,init_pass)
-end subroutine setupaod

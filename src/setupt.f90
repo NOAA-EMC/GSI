@@ -29,7 +29,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use m_obsdiagNode, only: obsdiagNode_assert
 
   use obsmod, only: sfcmodel,perturb_obs,oberror_tune,lobsdiag_forenkf,ianldate,&
-       i_t_ob_type,lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
+       lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use m_obsNode, only: obsNode
   use m_tNode, only: tNode
   use m_tNode, only: tNode_appendto
@@ -73,7 +73,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use aircraftinfo, only: npredt,predt,aircraft_t_bc_pof,aircraft_t_bc, &
        aircraft_t_bc_ext,ostats_t,rstats_t,upd_pred_t
 
-  use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use m_dtime, only: dtime_setup, dtime_check
 
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
@@ -470,7 +470,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
-     !if(luse_obsdiag) my_diagLL => obsdiags(i_t_ob_type,ibin)
      if(luse_obsdiag) my_diagLL => odiagLL(ibin)
 
 !    Link obs to diagnostics structure
@@ -1723,35 +1722,3 @@ integer(i_kind) function ifind (sid,xsid,nsid)
   return
 end function ifind
 end module t_setup
-
-subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
-!-- This is a wrapper for a backward compatible interface.
-
-  use m_obsdiags, only: obsLL   => obsLLists
-  use m_obsdiags, only: odiagLL => obsdiags
-  use t_setup   , only: setup
-  use obsmod  , only: itype => i_t_ob_type
-  use gridmod , only: nsig
-  use qcmod   , only: npres_print
-  use convinfo, only: nconvtype
-  use kinds   , only: i_kind, r_kind
-  implicit none
-! !INPUT PARAMETERS:
-
-  integer(i_kind)                                  , intent(in   ) :: lunin   ! file unit from which to read observations
-  integer(i_kind)                                  , intent(in   ) :: mype    ! mpi task id
-  integer(i_kind)                                  , intent(in   ) :: nele    ! number of data elements per observation
-  integer(i_kind)                                  , intent(in   ) :: nobs    ! number of observations
-  integer(i_kind)                                  , intent(in   ) :: is      ! ndat index
-  logical                                          , intent(in   ) :: conv_diagsave   ! logical to save innovation dignostics
-
-
-! !INPUT/OUTPUT PARAMETERS:
-
-                                                            ! array containing information ...
-  real(r_kind),dimension(npres_print,nconvtype,5,3), intent(inout) :: bwork !  about o-g stats
-  real(r_kind),dimension(100+7*nsig)               , intent(inout) :: awork !  for data counts and gross checks
-
-  call setup(obsLL(itype,:),odiagLL(itype,:),   &
-        lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
-end subroutine setupt

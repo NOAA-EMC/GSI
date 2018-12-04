@@ -58,7 +58,7 @@ subroutine setuptcamt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_dia
   use m_obsdiagNode, only: obsdiagNode_get
   use m_obsdiagNode, only: obsdiagNode_assert
 
-  use obsmod, only: rmiss_single,i_tcamt_ob_type,ianldate,&
+  use obsmod, only: rmiss_single,ianldate,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use m_obsNode  , only: obsNode
   use m_tcamtNode, only: tcamtNode
@@ -79,7 +79,7 @@ subroutine setuptcamt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_dia
   use qcmod, only: dfact,dfact1,npres_print
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
-  use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use m_dtime, only: dtime_setup, dtime_check
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   implicit none
@@ -253,7 +253,6 @@ subroutine setuptcamt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_dia
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
-     !if(luse_obsdiag) my_diagLL => obsdiags(i_tcamt_ob_type,ibin)
      if(luse_obsdiag) my_diagLL => odiagLL(ibin)
 
 !    Link obs to diagnostics structure
@@ -308,7 +307,6 @@ subroutine setuptcamt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_dia
      end if
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
 
-     !-- if (nobskeep>0 .and. luse_obsdiag) muse(i)=obsdiags(i_tcamt_ob_type,ibin)%tail%muse(nobskeep)
      if (nobskeep>0 .and. luse_obsdiag) call obsdiagNode_get(my_diag, jiter=nobskeep, muse=muse(i))
 
 !    Compute penalty terms (linear & nonlinear qc).
@@ -429,7 +427,6 @@ subroutine setuptcamt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_dia
   if(conv_diagsave)then
      if(netcdf_diag) call nc_diag_write
      if(binary_diag)then
-        call dtime_show(myname,'diagsave:tcamt',i_tcamt_ob_type)
         write(7)'tca',nchar,nreal,ii,mype,ioff0
         write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
         deallocate(cdiagbuf,rdiagbuf)
@@ -644,27 +641,3 @@ subroutine setuptcamt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_dia
 
 end subroutine setuptcamt
 end module tcamt_setup
-
-subroutine setuptcamt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
-!-- This is a wrapper for a backward compatible interface.
-
-  use m_obsdiags , only: obsLL   => obsLLists
-  use m_obsdiags , only: odiagLL => obsdiags
-  use tcamt_setup, only: setup
-  use obsmod  , only: itype => i_tcamt_ob_type
-  use gridmod , only: nsig
-  use qcmod   , only: npres_print
-  use convinfo, only: nconvtype
-  use kinds   , only: i_kind, r_kind
-  implicit none
-! Declare passed variables
-  logical                                          ,intent(in   ) :: conv_diagsave
-  integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
-  real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
-  real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
-  integer(i_kind)                                  ,intent(in   ) :: is ! ndat index
-
-  call setup(obsLL(itype,:),odiagLL(itype,:),   &
-        lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
-end subroutine setuptcamt
-!.

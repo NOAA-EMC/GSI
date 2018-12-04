@@ -243,7 +243,7 @@ contains
 
   use obsmod, only: ianldate,ndat,mype_diaghdr,nchan_total, &
       dplat,dtbduv_on,lobsdiag_forenkf,&
-      i_rad_ob_type,lobsdiagsave,nobskeep,lobsdiag_allocated,&
+      lobsdiagsave,nobskeep,lobsdiag_allocated,&
       dirname,time_offset,lwrite_predterms,lwrite_peakwt,reduce_diag
   use m_obsNode, only: obsNode
   use m_radNode, only: radNode, radNode_typecast
@@ -262,7 +262,7 @@ contains
   use jfunc, only: jiter,miter,jiterstart
   use sst_retrieval, only: setup_sst_retrieval,avhrr_sst_retrieval,&
       finish_sst_retrieval,spline_cub
-  use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use m_dtime, only: dtime_setup, dtime_check
   use crtm_interface, only: init_crtm,call_crtm,destroy_crtm,sensorindex,surface, &
       itime,ilon,ilat,ilzen_ang,ilazi_ang,iscan_ang,iscan_pos,iszen_ang,isazi_ang, &
       ifrac_sea,ifrac_lnd,ifrac_ice,ifrac_sno,itsavg, &
@@ -1638,7 +1638,6 @@ contains
 !       Link obs to diagnostics structure
         iii=0
         obsptr => null()
-        !if (luse_obsdiag ) my_diagLL => obsdiags(i_rad_ob_type,ibin)
         if (luse_obsdiag ) my_diagLL => odiagLL(ibin)
         do ii=1,nchanl
           m=ich(ii)
@@ -1787,7 +1786,6 @@ contains
 
   if (rad_diagsave) then
      if (netcdf_diag) call nc_diag_write
-     call dtime_show(myname,'diagsave:rad',i_rad_ob_type)
      if(binary_diag) call final_binary_diag_
      if (lextra .and. allocated(diagbufex)) deallocate(diagbufex)
   endif
@@ -2334,30 +2332,3 @@ contains
   end subroutine final_binary_diag_
  end subroutine setuprad
 end module rad_setup
-
-subroutine setuprad(lunin,mype,aivals,stats,nchanl,nreal,nobs,&
-     obstype,isis,is,rad_diagsave,init_pass,last_pass)
-!-- This is a wrapper for a backward compatible interface.
-
-  use m_obsdiags, only: obsLL   => obsLLists
-  use m_obsdiags, only: odiagLL => obsdiags
-  use rad_setup , only: setup
-  use obsmod     , only: itype => i_rad_ob_type
-  use obsmod     , only: ndat
-  use radinfo    , only: jpch_rad
-  use kinds      , only: i_kind, r_kind
-  implicit none
-
-! Declare passed variables
-  logical                           ,intent(in   ) :: rad_diagsave
-  character(10)                     ,intent(in   ) :: obstype
-  character(20)                     ,intent(in   ) :: isis
-  integer(i_kind)                   ,intent(in   ) :: lunin,mype,nchanl,nreal,nobs,is
-  real(r_kind),dimension(40,ndat)   ,intent(inout) :: aivals
-  real(r_kind),dimension(7,jpch_rad),intent(inout) :: stats
-  logical                           ,intent(in   ) :: init_pass,last_pass    ! state of "setup" processing
-
-  call setup(obsLL(itype,:),odiagLL(itype,:), &
-        lunin,mype,aivals,stats,nchanl,nreal,nobs,&
-        obstype,isis,is,rad_diagsave,init_pass,last_pass)
-end subroutine setuprad

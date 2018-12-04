@@ -388,26 +388,37 @@ module obsmod
   public :: ran01dom,dval_use
   public :: iout_pcp,iout_rad,iadate,iadatemn,write_diag,reduce_diag,oberrflg,bflag,ndat,dthin,dmesh,l_do_adjoint
   public :: lsaveobsens
-  public :: i_ps_ob_type,i_t_ob_type,i_w_ob_type,i_q_ob_type
-  public :: i_spd_ob_type,i_rw_ob_type,i_dw_ob_type,i_sst_ob_type
-  public :: i_gust_ob_type,i_vis_ob_type,i_pblh_ob_type,i_wspd10m_ob_type,i_td2m_ob_type
-  public :: i_uwnd10m_ob_type,i_vwnd10m_ob_type
-  public :: i_mxtm_ob_type,i_mitm_ob_type,i_pmsl_ob_type,i_howv_ob_type,i_tcamt_ob_type,i_lcbas_ob_type
-  public :: i_cldch_ob_type, iout_cldch, mype_cldch
-  public :: i_pw_ob_type,i_pcp_ob_type,i_oz_ob_type,i_o3l_ob_type,i_colvk_ob_type,i_gps_ob_type
-  public :: i_rad_ob_type,i_tcp_ob_type,i_lag_ob_type
-  public :: i_swcp_ob_type, i_lwcp_ob_type
-  public :: obscounts,nobs_type
-  public :: cobstype,nprof_gps,time_offset,ianldate
+#ifdef TO_BE_REMOVED
+!  public :: i_ps_ob_type,i_t_ob_type,i_w_ob_type,i_q_ob_type
+!  public :: i_spd_ob_type,i_rw_ob_type,i_dw_ob_type,i_sst_ob_type
+!  public :: i_gust_ob_type,i_vis_ob_type,i_pblh_ob_type,i_wspd10m_ob_type,i_td2m_ob_type
+!  public :: i_uwnd10m_ob_type,i_vwnd10m_ob_type
+!  public :: i_mxtm_ob_type,i_mitm_ob_type,i_pmsl_ob_type,i_howv_ob_type,i_tcamt_ob_type,i_lcbas_ob_type
+!  public :: i_cldch_ob_type
+#endif
+  public :: iout_cldch, mype_cldch
+#ifdef TO_BE_REMOVED
+!  public :: i_pw_ob_type,i_pcp_ob_type,i_oz_ob_type,i_o3l_ob_type,i_colvk_ob_type,i_gps_ob_type
+!  public :: i_rad_ob_type,i_tcp_ob_type,i_lag_ob_type
+!  public :: i_swcp_ob_type, i_lwcp_ob_type
+!  public :: nobs_type
+#endif
+#ifdef TO_BE_REMOVED
+!  public :: obscounts
+!  public :: cobstype
+#endif
+  public :: nprof_gps,time_offset,ianldate
   public :: iout_oz,iout_co,dsis,ref_obs,obsfile_all,lobserver,perturb_obs,ditype,dsfcalc,dplat
   public :: time_window,dval,dtype,dfile,dirname,obs_setup,oberror_tune,offtime_data
   public :: lobsdiagsave,lobsdiag_forenkf,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel,ext_sonde
   public :: perturb_fact,dtbduv_on,nsat1,obs_sub_comm,mype_diaghdr
   public :: lobsdiag_allocated
-  public :: i_aero_ob_type
-  public :: i_aerol_ob_type
-  public :: i_pm2_5_ob_type
-  public :: i_pm10_ob_type
+#ifdef TO_BE_REMOVED
+!  public :: i_aero_ob_type
+!  public :: i_aerol_ob_type
+!  public :: i_pm2_5_ob_type
+!  public :: i_pm10_ob_type
+#endif
   public :: nloz_v8,nloz_v6,nloz_omi,nlco,nobskeep
   public :: grids_dim,rmiss_single,nchan_total,mype_sst,mype_gps
   public :: mype_uv,mype_dw,mype_rw,mype_q,mype_tcp,mype_lag,mype_ps,mype_t
@@ -467,76 +478,78 @@ module obsmod
 
 ! Declare types
 
-  integer(i_kind),parameter::  i_ps_ob_type= 1    ! ps_ob_type
-  integer(i_kind),parameter::   i_t_ob_type= 2    ! t_ob_type
-  integer(i_kind),parameter::   i_w_ob_type= 3    ! w_ob_type
-  integer(i_kind),parameter::   i_q_ob_type= 4    ! q_ob_type
-  integer(i_kind),parameter:: i_spd_ob_type= 5    ! spd_ob_type
-  integer(i_kind),parameter::  i_rw_ob_type= 6    ! rw_ob_type
-  integer(i_kind),parameter::  i_dw_ob_type= 7    ! dw_ob_type
-  integer(i_kind),parameter:: i_sst_ob_type= 8    ! sst_ob_type
-  integer(i_kind),parameter::  i_pw_ob_type= 9    ! pw_ob_type
-  integer(i_kind),parameter:: i_pcp_ob_type=10    ! pcp_ob_type
-  integer(i_kind),parameter::  i_oz_ob_type=11    ! oz_ob_type
-  integer(i_kind),parameter:: i_o3l_ob_type=12    ! o3l_ob_type
-  integer(i_kind),parameter:: i_gps_ob_type=13    ! gps_ob_type
-  integer(i_kind),parameter:: i_rad_ob_type=14    ! rad_ob_type
-  integer(i_kind),parameter:: i_tcp_ob_type=15    ! tcp_ob_type
-  integer(i_kind),parameter:: i_lag_ob_type=16    ! lag_ob_type
-  integer(i_kind),parameter:: i_colvk_ob_type= 17 ! colvk_ob_type
-  integer(i_kind),parameter:: i_aero_ob_type =18  ! aero_ob_type
-  integer(i_kind),parameter:: i_aerol_ob_type=19  ! aerol_ob_type
-  integer(i_kind),parameter:: i_pm2_5_ob_type=20  ! pm2_5_ob_type
-  integer(i_kind),parameter:: i_gust_ob_type=21   ! gust_ob_type
-  integer(i_kind),parameter:: i_vis_ob_type=22    ! vis_ob_type
-  integer(i_kind),parameter:: i_pblh_ob_type=23   ! pblh_ob_type
-  integer(i_kind),parameter:: i_wspd10m_ob_type=24! wspd10m_ob_type
-  integer(i_kind),parameter:: i_td2m_ob_type=25   ! td2m_ob_type
-  integer(i_kind),parameter:: i_mxtm_ob_type=26   ! mxtm_ob_type
-  integer(i_kind),parameter:: i_mitm_ob_type=27   ! mitm_ob_type
-  integer(i_kind),parameter:: i_pmsl_ob_type=28   ! pmsl_ob_type
-  integer(i_kind),parameter:: i_howv_ob_type=29   ! howv_ob_type
-  integer(i_kind),parameter:: i_tcamt_ob_type=30  ! tcamt_ob_type
-  integer(i_kind),parameter:: i_lcbas_ob_type=31  ! lcbas_ob_type  
-  integer(i_kind),parameter:: i_pm10_ob_type=32   ! pm10_ob_type
-  integer(i_kind),parameter:: i_cldch_ob_type=33  ! cldch_ob_type
-  integer(i_kind),parameter:: i_uwnd10m_ob_type=34! uwnd10m_ob_type
-  integer(i_kind),parameter:: i_vwnd10m_ob_type=35! vwnd10m_ob_type
-  integer(i_kind),parameter:: i_swcp_ob_type=36   ! swcp_ob_type
-  integer(i_kind),parameter:: i_lwcp_ob_type=37   ! lwcp_ob_type
-
-  integer(i_kind),parameter:: nobs_type = 37      ! number of observation types
+#ifdef TO_BE_REMOVED
+!  integer(i_kind),parameter::  i_ps_ob_type= 1    ! ps_ob_type
+!  integer(i_kind),parameter::   i_t_ob_type= 2    ! t_ob_type
+!  integer(i_kind),parameter::   i_w_ob_type= 3    ! w_ob_type
+!  integer(i_kind),parameter::   i_q_ob_type= 4    ! q_ob_type
+!  integer(i_kind),parameter:: i_spd_ob_type= 5    ! spd_ob_type
+!  integer(i_kind),parameter::  i_rw_ob_type= 6    ! rw_ob_type
+!  integer(i_kind),parameter::  i_dw_ob_type= 7    ! dw_ob_type
+!  integer(i_kind),parameter:: i_sst_ob_type= 8    ! sst_ob_type
+!  integer(i_kind),parameter::  i_pw_ob_type= 9    ! pw_ob_type
+!  integer(i_kind),parameter:: i_pcp_ob_type=10    ! pcp_ob_type
+!  integer(i_kind),parameter::  i_oz_ob_type=11    ! oz_ob_type
+!  integer(i_kind),parameter:: i_o3l_ob_type=12    ! o3l_ob_type
+!  integer(i_kind),parameter:: i_gps_ob_type=13    ! gps_ob_type
+!  integer(i_kind),parameter:: i_rad_ob_type=14    ! rad_ob_type
+!  integer(i_kind),parameter:: i_tcp_ob_type=15    ! tcp_ob_type
+!  integer(i_kind),parameter:: i_lag_ob_type=16    ! lag_ob_type
+!  integer(i_kind),parameter:: i_colvk_ob_type= 17 ! colvk_ob_type
+!  integer(i_kind),parameter:: i_aero_ob_type =18  ! aero_ob_type
+!  integer(i_kind),parameter:: i_aerol_ob_type=19  ! aerol_ob_type
+!  integer(i_kind),parameter:: i_pm2_5_ob_type=20  ! pm2_5_ob_type
+!  integer(i_kind),parameter:: i_gust_ob_type=21   ! gust_ob_type
+!  integer(i_kind),parameter:: i_vis_ob_type=22    ! vis_ob_type
+!  integer(i_kind),parameter:: i_pblh_ob_type=23   ! pblh_ob_type
+!  integer(i_kind),parameter:: i_wspd10m_ob_type=24! wspd10m_ob_type
+!  integer(i_kind),parameter:: i_td2m_ob_type=25   ! td2m_ob_type
+!  integer(i_kind),parameter:: i_mxtm_ob_type=26   ! mxtm_ob_type
+!  integer(i_kind),parameter:: i_mitm_ob_type=27   ! mitm_ob_type
+!  integer(i_kind),parameter:: i_pmsl_ob_type=28   ! pmsl_ob_type
+!  integer(i_kind),parameter:: i_howv_ob_type=29   ! howv_ob_type
+!  integer(i_kind),parameter:: i_tcamt_ob_type=30  ! tcamt_ob_type
+!  integer(i_kind),parameter:: i_lcbas_ob_type=31  ! lcbas_ob_type  
+!  integer(i_kind),parameter:: i_pm10_ob_type=32   ! pm10_ob_type
+!  integer(i_kind),parameter:: i_cldch_ob_type=33  ! cldch_ob_type
+!  integer(i_kind),parameter:: i_uwnd10m_ob_type=34! uwnd10m_ob_type
+!  integer(i_kind),parameter:: i_vwnd10m_ob_type=35! vwnd10m_ob_type
+!  integer(i_kind),parameter:: i_swcp_ob_type=36   ! swcp_ob_type
+!  integer(i_kind),parameter:: i_lwcp_ob_type=37   ! lwcp_ob_type
+!
+!  integer(i_kind),parameter:: nobs_type = 37      ! number of observation types
+#endif
 
 ! Structure for diagnostics
 
 #ifdef TO_BE_REMOVED
-  type obs_diag
-     type(obs_diag), pointer :: next => NULL()
-     real(r_kind), pointer :: nldepart(:) => null()    ! (miter+1)
-     real(r_kind), pointer :: tldepart(:) => null()    ! (miter)
-     real(r_kind), pointer :: obssen(:)   => null()    ! (miter)
-     real(r_kind) :: wgtjo
-     real(r_kind) :: elat, elon         ! earth lat-lon for redistribution
-     integer(i_kind) :: indxglb         ! a combined index similar to (ich,iob)
-     integer(i_kind) :: nchnperobs      ! number of channels per observations
-     integer(i_kind) :: idv,iob,ich     ! device, obs., and channel indices
-     logical, pointer :: muse(:)          => null()    ! (miter+1), according the setup()s
-     logical :: luse
-  end type obs_diag
-
-  type aofp_obs_diag   ! array-of-Fortran-pointers of type(obs_diag)
-     type(obs_diag), pointer :: ptr => NULL()
-  end type aofp_obs_diag
-
-  type obs_diags
-     integer(i_kind):: n_alloc=0
-     type(obs_diag), pointer :: head => NULL()
-     type(obs_diag), pointer :: tail => NULL()
-     type(aofp_obs_diag), allocatable, dimension(:):: lookup
-  end type obs_diags
-
-  type(obs_diags), pointer :: obsdiags(:,:) => null()  ! (nobs_type,nobs_bins)
-  type(obs_diag), pointer :: obsptr => null()
+!  type obs_diag
+!     type(obs_diag), pointer :: next => NULL()
+!     real(r_kind), pointer :: nldepart(:) => null()    ! (miter+1)
+!     real(r_kind), pointer :: tldepart(:) => null()    ! (miter)
+!     real(r_kind), pointer :: obssen(:)   => null()    ! (miter)
+!     real(r_kind) :: wgtjo
+!     real(r_kind) :: elat, elon         ! earth lat-lon for redistribution
+!     integer(i_kind) :: indxglb         ! a combined index similar to (ich,iob)
+!     integer(i_kind) :: nchnperobs      ! number of channels per observations
+!     integer(i_kind) :: idv,iob,ich     ! device, obs., and channel indices
+!     logical, pointer :: muse(:)          => null()    ! (miter+1), according the setup()s
+!     logical :: luse
+!  end type obs_diag
+!
+!  type aofp_obs_diag   ! array-of-Fortran-pointers of type(obs_diag)
+!     type(obs_diag), pointer :: ptr => NULL()
+!  end type aofp_obs_diag
+!
+!  type obs_diags
+!     integer(i_kind):: n_alloc=0
+!     type(obs_diag), pointer :: head => NULL()
+!     type(obs_diag), pointer :: tail => NULL()
+!     type(aofp_obs_diag), allocatable, dimension(:):: lookup
+!  end type obs_diags
+!
+!  type(obs_diags), pointer :: obsdiags(:,:) => null()  ! (nobs_type,nobs_bins)
+!  type(obs_diag), pointer :: obsptr => null()
 #endif
 
 ! Declare interfaces
@@ -574,7 +587,9 @@ module obsmod
   integer(i_kind),allocatable,dimension(:):: dsfcalc,dthin,ipoint
   integer(i_kind),allocatable,dimension(:)::  nsat1,mype_diaghdr
   integer(i_kind),allocatable :: nobs_sub(:,:)
-  integer(i_kind),allocatable :: obscounts(:,:)
+#ifdef TO_BE_REMOVED
+!  integer(i_kind),allocatable :: obscounts(:,:)
+#endif
   integer(i_kind),allocatable :: obs_sub_comm(:)
   
   character(128) obs_setup
@@ -586,7 +601,9 @@ module obsmod
   character(20),allocatable,dimension(:):: dsis
   real(r_kind) ,allocatable,dimension(:):: dval
   real(r_kind) ,allocatable,dimension(:):: time_window
-  character(len=20) :: cobstype(nobs_type)
+#ifdef TO_BE_REMOVED
+!  character(len=20) :: cobstype(nobs_type)
+#endif
 
   logical, save :: obs_instr_initialized_=.false.
 
@@ -777,44 +794,46 @@ contains
 
     nprof_gps = 0
 
-!   Define a name for obs types
-    cobstype( i_ps_ob_type)  ="surface pressure    " ! ps_ob_type
-    cobstype(  i_t_ob_type)  ="temperature         " ! t_ob_type
-    cobstype(  i_w_ob_type)  ="wind                " ! w_ob_type
-    cobstype(  i_q_ob_type)  ="moisture            " ! q_ob_type
-    cobstype(i_spd_ob_type)  ="wind speed          " ! spd_ob_type
-    cobstype( i_rw_ob_type)  ="radial wind         " ! rw_ob_type
-    cobstype( i_dw_ob_type)  ="doppler wind        " ! dw_ob_type
-    cobstype(i_sst_ob_type)  ="sst                 " ! sst_ob_type
-    cobstype( i_pw_ob_type)  ="precipitable water  " ! pw_ob_type
-    cobstype(i_pcp_ob_type)  ="precipitation       " ! pcp_ob_type
-    cobstype( i_oz_ob_type)  ="ozone               " ! oz_ob_type
-    cobstype(i_o3l_ob_type)  ="level ozone         " ! o3l_ob_type
-    cobstype(i_gps_ob_type)  ="gps                 " ! gps_ob_type
-    cobstype(i_rad_ob_type)  ="radiance            " ! rad_ob_type
-    cobstype(i_tcp_ob_type)  ="tcp (tropic cyclone)" ! tcp_ob_type
-    cobstype(i_lag_ob_type)  ="lagrangian tracer   " ! lag_ob_type
-    cobstype(i_colvk_ob_type)="carbon monoxide     " ! colvk_ob_type
-    cobstype( i_aero_ob_type)="aerosol aod         " ! aero_ob_type
-    cobstype(i_aerol_ob_type)="level aero aod      " ! aerol_ob_type
-    cobstype( i_pm2_5_ob_type)="in-situ pm2_5 obs  " ! pm2_5_ob_type
-    cobstype( i_pm10_ob_type)="in-situ pm10 obs    " ! pm10_ob_type
-    cobstype(i_gust_ob_type) ="gust                " ! gust_ob_type
-    cobstype(i_vis_ob_type)  ="vis                 " ! vis_ob_type
-    cobstype(i_pblh_ob_type) ="pblh                " ! pblh_ob_type
-    cobstype(i_wspd10m_ob_type) ="wspd10m             " ! wspd10m_ob_type
-    cobstype(i_td2m_ob_type) ="td2m                " ! td2m_ob_type
-    cobstype(i_mxtm_ob_type) ="mxtm                " ! mxtm_ob_type
-    cobstype(i_mitm_ob_type) ="mitm                " ! mitm_ob_type
-    cobstype(i_pmsl_ob_type) ="pmsl                " ! pmsl_ob_type
-    cobstype(i_howv_ob_type) ="howv                " ! howv_ob_type
-    cobstype(i_tcamt_ob_type)="tcamt               " ! tcamt_ob_type
-    cobstype(i_lcbas_ob_type)="lcbas               " ! lcbas_ob_type
-    cobstype(i_cldch_ob_type)="cldch               " ! cldch_ob_type
-    cobstype(i_uwnd10m_ob_type) ="uwnd10m          " ! uwnd10m_ob_type
-    cobstype(i_vwnd10m_ob_type) ="vwnd10m          " ! vwnd10m_ob_type
-    cobstype(i_swcp_ob_type) ="swcp                " ! swcp_ob_type
-    cobstype(i_lwcp_ob_type) ="lwcp                " ! lwcp_ob_type
+#ifdef TO_BE_REMOVED
+!!   Define a name for obs types
+!    cobstype( i_ps_ob_type)  ="surface pressure    " ! ps_ob_type
+!    cobstype(  i_t_ob_type)  ="temperature         " ! t_ob_type
+!    cobstype(  i_w_ob_type)  ="wind                " ! w_ob_type
+!    cobstype(  i_q_ob_type)  ="moisture            " ! q_ob_type
+!    cobstype(i_spd_ob_type)  ="wind speed          " ! spd_ob_type
+!    cobstype( i_rw_ob_type)  ="radial wind         " ! rw_ob_type
+!    cobstype( i_dw_ob_type)  ="doppler wind        " ! dw_ob_type
+!    cobstype(i_sst_ob_type)  ="sst                 " ! sst_ob_type
+!    cobstype( i_pw_ob_type)  ="precipitable water  " ! pw_ob_type
+!    cobstype(i_pcp_ob_type)  ="precipitation       " ! pcp_ob_type
+!    cobstype( i_oz_ob_type)  ="ozone               " ! oz_ob_type
+!    cobstype(i_o3l_ob_type)  ="level ozone         " ! o3l_ob_type
+!    cobstype(i_gps_ob_type)  ="gps                 " ! gps_ob_type
+!    cobstype(i_rad_ob_type)  ="radiance            " ! rad_ob_type
+!    cobstype(i_tcp_ob_type)  ="tcp (tropic cyclone)" ! tcp_ob_type
+!    cobstype(i_lag_ob_type)  ="lagrangian tracer   " ! lag_ob_type
+!    cobstype(i_colvk_ob_type)="carbon monoxide     " ! colvk_ob_type
+!    cobstype( i_aero_ob_type)="aerosol aod         " ! aero_ob_type
+!    cobstype(i_aerol_ob_type)="level aero aod      " ! aerol_ob_type
+!    cobstype( i_pm2_5_ob_type)="in-situ pm2_5 obs  " ! pm2_5_ob_type
+!    cobstype( i_pm10_ob_type)="in-situ pm10 obs    " ! pm10_ob_type
+!    cobstype(i_gust_ob_type) ="gust                " ! gust_ob_type
+!    cobstype(i_vis_ob_type)  ="vis                 " ! vis_ob_type
+!    cobstype(i_pblh_ob_type) ="pblh                " ! pblh_ob_type
+!    cobstype(i_wspd10m_ob_type) ="wspd10m             " ! wspd10m_ob_type
+!    cobstype(i_td2m_ob_type) ="td2m                " ! td2m_ob_type
+!    cobstype(i_mxtm_ob_type) ="mxtm                " ! mxtm_ob_type
+!    cobstype(i_mitm_ob_type) ="mitm                " ! mitm_ob_type
+!    cobstype(i_pmsl_ob_type) ="pmsl                " ! pmsl_ob_type
+!    cobstype(i_howv_ob_type) ="howv                " ! howv_ob_type
+!    cobstype(i_tcamt_ob_type)="tcamt               " ! tcamt_ob_type
+!    cobstype(i_lcbas_ob_type)="lcbas               " ! lcbas_ob_type
+!    cobstype(i_cldch_ob_type)="cldch               " ! cldch_ob_type
+!    cobstype(i_uwnd10m_ob_type) ="uwnd10m          " ! uwnd10m_ob_type
+!    cobstype(i_vwnd10m_ob_type) ="vwnd10m          " ! vwnd10m_ob_type
+!    cobstype(i_swcp_ob_type) ="swcp                " ! swcp_ob_type
+!    cobstype(i_lwcp_ob_type) ="lwcp                " ! lwcp_ob_type
+#endif
 
 
     hilbert_curve=.false.
@@ -905,7 +924,9 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$ end documentation block
-    use gsi_4dvar, only: nobs_bins
+#ifdef TO_BE_REMOVED
+!    use gsi_4dvar, only: nobs_bins
+#endif
     use mpimod, only: mype
     implicit none
 
@@ -930,11 +951,11 @@ contains
 
 
 #ifdef TO_BE_REMOVED
-    if(luse_obsdiag)then
-      ALLOCATE(obsdiags(nobs_type,nobs_bins))
-    else
-      ALLOCATE(obsdiags(0,0))
-    endif
+!    if(luse_obsdiag)then
+!      ALLOCATE(obsdiags(nobs_type,nobs_bins))
+!    else
+!      ALLOCATE(obsdiags(0,0))
+!    endif
 #endif
 
     return
@@ -1057,7 +1078,9 @@ contains
 
     implicit none
 
-    if (allocated(obscounts)) deallocate(obscounts) 
+#ifdef TO_BE_REMOVED
+!    if (allocated(obscounts)) deallocate(obscounts) 
+#endif
     if (allocated(nobs_sub)) deallocate(nobs_sub) 
 
     return
@@ -1130,68 +1153,68 @@ contains
   end function ran01dom
 
 #ifdef TO_BE_REMOVED
-! ----------------------------------------------------------------------
-subroutine inquire_obsdiags(kiter)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    inquire_obsdiags
-!   prgmmr:
+!! ----------------------------------------------------------------------
+!subroutine inquire_obsdiags(kiter)
+!!$$$  subprogram documentation block
+!!                .      .    .                                       .
+!! subprogram:    inquire_obsdiags
+!!   prgmmr:
+!!
+!! abstract:
+!!
+!! program history log:
+!!   2009-08-07  lueken - added  subprogram doc block
+!!
+!!   input argument list:
+!!    kiter
+!!
+!!   output argument list:
+!!
+!! attributes:
+!!   language: f90
+!!   machine:
+!!
+!!$$$ end documentation block
 !
-! abstract:
+!implicit none
 !
-! program history log:
-!   2009-08-07  lueken - added  subprogram doc block
+!integer(i_kind), intent(in   ) :: kiter
 !
-!   input argument list:
-!    kiter
+!real(r_kind) :: sizei, sizer, sizel, sizep, ziter, zsize, ztot
+!integer(i_kind) :: ii,jj,iobsa(2),iobsb(2)
 !
-!   output argument list:
+!! Any better way to determine size or i_kind, r_kind, etc... ?
+!sizei=four
+!sizer=8.0_r_kind
+!sizel=one
+!sizep=four
 !
-! attributes:
-!   language: f90
-!   machine:
+!iobsa(:)=0
+!do ii=1,size(obsdiags,2)
+!   do jj=1,size(obsdiags,1)
+!      obsptr => obsdiags(jj,ii)%head
+!      do while (associated(obsptr))
+!         iobsa(1)=iobsa(1)+1
+!         if (ANY(obsptr%muse(:))) iobsa(2)=iobsa(2)+1
+!         obsptr => obsptr%next
+!      enddo
+!   enddo
+!enddo
 !
-!$$$ end documentation block
-
-implicit none
-
-integer(i_kind), intent(in   ) :: kiter
-
-real(r_kind) :: sizei, sizer, sizel, sizep, ziter, zsize, ztot
-integer(i_kind) :: ii,jj,iobsa(2),iobsb(2)
-
-! Any better way to determine size or i_kind, r_kind, etc... ?
-sizei=four
-sizer=8.0_r_kind
-sizel=one
-sizep=four
-
-iobsa(:)=0
-do ii=1,size(obsdiags,2)
-   do jj=1,size(obsdiags,1)
-      obsptr => obsdiags(jj,ii)%head
-      do while (associated(obsptr))
-         iobsa(1)=iobsa(1)+1
-         if (ANY(obsptr%muse(:))) iobsa(2)=iobsa(2)+1
-         obsptr => obsptr%next
-      enddo
-   enddo
-enddo
-
-call mpi_reduce(iobsa,iobsb,2,mpi_itype,mpi_max,0,mpi_comm_world,ierror)
-
-if (mype==0) then
-   ziter=real(kiter,r_kind)
-   zsize = sizer*(three*ziter+two) + sizei + sizel*(ziter+one) + sizep*five
-   ztot=real(iobsb(1),r_kind)*zsize
-   ztot=ztot/(1024.0_r_kind*1024.0_r_kind)
- 
-   write(6,*)'obsdiags: Bytes per element=',NINT(zsize)
-   write(6,*)'obsdiags: length total, used=',iobsb(1),iobsb(2)
-   write(6,'(A,F8.1,A)')'obsdiags: Estimated memory usage= ',ztot,' Mb'
-endif
-
-end subroutine inquire_obsdiags
+!call mpi_reduce(iobsa,iobsb,2,mpi_itype,mpi_max,0,mpi_comm_world,ierror)
+!
+!if (mype==0) then
+!   ziter=real(kiter,r_kind)
+!   zsize = sizer*(three*ziter+two) + sizei + sizel*(ziter+one) + sizep*five
+!   ztot=real(iobsb(1),r_kind)*zsize
+!   ztot=ztot/(1024.0_r_kind*1024.0_r_kind)
+! 
+!   write(6,*)'obsdiags: Bytes per element=',NINT(zsize)
+!   write(6,*)'obsdiags: length total, used=',iobsb(1),iobsb(2)
+!   write(6,'(A,F8.1,A)')'obsdiags: Estimated memory usage= ',ztot,' Mb'
+!endif
+!
+!end subroutine inquire_obsdiags
 #endif
 
 ! ----------------------------------------------------------------------

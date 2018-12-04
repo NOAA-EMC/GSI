@@ -279,9 +279,15 @@ subroutine obsNode_xwrite_(aNode,junit,jstat)
 _ENTRY_(myname_)
 
   mlev =size(aNode%diags)
+  mlevp=size(aNode%prs)
+        if(mlev/=aNode%nloz+1) then
+          call perr(myname_,'mlev/=aNode%nloz+1, mlev =',mlev)
+          call perr(myname_,'                   mlevp =',mlevp)
+          call perr(myname_,'                   %nloz =',aNode%nloz)
+          call  die(myname_)
+        endif
         ASSERT(mlev==aNode%nloz+1)
 
-  mlevp=size(aNode%prs)
   meff =size(aNode%apriori)
   msig =size(aNode%dprsi)
 

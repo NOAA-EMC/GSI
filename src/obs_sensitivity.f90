@@ -38,18 +38,46 @@ use kinds, only: r_kind,i_kind,r_quad
 use constants, only: zero, zero_quad, two
 use gsi_4dvar, only: nobs_bins, l4dvar, lsqrtb, nsubwin
 use jfunc, only: jiter, miter, niter, iter
-use obsmod, only: cobstype, nobs_type, obscounts, &
-                  i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
-                  i_spd_ob_type, i_rw_ob_type, i_dw_ob_type, &
-                  i_sst_ob_type, i_pw_ob_type, i_pcp_ob_type, i_oz_ob_type, &
-                  i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type, i_tcp_ob_type, &
-                  i_lag_ob_type, i_colvk_ob_type, i_aero_ob_type, i_aerol_ob_type, &
-                  i_pm2_5_ob_type, i_gust_ob_type, i_vis_ob_type, i_pblh_ob_type, &
-                  i_wspd10m_ob_type, i_td2m_ob_type, i_mxtm_ob_type, i_mitm_ob_type, &
-                  i_pmsl_ob_type, i_howv_ob_type, i_tcamt_ob_type, i_lcbas_ob_type, &
-                  i_cldch_ob_type, i_uwnd10m_ob_type, i_vwnd10m_ob_type, i_pm10_ob_type, &
-                  i_swcp_ob_type, i_lwcp_ob_type
 
+use gsi_obOperTypeManager, only: nobs_type => obOper_count
+!-- use gsi_obOperTypeManager, only: i_ps_ob_type      => iobOper_ps
+!-- use gsi_obOperTypeManager, only: i_t_ob_type       => iobOper_t
+!-- use gsi_obOperTypeManager, only: i_w_ob_type       => iobOper_w
+!-- use gsi_obOperTypeManager, only: i_q_ob_type       => iobOper_q
+!-- use gsi_obOperTypeManager, only: i_spd_ob_type     => iobOper_spd
+!-- use gsi_obOperTypeManager, only: i_rw_ob_type      => iobOper_rw
+!-- use gsi_obOperTypeManager, only: i_dw_ob_type      => iobOper_dw
+!-- use gsi_obOperTypeManager, only: i_sst_ob_type     => iobOper_sst
+!-- use gsi_obOperTypeManager, only: i_pw_ob_type      => iobOper_pw
+!-- use gsi_obOperTypeManager, only: i_pcp_ob_type     => iobOper_pcp
+!-- use gsi_obOperTypeManager, only: i_oz_ob_type      => iobOper_oz
+!-- use gsi_obOperTypeManager, only: i_o3l_ob_type     => iobOper_o3l
+!-- use gsi_obOperTypeManager, only: i_gps_ob_type     => iobOper_gps
+!-- use gsi_obOperTypeManager, only: i_rad_ob_type     => iobOper_rad
+!-- use gsi_obOperTypeManager, only: i_tcp_ob_type     => iobOper_tcp
+!-- !use gsi_obOperTypeManager, only: i_lag_ob_type     => iobOper_lag
+!-- use gsi_obOperTypeManager, only: i_colvk_ob_type   => iobOper_colvk
+!-- use gsi_obOperTypeManager, only: i_aero_ob_type    => iobOper_aero
+!-- !use gsi_obOperTypeManager, only: i_aerol_ob_type   => iobOper_aerol
+!-- use gsi_obOperTypeManager, only: i_pm2_5_ob_type   => iobOper_pm2_5
+!-- use gsi_obOperTypeManager, only: i_gust_ob_type    => iobOper_gust
+!-- use gsi_obOperTypeManager, only: i_vis_ob_type     => iobOper_vis
+!-- use gsi_obOperTypeManager, only: i_pblh_ob_type    => iobOper_pblh
+!-- use gsi_obOperTypeManager, only: i_wspd10m_ob_type => iobOper_wspd10m
+!-- use gsi_obOperTypeManager, only: i_td2m_ob_type    => iobOper_td2m
+!-- use gsi_obOperTypeManager, only: i_mxtm_ob_type    => iobOper_mxtm
+!-- use gsi_obOperTypeManager, only: i_mitm_ob_type    => iobOper_mitm
+!-- use gsi_obOperTypeManager, only: i_pmsl_ob_type    => iobOper_pmsl
+!-- use gsi_obOperTypeManager, only: i_howv_ob_type    => iobOper_howv
+!-- use gsi_obOperTypeManager, only: i_tcamt_ob_type   => iobOper_tcamt
+!-- use gsi_obOperTypeManager, only: i_lcbas_ob_type   => iobOper_lcbas
+!-- use gsi_obOperTypeManager, only: i_cldch_ob_type   => iobOper_cldch
+!-- use gsi_obOperTypeManager, only: i_uwnd10m_ob_type => iobOper_uwnd10m
+!-- use gsi_obOperTypeManager, only: i_vwnd10m_ob_type => iobOper_vwnd10m
+!-- use gsi_obOperTypeManager, only: i_pm10_ob_type    => iobOper_pm10
+!-- use gsi_obOperTypeManager, only: i_swcp_ob_type    => iobOper_swcp
+!-- use gsi_obOperTypeManager, only: i_lwcp_ob_type    => iobOper_lwcp
+!-- 
 use mpimod, only: mype
 use control_vectors, only: control_vector,allocate_cv,read_cv,deallocate_cv, &
     dot_product,assignment(=)
@@ -61,6 +89,7 @@ use bias_predictors, only: predictors,allocate_preds,deallocate_preds, &
 use mpl_allreducemod, only: mpl_allreduce
 use gsi_4dcouplermod, only: gsi_4dcoupler_getpert
 use hybrid_ensemble_parameters,only : l_hyb_ens,ntlevs_ens
+use mpeu_util, only: perr,die
 ! ------------------------------------------------------------------------------
 implicit none
 save
@@ -70,6 +99,10 @@ public lobsensfc,lobsensjb,lobsensincr,lobsensadj,&
        fcsens, sensincr, &
        init_obsens, init_fc_sens, save_fc_sens, dot_prod_obs
 
+public:: obsensCounts_realloc
+public:: obsensCounts_set
+public:: obsensCounts_dealloc
+
 logical lobsensfc,lobsensjb,lobsensincr, &
         lobsensadj,lobsensmin,llancdone,lsensrecompute
 integer(i_kind) :: iobsconv
@@ -78,9 +111,55 @@ integer(i_kind) :: iobsconv
 type(control_vector) :: fcsens
 real(r_kind), allocatable :: sensincr(:,:,:)
 character(len=5) :: cobtype(nobs_type)
-integer(i_kind):: my_nobs_type=34
+integer(i_kind),parameter:: my_nobs_type=34
+
+integer(i_kind),save,allocatable:: obscounts(:,:)
+
+character(len=*),parameter:: myname="obs_sensitivity"
 ! ------------------------------------------------------------------------------
 contains
+!>> object obsensCounts_:
+!>> this object was public obsmod::obscounts(:,:), but now private module
+!>> variable in this module.  It is accessed through following module procedures
+!>> []_alloc(), []_set() and []_dealloc().
+
+subroutine obsensCounts_realloc(ntype,nbin)
+!>> was implemented in setuprhsall()
+  implicit none
+  integer(i_kind),intent(in):: ntype
+  integer(i_kind),intent(in):: nbin
+  character(len=*),parameter:: myname_=myname//"::obsensCounts_realloc"
+  if(allocated(obscounts)) deallocate(obscounts)
+  allocate(obscounts(ntype,nbin))
+end subroutine obsensCounts_realloc
+
+subroutine obsensCounts_set(iobsglb)
+!>> was implemented in evaljo()
+  implicit none
+  integer(i_kind),dimension(:,:),intent(in):: iobsglb
+  character(len=*),parameter:: myname_=myname//"::obsensCounts_set"
+  if(.not.allocated(obscounts)) then
+    call perr(myname_,'not allocated, obscounts')
+    call perr(myname_,'was evaljo() exception 125')
+    call  die(myname_)
+  endif
+  if(any(shape(obscounts)/=shape(iobsglb))) then
+    call perr(myname_,'mismatched, storage size(obscounts,1) =',size(obscounts,1))
+    call perr(myname_,'             argument size(iobsglb,1) =',size(iobsglb,1))
+    call perr(myname_,'            storage size(obscounts,2) =',size(obscounts,2))
+    call perr(myname_,'             argument size(iobsglb,2) =',size(iobsglb,2))
+    call  die(myname_)
+  endif
+  obscounts(:,:)=iobsglb(:,:)
+end subroutine obsensCounts_set
+
+subroutine obsensCounts_dealloc()
+!>> was a part of obsmod::destroyobs_().
+  implicit none
+  character(len=*),parameter:: myname_=myname//"::obsensCounts_dealloc"
+  if(allocated(obscounts)) deallocate(obscounts)
+end subroutine obsensCounts_dealloc
+
 ! ------------------------------------------------------------------------------
 subroutine init_obsens
 !$$$  subprogram documentation block
@@ -247,48 +326,69 @@ endif
 888 format(A,3(1X,ES25.18))
 
 ! Define short name for obs types
-cobtype( i_ps_ob_type)   ="spr  "
-cobtype(  i_t_ob_type)   ="tem  "
-cobtype(  i_w_ob_type)   ="uv   "
-cobtype(  i_q_ob_type)   ="hum  "
-cobtype(i_spd_ob_type)   ="spd  "
-cobtype( i_rw_ob_type)   ="rw   "
-cobtype( i_dw_ob_type)   ="dw   "
-cobtype(i_sst_ob_type)   ="sst  "
-cobtype( i_pw_ob_type)   ="pw   "
-cobtype(i_pcp_ob_type)   ="pcp  "
-cobtype( i_oz_ob_type)   ="oz   "
-cobtype(i_o3l_ob_type)   ="o3l  "
-cobtype(i_gps_ob_type)   ="gps  "
-cobtype(i_rad_ob_type)   ="rad  "
-cobtype(i_tcp_ob_type)   ="tcp  "
-cobtype(i_lag_ob_type)   ="lag  "
-cobtype(i_colvk_ob_type) ="colvk"
-cobtype(i_aero_ob_type)  ="aero "
-cobtype(i_aerol_ob_type) ="aerol"
-cobtype(i_pm2_5_ob_type) ="pm2_5"
-cobtype(i_pm10_ob_type)  ="pm10 "
-cobtype(i_gust_ob_type)  ="gust "
-cobtype(i_vis_ob_type)   ="vis  "
-cobtype(i_pblh_ob_type)  ="pblh "
-cobtype(i_wspd10m_ob_type)  ="ws10m"
-cobtype(i_td2m_ob_type)  ="td2m "
-cobtype(i_mxtm_ob_type)  ="mxtm "
-cobtype(i_mitm_ob_type)  ="mitm "
-cobtype(i_pmsl_ob_type)  ="pmsl "
-cobtype(i_howv_ob_type)  ="howv "
-cobtype(i_tcamt_ob_type)  ="tcamt"
-cobtype(i_lcbas_ob_type)  ="lcbas"
-cobtype(i_cldch_ob_type)  ="cldch"
-cobtype(i_uwnd10m_ob_type) ="u10m "
-cobtype(i_vwnd10m_ob_type) ="v10m "
-cobtype(i_swcp_ob_type)  ="swcp "
-cobtype(i_lwcp_ob_type)  ="lwcp "
-
+cobtype(typeIndex_(     "ps")) ="spr  "
+cobtype(typeIndex_(      "t")) ="tem  "
+cobtype(typeIndex_(      "w")) ="uv   "
+cobtype(typeIndex_(      "q")) ="hum  "
+cobtype(typeIndex_(    "spd")) ="spd  "
+cobtype(typeIndex_(     "rw")) ="rw   "
+cobtype(typeIndex_(     "dw")) ="dw   "
+cobtype(typeIndex_(    "sst")) ="sst  "
+cobtype(typeIndex_(     "pw")) ="pw   "
+cobtype(typeIndex_(    "pcp")) ="pcp  "
+cobtype(typeIndex_(     "oz")) ="oz   "
+cobtype(typeIndex_(    "o3l")) ="o3l  "
+cobtype(typeIndex_(    "gps")) ="gps  "
+cobtype(typeIndex_(    "rad")) ="rad  "
+cobtype(typeIndex_(    "tcp")) ="tcp  "
+!cobtype(typeIndex_(    "lag")) ="lag  "
+cobtype(typeIndex_(  "colvk")) ="colvk"
+cobtype(typeIndex_(   "aero")) ="aero "
+!cobtype(typeIndex_(  "aerol")) ="aerol"
+cobtype(typeIndex_(  "pm2_5")) ="pm2_5"
+cobtype(typeIndex_(   "pm10")) ="pm10 "
+cobtype(typeIndex_(   "gust")) ="gust "
+cobtype(typeIndex_(    "vis")) ="vis  "
+cobtype(typeIndex_(   "pblh")) ="pblh "
+cobtype(typeIndex_("wspd10m")) ="ws10m"
+cobtype(typeIndex_(   "td2m")) ="td2m "
+cobtype(typeIndex_(   "mxtm")) ="mxtm "
+cobtype(typeIndex_(   "mitm")) ="mitm "
+cobtype(typeIndex_(   "pmsl")) ="pmsl "
+cobtype(typeIndex_(   "howv")) ="howv "
+cobtype(typeIndex_(  "tcamt")) ="tcamt"
+cobtype(typeIndex_(  "lcbas")) ="lcbas"
+cobtype(typeIndex_(  "cldch")) ="cldch"
+cobtype(typeIndex_("uwnd10m")) ="u10m "
+cobtype(typeIndex_("vwnd10m")) ="v10m "
+cobtype(typeIndex_(   "swcp")) ="swcp "
+cobtype(typeIndex_(   "lwcp")) ="lwcp "
 
 return
 end subroutine init_fc_sens
+
+function typeIndex_(str) result(index_)
+  use gsi_obOperTypeManager, only: obOper_typeIndex
+  implicit none
+  integer(i_kind):: index_
+  character(len=*),intent(in):: str
+
+  character(len=*),parameter:: myname_=myname//"::typeIndex_"
+  integer(i_kind):: lbnd,ubnd
+  lbnd=lbound(cobtype,1)
+  ubnd=ubound(cobtype,1)
+
+  index_=obOper_typeIndex(str)
+
+  if(index_<lbnd .or. index_>ubnd) then
+    call perr(myname_,"invalid value, index_ =",index_)
+    call perr(myname_,"      lbound(cobtype) =",lbnd)
+    call perr(myname_,"      ubound(cobtype) =",ubnd)
+    call  die(myname_)
+  endif
+end function typeIndex_
 ! ------------------------------------------------------------------------------
+
 subroutine save_fc_sens
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -409,8 +509,8 @@ type(obs_diag),pointer:: obsptr
 zprods(:)=zero_quad
 
 ij=0
-do ii=1,nobs_bins
-   do jj=1,nobs_type
+do ii=1,size(obsdiags,2)
+   do jj=1,size(obsdiags,1)
       ij=ij+1
 
       obsptr => obsdiags(jj,ii)%head

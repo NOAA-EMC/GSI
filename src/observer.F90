@@ -43,8 +43,8 @@ module observermod
   use guess_grids, only: create_ges_grids,create_sfc_grids,&
        destroy_ges_grids,destroy_sfc_grids,nfldsig
   use cloud_efr_mod, only: cloud_init,cloud_final
-  use obsmod, only: write_diag,obs_setup,ndat,dirname,lobserver,ndat,nobs_sub, &
-       lread_obs_skip,nprof_gps,ditype,obs_input_common,iadate,luse_obsdiag
+  use obsmod, only: write_diag,obs_setup,ndat,dirname,lobserver,ndat,nobs_sub
+  use obsmod, only: lread_obs_skip,nprof_gps,ditype,obs_input_common,iadate
   use satthin, only: superp,super_val1,getsfc,destroy_sfc
   use gsi_4dvar, only: l4dvar
   use convinfo, only: convinfo_destroy
