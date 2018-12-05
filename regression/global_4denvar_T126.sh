@@ -22,8 +22,7 @@ tmpdir=$tmpdir/$tmpregdir/${exp}
 savdir=$savdir/out${JCAP}/${exp}
 
 # Specify GSI fixed field and data directories.
-#fixgsi=$gsipath/trunk/fix
-#fixcrtm=$gsipath/EXP-port410/lib/CRTM_REL-2.2.3/fix
+fixcrtm=${fixcrtm:-$CRTM_FIX}
 
 #datobs=/scratch1/portfolios/NCEPDEV/da/noscrub/Daryl.Kleist/CASES/$adate/obs
 #datges=/scratch1/portfolios/NCEPDEV/da/noscrub/Daryl.Kleist/CASES/$adate/ges

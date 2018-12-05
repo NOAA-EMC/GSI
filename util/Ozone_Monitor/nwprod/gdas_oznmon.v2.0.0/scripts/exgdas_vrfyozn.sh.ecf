@@ -107,6 +107,16 @@ if [[ -s ${oznstat} ]]; then
    tar -xvf oznstat.$PDATE
    rm oznstat.$PDATE
 
+   netcdf_diag=".false."
+   count=`ls diag* | grep ".nc4" | wc -l`
+   if [ $count -gt 0 ] ; then
+      netcdf_diag=".true."
+      for filenc4 in `ls diag*nc4.gz`; do
+         file=`echo $filenc4 | cut -d'.' -f1-2`.gz
+         mv $filenc4 $file
+      done
+   fi
+
    ${HOMEoznmon}/ush/ozn_xtrct.sh
    err=$?
 

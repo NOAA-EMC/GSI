@@ -21,6 +21,9 @@ elif [[ -d /ioddev_dell ]]; then
 elif [[ -d /scratch3 ]] ; then
     . /apps/lmod/lmod/init/sh
     target=theia
+elif [[ -d /carddata ]] ; then
+    . /opt/apps/lmod/3.1.9/init/sh
+    target=s4
 elif [[ -d /jetmon ]] ; then
     . $MODULESHOME/init/sh
     target=jet
@@ -30,6 +33,9 @@ elif [[ -d /glade ]] ; then
 elif [[ -d /sw/gaea ]] ; then
     . /opt/cray/pe/modules/3.2.10.5/init/sh
     target=gaea
+elif [[ -d /discover ]] ; then
+#   . /opt/cray/pe/modules/3.2.10.5/init/sh
+    target=discover
 else
     echo "unknown target = $target"
     exit 9
@@ -46,18 +52,31 @@ rm -rf $dir_root/build
 mkdir -p $dir_root/build
 cd $dir_root/build
 
-if [ $target = wcoss -o $target = wcoss_c -o $target = gaea ]; then
+if [ $target = wcoss_d ]; then
+    module purge
+    module use -a $dir_modules
+    module load modulefile.ProdGSI.$target
+elif [ $target = wcoss -o $target = gaea ]; then
     module purge
     module load $dir_modules/modulefile.ProdGSI.$target
 elif [ $target = theia -o $target = cheyenne ]; then
     module purge
     source $dir_modules/modulefile.ProdGSI.$target
+elif [ $target = wcoss_c ]; then
+    module purge
+    module load $dir_modules/modulefile.ProdGSI.$target
+elif [ $target = discover ]; then
+    module load $dir_modules/modulefile.ProdGSI.$target
 else 
     module purge
     source $dir_modules/modulefile.ProdGSI.$target
 fi
 
-cmake -DBUILD_UTIL=ON -DCMAKE_BUILD_TYPE=$build_type -DBUILD_CORELIBS=OFF ..
+if [[ $build_type = PRODUCTION ]] ; then
+  cmake -DBUILD_UTIL=ON -DCMAKE_BUILD_TYPE=PRODUCTION -DBUILD_CORELIBS=OFF ..
+else 
+  cmake ..
+fi
 
 make -j 8
 

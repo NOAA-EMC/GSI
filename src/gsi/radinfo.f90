@@ -1526,12 +1526,12 @@ contains
    use mpimod, only:  npe,mype,mpi_comm_world,ierror
    use read_diag, only: read_radiag_header,read_radiag_data,diag_header_fix_list,&
         diag_header_chan_list,diag_data_fix_list,diag_data_chan_list,&
-        diag_data_extra_list,diag_data_name_list
+        diag_data_extra_list,diag_data_name_list,open_radiag,close_radiag,set_netcdf_read
    use constants, only: zero,one,deg2rad
+   use obsmod, only:  netcdf_diag
    implicit none
 
 !  Declare local parameters
-   integer(i_kind),parameter:: lndiag = 21
    integer(i_kind),parameter:: lntemp = 51
 
    integer(i_kind),parameter:: nthreshold = 100
@@ -1550,8 +1550,10 @@ contains
 
    character(len=20):: obstype,platid
    character(len=20):: satsens,satsens_id
-   character(len=50):: fdiag_rad,dname,fname
+   character(len=50):: dname,fname
+   character(len=500):: fdiag_rad
 
+   integer(i_kind):: lndiag
    integer(i_kind):: ix,ii,iii,iich,ndatppe
    integer(i_kind):: i,j,jj,n_chan,k,lunout
    integer(i_kind):: istatus,ispot
@@ -1627,16 +1629,20 @@ contains
 !     Create diagnostic filename
       fdiag_rad = 'diag_' // trim(dtype(iii)) // '_' // trim(dplat(iii))
 
+!     Set diagnostic file type
+      call set_netcdf_read(netcdf_diag)
+
 !     See if diagnostic file exists
       inquire(file=fdiag_rad,exist=lexist)
       if (.not.lexist) cycle loopf
 
 !     Open file and read header
-      open(lndiag,file=fdiag_rad,form='unformatted',status='old',iostat=istatus)
+      lndiag = 21
+      call open_radiag(fdiag_rad,lndiag,istatus)
       if (istatus/=0) then
          write(6,'(''INIT_PREDX:  Task '',i5,'' problem opening file '',a,'' iostat='',i4)') &
              mype,trim(fdiag_rad),istatus
-         close(lndiag)
+         call close_radiag(fdiag_rad,lndiag)
          cycle loopf
       endif
 
@@ -1645,7 +1651,7 @@ contains
       if (istatus/=0) then
          write(6,'(''INIT_PREDX:  Task '',i5,'' problem reading file '',a,'' header, iostat='',i4)') &
               mype,trim(fdiag_rad),istatus
-         close(lndiag)
+         call close_radiag(fdiag_rad,lndiag)
          cycle loopf
       endif
 
@@ -1689,7 +1695,7 @@ contains
 !     Seviri channels should start at 4.  If the first seviri channel is less than 4
 !     do not use this diag* file
       if ( satsens(1:6) == 'seviri' .and. header_chan(1)%nuchan < 4) then
-        close(lndiag)
+        call close_radiag(fdiag_rad,lndiag)
         cycle loopf
       endif
 
@@ -1707,9 +1713,9 @@ contains
             endif
          end do 
       end do loop_a
-       
+
       if (.not. update .and. new_chan==0) then 
-         close(lndiag)
+         call close_radiag(fdiag_rad,lndiag)
          cycle loopf
       end if
 
@@ -1855,7 +1861,7 @@ contains
 !     End of loop over diagnostic file
       enddo loopd
 
-      close(lndiag)
+      call close_radiag(fdiag_rad,lndiag)
 
 !     Compute tlapmean
       if (update) then
