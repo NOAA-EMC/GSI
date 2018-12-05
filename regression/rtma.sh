@@ -22,6 +22,7 @@ tmpdir=$tmpdir/tmpreg_rtma/${exp}
 savdir=$savdir/outreg/rtma/${exp}
 
 # Specify GSI fixed field and data directories.
+#fixcrtm=${fixcrtm:-$CRTM_FIX} # possible future use
 
 #datobs=$datobs_rtma/$adate
 #datges=$datobs
