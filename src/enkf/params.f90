@@ -183,6 +183,12 @@ logical,public :: lobsdiag_forenkf = .false.
 ! if true, use netcdf diag files, otherwise use binary diags
 logical,public :: netcdf_diag = .false.
 
+! use fv3 cubed-sphere tiled restart files
+logical,public :: fv3_native = .false.
+character(len=500),public :: fv3fixpath = ' '
+integer(i_kind),public :: ntiles=6
+integer(i_kind),public :: res=0
+
 namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    covinflatemax,covinflatemin,deterministic,sortinc,&
                    corrlengthnh,corrlengthtr,corrlengthsh,&
@@ -202,12 +208,12 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    save_inflation,nobsl_max,lobsdiag_forenkf,netcdf_diag,&
                    letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs,npefiles,&
                    getkf,getkf_inflation,denkf,modelspace_vloc,dfs_sort,write_spread_diag,&
-                   fso_cycling,fso_calculate,imp_physics,lupp
+                   fso_cycling,fso_calculate,imp_physics,lupp,fv3_native
 
 namelist /nam_wrf/arw,nmm,nmm_restart
+namelist /nam_fv3/fv3fixpath,res,ntiles
 namelist /satobs_enkf/sattypes_rad,dsis
 namelist /ozobs_enkf/sattypes_oz
-
 
 contains
 
@@ -282,7 +288,7 @@ deterministic = .true.
 sortinc = .true.
 ! type of GFS microphyics.
 ! 99: Zhao-Carr, 11: GFDL
-imp_physics = 99
+imp_physics = 11
 ! lupp, if true output extra variables
 lupp = .false.
 ! these are all mandatory.
@@ -337,6 +343,10 @@ read(912,satobs_enkf)
 read(912,ozobs_enkf)
 if (regional) then
   read(912,nam_wrf)
+endif
+if (fv3_native) then
+  read(912,nam_fv3)
+  nlons = res; nlats = res ! (total number of pts = ntiles*res*res)
 endif
 close(912)
 
@@ -465,6 +475,10 @@ if (nproc == 0) then
       print *, 'must select either arw, nmm or nmmb regional dynamical core'
       call stop2(19)
    endif
+   if (fv3_native .and. (fv3fixpath == ' ' .or. res == 0)) then
+      print *, 'must specify res and fv3fixpath when fv3_native is true'
+      call stop2(19)
+   endif
    if (letkf_flag .and. univaroz) then
      print *,'univaroz is not supported in LETKF!'
      call stop2(19)
@@ -473,6 +487,7 @@ if (nproc == 0) then
        letkf_flag) then
      print *,'warning: no time localization in LETKF!'
    endif
+
 
    print *, trim(adjustl(datapath))
    if (datestring .ne. '0000000000') print *, 'analysis time ',datestring
