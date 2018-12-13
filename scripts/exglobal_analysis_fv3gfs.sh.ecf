@@ -294,7 +294,7 @@ NLAT_A=${NLAT_A:-$(($LATA+2))}
 DELTIM=${DELTIM:-$((3600/($JCAP_A/20)))}
 
 # GSI Fix files
-RTMFIX=${RTMFIX:-$NWROOT/lib/crtm/${crtm_ver}/fix}
+RTMFIX=${RTMFIX:-${CRTM_FIX}}
 BERROR=${BERROR:-${FIXgsi}/Big_Endian/global_berror.l${LEVS}y${NLAT_A}.f77}
 SATANGL=${SATANGL:-${FIXgsi}/global_satangbias.txt}
 SATINFO=${SATINFO:-${FIXgsi}/global_satinfo.txt}
@@ -1156,7 +1156,7 @@ fi # End diagnostic file generation block - if [ $GENDIAG = "YES" ]
 # Send alerts
 if [ $SENDDBN = "YES" ]; then
     if [ $RUN = "gdas" ]; then
-       $DBNROOT/bin/dbn_alert MODEL GDAS1RADSTAT $job $RADSTAT
+       $DBNROOT/bin/dbn_alert MODEL GDASRADSTAT $job $RADSTAT
     fi
     if [ $RUN = "gfs" ]; then
        $DBNROOT/bin/dbn_alert MODEL GFS_abias $job $ABIAS
