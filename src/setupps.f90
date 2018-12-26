@@ -153,7 +153,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) val2,ress,ressw2,val,valqc
   real(r_kind) cg_ps,wgross,wnotgross,wgt,arg,exp_arg,term,rat_err2,qcgross
   real(r_kind),dimension(nobs):: dup
-  real(r_kind),dimension(nsig):: prsltmp
+  real(r_kind),dimension(nsig):: prsltmp, tvges
   real(r_kind),dimension(nele,nobs):: data
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
 
@@ -399,6 +399,8 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      call tintrp2a11(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
         mype,nfldsig)
      call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
+        nsig,mype,nfldsig)
+     call tintrp2a1(ges_tv,tvges,dlat,dlon,dtime,hrdifsig,&
         nsig,mype,nfldsig)
 
 ! Convert pressure to grid coordinates
@@ -947,6 +949,12 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
               call fullarray(dhx_dx, dhx_dx_array)
               call nc_diag_data2d("Observation_Operator_Jacobian", dhx_dx_array)
            endif
+
+           call nc_diag_data2d("atmosphere_ln_pressure_coordinate", prsltmp)
+           call nc_diag_data2d("virtual_temperature", tvges)
+
+           call nc_diag_metadata("surface_air_pressure", psges )
+           call nc_diag_metadata("surface_geopotential_height", zsges )
 
   end subroutine contents_netcdf_diag_
 

@@ -219,7 +219,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) oscat_vec,ascat_vec,rapidscat_vec
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nobs):: dup
-  real(r_kind),dimension(nsig)::prsltmp,tges,zges
+  real(r_kind),dimension(nsig)::prsltmp,tges,zges,zges_read,uges,vges
   real(r_kind) wdirob,wdirgesin,wdirdiffmax
   real(r_kind),dimension(34)::ptabluv
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
@@ -495,6 +495,18 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
 
+     call tintrp2a11(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
+          mype,nfldsig)
+     call tintrp2a1(geop_hgtl,zges_read,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
+     call tintrp2a1(ges_tv,tges,dlat,dlon,dtime,hrdifsig,&
+              nsig,mype,nfldsig)
+
+    call tintrp2a1(ges_u,uges,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
+    call tintrp2a1(ges_v,vges,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
+
      itype=ictype(ikx)
 
 !    Type 221=pibal winds contain a mixture of wind observations reported
@@ -523,8 +535,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         drpx = zero
         dpres = data(ihgt,i)
         dstn = data(ielev,i)
-        call tintrp2a11(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
-             mype,nfldsig)
 !       Subtract off combination of surface station elevation and
 !       model elevation depending on how close to surface
         fact = zero
@@ -741,8 +751,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
               call comp_fact10(dlat,dlon,dtime,skint,sfcr,isli,mype,factw)
            end if
  
-           call tintrp2a1(ges_tv,tges,dlat,dlon,dtime,hrdifsig,&
-              nsig,mype,nfldsig)
 !          Apply 10-meter wind reduction factor to guess winds
            dx10=-goverrd*ten/tges(1)
            if (dpressave < dx10)then
@@ -1749,6 +1757,14 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
               call fullarray(dhx_dx_v, dhx_dx_array)
               call nc_diag_data2d("v_Observation_Operator_Jacobian", dhx_dx_array)
            endif
+
+           call nc_diag_metadata("surface_pressure",psges)
+           call nc_diag_metadata("height",zsges)
+           call nc_diag_data2d("atmosphere_ln_pressure_coordinate", prsltmp)
+           call nc_diag_data2d("virtual_temperature", tges)
+           call nc_diag_data2d("geopotential_height", zges_read)
+           call nc_diag_data2d("eastward_wind", uges)
+           call nc_diag_data2d("northward_wind", vges)
 
 
   end subroutine contents_netcdf_diag_

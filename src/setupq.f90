@@ -172,10 +172,10 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! Declare local variables  
   
   real(r_double) rstation_id
-  real(r_kind) qob,qges,qsges,q2mges,q2mges_water
+  real(r_kind) qob,qges,qsges,q2mges,q2mges_read,q2mges_water
   real(r_kind) ratio_errors,dlat,dlon,dtime,dpres,rmaxerr,error
   real(r_kind) rsig,dprpx,rlow,rhgh,presq,tfact,ramp
-  real(r_kind) psges,sfcchk,ddiff,errorx
+  real(r_kind) psges,qs2mges,sfcchk,ddiff,errorx
   real(r_kind) cg_q,wgross,wnotgross,wgt,arg,exp_arg,term,rat_err2,qcgross
   real(r_kind) grsmlt,ratio,val2,obserror
   real(r_kind) obserrlm,residual,ressw2,scale,ress,huge_error,var_jb
@@ -186,7 +186,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),dimension(nobs):: dup
   real(r_kind),dimension(lat2,lon2,nsig,nfldsig):: qg
   real(r_kind),dimension(lat2,lon2,nfldsig):: qg2m
-  real(r_kind),dimension(nsig):: prsltmp
+  real(r_kind),dimension(nsig):: prsltmp,qtmp,qstmp
   real(r_kind),dimension(34):: ptablq
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
   real(r_single),allocatable,dimension(:,:)::rdiagbufp
@@ -447,6 +447,12 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
 
+     call tintrp2a11(qg2m,qs2mges,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
+     call tintrp2a1(ges_q,qtmp,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
+     call tintrp2a1(qg,qstmp,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
+
      presq=r10*exp(dpres)
      itype=ictype(ikx)
      dprpx=zero
@@ -541,11 +547,12 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         if(i_coastline==2 .or. i_coastline==3) then
 !     Interpolate guess th 2m to observation location and time
-           call tintrp2a11_csln(ges_q2m,q2mges,q2mges_water,dlat,dlon,dtime,hrdifsig,mype,nfldsig)   
+           call tintrp2a11_csln(ges_q2m,q2mges_read,q2mges_water,dlat,dlon,dtime,hrdifsig,mype,nfldsig)   
            if(abs(qob-q2mges) > abs(qob-q2mges_water)) q2mges=q2mges_water
         else
-           call tintrp2a11(ges_q2m,q2mges,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
+           call tintrp2a11(ges_q2m,q2mges_read,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
         endif
+        q2mges = q2mges_read
 
         if(i_use_2mq4b==1)then
            qges=0.33_r_single*qges+0.67_r_single*q2mges
@@ -1202,6 +1209,13 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
               call fullarray(dhx_dx, dhx_dx_array)
               call nc_diag_data2d("Observation_Operator_Jacobian", dhx_dx_array)
            endif
+
+           call nc_diag_data2d("specific_humidity", qtmp)
+           call nc_diag_data2d("saturation_specific_humidity", qstmp)
+           call nc_diag_data2d("atmosphere_ln_pressure_coordinate", prsltmp)
+           call nc_diag_metadata("surface_pressure",psges)
+           call nc_diag_metadata("saturation_specific_humidity_2m", qs2mges)
+           call nc_diag_metadata("specific_humidity_2m",q2mges_read)
 
   end subroutine contents_netcdf_diag_
 

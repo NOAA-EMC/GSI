@@ -37,6 +37,7 @@ module m_gpsStats
 
   use m_gpsNode, only: gps_ob_type => gpsNode
   use kinds , only: r_kind,i_kind
+  use gridmod, only: nsig
   implicit none
   private	! except
   
@@ -55,6 +56,14 @@ module m_gpsStats
       real(r_kind)    :: type               
 
       real(r_kind),dimension(:),pointer :: rdiag => NULL()
+
+      real(r_kind),dimension(:),pointer :: tges
+      real(r_kind),dimension(:),pointer :: hgesl
+      real(r_kind),dimension(:),pointer :: qges
+      real(r_kind),dimension(:),pointer :: prsltmp
+      real(r_kind),dimension(:),pointer ::hges
+      real(r_kind) :: zsges
+
       integer(i_kind) :: kprof
       logical         :: luse          !  flag indicating if ob is used in pen.
 
@@ -786,6 +795,14 @@ subroutine contents_netcdf_diag_
            endif
 
 
+!           call nc_diag_data2d("atmosphere_ln_pressure_coordinate_i", gps_allptr%prsltmp)
+!           call nc_diag_data2d("geopotential_height_i", gps_allptr%hges)
+
+!           call nc_diag_data2d("virtual_temperature", gps_allptr%tges)
+!           call nc_diag_data2d("geopotential_height", gps_allptr%hgesl)
+!           call nc_diag_data2d("specific_humidity", gps_allptr%qges)
+
+!           call nc_diag_metadata("surface_geopotential_height", gps_allptr%zsges )
 
 !           call nc_diag_data2d("T_Jacobian",                              gps_allptr%mmpoint%jac_t             )
            if (lobsdiagsave) then

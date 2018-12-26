@@ -230,7 +230,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),dimension(npredt):: pred
   real(r_kind),dimension(npredt):: predcoef
   real(r_kind) tgges,roges
-  real(r_kind),dimension(nsig):: tvtmp,qtmp,utmp,vtmp,hsges
+  real(r_kind),dimension(nsig):: tvtmp,tsentmp,qtmp,utmp,vtmp,hsges
   real(r_kind) u10ges,v10ges,t2ges,q2ges,psges2,f10ges
   real(r_kind),dimension(34) :: ptablt
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
@@ -593,6 +593,19 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
 
+     call tintrp2a1(ges_tsen,tsentmp,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
+     call tintrp2a1(ges_tv,tvtmp,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
+     call tintrp2a1(ges_q,qtmp,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
+     call tintrp2a1(ges_u,utmp,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
+     call tintrp2a1(ges_v,vtmp,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
+     call tintrp2a1(geop_hgtl,hsges,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
+
      drpx=zero
      if(sfctype .and. .not.twodvar_regional) then
         drpx=abs(one-((one/exp(dpres-log(psges))))**rd_over_cp)*t0c
@@ -614,17 +627,6 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            msges=1
         endif
 
-        call tintrp2a1(ges_tv,tvtmp,dlat,dlon,dtime,hrdifsig,&
-             nsig,mype,nfldsig)
-        call tintrp2a1(ges_q,qtmp,dlat,dlon,dtime,hrdifsig,&
-             nsig,mype,nfldsig)
-        call tintrp2a1(ges_u,utmp,dlat,dlon,dtime,hrdifsig,&
-             nsig,mype,nfldsig)
-        call tintrp2a1(ges_v,vtmp,dlat,dlon,dtime,hrdifsig,&
-             nsig,mype,nfldsig)
-        call tintrp2a1(geop_hgtl,hsges,dlat,dlon,dtime,hrdifsig,&
-             nsig,mype,nfldsig)
-  
         psges2  = psges          ! keep in cb
         prsltmp2 = exp(prsltmp)  ! convert from ln p to cb
         call SFC_WTQ_FWD (psges2, tgges,&
@@ -1636,6 +1638,16 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
        call nc_diag_data2d("Observation_Operator_Jacobian", dhx_dx_array)
     endif
 
+    call nc_diag_data2d("virtual_temperature",       sngl(tvtmp))
+    call nc_diag_data2d("atmosphere_ln_pressure_coordinate", sngl(prsltmp))
+    call nc_diag_data2d("air_temperature", sngl(tsentmp))
+    call nc_diag_data2d("specific_humidity", sngl(qtmp))
+    call nc_diag_data2d("northward_wind", sngl(vtmp))
+    call nc_diag_data2d("eastward_wind", sngl(utmp))
+    call nc_diag_data2d("geopotential_height", sngl(hsges))
+    call nc_diag_metadata("surface_pressure", sngl(psges))
+
+
   end subroutine contents_netcdf_diag_
 
   subroutine contents_netcdf_diagp_
@@ -1669,6 +1681,16 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
     call nc_diag_metadata("Observation",             sngl(data(itob,i))     )
     call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)      )
     call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(ddiff)      )
+
+
+    call nc_diag_data2d("virtual_temperature",       sngl(tvtmp))
+    call nc_diag_data2d("atmosphere_ln_pressure_coordinate", sngl(prsltmp))
+    call nc_diag_data2d("temperature", sngl(tsentmp))
+    call nc_diag_data2d("specific_humidity", sngl(qtmp))
+    call nc_diag_data2d("northward_wind", sngl(vtmp))
+    call nc_diag_data2d("eastward_wind", sngl(utmp))
+    call nc_diag_data2d("geopotential_height", sngl(hsges))
+    call nc_diag_metadata("surface_pressure", sngl(psges))
 
     if (save_jacobian) then
        call fullarray(dhx_dx, dhx_dx_array)

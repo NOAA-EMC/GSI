@@ -202,7 +202,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   real(r_kind) fact,pw,nrefges1,nrefges2,nrefges3,nrefges,dpres,elev,k4,alt
   real(r_kind) ratio,residual,obserror,obserrlm,delz
   real(r_kind),dimension(nele,nobs):: data
-  real(r_kind),dimension(nsig):: tges,hgesl
+  real(r_kind),dimension(nsig):: tges,hgesl,qges
   real(r_kind),dimension(nsig+1) :: prsltmp,hges
   
   integer(i_kind):: ier,ilon,ilat,ihgt,igps,itime,ikx,iuse,ikxx
@@ -369,6 +369,9 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
              nsig,mype,nfldsig)
         call tintrp2a11(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
              mype,nfldsig)
+
+        call tintrp2a1(ges_q,qges,dlat,dlon,dtime,hrdifsig,&
+             nsig,mype,nfldsig)
 
 !       Convert geometric height at observation to geopotential height using
 !       equations (17, 20, 23) in MJ Mahoney's note "A discussion of various
@@ -931,6 +934,18 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
         do j=1,nreal
            gps_alltail(ibin)%head%rdiag(j)= rdiagbuf(j,i)
         end do
+        allocate(gps_alltail(ibin)%head%prsltmp(nsig+1))
+        allocate(gps_alltail(ibin)%head%hges(nsig+1))
+        allocate(gps_alltail(ibin)%head%tges(nsig))
+        allocate(gps_alltail(ibin)%head%hgesl(nsig))
+        allocate(gps_alltail(ibin)%head%qges(nsig))
+ 
+        gps_alltail(ibin)%head%prsltmp = prsltmp
+        gps_alltail(ibin)%head%tges = tges
+        gps_alltail(ibin)%head%hges = hges
+        gps_alltail(ibin)%head%hgesl = hgesl
+        gps_alltail(ibin)%head%zsges = zsges
+        gps_alltail(ibin)%head%qges = qges
 
 !       If obs is "acceptable", load array with obs info for use
 !       in inner loop minimization (int* and stp* routines)
