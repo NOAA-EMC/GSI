@@ -1,7 +1,7 @@
 macro (setDiscover)
   message("Setting paths for Discover")
-  option(FIND_HDF5 "Try to Find HDF5 libraries" OFF)
-  option(FIND_HDF5_HL "Try to Find HDF5 libraries" OFF)
+# option(FIND_HDF5 "Try to Find HDF5 libraries" OFF)
+# option(FIND_HDF5_HL "Try to Find HDF5 libraries" OFF)
   set(HDF5_USE_STATIC_LIBRARIES "OFF")
 
   set(HOST_FLAG "-xHOST" CACHE INTERNAL "Host Flag")

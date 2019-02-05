@@ -36,6 +36,10 @@ elif [[ -d /sw/gaea ]] ; then
 elif [[ -d /discover ]] ; then
 #   . /opt/cray/pe/modules/3.2.10.5/init/sh
     target=discover
+    build_type=0
+    export SPACK_ROOT=/discover/nobackup/mapotts1/spack
+    export PATH=$PATH:$SPACK_ROOT/bin
+    . $SPACK_ROOT/share/spack/setup-env.sh    
 else
     echo "unknown target = $target"
     exit 9
