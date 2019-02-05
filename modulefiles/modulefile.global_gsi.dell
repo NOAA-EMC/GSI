@@ -52,5 +52,4 @@ module load bacio/2.0.2
 
 module load NetCDF/3.6.3
 
-module use -a  /gpfs/dell1/nco/ops/nwpara/modulefiles/compiler_prod/ips/18.0.1
 module load sigio/2.1.0
