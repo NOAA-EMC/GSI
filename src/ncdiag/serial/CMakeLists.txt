@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 2.8)
 if(BUILD_NCDIAG)
 
-  if(BUILD_NCDIAG_SERIAL)
+  if( NOT USE_BASELIBS )
+  if( BUILD_NCDIAG_SERIAL )
     set(NCDIAG_SERIAL_MODULE_DIR ${PROJECT_BINARY_DIR}/include/ncdiag_serial)
     # NetCDF-4 library
     set(NCDIAG_SERIAL_INCS "${PROJECT_BINARY_DIR}/include/ncdiag_serial")
@@ -23,6 +24,7 @@ if(BUILD_NCDIAG)
     set_target_properties( nc_diag_cat_serial.x PROPERTIES Fortran_MODULE_DIRECTORY ${NCDIAG_SERIAL_MODULE_DIR} )
     target_link_libraries(nc_diag_cat_serial.x ncdiag_serial ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${HDF5_LIBRARIES} ${ZLIB_LIBRARIES} )  
   endif(BUILD_NCDIAG_SERIAL)
+  endif( NOT USE_BASELIBS )
 endif(BUILD_NCDIAG)
 
 
