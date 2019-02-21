@@ -43,58 +43,68 @@ module gridinfo
 
 use mpisetup, only: nproc, mpi_integer, mpi_real4, mpi_comm_world
 use params, only: datapath,nlevs,nlons,nlats,use_gfs_nemsio, fgfileprefixes, &
-                  fv3fixpath, res, ntiles
+                  fv3fixpath, nx_res,ny_res, ntiles
 use kinds, only: r_kind, i_kind, r_double, r_single
 use constants, only: one,zero,pi,cp,rd,grav,rearth,max_varname_length
+use constants, only: half
 use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
 use netcdf, only: nf90_inq_dimid,nf90_inq_varid
 use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
 use netcdf_mod, only: nc_check
+use read_fv3regional_restarts,only:read_fv3_restart_data1d,read_fv3_restart_data2d
+use read_fv3regional_restarts,only:read_fv3_restart_data3d,read_fv3_restart_data4d
 
 implicit none
 private
 public :: getgridinfo, gridinfo_cleanup
-integer(i_kind),public :: nlevs_pres, idvc
+public :: ak,bk,eta1_ll,eta2_ll
 real(r_single),public :: ptop
 real(r_single),public, allocatable, dimension(:) :: lonsgrd, latsgrd
 ! arrays passed to kdtree2 routines must be single
 real(r_single),public, allocatable, dimension(:,:) :: gridloc
 real(r_single),public, allocatable, dimension(:,:) :: logp
+integer(i_kind),                                  public     :: nlevs_pres
 integer,public :: npts
 integer,public :: ntrunc
 ! supported variable names in anavinfo
 character(len=max_varname_length),public, dimension(10) :: vars3d_supported = (/'u   ', 'v   ', 'tv  ', 'q   ', 'oz  ', 'cw  ', 'tsen', 'prse', 'ql  ', 'qi  '/)
 character(len=max_varname_length),public, dimension(3)  :: vars2d_supported = (/'ps ', 'pst', 'sst' /)
 ! supported variable names in anavinfo
+real(r_single), allocatable, dimension(:) :: ak,bk,eta1_ll,eta2_ll
 contains
 
 subroutine getgridinfo(fileprefix, reducedgrid)
 ! read latitudes, longitudes and pressures for analysis grid,
 ! broadcast to each task.
-use fv3_netcdf_mod, only: read_restart_data2d
+use fv3_netcdf_mod, only: read_fv3_restart_data2d
 implicit none
 
 character(len=120), intent(in) :: fileprefix
 logical, intent(in)            :: reducedgrid
 
-integer(i_kind) nlevsin, ierr, iunit, k, nn, idvc 
+integer(i_kind) ierr,  k, nn 
 character(len=500) filename
-integer(i_kind) iret,i,j,nlonsin,nlatsin
+integer(i_kind) i,j
 real(r_kind), allocatable, dimension(:) :: spressmn,tmpspec
 real(r_kind), allocatable, dimension(:,:) :: pressimn,presslmn
-real(r_single),allocatable,dimension(:,:,:) :: nems_vcoord
 real(r_kind) kap,kapr,kap1
 
-integer(i_kind) i,j,nn,file_id,var_id,dim_id,nlevsp1
-real(r_single), allocatable, dimension(:,:) :: ak,bk,lat_tile,lon_tile,ps
-real(r_single), allocatable, dimension(:,:,:,:) :: delp
+integer(i_kind) file_id,var_id,dim_id,nlevsp1,nx_tile,ny_tile,ntile
+integer (i_kind):: nn_tile0
+integer(i_kind) :: nlevsp1n,nlevsp2
+real(r_single), allocatable, dimension(:,:) :: lat_tile,lon_tile,ps
+real(r_single), allocatable, dimension(:) :: ak_fv3,bk_fv3
+real(r_single), allocatable, dimension(:,:,:) :: delp,g_prsi
 real(r_single) ptop
 character(len=4) char_res
+character(len=4) char_nxres
+character(len=4) char_nyres
 character(len=1) char_tile
+character(len=24),parameter :: myname_ = 'fv3: getgridinfo'
 
 nlevsp1 = nlevs + 1
 nlevs_pres = nlevsp1
-npts = ntiles*res*res
+npts = ntiles*nx_res*ny_res
 kap = rd/cp
 kapr = cp/rd
 kap1 = kap + one
@@ -103,77 +113,147 @@ kap1 = kap + one
 if (nproc .eq. 0) then
 
    !  read ak,bk from ensmean fv_core.res.nc
+   !  read nx,ny and nz from fv_core.res.nc
    filename = trim(adjustl(fileprefix))//'/ensmean/INPUT/fv_core.res.nc'
    call nc_check( nf90_open(trim(adjustl(filename)),nf90_nowrite,file_id),&
    myname_,'open: '//trim(adjustl(filename)) )
+
    call nc_check( nf90_inq_dimid(file_id,'xaxis_1',dim_id),&
        myname_,'inq_dimid xaxis_1 '//trim(filename) )
-   call nc_check( nf90_inquire_dimension(file_id,dim_id,len=nlevsp1),&
+   call nc_check( nf90_inquire_dimension(file_id,dim_id,len=nx_tile),&
        myname_,'inquire_dimension xaxis_1 '//trim(filename) )
-   allocate(ak(nlevsp1,1),bk(nlevsp1,1))
-   call read_fv3_restart_data2d('ak',filename,file_id,ak)
-   call read_fv3_restart_data2d('bk',filename,file_id,bk)
-   ptop = ak(1,1)
+   if(nx_res.ne.nx_tile) then
+     write(6,*)'the readin nx_tile does not equal to nx_res as expected, stop'
+     call stop2(25)
+   endif
+
+   call nc_check( nf90_inq_dimid(file_id,'yaxis_1',dim_id),&
+       myname_,'inq_dimid yaxis_1 '//trim(filename) )
+   call nc_check( nf90_inquire_dimension(file_id,dim_id,len=ny_tile),&
+       myname_,'inquire_dimension yaxis_1 '//trim(filename) )
+   if(ny_res.ne.ny_tile) then
+     write(6,*)'the readin ny_tile does not equal to ny_res as expected, stop'
+     call stop2(25)
+   endif
+
+
+   call nc_check( nf90_inq_dimid(file_id,'zaxis_1',dim_id),&
+       myname_,'inq_dimid zaxis_1 '//trim(filename) )
+   call nc_check( nf90_inquire_dimension(file_id,dim_id,len=nlevsp1n),&
+       myname_,'inquire_dimension zaxis_1 '//trim(filename) )
+   if(nlevsp1n.ne.nlevsp1) then
+     write(6,*)'the configure nlevsp1 is not consistent with the parameter &
+                  read from the data files, stop'
+     call stop2(25)
+   endif
+
+
+
+   allocate(ak(nlevsp1),bk(nlevsp1))
+   allocate(ak_fv3(nlevsp1),bk_fv3(nlevsp1))
+   call read_fv3_restart_data1d('ak',filename,file_id,ak_fv3)
+   call read_fv3_restart_data1d('bk',filename,file_id,bk_fv3)
+         nlevsp2=nlevsp1+1
+         do i=1,nlevsp1
+             ak(i)=ak_fv3(nlevsp2-i)
+             bk(i)=bk_fv3(nlevsp2-i)
+          enddo
+
+!!!!! change unit of ak,also reverse the 
+     
+    do i=1,nlevsp1
+       eta1_ll(i)=ak(i)*0.01_r_kind
+       eta2_ll(i)=bk(i)
+    enddo
+
+
+
+
+   ptop = eta1_ll(nlevsp1)
    
    !  read lats/lons from C###_oro_data.tile#.nc 
    ! (this requires path to FV3 fix dir)
-   write(char_res, '(i4)') res
-   allocate(lat_tile(res,res),lon_tile(res,res))
+   write(char_nxres, '(i4)') nx_res
+   write(char_nyres, '(i4)') ny_res
+   allocate(lat_tile(nx_res,ny_res),lon_tile(nx_res,ny_res))
    nn = 0
    allocate(latsgrd(npts),lonsgrd(npts))
    do ntile=1,ntiles
-      nn = nn + 1
+      nn_tile0=(ntile-1)*nx_res*ny_res
       write(char_tile, '(i1)') ntile
-      filename=trim(adjustl(fv3fixpath))//'/C'//trim(adjustl(char_res))//'/C'//trim(adjustl(char_res))//'_oro_data.tile'//char_tile//'.nc'
+!cltorg      filename=trim(adjustl(fv3fixpath))//'/C'//trim(adjustl(char_res))//'/C'//trim(adjustl(char_res))//'_oro_data.tile'//char_tile//'.nc'
+      filename=trim(adjustl(fv3fixpath))//'/C'//trim(adjustl(char_nxres))//'/C'//trim(adjustl(char_nyres))//'grid_spec.tile'//char_tile//'.nc'
       call nc_check( nf90_open(trim(adjustl(filename)),nf90_nowrite,file_id),&
       myname_,'open: '//trim(adjustl(filename)) )
-      call read_fv3_restart_data2d('geolon',filename,file_id,lon_tile)
+      call read_fv3_restart_data2d('grid_lont',filename,file_id,lon_tile)
       !print *,'min/max lon_tile',ntile,minval(lon_tile),maxval(lon_tile)
-      call read_fv3_restart_data2d('geolat',filename,file_id,lat_tile)
+      call read_fv3_restart_data2d('grid_latt',filename,file_id,lat_tile)
       !print *,'min/max lat_tile',ntile,minval(lat_tile),maxval(lat_tile)
       call nc_check( nf90_close(file_id),&
       myname_,'close '//trim(filename) )
-      do j=1,res
-         do i=1,res
-            latsgrd(nn) = lats_tile(i,j)
-            lonsgrd(nn) = lons_tile(i,j)
+      nn = nn_tile0
+      do j=1,ny_res
+         do i=1,nx_res
+            nn=nn+1
+            latsgrd(nn) = lat_tile(i,j)
+            lonsgrd(nn) = lon_tile(i,j)
          enddo
       enddo
+   enddo  !loop for ntilet
       latsgrd = pi*latsgrd/180._r_single
       lonsgrd = pi*lonsgrd/180._r_single
-   enddo
 !cltthink the unit of the lat/lon
-   allocate(delp(res,res,nlevs,1),ps(res,nres))
+   allocate(delp(nx_res,ny_res,nlevs),ps(nx_res,ny_res))
    allocate(pressimn(npts,nlevsp1),presslmn(npts,nlevs))
    nn = 0
    do ntile=1,ntiles
-      nn = nn + 1
+      nn_tile0=(ntile-1)*nx_res*ny_res
+      nn=nn_tile0
       write(char_tile, '(i1)') ntile
-      filename = trim(adjustl(datapath))//'/ensmean/fv_core.res.tile'//char_tile//'.nc'
+!cltorg      filename = trim(adjustl(datapath))//'/ensmean/fv_core.res.tile'//char_tile//'.nc'
+      filename = trim(adjustl(datapath))//'/ensmean/dynvars.tile'//char_tile//'.nc'
       !print *,trim(adjustl(filename))
       call nc_check( nf90_open(trim(adjustl(filename)),nf90_nowrite,file_id),&
       myname_,'open: '//trim(adjustl(filename)) )
-      call read_fv3_restart_data4d('delp',filename,file_id,delp)
+      call read_fv3_restart_data3d('delp',filename,file_id,delp)
       !print *,'min/max delp',ntile,minval(delp),maxval(delp)
       call nc_check( nf90_close(file_id),&
       myname_,'close '//trim(filename) )
-      ps = sum(delp,3) + ptop
+      g_prsi(:,:,nlevsp1)=eta1_ll(nlevsp1) !etal_ll is needed
+        do i=nlevs,1,-1
+        g_prsi(:,:,i)=delp(:,:,i)*0.01_r_kind+g_prsi(:,:,i+1)
+       enddo
+
+!cltorg      ps = sum(delp,3) + ptop
+      ps = g_prsi(:,:,1)
       !print *,'min/max ps',ntile,minval(ps),maxval(ps)
-      do j=1,res
-         do i=1,res
+      nn=nn_tile0
+      do j=1,ny_res
+         do i=1,nx_res
+            nn=nn+1
             spressmn(nn) = ps(i,j)
          enddo
       enddo
    enddo
    ! pressure at interfaces
    do k=1,nlevsp1
-      pressimn(:,k) = ak(nlevs-k,1)+bk(nlevs-k,1)*spressmn(:)
+      nn=nn_tile0
+      do j=1,ny_res
+      do i=1,nx_res  
+        nn=nn+1
+        pressimn(nn,k) = g_prsi(i,j,k)
+      enddo
+      enddo
    enddo
    deallocate(delp,ak,bk,ps)
    do k=1,nlevs
-     ! layer pressure from Phillips vertical interpolation.
-     presslmn(:,k) = ((pressimn(:,k)**kap1-pressimn(:,k+1)**kap1)/&
-                      (kap1*(pressimn(:,k)-pressimn(:,k+1))))**kapr
+      nn=nn_tile0
+      do j=1,ny_res
+      do i=1,nx_res  
+        nn=nn+1
+        presslmn(nn,k) = (pressimn(nn,k)+pressimn(nn,k+1)) *half
+      enddo
+      enddo
    end do
    print *,'ensemble mean first guess surface pressure:'
    print *,minval(spressmn),maxval(spressmn)
@@ -186,6 +266,9 @@ if (nproc .eq. 0) then
    end do
    logp(:,nlevs_pres) = -log(spressmn(:))
    deallocate(spressmn,presslmn,pressimn)
+   deallocate(g_prsi,delp,ak_fv3,bk_fv3)
+   deallocate(eta1_ll,eta2_ll,ak,bk)
+   deallocate(lat_tile,lon_tile,ps)
 
 endif ! root task
 
@@ -194,10 +277,6 @@ if (nproc .ne. 0) then
    allocate(latsgrd(npts),lonsgrd(npts))
    allocate(logp(npts,nlevs_pres)) ! log(ens mean first guess press) on mid-layers
    allocate(gridloc(3,npts))
-   ! initialize reducedgrid_mod on other tasks.
-   if (reducedgrid) then
-      call reducedgrid_init(nlons,nlats,asin_gaulats)
-   end if
 endif
 !call mpi_bcast(logp,npts*nlevs_pres,mpi_real4,0,MPI_COMM_WORLD,ierr)
 do k=1,nlevs_pres
@@ -205,6 +284,7 @@ do k=1,nlevs_pres
 enddo
 call mpi_bcast(lonsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(latsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
+!clt ptop tothink to be defined
 call mpi_bcast(ptop,1,mpi_real4,0,MPI_COMM_WORLD,ierr)
   
 !==> precompute cartesian coords of analysis grid points.

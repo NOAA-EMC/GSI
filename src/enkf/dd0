@@ -1,0 +1,17 @@
+    if (u_ind > 0) then
+       varstrname = 'u'
+         
+       call read_fv3_restart_data3d(varstrname,filename,file_id,workvar3d)
+      do k=1,nlevs
+          nn = nn_tile0
+      do j=1,ny_res
+         do i=1,nx_res
+            nn=nn+1
+            workinc3d(i,j,k)=vargrid(nn,levels(u_ind-1)+k,nb) 
+         enddo
+      enddo
+      enddo
+      workvar3d=workvar3d+workinc3d
+       call write_fv3_restart_data3d(varstrname,filename,file_id,workvar3d)
+
+    endif

@@ -187,7 +187,7 @@ logical,public :: netcdf_diag = .false.
 logical,public :: fv3_native = .false.
 character(len=500),public :: fv3fixpath = ' '
 integer(i_kind),public :: ntiles=6
-integer(i_kind),public :: res=0
+integer(i_kind),public :: nx_res=0,ny_res=0
 
 namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    covinflatemax,covinflatemin,deterministic,sortinc,&
@@ -211,7 +211,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    fso_cycling,fso_calculate,imp_physics,lupp,fv3_native
 
 namelist /nam_wrf/arw,nmm,nmm_restart
-namelist /nam_fv3/fv3fixpath,res,ntiles
+namelist /nam_fv3/fv3fixpath,nx_res,ny_res,ntiles
 namelist /satobs_enkf/sattypes_rad,dsis
 namelist /ozobs_enkf/sattypes_oz
 
@@ -346,7 +346,7 @@ if (regional) then
 endif
 if (fv3_native) then
   read(912,nam_fv3)
-  nlons = res; nlats = res ! (total number of pts = ntiles*res*res)
+  nlons = nx_res; nlats = ny_res ! (total number of pts = ntiles*res*res)
 endif
 close(912)
 
@@ -475,8 +475,8 @@ if (nproc == 0) then
       print *, 'must select either arw, nmm or nmmb regional dynamical core'
       call stop2(19)
    endif
-   if (fv3_native .and. (fv3fixpath == ' ' .or. res == 0)) then
-      print *, 'must specify res and fv3fixpath when fv3_native is true'
+   if (fv3_native .and. (fv3fixpath == ' ' .or. nx_res == 0.or.ny_res)) then
+      print *, 'must specify nx_res,ny_res and fv3fixpath when fv3_native is true'
       call stop2(19)
    endif
    if (letkf_flag .and. univaroz) then

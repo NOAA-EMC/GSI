@@ -44,6 +44,7 @@ integer(i_kind) iret,k,kk,nb
 integer :: u_ind, v_ind, t_ind, tsen_ind, q_ind, oz_ind, cw_ind, prse_ind
 integer :: ps_ind, sst_ind
 !integer(nemsio_intkind) :: idvc
+write(6,*)'test'
 
 u_ind    = getindex(vars3d, 'u')   !< indices in the state var arrays
 v_ind    = getindex(vars3d, 'v')   ! U and V (3D)
@@ -200,6 +201,7 @@ do k=1,nlevs
 enddo
 ! compute qsat
 if (pseudo_rh) then
+!cltthothink problem
    call genqsat1(grdin(:,levels(q_ind-1)+1:levels(q_ind-1)+nlevs,nb),qsat(:,:,nb),pslg,&
                  grdin(:,levels(t_ind-1)+1:levels(t_ind-1)+nlevs,nb),ice,npts,nlevs)
 else
