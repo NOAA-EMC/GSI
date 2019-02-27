@@ -150,7 +150,7 @@ case $machine in
 
    export ptmp="/gpfs/hps/ptmp/$LOGNAME/$ptmpName"
 
-   export fixcrtm="/gpfs/hps/nco/ops/nwprod/lib/crtm/v2.2.4/fix"
+   export fixcrtm="/gpfs/hps3/emc/da/noscrub/Michael.Lueken/CRTM_REL-2.2.3/fix_update"
    export casesdir="/gpfs/hps3/emc/da/noscrub/Michael.Lueken/CASES"
    export ndate=$NDATE
 
@@ -181,6 +181,7 @@ case $machine in
        echo "Regression tests on Discover need to be run via ctest"
        exit 1
    fi
+   export ptmp=$basedir
    export ptmp=$basedir
    export noscrub=$basedir
    export fixcrtm="/discover/nobackup/projects/gmao/share/gmao_ops/fvInput_4dvar/gsi/etc/fix_ncep20170329/REL-2.2.3-r60152_local-rev_1/CRTM_Coeffs/$endianness"

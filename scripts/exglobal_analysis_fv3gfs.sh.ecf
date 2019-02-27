@@ -55,7 +55,7 @@ export NMV=${NMV:-"/bin/mv"}
 export NLN=${NLN:-"/bin/ln -sf"}
 export CHGRP_CMD=${CHGRP_CMD:-"chgrp ${group_name:-rstprod}"}
 export NEMSIOGET=${NEMSIOGET:-${NWPROD}/exec/nemsio_get}
-export CATEXEC=${CATEXEC:-$HOMEgsi/exec/nc_diag_cat.x}
+export CATEXEC=${CATEXEC:-$HOMEgsi/exec/nc_diag_cat_serial.x}
 export ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
 COMPRESS=${COMPRESS:-gzip}
 UNCOMPRESS=${UNCOMPRESS:-gunzip}
@@ -85,9 +85,6 @@ APRUN_GAUSFCANL=${APRUN_GAUSFCANL:-${APRUN:-""}}
 # FV3 specific info (required for global_cycle)
 export CASE=${CASE:-"C384"}
 ntiles=${ntiles:-6}
-
-# Write component specific
-QUILTING=${QUILTING:-".true."}
 
 # Microphysics in the model; 99:ZC, 11:GFDLMP
 imp_physics=${imp_physics:-99}
@@ -243,43 +240,23 @@ INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"'NONE'"}
 
 # Get header information from Guess files
 LONB=${LONB:-$($NEMSIOGET $ATMGES dimx | grep -i "dimx" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
-status=$?
-[[ $status -ne 0 ]] && exit $status
 LATB=${LATB:-$($NEMSIOGET $ATMGES dimy | grep -i "dimy" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
-status=$?
-[[ $status -ne 0 ]] && exit $status
 LEVS=${LEVS:-$($NEMSIOGET $ATMGES dimz | grep -i "dimz" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
-status=$?
-[[ $status -ne 0 ]] && exit $status
-if [ $QUILTING = ".false." ]; then
-   JCAP=${JCAP:-$($NEMSIOGET $ATMGES jcap | grep -i "jcap" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
-   status=$?
-   [[ $status -ne 0 ]] && exit $status
-else
-    # using write component
-    JCAP=${JCAP:-$((LATB-2))}
-fi
+JCAP=${JCAP:-$($NEMSIOGET $ATMGES jcap | grep -i "jcap" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
+[ $JCAP -eq -9999 -a $LATB -ne -9999 ] && JCAP=$((LATB-2))
+[ $LONB -eq -9999 -o $LATB -eq -9999 -o $LEVS -eq -9999 -o $JCAP -eq -9999 ] && exit -9999
 
 # Get header information from Ensemble Guess files
 if [ $DOHYBVAR = "YES" ]; then
    SFCGES_ENSMEAN=${SFCGES_ENSMEAN:-${COMIN_GES_ENS}/${GPREFIX}sfcf006.ensmean${GSUFFIX}}
    ATMGES_ENSMEAN=${ATMGES_ENSMEAN:-${COMIN_GES_ENS}/${GPREFIX}atmf006.ensmean${GSUFFIX}}
    LONB_ENKF=${LONB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimx | grep -i "dimx" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
-   status=$?
-   [[ $status -ne 0 ]] && exit $status
    LATB_ENKF=${LATB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimy | grep -i "dimy" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
-   status=$?
-   [[ $status -ne 0 ]] && exit $status
    NLON_ENKF=${NLON_ENKF:-$LONB_ENKF}
    NLAT_ENKF=${NLAT_ENKF:-$(($LATB_ENKF+2))}
-   if [ $QUILTING = ".false." ]; then
-      JCAP_ENKF=${JCAP_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN jcap | grep -i "jcap" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
-      status=$?
-      [[ $status -ne 0 ]] && exit $status
-   else
-       # using write component
-       JCAP_ENKF=${JCAP_ENKF:-$((LATB_ENKF-2))}
-   fi
+   JCAP_ENKF=${JCAP_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN jcap | grep -i "jcap" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
+   [ $JCAP_ENKF -eq -9999 -a $LATB_ENKF -ne -9999 ] && JCAP_ENKF=$((LATB_ENKF-2))
+   [ $LONB_ENKF -eq -9999 -o $LATB_ENKF -eq -9999 -o $LEVS_ENKF -eq -9999 -o $JCAP_ENKF -eq -9999 ] && exit -9999
 fi
 
 # Get dimension information based on CASE
@@ -304,7 +281,7 @@ NLAT_A=${NLAT_A:-$(($LATA+2))}
 DELTIM=${DELTIM:-$((3600/($JCAP_A/20)))}
 
 # GSI Fix files
-RTMFIX=${RTMFIX:-$NWROOT/lib/crtm/${crtm_ver}/fix}
+RTMFIX=${RTMFIX:-${CRTM_FIX}}
 BERROR=${BERROR:-${FIXgsi}/Big_Endian/global_berror.l${LEVS}y${NLAT_A}.f77}
 SATANGL=${SATANGL:-${FIXgsi}/global_satangbias.txt}
 SATINFO=${SATINFO:-${FIXgsi}/global_satinfo.txt}
@@ -1174,7 +1151,7 @@ fi # End diagnostic file generation block - if [ $GENDIAG = "YES" ]
 # Send alerts
 if [ $SENDDBN = "YES" ]; then
     if [ $RUN = "gdas" ]; then
-       $DBNROOT/bin/dbn_alert MODEL GDAS1RADSTAT $job $RADSTAT
+       $DBNROOT/bin/dbn_alert MODEL GDASRADSTAT $job $RADSTAT
     fi
     if [ $RUN = "gfs" ]; then
        $DBNROOT/bin/dbn_alert MODEL GFS_abias $job $ABIAS
@@ -1184,7 +1161,7 @@ fi
 ################################################################################
 # Postprocessing
 cd $pwd
-#[[ $mkdata = "YES" ]] && rm -rf $DATA
+[[ $mkdata = "YES" ]] && rm -rf $DATA
 
 set +x
 if [ $VERBOSE = "YES" ]; then

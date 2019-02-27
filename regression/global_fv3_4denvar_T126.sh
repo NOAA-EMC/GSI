@@ -22,8 +22,7 @@ tmpdir=$tmpdir/$tmpregdir/${exp}
 savdir=$savdir/out${JCAP}/${exp}
 
 # Specify GSI fixed field and data directories.
-#fixgsi=$gsipath/trunk/fix
-##fixcrtm=${CRTM_FIX:-$fixcrtm}
+fixcrtm=${fixcrtm:-$CRTM_FIX}
 
 
 # Set variables used in script

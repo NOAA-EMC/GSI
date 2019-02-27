@@ -1233,6 +1233,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               endif
               if (ptime >zero ) then
                  itime=int((tdiff+three)/ptime)+1
+                 if (itime >ntime) itime=ntime
                  if(pmot <one) then
 !                    call map3grids_tm(-1,pflag,presl_thin,nlevp,ntime,dlat_earth,dlon_earth,&
                     call map3grids_tm(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
