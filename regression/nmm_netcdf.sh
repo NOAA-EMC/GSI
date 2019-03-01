@@ -45,7 +45,7 @@ tmpdir=$tmpdir/tmpreg_nmm_netcdf/${exp}
 savdir=$savdir/outreg/nmm_netcdf/${exp}
 
 # Specify GSI fixed field and data directories.
-
+fixcrtm=${fixcrtm:-$CRTM_FIX}
 
 # Set variables used in script
 #   CLEAN up $tmpdir when finished (YES=remove, NO=leave alone)

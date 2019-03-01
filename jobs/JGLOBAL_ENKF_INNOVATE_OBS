@@ -9,6 +9,7 @@ date
 #############################
 # Source relevant config files
 #############################
+export EXPDIR=${EXPDIR:-$HOMEgfs/parm/config}
 configs="base anal eobs"
 config_path=${EXPDIR:-$NWROOT/gfs.${gfs_ver}/parm/config}
 for config in $configs; do
@@ -29,17 +30,9 @@ status=$?
 ##############################################
 # Obtain unique process id (pid) and make temp directory
 ##############################################
-export job=${job:-"eomg.grp$ENSGRP"}
 export pid=${pid:-$$}
 export outid=${outid:-"LL$job"}
-export jobid=${jobid:-"${outid}.o${pid}"}
-if [ $RUN_ENVIR = "nco" ]; then
-    export DATA="$DATAROOT/$jobid"
-else
-    export DATAROOT="$RUNDIR/$CDATE/$CDUMP"
-    export DATA="$DATAROOT/$job"
-fi
-[[ -d $DATA ]] && rm -rf $DATA
+export DATA=${DATA:-${DATAROOT}/${jobid:?}}
 mkdir -p $DATA
 cd $DATA
 
@@ -50,12 +43,6 @@ cd $DATA
 export cycle="t${cyc}z"
 setpdy.sh
 . ./PDY
-
-
-##############################################
-# Define the Log File directory
-##############################################
-export jlogfile=${jlogfile:-$COMROOT/logs/jlogfiles/jlogfile.${job}.${pid}}
 
 
 ##############################################
@@ -97,9 +84,9 @@ export GSUFFIX=".nemsio"
 # COMIN_GES, COMIN_GES_ENS and COMOUT are used in exglobal script
 # TO DO: Map NCO's directory into these variables
 COMIN_GES_CTL="$ROTDIR/gdas.$gPDY/$gcyc"
-export COMIN_GES_ENS="$ROTDIR/enkf.gdas.$gPDY/$gcyc"
+export COMIN_GES_ENS="$ROTDIR/enkfgdas.$gPDY/$gcyc"
 export COMIN_GES=$COMIN_GES_ENS
-export COMOUT="$ROTDIR/enkf.$CDUMP.$PDY/$cyc"
+export COMOUT="$ROTDIR/enkf$CDUMP.$PDY/$cyc"
 
 
 export ATMGES_ENSMEAN="$COMIN_GES_ENS/${GPREFIX}atmf006.ensmean$GSUFFIX"
@@ -146,7 +133,7 @@ status=$?
 
 
 # Double check the status of members in ENSGRP
-EOMGGRP=$ROTDIR/enkf.${CDUMP}.$PDY/$cyc/eomg.grp${ENSGRP}
+EOMGGRP=$ROTDIR/enkf${CDUMP}.$PDY/$cyc/eomg.grp${ENSGRP}
 npass=0
 if [ -f $EOMGGRP ]; then
     npass=$(grep "PASS" $EOMGGRP | wc -l)
@@ -166,7 +153,9 @@ fi
 ##############################################
 # Final processing
 ##############################################
-cat $pgmout
+if [ -e "$pgmout" ] ; then
+  cat $pgmout
+fi
 
 
 msg="ENDED NORMALLY."

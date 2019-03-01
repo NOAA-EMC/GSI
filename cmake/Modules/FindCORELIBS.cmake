@@ -45,7 +45,7 @@ if(NOT  BUILD_EMC  )
     HINTS 
       $ENV{COREPATH}/lib/incmod/w3emc_4 
       $ENV{COREPATH}/include 
-      /usr/local/jcsda/nwprod_gdas_2014/lib/incmod/w3emc_4 
+      /usr/local/jcsda/nwprod_gdas_2014/lib/lib/incmod/w3emc_4 
       ${COREPATH}/w3emc/v${W3EMC_VER}/incmod/w3emc_v${W3EMC_VER}_d
       ${COREPATH}/w3emc/v${W3EMC_VER}/intel/w3emc_v${W3EMC_VER}_d
   )
@@ -53,7 +53,7 @@ if(NOT  BUILD_EMC  )
     NAMES libw3emc_4.a libw3emc_i4r8.a libw3emc_v${W3EMC_VER}_d.a
     HINTS 
       $ENV{COREPATH}/lib 
-      /usr/local/jcsda/nwprod_gdas_2014	
+      /usr/local/jcsda/nwprod_gdas_2014/lib	
       ${COREPATH}/w3emc/v${W3EMC_VER}
       ${COREPATH}/w3emc/v${W3EMC_VER}/intel
     PATH_SUFFIXES
@@ -81,7 +81,7 @@ if(NOT  BUILD_NCO )
     NAMES libw3nco_v${W3NCO_VER}_d.a libw3nco_d.a  libw3nco_i4r8.a 
     HINTS 
        $ENV{COREPATH}/lib 
-       /usr/local/jcsda/nwprod_gdas_2014	
+       /usr/local/jcsda/nwprod_gdas_2014/lib	
        ${COREPATH}/w3nco/v${W3NCO_VER}
        ${COREPATH}/w3nco/v${W3NCO_VER}/intel
     PATH_SUFFIXES
@@ -109,7 +109,7 @@ if(NOT  BUILD_BUFR  )
     NAMES libbufr.a libbufr_d_64.a libbufr_i4r8.a libbufr_v${BUFR_VER}_d_64.a
     HINTS 
       $ENV{COREPATH}/lib 
-      /usr/local/jcsda/nwprod_gdas_2014	
+      /usr/local/jcsda/nwprod_gdas_2014/lib	
       ${COREPATH}/bufr/v${BUFR_VER}
       ${COREPATH}/bufr/v${BUFR_VER}/intel
     PATH_SUFFIXES
@@ -140,7 +140,7 @@ if(NOT  BUILD_SFCIO )
     NAMES libsfcio.a libsfcio_4.a libsfcio_i4r4.a libsfcio_v${SFCIO_VER}_4.a
     HINTS 
       $ENV{COREPATH}/lib 
-      /usr/local/jcsda/nwprod_gdas_2014	
+      /usr/local/jcsda/nwprod_gdas_2014/lib	
       ${COREPATH}/sfcio/v${SFCIO_VER}
       ${COREPATH}/sfcio/v${SFCIO_VER}/intel
     PATH_SUFFIXES
@@ -172,7 +172,7 @@ if(NOT  BUILD_SIGIO )
     NAMES libsigio.a libsigio_4.a libsigio_i4r4.a libsigio_v${SIGIO_VER}_4.a
     HINTS 
      $ENV{COREPATH}/lib 
-     /usr/local/jcsda/nwprod_gdas_2014	
+     /usr/local/jcsda/nwprod_gdas_2014/lib	
      ${COREPATH}/sigio/v${SIGIO_VER}
      ${COREPATH}/sigio/v${SIGIO_VER}/intel
     PATH_SUFFIXES
@@ -204,7 +204,7 @@ if(NOT  BUILD_NEMSIO )
     NAMES libnemsio.a libnemsio_v${NEMSIO_VER}.a
     HINTS 
       $ENV{COREPATH}/lib 
-      /usr/local/jcsda/nwprod_gdas_2014	
+      /usr/local/jcsda/nwprod_gdas_2014/lib	
       ${COREPATH}/nemsio/v${NEMSIO_VER}
       ${COREPATH}/nemsio/v${NEMSIO_VER}/intel
     PATH_SUFFIXES
@@ -233,7 +233,7 @@ if(NOT  BUILD_SP )
     NAMES libsp_d.a libsp_i4r8.a libsp_v${SP_VER}_d.a
     HINTS 
       $ENV{COREPATH}/lib 
-      /usr/local/jcsda/nwprod_gdas_2014	
+      /usr/local/jcsda/nwprod_gdas_2014/lib	
       ${COREPATH}/sp/v${SP_VER}
       ${COREPATH}/sp/v${SP_VER}/intel
     PATH_SUFFIXES

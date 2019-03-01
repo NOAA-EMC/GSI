@@ -37,12 +37,7 @@ cd $tmpdir
 
 # Other required constants for regression testing
 maxtime=1200
-# Dew/Mist=26 GB/16 tasks per node
-##maxmem=$((1500000*1))
-# Vapor=110 GB/48 tasks per node
-##maxmem=$((2300000*1))
-# Cirrus=110 GB/32 tasks per node
-maxmem=$((3400000*1))
+maxmem=${maxmem:-3400000} # set in regression_param
 
 # Copy stdout and fort.220 files 
 # from $savdir to $tmpdir
@@ -143,7 +138,7 @@ fi
      timelogic=$( echo "$time1 > $maxtime" | bc )
      if [[ "$timelogic" = 1 ]]; then
        echo 'The runtime for '$exp1' is '$(awk '{ print $8 }' runtime.$exp1.txt)' seconds.  This has exceeded maximum allowable operational time of '$maxtime' seconds,'
-       echo 'resulting in failure of the regression test.'
+       echo 'resulting in Failure of max-time in the regression test.'
        echo  
        failed_test=1
      else
@@ -161,7 +156,7 @@ fi
      timelogic=$( echo "$time1 > $timethresh" | bc )
      if [[ "$timelogic" = 1 ]]; then
        echo 'The runtime for '$exp1' is '$(awk '{ print $8 }' runtime.$exp1.txt)' seconds.  This has exceeded maximum allowable threshold time of '$timethresh' seconds,'
-       echo 'resulting in failure of the regression test.'
+       echo 'resulting in Failure time-thresh of the regression test.'
        echo
        failed_test=1
      else
@@ -179,7 +174,7 @@ fi
      timelogic=$( echo "$time_scale1 > $timethresh2" | bc )
      if [[ "$timelogic" = 1 ]]; then
        echo 'The runtime for '$exp1_scale' is '$(awk '{ print $8 }' runtime.$exp1_scale.txt)' seconds.  This has exceeded maximum allowable threshold time of '$timethresh2' seconds,'
-       echo 'resulting in failure of the regression test.'
+       echo 'resulting in Failure of timethresh2 the regression test.'
        echo
        failed_test=1
      else
@@ -197,7 +192,7 @@ fi
 
      if [[ $(awk '{ print $8 }' memory.$exp1.txt) -gt $maxmem ]]; then
        echo 'The memory for '$exp1' is '$(awk '{ print $8 }' memory.$exp1.txt)' KBs.  This has exceeded maximum allowable hardware memory limit of '$maxmem' KBs,'
-       echo 'resulting in failure of the regression test.'
+       echo 'resulting in Failure maxmem of the regression test.'
        echo
        failed_test=1
      else
@@ -214,7 +209,7 @@ fi
 
      if [[ $(awk '{ print $8 }' memory.$exp1.txt) -gt $memthresh ]]; then
        echo 'The memory for '$exp1' is '$(awk '{ print $8 }' memory.$exp1.txt)' KBs.  This has exceeded maximum allowable memory of '$memthresh' KBs,'
-       echo 'resulting in failure of the regression test.'
+       echo 'resulting in Failure memthresh of the regression test.'
        echo
        failed_test=1
      else
@@ -236,14 +231,14 @@ if [[ $(grep -c 'cost,grad,step' penalty.${exp1}-${exp2}.txt) = 0 ]]; then
       echo
    else
       echo 'The results between the two runs are nonreproducible,'
-      echo 'thus the regression test has failed for '${exp1}' and '${exp2}' analyses.'
+      echo 'thus the regression test has Failed on cost for '${exp1}' and '${exp2}' analyses.'
 #     echo 'thus the regression test has failed for '${exp1}' and '${exp2}' analyses with '$(grep -c 'cost,grad,step' penalty.${exp1}-${exp2}.txt)' lines different.'
       echo
       failed_test=1
    fi
 else
    echo 'The results between the two runs are nonreproducible,'
-   echo 'thus the regression test has failed for '${exp1}' and '${exp2}' analyses.'
+   echo 'thus the regression test has Failed on cost for '${exp1}' and '${exp2}' analyses.'
    echo
 fi
 
@@ -262,7 +257,7 @@ then
    echo
 else
    echo 'The results between the two runs ('${exp1}' and '${exp2}') are not reproducible'
-   echo 'Thus, the case has failed the regression tests.'
+   echo 'Thus, the case has Failed siganl the regression tests.'
    echo
    failed_test=1
 fi
@@ -280,7 +275,7 @@ then
    echo
 else
    echo 'The results between the two runs ('${exp1}' and '${exp2}') are not reproducible'
-   echo 'Thus, the case has failed the regression tests.'
+   echo 'Thus, the case has Failed wrf_inout the regression tests.'
    echo
    failed_test=1
 fi
@@ -298,7 +293,7 @@ then
    echo
 else
    echo 'The results between the two runs ('${exp1}' and '${exp2}') are not reproducible'
-   echo 'Thus, the case has failed the regression tests.'
+   echo 'Thus, the case has Failed wrf_inout06 of the regression tests.'
    echo
    failed_test=1
 fi
@@ -316,7 +311,7 @@ then
    echo
 else
    echo 'The results between the two runs ('${exp1}' and '${exp2}') are not reproducible'
-   echo 'Thus, the case has failed the regression tests.'
+   echo 'Thus, the case has Failed siginc of the regression tests.'
    echo
    failed_test=1
 fi
@@ -332,7 +327,7 @@ then
    echo
 else
    echo 'The results between the two runs ('${exp1}' and '${exp2}') are not reproducible'
-   echo 'Thus, the case has failed the regression tests.'
+   echo 'Thus, the case has Failed siganl of the regression tests.'
    echo
    failed_test=1
 fi
@@ -352,14 +347,14 @@ if [[ $(grep -c 'cost,grad,step' penalty.${exp1}-${exp3}.txt) = 0 ]]; then
       echo
    else
       echo 'The results between the two runs are nonreproducible,'
-      echo 'thus the regression test has failed for '${exp1}' and '${exp3}' analyses.'
+      echo 'thus the regression test has Failed cost for '${exp1}' and '${exp3}' analyses.'
 #     echo 'thus the regression test has failed for '${exp1}' and '${exp3}' analyses with '$(grep -c 'cost,grad,step' penalty.${exp1}-${exp3}.txt)' lines different.'
       echo
       failed_test=1
    fi
 else
    echo 'The results between the two runs are nonreproducible,'
-   echo 'thus the regression test has failed for '${exp1}' and '${exp3}' analyses.'
+   echo 'thus the regression test has Failed cost for '${exp1}' and '${exp3}' analyses.'
    echo
 fi
 
@@ -378,7 +373,7 @@ if [[ `expr substr $exp1 1 4` = "rtma" ]]; then
       echo
    else
       echo 'The results between the two runs ('${exp1}' and '${exp3}') are not reproducible'
-      echo 'Thus, the case has failed the regression tests.'
+      echo 'Thus, the case has Failed wrf_inout of the regression tests.'
       echo
       failed_test=1
    fi
@@ -396,7 +391,7 @@ elif [[ -f wrf_inout.${exp1} ]]; then
       echo
    else
       echo 'The results between the two runs ('${exp1}' and '${exp3}') are not reproducible'
-      echo 'Thus, the case has failed the regression tests.'
+      echo 'Thus, the case has Failed wrf_inout of the regression tests.'
       echo
       failed_test=1
    fi
@@ -414,7 +409,7 @@ elif [[ -f wrf_inout06.${exp1} ]]; then
       echo
    else
       echo 'The results between the two runs ('${exp1}' and '${exp3}') are not reproducible'
-      echo 'Thus, the case has failed the regression tests.'
+      echo 'Thus, the case has Failed wrf_inout06 of the regression tests.'
       echo
       failed_test=1
    fi
@@ -432,7 +427,7 @@ elif [[ `expr substr $exp1 1 6` = "global" ]]; then
          echo
       else
          echo 'The results between the two runs ('${exp1}' and '${exp3}') are not reproducible'
-         echo 'Thus, the case has failed the regression tests.'
+         echo 'Thus, the case has Failed siginc of the regression tests.'
          echo
          failed_test=1
       fi
@@ -449,7 +444,7 @@ elif [[ `expr substr $exp1 1 6` = "global" ]]; then
          echo
       else
          echo 'The results between the two runs ('${exp1}' and '${exp3}') are not reproducible'
-         echo 'Thus, the case has failed the regression tests.'
+         echo 'Thus, the case has Failed siganl of the regression tests.'
          echo
          failed_test=1
       fi
@@ -467,7 +462,7 @@ fi
       echo 'The case has passed the scalability regression test.'
       echo 'The slope for the update ('$scale1thresh' seconds per node) is greater than or equal to that for the control ('$scale2' seconds per node).'
    else
-      echo 'The case has failed the scalability test.'
+      echo 'The case has Failed the scalability test.'
       echo 'The slope for the update ('$scale1thresh' seconds per node) is less than that for the control ('$scale2' seconds per node).'
    fi
 

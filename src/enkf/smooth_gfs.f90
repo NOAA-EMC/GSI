@@ -43,6 +43,7 @@ do np=0,numproc-1
    if (n2(np) > ncdim) n2(np) = ncdim
    if (n1(np) > ncdim .and. npmax == 0) npmax = np-1
 enddo
+if (npmax == 0) npmax = numproc-1
 ! spectrally smooth the grids
 ! bcast out to all procs.
 if (nproc <= npmax) then

@@ -1,0 +1,1153 @@
+# On branch enkf_fv3native_tl
+# You have unmerged paths.
+#   (fix conflicts and run "git commit")
+#
+# Changes to be committed:
+#
+#	new file:   .gitignore
+#	modified:   .gitmodules
+#	modified:   CMakeLists.txt
+#	modified:   cmake/Modules/FindBACIO.cmake
+#	modified:   cmake/Modules/FindBUFR.cmake
+#	modified:   cmake/Modules/FindBaselibs.cmake
+#	modified:   cmake/Modules/FindCORELIBS.cmake
+#	modified:   cmake/Modules/FindCRTM.cmake
+#	modified:   cmake/Modules/FindGSICONTROL.cmake
+#	new file:   cmake/Modules/FindNDATE.cmake
+#	modified:   cmake/Modules/FindNEMSIO.cmake
+#	modified:   cmake/Modules/FindNetCDF.cmake
+#	modified:   cmake/Modules/FindSFCIO.cmake
+#	modified:   cmake/Modules/FindSIGIO.cmake
+#	modified:   cmake/Modules/FindSP.cmake
+#	modified:   cmake/Modules/FindW3EMC.cmake
+#	modified:   cmake/Modules/FindW3NCO.cmake
+#	modified:   cmake/Modules/FindWRF.cmake
+#	modified:   cmake/Modules/platforms/Cheyenne.cmake
+#	modified:   cmake/Modules/platforms/Discover.cmake
+#	new file:   cmake/Modules/platforms/Gaea.cmake
+#	modified:   cmake/Modules/platforms/Generic.cmake
+#	new file:   cmake/Modules/platforms/Jet.cmake
+#	modified:   cmake/Modules/platforms/S4.cmake
+#	modified:   cmake/Modules/platforms/Theia.cmake
+#	new file:   cmake/Modules/platforms/WCOSS-C.cmake
+#	deleted:    cmake/Modules/platforms/WCOSS-Cray.cmake
+#	new file:   cmake/Modules/platforms/WCOSS-D.cmake
+#	deleted:    cmake/Modules/platforms/WCOSS-Dell.cmake
+#	modified:   cmake/Modules/platforms/WCOSS.cmake
+#	deleted:    cmake/Modules/setCompilerFlags.cmake
+#	new file:   cmake/Modules/setGNUFlags.cmake
+#	new file:   cmake/Modules/setHOST.cmake
+#	new file:   cmake/Modules/setIntelFlags.cmake
+#	new file:   cmake/Modules/setPGIFlags.cmake
+#	modified:   cmake/Modules/setPlatformVariables.cmake
+#	new file:   doc/EnKF_user_guide/.gitignore
+#	new file:   doc/EnKF_user_guide/README
+#	modified:   doc/EnKF_user_guide/ack.tex
+#	modified:   doc/EnKF_user_guide/enkf_appendix_A.tex
+#	modified:   doc/EnKF_user_guide/enkf_ch1.tex
+#	modified:   doc/EnKF_user_guide/enkf_ch2.tex
+#	modified:   doc/EnKF_user_guide/enkf_ch3.tex
+#	modified:   doc/EnKF_user_guide/enkf_ch4.tex
+#	modified:   doc/EnKF_user_guide/enkf_ch5.tex
+#	modified:   doc/EnKF_user_guide/enkf_ch6.tex
+#	modified:   doc/EnKF_user_guide/forward.tex
+#	new file:   doc/EnKF_user_guide/images/DTClogo.png
+#	new file:   doc/EnKF_user_guide/images/ch5_figure1.jpg
+#	new file:   doc/EnKF_user_guide/images/enkfbanner.jpg
+#	new file:   doc/EnKF_user_guide/images/enkfbanner.pdf
+#	new file:   doc/EnKF_user_guide/images/enkfbanner.tiff
+#	new file:   doc/EnKF_user_guide/references.bib
+#	modified:   doc/EnKF_user_guide/title.tex
+#	new file:   doc/GSI_user_guide/.gitignore
+#	new file:   doc/GSI_user_guide/README
+#	modified:   doc/GSI_user_guide/ack.tex
+#	modified:   doc/GSI_user_guide/forward.tex
+#	modified:   doc/GSI_user_guide/gsi_appendixA.tex
+#	modified:   doc/GSI_user_guide/gsi_appendixB.tex
+#	modified:   doc/GSI_user_guide/gsi_appendixC.tex
+#	modified:   doc/GSI_user_guide/gsi_ch1.tex
+#	modified:   doc/GSI_user_guide/gsi_ch2.tex
+#	modified:   doc/GSI_user_guide/gsi_ch3.tex
+#	modified:   doc/GSI_user_guide/gsi_ch4.tex
+#	modified:   doc/GSI_user_guide/gsi_ch5.tex
+#	modified:   doc/GSI_user_guide/gsi_ch6.tex
+#	new file:   doc/GSI_user_guide/images/CostGrad.png
+#	new file:   doc/GSI_user_guide/images/CostGrad_Ch5.png
+#	new file:   doc/GSI_user_guide/images/DTClogo.png
+#	new file:   doc/GSI_user_guide/images/GSIbanner.png
+#	new file:   doc/GSI_user_guide/images/SingleObs.png
+#	new file:   doc/GSI_user_guide/images/ch4_fig1.pdf
+#	new file:   doc/GSI_user_guide/images/ch4_fig2.pdf
+#	new file:   doc/GSI_user_guide/images/ch5_fig1.pdf
+#	new file:   doc/GSI_user_guide/images/ch5_fig_analysisincrement.pdf
+#	new file:   doc/GSI_user_guide/images/ch5_fig_analysisincrement_prepbufr.pdf
+#	new file:   doc/GSI_user_guide/images/ch5_fig_analysisincrement_prepbufr2.pdf
+#	new file:   doc/GSI_user_guide/images/ch5_fig_analysisincrement_prepbufr_lvl48.pdf
+#	new file:   doc/GSI_user_guide/images/ch5_fig_costfunct.pdf
+#	new file:   doc/GSI_user_guide/images/ch6_chem_inc_seas1_bc1.png
+#	new file:   doc/GSI_user_guide/images/gsibanner.pdf
+#	new file:   doc/GSI_user_guide/images/increments.png
+#	new file:   doc/GSI_user_guide/images/increments_bufr.png
+#	new file:   doc/GSI_user_guide/images/increments_rad.png
+#	new file:   doc/GSI_user_guide/images/increments_rad2.png
+#	new file:   doc/GSI_user_guide/images/landmask.png
+#	new file:   doc/GSI_user_guide/images/terrain.png
+#	modified:   doc/GSI_user_guide/references.bib
+#	modified:   doc/GSI_user_guide/title.tex
+#	new file:   doc/Release_Notes.fv3gfs_da.v15.0.0.txt
+#	deleted:    doc/Release_Notes.gdas_da.v13.0.0.txt
+#	deleted:    doc/Release_Notes.gfs_da.v13.0.0.txt
+#	deleted:    doc/Release_Notes.global_shared_da.v13.0.0.txt
+#	modified:   fix
+#	modified:   jobs/JGDAS_ENKF_FCST
+#	modified:   jobs/JGDAS_ENKF_POST
+#	modified:   jobs/JGDAS_ENKF_RECENTER
+#	modified:   jobs/JGLOBAL_ANALYSIS
+#	modified:   jobs/JGLOBAL_ENKF_INNOVATE_OBS
+#	modified:   jobs/JGLOBAL_ENKF_SELECT_OBS
+#	modified:   jobs/JGLOBAL_ENKF_UPDATE
+#	modified:   libsrc
+#	new file:   modulefiles/modulefile.ProdGSI.cheyenne
+#	deleted:    modulefiles/modulefile.ProdGSI.cray
+#	deleted:    modulefiles/modulefile.ProdGSI.dell
+#	modified:   modulefiles/modulefile.ProdGSI.discover
+#	new file:   modulefiles/modulefile.ProdGSI.gaea
+#	new file:   modulefiles/modulefile.ProdGSI.jet
+#	modified:   modulefiles/modulefile.ProdGSI.theia
+#	modified:   modulefiles/modulefile.ProdGSI.wcoss
+#	new file:   modulefiles/modulefile.ProdGSI.wcoss_c
+#	new file:   modulefiles/modulefile.ProdGSI.wcoss_d
+#	deleted:    modulefiles/modulefile.gdas_enkf.cray
+#	deleted:    modulefiles/modulefile.gdas_enkf.theia
+#	deleted:    modulefiles/modulefile.gdas_enkf.wcoss
+#	deleted:    modulefiles/modulefile.global_gsi.cray
+#	deleted:    modulefiles/modulefile.global_gsi.theia
+#	deleted:    modulefiles/modulefile.global_gsi.wcoss
+#	modified:   regression/arw_binary.sh
+#	modified:   regression/arw_netcdf.sh
+#	modified:   regression/global_4denvar_T126.sh
+#	modified:   regression/global_4dvar_T62.sh
+#	modified:   regression/global_T62.sh
+#	modified:   regression/global_T62_ozonly.sh
+#	new file:   regression/global_fv3_4denvar_T126.sh
+#	modified:   regression/global_hybrid_T126.sh
+#	modified:   regression/global_lanczos_T62.sh
+#	modified:   regression/global_nemsio_T62.sh
+#	modified:   regression/hwrf_nmm_d2.sh
+#	modified:   regression/hwrf_nmm_d3.sh
+#	modified:   regression/multi_regression.sh
+#	modified:   regression/netcdf_fv3_regional.sh
+#	modified:   regression/nmm_binary.sh
+#	modified:   regression/nmm_netcdf.sh
+#	modified:   regression/nmmb_nems_4denvar.sh
+#	modified:   regression/regression_namelists.sh
+#	modified:   regression/regression_namelists_db.sh
+#	modified:   regression/regression_nl_update.sh
+#	modified:   regression/regression_param.sh
+#	modified:   regression/regression_test.sh
+#	modified:   regression/regression_test_enkf.sh
+#	modified:   regression/regression_var.sh
+#	modified:   regression/rtma.sh
+#	modified:   scripts/exglobal_analysis.sh.ecf
+#	modified:   scripts/exglobal_analysis_fv3gfs.sh.ecf
+#	modified:   scripts/exglobal_enkf_fcst_fv3gfs.sh.ecf
+#	modified:   scripts/exglobal_enkf_innovate_obs_fv3gfs.sh.ecf
+#	modified:   scripts/exglobal_enkf_post_fv3gfs.sh.ecf
+#	modified:   scripts/exglobal_enkf_recenter_fv3gfs.sh.ecf
+#	modified:   scripts/exglobal_enkf_update_fv3gfs.sh.ecf
+#	modified:   scripts/exglobal_innovate_obs_fv3gfs.sh.ecf
+#	deleted:    src/CMakeLists.txt
+#	deleted:    src/Makefile
+#	deleted:    src/Makefile.conf.AIX
+#	deleted:    src/Makefile.conf.IRIX
+#	deleted:    src/Makefile.conf.IRIX64
+#	deleted:    src/Makefile.conf.Linux
+#	deleted:    src/Makefile.conf.Linux.IA64.efc
+#	deleted:    src/Makefile.conf.Linux.IA64.ifort
+#	deleted:    src/Makefile.conf.Linux.jet
+#	deleted:    src/Makefile.conf.Linux.lf95
+#	deleted:    src/Makefile.conf.OSF1
+#	deleted:    src/Makefile.conf.cheyenne
+#	deleted:    src/Makefile.conf.cray
+#	deleted:    src/Makefile.conf.jet
+#	deleted:    src/Makefile.conf.jibb
+#	deleted:    src/Makefile.conf.nco
+#	deleted:    src/Makefile.conf.s4
+#	deleted:    src/Makefile.conf.theia
+#	deleted:    src/Makefile.conf.wcoss
+#	deleted:    src/Makefile.conf.zeus
+#	deleted:    src/Makefile.conf.zeus.gsdcloud4arw
+#	deleted:    src/Makefile.conf.zeus.gsdcloud4nmmb
+#	deleted:    src/Makefile.dependency
+#	deleted:    src/Makefile.src
+#	deleted:    src/anisofilter.f90
+#	deleted:    src/calctends_ad.f90
+#	deleted:    src/calctends_no_ad.f90
+#	deleted:    src/control2state.f90
+#	deleted:    src/control2state_ad.f90
+#	deleted:    src/control_vectors.f90
+#	deleted:    src/convthin.f90
+#	deleted:    src/convthin_time.f90
+#	deleted:    src/cplr_gfs_ensmod.f90
+#	deleted:    src/cplr_gfs_nstmod.f90
+#	deleted:    src/crtm_interface.f90
+#	modified:   src/enkf/CMakeLists.txt
+#	deleted:    src/enkf/Makefile.conf.cray
+#	deleted:    src/enkf/Makefile.conf.jet
+#	deleted:    src/enkf/Makefile.conf.nco
+#	deleted:    src/enkf/Makefile.conf.theia
+#	deleted:    src/enkf/Makefile.conf.wcoss
+#	deleted:    src/enkf/Makefile.conf.zeus
+#	deleted:    src/enkf/Makefile.dependency
+#	deleted:    src/enkf/Makefile.dependency.gfs
+#	deleted:    src/enkf/Makefile.dependency.nmmb
+#	deleted:    src/enkf/Makefile.dependency.wrf
+#	deleted:    src/enkf/Makefile_gfs
+#	deleted:    src/enkf/Makefile_nmmb
+#	deleted:    src/enkf/Makefile_wrf
+#	renamed:    src/README.EnKF -> src/enkf/README.EnKF
+#	modified:   src/enkf/enkf.f90
+#	modified:   src/enkf/gridinfo_gfs.f90
+#	modified:   src/enkf/gridinfo_nmmb.f90
+#	modified:   src/enkf/gridinfo_wrf.f90
+#	modified:   src/enkf/gridio_nmmb.f90
+#	modified:   src/enkf/gridio_wrf.f90
+#	typechange: src/enkf/observer_nmmb.f90
+#	modified:   src/enkf/observer_reg.f90
+#	typechange: src/enkf/observer_wrf.f90
+#	modified:   src/enkf/readsatobs.f90
+#	modified:   src/enkf/smooth_gfs.f90
+#	deleted:    src/get_gefs_for_regional.f90
+#	deleted:    src/gsdcloudanalysis.F90
+#	new file:   src/gsi/CMakeLists.txt
+#	renamed:    src/Nst_Var_ESMFMod.f90 -> src/gsi/Nst_Var_ESMFMod.f90
+#	renamed:    src/adjtest.f90 -> src/gsi/adjtest.f90
+#	renamed:    src/adjtest_obs.f90 -> src/gsi/adjtest_obs.f90
+#	renamed:    src/adjust_cloudobs_mod.f90 -> src/gsi/adjust_cloudobs_mod.f90
+#	renamed:    src/aeroinfo.f90 -> src/gsi/aeroinfo.f90
+#	renamed:    src/aircraftinfo.f90 -> src/gsi/aircraftinfo.f90
+#	renamed:    src/aircraftobsqc.f90 -> src/gsi/aircraftobsqc.f90
+#	renamed:    src/anberror.f90 -> src/gsi/anberror.f90
+#	renamed:    src/anbkerror.f90 -> src/gsi/anbkerror.f90
+#	renamed:    src/aniso_ens_util.f90 -> src/gsi/aniso_ens_util.f90
+#	new file:   src/gsi/anisofilter.f90
+#	renamed:    src/anisofilter_glb.f90 -> src/gsi/anisofilter_glb.f90
+#	renamed:    src/antcorr_application.f90 -> src/gsi/antcorr_application.f90
+#	renamed:    src/antest_maps0.f90 -> src/gsi/antest_maps0.f90
+#	renamed:    src/antest_maps0_glb.f90 -> src/gsi/antest_maps0_glb.f90
+#	renamed:    src/atms_spatial_average_mod.f90 -> src/gsi/atms_spatial_average_mod.f90
+#	renamed:    src/balmod.f90 -> src/gsi/balmod.f90
+#	renamed:    src/berror.f90 -> src/gsi/berror.f90
+#	renamed:    src/bias_predictors.f90 -> src/gsi/bias_predictors.f90
+#	renamed:    src/bicg.f90 -> src/gsi/bicg.f90
+#	renamed:    src/bicglanczos.F90 -> src/gsi/bicglanczos.F90
+#	renamed:    src/bkerror.f90 -> src/gsi/bkerror.f90
+#	renamed:    src/bkgcov.f90 -> src/gsi/bkgcov.f90
+#	renamed:    src/bkgvar.f90 -> src/gsi/bkgvar.f90
+#	renamed:    src/bkgvar_rewgt.f90 -> src/gsi/bkgvar_rewgt.f90
+#	renamed:    src/blacklist.f90 -> src/gsi/blacklist.f90
+#	renamed:    src/blendmod.f90 -> src/gsi/blendmod.f90
+#	renamed:    src/blockIO.c -> src/gsi/blockIO.c
+#	renamed:    src/buddycheck_mod.f90 -> src/gsi/buddycheck_mod.f90
+#	renamed:    src/calc_fov_conical.f90 -> src/gsi/calc_fov_conical.f90
+#	renamed:    src/calc_fov_crosstrk.f90 -> src/gsi/calc_fov_crosstrk.f90
+#	renamed:    src/calctends.f90 -> src/gsi/calctends.f90
+#	new file:   src/gsi/calctends_ad.f90
+#	new file:   src/gsi/calctends_no_ad.f90
+#	renamed:    src/calctends_no_tl.f90 -> src/gsi/calctends_no_tl.f90
+#	renamed:    src/calctends_tl.f90 -> src/gsi/calctends_tl.f90
+#	renamed:    src/chemmod.f90 -> src/gsi/chemmod.f90
+#	renamed:    src/class_get_pseudo_ensperts.f90 -> src/gsi/class_get_pseudo_ensperts.f90
+#	renamed:    src/class_get_wrf_mass_ensperts.f90 -> src/gsi/class_get_wrf_mass_ensperts.f90
+#	renamed:    src/class_get_wrf_nmm_ensperts.f90 -> src/gsi/class_get_wrf_nmm_ensperts.f90
+#	renamed:    src/class_gfs_ensmod.f90 -> src/gsi/class_gfs_ensmod.f90
+#	renamed:    src/class_read_wrf_mass_files.f90 -> src/gsi/class_read_wrf_mass_files.f90
+#	renamed:    src/class_read_wrf_mass_guess.f90 -> src/gsi/class_read_wrf_mass_guess.f90
+#	renamed:    src/class_read_wrf_nmm_files.f90 -> src/gsi/class_read_wrf_nmm_files.f90
+#	renamed:    src/class_read_wrf_nmm_guess.f90 -> src/gsi/class_read_wrf_nmm_guess.f90
+#	renamed:    src/class_regional_io.f90 -> src/gsi/class_regional_io.f90
+#	renamed:    src/class_wrf_binary_interface.f90 -> src/gsi/class_wrf_binary_interface.f90
+#	renamed:    src/class_wrf_netcdf_interface.f90 -> src/gsi/class_wrf_netcdf_interface.f90
+#	renamed:    src/class_wrwrfmassa.f90 -> src/gsi/class_wrwrfmassa.f90
+#	renamed:    src/class_wrwrfnmma.f90 -> src/gsi/class_wrwrfnmma.f90
+#	renamed:    src/cloud_efr_mod.f90 -> src/gsi/cloud_efr_mod.f90
+#	renamed:    src/clw_mod.f90 -> src/gsi/clw_mod.f90
+#	renamed:    src/cmaq_routines.f90 -> src/gsi/cmaq_routines.f90
+#	renamed:    src/co_mop_ak.f90 -> src/gsi/co_mop_ak.f90
+#	renamed:    src/coinfo.f90 -> src/gsi/coinfo.f90
+#	renamed:    src/combine_radobs.f90 -> src/gsi/combine_radobs.f90
+#	renamed:    src/compact_diffs.f90 -> src/gsi/compact_diffs.f90
+#	renamed:    src/compute_derived.f90 -> src/gsi/compute_derived.f90
+#	renamed:    src/compute_fact10.f90 -> src/gsi/compute_fact10.f90
+#	renamed:    src/compute_qvar3d.f90 -> src/gsi/compute_qvar3d.f90
+#	renamed:    src/configure -> src/gsi/configure
+#	renamed:    src/constants.f90 -> src/gsi/constants.f90
+#	renamed:    src/control2model.f90 -> src/gsi/control2model.f90
+#	renamed:    src/control2model_ad.f90 -> src/gsi/control2model_ad.f90
+#	new file:   src/gsi/control2state.f90
+#	new file:   src/gsi/control2state_ad.f90
+#	new file:   src/gsi/control_vectors.f90
+#	renamed:    src/convb_ps.f90 -> src/gsi/convb_ps.f90
+#	renamed:    src/convb_q.f90 -> src/gsi/convb_q.f90
+#	renamed:    src/convb_t.f90 -> src/gsi/convb_t.f90
+#	renamed:    src/convb_uv.f90 -> src/gsi/convb_uv.f90
+#	renamed:    src/converr.f90 -> src/gsi/converr.f90
+#	renamed:    src/converr_ps.f90 -> src/gsi/converr_ps.f90
+#	renamed:    src/converr_pw.f90 -> src/gsi/converr_pw.f90
+#	renamed:    src/converr_q.f90 -> src/gsi/converr_q.f90
+#	renamed:    src/converr_t.f90 -> src/gsi/converr_t.f90
+#	renamed:    src/converr_uv.f90 -> src/gsi/converr_uv.f90
+#	renamed:    src/convinfo.f90 -> src/gsi/convinfo.f90
+#	new file:   src/gsi/convthin.f90
+#	new file:   src/gsi/convthin_time.f90
+#	renamed:    src/correlated_obsmod.F90 -> src/gsi/correlated_obsmod.F90
+#	renamed:    src/cplr_get_pseudo_ensperts.f90 -> src/gsi/cplr_get_pseudo_ensperts.f90
+#	renamed:    src/cplr_get_wrf_mass_ensperts.f90 -> src/gsi/cplr_get_wrf_mass_ensperts.f90
+#	renamed:    src/cplr_get_wrf_nmm_ensperts.f90 -> src/gsi/cplr_get_wrf_nmm_ensperts.f90
+#	new file:   src/gsi/cplr_gfs_ensmod.f90
+#	new file:   src/gsi/cplr_gfs_nstmod.f90
+#	renamed:    src/cplr_read_wrf_mass_files.f90 -> src/gsi/cplr_read_wrf_mass_files.f90
+#	renamed:    src/cplr_read_wrf_mass_guess.f90 -> src/gsi/cplr_read_wrf_mass_guess.f90
+#	renamed:    src/cplr_read_wrf_nmm_files.f90 -> src/gsi/cplr_read_wrf_nmm_files.f90
+#	renamed:    src/cplr_read_wrf_nmm_guess.f90 -> src/gsi/cplr_read_wrf_nmm_guess.f90
+#	renamed:    src/cplr_regional_io.f90 -> src/gsi/cplr_regional_io.f90
+#	renamed:    src/cplr_wrf_binary_interface.f90 -> src/gsi/cplr_wrf_binary_interface.f90
+#	renamed:    src/cplr_wrf_netcdf_interface.f90 -> src/gsi/cplr_wrf_netcdf_interface.f90
+#	renamed:    src/cplr_wrwrfmassa.f90 -> src/gsi/cplr_wrwrfmassa.f90
+#	renamed:    src/cplr_wrwrfnmma.f90 -> src/gsi/cplr_wrwrfnmma.f90
+#	new file:   src/gsi/crtm_interface.f90
+#	renamed:    src/cvsection.f90 -> src/gsi/cvsection.f90
+#	renamed:    src/cwhydromod.f90 -> src/gsi/cwhydromod.f90
+#	renamed:    src/derivsmod.f90 -> src/gsi/derivsmod.f90
+#	renamed:    src/deter_sfc_mod.f90 -> src/gsi/deter_sfc_mod.f90
+#	renamed:    src/dtast.f90 -> src/gsi/dtast.f90
+#	renamed:    src/egrid2agrid_mod.f90 -> src/gsi/egrid2agrid_mod.f90
+#	renamed:    src/en_perts_io.f90 -> src/gsi/en_perts_io.f90
+#	renamed:    src/enorm_state.f90 -> src/gsi/enorm_state.f90
+#	renamed:    src/ens_spread_mod.f90 -> src/gsi/ens_spread_mod.f90
+#	renamed:    src/ensctl2model.f90 -> src/gsi/ensctl2model.f90
+#	renamed:    src/ensctl2model_ad.f90 -> src/gsi/ensctl2model_ad.f90
+#	renamed:    src/ensctl2state.f90 -> src/gsi/ensctl2state.f90
+#	renamed:    src/ensctl2state_ad.f90 -> src/gsi/ensctl2state_ad.f90
+#	renamed:    src/evaljgrad.f90 -> src/gsi/evaljgrad.f90
+#	renamed:    src/evaljo.f90 -> src/gsi/evaljo.f90
+#	renamed:    src/evalqlim.f90 -> src/gsi/evalqlim.f90
+#	renamed:    src/fgrid2agrid_mod.f90 -> src/gsi/fgrid2agrid_mod.f90
+#	renamed:    src/fill_mass_grid2.f90 -> src/gsi/fill_mass_grid2.f90
+#	renamed:    src/fill_nmm_grid2.f90 -> src/gsi/fill_nmm_grid2.f90
+#	renamed:    src/fpvsx_ad.f90 -> src/gsi/fpvsx_ad.f90
+#	renamed:    src/fv3_regional_interface.f90 -> src/gsi/fv3_regional_interface.f90
+#	renamed:    src/general_commvars_mod.f90 -> src/gsi/general_commvars_mod.f90
+#	renamed:    src/general_read_gfsatm.f90 -> src/gsi/general_read_gfsatm.f90
+#	renamed:    src/general_read_nmmb.f90 -> src/gsi/general_read_nmmb.f90
+#	renamed:    src/general_specmod.f90 -> src/gsi/general_specmod.f90
+#	renamed:    src/general_spectral_transforms.f90 -> src/gsi/general_spectral_transforms.f90
+#	renamed:    src/general_sub2grid_mod.f90 -> src/gsi/general_sub2grid_mod.f90
+#	renamed:    src/general_tll2xy_mod.f90 -> src/gsi/general_tll2xy_mod.f90
+#	renamed:    src/general_transform.f90 -> src/gsi/general_transform.f90
+#	renamed:    src/general_write_gfsatm.f90 -> src/gsi/general_write_gfsatm.f90
+#	renamed:    src/genex_mod.f90 -> src/gsi/genex_mod.f90
+#	renamed:    src/gengrid_vars.f90 -> src/gsi/gengrid_vars.f90
+#	renamed:    src/genqsat.f90 -> src/gsi/genqsat.f90
+#	renamed:    src/genstats_gps.f90 -> src/gsi/genstats_gps.f90
+#	renamed:    src/gesinfo.f90 -> src/gsi/gesinfo.f90
+#	renamed:    src/get_derivatives.f90 -> src/gsi/get_derivatives.f90
+#	renamed:    src/get_derivatives2.f90 -> src/gsi/get_derivatives2.f90
+#	renamed:    src/get_gefs_ensperts_dualres.f90 -> src/gsi/get_gefs_ensperts_dualres.f90
+#	new file:   src/gsi/get_gefs_for_regional.f90
+#	renamed:    src/get_nmmb_ensperts.f90 -> src/gsi/get_nmmb_ensperts.f90
+#	renamed:    src/get_semimp_mats.f90 -> src/gsi/get_semimp_mats.f90
+#	renamed:    src/getcount_bufr.f90 -> src/gsi/getcount_bufr.f90
+#	renamed:    src/getprs.f90 -> src/gsi/getprs.f90
+#	renamed:    src/getsiga.f90 -> src/gsi/getsiga.f90
+#	renamed:    src/getuv.f90 -> src/gsi/getuv.f90
+#	renamed:    src/getvvel.f90 -> src/gsi/getvvel.f90
+#	renamed:    src/gfs_stratosphere.f90 -> src/gsi/gfs_stratosphere.f90
+#	renamed:    src/glbsoi.f90 -> src/gsi/glbsoi.f90
+#	renamed:    src/grdcrd.f90 -> src/gsi/grdcrd.f90
+#	renamed:    src/gridmod.F90 -> src/gsi/gridmod.F90
+#	renamed:    src/grtest.f90 -> src/gsi/grtest.f90
+#	renamed:    src/gscond_ad.f90 -> src/gsi/gscond_ad.f90
+#	renamed:    src/gsd_terrain_match_surfTobs.f90 -> src/gsi/gsd_terrain_match_surfTobs.f90
+#	renamed:    src/gsd_update_mod.f90 -> src/gsi/gsd_update_mod.f90
+#	new file:   src/gsi/gsdcloudanalysis.F90
+#	renamed:    src/gsdcloudanalysis4NMMB.F90 -> src/gsi/gsdcloudanalysis4NMMB.F90
+#	renamed:    src/gsdcloudanalysis4gfs.F90 -> src/gsi/gsdcloudanalysis4gfs.F90
+#	renamed:    src/gsi_4dcouplermod.f90 -> src/gsi/gsi_4dcouplermod.f90
+#	renamed:    src/gsi_4dvar.f90 -> src/gsi/gsi_4dvar.f90
+#	renamed:    src/gsi_bias.f90 -> src/gsi/gsi_bias.f90
+#	renamed:    src/gsi_bundlemod.F90 -> src/gsi/gsi_bundlemod.F90
+#	renamed:    src/gsi_chemguess_mod.F90 -> src/gsi/gsi_chemguess_mod.F90
+#	renamed:    src/gsi_enscouplermod.f90 -> src/gsi/gsi_enscouplermod.f90
+#	renamed:    src/gsi_io.f90 -> src/gsi/gsi_io.f90
+#	renamed:    src/gsi_metguess_mod.F90 -> src/gsi/gsi_metguess_mod.F90
+#	renamed:    src/gsi_nemsio_mod.f90 -> src/gsi/gsi_nemsio_mod.f90
+#	renamed:    src/gsi_nstcouplermod.f90 -> src/gsi/gsi_nstcouplermod.f90
+#	renamed:    src/gsi_rfv3io_mod.f90 -> src/gsi/gsi_rfv3io_mod.f90
+#	renamed:    src/gsi_unformatted.F90 -> src/gsi/gsi_unformatted.F90
+#	new file:   src/gsi/gsimain.f90
+#	new file:   src/gsi/gsimod.F90
+#	new file:   src/gsi/gsisub.F90
+#	renamed:    src/guess_grids.F90 -> src/gsi/guess_grids.F90
+#	renamed:    src/half_nmm_grid2.f90 -> src/gsi/half_nmm_grid2.f90
+#	renamed:    src/hilbert_curve.f90 -> src/gsi/hilbert_curve.f90
+#	new file:   src/gsi/hybrid_ensemble_isotropic.F90
+#	renamed:    src/hybrid_ensemble_parameters.f90 -> src/gsi/hybrid_ensemble_parameters.f90
+#	renamed:    src/inc2guess.f90 -> src/gsi/inc2guess.f90
+#	renamed:    src/init_jcdfi.f90 -> src/gsi/init_jcdfi.f90
+#	renamed:    src/insitu_info.f90 -> src/gsi/insitu_info.f90
+#	renamed:    src/intall.f90 -> src/gsi/intall.f90
+#	renamed:    src/intaod.f90 -> src/gsi/intaod.f90
+#	renamed:    src/intcldch.f90 -> src/gsi/intcldch.f90
+#	renamed:    src/intco.f90 -> src/gsi/intco.f90
+#	renamed:    src/intdw.f90 -> src/gsi/intdw.f90
+#	renamed:    src/intgps.f90 -> src/gsi/intgps.f90
+#	renamed:    src/intgust.f90 -> src/gsi/intgust.f90
+#	renamed:    src/inthowv.f90 -> src/gsi/inthowv.f90
+#	renamed:    src/intjcmod.f90 -> src/gsi/intjcmod.f90
+#	renamed:    src/intjo.f90 -> src/gsi/intjo.f90
+#	renamed:    src/intlag.f90 -> src/gsi/intlag.f90
+#	renamed:    src/intlcbas.f90 -> src/gsi/intlcbas.f90
+#	new file:   src/gsi/intlight.f90
+#	renamed:    src/intlwcp.f90 -> src/gsi/intlwcp.f90
+#	renamed:    src/intmitm.f90 -> src/gsi/intmitm.f90
+#	renamed:    src/intmxtm.f90 -> src/gsi/intmxtm.f90
+#	renamed:    src/intoz.f90 -> src/gsi/intoz.f90
+#	renamed:    src/intpblh.f90 -> src/gsi/intpblh.f90
+#	renamed:    src/intpcp.f90 -> src/gsi/intpcp.f90
+#	renamed:    src/intpm10.f90 -> src/gsi/intpm10.f90
+#	renamed:    src/intpm2_5.f90 -> src/gsi/intpm2_5.f90
+#	renamed:    src/intpmsl.f90 -> src/gsi/intpmsl.f90
+#	renamed:    src/intps.f90 -> src/gsi/intps.f90
+#	renamed:    src/intpw.f90 -> src/gsi/intpw.f90
+#	renamed:    src/intq.f90 -> src/gsi/intq.f90
+#	renamed:    src/intrad.f90 -> src/gsi/intrad.f90
+#	renamed:    src/intrp2a.f90 -> src/gsi/intrp2a.f90
+#	renamed:    src/intrp3oz.f90 -> src/gsi/intrp3oz.f90
+#	renamed:    src/intrp_msk.f90 -> src/gsi/intrp_msk.f90
+#	renamed:    src/intrw.f90 -> src/gsi/intrw.f90
+#	renamed:    src/intspd.f90 -> src/gsi/intspd.f90
+#	renamed:    src/intsst.f90 -> src/gsi/intsst.f90
+#	renamed:    src/intswcp.f90 -> src/gsi/intswcp.f90
+#	renamed:    src/intt.f90 -> src/gsi/intt.f90
+#	renamed:    src/inttcamt.f90 -> src/gsi/inttcamt.f90
+#	renamed:    src/inttcp.f90 -> src/gsi/inttcp.f90
+#	renamed:    src/inttd2m.f90 -> src/gsi/inttd2m.f90
+#	renamed:    src/intuwnd10m.f90 -> src/gsi/intuwnd10m.f90
+#	renamed:    src/intvis.f90 -> src/gsi/intvis.f90
+#	renamed:    src/intvwnd10m.f90 -> src/gsi/intvwnd10m.f90
+#	renamed:    src/intw.f90 -> src/gsi/intw.f90
+#	renamed:    src/intwspd10m.f90 -> src/gsi/intwspd10m.f90
+#	renamed:    src/jcmod.f90 -> src/gsi/jcmod.f90
+#	renamed:    src/jfunc.f90 -> src/gsi/jfunc.f90
+#	renamed:    src/jgrad.f90 -> src/gsi/jgrad.f90
+#	renamed:    src/kinds.F90 -> src/gsi/kinds.F90
+#	renamed:    src/lag_fields.f90 -> src/gsi/lag_fields.f90
+#	renamed:    src/lag_interp.f90 -> src/gsi/lag_interp.f90
+#	renamed:    src/lag_traj.f90 -> src/gsi/lag_traj.f90
+#	renamed:    src/lagmod.f90 -> src/gsi/lagmod.f90
+#	renamed:    src/lanczos.F90 -> src/gsi/lanczos.F90
+#	new file:   src/gsi/lightinfo.f90
+#	renamed:    src/logcldch_to_cldch.f90 -> src/gsi/logcldch_to_cldch.f90
+#	renamed:    src/loglcbas_to_lcbas.f90 -> src/gsi/loglcbas_to_lcbas.f90
+#	renamed:    src/logvis_to_vis.f90 -> src/gsi/logvis_to_vis.f90
+#	renamed:    src/looplimits.f90 -> src/gsi/looplimits.f90
+#	renamed:    src/m_aeroNode.F90 -> src/gsi/m_aeroNode.F90
+#	renamed:    src/m_aerolNode.F90 -> src/gsi/m_aerolNode.F90
+#	renamed:    src/m_berror_stats.f90 -> src/gsi/m_berror_stats.f90
+#	new file:   src/gsi/m_berror_stats_reg.f90
+#	renamed:    src/m_cldchNode.F90 -> src/gsi/m_cldchNode.F90
+#	renamed:    src/m_colvkNode.F90 -> src/gsi/m_colvkNode.F90
+#	renamed:    src/m_cvgridLookup.F90 -> src/gsi/m_cvgridLookup.F90
+#	renamed:    src/m_dgeevx.F90 -> src/gsi/m_dgeevx.F90
+#	renamed:    src/m_distance.f90 -> src/gsi/m_distance.f90
+#	renamed:    src/m_dtime.F90 -> src/gsi/m_dtime.F90
+#	renamed:    src/m_dwNode.F90 -> src/gsi/m_dwNode.F90
+#	renamed:    src/m_extOzone.F90 -> src/gsi/m_extOzone.F90
+#	renamed:    src/m_find.f90 -> src/gsi/m_find.f90
+#	renamed:    src/m_gpsNode.F90 -> src/gsi/m_gpsNode.F90
+#	renamed:    src/m_gpsrhs.F90 -> src/gsi/m_gpsrhs.F90
+#	renamed:    src/m_gsiBiases.f90 -> src/gsi/m_gsiBiases.f90
+#	renamed:    src/m_gustNode.F90 -> src/gsi/m_gustNode.F90
+#	renamed:    src/m_howvNode.F90 -> src/gsi/m_howvNode.F90
+#	renamed:    src/m_lagNode.F90 -> src/gsi/m_lagNode.F90
+#	renamed:    src/m_latlonRange.F90 -> src/gsi/m_latlonRange.F90
+#	renamed:    src/m_lcbasNode.F90 -> src/gsi/m_lcbasNode.F90
+#	new file:   src/gsi/m_lightNode.F90
+#	renamed:    src/m_lwcpNode.F90 -> src/gsi/m_lwcpNode.F90
+#	renamed:    src/m_mitmNode.F90 -> src/gsi/m_mitmNode.F90
+#	renamed:    src/m_mxtmNode.F90 -> src/gsi/m_mxtmNode.F90
+#	renamed:    src/m_o3lNode.F90 -> src/gsi/m_o3lNode.F90
+#	new file:   src/gsi/m_obsHeadBundle.F90
+#	new file:   src/gsi/m_obsLList.F90
+#	renamed:    src/m_obsNode.F90 -> src/gsi/m_obsNode.F90
+#	new file:   src/gsi/m_obsNodeTypeManager.F90
+#	renamed:    src/m_obsdiagNode.F90 -> src/gsi/m_obsdiagNode.F90
+#	new file:   src/gsi/m_obsdiags.F90
+#	renamed:    src/m_ozNode.F90 -> src/gsi/m_ozNode.F90
+#	renamed:    src/m_pblhNode.F90 -> src/gsi/m_pblhNode.F90
+#	renamed:    src/m_pcpNode.F90 -> src/gsi/m_pcpNode.F90
+#	renamed:    src/m_pm10Node.F90 -> src/gsi/m_pm10Node.F90
+#	renamed:    src/m_pm2_5Node.F90 -> src/gsi/m_pm2_5Node.F90
+#	renamed:    src/m_pmslNode.F90 -> src/gsi/m_pmslNode.F90
+#	renamed:    src/m_psNode.F90 -> src/gsi/m_psNode.F90
+#	renamed:    src/m_pwNode.F90 -> src/gsi/m_pwNode.F90
+#	renamed:    src/m_qNode.F90 -> src/gsi/m_qNode.F90
+#	renamed:    src/m_radNode.F90 -> src/gsi/m_radNode.F90
+#	renamed:    src/m_rerank.f90 -> src/gsi/m_rerank.f90
+#	renamed:    src/m_rhs.F90 -> src/gsi/m_rhs.F90
+#	renamed:    src/m_rwNode.F90 -> src/gsi/m_rwNode.F90
+#	renamed:    src/m_sortind.f90 -> src/gsi/m_sortind.f90
+#	renamed:    src/m_spdNode.F90 -> src/gsi/m_spdNode.F90
+#	renamed:    src/m_sstNode.F90 -> src/gsi/m_sstNode.F90
+#	renamed:    src/m_stats.f90 -> src/gsi/m_stats.f90
+#	renamed:    src/m_swcpNode.F90 -> src/gsi/m_swcpNode.F90
+#	renamed:    src/m_tNode.F90 -> src/gsi/m_tNode.F90
+#	renamed:    src/m_tcamtNode.F90 -> src/gsi/m_tcamtNode.F90
+#	renamed:    src/m_tcpNode.F90 -> src/gsi/m_tcpNode.F90
+#	renamed:    src/m_td2mNode.F90 -> src/gsi/m_td2mNode.F90
+#	renamed:    src/m_tick.F90 -> src/gsi/m_tick.F90
+#	renamed:    src/m_uniq.f90 -> src/gsi/m_uniq.f90
+#	renamed:    src/m_uwnd10mNode.F90 -> src/gsi/m_uwnd10mNode.F90
+#	renamed:    src/m_visNode.F90 -> src/gsi/m_visNode.F90
+#	renamed:    src/m_vwnd10mNode.F90 -> src/gsi/m_vwnd10mNode.F90
+#	renamed:    src/m_wNode.F90 -> src/gsi/m_wNode.F90
+#	renamed:    src/m_wspd10mNode.F90 -> src/gsi/m_wspd10mNode.F90
+#	renamed:    src/make_depend.bash -> src/gsi/make_depend.bash
+#	new file:   src/gsi/mod_fv3_lola.f90
+#	renamed:    src/mod_nmmb_to_a.f90 -> src/gsi/mod_nmmb_to_a.f90
+#	renamed:    src/mod_strong.f90 -> src/gsi/mod_strong.f90
+#	renamed:    src/mod_vtrans.f90 -> src/gsi/mod_vtrans.f90
+#	renamed:    src/mod_wrfmass_to_a.f90 -> src/gsi/mod_wrfmass_to_a.f90
+#	renamed:    src/model_ad.F90 -> src/gsi/model_ad.F90
+#	renamed:    src/model_tl.F90 -> src/gsi/model_tl.F90
+#	renamed:    src/mp_compact_diffs_mod1.f90 -> src/gsi/mp_compact_diffs_mod1.f90
+#	renamed:    src/mp_compact_diffs_support.f90 -> src/gsi/mp_compact_diffs_support.f90
+#	renamed:    src/mpeu_mpif.F90 -> src/gsi/mpeu_mpif.F90
+#	renamed:    src/mpeu_util.F90 -> src/gsi/mpeu_util.F90
+#	renamed:    src/mpimod.F90 -> src/gsi/mpimod.F90
+#	renamed:    src/mpl_allreduce.F90 -> src/gsi/mpl_allreduce.F90
+#	renamed:    src/mpl_bcast.f90 -> src/gsi/mpl_bcast.f90
+#	renamed:    src/myassert.H -> src/gsi/myassert.H
+#	renamed:    src/mytrace.H -> src/gsi/mytrace.H
+#	renamed:    src/native_endianness.f90 -> src/gsi/native_endianness.f90
+#	renamed:    src/nc_diag_read_mod.f90 -> src/gsi/nc_diag_read_mod.f90
+#	renamed:    src/nc_diag_write_mod.f90 -> src/gsi/nc_diag_write_mod.f90
+#	renamed:    src/ncepgfs_ghg.f90 -> src/gsi/ncepgfs_ghg.f90
+#	renamed:    src/ncepgfs_io.f90 -> src/gsi/ncepgfs_io.f90
+#	new file:   src/gsi/ncepnems_io.f90
+#	renamed:    src/netcdf_mod.f90 -> src/gsi/netcdf_mod.f90
+#	renamed:    src/nlmsas_ad.f90 -> src/gsi/nlmsas_ad.f90
+#	new file:   src/gsi/nltransf.f90
+#	renamed:    src/normal_rh_to_q.f90 -> src/gsi/normal_rh_to_q.f90
+#	renamed:    src/nstio_module.f90 -> src/gsi/nstio_module.f90
+#	renamed:    src/obs_ferrscale.F90 -> src/gsi/obs_ferrscale.F90
+#	renamed:    src/obs_para.f90 -> src/gsi/obs_para.f90
+#	new file:   src/gsi/obs_sensitivity.f90
+#	renamed:    src/obserr_allsky_mw.f90 -> src/gsi/obserr_allsky_mw.f90
+#	renamed:    src/observer.F90 -> src/gsi/observer.F90
+#	new file:   src/gsi/obsmod.F90
+#	renamed:    src/omegas_ad.f90 -> src/gsi/omegas_ad.f90
+#	renamed:    src/oneobmod.F90 -> src/gsi/oneobmod.F90
+#	renamed:    src/ozinfo.f90 -> src/gsi/ozinfo.f90
+#	renamed:    src/patch2grid_mod.f90 -> src/gsi/patch2grid_mod.f90
+#	renamed:    src/pcgsoi.f90 -> src/gsi/pcgsoi.f90
+#	renamed:    src/pcgsqrt.f90 -> src/gsi/pcgsqrt.f90
+#	renamed:    src/pcp_k.f90 -> src/gsi/pcp_k.f90
+#	renamed:    src/pcpinfo.f90 -> src/gsi/pcpinfo.f90
+#	new file:   src/gsi/penal.f90
+#	renamed:    src/phil.f90 -> src/gsi/phil.f90
+#	renamed:    src/phil1.f90 -> src/gsi/phil1.f90
+#	renamed:    src/plib8.f90 -> src/gsi/plib8.f90
+#	renamed:    src/polcarf.f90 -> src/gsi/polcarf.f90
+#	renamed:    src/prad_bias.f90 -> src/gsi/prad_bias.f90
+#	renamed:    src/precond.f90 -> src/gsi/precond.f90
+#	renamed:    src/precpd_ad.f90 -> src/gsi/precpd_ad.f90
+#	renamed:    src/prewgt.f90 -> src/gsi/prewgt.f90
+#	renamed:    src/prewgt_reg.f90 -> src/gsi/prewgt_reg.f90
+#	renamed:    src/projmethod_support.f90 -> src/gsi/projmethod_support.f90
+#	renamed:    src/prt_guess.f90 -> src/gsi/prt_guess.f90
+#	renamed:    src/psichi2uv_reg.f90 -> src/gsi/psichi2uv_reg.f90
+#	renamed:    src/psichi2uvt_reg.f90 -> src/gsi/psichi2uvt_reg.f90
+#	renamed:    src/q_diag.f90 -> src/gsi/q_diag.f90
+#	new file:   src/gsi/qcmod.f90
+#	renamed:    src/qnewton3.f90 -> src/gsi/qnewton3.f90
+#	new file:   src/gsi/radiance_mod.f90
+#	new file:   src/gsi/radinfo.f90
+#	renamed:    src/raflib.f90 -> src/gsi/raflib.f90
+#	renamed:    src/rapidrefresh_cldsurf_mod.f90 -> src/gsi/rapidrefresh_cldsurf_mod.f90
+#	renamed:    src/rdgrbsst.f90 -> src/gsi/rdgrbsst.f90
+#	renamed:    src/read_Lightning.f90 -> src/gsi/read_Lightning.f90
+#	renamed:    src/read_NASA_LaRC_cloud.f90 -> src/gsi/read_NASA_LaRC_cloud.f90
+#	renamed:    src/read_aerosol.f90 -> src/gsi/read_aerosol.f90
+#	renamed:    src/read_ahi.f90 -> src/gsi/read_ahi.f90
+#	renamed:    src/read_airs.f90 -> src/gsi/read_airs.f90
+#	renamed:    src/read_amsr2.f90 -> src/gsi/read_amsr2.f90
+#	renamed:    src/read_amsre.f90 -> src/gsi/read_amsre.f90
+#	renamed:    src/read_anowbufr.f90 -> src/gsi/read_anowbufr.f90
+#	renamed:    src/read_atms.f90 -> src/gsi/read_atms.f90
+#	renamed:    src/read_avhrr.f90 -> src/gsi/read_avhrr.f90
+#	renamed:    src/read_avhrr_navy.f90 -> src/gsi/read_avhrr_navy.f90
+#	renamed:    src/read_bufrtovs.f90 -> src/gsi/read_bufrtovs.f90
+#	renamed:    src/read_co.f90 -> src/gsi/read_co.f90
+#	renamed:    src/read_cris.f90 -> src/gsi/read_cris.f90
+#	new file:   src/gsi/read_diag.f90
+#	new file:   src/gsi/read_files.f90
+#	renamed:    src/read_fl_hdob.f90 -> src/gsi/read_fl_hdob.f90
+#	renamed:    src/read_gfs_ozone_for_regional.f90 -> src/gsi/read_gfs_ozone_for_regional.f90
+#	renamed:    src/read_gmi.f90 -> src/gsi/read_gmi.f90
+#	new file:   src/gsi/read_goesglm.f90
+#	renamed:    src/read_goesimg.f90 -> src/gsi/read_goesimg.f90
+#	renamed:    src/read_goesimgr_skycover.f90 -> src/gsi/read_goesimgr_skycover.f90
+#	renamed:    src/read_goesndr.f90 -> src/gsi/read_goesndr.f90
+#	renamed:    src/read_gps.f90 -> src/gsi/read_gps.f90
+#	renamed:    src/read_guess.F90 -> src/gsi/read_guess.F90
+#	renamed:    src/read_iasi.f90 -> src/gsi/read_iasi.f90
+#	renamed:    src/read_l2bufr_mod.f90 -> src/gsi/read_l2bufr_mod.f90
+#	renamed:    src/read_lag.f90 -> src/gsi/read_lag.f90
+#	renamed:    src/read_lidar.f90 -> src/gsi/read_lidar.f90
+#	renamed:    src/read_mitm_mxtm.f90 -> src/gsi/read_mitm_mxtm.f90
+#	renamed:    src/read_modsbufr.f90 -> src/gsi/read_modsbufr.f90
+#	renamed:    src/read_nasa_larc.f90 -> src/gsi/read_nasa_larc.f90
+#	renamed:    src/read_nsstbufr.f90 -> src/gsi/read_nsstbufr.f90
+#	new file:   src/gsi/read_obs.F90
+#	new file:   src/gsi/read_ozone.f90
+#	renamed:    src/read_pblh.f90 -> src/gsi/read_pblh.f90
+#	renamed:    src/read_pcp.f90 -> src/gsi/read_pcp.f90
+#	new file:   src/gsi/read_prepbufr.f90
+#	renamed:    src/read_radar.f90 -> src/gsi/read_radar.f90
+#	renamed:    src/read_radarref_mosaic.f90 -> src/gsi/read_radarref_mosaic.f90
+#	renamed:    src/read_rapidscat.f90 -> src/gsi/read_rapidscat.f90
+#	renamed:    src/read_saphir.f90 -> src/gsi/read_saphir.f90
+#	new file:   src/gsi/read_satmar.f90
+#	new file:   src/gsi/read_satwnd.f90
+#	renamed:    src/read_seviri.f90 -> src/gsi/read_seviri.f90
+#	renamed:    src/read_sfcwnd.f90 -> src/gsi/read_sfcwnd.f90
+#	renamed:    src/read_ssmi.f90 -> src/gsi/read_ssmi.f90
+#	renamed:    src/read_ssmis.f90 -> src/gsi/read_ssmis.f90
+#	renamed:    src/read_tcps.f90 -> src/gsi/read_tcps.f90
+#	renamed:    src/read_wcpbufr.f90 -> src/gsi/read_wcpbufr.f90
+#	renamed:    src/reorg_metar_cloud.f90 -> src/gsi/reorg_metar_cloud.f90
+#	renamed:    src/rfdpar.f90 -> src/gsi/rfdpar.f90
+#	renamed:    src/rsearch.F90 -> src/gsi/rsearch.F90
+#	renamed:    src/rtlnmc_version3.f90 -> src/gsi/rtlnmc_version3.f90
+#	renamed:    src/satthin.F90 -> src/gsi/satthin.F90
+#	renamed:    src/set_crtm_aerosolmod.f90 -> src/gsi/set_crtm_aerosolmod.f90
+#	renamed:    src/set_crtm_cloudmod.f90 -> src/gsi/set_crtm_cloudmod.f90
+#	new file:   src/gsi/setupaod.f90
+#	renamed:    src/setupbend.f90 -> src/gsi/setupbend.f90
+#	new file:   src/gsi/setupcldch.f90
+#	renamed:    src/setupco.f90 -> src/gsi/setupco.f90
+#	renamed:    src/setupdw.f90 -> src/gsi/setupdw.f90
+#	new file:   src/gsi/setupgust.f90
+#	new file:   src/gsi/setuphowv.f90
+#	renamed:    src/setuplag.f90 -> src/gsi/setuplag.f90
+#	renamed:    src/setuplcbas.f90 -> src/gsi/setuplcbas.f90
+#	new file:   src/gsi/setuplight.f90
+#	renamed:    src/setuplwcp.f90 -> src/gsi/setuplwcp.f90
+#	new file:   src/gsi/setupmitm.f90
+#	new file:   src/gsi/setupmxtm.f90
+#	new file:   src/gsi/setupoz.f90
+#	renamed:    src/setuppblh.f90 -> src/gsi/setuppblh.f90
+#	renamed:    src/setuppcp.f90 -> src/gsi/setuppcp.f90
+#	renamed:    src/setuppm10.f90 -> src/gsi/setuppm10.f90
+#	renamed:    src/setuppm2_5.f90 -> src/gsi/setuppm2_5.f90
+#	renamed:    src/setuppmsl.f90 -> src/gsi/setuppmsl.f90
+#	renamed:    src/setupps.f90 -> src/gsi/setupps.f90
+#	renamed:    src/setuppw.f90 -> src/gsi/setuppw.f90
+#	new file:   src/gsi/setupq.f90
+#	renamed:    src/setuprad.f90 -> src/gsi/setuprad.f90
+#	renamed:    src/setupref.f90 -> src/gsi/setupref.f90
+#	new file:   src/gsi/setuprhsall.f90
+#	renamed:    src/setuprw.f90 -> src/gsi/setuprw.f90
+#	renamed:    src/setupspd.f90 -> src/gsi/setupspd.f90
+#	renamed:    src/setupsst.f90 -> src/gsi/setupsst.f90
+#	renamed:    src/setupswcp.f90 -> src/gsi/setupswcp.f90
+#	new file:   src/gsi/setupt.f90
+#	new file:   src/gsi/setuptcamt.f90
+#	renamed:    src/setuptcp.f90 -> src/gsi/setuptcp.f90
+#	renamed:    src/setuptd2m.f90 -> src/gsi/setuptd2m.f90
+#	new file:   src/gsi/setupuwnd10m.f90
+#	new file:   src/gsi/setupvis.f90
+#	new file:   src/gsi/setupvwnd10m.f90
+#	new file:   src/gsi/setupw.f90
+#	new file:   src/gsi/setupwspd10m.f90
+#	renamed:    src/sfc_model.f90 -> src/gsi/sfc_model.f90
+#	new file:   src/gsi/sfcobsqc.f90
+#	renamed:    src/simpin1.f90 -> src/gsi/simpin1.f90
+#	renamed:    src/simpin1_init.f90 -> src/gsi/simpin1_init.f90
+#	renamed:    src/smooth_polcarf.f90 -> src/gsi/smooth_polcarf.f90
+#	renamed:    src/smoothrf.f90 -> src/gsi/smoothrf.f90
+#	renamed:    src/smoothwwrf.f90 -> src/gsi/smoothwwrf.f90
+#	renamed:    src/smoothzrf.f90 -> src/gsi/smoothzrf.f90
+#	renamed:    src/sparsearr.f90 -> src/gsi/sparsearr.f90
+#	renamed:    src/sqrtmin.f90 -> src/gsi/sqrtmin.f90
+#	renamed:    src/ssmis_spatial_average_mod.f90 -> src/gsi/ssmis_spatial_average_mod.f90
+#	renamed:    src/sst_retrieval.f90 -> src/gsi/sst_retrieval.f90
+#	renamed:    src/state_vectors.f90 -> src/gsi/state_vectors.f90
+#	renamed:    src/statsco.f90 -> src/gsi/statsco.f90
+#	renamed:    src/statsconv.f90 -> src/gsi/statsconv.f90
+#	new file:   src/gsi/statslight.f90
+#	renamed:    src/statsoz.f90 -> src/gsi/statsoz.f90
+#	renamed:    src/statspcp.f90 -> src/gsi/statspcp.f90
+#	renamed:    src/statsrad.f90 -> src/gsi/statsrad.f90
+#	renamed:    src/stop1.f90 -> src/gsi/stop1.f90
+#	renamed:    src/stpaod.f90 -> src/gsi/stpaod.f90
+#	renamed:    src/stpcalc.f90 -> src/gsi/stpcalc.f90
+#	renamed:    src/stpcldch.f90 -> src/gsi/stpcldch.f90
+#	renamed:    src/stpco.f90 -> src/gsi/stpco.f90
+#	renamed:    src/stpdw.f90 -> src/gsi/stpdw.f90
+#	renamed:    src/stpgps.f90 -> src/gsi/stpgps.f90
+#	renamed:    src/stpgust.f90 -> src/gsi/stpgust.f90
+#	renamed:    src/stphowv.f90 -> src/gsi/stphowv.f90
+#	renamed:    src/stpjcmod.f90 -> src/gsi/stpjcmod.f90
+#	new file:   src/gsi/stpjo.f90
+#	renamed:    src/stplcbas.f90 -> src/gsi/stplcbas.f90
+#	new file:   src/gsi/stplight.f90
+#	renamed:    src/stplwcp.f90 -> src/gsi/stplwcp.f90
+#	renamed:    src/stpmitm.f90 -> src/gsi/stpmitm.f90
+#	renamed:    src/stpmxtm.f90 -> src/gsi/stpmxtm.f90
+#	renamed:    src/stpoz.f90 -> src/gsi/stpoz.f90
+#	renamed:    src/stppblh.f90 -> src/gsi/stppblh.f90
+#	renamed:    src/stppcp.f90 -> src/gsi/stppcp.f90
+#	renamed:    src/stppm10.f90 -> src/gsi/stppm10.f90
+#	renamed:    src/stppm2_5.f90 -> src/gsi/stppm2_5.f90
+#	renamed:    src/stppmsl.f90 -> src/gsi/stppmsl.f90
+#	renamed:    src/stpps.f90 -> src/gsi/stpps.f90
+#	renamed:    src/stppw.f90 -> src/gsi/stppw.f90
+#	renamed:    src/stpq.f90 -> src/gsi/stpq.f90
+#	renamed:    src/stprad.f90 -> src/gsi/stprad.f90
+#	renamed:    src/stprw.f90 -> src/gsi/stprw.f90
+#	renamed:    src/stpspd.f90 -> src/gsi/stpspd.f90
+#	renamed:    src/stpsst.f90 -> src/gsi/stpsst.f90
+#	renamed:    src/stpswcp.f90 -> src/gsi/stpswcp.f90
+#	renamed:    src/stpt.f90 -> src/gsi/stpt.f90
+#	renamed:    src/stptcamt.f90 -> src/gsi/stptcamt.f90
+#	renamed:    src/stptcp.f90 -> src/gsi/stptcp.f90
+#	renamed:    src/stptd2m.f90 -> src/gsi/stptd2m.f90
+#	renamed:    src/stpuwnd10m.f90 -> src/gsi/stpuwnd10m.f90
+#	renamed:    src/stpvis.f90 -> src/gsi/stpvis.f90
+#	renamed:    src/stpvwnd10m.f90 -> src/gsi/stpvwnd10m.f90
+#	renamed:    src/stpw.f90 -> src/gsi/stpw.f90
+#	renamed:    src/stpwspd10m.f90 -> src/gsi/stpwspd10m.f90
+#	renamed:    src/strong_bal_correction.f90 -> src/gsi/strong_bal_correction.f90
+#	renamed:    src/strong_baldiag_inc.f90 -> src/gsi/strong_baldiag_inc.f90
+#	renamed:    src/strong_fast_global_mod.f90 -> src/gsi/strong_fast_global_mod.f90
+#	renamed:    src/stub_ensmod.f90 -> src/gsi/stub_ensmod.f90
+#	renamed:    src/stub_get_pseudo_ensperts.f90 -> src/gsi/stub_get_pseudo_ensperts.f90
+#	renamed:    src/stub_get_wrf_mass_ensperts.f90 -> src/gsi/stub_get_wrf_mass_ensperts.f90
+#	renamed:    src/stub_get_wrf_nmm_ensperts.f90 -> src/gsi/stub_get_wrf_nmm_ensperts.f90
+#	renamed:    src/stub_gfs_ensmod.f90 -> src/gsi/stub_gfs_ensmod.f90
+#	renamed:    src/stub_nstmod.f90 -> src/gsi/stub_nstmod.f90
+#	renamed:    src/stub_pertmod.F90 -> src/gsi/stub_pertmod.F90
+#	renamed:    src/stub_read_wrf_mass_files.f90 -> src/gsi/stub_read_wrf_mass_files.f90
+#	renamed:    src/stub_read_wrf_mass_guess.f90 -> src/gsi/stub_read_wrf_mass_guess.f90
+#	renamed:    src/stub_read_wrf_nmm_files.f90 -> src/gsi/stub_read_wrf_nmm_files.f90
+#	renamed:    src/stub_read_wrf_nmm_guess.f90 -> src/gsi/stub_read_wrf_nmm_guess.f90
+#	renamed:    src/stub_regional_io.f90 -> src/gsi/stub_regional_io.f90
+#	renamed:    src/stub_set_crtm_aerosol.f90 -> src/gsi/stub_set_crtm_aerosol.f90
+#	renamed:    src/stub_timermod.f90 -> src/gsi/stub_timermod.f90
+#	renamed:    src/stub_wrf_binary_interface.f90 -> src/gsi/stub_wrf_binary_interface.f90
+#	renamed:    src/stub_wrf_netcdf_interface.f90 -> src/gsi/stub_wrf_netcdf_interface.f90
+#	renamed:    src/stub_wrwrfmassa.f90 -> src/gsi/stub_wrwrfmassa.f90
+#	renamed:    src/stub_wrwrfnmma.f90 -> src/gsi/stub_wrwrfnmma.f90
+#	renamed:    src/sub2fslab_mod.f90 -> src/gsi/sub2fslab_mod.f90
+#	new file:   src/gsi/sumslightbias.f90
+#	new file:   src/gsi/support_2dvar.f90
+#	renamed:    src/tcv_mod.f90 -> src/gsi/tcv_mod.f90
+#	renamed:    src/tendsmod.f90 -> src/gsi/tendsmod.f90
+#	renamed:    src/test_obsens.f90 -> src/gsi/test_obsens.f90
+#	renamed:    src/timermod.f90 -> src/gsi/timermod.f90
+#	new file:   src/gsi/tintrp2a.f90
+#	renamed:    src/tintrp3.f90 -> src/gsi/tintrp3.f90
+#	renamed:    src/tpause.f90 -> src/gsi/tpause.f90
+#	renamed:    src/tpause_t.F90 -> src/gsi/tpause_t.F90
+#	renamed:    src/tune_pbl_height.f90 -> src/gsi/tune_pbl_height.f90
+#	renamed:    src/turbl.f90 -> src/gsi/turbl.f90
+#	renamed:    src/turbl_ad.f90 -> src/gsi/turbl_ad.f90
+#	renamed:    src/turbl_tl.f90 -> src/gsi/turbl_tl.f90
+#	renamed:    src/turblmod.f90 -> src/gsi/turblmod.f90
+#	renamed:    src/tv_to_tsen.f90 -> src/gsi/tv_to_tsen.f90
+#	renamed:    src/unfill_mass_grid2.f90 -> src/gsi/unfill_mass_grid2.f90
+#	renamed:    src/unfill_nmm_grid2.f90 -> src/gsi/unfill_nmm_grid2.f90
+#	renamed:    src/unhalf_nmm_grid2.f90 -> src/gsi/unhalf_nmm_grid2.f90
+#	new file:   src/gsi/update_guess.f90
+#	renamed:    src/ut_gsibundle.F90 -> src/gsi/ut_gsibundle.F90
+#	renamed:    src/wind_fft.f90 -> src/gsi/wind_fft.f90
+#	renamed:    src/wrf_mass_guess_mod.f90 -> src/gsi/wrf_mass_guess_mod.f90
+#	renamed:    src/wrf_params_mod.f90 -> src/gsi/wrf_params_mod.f90
+#	renamed:    src/write_all.F90 -> src/gsi/write_all.F90
+#	renamed:    src/write_bkgvars_grid.f90 -> src/gsi/write_bkgvars_grid.f90
+#	renamed:    src/xhat_vordivmod.f90 -> src/gsi/xhat_vordivmod.f90
+#	renamed:    src/zrnmi_mod.f90 -> src/gsi/zrnmi_mod.f90
+#	deleted:    src/gsimain.f90
+#	deleted:    src/gsimod.F90
+#	deleted:    src/gsisub.F90
+#	deleted:    src/hybrid_ensemble_isotropic.F90
+#	deleted:    src/m_berror_stats_reg.f90
+#	deleted:    src/m_obsHeadBundle.F90
+#	deleted:    src/m_obsLList.F90
+#	deleted:    src/m_obsNodeTypeManager.F90
+#	deleted:    src/m_obsdiags.F90
+#	deleted:    src/makefile_DTC
+#	deleted:    src/mod_fv3_lola.f90
+#	new file:   src/ncdiag/CMakeLists.txt
+#	new file:   src/ncdiag/NCDIAG_SRC
+#	new file:   src/ncdiag/nc_diag_cat.F90
+#	new file:   src/ncdiag/nc_diag_fson.f90
+#	new file:   src/ncdiag/nc_diag_read_mod.F90
+#	new file:   src/ncdiag/nc_diag_res.f90
+#	new file:   src/ncdiag/nc_diag_write_mod.F90
+#	new file:   src/ncdiag/ncd_kinds.F90
+#	new file:   src/ncdiag/ncdc_cli_process.F90
+#	new file:   src/ncdiag/ncdc_climsg.F90
+#	new file:   src/ncdiag/ncdc_data.F90
+#	new file:   src/ncdiag/ncdc_data_MPI.F90
+#	new file:   src/ncdiag/ncdc_dims.F90
+#	new file:   src/ncdiag/ncdc_metadata.F90
+#	new file:   src/ncdiag/ncdc_realloc.F90
+#	new file:   src/ncdiag/ncdc_state.F90
+#	new file:   src/ncdiag/ncdc_types.f90
+#	new file:   src/ncdiag/ncdc_vars.F90
+#	new file:   src/ncdiag/ncdf_path_m.F90
+#	new file:   src/ncdiag/ncdf_string_m.f90
+#	new file:   src/ncdiag/ncdf_value_m.f90
+#	new file:   src/ncdiag/ncdr_alloc_assert.f90
+#	new file:   src/ncdiag/ncdr_attrs.f90
+#	new file:   src/ncdiag/ncdr_attrs_fetch.f90
+#	new file:   src/ncdiag/ncdr_check.f90
+#	new file:   src/ncdiag/ncdr_climsg.F90
+#	new file:   src/ncdiag/ncdr_dims.f90
+#	new file:   src/ncdiag/ncdr_global_attrs.f90
+#	new file:   src/ncdiag/ncdr_global_attrs_fetch.f90
+#	new file:   src/ncdiag/ncdr_realloc_mod.F90
+#	new file:   src/ncdiag/ncdr_state.f90
+#	new file:   src/ncdiag/ncdr_types.f90
+#	new file:   src/ncdiag/ncdr_vars.f90
+#	new file:   src/ncdiag/ncdr_vars_fetch.f90
+#	new file:   src/ncdiag/ncdres_climsg.F90
+#	new file:   src/ncdiag/ncdw_chaninfo.F90
+#	new file:   src/ncdiag/ncdw_ciresize.F90
+#	new file:   src/ncdiag/ncdw_climsg.F90
+#	new file:   src/ncdiag/ncdw_data2d.F90
+#	new file:   src/ncdiag/ncdw_dresize.F90
+#	new file:   src/ncdiag/ncdw_lheader.F90
+#	new file:   src/ncdiag/ncdw_metadata.F90
+#	new file:   src/ncdiag/ncdw_mresize.F90
+#	new file:   src/ncdiag/ncdw_realloc.F90
+#	new file:   src/ncdiag/ncdw_state.f90
+#	new file:   src/ncdiag/ncdw_strarrutils.F90
+#	new file:   src/ncdiag/ncdw_types.F90
+#	new file:   src/ncdiag/ncdw_varattr.F90
+#	new file:   src/ncdiag/netcdf_unlimdims.F90
+#	new file:   src/ncdiag/serial/CMakeLists.txt
+#	new file:   src/ncdiag/test_nc_unlimdims.F90
+#	deleted:    src/ncepnems_io.f90
+#	deleted:    src/obs_sensitivity.f90
+#	deleted:    src/obsmod.F90
+#	deleted:    src/penal.f90
+#	deleted:    src/qcmod.f90
+#	deleted:    src/radiance_mod.f90
+#	deleted:    src/radinfo.f90
+#	deleted:    src/read_diag.f90
+#	deleted:    src/read_files.f90
+#	deleted:    src/read_obs.F90
+#	deleted:    src/read_ozone.f90
+#	deleted:    src/read_prepbufr.f90
+#	deleted:    src/read_satmar.f90
+#	deleted:    src/read_satwnd.f90
+#	deleted:    src/setupaod.f90
+#	deleted:    src/setupcldch.f90
+#	deleted:    src/setupgust.f90
+#	deleted:    src/setuphowv.f90
+#	deleted:    src/setupmitm.f90
+#	deleted:    src/setupmxtm.f90
+#	deleted:    src/setupoz.f90
+#	deleted:    src/setupq.f90
+#	deleted:    src/setuprhsall.f90
+#	deleted:    src/setupt.f90
+#	deleted:    src/setuptcamt.f90
+#	deleted:    src/setupuwnd10m.f90
+#	deleted:    src/setupvis.f90
+#	deleted:    src/setupvwnd10m.f90
+#	deleted:    src/setupw.f90
+#	deleted:    src/setupwspd10m.f90
+#	deleted:    src/sfcobsqc.f90
+#	deleted:    src/stpjo.f90
+#	deleted:    src/support_2dvar.f90
+#	deleted:    src/tintrp2a.f90
+#	deleted:    src/update_guess.f90
+#	modified:   ush/EnKF/current.enkfparms
+#	modified:   ush/EnKF/enkfa5.parms
+#	modified:   ush/EnKF/run_enkfupdate_convonly.sh
+#	modified:   ush/EnKF/run_enkfupdate_testcase.sh
+#	modified:   ush/EnKF/run_gsi
+#	modified:   ush/EnKF/runenkf_trunk.sh
+#	deleted:    ush/build_all.sh
+#	modified:   ush/build_all_cmake.sh
+#	deleted:    ush/build_enkf.sh
+#	deleted:    ush/build_enkf_utils.sh
+#	deleted:    ush/build_gsi.sh
+#	new file:   ush/comenkf_namelist.sh
+#	new file:   ush/comenkf_namelist_gfs.sh
+#	new file:   ush/comenkf_run_gfs.ksh
+#	new file:   ush/comenkf_run_regional.ksh
+#	new file:   ush/comgsi_namelist.sh
+#	new file:   ush/comgsi_namelist_chem.sh
+#	new file:   ush/comgsi_namelist_gfs.sh
+#	new file:   ush/comgsi_run_chem.ksh
+#	new file:   ush/comgsi_run_gfs.ksh
+#	new file:   ush/comgsi_run_regional.ksh
+#	modified:   ush/rungsi_globalprod.sh
+#	modified:   ush/rungsi_nmmprod.sh
+#	new file:   ush/sub_theia
+#	modified:   ush/sub_wcoss
+#	modified:   ush/sub_wcoss_c
+#	modified:   ush/sub_wcoss_d
+#	deleted:    ush/sub_zeus
+#	new file:   util/Analysis_Utilities/read_diag/CMakeLists.txt
+#	new file:   util/Baseline/check_build.pl
+#	new file:   util/DTC/GEN_BE.comgsi
+#	new file:   util/DTC/MPMC/.deinitMPMC.py
+#	new file:   util/DTC/MPMC/.gitignore
+#	new file:   util/DTC/MPMC/.initMPMC.py
+#	new file:   util/DTC/MPMC/.rocoto.template
+#	new file:   util/DTC/MPMC/CASE_config.py
+#	new file:   util/DTC/MPMC/MPMC_config.py
+#	new file:   util/DTC/MPMC/README.mpmc
+#	new file:   util/DTC/MPMC/deinitmpmc
+#	new file:   util/DTC/MPMC/docker.runMPMCtest
+#	new file:   util/DTC/MPMC/generate.py
+#	new file:   util/DTC/MPMC/initmpmc
+#	new file:   util/DTC/MPMC/option.full/optionlist.Cheyenne
+#	new file:   util/DTC/MPMC/option.full/optionlist.GSI_Docker
+#	new file:   util/DTC/MPMC/option.full/optionlist.Jet
+#	new file:   util/DTC/MPMC/option.full/optionlist.Theia
+#	new file:   util/DTC/MPMC/option.standard/optionlist.Cheyenne
+#	new file:   util/DTC/MPMC/option.standard/optionlist.GSI_Docker
+#	new file:   util/DTC/MPMC/option.standard/optionlist.Jet
+#	new file:   util/DTC/MPMC/option.standard/optionlist.Theia
+#	new file:   util/DTC/MPMC/optionlist.Cheyenne
+#	new file:   util/DTC/MPMC/optionlist.GSI_Docker
+#	new file:   util/DTC/MPMC/optionlist.Jet
+#	new file:   util/DTC/MPMC/optionlist.Theia
+#	new file:   util/DTC/MPMC/releases/fix.check
+#	new file:   util/DTC/MPMC/releases/fix.list
+#	new file:   util/DTC/MPMC/releases/getGlobalFixTarball
+#	new file:   util/DTC/MPMC/releases/makeRelease
+#	new file:   util/DTC/MPMC/report.py
+#	new file:   util/DTC/MPMC/run.py
+#	new file:   util/DTC/MPMC/stopcronMPMC.py
+#	new file:   util/DTC/README.GSI_Docker
+#	new file:   util/DTC/README.comgsi
+#	new file:   util/EnKF/arw/run/anavinfo
+#	new file:   util/EnKF/arw/run/namelist.input
+#	new file:   util/EnKF/arw/run/run_init.ksh
+#	new file:   util/EnKF/arw/run/run_pro.ksh
+#	new file:   util/EnKF/arw/src/CMakeLists.txt
+#	new file:   util/EnKF/arw/src/enspreproc_regional.fd/CMakeLists.txt
+#	new file:   util/EnKF/arw/src/enspreproc_regional.fd/get_gefs_for_regional_enspro.f90
+#	new file:   util/EnKF/arw/src/enspreproc_regional.fd/gfsp2wrfg.f90
+#	new file:   util/EnKF/arw/src/enspreproc_regional.fd/guess_grids_enspro.f90
+#	new file:   util/EnKF/arw/src/enspreproc_regional.fd/read_wrf_mass_guess4ens.F90
+#	new file:   util/EnKF/arw/src/enspreproc_regional.fd/wrf_netcdf_interface4ens.F90
+#	new file:   util/EnKF/arw/src/initialens_regional.fd/CMakeLists.txt
+#	new file:   util/EnKF/arw/src/initialens_regional.fd/initial_arw_ens.f90
+#	new file:   util/EnKF/arw/src/initialens_regional.fd/namelist.input
+#	new file:   util/EnKF/arw/src/initialens_regional.fd/read_netcdf_mass.f90
+#	new file:   util/EnKF/arw/src/initialens_regional.fd/update_netcdf_mass.f90
+#	new file:   util/EnKF/gfs/src/adderrspec.fd/CMakeLists.txt
+#	renamed:    util/EnKF/gfs/src/adderrspec_nmcmeth_spec.fd/adderrspec_nmcmeth_ncep_spec.f90 -> util/EnKF/gfs/src/adderrspec.fd/adderrspec_nmcmeth_ncep_spec.f90
+#	renamed:    util/EnKF/gfs/src/adderrspec_nmcmeth_spec.fd/configure -> util/EnKF/gfs/src/adderrspec.fd/configure
+#	deleted:    util/EnKF/gfs/src/adderrspec_nmcmeth_spec.fd/CMakeLists.txt
+#	deleted:    util/EnKF/gfs/src/adderrspec_nmcmeth_spec.fd/Makefile
+#	deleted:    util/EnKF/gfs/src/adderrspec_nmcmeth_spec.fd/Makefile.conf.AIX
+#	deleted:    util/EnKF/gfs/src/adderrspec_nmcmeth_spec.fd/Makefile.conf.cray
+#	deleted:    util/EnKF/gfs/src/adderrspec_nmcmeth_spec.fd/Makefile.conf.nco
+#	deleted:    util/EnKF/gfs/src/adderrspec_nmcmeth_spec.fd/Makefile.conf.theia
+#	deleted:    util/EnKF/gfs/src/adderrspec_nmcmeth_spec.fd/Makefile.conf.wcoss
+#	deleted:    util/EnKF/gfs/src/adderrspec_nmcmeth_spec.fd/Makefile.conf.zeus
+#	deleted:    util/EnKF/gfs/src/adderrspec_nmcmeth_spec.fd/Makefile.dependency
+#	modified:   util/EnKF/gfs/src/calc_increment_ens.fd/CMakeLists.txt
+#	deleted:    util/EnKF/gfs/src/calc_increment_ens.fd/Makefile
+#	deleted:    util/EnKF/gfs/src/calc_increment_ens.fd/Makefile.conf.cray
+#	deleted:    util/EnKF/gfs/src/calc_increment_ens.fd/Makefile.conf.nco
+#	deleted:    util/EnKF/gfs/src/calc_increment_ens.fd/Makefile.conf.theia
+#	deleted:    util/EnKF/gfs/src/calc_increment_ens.fd/Makefile.conf.wcoss
+#	deleted:    util/EnKF/gfs/src/calc_increment_ens.fd/Makefile.dependency
+#	modified:   util/EnKF/gfs/src/calc_increment_ens.fd/calc_increment_interface.f90
+#	modified:   util/EnKF/gfs/src/calc_increment_ens.fd/constants.f90
+#	modified:   util/EnKF/gfs/src/calc_increment_ens.fd/fv3_interface.f90
+#	modified:   util/EnKF/gfs/src/calc_increment_ens.fd/main.f90
+#	modified:   util/EnKF/gfs/src/calc_increment_ens.fd/pmain.f90
+#	modified:   util/EnKF/gfs/src/getnstensmeanp.fd/CMakeLists.txt
+#	deleted:    util/EnKF/gfs/src/getnstensmeanp.fd/Makefile
+#	deleted:    util/EnKF/gfs/src/getnstensmeanp.fd/Makefile.conf.AIX
+#	deleted:    util/EnKF/gfs/src/getnstensmeanp.fd/Makefile.conf.cray
+#	deleted:    util/EnKF/gfs/src/getnstensmeanp.fd/Makefile.conf.nco
+#	deleted:    util/EnKF/gfs/src/getnstensmeanp.fd/Makefile.conf.theia
+#	deleted:    util/EnKF/gfs/src/getnstensmeanp.fd/Makefile.conf.wcoss
+#	deleted:    util/EnKF/gfs/src/getnstensmeanp.fd/Makefile.conf.zeus
+#	deleted:    util/EnKF/gfs/src/getnstensmeanp.fd/Makefile.dependency
+#	modified:   util/EnKF/gfs/src/getsfcensmeanp.fd/CMakeLists.txt
+#	deleted:    util/EnKF/gfs/src/getsfcensmeanp.fd/Makefile
+#	deleted:    util/EnKF/gfs/src/getsfcensmeanp.fd/Makefile.conf.AIX
+#	deleted:    util/EnKF/gfs/src/getsfcensmeanp.fd/Makefile.conf.cray
+#	deleted:    util/EnKF/gfs/src/getsfcensmeanp.fd/Makefile.conf.nco
+#	deleted:    util/EnKF/gfs/src/getsfcensmeanp.fd/Makefile.conf.theia
+#	deleted:    util/EnKF/gfs/src/getsfcensmeanp.fd/Makefile.conf.wcoss
+#	deleted:    util/EnKF/gfs/src/getsfcensmeanp.fd/Makefile.conf.zeus
+#	deleted:    util/EnKF/gfs/src/getsfcensmeanp.fd/Makefile.dependency
+#	modified:   util/EnKF/gfs/src/getsfcensmeanp.fd/getsfcensmeanp.f90
+#	modified:   util/EnKF/gfs/src/getsfcnstensupdp.fd/CMakeLists.txt
+#	deleted:    util/EnKF/gfs/src/getsfcnstensupdp.fd/Makefile
+#	deleted:    util/EnKF/gfs/src/getsfcnstensupdp.fd/Makefile.conf.AIX
+#	deleted:    util/EnKF/gfs/src/getsfcnstensupdp.fd/Makefile.conf.cray
+#	deleted:    util/EnKF/gfs/src/getsfcnstensupdp.fd/Makefile.conf.nco
+#	deleted:    util/EnKF/gfs/src/getsfcnstensupdp.fd/Makefile.conf.theia
+#	deleted:    util/EnKF/gfs/src/getsfcnstensupdp.fd/Makefile.conf.wcoss
+#	deleted:    util/EnKF/gfs/src/getsfcnstensupdp.fd/Makefile.conf.zeus
+#	deleted:    util/EnKF/gfs/src/getsfcnstensupdp.fd/Makefile.dependency
+#	new file:   util/EnKF/gfs/src/getsigensmeanp_smooth.fd/CMakeLists.txt
+#	renamed:    util/EnKF/gfs/src/getsigensmeanp_smooth_ncep.fd/configure -> util/EnKF/gfs/src/getsigensmeanp_smooth.fd/configure
+#	renamed:    util/EnKF/gfs/src/getsigensmeanp_smooth_ncep.fd/getsigensmeanp_smooth_ncep.f90 -> util/EnKF/gfs/src/getsigensmeanp_smooth.fd/getsigensmeanp_smooth_ncep.f90
+#	deleted:    util/EnKF/gfs/src/getsigensmeanp_smooth_ncep.fd/CMakeLists.txt
+#	deleted:    util/EnKF/gfs/src/getsigensmeanp_smooth_ncep.fd/Makefile
+#	deleted:    util/EnKF/gfs/src/getsigensmeanp_smooth_ncep.fd/Makefile.conf.AIX
+#	deleted:    util/EnKF/gfs/src/getsigensmeanp_smooth_ncep.fd/Makefile.conf.cray
+#	deleted:    util/EnKF/gfs/src/getsigensmeanp_smooth_ncep.fd/Makefile.conf.nco
+#	deleted:    util/EnKF/gfs/src/getsigensmeanp_smooth_ncep.fd/Makefile.conf.theia
+#	deleted:    util/EnKF/gfs/src/getsigensmeanp_smooth_ncep.fd/Makefile.conf.wcoss
+#	deleted:    util/EnKF/gfs/src/getsigensmeanp_smooth_ncep.fd/Makefile.conf.zeus
+#	deleted:    util/EnKF/gfs/src/getsigensmeanp_smooth_ncep.fd/Makefile.dependency
+#	modified:   util/EnKF/gfs/src/getsigensstatp.fd/CMakeLists.txt
+#	deleted:    util/EnKF/gfs/src/getsigensstatp.fd/Makefile
+#	deleted:    util/EnKF/gfs/src/getsigensstatp.fd/Makefile.conf.AIX
+#	deleted:    util/EnKF/gfs/src/getsigensstatp.fd/Makefile.conf.cray
+#	deleted:    util/EnKF/gfs/src/getsigensstatp.fd/Makefile.conf.nco
+#	deleted:    util/EnKF/gfs/src/getsigensstatp.fd/Makefile.conf.theia
+#	deleted:    util/EnKF/gfs/src/getsigensstatp.fd/Makefile.conf.wcoss
+#	deleted:    util/EnKF/gfs/src/getsigensstatp.fd/Makefile.dependency
+#	modified:   util/EnKF/gfs/src/getsigensstatp.fd/getsigensstatp.f90
+#	modified:   util/EnKF/gfs/src/gribmean.fd/CMakeLists.txt
+#	deleted:    util/EnKF/gfs/src/gribmean.fd/Makefile
+#	deleted:    util/EnKF/gfs/src/gribmean.fd/Makefile.conf.AIX
+#	deleted:    util/EnKF/gfs/src/gribmean.fd/Makefile.conf.cray
+#	deleted:    util/EnKF/gfs/src/gribmean.fd/Makefile.conf.nco
+#	deleted:    util/EnKF/gfs/src/gribmean.fd/Makefile.conf.theia
+#	deleted:    util/EnKF/gfs/src/gribmean.fd/Makefile.conf.wcoss
+#	deleted:    util/EnKF/gfs/src/gribmean.fd/Makefile.conf.zeus
+#	deleted:    util/EnKF/gfs/src/gribmean.fd/Makefile.dependency
+#	modified:   util/EnKF/gfs/src/preproc/CMakeLists.txt
+#	modified:   util/EnKF/gfs/src/recentersigp.fd/CMakeLists.txt
+#	deleted:    util/EnKF/gfs/src/recentersigp.fd/Makefile
+#	deleted:    util/EnKF/gfs/src/recentersigp.fd/Makefile.conf.AIX
+#	deleted:    util/EnKF/gfs/src/recentersigp.fd/Makefile.conf.cray
+#	deleted:    util/EnKF/gfs/src/recentersigp.fd/Makefile.conf.nco
+#	deleted:    util/EnKF/gfs/src/recentersigp.fd/Makefile.conf.theia
+#	deleted:    util/EnKF/gfs/src/recentersigp.fd/Makefile.conf.wcoss
+#	deleted:    util/EnKF/gfs/src/recentersigp.fd/Makefile.conf.zeus
+#	deleted:    util/EnKF/gfs/src/recentersigp.fd/Makefile.dependency
+#	new file:   util/Minimization_Monitor/README
+#	modified:   util/Minimization_Monitor/data_xtrct/ush/MinMon_DE.sh
+#	modified:   util/Minimization_Monitor/data_xtrct/ush/RunMM_DE.sh
+#	modified:   util/Minimization_Monitor/data_xtrct/ush/find_cycle.pl
+#	new file:   util/Minimization_Monitor/data_xtrct/ush/run_fv3rt1_DE.sh
+#	new file:   util/Minimization_Monitor/data_xtrct/ush/run_gdas_DE.sh
+#	new file:   util/Minimization_Monitor/data_xtrct/ush/run_gfs_DE.sh
+#	modified:   util/Minimization_Monitor/image_gen/parm/plot_minmon_conf
+#	modified:   util/Minimization_Monitor/image_gen/ush/MinMon_Plt.sh
+#	typechange: util/Minimization_Monitor/image_gen/ush/find_cycle.pl
+#	new file:   util/Minimization_Monitor/image_gen/ush/run_fv3rt1_IG.sh
+#	new file:   util/Minimization_Monitor/image_gen/ush/run_gdas_IG.sh
+#	new file:   util/Minimization_Monitor/image_gen/ush/run_gfs_IG.sh
+#	modified:   util/Minimization_Monitor/nwprod/gdas.v1.0.0/jobs/JGDAS_VMINMON
+#	modified:   util/Minimization_Monitor/nwprod/gdas.v1.0.0/scripts/exgdas_vrfminmon.sh.ecf
+#	modified:   util/Minimization_Monitor/nwprod/gfs.v1.0.0/driver/test_jgfs_vminmon.sh
+#	modified:   util/Minimization_Monitor/nwprod/gfs.v1.0.0/jobs/JGFS_VMINMON
+#	modified:   util/Minimization_Monitor/nwprod/gfs.v1.0.0/scripts/exgfs_vrfminmon.sh.ecf
+#	modified:   util/Minimization_Monitor/nwprod/minmon_shared.v1.0.1/ush/minmon_xtrct_gnorms.pl
+#	modified:   util/Minimization_Monitor/parm/MinMon_config
+#	modified:   util/Minimization_Monitor/parm/MinMon_user_settings
+#	modified:   util/Ozone_Monitor/data_xtrct/sorc/make_base.fd/make_base.f90
+#	modified:   util/Ozone_Monitor/data_xtrct/ush/OznMon_DE.sh
+#	modified:   util/Ozone_Monitor/data_xtrct/ush/OznMon_MkBase.sh
+#	modified:   util/Ozone_Monitor/data_xtrct/ush/find_cycle.pl
+#	modified:   util/Ozone_Monitor/data_xtrct/ush/run_fv3rt1.sh
+#	new file:   util/Ozone_Monitor/data_xtrct/ush/run_gfs_gdas.sh
+#	modified:   util/Ozone_Monitor/image_gen/ush/OznMon_Plt.sh
+#	modified:   util/Ozone_Monitor/image_gen/ush/OznMon_Transfer.sh
+#	modified:   util/Ozone_Monitor/image_gen/ush/mk_err_rpt.sh
+#	modified:   util/Ozone_Monitor/image_gen/ush/mk_horiz.sh
+#	modified:   util/Ozone_Monitor/image_gen/ush/mk_time.sh
+#	modified:   util/Ozone_Monitor/image_gen/ush/plot_horiz.sh
+#	modified:   util/Ozone_Monitor/image_gen/ush/plot_summary.sh
+#	modified:   util/Ozone_Monitor/image_gen/ush/plot_time.sh
+#	modified:   util/Ozone_Monitor/image_gen/ush/run_plot_fv3rt1.sh
+#	modified:   util/Ozone_Monitor/image_gen/ush/run_plot_gdas.sh
+#	new file:   util/Ozone_Monitor/image_gen/ush/run_transfer_fv3rt1.sh
+#	modified:   util/Ozone_Monitor/nwprod/gdas_oznmon.v2.0.0/jobs/JGDAS_VERFOZN
+#	modified:   util/Ozone_Monitor/nwprod/gdas_oznmon.v2.0.0/scripts/exgdas_vrfyozn.sh.ecf
+#	new file:   util/Ozone_Monitor/nwprod/oznmon_shared.v2.0.0/sorc/oznmon_horiz.fd/CMakeLists.txt
+#	modified:   util/Ozone_Monitor/nwprod/oznmon_shared.v2.0.0/sorc/oznmon_horiz.fd/makefile
+#	new file:   util/Ozone_Monitor/nwprod/oznmon_shared.v2.0.0/sorc/oznmon_time.fd/CMakeLists.txt
+#	modified:   util/Ozone_Monitor/nwprod/oznmon_shared.v2.0.0/ush/ozn_xtrct.sh
+#	modified:   util/Ozone_Monitor/parm/OznMon_config
+#	modified:   util/Radiance_Monitor/nwprod/gdas_radmon.v3.0.0/driver/test_jgdas_verfrad.sh
+#	modified:   util/Radiance_Monitor/nwprod/gdas_radmon.v3.0.0/driver/test_jgdas_verfrad_theia.sh
+#	modified:   util/Radiance_Monitor/nwprod/gdas_radmon.v3.0.0/fix/gdas_radmon_base.tar
+#	modified:   util/Radiance_Monitor/nwprod/gdas_radmon.v3.0.0/fix/gdas_radmon_satype.txt
+#	modified:   util/Radiance_Monitor/nwprod/gdas_radmon.v3.0.0/fix/gdas_radmon_scaninfo.txt
+#	modified:   util/Radiance_Monitor/nwprod/gdas_radmon.v3.0.0/jobs/JGDAS_VERFRAD
+#	modified:   util/Radiance_Monitor/nwprod/gdas_radmon.v3.0.0/parm/gdas_radmon.parm
+#	modified:   util/Radiance_Monitor/nwprod/gdas_radmon.v3.0.0/scripts/exgdas_vrfyrad.sh.ecf
+#	new file:   util/Radiance_Monitor/nwprod/radmon_shared.v2.0.4/modulefiles/dell/RadMonBuild
+#	new file:   util/Radiance_Monitor/nwprod/radmon_shared.v2.0.4/sorc/verf_radang.fd/CMakeLists.txt
+#	modified:   util/Radiance_Monitor/nwprod/radmon_shared.v2.0.4/sorc/verf_radang.fd/angle_bias.f90
+#	modified:   util/Radiance_Monitor/nwprod/radmon_shared.v2.0.4/sorc/verf_radang.fd/makefile
+#	new file:   util/Radiance_Monitor/nwprod/radmon_shared.v2.0.4/sorc/verf_radbcoef.fd/CMakeLists.txt
+#	modified:   util/Radiance_Monitor/nwprod/radmon_shared.v2.0.4/sorc/verf_radbcoef.fd/bcoef.f90
+#	modified:   util/Radiance_Monitor/nwprod/radmon_shared.v2.0.4/sorc/verf_radbcoef.fd/makefile
+#	new file:   util/Radiance_Monitor/nwprod/radmon_shared.v2.0.4/sorc/verf_radbcor.fd/CMakeLists.txt
+#	modified:   util/Radiance_Monitor/nwprod/radmon_shared.v2.0.4/sorc/verf_radbcor.fd/bcor.f90
+#	modified:   util/Radiance_Monitor/nwprod/radmon_shared.v2.0.4/sorc/verf_radbcor.fd/makefile
+#	new file:   util/Radiance_Monitor/nwprod/radmon_shared.v2.0.4/sorc/verf_radtime.fd/CMakeLists.txt
+#	modified:   util/Radiance_Monitor/nwprod/radmon_shared.v2.0.4/sorc/verf_radtime.fd/makefile
+#	modified:   util/Radiance_Monitor/nwprod/radmon_shared.v2.0.4/sorc/verf_radtime.fd/time.f90
+#	modified:   util/Radiance_Monitor/nwprod/radmon_shared.v2.0.4/ush/radmon_verf_angle.sh
+#	modified:   util/Radiance_Monitor/nwprod/radmon_shared.v2.0.4/ush/radmon_verf_bcoef.sh
+#	modified:   util/Radiance_Monitor/nwprod/radmon_shared.v2.0.4/ush/radmon_verf_bcor.sh
+#	modified:   util/Radiance_Monitor/nwprod/radmon_shared.v2.0.4/ush/radmon_verf_time.sh
+#	new file:   util/Radiance_Monitor/nwprod/radmon_shared.v3.0.0/modulefiles/dell/RadMonBuild
+#	new file:   util/Radiance_Monitor/nwprod/radmon_shared.v3.0.0/sorc/verf_radang.fd/CMakeLists.txt
+#	modified:   util/Radiance_Monitor/nwprod/radmon_shared.v3.0.0/sorc/verf_radang.fd/makefile
+#	new file:   util/Radiance_Monitor/nwprod/radmon_shared.v3.0.0/sorc/verf_radbcoef.fd/CMakeLists.txt
+#	modified:   util/Radiance_Monitor/nwprod/radmon_shared.v3.0.0/sorc/verf_radbcoef.fd/makefile
+#	new file:   util/Radiance_Monitor/nwprod/radmon_shared.v3.0.0/sorc/verf_radbcor.fd/CMakeLists.txt
+#	modified:   util/Radiance_Monitor/nwprod/radmon_shared.v3.0.0/sorc/verf_radbcor.fd/makefile
+#	new file:   util/Radiance_Monitor/nwprod/radmon_shared.v3.0.0/sorc/verf_radtime.fd/CMakeLists.txt
+#	modified:   util/Radiance_Monitor/nwprod/radmon_shared.v3.0.0/sorc/verf_radtime.fd/makefile
+#	modified:   util/Radiance_Monitor/nwprod/radmon_shared.v3.0.0/ush/radmon_verf_angle.sh
+#	modified:   util/Radiance_Monitor/nwprod/radmon_shared.v3.0.0/ush/radmon_verf_time.sh
+#	new file:   util/bufr_tools/CMakeLists.txt
+#	modified:   util/bufr_tools/bufr_append_sample.f90
+#	modified:   util/bufr_tools/bufr_encode_sample.f90
+#	deleted:    util/bufr_tools/makefile
+#	new file:   util/bufr_tools/prepbufr.table
+#	deleted:    util/bufr_tools/prepobs_prep.bufrtable
+#	new file:   util/gsienvreport.sh
+#	modified:   util/ndate/CMakeLists.txt
+#	new file:   util/radar_process/radialwind/CMakeLists.txt
+#	deleted:    util/radar_process/radialwind/makefile
+#	new file:   util/radar_process/reflectivity/CMakeLists.txt
+#	deleted:    util/radar_process/reflectivity/makefile
+#
+# Unmerged paths:
+#   (use "git add/rm <file>..." as appropriate to mark resolution)
+#
+#	deleted by them:    src/enkf/Makefile
+#
+# Untracked files:
+#   (use "git add <file>..." to include in what will be committed)
+#
+#	1

@@ -20,7 +20,7 @@ if(NOT BUILD_CRTM )
     find_library( CRTM_LIBRARY 
     NAMES libcrtm_v${CRTM_VER}.a libcrtm.a libCRTM.a 
     HINTS 
-      /usr/local/jcsda/nwprod_gdas_2014	
+      /usr/local/jcsda/nwprod_gdas_2014/lib	
       ${CRTM_BASE}
       ${CRTM_BASE}/lib
       ${CRTM_BASE}/${CRTM_VER}

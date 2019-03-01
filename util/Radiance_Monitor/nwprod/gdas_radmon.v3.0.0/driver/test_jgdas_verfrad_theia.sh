@@ -4,12 +4,12 @@
 #PBS -e gdas_verfrad.err
 #PBS -N gdas_verfrad
 #PBS -A fv3-cpu
-#PBS -l procs=1,walltime=0:10:00
+#PBS -l procs=1,walltime=0:15:00
 #PBS -V
 
 set -x
 
-export PDATE=${PDATE:-2017020612}
+export PDATE=${PDATE:-2018091718}
 
 #############################################################
 # Specify whether the run is production or development

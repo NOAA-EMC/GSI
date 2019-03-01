@@ -309,12 +309,12 @@ echo "" >>$cfile
 echo ". "$(awk '{ print $1, $2, $3, $4, $5, $6, $7, $8, $9 }' $regdir/regression_var.out) >> $cfile 
 echo "" >>$cfile
 
-echo "module purge"    >> $cfile
-echo "module load EnvVars/1.0.2"    >> $cfile
-echo "module load lsf/10.1"    >> $cfile
-echo "module load ips/18.0.1.163"    >> $cfile
-echo "module load impi/18.0.1"    >> $cfile
-#echo "module load smpi/10.1.1.0"    >> $cfile
+echo ". $MODULESHOME/init/bash"               >> $cfile
+echo "module purge"                           >> $cfile
+echo "module use -a $gsisrc/modulefiles"      >> $cfile
+echo "module load modulefile.ProdGSI.wcoss_d" >> $cfile
+echo "module list"                            >> $cfile
+echo "" >>$cfile
 
 echo "$exec"                                                    >> $cfile
 

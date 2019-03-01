@@ -516,7 +516,7 @@ contains
   ! writegriddata.f90: write WRF-ARW or WRF-NMM analysis
   !-------------------------------------------------------------------------
 
-  subroutine writegriddata(nanal,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid)
+  subroutine writegriddata(nanal,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflate_flag)
     use constants
     use params, only: nbackgrounds, anlfileprefixes, fgfileprefixes
     include 'netcdf.inc'      
@@ -528,6 +528,8 @@ contains
     character(len=max_varname_length), dimension(n3d), intent(in) :: vars3d
     integer, dimension(0:n3d), intent(in) :: levels
     real(r_single), dimension(npts,ndim,nbackgrounds), intent(in) :: vargrid
+    logical, intent(in) :: no_inflate_flag 
+      !Not used here, but added to make writegriddata(...) consistent with gridio_gfs.f90
 
     !----------------------------------------------------------------------
     ! Define variables computed within subroutine
@@ -781,6 +783,7 @@ contains
     read(datestring(9:10),'(i2)') ihour
     if (nmm .and. nmm_restart) then
        varstrname = 'NSTART_HOUR'
+       if(.not. allocated(vargrid_native)) allocate(vargrid_native(1,1,1))
        vargrid_native(1,1,1) = ihour
        call writenetcdfdata(filename,vargrid_native,varstrname,1,1,1)
     end if

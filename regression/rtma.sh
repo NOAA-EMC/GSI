@@ -22,6 +22,7 @@ tmpdir=$tmpdir/tmpreg_rtma/${exp}
 savdir=$savdir/outreg/rtma/${exp}
 
 # Specify GSI fixed field and data directories.
+#fixcrtm=${fixcrtm:-$CRTM_FIX} # possible future use
 
 #datobs=$datobs_rtma/$adate
 #datges=$datobs
@@ -117,6 +118,7 @@ errtable=$fixgsi/rtma_errtable.r3dv
 convinfo=$fixgsi/rtma_convinfo.txt
 mesonetuselist=$fixgsi/rtma_mesonet_uselist.txt
 mesonet_stnuselist=$fixgsi/rtma_ruc2_wind-uselist-noMETAR.dat
+mesonet_stnuselist_for_vis=$fixgsi/rtma_mesonet_vis_uselist.txt
 wbinuselist=$fixgsi/rtma_wbinuselist
 slmask=$fixgsi/$endianness/rtma_conus_slmask.dat
 terrain=$fixgsi/$endianness/rtma_conus_terrain.dat
@@ -131,7 +133,6 @@ btable_ps=$fixgsi/urma2p5.nlqc_b_ps.njqc
 btable_t=$fixgsi/urma2p5.nlqc_b_t.njqc
 btable_q=$fixgsi/urma2p5.nlqc_b_q.njqc 
 btable_uv=$fixgsi/urma2p5.nlqc_b_uv.njqc 
-
 t_rejectlist=$fixgsi/rtma_t_rejectlist
 p_rejectlist=$fixgsi/rtma_p_rejectlist
 q_rejectlist=$fixgsi/rtma_q_rejectlist
@@ -192,6 +193,7 @@ $ncp $convinfo           ./convinfo
 $ncp $errtable           ./errtable
 $ncp $mesonetuselist     ./mesonetuselist
 $ncp $mesonet_stnuselist ./mesonet_stnuselist
+$ncp $mesonet_stnuselist_for_vis ./mesonet_stnuselist_for_vis
 $ncp $wbinuselist        ./wbinuselist
 $ncp $slmask             ./rtma_slmask.dat
 $ncp $terrain            ./rtma_terrain.dat

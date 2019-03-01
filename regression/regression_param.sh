@@ -3,7 +3,7 @@ regtest=$1
 case $machine in
 
 	Theia)
-	   sub_cmd="sub_zeus"
+	   sub_cmd="sub_theia"
     ;;
 	WCOSS)
 	   sub_cmd="sub_wcoss -a GDAS-T2O -d $PWD"
@@ -29,13 +29,25 @@ case $machine in
 
 esac
 
+# Maximum memory per task for above machines
+#   wcoss_c :   64 Gb / 24 cores = 2.67 Gb / core
+#   wcoss_d :  128 Gb / 28 cores = 4.57 Gb / core
+#   theia   :   64 Gb / 24 cores = 2.67 Gb / core
+#   discover:
+#   s4      :
+#   cheyenne:
+# Select minimim memory per core for regression tests
+export memnode=64
+export numcore=24
+export maxmem=$((($memnode*1024*1024)/$numcore))  # Kb / core
+
 case $regtest in
 
     global_T62)
 
         if [[ "$machine" = "Theia" ]]; then
-           topts[1]="0:30:00" ; popts[1]="12/3/" ; ropts[1]="/1"
-           topts[2]="0:30:00" ; popts[2]="12/9/" ; ropts[2]="/2"
+           topts[1]="0:50:00" ; popts[1]="12/3/" ; ropts[1]="/1"
+           topts[2]="0:50:00" ; popts[2]="12/9/" ; ropts[2]="/2"
         elif [[ "$machine" = "Cheyenne" ]]; then
            topts[1]="0:30:00" ; popts[1]="16/2/" ; ropts[1]="/1"
            topts[2]="0:30:00" ; popts[2]="16/4/" ; ropts[2]="/2"
@@ -204,11 +216,41 @@ case $regtest in
 
     ;;
 
+    global_fv3_4denvar_T126)
+
+        if [[ "$machine" = "Theia" ]]; then
+           topts[1]="0:35:00" ; popts[1]="6/8/" ; ropts[1]="/1"
+           topts[2]="0:35:00" ; popts[2]="6/10/" ; ropts[2]="/2"
+        elif [[ "$machine" = "WCOSS" ]]; then
+           topts[1]="1:59:00" ; popts[1]="6/8/" ; ropts[1]="/1"
+           topts[2]="0:35:00" ; popts[2]="6/10/" ; ropts[2]="/2"
+        elif [[ "$machine" = "Discover" ]]; then
+           topts[1]="0:30:00" ; popts[1]="48/2"  ; ropts[1]="/1"
+           topts[2]="0:30:00" ; popts[2]="60/3"  ; ropts[2]="/2"
+        elif [[ "$machine" = "Cheyenne" ]]; then
+           topts[1]="1:59:00" ; popts[1]="6/8/" ; ropts[1]="/1"
+           topts[2]="0:35:00" ; popts[2]="6/10/" ; ropts[2]="/2"
+        elif [[ "$machine" = "WCOSS_C" ]]; then
+           topts[1]="0:35:00" ; popts[1]="48/8/" ; ropts[1]="1024/1"  # sub_wcoss_c popts are "#tasks/#nodes/"
+           topts[2]="0:35:00" ; popts[2]="60/10/" ; ropts[2]="1024/2"
+        elif [[ "$machine" = "WCOSS_D" ]]; then
+           topts[1]="0:35:00" ; popts[1]="6/8/" ; ropts[1]="/1"
+           topts[2]="0:35:00" ; popts[2]="6/10/" ; ropts[2]="/2"
+        fi
+
+        if [ "$debug" = ".true." ] ; then
+           topts[1]="1:30:00"
+        fi
+
+        scaling[1]=10; scaling[2]=8; scaling[3]=4
+
+    ;;
+
     global_lanczos_T62)
 
         if [[ "$machine" = "Theia" ]]; then
-           topts[1]="0:20:00" ; popts[1]="12/3/" ; ropts[1]="/1"
-           topts[2]="0:20:00" ; popts[2]="12/5/" ; ropts[2]="/2"
+           topts[1]="0:30:00" ; popts[1]="12/3/" ; ropts[1]="/1"
+           topts[2]="0:30:00" ; popts[2]="12/5/" ; ropts[2]="/2"
         elif [[ "$machine" = "WCOSS" ]]; then
            topts[1]="0:20:00" ; popts[1]="16/2/" ; ropts[1]="/1"
            topts[2]="0:20:00" ; popts[2]="16/4/" ; ropts[2]="/2"
@@ -314,6 +356,9 @@ case $regtest in
         elif [[ "$machine" = "WCOSS_C" ]]; then
             topts[1]="0:15:00" ; popts[1]="20/2/" ; ropts[1]="1024/1"  # sub_wcoss_c popts are "#tasks/#nodes/"
             topts[2]="0:15:00" ; popts[2]="16/4/" ; ropts[2]="1024/1"
+        elif [[ "$machine" = "WCOSS_D" ]]; then
+           topts[1]="0:15:00" ; popts[1]="28/1/" ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="28/2/" ; ropts[2]="/1"
         elif [[ "$machine" = "s4" ]]; then
            topts[1]="0:25:00" ; popts[1]="16/1/" ; ropts[1]="/1"
            topts[2]="0:25:00" ; popts[2]="16/2/" ; ropts[2]="/1"
@@ -429,8 +474,8 @@ case $regtest in
             topts[1]="0:30:00" ; popts[1]="6/12/"  ; ropts[1]="/1"
             topts[2]="0:30:00" ; popts[2]="8/12/"  ; ropts[2]="/1"
         elif [[ "$machine" = "WCOSS" ]]; then
-            topts[1]="0:15:00" ; popts[1]="8/6/"  ; ropts[1]="/1"
-            topts[2]="0:15:00" ; popts[2]="8/8/"  ; ropts[2]="/1"
+            topts[1]="0:30:00" ; popts[1]="8/10/"  ; ropts[1]="/1"
+            topts[2]="0:30:00" ; popts[2]="8/12/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Cheyenne" ]]; then
             topts[1]="0:15:00" ; popts[1]="8/6/"  ; ropts[1]="/1"
             topts[2]="0:15:00" ; popts[2]="8/8/"  ; ropts[2]="/1"
@@ -498,8 +543,8 @@ case $regtest in
             topts[1]="0:15:00" ; popts[1]="16/2/" ; ropts[1]="/1"
             topts[2]="0:15:00" ; popts[2]="16/4/" ; ropts[2]="/2"
         elif [[ "$machine" = "WCOSS_C" ]]; then
-            topts[1]="0:15:00" ; popts[1]="20/4/" ; ropts[1]="1024/1"  # sub_wcoss_c popts are "#tasks/#nodes/"
-            topts[2]="0:15:00" ; popts[2]="20/5/" ; ropts[2]="1024/2"
+            topts[1]="0:25:00" ; popts[1]="20/4/" ; ropts[1]="1024/1"  # sub_wcoss_c popts are "#tasks/#nodes/"
+            topts[2]="0:25:00" ; popts[2]="20/5/" ; ropts[2]="1024/2"
         elif [[ "$machine" = "s4" ]]; then
             topts[1]="0:25:00" ; popts[1]="32/2/" ; ropts[1]="/1"
             topts[2]="0:25:00" ; popts[2]="32/4/" ; ropts[2]="/2"
@@ -550,7 +595,7 @@ if [[ "$machine" = "Theia" ]]; then
    export MPI_BUFS_PER_PROC=256
    export MPI_BUFS_PER_HOST=256
    export MPI_GROUP_MAX=256
-   export APRUN="mpirun -v -np \$PBS_NP"
+   export APRUN="mpirun -np \$PBS_NP"
 elif [[ "$machine" = "Cheyenne" ]]; then
    export OMP_STACKSIZE=1024M
    export MPI_BUFS_PER_PROC=256
@@ -570,7 +615,9 @@ elif [[ "$machine" = "WCOSS_C" ]]; then
    export FORT_BUFFERED=true
    export APRUN="mpirun -v -np \$PBS_NP"
 elif [[ "$machine" = "WCOSS_D" ]]; then
-   export OMP_STACKSIZE=1024M
+   export KMP_AFFINITY=scatter
+   export KMP_STACKSIZE=2G
+   export FORT_BUFFERED=true
    export APRUN="mpirun"
 elif [[ "$machine" = "s4" ]]; then
    export APRUN="srun"

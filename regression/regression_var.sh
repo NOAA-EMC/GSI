@@ -52,15 +52,19 @@ fi
 
 case $machine in
    WCOSS_D)
-   export noscrub=/gpfs/dell2/emc/noscrub/$LOGNAME
+   export noscrub=/gpfs/dell2/emc/modeling/noscrub/$LOGNAME
    export group="dev"
    export queue="dev"
 
    export ptmp="/gpfs/dell2/ptmp/$LOGNAME/$ptmpName"
 
-   export fixcrtm="/gpfs/dell2/emc/noscrub/Mark.Potts/fix_update"
-   export casesdir="/gpfs/dell2/emc/noscrub/Mark.Potts/CASES"
-   export ndate="$builddir/bin/ndate.x"
+   export fixcrtm="/gpfs/dell2/emc/modeling/noscrub/Mark.Potts/fix_update"
+   if [ -d /gpfs/td2 ]; then
+       export casesdir="/gpfs/td2/emc/da/noscrub/Michael.Lueken/CASES"
+   elif [ -d /gpfs/gd2 ]; then
+       export casesdir="/gpfs/gd2/emc/da/noscrub/Michael.Lueken/CASES"
+   fi
+   export ndate=${NDATE:-"$builddir/bin/ndate.x"}
 
    export check_resource="yes"
 
@@ -97,8 +101,8 @@ case $machine in
    fi 
    export ptmp="/glade/scratch/$LOGNAME/$ptmpName"
 
-   export fixcrtm="/glade/p/ral/jnt/tools/crtm/2.2.3/fix_update"
-   export casesdir="/glade/p/ral/jnt/tools/CASES"
+   export fixcrtm="/glade/p/ral/jntp/tools/crtm/2.2.3/fix_update"
+   export casesdir="/glade/p/ral/jntp/tools/CASES"
    export ndate="$builddir/bin/ndate.x"
 
    export check_resource="no"
@@ -146,7 +150,7 @@ case $machine in
 
    export ptmp="/gpfs/hps/ptmp/$LOGNAME/$ptmpName"
 
-   export fixcrtm="/gpfs/hps/nco/ops/nwprod/lib/crtm/v2.2.4/fix"
+   export fixcrtm="/gpfs/hps3/emc/da/noscrub/Michael.Lueken/CRTM_REL-2.2.3/fix_update"
    export casesdir="/gpfs/hps3/emc/da/noscrub/Michael.Lueken/CASES"
    export ndate=$NDATE
 
@@ -178,6 +182,7 @@ case $machine in
        exit 1
    fi
    export ptmp=$basedir
+   export ptmp=$basedir
    export noscrub=$basedir
    export fixcrtm="/discover/nobackup/projects/gmao/share/gmao_ops/fvInput_4dvar/gsi/etc/fix_ncep20170329/REL-2.2.3-r60152_local-rev_1/CRTM_Coeffs/$endianness"
    export casesdir="/discover/nobackup/projects/gmao/obsdev/wrmccart/NCEP_regression/CASES"
@@ -192,10 +197,10 @@ esac
 if [[ "$cmaketest" = "false" ]]; then
   export builddir=$noscrub/build
   export gsisrc="$basedir/$updat/src"
-  export gsiexec_updat="$gsisrc/global_gsi"
-  export gsiexec_contrl="$basedir/$contrl/src/global_gsi"
-  export enkfexec_updat="$gsisrc/enkf/global_enkf"
-  export enkfexec_contrl="$basedir/$contrl/src/enkf/global_enkf"
+  export gsiexec_updat="$gsisrc/global_gsi.x"
+  export gsiexec_contrl="$basedir/$contrl/src/global_gsi.x"
+  export enkfexec_updat="$gsisrc/enkf/global_enkf.x"
+  export enkfexec_contrl="$basedir/$contrl/src/enkf/global_enkf.x"
   export fixgsi="$basedir/$updat/fix"
   export scripts="$basedir/$updat/regression"
   export ush="$basedir/$updat/ush"
@@ -214,10 +219,11 @@ export savdir="$ptmp"
 export JCAP="62"
 
 # Case Study analysis dates
-export global_T62_adate="2014080400"
+export global_T62_adate="2016120300"
 export global_4dvar_T62_adate="2014080400"
 export global_hybrid_T126_adate="2014092912"
 export global_4denvar_T126_adate="2016120300"
+export global_fv3_4denvar_T126_adate="2018110500"
 export global_enkf_T62_adate="2014092912"
 export global_lanczos_T62_adate="2014080400"
 export global_nemsio_T62_adate="2013011400"
@@ -238,6 +244,8 @@ export global_4dvar_T62_ges="$casesdir/global/sigmap/$global_4dvar_T62_adate"
 export global_hybrid_T126_datobs="$casesdir/global/sigmap/$global_hybrid_T126_adate/obs"
 export global_4denvar_T126_datges="$casesdir/global/sigmap/$global_4denvar_T126_adate"
 export global_4denvar_T126_datobs="$casesdir/global/sigmap/$global_4denvar_T126_adate"
+export global_fv3_4denvar_T126_datges="$casesdir/global/fv3/$global_fv3_4denvar_T126_adate"
+export global_fv3_4denvar_T126_datobs=$global_fv3_4denvar_T126_datges
 export global_hybrid_T126_datges="$casesdir/global/sigmap/$global_hybrid_T126_adate/ges"
 export global_enkf_T62_datobs="$casesdir/global/sigmap/$global_enkf_T62_adate/new_obs"
 export global_enkf_T62_datges="$casesdir/global/sigmap/$global_enkf_T62_adate/ges"

@@ -17,8 +17,8 @@ real(r_single),public, allocatable, dimension(:,:) :: gridloc
 real(r_single),public, allocatable, dimension(:,:) :: logp
 integer,public :: npts
 ! supported variable names in anavinfo
-character(len=max_varname_length),public, dimension(8) :: vars3d_supported = (/ 'u', 'v', 'tv', 'tsen', 'q', 'oz', 'cw', 'prse'/)
-character(len=max_varname_length),public, dimension(2) :: vars2d_supported = (/ 'ps', 'sst' /)
+character(len=max_varname_length),public, dimension(8) :: vars3d_supported = (/ 'u   ', 'v   ', 'tv  ', 'tsen', 'q   ', 'oz  ', 'cw  ', 'prse'/)
+character(len=max_varname_length),public, dimension(2) :: vars2d_supported = (/ 'ps ', 'sst' /)
 contains
 
 subroutine getgridinfo(fileprefix, reducedgrid)

@@ -31,11 +31,13 @@ export HOMEgfs=${HOMEgfs:-$NWPROD}
 HOMEgsi=${HOMEgsi:-$NWPROD}
 export DATA=${DATA:-$pwd}
 COMIN=${COMIN:-$pwd}
-COMIN_ENS=${COMIN_ENS:-$pwd}
+COMIN_ENS=${COMIN_ENS:-$COMIN}
+COMIN_OBS=${COMIN_OBS:-$COMIN}
+COMIN_GES=${COMIN_GES:-$COMIN}
 COMIN_GES_ENS=${COMIN_GES_ENS:-$COMIN_ENS}
+COMIN_GES_OBS=${COMIN_GES_OBS:-$COMIN_GES}
 COMOUT=${COMOUT:-$COMIN}
 COMOUT_ENS=${COMOUT_ENS:-$COMIN_ENS}
-DMPDIR=${DMPDIR:-$NWPROD}
 
 CDATE=${CDATE:-"2010010100"}
 DONST=${DONST:-"NO"}
@@ -79,6 +81,8 @@ APRUN_CHGRES=${APRUN_CHGRES:-""}
 # global_cycle stuff
 CYCLESH=${CYCLESH:-$HOMEgfs/ush/global_cycle.sh}
 export CYCLEXEC=${CYCLEXEC:-$HOMEgfs/exec/global_cycle}
+APRUN_CYCLE=${APRUN_CYCLE:-${APRUN:-""}}
+NTHREADS_CYCLE=${NTHREADS_CYCLE:-${NTHREADS:-1}}
 export FIXfv3=${FIXfv3:-$HOMEgfs/fix/fix_fv3_gmted2010}
 export FIXgsm=${FIXgsm:-$HOMEgfs/fix/fix_am}
 export CYCLVARS=${CYCLVARS:-"FSNOL=-2.,FSNOS=99999.,"}
@@ -95,7 +99,11 @@ NTHREADS_CALCINC=${NTHREADS_CALCINC:-${NTHREADS:-1}}
 
 ################################################################################
 # Preprocessing
-if [ ! -d $DATA ]; then mkdir -p $DATA; fi
+mkdata=NO
+if [ ! -d $DATA ]; then
+   mkdata=YES
+   mkdir -p $DATA
+fi
 cd $DATA || exit 99
 
 ENKF_SUFFIX="s"
@@ -133,11 +141,9 @@ $ERRSCRIPT || exit 2
 LONB_ENKF=${LONB_ENKF:-$($NEMSIOGET atmanl_ensmean dimx | awk '{print $2}')}
 LATB_ENKF=${LATB_ENKF:-$($NEMSIOGET atmanl_ensmean dimy | awk '{print $2}')}
 LEVS_ENKF=${LEVS_ENKF:-$($NEMSIOGET atmanl_ensmean dimz | awk '{print $2}')}
-if [ $QUILTING = ".false." -o $OUTPUT_GRID = "cubed_sphere_grid" ]; then
-   JCAP_ENKF=${JCAP_ENKF:-$($NEMSIOGET atmanl_ensmean jcap | awk '{print $2}')}
-else
-   JCAP_ENKF=$((LATB_ENKF-2))
-fi
+JCAP_ENKF=${JCAP_ENKF:-$($NEMSIOGET atmanl_ensmean jcap | awk '{print $2}')}
+[ $JCAP_ENKF -eq -9999 -a $LATB_ENKF -ne -9999 ] && JCAP_ENKF=$((LATB_ENKF-2))
+[ $LONB_ENKF -eq -9999 -o $LATB_ENKF -eq -9999 -o $LEVS_ENKF -eq -9999 -o $JCAP_ENKF -eq -9999 ] && exit -9999
 
 ################################################################################
 # This is to give the user the option to recenter, default is YES
@@ -149,11 +155,8 @@ if [ $RECENTER_ENKF = "YES" ]; then
 
    LONB=${LONB:-$($NEMSIOGET $ATMANL_GSI dimx | awk '{print $2}')}
    LATB=${LATB:-$($NEMSIOGET $ATMANL_GSI dimy | awk '{print $2}')}
-   if [ $QUILTING = ".false." -o $OUTPUT_GRID = "cubed_sphere_grid" ]; then
-      JCAP=${JCAP:-$($NEMSIOGET $ATMANL_GSI jcap | awk '{print $2}')}
-   else
-      JCAP=$((LATB-2))
-   fi
+   JCAP=${JCAP:-$($NEMSIOGET $ATMANL_GSI jcap | awk '{print $2}')}
+   [ $JCAP -eq -9999 -a $LATB -ne -9999 ] && JCAP=$((LATB-2))
 
    # If GSI EnVar analysis is at ensemble resolution, no chgres is required
    if [ $JCAP = $JCAP_ENKF -a $LATB = $LATB_ENKF -a $LONB = $LONB_ENKF ]; then
@@ -272,12 +275,12 @@ LATB_CASE=$((res*2))
 LONB_CASE=$((res*4))
 
 # Global cycle requires these files
-export FNTSFA=${FNTSFA:-$DMPDIR/$CDATE/$CDUMP/${OPREFIX}rtgssthr.grb}
-export FNACNA=${FNACNA:-$DMPDIR/$CDATE/$CDUMP/${OPREFIX}seaice.5min.blend.grb}
-export FNSNOA=${FNSNOA:-$DMPDIR/$CDATE/$CDUMP/${OPREFIX}snogrb_t${JCAP_CASE}.${LONB_CASE}.${LATB_CASE}}
-[[ ! -f $FNSNOA ]] && export FNSNOA="$DMPDIR/$CDATE/$CDUMP/${OPREFIX}snogrb_t1534.3072.1536"
-FNSNOG=${FNSNOG:-$DMPDIR/$GDATE/$GDUMP/${GDUMP}.t${gcyc}z.snogrb_t${JCAP_CASE}.${LONB_CASE}.${LATB_CASE}}
-[[ ! -f $FNSNOG ]] && FNSNOG="$DMPDIR/$GDATE/$GDUMP/${GDUMP}.t${gcyc}z.snogrb_t1534.3072.1536"
+export FNTSFA=${FNTSFA:-'                  '}
+export FNACNA=${FNACNA:-$COMIN_OBS/${OPREFIX}seaice.5min.blend.grb}
+export FNSNOA=${FNSNOA:-$COMIN_OBS/${OPREFIX}snogrb_t${JCAP_CASE}.${LONB_CASE}.${LATB_CASE}}
+[[ ! -f $FNSNOA ]] && export FNSNOA="$COMIN_OBS/${OPREFIX}snogrb_t1534.3072.1536"
+FNSNOG=${FNSNOG:-$COMIN_GES_OBS/${GPREFIX}snogrb_t${JCAP_CASE}.${LONB_CASE}.${LATB_CASE}}
+[[ ! -f $FNSNOG ]] && FNSNOG="$COMIN_GES_OBS/${GPREFIX}snogrb_t1534.3072.1536"
 
 # Set CYCLVARS by checking grib date of current snogrb vs that of prev cycle
 if [ ${RUN_GETGES:-"NO"} = "YES" ]; then
@@ -303,8 +306,8 @@ else
     export GSI_FILE="NULL"
 fi
 
-export APRUNCY=$APRUN_ECEN
-export OMP_NUM_THREADS_CY=$NTHREADS_ECEN
+export APRUNCY=${APRUN_CYCLE:-$APRUN_ECEN}
+export OMP_NUM_THREADS_CY=${NTHREADS_CYCLE:-$NTHREADS_ECEN}
 export MAX_TASKS_CY=$NMEM_ENKF
 
 for n in $(seq 1 $ntiles); do
@@ -337,7 +340,7 @@ done
 ################################################################################
 # Postprocessing
 cd $pwd
-[[ ${KEEPDATA:-"NO"} = "NO" ]] && rm -rf $DATA
+[[ $mkdata = "YES" ]] && rm -rf $DATA
 set +x
 if [ $VERBOSE = "YES" ]; then
    echo $(date) EXITING $0 with return code $err >&2

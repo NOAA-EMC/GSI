@@ -56,13 +56,15 @@ contains
 
   !-----------------------------------------------------------------------
 
-  subroutine calc_increment()
+  subroutine calc_increment(mype)
+
+    integer,intent(in) :: mype
 
     !=====================================================================
 
     ! Check local variable and proceed accordingly
 
-    call fv3_calc_increment()
+    call fv3_calc_increment(mype)
 
     !=====================================================================
 

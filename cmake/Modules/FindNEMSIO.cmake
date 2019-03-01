@@ -21,7 +21,7 @@ if(NOT BUILD_NEMSIO )
     NAMES libnemsio_v${NEMSIO_VER}.a libnemsio.a libNEMSIO.a 
     HINTS 
       $ENV{COREPATH}/lib 
-      /usr/local/jcsda/nwprod_gdas_2014	
+      /usr/local/jcsda/nwprod_gdas_2014/lib	
       ${COREPATH}/nemsio/v${NEMSIO_VER}
       ${COREPATH}/nemsio/v${NEMSIO_VER}/intel
       ${COREPATH}/nemsio/v${NEMSIO_VER}//ips/${COMPILER_VERSION}/impi/${COMPILER_VERSION}

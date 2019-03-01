@@ -1,18 +1,34 @@
 #!/bin/sh
 
+#-----------------------------------------------------------------------
+#  OznMon_Plt.sh
+#
+#  Main plot script for OznMon.
+#
+#  Usage:
+#
+#    OznMon_Plt.sh OZNMON_SUFFIX [-p|pdate yyyymmddcc] [-r|run gdas|gfs]
+#
+#	OZNMON_SUFFIX = data source identifier which matches data 
+#		  	in the TANKverf/stats directory.
+#       -p -pdate     = specified cycle to plot.  If not specified the
+#			last available date will be plotted.
+#	-r -run	      = $RUN value, gdas|gfs, default is gdas.
+#-----------------------------------------------------------------------
+
 function usage {
   echo " "
   echo "Usage:  OznMon_Plt.sh OZNMON_SUFFIX "
-  echo "            OZNMON_SUFFIX is data source identifier that matches data in "
+  echo "            OZNMON_SUFFIX is data source identifier which matches data in "
   echo "              the $TANKverf/stats directory."
-  echo "            -p | -pdate yyyymmddcc to specify the cycle to be plotted"
-  echo "              if unspecified the last available date will be plotted"
-  echo "            -r | -run   the gdas|gfs run to be plotted"
-  echo "              use only if data in TANKdir stores both runs" 
+  echo "            -p | -pdate yyyymmddcc to specify the cycle to be plotted."
+  echo "              If unspecified the last available date will be plotted."
+  echo "            -r | -run   the gdas|gfs run to be plotted, gdas is default"
   echo " "
 }
 
 echo start OznMon_Plt.sh
+set -ax
 
 nargs=$#
 echo nargs = $nargs
@@ -66,7 +82,6 @@ echo "PDATE         = $PDATE"
 echo "RUN           = $RUN"
 
 
-set -ax
 
 
 this_file=`basename $0`
