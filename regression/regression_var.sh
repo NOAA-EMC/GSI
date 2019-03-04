@@ -59,12 +59,8 @@ case $machine in
    export ptmp="/gpfs/dell2/ptmp/$LOGNAME/$ptmpName"
 
    export fixcrtm="/gpfs/dell2/emc/modeling/noscrub/Mark.Potts/fix_update"
-   if [ -d /gpfs/td2 ]; then
-       export casesdir="/gpfs/td2/emc/da/noscrub/Michael.Lueken/CASES"
-   elif [ -d /gpfs/gd2 ]; then
-       export casesdir="/gpfs/gd2/emc/da/noscrub/Michael.Lueken/CASES"
-   fi
-   export ndate=${NDATE:-"$builddir/bin/ndate.x"}
+   export casesdir="/gpfs/dell2/emc/modeling/noscrub/Mark.Potts/CASES"
+   export ndate="$builddir/bin/ndate.x"
 
    export check_resource="yes"
 
@@ -196,10 +192,10 @@ esac
 if [[ "$cmaketest" = "false" ]]; then
   export builddir=$noscrub/build
   export gsisrc="$basedir/$updat/src"
-  export gsiexec_updat="$gsisrc/global_gsi.x"
-  export gsiexec_contrl="$basedir/$contrl/src/global_gsi.x"
-  export enkfexec_updat="$gsisrc/enkf/global_enkf.x"
-  export enkfexec_contrl="$basedir/$contrl/src/enkf/global_enkf.x"
+  export gsiexec_updat="$gsisrc/global_gsi"
+  export gsiexec_contrl="$basedir/$contrl/src/global_gsi"
+  export enkfexec_updat="$gsisrc/enkf/global_enkf"
+  export enkfexec_contrl="$basedir/$contrl/src/enkf/global_enkf"
   export fixgsi="$basedir/$updat/fix"
   export scripts="$basedir/$updat/regression"
   export ush="$basedir/$updat/ush"
@@ -218,7 +214,7 @@ export savdir="$ptmp"
 export JCAP="62"
 
 # Case Study analysis dates
-export global_T62_adate="2016120300"
+export global_T62_adate="2014080400"
 export global_4dvar_T62_adate="2014080400"
 export global_hybrid_T126_adate="2014092912"
 export global_4denvar_T126_adate="2016120300"
