@@ -36,20 +36,23 @@ module gsi_rfv3io_mod
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlon_regional,nlat_regional
   implicit none
+  public type_fv3regfilenameg
+  public bg_fv3regfilenameg
 
 !    directory names (hardwired for now)
+  type type_fv3regfilenameg
+      character(len=:),allocatable :: grid_spec !='fv3_grid_spec'            
+      character(len=:),allocatable :: ak_bk     !='fv3_akbk'
+      character(len=:),allocatable :: dynvars   !='fv3_dynvars'
+      character(len=:),allocatable :: tracers   !='fv3_tracer'
+      character(len=:),allocatable :: sfcdata   !='fv3_sfcdata'
+      character(len=:),allocatable :: couplerres!='coupler.res'
 
-  character(len=*),parameter :: grid_spec='fv3_grid_spec'            
-  character(len=*),parameter :: ak_bk='fv3_akbk'
-  character(len=*),parameter :: dynvars='fv3_dynvars'
-  character(len=*),parameter :: tracers='fv3_tracer'
-  character(len=*),parameter :: sfcdata='fv3_sfcdata'
-  integer(i_kind) gfile_grid_spec,gfile_ak_bk,gfile_dynvars
-  integer(i_kind) gfile_tracers,gfile_sfcdata
-  integer(i_kind) :: gfile
-  save gfile
+      contains
+      procedure , pass(this):: init=>fv3regfilename_init
+  end type type_fv3regfilenameg
 
-
+  type(type_fv3regfilenameg):: bg_fv3regfilenameg
   integer(i_kind) nx,ny,nz
   real(r_kind),allocatable:: grid_lon(:,:),grid_lont(:,:),grid_lat(:,:),grid_latt(:,:)
   real(r_kind),allocatable:: ak(:),bk(:)
@@ -60,6 +63,8 @@ module gsi_rfv3io_mod
   private
 ! set subroutines to public
   public :: gsi_rfv3io_get_grid_specs
+  public :: gsi_fv3ncdf_read
+  public :: gsi_fv3ncdf_readuv
   public :: read_fv3_files 
   public :: read_fv3_netcdf_guess
   public :: wrfv3_netcdf
@@ -72,10 +77,68 @@ module gsi_rfv3io_mod
   integer(i_kind) mype_u,mype_v,mype_t,mype_q,mype_p,mype_oz,mype_ql
   integer(i_kind) k_slmsk,k_tsea,k_vfrac,k_vtype,k_stype,k_zorl,k_smc,k_stc
   integer(i_kind) k_snwdph,k_f10m,mype_2d,n2d,k_orog,k_psfc
+  parameter(                   &  
+    k_f10m =1,                  &   !fact10
+    k_stype=2,                  &   !soil_type
+    k_vfrac=3,                  &   !veg_frac
+    k_vtype=4,                 &   !veg_type
+    k_zorl =5,                &   !sfc_rough
+    k_tsea =6,                  &   !sfct ?
+    k_snwdph=7,                &   !sno ?
+    k_stc  =8,                  &   !soil_temp
+    k_smc  =9,                  &   !soil_moi
+    k_slmsk=10,                 &   !isli
+    k_orog =11,                 & !terrain
+    n2d=11                   )
 
 contains
+  subroutine fv3regfilename_init(this,grid_spec_input,ak_bk_input,dynvars_input, &
+                      tracers_input,sfcdata_input,couplerres_input)
+  class(type_fv3regfilenameg):: this
+  character(*),optional :: grid_spec_input,ak_bk_input,dynvars_input, &
+                      tracers_input,sfcdata_input,couplerres_input
+  if(present(grid_spec_input))then
 
-subroutine gsi_rfv3io_get_grid_specs(grid_spec,ak_bk,ierr)
+  this%grid_spec=grid_spec_input
+  else
+  this%grid_spec='fv3_grid_spec'
+  endif
+  if(present(ak_bk_input))then
+
+  this%ak_bk=ak_bk_input
+  else
+  this%ak_bk='fv3_ak_bk'
+  endif
+  if(present(dynvars_input))then
+
+  this%dynvars=dynvars_input
+  else
+  this%dynvars='fv3_dynvars'
+  endif
+  if(present(tracers_input))then
+
+  this%tracers=tracers_input
+  else
+  this%tracers='fv3_tracers'
+  endif
+  if(present(sfcdata_input))then
+
+  this%sfcdata=sfcdata_input
+  else
+  this%sfcdata='fv3_sfcdata'
+  endif
+
+  if(present(couplerres_input))then
+
+  this%couplerres=couplerres_input
+  else
+  this%couplerres='fv3_coupler.res'
+  endif
+
+  end subroutine fv3regfilename_init
+
+
+subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
 !$$$  subprogram documentation block
 !                .      .    .                                        .
 ! subprogram:    gsi_rfv3io_get_grid_specs
@@ -119,8 +182,15 @@ subroutine gsi_rfv3io_get_grid_specs(grid_spec,ak_bk,ierr)
 
   implicit none
 
-  character(*),   intent(in   ) :: grid_spec
-  character(*),   intent(in   ) :: ak_bk
+  integer(i_kind) gfile_grid_spec,gfile_ak_bk,gfile_dynvars
+  integer(i_kind) gfile_tracers,gfile_sfcdata
+!  integer(i_kind) :: gfile
+!  save gfile
+
+  type (type_fv3regfilenameg) :: fv3filenamegin
+  character(:),allocatable    :: grid_spec
+  character(:),allocatable    :: ak_bk
+  character(len=:),allocatable :: coupler_res_filenam 
   integer(i_kind),intent(  out) :: ierr
   integer(i_kind) i,k,ndimensions,iret,nvariables,nattributes,unlimiteddimid
   integer(i_kind) len,gfile_loc
@@ -128,8 +198,13 @@ subroutine gsi_rfv3io_get_grid_specs(grid_spec,ak_bk,ierr)
   integer(i_kind) myear,mmonth,mday,mhour,mminute,msecond
   real(r_kind),allocatable:: abk_fv3(:)
 
+      coupler_res_filenam=fv3filenamegin%couplerres
+      grid_spec=fv3filenamegin%grid_spec
+      ak_bk=fv3filenamegin%ak_bk
+
 !!!!! set regional_time
-    open(24,file='coupler.res',form='formatted')
+!cltorg    open(24,file='coupler.res',form='formatted')
+    open(24,file=trim(coupler_res_filenam),form='formatted')
     read(24,*)
     read(24,*)
     read(24,*)myear,mmonth,mday,mhour,mminute,msecond
@@ -487,7 +562,7 @@ subroutine read_fv3_files(mype)
     return
 end subroutine read_fv3_files
 
-subroutine read_fv3_netcdf_guess
+subroutine read_fv3_netcdf_guess(fv3filenamegin)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_fv3_netcdf_guess            read fv3 interface file
@@ -512,6 +587,7 @@ subroutine read_fv3_netcdf_guess
 
     implicit none
 
+    type (type_fv3regfilenameg) :: fv3filenamegin
     character(len=24),parameter :: myname = 'read_fv3_netcdf_guess'
     integer(i_kind) k,i,j
     integer(i_kind) it,ier,istatus
@@ -524,19 +600,28 @@ subroutine read_fv3_netcdf_guess
     real(r_kind),dimension(:,:,:),pointer::ges_oz=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_tv=>NULL()
 
+      character(len=:),allocatable :: grid_spec !='fv3_grid_spec'            
+      character(len=:),allocatable :: ak_bk     !='fv3_akbk'
+      character(len=:),allocatable :: dynvars   !='fv3_dynvars'
+      character(len=:),allocatable :: tracers   !='fv3_tracer'
+      character(len=:),allocatable :: sfcdata   !='fv3_sfcdata'
+      character(len=:),allocatable :: couplerres!='coupler.res'
+
 !    setup list for 2D surface fields
-    k_f10m =1   !fact10
-    k_stype=2   !soil_type
-    k_vfrac=3   !veg_frac
-    k_vtype=4   !veg_type
-    k_zorl =5   !sfc_rough
-    k_tsea =6   !sfct ?
-    k_snwdph=7  !sno ?
-    k_stc  =8   !soil_temp
-    k_smc  =9   !soil_moi
-    k_slmsk=10  !isli
-    k_orog =11  !terrain
-    n2d=11
+!    k_f10m =1   !fact10
+!    k_stype=2   !soil_type
+!    k_vfrac=3   !veg_frac
+!    k_vtype=4   !veg_type
+!    k_zorl =5   !sfc_rough
+!    k_tsea =6   !sfct ?
+!    k_snwdph=7  !sno ?
+!    k_stc  =8   !soil_temp
+!    k_smc  =9   !soil_moi
+!    k_slmsk=10  !isli
+!    k_orog =11  !terrain
+!    n2d=11
+     dynvars= fv3filenamegin%dynvars
+     tracers= fv3filenamegin%tracers
 
     if(npe< 8) then
        call die('read_fv3_netcdf_guess','not enough PEs to read in fv3 fields' )
@@ -582,7 +667,7 @@ subroutine read_fv3_netcdf_guess
     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'oz'  ,ges_oz ,istatus );ier=ier+istatus
     if (ier/=0) call die(trim(myname),'cannot get pointers for fv3 met-fields, ier =',ier)
 
-    call gsi_fv3ncdf_readuv(ges_u,ges_v)
+    call gsi_fv3ncdf_readuv(dynvars,ges_u,ges_v)
     call gsi_fv3ncdf_read(dynvars,'T','t',ges_tsen(1,1,1,it),mype_t)
     call gsi_fv3ncdf_read(dynvars,'DELP','delp',ges_prsi,mype_p)
     ges_prsi(:,:,nsig+1,it)=eta1_ll(nsig+1)
@@ -603,11 +688,11 @@ subroutine read_fv3_netcdf_guess
        enddo
     enddo
 
-    call gsi_fv3ncdf2d_read(it,ges_z)
+    call gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z)
 
 end subroutine read_fv3_netcdf_guess
 
-subroutine gsi_fv3ncdf2d_read(it,ges_z)
+subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    gsi_fv3ncdf2d_read       
@@ -643,6 +728,7 @@ subroutine gsi_fv3ncdf2d_read(it,ges_z)
 
     integer(i_kind),intent(in) :: it   
     real(r_kind),intent(in),dimension(:,:),pointer::ges_z
+    type (type_fv3regfilenameg),intent(in) :: fv3filenamegin
     character(len=128) :: name
     integer(i_kind),allocatable,dimension(:):: dim_id,dim
     real(r_kind),allocatable,dimension(:):: work
@@ -653,6 +739,11 @@ subroutine gsi_fv3ncdf2d_read(it,ges_z)
     integer(i_kind) iret,gfile_loc,i,k,len,ndim
     integer(i_kind) ndimensions,nvariables,nattributes,unlimiteddimid
     integer(i_kind) kk,n,ns,j,ii,jj,mm1
+      character(len=:),allocatable :: sfcdata   !='fv3_sfcdata'
+      character(len=:),allocatable :: dynvars   !='fv3_dynvars'
+
+    sfcdata= fv3filenamegin%sfcdata
+    dynvars= fv3filenamegin%dynvars
 
     mm1=mype+1
     allocate(a(nya,nxa))
@@ -791,7 +882,7 @@ subroutine gsi_fv3ncdf2d_read(it,ges_z)
     return
 end subroutine gsi_fv3ncdf2d_read
 
-subroutine gsi_fv3ncdf_read(filename,varname,varname2,work_sub,mype_io)
+subroutine gsi_fv3ncdf_read(filenamein,varname,varname2,work_sub,mype_io)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    gsi_fv3ncdf_read       
@@ -827,8 +918,7 @@ subroutine gsi_fv3ncdf_read(filename,varname,varname2,work_sub,mype_io)
     use general_commvars_mod, only: ltosi_s,ltosj_s
 
     implicit none
-
-    character(*)   ,intent(in   ) :: varname,varname2,filename
+    character(*)   ,intent(in   ) :: varname,varname2,filenamein
     real(r_kind)   ,intent(out  ) :: work_sub(lat2,lon2,nsig) 
     integer(i_kind)   ,intent(in   ) :: mype_io
     character(len=128) :: name
@@ -847,9 +937,9 @@ subroutine gsi_fv3ncdf_read(filename,varname,varname2,work_sub,mype_io)
     allocate (work(itotsub*nsig))
 
     if(mype==mype_io ) then
-       iret=nf90_open(trim(filename),nf90_nowrite,gfile_loc)
+       iret=nf90_open(trim(filenamein),nf90_nowrite,gfile_loc)
        if(iret/=nf90_noerr) then
-          write(6,*)' problem opening ',trim(filename),gfile_loc,', Status = ',iret
+          write(6,*)' problem opening ',trim(filenamein),gfile_loc,', Status = ',iret
           return
        endif
 
@@ -906,7 +996,7 @@ subroutine gsi_fv3ncdf_read(filename,varname,varname2,work_sub,mype_io)
     return
 end subroutine gsi_fv3ncdf_read
 
-subroutine gsi_fv3ncdf_readuv(ges_u,ges_v)
+subroutine gsi_fv3ncdf_readuv(dynvarsfile,ges_u,ges_v)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    gsi_fv3ncdf_readuv
@@ -937,7 +1027,7 @@ subroutine gsi_fv3ncdf_readuv(ges_u,ges_v)
     use general_commvars_mod, only: ltosi_s,ltosj_s
 
     implicit none
-
+    character(*)   ,intent(in   ):: dynvarsfile
     real(r_kind)   ,intent(out  ) :: ges_u(lat2,lon2,nsig) 
     real(r_kind)   ,intent(out  ) :: ges_v(lat2,lon2,nsig) 
     character(len=128) :: name
@@ -955,9 +1045,9 @@ subroutine gsi_fv3ncdf_readuv(ges_u,ges_v)
     allocate (work(itotsub*nsig))
     mm1=mype+1
     if(mype==mype_u .or. mype==mype_v) then
-       iret=nf90_open(dynvars,nf90_nowrite,gfile_loc)
+       iret=nf90_open(dynvarsfile,nf90_nowrite,gfile_loc)
        if(iret/=nf90_noerr) then
-          write(6,*)' problem opening ',trim(dynvars),', Status = ',iret
+          write(6,*)' problem opening ',trim(dynvarsfile),', Status = ',iret
           return
        endif
 
@@ -1031,7 +1121,7 @@ subroutine gsi_fv3ncdf_readuv(ges_u,ges_v)
     deallocate(work)
 end subroutine gsi_fv3ncdf_readuv
 
-subroutine wrfv3_netcdf
+subroutine wrfv3_netcdf(fv3filenamegin)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    wrfv3_netcdf           write out FV3 analysis increments
@@ -1057,15 +1147,24 @@ subroutine wrfv3_netcdf
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use mpeu_util, only: die
     implicit none
+    type (type_fv3regfilenameg) :: fv3filenamegin
 
 ! Declare local constants
     logical add_saved
+      character(len=:),allocatable :: grid_spec !='fv3_grid_spec'            
+      character(len=:),allocatable :: ak_bk     !='fv3_akbk'
+      character(len=:),allocatable :: dynvars   !='fv3_dynvars'
+      character(len=:),allocatable :: tracers   !='fv3_tracer'
+      character(len=:),allocatable :: sfcdata   !='fv3_sfcdata'
+      character(len=:),allocatable :: couplerres!='coupler.res'
 ! variables for cloud info
     integer(i_kind) ier,istatus,it
     real(r_kind),pointer,dimension(:,:  ):: ges_ps  =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_u   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_v   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_q   =>NULL()
+    dynvars=fv3filenamegin%dynvars
+    tracers=fv3filenamegin%tracers
 
     it=ntguessig
     ier=0
@@ -1080,12 +1179,12 @@ subroutine wrfv3_netcdf
 !   write out
     call gsi_fv3ncdf_write(dynvars,'T',ges_tsen(1,1,1,it),mype_t,add_saved)
     call gsi_fv3ncdf_write(tracers,'sphum',ges_q   ,mype_q,add_saved)
-    call gsi_fv3ncdf_writeuv(ges_u,ges_v,mype_v,add_saved)
+    call gsi_fv3ncdf_writeuv(dynvars,ges_u,ges_v,mype_v,add_saved)
     call gsi_fv3ncdf_writeps(dynvars,'delp',ges_ps,mype_p,add_saved)
     
 end subroutine wrfv3_netcdf
 
-subroutine gsi_fv3ncdf_writeuv(varu,varv,mype_io,add_saved)
+subroutine gsi_fv3ncdf_writeuv(dynvars,varu,varv,mype_io,add_saved)
 !$$$  subprogram documentation block
 !                .      .    .                                        .
 ! subprogram:    gsi_nemsio_writeuv
@@ -1122,6 +1221,7 @@ subroutine gsi_fv3ncdf_writeuv(varu,varv,mype_io,add_saved)
     use netcdf, only: nf90_put_var,nf90_get_var
 
     implicit none
+    character(len=*),intent(in) :: dynvars   !='fv3_dynvars'
 
     real(r_kind)   ,intent(in   ) :: varu(lat2,lon2,nsig)
     real(r_kind)   ,intent(in   ) :: varv(lat2,lon2,nsig)
