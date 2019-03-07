@@ -25,6 +25,7 @@
        integer(i_kind), intent(in) :: file_id
        integer(i_kind) :: var_id
        include "read_fv3_restart_data.f90"
+       data_arr=data_arr(ubound(data_arr,1):lbound(data_arr,1):-1)
     end subroutine read_fv3_restart_data1d
 
     subroutine read_fv3_restart_data2d(varname,filename,file_id,data_arr)
@@ -35,6 +36,7 @@
        integer(i_kind), intent(in) :: file_id
        integer(i_kind) :: var_id
        include "read_fv3_restart_data.f90"
+       data_arr=data_arr(ubound(data_arr,1):lbound(data_arr,1):-1,ubound(data_arr,2):lbound(data_arr,2):-1)
     end subroutine read_fv3_restart_data2d
 
     subroutine read_fv3_restart_data3d(varname,filename,file_id,data_arr)
@@ -45,6 +47,8 @@
        integer(i_kind), intent(in) :: file_id
        integer(i_kind) :: var_id
        include "read_fv3_restart_data.f90"
+       data_arr=data_arr(ubound(data_arr,1):lbound(data_arr,1):-1,ubound(data_arr,2):lbound(data_arr,2):-1, &
+                          ubound(data_arr,3):lbound(data_arr,3):-1)
     end subroutine read_fv3_restart_data3d
 
     subroutine read_fv3_restart_data4d(varname,filename,file_id,data_arr)
@@ -55,6 +59,8 @@
        integer(i_kind), intent(in) :: file_id
        integer(i_kind) :: var_id
        include "read_fv3_restart_data.f90"
+       data_arr=data_arr(ubound(data_arr,1):lbound(data_arr,1):-1,ubound(data_arr,2):lbound(data_arr,2):-1, &
+                          ubound(data_arr,3):lbound(data_arr,3):-1,ubound(data_arr,4):lbound(data_arr,4):-1)
     end subroutine read_fv3_restart_data4d
 
     end module read_fv3regional_restarts

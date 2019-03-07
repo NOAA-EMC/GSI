@@ -93,7 +93,6 @@ integer(i_kind) file_id,var_id,dim_id,nlevsp1,nx_tile,ny_tile,ntile
 integer (i_kind):: nn_tile0
 integer(i_kind) :: nlevsp1n,nlevsp2
 real(r_single), allocatable, dimension(:,:) :: lat_tile,lon_tile,ps
-real(r_single), allocatable, dimension(:) :: ak_fv3,bk_fv3
 real(r_single), allocatable, dimension(:,:,:) :: delp,g_prsi
 real(r_single) ptop
 character(len=4) char_res
@@ -150,14 +149,8 @@ if (nproc .eq. 0) then
 
 
    allocate(ak(nlevsp1),bk(nlevsp1))
-   allocate(ak_fv3(nlevsp1),bk_fv3(nlevsp1))
-   call read_fv3_restart_data1d('ak',filename,file_id,ak_fv3)
-   call read_fv3_restart_data1d('bk',filename,file_id,bk_fv3)
-         nlevsp2=nlevsp1+1
-         do i=1,nlevsp1
-             ak(i)=ak_fv3(nlevsp2-i)
-             bk(i)=bk_fv3(nlevsp2-i)
-          enddo
+   call read_fv3_restart_data1d('ak',filename,file_id,ak)
+   call read_fv3_restart_data1d('bk',filename,file_id,bk)
 
 !!!!! change unit of ak,also reverse the 
      
@@ -266,7 +259,7 @@ if (nproc .eq. 0) then
    end do
    logp(:,nlevs_pres) = -log(spressmn(:))
    deallocate(spressmn,presslmn,pressimn)
-   deallocate(g_prsi,delp,ak_fv3,bk_fv3)
+   deallocate(g_prsi,delp)
    deallocate(eta1_ll,eta2_ll,ak,bk)
    deallocate(lat_tile,lon_tile,ps)
 
