@@ -255,12 +255,14 @@ subroutine set_netcdf_read(use_netcdf)
 end subroutine set_netcdf_read
 
 
-subroutine open_radiag(filename, ftin)
+subroutine open_radiag(filename, ftin, istatus)
    character*500,   intent(in) :: filename
    integer(i_kind), intent(inout) :: ftin
+   integer(i_kind), intent(out):: istatus
 
    integer(i_kind) :: i
 
+   istatus = -999
    if (netcdf) then
       if (nopen_ncdiag >= MAX_OPEN_NCDIAG) then
          write(6,*) 'OPEN_RADIAG:  ***ERROR*** Cannot open more than ', &
@@ -268,6 +270,7 @@ subroutine open_radiag(filename, ftin)
          call stop2(456)
       endif
       call nc_diag_read_init(filename,ftin)
+      istatus=0
       do i = 1, MAX_OPEN_NCDIAG
         if (ncdiag_open_id(i) < 0) then
            ncdiag_open_id(i) = ftin
@@ -288,7 +291,7 @@ subroutine open_radiag(filename, ftin)
         endif
       enddo
    else
-      open(ftin,form="unformatted",file=filename)
+      open(ftin,form="unformatted",file=filename,iostat=istatus)
       rewind(ftin)
    endif
 
@@ -851,7 +854,7 @@ subroutine read_radiag_data_nc_init(ftin, diag_status, header_fix, retrieval, if
 ! Declare local variables
   integer(i_kind)                          :: nrecord, ndatum, nangord
   integer(i_kind)                          :: cch, ic, ir, cdatum, nsdim
-  real(r_kind), allocatable, dimension(:)  :: Latitude, Longitude, Elevation, Obs_Time, Scan_Position, &
+  real(r_single), allocatable, dimension(:)  :: Latitude, Longitude, Elevation, Obs_Time, Scan_Position, &
                                               Sat_Zenith_Angle, Sat_Azimuth_Angle, Sol_Zenith_Angle, Sol_Azimuth_Angle,  &
                                               Sun_Glint_Angle, Water_Fraction, Land_Fraction, Ice_Fraction,  &
                                               Snow_Fraction, Water_Temperature, Land_Temperature, Ice_Temperature,  &
@@ -865,7 +868,7 @@ subroutine read_radiag_data_nc_init(ftin, diag_status, header_fix, retrieval, if
                                               BC_Cloud_Liquid_Water, BC_Lapse_Rate_Squared, BC_Lapse_Rate, BC_Cosine_Latitude_times_Node,  &
                                               BC_Sine_Latitude,BC_Emissivity,BC_Fixed_Scan_Position, Press_Max_Weight_Function
   integer(i_kind), allocatable, dimension(:)  :: Channel_Index, Land_Type_Index
-  real(r_kind), allocatable, dimension(:,:)   :: BC_angord ! (nobs, BC_angord_arr_dim) ;
+  real(r_single), allocatable, dimension(:,:)   :: BC_angord ! (nobs, BC_angord_arr_dim) ;
   real(r_single), allocatable, dimension(:,:) :: Observation_Operator_Jacobian
 
   real(r_kind)                                :: clat, clon

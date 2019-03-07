@@ -115,16 +115,10 @@ postmsg "$jlogfile" "$msg"
 # Execute the script.
 #
 ${OZNMONSH:-${SCRgdas_ozn}/exgdas_vrfyozn.sh.ecf} ${PDY} ${cyc}
-iret=$?
-
-
-echo "iret = $iret"
+err=$?
+[[ $err -ne 0 ]] && exit $err
 
 msg="JOB COMPLETED NORMALLY"
-if [[ $iret  != 0 ]]; then
-   msg="WARNING:  JOB DID NOT COMPLETE NORMALLY"
-fi
-
 postmsg "$jlogfile" "$msg"
 
 ################################
