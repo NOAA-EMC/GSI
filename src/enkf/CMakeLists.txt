@@ -51,9 +51,9 @@ if(BUILD_ENKF)
   gridinfo_${ENKF_SUFFIX}.f90
   enkf_obs_sensitivity.f90 
   )
-  if( (NOT HOST-Luna) AND (NOT HOST-Venus) )
-    find_package( LAPACK REQUIRED )
-  endif()
+# if( (NOT HOST-WCOSS_C) AND (NOT HOST-WCOSS_D) )
+#   find_package( LAPACK REQUIRED )
+# endif()
   
   add_definitions(${MPI_Fortran_FLAGS})
   
@@ -74,4 +74,8 @@ if(BUILD_ENKF)
   target_link_libraries(${ENKFEXEC} enkflib enkfdeplib ${GSISHAREDLIB} ${GSILIB} ${CORE_LIBRARIES}
   ${MPI_Fortran_LIBRARIES} ${LAPACK_LIBRARIES} ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES}  ${HDF5_Fortran_HL_LIBRARIES}
   ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${GSI_LDFLAGS} ${CORE_BUILT} ${CORE_LIBRARIES} ${CORE_BUILT} ${NCDIAG_LIBRARIES} ${EXTRA_LINKER_FLAGS})
+  install(TARGETS ${ENKFEXEC} enkfdeplib enkflib 
+        RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+        LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/static)
 endif()
