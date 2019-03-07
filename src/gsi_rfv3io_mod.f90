@@ -1437,6 +1437,7 @@ subroutine gsi_fv3ncdf_writeps(filename,varname,var,mype_io,add_saved)
           kp=k+1
           work_b(:,:,k)=(work_bi(:,:,kp)-work_bi(:,:,k))*1000._r_kind
        enddo
+       write(6,*)'thinkdeb delp (nsig)(the actual lowest leval  is ',work_b(12,:,nsig)
 
        print *,'write out ',trim(varname),' to ',trim(filename)
 
