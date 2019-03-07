@@ -53,7 +53,7 @@ contains
       class(get_fv3_regional_ensperts_class), intent(inout) :: this
       type(gsi_bundle),allocatable, intent(inout) :: en_perts(:,:)
       integer(i_kind), intent(in   ):: nelen
-      real(r_single),dimension(:,:,:),allocatable:: ps_bar
+      real(r_single),dimension(:,:,:),allocatable,intent(inout):: ps_bar
   
       real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: u,v,tv,cwmr,oz,rh
       real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2):: ps
