@@ -12,6 +12,7 @@ module stpjcmod
 !   2014-05-07  pondeca - add stepzise calculation for howv weak constraint term
 !   2014-06-17  carley/zhu - add stepzise calculation for lcbas weak constraint term
 !   2015-07-10  pondeca - add stepzise calculation for cldch weak constraint term
+!   2019-03-05  martin - update stplimq to weight factqmin/max by latitude
 !
 ! subroutines included:
 !
@@ -56,6 +57,7 @@ subroutine stplimq(rval,sval,sges,outmin,outmax,nstep,itbin)
 !   2010-05-13  todling - update to use gsi_bundle
 !   2010-07-10  todling - merge w/ r8741 (trunk); qx(:)->qx (who made the change?)
 !   2011-12-27  kleist - add bins for 4d capability (4densvar option)
+!   2019-03-05  martin - update to weight factqmin/max by latitude
 !
 !   input argument list:
 !     rq       - search direction
@@ -73,9 +75,10 @@ subroutine stplimq(rval,sval,sges,outmin,outmax,nstep,itbin)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use gridmod, only: lat1,lon1,nsig
+  use gridmod, only: lat1,lon1,nsig,istart,wgtfactlats
   use jfunc, only: factqmin,factqmax
   use guess_grids, only: ges_qsat
+  use mpimod, only: mype
   implicit none
 
 ! Declare passed variables
@@ -85,7 +88,7 @@ subroutine stplimq(rval,sval,sges,outmin,outmax,nstep,itbin)
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
 
 ! Declare local variables
-  integer(i_kind) i,j,k,kk,ier,istatus
+  integer(i_kind) i,j,k,kk,ier,istatus,ii,mm1
   real(r_kind) q,qx
   real(r_kind),pointer,dimension(:,:,:) :: rq,sq
   real(r_kind),pointer,dimension(:,:,:) :: ges_q_it=>NULL()
@@ -93,6 +96,8 @@ subroutine stplimq(rval,sval,sges,outmin,outmax,nstep,itbin)
   outmin=zero_quad; outmax=zero_quad
 
   if (factqmin==zero .and. factqmax==zero) return
+
+  mm1=mype+1
 
 ! Retrieve pointers
 ! Simply return if any pointer not found
@@ -109,16 +114,17 @@ subroutine stplimq(rval,sval,sges,outmin,outmax,nstep,itbin)
      do k = 1,nsig
         do j = 2,lon1+1
            do i = 2,lat1+1
-
+              ii=istart(mm1)+i-2
 !             Values for q using stepsizes
               q  = ges_q_it(i,j,k) + sq(i,j,k)
               do kk=1,nstep
                  qx = q + sges(kk)*rq(i,j,k)
                  if(qx < zero)then
-                    outmin(kk)=outmin(kk)+factqmin*qx*qx/(ges_qsat(i,j,k,itbin)*ges_qsat(i,j,k,itbin))
+                    outmin(kk)=outmin(kk)+(factqmin*wgtfactlats(ii))*qx*qx &
+                               /(ges_qsat(i,j,k,itbin)*ges_qsat(i,j,k,itbin))
                  else
                     if(qx > ges_qsat(i,j,k,itbin))then
-                       outmax(kk)=outmax(kk)+factqmax*(qx-ges_qsat(i,j,k,itbin))* &
+                       outmax(kk)=outmax(kk)+(factqmax*wgtfactlats(ii))*(qx-ges_qsat(i,j,k,itbin))* &
                             (qx-ges_qsat(i,j,k,itbin))/(ges_qsat(i,j,k,itbin)*ges_qsat(i,j,k,itbin))
                     end if
                  end if
@@ -130,15 +136,15 @@ subroutine stplimq(rval,sval,sges,outmin,outmax,nstep,itbin)
      do k = 1,nsig
         do j = 2,lon1+1
            do i = 2,lat1+1
-
+              ii=istart(mm1)+i-2
 !             Values for q using stepsizes
               q  = ges_q_it(i,j,k)
               if(q < zero)then
-                 outmin(1)=outmin(1)+factqmin*q*q/(ges_qsat(i,j,k,itbin)*ges_qsat(i,j,k,itbin))
+                 outmin(1)=outmin(1)+(factqmin*wgtfactlats(ii))*q*q/(ges_qsat(i,j,k,itbin)*ges_qsat(i,j,k,itbin))
               else
                  if(q > ges_qsat(i,j,k,itbin))then
-                    outmax(1)=outmax(1)+factqmax*(q-ges_qsat(i,j,k,itbin))*(q-ges_qsat(i,j,k,itbin))/ &
-                             (ges_qsat(i,j,k,itbin)*ges_qsat(i,j,k,itbin))
+                    outmax(1)=outmax(1)+(factqmax*wgtfactlats(ii))*(q-ges_qsat(i,j,k,itbin))*&
+                                (q-ges_qsat(i,j,k,itbin))/(ges_qsat(i,j,k,itbin)*ges_qsat(i,j,k,itbin))
                  end if
               end if
            end do
