@@ -29,6 +29,18 @@ case $machine in
 
 esac
 
+# Maximum memory per task for above machines
+#   wcoss_c :   64 Gb / 24 cores = 2.67 Gb / core
+#   wcoss_d :  128 Gb / 28 cores = 4.57 Gb / core
+#   theia   :   64 Gb / 24 cores = 2.67 Gb / core
+#   discover:
+#   s4      :
+#   cheyenne:
+# Select minimim memory per core for regression tests
+export memnode=64
+export numcore=24
+export maxmem=$((($memnode*1024*1024)/$numcore))  # Kb / core
+
 case $regtest in
 
     global_T62)
@@ -194,6 +206,36 @@ case $regtest in
         elif [[ "$machine" = "WCOSS_D" ]]; then
            topts[1]="0:15:00" ; popts[1]="6/8/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="6/10/" ; ropts[2]="/2"
+        fi
+
+        if [ "$debug" = ".true." ] ; then
+           topts[1]="1:30:00"
+        fi
+
+        scaling[1]=10; scaling[2]=8; scaling[3]=4
+
+    ;;
+
+    global_fv3_4denvar_T126)
+
+        if [[ "$machine" = "Theia" ]]; then
+           topts[1]="0:35:00" ; popts[1]="6/8/" ; ropts[1]="/1"
+           topts[2]="0:35:00" ; popts[2]="6/10/" ; ropts[2]="/2"
+        elif [[ "$machine" = "WCOSS" ]]; then
+           topts[1]="1:59:00" ; popts[1]="6/8/" ; ropts[1]="/1"
+           topts[2]="0:35:00" ; popts[2]="6/10/" ; ropts[2]="/2"
+        elif [[ "$machine" = "Discover" ]]; then
+           topts[1]="0:30:00" ; popts[1]="48/2"  ; ropts[1]="/1"
+           topts[2]="0:30:00" ; popts[2]="60/3"  ; ropts[2]="/2"
+        elif [[ "$machine" = "Cheyenne" ]]; then
+           topts[1]="1:59:00" ; popts[1]="6/8/" ; ropts[1]="/1"
+           topts[2]="0:35:00" ; popts[2]="6/10/" ; ropts[2]="/2"
+        elif [[ "$machine" = "WCOSS_C" ]]; then
+           topts[1]="0:35:00" ; popts[1]="48/8/" ; ropts[1]="1024/1"  # sub_wcoss_c popts are "#tasks/#nodes/"
+           topts[2]="0:35:00" ; popts[2]="60/10/" ; ropts[2]="1024/2"
+        elif [[ "$machine" = "WCOSS_D" ]]; then
+           topts[1]="0:35:00" ; popts[1]="6/8/" ; ropts[1]="/1"
+           topts[2]="0:35:00" ; popts[2]="6/10/" ; ropts[2]="/2"
         fi
 
         if [ "$debug" = ".true." ] ; then
@@ -553,7 +595,7 @@ if [[ "$machine" = "Theia" ]]; then
    export MPI_BUFS_PER_PROC=256
    export MPI_BUFS_PER_HOST=256
    export MPI_GROUP_MAX=256
-   export APRUN="mpirun -v -np \$PBS_NP"
+   export APRUN="mpirun -np \$PBS_NP"
 elif [[ "$machine" = "Cheyenne" ]]; then
    export OMP_STACKSIZE=1024M
    export MPI_BUFS_PER_PROC=256

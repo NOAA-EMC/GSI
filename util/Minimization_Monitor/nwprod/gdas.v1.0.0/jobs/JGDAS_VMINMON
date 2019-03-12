@@ -119,16 +119,10 @@ postmsg "$jlogfile" "$msg"
 ########################################################
 # Execute the script.
 ${GMONSH:-$SCRgfs/exgdas_vrfminmon.sh.ecf} ${PDY} ${cyc}
-
 err=$?
+[[ $err -ne 0 ]] && exit $err
 
-########################################################
-
-if [[ ${err} -ne 0 ]]; then
-   msg="WARNING:  JOB DID NOT COMPLETE NORMALLY, error code $err"
-else
-   msg="JOB COMPLETED NORMALLY"
-fi
+msg="JOB COMPLETED NORMALLY"
 postmsg "$jlogfile" "$msg"
 
 ################################
