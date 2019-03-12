@@ -23,6 +23,12 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2017-02-06  todling - add netcdf_diag capability; hidden as contained code
 !   2017-02-09  guo     - Remove m_alloc, n_alloc.
 !                       . Remove my_node with corrected typecast().
+!   2018-03-01  yang -  use module nltransf to cldch
+
+!   2018-03-22  pondeca/yang -  for code consistency across all analyzed variables,replace
+!                      the  original "dup"-based implementation of the option to
+!                      assimilate the closest ob to the analysis time only with
+!                      Ming Hu's "muse"-based implementationusing.
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -62,19 +68,22 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
-  use gsi_4dvar, only: nobs_bins,hr_obsbin
+  use gsi_4dvar, only: nobs_bins,hr_obsbin,min_offset
   use oneobmod, only: magoberr,maginnov,oneobtest
   use gridmod, only: nsig
   use gridmod, only: get_ij
   use constants, only: zero,tiny_r_kind,one,half,one_tenth,wgtlim, &
-            two,cg_term,huge_single
+            two,cg_term,huge_single,r1000
   use jfunc, only: jiter,last,miter
-  use qcmod, only: dfact,dfact1,npres_print,closest_obs
+  use qcmod, only: dfact,dfact1,npres_print
+  use qcmod, only: pcldch,scale_cv
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
+  use nltransf, only: nltransf_inverse
+  use rapidrefresh_cldsurf_mod, only: l_closeobs
   implicit none
 
 ! Declare passed variables
@@ -97,8 +106,9 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_double) rstation_id
 
   real(r_kind) cldchges,dlat,dlon,ddiff,dtime,error
-  real(r_kind) cldch_errmax,offtime_k,offtime_l
-  real(r_kind) scale,val2,ratio,ressw2,ress,residual
+  real(r_kind) cldchgesout,cldchobout,tempcldch,cldchdiff
+  real(r_kind) cldch_errmax
+  real(r_kind) scale,val2,ratio,residual
   real(r_kind) obserrlm,obserror,val,valqc
   real(r_kind) term,rwgt
   real(r_kind) cg_cldch,wgross,wnotgross,wgt,arg,exp_arg,rat_err2
@@ -126,6 +136,7 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   character(8),allocatable,dimension(:):: cprvstg,csprvstg
   character(8) c_prvstg,c_sprvstg
   real(r_double) r_prvstg,r_sprvstg
+  real(r_kind) :: hr_offset
 
   logical:: in_curbin, in_anybin
 
@@ -151,7 +162,7 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! If require guess vars available, extract from bundle ...
   call init_vars_
 
-  cldch_errmax=10000.0_r_kind
+  cldch_errmax=20.0_r_kind
 !*********************************************************************************
 ! Read and reformat observations in work arrays.
   read(lunin)data,luse,ioid
@@ -186,56 +197,31 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
        data(icldch,i)=rmiss_single   ! for diag output
        data(iobshgt,i)=rmiss_single  ! for diag output
     end if
-
-!   set any observations larger than 20000.0 to be 20000.0
-    if (data(icldch,i) > 20000.0_r_kind) data(icldch,i)=20000.0_r_kind !REVISE VALUE / MPondeca , 17Jul2015
   end do
-  offtime_k=0.0_r_kind
-  offtime_l=0.0_r_kind
+
+! Check for duplicate observations at same location
+  hr_offset=min_offset/60.0_r_kind
   dup=one
-!  if closest_obs=.true., choose the timely closest observation among the multi-reports at a station.
-  if (closest_obs) then
-     dup=one
-     do k=1,nobs
-        if( dup(k) < tiny_r_kind .or. .not. muse(k) ) then
-           dup(k)=-99.0_r_kind
-        else
-           do l=k+1,nobs
-              if(data(ilat,k) == data(ilat,l) .and.  &
-                 data(ilon,k) == data(ilon,l) .and.  &
-                 data(ier,k) < cldch_errmax .and. data(ier,l) <cldch_errmax .and. &
-                    muse(k) .and. muse(l))then
-                 offtime_k=data(itime,k) -time_offset
-                 offtime_l=data(itime,l) -time_offset
-                 if(abs(offtime_k) < abs(offtime_l)) then
-                    dup(l)=-99.0_r_kind
-                 endif
-                 if(abs(offtime_k) > abs(offtime_l)) then
-                    dup(k)=-99.0_r_kind
-                 endif
-                 if(abs(offtime_k)==abs(offtime_l)) then
-                    if (offtime_k >= 0.0_r_kind) dup(l)=-99.0_r_kind
-                    if (offtime_l >= 0.0_r_kind) dup(k)=-99.0_r_kind
-                 endif
+  do k=1,nobs
+     do l=k+1,nobs
+        if(data(ilat,k) == data(ilat,l) .and. &
+           data(ilon,k) == data(ilon,l) .and. &
+           data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
+           muse(k) .and. muse(l))then
+           if(l_closeobs) then
+              if(abs(data(itime,k)-hr_offset)<abs(data(itime,l)-hr_offset)) then
+                  muse(l)=.false.
+              else
+                  muse(k)=.false.
               endif
-           enddo
-        endif
-     enddo
-  else
-     dup=one
-     do k=1,nobs
-        do l=k+1,nobs
-           if(data(ilat,k) == data(ilat,l) .and.  &
-              data(ilon,k) == data(ilon,l) .and.  &
-              data(ier,k) < cldch_errmax .and. data(ier,l) < cldch_errmax &
-              .and.  muse(k) .and. muse(l)) then
+           else
               tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
               dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
               dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
-           end if
-        end do
+           endif
+        end if
      end do
-  endif
+  end do
 
 ! If requested, save select data for output to diagnostic file
   if(conv_diagsave)then
@@ -261,10 +247,9 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
     if(in_curbin) then
        dlat=data(ilat,i)
        dlon=data(ilon,i)
-
        ikx  = nint(data(ikxx,i))
        error=data(ier,i)
-     endif
+    endif
 
 !    Link observation to appropriate observation bin
      if (nobs_bins>1) then
@@ -294,9 +279,25 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
      if(.not.in_curbin) cycle
 
+!------------------------------------------------------------------------------
+! RTMA SO test-part one:check the interpolated fields at the selected station
+
+!     rstation_id     = data(id,i)
+!    if (trim(station_id) .ne. 'CYYY') then
 ! Interpolate to get cldch at obs location/time
-     call tintrp2a11(ges_cldch,cldchges,dlat,dlon,dtime,hrdifsig,&
-        mype,nfldsig)
+!        call tintrp2a11(ges_cldch,cldchges,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
+!     endif
+!     if (trim(station_id) .eq. 'CYYY') then
+!        write (6,*) 'CYYY trim(station_id=',trim(station_id)
+! Interpolate to get cldch at obs location/time--print out the interplator's
+! grid value
+!        call tintrp2so(ges_cldch,cldchges,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
+!     endif
+! END RTMA SO test-part one
+!------------------------------------------------------------------------------
+
+! Interpolate to get cldch at obs location/time
+     call tintrp2a11(ges_cldch,cldchges,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
 
 ! Adjust observation error
      ratio_errors=error/data(ier,i)
@@ -317,23 +318,30 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
         residual = abs(ddiff)
         ratio    = residual/obserrlm
+        ratio_errors=ratio_errors/sqrt(dup(i))
         if (ratio> cgross(ikx) .or. ratio_errors < tiny_r_kind) then
            if (luse(i)) awork(6) = awork(6)+one
            error = zero
            ratio_errors=zero
-        else
-! dup(i) < 0 means closest_obs =.true.
-           if(dup(i)> tiny_r_kind) then
-              ratio_errors=ratio_errors/sqrt(dup(i))
-           else
-              ratio_errors=zero
-           endif
-        endif
+        end if
      else    ! missing data
         error = zero
         ratio_errors=zero
      end if
 
+!-------------------------------------------------------------------
+! RTMA SO test-part two: assign obs. error as zero at all stations 
+!         except the selected station
+!     rstation_id     = data(id,i)
+!     if (trim(station_id) .ne. 'CYYY') then
+!      write (6,*) 'trim(station_id=',trim(station_id)
+!        error = zero
+!        ratio_errors=zero
+!     else
+!        write (6,*) 'CYYY: trim(station_id=)',trim(station_id)
+!     endif
+! END RTMA SO test part two
+!-------------------------------------------------------------------
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
      if (nobskeep>0 .and. luse_obsdiag) call obsdiagNode_get(my_diag, jiter=nobskeep, muse=muse(i))
 
@@ -369,18 +377,28 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            nn=2                                     !rejected obs
            if(ratio_errors*error >=tiny_r_kind)nn=3 !monitored obs
         end if
-
-        ress   = ddiff*scale
-        ressw2 = ress*ress
+!.........................................................................
+!NLTR:  convert cldchges to physical space
+        call nltransf_inverse(cldchges,cldchgesout,pcldch,scale_cv)
 
         if (abs(data(icldch,i)-rmiss_single) >=tiny_r_kind) then
-           bwork(1,ikx,1,nn)  = bwork(1,ikx,1,nn)+one           ! count
-           bwork(1,ikx,2,nn)  = bwork(1,ikx,2,nn)+ress          ! (o-g)
-           bwork(1,ikx,3,nn)  = bwork(1,ikx,3,nn)+ressw2        ! (o-g)**2
-           bwork(1,ikx,4,nn)  = bwork(1,ikx,4,nn)+val2*rat_err2 ! penalty
-           bwork(1,ikx,5,nn)  = bwork(1,ikx,5,nn)+valqc         ! nonlin qc penalty
+           bwork(1,ikx,1,nn)  = bwork(1,ikx,1,nn)+one                  ! count
+!.........................................................................
+!NLTR:  convert cldchobs to physical space
+           call nltransf_inverse(cldchges,cldchgesout,pcldch,scale_cv)
+           tempcldch=data(icldch,i)
+           call nltransf_inverse(tempcldch,cldchobout,pcldch,scale_cv)
+!values in cldch fits, fort.232, are in physical space
+           cldchdiff=(cldchobout-cldchgesout)*scale
+           bwork(1,ikx,2,nn)  = bwork(1,ikx,2,nn)+cldchdiff            ! (o-g)
+           bwork(1,ikx,3,nn)  = bwork(1,ikx,3,nn)+cldchdiff*cldchdiff  ! (o-g)**2
+!END NLTR
+           bwork(1,ikx,4,nn)  = bwork(1,ikx,4,nn)+val2*rat_err2        ! penalty
+           bwork(1,ikx,5,nn)  = bwork(1,ikx,5,nn)+valqc                ! nonlin qc penalty
+        else    ! default value for cldchobout and cldchdiff
+           cldchobout=rmiss_single
+           cldchdiff=(cldchobout-cldchgesout)*scale
         end if
-
      endif
 
      if(luse_obsdiag)then
@@ -423,11 +441,10 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !    Save stuff for diagnostic output
      if(conv_diagsave .and. luse(i))then
         ii=ii+1
-        rstation_id = data(id,i)
-        err_input   = data(ier,i)
-        err_adjst   = data(ier,i)
+        rstation_id     = data(id,i)
+
         if (ratio_errors*error>tiny_r_kind) then
-           err_final = one/(ratio_errors*error)
+           err_final = 4000.0_r_kind
         else
            err_final = huge_single
         endif
@@ -435,6 +452,15 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         errinv_input = huge_single
         errinv_adjst = huge_single
         errinv_final = huge_single
+!---------------------------------------------------------------------------------
+!In diag file, write out cldch error statistics and field in physical space.
+!NOTE:  No linear conversion in error stats between physical space and NLTR
+!space.
+!NOTE:  in RTMA post process only err_final is used
+!-------------------------------------------------------------------------
+        err_input = 4000.0_r_kind
+        err_adjst = 4000.0_r_kind
+
         if (err_input>tiny_r_kind) errinv_input = one/err_input
         if (err_adjst>tiny_r_kind) errinv_adjst = one/err_adjst
         if (err_final>tiny_r_kind) errinv_final = one/err_final
@@ -609,12 +635,10 @@ subroutine setupcldch(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error (m**-1)
         rdiagbuf(16,ii) = errinv_final       ! final inverse observation error (m**-1)
  
-        rdiagbuf(17,ii) = data(icldch,i)     ! CLDCH observation (m)
-        rdiagbuf(18,ii) = ddiff              ! obs-ges used in analysis (m)
-        rdiagbuf(19,ii) = data(icldch,i)-cldchges! obs-ges w/o bias correction (m) (future slot)
- 
+        rdiagbuf(17,ii) = cldchobout         ! CLDCH observation (m)
+        rdiagbuf(18,ii) = cldchdiff          ! obs-ges in physical space,for post process
+        rdiagbuf(19,ii) = ddiff              ! obs-ges used in analysis in gspace 
         rdiagbuf(20,ii) = rmiss_single       ! type of measurement
-
         rdiagbuf(21,ii) = data(idomsfc,i)    ! dominate surface type
         rdiagbuf(22,ii) = data(izz,i)        ! model terrain at observation location
         r_prvstg        = data(iprvd,i)

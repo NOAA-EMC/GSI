@@ -21,7 +21,7 @@ if(NOT BUILD_SIGIO )
     NAMES libsigio.a libsigio_4.a libsigio_i4r4.a libsigio_v${SIGIO_VER}_4.a
     HINTS 
      $ENV{COREPATH}/lib 
-     /usr/local/jcsda/nwprod_gdas_2014	
+     /usr/local/jcsda/nwprod_gdas_2014/lib	
      ${COREPATH}/sigio/v${SIGIO_VER}
      ${COREPATH}/sigio/v${SIGIO_VER}/intel
      ${COREPATH}/sigio/v${SIGIO_VER}/ips/${COMPILER_VERSION}

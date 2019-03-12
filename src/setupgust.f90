@@ -30,6 +30,8 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2017-02-06  todling - add netcdf_diag capability; hidden as contained code
 !   2017-02-09  guo     - Remove m_alloc, n_alloc.
 !                       . Remove my_node with corrected typecast().
+!   2018-01-08  pondeca - addd option l_closeobs to use closest obs to analysis
+!                                     time in analysis
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -70,7 +72,7 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
-  use gsi_4dvar, only: nobs_bins,hr_obsbin
+  use gsi_4dvar, only: nobs_bins,hr_obsbin,min_offset
   use oneobmod, only: magoberr,maginnov,oneobtest
   use gridmod, only: nsig
   use gridmod, only: get_ij,twodvar_regional
@@ -85,6 +87,7 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
+  use rapidrefresh_cldsurf_mod, only: l_closeobs
 
   implicit none
 
@@ -145,6 +148,7 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   type(gustNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
   type(obs_diags),pointer:: my_diagLL
+  real(r_kind) :: hr_offset
 
   equivalence(rstation_id,station_id)
   equivalence(r_prvstg,c_prvstg)
@@ -215,6 +219,7 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end if
 
 ! Check for duplicate observations at same location
+  hr_offset=min_offset/60.0_r_kind
   dup=one
   do k=1,nobs
      do l=k+1,nobs
@@ -223,9 +228,17 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
            muse(k) .and. muse(l))then
 
-           tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
-           dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
-           dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
+           if(l_closeobs) then
+              if(abs(data(itime,k)-hr_offset)<abs(data(itime,l)-hr_offset)) then
+                  muse(l)=.false.
+              else
+                  muse(k)=.false.
+              endif
+           else
+              tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
+              dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
+              dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
+           endif
         end if
      end do
   end do

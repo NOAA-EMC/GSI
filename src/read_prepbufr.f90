@@ -137,6 +137,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !                         is found in non linear qc error tables and b table
 !   2016-05-05  pondeca - add 10-m u-wind and v-wind (uwnd10m, vwnd10m)
 !   2016-06-01  zhu    - use errormod_aircraft
+!   2017-06-17  levine - add GLERL program code lookup
 !
 
 !   input argument list:
@@ -188,6 +189,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use convb_uv,only: btabl_uv
   use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,winlen,thin4d
   use qcmod, only: errormod,errormod_aircraft,noiqc,newvad,njqc
+  use qcmod, only: pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres
+  use nltransf, only: nltransf_forward
   use convthin, only: make3grids,map3grids,del3grids,use_all
   use blacklist, only : blacklist_read,blacklist_destroy
   use blacklist, only : blkstns,blkkx,ibcnt
@@ -223,6 +226,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind),parameter:: r0_75 = 0.75_r_kind
   real(r_kind),parameter:: r0_7 = 0.7_r_kind
   real(r_kind),parameter:: r1_2 = 1.2_r_kind
+  real(r_kind),parameter:: r1_02 = 1.02_r_kind
   real(r_kind),parameter:: r3_33= three + one/three
   real(r_kind),parameter:: r6   = 6.0_r_kind
   real(r_kind),parameter:: r20  = 20.0_r_kind
@@ -266,6 +270,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   character(8) stnid
   character(10) aircraftstr
   character(1) cb
+  character(1) cdummy
   logical lhilbert
 
   integer(i_kind) ireadmg,ireadsb,icntpnt,icntpnt2,icount,iiout
@@ -300,6 +305,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind) ibfms,thisobtype_usage
   integer(i_kind) iwmo,ios
   integer(i_kind) ierr_ps,ierr_q,ierr_t,ierr_uv,ierr_pw !  the position of error table collum
+  integer(i_kind) idummy1,idummy2,glret,lindx !glret>0 means GLERL code exists.Others are dummy variables
   real(r_kind) time,timex,time_drift,timeobs,toff,t4dv,zeps
   real(r_kind) qtflg,tdry,rmesh,ediff,usage,ediff_ps,ediff_q,ediff_t,ediff_uv,ediff_pw
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
@@ -325,9 +331,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind),allocatable,dimension(:):: presl_thin
   real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
+  real(r_kind) :: tempvis,visout
+  real(r_kind) :: tempcldch,cldchout
 
   real(r_double) rstation_id,qcmark_huge
-  real(r_double) vtcd
+  real(r_double) vtcd,glcd !virtual temp program code and GLERL program code
   real(r_double),dimension(8):: hdr,hdrtsb
   real(r_double),dimension(3,255):: hdr3
   real(r_double),dimension(8,255):: drfdat,qcmark,obserr,var_jb
@@ -685,7 +693,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
           endif
         endif
 ! Su suggested to keep both 289 and 290.  But trunk only keep 290
-! ???       if(kx == 289 .or. kx == 290) iobsub=hdr(2)
+!       if(kx == 289 .or. kx == 290) iobsub=hdr(2)
 
         if(kx == 290) iobsub=hdr(2)
         if(use_prepb_satwnd .and. (kx >= 240 .and. kx <=260 )) iobsub = hdr(2)
@@ -763,12 +771,23 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   if(print_verbose)write(6,*)'READ_PREPBUFR: messages/reports = ',nmsg,'/',ntb,' ntread = ',ntread
 
 
-
   if(tob .and. print_verbose) write(6,*)'READ_PREPBUFR: time offset is ',toff,' hours.'
 !------------------------------------------------------------------------
 
 ! Obtain program code (VTCD) associated with "VIRTMP" step
   call ufbqcd(lunin,'VIRTMP',vtcd)
+
+!see if file contains GLERL program code (GLCD)
+!Obtain code if it exists.  Otherwise set to missing (-999)
+  call status(lunin,lindx,idummy1,idummy2)
+  call nemtab(lindx,'GLERL',idummy1,cdummy,glret)
+  if (glret /= 0) then
+     call ufbqcd(lunin,'GLERL',glcd)
+  else
+     !warn that GLERL adjustment is not available.
+     print*, "WARNING: GLERL program code not in this file."
+     glcd=-999._r_double
+  endif
 
   call init_rjlists
   call init_aircraft_rjlists
@@ -1532,11 +1551,21 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                        if (tpc(k,j)>=bmiss) exit               ! end of stack
                     end do
                  end do
-              else         !peel back events to store sensible temp in case temp is virtual
+              else
+                 !look for GLERL-adjusted ob first in events stack.  If not there,
+                 !peel back events to store sensible temp in case temp is virtual
                  call ufbevn(lunin,tobaux,2,255,20,levs,'TOB TQM')
                  do k=1,levs
                     tvflg(k)=one                              ! initialize as sensible
                     do j=1,20
+                       if (glret /= 0) then !GLERL adjusted obs possible
+                          if (tpc(k,j)==glcd) then !found GLERL ob - use that and jump out of events stack
+                             obsdat(3,k)=tobaux(1,k,j)
+                             qcmark(3,k)=min(tobaux(2,k,j),qcmark_huge)
+                             tqm(k)=nint(qcmark(3,k))
+                             exit
+                          endif
+                       endif
                        if (tpc(k,j)==vtcd) then
                           obsdat(3,k)=tobaux(1,k,j+1)
                           qcmark(3,k)=min(tobaux(2,k,j+1),qcmark_huge)
@@ -1611,7 +1640,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               else if(visob) then
                  visqm=0    ! need to fix this later
                  qm=visqm
-!! RY: check this late when using tdob??
               else if(tdob) then
                  if(obsdat(12,k) > r0_01_bmiss)cycle loop_k_levs
                  tdqm=qqm(k)
@@ -2336,14 +2364,42 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             Visibility
               else if(visob) then
 
-                 visoe=4000.0  ! temporarily
-                 if ((kx==283).or.(kx==183)) visoe=4500.0
-                 if (inflate_error) visoe=visoe*r1_2
+!......................................................................
+!NLTRCV: must setup as true
+!      visoe is in NLTR space, and is read in from the namelist. Is this OK?  
+!......................................................................
+                 visoe=estvisoe
+                 if ((kx==283).or.(kx==183)) visoe=visoe*r1_02
+                 if (inflate_error) visoe=visoe*r1_02
 
                  cdata_all(1,iout)=visoe                   ! visibility error (cb)
                  cdata_all(2,iout)=dlon                    ! grid relative longitude
                  cdata_all(3,iout)=dlat                    ! grid relative latitude
-                 cdata_all(4,iout)=obsdat(9,k)             ! visibility obs
+!......................................................................
+! simple QC check: if an observation vis is negative, assign it as bmiss
+! if obs. = zero, reassign it as one_r_kind
+! about bmiss:  
+! #ifdef ibm_sp !  real(r_kind), parameter:: bmiss = 1.0e11_r_kind !#else
+!  real(r_kind), parameter:: bmiss = 1.0e9_r_kind !#endif
+! in setupvis: missing data is checked and assigned not use in muse
+! visthres is much smaller than bmiss
+! i.e: this holds: (obsdat(9,k)> zero .and. obsdat(9,k)<=vis_thres)
+!......................................................................
+                 if(obsdat(9,k) < zero) then
+                   cdata_all(4,iout)=bmiss          
+                 elseif(obsdat(9,k)> r0_1_bmiss)then
+                   cdata_all(4,iout)=obsdat(9,k)
+                 elseif(obsdat(9,k)> vis_thres .and. obsdat(9,k)<= r0_1_bmiss )then
+                   obsdat(9,k)=vis_thres
+                 else
+                   obsdat(9,k)=max(obsdat(9,k),one)
+                 endif
+                 if(obsdat(9,k)> zero .and. obsdat(9,k)<=vis_thres)then
+                   tempvis=obsdat(9,k)
+                   call nltransf_forward(tempvis,visout,pvis,scale_cv)
+                   cdata_all(4,iout) = visout
+                 endif
+
                  cdata_all(5,iout)=rstation_id             ! station id
                  cdata_all(6,iout)=t4dv                    ! time
                  cdata_all(7,iout)=nc                      ! type
@@ -2662,14 +2718,42 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !             Cloud ceiling height
               else if(cldchob) then
+!......................................................................
+!NLTRCV: must setup as true
+!      cldchoe is in NLTR space, and is read in via the namelist. Is this OK?
+!......................................................................
+                 cldchoe=estcldchoe
+                 if (inflate_error) cldchoe=cldchoe*r1_02
 
-                 cldchoe=4000.0  ! temporarily
-                 if (inflate_error) cldchoe=cldchoe*r1_2
-
-                 cdata_all(1,iout)=cldchoe                 ! cloud ceiling height error (m)
+                 cdata_all(1,iout)=cldchoe                 ! cloud ceiling height error 
                  cdata_all(2,iout)=dlon                    ! grid relative longitude
                  cdata_all(3,iout)=dlat                    ! grid relative latitude
-                 cdata_all(4,iout)=cldceilh(1,k)           ! cloud ceiling height obs
+!......................................................................
+! NLTRCV:
+! simple QC check and designate bad observation.
+! if obs. cldch < zero, assign it bmiss
+! if obs/first cldch guess is zero, assigne it as one
+! about bmiss:
+! #ifdef ibm_sp !  real(r_kind), parameter:: bmiss = 1.0e11_r_kind !#else
+!  real(r_kind), parameter:: bmiss = 1.0e9_r_kind !#endif
+! in setupcldch: missing data is checked and assigned as not-use 
+! cldchthres is much smaller than bmiss
+! i.e: this holds: (obsdat(x,k)> zero .and. obsdat(x,k)<=cldch_thres)
+!......................................................................
+                 if(cldceilh(1,k) < zero) then
+                   cdata_all(4,iout)=bmiss
+                 elseif (cldceilh(1,k)> r0_1_bmiss) then
+                   cdata_all(4,iout)=cldceilh(1,k) 
+                 elseif (cldceilh(1,k)>=cldch_thres .and. cldceilh(1,k)<= r0_1_bmiss) then
+                    cldceilh(1,k)=cldch_thres
+                 else
+                   cldceilh(1,k)=max(cldceilh(1,k),one)  !consider cldceilh(1,k)=zero a valid data
+                 endif
+                 if (cldceilh(1,k)> zero .and. cldceilh(1,k)<=cldch_thres)then
+                   tempcldch=cldceilh(1,k)
+                   call nltransf_forward(tempcldch,cldchout,pcldch,scale_cv)
+                   cdata_all(4,iout) = cldchout
+                 endif                                     ! ceiling height obs
                  cdata_all(5,iout)=rstation_id             ! station id
                  cdata_all(6,iout)=t4dv                    ! time
                  cdata_all(7,iout)=nc                      ! type

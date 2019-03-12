@@ -6,9 +6,9 @@ function usage {
   echo "Usage:  MinMonPlt.sh MINMON_SUFFIX "
   echo "            MINMON_SUFFIX is data source identifier that matches data in "
   echo "              the $M_TANKverf/stats directory."
-  echo "            -p | -pdate yyyymmddcc to specify the cycle to be plotted"
+  echo "            -p | --pdate yyyymmddcc to specify the cycle to be plotted"
   echo "              if unspecified the last available date will be plotted"
-  echo "            -r | -run   the gdas|gfs run to be plotted"
+  echo "            -r | --run   the gdas|gfs run to be plotted"
   echo "              use only if data in TANKdir stores both runs" 
   echo " "
 }
@@ -21,7 +21,7 @@ if [[ $nargs -lt 1 || $nargs -gt 5 ]]; then
    exit 1
 fi
 
-
+RUN=gdas
 while [[ $# -ge 1 ]]
 do
    key="$1"
@@ -45,6 +45,10 @@ do
    shift
 done
 
+if [[ ${#RUN} -le 0 ]]; then 
+   export RUN=gdas
+fi
+
 echo "MINMON_SUFFIX = $MINMON_SUFFIX"
 echo "PDATE         = $PDATE"
 echo "RUN           = $RUN"
@@ -57,7 +61,6 @@ else
    run_suffix=${MINMON_SUFFIX}
 fi
 
-this_file=`basename $0`
 this_dir=`dirname $0`
 
 #--------------------------------------------------
@@ -128,7 +131,7 @@ fi
 #--------------------------------------------------------------------
 if [[ ${#PDATE} -le 0 ]]; then
    echo "PDATE not specified:  setting PDATE using last cycle"
-   export PDATE=`${M_IG_SCRIPTS}/find_cycle.pl ${MINMON_SUFFIX} 1 ${TANKDIR}`
+   export PDATE=`${M_IG_SCRIPTS}/find_cycle.pl --cyc 1 --dir ${TANKDIR}`
 else
    echo "PDATE was specified:  $PDATE"
 fi
@@ -154,24 +157,12 @@ cd $WORKDIR
 #  Copy gnorm_data.txt file to WORKDIR.
 #--------------------------------------------------------------------
 pdy=`echo $PDATE|cut -c1-8`
-if [[ ${#RUN} -gt 0 ]]; then
-   gnorm_dir=${TANKDIR}/${RUN}.${pdy}
-   if [[ -d $gnorm_dir/minmon ]]; then
-      gnorm_dir=${gnorm_dir}/minmon
-   fi 
-else
-   gnorm_dir=${TANKDIR}/minmon.${pdy}
-fi
+cyc=`echo $PDATE|cut -c9-10`
+echo TANKDIR = ${TANKDIR}
 
-if [[ ! -d $gnorm_dir ]]; then
-   gnorm_dir=${TANKDIR}/minmon_${MINMON_SUFFIX}.${pdy}
-fi
+gnorm_dir=${TANKDIR}/${RUN}.${pdy}/${cyc}/minmon
 
-gnorm_file=${gnorm_dir}/${MINMON_SUFFIX}.gnorm_data.txt
-if [[ ! -e $gnorm_file ]]; then
-   gnorm_file=${gnorm_dir}/gnorm_data.txt
-fi
-local_gnorm=gnorm_data.txt
+gnorm_file=${gnorm_dir}/gnorm_data.txt
 
 if [[ -s ${gnorm_file} ]]; then
    cp ${gnorm_file} ./${local_gnorm}
@@ -185,15 +176,8 @@ fi
 #  These aren't used for processing but will be pushed to the
 #    server from the tmp dir.
 #------------------------------------------------------------------
-costs=${gnorm_dir}/${MINMON_SUFFIX}.${PDATE}.costs.txt
-if [[ ! -e $costs ]]; then
-   costs=${gnorm_dir}/${PDATE}.costs.txt
-fi
-
-cost_terms=${gnorm_dir}/${MINMON_SUFFIX}.${PDATE}.cost_terms.txt
-if [[ ! -e $cost_terms ]]; then
-   cost_terms=${gnorm_dir}/${PDATE}.cost_terms.txt
-fi
+costs=${gnorm_dir}/${PDATE}.costs.txt
+cost_terms=${gnorm_dir}/${PDATE}.cost_terms.txt
 
 if [[ -s ${costs} ]]; then
    cp ${costs} ${WORKDIR}/${run_suffix}.${PDATE}.costs.txt
@@ -217,28 +201,16 @@ cdate=$bdate
 #------------------------------------------------------------------
 while [[ $cdate -le $edate ]]; do
    echo "processing cdate = $cdate"
-   pdy=`echo $cdate|cut -c1-8`
 
-   if [[ ${#RUN} -gt 0 ]]; then
-      gnorm_dir=${TANKDIR}/${RUN}.${pdy}
-      if [[ -d $gnorm_dir/minmon ]]; then
-         gnorm_dir=${gnorm_dir}/minmon
-      fi 
-   fi
-   if [[ ! -d $gnorm_dir ]]; then
-      gnorm_dir=${TANKDIR}/minmon_${MINMON_SUFFIX}.${pdy}
-   fi
+   pdy=`echo $cdate | cut -c1-8`
+   cyc=`echo $cdate | cut -c9-10`
 
-   gnorms_file=${gnorm_dir}/${MINMON_SUFFIX}.${cdate}.gnorms.ieee_d
-   if [[ ! -e $gnorms_file ]]; then
-      gnorms_file=${gnorm_dir}/${cdate}.gnorms.ieee_d
-   fi
+   gnorm_dir=${TANKDIR}/${RUN}.${pdy}/${cyc}/minmon
+
+   gnorms_file=${gnorm_dir}/${cdate}.gnorms.ieee_d
    local_gnorm=${cdate}.gnorms.ieee_d
 
-   reduct_file=${gnorm_dir}/${MINMON_SUFFIX}.${cdate}.reduction.ieee_d
-   if [[ ! -e $reduct_file ]]; then
-      reduct_file=${gnorm_dir}/${cdate}.reduction.ieee_d
-   fi
+   reduct_file=${gnorm_dir}/${cdate}.reduction.ieee_d
    local_reduct=${cdate}.reduction.ieee_d
 
    if [[ -s ${gnorms_file} ]]; then
@@ -300,17 +272,13 @@ while [ $not_done -eq 1 ] && [ $ctr -le 20 ]; do
    ${M_IG_SCRIPTS}/update_ctl_tdef.sh ${WORKDIR}/reduction.ctl ${bdate}
    
 
-#   if [[ $AREA = "glb" ]]; then
-#      ${SCRIPTS}/update_ctl_xdef.sh ${WORKDIR}/allgnorm.ctl 202 
-#   fi
-
    #######################
    # Q:  does NDAS really use 101 instead of 102?  That can't be somehow....
    #######################
 
-   if [[ $MINMON_SUFFIX = "RAP" ]]; then
-      ${M_IG_SCRIPTS}/update_ctl_xdef.sh ${WORKDIR}/allgnorm.ctl 102 
-   fi
+#   if [[ $MINMON_SUFFIX = "RAP" ]]; then
+#      ${M_IG_SCRIPTS}/update_ctl_xdef.sh ${WORKDIR}/allgnorm.ctl 102 
+#   fi
 
    #-----------------------------------------------------------------
    #  Copy the plot script and build the plot driver script 
@@ -380,11 +348,7 @@ cp *cost*.txt tmp/.
 #--------------------------------------------------------------------
 if [[ ${DO_ERROR_RPT} -eq 1 ]]; then
 
-   if [[ ${#RUN} -gt 0 ]]; then 
-      err_msg=${TANKDIR}/${RUN}.${pdy}/minmon/${PDATE}.errmsg.txt
-   else
-      err_msg=${TANKDIR}/minmon.${pdy}/${run_suffix}.${PDATE}.errmsg.txt
-   fi
+   err_msg=${TANKDIR}/${RUN}.${pdy}/${cyc}/minmon/${PDATE}.errmsg.txt
 
    if [[ -e $err_msg ]]; then
       err_rpt="./err_rpt.txt"
@@ -396,7 +360,7 @@ if [[ ${DO_ERROR_RPT} -eq 1 ]]; then
       echo "THIS IS AN AUTOMATED EMAIL.  REPLIES TO SENDER WILL NOT BE"  >> $err_rpt
       echo "RECEIVED.  PLEASE DIRECT REPLIES TO $MAIL_TO"                >> $err_rpt
       echo "*********************** WARNING ***************************" >> $err_rpt
-     
+    
       if [[ $MAIL_CC == "" ]]; then
          /bin/mail -s MinMon_error_report ${MAIL_TO}< ${err_rpt}
       else
@@ -419,13 +383,13 @@ fi
 #  Call nu_make_archive.sh to write archive files to hpss and
 #  update the prod machine with any missing M_TANKDIR directories.
 #--------------------------------------------------------------------
-   if [[ ${DO_ARCHIVE} -eq 1 ]]; then
-      ${M_IG_SCRIPTS}/nu_make_archive.sh
-   fi
+#   if [[ ${DO_ARCHIVE} -eq 1 ]]; then
+#      ${M_IG_SCRIPTS}/nu_make_archive.sh
+#   fi
 
-cd ${WORKDIR}
-cd ..
-rm -rf ${WORKDIR}
+#cd ${WORKDIR}
+#cd ..
+#rm -rf ${WORKDIR}
 
-echo end MinMonPlt.sh
+echo "end MinMonPlt.sh"
 exit

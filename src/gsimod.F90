@@ -40,7 +40,7 @@
   use mpimod, only: npe,mpi_comm_world,ierror,mype
   use radinfo, only: retrieval,diag_rad,init_rad,init_rad_vars,adp_anglebc,angord,upd_pred,&
                        biaspredvar,use_edges,passive_bc,newpc4pred,final_rad_vars,emiss_bc,&
-                       ssmis_method,ssmis_precond,gmi_method,amsr2_method
+                       ssmis_method,ssmis_precond,gmi_method,amsr2_method,bias_zero_start
   use radinfo, only: tzr_qc,tzr_bufrsave
   use radinfo, only: crtm_coeffs_path
   use ozinfo, only: diag_ozone,init_oz
@@ -49,6 +49,7 @@
   use convinfo, only: init_convinfo, &
                       diag_conv,&
                       use_prepb_satwnd,id_drifter
+  use lightinfo, only: diag_light,init_light
 
   use oneobmod, only: oblon,oblat,obpres,obhourset,obdattim,oneob_type,&
      oneobtest,magoberr,maginnov,init_oneobmod,pctswitch,lsingleradob,obchan,&
@@ -58,7 +59,8 @@
   use qcmod, only: dfact,dfact1,create_qcvars,destroy_qcvars,&
       erradar_inflate,tdrerr_inflate,use_poq7,qc_satwnds,&
       init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3,qc_noirjaco3_pole,&
-      buddycheck_t,buddydiag_save,njqc,vqc,closest_obs,vadwnd_l2rw_qc
+      buddycheck_t,buddydiag_save,njqc,vqc,vadwnd_l2rw_qc, &
+      pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax, &
      factv,factl,factp,factg,factw10m,facthowv,factcldch,niter,niter_no_qc,biascor,&
@@ -354,6 +356,15 @@
 !                              from GSD (for RAP/HRRR application)
 !  08-31-2017 Li        add sfcnst_comb for option to read sfc & nst combined file 
 !  10-10-2017 Wu,W      added option fv3_regional and rid_ratio_fv3_regional, setup FV3, earthuv
+!  01-11-2018 Yang      add namelist variables required by the nonlinear transform to vis and cldch
+!                      (Jim Purser 2018). Add estvisoe and estcldchoe to replace the hardwired 
+!                       prescribed vis/cldch obs. errort in read_prepbufr. (tentatively?)
+!  03-22-2018 Yang      remove "logical closest_obs", previously applied to the analysis of vis and cldch.
+!                       The option to use only the closest ob to the analysis time is now handled
+!                       by Ming Hu's "logical l_closeobs" for all variables.
+!  01-04-2018 Apodaca   add diag_light and lightinfo for GOES/GLM lightning
+!                           data assimilation
+!  08-25-2018 Collard   Introduce bias_zero_start
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -406,6 +417,7 @@
 !     diag_ozone - logical to turn off or on the diagnostic ozone file (true=on)
 !     diag_aero  - logical to turn off or on the diagnostic aerosol file (true=on)
 !     diag_co - logical to turn off or on the diagnostic carbon monoxide file (true=on)
+!     diag_light - logical to turn off or on the diagnostic lightning file (true=on)
 !     write_diag - logical to write out diagnostic files on outer iteration
 !     lobsdiagsave - write out additional observation diagnostics
 !     ltlint       - linearize inner loop
@@ -513,6 +525,8 @@
 !     ssmis_precond - weighting factor for SSMIS preconditioning (if not using newpc4pred)
 !     gmi_method - choose method for GMI noise reduction. 0=no smoothing, 4=default
 !     amsr2_method - choose method for AMSR2 noise reduction. 0=no smoothing, 5=default
+!     bias_zero_start - Initialise bias correction from zero (default=true,
+!                        false=mode start method)
 !     R_option   - Option to use variable correlation length for lcbas based on data
 !                    density - follows Hayden and Purser (1995) (twodvar_regional only)
 !     thin4d - if true, removes thinning of observations due to the location in
@@ -538,14 +552,14 @@
        min_offset,pseudo_q2,&
        iout_iter,npredp,retrieval,&
        tzr_qc,tzr_bufrsave,&
-       diag_rad,diag_pcp,diag_conv,diag_ozone,diag_aero,diag_co,iguess, &
+       diag_rad,diag_pcp,diag_conv,diag_ozone,diag_aero,diag_co,diag_light,iguess, &
        write_diag,reduce_diag, &
        oneobtest,sfcmodel,dtbduv_on,ifact10,l_foto,offtime_data,&
        use_pbl,use_compress,nsig_ext,gpstop,&
        perturb_obs,perturb_fact,oberror_tune,preserve_restart_date, &
        crtm_coeffs_path,berror_stats, &
        newpc4pred,adp_anglebc,angord,passive_bc,use_edges,emiss_bc,upd_pred, &
-       ssmis_method, ssmis_precond, gmi_method, amsr2_method, &
+       ssmis_method, ssmis_precond, gmi_method, amsr2_method, bias_zero_start, &
        lobsdiagsave, lobsdiag_forenkf, &
        l4dvar,lbicg,lsqrtb,lcongrad,lbfgsmin,ltlint,nhr_obsbin,nhr_subwin,&
        mPES_observer,&
@@ -757,12 +771,20 @@
 !     closest_obs- when true, choose the timely closest surface observation from
 !     multiple observations at a station.  Currently only applied to Ceiling
 !     height and visibility.
+!     pvis   - power parameter in nonlinear transformation for vis 
+!     pcldch - power parameter in nonlinear transformation for cldch
+!     scale_cv - scaling constant in meter
+!     estvisoe - estimate of vis observation error
+!     estcldchoe - estimate of cldch observation error
+!     vis_thres  - threshold value for both vis observation and input first guess
+!     cldch_thres  - threshold value for both cldch observation and input first guess
 
-  namelist/obsqc/ dfact,dfact1,erradar_inflate,tdrerr_inflate,oberrflg,&
+  namelist/obsqc/dfact,dfact1,erradar_inflate,tdrerr_inflate,oberrflg,&
        vadfile,noiqc,c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,&
        tcp_ermin,tcp_ermax,qc_noirjaco3,qc_noirjaco3_pole,qc_satwnds,njqc,vqc,&
        aircraft_t_bc_pof,aircraft_t_bc,aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail,&
-       hdist_aircraft,buddycheck_t,buddydiag_save,closest_obs,vadwnd_l2rw_qc
+       hdist_aircraft,buddycheck_t,buddydiag_save,vadwnd_l2rw_qc,  &
+       pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres
 
 ! OBS_INPUT (controls input data):
 !      dmesh(max(dthin))- thinning mesh for each group
@@ -1077,6 +1099,7 @@
   call init_qcvars
   call init_obsmod_dflts
   call init_pcp
+  call init_light
   call init_rad
   call init_oz
   call init_aero
@@ -1159,6 +1182,7 @@
   if(ios/=0) call die(myname_,'read(strongopts)',ios)
 
   read(11,obsqc,iostat=ios)
+
   if(ios/=0) call die(myname_,'read(obsqc)',ios)
 
   read(11,obs_input,iostat=ios)
@@ -1336,6 +1360,7 @@
      diag_aero=.false.
      diag_co=.false.
      diag_pcp=.false.
+     diag_light=.false.
      use_limit = 0
   end if
   if(reduce_diag) use_limit = 0

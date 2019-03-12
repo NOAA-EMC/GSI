@@ -19,7 +19,7 @@ program bufr_encode_sample
  subset='ADPUPA'   ! upper-air reports
  
 ! encode
- open(unit_table,file='table_prepbufr.txt')
+ open(unit_table,file='prepbufr.table')
  open(unit_out,file='sample.bufr',action='write' &
                ,form='unformatted')
  call datelen(10)

@@ -191,6 +191,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !                                     for coastline area
 !   2017-02-09  guo     - Remove m_alloc, n_alloc.
 !                       . Remove my_node with corrected typecast().
+!   2018-04-09  pondeca -  introduce duplogic to correctly handle the characterization of
+!                          duplicate obs in twodvar_regional applications
 !
 ! !REMARKS:
 !   language: f90
@@ -206,6 +208,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),parameter:: r0_001 = 0.001_r_kind
   real(r_kind),parameter:: r0_7=0.7_r_kind
   real(r_kind),parameter:: r8 = 8.0_r_kind
+  real(r_kind),parameter:: r3p5 = 3.5_r_kind
 
   character(len=*),parameter :: myname='setupt'
 
@@ -273,6 +276,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   logical sfctype
   logical iqtflg
   logical aircraftobst
+  logical duplogic
 
   logical:: in_curbin, in_anybin, save_jacobian
   logical proceed
@@ -358,7 +362,6 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
   end do
-  if (twodvar_regional .and. buddycheck_t) call buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
   var_jb=zero
 
 !  handle multiple reported data at a station
@@ -366,12 +369,20 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   dup=one
   do k=1,nobs
      do l=k+1,nobs
-        if(data(ilat,k) == data(ilat,l) .and.  &
+        if (twodvar_regional) then
+           duplogic=data(ilat,k) == data(ilat,l) .and.  &
+           data(ilon,k) == data(ilon,l) .and.  &
+           data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
+           muse(k) .and. muse(l)
+         else
+           duplogic=data(ilat,k) == data(ilat,l) .and.  &
            data(ilon,k) == data(ilon,l) .and.  &
            data(ipres,k) == data(ipres,l) .and. &
            data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
-           muse(k) .and. muse(l))then
+           muse(k) .and. muse(l)
+        end if
 
+        if (duplogic) then
            if(l_closeobs) then
               if(abs(data(itime,k)-hr_offset)<abs(data(itime,l)-hr_offset)) then
                   muse(l)=.false.
@@ -389,6 +400,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end do
   end do
 
+! Run a buddy-check
+  if (twodvar_regional .and. buddycheck_t) call buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
 
 ! If requested, save select data for output to diagnostic file
   if(conv_diagsave)then
@@ -772,14 +785,14 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if (buddycheck_t) then 
            if (buddyuse(i)==1) then
               ! - Passed buddy check, relax gross qc
-              qcgross=three*qcgross
+              qcgross=r3p5*qcgross
               data(iuse,i)=data(iuse,i)+0.50_r_kind ! So we can identify obs with relaxed gross qc
                                                     ! in diag files  (will show as an extra 0.50 appended) 
            else if (buddyuse(i)==0) then
               ! - Buddy check did not run (too few buddies, rusage >= 100, outside twindow, etc.)
               ! - In the case of an isolated ob in complex terrain, see about relaxing the the gross qc 
               if ( (data(iuse,i)-real(int(data(iuse,i)),kind=r_kind)) == 0.25_r_kind) then 
-                 qcgross=three*qcgross               ! Terrain aware modification
+                 qcgross=r3p5*qcgross                ! Terrain aware modification
                                                      ! to gross error check
               end if         
            else if (buddyuse(i)==-1) then
@@ -787,7 +800,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
               ratio_errors = zero
            end if
         else if ( (data(iuse,i)-real(int(data(iuse,i)),kind=r_kind)) == 0.25_r_kind) then 
-          qcgross=three*qcgross               ! Terrain aware modification
+          qcgross=r3p5*qcgross                ! Terrain aware modification
                                               ! to gross error check       
         end if  
      endif

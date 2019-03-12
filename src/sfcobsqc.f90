@@ -21,6 +21,7 @@ module sfcobsqc
 !   2014-07-11  carley - add reject list for lcbas and tcamt
 !   2014-10-01  Xue - add GSD surface data uselist
 !   2015-07-10  pondeca - add reject list for cldch
+!   2018-03-14  pondeca - add station accept list for mesonet visibility
 !
 ! subroutines included:
 !   sub init_rjlists
@@ -51,6 +52,7 @@ module sfcobsqc
   character(80),allocatable,dimension(:)::t_day_rjlist,t_night_rjlist
   character(80),allocatable,dimension(:)::q_day_rjlist,q_night_rjlist
   character(8),allocatable,dimension(:,:)::csta_windbin
+  character(80),allocatable,dimension(:)::csta_visuse
 
   integer(i_kind) sfcuselist_nt_use
   character(8),allocatable,dimension(:)::sfcuselist_use_id
@@ -58,7 +60,7 @@ module sfcobsqc
   character(1),allocatable,dimension(:)::t_use_sfcuselist
   character(1),allocatable,dimension(:)::td_use_sfcuselist
 
-  integer(i_kind) nprov,nwrjs,ntrjs,nprjs,nqrjs,nsta_mesowind_use
+  integer(i_kind) nprov,nwrjs,ntrjs,nprjs,nqrjs,nsta_mesowind_use,nsta_mesovis_use
   integer(i_kind) ntdrjs,nmxtmrjs,nmitmrjs,npmslrjs,nhowvrjs,&
                   nlcbasrjs,ntcamtrjs,ncldchrjs
   integer(i_kind) ntrjs_day,ntrjs_night
@@ -87,6 +89,7 @@ module sfcobsqc
   logical q_day_listexist
   logical q_night_listexist
   logical wbinlistexist
+  logical vis_uselistexist
 
   public init_rjlists
   public get_usagerj
@@ -391,6 +394,7 @@ subroutine init_rjlists
   allocate(t_night_rjlist(nmax))
   allocate(q_day_rjlist(nmax))
   allocate(q_night_rjlist(nmax))
+  allocate(csta_visuse(nmax))
 
 !==> Read mesonet provider names from the uselist
  clistname='mesonetuselist'
@@ -530,13 +534,13 @@ subroutine init_rjlists
     read(meso_unit,'(a16,i2)',end=191) ch16,nbins
     allocate(nwbaccpts(max(1,nbins)))
     nwbaccpts(:)=0
-    do         
+    do
        read(meso_unit,'(a8,3x,a8,3x,f7.4,2x,f9.4,3x,i2)',end=191) ach8,bch8,aa1,aa2,ibin
-       nwbaccpts(ibin)=nwbaccpts(ibin)+1 
+       nwbaccpts(ibin)=nwbaccpts(ibin)+1
     end do
 191 continue
     if(verbose)then
-       print*,'wdirbinuselist: number of bins=',nbins 
+       print*,'wdirbinuselist: number of bins=',nbins
        print*,'wdirbinuselist: (nwbaccpts(ibin),ibin=1,nbins)=',(nwbaccpts(ibin),ibin=1,nbins)
     endif
 
@@ -549,12 +553,28 @@ subroutine init_rjlists
     rewind(meso_unit)
     read(meso_unit,'(a16,i2)',end=193) ch16,nbins
     nwbaccpts(:)=0
-    do     
+    do
        read(meso_unit,'(a8,3x,a8,3x,f7.4,2x,f9.4,3x,i2)',end=193) ach8,bch8,aa1,aa2,ibin
-       nwbaccpts(ibin)=nwbaccpts(ibin)+1 
+       nwbaccpts(ibin)=nwbaccpts(ibin)+1
        csta_windbin(nwbaccpts(ibin),ibin)=ach8
     end do
 193 continue
+ endif
+ close(meso_unit)
+
+!==> Read in 'good' mesonet station names from the station uselist for visibility
+ inquire(file='mesonet_stnuselist_for_vis',exist=vis_uselistexist)
+ if(vis_uselistexist) then
+    open (meso_unit,file='mesonet_stnuselist_for_vis',form='formatted')
+    ncount=0
+    do
+      ncount=ncount+1
+      read(meso_unit,'(a5,a80)',end=194) csta_visuse(ncount),cstring
+    end do
+194 continue
+    nsta_mesovis_use=ncount-1
+!    if(verbose)&
+    print*,'mesonet_stnuselist_for_vis: nsta_mesovis_use=',nsta_mesovis_use
  endif
  close(meso_unit)
 
@@ -823,9 +843,9 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
         usage_rj=r6000
         if (listexist) then !note that uselists must precede the rejectlist
            do m=1,nprov
-!             if (trim(c_prvstg//c_sprvstg) == trim(cprovider(m))) then
-              if (c_prvstg(1:8) == cprovider(m)(1:8) .and. (c_sprvstg(1:8) == cprovider(m)(9:16)  &
-                                                      .or. cprovider(m)(9:16) == 'allsprvs') ) then
+              if (cprovider(m)(1:7)=='allprvs' .or. & 
+                 (c_prvstg(1:8) == cprovider(m)(1:8) .and. (c_sprvstg(1:8) == cprovider(m)(9:16)  &
+                                                      .or. cprovider(m)(9:16) == 'allsprvs')) ) then
                  usage_rj=usage_rj0
                  exit
               endif
@@ -873,9 +893,24 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
 
   end if
 
+!==> station uselist for mesonet visibility
+
+  if (obstype=='vis' .and.( kx==188.or.kx==288.or.kx==195.or.kx==295) )then
+     usage_rj=r6000
+     if (vis_uselistexist .and. usage_rj/=usage_rj0) then !note that usage_rj could differ from usage_rj0 after the rejectlist application
+        do m=1,nsta_mesovis_use                          !which happens to be currently unavailable for vis
+           nlen=len_trim(csta_visuse(m))
+           if (c_station_id(1:nlen) == csta_visuse(m)(1:nlen)) then
+              usage_rj=usage_rj0
+              exit
+           endif
+        enddo
+     endif
+  end if
+
   if (twodvar_regional) then
      call tll2xy(dlon,dlat,xob,yob,outside)
-     if (.not.outside) call valley_adjustment(xob,yob,usage_rj)
+     if ((obstype=='t' .or. obstype=='q') .and. .not.outside) call valley_adjustment(xob,yob,usage_rj)
   endif
 end subroutine get_usagerj
 
@@ -902,9 +937,9 @@ subroutine get_gustqm(kx,c_station_id,c_prvstg,c_sprvstg,gustqm)
   gustqm=9
   if (listexist) then
      do m=1,nprov
-!       if (trim(c_prvstg//c_sprvstg) == trim(cprovider(m))) then
-        if (c_prvstg(1:8) == cprovider(m)(1:8) .and. (c_sprvstg(1:8) == cprovider(m)(9:16)  &
-                                               .or. cprovider(m)(9:16) == 'allsprvs') ) then
+        if (cprovider(m)(1:7)=='allprvs' .or. &
+           (c_prvstg(1:8) == cprovider(m)(1:8) .and. (c_sprvstg(1:8) == cprovider(m)(9:16)  &
+                                               .or. cprovider(m)(9:16) == 'allsprvs')) ) then
            gustqm=0
            exit
          endif
@@ -993,6 +1028,7 @@ subroutine readin_rjlists(clistname,fexist,clist,ndim,ncount)
     end do
 131 continue
     ncount=n-1
+
     close(meso_unit)
  endif
 end subroutine readin_rjlists
@@ -1040,6 +1076,7 @@ subroutine destroy_rjlists
   deallocate(cldch_rjlist)
   if(wbinlistexist) deallocate(nwbaccpts)
   if(wbinlistexist) deallocate(csta_windbin)
+  deallocate(csta_visuse)
 end subroutine destroy_rjlists
 
 

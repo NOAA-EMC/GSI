@@ -14,7 +14,7 @@ data_map=${scripts}/data_map.xml
 
 export NDATE=/nwprod/util/exec/ndate
 
-export MAIL_CC="russ.treadon@noaa.gov, john.derber@noaa.gov, andrew.collard@noaa.gov, haixia.liu@noaa.gov"
+export MAIL_CC="russ.treadon@noaa.gov, andrew.collard@noaa.gov, haixia.liu@noaa.gov"
 #export MAIL_CC="edward.c.safford@gmail.com"
 export MAIL_TO="edward.safford@noaa.gov"
 
@@ -32,8 +32,8 @@ if [[ $idate -le $prodate ]]; then
 
    echo " firing OznMon_Plt.sh"
    ${scripts}/OznMon_Plt.sh $suffix -p $idate -r $run  \
-      1>/ptmpp1/Edward.Safford/logs/${suffix}/${run}/oznmon/OznMon_Plt.log \
-      2>/ptmpp1/Edward.Safford/logs/${suffix}/${run}/oznmon/OznMon_Plt.err
+      1>/ptmpd1/Edward.Safford/logs/${suffix}/${run}/oznmon/OznMon_Plt.log \
+      2>/ptmpd1/Edward.Safford/logs/${suffix}/${run}/oznmon/OznMon_Plt.err
 
    rc=`${scripts}/update_data_map.pl ${data_map} \
       ${suffix}_${run} imgdate ${idate}`

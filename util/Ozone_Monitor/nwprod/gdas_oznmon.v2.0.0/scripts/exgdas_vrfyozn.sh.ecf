@@ -1,4 +1,7 @@
 #/bin/sh
+
+set -ax
+
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
@@ -38,13 +41,6 @@ err=0
 #-------------------------------------------------------------------------------
 #  Set environment
 #
-export VERBOSE=${VERBOSE:-"NO"} 
-if [[ "$VERBOSE" = "YES" ]]
-then
-   set -x
-fi
-
-
 export RUN_ENVIR=${RUN_ENVIR:-nco}
 export NET=${NET:-gfs}
 export RUN=${RUN:-gdas}

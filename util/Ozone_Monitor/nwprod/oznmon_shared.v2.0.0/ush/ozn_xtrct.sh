@@ -20,6 +20,7 @@
 
 set -ax
 
+
 #--------------------------------------------------
 #  check_diag_files
 #  
@@ -213,12 +214,14 @@ EOF
       if [[ ! -d ${TANKverf_ozn}/time ]]; then
          mkdir -p ${TANKverf_ozn}/time
       fi
-      $NCP ${type}.ctl              ${TANKverf_ozn}/time/
-      $NCP ${type}.${PDATE}.ieee_d  ${TANKverf_ozn}/time/
-      $NCP stdout.time.${type}      ${TANKverf_ozn}/time/
-      $NCP bad*                     ${TANKverf_ozn}/time/
+      $NCP ${type}.ctl                ${TANKverf_ozn}/time/
+      $NCP ${type}.${PDATE}.ieee_d    ${TANKverf_ozn}/time/
 
-     rm -f input
+      $COMPRESS stdout.time.${type}
+      $NCP stdout.time.${type}.${Z}   ${TANKverf_ozn}/time/
+      $NCP bad*                       ${TANKverf_ozn}/time/
+
+      rm -f input
 
 cat << EOF > input
         &INPUT
@@ -244,9 +247,13 @@ EOF
       if [[ ! -d ${TANKverf_ozn}/horiz ]]; then
          mkdir -p ${TANKverf_ozn}/horiz
       fi
-      $NCP ${type}.ctl              ${TANKverf_ozn}/horiz/
-      $NCP ${type}.${PDATE}.ieee_d  ${TANKverf_ozn}/horiz/
-      $NCP stdout.horiz.${type}     ${TANKverf_ozn}/horiz/
+      $NCP ${type}.ctl                ${TANKverf_ozn}/horiz/
+
+      $COMPRESS ${type}.${PDATE}.ieee_d
+      $NCP ${type}.${PDATE}.ieee_d.${Z}    ${TANKverf_ozn}/horiz/
+      
+      $COMPRESS stdout.horiz.${type}
+      $NCP stdout.horiz.${type}.${Z}  ${TANKverf_ozn}/horiz/
    done
 fi
 

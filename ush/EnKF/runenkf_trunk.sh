@@ -61,7 +61,7 @@ exp=test46trunk
 # Set path/file for enkf executable
 basedir=/global/save
 enkfpath=$basedir/wx23jd/trunk/src
-enkfexec=$enkfpath/global_enkf_gfs
+enkfexec=$enkfpath/global_enkf.x
 
 # directories for case
 dirges=/gpfs/t2c/global/noscrub/wx20kd/CASES/$adate/ensges

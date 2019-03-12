@@ -139,7 +139,7 @@ subroutine calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
   endif
 
 !$omp parallel do private(i,j,k,kk,tmp,tmp2,ix,&
-!$omp                  tmp3,sumk,sumvk,sum2k,sum2vk)
+!$omp                  tmp3,sumk,sumvk,sum2k,sum2vk,var)
 
   do kk=1,nthreads
 

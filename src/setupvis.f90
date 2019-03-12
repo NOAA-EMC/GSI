@@ -30,6 +30,12 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2017-02-09  guo     - Remove m_alloc, n_alloc.
 !                       . Remove my_node with corrected typecast().
 !
+!   2018-03-01  yang -  use module nltransf to convert vis 
+!   2018-03-21  pondeca/yang - for code consistency across all analyzed variables,replace
+!                      the  original "dup"-based implementation of the option to
+!                      assimilate the closest ob to the analysis time only with
+!                      Ming Hu's "muse"-based implementation.
+
 !   input argument list:
 !     lunin    - unit from which to read observations
 !     mype     - mpi task id
@@ -68,19 +74,23 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use m_visNode, only: visNode
   use m_visNode, only: visNode_appendto
   use obsmod, only: luse_obsdiag
-  use gsi_4dvar, only: nobs_bins,hr_obsbin
+  use gsi_4dvar, only: nobs_bins,hr_obsbin,min_offset
   use oneobmod, only: magoberr,maginnov,oneobtest
   use gridmod, only: nsig
   use gridmod, only: get_ij
   use constants, only: zero,tiny_r_kind,one,half,one_tenth,wgtlim, &
-            two,cg_term,pi,huge_single
+            two,cg_term,pi,huge_single,r1000
   use jfunc, only: jiter,last,miter
-  use qcmod, only: dfact,dfact1,npres_print,closest_obs
+  use qcmod, only: dfact,dfact1,npres_print
+  use qcmod, only: pvis,scale_cv
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
+  use nltransf, only: nltransf_inverse
+  use rapidrefresh_cldsurf_mod, only: l_closeobs
+
   implicit none
 
 ! Declare passed variables
@@ -103,10 +113,11 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_double) rstation_id
 
   real(r_kind) visges,dlat,dlon,ddiff,dtime,error
-  real(r_kind) vis_errmax,offtime_k,offtime_l
-  real(r_kind) scale,val2,ratio,ressw2,ress,residual
+  real(r_kind) visgesout,visobout,tempvis,visdiff
+  real(r_kind) vis_errmax
+  real(r_kind) scale,val2,ratio,residual
   real(r_kind) obserrlm,obserror,val,valqc
-  real(r_kind) term,halfpi,rwgt
+  real(r_kind) term,rwgt
   real(r_kind) cg_vis,wgross,wnotgross,wgt,arg,exp_arg,rat_err2
   real(r_kind) ratio_errors,tfact
   real(r_kind) errinv_input,errinv_adjst,errinv_final
@@ -132,6 +143,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   character(8),allocatable,dimension(:):: cprvstg,csprvstg
   character(8) c_prvstg,c_sprvstg
   real(r_double) r_prvstg,r_sprvstg
+  real(r_kind) :: hr_offset
 
   logical:: in_curbin, in_anybin
   type(visNode),pointer:: my_head
@@ -156,7 +168,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! If require guess vars available, extract from bundle ...
   call init_vars_
 
-  vis_errmax=5000.0_r_kind
+  vis_errmax=20.0_r_kind
 !*********************************************************************************
 ! Read and reformat observations in work arrays.
   read(lunin)data,luse,ioid
@@ -189,61 +201,34 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   do i=1,nobs
     if (data(ivis,i) > r0_1_bmiss)  then
        muse(i)=.false.
-       data(ivis,i)=rmiss_single   ! for diag output
-       data(iobshgt,i)=rmiss_single! for diag output
+       data(ivis,i)=rmiss_single    ! for diag output
+       data(iobshgt,i)=rmiss_single ! for diag output
     end if
-
-!   set any observations larger than 20000.0 to be 20000.0
-    if (data(ivis,i) > 20000.0_r_kind) data(ivis,i)=20000.0_r_kind
   end do
-  offtime_k=0.0_r_kind
-  offtime_l=0.0_r_kind
 
-! if closest_obs=.true., choose the timely closest obs. among the multi-reports
-! at a station.
-  if (closest_obs) then
-     dup=one
-     do k=1,nobs
-        if( dup(k) < tiny_r_kind .or. .not. muse(k) ) then
-           dup(k)=-99.0_r_kind
-        else
-           do l=k+1,nobs
-              if(data(ilat,k) == data(ilat,l) .and.  &
-                 data(ilon,k) == data(ilon,l) .and.  &
-                 data(ier,k) < vis_errmax .and. data(ier,l) <vis_errmax .and. &
-                    muse(k) .and. muse(l))then
-                 offtime_k=data(itime,k) -time_offset
-                 offtime_l=data(itime,l) -time_offset
-                 if(abs(offtime_k) < abs(offtime_l)) then
-                    dup(l)=-99.0_r_kind
-                 endif
-                 if(abs(offtime_k) > abs(offtime_l)) then
-                    dup(k)=-99.0_r_kind
-                 endif
-                 if(abs(offtime_k)==abs(offtime_l)) then
-                    if (offtime_k >= 0.0_r_kind) dup(l)=-99.0_r_kind
-                    if (offtime_l >= 0.0_r_kind) dup(k)=-99.0_r_kind
-                 endif
+! Check for duplicate observations at same location
+  hr_offset=min_offset/60.0_r_kind
+  dup=one
+  do k=1,nobs
+     do l=k+1,nobs
+        if(data(ilat,k) == data(ilat,l) .and. &
+           data(ilon,k) == data(ilon,l) .and. &
+           data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
+           muse(k) .and. muse(l))then
+           if(l_closeobs) then
+              if(abs(data(itime,k)-hr_offset)<abs(data(itime,l)-hr_offset)) then
+                  muse(l)=.false.
+              else
+                  muse(k)=.false.
               endif
-           enddo
-        endif
-     enddo
-  else
-     dup=one
-     do k=1,nobs
-        do l=k+1,nobs
-           if(data(ilat,k) == data(ilat,l) .and.  &
-              data(ilon,k) == data(ilon,l) .and.  &
-              data(ier,k) < vis_errmax .and. data(ier,l) < vis_errmax .and.  &
-              muse(k) .and. muse(l))then
+           else
               tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
               dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
               dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
-           end if
-        end do
+           endif
+        end if
      end do
-  endif
-
+  end do
 
 ! If requested, save select data for output to diagnostic file
   if(conv_diagsave)then
@@ -257,7 +242,6 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if(netcdf_diag) call init_netcdf_diag_
   end if
 
-  halfpi = half*pi
   mm1=mype+1
   scale=one
 
@@ -270,10 +254,9 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
     if(in_curbin) then
        dlat=data(ilat,i)
        dlon=data(ilon,i)
-
        ikx  = nint(data(ikxx,i))
        error=data(ier,i)
-     endif
+    endif
 
 !    Link observation to appropriate observation bin
      if (nobs_bins>1) then
@@ -302,15 +285,11 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      endif
 
      if(.not.in_curbin) cycle
-
-! Interpolate to get vis at obs location/time
-     call tintrp2a11(ges_vis,visges,dlat,dlon,dtime,hrdifsig,&
-        mype,nfldsig)
+     call tintrp2a11(ges_vis,visges,dlat,dlon,dtime,hrdifsig, mype,nfldsig)
 
 ! Adjust observation error
      ratio_errors=error/data(ier,i)
      error=one/error
-
      ddiff=data(ivis,i)-visges
 
 ! If requested, setup for single obs test.
@@ -326,22 +305,17 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
         residual = abs(ddiff)
         ratio    = residual/obserrlm
+        ratio_errors=ratio_errors/sqrt(dup(i))
         if (ratio> cgross(ikx) .or. ratio_errors < tiny_r_kind) then
            if (luse(i)) awork(6) = awork(6)+one
            error = zero
            ratio_errors=zero
-        else
-!  dup(i) < 0 means closest_obs =.true.
-           if(dup(i)> tiny_r_kind) then
-              ratio_errors=ratio_errors/sqrt(dup(i))
-           else
-              ratio_errors=zero
-           endif
         endif
      else    ! missing data
         error = zero
         ratio_errors=zero
      end if
+
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
      if (nobskeep>0.and.luse_obsdiag) call obsdiagNode_get(my_diag, jiter=nobskeep, muse=muse(i))
 
@@ -372,24 +346,34 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            awork(4)=awork(4)+val2*rat_err2
            awork(5)=awork(5)+one
            awork(22)=awork(22)+valqc
+           nn=1
+        else   
+           nn=2                                       !rejected obs
+           if(ratio_errors*error >=tiny_r_kind) nn=3  !monitored obs
         end if
-        ress   = ddiff*scale
-        ressw2 = ress*ress
-        val2   = val*val
-        rat_err2 = ratio_errors**2
-        nn=1
-        if (.not. muse(i)) then
-           nn=2
-           if(ratio_errors*error >=tiny_r_kind)nn=3
-        end if
+!.........................................................................
+!NLTR:  convert visges to physical space
+!.........................................................................
+        call nltransf_inverse(visges,visgesout,pvis,scale_cv)
         if (abs(data(ivis,i)-rmiss_single) >=tiny_r_kind) then
            bwork(1,ikx,1,nn)  = bwork(1,ikx,1,nn)+one           ! count
-           bwork(1,ikx,2,nn)  = bwork(1,ikx,2,nn)+ress          ! (o-g)
-           bwork(1,ikx,3,nn)  = bwork(1,ikx,3,nn)+ressw2        ! (o-g)**2
+!.........................................................................
+!convert visobs to physical space
+
+           tempvis=data(ivis,i)
+           call nltransf_inverse(tempvis,visobout,pvis,scale_cv)
+!values in vis fits, fort.219, are in physical space
+           visdiff=(visobout-visgesout)*scale
+           bwork(1,ikx,2,nn)  = bwork(1,ikx,2,nn)+visdiff            ! (o-g)
+           bwork(1,ikx,3,nn)  = bwork(1,ikx,3,nn)+visdiff*visdiff    ! (o-g)**2
+!END NLTR
+!.........................................................................
            bwork(1,ikx,4,nn)  = bwork(1,ikx,4,nn)+val2*rat_err2 ! penalty
            bwork(1,ikx,5,nn)  = bwork(1,ikx,5,nn)+valqc         ! nonlin qc penalty
+        else    ! default values for visobout and visdiff
+           visobout=rmiss_single
+           visdiff=(visobout-visgesout)*scale
         end if
-
      endif
 
      if (luse_obsdiag) then
@@ -428,22 +412,27 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         my_head => null()
      endif ! (.not. last .and. muse(i))
 
-
 !    Save stuff for diagnostic output
      if(conv_diagsave .and. luse(i))then
         ii=ii+1
-        rstation_id = data(id,i)
-        err_input   = data(ier,i)
-        err_adjst   = data(ier,i)
+        rstation_id     = data(id,i)
         if (ratio_errors*error>tiny_r_kind) then
-           err_final = one/(ratio_errors*error)
+           err_final = 4000.0_r_kind 
         else
            err_final = huge_single
         endif
- 
+
         errinv_input = huge_single
         errinv_adjst = huge_single
         errinv_final = huge_single
+!--------------------------------------------------------------------------------
+!For diag file, write out vis error statistics and the field in physical space.
+!NOTE:  No linear conversion in error stats between physical space and NLTR
+!space.
+!NOTE:  in RTMA post process only err_final is used.
+!--------------------------------------------------------------------------------
+        err_input = 4000.0_r_kind
+        err_adjst = 4000.0_r_kind
         if (err_input>tiny_r_kind) errinv_input = one/err_input
         if (err_adjst>tiny_r_kind) errinv_adjst = one/err_adjst
         if (err_final>tiny_r_kind) errinv_final = one/err_final
@@ -452,8 +441,6 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if(netcdf_diag) call contents_netcdf_diag_(my_diag)
  
      end if
-
-
   end do
 
 ! Release memory of local guess arrays
@@ -612,18 +599,14 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         else
            rdiagbuf(12,ii) = -one
         endif
-
         rdiagbuf(13,ii) = rwgt               ! nonlinear qc relative weight
-        rdiagbuf(14,ii) = errinv_input       ! prepbufr inverse obs error (K**-1)
-        rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error (K**-1)
-        rdiagbuf(16,ii) = errinv_final       ! final inverse observation error (K**-1)
- 
-        rdiagbuf(17,ii) = data(ivis,i)       ! VIS observation (K)
-        rdiagbuf(18,ii) = ddiff              ! obs-ges used in analysis (K)
-        rdiagbuf(19,ii) = data(ivis,i)-visges! obs-ges w/o bias correction (K) (future slot)
- 
+        rdiagbuf(14,ii) = errinv_input       ! prepbufr inverse obs error (m**-1)
+        rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error (m**-1)
+        rdiagbuf(16,ii) = errinv_final       ! final inverse observation error (m**-1)
+        rdiagbuf(17,ii) = visobout           ! VIS observation (m)
+        rdiagbuf(18,ii) = visdiff            ! obs-ges in physical space(m), for post process 
+        rdiagbuf(19,ii) = ddiff              ! obs-ges used in analysis, g-space 
         rdiagbuf(20,ii) = rmiss_single       ! type of measurement
-
         rdiagbuf(21,ii) = data(idomsfc,i)    ! dominate surface type
         rdiagbuf(22,ii) = data(izz,i)        ! model terrain at observation location
         r_prvstg        = data(iprvd,i)
@@ -688,6 +671,13 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            call nc_diag_metadata("Observation",                   data(ivis,i)     )
            call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   ddiff            )
            call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", data(ivis,i)-visges )
+           call nc_diag_metadata("Dominant_Sfc_Type", data(idomsfc,i))
+           call nc_diag_metadata("Model_Terrain",     data(izz,i))
+           r_prvstg            = data(iprvd,i)
+           call nc_diag_metadata("Provider_Name",     c_prvstg)
+           r_sprvstg           = data(isprvd,i)
+           call nc_diag_metadata("Subprovider_Name",  c_sprvstg)
+
  
            if (lobsdiagsave) then
               do jj=1,miter
@@ -704,12 +694,6 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
               call nc_diag_data2d("ObsDiagSave_obssen",   odiag%obssen   )             
            endif
    
-           call nc_diag_metadata("Dominant_Sfc_Type", data(idomsfc,i)              )
-           call nc_diag_metadata("Model_Terrain",     data(izz,i)                  )
-           r_prvstg            = data(iprvd,i)
-           call nc_diag_metadata("Provider_Name",     c_prvstg                     )    
-           r_sprvstg           = data(isprvd,i)
-           call nc_diag_metadata("Subprovider_Name",  c_sprvstg                    )
   end subroutine contents_netcdf_diag_
 
   subroutine final_vars_

@@ -178,6 +178,9 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !                                     time in analysis
 !   2017-02-09  guo     - Remove m_alloc, n_alloc.
 !                       . Remove my_node with corrected typecast().
+!   2018-04-09  pondeca -  introduce duplogic to correctly handle the characterization of
+!                          duplicate obs in twodvar_regional applications
+!
 !
 ! REMARKS:
 !   language: f90
@@ -264,7 +267,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   logical,dimension(nobs):: luse,muse
   logical:: muse_u,muse_v
   integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
-  logical lowlevelsat
+  logical lowlevelsat,duplogic
   logical proceed
 
   logical:: l_pbl_pseudo_itype
@@ -372,12 +375,20 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   dup=one
   do k=1,nobs
      do l=k+1,nobs
-        if(data(ilat,k) == data(ilat,l) .and.  &
+        if (twodvar_regional) then
+           duplogic=data(ilat,k) == data(ilat,l) .and.  &
+           data(ilon,k) == data(ilon,l) .and.  &
+           data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
+           muse(k) .and. muse(l)
+         else
+           duplogic=data(ilat,k) == data(ilat,l) .and.  &
            data(ilon,k) == data(ilon,l) .and.  &
            data(ipres,k) == data(ipres,l) .and. &
            data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
-           muse(k) .and. muse(l))then
+           muse(k) .and. muse(l)
+        end if
 
+        if (duplogic) then
            if(l_closeobs) then
               if(abs(data(itime,k)-hr_offset)<abs(data(itime,l)-hr_offset)) then
                   muse(l)=.false.

@@ -89,6 +89,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !                                     time in analysis
 !   2017-03-31  Hu      -  addd option i_coastline to use observation operater
 !                                     for coastline area
+!   2018-04-09  pondeca -  introduce duplogic to correctly handle the characterization of
+!                          duplicate obs in twodvar_regional applications
 !
 !
 !   input argument list:
@@ -168,6 +170,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),parameter:: r8=8.0_r_kind
   real(r_kind),parameter:: r0_001 = 0.001_r_kind
   real(r_kind),parameter:: r1e16=1.e16_r_kind
+  real(r_kind),parameter:: r3p5 = 3.5_r_kind
   character(len=*),parameter:: myname='setupq'
 
 ! Declare external calls for code analysis
@@ -219,6 +222,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   logical ice,proceed
   logical,dimension(nobs):: luse,muse
   integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
+
+  logical duplogic
 
   logical:: in_curbin, in_anybin, save_jacobian
   type(qNode),pointer:: my_head
@@ -293,11 +298,20 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   dup=one
   do k=1,nobs
      do l=k+1,nobs
-        if(data(ilat,k) == data(ilat,l) .and.  &
+        if (twodvar_regional) then
+           duplogic=data(ilat,k) == data(ilat,l) .and.  &
+           data(ilon,k) == data(ilon,l) .and.  &
+           data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
+           muse(k) .and. muse(l)
+         else
+           duplogic=data(ilat,k) == data(ilat,l) .and.  &
            data(ilon,k) == data(ilon,l) .and.  &
            data(ipres,k) == data(ipres,l) .and. &
            data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
-           muse(k) .and. muse(l))then
+           muse(k) .and. muse(l)
+        end if
+
+        if (duplogic) then
            if(l_closeobs) then
               if(abs(data(itime,k)-hr_offset)<abs(data(itime,l)-hr_offset)) then
                   muse(l)=.false.
@@ -576,7 +590,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
      if (twodvar_regional) then
         if ( (data(iuse,i)-real(int(data(iuse,i)),kind=r_kind)) == 0.25_r_kind) &
-               qcgross=three*qcgross
+               qcgross=r3p5*qcgross
      endif
 
      if(ratio > qcgross .or. ratio_errors < tiny_r_kind) then

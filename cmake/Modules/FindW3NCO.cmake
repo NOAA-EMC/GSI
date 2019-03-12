@@ -13,22 +13,37 @@ set( NO_DEFAULT_PATH )
 if(NOT BUILD_W3NCO )
   if(DEFINED ENV{W3NCO_LIBd} )
     set(W3NCO_LIBRARY $ENV{W3NCO_LIBd} )
+    set(W3NCO_4_LIBRARY $ENV{W3NCO_LIB4} )
     message("W3NCO library ${W3NCO_LIBRARY} set via Environment variable")
+    message("W3NCO_4 library ${W3NCO_4_LIBRARY} set via Environment variable")
   else()
     find_library( W3NCO_LIBRARY 
     NAMES libw3nco_v${W3NCO_VER}_d.a libw3nco_d.a  libw3nco_i4r8.a 
     HINTS 
        $ENV{COREPATH}/lib 
-       /usr/local/jcsda/nwprod_gdas_2014	
+       /usr/local/jcsda/nwprod_gdas_2014/lib	
        ${COREPATH}/w3nco/v${W3NCO_VER}
        ${COREPATH}/w3nco/v${W3NCO_VER}/intel
        ${COREPATH}/w3nco/v${W3NCO_VER}/ips/${COMPILER_VERSION}
     PATH_SUFFIXES
         lib
      ${NO_DEFAULT_PATH})
-#   set( w3nco "w3nco_v${W3NCO_VER}")
     message("Found W3NCO library ${W3NCO_LIBRARY}")
     set( w3nco ${W3NCO_LIBRARY})
+
+    find_library( W3NCO_4_LIBRARY 
+    NAMES libw3nco_v${W3NCO_VER}_4.a libw3nco_4.a  
+    HINTS 
+       $ENV{COREPATH}/lib 
+       /usr/local/jcsda/nwprod_gdas_2014/lib	
+       ${COREPATH}/w3nco/v${W3NCO_VER}
+       ${COREPATH}/w3nco/v${W3NCO_VER}/intel
+       ${COREPATH}/w3nco/v${W3NCO_VER}/ips/${COMPILER_VERSION}
+    PATH_SUFFIXES
+        lib
+     ${NO_DEFAULT_PATH})
+    message("Found W3NCO_4 library ${W3NCO_4_LIBRARY}")
+    set( w3nco4 ${W3NCO_4_LIBRARY})
   endif()
 endif()
 if( NOT W3NCO_LIBRARY ) # didn't find the library, so build it from source

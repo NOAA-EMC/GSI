@@ -20,6 +20,8 @@ program calc_increment_pmain
   call mpi_comm_rank(mpi_comm_world, mype, ierr)
   call mpi_comm_size(mpi_comm_world, npes, ierr)
 
+  if (mype==0) call w3tagb('CALC_INCREMENT_ENS',2018,0177,0055,'NP20')
+
   call read_namelist
   if ( mype == 0 ) call write_namelist
 
@@ -60,7 +62,7 @@ program calc_increment_pmain
 
     write(6,*) 'task mype = ', mype, ' process ', trim(increment_filename)
 
-    call calc_increment()
+    call calc_increment(mype)
 
   else
 
@@ -69,6 +71,9 @@ program calc_increment_pmain
   endif
 
   call mpi_barrier(mpi_comm_world, ierr)
+
+  if (mype==0) call w3tage('CALC_INCREMENT_ENS')
+  
   call mpi_finalize(ierr)
 
   stop

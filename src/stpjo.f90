@@ -33,7 +33,7 @@ module stpjomod
                   & i_pm10_ob_type, &
                   & i_wspd10m_ob_type,i_uwnd10m_ob_type,i_vwnd10m_ob_type,i_td2m_ob_type,i_mxtm_ob_type,i_mitm_ob_type, &
                     i_pmsl_ob_type,i_howv_ob_type,i_tcamt_ob_type,i_lcbas_ob_type,  &
-                    i_aero_ob_type, i_cldch_ob_type, i_swcp_ob_type, i_lwcp_ob_type
+                    i_aero_ob_type, i_cldch_ob_type, i_swcp_ob_type, i_lwcp_ob_type, i_light_ob_type
 
   implicit none
 
@@ -232,6 +232,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep,nobs_bins)
 !                         stpozlev() calls.  This is a next-step fix of the
 !                         minimum fix in stpjo_setup() below, to let output
 !                         pbcjo(:,:,:) to reflect individual ob-types correctly.
+!   2018-01-01  apodaca - add lightning (light) call
 !
 !   input argument list:
 !     yobs
@@ -297,6 +298,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep,nobs_bins)
   use stpvwnd10mmod, only: stpvwnd10m
   use stpswcpmod, only: stpswcp
   use stplwcpmod, only: stplwcp
+  use stplightmod, only: stplight
   use bias_predictors, only: predictors
   use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc
   use gsi_bundlemod, only: gsi_bundle
@@ -376,6 +378,10 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep,nobs_bins)
 !   penalty, b, and c for ozone:o3l
        case(i_o3l_ob_type)
           call stpozlev(yobs(ib)%o3l,dval(ib),xval(ib),pbcjo(1,i_o3l_ob_type,ib),sges,nstep)
+
+!   penalty, b, and c for lightning:light
+       case(i_light_ob_type)
+          call stplight(yobs(ib)%light,dval(ib),xval(ib),pbcjo(1,i_light_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for GPS local observation
        case(i_gps_ob_type)
@@ -803,6 +809,13 @@ subroutine stpjo_setup(yobs)
           if(associated(yobs(ib)%lwcp)) then
              stpcnt = stpcnt +1
              ll_jo(stpcnt) = i_lwcp_ob_type
+             ib_jo(stpcnt) = ib
+          end if
+       case(i_light_ob_type)
+!         penalty, b, and c for lightning
+          if(associated(yobs(ib)%light)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = i_light_ob_type
              ib_jo(stpcnt) = ib
           end if
        end select

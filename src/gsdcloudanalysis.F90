@@ -249,7 +249,7 @@ subroutine  gsdcloudanalysis(mype)
 
   real(r_kind),parameter    :: pi = 4._r_kind*atan(1._r_kind)
   real(r_kind),parameter    :: rho_w = 999.97_r_kind, rho_a = 1.2_r_kind
-  real(r_kind),parameter    :: cldDiameter = 10.0D3_r_kind
+  real(r_kind),parameter    :: cldDiameter = 10.0E3_r_kind
 
 
 !

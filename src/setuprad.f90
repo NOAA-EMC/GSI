@@ -2298,6 +2298,16 @@
                  call nc_diag_metadata("BC_Sine_Latitude",                      sngl(predbias(7,ich_diag(i)))      )             ! sin(lat) bias correction term
                  call nc_diag_metadata("BC_Emissivity",                         sngl(predbias(8,ich_diag(i)))      )             ! emissivity sensitivity bias correction term
                  call nc_diag_metadata("BC_Fixed_Scan_Position",                sngl(predbias(npred+1,ich_diag(i))) )             ! external scan angle
+                 if (lwrite_predterms) then
+                    call nc_diag_metadata("BCPred_Constant",                       sngl(pred(1,ich_diag(i)))      )             ! constant bias correction term
+                    call nc_diag_metadata("BCPred_Scan_Angle",                     sngl(pred(2,ich_diag(i)))      )             ! scan angle bias correction term
+                    call nc_diag_metadata("BCPred_Cloud_Liquid_Water",             sngl(pred(3,ich_diag(i)))      )             ! CLW bias correction term
+                    call nc_diag_metadata("BCPred_Lapse_Rate_Squared",             sngl(pred(4,ich_diag(i)))      )             ! square lapse rate bias correction term
+                    call nc_diag_metadata("BCPred_Lapse_Rate",                     sngl(pred(5,ich_diag(i)))      )             ! lapse rate bias correction term
+                    call nc_diag_metadata("BCPred_Cosine_Latitude_times_Node",     sngl(pred(6,ich_diag(i)))      )             ! node*cos(lat) bias correction term
+                    call nc_diag_metadata("BCPred_Sine_Latitude",                  sngl(pred(7,ich_diag(i)))      )             ! sin(lat) bias correction term
+                    call nc_diag_metadata("BCPred_Emissivity",                     sngl(pred(8,ich_diag(i)))      )             ! emissivity sensitivity bias correction term
+                 endif
 
                  if (lwrite_peakwt) then
                     call nc_diag_metadata("Press_Max_Weight_Function",          sngl(weightmax(ich_diag(i)))       )
@@ -2307,6 +2317,12 @@
                         predbias_angord(j) = predbias(npred-angord+j, ich_diag(i) )
                     end do
                     call nc_diag_data2d("BC_angord",   sngl(predbias_angord)                                       )
+                    if (lwrite_predterms) then
+                       do j=1, angord
+                           predbias_angord(j) = pred(npred-angord+j, ich_diag(i) )
+                       end do
+                       call nc_diag_data2d("BCPred_angord",   sngl(predbias_angord)                                )
+                    endif
                  end if
 
               enddo

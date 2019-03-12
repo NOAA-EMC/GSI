@@ -29,6 +29,8 @@ module m_obsdiags
 !                       . Added #define DEBUG_obsdiags, for text-dumping
 !                         specific sections of obsdiags(:,:).
 !                       . Locally renamed MPI_comm_world to gsi_comm_world.
+!   2018-01-23  k apodaca - Add a new observation type i.e. lightning (light) 
+!                           suitable for the GOES/GLM instrument
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -91,6 +93,8 @@ module m_obsdiags
 
   use m_swcpNode , only:  swcpNode ! 34
   use m_lwcpNode , only:  lwcpNode ! 35
+
+  use m_lightNode, only:  lightNode ! 36
 
   use m_obsNodeTypeManager, only: nobs_type
   use gsi_4dvar           , only: nobs_bins
@@ -214,6 +218,8 @@ module m_obsdiags
   public :: swcphead
   public :: lwcphead
 
+  public :: lighthead
+
   type(obsLList),dimension(:),pointer :: pshead => null()
   type(obsLList),dimension(:),pointer :: tcphead => null()
   type(obsLList),dimension(:),pointer :: thead => null()
@@ -256,8 +262,11 @@ module m_obsdiags
   type(obsLList),dimension(:),pointer :: swcphead => null()
   type(obsLList),dimension(:),pointer :: lwcphead => null()
 
+  type(obsLList),dimension(:),pointer :: lighthead => null()
+
   type(obsLList ),dimension(:,:),pointer :: obsLLists => null()
   type(obs_diags),dimension(:,:),pointer :: obsdiags  => null()  ! (nobs_type,nobs_bins)
+
 
 
 !#define DEBUG_TRACE
@@ -741,6 +750,8 @@ _ENTRY_(myname_)
     swcphead => ptr_obsbins_(obsllists,'swcp')
     lwcphead => ptr_obsbins_(obsllists,'lwcp')
 
+   lighthead => ptr_obsbins_(obsllists,'light')
+
 _EXIT_(myname_)
 return
 end subroutine aliasesCreate_
@@ -792,6 +803,8 @@ _ENTRY_(myname_)
 
     swcphead => null()
     lwcphead => null()
+
+   lighthead => null()
 
 _EXIT_(myname_)
 return

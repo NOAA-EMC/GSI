@@ -96,7 +96,6 @@ character(len=3), parameter :: mycvars(ncvars) = (/  &
                 'sf ', 'vp ', 'ps ', 't  ', 'q  ', 'cw ', 'ql ', 'qi ', 'w  ' /)
 logical :: lc_sf,lc_vp,lc_w,lc_ps,lc_t,lc_rh,lc_cw,lc_ql,lc_qi
 real(r_kind),pointer,dimension(:,:)   :: cv_ps=>NULL()
-real(r_kind),pointer,dimension(:,:)   :: cv_vis=>NULL()
 real(r_kind),pointer,dimension(:,:)   :: cv_lcbas=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_sf=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_vp=>NULL()
@@ -105,7 +104,6 @@ real(r_kind),pointer,dimension(:,:,:) :: cv_t=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_rh=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_sfwter=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_vpwter=>NULL()
-real(r_kind),pointer,dimension(:,:)   :: cv_cldch=>NULL()
 
 ! Declare required local state variables
 integer(i_kind), parameter :: nsvars = 12
@@ -115,13 +113,16 @@ character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed he
                 'qr  ', 'qs  ', 'qg  ', 'qh  ' /)
 logical :: ls_u,ls_v,ls_w,ls_prse,ls_q,ls_tsen,ls_ql,ls_qi
 logical :: ls_qr,ls_qs,ls_qg,ls_qh
-real(r_kind),pointer,dimension(:,:)   :: rv_ps,rv_sst
-real(r_kind),pointer,dimension(:,:)   :: rv_gust,rv_vis,rv_pblh,rv_wspd10m,rv_tcamt,rv_lcbas
-real(r_kind),pointer,dimension(:,:)   :: rv_td2m,rv_mxtm,rv_mitm,rv_pmsl,rv_howv,rv_cldch
-real(r_kind),pointer,dimension(:,:)   :: rv_uwnd10m,rv_vwnd10m
-real(r_kind),pointer,dimension(:,:,:) :: rv_u,rv_v,rv_w,rv_prse,rv_q,rv_tsen,rv_tv,rv_oz
-real(r_kind),pointer,dimension(:,:,:) :: rv_rank3
-real(r_kind),pointer,dimension(:,:)   :: rv_rank2
+real(r_kind),pointer,dimension(:,:)   :: rv_ps=>NULL(),rv_sst=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: rv_gust=>NULL(),rv_vis=>NULL(),rv_pblh=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: rv_wspd10m=>NULL(),rv_tcamt,rv_lcbas=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: rv_td2m=>NULL(),rv_mxtm=>NULL(),rv_mitm=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: rv_pmsl=>NULL(),rv_howv=>NULL(),rv_cldch=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: rv_uwnd10m=>NULL(),rv_vwnd10m=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_u=>NULL(),rv_v=>NULL(),rv_w=>NULL(),rv_prse=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_q=>NULL(),rv_tsen=>NULL(),rv_tv=>NULL(),rv_oz=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_rank3=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: rv_rank2=>NULL()
 
 real(r_kind),allocatable,dimension(:,:,:):: uland,vland,uwter,vwter
 
@@ -209,7 +210,7 @@ do jj=1,nsubwin
       call stop2(999)
    endif
 
-!$omp parallel sections private(istatus,ii,ic,id,istatus_oz)
+!$omp parallel sections private(istatus,ii,ic,id,istatus_oz,rv_u,rv_v,rv_prse,rv_q,rv_tsen,uland,vland,uwter,vwter)
 
 !$omp section
 
@@ -337,11 +338,8 @@ do jj=1,nsubwin
       call gsi_bundleputvar ( wbundle, 'gust', rv_gust, istatus )
    end if
    if (icvis >0) then
-      call gsi_bundlegetpointer (wbundle,'vis'  ,cv_vis ,istatus)
       call gsi_bundlegetpointer (rval(jj),'vis'  ,rv_vis , istatus)
-      call gsi_bundleputvar ( wbundle, 'vis' , zero   , istatus )
-      !  Adjoint of convert logvis to vis
-      call logvis_to_vis_ad(cv_vis,rv_vis)
+      call gsi_bundleputvar ( wbundle, 'vis' , rv_vis   , istatus )
    end if
    if (icpblh>0)then
       call gsi_bundlegetpointer (rval(jj),'pblh' ,rv_pblh, istatus)
@@ -387,11 +385,8 @@ do jj=1,nsubwin
       call loglcbas_to_lcbas_ad(cv_lcbas,rv_lcbas)
    end if
    if (iccldch >0) then
-      call gsi_bundlegetpointer (wbundle,'cldch'  ,cv_cldch ,istatus)
       call gsi_bundlegetpointer (rval(jj),'cldch' ,rv_cldch , istatus)
-      call gsi_bundleputvar ( wbundle, 'cldch' , zero   , istatus )
-      !  Adjoint of convert logcldch to cldch
-      call logcldch_to_cldch_ad(cv_cldch,rv_cldch)
+      call gsi_bundleputvar ( wbundle, 'cldch' , rv_cldch  , istatus )
    end if
    if (icuwnd10m>0) then
       call gsi_bundlegetpointer (rval(jj),'uwnd10m' ,rv_uwnd10m, istatus)

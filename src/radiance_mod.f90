@@ -98,8 +98,8 @@ module radiance_mod
     integer(i_kind),pointer,dimension(:) :: lcloud4crtm=> NULL()    ! -1 clear-sky; 0 forwad operator only; 1 iallsky
     logical :: laerosol_fwd,laerosol
     integer(i_kind),pointer,dimension(:) :: laerosol4crtm => NULL() ! -1 no aero used; 0 forwad operator only; 1 iaerosol 
-    real(r_kind),pointer,dimension(:) :: cclr
-    real(r_kind),pointer,dimension(:) :: ccld
+    real(r_kind),pointer,dimension(:) :: cclr => NULL()
+    real(r_kind),pointer,dimension(:) :: ccld => NULL()
   end type rad_obs_type
 
   type(rad_obs_type),save,dimension(:),allocatable :: rad_type_info
@@ -386,7 +386,8 @@ contains
           rtype(i) == 'hsb'    .or. rtype(i) == 'goes_img' .or.  rtype(i) == 'ahi'    .or. &
           rtype(i) == 'avhrr'  .or. rtype(i) == 'amsre'    .or.  rtype(i) == 'ssmis'  .or. & 
           rtype(i) == 'ssmi'   .or. rtype(i) == 'atms'     .or.  rtype(i) == 'cris'   .or. & 
-          rtype(i) == 'amsr2'  .or. rtype(i) == 'gmi'      .or.  rtype(i) == 'saphir'   ) then
+          rtype(i) == 'amsr2'  .or. rtype(i) == 'gmi'      .or.  rtype(i) == 'saphir' .or. &
+          rtype(i) == 'cris-fsr'  ) then
           drtype(i)='rads'
        end if
     end do

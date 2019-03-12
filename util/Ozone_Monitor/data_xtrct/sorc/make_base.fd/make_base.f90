@@ -143,7 +143,7 @@ program oznmon_make_base
 !  loop over the data files, 
 !  read count and penalty values for each channel/region
 !
-   counter = 0 
+   counter = 1 
    read_ctr = 0
    ierror = 0
    do while( ierror == 0 .AND. counter <= nfile )

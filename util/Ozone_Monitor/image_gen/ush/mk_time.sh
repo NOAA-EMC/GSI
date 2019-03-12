@@ -68,13 +68,13 @@ if [[ ${MY_MACHINE} = "wcoss" ]]; then
 elif [[ ${MY_MACHINE} = "theia" ]]; then
 
    $SUB -A ${ACCOUNT} -l procs=1,walltime=0:05:00 -N ${job} -V \
-       -o ${logf} -e ${errf} ${cmdfile}
+        -o ${logf} -e ${errf} ${cmdfile}
 
 elif [[ ${MY_MACHINE} = "cray" ]]; then
 
-      $SUB -q ${JOB_QUEUE} -P ${PROJECT} -o ${logf} -e ${errf} \
-           -R "select[mem>100] rusage[mem=100]" \
-           -M 100 -W 0:05 -J ${job} -cwd ${WORKDIR} ${WORKDIR}/${cmdfile}
+   $SUB -q ${JOB_QUEUE} -P ${PROJECT} -o ${logf} -e ${errf} \
+        -R "select[mem>100] rusage[mem=100]" \
+        -M 100 -W 0:05 -J ${job} -cwd ${WORKDIR} ${WORKDIR}/${cmdfile}
 fi
 
 

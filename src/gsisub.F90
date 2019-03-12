@@ -62,6 +62,7 @@ subroutine gsisub(init_pass,last_pass)
 !                       - add radiance_obstype_init,radiance_parameter_cloudy_init,radiance_parameter_aerosol_init 
 !   2016-07-28  lippi   - add oneobmakerwsupob if 'rw' single ob test and skips radar_bufr_read_all.
 !   2018-02-15  wu      - add code for fv3_regional option
+!   2018-01-04  Apodaca - add lightinfo_read call for GOES/GLM lightning observations  
 !
 !   input argument list:
 !
@@ -85,6 +86,7 @@ subroutine gsisub(init_pass,last_pass)
   use convinfo, only: convinfo_read
   use ozinfo, only: ozinfo_read
   use coinfo, only: coinfo_read
+  use lightinfo, only: lightinfo_read
   use read_l2bufr_mod, only: radar_bufr_read_all
   use oneobmod, only: oneobtest,oneobmakebufr,oneobmakerwsupob,oneob_type
   use aircraftinfo, only: aircraftinfo_read,aircraft_t_bc_pof,aircraft_t_bc,&
@@ -161,8 +163,10 @@ subroutine gsisub(init_pass,last_pass)
            call aircraftinfo_read
      endif
      call convinfo_read
+     call lightinfo_read
      if(print_verbose)then
         call tell('gsisub','returned from convinfo_read()')
+        call tell('gsisub','returned from lightinfo_read()')
      end if
   endif
 

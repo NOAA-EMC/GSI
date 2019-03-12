@@ -102,7 +102,6 @@ VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 USE_ANL=${USE_ANL:-0}
 
-
 err=0
 bcoef_exec=radmon_bcoef
 
@@ -148,9 +147,9 @@ else
 
       for dtype in ${gesanl}; do
 
-         prep_step
+      prep_step
 
-         ctr=`expr $ctr + 1`
+      ctr=`expr $ctr + 1`
 
          if [[ $dtype == "anl" ]]; then
             data_file=${type}_anl.${PDATE}.ieee_d
@@ -169,7 +168,7 @@ else
          fi
  
 
-         rm input
+      rm input
 
 
 cat << EOF > input
@@ -190,42 +189,32 @@ cat << EOF > input
   little_endian=${LITTLE_ENDIAN},
  /
 EOF
-         startmsg
-         ./${bcoef_exec} < input >>${pgmout} 2>>errfile
-         export err=$?; err_chk
-         if [[ $err -ne 0 ]]; then
-            fail=`expr $fail + 1`
-         fi
+      startmsg
+      ./${bcoef_exec} < input >>${pgmout} 2>>errfile
+      export err=$?; err_chk
+      if [[ $err -ne 0 ]]; then
+          fail=`expr $fail + 1`
+      fi
 
 
 #-------------------------------------------------------------------
 #  move data, control, and stdout files to $TANKverf_rad and compress
 #
 
-         if [[ -s ${bcoef_file} ]]; then
-            ${COMPRESS} ${bcoef_file}
-         fi
+      if [[ -s ${data_file} ]]; then
+         mv ${data_file} ${bcoef_file}
+         ${COMPRESS} -f ${bcoef_file}
+         mv ${bcoef_file}* $TANKverf_rad/.
+      fi
 
-         if [[ -s ${bcoef_ctl} ]]; then
-            ${COMPRESS} ${bcoef_ctl}
-         fi
-
+      if [[ -s ${ctl_file} ]]; then
+         mv ${ctl_file} ${bcoef_ctl}
+         ${COMPRESS} -f ${bcoef_ctl}
+         mv ${bcoef_ctl}*  ${TANKverf_rad}/.
+      fi
 
       done  # dtype in $gesanl loop
    done     # type in $SATYPE loop
-
-
-   cwd=`pwd`
-   tar_file=radmon_bcoef.tar
-
-   tar -cf $tar_file bcoef*.ieee_d* bcoef*.ctl*
-   mv $tar_file ${TANKverf_rad}
-   cd ${TANKverf_rad}
-   tar -xf ${tar_file}
-   rm ${tar_file}
-
-   cd $cwd
-
 
    if [[ $fail -eq $ctr || $fail -gt $ctr ]]; then
       err=5

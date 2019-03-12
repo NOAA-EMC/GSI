@@ -18,8 +18,8 @@ if [[ `expr substr $exp 1 6` = "global" ]]; then
       export SETUP_enkf="univaroz=.true.,adp_anglebc=.true.,angord=4,use_edges=.false.,emiss_bc=.true.,"
    fi
 fi
-if [[ `expr substr $exp $((${#exp}-4)) ${#exp}` = "updat" ]]; then
-   export OBSQC_update="closest_obs=.false."
+if [[ `expr substr $exp 1 4` = "rtma" ]]; then
+   export OBSQC_update="pvis=0.2,pcldch=0.1,scale_cv=1.0,estvisoe=2.61,estcldchoe=2.3716,vis_thres=16000.,cldch_thres=16000.,"
 else
    export OBSQC_update=""
 fi

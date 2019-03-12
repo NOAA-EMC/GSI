@@ -105,7 +105,6 @@ character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed he
                 'sf ', 'vp ', 'ps ', 't  ', 'q  ', 'cw ', 'ql ', 'qi ', 'w  ' /)
 logical :: lc_sf,lc_vp,lc_w,lc_ps,lc_t,lc_rh,lc_cw,lc_ql,lc_qi
 real(r_kind),pointer,dimension(:,:)   :: cv_ps=>NULL()
-real(r_kind),pointer,dimension(:,:)   :: cv_vis=>NULL()
 real(r_kind),pointer,dimension(:,:)   :: cv_lcbas=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_sf=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_vp=>NULL()
@@ -114,7 +113,6 @@ real(r_kind),pointer,dimension(:,:,:) :: cv_t=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_rh=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_sfwter=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_vpwter=>NULL()
-real(r_kind),pointer,dimension(:,:)   :: cv_cldch=>NULL()
 
 ! Declare required local state variables
 integer(i_kind), parameter :: nsvars = 12
@@ -124,13 +122,18 @@ character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed he
                 'qr  ', 'qs  ', 'qg  ', 'qh  ' /)
 logical :: ls_u,ls_v,ls_w,ls_prse,ls_q,ls_tsen,ls_ql,ls_qi
 logical :: ls_qr,ls_qs,ls_qg,ls_qh
-real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst
-real(r_kind),pointer,dimension(:,:)   :: sv_gust,sv_vis,sv_pblh,sv_wspd10m,sv_tcamt,sv_lcbas
-real(r_kind),pointer,dimension(:,:)   :: sv_td2m,sv_mxtm,sv_mitm,sv_pmsl,sv_howv,sv_cldch
-real(r_kind),pointer,dimension(:,:)   :: sv_uwnd10m,sv_vwnd10m
-real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_w,sv_prse,sv_q,sv_tsen,sv_tv,sv_oz
-real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
-real(r_kind),pointer,dimension(:,:)   :: sv_rank2
+real(r_kind),pointer,dimension(:,:)   :: sv_ps=>NULL(),sv_sst=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: sv_gust=>NULL(),sv_vis=>NULL(),sv_pblh=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: sv_wspd10m=>NULL(),sv_tcamt=>NULL(),sv_lcbas=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: sv_td2m=>NULL(),sv_mxtm=>NULL(),sv_mitm=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: sv_pmsl=>NULL(),sv_howv=>NULL(),sv_cldch=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: sv_uwnd10m=>NULL(),sv_vwnd10m=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: sv_u=>NULL(),sv_v=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: sv_w=>NULL(),sv_prse=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: sv_q=>NULL(),sv_tsen=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: sv_tv=>NULL(),sv_oz=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: sv_rank3=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: sv_rank2=>NULL()
 
 real(r_kind),allocatable,dimension(:,:,:):: uland,vland,uwter,vwter
 
@@ -232,7 +235,7 @@ do jj=1,nsubwin
       call general_grid2sub(s2g_cv,hwork,wbundle%values)
    end if
 
-!$omp parallel sections private(istatus,ii,ic,id)
+!$omp parallel sections private(istatus,ii,ic,id,sv_u,sv_v,sv_prse,sv_q,sv_tsen,uland,vland,uwter,vwter) 
 
 !$omp section
 
@@ -280,7 +283,6 @@ do jj=1,nsubwin
    call gsi_bundlegetpointer (sval(jj),'tv'  ,sv_tv,  istatus)
    call gsi_bundlegetpointer (sval(jj),'tsen',sv_tsen,istatus)
    call gsi_bundlegetpointer (sval(jj),'q'   ,sv_q ,  istatus)
-
    call gsi_bundlegetpointer (wbundle,'ps' ,cv_ps ,istatus)
    call gsi_bundlegetpointer (wbundle,'t'  ,cv_t,  istatus)
    call gsi_bundlegetpointer (wbundle,'q'  ,cv_rh ,istatus)
@@ -340,10 +342,8 @@ do jj=1,nsubwin
       call gsi_bundlegetvar ( wbundle, 'pblh', sv_pblh, istatus )
    end if
    if (icvis >0) then
-      call gsi_bundlegetpointer (wbundle,'vis',cv_vis,istatus)
       call gsi_bundlegetpointer (sval(jj),'vis'  ,sv_vis , istatus)
-      !  Convert log(vis) to vis
-      call logvis_to_vis(cv_vis,sv_vis)
+      call gsi_bundlegetvar  (wbundle,'vis',sv_vis,istatus)
    end if
    if (icwspd10m>0) then
       call gsi_bundlegetpointer (sval(jj),'wspd10m' ,sv_wspd10m, istatus)
@@ -384,10 +384,8 @@ do jj=1,nsubwin
       call loglcbas_to_lcbas(cv_lcbas,sv_lcbas)
    end if
    if (iccldch >0) then
-      call gsi_bundlegetpointer (wbundle,'cldch',cv_cldch,istatus)
       call gsi_bundlegetpointer (sval(jj),'cldch'  ,sv_cldch , istatus)
-      !  Convert log(cldch) to cldch
-      call logcldch_to_cldch(cv_cldch,sv_cldch)
+      call gsi_bundlegetvar (wbundle,'cldch',sv_cldch,istatus)
    end if
    if (icuwnd10m>0) then
       call gsi_bundlegetpointer (sval(jj),'uwnd10m' ,sv_uwnd10m, istatus)

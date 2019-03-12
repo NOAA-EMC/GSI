@@ -62,11 +62,17 @@ module qcmod
 !                         closest to the analysis time from multiple surface obs. at a station.
 !   2016-05-22  zhu     - add errormod_aircraft
 !   2016-09-16  tong    - Remove tdrgross_fact (not used)
+!   2016-10-13  zhu     - modified qc_amsua for all-sky ATMS
 !   2016-10-20  acollard- Ensure AMSU-A channels 1-6,15 are not assimilated if
 !                         any of these are missing.
 !   2016-11-22  sienkiewicz - fix a couple of typos in HIRS qc
 !   2016-12-14  lippi   - add nml option vadwnd_l2rw_qc.
 !   2016-10-13  zhu     - modified qc_amsua for all-sky ATMS
+!   2018-02-21  yang    - add namelist variables used in module nltransf 
+!   2018-03-22  yang    - remove "logical closest_obs", previously applied to the analysis
+!                         of vis and cldch. the option to use the closest ob to the
+!                         analysis time only is now handled by Ming Hu's "logical l_closeobs"
+!                         for all variables
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -102,12 +108,20 @@ module qcmod
 !   def vadfile         - local name of bufr file containing vad winds (used by read_radar)
 !   def use_poq7        - if true, accept sbuv/2 obs with profile ozone quality flag 7
 !
-!    following used for nonlinear qc:
+! following used for nonlinear qc:
 !
 !   def nlnqc_iter   - logical flag (T=nonlinear qc on, F=nonlinear qc off) for iteration
-!   def njqc -  logical flag (T=Purse's nonlinear qc on, F=off)
-!
+!   def njqc -  logical flag (T=Purser's nonlinear qc on, F=off)
 !   def noiqc        - logic flag for oiqc, noiqc='false' with oiqc on
+!
+! following used for NonLinear TRansformation to visibility and ceiling height
+!   def pvis         - power value in non-linear transformation for vis
+!   def pcldch       - power value in non-linear transformation for cldch
+!   def scale_cv     - scaling constant in meter
+!   def estvisoe     - prescribed obs vis error 
+!   def estcldchoe   - prescribed obs cldch error 
+!   def vis_thres    - threshold value for vis
+!   def cldch_thres  - threshold value for cldch
 !
 !
 ! attributes:
@@ -158,8 +172,9 @@ module qcmod
   public :: igood_qc,ifail_crtm_qc,ifail_satinfo_qc,ifail_interchan_qc,&
             ifail_gross_qc,ifail_cloud_qc,ifail_outside_range,ifail_scanedge_qc
 
-  public :: buddycheck_t,buddydiag_save,closest_obs
+  public :: buddycheck_t,buddydiag_save
   public :: vadwnd_l2rw_qc
+  public :: pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres
 
   logical nlnqc_iter,njqc,vqc
   logical noiqc
@@ -171,13 +186,13 @@ module qcmod
   logical qc_satwnds
   logical buddycheck_t
   logical buddydiag_save
-  logical closest_obs
   logical vadwnd_l2rw_qc
 
   character(10):: vadfile
   integer(i_kind) npres_print
   real(r_kind) dfact,dfact1,erradar_inflate,c_varqc
   real(r_kind) varqc_iter
+  real(r_kind) pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres
   real(r_kind),allocatable,dimension(:)::ptop,pbot,ptopq,pbotq,ptopo3,pboto3
 
 ! Declare variables for QC with Tz retrieval
@@ -367,9 +382,14 @@ contains
     buddydiag_save=.false. ! When true, output files containing buddy check QC info for all
                            !  obs run through the buddy check
 
-    closest_obs=.false.    ! When true, select timely nearest obs.
-
     vadwnd_l2rw_qc=.true.  ! When false, DO NOT run the vadwnd qc on level 2 radial wind obs.
+    pvis=one
+    pcldch=one
+    scale_cv=one
+    estvisoe=one
+    estcldchoe=one
+    vis_thres=16000.0_r_kind
+    cldch_thres=16000.0_r_kind
 
     return
   end subroutine init_qcvars

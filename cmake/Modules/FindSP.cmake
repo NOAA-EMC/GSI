@@ -19,7 +19,7 @@ if(NOT BUILD_SP )
     NAMES libsp_d.a libsp_i4r8.a libsp_v${SP_VER}_d.a
     HINTS 
       $ENV{COREPATH}/lib 
-      /usr/local/jcsda/nwprod_gdas_2014	
+      /usr/local/jcsda/nwprod_gdas_2014/lib	
       ${COREPATH}/sp/v${SP_VER}
       ${COREPATH}/sp/v${SP_VER}/intel
       ${COREPATH}/sp/v${SP_VER}/ips/${COMPILER_VERSION}
@@ -28,6 +28,24 @@ if(NOT BUILD_SP )
      ${NO_DEFAULT_PATH})
     set( sp "sp_v${SP_VER}_d")
     message("Found SP library ${SP_LIBRARY}")
+  endif()
+  if(DEFINED ENV{SP_LIB4} )
+    set(SP_4_LIBRARY $ENV{SP_LIB4} )
+    message("SP library ${SP_4_LIBRARY} set via Environment variable")
+  else()
+    find_library( SP_4_LIBRARY
+    NAMES libsp_4.a libsp_i4r4.a libsp_v${SP_VER}_4.a
+    HINTS 
+      $ENV{COREPATH}/lib 
+      /usr/local/jcsda/nwprod_gdas_2014/lib	
+      ${COREPATH}/sp/v${SP_VER}
+      ${COREPATH}/sp/v${SP_VER}/intel
+      ${COREPATH}/sp/v${SP_VER}/ips/${COMPILER_VERSION}
+    PATH_SUFFIXES
+        lib
+     ${NO_DEFAULT_PATH})
+    set( sp "sp_v${SP_VER}_4")
+    message("Found SP_4 library ${SP_4_LIBRARY}")
   endif()
 endif()
 if( NOT SP_LIBRARY ) # didn't find the library, so build it from source
@@ -51,11 +69,14 @@ if( NOT SP_LIBRARY ) # didn't find the library, so build it from source
 else( NOT SP_LIBRARY )
   if( CORE_LIBRARIES )
     list( APPEND CORE_LIBRARIES ${SP_LIBRARY} )
+    list( APPEND CORE_LIBRARIES ${SP_4_LIBRARY} )
   else()
     set( CORE_LIBRARIES ${SP_LIBRARY} )
+    list( APPEND CORE_LIBRARIES ${SP_4_LIBRARY} )
   endif()
 endif( NOT SP_LIBRARY )
 
 
 set( SP_LIBRARY_PATH ${SP_LIBRARY} CACHE STRING "SP Library Location" )
+set( SP_4_LIBRARY_PATH ${SP_4_LIBRARY} CACHE STRING "SP_4 Library Location" )
 

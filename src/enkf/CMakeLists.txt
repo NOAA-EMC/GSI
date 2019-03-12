@@ -7,7 +7,10 @@ if(BUILD_ENKF)
 
   if(BUILD_PRODUCTION)
     set(ENKF_SUFFIX "gfs")
-    set(ENKF_BASE "global_enkf")
+    set(ENKF_BASE "global_enkf.x")
+  elseif(BUILD_WRF)
+    set(ENKF_SUFFIX "wrf")
+    set(ENKF_BASE "enkf_wrf")
   elseif(BUILD_GFS)
     set(ENKF_SUFFIX "gfs")
     set(ENKF_BASE "enkf_gfs")
@@ -31,7 +34,7 @@ if(BUILD_ENKF)
   netcdf_io_wrf.f90 params.f90 covlocal.f90 fftpack.f90 genqsat1.f90 mpisetup.F90 rnorm.f90
   sorting.f90 specmod.f90 reducedgrid.f90 readozobs.f90 readsatobs.f90 readconvobs.f90
   write_logfile.f90 kdtree2.f90 mpi_readobs.f90 enkf_obsmod.f90 statevec.f90 controlvec.f90
-  observer_${ENKF_SUFFIX}.f90 gridio_${ENKF_SUFFIX}.f90 gridinfo_${ENKF_SUFFIX}.f90
+  observer_${ENKF_SUFFIX}.f90 gridio_${ENKF_SUFFIX}.f90 gridinfo_${ENKF_SUFFIX}.f90 expand_ens.f90
   )
   set(ENKF_SRCS 
   innovstats.f90
@@ -48,7 +51,7 @@ if(BUILD_ENKF)
   gridinfo_${ENKF_SUFFIX}.f90
   enkf_obs_sensitivity.f90 
   )
-  if( NOT HOST-Luna )
+  if( (NOT HOST-Luna) AND (NOT HOST-Venus) )
     find_package( LAPACK REQUIRED )
   endif()
   
@@ -70,5 +73,5 @@ if(BUILD_ENKF)
   add_executable(${ENKFEXEC} enkf_main.f90)
   target_link_libraries(${ENKFEXEC} enkflib enkfdeplib ${GSISHAREDLIB} ${GSILIB} ${CORE_LIBRARIES}
   ${MPI_Fortran_LIBRARIES} ${LAPACK_LIBRARIES} ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES}  ${HDF5_Fortran_HL_LIBRARIES}
-  ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${GSI_LDFLAGS} ${CORE_BUILT} ${CORE_LIBRARIES} ${CORE_BUILT} ${NCDIAG_LIBRARIES} )
+  ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${GSI_LDFLAGS} ${CORE_BUILT} ${CORE_LIBRARIES} ${CORE_BUILT} ${NCDIAG_LIBRARIES} ${EXTRA_LINKER_FLAGS})
 endif()

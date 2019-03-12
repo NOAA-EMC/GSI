@@ -7,8 +7,10 @@ find_file( CONTROL_EXE
     HINTS
         ${CONTROLPATH}
         ${CONTROLPATH}/bin
+        ${CONTROLPATH}/exec
         $ENV{CONTROLPATH}
         $ENV{CONTROLPATH}/bin
+        $ENV{CONTROLPATH}/exec
         $ENV{CONTROLPATH}/src
         ${CMAKE_SOURCE_DIR}/../trunk/src
         ${CMAKE_SOURCE_DIR}/../../trunk/src
@@ -30,8 +32,10 @@ find_file( ENKF_CONTROL_EXE
     HINTS
         ${CONTROLPATH}
         ${CONTROLPATH}/bin
+        ${CONTROLPATH}/exec
         $ENV{CONTROLPATH}
         $ENV{CONTROLPATH}/bin
+        $ENV{CONTROLPATH}/exec
         ${CMAKE_SOURCE_DIR}/../trunk/src/enkf
         ${PROJECT_BINARY_DIR}/../build-trunk/bin
         $ENV{CONTROLPATH}/enkf
