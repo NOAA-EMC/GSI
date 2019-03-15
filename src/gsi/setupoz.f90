@@ -185,6 +185,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   real(r_kind),dimension(nlevs):: pobs,gross,tnoise
   real(r_kind),dimension(nreal+nlevs,nobs):: data
   real(r_kind),dimension(nsig+1)::prsitmp
+  real(r_kind),dimension(nsig)::ozgestmp
   real(r_single),dimension(nlevs):: pob4,grs4,err4
   real(r_single),dimension(ireal,nobs):: diagbuf
   real(r_single),allocatable,dimension(:,:,:)::rdiagbuf
@@ -400,6 +401,12 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
            call grdcrd1(ozp_omi(nloz_omi),prsitmp,nsig+1,-1)
         end if
         
+        call tintrp2a1(ges_oz,ozgestmp,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
+        call tintrp2a1(ges_prsi, prsitmp,dlat,dlon,dtime,hrdifsig,&
+          nsig+1,mype,nfldsig)
+
+
         if (obstype /= 'omieff' .and. obstype /= 'tomseff') then
            call intrp3oz1(ges_oz,ozges,dlat,dlon,ozp,dtime,&
                 nlevs,mype,doz_dz)
@@ -579,6 +586,8 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
                     call fullarray(dhx_dx, dhx_dx_array)
                     call nc_diag_data2d("Observation_Operator_Jacobian", dhx_dx_array)
                  endif
+                call nc_diag_data2d("mass_concentration_of_ozone_in_air", sngl(ozgestmp)) 
+                call nc_diag_data2d("air_pressure_levels",sngl(prsitmp))
               endif
            endif
 
