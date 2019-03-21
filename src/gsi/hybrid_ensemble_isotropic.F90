@@ -1175,6 +1175,7 @@ end subroutine normal_new_factorization_rf_y
     use get_fv3_regional_ensperts_mod, only: get_fv3_regional_ensperts_class
     use get_wrf_nmm_ensperts_mod, only: get_wrf_nmm_ensperts_class
   use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
+    use mpimod, only: mpi_comm_world,ierror
 
     implicit none
 
@@ -1301,7 +1302,7 @@ end subroutine normal_new_factorization_rf_y
 
        else
 
-          if(regional_ensemble_option < 1 .or. regional_ensemble_option > 4) then
+          if(regional_ensemble_option < 1 .or. regional_ensemble_option > 5) then
              if(mype==0) then
                 write(6,'(" IMPROPER CHOICE FOR ENSEMBLE INPUT IN SUBROUTINE LOAD_ENSEMBLE")')
                 write(6,'(" regional_ensemble_option = ",i5)') regional_ensemble_option
@@ -1331,6 +1332,7 @@ end subroutine normal_new_factorization_rf_y
                    call en_perts_get_from_save_fulldomain
                 else
                    call get_gefs_for_regional
+                  call mpi_barrier(mpi_comm_world,ierror)
                 endif
 
 !     pseudo_hybens = .true.: pseudo ensemble hybrid option for hwrf

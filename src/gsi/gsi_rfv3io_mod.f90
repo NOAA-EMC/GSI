@@ -119,7 +119,7 @@ contains
 
   this%tracers=tracers_input
   else
-  this%tracers='fv3_tracers'
+  this%tracers='fv3_tracer'
   endif
   if(present(sfcdata_input))then
 
@@ -132,7 +132,8 @@ contains
 
   this%couplerres=couplerres_input
   else
-  this%couplerres='fv3_coupler.res'
+!clt   this%couplerres='fv3_coupler.res'
+  this%couplerres='coupler.res'
   endif
 
   end subroutine fv3regfilename_init
@@ -222,7 +223,7 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
     ierr=0
     iret=nf90_open(trim(grid_spec),nf90_nowrite,gfile_grid_spec)
     if(iret/=nf90_noerr) then
-       write(6,*)' problem opening ',trim(grid_spec),', Status = ',iret
+       write(6,*)' problem opening1 ',trim(grid_spec),', Status = ',iret
        ierr=1
        return
     endif
@@ -265,7 +266,7 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
 
     iret=nf90_open(ak_bk,nf90_nowrite,gfile_loc)
     if(iret/=nf90_noerr) then
-       write(6,*)' problem opening ',trim(ak_bk),', Status = ',iret
+       write(6,*)' problem opening2 ',trim(ak_bk),', Status = ',iret
        ierr=1
        return
     endif
@@ -753,7 +754,7 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z)
  if(mype==mype_2d ) then
     iret=nf90_open(sfcdata,nf90_nowrite,gfile_loc)
     if(iret/=nf90_noerr) then
-       write(6,*)' problem opening ',trim(sfcdata),', Status = ',iret
+       write(6,*)' problem opening3 ',trim(sfcdata),', Status = ',iret
        return
     endif
     iret=nf90_inquire(gfile_loc,ndimensions,nvariables,nattributes,unlimiteddimid)
@@ -814,7 +815,7 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z)
 !!!! read in orog from dynam !!!!!!!!!!!!
     iret=nf90_open(trim(dynvars ),nf90_nowrite,gfile_loc)
     if(iret/=nf90_noerr) then
-       write(6,*)' problem opening ',trim(dynvars ),gfile_loc,', Status = ',iret
+       write(6,*)' problem opening4 ',trim(dynvars ),gfile_loc,', Status = ',iret
        return
     endif
 
@@ -939,7 +940,8 @@ subroutine gsi_fv3ncdf_read(filenamein,varname,varname2,work_sub,mype_io)
     if(mype==mype_io ) then
        iret=nf90_open(trim(filenamein),nf90_nowrite,gfile_loc)
        if(iret/=nf90_noerr) then
-          write(6,*)' problem opening ',trim(filenamein),gfile_loc,', Status = ',iret
+          write(6,*)' problem opening5 ',trim(filenamein),gfile_loc,', Status = ',iret
+          write(6,*)' problem opening5 with varnam ',trim(varname)
           return
        endif
 
@@ -1047,7 +1049,7 @@ subroutine gsi_fv3ncdf_readuv(dynvarsfile,ges_u,ges_v)
     if(mype==mype_u .or. mype==mype_v) then
        iret=nf90_open(dynvarsfile,nf90_nowrite,gfile_loc)
        if(iret/=nf90_noerr) then
-          write(6,*)' problem opening ',trim(dynvarsfile),', Status = ',iret
+          write(6,*)' problem opening6 ',trim(dynvarsfile),', Status = ',iret
           return
        endif
 
@@ -1437,6 +1439,8 @@ subroutine gsi_fv3ncdf_writeps(filename,varname,var,mype_io,add_saved)
           kp=k+1
           work_b(:,:,k)=(work_bi(:,:,kp)-work_bi(:,:,k))*1000._r_kind
        enddo
+       write(6,*)'thinkdeb delp (nsig+1)(the actual lowest leval  is ',work_bi(12,:,nsig)
+       write(6,*)'thinkdeb delp (nsig)(the actual lowest leval  is ',work_bi(12,:,nsig)
        write(6,*)'thinkdeb delp (nsig)(the actual lowest leval  is ',work_b(12,:,nsig)
 
        print *,'write out ',trim(varname),' to ',trim(filename)
