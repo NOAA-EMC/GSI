@@ -77,11 +77,13 @@ module convinfo
   public :: use_prepb_satwnd
   public :: index_sub
   public :: id_drifter
+  public :: ec_amv_qc
 
   logical diag_conv
   logical :: ihave_pm2_5
   logical :: use_prepb_satwnd
   logical :: id_drifter
+  logical :: ec_amv_qc=.true.
   integer(i_kind) nconvtype,mype_conv
   real(r_kind),allocatable,dimension(:)::ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
            rmesh_conv,pmesh_conv,pmot_conv,ptime_conv

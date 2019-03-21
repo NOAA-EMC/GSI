@@ -47,7 +47,7 @@
   use coinfo, only: diag_co,init_co
   use convinfo, only: init_convinfo, &
                       diag_conv,&
-                      use_prepb_satwnd,id_drifter
+                      use_prepb_satwnd,id_drifter, ec_amv_qc
 
   use oneobmod, only: oblon,oblat,obpres,obhourset,obdattim,oneob_type,&
      oneobtest,magoberr,maginnov,init_oneobmod,pctswitch,lsingleradob,obchan,&
@@ -350,6 +350,7 @@
 !                              from GSD (for RAP/HRRR application)
 !  08-31-2017 Li        add sfcnst_comb for option to read sfc & nst combined file 
 !  08-25-2018 Collard   Introduce bias_zero_start
+!  03-11-2019 Collard   Introduce ec_amv_qc as temporary control of GOES-16/17 AMVs
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -511,6 +512,8 @@
 !     amsr2_method - choose method for AMSR2 noise reduction. 0=no smoothing, 5=default
 !     bias_zero_start - Initialise bias correction from zero (default=true,
 !                        false=mode start method)
+!     ec_amv_qc - If true use additional QC from ECMWF addressing issues with
+!                         upper level GOES-16/17 winds (default = true)
 !     R_option   - Option to use variable correlation length for lcbas based on data
 !                    density - follows Hayden and Purser (1995) (twodvar_regional only)
 !     thin4d - if true, removes thinning of observations due to the location in
@@ -539,7 +542,7 @@
        crtm_coeffs_path,berror_stats, &
        newpc4pred,adp_anglebc,angord,passive_bc,use_edges,emiss_bc,upd_pred, &
        ssmis_method, ssmis_precond, gmi_method, amsr2_method, bias_zero_start, &
-       lobsdiagsave, &
+       ec_amv_qc, lobsdiagsave, &
        l4dvar,lbicg,lsqrtb,lcongrad,lbfgsmin,ltlint,nhr_obsbin,nhr_subwin,&
        mPES_observer,&
        alwaysLocal,&
