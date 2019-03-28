@@ -166,7 +166,7 @@ $ncpc $emiscoef_VISice   ${crtm_coeffs}NPOESS.VISice.EmisCoeff.bin
 $ncpc $emiscoef_VISland  ${crtm_coeffs}NPOESS.VISland.EmisCoeff.bin
 $ncpc $emiscoef_VISsnow  ${crtm_coeffs}NPOESS.VISsnow.EmisCoeff.bin
 $ncpc $emiscoef_VISwater ${crtm_coeffs}NPOESS.VISwater.EmisCoeff.bin
-$ncpc $emiscoef_MWwater  ${crtm_coeffs}FASTEM5.MWwater.EmisCoeff.bin
+$ncpc $emiscoef_MWwater  ${crtm_coeffs}FASTEM6.MWwater.EmisCoeff.bin
 $ncpc $aercoef           ${crtm_coeffs}AerosolCoeff.bin
 $ncpc $cldcoef           ${crtm_coeffs}CloudCoeff.bin
 
