@@ -24,10 +24,13 @@ fixgsi=/scratch4/NCEPDEV/da/save/Cory.R.Martin/GSI/ProdGSI_jedi/fix
 fixcrtm=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/lib/crtm/2.2.3/fix_update
 
 IODACDir=/scratch4/NCEPDEV/da/save/Cory.R.Martin/JEDI/src/ioda-converters
+nccat=$IODACDir/src/gsi-ncdiag/cat_nc_files.py
 pyrad=$IODACDir/src/gsi-ncdiag/rename_rad.py
 pyconvsplit=$IODACDir/src/gsi-ncdiag/split_conv.py
 pyconvrename=$IODACDir/src/gsi-ncdiag/rename_conv.py
 pyconvmerge=$IODACDir/src/gsi-ncdiag/merge_conv.py
+pyconvsubset=$IODACDir/src/gsi-ncdiag/subset_conv.py
+pyradsubset=$IODACDir/src/gsi-ncdiag/subset_rad.py
 
 dumpobs=gdas
 
@@ -243,16 +246,18 @@ cat <<EOF > gsiparm.anl
    niter_no_qc(1)=25,niter_no_qc(2)=0,
    write_diag(1)=.true.,write_diag(2)=.false.,write_diag(3)=.true.,
    qoption=2,
-   gencode=82,factqmin=0.5,factqmax=0.005,deltim=$DELTIM,
-   iguess=-1,
+   gencode=0,factqmin=0.5,factqmax=0.005,deltim=$DELTIM,
+   iguess=-1,tzr_qc=1,
    oneobtest=.false.,retrieval=.false.,l_foto=.false.,
+   sfcnst_comb=.true.,
    use_pbl=.false.,use_compress=.true.,nsig_ext=12,gpstop=50.,
    use_gfs_nemsio=.true.,lrun_subdirs=.true.,use_readin_anl_sfcmask=.false.,
    crtm_coeffs_path='${crtm_coeffs}',
    newpc4pred=.true.,adp_anglebc=.true.,angord=4,passive_bc=.true.,use_edges=.false.,
-   diag_precon=.true.,step_start=1.e-3,emiss_bc=.true.,thin4d=.true.,cwoption=3,
+   diag_precon=.true.,step_start=1.e-3,emiss_bc=.true.,cwoption=3,nhr_obsbin=3,
    verbose=.false.,imp_physics=11,lupp=.true.,
-   binary_diag=.true.,netcdf_diag=.true.,clip_supersaturation=.false.,
+   binary_diag=.false.,netcdf_diag=.true.,clip_supersaturation=.false.,
+   lobsdiag_forenkf=.false.,
    $SETUP
  /
  &GRIDOPTS
@@ -280,11 +285,10 @@ cat <<EOF > gsiparm.anl
  /
  &STRONGOPTS
    tlnmc_option=2,nstrong=1,nvmodes_keep=8,period_max=6.,period_width=1.5,
-   baldiag_full=.false.,baldiag_inc=.false.,
    $STRONGOPTS   
  /
  &OBSQC
-   dfact=0.75,dfact1=3.0,noiqc=.true.,oberrflg=.false.,c_varqc=0.04,
+   dfact=0.75,dfact1=3.0,noiqc=.true.,oberrflg=.false.,c_varqc=0.02,
    use_poq7=.true.,qc_noirjaco3_pole=.true.,vqc=.true.,
    aircraft_t_bc=.true.,biaspredt=1000.0,upd_aircraft=.true.,cleanup_tail=.true.,
    $OBSQC
@@ -357,6 +361,7 @@ OBS_INPUT::
    seviribufr     seviri      m08         seviri_m08          0.0     1     0
    seviribufr     seviri      m09         seviri_m09          0.0     1     0
    seviribufr     seviri      m10         seviri_m10          0.0     1     0
+   seviribufr     seviri      m11         seviri_m11          0.0     1     0 
    hirs4bufr      hirs4       metop-b     hirs4_metop-b       0.0     1     1
    amsuabufr      amsua       metop-b     amsua_metop-b       0.0     1     1
    mhsbufr        mhs         metop-b     mhs_metop-b         0.0     1     1
@@ -394,17 +399,22 @@ OBS_INPUT::
    $LAGDATA
  /
   &HYBRID_ENSEMBLE
+   l_hyb_ens=.false.,
+   generate_ens=.false.,
+   beta_s0=0.125,readin_beta=.false.,
+   s_ens_h=800.,s_ens_v=-0.8,readin_localization=.true.,
+   aniso_a_en=.false.,oz_univ_static=.false.,uv_hyb_ens=.true.,
+   ensemble_path='./ensemble_data/',
+   ens_fast_read=.true.,
    $HYBRIDENSEMBLE
  /
+
   &RAPIDREFRESH_CLDSURF
    dfi_radar_latent_heat_time_period=30.0,
    $RR_CLDSURF
  /
   &CHEM
    $CHEM
- /
-  &NST
-   $NSST
  /
  &SINGLEOB_TEST
    maginnov=0.1,magoberr=0.1,oneob_type='t',
@@ -415,6 +425,7 @@ OBS_INPUT::
  &NST
    nst_gsi=3,
    nstinfo=4,fac_dtl=1,fac_tsl=1,zsea1=0,zsea2=0,
+   $NSST
  /
 EOF
 
@@ -483,12 +494,16 @@ mv diag_* $OutDir/GSI_diags/.
 cd $OutDir/GSI_diags
 
 # for radiance obs
-python $pyrad
+python $pyrad &
 
 # for conventional obs
 python $pyconvsplit
 python $pyconvrename
-python $pyconvmerge
+#python $pyconvmerge this doesn't work unless each variable has the same num of obs
+
+# might also want to subset the files here too (_m and _s)
+python $pyradsubset &
+python $pyconvsubset
 
 # move the output of the python files to final directories
 mkdir -p $OutDir/obs
