@@ -21,7 +21,7 @@ GSIDir=/scratch4/NCEPDEV/da/save/Cory.R.Martin/GSI/
 nccat=/scratch4/NCEPDEV/da/save/Cory.R.Martin/GSI/build_jedi/bin/nc_diag_cat_serial.x
 
 IODACDir=/scratch4/NCEPDEV/da/save/Cory.R.Martin/JEDI/src/ioda-converters
-nccat=$IODACDir/src/gsi-ncdiag/cat_nc_files.py
+#nccat=$IODACDir/src/gsi-ncdiag/cat_nc_files.py
 pyrad=$IODACDir/src/gsi-ncdiag/rename_rad.py
 pyconvsplit=$IODACDir/src/gsi-ncdiag/split_conv.py
 pyconvrename=$IODACDir/src/gsi-ncdiag/rename_conv.py

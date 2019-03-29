@@ -24,7 +24,7 @@ fixgsi=/scratch4/NCEPDEV/da/save/Cory.R.Martin/GSI/ProdGSI_jedi/fix
 fixcrtm=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/lib/crtm/2.2.3/fix_update
 
 IODACDir=/scratch4/NCEPDEV/da/save/Cory.R.Martin/JEDI/src/ioda-converters
-nccat=$IODACDir/src/gsi-ncdiag/cat_nc_files.py
+#nccat=$IODACDir/src/gsi-ncdiag/cat_nc_files.py
 pyrad=$IODACDir/src/gsi-ncdiag/rename_rad.py
 pyconvsplit=$IODACDir/src/gsi-ncdiag/split_conv.py
 pyconvrename=$IODACDir/src/gsi-ncdiag/rename_conv.py
