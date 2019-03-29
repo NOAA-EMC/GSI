@@ -578,7 +578,7 @@ contains
 ! !INPUT PARAMETERS:
 
 
-    integer(i_kind) i,j,k,ich,lunin,lunout,nlines
+    integer(i_kind) i,j,k,ich,lunin,nlines
     integer(i_kind) ip,istat,n,ichan,nstep,edge1,edge2,ntlapupdate,icw,iaeros
     real(r_kind),dimension(npred):: predr
     real(r_kind) tlapm
@@ -609,7 +609,6 @@ contains
     logical cold_start_seviri         ! flag to fix wrong channel numbers for seviri.  True = fix, false = already correct
 
     data lunin / 49 /
-    data lunout / 51 /
 
 !============================================================================
 
@@ -1057,16 +1056,6 @@ contains
                 iuse_rad(j)=-1
              end if
           end do
-
-          if (mype==mype_rad) then
-             open(lunout,file='satbias_ang.out',form='formatted')
-             write(lunout,'(I5)') maxscan
-             do j=1,jpch_rad
-                write(lunout,'(I5,1x,A20,2x,I4,e15.6/100(4x,10f7.3/))') &
-                     j,nusis(j),nuchan(j),tlapmean(j),(cbias(i,j),i=1,maxscan)
-             end do
-             close(lunout)
-          end if
        end if
 
     endif
