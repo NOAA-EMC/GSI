@@ -32,6 +32,32 @@ pyradsubset=$IODACDir/src/gsi-ncdiag/subset_rad.py
 dumpobs=gdas
 
 # load modules here used to compile GSI
+source /apps/lmod/7.7.18/init/sh
+
+module purge
+### load modules
+# system installed
+module load intel
+module load impi
+module load netcdf
+module load grads
+module load rocoto/1.3.0-RC3
+module load slurm
+# /contrib modules
+module use -a /contrib/modulefiles
+module load anaconda/anaconda2
+# /contrib/da modules
+module use -a /contrib/da/modulefiles
+module load boost
+module load eigen
+
+#   NCEPLIBS
+module use -a /scratch3/NCEPDEV/nwprod/lib/modulefiles
+module load nemsio
+module load bacio
+module load w3nco
+module load crtm/v2.2.3
+
 
 
 #####----- normal users need not change anything below this line -----##### 
