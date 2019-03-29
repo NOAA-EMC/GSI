@@ -75,6 +75,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   real(r_kind),parameter:: r1_5  = 1.50_r_kind
   real(r_kind),parameter:: r24   = 24.0_r_kind
   real(r_kind),parameter:: r60   = 60.0_r_kind
+  real(r_kind),parameter:: r90   = 90.0_r_kind
   real(r_kind),parameter:: r360 = 360.0_r_kind
 
   real(r_kind),parameter:: bmiss = 1.0E11_r_kind
@@ -272,6 +273,10 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !          Extract type, date, and location information
            if(clonh >= r360)  clonh = clonh - r360
            if(clonh <  zero)  clonh = clonh + r360
+
+!          Check for valid latitude and longitude
+           if (abs(clonh) > r360) cycle read_loop
+           if (abs(clath) > r90 ) cycle read_loop
 
            dlon_earth_deg = clonh
            dlat_earth_deg = clath
