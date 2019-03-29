@@ -25,7 +25,7 @@ subroutine smooth(grids)
 ! root task.  on return, grids on root will contain
 ! smoothed grids.
 ! smoothing controlled by parameter smoothparm.
-use specmod, only: sptez_s, init_spec_vars, jcap, isinitialized
+use specmod, only: sptez_s, init_spec_vars, isinitialized
 implicit none
 integer(i_kind) np,ierr,m,nmdim,nm,nn,n,delta,npmax
 real(r_single), intent(inout) :: grids(npts,ndim) ! there are ndim 2d grids.

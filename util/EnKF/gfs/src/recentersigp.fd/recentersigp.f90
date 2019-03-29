@@ -45,7 +45,7 @@ program recentersigp
   character(16),dimension(:),allocatable:: fieldlevtyp_di,fieldlevtyp_mi,fieldlevtyp_mo
   integer,dimension(:),allocatable:: fieldlevel_di,fieldlevel_mi,fieldlevel_mo,orderdi,ordermi
   integer nsigi,nsigo,iret,mype,mype1,npe,nanals,ierr
-  integer:: nrec,latb,lonb,levs,npts,n,i,k,nn
+  integer:: nrec,latb,lonb,levs,npts,n,i
   real,allocatable,dimension(:):: rwork1d
   real,allocatable,dimension(:,:)   :: rwork1di,rwork1do,rwork1dmi,rwork1dmo
 

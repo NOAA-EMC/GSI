@@ -72,15 +72,15 @@ program enkf_main
                     numiter, nanals, lupd_obspace_serial, fso_cycling
  ! mpi functions and variables.
  use mpisetup, only:  mpi_initialize, mpi_initialize_io, mpi_cleanup, nproc, &
-                      numproc, mpi_wtime
+                      mpi_wtime
  ! obs and ob priors, associated metadata.
  use enkf_obsmod, only : readobs, obfit_prior, obsprd_prior, &
-                    deltapredx, nobs_sat, obfit_post, obsprd_post, &
+                    nobs_sat, obfit_post, obsprd_post, &
                     obsmod_cleanup, biasprednorminv
  ! innovation statistics.
  use innovstats, only: print_innovstats
  ! grid information
- use gridinfo, only: getgridinfo, gridinfo_cleanup, npts,lonsgrd,latsgrd
+ use gridinfo, only: getgridinfo, gridinfo_cleanup
  ! model state vector 
  use statevec, only: read_ensemble, write_ensemble, statevec_cleanup
  ! load balancing
