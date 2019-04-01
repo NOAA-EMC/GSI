@@ -31,6 +31,8 @@ pyconvrename=$IODACDir/src/gsi-ncdiag/rename_conv.py
 pyconvmerge=$IODACDir/src/gsi-ncdiag/merge_conv.py
 pyconvsubset=$IODACDir/src/gsi-ncdiag/subset_conv.py
 pyradsubset=$IODACDir/src/gsi-ncdiag/subset_rad.py
+pyozrename=$IODACDir/src/gsi-ncdiag/rename_oz.py
+pyozsubset=$IODACDir/src/gsi-ncdiag/subset_oz.py
 
 dumpobs=gdas
 
@@ -43,7 +45,7 @@ export LEVS=64
 # load modules here used to compile GSI
 source /apps/lmod/7.7.18/init/sh
 
-module purge
+#module purge
 ### load modules
 # system installed
 module load intel
@@ -461,6 +463,7 @@ cd $WorkDir
 taskspernode=${SLURM_NTASKS_PER_NODE:-12}
 #taskspernode=${SLURM_NTASKS_PER_NODE:-$SLURM_CPUS_ON_NODE}
 nprocs_gsi=$(( $taskspernode*$SLURM_JOB_NUM_NODES ))
+env
 srun -n$nprocs_gsi ./gsi.x > stdout
 
 # cat diag files
@@ -520,16 +523,20 @@ mv diag_* $OutDir/GSI_diags/.
 cd $OutDir/GSI_diags
 
 # for radiance obs
-python $pyrad &
+python $pyradrename &
 
 # for conventional obs
 python $pyconvsplit
 python $pyconvrename
 #python $pyconvmerge this doesn't work unless each variable has the same num of obs
 
+# for oz
+python $pyozrename
+
 # might also want to subset the files here too (_m and _s)
 python $pyradsubset &
 python $pyconvsubset
+python $pyozsubset
 
 # move the output of the python files to final directories
 mkdir -p $OutDir/obs

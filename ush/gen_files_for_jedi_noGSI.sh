@@ -22,19 +22,20 @@ nccat=/scratch4/NCEPDEV/da/save/Cory.R.Martin/GSI/build_jedi/bin/nc_diag_cat_ser
 
 IODACDir=/scratch4/NCEPDEV/da/save/Cory.R.Martin/JEDI/src/ioda-converters
 #nccat=$IODACDir/src/gsi-ncdiag/cat_nc_files.py
-pyrad=$IODACDir/src/gsi-ncdiag/rename_rad.py
+pyradrename=$IODACDir/src/gsi-ncdiag/rename_rad.py
 pyconvsplit=$IODACDir/src/gsi-ncdiag/split_conv.py
 pyconvrename=$IODACDir/src/gsi-ncdiag/rename_conv.py
 pyconvmerge=$IODACDir/src/gsi-ncdiag/merge_conv.py
 pyconvsubset=$IODACDir/src/gsi-ncdiag/subset_conv.py
 pyradsubset=$IODACDir/src/gsi-ncdiag/subset_rad.py
+pyozrename=$IODACDir/src/gsi-ncdiag/rename_oz.py
+pyozsubset=$IODACDir/src/gsi-ncdiag/subset_oz.py
 
 dumpobs=gdas
 
 # load modules here used to compile GSI
 source /apps/lmod/7.7.18/init/sh
 
-module purge
 ### load modules
 # system installed
 module load intel
@@ -132,16 +133,20 @@ mv diag_* $OutDir/GSI_diags/.
 cd $OutDir/GSI_diags
 
 # for radiance obs
-python $pyrad &
+python $pyradrename &
 
 # for conventional obs
 python $pyconvsplit
 python $pyconvrename
 #python $pyconvmerge this doesn't work unless each variable has the same num of obs
 
+# for oz
+python $pyozrename
+
 # might also want to subset the files here too (_m and _s)
 python $pyradsubset &
 python $pyconvsubset
+python $pyozsubset
 
 # move the output of the python files to final directories
 mkdir -p $OutDir/obs
