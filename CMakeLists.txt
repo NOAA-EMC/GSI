@@ -142,6 +142,13 @@ project(GSI)
       exit()
     endif()
   endif()
+
+  if(BUILD_GSDCLOUD_ARW)
+    set(GSDCLOUDOPT "-DRR_CLOUDANALYSIS" CACHE INTERNAL "" )
+  else(BUILD_GSDCLOUD_ARW)
+    set( GSDCLOUDOPT "" CACHE INTERNAL "" )
+  endif(BUILD_GSDCLOUD_ARW)
+
   set(CMAKE_Fortran_FLAGS_RELEASE "")  
   if (CMAKE_CXX_COMPILER_ID MATCHES "GNU*")
     message("Setting GNU flags")
