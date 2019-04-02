@@ -51,6 +51,9 @@
    elsif( $host =~ /login/ ) {
       $machine = "cray";
    }
+   elsif( $host =~ /m/ || $host =~ /v/ ){
+      $machine = "wcoss_d";			# dell machines are mXXaY/vXXaY
+   }
    elsif( $host =~ /t/ || $host =~ /g/ ){	# wcoss nodes are tXXaY and gXXaY
       $machine = "wcoss";
    }

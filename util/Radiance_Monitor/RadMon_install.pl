@@ -16,7 +16,7 @@
    my $machine = `/usr/bin/perl get_hostname.pl`;
    my $my_machine="export MY_MACHINE=$machine";
 
-   if( $machine ne "cray" && $machine ne "theia" && $machine ne "wcoss" ) {
+   if( $machine ne "cray" && $machine ne "theia" && $machine ne "wcoss" && $machine ne "wcoss_d" ) {
       die( "ERROR --- Unrecognized machine hostname, $machine.  Exiting now...\n" );
    }
    else {
@@ -58,6 +58,9 @@
    }
    elsif( $machine eq "cray" ){
       $tankdir = "/gpfs/hps/emc/da/noscrub/$user_name/nbns";
+   }
+   elsif( $machine eq "wcoss_d" ){
+      $tankdir = "/gpfs/dell2/emc/verification/noscrub/$user_name/nbns";
    }
    else {
       $tankdir = "/global/save/$user_name/nbns";
@@ -196,6 +199,10 @@
       sleep( 1 );
 
    }
+   elsif( $machine eq "wcoss_d" ){
+      $my_ptmp="export MY_PTMP=\${MY_PTMP:-/gpfs/dell2/ptmp}";
+      $my_stmp="export MY_STMP=\${MY_STMP:-/gpfs/dell2/stmp}";
+   }
    elsif( $machine eq "cray" ) {
       $my_ptmp="export MY_PTMP=\${MY_PTMP:-/gpfs/hps/ptmp}";
       $my_stmp="export MY_STMP=\${MY_STMP:-/gpfs/hps/stmp}";
@@ -261,14 +268,14 @@
    }
 
    my $project = "export PROJECT=\${PROJECT:-GDAS-T2O}";
-   if( $machine ne "wcoss" && $machine ne "cray" ) {
+   if( $machine ne "wcoss" && $machine ne "cray" && $machine ne "wcoss_d" ) {
       $project="export PROJECT=";
    } 
 
    my $job_queue="export JOB_QUEUE=";
    if( $machine eq "cray" ) {
       $job_queue="export JOB_QUEUE=\${JOB_QUEUE:-dev}";
-   } elsif( $machine eq "wcoss" ){
+   } elsif( $machine eq "wcoss" || $machine eq "wcoss_d" ){
       $job_queue = "export JOB_QUEUE=\${JOB_QUEUE:-dev_shared}";
    }
 
