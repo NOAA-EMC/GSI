@@ -28,7 +28,7 @@ echo "machine = $machine"
 . ${top_level}/parm/radmon.ver
 
 
-if [[ ${machine} = "theia" || ${machine} = "wcoss" || ${machine} = "cray" ]]; then
+if [[ ${machine} = "theia" || ${machine} = "wcoss" || ${machine} = "wcoss_d" || ${machine} = "cray" ]]; then
    echo Building executables on ${machine}
    echo
 
