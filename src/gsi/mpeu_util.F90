@@ -2010,7 +2010,6 @@ n=0
 rewind(lu)
 done_scan: do
   read(lu,*,iostat=ier) buf
-  write(6,*)'thinkdeb 20 ier is ',ier
   if(ier/=0) exit
   if(trim(buf)==''.or.buf(1:1)=='#'.or.buf(1:1)=='!') cycle ! ignore comments outside table
   ln=len(trim(tname))

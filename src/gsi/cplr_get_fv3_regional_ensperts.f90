@@ -338,6 +338,8 @@ contains
       use gridmod, only: nsig,eta1_ll,pt_ll,aeta1_ll,eta2_ll,aeta2_ll
       use constants, only: zero,one,fv,zero_single,rd_over_cp_mass,one_tenth,h300
       use hybrid_ensemble_parameters, only: grd_ens,q_hyb_ens
+      use hybrid_ensemble_parameters, only: fv3sar_ensemble_opt 
+
       use mpimod, only: mpi_comm_world,ierror,mpi_rtype
       use mpimod, only: npe
       use netcdf_mod, only: nc_check
@@ -429,12 +431,21 @@ contains
     
     call gsi_fv3ncdf_readuv(dynvars,g_u,g_v)
     call gsi_fv3ncdf_read(dynvars,'T','t',g_tsen,mype_t)
+    if (fv3sar_ensemble_opt.eq.0) then 
     call gsi_fv3ncdf_read(dynvars,'DELP','delp',g_prsi,mype_p)
     g_prsi(:,:,grd_ens%nsig+1)=eta1_ll(grd_ens%nsig+1) !thinkto be done , should use eta1_ll from ensemble grid
     do i=grd_ens%nsig,1,-1
        g_prsi(:,:,i)=g_prsi(:,:,i)*0.001_r_kind+g_prsi(:,:,i+1)
     enddo
     g_ps(:,:)=g_prsi(:,:,1)
+    else  ! for the ensemble processed frm CHGRES
+    call gsi_fv3ncdf_read(dynvars,'ps','PS',g_ps,mype_p)
+    g_prsi=g_prsi*0.001_r_kind
+    do k=1,grd_ens%nsig+1
+    g_prsi(:,:,k)=eta1_ll(k)+eta2_ll(k)*g_ps
+    enddo
+
+    endif
     call gsi_fv3ncdf_read(tracers,'SPHUM','sphum',g_q,mype_q)
 !   call gsi_fv3ncdf_read(tracers,'LIQ_WAT','liq_wat',ges_ql,mype_ql)
     call gsi_fv3ncdf_read(tracers,'O3MR','o3mr',g_oz,mype_oz)
