@@ -81,7 +81,7 @@ contains
       call gsi_bundlecreate(en_bar(m),grid_ens,'ensemble',istatus,names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
       if(istatus/=0) then
          write(6,*)' get_fv3_regional_ensperts_netcdf: trouble creating en_bar bundle'
-         call stop2(999)
+         call stop2(9991)
       endif
       enddo ! for m 
   
@@ -105,11 +105,13 @@ contains
   ! LOOP OVER ENSEMBLE MEMBERS 
          do n=1,n_ens
           write(ensfilenam_str,22) trim(adjustl(ensemble_path)),ens_fhrlevs(m),n
+          write(6,*)'thinkdeb22 ens_fhrlevs(mO is ',m, ens_fhrlevs(m) 
+          write(6,*)'ensfilenam_str is ',trim(ensfilenam_str)
 22  format(a,'fv3SAR',i2.2,'_ens_mem',i3.3)
   ! DEFINE INPUT FILE NAME
              fv3_filename%grid_spec=trim(ensfilenam_str)//'-fv3_grid_spec' !exmaple thinktobe
-             fv3_filename%ak_bk=trim(ensfilenam_str)//'fv3_akbk'
-             fv3_filename%dynvars=trim(ensfilenam_str)//'-fv3_dynavars'
+             fv3_filename%ak_bk=trim(ensfilenam_str)//'-fv3_akbk'
+             fv3_filename%dynvars=trim(ensfilenam_str)//'-fv3_dynvars'
              fv3_filename%tracers=trim(ensfilenam_str)//"-fv3_tracer"
              fv3_filename%sfcdata=trim(ensfilenam_str)//"-fv3_sfcdata"
              fv3_filename%couplerres=trim(ensfilenam_str)//"-coupler.res"
@@ -124,12 +126,12 @@ contains
                call gsi_bundlegetpointer(en_perts(n,m),trim(cvars3d(ic3)),w3,istatus)
                if(istatus/=0) then
                   write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' for ensemble member ',n
-                  call stop2(999)
+                  call stop2(9992)
                end if
                call gsi_bundlegetpointer(en_bar(m),trim(cvars3d(ic3)),x3,istatus)
                if(istatus/=0) then
                   write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' for en_bar'
-                  call stop2(999)
+                  call stop2(9993)
                end if
   
                select case (trim(cvars3d(ic3)))
@@ -198,12 +200,12 @@ contains
                call gsi_bundlegetpointer(en_perts(n,m),trim(cvars2d(ic2)),w2,istatus)
                if(istatus/=0) then
                   write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for ensemble member ',n
-                  call stop2(999)
+                  call stop2(9994)
                end if
                call gsi_bundlegetpointer(en_bar(m),trim(cvars2d(ic2)),x2,istatus)
                if(istatus/=0) then
                   write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for en_bar'
-                  call stop2(999)
+                  call stop2(9995)
                end if
   
                select case (trim(cvars2d(ic2)))
@@ -244,7 +246,7 @@ contains
                call gsi_bundlegetpointer(en_bar(m),trim(cvars2d(ic2)),x2,istatus)
                if(istatus/=0) then
                   write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for en_bar to get ps_bar'
-                  call stop2(999)
+                  call stop2(9996)
                end if
    
                do i=1,grd_ens%lon2
@@ -276,7 +278,7 @@ contains
       call gsi_bundledestroy(en_bar(m),istatus)
       if(istatus/=0) then
         write(6,*)' in get_fv3_regional_ensperts_netcdf: trouble destroying en_bar bundle'
-                call stop2(999)
+                call stop2(9997)
       endif
    end do
 
@@ -336,6 +338,8 @@ contains
       use gridmod, only: nsig,eta1_ll,pt_ll,aeta1_ll,eta2_ll,aeta2_ll
       use constants, only: zero,one,fv,zero_single,rd_over_cp_mass,one_tenth,h300
       use hybrid_ensemble_parameters, only: grd_ens,q_hyb_ens
+      use hybrid_ensemble_parameters, only: fv3sar_ensemble_opt 
+
       use mpimod, only: mpi_comm_world,ierror,mpi_rtype
       use mpimod, only: npe
       use netcdf_mod, only: nc_check
@@ -427,12 +431,21 @@ contains
     
     call gsi_fv3ncdf_readuv(dynvars,g_u,g_v)
     call gsi_fv3ncdf_read(dynvars,'T','t',g_tsen,mype_t)
+    if (fv3sar_ensemble_opt.eq.0) then 
     call gsi_fv3ncdf_read(dynvars,'DELP','delp',g_prsi,mype_p)
     g_prsi(:,:,grd_ens%nsig+1)=eta1_ll(grd_ens%nsig+1) !thinkto be done , should use eta1_ll from ensemble grid
     do i=grd_ens%nsig,1,-1
        g_prsi(:,:,i)=g_prsi(:,:,i)*0.001_r_kind+g_prsi(:,:,i+1)
     enddo
     g_ps(:,:)=g_prsi(:,:,1)
+    else  ! for the ensemble processed frm CHGRES
+    call gsi_fv3ncdf_read(dynvars,'ps','PS',g_ps,mype_p)
+    g_prsi=g_prsi*0.001_r_kind
+    do k=1,grd_ens%nsig+1
+    g_prsi(:,:,k)=eta1_ll(k)+eta2_ll(k)*g_ps
+    enddo
+
+    endif
     call gsi_fv3ncdf_read(tracers,'SPHUM','sphum',g_q,mype_q)
 !   call gsi_fv3ncdf_read(tracers,'LIQ_WAT','liq_wat',ges_ql,mype_ql)
     call gsi_fv3ncdf_read(tracers,'O3MR','o3mr',g_oz,mype_oz)
@@ -556,13 +569,13 @@ contains
                                    names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
          if(istatus/=0) then
             write(6,*)' in ens_spread_dualres_regional: trouble creating bundle_anl bundle'
-            call stop2(999)
+            call stop2(9998)
          endif
          call gsi_bundlecreate (sube,grid_ens,'ensemble work ens',istatus, &
                                    names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
          if(istatus/=0) then
             write(6,*)' ens_spread_dualres_regional: trouble creating bundle_ens bundle'
-            call stop2(999)
+            call stop2(9999)
          endif
   
     sp_norm=(one/float(n_ens))

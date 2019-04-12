@@ -119,7 +119,7 @@ contains
 
   this%tracers=tracers_input
   else
-  this%tracers='fv3_tracers'
+  this%tracers='fv3_tracer'
   endif
   if(present(sfcdata_input))then
 
@@ -132,7 +132,8 @@ contains
 
   this%couplerres=couplerres_input
   else
-  this%couplerres='fv3_coupler.res'
+!clt   this%couplerres='fv3_coupler.res'
+  this%couplerres='coupler.res'
   endif
 
   end subroutine fv3regfilename_init
@@ -222,7 +223,7 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
     ierr=0
     iret=nf90_open(trim(grid_spec),nf90_nowrite,gfile_grid_spec)
     if(iret/=nf90_noerr) then
-       write(6,*)' problem opening ',trim(grid_spec),', Status = ',iret
+       write(6,*)' problem opening1 ',trim(grid_spec),', Status = ',iret
        ierr=1
        return
     endif
@@ -265,7 +266,7 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
 
     iret=nf90_open(ak_bk,nf90_nowrite,gfile_loc)
     if(iret/=nf90_noerr) then
-       write(6,*)' problem opening ',trim(ak_bk),', Status = ',iret
+       write(6,*)' problem opening2 ',trim(ak_bk),', Status = ',iret
        ierr=1
        return
     endif
@@ -753,7 +754,7 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z)
  if(mype==mype_2d ) then
     iret=nf90_open(sfcdata,nf90_nowrite,gfile_loc)
     if(iret/=nf90_noerr) then
-       write(6,*)' problem opening ',trim(sfcdata),', Status = ',iret
+       write(6,*)' problem opening3 ',trim(sfcdata),', Status = ',iret
        return
     endif
     iret=nf90_inquire(gfile_loc,ndimensions,nvariables,nattributes,unlimiteddimid)
@@ -814,7 +815,7 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z)
 !!!! read in orog from dynam !!!!!!!!!!!!
     iret=nf90_open(trim(dynvars ),nf90_nowrite,gfile_loc)
     if(iret/=nf90_noerr) then
-       write(6,*)' problem opening ',trim(dynvars ),gfile_loc,', Status = ',iret
+       write(6,*)' problem opening4 ',trim(dynvars ),gfile_loc,', Status = ',iret
        return
     endif
 
@@ -881,6 +882,104 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z)
     deallocate (sfcn2d,a)
     return
 end subroutine gsi_fv3ncdf2d_read
+subroutine gsi_fv2dncdf_read_v1(filenamein,varname,varname2,work_sub,mype_io)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    gsi_fv2dncdf_readv1       
+!   prgmmr: T. Lei                               date: 2019-03-28
+!           modified from gsi_fv3ncdf_read and gsi_fv3ncdf2d_read
+!
+! abstract: read in a 2d field from a netcdf FV3 file in mype_io
+!          then scatter the field to each PE 
+! program history log:
+!
+!   input argument list:
+!     filename    - file name to read from       
+!     varname     - variable name to read in
+!     varname2    - variable name to read in
+!     mype_io     - pe to read in the field
+!
+!   output argument list:
+!     work_sub    - output sub domain field
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$  end documentation block
+
+
+    use kinds, only: r_kind,i_kind
+    use mpimod, only: ierror,mpi_comm_world,npe,mpi_rtype,mype
+    use gridmod, only: lat2,lon2,nsig,nlat,nlon,itotsub,ijn_s,displs_s
+    use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
+    use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
+    use netcdf, only: nf90_inq_varid
+    use netcdf, only: nf90_inquire_variable
+    use mod_fv3_lola, only: fv3_h_to_ll
+    use general_commvars_mod, only: ltosi_s,ltosj_s
+
+    implicit none
+    character(*)   ,intent(in   ) :: varname,varname2,filenamein
+    real(r_kind)   ,intent(out  ) :: work_sub(lat2,lon2) 
+    integer(i_kind)   ,intent(in   ) :: mype_io
+    character(len=128) :: name
+    real(r_kind),allocatable,dimension(:,:,:):: uu
+    integer(i_kind),allocatable,dimension(:):: dim_id,dim
+    real(r_kind),allocatable,dimension(:):: work
+    real(r_kind),allocatable,dimension(:,:):: a
+
+
+    integer(i_kind) n,ns,k,len,ndim
+    integer(i_kind) gfile_loc,var_id,iret
+    integer(i_kind) nz,nzp1,kk,j,mm1,i,ir,ii,jj
+    integer(i_kind) ndimensions,nvariables,nattributes,unlimiteddimid
+
+    mm1=mype+1
+    allocate (work(itotsub))
+
+    if(mype==mype_io ) then
+       iret=nf90_open(trim(filenamein),nf90_nowrite,gfile_loc)
+       if(iret/=nf90_noerr) then
+          write(6,*)' problem opening5 ',trim(filenamein),gfile_loc,', Status = ',iret
+          write(6,*)' problem opening5 with varnam ',trim(varname)
+          return
+       endif
+
+       iret=nf90_inquire(gfile_loc,ndimensions,nvariables,nattributes,unlimiteddimid)
+       allocate(dim(ndimensions))
+       allocate(a(nlat,nlon))
+
+       iret=nf90_inq_varid(gfile_loc,trim(adjustl(name)),var_id)
+       iret=nf90_inquire_variable(gfile_loc,var_id,ndims=ndim)
+       if(allocated(dim_id    )) deallocate(dim_id    )
+       allocate(dim_id(ndim))
+       iret=nf90_inquire_variable(gfile_loc,var_id,dimids=dim_id)
+       if(allocated(uu       )) deallocate(uu       )
+       allocate(uu(dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))))
+       iret=nf90_get_var(gfile_loc,var_id,uu)
+          call fv3_h_to_ll(uu(:,:,1),a,dim(dim_id(1)),dim(dim_id(2)),nlon,nlat)
+          kk=0
+          do n=1,npe
+             do j=1,ijn_s(n)
+                kk=kk+1
+                ii=ltosi_s(kk)
+                jj=ltosj_s(kk)
+                work(kk)=a(ii,jj)
+             end do
+          end do
+
+       iret=nf90_close(gfile_loc)
+       deallocate (uu,a,dim,dim_id)
+
+    endif !mype
+
+    call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
+       work_sub,ijn_s(mm1),mpi_rtype,mype_io,mpi_comm_world,ierror)
+
+    deallocate (work)
+    return
+end subroutine  gsi_fv2dncdf_read_v1 
 
 subroutine gsi_fv3ncdf_read(filenamein,varname,varname2,work_sub,mype_io)
 !$$$  subprogram documentation block
@@ -939,7 +1038,8 @@ subroutine gsi_fv3ncdf_read(filenamein,varname,varname2,work_sub,mype_io)
     if(mype==mype_io ) then
        iret=nf90_open(trim(filenamein),nf90_nowrite,gfile_loc)
        if(iret/=nf90_noerr) then
-          write(6,*)' problem opening ',trim(filenamein),gfile_loc,', Status = ',iret
+          write(6,*)' problem opening5 ',trim(filenamein),gfile_loc,', Status = ',iret
+          write(6,*)' problem opening5 with varnam ',trim(varname)
           return
        endif
 
@@ -1047,7 +1147,7 @@ subroutine gsi_fv3ncdf_readuv(dynvarsfile,ges_u,ges_v)
     if(mype==mype_u .or. mype==mype_v) then
        iret=nf90_open(dynvarsfile,nf90_nowrite,gfile_loc)
        if(iret/=nf90_noerr) then
-          write(6,*)' problem opening ',trim(dynvarsfile),', Status = ',iret
+          write(6,*)' problem opening6 ',trim(dynvarsfile),', Status = ',iret
           return
        endif
 
@@ -1437,8 +1537,17 @@ subroutine gsi_fv3ncdf_writeps(filename,varname,var,mype_io,add_saved)
           kp=k+1
           work_b(:,:,k)=(work_bi(:,:,kp)-work_bi(:,:,k))*1000._r_kind
        enddo
+  
+       write(6,*)'thinkdeb delp (nsig+1)(the actual lowest leval  is ',work_bi(12,:,nsig)
+       write(6,*)'thinkdeb delp (nsig)(the actual lowest leval  is ',work_bi(12,:,nsig)
+       write(6,*)'thinkdeb delp (nsig)(the actual lowest leval  is ',work_b(12,:,nsig)
+       write(6,*)'thinkdeb add_saved is ',add_saved
+       write(6,*)'thinkdeb delp (1:nsig)(the actual lowest leval  is ',work_b(12,12,nsig:1:-1)
 
        print *,'write out ',trim(varname),' to ',trim(filename)
+       do k=1,nsig+1
+          write(6,*)'thinkdebetal12 k, is ',k,' ',eta1_ll(k),eta2_ll(k)
+       enddo
 
        call check( nf90_put_var(gfile_loc,VarId,work_b) )
        call check( nf90_close(gfile_loc) )
