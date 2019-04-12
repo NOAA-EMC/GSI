@@ -30,5 +30,10 @@ cd $IODACDir
 mkdir -p $OutDir/obs
 mkdir -p $OutDir/geovals
 
-which python
 python ./proc_gsi_ncdiag.py -n 24 -o $OutDir/obs -g $OutDir/geovals $OutDir/GSI_diags
+
+# subset obs
+python ./subset_files.py -n 24 -m $OutDir/obs
+python ./subset_files.py -n 24 -s $OutDir/obs
+python ./subset_files.py -n 24 -m $OutDir/geovals
+python ./subset_files.py -n 24 -s $OutDir/geovals
