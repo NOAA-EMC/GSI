@@ -1,5 +1,5 @@
 module get_fv3_regional_ensperts_mod
-!clt started from cplr_get_fv3_regional_ensperts.f90
+!,grd_ens%ns,grd_ens%nsigigclt started from cplr_get_fv3_regional_ensperts.f90
 use abstract_get_fv3_regional_ensperts_mod
   use kinds, only : i_kind
   type, extends(abstract_get_fv3_regional_ensperts_class) :: get_fv3_regional_ensperts_class
@@ -105,8 +105,6 @@ contains
   ! LOOP OVER ENSEMBLE MEMBERS 
          do n=1,n_ens
           write(ensfilenam_str,22) trim(adjustl(ensemble_path)),ens_fhrlevs(m),n
-          write(6,*)'thinkdeb22 ens_fhrlevs(mO is ',m, ens_fhrlevs(m) 
-          write(6,*)'ensfilenam_str is ',trim(ensfilenam_str)
 22  format(a,'fv3SAR',i2.2,'_ens_mem',i3.3)
   ! DEFINE INPUT FILE NAME
              fv3_filename%grid_spec=trim(ensfilenam_str)//'-fv3_grid_spec' !exmaple thinktobe
@@ -348,7 +346,10 @@ contains
       use gsi_rfv3io_mod,only:mype_t,mype_p ,mype_q,mype_oz
       use constants, only: half,zero
       use gsi_rfv3io_mod, only: gsi_fv3ncdf_read 
+      use gsi_rfv3io_mod, only: gsi_fv3ncdf_read_v1
       use gsi_rfv3io_mod, only: gsi_fv3ncdf_readuv
+      use gsi_rfv3io_mod, only: gsi_fv3ncdf_readuv_v1
+      use gsi_rfv3io_mod, only: gsi_fv3ncdf2d_read_v1
   
       implicit none
   !
@@ -395,8 +396,6 @@ contains
       character(len=:),allocatable :: tracers   !='fv3_tracer'
       character(len=:),allocatable :: sfcdata   !='fv3_sfcdata'
       character(len=:),allocatable :: couplerres!='coupler.res'
-      integer(i_kind),allocatable:: ijns2d(:),displss2d(:),ijns(:),displss(:)
-  integer(i_kind),allocatable:: ijnz(:),displsz_g(:)
       
     grid_spec=fv3_filenameginput%grid_spec
     ak_bk=fv3_filenameginput%ak_bk
@@ -405,32 +404,24 @@ contains
     sfcdata=fv3_filenameginput%sfcdata
     couplerres=fv3_filenameginput%couplerres
 
-
       
-    allocate(ijns(npe),ijns2d(npe),ijnz(npe) )
-    allocate(displss(npe),displss2d(npe),displsz_g(npe) )
 
 !cltthinktobe  should be contained in variable like grd_ens
-    do i=1,npe
-       ijns(i)=grd_ens%ijn_s(i)*grd_ens%nsig
-       ijnz(i)=grd_ens%ijn(i)*grd_ens%nsig
-       ijns2d(i)=grd_ens%ijn_s(i)*n2d 
-    enddo
-    displss(1)=0
-    displsz_g(1)=0
-    displss2d(1)=0
-    do i=2,npe
-       displss(i)=displss(i-1)+ ijns(i-1)
-       displsz_g(i)=displsz_g(i-1)+ ijnz(i-1)
-       displss2d(i)=displss2d(i-1)+ ijns2d(i-1)
-    enddo
 
 !   do it=1,nfldsig
-
-
-    
+    write(6,*)'thinkdeb999 fv3sar_ensemble_opt is ',fv3sar_ensemble_opt
+    if(fv3sar_ensemble_opt.eq.0 ) then  
+    write(6,*)'thinkdeb999 fv3sar_ensemble_opt is 0 '
     call gsi_fv3ncdf_readuv(dynvars,g_u,g_v)
+    else
+    write(6,*)'thinkdeb999 fv3sar_ensemble_opt is 1 '
+    call gsi_fv3ncdf_readuv_v1(dynvars,g_u,g_v)
+    endif
+    if(fv3sar_ensemble_opt.eq.0) then
     call gsi_fv3ncdf_read(dynvars,'T','t',g_tsen,mype_t)
+    else
+    call gsi_fv3ncdf_read_v1(dynvars,'t','T',g_tsen,mype_t)
+    endif
     if (fv3sar_ensemble_opt.eq.0) then 
     call gsi_fv3ncdf_read(dynvars,'DELP','delp',g_prsi,mype_p)
     g_prsi(:,:,grd_ens%nsig+1)=eta1_ll(grd_ens%nsig+1) !thinkto be done , should use eta1_ll from ensemble grid
@@ -439,16 +430,25 @@ contains
     enddo
     g_ps(:,:)=g_prsi(:,:,1)
     else  ! for the ensemble processed frm CHGRES
-    call gsi_fv3ncdf_read(dynvars,'ps','PS',g_ps,mype_p)
-    g_prsi=g_prsi*0.001_r_kind
+    call gsi_fv3ncdf2d_read_v1(dynvars,'ps','PS',g_ps,mype_p)
+    g_ps=g_ps*0.001_r_kind
     do k=1,grd_ens%nsig+1
     g_prsi(:,:,k)=eta1_ll(k)+eta2_ll(k)*g_ps
+    write(6,*)'thinkdeb999 etal eta2  in hpa,k = ',k ,' ',eta1_ll(k),eta2_ll(k),g_ps(10,10)
+    write(6,*)'thinkdeb999 g_prsi in hpa,k = ',k ,' ',g_prsi(10,10,k)
     enddo
+    
 
     endif
+     
+    if(fv3sar_ensemble_opt.eq.0) then
     call gsi_fv3ncdf_read(tracers,'SPHUM','sphum',g_q,mype_q)
 !   call gsi_fv3ncdf_read(tracers,'LIQ_WAT','liq_wat',ges_ql,mype_ql)
     call gsi_fv3ncdf_read(tracers,'O3MR','o3mr',g_oz,mype_oz)
+    else
+    call gsi_fv3ncdf_read_v1(tracers,'sphum','SPHUM',g_q,mype_q)
+    call gsi_fv3ncdf_read_v1(tracers,'o3mr','O3MR',g_oz,mype_oz)
+    endif
 
 !!  tsen2tv  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     do k=1,grd_ens%nsig

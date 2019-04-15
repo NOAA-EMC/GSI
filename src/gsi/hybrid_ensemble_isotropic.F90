@@ -1319,7 +1319,7 @@ end subroutine normal_new_factorization_rf_y
              end if
              call stop2(999)
           end if
-
+          write(6,*)'thinkdeb9990-1 regional_ensemble_option is ',regional_ensemble_option
           select case(regional_ensemble_option)
 
              case(1)

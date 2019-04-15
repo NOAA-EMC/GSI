@@ -64,10 +64,13 @@ module gsi_rfv3io_mod
 ! set subroutines to public
   public :: gsi_rfv3io_get_grid_specs
   public :: gsi_fv3ncdf_read
+  public :: gsi_fv3ncdf_read_v1
   public :: gsi_fv3ncdf_readuv
+  public :: gsi_fv3ncdf_readuv_v1
   public :: read_fv3_files 
   public :: read_fv3_netcdf_guess
   public :: wrfv3_netcdf
+  public :: gsi_fv3ncdf2d_read_v1
 
   public :: mype_u,mype_v,mype_t,mype_q,mype_p,mype_oz,mype_ql
   public :: k_slmsk,k_tsea,k_vfrac,k_vtype,k_stype,k_zorl,k_smc,k_stc
@@ -261,6 +264,10 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
           iret=nf90_get_var(gfile_loc,k,grid_lont)
        endif
     enddo
+    write(6,*)'thinkdeb9992 grid_lont i j=12, is ',grid_lont(10:100:10,12)
+    write(6,*)'thinkdeb9992 grid_lont i j=240 is ',grid_lont(10:100:10,24)
+    write(6,*)'thinkdeb9992 grid_latt i=12 is ',grid_latt(12, 12:112:10)
+    write(6,*)'thinkdeb9992 grid_latt i=240 is ',grid_latt(240,10:112:10)
 
     iret=nf90_close(gfile_loc)
 
@@ -882,10 +889,10 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z)
     deallocate (sfcn2d,a)
     return
 end subroutine gsi_fv3ncdf2d_read
-subroutine gsi_fv2dncdf_read_v1(filenamein,varname,varname2,work_sub,mype_io)
+subroutine gsi_fv3ncdf2d_read_v1(filenamein,varname,varname2,work_sub,mype_io)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    gsi_fv2dncdf_readv1       
+! subprogram:    gsi_fv23ncdf2d_readv1       
 !   prgmmr: T. Lei                               date: 2019-03-28
 !           modified from gsi_fv3ncdf_read and gsi_fv3ncdf2d_read
 !
@@ -923,7 +930,6 @@ subroutine gsi_fv2dncdf_read_v1(filenamein,varname,varname2,work_sub,mype_io)
     character(*)   ,intent(in   ) :: varname,varname2,filenamein
     real(r_kind)   ,intent(out  ) :: work_sub(lat2,lon2) 
     integer(i_kind)   ,intent(in   ) :: mype_io
-    character(len=128) :: name
     real(r_kind),allocatable,dimension(:,:,:):: uu
     integer(i_kind),allocatable,dimension(:):: dim_id,dim
     real(r_kind),allocatable,dimension(:):: work
@@ -950,15 +956,24 @@ subroutine gsi_fv2dncdf_read_v1(filenamein,varname,varname2,work_sub,mype_io)
        allocate(dim(ndimensions))
        allocate(a(nlat,nlon))
 
-       iret=nf90_inq_varid(gfile_loc,trim(adjustl(name)),var_id)
+       iret=nf90_inq_varid(gfile_loc,trim(adjustl(varname)),var_id)
+       write(6,*)'thinkdeb99 iret,var_id is ',var_id
+       if(iret/=nf90_noerr) then
+            write(6,*)'thinkdeb999 wrong to get var_id ',var_id
+       endif
+
        iret=nf90_inquire_variable(gfile_loc,var_id,ndims=ndim)
        if(allocated(dim_id    )) deallocate(dim_id    )
        allocate(dim_id(ndim))
        iret=nf90_inquire_variable(gfile_loc,var_id,dimids=dim_id)
        if(allocated(uu       )) deallocate(uu       )
-       allocate(uu(dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))))
+!cltorg       allocate(uu(dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))))
+       allocate(uu(nx,ny,1))
        iret=nf90_get_var(gfile_loc,var_id,uu)
-          call fv3_h_to_ll(uu(:,:,1),a,dim(dim_id(1)),dim(dim_id(2)),nlon,nlat)
+          write(6,*)'thinkdeb999 varname  ',trim(adjustl(varname))
+          write(6,*)'thinkdeb999 in readeps uu ps is ',uu(10,10,1)
+          call fv3_h_to_ll(uu(:,:,1),a,nx,ny,nlon,nlat)
+          write(6,*)'thinkdeb999 in readeps aps is ',a(10,10)
           kk=0
           do n=1,npe
              do j=1,ijn_s(n)
@@ -979,7 +994,7 @@ subroutine gsi_fv2dncdf_read_v1(filenamein,varname,varname2,work_sub,mype_io)
 
     deallocate (work)
     return
-end subroutine  gsi_fv2dncdf_read_v1 
+end subroutine  gsi_fv3ncdf2d_read_v1 
 
 subroutine gsi_fv3ncdf_read(filenamein,varname,varname2,work_sub,mype_io)
 !$$$  subprogram documentation block
@@ -1096,6 +1111,132 @@ subroutine gsi_fv3ncdf_read(filenamein,varname,varname2,work_sub,mype_io)
     return
 end subroutine gsi_fv3ncdf_read
 
+subroutine gsi_fv3ncdf_read_v1(filenamein,varname,varname2,work_sub,mype_io)
+  
+!$$$  subprogram documentation block
+!                 .      .    .                                       .
+! subprogram:    gsi_fv3ncdf_read       
+!            Lei modified from gsi_fv3ncdf_read
+!   prgmmr: wu               org: np22                date: 2017-10-10
+!
+! abstract: read in a field from a netcdf FV3 file in mype_io
+!          then scatter the field to each PE 
+! program history log:
+!
+!   input argument list:
+!     filename    - file name to read from       
+!     varname     - variable name to read in
+!     varname2    - variable name to read in
+!     mype_io     - pe to read in the field
+!
+!   output argument list:
+!     work_sub    - output sub domain field
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$  end documentation block
+
+
+    use kinds, only: r_kind,i_kind
+    use mpimod, only: ierror,mpi_comm_world,npe,mpi_rtype,mype
+    use gridmod, only: lat2,lon2,nsig,nlat,nlon,itotsub,ijn_s
+    use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
+    use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
+    use netcdf, only: nf90_inquire_variable
+    use netcdf, only: nf90_inq_varid
+    use mod_fv3_lola, only: fv3_h_to_ll
+    use general_commvars_mod, only: ltosi_s,ltosj_s
+
+    implicit none
+    character(*)   ,intent(in   ) :: varname,varname2,filenamein
+    real(r_kind)   ,intent(out  ) :: work_sub(lat2,lon2,nsig) 
+    integer(i_kind)   ,intent(in   ) :: mype_io
+    character(len=128) :: name
+    real(r_kind),allocatable,dimension(:,:,:):: uu
+    real(r_kind),allocatable,dimension(:,:,:):: temp0 
+    integer(i_kind),allocatable,dimension(:):: dim_id,dim
+    real(r_kind),allocatable,dimension(:):: work
+    real(r_kind),allocatable,dimension(:,:):: a
+
+
+    integer(i_kind) n,ns,k,len,ndim,var_id
+    integer(i_kind) gfile_loc,iret
+    integer(i_kind) nztmp,nzp1,kk,j,mm1,i,ir,ii,jj
+    integer(i_kind) ndimensions,nvariables,nattributes,unlimiteddimid
+
+    mm1=mype+1
+    allocate (work(itotsub*nsig))
+
+    if(mype==mype_io ) then
+       iret=nf90_open(trim(filenamein),nf90_nowrite,gfile_loc)
+       if(iret/=nf90_noerr) then
+          write(6,*)' problem opening5 ',trim(filenamein),gfile_loc,', Status = ',iret
+          write(6,*)' problem opening5 with varnam ',trim(varname)
+          return
+       endif
+
+       iret=nf90_inquire(gfile_loc,ndimensions,nvariables,nattributes,unlimiteddimid)
+       allocate(dim(ndimensions))
+       allocate(a(nlat,nlon))
+
+       do k=1,ndimensions
+          iret=nf90_inquire_dimension(gfile_loc,k,name,len)
+          dim(k)=len
+       enddo
+
+             allocate(uu(nx,ny,nsig))
+             allocate(temp0(nx,ny,nsig+1))
+
+!cltorg beigin       do k=ndimensions+1,nvariables
+!          iret=nf90_inquire_variable(gfile_loc,k,name,len)
+!          if(trim(name)==varname .or. trim(name)==varname2) then
+!             iret=nf90_inquire_variable(gfile_loc,k,ndims=ndim)
+!             if(allocated(dim_id    )) deallocate(dim_id    )
+!             allocate(dim_id(ndim))
+!             iret=nf90_inquire_variable(gfile_loc,k,dimids=dim_id)
+!             if(allocated(uu        )) deallocate(uu        )
+!             allocate(uu(dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))))
+!             iret=nf90_get_var(gfile_loc,k,uu)
+!             exit
+!          endif
+!       enddo     !   k
+       iret=nf90_inq_varid(gfile_loc,trim(adjustl(varname)),var_id)
+       iret=nf90_get_var(gfile_loc,var_id,temp0)
+       uu(:,:,:)=temp0(:,:,2:(nsig+1))
+
+       nztmp=nsig
+       nzp1=nztmp+1
+       do i=1,nztmp
+          ir=nzp1-i
+          call fv3_h_to_ll(uu(:,:,i),a,nx,ny,nlon,nlat)
+          kk=0
+          do n=1,npe
+             ns=displss(n)+(ir-1)*ijn_s(n)
+             do j=1,ijn_s(n)
+                ns=ns+1
+                kk=kk+1
+                ii=ltosi_s(kk)
+                jj=ltosj_s(kk)
+                work(ns)=a(ii,jj)
+             end do
+          end do
+       enddo ! i
+
+       iret=nf90_close(gfile_loc)
+       deallocate (uu,a,dim)
+       deallocate (temp0)
+
+    endif !mype
+
+    call mpi_scatterv(work,ijns,displss,mpi_rtype,&
+       work_sub,ijns(mm1),mpi_rtype,mype_io,mpi_comm_world,ierror)
+
+    deallocate (work)
+    return
+end subroutine gsi_fv3ncdf_read_v1
+
 subroutine gsi_fv3ncdf_readuv(dynvarsfile,ges_u,ges_v)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1123,6 +1264,7 @@ subroutine gsi_fv3ncdf_readuv(dynvarsfile,ges_u,ges_v)
     use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
     use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
     use netcdf, only: nf90_inquire_variable
+    use netcdf, only: nf90_inq_varid
     use mod_fv3_lola, only: fv3_h_to_ll,nya,nxa,fv3uv2earth
     use general_commvars_mod, only: ltosi_s,ltosj_s
 
@@ -1163,6 +1305,10 @@ subroutine gsi_fv3ncdf_readuv(dynvarsfile,ges_u,ges_v)
 
        allocate(u(dim(1),dim(4)))
        allocate(v(dim(1),dim(4)))
+       write(6,*)'thinkdeb999 0 u,v dims are',dim(1),dim(4)
+       iret=nf90_inq_varid(gfile_loc,trim(adjustl("xaxis_1")),k) !thinkdeb
+       iret=nf90_get_var(gfile_loc,k,u(:,1))
+       write(6,*)'thinkdeb9992 in origin readuv  ',u(1:10,1)
 
        do k=ndimensions+1,nvariables
           iret=nf90_inquire_variable(gfile_loc,k,name,len)
@@ -1175,6 +1321,7 @@ subroutine gsi_fv3ncdf_readuv(dynvarsfile,ges_u,ges_v)
 !    NOTE:   dimension of variables on native fv3 grid.  
 !            u and v have an extra row in one of the dimensions
              if(allocated(uu)) deallocate(uu)
+             write(6,*)'thinkdeb999 varname dim is ',(trim(name)),dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))
              allocate(uu(dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))))
              iret=nf90_get_var(gfile_loc,k,uu)
              if(trim(name)=='u'.or.trim(name)=='U') then
@@ -1220,6 +1367,161 @@ subroutine gsi_fv3ncdf_readuv(dynvarsfile,ges_u,ges_v)
          ges_v,ijns(mm1),mpi_rtype,mype_v,mpi_comm_world,ierror)
     deallocate(work)
 end subroutine gsi_fv3ncdf_readuv
+subroutine gsi_fv3ncdf_readuv_v1(dynvarsfile,ges_u,ges_v)
+!$$$  subprogram documentation block
+! subprogram:    gsi_fv3ncdf_readuv
+!   prgmmr: wu w             org: np22                date: 2017-11-22
+!
+!   2019-04 lei  modified from  gsi_fv3ncdf_readuv to deal with cold start files      .    .                                       .
+! abstract: read in a field from a netcdf FV3 file in mype_u,mype_v
+!           then scatter the field to each PE 
+! program history log:
+!
+!   input argument list:
+!
+!   output argument list:
+!     ges_u       - output sub domain u field
+!     ges_v       - output sub domain v field
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$  end documentation block
+    use constants, only:  half
+    use kinds, only: r_kind,i_kind
+    use mpimod, only: ierror,mpi_comm_world,npe,mpi_rtype,mype
+    use gridmod, only: lat2,lon2,nsig,itotsub,ijn_s
+    use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
+    use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
+    use netcdf, only: nf90_inquire_variable
+    use netcdf, only: nf90_inq_varid
+    use mod_fv3_lola, only: fv3_h_to_ll,nya,nxa,fv3uv2earth
+    use general_commvars_mod, only: ltosi_s,ltosj_s
+
+    implicit none
+    character(*)   ,intent(in   ):: dynvarsfile
+    real(r_kind)   ,intent(out  ) :: ges_u(lat2,lon2,nsig) 
+    real(r_kind)   ,intent(out  ) :: ges_v(lat2,lon2,nsig) 
+    character(len=128) :: name
+    real(r_kind),allocatable,dimension(:,:,:):: uu,temp0
+    integer(i_kind),allocatable,dimension(:):: dim_id,dim
+    real(r_kind),allocatable,dimension(:):: work
+    real(r_kind),allocatable,dimension(:,:):: a
+    real(r_kind),allocatable,dimension(:,:):: uorv
+
+    integer(i_kind) n,ns,k,len,ndim,var_id
+    integer(i_kind) gfile_loc,iret
+    integer(i_kind) nztmp,nzp1,kk,j,mm1,i,ir,ii,jj
+    integer(i_kind) ndimensions,nvariables,nattributes,unlimiteddimid
+
+    allocate (work(itotsub*nsig))
+    mm1=mype+1
+    if(mype==mype_u .or. mype==mype_v) then
+       iret=nf90_open(dynvarsfile,nf90_nowrite,gfile_loc)
+       if(iret/=nf90_noerr) then
+          write(6,*)' problem opening6 ',trim(dynvarsfile),', Status = ',iret
+          return
+       endif
+
+       iret=nf90_inquire(gfile_loc,ndimensions,nvariables,nattributes,unlimiteddimid)
+
+       allocate(dim(ndimensions))
+       allocate(a(nya,nxa))
+
+       do k=1,ndimensions
+          iret=nf90_inquire_dimension(gfile_loc,k,name,len)
+          dim(k)=len
+       enddo
+       allocate(uorv(nx,ny))
+       if(mype.eq.mype_u) then
+       allocate(uu(nx,ny+1,nsig))
+       else ! for mype_v
+       allocate(uu(nx+1,ny,nsig))
+       endif
+
+!cltorg begin       do k=ndimensions+1,nvariables
+!clt          iret=nf90_inquire_variable(gfile_loc,k,name,len)
+!clt          if(trim(name)=='u'.or.trim(name)=='U' .or.  &
+!clt             trim(name)=='v'.or.trim(name)=='V' ) then 
+!clt             iret=nf90_inquire_variable(gfile_loc,k,ndims=ndim)
+!clt             if(allocated(dim_id    )) deallocate(dim_id    )
+!clt             allocate(dim_id(ndim))
+!clt             iret=nf90_inquire_variable(gfile_loc,k,dimids=dim_id)
+!    NOTE:   dimension of variables on native fv3 grid.  
+!            u and v have an extra row in one of the dimensions
+!!             if(allocated(uu)) deallocate(uu)
+!             allocate(uu(dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))))
+!             iret=nf90_get_var(gfile_loc,k,uu)
+!             if(trim(name)=='u'.or.trim(name)=='U') then
+!                allocate(temp1(dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))))
+!                temp1=uu
+!             else if(trim(name)=='v'.or.trim(name)=='V') then
+!                exit
+!             endif
+!          endif
+!       enddo     !   k
+! transfor to earth u/v, interpolate to analysis grid, reverse vertical order
+       if(mype.eq.mype_u) then 
+       iret=nf90_inq_varid(gfile_loc,trim(adjustl("u_s")),var_id)
+       
+       iret=nf90_inquire_variable(gfile_loc,var_id,ndims=ndim)
+       allocate(temp0(nx,ny+1,nsig+1))
+       iret=nf90_get_var(gfile_loc,var_id,temp0)
+       uu(:,:,:)=temp0(:,:,2:nsig+1)
+       deallocate(temp0)
+       endif
+       if(mype.eq.mype_v) then
+       allocate(temp0(nx+1,ny,nsig+1))
+       iret=nf90_inq_varid(gfile_loc,trim(adjustl("v_w")),var_id)
+       iret=nf90_inquire_variable(gfile_loc,var_id,ndims=ndim)
+       iret=nf90_get_var(gfile_loc,var_id,temp0)
+       uu(:,:,:)=(temp0(:,:,2:nsig+1))
+       deallocate (temp0)
+       endif
+       nztmp=nsig
+       nzp1=nztmp+1
+       do i=1,nztmp
+          ir=nzp1-i 
+!cltthinkorg           call fv3uv2earth(temp1(:,:,i),uu(:,:,i),nx,ny,u,v)
+          if(mype==mype_u)then
+!cltthinkdeb             call fv3_h_to_ll(u,a,nx,ny,nxa,nya)
+             do j=1,ny
+             uorv(:,j)=half*(uu(:,j,i)+uu(:,j+1,i))
+             enddo
+             
+             call fv3_h_to_ll(uorv(:,:),a,nx,ny,nxa,nya)
+          else
+!cltthinkorg             call fv3_h_to_ll(v,a,nx,ny,nxa,nya)
+             do j=1,nx
+             uorv(j,:)=half*(uu(j,:,i)+uu(j+1,:,i))
+             enddo
+             call fv3_h_to_ll(uorv(:,:),a,nx,ny,nxa,nya)
+          endif
+          kk=0
+          do n=1,npe
+             ns=displss(n)+(ir-1)*ijn_s(n)
+             do j=1,ijn_s(n)
+                ns=ns+1
+                kk=kk+1
+                ii=ltosi_s(kk)
+                jj=ltosj_s(kk)
+                work(ns)=a(ii,jj)
+             end do
+          end do
+       enddo ! i
+       deallocate(a)
+       deallocate (uu,uorv)
+       iret=nf90_close(gfile_loc)
+    endif ! mype
+
+!!  scatter to ges_u,ges_v !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    call mpi_scatterv(work,ijns,displss,mpi_rtype,&
+         ges_u,ijns(mm1),mpi_rtype,mype_u,mpi_comm_world,ierror)
+    call mpi_scatterv(work,ijns,displss,mpi_rtype,&
+         ges_v,ijns(mm1),mpi_rtype,mype_v,mpi_comm_world,ierror)
+    deallocate(work)
+end subroutine gsi_fv3ncdf_readuv_v1
 
 subroutine wrfv3_netcdf(fv3filenamegin)
 !$$$  subprogram documentation block
@@ -1538,16 +1840,9 @@ subroutine gsi_fv3ncdf_writeps(filename,varname,var,mype_io,add_saved)
           work_b(:,:,k)=(work_bi(:,:,kp)-work_bi(:,:,k))*1000._r_kind
        enddo
   
-       write(6,*)'thinkdeb delp (nsig+1)(the actual lowest leval  is ',work_bi(12,:,nsig)
-       write(6,*)'thinkdeb delp (nsig)(the actual lowest leval  is ',work_bi(12,:,nsig)
-       write(6,*)'thinkdeb delp (nsig)(the actual lowest leval  is ',work_b(12,:,nsig)
-       write(6,*)'thinkdeb add_saved is ',add_saved
-       write(6,*)'thinkdeb delp (1:nsig)(the actual lowest leval  is ',work_b(12,12,nsig:1:-1)
-
-       print *,'write out ',trim(varname),' to ',trim(filename)
-       do k=1,nsig+1
-          write(6,*)'thinkdebetal12 k, is ',k,' ',eta1_ll(k),eta2_ll(k)
-       enddo
+!       do k=1,nsig+1
+!          write(6,*)' is ',k,' ',eta1_ll(k),eta2_ll(k)
+!       enddo
 
        call check( nf90_put_var(gfile_loc,VarId,work_b) )
        call check( nf90_close(gfile_loc) )
