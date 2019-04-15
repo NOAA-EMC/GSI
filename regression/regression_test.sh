@@ -37,7 +37,12 @@ cd $tmpdir
 
 # Other required constants for regression testing
 maxtime=1200
-maxmem=${maxmem:-3400000} # set in regression_param
+# Dew/Mist=26 GB/16 tasks per node
+##maxmem=$((1500000*1))
+# Vapor=110 GB/48 tasks per node
+##maxmem=$((2300000*1))
+# Cirrus=110 GB/32 tasks per node
+maxmem=$((3400000*1))
 
 # Copy stdout and fort.220 files 
 # from $savdir to $tmpdir

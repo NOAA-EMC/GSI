@@ -6,11 +6,11 @@ proc ModulesHelp { } {
 }
 module-whatis "Initialize GSI build/test environment"
 
-module load comp/intel-18.0.1.163
-module load mpi/impi-5.1.3.258
+module load comp/intel-15.0.2.164
+module load mpi/sgi-mpt-2.14
+module load lib/mkl-15.0.2.164
+module load other/comp/gcc-4.6.3-sp1
 module load other/cmake-3.8.2
-module load netcdf
-module load netcdf-fortran
-module load hdf5
+module load other/git-2.11.0
 
 setenv BASEDIR /discover/nobackup/projects/gmao/share/gmao_ops/Baselibs/v4.0.6_build1/x86_64-unknown-linux-gnu/ifort_15.0.2.164-mpt_2.14

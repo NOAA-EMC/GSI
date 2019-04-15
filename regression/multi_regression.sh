@@ -4,7 +4,6 @@ regtests_all="global_T62
               global_T62_ozonly
               global_4dvar_T62
               global_4denvar_T126
-              global_fv3_4denvar_T126
               global_lanczos_T62
               arw_netcdf
               arw_binary
@@ -20,7 +19,6 @@ regtests_all="global_T62
 regtests_debug="global_T62
                 global_4dvar_T62
                 global_4denvar_T126
-                global_fv3_4denvar_T126
                 global_lanczos_T62
                 arw_netcdf
                 arw_binary

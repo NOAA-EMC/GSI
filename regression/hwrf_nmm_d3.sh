@@ -36,7 +36,7 @@ tmpdir=$tmpdir/tmpreg_hwrf_nmm_d3/${exp}
 savdir=$savdir/outreg_hwrf_nmm_d3/${exp}
 
 # Specify GSI fixed field and data directories.
-fixcrtm=${fixcrtm:-$CRTM_FIX}
+#fixgsi=$fixgsi
 
 #datobs=$datobs
 
