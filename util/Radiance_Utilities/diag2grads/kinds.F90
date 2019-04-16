@@ -1,1 +1,1 @@
-../../../src/kinds.F90
+../../../src/gsi/kinds.F90

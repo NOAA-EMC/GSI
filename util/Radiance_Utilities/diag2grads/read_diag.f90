@@ -1,1 +1,1 @@
-../../../src/read_diag.f90
+../../../src/gsi/read_diag.f90

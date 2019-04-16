@@ -28,6 +28,8 @@ module constants
 !   2011-10-27 Huang     - add i_missing and r_missing to detect missing values
 !   2011-11-01 eliu      - add minimum value for cloud water mixing ratio 
 !   2012-03-07 todling   - define lower bound for trace-gases (arbitrary unit as long as small)
+!   2016-02-15 Johnson, Y. Wang, X. Wang - define additional constant values for
+!                                          radar DA, POC: xuguang.wang@ou.edu
 !
 ! Subroutines Included:
 !   sub init_constants_derived - compute derived constants
@@ -73,6 +75,8 @@ module constants
   public :: z_w_max,tfrozen
   public :: qmin,qcmin,tgmin
   public :: i_missing, r_missing
+
+  public :: izero, qimin, qsmin, qgmin,qrmin
 
 ! Declare derived constants
   integer(i_kind):: huge_i_kind
@@ -230,6 +234,22 @@ module constants
   real(r_kind),parameter:: qmin   = 1.e-07_r_kind   ! lower bound on ges_q
   real(r_kind),parameter:: qcmin  = 0.0_r_kind      ! lower bound on ges_cw
   real(r_kind),parameter:: tgmin  = 1.e-15_r_kind   ! lower bound on trace gases
+
+  integer(i_kind),parameter::  izero  = 0
+  real(r_kind),parameter:: qimin  = 0.0_r_kind
+  real(r_kind),parameter:: qgmin  = 0.0_r_kind
+  real(r_kind),parameter:: qsmin  = 0.0_r_kind
+  real(r_kind),parameter:: qrmin  = 0.0_r_kind
+  real(r_kind),parameter:: log10qcmin  = -10_r_single
+  real(r_kind),parameter:: r10log10qcmin  = 1.0e-10_r_single
+  real(r_kind),parameter:: log10qrmin  = -6.0_r_single
+  real(r_kind),parameter:: r10log10qrmin  = 1.0e-6_r_single
+  real(r_kind),parameter:: log10qimin  = -8_r_single
+  real(r_kind),parameter:: r10log10qimin  = 1.0e-8_r_single
+  real(r_kind),parameter:: log10qgmin  = -8_r_single
+  real(r_kind),parameter:: r10log10qgmin  = 1.0e-8_r_single
+  real(r_kind),parameter:: log10qsmin  = -9_r_single
+  real(r_kind),parameter:: r10log10qsmin  = 1.0e-9_r_single
 
 ! Constant used to detect missing input value
   integer(i_kind),parameter:: i_missing=-9999

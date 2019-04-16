@@ -309,7 +309,7 @@ contains
     integer(i_kind),dimension(4):: idateg
     integer(i_kind),dimension(5):: idate5
     real(r_single) hourg4
-    real(r_kind) hourg,temp,t4dv
+    real(r_kind) hourg,temp,t4dv,minuteg
     real(r_kind),dimension(202,2):: time_ges
   
     associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
@@ -343,12 +343,12 @@ contains
           inquire(file=filename,exist=fexist)
           if(fexist)then
              open(in_unit,file=filename,form='unformatted')
-             read(in_unit) idate5,isecond,hourg
+             read(in_unit) idate5,isecond,hourg,minuteg
              close(in_unit)
   !           idate5(5)=0
              call w3fs21(idate5,nmings)
-             nming2=nmings+60*hourg
-             write(6,*)'READ_nems_nmmb_FILES:  sigma guess file, nming2 ',hourg,idate5,nming2
+             nming2=nmings+60*hourg+minuteg
+             write(6,*)'READ_nems_nmmb_FILES:  sigma guess file, nming2 ',hourg,minuteg,idate5,nming2
              t4dv=real((nming2-iwinbgn),r_kind)*r60inv
              if (l4dvar.or.l4densvar) then
                 if (t4dv<zero .OR. t4dv>winlen) cycle
