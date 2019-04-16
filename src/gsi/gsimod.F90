@@ -1227,7 +1227,7 @@
 
   close(11)
 #endif
-
+  write(6,*)'thinkdeb9990 nhr_assilation is ',nhr_assimilation
   if(jcap > jcap_cut)then
     jcap_cut = jcap+1
     if(mype == 0)then
