@@ -670,6 +670,14 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end if
      
      ratio_errors=error/(data(ier,i)+drpx+1.0e6_r_kind*rhgh+r8*ramp)
+
+!JS MOVED THIS HERE
+! Compute innovation
+     if(i_use_2mt4b>0 .and. sfctype) then
+        ddiff = tob-tges2m
+     else
+        ddiff = tob-tges
+     endif
     
 !    Setup dynamic error specification for aircraft recon in hurricanes
  
@@ -691,12 +699,13 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         endif
      endif
 
+!JS MOVED THIS UP A FEW LINES
 ! Compute innovation
-     if(i_use_2mt4b>0 .and. sfctype) then
-        ddiff = tob-tges2m
-     else
-        ddiff = tob-tges
-     endif
+!     if(i_use_2mt4b>0 .and. sfctype) then
+!        ddiff = tob-tges2m
+!     else
+!        ddiff = tob-tges
+!     endif
 
 ! Apply bias correction to innovation
      if (aircraftobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc .or. &

@@ -449,13 +449,21 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      rmaxerr=rmaxerr*qsges
      rmaxerr=max(small2,rmaxerr)
      errorx =(data(ier,i)+dprpx)*qsges
+
+!JS - MOVED TO HERE
+! Interpolate guess moisture to observation location and time
+     call tintrp31(ges_q,qges,dlat,dlon,dpres,dtime, &
+        hrdifsig,mype,nfldsig)
+     
   
 !    Setup dynamic ob error specification for aircraft recon in hurricanes 
      if (itype == 136 ) then
-         errorx = 1.4_r_kind*abs(ddiff)+.0003_r_kind
+        ddiff=qob-qges
+        errorx = 1.4_r_kind*abs(ddiff)+.0003_r_kind
      endif
 
      if (itype == 137 ) then
+        ddiff=qob-qges
         errorx = abs(ddiff)+0.0002_r_kind
      endif
 
@@ -488,10 +496,10 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if (dpres > rsig) ratio_errors=zero
      error=one/(error*qsges)
 
-
+!JS - MOVING THIS UP A FEW LINES
 ! Interpolate guess moisture to observation location and time
-     call tintrp31(ges_q,qges,dlat,dlon,dpres,dtime, &
-        hrdifsig,mype,nfldsig)
+!     call tintrp31(ges_q,qges,dlat,dlon,dpres,dtime, &
+!        hrdifsig,mype,nfldsig)
 
 ! Interpolate 2-m q to obs locations/times
      if(i_use_2mq4b>0 .and. itype > 179 .and. itype < 190 .and.  .not.twodvar_regional)then
@@ -519,10 +527,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         endif
      endif
 
-! Compute innovations
-
      ddiff=qob-qges
-!
+
 !    If requested, setup for single obs test.
      if (oneobtest) then
         ddiff=maginnov*1.e-3_r_kind
