@@ -2295,6 +2295,8 @@
                  call nc_diag_metadata("Observation",                           sngl(tb_obs(ich_diag(i)))  )     ! observed brightness temperature (K)
                  call nc_diag_metadata("Obs_Minus_Forecast_adjusted",           sngl(tbc(ich_diag(i)   ))  )     ! observed - simulated Tb with bias corrrection (K)
                  call nc_diag_metadata("Obs_Minus_Forecast_unadjusted",         sngl(tbcnob(ich_diag(i)))  )     ! observed - simulated Tb with no bias correction (K)
+                 call nc_diag_metadata("Forecast_unadjusted", sngl(tsim(ich_diag(i)))) ! simulated Tb with no bias correction
+                 call nc_diag_metadata("Forecast_adjusted", sngl(tsim_bc(ich_diag(i)))) ! simulated Tb with bias correction
                  errinv = sqrt(varinv(ich_diag(i)))
                  call nc_diag_metadata("Inverse_Observation_Error",             sngl(errinv)          )
                  if (save_jacobian) then

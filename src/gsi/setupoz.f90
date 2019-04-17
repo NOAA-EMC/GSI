@@ -569,6 +569,8 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
                  call nc_diag_metadata("Inverse_Observation_Error",    sngl(errorinv))
                  call nc_diag_metadata("Obs_Minus_Forecast_adjusted",  sngl(ozone_inv(k)))
                  call nc_diag_metadata("Obs_Minus_Forecast_unadjusted",sngl(ozone_inv(k)))
+                 call nc_diag_metadata("Forecast_unadjusted", sngl(ozges(k)))
+                 call nc_diag_metadata("Forecast_adjusted",sngl(ozges(k)))
                  if (obstype == 'gome' .or. obstype == 'omieff'  .or. &
                      obstype == 'omi'  .or. obstype == 'tomseff' ) then
                     call nc_diag_metadata("Solar_Zenith_Angle", sngl(data(isolz,i)) )
@@ -1686,6 +1688,8 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
            call nc_diag_metadata("Obs_Minus_Forecast_unadjusted",sngl(ozone_inv)                )
            call nc_diag_metadata("Reference_Pressure",           sngl(preso3l)                  )
            call nc_diag_metadata("Input_Observation_Error",      sngl(obserror)                 ) 
+           call nc_diag_metadata("Forecast_adjusted", sngl(o3ppmv))
+           call nc_diag_metadata("Forecast_unadjusted", sngl(o3ppmv))
 
            if (lobsdiagsave) then
               do jj=1,miter
