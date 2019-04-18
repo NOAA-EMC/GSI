@@ -784,6 +784,8 @@ subroutine contents_netcdf_diag_
            call nc_diag_metadata("Observation",                           sngl(gps_allptr%rdiag(17))   )
            call nc_diag_metadata("Obs_Minus_Forecast_adjusted",           sngl(gps_allptr%rdiag(17))*sngl(gps_allptr%rdiag(5)) )
            call nc_diag_metadata("Obs_Minus_Forecast_unadjusted",         sngl(gps_allptr%rdiag(17))*sngl(gps_allptr%rdiag(5)) )
+           call nc_diag_metadata("Forecast_adjusted", sngl(gps_allptr%rdiag(17)-(gps_allptr%rdiag(17)*gps_allptr%rdiag(5))))
+           call nc_diag_metadata("Forecast_unadjusted", sngl(gps_allptr%rdiag(17)-(gps_allptr%rdiag(17)*gps_allptr%rdiag(5))))
            call nc_diag_metadata("GPS_Type",                              sngl(gps_allptr%rdiag(20))   )
            call nc_diag_metadata("Temperature_at_Obs_Location",           sngl(gps_allptr%rdiag(18))   )
            call nc_diag_metadata("Specific_Humidity_at_Obs_Location",     sngl(gps_allptr%rdiag(21))   )

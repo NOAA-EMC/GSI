@@ -1705,10 +1705,14 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
               call nc_diag_metadata("u_Observation",                              sngl(data(iuob,i))    )
               call nc_diag_metadata("u_Obs_Minus_Forecast_adjusted",              sngl(dudiff)          )
               call nc_diag_metadata("u_Obs_Minus_Forecast_unadjusted",            sngl(uob-ugesin)      )
+              call nc_diag_metadata("u_Forecast_adjusted", sngl(data(iuob,i)-dudiff))
+              call nc_diag_metadata("u_Forecast_unadjusted",sngl(ugesin))
 
               call nc_diag_metadata("v_Observation",                              sngl(data(ivob,i))    )
               call nc_diag_metadata("v_Obs_Minus_Forecast_adjusted",              sngl(dvdiff)          )
               call nc_diag_metadata("v_Obs_Minus_Forecast_unadjusted",            sngl(vob-vgesin)      )
+              call nc_diag_metadata("v_Forecast_adjusted", sngl(data(ivob,i)-dvdiff))
+              call nc_diag_metadata("v_Forecast_unadjusted",sngl(vgesin))
            else ! (if regional)
 !              replace positions 17-22 with earth relative wind component information
    
@@ -1722,10 +1726,14 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
               call nc_diag_metadata("u_Observation",                              sngl(uob_e)           )
               call nc_diag_metadata("u_Obs_Minus_Forecast_adjusted",              sngl(dudiff_e)        )
               call nc_diag_metadata("u_Obs_Minus_Forecast_unadjusted",            sngl(uob_e-uges_e)    )
+              call nc_diag_metadata("u_Forecast_adjusted", sngl(uob_e-dudiff_e))
+              call nc_diag_metadata("u_Forecast_unadjusted",sngl(uges_e))
 
               call nc_diag_metadata("v_Observation",                              sngl(vob_e)           )
               call nc_diag_metadata("v_Obs_Minus_Forecast_adjusted",              sngl(dvdiff_e)        )
               call nc_diag_metadata("v_Obs_Minus_Forecast_unadjusted",            sngl(vob_e-vges_e)    )
+              call nc_diag_metadata("v_Forecast_adjusted", sngl(vob_e-dvdiff_e))
+              call nc_diag_metadata("v_Forecast_unadjusted",sngl(vges_e))
            endif
 
            if (lobsdiagsave) then
