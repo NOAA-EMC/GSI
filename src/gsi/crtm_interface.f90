@@ -110,7 +110,7 @@ public isfcr                ! = 28 index of surface roughness
 public iff10                ! = 29 index of ten meter wind factor
 public ilone                ! = 30 index of earth relative longitude (degrees)
 public ilate                ! = 31 index of earth relative latitude (degrees)
-public iclr_sky             ! = 7  index of clear sky amount (goes_img, seviri)
+public iclr_sky             ! = 7  index of clear sky amount (goes_img, seviri, abi)
 public isst_navy            ! = 7  index of navy sst retrieval (K) (avhrr_navy)
 public idata_type           ! = 32 index of data type (151=day, 152=night, avhrr_navy)
 public iclavr               ! = 32 index of clavr cloud flag (avhrr)
@@ -248,7 +248,7 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
     1, 4, 2, 2, 8, 7, 2, 6, 5, 2, 3, 8, 1, 6, 9/)
   
 contains
-subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
+subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmod)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    init_crtm initializes things for use with call to crtm from setuprad
@@ -273,6 +273,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
 !                         n_clouds_jac,cloud_names_jac,n_aerosols_jac,aerosol_names_jac,etc 
 !   2015-09-04  J.Jung  - Added mods for CrIS full spectral resolution (FSR) and
 !                         CRTM subset code for CrIS.
+!   2019-04-25  H.Liu   - Add nreal into the namelist to allow flexible SST variable index assigned
 !
 !   input argument list:
 !     init_pass    - state of "setup" processing
@@ -281,6 +282,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
 !     nchanl       - number of channels    
 !     isis         - instrument/sensor character string 
 !     obstype      - observation type
+!     nreal        - number of descriptor information in data_s
 !
 !   output argument list:
 !
@@ -311,7 +313,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
 
 ! argument 
   logical        ,intent(in) :: init_pass
-  integer(i_kind),intent(in) :: nchanl,mype_diaghdr,mype
+  integer(i_kind),intent(in) :: nchanl,mype_diaghdr,mype,nreal
   character(20)  ,intent(in) :: isis
   character(10)  ,intent(in) :: obstype
   type(rad_obs_type),intent(in) :: radmod
@@ -470,15 +472,14 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype,radmod)
  iff10     = 29 ! index of ten meter wind factor
  ilone     = 30 ! index of earth relative longitude (degrees)
  ilate     = 31 ! index of earth relative latitude (degrees)
- icount=ilate
- if(dval_use) icount=icount+2
- if ( obstype == 'avhrr_navy' .or. obstype == 'avhrr' ) icount=icount+2 ! when an independent SST analysis is read in
- itref     = icount+1 ! index of foundation temperature: Tr
- idtw      = icount+2 ! index of diurnal warming: d(Tw) at depth zob
- idtc      = icount+3 ! index of sub-layer cooling: d(Tc) at depth zob
- itz_tr    = icount+4 ! index of d(Tz)/d(Tr)
 
- if (obstype == 'goes_img') then
+ itref     = nreal-3  ! index of foundation temperature: Tr
+ idtw      = nreal-2  ! index of diurnal warming: d(Tw) at depth zob
+ idtc      = nreal-1  ! index of sub-layer cooling: d(Tc) at depth zob
+ itz_tr    = nreal    ! index of d(Tz)/d(Tr)
+
+
+ if (obstype == 'goes_img' .or. obstype == 'abi') then
     iclr_sky      =  7 ! index of clear sky amount
  elseif (obstype == 'avhrr_navy') then
     isst_navy     =  7 ! index of navy sst (K) retrieval
@@ -1414,7 +1415,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !       also, geometryinfo is not needed in crtm aod calculation
         if ( trim(obstype) /= 'modis_aod' ) then
            panglr = data_s(iscan_ang)
-           if(obstype == 'goes_img' .or. obstype == 'seviri')panglr = zero
+           if(obstype == 'goes_img' .or. obstype == 'seviri' .or. obstype == 'abi')panglr = zero
            geometryinfo(1)%sensor_zenith_angle = abs(data_s(ilzen_ang)*rad2deg) ! local zenith angle
            geometryinfo(1)%source_zenith_angle = abs(data_s(iszen_ang))        ! solar zenith angle
            geometryinfo(1)%sensor_azimuth_angle = data_s(ilazi_ang)            ! local azimuth angle

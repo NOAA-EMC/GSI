@@ -132,6 +132,7 @@ OBS_INPUT::
    oscatbufr      uv          null      uv                   0.0     0     0
    ompsnpbufr     ompsnp      npp       ompsnp_npp           0.0     0     0
    ompstcbufr     ompstc8     npp       ompstc8_npp          0.0     2     0
+   abibufr        abi         g16       abi_g16              0.0     1     0
 ::
   &SUPEROB_RADAR
    $SUPERRAD
@@ -377,6 +378,7 @@ OBS_INPUT::
    oscatbufr      uv          null      uv                    1.0     0     0
    ompsnpbufr     ompsnp      npp       ompsnp_npp            1.0     0     0
    ompstcbufr     ompstc8     npp       ompstc8_npp           1.0     6     0
+   abibufr        abi         g16       abi_g16               0.0     7     0
 ::
   &SUPEROB_RADAR
    $SUPERRAD
@@ -720,6 +722,7 @@ OBS_INPUT::
    rapidscatbufr  uv          null        uv                  0.0     0     0
    ompsnpbufr     ompsnp      npp       ompsnp_npp            0.0     0     0
    ompstcbufr     ompstc8     npp       ompstc8_npp           0.0     2     0
+   abibufr        abi         g16       abi_g16               0.0     1     0
 ::
   &SUPEROB_RADAR
    $SUPERRAD
