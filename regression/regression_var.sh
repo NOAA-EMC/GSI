@@ -58,7 +58,7 @@ case $machine in
 
    export ptmp="/gpfs/dell2/ptmp/$LOGNAME/$ptmpName"
 
-   export fixcrtm="/gpfs/dell2/emc/modeling/noscrub/Mark.Potts/fix_update"
+   export fixcrtm="/gpfs/dell2/emc/modeling/noscrub/Michael.Lueken/fix_update"
    if [ -d /gpfs/td2 ]; then
        export casesdir="/gpfs/td2/emc/da/noscrub/Michael.Lueken/CASES"
    elif [ -d /gpfs/gd2 ]; then
@@ -222,7 +222,7 @@ export JCAP="62"
 export global_T62_adate="2016120300"
 export global_4dvar_T62_adate="2014080400"
 export global_hybrid_T126_adate="2014092912"
-export global_4denvar_T126_adate="2016120300"
+export global_4denvar_T126_adate="2019041500"
 export global_fv3_4denvar_T126_adate="2018110500"
 export global_enkf_T62_adate="2014092912"
 export global_lanczos_T62_adate="2014080400"

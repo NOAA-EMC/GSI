@@ -1535,7 +1535,7 @@ contains
    logical mean_only
    logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig,tmi,gmi,amsr2,saphir
    logical ssmis_las,ssmis_uas,ssmis_env,ssmis_img
-   logical avhrr,avhrr_navy,goessndr,goes_img,ahi,seviri
+   logical avhrr,avhrr_navy,goessndr,goes_img,ahi,seviri,abi
 
    character(len=20):: obstype,platid
    character(len=20):: satsens,satsens_id
@@ -1713,6 +1713,7 @@ contains
                    obstype == 'sndrd4'
       goes_img   = obstype == 'goes_img'
       ahi        = obstype == 'ahi'
+      abi        = obstype == 'abi'
       avhrr      = obstype == 'avhrr'
       avhrr_navy = obstype == 'avhrr_navy'
       ssmi       = obstype == 'ssmi'
@@ -1732,7 +1733,7 @@ contains
       saphir     = obstype == 'saphir'
       amsr2      = obstype == 'amsr2'
       mean_only=ssmi .or. ssmis .or. amsre .or. goessndr .or. goes_img & 
-                .or. ahi .or. seviri .or. tmi
+                .or. ahi .or. seviri .or. tmi .or. abi
 !     Allocate arrays and initialize
       if (mean_only) then 
          np=1

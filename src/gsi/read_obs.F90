@@ -132,6 +132,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
 !   2015-01-16  ejones   - add saphir
 !   2016-09-19  guo      - properly initialized nread, in case of for quick-return cases.
 !   2017-11-16  dutta    - adding KOMPSAT5 bufr i.d for reading the data.
+!   2019-03-27  h. liu   - add abi
 !                           
 !
 !   input argument list:
@@ -292,6 +293,10 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
          kidsat=258
        else if(jsatid == 'g15' .or. jsatid == 'g15_prep')then
          kidsat=259
+       else if(jsatid == 'g16' .or. jsatid == 'g16_prep')then
+         kidsat=270
+       else if(jsatid == 'g17' .or. jsatid == 'g17_prep')then
+         kidsat=271
        else if(jsatid == 'n05')then
          kidsat=705
        else if(jsatid == 'n06')then
@@ -660,6 +665,7 @@ subroutine read_obs(ndata,mype)
 !                       - move gsi_nstcoupler_final from create_sfc_grids to here
 !   2018-01-23 Apodaca  - add GOES/GLM lightning data
 !   2019-01-15  Li      - add to handle mbuoyb
+!   2019-03-27  h. liu   - add abi
 !   
 !
 !   input argument list:
@@ -732,7 +738,7 @@ subroutine read_obs(ndata,mype)
 
 !   Declare local variables
     logical :: lexist,ssmis,amsre,sndr,hirs,avhrr,lexistears,lexistdb,use_prsl_full,use_hgtl_full
-    logical :: use_sfc,nuse,use_prsl_full_proc,use_hgtl_full_proc,seviri,mls
+    logical :: use_sfc,nuse,use_prsl_full_proc,use_hgtl_full_proc,seviri,mls,abi
     logical,dimension(ndat):: belong,parallel_read,ears_possible,db_possible
     logical :: modis,use_sfc_any
     logical :: acft_profl_file
@@ -835,6 +841,7 @@ subroutine read_obs(ndata,mype)
        avhrr = index(obstype,'avhrr') /= 0
        modis = index(obstype,'modis') /= 0
        seviri = index(obstype,'seviri') /= 0
+       abi = index(obstype,'abi') /= 0
        mls = index(obstype,'mls') /= 0
        if(obstype == 'mls20' ) nmls_type=nmls_type+1
        if(obstype == 'mls22' ) nmls_type=nmls_type+1
@@ -862,7 +869,7 @@ subroutine read_obs(ndata,mype)
           ditype(i) = 'conv'
        else if (obstype == 'swcp' .or. obstype == 'lwcp') then
           ditype(i) = 'wcp'
-       else if( hirs   .or. sndr      .or.  seviri .or. &
+       else if( hirs   .or. sndr      .or.  seviri .or. abi .or.        &
                obstype == 'airs'      .or. obstype == 'amsua'     .or.  &
                obstype == 'msu'       .or. obstype == 'iasi'      .or.  &
                obstype == 'amsub'     .or. obstype == 'mhs'       .or.  &
@@ -967,6 +974,8 @@ subroutine read_obs(ndata,mype)
              else if(ssmis)then
 !               parallel_read(i)= .true.  
              else if(seviri)then
+                parallel_read(i)= .true.
+             else if(abi)then
                 parallel_read(i)= .true.
              else if(obstype == 'cris' .or. obstype == 'cris-fsr')then
                 parallel_read(i)= .true.
@@ -1704,6 +1713,13 @@ subroutine read_obs(ndata,mype)
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
                      nobs_sub1(1,i),read_rec(i),dval_use)
                 string='READ_SEVIRI'
+!            Process GOES-R ABI RADIANCE  data
+             else if(obstype == 'abi') then
+                call read_abi(mype,val_dat,ithin,rmesh,platid,gstime,&
+                     infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
+                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
+                     nobs_sub1(1,i),read_rec(i),dval_use)
+                string='READ_ABI'
 
         !    Process Himawari-8 AHI RADIANCE  data
              else if(obstype == 'ahi') then
