@@ -140,6 +140,7 @@ subroutine load_balance()
 ! Uses "Graham's rule", which simply
 ! stated, assigns each new work item to the task that currently has the 
 ! smallest load.
+use params, only: ldo_enscalc_option 
 implicit none
 integer(i_kind), allocatable, dimension(:) :: rtmp,numobs
 !real(r_single), allocatable, dimension(:) :: buffer
@@ -177,6 +178,7 @@ rtmp = 0
 numptsperproc = 0
 np = 0
 test_loadbal = .false. ! simple partition for testing
+if(ldo_enscalc_option .ne. 0 ) test_loadbal=.true.
 do n=1,npts
    if (test_loadbal) then
        ! use simple partition (does not use estimated workload) for testing
@@ -393,6 +395,8 @@ subroutine scatter_chunks
 ! decomposition from load_balance
 use controlvec, only: ncdim, grdin
 use params, only: nbackgrounds
+use params, only: ldo_enscalc_option 
+
 implicit none
 
 integer(i_kind), allocatable, dimension(:) :: scounts, displs, rcounts
@@ -454,6 +458,7 @@ call mpi_alltoallv(sendbuf, scounts, displs, mpi_real4, recvbuf, rcounts, displs
                    mpi_real4, mpi_comm_world, ierr)
 
 !==> compute ensemble of first guesses on each task, remove mean from anal.
+if(ldo_enscalc_option ==0)  then !regular enkf run
 !$omp parallel do schedule(dynamic,1)  private(nn,i,nanal,n)
 do nn=1,ncdim
    do i=1,numptsperproc(nproc+1)
@@ -471,6 +476,54 @@ do nn=1,ncdim
    end do
 end do
 !$omp end parallel do
+else if (ldo_enscalc_option ==1 ) then !to calculate ensemble mean
+do nn=1,ncdim
+   do i=1,numptsperproc(nproc+1)
+      do nanal=1,nanals
+         n = ((nanal-1)*ncdim + (nn-1))*npts_max + i
+         anal_chunk(nanal,i,nn,nb) = recvbuf(n)
+      enddo
+      ensmean_chunk(i,nn,nb) = sum(anal_chunk(:,i,nn,nb))/float(nanals)
+      ensmean_chunk_prior(i,nn,nb) = ensmean_chunk(i,nn,nb)
+! remove mean from ensemble.
+      do nanal=2,nanals
+         anal_chunk(nanal,i,nn,nb) = anal_chunk(nanal,i,nn,nb)-ensmean_chunk(i,nn,nb)
+         anal_chunk_prior(nanal,i,nn,nb)=anal_chunk(nanal,i,nn,nb)
+      end do
+         anal_chunk(1,i,nn,nb) =ensmean_chunk(i,nn,nb)- anal_chunk(1,i,nn,nb)
+         anal_chunk_prior(1,i,nn,nb)=0.0
+   end do
+end do
+!$omp end parallel do
+
+else if (ldo_enscalc_option ==2 ) then !to recentter , the first member is the control run 
+do nn=1,ncdim
+   do i=1,numptsperproc(nproc+1)
+      do nanal=1,nanals
+         n = ((nanal-1)*ncdim + (nn-1))*npts_max + i
+         anal_chunk(nanal,i,nn,nb) = recvbuf(n)
+      enddo
+      ensmean_chunk(i,nn,nb) = sum(anal_chunk(2:nanals,i,nn,nb))/float(nanals-1)
+      ensmean_chunk_prior(i,nn,nb) = ensmean_chunk(i,nn,nb)
+! remove mean from ensemble.
+      do nanal=2,nanals
+         anal_chunk(nanal,i,nn,nb) =  (anal_chunk(1,i,nn,nb)-ensmean_chunk(i,nn,nb))
+      end do
+      do nanal=2,nanals
+         anal_chunk_prior(nanal,i,nn,nb)=0.0  
+      enddo
+         anal_chunk(1,i,nn,nb) = 0.0 
+         anal_chunk_prior(1,i,nn,nb)=0.0  
+   end do
+end do
+!$omp end parallel do
+
+else 
+write(6,*)'this ldo_enscalc_option = ',ldo_enscalc_option,' is not available now'
+
+endif
+
+
 
 enddo ! loop over nbackgrounds
 

@@ -180,6 +180,9 @@ logical,public :: write_spread_diag = .false.
 ! if true, use jacobian from GSI stored in diag file to compute
 ! ensemble perturbations in observation space.
 logical,public :: lobsdiag_forenkf = .false.
+integer (i_kind), public :: ldo_enscalc_option = 0
+! true, the program will be used to calculate ensemble mean (=1) or recenter(=2)
+
 ! if true, use netcdf diag files, otherwise use binary diags
 logical,public :: netcdf_diag = .false.
 
@@ -205,7 +208,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
                    lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
                    newpc4pred,nmmb,nhr_anal,nhr_state, fhr_assim,nbackgrounds,nstatefields, &
-                   save_inflation,nobsl_max,lobsdiag_forenkf,netcdf_diag,&
+                   save_inflation,nobsl_max,lobsdiag_forenkf, ldo_enscalc_option,netcdf_diag,&
                    letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs,npefiles,&
                    getkf,getkf_inflation,denkf,modelspace_vloc,dfs_sort,write_spread_diag,&
                    fso_cycling,fso_calculate,imp_physics,lupp,fv3_native
