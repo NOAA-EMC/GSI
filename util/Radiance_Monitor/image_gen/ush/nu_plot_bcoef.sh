@@ -15,7 +15,7 @@
 #         input (namelist)
 #         times.txt  (times of data files, newest to oldest, 1 per line, no delimiters)
 #
-#     2)  Run bcoef.x <input >out
+#     2)  Run rad_ig_bcoef.x <input >out
 #
 #     3)  Move [sat].[n].times.txt to ~/imgn/[source]/pngs/time
 #------------------------------------------------------------------
@@ -36,9 +36,9 @@ echo "  SATYPE_LIST = $1"
 
 
 #----------------------------------
-#  copy bcoef.x executable locally
+#  copy rad_ig_bcoef.x executable locally
 #
-bcoef_exec="bcoef.x"
+bcoef_exec="rad_ig_bcoef.x"
 if [[ ! -e $bcoef_exec ]]; then
    $NCP ${IG_EXEC}/${bcoef_exec}  ./${bcoef_exec}
 fi
@@ -90,7 +90,7 @@ EOF
 
 
    #------------------------------
-   #  run bcoef.x
+   #  run rad_ig_bcoef.x
    #
    ./${bcoef_exec} <$input >${type}.bcoef.out
 

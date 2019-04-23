@@ -24,7 +24,8 @@ program time
   character(8) stid
   character(20) satname,stringd,satsis
   character(10) dum,satype,dplat
-  character(80) string,diag_rad,data_file,dfile,ctl_file
+  character(80) string,data_file,dfile,ctl_file
+  character(500) diag_rad
   character(40),dimension(max_surf_region):: region
   character(40),dimension(mregion):: surf_region
   character :: command
@@ -70,8 +71,9 @@ program time
   character(3)          :: gesanl               = 'ges'
   integer               :: little_endian        = 1
   character(3)          :: rad_area             = 'glb'
+  logical               :: netcdf               = .false.
   namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,nchanl,&
-       suffix,imkctl,imkdata,retrieval,gesanl,little_endian,rad_area
+       suffix,imkctl,imkdata,retrieval,gesanl,little_endian,rad_area,netcdf
 
   data luname,lungrd,lunctl,lndiag / 5, 51, 52, 21 /
   data rmiss /-999./
@@ -143,11 +145,25 @@ program time
   write(6,*)'ctl_file =',ctl_file 
   write(6,*)'suffix   =',suffix
 
-! Open unit to diagnostic file.  Read portion of
-! header to see if file exists
-  open(lndiag,file=diag_rad,form='unformatted')
-  read(lndiag,err=900,end=900) dum
-  rewind lndiag
+!! Open unit to diagnostic file.  Read portion of
+!! header to see if file exists
+!  open(lndiag,file=diag_rad,form='unformatted')
+!  read(lndiag,err=900,end=900) dum
+!  rewind lndiag
+
+  !-----------------------------------------------------
+  !  Note:  Ideally the open_radiag routine would
+  !         return an iret code indicating success or
+  !         failure of the attempt to open the diag file.
+  !         It's ok in this case, only because the calling
+  !         script only starts the executable if the
+  !         diag file is > 0 sized, and the calls to
+  !         actually read the data do support return codes.
+  !         Still, if time permits it would be useful to add
+  !         an iret value to open_radiag().
+  !
+  call set_netcdf_read( netcdf )
+  call open_radiag( diag_rad, lndiag )
 
 ! File exists.  Read header
   call get_radiag ('version',ver,ier)

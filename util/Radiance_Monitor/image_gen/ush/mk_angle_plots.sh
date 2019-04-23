@@ -147,7 +147,8 @@ cd $PLOT_WORK_DIR
 
 list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw cos sin emiss ordang4 ordang3 ordang2 ordang1"
 
-  if [[ ${MY_MACHINE} = "wcoss" || ${MY_MACHINE} = "cray" ]]; then
+  if [[ ${MY_MACHINE} = "wcoss" || ${MY_MACHINE} = "cray" || \
+	${MY_MACHINE} = "wcoss_d" ]]; then
      suffix=a
      cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
      jobname=plot_${RADMON_SUFFIX}_ang_${suffix}
@@ -179,7 +180,7 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw cos 
         $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 600 -W ${wall_tm} \
              -J ${jobname} -cwd ${PWD} $cmdfile
      fi
-  else				# Zeus/theia platform
+  else				# theia platform
      for sat in ${SATLIST}; do
         suffix=${sat} 
         cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}

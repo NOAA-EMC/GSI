@@ -134,9 +134,9 @@ jobname=$DATA_EXTRACT_JOBNAME
 if [[ ${RUN_ENVIR} = dev ]]; then
    if [[ $MY_MACHINE = "wcoss" ]]; then
       total=`bjobs -l | grep ${jobname} | wc -l`
-   elif [[ $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
+   elif [[ $MY_MACHINE = "theia" ]]; then
       total=0
-      line=`qstat -u ${LOGNAME} | grep ${jobname}`
+      line=`squeue -u ${LOGNAME} | grep ${jobname}`
       test=`echo $line | gawk '{print $10}'`
 
       total=`echo $line | grep ${jobname} | wc -l`
@@ -449,12 +449,20 @@ if [ -s $radstat -a -s $biascr ]; then
    if [[ $MY_MACHINE = "wcoss" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -R affinity[core] -o ${logfile} \
            -W 0:10 -J ${jobname} -cwd ${PWD} $HOMEnam/jobs/JNAM_VERFRAD
+
    elif [[ $MY_MACHINE = "cray" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -o ${logfile} -W 0:10 \
            -J ${jobname} -cwd ${PWD} $HOMEnam/jobs/JNAM_VERFRAD
-   elif [[ $MY_MACHINE = "zeus" || $MY_MACHINE = "theia"  ]]; then
-      $SUB -A $ACCOUNT -l procs=1,walltime=0:05:00 -N ${jobname} -V \
-           -j oe -o ${logfile} ${HOMEnam}/jobs/JNAM_VERFRAD
+
+   elif [[ $MY_MACHINE = "theia"  ]]; then
+      $SUB -o ${logfile} \
+	   -J ${jobname} \
+	   -p shared     \
+	   --mem=5g      \
+	   --time=10     \
+	   --account=${ACCOUNT} \
+	   ${HOMEnam}/jobs/JNAM_VERFRAD
+
    fi
 
 fi

@@ -12,7 +12,8 @@ program bcoef
   character(10),dimension(ntype):: ftype
   character(20) dum,satname,stringd,satsis,isis,mod_satname
   character(10) satype,dplat
-  character(80) string,diag_rad,data_file,ctl_file
+  character(80) string,data_file,ctl_file
+  character(500) diag_rad
   character(10) suffix
 
   integer luname,lungrd,lunctl,lncoef,lndiag,ich
@@ -44,8 +45,9 @@ program bcoef
   integer               :: imkdata              = 1
   character(3)          :: gesanl               ='ges'
   integer               :: little_endian        = 1
+  logical               :: netcdf               = .false.
   namelist /input/ satname,npredr,nchanl,iyy,imm,idd,ihh,idhh,&
-       incr,suffix,imkctl,imkdata,retrieval,gesanl,little_endian
+       incr,suffix,imkctl,imkdata,retrieval,gesanl,little_endian,netcdf
 
   data luname,lungrd,lunctl / 5, 51, 52 /
   data lncoef,lndiag /  21, 22 /
@@ -129,11 +131,25 @@ program bcoef
   write(6,*)'suffix   =',suffix
 
 
-! Open unit to diagnostic file.  Read portion of header to 
-! see if file exists
-  open(lndiag,file=diag_rad,form='unformatted')
-  read(lndiag,err=900,end=900) dum
-  rewind lndiag
+  !-----------------------------------------------------
+  !  Note:  Ideally the open_radiag routine would
+  !         return an iret code indicating success or
+  !         failure of the attempt to open the diag file.
+  !         It's ok in this case, only because the calling
+  !         script only starts the executable if the
+  !         diag file is > 0 sized, and the calls to
+  !         actually read the data do support return codes.
+  !         Still, if time permits it would be useful to add
+  !         an iret value to open_radiag().
+  !
+  call set_netcdf_read( netcdf )
+  call open_radiag( diag_rad, lndiag )
+
+!! Open unit to diagnostic file.  Read portion of header to 
+!! see if file exists
+!  open(lndiag,file=diag_rad,form='unformatted')
+!  read(lndiag,err=900,end=900) dum
+!  rewind lndiag
 
 ! File exists.  Read header
   write(6,*)'call read_diag_header'

@@ -6,6 +6,7 @@ proc ModulesHelp { } {
 module-whatis "Set environment variables for THEIA radmon build"
 
 module load intel
+module load netcdf
 
 set FCOMP ifort
 
