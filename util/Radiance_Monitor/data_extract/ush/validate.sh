@@ -108,7 +108,7 @@ cat << EOF > input
  /
 EOF
 
-      ./validate_time.x < input >   stdout.validate.$sat.$ihh
+      ./rad_validate_time.x < input >   stdout.validate.$sat.$ihh
 
 
       gzip time.${sat}.${PDATE}.ieee_d

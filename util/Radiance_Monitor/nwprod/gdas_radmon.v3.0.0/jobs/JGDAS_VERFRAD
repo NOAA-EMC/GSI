@@ -50,13 +50,14 @@ export USHradmon=${USHradmon:-$HOMEradmon/ush}
 ###################################
 # source the parm file
 ###################################
-.  ${PARMmon}/da_mon.parm
+parm_file=${parm_file:-${PARMmon}/da_mon.parm}
+.  ${parm_file}
 
 
 #############################################
 # Run setpdy and initialize PDY variables
 #############################################
-if [[ $MY_MACHINE != "THEIA" ]]; then
+if [[ $MY_MACHINE != "THEIA" && $MY_MACHINE != "theia" ]]; then
    setpdy.sh
    . ./PDY
 fi   

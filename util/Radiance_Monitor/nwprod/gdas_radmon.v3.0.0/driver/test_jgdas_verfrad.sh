@@ -6,14 +6,15 @@
 #BSUB -q dev_shared
 #BSUB -n 1
 #BSUB -R affinity[core]
-#BSUB -M 100
+#BSUB -M 4000
 #BSUB -W 00:20
 #BSUB -a poe
 #BSUB -P GFS-T2O
 
 set -x
 
-export PDATE=2018091718
+#export PDATE=2017050406		# binary radstat
+export PDATE=2018110206			# netcdf radstat
 
 #############################################################
 # Specify whether the run is production or development
@@ -24,8 +25,12 @@ export job=gdas_verfrad.${cyc}
 export pid=${pid:-$$}
 export jobid=${job}.${pid}
 export envir=para
-export DATAROOT=/gpfs/td2/emc/da/noscrub/${LOGNAME}/test_data
-export COMROOT=/ptmpp1/$LOGNAME/com
+export DATAROOT=/gpfs/gd2/emc/da/noscrub/${LOGNAME}/test_data
+export COMROOT=/ptmpd1/$LOGNAME/com
+
+if [[ ! -d ${COMROOT}/logs/jlogfiles ]]; then
+   mkdir -p ${COMROOT}/logs/jlogfiles
+fi
 
 
 #############################################################
@@ -59,13 +64,18 @@ export POE=YES
 # Set user specific variables
 #############################################################
 export RADMON_SUFFIX=testrad
-export NWTEST=/gpfs/td2/emc/da/noscrub/Edward.Safford/ProdGSI/util/Radiance_Monitor/nwprod
+export NWTEST=/gpfs/gd2/emc/da/noscrub/Edward.Safford/ProdGSI/util/Radiance_Monitor/nwprod
+
 export HOMEgdas=${NWTEST}/gdas_radmon.${gdas_radmon_ver}
+export HOMEgfs=${HOMEgdas}
+export FIXgdas=${FIXgdas:-$HOMEgfs/fix}
+
 export JOBGLOBAL=${HOMEgdas}/jobs
 export HOMEradmon=${NWTEST}/radmon_shared.${radmon_shared_ver}
 export COM_IN=${DATAROOT}
 export TANKverf=${COMROOT}/${RADMON_SUFFIX}
 
+export parm_file=${HOMEgdas}/parm/gdas_radmon.parm
 
 #############################################################
 # Execute job

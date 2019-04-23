@@ -265,8 +265,8 @@ for type in ${SATYPE}; do
    echo channels = $nchan
 
    #-------------------------------------------------------------------
-   #  Cut out the iuse flags from the ctl file and dump them
-   #  into the channel.txt file for make_base executable to access
+   #  Cut out the iuse flags from the ctl file and dump them into
+   #  the channel.txt file for rad_make_base.x executable to access
    #-------------------------------------------------------------------
    gawk '/iuse/{print $8}' ${type}.ctl >> channel.txt
 
@@ -274,7 +274,7 @@ for type in ${SATYPE}; do
    #  Copy the executable and run it 
    #------------------------------------------------------------------
    out_file=${type}.base
-   $NCP ${DE_EXEC}/make_base ./
+   $NCP ${DE_EXEC}/rad_make_base.x ./
 
 cat << EOF > input
  &INPUT
@@ -287,7 +287,7 @@ cat << EOF > input
  /
 EOF
 
-   ./make_base < input > stdout.${type}.base
+   ./rad_make_base.x < input > stdout.${type}.base
 
    #-------------------------------------------------------------------
    #  Copy base file back to $tmpdir 

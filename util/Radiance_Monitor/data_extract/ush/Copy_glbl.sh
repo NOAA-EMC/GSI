@@ -185,7 +185,7 @@ if [[ $nfile_src -gt 0 ]]; then
 
 
 #  run validate.sh
-#    1.  copy validate.sh and validate_data.x locally
+#    1.  copy validate.sh and rad_validate_data.x locally
 #    2.  run validate.sh 
 #    3.  clean up
 #           rm validate.sh, validate_data.x
@@ -193,7 +193,7 @@ if [[ $nfile_src -gt 0 ]]; then
 #           make sure *.base and *.tar are removed
 
    if [[ $DO_DATA_RPT -eq 1 ]]; then
-      $NCP ${DE_EXEC}/validate_time.x ${test_dir}/.
+      $NCP ${DE_EXEC}/rad_validate_time.x ${test_dir}/.
       $NCP $DE_SCRIPTS/validate.sh    ${test_dir}/.
       ./validate.sh ${PDATE}
    fi
@@ -409,7 +409,7 @@ if [[ $exit_value == 0 ]]; then
    #--------------------------------------------------------------------
    # Remove processing scripts/executables and exit.
    #--------------------------------------------------------------------
-   rm -f validate_time.x
+   rm -f rad_validate_time.x
    rm -f validate.sh 
    rm -f radmon_err_rpt.sh  
    rm -f radmon_getchgrp.pl  
