@@ -1696,6 +1696,12 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
     call nc_diag_data2d("geopotential_height", sngl(hsges))
     call nc_diag_metadata("surface_pressure", sngl(psges))
 
+    ! need additional arrays for GeoVaLs for T2
+    call nc_diag_data2d("atmosphere_pressure_coordinate", sngl(prsltmp2))
+    call nc_diag_metadata("surface_temperature",sngl(tgges))
+    call nc_diag_metadata("surface_roughness", sngl(roges))
+    call nc_diag_metadata("landmask",msges)
+
     if (save_jacobian) then
        call fullarray(dhx_dx, dhx_dx_array)
        call nc_diag_data2d("Observation_Operator_Jacobian", dhx_dx_array)
