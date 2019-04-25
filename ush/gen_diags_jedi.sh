@@ -22,7 +22,7 @@ gsiexec=/scratch4/NCEPDEV/da/save/Cory.R.Martin/GSI/build_jedi/bin/gsi.x
 nccat=/scratch4/NCEPDEV/da/save/Cory.R.Martin/GSI/build_jedi/bin/nc_diag_cat_serial.x
 fixgsi=/scratch4/NCEPDEV/da/save/Cory.R.Martin/GSI/ProdGSI_jedi/fix
 fixcrtm=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/lib/crtm/2.2.3/fix_update
-MyDir=$(dirname $(readlink -f $0))
+USHDir=$GSIDir/ProdGSI_jedi/ush/
 
 dumpobs=gdas
 
@@ -512,5 +512,5 @@ mv diag_* $OutDir/GSI_diags/.
 # the performance of these converters is currently not great
 # will submit a 1-node slurm task to just do the conversion after GSI runs
 
-sbatch $MyDir/convert_gsi_diags.sh $OutDir 
+#sbatch $USHDir/convert_gsi_diags.sh $OutDir 
 

@@ -223,7 +223,7 @@
       passive_bc,ostats,rstats,newpc4pred,radjacnames,radjacindxs,nsigradjac,nvarjac
   use gsi_nstcouplermod, only: nstinfo
   use read_diag, only: get_radiag,ireal_radiag,ipchan_radiag
-  use guess_grids, only: sfcmod_gfs,sfcmod_mm5,comp_fact10
+  use guess_grids, only: sfcmod_gfs,sfcmod_mm5,comp_fact10,pbl_height
   use m_prad, only: radheadm
   use m_obsdiags, only: radhead
   use obsmod, only: ianldate,ndat,mype_diaghdr,nchan_total, &

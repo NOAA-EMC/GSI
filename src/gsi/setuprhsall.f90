@@ -114,7 +114,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad,r_single
   use constants, only: zero,one,fv,zero_quad
-  use guess_grids, only: load_prsges,load_geop_hgt,load_gsdpbl_hgt
+  use guess_grids, only: load_prsges,load_geop_hgt,load_gsdpbl_hgt,load_pbl_height
   use guess_grids, only: ges_tsen,nfldsig
 ! use obsmod, only: mype_diaghdr
   use obsmod, only: nsat1,iadate,nobs_type,obscounts,&
@@ -399,6 +399,10 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
       end if
    endif   
 
+!>>emily
+! Compute 3d subdomain geopotential heights from the guess fields
+   call load_pbl_hgt(mype)
+!<<emily
 
 ! Compute derived quantities on grid
   if(.not.cmaq_regional) call compute_derived(mype,init_pass)

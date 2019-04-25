@@ -4,9 +4,9 @@
 #SBATCH -q batch 
 #SBATCH --nodes=1
 #SBATCH -t 60:00
+#SBATCH –mail-user=$LOGNAME@noaa.gov
 #SBATCH -o SLURM_%x.o%j
 #SBATCH -e SLURM_%x.e%j
-#SBATCH –mail-user=$LOGNAME@noaa.gov
 OutDir=$1
 
 # load modules here used to compile GSI
@@ -30,7 +30,7 @@ cd $IODACDir
 mkdir -p $OutDir/obs
 mkdir -p $OutDir/geovals
 
-python ./proc_gsi_ncdiag.py -n 24 -o $OutDir/obs -g $OutDir/geovals $OutDir/GSI_diags
+python ./proc_gsi_ncdiag.py -n 24 -o $OutDir/obs -g $OutDir/geovals $OutDir/GSI_diags > $OutDir/log.proc_gsi_ncdiag
 
 # subset obs
 python ./subset_files.py -n 24 -m $OutDir/obs

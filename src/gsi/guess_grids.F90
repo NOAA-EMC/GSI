@@ -126,6 +126,7 @@ module guess_grids
   public :: load_prsges
   public :: load_geop_hgt
   public :: load_gsdpbl_hgt
+  public :: load_pbl_height
   public :: add_rtm_layers
   public :: load_fact10
   public :: comp_fact10
@@ -1596,6 +1597,928 @@ contains
 
     return
   end subroutine load_gsdpbl_hgt
+!>>emily
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: load_pbl_hgt --- Populate PBL height
+!
+! !INTERFACE:
+!
+  subroutine load_pbl_hgt(mype)
+
+! !USES:
+
+    use constants, only: one,rd_over_cp_mass,r1000,ten,zero,two
+    use gridmod, only: lat2, lon2, nsig, ak5, bk5
+
+    implicit none
+
+! !INPUT PARAMETERS:
+
+
+! !DESCRIPTION: populate guess geopotential height in millibars
+!
+!
+! !REVISION HISTORY:
+!   2011-06-06  Ming Hu
+!   2013-02-22  Jacob Carley - Added NMMB
+!
+! !REMARKS:
+!   language: f90
+!   machine:  JET
+!
+! !AUTHOR:
+!
+!EOP
+!-------------------------------------------------------------------------
+
+    character(len=*),parameter::myname_=myname//'*load_pbl_hgt'
+    integer(i_kind)              , intent(in   ) :: mype
+    integer(i_kind) i,j,k,jj,ier,istatus
+    real(r_kind),dimension(nsig):: thetav
+    real(r_kind),dimension(nsig):: pbk
+    real(r_kind) :: thsfc, d
+    real(r_kind),dimension(:,:  ),pointer::ges_ps=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_tv=>NULL()
+
+!   Compute geopotential height at midpoint of each layer
+    do jj=1,nfldsig
+       ier=0
+       call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'ps' ,ges_ps ,istatus)
+       ier=ier+istatus
+       call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'tv' ,ges_tv ,istatus)
+       ier=ier+istatus
+       if(ier/=0) call die(myname_,'not all fields available, ier=',ier)
+
+       do j=1,lon2
+          do i=1,lat2
+
+             do k=1,nsig
+                pbk(k)    = ten*(ak5(k)+(bk5(k)*ges_ps(i,j)))
+		thetav(k) = ges_tv(i,j,k)*(r1000/pbk(k))**rd_over_cp_mass
+             end do
+
+             pbl_height(i,j,jj) = zero
+             thsfc = thetav(1)
+             k=1
+             DO while (abs(pbl_height(i,j,jj)) < 0.0001_r_kind)
+               if( thetav(k) > thsfc + 1.0_r_kind ) then
+                 pbl_height(i,j,jj) = float(k) - (thetav(k) - (thsfc + 1.0_r_kind))/   &
+                             max((thetav(k)-thetav(k-1)),0.01_r_kind)
+               endif
+               k=k+1
+             ENDDO
+             if(abs(pbl_height(i,j,jj)) < 0.0001_r_kind) pbl_height(i,j,jj)=two
+             k=int(pbl_height(i,j,jj))
+             if( k < 1 .or. k > nsig-1) then
+                write(6,*) ' Error in PBL height calculation ',mype,i,j,pbl_height(i,j,jj)
+             endif
+             d=pbl_height(i,j,jj) - k
+             pbl_height(i,j,jj) = pbk(k) * (one-d) + pbk(k+1) * d
+          end do
+       end do
+    end do
+666 format(a24,2x,i6,2x,3(f12.5,2x))
+
+    return
+  end subroutine load_pbl_hgt
+!<<emily
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: add_rtm_layers --- Add pressure layers for RTM use
+!
+! !INTERFACE:
+!
+  subroutine add_rtm_layers(prsitmp,prsltmp,prsitmp_ext,prsltmp_ext,klevel)
+
+! !USES:
+
+    use constants, only: half,ten,one_tenth
+    use gridmod, only: nsig,msig,nlayers
+    use crtm_module, only: toa_pressure
+
+    implicit none
+
+! !INPUT PARAMETERS:
+    integer(i_kind),dimension(msig)  ,intent(  out) :: klevel
+
+    real(r_kind)   ,dimension(nsig+1),intent(in   ) :: prsitmp
+    real(r_kind)   ,dimension(nsig)  ,intent(in   ) :: prsltmp
+
+    real(r_kind)   ,dimension(msig+1),intent(  out) :: prsitmp_ext
+    real(r_kind)   ,dimension(msig)  ,intent(  out) :: prsltmp_ext
+
+
+! !DESCRIPTION:  Add pressure layers for use in RTM
+!
+! !REVISION HISTORY:
+!   2005-06-01  treadon
+!   2006-05-10  derber modify how levels are added above model top
+!   2013-03-27  rancic fix for toa units: crtm(hPa); prsitmp(kPa)
+!
+! !REMARKS:
+!   language: f90
+!   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP
+!
+! !AUTHOR:
+!   treadon          org: w/nmc20      date: 2005-06-01
+!
+!EOP
+!-------------------------------------------------------------------------
+
+!   Declare local variables
+    integer(i_kind) k,kk,l
+    real(r_kind) dprs,toa_prs_kpa
+
+!   Convert toa_pressure to kPa
+!   ---------------------------
+    toa_prs_kpa = toa_pressure*one_tenth
+
+!   Check if model top pressure above rtm top pressure, where prsitmp
+!   is in kPa and toa_pressure is in hPa.
+    if (prsitmp(nsig) < toa_prs_kpa)then
+       write(6,*)'ADD_RTM_LAYERS:  model top pressure(hPa)=', &
+            ten*prsitmp(nsig),&
+            ' above rtm top pressure(hPa)=',toa_pressure
+       call stop2(35)
+    end if
+
+!   Linear in pressure sub-divsions
+    kk=0
+    do k = 1,nsig
+       if (nlayers(k)<=1) then
+          kk = kk + 1
+          prsltmp_ext(kk) = prsltmp(k)
+          prsitmp_ext(kk) = prsitmp(k)
+          klevel(kk) = k
+       else
+          if (k/=nsig) then
+             dprs = (prsitmp(k+1)-prsitmp(k))/nlayers(k)
+          else
+             dprs = (toa_prs_kpa -prsitmp(k))/nlayers(k)
+          end if
+          prsitmp_ext(kk+1) = prsitmp(k)
+          do l=1,nlayers(k)
+             kk=kk + 1
+             prsitmp_ext(kk+1) = prsitmp(k) + dprs*l
+             prsltmp_ext(kk) = half*(prsitmp_ext(kk+1)+prsitmp_ext(kk))
+             klevel(kk) = k
+          end do
+       endif
+    end do
+
+!   Set top of atmosphere pressure
+    prsitmp_ext(msig+1) = toa_prs_kpa
+
+  end subroutine add_rtm_layers
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: load_fact10 --- Compute 10m wind factor
+!
+! !INTERFACE:
+!
+  subroutine load_fact10
+
+! !USES:
+
+    use gridmod, only: lat2,lon2
+    implicit none
+
+! !INPUT PARAMETERS:
+
+! !DESCRIPTION: compute 10m wind factor
+!
+! !REVISION HISTORY:
+!   2006-09-26  treadon
+!
+! !REMARKS:
+!   language: f90
+!   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP
+!
+! !AUTHOR:
+!   treadon          org: w/nmc20      date: 2006-09-26
+!
+!EOP
+!-------------------------------------------------------------------------
+
+!   Declare local variables
+    character(len=*),parameter::myname_=myname//'*load_fact10'
+    logical iqtflg
+    integer(i_kind):: i,j,it,itt,nt,regime,ier,istatus
+    integer(i_kind),dimension(nfldsfc):: indx
+    real(r_kind):: u10ges,v10ges,t2ges,q2ges
+    real(r_kind),dimension(:,:  ),pointer::ges_ps=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_u=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_v=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_tv=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_q=>NULL()
+
+    nt=0
+    indx=1
+    do i=1,nfldsfc
+       if(abs(hrdifsfc(i)-hrdifsig(i))<0.001_r_kind) then
+          nt=nt+1
+          indx(nt) = i
+       endif
+    end do
+
+
+    if (sfcmod_gfs) then
+       do it=1,nt
+          itt=indx(it)
+          ier=0
+          call gsi_bundlegetpointer(gsi_metguess_bundle(itt),'ps',ges_ps,istatus)
+          ier=ier+istatus
+          call gsi_bundlegetpointer(gsi_metguess_bundle(itt),'u' ,ges_u ,istatus)
+          ier=ier+istatus
+          call gsi_bundlegetpointer(gsi_metguess_bundle(itt),'v' ,ges_v ,istatus)
+          ier=ier+istatus
+          call gsi_bundlegetpointer(gsi_metguess_bundle(itt),'q' ,ges_q ,istatus)
+          ier=ier+istatus
+          if(ier/=0) call die(myname_,'not all fields available, ier=',ier)
+          do j=1,lon2
+             do i=1,lat2
+                call compute_fact10(ges_u(i,j,1),ges_v(i,j,1),&
+                     ges_tsen(i,j,1,itt),ges_q(i,j,1),&
+                     ges_ps(i,j),ges_prsi(i,j,1,itt), &
+                     ges_prsi(i,j,2,itt),sfct(i,j,itt), &
+                     sfc_rough(i,j,itt),isli(i,j,itt),fact10(i,j,itt))
+             end do
+          end do
+       end do
+    endif
+
+    if (sfcmod_mm5) then
+       iqtflg=.true.
+       do it=1,nt
+          itt=indx(it)
+          ier=0
+          call gsi_bundlegetpointer(gsi_metguess_bundle(itt),'ps',ges_ps,istatus)
+          ier=ier+istatus
+          call gsi_bundlegetpointer(gsi_metguess_bundle(itt),'u' ,ges_u ,istatus)
+          ier=ier+istatus
+          call gsi_bundlegetpointer(gsi_metguess_bundle(itt),'v' ,ges_v ,istatus)
+          ier=ier+istatus
+          call gsi_bundlegetpointer(gsi_metguess_bundle(itt),'tv',ges_tv,istatus)
+          ier=ier+istatus
+          call gsi_bundlegetpointer(gsi_metguess_bundle(itt),'q' ,ges_q ,istatus)
+          ier=ier+istatus
+          if(ier/=0) call die(myname_,'not all fields available, ier=',ier)
+          do j=1,lon2
+             do i=1,lat2
+                call SFC_WTQ_FWD (&
+                     ges_ps(i,j),&
+                     sfct(i,j,itt),&
+                     ges_lnprsl(i,j,1,itt),&
+                     ges_tv(i,j,1),&
+                     ges_q(i,j,1),&
+                     ges_u(i,j,1),&
+                     ges_v(i,j,1),&
+                     ges_lnprsl(i,j,2,itt),&
+                     ges_tv(i,j,2),&
+                     ges_q(i,j,2),&
+                     geop_hgtl(i,j,1,itt),&
+                     sfc_rough(i,j,itt),&
+                     isli(i,j,itt),&
+                     fact10(i,j,itt),&
+                     u10ges,v10ges,t2ges,q2ges,regime,iqtflg)
+             end do
+          end do
+       end do
+    endif
+
+    return
+  end subroutine load_fact10
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: comp_fact10  ---  compute 10m wind factor
+!
+! !INTERFACE:
+!
+  subroutine comp_fact10(dlat,dlon,dtime,skint,sfcrough,islimsk,mype,factw)
+
+! !USES:
+
+    use gridmod, only: nlat,nlon,&
+         lon1,istart,jstart
+    use constants, only: zero,one
+    implicit none
+
+! !INPUT PARAMETERS:
+
+    real(r_kind)   ,intent(in   ) :: dlat,dlon,dtime,skint,sfcrough
+    real(r_kind)   ,intent(inout) :: factw
+    integer(i_kind),intent(in   ) :: mype,islimsk
+
+! !DESCRIPTION: compute 10m wind factor
+!
+! !REVISION HISTORY:
+!   2006-09-26  treadon
+!   2008-12-05  todling - use dsfct(:,:,ntguessfc) for calculation
+!   2015-03-10  todling - assign missing ps pointers
+!
+! !REMARKS:
+!   language: f90
+!   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP
+!
+! !AUTHOR:
+!   treadon          org: w/nmc20      date: 2006-09-26
+!
+!EOP
+!-------------------------------------------------------------------------
+
+!   Declare local parameters
+    character(len=*),parameter::myname_=myname//'*comp_fact10'
+
+!   Declare local variables
+    logical iqtflg
+    integer(i_kind) ix,ix1,ixp,iy,iy1,iyp,regime
+    integer(i_kind) itsig,itsigp,j,m1,islimsk2,ier,istatus
+    real(r_kind) w00,w01,w10,w11
+    real(r_kind) delx,dely,delx1,dely1,dtsig,dtsigp
+    real(r_kind):: u10ges,v10ges,t2ges,q2ges
+    real(r_kind):: pgesin,ugesin,vgesin,qgesin,tgesin,prsigesin1
+    real(r_kind):: prsigesin2,lnpgesin1,lnpgesin2,tgesin2,qgesin2,geopgesin,ts
+    real(r_kind),dimension(:,:  ),pointer::ges_ps_itsig=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_u_itsig=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_v_itsig=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_tv_itsig=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_q_itsig=>NULL()
+    real(r_kind),dimension(:,:  ),pointer::ges_ps_itsigp=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_u_itsigp=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_v_itsigp=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_tv_itsigp=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_q_itsigp=>NULL()
+
+    islimsk2=islimsk
+    if(islimsk2 > 2)islimsk2=islimsk2-3
+    m1=mype+1
+!   Set spatial interpolation indices and weights
+    ix1=dlat
+    ix1=max(1,min(ix1,nlat))
+    delx=dlat-ix1
+    delx=max(zero,min(delx,one))
+    ix=ix1-istart(m1)+2
+    ixp=ix+1
+    if(ix1==nlat) then
+       ixp=ix
+    end if
+    delx1=one-delx
+
+    iy1=dlon
+    dely=dlon-iy1
+    iy=iy1-jstart(m1)+2
+    if(iy<1) then
+       iy1=iy1+nlon
+       iy=iy1-jstart(m1)+2
+    end if
+    if(iy>lon1+1) then
+       iy1=iy1-nlon
+       iy=iy1-jstart(m1)+2
+    end if
+    iyp=iy+1
+    dely1=one-dely
+
+
+    w00=delx1*dely1; w10=delx*dely1; w01=delx1*dely; w11=delx*dely
+!   Get time interpolation factors for sigma files
+    if(dtime > hrdifsig(1) .and. dtime < hrdifsig(nfldsig))then
+       do j=1,nfldsig-1
+          if(dtime > hrdifsig(j) .and. dtime <= hrdifsig(j+1))then
+             itsig=j
+             itsigp=j+1
+             dtsig=((hrdifsig(j+1)-dtime)/(hrdifsig(j+1)-hrdifsig(j)))
+          end if
+       end do
+    else if(dtime <=hrdifsig(1))then
+       itsig=1
+       itsigp=1
+       dtsig=one
+    else
+       itsig=nfldsig
+       itsigp=nfldsig
+       dtsig=one
+    end if
+    dtsigp=one-dtsig
+
+    ier=0
+    call gsi_bundlegetpointer(gsi_metguess_bundle(itsig) ,'ps' ,ges_ps_itsig ,istatus)
+    ier=ier+istatus
+    call gsi_bundlegetpointer(gsi_metguess_bundle(itsigp),'ps' ,ges_ps_itsigp,istatus)
+    ier=ier+istatus
+    call gsi_bundlegetpointer(gsi_metguess_bundle(itsig) ,'u' ,ges_u_itsig ,istatus)
+    ier=ier+istatus
+    call gsi_bundlegetpointer(gsi_metguess_bundle(itsigp),'u' ,ges_u_itsigp,istatus)
+    ier=ier+istatus
+    call gsi_bundlegetpointer(gsi_metguess_bundle(itsig) ,'v' ,ges_v_itsig ,istatus)
+    ier=ier+istatus
+    call gsi_bundlegetpointer(gsi_metguess_bundle(itsigp),'v' ,ges_v_itsigp,istatus)
+    ier=ier+istatus
+    call gsi_bundlegetpointer(gsi_metguess_bundle(itsig) ,'tv',ges_tv_itsig ,istatus)
+    ier=ier+istatus
+    call gsi_bundlegetpointer(gsi_metguess_bundle(itsigp),'tv',ges_tv_itsigp,istatus)
+    ier=ier+istatus
+    call gsi_bundlegetpointer(gsi_metguess_bundle(itsig) ,'q' ,ges_q_itsig ,istatus)
+    ier=ier+istatus
+    call gsi_bundlegetpointer(gsi_metguess_bundle(itsigp),'q' ,ges_q_itsigp,istatus)
+    ier=ier+istatus
+    if(ier/=0) return
+
+    ts =(dsfct(ix,iy ,ntguessfc)*w00 + dsfct(ixp,iy ,ntguessfc)*w10 +          &
+         dsfct(ix,iyp,ntguessfc)*w01 + dsfct(ixp,iyp,ntguessfc)*w11) + skint
+
+    pgesin=(ges_ps_itsig (ix,iy )*w00+ges_ps_itsig (ixp,iy )*w10+ &
+            ges_ps_itsig (ix,iyp)*w01+ges_ps_itsig (ixp,iyp)*w11)*dtsig + &
+           (ges_ps_itsigp(ix,iy )*w00+ges_ps_itsigp(ixp,iy )*w10+ &
+            ges_ps_itsigp(ix,iyp)*w01+ges_ps_itsigp(ixp,iyp)*w11)*dtsigp
+    ugesin=(ges_u_itsig (ix,iy ,1)*w00+ges_u_itsig (ixp,iy ,1)*w10+ &
+            ges_u_itsig (ix,iyp,1)*w01+ges_u_itsig (ixp,iyp,1)*w11)*dtsig + &
+           (ges_u_itsigp(ix,iy ,1)*w00+ges_u_itsigp(ixp,iy ,1)*w10+ &
+            ges_u_itsigp(ix,iyp,1)*w01+ges_u_itsigp(ixp,iyp,1)*w11)*dtsigp
+    vgesin=(ges_v_itsig (ix,iy ,1)*w00+ges_v_itsig (ixp,iy ,1)*w10+ &
+            ges_v_itsig (ix,iyp,1)*w01+ges_v_itsig (ixp,iyp,1)*w11)*dtsig + &
+           (ges_v_itsigp(ix,iy ,1)*w00+ges_v_itsigp(ixp,iy ,1)*w10+ &
+            ges_v_itsigp(ix,iyp,1)*w01+ges_v_itsigp(ixp,iyp,1)*w11)*dtsigp
+    qgesin=(ges_q_itsig (ix,iy ,1)*w00+ges_q_itsig (ixp,iy ,1)*w10+ &
+            ges_q_itsig (ix,iyp,1)*w01+ges_q_itsig (ixp,iyp,1)*w11)*dtsig + &
+           (ges_q_itsigp(ix,iy ,1)*w00+ges_q_itsigp(ixp,iy ,1)*w10+ &
+            ges_q_itsigp(ix,iyp,1)*w01+ges_q_itsigp(ixp,iyp,1)*w11)*dtsigp
+
+
+    if (sfcmod_gfs) then
+       tgesin    =(ges_tsen(ix ,iy ,1,itsig )*w00+ &
+                   ges_tsen(ixp,iy ,1,itsig )*w10+ &
+                   ges_tsen(ix ,iyp,1,itsig )*w01+ &
+                   ges_tsen(ixp,iyp,1,itsig )*w11)*dtsig + &
+                  (ges_tsen(ix ,iy ,1,itsigp)*w00+ &
+                   ges_tsen(ixp,iy ,1,itsigp)*w10+ &
+                   ges_tsen(ix ,iyp,1,itsigp)*w01+ &
+                   ges_tsen(ixp,iyp,1,itsigp)*w11)*dtsigp
+       prsigesin1=(ges_prsi(ix ,iy ,1,itsig )*w00+ &
+                   ges_prsi(ixp,iy ,1,itsig )*w10+ &
+                   ges_prsi(ix ,iyp,1,itsig )*w01+ &
+                   ges_prsi(ixp,iyp,1,itsig )*w11)*dtsig + &
+                  (ges_prsi(ix ,iy ,1,itsigp)*w00+ &
+                   ges_prsi(ixp,iy ,1,itsigp)*w10+ &
+                   ges_prsi(ix ,iyp,1,itsigp)*w01+ &
+                   ges_prsi(ixp,iyp,1,itsigp)*w11)*dtsigp
+       prsigesin2=(ges_prsi(ix ,iy ,2,itsig )*w00+ &
+                   ges_prsi(ixp,iy ,2,itsig )*w10+ &
+                   ges_prsi(ix ,iyp,2,itsig )*w01+ &
+                   ges_prsi(ixp,iyp,2,itsig )*w11)*dtsig + &
+                  (ges_prsi(ix ,iy ,2,itsigp)*w00+ &
+                   ges_prsi(ixp,iy ,2,itsigp)*w10+ &
+                   ges_prsi(ix ,iyp,2,itsigp)*w01+ &
+                   ges_prsi(ixp,iyp,2,itsigp)*w11)*dtsigp
+       call compute_fact10(ugesin,vgesin,tgesin,qgesin,pgesin, &
+            prsigesin1,prsigesin2,ts,sfcrough,islimsk,factw)
+    else if (sfcmod_mm5)then
+       iqtflg=.true.
+       lnpgesin1 =(ges_lnprsl(ix ,iy ,1,itsig )*w00+ &
+                   ges_lnprsl(ixp,iy ,1,itsig )*w10+ &
+                   ges_lnprsl(ix ,iyp,1,itsig )*w01+ &
+                   ges_lnprsl(ixp,iyp,1,itsig )*w11)*dtsig + &
+                  (ges_lnprsl(ix ,iy ,1,itsigp)*w00+ &
+                   ges_lnprsl(ixp,iy ,1,itsigp)*w10+ &
+                   ges_lnprsl(ix ,iyp,1,itsigp)*w01+ &
+                   ges_lnprsl(ixp,iyp,1,itsigp)*w11)*dtsigp
+       lnpgesin2 =(ges_lnprsl(ix ,iy ,2,itsig )*w00+ &
+                   ges_lnprsl(ixp,iy ,2,itsig )*w10+ &
+                   ges_lnprsl(ix ,iyp,2,itsig )*w01+ &
+                   ges_lnprsl(ixp,iyp,2,itsig )*w11)*dtsig + &
+                  (ges_lnprsl(ix ,iy ,2,itsigp)*w00+ &
+                   ges_lnprsl(ixp,iy ,2,itsigp)*w10+ &
+                   ges_lnprsl(ix ,iyp,2,itsigp)*w01+ &
+                   ges_lnprsl(ixp,iyp,2,itsigp)*w11)*dtsigp
+       tgesin    =(ges_tv_itsig (ix ,iy ,1)*w00+ &
+                   ges_tv_itsig (ixp,iy ,1)*w10+ &
+                   ges_tv_itsig (ix ,iyp,1)*w01+ &
+                   ges_tv_itsig (ixp,iyp,1)*w11)*dtsig + &
+                  (ges_tv_itsigp(ix ,iy ,1)*w00+ &
+                   ges_tv_itsigp(ixp,iy ,1)*w10+ &
+                   ges_tv_itsigp(ix ,iyp,1)*w01+ &
+                   ges_tv_itsigp(ixp,iyp,1)*w11)*dtsigp
+       tgesin2   =(ges_tv_itsig (ix ,iy ,2)*w00+ &
+                   ges_tv_itsig (ixp,iy ,2)*w10+ &
+                   ges_tv_itsig (ix ,iyp,2)*w01+ &
+                   ges_tv_itsig (ixp,iyp,2)*w11)*dtsig + &
+                  (ges_tv_itsigp(ix ,iy ,2)*w00+ &
+                   ges_tv_itsigp(ixp,iy ,2)*w10+ &
+                   ges_tv_itsigp(ix ,iyp,2)*w01+ &
+                   ges_tv_itsigp(ixp,iyp,2)*w11)*dtsigp
+       qgesin2   =(ges_q_itsig (ix ,iy ,2)*w00+ &
+                   ges_q_itsig (ixp,iy ,2)*w10+ &
+                   ges_q_itsig (ix ,iyp,2)*w01+ &
+                   ges_q_itsig (ixp,iyp,2)*w11)*dtsig + &
+                  (ges_q_itsigp(ix ,iy ,2)*w00+ &
+                   ges_q_itsigp(ixp,iy ,2)*w10+ &
+                   ges_q_itsigp(ix ,iyp,2)*w01+ &
+                   ges_q_itsigp(ixp,iyp,2)*w11)*dtsigp
+       geopgesin =(geop_hgtl(ix ,iy ,1,itsig )*w00+ &
+                   geop_hgtl(ixp,iy ,1,itsig )*w10+ &
+                   geop_hgtl(ix ,iyp,1,itsig )*w01+ &
+                   geop_hgtl(ixp,iyp,1,itsig )*w11)*dtsig + &
+                  (geop_hgtl(ix ,iy ,1,itsigp)*w00+ &
+                   geop_hgtl(ixp,iy ,1,itsigp)*w10+ &
+                   geop_hgtl(ix ,iyp,1,itsigp)*w01+ &
+                   geop_hgtl(ixp,iyp,1,itsigp)*w11)*dtsigp
+       call SFC_WTQ_FWD (pgesin,ts,lnpgesin1,tgesin,qgesin,ugesin,vgesin, &
+                lnpgesin2,tgesin2,qgesin2,geopgesin,sfcrough,islimsk, &
+                factw,u10ges,v10ges,t2ges,q2ges,regime,iqtflg)
+    endif
+
+    return
+  end subroutine comp_fact10
+
+
+!-------------------------------------------------------------------------
+   subroutine guess_grids_stats3d_(name,a,mype)
+!-------------------------------------------------------------------------
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    guess_grids_stats3d_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    name
+!    a
+!    mype     - mpi task id
+!
+!   output argument log:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+   use constants, only: zero
+   use mpimod, only: ierror,mpi_rtype,mpi_sum,mpi_comm_world
+   use gridmod, only: lon1,lat1,nsig
+
+   implicit none
+
+   character(len=*)             , intent(in   ) :: name
+   real(r_kind),dimension(:,:,:), intent(in   ) :: a
+   integer(i_kind)              , intent(in   ) :: mype
+
+
+! local variables
+   integer(i_kind) :: i,j,k
+   real(r_kind),dimension(nsig+1):: work_a,work_a1
+   real(r_kind),dimension(nsig):: amz ! global mean profile of a
+   real(r_kind) :: rms
+
+! start
+
+!  Calculate global means for a
+
+!  Calculate sums for a to estimate variance.
+   work_a = zero
+   do k = 1,nsig
+      do j = 2,lon1+1
+         do i = 2,lat1+1
+            work_a(k) = work_a(k) + a(i,j,k)
+         end do
+      end do
+   end do
+   work_a(nsig+1)=float(lon1*lat1)
+
+   call mpi_allreduce(work_a,work_a1,nsig+1,mpi_rtype,mpi_sum,&
+       mpi_comm_world,ierror)
+
+   amz=zero
+   do k=1,nsig
+      if (work_a1(nsig+1)>zero) amz(k)=work_a1(k)/work_a1(nsig+1)
+      rms=sqrt(amz(k)**2/work_a1(nsig+1))
+      if (mype==0) write(*,100) trim(name),k,amz(k),rms
+   enddo
+100 format(a,': Level, Global mean, RMS = ',i3,1P2E16.8)
+
+   end subroutine guess_grids_stats3d_
+
+!-------------------------------------------------------------------------
+   subroutine guess_grids_stats2d_(name,a,mype)
+!-------------------------------------------------------------------------
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    guess_grids_stats2d_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    name
+!    a
+!    mype     - mpi task id
+!
+!   output argument log:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+   use constants, only: zero
+   use mpimod, only: ierror,mpi_rtype,mpi_sum,mpi_comm_world
+   use gridmod, only: lon1,lat1
+
+   implicit none
+
+   character(len=*)           , intent(in   ) :: name
+   real(r_kind),dimension(:,:), intent(in   ) :: a
+   integer(i_kind)            , intent(in   ) :: mype
+
+
+! local variables
+   integer(i_kind) :: i,j
+   real(r_kind),dimension(2):: work_a,work_a1
+   real(r_kind) :: amz, rms
+
+! start
+
+!  Calculate global means for a
+
+!  Calculate sums for a to estimate variance.
+   work_a = zero
+   do j = 2,lon1+1
+      do i = 2,lat1+1
+         work_a(1) = work_a(1) + a(i,j)
+      end do
+   end do
+   work_a(2)=float(lon1*lat1)
+
+   call mpi_allreduce(work_a,work_a1,2,mpi_rtype,mpi_sum,&
+       mpi_comm_world,ierror)
+
+   amz=zero
+   if (work_a1(2)>zero) amz=work_a1(1)/work_a1(2)
+   rms=sqrt(amz**2/work_a1(2))      
+   if (mype==0) write(*,100) trim(name),amz,rms
+100 format(a,': Global mean, RMS = ',1P2E16.8)
+
+   end subroutine guess_grids_stats2d_
+
+!-------------------------------------------------------------------------
+   subroutine pstats_(a,amiss,avg,rms)
+!-------------------------------------------------------------------------
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    pstats_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    amiss
+!    a
+!
+!   output argument log:
+!    avg,rms
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+   use constants, only: zero
+   implicit none
+
+   real(r_kind),dimension(:,:), intent(in   ) :: a      ! array var
+   real(r_kind)               , intent(in   ) :: amiss  ! undef
+   real(r_kind)               , intent(  out) :: avg,rms
+
+
+! local variables
+   integer(i_kind) :: i,j
+   integer(i_kind) :: allcnt,cnt
+
+! start
+
+   allcnt=0
+   cnt=0
+   avg=zero
+   rms=zero
+   do i=1,size(a,1)
+      do j=1,size(a,2)
+         if(a(i,j)/=amiss) then
+            cnt=cnt+1
+            avg=avg+a(i,j)
+         endif
+         allcnt = allcnt+1
+      end do
+   end do
+   avg=avg/max(1,cnt)
+   rms=sqrt(avg*avg/max(1,cnt))      
+
+   end subroutine pstats_
+
+!-------------------------------------------------------------------------
+   subroutine print1r8_(name,fld,undef)
+!-------------------------------------------------------------------------
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    print1r8_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    name
+!    fld 
+!    undef
+!
+!   output argument log:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+   implicit none
+   character(len=*)         , intent(in   ) :: name
+   real(r_kind),dimension(:), intent(in   ) :: fld
+   real(r_kind)             , intent(in   ) :: undef
+! 
+   write(6,100) trim(name),minval(fld),maxval(fld),sum(fld),undef
+100 format(a,': range,sum = ',1P3E16.4)
+   end subroutine print1r8_
+
+!-------------------------------------------------------------------------
+   subroutine print2r8_(name,fld,undef)
+!-------------------------------------------------------------------------
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    print2r8_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    name
+!    fld
+!    undef
+!
+!   output argument log:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+   implicit none
+   character(len=*)           , intent(in   ) :: name
+   real(r_kind),dimension(:,:), intent(in   ) :: fld
+   real(r_kind)               , intent(in   ) :: undef
+! 
+   real(r_kind) avg,rms
+   write(6,100) trim(name),minval(fld),maxval(fld),sum(fld)
+   call pstats_(fld,UNDEF,avg,rms)
+   write(6,99) trim(name),avg,rms
+100 format(a,': range,sum = ',1P3E16.4)
+99  format(a,': avg, rms = ',1P2E16.4)
+   end subroutine print2r8_
+
+!-------------------------------------------------------------------------
+   subroutine print3r8_(name,fld,undef,allk)
+!-------------------------------------------------------------------------
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    print3r8_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    name
+!    fld
+!    undef
+!    allk
+!
+!   output argument log:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+   implicit none
+   character(len=*)             , intent(in   ) :: name
+   real(r_kind),dimension(:,:,:), intent(in   ) :: fld
+   real(r_kind)                 , intent(in   ) :: undef
+   logical,optional             , intent(in   ) :: allk
+! 
+   logical prntlevs
+   integer(i_kind) k
+   real(r_kind) avg,rms
+
+   if(present(allk)) prntlevs=allk
+   if(prntlevs) then
+      do k=1,size(fld,3)
+         write(6,101) trim(name),k,minval(fld(:,:,k)),maxval(fld(:,:,k)),sum(fld(:,:,k))
+         call pstats_(fld(:,:,k),UNDEF,avg,rms)
+         write(6,99) trim(name),avg,rms
+      end do
+   else
+      write(6,100) trim(name),minval(fld),maxval(fld),sum(fld)
+   end if
+101 format(a,': time or lev,range,sum = ',i3,1P3E16.4)
+100 format(a,': range,sum = ',1P3E16.4)
+99  format(a,': avg, rms = ',1P2E16.4)
+   end subroutine print3r8_
+
+!-------------------------------------------------------------------------
+   subroutine print4r8_(name,fld,undef,allk)
+!-------------------------------------------------------------------------
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    print4r8_
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!   2009-08-04  lueken - added subprogram doc block
+!
+!   input argument list:
+!    name
+!    fld
+!    undef
+!    allk
+!
+!   output argument log:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+   implicit none
+   character(len=*)               , intent(in   ) :: name
+   real(r_kind),dimension(:,:,:,:), intent(in   ) :: fld
+   real(r_kind)                   , intent(in   ) :: undef
+   logical,optional               , intent(in   ) :: allk
+! 
+   logical prntlevs
+   integer(i_kind) k,it
+   real(r_kind) avg,rms
+
+   if(present(allk)) prntlevs=allk
+   if(prntlevs) then
+      do it=1,size(fld,4)
+         do k=1,size(fld,3)
+            write(6,101) trim(name),it,k,minval(fld(:,:,k,it)),maxval(fld(:,:,k,it)),sum(fld(:,:,k,it))
+            call pstats_(fld(:,:,k,it),UNDEF,avg,rms)
+            write(6,99) trim(name),avg,rms
+         end do
+      end do
+   else
+      write(6,100) trim(name),minval(fld),maxval(fld),sum(fld)
+   end if
+101 format(a,': time,lev,range,sum = ',i3,i3,1P3E16.4)
+100 format(a,': range,sum = ',1P3E16.4)
+99  format(a,': avg, rms = ',1P2E16.4)
+   end subroutine print4r8_
+    
+end module guess_grids
 
 !-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
