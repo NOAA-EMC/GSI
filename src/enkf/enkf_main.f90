@@ -98,7 +98,7 @@ program enkf_main
  ! letkf update
  use letkf, only: letkf_update
  ! radiance bias correction coefficients.
- use radinfo, only: radinfo_write, predx, jpch_rad, npred
+ use radinfo, only: radinfo_write
  ! posterior ensemble inflation.
  use inflation, only: inflate_ens
  ! initialize radinfo variables
