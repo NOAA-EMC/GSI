@@ -34,7 +34,7 @@ use kinds, only: r_kind,i_kind,r_single,r_double
 use read_diag, only: diag_data_fix_list,diag_header_fix_list,diag_header_chan_list, &
     diag_data_chan_list,diag_data_extra_list,read_radiag_data,read_radiag_header, &
     diag_data_name_list, open_radiag, close_radiag
-use params, only: nsats_rad, nsatmax_rad, dsis, sattypes_rad, npefiles, netcdf_diag, lupd_satbiasc
+use params, only: nsats_rad, dsis, sattypes_rad, npefiles, netcdf_diag, lupd_satbiasc
 
 implicit none
 
@@ -327,7 +327,7 @@ end subroutine get_satobs_data
 subroutine get_satobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, hx_mean, hx_mean_nobc, hx, hx_modens, x_obs, x_err, &
            x_lon, x_lat, x_press, x_time, x_channum, x_errorig, x_type, x_biaspred, x_indx, x_used, id, nanal)
   use radinfo, only: iuse_rad,nusis,jpch_rad,npred,adp_anglebc,emiss_bc
-  use params, only: nanals, lobsdiag_forenkf, nlevs, neigv, vlocal_evecs
+  use params, only: nanals, lobsdiag_forenkf, neigv, vlocal_evecs
   use statevec, only: state_d
   use constants, only: deg2rad, zero
   use mpisetup, only: nproc, mpi_wtime
@@ -639,7 +639,7 @@ subroutine get_satobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_me
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_close
 
   use radinfo, only: iuse_rad,nusis,jpch_rad,npred,adp_anglebc,emiss_bc
-  use params, only: nanals, lobsdiag_forenkf, nlevs, neigv, vlocal_evecs
+  use params, only: nanals, lobsdiag_forenkf, neigv, vlocal_evecs
   use statevec, only: state_d
   use constants, only: deg2rad, zero
   use mpisetup, only: nproc, mpi_wtime

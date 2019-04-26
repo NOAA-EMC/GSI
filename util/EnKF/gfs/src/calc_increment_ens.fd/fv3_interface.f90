@@ -132,7 +132,7 @@ contains
 
     type(increment_netcdf) :: ncdat  !! cached info about NetCDF output file
 
-    integer :: i, j, k ! loop indices within a variable
+    integer :: j, k ! loop indices within a variable
     integer :: ivar !! loop index over variables in input_vars & output_vars
 
     ! Formats for print statements:
@@ -660,9 +660,6 @@ contains
     type(analysis_grid) :: grid !! analysis or first guess to read
 
     ! Local variables
-
-    type(varinfo) :: var_info ! to request a variable from gfs_nems_read
-    integer :: k ! Vertical index loop when reading data level-by-level
 
     ! Read the nemsio file header
     call gfs_nems_initialize(meta_nemsio,filename=grid%filename)

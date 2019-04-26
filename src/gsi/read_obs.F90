@@ -659,6 +659,7 @@ subroutine read_obs(ndata,mype)
 !   2017-08-31  Li      - move gsi_nstcoupler_init & gsi_nstcoupler_read to getsfc in sathin.F90
 !                       - move gsi_nstcoupler_final from create_sfc_grids to here
 !   2018-01-23 Apodaca  - add GOES/GLM lightning data
+!   2019-01-15  Li      - add to handle mbuoyb
 !   
 !
 !   input argument list:
@@ -701,7 +702,7 @@ subroutine read_obs(ndata,mype)
     use convb_uv,only:convb_uv_read
     use guess_grids, only: ges_prsl,geop_hgtl,ntguessig
     use radinfo, only: nusis,iuse_rad,jpch_rad,diag_rad
-    use insitu_info, only: mbuoy_info,read_ship_info
+    use insitu_info, only: mbuoy_info,mbuoyb_info,read_ship_info
     use aeroinfo, only: nusis_aero,iuse_aero,jpch_aero,diag_aero
     use ozinfo, only: nusis_oz,iuse_oz,jpch_oz,diag_ozone
     use pcpinfo, only: npcptype,nupcp,iusep,diag_pcp
@@ -1308,6 +1309,9 @@ subroutine read_obs(ndata,mype)
 
 !   Create moored buoy station ID
     call mbuoy_info(mype)
+
+!   Create moored buoy station ID for mbuoyb with 7-digit station ID
+    call mbuoyb_info(mype)
 
 !   Create ships info(ID, Depth & Instrument)
     call read_ship_info(mype)

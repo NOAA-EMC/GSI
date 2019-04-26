@@ -59,9 +59,8 @@ subroutine setup_linhx(rlat, rlon, time, ix, delx, ixp, delxp, iy, dely,  &
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_single
-  use params, only: nstatefields, nlons, nlats, nlevs, nhr_state, fhr_assim
-  use gridinfo, only: npts, latsgrd, lonsgrd
-  use statevec, only: nsdim
+  use params, only: nstatefields, nlons, nlats, nhr_state, fhr_assim
+  use gridinfo, only: latsgrd, lonsgrd
   use constants, only: zero,one,pi
   use mpisetup
   implicit none
@@ -144,10 +143,10 @@ subroutine calc_linhx(hx, dens, dhx_dx, hx_ens, &
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_single
-  use params, only: nstatefields, nlons, nlats, nlevs, nhr_state, fhr_assim
-  use gridinfo, only: npts, latsgrd, lonsgrd
+  use params, only: nstatefields, nlons
+  use gridinfo, only: npts
   use statevec, only: nsdim
-  use constants, only: zero,one,pi
+  use constants, only: zero,one
   use sparsearr, only: sparr
   use mpisetup
   implicit none
@@ -203,10 +202,10 @@ subroutine calc_linhx_modens(hx, dens, dhx_dx, hx_ens, &
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_single
-  use params, only: nstatefields, nlons, nlats, nlevs, nhr_state, fhr_assim
-  use gridinfo, only: npts, latsgrd, lonsgrd
+  use params, only: nstatefields, nlons, nlevs
+  use gridinfo, only: npts
   use statevec, only: nsdim
-  use constants, only: zero,one,pi
+  use constants, only: zero,one
   use sparsearr, only: sparr
   use mpisetup
   implicit none
