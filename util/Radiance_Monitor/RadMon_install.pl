@@ -59,11 +59,11 @@
    elsif( $machine eq "cray" ){
       $tankdir = "/gpfs/hps/emc/da/noscrub/$user_name/nbns";
    }
-   elsif( $machine eq "wcoss" ){
-      $tankdir = "/global/save/$user_name/nbns";
-   }
    elsif( $machine eq "wcoss_d" ){
-      $tankdir = "/gpfs/dell2/emc/obsproc/noscrub/$user_name/nbns";
+      $tankdir = "/gpfs/dell2/emc/verification/noscrub/$user_name/nbns";
+   }
+   else {
+      $tankdir = "/global/save/$user_name/nbns";
    }
 
    print "Please specify TANKDIR location for storage of data and image files.\n";
@@ -262,7 +262,7 @@
    print "\n";
    print "Updating parm/RadMon_user_settings\n";
 
-   my $account = "export ACCOUNT=\${ACCOUNT:-fv3-cpu}";
+   my $account = "export ACCOUNT=\${ACCOUNT:-glbss}";
    if( $machine ne "zeus" && $machine ne "theia" ) {
       $account = "export ACCOUNT=\${ACCOUNT:-}";
    }
@@ -314,10 +314,8 @@
     print "\n";
     print "Making all executables\n";
 
-    `./cmake_build.sh`;
-
-#    `./makeall.sh clean`;
-#    `./makeall.sh`;
+    `./makeall.sh clean`;
+    `./makeall.sh`;
  
    exit 0;
 

@@ -1,21 +1,21 @@
 # *****************************************************************
-#  makefile
+#   makefile.horiz
 #
-#  Make the summary.x executable. 
-#
+#   Make the radmon horiz.x executable
 # *****************************************************************
 
-BINDIR = ../../exec
+BINDIR = ../exec
 
 LIBS   = $(W3NCO_LIB4)
 
-OBJS   = summary.o  avgsdv.o
+OBJS   = kinds.o read_diag.o horiz.o create_ctl_horiz.o \
+	 update_ctl_horiz.o
 
 #
 # *****************************************************************
 #
 
-CMD = rad_ig_summary.x
+CMD = horiz.x
 
 all:  $(CMD)
 
@@ -35,10 +35,19 @@ debug:  $(CMD)
 
 $(CMD):         $(OBJS)
 	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
+	cp ${CMD} ../exec/.
 
-
-summary.o : summary.f90
+read_diag.o : read_diag.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 
-avgsdv.o : avgsdv.f90
+horiz.o : horiz.f90
 	$(CF) $(FFLAGS) -c $(*).f90
+
+create_ctl_horiz.o : create_ctl_horiz.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+
+update_ctl_horiz.o : update_ctl_horiz.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+
+kinds.o : kinds.F90
+	$(CF) $(FFLAGS) -c $(*).F90

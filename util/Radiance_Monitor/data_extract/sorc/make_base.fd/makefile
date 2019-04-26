@@ -1,36 +1,38 @@
 # *****************************************************************
-#  makefile.angle
+#  makefile
 #
-#  Make the angle.x executable.  The executable will extract angle
-#  radiance data from an angle ieee_d file and write it to text
-#  files for use in the interactive angle plots.
+#  Make the make_base executable.  The executable will construct
+#  base history files for each entry in the SATYPE list from the 
+#  time data files (*.ieee_d) for the specified source (suffix).
 #
+#  This is not normally necessary for RadMon users unless you want
+#  to use the automated validation mechanism.
 # *****************************************************************
 
 BINDIR = ../../exec
 
 LIBS   = $(W3NCO_LIB4)
 
-OBJS = angle.o avgsdv.o
+OBJS   =  make_base.o
 
 #
 # *****************************************************************
 #
 
-CMD = rad_ig_angle.x
+CMD = make_base
 
 all:  $(CMD)
 
 clean:
 	rm -f *.o
 	rm -f *.mod
-	rm -f *.x
+	rm -f make_base
 
 check_prereqs:
 	/nwprod/spa_util/check_libs.bash $(LIBS)
 
-install:
-	cp -f $(CMD) $(BINDIR)/
+install:	
+	cp -f $(CMD) $(BINDIR)/.
 
 debug:  FFLAGS = $(D_FFLAGS)
 debug:  $(CMD)
@@ -38,9 +40,5 @@ debug:  $(CMD)
 $(CMD):         $(OBJS)
 	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
 
-angle.o : angle.f90
+make_base.o : make_base.f90
 	$(CF) $(FFLAGS) -c $(*).f90
-
-avgsdv.o : avgsdv.f90
-	$(CF) $(FFLAGS) -c $(*).f90
-

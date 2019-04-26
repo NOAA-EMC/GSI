@@ -189,25 +189,16 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
    #------------------------------------------------------------------
    # Rename the diag files and uncompress
    #------------------------------------------------------------------
-   netcdf=0
 
    for type in ${SATYPE}; do
-
-      if [[ netcdf -eq 0 && -e diag_${type}_ges.${PDATE}.nc4.${Z} ]]; then
-         netcdf=1
-      fi
-     
-      mv diag_${type}_ges.${PDATE}*.${Z} ${type}.${Z}
+      mv diag_${type}_ges.${PDATE}.${Z} ${type}.${Z}
       ${UNCOMPRESS} ./${type}.${Z}
      
       if [[ $USE_ANL -eq 1 ]]; then
-         mv diag_${type}_anl.${PDATE}*.${Z} ${type}_anl.${Z}
+         mv diag_${type}_anl.${PDATE}.${Z} ${type}_anl.${Z}
          ${UNCOMPRESS} ./${type}_anl.${Z}
       fi
    done
-
-   export RADMON_NETCDF=$netcdf
-
 
    #------------------------------------------------------------------
    #   Run the child sccripts.

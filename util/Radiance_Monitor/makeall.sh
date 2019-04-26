@@ -39,8 +39,6 @@ if [[ ${machine} = "theia" || ${machine} = "wcoss" || ${machine} = "wcoss_d" || 
    module use -a ${HOMEradmon}/modulefiles/${machine}
    module load RadMonBuild
 
-   export dir_root=${HOMEradmon}
-
    executables="angle bcoef bcor time"
    echo "Making executables in nwprod/radmon_shared.${radmon_shared_ver}/sorc:"
    for var in ${executables}; do

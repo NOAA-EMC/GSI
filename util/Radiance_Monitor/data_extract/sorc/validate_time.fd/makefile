@@ -22,14 +22,14 @@ OBJS   = kinds.o bad_obs.o bad_penalty.o bad_chan.o valid.o \
 # *****************************************************************
 #
 
-CMD = rad_validate_time.x
+CMD = validate_time.x
 
 all:  $(CMD)
 
 clean:
 	rm -f *.o
 	rm -f *.mod
-	rm -f *.x 
+	rm -f validate_time.x 
 
 check_prereqs:
 	/nwprod/spa_util/check_libs.bash $(LIBS)
