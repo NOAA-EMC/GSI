@@ -5,7 +5,7 @@
 #
 # *****************************************************************
 
-BINDIR = ../../exec
+BINDIR = ../exec
 
 LIBS   = $(W3NCO_LIB4)
 
@@ -15,14 +15,14 @@ OBJS   = time.o  avgsdv.o
 # *****************************************************************
 #
 
-CMD = rad_ig_time.x
+CMD = time.x
 
 all:  $(CMD)
 
 clean:
 	rm -f *.o
 	rm -f *.mod
-	rm -f *.x
+	rm -f time.x
 
 check_prereqs:
 	/nwprod/spa_util/check_libs.bash $(LIBS)

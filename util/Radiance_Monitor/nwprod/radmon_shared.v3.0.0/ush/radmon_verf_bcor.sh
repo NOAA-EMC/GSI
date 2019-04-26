@@ -97,13 +97,8 @@ VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 USE_ANL=${USE_ANL:-0}
 
-bcor_exec=radmon_bcor.x
+bcor_exec=radmon_bcor
 err=0
-
-netcdf_boolean=".false."
-if [[ $RADMON_NETCDF -eq 1 ]]; then
-   netcdf_boolean=".true."
-fi
 
 if [[ $USE_ANL -eq 1 ]]; then
    gesanl="ges anl"
@@ -186,7 +181,6 @@ cat << EOF > input
   gesanl='${dtype}',
   little_endian=${LITTLE_ENDIAN},
   rad_area='${RAD_AREA}',
-  netcdf=${netcdf_boolean},
  /
 EOF
    

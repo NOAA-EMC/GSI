@@ -12,8 +12,7 @@ program angle
   character(20) satname,stringd
   character(10) satype,dplat
   character(20) dum,satsis,satscan_sis
-  character(80) string,data_file,dfile,ctl_file
-  character(500) diag_rad
+  character(80) string,diag_rad,data_file,dfile,ctl_file
   character(40),dimension(max_surf_region):: surf_region
   character(8)  date,suffix,cycle
   character(len=1024) :: command
@@ -64,10 +63,8 @@ program angle
   character(3)          :: gesanl               = 'ges'
   integer               :: little_endian        = 1
   character(3)          :: rad_area             = 'glb'
-  logical               :: netcdf               = .false.
   namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,nchanl,&
-       suffix,imkctl,imkdata,retrieval,gesanl,little_endian,&
-       rad_area,netcdf
+       suffix,imkctl,imkdata,retrieval,gesanl,little_endian,rad_area
 
   data luname,lungrd,lunctl,lndiag,iscan / 5, 51, 52, 21, 31 /
   data lunang / 22 /
@@ -100,10 +97,8 @@ program angle
   read(luname,input)
   write(6,input)
   write(6,*)' '
-  write(6,*)'gesanl   = ', gesanl
+  write(6,*)'gesanl = ', gesanl
   write(6,*)'rad_area = ', rad_area
-  write(6,*)'netcdf   = ', netcdf
-
 
   surf_nregion = 5
   if ( trim(rad_area) == 'rgn' ) then
@@ -142,6 +137,7 @@ program angle
      ctl_file = 'angle.' // trim(satname) // '_anl.ctl'
   endif
 
+
   write(6,*)'diag_rad =',diag_rad
   write(6,*)'data_file=',data_file
   write(6,*)'suffix   =',suffix
@@ -150,23 +146,14 @@ program angle
   write(6,*)'imkdata   =',imkdata
   write(6,*)'little_endian =', little_endian
 
- 
-  !-----------------------------------------------------
-  !  Note:  Ideally the open_radiag routine would 
-  !         return an iret code indicating success or
-  !         failure of the attempt to open the diag file.
-  !         It's ok in this case, only because the calling
-  !         script only starts the executable if the 
-  !         diag file is > 0 sized, and the calls to
-  !         actually read the data do support return codes.
-  !         Still, if time permits it would be useful to add
-  !         an iret value to open_radiag().
-  !
-  call set_netcdf_read( netcdf )
-  call open_radiag( diag_rad, lndiag )
 
-!-------------------------------- 
-! Attempt to read header
+! Open unit to diagnostic file.  Read portion of 
+!  header to see if file exists
+  open(lndiag,file=diag_rad,form='unformatted')
+  read(lndiag,err=900,end=900) dum
+  rewind lndiag
+
+! File exists.  Read header
   write(6,*)'call read_diag_header'
   call read_radiag_header( lndiag, npred_radiag, retrieval,&
         header_fix, header_chan, data_name, iflag )
@@ -260,8 +247,7 @@ program angle
         end do
      end do
   end do
-  write(6,*) 'arrays zeroed'
-  
+
 ! Note:  timang has been deprecated and the satang file is no longer 
 !   used.  See the plot_angle_sep.*.gs scripts for how the timang
 !   values are derived from the diagnostic file contents.  The 
@@ -281,7 +267,7 @@ program angle
      error(j)     = real( header_chan(j)%varch, 4)
      use(j)       = real( header_chan(j)%iuse, 4 )
      frequency(j) = real( header_chan(j)%freq, 4)
-!     print *,nu_chan(j),io_chan(j),wavenumbr(j),error(j),use(j),frequency(j)
+!    print *,nu_chan(j),io_chan(j),wavenumbr(j),error(j),use(j),frequency(j)
   end do
         
 
@@ -297,8 +283,6 @@ program angle
 ! Loop to read entries in diagnostic file
   iflag = 0
   loopd:  do while (iflag == 0)
-
-     write(6,*) ' top of do loop, reading record'
 
 !    Read a record.  If read flag, iflag does not equal zero, exit loopd
      call read_radiag_data( lndiag, header_fix, retrieval, data_fix, data_chan,&
@@ -707,7 +691,6 @@ program angle
      write(6,*)'write output to lungrd=',lungrd,', file=',trim(data_file)
      close(lungrd)
   endif
-  write(6,*) '....deallocating arrays'
   deallocate(timang,count,penalty,omg_nbc,omg_bc,tot_cor,&
              fixang_cor,lapse_cor,lapse2_cor,const_cor,scangl_cor,clw_cor)
   deallocate(cos_cor,sin_cor,emiss_cor,ordang1_cor,ordang2_cor,ordang3_cor,ordang4_cor)

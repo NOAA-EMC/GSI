@@ -17,7 +17,7 @@
 #         chan.txt   (extracted from *.ctl file)
 #            actual channel number, use flag, wavelength, frequency (csv format)
 #
-#     2)  Run rad_ig_time.x <input >out
+#     2)  Run time.x <input >out
 #
 #     3)  Move [sat].[n].times.txt to ~/imgn/[source]/pngs/time
 #------------------------------------------------------------------
@@ -38,9 +38,9 @@ fi
 
 
 #----------------------------------
-#  copy rad_ig_time.x executable locally
+#  copy time.x executable locally
 #
-time_exec="rad_ig_time.x"
+time_exec="time.x"
 if [[ ! -e $time_exec ]]; then
    $NCP ${IG_EXEC}/${time_exec}  ./${time_exec}
 fi

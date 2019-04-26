@@ -18,7 +18,7 @@
 #     2)  Copy the chan.txt from the time directory and modify the ncycles (line 1) 
 #         to nsteps.
 #
-#     3)  Run rad_ig_angle.x <input >out
+#     3)  Run angle.x <input >out
 #
 #     4)  Move [sat].[n].[ang_type].times.txt to ~/imgn/[source]/pngs/angle
 #------------------------------------------------------------------
@@ -40,7 +40,7 @@ fi
 #----------------------------------
 #  copy time.x executable locally
 #
-ang_exec="rad_ig_angle.x"
+ang_exec="angle.x"
 if [[ ! -e $ang_exec ]]; then
    $NCP ${IG_EXEC}/${ang_exec}  ./${ang_exec}
 fi

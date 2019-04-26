@@ -1,28 +1,30 @@
 # *****************************************************************
-#  makefile
+#  makefile.angle
 #
-#  Make the radmon bcoef.x executable. 
+#  Make the angle.x executable.  The executable will extract angle
+#  radiance data from an angle ieee_d file and write it to text
+#  files for use in the interactive angle plots.
 #
 # *****************************************************************
 
-BINDIR = ../../exec
+BINDIR = ../exec
 
 LIBS   = $(W3NCO_LIB4)
 
-OBJS   = bcoef.o  avgsdv.o
+OBJS = angle.o avgsdv.o
 
 #
 # *****************************************************************
 #
 
-CMD = rad_ig_bcoef.x
+CMD = angle.x
 
 all:  $(CMD)
 
 clean:
 	rm -f *.o
 	rm -f *.mod
-	rm -f *.x
+	rm -f angle.x
 
 check_prereqs:
 	/nwprod/spa_util/check_libs.bash $(LIBS)
@@ -36,8 +38,9 @@ debug:  $(CMD)
 $(CMD):         $(OBJS)
 	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
 
-bcoef.o : bcoef.f90
+angle.o : angle.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 
 avgsdv.o : avgsdv.f90
 	$(CF) $(FFLAGS) -c $(*).f90
+

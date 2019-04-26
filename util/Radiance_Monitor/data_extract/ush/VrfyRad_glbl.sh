@@ -138,9 +138,9 @@ jobname=$DATA_EXTRACT_JOBNAME
 if [[ $RUN_ENVIR = dev ]]; then
    if [[ $MY_MACHINE = "wcoss" ]]; then
       total=`bjobs -l | grep ${jobname} | wc -l`
-   elif [[ $MY_MACHINE = "theia" ]]; then
+   elif [[ $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
       total=0
-      line=`squeue -u ${LOGNAME} | grep ${jobname}`
+      line=`qstat -u ${LOGNAME} | grep ${jobname}`
       test=`echo $line | gawk '{print $10}'`
 
       total=`echo $line | grep ${jobname} | wc -l`
@@ -300,20 +300,14 @@ if [[ -e ${radstat} ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGdir/data_extract.${PDY}.${cyc}.log \
            -M 100 -R affinity[core] -W 0:20 -J ${jobname} -cwd ${PWD} \
            $HOMEgdas/jobs/JGDAS_VERFRAD
-
    elif [[ $MY_MACHINE = "cray" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGdir/data_extract.${PDY}.${cyc}.log \
            -M 100 -W 0:20 -J ${jobname} -cwd ${PWD} $HOMEgdas/jobs/JGDAS_VERFRAD
-
    elif [[ $MY_MACHINE = "theia" ]]; then
-      $SUB -o $LOGdir/Rad_DE.${PDY}.${CYC}.log \
-	   -J ${jobname} \
-           -p shared \
-           --mem=5g \
- 	   --time=10 \
-	   --account=${ACCOUNT} \
-	   $HOMEgdas/jobs/JGDAS_VERFRAD
-
+      $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -V \
+           -o $LOGdir/Rad_DE.${PDY}.${CYC}.log \
+           -e $LOGdir/Rad_DE.${PDY}.${CYC}.err \
+           $HOMEgdas/jobs/JGDAS_VERFRAD
    fi
   
 fi
