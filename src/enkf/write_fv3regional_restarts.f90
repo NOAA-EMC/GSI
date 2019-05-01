@@ -59,7 +59,8 @@
        integer(i_kind), intent(in) :: file_id
        integer(i_kind) :: var_id
        data_arr=data_arr(ubound(data_arr,1):lbound(data_arr,1):-1,ubound(data_arr,2):lbound(data_arr,2):-1, &
-                          ubound(data_arr,3):lbound(data_arr,3):-1,ubound(data_arr,4):lbound(data_arr,4):-1)
+                          ubound(data_arr,3):lbound(data_arr,3):-1,lbound(data_arr,4):ubound(data_arr,4))
+!Notice, the 4th dimension is not reversed
        include "write_fv3_restart_data.f90"
     end subroutine write_fv3_restart_data4d
 

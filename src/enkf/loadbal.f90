@@ -240,7 +240,8 @@ do i=1,numptsperproc(nproc+1)
 end do
 
 ! for serial filter, partition obs for observation space update.
-if (.not. letkf_flag .or. lupd_obspace_serial) then
+!cltorg if (.not. letkf_flag .or. lupd_obspace_serial) then
+if ((.not. letkf_flag .or. lupd_obspace_serial).and.ldo_enscalc_option==0)  then
    allocate(numobsperproc(numproc))
    allocate(iprocob(nobstot))
    ! default is to partition obs simply, since
@@ -477,6 +478,7 @@ do nn=1,ncdim
 end do
 !$omp end parallel do
 else if (ldo_enscalc_option ==1 ) then !to calculate ensemble mean
+!$omp parallel do schedule(dynamic,1)  private(nn,i,nanal,n)
 do nn=1,ncdim
    do i=1,numptsperproc(nproc+1)
       do nanal=1,nanals
@@ -497,6 +499,7 @@ end do
 !$omp end parallel do
 
 else if (ldo_enscalc_option ==2 ) then !to recentter , the first member is the control run 
+!$omp parallel do schedule(dynamic,1)  private(nn,i,nanal,n)
 do nn=1,ncdim
    do i=1,numptsperproc(nproc+1)
       do nanal=1,nanals

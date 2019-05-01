@@ -187,10 +187,11 @@ integer (i_kind), public :: ldo_enscalc_option = 0
 logical,public :: netcdf_diag = .false.
 
 ! use fv3 cubed-sphere tiled restart files
-logical,public :: fv3_native = .false.
+logical,public :: fv3_native = .true.
 character(len=500),public :: fv3fixpath = ' '
 integer(i_kind),public :: ntiles=6
 integer(i_kind),public :: nx_res=0,ny_res=0
+logical,public ::l_pres_add_saved=.true.
 
 namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    covinflatemax,covinflatemin,deterministic,sortinc,&
@@ -214,7 +215,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    fso_cycling,fso_calculate,imp_physics,lupp,fv3_native
 
 namelist /nam_wrf/arw,nmm,nmm_restart
-namelist /nam_fv3/fv3fixpath,nx_res,ny_res,ntiles
+namelist /nam_fv3/fv3fixpath,nx_res,ny_res,ntiles,l_pres_add_saved
 namelist /satobs_enkf/sattypes_rad,dsis
 namelist /ozobs_enkf/sattypes_oz
 
@@ -342,8 +343,6 @@ fgfileprefixes = ''; anlfileprefixes=''; statefileprefixes=''
 ! read from namelist file, doesn't seem to work from stdin with mpich
 open(912,file='enkf.nml',form="formatted")
 read(912,nam_enkf)
-read(912,satobs_enkf)
-read(912,ozobs_enkf)
 if (regional) then
   read(912,nam_wrf)
 endif
@@ -351,6 +350,8 @@ if (fv3_native) then
   read(912,nam_fv3)
   nlons = nx_res; nlats = ny_res ! (total number of pts = ntiles*res*res)
 endif
+read(912,satobs_enkf)
+read(912,ozobs_enkf)
 close(912)
 
 ! find number of satellite files
@@ -478,9 +479,12 @@ if (nproc == 0) then
       print *, 'must select either arw, nmm or nmmb regional dynamical core'
       call stop2(19)
    endif
-   if (fv3_native .and. (fv3fixpath == ' ' .or. nx_res == 0.or.ny_res)) then
-      print *, 'must specify nx_res,ny_res and fv3fixpath when fv3_native is true'
+   if (fv3_native .and. (nx_res == 0.or.ny_res == 0)) then
+      print *, 'must specify nx_res,ny_res when fv3_native is true'
       call stop2(19)
+   endif
+   if(ldo_enscalc_option .ne.0 ) then 
+    l_pres_add_saved=.false. 
    endif
    if (letkf_flag .and. univaroz) then
      print *,'univaroz is not supported in LETKF!'
