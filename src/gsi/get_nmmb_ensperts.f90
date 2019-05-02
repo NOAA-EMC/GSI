@@ -11,6 +11,8 @@ subroutine get_nmmb_ensperts
 ! program history log:
 !   2011-07-01 carley - initial adaptation for NMMB (not yet dual-res compat.)
 !   2011-09-19 carley - implement single precision bundle changes
+!   2017-05-12 Y. Wang and X. wang - add one option to read hydrometeors and W
+!                       for radar DA, POC: xuguang.wang@ou.edu
 !
 !   input argument list:
 !
@@ -30,9 +32,12 @@ subroutine get_nmmb_ensperts
    use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
    use gsi_bundlemod, only: gsi_bundlecreate,gsi_bundleset,gsi_grid,gsi_bundle, &
                             gsi_bundlegetpointer,gsi_bundledestroy,gsi_gridcreate
+
+   use mpeu_util, only: getindex
    implicit none
 
    real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: u,v,tv,q,oz,qs,rh,tsen,prsl
+   real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: w, qr, qli, ql, dbz, dw, qi
    real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2):: z,ps,sst2
    real(r_kind),pointer,dimension(:,:,:):: x3
    real(r_single),pointer,dimension(:,:,:) :: w3
@@ -42,7 +47,7 @@ subroutine get_nmmb_ensperts
    type(gsi_grid)  :: grid_ens
    real(r_kind) bar_norm,sig_norm
 
-   integer(i_kind) istatus,i,ic2,ic3,j,k,n,iderivative
+   integer(i_kind) istatus,i,ic2,ic3,j,k,n,iderivative,i_radar_qr,i_radar_qli
    character(70) filename
    logical ice
 
@@ -61,13 +66,23 @@ subroutine get_nmmb_ensperts
    sst2=zero        !    for now, sst not used in ensemble perturbations, so if sst array is called for
                     !      then sst part of en_perts will be zero when sst2=zero
 
+!    Determine if qr and qli are control variables for radar data assimilation,
+     i_radar_qr=0
+     i_radar_qli=0
+     i_radar_qr=getindex(cvars3d,'qr')
+     i_radar_qli=getindex(cvars3d,'qli')
+
    do n=1,n_ens
       write(filename,100) n               !make the filename
 100 format('nmmb_ens_mem',i3.3)    
 
 
       if (mype==0)write(6,*) 'CALL GENERAL_READ_NMMB FOR ENS FILE : ',filename  
-      call general_read_nmmb(grd_ens,filename,mype,z,ps,u,v,tv,tsen,q,oz)
+      if( i_radar_qr > 0 .and. i_radar_qli > 0 )then
+         call general_read_nmmb_radar(grd_ens,filename,mype,z,ps,u,v,w,qr,qli,ql,qi,dbz,dw,tv,tsen,q,oz)
+      else
+         call general_read_nmmb(grd_ens,filename,mype,z,ps,u,v,tv,tsen,q,oz)
+      end if
 
 ! For regional application (NMMB) use the the u,v option (i.e. uv_hyb_ens)
 ! Compute RH
@@ -136,6 +151,28 @@ subroutine get_nmmb_ensperts
                   end do
                end do
 
+            case('w','W')
+
+               do k=1,grd_ens%nsig
+                  do j=1,grd_ens%lon2
+                     do i=1,grd_ens%lat2
+                        w3(i,j,k) = w(i,j,k)
+                        x3(i,j,k)=x3(i,j,k)+w(i,j,k)
+                     end do
+                  end do
+               end do
+
+            case('dw','DW')
+
+               do k=1,grd_ens%nsig
+                  do j=1,grd_ens%lon2
+                     do i=1,grd_ens%lat2
+                        w3(i,j,k) = dw(i,j,k)
+                        x3(i,j,k)=x3(i,j,k)+dw(i,j,k)
+                     end do
+                  end do
+               end do
+
             case('t','T')
             
                do k=1,grd_ens%nsig
@@ -167,6 +204,62 @@ subroutine get_nmmb_ensperts
                      end do
                   end do
                end if
+
+            case('qr','QR')
+
+               do k=1,grd_ens%nsig
+                  do j=1,grd_ens%lon2
+                     do i=1,grd_ens%lat2
+                        w3(i,j,k) = qr(i,j,k)
+                        x3(i,j,k)=x3(i,j,k)+qr(i,j,k)
+                     end do
+                  end do
+               end do
+
+            case('qli','QLI')
+
+               do k=1,grd_ens%nsig
+                  do j=1,grd_ens%lon2
+                     do i=1,grd_ens%lat2
+                        w3(i,j,k) = qli(i,j,k)
+                        x3(i,j,k)=x3(i,j,k)+qli(i,j,k)
+                     end do
+                  end do
+               end do
+
+            case('qi','QI')
+
+               do k=1,grd_ens%nsig
+                  do j=1,grd_ens%lon2
+                     do i=1,grd_ens%lat2
+                        w3(i,j,k) = qi(i,j,k)
+                        x3(i,j,k)=x3(i,j,k)+qi(i,j,k)
+                     end do
+                  end do
+               end do
+
+            case('ql','QL')
+
+               do k=1,grd_ens%nsig
+                  do j=1,grd_ens%lon2
+                     do i=1,grd_ens%lat2
+                        w3(i,j,k) = ql(i,j,k)
+                        x3(i,j,k)=x3(i,j,k)+ql(i,j,k)
+                     end do
+                  end do
+               end do
+
+            case('dbz','DBZ')
+
+               do k=1,grd_ens%nsig
+                  do j=1,grd_ens%lon2
+                     do i=1,grd_ens%lat2
+                        w3(i,j,k) = dbz(i,j,k)
+                        x3(i,j,k)=x3(i,j,k)+dbz(i,j,k)
+                     end do
+                  end do
+               end do
+
 
             case('oz','OZ')
                       

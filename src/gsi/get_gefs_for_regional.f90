@@ -39,7 +39,7 @@ subroutine get_gefs_for_regional
   use hybrid_ensemble_parameters, only: en_perts,ps_bar,nelen
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_a1,grd_e1,p_e2a,uv_hyb_ens,dual_res
   use hybrid_ensemble_parameters, only: full_ensemble,q_hyb_ens,l_ens_in_diff_time,write_ens_sprd
-  use hybrid_ensemble_parameters, only: ntlevs_ens,ensemble_path
+  use hybrid_ensemble_parameters, only: ntlevs_ens,ensemble_path,jcap_ens
  !use hybrid_ensemble_parameters, only: add_bias_perturbation
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_bundlemod, only: gsi_bundlecreate
@@ -244,7 +244,18 @@ subroutine get_gefs_for_regional
      nlat_gfs=sighead%latf+2
      nlon_gfs=sighead%lonf
      nsig_gfs=sighead%levs
-     jcap_gfs=sighead%jcap
+     if(sighead%jcap > 0)then
+        jcap_gfs=sighead%jcap
+     else if(jcap_ens > 0)then
+        jcap_gfs=jcap_ens
+     else
+        write(6,*)'get_gefs_for_regional:ERROR jcap is undefined'
+        call stop2(555)
+     endif
+
+
+
+
      idvc=sighead%idvc
      idsl=sighead%idsl
 ! Extract header information
@@ -273,8 +284,14 @@ subroutine get_gefs_for_regional
      nlat_gfs=latb+2
      nlon_gfs=lonb
      nsig_gfs=levs
-     jcap_gfs=njcap
-
+     if(njcap > 0)then
+        jcap_gfs=njcap
+     else if(jcap_ens > 0)then
+        jcap_gfs=jcap_ens
+     else
+        write(6,*)'get_gefs_for_regional:ERROR jcap is undefined'
+        call stop2(555)
+     endif
      if(allocated(nems_vcoord)) deallocate(nems_vcoord)
      allocate(nems_vcoord(levs+1,3,2))
      call nemsio_getfilehead(gfile,iret=iret,vcoord=nems_vcoord)

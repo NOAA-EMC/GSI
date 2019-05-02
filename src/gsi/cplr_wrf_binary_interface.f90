@@ -1551,7 +1551,7 @@ contains
     character(8),allocatable:: recname(:)
     character(16),allocatable  :: reclevtyp(:)
     integer(i_kind),allocatable:: reclev(:)
-    real(r_kind) date6,date7,second,fhour
+    real(r_kind) date6,date7,second,fhour,fminute
     character(3) nmmb_verttype   !   'OLD' for old vertical coordinate definition
                                  !                old def: p = eta1*pdtop+eta2*(psfc-pdtop-ptop)+ptop
                                  !   'NEW' for new vertical coordinate definition
@@ -1648,6 +1648,7 @@ contains
        if(print_verbose)write(6,*)' convert_nems_nmmb: pdtop_regional,iret=',pdtop_regional,iret
   
        fhour=nfhour
+       fminute=nfminute
     
     
   !                  dsg1 (used to be deta1) 
@@ -1797,7 +1798,7 @@ contains
   
        end if
   
-       write(lendian_out) iyear,imonth,iday,ihour,iminute,isecond,fhour, &
+       write(lendian_out)iyear,imonth,iday,ihour,iminute,isecond,fhour,fminute, &
             nlon_regional,nlat_regional,nsig_regional, &
             dlmd_regional,dphd_regional,pt_regional,pdtop_regional,nmmb_verttype
        write(lendian_out)deta1              !  DETA1
