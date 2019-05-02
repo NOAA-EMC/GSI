@@ -422,7 +422,6 @@ contains
     character(len=4) char_nxres
     character(len=4) char_nyres
     character(len=1) char_tile
-    character(len=:),allocatable:: varname
     character(len=24),parameter :: myname_ = 'fv3: writegriddata'
 
     !----------------------------------------------------------------------
@@ -607,9 +606,14 @@ contains
 
 
        if(q_ind>0) then
-       varname='sphum'
+       varstrname='sphum'
      
        call write_fv3_restart_data3d(varstrname,fv3filename,file_id,qworkvar3d)
+       do k=1,nlevs
+          if (nproc .eq. 0)                                               &
+             write(6,*) 'WRITEregional : sphum ',                           &
+                 & k, minval(qworkvar3d(:,:,k)), maxval(qworkvar3d(:,:,k))
+       enddo
        endif
        
       
