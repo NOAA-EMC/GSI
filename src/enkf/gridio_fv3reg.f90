@@ -223,7 +223,6 @@ contains
               enddo
             enddo
             tvworkvar3d=workvar3d
-            write(6,*)'thinkdeb999 tv (10,10,10)readin is ',tvworkvar3d(10,10,10),qworkvar3d(10,10,10)
         else! tsen_id >0
               workvar3d=tsenworkvar3d
         endif
@@ -267,8 +266,6 @@ contains
        enddo
 
     endif
-    write(6,*)'thinkdeb220 1'
-    call flush(6)
    
       call nc_check( nf90_close(file_id),&
       myname_,'close '//trim(fv3filename) )
@@ -280,8 +277,6 @@ contains
 
     !----------------------------------------------------------------------
     ! Allocate memory for variables computed within routine
-    write(6,*)'thinkdeb220 2 ps_ind ',ps_ind
-    call flush(6)
  
     if (ps_ind > 0) then
        allocate(workprsi(nx_res,ny_res,nlevsp1))
@@ -299,7 +294,6 @@ contains
        enddo
  
       pswork(:,:)=workprsi(:,:,1)
-      write(6,*)'thinkdeb1000readin ps ptop is ',pswork(10,10),workprsi(10,10,nlevsp1)
 
 
 
@@ -323,9 +317,6 @@ contains
         enddo
       enddo
      ice=.true.  !tothink
-    write(6,*)'thinkdeb220 3, pesudo_rh is ',pseudo_rh
-    write(6,*)' q qsat ps, tv are ',qworkvar3d(10,10,10), qsatworkvar3d(10,10,10), workvar3d(10,10,10),tvworkvar3d(10,10,10)
-    call flush(6)
     if (pseudo_rh) then
        call genqsat1(qworkvar3d,qsatworkvar3d,workvar3d,tvworkvar3d,ice,  &
                      nx_res*ny_res,nlevs)
@@ -353,8 +344,6 @@ contains
    if(allocated(qsatworkvar3d)) deallocate(qsatworkvar3d)
     
      endif
-    write(6,*)'thinkdeb220 10'
-    call flush(6)
     !======================================================================
     ! Deallocate memory 
     if(allocated(workvar3d))             deallocate(workvar3d)
@@ -462,8 +451,6 @@ contains
 
 
 
-    write(6,*)'thinkdeb2200 10 nanal ',nanal
-    call flush(6)
     !----------------------------------------------------------------------
     ! First guess file should be copied to analysis file at scripting
     ! level; only variables updated by EnKF are changed
@@ -491,8 +478,6 @@ contains
        varstrname = 'u'
        allocate(uworkvar3d(nx_res,ny_res+1,nlevs))
          
-    write(6,*)'thinkdeb220 11 nn_tile0 ',nn_tile0
-    call flush(6)
        call read_fv3_restart_data3d(varstrname,fv3filename,file_id,uworkvar3d)
       do k=1,nlevs
           nn = nn_tile0
@@ -503,26 +488,18 @@ contains
          enddo
       enddo
       enddo
-    write(6,*)'thinkdeb220 12'
-    call flush(6)
       uworkvar3d(:,1:ny_res,:)=workvar3d+workinc3d
       uworkvar3d(:,ny_res+1,:)=uworkvar3d(:,ny_res,:)
        call write_fv3_restart_data3d(varstrname,fv3filename,file_id,uworkvar3d)
        deallocate(uworkvar3d)
-    write(6,*)'thinkdeb220 13'
-    call flush(6)
 
     endif
 
     if (v_ind > 0) then
        varstrname = 'v'
        allocate(vworkvar3d(nx_res+1,ny_res,nlevs))
-    write(6,*)'thinkdeb220 14'
-    call flush(6)
          
        call read_fv3_restart_data3d(varstrname,fv3filename,file_id,vworkvar3d)
-    write(6,*)'thinkdeb220 15'
-    call flush(6)
       do k=1,nlevs
           nn = nn_tile0
       do j=1,ny_res
@@ -538,8 +515,6 @@ contains
 
        deallocate(vworkvar3d)
     endif
-    write(6,*)'thinkdeb220 20'
-    call flush(6)
     if (tv_ind > 0.or.tsen_ind>0 ) then
          
        varstrname = 'T'
@@ -567,20 +542,13 @@ contains
       enddo
       enddo
 
-    write(6,*)'thinkdeb220 23'
-    call flush(6)
        varstrname = 'T'
        allocate(tsenworkvar3d(nx_res,ny_res,nlevs))
         call read_fv3_restart_data3d(varstrname,fv3filename,file_id,tsenworkvar3d)
-            write(6,*)'thinkdeb999 tsenv (10,10,10)readinagain is ',tsenworkvar3d(10,10,10)
-            write(6,*)'thinkdeb999 tv workinc (10,10,10)readinagain is ',workinc3d(10,10,10)
        varstrname = 'sphum'
         call read_fv3_restart_data3d(varstrname,fv3filename,file_id,qworkvar3d)
-            write(6,*)'thinkdeb999 tv q (10,10,10)readinagain is ',qworkvar3d(10,10,10)
         tvworkvar3d=tsenworkvar3d*(one+fv*qworkvar3d)
-            write(6,*)'thinkdeb999 bg tv readin (10,10,10)readinagain is ',tvworkvar3d(10,10,10)
         tvworkvar3d=tvworkvar3d+workinc3d
-            write(6,*)'thinkdeb999 anl tv towritout (10,10,10)readinagain is ',tvworkvar3d(10,10,10)
        if(q_ind > 0) then
       do k=1,nlevs
           nn = nn_tile0
@@ -622,8 +590,6 @@ contains
      endif
 
     endif
-    write(6,*)'thinkdeb220 30'
-    call flush(6)
     if (oz_ind > 0) then
        varstrname = 'o3mr'
          
@@ -651,7 +617,6 @@ contains
         workprsi(:,:,i)=workvar3d(:,:,i)*0.01_r_kind+workprsi(:,:,i+1)
        enddo
 
-      write(6,*)'thinkdeb1000readin 2 ps ptop is ',workprsi(10,10,1),workprsi(10,10,nlevsp1)
 
 
           nn = nn_tile0
@@ -661,7 +626,6 @@ contains
             pswork(i,j)=vargrid(nn,levels(n3d)+ps_ind,nb )
          enddo
       enddo
-     write(6,*)'thinkdeb1000 l_pres_add_saved is ',l_pres_add_saved
      if(l_pres_add_saved) then
       do k=1,nlevs+1
       do j=1,ny_res
@@ -681,7 +645,6 @@ contains
         workvar3d(:,:,k)=(workprsi(:,:,k)-workprsi(:,:,k+1))*100.0
        enddo
         
-      write(6,*)'thinkdeb1000write ps ptop is ',workprsi(10,10,1),workprsi(10,10,nlevsp1)
 
        call write_fv3_restart_data3d(varstrname,filename,file_id,workvar3d)
      endif

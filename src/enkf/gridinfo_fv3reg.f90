@@ -300,8 +300,6 @@ do nn=1,npts
    gridloc(2,nn) = cos(latsgrd(nn))*sin(lonsgrd(nn))
    gridloc(3,nn) = sin(latsgrd(nn))
 end do
-write(6,*)'end of getgridinfo '
-call flush(6)
 end subroutine getgridinfo
 
 subroutine gridinfo_cleanup()
