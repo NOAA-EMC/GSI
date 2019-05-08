@@ -267,8 +267,6 @@ if (nproc <= nanals-1) then
       ! gather ens. mean anal. increment on root, print out max/mins.
       call mpi_reduce(grdin(:,:,nb), grdin_mean, npts*ncdim, mpi_real4,   &
                       mpi_sum,0,mpi_comm_io,ierr)
-    write(6,*)'thinkdeb2200 1'
-    call flush(6)
       if (nproc == 0) then
          grdin_mean = grdin_mean/real(nanals)
          do nvar=1,nc3d
@@ -283,8 +281,6 @@ if (nproc <= nanals-1) then
          enddo
       endif
    enddo
-    write(6,*)'thinkdeb2200 2'
-    call flush(6)
 
    if (nproc == 0) then
       deallocate(grdin_mean)
@@ -292,8 +288,6 @@ if (nproc <= nanals-1) then
       print *,'time to gather ens mean increment on root',t2-t1,'secs'
    endif
 
-    write(6,*)'thinkdeb2200 3'
-    call flush(6)
 
    t1 = mpi_wtime()
    q_ind = getindex(cvars3d, 'q')
@@ -304,8 +298,6 @@ if (nproc <= nanals-1) then
          grdin(:,(q_ind-1)*nlevs+1:q_ind*nlevs,nb)*qsat(:,:,nb)
       enddo
    end if
-    write(6,*)'thinkdeb2200 4'
-    call flush(6)
    call writegriddata(nanal,cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
    if (nproc == 0) then
      t2 = mpi_wtime()

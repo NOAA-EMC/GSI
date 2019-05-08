@@ -216,7 +216,7 @@ if (nproc .eq. 0) then
       write(char_tile, '(i1)') ntile
 !cltorg      filename = trim(adjustl(datapath))//'/ensmean/fv_core.res.tile'//char_tile//'.nc'
 !clt      filename = trim(adjustl(datapath))//'/ensmean/dynvars.tile'//char_tile//'.nc'
-      filename = 'fv3sar_tile'//char_tile//"_ensmean.dynvartracer"
+      filename = 'fv3sar_tile'//char_tile//"_ensmean_dynvartracer"
       !print *,trim(adjustl(filename))
       call nc_check( nf90_open(trim(adjustl(filename)),nf90_nowrite,file_id),&
       myname_,'open: '//trim(adjustl(filename)) )

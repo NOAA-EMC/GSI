@@ -237,9 +237,10 @@ contains
               enddo
             enddo
             do k = levels(tmp_ind-1)+1, levels(tmp_ind)
-               if (nproc .eq. 0)                                               &
+               if (nproc .eq. 0)   then                                           
                   write(6,*) 'READFVregional : t ',                           &
                       & k, minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+                endif
             enddo
 
         endif
@@ -488,7 +489,7 @@ contains
          enddo
       enddo
       enddo
-      uworkvar3d(:,1:ny_res,:)=workvar3d+workinc3d
+      uworkvar3d(:,1:ny_res,:)=uworkvar3d(:,1:ny_res,:)+workinc3d
       uworkvar3d(:,ny_res+1,:)=uworkvar3d(:,ny_res,:)
        call write_fv3_restart_data3d(varstrname,fv3filename,file_id,uworkvar3d)
        deallocate(uworkvar3d)
@@ -509,7 +510,7 @@ contains
          enddo
       enddo
       enddo
-      vworkvar3d(1:nx_res,:,:)=workvar3d+workinc3d
+      vworkvar3d(1:nx_res,:,:)=vworkvar3d(1:nx_res,:,:)+workinc3d
       vworkvar3d(nx_res+1,:,:)=vworkvar3d(nx_res,:,:)
        call write_fv3_restart_data3d(varstrname,fv3filename,file_id,vworkvar3d)
 
@@ -610,7 +611,8 @@ contains
       if (ps_ind > 0) then
        allocate(workprsi(nx_res,ny_res,nlevsp1))
        allocate(pswork(nx_res,ny_res))
-      call read_fv3_restart_data3d('delp',filename,file_id,workvar3d)  !cltto
+       varstrname = 'delp'
+      call read_fv3_restart_data3d(varstrname,filename,file_id,workvar3d)  !cltto
       !print *,'min/max delp',ntile,minval(delp),maxval(delp)
       workprsi(:,:,nlevsp1)=eta1_ll(nlevsp1) !etal_ll is needed
       do i=nlevs,1,-1
