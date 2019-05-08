@@ -70,7 +70,7 @@ subroutine get_num_satobs_bin(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
     character(len=20) ::  sat_type
     character(len=4) :: pe_name
     integer(i_kind) iunit, iflag, nsat, n, nkeep, i, jpchstart,indxsat,ipe
-    integer(i_kind) npred_radiag
+    integer(i_kind) npred_radiag, istatus
     logical fexist,lretrieval,lverbose,init_pass
     real(r_kind) :: errorlimit,errorlimit2
 
@@ -130,7 +130,7 @@ subroutine get_num_satobs_bin(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
            inquire(file=obsfile,exist=fexist)
            if (.not.fexist) cycle peloop
            nkeep = 0
-           call open_radiag(obsfile,iunit)
+           call open_radiag(obsfile,iunit,istatus)
 
            if (init_pass) then
               call read_radiag_header(iunit,npred_radiag,lretrieval,header_fix0,header_chan0,data_name0,iflag,lverbose)
@@ -362,7 +362,7 @@ subroutine get_satobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, hx_m
   character(len=20) ::  sat_type
 
   integer(i_kind) iunit, iflag,nob,nobdiag, n,nsat,ipe,i,jpchstart,indxsat,nn
-  integer(i_kind) iunit2, iflag2
+  integer(i_kind) iunit2, iflag2, istatus
   integer(i_kind) npred_radiag
   logical fexist,lretrieval,lverbose,init_pass
   logical twofiles,fexist2,init_pass2
@@ -439,7 +439,7 @@ subroutine get_satobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, hx_m
 
      inquire(file=obsfile,exist=fexist)
      if(.not.fexist) cycle peloop
-     call open_radiag(obsfile,iunit)
+     call open_radiag(obsfile,iunit,istatus)
 
      if (init_pass) then
         call read_radiag_header(iunit,npred_radiag,lretrieval,header_fix,header_chan,data_name,iflag,lverbose)
@@ -459,7 +459,7 @@ subroutine get_satobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, hx_m
           trim(adjustl(obspath))//'gsitmp_'//trim(adjustl(id2))//'/pe'//pe_name//'.'//trim(sattypes_rad(nsat))//'_01'
        endif
 
-       call open_radiag(obsfile2, iunit2)
+       call open_radiag(obsfile2, iunit2,istatus)
 
        if (init_pass2) then
           call read_radiag_header(iunit2,npred_radiag,lretrieval,header_fix2,header_chan2,data_name2,iflag2,lverbose)
