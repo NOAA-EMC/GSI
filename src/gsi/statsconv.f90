@@ -2,7 +2,7 @@ subroutine statsconv(mype,&
      i_ps,i_uv,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag, &
      i_gust,i_vis,i_pblh,i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv, & 
      i_tcamt,i_lcbas,i_cldch,i_uwnd10m,i_vwnd10m,&
-     i_swcp,i_lwcp,i_ref,bwork,awork,ndata)
+     i_swcp,i_lwcp,i_dbz,i_ref,bwork,awork,ndata)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    statconv    prints statistics for conventional data
@@ -43,6 +43,7 @@ subroutine statsconv(mype,&
 !   2014-06-06  carley/zhu - add tcamt and lcbas
 !   2015-07-10  pondeca - add cldch
 !   2016-05-05  pondeca - add uwnd10m, vwnd10m
+!   2017-05-12  Y. Wang and X. Wang - add dbz, POC: xuguang.wang@ou.edu
 !
 !   input argument list:
 !     mype     - mpi task number
@@ -94,12 +95,12 @@ subroutine statsconv(mype,&
        iout_gust,iout_vis,iout_pblh,iout_wspd10m,iout_td2m,& 
        iout_mxtm,iout_mitm,iout_pmsl,iout_howv,iout_tcamt,iout_lcbas,iout_cldch,&
        iout_uwnd10m,iout_vwnd10m,&
-       iout_swcp,iout_lwcp,&
+       iout_dbz,iout_swcp,iout_lwcp,&
        mype_dw,mype_rw,mype_sst,mype_gps,mype_uv,mype_ps,&
        mype_t,mype_pw,mype_q,mype_tcp,ndat,dtype,mype_lag,mype_gust,&
        mype_vis,mype_pblh,mype_wspd10m,mype_td2m,mype_mxtm,mype_mitm,&
        mype_pmsl,mype_howv,mype_tcamt,mype_lcbas,mype_cldch,mype_uwnd10m,mype_vwnd10m,&
-       mype_swcp,mype_lwcp
+       mype_dbz,mype_swcp,mype_lwcp
   use qcmod, only: npres_print,ptop,pbot,ptopq,pbotq
   use jfunc, only: first,jiter
   use gridmod, only: nsig
@@ -110,7 +111,7 @@ subroutine statsconv(mype,&
   integer(i_kind)                                  ,intent(in   ) :: mype,i_ps,i_uv,&
        i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag,i_gust,i_vis,i_pblh,&
        i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv,i_tcamt,i_lcbas,&
-       i_cldch,i_uwnd10m,i_vwnd10m,i_swcp,i_lwcp,i_ref
+       i_cldch,i_uwnd10m,i_vwnd10m,i_swcp,i_lwcp,i_dbz,i_ref
   real(r_kind),dimension(7*nsig+100,i_ref)     ,intent(in   ) :: awork
   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(in   ) :: bwork
   integer(i_kind),dimension(ndat,3)                ,intent(in   ) :: ndata
@@ -127,13 +128,13 @@ subroutine statsconv(mype,&
   integer(i_kind) numfail1_gps,numfail2_gps,numfail3_gps,nreadspd,nkeepspd
   integer(i_kind),dimension(nsig)::num
 
-  real(r_kind) grsmlt,tq,pw,rat,tgps,qmplty,tpw,tdw,rwmplty,trw
+  real(r_kind) grsmlt,tq,pw,rat,tgps,qmplty,tpw,tdw,rwmplty,trw,dbzmplty,tdbz
   real(r_kind) tmplty,tt,dwmplty,gpsmplty,umplty,tssm,qctssm,tu,tv,tuv
   real(r_kind) tswcp,tlwcp
   real(r_kind) vmplty,uvqcplty,rat1,rat2,rat3
   real(r_kind) dwqcplty,tqcplty,qctt,qctrw,rwqcplty,qctdw,qqcplty,qctgps
   real(r_kind) gpsqcplty,tpw3,pw3,qctq
-  real(r_kind) tswcp3,tlwcp3
+  real(r_kind) tswcp3,tlwcp3,qctdbz,dbzqcplty
   real(r_kind),dimension(1):: pbotall,ptopall
   
   logical,dimension(nconvtype):: pflag
@@ -1215,6 +1216,65 @@ subroutine statsconv(mype,&
      write(iout_rw,951) 'rw',rwmplty,rwqcplty,trw,qctrw
      
      close(iout_rw)
+  end if
+
+! Summary report for radar reflectivity
+  if(mype==mype_dbz) then
+     if(first)then
+        open(iout_dbz)
+     else
+        open(iout_dbz,position='append')
+     end if
+
+     dbzmplty=zero; dbzqcplty=zero ; ntot=0
+     tdbz=zero ; qctdbz=zero
+     nread=0
+     nkeep=0
+     do i=1,ndat
+        if(dtype(i)== 'dbz')then
+           nread=nread+ndata(i,2)
+           nkeep=nkeep+ndata(i,3)
+        end if
+     end do
+     if(nkeep > 0)then
+        mesage='current vfit of radar reflectivity data, ranges in dBZ$'
+        do j=1,nconvtype
+           pflag(j)=trim(ioctype(j)) == 'dbz'
+        end do
+        call dtast(bwork,npres_print,pbot,ptop,mesage,jiter,iout_dbz,pflag)
+
+        numgross=nint(awork(4,i_dbz))
+        numfailqc=nint(awork(21,i_dbz))
+        do k=1,nsig
+           num(k)=nint(awork(k+5*nsig+100,i_dbz))
+           rat=zero
+           rat3=zero
+           if(num(k) > 0) then
+              rat=awork(6*nsig+k+100,i_dbz)/float(num(k))
+              rat3=awork(3*nsig+k+100,i_dbz)/float(num(k))
+           end if
+           ntot=ntot+num(k)
+           dbzmplty=dbzmplty+awork(6*nsig+k+100,i_dbz)
+           dbzqcplty=dbzqcplty+awork(3*nsig+k+100,i_dbz)
+           write(iout_dbz,240) 'r',num(k),k,awork(6*nsig+k+100,i_dbz), &
+                                           awork(3*nsig+k+100,i_dbz),rat,rat3
+        end do
+        if(ntot > 0) then
+           tdbz=dbzmplty/float(ntot)
+           qctdbz=dbzqcplty/float(ntot)
+        end if
+        write(iout_dbz,925) 'dbz',numgross,numfailqc
+        numlow       = nint(awork(2,i_dbz))
+        numhgh       = nint(awork(3,i_dbz))
+        nhitopo      = nint(awork(5,i_dbz))
+        ntoodif      = nint(awork(6,i_dbz))
+        write(iout_dbz,900) 'dbz',numhgh,numlow
+        write(iout_dbz,905) 'dbz',nhitopo,ntoodif
+     end if
+     write(iout_dbz,950) 'dbz',jiter,nread,nkeep,ntot
+     write(iout_dbz,951) 'dbz',dbzmplty,dbzqcplty,tdbz,qctdbz
+
+     close(iout_dbz)
   end if
 
   if(mype==mype_tcp) then

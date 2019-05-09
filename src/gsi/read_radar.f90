@@ -2298,6 +2298,7 @@ subroutine getvrlocalinfo(thisrange,thisazimuth,this_stahgt,aactual,a43,selev0,c
 
   use kinds, only: r_kind,r_single,i_kind
   use constants, only: one,half,two,deg2rad,rad2deg,zero_single,rearth
+  use read_l2bufr_mod, only: invtllv
 
   implicit none
 

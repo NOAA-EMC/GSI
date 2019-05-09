@@ -93,6 +93,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !   2015-07-10  pondeca - add cldch
 !   2015-10-01  guo   - full res obvsr: index to allow redistribution of obsdiags
 !   2016-05-05  pondeca - add uwnd10m, vwund10m
+!   2017-05-12  Y. Wang and X. Wang - add dbz for reflectivity DA. POC: xuguang.wang@ou.edu
 !   2018-01-01  Apodaca - add GOES/GLM lightning
 !   2018-02-15  wu      - add code for fv3_regional 
 !
@@ -202,6 +203,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   external:: setuppw
   external:: setupq
   external:: setuprad
+  external:: setupdbz
   external:: setupref
   external:: setuprw
   external:: setupspd
@@ -250,7 +252,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
        is,idate,i_dw,i_rw,i_sst,i_tcp,i_gps,i_uv,i_ps,i_lag,i_light,&
        i_t,i_pw,i_q,i_co,i_gust,i_vis,i_ref,i_pblh,i_wspd10m,i_td2m,&
        i_mxtm,i_mitm,i_pmsl,i_howv,i_tcamt,i_lcbas,i_cldch,i_uwnd10m,i_vwnd10m,&
-       i_swcp,i_lwcp,iobs,nprt,ii,jj
+       i_swcp,i_lwcp,i_dbz,iobs,nprt,ii,jj
   integer(i_kind) it,ier,istatus
 
   real(r_quad):: zjo
@@ -321,7 +323,8 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   i_swcp=28
   i_lwcp=29
   i_light=30
-  i_ref =i_light
+  i_dbz=31
+  i_ref =i_dbz
 
   allocate(awork1(7*nsig+100,i_ref))
   if(.not.rhs_allocated) call rhs_alloc(aworkdim2=size(awork1,2))
@@ -559,6 +562,10 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !             Set up radar wind data
               else if(obstype=='rw')then
                  call setuprw(lunin,mype,bwork,awork(1,i_rw),nele,nobs,is,conv_diagsave)
+
+!             Set up radar reflectivity data
+              else if(obstype=='dbz')then
+                 call setupdbz(lunin,mype,bwork,awork(1,i_dbz),nele,nobs,is,conv_diagsave)
 
 !             Set up total precipitable water (total column water) data
               else if(obstype=='pw')then
@@ -798,7 +805,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
      call statsconv(mype,&
           i_ps,i_uv,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag, &
           i_gust,i_vis,i_pblh,i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv, &
-          i_tcamt,i_lcbas,i_cldch,i_uwnd10m,i_vwnd10m,i_swcp,i_lwcp,i_ref,bwork1,awork1,ndata)
+          i_tcamt,i_lcbas,i_cldch,i_uwnd10m,i_vwnd10m,i_swcp,i_lwcp,i_dbz,i_ref,bwork1,awork1,ndata)
 
 !     Compute and print statistics for "lightning" data
      if (mype==mype_light) call statslight(mype,i_light,bwork,awork,i_ref,ndata)
