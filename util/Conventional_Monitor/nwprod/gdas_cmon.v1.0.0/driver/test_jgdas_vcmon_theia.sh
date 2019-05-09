@@ -1,15 +1,21 @@
 #!/bin/ksh
 
-#PBS -o gdas_vcmon.log
-#PBS -e gdas_vcmon.err
-#PBS -N gdas_vcmon
-#PBS -A fv3-cpu
-#PBS -l procs=1,walltime=0:15:00
-#PBS -V
+#SBATCH -o %x.log
+#SBATCH -J gdas_vcmon
+#SBATCH --time=00:15:00
+#SBATCH --ntasks=1 -p service --mem=4g
+#SBATCH -A fv3-cpu
+
+##PBS -o gdas_vcmon.log
+##PBS -e gdas_vcmon.err
+##PBS -N gdas_vcmon
+##PBS -A fv3-cpu
+##PBS -l procs=1,walltime=0:15:00
+##PBS -V
 
 set -x
 
-export PDATE=${PDATE:-2017030606}
+export PDATE=${PDATE:-2018070412}
 
 #############################################################
 # Specify whether the run is production or development
@@ -27,8 +33,8 @@ export COMROOT=${COMROOT:-/scratch4/NCEPDEV/stmp3/$LOGNAME/com}
 #############################################################
 # Specify versions
 #############################################################
-export gdas_ver=v14.1.0
-export global_shared_ver=v14.1.0
+#export gdas_ver=v14.1.0
+#export global_shared_ver=v14.1.0
 export gdas_cmon_ver=v1.0.0
 export cmon_shared_ver=v1.0.0
 
@@ -46,7 +52,8 @@ export PATH=${PATH}:${NWPRODush}:${NWPRODexec}
 # Set user specific variables
 #############################################################
 export CMON_SUFFIX=${CMON_SUFFIX:-testcmon}
-export NWTEST=${NWTEST:-/scratch4/NCEPDEV/da/noscrub/${LOGNAME}/CMon_486/util/Conventional_Monitor/nwprod}
+#export NWTEST=${NWTEST:-/scratch4/NCEPDEV/da/noscrub/${LOGNAME}/CMon_486/util/Conventional_Monitor/nwprod}
+export NWTEST=${NWTEST:-/scratch4/NCEPDEV/da/noscrub/${LOGNAME}/ProdGSI/util/Conventional_Monitor/nwprod}
 export HOMEgdascmon=${HOMEgdascmon:-${NWTEST}/gdas_cmon.${gdas_cmon_ver}}
 export JOBGLOBAL=${JOBGLOBAL:-${HOMEgdascmon}/jobs}
 export HOMEcmon=${HOMEcmon:-${NWTEST}/cmon_shared.${cmon_shared_ver}}

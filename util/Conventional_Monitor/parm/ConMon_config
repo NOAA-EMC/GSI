@@ -4,7 +4,7 @@
 
 echo "begin CMon_config"
 
-export MY_MACHINE=wcoss
+export MY_MACHINE=theia
 
 #
 # MY_CMON should point to your working directory which contains the
@@ -14,7 +14,7 @@ export MY_MACHINE=wcoss
 # MY_CMON should point to that.
 #
 
-export MY_CMON=/gpfs/td2/emc/da/noscrub/Edward.Safford/ProdGSI/util/Conventional_Monitor
+export MY_CMON=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/ProdGSI/util/Conventional_Monitor
 
 #
 #  The CMON_TANKDIR will be the location for the extracted data files and
@@ -23,7 +23,7 @@ export MY_CMON=/gpfs/td2/emc/da/noscrub/Edward.Safford/ProdGSI/util/Conventional
 #  this location.
 #
 
-export CMON_TANKDIR=/u/Edward.Safford/nbns
+export CMON_TANKDIR=/scratch4/NCEPDEV/da/save/Edward.Safford/nbns
 export C_TANKverf=${C_TANKverf:-${CMON_TANKDIR}}
 
 export C_TANKDIR=${CMON_TANKDIR}/stats/${CMON_SUFFIX}
@@ -36,6 +36,10 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    module load lsf
    module unload GrADS		# version 2.0.1 is loaded automatically, but it's out of
    module load GrADS		# date -- curent default is 2.0.2
+   module load grib_util
+   module load prod_util
+   module load util_shared
+
    export GRADS=grads
 
    export UTILS_BIN=
@@ -54,6 +58,8 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
 elif [[ $MY_MACHINE = "cray" ]]; then
    module load prod_util        # defines $NDATE among other things
    module load prod_envir
+   module load grib_util
+   module load util_shared
 
    export SUB="bsub"
    export NWPROD=${COMROOTp1}
@@ -64,7 +70,7 @@ elif [[ $MY_MACHINE = "cray" ]]; then
    export Z="gz"
    
 elif [[ $MY_MACHINE = "theia" ]]; then
-   export SUB=/apps/torque/default/bin/qsub
+   export SUB=sbatch
    export NWPROD=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod
    export COMPRESS=gzip
    export UNCOMPRESS="gunzip -f"
@@ -73,11 +79,11 @@ fi
 
 export NDATE=${NWPROD}/util/exec/ndate
 
-export ACCOUNT=${ACCOUNT:-}
+export ACCOUNT=${ACCOUNT:-fv3-cpu}
  
-export C_STMP=${C_STMP:-/stmpp1}
+export C_STMP=${C_STMP:-/scratch4/NCEPDEV/stmp3}
 export C_STMP_USER=${C_STMP_USER:-${C_STMP}/${LOGNAME}}
-export C_PTMP=${C_PTMP:-/ptmpp1}
+export C_PTMP=${C_PTMP:-/scratch4/NCEPDEV/stmp4}
 export C_PTMP_USER=${C_PTMP_USER:-${C_PTMP}/${LOGNAME}}
 
 export C_LOGDIR=${C_PTMP_USER}/logs/${CMON_SUFFIX}/ConMon
