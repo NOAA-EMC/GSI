@@ -121,8 +121,13 @@ export RADMON_PARM=${RADMON_PARM:-${MY_RADMON}/parm}
 . $RADMON_PARM/radmon.ver
 
 export HOMEgdas=${HOMEgdas:-${MY_RADMON}/nwprod/gdas_radmon.${gdas_radmon_ver}}
+export HOMEgfs=${HOMEgfs:-${HOMEgdas}}
 export HOMEnam=${HOMEnam:-${MY_RADMON}/nwprod/nam_radmon.${nam_radmon_ver}}
 export HOMEradmon=${HOMEradmon:-${MY_RADMON}/nwprod/radmon_shared.${radmon_shared_ver}}
+
+export FIXgdas=${FIXgdas:-${HOMEgdas}/fix}
+export PARMgdas=${PARMgdas:-${HOMEgdas}/parm}
+export parm_file=${parm_file:-${PARMgdas}/gdas_radmon.parm}
  
 export DATAROOT=${DATAROOT:-${STMP_USER}}
 
