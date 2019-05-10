@@ -193,7 +193,7 @@ if [[ $nfile_src -gt 0 ]]; then
 #           make sure *.base and *.tar are removed
 
    if [[ $DO_DATA_RPT -eq 1 ]]; then
-      $NCP ${DE_EXEC}/validate_time.x ${test_dir}/.
+      $NCP ${DE_EXEC}/radmon_validate_tm.x ${test_dir}/validate_time.x
       $NCP $DE_SCRIPTS/validate.sh    ${test_dir}/.
       ./validate.sh ${PDATE}
    fi
