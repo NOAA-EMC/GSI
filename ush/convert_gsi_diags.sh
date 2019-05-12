@@ -3,7 +3,7 @@
 #SBATCH -A da-cpu
 #SBATCH -q batch 
 #SBATCH --nodes=1
-#SBATCH -t 60:00
+#SBATCH -t 90:00
 #SBATCH –mail-user=$LOGNAME@noaa.gov
 #SBATCH -o SLURM_%x.o%j
 #SBATCH -e SLURM_%x.e%j
@@ -18,12 +18,11 @@ source /apps/lmod/7.7.18/init/sh
 module load intel
 module load impi
 module load netcdf
-module load slurm
 # /contrib modules
 module use -a /contrib/modulefiles
-module load anaconda/anaconda2
+module load anaconda/anaconda3-5.3.1
 
-IODACDir=/scratch4/NCEPDEV/da/save/Cory.R.Martin/JEDI/src/ioda-converters_2/src/gsi-ncdiag
+IODACDir=/scratch4/NCEPDEV/da/save/Cory.R.Martin/JEDI/src/ioda-converters_2/build/bin
 
 cd $IODACDir
 

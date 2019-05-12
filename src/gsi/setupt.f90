@@ -45,7 +45,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   use constants, only: zero, one, four,t0c,rd_over_cp,three,rd_over_cp_mass,ten
   use constants, only: tiny_r_kind,half,two,cg_term
-  use constants, only: huge_single,r1000,wgtlim,r10,fv
+  use constants, only: huge_single,r1000,wgtlim,r10,fv,r100
   use constants, only: one_quad
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype,icsubtype
   use converr_t, only: ptabl_t 
@@ -231,6 +231,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),dimension(npredt):: predcoef
   real(r_kind) tgges,roges
   real(r_kind),dimension(nsig):: tvtmp,tsentmp,qtmp,utmp,vtmp,hsges
+  real(r_kind) :: zges
   real(r_kind) u10ges,v10ges,t2ges,q2ges,psges2,f10ges
   real(r_kind),dimension(34) :: ptablt
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
@@ -605,6 +606,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
           nsig,mype,nfldsig)
      call tintrp2a1(geop_hgtl,hsges,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
+     call tintrp2a11(ges_z,zges,dlat,dlon,dtime,hrdifsig,&
+          mype,nfldsig)
 
      drpx=zero
      if(sfctype .and. .not.twodvar_regional) then
@@ -615,6 +618,9 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      call grdcrd1(dpres,prsltmp(1),nsig,-1)
 
 ! Implementation of forward model ----------
+     msges = 2
+     tgges=-9999
+     roges=-9999
 
      if(sfctype.and.sfcmodel) then
         tgges=data(iskint,i)
@@ -1257,11 +1263,28 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! If require guess vars available, extract from bundle ...
   if(size(gsi_metguess_bundle)==nfldsig) then
+     varname='z'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+     if (istatus==0) then
+         if(allocated(ges_z))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_z(size(rank2,1),size(rank2,2),nfldsig))
+         ges_z(:,:,1)=rank2
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+            ges_z(:,:,ifld)=rank2
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
 !    get ps ...
      varname='ps'
      call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
      if (istatus==0) then
-         if(allocated(ges_z))then
+         if(allocated(ges_ps))then
             write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
             call stop2(999)
          endif
@@ -1352,7 +1375,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         varname='th2m'
         call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
         if (istatus==0) then
-            if(allocated(ges_z))then
+            if(allocated(ges_th2))then
                write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
                call stop2(999)
             endif
@@ -1370,7 +1393,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         varname='q2m'
         call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
         if (istatus==0) then
-            if(allocated(ges_z))then
+            if(allocated(ges_q2))then
                write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
                call stop2(999)
             endif
@@ -1571,7 +1594,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
     call nc_diag_metadata("Latitude",                sngl(data(ilate,i))    )
     call nc_diag_metadata("Longitude",               sngl(data(ilone,i))    )
     call nc_diag_metadata("Station_Elevation",       sngl(data(istnelv,i))  )
-    call nc_diag_metadata("Pressure",                sngl(prest)            )
+    call nc_diag_metadata("Pressure",                sngl(prest*r100)            )
     call nc_diag_metadata("Height",                  sngl(data(iobshgt,i))  )
     call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
     call nc_diag_metadata("Prep_QC_Mark",            sngl(data(iqc,i))      )
@@ -1647,7 +1670,14 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
     call nc_diag_data2d("northward_wind", sngl(vtmp))
     call nc_diag_data2d("eastward_wind", sngl(utmp))
     call nc_diag_data2d("geopotential_height", sngl(hsges))
-    call nc_diag_metadata("surface_pressure", sngl(psges))
+    call nc_diag_metadata("surface_pressure", sngl(psges*r1000))
+
+    ! need additional arrays for GeoVaLs for T2
+    call nc_diag_data2d("atmosphere_pressure_coordinate", sngl(prsltmp2*r1000))
+    call nc_diag_metadata("surface_temperature",sngl(tgges))
+    call nc_diag_metadata("surface_roughness", sngl(roges/r100))
+    call nc_diag_metadata("landmask",sngl(msges))
+    call nc_diag_metadata("surface_height", sngl(zges))
 
 
   end subroutine contents_netcdf_diag_
@@ -1664,7 +1694,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
     call nc_diag_metadata("Latitude",                sngl(data(ilate,i))    )
     call nc_diag_metadata("Longitude",               sngl(data(ilone,i))    )
     call nc_diag_metadata("Station_Elevation",       sngl(data(istnelv,i))  )
-    call nc_diag_metadata("Pressure",                sngl(prest)            )
+    call nc_diag_metadata("Pressure",                sngl(prest*r100)            )
     call nc_diag_metadata("Height",                  sngl(data(iobshgt,i))  )
     call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
     call nc_diag_metadata("Prep_QC_Mark",            sngl(data(iqc,i))      )
@@ -1696,11 +1726,6 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
     call nc_diag_data2d("geopotential_height", sngl(hsges))
     call nc_diag_metadata("surface_pressure", sngl(psges))
 
-    ! need additional arrays for GeoVaLs for T2
-    call nc_diag_data2d("atmosphere_pressure_coordinate", sngl(prsltmp2))
-    call nc_diag_metadata("surface_temperature",sngl(tgges))
-    call nc_diag_metadata("surface_roughness", sngl(roges))
-    call nc_diag_metadata("landmask",msges)
 
     if (save_jacobian) then
        call fullarray(dhx_dx, dhx_dx_array)
@@ -1714,7 +1739,10 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
     if(allocated(ges_tv)) deallocate(ges_tv)
     if(allocated(ges_v )) deallocate(ges_v )
     if(allocated(ges_u )) deallocate(ges_u )
+    if(allocated(ges_z )) deallocate(ges_z )
     if(allocated(ges_ps)) deallocate(ges_ps)
+    if(allocated(ges_th2)) deallocate(ges_th2)
+    if(allocated(ges_q2)) deallocate(ges_q2)
   end subroutine final_vars_
 
 end subroutine setupt

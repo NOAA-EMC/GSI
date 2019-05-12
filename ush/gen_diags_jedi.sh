@@ -2,7 +2,7 @@
 #SBATCH -J gen_diags_jedi 
 #SBATCH -A da-cpu
 #SBATCH -q batch 
-#SBATCH --nodes=6
+#SBATCH --nodes=8
 #SBATCH -t 30:00
 #SBATCH -o SLURM_%x.o%j
 #SBATCH -e SLURM_%x.e%j
@@ -43,7 +43,6 @@ module load impi
 module load netcdf
 module load grads
 module load rocoto/1.3.0-RC3
-module load slurm
 # /contrib modules
 module use -a /contrib/modulefiles
 module load anaconda/anaconda2
@@ -275,7 +274,7 @@ cat <<EOF > gsiparm.anl
    diag_precon=.true.,step_start=1.e-3,emiss_bc=.true.,cwoption=3,nhr_obsbin=3,
    verbose=.false.,imp_physics=11,lupp=.true.,
    binary_diag=.false.,netcdf_diag=.true.,clip_supersaturation=.false.,
-   lobsdiag_forenkf=.false.,
+   lobsdiag_forenkf=.false.,sfcmodel=.true.,
    $SETUP
  /
  &GRIDOPTS
@@ -450,7 +449,7 @@ EOF
 # run GSI
 cd $WorkDir
 # note there's got to be a better way to do below...
-taskspernode=${SLURM_NTASKS_PER_NODE:-12}
+taskspernode=${SLURM_NTASKS_PER_NODE:-10}
 #taskspernode=${SLURM_NTASKS_PER_NODE:-$SLURM_CPUS_ON_NODE}
 nprocs_gsi=$(( $taskspernode*$SLURM_JOB_NUM_NODES ))
 env
@@ -512,5 +511,5 @@ mv diag_* $OutDir/GSI_diags/.
 # the performance of these converters is currently not great
 # will submit a 1-node slurm task to just do the conversion after GSI runs
 
-#sbatch $USHDir/convert_gsi_diags.sh $OutDir 
+sbatch $USHDir/convert_gsi_diags.sh $OutDir 
 
