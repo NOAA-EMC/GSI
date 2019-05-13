@@ -108,7 +108,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gridmod, only: nsig,get_ij,twodvar_regional
   use constants, only: zero,one_tenth,one,half,pi,g_over_rd, &
              huge_r_kind,tiny_r_kind,two,cg_term,huge_single, &
-             r1000,wgtlim,tiny_single,r10,three
+             r1000,wgtlim,tiny_single,r10,three,r100
   use jfunc, only: jiter,last,jiterstart,miter
   use qcmod, only: dfact,dfact1,npres_print,njqc,vqc
   use guess_grids, only: hrdifsig,ges_lnprsl,nfldsig,ntguessig
@@ -900,7 +900,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            call nc_diag_metadata("Latitude",                sngl(data(ilate,i))    )
            call nc_diag_metadata("Longitude",               sngl(data(ilone,i))    )
            call nc_diag_metadata("Station_Elevation",       sngl(data(istnelv,i))  )
-           call nc_diag_metadata("Pressure",                sngl(data(ipres,i)*r10))
+           call nc_diag_metadata("Pressure",                sngl(data(ipres,i)*r10*r100))
            call nc_diag_metadata("Height",                  sngl(dhgt)             )
            call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
            call nc_diag_metadata("Prep_QC_Mark",            sngl(data(iqc,i))      )
@@ -917,11 +917,11 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            call nc_diag_metadata("Errinv_Adjust",           sngl(errinv_adjst)     )
            call nc_diag_metadata("Errinv_Final",            sngl(errinv_final)     )
 
-           call nc_diag_metadata("Observation",                   sngl(pob)        )
-           call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(pob-pges)   )
-           call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(pob-pgesorig))
-           call nc_diag_metadata("Forecast_adjusted",sngl(pges))
-           call nc_diag_metadata("Forecast_unadjusted",sngl(pgesorig))
+           call nc_diag_metadata("Observation",                   sngl(pob*r100)        )
+           call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl((pob-pges)*r100)   )
+           call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl((pob-pgesorig)*r100))
+           call nc_diag_metadata("Forecast_adjusted",sngl(pges*r100))
+           call nc_diag_metadata("Forecast_unadjusted",sngl(pgesorig*r100))
  
            if (lobsdiagsave) then
               do jj=1,miter
@@ -955,7 +955,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            call nc_diag_data2d("atmosphere_ln_pressure_coordinate", prsltmp)
            call nc_diag_data2d("virtual_temperature", tvges)
 
-           call nc_diag_metadata("surface_air_pressure", psges )
+           call nc_diag_metadata("surface_air_pressure", pgesorig*r100 )
            call nc_diag_metadata("surface_geopotential_height", zsges )
 
   end subroutine contents_netcdf_diag_

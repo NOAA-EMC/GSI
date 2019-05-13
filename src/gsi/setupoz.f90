@@ -105,7 +105,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use state_vectors, only: svars3d, levels, nsdim
 
   use constants, only : zero,half,one,two,tiny_r_kind
-  use constants, only : rozcon,cg_term,wgtlim,h300,r10
+  use constants, only : rozcon,cg_term,wgtlim,h300,r10,r100
 
   use m_obsdiags, only : ozhead
   use obsmod, only : i_oz_ob_type,dplat,nobskeep
@@ -1686,7 +1686,7 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
            call nc_diag_metadata("Observation",                  sngl(ozlv)                     ) 
            call nc_diag_metadata("Obs_Minus_Forecast_adjusted",  sngl(ozone_inv)                )
            call nc_diag_metadata("Obs_Minus_Forecast_unadjusted",sngl(ozone_inv)                )
-           call nc_diag_metadata("Reference_Pressure",           sngl(preso3l)                  )
+           call nc_diag_metadata("Reference_Pressure",           sngl(preso3l*r100)                  )
            call nc_diag_metadata("Input_Observation_Error",      sngl(obserror)                 ) 
            call nc_diag_metadata("Forecast_adjusted", sngl(o3ppmv))
            call nc_diag_metadata("Forecast_unadjusted", sngl(o3ppmv))

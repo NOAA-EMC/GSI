@@ -2388,8 +2388,8 @@
                  call nc_diag_metadata("Sfc_Wind_Direction", sngl(surface(1)%wind_direction)    )
                  call nc_diag_metadata("Sfc_Height",    sngl(zsges    ) )
                  call nc_diag_data2d("air_temperature", sngl(atmosphere(1)%temperature) )  ! K 
-                 call nc_diag_data2d("air_pressure", sngl(atmosphere(1)%pressure))
-                 call nc_diag_data2d("air_pressure_levels", sngl(atmosphere(1)%level_pressure) )
+                 call nc_diag_data2d("air_pressure", sngl(atmosphere(1)%pressure*r100))
+                 call nc_diag_data2d("air_pressure_levels", sngl(atmosphere(1)%level_pressure*r100) )
 
                  do iabsorb = 1, n_absorbers
                    write (fieldname, "(A,I0.2)") "atmosphere_absorber_", atmosphere(1)%absorber_id(iabsorb)

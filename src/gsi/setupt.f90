@@ -593,6 +593,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
           mype,nfldsig)
      call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
+     prsltmp2 = exp(prsltmp)  ! convert from ln p to cb
 
      call tintrp2a1(ges_tsen,tsentmp,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
@@ -634,7 +635,6 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         endif
 
         psges2  = psges          ! keep in cb
-        prsltmp2 = exp(prsltmp)  ! convert from ln p to cb
         call SFC_WTQ_FWD (psges2, tgges,&
              prsltmp2(1), tvtmp(1), qtmp(1), utmp(1), vtmp(1), &
              prsltmp2(2), tvtmp(2), qtmp(2), hsges(1), roges, msges, &
@@ -1724,7 +1724,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
     call nc_diag_data2d("northward_wind", sngl(vtmp))
     call nc_diag_data2d("eastward_wind", sngl(utmp))
     call nc_diag_data2d("geopotential_height", sngl(hsges))
-    call nc_diag_metadata("surface_pressure", sngl(psges))
+    call nc_diag_metadata("surface_pressure", sngl(psges*r1000))
 
 
     if (save_jacobian) then
