@@ -467,12 +467,7 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end if
 
      ratio_errors=error/(data(ier,i)+drpx+1.0e6_r_kind*rhgh+four*rlow)
-
-     error=one/error
-
-!    Check to see if observations is above the top of the model (regional mode)
-     if (dpres>rsig) ratio_errors=zero
-
+     
 
 ! Interpolate guess u and v to observation location and time.
      call tintrp31(ges_u,ugesin,dlat,dlon,dpres,dtime, &
@@ -487,6 +482,17 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      vgesin=factw*vgesin
      spdges=sqrt(ugesin*ugesin+vgesin*vgesin)
      ddiff = spdob-spdges
+     
+     if ( nty == 292 ) then 
+        ratio_errors=error/(abs(ddiff)+5.0_r_kind)
+        if (spdob < 10.) ratio_errors=zero
+     endif 
+   
+     error=one/error
+
+!    Check to see if observations is above the top of the model (regional mode)
+     if (dpres>rsig) ratio_errors=zero
+
 
 !    Gross error checks
      obserror = one/max(ratio_errors*error,tiny_r_kind)
