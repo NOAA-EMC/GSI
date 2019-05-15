@@ -19,7 +19,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !            257,258,259: MODIS IR,WV cloud top, WV deep layer winds
 !            260: VIIR IR winds
 !            respectively
-!            For satellite subtype: 50-70 from EUMETSAT geostationary satellites(METEOSAT) 
+!            For satellite subtype: 50-80 from EUMETSAT geostationary satellites(METEOSAT) 
 !                                   100-199 from JMA geostationary satellites(MTSAT)
 !                                   250-299 from NESDIS geostationary satellites(GOES)
 !                                   700-799 from NASA Terra and Aqua satellites
@@ -65,6 +65,10 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !                         no subtype is found in non linear qc error table and b table !                         table
 !   2016-05-05  pondeca - add 10-m u-wind and v-wind (uwnd10m, vwnd10m)
 !   2016-12-13  Lim     - Addition of GOES SWIR, CAWV and VIS winds into HWRF
+!   2017-08-22  Genkova - Testing Git / Add Goes-16 and JPSS SatID
+!                       - Read WMO pre-approved new BUFR Goes-16 AMVs (Goes-R)
+!
+!
 !
 !   input argument list:
 !     ithin    - flag to thin data
@@ -126,7 +130,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind),parameter:: r3_33= 3.33_r_kind
   real(r_kind),parameter:: r6= 6.0_r_kind
   real(r_kind),parameter:: r50= 50.0_r_kind
-  real(r_kind),parameter:: r70= 70.0_r_kind
+  real(r_kind),parameter:: r80= 80.0_r_kind
   real(r_kind),parameter:: r90= 90.0_r_kind
   real(r_kind),parameter:: r105= 105.0_r_kind
   real(r_kind),parameter:: r110= 110.0_r_kind
@@ -328,7 +332,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
         iobsub=int(hdrdat(1))
         if(trim(subset) == 'NC005064' .or. trim(subset) == 'NC005065' .or. &
            trim(subset) == 'NC005066') then
-           if( hdrdat(1) <r70 .and. hdrdat(1) >= r50) then   !the range of EUMETSAT satellite IDS
+           if( hdrdat(1) <r80 .and. hdrdat(1) >= r50) then   !the range of EUMETSAT satellite IDS
               if(hdrdat(9) == one)  then                  ! IR winds
                  itype=253
               else if(hdrdat(9) == two) then              ! visible winds
@@ -617,7 +621,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            ! assign types and get quality info : start
            if(trim(subset) == 'NC005064' .or. trim(subset) == 'NC005065' .or. &  
               trim(subset) == 'NC005066') then
-              if( hdrdat(1) <r70 .and. hdrdat(1) >= r50) then    ! the range of EUMETSAT satellite IDs      
+              if( hdrdat(1) <r80 .and. hdrdat(1) >= r50) then    ! the range of EUMETSAT satellite IDs      
                  c_prvstg='EUMETSAT'
                  if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
                  if(hdrdat(9) == one)  then                  ! IR winds
