@@ -1,0 +1,37 @@
+copy gen_diags_jedi.sh to a new file, such as:
+
+gen_diags_jedi_John.Smith.sh
+
+Change parameters in the script, including:
+
+adate=2018041500 # analysis time
+ObsDir=/scratch4/NCEPDEV/global/noscrub/dump/ # observation directory 
+GuessDir=/scratch4/NCEPDEV/da/noscrub/Andrew.Collard/ICs_for_JEDI # guess directory
+WorkDir=/scratch3/NCEPDEV/stmp1/$LOGNAME/JEDI/GSI_work/$adate # working directory
+OutDir=/scratch3/NCEPDEV/stmp1/$LOGNAME/JEDI/output/$adate # output directory
+ 
+# where GSI executables, fix files, etc. are
+GSIDir=/scratch4/NCEPDEV/da/save/Cory.R.Martin/GSI/ 
+gsiexec=/scratch4/NCEPDEV/da/save/Cory.R.Martin/GSI/build_jedi/bin/gsi.x
+nccat=/scratch4/NCEPDEV/da/save/Cory.R.Martin/GSI/build_jedi/bin/nc_diag_cat_serial.x
+fixgsi=/scratch4/NCEPDEV/da/save/Cory.R.Martin/GSI/ProdGSI_jedi/fix
+fixcrtm=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/lib/crtm/2.2.3/fix_update
+USHDir=$GSIDir/ProdGSI_jedi/ush/
+
+dumpobs=gdas
+
+# Set the JCAP resolution which you want.
+# All resolutions use LEVS=64
+export JCAP=382
+export JCAP_B=382
+export LEVS=64
+
+
+
+sbatch gen_diags_jedi_John.Smith.sh
+
+This will run GSI for the time you specified and generate diagnostic files
+It will at the end submit:
+sbatch convert_gsi_diags.sh
+
+which will run the scripts to convert them to IODA observations and UFO GeoVaLs

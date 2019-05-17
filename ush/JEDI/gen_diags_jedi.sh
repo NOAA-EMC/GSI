@@ -515,5 +515,5 @@ mv diag_* $OutDir/GSI_diags/.
 # the performance of these converters is currently not great
 # will submit a 1-node slurm task to just do the conversion after GSI runs
 
-sbatch $USHDir/convert_gsi_diags.sh $OutDir 
+sbatch $USHDir/JEDI/convert_gsi_diags.sh $OutDir 
 
