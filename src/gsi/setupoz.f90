@@ -105,7 +105,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use state_vectors, only: svars3d, levels, nsdim
 
   use constants, only : zero,half,one,two,tiny_r_kind
-  use constants, only : rozcon,cg_term,wgtlim,h300,r10,r100
+  use constants, only : rozcon,cg_term,wgtlim,h300,r10,r100,r1000
 
   use m_obsdiags, only : ozhead
   use obsmod, only : i_oz_ob_type,dplat,nobskeep
@@ -200,7 +200,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   real(r_single), dimension(nsdim) :: dhx_dx_array
 
   integer(i_kind) i,nlev,ii,jj,iextra,istat,ibin, kk
-  integer(i_kind) k,j,nz,jc,idia,irdim1,istatus,ioff0
+  integer(i_kind) k1,k,j,nz,jc,idia,irdim1,istatus,ioff0
   integer(i_kind) ioff,itoss,ikeep,ierror_toq,ierror_poq
   integer(i_kind) isolz,ifovn,itoqf
   integer(i_kind) mm1,itime,ilat,ilon,ilate,ilone,itoq,ipoq
@@ -559,11 +559,15 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
               endif
 
               if (netcdf_diag) then
+                 k1 = k - 1
+                 if(k1 == 0)k1 = 1
+                 call nc_diag_metadata("TopLevelPressure",sngl(pobs(k1)*r100))
+                 call nc_diag_metadata("BottomLevelPressure",  sngl(pobs(k)*r100))
                  call nc_diag_metadata("MPI_Task_Number", mype                      )
                  call nc_diag_metadata("Latitude",        sngl(data(ilate,i))       )
                  call nc_diag_metadata("Longitude",       sngl(data(ilone,i))       )
                  call nc_diag_metadata("Time",            sngl(data(itime,i)-time_offset) )
-                 call nc_diag_metadata("Reference_Pressure",     sngl(pobs(k))      )
+                 call nc_diag_metadata("Reference_Pressure",           sngl(pobs(k)*r100)            )
                  call nc_diag_metadata("Analysis_Use_Flag",      iouse(k)           )
                  call nc_diag_metadata("Observation",                  sngl(ozobs(k)))
                  call nc_diag_metadata("Inverse_Observation_Error",    sngl(errorinv))
@@ -1049,7 +1053,7 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use guess_grids, only : nfldsig,ges_lnprsl,hrdifsig
 
   use constants, only : zero,half,one,two,tiny_r_kind,four
-  use constants, only : cg_term,wgtlim,r10,constoz
+  use constants, only : cg_term,wgtlim,r10,constoz,r100
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
 
@@ -1678,6 +1682,7 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 ! Observation class
   character(7),parameter     :: obsclass = '  ozlev'
   real(r_kind),dimension(miter) :: obsdiag_iuse
+
            call nc_diag_metadata("Latitude",                     sngl(data(ilate,i))            )
            call nc_diag_metadata("Longitude",                    sngl(data(ilone,i))            )
            call nc_diag_metadata("MPI_Task_Number",              mype                           )
@@ -1686,7 +1691,7 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
            call nc_diag_metadata("Observation",                  sngl(ozlv)                     ) 
            call nc_diag_metadata("Obs_Minus_Forecast_adjusted",  sngl(ozone_inv)                )
            call nc_diag_metadata("Obs_Minus_Forecast_unadjusted",sngl(ozone_inv)                )
-           call nc_diag_metadata("Reference_Pressure",           sngl(preso3l*r100)                  )
+           call nc_diag_metadata("Reference_Pressure",           sngl(preso3l*r100)            )
            call nc_diag_metadata("Input_Observation_Error",      sngl(obserror)                 ) 
            call nc_diag_metadata("Forecast_adjusted", sngl(o3ppmv))
            call nc_diag_metadata("Forecast_unadjusted", sngl(o3ppmv))

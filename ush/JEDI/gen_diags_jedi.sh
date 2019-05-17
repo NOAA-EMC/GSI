@@ -3,7 +3,7 @@
 #SBATCH -A da-cpu
 #SBATCH -q batch 
 #SBATCH --nodes=8
-#SBATCH -t 30:00
+#SBATCH -t 40:00
 #SBATCH -o SLURM_%x.o%j
 #SBATCH -e SLURM_%x.e%j
 #SBATCH –mail-user=$LOGNAME@noaa.gov
@@ -492,9 +492,9 @@ for loop in $loops; do
 	    file=diag_${type}_${string}.${adate}_ensmean.nc4 # _ensmean is to work with python script
 	    # note if the GSI utility is not working correctly, use the python version
 	    # same syntax is used to call it, just change what $nccat is 
-              # below is a "poor man's parallelization"
-              $nccat -o $file ${prefix}${type}_${loop}.nc4 &
-	      sleep 5
+            $nccat -o $file ${prefix}${type}_${loop}.nc4 &
+            pid=$!
+            sleep 5
             echo "diag_${type}_${string}.${adate}*" >> ${diaglist[n]}
             numfile[n]=$(expr ${numfile[n]} + 1)
          fi
@@ -502,6 +502,10 @@ for loop in $loops; do
    done
    echo $(date) END loop $string >&2
 done
+
+wait $pid
+
+sleep 300 # is this enough time?
 
 # move GSI diags
 mkdir -p $OutDir/GSI_diags

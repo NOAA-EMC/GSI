@@ -186,7 +186,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),dimension(nobs):: dup
   real(r_kind),dimension(lat2,lon2,nsig,nfldsig):: qg
   real(r_kind),dimension(lat2,lon2,nfldsig):: qg2m
-  real(r_kind),dimension(nsig):: prsltmp,qtmp,qstmp
+  real(r_kind),dimension(nsig):: prsltmp,qtmp,qstmp,prsltmp2
   real(r_kind),dimension(34):: ptablq
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
   real(r_single),allocatable,dimension(:,:)::rdiagbufp
@@ -445,6 +445,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      call tintrp2a11(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
           mype,nfldsig)
      call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
+     call tintrp2a1(ges_prsl,prsltmp2,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
 
      call tintrp2a11(qg2m,qs2mges,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
@@ -1215,7 +1217,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            call nc_diag_data2d("specific_humidity", qtmp)
            call nc_diag_data2d("saturation_specific_humidity", qstmp)
            call nc_diag_data2d("atmosphere_ln_pressure_coordinate", prsltmp)
-           call nc_diag_metadata("surface_pressure",psges*r100)
+           call nc_diag_data2d("atmosphere_pressure_coordinate",prsltmp2*r1000)
+           call nc_diag_metadata("surface_pressure",psges*r1000)
            call nc_diag_metadata("saturation_specific_humidity_2m", qs2mges)
            call nc_diag_metadata("specific_humidity_2m",q2mges_read)
 
