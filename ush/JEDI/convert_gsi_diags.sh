@@ -3,7 +3,7 @@
 #SBATCH -A da-cpu
 #SBATCH -q batch 
 #SBATCH --nodes=1
-#SBATCH -t 90:00
+#SBATCH -t 2:00:00
 #SBATCH –mail-user=$LOGNAME@noaa.gov
 #SBATCH -o SLURM_%x.o%j
 #SBATCH -e SLURM_%x.e%j

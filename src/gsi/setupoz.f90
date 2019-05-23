@@ -593,7 +593,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
                     call nc_diag_data2d("Observation_Operator_Jacobian", dhx_dx_array)
                  endif
                 call nc_diag_data2d("mass_concentration_of_ozone_in_air", sngl(ozgestmp)) 
-                call nc_diag_data2d("air_pressure_levels",sngl(prsitmp))
+                call nc_diag_data2d("air_pressure_levels",sngl(prsitmp*r1000))
               endif
            endif
 

@@ -34,7 +34,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
       rotate_wind_xy2ll
   use guess_grids, only: nfldsig,hrdifsig,geop_hgtl,sfcmod_gfs
   use guess_grids, only: tropprs,sfcmod_mm5
-  use guess_grids, only: ges_lnprsl,comp_fact10,pt_ll,pbl_height, ges_prsl
+  use guess_grids, only: ges_lnprsl,comp_fact10,pt_ll,pbl_height,ges_prsl,ges_tsen
   use constants, only: zero,half,one,tiny_r_kind,two,cg_term, &
            three,rd,grav,four,five,huge_single,r1000,wgtlim,r10,r400,r100
   use constants, only: grav_ratio,flattening,deg2rad, &
@@ -219,7 +219,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) oscat_vec,ascat_vec,rapidscat_vec
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nobs):: dup
-  real(r_kind),dimension(nsig)::prsltmp,tges,zges,zges_read,uges,vges,prsltmp2
+  real(r_kind),dimension(nsig)::prsltmp,tsentmp,qtmp,tges,zges,zges_read,uges,vges,prsltmp2
   real(r_kind) wdirob,wdirgesin,wdirdiffmax
   real(r_kind),dimension(34)::ptabluv
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
@@ -239,6 +239,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) idomsfc,isfcr,iskint,iff10
 
   integer(i_kind) num_bad_ikx
+  integer(i_kind) msges
 
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf
@@ -271,6 +272,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_ps
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_u
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_v
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
@@ -496,6 +498,8 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
           nsig,mype,nfldsig)
      call tintrp2a1(ges_prsl,prsltmp2,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
+     call tintrp2a1(ges_q,qtmp,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
 
      call tintrp2a11(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
           mype,nfldsig)
@@ -503,10 +507,12 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
           nsig,mype,nfldsig)
      call tintrp2a1(ges_tv,tges,dlat,dlon,dtime,hrdifsig,&
               nsig,mype,nfldsig)
-
-    call tintrp2a1(ges_u,uges,dlat,dlon,dtime,hrdifsig,&
+     call tintrp2a1(ges_tsen,tsentmp,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
-    call tintrp2a1(ges_v,vges,dlat,dlon,dtime,hrdifsig,&
+
+     call tintrp2a1(ges_u,uges,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
+     call tintrp2a1(ges_v,vges,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
 
      itype=ictype(ikx)
@@ -531,8 +537,14 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !    geopotenital height.  Some type 221=pibal wind observations are
 !    also repoted using geopotential height.
 
+     msges = 2
      sfc_data = (itype >=280 .and. itype < 300) .and. (.not.twodvar_regional)
      if (z_height .or. sfc_data) then
+        if(itype == 280 .or. itype == 282 .or. itype == 283 .or. itype == 299) then    !sea
+           msges=0
+        elseif(itype == 281 .or. itype == 287 .or. itype == 288) then  !land
+           msges=1
+        endif
 
         drpx = zero
         dpres = data(ihgt,i)
@@ -1524,6 +1536,24 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
          write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
          call stop2(999)
      endif
+!    get q ...
+     varname='q'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_q))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_q(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_q(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_q(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
   else
      write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(metguess_bundle) ',&
                  nfldsig,size(gsi_metguess_bundle)
@@ -1769,13 +1799,18 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            endif
 
            call nc_diag_metadata("surface_pressure",psges*r1000)
-           call nc_diag_metadata("height",zsges)
+           call nc_diag_metadata("surface_height",zsges)
            call nc_diag_data2d("atmosphere_ln_pressure_coordinate", prsltmp)
            call nc_diag_data2d("atmosphere_pressure_coordinate", prsltmp2*r1000)
            call nc_diag_data2d("virtual_temperature", tges)
            call nc_diag_data2d("geopotential_height", zges_read)
            call nc_diag_data2d("eastward_wind", uges)
            call nc_diag_data2d("northward_wind", vges)
+           call nc_diag_data2d("air_temperature", sngl(tsentmp))
+           call nc_diag_metadata("surface_temperature",sngl(skint))
+           call nc_diag_metadata("surface_roughness", sngl(sfcr/r100))
+           call nc_diag_metadata("landmask",sngl(msges))
+           call nc_diag_data2d("specific_humidity", qtmp)
 
 
   end subroutine contents_netcdf_diag_
