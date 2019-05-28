@@ -5,6 +5,10 @@
 #
 # *****************************************************************
 
+<<<<<<< HEAD
+=======
+#BINDIR = $(dir_root)/exec
+>>>>>>> gmaodev/jguo/refactOO+2obsTypes
 BINDIR = ../../exec
 
 LIBS   = $(W3NCO_LIB4)
@@ -16,7 +20,11 @@ OBJS = kinds.o read_diag.o bad_obs.o bad_penalty.o bad_chan.o valid.o \
 # *****************************************************************
 #
 
+<<<<<<< HEAD
 CMD = radmon_time
+=======
+CMD = radmon_time.x
+>>>>>>> gmaodev/jguo/refactOO+2obsTypes
 
 all:  $(CMD)
 

@@ -1,0 +1,49 @@
+#%Module######################################################################
+#                                                       Russ.Treadon@noaa.gov
+#                                                           NOAA/NWS/NCEP/EMC
+# GDAS_ENKF v6.2.3
+#_____________________________________________________
+#proc ModulesHelp { } {
+#puts stderr "Set environment veriables for GDAS_ENKF"
+#puts stderr "This module initializes the environment "
+#puts stderr "for the Intel Compiler Suite $version\n"
+##}
+#module-whatis " GDAS_ENKF whatis description"
+
+#set ver v6.2.3
+
+set COMP ifort
+set COMP_MPI mpiifort
+
+set C_COMP icc
+
+# Known conflicts
+
+# Loading pe environment
+module load lsf/10.1
+
+# Loading Intel Compiler Suite
+module load ips/18.0.1.163
+
+# Loading intel mpi
+module load impi/18.0.1
+
+# Loading production utilities (ndate)
+module load prod_util/1.1.0
+
+# Loading nceplibs modules
+module load bufr/11.2.0
+module load nemsio/2.2.3
+module load sfcio/1.0.0
+module load sigio/2.1.0
+module load sp/2.0.2
+module load w3nco/2.0.6
+module load w3emc/2.3.0
+module load crtm/2.2.6
+module load bacio/2.0.2
+
+# Loading netcdf modules
+module load NetCDF/4.5.0
+
+# Loading cmake
+module load cmake/3.10.0

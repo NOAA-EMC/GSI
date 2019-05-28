@@ -1,0 +1,12 @@
+# Cheyenne build option list
+#
+#    buildID, compiler,         MPI,        [lapack],       NETCDF,       cc,  cxx       
+       ci01, intel/18.0.1, impi/2018.1.163, mkl/2018.0.1, netcdf/4.6.1, icc, icpc
+       ci02, intel/18.0.1, mpt/2.15f      , mkl/2018.0.1, netcdf/4.6.1, icc, icpc
+       ci03, intel/18.0.1, mvapich2/2.2   , mkl/2018.0.1, netcdf/4.6.1, icc, icpc 
+       ci04, intel/18.0.1, openmpi/3.1.0  , mkl/2018.0.1, netcdf/4.6.1, icc, icpc 
+
+       cp01, pgi/17.9,     openmpi/2.1.2,                 netcdf/4.4.1.1, pgcc, pgc++
+
+       cg01, gnu/7.3.0,    mvapich2/2.2,    openblas/0.2.20, netcdf/4.6.1,   mpicc, mpicxx
+       cg02, gnu/7.3.0,    openmpi/3.0.1,   openblas/0.2.20, netcdf/4.6.1,   mpicc, mpicxx

@@ -19,7 +19,7 @@ if(NOT BUILD_BUFR )
     NAMES libbufr.a libbufr_d_64.a libbufr_i4r8.a libbufr_v${BUFR_VER}_d_64.a
     HINTS 
       $ENV{COREPATH}/lib 
-      /usr/local/jcsda/nwprod_gdas_2014	
+      /usr/local/jcsda/nwprod_gdas_2014/lib	
       ${COREPATH}/bufr/v${BUFR_VER}
       ${COREPATH}/bufr/v${BUFR_VER}/intel
       ${COREPATH}/bufr/v${BUFR_VER}/ips/${COMPILER_VERSION}

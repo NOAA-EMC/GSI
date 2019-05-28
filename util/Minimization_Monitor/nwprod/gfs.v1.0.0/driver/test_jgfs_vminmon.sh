@@ -13,7 +13,7 @@
 
 set -x
 
-export PDATE=${PDATE:-2016030712}
+export PDATE=${PDATE:-2016030812}
 
 #############################################################
 # Specify whether the run is production or development

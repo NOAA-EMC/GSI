@@ -14,7 +14,7 @@ if(NOT BUILD_BACIO )
   else()
     find_library( BACIO_LIBRARY 
       NAMES libbacio.a libbacio_4.a libbacio_v${BACIO_VER}_4.a 
-      HINTS $ENV{COREPATH}/lib /usr/local/jcsda/nwprod_gdas_2014	
+      HINTS $ENV{COREPATH}/lib /usr/local/jcsda/nwprod_gdas_2014/lib	
           ${COREPATH}/bacio/v${BACIO_VER}
           ${COREPATH}/bacio/v${BACIO_VER}/intel
           ${COREPATH}/bacio/v${BACIO_VER}/ips/${COMPILER_VERSION}

@@ -5,6 +5,10 @@
 #
 # *****************************************************************
 
+<<<<<<< HEAD
+=======
+#BINDIR = $(dir_root)/exec
+>>>>>>> gmaodev/jguo/refactOO+2obsTypes
 BINDIR = ../../exec
 
 LIBS   = $(W3NCO_LIB4)
@@ -15,7 +19,11 @@ OBJS   = kinds.o read_diag.o angle_bias.o create_ctl_angle.o
 # *****************************************************************
 #
 
+<<<<<<< HEAD
 CMD = radmon_angle
+=======
+CMD = radmon_angle.x
+>>>>>>> gmaodev/jguo/refactOO+2obsTypes
 
 all:  $(CMD)
 

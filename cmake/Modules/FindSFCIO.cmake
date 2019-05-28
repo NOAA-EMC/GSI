@@ -21,7 +21,7 @@ if(NOT BUILD_SFCIO )
     NAMES libsfcio.a libsfcio_4.a libsfcio_i4r4.a libsfcio_v${SFCIO_VER}_4.a
     HINTS 
       $ENV{COREPATH}/lib 
-      /usr/local/jcsda/nwprod_gdas_2014	
+      /usr/local/jcsda/nwprod_gdas_2014/lib	
       ${COREPATH}/sfcio/v${SFCIO_VER}
       ${COREPATH}/sfcio/v${SFCIO_VER}/intel
       ${COREPATH}/sfcio/v${SFCIO_VER}/ips/${COMPILER_VERSION}

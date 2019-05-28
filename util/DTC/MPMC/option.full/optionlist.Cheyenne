@@ -1,0 +1,47 @@
+# Cheyenne build option list
+#
+#    buildID, compiler,         MPI,        [lapack],       NETCDF,       cc,  cxx       
+       ci01, intel/18.0.1, impi/2018.1.163, mkl/2018.0.1, netcdf/4.6.1, icc, icpc
+       ci02, intel/18.0.1, mpt/2.15f      , mkl/2018.0.1, netcdf/4.6.1, icc, icpc
+       ci03, intel/18.0.1, mvapich2/2.2   , mkl/2018.0.1, netcdf/4.6.1, icc, icpc 
+       ci04, intel/18.0.1, openmpi/3.1.0  , mkl/2018.0.1, netcdf/4.6.1, icc, icpc 
+       ci05, intel/17.0.1, impi/2017.1.132, mkl/2017.0.1, netcdf/4.6.1, icc, icpc
+       ci06, intel/17.0.1, mpt/2.15f      , mkl/2017.0.1, netcdf/4.6.1, icc, icpc
+       ci07, intel/17.0.1, mvapich2/2.2   , mkl/2017.0.1, netcdf/4.6.1, icc, icpc
+       ci08, intel/17.0.1, openmpi/3.0.1  , mkl/2017.0.1, netcdf/4.6.1, icc, icpc
+       ci09, intel/16.0.3, impi/5.1.3.210 , mkl/11.3.3,   netcdf/4.5.0, icc, icpc
+       ci10, intel/16.0.3, mpt/2.15f      , mkl/11.3.3,   netcdf/4.5.0, icc, icpc
+       ci11, intel/16.0.3, openmpi/3.1.0  , mkl/11.3.3,   netcdf/4.5.0, icc, icpc
+       ci12, intel/16.0.1, impi/5.1.2.150 , mkl/11.3.1,   netcdf/4.5.0, icc, icpc
+
+       cp01, pgi/17.9,     openmpi/2.1.2,                 netcdf/4.4.1.1, pgcc, pgc++
+
+       cg03, gnu/7.3.0,    mvapich2/2.2,    openblas/0.2.20, netcdf/4.6.1,   mpicc, mpicxx
+       cg04, gnu/7.3.0,    openmpi/3.0.1,   openblas/0.2.20, netcdf/4.6.1,   mpicc, mpicxx
+       cg05, gnu/7.1.0,    mvapich2/2.2,    openblas/0.2.20, netcdf/4.6.1,   mpicc, mpicxx
+       cg06, gnu/6.3.0,    openmpi/3.0.0,   openblas/0.2.14, netcdf/4.4.1.1, mpicc, mpicxx
+
+#Cheyenne is not stable on maintaning lapack/3.7.0 --9/25/2018
+#known cg01, gnu/8.1.0,    mvapich2/2.2,    lapack/3.7.0,    netcdf/4.6.1,   mpicc, mpicxx
+#known cg02, gnu/8.1.0,    openmpi/3.1.0,   lapack/3.7.0,    netcdf/4.6.1,   mpicc, mpicxx
+#known cg16, gnu/7.3.0,    mvapich2/2.2,    lapack/3.7.0,    netcdf/4.6.1,   mpicc, mpicxx
+#known cg17, gnu/7.3.0,    openmpi/3.0.1,   lapack/3.7.0,    netcdf/4.6.1,   mpicc, mpicxx
+#known cg18, gnu/7.1.0,    mvapich2/2.2,    lapack/3.7.0,    netcdf/4.6.1,   mpicc, mpicxx
+#known cg19, gnu/6.3.0,    openmpi/3.0.0,   lapack/3.7.0,    netcdf/4.4.1.1, mpicc, mpicxx
+
+#known ci13, intel/16.0.1, mpt/2.15f      , mkl/11.3.3,   netcdf/4.5.0, icc, icpc
+#known ci14, intel/16.0.1, openmpi/3.1.0  , mkl/11.3.3,   netcdf/4.5.0, icc, icpc
+#known cp02, pgi/17.9,     mpt/2.15f,       netcdf/4.4.1.1,  pgcc, pgc++
+#known cp03, pgi/17.5,     mpt/2.15f,       netcdf/4.4.1.1,  pgcc, pgc++
+#known cp04, pgi/16.5,     mpt/2.15f,       netcdf/4.5.0,    pgcc, pgc++
+#known cg07, gnu/8.1.0,    mpt/2.15f,       openblas/0.2.20, netcdf/4.6.1,   mpicc, mpicxx
+#known cg08, gnu/7.3.0,    mpt/2.15f,       openblas/0.2.20, netcdf/4.6.1,   mpicc, mpicxx
+#known cg09, gnu/7.2.0,    mpt/2.15f,       openblas/0.2.20, netcdf/4.4.1.1, mpicc, mpicxx
+#known cg10, gnu/7.2.0,    openmpi/3.0.1,   openblas/0.2.20, netcdf/4.4.1.1, mpicc, mpicxx
+#known cg11, gnu/7.1.0,    mpt/2.15f,       openblas/0.2.20, netcdf/4.6.1,   mpicc, mpicxx
+#known cg12, gnu/7.1.0,    openmpi/3.0.1,   openblas/0.2.20, netcdf/4.6.1,   mpicc, mpicxx
+#known cg13, gnu/6.4.0,    mpt/2.15f,       openblas/0.2.14, netcdf/4.4.1.1, mpicc, mpicxx
+#known cg14, gnu/6.3.0,    mpt/2.15f,       openblas/0.2.14, netcdf/4.4.1.1, mpicc, mpicxx
+#known cg15, gnu/6.2.0,    mpt/2.15f,       openblas/0.2.14, netcdf/4.4.1.1, mpicc, mpicxx
+#known cg20, gnu/7.2.0,    openmpi/3.0.1,   lapack/3.7.0,    netcdf/4.6.1,   gcc,   g++
+

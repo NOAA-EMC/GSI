@@ -1,18 +1,44 @@
 #!/bin/sh
 
+#-----------------------------------------------------------------------
+#  OznMon_Plt.sh
+#
+#  Main plot script for OznMon.
+#
+#  Usage:
+#
+#    OznMon_Plt.sh OZNMON_SUFFIX [-p|pdate yyyymmddcc] [-r|run gdas|gfs]
+#
+#	OZNMON_SUFFIX = data source identifier which matches data 
+#		  	in the TANKverf/stats directory.
+#       -p --pdate    = specified cycle to plot.  If not specified the
+#			last available date will be plotted.
+#	-r --run      = $RUN value, gdas|gfs, default is gdas.
+#       -c1|--comp1   = define first source to plot as comparison (time
+#			   series plots only)
+#       -c2|--comp2   = define second source to plot as comparison (time
+#			   series plots only)
+#
+#	NOTE:  Both COMP1 and COMP2 have to be defined to 
+#	       generate comparison plots as part of the COMP1
+#	       source's time plots.
+#-----------------------------------------------------------------------
+
 function usage {
   echo " "
   echo "Usage:  OznMon_Plt.sh OZNMON_SUFFIX "
-  echo "            OZNMON_SUFFIX is data source identifier that matches data in "
+  echo "            OZNMON_SUFFIX is data source identifier which matches data in "
   echo "              the $TANKverf/stats directory."
-  echo "            -p | -pdate yyyymmddcc to specify the cycle to be plotted"
-  echo "              if unspecified the last available date will be plotted"
-  echo "            -r | -run   the gdas|gfs run to be plotted"
-  echo "              use only if data in TANKdir stores both runs" 
+  echo "            -p | --pdate yyyymmddcc to specify the cycle to be plotted."
+  echo "              If unspecified the last available date will be plotted."
+  echo "            -r | --run  the gdas|gfs run to be plotted, gdas is default"
+  echo "            -c1| --comp1 first instrument/sat source to plotted as a comparision"
+  echo "            -c2| --comp2 first instrument/sat source to plotted as a comparision"
   echo " "
 }
 
 echo start OznMon_Plt.sh
+set -ax
 
 nargs=$#
 echo nargs = $nargs
@@ -33,6 +59,14 @@ do
          export RUN="$2"
          shift # past argument
       ;;
+      -c1|--comp1)
+	 export COMP1="$2"
+         shift # past argument
+      ;;
+      -c2|--comp2)
+	 export COMP2="$2"
+         shift # past argument
+      ;;
       *)
          #any unspecified key is OZNMON_SUFFIX
          export OZNMON_SUFFIX=$key
@@ -42,7 +76,7 @@ do
    shift
 done
 
-if [[ $nargs -lt 0 || $nargs -gt 5 ]]; then
+if [[ $nargs -lt 0 || $nargs -gt 9 ]]; then
    usage
    exit 1
 fi
@@ -66,7 +100,10 @@ echo "PDATE         = $PDATE"
 echo "RUN           = $RUN"
 
 
-set -ax
+export DO_COMP=0
+if [[ ${#COMP1} > 0 && ${#COMP2} > 0 ]]; then
+   export DO_COMP=1
+fi
 
 
 this_file=`basename $0`
@@ -176,7 +213,7 @@ cd $WORKDIR
 #  need to compare actual files vs this list (or an updated one in 
 #  TANKDIR/info like RadMon.
 #--------------------------------------------------------------------
-export SATYPE=`cat ${HOMEgdas_ozn}/fix/gdas_oznmon_satype.txt`
+export SATYPE=${SATYPE:-`cat ${HOMEgdas_ozn}/fix/gdas_oznmon_satype.txt`}
 
 
 ${OZN_IG_SCRIPTS}/mk_horiz.sh

@@ -67,6 +67,7 @@
 #     >0 - some problem encountered
 #
 ####################################################################
+<<<<<<< HEAD
 #  Command line arguments.
 
 echo "---> radmon_verf_angle.sh"
@@ -74,6 +75,10 @@ module list
 echo "locating aprun:"
 which aprun
 
+=======
+
+# Command line arguments.
+>>>>>>> gmaodev/jguo/refactOO+2obsTypes
 RAD_AREA=${RAD_AREA:-glb}
 REGIONAL_RR=${REGIONAL_RR:-0}	# rapid refresh model flag
 rgnHH=${rgnHH:-}

@@ -1,4 +1,4 @@
-\chapter{Introduction to more GSI Applications}
+\chapter{Introduction to more GSI Applications}\label{gsi_global}
 \setlength{\parskip}{12pt}
 
 %-------------------------------------------------------------------------------
@@ -6,13 +6,13 @@
 %-------------------------------------------------------------------------------
 
 The \textit{Global Forecast System (GFS)} is a global numerical weather prediction system containing a global computer model and variational analysis 
-run by the U.S. National Weather Service (NWS). As of February 2015, the mathematical model is run four times a day, and produces forecasts for up 
-to 16 days in advance, with decreased spatial resolution after 10 days. The model is a spectral model with a resolution of T1534 from 0 to 240 hours 
+run by the U.S. National Weather Service (NWS). As of February 2015, the numerical model is run four times a day, and produces forecasts for up 
+to 16 days in advance, with decreased spatial resolution after 10 days. It is a spectral model with a resolution of T1534 from 0 to 240 hours 
 (0-10 days) and T574 from 240 to 384 hours (10-16 days). In the vertical, the model is divided into 64 layers and temporally, it produces forecast output 
 every hour for the first 12 hours, every 3 hours out to 10 days, and every 12 hours after that. Its data assimilation system runs 6-hourly continuous cycles 
 using the GSI-hybrid.
 
-GSI has many functions specially designed and tuned for GFS. Although the release version of the community GSI includes all the functions used by the 
+GSI has many functions specifically designed and tuned for GFS. Although the release version of the community GSI includes all the functions used by the 
 operational systems, the DTC can only support the GSI regional applications because the DTC is not able to run GFS on community computers. Beginning 
 with release version 3.2, the DTC began to introduce the use of GSI for global applications, assuming users can obtain the GFS background through the 
 NCEP data hub or by running GFS themselves.
@@ -22,21 +22,20 @@ NCEP data hub or by running GFS themselves.
 %-------------------------------------------------------------------------------
 
 As mentioned above, all of the NCEP operational systems use GSI as their analysis system. The majority of the GSI code is common to these 
-operational systems. Very little of the source code is specific to a particular operational system. The main differences in GSI operational application 
+operational systems. Very little source code is specific to a particular operational system. The main differences in the GSI operational application 
 come from the configuration the run scripts and namelist parameters.
 
 The different GSI applications need different backgrounds, observations, and fixed files. For the GFS system, GSI needs:
 
 \begin{itemize}
-\item GFS Backgrounds: typically, GSI uses 6-h GFS forecasts as the background. GFS 3-h and 9-h forecasts are also needed for the FGAT function in 
+\item GFS Backgrounds: Typically, GSI uses 6-h GFS forecasts as the background. GFS 3-h and 9-h forecasts are also needed for the FGAT function in 
 the GSI analysis. Both surface and atmosphere forecasts are needed.
-\item Observations: NCEP has several sets of BUFR/PrepBUFR observations files with global coverage for global systems. The files that start with the 
+\item Observations: NCEP has several sets of BUFR/prepBUFR observation files with global coverage for global systems. The files that start with the 
 prefix \textbf{GDAS} are for the 6-hourly global data assimilation system. These files have more data available for the analysis, but have a longer delay 
-for use in real-time. The files that start with \textbf{gfs} are for the 4 time daily GFS forecast. The different operational systems need different observation 
-data files because they require different kinds of observations with different coverage, cut-off times, and quality control processes. All these observation 
+for use in real-time. The files that start with \textbf{gfs} are for the GFS forecasts. Different operational systems need different observation data files because they require different kinds of observations with different coverage, cut-off times, and quality control processes. All these observation 
 files are read in and processed in GSI by the same section of code. Therefore, there is no problem using GFS observation data files for regional GSI 
 applications, as is described in the practice cases and the GSI User\textquotesingle s Guide. Using regional BUFR files for global applications will cause 
-scientific problems since the data only covers part of the analysis domain, but GSI can still read in the observations and perform the analysis.
+problems since the data only cover part of the analysis domain, but GSI can still read in the observations and perform the analysis.
 \item Fixed files: Section 3.1 of the GSI User\textquotesingle s Guide introduced the notion that different operational systems have their own fixed files. 
 These global fixed files can be downloaded as a separate tar ball from the GSI user\textquotesingle s website 
 (\url{http://www.dtcenter.org/com-GSI/users/downloads/index.php}). For the GFS GSI application, the big difference is the background error covariance (BE). 
@@ -67,7 +66,7 @@ additional details needed for the global analysis.
 
 \begin{table}[htbp]
 \centering
-\caption{The grid dimensions for GFS}
+\caption{The grid dimensions for GFS.}
 \begin{tabular}{|p{3cm}|p{4.5cm}|p{4.45cm}|}
 \hline
 &EULERIAN&SEMI-LAGRANGIAN\\
@@ -107,14 +106,14 @@ T3070&&&6144&3072\\
 \end{table} 
 
 The first part of the global analysis run script, just as in the regional script, sets up the computer environment and case configuration. The primary 
-differences between the global and regional are the specification of the GFS case and the global application namelist.
+differences between the global and regional scripts are the specification of the GFS case and the global application namelist.
 \begin{small}
 \begin{verbatim}
      GFSCASE=T126
      GSI_NAMELIST=${GSI_ROOT}/run/comgsi_namelist_gfs.sh
 \end{verbatim}
 \end{small}
-While the regional script simply specifies the background and BE files, the global script needs to know the background resolution setup by defining the 
+While the regional script simply specifies the background and BE files, the global script needs to know the background resolution by defining the 
 following parameters:
 \begin{scriptsize}
 \begin{verbatim}
@@ -144,7 +143,7 @@ fi
 \end{verbatim}
 \end{scriptsize}
 
-Just as with the regional analysis run script, the global script double checks the needed parameters, creates a run directory, copies the background, observations, and fixed files into the run directory. It generates the namelist, and places that in the run directory as well. 
+Just as with the regional analysis run script, the global script double checks the needed parameters, creates a run directory, and copies the background, observations, and fixed files into the run directory. It generates the namelist, and places it in the run directory as well. 
 \begin{enumerate}
 \item Specify the values of \verb|LATA|, \verb|LONA|, \verb|DELTIME|, \verb|resol| based on the choice of \verb|JCAP|:
 \begin{scriptsize}
@@ -257,9 +256,9 @@ else
 fi
 \end{verbatim}
 \end{scriptsize}
-Both surface and atmosphere files at 03, 06, 09 hour forecasts are needed. \\
-\item More  observations files are available\\
-In the sample run script, many more  observations are listed for use:
+Both surface and atmosphere files at 03, 06, and 09 hour forecasts are needed. \\
+\item More observations files are available\\
+In the sample run script, many more observations are listed for use:
 \begin{scriptsize}
 \begin{verbatim}
 # Link to the other observation data
@@ -340,12 +339,10 @@ diag_mhs_metop-a_ges.2011080100.gz     fort.212
 \end{verbatim}
 \end{scriptsize}
 
-The majority of these files were seen after running the GSI regional analysis examples in section \ref{sec3.2.3} of the Basic User\textquotesingle s 
+The majority of these files existed after running the GSI regional analysis examples in section \ref{sec3.2.3} of the Basic User\textquotesingle s 
 Guide, and they provide the same information about the GSI run. Of note, the GSI global analysis run includes more radiance observations, resulting 
-in more radiance \verb|diag| files in this list. Instead of the single background file \verb|wrf_inout| as seen with the regional analysis, the global analysis 
-background is split between the two files \verb|siganl|, for atmosphere, and \verb|sfcanl.gsi| for the surface. A quick check of the standard output file 
-\verb|stdout| shows information similar to that generated by the regional runs for the namelist, data ingest, and minimization, but is quite different with 
-respect to information on the background IO.
+in more radiance \verb|diag| files in this list. Instead of the single background file \verb|wrf_inout| as seen with the regional analysis, the global analysis background is split between the two files \verb|siganl|, for the atmosphere, and \verb|sfcanl.gsi| for the surface. A quick check of the standard output file 
+\verb|stdout| shows information similar to that generated by the regional runs for the namelist, data ingest, and minimization, but is quite different with respect to information on the background IO.
 
 Please visit our online tutorial for more details regarding how to conduct a global GSI run.
 
@@ -353,7 +350,7 @@ Please visit our online tutorial for more details regarding how to conduct a glo
 \section{Introduction to Chemical Analysis}
 %-------------------------------------------------------------------------------
 
-The GSI has been developed to analyze chemical observations, such as MODIS AOD or PM2.5, to improve the pollution forecast with chemical models. 
+The GSI has also been developed to analyze chemical observations, such as MODIS AOD or PM2.5, to improve the pollution forecasts with chemical models. 
 In this release, GSI can do the following chemical analyses:
 
 \begin{table}[htbp]
@@ -375,7 +372,7 @@ case&Chemical Model &background species & Observations\\
 \label{tab62}
 \end{table} 
 
-The GSI run scripts for chemical analysis (\verb|./run/run_gsi_chem.ksh| ) and namelist (\verb|./run/comgsi_namelist_chem.sh|) are provided with this release. 
+The GSI run script for a chemical analysis (\verb|./run/run_gsi_chem.ksh| ) and associated namelist (\verb|./run/comgsi_namelist_chem.sh|) are provided with this release. 
 Sample background and observation files are provided through the on-line tutorial. 
 
 %-------------------------------------------------------------------------------
@@ -383,10 +380,10 @@ Sample background and observation files are provided through the on-line tutoria
 %-------------------------------------------------------------------------------
 
 The script \verb|run_gsi_chem.ksh| was built based on regional GSI run scripts and has a similar structure to the regional run script \verb|run_gsi_regional.ksh|, 
-but include a couple of different details.
+but include a couple of differences.
 
-The first part of the run script sets up the computer environment and case configuration. This is the similar to the regional analysis run scripts, except 
-for the specification of the chemical cases (\verb|bk_core| and \verb|obs_type|), and the namelist for the chemical application:
+The first part of the run script sets up the computer environment and case configuration. This is similar to the regional analysis run scripts, except 
+for the specification of (\verb|bk_core| and \verb|obs_type|) for a given chemical case, and the namelist for the chemical application:
 \begin{scriptsize}
 \begin{verbatim}
 GSI_NAMELIST=${GSI_ROOT}/run/comgsi_namelist_chem.sh
@@ -398,13 +395,12 @@ GSI_NAMELIST=${GSI_ROOT}/run/comgsi_namelist_chem.sh
   obs_type=PM25
 \end{verbatim}
 \end{scriptsize}
-The choice of the chemical cases (\verb|bk_core| and \verb|obs_type|) need to match with the options \verb|PREPBUFR| and \verb|BK_FILE|, which 
-set background and observation files. Table \ref{tab63} shows how to setup these two options for each case:
+The choices of (\verb|bk_core| and \verb|obs_type|) for a chemical case need to match with the options \verb|PREPBUFR| and \verb|BK_FILE|, which set background and observation files. Table \ref{tab63} shows how to set up these two options for each case:
 
 \begin{table}[htbp]
 \centering
 \begin{footnotesize}
-\caption{List of GSI chemical analyses}
+\caption{List of GSI chemical analyses.}
 \begin{tabular}{|p{0.7cm}|p{7cm}|p{7cm}|}
 \hline
 case&background (\textit{BK\_FILE} ; \textit{bk\_core} ) & Observation (\textit{PREPBUFR}; \textit{obs\_type})\\
@@ -425,10 +421,7 @@ case&background (\textit{BK\_FILE} ; \textit{bk\_core} ) & Observation (\textit{
 \label{tab63}
 \end{footnotesize}
 \end{table} 
-Similar to the regional run script, this chemical run script will also double check the needed parameters. Then it creates a run directory and generates 
-the namelist in the directory and copies the background, observations, and fixed files into the run directory. Users who run the cases listed in table 
-\ref{tab62} do not need to change the rest of the run scripts. But users who need to build new cases may need to know the differences between 
-chemical and regional applications, which is shown below.  
+Similar to the regional run script, this chemical run script will also double check the needed parameters. Then it creates a run directory, generates the namelist, and copies the background, observations, and fixed files into the run directory. Users who run the cases listed in table \ref{tab62} do not need to change the rest of the run script. But users who need to build new cases may need to know the differences between chemical and regional applications, which is shown below.  
 
 \begin{enumerate}
 \item Specify the name of the background and observations:
@@ -507,7 +500,7 @@ fi
 \subsection{Sample Results}
 %-------------------------------------------------------------------------------
 
-In this section, the case 1 in Table \ref{tab62} will be used as example. After a successful run of the GSI Chem analysis, the contents of the run directory, with the clean option turned on, will look something like this:
+In this section, case one in Table \ref{tab62} will be used as an example. After a successful run of the GSI Chem analysis, the contents of the run directory, with the clean option turned on, will look something like this:
 \begin{scriptsize}
 \begin{verbatim}
 aeroinfo                  fit_w1.2012060318  fort.212  fort.226            pcpinfo
@@ -525,10 +518,10 @@ fit_t1.2012060318         fort.211           fort.225  pcpbias_out
 \end{verbatim}
 \end{scriptsize}
 
-Following the instruction in Chapter 5, the following steps are conducted to check the results of this GSI chemical analysis:
+Following instructions from Chapter 5, the following steps are conducted to check the results of this GSI chemical analysis:
 
 \begin{enumerate}
-\item Check stdout file: \\
+\item Check the standard output file: \\
 
 \begin{itemize}
 \item Read in chemical background fields:
@@ -612,19 +605,12 @@ update_guess: successfully complete
 \end{itemize}
 
 \item Analysis increments:
-After successfully run through, the analysis increment should be check the see if the data impact are reasonable.
+After successfully running GSI, the analysis increments should be checked to see if data impacts are reasonable.
 \begin{figure}[h!]
   \centering
   \includegraphics[width=0.8\textwidth]{./images/ch6_chem_inc_seas1_bc1.png}
-  \caption{The analysis increment in the lowest level for SEAS\_1 (left) and BC1 (right)}
+  \caption{Analysis increments in the lowest level for SEAS\_1 (left) and BC1 (right).}
   \label{fig:chem}
 \end{figure}
 
-
 \end{enumerate}
-
-
-
-
-
-

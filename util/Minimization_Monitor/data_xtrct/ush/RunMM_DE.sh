@@ -113,10 +113,10 @@ fi
 #   determine the last date processed.
 #--------------------------------------------------------------------
 start_len=`echo ${#START_DATE}`
-verf_dir="${TANKverf}/stats/${SUFFIX}/gsistat"
+verf_dir="${TANKverf}/stats/${SUFFIX}"
 
 if [[ ${start_len} -le 0 ]]; then
-   pdate=`${M_DE_SCRIPTS}/find_cycle.pl ${SUFFIX} 1 ${verf_dir}`
+   pdate=`${M_DE_SCRIPTS}/find_cycle.pl --run gdas --cyc 1 --dir ${verf_dir}`
    pdate_len=`echo ${#pdate}`
    if [[ ${pdate_len} -ne 10 ]]; then
       exit 12 
@@ -141,7 +141,7 @@ while [[ $done -eq 0 ]]; do
    #--------------------------------------------------------------------
    if [[ $MY_MACHINE = "wcoss" ]]; then
       running=`bjobs -l | grep minmon_de_${SUFFIX} | wc -l`
-   elif [[ $MY_MACHINE = "zeus" ]]; then
+   elif [[ $MY_MACHINE = "theia" ]]; then
       running=`qstat -u $LOGNAME | grep minmon_de_${SUFFIX} | wc -l`
    fi
 

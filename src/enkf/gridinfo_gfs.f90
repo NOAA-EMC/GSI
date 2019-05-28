@@ -132,12 +132,12 @@ else
      ! define sighead on all tasks.
      call sigio_sropen(iunit,trim(filename),iret)
      if (iret /= 0) then
-        print *,'error reading file in gridinfo',trim(filename),' on task',nproc
+        print *,'error reading file in gridinfo ',trim(filename),' on task',nproc
         call stop2(24)
      end if
      call sigio_srhead(iunit,sighead,iret)
      if (iret /= 0) then
-        print *,'error reading file in gridinfo',trim(filename),' on task',nproc
+        print *,'error reading file in gridinfo ',trim(filename),' on task',nproc
         call stop2(24)
      end if
      call sigio_sclose(iunit,iret)
@@ -317,7 +317,6 @@ enddo
 call mpi_bcast(lonsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(latsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(ptop,1,mpi_real4,0,MPI_COMM_WORLD,ierr)
-  
 !==> precompute cartesian coords of analysis grid points.
 do nn=1,npts
    gridloc(1,nn) = cos(latsgrd(nn))*cos(lonsgrd(nn))

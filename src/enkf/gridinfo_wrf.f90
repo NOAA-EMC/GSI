@@ -20,6 +20,8 @@ module gridinfo
   !               pressure profile (i.e., presslmn) is computed as it is in  
   !               within the GSI subroutine get_wrf_nmm_ensperts.F90.
   !               Henry R. Winterbottom
+  !   2017-05-12 Y. Wang and X. Wang - add more state variables in
+  !                       cvars3d_supported for radar DA, POC: xuguang.wang@ou.edu
   !
   ! attributes:
   !   language:  f95
@@ -73,8 +75,8 @@ module gridinfo
   public :: cross2dot
   public :: dot2cross
   ! supported variable names in anavinfo
-  character(len=max_varname_length),public, dimension(10) :: vars3d_supported = (/'u', 'v', 'tv', 'q', 'cw', 'w', 'ph', 'oz', 'tsen', 'prse' /)
-  character(len=max_varname_length),public, dimension(2)  :: vars2d_supported = (/ 'ps', 'sst' /)
+  character(len=max_varname_length),public, dimension(19) :: vars3d_supported = (/'u   ', 'v   ', 'tv  ', 'q   ', 'w   ', 'cw  ', 'ph  ', 'ql  ', 'qr  ', 'qs  ', 'qg  ', 'qi  ', 'qni ', 'qnr ', 'qnc ', 'dbz ', 'oz  ', 'tsen', 'prse' /)
+  character(len=max_varname_length),public, dimension(2)  :: vars2d_supported = (/ 'ps ', 'sst' /)
 
 contains
 
@@ -145,7 +147,6 @@ contains
        call stop2(22)
  
     end if ! if(.not. arw .and. .not. nmm)
-
     ! Define local values and prepare for array dimension definitions
     dimstring(1) = "west_east"
     dimstring(2) = "south_north"

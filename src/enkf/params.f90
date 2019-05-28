@@ -25,6 +25,10 @@ module params
 !   2016-05-02  shlyaeva - Modification for reading state vector from table
 !   2016-11-29  shlyaeva - added nhr_state (hours for state fields to 
 !                          calculate Hx; nhr_anal is for IAU)
+!   2018-05-31  whitaker - added modelspace_vloc (for model-space localization using
+!                          modulated ensembles), nobsl_max (for ob selection
+!                          in LETKF and dfs_sort
+!                          (for using DFS in LETKF ob selection).
 !
 ! attributes:
 !   language: f95
@@ -96,6 +100,8 @@ real(r_single),public :: analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,saterrf
 real(r_single),public ::  paoverpb_thresh,latbound,delat,p5delat,delatinv
 real(r_single),public ::  latboundpp,latboundpm,latboundmp,latboundmm
 real(r_single),public :: covl_minfact, covl_efold
+
+real(r_single),public :: covinflatenh,covinflatesh,covinflatetr,lnsigcovinfcutoff
 ! if npefiles=0, diag files are read (concatenated pe* files written by gsi)
 ! if npefiles>0, npefiles+1 pe* files read directly
 ! the pe* files are assumed to be located in <obspath>/gsitmp_mem###
@@ -107,9 +113,32 @@ integer,public :: npefiles = 0
 ! only the first nobsl_max closest obs within the
 ! localization radius will be used. Ignored
 ! if letkf_flag = .false.
+! If dfs_sort=T, DFS is used instead of distance
+! for ob selection.
 integer,public :: nobsl_max = -1
+! do model-space vertical localization
+! if .true., eigenvectors of the localization
+! matrix are read from a file called 'vlocal_eig.dat'
+! (created by an external python utility).
+logical,public :: modelspace_vloc=.false.
+! number of eigenvectors of vertical localization
+! used.  Zero if modelspace_vloc=.false., read from
+! file 'vlocal_eig.dat' if modelspace_vloc=.true.
+integer,public :: neigv = 0
+real(r_double) :: vlocal_eval
+real(r_double),public,dimension(:,:), allocatable :: vlocal_evecs
 logical,public :: params_initialized = .true.
 logical,public :: save_inflation = .false.
+! use gain form of LETKF (reset to true if modelspace_vloc=T)
+logical,public :: getkf = .false.
+! turn on getkf inflation (when modelspace_vloc=T and
+! letkf_flag=T, posterior variance inflated to match
+! variance of modulated ensemble).
+logical, public :: getkf_inflation=.false.
+! use DEnKF approx to EnKF perturbation update.
+! Implies getkf=T if letkf_flag=T
+! See Sakov and Oke 2008 https://doi.org/10.1111/j.1600-0870.2007.00299.x
+logical, public :: denkf=.false.
 ! do sat bias correction update.
 logical,public :: lupd_satbiasc = .false.
 ! do ob space update with serial filter (only used if letkf_flag=.true.)
@@ -131,7 +160,10 @@ logical,public :: letkf_flag = .false.
 
 ! next two are no longer used, instead they are inferred from anavinfo
 logical,public :: massbal_adjust = .false. 
-integer(i_kind),public :: nvars = -1 
+integer(i_kind),public :: nvars = -1
+
+! sort obs in LETKF in order of decreasing DFS
+logical,public :: dfs_sort = .false.
 
 ! if true generate additional input files
 ! required for EFSO calculations
@@ -171,8 +203,9 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    newpc4pred,nmmb,nhr_anal,nhr_state, fhr_assim,nbackgrounds,nstatefields, &
                    save_inflation,nobsl_max,lobsdiag_forenkf,netcdf_diag,&
                    letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs,npefiles,&
-                   fso_cycling,fso_calculate,imp_physics,lupp,write_spread_diag
-
+                   getkf,getkf_inflation,denkf,modelspace_vloc,dfs_sort,write_spread_diag,&
+                   covinflatenh,covinflatesh,covinflatetr,lnsigcovinfcutoff,&
+                   fso_cycling,fso_calculate,imp_physics,lupp
 namelist /nam_wrf/arw,nmm,nmm_restart
 namelist /satobs_enkf/sattypes_rad,dsis
 namelist /ozobs_enkf/sattypes_oz
@@ -181,7 +214,9 @@ namelist /ozobs_enkf/sattypes_oz
 contains
 
 subroutine read_namelist()
-integer i,nb
+integer i,j,nb
+logical fexist
+real(r_single) modelspace_vloc_cutoff, modelspace_vloc_thresh
 ! have all processes read namelist from file enkf.nml
 
 ! defaults
@@ -233,6 +268,11 @@ delat = 10._r_single    ! width of transition zone.
 analpertwtnh = 0.0_r_single ! no inflation (1 means inflate all the way back to prior spread)
 analpertwtsh = 0.0_r_single
 analpertwttr = 0.0_r_single
+covinflatenh = 0.0_r_single !
+covinflatetr = 0.0_r_single !
+covinflatesh = 0.0_r_single !
+! lnsigcovinfcutoff (length for vertical taper in inflation in ln(sigma))
+lnsigcovinfcutoff = 1.0e30_r_single
 ! if ob space posterior variance divided by prior variance
 ! less than this value, ob is skipped during serial processing.
 paoverpb_thresh = 1.0_r_single! don't skip any obs
@@ -339,6 +379,69 @@ latboundmp=-latbound+p5delat
 latboundmm=-latbound-p5delat
 delatinv=1.0_r_single/delat
 
+! if modelspace_vloc, use modulated ensemble to compute Kalman gain (but use
+! this gain to update only original ensemble). 
+if (modelspace_vloc) then
+  ! read in eigenvalues/vectors of vertical localization matrix on all tasks
+  ! (text file vlocal_eig.dat must exist)
+  inquire(file='vlocal_eig.dat',exist=fexist)
+  if ( fexist ) then
+     open(7,file='vlocal_eig.dat',status="old",action="read")
+  else
+     if (nproc .eq. 0) print *, 'error: vlocal_eig.dat does not exist'
+     call stop2(19)
+  endif
+  read(7,*) neigv,modelspace_vloc_thresh,modelspace_vloc_cutoff
+  if (neigv < 1) then
+     if (nproc .eq. 0) print *, 'error: neigv must be greater than zero'
+     call stop2(19)
+  endif
+  allocate(vlocal_evecs(neigv,nlevs+1))
+  if (nproc .eq. 0) then
+     print *,'model-space vertical localization enabled'
+     print *,'neigv = ',neigv
+     print *,'vertical localization cutoff distance (lnp units) =',&
+            modelspace_vloc_cutoff
+     print *,'eigenvector truncation threshold = ',modelspace_vloc_thresh
+     print *,'vertical localization eigenvalues'
+  endif
+  do i = 1,neigv
+     read(7,*) vlocal_eval
+     if (nproc .eq. 0) print *,i,vlocal_eval
+     do j = 1,nlevs
+        read(7,*) vlocal_evecs(i,j)
+     enddo
+     ! nlevs+1 same as level 1 (2d variables treated as surface)
+     vlocal_evecs(i,nlevs+1) = vlocal_evecs(i,1)
+  enddo
+  close(7)
+  if (.not. lobsdiag_forenkf) then
+    if (nproc .eq. 0) then
+       print *,'lobsdiag_forenkf must be true if modelspace_vloc==.true.'
+    endif
+    call stop2(19)
+  endif
+  if (letkf_flag .and. .not. letkf_novlocal) then
+     if (nproc .eq. 0) print *,"modelspace_vloc=T and letkf_flag=T, re-setting letkf_novlocal to T"
+     letkf_novlocal = .true.
+  endif
+  if (letkf_flag .and. .not. getkf) then
+     if (nproc .eq. 0) print *,"modelspace_vloc=T and getkf=F, re-setting getkf to T"
+     getkf = .true.
+  endif
+  ! set vertical localization parameters to very large values
+  ! (turns vertical localization off for serial filter)
+  lnsigcutoffnh = 1.e30
+  lnsigcutoffsh = 1.e30
+  lnsigcutofftr = 1.e30
+  lnsigcutoffsatnh = 1.e30
+  lnsigcutoffsatsh = 1.e30
+  lnsigcutoffsattr = 1.e30
+  lnsigcutoffpsnh = 1.e30
+  lnsigcutoffpssh = 1.e30
+  lnsigcutoffpstr = 1.e30
+endif
+
 ! have to do ob space update for serial filter (not for LETKF).
 if ((.not. letkf_flag .or. lupd_obspace_serial) .and. numiter < 1) numiter = 1
 
@@ -380,7 +483,13 @@ if (nproc == 0) then
 
    print *, trim(adjustl(datapath))
    if (datestring .ne. '0000000000') print *, 'analysis time ',datestring
-   print *, nanals,' members'
+   if (neigv > 0) then
+      print *,nanals,' (unmodulated) members'
+      print *,neigv,' eigenvectors for vertical localization'
+      print *,nanals*neigv,' modulated ensemble members'
+   else
+      print *,nanals,' members'
+   endif
 
 ! check for deprecated namelist variables
    if (nvars > 0 .or. massbal_adjust) then
