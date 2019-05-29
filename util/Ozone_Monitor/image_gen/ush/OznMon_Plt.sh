@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -l
 
 #-----------------------------------------------------------------------
 #  OznMon_Plt.sh
@@ -189,7 +189,7 @@ export cyc=`echo $PDATE|cut -c9-10`
 #--------------------------------------------------------------------
 #  Create the WORKDIR and link the data files to it
 #--------------------------------------------------------------------
-WORKDIR=${STMP_USER}/ozn.${OZNMON_SUFFIX}.IG.${PDY}.${cyc}
+export WORKDIR=${STMP_USER}/ozn.${OZNMON_SUFFIX}.IG.${PDY}.${cyc}
 if [[ -d $WORKDIR ]]; then
   rm -rf $WORKDIR
 fi
