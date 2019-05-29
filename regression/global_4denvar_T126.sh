@@ -23,7 +23,6 @@ savdir=$savdir/out${JCAP}/${exp}
 
 # Specify GSI fixed field and data directories.
 #fixcrtm=${fixcrtm:-$CRTM_FIX}
-fixcrtm=/gpfs/dell2/emc/modeling/noscrub/Michael.Lueken/fix_update
 
 #datobs=/scratch1/portfolios/NCEPDEV/da/noscrub/Daryl.Kleist/CASES/$adate/obs
 #datges=/scratch1/portfolios/NCEPDEV/da/noscrub/Daryl.Kleist/CASES/$adate/ges
