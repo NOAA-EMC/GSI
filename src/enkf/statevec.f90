@@ -43,14 +43,15 @@ use gridio, only: readgriddata
 use mpisetup
 use gridinfo, only: getgridinfo, gridinfo_cleanup,               &
                     npts, vars3d_supported, vars2d_supported
-use params, only: nlevs,nstatefields,nanals,statefileprefixes
+use params, only: nlevs,nstatefields,nanals,statefileprefixes,&
+                  ntasks_io,nanals_per_iotask,nanal1,nanal2
 use kinds, only: r_kind, i_kind, r_double, r_single
 use mpeu_util, only: gettablesize, gettable, getindex
 use constants, only : max_varname_length
 implicit none
 private
 public :: read_state, statevec_cleanup, init_statevec
-real(r_single),public, allocatable, dimension(:,:,:) :: state_d
+real(r_single),public, allocatable, dimension(:,:,:,:) :: state_d
 
 integer(i_kind), public :: ns2d, ns3d, nsdim
 character(len=max_varname_length), allocatable, dimension(:), public :: svars3d
@@ -164,14 +165,14 @@ end subroutine init_statevec
 subroutine read_state()
 ! read ensemble members on IO tasks,
 implicit none
-integer(i_kind) nanal, i, nb
-real(r_double), allocatable, dimension(:,:,:) :: qsat
+integer(i_kind) nanal, i, nb, ne
+real(r_double), allocatable, dimension(:,:,:,:) :: qsat
 real(r_single), allocatable, dimension(:) :: state_mean
 integer(i_kind) ierr
 
 ! must at least nanals tasks allocated.
-if (numproc < nanals) then
-  print *,'need at least nanals =',nanals,'MPI tasks, exiting ...'
+if (numproc < ntasks_io) then
+  print *,'need at least ntasks_io =',ntasks_io,'MPI tasks, exiting ...'
   call mpi_barrier(mpi_comm_world,ierr)
   call mpi_finalize(ierr)
 end if
@@ -182,21 +183,23 @@ if (npts < numproc) then
 end if
 
 ! read in whole state vector on i/o procs - keep in memory 
-if (nproc <= nanals-1) then
-   allocate(state_d(npts,nsdim,nstatefields))
-   allocate(qsat(npts,nlevs,nstatefields))
+if (nproc <= ntasks_io-1) then
+   allocate(state_d(npts,nsdim,nstatefields,nanals_per_iotask))
+   allocate(qsat(npts,nlevs,nstatefields,nanals_per_iotask))
    nanal = nproc + 1
 
-   call readgriddata(nanal,svars3d,svars2d,ns3d,ns2d,slevels,nsdim,nstatefields,statefileprefixes,.false.,state_d,qsat)
+   call readgriddata(nanal1(nproc),nanal2(nproc),svars3d,svars2d,ns3d,ns2d,slevels,nsdim,nstatefields,statefileprefixes,.false.,state_d,qsat)
 
    ! subtract the mean
    allocate(state_mean(npts)) 
    do nb = 1, nstatefields
      do i = 1, nsdim
-       state_mean = state_d(:,i,nb)
+       state_mean = sum(state_d(:,i,nb,:),dim=2)/real(nanals_per_iotask)
        call mpi_allreduce(mpi_in_place,state_mean,npts,mpi_real4,mpi_sum,mpi_comm_io,ierr)
-       state_mean = state_mean/real(nanals)
-       state_d(:,i,nb) = state_d(:,i,nb) - state_mean
+       state_mean = state_mean/real(ntasks_io)
+       do ne=1,nanals_per_iotask
+          state_d(:,i,nb,ne) = state_d(:,i,nb,ne) - state_mean
+       enddo
      enddo
    enddo
    deallocate(state_mean)
@@ -211,7 +214,7 @@ subroutine statevec_cleanup()
 if (allocated(svars3d)) deallocate(svars3d)
 if (allocated(svars2d)) deallocate(svars2d)
 if (allocated(slevels)) deallocate(slevels)
-if (nproc <= nanals-1 .and. allocated(state_d)) deallocate(state_d)
+if (nproc <= ntasks_io-1 .and. allocated(state_d)) deallocate(state_d)
 call gridinfo_cleanup()
 end subroutine statevec_cleanup
 

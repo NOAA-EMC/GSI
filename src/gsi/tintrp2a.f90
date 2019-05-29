@@ -391,7 +391,7 @@ subroutine tintrp2a11_indx(dx,dy,obstime,gridtime, &
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use gridmod, only: istart,jstart,nlon,nlat,lon1,lon2,lat2
+  use gridmod, only: istart,jstart,nlon,nlat,lon1
   use constants, only: zero,one
   implicit none
 

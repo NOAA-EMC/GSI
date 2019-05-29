@@ -58,7 +58,7 @@ endfunction(set_GSI_ENKF_Intel)
 
 function (set_GSI_ENKF_Debug_Intel)
     set(GSI_Fortran_FLAGS "-DPOUND_FOR_STRINGIFY -O0 -fp-model source -convert big_endian -assume byterecl -implicitnone -mcmodel medium -shared-intel -g -traceback -debug -ftrapuv -check all,noarg_temp_created -fp-stack-check -fstack-protector -warn all,nointerfaces -convert big_endian -implicitnone -D_REAL8_ ${OpenMP_Fortran_FLAGS} ${MPI_Fortran_COMPILE_FLAGS} ${GSDCLOUDOPT}" CACHE INTERNAL "")
-    set(ENKF_Fortran_FLAGS "-O0 ${HOST_FLAG} -warn all -implicitnone -traceback -g -debug full -fp-model strict -convert big_endian -D_REAL8_ ${MPI3FLAG} ${OpenMP_Fortran_FLAGS} ${GSDCLOUDOPT}" CACHE INTERNAL "")
+    set(ENKF_Fortran_FLAGS "-O0 ${HOST_FLAG} -warn all -implicitnone -traceback -g -debug all -check all,noarg_temp_created -fp-model strict -convert big_endian -assume byterecl -D_REAL8_ ${MPI3FLAG} ${OpenMP_Fortran_FLAGS} ${GSDCLOUDOPT}" CACHE INTERNAL "")
     set(GSDCLOUD_Fortran_FLAGS "-DPOUND_FOR_STRINGIFY -O3 -convert big_endian" CACHE INTERNAL "")
     #Common debug flags
     set(GSI_CFLAGS "-I. -DFortranByte=char -DFortranInt=int -DFortranLlong='long long'  -g  -Dfunder" CACHE INTERNAL "" )

@@ -18,7 +18,8 @@ set C_COMP_MP mpcc
 module load intel/15.6.233
 
 # Loading impi
-module load impi/5.1.2.150
+#module load impi/5.1.2.150
+module load mvapich2/2.1rc1
 
 # Loading netcdf and hdf5
 module load hdf5/1.8.14

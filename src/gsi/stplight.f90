@@ -82,7 +82,7 @@ subroutine stplight(lighthead,rval,sval,out,sges,nstep)
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,one,two,half,tiny_r_kind,cg_term,zero_quad,r3600,fv
   use gridmod, only: nsig
-  use gridmod, only: wrf_mass_regional,nems_nmmb_regional,regional
+  use gridmod, only: wrf_mass_regional,regional
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use m_obsNode   , only: obsNode

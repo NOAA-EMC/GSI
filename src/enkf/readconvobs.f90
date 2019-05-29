@@ -402,9 +402,9 @@ end subroutine get_num_convobs_nc
 
 ! read conventional observations
 subroutine get_convobs_data(obspath, datestring, nobs_max, nobs_maxdiag,   &
-                            hx_mean, hx_mean_nobc, hx, hx_modens,x_obs, x_err,       &
-                            x_lon, x_lat, x_press,         &
-                            x_time, x_code,x_errorig, x_type, x_used, id, nanal)
+                            hx_mean, hx_mean_nobc, hx, hx_modens, x_obs, x_err,       &
+                            x_lon, x_lat, x_press, x_time, x_code,         &
+                            x_errorig, x_type, x_used, id, nanal, nmem)
   use params, only: neigv
   implicit none
 
@@ -426,26 +426,26 @@ subroutine get_convobs_data(obspath, datestring, nobs_max, nobs_maxdiag,   &
   integer(i_kind), dimension(nobs_maxdiag), intent(out) :: x_used
 
   character(len=10), intent(in) :: id
-  integer, intent(in)           :: nanal
+  integer, intent(in)           :: nanal, nmem
 
   if (netcdf_diag) then
     call get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
                             hx_mean, hx_mean_nobc, hx, hx_modens, x_obs, x_err,       &
-                            x_lon, x_lat, x_press, &
-                            x_time, x_code,x_errorig, x_type, x_used, id, nanal)
+                            x_lon, x_lat, x_press, x_time, x_code,         &
+                            x_errorig, x_type, x_used, id, nanal, nmem)
   else
     call get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
                             hx_mean, hx_mean_nobc, hx, hx_modens, x_obs, x_err,       &
-                            x_lon, x_lat, x_press, &
-                            x_time, x_code,x_errorig, x_type, x_used, id, nanal)
+                            x_lon, x_lat, x_press, x_time, x_code,         &
+                            x_errorig, x_type, x_used, id, nanal, nmem)
   endif
 end subroutine get_convobs_data
 
 ! read conventional observations from netcdf file
 subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
                             hx_mean, hx_mean_nobc, hx, hx_modens, x_obs, x_err,       &
-                            x_lon, x_lat, x_press, &
-                            x_time, x_code,x_errorig, x_type, x_used, id, nanal)
+                            x_lon, x_lat, x_press, x_time, x_code,         &
+                            x_errorig, x_type, x_used, id, nanal, nmem)
   use sparsearr, only: sparr, delete, assignment(=)
   use params, only: nanals, lobsdiag_forenkf, neigv, vlocal_evecs
   use statevec, only: state_d
@@ -476,7 +476,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
   integer(i_kind), dimension(nobs_maxdiag), intent(out) :: x_used
 
   character(len=10), intent(in) :: id
-  integer, intent(in)           :: nanal
+  integer, intent(in)           :: nanal, nmem
 
   real(r_double) t1,t2,tsum
   character(len=4) pe_name
@@ -738,13 +738,13 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
                                   ix, delx, ixp, delxp, iy, dely,  &
                                   iyp, delyp, it, delt, itp, deltp)
                  endif
-                 call calc_linhx(hx_mean_nobc(nob), state_d,       &
+                 call calc_linhx(hx_mean_nobc(nob), state_d(:,:,:,nmem),&
                                  dhx_dx, hx(nob),                  &
                                  ix, delx, ixp, delxp, iy, dely,   &
                                  iyp, delyp, it, delt, itp, deltp)
                  ! compute modulated ensemble in obs space
                  if (neigv > 0) then
-                    call calc_linhx_modens(hx_mean_nobc(nob), state_d, &
+                    call calc_linhx_modens(hx_mean_nobc(nob), state_d(:,:,:,nmem), &
                                     dhx_dx, hx_modens(:,nob),          &
                                     ix, delx, ixp, delxp, iy, dely,    &
                                     iyp, delyp, it, delt, itp, delxp,  &
@@ -825,13 +825,13 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
                                      ix, delx, ixp, delxp, iy, dely,  &
                                      iyp, delyp, it, delt, itp, deltp)
                     endif
-                    call calc_linhx(hx_mean_nobc(nob), state_d,       &
+                    call calc_linhx(hx_mean_nobc(nob), state_d(:,:,:,nmem),    &
                                     dhx_dx, hx(nob),                  &
                                     ix, delx, ixp, delxp, iy, dely,   &
                                     iyp, delyp, it, delt, itp, deltp)
                     ! compute modulated ensemble in obs space
                     if (neigv > 0) then
-                       call calc_linhx_modens(hx_mean_nobc(nob), state_d, &
+                       call calc_linhx_modens(hx_mean_nobc(nob), state_d(:,:,:,nmem), &
                                        dhx_dx, hx_modens(:,nob),          &
                                        ix, delx, ixp, delxp, iy, dely,    &
                                        iyp, delyp, it, delt, itp, delxp,  &
@@ -896,8 +896,8 @@ end subroutine get_convobs_data_nc
 ! read conventional observation from binary files
 subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
                             hx_mean, hx_mean_nobc, hx, hx_modens, x_obs, x_err,       &
-                            x_lon, x_lat, x_press,         &
-                            x_time, x_code,x_errorig, x_type, x_used, id, nanal)
+                            x_lon, x_lat, x_press, x_time, x_code,         &
+                            x_errorig, x_type, x_used, id, nanal, nmem)
   use sparsearr, only: sparr2, sparr, readarray, delete, assignment(=), size
   use params, only: nanals, lobsdiag_forenkf, neigv, vlocal_evecs
   use statevec, only: state_d
@@ -923,7 +923,7 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
   integer(i_kind), dimension(nobs_maxdiag), intent(out) :: x_used
 
   character(len=10), intent(in) :: id
-  integer, intent(in)           :: nanal
+  integer, intent(in)           :: nanal, nmem
 
   real(r_double) t1,t2,tsum
   character(len=4) pe_name
@@ -1054,7 +1054,9 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
        endif
 
        ! special handling for error limits for GPS bend angle
-       if (obtype == 'gps' .and. rdiagbuf(20,1)==1) errorlimit2=errorlimit2_bnd
+       if (obtype == 'gps') then
+          if (rdiagbuf(20,1)==1) errorlimit2=errorlimit2_bnd
+       endif
 
        do n=1,ii
           nobdiag = nobdiag + 1
@@ -1175,13 +1177,13 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
                                  ix, delx, ixp, delxp, iy, dely,  &
                                  iyp, delyp, it, delt, itp, deltp)
                 endif
-                call calc_linhx(hx_mean_nobc(nob), state_d,       &
+                call calc_linhx(hx_mean_nobc(nob), state_d(:,:,:,nmem),  &
                                 dhx_dx, hx(nob),                  &
                                 ix, delx, ixp, delxp, iy, dely,   &
                                 iyp, delyp, it, delt, itp, deltp)
                 ! compute modulated ensemble in obs space
                 if (neigv > 0) then
-                   call calc_linhx_modens(hx_mean_nobc(nob), state_d, &
+                   call calc_linhx_modens(hx_mean_nobc(nob), state_d(:,:,:,nmem), &
                                    dhx_dx, hx_modens(:,nob),          &
                                    ix, delx, ixp, delxp, iy, dely,    &
                                    iyp, delyp, it, delt, itp, delxp,  &
@@ -1265,13 +1267,13 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
                                     ix, delx, ixp, delxp, iy, dely,  &
                                     iyp, delyp, it, delt, itp, deltp)
                    endif
-                   call calc_linhx(hx_mean_nobc(nob), state_d,       &
+                   call calc_linhx(hx_mean_nobc(nob), state_d(:,:,:,nmem), &
                                    dhx_dx, hx(nob),                  &
                                    ix, delx, ixp, delxp, iy, dely,   &
                                    iyp, delyp, it, delt, itp, deltp)
                    ! compute modulated ensemble in obs space
                    if (neigv > 0) then
-                      call calc_linhx_modens(hx_mean_nobc(nob), state_d, &
+                      call calc_linhx_modens(hx_mean_nobc(nob), state_d(:,:,:,nmem), &
                                       dhx_dx, hx_modens(:,nob),          &
                                       ix, delx, ixp, delxp, iy, dely,    &
                                       iyp, delyp, it, delt, itp, delxp,  &

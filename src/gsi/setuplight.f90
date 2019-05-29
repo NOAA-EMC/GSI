@@ -56,18 +56,17 @@ subroutine setuplight(lunin,mype,bwork,awork,nele,nobs,is,light_diagsave)
   use guess_grids, only: hrdifsig,nfldsig
   use gridmod, only: dx_gfs
   use gridmod, only: region_dx,region_dy      ! dx, dy (:,:)
-  use gridmod, only: region_dxi,region_dyi    ! inverse dx,dy (:,:)
   use gridmod, only: wrf_mass_regional
 !--
   use gridmod, only: lat2,lon2,get_ij,nlat_sfc,nlon_sfc
-  use gridmod, only: regional,nlat_regional,nlon_regional,nsig, &
+  use gridmod, only: regional,nsig, &
                      eta1_ll,pt_ll,aeta1_ll
   use gridmod, only: latlon11
 !--
   use gfs_stratosphere, only: nsig_save,deta1_save,aeta1_save
   use m_obsdiags, only: lighthead
   use obsmod, only: rmiss_single,i_light_ob_type,obsdiags,lobsdiagsave,&
-                    nobskeep,lobsdiag_allocated,time_offset
+                    nobskeep,lobsdiag_allocated
   use obsmod, only: netcdf_diag, binary_diag, dirname, ianldate
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d
@@ -77,14 +76,14 @@ subroutine setuplight(lunin,mype,bwork,awork,nele,nobs,is,light_diagsave)
   use m_lightNode, only: lightNode
   use m_obsLList, only: obsLList_appendNode
   use gsi_4dvar, only: nobs_bins,hr_obsbin
-  use constants, only: zero,one,fv,grav,r1000, &
+  use constants, only: zero,one,r1000, &
        tiny_r_kind,three,half,two,cg_term,huge_single,&
-       wgtlim, rd, qcmin
+       wgtlim, qcmin
   use constants, only: one_tenth,qmin,ten,t0c,five,r0_05
-  use jfunc, only: jiter,jiterstart,last,miter
+  use jfunc, only: jiter,last,miter
   use qcmod, only: dfact,dfact1,npres_print
-  use lightinfo, only: nlighttype,nulight,gross_light,glermax,&
-                       glermin,b_light,iuse_light,pg_light
+  use lightinfo, only: nlighttype,gross_light,glermax,&
+                       glermin,b_light,pg_light
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
 !--
   use gsi_bundlemod, only: gsi_bundlegetpointer
