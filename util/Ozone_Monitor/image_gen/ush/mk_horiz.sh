@@ -1,4 +1,4 @@
-#!/bin/ksh
+#!/bin/ksh -l
 
 #------------------------------------------------------------------
 #  mk_horiz.sh
@@ -10,7 +10,6 @@
 
 echo "begin mk_horiz.sh"
 set -ax
-
 
 echo "GRADS = $GRADS"
 echo "STNMAP = $STNMAP"
@@ -43,10 +42,16 @@ cmdfile=cmdfile_phoriz
 rm -f $cmdfile
 
 
+ctr=0
 >$cmdfile
 for type in ${SATYPE}; do
    list="obs ges obsges"
-   echo "${OZN_IG_SCRIPTS}/plot_horiz.sh $type $suffix '$list'" >> $cmdfile
+   if [[ ${MY_MACHINE} = "theia" ]]; then
+      echo "$ctr ${OZN_IG_SCRIPTS}/plot_horiz.sh $type $suffix '$list'" >> $cmdfile
+   else
+      echo "${OZN_IG_SCRIPTS}/plot_horiz.sh $type $suffix '$list'" >> $cmdfile
+   fi
+   ((ctr=ctr+1))
 done
 chmod a+x $cmdfile
 
@@ -67,19 +72,25 @@ fi
 
 if [[ ${MY_MACHINE} = "wcoss" ]]; then
 
-  $SUB -q ${JOB_QUEUE} -P ${PROJECT} -M 50 -R affinity[core] \
+   $SUB -q ${JOB_QUEUE} -P ${PROJECT} -M 50 -R affinity[core] \
         -o ${logf} -e ${errf} -W 0:05 -J ${job} -cwd ${WORKDIR} ${WORKDIR}/${cmdfile}
 
 elif [[ ${MY_MACHINE} = "theia" ]]; then
 
-  $SUB -A ${ACCOUNT} -l procs=1,walltime=0:05:00 -N ${job} -V \
-      -o ${logf} -e ${errf} ${cmdfile}
+   $SUB --account ${ACCOUNT} -n $ctr  -o ${logf} -D . -J ${job} --time=10 \
+        --wrap "srun -l --multi-prog ${cmdfile}"
 
 elif [[ ${MY_MACHINE} = "cray" ]]; then
 
-  $SUB -q ${JOB_QUEUE} -P ${PROJECT} -o ${logf} -e ${errf} \
-           -R "select[mem>100] rusage[mem=100]" \
-           -M 100 -W 0:05 -J ${job} -cwd ${WORKDIR} ${WORKDIR}/${cmdfile}
+   $SUB -q ${JOB_QUEUE} -P ${PROJECT} -o ${logf} -e ${errf} \
+        -R "select[mem>100] rusage[mem=100]" \
+        -M 100 -W 0:05 -J ${job} -cwd ${WORKDIR} ${WORKDIR}/${cmdfile}
+
+elif [[ ${MY_MACHINE} = "wcoss_d" ]]; then
+
+   $SUB -q ${JOB_QUEUE} -P ${PROJECT} -M 50 -R affinity[core] \
+        -o ${logf} -e ${errf} -W 0:05 -J ${job} -cwd ${WORKDIR} ${WORKDIR}/${cmdfile}
+
 
 fi
  

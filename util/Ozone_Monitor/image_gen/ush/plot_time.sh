@@ -1,10 +1,14 @@
-#! /bin/ksh
+#! /bin/ksh -l
 
 #------------------------------------------------------------------
 #  plot_time.sh
 #
 
 set -ax
+
+if [[ ${MY_MACHINE} = "theia" ]]; then
+   module load grads
+fi
 
 
 export SATYPE=$1
@@ -16,11 +20,7 @@ echo "RUN = $RUN"
 
 echo COMP1, COMP2, DO_COMP = $COMP1, $COMP2, $DO_COMP
 
-#omp=ompsnp_npp
-#ADD_OMPSNP=0
-
 ADD_COMP=0
-#if [[ $SATYPE = "sbuv2_n19" ]]; then
 if [[ $SATYPE = $COMP1 ]]; then
    ADD_COMP=1
 fi
@@ -140,9 +140,9 @@ ${NCP} *.png ${OZN_IMGN_TANKDIR}/.
 
 #--------------------------------------------------------------------
 # Clean $tmpdir.  Submit done job.
-#cd $tmpdir
-#cd ../
-#rm -rf $tmpdir
+cd $tmpdir
+cd ../
+rm -rf $tmpdir
 
 exit
 
