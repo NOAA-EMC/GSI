@@ -48,7 +48,7 @@ subroutine setupdbz(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind
   use m_obsdiags, only: dbzhead
-  use obsmod, only: rmiss_single,i_dbz_ob_type,obsdiags,lobsdiag_forenkf,&
+  use obsmod, only: rmiss_single,i_dbz_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,&
                     ens_hx_dbz_cut
 
@@ -69,13 +69,13 @@ subroutine setupdbz(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use qcmod, only: npres_print,ptop,pbot 
   use guess_grids, only: hrdifsig,geop_hgtl,nfldsig,&
        ges_lnprsl,ges_rho,ges_tsen
-  use gridmod, only: nsig,get_ijk,lat2,lon2,istart,jstart
+  use gridmod, only: nsig,get_ijk
   use gsi_metguess_mod, only: gsi_metguess_bundle,gsi_metguess_get
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use constants, only: flattening,semi_major_axis,grav_ratio,zero,grav,wgtlim,&
        half,one,two,grav_equator,eccentricity,somigliana,rad2deg,deg2rad,&
        r60,tiny_r_kind,cg_term,huge_single
-  use jfunc, only: jiter,last,miter,jiterstart
+  use jfunc, only: jiter,last,miter
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
   use m_dtime, only: dtime_setup, dtime_check, dtime_show

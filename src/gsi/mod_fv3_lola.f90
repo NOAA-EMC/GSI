@@ -833,7 +833,7 @@ subroutine rotate2deg(rlon_in,rlat_in,rlon_out,rlat_out,rlon0,rlat0,nx,ny)
 
 
   use kinds, only: r_kind,i_kind
-  use constants, only: deg2rad,rearth,rad2deg
+  use constants, only: deg2rad,rad2deg
   implicit none
 
   integer(i_kind), intent(in   ) :: nx,ny                 ! fv3 tile x- and y-dimensions
@@ -890,7 +890,7 @@ subroutine unrotate2deg(rlon_in,rlat_in,rlon_out,rlat_out,rlon0,rlat0,nx,ny)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use constants, only: deg2rad,rearth,rad2deg
+  use constants, only: deg2rad,rad2deg
   implicit none
 
   real(r_kind),intent(in   ) :: rlon_out(nx,ny),rlat_out(nx,ny),rlon0,rlat0

@@ -51,7 +51,6 @@ contains
       use gsi_bundlemod, only: gsi_bundlegetpointer
       use gsi_bundlemod, only: gsi_bundledestroy
       use gsi_bundlemod, only: gsi_gridcreate
-      use control_vectors, only : w_exist
       use mpeu_util, only: getindex
       use guess_grids,   only: ntguessig,ifilesig
       use gsi_4dvar,     only: nhr_assimilation

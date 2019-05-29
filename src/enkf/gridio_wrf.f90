@@ -52,10 +52,10 @@ module gridio
 
 contains
   ! Generic WRF read routine, calls ARW-WRF or NMM-WRF
-  subroutine readgriddata(nanal,vars3d,vars2d,n3d,n2d,levels,ndim,ntimes,fileprefixes,reducedgrid,vargrid,qsat)
+  subroutine readgriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,ntimes,fileprefixes,reducedgrid,vargrid,qsat)
    use constants, only: max_varname_length
    implicit none
-   integer, intent(in) :: nanal, n2d, n3d, ndim, ntimes
+   integer, intent(in) :: nanal1,nanal2, n2d, n3d, ndim, ntimes
    character(len=max_varname_length), dimension(n2d), intent(in) :: vars2d
    character(len=max_varname_length), dimension(n3d), intent(in) :: vars3d
    integer, dimension(0:n3d), intent(in)        :: levels
@@ -66,9 +66,9 @@ contains
    real(r_double), dimension(npts,nlevs,ntimes), intent(out) :: qsat
 
    if (arw) then
-     call readgriddata_arw(nanal,vars3d,vars2d,n3d,n2d,levels,ndim,ntimes,fileprefixes,vargrid,qsat)
+     call readgriddata_arw(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,ntimes,fileprefixes,vargrid,qsat)
    else if (nmm) then
-     call readgriddata_nmm(nanal,vars3d,vars2d,n3d,n2d,levels,ndim,ntimes,fileprefixes,vargrid,qsat)
+     call readgriddata_nmm(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,ntimes,fileprefixes,vargrid,qsat)
    endif
 
   end subroutine readgriddata
@@ -76,20 +76,20 @@ contains
   !========================================================================
   ! readgriddata_arw.f90: read WRF-ARW state or control vector
   !-------------------------------------------------------------------------
-  subroutine readgriddata_arw(nanal,vars3d,vars2d,n3d,n2d,levels,ndim,ntimes,fileprefixes,vargrid,qsat)
+  subroutine readgriddata_arw(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,ntimes,fileprefixes,vargrid,qsat)
     use constants
 
     !======================================================================
     ! Define variables passed to subroutine
-    integer, intent(in)  :: nanal, n2d, n3d,ndim, ntimes
+    integer, intent(in)  :: nanal1, nanal2, n2d, n3d,ndim, ntimes
     character(len=max_varname_length), dimension(n2d), intent(in) :: vars2d
     character(len=max_varname_length), dimension(n3d), intent(in) :: vars3d
     integer, dimension(0:n3d), intent(in) :: levels
     character(len=120), dimension(7), intent(in)  :: fileprefixes
 
     ! Define variables returned by subroutine
-    real(r_single), dimension(npts,ndim,ntimes),  intent(out) :: vargrid
-    real(r_double), dimension(npts,nlevs,ntimes), intent(out) :: qsat
+    real(r_single), dimension(npts,ndim,ntimes,nanal2-nanal1+1),  intent(out) :: vargrid
+    real(r_double), dimension(npts,nlevs,ntimes,nanal2-nanal1+1), intent(out) :: qsat
 
     ! Define local variables 
     character(len=500) :: filename
@@ -109,7 +109,7 @@ contains
     character(len=12) :: varstrname
 
     ! Define counting variables
-    integer :: i, k, nb
+    integer :: i, k, nb, ne, nanal
     integer :: u_ind, v_ind, tv_ind, q_ind, oz_ind, ql_ind, qr_ind, qi_ind, qg_ind, &
                qs_ind, qnc_ind, qnr_ind, qni_ind, dbz_ind, w_ind
     integer :: tsen_ind, prse_ind
@@ -144,6 +144,10 @@ contains
        write(6,*)'gridio/readgriddata: reading multiple backgrounds not yet supported'
        call stop2(23)
     endif
+
+    ne = 0
+    ensmemloop: do nanal=nanal1,nanal2
+    ne = ne + 1
     backgroundloop: do nb=1,ntimes
 
     ! Define character string for ensemble member file
@@ -159,22 +163,22 @@ contains
     if (u_ind > 0) then
        varstrname = 'U'
        call readwrfvar(filename, varstrname,                              &
-                       vargrid(:,levels(u_ind-1)+1:levels(u_ind),nb),nlevs)
+                       vargrid(:,levels(u_ind-1)+1:levels(u_ind),nb,ne),nlevs)
        do k = levels(u_ind-1)+1, levels(u_ind)
           if (nproc .eq. 0)                                               &
              write(6,*) 'READGRIDDATA_ARW: u ',                           &
-                 & k, minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
        enddo
     endif
     ! read v-component
     if (v_ind > 0) then
        varstrname = 'V'
        call readwrfvar(filename, varstrname,                              &
-                       vargrid(:,levels(v_ind-1)+1:levels(v_ind),nb),nlevs)
+                       vargrid(:,levels(v_ind-1)+1:levels(v_ind),nb,ne),nlevs)
        do k = levels(v_ind-1)+1, levels(v_ind)
           if (nproc .eq. 0)                                               &
              write(6,*) 'READGRIDDATA_ARW: v ',                           &
-                 & k, minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
        enddo
     endif
     ! read qcloud
@@ -289,11 +293,11 @@ contains
     endif
     ! set ozone to zero for now (like in GSI?)
     if (oz_ind > 0) then
-       vargrid(:,levels(oz_ind-1)+1:levels(oz_ind),nb) = zero
+       vargrid(:,levels(oz_ind-1)+1:levels(oz_ind),nb,ne) = zero
     endif
     ! set SST to zero for now
     if (sst_ind > 0) then
-       vargrid(:,levels(n3d)+sst_ind,nb) = zero
+       vargrid(:,levels(n3d)+sst_ind,nb,ne) = zero
     endif
 
     ice = .false.
@@ -349,46 +353,46 @@ contains
     enkf_virttemp = enkf_temp * (1. + fv*enkf_spechumd)
 
     if (tsen_ind > 0) then
-       vargrid(:,levels(tsen_ind-1)+1:levels(tsen_ind),nb) = enkf_temp
+       vargrid(:,levels(tsen_ind-1)+1:levels(tsen_ind),nb,ne) = enkf_temp
        do k = levels(tsen_ind-1)+1, levels(tsen_ind)
           if (nproc .eq. 0)                                               &
              write(6,*) 'READGRIDDATA_ARW: tsen ',                        &
-                 & k, minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
        enddo
     endif
 
     if (q_ind > 0) then
-       vargrid(:,levels(q_ind-1)+1:levels(q_ind),nb) = enkf_spechumd
+       vargrid(:,levels(q_ind-1)+1:levels(q_ind),nb,ne) = enkf_spechumd
        do k = levels(q_ind-1)+1, levels(q_ind)
           if (nproc .eq. 0)                                               &
              write(6,*) 'READGRIDDATA_ARW: q ',                           &
-                 & k, minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
        enddo
     endif
 
     if (tv_ind > 0) then
-       vargrid(:,levels(tv_ind-1)+1:levels(tv_ind),nb) = enkf_virttemp
+       vargrid(:,levels(tv_ind-1)+1:levels(tv_ind),nb,ne) = enkf_virttemp
        do k = levels(tv_ind-1)+1, levels(tv_ind)
           if (nproc .eq. 0)                                               &
              write(6,*) 'READGRIDDATA_ARW: tv ',                          &
-                 & k, minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
        enddo
     endif
  
     if (ps_ind > 0) then
-       vargrid(:,levels(n3d)+ps_ind,nb) = enkf_psfc
+       vargrid(:,levels(n3d)+ps_ind,nb,ne) = enkf_psfc
        k = levels(n3d) + ps_ind
        if (nproc .eq. 0)                                               &
           write(6,*) 'READGRIDDATA_ARW: ps ',                           &
-              & minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+              & minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
     endif
 
     if (prse_ind > 0) then
-       vargrid(:,levels(prse_ind-1)+1:levels(prse_ind)-1, nb) = enkf_pressure
+       vargrid(:,levels(prse_ind-1)+1:levels(prse_ind)-1, nb,ne) = enkf_pressure
        do k = levels(prse_ind-1)+1, levels(prse_ind)
           if (nproc .eq. 0)                                               &
              write(6,*) 'READGRIDDATA_ARW: prse ',                        &
-                 & k, minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
        enddo
     endif
 
@@ -396,10 +400,10 @@ contains
     ! Compute the saturation specific humidity
 
     if (pseudo_rh) then
-       call genqsat1(enkf_spechumd,qsat(:,:,nb),enkf_pressure,enkf_virttemp,ice,  &
+       call genqsat1(enkf_spechumd,qsat(:,:,nb,ne),enkf_pressure,enkf_virttemp,ice,  &
                      npts,nlevs)
     else
-       qsat(:,:,nb) = 1._r_double
+       qsat(:,:,nb,ne) = 1._r_double
     endif
           
     !======================================================================
@@ -415,6 +419,7 @@ contains
     if(allocated(enkf_spechumd))       deallocate(enkf_spechumd)
 
     end do backgroundloop ! loop over backgrounds to read in
+    end do ensmemloop ! loop over ens members to read in
 
     return
 
@@ -424,19 +429,19 @@ contains
   ! readgriddata_nmm.f90: read WRF-NMM state or control vector
   !-------------------------------------------------------------------------
 
-  subroutine readgriddata_nmm(nanal,vars3d,vars2d,n3d,n2d,levels,ndim,ntimes,fileprefixes,vargrid,qsat)
+  subroutine readgriddata_nmm(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,ntimes,fileprefixes,vargrid,qsat)
     use constants
     !======================================================================
     ! Define variables passed to subroutine
-    integer, intent(in)  :: nanal, n2d, n3d, ndim, ntimes
+    integer, intent(in)  :: nanal1, nanal2, n2d, n3d, ndim, ntimes
     character(len=max_varname_length), dimension(n2d), intent(in) :: vars2d
     character(len=max_varname_length), dimension(n3d), intent(in) :: vars3d
     integer, dimension(0:n3d), intent(in) :: levels
     character(len=120), dimension(7), intent(in)  :: fileprefixes
 
     ! Define variables returned by subroutine
-    real(r_single),  dimension(npts,ndim,ntimes),  intent(out) :: vargrid
-    real(r_double),  dimension(npts,nlevs,ntimes), intent(out) :: qsat
+    real(r_single),  dimension(npts,ndim,ntimes,nanal2-nanal1+1),  intent(out) :: vargrid
+    real(r_double),  dimension(npts,nlevs,ntimes,nanal2-nanal1+1), intent(out) :: qsat
 
     ! Define variables computed within subroutine
     logical :: ice
@@ -452,7 +457,7 @@ contains
     character(len=7)   :: charnanal
 
     ! Define counting variables
-    integer(i_kind) :: nb, k
+    integer(i_kind) :: nb, k, nanal, ne
     integer(i_kind) :: u_ind, v_ind, tv_ind, q_ind, oz_ind
     integer(i_kind) :: cw_ind, tsen_ind, prse_ind
     integer(i_kind) :: ps_ind, sst_ind
@@ -479,6 +484,9 @@ contains
        call stop2(23)
     endif
 
+    ne = 0
+    ensmemloop: do nanal=nanal1,nanal2
+    ne = ne + 1
     backgroundloop: do nb=1,ntimes
 
     ! Define character string for ensemble member file
@@ -494,42 +502,42 @@ contains
     if (u_ind > 0) then
        varstrname = 'U' 
        call readwrfvar(filename, varstrname,                               &
-                       vargrid(:,levels(u_ind-1)+1:levels(u_ind),nb), nlevs)
+                       vargrid(:,levels(u_ind-1)+1:levels(u_ind),nb,ne), nlevs)
        do k = levels(u_ind-1)+1, levels(u_ind)
           if (nproc .eq. 0)                                               &
              write(6,*) 'READGRIDDATA_NMM: u ',                           &
-                 & k, minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
        enddo
     endif
     ! read v-component
     if (v_ind > 0) then
        varstrname = 'V'
        call readwrfvar(filename, varstrname,                              &
-                       vargrid(:,levels(v_ind-1)+1:levels(v_ind),nb), nlevs)
+                       vargrid(:,levels(v_ind-1)+1:levels(v_ind),nb,ne), nlevs)
        do k = levels(v_ind-1)+1, levels(v_ind)
           if (nproc .eq. 0)                                               &
              write(6,*) 'READGRIDDATA_NMM: v ',                           &
-                 & k, minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
        enddo
     endif
     ! read cwm
     if (cw_ind > 0) then
        varstrname = 'CWM'
        call readwrfvar(filename, varstrname,                              &
-                       vargrid(:,levels(cw_ind-1)+1:levels(cw_ind),nb), nlevs)
+                       vargrid(:,levels(cw_ind-1)+1:levels(cw_ind),nb,ne), nlevs)
        do k = levels(cw_ind-1)+1, levels(cw_ind)
           if (nproc .eq. 0)                                               &
              write(6,*) 'READGRIDDATA_NMM: cw',                           &
-                 & k, minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
        enddo
     endif
     ! set ozone to zero for now (like in GSI?)
     if (oz_ind > 0) then
-       vargrid(:,levels(oz_ind-1)+1:levels(oz_ind),nb) = zero
+       vargrid(:,levels(oz_ind-1)+1:levels(oz_ind),nb,ne) = zero
     endif
     ! set SST to zero for now
     if (sst_ind > 0) then
-       vargrid(:,levels(n3d)+sst_ind,nb) = zero
+       vargrid(:,levels(n3d)+sst_ind,nb,ne) = zero
     endif
 
     ! Define all constants required by routine
@@ -549,11 +557,11 @@ contains
     varstrname= 'T'
     call readwrfvar(filename, varstrname, enkf_temp, nlevs)
     if (tsen_ind > 0) then
-       vargrid(:,levels(tsen_ind-1)+1:levels(tsen_ind),nb) = enkf_temp
+       vargrid(:,levels(tsen_ind-1)+1:levels(tsen_ind),nb,ne) = enkf_temp
        do k = levels(tsen_ind-1)+1, levels(tsen_ind)
           if (nproc .eq. 0)                                               &
              write(6,*) 'READGRIDDATA_NMM: tsen ',                        &
-                 & k, minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
        enddo
     endif
 
@@ -561,22 +569,22 @@ contains
     varstrname = 'Q'
     call readwrfvar(filename, varstrname, enkf_spechumd, nlevs)
     if (q_ind > 0) then
-       vargrid(:,levels(q_ind-1)+1:levels(q_ind),nb) = enkf_spechumd
+       vargrid(:,levels(q_ind-1)+1:levels(q_ind),nb,ne) = enkf_spechumd
        do k = levels(q_ind-1)+1, levels(q_ind)
           if (nproc .eq. 0)                                               &
              write(6,*) 'READGRIDDATA_NMM: q ',                           &
-                 & k, minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
        enddo
     endif
 
     ! calculate virtual temperature
     enkf_temp = enkf_temp * (one + fv*enkf_spechumd)
     if (tv_ind > 0) then
-       vargrid(:,levels(tv_ind-1)+1:levels(tv_ind),nb) = enkf_temp
+       vargrid(:,levels(tv_ind-1)+1:levels(tv_ind),nb,ne) = enkf_temp
        do k = levels(tv_ind-1)+1, levels(tv_ind)
           if (nproc .eq. 0)                                               &
              write(6,*) 'READGRIDDATA_NMM: tv ',                          &
-                 & k, minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
        enddo
     endif
 
@@ -589,11 +597,11 @@ contains
     enkf_psfc = r0_01 * (enkf_pd + pdtop + pt)
 
     if (ps_ind > 0) then
-       vargrid(:,levels(n3d)+ps_ind,nb) = enkf_psfc
+       vargrid(:,levels(n3d)+ps_ind,nb,ne) = enkf_psfc
        k = levels(n3d) + ps_ind
        if (nproc .eq. 0)                                               &
           write(6,*) 'READGRIDDATA_NMM: ps ',                           &
-              & minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+              & minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
     endif
 
     ! compute the pressure profile 
@@ -602,11 +610,11 @@ contains
     end do 
 
     if (prse_ind > 0) then
-       vargrid(:,levels(prse_ind-1)+1:levels(prse_ind)-1, nb) = enkf_pressure
+       vargrid(:,levels(prse_ind-1)+1:levels(prse_ind)-1, nb,ne) = enkf_pressure
        do k = levels(prse_ind-1)+1, levels(prse_ind)
           if (nproc .eq. 0)                                               &
              write(6,*) 'READGRIDDATA_NMM: prse ',                        &
-                 & k, minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
        enddo
     endif
 
@@ -614,10 +622,10 @@ contains
     !----------------------------------------------------------------------
     ! Compute the saturation specific humidity
     if (pseudo_rh) then
-       call genqsat1(enkf_spechumd,qsat(:,:,nb),enkf_pressure,enkf_temp,ice,  &
+       call genqsat1(enkf_spechumd,qsat(:,:,nb,ne),enkf_pressure,enkf_temp,ice,  &
                     npts,nlevs)
     else
-       qsat(:,:,nb) = 1._r_double
+       qsat(:,:,nb,ne) = 1._r_double
     endif
 
     ! Deallocate memory for variables computed within routine
@@ -628,6 +636,7 @@ contains
 
     !======================================================================
     end do backgroundloop ! loop over backgrounds to read in
+    end do ensmemloop ! loop over ens members to read in
 
     ! Return calculated values
 
@@ -640,20 +649,20 @@ contains
   ! writegriddata.f90: write WRF-ARW or WRF-NMM analysis
   !-------------------------------------------------------------------------
 
-  subroutine writegriddata(nanal,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflate_flag)
+  subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflate_flag)
     use constants
     use params, only: nbackgrounds, anlfileprefixes, fgfileprefixes
     include 'netcdf.inc'      
 
     !----------------------------------------------------------------------
     ! Define variables passed to subroutine
-    integer, intent(in)  :: nanal, n2d, n3d, ndim
+    integer, intent(in)  :: nanal1,nanal2, n2d, n3d, ndim
     character(len=max_varname_length), dimension(n2d), intent(in) :: vars2d
     character(len=max_varname_length), dimension(n3d), intent(in) :: vars3d
     integer, dimension(0:n3d), intent(in) :: levels
-    real(r_single), dimension(npts,ndim,nbackgrounds), intent(in) :: vargrid
-    logical, intent(in) :: no_inflate_flag
-    !Not used here, but added to make writegriddata(...) consistent with gridio_gfs.f90
+    real(r_single), dimension(npts,ndim,nbackgrounds,nanal2-nanal1+1), intent(in) :: vargrid
+    logical, intent(in) :: no_inflate_flag 
+      !Not used here, but added to make writegriddata(...) consistent with gridio_gfs.f90
 
     !----------------------------------------------------------------------
     ! Define variables computed within subroutine
@@ -677,7 +686,7 @@ contains
 
     !----------------------------------------------------------------------
     ! Define counting variables
-    integer :: k, nb
+    integer :: k, nb, nanal, ne
 
     real(r_single), dimension(:,:), allocatable :: enkf_t, enkf_q, enkf_field
     real(r_single), dimension(:),   allocatable :: enkf_psfc, pressure
@@ -718,6 +727,9 @@ contains
        call stop2(23)
     endif
 
+    ne = 0
+    ensmemloop: do nanal=nanal1,nanal2
+    ne = ne + 1
     backgroundloop: do nb=1,nbackgrounds
 
     !----------------------------------------------------------------------
@@ -732,13 +744,13 @@ contains
     if (u_ind > 0) then
        varstrname = 'U'
        call readwrfvar(filename, varstrname, enkf_field, nlevs)
-       enkf_field = enkf_field + vargrid(:,levels(u_ind-1)+1:levels(u_ind),nb)
+       enkf_field = enkf_field + vargrid(:,levels(u_ind-1)+1:levels(u_ind),nb,ne)
        call writewrfvar(filename, varstrname, enkf_field, nlevs)
     endif
     if (v_ind > 0) then
        varstrname = 'V'
        call readwrfvar(filename, varstrname, enkf_field, nlevs)
-       enkf_field = enkf_field + vargrid(:,levels(v_ind-1)+1:levels(v_ind),nb)
+       enkf_field = enkf_field + vargrid(:,levels(v_ind-1)+1:levels(v_ind),nb,ne)
        call writewrfvar(filename, varstrname, enkf_field, nlevs)
     endif
 
@@ -746,7 +758,7 @@ contains
     if (nmm .and. cw_ind > 0) then
        varstrname = 'CWM'
        call readwrfvar(filename, varstrname, enkf_field, nlevs)
-       enkf_field = enkf_field + vargrid(:,levels(cw_ind-1)+1:levels(cw_ind),nb)
+       enkf_field = enkf_field + vargrid(:,levels(cw_ind-1)+1:levels(cw_ind),nb,ne)
        call writewrfvar(filename, varstrname, enkf_field, nlevs)
     endif
 
@@ -818,13 +830,13 @@ contains
     if (arw .and. w_ind > 0) then
        varstrname = 'W'
        call readwrfvar(filename, varstrname, enkf_field, nlevs)
-       enkf_field = enkf_field + vargrid(:,levels(w_ind-1)+1:levels(w_ind),nb)
+       enkf_field = enkf_field + vargrid(:,levels(w_ind-1)+1:levels(w_ind),nb,ne)
        call writewrfvar(filename, varstrname, enkf_field, nlevs)
     endif
     if (arw .and. ph_ind > 0) then
        varstrname = 'PH'
        call readwrfvar(filename, varstrname, enkf_field, nlevs)
-       enkf_field = enkf_field + vargrid(:,levels(ph_ind-1)+1:levels(ph_ind),nb)
+       enkf_field = enkf_field + vargrid(:,levels(ph_ind-1)+1:levels(ph_ind),nb,ne)
        call writewrfvar(filename, varstrname, enkf_field, nlevs)
     endif
     deallocate(enkf_field)
@@ -845,10 +857,10 @@ contains
           
           ! add analysis increment to virtual temperature and specific humidity
           if (tv_ind > 0) then
-             enkf_t = enkf_t + vargrid(:,levels(tv_ind-1)+1:levels(tv_ind),nb)
+             enkf_t = enkf_t + vargrid(:,levels(tv_ind-1)+1:levels(tv_ind),nb,ne)
           endif
           if (q_ind > 0) then
-             enkf_q = enkf_q + vargrid(:,levels(q_ind-1)+1:levels(q_ind),nb)
+             enkf_q = enkf_q + vargrid(:,levels(q_ind-1)+1:levels(q_ind),nb,ne)
           endif
 
           ! clip Q if needed
@@ -876,7 +888,7 @@ contains
           call readwrfvar(filename, varstrname, enkf_psfc, 1)
 
           ! add ps increment (mulitply by 100 since we're updating PD
-          enkf_psfc = enkf_psfc + 100.*vargrid(:,levels(n3d)+ps_ind,nb)
+          enkf_psfc = enkf_psfc + 100.*vargrid(:,levels(n3d)+ps_ind,nb,ne)
           call writewrfvar(filename, varstrname, enkf_psfc, 1)
        endif
     ! for ARW, update Tv and Q, but write out Tp and mix ratio
@@ -918,13 +930,13 @@ contains
           ! add analysis increment to virtual temperature, specific humidity
           ! and surface pressure
           if (tv_ind > 0) then
-             enkf_t = enkf_t + vargrid(:,levels(tv_ind-1)+1:levels(tv_ind),nb)
+             enkf_t = enkf_t + vargrid(:,levels(tv_ind-1)+1:levels(tv_ind),nb,ne)
           endif
           if (q_ind > 0) then
-             enkf_q = enkf_q + vargrid(:,levels(q_ind-1)+1:levels(q_ind),nb)
+             enkf_q = enkf_q + vargrid(:,levels(q_ind-1)+1:levels(q_ind),nb,ne)
           endif
           if (ps_ind > 0) then
-             enkf_psfc = enkf_psfc + vargrid(:,levels(n3d)+ps_ind,nb)
+             enkf_psfc = enkf_psfc + vargrid(:,levels(n3d)+ps_ind,nb,ne)
           endif
 
           ! clip Q if needed
@@ -1008,6 +1020,7 @@ contains
 
     !======================================================================
     end do backgroundloop ! loop over backgrounds to read in
+    end do ensmemloop ! loop over ens members to read in
 
     ! Return calculated values
     return

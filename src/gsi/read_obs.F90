@@ -156,7 +156,6 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
   use convinfo, only: nconvtype,ictype,ioctype,icuse
   use chemmod, only : oneobtest_chem,oneob_type_chem,&
        code_pm25_ncbufr,code_pm25_anowbufr,code_pm10_ncbufr,code_pm10_anowbufr
-  use mrmsmod,only: l_mrms_run
 
   implicit none
 

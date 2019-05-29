@@ -49,7 +49,7 @@ subroutine get_gefs_ensperts_dualres
   use mpeu_util, only: die
   use gridmod, only: idsl5,regional
   use hybrid_ensemble_parameters, only: n_ens,write_ens_sprd,oz_univ_static,ntlevs_ens
-  use hybrid_ensemble_parameters, only: use_gfs_ens,s_ens_v
+  use hybrid_ensemble_parameters, only: use_gfs_ens,s_ens_vv
   use hybrid_ensemble_parameters, only: en_perts,ps_bar,nelen
   use constants,only: zero,zero_single,half,fv,rd_over_cp,one,qcmin
   use mpimod, only: mpi_comm_world,mype,npe
@@ -349,17 +349,16 @@ subroutine get_gefs_ensperts_dualres
      if (m == 1 .and. write_ens_sprd )  call ens_spread_dualres(en_bar(1),1)
 
 
-     if(s_ens_v <= zero)then
-        call gsi_bundlegetpointer(en_bar(m),'ps',x2,istatus)
-        if(istatus/=0) &
-           call die('get_gefs_ensperts_dualres:',' error retrieving pointer to (ps) for en_bar, istatus = ', istatus)
+     call gsi_bundlegetpointer(en_bar(m),'ps',x2,istatus)
+     if(istatus/=0) &
+          call die('get_gefs_ensperts_dualres:',' error retrieving pointer to (ps) for en_bar, istatus = ', istatus)
 
-        do j=1,jm
-           do i=1,im
-              ps_bar(i,j,m)=x2(i,j)
-           end do
+     do j=1,jm
+        do i=1,im
+           ps_bar(i,j,m)=x2(i,j)
         end do
-     end if
+     end do
+
 ! Convert ensemble members to perturbations
 
      do n=1,n_ens

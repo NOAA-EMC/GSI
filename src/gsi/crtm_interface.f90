@@ -306,7 +306,6 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
   use guess_grids, only: ges_tsen,ges_prsl,nfldsig
   use mpeu_util, only: getindex
   use constants, only: zero,max_varname_length
-  use obsmod, only: dval_use
   use gsi_io, only: verbose
 
   implicit none

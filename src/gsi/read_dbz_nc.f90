@@ -65,16 +65,16 @@ subroutine read_dbz_nc(nread,ndata,nodata,infile,lunout,obstype,sis,hgtl_full,no
 !$$$ end documentation block
 
   use kinds, only: r_kind,r_double,i_kind
-  use constants, only: zero,half,one,two,deg2rad,rearth,rad2deg, &
+  use constants, only: zero,half,one,two,deg2rad,rad2deg, &
                        one_tenth,r1000,r60,r60inv,r100,r400,grav_equator, &
                        eccentricity,somigliana,grav_ratio,grav,semi_major_axis,flattening 
-  use gridmod, only: regional,tll2xy,nsig,nlat,nlon
-  use obsmod, only: iadate,doradaroneob,oneoblat,oneoblon,oneobheight,oneobradid, &
-                    mintiltdbz,maxtiltdbz,minobrangedbz,maxobrangedbz,debugmode,&
+  use gridmod, only: tll2xy,nsig,nlat,nlon
+  use obsmod, only: iadate,doradaroneob, &
+                    mintiltdbz,maxtiltdbz,minobrangedbz,maxobrangedbz,&
                     static_gsi_nopcp_dbz,rmesh_dbz,zmesh_dbz
   use hybrid_ensemble_parameters,only : l_hyb_ens
   use obsmod,only: radar_no_thinning,missing_to_nopcp
-  use convinfo, only: nconvtype,ctwind,cgross,icuse,ioctype
+  use convinfo, only: nconvtype,ctwind,icuse,ioctype
   use convthin, only: make3grids,map3grids,del3grids,use_all
   use jfunc, only: miter
   use mpimod, only: npe
