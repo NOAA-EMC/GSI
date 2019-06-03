@@ -25,6 +25,7 @@ fixcrtm=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/lib/crtm/2.2.3/fix_updat
 USHDir=$GSIDir/ProdGSI_jedi/ush/
 
 dumpobs=gdas
+dumpobs_nr=gdasnr
 
 # Set the JCAP resolution which you want.
 # All resolutions use LEVS=64
@@ -74,6 +75,7 @@ PDYg=`echo $gdate | cut -c1-8`
 cycg=`echo $gdate | cut -c9-10`
 
 datobs=$ObsDir/$PDYa$cyca/$obsdump/$dumpobs/
+datobsnr=$ObsDir/$PDYa$cyca/$obsdump/${dumpobs_nr}/
 datges=$GuessDir
 prefix_obs=${dumpobs}.t${cyca}z
 prefix_ges=gdas.t${cycg}z
@@ -192,7 +194,7 @@ $ncpc $aercoef           ${crtm_coeffs}AerosolCoeff.bin
 $ncpc $cldcoef           ${crtm_coeffs}CloudCoeff.bin
 
 # Copy observational data to $DATA
-$ncpl $datobs/${prefix_obs}.prepbufr                ./prepbufr
+$ncpl $datobsnr/${prefix_obs}.prepbufr                ./prepbufr
 $ncpl $datobs/${prefix_obs}.prepbufr.acft_profiles  ./prepbufr_profl
 $ncpl $datobs/${prefix_obs}.nsstbufr                ./nsstbufr
 $ncpl $datobs/${prefix_obs}.gpsro.${suffix}         ./gpsrobufr
@@ -228,7 +230,7 @@ $ncpl $datobs/${prefix_obs}.crisf4.${suffix}        ./crisfsbufr
 $ncpl $datobs/${prefix_obs}.syndata.tcvitals.tm00   ./tcvitl
 $ncpl $datobs/${prefix_obs}.avcsam.${suffix}        ./avhambufr
 $ncpl $datobs/${prefix_obs}.avcspm.${suffix}        ./avhpmbufr
-$ncpl $datobs/${prefix_obs}.saphir.${suffix}        ./saphirbufr
+$ncpl $datobsnr/${prefix_obs}.saphir.${suffix}        ./saphirbufr
 $ncpl $datobs/${prefix_obs}.gmi1cr.${suffix}        ./gmibufr
 ## $ncpl $datobs/${prefix_obs}.amsr2.tm00.bufr_d    ./amsr2bufr
 $ncpl $datobs/${prefix_obs}.esiasi.${suffix}        ./iasibufrears
