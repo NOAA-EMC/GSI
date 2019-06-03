@@ -200,7 +200,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   real(r_single), dimension(nsdim) :: dhx_dx_array
 
   integer(i_kind) i,nlev,ii,jj,iextra,istat,ibin, kk
-  integer(i_kind) k1,k,j,nz,jc,idia,irdim1,istatus,ioff0
+  integer(i_kind) k1,k2,k,j,nz,jc,idia,irdim1,istatus,ioff0
   integer(i_kind) ioff,itoss,ikeep,ierror_toq,ierror_poq
   integer(i_kind) isolz,ifovn,itoqf
   integer(i_kind) mm1,itime,ilat,ilon,ilate,ilone,itoq,ipoq
@@ -560,9 +560,14 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
               if (netcdf_diag) then
                  k1 = k - 1
-                 if(k1 == 0)k1 = 1
-                 call nc_diag_metadata("TopLevelPressure",sngl(pobs(k1)*r100))
-                 call nc_diag_metadata("BottomLevelPressure",  sngl(pobs(k)*r100))
+                 k2 = k - 1
+                 if(k2 == 0)k2 = 1
+                 if(k == nlevs)then
+                   k1=nlevs-1
+                   k2=1
+                 endif
+                 call nc_diag_metadata("TopLevelPressure",sngl(pobs(k2)*r100))
+                 call nc_diag_metadata("BottomLevelPressure",  sngl(pobs(k1)*r100))
                  call nc_diag_metadata("MPI_Task_Number", mype                      )
                  call nc_diag_metadata("Latitude",        sngl(data(ilate,i))       )
                  call nc_diag_metadata("Longitude",       sngl(data(ilone,i))       )
