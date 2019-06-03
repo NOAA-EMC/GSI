@@ -27,12 +27,10 @@ IODACDir=/scratch4/NCEPDEV/da/save/Cory.R.Martin/JEDI/src/ioda-converters_2/buil
 cd $IODACDir
 
 mkdir -p $OutDir/obs
-mkdir -p $OutDir/geovals
+mkdir -p $OutDir/geoval
 
-python ./proc_gsi_ncdiag.py -n 24 -o $OutDir/obs -g $OutDir/geovals $OutDir/GSI_diags > $OutDir/log.proc_gsi_ncdiag
+python ./proc_gsi_ncdiag.py -n 24 -o $OutDir/obs -g $OutDir/geoval $OutDir/GSI_diags > $OutDir/log.proc_gsi_ncdiag
 
 # subset obs
-python ./subset_files.py -n 24 -m $OutDir/obs
-python ./subset_files.py -n 24 -s $OutDir/obs
-python ./subset_files.py -n 24 -m $OutDir/geovals
-python ./subset_files.py -n 24 -s $OutDir/geovals
+python ./subset_files.py -n 24 -m $OutDir/obs -g $OutDir/geoval
+python ./subset_files.py -n 24 -s $OutDir/obs -g $OutDir/geoval
