@@ -133,6 +133,8 @@ module obsmod
 !   2016-11-29 shlyaeva  - add lobsdiag_forenkf option for writing out linearized
 !                           H(x) for EnKF
 !   2018-01-01  apodaca  - add GOES/GLM lightning observations
+!   2019-06-25  Hu       - add diag_radardbz for controling radar reflectivity
+!                               diag file
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -154,6 +156,8 @@ module obsmod
 !   def perturb_obs  - namelist logical to perturb (=true) observations
 !   def perturb_fact - namelist scaling factor for observation perturbations
 !   def write_diag   - namelist logical array to compute/write (=true) diag files
+!   def diag_radardbz- namelist logical to compute/write (=true) radar
+!                                          reflectiivty diag files
 !   def reduce_diag  - namelist logical to produce reduced radiance diagnostic files
 !   def use_limit    - parameter set equal to -1 if diag files produced or 0 if not diag files or reduce_diag
 !   def obs_setup    - prefix for files passing pe relative obs data to setup routines
@@ -166,6 +170,7 @@ module obsmod
 !   def ditype       - observation group type (set in read_obs, e.g. rad,conv,etc)
 !   def time_window  - half time window for obs type (hours)
 !   def time_window_max - maximum half time window (hours)
+!   def time_window_rad - maximum half time window (hours) for cetain radiance
 !   def obsfile_all  - file containing observations after initial read
 !   def ndat_types   - number of available data types
 !   def ndat_times   - number of available synoptic times
@@ -394,6 +399,7 @@ module obsmod
   public :: destroy_obsmod_vars
   public :: ran01dom,dval_use
   public :: iout_pcp,iout_rad,iadate,iadatemn,write_diag,reduce_diag,oberrflg,bflag,ndat,dthin,dmesh,l_do_adjoint
+  public :: diag_radardbz
   public :: lsaveobsens
   public :: i_ps_ob_type,i_t_ob_type,i_w_ob_type,i_q_ob_type
   public :: i_spd_ob_type,i_rw_ob_type,i_dw_ob_type,i_sst_ob_type
@@ -410,6 +416,7 @@ module obsmod
   public :: iout_oz,iout_co,dsis,ref_obs,obsfile_all,lobserver,perturb_obs,ditype,dsfcalc,dplat
   public :: time_window,dval,dtype,dfile,dirname,obs_setup,oberror_tune,offtime_data
   public :: lobsdiagsave,lobsdiag_forenkf,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel,ext_sonde
+  public :: time_window_rad
   public :: perturb_fact,dtbduv_on,nsat1,obs_sub_comm,mype_diaghdr
   public :: lobsdiag_allocated
   public :: i_aero_ob_type
@@ -569,7 +576,7 @@ module obsmod
 
 ! Declare global variables
 
-  real(r_kind) perturb_fact,time_window_max,time_offset
+  real(r_kind) perturb_fact,time_window_max,time_offset,time_window_rad
   real(r_kind),dimension(50):: dmesh
 
   integer(i_kind) grids_dim,nchan_total,ianldate
@@ -637,6 +644,7 @@ module obsmod
   logical blacklst,lobsdiagsave,lobsdiag_allocated,lobskeep,lsaveobsens
   logical lobserver,l_do_adjoint, lobsdiag_forenkf
   logical,dimension(0:50):: write_diag
+  logical diag_radardbz 
   logical reduce_diag
   logical offtime_data
   logical hilbert_curve
@@ -739,6 +747,7 @@ contains
        write_diag(i)=.false.
     end do
     write_diag(1)=.true.
+    diag_radardbz = .false.
     reduce_diag = .false.
     use_limit = -1
     lobsdiagsave=.false.
@@ -839,6 +848,7 @@ contains
 
 !   Initialize arrays used in namelist obs_input 
     time_window_max = three ! set maximum time window to +/-three hours
+    time_window_rad = three ! set maximum time window to +/-three hours for radiance
 
 
 !   Other initializations
@@ -1060,6 +1070,16 @@ contains
           time_window(ii) = time_window_max
           limit = .true.
        endif
+! for cris, iasi, atms, regional analysis may want shorter time window
+       if (index(dtype(ii),'cris') /= 0 .or. index(dtype(ii),'atms') /= 0 .or. &
+           index(dtype(ii),'iasi') /= 0 ) then
+          if(time_window(ii)>time_window_rad) then
+             time_window(ii) = time_window_rad
+             if (mype==0) write(6,*) 'INIT_OBSMOD_VARS: reset time window for ',dtype(ii),&
+                               ' to ',time_window_rad
+          endif
+       endif
+!
     end do
     if (mype==0 .and. limit) &
        write(6,*)'INIT_OBSMOD_VARS: reset time window for one or ',&

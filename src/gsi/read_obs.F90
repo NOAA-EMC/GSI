@@ -1486,7 +1486,8 @@ subroutine read_obs(ndata,mype)
              else if (obstype == 'lghtn' ) then
                 if(i_gsdcldanal_type==2) then
                    call read_lightning(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
-                else if( i_gsdcldanal_type==1 .or. i_gsdcldanal_type==6 ) then
+                else if(i_gsdcldanal_type==1 .or. i_gsdcldanal_type==6 &
+                        .or. i_gsdcldanal_type==3 .or. i_gsdcldanal_type==7) then
                    call read_lightning_grid(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
                 endif
                 string='READ_LIGHTNING'
@@ -1496,7 +1497,8 @@ subroutine read_obs(ndata,mype)
              else if (obstype == 'larccld' ) then
                 if(i_gsdcldanal_type==2) then
                    call read_NASA_LaRC_cloud(nread,npuse,nouse,infile,obstype,lunout,sis,nobs_sub1(1,i))
-                else if( i_gsdcldanal_type==1) then
+                else if(i_gsdcldanal_type==1 .or. i_gsdcldanal_type==6 &
+                        .or. i_gsdcldanal_type==3 .or. i_gsdcldanal_type==7) then
                    call read_nasa_larc(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
                 end if
                 string='READ_NASA_LaRC'
