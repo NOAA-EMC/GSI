@@ -1,0 +1,69 @@
+#!/bin/sh
+# common modules to compile GSI/EnKF:
+#   Jet:      source /home/rtrr/PARM_EXEC/modulefiles/modulefile.jet.GSI_UPP_WRF
+#   Theia:    source /home/rtrr/PARM_EXEC/modulefiles/modulefile.theia.GSI_UPP_WRF
+#   Cheyenne: source /glade/p/ral/jntp/gge/modulefiles/modulefile.cheyenne.GSI_UPP_WRF
+#
+#  build commands:
+#    cmake -DENKF_MODE=WRF -DBUILD_CORELIBS=ON -DBUILD_GSDCLOUD_ARW=ON path_to_ProdGSI
+#    make -j8
+#
+
+dir_root=$(pwd)
+
+source /etc/profile.d/modules.sh
+if [[ -d /scratch3 ]] ; then ### theia
+    modulefile="/home/rtrr/PARM_EXEC/modulefiles/modulefile.theia.GSI_UPP_WRF"
+elif [[ -d /jetmon ]] ; then ### jet
+    modulefile="/home/rtrr/PARM_EXEC/modulefiles/modulefile.jet.GSI_UPP_WRF"
+elif [[ -d /glade ]] ; then  ### cheyenne
+    modulefile="/glade/p/ral/jntp/gge/modulefiles/modulefile.cheyenne.GSI_UPP_WRF"
+else
+    echo "unknown machine"
+    exit 9
+fi
+
+if [ ! -f $modulefile ]; then
+    echo "modulefiles $modulefile does not exist"
+    exit 10
+fi
+source $modulefile
+
+set -x
+rm -rf $dir_root/build
+mkdir -p $dir_root/build
+cd $dir_root/build
+set +x
+
+
+echo "compiled at the node:" >> output.log
+hostname  >> output.log
+module list >> output.log 
+echo -e "\nThe branch name:" >> output.log
+git branch | grep "*"  >> output.log
+echo -e "\nThe commit ID:" >> output.log
+git log -1 | head -n1 >> output.log
+echo -e "\ngit status:" >> output.log
+git status >> output.log
+echo -e "\nCompiling commands:" >> output.log
+echo "  cmake -DENKF_MODE=WRF -DBUILD_CORELIBS=ON -DBUILD_GSDCLOUD_ARW=ON -DBUILD_ENKF_PREPROCESS_ARW=ON -DBUILD_UTIL_COM=ON .." >> output.log
+echo "  make -j8" >> output.log
+cat output.log
+
+
+cmake -DENKF_MODE=WRF -DBUILD_CORELIBS=ON -DBUILD_GSDCLOUD_ARW=ON -DBUILD_ENKF_PREPROCESS_ARW=ON -DBUILD_UTIL_COM=ON ..  2>&1  | tee output.cmake
+make -j 8 2>&1 | tee output.compile
+
+###aftermath
+commitID=`git log -1 | head -n1 |cut -c8-15`
+repoName=`git config --get remote.origin.url | cut -d: -f2`
+datestamp=`date +%Y%m%d`
+cd bin
+ln -sf gsi.x gsi.x_${repoName}_${commitID}_${datestamp}
+ln -sf enkf_wrf.x enkf_wrf.x_${repoName}_${commitID}_${datestamp}
+ln -sf enspreproc.x enspreproc.x_${repoName}_${commitID}_${datestamp}
+###mv $dir_root/build $dir_root/build_$commitID
+
+echo -e "\n\nAll build results are at ./build/ \n\n"
+
+exit

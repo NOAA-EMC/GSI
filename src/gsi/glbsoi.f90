@@ -153,6 +153,7 @@ subroutine glbsoi
        hybens_localization_setup,hybens_grid_setup
   use gfs_stratosphere, only: destroy_nmmb_vcoords,use_gfs_stratosphere
   use aircraftinfo, only: aircraftinfo_write,aircraft_t_bc_pof,aircraft_t_bc,mype_airobst
+  use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
 
   use m_prad, only: prad_updatePredx    ! was -- prad_bias()
   use m_obsdiags, only: obsdiags_write
@@ -208,6 +209,23 @@ subroutine glbsoi
 
 ! Read observations and scatter
   call observer_set
+
+! cloud analysis
+  if(i_gsdcldanal_type==6 .or. i_gsdcldanal_type==3) then
+     call gsdcloudanalysis(mype)
+
+! Write output analysis files
+     call write_all(-1,mype)
+     call prt_guess('analysis')
+
+! Finalize observer
+     call observer_finalize
+
+! Finalize timer for this procedure
+     call timer_fnl('glbsoi')
+
+     return
+  endif
 
 ! Create/setup background error and background error balance
   if (regional)then
