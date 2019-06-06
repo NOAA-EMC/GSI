@@ -1,10 +1,10 @@
 module gsi_obOperTypeManager
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:	 module gsi_obOperTypeManager
-!   prgmmr:	 j guo <jguo@nasa.gov>
-!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 610.3
-!     date:	 2018-07-12
+! subprogram:    module gsi_obOperTypeManager
+!   prgmmr:      j guo <jguo@nasa.gov>
+!      org:      NASA/GSFC, Global Modeling and Assimilation Office, 610.3
+!     date:      2018-07-12
 !
 ! abstract: GSI observation operator (obOper) type manager
 !
@@ -27,41 +27,41 @@ module gsi_obOperTypeManager
 
   use gsi_obOper, only: obOper
 
-  use gsi_aeroOper    , only: aeroOper    
-  use gsi_cldchOper   , only: cldchOper   
-  use gsi_colvkOper   , only: colvkOper   
-  use gsi_dwOper      , only: dwOper      
-  use gsi_gpsOper     , only: gpsOper     
-  use gsi_gustOper    , only: gustOper    
-  use gsi_howvOper    , only: howvOper    
-  use gsi_lcbasOper   , only: lcbasOper   
-  use gsi_lwcpOper    , only: lwcpOper    
-  use gsi_mitmOper    , only: mitmOper    
-  use gsi_mxtmOper    , only: mxtmOper    
-  use gsi_o3lOper     , only: o3lOper     
-  use gsi_ozOper      , only: ozOper      
-  use gsi_pblhOper    , only: pblhOper    
-  use gsi_pcpOper     , only: pcpOper     
-  use gsi_pm10Oper    , only: pm10Oper    
-  use gsi_pm2_5Oper   , only: pm2_5Oper   
-  use gsi_pmslOper    , only: pmslOper    
-  use gsi_psOper      , only: psOper      
-  use gsi_pwOper      , only: pwOper      
-  use gsi_qOper       , only: qOper       
-  use gsi_radOper     , only: radOper     
-  use gsi_rwOper      , only: rwOper      
-  use gsi_spdOper     , only: spdOper     
-  use gsi_sstOper     , only: sstOper     
-  use gsi_swcpOper    , only: swcpOper    
-  use gsi_tcamtOper   , only: tcamtOper   
-  use gsi_tcpOper     , only: tcpOper     
-  use gsi_td2mOper    , only: td2mOper    
-  use gsi_tOper       , only: tOper       
-  use gsi_uwnd10mOper , only: uwnd10mOper 
-  use gsi_visOper     , only: visOper     
-  use gsi_vwnd10mOper , only: vwnd10mOper 
-  use gsi_wOper       , only: wOper       
-  use gsi_wspd10mOper , only: wspd10mOper 
+  use gsi_aeroOper    , only: aeroOper
+  use gsi_cldchOper   , only: cldchOper
+  use gsi_colvkOper   , only: colvkOper
+  use gsi_dwOper      , only: dwOper
+  use gsi_gpsOper     , only: gpsOper
+  use gsi_gustOper    , only: gustOper
+  use gsi_howvOper    , only: howvOper
+  use gsi_lcbasOper   , only: lcbasOper
+  use gsi_lwcpOper    , only: lwcpOper
+  use gsi_mitmOper    , only: mitmOper
+  use gsi_mxtmOper    , only: mxtmOper
+  use gsi_o3lOper     , only: o3lOper
+  use gsi_ozOper      , only: ozOper
+  use gsi_pblhOper    , only: pblhOper
+  use gsi_pcpOper     , only: pcpOper
+  use gsi_pm10Oper    , only: pm10Oper
+  use gsi_pm2_5Oper   , only: pm2_5Oper
+  use gsi_pmslOper    , only: pmslOper
+  use gsi_psOper      , only: psOper
+  use gsi_pwOper      , only: pwOper
+  use gsi_qOper       , only: qOper
+  use gsi_radOper     , only: radOper
+  use gsi_rwOper      , only: rwOper
+  use gsi_spdOper     , only: spdOper
+  use gsi_sstOper     , only: sstOper
+  use gsi_swcpOper    , only: swcpOper
+  use gsi_tcamtOper   , only: tcamtOper
+  use gsi_tcpOper     , only: tcpOper
+  use gsi_td2mOper    , only: td2mOper
+  use gsi_tOper       , only: tOper
+  use gsi_uwnd10mOper , only: uwnd10mOper
+  use gsi_visOper     , only: visOper
+  use gsi_vwnd10mOper , only: vwnd10mOper
+  use gsi_wOper       , only: wOper
+  use gsi_wspd10mOper , only: wspd10mOper
 
   use gsi_lightOper   , only: lightOper
   use gsi_dbzOper     , only: dbzOper
@@ -69,7 +69,7 @@ module gsi_obOperTypeManager
   use kinds     , only: i_kind
   use mpeu_util , only: perr,die
   implicit none
-  private	! except
+  private       ! except
 
   public:: obOper_typeMold
   public:: obOper_typeIndex
@@ -179,7 +179,7 @@ module gsi_obOperTypeManager
 
     enumerator:: iobOper_extra_
   end enum
-  
+
   integer,parameter:: enum_kind = kind(iobOper_zero_)
   integer,parameter:: iobOper_kind = enum_kind
 
@@ -489,7 +489,7 @@ function vmold2tinfo_(mold) result(info_)
 end function vmold2tinfo_
 
 function index2tinfo_(iobOper) result(info_)
-!>> 
+!>>
   implicit none
   character(len=:),allocatable:: info_
   integer(i_kind),intent(in):: iobOper

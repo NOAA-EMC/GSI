@@ -5,7 +5,7 @@ module light_setup
   public:: setup
         interface setup; module procedure setuplight; end interface
 
-  integer(kind=i_kind),parameter:: lu_diag=55
+  integer(kind=i_kind),save:: lu_diag=55        ! no longer a fixed 55
 contains
 subroutine setuplight(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,light_diagsave,init_pass)
 !$$$  subprogram documentation block
@@ -446,7 +446,7 @@ subroutine setuplight(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,light_di
      if (lobsdiagsave) nreal=nreal+4*miter+1
      allocate(diagbuf(nreal,nobs))
      ii=0
-     if(binary_diag) call init_binary_diag_(init_pass)
+     if(binary_diag) call init_binary_diag_(lu_diag,init_pass)
      if(netcdf_diag) call init_netcdf_diag_()
   end if
 !--
@@ -1496,12 +1496,13 @@ subroutine init_vars_
 
 end subroutine init_vars_
 
-subroutine init_binary_diag_(init_pass)
+subroutine init_binary_diag_(nunit,init_pass)
   use obsmod, only: dirname
   use obsmod, only: iadate
   use jfunc , only: jiter
   implicit none
-  logical,intent(in):: init_pass
+  integer(i_kind),intent(out):: nunit
+  logical        ,intent( in):: init_pass
 
   character(len=80) string
   character(len=128) diag_light_file
@@ -1512,12 +1513,12 @@ subroutine init_binary_diag_(init_pass)
 500 format('light_',i2.2)       ! shouldn't it be "glm_light", in consistency with init_netcdf_diag_()?
   diag_light_file=trim(dirname) // trim(string)
   if(init_pass) then
-    open(lu_diag,file=trim(diag_light_file),form='unformatted',status='unknown',position='rewind')
+    open(newunit=nunit,file=trim(diag_light_file),form='unformatted',status='unknown',position='rewind')
   else
-    open(lu_diag,file=trim(diag_light_file),form='unformatted',status='old',position='append')
+    open(newunit=nunit,file=trim(diag_light_file),form='unformatted',status='old',position='append')
   endif
   idate=iadate(4)+iadate(3)*100+iadate(2)*10000+iadate(1)*1000000
-  if(init_pass .and. mype == 0)write(lu_diag)idate
+  if(init_pass .and. mype == 0)write(nunit)idate
 end subroutine init_binary_diag_
 
 !                .      .    .                                       .

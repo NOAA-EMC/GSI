@@ -56,59 +56,7 @@ module m_obsdiags
   use m_obsdiagNode, only: obs_diag
   use m_obsdiagNode, only: obs_diags
 
-#define _USE_OBOPER_COUNT_
-
-#ifdef _TO_BE_REMOVED_
-! use m_psNode   , only:    psNode !  1
-! use m_tNode    , only:     tNode !  2
-! use m_wNode    , only:     wNode !  3
-! use m_qNode    , only:     qNode !  4
-! use m_spdNode  , only:   spdNode !  5
-! use m_rwNode   , only:    rwNode !  6
-! use m_dbzNode  , only:   dbzNode !  6
-! use m_dwNode   , only:    dwNode !  7
-! use m_sstNode  , only:   sstNode !  8
-! use m_pwNode   , only:    pwNode !  9
-! use m_pcpNode  , only:   pcpNode ! 10
-! use m_ozNode   , only:    ozNode ! 11
-! use m_o3lNode  , only:   o3lNode ! 12
-! use m_gpsNode  , only:   gpsNode ! 13
-! use m_radNode  , only:   radNode ! 14
-! use m_tcpNode  , only:   tcpNode ! 15
-! use m_lagNode  , only:   lagNode ! 16
-! use m_colvkNode, only: colvkNode ! 17
-! use m_aeroNode , only:  aeroNode ! 18
-! use m_aerolNode, only: aerolNode ! 19
-! use m_pm2_5Node, only: pm2_5Node ! 20
-! use m_gustNode , only:  gustNode ! 21
-! use m_visNode  , only:   visNode ! 22
-! use m_pblhNode , only:  pblhNode ! 23
-! use m_wspd10mNode , only:  wspd10mNode ! 24
-! use m_td2mNode , only:  td2mNode ! 25
-! use m_mxtmNode , only:  mxtmNode ! 26
-! use m_mitmNode , only:  mitmNode ! 27
-! use m_pmslNode , only:  pmslNode ! 28
-! use m_howvNode , only:  howvNode ! 29
-! use m_tcamtNode, only: tcamtNode ! 30
-! use m_lcbasNode, only: lcbasNode ! 31
-! use m_uwnd10mNode , only:  uwnd10mNode
-! use m_vwnd10mNode , only:  vwnd10mNode
-
-! use m_pm10Node , only:  pm10Node ! 32
-! use m_cldchNode, only:  cldchNode ! 33
-! use m_lightNode, only:  lightNode ! 36
-
-! use m_swcpNode , only:  swcpNode ! 34
-! use m_lwcpNode , only:  lwcpNode ! 35
-
-! use m_obsNodeTypeManager, only: nobs_type
-! use obsmod, only: obsdiags     ! (nobs_type,nobs_bins)
-#endif
-#ifdef _USE_OBOPER_COUNT_
   use gsi_obOperTypeManager, only: nobs_type => obOper_count
-#else
-  use m_obsNodeTypeManager , only: nobs_type => obsNodeType_count
-#endif
   use gsi_4dvar            , only: nobs_bins
 
   !use obsmod, only: obsdiags     ! (nobs_type,nobs_bins)
@@ -203,92 +151,6 @@ module m_obsdiags
 
   public :: obsdiags
   public :: obsLLists
-
-#ifdef _TO_BE_REMOVED_
-! public ::    pshead
-! public ::   tcphead
-! public ::     thead
-! public ::     whead
-! public ::     qhead
-! public ::   spdhead
-! public ::    rwhead
-! public ::    dwhead
-! public ::   ssthead
-! public ::   pcphead
-! public ::    pwhead
-! public ::    ozhead
-! public ::   o3lhead
-! public ::  aerohead
-! public :: aerolhead
-! public :: pm2_5head
-! public ::   gpshead
-! public ::   radhead
-! public ::   laghead
-! public :: colvkhead
-! public :: gusthead
-! public :: vishead
-! public :: pblhhead
-
-! public :: wspd10mhead
-! public :: uwnd10mhead
-! public :: vwnd10mhead
-
-! public :: td2mhead
-! public :: mxtmhead
-! public :: mitmhead
-! public :: pmslhead
-! public :: howvhead
-! public :: tcamthead
-! public :: lcbashead
-
-! public :: pm10head
-! public :: cldchhead
-
-! public :: swcphead
-! public :: lwcphead
-
-! type(obsLList),dimension(:),pointer :: pshead => null()
-! type(obsLList),dimension(:),pointer :: tcphead => null()
-! type(obsLList),dimension(:),pointer :: thead => null()
-! type(obsLList),dimension(:),pointer :: whead => null()
-! type(obsLList),dimension(:),pointer :: qhead => null()
-! type(obsLList),dimension(:),pointer :: spdhead => null()
-! type(obsLList),dimension(:),pointer :: rwhead => null()
-! type(obsLList),dimension(:),pointer :: dwhead => null()
-! type(obsLList),dimension(:),pointer :: ssthead => null()
-! type(obsLList),dimension(:),pointer :: pcphead => null()
-! type(obsLList),dimension(:),pointer :: pwhead => null()
-! type(obsLList),dimension(:),pointer :: ozhead => null()
-! type(obsLList),dimension(:),pointer :: o3lhead => null()
-! type(obsLList),dimension(:),pointer :: aerohead => null()
-! type(obsLList),dimension(:),pointer :: aerolhead => null()
-! type(obsLList),dimension(:),pointer :: pm2_5head => null()
-! type(obsLList),dimension(:),pointer ::   gpshead => null()
-! type(obsLList),dimension(:),pointer ::   radhead => null()
-! type(obsLList),dimension(:),pointer ::   laghead => null()
-! type(obsLList),dimension(:),pointer :: colvkhead => null()
-! type(obsLList),dimension(:),pointer ::  gusthead => null()
-! type(obsLList),dimension(:),pointer ::   vishead => null()
-! type(obsLList),dimension(:),pointer ::  pblhhead => null()
-
-! type(obsLList),dimension(:),pointer :: wspd10mhead => null()
-! type(obsLList),dimension(:),pointer :: uwnd10mhead => null()
-! type(obsLList),dimension(:),pointer :: vwnd10mhead => null()
-
-! type(obsLList),dimension(:),pointer :: td2mhead => null()
-! type(obsLList),dimension(:),pointer :: mxtmhead => null()
-! type(obsLList),dimension(:),pointer :: mitmhead => null()
-! type(obsLList),dimension(:),pointer :: pmslhead => null()
-! type(obsLList),dimension(:),pointer :: howvhead => null()
-! type(obsLList),dimension(:),pointer :: tcamthead => null()
-! type(obsLList),dimension(:),pointer :: lcbashead => null()
-
-! type(obsLList),dimension(:),pointer :: pm10head => null()
-! type(obsLList),dimension(:),pointer :: cldchhead => null()
-
-! type(obsLList),dimension(:),pointer :: swcphead => null()
-! type(obsLList),dimension(:),pointer :: lwcphead => null()
-#endif
 
   type(obsLList ),save,dimension(:,:),pointer :: obsLLists => null()
   type(obs_diags),save,dimension(:,:),pointer :: obsdiags  => null()  ! (nobs_type,nobs_bins)
@@ -414,16 +276,13 @@ function createbyindex_(ioper) result(self)
 !>> create an obOper to its components instanciated in this data module, with
 !>> a given obOper registered index.
   use gsi_obOperTypeManager, only: obOper_typeMold     ! (ioper)
-#ifdef _USE_OBOPER_COUNT_
   use gsi_obOperTypeManager, only: obOper_lbound
   use gsi_obOperTypeManager, only: obOper_ubound
-#endif
   implicit none
   class(obOper),pointer:: self
   integer(kind=i_kind),intent(in):: ioper
 
   character(len=*),parameter:: myname_=myname//"::createbyindex_"
-#ifdef _USE_OBOPER_COUNT_
   class(obOper),pointer:: mold_
 
   mold_ => obOper_typeMold(ioper)
@@ -456,37 +315,18 @@ function createbyindex_(ioper) result(self)
         call  die(myname_)
   endif
 
-#else
-  self => createbyvmold_(obOper_typeMold(ioper))
-
-#endif
-
 #ifdef DEBUG_VERBOSE
-! show status of the object for debugging
+!>> show status of the object for debugging
   call tell(myname_,'--- argument ioper =',ioper)
   call tell(myname_,'associated(return) =',associated(self))
   !if(associated(self)) call obOper_show_(myname_,self)
 #endif
 end function createbyindex_
 
-function int2str_(i) result(str)
-  implicit none
-  character(len=:),allocatable:: str
-  integer(i_kind),intent(in):: i
-
-  character(len=32):: istr
-  write(istr,'(i32)') i
-  str=trim(adjustl(istr))
-end function int2str_
-
 function createbyvmold_(mold) result(self)
 !>> initialize an obOper to its components (linked-lists)
-#ifdef _USE_OBOPER_COUNT_
   use gsi_obOperTypeManager, only: obOper_typeIndex      ! to type-index
   use gsi_obOperTypeManager, only: obOper_typeIndex      ! to type-index
-#else
-  use m_obsNodeTypeManager , only: obsNode_typeIndex     ! to type-index
-#endif
   implicit none
   class(obOper),pointer:: self
   class(obOper),target,intent(in):: mold
@@ -499,11 +339,7 @@ function createbyvmold_(mold) result(self)
     allocate(self,mold=mold)
 
     ! Get its corresponding obsNode type name, then convert to its type-index
-#ifdef _USE_OBOPER_COUNT_
     itype=obOper_typeIndex(self)
-#else
-    itype=obsNode_typeIndex(self%mytype(nodetype=.true.))
-#endif
 
         if(itype<lbound(obsLLists,1) .or. itype>ubound(obsLLists,1)) then
           call perr(myname_,'unexpected value, itype =',itype)
@@ -850,25 +686,10 @@ subroutine reset_(obsdiags_keep)
   use m_obsdiagNode, only: obsdiagLList_rewind
   use m_obsLList, only: obsLList_reset
   use m_obsNode , only: obsNode
-#ifdef _USE_OBOPER_COUNT_
   use gsi_obOperTypeManager, only: obOper_typeMold
   use gsi_obOperTypeManager, only: obOper_lbound
   use gsi_obOperTypeManager, only: obOper_ubound
-#endif
   use m_obsNodeTypeManager , only: obsNode_typeMold
-
-#ifdef _TO_BE_REMOVED_
-! use m_wspd10mNode, only: obsLList_reset
-! use    m_td2mNode, only: obsLList_reset
-! use    m_mxtmNode, only: obsLList_reset
-! use    m_mitmNode, only: obsLList_reset
-! use    m_pmslNode, only: obsLList_reset
-! use    m_howvNode, only: obsLList_reset
-! use   m_tcamtNode, only: obsLList_reset
-! use   m_lcbasNode, only: obsLList_reset
-! use    m_pm10Node, only: obsLList_reset
-! use   m_cldchNode, only: obsLList_reset
-#endif
 
   _TIMER_USE_
   implicit none
@@ -878,9 +699,7 @@ subroutine reset_(obsdiags_keep)
   logical:: obsdiags_keep_
   integer(i_kind):: ier
   class(obsNode),pointer:: mNode_
-#ifdef _USE_OBOPER_COUNT_
   class(obOper ),pointer:: mOper_
-#endif
 _ENTRY_(myname_)
 _TIMER_ON_(myname_)
 
@@ -925,7 +744,6 @@ _TRACEV_(myname_,'lobsdiags_allocated_ =',lobsdiags_allocated_)
       endif
 
 !++++
-#ifdef _USE_OBOPER_COUNT_
       mOper_ => obOper_typeMold(jj)
         if(.not.associated(mOper_)) then
           call perr(myname_,'obOper_typeMold(j) not associated, j =',jj)
@@ -943,16 +761,6 @@ _TRACEV_(myname_,'lobsdiags_allocated_ =',lobsdiags_allocated_)
       
       mOper_ => null()
 
-#else
-      mNode_ => obsNode_typeMold(jj)        ! get the ob_type of jj
-        if(.not.associated(mNode_)) then
-          call perr(myname_,'obsNode_typeMold(jtype) not associated, jtype =',jj)
-          call perr(myname_,'                          ubound(obsLLists,1) =',size(obsLLists,1))
-          call perr(myname_,'                                         ibin =',ii)
-          call perr(myname_,'                          ubound(obsLLists,2) =',size(obsLLists,2))
-          call  die(myname_)
-        endif
-#endif
 !++++
 
       call obsLList_reset(obsLLists(jj,ii),mold=mNode_, stat=ier)
@@ -971,157 +779,6 @@ _TIMER_OFF_(myname_)
 _EXIT_(myname_)
 return
 end subroutine reset_
-
-#ifdef _TO_BE_REMOVED_
-!function ptr_obsbins_(oll,vname) result(ptr_)
-!!-- returns a pointer to the list of vname, from array oll.
-!  use m_obsNodeTypeManager, only: obsNode_typeIndex
-!  implicit none
-!  type(obsLList),pointer,dimension(:):: ptr_
-!  type(obsLList),dimension(:,:),target, intent(in):: oll
-!  character(len=*)                    , intent(in):: vname
-!
-!  character(len=*),parameter:: myname_=myname//"::ptr_obsbins_"
-!  integer(i_kind):: itype
-!_ENTRY_(myname_)
-!  itype = obsNode_typeIndex(vname)  ! e.g. vname="ps"
-!
-!  ptr_ => null()                ! e.g. if(.not.associated(ptr_)) ...
-!
-!        ASSERT(itype>0)
-!        ASSERT(itype<=size(oll,1))
-!
-!  ptr_ => oll(itype,:)
-!
-!_EXIT_(myname_)
-!return
-!end function ptr_obsbins_
-!
-!subroutine aliasesCreate_()
-!   implicit none
-!
-!   character(len=*),parameter:: myname_=myname//"aliasesCreate_"
-!_ENTRY_(myname_)
-!
-!   !! too much to declare, if use enumerated index value directly
-!   !    pshead => obsllists(i_ps_ob_type,:)            ! too much to declare
-!   !    pshead => ptr_obsLList(obsllists,i_ps_ob_type) ! too much to declare
-!   !    pshead => ptr_obsLList(obsllists,iobstype_ps)  ! too much to declare
-!   !! use a vname may be a balance
-!   !    pshead => ptr_obsLList(obsllists,'ps')  ! name is less explicit
-!   !    pshead => ptr_psbins(obsllists)         ! too many to implement
-!   !    pshead => ptr_obsbins(obsllists,'ps')   ! explicit and minimal-ism
-!   !! an example of m_obsNodeTypeManager implementation
-!   !            use m_obsNodeTypeManager, only: obsType_mold
-!   !                    ! index_mold(index=i_ps_ob_type)
-!   !                    ! vname_mold(vname="ps"|"[psNode]")
-!   !            use m_obsNodeTypeManager, only: obsType_index
-!   !                    ! vname_index(vname='ps'|'[psNode]')
-!   !                    ! vmold_index(vmold=psNode())
-!   !! to implement ptr_obsbins()
-!   !    function ptr_obsbins(obsllists,vname) result(ptr_)
-!   !      use m_obsNodeTypeManager, only: obsType_index
-!   !      iobstype = obsType_index(vname) ! e.g. vname="ps"
-!   !      ptr_ => obsllists(iobstype,:)
-!   
-!      pshead => ptr_obsbins_(obsllists,'ps')
-!       thead => ptr_obsbins_(obsllists,'t')
-!       whead => ptr_obsbins_(obsllists,'w')
-!       qhead => ptr_obsbins_(obsllists,'q')
-!     spdhead => ptr_obsbins_(obsllists,'spd')
-!      rwhead => ptr_obsbins_(obsllists,'rw')
-!      dwhead => ptr_obsbins_(obsllists,'dw')
-!     ssthead => ptr_obsbins_(obsllists,'sst')
-!      pwhead => ptr_obsbins_(obsllists,'pw')
-!      ozhead => ptr_obsbins_(obsllists,'oz')
-!     o3lhead => ptr_obsbins_(obsllists,'o3l')
-!     pcphead => ptr_obsbins_(obsllists,'pcp')
-!     gpshead => ptr_obsbins_(obsllists,'gps')
-!     radhead => ptr_obsbins_(obsllists,'rad')
-!     tcphead => ptr_obsbins_(obsllists,'tcp')
-!     laghead => ptr_obsbins_(obsllists,'lag')
-!   colvkhead => ptr_obsbins_(obsllists,'colvk')
-!    aerohead => ptr_obsbins_(obsllists,'aero')
-!   aerolhead => ptr_obsbins_(obsllists,'aerol')
-!   pm2_5head => ptr_obsbins_(obsllists,'pm2_5')
-!     vishead => ptr_obsbins_(obsllists,'vis')
-!    gusthead => ptr_obsbins_(obsllists,'gust')
-!    pblhhead => ptr_obsbins_(obsllists,'pblh')
-!
-! wspd10mhead => ptr_obsbins_(obsllists,'wspd10m')
-! uwnd10mhead => ptr_obsbins_(obsllists,'uwnd10m')
-! vwnd10mhead => ptr_obsbins_(obsllists,'vwnd10m')
-!
-!    td2mhead => ptr_obsbins_(obsllists,'td2m')
-!    mxtmhead => ptr_obsbins_(obsllists,'mxtm')
-!    mitmhead => ptr_obsbins_(obsllists,'mitm')
-!    pmslhead => ptr_obsbins_(obsllists,'pmsl')
-!    howvhead => ptr_obsbins_(obsllists,'howv')
-!   tcamthead => ptr_obsbins_(obsllists,'tcamt')
-!   lcbashead => ptr_obsbins_(obsllists,'lcbas')
-!
-!    pm10head => ptr_obsbins_(obsllists,'pm10')
-!   cldchhead => ptr_obsbins_(obsllists,'cldch')
-!
-!    swcphead => ptr_obsbins_(obsllists,'swcp')
-!    lwcphead => ptr_obsbins_(obsllists,'lwcp')
-!
-!_EXIT_(myname_)
-!return
-!end subroutine aliasesCreate_
-!
-!subroutine aliasesDestroy_()
-!   implicit none
-!
-!   character(len=*),parameter:: myname_=myname//"aliasesDestroy_"
-!_ENTRY_(myname_)
-!
-!      pshead => null()
-!       thead => null()
-!       whead => null()
-!       qhead => null()
-!     spdhead => null()
-!      rwhead => null()
-!      dwhead => null()
-!     ssthead => null()
-!      pwhead => null()
-!      ozhead => null()
-!     o3lhead => null()
-!     pcphead => null()
-!     gpshead => null()
-!     radhead => null()
-!     tcphead => null()
-!     laghead => null()
-!   colvkhead => null()
-!    aerohead => null()
-!   aerolhead => null()
-!   pm2_5head => null()
-!     vishead => null()
-!    gusthead => null()
-!    pblhhead => null()
-!
-! wspd10mhead => null()
-! uwnd10mhead => null()
-! vwnd10mhead => null()
-!
-!    td2mhead => null()
-!    mxtmhead => null()
-!    mitmhead => null()
-!    pmslhead => null()
-!    howvhead => null()
-!   tcamthead => null()
-!   lcbashead => null()
-!
-!    pm10head => null()
-!   cldchhead => null()
-!
-!    swcphead => null()
-!    lwcphead => null()
-!
-!_EXIT_(myname_)
-!return
-!end subroutine aliasesDestroy_
-#endif
 
 subroutine lsort_()
 !$$$  subprogram documentation block
@@ -1691,18 +1348,12 @@ subroutine create_obsmod_vars()
     lobsdiags_allocated_=.true.
     allocate(obsllists(nobs_type,nobs_bins))
     allocate(obsdiags (nobs_type,nobs_bins))
-#ifdef _TO_BE_REMOVED_
-!    call aliasesCreate_()
-#endif
     return
 end subroutine create_obsmod_vars
 
 subroutine destroy_obsmod_vars()
 !-- Created to pair with create_obsmod_vars().
   implicit none
-#ifdef _TO_BE_REMOVED_
-!  call aliasesDestroy_()
-#endif
   deallocate(obsllists)
   deallocate(obsdiags )
   lobstypes_allocated_=.false.
