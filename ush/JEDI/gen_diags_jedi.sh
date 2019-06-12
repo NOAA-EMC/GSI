@@ -2,7 +2,7 @@
 #SBATCH -J gen_diags_jedi 
 #SBATCH -A da-cpu
 #SBATCH -q batch 
-#SBATCH --nodes=8
+#SBATCH --ntasks-per-node=10 --nodes=8
 #SBATCH -t 40:00
 #SBATCH -o SLURM_%x.o%j
 #SBATCH -e SLURM_%x.e%j
@@ -15,13 +15,16 @@ adate=2018041500
 ObsDir=/scratch4/NCEPDEV/global/noscrub/dump/
 GuessDir=/scratch4/NCEPDEV/da/noscrub/Andrew.Collard/ICs_for_JEDI
 WorkDir=/scratch3/NCEPDEV/stmp1/$LOGNAME/JEDI/GSI_work/$adate
-OutDir=/scratch3/NCEPDEV/stmp1/$LOGNAME/JEDI/output/$adate
+OutDir=/scratch3/NCEPDEV/stmp1/$LOGNAME/JEDI/output_omp/$adate
 
 GSIDir=/scratch4/NCEPDEV/da/save/Cory.R.Martin/GSI/
 gsiexec=/scratch4/NCEPDEV/da/save/Cory.R.Martin/GSI/build_jedi/bin/gsi.x
 nccat=/scratch4/NCEPDEV/da/save/Cory.R.Martin/GSI/build_jedi/bin/nc_diag_cat_serial.x
 fixgsi=/scratch4/NCEPDEV/da/save/Cory.R.Martin/GSI/ProdGSI_jedi/fix
-fixcrtm=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/lib/crtm/2.2.3/fix_update
+#fixcrtm=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/lib/crtm/2.2.3/fix_update
+#fixcrtm=/scratch4/NCEPDEV/da/noscrub/Andrew.Collard/CRTM/REL-2.3.0/fix
+fixcrtm=/scratch4/NCEPDEV/da/save/Cory.R.Martin/CRTM/fix
+#fixcrtm=/scratch4/NCEPDEV/da/save/Cory.R.Martin/JEDI/src/ufo-bundle/crtm/fix
 USHDir=$GSIDir/ProdGSI_jedi/ush/
 
 dumpobs=gdas
@@ -36,14 +39,15 @@ export LEVS=64
 # load modules here used to compile GSI
 source /apps/lmod/7.7.18/init/sh
 
-#module purge
+module list
+module purge
 ### load modules
 # system installed
 module load intel
 module load impi
 module load netcdf
 module load grads
-module load rocoto/1.3.0-RC3
+module load rocoto/1.3.0
 # /contrib modules
 module use -a /contrib/modulefiles
 module load anaconda/anaconda2
@@ -57,9 +61,15 @@ module use -a /scratch3/NCEPDEV/nwprod/lib/modulefiles
 module load nemsio
 module load bacio
 module load w3nco
-module load crtm/v2.2.3
+#module load crtm/v2.2.3
 
-
+module list
+# CRTM things for 2.3.0
+export CRTM_SRC=/scratch4/NCEPDEV/da/save/Cory.R.Martin/CRTM/REL-2.3.0/
+export CRTM_INC=/scratch4/NCEPDEV/da/save/Cory.R.Martin/CRTM/REL-2.3.0/build/crtm_v2.3.0/include
+export CRTM_LIB=/scratch4/NCEPDEV/da/save/Cory.R.Martin/CRTM/REL-2.3.0/build/crtm_v2.3.0/lib/libcrtm.a
+export CRTM_FIX=/scratch4/NCEPDEV/da/save/Cory.R.Martin/CRTM/fix
+export CRTM_VER=2.3.0
 
 #####----- normal users need not change anything below this line -----##### 
 export crtm_coeffs=./crtm_coeffs/
@@ -276,7 +286,7 @@ cat <<EOF > gsiparm.anl
    diag_precon=.true.,step_start=1.e-3,emiss_bc=.true.,cwoption=3,nhr_obsbin=3,
    verbose=.false.,imp_physics=11,lupp=.true.,
    binary_diag=.false.,netcdf_diag=.true.,clip_supersaturation=.false.,
-   lobsdiag_forenkf=.false.,sfcmodel=.true.,
+   lobsdiag_forenkf=.false.,sfcmodel=.false.,
    $SETUP
  /
  &GRIDOPTS
@@ -450,12 +460,10 @@ EOF
 
 # run GSI
 cd $WorkDir
-# note there's got to be a better way to do below...
-taskspernode=${SLURM_NTASKS_PER_NODE:-10}
-#taskspernode=${SLURM_NTASKS_PER_NODE:-$SLURM_CPUS_ON_NODE}
-nprocs_gsi=$(( $taskspernode*$SLURM_JOB_NUM_NODES ))
+
+export OMP_NUM_THREADS=4
 env
-srun -n$nprocs_gsi ./gsi.x > stdout
+srun ./gsi.x > stdout
 
 # cat diag files
 ntype=3

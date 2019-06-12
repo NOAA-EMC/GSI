@@ -1285,7 +1285,6 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
            call nc_diag_data2d("specific_humidity", qtmp)
            call nc_diag_data2d("saturation_specific_humidity", qstmp)
-           call nc_diag_data2d("atmosphere_ln_pressure_coordinate", prsltmp)
            call nc_diag_data2d("atmosphere_pressure_coordinate",prsltmp2*r1000)
            call nc_diag_metadata("surface_pressure",psges*r1000)
            call nc_diag_metadata("saturation_specific_humidity_2m", qs2mges)

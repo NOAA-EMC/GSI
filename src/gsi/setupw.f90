@@ -1800,7 +1800,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
            call nc_diag_metadata("surface_pressure",psges*r1000)
            call nc_diag_metadata("surface_height",zsges)
-           call nc_diag_data2d("atmosphere_ln_pressure_coordinate", prsltmp)
            call nc_diag_data2d("atmosphere_pressure_coordinate", prsltmp2*r1000)
            call nc_diag_data2d("virtual_temperature", tges)
            call nc_diag_data2d("geopotential_height", zges_read)

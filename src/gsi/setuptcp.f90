@@ -736,7 +736,6 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
               call nc_diag_data2d("Observation_Operator_Jacobian", dhx_dx_array)
           endif
 
-           call nc_diag_data2d("atmosphere_ln_pressure_coordinate", prsltmp)
            call nc_diag_data2d("virtual_temperature", tvges)
 
            call nc_diag_metadata("surface_air_pressure", psges )
