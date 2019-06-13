@@ -1,4 +1,4 @@
-module mod_fv3_lola
+module mod_fv3_lolgrid
 !$$$ module documentation block
 !           .      .    .                                       .
 ! module:   mod_fv3_lola
@@ -60,25 +60,37 @@ module mod_fv3_lola
   implicit none
 !
   private
-  public :: generate_anl_grid,fv3_h_to_ll,fv3_ll_to_h,fv3uv2earth,earthuv2fv3
-  public :: fv3dx,fv3dx1,fv3dy,fv3dy1,fv3ix,fv3ixp,fv3jy,fv3jyp,a3dx,a3dx1,a3dy,a3dy1,a3ix,a3ixp,a3jy,a3jyp
-  public :: nxa,nya,cangu,sangu,cangv,sangv,nx,ny,bilinear
-
+  public :: generate_regular_grids
+  public :: fv3_h_to_ll_regular_grids,fv3_ll_to_h_regular_grids
+  public :: fv3uv2earth_regular_grids,earthuv2fv3_regular_grids
+  public :: fv3sar2grid_parm
+  public :: p_fv3sar2anlgrid
+  public :: p_fv3sar2ensgrid
+  public :: nxa,nya
+  type fv3sar2grid_parm
   logical bilinear
-  integer(i_kind) nxa,nya,nx,ny
-  real(r_kind) ,allocatable,dimension(:,:):: fv3dx,fv3dx1,fv3dy,fv3dy1
-  integer(i_kind),allocatable,dimension(:,:)::  fv3ix,fv3ixp,fv3jy,fv3jyp
-  real(r_kind) ,allocatable,dimension(:,:):: a3dx,a3dx1,a3dy,a3dy1
-  real(r_kind) ,allocatable,dimension(:,:):: cangu,sangu,cangv,sangv
-  integer(i_kind),allocatable,dimension(:,:)::  a3ix,a3ixp,a3jy,a3jyp
+  integer(i_kind) nxout,nyout,nx,ny
+  real(r_kind) ,pointer,dimension(:,:):: fv3dx,fv3dx1,fv3dy,fv3dy1
+  integer(i_kind),pointer,dimension(:,:)::  fv3ix,fv3ixp,fv3jy,fv3jyp
+  real(r_kind) ,pointer,dimension(:,:):: a3dx,a3dx1,a3dy,a3dy1
+  real(r_kind) ,pointer,dimension(:,:):: cangu,sangu,cangv,sangv
+  integer(i_kind),pointer,dimension(:,:)::  a3ix,a3ixp,a3jy,a3jyp
+  end type
+  type (fv3sar2grid_parm)::p_fv3sar2anlgrid,p_fv3sar2ensgrid
+  integer(i_kind) nxa,nya
   
 
 contains
 
-subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
+subroutine generate_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,p_fv3sar2grid,&
+                             nlatout,nlonout,region_lat_out,region_lon_out, &
+                             region_dx_out,region_dy_out, &
+                             region_dxi_out,region_dyi_out, &
+                             coeffx_out,coeffy_out)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    generate_anl_grid
+! subprogram:    generate_ens_grid
+!clt modified from generate_anl_grid
 !   prgmmr: parrish
 !
 ! abstract:  define rotated lat-lon analysis grid which is centered on fv3 tile 
@@ -106,11 +118,23 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
 
   use kinds, only: r_kind,i_kind
   use constants, only: quarter,one,two,half,zero,deg2rad,rearth,rad2deg
-  use gridmod,  only:grid_ratio_fv3_regional, region_lat,region_lon,nlat,nlon
-  use gridmod,  only: region_dy,region_dx,region_dyi,region_dxi,coeffy,coeffx
-  use gridmod,  only:init_general_transform,region_dy,region_dx 
+  use gridmod,  only:grid_ratio_fv3_regional
   use mpimod, only: mype
+  use gridmod,  only:init_general_transform 
   implicit none
+  type (fv3sar2grid_parm),intent(inout):: p_fv3sar2grid
+  real(r_kind),allocatable,intent(out):: region_lat_out(:,:),region_lon_out(:,:)
+  real(r_kind),allocatable,intent(out):: region_dx_out(:,:),region_dy_out(:,:)
+  real(r_kind),allocatable,intent(out):: region_dxi_out(:,:),region_dyi_out(:,:)
+  real(r_kind),allocatable,optional, intent(out):: coeffx_out(:,:),coeffy_out(:,:)
+  integer(i_kind), intent(out):: nlatout,nlonout
+
+
+  real(r_kind) ,pointer,dimension(:,:):: fv3dx,fv3dx1,fv3dy,fv3dy1
+  integer(i_kind),pointer,dimension(:,:)::  fv3ix,fv3ixp,fv3jy,fv3jyp
+  real(r_kind) ,pointer,dimension(:,:):: a3dx,a3dx1,a3dy,a3dy1
+  real(r_kind) ,pointer,dimension(:,:):: cangu,sangu,cangv,sangv
+  integer(i_kind),pointer,dimension(:,:)::  a3ix,a3ixp,a3jy,a3jyp
 
   real(r_kind),allocatable,dimension(:)::xbh_a,xa_a,xa_b
   real(r_kind),allocatable,dimension(:)::ybh_a,ya_a,ya_b,yy
@@ -124,12 +148,13 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
   real(r_kind)   , intent(inout) :: grid_lont(nx,ny)      ! fv3 cell center longitudes
   real(r_kind)   , intent(inout) :: grid_lat(nx+1,ny+1)   ! fv3 cell corner latitudes
   real(r_kind)   , intent(inout) :: grid_latt(nx,ny)      ! fv3 cell center latitudes
-
+  logical :: bilinear
   integer(i_kind) i,j,ir,jr,n
   real(r_kind),allocatable,dimension(:,:) :: xc,yc,zc,gclat,gclon,gcrlat,gcrlon,rlon_in,rlat_in
   real(r_kind),allocatable,dimension(:,:) :: glon_an,glat_an
   real(r_kind) xcent,ycent,zcent,rnorm,centlat,centlon
   real(r_kind) adlon,adlat,alon,clat,clon
+  integer(i_kind) nxout,nyout
   integer(i_kind) nlonh,nlath,nxh,nyh
   integer(i_kind) ib1,ib2,jb1,jb2,jj
 
@@ -147,6 +172,7 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
 
   nord_e2a=4
   bilinear=.false.
+  p_fv3sar2grid%bilinear=bilinear
 
 
 !   create xc,yc,zc for the cell centers.
@@ -186,12 +212,18 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
 !!  compute analysis A-grid  lats, lons
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-!--------------------------obtain analysis grid dimensions nxa,nya
-  nxa=1+nint((nx-one)/grid_ratio_fv3_regional)
-  nya=1+nint((ny-one)/grid_ratio_fv3_regional)
-  nlat=nya
-  nlon=nxa
-  if(mype==0) print *,'nlat,nlon=nya,nxa= ',nlat,nlon
+!--------------------------obtain analysis grid dimensions nxout,nyout
+  p_fv3sar2grid%nx=nx
+  p_fv3sar2grid%ny=ny
+  nxout=1+nint((nx-one)/grid_ratio_fv3_regional)
+  p_fv3sar2grid%nxout=nxout
+  nyout=1+nint((ny-one)/grid_ratio_fv3_regional)
+  p_fv3sar2grid%nyout=nyout
+  nlatout=p_fv3sar2grid%nyout
+  nlonout=p_fv3sar2grid%nxout
+  nxa=nx
+  nya=ny  ! for compatiability 
+  if(mype==0) print *,'nlatout,nlonout = ',nlatout,nlonout
 
 !--------------------------obtain analysis grid spacing
   dlat=(maxval(gcrlat)-minval(gcrlat))/(ny-1)
@@ -200,10 +232,10 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
   adlon=dlon*grid_ratio_fv3_regional
 
 !-------setup analysis A-grid; find center of the domain
-  nlonh=nlon/2
-  nlath=nlat/2
+  nlonh=nlonout/2
+  nlath=nlatout/2
 
-  if(nlonh*2==nlon)then
+  if(nlonh*2==nlonout)then
      clon=adlon/two
      cx=half
   else
@@ -211,7 +243,7 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
      cx=one
   endif
 
-  if(nlath*2==nlat)then
+  if(nlath*2==nlatout)then
      clat=adlat/two
      cy=half
   else
@@ -222,66 +254,70 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
 !
 !-----setup analysis A-grid from center of the domain
 !
-  allocate(rlat_in(nlat,nlon),rlon_in(nlat,nlon))
-  do j=1,nlon
+  allocate(rlat_in(nlatout,nlonout),rlon_in(nlatout,nlonout))
+  do j=1,nlonout
      alon=(j-nlonh)*adlon-clon
-     do i=1,nlat
+     do i=1,nlatout
         rlon_in(i,j)=alon
      enddo
   enddo
 
 
-  do j=1,nlon
-     do i=1,nlat
+  do j=1,nlonout
+     do i=1,nlatout
         rlat_in(i,j)=(i-nlath)*adlat-clat
      enddo
   enddo
 
-  if (allocated(region_dx )) deallocate(region_dx )
-  if (allocated(region_dy )) deallocate(region_dy )
-  allocate(region_dx(nlat,nlon),region_dy(nlat,nlon))
-  allocate(region_dxi(nlat,nlon),region_dyi(nlat,nlon))
-  allocate(coeffx(nlat,nlon),coeffy(nlat,nlon))
+  if (allocated(region_dx_out )) deallocate(region_dx_out ) !clt will correspond
+                                                            !to region_dx_ens and so on
+  if (allocated(region_dy_out )) deallocate(region_dy_out )
+  allocate(region_dx_out(nlatout,nlonout),region_dy_out(nlatout,nlonout))
+  allocate(region_dxi_out(nlatout,nlonout),region_dyi_out(nlatout,nlonout))
+  if (present(coeffx_out))  allocate(coeffx_out(nlatout,nlonout))
+  if (present(coeffy_out))  allocate(coeffy_out(nlatout,nlonout))
   dyy=rearth*adlat*deg2rad
   dyyi=one/dyy
   dyyh=half/dyy
-  do j=1,nlon
-     do i=1,nlat
-        region_dy(i,j)=dyy
-        region_dyi(i,j)=dyyi
-        coeffy(i,j)=dyyh
+  do j=1,nlonout
+     do i=1,nlatout
+        region_dy_out(i,j)=dyy
+        region_dyi_out(i,j)=dyyi
      enddo
   enddo
+  if (present(coeffy_out))  coeffy_out=dyyh
 
-  do i=1,nlat
+  do i=1,nlatout
      dxx=rearth*cos(rlat_in(i,1)*deg2rad)*adlon*deg2rad
      dxxi=one/dxx
      dxxh=half/dxx
-     do j=1,nlon
-        region_dx(i,j)=dxx
-        region_dxi(i,j)=dxxi
-        coeffx(i,j)=dxxh
+     do j=1,nlonout
+        region_dx_out(i,j)=dxx
+        region_dxi_out(i,j)=dxxi
      enddo
   enddo
+  if (present(coeffx_out))  coeffx_out=dxxh
+  
 
 !
 !----------  setup  region_lat,region_lon in earth coord
 !
-  if (allocated(region_lat)) deallocate(region_lat)
-  if (allocated(region_lon)) deallocate(region_lon)
-  allocate(region_lat(nlat,nlon),region_lon(nlat,nlon))
-  allocate(glat_an(nlon,nlat),glon_an(nlon,nlat))
+  if (allocated(region_lat_out)) deallocate(region_lat_out)
+  if (allocated(region_lon_out)) deallocate(region_lon_out)
+  allocate(region_lat_out(nlatout,nlonout),region_lon_out(nlatout,nlonout))
 
-  call unrotate2deg(region_lon,region_lat,rlon_in,rlat_in, &
-                    centlon,centlat,nlat,nlon)
+  call unrotate2deg(region_lon_out,region_lat_out,rlon_in,rlat_in, &
+                    centlon,centlat,nlatout,nlonout)
 
-  region_lat=region_lat*deg2rad
-  region_lon=region_lon*deg2rad
+  if (present(coeffx_out)) then ! if coeffx_out is present, this is for analysis grid 
+  allocate(glat_an(nlonout,nlatout),glon_an(nlonout,nlatout))
+  region_lat_out=region_lat_out*deg2rad
+  region_lon_out=region_lon_out*deg2rad
 
-  do j=1,nlat
-     do i=1,nlon
-        glat_an(i,j)=region_lat(j,i)
-        glon_an(i,j)=region_lon(j,i)
+  do j=1,nlatout
+     do i=1,nlonout
+        glat_an(i,j)=region_lat_out(j,i)
+        glon_an(i,j)=region_lon_out(j,i)
      enddo
   enddo
 
@@ -289,10 +325,11 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
  
   deallocate(glat_an,glon_an)
 
+  endif
 !--------------------compute all combinations of relative coordinates
 
-  allocate(xbh_a(nx),xbh_b(nx,ny),xa_a(nxa),xa_b(nxa))
-  allocate(ybh_a(ny),ybh_b(nx,ny),ya_a(nya),ya_b(nya))
+  allocate(xbh_a(nx),xbh_b(nx,ny),xa_a(nxout),xa_b(nxout))
+  allocate(ybh_a(ny),ybh_b(nx,ny),ya_a(nyout),ya_b(nyout))
 
   nxh=nx/2
   nyh=ny/2
@@ -314,23 +351,32 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
   end do
 
 !!!!  define analysis A grid  !!!!!!!!!!!!!
-  do j=1,nxa
+  do j=1,nxout
      xa_a(j)=(float(j-nlonh)-cx)*grid_ratio_fv3_regional
   end do
-  do i=1,nya
+  do i=1,nyout
      ya_a(i)=(float(i-nlath)-cy)*grid_ratio_fv3_regional
   end do
 
 !!!!!compute fv3 to A grid interpolation parameters !!!!!!!!!
-  allocate  (   fv3dx(nxa,nya),fv3dx1(nxa,nya),fv3dy(nxa,nya),fv3dy1(nxa,nya) )
-  allocate  (   fv3ix(nxa,nya),fv3ixp(nxa,nya),fv3jy(nxa,nya),fv3jyp(nxa,nya) )
+  allocate  (   p_fv3sar2grid%fv3dx(nxout,nyout),p_fv3sar2grid%fv3dx1(nxout,nyout),p_fv3sar2grid%fv3dy(nxout,nyout),p_fv3sar2grid%fv3dy1(nxout,nyout) )
+  allocate  (   p_fv3sar2grid%fv3ix(nxout,nyout),p_fv3sar2grid%fv3ixp(nxout,nyout),p_fv3sar2grid%fv3jy(nxout,nyout),p_fv3sar2grid%fv3jyp(nxout,nyout) )
+  fv3dx=p_fv3sar2grid%fv3dx
+  fv3dx1=p_fv3sar2grid%fv3dx1
+  fv3dy=p_fv3sar2grid%fv3dy
+  fv3dy1=p_fv3sar2grid%fv3dy1
+  fv3ix=p_fv3sar2grid%fv3ix
+  fv3ixp=p_fv3sar2grid%fv3ixp
+  fv3jy=p_fv3sar2grid%fv3jy
+  fv3jyp=p_fv3sar2grid%fv3jyp
+  
   allocate(yy(ny))
 
 ! iteration to find the fv3 grid cell
   jb1=1
   ib1=1
-  do j=1,nya
-     do i=1,nxa
+  do j=1,nyout
+     do i=1,nxout
       do n=1,3 
          gxa=xa_a(i)
          if(gxa < xbh_b(1,jb1))then
@@ -454,23 +500,33 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1111
 !!!!!compute A to fv3 grid interpolation parameters !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1111
-  allocate  (   a3dx(ny,nx),a3dx1(ny,nx),a3dy(ny,nx),a3dy1(ny,nx) )
-  allocate  (   a3ix(ny,nx),a3ixp(ny,nx),a3jy(ny,nx),a3jyp(ny,nx) )
+  allocate  (   p_fv3sar2grid%a3dx(ny,nx),p_fv3sar2grid%a3dx1(ny,nx),p_fv3sar2grid%a3dy(ny,nx),p_fv3sar2grid%a3dy1(ny,nx) )
+  allocate  (   p_fv3sar2grid%a3ix(ny,nx),p_fv3sar2grid%a3ixp(ny,nx),p_fv3sar2grid%a3jy(ny,nx),p_fv3sar2grid%a3jyp(ny,nx) )
+  a3dx =p_fv3sar2grid%a3dx
+  a3dx1=p_fv3sar2grid%a3dx1
+  a3dy =p_fv3sar2grid%a3dy
+  a3dy1=p_fv3sar2grid%a3dy1
+
+  a3ix =p_fv3sar2grid%a3ix
+  a3ixp =p_fv3sar2grid%a3ixp
+  a3jy =p_fv3sar2grid%a3jy
+  a3jyp=p_fv3sar2grid%a3jyp
+  
   do i=1,nx
      do j=1,ny
         gxa=xbh_b(i,j)
         if(gxa < xa_a(1))then
            gxa= 1
-        else if(gxa > xa_a(nxa))then
-           gxa= nxa
+        else if(gxa > xa_a(nxout))then
+           gxa= nxout
         else
-           call grdcrd1(gxa,xa_a,nxa,1)
+           call grdcrd1(gxa,xa_a,nxout,1)
         endif
         a3ix(j,i)=int(gxa)
-        a3ix(j,i)=min(max(1,a3ix(j,i)),nxa)
+        a3ix(j,i)=min(max(1,a3ix(j,i)),nxout)
         a3dx(j,i)=max(zero,min(one,gxa-a3ix(j,i)))
         a3dx1(j,i)=one-a3dx(j,i)
-        a3ixp(j,i)=min(nxa,a3ix(j,i)+1)
+        a3ixp(j,i)=min(nxout,a3ix(j,i)+1)
      end do
   end do
 
@@ -479,13 +535,13 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
         gya=ybh_b(i,j)
         if(gya < ya_a(1))then
            gya= 1
-        else if(gya > ya_a(nya))then
-           gya= nya
+        else if(gya > ya_a(nyout))then
+           gya= nyout
         else
-           call grdcrd1(gya,ya_a,nya,1)
+           call grdcrd1(gya,ya_a,nyout,1)
         endif
         a3jy(j,i)=int(gya)
-        a3jy(j,i)=min(max(1,a3jy(j,i)),nya)
+        a3jy(j,i)=min(max(1,a3jy(j,i)),nyout)
         a3dy(j,i)=max(zero,min(one,gya-a3jy(j,i)))
         a3dy1(j,i)=one-a3dy(j,i)
         a3jyp(j,i)=min(ny,a3jy(j,i)+1)
@@ -496,7 +552,11 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
 !!! find coefficients for wind conversion btw FV3 & earth
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  allocate  (   cangu(nx,ny+1),sangu(nx,ny+1),cangv(nx+1,ny),sangv(nx+1,ny) )
+  allocate  (  p_fv3sar2grid%cangu(nx,ny+1),p_fv3sar2grid%sangu(nx,ny+1),p_fv3sar2grid%cangv(nx+1,ny),p_fv3sar2grid%sangv(nx+1,ny) )
+   cangu=p_fv3sar2grid%cangu
+   sangu=p_fv3sar2grid%sangu
+   sangu=p_fv3sar2grid%cangv
+   sangu=p_fv3sar2grid%sangv
 
 !   1.  compute x,y,z at cell cornor from grid_lon, grid_lat
 
@@ -551,9 +611,8 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
      enddo
   enddo
   deallocate( xc,yc,zc,gclat,gclon,gcrlat,gcrlon)
-end subroutine generate_anl_grid
-
-subroutine earthuv2fv3(u,v,nx,ny,u_out,v_out)
+end subroutine generate_regular_grids
+subroutine earthuv2fv3_regular_grids(u,v,nx,ny,u_out,v_out,p_fv3sar2grid)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    earthuv2fv3
@@ -582,10 +641,16 @@ subroutine earthuv2fv3(u,v,nx,ny,u_out,v_out)
   implicit none
 
   integer(i_kind), intent(in   ) :: nx,ny                 ! fv3 tile x- and y-dimensions
+  type (fv3sar2grid_parm),intent(inout):: p_fv3sar2grid
   real(r_kind),intent(in   ) :: u(nx,ny),v(nx,ny)
   real(r_kind),intent(  out) :: u_out(nx,ny+1),v_out(nx+1,ny)
   integer(i_kind) i,j
-
+  real(r_kind) ,pointer,dimension(:,:):: cangu,sangu,cangv,sangv
+   cangu=p_fv3sar2grid%cangu
+   sangu=p_fv3sar2grid%sangu
+   sangu=p_fv3sar2grid%cangv
+   sangu=p_fv3sar2grid%sangv
+  
 
 !!!!!!! earth u/v to covariant u/v
   j=1
@@ -610,9 +675,9 @@ subroutine earthuv2fv3(u,v,nx,ny,u_out,v_out)
      end do
      v_out(nx+1,j)=u(nx,j)*cangv(nx+1,j)+v(nx,j)*sangv(nx+1,j)
   end do
-end subroutine earthuv2fv3
+end subroutine earthuv2fv3_regular_grids
 
-subroutine fv3uv2earth(u,v,nx,ny,u_out,v_out)
+subroutine fv3uv2earth_regular_grids(u,v,nx,ny,u_out,v_out,p_fv3sar2grid)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    fv3uv2earth
@@ -639,11 +704,17 @@ subroutine fv3uv2earth(u,v,nx,ny,u_out,v_out)
   use kinds, only: r_kind,i_kind
   use constants, only: half
   implicit none
-
+   
+  type (fv3sar2grid_parm),intent(inout):: p_fv3sar2grid
   integer(i_kind), intent(in   ) :: nx,ny                 ! fv3 tile x- and y-dimensions
   real(r_kind),intent(in   ) :: u(nx,ny+1),v(nx+1,ny)
   real(r_kind),intent(  out) :: u_out(nx,ny),v_out(nx,ny)
   integer(i_kind) i,j
+  real(r_kind) ,pointer,dimension(:,:):: cangu,sangu,cangv,sangv
+   cangu=p_fv3sar2grid%cangu
+   sangu=p_fv3sar2grid%sangu
+   sangu=p_fv3sar2grid%cangv
+   sangu=p_fv3sar2grid%sangv
 
   do j=1,ny
      do i=1,nx
@@ -654,9 +725,8 @@ subroutine fv3uv2earth(u,v,nx,ny,u_out,v_out)
      end do
   end do
   return
-end subroutine fv3uv2earth
-
-subroutine fv3_h_to_ll(b_in,a,nb,mb,na,ma)
+end subroutine fv3uv2earth_regular_grids
+subroutine fv3_h_to_ll_regular_grids(b_in,a,nb,mb,na,ma,p_fv3sar2grid)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    fv3_h_to_ll
@@ -688,14 +758,28 @@ subroutine fv3_h_to_ll(b_in,a,nb,mb,na,ma)
 
   use constants, only: zero,one
   implicit none
-
+ 
+  type (fv3sar2grid_parm),intent(inout):: p_fv3sar2grid
   integer(i_kind),intent(in   ) :: mb,nb,ma,na
   real(r_kind)   ,intent(in   ) :: b_in(nb,mb)
   real(r_kind)   ,intent(  out) :: a(ma,na)
 
+  real(r_kind) ,pointer,dimension(:,:):: fv3dx,fv3dx1,fv3dy,fv3dy1
+  integer(i_kind),pointer,dimension(:,:)::  fv3ix,fv3ixp,fv3jy,fv3jyp
+  logical :: bilinear
   integer(i_kind) i,j,ir,jr,mbp,nbp
   real(r_kind)    b(nb,mb)
-
+  
+  bilinear= p_fv3sar2grid%bilinear
+  fv3dx=p_fv3sar2grid%fv3dx
+  fv3dx1=p_fv3sar2grid%fv3dx1
+  fv3dy=p_fv3sar2grid%fv3dy
+  fv3dy1=p_fv3sar2grid%fv3dy1
+  fv3ix=p_fv3sar2grid%fv3ix
+  fv3ixp=p_fv3sar2grid%fv3ixp
+  fv3jy=p_fv3sar2grid%fv3jy
+  fv3jyp=p_fv3sar2grid%fv3jyp
+  
 !!!!!!!!! reverse E-W and N-S
   mbp=mb+1
   nbp=nb+1
@@ -723,9 +807,9 @@ subroutine fv3_h_to_ll(b_in,a,nb,mb,na,ma)
      end do
   endif
   return
-end subroutine fv3_h_to_ll
+end subroutine fv3_h_to_ll_regular_grids
 
-subroutine fv3_ll_to_h(a,b,nxa,nya,nxb,nyb,rev_flg)
+subroutine fv3_ll_to_h_regular_grids(a,b,nxa,nya,nxb,nyb,rev_flg,p_fv3sar2grid)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    fv3_ll_to_h
@@ -761,8 +845,22 @@ subroutine fv3_ll_to_h(a,b,nxa,nya,nxb,nyb,rev_flg)
   real(r_kind)   ,intent(in   ) :: a(nya,nxa)
   logical        ,intent(in   ) :: rev_flg 
   real(r_kind)   ,intent(  out) :: b(nxb*nyb)
+  type (fv3sar2grid_parm),intent(inout):: p_fv3sar2grid
+  real(r_kind) ,pointer,dimension(:,:):: a3dx,a3dx1,a3dy,a3dy1
+  integer(i_kind),pointer,dimension(:,:)::  a3ix,a3ixp,a3jy,a3jyp
+  logical:: linear
 
   integer(i_kind) i,j,ir,jr,nybp,nxbp,ijr
+
+  a3dx =p_fv3sar2grid%a3dx
+  a3dx1=p_fv3sar2grid%a3dx1
+  a3dy =p_fv3sar2grid%a3dy
+  a3dy1=p_fv3sar2grid%a3dy1
+
+  a3ix =p_fv3sar2grid%a3ix
+  a3ixp =p_fv3sar2grid%a3ixp
+  a3jy =p_fv3sar2grid%a3jy
+  a3jyp=p_fv3sar2grid%a3jyp
 
   if(rev_flg)then
 !!!!!!!!!! output in reverse E-W, N-S and reversed i,j !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -787,134 +885,7 @@ subroutine fv3_ll_to_h(a,b,nxa,nya,nxb,nyb,rev_flg)
         end do
      end do
   endif
-end subroutine fv3_ll_to_h
-
-end module mod_fv3_lola
-
-subroutine rotate2deg(rlon_in,rlat_in,rlon_out,rlat_out,rlon0,rlat0,nx,ny)
-!$$$  subprogram documentation block
-!                .      .    .                                        .
-! subprogram:    rotate2deg
-!
-!   prgmmr: parrish
-!
-!   Rotate right-handed spherical coordinate to new right-handed spherical
-!   coordinate.  The coordinates are latitude (-90 to 90) and longitude.
-!   Output for longitude is principle range of atan2d function ( -180 < rlon_out <= 180 )
-!
-! program history log:
-!   2017-05-02  parrish
-!
-!  Method is as follows:
-!  1.  define x,y,z coordinate system with origin at center of sphere,
-!      x intersecting sphere at 0 deg N,  0 deg E,
-!      y intersecting sphere at 0 deg N, 90 deg E,
-!      z intersecting sphere at 90 deg N  (north pole).
-
-!   4 steps:
-
-!   1.  compute x,y,z from rlon_in, rlat_in
-
-!   2.  rotate (x,y,z) about z axis by amount rlon0 -- (x,y,z) --> (xt,yt,zt)
-
-!   3.  rotate (xt,yt,zt) about yt axis by amount rlat0 --- (xt,yt,zt) --> (xtt,ytt,ztt)
-
-!   4.  compute rlon_out, rlat_out from xtt,ytt,ztt
-
-!   This is the desired new orientation, where (0N, 0E) maps to point
-!         (rlon0,rlat0) in original coordinate and the new equator is tangent to
-!          the original latitude circle rlat0 at original longitude rlon0.
-! attributes:
-!   langauge: f90
-!   machine:
-!
-!$$$ end documentation block
-
-
-  use kinds, only: r_kind,i_kind
-  use constants, only: deg2rad,rearth,rad2deg
-  implicit none
-
-  integer(i_kind), intent(in   ) :: nx,ny                 ! fv3 tile x- and y-dimensions
-  real(r_kind),intent(in   ) :: rlon_in(nx,ny),rlat_in(nx,ny),rlon0,rlat0
-  real(r_kind),intent(  out) :: rlon_out(nx,ny),rlat_out(nx,ny)
-
-  real(r_kind) x,y,z, xt,yt,zt, xtt,ytt,ztt
-  integer(i_kind) i,j
-
-  do j=1,ny
-     do i=1,nx
-!   1.  compute x,y,z from rlon_in, rlat_in
-
-        x=cos(rlat_in(i,j)*deg2rad)*cos(rlon_in(i,j)*deg2rad)
-        y=cos(rlat_in(i,j)*deg2rad)*sin(rlon_in(i,j)*deg2rad)
-        z=sin(rlat_in(i,j)*deg2rad)
-
-!   2.  rotate (x,y,z) about z axis by amount rlon0 -- (x,y,z) --> (xt,yt,zt)
-
-        xt= x*cos(rlon0*deg2rad)+y*sin(rlon0*deg2rad)
-        yt=-x*sin(rlon0*deg2rad)+y*cos(rlon0*deg2rad)
-        zt=z
-
-!   3.  rotate (xt,yt,zt) about yt axis by amount rlat0 --- (xt,yt,zt) --> (xtt,ytt,ztt)
-
-        xtt= xt*cos(rlat0*deg2rad)+zt*sin(rlat0*deg2rad)
-        ytt= yt
-        ztt=-xt*sin(rlat0*deg2rad)+zt*cos(rlat0*deg2rad)
-
-!   4.  compute rlon_out, rlat_out from xtt,ytt,ztt
-
-        rlat_out(i,j)=asin(ztt)*rad2deg
-        rlon_out(i,j)=atan2(ytt,xtt)*rad2deg
-     enddo
-  enddo
-end subroutine rotate2deg
-
-subroutine unrotate2deg(rlon_in,rlat_in,rlon_out,rlat_out,rlon0,rlat0,nx,ny)
-!$$$  subprogram documentation block
-!                .      .    .                                        .
-! subprogram:    unrotate2deg
-!
-!   prgmmr: parrish
-!
-! abstract:  inverse of rotate2deg.
-!
-! program history log:
-!   2017-05-02  parrish
-
-! attributes:
-!   langauge: f90
-!   machine:
-!
-!$$$ end documentation block
-
-  use kinds, only: r_kind,i_kind
-  use constants, only: deg2rad,rearth,rad2deg
-  implicit none
-
-  real(r_kind),intent(in   ) :: rlon_out(nx,ny),rlat_out(nx,ny),rlon0,rlat0
-  integer(i_kind),intent(in   ) :: nx,ny
-  real(r_kind),intent(  out) :: rlon_in(nx,ny),rlat_in(nx,ny)
-
-  real(r_kind) x,y,z, xt,yt,zt, xtt,ytt,ztt
-  integer(i_kind) i,j
-  do j=1,ny
-     do i=1,nx
-        xtt=cos(rlat_out(i,j)*deg2rad)*cos(rlon_out(i,j)*deg2rad)
-        ytt=cos(rlat_out(i,j)*deg2rad)*sin(rlon_out(i,j)*deg2rad)
-        ztt=sin(rlat_out(i,j)*deg2rad)
-
-        xt= xtt*cos(rlat0*deg2rad)-ztt*sin(rlat0*deg2rad)
-        yt= ytt
-        zt= xtt*sin(rlat0*deg2rad)+ztt*cos(rlat0*deg2rad)
-
-        x= xt*cos(rlon0*deg2rad)-yt*sin(rlon0*deg2rad)
-        y= xt*sin(rlon0*deg2rad)+yt*cos(rlon0*deg2rad)
-        z= zt
-
-        rlat_in(i,j)=asin(z)*rad2deg
-        rlon_in(i,j)=atan2(y,x)*rad2deg
-     enddo
-  enddo
-
-end subroutine unrotate2deg
+end subroutine fv3_ll_to_h_regular_grids
+  
+  
+end module mod_fv3_lolgrid
