@@ -1,12 +1,14 @@
 #!/bin/bash
 #SBATCH -J gen_diags_jedi 
 #SBATCH -A da-cpu
-#SBATCH -q batch 
-#SBATCH --ntasks-per-node=10 --nodes=8
-#SBATCH -t 40:00
+#SBATCH --qos=debug
+#SBATCH --partition=bigmem
+#SBATCH --nodes=2
+#SBATCH --ntasks-per-node=24
+#SBATCH -t 30:00
 #SBATCH -o SLURM_%x.o%j
 #SBATCH -e SLURM_%x.e%j
-#SBATCH –mail-user=$LOGNAME@noaa.gov
+#SBATCH --mail-user=$LOGNAME@noaa.gov
 
 set -x 
 
@@ -15,16 +17,14 @@ adate=2018041500
 ObsDir=/scratch4/NCEPDEV/global/noscrub/dump/
 GuessDir=/scratch4/NCEPDEV/da/noscrub/Andrew.Collard/ICs_for_JEDI
 WorkDir=/scratch3/NCEPDEV/stmp1/$LOGNAME/JEDI/GSI_work/$adate
-OutDir=/scratch3/NCEPDEV/stmp1/$LOGNAME/JEDI/output_omp/$adate
+OutDir=/scratch3/NCEPDEV/stmp1/$LOGNAME/JEDI/output/$adate
 
 GSIDir=/scratch4/NCEPDEV/da/save/Cory.R.Martin/GSI/
-gsiexec=/scratch4/NCEPDEV/da/save/Cory.R.Martin/GSI/build_jedi/bin/gsi.x
-nccat=/scratch4/NCEPDEV/da/save/Cory.R.Martin/GSI/build_jedi/bin/nc_diag_cat_serial.x
+GSIBuildDir=$GSIDir/build_jedi
+gsiexec=$GSIBuildDir/bin/gsi.x
+nccat=$GSIBuildDir/bin/nc_diag_cat_serial.x
 fixgsi=/scratch4/NCEPDEV/da/save/Cory.R.Martin/GSI/ProdGSI_jedi/fix
-#fixcrtm=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/lib/crtm/2.2.3/fix_update
-#fixcrtm=/scratch4/NCEPDEV/da/noscrub/Andrew.Collard/CRTM/REL-2.3.0/fix
 fixcrtm=/scratch4/NCEPDEV/da/save/Cory.R.Martin/CRTM/fix
-#fixcrtm=/scratch4/NCEPDEV/da/save/Cory.R.Martin/JEDI/src/ufo-bundle/crtm/fix
 USHDir=$GSIDir/ProdGSI_jedi/ush/
 
 dumpobs=gdas
@@ -286,7 +286,7 @@ cat <<EOF > gsiparm.anl
    diag_precon=.true.,step_start=1.e-3,emiss_bc=.true.,cwoption=3,nhr_obsbin=3,
    verbose=.false.,imp_physics=11,lupp=.true.,
    binary_diag=.false.,netcdf_diag=.true.,clip_supersaturation=.false.,
-   lobsdiag_forenkf=.false.,sfcmodel=.false.,
+   lobsdiag_forenkf=.false.,sfcmodel=.true.,
    $SETUP
  /
  &GRIDOPTS
@@ -460,8 +460,8 @@ EOF
 
 # run GSI
 cd $WorkDir
-
-export OMP_NUM_THREADS=4
+ulimit -s unlimited
+export OMP_NUM_THREADS=1
 env
 srun ./gsi.x > stdout
 
@@ -503,7 +503,6 @@ for loop in $loops; do
 	    # note if the GSI utility is not working correctly, use the python version
 	    # same syntax is used to call it, just change what $nccat is 
             $nccat -o $file ${prefix}${type}_${loop}.nc4 &
-            pid=$!
             sleep 5
             echo "diag_${type}_${string}.${adate}*" >> ${diaglist[n]}
             numfile[n]=$(expr ${numfile[n]} + 1)
@@ -512,10 +511,7 @@ for loop in $loops; do
    done
    echo $(date) END loop $string >&2
 done
-
-wait $pid
-
-sleep 300 # is this enough time?
+wait
 
 # move GSI diags
 mkdir -p $OutDir/GSI_diags
