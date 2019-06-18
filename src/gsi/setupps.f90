@@ -914,9 +914,9 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
               call nc_diag_metadata("Analysis_Use_Flag",    sngl(-one)             )              
            endif
 
-           call nc_diag_metadata("Errinv_Input",            sngl(errinv_input)     )
-           call nc_diag_metadata("Errinv_Adjust",           sngl(errinv_adjst)     )
-           call nc_diag_metadata("Errinv_Final",            sngl(errinv_final)     )
+           call nc_diag_metadata("Errinv_Input",            sngl(errinv_input/r100)     )
+           call nc_diag_metadata("Errinv_Adjust",           sngl(errinv_adjst/r100)     )
+           call nc_diag_metadata("Errinv_Final",            sngl(errinv_final/r100)     )
 
            call nc_diag_metadata("Observation",                   sngl(pob*r100)        )
            call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl((pob-pges)*r100)   )
