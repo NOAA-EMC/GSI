@@ -379,7 +379,7 @@ module obsmod
 
   use kinds, only: r_kind,i_kind,r_single
   use gsi_4dvar, only: l4dvar,lsqrtb,lbicg
-  use constants, only:  zero,one,two,three,four,five
+  use constants, only:  zero,one,r1_25,two,three,four,five,r790000
   use mpimod, only: mpi_max,mpi_itype,mpi_comm_world,ierror,npe,mype
   implicit none
 
@@ -417,7 +417,7 @@ module obsmod
   public :: i_pm2_5_ob_type
   public :: i_pm10_ob_type
   public :: nloz_v8,nloz_v6,nloz_omi,nlco,nobskeep
-  public :: grids_dim,rmiss_single,nchan_total,mype_sst,mype_gps
+  public :: grids_dim,ds,rmiss_single,nchan_total,mype_sst,mype_gps
   public :: mype_uv,mype_dw,mype_rw,mype_q,mype_tcp,mype_lag,mype_ps,mype_t
   public :: mype_pw,iout_rw,iout_dw,iout_sst,iout_pw,iout_t,iout_q,iout_tcp
   public :: iout_lag,iout_uv,iout_gps,iout_ps,iout_light,mype_light
@@ -572,7 +572,7 @@ module obsmod
   real(r_kind) perturb_fact,time_window_max,time_offset
   real(r_kind),dimension(50):: dmesh
 
-  integer(i_kind) grids_dim,nchan_total,ianldate
+  integer(i_kind) grids_dim,ds,nchan_total,ianldate
   integer(i_kind) ndat,ndat_types,ndat_times,nprof_gps
   integer(i_kind) lunobs_obs,nloz_v6,nloz_v8,nobskeep,nloz_omi
   integer(i_kind) nlco,use_limit
@@ -851,7 +851,12 @@ contains
                                ! related to brightness temperature and 
                                ! precipitation rate observations
 
-    grids_dim= 80              ! grid points for integration of GPS bend
+    if (mod(nsig,2)=1) then
+       grids_dim=r1_25*(nsig+1)              ! grid points for integration of GPS bend
+    else 
+       grids_dim=r1_25*nsig
+    endif
+    ds=r790000/(grids_dim-1)
 
     nprof_gps = 0
 
