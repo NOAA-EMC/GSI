@@ -106,7 +106,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   use kinds, only: r_kind,i_kind
   use m_gpsStats, only: gps_allhead,gps_alltail
   use m_obsdiags, only: gpshead
-  use obsmod , only: nprof_gps,grids_dim,lobsdiag_allocated,&
+  use obsmod , only: nprof_gps,grids_dim,ds,lobsdiag_allocated,&
       i_gps_ob_type,obsdiags,lobsdiagsave,nobskeep,&
       time_offset,lobsdiag_forenkf
   use m_obsNode, only: obsNode
@@ -166,7 +166,6 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   real(r_kind),parameter:: eight = 8.0_r_kind
   real(r_kind),parameter:: nine = 9.0_r_kind
   real(r_kind),parameter:: eleven = 11.0_r_kind
-  real(r_kind),parameter:: ds=10000.0_r_kind
   real(r_kind),parameter:: r12=12.0_r_kind
   real(r_kind),parameter:: r18=18.0_r_kind
   real(r_kind),parameter:: r20=20.0_r_kind
@@ -294,7 +293,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   nobs_out=0
   hob_s_top=one
   mm1=mype+1
-  nsigstart=min(23,nsig) 
+  nsigstart=nint(nsig/2) 
 
 
 ! Allocate arrays for output to diagnostic file

@@ -67,7 +67,7 @@ module constants
   public :: n_b,n_a,eccentricity,huge_single,constoz,g_over_rd,amsua_clw_d2
   public :: amsua_clw_d1,n_c,rd_over_g,zero_ilong
   public :: r10,r100,sqrt_tiny_r_kind,r2000,r4000
-  public :: r0_01,r0_02,r0_03,r0_04,r0_05,r400,r2400
+  public :: r0_01,r0_02,r0_03,r0_04,r0_05,r1_25,r400,r2400,r790000
   public :: cpf_a0, cpf_a1, cpf_a2, cpf_b0, cpf_b1, cpf_c0, cpf_c1, cpf_d, cpf_e
   public :: psv_a, psv_b, psv_c, psv_d
   public :: ef_alpha, ef_beta, ef_gamma
@@ -119,6 +119,7 @@ module constants
   real(r_kind),parameter::  one_tenth = 0.10_r_kind
   real(r_kind),parameter::  quarter   = 0.25_r_kind
   real(r_kind),parameter::  one       = 1.0_r_kind
+  real(r_kind),parameter::  r1_25     = 1.25_r_kind
   real(r_kind),parameter::  two       = 2.0_r_kind
   real(r_kind),parameter::  three     = 3.0_r_kind
   real(r_kind),parameter::  four      = 4.0_r_kind
@@ -133,7 +134,7 @@ module constants
   real(r_kind),parameter::  r2400     = 2400.0_r_kind
   real(r_kind),parameter::  r4000     = 4000.0_r_kind
   real(r_kind),parameter::  r3600     = 3600.0_r_kind
-
+  real(r_kind),parameter::  r790000   = 790000.0_r_kind
   real(r_kind),parameter:: z_w_max    = 30.0_r_kind     ! maximum diurnal thermocline thickness
   real(r_kind),parameter:: tfrozen    = 271.2_r_kind    ! sea water frozen point temperature
 
