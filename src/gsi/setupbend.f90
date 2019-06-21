@@ -119,7 +119,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   use guess_grids, only: nsig_ext,gpstop
   use gridmod, only: nsig
   use gridmod, only: get_ij,latlon11
-  use constants, only: fv,n_a,n_b,n_c,deg2rad,tiny_r_kind,r0_01
+  use constants, only: fv,n_a,n_b,n_c,deg2rad,tiny_r_kind,r0_01,r1_25
   use constants, only: zero,half,one,two,eccentricity,semi_major_axis,&
       grav_equator,somigliana,flattening,grav_ratio,grav,rd,eps,three,four,five
   use lagmod, only: setq, setq_TL
@@ -172,6 +172,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   real(r_kind),parameter:: r40=40.0_r_kind
   real(r_kind),parameter:: r1em3 = 1.0e-3_r_kind
   real(r_kind),parameter:: r1em6 = 1.0e-6_r_kind
+  real(r_kind),parameter:: r790000=790000.0_r_kind
   character(len=*),parameter :: myname='setupbend'
   real(r_kind),parameter:: crit_grad = 157.0_r_kind
 
@@ -179,7 +180,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 
   real(r_kind) cutoff,cutoff1,cutoff2,cutoff3,cutoff4,cutoff12,cutoff23,cutoff34
   real(r_kind) sin2,zsges,ns
-  real(r_kind),dimension(grids_dim):: ddnj,grid_s,ref_rad_s
+  real(r_kind),dimension(:),allocatable:: ddnj,grid_s,ref_rad_s
 
   real(r_kind) rsig,rsig_up,ddbend,tmean,qmean
   real(r_kind) termg,termr,termrg,hob,dbend,grad_mod
@@ -257,6 +258,10 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !750-755 => COSMIC-2 Equatorial
 !724-729 => COSMIC-2 Polar
 !825 => KOMPSAT-5
+  ns=r1_25*(nsig+mod(nsig,2))
+  grids_dim=nint(ns)  ! grid points for integration of GPS bend
+  ds=r790000/(grids_dim-1)
+  allocate(ddnj(grids_dim),grid_s(grids_dim),ref_rad_s(grids_dim))
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
@@ -1197,6 +1202,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   call dtime_show(myname,'diagsave:bend',i_gps_ob_type)
   call gpsrhs_unaliases(is)
   if(last_pass) call gpsrhs_dealloc(is)
+  deallocate(ddnj,grid_s,ref_rad_s)
 
   return
   contains
