@@ -379,6 +379,7 @@ module obsmod
 
   use kinds, only: r_kind,i_kind,r_single
   use gsi_4dvar, only: l4dvar,lsqrtb,lbicg
+  use gridmod, only: nsig
   use constants, only:  zero,one,r1_25,two,three,four,five,r790000
   use mpimod, only: mpi_max,mpi_itype,mpi_comm_world,ierror,npe,mype
   implicit none
@@ -625,7 +626,7 @@ module obsmod
   real(r_kind) ::static_gsi_nopcp_dbz
   real(r_kind) ::rmesh_dbz,zmesh_dbz
   real(r_kind) ::rmesh_vr,zmesh_vr
-
+  real(r_kind) ::ns
   logical :: debugmode
   real(r_kind) :: minobrangevr,maxobrangevr,mintiltvr,maxtiltvr
   real(r_kind) :: minobrangedbz,maxobrangedbz,mintiltdbz,maxtiltdbz
@@ -851,11 +852,8 @@ contains
                                ! related to brightness temperature and 
                                ! precipitation rate observations
 
-    if (mod(nsig,2)=1) then
-       grids_dim=r1_25*(nsig+1)              ! grid points for integration of GPS bend
-    else 
-       grids_dim=r1_25*nsig
-    endif
+    ns=r1_25*(nsig+mod(nsig,2))
+    grids_dim=nint(ns)  ! grid points for integration of GPS bend
     ds=r790000/(grids_dim-1)
 
     nprof_gps = 0
