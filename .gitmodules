@@ -1,7 +1,8 @@
 [submodule "fix"]
 	path = fix
 	url = gerrit:GSI-fix
-
+	branch = master
 [submodule "libsrc"]
 	path = libsrc
 	url = gerrit:GSI-libsrc
+	branch = master
