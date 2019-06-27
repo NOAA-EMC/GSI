@@ -106,7 +106,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   use kinds, only: r_kind,i_kind
   use m_gpsStats, only: gps_allhead,gps_alltail
   use m_obsdiags, only: gpshead
-  use obsmod , only: nprof_gps,grids_dim,ds,lobsdiag_allocated,&
+  use obsmod , only: nprof_gps,lobsdiag_allocated,&
       i_gps_ob_type,obsdiags,lobsdiagsave,nobskeep,&
       time_offset,lobsdiag_forenkf
   use m_obsNode, only: obsNode
@@ -179,9 +179,9 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 ! Declare local variables
 
   real(r_kind) cutoff,cutoff1,cutoff2,cutoff3,cutoff4,cutoff12,cutoff23,cutoff34
-  real(r_kind) sin2,zsges,ns
+  real(r_kind) sin2,zsges,ns,ds
   real(r_kind),dimension(:),allocatable:: ddnj,grid_s,ref_rad_s
-
+  integer(i_kind):: grids_dim
   real(r_kind) rsig,rsig_up,ddbend,tmean,qmean
   real(r_kind) termg,termr,termrg,hob,dbend,grad_mod
   real(r_kind) fact,pw,nrefges1,nrefges2,nrefges3,k4,delz
