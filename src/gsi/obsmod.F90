@@ -851,10 +851,6 @@ contains
                                ! related to brightness temperature and 
                                ! precipitation rate observations
 
-    ns=r1_25*(nsig+mod(nsig,2))
-    grids_dim=nint(ns)  ! grid points for integration of GPS bend
-    ds=r790000/(grids_dim-1)
-
     nprof_gps = 0
 
 !   Define a name for obs types
