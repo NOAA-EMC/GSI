@@ -255,35 +255,11 @@ if [[ -e ${radstat} ]]; then
       export TANKverf_radM1=${TAKverf_radM1:-${TANKverf}/${MONITOR}.${prev_day}}
    fi
 
-   #----------------------------------------------------------------------------
-   #  Advance the satype file from previous day.
-   #  If it isn't found then create one using the contents of the radstat file.
-   #----------------------------------------------------------------------------
-#   export satype_file=${TANKverf}/info/${RUN}_radmon_satype.txt
-
    if [[ $CYC = "00" ]]; then
       echo "Making new day directory for 00 cycle"
       mkdir -p ${TANKverf_rad}
-#      prev_day=`${NDATE} -06 $PDATE | cut -c1-8`
-
-#      if [[ -s ${TANKverf}/radmon.${prev_day}/${RADMON_SUFFIX}_radmon_satype.txt ]]; then
-#      if [[ -s ${satype_file} ]]; then
-#         cp ${TANKverf}/radmon.${prev_day}/${RADMON_SUFFIX}_radmon_satype.txt ${TANKverf}/radmon.${PDY}/.
-#         cp ${satype_file} ${TANKverf_rad}.
-#      fi
    fi 
 
-#   echo "TESTING for $satype_file"
-#   if [[ -s ${satype_file} ]]; then
-#      echo "${satype_file} is good to go"
-#   else
-#      echo "CREATING satype file"
-#      radstat_satype=`tar -tvf $radstat | grep _ges | awk -F_ '{ print $2 "_" $3 }'`
-#      echo $radstat_satype > ${satype_file}
-#      echo "CREATED ${satype_file}"
-#   fi
-
-#   export satype_file=${RADMON_SUFFIX}_radmon_satype.txt
    
    #------------------------------------------------------------------
    #   Override the default base_file declaration if there is an  
@@ -296,18 +272,20 @@ if [[ -e ${radstat} ]]; then
    #------------------------------------------------------------------
    #   Submit data processing jobs.
    #------------------------------------------------------------------
-   if [[ $MY_MACHINE = "wcoss" ]]; then
+   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "wcoss_d" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGdir/data_extract.${PDY}.${cyc}.log \
            -M 100 -R affinity[core] -W 0:20 -J ${jobname} -cwd ${PWD} \
            $HOMEgdas/jobs/JGDAS_VERFRAD
+
    elif [[ $MY_MACHINE = "cray" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGdir/data_extract.${PDY}.${cyc}.log \
            -M 100 -W 0:20 -J ${jobname} -cwd ${PWD} $HOMEgdas/jobs/JGDAS_VERFRAD
+
    elif [[ $MY_MACHINE = "theia" ]]; then
-      $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -V \
-           -o $LOGdir/Rad_DE.${PDY}.${CYC}.log \
-           -e $LOGdir/Rad_DE.${PDY}.${CYC}.err \
-           $HOMEgdas/jobs/JGDAS_VERFRAD
+      $SUB --account=${ACCOUNT} --time=10 -J ${jobname} -D . \
+        -o ${LOGdir}/DE.${PDY}.${cyc}.log \
+        --ntasks=1 --mem=5g \
+        ${HOMEgdas}/jobs/JGDAS_VERFRAD
    fi
   
 fi
@@ -315,9 +293,9 @@ fi
 #--------------------------------------------------------------------
 # Clean up and exit
 #--------------------------------------------------------------------
-#cd $tmpdir
-#cd ../
-#rm -rf $tmpdir
+cd $tmpdir
+cd ../
+rm -rf $tmpdir
 
 exit_value=0
 if [[ ${data_available} -ne 1 ]]; then

@@ -6,15 +6,15 @@
 #BSUB -q dev_shared
 #BSUB -n 1
 #BSUB -R affinity[core]
-#BSUB -M 4000
+#BSUB -M 5000
 #BSUB -W 00:20
-#BSUB -a poe
 #BSUB -P GFS-T2O
 
 set -x
 
-#export PDATE=2019061700		# binary radstat
-export PDATE=2018110206		# netcdf radstat
+#export PDATE=2018091706	    	# binary radstat
+#export PDATE=2018110206		   # netcdf radstat
+export PDATE=2019062900 		   # netcdf radstat
 
 #############################################################
 # Specify whether the run is production or development
@@ -25,8 +25,9 @@ export job=gdas_verfrad.${cyc}
 export pid=${pid:-$$}
 export jobid=${job}.${pid}
 export envir=para
-export DATAROOT=/gpfs/td2/emc/da/noscrub/${LOGNAME}/test_data
-export COMROOT=/ptmpd1/$LOGNAME/com
+#export DATAROOT=/gpfs/dell2/emc/modeling/noscrub/${LOGNAME}/test_data
+export DATAROOT=/gpfs/dell3/ptmp/emc.glopara/ROTDIRS/v16rt0
+export COMROOT=/gpfs/dell2/ptmp/$LOGNAME/com
 
 if [[ ! -d ${COMROOT}/logs/jlogfiles ]]; then
    mkdir -p ${COMROOT}/logs/jlogfiles
@@ -45,11 +46,14 @@ export radmon_shared_ver=v3.0.0
 #############################################################
 # Load modules
 #############################################################
-. /usrx/local/Modules/3.2.9/init/ksh
-module use /nwprod2/modulefiles
-#module load grib_util
-module load prod_util
-#module load util_shared
+. /usrx/local/prod/lmod/lmod/init/profile
+
+module load lsf/10.1
+module load ips/18.0.1.163
+module load impi/18.0.1
+module load prod_util/1.1.0
+module load grib_util/1.1.0
+module load util_shared/1.1.0
 
 module list
 
@@ -63,8 +67,10 @@ export POE=YES
 #############################################################
 # Set user specific variables
 #############################################################
-export RADMON_SUFFIX=testrad
-export NWTEST=/gpfs/td2/emc/da/noscrub/Edward.Safford/ProdGSI/util/Radiance_Monitor/nwprod
+export RADMON_SUFFIX=run2netcdf
+export DATA=/gpfs/dell2/stmp/Edward.Safford/${RADMON_SUFFIX}		# rename this to WORKDIR
+
+export NWTEST=/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/ProdGSI/util/Radiance_Monitor/nwprod
 
 export HOMEgdas=${NWTEST}/gdas_radmon.${gdas_radmon_ver}
 export HOMEgfs=${HOMEgdas}

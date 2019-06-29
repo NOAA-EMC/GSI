@@ -106,27 +106,6 @@ export PLOT=1
 
 
 #--------------------------------------------------------------------
-# Check status of plot jobs. If any are still running then exit
-# this script. If none are running then remove any old job records 
-# in the $LOADLQ directory.
-#
-# Also need to check verf jobs for suffix. Don't want to run until
-# all verf jobs have been completed.
-#--------------------------------------------------------------------
-
-if [[ $MY_MACHINE = "wcoss" ]]; then
-   running=`bjobs -l | grep plot_${RADMON_SUFFIX} | wc -l` 
-else
-   running=`showq -n -u ${LOGNAME} | grep plot_${RADMON_SUFFIX} | wc -l`
-fi
-
-if [[ $running -ne 0 ]]; then
-   echo "Plot jobs still running for $RADMON_SUFFIX, must exit"
-   exit
-fi
-
-
-#--------------------------------------------------------------------
 #  Create tmpdir and LOGdir
 #--------------------------------------------------------------------
 
@@ -146,7 +125,6 @@ mkdir -p $LOGdir
 # set PDATE to it.  Otherwise, determie the last cycle processed 
 # (into *.ieee_d files) and use that as the PDATE.
 #--------------------------------------------------------------------
-#export PRODATE=`${IG_SCRIPTS}/find_cycle.pl 1 ${TANKDIR}`
 export PRODATE=`${IG_SCRIPTS}/find_cycle.pl --cyc 1 --dir ${TANKDIR} --run ${RUN}`
 
 if [[ $plot_time != "" ]]; then
@@ -154,7 +132,6 @@ if [[ $plot_time != "" ]]; then
 else
    export PDATE=$PRODATE
 fi
-#export START_DATE=`$NDATE -720 $PDATE`
 echo $PRODATE  $PDATE
 
 export NUM_CYCLES=${NUM_CYCLES:-121}
@@ -291,15 +268,15 @@ if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
    jobname="plot_horiz_${RADMON_SUFFIX}"
    logfile="${LOGdir}/horiz.log"
 
-   if [[ $MY_MACHINE = "wcoss" ]]; then
+   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "wcoss_d" ]]; then
       $SUB -P $PROJECT -q $JOB_QUEUE -o ${logfile} -M 80 -W 0:45 -cwd ${PWD} \
            -R affinity[core] -J ${jobname} ${IG_SCRIPTS}/mk_horiz_plots.sh
    elif [[ $MY_MACHINE = "cray" ]]; then
       $SUB -P $PROJECT -q $JOB_QUEUE -o ${logfile} -M 80 -W 0:45 -cwd ${PWD} \
            -J ${jobname} ${IG_SCRIPTS}/mk_horiz_plots.sh
-   else
-      $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} \
-           -V -j oe -o ${logfile} $IG_SCRIPTS/mk_horiz_plots.sh
+   elif [[ $MY_MACHINE = "theia" ]]; then
+      $SUB --account $ACCOUNT -o ${logfile} -D . -J ${jobname} --time 50 \
+	   ${IG_SCRIPTS}/mk_horiz_plots.sh
    fi
 fi
 
@@ -360,9 +337,7 @@ if [[ $RUN_TRANSFER -eq 1 ]]; then
       ${IG_SCRIPTS}/Transfer.sh ${RADMON_SUFFIX} --nosrc \
           1>/ptmpp1/Edward.Safford/logs/Transfer_${RADMON_SUFFIX}.log \
           2>/ptmpp1/Edward.Safford/logs/Transfer_${RADMON_SUFFIX}.err
-fi
-
-
+   fi
 fi
 
 #--------------------------------------------------------------------
@@ -372,5 +347,5 @@ cd $tmpdir
 cd ../
 rm -rf $tmpdir
 
-echo end CkPlt_glbl.sh
+echo "exiting CkPlt_glbl.sh"
 exit

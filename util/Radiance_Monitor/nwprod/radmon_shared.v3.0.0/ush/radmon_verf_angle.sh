@@ -229,8 +229,8 @@ EOF
             ${COMPRESS} -f ${angl_file}
          fi
 
-         if [[ -s ${angle_ctl} ]]; then
-            ${COMPRESS} -f ${angle_ctl}
+         if [[ -s ${angl_ctl} ]]; then
+            ${COMPRESS} -f ${angl_ctl}
          fi 
 
 

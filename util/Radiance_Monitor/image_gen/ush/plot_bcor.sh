@@ -13,6 +13,7 @@ SATYPE2=$1
 PVAR=$2
 PTYPE=$3
 
+echo "begin plot_bcor.sh"
 
 #------------------------------------------------------------------
 # Set environment variables.
@@ -177,4 +178,5 @@ rm -rf $tmpdir
 #   rm -rf ${PLOT_WORK_DIR}
 #fi
 
+echo "end plot_bcor.sh"
 exit
