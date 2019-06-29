@@ -13,6 +13,7 @@
 set -ax
 date
 
+echo "begin mk_bcor_plots.sh"
 export NUM_CYCLES=${NUM_CYCLES:-121}
 export CYCLE_INTERVAL=${CYCLE_INTERVAL:-6}
 
@@ -120,11 +121,6 @@ for type in ${SATYPE}; do
    fi
    ${IG_SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
 
-#   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
-#      sed -e 's/cray_32bit_ieee/ /' ${imgndir}/${type}.ctl > tmp_${type}.ctl
-#      mv -f tmp_${type}.ctl ${imgndir}/${type}.ctl
-#   fi
-
 done
 
 for sat in ${SATYPE}; do
@@ -157,58 +153,47 @@ ${COMPRESS} ${imgndir}/*.ctl
   # Loop over satellite/instruments.  Submit poe job to make plots.  Each task handles
   # a single satellite/insrument.
 
-  if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "cray" ]]; then	
-     suffix=a
-     cmdfile=cmdfile_pbcor_${suffix}
-     jobname=plot_${RADMON_SUFFIX}_bcor_${suffix}
-     logfile=${LOGdir}/plot_bcor_${suffix}.log
+  suffix=a
+  cmdfile=cmdfile_pbcor_${suffix}
+  jobname=plot_${RADMON_SUFFIX}_bcor_${suffix}
+  logfile=${LOGdir}/plot_bcor_${suffix}.log
 
-     rm -f ${cmdfile}
-     rm -f ${logfile}
-
+  rm -f ${cmdfile}
+  rm -f ${logfile}
 >$cmdfile
-     for sat in ${SATLIST}; do
+
+  ctr=0
+  for sat in ${SATLIST}; do
+     if [[ $MY_MACHINE = "theia" ]]; then
+        echo "${ctr} $IG_SCRIPTS/plot_bcor.sh $sat $suffix '$plot_list'" >> $cmdfile
+     else   
         echo "$IG_SCRIPTS/plot_bcor.sh $sat $suffix '$plot_list'" >> $cmdfile
-     done
-     chmod 755 $cmdfile
-
-     ntasks=`cat $cmdfile|wc -l `
-
-     if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
-        wall_tm="2:30"
-     else
-        wall_tm="0:45"
      fi
+     ((ctr=ctr+1))
+  done
 
-     if [[ $MY_MACHINE = "wcoss" ]]; then
-        $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} \
-             -W ${wall_tm} -J ${jobname} -cwd ${PWD} ./$cmdfile
-     else
-        $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -o ${logfile} -W ${wall_tm} \
-             -J ${jobname} -cwd ${PWD} ./$cmdfile
-     fi
-  else					#Zeus/linux
-     for sat in ${SATLIST}; do
-        suffix=${sat}
-        cmdfile=cmdfile_pbcor_${sat}
-        jobname=plot_${RADMON_SUFFIX}_bcor_${sat}
-        logfile=${LOGdir}/plot_bcor_${sat}.log
+  chmod 755 $cmdfile
 
-        rm -f $cmdfile
-        rm -f $logfile
 
-        echo "$IG_SCRIPTS/plot_bcor.sh $sat $suffix '$plot_list'" >> $cmdfile
-
-        if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
-           wall_tm="1:30:00"
-        else
-           wall_tm="0:25:00"
-        fi
-
-        $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} \
-             -V -j oe -o ${logfile} $cmdfile
-     done
+  if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+     wall_tm="2:30"
+  else
+     wall_tm="0:45"
   fi
+
+  if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "wcoss_d" ]]; then
+     $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} \
+          -W ${wall_tm} -J ${jobname} -cwd ${PWD} ./$cmdfile
+
+  elif [[ $MY_MACHINE = "cray" ]]; then
+     $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -o ${logfile} -W ${wall_tm} \
+          -J ${jobname} -cwd ${PWD} ./$cmdfile
+
+  elif [[ $MY_MACHINE = "theia" ]]; then
+     $SUB --account ${ACCOUNT} -n $ctr  -o ${logfile} -D . -J ${jobname} \
+          --time=2:00:00 --wrap "srun -l --multi-prog ${cmdfile}"
+  fi
+
 
   #--------------------------------------------------------------------------
   #  bigSATLIST
@@ -218,59 +203,52 @@ ${COMPRESS} ${imgndir}/*.ctl
   #
   #--------------------------------------------------------------------------
   for sat in ${bigSATLIST}; do
+     echo "processing $sat"
      suffix=$sat
 
-     if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "cray" ]]; then
+     cmdfile=cmdfile_pbcor_${suffix}
+     jobname=plot_${RADMON_SUFFIX}_bcor_${suffix}
+     logfile=${LOGdir}/plot_bcor_${suffix}.log
 
-        cmdfile=cmdfile_pbcor_${suffix}
-        jobname=plot_${RADMON_SUFFIX}_bcor_${suffix}
-        logfile=${LOGdir}/plot_bcor_${suffix}.log
-
-        rm -f $cmdfile
-        rm ${logfile}
-
+     rm -f $cmdfile
+     rm ${logfile}
 >$cmdfile
-        for var in $plot_list; do
-           echo "$IG_SCRIPTS/plot_bcor.sh $sat $var $var" >> $cmdfile
-        done
-        chmod 755 $cmdfile
-        ntasks=`cat $cmdfile|wc -l `
 
-        if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
-           wall_tm="2:30"
+     ctr=0
+     for var in $plot_list; do
+        if [[ $MY_MACHINE = "theia" ]]; then
+           echo "$ctr $IG_SCRIPTS/plot_bcor.sh $sat $var $var" >> $cmdfile
         else
-           wall_tm="1:00"
-        fi
-
-        if [[ $MY_MACHINE = "wcoss" ]]; then
-           $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} \
-                -W ${wall_tm} -J ${jobname} -cwd ${PWD} ./$cmdfile
-        else      
-           $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -o ${logfile} -W ${wall_tm} \
-                -J ${jobname} -cwd ${PWD} ./$cmdfile
-        fi
-     else					# zeus/linux
-        for var in $plot_list; do
-           cmdfile=cmdfile_pbcor_${suffix}_${var}
-           jobname=plot_${RADMON_SUFFIX}_bcor_${suffix}_${var}
-           logfile=${LOGdir}/plot_bcor_${suffix}_${var}.log
-
-           rm -f ${cmdfile}
-           rm -f ${logfile}
-
            echo "$IG_SCRIPTS/plot_bcor.sh $sat $var $var" >> $cmdfile
+        fi
+        ((ctr=ctr+1))
+     done
 
-           if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
-              wall_tm="4:00:00"
-           else
-              wall_tm="2:00:00"
-           fi
+     chmod 755 $cmdfile
 
-           $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} \
-                -V -j oe -o ${logfile} $cmdfile
-
-        done
+     if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+        wall_tm="2:30"
+     else
+        wall_tm="1:00"
      fi
+
+     if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "wcoss_d" ]]; then
+        $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} \
+             -W ${wall_tm} -J ${jobname} -cwd ${PWD} ./$cmdfile
+
+     elif [[ $MY_MACHINE = "cray" ]]; then      
+        $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -o ${logfile} -W ${wall_tm} \
+             -J ${jobname} -cwd ${PWD} ./$cmdfile
+
+     elif [[ $MY_MACHINE = "theia" ]]; then
+        $SUB --account ${ACCOUNT} -n $ctr  -o ${logfile} -D . -J ${jobname} \
+             --time=1:00:00 --wrap "srun -l --multi-prog ${cmdfile}"
+
+     fi
+
+     echo "submitted $sat"
   done
 
+
+  echo "end mk_bcor_plots.sh"
 exit

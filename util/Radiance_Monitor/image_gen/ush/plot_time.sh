@@ -167,10 +167,6 @@ EOF
 
 done
 
-#rm -f ${type}.ieee_d
-#rm -f ${type}.${PDATE}.ieee_d
-##   rm -f ${type}.ctl
-
 #--------------------------------------------------------------------
 # Copy image files to $IMGNDIR to set up for mirror to web server.
 # Delete images and data files.
@@ -181,10 +177,6 @@ fi
 if [[ $PLOT_STATIC_IMGS -eq 1 ]]; then
    cp -f *.png  ${IMGNDIR}/time
 fi
-
-#for var in ${PTYPE}; do
-#   rm -f ${type}.${var}*.png
-#done
 
 
 #--------------------------------------------------------------------
