@@ -154,6 +154,7 @@ subroutine gesinfo
      idate4(5)=regional_time(5)  ! minutes
      hourg=regional_fhr          !  fcst hour
      minuteg=regional_fmin       !  fcst minute
+     write(6,*)'thinkdeb3 regional_fmin ',regional_fmin
 ! Handle RURTMA date:  get iadatemn
      iadatemn(1)=regional_time(1)  !  year
      iadatemn(2)=regional_time(2)  !  month
@@ -461,6 +462,7 @@ subroutine gesinfo
   end if
   fha=zero; ida=0; jda=0
   fha(2)=ihourg    ! relative time interval in hours
+  write(6,*)'thinkdeb3 minuteg is ',minuteg
   if(regional) fha(3)=minuteg   ! relative time interval in minutes
   ida(1)=iyr       ! year
   ida(2)=idate4(2) ! month
@@ -468,6 +470,8 @@ subroutine gesinfo
   ida(4)=0         ! time zone
   ida(5)=idate4(1) ! hour
   if(regional) ida(6)=idate4(5) ! minute
+  write(6,*)'thinkdeb fha ida, jda ',fha,ida,jda
+  call flush(6)
   call w3movdat(fha,ida,jda)
   iadate(1)=jda(1) ! year
   iadate(2)=jda(2) ! mon

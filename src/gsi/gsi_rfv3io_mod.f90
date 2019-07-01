@@ -181,7 +181,7 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
   use mpimod, only: mype
 !cltorg  use mod_fv3_lola, only: generate_anl_grid
   use mod_fv3_lolgrid, only: generate_regular_grids
-  use gridmod,  only:nsig,regional_time,regional_fhr,aeta1_ll,aeta2_ll
+  use gridmod,  only:nsig,regional_time,regional_fhr,regional_fmin,aeta1_ll,aeta2_ll
   use gridmod,  only:nlon_regional,nlat_regional,eta1_ll,eta2_ll
   use gridmod,  only:region_lat,region_lon,nlat,nlon
   use gridmod,  only: region_dy,region_dx,region_dyi,region_dxi,coeffy,coeffx
@@ -227,6 +227,8 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
     regional_time(5)=mminute
     regional_time(6)=msecond
     regional_fhr=zero          ! forecast hour set zero for now
+    regional_fmin=zero          ! forecast min set zero for now
+    write(6,*)'thinkdeb regional_time is ',regional_time
 
 !!!!!!!!!!    grid_spec  !!!!!!!!!!!!!!!
     ierr=0

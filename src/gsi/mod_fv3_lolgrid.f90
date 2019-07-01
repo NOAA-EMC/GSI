@@ -70,11 +70,11 @@ module mod_fv3_lolgrid
   type fv3sar2grid_parm
   logical bilinear
   integer(i_kind) nxout,nyout,nx,ny
-  real(r_kind) ,pointer,dimension(:,:):: fv3dx,fv3dx1,fv3dy,fv3dy1
-  integer(i_kind),pointer,dimension(:,:)::  fv3ix,fv3ixp,fv3jy,fv3jyp
-  real(r_kind) ,pointer,dimension(:,:):: a3dx,a3dx1,a3dy,a3dy1
-  real(r_kind) ,pointer,dimension(:,:):: cangu,sangu,cangv,sangv
-  integer(i_kind),pointer,dimension(:,:)::  a3ix,a3ixp,a3jy,a3jyp
+  real(r_kind) ,pointer,dimension(:,:):: fv3dx=>null(),fv3dx1=>null(),fv3dy=>null(),fv3dy1=>null()
+  integer(i_kind),pointer,dimension(:,:)::  fv3ix=>null(),fv3ixp=>null(),fv3jy=>null(),fv3jyp=>null()
+  real(r_kind) ,pointer,dimension(:,:):: a3dx=>null(),a3dx1=>null(),a3dy=>null(),a3dy1=>null()
+  real(r_kind) ,pointer,dimension(:,:):: cangu=>null(),sangu=>null(),cangv=>null(),sangv=>null()
+  integer(i_kind),pointer,dimension(:,:)::  a3ix=>null(),a3ixp=>null(),a3jy=>null(),a3jyp=>null()
   end type
   type (fv3sar2grid_parm)::p_fv3sar2anlgrid,p_fv3sar2ensgrid
   integer(i_kind) nxa,nya
@@ -221,8 +221,8 @@ subroutine generate_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,p_
   p_fv3sar2grid%nyout=nyout
   nlatout=p_fv3sar2grid%nyout
   nlonout=p_fv3sar2grid%nxout
-  nxa=nx
-  nya=ny  ! for compatiability 
+  nxa=nxout
+  nya=nyout  ! for compatiability 
   if(mype==0) print *,'nlatout,nlonout = ',nlatout,nlonout
 
 !--------------------------obtain analysis grid spacing
@@ -361,14 +361,14 @@ subroutine generate_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,p_
 !!!!!compute fv3 to A grid interpolation parameters !!!!!!!!!
   allocate  (   p_fv3sar2grid%fv3dx(nxout,nyout),p_fv3sar2grid%fv3dx1(nxout,nyout),p_fv3sar2grid%fv3dy(nxout,nyout),p_fv3sar2grid%fv3dy1(nxout,nyout) )
   allocate  (   p_fv3sar2grid%fv3ix(nxout,nyout),p_fv3sar2grid%fv3ixp(nxout,nyout),p_fv3sar2grid%fv3jy(nxout,nyout),p_fv3sar2grid%fv3jyp(nxout,nyout) )
-  fv3dx=p_fv3sar2grid%fv3dx
-  fv3dx1=p_fv3sar2grid%fv3dx1
-  fv3dy=p_fv3sar2grid%fv3dy
-  fv3dy1=p_fv3sar2grid%fv3dy1
-  fv3ix=p_fv3sar2grid%fv3ix
-  fv3ixp=p_fv3sar2grid%fv3ixp
-  fv3jy=p_fv3sar2grid%fv3jy
-  fv3jyp=p_fv3sar2grid%fv3jyp
+  fv3dx=>p_fv3sar2grid%fv3dx
+  fv3dx1=>p_fv3sar2grid%fv3dx1
+  fv3dy=>p_fv3sar2grid%fv3dy
+  fv3dy1=>p_fv3sar2grid%fv3dy1
+  fv3ix=>p_fv3sar2grid%fv3ix
+  fv3ixp=>p_fv3sar2grid%fv3ixp
+  fv3jy=>p_fv3sar2grid%fv3jy
+  fv3jyp=>p_fv3sar2grid%fv3jyp
   
   allocate(yy(ny))
 
@@ -502,15 +502,15 @@ subroutine generate_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,p_
 !!!!!compute A to fv3 grid interpolation parameters !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1111
   allocate  (   p_fv3sar2grid%a3dx(ny,nx),p_fv3sar2grid%a3dx1(ny,nx),p_fv3sar2grid%a3dy(ny,nx),p_fv3sar2grid%a3dy1(ny,nx) )
   allocate  (   p_fv3sar2grid%a3ix(ny,nx),p_fv3sar2grid%a3ixp(ny,nx),p_fv3sar2grid%a3jy(ny,nx),p_fv3sar2grid%a3jyp(ny,nx) )
-  a3dx =p_fv3sar2grid%a3dx
-  a3dx1=p_fv3sar2grid%a3dx1
-  a3dy =p_fv3sar2grid%a3dy
-  a3dy1=p_fv3sar2grid%a3dy1
+  a3dx =>p_fv3sar2grid%a3dx
+  a3dx1=>p_fv3sar2grid%a3dx1
+  a3dy =>p_fv3sar2grid%a3dy
+  a3dy1=>p_fv3sar2grid%a3dy1
 
-  a3ix =p_fv3sar2grid%a3ix
-  a3ixp =p_fv3sar2grid%a3ixp
-  a3jy =p_fv3sar2grid%a3jy
-  a3jyp=p_fv3sar2grid%a3jyp
+  a3ix =>p_fv3sar2grid%a3ix
+  a3ixp =>p_fv3sar2grid%a3ixp
+  a3jy =>p_fv3sar2grid%a3jy
+  a3jyp=>p_fv3sar2grid%a3jyp
   
   do i=1,nx
      do j=1,ny
@@ -553,10 +553,10 @@ subroutine generate_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,p_
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   allocate  (  p_fv3sar2grid%cangu(nx,ny+1),p_fv3sar2grid%sangu(nx,ny+1),p_fv3sar2grid%cangv(nx+1,ny),p_fv3sar2grid%sangv(nx+1,ny) )
-   cangu=p_fv3sar2grid%cangu
-   sangu=p_fv3sar2grid%sangu
-   sangu=p_fv3sar2grid%cangv
-   sangu=p_fv3sar2grid%sangv
+   cangu=>p_fv3sar2grid%cangu
+   sangu=>p_fv3sar2grid%sangu
+   cangv=>p_fv3sar2grid%cangv
+   sangv=>p_fv3sar2grid%sangv
 
 !   1.  compute x,y,z at cell cornor from grid_lon, grid_lat
 
@@ -646,10 +646,10 @@ subroutine earthuv2fv3_regular_grids(u,v,nx,ny,u_out,v_out,p_fv3sar2grid)
   real(r_kind),intent(  out) :: u_out(nx,ny+1),v_out(nx+1,ny)
   integer(i_kind) i,j
   real(r_kind) ,pointer,dimension(:,:):: cangu,sangu,cangv,sangv
-   cangu=p_fv3sar2grid%cangu
-   sangu=p_fv3sar2grid%sangu
-   sangu=p_fv3sar2grid%cangv
-   sangu=p_fv3sar2grid%sangv
+   cangu=>p_fv3sar2grid%cangu
+   sangu=>p_fv3sar2grid%sangu
+   cangv=>p_fv3sar2grid%cangv
+   sangv=>p_fv3sar2grid%sangv
   
 
 !!!!!!! earth u/v to covariant u/v
@@ -711,10 +711,10 @@ subroutine fv3uv2earth_regular_grids(u,v,nx,ny,u_out,v_out,p_fv3sar2grid)
   real(r_kind),intent(  out) :: u_out(nx,ny),v_out(nx,ny)
   integer(i_kind) i,j
   real(r_kind) ,pointer,dimension(:,:):: cangu,sangu,cangv,sangv
-   cangu=p_fv3sar2grid%cangu
-   sangu=p_fv3sar2grid%sangu
-   sangu=p_fv3sar2grid%cangv
-   sangu=p_fv3sar2grid%sangv
+   cangu=>p_fv3sar2grid%cangu
+   sangu=>p_fv3sar2grid%sangu
+   cangv=>p_fv3sar2grid%cangv
+   sangv=>p_fv3sar2grid%sangv
 
   do j=1,ny
      do i=1,nx
@@ -771,14 +771,14 @@ subroutine fv3_h_to_ll_regular_grids(b_in,a,nb,mb,na,ma,p_fv3sar2grid)
   real(r_kind)    b(nb,mb)
   
   bilinear= p_fv3sar2grid%bilinear
-  fv3dx=p_fv3sar2grid%fv3dx
-  fv3dx1=p_fv3sar2grid%fv3dx1
-  fv3dy=p_fv3sar2grid%fv3dy
-  fv3dy1=p_fv3sar2grid%fv3dy1
-  fv3ix=p_fv3sar2grid%fv3ix
-  fv3ixp=p_fv3sar2grid%fv3ixp
-  fv3jy=p_fv3sar2grid%fv3jy
-  fv3jyp=p_fv3sar2grid%fv3jyp
+  fv3dx=>p_fv3sar2grid%fv3dx
+  fv3dx1=>p_fv3sar2grid%fv3dx1
+  fv3dy=>p_fv3sar2grid%fv3dy
+  fv3dy1=>p_fv3sar2grid%fv3dy1
+  fv3ix=>p_fv3sar2grid%fv3ix
+  fv3ixp=>p_fv3sar2grid%fv3ixp
+  fv3jy=>p_fv3sar2grid%fv3jy
+  fv3jyp=>p_fv3sar2grid%fv3jyp
   
 !!!!!!!!! reverse E-W and N-S
   mbp=mb+1
@@ -852,15 +852,15 @@ subroutine fv3_ll_to_h_regular_grids(a,b,nxa,nya,nxb,nyb,rev_flg,p_fv3sar2grid)
 
   integer(i_kind) i,j,ir,jr,nybp,nxbp,ijr
 
-  a3dx =p_fv3sar2grid%a3dx
-  a3dx1=p_fv3sar2grid%a3dx1
-  a3dy =p_fv3sar2grid%a3dy
-  a3dy1=p_fv3sar2grid%a3dy1
+  a3dx =>p_fv3sar2grid%a3dx
+  a3dx1=>p_fv3sar2grid%a3dx1
+  a3dy =>p_fv3sar2grid%a3dy
+  a3dy1=>p_fv3sar2grid%a3dy1
 
-  a3ix =p_fv3sar2grid%a3ix
-  a3ixp =p_fv3sar2grid%a3ixp
-  a3jy =p_fv3sar2grid%a3jy
-  a3jyp=p_fv3sar2grid%a3jyp
+  a3ix =>p_fv3sar2grid%a3ix
+  a3ixp =>p_fv3sar2grid%a3ixp
+  a3jy =>p_fv3sar2grid%a3jy
+  a3jyp=>p_fv3sar2grid%a3jyp
 
   if(rev_flg)then
 !!!!!!!!!! output in reverse E-W, N-S and reversed i,j !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

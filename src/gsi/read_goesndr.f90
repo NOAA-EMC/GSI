@@ -302,6 +302,10 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !          if not proper satellite/detector read next bufr record
            if (ksatid /=lsatid) cycle read_loop
            if(obstype /= 'sndr')then
+              
+!cltorg              if(abs(hdr(8)-ldetect).gt. 100) cycle read_loop !cltthinkdeb to
+                                                     !avoid large value of hdr(8) (100000??) would cause nint(hdr(8)) aborted when
+                                                     !compiled with debug mode
               if(ldetect /= nint(hdr(8)))cycle read_loop
            end if
 

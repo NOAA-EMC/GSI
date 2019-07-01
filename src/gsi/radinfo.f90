@@ -1063,8 +1063,8 @@ contains
              open(lunout,file='satbias_ang.out',form='formatted')
              write(lunout,'(I5)') maxscan
              do j=1,jpch_rad
-                write(lunout,'(I5,1x,A20,2x,I4,e15.6/100(4x,10f7.3/))') &
-                     j,nusis(j),nuchan(j),tlapmean(j),(cbias(i,j),i=1,maxscan)
+ !cltthinkdeb               write(lunout,'(I5,1x,A20,2x,I4,e15.6/100(4x,10f7.3/))') &
+!cltthinkdeb                     j,nusis(j),nuchan(j),tlapmean(j),(cbias(i,j),i=1,maxscan)
              end do
              close(lunout)
           end if
