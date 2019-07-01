@@ -492,13 +492,16 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
      end if
 
 
+        write(6,*)'thinkdeb999 setuprhsall ndatinobs ',ndat,nsat1(1)
 !    Loop over data types to process
      do is=1,ndat
         nobs=nsat1(is)
+        write(6,*)'thinkdeb999 setuprhsall ditype is ',ditype(is)
  
         if(nobs > 0)then
 
            read(lunin,iostat=ier) obstype,isis,nreal,nchanl
+        write(6,*)'thinkdeb999 setuprhsall obtyp is ', obstype
 !          if(mype == mype_diaghdr(is)) then
 !             write(6,300) obstype,isis,nreal,nchanl
 !300          format(' SETUPALL:,obstype,isis,nreal,nchanl=',a12,a20,i5,i5)

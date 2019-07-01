@@ -1822,8 +1822,9 @@ subroutine read_obs(ndata,mype)
        write(lunsave) super_val1
        write(lunsave) nobs_sub
        close(lunsave)
+    write(6,*) 'thinkdeb in read_obs 1'
+    call flush(6)
     endif
-
 !   End of routine
     return
 end subroutine read_obs
