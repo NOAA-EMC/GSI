@@ -11,6 +11,7 @@ module read_obsmod
 !   2015-05-01  Liu Ling - Add call to read_rapidscat 
 !   2015-08-20  zhu  - add flexibility for enabling all-sky and using aerosol info in radiance 
 !                      assimilation. Use radiance_obstype_search from radiance_mod.  
+!   2017-05-12  Y. Wang and X. Wang - add dbz to be read in, POC: xuguang.wang@ou.edu
 !
 ! subroutines included:
 !   sub gsi_inquire   -  inquire statement supporting fortran earlier than 2003
@@ -154,6 +155,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
   use convinfo, only: nconvtype,ictype,ioctype,icuse
   use chemmod, only : oneobtest_chem,oneob_type_chem,&
        code_pm25_ncbufr,code_pm25_anowbufr,code_pm10_ncbufr,code_pm10_anowbufr
+  use mrmsmod,only: l_mrms_run
 
   implicit none
 
@@ -178,9 +180,11 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
   if(trim(dtype) == 'tcp' .or. trim(filename) == 'tldplrso')return
   if(trim(filename) == 'mitmdat' .or. trim(filename) == 'mxtmdat')return
   if(trim(filename) == 'satmar')return
+  if(trim(dtype) == 'dbz' )return
 
 ! Use routine as usual
-  if(lexist)then
+
+  if(lexist .and. trim(dtype) /= 'tcp' )then
       lnbufr = 15
       open(lnbufr,file=trim(filename),form='unformatted',status ='unknown')
       call openbf(lnbufr,'IN',lnbufr)
@@ -646,6 +650,7 @@ subroutine read_obs(ndata,mype)
 !   2016-04-28  J. Jung - added logic for RARS and direct broadcast data from NESDIS/UW.
 !   2016-05-05  pondeca - add 10-m u-wind and v-wind (uwnd10m, vwnd10m)
 !   2016-09-19  Guo     - replaced open(obs_input_common) with "call unformatted_open(obs_input_common)"
+!   2017-05-12  Y. Wang and X. Wang - add multi-interface to read in dBZ (nc) and radial velocity (ascii)
 !   2016-12-14  lippi   - Fixed bug of using observations twice when both
 !                         l2rwbufr and radarbufr are in the OBS_INPUT table.
 !                         Changed the dsis entries for l2rwbufr and radarbufr to
@@ -712,6 +717,9 @@ subroutine read_obs(ndata,mype)
     use m_extOzone, only: extOzone_read
     use mpeu_util, only: warn
     use gsi_unformatted, only: unformatted_open
+
+    use mrmsmod,only: l_mrms_sparse_netcdf
+
     implicit none
 
 !   Declare passed variables
@@ -729,7 +737,7 @@ subroutine read_obs(ndata,mype)
     logical :: acft_profl_file
     character(10):: obstype,platid
     character(22):: string
-    character(15):: infile
+    character(120):: infile
     character(20):: sis
     integer(i_kind) i,j,k,ii,nmind,lunout,isfcalc,ithinx,ithin,nread,npuse,nouse
     integer(i_kind) nprof_gps1,npem1,krsize,len4file,npemax,ilarge,nlarge,npestart
@@ -849,7 +857,7 @@ subroutine read_obs(ndata,mype)
            obstype == 'mitm' .or. obstype=='pmsl' .or. &
            obstype == 'howv' .or. obstype=='tcamt' .or. &
            obstype=='lcbas' .or. obstype=='cldch' .or. obstype == 'larcglb' .or. &
-           obstype=='uwnd10m' .or. obstype=='vwnd10m') then
+           obstype=='uwnd10m' .or. obstype=='vwnd10m' .or. obstype=='dbz' ) then
           ditype(i) = 'conv'
        else if (obstype == 'swcp' .or. obstype == 'lwcp') then
           ditype(i) = 'wcp'
@@ -1220,6 +1228,9 @@ subroutine read_obs(ndata,mype)
           if(obstype == 'rw')then
              use_hgtl_full=.true.
              if(belong(i))use_hgtl_full_proc=.true.
+           else if(obstype == 'dbz')then
+             use_hgtl_full=.true.
+             if(belong(i))use_hgtl_full_proc=.true.
           end if
           if(obstype == 'sst')then
             if(belong(i))use_sfc=.true.
@@ -1484,15 +1495,38 @@ subroutine read_obs(ndata,mype)
 
 !            Process radar winds
              else if (obstype == 'rw') then
-                if (vadwnd_l2rw_qc) then
-                    write(6,*)'READ_OBS: radial wind,read_radar,dfile=',infile,',dsis=',sis
-                   call read_radar(nread,npuse,nouse,infile,lunout,obstype,twind,sis,&
-                                   hgtl_full,nobs_sub1(1,i))
-                   string='READ_RADAR'
-                else if (sis == 'l2rw') then
-                    write(6,*)'READ_OBS: radial wind,read_radar_l2rw_novadqc,dfile=',infile,',dsis=',sis
-                   call read_radar_l2rw_novadqc(npuse,nouse,lunout,obstype,sis,nobs_sub1(1,i))
-                   string='READ_RADAR_L2RW_NOVADQC'
+                if( trim(infile) == 'vr_vol' )then
+                  call read_radar_wind_ascii(nread,npuse,nouse,infile,lunout,obstype,sis,&
+                                  hgtl_full,nobs_sub1(1,i))
+                else
+                 if (vadwnd_l2rw_qc) then
+                      write(6,*)'READ_OBS: radial wind,read_radar,dfile=',infile,',dsis=',sis 
+                     call read_radar(nread,npuse,nouse,infile,lunout,obstype,twind,sis,&
+                                     hgtl_full,nobs_sub1(1,i))
+                     string='READ_RADAR'
+                  else if (sis == 'l2rw') then
+                      write(6,*)'READ_OBS: radial wind,read_radar_l2rw_novadqc,dfile=',infile,',dsis=',sis
+                     call read_radar_l2rw_novadqc(npuse,nouse,lunout,obstype,sis,nobs_sub1(1,i))
+                     string='READ_RADAR_L2RW_NOVADQC'
+                  end if
+                end if
+                string='READ_RADAR_WIND'
+
+!            Process radar reflectivity from MRMS
+             else if (obstype == 'dbz' ) then
+                print *, "calling read_dbz"
+                if(trim(infile)=='dbzobs.nc')then
+                  call read_dbz_nc(nread,npuse,nouse,infile,lunout,obstype,sis,hgtl_full,nobs_sub1(1,i))
+                  string='READ_dBZ'
+                else
+                  call read_dbz_mrms_detect_format(infile,l_mrms_sparse_netcdf)
+                  if(l_mrms_sparse_netcdf) then
+                     call read_dbz_mrms_sparse_netcdf(nread,npuse,nouse,infile,obstype,lunout,sis,nobs_sub1(1,i))
+                     string='READ_dbz_mrms_sparse_netcdf'
+                  else
+                     call read_dbz_mrms_netcdf(nread,npuse,nouse,infile,obstype,lunout,sis,nobs_sub1(1,i))
+                     string='READ_dbz_mrms_netcdf'
+                  endif
                 end if
 
 !            Process lagrangian data

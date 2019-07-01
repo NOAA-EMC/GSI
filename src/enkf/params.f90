@@ -100,6 +100,8 @@ real(r_single),public :: analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,saterrf
 real(r_single),public ::  paoverpb_thresh,latbound,delat,p5delat,delatinv
 real(r_single),public ::  latboundpp,latboundpm,latboundmp,latboundmm
 real(r_single),public :: covl_minfact, covl_efold
+
+real(r_single),public :: covinflatenh,covinflatesh,covinflatetr,lnsigcovinfcutoff
 ! if npefiles=0, diag files are read (concatenated pe* files written by gsi)
 ! if npefiles>0, npefiles+1 pe* files read directly
 ! the pe* files are assumed to be located in <obspath>/gsitmp_mem###
@@ -202,8 +204,8 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    save_inflation,nobsl_max,lobsdiag_forenkf,netcdf_diag,&
                    letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs,npefiles,&
                    getkf,getkf_inflation,denkf,modelspace_vloc,dfs_sort,write_spread_diag,&
+                   covinflatenh,covinflatesh,covinflatetr,lnsigcovinfcutoff,&
                    fso_cycling,fso_calculate,imp_physics,lupp
-
 namelist /nam_wrf/arw,nmm,nmm_restart
 namelist /satobs_enkf/sattypes_rad,dsis
 namelist /ozobs_enkf/sattypes_oz
@@ -266,6 +268,11 @@ delat = 10._r_single    ! width of transition zone.
 analpertwtnh = 0.0_r_single ! no inflation (1 means inflate all the way back to prior spread)
 analpertwtsh = 0.0_r_single
 analpertwttr = 0.0_r_single
+covinflatenh = 0.0_r_single !
+covinflatetr = 0.0_r_single !
+covinflatesh = 0.0_r_single !
+! lnsigcovinfcutoff (length for vertical taper in inflation in ln(sigma))
+lnsigcovinfcutoff = 1.0e30_r_single
 ! if ob space posterior variance divided by prior variance
 ! less than this value, ob is skipped during serial processing.
 paoverpb_thresh = 1.0_r_single! don't skip any obs

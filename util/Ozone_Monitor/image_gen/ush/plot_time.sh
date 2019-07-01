@@ -14,6 +14,17 @@ export PTYPE=$3
 echo "SATYPE, PVAR, PTYPE = $SATYPE, $PVAR, $PTYPE"
 echo "RUN = $RUN"
 
+echo COMP1, COMP2, DO_COMP = $COMP1, $COMP2, $DO_COMP
+
+#omp=ompsnp_npp
+#ADD_OMPSNP=0
+
+ADD_COMP=0
+#if [[ $SATYPE = "sbuv2_n19" ]]; then
+if [[ $SATYPE = $COMP1 ]]; then
+   ADD_COMP=1
+fi
+
 #------------------------------------------------------------------
 # Set work space for this SATYPE source.
 #
@@ -52,6 +63,24 @@ while [[ $ctr -le 119 ]]; do
       fi
    fi
 
+   if [[ $ADD_COMP -eq 1 ]]; then
+      if [[ ! -e ./${COMP2}.ctl ]]; then
+         $NCP ${tankdir_cdate}/${COMP2}.ctl ./
+      fi
+      
+      data_file=${tankdir_cdate}/${COMP2}.${cdate}.ieee_d
+      if [[ -s ${data_file} ]]; then
+         $NCP ${data_file} ./
+      else
+         data_file=${data_file}.${Z}
+         if [[ -s ${data_file} ]]; then
+            $NCP ${data_file} ./
+            $UNCOMPRESS ${data_file}
+         fi
+      fi
+
+   fi
+
    cdate=`$NDATE -6 $cdate`
    ctr=`expr $ctr + 1`
 done
@@ -64,11 +93,17 @@ done
 if [[ -e ${SATYPE}.ctl ]]; then
    edate=`$NDATE -720 $PDATE`
    ${OZN_IG_SCRIPTS}/update_ctl_tdef.sh ${SATYPE}.ctl ${edate} 121
+
+   if [[ $ADD_COMP -eq 1 ]]; then
+      ${OZN_IG_SCRIPTS}/update_ctl_tdef.sh ${COMP2}.ctl ${edate} 121
+   fi
 fi
 
 
 for var in ${PTYPE}; do
    echo $var
+
+   if [[ $ADD_COMP -eq 0 ]]; then
 
 cat << EOF > ${SATYPE}_${var}.gs
 'reinit'
@@ -78,8 +113,20 @@ cat << EOF > ${SATYPE}_${var}.gs
 'quit'
 EOF
 
-   echo ${tmpdir}/${SATYPE}_${var}.gs
+   else
 
+cat << EOF > ${SATYPE}_${var}.gs
+'reinit'
+'clear'
+'open  ${SATYPE}.ctl'
+'open  ${COMP2}.ctl'
+'run ${OZN_IG_GSCRPTS}/plot_time_${string}_2x.gs ${OZNMON_SUFFIX} ${RUN} ${SATYPE} ${COMP2} ${var} x750 y700'
+'quit'
+EOF
+
+   fi
+
+   echo ${tmpdir}/${SATYPE}_${var}.gs
    $GRADS -bpc "run ${tmpdir}/${SATYPE}_${var}.gs"
 
 done 
@@ -93,9 +140,9 @@ ${NCP} *.png ${OZN_IMGN_TANKDIR}/.
 
 #--------------------------------------------------------------------
 # Clean $tmpdir.  Submit done job.
-cd $tmpdir
-cd ../
-rm -rf $tmpdir
+#cd $tmpdir
+#cd ../
+#rm -rf $tmpdir
 
 exit
 

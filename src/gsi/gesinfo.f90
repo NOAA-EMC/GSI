@@ -31,6 +31,8 @@ subroutine gesinfo
 !                             (1) remove idvm(5) and derivation of idpsfc5 and idthrm5
 !                             (2) remove cpi, NEMSIO input always is dry tempersture (no
 !                                 conversion from enthalpy w/ cpi is needed)
+!   2017-05-12 Y. Wang and X. Wang - forecast length in minute unit is included in analysis time calculation
+!                                    for subhourly DA, POC: xuguang.wang@ou.edu
 !   2017-10-10  wu,w    - setup for FV3
 !
 !   input argument list:
@@ -75,7 +77,8 @@ subroutine gesinfo
       regional,nsig,regional_fhr,regional_time,fv3_regional,&
       wrf_nmm_regional,wrf_mass_regional,twodvar_regional,nems_nmmb_regional,cmaq_regional,&
       ntracer,ncloud,idvm5,&
-      ncepgfs_head,ncepgfs_headv,idpsfc5,idthrm5,idsl5,cp5,jcap_b, use_gfs_nemsio
+      ncepgfs_head,ncepgfs_headv,idpsfc5,idthrm5,idsl5,cp5,jcap_b, use_gfs_nemsio, &
+      regional_fmin
   use sigio_module, only: sigio_head,sigio_srhead,sigio_sclose,&
       sigio_sropen
   use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
@@ -105,13 +108,13 @@ subroutine gesinfo
 
   integer(i_kind) iyr,ihourg,k
   integer(i_kind) mype_out,iret,iret2,intype
-  integer(i_kind),dimension(4):: idate4
+  integer(i_kind),dimension(5):: idate4
   integer(i_kind),dimension(8):: ida,jda
   integer(i_kind) :: nmin_an
   integer(i_kind),dimension(7):: idate
   integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
 
-  real(r_kind) hourg
+  real(r_kind) hourg, minuteg
   real(r_kind),dimension(5) :: fha
   real(r_single),allocatable,dimension(:,:,:) :: nems_vcoord
 
@@ -148,7 +151,9 @@ subroutine gesinfo
      idate4(2)=regional_time(2)  !  month
      idate4(3)=regional_time(3)  !  day
      idate4(4)=regional_time(1)  !  year
+     idate4(5)=regional_time(5)  ! minutes
      hourg=regional_fhr          !  fcst hour
+     minuteg=regional_fmin       !  fcst minute
 ! Handle RURTMA date:  get iadatemn
      iadatemn(1)=regional_time(1)  !  year
      iadatemn(2)=regional_time(2)  !  month
@@ -456,17 +461,23 @@ subroutine gesinfo
   end if
   fha=zero; ida=0; jda=0
   fha(2)=ihourg    ! relative time interval in hours
+  if(regional) fha(3)=minuteg   ! relative time interval in minutes
   ida(1)=iyr       ! year
   ida(2)=idate4(2) ! month
   ida(3)=idate4(3) ! day
   ida(4)=0         ! time zone
   ida(5)=idate4(1) ! hour
+  if(regional) ida(6)=idate4(5) ! minute
   call w3movdat(fha,ida,jda)
   iadate(1)=jda(1) ! year
   iadate(2)=jda(2) ! mon
   iadate(3)=jda(3) ! day
   iadate(4)=jda(5) ! hour
-  iadate(5)=0      ! minute
+  if(regional) then 
+     iadate(5)=jda(6) !regional_time(5)      ! minute
+  else
+     iadate(5)=0   ! minute
+  end if
   ianldate =jda(1)*1000000+jda(2)*10000+jda(3)*100+jda(5)
 
 ! Determine date and time at start of assimilation window

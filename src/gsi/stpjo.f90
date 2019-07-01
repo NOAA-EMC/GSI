@@ -33,7 +33,7 @@ module stpjomod
                   & i_pm10_ob_type, &
                   & i_wspd10m_ob_type,i_uwnd10m_ob_type,i_vwnd10m_ob_type,i_td2m_ob_type,i_mxtm_ob_type,i_mitm_ob_type, &
                     i_pmsl_ob_type,i_howv_ob_type,i_tcamt_ob_type,i_lcbas_ob_type,  &
-                    i_aero_ob_type, i_cldch_ob_type, i_swcp_ob_type, i_lwcp_ob_type, i_light_ob_type
+                    i_aero_ob_type, i_cldch_ob_type, i_swcp_ob_type, i_lwcp_ob_type, i_light_ob_type, i_dbz_ob_type
 
   implicit none
 
@@ -271,6 +271,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep,nobs_bins)
   use stpradmod, only: stprad
   use stpgpsmod, only: stpgps
   use stprwmod, only: stprw
+  use stpdbzmod, only: stpdbz
   use stpspdmod, only: stpspd
   use stpsstmod, only: stpsst
   use stptcpmod, only: stptcp
@@ -366,6 +367,10 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep,nobs_bins)
 !   penalty, b, and c for radar
        case(i_rw_ob_type)
           call stprw(yobs(ib)%rw,dval(ib),xval(ib),pbcjo(1,i_rw_ob_type,ib),sges,nstep) 
+
+!   penalty, b, and c for radar reflectivity
+       case(i_dbz_ob_type)
+          call stpdbz(yobs(ib)%dbz,dval(ib),xval(ib),pbcjo(1,i_dbz_ob_type,ib),sges,nstep)
 
 !   penalty, b, and c for moisture
        case(i_q_ob_type)
@@ -612,6 +617,15 @@ subroutine stpjo_setup(yobs)
              ll_jo(stpcnt) = i_rw_ob_type
              ib_jo(stpcnt) = ib
           end if
+
+       case(i_dbz_ob_type)
+!         penalty, b, and c for radar reflectivity
+          if(associated(yobs(ib)%dbz)) then
+             stpcnt = stpcnt +1
+             ll_jo(stpcnt) = i_dbz_ob_type
+             ib_jo(stpcnt) = ib
+          end if
+
        case(i_q_ob_type)
 !         penalty, b, and c for moisture
           if(associated(yobs(ib)%q)) then
