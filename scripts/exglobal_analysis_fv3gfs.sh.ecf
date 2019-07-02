@@ -257,6 +257,7 @@ if [ $DOHYBVAR = "YES" ]; then
    ATMGES_ENSMEAN=${ATMGES_ENSMEAN:-${COMIN_GES_ENS}/${GPREFIX}atmf006.ensmean${GSUFFIX}}
    LONB_ENKF=${LONB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimx | grep -i "dimx" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get LONB_ENKF
    LATB_ENKF=${LATB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimy | grep -i "dimy" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get LATB_ENKF
+   LEVS_ENKF=${LEVS_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimz | grep -i "dimz" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get LEVS_ENKF
    NLON_ENKF=${NLON_ENKF:-$LONB_ENKF}
    NLAT_ENKF=${NLAT_ENKF:-$(($LATB_ENKF+2))}
    JCAP_ENKF=${JCAP_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN jcap | grep -i "jcap" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get JCAP_ENKF
