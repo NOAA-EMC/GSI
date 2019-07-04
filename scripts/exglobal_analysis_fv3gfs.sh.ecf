@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/ksh
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
@@ -100,6 +100,7 @@ binary_diag=${binary_diag:-".true."}
 
 # IAU
 DOIAU=${DOIAU:-"NO"}
+IAUFHRS=${IAUFHRS:-"6"}
 
 # Dependent Scripts and Executables
 NTHREADS_CALCINC=${NTHREADS_CALCINC:-1}
@@ -239,7 +240,6 @@ FAC_TSL=${FAC_TSL:-1}
 TZR_QC=${TZR_QC:-1}
 USE_READIN_ANL_SFCMASK=${USE_READIN_ANL_SFCMASK:-.false.}
 SMOOTH_ENKF=${SMOOTH_ENKF:-"YES"}
-DOIAU=${DOIAU:-"NO"}
 DO_CALC_INCREMENT=${DO_CALC_INCREMENT:-"YES"}
 INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"'NONE'"}
 
@@ -675,7 +675,7 @@ cat > gsiparm.anl << EOF
   diag_precon=.true.,step_start=1.e-3,emiss_bc=.true.,nhr_obsbin=${nhr_obsbin:-3},
   cwoption=3,imp_physics=$imp_physics,lupp=$lupp,
   netcdf_diag=$netcdf_diag,binary_diag=$binary_diag,
-  lobsdiag_forenkf=$lobsdiag_forenkf,
+  lobsdiag_forenkf=$lobsdiag_forenkf,nhr_anal=${IAUFHRS},
   $SETUP
 /
 &GRIDOPTS
@@ -861,14 +861,17 @@ $ERRSCRIPT || exit 2
 # Calculate analysis increment here before releasing FV3 forecast
 if [ $DO_CALC_INCREMENT = "YES" ]; then
   if [ $DOIAU = "YES" -a $l4densvar = ".true." -a $lwrite4danl = ".true." ]; then
-     ncmd=7
-     $NLN sigf03 atmges_mem001 ; $NLN siga03 atmanl_mem001 ; $NLN ${COMOUT}/${APREFIX}atmi003.nc atminc_mem001
-     $NLN sigf04 atmges_mem002 ; $NLN siga04 atmanl_mem002 ; $NLN ${COMOUT}/${APREFIX}atmi004.nc atminc_mem002
-     $NLN sigf05 atmges_mem003 ; $NLN siga05 atmanl_mem003 ; $NLN ${COMOUT}/${APREFIX}atmi005.nc atminc_mem003
-     $NLN sigf06 atmges_mem004 ; $NLN siganl atmanl_mem004 ; $NLN ${COMOUT}/${APREFIX}atminc.nc  atminc_mem004
-     $NLN sigf07 atmges_mem005 ; $NLN siga07 atmanl_mem005 ; $NLN ${COMOUT}/${APREFIX}atmi007.nc atminc_mem005
-     $NLN sigf08 atmges_mem006 ; $NLN siga08 atmanl_mem006 ; $NLN ${COMOUT}/${APREFIX}atmi008.nc atminc_mem006
-     $NLN sigf09 atmges_mem007 ; $NLN siga09 atmanl_mem007 ; $NLN ${COMOUT}/${APREFIX}atmi009.nc atminc_mem007
+     nfhrs=`echo $IAUFHRS | sed 's/,/ /g'`
+     ncmd=0
+     for FHR in $nfhrs; do
+	 (( ncmd = $ncmd + 1 ))
+	 memchar="mem"$(printf %03i $ncmd)
+	 if [ $FHR -eq 6 ]; then
+	     $NLN sigf06 atmges_${memchar} ; $NLN siganl atmanl_${memchar} ; $NLN ${COMOUT}/${APREFIX}atminc.nc  atminc_${memchar}
+	 else
+	     $NLN sigf0${FHR} atmges_${memchar} ; $NLN siga0${FHR} atmanl_${memchar} ; $NLN ${COMOUT}/${APREFIX}atmi00${FHR}.nc atminc_${memchar}
+	 fi
+     done
   else
      ncmd=1
      $NLN sigf06 atmges_mem001 ; $NLN siganl atmanl_mem001 ; $NLN ${COMOUT}/${APREFIX}atminc.nc  atminc_mem001
