@@ -71,7 +71,7 @@ subroutine prt_guess(sgrep)
   character(len=4) :: cvar(nvars+3)
 
 !*******************************************************************************
-
+  write(6,*)'thinkdeb250 in  prt_guess'
   ntsig = ntguessig
   ntsfc = ntguessfc
 
@@ -92,7 +92,7 @@ subroutine prt_guess(sgrep)
   ier=ier+istatus
   call gsi_bundlegetpointer (gsi_metguess_bundle(ntsig),'oz',ges_oz_it,istatus)
   ier=ier+istatus
-  if (ier/=0) return ! this is a fundamental routine, when some not found just return
+!cltthinkdeb   if (ier/=0) return ! this is a fundamental routine, when some not found just return
 
 ! get pointer to cloud water condensate
   call gsi_metguess_get('clouds::3d',n_actual_clouds,ier)
@@ -112,7 +112,7 @@ subroutine prt_guess(sgrep)
         ier=99
      endif
   end if
-  if (ier/=0) return ! this is a fundamental routine, when some not found just return
+!cltorgthink  if (ier/=0) return ! this is a fundamental routine, when some not found just return
 
   cvar( 1)='U   '
   cvar( 2)='V   '
@@ -129,16 +129,16 @@ subroutine prt_guess(sgrep)
   cvar(13)='radb'
   cvar(14)='pcpb'
   cvar(15)='aftb'
-
+  zloc=0.0
   zloc(1)          = sum   (ges_u_it  (2:lat1+1,2:lon1+1,1:nsig))
   zloc(2)          = sum   (ges_v_it  (2:lat1+1,2:lon1+1,1:nsig))
   zloc(3)          = sum   (ges_tv_it (2:lat1+1,2:lon1+1,1:nsig))
   zloc(4)          = sum   (ges_q_it  (2:lat1+1,2:lon1+1,1:nsig))
   zloc(5)          = sum   (ges_tsen  (2:lat1+1,2:lon1+1,1:nsig,ntsig))
   zloc(6)          = sum   (ges_oz_it (2:lat1+1,2:lon1+1,1:nsig))
-  zloc(7)          = sum   (ges_cwmr_it(2:lat1+1,2:lon1+1,1:nsig))
-  zloc(8)          = sum   (ges_div_it (2:lat1+1,2:lon1+1,1:nsig))
-  zloc(9)          = sum   (ges_vor_it (2:lat1+1,2:lon1+1,1:nsig))
+!clt  zloc(7)          = sum   (ges_cwmr_it(2:lat1+1,2:lon1+1,1:nsig))
+!clt  zloc(8)          = sum   (ges_div_it (2:lat1+1,2:lon1+1,1:nsig))
+!clt  zloc(9)          = sum   (ges_vor_it (2:lat1+1,2:lon1+1,1:nsig))
   zloc(10)         = sum   (ges_prsl  (2:lat1+1,2:lon1+1,1:nsig,ntsig))
   zloc(11)         = sum   (ges_ps_it (2:lat1+1,2:lon1+1             ))
   zloc(12)         = sum   (sfct      (2:lat1+1,2:lon1+1,       ntsfc))
@@ -148,21 +148,21 @@ subroutine prt_guess(sgrep)
   zloc(nvars+4)    = minval(ges_q_it  (2:lat1+1,2:lon1+1,1:nsig))
   zloc(nvars+5)    = minval(ges_tsen  (2:lat1+1,2:lon1+1,1:nsig,ntsig))
   zloc(nvars+6)    = minval(ges_oz_it (2:lat1+1,2:lon1+1,1:nsig))
-  zloc(nvars+7)    = minval(ges_cwmr_it(2:lat1+1,2:lon1+1,1:nsig))
-  zloc(nvars+8)    = minval(ges_div_it(2:lat1+1,2:lon1+1,1:nsig))
-  zloc(nvars+9)    = minval(ges_vor_it(2:lat1+1,2:lon1+1,1:nsig))
+!clt  zloc(nvars+7)    = minval(ges_cwmr_it(2:lat1+1,2:lon1+1,1:nsig))
+!clt  zloc(nvars+8)    = minval(ges_div_it(2:lat1+1,2:lon1+1,1:nsig))
+!clt  zloc(nvars+9)    = minval(ges_vor_it(2:lat1+1,2:lon1+1,1:nsig))
   zloc(nvars+10)   = minval(ges_prsl  (2:lat1+1,2:lon1+1,1:nsig,ntsig))
   zloc(nvars+11)   = minval(ges_ps_it (2:lat1+1,2:lon1+1             ))
-  zloc(nvars+12)   = minval(sfct      (2:lat1+1,2:lon1+1,       ntsfc))
+!clt  zloc(nvars+12)   = minval(sfct      (2:lat1+1,2:lon1+1,       ntsfc))
   zloc(2*nvars+1)  = maxval(ges_u_it  (2:lat1+1,2:lon1+1,1:nsig))
   zloc(2*nvars+2)  = maxval(ges_v_it  (2:lat1+1,2:lon1+1,1:nsig))
   zloc(2*nvars+3)  = maxval(ges_tv_it (2:lat1+1,2:lon1+1,1:nsig))
   zloc(2*nvars+4)  = maxval(ges_q_it  (2:lat1+1,2:lon1+1,1:nsig))
   zloc(2*nvars+5)  = maxval(ges_tsen  (2:lat1+1,2:lon1+1,1:nsig,ntsig))
   zloc(2*nvars+6)  = maxval(ges_oz_it (2:lat1+1,2:lon1+1,1:nsig))
-  zloc(2*nvars+7)  = maxval(ges_cwmr_it(2:lat1+1,2:lon1+1,1:nsig))
-  zloc(2*nvars+8)  = maxval(ges_div_it(2:lat1+1,2:lon1+1,1:nsig))
-  zloc(2*nvars+9)  = maxval(ges_vor_it(2:lat1+1,2:lon1+1,1:nsig))
+!clt  zloc(2*nvars+7)  = maxval(ges_cwmr_it(2:lat1+1,2:lon1+1,1:nsig))
+!clt  zloc(2*nvars+8)  = maxval(ges_div_it(2:lat1+1,2:lon1+1,1:nsig))
+!clt  zloc(2*nvars+9)  = maxval(ges_vor_it(2:lat1+1,2:lon1+1,1:nsig))
   zloc(2*nvars+10) = maxval(ges_prsl  (2:lat1+1,2:lon1+1,1:nsig,ntsig))
   zloc(2*nvars+11) = maxval(ges_ps_it (2:lat1+1,2:lon1+1             ))
   zloc(2*nvars+12) = maxval(sfct      (2:lat1+1,2:lon1+1,       ntsfc))
@@ -193,6 +193,9 @@ subroutine prt_guess(sgrep)
      enddo
 
 !    Duplicated part of vector
+     predx=0.0 !cltthink 
+     predxp=0.0 !cltthink
+     predt=0.0 !cltthink
      if (nsclen>0) then
         zmin(nvars+1)  = minval(predx(:,:))
         zmax(nvars+1)  = maxval(predx(:,:))
