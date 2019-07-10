@@ -265,10 +265,6 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
           iret=nf90_get_var(gfile_loc,k,grid_lont)
        endif
     enddo
-    write(6,*)'thinkdeb9992 grid_lont i j=12, is ',grid_lont(10:100:10,12)
-    write(6,*)'thinkdeb9992 grid_lont i j=240 is ',grid_lont(10:100:10,24)
-    write(6,*)'thinkdeb9992 grid_latt i=12 is ',grid_latt(12, 12:112:10)
-    write(6,*)'thinkdeb9992 grid_latt i=240 is ',grid_latt(240,10:112:10)
 
     iret=nf90_close(gfile_loc)
 
@@ -985,9 +981,8 @@ subroutine gsi_fv3ncdf2d_read_v1(filenamein,varname,varname2,work_sub,mype_io)
        allocate(a(nlat,nlon))
 
        iret=nf90_inq_varid(gfile_loc,trim(adjustl(varname)),var_id)
-       write(6,*)'thinkdeb99 iret,var_id is ',var_id
        if(iret/=nf90_noerr) then
-            write(6,*)'thinkdeb999 wrong to get var_id ',var_id
+            write(6,*)' wrong to get var_id ',var_id
        endif
 
        iret=nf90_inquire_variable(gfile_loc,var_id,ndims=ndim)
@@ -995,13 +990,9 @@ subroutine gsi_fv3ncdf2d_read_v1(filenamein,varname,varname2,work_sub,mype_io)
        allocate(dim_id(ndim))
        iret=nf90_inquire_variable(gfile_loc,var_id,dimids=dim_id)
        if(allocated(uu       )) deallocate(uu       )
-!cltorg       allocate(uu(dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))))
        allocate(uu(nx,ny,1))
        iret=nf90_get_var(gfile_loc,var_id,uu)
-          write(6,*)'thinkdeb999 varname  ',trim(adjustl(varname))
-          write(6,*)'thinkdeb999 in readeps uu ps is ',uu(10,10,1)
           call fv3_h_to_ll(uu(:,:,1),a,nx,ny,nlon,nlat)
-          write(6,*)'thinkdeb999 in readeps aps is ',a(10,10)
           kk=0
           do n=1,npe
              do j=1,ijn_s(n)
@@ -1333,10 +1324,8 @@ subroutine gsi_fv3ncdf_readuv(dynvarsfile,ges_u,ges_v)
 
        allocate(u(dim(1),dim(4)))
        allocate(v(dim(1),dim(4)))
-       write(6,*)'thinkdeb999 0 u,v dims are',dim(1),dim(4)
        iret=nf90_inq_varid(gfile_loc,trim(adjustl("xaxis_1")),k) !thinkdeb
        iret=nf90_get_var(gfile_loc,k,u(:,1))
-       write(6,*)'thinkdeb9992 in origin readuv  ',u(1:10,1)
 
        do k=ndimensions+1,nvariables
           iret=nf90_inquire_variable(gfile_loc,k,name,len)
@@ -1349,7 +1338,6 @@ subroutine gsi_fv3ncdf_readuv(dynvarsfile,ges_u,ges_v)
 !    NOTE:   dimension of variables on native fv3 grid.  
 !            u and v have an extra row in one of the dimensions
              if(allocated(uu)) deallocate(uu)
-             write(6,*)'thinkdeb999 varname dim is ',(trim(name)),dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))
              allocate(uu(dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))))
              iret=nf90_get_var(gfile_loc,k,uu)
              if(trim(name)=='u'.or.trim(name)=='U') then

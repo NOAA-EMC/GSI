@@ -599,7 +599,6 @@ strct_in_dbz(v,k)%field(:,:)=obdata_nc(:,:)
   write(6,*)'READ_dBZ: # ndata         =',ndata
 
 !---Write observation to scratch file---!
-   write(6,*)'thinkmype is ',mype,  ' ',maxdat,nchanl,ndata 
   
   call count_obs(ndata,maxdat,ilat,ilon,cdata_all,nobs)
   write(lunout) obstype,sis,maxdat,nchanl,ilat,ilon
