@@ -312,7 +312,6 @@ subroutine generate_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,p_
   region_lat_out=region_lat_out*deg2rad
   region_lon_out=region_lon_out*deg2rad
   if (present(coeffx_out)) then ! if coeffx_out is present, this is for analysis grid 
-  write(6,*)'thinkdeb250 present coeffx_out'
   allocate(glat_an(nlonout,nlatout),glon_an(nlonout,nlatout))
 
   do j=1,nlatout
