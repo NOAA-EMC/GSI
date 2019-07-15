@@ -39,6 +39,8 @@ module crtm_interface
 !   2019-03-13  eliu    - add precipitation component
 !   2019-03-13  eliu    - add quality control to identify areas with cold-air outbreak 
 !   2019-03-13  eliu    - add calculation of GFDL cloud fraction 
+!   2019-03-22  Wei/Martin - Added VIIRS AOD capability alongside MODIS AOD
+!   
 !
 ! subroutines included:
 !   sub init_crtm
@@ -567,7 +569,6 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
     Load_AerosolCoeff=.false.
  endif
 
-
 ! Initialize radiative transfer
 
  sensorlist(1)=isis
@@ -851,7 +852,7 @@ endif
  endif
 
 ! Initial GFDL saturation water vapor pressure tables
-  if (n_clouds_fwd_wk>0 .and. imp_physics==11) then
+  if (n_actual_aerosols_wk>0 .or. n_clouds_fwd_wk>0 .and. imp_physics==11) then
 
      if (mype==0) write(6,*)myname_,':initial and load GFDL saturation water vapor pressure tables'
 
@@ -946,7 +947,7 @@ subroutine destroy_crtm
   deallocate(rtsolution0) 
   if(n_actual_aerosols_wk>0)then
      deallocate(aero,aero_conc,auxrh)
-     if(n_aerosols_jac_wk>0) deallocate(iaero_jac)
+     if(n_aerosols_jac>0) deallocate(iaero_jac)
   endif
   if (n_ghg>0) then
      deallocate(ghg_names)
@@ -1003,6 +1004,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !   2015-03-23  zaizhong ma - add Himawari-8 ahi
 !   2015-09-10  zhu  - generalize enabling all-sky and aerosol usage in radiance assimilation,
 !                      use n_clouds_fwd_wk,n_aerosols_fwd_wk,cld_sea_only_wk, cld_sea_only_wk,cw_cv,etc
+!   2019-03-22  Wei/Martin - added VIIRS AOD obs in addition to MODIS AOD obs
 !
 !   input argument list:
 !     obstype      - type of observations for which to get profile
@@ -1048,7 +1050,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use gsi_nstcouplermod, only: nst_gsi
   use guess_grids, only: ges_tsen,&
       ges_prsl,ges_prsi,tropprs,dsfct,add_rtm_layers, &
-      hrdifsig,nfldsig,hrdifsfc,nfldsfc,ntguessfc,isli2,sno2
+      hrdifsig,nfldsig,hrdifsfc,nfldsfc,ntguessfc,isli2,sno2, &
+      hrdifaer,nfldaer ! for separate aerosol input file
   use cloud_efr_mod, only: efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_chemguess_mod, only: gsi_chemguess_bundle   ! for now, a common block
@@ -1065,6 +1068,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use crtm_module, only: limit_exp,o3_id,toa_pressure
   use obsmod, only: iadate
   use aeroinfo, only: nsigaerojac
+  use chemmod, only: lread_ext_aerosol !for separate aerosol input file
 
   implicit none
 
@@ -1102,6 +1106,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),parameter:: quadcof  (4, 2  ) =      &
       reshape((/0.0_r_kind, 1.0_r_kind, 1.0_r_kind, 2.0_r_kind, 1.0_r_kind, &
                -1.0_r_kind, 1.0_r_kind, -1.0_r_kind/), (/4, 2/))
+  real(r_kind),parameter:: jac_pert = 1.0_r_kind
 
 ! Declare local variables  
   integer(i_kind):: iquadrant  
@@ -1109,7 +1114,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   integer(i_kind):: ig,istatus
   integer(i_kind):: j,k,m1,ix,ix1,ixp,iy,iy1,iyp,m,iii
   integer(i_kind):: i_minus, i_plus, j_minus, j_plus
-  integer(i_kind):: itsig,itsigp,itsfc,itsfcp
+  integer(i_kind):: itsig,itsigp,itsfc,itsfcp,itaer,itaerp
   integer(i_kind):: istyp00,istyp01,istyp10,istyp11
   integer(i_kind):: iqs,iozs,icfs 
   integer(i_kind):: error_status_clr
@@ -1125,7 +1130,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
   real(r_kind):: wind10,wind10_direction,windratio,windangle 
   real(r_kind):: w00,w01,w10,w11,kgkg_kgm2,f10,panglr,dx,dy
-  real(r_kind):: delx,dely,delx1,dely1,dtsig,dtsigp,dtsfc,dtsfcp
+  real(r_kind):: delx,dely,delx1,dely1,dtsig,dtsigp,dtsfc,dtsfcp,dtaer,dtaerp
   real(r_kind):: sst00,sst01,sst10,sst11,total_od,term,uu5,vv5, ps
   real(r_kind):: sno00,sno01,sno10,sno11,secant_term
   real(r_kind):: hwp_total,theta_700,theta_sfc,hs
@@ -1278,6 +1283,28 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   end if
   dtsfcp=one-dtsfc
 
+! Get time interpolation factors for external files
+  if ( lread_ext_aerosol ) then
+     if(obstime > hrdifaer(1) .and. obstime < hrdifaer(nfldaer))then
+        do j=1,nfldaer-1
+           if(obstime > hrdifaer(j) .and. obstime <= hrdifaer(j+1))then
+              itaer=j
+              itaerp=j+1
+              dtaer=((hrdifaer(j+1)-obstime)/(hrdifaer(j+1)-hrdifaer(j)))
+           end if
+        end do
+     else if(obstime <=hrdifaer(1))then
+        itaer=1
+        itaerp=1
+        dtaer=one
+     else
+        itaer=nfldaer
+        itaerp=nfldaer
+        dtaer=one
+     end if
+     dtaerp=one-dtaer
+  end if ! lread_ext_aerosol
+
   ier=0
   call gsi_bundlegetpointer(gsi_metguess_bundle(itsig ),'ps',psges_itsig ,istatus)
   ier=ier+istatus
@@ -1418,8 +1445,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                 psges_itsigp(ix,iyp)*w01+psges_itsigp(ixp,iyp)*w11)*dtsigp
         endif
 
-!       skip loading surface structure if obstype is modis_aod
-        if (trim(obstype) /= 'modis_aod') then
+!       skip loading surface structure if obstype is modis_aod or viirs_aod
+        if ( trim(obstype) /= 'modis_aod' .and. trim(obstype) /= 'viirs_aod' ) then
 
 !       Load surface structure
 
@@ -1538,10 +1565,10 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 !       Load geometry structure
 
-!       skip loading geometry structure if obstype is modis_aod
+!       skip loading geometry structure if obstype is modis_aod or viirs_aod
 !       iscan_ang,ilzen_ang,ilazi_ang are not available in the modis aod bufr file
 !       also, geometryinfo is not needed in crtm aod calculation
-        if ( trim(obstype) /= 'modis_aod' ) then
+        if ( trim(obstype) /= 'modis_aod' .and. trim(obstype) /= 'viirs_aod' ) then
            panglr = data_s(iscan_ang)
            if(obstype == 'goes_img' .or. obstype == 'seviri' .or. obstype == 'abi')panglr = zero
 
@@ -1614,7 +1641,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
               rtsolution_k_clr(i,1)%brightness_temperature = one
            end if
 
-           if (trim(obstype) /= 'modis_aod')then
+           if ( trim(obstype) /= 'modis_aod' .and. trim(obstype) /= 'viirs_aod' )then
 
 !        Pass CRTM array of tb for surface emissiviy calculations
            if ( channelinfo(1)%sensor_type == crtm_microwave_sensor .and. & 
@@ -1849,22 +1876,47 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
             end do
        enddo
     else
-       do ii=1,n_actual_aerosols_wk
-          call gsi_bundlegetpointer(gsi_chemguess_bundle(itsig ),aerosol_names(ii),aeroges_itsig ,ier) 
-          call gsi_bundlegetpointer(gsi_chemguess_bundle(itsigp),aerosol_names(ii),aeroges_itsigp,ier) 
-            do k=1,nsig
-              aero(k,ii) =(aeroges_itsig (ix ,iy ,k)*w00+ &
-                           aeroges_itsig (ixp,iy ,k)*w10+ &
-                           aeroges_itsig (ix ,iyp,k)*w01+ &
-                           aeroges_itsig (ixp,iyp,k)*w11)*dtsig + &
-                          (aeroges_itsigp(ix ,iy ,k)*w00+ &
-                           aeroges_itsigp(ixp,iy ,k)*w10+ &
-                           aeroges_itsigp(ix ,iyp,k)*w01+ &
-                           aeroges_itsigp(ixp,iyp,k)*w11)*dtsigp
+       if (lread_ext_aerosol) then
+          do ii=1,n_actual_aerosols_wk
+             call gsi_bundlegetpointer(gsi_chemguess_bundle(itaer),aerosol_names(ii),aeroges_itsig,ier)
+             call gsi_bundlegetpointer(gsi_chemguess_bundle(itaerp),aerosol_names(ii),aeroges_itsigp,ier)
+             do k=1,nsig
+                 aero(k,ii) =(aeroges_itsig (ix ,iy ,k)*w00+ &
+                             aeroges_itsig (ixp,iy ,k)*w10+ &
+                             aeroges_itsig (ix ,iyp,k)*w01+ &
+                             aeroges_itsig (ixp,iyp,k)*w11)*dtaer + &
+                            (aeroges_itsigp(ix ,iy ,k)*w00+ &
+                             aeroges_itsigp(ixp,iy ,k)*w10+ &
+                             aeroges_itsigp(ix ,iyp,k)*w01+ &
+                             aeroges_itsigp(ixp,iyp,k)*w11)*dtaerp
              end do
-       enddo
-    endif
+          end do
+       else
+          do ii=1,n_actual_aerosols_wk
+             call gsi_bundlegetpointer(gsi_chemguess_bundle(itsig ),aerosol_names(ii),aeroges_itsig ,ier) 
+             call gsi_bundlegetpointer(gsi_chemguess_bundle(itsigp),aerosol_names(ii),aeroges_itsigp,ier) 
+             do k=1,nsig
+                aero(k,ii) =(aeroges_itsig (ix ,iy ,k)*w00+ &
+                             aeroges_itsig (ixp,iy ,k)*w10+ &
+                             aeroges_itsig (ix ,iyp,k)*w01+ &
+                             aeroges_itsig (ixp,iyp,k)*w11)*dtsig + &
+                            (aeroges_itsigp(ix ,iy ,k)*w00+ &
+                             aeroges_itsigp(ixp,iy ,k)*w10+ &
+                             aeroges_itsigp(ix ,iyp,k)*w01+ &
+                             aeroges_itsigp(ixp,iyp,k)*w11)*dtsigp
+             end do
+          end do
+       end if ! lread_ext_aerosol
+    end if ! n_actual_aerosols_wk > 0
     do k=1,nsig
+        qs(k) = (gesqsat(ix ,iy ,k,itsig )*w00+ &
+                 gesqsat(ixp,iy ,k,itsig )*w10+ &
+                 gesqsat(ix ,iyp,k,itsig )*w01+ &
+                 gesqsat(ixp,iyp,k,itsig )*w11)*dtsig + &
+                (gesqsat(ix ,iy ,k,itsigp)*w00+ &
+                 gesqsat(ixp,iy ,k,itsigp)*w10+ &
+                 gesqsat(ix ,iyp,k,itsigp)*w01+ &
+                 gesqsat(ixp,iyp,k,itsigp)*w11)*dtsigp
         rh(k) = q(k)/qs(k)
     end do
   endif
@@ -2043,7 +2095,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 
   error_status = 0
-  if ( trim(obstype) /= 'modis_aod' ) then
+  if ( trim(obstype) /= 'modis_aod' .and. trim(obstype) /= 'viirs_aod' ) then
      error_status = crtm_k_matrix(atmosphere,surface,rtsolution_k,&
         geometryinfo,channelinfo(sensorindex:sensorindex),atmosphere_k,&
         surface_k,rtsolution,options=options)
@@ -2056,6 +2108,9 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
            surface_k_clr,rtsolution_clr,options=options)
      end if
   else
+     do i=1,nchanl
+        rtsolution_k(i,1)%layer_optical_depth(:) = jac_pert
+     enddo
      error_status = crtm_aod_k(atmosphere,rtsolution_k,&
         channelinfo(sensorindex:sensorindex),rtsolution,atmosphere_k)
   end if
@@ -2088,7 +2143,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      end if
   endif 
 
-  if (trim(obstype) /= 'modis_aod' ) then
+  if (trim(obstype) /= 'modis_aod' .and. trim(obstype) /= 'viirs_aod' ) then
 ! Secant of satellite zenith angle
 
     secant_term = one/cos(data_s(ilzen_ang))
@@ -2250,7 +2305,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
        endif
     end do
 
-  else                                    !       obstype == 'modis_aod'
+  else                                    !       obstype == '?????_aod'
      ! initialize intent(out) variables that are not available with modis_aod
      tzbgr        = zero
      sfc_speed    = zero

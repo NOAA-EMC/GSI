@@ -101,6 +101,7 @@ module guess_grids
 !   2017-05-12  Y. Wang and X. Wang - add bottom and top levels of w and rho for
 !                                     radar DA later, POC: xuguang.wang@ou.edu
 !   2017-10-10  wu      - Add code for fv3_regional 
+!   2019-03-21  Wei/Martin - add code for external aerosol file input
 !
 ! !AUTHOR: 
 !   kleist           org: np20                date: 2003-12-01
@@ -142,16 +143,19 @@ module guess_grids
   public :: wgt_lcbas
   public :: ges_qsat
   public :: use_compress,nsig_ext,gpstop
+  public :: ntguesaer,ifileaer,nfldaer,hrdifaer ! variables for external aerosol files
 
   public :: ges_initialized
 
   public :: nfldsig_all,nfldsig_now,hrdifsig_all
   public :: nfldsfc_all,nfldsfc_now,hrdifsfc_all
   public :: nfldnst_all,nfldnst_now,hrdifnst_all
+  public :: nfldaer_all,nfldaer_now,hrdifaer_all ! variables for external aerosol files
   public :: extrap_intime
   public :: ntguessig_ref
   public :: ntguessfc_ref
   public :: ntguesnst_ref
+  public :: ntguesaer_ref
 
   public :: ges_w_btlev
   public :: ges_rho
@@ -166,10 +170,12 @@ module guess_grids
   integer(i_kind) ntguessig         ! location of actual guess time for sigma fields
   integer(i_kind) ntguessfc         ! location of actual guess time for sfc fields
   integer(i_kind) ntguesnst         ! location of actual guess time for nst FCST fields
+  integer(i_kind) ntguesaer         ! location of actual guess time for aer FCST fields
 
   integer(i_kind), save:: ntguessig_ref	! replace ntguessig as the storage for its original value
   integer(i_kind), save:: ntguessfc_ref	! replace ntguessfc as the storage for its original value
   integer(i_kind), save:: ntguesnst_ref ! replace ntguesnst as the storage for its original value
+  integer(i_kind), save:: ntguesaer_ref ! replace ntguesaer as the storage for its original value
 
   integer(i_kind):: ifact10 = 0     ! 0 = use 10m wind factor from guess
   integer(i_kind):: nsig_ext = 13   ! use 13 layers above model top to compute the bending angle for gpsro
@@ -179,6 +185,7 @@ module guess_grids
   real(r_kind), allocatable, dimension(:), save:: hrdifsig_all  ! a list of all times
   real(r_kind), allocatable, dimension(:), save:: hrdifsfc_all  ! a list of all times
   real(r_kind), allocatable, dimension(:), save:: hrdifnst_all  ! a list of all times
+  real(r_kind), allocatable, dimension(:), save:: hrdifaer_all  ! a list of all times
 
   integer(i_kind), save:: nfldsig_all	! expected total count of time slots
   integer(i_kind), save:: nfldsfc_all
@@ -192,16 +199,23 @@ module guess_grids
   integer(i_kind), save:: nfldsfc_now
   integer(i_kind), save:: nfldnst_now
 
+! variables for external aerosol files
+  integer(i_kind), save:: nfldaer_all
+  integer(i_kind), save:: nfldaer       ! actual count of in-cache time slots for AER file
+  integer(i_kind), save:: nfldaer_now
+
   logical, save:: extrap_intime		! compute o-f interpolate within the time ranges of guess_grids,
   					! or also extrapolate outside the time ranges.
 
   real(r_kind), allocatable, dimension(:):: hrdifsig  ! times for cached sigma guess_grid
   real(r_kind), allocatable, dimension(:):: hrdifsfc  ! times for cached surface guess_grid
   real(r_kind), allocatable, dimension(:):: hrdifnst  ! times for cached nst guess_grid
+  real(r_kind), allocatable, dimension(:):: hrdifaer  ! times for cached aer guess_grid
 
   integer(i_kind),allocatable, dimension(:)::ifilesfc  ! array used to open the correct surface guess files
   integer(i_kind),allocatable, dimension(:)::ifilesig  ! array used to open the correct sigma guess files
   integer(i_kind),allocatable, dimension(:)::ifilenst  ! array used to open the correct nst guess files
+  integer(i_kind),allocatable, dimension(:)::ifileaer  ! array used to open the correct aer guess files
 
   integer(i_kind),allocatable,dimension(:,:,:):: isli    ! snow/land/ice mask
   integer(i_kind),allocatable,dimension(:,:,:):: isli_g  ! isli on horiz/global grid
@@ -424,6 +438,7 @@ contains
 !   2012-05-14  todling - revisit cw check to check also on some hydrometeors
 !   2013-10-19  todling - revisit initialization of certain vars wrt ESMF
 !   2014-06-09  carley/zhu - add wgt_lcbas
+!   2019-03-21  Wei/Martin - add capability to read external aerosol file
 !
 ! !REMARKS:
 !   language: f90
@@ -448,6 +463,8 @@ contains
        nfldsig_now=0 ! _now variables are not used if not for ESMF
        nfldsfc_now=0
        nfldnst_now=0
+       nfldaer_all=nfldaer
+       nfldaer_now=0
        extrap_intime=.true.
 #endif /* HAVE_ESMF */
 
@@ -904,6 +921,7 @@ contains
 !
 ! !REVISION HISTORY:
 !   2009-01-08  todling
+!   2019-03-21  Wei/Martin - added separate aerosol input file
 !
 ! !REMARKS:
 !   language: f90
@@ -926,13 +944,17 @@ contains
     nfldsig_now=0	! _now variables are not used if not for ESMF
     nfldsfc_now=0
     nfldnst_now=0
+    nfldaer_all=nfldaer
+    nfldaer_now=0
     extrap_intime=.true.
     allocate(hrdifsfc(nfldsfc),ifilesfc(nfldsfc), &
              hrdifnst(nfldnst),ifilenst(nfldnst), &
              hrdifsig(nfldsig),ifilesig(nfldsig), &
+             hrdifaer(nfldaer),ifileaer(nfldaer), &
 	     hrdifsfc_all(nfldsfc_all), &
              hrdifnst_all(nfldnst_all), &
 	     hrdifsig_all(nfldsig_all), &
+             hrdifaer_all(nfldaer_all), &
 	     stat=istatus)
     if (istatus/=0) &
          write(6,*)'CREATE_GESFINFO(hrdifsfc,..):  allocate error, istatus=',&
@@ -961,6 +983,7 @@ contains
 !
 ! !REVISION HISTORY:
 !   2009-01-08  todling
+!   2019-03-21  Wei/Martin - added external aerosol file variables
 !
 ! !REMARKS:
 !   language: f90
@@ -977,8 +1000,8 @@ contains
     gesfinfo_created_=.false.
 
 #ifndef HAVE_ESMF
-    deallocate(hrdifsfc,ifilesfc,hrdifnst,ifilenst,hrdifsig,ifilesig, &
-    	hrdifsfc_all,hrdifnst_all,hrdifsig_all,stat=istatus)
+    deallocate(hrdifsfc,ifilesfc,hrdifnst,hrdifaer,ifilenst,hrdifsig,ifilesig,ifileaer,&
+    	hrdifsfc_all,hrdifnst_all,hrdifsig_all,hrdifaer_all,stat=istatus)
     if (istatus/=0) &
          write(6,*)'DESTROY_GESFINFO:  deallocate error, istatus=',&
          istatus
@@ -989,6 +1012,8 @@ contains
     nfldsfc    =0
     nfldnst    =0
     nfldsig    =0
+    nfldaer_all=0
+    nfldaer    =0
 #endif /* HAVE_ESMF */
 
     return
