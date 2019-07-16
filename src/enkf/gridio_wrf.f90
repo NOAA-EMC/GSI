@@ -185,110 +185,110 @@ contains
     if ( ql_ind > 0 ) then
        varstrname = 'QCLOUD'
        call readwrfvar(filename, varstrname,                              &
-                       vargrid(:,levels(ql_ind-1)+1:levels(ql_ind),nb),nlevs)
+                       vargrid(:,levels(ql_ind-1)+1:levels(ql_ind),nb,ne),nlevs)
        do k = levels(ql_ind-1)+1, levels(ql_ind)
           if (nproc .eq. 0)                                               &
              write(6,*) 'READGRIDDATA_ARW: ql ',                           &
-                 & k, minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
        enddo
     endif
     ! read qrain
     if ( qr_ind > 0 ) then
        varstrname = 'QRAIN'
        call readwrfvar(filename, varstrname,                              &
-                       vargrid(:,levels(qr_ind-1)+1:levels(qr_ind),nb),nlevs)
+                       vargrid(:,levels(qr_ind-1)+1:levels(qr_ind),nb,ne),nlevs)
        do k = levels(qr_ind-1)+1, levels(qr_ind)
           if (nproc .eq. 0)                                               &
              write(6,*) 'READGRIDDATA_ARW: qr ',                           &
-                 & k, minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
        enddo
     endif
     ! read qice
     if ( qi_ind > 0 ) then
        varstrname = 'QICE'
        call readwrfvar(filename, varstrname,                              &
-                       vargrid(:,levels(qi_ind-1)+1:levels(qi_ind),nb),nlevs)
+                       vargrid(:,levels(qi_ind-1)+1:levels(qi_ind),nb,ne),nlevs)
        do k = levels(qi_ind-1)+1, levels(qi_ind)
           if (nproc .eq. 0)                                               &
              write(6,*) 'READGRIDDATA_ARW: qi ',                           &
-                 & k, minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
        enddo
     endif
     ! read qsnow
     if ( qs_ind > 0 ) then
        varstrname = 'QSNOW'
        call readwrfvar(filename, varstrname,                              &
-                       vargrid(:,levels(qs_ind-1)+1:levels(qs_ind),nb),nlevs)
+                       vargrid(:,levels(qs_ind-1)+1:levels(qs_ind),nb,ne),nlevs)
        do k = levels(qs_ind-1)+1, levels(qs_ind)
           if (nproc .eq. 0)                                               &
              write(6,*) 'READGRIDDATA_ARW: qs ',                           &
-                 & k, minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
        enddo
     endif
     ! read qgraup
     if ( qg_ind > 0 ) then
        varstrname = 'QGRAUP'
        call readwrfvar(filename, varstrname,                              &
-                       vargrid(:,levels(qg_ind-1)+1:levels(qg_ind),nb),nlevs)
+                       vargrid(:,levels(qg_ind-1)+1:levels(qg_ind),nb,ne),nlevs)
        do k = levels(qg_ind-1)+1, levels(qg_ind)
           if (nproc .eq. 0)                                               &
              write(6,*) 'READGRIDDATA_ARW: qg ',                           &
-                 & k, minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
        enddo
     endif
     ! read qncloud
     if ( qnc_ind > 0 ) then
        varstrname = 'QNCLOUD'
        call readwrfvar(filename, varstrname,                              &
-                       vargrid(:,levels(qnc_ind-1)+1:levels(qnc_ind),nb),nlevs)
+                       vargrid(:,levels(qnc_ind-1)+1:levels(qnc_ind),nb,ne),nlevs)
        do k = levels(qnc_ind-1)+1, levels(qnc_ind)
           if (nproc .eq. 0)                                               &
              write(6,*) 'READGRIDDATA_ARW: qnc ',                           &
-                 & k, minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
        enddo
     endif
     ! read qnice
     if ( qi_ind > 0 ) then
        varstrname = 'QNICE'
        call readwrfvar(filename, varstrname,                              &
-                       vargrid(:,levels(qni_ind-1)+1:levels(qni_ind),nb),nlevs)
+                       vargrid(:,levels(qni_ind-1)+1:levels(qni_ind),nb,ne),nlevs)
        do k = levels(qni_ind-1)+1, levels(qni_ind)
           if (nproc .eq. 0)                                               &
              write(6,*) 'READGRIDDATA_ARW: qni ',                           &
-                 & k, minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
        enddo
     endif
     ! read qnrain
     if ( qnr_ind > 0 ) then
        varstrname = 'QNRAIN'
        call readwrfvar(filename, varstrname,                              &
-                       vargrid(:,levels(qnr_ind-1)+1:levels(qnr_ind),nb),nlevs)
+                       vargrid(:,levels(qnr_ind-1)+1:levels(qnr_ind),nb,ne),nlevs)
        do k = levels(qnr_ind-1)+1, levels(qnr_ind)
           if (nproc .eq. 0)                                               &
              write(6,*) 'READGRIDDATA_ARW: qnr ',                           &
-                 & k, minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
        enddo
     endif
     ! read reflectivity
     if ( dbz_ind > 0 ) then
        varstrname = 'REFL_10CM'
        call readwrfvar(filename, varstrname,                              &
-                       vargrid(:,levels(dbz_ind-1)+1:levels(dbz_ind),nb),nlevs)
+                       vargrid(:,levels(dbz_ind-1)+1:levels(dbz_ind),nb,ne),nlevs)
        do k = levels(dbz_ind-1)+1, levels(dbz_ind)
           if (nproc .eq. 0)                                               &
              write(6,*) 'READGRIDDATA_ARW: dbz ',                           &
-                 & k, minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
        enddo
     endif
     ! read w
     if ( w_ind > 0 ) then
        varstrname = 'W'
        call readwrfvar(filename, varstrname,                              &
-                       vargrid(:,levels(w_ind-1)+1:levels(w_ind),nb),nlevs)
+                       vargrid(:,levels(w_ind-1)+1:levels(w_ind),nb,ne),nlevs)
        do k = levels(w_ind-1)+1, levels(w_ind)
           if (nproc .eq. 0)                                               &
              write(6,*) 'READGRIDDATA_ARW: w ',                           &
-                 & k, minval(vargrid(:,k,nb)), maxval(vargrid(:,k,nb))
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
        enddo
     endif
     ! set ozone to zero for now (like in GSI?)
@@ -766,63 +766,63 @@ contains
     if (arw .and. dbz_ind > 0) then
        varstrname = 'REFL_10CM'
        call readwrfvar(filename, varstrname, enkf_field, nlevs)
-       enkf_field = enkf_field + vargrid(:,levels(dbz_ind-1)+1:levels(dbz_ind),nb)
+       enkf_field = enkf_field + vargrid(:,levels(dbz_ind-1)+1:levels(dbz_ind),nb,ne)
        call writewrfvar(filename, varstrname, enkf_field, nlevs)
     endif
 
     if (arw .and. ql_ind > 0) then
        varstrname = 'QCLOUD'
        call readwrfvar(filename, varstrname, enkf_field, nlevs)
-       enkf_field = enkf_field + vargrid(:,levels(ql_ind-1)+1:levels(ql_ind),nb)
+       enkf_field = enkf_field + vargrid(:,levels(ql_ind-1)+1:levels(ql_ind),nb,ne)
        call writewrfvar(filename, varstrname, enkf_field, nlevs)
     endif
 
     if (arw .and. qr_ind > 0) then
        varstrname = 'QRAIN'
        call readwrfvar(filename, varstrname, enkf_field, nlevs)
-       enkf_field = enkf_field + vargrid(:,levels(qr_ind-1)+1:levels(qr_ind),nb)
+       enkf_field = enkf_field + vargrid(:,levels(qr_ind-1)+1:levels(qr_ind),nb,ne)
        call writewrfvar(filename, varstrname, enkf_field, nlevs)
     endif
 
     if (arw .and. qi_ind > 0) then
        varstrname = 'QICE'
        call readwrfvar(filename, varstrname, enkf_field, nlevs)
-       enkf_field = enkf_field + vargrid(:,levels(qi_ind-1)+1:levels(qi_ind),nb)
+       enkf_field = enkf_field + vargrid(:,levels(qi_ind-1)+1:levels(qi_ind),nb,ne)
        call writewrfvar(filename, varstrname, enkf_field, nlevs)
     endif
 
     if (arw .and. qs_ind > 0) then
        varstrname = 'QSNOW'
        call readwrfvar(filename, varstrname, enkf_field, nlevs)
-       enkf_field = enkf_field + vargrid(:,levels(qs_ind-1)+1:levels(qs_ind),nb)
+       enkf_field = enkf_field + vargrid(:,levels(qs_ind-1)+1:levels(qs_ind),nb,ne)
        call writewrfvar(filename, varstrname, enkf_field, nlevs)
     endif
 
     if (arw .and. qg_ind > 0) then
        varstrname = 'QGRAUP'
        call readwrfvar(filename, varstrname, enkf_field, nlevs)
-       enkf_field = enkf_field + vargrid(:,levels(qg_ind-1)+1:levels(qg_ind),nb)
+       enkf_field = enkf_field + vargrid(:,levels(qg_ind-1)+1:levels(qg_ind),nb,ne)
        call writewrfvar(filename, varstrname, enkf_field, nlevs)
     endif
 
     if (arw .and. qnc_ind > 0) then
        varstrname = 'QNCLOUD'
        call readwrfvar(filename, varstrname, enkf_field, nlevs)
-       enkf_field = enkf_field + vargrid(:,levels(qnc_ind-1)+1:levels(qnc_ind),nb)
+       enkf_field = enkf_field + vargrid(:,levels(qnc_ind-1)+1:levels(qnc_ind),nb,ne)
        call writewrfvar(filename, varstrname, enkf_field, nlevs)
     endif
 
     if (arw .and. qni_ind > 0) then
        varstrname = 'QNICE'
        call readwrfvar(filename, varstrname, enkf_field, nlevs)
-       enkf_field = enkf_field + vargrid(:,levels(qni_ind-1)+1:levels(qni_ind),nb)
+       enkf_field = enkf_field + vargrid(:,levels(qni_ind-1)+1:levels(qni_ind),nb,ne)
        call writewrfvar(filename, varstrname, enkf_field, nlevs)
     endif
 
     if (arw .and. qnr_ind > 0) then
        varstrname = 'QNRAIN'
        call readwrfvar(filename, varstrname, enkf_field, nlevs)
-       enkf_field = enkf_field + vargrid(:,levels(qnr_ind-1)+1:levels(qnr_ind),nb)
+       enkf_field = enkf_field + vargrid(:,levels(qnr_ind-1)+1:levels(qnr_ind),nb,ne)
        call writewrfvar(filename, varstrname, enkf_field, nlevs)
     endif
 

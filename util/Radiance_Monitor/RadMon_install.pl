@@ -63,7 +63,7 @@
       $tankdir = "/global/save/$user_name/nbns";
    }
    elsif( $machine eq "wcoss_d" ){
-      $tankdir = "/gpfs/dell2/emc/obsproc/noscrub/$user_name/nbns";
+      $tankdir = "/gpfs/dell2/emc/modeling/noscrub/$user_name/nbns";
    }
 
    print "Please specify TANKDIR location for storage of data and image files.\n";

@@ -110,16 +110,6 @@ for type in ${SATYPE}; do
 
       fi
 
-#      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${Z} ]]; then
-#         $NCP $TANKDIR/bcoef/${type}.${cdate}.ieee_d* ./
-#      fi
-
-#      if [[ $REGIONAL_RR -eq 1 ]]; then
-#         adate=`$NDATE +1 $cdate`
-#      else
-#         adate=`$NDATE +6 $cdate`
-#      fi
-
       adate=`$NDATE +${CYCLE_INTERVAL} $cdate`
       cdate=$adate
 
@@ -153,17 +143,8 @@ EOF
 
 
 
-#   rm -f ${type}.ieee_d
-#   rm -f ${type}.ctl
-
 done
 
-rm -f nu_plot_time.sh
-
-
-#for var in $list; do
-#   rm -f ${type}.${var}*.png
-#done
 
 #--------------------------------------------------------------------
 # Clean $tmpdir.  Submit done job.

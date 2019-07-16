@@ -64,10 +64,6 @@
 #      0 - no problem encountered
 #     >0 - some problem encountered
 ####################################################################
-export scr=radmon_err_rpt.sh
-
-msg="${scr} HAS STARTED"
-postmsg "$jlogfile" "$msg"
 
 #  Command line arguments.
 file1=${1:-${file1:?}}
@@ -230,8 +226,6 @@ if [[ "$VERBOSE" = "YES" ]]; then
    echo $(date) EXITING $0 with error code ${err} >&2
 fi
 
-msg="${scr} HAS ENDED"
-postmsg "$jlogfile" "$msg"
 
 set +x
 exit ${err}

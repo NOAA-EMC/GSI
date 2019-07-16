@@ -18,7 +18,7 @@
      time_window,perturb_obs,perturb_fact,sfcmodel,destroy_obsmod_vars,dsis,&
      dtbduv_on,time_window_max,offtime_data,init_directories,oberror_tune,ext_sonde, &
      blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver,hilbert_curve,&
-     lread_obs_save,lread_obs_skip
+     lread_obs_save,lread_obs_skip,time_window_rad,diag_radardbz
 
   use obsmod, only: doradaroneob,oneoblat,oneoblon,oneobheight,oneobvalue,oneobddiff,oneobradid,&
      radar_no_thinning,ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,&
@@ -48,7 +48,8 @@
   use mpimod, only: npe,mpi_comm_world,ierror,mype
   use radinfo, only: retrieval,diag_rad,init_rad,init_rad_vars,adp_anglebc,angord,upd_pred,&
                        biaspredvar,use_edges,passive_bc,newpc4pred,final_rad_vars,emiss_bc,&
-                       ssmis_method,ssmis_precond,gmi_method,amsr2_method,bias_zero_start
+                       ssmis_method,ssmis_precond,gmi_method,amsr2_method,bias_zero_start, &
+                       reset_bad_radbc
   use radinfo, only: tzr_qc,tzr_bufrsave
   use radinfo, only: crtm_coeffs_path
   use ozinfo, only: diag_ozone,init_oz
@@ -100,7 +101,7 @@
      use_gfs_nemsio,sfcnst_comb,use_readin_anl_sfcmask,use_sp_eqspace,final_grid_vars,&
      jcap_gfs,nlat_gfs,nlon_gfs,jcap_cut,wrf_mass_hybridcord
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop
-  use gsi_io, only: init_io,lendian_in,verbose
+  use gsi_io, only: init_io,lendian_in,verbose,print_obs_para
   use regional_io_mod, only: regional_io_class
   use wrf_params_mod, only: update_pint, preserve_restart_date
   use constants, only: zero,one,init_constants,gps_constants,init_constants_derived,three
@@ -131,11 +132,13 @@
                             l_cleansnow_warmts,l_conserve_thetaV,r_cleansnow_warmts_threshold, &
                             i_conserve_thetav_iternum,l_gsd_soiltq_nudge,l_cld_bld, cld_bld_hgt, &
                             build_cloud_frac_p, clear_cloud_frac_p,       &
-                            l_cloud_analysis,nesdis_npts_rad, & 
+                            l_hydrometeor_bkio,nesdis_npts_rad, & 
                             iclean_hydro_withRef,iclean_hydro_withRef_allcol, &
                             i_use_2mq4b,i_use_2mt4b,i_gsdcldanal_type,i_gsdsfc_uselist, &
                             i_lightpcp,i_sfct_gross,l_use_hydroretrieval_all,l_numconc,l_closeobs,&
-                            i_coastline,i_gsdqc
+                            i_coastline,i_gsdqc,qv_max_inc,ioption,l_precip_clear_only,l_fog_off,&
+                            cld_bld_coverage,cld_clr_coverage,&
+                            i_cloud_q_innovation,i_ens_mean,DTsTmax
   use gsi_metguess_mod, only: gsi_metguess_init,gsi_metguess_final
   use gsi_chemguess_mod, only: gsi_chemguess_init,gsi_chemguess_final
   use tcv_mod, only: init_tcps_errvals,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
@@ -375,7 +378,11 @@
 !  01-04-2018 Apodaca   add diag_light and lightinfo for GOES/GLM lightning
 !                           data assimilation
 !  08-25-2018 Collard   Introduce bias_zero_start
+!  09-12-2018 Ladwig    added option l_precip_clear_only
+!  03-28-2019 Ladwig    merging additional options for cloud product assimilation
 !  03-11-2019 Collard   Introduce ec_amv_qc as temporary control of GOES-16/17 AMVS
+!  06-19-2019 Hu        Add option reset_bad_radbc for reseting radiance bias correction when it is bad
+!  06-25-2019 Hu        Add option print_obs_para to turn on OBS_PARA list
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -429,6 +436,7 @@
 !     diag_aero  - logical to turn off or on the diagnostic aerosol file (true=on)
 !     diag_co - logical to turn off or on the diagnostic carbon monoxide file (true=on)
 !     diag_light - logical to turn off or on the diagnostic lightning file (true=on)
+!     diag_radardbz - logical to turn off or on the diagnostic radar reflectivity file (true=on)
 !     write_diag - logical to write out diagnostic files on outer iteration
 !     lobsdiagsave - write out additional observation diagnostics
 !     ltlint       - linearize inner loop
@@ -492,6 +500,7 @@
 !     angord      - order of polynomial for variational angle bias correction
 !     newpc4pred  - option for additional preconditioning for pred coeff.
 !     passive_bc  - option to turn on bias correction for passive (monitored) channels
+!     reset_bad_radbc - option to turn on reseting bias correction coefficient when it is bad
 !     use_edges   - option to exclude radiance data on scan edges
 !     biaspredvar - set background error variance for radiance bias coeffs
 !     (default 0.1K)
@@ -566,13 +575,13 @@
        min_offset,pseudo_q2,&
        iout_iter,npredp,retrieval,&
        tzr_qc,tzr_bufrsave,&
-       diag_rad,diag_pcp,diag_conv,diag_ozone,diag_aero,diag_co,diag_light,iguess, &
+       diag_rad,diag_pcp,diag_conv,diag_ozone,diag_aero,diag_co,diag_light,diag_radardbz,iguess, &
        write_diag,reduce_diag, &
        oneobtest,sfcmodel,dtbduv_on,ifact10,l_foto,offtime_data,&
        use_pbl,use_compress,nsig_ext,gpstop,&
        perturb_obs,perturb_fact,oberror_tune,preserve_restart_date, &
        crtm_coeffs_path,berror_stats, &
-       newpc4pred,adp_anglebc,angord,passive_bc,use_edges,emiss_bc,upd_pred, &
+       newpc4pred,adp_anglebc,angord,passive_bc,use_edges,emiss_bc,upd_pred,reset_bad_radbc,&
        ssmis_method, ssmis_precond, gmi_method, amsr2_method, bias_zero_start, &
        ec_amv_qc, lobsdiagsave, lobsdiag_forenkf, &
        l4dvar,lbicg,lsqrtb,lcongrad,lbfgsmin,ltlint,nhr_obsbin,nhr_subwin,&
@@ -586,7 +595,7 @@
        lwrite_peakwt,use_gfs_nemsio,sfcnst_comb,liauon,use_prepb_satwnd,l4densvar,ens_nstarthr,&
        use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon,lrun_subdirs,&
        use_sp_eqspace,lnested_loops,lsingleradob,thin4d,use_readin_anl_sfcmask,&
-       luse_obsdiag,id_drifter,verbose,lsingleradar,singleradar,lnobalance, &
+       luse_obsdiag,id_drifter,verbose,print_obs_para,lsingleradar,singleradar,lnobalance, &
        missing_to_nopcp,minobrangedbz,minobrangedbz,maxobrangedbz,&
        maxobrangevr,maxtiltvr,whichradar,doradaroneob,oneoblat,&
        oneoblon,oneobheight,oneobvalue,oneobddiff,oneobradid,&
@@ -809,10 +818,11 @@
 ! OBS_INPUT (controls input data):
 !      dmesh(max(dthin))- thinning mesh for each group
 !      time_window_max  - upper limit on time window for all input data
+!      time_window_rad  - upper limit on time window for certain radiance input data
 !      ext_sonde        - logical for extended forward model on sonde data
 !      l_foreaft_thin -   separate TDR fore/aft scan for thinning
 
-  namelist/obs_input/dmesh,time_window_max, &
+  namelist/obs_input/dmesh,time_window_max,time_window_rad, &
        ext_sonde,l_foreaft_thin
 
 ! SINGLEOB_TEST (one observation test case setup):
@@ -973,7 +983,14 @@
 !                         =0. no cloud analysis (default)
 !                         =1.  cloud analysis after var analysis for WRF_ARW
 !                         =2.  cloud analysis after var analysis for NMMB
-!                         =5.  skip cloud analysis and NETCDF file update
+!                         =3.  cloud analysis only; var is skipped
+!                         =5.  skip cloud analysis and updating NETCDF result file at
+!                                         the end of the analysis
+!                         =6.  skip NETCDF background read step and do cloud analysis only
+!                         =7   cloud analysis in observer with I/O
+!                         =30  cloud analysis for GFS
+!                         =99  only read hydrometer fields but no cloud analysis
+
 !      i_gsdsfc_uselist  - options for how to use surface observation use or
 !                          rejection list
 !                         =0 . EMC method (default)
@@ -1006,6 +1023,26 @@
 !                              from GSD (for RAP/HRRR application)
 !                         =0 turn off
 !                         =2 turn on
+!      qv_max_inc        - threshold to limit the maximum water vapor increment
+!      ioption           - interpolation option for satellite mapping 
+!                         =1  if selection is nearest neighbor
+!                         =2  if selection is median of samples
+!      l_precip_clear_only - the precipitation analysis only clears; it does not
+!                            make any updates for positive precipitating hydrometeors
+!      l_fog_off           - turn off using fog observations
+!      cld_bld_coverage    - cloud coverage required for qc/qi building
+!      cld_clr_coverage    - cloud coverage required for qc/qi clearing
+!      i_cloud_q_innovation - integer to choose if and how cloud obs are used
+!                          0= no innovations 
+!                          1= cloud total innovations
+!                          2= water vapor innovations
+!                          3= cloud total & water vapor innovations
+!      i_ens_mean    - integer for setupcldtot behavior
+!                           0=single model run
+!                           1=ensemble mean
+!                           2=ensemble members
+!      DTsTmax       - maximum allowed difference between Tskin and the first
+!                           level T. This is to safety guard soil T adjustment.
 !
   namelist/rapidrefresh_cldsurf/dfi_radar_latent_heat_time_period, &
                                 metar_impact_radius,metar_impact_radius_lowcloud, &
@@ -1021,7 +1058,9 @@
                                 iclean_hydro_withRef,iclean_hydro_withRef_allcol,&
                                 i_use_2mq4b,i_use_2mt4b,i_gsdcldanal_type,i_gsdsfc_uselist, &
                                 i_lightpcp,i_sfct_gross,l_use_hydroretrieval_all,l_numconc,l_closeobs,&
-                                i_coastline,i_gsdqc
+                                i_coastline,i_gsdqc,qv_max_inc,ioption,l_precip_clear_only,l_fog_off,&
+                                cld_bld_coverage,cld_clr_coverage,&
+                                i_cloud_q_innovation,i_ens_mean,DTsTmax
 
 ! chem(options for gsi chem analysis) :
 !     berror_chem       - .true. when background  for chemical species that require
@@ -1381,6 +1420,7 @@
      diag_co=.false.
      diag_pcp=.false.
      diag_light=.false.
+     diag_radardbz=.false.
      use_limit = 0
   end if
   if(reduce_diag) use_limit = 0
@@ -1393,8 +1433,14 @@
 
 ! Force turn off cloud analysis and hydrometeor IO
   if (i_gsdcldanal_type==0) then
-     l_cloud_analysis = .false.
-     if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** set l_cloud_analysis=false'
+     l_hydrometeor_bkio = .false.
+     if (mype==0) write(6,*)'GSIMOD:  ***WARNING*** set l_hydrometeor_bkio=false'
+  else if(i_gsdcldanal_type==1 .or. i_gsdcldanal_type==2 .or. &
+          i_gsdcldanal_type==3 .or. i_gsdcldanal_type==5 .or. &
+          i_gsdcldanal_type==6 .or. i_gsdcldanal_type==7 .or. &
+          i_gsdcldanal_type==99 ) then
+     l_hydrometeor_bkio = .true.
+     if (mype==0) write(6,*)'GSIMOD:  set l_hydrometeor_bkio=true:',i_gsdcldanal_type
   endif
   if((i_coastline == 1 .or. i_coastline == 3) .and. i_use_2mt4b==0) then
      i_coastline=0
@@ -1597,7 +1643,7 @@
      if (fv3_regional) then
         call convert_fv3_regional
      else
-        call regional_io%convert_regional_guess(mype,ctph0,stph0,tlm0)
+        if(i_gsdcldanal_type.ne.6) call regional_io%convert_regional_guess(mype,ctph0,stph0,tlm0)
      endif
   endif
             

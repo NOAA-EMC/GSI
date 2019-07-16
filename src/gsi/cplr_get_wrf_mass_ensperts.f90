@@ -6,6 +6,8 @@ use abstract_get_wrf_mass_ensperts_mod
     procedure, pass(this) :: get_wrf_mass_ensperts => get_wrf_mass_ensperts_wrf
     procedure, pass(this) :: ens_spread_dualres_regional => ens_spread_dualres_regional_wrf
     procedure, pass(this) :: general_read_wrf_mass
+    procedure, pass(this) :: parallel_read_wrf_mass_step1
+    procedure, pass(this) :: parallel_read_wrf_mass_step2
     procedure, pass(this) :: general_read_wrf_mass2
     procedure, nopass :: fill_regional_2d
   end type get_wrf_mass_ensperts_class
@@ -41,8 +43,8 @@ contains
   
       use kinds, only: r_kind,i_kind,r_single
       use constants, only: zero,one,half,zero_single,rd_over_cp,one_tenth
-      use mpimod, only: mpi_comm_world,ierror,mype
-      use hybrid_ensemble_parameters, only: n_ens,grd_ens
+      use mpimod, only: mpi_comm_world,ierror,mype,npe
+      use hybrid_ensemble_parameters, only: n_ens,grd_ens,ens_fast_read
       use hybrid_ensemble_parameters, only: ntlevs_ens,ensemble_path
       use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
       use gsi_bundlemod, only: gsi_bundlecreate
@@ -73,14 +75,23 @@ contains
       type(gsi_bundle):: en_bar
       type(gsi_grid):: grid_ens
       real(r_kind):: bar_norm,sig_norm,kapr,kap1
-  
+
       integer(i_kind):: i,j,k,n,mm1,istatus
       integer(i_kind):: ic2,ic3,i_radar_qr,i_radar_qg
       integer(i_kind):: its,ite, it
 
       character(255) filelists(ntlevs_ens)
       character(255) filename
-  
+
+      logical :: do_radar
+      logical :: do_ens_fast_read
+      
+      ! Variables used only by the ensemble fast read
+      integer(i_kind) :: iope
+      logical :: bad_input
+      real(r_kind),dimension(:,:,:),allocatable :: gg_u,gg_v,gg_tv,gg_rh
+      real(r_kind),dimension(:,:),allocatable :: gg_ps
+
       call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
       call gsi_bundlecreate(en_bar,grid_ens,'ensemble',istatus,names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
       if(istatus/=0) then
@@ -122,29 +133,94 @@ contains
      i_radar_qg=0
      i_radar_qr=getindex(cvars3d,'qr')
      i_radar_qg=getindex(cvars3d,'qg')
-
+     do_radar=i_radar_qr > 0 .and. i_radar_qg > 0
 
       mm1=mype+1
       kap1=rd_over_cp+one
       kapr=one/rd_over_cp
+
+      ! If ens_fast_read is requested, check whether we really can use it.
+      do_ens_fast_read = ens_fast_read
+      can_ens_fast_read: if( do_ens_fast_read ) then ! make sure we can
+         if(n_ens>npe) then
+            do_ens_fast_read=.false.
+130         format('Disabling ens_fast_read because number of ensemble members (',I0,') is greater than number of MPI ranks (',I0,').')
+            if(mype==0) then
+               write(6,130) n_ens,npe
+            endif
+         endif
+         if(do_radar) then
+            do_ens_fast_read=.false.
+            if(mype==0) then
+               write(6,'(A)') 'Disabling ens_fast_read because "radar mode" is in use (qg and qr are control variables).  Fast read is not yet implemented in "radar mode."'
+            endif
+         endif
+      endif can_ens_fast_read
+      if(do_ens_fast_read .and. mype==0) then
+         write(6,'(I0,A)') mype,': will read ensemble data in parallel (ens_fast_read=.true.)'
+      endif
+      
+  !
+  ! If we're doing ens_fast_read, then this loop reads data.
+      ens_parallel_read: if(do_ens_fast_read) then
+         if(mype==0) then
+            write(0,*) 'Will use ens_fast_read to read ARW ensemble.'
+         endif
+         ens_read_loop: do n=1,n_ens
+            read(10,'(a)',err=20,end=20)filename
+            filename=trim(ensemble_path) // trim(filename)
+            iope=(n-1)*npe/n_ens
+            if(mype==iope) then
+               allocate(gg_u(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+               allocate(gg_v(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+               allocate(gg_tv(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+               allocate(gg_rh(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+               allocate(gg_ps(grd_ens%nlat,grd_ens%nlon))
+               bad_input=.false.
+               call this%parallel_read_wrf_mass_step1(filename,gg_ps,gg_tv,gg_u,gg_v,gg_rh)
+            endif
+         end do ens_read_loop
+         
+         call MPI_Barrier(mpi_comm_world,ierror)
+      end if ens_parallel_read
+
+      rewind(10)
   !
   ! LOOP OVER ENSEMBLE MEMBERS 
-         do n=1,n_ens
+         ens_main_loop: do n=1,n_ens
   !
   ! DEFINE INPUT FILE NAME
-             read(10,'(a)',err=20,end=20)filename
-             filename=trim(ensemble_path) // trim(filename)
   ! 
-  ! READ ENEMBLE MEMBERS DATA
-         if (mype == 0) write(6,'(a,a)') 'CALL READ_WRF_MASS_ENSPERTS FOR ENS DATA : ',trim(filename)
-         if( i_radar_qr > 0 .and. i_radar_qg > 0 )then
-           call this%general_read_wrf_mass2(filename,ps,u,v,tv,rh,cwmr,oz,w,dbz,qs,qg,qi,qr,qnc,qni,qnr,mype) 
-         else
-           call this%general_read_wrf_mass(filename,ps,u,v,tv,rh,cwmr,oz,mype) 
-         end if
+  ! READ OR SCATTER ENEMBLE MEMBER DATA
+            read(10,'(a)',err=20,end=20)filename
+            filename=trim(ensemble_path) // trim(filename)
+            scatter_or_read: if(do_ens_fast_read) then
+                ! Scatter data from the parallel read.
+                iope=(n-1)*npe/n_ens
+                if(mype==iope) then
+                   write(0,'(I0,A,I0,A)') mype,': scatter member ',n,' to other ranks...'
+                   call this%parallel_read_wrf_mass_step2(mype,iope,&
+                        ps,u,v,tv,rh,cwmr,oz, &
+                        gg_ps,gg_tv,gg_u,gg_v,gg_rh)
+                else
+                   call this%parallel_read_wrf_mass_step2(mype,iope,&
+                        ps,u,v,tv,rh,cwmr,oz)
+                endif
+             else
+                if (mype == 0) then
+                   write(6,'(a,a)') 'CALL READ_WRF_MASS_ENSPERTS FOR ENS DATA : ',trim(filename)
+                endif
+                if( do_radar )then
+                   call this%general_read_wrf_mass2(filename,ps,u,v,tv,rh,cwmr,oz,w,dbz,qs,qg,qi,qr,qnc,qni,qnr,mype) 
+                else
+                   call this%general_read_wrf_mass(filename,ps,u,v,tv,rh,cwmr,oz,mype) 
+                end if
+             endif scatter_or_read
+
+             call MPI_Barrier(mpi_comm_world,ierror)
   
   ! SAVE ENSEMBLE MEMBER DATA IN COLUMN VECTOR
-            do ic3=1,nc3d
+            member_data_loop: do ic3=1,nc3d
   
                call gsi_bundlegetpointer(en_perts(n,it),trim(cvars3d(ic3)),w3,istatus)
                if(istatus/=0) then
@@ -325,9 +401,9 @@ contains
                      end do
   
                end select
-            end do
+            end do member_data_loop
   
-            do ic2=1,nc2d
+            member_mass_loop: do ic2=1,nc2d
      
                call gsi_bundlegetpointer(en_perts(n,it),trim(cvars2d(ic2)),w2,istatus)
                if(istatus/=0) then
@@ -362,8 +438,9 @@ contains
                      end do
   
                end select
-            end do
-         enddo 
+            end do member_mass_loop
+         enddo ens_main_loop
+
   !
   ! CALCULATE ENSEMBLE MEAN
          bar_norm = one/float(n_ens)
@@ -371,7 +448,7 @@ contains
   
   ! Copy pbar to module array.  ps_bar may be needed for vertical localization
   ! in terms of scale heights/normalized p/p
-         do ic2=1,nc2d
+         pbar_loop: do ic2=1,nc2d
    
             if(trim(cvars2d(ic2)) == 'ps'.or.trim(cvars2d(ic2)) == 'PS') then
   
@@ -388,7 +465,7 @@ contains
                end do
                exit
             end if
-         end do
+         end do pbar_loop
   
          call mpi_barrier(mpi_comm_world,ierror)
   !
@@ -412,17 +489,55 @@ contains
         write(6,*)' in get_wrf_mass_ensperts_netcdf: trouble destroying en_bar bundle'
                call stop2(999)
             endif
-  
-  return
 
+     if(allocated(gg_u)) deallocate(gg_u)
+     if(allocated(gg_v)) deallocate(gg_v)
+     if(allocated(gg_tv)) deallocate(gg_tv)
+     if(allocated(gg_rh)) deallocate(gg_rh)
+     if(allocated(gg_ps)) deallocate(gg_ps)
+
+  return
 30 write(6,*) 'get_wrf_mass_ensperts_netcdf: open filelist failed '
    call stop2(555)
 20 write(6,*) 'get_wrf_mass_ensperts_netcdf: read WRF-ARW ens failed ',n
    call stop2(555)
 
   end subroutine get_wrf_mass_ensperts_wrf
-  
+
   subroutine general_read_wrf_mass(this,filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,mype)
+    use kinds, only: r_kind,i_kind,r_single
+    use hybrid_ensemble_parameters, only: grd_ens
+    implicit none
+  !
+  ! Declare passed variables
+      class(get_wrf_mass_ensperts_class), intent(inout) :: this
+      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),intent(out):: &
+                                                    g_u,g_v,g_tv,g_rh,g_cwmr,g_oz
+      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2),intent(out):: g_ps
+      character(255),intent(in):: filename
+      integer,intent(in) :: mype
+
+      real(r_kind),dimension(:,:,:),allocatable :: gg_u,gg_v,gg_tv,gg_rh
+      real(r_kind),dimension(:,:),allocatable :: gg_ps
+
+      if(mype==0) then
+         allocate(gg_u(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+         allocate(gg_v(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+         allocate(gg_tv(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+         allocate(gg_rh(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+         allocate(gg_ps(grd_ens%nlat,grd_ens%nlon))
+         call this%parallel_read_wrf_mass_step1(filename,gg_ps,gg_tv,gg_u,gg_v,gg_rh)
+         call this%parallel_read_wrf_mass_step2(mype,0, &
+              g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz, &
+              gg_ps,gg_tv,gg_u,gg_v,gg_rh)
+         deallocate(gg_u,gg_v,gg_tv,gg_rh,gg_ps)
+      else
+         call this%parallel_read_wrf_mass_step2(mype,0, &
+              g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz)
+      endif
+  end subroutine general_read_wrf_mass
+  
+  subroutine parallel_read_wrf_mass_step1(this,filename,gg_ps,gg_tv,gg_u,gg_v,gg_rh)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    general_read_wrf_mass  read arw model ensemble members
@@ -465,17 +580,19 @@ contains
       use gridmod, only: nsig,eta1_ll,pt_ll,aeta1_ll,eta2_ll,aeta2_ll
       use constants, only: zero,one,fv,zero_single,rd_over_cp_mass,one_tenth,h300
       use hybrid_ensemble_parameters, only: grd_ens,q_hyb_ens
-      use mpimod, only: mpi_comm_world,ierror,mpi_rtype
       use netcdf_mod, only: nc_check
-  
+      use mpimod, only: mype
+
       implicit none
   !
   ! Declare passed variables
       class(get_wrf_mass_ensperts_class), intent(inout) :: this
-      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),intent(out):: &
-                                                    g_u,g_v,g_tv,g_rh,g_cwmr,g_oz
-      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2),intent(out):: g_ps
+
       character(255),intent(in):: filename
+
+      real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig) :: gg_u,gg_v,gg_tv,gg_rh
+      real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon):: gg_ps
+
   !
   ! Declare local parameters
       real(r_kind),parameter:: r0_01 = 0.01_r_kind
@@ -487,13 +604,11 @@ contains
       real(r_single),allocatable,dimension(:,:):: temp_2d,temp_2d2
       real(r_single),allocatable,dimension(:,:,:):: temp_3d
       real(r_kind),allocatable,dimension(:):: p_top
-      real(r_kind),allocatable,dimension(:,:):: q_integral,gg_ps,q_integralc4h
-      real(r_kind),allocatable,dimension(:,:,:):: tsn,qst,prsl,&
-       gg_u,gg_v,gg_tv,gg_rh
-      real(r_kind),allocatable,dimension(:):: wrk_fill_2d
+      real(r_kind),allocatable,dimension(:,:):: q_integral,q_integralc4h
+      real(r_kind),allocatable,dimension(:,:,:):: tsn,qst,prsl
       integer(i_kind),allocatable,dimension(:):: dim,dim_id
   
-      integer(i_kind):: nx,ny,nz,i,j,k,d_max,file_id,var_id,ndim,mype
+      integer(i_kind):: nx,ny,nz,i,j,k,d_max,file_id,var_id,ndim
       integer(i_kind):: Time_id,s_n_id,w_e_id,b_t_id,s_n_stag_id,w_e_stag_id,b_t_stag_id
       integer(i_kind):: Time_len,s_n_len,w_e_len,b_t_len,s_n_stag_len,w_e_stag_len,b_t_stag_len
       integer(i_kind) iderivative
@@ -507,14 +622,14 @@ contains
       character(len=24),parameter :: myname_ = 'general_read_wrf_mass'
 
 
+      associate( this => this ) ! eliminates warning for unused dummy argument
+                                ! needed for binding
+      end associate
+
   !
   ! OPEN ENSEMBLE MEMBER DATA FILE
-    if (mype==0) then ! only read data on root proc
-      allocate(gg_u(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
-      allocate(gg_v(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
-      allocate(gg_tv(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
-      allocate(gg_rh(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
-      allocate(gg_ps(grd_ens%nlat,grd_ens%nlon))
+30 format(I0,': read ',A)
+      write(6,*) mype,trim(filename)
       call nc_check( nf90_open(trim(filename),nf90_nowrite,file_id),&
           myname_,'open '//trim(filename) )
   !
@@ -557,8 +672,8 @@ contains
       ny=s_n_len
       nz=b_t_len
       if (nx /= grd_ens%nlon .or. ny /= grd_ens%nlat .or. nz /= grd_ens%nsig) then
-       print *,'incorrect grid size in netcdf file'
-       print *,'nx,ny,nz,nlon,nlat,nsig',nx,ny,nz,grd_ens%nlon,grd_ens%nlat,grd_ens%nsig
+       print *,trim(filename)//': ','incorrect grid size in netcdf file'
+       print *,trim(filename)//': ','nx,ny,nz,nlon,nlat,nsig',nx,ny,nz,grd_ens%nlon,grd_ens%nlat,grd_ens%nsig
        call stop2(999)
       endif
   
@@ -571,7 +686,7 @@ contains
       dim(b_t_stag_id)=b_t_stag_len
   !
   ! READ PERTURBATION POTENTIAL TEMPERATURE (K)
-  !    print *, 'read T ',filename
+  !    print *,trim(filename)//': ', 'read T ',filename
       call nc_check( nf90_inq_varid(file_id,'T',var_id),&
           myname_,'inq_varid T '//trim(filename) )
   
@@ -646,12 +761,12 @@ contains
             gg_ps(j,i)=temp_2d2(i,j)
          enddo
       enddo
-      print *,'min/max ps',minval(gg_ps),maxval(gg_ps)
+      print *,trim(filename)//': ','min/max ps',minval(gg_ps),maxval(gg_ps)
       deallocate(temp_2d,temp_2d2,temp_1d,dim_id)
   
   !
   ! READ U (m/s)
-      !print *, 'read U ',filename
+      !print *,trim(filename)//': ', 'read U ',filename
       call nc_check( nf90_inq_varid(file_id,'U',var_id),&
           myname_,'inq_varid U '//trim(filename) )
   
@@ -678,7 +793,7 @@ contains
       deallocate(dim_id)
   !
   ! READ V (m/s)
-      !print *, 'read V ',filename
+      !print *,trim(filename)//': ', 'read V ',filename
       call nc_check( nf90_inq_varid(file_id,'V',var_id),&
           myname_,'inq_varid V '//trim(filename) )
   
@@ -703,11 +818,11 @@ contains
       enddo
       deallocate(temp_3d)
       deallocate(dim_id)
-      print *,'min/max u',minval(gg_u),maxval(gg_u)
-      print *,'min/max v',minval(gg_v),maxval(gg_v)
+      print *,trim(filename)//': ','min/max u',minval(gg_u),maxval(gg_u)
+      print *,trim(filename)//': ','min/max v',minval(gg_v),maxval(gg_v)
   !
   ! READ QVAPOR (kg/kg)
-      !print *, 'read QVAPOR ',filename
+      !print *,trim(filename)//': ', 'read QVAPOR ',filename
       call nc_check( nf90_inq_varid(file_id,'QVAPOR',var_id),&
           myname_,'inq_varid QVAPOR '//trim(filename) )
   
@@ -729,7 +844,7 @@ contains
           myname_,'close '//trim(filename) )
   !
   ! CALCULATE TOTAL POTENTIAL TEMPERATURE (K)
-      !print *, 'calculate total temperature ',filename
+      !print *,trim(filename)//': ', 'calculate total temperature ',filename
       do i=1,nx
          do j=1,ny
             do k=1,nz
@@ -739,7 +854,7 @@ contains
       enddo   
   !
   ! INTEGRATE {1 + WATER VAPOR} TO CONVERT DRY AIR PRESSURE    
-      !print *, 'integrate 1 + q vertically ',filename
+      !print *,trim(filename)//': ', 'integrate 1 + q vertically ',filename
       allocate(q_integral(ny,nx))
       allocate(q_integralc4h(ny,nx))
       q_integral(:,:)=one
@@ -773,7 +888,7 @@ contains
       end do
   !
   ! CONVERT POTENTIAL TEMPERATURE TO VIRTUAL TEMPERATURE
-      !print *, 'convert potential temp to virtual temp ',filename
+      !print *,trim(filename)//': ', 'convert potential temp to virtual temp ',filename
       allocate(prsl(ny,nx,nz))
       do k=1,nz
          do i=1,nx
@@ -791,7 +906,7 @@ contains
             end do
          end do
       end do
-      print *,'min/max tv',minval(gg_tv),maxval(gg_tv)
+      print *,trim(filename)//': ','min/max tv',minval(gg_tv),maxval(gg_tv)
   
   !
   ! CALCULATE PSEUDO RELATIVE HUMIDITY IF USING RH VARIABLE
@@ -807,45 +922,72 @@ contains
                enddo
             enddo
          enddo
-         print *,'min/max rh',minval(gg_rh),maxval(gg_rh)
+         print *,trim(filename)//': ','min/max rh',minval(gg_rh),maxval(gg_rh)
          deallocate(qst)
       else
-         print *,'min/max q',minval(gg_rh),maxval(gg_rh)
+         print *,trim(filename)//': ','min/max q',minval(gg_rh),maxval(gg_rh)
       end if
   
   ! DEALLOCATE REMAINING TEMPORARY STORAGE
       deallocate(tsn,prsl,q_integral,p_top)
-    endif ! done netcdf read on root
   
+  return       
+  end subroutine parallel_read_wrf_mass_step1
+
+  subroutine parallel_read_wrf_mass_step2(this,mype,iope, &
+       g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz, &
+       gg_ps,gg_tv,gg_u,gg_v,gg_rh)
+
+    use hybrid_ensemble_parameters, only: grd_ens
+    use mpimod, only: mpi_comm_world,ierror,mpi_rtype
+    use kinds, only: r_kind,r_single,i_kind
+    implicit none
+
+  !
+  ! Declare passed variables
+      class(get_wrf_mass_ensperts_class), intent(inout) :: this
+      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),intent(out):: &
+                                                    g_u,g_v,g_tv,g_rh,g_cwmr,g_oz
+      integer(i_kind), intent(in) :: mype, iope
+      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2),intent(out):: g_ps
+
+      ! The gg_ arrays are only sent by the rank doing I/O (mype==iope)
+      real(r_kind),optional,dimension(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig) :: &
+           gg_u,gg_v,gg_tv,gg_rh
+      real(r_kind),optional,dimension(grd_ens%nlat,grd_ens%nlon):: gg_ps
+
+  ! Declare local variables
+      real(r_kind),allocatable,dimension(:):: wrk_send_2d
+      integer(i_kind) :: k
+
   ! transfer data from root to subdomains on each task
   ! scatterv used, since full grids exist only on root task.
-    allocate(wrk_fill_2d(grd_ens%itotsub))
+    allocate(wrk_send_2d(grd_ens%itotsub))
   ! first PS (output from fill_regional_2d is a column vector with a halo)
-    if(mype==0) call this%fill_regional_2d(gg_ps,wrk_fill_2d)
-    call mpi_scatterv(wrk_fill_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
-    g_ps,grd_ens%ijn_s(mype+1),mpi_rtype,0,mpi_comm_world,ierror)       
+    if(mype==iope) call this%fill_regional_2d(gg_ps,wrk_send_2d)
+    call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
+    g_ps,grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)       
   ! then TV,U,V,RH
     do k=1,grd_ens%nsig
-       if (mype==0) call this%fill_regional_2d(gg_tv(1,1,k),wrk_fill_2d)
-       call mpi_scatterv(wrk_fill_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
-       g_tv(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,0,mpi_comm_world,ierror)       
-       if (mype==0) call this%fill_regional_2d(gg_u(1,1,k),wrk_fill_2d)
-       call mpi_scatterv(wrk_fill_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
-       g_u(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,0,mpi_comm_world,ierror)       
-       if (mype==0) call this%fill_regional_2d(gg_v(1,1,k),wrk_fill_2d)
-       call mpi_scatterv(wrk_fill_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
-       g_v(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,0,mpi_comm_world,ierror)       
-       if (mype==0) call this%fill_regional_2d(gg_rh(1,1,k),wrk_fill_2d)
-       call mpi_scatterv(wrk_fill_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
-       g_rh(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,0,mpi_comm_world,ierror)       
+       if (mype==iope) then
+          call this%fill_regional_2d(gg_tv(:,:,k),wrk_send_2d)
+       endif
+       call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
+       g_tv(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)       
+       if (mype==iope) call this%fill_regional_2d(gg_u(1,1,k),wrk_send_2d)
+       call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
+       g_u(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)       
+       if (mype==iope) call this%fill_regional_2d(gg_v(1,1,k),wrk_send_2d)
+       call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
+       g_v(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)       
+       if (mype==iope) call this%fill_regional_2d(gg_rh(1,1,k),wrk_send_2d)
+       call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
+       g_rh(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)       
     enddo
   ! for now, don't do anything with oz, cwmr
     g_oz = 0.; g_cwmr = 0.
-    deallocate(wrk_fill_2d)
-    if (mype==0) deallocate(gg_u,gg_v,gg_tv,gg_rh,gg_ps)
-  
-  return       
-  end subroutine general_read_wrf_mass
+    deallocate(wrk_send_2d)
+  end subroutine parallel_read_wrf_mass_step2  
 
   subroutine general_read_wrf_mass2(this,filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,&
                                     g_w,g_dbz,g_qs,g_qg,g_qi,g_qr,g_qnc,g_qni,g_qnr,mype)
@@ -1627,7 +1769,7 @@ contains
   !
     use kinds, only: r_single,r_kind,i_kind
     use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,p_e2a,uv_hyb_ens, &
-                                          regional_ensemble_option
+                                          regional_ensemble_option,write_ens_sprd
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sube2suba
     use constants, only:  zero,two,half,one
     use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
@@ -1776,7 +1918,7 @@ contains
        ps => dum2
     end if
   
-    call write_spread_dualres(st,vp,tv,rh,oz,cw,ps,mype)
+    if(write_ens_sprd) call write_spread_dualres(st,vp,tv,rh,oz,cw,ps,mype)
   
     return
   end subroutine ens_spread_dualres_regional_wrf
