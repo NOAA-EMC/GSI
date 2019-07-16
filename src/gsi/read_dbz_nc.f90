@@ -9,7 +9,9 @@ subroutine read_dbz_nc(nread,ndata,nodata,infile,lunout,obstype,sis,hgtl_full,no
 ! program history log:
 !   2016-02-14  Y. Wang, Johnson, X. Wang - modify read_radar.f90 to read MRMS dbz in netcdf format 
 !                                           in collaboration with Carley, POC: xuguang.wang@ou.edu
-!                               
+!   2019-02-27  D. Dowell :  changed data_r_1d from real(r_kind) to real; added new array data_r_2d
+!                            changed lon and lat to 2D arrays
+!                            changed value for dbznoise
 !
 ! program history log:
 !           
@@ -64,7 +66,7 @@ subroutine read_dbz_nc(nread,ndata,nodata,infile,lunout,obstype,sis,hgtl_full,no
 !
 !$$$ end documentation block
 
-  use kinds, only: r_kind,r_double,i_kind
+  use kinds, only: r_kind,r_double,i_kind,r_single
   use constants, only: zero,half,one,two,deg2rad,rad2deg, &
                        one_tenth,r1000,r60,r60inv,r100,r400,grav_equator, &
                        eccentricity,somigliana,grav_ratio,grav,semi_major_axis,flattening 
@@ -98,9 +100,12 @@ subroutine read_dbz_nc(nread,ndata,nodata,infile,lunout,obstype,sis,hgtl_full,no
   
 ! === Grid dbz data declaration
 
-  real(r_kind), allocatable, dimension(:)       :: data_r_1d, height,&
-                                                   lon, lat
-  real(r_kind), allocatable, dimension(:,:,:)     :: data_r_3d, dbzQC
+  real(r_single), allocatable, dimension(:) :: data_r_1d
+  real(r_single), allocatable, dimension(:,:) :: data_r_2d
+  real(r_kind), allocatable, dimension(:) :: height
+  real(r_kind), allocatable, dimension(:,:) :: lon, lat
+  real(r_single), allocatable, dimension(:,:,:) :: data_r_3d
+  real(r_kind), allocatable, dimension(:,:,:) :: dbzQC
 
   integer(i_kind), parameter                  :: max_num_vars = 50, max_num_dims = 20
 
@@ -159,7 +164,7 @@ subroutine read_dbz_nc(nread,ndata,nodata,infile,lunout,obstype,sis,hgtl_full,no
     
   real(r_kind) :: minobrange,maxobrange,mintilt,maxtilt
 
-  real(r_kind)    :: dbznoise=5_r_kind           ! dBZ obs must be >= dbznoise for assimilation
+  real(r_kind)    :: dbznoise=-10.0_r_kind       ! dBZ obs must be >= dbznoise for assimilation
   logical         :: l_limmax=.true.             ! If true, observations > 60 dBZ are limited to be 60 dBZ.  This is
                                                  ! due to representativeness error associated with the model
 
@@ -171,6 +176,7 @@ subroutine read_dbz_nc(nread,ndata,nodata,infile,lunout,obstype,sis,hgtl_full,no
   num_dbz2mindbz=0
 
   write(6,*)'missing_to_nopcp is ',missing_to_nopcp
+  write(6,*)'radar_no_thinning is ',radar_no_thinning
 !--------------------------------------------------------------------------------------!
 !                            END OF ALL DECLARATIONS                                   !
 !--------------------------------------------------------------------------------------!
@@ -285,7 +291,7 @@ fileopen: if (if_input_exist) then
   END DO  ! ivar
 
   allocate( dbzQC(dims(1,1),dims(1,2),dims(1,3)),  height(dims(2,1)), &
-            lon(dims(3,1)),    lat(dims(4,1)) )
+            lon(dims(3,1),dims(3,2)),    lat(dims(4,1),dims(4,2)) )
 
   one_read = 1
 
@@ -297,20 +303,28 @@ fileopen: if (if_input_exist) then
 
          dbzQC = data_r_3d
 
-       else     
-        allocate( data_r_1d(dims(ivar,1)) )
+       else if( ivar == 2 )then
+         allocate( data_r_1d(dims(ivar,1)) )
 
-        call ncvgt( cdfid, id_var(ivar), one_read, dims(ivar,:), data_r_1d, rcode )
+         call ncvgt( cdfid, id_var(ivar), one_read, dims(ivar,:), data_r_1d, rcode )
 
-        if( ivar == 2 )then
-          height = data_r_1d
-        else if( ivar == 3 )then
-          lon    = data_r_1d
-        else if( ivar == 4 )then
-          lat    = data_r_1d
-        end if
+         height = data_r_1d
 
-        deallocate( data_r_1d )
+         deallocate( data_r_1d )
+
+       else
+         allocate( data_r_2d(dims(ivar,1),dims(ivar,2)) )
+
+         call ncvgt( cdfid, id_var(ivar), one_read, dims(ivar,:), data_r_2d, rcode )
+
+         if( ivar == 3 )then
+           lon    = data_r_2d
+         else if( ivar == 4 )then
+           lat    = data_r_2d
+         end if
+
+         deallocate( data_r_2d )
+
        end if
 
   end do
@@ -332,12 +346,13 @@ fileopen: if (if_input_exist) then
       do k = 1, dims(ivar,3)
 
         imissing2nopcp = 0
-        if( dbzQC(i,j,k) <= 0.0_r_kind ) then
+! Missing data in the input file have the value -999.0
+        if( dbzQC(i,j,k) <= -900.0_r_kind ) then
            !--Extend no precip observations to missing data fields?
            !  May help suppress spurious convection if a problem.
-           if (missing_to_nopcp .and. dbzQC(i,j,k) > -100_r_kind ) then
+           if (missing_to_nopcp .and. dbzQC(i,j,k) > -1000.0_r_kind ) then
              imissing2nopcp = 1
-             dbzQC(i,j,k)     = 0.0_r_kind
+             dbzQC(i,j,k)   = static_gsi_nopcp_dbz
              num_m2nopcp    = num_m2nopcp + 1
            else
              num_missing    = num_missing + 1
@@ -359,14 +374,12 @@ fileopen: if (if_input_exist) then
           num_dbz2mindbz = num_dbz2mindbz + 1
         end if
  
-        if ( dbzQC(i,j,k) < 10._r_kind .and. dbzQC(i,j,k) > 0.0_r_kind ) cycle
- 
         thishgt = height(k) ! unit : meter
         hgt     = thishgt
  
  
-        thislon = lon(i)
-        thislat = lat(j)
+        thislon = lon(i,j)
+        thislat = lat(i,j)
    
         !-Check format of longitude and correct if necessary
                   
@@ -388,7 +401,10 @@ fileopen: if (if_input_exist) then
                                             ! then cycle, but don't increase range right away.
                                             ! Domain could be rectangular, so ob may be out of
                                             ! range at one end, but not the other.		     					                   		   		   
-        thiserr = dbznoise
+! changed to hard-coded value for now; dbznoise used for two different purposes in this subroutine:
+!                   (1) threshold for lowest reflectivity value considered to be an observation and 
+!                   (2) ob error
+        thiserr = 5.0_r_kind
                  
  
         nread = nread + 1
@@ -467,15 +483,19 @@ fileopen: if (if_input_exist) then
          cdata_all(4,iout) = thishgt                       ! obs absolute height (m)
          cdata_all(5,iout) = dbzQC(i,j,k)                      ! radar reflectivity factor 
          cdata_all(6,iout) = thisazimuthr                  ! 90deg-azimuth angle (radians)
+
          cdata_all(7,iout) = timeb*r60inv                  ! obs time (analyis relative hour)
-         cdata_all(8,iout) = ikx                           ! type		   
+         cdata_all(8,iout) = ikx                           ! type                  
          cdata_all(9,iout) = thistiltr                     ! tilt angle (radians)
          cdata_all(10,iout)= this_stahgt                   ! station elevation (m)
+
          cdata_all(11,iout)= rstation_id                   ! station id
          cdata_all(12,iout)= icuse(ikx)                    ! usage parameter
          cdata_all(13,iout)= thislon*rad2deg               ! earth relative longitude (degrees)
          cdata_all(14,iout)= thislat*rad2deg               ! earth relative latitude (degrees)
-         cdata_all(15,iout)= thisrange                     ! range from radar in m 
+
+         cdata_all(15,iout)= thisrange                     ! range from radar in m
+
          cdata_all(16,iout)= thiserr                       ! orginal error from convinfo file
          cdata_all(17,iout)= dbznoise                      ! noise threshold for reflectivity (dBZ)
          cdata_all(18,iout)= imissing2nopcp                !=0, normal 

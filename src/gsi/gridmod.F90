@@ -1368,7 +1368,8 @@ contains
        allocate(region_dyi(nlat,nlon),region_dxi(nlat,nlon))
        allocate(coeffy(nlat,nlon),coeffx(nlat,nlon))
 
-!   trasfer earth lats and lons to arrays region_lat, region_lon
+!  trasfer earth lats and lons to arrays region_lat, region_lon
+!  NOTE: The glat_an and glon_an are the latlon values for ensemble perturbation grid
 
        allocate(glat_an(nlon,nlat),glon_an(nlon,nlat))
        do k=1,nlon

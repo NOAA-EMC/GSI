@@ -60,10 +60,6 @@
 #   Language: POSIX shell
 #   Machine: IBM SP
 ####################################################################
-export scr=radmon_ck_stdout.sh
-msg="${scr} HAS STARTED"
-postmsg "$jlogfile" "$msg"
-
 
 #  Command line arguments.
 outfile=${1:-${outfile:?}}
@@ -104,9 +100,6 @@ done
 if [[ "$VERBOSE" = "YES" ]]; then
    echo $(date) EXITING $0 with error code ${err} >&2
 fi
-
-msg="${scr} HAS ENDED"
-postmsg "$jlogfile" "$msg"
 
 set +x
 exit ${err}

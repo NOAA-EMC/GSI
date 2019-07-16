@@ -471,7 +471,7 @@ subroutine ens_spread_dualres(en_bar,ibin)
 !$$$ end documentation block
   use kinds, only: r_single,r_kind,i_kind
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,p_e2a,uv_hyb_ens
-  use hybrid_ensemble_parameters, only: en_perts,nelen
+  use hybrid_ensemble_parameters, only: en_perts,nelen,write_ens_sprd
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sube2suba
   use constants, only:  zero,two,half,one
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
@@ -596,7 +596,7 @@ subroutine ens_spread_dualres(en_bar,ibin)
      ps => dum2
   end if
 
-  call write_spread_dualres(st,vp,tv,rh,oz,cw,ps)
+   if(write_ens_sprd) call write_spread_dualres(st,vp,tv,rh,oz,cw,ps)
 
   return
 end subroutine ens_spread_dualres

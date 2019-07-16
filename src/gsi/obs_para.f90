@@ -62,7 +62,7 @@ subroutine obs_para(ndata,mype)
               obsfile_all,dplat,nobs_sub,obs_sub_comm 
   use gridmod, only: twodvar_regional 
   use qcmod, only: buddycheck_t,buddydiag_save 
-  use gsi_io, only: verbose
+  use gsi_io, only: verbose, print_obs_para
   implicit none
 
 ! Declare passed variables
@@ -119,7 +119,7 @@ subroutine obs_para(ndata,mype)
            end if
         end if
         nsat1(is)= nobs_sub(mm1,is)
-        if(mm1 == 1 .and. print_verbose)then
+        if(mm1 == 1 .and. (print_verbose .or. print_obs_para))then
            write(6,1000)dtype(is),dplat(is),(nobs_sub(ii,is),ii=1,npe)
 1000       format('OBS_PARA: ',2A10,8I10,/,(10X,10I10))
         end if

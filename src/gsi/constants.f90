@@ -77,6 +77,8 @@ module constants
   public :: i_missing, r_missing
 
   public :: izero, qimin, qsmin, qgmin,qrmin
+  public :: partialSnowThreshold
+  public :: soilmoistmin
 
 ! Declare derived constants
   integer(i_kind):: huge_i_kind
@@ -250,6 +252,11 @@ module constants
   real(r_kind),parameter:: r10log10qgmin  = 1.0e-8_r_single
   real(r_kind),parameter:: log10qsmin  = -9_r_single
   real(r_kind),parameter:: r10log10qsmin  = 1.0e-9_r_single
+
+! Minimum values for soil adjustment 
+  real(r_single),parameter:: soilmoistmin = 0.002_r_single   ! minimum soil
+                                                             ! moisture (sand)
+  real(r_kind), parameter :: partialSnowThreshold = 32._r_kind ! mm
 
 ! Constant used to detect missing input value
   integer(i_kind),parameter:: i_missing=-9999
