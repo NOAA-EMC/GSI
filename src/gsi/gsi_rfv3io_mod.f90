@@ -36,6 +36,7 @@ module gsi_rfv3io_mod
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlon_regional,nlat_regional
   use mod_fv3_lolgrid, only: p_fv3sar2anlgrid 
+  use mod_fv3_lolgrid, only: p_fv3sar2ensgrid 
   implicit none
   public type_fv3regfilenameg
   public bg_fv3regfilenameg
@@ -65,6 +66,7 @@ module gsi_rfv3io_mod
   private
 ! set subroutines to public
   public :: gsi_rfv3io_get_grid_specs
+  public :: gsi_rfv3io_get_ens_grid_specs
   public :: gsi_fv3ncdf_read
   public :: gsi_fv3ncdf_read_v1
   public :: gsi_fv3ncdf_readuv
@@ -340,6 +342,125 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
 
     return
 end subroutine gsi_rfv3io_get_grid_specs
+subroutine gsi_rfv3io_get_ens_grid_specs(grid_spec,ierr)
+!$$$  subprogram documentation block
+!                .      .    .                                        .
+! subprogram:    gsi_rfv3io_get_ens_grid_specs
+! modified from     gsi_rfv3io_get_grid_specs
+!   pgrmmr: parrish     org: np22                date: 2017-04-03
+!
+! abstract:  obtain grid dimensions nx,ny and grid definitions
+!                grid_x,grid_xt,grid_y,grid_yt,grid_lon,grid_lont,grid_lat,grid_latt
+!                nz,ak(nz),bk(nz)
+!
+! program history log:
+!   2017-04-03  parrish - initial documentation
+!   2017-10-10  wu - setup A grid and interpolation coeff with generate_anl_grid
+!   2018-02-16  wu - read in time info from file coupler.res
+!                    read in lat, lon at the center and corner of the grid cell
+!                    from file fv3_grid_spec, and vertical grid infor from file fv3_akbk
+!                    setup A grid and interpolation/rotation coeff
+!   input argument list:
+!    grid_spec
+!    ak_bk
+!    lendian_out
+!
+!   output argument list:
+!    ierr
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+  use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
+  use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
+  use netcdf, only: nf90_inquire_variable
+  use hybrid_ensemble_parameters, only: nlon_ens,nlat_ens
+  use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
+  use mpimod, only: mype
+!cltorg  use mod_fv3_lola, only: generate_anl_grid
+  use mod_fv3_lolgrid, only: definecoef_regular_grids 
+  use gridmod,  only:region_lat,region_lon,nlat,nlon
+  use gridmod,  only: region_dy,region_dx,region_dyi,region_dxi,coeffy,coeffx
+  use kinds, only: i_kind,r_kind
+  use constants, only: half,zero
+  use mpimod, only: mpi_comm_world,ierror,mpi_itype,mpi_rtype
+
+  implicit none
+
+  character(:),allocatable,intent(in) :: grid_spec
+  integer(i_kind) gfile_grid_spec,gfile_ak_bk,gfile_dynvars
+  integer(i_kind) gfile_tracers,gfile_sfcdata
+!  integer(i_kind) :: gfile
+!  save gfile
+
+  type (type_fv3regfilenameg) :: fv3filenamegin
+  integer(i_kind),intent(  out) :: ierr
+  integer(i_kind) i,k,ndimensions,iret,nvariables,nattributes,unlimiteddimid
+  integer(i_kind) len,gfile_loc
+  character(len=128) :: name
+  
+
+
+!!!!! set regional_time
+!cltorg    open(24,file='coupler.res',form='formatted')
+
+!!!!!!!!!!    grid_spec  !!!!!!!!!!!!!!!
+    iret=nf90_open(trim(grid_spec),nf90_nowrite,gfile_grid_spec)
+    if(iret/=nf90_noerr) then
+       write(6,*)' problem opening1 ',trim(grid_spec),', Status = ',iret
+       ierr=1
+       return
+    endif
+
+    iret=nf90_inquire(gfile_grid_spec,ndimensions,nvariables,nattributes,unlimiteddimid)
+    gfile_loc=gfile_grid_spec
+    do k=1,ndimensions
+       iret=nf90_inquire_dimension(gfile_loc,k,name,len)
+       if(trim(name)=='grid_xt') nx=len
+       if(trim(name)=='grid_yt') ny=len
+    enddo
+    if(mype==0)write(6,*),'nx,ny=',nx,ny
+
+!!!    get nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,nz,ak,bk
+
+    allocate(grid_lat(nx+1,ny+1))
+    allocate(grid_lon(nx+1,ny+1))
+    allocate(grid_latt(nx,ny))
+    allocate(grid_lont(nx,ny))
+
+    do k=ndimensions+1,nvariables
+       iret=nf90_inquire_variable(gfile_loc,k,name,len)
+       if(trim(name)=='grid_lat') then
+          iret=nf90_get_var(gfile_loc,k,grid_lat)
+       endif
+       if(trim(name)=='grid_lon') then
+          iret=nf90_get_var(gfile_loc,k,grid_lon)
+       endif
+       if(trim(name)=='grid_latt') then
+          iret=nf90_get_var(gfile_loc,k,grid_latt)
+       endif
+       if(trim(name)=='grid_lont') then
+          iret=nf90_get_var(gfile_loc,k,grid_lont)
+       endif
+    enddo
+
+    iret=nf90_close(gfile_loc)
+
+!!!    get ak,bk
+
+
+
+!!!!!!! setup A grid and interpolation/rotation coeff.
+    call definecoef_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,p_fv3sar2ensgrid, &
+                              nlat_ens,nlon_ens,region_lat_ens,region_lon_ens)
+
+    deallocate (grid_lon,grid_lat,grid_lont,grid_latt)
+
+    return
+end subroutine gsi_rfv3io_get_ens_grid_specs
 
 subroutine read_fv3_files(mype)
 !$$$  subprogram documentation block

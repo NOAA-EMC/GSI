@@ -61,6 +61,7 @@ module mod_fv3_lolgrid
 !
   private
   public :: generate_regular_grids
+  public :: definecoef_regular_grids
   public :: fv3_h_to_ll_regular_grids,fv3_ll_to_h_regular_grids
   public :: fv3uv2earth_regular_grids,earthuv2fv3_regular_grids
   public :: fv3sar2grid_parm
@@ -611,7 +612,475 @@ subroutine generate_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,p_
      enddo
   enddo
   deallocate( xc,yc,zc,gclat,gclon,gcrlat,gcrlon)
+  deallocate(rlat_in,rlon_in)
 end subroutine generate_regular_grids
+subroutine definecoef_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,p_fv3sar2grid,&
+                             nlatin,nlonin,region_lat_in,region_lon_in)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    generate_??ens_grid
+!clt modified from generate_regular_grid
+!   prgmmr: parrish
+!
+! abstract:  define rotated lat-lon analysis grid which is centered on fv3 tile 
+!             and oriented to completely cover the tile.
+!
+! program history log:
+!   2017-05-02  parrish
+!   2017-10-10  wu   - 1. setup analysis A-grid, 
+!                      2. compute/setup FV3 to A grid interpolation parameters
+!                      3. compute/setup A to FV3 grid interpolation parameters         
+!                      4. setup weightings for wind conversion from FV3 to earth
+!
+!   input argument list:
+!    nx, ny               - number of cells = nx*ny 
+!    grid_lon ,grid_lat   - longitudes and latitudes of fv3 grid cell corners
+!    grid_lont,grid_latt  - longitudes and latitudes of fv3 grid cell centers
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+  use kinds, only: r_kind,i_kind
+  use constants, only: quarter,one,two,half,zero,deg2rad,rearth,rad2deg
+  use gridmod,  only:grid_ratio_fv3_regional
+  use mpimod, only: mype
+  use gridmod,  only:init_general_transform 
+  implicit none
+  type (fv3sar2grid_parm),intent(inout):: p_fv3sar2grid
+  real(r_kind),allocatable,intent(out):: region_lat_in(:,:),region_lon_in(:,:)
+  integer(i_kind), intent(out):: nlatin,nlonin
+
+
+  real(r_kind) ,pointer,dimension(:,:):: fv3dx,fv3dx1,fv3dy,fv3dy1
+  integer(i_kind),pointer,dimension(:,:)::  fv3ix,fv3ixp,fv3jy,fv3jyp
+  real(r_kind) ,pointer,dimension(:,:):: a3dx,a3dx1,a3dy,a3dy1
+  real(r_kind) ,pointer,dimension(:,:):: cangu,sangu,cangv,sangv
+  integer(i_kind),pointer,dimension(:,:)::  a3ix,a3ixp,a3jy,a3jyp
+
+  real(r_kind),allocatable,dimension(:)::xbh_a,xa_a,xa_b
+  real(r_kind),allocatable,dimension(:)::ybh_a,ya_a,ya_b,yy
+  real(r_kind),allocatable,dimension(:,:)::xbh_b,ybh_b
+  real(r_kind) dlat,dlon,dyy,dxx,dyyi,dxxi
+  real(r_kind) dyyh,dxxh
+
+
+  integer(i_kind), intent(in   ) :: nx,ny                 ! fv3 tile x- and y-dimensions
+  real(r_kind)   , intent(inout) :: grid_lon(nx+1,ny+1)   ! fv3 cell corner longitudes
+  real(r_kind)   , intent(inout) :: grid_lont(nx,ny)      ! fv3 cell center longitudes
+  real(r_kind)   , intent(inout) :: grid_lat(nx+1,ny+1)   ! fv3 cell corner latitudes
+  real(r_kind)   , intent(inout) :: grid_latt(nx,ny)      ! fv3 cell center latitudes
+  logical :: bilinear
+  integer(i_kind) i,j,ir,jr,n
+  real(r_kind),allocatable,dimension(:,:) :: xc,yc,zc,gclat,gclon,gcrlat,gcrlon,rlon_in,rlat_in
+  real(r_kind),allocatable,dimension(:,:) :: glon_an,glat_an
+  real(r_kind) xcent,ycent,zcent,rnorm,centlat,centlon
+  real(r_kind) adlon,adlat,alon,clat,clon
+  integer(i_kind) nxout,nyout
+  integer(i_kind) nlonh,nlath,nxh,nyh
+  integer(i_kind) ib1,ib2,jb1,jb2,jj
+  integer (i_kind):: index0
+
+  integer(i_kind) nord_e2a
+  real(r_kind)gxa,gya
+
+  real(r_kind) x(nx+1,ny+1),y(nx+1,ny+1),z(nx+1,ny+1), xr,yr,zr,xu,yu,zu,rlat,rlon
+  real(r_kind) xv,yv,zv,vval
+  real(r_kind) cx,cy
+  real(r_kind) uval,ewval,nsval
+
+  real(r_kind) d(4),ds
+  integer(i_kind) kk,k
+
+
+  nord_e2a=4
+  bilinear=.false.
+  p_fv3sar2grid%bilinear=bilinear
+
+
+!   create xc,yc,zc for the cell centers.
+  allocate(xc(nx,ny))
+  allocate(yc(nx,ny))
+  allocate(zc(nx,ny))
+  allocate(gclat(nx,ny))
+  allocate(gclon(nx,ny))
+  allocate(gcrlat(nx,ny))
+  allocate(gcrlon(nx,ny))
+  do j=1,ny
+     do i=1,nx
+        xc(i,j)=cos(grid_latt(i,j)*deg2rad)*cos(grid_lont(i,j)*deg2rad)
+        yc(i,j)=cos(grid_latt(i,j)*deg2rad)*sin(grid_lont(i,j)*deg2rad)
+        zc(i,j)=sin(grid_latt(i,j)*deg2rad)
+     enddo
+  enddo
+
+!  compute center as average x,y,z coordinates of corners of domain --
+
+  xcent=quarter*(xc(1,1)+xc(1,ny)+xc(nx,1)+xc(nx,ny))
+  ycent=quarter*(yc(1,1)+yc(1,ny)+yc(nx,1)+yc(nx,ny))
+  zcent=quarter*(zc(1,1)+zc(1,ny)+zc(nx,1)+zc(nx,ny))
+
+  rnorm=one/sqrt(xcent**2+ycent**2+zcent**2)
+  xcent=rnorm*xcent
+  ycent=rnorm*ycent
+  zcent=rnorm*zcent
+  centlat=asin(zcent)*rad2deg
+  centlon=atan2(ycent,xcent)*rad2deg
+
+!!  compute new lats, lons
+  call rotate2deg(grid_lont,grid_latt,gcrlon,gcrlat, &
+                  centlon,centlat,nx,ny)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!  compute analysis A-grid  lats, lons
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!--------------------------obtain analysis grid dimensions nxout,nyout
+  p_fv3sar2grid%nx=nx
+  p_fv3sar2grid%ny=ny
+  nxout=nlonin
+  p_fv3sar2grid%nxout=nxout
+  nyout=nlatin
+  p_fv3sar2grid%nyout=nyout
+  nxa=nxout
+  nya=nyout  ! for compatiability 
+  if(mype==0) print *,'nlatin,nlonin = ',nlatin,nlonin
+
+!--------------------------obtain analysis grid spacing
+  dlat=(maxval(gcrlat)-minval(gcrlat))/(ny-1)
+  dlon=(maxval(gcrlon)-minval(gcrlon))/(nx-1)
+  adlat=dlat*grid_ratio_fv3_regional
+  adlon=dlon*grid_ratio_fv3_regional
+
+!-------setup analysis A-grid; find center of the domain
+  nlonh=nlonin/2
+  nlath=nlatin/2
+
+  if(nlonh*2==nlonin)then
+     clon=adlon/two
+     cx=half
+  else
+     clon=adlon
+     cx=one
+  endif
+
+  if(nlath*2==nlatin)then
+     clat=adlat/two
+     cy=half
+  else
+     clat=adlat
+     cy=one
+  endif
+  allocate(rlat_in(nlatin,nlonin),rlon_in(nlatin,nlonin))
+  call rotate2deg(region_lon_in,region_lat_in,rlon_in,rlat_in, &
+                    clon,clat,nlatin,nlonin)
+
+!
+!-----setup analysis A-grid from center of the domain
+!
+!--------------------compute all combinations of relative coordinates
+
+  allocate(xbh_a(nx),xbh_b(nx,ny),xa_a(nxout),xa_b(nxout))
+  allocate(ybh_a(ny),ybh_b(nx,ny),ya_a(nyout),ya_b(nyout))
+
+  nxh=nx/2
+  nyh=ny/2
+
+!!!!!! fv3 rotated grid; not equal spacing, non_orthogonal !!!!!!
+  do j=1,ny
+     jr=ny+1-j
+     do i=1,nx
+        ir=nx+1-i
+        xbh_b(ir,jr)=gcrlon(i,j)/dlon
+     end do
+  end do
+  do j=1,ny
+     jr=ny+1-j
+     do i=1,nx
+       ir=nx+1-i
+       ybh_b(ir,jr)=gcrlat(i,j)/dlat
+     end do
+  end do
+
+!!!!  define analysis A grid  !!!!!!!!!!!!!
+
+
+
+  do j=1,nxout
+     xa_a(j)=(float(j-nlonh)-cx)*grid_ratio_fv3_regional
+  end do
+  do i=1,nyout
+     ya_a(i)=(float(i-nlath)-cy)*grid_ratio_fv3_regional
+  end do
+
+  index0=1
+!cltthinkdeb should region_lon_in be in degree or not?
+  do j=1,nxa
+     xa_a(j)= (rlon_in(index0,j)-clon)/dlon
+  end do
+  do i=1,nya
+     ya_a(i)= (rlat_in(i,index0)-clat)/dlon
+  end do
+
+!!!!!compute fv3 to A grid interpolation parameters !!!!!!!!!
+  allocate  (   p_fv3sar2grid%fv3dx(nxout,nyout),p_fv3sar2grid%fv3dx1(nxout,nyout),p_fv3sar2grid%fv3dy(nxout,nyout),p_fv3sar2grid%fv3dy1(nxout,nyout) )
+  allocate  (   p_fv3sar2grid%fv3ix(nxout,nyout),p_fv3sar2grid%fv3ixp(nxout,nyout),p_fv3sar2grid%fv3jy(nxout,nyout),p_fv3sar2grid%fv3jyp(nxout,nyout) )
+  fv3dx=>p_fv3sar2grid%fv3dx
+  fv3dx1=>p_fv3sar2grid%fv3dx1
+  fv3dy=>p_fv3sar2grid%fv3dy
+  fv3dy1=>p_fv3sar2grid%fv3dy1
+  fv3ix=>p_fv3sar2grid%fv3ix
+  fv3ixp=>p_fv3sar2grid%fv3ixp
+  fv3jy=>p_fv3sar2grid%fv3jy
+  fv3jyp=>p_fv3sar2grid%fv3jyp
+  
+  allocate(yy(ny))
+
+! iteration to find the fv3 grid cell
+  jb1=1
+  ib1=1
+  do j=1,nyout
+     do i=1,nxout
+      do n=1,3 
+         gxa=xa_a(i)
+         if(gxa < xbh_b(1,jb1))then
+            gxa= 1
+         else if(gxa > xbh_b(nx,jb1))then
+            gxa= nx
+         else
+            call grdcrd1(gxa,xbh_b(1,jb1),nx,1)
+         endif
+         ib2=ib1
+         ib1=gxa
+         do jj=1,ny
+            yy(jj)=ybh_b(ib1,jj)
+         enddo
+         gya=ya_a(j)
+         if(gya < yy(1))then
+            gya= 1
+         else if(gya > yy(ny))then
+            gya= ny
+         else
+            call grdcrd1(gya,yy,ny,1)
+         endif
+         jb2=jb1
+         jb1=gya
+
+         if((ib1 == ib2) .and. (jb1 == jb2)) exit
+         if(n==3 ) then     
+!!!!!!!   if not converge, find the nearest corner point
+            d(1)=(xa_a(i)-xbh_b(ib1,jb1))**2+(ya_a(j)-ybh_b(ib1,jb1))**2
+            d(2)=(xa_a(i)-xbh_b(ib1+1,jb1))**2+(ya_a(j)-ybh_b(ib1+1,jb1))**2
+            d(3)=(xa_a(i)-xbh_b(ib1,jb1+1))**2+(ya_a(j)-ybh_b(ib1,jb1+1))**2
+            d(4)=(xa_a(i)-xbh_b(ib1+1,jb1+1))**2+(ya_a(j)-ybh_b(ib1+1,jb1+1))**2
+            kk=1 
+            do k=2,4
+               if(d(k)<d(kk))kk=k
+            enddo
+!!!!!!!!!!! Find the cell for interpolation
+            gxa=xa_a(i)
+            gya=ya_a(j)
+            if(kk==1)then
+               call grdcrd1(gxa,xbh_b(1,jb1),nx,1)
+               do jj=1,ny
+                  yy(jj)=ybh_b(ib1,jj)
+               enddo
+               call grdcrd1(gya,yy,ny,1)
+            else if(kk==2)then
+               call grdcrd1(gxa,xbh_b(1,jb1),nx,1)
+               do jj=1,ny
+                  yy(jj)=ybh_b(ib1+1,jj)
+               enddo
+               call grdcrd1(gya,yy,ny,1)
+            else if(kk==3)then
+               call grdcrd1(gxa,xbh_b(1,jb1+1),nx,1)
+               do jj=1,ny
+                  yy(jj)=ybh_b(ib1,jj)
+               enddo
+               call grdcrd1(gya,yy,ny,1)
+            else if(kk==4)then
+               call grdcrd1(gxa,xbh_b(1,jb1+1),nx,1)
+               do jj=1,ny
+                  yy(jj)=ybh_b(ib1+1,jj)
+               enddo
+               call grdcrd1(gya,yy,ny,1)
+            endif
+            exit
+         endif  !n=3   
+      enddo  ! n
+
+      fv3ix(i,j)=int(gxa)
+      fv3ix(i,j)=min(max(1,fv3ix(i,j)),nx)
+      fv3ixp(i,j)=min(nx,fv3ix(i,j)+1)
+      fv3jy(i,j)=int(gya)
+      fv3jy(i,j)=min(max(1,fv3jy(i,j)),ny)
+      fv3jyp(i,j)=min(ny,fv3jy(i,j)+1)
+
+      if(bilinear)then
+         fv3dy(i,j)=max(zero,min(one,gya-fv3jy(i,j)))
+         fv3dy1(i,j)=one-fv3dy(i,j)
+         fv3dx(i,j)=max(zero,min(one,gxa-fv3ix(i,j)))
+         fv3dx1(i,j)=one-fv3dx(i,j)
+      else ! inverse-distance weighting average 
+         ib1=fv3ix(i,j)
+         ib2=fv3ixp(i,j)
+         jb1=fv3jy(i,j)
+         jb2=fv3jyp(i,j)
+         if(xa_a(i)==xbh_b(ib1,jb1) .and. ya_a(j)==ybh_b(ib1,jb1))then
+            fv3dy(i,j)=zero
+            fv3dy1(i,j)=zero
+            fv3dx(i,j)=one
+            fv3dx1(i,j)=zero
+         else if(xa_a(i)==xbh_b(ib2,jb1) .and. ya_a(j)==ybh_b(ib2,jb1))then
+            fv3dy(i,j)=zero
+            fv3dy1(i,j)=zero
+            fv3dx(i,j)=zero
+            fv3dx1(i,j)=one
+         else if(xa_a(i)==xbh_b(ib1,jb2) .and. ya_a(j)==ybh_b(ib1,jb2))then
+            fv3dy(i,j)=one 
+            fv3dy1(i,j)=zero
+            fv3dx(i,j)=zero
+            fv3dx1(i,j)=zero
+         else if(xa_a(i)==xbh_b(ib2,jb2) .and. ya_a(j)==ybh_b(ib2,jb2))then
+            fv3dy(i,j)=zero
+            fv3dy1(i,j)=one 
+            fv3dx(i,j)=zero
+            fv3dx1(i,j)=zero
+         else 
+            d(1)=one/((xa_a(i)-xbh_b(ib1,jb1))**2+(ya_a(j)-ybh_b(ib1,jb1))**2)
+            d(2)=one/((xa_a(i)-xbh_b(ib2,jb1))**2+(ya_a(j)-ybh_b(ib2,jb1))**2)
+            d(3)=one/((xa_a(i)-xbh_b(ib1,jb2))**2+(ya_a(j)-ybh_b(ib1,jb2))**2)
+            d(4)=one/((xa_a(i)-xbh_b(ib2,jb2))**2+(ya_a(j)-ybh_b(ib2,jb2))**2)
+            ds=one/(d(1)+d(2)+d(3)+d(4))
+            fv3dy(i,j)=d(3)*ds
+            fv3dy1(i,j)=d(4)*ds
+            fv3dx(i,j)=d(1)*ds
+            fv3dx1(i,j)=d(2)*ds
+         endif
+      endif !bilinear
+
+     end do ! i
+  end do ! j
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1111
+!!!!!compute A to fv3 grid interpolation parameters !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1111
+  allocate  (   p_fv3sar2grid%a3dx(ny,nx),p_fv3sar2grid%a3dx1(ny,nx),p_fv3sar2grid%a3dy(ny,nx),p_fv3sar2grid%a3dy1(ny,nx) )
+  allocate  (   p_fv3sar2grid%a3ix(ny,nx),p_fv3sar2grid%a3ixp(ny,nx),p_fv3sar2grid%a3jy(ny,nx),p_fv3sar2grid%a3jyp(ny,nx) )
+  a3dx =>p_fv3sar2grid%a3dx
+  a3dx1=>p_fv3sar2grid%a3dx1
+  a3dy =>p_fv3sar2grid%a3dy
+  a3dy1=>p_fv3sar2grid%a3dy1
+
+  a3ix =>p_fv3sar2grid%a3ix
+  a3ixp =>p_fv3sar2grid%a3ixp
+  a3jy =>p_fv3sar2grid%a3jy
+  a3jyp=>p_fv3sar2grid%a3jyp
+  
+  do i=1,nx
+     do j=1,ny
+        gxa=xbh_b(i,j)
+        if(gxa < xa_a(1))then
+           gxa= 1
+        else if(gxa > xa_a(nxout))then
+           gxa= nxout
+        else
+           call grdcrd1(gxa,xa_a,nxout,1)
+        endif
+        a3ix(j,i)=int(gxa)
+        a3ix(j,i)=min(max(1,a3ix(j,i)),nxout)
+        a3dx(j,i)=max(zero,min(one,gxa-a3ix(j,i)))
+        a3dx1(j,i)=one-a3dx(j,i)
+        a3ixp(j,i)=min(nxout,a3ix(j,i)+1)
+     end do
+  end do
+
+  do i=1,nx
+    do j=1,ny
+        gya=ybh_b(i,j)
+        if(gya < ya_a(1))then
+           gya= 1
+        else if(gya > ya_a(nyout))then
+           gya= nyout
+        else
+           call grdcrd1(gya,ya_a,nyout,1)
+        endif
+        a3jy(j,i)=int(gya)
+        a3jy(j,i)=min(max(1,a3jy(j,i)),nyout)
+        a3dy(j,i)=max(zero,min(one,gya-a3jy(j,i)))
+        a3dy1(j,i)=one-a3dy(j,i)
+        a3jyp(j,i)=min(ny,a3jy(j,i)+1)
+     end do
+  end do
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!! find coefficients for wind conversion btw FV3 & earth
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  allocate  (  p_fv3sar2grid%cangu(nx,ny+1),p_fv3sar2grid%sangu(nx,ny+1),p_fv3sar2grid%cangv(nx+1,ny),p_fv3sar2grid%sangv(nx+1,ny) )
+   cangu=>p_fv3sar2grid%cangu
+   sangu=>p_fv3sar2grid%sangu
+   cangv=>p_fv3sar2grid%cangv
+   sangv=>p_fv3sar2grid%sangv
+
+!   1.  compute x,y,z at cell cornor from grid_lon, grid_lat
+
+  do j=1,ny+1
+     do i=1,nx+1
+        x(i,j)=cos(grid_lat(i,j)*deg2rad)*cos(grid_lon(i,j)*deg2rad)
+        y(i,j)=cos(grid_lat(i,j)*deg2rad)*sin(grid_lon(i,j)*deg2rad)
+        z(i,j)=sin(grid_lat(i,j)*deg2rad)
+     enddo
+  enddo
+
+!  2   find angles to E-W and N-S for U edges
+ 
+  do j=1,ny+1
+     do i=1,nx
+!      center lat/lon of the edge 
+        rlat=half*(grid_lat(i,j)+grid_lat(i+1,j))
+        rlon=half*(grid_lon(i,j)+grid_lon(i+1,j))
+!    vector to center of the edge
+        xr=cos(rlat*deg2rad)*cos(rlon*deg2rad)
+        yr=cos(rlat*deg2rad)*sin(rlon*deg2rad)
+        zr=sin(rlat*deg2rad)
+!     vector of the edge
+        xu= x(i+1,j)-x(i,j)
+        yu= y(i+1,j)-y(i,j)
+        zu= z(i+1,j)-z(i,j)
+!    find angle with cross product
+        uval=sqrt((xu**2+yu**2+zu**2))
+        ewval=sqrt((xr**2+yr**2))
+        nsval=sqrt((xr*zr)**2+(zr*yr)**2+(xr*xr+yr*yr)**2)
+        cangu(i,j)=(-yr*xu+xr*yu)/ewval/uval
+        sangu(i,j)=(-xr*zr*xu-zr*yr*yu+(xr*xr+yr*yr)*zu) / nsval/uval
+     enddo
+  enddo
+ 
+!  3   find angles to E-W and N-S for V edges
+  do j=1,ny
+     do i=1,nx+1
+        rlat=half*(grid_lat(i,j)+grid_lat(i,j+1))
+        rlon=half*(grid_lon(i,j)+grid_lon(i,j+1))
+        xr=cos(rlat*deg2rad)*cos(rlon*deg2rad)
+        yr=cos(rlat*deg2rad)*sin(rlon*deg2rad)
+        zr=sin(rlat*deg2rad)
+        xv= x(i,j+1)-x(i,j)
+        yv= y(i,j+1)-y(i,j)
+        zv= z(i,j+1)-z(i,j)
+        vval=sqrt((xv**2+yv**2+zv**2))
+        ewval=sqrt((xr**2+yr**2))
+        nsval=sqrt((xr*zr)**2+(zr*yr)**2+(xr*xr+yr*yr)**2)
+        cangv(i,j)=(-yr*xv+xr*yv)/ewval/vval
+        sangv(i,j)=(-xr*zr*xv-zr*yr*yv+(xr*xr+yr*yr)*zv) / nsval/vval
+     enddo
+  enddo
+  deallocate( xc,yc,zc,gclat,gclon,gcrlat,gcrlon)
+  deallocate(rlat_in,rlon_in)
+end subroutine definecoef_regular_grids
 subroutine earthuv2fv3_regular_grids(u,v,nx,ny,u_out,v_out,p_fv3sar2grid)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
