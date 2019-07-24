@@ -44,7 +44,7 @@ contains
     use guess_grids, only: nfldsig,nfldsfc,ntguessig,ntguessfc,&
          ifilesig,ifilesfc,hrdifsig,hrdifsfc,create_gesfinfo
     use guess_grids, only: hrdifsig_all,hrdifsfc_all
-    use gridmod, only: regional_time,regional_fhr
+    use gridmod, only: regional_fhr
     use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,nhr_assimilation
     use constants, only: zero,one,zero_single,r60inv
     use obsmod, only: iadate,time_offset

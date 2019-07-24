@@ -97,7 +97,6 @@ subroutine intrw_(rwhead,rval,sval)
   use constants, only: half,one,tiny_r_kind,cg_term,r3600
   use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
-  use gridmod, only: latlon1n
   use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer

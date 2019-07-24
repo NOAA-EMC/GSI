@@ -74,7 +74,7 @@ subroutine  gsdcloudanalysis4gfs(mype)
                                       build_cloud_frac_p, clear_cloud_frac_p, &
                                       nesdis_npts_rad, &
                                       iclean_hydro_withRef, iclean_hydro_withRef_allcol, &
-                                      i_lightpcp,i_gsdcldanal_type
+                                      i_lightpcp,i_gsdcldanal_type,ioption
 
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -420,7 +420,7 @@ subroutine  gsdcloudanalysis4gfs(mype)
         elseif( dtype(is) == 'gos_ctp' ) then 
 
            call read_NESDIS(mype,lunin,nsat1(is),regional_time,istart(mype+1),            &
-                            jstart(mype+1),lon2,lat2,sat_ctp,sat_tem,w_frac,nesdis_npts_rad)
+                            jstart(mype+1),lon2,lat2,sat_ctp,sat_tem,w_frac,nesdis_npts_rad,ioption)
            if(mype == 0) write(6,*) 'gsdcloudanalysis: ',                             &
                          'NESDIS cloud products are read in successfully'
            istat_nesdis = 1 
@@ -458,7 +458,7 @@ subroutine  gsdcloudanalysis4gfs(mype)
            nasalarc_cld=miss_obs_real
 
            call read_map_nasalarc(mype,lunin,nsat1(is),regional_time,istart(mype+1),   &
-                              jstart(mype+1),lon2,lat2,nasalarc_cld)
+                              jstart(mype+1),lon2,lat2,nasalarc_cld,ioption)
            if(mype == 0) write(6,*) 'gsdcloudanalysis:',                       &
                          'NASA LaRC cloud products are read in successfully', &
                          mype
@@ -713,7 +713,7 @@ subroutine  gsdcloudanalysis4gfs(mype)
   enddo
 
   if(i_gsdcldanal_type==30) then
-     call BackgroundCldgfs(mype,lon2,lat2,nsig,t_bk,p_bk,ps_bk,q_bk,h_bk,zh)
+     call BackgroundCldgfs(mype,lon2,lat2,nsig,t_bk,p_bk,ps_bk,q_bk,h_bk)
   else
      call BackgroundCld(mype,lon2,lat2,nsig,t_bk,p_bk,ps_bk,q_bk,h_bk,    &
              zh,pt_ll,eta1_ll,aeta1_ll,regional,wrf_mass_regional)
@@ -782,7 +782,7 @@ subroutine  gsdcloudanalysis4gfs(mype)
 
   if(istat_nesdis == 1 ) then
      call cloudCover_NESDIS(mype,regional_time,lat2,lon2,nsig,            &
-                         xlon,xlat,t_bk,p_bk,h_bk,zh,xland,               &
+                         xlon,xlat,t_bk,p_bk,h_bk,xland,                  &
                          soiltbk,sat_ctp,sat_tem,w_frac,                  &
                          l_cld_bld,cld_bld_hgt,                           &
                          build_cloud_frac_p,clear_cloud_frac_p,nlev_cld,  &

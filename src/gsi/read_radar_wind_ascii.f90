@@ -117,17 +117,16 @@ subroutine read_radar_wind_ascii(nread,ndata,nodata,infile,lunout,obstype,sis,hg
                        one_tenth,r1000,r60,r60inv,r100,r400,grav_equator, &
                         eccentricity,somigliana,grav_ratio,grav,semi_major_axis,flattening 
   use gridmod, only: regional,tll2xy,rotate_wind_ll2xy,nsig,nlat,nlon
-  use obsmod, only: iadate,whichradar, &
+  use obsmod, only: iadate, &
     mintiltvr,maxtiltvr,minobrangevr,maxobrangevr, rmesh_vr,zmesh_vr,&
     doradaroneob,oneoblat,oneoblon,oneobheight,oneobradid
   use obsmod,only: radar_no_thinning
   use gsi_4dvar, only: l4dvar,time_4dvar
-  use convinfo, only: nconvtype,ctwind,cgross,icuse,ioctype
+  use convinfo, only: nconvtype,ctwind,icuse,ioctype
   use convthin, only: make3grids,map3grids,del3grids,use_all
   use read_l2bufr_mod, only: invtllv
   use qcmod, only: erradar_inflate
   use deter_sfc_mod, only: deter_sfc2,deter_zsfc_model   
-  use mpimod, only: mype !parallelize                       
   use mpimod, only: npe
        
   implicit none

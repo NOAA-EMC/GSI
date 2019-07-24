@@ -183,7 +183,7 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
   use gridmod,  only:nlon_regional,nlat_regional,eta1_ll,eta2_ll
   use kinds, only: i_kind,r_kind
   use constants, only: half,zero
-  use mpimod, only: mpi_comm_world,ierror,mpi_itype,mpi_rtype
+  use mpimod, only: mpi_comm_world,mpi_itype,mpi_rtype
 
   implicit none
 
@@ -747,7 +747,7 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z)
     use kinds, only: r_kind,i_kind
     use mpimod, only: ierror,mpi_comm_world,npe,mpi_rtype,mype
     use guess_grids, only: fact10,soil_type,veg_frac,veg_type,sfc_rough, &
-         sfct,sno,soil_temp,soil_moi,isli,ges_prsi
+         sfct,sno,soil_temp,soil_moi,isli
     use gridmod, only: lat2,lon2,itotsub,ijn_s
     use general_commvars_mod, only: ltosi_s,ltosj_s
     use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
@@ -1560,7 +1560,6 @@ subroutine wrfv3_netcdf(fv3filenamegin)
 !$$$
     use kinds, only: r_kind,i_kind
     use guess_grids, only: ntguessig,ges_tsen
-    use gridmod, only: nsig
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use mpeu_util, only: die

@@ -61,7 +61,8 @@ subroutine read_wrf_mass_netcdf_guess4ens(mype)
   real(r_kind), pointer :: ges_ps_it (:,:  )=>NULL()
   real(r_kind), pointer :: ges_z_it  (:,:  )=>NULL()
 
-  real(r_single) :: ges_vpt_it  (lat2,lon2 )
+  real(r_kind) :: ges_vpt_it  (lat2,lon2 )
+  real(r_kind) :: ges_q_integralc4h_it(lat2,lon2 )
 ! other internal variables
   type(sub2grid_info) grd
   real(r_single),allocatable::temp1(:,:)
@@ -87,61 +88,61 @@ subroutine read_wrf_mass_netcdf_guess4ens(mype)
 !          jm -- number of y-points on C-grid
 !          lm -- number of vertical levels ( = nsig for now)
 
-     if(mype==0) write(6,*)' at 0 in read_wrf_mass_guess4ens'
-     regional=.true.
+    if(mype==0) write(6,*)' at 0 in read_wrf_mass_guess4ens'
+    regional=.true.
 
 ! Big section of operations done only on first outer iteration
 
-     im=nlon_regional
-     jm=nlat_regional
-     lm=nsig
-     nfldsig=1
+    im=nlon_regional
+    jm=nlat_regional
+    lm=nsig
+    nfldsig=1
 
-     do it=1,nfldsig
-        write(filename,'("sigf",i2.2)') it
-        open(lendian_in,file=filename,form='unformatted') ; rewind lendian_in
-        write(6,*)'READ_WRF_MASS_GUESS:  open lendian_in=',lendian_in,' to file=',filename
+    do it=1,nfldsig
+       write(filename,'("sigf",i2.2)') it
+       open(lendian_in,file=filename,form='unformatted') ; rewind lendian_in
+       write(6,*)'READ_WRF_MASS_GUESS:  open lendian_in=',lendian_in,' to file=',filename
 
 ! get pointers for typical meteorological fields
-        ier=0
-        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it),'ps',ges_ps_it, &
-                                                 istatus );ier=ier+istatus
-        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it),'z', ges_z_it, &
-                                                 istatus );ier=ier+istatus
-        if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields,ier =',ier)
+       ier=0
+       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it),'ps',ges_ps_it, &
+                                                istatus );ier=ier+istatus
+       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it),'z', ges_z_it, &
+                                                istatus );ier=ier+istatus
+       if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields,ier =',ier)
 !
 ! skip some record
-        read(lendian_in)   ! head
-        read(lendian_in)   ! aeta1
-        read(lendian_in)   ! eta1
-        read(lendian_in)   ! glat,dx_mc
-        read(lendian_in)   ! glon,dy_mc
+       read(lendian_in)   ! head
+       read(lendian_in)   ! aeta1
+       read(lendian_in)   ! eta1
+       read(lendian_in)   ! glat,dx_mc
+       read(lendian_in)   ! glon,dy_mc
 
-     enddo
+    enddo
 ! 
-     allocate(temp1(im,jm))
-     
-     inner_vars=1
-     num_fields=1 ! mu and qall
-     allocate(vector(num_fields))
-     vector=.false.
-     call general_sub2grid_create_info(grd,inner_vars,nlat,nlon,1,num_fields,regional,vector)
-     allocate(work_reg(grd%nlat,grd%nlon,grd%kbegin_loc:grd%kend_alloc,1))
-     allocate(work_sub(grd%lat2,grd%lon2,num_fields,1))
+    allocate(temp1(im,jm))
+    
+    inner_vars=1
+    num_fields=1 ! mu and qall
+    allocate(vector(num_fields))
+    vector=.false.
+    call general_sub2grid_create_info(grd,inner_vars,nlat,nlon,1,num_fields,regional,vector)
+    allocate(work_reg(grd%nlat,grd%nlon,grd%kbegin_loc:grd%kend_alloc,1))
+    allocate(work_sub(grd%lat2,grd%lon2,num_fields,1))
 
 ! read surface dry pressure:
-       read(lendian_in) ((temp1(i,j),i=1,im),j=1,jm)
-       if(nlon == nlon_regional .and. nlat == nlat_regional) then
-          bb=temp1
-       else
-          call wrfmass_h_to_a4(temp1,bb)
-       endif
+    read(lendian_in) ((temp1(i,j),i=1,im),j=1,jm)
+    if(nlon == nlon_regional .and. nlat == nlat_regional) then
+       bb=temp1
+    else
+       call wrfmass_h_to_a4(temp1,bb)
+    endif
         
-       do j=1,grd%nlat
-       do i=1,grd%nlon
-         work_reg(j,i,grd%kbegin_loc:grd%kend_alloc,1)=bb(i,j)
-       enddo
-       enddo
+    do j=1,grd%nlat
+    do i=1,grd%nlon
+       work_reg(j,i,grd%kbegin_loc:grd%kend_alloc,1)=bb(i,j)
+    enddo
+    enddo
 ! next general_grid2sub to go to regional grid subdomains.
     call general_grid2sub(grd,work_reg,work_sub)
     ges_ps(:,:)=work_sub(:,:,1,1)
@@ -149,37 +150,56 @@ subroutine read_wrf_mass_netcdf_guess4ens(mype)
                                 minval(ges_ps_it)
 
 ! read qvapor total
-       read(lendian_in) ((temp1(i,j),i=1,im),j=1,jm)
-       if(nlon == nlon_regional .and. nlat == nlat_regional) then
-          bb=temp1
-       else
-          call wrfmass_h_to_a4(temp1,bb)
-       endif
+    read(lendian_in) ((temp1(i,j),i=1,im),j=1,jm)
+    if(nlon == nlon_regional .and. nlat == nlat_regional) then
+       bb=temp1
+    else
+       call wrfmass_h_to_a4(temp1,bb)
+    endif
 
-        do j=1,grd%nlat
-        do i=1,grd%nlon
-          work_reg(j,i,grd%kbegin_loc:grd%kend_alloc,1)=bb(i,j)
-        enddo
-        enddo
+    do j=1,grd%nlat
+    do i=1,grd%nlon
+       work_reg(j,i,grd%kbegin_loc:grd%kend_alloc,1)=bb(i,j)
+    enddo
+    enddo
 ! next general_grid2sub to go to regional grid subdomains.
     call general_grid2sub(grd,work_reg,work_sub)
-    ges_vpt_it(:,:)=work_sub(:,:,1,1)
+    ges_vpt_it(:,:)=real(work_sub(:,:,1,1),r_kind)
     write(*,'(a,I5,2f15.7)') 'ges_vpt_it=',mype,maxval(ges_vpt_it), &
                                 minval(ges_vpt_it)
 
-! read topo
-       read(lendian_in) ((temp1(i,j),i=1,im),j=1,jm)
-       if(nlon == nlon_regional .and. nlat == nlat_regional) then
-          bb=temp1
-       else
-          call wrfmass_h_to_a4(temp1,bb)
-       endif
+! read qvapor total: q_integralc4h
+    read(lendian_in) ((temp1(i,j),i=1,im),j=1,jm)
+    if(nlon == nlon_regional .and. nlat == nlat_regional) then
+       bb=temp1
+    else
+       call wrfmass_h_to_a4(temp1,bb)
+    endif
 
-        do j=1,grd%nlat
-        do i=1,grd%nlon
+    do j=1,grd%nlat
+       do i=1,grd%nlon
           work_reg(j,i,grd%kbegin_loc:grd%kend_alloc,1)=bb(i,j)
-        enddo
-        enddo
+       enddo
+    enddo
+! next general_grid2sub to go to regional grid subdomains.
+    call general_grid2sub(grd,work_reg,work_sub)
+    ges_q_integralc4h_it(:,:)=real(work_sub(:,:,1,1),r_kind)
+    write(*,'(a,I5,2f15.7)') 'ges_q_integralc4h_it=',mype, &
+       maxval(ges_q_integralc4h_it),  minval(ges_q_integralc4h_it)
+
+! read topo
+    read(lendian_in) ((temp1(i,j),i=1,im),j=1,jm)
+    if(nlon == nlon_regional .and. nlat == nlat_regional) then
+       bb=temp1
+    else
+       call wrfmass_h_to_a4(temp1,bb)
+    endif
+
+    do j=1,grd%nlat
+       do i=1,grd%nlon
+          work_reg(j,i,grd%kbegin_loc:grd%kend_alloc,1)=bb(i,j)
+       enddo
+    enddo
 ! next general_grid2sub to go to regional grid subdomains.
     call general_grid2sub(grd,work_reg,work_sub)
     ges_z_it(:,:)=work_sub(:,:,1,1)/grav
@@ -192,7 +212,8 @@ subroutine read_wrf_mass_netcdf_guess4ens(mype)
        do j=1,lat2
 !       Convert psfc units of mb and then convert to log(psfc) in cb
            psfc_this_dry=r0_01*ges_ps(j,i)
-           psfc_this=(psfc_this_dry-pt_ll)*ges_vpt_it(j,i)+pt_ll
+           psfc_this=(psfc_this_dry-pt_ll)*ges_vpt_it(j,i)+pt_ll  + &
+                      ges_q_integralc4h_it(j,i)
            ges_ps_it(j,i)=one_tenth*psfc_this   ! convert from mb to cb
        end do
     end do

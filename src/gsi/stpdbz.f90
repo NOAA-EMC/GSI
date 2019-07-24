@@ -49,10 +49,9 @@ subroutine stpdbz(dbzhead,rval,sval,out,sges,nstep)
   use kinds, only: r_kind,i_kind,r_quad
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
-  use gridmod, only: latlon1n
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use gridmod, only: wrf_mass_regional, nems_nmmb_regional
+  use gridmod, only: wrf_mass_regional
   use control_vectors, only : dbz_exist
   use m_obsNode, only: obsNode
   use m_dbzNode , only: dbzNode

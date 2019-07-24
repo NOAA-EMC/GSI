@@ -77,7 +77,7 @@ use mpeu_util, only: getindex
 use constants, only : max_varname_length, zero
 use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
 use general_commvars_mod, only: s2g_cv
-use gridmod, only: wrf_mass_regional,nems_nmmb_regional
+use gridmod, only: nems_nmmb_regional
 implicit none
   
 ! Declare passed variables  

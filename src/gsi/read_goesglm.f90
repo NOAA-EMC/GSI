@@ -43,13 +43,13 @@ subroutine read_goesglm(nread,ndata,nodata,infile,obstype,lunout,twindin,sis)
   use constants, only: zero,one_tenth,one,deg2rad,&
       three,rad2deg,&
       r60inv,ten
-  use gridmod, only: diagnostic_reg,wrf_mass_regional,regional,nlon,nlat,nsig,&
+  use gridmod, only: diagnostic_reg,wrf_mass_regional,regional,nlon,nlat,&
       tll2xy,txy2ll,&
       rlats,rlons
   use lightinfo, only: iuse_light,nlighttype
   use obsmod, only: iadate
   use obsmod, only: offtime_data
-  use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,winlen,thin4d
+  use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,winlen
 
   implicit none
 
@@ -443,15 +443,11 @@ subroutine convert_to_flash_rate   &
 
   use kinds, only: r_single,r_kind,r_double,i_kind
   use constants, only: zero,one_tenth,one,deg2rad,&
-      three,rad2deg,half,zero,&
-      r60inv,r10,r100,ten, r1000, rearth
-  use gridmod, only: diagnostic_reg,wrf_mass_regional,regional,nlon,nlat,nsig,&
-      tll2xy,txy2ll,&
-      rlats,rlons,&
-      nlat_regional,nlon_regional
-  use gridmod, only: region_lon,region_lat
+      three,half,zero,&
+      r10,r100,ten, r1000, rearth
+  use gridmod, only: wrf_mass_regional,regional,nlon,nlat,&
+      tll2xy,txy2ll
   use gridmod, only: lat2, lon2
-  use guess_grids, only: nfldsig
   use wrf_mass_guess_mod, only: ges_xlon, ges_xlat
   use gsi_4dvar, only: nhr_assimilation
 

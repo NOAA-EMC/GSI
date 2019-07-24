@@ -1,8 +1,10 @@
-!
+!-----------------------------------------------------------
 !  bcor.f90
 !
+
 program bcor
   use read_diag
+  use kinds, only : i_kind
 
   implicit none
   integer ntype,mregion,surf_nregion,max_surf_region
@@ -13,7 +15,8 @@ program bcor
   character(10),dimension(ntype):: ftype
   character(20) satname,stringd,satsis,mod_satname
   character(10) dum,satype,dplat
-  character(80) string,diag_rad,data_file,ctl_file
+  character(80) string,data_file,ctl_file
+  character(500) diag_rad
   character(40),dimension(max_surf_region):: region
   character(10) suffix
 
@@ -23,6 +26,7 @@ program bcor
   integer,dimension(mregion):: jsub
   integer,allocatable,dimension(:):: io_chan,nu_chan
   integer npred_radiag,angord
+  integer(i_kind)       :: istatus
 
   real pen,rread
   real weight,rlat,rlon,rmiss,obs,biascor,obsges,obsgesnbc,rterm
@@ -59,8 +63,9 @@ program bcor
   character(3)          :: gesanl               = 'ges'
   integer               :: little_endian        = 1
   character(3)          :: rad_area             = 'glb'
+  logical               :: netcdf               = .false.
   namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,nchanl,&
-       suffix,imkctl,imkdata,retrieval,gesanl,little_endian,rad_area
+       suffix,imkctl,imkdata,retrieval,gesanl,little_endian,rad_area,netcdf
 
   data luname,lungrd,lunctl,lndiag / 5, 51, 52, 21 /
   data rmiss /-999./
@@ -132,11 +137,25 @@ program bcor
   write(6,*)'suffix   =',suffix
 
 
-! Open unit to diagnostic file.  Read portion of header to 
-! see if file exists
-  open(lndiag,file=diag_rad,form='unformatted')
-  read(lndiag,err=900,end=900) dum
-  rewind lndiag
+!! Open unit to diagnostic file.  Read portion of header to 
+!! see if file exists
+!  open(lndiag,file=diag_rad,form='unformatted')
+!  read(lndiag,err=900,end=900) dum
+!  rewind lndiag
+
+ !-----------------------------------------------------
+  !  Note:  Ideally the open_radiag routine would
+  !         return an iret code indicating success or
+  !         failure of the attempt to open the diag file.
+  !         It's ok in this case, only because the calling
+  !         script only starts the executable if the
+  !         diag file is > 0 sized, and the calls to
+  !         actually read the data do support return codes.
+  !         Still, if time permits it would be useful to add
+  !         an iret value to open_radiag().
+  !
+  call set_netcdf_read( netcdf )
+  call open_radiag( diag_rad, lndiag, istatus )
 
 ! File exists.  Read header
   write(6,*)'call read_diag_header'

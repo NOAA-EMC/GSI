@@ -274,7 +274,7 @@ for type in ${SATYPE}; do
    #  Copy the executable and run it 
    #------------------------------------------------------------------
    out_file=${type}.base
-   $NCP ${DE_EXEC}/make_base ./
+   $NCP ${DE_EXEC}/radmon_make_base.x ./make_base
 
 cat << EOF > input
  &INPUT

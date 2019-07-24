@@ -46,7 +46,7 @@ use cwhydromod, only: cw2hydro_tl
 use cwhydromod, only: cw2hydro_tl_hwrf
 use timermod, only: timer_ini,timer_fnl
 use control_vectors, only : w_exist
-use gridmod, only: wrf_mass_regional,nems_nmmb_regional
+use gridmod, only: nems_nmmb_regional
 implicit none
 
 ! Declare passed variables

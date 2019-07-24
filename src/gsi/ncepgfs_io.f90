@@ -1163,7 +1163,7 @@ end subroutine write_ghg_grid
     use constants, only: qcmin 
     use constants, only:zero
     use general_specmod, only: general_init_spec_vars,general_destroy_spec_vars,spec_vars
-    use gsi_4dvar, only: lwrite4danl
+    use gsi_4dvar, only: lwrite4danl,nhr_anal
     use ncepnems_io, only: write_nemsatm,write_nemssfc,write_nems_sfc_nst
 
     implicit none
@@ -1244,6 +1244,11 @@ end subroutine write_ghg_grid
     do it=1,ntlevs
 
         if ( lwrite4danl ) then
+            ! check to see if we want to output this time.
+            ! if not, skip to next time
+            if (count(nhr_anal/=0)>0) then
+               if (count(nhr_anal==ifilesig(it))==0) cycle
+            endif
             itoutsig = it
             if ( it == ntguessig ) then
                if ( increment > 0 ) then

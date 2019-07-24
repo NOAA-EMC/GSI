@@ -1,4 +1,4 @@
-#!/bin/ksh
+#!/bin/ksh -l
 
 #------------------------------------------------------------------
 #  mk_time.sh
@@ -41,10 +41,16 @@ list="cnt omg cpen"
 
 cmdfile=cmdfile_ptime
 rm -f $cmdfile
+ctr=0
 
 >$cmdfile
 for type in ${SATYPE}; do
-   echo "${OZN_IG_SCRIPTS}/plot_time.sh $type $suffix '$list'" >> $cmdfile
+   if [[ ${MY_MACHINE} = "theia" ]]; then
+      echo "${ctr} ${OZN_IG_SCRIPTS}/plot_time.sh $type $suffix '$list'" >> $cmdfile
+      ((ctr=ctr+1))
+   else
+      echo "${OZN_IG_SCRIPTS}/plot_time.sh $type $suffix '$list'" >> $cmdfile
+   fi
 done
 chmod a+x $cmdfile
 
@@ -67,14 +73,20 @@ if [[ ${MY_MACHINE} = "wcoss" ]]; then
 
 elif [[ ${MY_MACHINE} = "theia" ]]; then
 
-   $SUB -A ${ACCOUNT} -l procs=1,walltime=0:05:00 -N ${job} -V \
-        -o ${logf} -e ${errf} ${cmdfile}
+   $SUB --account ${ACCOUNT} -n $ctr  -o ${logf} -D . -J ${job} --time=10 \
+        --wrap "srun -l --multi-prog ${cmdfile}"
 
 elif [[ ${MY_MACHINE} = "cray" ]]; then
 
    $SUB -q ${JOB_QUEUE} -P ${PROJECT} -o ${logf} -e ${errf} \
         -R "select[mem>100] rusage[mem=100]" \
         -M 100 -W 0:05 -J ${job} -cwd ${WORKDIR} ${WORKDIR}/${cmdfile}
+
+elif [[ ${MY_MACHINE} = "wcoss_d" ]]; then
+
+   $SUB -q ${JOB_QUEUE} -P ${PROJECT} -M 50 -R affinity[core] \
+        -o ${logf} -e ${errf} -W 0:05 -J ${job} -cwd ${WORKDIR} ${WORKDIR}/${cmdfile}
+
 fi
 
 

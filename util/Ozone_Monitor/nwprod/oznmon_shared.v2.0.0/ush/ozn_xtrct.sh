@@ -53,9 +53,6 @@ check_diag_files() {
 
 echo "start ozn_xtrct.sh"
 
-msg="ozn_xtrct.sh HAS STARTED"
-postmsg "$jlogfile" "$msg"
-
 iret=0
 export NCP=${NCP:-/bin/cp}
 VALIDATE_DATA=${VALIDATE_DATA:-0}
@@ -203,13 +200,11 @@ cat << EOF > input
 EOF
 
 
-      msg="oznmon_time.x HAS STARTED $type"
-      postmsg "$jlogfile" "$msg"
+      echo "oznmon_time.x HAS STARTED $type"
 
       ./oznmon_time.x < input >   stdout.time.$type
 
-      msg="oznmon_time.x HAS ENDED $type"
-      postmsg "$jlogfile" "$msg"
+      echo "oznmon_time.x HAS ENDED $type"
 
       if [[ ! -d ${TANKverf_ozn}/time ]]; then
          mkdir -p ${TANKverf_ozn}/time
@@ -236,13 +231,11 @@ cat << EOF > input
       /
 EOF
 
-      msg="oznmon_horiz.x HAS STARTED $type"
-      postmsg "$jlogfile" "$msg"
+      echo "oznmon_horiz.x HAS STARTED $type"
 
       ./oznmon_horiz.x < input >   stdout.horiz.$type
 
-      msg="oznmon_horiz.x HAS ENDED $type"
-      postmsg "$jlogfile" "$msg"
+      echo "oznmon_horiz.x HAS ENDED $type"
 
       if [[ ! -d ${TANKverf_ozn}/horiz ]]; then
          mkdir -p ${TANKverf_ozn}/horiz
@@ -257,7 +250,6 @@ EOF
    done
 fi
 
-msg="ozn_xtrct.sh HAS ENDED, iret = $iret"
-postmsg "$jlogfile" "$msg"
+echo "ozn_xtrct.sh HAS ENDED, iret = $iret"
 
 exit $iret

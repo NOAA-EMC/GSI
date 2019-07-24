@@ -665,7 +665,7 @@ subroutine read_2d_guess(mype)
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die
   use gsi_io, only: verbose
-  use qcmod, only: pvis,pcldch,scale_cv,vis_thres,cldch_thres
+  use qcmod, only: pvis,pcldch,scale_cv
   use nltransf, only: nltransf_forward
   
   implicit none
