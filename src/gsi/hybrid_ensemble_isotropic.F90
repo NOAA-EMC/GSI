@@ -1175,6 +1175,7 @@ end subroutine normal_new_factorization_rf_y
     use get_fv3_regional_ensperts_mod, only: get_fv3_regional_ensperts_class
     use get_wrf_nmm_ensperts_mod, only: get_wrf_nmm_ensperts_class
   use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
+  use hybrid_ensemble_parameters, only: l_both_fv3sar_gfs_ens 
     use mpimod, only: mpi_comm_world,ierror
 
     implicit none
@@ -1330,8 +1331,7 @@ end subroutine normal_new_factorization_rf_y
                 elseif(i_en_perts_io==3) then ! get en_perts from save files
                    call en_perts_get_from_save_fulldomain
                 else
-                   call get_gefs_for_regional
-                  call mpi_barrier(mpi_comm_world,ierror)
+                  call mpi_barrier(mpi_comm_world,ierror)  !thinkdeb why a mpi barrier is needed here
                 endif
 
 !     pseudo_hybens = .true.: pseudo ensemble hybrid option for hwrf
@@ -1359,6 +1359,10 @@ end subroutine normal_new_factorization_rf_y
                 call get_nmmb_ensperts
              case(5)
 !     regional_ensemble_option = 5: ensembles are fv3 regional.
+                if (l_both_fv3sar_gfs_ens) then ! first read in gfs ensembles for regional 
+                   call get_gefs_for_regional
+!clthink do we need mpi_bar here? 
+                endif
                 call fv3_regional_enspert%get_fv3_regional_ensperts(en_perts,nelen,ps_bar)
    
 
