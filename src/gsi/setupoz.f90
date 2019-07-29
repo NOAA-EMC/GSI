@@ -559,7 +559,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
               endif
 
               if (netcdf_diag) then
-                 k1 = k - 1
+                 k1 = k
                  k2 = k - 1
                  if(k2 == 0)k2 = 1
                  if(k == nlevs)then
