@@ -2,12 +2,13 @@
 # update JEDI IODA/UFO repository with files
 # after generating them
 # 
-ingeo="/scratch3/NCEPDEV/stmp1/Cory.R.Martin/JEDI/output/2018041500/geoval/"
+runname=output_latest
+ingeo="/scratch3/NCEPDEV/stmp1/Cory.R.Martin/JEDI/$runname/2018041500/geoval/"
 outufo="/scratch4/NCEPDEV/da/save/Cory.R.Martin/JEDI/src/ufo-bundle/ufo/test/testinput/atmosphere/"
-inobs="/scratch3/NCEPDEV/stmp1/Cory.R.Martin/JEDI/output/2018041500/obs/"
+inobs="/scratch3/NCEPDEV/stmp1/Cory.R.Martin/JEDI/$runname/2018041500/obs/"
 outioda="/scratch4/NCEPDEV/da/save/Cory.R.Martin/JEDI/src/ufo-bundle/ioda/test/testinput/atmosphere/"
 adate="2018041500"
-suffix="s.nc4"
+suffix="m.nc4"
 files="
 airs_aqua
 amsua_aqua
@@ -43,6 +44,7 @@ sondes_tv
 vadwind_uv
 windprof_uv
 "
+
 
 for f in $files; do
   echo "copying $f obs and geoval"

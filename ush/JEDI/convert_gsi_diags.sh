@@ -3,7 +3,7 @@
 #SBATCH -A da-cpu
 #SBATCH -q batch 
 #SBATCH --nodes=1
-#SBATCH -t 2:00:00
+#SBATCH -t 3:00:00
 #SBATCH –mail-user=$LOGNAME@noaa.gov
 OutDir=$1
 DATE=2018041500
@@ -11,7 +11,8 @@ DATE=2018041500
 # load modules here used to compile GSI
 source /apps/lmod/7.7.18/init/sh
 
-#module purge
+module list
+module purge
 ### load modules
 # system installed
 module load intel
@@ -20,6 +21,7 @@ module load netcdf
 # /contrib modules
 module use -a /contrib/modulefiles
 module load anaconda/anaconda3-5.3.1
+module list
 
 IODACDir=/scratch4/NCEPDEV/da/save/Cory.R.Martin/JEDI/src/ioda-converters_2/build/bin
 

@@ -34,7 +34,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
       rotate_wind_xy2ll
   use guess_grids, only: nfldsig,hrdifsig,geop_hgtl,sfcmod_gfs
   use guess_grids, only: tropprs,sfcmod_mm5
-  use guess_grids, only: ges_lnprsl,comp_fact10,pt_ll,pbl_height,ges_prsl,ges_tsen
+  use guess_grids, only: ges_lnprsl,comp_fact10,pt_ll,pbl_height,ges_prsl,ges_tsen,ges_prsi
   use constants, only: zero,half,one,tiny_r_kind,two,cg_term, &
            three,rd,grav,four,five,huge_single,r1000,wgtlim,r10,r400,r100
   use constants, only: grav_ratio,flattening,deg2rad, &
@@ -219,7 +219,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) oscat_vec,ascat_vec,rapidscat_vec
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nobs):: dup
-  real(r_kind),dimension(nsig)::prsltmp,tsentmp,qtmp,tges,zges,zges_read,uges,vges,prsltmp2
+  real(r_kind),dimension(nsig)::prsltmp,tsentmp,qtmp,tges,zges,zges_read,zges_read2,uges,vges,prsltmp2,prsitmp2
   real(r_kind) wdirob,wdirgesin,wdirdiffmax
   real(r_kind),dimension(34)::ptabluv
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
@@ -498,12 +498,16 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
           nsig,mype,nfldsig)
      call tintrp2a1(ges_prsl,prsltmp2,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
+     call tintrp2a1(ges_prsi,prsitmp2,dlat,dlon,dtime,hrdifsig,&
+          nsig+1,mype,nfldsig)
      call tintrp2a1(ges_q,qtmp,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
 
      call tintrp2a11(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
           mype,nfldsig)
      call tintrp2a1(geop_hgtl,zges_read,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
+     call tintrp2a1(ges_z,zges_read2,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
      call tintrp2a1(ges_tv,tges,dlat,dlon,dtime,hrdifsig,&
               nsig,mype,nfldsig)
@@ -1715,6 +1719,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            call nc_diag_metadata("Station_Elevation",       sngl(data(ielev,i))    )
            call nc_diag_metadata("Pressure",                sngl(presw*r100)            )
            call nc_diag_metadata("Height",                  sngl(data(ihgt,i))     )
+           call nc_diag_metadata("HeightAGL",                  sngl(zob)     )
            call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
            call nc_diag_metadata("Prep_QC_Mark",            sngl(data(iqc,i))      )
 !           call nc_diag_metadata("Setup_QC_Mark",           rmiss_single           )
@@ -1801,8 +1806,10 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            call nc_diag_metadata("surface_pressure",psges*r1000)
            call nc_diag_metadata("surface_height",zsges)
            call nc_diag_data2d("atmosphere_pressure_coordinate", prsltmp2*r1000)
+           call nc_diag_data2d("atmosphere_pressure_coordinate_interface", prsitmp2*r1000)
            call nc_diag_data2d("virtual_temperature", tges)
            call nc_diag_data2d("geopotential_height", zges_read)
+           call nc_diag_data2d("geometric_height", zges_read2)
            call nc_diag_data2d("eastward_wind", uges)
            call nc_diag_data2d("northward_wind", vges)
            call nc_diag_data2d("air_temperature", sngl(tsentmp))

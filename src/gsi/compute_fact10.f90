@@ -34,6 +34,7 @@ subroutine compute_fact10(u,v,t,q,ps,prsi1,prsi2,skint,z0rl,islimsk,f10m)
   use kinds, only: r_kind,i_kind
   use constants, only: grav,zero,quarter,half,one,two,four,five,&
        fv,rd,rd_over_cp,r1000
+  use mpimod, only: mype
   implicit none
 
 ! Passed Variables
@@ -80,7 +81,6 @@ subroutine compute_fact10(u,v,t,q,ps,prsi1,prsi2,skint,z0rl,islimsk,f10m)
 !  PSURF IS IN PASCALS
 !  WIND IS WIND SPEED, THETA1 IS ADIABATIC SURFACE TEMP FROM LEVEL 1
 !  SURFACE ROUGHNESS LENGTH IS CONVERTED TO M FROM CM
-
 
    rkap = rd_over_cp
    RKAPI  = one / RKAP

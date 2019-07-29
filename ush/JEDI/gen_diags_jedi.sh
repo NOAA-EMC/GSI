@@ -16,9 +16,10 @@ set -x
 adate=2018041500
 ObsDir=/scratch4/NCEPDEV/global/noscrub/dump/
 GuessDir=/scratch4/NCEPDEV/da/noscrub/Andrew.Collard/ICs_for_JEDI
-WorkDir=/scratch3/NCEPDEV/stmp1/$LOGNAME/JEDI/GSI_work/$adate
-OutDir=/scratch3/NCEPDEV/stmp1/$LOGNAME/JEDI/output/$adate
+WorkDir=/scratch3/NCEPDEV/stmp1/$LOGNAME/JEDI/GSI_work_latest_newhgt/$adate
+OutDir=/scratch3/NCEPDEV/stmp1/$LOGNAME/JEDI/output_latest_newhgt/$adate
 
+threads=1
 GSIDir=/scratch4/NCEPDEV/da/save/Cory.R.Martin/GSI/
 GSIBuildDir=$GSIDir/build_jedi
 gsiexec=$GSIBuildDir/bin/gsi.x
@@ -205,6 +206,7 @@ $ncpc $cldcoef           ${crtm_coeffs}CloudCoeff.bin
 
 # Copy observational data to $DATA
 $ncpl $datobsnr/${prefix_obs}.prepbufr                ./prepbufr
+#$ncpl $datobs/${prefix_obs}.prepbufr                ./prepbufr
 $ncpl $datobs/${prefix_obs}.prepbufr.acft_profiles  ./prepbufr_profl
 $ncpl $datobs/${prefix_obs}.nsstbufr                ./nsstbufr
 $ncpl $datobs/${prefix_obs}.gpsro.${suffix}         ./gpsrobufr
@@ -240,6 +242,7 @@ $ncpl $datobs/${prefix_obs}.crisf4.${suffix}        ./crisfsbufr
 $ncpl $datobs/${prefix_obs}.syndata.tcvitals.tm00   ./tcvitl
 $ncpl $datobs/${prefix_obs}.avcsam.${suffix}        ./avhambufr
 $ncpl $datobs/${prefix_obs}.avcspm.${suffix}        ./avhpmbufr
+#$ncpl $datobs/${prefix_obs}.saphir.${suffix}        ./saphirbufr
 $ncpl $datobsnr/${prefix_obs}.saphir.${suffix}        ./saphirbufr
 $ncpl $datobs/${prefix_obs}.gmi1cr.${suffix}        ./gmibufr
 ## $ncpl $datobs/${prefix_obs}.amsr2.tm00.bufr_d    ./amsr2bufr
@@ -286,7 +289,7 @@ cat <<EOF > gsiparm.anl
    diag_precon=.true.,step_start=1.e-3,emiss_bc=.true.,cwoption=3,nhr_obsbin=3,
    verbose=.false.,imp_physics=11,lupp=.true.,
    binary_diag=.false.,netcdf_diag=.true.,clip_supersaturation=.false.,
-   lobsdiag_forenkf=.false.,sfcmodel=.true.,
+   lobsdiag_forenkf=.false.,sfcmodel=.true.,ifact10=1,
    $SETUP
  /
  &GRIDOPTS
@@ -461,7 +464,11 @@ EOF
 # run GSI
 cd $WorkDir
 ulimit -s unlimited
-export OMP_NUM_THREADS=1
+export OMP_NUM_THREADS=$threads
+export OMP_STACKSIZE=1024M
+export MPI_BUFS_PER_PROC=256
+export MPI_BUFS_PER_HOST=256
+export MPI_GROUP_MAX=256
 env
 srun ./gsi.x > stdout
 
