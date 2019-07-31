@@ -4,15 +4,23 @@ case $machine in
 
 	Theia)
 	   sub_cmd="sub_theia"
+           memnode=64
+           numcore=24
     ;;
 	WCOSS)
 	   sub_cmd="sub_wcoss -a GDAS-T2O -d $PWD"
+           memnode=64  # Phase-2 WCOSS
+           numcore=24  # Phase-2 WCOSS
     ;;
 	WCOSS_C)
 	   sub_cmd="sub_wcoss_c -a GDAS-T2O -d $PWD"
+           memnode=64
+           numcore=24
     ;;
 	WCOSS_D)
 	   sub_cmd="sub_wcoss_d -a ibm -d $PWD"
+           memnode=128
+           numcore=28
     ;;
 	Discover)
 	   sub_cmd="sub_discover"
@@ -37,8 +45,8 @@ esac
 #   s4      :
 #   cheyenne:
 # Select minimim memory per core for regression tests
-export memnode=64
-export numcore=24
+export memnode=${memnode:-64}
+export numcore=${numcore:-24}
 export maxmem=$((($memnode*1024*1024)/$numcore))  # Kb / core
 
 case $regtest in
@@ -595,7 +603,7 @@ if [[ "$machine" = "Theia" ]]; then
    export MPI_BUFS_PER_PROC=256
    export MPI_BUFS_PER_HOST=256
    export MPI_GROUP_MAX=256
-   export APRUN="mpirun -np \$PBS_NP"
+   export APRUN="srun"
 elif [[ "$machine" = "Cheyenne" ]]; then
    export OMP_STACKSIZE=1024M
    export MPI_BUFS_PER_PROC=256

@@ -115,16 +115,16 @@ export TZ=GMT
 cfile=$DATA/sub$$
 > $cfile
 #echo "#PBS -S /bin/sh"                     >> $cfile
-echo "#!/bin/sh --login"                   >> $cfile
-echo ""                                    >> $cfile
-echo "#PBS -o $output"                     >> $cfile
-echo "#PBS -N $jobname"                    >> $cfile
-echo "#PBS -q $queue"                      >> $cfile
-echo "#PBS -l walltime=$timew"             >> $cfile
-echo "#PBS -l nodes=$nodes:ppn=$procs"     >> $cfile
-echo "#PBS -j oe"                          >> $cfile
-echo "#PBS -A "$accnt                      >> $cfile
-echo "#PBS -V"                             >> $cfile
+echo "#!/bin/sh --login"                                                           >> $cfile
+echo ""                                                                            >> $cfile
+echo "#SBATCH --output=$output"                                                    >> $cfile
+echo "#SBATCH --job-name=$jobname"                                                 >> $cfile
+echo "#SBATCH --qos=$queue"                                                        >> $cfile
+echo "#SBATCH --time=$timew"                                                       >> $cfile
+echo "#SBATCH --nodes=$nodes --ntasks-per-node=$procs --cpus-per-task=$threads"    >> $cfile
+#echo "#SBATCH -j oe"                                       >> $cfile
+echo "#SBATCH --account=$accnt"                                                    >> $cfile
+#echo "#SBATCH -V"                                          >> $cfile
 #echo "#PBS -d"                             >> $cfile
 #. $exec                                    >> $cfile
 #echo "/bin/sh -x $exec"                    >> $cfile
@@ -196,12 +196,12 @@ elif [[ $verbose = YES ]];then
   set -x
   cat $cfile
 fi
-qsub=${qsub:-qsub}
+sbatch=${sbatch:-sbatch}
 
 ofile=$DATA/subout$$
 >$ofile
 chmod 777 $ofile
-$qsub $cfile >$ofile
+$sbatch $cfile >$ofile
 rc=$?
 cat $ofile
 if [[ -w $SUBLOG ]];then

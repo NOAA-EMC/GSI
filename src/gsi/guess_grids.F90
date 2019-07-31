@@ -1020,7 +1020,6 @@ contains
          regional,wrf_nmm_regional,nems_nmmb_regional,wrf_mass_regional,&
          cmaq_regional,pt_ll,aeta2_ll,fv3_regional,&
          aeta1_ll,eta2_ll,pdtop_ll,eta1_ll,twodvar_regional,idsl5
-    use mpimod, only: mype
     use obsmod, only: dtype,ndat
     implicit none
 

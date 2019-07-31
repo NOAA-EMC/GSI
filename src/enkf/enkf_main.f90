@@ -73,9 +73,9 @@ program enkf_main
 
  use kinds, only: r_kind,r_double,i_kind
  ! reads namelist parameters.
- use params, only : read_namelist,letkf_flag,readin_localization,lupd_satbiasc,&
+ use params, only : read_namelist,cleanup_namelist,letkf_flag,readin_localization,lupd_satbiasc,&
                     numiter, nanals, lupd_obspace_serial, write_spread_diag,   &
-                    lobsdiag_forenkf, netcdf_diag, fso_cycling
+                    lobsdiag_forenkf, netcdf_diag, fso_cycling, ntasks_io
  ! mpi functions and variables.
  use mpisetup, only:  mpi_initialize, mpi_initialize_io, mpi_cleanup, nproc, &
                        mpi_wtime, mpi_comm_world
@@ -98,7 +98,7 @@ program enkf_main
  ! letkf update
  use letkf, only: letkf_update
  ! radiance bias correction coefficients.
- use radinfo, only: radinfo_write, predx, jpch_rad, npred
+ use radinfo, only: radinfo_write
  ! posterior ensemble inflation.
  use inflation, only: inflate_ens
  ! initialize radinfo variables
@@ -124,7 +124,7 @@ program enkf_main
  call read_namelist()
 
  ! initialize MPI communicator for IO tasks.
- call mpi_initialize_io(nanals)
+ call mpi_initialize_io(ntasks_io)
 
  ! Initialize derived radinfo variables
  call init_rad_vars()
@@ -268,6 +268,7 @@ program enkf_main
  call controlvec_cleanup()
  call loadbal_cleanup()
  if(fso_cycling) call destroy_ob_sens()
+ call cleanup_namelist()
 
  ! write log file (which script can check to verify completion).
  if (nproc .eq. 0) then

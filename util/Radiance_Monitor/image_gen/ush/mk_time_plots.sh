@@ -107,12 +107,6 @@ fi
       if [[ -s ${imgndir}/${type}_anl.ctl ]]; then
          ${IG_SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}_anl.ctl ${START_DATE} ${NUM_CYCLES}
       fi
- 
-#      if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
-#         sed -e 's/cray_32bit_ieee/ /' ${imgndir}/${type}.ctl > tmp_${type}.ctl
-#         mv -f tmp_${type}.ctl ${imgndir}/${type}.ctl
-#      fi
-      
    done
 
    for sat in ${SATYPE}; do
@@ -138,15 +132,17 @@ fi
    logfile=${LOGdir}/plot_summary.log
    rm ${logfile}
 
-   if [[ $MY_MACHINE = "wcoss" ]]; then
+   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "wcoss_d" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -M 100 -R affinity[core] -o ${logfile} \
            -W 1:00 -J ${jobname} -cwd ${PWD} $IG_SCRIPTS/plot_summary.sh
+
    elif [[ $MY_MACHINE = "cray" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -M 100 -o ${logfile} -W 1:00 \
            -J ${jobname} -cwd ${PWD} $IG_SCRIPTS/plot_summary.sh
-   elif [[ $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
-      $SUB -A $ACCOUNT -l procs=1,walltime=1:00:00 -N ${jobname} \
-           -V -j oe -o ${logfile} $IG_SCRIPTS/plot_summary.sh
+
+   elif [[ $MY_MACHINE = "theia" ]]; then
+      $SUB --account $ACCOUNT  --ntasks=1 --mem=5g --time=1:00:00 -J ${jobname} \
+           -o ${logfile} $IG_SCRIPTS/plot_summary.sh
    fi
 
 #-------------------------------------------------------------------
@@ -176,7 +172,7 @@ fi
    list="count penalty omgnbc total omgbc"
 
 
-   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "cray" ]]; then	
+   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "cray" || $MY_MACHINE = "theia" ]]; then	
       suffix=a
       cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${suffix}
       jobname=plot_${RADMON_SUFFIX}_tm_${suffix}
@@ -187,9 +183,17 @@ fi
 
 >$cmdfile
 
+      ctr=0
+
       for sat in ${SATLIST}; do
-         echo "$IG_SCRIPTS/plot_time.sh $sat $suffix '$list'" >> $cmdfile
+         if [[ ${MY_MACHINE} = "theia" ]]; then
+             echo "${ctr} $IG_SCRIPTS/plot_time.sh $sat $suffix '$list'" >> $cmdfile
+         else
+             echo "$IG_SCRIPTS/plot_time.sh $sat $suffix '$list'" >> $cmdfile
+         fi
+         ((ctr=ctr+1))
       done
+
       chmod 755 $cmdfile
 
       if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
@@ -201,31 +205,16 @@ fi
       if [[ $MY_MACHINE = "wcoss" ]]; then
          $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -R affinity[core] -o ${logfile} \
               -W ${wall_tm} -J ${jobname} -cwd ${PWD} ${cmdfile}
+
+      elif [[ $MY_MACHINE = "theia" ]]; then
+         $SUB --account ${ACCOUNT} -n $ctr  -o ${logfile} -D . -J ${jobname} --time=1:00:00 \
+              --wrap "srun -l --multi-prog ${cmdfile}"
+
       else
          $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -o ${logfile} -W ${wall_tm} \
               -J ${jobname} -cwd ${PWD} ${cmdfile}
       fi
       
-   else							# zeus||theia
-      for sat in ${SATLIST}; do
-         cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}
-         jobname=plot_${RADMON_SUFFIX}_tm_${sat}
-         logfile=${LOGdir}/plot_time_${sat}
-
-         rm -f ${cmdfile}
-         rm -f ${logfile}
-
-         echo "$IG_SCRIPTS/plot_time.sh $sat $sat '$list'" >> $cmdfile
-
-         if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
-            wall_tm="1:30:00"
-         else
-            wall_tm="0:40:00"
-         fi
-
-         $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} \
-              -V -j oe -o ${logfile} $cmdfile
-      done
    fi
 
 
@@ -252,8 +241,6 @@ fi
          done
          chmod 755 $cmdfile
 
-#         ntasks=`cat $cmdfile|wc -l `
-
          if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
             wall_tm="2:30"
          else
@@ -266,25 +253,24 @@ fi
             $SUB -q $JOB_QUEUE -P $PROJECT -M 500  -o ${logfile} -W ${wall_tm} \
                  -J ${jobname} -cwd ${PWD} ${cmdfile}
          fi
-      else						# zeus||theia
-         for var in $list; do
-            cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}_${var}
-            jobname=plot_${RADMON_SUFFIX}_tm_${sat}_${var}
-            logfile=${LOGdir}/plot_time_${sat}_${var}.log
-            rm -f ${logfile}
-            rm -f ${cmdfile}
 
-            if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
-               wall_tm="2:00:00"
-            else
-               wall_tm="1:00:00"
-            fi
+      elif [[ $MY_MACHINE = "theia" ]]; then	
 
-            echo "$IG_SCRIPTS/plot_time.sh $sat $var $var" >> $cmdfile
+         cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}
+         jobname=plot_${RADMON_SUFFIX}_tm_${sat}
+         logfile=${LOGdir}/plot_time_${sat}.log
+         rm -f ${logfile}
+         rm -f ${cmdfile}
 
-            $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} \
-                 -V -j oe -o ${logfile} $cmdfile
+         ii=0
+         while [[ $ii -le ${#list[@]}-1 ]]; do
+            echo "${ii} ${IG_SCRIPTS}/plot_time.sh $sat ${list[ii]} ${list[$ii]}"  >> $cmdfile
+            (( ii=ii+1 ))
          done
+
+         $SUB --account ${ACCOUNT} -n $ii  -o ${logfile} -D . -J ${jobname} --time=1:00:00 \
+              --wrap "srun -l --multi-prog ${cmdfile}"
+
       fi
    done
 

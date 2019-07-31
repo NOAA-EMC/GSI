@@ -69,7 +69,7 @@ use gsi_chemguess_mod, only: gsi_chemguess_get
 use gsi_metguess_mod, only: gsi_metguess_get
 use mpeu_util, only: getindex
 use constants, only: max_varname_length,zero
-use gridmod, only: wrf_mass_regional,nems_nmmb_regional
+use gridmod, only: nems_nmmb_regional
 
 implicit none
 

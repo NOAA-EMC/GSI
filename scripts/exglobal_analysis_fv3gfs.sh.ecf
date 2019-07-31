@@ -46,8 +46,11 @@ GDUMP=${GDUMP:-"gdas"}
 
 # Derived base variables
 GDATE=$($NDATE -$assim_freq $CDATE)
+BDATE=$($NDATE -3 $CDATE)
 PDY=$(echo $CDATE | cut -c1-8)
 cyc=$(echo $CDATE | cut -c9-10)
+bPDY=$(echo $BDATE | cut -c1-8)
+bcyc=$(echo $BDATE | cut -c9-10)
 
 # Utilities
 export NCP=${NCP:-"/bin/cp"}
@@ -95,6 +98,8 @@ lobsdiag_forenkf=${lobsdiag_forenkf:-".false."}
 netcdf_diag=${netcdf_diag:-".false."}
 binary_diag=${binary_diag:-".true."}
 
+# IAU
+DOIAU=${DOIAU:-"NO"}
 
 # Dependent Scripts and Executables
 NTHREADS_CALCINC=${NTHREADS_CALCINC:-1}
@@ -239,10 +244,10 @@ DO_CALC_INCREMENT=${DO_CALC_INCREMENT:-"YES"}
 INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"'NONE'"}
 
 # Get header information from Guess files
-LONB=${LONB:-$($NEMSIOGET $ATMGES dimx | grep -i "dimx" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
-LATB=${LATB:-$($NEMSIOGET $ATMGES dimy | grep -i "dimy" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
-LEVS=${LEVS:-$($NEMSIOGET $ATMGES dimz | grep -i "dimz" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
-JCAP=${JCAP:-$($NEMSIOGET $ATMGES jcap | grep -i "jcap" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
+LONB=${LONB:-$($NEMSIOGET $ATMGES dimx | grep -i "dimx" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get LONB
+LATB=${LATB:-$($NEMSIOGET $ATMGES dimy | grep -i "dimy" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get LATB
+LEVS=${LEVS:-$($NEMSIOGET $ATMGES dimz | grep -i "dimz" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get LEVS
+JCAP=${JCAP:-$($NEMSIOGET $ATMGES jcap | grep -i "jcap" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get JCAP
 [ $JCAP -eq -9999 -a $LATB -ne -9999 ] && JCAP=$((LATB-2))
 [ $LONB -eq -9999 -o $LATB -eq -9999 -o $LEVS -eq -9999 -o $JCAP -eq -9999 ] && exit -9999
 
@@ -250,11 +255,11 @@ JCAP=${JCAP:-$($NEMSIOGET $ATMGES jcap | grep -i "jcap" | awk -F"= " '{print $2}
 if [ $DOHYBVAR = "YES" ]; then
    SFCGES_ENSMEAN=${SFCGES_ENSMEAN:-${COMIN_GES_ENS}/${GPREFIX}sfcf006.ensmean${GSUFFIX}}
    ATMGES_ENSMEAN=${ATMGES_ENSMEAN:-${COMIN_GES_ENS}/${GPREFIX}atmf006.ensmean${GSUFFIX}}
-   LONB_ENKF=${LONB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimx | grep -i "dimx" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
-   LATB_ENKF=${LATB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimy | grep -i "dimy" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
+   LONB_ENKF=${LONB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimx | grep -i "dimx" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get LONB_ENKF
+   LATB_ENKF=${LATB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimy | grep -i "dimy" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get LATB_ENKF
    NLON_ENKF=${NLON_ENKF:-$LONB_ENKF}
    NLAT_ENKF=${NLAT_ENKF:-$(($LATB_ENKF+2))}
-   JCAP_ENKF=${JCAP_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN jcap | grep -i "jcap" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}
+   JCAP_ENKF=${JCAP_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN jcap | grep -i "jcap" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get JCAP_ENKF
    [ $JCAP_ENKF -eq -9999 -a $LATB_ENKF -ne -9999 ] && JCAP_ENKF=$((LATB_ENKF-2))
    [ $LONB_ENKF -eq -9999 -o $LATB_ENKF -eq -9999 -o $LEVS_ENKF -eq -9999 -o $JCAP_ENKF -eq -9999 ] && exit -9999
 fi
@@ -656,7 +661,7 @@ cat > gsiparm.anl << EOF
   write_diag(1)=.true.,write_diag(2)=.false.,write_diag(3)=.true.,
   qoption=2,
   gencode=${IGEN:-0},deltim=$DELTIM,
-  factqmin=0.5,factqmax=0.005,
+  factqmin=0.5,factqmax=0.0002,
   iguess=-1,
   tzr_qc=$TZR_QC,
   oneobtest=.false.,retrieval=.false.,l_foto=.false.,
@@ -800,8 +805,10 @@ OBS_INPUT::
    saphirbufr     saphir      meghat      saphir_meghat       0.0     3     0
    ahibufr        ahi         himawari8   ahi_himawari8       0.0     3     0
    rapidscatbufr  uv          null        uv                  0.0     0     0
-   ompsnpbufr     ompsnp      npp       ompsnp_npp            0.0     0     0
-   ompstcbufr     ompstc8     npp       ompstc8_npp           0.0     2     0
+   ompsnpbufr     ompsnp      npp         ompsnp_npp          0.0     0     0
+   ompstcbufr     ompstc8     npp         ompstc8_npp         0.0     2     0
+   amsuabufr      amsua       metop-c     amsua_metop-c       0.0     1     1
+   mhsbufr        mhs         metop-c     mhs_metop-c         0.0     1     1
 ::
 &SUPEROB_RADAR
   $SUPERRAD
@@ -932,6 +939,27 @@ if [ $DOGCYCLE = "YES" ]; then
         export GSI_FILE="NULL"
     fi
 
+    if [ $DOIAU = "YES" ]; then
+        # update surface restarts at the beginning of the window, if IAU
+        # For now assume/hold dtfanl.nc valid at beginning of window
+        for n in $(seq 1 $ntiles); do
+            $NLN $COMIN_GES/RESTART/$bPDY.${bcyc}0000.sfc_data.tile${n}.nc $DATA/fnbgsi.00$n
+            $NLN $COMOUT/RESTART/$bPDY.${bcyc}0000.sfcanl_data.tile${n}.nc $DATA/fnbgso.00$n
+            $NLN $FIXfv3/$CASE/${CASE}_grid.tile${n}.nc                    $DATA/fngrid.00$n
+            $NLN $FIXfv3/$CASE/${CASE}_oro_data.tile${n}.nc                $DATA/fnorog.00$n
+        done
+
+        export APRUNCY=$APRUN_CYCLE
+        export OMP_NUM_THREADS_CY=$NTHREADS_CYCLE
+        export MAX_TASKS_CY=$ntiles
+
+        $CYCLESH
+        rc=$?
+        export ERR=$rc
+        export err=$ERR
+        $ERRSCRIPT || exit 11
+    fi
+    # update surface restarts at middle of window
     for n in $(seq 1 $ntiles); do
         $NLN $COMIN_GES/RESTART/$PDY.${cyc}0000.sfc_data.tile${n}.nc $DATA/fnbgsi.00$n
         $NLN $COMOUT/RESTART/$PDY.${cyc}0000.sfcanl_data.tile${n}.nc $DATA/fnbgso.00$n
@@ -949,7 +977,7 @@ if [ $DOGCYCLE = "YES" ]; then
     export err=$ERR
     $ERRSCRIPT || exit 11
 
-    # Create gaussian grid surface analysis file
+    # Create gaussian grid surface analysis file at middle of window
     if [ $DOGAUSFCANL = "YES" ]; then
         export APRUNSFC=$APRUN_GAUSFCANL
         export OMP_NUM_THREADS_SFC=$NTHREADS_GAUSFCANL
@@ -1005,8 +1033,8 @@ if [ $GENDIAG = "YES" ] ; then
 
    diagtype[0]="conv conv_gps conv_ps conv_q conv_sst conv_t conv_uv"
    diagtype[1]="pcp_ssmi_dmsp pcp_tmi_trmm"
-   diagtype[2]="sbuv2_n16 sbuv2_n17 sbuv2_n18 sbuv2_n19 gome_metop-a gome_metop-b omi_aura mls30_aura ompsnp_npp ompstc8_npp"
-   diagtype[3]="hirs2_n14 msu_n14 sndr_g08 sndr_g11 sndr_g12 sndr_g13 sndr_g08_prep sndr_g11_prep sndr_g12_prep sndr_g13_prep sndrd1_g11 sndrd2_g11 sndrd3_g11 sndrd4_g11 sndrd1_g12 sndrd2_g12 sndrd3_g12 sndrd4_g12 sndrd1_g13 sndrd2_g13 sndrd3_g13 sndrd4_g13 sndrd1_g14 sndrd2_g14 sndrd3_g14 sndrd4_g14 sndrd1_g15 sndrd2_g15 sndrd3_g15 sndrd4_g15 hirs3_n15 hirs3_n16 hirs3_n17 amsua_n15 amsua_n16 amsua_n17 amsub_n15 amsub_n16 amsub_n17 hsb_aqua airs_aqua amsua_aqua imgr_g08 imgr_g11 imgr_g12 imgr_g14 imgr_g15 ssmi_f13 ssmi_f15 hirs4_n18 hirs4_metop-a amsua_n18 amsua_metop-a mhs_n18 mhs_metop-a amsre_low_aqua amsre_mid_aqua amsre_hig_aqua ssmis_f16 ssmis_f17 ssmis_f18 ssmis_f19 ssmis_f20 iasi_metop-a hirs4_n19 amsua_n19 mhs_n19 seviri_m08 seviri_m09 seviri_m10 seviri_m11 cris_npp cris-fsr_npp cris-fsr_n20 atms_npp atms_n20 hirs4_metop-b amsua_metop-b mhs_metop-b iasi_metop-b avhrr_n18 avhrr_metop-a amsr2_gcom-w1 gmi_gpm saphir_meghat ahi_himawari8"
+   diagtype[2]="sbuv2_n16 sbuv2_n17 sbuv2_n18 sbuv2_n19 gome_metop-a gome_metop-b omi_aura mls30_aura ompsnp_npp ompstc8_npp gome_metop-c"
+   diagtype[3]="hirs2_n14 msu_n14 sndr_g08 sndr_g11 sndr_g12 sndr_g13 sndr_g08_prep sndr_g11_prep sndr_g12_prep sndr_g13_prep sndrd1_g11 sndrd2_g11 sndrd3_g11 sndrd4_g11 sndrd1_g12 sndrd2_g12 sndrd3_g12 sndrd4_g12 sndrd1_g13 sndrd2_g13 sndrd3_g13 sndrd4_g13 sndrd1_g14 sndrd2_g14 sndrd3_g14 sndrd4_g14 sndrd1_g15 sndrd2_g15 sndrd3_g15 sndrd4_g15 hirs3_n15 hirs3_n16 hirs3_n17 amsua_n15 amsua_n16 amsua_n17 amsub_n15 amsub_n16 amsub_n17 hsb_aqua airs_aqua amsua_aqua imgr_g08 imgr_g11 imgr_g12 imgr_g14 imgr_g15 ssmi_f13 ssmi_f15 hirs4_n18 hirs4_metop-a amsua_n18 amsua_metop-a mhs_n18 mhs_metop-a amsre_low_aqua amsre_mid_aqua amsre_hig_aqua ssmis_f16 ssmis_f17 ssmis_f18 ssmis_f19 ssmis_f20 iasi_metop-a hirs4_n19 amsua_n19 mhs_n19 seviri_m08 seviri_m09 seviri_m10 seviri_m11 cris_npp cris-fsr_npp cris-fsr_n20 atms_npp atms_n20 hirs4_metop-b amsua_metop-b mhs_metop-b iasi_metop-b avhrr_metop-b avhrr_n18 avhrr_metop-a amsr2_gcom-w1 gmi_gpm saphir_meghat ahi_himawari8 amsua_metop-c mhs_metop-c iasi_metop-c avhrr_metop-c"
 
    diaglist[0]=listcnv
    diaglist[1]=listpcp
@@ -1087,7 +1115,11 @@ EOFdiag
                if [ $USE_CFP = "YES" ]; then
                   echo "$DATA/diag.sh $lrun_subdirs $binary_diag $type $loop $string $CDATE $DIAG_COMPRESS $DIAG_SUFFIX" | tee -a $DATA/mp_diag.sh
                else
-                  cat ${prefix}${type}_${loop}* > diag_${type}_${string}.${CDATE}${DIAG_SUFFIX}
+                  if [ $binary_diag = ".true." ]; then
+                     cat ${prefix}${type}_${loop}* > diag_${type}_${string}.${CDATE}${DIAG_SUFFIX}
+                  else
+                     $CATEXEC -o diag_${type}_${string}.${CDATE}${DIAG_SUFFIX} ${prefix}${type}_${loop}*
+                  fi
                fi
                echo "diag_${type}_${string}.${CDATE}*" >> ${diaglist[n]}
                numfile[n]=$(expr ${numfile[n]} + 1)

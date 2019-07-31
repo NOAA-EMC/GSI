@@ -1,10 +1,14 @@
-#! /bin/ksh
+#! /bin/ksh -l
 
 #------------------------------------------------------------------
 #  plot_summary.sh
 #
 
 set -ax
+
+if [[ ${MY_MACHINE} = "theia" ]]; then
+   module load grads
+fi
 
 SATYPE=$1
 

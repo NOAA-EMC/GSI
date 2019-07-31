@@ -8,8 +8,10 @@ module inflation
 !
 ! prgmmr: whitaker         org: esrl/psd               date: 2009-02-23
 !
-! abstract: posterior ensemble multiplicative inflation. The amount of
-!  inflation is given at each analysis grid point by:
+! abstract:  posterior ensemble inflation. Contains two components.
+!
+! 1) relaxation-to-prior spread (RTPS)  posterior ensemble multiplicative inflation.
+!  The amount of inflation is given at each analysis grid point by:
 !
 !  r = analpertwt*((stdev_prior-stdev_posterior)/stdev_posterior) + 1 
 !
@@ -29,6 +31,16 @@ module inflation
 !
 !  The minimum and maximum values allowed can be controlled by the
 !  namelist parameters covinflatemin and covinflatemax.
+!
+! 2) relaxation-to-prior perturbation inflation (RTPP)
+!
+!  xa_pert = (1-analpertwt_rtpp)*xa_pert + analpertwt_rtpp*xb_pert
+!
+!  analpertwt_rtpp is a namelist parameter defined in module params.
+!  if =1, then analysis perturbations are re-set to background perturbations
+!  if between 0 and 1, analysis perts are linear combination of analysis
+!  and background perts.
+!
 !
 ! Public Subroutines:
 !  inflate_ens: apply inflation to the ensemble perturbations after
@@ -52,13 +64,15 @@ module inflation
 
 use mpisetup
 use params, only: analpertwtnh,analpertwtsh,analpertwttr,nanals,nlevs,&
+                  analpertwtnh_rtpp,analpertwtsh_rtpp,analpertwttr_rtpp,&
                   latbound, delat, datapath, covinflatemax, save_inflation, &
                   covinflatemin, nlons, nlats, smoothparm, nbackgrounds,&
                   covinflatenh,covinflatesh,covinflatetr,lnsigcovinfcutoff
 use kinds, only: r_single, i_kind
+use mpeu_util, only: getindex
 use constants, only: one, zero, rad2deg, deg2rad
 use covlocal, only: latval, taper
-use controlvec, only: ncdim, cvars3d, cvars2d, nc3d, nc2d
+use controlvec, only: ncdim, cvars3d, cvars2d, nc3d, nc2d, clevels
 use gridinfo, only: latsgrd, logp, npts, nlevs_pres
 use loadbal, only: indxproc, numptsperproc, npts_max, anal_chunk, anal_chunk_prior
 use smooth_mod, only: smooth
@@ -79,43 +93,50 @@ integer(i_kind),parameter :: ndiag = 3
 !  Area 3 tropics
 
 real(r_single) sprdmin, sprdmax, sprdmaxall, &
-  sprdminall, deglat,analpertwt, fsprd, asprd
+  sprdminall, deglat,analpertwt,analpertwt_rtpp, fsprd, asprd
 real(r_single),dimension(ndiag) :: sumcoslat,suma,suma2,sumi,sumf,sumitot,sumatot, &
      sumcoslattot,suma2tot,sumftot
 real(r_single) fnanalsml,coslat
-integer(i_kind) i,nn,iunit,ierr,nb,nnlvl
+integer(i_kind) i,nn,iunit,ierr,nb,nnlvl,ps_ind
 character(len=500) filename
 real(r_single), allocatable, dimension(:,:) :: tmp_chunk2,covinfglobal
 real(r_single) r
 
-! if no inflation called for, do nothing.
-if (abs(analpertwtnh) < 1.e-5_r_single .and. &
-    abs(analpertwttr) < 1.e-5_r_single .and. &
-    abs(analpertwtsh) < 1.e-5_r_single) return
-
 fnanalsml = one/(real(nanals-1,r_single))
 
+if (analpertwtnh_rtpp > 1.e-5_r_single .and. &
+    analpertwtnh_rtpp > 1.e-5_r_single .and. &
+    analpertwttr_rtpp > 1.e-5_r_single) then
+if (nproc .eq. 0) print *,'performing RTPP inflation...'
 nbloop: do nb=1,nbackgrounds ! loop over time levels in background
-
-! if analpertwtnh<0 use 'relaxation-to-prior' ensemble inflation,
+! First perform RTPP ensemble inflation,
 ! as first described in:
 ! Zhang, F., C. Snyder, and J. Sun, 2004: Tests of an ensemble 
 ! Kalman Filter for convective-scale data assim-imilation:
 ! Impact of initial estimate and observations. 
 ! Mon. Wea. Rev., 132, 1238-1253. 
-if (analpertwtnh < 0) then
-   do nn=1,ncdim
-    do i=1,numptsperproc(nproc+1)
-      deglat = rad2deg*latsgrd(indxproc(nproc+1,i))
-      ! coefficent can be different in NH, TR, SH.
-      analpertwt = &
-        latval(deglat,abs(analpertwtnh),abs(analpertwttr),abs(analpertwtsh))
-      anal_chunk(:,i,nn,nb) = analpertwt*anal_chunk_prior(:,i,nn,nb) +&
-        (one-analpertwt)*anal_chunk(:,i,nn,nb)
-    end do
-   end do
-   cycle nbloop
-end if
+do nn=1,ncdim
+ do i=1,numptsperproc(nproc+1)
+   deglat = rad2deg*latsgrd(indxproc(nproc+1,i))
+   ! coefficent can be different in NH, TR, SH.
+   analpertwt_rtpp = &
+     latval(deglat,analpertwtnh_rtpp,analpertwttr_rtpp,analpertwtsh_rtpp)
+   anal_chunk(:,i,nn,nb) = analpertwt_rtpp*anal_chunk_prior(:,i,nn,nb) +&
+     (one-analpertwt_rtpp)*anal_chunk(:,i,nn,nb)
+ end do
+end do
+end do nbloop ! end loop over time levels in background
+endif
+
+! if no RTPS inflation desired, return
+if (abs(analpertwtnh) < 1.e-5_r_single .and. &
+    abs(analpertwttr) < 1.e-5_r_single .and. &
+    abs(analpertwtsh) < 1.e-5_r_single) return
+
+if (nproc .eq. 0) print *,'performing RTPS inflation...'
+
+! now perform RTPS inflation
+nbloop2: do nb=1,nbackgrounds ! loop over time levels in background
 
 ! adaptive posterior inflation based upon ratio of posterior to prior spread.
 allocate(tmp_chunk2(npts_max,ncdim))
@@ -127,6 +148,7 @@ suma = zero
 sumcoslat = zero
 sprdmax = -9.9e31_r_single
 sprdmin = 9.9e31_r_single
+ps_ind  = getindex(cvars2d, 'ps')  ! Ps (2D)
 
 do nn=1,ncdim
  do i=1,numptsperproc(nproc+1)
@@ -146,7 +168,7 @@ do nn=1,ncdim
 
    ! area mean surface pressure posterior and prior spread.
    ! (this diagnostic only makes sense for grids that are regular in longitude)
-   if (nn == ncdim) then 
+   if (ps_ind > 0 .and. nn == clevels(nc3d) + ps_ind) then 
       coslat=cos(latsgrd(indxproc(nproc+1,i)))
       if (fsprd > sprdmax) sprdmax = fsprd
       if (fsprd < sprdmin) sprdmin = fsprd
@@ -179,8 +201,8 @@ do nn=1,ncdim
    if( nnlvl == 0 ) nnlvl = nlevs
    
    r=abs((logp(indxproc(nproc+1,i),nnlvl)-logp(indxproc(nproc+1,i),nlevs_pres))/lnsigcovinfcutoff)
-   if ( r > 0.75 ) then
-       r=1.0
+   if ( r > 0.75_r_single ) then
+     r=1.0_r_single
    endif
    
    tmp_chunk2(i,nn) = tmp_chunk2(i,nn) + &
@@ -255,7 +277,7 @@ do nn=1,ncdim
 
    ! area mean surface pressure posterior spread, inflation.
    ! (this diagnostic only makes sense for grids that are regular in longitude)
-   if (nn == ncdim) then 
+   if (ps_ind > 0 .and. nn == clevels(nc3d) + ps_ind) then 
       coslat=cos(latsgrd(indxproc(nproc+1,i)))
       deglat = rad2deg*latsgrd(indxproc(nproc+1,i))
       if (deglat > latbound) then 
@@ -286,7 +308,7 @@ call mpi_reduce(sumi,sumitot,ndiag,mpi_real4,mpi_sum,0,mpi_comm_world,ierr)
 call mpi_reduce(suma,sumatot,ndiag,mpi_real4,mpi_sum,0,mpi_comm_world,ierr)
 call mpi_reduce(suma2,suma2tot,ndiag,mpi_real4,mpi_sum,0,mpi_comm_world,ierr)
 call mpi_reduce(sumcoslat,sumcoslattot,ndiag,mpi_real4,mpi_sum,0,mpi_comm_world,ierr)
-if (nproc == 0) then
+if (nproc == 0 .and. ps_ind > 0) then
    print *,'inflation stats, time level: ',nb
    print *,'---------------------------------'
    sumftot = sqrt(sumftot/sumcoslattot)
@@ -318,7 +340,7 @@ if (nproc == 0) then
    endif
 end if
 
-end do nbloop ! end loop over time levels in background
+end do nbloop2 ! end loop over time levels in background
 
 
 end subroutine inflate_ens

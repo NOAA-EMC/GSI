@@ -120,7 +120,11 @@ pen_hdr=pen_hdr.txt
 chan_err=chan_err.txt
 chan_hdr=chan_hdr.txt
 
-# Other variables
+netcdf_boolean=".false."
+if [[ $RADMON_NETCDF -eq 1 ]]; then
+   netcdf_boolean=".true."
+fi
+
 DO_DIAG_RPT=${DO_DIAG_RPT:-1}
 DO_DATA_RPT=${DO_DATA_RPT:-1}
 RADMON_SUFFIX=${RADMON_SUFFIX:-opr}
@@ -137,7 +141,7 @@ VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 USE_MAIL=${USE_MAIL:-0}
 
-time_exec=radmon_time
+time_exec=radmon_time.x
 USE_ANL=${USE_ANL:-0}
 err=0 
 
@@ -242,6 +246,7 @@ cat << EOF > input
   gesanl='${dtype}',
   little_endian=${LITTLE_ENDIAN},
   rad_area='${RAD_AREA}',
+  netcdf=${netcdf_boolean},
  /
 EOF
 	 startmsg

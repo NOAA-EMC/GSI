@@ -51,11 +51,12 @@ export RUN_ENVIR=${RUN_ENVIR:-"dev"}
 #--------------------------------------------------------------------
 #  load modules
 #--------------------------------------------------------------------
-. /usrx/local/Modules/3.2.9/init/ksh
-module use /nwprod2/modulefiles
-module load grib_util
-module load prod_util
-module load util_shared
+#. /usrx/local/Modules/3.2.9/init/ksh
+#module use /nwprod2/modulefiles
+#module load grib_util
+#module load prod_util
+#module load util_shared
+
 
 if [[ $nargs -ge 1 ]]; then
    export PDATE=$2;
@@ -192,7 +193,9 @@ if [ -s $cnvstat  -a -s $pgrbf00 -a -s $pgrbf06 ]; then
         $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/DE.${PDY}.${CYC}.log -M 500 -R affinity[core] -W 0:25 -J ${jobname} -cwd $PWD ${HOMEgdascmon}/jobs/JGDAS_VCMON
 
       elif [[ $MY_MACHINE = "theia" ]]; then
-         $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -V -o $C_LOGDIR/DE.${PDY}.${CYC}.log -e $C_LOGDIR/DE.${PDY}.${CYC}.err $HOMEgdascmon/jobs/JGDAS_VCMON
+         $SUB -A $ACCOUNT --ntasks=1 --time=00:20:00 \
+		-p service -J ${jobname} -o $C_LOGDIR/DE.${PDY}.${CYC}.log \
+		$HOMEgdascmon/jobs/JGDAS_VCMON
       fi
 
    else
