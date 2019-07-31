@@ -191,7 +191,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nsig):: dbenddn,dbenddxi
   real(r_kind) pressure,hob_s,d_ref_rad,d_ref_rad_TL,hob_s_top
-  real(r_kind),dimension(4) :: w4,dw4,dw4_TL
+  real(r_kind),dimension(8) :: w4,dw4,dw4_TL
   
   integer(i_kind) ier,ilon,ilat,ihgt,igps,itime,ikx,iuse, &
                   iprof,ipctc,iroc,isatid,iptid,ilate,ilone,ioff,igeoid
@@ -204,7 +204,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   type(sparr2) :: dhx_dx
   integer(i_kind) :: iz, t_ind, q_ind, p_ind, nnz, nind
 
-  real(r_kind),dimension(3,nsig+nsig_ext) :: q_w,q_w_tl
+  real(r_kind),dimension(7,nsig+nsig_ext) :: q_w,q_w_tl
   real(r_kind),dimension(nsig) :: hges,irefges,zges,dhdt,dhdp
   real(r_kind),dimension(nsig+1) :: prsltmp
   real(r_kind),dimension(nsig,nsig)::dndp,dxidp
@@ -614,12 +614,17 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
          end do
 
 !        Lagrange coefficients
-         ref_rad(0)=ref_rad(3)
-         ref_rad(nsig_up+1)=ref_rad(nsig_up-2)
-         do k=1,nsig_up
+         ref_rad(0)=ref_rad(7)
+         ref_rad(nsig_up+1)=ref_rad(nsig_up-6)
+         do k=1,2
+           call setq(q_w(:,k),ref_rad(0:6),7)
+         enddo
+         do k=3,nsig_up-2
             call setq(q_w(:,k),ref_rad(k-1:k+1),3)
          enddo
-
+         do k=nsig_up-1,nsig_up
+            call setq(q_w(:,k),ref_rad(nsig_up-5:nsig_up+1),7)
+         enddo
          muse(i)=nint(data(iuse,i)) <= jiter
 
 !        Get refractivity index-radius and [d(ln(n))/dx] in new grid.
@@ -633,23 +638,32 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 
            if (hob_s < rsig_up) then  !obs inside the new grid
               ihob=hob_s
-
 !             Compute refractivity and derivative at target points 
 !             using Lagrange interpolators
-              call slagdw(ref_rad(ihob-1:ihob+2),ref_rad_s(j),&
-                   q_w(:,ihob),q_w(:,ihob+1),&
-                   w4,dw4,4)
-              if(ihob==1) then
-                 w4(4)=w4(4)+w4(1); w4(1:3)=w4(2:4);w4(4)=zero
-                 dw4(4)=dw4(4)+dw4(1);dw4(1:3)=dw4(2:4);dw4(4)=zero
-                 ihob=ihob+1
+              if ((ihob>2).and.(ihob<nsig_up-2)) then
+                call slagdw(ref_rad(ihob-3:ihob+4),ref_rad_s(j),&
+                     q_w(:,ihob),q_w(:,ihob+1),&
+                     w4,dw4,8)
+                ddnj(j)=dot_product(dw4,nrefges(ihob-3:ihob+4,i))
+              elseif (ihob>2) then
+                call slagdw(ref_rad(nsig_up-6:nsig_up+1),ref_rad_s(j),&
+                     q_w(:,ihob),q_w(:,ihob+1),&
+                     w4,dw4,8)
+                if(ihob==nsig_up-1) then
+                  w4(1)=w4(1)+w4(8); w4(2:8)=w4(1:7);w4(1)=zero
+                  dw4(1)=dw4(1)+dw4(8); dw4(2:8)=dw4(1:7);dw4(1)=zero
+                endif
+                ddnj(j)=dot_product(dw4,nrefges(nsig_up-7:nsig_up,i))
+              else
+                call slagdw(ref_rad(0:7),ref_rad_s(j),&
+                     q_w(:,ihob),q_w(:,ihob+1),&
+                     w4,dw4,8)
+                if(ihob==1) then
+                   w4(8)=w4(8)+w4(1); w4(1:7)=w4(2:8);w4(8)=zero
+                   dw4(8)=dw4(8)+dw4(1);dw4(1:7)=dw4(2:8);dw4(8)=zero
+                endif
+                ddnj(j)=dot_product(dw4,nrefges(1:8,i))
               endif
-              if(ihob==nsig_up-1) then
-                 w4(1)=w4(1)+w4(4); w4(2:4)=w4(1:3);w4(1)=zero
-                 dw4(1)=dw4(1)+dw4(4); dw4(2:4)=dw4(1:3);dw4(1)=zero
-                 ihob=ihob-1
-              endif
-              ddnj(j)=dot_product(dw4,nrefges(ihob-1:ihob+2,i))!derivative (dN/dx)_j
               ddnj(j)=max(zero,abs(ddnj(j)))
            else
               obs_check=.true.
@@ -1072,31 +1086,51 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
                      (nrefges(nsig+k-1,i)**2/nrefges(nsig+k-2,i)**2)*n_TL(nsig+k-2)
 
               end do
-              xi_TL(0)=xi_TL(3)
-              xi_TL(nsig_up+1)=xi_TL(nsig_up-2)
-              do k=1,nsig_up
-                 call setq_TL(q_w(:,k),q_w_TL(:,k),ref_rad(k-1:k+1),xi_TL(k-1:k+1),3)
+              xi_TL(0)=xi_TL(7)
+              xi_TL(nsig_up+1)=xi_TL(nsig_up-6)
+              do k=1,2
+                 call setq_TL(q_w(:,k),q_w_TL(:,k),ref_rad(0:6),xi_TL(0:6),7)
+              enddo
+              do k=3,nsig_up-2
+                 call setq_TL(q_w(:,k),q_w_TL(:,k),ref_rad(k-3:k+3),xi_TL(k-3:k+3),7)
+              enddo
+              do k=nsig_up-1,nsig_up
+                 call setq_TL(q_w(:,k),q_w_TL(:,k),ref_rad(nsig_up-5:nsig_up+1),xi_TL(nsig_up-5:nsig_up+1),7)
               enddo
               intloop2: do j=1,grids_dim
                  ihob=dbend_loc(j,i)
 
 ! Compute refractivity and derivative at target points using Lagrange interpolators
-                 call slagdw_TL(ref_rad(ihob-1:ihob+2),xi_TL(ihob-1:ihob+2),xj(j,i),&
-                            q_w(:,ihob),q_w_TL(:,ihob),&
-                            q_w(:,ihob+1),q_w_TL(:,ihob+1),&
-                            dw4,dw4_TL,4)
-                 if(ihob==1) then
-                    dw4(4)=dw4(4)+dw4(1);dw4(1:3)=dw4(2:4);dw4(4)=zero
-                    dw4_TL(4)=dw4_TL(4)+dw4_TL(1);dw4_TL(1:3)=dw4_TL(2:4);dw4_TL(4)=zero
-                    ihob=ihob+1
+                 if ((ihob>2).and.(ihob<nsig_up-2)) then
+                   call slagdw_TL(ref_rad(ihob-3:ihob+4),xi_TL(ihob-3:ihob+4),xj(j,i),&
+                              q_w(:,ihob),q_w_TL(:,ihob),&
+                              q_w(:,ihob+1),q_w_TL(:,ihob+1),&
+                              dw4,dw4_TL,8)
+                   dbetaxi=(r1em6/xj(j,i))*dot_product(dw4_TL,nrefges(ihob-3:ihob+4,i))
+                   dbetan =(r1em6/xj(j,i))*dot_product(dw4,n_TL(ihob-3:ihob+4))
+                 elseif (ihob>2) then
+                   call slagdw_TL(ref_rad(ihob-6:ihob+1),xi_TL(ihob-6:ihob+1),xj(j,i),&
+                              q_w(:,ihob),q_w_TL(:,ihob),&
+                              q_w(:,ihob+1),q_w_TL(:,ihob+1),&
+                              dw4,dw4_TL,8)
+                   if(ihob==nsig_up-1) then
+                      dw4(1)=dw4(1)+dw4(8); dw4(2:8)=dw4(1:7);dw4(1)=zero
+                      dw4_TL(1)=dw4_TL(1)+dw4_TL(8);dw4_TL(2:8)=dw4_TL(1:7);dw4_TL(1)=zero
+                   endif
+                   dbetaxi=(r1em6/xj(j,i))*dot_product(dw4_TL,nrefges(nsig_up-7:nsig_up,i))
+                   dbetan =(r1em6/xj(j,i))*dot_product(dw4,n_TL(nsig_up-7:nsig_up))
+                 else
+                   call slagdw_TL(ref_rad(0:7),xi_TL(0:7),xj(j,i),&
+                              q_w(:,ihob),q_w_TL(:,ihob),&
+                              q_w(:,ihob+1),q_w_TL(:,ihob+1),&
+                              dw4,dw4_TL,8)
+                   if(ihob==1) then
+                    dw4(8)=dw4(8)+dw4(1);dw4(1:7)=dw4(2:8);dw4(8)=zero
+                    dw4_TL(8)=dw4_TL(8)+dw4_TL(1);dw4_TL(1:7)=dw4_TL(2:8);dw4_TL(8)=zero
+                   endif
+                   dbetaxi=(r1em6/xj(j,i))*dot_product(dw4_TL,nrefges(1:8,i))
+                   dbetan=(r1em6/xj(j,i))*dot_product(dw4,n_TL(1:8))
                  endif
-                 if(ihob==nsig_up-1) then
-                    dw4(1)=dw4(1)+dw4(4); dw4(2:4)=dw4(1:3);dw4(1)=zero
-                    dw4_TL(1)=dw4_TL(1)+dw4_TL(4); dw4_TL(2:4)=dw4_TL(1:3);dw4_TL(1)=zero
-                    ihob=ihob-1
-                 endif
-                 dbetaxi=(r1em6/xj(j,i))*dot_product(dw4_TL,nrefges(ihob-1:ihob+2,i))
-                 dbetan =(r1em6/xj(j,i))*dot_product(dw4,n_TL(ihob-1:ihob+2))
                  if(j == 1)then
                     dbenddxi(kk)=dbetaxi
                     dbenddn(kk)=dbetan
