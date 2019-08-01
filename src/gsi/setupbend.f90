@@ -191,7 +191,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nsig):: dbenddn,dbenddxi
   real(r_kind) pressure,hob_s,d_ref_rad,d_ref_rad_TL,hob_s_top
-  real(r_kind),dimension(8) :: w4,dw4,dw4_TL
+  real(r_kind),dimension(8) :: w8,dw8,dw8_TL
   
   integer(i_kind) ier,ilon,ilat,ihgt,igps,itime,ikx,iuse, &
                   iprof,ipctc,iroc,isatid,iptid,ilate,ilone,ioff,igeoid
@@ -643,26 +643,26 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
               if ((ihob>2).and.(ihob<nsig_up-2)) then
                 call slagdw(ref_rad(ihob-3:ihob+4),ref_rad_s(j),&
                      q_w(:,ihob),q_w(:,ihob+1),&
-                     w4,dw4,8)
-                ddnj(j)=dot_product(dw4,nrefges(ihob-3:ihob+4,i))
+                     w8,dw8,8)
+                ddnj(j)=dot_product(dw8,nrefges(ihob-3:ihob+4,i))
               elseif (ihob>2) then
                 call slagdw(ref_rad(nsig_up-6:nsig_up+1),ref_rad_s(j),&
                      q_w(:,ihob),q_w(:,ihob+1),&
-                     w4,dw4,8)
+                     w8,dw8,8)
                 if(ihob==nsig_up-1) then
-                  w4(1)=w4(1)+w4(8); w4(2:8)=w4(1:7);w4(1)=zero
-                  dw4(1)=dw4(1)+dw4(8); dw4(2:8)=dw4(1:7);dw4(1)=zero
+                  w8(1)=w8(1)+w8(8); w8(2:8)=w8(1:7);w8(1)=zero
+                  dw8(1)=dw8(1)+dw8(8); dw8(2:8)=dw8(1:7);dw8(1)=zero
                 endif
-                ddnj(j)=dot_product(dw4,nrefges(nsig_up-7:nsig_up,i))
+                ddnj(j)=dot_product(dw8,nrefges(nsig_up-7:nsig_up,i))
               else
                 call slagdw(ref_rad(0:7),ref_rad_s(j),&
                      q_w(:,ihob),q_w(:,ihob+1),&
-                     w4,dw4,8)
+                     w8,dw8,8)
                 if(ihob==1) then
-                   w4(8)=w4(8)+w4(1); w4(1:7)=w4(2:8);w4(8)=zero
-                   dw4(8)=dw4(8)+dw4(1);dw4(1:7)=dw4(2:8);dw4(8)=zero
+                   w8(8)=w8(8)+w8(1); w8(1:7)=w8(2:8);w8(8)=zero
+                   dw8(8)=dw8(8)+dw8(1);dw8(1:7)=dw8(2:8);dw8(8)=zero
                 endif
-                ddnj(j)=dot_product(dw4,nrefges(1:8,i))
+                ddnj(j)=dot_product(dw8,nrefges(1:8,i))
               endif
               ddnj(j)=max(zero,abs(ddnj(j)))
            else
@@ -1071,7 +1071,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
            end do
            ref_rad(0)=ref_rad(3)
            ref_rad(nsig_up+1)=ref_rad(nsig_up-2)
-!$omp parallel do  schedule(dynamic,1) private(kk,k,j,xi_TL,n_TL,q_w,q_w_tl,d_ref_rad_TL,ihob,dw4,dw4_TL,dbetaxi,dbetan)
+!$omp parallel do  schedule(dynamic,1) private(kk,k,j,xi_TL,n_TL,q_w,q_w_tl,d_ref_rad_TL,ihob,dw8,dw8_TL,dbetaxi,dbetan)
            do kk=1,nsig
               xi_TL=zero
               xi_TL(kk)=one
@@ -1105,31 +1105,31 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
                    call slagdw_TL(ref_rad(ihob-3:ihob+4),xi_TL(ihob-3:ihob+4),xj(j,i),&
                               q_w(:,ihob),q_w_TL(:,ihob),&
                               q_w(:,ihob+1),q_w_TL(:,ihob+1),&
-                              dw4,dw4_TL,8)
-                   dbetaxi=(r1em6/xj(j,i))*dot_product(dw4_TL,nrefges(ihob-3:ihob+4,i))
-                   dbetan =(r1em6/xj(j,i))*dot_product(dw4,n_TL(ihob-3:ihob+4))
+                              dw8,dw8_TL,8)
+                   dbetaxi=(r1em6/xj(j,i))*dot_product(dw8_TL,nrefges(ihob-3:ihob+4,i))
+                   dbetan =(r1em6/xj(j,i))*dot_product(dw8,n_TL(ihob-3:ihob+4))
                  elseif (ihob>2) then
                    call slagdw_TL(ref_rad(ihob-6:ihob+1),xi_TL(ihob-6:ihob+1),xj(j,i),&
                               q_w(:,ihob),q_w_TL(:,ihob),&
                               q_w(:,ihob+1),q_w_TL(:,ihob+1),&
-                              dw4,dw4_TL,8)
+                              dw8,dw8_TL,8)
                    if(ihob==nsig_up-1) then
-                      dw4(1)=dw4(1)+dw4(8); dw4(2:8)=dw4(1:7);dw4(1)=zero
-                      dw4_TL(1)=dw4_TL(1)+dw4_TL(8);dw4_TL(2:8)=dw4_TL(1:7);dw4_TL(1)=zero
+                      dw8(1)=dw8(1)+dw8(8); dw8(2:8)=dw8(1:7);dw8(1)=zero
+                      dw8_TL(1)=dw8_TL(1)+dw8_TL(8);dw8_TL(2:8)=dw8_TL(1:7);dw8_TL(1)=zero
                    endif
-                   dbetaxi=(r1em6/xj(j,i))*dot_product(dw4_TL,nrefges(nsig_up-7:nsig_up,i))
-                   dbetan =(r1em6/xj(j,i))*dot_product(dw4,n_TL(nsig_up-7:nsig_up))
+                   dbetaxi=(r1em6/xj(j,i))*dot_product(dw8_TL,nrefges(nsig_up-7:nsig_up,i))
+                   dbetan =(r1em6/xj(j,i))*dot_product(dw8,n_TL(nsig_up-7:nsig_up))
                  else
                    call slagdw_TL(ref_rad(0:7),xi_TL(0:7),xj(j,i),&
                               q_w(:,ihob),q_w_TL(:,ihob),&
                               q_w(:,ihob+1),q_w_TL(:,ihob+1),&
-                              dw4,dw4_TL,8)
+                              dw8,dw8_TL,8)
                    if(ihob==1) then
-                    dw4(8)=dw4(8)+dw4(1);dw4(1:7)=dw4(2:8);dw4(8)=zero
-                    dw4_TL(8)=dw4_TL(8)+dw4_TL(1);dw4_TL(1:7)=dw4_TL(2:8);dw4_TL(8)=zero
+                    dw8(8)=dw8(8)+dw8(1);dw8(1:7)=dw8(2:8);dw8(8)=zero
+                    dw8_TL(8)=dw8_TL(8)+dw8_TL(1);dw8_TL(1:7)=dw8_TL(2:8);dw8_TL(8)=zero
                    endif
-                   dbetaxi=(r1em6/xj(j,i))*dot_product(dw4_TL,nrefges(1:8,i))
-                   dbetan=(r1em6/xj(j,i))*dot_product(dw4,n_TL(1:8))
+                   dbetaxi=(r1em6/xj(j,i))*dot_product(dw8_TL,nrefges(1:8,i))
+                   dbetan=(r1em6/xj(j,i))*dot_product(dw8,n_TL(1:8))
                  endif
                  if(j == 1)then
                     dbenddxi(kk)=dbetaxi
