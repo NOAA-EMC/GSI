@@ -149,11 +149,11 @@ f = interp2d(slon,slat,gsi.hsstin,kind=interp_kind)
 tmp_n = f(slon_n,slat_n)
 gsi_n.hsstin = np.array(tmp_n,dtype=np.float32)
 
-f = interp1d(slat,gsi.corpin,kind=interp_kind)
+f = interp1d(slat.astype(np.float),gsi.corpin.astype(np.float),kind=interp_kind,fill_value="extrapolate")
 tmp_n = f(slat_n)
 gsi_n.corpin = np.array(tmp_n,dtype=np.float32)
 
-f = interp1d(slat,gsi.hscalespin,kind=interp_kind)
+f = interp1d(slat.astype(np.float),gsi.hscalespin.astype(np.float),kind=interp_kind,fill_value="extrapolate")
 tmp_n = f(slat_n)
 gsi_n.hscalespin = np.array(tmp_n,dtype=np.float32)
 

@@ -18,11 +18,11 @@ subroutine variances3d(numcases,mype)
 
 ! Global Grid
   real(r_kind),dimension(iglobal):: work
-  real(r_single),dimension(nlat,nlon,nsig):: sfg,vpg,tg,qg,ozg,cwg
-  real(r_single),dimension(nlat,nlon):: psg
+  real(r_kind),dimension(nlat,nlon,nsig):: sfg,vpg,tg,qg,ozg,cwg
+  real(r_kind),dimension(nlat,nlon):: psg
 ! Variables for grads file (re-ordered)
-  real(r_single),dimension(nlon,nlat,nsig):: sf4,vp4,t4,q4,oz4,cw4
-  real(r_single),dimension(nlon,nlat):: ps4
+  real(r_kind),dimension(nlon,nlat,nsig):: sf4,vp4,t4,q4,oz4,cw4
+  real(r_kind),dimension(nlon,nlat):: ps4
 
   integer(i_kind) i,j,k,n,mype_post,ncfggg,mm1,ierror,iret,i1,i2,kk
   integer(i_kind) mpi_rtype

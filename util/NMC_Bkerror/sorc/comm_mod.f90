@@ -415,4 +415,34 @@ contains
     return
   end subroutine grid2sub
 
+subroutine create_task_info(nfields, nprocs, taskid)
+!   2017-10-25  Gael Descombes (NCAR)
+   implicit none
+
+   integer,  intent(in) :: nfields, nprocs
+   integer, intent(out) :: taskid(nfields)
+
+   integer :: i, n, inum1, inum2, icount
+   integer :: ista, iend
+
+   inum1 = nfields/nprocs
+   inum2 = mod(nfields, nprocs)
+   icount = 0
+   do i = 1, inum1
+      do n = 1, nprocs
+         icount = icount + 1
+         taskid(icount) = n-1
+      end do
+   end do
+   if ( inum2 > 0 ) then
+      do i = 1, nfields-(inum1*nprocs)
+         icount = icount + 1
+         taskid(icount) = i-1
+      end do
+   end if
+
+   return
+end subroutine create_task_info
+
+
 end module comm_mod
