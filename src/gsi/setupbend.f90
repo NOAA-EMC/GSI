@@ -620,7 +620,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
            call setq(q_w(:,k),ref_rad(0:6),7)
          enddo
          do k=3,nsig_up-2
-            call setq(q_w(:,k),ref_rad(k-1:k+1),3)
+            call setq(q_w(:,k),ref_rad(k-3:k+3),7)
          enddo
          do k=nsig_up-1,nsig_up
             call setq(q_w(:,k),ref_rad(nsig_up-5:nsig_up+1),7)
@@ -1109,7 +1109,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
                    dbetaxi=(r1em6/xj(j,i))*dot_product(dw8_TL,nrefges(ihob-3:ihob+4,i))
                    dbetan =(r1em6/xj(j,i))*dot_product(dw8,n_TL(ihob-3:ihob+4))
                  elseif (ihob>2) then
-                   call slagdw_TL(ref_rad(ihob-6:ihob+1),xi_TL(ihob-6:ihob+1),xj(j,i),&
+                   call slagdw_TL(ref_rad(nsig_up-6:nsig_up+1),xi_TL(nsig_up-6:nsig_up+1),xj(j,i),&
                               q_w(:,ihob),q_w_TL(:,ihob),&
                               q_w(:,ihob+1),q_w_TL(:,ihob+1),&
                               dw8,dw8_TL,8)
