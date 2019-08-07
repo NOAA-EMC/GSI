@@ -5,7 +5,8 @@ subroutine variances(numcases,mype)
       displs_g,ijn,two,db_prec,istart,ilat1,jstart,npe,&
       bbiasz,bbiasd,bbiast,bcorrz,bcorrd,bcorrt,bbiasp,bcorrp,&
       sfvar,vpvar,tvar,qvar,ozvar,cvar,nrhvar,psvar,tcon,vpcon,pscon,&
-      iglobal,ltosi,ltosj,half,one,ione,two,smoothdeg,vertavg
+      iglobal,ltosi,ltosj,half,one,ione,two,smoothdeg,vertavg,&
+      scaling,varscale
   implicit none
   include 'mpif.h'
 
@@ -294,6 +295,21 @@ subroutine variances(numcases,mype)
     call smoothlat(cvar,nsig,smoothdeg)
     call smoothlat(psvar,1,smoothdeg)
   end if
+
+! Scale the variances with height
+
+  if (scaling .and. mype==mype_work) then
+     do k=1,nsig
+        if (varscale(k) /= 1.0) then
+           sfvar(:,k) = sfvar(:,k) / varscale(k)
+           vpvar(:,k) = vpvar(:,k) / varscale(k)
+           tvar(:,k)  = tvar(:,k)  / varscale(k)
+           qvar(:,k)  = qvar(:,k)  / varscale(k)
+           ozvar(:,k) = ozvar(:,k) / varscale(k)
+           cvar(:,k)  = cvar(:,k)  / varscale(k)
+        endif
+     enddo
+  endif
 
   call mpi_bcast(sfvar,nlat*nsig,mpi_rtype,mype_work,mpi_comm_world,ierror)
   call mpi_bcast(vpvar,nlat*nsig,mpi_rtype,mype_work,mpi_comm_world,ierror)
