@@ -32,7 +32,7 @@ module load impi/18.0.1
 module load prod_util/1.1.0
 
 # Loading nceplibs modules
-module load bufr/11.2.0
+module load bufr/11.3.0
 module load nemsio/2.2.3
 module load sfcio/1.0.0
 module load sigio/2.1.0
