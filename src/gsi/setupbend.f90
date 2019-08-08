@@ -1069,8 +1069,8 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
            do k=1,nsig_ext
               ref_rad(nsig+k)=ref_rad(nsig) + k*d_ref_rad
            end do
-           ref_rad(0)=ref_rad(3)
-           ref_rad(nsig_up+1)=ref_rad(nsig_up-2)
+           ref_rad(0)=ref_rad(7)
+           ref_rad(nsig_up+1)=ref_rad(nsig_up-6)
 !$omp parallel do  schedule(dynamic,1) private(kk,k,j,xi_TL,n_TL,q_w,q_w_tl,d_ref_rad_TL,ihob,dw8,dw8_TL,dbetaxi,dbetan)
            do kk=1,nsig
               xi_TL=zero
