@@ -1499,9 +1499,7 @@ subroutine gsi_fv3ncdf_readuv_v1(dynvarsfile,ges_u,ges_v)
        nzp1=nztmp+1
        do i=1,nztmp
           ir=nzp1-i 
-!cltthinkorg           call fv3uv2earth(temp1(:,:,i),uu(:,:,i),nx,ny,u,v)
           if(mype==mype_u)then
-!cltthinkdeb             call fv3_h_to_ll(u,a,nx,ny,nxa,nya)
              do j=1,ny
              uorv(:,j)=half*(uu(:,j,i)+uu(:,j+1,i))
              enddo

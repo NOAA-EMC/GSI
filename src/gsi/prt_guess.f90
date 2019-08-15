@@ -91,7 +91,7 @@ subroutine prt_guess(sgrep)
   ier=ier+istatus
   call gsi_bundlegetpointer (gsi_metguess_bundle(ntsig),'oz',ges_oz_it,istatus)
   ier=ier+istatus
-!cltthinkdeb   if (ier/=0) return ! this is a fundamental routine, when some not found just return
+  if (ier/=0) return ! this is a fundamental routine, when some not found just return
 
 ! get pointer to cloud water condensate
   call gsi_metguess_get('clouds::3d',n_actual_clouds,ier)

@@ -156,7 +156,6 @@ subroutine open_(unit,file,class,newunit,action,position,status,iostat,silent)
 
 #ifdef _DO_NOT_SUPPORT_OPEN_WITH_CONVERT_
   convert_="_NOT_SUPPORTED_"    ! open(file with the compiler default convert
-  write(6,*)'thinkdeb 1'
   if(newunit_) then
      open(newunit=unit,file=file,access='sequential',form='unformatted', &
         action=action_,position=position_,status=status_,iostat=iostat_)
@@ -167,10 +166,8 @@ subroutine open_(unit,file,class,newunit,action,position,status,iostat,silent)
 
 #else
   convert_="_NOT_FOUND_"        ! set a difault value
-  write(6,*)'thinkdeb 2'
   call lookup_(class_,convert_,silent=silent) ! may override convert value, if an entry of class_ is found.
   call lookup_(file  ,convert_,silent=silent) ! may override convert value, if an entry of file is found.
-  write(6,*)'thinkdeb 2.2'
 
   select case(convert_)
   case("","_NOT_FOUND_")        ! open(file) with the compiler default convert

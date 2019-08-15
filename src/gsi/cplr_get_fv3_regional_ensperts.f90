@@ -409,12 +409,9 @@ contains
 !cltthinktobe  should be contained in variable like grd_ens
 
 !   do it=1,nfldsig
-    write(6,*)'thinkdeb999 fv3sar_ensemble_opt is ',fv3sar_ensemble_opt
     if(fv3sar_ensemble_opt.eq.0 ) then  
-    write(6,*)'thinkdeb999 fv3sar_ensemble_opt is 0 '
     call gsi_fv3ncdf_readuv(dynvars,g_u,g_v)
     else
-    write(6,*)'thinkdeb999 fv3sar_ensemble_opt is 1 '
     call gsi_fv3ncdf_readuv_v1(dynvars,g_u,g_v)
     endif
     if(fv3sar_ensemble_opt.eq.0) then
@@ -434,8 +431,6 @@ contains
     g_ps=g_ps*0.001_r_kind
     do k=1,grd_ens%nsig+1
     g_prsi(:,:,k)=eta1_ll(k)+eta2_ll(k)*g_ps
-    write(6,*)'thinkdeb999 etal eta2  in hpa,k = ',k ,' ',eta1_ll(k),eta2_ll(k),g_ps(10,10)
-    write(6,*)'thinkdeb999 g_prsi in hpa,k = ',k ,' ',g_prsi(10,10,k)
     enddo
     
 
