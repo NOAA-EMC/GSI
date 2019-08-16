@@ -1173,14 +1173,17 @@ end subroutine normal_new_factorization_rf_y
     use mpimod, only: mype
     use get_pseudo_ensperts_mod, only: get_pseudo_ensperts_class
     use get_wrf_mass_ensperts_mod, only: get_wrf_mass_ensperts_class
+    use get_fv3_regional_ensperts_mod, only: get_fv3_regional_ensperts_class
     use get_wrf_nmm_ensperts_mod, only: get_wrf_nmm_ensperts_class
   use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
+    use mpimod, only: mpi_comm_world,ierror
 
     implicit none
 
    type(get_pseudo_ensperts_class) :: pseudo_enspert
    type(get_wrf_mass_ensperts_class) :: wrf_mass_enspert
    type(get_wrf_nmm_ensperts_class) :: wrf_nmm_enspert
+   type(get_fv3_regional_ensperts_class) :: fv3_regional_enspert
     type(gsi_bundle),allocatable:: en_bar(:)
     type(gsi_bundle):: bundle_anl,bundle_ens
     type(gsi_grid)  :: grid_anl,grid_ens
@@ -1300,7 +1303,7 @@ end subroutine normal_new_factorization_rf_y
 
        else
 
-          if(regional_ensemble_option < 1 .or. regional_ensemble_option > 4) then
+          if(regional_ensemble_option < 1 .or. regional_ensemble_option > 5) then
              if(mype==0) then
                 write(6,'(" IMPROPER CHOICE FOR ENSEMBLE INPUT IN SUBROUTINE LOAD_ENSEMBLE")')
                 write(6,'(" regional_ensemble_option = ",i5)') regional_ensemble_option
@@ -1317,7 +1320,6 @@ end subroutine normal_new_factorization_rf_y
              end if
              call stop2(999)
           end if
-
           select case(regional_ensemble_option)
 
              case(1)
@@ -1355,6 +1357,10 @@ end subroutine normal_new_factorization_rf_y
 !     regional_ensemble_option = 4: ensembles are NEMS NMMB format.
 
                 call get_nmmb_ensperts
+             case(5)
+!     regional_ensemble_option = 5: ensembles are fv3 regional.
+                call fv3_regional_enspert%get_fv3_regional_ensperts(en_perts,nelen,ps_bar)
+   
 
           end select
 
