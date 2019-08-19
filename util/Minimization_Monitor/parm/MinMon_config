@@ -86,7 +86,6 @@ elif [[ $MY_MACHINE = "cray" ]]; then
    module load pm5
 
    export SUB="bsub"
-   export NWPROD=${COMROOTp1}
    export COMPRESS=gzip
    export UNCOMPRESS="gunzip -f"
    export RSYNC=/usr/bin/rsync
