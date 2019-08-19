@@ -52,11 +52,13 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
 
 elif [[ $MY_MACHINE = "cray" ]]; then
+   . /opt/modules/3.2.6.7/init/sh
+
+   module use /gpfs/hps/nco/ops/nwprod/modulefiles
    module load prod_util        # defines $NDATE among other things
    module load prod_envir
 
    export SUB="bsub"
-   export NWPROD=${COMROOTp1}
    export COMPRESS=gzip
    export UNCOMPRESS="gunzip -f"
    export PROJECT=${PROJECT:-GDAS-T2O}
@@ -71,7 +73,7 @@ elif [[ $MY_MACHINE = "theia" ]]; then
    export Z="gz"
 fi
 
-export NDATE=${NWPROD}/util/exec/ndate
+export NDATE=${NDATE:-${NWPROD}/util/exec/ndate}
 
 export ACCOUNT=${ACCOUNT:-}
  
