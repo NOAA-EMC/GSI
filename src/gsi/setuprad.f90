@@ -192,6 +192,7 @@
 !   2017-07-27  kbathmann -introduce Rinv into the rstats computation for correlated error
 !   2018-04-04  zhu     - add additional radiance_ex_obserr and radiance_ex_biascor calls for all-sky
 !   2019-03-27  h. liu  - add ABI assimilation
+!   2019-08-20  zhu     - add flexibility to allow radiances being assimilated without bias correction
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -479,6 +480,7 @@
 
         ich(jc)=j
         do i=1,npred
+           if (iuse_rad(j)==4) predx(i,j)=zero
            predchan(i,jc)=predx(i,j)
         end do
 !
@@ -850,9 +852,11 @@
                  pred(npred-j+1,i)=pred(npred,i)**j
               end do
               cbias(nadir,mm)=zero
-              do j=1,angord
-                 cbias(nadir,mm)=cbias(nadir,mm)+predchan(npred-j+1,i)*pred(npred-j+1,i)
-              end do
+              if (iuse_rad(mm)/=4) then
+                 do j=1,angord
+                    cbias(nadir,mm)=cbias(nadir,mm)+predchan(npred-j+1,i)*pred(npred-j+1,i)
+                 end do
+              end if
            end do
         end if
 
@@ -995,6 +999,12 @@
               end do
            end if
 
+!          if (iuse_rad(mm)==4) then
+!             do j = 1,npred
+!                pred(j,i)=zero
+!             end do
+!          end if
+
            do j = 1,npred
               predbias(j,i) = predchan(j,i)*pred(j,i)
            end do
@@ -1004,6 +1014,7 @@
            if (retrieval) then
               call spline_cub(fbias(:,mm),tsavg5,ys_bias_sst)
               predbias(npred+2,i) = ys_bias_sst
+              if (iuse_rad(mm)==4) predbias(npred+2,i) = zero 
            endif
 
 !          tbc    = obs - guess after bias correction
