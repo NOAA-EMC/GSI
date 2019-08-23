@@ -251,6 +251,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 !44  => PAZ
 !750-755 => COSMIC-2 Equatorial
 !724-729 => COSMIC-2 Polar
+!5   => MetOpC
 
 ! Read and reformat observations in work arrays.
   read(lunin)data,luse,ioid
@@ -582,7 +583,8 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
            endif
 
 !         Remove MetOP/GRAS data below 8 km
-          if ((alt <= eight) .and. ((data(isatid,i)==4) .or. (data(isatid,i)==3))) then
+          if ( (alt <= eight) .and. &
+              ((data(isatid,i)==4).or.(data(isatid,i)==3).or.(data(isatid,i)==5))) then
              data(ier,i) = zero
              ratio_errors(i) = zero
              qcfail(i)=.true.
