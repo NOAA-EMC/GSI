@@ -156,7 +156,7 @@ do i = 1, nc2d
       print *,'Error: 2D variable ', cvars2d(i), ' is not supported in current version.'
       print *,'Supported variables: ', vars2d_supported
     endif
-    call stop2(502)
+    call stop2(5021)
   endif
 enddo
 do i = 1, nc3d
@@ -165,7 +165,7 @@ do i = 1, nc3d
        print *,'Error: 3D variable ', cvars3d(i), ' is not supported in current version.'
        print *,'Supported variables: ', vars3d_supported
     endif
-    call stop2(502)
+    call stop2(5022)
   endif
 enddo
 
