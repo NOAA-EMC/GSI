@@ -33,6 +33,7 @@ module mpi_readobs
 !$$$
   
 use kinds, only: r_kind, r_single, i_kind
+use params, only: ntasks_io, nanals_per_iotask, nanal1, nanal2
 use radinfo, only: npred
 use readconvobs
 use readsatobs
@@ -66,8 +67,8 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
     real(r_single) :: analsi,analsim1
     real(r_double) t1,t2
     character(len=20), allocatable,  dimension(:) ::  obtype
-    integer(i_kind) nob, ierr, iozproc, isatproc, neig, &
-            nobs_conv, nobs_oz, nobs_sat, nobs_tot, nanal, nanalo
+    integer(i_kind) nob, ierr, iozproc, isatproc, neig, nens1, nens2, na, nmem,&
+            np, nobs_conv, nobs_oz, nobs_sat, nobs_tot, nanal, nanalo
     integer(i_kind) :: nobs_convdiag, nobs_ozdiag, nobs_satdiag, nobs_totdiag
     integer(i_kind), intent(in) :: nanals, neigv
     iozproc=max(0,min(1,numproc-1))
@@ -109,9 +110,18 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
     end if
 
 ! read ensemble mean and every ensemble member
-    nanal = nproc+1
+    if (nproc <= ntasks_io-1) then
+        nens1 = nanal1(nproc); nens2 = nanal2(nproc)
+    else
+        nens1 = nanals+1; nens2 = nanals+1
+    endif
+
+    nmem = 0
+    do nanal=nens1,nens2 ! loop over ens members on this task
+    nmem = nmem + 1 ! nmem only used if lobsdiag_forenkf=T
     id = 'ensmean'
     id2 = id
+    ! if nanal>nanals, ens member data not read (only ens mean)
     if (nanal <= nanals) then
        write(id2,'(a3,(i3.3))') 'mem',nanal
     endif
@@ -128,7 +138,7 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
         oberr(1:nobs_conv), oblon(1:nobs_conv), oblat(1:nobs_conv),        &
         obpress(1:nobs_conv), obtime(1:nobs_conv), obcode(1:nobs_conv),    &
         oberrorig(1:nobs_conv), obtype(1:nobs_conv),                       &
-        diagused(1:nobs_convdiag), id, nanal)
+        diagused(1:nobs_convdiag), id, nanal, nmem)
     end if
     if (nobs_oz > 0) then
 ! second nobs_oz are conventional obs.
@@ -147,7 +157,7 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
         oberrorig(nobs_conv+1:nobs_conv+nobs_oz),        &
         obtype(nobs_conv+1:nobs_conv+nobs_oz),           &
         diagused(nobs_convdiag+1:nobs_convdiag+nobs_ozdiag),&
-        id,nanal)
+        id,nanal,nmem)
     end if
     if (nobs_sat > 0) then
       biaspreds = 0. ! initialize bias predictor array to zero.
@@ -168,10 +178,10 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
         obtype(nobs_conv+nobs_oz+1:nobs_tot),             &
         biaspreds,indxsat,                                &
         diagused(nobs_convdiag+nobs_ozdiag+1:nobs_totdiag),&
-        id,nanal)
+        id,nanal,nmem)
     end if ! read obs.
 
-    call mpi_barrier(mpi_comm_world,ierr)  ! synch tasks.
+!   call mpi_barrier(mpi_comm_world,ierr)  ! synch tasks.
 
 ! use mpi_gather to gather ob prior ensemble on root.
 ! requires allocation of nobs_tot x nanals temporory array.
@@ -179,7 +189,7 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
 !       t1 = mpi_wtime()
 !       allocate(anal_obtmp(nobs_tot,nanals))
 !    endif
-!    if (nproc <= nanals-1) then
+!    if (nproc <= ntasks_io-1) then
 !       call mpi_gather(h_xnobc,nobs_tot,mpi_real4,&
 !       anal_obtmp,nobs_tot,mpi_real4,0,mpi_comm_io,ierr)
 !       if (nproc .eq. 0) then
@@ -191,27 +201,29 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
 
 ! use mpi_send/mpi_recv to gather ob prior ensemble on root.
 ! a bit slower, but does not require large temporary array like mpi_gather.
-    if (nproc <= nanals-1) then
+    if (nproc <= ntasks_io-1) then
      if (nproc == 0) then
         t1 = mpi_wtime()
-        anal_ob(1,:) = mem_ob(:)
-        do nanal=2,nanals
-           call mpi_recv(mem_ob,nobs_tot,mpi_real4,nanal-1, &
+        anal_ob(nmem,:) = mem_ob(:)
+        ! if nproc <= ntasks_io-1, then 
+        ! nanal = nmem+nproc*nanals_per_iotask
+        do np=2,ntasks_io
+           call mpi_recv(mem_ob,nobs_tot,mpi_real4,np-1, &
                          1,mpi_comm_io,mpi_status,ierr)
-           anal_ob(nanal,:) = mem_ob(:)
+           anal_ob(nmem+(np-1)*nanals_per_iotask,:) = mem_ob(:)
         enddo
         ! mem_ob_modens and anal_ob_modens not referenced unless neigv>0
         if (neigv > 0) then
-           nanal = 1
            do neig=1,neigv
-              nanalo = neigv*(nanal-1) + neig
+              nanalo = neigv*(nmem-1) + neig
               anal_ob_modens(nanalo,:) = mem_ob_modens(neig,:)
            enddo
-           do nanal=2,nanals
-              call mpi_recv(mem_ob_modens,neigv*nobs_tot,mpi_real4,nanal-1, &
+           do np=2,ntasks_io
+              call mpi_recv(mem_ob_modens,neigv*nobs_tot,mpi_real4,np-1, &
                             2,mpi_comm_io,mpi_status,ierr)
               do neig=1,neigv
-                 nanalo = neigv*(nanal-1) + neig
+                 na = nmem+(np-1)*nanals_per_iotask
+                 nanalo = neigv*(na-1) + neig
                  anal_ob_modens(nanalo,:) = mem_ob_modens(neig,:)
               enddo
            enddo
@@ -226,13 +238,15 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
             call mpi_send(mem_ob_modens,neigv*nobs_tot,mpi_real4,0,2,mpi_comm_io,ierr)
         endif
      end if 
-    end if ! nanal <= nanals
+    end if ! io task
+
+    enddo ! nanal loop (loop over ens members on each task)
 
 ! make anal_ob contain ob prior ensemble *perturbations*
     if (nproc == 0) then
         analsi=1._r_single/float(nanals)
         analsim1=1._r_single/float(nanals-1)
-!$omp parallel do private(nob,nanal)
+!$omp parallel do private(nob)
         do nob=1,nobs_tot
            ensmean_ob(nob)  = sum(anal_ob(:,nob))*analsi
 ! remove ensemble mean from each member.

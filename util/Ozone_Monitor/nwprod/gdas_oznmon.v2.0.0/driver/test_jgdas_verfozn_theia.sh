@@ -1,22 +1,19 @@
 #!/bin/ksh
 
-#PBS -o gdas_verfozn.log
-#PBS -e gdas_verfozn.err
-#PBS -N gdas_verfozn
-#PBS -A fv3-cpu
-#PBS -l procs=1,walltime=0:10:00
-#PBS -V
+#SBATCH -o gdas_verfozn.o%j
+#SBATCH -J gdas_verfozn
+#SBATCH --ntasks=1 --mem=5g
+#SBATCH --time=10
+#SBATCH --account=fv3-cpu
+#SBATCH -D .
 
 set -x
 
 export OZNMON_NEW_HDR=${OZN_NEW_HDR:-0}
-export PDATE=${PDATE:-2017072600}
+export PDATE=${PDATE:-2018091706}
 export NET=${NET:-gfs}
 export RUN=${RUN:-gdas}
 
-#------------------------------------------------------------
-# Specify whether the run is production or development
-#
 export PDY=`echo $PDATE | cut -c1-8`
 export cyc=`echo $PDATE | cut -c9-10`
 export job=${job:-gdas_verfozn.${cyc}}
@@ -47,14 +44,21 @@ export PATH=${PATH}:${NWPRODush}:${NWPRODexec}
 #
 
 export OZNMON_SUFFIX=${OZNMON_SUFFIX:-testozn}
-export NWTEST=${NWTEST:-/scratch4/NCEPDEV/da/noscrub/${LOGNAME}/comgsi/util/Ozone_Monitor/nwprod}
+export NWTEST=${NWTEST:-/scratch4/NCEPDEV/da/noscrub/${LOGNAME}/ProdGSI/util/Ozone_Monitor/nwprod}
 export HOMEgdas_ozn=${HOMEgdas_ozn:-${NWTEST}/gdas_oznmon.${gdas_oznmon_ver}}
+export PARMgdas_ozn=${PARMgdas_ozn:-${HOMEgdas_ozn}/parm}
+export FIXgdas_ozn=${FIXgdas_ozn:-${HOMEgdas_ozn}/fix}
+
+export HOMEgfs_ozn=${HOMEgfs_ozn:-${HOMEgdas_ozn}}
+export PARMgfs_ozn=${PARMgfs_ozn:-${PARMgdas_ozn}}
+export FIXgfs_ozn=${FIXgfs_ozn:-${FIXgdas_ozn}}
+
 export JOBGLOBAL=${JOBGLOBAL:-${HOMEgdas_ozn}/jobs}
 export HOMEoznmon=${HOMEoznmon:-${NWTEST}/oznmon_shared.${shared_oznmon_ver}}
 export COM_IN=${COM_IN:-${DATAROOT}}
 export OZN_TANKDIR=${OZN_TANKDIR:-${COMROOT}/${OZNMON_SUFFIX}}
 
-export SUB=${SUB:-/apps/torque/default/bin/qsub}
+export SUB=${SUB:-/apps/slurm/default/bin/sbatch}
 export NDATE=${NDATE:-ndate}
 
 

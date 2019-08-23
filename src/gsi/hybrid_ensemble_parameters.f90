@@ -414,6 +414,8 @@ subroutine init_hybrid_ensemble_parameters
   ensemble_path = './'       ! default for path to ensemble members
   ens_fast_read=.false.
   l_both_fv3sar_gfs_ens=.false.
+  n_ens_gfs=0 
+  n_ens_fv3sar=0
 
 end subroutine init_hybrid_ensemble_parameters
 

@@ -51,6 +51,9 @@
    elsif( $host =~ /t/ || $host =~ /g/ ){	# wcoss nodes are tXXaY and gXXaY
       $machine = "wcoss";
    }
+   elsif( $host =~ /v/ || $host =~ /m/ ){	# wcoss_d nodes are vXXaY and mXXaY
+      $machine = "wcoss_d";
+   }
 
    print "$machine";
 

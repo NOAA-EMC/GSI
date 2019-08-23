@@ -34,8 +34,6 @@ set -ax
 ################################################################################
 export scr=exgdas_vrfyozn.sh.ecf
 
-msg="${scr} HAS STARTED"
-postmsg "$jlogfile" "$msg"
 err=0
 
 #-------------------------------------------------------------------------------
@@ -52,7 +50,7 @@ export cyc=${2:-${cyc:?}}
 
 #  Directories
 export OZN_WORK_DIR=${OZN_WORK_DIR:-$(pwd)}
-export COM_IN=${COMROOT}/${NET}/${envir}
+export COM_IN=${COM_IN:-${COMROOT}/${NET}/${envir}}
 export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
 
 export HOMEgdas_ozn=${HOMEgdas_ozn:-${NWROOT}/gdas.${gdas_oznmon_ver}}
@@ -130,8 +128,6 @@ if [[ "$VERBOSE" = "YES" ]]; then
    echo "end exgdas_vrfyozn.sh.ecf, exit value = ${err}"
 fi
 
-msg="${scr} HAS ENDED"
-postmsg "$jlogfile" "$msg"
 
 set +x
 exit ${err}

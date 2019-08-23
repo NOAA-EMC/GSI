@@ -246,13 +246,13 @@ subroutine get_gefs_for_regional
      nlat_gfs=sighead%latf+2
      nlon_gfs=sighead%lonf
      nsig_gfs=sighead%levs
-      if(sighead%jcap > 0)then
-       jcap_gfs=sighead%jcap
+     if(sighead%jcap > 0)then
+        jcap_gfs=sighead%jcap
      else if(jcap_ens > 0)then
-       jcap_gfs=jcap_ens
+        jcap_gfs=jcap_ens
      else
-       write(6,*)'ERROR jcap is undefined'
-     call stop2(555)
+        write(6,*)'get_gefs_for_regional:ERROR jcap is undefined'
+        call stop2(555)
      endif
 
 
@@ -291,10 +291,9 @@ subroutine get_gefs_for_regional
      else if(jcap_ens > 0)then
         jcap_gfs=jcap_ens
      else
-        write(6,*)'ERROR jcap is undefined'
-         call stop2(555)
+        write(6,*)'get_gefs_for_regional:ERROR jcap is undefined'
+        call stop2(555)
      endif
-     write(6,*)'thinkdeb555 jcap_gfs is ',jcap_gfs
      if(allocated(nems_vcoord)) deallocate(nems_vcoord)
      allocate(nems_vcoord(levs+1,3,2))
      call nemsio_getfilehead(gfile,iret=iret,vcoord=nems_vcoord)

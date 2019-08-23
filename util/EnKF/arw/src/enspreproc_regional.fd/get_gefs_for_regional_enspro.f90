@@ -208,7 +208,6 @@ subroutine get_gefs_for_regional_enspro(enpert4arw,wrt_pert_sub,wrt_pert_mem,jca
 !     figure out what are acceptable dimensions for global grid, based on resolution of input spectral coefs
 !   need to inquire from file what is spectral truncation, then setup general spectral structure variable
 
-!  filename='sigf06_ens_mem001'
   if(ntlevs_ens > 1) then
      open(10,file=trim(filelists(it)),form='formatted',err=30)
   else
@@ -430,9 +429,6 @@ subroutine get_gefs_for_regional_enspro(enpert4arw,wrt_pert_sub,wrt_pert_mem,jca
 
 
   inner_vars=1
-!  nlat_gfs=sighead%latf+2
-!  nlon_gfs=sighead%lonf
-!  nsig_gfs=sighead%levs
   num_fields=6*nsig_gfs+2      !  want to transfer u,v,t,q,oz,cw,ps,z from gfs subdomain to slab
                             !  later go through this code, adapting gsibundlemod, since currently 
                             !   hardwired.
@@ -444,7 +440,6 @@ subroutine get_gefs_for_regional_enspro(enpert4arw,wrt_pert_sub,wrt_pert_mem,jca
                                   .not.regional)
   call general_sub2grid_create_info(grd_gfs,inner_vars,nlat_gfs,nlon_gfs,nsig_gfs,num_fields, &
                                   .not.regional,vector)
-!  jcap_gfs=sighead%jcap
   jcap_gfs_test=jcap_gfs
   call general_init_spec_vars(sp_gfs,jcap_gfs,jcap_gfs_test,grd_gfs%nlat,grd_gfs%nlon)
 
@@ -477,10 +472,6 @@ subroutine get_gefs_for_regional_enspro(enpert4arw,wrt_pert_sub,wrt_pert_mem,jca
   inithead=.true.
   do n=1,n_ens
      read(10,'(a)',err=20,end=20)filename 
-!mhu     filename=trim(ensemble_path) // trim(filename)
-!     write(filename,100) n
-!100  format('sigf06_ens_mem',i3.3)
-
 
 
 !    allocate necessary space on global grid
@@ -644,10 +635,6 @@ subroutine get_gefs_for_regional_enspro(enpert4arw,wrt_pert_sub,wrt_pert_mem,jca
         end do
      end do
      mm1=mype+1
-     ! !ilook=ide/2
-     ! !jlook=jde/2
-     ! !ilook=29
-     ! !jlook=41
      ilook=-1 ; jlook=-1
      allocate(prsl1000(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
      prsl1000=1000._r_kind*prsl
@@ -656,34 +643,6 @@ subroutine get_gefs_for_regional_enspro(enpert4arw,wrt_pert_sub,wrt_pert_mem,jca
                                  ilook,jlook)
      deallocate(tt,zbarl,prsl1000)
      psfc_out=.001_r_kind*psfc_out
-     !   psfc_out=ges_ps(:,:)
-     !   write(6,*)' min,max ges_ps-psfc_out=',&
-     !        minval(ges_ps(:,:)-psfc_out),maxval(ges_ps(:,:)-psfc_out)
-     !               pdiffmax=-huge(pdiffmax)
-     !               pdiffmin= huge(pdiffmin)
-     !   !  do j=2,grd_mix%lon2-1
-     !   !     do i=2,grd_mix%lat2-1
-     !      do j=1,grd_mix%lon2
-     !         do i=1,grd_mix%lat2
-     !            pdiffmax=max(ges_ps(i,j)-psfc_out(i,j),pdiffmax)
-     !            pdiffmin=min(ges_ps(i,j)-psfc_out(i,j),pdiffmin)
-     !            if(ges_ps(i,j)<10._r_kind) &
-     !               write(6,*)' small ges_ps,i,j,lat2,lon2,ig,jg,ide,jde=',i,j,grd_mix%lat2,grd_mix%lon2,&
-     !                   grd_mix%istart(mm1)-2+i,grd_mix%jstart(mm1)-2+j,grd_mix%nlat,grd_mix%nlon
-     !            if(psfc_out(i,j)<10._r_kind) &
-     !               write(6,*)' small ens ps,i,j,lat2,lon2,ig,jg,ide,jde=',i,j,grd_mix%lat2,grd_mix%lon2,&
-     !                   grd_mix%istart(mm1)-2+i,grd_mix%jstart(mm1)-2+j,grd_mix%nlat,grd_mix%nlon
-     !         end do
-     !      end do
-     !      call mpi_allreduce(pdiffmax,pdiffmax0,1,mpi_rtype,mpi_max,mpi_comm_world,ierror)
-     !      call mpi_allreduce(pdiffmin,pdiffmin0,1,mpi_rtype,mpi_min,mpi_comm_world,ierror)
-     !             if(mype==0) write(6,*)' min,max ges_ps - matt ps =',pdiffmin0,pdiffmax0
-
-     !                                                write(fname,'("matt_pbar_corrected")')
-     !                                                call grads1a(psfc_out,1,mype,trim(fname))
-     !                                                write(fname,'("ges_ps")')
-     !                                                call grads1a(ges_ps(:,:),1,mype,trim(fname))
-
 
 ! If not using Q perturbations, convert to RH
      if (.not.q_hyb_ens) then
@@ -779,24 +738,6 @@ subroutine get_gefs_for_regional_enspro(enpert4arw,wrt_pert_sub,wrt_pert_mem,jca
      end do
      deallocate(work_sub,psfc_out)
 
-!                    pdiffmax=-huge(pdiffmax)
-!                    pdiffmin= huge(pdiffmin)
-!           do j=1,grd_mix%lon2
-!              do i=1,grd_mix%lat2
-!                 pdiffmax=max(ges_ps(i,j)-p_eg_nmmb(i,j,n),pdiffmax)
-!                 pdiffmin=min(ges_ps(i,j)-p_eg_nmmb(i,j,n),pdiffmin)
-!                  if(ges_ps(i,j)<10._r_kind) &
-!                     write(6,*)' small ges_ps,i,j,lat2,lon2,ig,jg,ide,jde=',i,j,grd_mix%lat2,grd_mix%lon2,&
-!                         grd_mix%istart(mm1)-1+i,grd_mix%jstart(mm1)-1+j,grd_mix%nlat,grd_mix%nlon
-!                  if(p_eg_nmmb(i,j,n)<10._r_kind) &
-!                     write(6,*)' small ens ps,i,j,lat2,lon2,ig,jg,ide,jde=',i,j,grd_mix%lat2,grd_mix%lon2,&
-!                         grd_mix%istart(mm1)-1+i,grd_mix%jstart(mm1)-1+j,grd_mix%nlat,grd_mix%nlon
-!              end do
-!           end do
-!           call mpi_allreduce(pdiffmax,pdiffmax0,1,mpi_rtype,mpi_max,mpi_comm_world,ierror)
-!           call mpi_allreduce(pdiffmin,pdiffmin0,1,mpi_rtype,mpi_min,mpi_comm_world,ierror)
-!                   if(mype==0) write(6,*)' with halo, n,min,max ges_ps - matt ps =',n,pdiffmin0,pdiffmax0
-
   end do   !  end loop over ensemble members.
 
 !   next, compute mean of ensembles.
@@ -854,12 +795,6 @@ subroutine get_gefs_for_regional_enspro(enpert4arw,wrt_pert_sub,wrt_pert_mem,jca
         ps_bar(i,j,1)=pbar_nmmb(i,j)
      end do
   end do
-!                                                 write(fname,'("test_pbar_uncorrected")')
-!                                                 call grads1a(pbar,1,mype,trim(fname))
-!                                                 write(fname,'("test_ges_ps")')
-!                                                 call grads1a(ges_ps,1,mype,trim(fname))
-!                                                 write(fname,'("test_ges_z")')
-!                                                 call grads1a(ges_z,1,mype,trim(fname))
 
 ! Subtract mean from ensemble members, but save scaling by sqrt(1/(nens-1)) until after vertical interpolation
   n1=1
@@ -1159,34 +1094,7 @@ subroutine get_gefs_for_regional_enspro(enpert4arw,wrt_pert_sub,wrt_pert_mem,jca
 ! ensemble perturbations (unnormalized) divided by n_ens-1  (or n_ens, depending on who you read).
      sig_norm=sqrt(one/max(one,n_ens_temp-one))
 
-!     if(n_ens_temp==n_ens.and.n==n_ens+1) sig_norm=one
-!                                                  if(n==1 .or. n==2 .or. n==50) then
-!                                                      write(fname,'("test_pp_",i2.2)')n
-!                                                      call grads1a(p_eg_nmmb(1,1,n),1,mype,trim(fname))
-!                                                      write(fname,'("test_up_",i2.2)')n
-!                                                      call grads1a(ut,grd_ens%nsig,mype,trim(fname))
-!                                                      write(fname,'("test_vp_",i2.2)')n
-!                                                      call grads1a(vt,grd_ens%nsig,mype,trim(fname))
-!                                                      write(fname,'("test_tp_",i2.2)')n
-!                                                      call grads1a(tt,grd_ens%nsig,mype,trim(fname))
-!                                                      write(fname,'("test_rhp_",i2.2)')n
-!                                                      call grads1a(rht,grd_ens%nsig,mype,trim(fname))
-!!                                                      write(fname,'("test_ozp_",i2.2)')n
-!!                                                      call grads1a(ozt,grd_ens%nsig,mype,trim(fname))
-!!                                                      write(fname,'("test_cwp_",i2.2)')n
-!!                                                      call grads1a(cwt,grd_ens%nsig,mype,trim(fname))
-!                                                  end if
      do ic3=1,nc3d
-
-!        if(ntlevs_ens > 1) then
-!           call gsi_bundlegetpointer(en_perts(n,it),trim(cvars3d(ic3)),w3,istatus)
-!        else
-!           call gsi_bundlegetpointer(en_perts(n,1),trim(cvars3d(ic3)),w3,istatus)
-!        endif
-!        if(istatus/=0) then
-!           write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' for ensemble member ',n
-!           call stop2(999)
-!        end if
 
         select case (trim(cvars3d(ic3)))
 
@@ -1264,16 +1172,6 @@ subroutine get_gefs_for_regional_enspro(enpert4arw,wrt_pert_sub,wrt_pert_mem,jca
      end do
      do ic2=1,nc2d
 
-!        if(ntlevs_ens > 1) then
-!           call gsi_bundlegetpointer(en_perts(n,it),trim(cvars2d(ic2)),w2,istatus)
-!        else
-!           call gsi_bundlegetpointer(en_perts(n,1),trim(cvars2d(ic2)),w2,istatus)
-!        endif
-!        if(istatus/=0) then
-!           write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for ensemble member ',n
-!           call stop2(999)
-!        end if
-
         select case (trim(cvars2d(ic2)))
 
            case('ps','PS')
@@ -1304,12 +1202,7 @@ subroutine get_gefs_for_regional_enspro(enpert4arw,wrt_pert_sub,wrt_pert_mem,jca
   call general_sub2grid_destroy_info(grd_gfst)
 !
 !
-! CALCULATE ENSEMBLE SPREAD
-  if(write_ens_sprd)then
-     call mpi_barrier(mpi_comm_world,ierror)
-!gsd     call wrf_mass_ensperts%ens_spread_dualres_regional(mype,en_perts,nelen)
-     call mpi_barrier(mpi_comm_world,ierror)
-  end if
+! CALCULATE ENSEMBLE SPREAD Here
 
   call general_destroy_spec_vars(sp_gfs)
   deallocate(vector)
@@ -1331,7 +1224,6 @@ subroutine get_gefs_for_regional_enspro(enpert4arw,wrt_pert_sub,wrt_pert_mem,jca
 !
         write(iunit) n
         write(iunit) ps_bar(:,:,1)
-!        if(mype==0) write(*,*) n,maxval(ps_bar(:,:,1)),minval(ps_bar(:,:,1))
 !
         do ic3=1,nc3d
 
@@ -1340,10 +1232,6 @@ subroutine get_gefs_for_regional_enspro(enpert4arw,wrt_pert_sub,wrt_pert_mem,jca
            enddo
            write(iunit) cvars3d(ic3)
            write(iunit) w3
-!           if(mype==0) write(*,*) ic3,cvars3d(ic3)
-           do k=1,nsig
-           if(mype==0) write(*,*) cvars3d(ic3),k,maxval(w3(:,:,k)),minval(w3(:,:,k))
-           enddo
 
         end do
         do ic2=1,nc2d
@@ -1351,8 +1239,6 @@ subroutine get_gefs_for_regional_enspro(enpert4arw,wrt_pert_sub,wrt_pert_mem,jca
            w2(:,:)=en_perts(n,:,:,nc3d*grd_ens%nsig+ic2)
            write(iunit) cvars2d(ic2)
            write(iunit) w2
-!           if(mype==0) write(*,*) ic2,cvars3d(ic2)
-!           if(mype==0) write(*,*) maxval(w2(:,:)),minval(w2(:,:))
         end do
 
      end do
@@ -1379,10 +1265,6 @@ subroutine get_gefs_for_regional_enspro(enpert4arw,wrt_pert_sub,wrt_pert_mem,jca
 
         call general_sub2grid(grd_arw,work_sub,work)
 
-!        do k=grd_arw%kbegin_loc,grd_arw%kend_alloc
-!           write(*,*) k,maxval(work(1,:,:,k)),minval(work(1,:,:,k))
-!           write(1000+k) work(1,:,:,k)
-!        enddo
         write(charmem,'("_mem",i3.3)') n
         filenameout="enspreproc_arw" // trim(adjustl(charmem)) 
 
@@ -1427,7 +1309,6 @@ subroutine get_gefs_for_regional_enspro(enpert4arw,wrt_pert_sub,wrt_pert_mem,jca
 
   if(enpert4arw) then
      inner_vars=1
-!     num_fields=nc3d*grd_ens%nsig+nc2d
      num_fields=1
      allocate(vector(num_fields))
      vector=.false.

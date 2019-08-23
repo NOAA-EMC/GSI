@@ -77,7 +77,8 @@ SUBROUTINE  gsdcloudanalysis4NMMB(mype)
                                       nesdis_npts_rad, &
                                       l_use_hydroretrieval_all, &
                                       iclean_hydro_withRef,     &
-                                      iclean_hydro_withRef_allcol
+                                      iclean_hydro_withRef_allcol, &
+                                      ioption
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   use gsi_metguess_mod, only: GSI_MetGuess_get
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -420,7 +421,7 @@ SUBROUTINE  gsdcloudanalysis4NMMB(mype)
                          'start to read NESDIS cloud products'
 
            call read_NESDIS(mype,lunin,nsat1(is),regional_time,istart(mype+1),            &
-                            jstart(mype+1),lon2,lat2,sat_ctp,sat_tem,w_frac)
+                            jstart(mype+1),lon2,lat2,sat_ctp,sat_tem,w_frac,ioption)
            sat_ctp_nesdis=sat_ctp
            sat_tem_nesdis=sat_tem
            w_frac_nesdis=w_frac
@@ -1192,5 +1193,10 @@ SUBROUTINE  gsdcloudanalysis4NMMB(mype)
 use kinds, only: i_kind
 implicit none
 integer(i_kind),intent(in) :: mype
+
+if(mype==0) then
+   write(*,*) 'dummy subroutine gsdcloudanalysis4NMMB'
+endif
+
 END SUBROUTINE  gsdcloudanalysis4NMMB
 #endif /* End no NNMB cloud analysis library block */

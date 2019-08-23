@@ -21,12 +21,14 @@ module rapidrefresh_cldsurf_mod
 !                              coastline area
 !  04-01-2017 Hu        added option i_gsdqc to turn on special observation qc
 !                              from GSD (for RAP/HRRR application)
+!   2018-09-12 Ladwig   added options l_precip_clear_only
 ! 
 ! Subroutines Included:
 !   sub init_rapidrefresh_cldsurf  - initialize RR related variables to default values
 !
 ! Variable Definitions:
-!   def l_cloud_analysis    - namelist logical for cloud analysis (=true) 
+!   def l_hydrometeor_bkio    - namelist logical for read and write hydrometeor
+!                               background fields (=true) 
 !   def dfi_radar_latent_heat_time_period - DFI forward integration window in minutes
 !   def metar_impact_radius - impact radius for METAR cloud observation
 !   def metar_impact_radius_lowCloud - impact radius for METAR cloud observation
@@ -85,8 +87,13 @@ module rapidrefresh_cldsurf_mod
 !                         =0. no cloud analysis (default)
 !                         for ARW
 !                         =1.  cloud analysis after var analysis
+!                         =3.  cloud analysis only with hybrometeors NETCDF I/O
+!                         =5.  skip cloud analysis and NETCDF file update
+!                         =6.  cloud analysis only and do hybrometeors NETCDF/O
+!                         =7   cloud analysis in observer with I/O
 !                         =2  cloud analysis for NAM
 !                         =30  cloud analysis for GFS
+!                         =99  only read hydrometer fields but no cloud analysis
 !      i_gsdsfc_uselist  - options for how to use surface observation use or
 !                          rejection list
 !                         =0 . EMC method (default)
@@ -115,7 +122,25 @@ module rapidrefresh_cldsurf_mod
 !                              from GSD (for RAP/HRRR application)
 !                         =0 turn off
 !                         =2 turn on
-!
+!      qv_max_inc    -  namelist real for limiting the maximum water vapor increment
+!      ioption       - interpolation option for satellite mapping 
+!                       = 1  if selection is nearest neighbor
+!                       = 2  if selection is median of samples
+!      l_precip_clear_only  =true, only clear precipatating hydrometeors
+!      l_fog_off            =true, turn off the impact of metar visibilty obs on cloud fields 
+!      cld_bld_coverage  - namelist real for cloud coverage required for qc/qi building
+!                             (default = 0.6)
+!      cld_clr_coverage  - namelist real for cloud coverage required for qc/qi clearing
+!                             (default = 0.4)
+!      i_cloud_q_innovation - integer to choose if and how cloud obs are used
+!                           0= no innovations 
+!                           1= cloud total innovations
+!                           2= water vapor innovations
+!                           3= cloud total & water vapor innovations
+!      i_ens_mean    - integer for setupcldtot behavior
+!                           0=single model run
+!                           1=ensemble mean
+!                           2=ensemble members
 !
 ! attributes:
 !   language: f90
@@ -130,7 +155,7 @@ module rapidrefresh_cldsurf_mod
   private
 ! set subroutines to public
   public :: init_rapidrefresh_cldsurf
-  public :: l_cloud_analysis 
+  public :: l_hydrometeor_bkio 
   public :: dfi_radar_latent_heat_time_period
   public :: metar_impact_radius
   public :: metar_impact_radius_lowCloud
@@ -169,8 +194,17 @@ module rapidrefresh_cldsurf_mod
   public :: l_closeobs
   public :: i_coastline
   public :: i_gsdqc
+  public :: qv_max_inc
+  public :: ioption
+  public :: l_precip_clear_only
+  public :: l_fog_off
+  public :: cld_bld_coverage
+  public :: cld_clr_coverage
+  public :: i_cloud_q_innovation
+  public :: i_ens_mean
+  public :: DTsTmax 
 
-  logical l_cloud_analysis
+  logical l_hydrometeor_bkio
   real(r_kind)  dfi_radar_latent_heat_time_period
   real(r_kind)  metar_impact_radius
   real(r_kind)  metar_impact_radius_lowCloud
@@ -209,6 +243,15 @@ module rapidrefresh_cldsurf_mod
   logical              l_closeobs
   integer(i_kind)      i_coastline
   integer(i_kind)      i_gsdqc
+  real(r_kind)         qv_max_inc
+  integer(i_kind)      ioption
+  logical              l_precip_clear_only
+  logical              l_fog_off
+  real(r_kind)         cld_bld_coverage
+  real(r_kind)         cld_clr_coverage
+  integer(i_kind)      i_cloud_q_innovation
+  integer(i_kind)      i_ens_mean
+  real(r_kind)         DTsTmax
 
 contains
 
@@ -256,13 +299,13 @@ contains
 
 !   Figure out if hydrometeors are available in guess, if so, do cloud adjustment as default
     if(size(hydrometeors) == 0)then
-       l_cloud_analysis = .false.
+       l_hydrometeor_bkio = .false.
     else
       do i=1,size(hydrometeors)
          call gsi_metguess_get ('var::'//trim(hydrometeors(i)),ivar,ier)
          have_hmeteor(i) = (ivar>0)
       enddo
-      l_cloud_analysis = all(have_hmeteor)
+      l_hydrometeor_bkio = all(have_hmeteor)
     end if
 
     l_sfcobserror_ramp_t  = .false.  ! .true. = turn on GSD surface temperature observation error adjustment
@@ -299,6 +342,15 @@ contains
     l_closeobs = .false.                              ! .true. = pick the obs close to analysis time
     i_coastline = 0                                   !  turn coastline surface observation operator off  
     i_gsdqc  = 0                                      !  turn gsd obs QC off
+    qv_max_inc   = 0.005_r_kind                       ! maximum water vapor increment in kg/kg
+    ioption  = 2                                      ! default is median of samples
+    l_precip_clear_only = .false.                     ! .true. only use precip to clear
+    l_fog_off = .false.                               ! .true. is to turn off fog updates
+    cld_bld_coverage    = 0.6_r_kind                  ! Percentage of cloud coverage for building qc/qi
+    cld_clr_coverage    = 0.6_r_kind                  ! Percentage of cloud coverage for clearing qc/qi
+    i_cloud_q_innovation = 0                          ! 0 = no increments from cloud obs
+    i_ens_mean = 0                                    ! typical ob behavior
+    DTsTmax = 20.0_r_kind                             ! maximum allowed difference between Ts and T 1st level
     return
   end subroutine init_rapidrefresh_cldsurf
 

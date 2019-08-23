@@ -131,6 +131,7 @@ fi
        echo 'The runtime for '$exp1' is '$(awk '{ print $8 }' runtime.$exp1.txt)' seconds.  This has exceeded maximum allowable operational time of '$maxtime' seconds,'
        echo 'resulting in Failure maxtime of the regression test.'
        echo
+       failed_test=1
      else
        echo 'The runtime for '$exp1' is '$(awk '{ print $8 }' runtime.$exp1.txt)' seconds and is within the maximum allowable operational time of '$maxtime' seconds,'
        echo 'continuing with regression test.'
@@ -148,6 +149,7 @@ fi
        echo 'The runtime for '$exp1' is '$(awk '{ print $8 }' runtime.$exp1.txt)' seconds.  This has exceeded maximum allowable threshold time of '$timethresh' seconds,'
        echo 'resulting in Failure timethresh of the regression test.'
        echo
+       failed_test=1
      else
        echo 'The runtime for '$exp1' is '$(awk '{ print $8 }' runtime.$exp1.txt)' seconds and is within the allowable threshold time of '$timethresh' seconds,'
        echo 'continuing with regression test.'
@@ -165,6 +167,7 @@ fi
        echo 'The runtime for '$exp1_scale' is '$(awk '{ print $8 }' runtime.$exp1_scale.txt)' seconds.  This has exceeded maximum allowable threshold time of '$timethresh2' seconds,'
        echo 'resulting in Failure timethresh2 of the regression test.'
        echo
+       failed_test=1
      else
        echo 'The runtime for '$exp1_scale' is '$(awk '{ print $8 }' runtime.$exp1_scale.txt)' seconds and is within the allowable threshold time of '$timethresh2' seconds,'
        echo 'continuing with regression test.'
@@ -182,6 +185,7 @@ fi
        echo 'The memory for '$exp1' is '$(awk '{ print $8 }' memory.$exp1.txt)' KBs.  This has exceeded maximum allowable hardware memory limit of '$maxmem' KBs,'
        echo 'resulting in Failure maxmem of the regression test.'
        echo
+       failed_test=1
      else
        echo 'The memory for '$exp1' is '$(awk '{ print $8 }' memory.$exp1.txt)' KBs and is within the maximum allowable hardware memory limit of '$maxmem' KBs,'
        echo 'continuing with regression test.'
@@ -198,6 +202,7 @@ fi
        echo 'The memory for '$exp1' is '$(awk '{ print $8 }' memory.$exp1.txt)' KBs.  This has exceeded maximum allowable memory of '$memthresh' KBs,'
        echo 'resulting in Failure memthresh of the regression test.'
        echo
+       failed_test=1
      else
        echo 'The memory for '$exp1' is '$(awk '{ print $8 }' memory.$exp1.txt)' KBs and is within the maximum allowable memory of '$memthresh' KBs,'
        echo 'continuing with regression test.'
@@ -220,6 +225,7 @@ if [[ $(grep -c 'ens. mean anal. increment' increment.${exp1}-${exp2}.txt) = 0 ]
 #      echo 'thus the regression test has failed for '${exp1}' and '${exp2}' analyses.'
       echo 'thus the regression test has Failed mean anal for '${exp1}' and '${exp2}' analyses with '$(grep -c 'ens. mean anal. increment' increment.${exp1}-${exp2}.txt)' lines different.'
       echo
+      failed_test=1
 #      exit 1
    fi
 else
@@ -227,6 +233,7 @@ else
 #   echo 'thus the regression test has failed for '${exp1}' and '${exp2}' analyses.'
    echo 'thus the regression test has Failed mean anal for '${exp1}' and '${exp2}' analyses with '$(grep -c 'ens. mean anal. increment' increment.${exp1}-${exp2}.txt)' lines different.'
    echo
+   failed_test=1
 #   exit 1
 fi
 
@@ -277,13 +284,13 @@ nmem=20
 imem=1
 while [[ $imem -le $nmem ]]; do
    member="_mem"`printf %03i $imem`
-   if cmp -s sanl$member.${exp1} sanl$member.${exp2} 
+   if ! cmp -s sanl$member.${exp1} sanl$member.${exp2} 
 then
-   echo 'sanl'$member'.'${exp1}' sanl'$member'.'${exp2}' are identical'
-   echo
+   echo 'sanl'$member'.'${exp1}' sanl'$member'.'${exp2}' are NOT identical'
 fi
    (( imem = $imem + 1 ))
 done
+echo
 } >> $output
    fi
 fi
@@ -313,6 +320,7 @@ else
 #         echo 'thus the regression test has failed for '${exp1}' and '${exp3}' analyses.'
          echo 'thus the regression test has Failed mean anal for '${exp1}' and '${exp3}' analyses with '$(grep -c 'ens. mean anal. increment' increment.${exp1}-${exp3}.txt)' lines different.'
          echo
+         failed_test=1
 #         exit 1
       fi
    else
@@ -320,6 +328,7 @@ else
 #      echo 'thus the regression test has failed for '${exp1}' and '${exp3}' analyses.'
          echo 'thus the regression test has Failed mean anal for '${exp1}' and '${exp3}' analyses with '$(grep -c 'ens. mean anal. increment' increment.${exp1}-${exp3}.txt)' lines different.'
       echo
+      failed_test=1
 #      exit 1
    fi
 
@@ -372,14 +381,13 @@ else
    imem=1
    while [[ $imem -le $nmem ]]; do
       member="_mem"`printf %03i $imem`
-      if cmp -s sanl$member.${exp1} sanl$member.${exp3}
+      if ! cmp -s sanl$member.${exp1} sanl$member.${exp3}
       then
-      echo 'sanl'$member'.'${exp1}' sanl'$member'.'${exp3}' are identical'
-      echo
+      echo 'sanl'$member'.'${exp1}' sanl'$member'.'${exp3}' are NOT identical'
       fi
    (( imem = $imem + 1 ))
    done
-
+   echo
 } >> $output
       fi
    fi
@@ -415,4 +423,4 @@ if [[ "$clean" = ".true." ]]; then
    rm -rf $savdir
 fi
 
-exit
+exit $failed_test

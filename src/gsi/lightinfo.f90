@@ -119,7 +119,7 @@ contains
 !$$$
     use mpimod, only: mype
     use constants, only: zero
-    use obsmod, only: iout_light,use_limit
+    use obsmod, only: iout_light
     implicit none
 
 ! Declare local varianbes

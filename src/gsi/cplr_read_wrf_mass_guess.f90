@@ -106,7 +106,7 @@ contains
     use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,h300,r10,r100
     use constants, only: r0_01
     use gsi_io, only: lendian_in,verbose
-    use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge,i_use_2mq4b,i_use_2mt4b
+    use rapidrefresh_cldsurf_mod, only: l_hydrometeor_bkio,l_gsd_soilTQ_nudge,i_use_2mq4b,i_use_2mt4b
     use wrf_mass_guess_mod, only: soil_temp_cld,isli_cld,ges_xlon,ges_xlat,ges_tten,create_cld_grids
     use gsi_bundlemod, only: GSI_BundleGetPointer
     use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
@@ -238,7 +238,7 @@ contains
   !    Following is for convenient WRF MASS input
        num_mass_fields=15+5*lm+2*nsig_soil
 !    The 9 3D cloud analysis fields are: ql,qi,qr,qs,qg,qnr,qni,qnc,tt
-       if(l_cloud_analysis .or. n_actual_clouds>0) num_mass_fields=num_mass_fields+9*lm+2    
+       if(l_hydrometeor_bkio .and. n_actual_clouds>0) num_mass_fields=num_mass_fields+9*lm+2    
        if(l_gsd_soilTQ_nudge) num_mass_fields=num_mass_fields+2
        num_loc_groups=num_mass_fields/npe
        if(print_verbose) then
@@ -306,7 +306,7 @@ contains
           endif
   
   ! for cloud analysis
-          if(l_cloud_analysis .and. n_actual_clouds>0) then
+          if(l_hydrometeor_bkio .and. n_actual_clouds>0) then
   
   ! get pointer to relevant instance of cloud-related background
              ier=0
@@ -320,7 +320,7 @@ contains
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnc',ges_qnc,istatus );ier=ier+istatus
              if (ier/=0 .and. mype == 0) then
                  write(6,*)'READ_WRF_MASS_BINARY_GUESS: getpointer failed, cannot do cloud analysis'
-                 l_cloud_analysis=.false.
+                 l_hydrometeor_bkio=.false.
              endif
   
              i=0
@@ -557,7 +557,7 @@ contains
           if(print_verbose) write(6,*)' th2 i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
   
   ! for cloud array
-          if(l_cloud_analysis .and. n_actual_clouds>0) then
+          if(l_hydrometeor_bkio .and. n_actual_clouds>0) then
   
              i_qc=i+1
              read(lendian_in) n_position,memoryorder
@@ -868,7 +868,7 @@ contains
           end if
   
   ! for cloud analysis
-          if(l_cloud_analysis .and. n_actual_clouds>0) then
+          if(l_hydrometeor_bkio .and. n_actual_clouds>0) then
   !                                    read qc
              if(kord(i_qc)/=1) then
                 allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
@@ -1014,7 +1014,7 @@ contains
                 deallocate(jbuf)
              end if
   
-          endif  ! l_cloud_analysis
+          endif  ! l_hydrometeor_bkio
   
   !---------------------- read surface files last
           do k=kbegin(mype),kend(mype)
@@ -1066,7 +1066,7 @@ contains
           ku=i_u-1
           kv=i_v-1
   ! hydrometeors
-          if(l_cloud_analysis .and. n_actual_clouds>0) then
+          if(l_hydrometeor_bkio .and. n_actual_clouds>0) then
              kqc=i_qc-1
              kqr=i_qr-1
              kqs=i_qs-1
@@ -1090,7 +1090,7 @@ contains
              ku=ku+1
              kv=kv+1
   ! hydrometeors
-             if(l_cloud_analysis .and. n_actual_clouds>0) then
+             if(l_hydrometeor_bkio .and. n_actual_clouds>0) then
                 kqc=kqc+1
                 kqr=kqr+1
                 kqs=kqs+1
@@ -1115,7 +1115,7 @@ contains
   !                Add offset to get guess potential temperature
                    ges_pot(j,i,k)  = real(all_loc(j,i,kt),r_kind) + h300
   ! hydrometeors
-                   if(l_cloud_analysis .or. n_actual_clouds>0) then
+                   if(l_hydrometeor_bkio .and. n_actual_clouds>0) then
                       ges_qc(j,i,k) = real(all_loc(j,i,kqc),r_kind)
                       ges_qi(j,i,k) = real(all_loc(j,i,kqi),r_kind)
                       ges_qr(j,i,k) = real(all_loc(j,i,kqr),r_kind)
@@ -1182,7 +1182,7 @@ contains
   !GSD              soil_moi(j,i,it)=real(all_loc(j,i,i_smois),r_kind)
   !GSD              soil_temp(j,i,it)=real(all_loc(j,i,i_tslb),r_kind)
   ! for cloud analysis
-                if(l_cloud_analysis .and. n_actual_clouds>0) then
+                if(l_hydrometeor_bkio .and. n_actual_clouds>0) then
                    soil_temp_cld(j,i,it)=soil_temp(j,i,it)
                    ges_xlon(j,i,it)=real(all_loc(j,i,i_xlon),r_kind)/rad2deg_single
                    ges_xlat(j,i,it)=real(all_loc(j,i,i_xlat),r_kind)/rad2deg_single
@@ -1247,7 +1247,7 @@ contains
                         j,i,mype,sfct(j,i,it)
                 end if
                 sfc_rough(j,i,it)=rough_default
-                if(l_cloud_analysis .and. n_actual_clouds>0) then
+                if(l_hydrometeor_bkio .and. n_actual_clouds>0) then
                    isli_cld(j,i,it)=isli(j,i,it)
                 endif
              end do
@@ -1358,7 +1358,7 @@ contains
     use gsi_io, only: lendian_in, verbose
     use chemmod, only: laeroana_gocart,nh4_mfac,oc_mfac,&
          aerotot_guess,init_aerotot_guess,wrf_pm2_5,aero_ratios
-    use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soiltq_nudge
+    use rapidrefresh_cldsurf_mod, only: l_hydrometeor_bkio,l_gsd_soiltq_nudge
     use rapidrefresh_cldsurf_mod, only: i_use_2mq4b,i_use_2mt4b
     use wrf_mass_guess_mod, only: soil_temp_cld,isli_cld,ges_xlon,ges_xlat,ges_tten,create_cld_grids
     use gsi_bundlemod, only: GSI_BundleGetPointer
@@ -1511,7 +1511,7 @@ contains
        num_mass_fields_base=14+4*lm
        num_mass_fields=num_mass_fields_base
 !    The 9 3D cloud analysis fields are: ql,qi,qr,qs,qg,qnr,qni,qnc,tt
-       if(l_cloud_analysis .or.n_actual_clouds>0) num_mass_fields=num_mass_fields+9*lm+2
+       if(l_hydrometeor_bkio .and.n_actual_clouds>0) num_mass_fields=num_mass_fields+9*lm+2
        if(l_gsd_soilTQ_nudge) num_mass_fields=num_mass_fields+2*(nsig_soil-1)+1
        if(i_use_2mt4b > 0 ) num_mass_fields=num_mass_fields + 2
        if(i_use_2mq4b > 0 .and. i_use_2mt4b <=0 ) num_mass_fields=num_mass_fields + 1
@@ -1576,7 +1576,7 @@ contains
   
        i=0
   ! for cloud analysis
-       if(l_cloud_analysis .or. n_actual_clouds>0) then
+       if(l_hydrometeor_bkio .and. n_actual_clouds>0) then
           i=i+1 ; i_xlat=i                                                ! xlat
           write(identity(i),'("record ",i3,"--xlat")')i
           jsig_skip(i)=3     ! number of files to skip before getting to xlat
@@ -1590,7 +1590,7 @@ contains
        i=i+1 ; i_psfc=i                                                ! psfc
        write(identity(i),'("record ",i3,"--psfc")')i
        jsig_skip(i)=5     ! number of files to skip before getting to psfc
-       if(l_cloud_analysis .or. n_actual_clouds>0) jsig_skip(i)=0 ! number of files to skip before getting to psfc
+       if(l_hydrometeor_bkio .and. n_actual_clouds>0) jsig_skip(i)=0 ! number of files to skip before getting to psfc
        igtype(i)=1
        i=i+1 ; i_fis=i                                               ! sfc geopotential
        write(identity(i),'("record ",i3,"--fis")')i
@@ -1696,7 +1696,7 @@ contains
           jsig_skip(i)=0 ; igtype(i)=1
        endif
   ! for cloud array
-       if(l_cloud_analysis .or. n_actual_clouds>0) then
+       if(l_hydrometeor_bkio .and. n_actual_clouds>0) then
           i_qc=i+1
           do k=1,lm
              i=i+1                                                      ! qc(k)
@@ -1904,7 +1904,7 @@ contains
           endif
   
   ! hydrometeors
-          if(l_cloud_analysis .or. n_actual_clouds>0) then
+          if(l_hydrometeor_bkio .and. n_actual_clouds>0) then
   !          Get pointer for each of the hydrometeors from guess at time index "it"
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ier=ier+istatus
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qi', ges_qi, istatus );ier=ier+istatus
@@ -2034,7 +2034,7 @@ contains
              kv=kv+1
              if(w_exist)  kw=kw+1
   ! hydrometeors
-             if(l_cloud_analysis .or. n_actual_clouds>0) then
+             if(l_hydrometeor_bkio .and. n_actual_clouds>0) then
                 kqc=kqc+1
                 kqr=kqr+1
                 kqs=kqs+1
@@ -2074,7 +2074,7 @@ contains
   !                Convert guess mixing ratio to specific humidity
                    ges_q_it(j,i,k) = ges_q_it(j,i,k)/(one+ges_q_it(j,i,k))
   ! hydrometeors
-                   if(l_cloud_analysis .or. n_actual_clouds>0) then
+                   if(l_hydrometeor_bkio .and. n_actual_clouds>0) then
                       ges_qc(j,i,k) = real(all_loc(j,i,kqc),r_kind)
                       ges_qi(j,i,k) = real(all_loc(j,i,kqi),r_kind)
                       ges_qr(j,i,k) = real(all_loc(j,i,kqr),r_kind)
@@ -2213,7 +2213,7 @@ contains
                    ges_q2_it(j,i)=ges_q2_it(j,i)/(one+ges_q2_it(j,i))
                 endif
   ! for cloud analysis
-                if(l_cloud_analysis .and. n_actual_clouds>0) then
+                if(l_hydrometeor_bkio .and. n_actual_clouds>0) then
                    soil_temp_cld(j,i,it)=soil_temp(j,i,it)
                    ges_xlon(j,i,it)=real(all_loc(j,i,i_0+i_xlon),r_kind)
                    ges_xlat(j,i,it)=real(all_loc(j,i,i_0+i_xlat),r_kind)
@@ -2275,7 +2275,7 @@ contains
                         j,i,mype,sfct(j,i,it)
                    num_doubtful_sfct=num_doubtful_sfct+1
                 end if
-                if(l_cloud_analysis .or. n_actual_clouds>0) then
+                if(l_hydrometeor_bkio .and. n_actual_clouds>0) then
                    isli_cld(j,i,it)=isli(j,i,it)
                 endif
              end do

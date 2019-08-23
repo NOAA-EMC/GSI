@@ -51,17 +51,22 @@ subroutine setup_linhx(rlat, rlon, time, ix, delx, ixp, delxp, iy, dely,  &
 !   2016-11-29  shlyaeva
 !
 !   input argument list:
+!     rlat: latitude of ob
+!     rlon: longitude of ob
+!     time: time offset for ob
 !
 !   output argument list:
+!     ix,delx,ixp,delxp,iy,dely,iyp,delyp,it,delt,itp,deltp: horizontal
+!       and temporal linear interpolation indices and weights.
+!
 !
 ! attributes:
 !   language: f95
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_single
-  use params, only: nstatefields, nlons, nlats, nlevs, nhr_state, fhr_assim
-  use gridinfo, only: npts, latsgrd, lonsgrd
-  use statevec, only: nsdim
+  use params, only: nstatefields, nlons, nlats, nhr_state, fhr_assim
+  use gridinfo, only: latsgrd, lonsgrd
   use constants, only: zero,one,pi
   use mpisetup
   implicit none
@@ -136,18 +141,24 @@ subroutine calc_linhx(hx, dens, dhx_dx, hx_ens, &
 !   2016-11-29  shlyaeva
 !
 !   input argument list:
+!     hx: observation prior ensemble mean
+!     dens:  state space ensemble perturbations
+!     dhx_dx: Jacobian
+!     ix,delx,ixp,delxp,iy,dely,iyp,delyp,it,delt,itp,deltp: horizontal
+!       and temporal linear interpolation indices and weights.
 !
 !   output argument list:
+!     hx_ens: observation prior ensemble perturbation
 !
 ! attributes:
 !   language: f95
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_single
-  use params, only: nstatefields, nlons, nlats, nlevs, nhr_state, fhr_assim
-  use gridinfo, only: npts, latsgrd, lonsgrd
+  use params, only: nstatefields, nlons
+  use gridinfo, only: npts
   use statevec, only: nsdim
-  use constants, only: zero,one,pi
+  use constants, only: zero,one
   use sparsearr, only: sparr
   use mpisetup
   implicit none
@@ -195,18 +206,27 @@ subroutine calc_linhx_modens(hx, dens, dhx_dx, hx_ens, &
 !   2016-11-29  shlyaeva
 !
 !   input argument list:
+!     hx: observation prior ensemble mean
+!     dens:  state space ensemble perturbations
+!     dhx_dx: Jacobian
+!     ix,delx,ixp,delxp,iy,dely,iyp,delyp,it,delt,itp,deltp: horizontal
+!       and temporal linear interpolation indices and weights.
 !
 !   output argument list:
+!     hx_ens: observation prior ensemble perturbation for each verticali
+!      localization eigenvector
+!     vscale: vertical scaling from vertical localization eigenvectors used
+!       to generate modulated ensemble.
 !
 ! attributes:
 !   language: f95
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_single
-  use params, only: nstatefields, nlons, nlats, nlevs, nhr_state, fhr_assim
-  use gridinfo, only: npts, latsgrd, lonsgrd
+  use params, only: nstatefields, nlons, nlevs
+  use gridinfo, only: npts
   use statevec, only: nsdim
-  use constants, only: zero,one,pi
+  use constants, only: zero,one
   use sparsearr, only: sparr
   use mpisetup
   implicit none

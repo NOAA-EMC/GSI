@@ -392,12 +392,12 @@ subroutine scatter_chunks
 ! distribute chunks from grdin (read in controlvec) according to
 ! decomposition from load_balance
 use controlvec, only: ncdim, grdin
-use params, only: nbackgrounds
+use params, only: nbackgrounds, ntasks_io, nanals_per_iotask
 implicit none
 
 integer(i_kind), allocatable, dimension(:) :: scounts, displs, rcounts
 real(r_single), allocatable, dimension(:) :: sendbuf,recvbuf
-integer(i_kind) :: np, nb, nn, n, nanal, i, ierr
+integer(i_kind) :: np, nb, nn, n, nanal, i, ierr, ne
 
 allocate(scounts(0:numproc-1))
 allocate(displs(0:numproc-1))
@@ -407,10 +407,10 @@ allocate(rcounts(0:numproc-1))
 ! rcounts is number of data elements to recv from processor np.
 ! displs is displacement into send array for data to go to proc np
 do np=0,numproc-1
-   displs(np) = np*npts_max*ncdim
+   displs(np) = np*nanals_per_iotask*npts_max*ncdim
 enddo
-if (nproc <= nanals-1) then
-   scounts = npts_max*ncdim
+if (nproc <= ntasks_io-1) then
+   scounts = nanals_per_iotask*npts_max*ncdim
 else
    scounts = 0
 endif
@@ -418,12 +418,14 @@ endif
 ! on
 ! task np.
 do np=0,numproc-1
-   if (np <= nanals-1) then
-      rcounts(np) = npts_max*ncdim
+   if (np <= ntasks_io-1) then
+      rcounts(np) = nanals_per_iotask*npts_max*ncdim
    else
       rcounts(np) = 0
    end if
 enddo
+allocate(sendbuf(numproc*nanals_per_iotask*npts_max*ncdim))
+allocate(recvbuf(numproc*nanals_per_iotask*npts_max*ncdim))
 
 ! allocate array to hold pieces of state vector on each proc.
 allocate(anal_chunk(nanals,npts_max,ncdim,nbackgrounds))
@@ -432,47 +434,57 @@ if (nproc == 0) print *,'anal_chunk size = ',size(anal_chunk)
 allocate(anal_chunk_prior(nanals,npts_max,ncdim,nbackgrounds))
 allocate(ensmean_chunk(npts_max,ncdim,nbackgrounds))
 allocate(ensmean_chunk_prior(npts_max,ncdim,nbackgrounds))
-ensmean_chunk = 0.
-allocate(sendbuf(numproc*npts_max*ncdim))
-allocate(recvbuf(numproc*npts_max*ncdim))
+ensmean_chunk = 0_r_single
 
 ! send and receive buffers.
 do nb=1,nbackgrounds ! loop over time levels in background
 
-if (nproc <= nanals-1) then
-   ! fill up send buffer.
-   do np=1,numproc
-     do nn=1,ncdim
-      do i=1,numptsperproc(np)
-       n = ((np-1)*ncdim + (nn-1))*npts_max + i
-       sendbuf(n) = grdin(indxproc(np,i),nn,nb)
-     enddo
-    enddo
-   enddo
-end if
-call mpi_alltoallv(sendbuf, scounts, displs, mpi_real4, recvbuf, rcounts, displs,&
-                   mpi_real4, mpi_comm_world, ierr)
-
-!==> compute ensemble of first guesses on each task, remove mean from anal.
-!$omp parallel do schedule(dynamic,1)  private(nn,i,nanal,n)
-do nn=1,ncdim
-   do i=1,numptsperproc(nproc+1)
-      do nanal=1,nanals
-         n = ((nanal-1)*ncdim + (nn-1))*npts_max + i
-         anal_chunk(nanal,i,nn,nb) = recvbuf(n)
+  if (nproc <= ntasks_io-1) then
+     ! fill up send buffer.
+     do np=1,numproc
+      do ne=1,nanals_per_iotask
+        do nn=1,ncdim
+         do i=1,numptsperproc(np)
+          n = ((np-1)*ncdim*nanals_per_iotask + (ne-1)*ncdim + (nn-1))*npts_max + i
+          sendbuf(n) = grdin(indxproc(np,i),nn,nb,ne)
+        enddo
+       enddo
       enddo
-      ensmean_chunk(i,nn,nb) = sum(anal_chunk(:,i,nn,nb))/float(nanals)
-      ensmean_chunk_prior(i,nn,nb) = ensmean_chunk(i,nn,nb)
-! remove mean from ensemble.
-      do nanal=1,nanals
-         anal_chunk(nanal,i,nn,nb) = anal_chunk(nanal,i,nn,nb)-ensmean_chunk(i,nn,nb)
-         anal_chunk_prior(nanal,i,nn,nb)=anal_chunk(nanal,i,nn,nb)
-      end do
-   end do
-end do
-!$omp end parallel do
+     enddo
+  end if
+  call mpi_alltoallv(sendbuf, scounts, displs, mpi_real4, recvbuf, rcounts, displs,&
+                     mpi_real4, mpi_comm_world, ierr)
+  
+  !==> compute ensemble of first guesses on each task, remove mean from anal.
+  !$omp parallel do schedule(dynamic,1)  private(nn,i,nanal,n)
+  do nn=1,ncdim
+     do i=1,numptsperproc(nproc+1)
+        do nanal=1,nanals
+           n = ((nanal-1)*ncdim + (nn-1))*npts_max + i
+           anal_chunk(nanal,i,nn,nb) = recvbuf(n)
+        enddo
+     end do
+  end do
+  !$omp end parallel do
 
 enddo ! loop over nbackgrounds
+
+!==> compute mean, remove it from anal_chunk
+!$omp parallel do schedule(dynamic,1)  private(nn,i,n,nb)
+do nb=1,nbackgrounds
+  do nn=1,ncdim
+     do i=1,numptsperproc(nproc+1)
+        ensmean_chunk(i,nn,nb) = sum(anal_chunk(:,i,nn,nb))/float(nanals)
+        ensmean_chunk_prior(i,nn,nb) = ensmean_chunk(i,nn,nb)
+        ! remove mean from ensemble.
+        do nanal=1,nanals
+           anal_chunk(nanal,i,nn,nb) = anal_chunk(nanal,i,nn,nb)-ensmean_chunk(i,nn,nb)
+           anal_chunk_prior(nanal,i,nn,nb)=anal_chunk(nanal,i,nn,nb)
+        end do
+     end do
+  end do
+end do
+!$omp end parallel do
 
 deallocate(sendbuf, recvbuf)
 
@@ -483,11 +495,11 @@ end subroutine scatter_chunks
 subroutine gather_chunks
 ! gather chunks into grdin to write out the ensemble members
 use controlvec, only: ncdim, grdin
-use params, only: nbackgrounds
+use params, only: nbackgrounds, ntasks_io, nanals_per_iotask
 implicit none
 integer(i_kind), allocatable, dimension(:) :: scounts, displs, rcounts
 real(r_single), allocatable, dimension(:) :: sendbuf,recvbuf
-integer(i_kind) :: np, nb, nn, nanal, n, i, ierr
+integer(i_kind) :: np, nb, nn, nanal, n, i, ierr, ne
 
 allocate(scounts(0:numproc-1))
 allocate(displs(0:numproc-1))
@@ -496,46 +508,49 @@ allocate(rcounts(0:numproc-1))
 ! scounts is number of data elements to send to processor np.
 ! rcounts is number of data elements to recv from processor np.
 ! displs is displacement into send array for data to go to proc np
-if (nproc <= nanals-1) then
-   rcounts = npts_max*ncdim
+if (nproc <= ntasks_io-1) then
+   rcounts = nanals_per_iotask*npts_max*ncdim
 else
    rcounts = 0
 endif
 do np=0,numproc-1
-   displs(np) = np*npts_max*ncdim
-   if (np <= nanals-1) then
-      scounts(np) = npts_max*ncdim
+   displs(np) = np*nanals_per_iotask*npts_max*ncdim
+   if (np <= ntasks_io-1) then
+      scounts(np) = nanals_per_iotask*npts_max*ncdim
    else
       scounts(np) = 0
    end if
 enddo
-allocate(recvbuf(numproc*npts_max*ncdim))
-allocate(sendbuf(numproc*npts_max*ncdim))
+allocate(recvbuf(numproc*nanals_per_iotask*npts_max*ncdim))
+allocate(sendbuf(numproc*nanals_per_iotask*npts_max*ncdim))
+
 
 do nb=1,nbackgrounds ! loop over time levels in background
   do nn=1,ncdim
-   do i=1,numptsperproc(nproc+1)
-    do nanal=1,nanals
-      n = ((nanal-1)*ncdim + (nn-1))*npts_max + i
-      ! add ensemble mean back in.
-      sendbuf(n) = anal_chunk(nanal,i,nn,nb)+ensmean_chunk(i,nn,nb)
-      ! convert to increment (A-F).
-      sendbuf(n) = sendbuf(n)-(anal_chunk_prior(nanal,i,nn,nb)+ensmean_chunk_prior(i,nn,nb))
+    do i=1,numptsperproc(nproc+1)
+      do nanal=1,nanals
+         n = ((nanal-1)*ncdim + (nn-1))*npts_max + i
+         ! add ensemble mean back in.
+         sendbuf(n) = anal_chunk(nanal,i,nn,nb)+ensmean_chunk(i,nn,nb)
+         ! convert to increment (A-F).
+         sendbuf(n) = sendbuf(n)-(anal_chunk_prior(nanal,i,nn,nb)+ensmean_chunk_prior(i,nn,nb))
+      enddo
     enddo
-   enddo
   enddo
   call mpi_alltoallv(sendbuf, scounts, displs, mpi_real4, recvbuf, rcounts, displs,&
                      mpi_real4, mpi_comm_world, ierr)
-  if (nproc <= nanals-1) then
-     do np=1,numproc
+  if (nproc <= ntasks_io-1) then
+    do np=1,numproc
+     do ne=1,nanals_per_iotask
       do nn=1,ncdim
        do i=1,numptsperproc(np)
-         n = ((np-1)*ncdim + (nn-1))*npts_max + i
-         grdin(indxproc(np,i),nn,nb) = recvbuf(n)
+         n = ((np-1)*ncdim*nanals_per_iotask + (ne-1)*ncdim + (nn-1))*npts_max + i
+         grdin(indxproc(np,i),nn,nb,ne) = recvbuf(n)
        enddo
       enddo
      enddo
-     !print *,nproc,'min/max ps',minval(grdin(:,ncdim)),maxval(grdin(:,ncdim))
+    enddo
+    !print *,nproc,'min/max ps',minval(grdin(:,ncdim)),maxval(grdin(:,ncdim))
   end if
 enddo ! end loop over background time levels
 

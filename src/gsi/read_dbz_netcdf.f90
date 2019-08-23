@@ -121,9 +121,9 @@ subroutine read_dbz_mrms_netcdf(nread,ndata,nodata,infile,obstype,lunout,sis,nob
   use kinds, only: r_kind,r_double,i_kind,r_single
   use constants, only: zero,half,one,two,deg2rad,rearth,rad2deg, &
                        one_tenth,r1000,r60,r60inv,r100,r400
-  use gridmod, only: regional,tll2xy
+  use gridmod, only: tll2xy
   use obsmod, only: iadate
-  use convinfo, only: nconvtype,ctwind,cgross,icuse,ioctype
+  use convinfo, only: nconvtype,ctwind,icuse,ioctype
   use mpimod, only: npe
   use read_l2bufr_mod, only : invtllv
        
@@ -743,13 +743,12 @@ subroutine read_dbz_mrms_sparse_netcdf(nread,ndata,nodata,infile,obstype,lunout,
 !
 !$$$ end documentation block
   use netcdf
-  use mpimod,only:mype
   use kinds, only: r_kind,r_double,i_kind,i_short,r_single
   use constants, only: zero,half,one,two,deg2rad,rearth,rad2deg, &
                        one_tenth,r1000,r60,r60inv,r100,r400
-  use gridmod, only: regional,tll2xy
+  use gridmod, only: tll2xy
   use obsmod, only: iadate
-  use convinfo, only: nconvtype,ctwind,cgross,icuse,ioctype
+  use convinfo, only: nconvtype,ctwind,icuse,ioctype
   use mpimod, only: npe
   use read_l2bufr_mod, only : invtllv
        
@@ -1279,9 +1278,7 @@ subroutine read_dbz_mrms_detect_format(infile,l_sparse_netcdf)
 !   
 !$$$ end documentation block
   use netcdf
-  use mpimod,only:mype
   use kinds, only: r_kind,r_double,i_kind,i_short,r_single
-  use  mrmsmod,only: l_mrms_sparse_netcdf
        
   implicit none
   
