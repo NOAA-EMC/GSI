@@ -68,7 +68,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gridmod, only: nsig
   use gridmod, only: get_ij
   use constants, only: zero,tiny_r_kind,one,half,one_tenth,wgtlim, &
-            two,cg_term,pi,huge_single,r1000
+            two,cg_term,huge_single,r1000
   use jfunc, only: jiter,last,miter
   use qcmod, only: dfact,dfact1,npres_print
   use qcmod, only: pvis,scale_cv

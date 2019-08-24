@@ -12,8 +12,9 @@ module variables
   integer,allocatable,dimension(:):: na,nb
 
 ! from GSI gridmod:
-  logical hybrid,db_prec,biasrm,vertavg
+  logical hybrid,db_prec,biasrm,vertavg,use_gfs_nemsio,use_enkf
   integer nlat,nlon,nsig,dimbig,option,noq,lat1,lon1
+  integer nlatin,nlonin
   integer ntrac5,idvc5,idvm5,idpsfc5,idthrm5
   real(r_kind),allocatable,dimension(:):: rlons,ak5,bk5,ck5,cp5
   real(r_double),allocatable,dimension(:):: wgtlats,rlats
@@ -52,6 +53,8 @@ module variables
 ! variances
   real(r_kind),allocatable,dimension(:,:):: sfvar,vpvar,tvar,qvar,ozvar,cvar,nrhvar
   real(r_kind),allocatable,dimension(:):: psvar
+  real(r_kind),allocatable,dimension(:):: varscale
+  logical scaling
 
 ! horizontal length scales
   real(r_kind),allocatable,dimension(:,:):: sfhln,vphln,thln,qhln,ozhln,chln
@@ -99,6 +102,42 @@ module variables
 ! Derived constants
   parameter(fv = rv/rd-1._r_kind)       ! used in virtual temp. equation   ()
 
+  type:: ncepgfs_head
+     integer:: ivs
+     integer:: version
+     real(r_kind) :: fhour
+     integer:: idate(4)
+     integer:: nrec
+     integer:: latb
+     integer:: lonb
+     integer:: levs
+     integer:: jcap
+     integer:: itrun
+     integer:: iorder
+     integer:: irealf
+     integer:: igen
+     integer:: latf
+     integer:: lonf
+     integer:: latr
+     integer:: lonr
+     integer:: ntrac
+     integer:: icen2
+     integer:: iens(2)
+     integer:: idpp
+     integer:: idsl
+     integer:: idvc
+     integer:: idvm
+     integer:: idvt
+     integer:: idrun
+     integer:: idusr
+     real(r_kind) :: pdryini
+     integer:: ncldt
+     integer:: ixgr
+     integer:: nvcoord
+     integer:: idrt
+  end type ncepgfs_head
+
+
 contains 
 
   subroutine init_defaults
@@ -109,12 +148,17 @@ contains
     maxcases=10
     nlat=258
     nlon=512
+    nlatin=258
+    nlonin=512
     hybrid=.false.
     biasrm=.false.
     vertavg=.false.
     smoothdeg=4.0
-    dimbig=5000
+    dimbig=50000
     noq=5
+    use_gfs_nemsio=.false.
+    use_enkf=.false.
+    scaling=.false.
 
   end subroutine init_defaults
 
@@ -210,9 +254,11 @@ contains
 
   subroutine destroy_variables
     deallocate(rlats,rlons)
-    deallocate(ak5,bk5,ck5,cp5)
+    deallocate(ak5,bk5,ck5)
+    if (.not. use_gfs_nemsio) deallocate(cp5)
     deallocate(coef)
     deallocate(coriolis)
+    if (scaling) deallocate(varscale)
 
     return
   end subroutine destroy_variables

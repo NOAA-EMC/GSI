@@ -47,7 +47,7 @@ subroutine penal(xhat)
   use m_obsdiags, only: pshead
   use converr, only:etabl
   use jfunc, only: jiterstart,jiter
-  use convinfo, only: ictype,nconvtype,ioctype
+  use convinfo, only: ictype
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none

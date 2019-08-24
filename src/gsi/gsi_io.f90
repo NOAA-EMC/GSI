@@ -30,12 +30,14 @@ module gsi_io
   integer(i_kind):: lendian_in,lendian_out
   integer(i_kind):: mype_io
   logical verbose
+  logical print_obs_para
 
   private
   public lendian_in, lendian_out
   public mype_io
   public init_io
   public verbose
+  public print_obs_para
 
   character(len=*), parameter :: myname='gsi_io'
 
@@ -75,6 +77,7 @@ contains
     lendian_in  = 15
     lendian_out = 66
     verbose = .false.
+    print_obs_para = .false.
 
     if (mype==0) write(6,*)'INIT_IO:  reserve units lendian_in=',lendian_in,&
        ' and lendian_out=',lendian_out,' for little endian i/o'

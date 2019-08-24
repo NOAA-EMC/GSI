@@ -129,7 +129,7 @@ subroutine update_guess(sval,sbias)
   use rapidrefresh_cldsurf_mod, only: i_use_2mq4b,i_use_2mt4b
   use gsd_update_mod, only: gsd_limit_ocean_q,gsd_update_soil_tq,&
        gsd_update_th2,gsd_update_q2
-  use qcmod, only: pvis,pcldch,scale_cv,vis_thres,cldch_thres 
+  use qcmod, only: pvis,pcldch,vis_thres,cldch_thres 
   use obsmod, only: l_wcp_cwm
 
   implicit none
@@ -275,7 +275,7 @@ subroutine update_guess(sval,sbias)
            endif
            icloud=getindex(cloud,guess(ic))
            if(icloud>0) then
-              ptr3dges = max(ptr3dges+ptr3dinc,qcmin)
+                 ptr3dges = max(ptr3dges+ptr3dinc,zero)
               cycle
            else  
               ptr3dges = ptr3dges + ptr3dinc

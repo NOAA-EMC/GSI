@@ -17,6 +17,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !   2015-05-30  Li      - Modify to use deter_sfc instead of deter_sfc2
 !   2015-06-01  Li      - Modify to make it work when nst_gsi = 0 and nsstbufr data file exists
 !   2016-03-11  j. guo  - Fixed {dlat,dlon}_earth_deg in the obs data stream
+!   2019-01-15  Li      - modify to handle dbuoyb (NC001102) and mbuoyb (NC001103)
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -44,7 +45,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   use convinfo, only: nconvtype,ctwind, &
       ncmiter,ncgroup,ncnumgrp,icuse,ictype
   use obsmod, only: oberrflg
-  use insitu_info, only: n_comps,n_scripps,n_triton,n_3mdiscus,cid_mbuoy,n_ship,ship
+  use insitu_info, only: n_comps,n_scripps,n_triton,n_3mdiscus,cid_mbuoy,cid_mbuoyb,n_ship,ship
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc,deter_sfc2
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
@@ -74,6 +75,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   real(r_kind),parameter:: r1_5  = 1.50_r_kind
   real(r_kind),parameter:: r24   = 24.0_r_kind
   real(r_kind),parameter:: r60   = 60.0_r_kind
+  real(r_kind),parameter:: r90   = 90.0_r_kind
   real(r_kind),parameter:: r360 = 360.0_r_kind
 
   real(r_kind),parameter:: bmiss = 1.0E11_r_kind
@@ -182,7 +184,9 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 
 !           case ( 'NC001001' ) ; ctyp='ships   '
 !           case ( 'NC001002' ) ; ctyp='dbuoy   '
+!           case ( 'NC001003' ) ; ctyp='dbuoyb  '
 !           case ( 'NC001003' ) ; ctyp='mbuoy   '
+!           case ( 'NC001103' ) ; ctyp='mbuoyb  '
 !           case ( 'NC001004' ) ; ctyp='lcman   '
 !           case ( 'NC001005' ) ; ctyp='tideg   '
 !           case ( 'NC001007' ) ; ctyp='cstgd   '
@@ -215,9 +219,15 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
              ( trim(subset) == 'NC001001' ) ) then            ! SHIPS
            call ufbint(lunin,msst,1,1,iret,'MSST')            ! for ships, fixed buoy and lcman
            call ufbint(lunin,sst,1,1,iret,'SST1')             ! read SST
+        elseif ( trim(subset) == 'NC001103' ) then            ! MBUOYB
+           msst = 0.0_r_kind                                  ! for mbuoyb, assign to be 0
+           call ufbint(lunin,sst,1,1,iret,'SST0')
         elseif ( trim(subset) == 'NC001002' ) then            ! DBUOY
            msst = 11.0_r_kind                                 ! for drifting buoy, assign to be 11
            call ufbint(lunin,sst,1,1,iret,'SST1')
+        elseif ( trim(subset) == 'NC001102' ) then            ! DBUOYB
+           msst = 11.0_r_kind                                 ! for drifting buoyb, assign to be 11
+           call ufbint(lunin,sst,1,1,iret,'SST0')
         elseif ( trim(subset) == 'NC031002' ) then            ! TESAC
            msst = 12.0_r_kind                                 ! for ARGO, assign to be 12
            call ufbint(lunin,tpf2,2,65535,klev,'DBSS STMP')   ! read T_Profile
@@ -264,6 +274,10 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            if(clonh >= r360)  clonh = clonh - r360
            if(clonh <  zero)  clonh = clonh + r360
 
+!          Check for valid latitude and longitude
+           if (abs(clonh) > r360) cycle read_loop
+           if (abs(clath) > r90 ) cycle read_loop
+
            dlon_earth_deg = clonh
            dlat_earth_deg = clath
            dlon_earth=clonh*deg2rad
@@ -295,7 +309,8 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            idate5(4) = nint(hdr(4))    !hour
            idate5(5) = nint(hdr(5))    !minute
            rsc       = hdr(6)          !second in real
- 
+
+           if ( rsc > 60.0_r_kind .or. rsc < zero ) rsc = zero   !second in real
 
            call w3fs21(idate5,nmind)
            sstime=float(nmind)
@@ -394,6 +409,10 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 
               endif
 
+           elseif ( trim(subset) == 'NC001102'  ) then                           ! DBUOYB
+              zob = r0_2
+              kx = 190
+              sstoe = r0_6
            elseif ( trim(subset) == 'NC001003' ) then                            ! MBUOY
 
               cid_pos = 0
@@ -421,6 +440,38 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
                  kx = 195
                  sstoe = 1.5_r_kind
               elseif ( cid_pos == 0 ) then                                       ! All other moored buoys (usually with 1-m observation depth)
+                 zob = one
+                 kx = 196
+                 sstoe = one
+              endif
+
+           elseif ( trim(subset) == 'NC001103' ) then                            ! MBUOYB
+
+              cid_pos = 0
+
+              do n = 1, n_3mdiscus
+                 if ( cid == cid_mbuoyb(n) ) then
+                    cid_pos = n
+                 endif
+              enddo
+
+              if ( cid_pos >= 1 .and. cid_pos <= n_comps ) then                  ! COMPS moored buoyb
+                 zob = r1_2
+                 kx = 192
+                 sstoe = one
+              elseif ( cid_pos > n_comps .and. cid_pos <= n_scripps ) then       ! SCRIPPS moored buoyb
+                 zob = r0_45
+                 kx = 193
+                 sstoe = 1.5_r_kind
+              elseif ( cid_pos > n_scripps .and. cid_pos <= n_triton ) then      ! Triton buoyb
+                 zob = r1_5
+                 kx = 194
+                 sstoe = 0.4_r_kind
+              elseif ( cid_pos > n_triton .and. cid_pos <= n_3mdiscus ) then     ! Moored buoyb with 3-m discus
+                 zob = r0_6
+                 kx = 195
+                 sstoe = 1.5_r_kind
+              elseif ( cid_pos == 0 ) then                                       ! All other moored buoysb (usually with 1-m observation depth)
                  zob = one
                  kx = 196
                  sstoe = one

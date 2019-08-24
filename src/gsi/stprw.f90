@@ -51,11 +51,14 @@ subroutine stprw(rwhead,rval,sval,out,sges,nstep)
 !   2007-03-19  tremolet - binning of observations
 !   2007-07-28  derber  - modify to use new inner loop obs data structure
 !                       - unify NL qc
+!   2007-02-15  rancic - add foto
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2008-06-02  safford - rm unused var and uses
 !   2008-12-03  todling - changed handling of ptr%time
 !   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
 !   2010-05-13  todling - update to use gsi_bundle
+!   2017-05-12  Y. Wang and X. Wang - include w into adjoint of rw operator,
+!                                     POC: xuguang.wang@ou.edu
 !   2016-06-23  lippi   - add terms for vertical velocity, uses include_w, and
 !                         now multiplying by costilt here instead of being
 !                         factored into the wij term.
@@ -88,6 +91,7 @@ subroutine stprw(rwhead,rval,sval,out,sges,nstep)
   use m_rwNode , only: rwNode
   use m_rwNode , only: rwNode_typecast
   use m_rwNode , only: rwNode_nextcast
+
   implicit none
 
 ! Declare passed variables

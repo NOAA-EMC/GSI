@@ -141,7 +141,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 
 !**************************************************************************
 ! Initialize variables
-  maxinfo=35
+  maxinfo=31
   lnbufr = 10
   disterrmax=zero
   ntest=0
@@ -381,8 +381,8 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
         data_all(31,itx)= dlat_earth_deg              ! earth relative latitude (degrees)
 
         if(dval_use)then
-           data_all(36,itx) = val_img
-           data_all(37,itx) = itt
+           data_all(32,itx) = val_img
+           data_all(33,itx) = itt
         end if
 
         if ( nst_gsi > 0 ) then
@@ -417,7 +417,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
      end do
      if(dval_use .and. assim)then
         do n=1,ndata
-          itt=nint(data_all(37,n))
+          itt=nint(data_all(maxinfo,n))
           super_val(itt)=super_val(itt)+val_img
         end do
      end if

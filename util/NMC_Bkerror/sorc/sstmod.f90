@@ -34,7 +34,8 @@ contains
 
    integer i,j,k,errsst,mype,ilt,iln,idx,istat
 
-   real(r_single),dimension(720,360,10):: sstvarsin
+   real(r_kind),dimension(720,360,10):: sstvarsin
+   !real(r_single),dimension(720,360,10):: sstvarsin
 
    real(r_kind),dimension(360,720):: sstvin,sstcin
    real(r_kind) linlat(360)
@@ -49,16 +50,19 @@ contains
    open(errsst,file='berror_sst',form='unformatted',&
       convert='big_endian',iostat=istat)
    rewind(errsst)
-   do k=1,10
-     read(errsst) ((sstvarsin(i,j,k),i=1,iln),j=1,ilt)
-   end do
+!   do k=1,10
+!     read(errsst) ((sstvarsin(i,j,k),i=1,iln),j=1,ilt)
+!   end do
+   read(errsst) ((sstvarsin(i,j,1),i=1,iln),j=1,ilt)
 
    do j=1,iln
      do i=1,ilt
        sstvin(i,j)=sstvarsin(j,i,1)
-       sstcin(i,j)=sstvarsin(j,i,9)
+!       sstcin(i,j)=sstvarsin(j,i,9)
      end do
    end do
+   sstcin(:,:)=600.0 !hcl assign some value
+
 
 ! the sst variances has missing values in it, which need to be filled 
 ! with more realistic values

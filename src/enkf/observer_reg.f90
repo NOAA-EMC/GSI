@@ -73,8 +73,13 @@ subroutine setup_linhx(rlat, rlon, time, ix, delx, ixp, delxp, iy, dely,  &
 !                           consistent with  observer_gfs.f90
 !
 !   input argument list:
+!     rlat: latitude of ob
+!     rlon: longitude of ob
+!     time: time offset for ob
 !
 !   output argument list:
+!     ix,delx,ixp,delxp,iy,dely,iyp,delyp,it,delt,itp,deltp: horizontal
+!       and temporal linear interpolation indices and weights.
 !
 ! attributes:
 !   language: f95
@@ -142,8 +147,14 @@ subroutine calc_linhx(hx, dens, dhx_dx, hx_ens, &
 !   2016-11-29  shlyaeva
 !
 !   input argument list:
+!     hx: observation prior ensemble mean
+!     dens:  state space ensemble perturbations
+!     dhx_dx: Jacobian
+!     ix,delx,ixp,delxp,iy,dely,iyp,delyp,it,delt,itp,deltp: horizontal
+!       and temporal linear interpolation indices and weights.
 !
 !   output argument list:
+!     hx_ens: observation prior ensemble perturbation
 !
 ! attributes:
 !   language: f95
@@ -201,8 +212,17 @@ subroutine calc_linhx_modens(hx, dens, dhx_dx, hx_ens, &
 !   2016-11-29  shlyaeva
 !
 !   input argument list:
+!     hx: observation prior ensemble mean
+!     dens:  state space ensemble perturbations
+!     dhx_dx: Jacobian
+!     ix,delx,ixp,delxp,iy,dely,iyp,delyp,it,delt,itp,deltp: horizontal
+!       and temporal linear interpolation indices and weights.
 !
 !   output argument list:
+!     hx_ens: observation prior ensemble perturbation for each verticali
+!      localization eigenvector
+!     vscale: vertical scaling from vertical localization eigenvectors used
+!       to generate modulated ensemble.
 !
 ! attributes:
 !   language: f95

@@ -1,13 +1,16 @@
-#! /bin/ksh
+#! /bin/ksh -l
 
 #------------------------------------------------------------------
 #  plot_horiz.sh
 #
 
 echo "begin plot_horiz.sh"
-
 set -ax
 
+
+if [[ ${MY_MACHINE} = "theia" ]]; then
+   module load grads
+fi
 
 export SATYPE=$1
 export PVAR=$2

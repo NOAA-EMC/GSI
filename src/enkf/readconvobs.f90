@@ -20,6 +20,8 @@ module readconvobs
 !   2009-02-23  Initial version.
 !   2016-11-29  shlyaeva - updated read routine to calculate linearized H(x)
 !                          added write_convobs_data to output ensemble spread
+!   2017-05-12  Y. Wang and X. Wang - add to read dbz and rw for radar
+!                       reflectivity and radial velocity assimilation. POC: xuguang.wang@ou.edu
 !   2017-12-13  shlyaeva - added netcdf diag read/write capability
 !
 ! attributes:
@@ -37,9 +39,9 @@ public :: get_num_convobs, get_convobs_data, write_convobs_data
 
 
 !> observation types to read from netcdf files
-integer(i_kind), parameter :: nobtype = 10
+integer(i_kind), parameter :: nobtype = 11
 character(len=3), dimension(nobtype), parameter :: obtypes = (/'  t', '  q', ' ps', ' uv', 'tcp', &
-                                                               'gps', 'spd', ' pw', ' dw', ' rw' /)
+                                                               'gps', 'spd', ' pw', ' dw', ' rw', 'dbz' /)
 
 contains
 
@@ -73,7 +75,8 @@ subroutine get_num_convobs_bin(obspath,datestring,num_obs_tot,num_obs_totdiag,id
     character(len=3) :: obtype
     integer(i_kind)  :: iunit, nchar, nreal, ii, mype, ios, idate, i, ipe, ioff0
     integer(i_kind),dimension(2) :: nn,nobst, nobsps, nobsq, nobsuv, nobsgps, &
-         nobstcp,nobstcx,nobstcy,nobstcz,nobssst, nobsspd, nobsdw, nobsrw, nobspw
+         nobstcp,nobstcx,nobstcy,nobstcz,nobssst, nobsspd, nobsdw, nobsrw, nobspw, &
+         nobsdbz
     character(8),allocatable,dimension(:):: cdiagbuf
     real(r_single),allocatable,dimension(:,:)::rdiagbuf
     real(r_kind) :: errorlimit,errorlimit2,error,pres,obmax
@@ -97,6 +100,7 @@ subroutine get_num_convobs_bin(obspath,datestring,num_obs_tot,num_obs_totdiag,id
     nobsrw = 0
     nobspw = 0
     nobsgps = 0
+    nobsdbz = 0
     nobstcp = 0; nobstcx = 0; nobstcy = 0; nobstcz = 0
     init_pass = .true.
     peloop: do ipe=0,npefiles
@@ -177,6 +181,9 @@ subroutine get_num_convobs_bin(obspath,datestring,num_obs_tot,num_obs_totdiag,id
        else if (obtype == ' rw') then
           nobsrw = nobsrw + nn
           num_obs_tot = num_obs_tot + nn(2)
+       else if (obtype == 'dbz') then
+          nobsdbz = nobsdbz + nn
+          num_obs_tot = num_obs_tot + nn(2)
        else if (obtype == 'gps') then
           nobsgps = nobsgps + nn
           num_obs_tot = num_obs_tot + nn(2)
@@ -220,6 +227,7 @@ subroutine get_num_convobs_bin(obspath,datestring,num_obs_tot,num_obs_totdiag,id
           write(6,100) 'pw',nobspw(1),nobspw(2)
           write(6,100) 'dw',nobsdw(1),nobsdw(2)
           write(6,100) 'rw',nobsrw(1),nobsrw(2)
+          write(6,100) 'dbz',nobsdbz(1),nobsdbz(2)
           write(6,100) 'tcp',nobstcp(1),nobstcp(2)
           if (nobstcx(2) .gt. 0) then
              write(6,100) 'tcx',nobstcx(1),nobstcx(2)
@@ -396,7 +404,7 @@ end subroutine get_num_convobs_nc
 subroutine get_convobs_data(obspath, datestring, nobs_max, nobs_maxdiag,   &
                             hx_mean, hx_mean_nobc, hx, hx_modens, x_obs, x_err,       &
                             x_lon, x_lat, x_press, x_time, x_code,         &
-                            x_errorig, x_type, x_used, id, nanal)
+                            x_errorig, x_type, x_used, id, nanal, nmem)
   use params, only: neigv
   implicit none
 
@@ -418,18 +426,18 @@ subroutine get_convobs_data(obspath, datestring, nobs_max, nobs_maxdiag,   &
   integer(i_kind), dimension(nobs_maxdiag), intent(out) :: x_used
 
   character(len=10), intent(in) :: id
-  integer, intent(in)           :: nanal
+  integer, intent(in)           :: nanal, nmem
 
   if (netcdf_diag) then
     call get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
                             hx_mean, hx_mean_nobc, hx, hx_modens, x_obs, x_err,       &
                             x_lon, x_lat, x_press, x_time, x_code,         &
-                            x_errorig, x_type, x_used, id, nanal)
+                            x_errorig, x_type, x_used, id, nanal, nmem)
   else
     call get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
                             hx_mean, hx_mean_nobc, hx, hx_modens, x_obs, x_err,       &
                             x_lon, x_lat, x_press, x_time, x_code,         &
-                            x_errorig, x_type, x_used, id, nanal)
+                            x_errorig, x_type, x_used, id, nanal, nmem)
   endif
 end subroutine get_convobs_data
 
@@ -437,9 +445,9 @@ end subroutine get_convobs_data
 subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
                             hx_mean, hx_mean_nobc, hx, hx_modens, x_obs, x_err,       &
                             x_lon, x_lat, x_press, x_time, x_code,         &
-                            x_errorig, x_type, x_used, id, nanal)
+                            x_errorig, x_type, x_used, id, nanal, nmem)
   use sparsearr, only: sparr, delete, assignment(=)
-  use params, only: nanals, lobsdiag_forenkf, nlevs, neigv, vlocal_evecs
+  use params, only: nanals, lobsdiag_forenkf, neigv, vlocal_evecs
   use statevec, only: state_d
   use mpisetup, only: nproc, mpi_wtime
   use observer_enkf, only: calc_linhx,calc_linhx_modens,setup_linhx
@@ -468,7 +476,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
   integer(i_kind), dimension(nobs_maxdiag), intent(out) :: x_used
 
   character(len=10), intent(in) :: id
-  integer, intent(in)           :: nanal
+  integer, intent(in)           :: nanal, nmem
 
   real(r_double) t1,t2,tsum
   character(len=4) pe_name
@@ -697,7 +705,8 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
            x_type(nob)  = obtype
            if (x_type(nob) == ' uv')  x_type(nob) = '  u'
            if (x_type(nob) == 'tcp')  x_type(nob) = ' ps'
-           if (x_type(nob) == ' rw')  x_type(nob) = '  u'
+           if (x_type(nob) == ' rw')  x_type(nob) = ' rw'
+           if (x_type(nob) == 'dbz')  x_type(nob) = 'dbz'
 
            ! get Hx
            if (nanal <= nanals) then
@@ -729,13 +738,13 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
                                   ix, delx, ixp, delxp, iy, dely,  &
                                   iyp, delyp, it, delt, itp, deltp)
                  endif
-                 call calc_linhx(hx_mean_nobc(nob), state_d,       &
+                 call calc_linhx(hx_mean_nobc(nob), state_d(:,:,:,nmem),&
                                  dhx_dx, hx(nob),                  &
                                  ix, delx, ixp, delxp, iy, dely,   &
                                  iyp, delyp, it, delt, itp, deltp)
                  ! compute modulated ensemble in obs space
                  if (neigv > 0) then
-                    call calc_linhx_modens(hx_mean_nobc(nob), state_d, &
+                    call calc_linhx_modens(hx_mean_nobc(nob), state_d(:,:,:,nmem), &
                                     dhx_dx, hx_modens(:,nob),          &
                                     ix, delx, ixp, delxp, iy, dely,    &
                                     iyp, delyp, it, delt, itp, delxp,  &
@@ -762,7 +771,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
            endif
 
            ! for wind, also read v-component
-           if (obtype == ' uv' .or. obtype == ' rw') then
+           if (obtype == ' uv') then
               nob = nob + 1
               x_code(nob)  = Observation_Type(i)
 
@@ -816,13 +825,13 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
                                      ix, delx, ixp, delxp, iy, dely,  &
                                      iyp, delyp, it, delt, itp, deltp)
                     endif
-                    call calc_linhx(hx_mean_nobc(nob), state_d,       &
+                    call calc_linhx(hx_mean_nobc(nob), state_d(:,:,:,nmem),    &
                                     dhx_dx, hx(nob),                  &
                                     ix, delx, ixp, delxp, iy, dely,   &
                                     iyp, delyp, it, delt, itp, deltp)
                     ! compute modulated ensemble in obs space
                     if (neigv > 0) then
-                       call calc_linhx_modens(hx_mean_nobc(nob), state_d, &
+                       call calc_linhx_modens(hx_mean_nobc(nob), state_d(:,:,:,nmem), &
                                        dhx_dx, hx_modens(:,nob),          &
                                        ix, delx, ixp, delxp, iy, dely,    &
                                        iyp, delyp, it, delt, itp, delxp,  &
@@ -888,9 +897,9 @@ end subroutine get_convobs_data_nc
 subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
                             hx_mean, hx_mean_nobc, hx, hx_modens, x_obs, x_err,       &
                             x_lon, x_lat, x_press, x_time, x_code,         &
-                            x_errorig, x_type, x_used, id, nanal)
+                            x_errorig, x_type, x_used, id, nanal, nmem)
   use sparsearr, only: sparr2, sparr, readarray, delete, assignment(=), size
-  use params, only: nanals, lobsdiag_forenkf, nlevs, neigv, vlocal_evecs
+  use params, only: nanals, lobsdiag_forenkf, neigv, vlocal_evecs
   use statevec, only: state_d
   use mpisetup, only: nproc, mpi_wtime
   use observer_enkf, only: calc_linhx,calc_linhx_modens,setup_linhx
@@ -914,7 +923,7 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
   integer(i_kind), dimension(nobs_maxdiag), intent(out) :: x_used
 
   character(len=10), intent(in) :: id
-  integer, intent(in)           :: nanal
+  integer, intent(in)           :: nanal, nmem
 
   real(r_double) t1,t2,tsum
   character(len=4) pe_name
@@ -1033,7 +1042,7 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
 
     if (obtype == '  t' .or. obtype == ' uv' .or. obtype == ' ps' .or. &
         obtype == 'tcp' .or. obtype == '  q' .or. obtype == 'spd' .or. &
-        obtype == 'sst' .or. obtype == ' rw' .or. &
+        obtype == 'sst' .or. obtype == ' rw' .or. obtype == 'dbz' .or. &
         obtype == 'gps' .or. obtype == ' dw' .or. obtype == ' pw')  then
 
        allocate(cdiagbuf(ii),rdiagbuf(nreal,ii))
@@ -1045,7 +1054,9 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
        endif
 
        ! special handling for error limits for GPS bend angle
-       if (obtype == 'gps' .and. rdiagbuf(20,1)==1) errorlimit2=errorlimit2_bnd
+       if (obtype == 'gps') then
+          if (rdiagbuf(20,1)==1) errorlimit2=errorlimit2_bnd
+       endif
 
        do n=1,ii
           nobdiag = nobdiag + 1
@@ -1128,7 +1139,7 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
           x_type(nob)  = obtype
           if (obtype == ' uv')   x_type(nob) = '  u'
           if (obtype == 'tcp')   x_type(nob) = ' ps'
-          if (obtype == ' rw')   x_type(nob) = '  u'
+          if (obtype == ' rw')   x_type(nob) = ' rw'
 
           ! get Hx
           if (nanal <= nanals) then
@@ -1166,13 +1177,13 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
                                  ix, delx, ixp, delxp, iy, dely,  &
                                  iyp, delyp, it, delt, itp, deltp)
                 endif
-                call calc_linhx(hx_mean_nobc(nob), state_d,       &
+                call calc_linhx(hx_mean_nobc(nob), state_d(:,:,:,nmem),  &
                                 dhx_dx, hx(nob),                  &
                                 ix, delx, ixp, delxp, iy, dely,   &
                                 iyp, delyp, it, delt, itp, deltp)
                 ! compute modulated ensemble in obs space
                 if (neigv > 0) then
-                   call calc_linhx_modens(hx_mean_nobc(nob), state_d, &
+                   call calc_linhx_modens(hx_mean_nobc(nob), state_d(:,:,:,nmem), &
                                    dhx_dx, hx_modens(:,nob),          &
                                    ix, delx, ixp, delxp, iy, dely,    &
                                    iyp, delyp, it, delt, itp, delxp,  &
@@ -1201,7 +1212,7 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
           endif
 
           ! for wind, also read v-component
-          if (obtype == ' uv' .or. obtype == ' rw') then
+          if (obtype == ' uv') then
              nob = nob + 1
              x_code(nob)  = rdiagbuf(1,n)
 
@@ -1256,13 +1267,13 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
                                     ix, delx, ixp, delxp, iy, dely,  &
                                     iyp, delyp, it, delt, itp, deltp)
                    endif
-                   call calc_linhx(hx_mean_nobc(nob), state_d,       &
+                   call calc_linhx(hx_mean_nobc(nob), state_d(:,:,:,nmem), &
                                    dhx_dx, hx(nob),                  &
                                    ix, delx, ixp, delxp, iy, dely,   &
                                    iyp, delyp, it, delt, itp, deltp)
                    ! compute modulated ensemble in obs space
                    if (neigv > 0) then
-                      call calc_linhx_modens(hx_mean_nobc(nob), state_d, &
+                      call calc_linhx_modens(hx_mean_nobc(nob), state_d(:,:,:,nmem), &
                                       dhx_dx, hx_modens(:,nob),          &
                                       ix, delx, ixp, delxp, iy, dely,    &
                                       iyp, delyp, it, delt, itp, delxp,  &

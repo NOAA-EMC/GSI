@@ -82,6 +82,8 @@ module gsi_4dvar
 !                       will be set to center of window for 4D-ens mode
 !   lwrite4danl       - logical to turn on writing out of 4D analysis state for 4D analysis modes
 !                       ** currently only set up for write_gfs in ncepgfs_io module
+!   nhr_anal          - forecast times to output if lwrite4danl=T. if zero, output all times (default).
+!                       if > 0, output specific fcst time given by nhr_anal
 !   thin4d            - When .t., removes thinning of observations due to
 !                       location in the time window
 !
@@ -112,7 +114,7 @@ module gsi_4dvar
   public :: ladtest,ladtest_obs,lgrtest,lcongrad,nhr_obsbin,nhr_subwin,nwrvecs
   public :: jsiga,ltcost,iorthomax,liauon,lnested_loops
   public :: l4densvar,ens_nhr,ens_fhrlevs,ens_nstarthr,ibin_anl
-  public :: lwrite4danl,thin4d
+  public :: lwrite4danl,thin4d,nhr_anal
   public :: mPEs_observer
 
   logical         :: l4dvar
@@ -132,6 +134,8 @@ module gsi_4dvar
   logical         :: lnested_loops
   logical         :: lwrite4danl
   logical         :: thin4d
+
+  integer(i_kind),dimension(21) ::  nhr_anal
 
   integer(i_kind) :: iwrtinc
   integer(i_kind) :: iadatebgn, iadateend
@@ -210,6 +214,9 @@ ibin_anl = 1
 
 lwrite4danl = .false.
 thin4d = .false.
+! if zero, output all times.
+! if > 0, output specific fcst time given by nhr_anal
+nhr_anal = 0 
 
 end subroutine init_4dvar
 ! --------------------------------------------------------------------

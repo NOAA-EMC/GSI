@@ -43,14 +43,14 @@ program getsfcnstensupdp
                                 lun_sfcgcy=23,lun_nstanl=61,lun_sfcanl=62
   integer(i_kind), parameter :: idrt=4
 
-  character(len=80) :: fname_dtfanl,fname_nstges,fname_sfcges,fname_sfcgcy,fname_nstanl,fname_sfcanl
+  character(len=80) :: fname_dtfanl,fname_nstges,fname_sfcgcy,fname_nstanl,fname_sfcanl
   character(len=3)  :: charnanal
   character(len=8)  :: charbuf
   character(len=60) :: my_name = 'getsfcnstensupdp'
   character(len=1)  :: null = ' '
 
   integer(i_kind) :: mype,mype1,npe,nproc,iret
-  integer nrec_sfc, lonb, latb, n, npts
+  integer nrec_sfc, lonb, latb, n
   integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
   integer,dimension(7):: idate
   integer(i_kind) :: n_new_water,n_new_seaice

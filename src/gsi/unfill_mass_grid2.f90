@@ -197,7 +197,7 @@ subroutine unfill_mass_grid2v(gout,nx,ny,gin)
 end subroutine unfill_mass_grid2v
 
 subroutine unfill_mass_grid2t_ldmk(gout,nx,ny,gin,landmask, &
-                                   snow,seaice,i_snowt_check)
+                                   snow,seaice,deltaT,i_snowt_check)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    unfill_mass_grid2t        opposite of fill_mass_grid2
@@ -218,10 +218,13 @@ subroutine unfill_mass_grid2t_ldmk(gout,nx,ny,gin,landmask, &
 !     gout     - input A-grid (reorganized for distibution to local domains)
 !     gin      - preexisting input values to be added to on C-grid
 !     nx,ny    - input grid dimensions
+!     deltaT   - delta T between atmosphere and tsk/tslb(1)
 !     i_snowT_check - input option for snow Temperature adjustment
 !                     =0: input gin is not temperature
-!                     =1: make sure surface temperature onver snow is below 0C
+!                     =1: tsk make sure surface temperature onver snow is below 0C
 !                     =2: input gin is soil mositure, don't adjust over seaice
+!                     =3: soil temperature
+!                     =4: soilt1
 !
 !   output argument list:
 !     gin      - output result on C grid
@@ -236,6 +239,8 @@ subroutine unfill_mass_grid2t_ldmk(gout,nx,ny,gin,landmask, &
   use general_commvars_mod, only: ltosi,ltosj
   use mod_wrfmass_to_a, only: wrfmass_a_to_h4
   use gridmod, only: nlon, nlat
+  use rapidrefresh_cldsurf_mod, only: DTsTmax
+  use constants, only: partialSnowThreshold
 
   implicit none
 
@@ -246,6 +251,7 @@ subroutine unfill_mass_grid2t_ldmk(gout,nx,ny,gin,landmask, &
   real(r_single) , intent(in)    :: landmask(nx,ny)
   real(r_single) , intent(in)    :: snow(nx,ny)
   real(r_single) , intent(in)    :: seaice(nx,ny)
+  real(r_single) , intent(in)    :: deltaT(nx,ny)
   
   real(r_single) ba(nlon,nlat)
   real(r_single) b(nx,ny)
@@ -261,37 +267,43 @@ subroutine unfill_mass_grid2t_ldmk(gout,nx,ny,gin,landmask, &
      call wrfmass_a_to_h4(ba,b)
   endif
 ! only add analysis increment over land
-!  if(nlon == nx .and. nlat == ny) then
-! do nothing
-!  else
-     if(maxval(landmask) > 1.01_r_single .or. minval(landmask) < -0.01_r_single .or. &
-        maxval(seaice)   > 1.01_r_single .or. minval(seaice)   < -0.01_r_single) then
-       write(*,*) 'bad landmask or seaice, do not use landmask filter soil nudging field'
-     else
-        do j=1,ny
-           do i=1,nx
-              if(landmask(i,j) < 0.1_r_single)  b(i,j)=0.0_r_single 
-              if(i_snowt_check==2 .and. seaice(i,j) > 0.5_r_single)  b(i,j)=0.0_r_single 
-           end do
+  if(maxval(landmask) > 1.01_r_single .or. minval(landmask) < -0.01_r_single .or. &
+     maxval(seaice)   > 1.01_r_single .or. minval(seaice)   < -0.01_r_single) then
+     write(*,*) 'bad landmask or seaice, do not use landmask filter soil nudging field'
+  else
+     do j=1,ny
+        do i=1,nx
+           if(landmask(i,j) < 0.1_r_single)  b(i,j)=0.0_r_single 
+           if(i_snowT_check==2 .and. seaice(i,j) > 0.5_r_single)  b(i,j)=0.0_r_single 
+!  don't change soil T (TSBL) under thick snow (> partialSnowThreshold=32 mm)
+           if(i_snowT_check==3 .and. (snow(i,j) > partialSnowThreshold)) b(i,j)=0.0_r_single
+! Limit application of soil temp nudging in fine grid as follows:
+!  - If cooling is indicated, apply locally only
+!        if deltaT = Tskin - T(k=1) > -20K. for TSK and SOILT1  
+!        if deltaT = TSLB(1) - T(k=1) > -20K. for TSLB  
+! Idea:  If skin temp is already much colder than atmos temp,
+!        it's useless to cool off the soil any more
+!        As we also know, the repeated application will created
+!          unrealistic values.
+!  - Do similar for indicated soil warming, apply locally only:
+!        if deltaT = Tskin - T(k=1) < 20K. for TSK and SOILT1  
+!        if deltaT = TSLB(1) - T(k=1) < 20K. for TSLB  
+!
+           if( (i_snowT_check==1 .or. i_snowT_check==3 .or. i_snowT_check==4) ) then
+              if(deltaT(i,j) < -DTsTmax .and. b(i,j) < 0.0_r_single) & 
+                  b(i,j)=0.0_r_single
+              if(deltaT(i,j) >  DTsTmax .and. b(i,j) > 0.0_r_single) &
+                  b(i,j)=0.0_r_single
+           endif
         end do
-     endif
-!  endif
+     end do
+  endif
 ! Mass grids--just copy
   do j=1,ny
      do i=1,nx
         gin(i,j)=b(i,j)+gin(i,j)
      end do
   end do
-!  QC surface temperature over snow
-  if(i_snowT_check==1) then
-     do j=1,ny
-        do i=1,nx
-           if(snow(i,j) > 32.0_r_kind) then
-              gin(i,j) = min(gin(i,j), 273.15_r_kind)
-           endif
-        end do
-     end do
-  endif
   
 end subroutine unfill_mass_grid2t_ldmk
 
