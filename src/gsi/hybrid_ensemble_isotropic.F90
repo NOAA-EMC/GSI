@@ -1331,7 +1331,7 @@ end subroutine normal_new_factorization_rf_y
                 elseif(i_en_perts_io==3) then ! get en_perts from save files
                    call en_perts_get_from_save_fulldomain
                 else
-                  call mpi_barrier(mpi_comm_world,ierror)  !thinkdeb why a mpi barrier is needed here
+                   call get_gefs_for_regional
                 endif
 
 !     pseudo_hybens = .true.: pseudo ensemble hybrid option for hwrf

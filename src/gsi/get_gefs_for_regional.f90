@@ -212,15 +212,17 @@ subroutine get_gefs_for_regional
   do n=1,200
      read(10,'(a)',err=20,end=40)filename 
   enddo
-40 n_ens_gfs=n-1
+40 n_ens_temp=n-1
+write(6,*)'the number of ensemble members in the filelist is ',n_ens_temp
+write(6,*)'The actual number to be used of the first ensembles is ',n_ens_gfs
 !cltorg 40 n_ens=n-1
 
 !    set n_ens_temp depending on if we want to add bias perturbation to the ensemble
 
   if(add_bias_perturbation) then
-     n_ens_temp=n_ens+1
+     n_ens_temp=n_ens_gfs+1
   else
-     n_ens_temp=n_ens
+     n_ens_temp=n_ens_gfs
   end if
 
   rewind (10) 
