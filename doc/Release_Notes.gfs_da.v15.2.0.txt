@@ -1,0 +1,165 @@
+FV3GFS DA RELEASE NOTES (v15.2.0)
+
+GIT TAG 
+   * The GFS DA v15.2 component is in NOAA VLAB gerrit:ProdGSI.  The GFS DA v15.2 tag is intended to 
+     be installed as part of the entire FV3GFS package.   Please see FV3GFS release notes for name 
+     and location of FV3GFS tag in NOAA VLAB gerrit.   The FV3GFS tag contains a checkout script 
+     which checks out the appropriate FV3GFS DA tag.
+
+
+
+
+DOC CHANGES 
+   * Update Release_Notes.gfs_da.v15.0.0.txt to reflect GFS DA v15.2 changes
+
+
+
+
+CODE CHANGES
+   * global_gsi source code changes in src/
+     * read_gps.f90 - add ability to process data from new GNSSRO missions (COSMIC-2, Metop-C, PAZ)
+     * read_obs.F90 - add ability to process data from KOMPSAT-5 and new GNSSRO missions (COSMIC-2, Metop-C, PAZ)
+     * read_satwnd.f90 - add code to handle new VIIRS bufr format
+     * setupbend.f90 - add ability to process data from new GNSSRO missions (COSMIC-2, Metop-C, PAZ)
+     * setupref.f90 - add ability to process data from new GNSSRO missions (COSMIC-2, Metop-C, PAZ)
+   * global_gsi and global_enkf library change
+     * cmake/Modules/platforms/WCOSS-Dell.cmake - update to BUFR_VER "11.3.0"
+     * modulefiles/modulefile.ProdGSI.wcoss_d - update to bufr/11.3.0
+     * modulefiles/modulefile.gdas_enkf.dell - update to bufr/11.3.0
+     * modulefiles/modulefile.global_gsi.dell - update to bufr/11.3.0
+
+
+
+
+JOB CHANGES
+   * None
+
+
+
+
+SCRIPT CHANGES
+   * Minimization Monitoring changes in util/Minimization_Monitor/nwprod/{gdas,gfs}.v1.0.0/scripts/
+     * exgdas_vrfminmon.sh.ecf - check current directory for gnorm_data.txt before checking previous day
+     * exgfs_vrfminmon.sh.ecf - check current directory for gnorm_data.txt before checking previous day
+
+
+
+
+PARM CHANGES
+   * Remove Phase1/2 references from Monitoring configuration files
+     * util/Conventional_Monitor/parm/CMon_config - remove reference to COMROOTp1
+     * util/Minimization_Monitor/parm/MinMon_config - remove reference to COMROOTp1
+     * util/Radiance_Monitor/parm/RadMon_config - remove reference to COMROOTp1
+
+
+
+
+FIX CHANGES
+   * fix/global_convinfo.txt
+     * place GOES-16 AMV in monitor mode
+     * assimilate GOES-17 AMV
+     * set GOES VIS AMV usage flag to -3
+     * assimilate KOMPSAT-5 GPS-RO
+     * monitor Metop-C GPS-RO
+   * fix/global_satinfo.txt
+      * assimilate Metop-C AMSUA
+      * assimilate Metop-C MHS
+
+
+
+
+RESOURCE INFORMATION
+   * No change from GFS v15.1
+
+
+
+
+PRE-IMPLEMENTATION TESTING REQUIREMENTS
+   * Which production jobs should be tested as part of this implementation?
+      * The GFS DA v15.2 component runs within the GFS v15.2.  A single cycle 
+        test of GFS v15.2 will exercise GFS DA v15.2 jobs.
+
+   * Does this change require a 30-day evaluation?
+      * No.
+
+
+   * Suggested evaluators
+      * EMC DA developers
+
+
+
+DISSEMINATION INFORMATION
+   * Where should this output be sent?
+      * No change from GFS v15.1
+
+
+   * Who are the users?
+      * No change from GFS v15.1
+
+
+   * Which output files should be transferred from PROD WCOSS to DEV WCOSS?
+      * No change from GFS v15.1
+
+
+   * Directory changes
+      * No change from GFS v15.1
+
+
+   * File changes.  Only FV3GFS DA file changes are listed below.
+      * No change from GFS v15.1
+
+
+
+
+HPSS ARCHIVE
+   * Retention length?
+      * No change from GFS v15.1
+
+
+   * List which output files should be archived
+      * No change from GFS v15.1
+          
+
+
+IMPLEMENTATION INSTRUCTIONS
+   * Please note that the DA components must be installed in conjunction with the entire FV3GFS package.  
+     Thus, the implementation instructions below extract the entire FV3GFS package.   The FV3GFS package 
+     is tagged in NOAA VLAB gerrit:global-workflow as feature/dev-v15.2.   Implementation instructions 
+     for this tag follow below:
+
+      1) cd  $NWROOTp3
+
+      2) mkdir $NWROOTp3/gfs.v15.2.0
+
+      3) cd $NWROOTp3/gfs.v15.2.0
+
+      4) git clone --recursive gerrit:global-workflow .
+         * Notes:
+            * The "." after fv3gfs is important.  It tells git to clone fv3gfs into the local working directory, 
+              $NWROOTp3/gfs.v15.2.0.
+            * The SPA(s) handling the FV3GFS implementation may encounter "permission denied" messages when 
+             attempting to clone Vlab gerrit repositories.  Code managers need to add the SPA(s) as project 
+             developers.  For the FV3GFS DA project please contact Michael.Lueken@noaa.gov or Mark.Potts@noaa.gov. 
+
+      5) git checkout feature/dev-v15.2
+
+      6) cd sorc
+
+      7) ./checkout.sh
+         * This script extracts the following FV3GFS components from gerrit:  FV3GFS model, FV3GFS DA, 
+           FV3GFS UPP, FV3GFS WAFS
+
+      8) ./build_all.sh
+         * Script build_all.sh compiles all FV3GFS components.   Runtime output from the build for each 
+           package is written to log files in directory logs.  Specifically, FV3GFS DA build information 
+           is written to logs/build_gsi.log.  Script build_gsi.sh invokes gsi.fd/ush/build_all_cmke.sh.
+           This script uses cmake to build FV3GFS DA components.   Script build_all_cmake.sh accepts two 
+           command line options:  build type and directory path to package.  Two build types are 
+           supported - PRODUCTION (default) and DEBUG.
+
+      9) ./link_fv3gfs.sh nco dell
+
+
+
+JOB DEPENDENCIES & FLOW DIAGRAM
+   * no change from GFS v15.1.0
