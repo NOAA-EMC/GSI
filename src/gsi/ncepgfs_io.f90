@@ -1165,6 +1165,7 @@ end subroutine write_ghg_grid
     use general_specmod, only: general_init_spec_vars,general_destroy_spec_vars,spec_vars
     use gsi_4dvar, only: lwrite4danl,nhr_anal
     use ncepnems_io, only: write_nemsatm,write_nemssfc,write_nems_sfc_nst
+    use write_fv3_incr, only: write_fv3_increment
 
     implicit none
 
@@ -1301,8 +1302,13 @@ end subroutine write_ghg_grid
 
         if ( use_gfs_nemsio ) then
 
-            call write_nemsatm(grd_a,sp_a,filename,mype_atm, &
-                 atm_bundle,itoutsig)
+            if ( write_fv3_incr ) then
+                call write_fv3_increment(grd_a,sp_a,filename,mype_atm, &
+                     atm_bundle,itoutsig)
+            else
+                call write_nemsatm(grd_a,sp_a,filename,mype_atm, &
+                     atm_bundle,itoutsig)
+            end if
 
         else
 
