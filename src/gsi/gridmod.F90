@@ -88,6 +88,7 @@ module gridmod
 !   2017-08-31  Li      - add sfcnst_comb to handle surface and nsst combined file
 !   2018-02-15  wu      - add fv3_regional & grid_ratio_fv3_regional
 !   2019-03-05  martin  - add wgtfactlats for factqmin/factqmax scaling
+!   2019-09-04  martin  - add write_fv3_incr to write netCDF increment rather than analysis in NEMSIO format
 !
 !                        
 !
@@ -153,6 +154,7 @@ module gridmod
   public :: jcap_gfs,nlat_gfs,nlon_gfs
   public :: use_sp_eqspace,jcap_cut
   public :: wrf_mass_hybridcord
+  public :: write_fv3_incr
 
   interface strip
      module procedure strip_single_rank33_
@@ -186,6 +188,7 @@ module gridmod
   logical use_gfs_nemsio    ! .t. for using NEMSIO to real global first guess
   logical sfcnst_comb       ! .t. for using combined sfc & nst file
   logical use_sp_eqspace    ! .t. use equally-space grid in spectral transforms
+  logical write_fv3_incr    ! .t. write netCDF increment rather than NEMSIO analysis
 
   logical use_readin_anl_sfcmask        ! .t. for using readin surface mask
   character(1) nmmb_reference_grid      ! ='H': use nmmb H grid as reference for analysis grid
