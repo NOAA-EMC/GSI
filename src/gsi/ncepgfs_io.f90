@@ -1252,13 +1252,13 @@ end subroutine write_ghg_grid
             endif
             itoutsig = it
             if ( it == ntguessig ) then
-               if ( increment > 0 ) then
+               if ( increment > 0 .or. write_fv3_incr) then
                    filename = 'siginc'
                else
                    filename = 'siganl'
                endif
             else
-               if ( increment > 0 ) then
+               if ( increment > 0 .or. write_fv3_incr ) then
                    write(filename,"('sigi',i2.2)") ifilesig(it)
                else
                    write(filename,"('siga',i2.2)") ifilesig(it)
@@ -1266,7 +1266,7 @@ end subroutine write_ghg_grid
             endif
         else
             itoutsig = ntguessig
-            if ( increment > 0 ) then
+            if ( increment > 0 .or. write_fv3_incr ) then
                 filename = 'siginc'
             else
                 filename = 'siganl'
@@ -1274,7 +1274,7 @@ end subroutine write_ghg_grid
         endif
 
         if ( mype == 0 ) then
-            if ( increment > 0 ) then
+            if ( increment > 0 .or. write_fv3_incr ) then
                 write(6,'(A,I2.2)') 'WRITE_GFS: writing analysis increment for FHR ', ifilesig(itoutsig)
             else
                 write(6,'(A,I2.2)') 'WRITE_GFS: writing full analysis state for FHR ', ifilesig(itoutsig)
