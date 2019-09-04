@@ -19,6 +19,7 @@ CODE CHANGES
    * global_gsi source code changes in src/
      * read_gps.f90 - add ability to process data from new GNSSRO missions (COSMIC-2, Metop-C, PAZ)
      * read_obs.F90 - add ability to process data from KOMPSAT-5 and new GNSSRO missions (COSMIC-2, Metop-C, PAZ)
+                      and new VIIRS bufr format
      * read_satwnd.f90 - add code to handle new VIIRS bufr format
      * setupbend.f90 - add ability to process data from new GNSSRO missions (COSMIC-2, Metop-C, PAZ)
      * setupref.f90 - add ability to process data from new GNSSRO missions (COSMIC-2, Metop-C, PAZ)
