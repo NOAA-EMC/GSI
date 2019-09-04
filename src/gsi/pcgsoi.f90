@@ -106,6 +106,7 @@ subroutine pcgsoi()
 !   2016-03-25  todling - beta-mult param now within cov (following Dave Parrish corrections)
 !   2016-05-13  parrish -  remove beta12mult.  Replace with sqrt_beta_s_mult, sqrt_beta_e_mult, inside
 !                          bkerror and bkerror_a_en.
+!   2019-09-04  martin  -  add sval to write_all call for writing out increment
 !
 ! input argument list:
 !
@@ -816,7 +817,7 @@ subroutine pcgsoi()
       call write_all(-1)
     else
       if(jiter == miter) then
-         call write_all(-1)
+         call write_all(-1, sval)
       endif
   endif
 

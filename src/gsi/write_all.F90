@@ -8,7 +8,7 @@
 ! !INTERFACE:
 !
 
-subroutine write_all(increment)
+subroutine write_all(increment, sval)
 
 ! !USES:
 
@@ -35,16 +35,20 @@ subroutine write_all(increment)
 
   use ncepgfs_io, only: write_gfs
 
-  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_bundlemod, only: gsi_bundle, gsi_bundlegetpointer
   use gsi_metguess_mod, only: gsi_metguess_bundle
 
   use mpeu_util, only: die
+
+  use gsi_4dvar, only: nobs_bins
   
   implicit none
 
 ! !INPUT PARAMETERS:
 
   integer(i_kind), intent(in   ) :: increment  ! when >0 write out w/ increment
+  type(gsi_bundle), optional, intent(inout) :: sval(nobs_bins)
+  
 
 ! !OUTPUT PARAMETERS:
 
@@ -93,6 +97,7 @@ subroutine write_all(increment)
 !   2013-10-19  todling - metguess holds ges fields now
 !   2014-10-05  todling - background biases now held in bundle
 !   2017-10-10  Wu W    - add FV3 option for regional output
+!   2019-09-04  Martin  - add optional sval to write increment for FV3
 !
 ! !REMARKS:
 !
@@ -133,7 +138,11 @@ subroutine write_all(increment)
 !    Write atmospheric and surface analysis
      mype_atm=0
      mype_sfc=npe/2
-     call write_gfs(increment,mype_atm,mype_sfc)
+     if (present(sval)) then
+        call write_gfs(increment,mype_atm,mype_sfc, sval)
+     else
+        call write_gfs(increment,mype_atm,mype_sfc)
+     end if
 
 !    Write file bias correction     
      if(abs(bcoption)>0)then
