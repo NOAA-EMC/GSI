@@ -1133,6 +1133,7 @@ end subroutine write_ghg_grid
 !                        gues while original cw gues still have negative values.
 !   2013-10-19  todling - update cloud_efr module name
 !   2013-10-29  todling - revisit write to allow skipping vars not in MetGuess
+!   2019-09-04  martin  - added option to write fv3 netcdf increment file
 !
 !   input argument list:
 !     increment          - when >0 will write increment from increment-index slot
@@ -1150,7 +1151,7 @@ end subroutine write_ghg_grid
     use mpimod, only: mype
     use guess_grids, only: dsfct
     use guess_grids, only: ntguessig,ntguessfc,ifilesig,nfldsig
-    use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat,use_gfs_nemsio
+    use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat,use_gfs_nemsio,write_fv3_incr
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use gsi_bundlemod, only: gsi_grid
@@ -1252,7 +1253,7 @@ end subroutine write_ghg_grid
             endif
             itoutsig = it
             if ( it == ntguessig ) then
-               if ( increment > 0 .or. write_fv3_incr) then
+               if ( increment > 0 .or. write_fv3_incr ) then
                    filename = 'siginc'
                else
                    filename = 'siganl'

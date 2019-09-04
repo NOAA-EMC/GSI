@@ -62,6 +62,15 @@ contains
     use mpimod, only: ierror
     use mpimod, only: mype
 
+    use gridmod, only: strip
+
+    use general_commvars_mod, only: load_grid
+    use general_specmod, only: spec_vars
+    use general_sub2grid_mod, only: sub2grid_info
+
+    use gsi_bundlemod, only: gsi_bundle, gsi_bundlegetpointer
+    use control_vectors, only: lupp
+
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -97,13 +106,14 @@ contains
     integer(i_kind) :: mm1, k
     integer(i_kind) :: iret, istatus 
     integer(i_kind) :: ncid_out, lon_dimid, lat_dimid, lev_dimid, ilev_dimid
-    integer(i_kind) :: o3varid
+    integer(i_kind) :: lonvarid, latvarid, levvarid, pfullvarid, ilevvarid, &
+                       hyaivarid, hybivarid, uvarid, vvarid, delpvarid, delzvarid, &
+                       tvarid, sphumvarid, liqwatvarid, o3varid, icvarid
     integer(i_kind) :: dimids3(3),nccount(3),ncstart(3)
 
 !*************************************************************************
 !   Initialize local variables
     mm1=mype+1
-    nlatm2=grd%nlat-2
 
     istatus=0
     call gsi_bundlegetpointer(gfs_bundle,'ps', sub_ps,  iret); istatus=istatus+iret
@@ -125,19 +135,34 @@ contains
     ! Single task writes increment to file
     if ( mype == mype_out ) then
       ! create the output netCDF file
-      call nccheck_incr(nf90_create(trim(filename), nf90_clobber, ncid_out))
+      call nccheck_incr(nf90_create(path=trim(filename), cmode=ior(nf90_clobber,nf90_64bit_offset), ncid=ncid_out))
       ! create dimensions based on analysis resolution, not guess
       call nccheck_incr(nf90_def_dim(ncid_out, "lon", grd%nlon, lon_dimid))
       call nccheck_incr(nf90_def_dim(ncid_out, "lat", grd%nlat, lat_dimid))
       call nccheck_incr(nf90_def_dim(ncid_out, "lev", grd%nsig, lev_dimid))
       call nccheck_incr(nf90_def_dim(ncid_out, "ilev", grd%nsig+1, ilev_dimid))
       ! place global attributes to parallel calc_increment output
-      call nccheck_incr(nf90_put_attr(ncid_out, nf90_global, "source", "GSI"))
-      call nccheck_incr(nf90_put_attr(ncid_out, nf90_global, "comment", &
+      call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "source", "GSI"))
+      call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "comment", &
                                       "global analysis increment from write_fv3_increment"))
       dimids3 = (/ lon_dimid, lat_dimid, lev_dimid /)
       ! create variables
+      call nccheck_incr(nf90_def_var(ncid_out, "lon", nf90_real, (/lon_dimid/), lonvarid))
+      call nccheck_incr(nf90_def_var(ncid_out, "lat", nf90_real, (/lat_dimid/), latvarid))
+      call nccheck_incr(nf90_def_var(ncid_out, "lev", nf90_real, (/lev_dimid/), levvarid))
+      call nccheck_incr(nf90_def_var(ncid_out, "pfull", nf90_real, (/lev_dimid/), pfullvarid))
+      call nccheck_incr(nf90_def_var(ncid_out, "ilev", nf90_real, (/ilev_dimid/), ilevvarid))
+      call nccheck_incr(nf90_def_var(ncid_out, "hyai", nf90_real, (/ilev_dimid/), hyaivarid))
+      call nccheck_incr(nf90_def_var(ncid_out, "hybi", nf90_real, (/ilev_dimid/), hybivarid))
+      call nccheck_incr(nf90_def_var(ncid_out, "u_inc", nf90_real, dimids3, uvarid)) 
+      call nccheck_incr(nf90_def_var(ncid_out, "v_inc", nf90_real, dimids3, vvarid)) 
+      call nccheck_incr(nf90_def_var(ncid_out, "delp_inc", nf90_real, dimids3, delpvarid)) 
+      call nccheck_incr(nf90_def_var(ncid_out, "delz_inc", nf90_real, dimids3, delzvarid)) 
+      call nccheck_incr(nf90_def_var(ncid_out, "T_inc", nf90_real, dimids3, tvarid)) 
+      call nccheck_incr(nf90_def_var(ncid_out, "sphum_inc", nf90_real, dimids3, sphumvarid)) 
+      call nccheck_incr(nf90_def_var(ncid_out, "liq_wat_inc", nf90_real, dimids3, liqwatvarid)) 
       call nccheck_incr(nf90_def_var(ncid_out, "o3mr_inc", nf90_real, dimids3, o3varid)) 
+      call nccheck_incr(nf90_def_var(ncid_out, "icmr_inc", nf90_real, dimids3, icvarid)) 
       call nccheck_incr(nf90_enddef(ncid_out))
     end if
 
@@ -173,6 +198,7 @@ contains
    if ( mype == mype_out ) then
       call nccheck_incr(nf90_close(ncid_out))
       write(6,*) "FV3 netCDF increment written, file=",filename
+   end if
 
 
   end subroutine write_fv3_inc_
@@ -182,7 +208,7 @@ contains
     integer, intent (in   ) :: status
     if (status /= nf90_noerr) then
       print *, "fv3_increment netCDF error", trim(nf90_strerror(status))
-      stop2(999)
+      call stop2(999)
     end if
   end subroutine nccheck_incr
 
