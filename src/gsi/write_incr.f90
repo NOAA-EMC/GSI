@@ -305,15 +305,15 @@ contains
     end do
     ! delz increment
     ncstart = (/ 1, 1, grd%nsig /)
-    call mpi_gatherv(dzsm(1,k),grd%ijn(mm1),mpi_rtype,&
-         work1,grd%ijn,grd%displs_g,mpi_rtype,&
-         mype_out,mpi_comm_world,ierror)
     do k=1,grd%nsig
+       call mpi_gatherv(dzsm(1,k),grd%ijn(mm1),mpi_rtype,&
+            work1,grd%ijn,grd%displs_g,mpi_rtype,&
+            mype_out,mpi_comm_world,ierror)
        if (mype == mype_out) then
           call load_grid(work1,gridrev)
           ! GSI is N->S, we want S->N 
           do j=1,grd%nlat-2
-             grid(:,j) = gridrev(:,grd%nlat-1-j)
+             grid(:,j) = gridrev(:,grd%nlat-1-j) * -1.0_r_kind ! flip sign
           end do
           ! write to file
           call nccheck_incr(nf90_put_var(ncid_out, delzvarid, sngl(grid), &
