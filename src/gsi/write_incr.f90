@@ -62,7 +62,7 @@ contains
     use mpimod, only: ierror
     use mpimod, only: mype
 
-    use gridmod, only: strip, rlats, rlons
+    use gridmod, only: strip, rlats, rlons, bk5
 
     use general_commvars_mod, only: load_grid
     use general_specmod, only: spec_vars
@@ -71,9 +71,11 @@ contains
     use gsi_bundlemod, only: gsi_bundle, gsi_bundlegetpointer
     use control_vectors, only: lupp
 
-    use constants, only: one, fv, rad2deg
+    use constants, only: one, fv, rad2deg, r1000
 
-    use gsi_4dvar, only: nobs_bins
+    use gsi_4dvar, only: nobs_bins, lwrite4danl
+
+    use guess_grids, only: load_geop_hgt,geop_hgti
 
     implicit none
 
@@ -91,17 +93,15 @@ contains
 
     character(len=120) :: my_name = 'WRITE_FV3INCR'
 
-    !real(r_kind),pointer,dimension(:,:) :: sub_ps
     real(r_kind),pointer,dimension(:,:,:) :: sub_u,sub_v,sub_tsen
     real(r_kind),pointer,dimension(:,:,:) :: sub_q,sub_qana,sub_oz
     real(r_kind),pointer,dimension(:,:,:) :: sub_ql, sub_qi
+    real(r_kind),pointer,dimension(:,:) :: sub_ps
 
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) :: sub_dzb,sub_dza
-    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) :: sub_prsl
-    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig+1) :: sub_prsi
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig+1,ibin) :: ges_geopi
 
-    real(r_kind),dimension(grd%lat1*grd%lon1)     :: psm
+    real(r_kind),dimension(grd%lat1*grd%lon1)     :: pssm
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig):: sub_dp
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: tsensm,prslm, usm, vsm
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: dpsm, qsm, qsmana, ozsm
@@ -109,9 +109,11 @@ contains
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: dzsm
     real(r_kind),dimension(max(grd%iglobal,grd%itotsub)) :: work1,work2
     real(r_kind),dimension(grd%nlon,grd%nlat-2):: grid, gridrev
+    real(r_kind),dimension(grd%nlon,grd%nlat-2,grd%nsig):: delp
     real(r_kind),dimension(grd%nlon) :: deglons
     real(r_kind),dimension(grd%nlat-2) :: deglats
     real(r_kind),dimension(grd%nsig) :: levsout
+    real(r_kind),dimension(grd%nsig+1) :: ilevsout
 
     integer(i_kind) :: mm1, i, j, k
     integer(i_kind) :: iret, istatus 
@@ -128,7 +130,6 @@ contains
     istatus=0
     ! TODO CRM - what is the correct index for sval? always 1? related to nfldsig?
     call gsi_bundlegetpointer(sval(1),'tsen', sub_tsen,  iret); istatus=istatus+iret
-    !call gsi_bundlegetpointer(sval(1),'tv', sub_tv,  iret); istatus=istatus+iret
     call gsi_bundlegetpointer(gfs_bundle,'q',  sub_qana,   iret); istatus=istatus+iret ! need this one for Tv to Tsen
     call gsi_bundlegetpointer(sval(1),'q',  sub_q,   iret); istatus=istatus+iret
     call gsi_bundlegetpointer(sval(1),'ql',  sub_ql,   iret); istatus=istatus+iret
@@ -136,6 +137,7 @@ contains
     call gsi_bundlegetpointer(sval(1),'oz', sub_oz,  iret); istatus=istatus+iret
     call gsi_bundlegetpointer(sval(1),'u', sub_u, iret); istatus=istatus+iret
     call gsi_bundlegetpointer(sval(1),'v', sub_v, iret); istatus=istatus+iret
+    call gsi_bundlegetpointer(sval(1),'ps', sub_ps, iret); istatus=istatus+iret ! needed for delp
     if ( istatus /= 0 ) then
        if ( mype == 0 ) then
          write(6,*) 'write_fv3_incr_: ERROR'
@@ -183,6 +185,19 @@ contains
       call nccheck_incr(nf90_enddef(ncid_out))
     end if
 
+    ! compute delz
+     if ((.not. lwrite4danl) .or. ibin == 1) ges_geopi = geop_hgti
+     do k=1,grd%nsig
+        sub_dzb(:,:,k) = ges_geopi(:,:,k+1,ibin) - ges_geopi(:,:,k,ibin)
+     enddo
+
+     if ((.not. lwrite4danl) .or. ibin == 1) call load_geop_hgt
+     do k=1,grd%nsig
+        sub_dza(:,:,k) = geop_hgti(:,:,k+1,ibin) - geop_hgti(:,:,k,ibin)
+     enddo
+
+     sub_dza = sub_dza - sub_dzb !sub_dza is increment
+
     ! Strip off boundary points from subdomains
     call strip(sub_tsen  ,tsensm  ,grd%nsig)
     call strip(sub_q   ,qsm   ,grd%nsig)
@@ -190,11 +205,10 @@ contains
     call strip(sub_qi  ,qism  ,grd%nsig)
     call strip(sub_qana   ,qsmana  ,grd%nsig)
     call strip(sub_oz  ,ozsm  ,grd%nsig)
-    !call strip(sub_dp  ,dpsm  ,grd%nsig)
-    !call strip(sub_prsl,prslm ,grd%nsig)
+    call strip(sub_ps  ,pssm  )
     call strip(sub_u   ,usm   ,grd%nsig)
     call strip(sub_v   ,vsm   ,grd%nsig)
-    !if (lupp) call strip(sub_dza ,dzsm  ,grd%nsig)
+    call strip(sub_dza, dzsm, grd%nsig)
 
     nccount = (/ grd%nlon, grd%nlat-2, 1 /)
     if (mype == mype_out) then
@@ -215,14 +229,24 @@ contains
        ! levels
        do k=1,grd%nsig
          levsout(k) = float(k)
+         ilevsout(k) = float(k)
        end do
+       ilevsout(grd%nsig+1) = float(grd%nsig+1)
        ! write to file
        call nccheck_incr(nf90_put_var(ncid_out, levvarid, sngl(levsout), &
                          start = (/1/), count = (/grd%nsig/)))
        ! pfull
+       call nccheck_incr(nf90_put_var(ncid_out, pfullvarid, sngl(levsout), &
+                         start = (/1/), count = (/grd%nsig/)))
        ! ilev
+       call nccheck_incr(nf90_put_var(ncid_out, ilevvarid, sngl(ilevsout), &
+                         start = (/1/), count = (/grd%nsig+1/)))
        ! hyai
+       call nccheck_incr(nf90_put_var(ncid_out, hyaivarid, sngl(ilevsout), &
+                         start = (/1/), count = (/grd%nsig+1/)))
        ! hybi
+       call nccheck_incr(nf90_put_var(ncid_out, hybivarid, sngl(ilevsout), &
+                         start = (/1/), count = (/grd%nsig+1/)))
     end if
     ! u increment
     ncstart = (/ 1, 1, grd%nsig /)
@@ -261,7 +285,42 @@ contains
        ncstart(3) = grd%nsig-k ! GSI is sfc->top, FV3 is top->sfc
     end do
     ! delp increment
+    ncstart = (/ 1, 1, grd%nsig /)
+    call mpi_gatherv(pssm(1),grd%ijn(mm1),mpi_rtype,&
+         work1,grd%ijn,grd%displs_g,mpi_rtype,&
+         mype_out,mpi_comm_world,ierror)
+    do k=1,grd%nsig
+       if (mype == mype_out) then
+          call load_grid(work1,gridrev)
+          ! GSI is N->S, we want S->N 
+          do j=1,grd%nlat-2
+             grid(:,j) = gridrev(:,grd%nlat-1-j)
+          end do
+          delp(:,:,k) = grid * (bk5(k)-bk5(k+1)) * r1000
+          ! write to file
+          call nccheck_incr(nf90_put_var(ncid_out, delpvarid, sngl(delp(:,:,k)), &
+                            start = ncstart, count = nccount))
+       endif
+       ncstart(3) = grd%nsig-k ! GSI is sfc->top, FV3 is top->sfc
+    end do
     ! delz increment
+    ncstart = (/ 1, 1, grd%nsig /)
+    call mpi_gatherv(dzsm(1,k),grd%ijn(mm1),mpi_rtype,&
+         work1,grd%ijn,grd%displs_g,mpi_rtype,&
+         mype_out,mpi_comm_world,ierror)
+    do k=1,grd%nsig
+       if (mype == mype_out) then
+          call load_grid(work1,gridrev)
+          ! GSI is N->S, we want S->N 
+          do j=1,grd%nlat-2
+             grid(:,j) = gridrev(:,grd%nlat-1-j)
+          end do
+          ! write to file
+          call nccheck_incr(nf90_put_var(ncid_out, delzvarid, sngl(grid), &
+                            start = ncstart, count = nccount))
+       endif
+       ncstart(3) = grd%nsig-k ! GSI is sfc->top, FV3 is top->sfc
+    end do
     ! Temperature Increment
     ncstart = (/ 1, 1, grd%nsig /)
     do k=1,grd%nsig
