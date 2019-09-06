@@ -79,6 +79,7 @@ contains
     use jfunc, only: xhatsave
 
     use guess_grids, only: load_geop_hgt,geop_hgti
+    use state_vectors, only: prt_state_norms, allocate_state, deallocate_state
 
     implicit none
 
@@ -96,7 +97,7 @@ contains
     character(len=120) :: my_name = 'WRITE_FV3INCR'
 
     real(r_kind),pointer,dimension(:,:,:) :: sub_u,sub_v,sub_tsen
-    real(r_kind),pointer,dimension(:,:,:) :: sub_q,sub_qana,sub_oz
+    real(r_kind),pointer,dimension(:,:,:) :: sub_q,sub_oz
     real(r_kind),pointer,dimension(:,:,:) :: sub_ql, sub_qi
     real(r_kind),pointer,dimension(:,:) :: sub_ps
 
@@ -106,7 +107,7 @@ contains
     real(r_kind),dimension(grd%lat1*grd%lon1)     :: pssm
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig):: sub_dp
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: tsensm,prslm, usm, vsm
-    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: dpsm, qsm, qsmana, ozsm
+    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: dpsm, qsm, ozsm
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: qism, qlsm 
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: dzsm
     real(r_kind),dimension(max(grd%iglobal,grd%itotsub)) :: work1,work2
@@ -125,9 +126,9 @@ contains
                        tvarid, sphumvarid, liqwatvarid, o3varid, icvarid
     integer(i_kind) :: dimids3(3),nccount(3),ncstart(3)
 
-    type(gsi_bundle) :: sval(nobs_bins)
-    type(gsi_bundle) :: eval(ntlevs_ens)
-    type(gsi_bundle) :: mval(nsubwin)
+    type(gsi_bundle) :: svalinc(nobs_bins)
+    type(gsi_bundle) :: evalinc(ntlevs_ens)
+    type(gsi_bundle) :: mvalinc(nsubwin)
     type(predictors) :: sbiasinc
 
 !*************************************************************************
@@ -138,7 +139,17 @@ contains
 !   Convert from control space directly to physical
 !   space for comparison with obs.
     call allocate_preds(sbiasinc)
-    call control2state(xhatsave,mval,sbiasinc)
+    call control2state(xhatsave,mvalinc,sbiasinc)
+    do iii=1,nobs_bins
+       call allocate_state(svalinc(iii))
+    end do
+    do iii=1,nsubwin
+       call allocate_state(mvalinc(iii))
+    end do
+    do iii=1,ntlevs_ens
+       call allocate_state(evalinc(iii))
+    end do
+
     if (l4dvar) then
 !       if (l_hyb_ens) then
 !          call ensctl2state(xhat,mval(1),eval)
@@ -152,28 +163,36 @@ contains
 !       call model_tl(mval,sval,llprt)
     else
        if (l_hyb_ens) then
-          call ensctl2state(xhatsave,mval(1),eval)
+          call ensctl2state(xhatsave,mvalinc(1),evalinc)
           do iii=1,nobs_bins
-             sval(iii)=eval(iii)
+             svalinc(iii)=evalinc(iii)
           end do
        else
           do iii=1,nobs_bins
-             sval(iii)=mval(1)
+             svalinc(iii)=mvalinc(1)
           end do
        end if
     end if
 
     istatus=0
+    call prt_state_norms(svalinc(1),'increment')
     ! TODO CRM - what is the correct index for sval? always 1? related to nfldsig?
-    call gsi_bundlegetpointer(sval(1),'tsen', sub_tsen,  iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(gfs_bundle,'q',  sub_qana,   iret); istatus=istatus+iret ! need this one for Tv to Tsen
-    call gsi_bundlegetpointer(sval(1),'q',  sub_q,   iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(sval(1),'ql',  sub_ql,   iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(sval(1),'qi',  sub_qi,   iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(sval(1),'oz', sub_oz,  iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(sval(1),'u', sub_u, iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(sval(1),'v', sub_v, iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(sval(1),'ps', sub_ps, iret); istatus=istatus+iret ! needed for delp
+    call gsi_bundlegetpointer(svalinc(1),'tsen', sub_tsen,  iret); istatus=istatus+iret
+    if ( mype == 0 ) print *, 'tsen istatus=',istatus
+    call gsi_bundlegetpointer(svalinc(1),'q',  sub_q,   iret); istatus=istatus+iret
+    if ( mype == 0 ) print *, 'q istatus=',istatus
+    call gsi_bundlegetpointer(svalinc(1),'ql',  sub_ql,   iret); istatus=istatus+iret
+    if ( mype == 0 ) print *, 'ql istatus=',istatus
+    call gsi_bundlegetpointer(svalinc(1),'qi',  sub_qi,   iret); istatus=istatus+iret
+    if ( mype == 0 ) print *, 'qi istatus=',istatus
+    call gsi_bundlegetpointer(svalinc(1),'oz', sub_oz,  iret); istatus=istatus+iret
+    if ( mype == 0 ) print *, 'oz istatus=',istatus
+    call gsi_bundlegetpointer(svalinc(1),'u', sub_u, iret); istatus=istatus+iret
+    if ( mype == 0 ) print *, 'u istatus=',istatus
+    call gsi_bundlegetpointer(svalinc(1),'v', sub_v, iret); istatus=istatus+iret
+    if ( mype == 0 ) print *, 'v istatus=',istatus
+    call gsi_bundlegetpointer(svalinc(1),'ps', sub_ps, iret); istatus=istatus+iret ! needed for delp
+    if ( mype == 0 ) print *, 'ps istatus=',istatus
     if ( istatus /= 0 ) then
        if ( mype == 0 ) then
          write(6,*) 'write_fv3_incr_: ERROR'
@@ -239,7 +258,6 @@ contains
     call strip(sub_q   ,qsm   ,grd%nsig)
     call strip(sub_ql  ,qlsm  ,grd%nsig)
     call strip(sub_qi  ,qism  ,grd%nsig)
-    call strip(sub_qana   ,qsmana  ,grd%nsig)
     call strip(sub_oz  ,ozsm  ,grd%nsig)
     call strip(sub_ps  ,pssm  )
     call strip(sub_u   ,usm   ,grd%nsig)
@@ -453,6 +471,15 @@ contains
       write(6,*) "FV3 netCDF increment written, file= "//trim(filename)//".nc"
    end if
    call deallocate_preds(sbiasinc)
+   do iii=1,nobs_bins
+      call deallocate_state(svalinc(iii))
+   end do
+   do iii=1,nsubwin
+      call deallocate_state(mvalinc(iii))
+   end do
+   do iii=1,ntlevs_ens
+      call deallocate_state(evalinc(iii))
+   end do
 
 
   end subroutine write_fv3_inc_
