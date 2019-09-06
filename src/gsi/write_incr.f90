@@ -25,7 +25,7 @@ module write_incr
 
 contains
 
-  subroutine write_fv3_inc_ (grd,sp_a,filename,mype_out,gfs_bundle,sval,ibin)
+  subroutine write_fv3_inc_ (grd,sp_a,filename,mype_out,gfs_bundle,ibin)
 
 !$$$  subprogram documentation block
 !                .      .    .
@@ -69,11 +69,14 @@ contains
     use general_sub2grid_mod, only: sub2grid_info
 
     use gsi_bundlemod, only: gsi_bundle, gsi_bundlegetpointer
-    use control_vectors, only: lupp
+    use control_vectors, only: lupp, control_vector
 
     use constants, only: one, fv, rad2deg, r1000
 
-    use gsi_4dvar, only: nobs_bins, lwrite4danl
+    use gsi_4dvar, only: nobs_bins, lwrite4danl, l4dvar, nsubwin
+    use hybrid_ensemble_parameters, only: l_hyb_ens, ntlevs_ens
+    use bias_predictors, only: predictors, allocate_preds, deallocate_preds
+    use jfunc, only: xhatsave
 
     use guess_grids, only: load_geop_hgt,geop_hgti
 
@@ -86,7 +89,6 @@ contains
     character(len=24),   intent(in) :: filename  ! file to open and write to
     integer(i_kind),     intent(in) :: mype_out  ! mpi task to write output file
     type(gsi_bundle),    intent(in) :: gfs_bundle
-    type(gsi_bundle),    intent(in) :: sval(nobs_bins)
     integer(i_kind),     intent(in) :: ibin      ! time bin
 
 !-------------------------------------------------------------------------
@@ -115,7 +117,7 @@ contains
     real(r_kind),dimension(grd%nsig) :: levsout
     real(r_kind),dimension(grd%nsig+1) :: ilevsout
 
-    integer(i_kind) :: mm1, i, j, k
+    integer(i_kind) :: mm1, i, j, k, iii
     integer(i_kind) :: iret, istatus 
     integer(i_kind) :: ncid_out, lon_dimid, lat_dimid, lev_dimid, ilev_dimid
     integer(i_kind) :: lonvarid, latvarid, levvarid, pfullvarid, ilevvarid, &
@@ -123,9 +125,43 @@ contains
                        tvarid, sphumvarid, liqwatvarid, o3varid, icvarid
     integer(i_kind) :: dimids3(3),nccount(3),ncstart(3)
 
+    type(gsi_bundle) :: sval(nobs_bins)
+    type(gsi_bundle) :: eval(ntlevs_ens)
+    type(gsi_bundle) :: mval(nsubwin)
+    type(predictors) :: sbiasinc
+
 !*************************************************************************
 !   Initialize local variables
     mm1=mype+1
+
+!   set up state space based off of xhatsave
+!   Convert from control space directly to physical
+!   space for comparison with obs.
+    call allocate_preds(sbiasinc)
+    call control2state(xhatsave,mval,sbiasinc)
+    if (l4dvar) then
+!       if (l_hyb_ens) then
+!          call ensctl2state(xhat,mval(1),eval)
+!          mval(1)=eval(1)
+!       end if
+
+!      Perform test of AGCM TLM and ADM
+!       call gsi_4dcoupler_grtests(mval,sval,nsubwin,nobs_bins)
+
+!      Run TL model to fill sval
+!       call model_tl(mval,sval,llprt)
+    else
+       if (l_hyb_ens) then
+          call ensctl2state(xhatsave,mval(1),eval)
+          do iii=1,nobs_bins
+             sval(iii)=eval(iii)
+          end do
+       else
+          do iii=1,nobs_bins
+             sval(iii)=mval(1)
+          end do
+       end if
+    end if
 
     istatus=0
     ! TODO CRM - what is the correct index for sval? always 1? related to nfldsig?
@@ -416,6 +452,7 @@ contains
       call nccheck_incr(nf90_close(ncid_out))
       write(6,*) "FV3 netCDF increment written, file= "//trim(filename)//".nc"
    end if
+   call deallocate_preds(sbiasinc)
 
 
   end subroutine write_fv3_inc_

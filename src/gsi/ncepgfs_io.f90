@@ -1110,7 +1110,7 @@ end subroutine write_ghg_grid
     return
   end subroutine read_gfsnst
 
-  subroutine write_gfs(increment,mype_atm,mype_sfc,sval)
+  subroutine write_gfs(increment,mype_atm,mype_sfc)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    write_gfs
@@ -1134,12 +1134,10 @@ end subroutine write_ghg_grid
 !   2013-10-19  todling - update cloud_efr module name
 !   2013-10-29  todling - revisit write to allow skipping vars not in MetGuess
 !   2019-09-04  martin  - added option to write fv3 netcdf increment file
-!                         including optional sval argument
 !
 !   input argument list:
 !     increment          - when >0 will write increment from increment-index slot
 !     mype_atm,mype_sfc  -
-!     sval               - optional, bundle holding increments
 !
 !   output argument list:
 !
@@ -1169,10 +1167,10 @@ end subroutine write_ghg_grid
     use gsi_4dvar, only: lwrite4danl,nhr_anal,nobs_bins
     use ncepnems_io, only: write_nemsatm,write_nemssfc,write_nems_sfc_nst
     use write_incr, only: write_fv3_increment
+    use control_vectors, only: control_vector
 
     implicit none
 
-    type(gsi_bundle), optional, intent(inout) :: sval(nobs_bins) 
     integer(i_kind),intent(in   ) :: increment
     integer(i_kind),intent(in   ) :: mype_atm,mype_sfc
     character(24):: filename
@@ -1306,9 +1304,9 @@ end subroutine write_ghg_grid
 
         if ( use_gfs_nemsio ) then
 
-            if ( write_fv3_incr .and. present(sval) ) then
+            if ( write_fv3_incr ) then
                 call write_fv3_increment(grd_a,sp_a,filename,mype_atm, &
-                     atm_bundle,sval,itoutsig)
+                     atm_bundle,itoutsig)
             else
                 call write_nemsatm(grd_a,sp_a,filename,mype_atm, &
                      atm_bundle,itoutsig)
