@@ -73,10 +73,11 @@ contains
 
     use constants, only: one, fv, rad2deg, r1000
 
+    use gsi_4dcouplermod, only : gsi_4dcoupler_grtests
     use gsi_4dvar, only: nobs_bins, lwrite4danl, l4dvar, nsubwin
     use hybrid_ensemble_parameters, only: l_hyb_ens, ntlevs_ens
     use bias_predictors, only: predictors, allocate_preds, deallocate_preds
-    use jfunc, only: xhatsave
+    use jfunc, only: xhatsave, iter
 
     use guess_grids, only: load_geop_hgt,geop_hgti
     use state_vectors, only: prt_state_norms, allocate_state, deallocate_state
@@ -130,10 +131,12 @@ contains
     type(gsi_bundle) :: evalinc(ntlevs_ens)
     type(gsi_bundle) :: mvalinc(nsubwin)
     type(predictors) :: sbiasinc
+    logical llprt
 
 !*************************************************************************
 !   Initialize local variables
     mm1=mype+1
+    llprt=(mype==0).and.(iter<=1)
 
 !   set up state space based off of xhatsave
 !   Convert from control space directly to physical
@@ -151,16 +154,16 @@ contains
     call control2state(xhatsave,mvalinc,sbiasinc)
 
     if (l4dvar) then
-!       if (l_hyb_ens) then
-!          call ensctl2state(xhatsave,mvalinc(1),evalinc)
-!          mval(1)=eval(1)
-!       end if
+       if (l_hyb_ens) then
+          call ensctl2state(xhatsave,mvalinc(1),evalinc)
+          mvalinc(1)=evalinc(1)
+       end if
 
 !      Perform test of AGCM TLM and ADM
-!       call gsi_4dcoupler_grtests(mval,sval,nsubwin,nobs_bins)
+       call gsi_4dcoupler_grtests(mvalinc,svalinc,nsubwin,nobs_bins)
 
 !      Run TL model to fill sval
-!       call model_tl(mval,sval,llprt)
+       call model_tl(mvalinc,svalinc,llprt)
     else
        if (l_hyb_ens) then
           call ensctl2state(xhatsave,mvalinc(1),evalinc)
