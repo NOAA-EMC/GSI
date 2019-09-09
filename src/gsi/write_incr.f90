@@ -139,7 +139,6 @@ contains
 !   Convert from control space directly to physical
 !   space for comparison with obs.
     call allocate_preds(sbiasinc)
-    call control2state(xhatsave,mvalinc,sbiasinc)
     do iii=1,nobs_bins
        call allocate_state(svalinc(iii))
     end do
@@ -149,10 +148,11 @@ contains
     do iii=1,ntlevs_ens
        call allocate_state(evalinc(iii))
     end do
+    call control2state(xhatsave,mvalinc,sbiasinc)
 
     if (l4dvar) then
 !       if (l_hyb_ens) then
-!          call ensctl2state(xhat,mval(1),eval)
+!          call ensctl2state(xhatsave,mvalinc(1),evalinc)
 !          mval(1)=eval(1)
 !       end if
 
@@ -178,21 +178,13 @@ contains
     call prt_state_norms(svalinc(1),'increment')
     ! TODO CRM - what is the correct index for sval? always 1? related to nfldsig?
     call gsi_bundlegetpointer(svalinc(1),'tsen', sub_tsen,  iret); istatus=istatus+iret
-    if ( mype == 0 ) print *, 'tsen istatus=',istatus
     call gsi_bundlegetpointer(svalinc(1),'q',  sub_q,   iret); istatus=istatus+iret
-    if ( mype == 0 ) print *, 'q istatus=',istatus
     call gsi_bundlegetpointer(svalinc(1),'ql',  sub_ql,   iret); istatus=istatus+iret
-    if ( mype == 0 ) print *, 'ql istatus=',istatus
     call gsi_bundlegetpointer(svalinc(1),'qi',  sub_qi,   iret); istatus=istatus+iret
-    if ( mype == 0 ) print *, 'qi istatus=',istatus
     call gsi_bundlegetpointer(svalinc(1),'oz', sub_oz,  iret); istatus=istatus+iret
-    if ( mype == 0 ) print *, 'oz istatus=',istatus
     call gsi_bundlegetpointer(svalinc(1),'u', sub_u, iret); istatus=istatus+iret
-    if ( mype == 0 ) print *, 'u istatus=',istatus
     call gsi_bundlegetpointer(svalinc(1),'v', sub_v, iret); istatus=istatus+iret
-    if ( mype == 0 ) print *, 'v istatus=',istatus
     call gsi_bundlegetpointer(svalinc(1),'ps', sub_ps, iret); istatus=istatus+iret ! needed for delp
-    if ( mype == 0 ) print *, 'ps istatus=',istatus
     if ( istatus /= 0 ) then
        if ( mype == 0 ) then
          write(6,*) 'write_fv3_incr_: ERROR'
@@ -470,17 +462,6 @@ contains
       call nccheck_incr(nf90_close(ncid_out))
       write(6,*) "FV3 netCDF increment written, file= "//trim(filename)//".nc"
    end if
-   call deallocate_preds(sbiasinc)
-   do iii=1,nobs_bins
-      call deallocate_state(svalinc(iii))
-   end do
-   do iii=1,nsubwin
-      call deallocate_state(mvalinc(iii))
-   end do
-   do iii=1,ntlevs_ens
-      call deallocate_state(evalinc(iii))
-   end do
-
 
   end subroutine write_fv3_inc_
 
