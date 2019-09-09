@@ -6,6 +6,10 @@ use params, only: datapath,nlevs,datestring,&
 use kinds, only: r_kind, i_kind, r_double, r_single
 use constants, only: one,zero,pi,cp,rd,grav,rearth,max_varname_length
 
+! history
+! 2017-05-12 Y. Wang and X. Wang - add more state variables in cvars3d_supported
+!                                  for radar DA, POC: xuguang.wang@ou.edu
+
 implicit none
 private
 public :: getgridinfo, gridinfo_cleanup, wind2mass, mass2wind
@@ -17,8 +21,10 @@ real(r_single),public, allocatable, dimension(:,:) :: gridloc
 real(r_single),public, allocatable, dimension(:,:) :: logp
 integer,public :: npts
 ! supported variable names in anavinfo
-character(len=max_varname_length),public, dimension(8) :: vars3d_supported = (/ 'u   ', 'v   ', 'tv  ', 'tsen', 'q   ', 'oz  ', 'cw  ', 'prse'/)
-character(len=max_varname_length),public, dimension(2) :: vars2d_supported = (/ 'ps ', 'sst' /)
+character(len=max_varname_length),public, dimension(14) :: vars3d_supported = (/ 'u', 'v', 'tv', 'tsen', 'q', 'oz', &
+                                                                                'cw', 'prse', 'ql', 'qr', 'qi',    &
+                                                                                'qli', 'dbz', 'w'/)
+character(len=max_varname_length),public, dimension(2) :: vars2d_supported = (/ 'ps', 'sst' /)
 contains
 
 subroutine getgridinfo(fileprefix, reducedgrid)
@@ -43,7 +49,6 @@ real(nemsio_realkind) aeta1(nlevs),aeta2(nlevs),lats(nlats*nlons),lons(nlons*nla
 type(nemsio_gfile) :: gfile
 
 nlevs_pres=nlevs+1
-
 
 if (nproc .eq. 0) then
 

@@ -5,8 +5,8 @@
 #
 #  This script makes sets all necessary configuration definitions
 #  and calls the makeall.sh script to build all the necessary
-#  executables.  This script works for zeus, theia, and wcoss 
-#  machines.
+#  executables.  This script works for zeus, theia, wcoss and
+#  wcoss_d machines.
 #
 #-------------------------------------------------------------------
 
@@ -16,7 +16,7 @@
    my $machine = `/usr/bin/perl get_hostname.pl`;
    my $my_machine="export MY_MACHINE=$machine";
 
-   if( $machine ne "cray" && $machine ne "theia" && $machine ne "wcoss" ) {
+   if( $machine ne "cray" && $machine ne "theia" && $machine ne "wcoss" && $machine ne "wcoss_d" ) {
       die( "ERROR --- Unrecognized machine hostname, $machine.  Exiting now...\n" );
    }
    else {
@@ -24,7 +24,7 @@
    }
 
    #
-   #  surge, theia, and wcoss are all little endian machines, and all run linux
+   #  surge, theia, wcoss, wcoss_d are all little endian machines, and all run linux
    # 
    my $little_endian = "export LITTLE_ENDIAN=\${LITTLE_ENDIAN:-0}";
    my $my_os = "linux";
@@ -55,6 +55,9 @@
    my $user_name = $ENV{ 'USER' };
    if( $machine eq "theia" ){
       $tankdir = "/scratch4/NCEPDEV/da/save/$user_name/nbns";
+   }
+   elsif( $machine eq "wcoss_d" ){
+      $tankdir = "/gpfs/dell2/emc/verification/noscrub/$user_name/nbns";
    }
    elsif( $machine eq "cray" ){
       $tankdir = "/gpfs/hps/emc/da/noscrub/$user_name/nbns";
@@ -198,6 +201,10 @@
       sleep( 1 );
 
    }
+   elsif( $machine eq "wcoss_d" ) {
+      $my_ptmp="export OZN_PTMP=\${OZN_PTMP:-/gpfs/dell2/ptmp}";
+      $my_stmp="export OZN_STMP=\${OZN_STMP:-/gpfs/dell2/stmp}";
+   }
    elsif( $machine eq "cray" ) {
       $my_ptmp="export OZN_PTMP=\${OZN_PTMP:-/gpfs/hps2/ptmp}";
       $my_stmp="export OZN_STMP=\${OZN_STMP:-/gpfs/hps2/stmp}";
@@ -263,14 +270,14 @@
    }
 
    my $project = "export PROJECT=\${PROJECT:-GDAS-T2O}";
-   if( $machine ne "wcoss" && $machine ne "cray" ) {
+   if( $machine ne "wcoss" && $machine ne "cray" && $machine ne "wcoss_d" ) {
       $project="export PROJECT=";
    } 
 
    my $job_queue="export JOB_QUEUE=";
    if( $machine eq "cray" ) {
       $job_queue="export JOB_QUEUE=\${JOB_QUEUE:-dev}";
-   } elsif( $machine eq "wcoss" ){
+   } elsif( $machine eq "wcoss" || $machine eq "wcoss_d" ){
       $job_queue = "export JOB_QUEUE=\${JOB_QUEUE:-dev_shared}";
    }
 
@@ -309,8 +316,10 @@
     print "\n";
     print "Making all executables\n";
 
-    `./makeall.sh clean`;
-    `./makeall.sh`;
+    `./build_OznMon_cmake.sh`;
+
+#    `./makeall.sh clean`;
+#    `./makeall.sh`;
  
    exit 0;
 

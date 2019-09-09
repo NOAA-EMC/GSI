@@ -35,7 +35,7 @@ subroutine statslight(mype,i_light,bwork,awork,i_ref,ndata)
   use obsmod, only: iout_light,&
        mype_light,&
        ndat,dtype
-  use qcmod, only: npres_print,ptop,pbot,ptopq,pbotq
+  use qcmod, only: npres_print,ptop,pbot
   use jfunc, only: first,jiter
   use gridmod, only: nsig
   use lightinfo, only: nulight,nlighttype

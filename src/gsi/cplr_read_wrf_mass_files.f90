@@ -44,6 +44,7 @@ contains
     use guess_grids, only: nfldsig,nfldsfc,ntguessig,ntguessfc,&
          ifilesig,ifilesfc,hrdifsig,hrdifsfc,create_gesfinfo
     use guess_grids, only: hrdifsig_all,hrdifsfc_all
+    use gridmod, only: regional_fhr
     use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,nhr_assimilation
     use constants, only: zero,one,zero_single,r60inv
     use obsmod, only: iadate,time_offset
@@ -102,7 +103,8 @@ contains
              open(in_unit,file=filename,form='unformatted')
              read(in_unit) idate5
              close(in_unit)
-             hourg = zero
+             hourg4= regional_fhr
+             hourg = hourg4
              call w3fs21(idate5,nmings)
              nming2=nmings+60*hourg
              write(6,*)'READ_wrf_mass_FILES:  sigma guess file, nming2 ',hourg,idate5,nming2

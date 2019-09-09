@@ -233,7 +233,7 @@ end subroutine get_num_ozobs_nc
 
 ! read ozone observation data
 subroutine get_ozobs_data(obspath, datestring, nobs_max, nobs_maxdiag, hx_mean, hx_mean_nobc, hx, hx_modens, x_obs, x_err, &
-           x_lon, x_lat, x_press, x_time, x_code, x_errorig, x_type, x_used, id, nanal)
+           x_lon, x_lat, x_press, x_time, x_code, x_errorig, x_type, x_used, id, nanal, nmem)
   use params, only: neigv
   implicit none
   character*500, intent(in) :: obspath
@@ -252,24 +252,24 @@ subroutine get_ozobs_data(obspath, datestring, nobs_max, nobs_maxdiag, hx_mean, 
   integer(i_kind), dimension(nobs_maxdiag), intent(out) :: x_used
 
   character(len=8), intent(in) :: id
-  integer(i_kind), intent(in)  :: nanal
+  integer(i_kind), intent(in)  :: nanal, nmem
 
    if (netcdf_diag) then
       call get_ozobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_mean, hx_mean_nobc, hx, hx_modens, x_obs, x_err, &
-           x_lon, x_lat, x_press, x_time, x_code, x_errorig, x_type, x_used, id, nanal)
+           x_lon, x_lat, x_press, x_time, x_code, x_errorig, x_type, x_used, id, nanal, nmem)
    else
       call get_ozobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, hx_mean, hx_mean_nobc, hx, hx_modens, x_obs, x_err, &
-           x_lon, x_lat, x_press, x_time, x_code, x_errorig, x_type, x_used, id, nanal)
+           x_lon, x_lat, x_press, x_time, x_code, x_errorig, x_type, x_used, id, nanal, nmem)
    endif
 
 end subroutine get_ozobs_data
 
 ! read ozone observation data from binary file
 subroutine get_ozobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, hx_mean, hx_mean_nobc, hx, hx_modens, x_obs, x_err, &
-           x_lon, x_lat, x_press, x_time, x_code, x_errorig, x_type, x_used, id, nanal)
+           x_lon, x_lat, x_press, x_time, x_code, x_errorig, x_type, x_used, id, nanal, nmem)
 
   use sparsearr,only:sparr, sparr2, readarray, delete, assignment(=)
-  use params,only: nanals, lobsdiag_forenkf, nlevs, neigv, vlocal_evecs
+  use params,only: nanals, lobsdiag_forenkf, neigv, vlocal_evecs
   use statevec, only: state_d
   use mpisetup, only: mpi_wtime, nproc
   use observer_enkf, only: calc_linhx, calc_linhx_modens, setup_linhx
@@ -291,7 +291,7 @@ subroutine get_ozobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, hx_me
   integer(i_kind), dimension(nobs_maxdiag), intent(out) :: x_used
 
   character(len=8), intent(in) :: id
-  integer(i_kind), intent(in)  :: nanal
+  integer(i_kind), intent(in)  :: nanal, nmem
 
   character*500    :: obsfile, obsfile2
   character(len=8) :: id2
@@ -492,13 +492,13 @@ subroutine get_ozobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, hx_me
                                    ix, delx, ixp, delxp, iy, dely,  &
                                    iyp, delyp, it, delt, itp, deltp)
                   endif
-                  call calc_linhx(hx_mean_nobc(nob), state_d,       &
+                  call calc_linhx(hx_mean_nobc(nob), state_d(:,:,:,nmem),       &
                                   dhx_dx, hx(nob),                  &
                                   ix, delx, ixp, delxp, iy, dely,   &
                                   iyp, delyp, it, delt, itp, deltp)
                   ! compute modulated ensemble in obs space
                   if (neigv > 0) then
-                     call calc_linhx_modens(hx_mean_nobc(nob), state_d, &
+                     call calc_linhx_modens(hx_mean_nobc(nob), state_d(:,:,:,nmem), &
                                      dhx_dx, hx_modens(:,nob),          &
                                      ix, delx, ixp, delxp, iy, dely,    &
                                      iyp, delyp, it, delt, itp, deltp, vlocal_evecs)
@@ -541,13 +541,13 @@ subroutine get_ozobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, hx_me
 
 ! read ozone observation data from netcdf file
 subroutine get_ozobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_mean, hx_mean_nobc, hx, hx_modens, x_obs, x_err, &
-           x_lon, x_lat, x_press, x_time, x_code, x_errorig, x_type, x_used, id, nanal)
+           x_lon, x_lat, x_press, x_time, x_code, x_errorig, x_type, x_used, id, nanal, nmem)
   use nc_diag_read_mod, only: nc_diag_read_get_var
   use nc_diag_read_mod, only: nc_diag_read_get_dim, nc_diag_read_get_global_attr
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_close
 
   use sparsearr,only:sparr, sparr2, readarray, delete, assignment(=)
-  use params,only: nanals, lobsdiag_forenkf, nlevs, neigv, vlocal_evecs
+  use params,only: nanals, lobsdiag_forenkf, neigv, vlocal_evecs
   use statevec, only: state_d
   use mpisetup, only: mpi_wtime, nproc
   use observer_enkf, only: calc_linhx, calc_linhx_modens, setup_linhx
@@ -569,7 +569,7 @@ subroutine get_ozobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_mea
   integer(i_kind), dimension(nobs_maxdiag), intent(out) :: x_used
 
   character(len=8), intent(in) :: id
-  integer(i_kind), intent(in)  :: nanal
+  integer(i_kind), intent(in)  :: nanal, nmem
 
   character*500    :: obsfile, obsfile2
   character(len=8) :: id2
@@ -729,13 +729,13 @@ subroutine get_ozobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_mea
                                  ix, delx, ixp, delxp, iy, dely,  &
                                  iyp, delyp, it, delt, itp, deltp)
                 endif
-                call calc_linhx(hx_mean_nobc(nob), state_d,       &
+                call calc_linhx(hx_mean_nobc(nob), state_d(:,:,:,nmem),       &
                                 dhx_dx, hx(nob),                  &
                                 ix, delx, ixp, delxp, iy, dely,   &
                                 iyp, delyp, it, delt, itp, deltp)
                 ! compute modulated ensemble in obs space
                 if (neigv > 0) then
-                   call calc_linhx_modens(hx_mean_nobc(nob), state_d, &
+                   call calc_linhx_modens(hx_mean_nobc(nob), state_d(:,:,:,nmem), &
                                    dhx_dx, hx_modens(:,nob),          &
                                    ix, delx, ixp, delxp, iy, dely,    &
                                    iyp, delyp, it, delt, itp, deltp, vlocal_evecs)

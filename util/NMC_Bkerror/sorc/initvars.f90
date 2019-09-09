@@ -4,12 +4,13 @@ subroutine initvars(mype,npe)
       deg2rad,rlons,nsig,&
       dimbig,filename,nlat,sweight,&
       na,nb,pi,db_prec,coriolis, &
-      two,omega,idpsfc5,idvm5,idvc5,idthrm5
+      two,omega,idpsfc5,idvm5,idvc5,idthrm5,&
+      scaling,varscale
   use specgrid, only: wlat,slat,jb,je
   implicit none
 
   integer,intent(in):: mype,npe
-  integer i,ii,l,m,i1
+  integer i,ii,l,m,i1,k
   real(r_kind) anlon,dlon,pih
   real(r_kind) onetest
   real(r_double) onedouble
@@ -55,11 +56,9 @@ subroutine initvars(mype,npe)
   wgtlats(1)=0.0_r_kind
   wgtlats(nlat)=0.0_r_kind
 
-
   do i=1,nlat
     coriolis(i)=two*omega*sin(rlats(i))
   end do
-
 
 ! test for precision at which code was compiled
   onetest=1.; onedouble=1.
@@ -69,6 +68,15 @@ subroutine initvars(mype,npe)
     db_prec=.true.
   endif
   if (mype==0) write(6,*) 'INITVARS: DB_PREC = ',db_prec
+
+  if (scaling == .true.) then
+     allocate (varscale(nsig))
+     open(12,file='scaling.txt',form='formatted')
+     do k=1,nsig
+        read(12,'(F4.2)') varscale(k)
+        print*,varscale(k)
+     enddo
+  endif
 
   return
 end subroutine initvars

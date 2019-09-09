@@ -122,7 +122,7 @@ contains
     use kinds, only: r_single,i_llong,i_kind
     use gsi_4dvar, only: nhr_assimilation
     use gsi_io, only: lendian_out, verbose
-    use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge
+    use rapidrefresh_cldsurf_mod, only: l_hydrometeor_bkio,l_gsd_soilTQ_nudge
     use gsi_metguess_mod, only: gsi_metguess_get
     use gridmod, only: wrf_mass_hybridcord
     implicit none
@@ -654,7 +654,7 @@ contains
           write(lendian_out)n_position     !  TH2
        endif
   
-       if(l_cloud_analysis .and. n_actual_clouds>0) then
+       if(l_hydrometeor_bkio .and. n_actual_clouds>0) then
   !      QCLOUD
           call this%retrieve_index(index,'QCLOUD',varname_all,nrecs)
           if(index<0) stop
@@ -718,7 +718,7 @@ contains
           if(print_verbose)write(6,*)'  byte offset, memoryorder for RAD_TTEN_DFI(',k,' = ',n_position,memoryorder_all(index)
           write(lendian_out)n_position,memoryorder_all(index)    ! offset for RAD_TTEN_DFI(k)
   
-       endif     ! l_cloud_analysis
+       endif     ! l_hydrometeor_bkio
   
   !??????????????????/later put in z0 here, but for now just fill with something
        call this%retrieve_index(index,'TSK',varname_all,nrecs)
@@ -1551,7 +1551,7 @@ contains
     character(8),allocatable:: recname(:)
     character(16),allocatable  :: reclevtyp(:)
     integer(i_kind),allocatable:: reclev(:)
-    real(r_kind) date6,date7,second,fhour
+    real(r_kind) date6,date7,second,fhour,fminute
     character(3) nmmb_verttype   !   'OLD' for old vertical coordinate definition
                                  !                old def: p = eta1*pdtop+eta2*(psfc-pdtop-ptop)+ptop
                                  !   'NEW' for new vertical coordinate definition
@@ -1648,6 +1648,7 @@ contains
        if(print_verbose)write(6,*)' convert_nems_nmmb: pdtop_regional,iret=',pdtop_regional,iret
   
        fhour=nfhour
+       fminute=nfminute
     
     
   !                  dsg1 (used to be deta1) 
@@ -1797,7 +1798,7 @@ contains
   
        end if
   
-       write(lendian_out) iyear,imonth,iday,ihour,iminute,isecond,fhour, &
+       write(lendian_out)iyear,imonth,iday,ihour,iminute,isecond,fhour,fminute, &
             nlon_regional,nlat_regional,nsig_regional, &
             dlmd_regional,dphd_regional,pt_regional,pdtop_regional,nmmb_verttype
        write(lendian_out)deta1              !  DETA1

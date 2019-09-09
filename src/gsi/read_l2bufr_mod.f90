@@ -52,6 +52,8 @@ module read_l2bufr_mod
   public :: range_max,del_time,l2superob_only,elev_angle_max,del_azimuth
   public :: minnum,del_range,del_elev
 
+  public :: invtllv
+
   integer(i_kind) minnum
   real(r_kind) del_azimuth,del_elev,del_range,del_time,elev_angle_max,range_max
   logical l2superob_only
@@ -794,7 +796,6 @@ contains
 
 end subroutine radar_bufr_read_all
 
-end module read_l2bufr_mod
 
 SUBROUTINE tllv(ALM,APH,TLMO,CTPH0,STPH0,TLM,TPH)
 !$$$  subprogram documentation block
@@ -896,3 +897,4 @@ SUBROUTINE invtllv(ALM,APH,TLMO,CTPH0,STPH0,TLM,TPH)
   TPH=ASIN(CTPH0*SPH+STPH0*CC)
   
 END SUBROUTINE invtllv
+end module read_l2bufr_mod

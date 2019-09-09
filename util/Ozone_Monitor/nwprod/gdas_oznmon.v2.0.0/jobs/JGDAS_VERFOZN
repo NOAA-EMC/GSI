@@ -85,8 +85,8 @@ export p_cyc=`echo ${cdate} | cut -c9-10`
 # OZN_TANKDIR - WHERE OUTPUT DATA WILL RESIDE
 #
 echo "pre-assignment, OZN_TANKDIR = $OZN_TANKDIR"
-export TANKverf_ozn=${TANKverf_ozn:-${COMROOT}/${RUN}.${PDY}/${cyc}/oznmon}
-export TANKverf_oznM1=${TANKverf_oznM1:-${COMROOT}/${RUN}.${P_PDY}/${p_cyc}/oznmon}
+export TANKverf_ozn=${TANKverf_ozn:-${OZN_TANKDIR}/${RUN}.${PDY}/${cyc}/oznmon}
+export TANKverf_oznM1=${TANKverf_oznM1:-${OZN_TANKDIR}/${RUN}.${P_PDY}/${p_cyc}/oznmon}
 export COM_IN=${COM_IN:-${COMROOT}/${NET}/${envir}}
 export COMIN=${COMIN:-${COM_IN}/${RUN}.${PDY}/${cyc}}
 
@@ -108,8 +108,6 @@ export OZN_AREA=${OZN_AREA:-glb}
 
 export oznstat=${oznstat:-$COMIN/gdas.t${cyc}z.oznstat}
 
-msg="JOB HAS STARTED"
-postmsg "$jlogfile" "$msg"
 
 #-------------------------------------------------------
 # Execute the script.
@@ -118,8 +116,6 @@ ${OZNMONSH:-${SCRgdas_ozn}/exgdas_vrfyozn.sh.ecf} ${PDY} ${cyc}
 err=$?
 [[ $err -ne 0 ]] && exit $err
 
-msg="JOB COMPLETED NORMALLY"
-postmsg "$jlogfile" "$msg"
 
 ################################
 # Remove the Working Directory

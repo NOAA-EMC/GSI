@@ -13,6 +13,7 @@ module intjcmod
 !   2014-05-07  pondeca - add weak constraint subroutine for howv
 !   2014-06-17  carley/zhu - add intliml for lcbas + some cleanup
 !   2015-07-10  pondeca - add weak constraint subroutine for cldch
+!   2019-03-05  martin - update intlimq to weight factqmin/max by latitude
 !
 ! subroutines included:
 !
@@ -51,6 +52,7 @@ subroutine intlimq(rval,sval,itbin)
 !   2008-06-02  safford - rm unused vars
 !   2010-05-13  todling - update to use gsi_bundle
 !   2011-12-27  kleist - add multiple time level capability (for 4densvar option)
+!   2019-03-05  martin - update to weight factqmin/max by latitude
 !
 !   input argument list:
 !     sq       - increment in grid space
@@ -66,10 +68,11 @@ subroutine intlimq(rval,sval,itbin)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use gridmod, only: nsig,lat1,lon1
+  use gridmod, only: nsig,lat1,lon1,istart,wgtfactlats
   use jfunc, only: factqmin,factqmax
   use gsi_metguess_mod, only: gsi_metguess_bundle 
   use guess_grids, only: ges_qsat
+  use mpimod, only: mype
   implicit none
 
 ! Declare passed variables
@@ -78,13 +81,15 @@ subroutine intlimq(rval,sval,itbin)
   integer, intent(in)            :: itbin
 
 ! Declare local variables
-  integer(i_kind) i,j,k,ier,istatus
+  integer(i_kind) i,j,k,ier,istatus,ii,mm1
   real(r_kind) q
   real(r_kind),pointer,dimension(:,:,:) :: sq=>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: rq=>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: ges_q_it=>NULL()
 
   if (factqmin==zero .and. factqmax==zero) return
+ 
+  mm1=mype+1
 
 ! Retrieve pointers
 ! Simply return if any pointer not found
@@ -100,15 +105,17 @@ subroutine intlimq(rval,sval,itbin)
   do k = 1,nsig
      do j = 2,lon1+1
         do i = 2,lat1+1
+           ii=istart(mm1)+i-2
            q = ges_q_it(i,j,k) + sq(i,j,k)
            
 !          Lower constraint limit
            if (q < zero) then
-              rq(i,j,k) = rq(i,j,k) + factqmin*q/(ges_qsat(i,j,k,itbin)*ges_qsat(i,j,k,itbin))
+              rq(i,j,k) = rq(i,j,k) + (factqmin*wgtfactlats(ii))*q &
+                          /(ges_qsat(i,j,k,itbin)*ges_qsat(i,j,k,itbin))
 
 !          Upper constraint limit
            else if (q > ges_qsat(i,j,k,itbin)) then
-              rq(i,j,k) = rq(i,j,k) + factqmax*(q-ges_qsat(i,j,k,itbin))/ &
+              rq(i,j,k) = rq(i,j,k) + (factqmax*wgtfactlats(ii))*(q-ges_qsat(i,j,k,itbin))/ &
                           (ges_qsat(i,j,k,itbin)*ges_qsat(i,j,k,itbin))
            
            end if

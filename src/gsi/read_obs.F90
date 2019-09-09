@@ -11,6 +11,7 @@ module read_obsmod
 !   2015-05-01  Liu Ling - Add call to read_rapidscat 
 !   2015-08-20  zhu  - add flexibility for enabling all-sky and using aerosol info in radiance 
 !                      assimilation. Use radiance_obstype_search from radiance_mod.  
+!   2017-05-12  Y. Wang and X. Wang - add dbz to be read in, POC: xuguang.wang@ou.edu
 !
 ! subroutines included:
 !   sub gsi_inquire   -  inquire statement supporting fortran earlier than 2003
@@ -131,6 +132,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
 !   2015-01-16  ejones   - add saphir
 !   2016-09-19  guo      - properly initialized nread, in case of for quick-return cases.
 !   2017-11-16  dutta    - adding KOMPSAT5 bufr i.d for reading the data.
+!   2019-03-27  h. liu   - add abi
 !                           
 !
 !   input argument list:
@@ -178,9 +180,11 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
   if(trim(dtype) == 'tcp' .or. trim(filename) == 'tldplrso')return
   if(trim(filename) == 'mitmdat' .or. trim(filename) == 'mxtmdat')return
   if(trim(filename) == 'satmar')return
+  if(trim(dtype) == 'dbz' )return
 
 ! Use routine as usual
-  if(lexist)then
+
+  if(lexist .and. trim(dtype) /= 'tcp' )then
       lnbufr = 15
       open(lnbufr,file=trim(filename),form='unformatted',status ='unknown')
       call openbf(lnbufr,'IN',lnbufr)
@@ -288,6 +292,10 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
          kidsat=258
        else if(jsatid == 'g15' .or. jsatid == 'g15_prep')then
          kidsat=259
+       else if(jsatid == 'g16' .or. jsatid == 'g16_prep')then
+         kidsat=270
+       else if(jsatid == 'g17' .or. jsatid == 'g17_prep')then
+         kidsat=271
        else if(jsatid == 'n05')then
          kidsat=705
        else if(jsatid == 'n06')then
@@ -646,6 +654,7 @@ subroutine read_obs(ndata,mype)
 !   2016-04-28  J. Jung - added logic for RARS and direct broadcast data from NESDIS/UW.
 !   2016-05-05  pondeca - add 10-m u-wind and v-wind (uwnd10m, vwnd10m)
 !   2016-09-19  Guo     - replaced open(obs_input_common) with "call unformatted_open(obs_input_common)"
+!   2017-05-12  Y. Wang and X. Wang - add multi-interface to read in dBZ (nc) and radial velocity (ascii)
 !   2016-12-14  lippi   - Fixed bug of using observations twice when both
 !                         l2rwbufr and radarbufr are in the OBS_INPUT table.
 !                         Changed the dsis entries for l2rwbufr and radarbufr to
@@ -654,6 +663,8 @@ subroutine read_obs(ndata,mype)
 !   2017-08-31  Li      - move gsi_nstcoupler_init & gsi_nstcoupler_read to getsfc in sathin.F90
 !                       - move gsi_nstcoupler_final from create_sfc_grids to here
 !   2018-01-23 Apodaca  - add GOES/GLM lightning data
+!   2019-01-15  Li      - add to handle mbuoyb
+!   2019-03-27  h. liu   - add abi
 !   
 !
 !   input argument list:
@@ -696,7 +707,7 @@ subroutine read_obs(ndata,mype)
     use convb_uv,only:convb_uv_read
     use guess_grids, only: ges_prsl,geop_hgtl,ntguessig
     use radinfo, only: nusis,iuse_rad,jpch_rad,diag_rad
-    use insitu_info, only: mbuoy_info,read_ship_info
+    use insitu_info, only: mbuoy_info,mbuoyb_info,read_ship_info
     use aeroinfo, only: nusis_aero,iuse_aero,jpch_aero,diag_aero
     use ozinfo, only: nusis_oz,iuse_oz,jpch_oz,diag_ozone
     use pcpinfo, only: npcptype,nupcp,iusep,diag_pcp
@@ -712,6 +723,9 @@ subroutine read_obs(ndata,mype)
     use m_extOzone, only: extOzone_read
     use mpeu_util, only: warn
     use gsi_unformatted, only: unformatted_open
+
+    use mrmsmod,only: l_mrms_sparse_netcdf
+
     implicit none
 
 !   Declare passed variables
@@ -723,13 +737,13 @@ subroutine read_obs(ndata,mype)
 
 !   Declare local variables
     logical :: lexist,ssmis,amsre,sndr,hirs,avhrr,lexistears,lexistdb,use_prsl_full,use_hgtl_full
-    logical :: use_sfc,nuse,use_prsl_full_proc,use_hgtl_full_proc,seviri,mls
+    logical :: use_sfc,nuse,use_prsl_full_proc,use_hgtl_full_proc,seviri,mls,abi
     logical,dimension(ndat):: belong,parallel_read,ears_possible,db_possible
     logical :: modis,use_sfc_any
     logical :: acft_profl_file
     character(10):: obstype,platid
     character(22):: string
-    character(15):: infile
+    character(120):: infile
     character(20):: sis
     integer(i_kind) i,j,k,ii,nmind,lunout,isfcalc,ithinx,ithin,nread,npuse,nouse
     integer(i_kind) nprof_gps1,npem1,krsize,len4file,npemax,ilarge,nlarge,npestart
@@ -826,6 +840,7 @@ subroutine read_obs(ndata,mype)
        avhrr = index(obstype,'avhrr') /= 0
        modis = index(obstype,'modis') /= 0
        seviri = index(obstype,'seviri') /= 0
+       abi = index(obstype,'abi') /= 0
        mls = index(obstype,'mls') /= 0
        if(obstype == 'mls20' ) nmls_type=nmls_type+1
        if(obstype == 'mls22' ) nmls_type=nmls_type+1
@@ -849,11 +864,11 @@ subroutine read_obs(ndata,mype)
            obstype == 'mitm' .or. obstype=='pmsl' .or. &
            obstype == 'howv' .or. obstype=='tcamt' .or. &
            obstype=='lcbas' .or. obstype=='cldch' .or. obstype == 'larcglb' .or. &
-           obstype=='uwnd10m' .or. obstype=='vwnd10m') then
+           obstype=='uwnd10m' .or. obstype=='vwnd10m' .or. obstype=='dbz' ) then
           ditype(i) = 'conv'
        else if (obstype == 'swcp' .or. obstype == 'lwcp') then
           ditype(i) = 'wcp'
-       else if( hirs   .or. sndr      .or.  seviri .or. &
+       else if( hirs   .or. sndr      .or.  seviri .or. abi .or.        &
                obstype == 'airs'      .or. obstype == 'amsua'     .or.  &
                obstype == 'msu'       .or. obstype == 'iasi'      .or.  &
                obstype == 'amsub'     .or. obstype == 'mhs'       .or.  &
@@ -958,6 +973,8 @@ subroutine read_obs(ndata,mype)
              else if(ssmis)then
 !               parallel_read(i)= .true.  
              else if(seviri)then
+                parallel_read(i)= .true.
+             else if(abi)then
                 parallel_read(i)= .true.
              else if(obstype == 'cris' .or. obstype == 'cris-fsr')then
                 parallel_read(i)= .true.
@@ -1220,6 +1237,9 @@ subroutine read_obs(ndata,mype)
           if(obstype == 'rw')then
              use_hgtl_full=.true.
              if(belong(i))use_hgtl_full_proc=.true.
+           else if(obstype == 'dbz')then
+             use_hgtl_full=.true.
+             if(belong(i))use_hgtl_full_proc=.true.
           end if
           if(obstype == 'sst')then
             if(belong(i))use_sfc=.true.
@@ -1297,6 +1317,9 @@ subroutine read_obs(ndata,mype)
 
 !   Create moored buoy station ID
     call mbuoy_info(mype)
+
+!   Create moored buoy station ID for mbuoyb with 7-digit station ID
+    call mbuoyb_info(mype)
 
 !   Create ships info(ID, Depth & Instrument)
     call read_ship_info(mype)
@@ -1463,7 +1486,8 @@ subroutine read_obs(ndata,mype)
              else if (obstype == 'lghtn' ) then
                 if(i_gsdcldanal_type==2) then
                    call read_lightning(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
-                else if( i_gsdcldanal_type==1 .or. i_gsdcldanal_type==6 ) then
+                else if(i_gsdcldanal_type==1 .or. i_gsdcldanal_type==6 &
+                        .or. i_gsdcldanal_type==3 .or. i_gsdcldanal_type==7) then
                    call read_lightning_grid(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
                 endif
                 string='READ_LIGHTNING'
@@ -1473,7 +1497,8 @@ subroutine read_obs(ndata,mype)
              else if (obstype == 'larccld' ) then
                 if(i_gsdcldanal_type==2) then
                    call read_NASA_LaRC_cloud(nread,npuse,nouse,infile,obstype,lunout,sis,nobs_sub1(1,i))
-                else if( i_gsdcldanal_type==1) then
+                else if(i_gsdcldanal_type==1 .or. i_gsdcldanal_type==6 &
+                        .or. i_gsdcldanal_type==3 .or. i_gsdcldanal_type==7) then
                    call read_nasa_larc(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
                 end if
                 string='READ_NASA_LaRC'
@@ -1484,15 +1509,38 @@ subroutine read_obs(ndata,mype)
 
 !            Process radar winds
              else if (obstype == 'rw') then
-                if (vadwnd_l2rw_qc) then
-                    write(6,*)'READ_OBS: radial wind,read_radar,dfile=',infile,',dsis=',sis
-                   call read_radar(nread,npuse,nouse,infile,lunout,obstype,twind,sis,&
-                                   hgtl_full,nobs_sub1(1,i))
-                   string='READ_RADAR'
-                else if (sis == 'l2rw') then
-                    write(6,*)'READ_OBS: radial wind,read_radar_l2rw_novadqc,dfile=',infile,',dsis=',sis
-                   call read_radar_l2rw_novadqc(npuse,nouse,lunout,obstype,sis,nobs_sub1(1,i))
-                   string='READ_RADAR_L2RW_NOVADQC'
+                if( trim(infile) == 'vr_vol' )then
+                  call read_radar_wind_ascii(nread,npuse,nouse,infile,lunout,obstype,sis,&
+                                  hgtl_full,nobs_sub1(1,i))
+                else
+                 if (vadwnd_l2rw_qc) then
+                      write(6,*)'READ_OBS: radial wind,read_radar,dfile=',infile,',dsis=',sis 
+                     call read_radar(nread,npuse,nouse,infile,lunout,obstype,twind,sis,&
+                                     hgtl_full,nobs_sub1(1,i))
+                     string='READ_RADAR'
+                  else if (sis == 'l2rw') then
+                      write(6,*)'READ_OBS: radial wind,read_radar_l2rw_novadqc,dfile=',infile,',dsis=',sis
+                     call read_radar_l2rw_novadqc(npuse,nouse,lunout,obstype,sis,nobs_sub1(1,i))
+                     string='READ_RADAR_L2RW_NOVADQC'
+                  end if
+                end if
+                string='READ_RADAR_WIND'
+
+!            Process radar reflectivity from MRMS
+             else if (obstype == 'dbz' ) then
+                print *, "calling read_dbz"
+                if(trim(infile)=='dbzobs.nc')then
+                  call read_dbz_nc(nread,npuse,nouse,infile,lunout,obstype,sis,hgtl_full,nobs_sub1(1,i))
+                  string='READ_dBZ'
+                else
+                  call read_dbz_mrms_detect_format(infile,l_mrms_sparse_netcdf)
+                  if(l_mrms_sparse_netcdf) then
+                     call read_dbz_mrms_sparse_netcdf(nread,npuse,nouse,infile,obstype,lunout,sis,nobs_sub1(1,i))
+                     string='READ_dbz_mrms_sparse_netcdf'
+                  else
+                     call read_dbz_mrms_netcdf(nread,npuse,nouse,infile,obstype,lunout,sis,nobs_sub1(1,i))
+                     string='READ_dbz_mrms_netcdf'
+                  endif
                 end if
 
 !            Process lagrangian data
@@ -1666,6 +1714,13 @@ subroutine read_obs(ndata,mype)
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
                      nobs_sub1(1,i),read_rec(i),dval_use)
                 string='READ_SEVIRI'
+!            Process GOES-R ABI RADIANCE  data
+             else if(obstype == 'abi') then
+                call read_abi(mype,val_dat,ithin,rmesh,platid,gstime,&
+                     infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
+                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
+                     nobs_sub1(1,i),read_rec(i),dval_use)
+                string='READ_ABI'
 
         !    Process Himawari-8 AHI RADIANCE  data
              else if(obstype == 'ahi') then

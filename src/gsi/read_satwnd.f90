@@ -67,6 +67,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !   2016-12-13  Lim     - Addition of GOES SWIR, CAWV and VIS winds into HWRF
 !   2017-08-22  Genkova - Testing Git / Add Goes-16 and JPSS SatID
 !                       - Read WMO pre-approved new BUFR Goes-16 AMVs (Goes-R)
+!   2018-06-13  Genkova - Goes-16 AMVs use ECMWF QC till new HAM late 2018
+!                         and OE/2 
 !
 !   
 !
@@ -108,7 +110,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   use convinfo, only: nconvtype, &
        icuse,ictype,icsubtype,ioctype, &
        ithin_conv,rmesh_conv,pmesh_conv,pmot_conv,ptime_conv, &
-       use_prepb_satwnd
+       use_prepb_satwnd, ec_amv_qc
 
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,time_4dvar,thin4d
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
@@ -876,6 +878,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! Extra block for GOES-R winds: Start
            else if(trim(subset) == 'NC005030' .or. trim(subset) == 'NC005031' .or. trim(subset) == 'NC005032' .or. &  !IR(LW) / CS WV / VIS  GOES-R like winds        
                    trim(subset) == 'NC005034' .or. trim(subset) == 'NC005039' ) then                                  !CT WV  / IR(SW) GOES-R like winds        
+
               if(hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then  ! the range of NESDIS satellite IDs
                                                                  ! The sample newBUFR has SAID=259 (GOES-15)
                                                                  ! When GOES-R SAID is assigned, pls check
@@ -964,6 +967,18 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 		       if (pct1 > 0.50_r_kind) qm=15
 		    endif
                  endif
+
+! GOES-16 additional QC addopting ECMWF's approach(Katie Lean,14IWW)-start
+                if (EC_AMV_QC) then 
+                   if (qifn < 90_r_kind .or. qifn > r100 )   qm=15 ! stricter QI
+                   if (ppb < 150.0_r_kind) qm=15                   ! all high level
+                   if (itype==251 .and. ppb < 700.0_r_kind) qm=15  ! VIS
+                   if (itype==246 .and. ppb > 300.0_r_kind) qm=15  ! WVCA 
+                   dlon_earth=hdrdat(3)*deg2rad
+                   dlat_earth=hdrdat(2)*deg2rad
+                   call deter_sfc_type(dlat_earth,dlon_earth,t4dv,isflg,tsavg)
+                   if (isflg == 1 .and. ppb > 850.0_r_kind) qm=15  ! low over land
+                endif
 
                 ! winds rejected by qc dont get used
                 if (qm == 15) usage=r100
@@ -1306,7 +1321,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            cdata_all(8,iout)=rstation_id          ! station id 
            cdata_all(9,iout)=t4dv                 ! time
            cdata_all(10,iout)=nc                  ! index of type in convinfo file
-           cdata_all(11,iout)=qifn +1000.0_r_kind*qify   ! quality mark infor  
+           cdata_all(11,iout)=qifn +1000.0_r_kind*qify   ! quality indictator  
            cdata_all(12,iout)=qm                  ! quality mark
            cdata_all(13,iout)=obserr              ! original obs error
            cdata_all(14,iout)=usage               ! usage parameter

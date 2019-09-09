@@ -34,7 +34,7 @@ cd $DATADIR
 #--------------------------------------------------------------------
 #   Copy extraction program to working directory
 
-$NCP ${IG_EXEC}/horiz.x  ./horiz.x
+$NCP ${IG_EXEC}/radmon_ig_horiz.x  ./horiz.x
 
 
 #--------------------------------------------------------------------

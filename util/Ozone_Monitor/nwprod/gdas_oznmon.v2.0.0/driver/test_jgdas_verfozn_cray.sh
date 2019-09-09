@@ -30,9 +30,9 @@ export pid=${pid:-$$}
 export jobid=${job}.${pid}
 export envir=${envir:-test}
 
-export DATAROOT=${DATAROOT:-/gpfs/hps/emc/da/noscrub/${LOGNAME}/test_data}
-export COMROOT=${COMROOT:-/gpfs/hps/ptmp/${LOGNAME}/com}
-export OZN_WORK_DIR=${OZN_WORK_DIR:-/gpfs/hps/stmp/${LOGNAME}/oznmon.${pid}}
+export DATAROOT=${DATAROOT:-/gpfs/hps3/emc/da/noscrub/${LOGNAME}/test_data}
+export COMROOT=/gpfs/hps2/ptmp/${LOGNAME}/com
+export OZN_WORK_DIR=${OZN_WORK_DIR:-/gpfs/hps2/stmp/${LOGNAME}/oznmon.${pid}}
 
 #------------------------------------------------------------
 # Specify versions
@@ -61,12 +61,17 @@ export POE=YES
 # Set user specific variables
 #
 export OZNMON_SUFFIX=${OZNMON_SUFFIX:-testozn}
-export NWTEST=${NWTEST:-/gpfs/hps/emc/da/noscrub/Edward.Safford/ProdGSI/util/Ozone_Monitor/nwprod}
+export NWTEST=${NWTEST:-/gpfs/hps3/emc/da/noscrub/Edward.Safford/ProdGSI/util/Ozone_Monitor/nwprod}
 
 export HOMEgdas_ozn=${NWTEST}/gdas_oznmon.${gdas_oznmon_ver}
 export PARMgdas_ozn=${HOMEgdas_ozn}/parm
 export SCRgdas_ozn=${HOMEgdas_ozn}/scripts
+export FIXgdas_ozn=${HOMEgdas_ozn}/fix
 JOBgdas_ozn=${HOMEgdas_ozn}/jobs
+
+export HOMEgfs_ozn=${HOMEgfs_ozn:-${HOMEgdas_ozn}}
+export PARMgfs_ozn=${PARMgfs_ozn:-${PARMgdas_ozn}}
+export FIXgfs_ozn=${FIXgfs_ozn:-${FIXgdas_ozn}}
 
 export HOMEoznmon=${NWTEST}/oznmon_shared.${oznmon_shared_ver}
 export COM_IN=${COM_IN:-$DATAROOT}

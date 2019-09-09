@@ -93,22 +93,12 @@ if [[ $allmissing = 1 ]]; then
 fi
 
 
-#-------------------------------------------------------------------
-#   Update the time definition (tdef) line in the bcoef control
-#   files.  Conditionally remove any cray_32bit_ieee flags.
-
-
 for type in ${SATYPE}; do
    if [[ -s ${imgndir}/${type}.ctl.${Z} ]]; then
      ${UNCOMPRESS} ${imgndir}/${type}.ctl.${Z}
    fi
+
    ${IG_SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
-
-#   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
-#      sed -e 's/cray_32bit_ieee/ /' ${imgndir}/${type}.ctl > tmp_${type}.ctl
-#      mv -f tmp_${type}.ctl ${imgndir}/${type}.ctl
-#   fi
-
    ${COMPRESS} ${imgndir}/${type}.ctl
 done
 
@@ -125,12 +115,14 @@ rm ${logfile}
 if [[ $MY_MACHINE = "wcoss" ]]; then
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 80 -W 1:15 \
         -R affinity[core] -J ${jobname} -cwd ${PWD} $IG_SCRIPTS/plot_bcoef.sh
+
 elif [[ $MY_MACHINE = "cray" ]]; then
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 80 -W 1:15 \
         -J ${jobname} -cwd ${PWD} $IG_SCRIPTS/plot_bcoef.sh
-elif [[ $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
-   $SUB -A $ACCOUNT -l procs=1,walltime=2:00:00 -N ${jobname} \
-        -V -j oe -o ${logfile} $IG_SCRIPTS/plot_bcoef.sh 
+
+elif [[ $MY_MACHINE = "theia" ]]; then
+   $SUB --account $ACCOUNT --ntasks=1 --mem=5g --time=1:00:00 -J ${jobname} \
+        -o ${logfile} -D . $IG_SCRIPTS/plot_bcoef.sh 
 fi
 
 echo "end mk_bcoef_plots.sh"

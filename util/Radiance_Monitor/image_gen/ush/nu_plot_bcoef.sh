@@ -36,9 +36,9 @@ echo "  SATYPE_LIST = $1"
 
 
 #----------------------------------
-#  copy bcoef.x executable locally
+#  copy bcoef executable locally
 #
-bcoef_exec="bcoef.x"
+bcoef_exec="radmon_ig_bcoef.x"
 if [[ ! -e $bcoef_exec ]]; then
    $NCP ${IG_EXEC}/${bcoef_exec}  ./${bcoef_exec}
 fi
