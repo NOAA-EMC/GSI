@@ -4,7 +4,7 @@
 #SBATCH -q batch 
 #SBATCH --nodes=1
 #SBATCH -t 2:00:00
-#SBATCH –mail-user=$LOGNAME@noaa.gov
+#SBATCH --mail-user=$LOGNAME@noaa.gov
 OutDir=$1
 DATE=2018041500
 

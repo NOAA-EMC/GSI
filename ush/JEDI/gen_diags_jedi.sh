@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -J gen_diags_jedi 
 #SBATCH -A da-cpu
-#SBATCH --nodes=2
-#SBATCH --ntasks-per-node=24
+#SBATCH --nodes=4
+#SBATCH --ntasks-per-node=20
 #SBATCH -t 30:00
 #SBATCH -o SLURM_%x.o%j
 #SBATCH -e SLURM_%x.e%j
