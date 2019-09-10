@@ -4,7 +4,9 @@ module smooth_mod
 ! This version is for GFS, expects data to be on global gaussian grids (full or
 ! reduced). Isotropic spectral smoothing (gaussian) is used.
 
-use mpisetup
+use mpimod, only: mpi_comm_world
+use mpisetup, only: mpi_real4,mpi_sum,mpi_comm_io,mpi_in_place,numproc,nproc,&
+                mpi_integer,mpi_wtime,mpi_status,mpi_real8,mpi_max
 use params, only:  nlons, nlats, reducedgrid, smoothparm
 use kinds, only:  r_kind, i_kind, r_single
 use gridinfo, only: npts, ntrunc

@@ -103,7 +103,10 @@ module enkf
 !
 !$$$
 
-use mpisetup
+use mpimod, only: mpi_comm_world
+use mpisetup, only: mpi_real4,mpi_sum,mpi_comm_io,mpi_in_place,numproc,nproc,&
+                mpi_integer,mpi_wtime,mpi_status,mpi_real8,mpi_max,mpi_realkind,&
+                mpi_2real,mpi_minloc,mpi_real
 use covlocal, only:  taper
 use kinds, only: r_double,i_kind,r_single,r_single
 use kdtree2_module, only: kdtree2_r_nearest, kdtree2_result

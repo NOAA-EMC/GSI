@@ -72,13 +72,14 @@ program enkf_main
 !$$$
 
  use kinds, only: r_kind,r_double,i_kind
+ use mpimod, only : mpi_comm_world
  ! reads namelist parameters.
  use params, only : read_namelist,cleanup_namelist,letkf_flag,readin_localization,lupd_satbiasc,&
                     numiter, nanals, lupd_obspace_serial, write_spread_diag,   &
                     lobsdiag_forenkf, netcdf_diag, fso_cycling, ntasks_io
  ! mpi functions and variables.
  use mpisetup, only:  mpi_initialize, mpi_initialize_io, mpi_cleanup, nproc, &
-                       mpi_wtime, mpi_comm_world
+                       mpi_wtime
  ! obs and ob priors, associated metadata.
  use enkf_obsmod, only : readobs, write_obsstats, obfit_prior, obsprd_prior, &
                     nobs_sat, obfit_post, obsprd_post, obsmod_cleanup
