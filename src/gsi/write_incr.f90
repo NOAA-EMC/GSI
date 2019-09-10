@@ -79,7 +79,7 @@ contains
     use bias_predictors, only: predictors, allocate_preds, deallocate_preds
     use jfunc, only: xhatsave, iter
 
-    use guess_grids, only: load_geop_hgt,geop_hgti
+    use guess_grids, only: load_geop_hgt, geop_hgti, geop_hgti1, ges_tsen, ges_tsen1
     use state_vectors, only: prt_state_norms, allocate_state, deallocate_state
 
     implicit none
@@ -97,17 +97,17 @@ contains
 
     character(len=120) :: my_name = 'WRITE_FV3INCR'
 
-    real(r_kind),pointer,dimension(:,:,:) :: sub_u,sub_v,sub_tsen
-    real(r_kind),pointer,dimension(:,:,:) :: sub_q,sub_oz
+    real(r_kind),pointer,dimension(:,:,:) :: sub_u,sub_v,sub_tv
+    real(r_kind),pointer,dimension(:,:,:) :: sub_q,sub_qanl,sub_oz
     real(r_kind),pointer,dimension(:,:,:) :: sub_ql, sub_qi
     real(r_kind),pointer,dimension(:,:) :: sub_ps
 
-    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) :: sub_dzb,sub_dza
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) :: sub_dzb,sub_dza, sub_tsen
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig+1,ibin) :: ges_geopi
 
     real(r_kind),dimension(grd%lat1*grd%lon1)     :: pssm
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig):: sub_dp
-    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: tsensm,prslm, usm, vsm
+    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: tsensm,tvsm, prslm, usm, vsm
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: dpsm, qsm, ozsm
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: qism, qlsm 
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: dzsm
@@ -180,7 +180,9 @@ contains
     istatus=0
     call prt_state_norms(svalinc(1),'increment')
     ! TODO CRM - what is the correct index for sval? always 1? related to nfldsig?
-    call gsi_bundlegetpointer(svalinc(1),'tsen', sub_tsen,  iret); istatus=istatus+iret
+    !call gsi_bundlegetpointer(svalinc(1),'tsen', sub_tsen,  iret); istatus=istatus+iret
+    call gsi_bundlegetpointer(gfs_bundle,'tv', sub_tv, iret); istatus=istatus+iret
+    call gsi_bundlegetpointer(gfs_bundle,'q', sub_qanl, iret); istatus=istatus+iret
     call gsi_bundlegetpointer(svalinc(1),'q',  sub_q,   iret); istatus=istatus+iret
     call gsi_bundlegetpointer(svalinc(1),'ql',  sub_ql,   iret); istatus=istatus+iret
     call gsi_bundlegetpointer(svalinc(1),'qi',  sub_qi,   iret); istatus=istatus+iret
@@ -236,17 +238,19 @@ contains
     end if
 
     ! compute delz
-     if ((.not. lwrite4danl) .or. ibin == 1) ges_geopi = geop_hgti
-     do k=1,grd%nsig
-        sub_dzb(:,:,k) = ges_geopi(:,:,k+1,ibin) - ges_geopi(:,:,k,ibin)
-     enddo
+    do k=1,grd%nsig
+       sub_dzb(:,:,k) = geop_hgti1(:,:,k+1,ibin) - geop_hgti1(:,:,k,ibin)
+    enddo
 
-     if ((.not. lwrite4danl) .or. ibin == 1) call load_geop_hgt
-     do k=1,grd%nsig
-        sub_dza(:,:,k) = geop_hgti(:,:,k+1,ibin) - geop_hgti(:,:,k,ibin)
-     enddo
+    call load_geop_hgt
+    do k=1,grd%nsig
+       sub_dza(:,:,k) = geop_hgti(:,:,k+1,ibin) - geop_hgti(:,:,k,ibin)
+    enddo
 
-     sub_dza = sub_dza - sub_dzb !sub_dza is increment
+    sub_dza = sub_dza - sub_dzb !sub_dza is increment
+
+    ! compute T from Tv and get increment
+    sub_tsen = ges_tsen(:,:,:,ibin) - ges_tsen1(:,:,:,ibin)
 
     ! Strip off boundary points from subdomains
     call strip(sub_tsen  ,tsensm  ,grd%nsig)
@@ -262,7 +266,7 @@ contains
     nccount = (/ grd%nlon, grd%nlat-2, 1 /)
     if (mype == mype_out) then
        ! latitudes
-       do j=1,grd%nlat-2
+       do j=2,grd%nlat-1
           deglats(j) = rlats(j)*rad2deg
        end do
        ! write to file

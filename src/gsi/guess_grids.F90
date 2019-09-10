@@ -109,6 +109,7 @@ module guess_grids
 !   2017-05-12  Y. Wang and X. Wang - add bottom and top levels of w and rho for
 !                                     radar DA later, POC: xuguang.wang@ou.edu
 !   2017-10-10  wu      - Add code for fv3_regional 
+!   2019-09-10  martin  - added new fields to save guess tsen/geop_hgt for writing increment
 !
 ! !AUTHOR: 
 !   kleist           org: np20                date: 2003-12-01
@@ -149,6 +150,7 @@ module guess_grids
   public :: wgt_lcbas
   public :: ges_qsat
   public :: use_compress,nsig_ext,gpstop
+  public :: geop_hgti1,ges_tsen1
 
   public :: ges_initialized
 
@@ -240,6 +242,7 @@ module guess_grids
 
   real(r_kind),allocatable,dimension(:,:,:,:):: geop_hgtl ! guess geopotential height at mid-layers
   real(r_kind),allocatable,dimension(:,:,:,:):: geop_hgti ! guess geopotential height at level interfaces
+  real(r_kind),allocatable,dimension(:,:,:,:):: geop_hgti1 ! to save the first guess for increment 
 
   real(r_kind),allocatable,dimension(:,:,:):: pbl_height  !  GSD PBL height in hPa
                                                           ! Guess Fields ...
@@ -249,6 +252,7 @@ module guess_grids
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_lnprsl! log(layer midpoint pressure)
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_lnprsi! log(interface pressure)
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_tsen  ! sensible temperature
+  real(r_kind),allocatable,dimension(:,:,:,:):: ges_tsen1  ! to save the first guess for increment
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_teta  ! potential temperature
 
   real(r_kind),allocatable,dimension(:,:,:):: fact_tv      ! 1./(one+fv*ges_q) for virt to sen calc.
@@ -431,6 +435,7 @@ contains
 !   2012-05-14  todling - revisit cw check to check also on some hydrometeors
 !   2013-10-19  todling - revisit initialization of certain vars wrt ESMF
 !   2014-06-09  carley/zhu - add wgt_lcbas
+!   2019-09-10  martin  - added new fields to save guess tsen/geop_hgt for writing increment
 !
 ! !REMARKS:
 !   language: f90
@@ -462,10 +467,12 @@ contains
        allocate ( ges_prsi(lat2,lon2,nsig+1,nfldsig),ges_prsl(lat2,lon2,nsig,nfldsig),&
             ges_lnprsl(lat2,lon2,nsig,nfldsig),ges_lnprsi(lat2,lon2,nsig+1,nfldsig),&
             ges_tsen(lat2,lon2,nsig,nfldsig),&
+            ges_tsen1(lat2,lon2,nsig,nfldsig),&
             ges_teta(lat2,lon2,nsig,nfldsig),&
             ges_rho(lat2,lon2,nsig,nfldsig), &  
             geop_hgtl(lat2,lon2,nsig,nfldsig), &
             geop_hgti(lat2,lon2,nsig+1,nfldsig),ges_prslavg(nsig),&
+            geop_hgti1(lat2,lon2,nsig+1,nfldsig),&
             tropprs(lat2,lon2),fact_tv(lat2,lon2,nsig),&
             pbl_height(lat2,lon2,nfldsig),wgt_lcbas(lat2,lon2), &
             ges_qsat(lat2,lon2,nsig,nfldsig),stat=istatus)
@@ -515,6 +522,7 @@ contains
                    ges_rho(i,j,k,n)=zero
                    ges_qsat(i,j,k,n)=zero
                    ges_tsen(i,j,k,n)=zero
+                   ges_tsen1(i,j,k,n)=zero
                    ges_teta(i,j,k,n)=zero
                    geop_hgtl(i,j,k,n)=zero
                 end do
@@ -526,6 +534,7 @@ contains
                    ges_prsi(i,j,k,n)=zero
                    ges_lnprsi(i,j,k,n)=zero
                    geop_hgti(i,j,k,n)=zero
+                   geop_hgti1(i,j,k,n)=zero
                 end do
              end do
           end do
@@ -800,6 +809,7 @@ contains
 !   2006-12-15  todling - using internal switches to deallc(tnds/drvs)
 !   2007-03-15  todling - merged in da Silva/Cruz ESMF changes
 !   2012-05-14  todling - revist cw check to check also on some hyrometeors
+!   2019-09-10  martin  - added new fields to save guess tsen/geop_hgt for writing increment
 !
 ! !REMARKS:
 !   language: f90
@@ -818,6 +828,7 @@ contains
 !
     deallocate(ges_prsi,ges_prsl,ges_lnprsl,ges_lnprsi,&
          ges_tsen,ges_teta,geop_hgtl,geop_hgti,ges_prslavg,ges_rho,&
+         ges_tsen1,geop_hgti1,&
          tropprs,fact_tv,pbl_height,wgt_lcbas,ges_qsat,stat=istatus)
     if(w_exist) deallocate(ges_w_btlev,stat=istatus)
     if (istatus/=0) &
