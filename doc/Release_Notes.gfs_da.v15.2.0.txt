@@ -17,6 +17,7 @@ DOC CHANGES
 
 CODE CHANGES
    * global_gsi source code changes in src/
+     * read_files.f90 - make changes requested by Bugzilla ticket 894 (enchanced error messages)
      * read_gps.f90 - add ability to process data from new GNSSRO missions (COSMIC-2, Metop-C, PAZ)
      * read_obs.F90 - add ability to process data from KOMPSAT-5 and new GNSSRO missions (COSMIC-2, Metop-C, PAZ)
                       and new VIIRS bufr format
