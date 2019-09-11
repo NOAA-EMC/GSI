@@ -166,7 +166,7 @@ subroutine read_files(mype)
         end if
      enddo
      if(nfldsig==0) then
-        write(6,*)'READ_FILES: ***ERROR*** NO atm fields; aborting'
+        write(6,*)'READ_FILES: ***FATAL ERROR*** NO atm fields; aborting'
         call stop2(169)
      end if
 
@@ -180,7 +180,7 @@ subroutine read_files(mype)
         end if
      enddo
      if(nfldsfc==0) then
-        write(6,*)'READ_FILES: ***ERROR* NO sfc fields; aborting'
+        write(6,*)'READ_FILES: ***FATAL ERROR*** NO sfc fields; aborting'
         call stop2(170)
      end if
 
@@ -200,7 +200,7 @@ subroutine read_files(mype)
               end if
            enddo
            if(nfldnst==0) then
-              write(6,*)'READ_FILES: ***ERROR*** NO nst fields; aborting'
+              write(6,*)'READ_FILES: ***FATAL ERROR*** NO nst fields; aborting'
               call stop2(170)
            end if
         end if
@@ -236,7 +236,7 @@ subroutine read_files(mype)
            call nemsio_close(gfile_atm,iret=iret)
            if ( nfhour == i_missing .or. nfminute == i_missing .or. &
                 nfsecondn == i_missing .or. nfsecondd == i_missing ) then
-              write(6,*)'READ_FILES: ***ERROR*** some forecast hour info ', &
+              write(6,*)'READ_FILES: ***FATAL ERROR*** some forecast hour info ', &
                  'are not defined in ', trim(filename)
               write(6,*)'READ_FILES: nfhour, nfminute, nfsecondn, and nfsecondd = ', &
                  nfhour, nfminute, nfsecondn, nfsecondd
@@ -255,7 +255,7 @@ subroutine read_files(mype)
         idate5(3)=idateg(3); idate5(4)=idateg(1); idate5(5)=0
         call w3fs21(idate5,nmings)
         nming2=nmings+60*hourg
-        write(6,*)'READ_FILES:  atm guess file',filename,hourg,idateg,nming2
+        write(6,*)'READ_FILES:  atm guess file ',filename,hourg,idateg,nming2
         t4dv=real((nming2-iwinbgn),r_kind)*r60inv
         if (l4dvar.or.l4densvar) then
            if (t4dv<zero .OR. t4dv>winlen) cycle
@@ -282,7 +282,8 @@ subroutine read_files(mype)
            i_ges(1)=sfc_head%lonb
            i_ges(2)=sfc_head%latb+2
            if(sfc_head%latb/2>num_lpl)then
-              write(6,*)'READ_FILES: increase dimension of variable lpl_dum'
+              write(6,*)'READ_FILES: ***FATAL ERROR*** increase dimension of variable lpl_dum'
+              write(6,*)'READ_FILES:  sfc_head%latb/2=',sfc_head%latb/2,' num_lpl=',num_lpl
               call stop2(80)
            endif
            lpl_dum=0
@@ -300,7 +301,7 @@ subroutine read_files(mype)
               dimx=sfc_head%lonb, dimy=sfc_head%latb, iret=iret)
            if ( nfhour == i_missing .or. nfminute == i_missing .or. &
                 nfsecondn == i_missing .or. nfsecondd == i_missing ) then
-              write(6,*)'READ_FILES: ***ERROR*** some forecast hour info ', &
+              write(6,*)'READ_FILES: ***FATAL ERROR*** some forecast hour info ', &
                  'are not defined in ', trim(filename)
               write(6,*)'READ_FILES: nfhour, nfminute, nfsecondn, and nfsecondd = ', &
                  nfhour, nfminute, nfsecondn, nfsecondd
@@ -314,7 +315,8 @@ subroutine read_files(mype)
            i_ges(1)=sfc_head%lonb
            i_ges(2)=sfc_head%latb+2
            if((sfc_head%latb+1)/2>num_lpl)then
-              write(6,*)'READ_FILES: increase dimension of variable lpl_dum'
+              write(6,*)'READ_FILES: ***FATAL ERROR*** increase dimension of variable lpl_dum'
+              write(6,*)'READ_FILES: (sfc_head%latb+1)/2=',(sfc_head%latb+1)/2,' num_lpl=',num_lpl
               call stop2(80)
            endif
            if ( (sfc_head%latb+1)/2 /= sfc_head%latb/2 ) then
@@ -326,7 +328,7 @@ subroutine read_files(mype)
            sfc_head%lpl=i_missing
            call nemsio_getheadvar(gfile_sfc,'lpl',sfc_head%lpl,iret=iret)
            if ( iret /= 0 ) then
-              write(6,*)' READ_FILES: ****ERROR**** reading sfc_head%lpl from ', &
+              write(6,*)' READ_FILES: ****FATAL ERROR**** reading sfc_head%lpl from ', &
                  trim(filename),', iret = ', iret
               write(6,*)' sfc_head%lpl = ', sfc_head%lpl(1:20)
               call nemsio_close(gfile_sfc,iret=iret)
@@ -386,7 +388,7 @@ subroutine read_files(mype)
                  call nemsio_close(gfile_nst,iret=iret)
                  if ( nfhour == i_missing .or. nfminute == i_missing .or. &
                       nfsecondn == i_missing .or. nfsecondd == i_missing ) then
-                    write(6,*)'READ_FILES: ***ERROR*** some forecast hour info ', &
+                    write(6,*)'READ_FILES: ***FATAl ERROR*** some forecast hour info ', &
                          'are not defined in ', trim(filename)
                     write(6,*)'READ_FILES: nfhour, nfminute, nfsecondn, and nfsecondd = ', &
                          nfhour, nfminute, nfsecondn, nfsecondd
@@ -410,7 +412,7 @@ subroutine read_files(mype)
               idate5(3)=idateg(3); idate5(4)=idateg(1); idate5(5)=0
               call w3fs21(idate5,nmings)
               nming2=nmings+60*hourg
-              write(6,*)'READ_FILES:  nst guess file',filename,hourg,idateg,nming2
+              write(6,*)'READ_FILES:  nst guess file ',filename,hourg,idateg,nming2
               t4dv=real((nming2-iwinbgn),r_kind)*r60inv
               if (l4dvar.or.l4densvar) then
                  if (t4dv<zero .OR. t4dv>winlen) cycle
@@ -470,11 +472,13 @@ subroutine read_files(mype)
   if(mype == 0) write(6,*)'READ_FILES:  atm fcst files used in analysis  :  ',&
        (ifilesig(i),i=1,nfldsig),(hrdifsig(i),i=1,nfldsig),ntguessig
   if (ntguessig==0) then
-     write(6,*)'READ_FILES: ***ERROR*** center atm fcst NOT AVAILABLE: PROGRAM STOPS'
+     write(6,*)'READ_FILES: ***FATAL ERROR*** center atm fcst NOT AVAILABLE: PROGRAM STOPS'
      call stop2(99)
   endif
   if (l4densvar .and. nfldsig/=ntlevs_ens) then
-     write(6,*)'READ_FILES: ***ERROR*** insufficient atm fcst for 4densvar:  PROGRAM STOPS'
+     write(6,*)'READ_FILES: ***FATAL ERROR*** insufficient atm fcst for 4densvar:  PROGRAM STOPS'
+     write(6,*)'READ_FILES:  nfldsig=',nfldsig,' and  ntlevs_ens=',ntlevs_ens,' differ'
+     write(6,*)'READ_FILES:  check atm guess file printout above to identify missing file(s)'
      call stop2(99)
   endif
 
@@ -488,11 +492,13 @@ subroutine read_files(mype)
   if(mype == 0) write(6,*)'READ_FILES:  sfc fcst files used in analysis:  ',&
        (ifilesfc(i),i=1,nfldsfc),(hrdifsfc(i),i=1,nfldsfc),ntguessfc
   if (ntguessfc==0) then
-     write(6,*)'READ_FILES: ***ERROR*** center sfc fcst NOT AVAILABLE: PROGRAM STOPS'
+     write(6,*)'READ_FILES: ***FATAL ERROR*** center sfc fcst NOT AVAILABLE: PROGRAM STOPS'
      call stop2(99)
   endif
   if (l4densvar .and. nfldsfc/=ntlevs_ens) then
-     write(6,*)'READ_FILES: ***ERROR*** insufficient sfc fcst for 4densvar:  PROGRAM STOPS'
+     write(6,*)'READ_FILES: ***FATAL ERROR*** insufficient sfc fcst for 4densvar:  PROGRAM STOPS'
+     write(6,*)'READ_FILES:  nfldsfc=',nfldsfc,' and  ntlevs_ens=',ntlevs_ens,' differ'
+     write(6,*)'READ_FILES:  check sfc guess file printout above to identify missing file(s)'
      call stop2(99)
   endif
   
@@ -514,11 +520,12 @@ subroutine read_files(mype)
         if(mype == 0) write(6,*)'READ_FILES:  nst fcst files used in analysis:  ',&
              (ifilenst(i),i=1,nfldnst),(hrdifnst(i),i=1,nfldnst),ntguesnst
         if (ntguesnst==0) then
-           write(6,*)'READ_FILES: ***ERROR*** center nst fcst NOT AVAILABLE: PROGRAM STOPS'
+           write(6,*)'READ_FILES: ***FATAL ERROR*** center nst fcst NOT AVAILABLE: PROGRAM STOPS'
            call stop2(99)
         endif
         if (l4densvar .and. nfldnst/=ntlevs_ens) then
-           write(6,*)'READ_FILES: ***ERROR*** insufficient nst fcst for 4densvar:  PROGRAM STOPS'
+           write(6,*)'READ_FILES: ***FATAL ERROR*** insufficient nst fcst for 4densvar:  PROGRAM STOPS'
+           write(6,*)'READ_FILES:  nfldnst=',nfldnst,' and  ntlevs_ens=',ntlevs_ens,' differ'
            call stop2(99)
         endif
     endif
