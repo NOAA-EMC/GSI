@@ -1,10 +1,8 @@
 #!/bin/bash
 #SBATCH -J gen_diags_jedi 
 #SBATCH -A da-cpu
-#SBATCH --qos=debug
-#SBATCH --partition=bigmem
-#SBATCH --nodes=2
-#SBATCH --ntasks-per-node=24
+#SBATCH --nodes=4
+#SBATCH --ntasks-per-node=20
 #SBATCH -t 30:00
 #SBATCH -o SLURM_%x.o%j
 #SBATCH -e SLURM_%x.e%j
@@ -14,19 +12,18 @@ set -x
 
 ### user defined arguments
 adate=2018041500
-ObsDir=/scratch4/NCEPDEV/global/noscrub/dump/
-GuessDir=/scratch4/NCEPDEV/da/noscrub/Andrew.Collard/ICs_for_JEDI
-WorkDir=/scratch3/NCEPDEV/stmp1/$LOGNAME/JEDI/GSI_work_latest_newhgt/$adate
-OutDir=/scratch3/NCEPDEV/stmp1/$LOGNAME/JEDI/output_latest_newhgt/$adate
+ObsDir=/scratch1/NCEPDEV/da/Cory.R.Martin/JEDI/Obs_for_test/
+GuessDir=/scratch1/NCEPDEV/da/Cory.R.Martin/JEDI/ICs_for_test/
+WorkDir=/scratch2/NCEPDEV/stmp1/$LOGNAME/JEDI/GSI_work/$adate
+OutDir=/scratch2/NCEPDEV/stmp1/$LOGNAME/JEDI/output/$adate
 
-threads=1
-GSIDir=/scratch4/NCEPDEV/da/save/Cory.R.Martin/GSI/
-GSIBuildDir=$GSIDir/build_jedi
+GSIDir=/scratch1/NCEPDEV/da/Cory.R.Martin/GSI/ProdGSI_forJEDI
+GSIBuildDir=$GSIDir/build
 gsiexec=$GSIBuildDir/bin/gsi.x
 nccat=$GSIBuildDir/bin/nc_diag_cat_serial.x
-fixgsi=/scratch4/NCEPDEV/da/save/Cory.R.Martin/GSI/ProdGSI_jedi/fix
-fixcrtm=/scratch4/NCEPDEV/da/save/Cory.R.Martin/CRTM/fix
-USHDir=$GSIDir/ProdGSI_jedi/ush/
+fixgsi=$GSIDir/fix
+fixcrtm=/scratch1/NCEPDEV/da/Cory.R.Martin/CRTM/fix
+USHDir=$GSIDir/ush/
 
 dumpobs=gdas
 dumpobs_nr=gdasnr
@@ -38,42 +35,15 @@ export JCAP_B=382
 export LEVS=64
 
 # load modules here used to compile GSI
-source /apps/lmod/7.7.18/init/sh
 
-module list
 module purge
-### load modules
-# system installed
-module load intel
-module load impi
-module load netcdf
-module load grads
-module load rocoto/1.3.0
-# /contrib modules
-module use -a /contrib/modulefiles
-module load anaconda/anaconda2
-# /contrib/da modules
-module use -a /contrib/da/modulefiles
-module load boost
-module load eigen
-
-#   NCEPLIBS
-module use -a /scratch3/NCEPDEV/nwprod/lib/modulefiles
-module load nemsio
-module load bacio
-module load w3nco
-#module load crtm/v2.2.3
-
+module use -a /scratch1/NCEPDEV/da/Cory.R.Martin/Modulefiles
+module load modulefile.ProdGSI.hera
 module list
-# CRTM things for 2.3.0
-export CRTM_SRC=/scratch4/NCEPDEV/da/save/Cory.R.Martin/CRTM/REL-2.3.0/
-export CRTM_INC=/scratch4/NCEPDEV/da/save/Cory.R.Martin/CRTM/REL-2.3.0/build/crtm_v2.3.0/include
-export CRTM_LIB=/scratch4/NCEPDEV/da/save/Cory.R.Martin/CRTM/REL-2.3.0/build/crtm_v2.3.0/lib/libcrtm.a
-export CRTM_FIX=/scratch4/NCEPDEV/da/save/Cory.R.Martin/CRTM/fix
-export CRTM_VER=2.3.0
 
 #####----- normal users need not change anything below this line -----##### 
 export crtm_coeffs=./crtm_coeffs/
+# TODO CRM - change NDATE to path on Hera not Theia
 NDATE=${NDATE:-/scratch4/NCEPDEV/global/save/glopara/nwpara/util/exec/ndate}
 ncpc=/bin/cp
 ncpl="ln -fs"
@@ -87,7 +57,7 @@ cycg=`echo $gdate | cut -c9-10`
 
 datobs=$ObsDir/$PDYa$cyca/$obsdump/$dumpobs/
 datobsnr=$ObsDir/$PDYa$cyca/$obsdump/${dumpobs_nr}/
-datges=$GuessDir
+datges=$GuessDir/$PDYa$cyca/
 prefix_obs=${dumpobs}.t${cyca}z
 prefix_ges=gdas.t${cycg}z
 suffix=tm00.bufr_d

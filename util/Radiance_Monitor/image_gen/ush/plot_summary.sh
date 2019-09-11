@@ -162,7 +162,7 @@ EOF
    rm -f $timesf
    
    if [[ ! -s summary.x ]]; then
-      $NCP ${IG_EXEC}/summary.x .
+      $NCP ${IG_EXEC}/radmon_ig_summary.x summary.x 
    fi
 
    ls ${type}.*.ieee_d | cut -d'.' -f2 > tmp

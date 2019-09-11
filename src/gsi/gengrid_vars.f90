@@ -15,6 +15,7 @@ subroutine gengrid_vars
 !   2010-01-12  treadon - add hires_b section
 !   2010-03-10  lueken - remove hires_b section
 !   2010-03-31  treadon - replace specmod components with sp_a structure
+!   2019-03-05  martin - add wgtfactlats for factqmin/factqmax scaling
 !
 !   input argument list:
 !
@@ -29,7 +30,7 @@ subroutine gengrid_vars
 !$$$
   use kinds, only: r_kind,i_kind
   use gridmod, only: sinlon,coslon,region_lat,rbs2,&
-       rlons,rlats,corlats,nlon,nlat,regional,wgtlats,sp_a
+       rlons,rlats,corlats,nlon,nlat,regional,wgtlats,sp_a,wgtfactlats
   use constants, only: zero,half,one,four,pi,two,omega
   implicit none
 
@@ -50,12 +51,13 @@ subroutine gengrid_vars
      i1=nlon/4
      do i=1,nlat
         wgtlats(i)=zero
+        wgtfactlats(i) = one
         rbs2(i)=one/cos(region_lat(i,i1))**2
      end do
 
   else
 
-! This is global run, so get global lons, lats, wgtlats
+! This is global run, so get global lons, lats, wgtlats, wgtfactlats
 
 ! Set local constants
      anlon=float(nlon)
@@ -92,6 +94,7 @@ subroutine gengrid_vars
 
      do i=1,nlat
         corlats(i)=two*omega*sin(rlats(i))
+        wgtfactlats(i)=wgtlats(i)
      end do
 
   end if  !end if global

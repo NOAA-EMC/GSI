@@ -1,7 +1,11 @@
 #!/bin/sh
 
-package=ProdGSI/util/Ozone_Monitor
-#package=OznMon
+#package=ProdGSI/util/Ozone_Monitor
+package=OznMon
+
+DO_COMP=1
+COMP1=sbuv2_n19
+COMP2=ompsnp_npp
 
 ozn_suffix=fv3rt1
 run=gdas
@@ -45,7 +49,9 @@ tankdir=/u/Edward.Safford/nbns/stats/${ozn_suffix}
 imgdate=`${scripts}/query_data_map.pl ${data_map} ${ozn_suffix}_${run} imgdate`
 idate=`$NDATE +${CYCLE_INTERVAL} $imgdate`
 
-logdir=/ptmpp1/Edward.Safford/logs
+logdir=/ptmpd1/Edward.Safford/logs
+
+export SATYPE=`cat ${tankdir}/info/gdas_oznmon_satype.txt`
 
 prodate=`${scripts}/find_cycle.pl -run ${run} -cyc 1 -dir ${tankdir}`
 echo "imgdate, idate, prodate = $imgdate, $idate, $prodate"
@@ -53,9 +59,18 @@ echo "imgdate, idate, prodate = $imgdate, $idate, $prodate"
 if [[ $idate -le $prodate ]]; then
 
    echo " firing OznMon_Plt.sh"
-   ${scripts}/OznMon_Plt.sh $ozn_suffix -p $idate -r $run  \
-      1>${logdir}/${ozn_suffix}/${run}/oznmon/OznMon_Plt.log \
-      2>${logdir}/${ozn_suffix}/${run}/oznmon/OznMon_Plt.err
+
+   if [[ $DO_COMP -eq 1 ]]; then
+      ${scripts}/OznMon_Plt.sh $ozn_suffix -p $idate -r $run \
+         	-c1 $COMP1 -c2 $COMP2 \
+         1>${logdir}/${ozn_suffix}/${run}/oznmon/OznMon_Plt.log \
+         2>${logdir}/${ozn_suffix}/${run}/oznmon/OznMon_Plt.err
+   else
+
+      ${scripts}/OznMon_Plt.sh $ozn_suffix -p $idate -r $run \
+         1>${logdir}/${ozn_suffix}/${run}/oznmon/OznMon_Plt.log \
+         2>${logdir}/${ozn_suffix}/${run}/oznmon/OznMon_Plt.err
+   fi
 
    rc=`${scripts}/update_data_map.pl ${data_map} \
        ${ozn_suffix}_${run} imgdate ${idate}`

@@ -21,8 +21,9 @@ subroutine biascor(numcases,mype)
 
   real(r_kind),dimension(nlat,nlon,nsig):: bcz,bcd,bct,bbz,bbd,bbt
   real(r_kind),dimension(nlat,nlon):: bbp,bcp
-  real(r_single),dimension(nlon,nlat,nsig):: bcz4,bcd4,bct4,bbz4,bbd4,bbt4
-  real(r_single),dimension(nlon,nlat):: bcp4,bbp4
+  real(r_kind),dimension(nlon,nlat,nsig):: bcz4,bcd4,bct4,bbz4,bbd4,bbt4
+  real(r_kind),dimension(nlon,nlat):: bcp4,bbp4
+
   character(255) grdfile
   integer ncfggg,ifile
 

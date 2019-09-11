@@ -42,13 +42,15 @@ program prepbufr_decode_all
        call ufbint(unit_in,oer,mxmn,mxlv,iret,oestr)
        call ufbint(unit_in,qcf,mxmn,mxlv,iret,qcstr)
        rstation_id=hdr(1)
-       write(*,*)
-       write(*,'(2I10,a14,8f14.1)') ntb,iret,c_sid,(hdr(i),i=2,8)
-       DO k=1,iret
-         write(*,'(i3,a10,9f14.1)') k,'obs=',(obs(i,k),i=1,9)
-         write(*,'(i3,a10,9f14.1)') k,'oer=',(oer(i,k),i=1,7)
-         write(*,'(i3,a10,9f14.1)') k,'qcf=',(qcf(i,k),i=1,7)
-       ENDDO
+!       if(int(hdr(5))==120 .or. int(hdr(5))==220) then
+          write(*,*)
+          write(*,'(2I10,a15,8f15.1)') ntb,iret,c_sid,(hdr(i),i=2,8)
+          DO k=1,iret
+            write(*,'(i3,a10,9f15.1)') k,'obs=',(obs(i,k),i=1,9)
+            write(*,'(i3,a10,9f15.1)') k,'oer=',(oer(i,k),i=1,7)
+            write(*,'(i3,a10,9f15.1)') k,'qcf=',(qcf(i,k),i=1,7)
+          ENDDO
+!       endif
      enddo sb_report
    enddo msg_report
  call closbf(unit_in)

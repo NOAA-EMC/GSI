@@ -229,7 +229,7 @@ subroutine init_rf_z(z_len)
                      wrf_nmm_regional,nems_nmmb_regional,wrf_mass_regional,cmaq_regional, &
                      regional,fv3_regional
   use constants, only: half,one,rd_over_cp,zero,one_tenth,ten,two
-  use hybrid_ensemble_parameters, only: grd_ens,s_ens_v
+  use hybrid_ensemble_parameters, only: grd_ens
   use hybrid_ensemble_parameters, only: ps_bar
 
   implicit none
@@ -252,7 +252,7 @@ subroutine init_rf_z(z_len)
   allocate(fmatz(nxy,2,nsig,2),fmat0z(nxy,nsig,2))
   allocate(fmatz_tmp(2,nsig,2),fmat0z_tmp(nsig,2))
 !   for z_len < zero, use abs val z_len and assume localization scale is in units of ln(p)
-  if(s_ens_v > zero) then
+  if(maxval(z_len) > zero) then
 
 !  z_len is in grid units
      do k=1,nsig
@@ -4045,7 +4045,8 @@ subroutine hybens_localization_setup
    endif ! if ( readin_localization .or. readin_beta )
 
 100 format(I4)
-101 format(F8.1,3x,F5.1,2(3x,F8.4))
+!101 format(F8.1,3x,F5.1,2(3x,F8.4))
+101 format(F8.1,3x,F8.3,F8.4,3x,F8.4)
 
    if ( .not. readin_beta ) then ! assign all levels to same value, sum = 1.0
       beta_s = beta_s0

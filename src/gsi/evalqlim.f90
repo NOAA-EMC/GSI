@@ -14,6 +14,7 @@ subroutine evalqlim(sval,pbc,rval)
 !   2010-03-23  derber - made consistent with stplimq and intlimq (but not checked)
 !   2010-05-05  derber - omp commands removed
 !   2010-05-13  todling - udpate to use gsi_bundle; interface change
+!   2019-03-05  martin - update to weight factqmin/max by latitude
 !
 !   input argument list:
 !    sq
@@ -31,12 +32,13 @@ subroutine evalqlim(sval,pbc,rval)
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind,r_quad
   use constants, only: zero,one,zero_quad
-  use gridmod, only: lat1,lon1,nsig
+  use gridmod, only: lat1,lon1,nsig,istart,wgtfactlats
   use jfunc, only: factqmin,factqmax
   use derivsmod, only: qgues,qsatg
   use mpl_allreducemod, only: mpl_allreduce
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use mpimod, only: mype
   implicit none
 
 ! Declare passed variables
@@ -45,7 +47,7 @@ subroutine evalqlim(sval,pbc,rval)
   real(r_quad)      ,intent(inout) :: pbc
 
 ! Declare local variables
-  integer(i_kind) i,j,k,ier,istatus
+  integer(i_kind) i,j,k,ier,istatus,ii,mm1
   real(r_quad) :: zbc(2)
   real(r_kind) :: q,term
   real(r_kind),pointer,dimension(:,:,:) :: sq
@@ -61,23 +63,28 @@ subroutine evalqlim(sval,pbc,rval)
   call gsi_bundlegetpointer(rval,'q',rq,istatus);ier=istatus+ier
   if(ier/=0)return
 
+  mm1 = mype+1
+
   zbc=zero_quad
 ! Loop over interior of subdomain          
   do k = 1,nsig
      do j = 2,lon1+1
         do i = 2,lat1+1
+           ii=istart(mm1)+i-2
 !          Value for q
            q = qgues(i,j,k) + sq(i,j,k)
 !          Compute penalty for neg q
            if (q<zero) then
-              term = factqmin*q/(qsatg(i,j,k)*qsatg(i,j,k))
+              term = (factqmin*wgtfactlats(ii))*q&
+                     /(qsatg(i,j,k)*qsatg(i,j,k))
               zbc(1) = zbc(1) + term*q
 !             Adjoint
               rq(i,j,k) = rq(i,j,k) + term
            endif
 !          Compute penalty for excess q
            if (q>qsatg(i,j,k)) then
-              term=factqmax*(q-qsatg(i,j,k))/(qsatg(i,j,k)*qsatg(i,j,k))
+              term=(factqmax*wgtfactlats(ii))*(q-qsatg(i,j,k))&
+                   /(qsatg(i,j,k)*qsatg(i,j,k))
               zbc(2) = zbc(2) + term*(q-qsatg(i,j,k))
 !             Adjoint
               rq(i,j,k) = rq(i,j,k) + term

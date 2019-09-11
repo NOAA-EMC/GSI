@@ -1,6 +1,6 @@
 subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis, &
-     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs,dval_use)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_ahi                    read himawari-8 ahi data
@@ -74,10 +74,10 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
   integer(i_kind) ,intent(in   ) :: mype_sub
   integer(i_kind) ,intent(in   ) :: npe_sub
   integer(i_kind) ,intent(in   ) :: mpi_comm_sub
+  logical         ,intent(in)    :: dval_use
 
 ! Declare local parameters
   integer(i_kind),parameter:: nimghdr=13
-  integer(i_kind),parameter:: maxinfo=33
   integer(i_kind),parameter:: maxchanl=11
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: r180=180.0_r_kind
@@ -91,7 +91,7 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
 
   character(8) subset
 
-  integer(i_kind) nchanl,ilath,ilonh,ilzah,iszah,irec,next
+  integer(i_kind) nchanl,ilath,ilonh,ilzah,iszah,irec,next,maxinfo
   integer(i_kind) nmind,lnbufr,idate,ilat,ilon
   integer(i_kind) ireadmg,ireadsb,iret,nreal,nele,itt
   integer(i_kind) itx,i,k,isflg,kidsat,n,iscan,idomsfc
@@ -178,6 +178,9 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
   if(jsatid == 'himawari8') kidsat = 173
 
 ! Allocate arrays to hold all data for given satellite
+
+  maxinfo=31
+  if(dval_use) maxinfo = maxinfo + 2
   nreal = maxinfo + nstinfo
   nele  = nreal   + nchanl
   allocate(data_all(nele,itxmax),nrec(itxmax))
@@ -395,8 +398,11 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
         data_all(29,itx)= ff10                        ! ten meter wind factor
         data_all(30,itx)= dlon_earth_deg              ! earth relative longitude (degrees)
         data_all(31,itx)= dlat_earth_deg              ! earth relative latitude (degrees)
-        data_all(32,itx) = val_img
-        data_all(33,itx) = itt
+
+        if(dval_use)then
+           data_all(maxinfo-1,itx) = val_img
+           data_all(maxinfo,itx) = itt
+        end if
 
         if ( nst_gsi > 0 ) then
            data_all(maxinfo+1,itx) = tref         ! foundation temperature
@@ -426,9 +432,13 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
            if(data_all(k+nreal,n) > tbmin .and. &
               data_all(k+nreal,n) < tbmax)nodata=nodata+1
         end do
-        itt=nint(data_all(maxinfo,n))
-        super_val(itt)=super_val(itt)+val_img
      end do
+     if(dval_use .and. assim)then
+       do n=1,ndata
+          itt=nint(data_all(maxinfo,n))
+          super_val(itt)=super_val(itt)+val_img
+       end do
+     end if
 
 ! Write final set of "best" observations to output file
      call count_obs(ndata,nele,ilat,ilon,data_all,nobs)

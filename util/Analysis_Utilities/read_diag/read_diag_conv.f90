@@ -72,11 +72,6 @@ PROGRAM read_diag_conv
   integer :: i,j,k,ios
   integer :: ic, iflg
 
-  integer,dimension(300):: imap_ps,imap_t,imap_q,imap_pw,imap_sst,imap_uv
-!
-!  tiny_r_kind = tiny(0)
-!
-  call convinfo_read(imap_ps,imap_t,imap_q,imap_pw,imap_sst,imap_uv)
 !
   outfilename='diag_results'
   open(11,file='namelist.conv')
@@ -183,84 +178,3 @@ PROGRAM read_diag_conv
       stop 1234
 
 END PROGRAM read_diag_conv
-
-subroutine convinfo_read(imap_ps,imap_t,imap_q,imap_pw,imap_sst,imap_uv)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    convinfo_read      read conventional information file
-!
-    character(len=1)cflg
-    character(len=16) cob
-    character(len=7) iotype
-    character(len=120) crecord
-    integer lunin,i,n,nc,ier,istat
-    integer nlines,maxlines
-
-    character(len=16),allocatable, dimension(:)::ioctype
-    integer,allocatable,dimension(:):: icuse,ictype,icsubtype
-    integer,dimension(300):: imap_ps,imap_t,imap_q,imap_pw,imap_sst,imap_uv
-
-    imap_ps=-10
-    imap_t=-10
-    imap_q=-10
-    imap_pw=-10
-    imap_sst=-10
-    imap_uv=-10
-    lunin = 47
-    open(lunin,file='convinfo',form='formatted')
-    rewind(lunin)
-    nconvtype=0
-    nlines=0
-    read1: do
-      read(lunin,1030,err=333, end=300)cflg,iotype
-1030  format(a1,a7,2x,a120)
-      nlines=nlines+1
-      if(cflg == '!')cycle
-      nconvtype=nconvtype+1
-    enddo read1
-
-300 continue
-
-    if(nconvtype == 0) then
-       write(6,*) 'CONVINFO_READ: NO CONVENTIONAL DATA USED'
-       return
-    endif
-
-    allocate(icuse(nconvtype),ictype(nconvtype),icsubtype(nconvtype), &
-             ioctype(nconvtype))
-
-    rewind(lunin)
-    do i=1,nlines
-       read(lunin,1030)cflg,iotype,crecord
-       if(cflg == '!')cycle
-       nc=nc+1
-       ioctype(nc)=iotype
-           !otype   type isub iuse 
-           !ps       120    0    1 
- !ioctype(nc),
-           !  ictype(nc),
-           !     icsubtype(nc),
-           !              icuse(nc),
-
-       read(crecord,*)ictype(nc),icsubtype(nc),icuse(nc)
-!       write(6,1031)ioctype(nc),ictype(nc),icsubtype(nc),icuse(nc)
-1031   format('READ_CONVINFO: ',a7,1x,i3,1x,i4,1x,i2,1x,g12.6)
-       if(trim(ioctype(nc)) == 'ps') imap_ps(ictype(nc))=icuse(nc)
-       if(trim(ioctype(nc)) == 't') imap_t(ictype(nc))=icuse(nc)
-       if(trim(ioctype(nc)) == 'q') imap_q(ictype(nc))=icuse(nc)
-       if(trim(ioctype(nc)) == 'pw') imap_pw(ictype(nc))=icuse(nc)
-       if(trim(ioctype(nc)) == 'sst') imap_sst(ictype(nc))=icuse(nc)
-       if(trim(ioctype(nc)) == 'uv') imap_uv(ictype(nc))=icuse(nc)
-
-    enddo
-
-    close(lunin)
-!    DO i =1, 300
-!    write(*,'(10I4)') i, imap_t(i),imap_q(i),imap_pw(i),imap_sst(i),imap_uv(i)
-!    enddo
-
-    return
-333 continue
-    write(*,*) ' error in read'
-    stop 1234
-  end subroutine convinfo_read
