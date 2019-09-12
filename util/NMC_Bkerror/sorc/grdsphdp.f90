@@ -909,7 +909,7 @@ end subroutine divsphdp
      coef(lacoy1+ix-1)=(float(ix)-half)*pi2onx
   enddo
 
-  call cdcoef(nxh,noq,zero,pi,coef(lacoy1),w&
+  call cdcoef(nxh,noq,dble(zero),dble(pi),coef(lacoy1),w&
        ,coef(lacox1),coef(lbcox1),coef(lacox2),coef(lbcox2)&
        ,nxh,nxh,nxh,nxh)
   do i=0,nxa-1
