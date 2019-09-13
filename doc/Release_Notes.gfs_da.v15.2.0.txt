@@ -1,24 +1,27 @@
-FV3GFS DA RELEASE NOTES (v15.2.0)
+GFS DA RELEASE NOTES (v15.2.0)
 
 GIT TAG 
-   * The GFS DA v15.2 component is in NOAA VLAB gerrit:ProdGSI.  The GFS DA v15.2 tag is intended to 
-     be installed as part of the entire FV3GFS package.   Please see FV3GFS release notes for name 
-     and location of FV3GFS tag in NOAA VLAB gerrit.   The FV3GFS tag contains a checkout script 
-     which checks out the appropriate FV3GFS DA tag.
+   * The GFS v15.2 DA component is in NOAA VLAB gerrit:ProdGSI.  The GFS v15.2 DA tag is intended to 
+     be installed as part of the entire GFS v15.2 package.   Please see GFS v15.2 release notes for
+     name and location of the GFS v15.2 tag in NOAA VLAB gerrit.   The GFS v15.2 tag contains a 
+     checkout script which checks out the appropriate GFS v15.2 DA tag.
 
 
 
 
 DOC CHANGES 
-   * Update Release_Notes.gfs_da.v15.0.0.txt to reflect GFS DA v15.2 changes
+   * Update Release_Notes.fv3gfs_da.v15.0.0.txt to reflect GFS DA v15.2 changes
 
 
 
 
 CODE CHANGES
    * global_gsi source code changes in src/
+     * guess_grids.F90 - add array to hold guess geopotential height at level interfaces
+     * ncepnems_io.f90 - use guess geopotential height at level interfaces in computation of delz increment
      * read_files.f90 - make changes requested by Bugzilla ticket 894 (enchanced error messages)
      * read_gps.f90 - add ability to process data from new GNSSRO missions (COSMIC-2, Metop-C, PAZ)
+     * read_guess.F90 - save guess geopotential height at level interface for use in write_atm
      * read_obs.F90 - add ability to process data from KOMPSAT-5 and new GNSSRO missions (COSMIC-2, Metop-C, PAZ)
                       and new VIIRS bufr format
      * read_satwnd.f90 - add code to handle new VIIRS bufr format
@@ -78,8 +81,8 @@ RESOURCE INFORMATION
 
 PRE-IMPLEMENTATION TESTING REQUIREMENTS
    * Which production jobs should be tested as part of this implementation?
-      * The GFS DA v15.2 component runs within the GFS v15.2.  A single cycle 
-        test of GFS v15.2 will exercise GFS DA v15.2 jobs.
+      * The GFS v15.2 DA component runs within the GFS v15.2.  A single cycle 
+        test of GFS v15.2 will exercise GFS v15.2 DA jobs.
 
    * Does this change require a 30-day evaluation?
       * No.
@@ -107,7 +110,7 @@ DISSEMINATION INFORMATION
       * No change from GFS v15.1
 
 
-   * File changes.  Only FV3GFS DA file changes are listed below.
+   * File changes.  Only GFS v15.2 DA file changes are listed below.
       * No change from GFS v15.1
 
 
@@ -124,10 +127,10 @@ HPSS ARCHIVE
 
 
 IMPLEMENTATION INSTRUCTIONS
-   * Please note that the DA components must be installed in conjunction with the entire FV3GFS package.  
-     Thus, the implementation instructions below extract the entire FV3GFS package.   The FV3GFS package 
-     is tagged in NOAA VLAB gerrit:global-workflow as feature/dev-v15.2.   Implementation instructions 
-     for this tag follow below:
+   * Please note that the DA components must be installed in conjunction with the entire GFS v15.2 package.  
+     Thus, the implementation instructions below extract the entire GFS v15.2 package.   The GFS v15.2
+     package is tagged in NOAA VLAB gerrit:global-workflow as feature/dev-v15.2.   Implementation 
+     instructions for this tag follow below:
 
       1) cd  $NWROOTp3
 
@@ -137,25 +140,24 @@ IMPLEMENTATION INSTRUCTIONS
 
       4) git clone --recursive gerrit:global-workflow .
          * Notes:
-            * The "." after fv3gfs is important.  It tells git to clone fv3gfs into the local working directory, 
-              $NWROOTp3/gfs.v15.2.0.
-            * The SPA(s) handling the FV3GFS implementation may encounter "permission denied" messages when 
+            * The "." after global-workflow is important.  It tells git to clone global-workflow into the 
+              local working directory $NWROOTp3/gfs.v15.2.0.
+            * The SPA(s) handling the GFS v15.2 implementation may encounter "permission denied" messages when 
              attempting to clone Vlab gerrit repositories.  Code managers need to add the SPA(s) as project 
-             developers.  For the FV3GFS DA project please contact Michael.Lueken@noaa.gov or Mark.Potts@noaa.gov. 
+             developers.  For GFS v15.2 DA please contact Michael.Lueken@noaa.gov or Mark.Potts@noaa.gov. 
 
       5) git checkout feature/dev-v15.2
 
       6) cd sorc
 
       7) ./checkout.sh
-         * This script extracts the following FV3GFS components from gerrit:  FV3GFS model, FV3GFS DA, 
-           FV3GFS UPP, FV3GFS WAFS
+         * This script extracts the following GFS v15.2 components from gerrit:  model, DA, UPP, and WAFS
 
       8) ./build_all.sh
-         * Script build_all.sh compiles all FV3GFS components.   Runtime output from the build for each 
-           package is written to log files in directory logs.  Specifically, FV3GFS DA build information 
+         * Script build_all.sh compiles all GFS v15.2 components.   Runtime output from the build for each 
+           package is written to log files in directory logs.  Specifically, GFS v15.2 DA build information 
            is written to logs/build_gsi.log.  Script build_gsi.sh invokes gsi.fd/ush/build_all_cmke.sh.
-           This script uses cmake to build FV3GFS DA components.   Script build_all_cmake.sh accepts two 
+           This script uses cmake to build GFS v15.2 DA components.   Script build_all_cmake.sh accepts two 
            command line options:  build type and directory path to package.  Two build types are 
            supported - PRODUCTION (default) and DEBUG.
 

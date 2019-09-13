@@ -142,7 +142,7 @@ module guess_grids
   public :: ntguessfc,ntguesnst,dsfct,ifilesig,veg_frac,soil_type,veg_type
   public :: sno2,ifilesfc,ifilenst,sfc_rough,fact10,sno,isli,soil_temp,soil_moi,coast_prox 
   public :: nfldsfc,nfldnst,hrdifsig,ges_tsen,sfcmod_mm5,sfcmod_gfs,ifact10,hrdifsfc,hrdifnst
-  public :: geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll,pbl_height
+  public :: geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll,pbl_height,ges_geopi
   public :: wgt_lcbas
   public :: ges_qsat
   public :: use_compress,nsig_ext,gpstop
@@ -234,6 +234,7 @@ module guess_grids
 
   real(r_kind),allocatable,dimension(:,:,:,:):: geop_hgtl ! guess geopotential height at mid-layers
   real(r_kind),allocatable,dimension(:,:,:,:):: geop_hgti ! guess geopotential height at level interfaces
+  real(r_kind),allocatable,dimension(:,:,:,:):: ges_geopi ! input guess geopotential height at level interfaces
 
   real(r_kind),allocatable,dimension(:,:,:):: pbl_height  !  GSD PBL height in hPa
                                                           ! Guess Fields ...
@@ -455,6 +456,7 @@ contains
             ges_teta(lat2,lon2,nsig,nfldsig),&
             geop_hgtl(lat2,lon2,nsig,nfldsig), &
             geop_hgti(lat2,lon2,nsig+1,nfldsig),ges_prslavg(nsig),&
+            ges_geopi(lat2,lon2,nsig+1,nfldsig),&
             tropprs(lat2,lon2),fact_tv(lat2,lon2,nsig),&
             pbl_height(lat2,lon2,nfldsig),wgt_lcbas(lat2,lon2), &
             ges_qsat(lat2,lon2,nsig,nfldsig),stat=istatus)
@@ -795,7 +797,7 @@ contains
     call destroy_ges_tendencies
 !
     deallocate(ges_prsi,ges_prsl,ges_lnprsl,ges_lnprsi,&
-         ges_tsen,ges_teta,geop_hgtl,geop_hgti,ges_prslavg,&
+         ges_tsen,ges_teta,geop_hgtl,geop_hgti,ges_geopi,ges_prslavg,&
          tropprs,fact_tv,pbl_height,wgt_lcbas,ges_qsat,stat=istatus)
     if (istatus/=0) &
          write(6,*)'DESTROY_GES_GRIDS(ges_prsi,..):  deallocate error, istatus=',&
