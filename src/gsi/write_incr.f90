@@ -9,6 +9,7 @@ module write_incr
 !
 ! program history log:
 !   2019-09-04 Martin    Initial version.  Based on ncepnems_io
+!   2019-09-13  martin  added option to zero out certain increment fields 
 !
 ! Subroutines Included:
 !   sub write_fv3_increment - writes netCDF increment for FV3 global model
@@ -38,6 +39,7 @@ contains
 !
 ! program history log:
 !   2019-09-04  martin  Initial version. Based on write_atm_nemsio 
+!   2019-09-13  martin  added option to zero out certain increment fields 
 !
 !   input argument list:
 !     filename  - file to open and write to
@@ -69,7 +71,7 @@ contains
     use general_sub2grid_mod, only: sub2grid_info
 
     use gsi_bundlemod, only: gsi_bundle, gsi_bundlegetpointer
-    use control_vectors, only: lupp, control_vector
+    use control_vectors, only: lupp, control_vector, incvars_to_zero
 
     use constants, only: one, fv, rad2deg, r1000
 
@@ -313,6 +315,7 @@ contains
           do j=1,grd%nlat-2
              grid(:,j) = gridrev(:,grd%nlat-1-j)
           end do
+          if (should_zero_increments_for('u_inc')) grid = 0.0_r_kind
           ! write to file
           call nccheck_incr(nf90_put_var(ncid_out, uvarid, sngl(grid), &
                             start = ncstart, count = nccount))
@@ -331,6 +334,7 @@ contains
           do j=1,grd%nlat-2
              grid(:,j) = gridrev(:,grd%nlat-1-j)
           end do
+          if (should_zero_increments_for('v_inc')) grid = 0.0_r_kind
           ! write to file
           call nccheck_incr(nf90_put_var(ncid_out, vvarid, sngl(grid), &
                             start = ncstart, count = nccount))
@@ -350,6 +354,7 @@ contains
              grid(:,j) = gridrev(:,grd%nlat-1-j)
           end do
           delp(:,:,k) = grid * (bk5(k)-bk5(k+1)) * r1000
+          if (should_zero_increments_for('delp_inc')) delp(:,:,k) = 0.0_r_kind
           ! write to file
           call nccheck_incr(nf90_put_var(ncid_out, delpvarid, sngl(delp(:,:,k)), &
                             start = ncstart, count = nccount))
@@ -368,6 +373,7 @@ contains
           do j=1,grd%nlat-2
              grid(:,j) = gridrev(:,grd%nlat-1-j) * -1.0_r_kind ! flip sign
           end do
+          if (should_zero_increments_for('delz_inc')) grid = 0.0_r_kind
           ! write to file
           call nccheck_incr(nf90_put_var(ncid_out, delzvarid, sngl(grid), &
                             start = ncstart, count = nccount))
@@ -386,6 +392,7 @@ contains
           do j=1,grd%nlat-2
              grid(:,j) = gridrev(:,grd%nlat-1-j)
           end do
+          if (should_zero_increments_for('T_inc')) grid = 0.0_r_kind
           ! write to file
           call nccheck_incr(nf90_put_var(ncid_out, tvarid, sngl(grid), &
                             start = ncstart, count = nccount))
@@ -404,6 +411,7 @@ contains
           do j=1,grd%nlat-2
              grid(:,j) = gridrev(:,grd%nlat-1-j)
           end do
+          if (should_zero_increments_for('sphum_inc')) grid = 0.0_r_kind
           ! write to file
           call nccheck_incr(nf90_put_var(ncid_out, sphumvarid, sngl(grid), &
                             start = ncstart, count = nccount))
@@ -422,6 +430,7 @@ contains
           do j=1,grd%nlat-2
              grid(:,j) = gridrev(:,grd%nlat-1-j)
           end do
+          if (should_zero_increments_for('liq_wat_inc')) grid = 0.0_r_kind
           ! write to file
           call nccheck_incr(nf90_put_var(ncid_out, liqwatvarid, sngl(grid), &
                             start = ncstart, count = nccount))
@@ -440,6 +449,7 @@ contains
           do j=1,grd%nlat-2
              grid(:,j) = gridrev(:,grd%nlat-1-j)
           end do
+          if (should_zero_increments_for('o3mr_inc')) grid = 0.0_r_kind
           ! write to file
           call nccheck_incr(nf90_put_var(ncid_out, o3varid, sngl(grid), &
                             start = ncstart, count = nccount))
@@ -458,6 +468,7 @@ contains
           do j=1,grd%nlat-2
              grid(:,j) = gridrev(:,grd%nlat-1-j)
           end do
+          if (should_zero_increments_for('icmr_inc')) grid = 0.0_r_kind
           ! write to file
           call nccheck_incr(nf90_put_var(ncid_out, icvarid, sngl(grid), &
                             start = ncstart, count = nccount))
@@ -471,6 +482,32 @@ contains
    end if
 
   end subroutine write_fv3_inc_
+
+  !=======================================================================
+
+  !! Is this variable in incvars_to_zero?
+  logical function should_zero_increments_for(check_var)
+    use control_vectors, only :: nvars
+
+    character(len=*), intent(in) :: check_var !! Variable to search for
+
+    ! Local variables
+
+    character(len=10) :: varname ! temporary string for storing variable names
+    integer :: i ! incvars_to_zero loop index
+
+    should_zero_increments_for=.false.
+
+    zeros_loop: do i=1,nvars
+       varname = incvars_to_zero(i)
+       if ( trim(varname) == check_var ) then
+          should_zero_increments_for=.true.
+          return
+       endif
+    end do zeros_loop
+
+  end function should_zero_increments_for
+
 
   subroutine nccheck_incr(status)
     use netcdf

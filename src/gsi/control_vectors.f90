@@ -29,6 +29,7 @@ module control_vectors
 !   2013-05-20  zhu      - add aircraft temperature bias correction coefficients as control variables
 !   2016-02-15  Johnson, Y. Wang, X. Wang - add variables to control reading
 !                                           state variables for radar DA. POC: xuguang.wang@ou.edu
+!   2019-09-13  martin   - added incvars_to_zero variable for writing out fv3 netCDF increments
 !
 ! subroutines included:
 !   sub init_anacv   
@@ -133,6 +134,8 @@ public :: w_exist   ! w will be used in the control variables ,only for
                       ! wrf_mass_region =.true.
 public :: dbz_exist ! dbz will be used in the control variables ,only for
                       ! wrf_mass_region =.true.
+public :: incvars_to_zero ! array of fieldnames to zero out increments for
+
 type control_vector
    integer(i_kind) :: lencv
    real(r_kind), pointer :: values(:) => NULL()
@@ -181,6 +184,7 @@ logical w_exist
 logical dbz_exist
 
 logical :: llinit = .false.
+character(len=10),allocatable,dimension(:) :: incvars_to_zero 
 
 ! ----------------------------------------------------------------------
 INTERFACE ASSIGNMENT (=)
@@ -347,6 +351,8 @@ allocate(as3d(nc3d),as2d(nc2d))
 allocate(cvarsmd(mvars))
 allocate(atsfc_sdv(mvars))
 allocate(an_amp0(nvars))
+allocate(incvars_to_zero(nvars))
+incvars_to_zero(:) = 'NONE'
 
 ! want to rid code from the following ...
 nrf=nc2d+nc3d
