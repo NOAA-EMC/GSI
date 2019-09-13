@@ -487,7 +487,7 @@ contains
 
   !! Is this variable in incvars_to_zero?
   logical function should_zero_increments_for(check_var)
-    use control_vectors, only :: nvars
+    use control_vectors, only : nvars
 
     character(len=*), intent(in) :: check_var !! Variable to search for
 
