@@ -78,7 +78,7 @@
      clip_supersaturation
   use state_vectors, only: init_anasv,final_anasv
   use control_vectors, only: init_anacv,final_anacv,nrf,nvars,nrf_3d,cvars3d,cvars2d,&
-     nrf_var,imp_physics,lupp
+     nrf_var,imp_physics,lupp,incvars_to_zero
   use berror, only: norh,ndeg,vs,bw,init_berror,hzscl,hswgt,pert_berr,pert_berr_fct,&
      bkgv_flowdep,bkgv_rewgtfct,bkgv_write,fpsproj,nhscrf,adjustozvar,fut2ps,cwcoveqqcov
   use anberror, only: anisotropic,ancovmdl,init_anberror,npass,ifilt_ord,triad4, &
@@ -384,6 +384,7 @@
 !  06-19-2019 Hu        Add option reset_bad_radbc for reseting radiance bias correction when it is bad
 !  06-25-2019 Hu        Add option print_obs_para to turn on OBS_PARA list
 !  09-04-2019 Martin    Add option write_fv3_incr to write netCDF increment rather than NEMSIO analysis
+!  09-13-2019 Martin    Add option incvars_to_zero(nvars) to zero out netCDF increment fields
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -565,6 +566,8 @@
 !     netcdf_diag - trigger netcdf diag-file output
 !     write_fv3_incr - trigger writing out FV3 netCDF increment file
 !                      rather than NEMSIO analysis
+!     incvars_to_zero - list of strings of variable names in FV3 netCDF
+!                       increment file that should be forced to be zero
 !
 !      l_wcp_cwm      - namelist logical whether to use swcp/lwcp operator that includes cwm
 !
@@ -605,7 +608,7 @@
        rmesh_vr,zmesh_dbz,zmesh_vr, ntilt_radarfiles, whichradar,&
        radar_no_thinning,ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,&
        minobrangevr, maxtiltdbz, mintiltvr,mintiltdbz,if_vterminal,if_vrobs_raw,&
-       if_model_dbz,imp_physics,lupp,netcdf_diag,binary_diag,l_wcp_cwm,write_fv3_incr
+       if_model_dbz,imp_physics,lupp,netcdf_diag,binary_diag,l_wcp_cwm,write_fv3_incr,incvars_to_zero
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
