@@ -145,7 +145,7 @@ export SELECT_OBS="$COMOUT/${APREFIX}obsinput.ensmean"
 export DIAG_SUFFIX="_ensmean"
 
 # GSI namelist options specific to eobs
-export SETUP_INVOBS="passive_bc=.false."
+export SETUP_INVOBS="passive_bc=.false.,$SETUP_INVOBS"
 
 # Ensure clean stat tarballs for ensemble mean
 for fstat in $CNVSTAT $OZNSTAT $RADSTAT; do
