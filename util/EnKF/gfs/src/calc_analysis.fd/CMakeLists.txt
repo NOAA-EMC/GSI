@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 2.6)
 if(BUILD_UTIL)
   file(GLOB LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.f90)
-  list( REMOVE_ITEM LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/main.f90 )
 
   set(Util_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include/calc_analysis")
   set_source_files_properties( ${LOCAL_SRC} PROPERTIES COMPILE_FLAGS ${UTIL_Fortran_FLAGS} )
