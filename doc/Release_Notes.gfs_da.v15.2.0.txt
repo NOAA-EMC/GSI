@@ -1,10 +1,10 @@
 GFS DA RELEASE NOTES (v15.2.0)
 
 GIT TAG 
-   * The GFS v15.2 DA component is in NOAA VLAB gerrit:ProdGSI.  The GFS v15.2 DA tag is intended to 
+   * The GFS DA v15.2 component is in NOAA VLAB gerrit:ProdGSI.  The GFS DA v15.2 tag is intended to 
      be installed as part of the entire GFS v15.2 package.   Please see GFS v15.2 release notes for
      name and location of the GFS v15.2 tag in NOAA VLAB gerrit.   The GFS v15.2 tag contains a 
-     checkout script which checks out the appropriate GFS v15.2 DA tag.
+     checkout script which checks out the GFS DA v15.2 tag, fv3da_gfsv15.2.0
 
 
 
@@ -74,15 +74,20 @@ FIX CHANGES
 
 
 RESOURCE INFORMATION
-   * No change from GFS v15.1
+   * Due to the prcessing of additional observational data the run time for the following jobs is increased
+      * gfs_analysis               : about 30 seconds longer (27.4 minutes for GFS v15.1 -vs- 27.9 minutes for GFS v15.2)
+      * gdas_analysis_high         : GFS v15.2 run time comparable to GFS v15.1
+      * gdas_enkf_select_obs       : about 1 minute longer   (3.7 for GFS v15.1  -vs-  4.7 for GFS v15.2)
+      * gdas_enkf_innovate_obs_grp*: about 30 seconds longer (14.8 for GFS v15.1 -vs- 15.3 for GFS v15.2)
+      * gdas_enkf_update           : about 20 seconds longer (6.4 for GFS v15.1  -vs-  6.7 for GFS v15.2)
 
 
 
 
 PRE-IMPLEMENTATION TESTING REQUIREMENTS
    * Which production jobs should be tested as part of this implementation?
-      * The GFS v15.2 DA component runs within the GFS v15.2.  A single cycle 
-        test of GFS v15.2 will exercise GFS v15.2 DA jobs.
+      * The GFS DA v15.2 component runs within the GFS v15.2.  A single cycle 
+        test of GFS v15.2 will exercise GFS DA v15.2 jobs.
 
    * Does this change require a 30-day evaluation?
       * No.
@@ -110,7 +115,7 @@ DISSEMINATION INFORMATION
       * No change from GFS v15.1
 
 
-   * File changes.  Only GFS v15.2 DA file changes are listed below.
+   * File changes.  Only GFS DA v15.2 file changes are listed below.
       * No change from GFS v15.1
 
 
@@ -144,20 +149,22 @@ IMPLEMENTATION INSTRUCTIONS
               local working directory $NWROOTp3/gfs.v15.2.0.
             * The SPA(s) handling the GFS v15.2 implementation may encounter "permission denied" messages when 
              attempting to clone Vlab gerrit repositories.  Code managers need to add the SPA(s) as project 
-             developers.  For GFS v15.2 DA please contact Michael.Lueken@noaa.gov or Mark.Potts@noaa.gov. 
+             developers.  For GFS DA v15.2 please contact Michael.Lueken@noaa.gov or Mark.Potts@noaa.gov. 
 
       5) git checkout feature/dev-v15.2
 
       6) cd sorc
 
       7) ./checkout.sh
-         * This script extracts the following GFS v15.2 components from gerrit:  model, DA, UPP, and WAFS
+         * This script extracts the following GFS v15.2 components from gerrit:  model, DA, UPP, and WAFS.
+           Output for the check out of each component is written to local file sorc/checkout-$package.log,
+           where package = {fv3gfs, gfs_post, gfs_wafs, gsi}.
 
       8) ./build_all.sh
          * Script build_all.sh compiles all GFS v15.2 components.   Runtime output from the build for each 
-           package is written to log files in directory logs.  Specifically, GFS v15.2 DA build information 
+           package is written to log files in directory logs.  Specifically, GFS DA v15.2 build information 
            is written to logs/build_gsi.log.  Script build_gsi.sh invokes gsi.fd/ush/build_all_cmke.sh.
-           This script uses cmake to build GFS v15.2 DA components.   Script build_all_cmake.sh accepts two 
+           This script uses cmake to build GFS DA v15.2 components.   Script build_all_cmake.sh accepts two 
            command line options:  build type and directory path to package.  Two build types are 
            supported - PRODUCTION (default) and DEBUG.
 
