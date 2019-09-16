@@ -7,16 +7,13 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 program calc_analysis_main
   use init_calc_analysis, only: read_nml
-  use nemsio_interface, only: init_read_bg, init_write_anl
-  !use nemsio_interface, only: read_bg, write_anl
-  !use netcdf_interface, only: read_inc
-  !use inc2anl, only: compute_anl  
+  use init_nemsio_io, only: init_read_bg, init_write_anl
+  use inc2anl, only: compute_anl  
   implicit none
   write(6,*) "calc_analysis.x starting"
   call read_nml
   call init_read_bg
   call init_write_anl
-  !call read_inc
-  !call compute_anl
-  !call write_anl
+  call compute_anl
+  ! call cleanup
 end program calc_analysis_main

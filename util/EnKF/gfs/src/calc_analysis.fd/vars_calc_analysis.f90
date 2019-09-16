@@ -10,19 +10,22 @@ module vars_calc_analysis
   private
 
   public :: anal_file, fcst_file, incr_file
-  public :: idate, nrec, nfday, nfhour, nfminute, nfsecondn, nfsecondd
+  public :: idate, jdate
+  public :: nrec, nfday, nfhour, nfminute, nfsecondn, nfsecondd
   public :: nlon, nlat, nlev, nframe, nsoil, ntrac
   public :: lats, lons
   public :: recname, reclevtyp, reclev
   public :: fcstfile, anlfile
+  public :: work1
 
   character(len=500) :: anal_file, fcst_file, incr_file
-  integer, dimension(7) :: idate
+  integer, dimension(7) :: idate, jdate
   integer :: nrec, nfday, nfhour, nfminute, nfsecondn, nfsecondd
   integer :: nlon, nlat, nlev, nframe, nsoil, ntrac
   real, allocatable, dimension(:) :: lats, lons
   character(10), allocatable, dimension(:) :: recname, reclevtyp
   integer, allocatable, dimension(:) :: reclev
   type(nemsio_gfile) :: fcstfile, anlfile
+  real, allocatable, dimension(:) :: work1
 
 end module vars_calc_analysis
