@@ -18,9 +18,9 @@ contains
     character(len=500) :: analysis_filename = 'atmanl.nemsio'
     character(len=500) :: firstguess_filename = 'atmbkg.nemsio'
     character(len=500) :: increment_filename = 'atminc.nc'
-    namelist /setup/ datapath, analysis_filename, firstguess_filename, increment_filename
-    integer, parameter = lunit = 10
+    integer, parameter :: lunit = 10
     logical :: lexist = .false.
+    namelist /setup/ datapath, analysis_filename, firstguess_filename, increment_filename
 
     ! read in the namelist
     inquire(file='calc_analysis.nml', exist=lexist)
