@@ -76,13 +76,13 @@ contains
     use constants, only: one, fv, rad2deg, r1000
 
     use gsi_4dcouplermod, only : gsi_4dcoupler_grtests
-    use gsi_4dvar, only: nobs_bins, lwrite4danl, l4dvar, nsubwin
+    use gsi_4dvar, only: nobs_bins, l4dvar, nsubwin
     use hybrid_ensemble_parameters, only: l_hyb_ens, ntlevs_ens
     use bias_predictors, only: predictors, allocate_preds, deallocate_preds
     use jfunc, only: xhatsave, iter
 
     use guess_grids, only: load_geop_hgt, geop_hgti, geop_hgti1, ges_tsen, ges_tsen1
-    use state_vectors, only: prt_state_norms, allocate_state, deallocate_state
+    use state_vectors, only: allocate_state, deallocate_state
 
     implicit none
 
@@ -99,8 +99,8 @@ contains
 
     character(len=120) :: my_name = 'WRITE_FV3INCR'
 
-    real(r_kind),pointer,dimension(:,:,:) :: sub_u,sub_v,sub_tv
-    real(r_kind),pointer,dimension(:,:,:) :: sub_q,sub_qanl,sub_oz
+    real(r_kind),pointer,dimension(:,:,:) :: sub_u,sub_v
+    real(r_kind),pointer,dimension(:,:,:) :: sub_q,sub_oz
     real(r_kind),pointer,dimension(:,:,:) :: sub_ql, sub_qi
     real(r_kind),pointer,dimension(:,:) :: sub_ps
 
@@ -180,18 +180,13 @@ contains
     end if
 
     istatus=0
-    call prt_state_norms(svalinc(1),'increment')
-    ! TODO CRM - what is the correct index for sval? always 1? related to nfldsig?
-    !call gsi_bundlegetpointer(svalinc(1),'tsen', sub_tsen,  iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(gfs_bundle,'tv', sub_tv, iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(gfs_bundle,'q', sub_qanl, iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(svalinc(1),'q',  sub_q,   iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(svalinc(1),'ql',  sub_ql,   iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(svalinc(1),'qi',  sub_qi,   iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(svalinc(1),'oz', sub_oz,  iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(svalinc(1),'u', sub_u, iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(svalinc(1),'v', sub_v, iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(svalinc(1),'ps', sub_ps, iret); istatus=istatus+iret ! needed for delp
+    call gsi_bundlegetpointer(svalinc(ibin),'q', sub_q, iret); istatus=istatus+iret
+    call gsi_bundlegetpointer(svalinc(ibin),'ql', sub_ql, iret); istatus=istatus+iret
+    call gsi_bundlegetpointer(svalinc(ibin),'qi', sub_qi, iret); istatus=istatus+iret
+    call gsi_bundlegetpointer(svalinc(ibin),'oz', sub_oz, iret); istatus=istatus+iret
+    call gsi_bundlegetpointer(svalinc(ibin),'u', sub_u, iret); istatus=istatus+iret
+    call gsi_bundlegetpointer(svalinc(ibin),'v', sub_v, iret); istatus=istatus+iret
+    call gsi_bundlegetpointer(svalinc(ibin),'ps', sub_ps, iret); istatus=istatus+iret ! needed for delp
     if ( istatus /= 0 ) then
        if ( mype == 0 ) then
          write(6,*) 'write_fv3_incr_: ERROR'
@@ -203,6 +198,7 @@ contains
     
     ! Single task writes increment to file
     if ( mype == mype_out ) then
+      print *, 'ibin',ibin,trim(filename)
       ! create the output netCDF file
       call nccheck_incr(nf90_create(path=trim(filename)//".nc", cmode=ior(nf90_clobber,nf90_64bit_offset), ncid=ncid_out))
       ! create dimensions based on analysis resolution, not guess
