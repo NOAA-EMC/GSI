@@ -1392,6 +1392,7 @@ module egrid2agrid_mod
 !$$$ end documentation block
 
       use constants, only: zero,half,one,two,pi
+      use mpimod, only: mype
       implicit none
 
       integer(i_kind),intent(in) :: nlata,nlona,nlate,nlone,nord_e2a
@@ -1417,7 +1418,9 @@ module egrid2agrid_mod
       if(nlata == nlate.and.nlona == nlone) then
          if(present(eqspace)) then
             if(eqspace) then
-               write(6,*) 'g_create_egrid2agrid: WARNING, forced p%identity true '
+               if(mype==0) then
+                  write(6,*) 'g_create_egrid2agrid: WARNING, forced p%identity true '
+               endif
                p%identity=.true.
              endif
          endif

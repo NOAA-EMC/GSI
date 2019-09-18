@@ -77,12 +77,14 @@ module convinfo
   public :: use_prepb_satwnd
   public :: index_sub
   public :: id_drifter
+  public :: id_ship
   public :: ec_amv_qc
 
   logical diag_conv
   logical :: ihave_pm2_5
   logical :: use_prepb_satwnd
   logical :: id_drifter
+  logical :: id_ship
   logical :: ec_amv_qc=.true.
   integer(i_kind) nconvtype,mype_conv
   real(r_kind),allocatable,dimension(:)::ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
@@ -125,6 +127,7 @@ contains
     mype_conv = 0         ! mpi task to collect and print conv obs use information 
     use_prepb_satwnd=.false.  ! allow use of satwind stored in prepbufr file
     id_drifter=.false.        ! modify KX of drifting buoys
+    id_ship=.false.           ! modify KX of ships
 
     call init_pm2_5
 

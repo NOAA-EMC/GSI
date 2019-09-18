@@ -20,6 +20,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
 !  2016-04-01  ejones  - add binning of fovs for scan angle bias correction 
 !  2016-07-25  ejones  - remove binning of fovs
 !  2016-10-05  acollard -Fix interaction with NSST and missing zenith angle issue.
+!  2018-05-21  j.jin   - added time-thinning. Moved the checking of thin4d into satthin.F90.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -55,13 +56,15 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,destroygrids,checkob, &
       finalcheck,map2tgrid,score_crit
+  use satthin, only: radthin_time_info,tdiff2crit
+  use obsmod,  only: time_window_max
   use radinfo, only: iuse_rad,nusis,jpch_rad, &
       use_edges,radedge1,radedge2,radstart,radstep
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad,zero,one,two,three,rad2deg,r60inv
   use crtm_module, only : max_sensor_zenith_angle
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen,l4densvar,thin4d
+  use gsi_4dvar, only: l4dvar,iwinbgn,winlen,l4densvar
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth,gsi_nstcoupler_deter
@@ -136,6 +139,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   real(r_kind), POINTER :: dlon_earth,dlat_earth,satazi, lza
 
   integer(i_kind), ALLOCATABLE, TARGET  :: ifov_save(:)
+  integer(i_kind), ALLOCATABLE, TARGET :: it_mesh_save(:)
   real(r_kind), ALLOCATABLE, TARGET :: rsat_save(:)
   real(r_kind), ALLOCATABLE, TARGET :: t4dv_save(:)
   real(r_kind), ALLOCATABLE, TARGET :: dlon_earth_save(:)
@@ -154,6 +158,9 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   real(r_double),dimension(n2bhdr):: bfr2bhdr
 
   real(r_kind)          :: disterr,disterrmax,dlon00,dlat00
+  real(r_kind)    :: ptime,timeinflat,crit0
+  integer(i_kind) :: ithin_time,n_tbin
+  integer(i_kind),pointer:: it_mesh => null()
 
 !**************************************************************************
 
@@ -174,8 +181,14 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
      call gsi_nstcoupler_skindepth(obstype,zob)
   endif
 
+  call radthin_time_info(obstype, jsatid, sis, ptime, ithin_time)
+  if( ptime > 0.0_r_kind) then
+     n_tbin=nint(2*time_window_max/ptime)
+  else
+     n_tbin=1
+  endif
 ! Make thinning grids
-  call makegrids(rmesh,ithin)
+  call makegrids(rmesh,ithin,n_tbin=n_tbin)
 
 ! Set nadir position
   nadir=65
@@ -261,6 +274,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   ALLOCATE(dlon_earth_save(maxobs))
   ALLOCATE(dlat_earth_save(maxobs))
   ALLOCATE(crit1_save(maxobs))
+  ALLOCATE(it_mesh_save(maxobs))
   ALLOCATE(lza_save(maxobs))
   ALLOCATE(satazi_save(maxobs))
   ALLOCATE(solzen_save(maxobs)) 
@@ -289,6 +303,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
         dlon_earth => dlon_earth_save(iob)
         dlat_earth => dlat_earth_save(iob)
         crit1      => crit1_save(iob)
+        it_mesh    => it_mesh_save(iob)
         ifov       => ifov_save(iob)
         lza        => lza_save(iob)
         satazi     => satazi_save(iob)
@@ -329,13 +344,10 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
            if(abs(tdiff) > twind+one_minute) cycle read_loop
         endif
  
-        if (thin4d) then
-           crit1 = zero
-        else
-           crit1 = two*abs(tdiff)        ! range:  0 to 6
-        endif
+        crit0 = 0.00_r_kind        ! forced to >= 0.01_r_kind in tdiff2crit()
+        timeinflat=two
+        call tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
 
- 
         call ufbint(lnbufr,bfr2bhdr,n2bhdr,1,iret,hdr2b)
 
         satazi=bfr2bhdr(3)
@@ -399,6 +411,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
      dlon_earth => dlon_earth_save(iob)
      dlat_earth => dlat_earth_save(iob)
      crit1      => crit1_save(iob)
+     it_mesh    => it_mesh_save(iob)
      ifov       => ifov_save(iob)
      lza        => lza_save(iob)
      satazi     => satazi_save(iob)
@@ -442,7 +455,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
      endif
  
 !    Map obs to thinning grid
-     call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+     call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,it_mesh=it_mesh)
      if(.not. iuse)cycle ObsLoop
 
 !
@@ -581,6 +594,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   DEALLOCATE(dlon_earth_save)
   DEALLOCATE(dlat_earth_save)
   DEALLOCATE(crit1_save)
+  DEALLOCATE(it_mesh_save)
   DEALLOCATE(lza_save)
   DEALLOCATE(satazi_save)
   DEALLOCATE(solzen_save) 

@@ -1,4 +1,11 @@
-subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
+module pm10_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setuppm10; end interface
+
+contains
+subroutine setuppm10(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 
 !$$$  subprogram documentation block
 !                .      .    .
@@ -21,6 +28,8 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
 !                       . removed (%dlat,%dlon) debris.
 !   2017-02-06  todling - add netcdf_diag capability; hidden as contained code
+!   2017-02-09  guo     - Remove m_alloc, n_alloc.
+!                       . Remove my_node with corrected typecast().
 !
 !   input argument list:
 !     lunin          - unit from which to read observations
@@ -48,13 +57,20 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   use constants, only: huge_single,r10
   use constants, only: r1000,rd,max_varname_length
 
-  use m_obsdiags, only : pm10head
+  use m_obsdiagNode, only : obs_diag
+  use m_obsdiagNode, only : obs_diags
+  use m_obsdiagNode, only : obsdiagLList_nextNode
+  use m_obsdiagNode, only : obsdiagNode_set
+  use m_obsdiagNode, only : obsdiagNode_get
+  use m_obsdiagNode, only : obsdiagNode_assert
+
   use m_obsNode , only : obsNode
   use m_pm10Node, only : pm10Node
-  use m_obsLList, only : obsLList_appendNode
-  use obsmod    , only : i_pm10_ob_type,time_offset
-  use obsmod, only : obsdiags,lobsdiag_allocated,lobsdiagsave
-  use obsmod, only : obs_diag,luse_obsdiag
+  use m_pm10Node, only : pm10Node_appendto
+  use m_obsLList, only : obsLList
+  use obsmod    , only : time_offset
+  use obsmod, only : lobsdiag_allocated,lobsdiagsave
+  use obsmod, only : luse_obsdiag
 
   use obsmod, only: netcdf_diag, binary_diag, dirname, ianldate
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
@@ -92,16 +108,19 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 
   implicit none
   
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
+
 ! !input parameters:
 
   character(len=3) :: cvar='pm1'
-  integer(i_kind)                  , intent(in   ) :: lunin  ! unit from which to read observations
-  integer(i_kind)                  , intent(in   ) :: mype   ! mpi task id
-  integer(i_kind)                  , intent(in   ) :: nreal  ! number of pieces of non-co info (location, time, etc) per obs
-  integer(i_kind)                  , intent(inout) :: nobs   ! number of observations
-  character(20)                    , intent(in   ) :: isis   ! sensor/instrument/satellite id
-  integer(i_kind)                  , intent(in   ) :: is     
-  logical                          , intent(in   ) :: conv_diagsave   ! logical to save innovation dignostics
+  integer(i_kind)                  , intent(in) :: lunin  ! unit from which to read observations
+  integer(i_kind)                  , intent(in) :: mype   ! mpi task id
+  integer(i_kind)                  , intent(in) :: nreal  ! number of pieces of non-co info (location, time, etc) per obs
+  integer(i_kind)                  , intent(in) :: nobs   ! number of observations
+  character(20)                    , intent(in) :: isis   ! sensor/instrument/satellite id
+  integer(i_kind)                  , intent(in) :: is     
+  logical                          , intent(in) :: conv_diagsave   ! logical to save innovation dignostics
   
 ! a function of level
 !-------------------------------------------------------------------------
@@ -124,7 +143,7 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   real(r_kind) ,dimension(nreal,nobs):: data
   real(r_kind),pointer,dimension(:,:,:):: rank3
   
-  INTEGER(i_kind) i,k,ier,ibin,l,istat,ikx,ii,jj,idia,ifld
+  INTEGER(i_kind) i,k,ier,ibin,l,ikx,ii,jj,idia,ifld
   integer(i_kind) mm1
   integer(i_kind) :: nchar,nrealdiag
 
@@ -141,11 +160,9 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 
   logical:: in_curbin, in_anybin
   logical proceed
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
-  class(obsNode), pointer:: my_node
   type(pm10Node), pointer:: my_head
   type(obs_diag), pointer:: my_diag
+  type(obs_diags), pointer:: my_diagLL
 
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_ps
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z
@@ -155,6 +172,8 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   character(len=max_varname_length) :: aeroname
 
   integer(i_kind) :: ipm10,n_gocart_var
+  type(obsLList),pointer,dimension(:):: pm10head
+  pm10head => obsLL(:)
 
 
 ! Check to see if required guess fields are available
@@ -163,9 +182,6 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 
 ! If require guess vars available, extract from bundle ...
   call init_vars_
-
-  n_alloc(:)=0
-  m_alloc(:)=0
 
   nchar=1
   nrealdiag=19
@@ -454,64 +470,23 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 
         if (ibin < 1 .or. ibin > nobs_bins) &
               write(6,*)mype,'error nobs_bins,ibin= ',nobs_bins,ibin
+
+        if(luse_obsdiag) my_diagLL => odiagLL(ibin)
         
 !    link obs to diagnostics structure
         if(luse_obsdiag)then
-           if (.not.lobsdiag_allocated) then
-              if (.not.associated(obsdiags(i_pm10_ob_type,ibin)%head)) then
-                 obsdiags(i_pm10_ob_type,ibin)%n_alloc = 0
-                 allocate(obsdiags(i_pm10_ob_type,ibin)%head,stat=istat)
-                 if (istat/=0) then
-                    write(6,*)'setupq: failure to allocate obsdiags',istat
-                    call stop2(421)
-                 end if
-                 obsdiags(i_pm10_ob_type,ibin)%tail => obsdiags(i_pm10_ob_type,ibin)%head
-              else
-                 allocate(obsdiags(i_pm10_ob_type,ibin)%tail%next,stat=istat)
-                 if (istat/=0) then
-                    write(6,*)'setupq: failure to allocate obsdiags',istat
-                    call stop2(422)
-                 end if
-                 obsdiags(i_pm10_ob_type,ibin)%tail => obsdiags(i_pm10_ob_type,ibin)%tail%next
-              end if
-              obsdiags(i_pm10_ob_type,ibin)%n_alloc = obsdiags(i_pm10_ob_type,ibin)%n_alloc +1
+           my_diag => obsdiagLList_nextNode(my_diagLL   ,&
+                create = .not.lobsdiag_allocated        ,&
+                   idv = is             ,&
+                   iob = ioid(i)        ,&
+                   ich = 1              ,&
+                  elat = data(ilate,i)  ,&
+                  elon = data(ilone,i)  ,&
+                  luse = luse(i)        ,&
+                 miter = miter          )
 
-              allocate(obsdiags(i_pm10_ob_type,ibin)%tail%muse(miter+1))
-              allocate(obsdiags(i_pm10_ob_type,ibin)%tail%nldepart(miter+1))
-              allocate(obsdiags(i_pm10_ob_type,ibin)%tail%tldepart(miter))
-              allocate(obsdiags(i_pm10_ob_type,ibin)%tail%obssen(miter))
-
-              obsdiags(i_pm10_ob_type,ibin)%tail%indxglb=ioid(i)
-              obsdiags(i_pm10_ob_type,ibin)%tail%nchnperobs=-99999
-              obsdiags(i_pm10_ob_type,ibin)%tail%luse=luse(i)
-              obsdiags(i_pm10_ob_type,ibin)%tail%muse(:)=.false.
-              obsdiags(i_pm10_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-              obsdiags(i_pm10_ob_type,ibin)%tail%tldepart(:)=zero
-              obsdiags(i_pm10_ob_type,ibin)%tail%wgtjo=-huge(zero)
-              obsdiags(i_pm10_ob_type,ibin)%tail%obssen(:)=zero
-           
-              n_alloc(ibin) = n_alloc(ibin) +1
-              my_diag => obsdiags(i_pm10_ob_type,ibin)%tail
-              my_diag%idv = is
-              my_diag%iob = ioid(i)
-              my_diag%ich = 1
-              my_diag%elat= data(ilate,i)
-              my_diag%elon= data(ilone,i)
-
-           else
-              if (.not.associated(obsdiags(i_pm10_ob_type,ibin)%tail)) then
-                 obsdiags(i_pm10_ob_type,ibin)%tail => obsdiags(i_pm10_ob_type,ibin)%head
-              else
-                 obsdiags(i_pm10_ob_type,ibin)%tail => obsdiags(i_pm10_ob_type,ibin)%tail%next
-              end if
-              if (.not.associated(obsdiags(i_pm10_ob_type,ibin)%tail)) then
-                  call die(myname,'.not.associated(obsdiags(i_pm10_ob_type,ibin)%tail)')
-              end if
-              if (obsdiags(i_pm10_ob_type,ibin)%tail%indxglb/=ioid(i)) then
-                 write(6,*)'setuppm10: index error'
-                 call stop2(423)
-              end if
-           endif
+           if(.not.associated(my_diag)) call die(myname, &
+                'obsdiagLList_nextNode(), create =', .not.lobsdiag_allocated)
         endif
         
         if(.not.in_curbin) cycle
@@ -595,18 +570,14 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         endif
 
         if(luse_obsdiag)then
-           obsdiags(i_pm10_ob_type,ibin)%tail%muse(jiter)=muse(i)
-           obsdiags(i_pm10_ob_type,ibin)%tail%nldepart(jiter)=innov
-           obsdiags(i_pm10_ob_type,ibin)%tail%wgtjo= (error*ratio_errors)**2
+           call obsdiagNode_set(my_diag,wgtjo=(error*ratio_errors)**2, &
+                jiter=jiter,muse=muse(i),nldepart=innov)
         end if
 
         if (.not. last .and. muse(i)) then
            
            allocate(my_head)
-           m_alloc(ibin) = m_alloc(ibin) +1
-           my_node => my_head
-           call obsLList_appendNode(pm10head(ibin),my_node)
-           my_node => null()
+           call pm10Node_appendto(my_head,pm10head(ibin))
 
            my_head%idv = is
            my_head%iob = ioid(i)
@@ -628,18 +599,8 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
            my_head%luse   = luse(i)
 
            if(luse_obsdiag)then
-              my_head%diags => &
-                    obsdiags(i_pm10_ob_type,ibin)%tail
-
-              my_diag => my_head%diags
-              if(my_head%idv /= my_diag%idv .or. &
-                   my_head%iob /= my_diag%iob ) then
-                 call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =',&
-                       (/is,ioid(i),ibin/))
-                 call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
-                 call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
-                 call die(myname)
-              endif
+              call obsdiagNode_assert(my_diag,my_head%idv,my_head%iob,1,myname,'my_diag:my_head')
+              my_head%diags => my_diag
            end if
 
            my_head => null()
@@ -672,8 +633,8 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
            if (err_adjst>tiny_r_kind) errinv_adjst=one/err_adjst
            if (err_final>tiny_r_kind) errinv_final=one/err_final
            
-           if (binary_diag) call contents_binary_diag_
-           if (netcdf_diag) call contents_netcdf_diag_
+           if (binary_diag) call contents_binary_diag_(my_diag)
+           if (netcdf_diag) call contents_netcdf_diag_(my_diag)
 
         endif
 
@@ -828,7 +789,8 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         call nc_diag_header("date_time",ianldate )
      endif
   end subroutine init_netcdf_diag_
-  subroutine contents_binary_diag_
+  subroutine contents_binary_diag_(odiag)
+  type(obs_diag),pointer,intent(in):: odiag
            cdiagbuf(ii)    = station_id         ! station id
 
            rdiagbuf(1,ii)  = ictype(ikx)        ! observation type
@@ -864,7 +826,7 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
            if (lobsdiagsave) then
               do jj=1,miter
                  idia=idia+1
-                 if (obsdiags(i_pm10_ob_type,ibin)%tail%muse(jj)) then
+                 if (odiag%muse(jj)) then
                     rdiagbuf(idia,ii) = one
                  else
                     rdiagbuf(idia,ii) = -one
@@ -873,22 +835,22 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
               
               do jj=1,miter+1
                  idia=idia+1
-                 rdiagbuf(idia,ii) = obsdiags(i_pm10_ob_type,ibin)%tail%nldepart(jj)
+                 rdiagbuf(idia,ii) = odiag%nldepart(jj)
               enddo
 
               do jj=1,miter
                  idia=idia+1
-                 rdiagbuf(idia,ii) = obsdiags(i_pm10_ob_type,ibin)%tail%tldepart(jj)
+                 rdiagbuf(idia,ii) = odiag%tldepart(jj)
               enddo
 
               do jj=1,miter
                  idia=idia+1
-                 rdiagbuf(idia,ii) = obsdiags(i_pm10_ob_type,ibin)%tail%obssen(jj)
+                 rdiagbuf(idia,ii) = odiag%obssen(jj)
               enddo
-
            endif
   end subroutine contents_binary_diag_
-  subroutine contents_netcdf_diag_
+  subroutine contents_netcdf_diag_(odiag)
+  type(obs_diag),pointer,intent(in):: odiag
 ! Observation class
   character(7),parameter     :: obsclass = '   pm10'
   real(r_kind),dimension(miter) :: obsdiag_iuse
@@ -922,7 +884,7 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
  
            if (lobsdiagsave) then
               do jj=1,miter
-                 if (obsdiags(i_pm10_ob_type,ibin)%tail%muse(jj)) then
+                 if (odiag%muse(jj)) then
                        obsdiag_iuse(jj) =  one
                  else
                        obsdiag_iuse(jj) = -one
@@ -930,9 +892,9 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
               enddo
    
               call nc_diag_data2d("ObsDiagSave_iuse",     obsdiag_iuse                             )
-              call nc_diag_data2d("ObsDiagSave_nldepart", obsdiags(i_pm10_ob_type,ibin)%tail%nldepart )
-              call nc_diag_data2d("ObsDiagSave_tldepart", obsdiags(i_pm10_ob_type,ibin)%tail%tldepart )
-              call nc_diag_data2d("ObsDiagSave_obssen",   obsdiags(i_pm10_ob_type,ibin)%tail%obssen   )             
+              call nc_diag_data2d("ObsDiagSave_nldepart", odiag%nldepart )
+              call nc_diag_data2d("ObsDiagSave_tldepart", odiag%tldepart )
+              call nc_diag_data2d("ObsDiagSave_obssen",   odiag%obssen   )             
            endif
   end subroutine contents_netcdf_diag_
 
@@ -944,3 +906,4 @@ subroutine setuppm10(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   end subroutine final_vars_
 
 end subroutine setuppm10
+end module pm10_setup

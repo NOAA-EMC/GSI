@@ -170,6 +170,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
   integer(i_kind) :: ireadsb,ireadmg,kx,nc,said
   real(r_double) :: satid,rtype
   character(8) subset
+  logical,parameter:: GMAO_READ=.false.
 
   satid=1      ! debug executable wants default value ???
   idate=0
@@ -379,6 +380,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
            said=nint(satid) 
            if(((said > 739) .and.(said < 746)).or.(said == 820) .or. (said == 825) .or. &
                (said == 786).or. (said == 4)  .or.(said == 3).or. &
+               ( GMAO_READ  .and. said == 5)  .or. &
                (said == 421).or. (said == 440).or.(said == 821)) then
              lexist=.true. 
              exit gpsloop 
@@ -660,9 +662,11 @@ subroutine read_obs(ndata,mype)
 !                         Changed the dsis entries for l2rwbufr and radarbufr to
 !                         l2rw and l3rw respectively. Also make use of nml
 !                         option vadwnd_l2rw_qc. 
-!   2017-08-31  Li      - move gsi_nstcoupler_init & gsi_nstcoupler_read to getsfc in sathin.F90
+!   2017-08-31  Li      - move gsi_nstcoupler_init & gsi_nstcoupler_set to getsfc in sathin.F90
 !                       - move gsi_nstcoupler_final from create_sfc_grids to here
+!   2017-12-05  Wargan  - added OMPS ozone
 !   2018-01-23 Apodaca  - add GOES/GLM lightning data
+!   2018-07-09 Todlng   - move gsi_nstcoupler_final to destroy_sfc (consistency)
 !   2019-01-15  Li      - add to handle mbuoyb
 !   2019-03-27  h. liu   - add abi
 !   
@@ -688,7 +692,8 @@ subroutine read_obs(ndata,mype)
            dtype,dval,dmesh,obsfile_all,ref_obs,nprof_gps,dsis,ditype,&
            perturb_obs,lobserver,lread_obs_save,obs_input_common, &
            reduce_diag,nobs_sub,dval_use
-    use gsi_nstcouplermod, only: nst_gsi,gsi_nstcoupler_final
+    use gsi_nstcouplermod, only: nst_gsi
+!   use gsi_nstcouplermod, only: gsi_nstcoupler_set
     use qcmod, only: njqc,vadwnd_l2rw_qc
     use gsi_4dvar, only: l4dvar
     use satthin, only: super_val,super_val1,superp,makegvals,getsfc,destroy_sfc
@@ -887,6 +892,7 @@ subroutine read_obs(ndata,mype)
            .or. obstype == 'ompstc8' &
            .or. obstype == 'ompsnp' &
            .or. obstype == 'gome' &
+           .or. index(obstype, 'omps') /= 0 &
            .or. mls &
            ) then
           ditype(i) = 'ozone'
@@ -1667,7 +1673,7 @@ subroutine read_obs(ndata,mype)
 !            Process amsre data
              else if ( obstype == 'amsre_low' .or. obstype == 'amsre_mid' .or. &
                        obstype == 'amsre_hig' ) then
-                call read_amsre(mype,val_dat,ithin,isfcalc,rmesh,gstime,&
+                call read_amsre(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
                      nobs_sub1(1,i),read_rec(i),dval_use)
@@ -1685,7 +1691,7 @@ subroutine read_obs(ndata,mype)
 
 !            Process AMSR2 data
              else if(obstype == 'amsr2')then
-                call read_amsr2(mype,val_dat,ithin,rmesh,gstime,&
+                call read_amsr2(mype,val_dat,ithin,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),  &
                      nobs_sub1(1,i))
@@ -1727,7 +1733,7 @@ subroutine read_obs(ndata,mype)
                 call read_ahi(mype,val_dat,ithin,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),  &
-                     nobs_sub1(1,i))
+                     nobs_sub1(1,i),dval_use)
                 string='READ_AHI'
 
 
@@ -1847,8 +1853,6 @@ subroutine read_obs(ndata,mype)
 
 !   Deallocate arrays containing full horizontal surface fields
     call destroy_sfc
-!   Deallocate arrays containing full horizontal nsst fields
-    if (nst_gsi > 0) call gsi_nstcoupler_final()
 !   Sum and distribute number of obs read and used for each input ob group
     call mpi_allreduce(ndata1,ndata,ndat*3,mpi_integer,mpi_sum,mpi_comm_world,&
        ierror)

@@ -36,7 +36,9 @@ module crtm_interface
 !   2016-06-03  collard - Added changes to allow for historical naming conventions
 !   2017-02-24  zhu/todling  - remove gmao cloud fraction treatment
 !   2018-01-12  collard - Force all satellite and solar zenith angles to be >= 0.
-!   
+!   2019-03-13  eliu    - add precipitation component
+!   2019-03-13  eliu    - add quality control to identify areas with cold-air outbreak 
+!   2019-03-13  eliu    - add calculation of GFDL cloud fraction 
 !
 ! subroutines included:
 !   sub init_crtm
@@ -69,7 +71,9 @@ use mpeu_util, only: die
 use crtm_aod_module, only: crtm_aod_k
 use radiance_mod, only: n_actual_clouds,cloud_names,n_clouds_fwd,cloud_names_fwd, &
     n_clouds_jac,cloud_names_jac,n_actual_aerosols,aerosol_names,n_aerosols_fwd,aerosol_names_fwd, &
-    n_aerosols_jac,aerosol_names_jac,rad_obs_type,cw_cv
+    n_aerosols_jac,aerosol_names_jac,rad_obs_type,cw_cv,ql_cv
+use control_vectors, only: lcalc_gfdl_cfrac
+use ncepnems_io, only: imp_physics
 
 implicit none
 
@@ -119,7 +123,16 @@ public itref                ! = 34/36 index of Tr
 public idtw                 ! = 35/37 index of d(Tw)
 public idtc                 ! = 36/38 index of d(Tc)
 public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
- 
+
+! For TMI and GMI
+public iedge_log            ! = 32  ! index, if obs is to be obleted beause of locating near scan edges.
+! For  GMI 1CR (obstype=='gmi') data channel 10-13.
+public ilzen_ang2           ! = 33 index of local (satellite) zenith angle (radians)
+public ilazi_ang2           ! = 34 index of local (satellite) azimuth angle (radians)
+public iscan_ang2           ! = 35 index of scan (look) angle (radians)
+public iszen_ang2           ! = 36 index of solar zenith angle (degrees)
+public isazi_ang2           ! = 37 index of solar azimuth angle (degrees)
+
 !  Note other module variables are only used within this routine
 
   character(len=*), parameter :: myname='crtm_interface'
@@ -154,8 +167,12 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
   real(r_kind)   , save ,allocatable,dimension(:,:) :: cloudefr     ! effective radius of cloud type in CRTM
   real(r_kind)   , save ,allocatable,dimension(:,:) :: cloud_cont   ! cloud content fed into CRTM 
   real(r_kind)   , save ,allocatable,dimension(:,:) :: cloud_efr    ! effective radius of cloud type in CRTM
+  real(r_kind)   , save ,allocatable,dimension(:)   :: cf           ! effective radius of cloud type in CRTM 
+  real(r_kind)   , save ,allocatable,dimension(:)   :: hwp_guess    ! column total for each hydrometeor  
 
   real(r_kind)   , save ,allocatable,dimension(:,:,:,:)  :: gesqsat ! qsat to calc rh for aero particle size estimate
+  real(r_kind)   , save ,allocatable,dimension(:)  :: table,table2,tablew ! GFDL saturation water vapor pressure tables
+  real(r_kind)   , save ,allocatable,dimension(:)  :: des2,desw           ! GFDL saturation water vapor presure
   real(r_kind)   , save ,allocatable,dimension(:)  :: lcloud4crtm_wk ! cloud info usage index for each channel
 
   integer(i_kind),save, allocatable,dimension(:) :: map_to_crtm_ir
@@ -181,8 +198,12 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
   integer(i_kind),save :: indx_p25, indx_dust1, indx_dust2
   logical        ,save :: lwind
   logical        ,save :: cld_sea_only_wk
+  logical        ,save :: lprecip_wk 
   logical        ,save :: mixed_use
   integer(i_kind), parameter :: min_n_absorbers = 2
+
+  integer(i_kind),save :: iedge_log
+  integer(i_kind),save :: ilzen_ang2,ilazi_ang2,iscan_ang2,iszen_ang2,isazi_ang2
 
   type(crtm_atmosphere_type),save,dimension(1)   :: atmosphere
   type(crtm_surface_type),save,dimension(1)      :: surface
@@ -304,8 +325,10 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
   use radinfo, only: radjacindxs,radjacnames,jpch_rad,nusis,nuchan
   use aeroinfo, only: aerojacindxs
   use guess_grids, only: ges_tsen,ges_prsl,nfldsig
+  use gridmod, only: fv3_full_hydro
   use mpeu_util, only: getindex
   use constants, only: zero,max_varname_length
+  use obsmod, only: dval_use
   use gsi_io, only: verbose
 
   implicit none
@@ -319,6 +342,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
 
 ! local parameters
   character(len=*), parameter :: myname_=myname//'*init_crtm'
+  integer(i_kind), parameter :: length = 2621  ! lenth of GFL qsat table
 
 ! local variables
   integer(i_kind) :: ier,ii,error_status,iderivative
@@ -408,10 +432,14 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
     allocate(cloud(nsig,n_clouds_fwd))
     allocate(cloudefr(nsig,n_clouds_fwd))
     allocate(icloud(n_actual_clouds))
+    allocate(cf(nsig))  
+    allocate(hwp_guess(n_clouds_fwd))   
     cloud_cont=zero
     cloud_efr =zero
     cloud     =zero
     cloudefr  =zero
+    cf        =zero  
+    hwp_guess =zero    
 
     call gsi_bundlegetpointer(gsi_metguess_bundle(1),cloud_names,icloud,ier)
 
@@ -430,6 +458,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
     n_clouds_jac_wk = n_clouds_jac
     cld_sea_only_wk = radmod%cld_sea_only
     Load_CloudCoeff = .true.
+    lprecip_wk = radmod%lprecip .or. fv3_full_hydro
  else
     n_actual_clouds_wk = 0
     n_clouds_fwd_wk = 0
@@ -471,6 +500,25 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
  iff10     = 29 ! index of ten meter wind factor
  ilone     = 30 ! index of earth relative longitude (degrees)
  ilate     = 31 ! index of earth relative latitude (degrees)
+ icount=ilate
+ if(dval_use) icount=icount+2
+ if ( obstype == 'avhrr_navy' .or. obstype == 'avhrr' ) then
+    icount=icount+2 ! when an independent SST analysis is read in
+ else if ( obstype == 'tmi' ) then
+   iedge_log = 32  ! index, if obs is to be obleted beause of locating near scan edges.
+   icount = iedge_log+2
+ else if  ( obstype == 'gmi' ) then
+   iedge_log = 32  ! index, if obs is to be obleted beause of locating near scan edges.
+   ilzen_ang2= 33  ! index of local (satellite) zenith angle (radians)
+   ilazi_ang2= 34  ! index of local (satellite) azimuth angle (radians)
+   iscan_ang2= 35  ! index of scan (look) angle (radians)
+   iszen_ang2= 36  ! index of solar zenith angle (degrees)
+   isazi_ang2= 37  ! index of solar azimuth angle (degrees)
+   icount = isazi_ang2
+   if(dval_use) icount=icount+2
+ else if  ( obstype == 'amsr2' ) then
+   icount=ilate+2
+ endif
 
  itref     = nreal-3  ! index of foundation temperature: Tr
  idtw      = nreal-2  ! index of diurnal warming: d(Tw) at depth zob
@@ -793,7 +841,7 @@ endif
  endif ! regional or IGBP
     
 ! Calculate RH when aerosols are present and/or cloud-fraction used
- if (n_actual_aerosols_wk>0) then
+ if (n_actual_aerosols_wk>0 .or. n_clouds_fwd_wk>0) then 
     allocate(gesqsat(lat2,lon2,nsig,nfldsig))
     ice=.true.
     iderivative=0
@@ -801,6 +849,30 @@ endif
        call genqsat(gesqsat(1,1,1,ii),ges_tsen(1,1,1,ii),ges_prsl(1,1,1,ii),lat2,lon2,nsig,ice,iderivative)
     end do
  endif
+
+! Initial GFDL saturation water vapor pressure tables
+  if (n_clouds_fwd_wk>0 .and. imp_physics==11) then
+
+     if (mype==0) write(6,*)myname_,':initial and load GFDL saturation water vapor pressure tables'
+
+     allocate(table (length))
+     allocate(table2(length))
+     allocate(tablew(length))
+     allocate(des2  (length))
+     allocate(desw  (length))
+
+     call qs_table (length)
+     call qs_table2(length)
+     call qs_tablew(length)
+
+     do ii = 1, length - 1
+        des2 (ii) = max (zero, table2 (ii + 1) - table2 (ii))
+        desw (ii) = max (zero, tablew (ii + 1) - tablew (ii))
+     enddo
+     des2 (length) = des2 (length - 1)
+     desw (length) = desw (length - 1)
+
+  endif
 
  return
 end subroutine init_crtm
@@ -832,8 +904,15 @@ subroutine destroy_crtm
   error_status = crtm_destroy(channelinfo)
   if (error_status /= success) &
      write(6,*)myname_,':  ***ERROR*** error_status=',error_status
-  if (n_actual_aerosols_wk>0) then
+  if (n_actual_aerosols_wk>0 .or. n_clouds_fwd_wk>0) then  
      deallocate(gesqsat)
+     if (imp_physics==11) then
+        deallocate(table)
+        deallocate(table2)
+        deallocate(tablew)
+        deallocate(des2)
+        deallocate(desw)
+     endif
   endif
   call crtm_atmosphere_destroy(atmosphere(1))
   call crtm_surface_destroy(surface(1))
@@ -878,6 +957,8 @@ subroutine destroy_crtm
   if(allocated(jcloud)) deallocate(jcloud)
   if(allocated(cloud_cont)) deallocate(cloud_cont)
   if(allocated(cloud_efr)) deallocate(cloud_efr)
+  if(allocated(cf)) deallocate(cf)  
+  if(allocated(hwp_guess)) deallocate(hwp_guess)   
   if(allocated(icw)) deallocate(icw)
   if(allocated(lcloud4crtm_wk)) deallocate(lcloud4crtm_wk)
   if(regional .or. nvege_type==IGBP_N_TYPES)deallocate(map_to_crtm_ir)
@@ -886,11 +967,11 @@ subroutine destroy_crtm
   return
 end subroutine destroy_crtm
 subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
-                   h,q,clw_guess,prsl,prsi, &
+                   h,q,clw_guess,ciw_guess,rain_guess,snow_guess,prsl,prsi, &
                    trop5,tzbgr,dtsavg,sfc_speed,&
                    tsim,emissivity,ptau5,ts, &
-                   emissivity_k,temp,wmix,jacobian,error_status,tsim_clr, &
-                   layer_od,jacobian_aero)  
+                   emissivity_k,temp,wmix,jacobian,error_status,tsim_clr,tcc, & 
+                   tcwv,hwp_ratio,stability,layer_od,jacobian_aero)  
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    call_crtm   creates vertical profile of t,q,oz,p,zs,etc., 
@@ -974,14 +1055,14 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use gsi_chemguess_mod, only: gsi_chemguess_get
   use gsi_metguess_mod,  only: gsi_metguess_bundle   ! for now, a common block
   use gsi_metguess_mod,  only: gsi_metguess_get
-  use gridmod, only: istart,jstart,nlon,nlat,lon1
+  use gridmod, only: istart,jstart,nlon,nlat,lon1,rlats,rlons
   use wrf_params_mod, only: cold_start
   use constants, only: zero,half,one,one_tenth,fv,r0_05,r10,r100,r1000,constoz,grav,rad2deg, &
-      sqrt_tiny_r_kind,constoz,two, three, four,five,t0c
+      sqrt_tiny_r_kind,constoz,two,three,four,five,t0c,rd,eps,rd_over_cp,rearth
   use constants, only: max_varname_length,pi  
   use set_crtm_aerosolmod, only: set_crtm_aerosol
   use set_crtm_cloudmod, only: set_crtm_cloud
-  use crtm_module, only: limit_exp,o3_id
+  use crtm_module, only: limit_exp,o3_id,toa_pressure
   use obsmod, only: iadate
   use aeroinfo, only: nsigaerojac
 
@@ -1001,8 +1082,12 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   integer(i_kind)                       ,intent(  out) :: error_status
   real(r_kind),dimension(nsig,nchanl)   ,intent(  out) :: temp,ptau5,wmix
   real(r_kind),dimension(nsigradjac,nchanl),intent(out):: jacobian
-  real(r_kind)                          ,intent(  out) :: clw_guess
+  real(r_kind)                          ,intent(  out) :: clw_guess,ciw_guess,rain_guess,snow_guess
   real(r_kind),dimension(nchanl)        ,intent(  out), optional  :: tsim_clr      
+  real(r_kind),dimension(nchanl)        ,intent(  out), optional  :: tcc       
+  real(r_kind)                          ,intent(  out), optional  :: tcwv              
+  real(r_kind)                          ,intent(  out), optional  :: hwp_ratio      
+  real(r_kind)                          ,intent(  out), optional  :: stability       
   real(r_kind),dimension(nsigaerojac,nchanl),intent(out),optional :: jacobian_aero
   real(r_kind),dimension(nsig,nchanl)   ,intent(  out)  ,optional :: layer_od
 
@@ -1023,10 +1108,12 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   integer(i_kind):: ier,ii,kk,kk2,i,itype,leap_day,day_of_year
   integer(i_kind):: ig,istatus
   integer(i_kind):: j,k,m1,ix,ix1,ixp,iy,iy1,iyp,m,iii
+  integer(i_kind):: i_minus, i_plus, j_minus, j_plus
   integer(i_kind):: itsig,itsigp,itsfc,itsfcp
   integer(i_kind):: istyp00,istyp01,istyp10,istyp11
-  integer(i_kind):: iqs,iozs
+  integer(i_kind):: iqs,iozs,icfs 
   integer(i_kind):: error_status_clr
+  integer(i_kind):: idx700,dprs,dprs_min  
   integer(i_kind),dimension(8)::obs_time,anal_time
   integer(i_kind),dimension(msig) :: klevel
 
@@ -1038,10 +1125,11 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
   real(r_kind):: wind10,wind10_direction,windratio,windangle 
   real(r_kind):: w00,w01,w10,w11,kgkg_kgm2,f10,panglr,dx,dy
-! real(r_kind):: w_weights(4)
   real(r_kind):: delx,dely,delx1,dely1,dtsig,dtsigp,dtsfc,dtsfcp
   real(r_kind):: sst00,sst01,sst10,sst11,total_od,term,uu5,vv5, ps
   real(r_kind):: sno00,sno01,sno10,sno11,secant_term
+  real(r_kind):: hwp_total,theta_700,theta_sfc,hs
+  real(r_kind):: dlon,dlat,dxx,dyy,yy,zz,garea
   real(r_kind),dimension(0:3):: wgtavg
   real(r_kind),dimension(nsig,nchanl):: omix
   real(r_kind),dimension(nsig,nchanl,n_aerosols_jac):: jaero
@@ -1056,6 +1144,9 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),dimension(msig)  :: c6
   real(r_kind),dimension(nsig)  :: c2,c3,c4,c5
   real(r_kind),dimension(nsig) :: ugkg_kgm2,cwj
+  real(r_kind),dimension(nsig) :: rho_air   ! density of air (kg/m3)
+  real(r_kind),dimension(nsig) :: cf_calc   ! GFDL cloud fraction calculation
+  real(r_kind),dimension(nsig) :: qmix      ! water vapor mixing ratio
   real(r_kind),allocatable,dimension(:,:) :: tgas1d
   real(r_kind),pointer,dimension(:,:  )::psges_itsig =>NULL()
   real(r_kind),pointer,dimension(:,:  )::psges_itsigp=>NULL()
@@ -1071,6 +1162,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),pointer,dimension(:,:,:)::tgasges_itsigp=>NULL()
   real(r_kind),pointer,dimension(:,:,:)::aeroges_itsig =>NULL()
   real(r_kind),pointer,dimension(:,:,:)::aeroges_itsigp=>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::cfges_itsig =>NULL()  
+  real(r_kind),pointer,dimension(:,:,:)::cfges_itsigp=>NULL()  
 
   logical :: sea,icmask   
 
@@ -1080,8 +1173,40 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
   m1=mype+1
 
+  if (n_clouds_fwd_wk>0) hwp_guess=zero  
+  hwp_total=zero  
+  theta_700=zero
+  theta_sfc=zero
+  if (present(stability)) stability=zero 
+  if (present(hwp_ratio)) hwp_ratio=zero  
+  if (present(tcwv)) tcwv=zero           
+  if (present(tcc)) tcc=zero           
+
   dx  = data_s(ilat)                 ! grid relative latitude
   dy  = data_s(ilon)                 ! grid relative longitude
+  hs  = data_s(izz)                  ! surface height
+
+! calculate anaysis grid area at obs location
+  dlat = data_s(ilat)+1.0e-6_r_kind
+  dlon = data_s(ilon)+1.0e-6_r_kind
+  j_minus = floor(dlat)
+  j_plus  = ceiling(dlat)
+  i_minus = floor(dlon)
+  i_plus  = ceiling(dlon)
+  if (dlon >= nlon) then
+     i_minus = 1
+     i_plus  = 2
+  endif
+  if (dlat >= nlat) then
+     j_minus = nlat-1
+     j_plus  = nlat
+  endif
+  dxx = abs(rlons(i_plus)-rlons(i_minus))
+  dyy = abs(rlats(j_plus)-rlats(j_minus))
+  zz  = half*(rlats(j_minus)+rlats(j_plus))
+  if (zz >= zero) yy = abs(rlats(nlat)-zz)
+  if (zz <  zero) yy = abs(rlats(1)-zz)
+  garea = (rearth*sin(yy)*dxx)*(rearth*dyy)
 
 ! Set spatial interpolation indices and weights
   ix1=dx
@@ -1175,6 +1300,10 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   iqs=istatus
   call gsi_bundlegetpointer(gsi_metguess_bundle(itsigp),'q',qges_itsigp,istatus)
   iqs=iqs+istatus
+  call gsi_bundlegetpointer(gsi_metguess_bundle(itsig ),'cf',cfges_itsig ,icfs)
+  icfs=istatus
+  call gsi_bundlegetpointer(gsi_metguess_bundle(itsigp),'cf',cfges_itsigp,icfs)
+  icfs=icfs+istatus
 
 ! Space-time interpolation of temperature (h) and q fields from sigma files
 !$omp parallel do  schedule(dynamic,1) private(k,ii,iii)
@@ -1415,8 +1544,11 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         if ( trim(obstype) /= 'modis_aod' ) then
            panglr = data_s(iscan_ang)
            if(obstype == 'goes_img' .or. obstype == 'seviri' .or. obstype == 'abi')panglr = zero
+
            geometryinfo(1)%sensor_zenith_angle = abs(data_s(ilzen_ang)*rad2deg) ! local zenith angle
-           geometryinfo(1)%source_zenith_angle = abs(data_s(iszen_ang))        ! solar zenith angle
+           geometryinfo(1)%source_zenith_angle = abs(data_s(iszen_ang))         ! solar zenith angle
+!          geometryinfo(1)%sensor_zenith_angle = data_s(ilzen_ang)*rad2deg      ! local zenith angle
+!          geometryinfo(1)%source_zenith_angle = data_s(iszen_ang)              ! solar zenith angle
            geometryinfo(1)%sensor_azimuth_angle = data_s(ilazi_ang)            ! local azimuth angle
            geometryinfo(1)%source_azimuth_angle = data_s(isazi_ang)            ! solar azimuth angle
            geometryinfo(1)%sensor_scan_angle   = panglr*rad2deg                ! scan angle
@@ -1470,7 +1602,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         endif
 
 !       Load surface sensor data structure
-
         do i=1,nchanl
 
 
@@ -1543,6 +1674,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      c3(k)=one/(one-q(k))
      c4(k)=fv*h(k)*c2(k)
      c5(k)=r1000*c3(k)*c3(k)
+     qmix(k)=q(k)*c3(k)  !conver specific humidity to mixing ratio
 ! Space-time interpolation of ozone(poz)
      if (iozs==0) then
          poz(k)=((ozges_itsig (ix ,iy ,k)*w00+ &
@@ -1558,9 +1690,25 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
          poz(k)=max(ozsmall,poz(k))
      endif ! oz
+! Space-time interpolation of cloud fraction (cf)
+     if (n_clouds_fwd_wk>0 .and. icfs==0) then 
+         cf(k)=((cfges_itsig (ix ,iy ,k)*w00+ &
+                 cfges_itsig (ixp,iy ,k)*w10+ &
+                 cfges_itsig (ix ,iyp,k)*w01+ &
+                 cfges_itsig (ixp,iyp,k)*w11)*dtsig + &
+                (cfges_itsigp(ix ,iy ,k)*w00+ &
+                 cfges_itsigp(ixp,iy ,k)*w10+ &
+                 cfges_itsigp(ix ,iyp,k)*w01+ &
+                 cfges_itsigp(ixp,iyp,k)*w11)*dtsigp)
+
+!        Ensure ozone is greater than ozsmall
+
+         cf(k)=min(max(zero,cf(k)),one)
+     endif ! cf
 ! Quantities required for MW cloudy radiance calculations
 
      if (n_clouds_fwd_wk>0) then
+        rho_air(k) = eps*(10.0_r_kind*100.0_r_kind*prsl(k))/(rd*h(k)*(q(k)+eps)) 
         do ii=1,n_clouds_fwd_wk
            iii=jcloud(ii)
            cloud(k,ii) =(gsi_metguess_bundle(itsig )%r3(icloud(iii))%q(ix ,iy ,k)*w00+ &     ! kg/kg
@@ -1606,10 +1754,25 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                                  efr_qr(ix ,iyp,k,itsigp)*w01+efr_qr(ixp,iyp,k,itsigp)*w11)*dtsigp
                end if
             end if
-
         end do  
      endif ! <n_clouds_fwd_wk>
   end do
+  ! Calculate GFDL effective radius for each hydrometeor
+  if ( icmask .and. n_clouds_fwd_wk > 0 .and. imp_physics==11 .and. lprecip_wk) then
+     do ii = 1, n_clouds_fwd_wk
+        iii=jcloud(ii)
+       call calc_gfdl_reff(rho_air,h,cloud(:,ii),cloud_names(iii),cloudefr(:,ii))
+     end do
+  endif
+
+  ! Calculate GFDL cloud fraction (if no cf in metguess table) based on PDF scheme 
+  if ( icmask .and. n_clouds_fwd_wk > 0 .and. imp_physics==11 .and.  lcalc_gfdl_cfrac ) then
+     cf_calc  = zero
+     call calc_gfdl_cloudfrac(rho_air,h,qmix,cloud,hs,garea,cf_calc)
+     cf   = cf_calc
+     icfs = 0        ! load cloud fraction into CRTM 
+  endif
+
 ! Interpolate level pressure to observation point for top interface
   prsi(nsig+1)=(ges_prsi(ix ,iy ,nsig+1,itsig )*w00+ &
               ges_prsi(ixp,iy ,nsig+1,itsig )*w10+ &
@@ -1720,8 +1883,13 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      call crtm_atmosphere_zero(atmosphere_k_clr(:,:))
      call crtm_surface_zero(surface_k_clr(:,:))
   end if
+  call crtm_atmosphere_zero(atmosphere)          
+  atmosphere(1)%level_pressure(0) = TOA_PRESSURE 
 
   clw_guess = zero
+  ciw_guess = zero
+  rain_guess = zero
+  snow_guess = zero
 
   if (n_actual_aerosols_wk>0) then
      do k = 1, nsig
@@ -1733,7 +1901,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
   sea = min(max(zero,data_s(ifrac_sea)),one)  >= 0.99_r_kind
   icmask = (sea .and. cld_sea_only_wk) .or. (.not. cld_sea_only_wk)
-
+  dprs_min = 9999.0_r_kind 
+  idx700 = 1     
   do k = 1,msig
 
 ! Load profiles into extended RTM model layers
@@ -1766,7 +1935,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
      if (n_clouds_fwd_wk>0) then
         kgkg_kgm2=(atmosphere(1)%level_pressure(k)-atmosphere(1)%level_pressure(k-1))*r100/grav
-        if (cw_cv) then
+        if (cw_cv.or.ql_cv) then
           if (icmask) then 
               c6(k) = kgkg_kgm2
               auxdp(k)=abs(prsi_rtm(kk+1)-prsi_rtm(kk))*r10
@@ -1784,26 +1953,56 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
               end if
 
               clw_guess = clw_guess +  cloud_cont(k,1)
+              ciw_guess = ciw_guess +  cloud_cont(k,2)
+              if(n_clouds_fwd_wk > 2) rain_guess = rain_guess +  cloud_cont(k,3)
+              if(n_clouds_fwd_wk > 3) snow_guess = snow_guess +  cloud_cont(k,4)
+
               do ii=1,n_clouds_fwd_wk
                  if (ii==1 .and. atmosphere(1)%temperature(k)-t0c>-20.0_r_kind) &
                     cloud_cont(k,1)=max(1.001_r_kind*1.0E-6_r_kind, cloud_cont(k,1))
                  if (ii==2 .and. atmosphere(1)%temperature(k)<t0c) &
                     cloud_cont(k,2)=max(1.001_r_kind*1.0E-6_r_kind, cloud_cont(k,2))
               end do
+!crtm2.3.x    if (.not. regional .and. icfs==0 ) atmosphere(1)%cloud_fraction(k) = cf(kk2)   
           endif   
         else 
            if (icmask) then
+              c6(k) = kgkg_kgm2  
               do ii=1,n_clouds_fwd_wk
-                 cloud_cont(k,ii)=cloud(kk2,ii)*kgkg_kgm2
+                !cloud_cont(k,ii)=cloud(kk2,ii)*kgkg_kgm2 
+                 cloud_cont(k,ii)=cloud(kk2,ii)*c6(k)
+                 if (imp_physics==11 .and. lprecip_wk .and.  cloud_cont(k,ii) > 1.0e-6_r_kind) then
+                    cloud_efr (k,ii)=cloudefr(kk2,ii)
+                 else
+                    cloud_efr (k,ii)=zero
+                 endif
+              enddo
+             
+              if (cloud_cont(k,1) >= 1.0e-6_r_kind) clw_guess = clw_guess +  cloud_cont(k,1)        
+              tcwv = tcwv + (atmosphere(1)%absorber(k,1)*0.001_r_kind)*c6(k)
+              do ii=1,n_clouds_fwd_wk
+                 if (cloud_cont(k,ii) >= 1.0e-6_r_kind) hwp_guess(ii) = hwp_guess(ii) +  cloud_cont(k,ii)        
+              enddo
+
+                !Add lower bound to all hydrometers 
+                !note: may want to add lower bound value for effective radius  
+              do ii=1,n_clouds_fwd_wk
                  if (trim(cloud_names_fwd(ii))=='ql' .and.  atmosphere(1)%temperature(k)-t0c>-20.0_r_kind) &
                      cloud_cont(k,ii)=max(1.001_r_kind*1.0E-6_r_kind, cloud_cont(k,ii))
                  if (trim(cloud_names_fwd(ii))=='qi' .and.  atmosphere(1)%temperature(k)<t0c) &
                      cloud_cont(k,ii)=max(1.001_r_kind*1.0E-6_r_kind, cloud_cont(k,ii))
+                 if (trim(cloud_names_fwd(ii))=='qr' .and.  atmosphere(1)%temperature(k)-t0c>-20.0_r_kind) &
+                     cloud_cont(k,ii)=max(1.001_r_kind*1.0E-6_r_kind, cloud_cont(k,ii))
+                 if (trim(cloud_names_fwd(ii))=='qs' .and.  atmosphere(1)%temperature(k)<t0c) &
+                     cloud_cont(k,ii)=max(1.001_r_kind*1.0E-6_r_kind, cloud_cont(k,ii))
+                 if (trim(cloud_names_fwd(ii))=='qg' .and.  atmosphere(1)%temperature(k)<t0c) &
+                     cloud_cont(k,ii)=max(1.001_r_kind*1.0E-6_r_kind, cloud_cont(k,ii))
               end do
+!crtm2.3.x    if (.not. regional .and. icfs==0 ) atmosphere(1)%cloud_fraction(k) = cf(kk2) 
            end if
         endif
      endif
-
+  
 !    Add in a drop-off to absorber amount in the stratosphere to be in more
 !    agreement with ECMWF profiles.  The drop-off is removed when climatological CO2 fields
 !    are used.
@@ -1812,14 +2011,26 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
             atmosphere(1)%absorber(k,ico2) = atmosphere(1)%absorber(k,ico2) * &
            (0.977_r_kind + 0.000115_r_kind * atmosphere(1)%pressure(k))
      endif
+     dprs = abs(atmosphere(1)%pressure(k)-700_r_kind)
+     if (dprs < dprs_min) then
+        dprs_min = dprs
+        idx700   = k
+     endif
   end do
 
+  if (n_clouds_fwd_wk>0 .and. icmask) then
+     if ((hwp_guess(1)+hwp_guess(2))>=1.0e-06_r_kind) hwp_ratio = hwp_guess(1)/(hwp_guess(1)+hwp_guess(2)) 
+     hwp_total = sum(hwp_guess(:))
+     theta_700 = atmosphere(1)%temperature(idx700)*(r1000/atmosphere(1)%pressure(idx700))**rd_over_cp
+     theta_sfc = data_s(itsavg)*(r100/ps)**rd_over_cp
+     stability = theta_700 - theta_sfc
+  endif
 
 ! Set clouds for CRTM
   if(n_clouds_fwd_wk>0) then
      atmosphere(1)%n_clouds = n_clouds_fwd_wk  
      call Set_CRTM_Cloud (msig,n_actual_clouds_wk,cloud_names,icmask,n_clouds_fwd_wk,cloud_cont,cloud_efr,jcloud,auxdp, &
-                          atmosphere(1)%temperature,atmosphere(1)%pressure,auxq,atmosphere(1)%cloud)
+                          atmosphere(1)%temperature,atmosphere(1)%pressure,auxq,atmosphere(1)%cloud,lprecip_wk)
   endif
 
 ! Set aerosols for CRTM
@@ -1906,6 +2117,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 !  Simulated brightness temperatures
        tsim(i)=rtsolution(i,1)%brightness_temperature
+
+!      if (present(tcc)) tcc(i)=rtsolution(i,1)%total_cloud_cover  !crtm2.3.x
 
        if (n_clouds_fwd_wk>0 .and. present(tsim_clr)) then
           if (mixed_use) then 
@@ -2077,6 +2290,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      enddo
   endif
   if (n_ghg >0) deallocate (tgas1d)
+
 ! contains
 
 !   pure function crtm_interface_interp(a,w,dtsig) result(intresult)
@@ -2095,6 +2309,676 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !     intresult = intresult * dtsig
 !   end function crtm_interface_interp
   end subroutine call_crtm
+
+  subroutine calc_gfdl_reff(rho_air,tsen,qxmr,cloud_name,reff)
+
+  use constants, only: zero, pi, t0c, half
+  implicit none
+
+! Declare passed variables
+  character(10)                 ,intent(in   ) :: cloud_name
+  real(r_kind), dimension(nsig) ,intent(in   ) :: rho_air   ! [ kg/m3  ]
+  real(r_kind), dimension(nsig) ,intent(in   ) :: tsen      ! [ K      ]
+  real(r_kind), dimension(nsig) ,intent(in   ) :: qxmr      ! [ kg/kg  ]
+  real(r_kind), dimension(nsig) ,intent(inout) :: reff      ! [ micron ]
+
+! Declare local variables
+  character(len=*), parameter :: myname_ = 'calc_gfdl_reff'
+  integer(i_kind) :: k
+  real(r_kind)    :: tmp, qx
+  real(r_kind)    :: reff_min, reff_max
+
+  ! Parameters
+  real(r_kind), parameter :: qmin = 1.0e-12_r_kind          ! [kg/kg ]
+
+  ! Parameters for water cloud
+  real(r_kind), parameter :: ccn        =  1.0e8_r_kind
+  real(r_kind), parameter :: rho_w      = 1000.0_r_kind     ! [kg/m3 ]
+  real(r_kind), parameter :: reff_w_min =    5.0_r_kind     ! 
+  real(r_kind), parameter :: reff_w_max =   10.0_r_kind
+
+  ! Parameters for ice cloud (Hemisfield and mcFarquhar 1996)
+  real(r_kind), parameter :: rho_i      = 890.0_r_kind      ! [kg/m3 ]
+  real(r_kind), parameter :: beta       =  1.22_r_kind
+  real(r_kind), parameter :: pice1      = 0.891_r_kind
+  real(r_kind), parameter :: pice2      = 0.920_r_kind
+  real(r_kind), parameter :: pice3      = 0.945_r_kind
+  real(r_kind), parameter :: pice4      = 0.969_r_kind
+  real(r_kind), parameter :: bice1      = 9.917_r_kind
+  real(r_kind), parameter :: bice2      = 9.337_r_kind
+  real(r_kind), parameter :: bice3      = 9.208_r_kind
+  real(r_kind), parameter :: bice4      = 9.387_r_kind
+  real(r_kind), parameter :: reff_i_min =    10_r_kind
+  real(r_kind), parameter :: reff_i_max = 150.0_r_kind
+  ! Parameters for rain  (Lin 1983)
+  real(r_kind), parameter :: rho_r      =    1000.0_r_kind  ! [kg/m3 ]
+  real(r_kind), parameter :: no_r       =     8.0e6_r_kind  ! [m-4   ]
+  real(r_kind), parameter :: reff_r_min =       0.0_r_kind  ! [micron] 
+  real(r_kind), parameter :: reff_r_max =   10000.0_r_kind  ! [micron]
+  real(r_kind), parameter :: alpha_r    =       0.8_r_kind
+  real(r_kind), parameter :: gamma_r    = 17.837789_r_kind
+  real(r_kind) :: lam_r
+
+  ! Parameters for snow  (Lin 1983)
+  real(r_kind), parameter :: rho_s      =     100.0_r_kind  ! [kg/m3 ]
+  real(r_kind), parameter :: no_s       =     3.0e6_r_kind  ! [m-4   ]
+  real(r_kind), parameter :: reff_s_min =       0.0_r_kind  ! [micron] 
+  real(r_kind), parameter :: reff_s_max =   10000.0_r_kind  ! [micron]
+  real(r_kind), parameter :: alpha_s    =      0.25_r_kind
+  real(r_kind), parameter :: gamma_s    = 8.2850630_r_kind
+  real(r_kind) :: lam_s
+  ! Parameters for graupel  (Lin 1983)
+  real(r_kind), parameter :: rho_g      =     400.0_r_kind  ! [kg/m3 ]
+  real(r_kind), parameter :: no_g       =     4.0e6_r_kind  ! [m-4   ]  
+  real(r_kind), parameter :: reff_g_min =       0.0_r_kind  ! [micron] 
+  real(r_kind), parameter :: reff_g_max =   10000.0_r_kind  ! [micron]
+  real(r_kind), parameter :: alpha_g    =       0.5_r_kind
+  real(r_kind), parameter :: gamma_g    = 11.631769_r_kind
+  real(r_kind) :: lam_g
+
+  ! Cloud Water
+  if (trim(cloud_name)=='ql') then
+     reff_min = reff_w_min
+     reff_max = reff_w_max
+     do k = 1, nsig
+        qx = qxmr(k) * rho_air(k)  ! convert mixing ratio (kg/kg) to water content (kg/m3)
+        if (qx > qmin) then
+           reff(k) = exp (1.0_r_kind / 3.0_r_kind * log ((3.0_r_kind * qx) / (4.0_r_kind * pi * rho_w * ccn))) * 1.0e6_r_kind
+           reff(k) = max(reff_min, min(reff_max, reff(k)))
+        !  reff(k) = 10.0_r_kind  
+        else
+           reff(k) = zero
+        endif
+     enddo
+  ! Cloud Ice 
+  else if (trim(cloud_name)=='qi') then
+     ! Hemisfield and mcFarquhar (1996)
+     reff_min = reff_i_min
+     reff_max = reff_i_max
+     do k = 1, nsig
+        qx = qxmr(k) * rho_air(k)  ! convert mixing ratio (kg/kg) to water content (kg/m3)
+        if (qx > qmin) then
+           tmp = tsen(k)-t0c       ! convert degree K to C
+           if (tmp < -50.0_r_kind) then
+              reff(k) = beta / bice1 * exp ((1.0_r_kind - pice1) * log (1.0e3_r_kind * qx)) * 1.0e3_r_kind
+           else if (tmp < -40.0_r_kind .and. tmp >= -50.0_r_kind) then
+              reff(k) = beta / bice2 * exp ((1.0_r_kind - pice2) * log (1.0e3_r_kind * qx)) * 1.0e3_r_kind
+           else if (tmp < -30.0_r_kind .and. tmp >= -40.0_r_kind) then
+              reff(k) = beta / bice3 * exp ((1.0_r_kind - pice3) * log (1.0e3_r_kind * qx)) * 1.0e3_r_kind
+           else
+              reff(k) = beta / bice4 * exp ((1.0_r_kind - pice4) * log (1.0e3_r_kind * qx)) * 1.0e3_r_kind
+           endif
+           reff(k) = max(reff_min, min(reff_max, reff(k)))
+        !  reff(k) = 30.0_r_kind  
+        else
+           reff(k) = zero
+        endif
+     enddo
+  ! Rain 
+  else if (trim(cloud_name)=='qr') then
+     reff_min = reff_r_min
+     reff_max = reff_r_max
+     do k = 1, nsig
+        qx = qxmr(k) * rho_air(k)  ! convert mixing ratio (kg/kg) to water content (kg/m3)
+        if (qx > qmin) then
+           lam_r   = exp (0.25_r_kind * log (pi * rho_r * no_r / qx ))
+           reff(k) = 0.5_r_kind * (3.0_r_kind/ lam_r ) * 1.0e6_r_kind
+        !  reff(k) = 0.5_r_kind * exp (log (gamma_r / 6.0_r_kind) / alpha_r) / lam_r * 1.0e6_r_kind  !orig
+           reff(k) = max(reff_min, min(reff_max, reff(k)))
+        !  reff(k) = 300.0_r_kind  
+        else
+           reff(k) = zero
+        endif
+     enddo
+  ! Snow 
+  else if (trim(cloud_name)=='qs') then
+     reff_min = reff_s_min
+     reff_max = reff_s_max
+     do k = 1, nsig
+        qx = qxmr(k) * rho_air(k)  ! convert mixing ratio (kg/kg) to water content (kg/m3)
+        if (qx > qmin) then
+           lam_s   = exp (0.25_r_kind * log (pi * rho_s * no_s / qx ))
+           reff(k) = 0.5_r_kind * (3.0_r_kind/ lam_s ) * 1.0e6_r_kind 
+        !  reff(k) = 0.5_r_kind * exp (log (gamma_s / 6.0_r_kind) / alpha_s) / lam_s * 1.0e6_r_kind  !orig
+           reff(k) = max(reff_min, min(reff_max, reff(k)))
+        !  reff(k) = 600.0_r_kind  
+        else
+           reff(k) = zero
+        endif
+     enddo
+  ! Graupel 
+  else if (trim(cloud_name)=='qg') then
+     reff_min = reff_g_min
+     reff_max = reff_g_max
+     do k = 1, nsig
+        qx = qxmr(k)*rho_air(k)    ! convert mixing ratio (kg/kg) to water content (kg/m3)
+        if (qx > qmin) then
+           lam_g   = exp (0.25_r_kind * log (pi * rho_g * no_g / qx ))
+           reff(k) = 0.5_r_kind * (3.0_r_kind/ lam_g ) * 1.0e6_r_kind 
+        !  reff(k) = 0.5_r_kind * exp (log (gamma_g / 6.0_r_kind) / alpha_g) / lam_g * 1.0e6_r_kind
+           reff(k) = max(reff_min, min(reff_max, reff(k)))
+        !  reff(k) = 600.0_r_kind  
+        else
+           reff(k) = zero
+        endif
+     enddo
+  ! Mysterious 
+  else
+     call die(myname_,"cannot recognize cloud name <"//trim(myname_)//">")
+  endif
+
+  end subroutine calc_gfdl_reff
+
+  subroutine calc_gfdl_cloudfrac(den,pt1,qv,cloud,hs,area,cfrac)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    calc_gfdl_cloudfrac  calculate GFDL cloud fraction 
+!                                     based on PDF scheme 
+!
+!   prgmmr:      eliu
+!
+! abstract:
+!
+! program history log:
+!
+!   2018-08-31   eliu
+!
+!   input argument list:
+!     den       - density of air  
+!     pt1       - sensible temperature
+!     qv        - specific humidity 
+!     cloud     - hydrometeor mixing ratio 
+!     hs        - surface elevation 
+!     area      - analysis grid area   
+!     cfrac     - cloud fraction 
+!
+!   output argument list:
+!     cfrac     - cloud fraction 
+!
+!   language: f90
+!   
+!$$$
+!--------
+
+  use constants, only: one, zero, ten, half, grav
+  use constants, only: tice,t_wfr,rvgas,hlv,hlf,c_liq,c_ice,cp_air,cv_air 
+
+  implicit none
+!
+! Declare passed variables
+   real(r_kind), dimension(nsig)                 ,intent(in   ) :: den    ! air density[ kg/m3  ]
+   real(r_kind), dimension(nsig)                 ,intent(in   ) :: pt1    !  sensible temperature[ K ] 
+   real(r_kind), dimension(nsig)                 ,intent(in   ) :: qv     !  specific humudity
+   real(r_kind), dimension(nsig,n_clouds_fwd_wk) ,intent(in   ) :: cloud  !  hydroeteor mixing ratio
+   real(r_kind),                                  intent(in   ) :: hs     !  surface elevation [ m ] 
+   real(r_kind),                                  intent(in   ) :: area   !  analysis grid area [ m2 ]
+   real(r_kind), dimension(nsig)                 ,intent(inout) :: cfrac  !  cloud fraction  
+!
+! Declare local variables
+  character(len=*), parameter :: myname_ = 'calc_gfdl_cloudfrac'
+  integer(i_kind) :: i,k
+  integer(i_kind) :: icloud_f
+  real(r_kind), parameter :: qrmin   = 1.0e-8_r_kind
+  real(r_kind), parameter :: qvmin   = 1.0e-20_r_kind ! min value for water vapor 
+  real(r_kind), parameter :: qcmin   = 1.0e-12_r_kind ! min value for cloud condensates
+  real(r_kind), parameter :: cld_min = 0.05_r_kind    ! min value for cloud fraction 
+  real(r_kind) :: tin,qsi,qsw
+  real(r_kind) :: qpz,q_cond,rh,hvar,cvm
+  real(r_kind) :: rqi,dq,d0_vap,dc_ice,lv00,li00
+  real(r_kind) :: mc_air,c_air,c_vap
+  real(r_kind) :: cp_vap,cv_vap
+  real(r_kind) :: lhi,lhl,lcp2,icp2
+  real(r_kind) :: q_plus,q_minus,qstar
+  real(r_kind) :: dw,dw_land,dw_ocean
+  real(r_kind) :: q_sol,q_liq
+  real(r_kind) :: qa
+  real(r_kind), dimension(nsig) :: ql,qi,qr,qs,qg
+  logical :: hydrostatic
+
+!  parameters
+  icloud_f = 1
+  cv_vap   = 3.0_r_kind * rvgas ! heat capacity of water vapor at constant volume (non-hydrostatic) cv_vap=1384.5 
+  cp_vap   = 4.0_r_kind * rvgas ! heat capacity of water voiar at constant pressure (hydrostatic)   cp_vap=1846.0
+  dw_land  = 0.20_r_kind        ! base value for subgrid variability over land 
+  dw_ocean = 0.10_r_kind        ! base value for subgrid variability over ocean
+  hydrostatic = .false.         ! default
+
+  if (hydrostatic) then
+     c_air = cp_air
+     c_vap = cp_vap
+  else
+     c_air = cv_air
+     c_vap = cv_vap
+  endif
+
+! Derived parameters
+  dc_ice = c_liq - c_ice        ! isobaric heating/cooling (2213.5)
+  d0_vap = c_vap - c_liq        ! d0_vap = cv_vap-cliq = -2801.0 
+! dc_vap = c_vap - c_liq        ! dc_vap = cp_vap-cliq = -2339.5
+  lv00   = hlv - d0_vap * tice  ! evaporation latent heat coefficient at 0 deg (3139057.82)
+  li00   = hlf - dc_ice * tice  ! fusion latent heat coefficient at 0 deg (-271059.665)
+
+! -----------------------------------------------------------------------
+! calculate horizontal subgrid variability
+! total water subgrid deviation in horizontal direction
+! default area dependent form: use dx ~ 100 km as the base
+! -----------------------------------------------------------------------
+! higher than 10 m is considered "land" and will have higher subgrid variability
+  dw   = dw_ocean + (dw_land - dw_ocean) * min (one, abs(hs) / (ten * grav))
+! "scale - aware" subgrid variability: 100 - km as the base
+  hvar = min (0.2_r_kind, max (0.01_r_kind, dw * sqrt (sqrt (area) / 100.e3_r_kind)))
+
+! Load hydrometeor mixing ratio
+  ql=zero; qi=zero; qr=zero; qs=zero; qg=zero
+  do i = 1, n_clouds_fwd_wk
+     if (trim(cloud_names_fwd(i))=='ql') ql(:) = cloud(:,i)
+     if (trim(cloud_names_fwd(i))=='qi') qi(:) = cloud(:,i)
+     if (trim(cloud_names_fwd(i))=='qr') qr(:) = cloud(:,i)
+     if (trim(cloud_names_fwd(i))=='qs') qs(:) = cloud(:,i)
+     if (trim(cloud_names_fwd(i))=='qg') qg(:) = cloud(:,i)
+  enddo
+! Loop each layer to calculate cloud fraction based on PDF scheme
+  do k = 1, nsig
+
+     q_sol  = qi(k) + qs(k) + qg(k)
+     q_liq  = ql(k) + qr(k)
+     q_cond = q_liq + q_sol
+     qpz    = qv(k) + q_cond  ! total water qpz is conserved
+
+     lhi    = li00 + dc_ice * pt1(k)
+     lhl    = lv00 + d0_vap * pt1(k)
+     mc_air = (one - qpz) * c_air
+     cvm    = mc_air + (qv(k) + q_liq + q_sol) * c_vap
+     lcp2   = lhl / cvm
+     icp2   = lhi / cvm
+
+     ! -----------------------------------------------------------------------
+     ! use the "liquid - frozen water temperature" (tin) to compute saturated
+     ! specific humidity
+     ! -----------------------------------------------------------------------
+     tin = pt1(k) - (lcp2 * q_cond+ icp2 * q_sol) ! minimum temperature
+
+     ! -----------------------------------------------------------------------
+     ! determine saturated specific humidity
+     ! -----------------------------------------------------------------------
+     if (tin <= t_wfr) then
+        ! ice phase:
+        qstar = iqs1 (tin, den(k))
+     elseif (tin >= tice) then
+        ! liquid phase:
+        qstar = wqs1 (tin, den(k))
+     else
+        ! mixed phase:
+        qsi = iqs1 (tin, den(k))
+        qsw = wqs1 (tin, den(k))
+        if (q_cond > 1.e-6_r_kind) then
+           rqi = q_sol / q_cond
+        else
+            ! --------------------------------------------------------------
+            ! mostly liquid water q_cond at initial cloud development stage
+            ! --------------------------------------------------------------
+            rqi = (tice - tin) / (tice - t_wfr)
+        endif
+        qstar = rqi * qsi + (one - rqi) * qsw
+     endif
+
+     ! -----------------------------------------------------------------------
+     ! partial cloudiness by pdf:
+     ! assuming subgrid linear distribution in horizontal; this is
+     ! effectively a smoother for the
+     ! binary cloud scheme; qa = 0.5 if qstar (i) == qpz
+     ! -----------------------------------------------------------------------
+     rh = qpz / qstar
+     ! -----------------------------------------------------------------------
+     ! icloud_f = 0: bug - fixed
+     ! icloud_f = 1: old fvgfs gfdl) mp implementation
+     ! icloud_f = 2: binary cloud scheme (0 / 1)
+     ! -----------------------------------------------------------------------
+     if (rh > 0.75_r_kind .and. qpz > 1.e-6_r_kind) then
+        dq      = hvar * qpz
+        q_plus  = qpz + dq
+        q_minus = qpz - dq
+        if (icloud_f == 2) then
+           if (qpz > qstar) then
+              qa = one
+           elseif (qstar < q_plus .and. q_cond > 1.e-6_r_kind) then
+              qa = ((q_plus - qstar) / dq) ** 2
+              qa = min (one, qa)
+           else
+              qa = zero
+           endif
+        else
+           if (qstar < q_minus) then
+              qa = one
+           else
+              if (qstar < q_plus) then
+                 if (icloud_f == 0) then
+                    qa = (q_plus - qstar) / (dq + dq)
+                 else
+                    qa = (q_plus - qstar) / (2._r_kind * dq * (one - q_cond))
+                 endif
+              else
+                 qa = zero
+              endif
+              ! impose minimum cloudiness if substantial q_cond exist
+              if (q_cond > 1.e-6_r_kind) then
+                 qa = max (cld_min, qa)
+              endif
+              qa = min (one, qa)
+           endif
+        endif
+     else
+        qa = zero
+     endif
+     cfrac(k) = qa
+  enddo !k-loop
+  end subroutine calc_gfdl_cloudfrac
+
+subroutine qs_table(n)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:  qs_table  GFDL saturation water vapor pressure table I 
+!
+!   prgmmr:    eliu
+!
+! abstract:
+!
+! program history log:
+!
+!   2018-08-31   eliu
+!
+!   input argument list:
+!     n         - table index  
+!
+!   output argument list:
+!     table     - saturation vapor pressure 
+!
+!   language: f90
+!   
+!$$$
+!--------
+
+    use constants, only: tice,e00,rvgas,hlv,hlf,cp_vap,c_liq,c_ice 
+
+    implicit none
+
+    integer(i_kind), intent (in) :: n
+
+    integer(i_kind) :: i
+    real(r_kind) :: delt = 0.1_r_kind
+    real(r_kind) :: tmin, tem, esh20
+    real(r_kind) :: wice, wh2o, fac0, fac1, fac2
+    real(r_kind) :: esupc (200)
+
+    real(r_kind) :: dc_vap, dc_ice, d2ice
+    real(r_kind) :: lv0, li00, li2
+
+    ! Derived parameters
+    dc_vap = cp_vap - c_liq      ! isobaric heating/cooling (-2339.5)
+    dc_ice = c_liq - c_ice       ! isobaric heating/cooling (-2213.5)
+    d2ice  = dc_vap + dc_ice     ! isobaric heating/cooling ( -126)
+    lv0    = hlv - dc_vap * tice ! 3139057.82 
+    li00   = hlf - dc_ice * tice ! -271059.55
+    li2    = lv0 + li00          ! 2867998.15
+    tmin   = tice - 160._r_kind
+
+    ! -----------------------------------------------------------------------
+    ! compute es over ice between - 160 deg c and 0 deg c.
+    ! -----------------------------------------------------------------------
+
+    do i = 1, 1600
+        tem      = tmin + delt * real(i - 1)
+        fac0     = (tem - tice) / (tem * tice)
+        fac1     = fac0 * li2
+        fac2     = (d2ice * log(tem / tice) + fac1) / rvgas
+        table(i) = e00 * exp(fac2)
+    enddo
+
+    ! --------------------------------------------------------
+    ! compute es over water between - 20 deg c and 102 deg c.
+    ! --------------------------------------------------------
+
+    do i = 1, n-1400
+        tem   = 253.16_r_kind + delt * real(i - 1)
+        fac0  = (tem - tice) / (tem * tice)
+        fac1  = fac0 * lv0
+        fac2  = (dc_vap * log(tem / tice) + fac1) / rvgas
+        esh20 = e00 * exp(fac2)
+        if (i <= 200) then
+            esupc(i) = esh20
+        else
+            table(i + 1400) = esh20
+        endif
+    enddo
+
+    ! ---------------------------------------------------------
+    ! derive blended es over ice and supercooled water between 
+    !- 20 deg c and 0 deg c
+    ! ---------------------------------------------------------
+
+    do i = 1, 200
+        tem  = 253.16_r_kind + delt * real (i - 1)
+        wice = 0.05_r_kind * (tice - tem)
+        wh2o = 0.05_r_kind * (tem - 253.16_r_kind)
+        table(i + 1400) = wice * table(i + 1400) + wh2o * esupc(i)
+    enddo
+
+end subroutine qs_table
+
+subroutine qs_table2(n)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:  qs_table2  GFDL saturation water vapor pressure table III 
+!
+!   prgmmr:    eliu
+!
+! abstract:
+!
+! program history log: 
+!
+!   2018-08-31   eliu
+!
+!   input argument list:
+!     n         - table index  
+!
+!   output argument list:          
+!     table2    - saturation vapor pressure 
+!   
+!   language: f90
+!   
+!$$$
+!--------
+
+    use constants, only: tice,e00,rvgas,hlv,hlf,cp_vap,c_liq,c_ice
+
+    implicit none
+
+    integer(i_kind), intent (in) :: n
+    integer(i_kind) :: i, i0, i1
+
+    real(r_kind) :: delt = 0.1_r_kind
+    real(r_kind) :: tmin, tem0, tem1, fac0, fac1, fac2
+    real(r_kind) :: dc_vap, dc_ice, d2ice
+    real(r_kind) :: lv0, li00, li2
+
+    ! Derived parameters
+    dc_vap = cp_vap - c_liq     ! isobaric heating/cooling
+    dc_ice = c_liq - c_ice      ! isobaric heating/cooling
+    d2ice  = dc_vap + dc_ice    ! isobaric heating/cooling 
+    lv0    = hlv - dc_vap * tice
+    li00   = hlf - dc_ice * tice
+    li2    = lv0 + li00
+    tmin   = tice - 160._r_kind
+
+    do i = 1, n
+       tem0 = tmin + delt * real(i - 1)
+       fac0 = (tem0 - tice) / (tem0 * tice)
+       if (i <= 1600) then
+          ! -----------------------------------------------------------------------
+          ! compute es over ice between - 160 deg c and 0 deg c.
+          ! -----------------------------------------------------------------------
+          fac1 = fac0 * li2
+          fac2 = (d2ice * log(tem0 / tice) + fac1) / rvgas
+      else
+          ! -----------------------------------------------------------------------
+          ! compute es over water between 0 deg c and 102 deg c.
+          ! -----------------------------------------------------------------------
+          fac1 = fac0 * lv0
+          fac2 = (dc_vap * log(tem0 / tice) + fac1) / rvgas
+      endif
+       table2 (i) = e00 * exp(fac2)
+     enddo
+
+    ! -----------------------------------------------------------------------
+    ! smoother around 0 deg c
+    ! -----------------------------------------------------------------------
+    i0 = 1600
+    i1 = 1601
+    tem0 = 0.25_r_kind * (table2 (i0 - 1) + 2._r_kind * table (i0) + table2 (i0 + 1))
+    tem1 = 0.25_r_kind * (table2 (i1 - 1) + 2._r_kind * table (i1) + table2 (i1 + 1))
+    table2 (i0) = tem0
+    table2 (i1) = tem1
+
+end subroutine qs_table2
+
+subroutine qs_tablew (n)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:  qs_tablew  GFDL saturation water vapor pressure table II 
+!
+!   prgmmr:    eliu
+!
+! abstract:
+!
+! program history log: 
+!
+!   2018-08-31   eliu
+!
+!   input argument list:
+!     n         - table index  
+!
+!   output argument list:          
+!     tablew    - saturation vapor pressure 
+!   
+!   language: f90
+!   
+!$$$
+!--------
+
+    use constants, only: tice,e00,rvgas,hlv,cp_vap,c_liq
+
+    implicit none
+
+    integer(i_kind), intent (in) :: n
+
+    integer(i_kind) :: i
+    real(r_kind) :: delt = 0.1_r_kind
+    real(r_kind) :: tmin, tem, fac0, fac1, fac2
+    real(r_kind) :: dc_vap, lv0
+
+    ! Derived parameters
+    dc_vap = cp_vap - c_liq     ! isobaric heating/cooling
+    lv0    = hlv - dc_vap * tice
+    tmin   = tice - 160._r_kind
+
+    ! -----------------------------------------------------------------------
+    ! compute es over water
+    ! -----------------------------------------------------------------------
+    do i = 1, n
+        tem = tmin + delt * real(i - 1)
+        fac0 = (tem - tice) / (tem * tice)
+        fac1 = fac0 * lv0
+        fac2 = (dc_vap * log(tem / tice) + fac1) / rvgas
+        tablew (i) = e00 * exp(fac2)
+    enddo
+end subroutine qs_tablew
+
+real function iqs1 (ta, den)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:  iqsl  computes the saturated specific humidity for table III 
+!                    (ice phase)
+!   prgmmr:    eliu
+!
+! abstract:
+!
+! program history log: 
+!
+!   2018-08-31   eliu
+!
+!   input argument list:
+!     ta     - sensible temeprature  
+!
+!   output argument list:          
+!     den    - density of air 
+!   
+!   language: f90
+!   
+!$$$
+!--------
+    use constants, only: tice,rvgas,one
+    implicit none
+
+    ! water - ice phase; universal dry / moist formular using air density
+    ! input "den" can be either dry or moist air density
+
+    real(r_kind), intent (in) :: ta, den
+    real(r_kind)    :: es, ap1, tmin
+    integer(i_kind) :: it
+
+
+    tmin = tice - 160._r_kind
+    ap1  = 10._r_kind * dim (ta, tmin) + one
+    ap1  = min (2621._r_kind, ap1)
+    it   = ap1
+    es   = table2 (it) + (ap1 - it) * des2 (it)
+    iqs1 = es / (rvgas * ta * den)
+
+end function iqs1
+
+real function wqs1 (ta, den)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:  wqsl  computes the saturated specific humidity for table II 
+!                    (liquid phase)
+!   prgmmr:    eliu
+!
+! abstract:
+!
+! program history log: 
+!
+!   2018-08-31   eliu
+!
+!   input argument list:
+!     ta     - sensible temeprature  
+!
+!   output argument list:          
+!     den    - density of air 
+!   
+!   language: f90
+!   
+!$$$
+!--------
+    use constants, only: tice,rvgas,one
+    implicit none
+
+    ! pure water phase; universal dry / moist formular using air density
+    ! input "den" can be either dry or moist air density
+
+    real(r_kind), intent (in) :: ta, den
+    real(r_kind)    :: es, ap1, tmin
+    integer(i_kind) :: it
+
+
+    tmin = tice - 160._r_kind
+    ap1  = 10._r_kind * dim (ta, tmin) + one
+    ap1  = min (2621._r_kind, ap1)
+    it   = ap1
+    es   = tablew(it) + (ap1 - it) * desw(it)
+    wqs1 = es / (rvgas * ta * den)
+
+end function wqs1
+
 subroutine get_lai(data_s,nchanl,nreal,itime,ilate,lai_type,lai)
 !$$$  subprogram documentation block
 !                .      .    .                                       .

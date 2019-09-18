@@ -65,13 +65,13 @@ if(BUILD_ENKF)
   
   add_library(enkfdeplib STATIC ${ENKFMOD_SRCS} )
   add_library(enkflib STATIC ${ENKF_SRCS} $<TARGET_OBJECTS:MODS1> $<TARGET_OBJECTS:MODS2> )
-  add_dependencies(enkfdeplib ${GSILIB} )
-  add_dependencies(MODS1 enkfdeplib ${GSISHAREDLIB} ${GSILIB} )
-  add_dependencies(MODS2 MODS1 enkfdeplib ${GSISHAREDLIB} ${GSILIB} )
-  add_dependencies(enkflib enkfdeplib ${GSISHAREDLIB} ${GSILIB} )
+  add_dependencies(enkfdeplib ${GSILIB} ${GSISHAREDLIB} )
+  add_dependencies(MODS1 enkfdeplib ${GSILIB} ${GSISHAREDLIB} )
+  add_dependencies(MODS2 MODS1 enkfdeplib ${GSILIB} ${GSISHAREDLIB} )
+  add_dependencies(enkflib enkfdeplib ${GSILIB} ${GSISHAREDLIB} )
   set(ENKFEXEC "${ENKF_BASE}${debug_suffix}${GSISUFFIX}" CACHE INTERNAL "ENKF Executable name")
   add_executable(${ENKFEXEC} enkf_main.f90)
-  target_link_libraries(${ENKFEXEC} enkflib enkfdeplib ${GSISHAREDLIB} ${GSILIB} ${CORE_LIBRARIES}
+  target_link_libraries(${ENKFEXEC} enkflib enkfdeplib ${GSILIB} ${GSISHAREDLIB} ${CORE_LIBRARIES}
   ${MPI_Fortran_LIBRARIES} ${LAPACK_LIBRARIES} ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES}  ${HDF5_Fortran_HL_LIBRARIES}
   ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${GSI_LDFLAGS} ${CORE_BUILT} ${CORE_LIBRARIES} ${CORE_BUILT} ${NCDIAG_LIBRARIES} ${EXTRA_LINKER_FLAGS})
   install(TARGETS ${ENKFEXEC} enkfdeplib enkflib 

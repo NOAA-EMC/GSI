@@ -59,6 +59,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !   2013-12-30  sienkiewicz - use BUFR library function 'ibfms' to check for missing value of hdr(15)
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !   2015-10-01  guo     - consolidate use of ob location (in deg)
+!   2018-05-21  j.jin   - added time-thinning. Moved the checking of thin4d into satthin.F90.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -92,12 +93,14 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       checkob,finalcheck,score_crit
+  use satthin, only: radthin_time_info,tdiff2crit
+  use obsmod,  only: time_window_max
   use obsmod, only: bmiss
   use radinfo, only: cbias,newchn,predx,iuse_rad,jpch_rad,nusis,ang_rad,air_rad,&
       newpc4pred
   use gridmod, only: diagnostic_reg,nlat,nlon,regional,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad,zero,rad2deg, r60inv,one,two
-  use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,iwinbgn,winlen,thin4d
+  use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
@@ -149,7 +152,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   integer(i_kind),allocatable,dimension(:)::nrec
   integer(i_kind) ibfms         ! BUFR missing value function
 
-  real(r_kind) dlon,dlat,timedif,emiss,sfcr
+  real(r_kind) dlon,dlat,emiss,sfcr
   real(r_kind) dlon_earth,dlat_earth
   real(r_kind) dlon_earth_deg,dlat_earth_deg
   real(r_kind) ch8,sstime
@@ -166,6 +169,8 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
   real(r_double),dimension(15):: hdr
   real(r_double),dimension(18):: grad
+  real(r_kind)    :: ptime,timeinflat,crit0
+  integer(i_kind) :: ithin_time,n_tbin,it_mesh
 
 
 !**************************************************************************
@@ -209,8 +214,14 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   if (.not.assim) val_goes=zero
 
 
+  call radthin_time_info(obstype, jsatid, sis, ptime, ithin_time)
+  if( ptime > 0.0_r_kind) then
+     n_tbin=nint(2*time_window_max/ptime)
+  else
+     n_tbin=1
+  endif
 ! Make thinning grids
-  call makegrids(rmesh,ithin)
+  call makegrids(rmesh,ithin,n_tbin=n_tbin)
  
 !  check to see if prepbufr file
 
@@ -369,20 +380,12 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
 !       Set common predictor parameters
 
-        if (thin4d) then
-           timedif = zero
-        else
-           timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
-        endif
-
         nread=nread+nchanl
-
-        crit1=0.01_r_kind+timedif
-        if(ifov < mfov .and. ifov > 0)then
-           crit1=crit1+two*float(mfov-ifov)
-        end if
-
-        call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+        crit0=0.01_r_kind
+        if(ifov < mfov .and. ifov > 0) crit0 = crit0+two*float(mfov-ifov)
+        timeinflat=6.0_r_kind
+        call tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
+        call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,it_mesh=it_mesh)
         if(.not. iuse)cycle read_loop
 
 !       Increment goes sounder data counter

@@ -6,14 +6,17 @@
 #
 #  build commands:
 #    cmake -DENKF_MODE=WRF -DBUILD_CORELIBS=ON -DBUILD_GSDCLOUD_ARW=ON path_to_ProdGSI
+#    cmake -DENKF_MODE=WRF -DBUILD_CORELIBS=ON -DBUILD_GSDCLOUD_ARW=ON -DBUILD_UTIL_COM=ON -DBUILD_ENKF_PREPROCESS_ARW=ON"
 #    make -j8
 #
 
 dir_root=$(pwd)
 
 source /etc/profile.d/modules.sh
-if [[ -d /scratch3 ]] ; then ### theia
+if [[ "`grep -i "theia" /etc/hosts | head -n1`" != "" ]] ; then ###theia
     modulefile="/home/rtrr/PARM_EXEC/modulefiles/modulefile.theia.GSI_UPP_WRF"
+elif [[ "`grep -i "hera" /etc/hosts | head -n1`" != "" ]] ; then ###hera
+    modulefile="/home/rtrr/PARM_EXEC/modulefiles/modulefile.hera.GSI_UPP_WRF"
 elif [[ -d /jetmon ]] ; then ### jet
     modulefile="/home/rtrr/PARM_EXEC/modulefiles/modulefile.jet.GSI_UPP_WRF"
 elif [[ -d /glade ]] ; then  ### cheyenne
@@ -28,6 +31,11 @@ if [ ! -f $modulefile ]; then
     exit 10
 fi
 source $modulefile
+
+## if NETCDF4 is set to 0 or 1, unset it
+if [[ "$NETCDF4" == "1" ]] || [[ "$NETCDF4" == "0" ]]; then
+  unset NETCDF4
+fi
 
 set -x
 rm -rf $dir_root/build

@@ -25,6 +25,7 @@ use m_obsNode  , only: obsNode
 use m_cldchNode, only: cldchNode
 use m_cldchNode, only: cldchNode_typecast
 use m_cldchNode, only: cldchNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -110,9 +111,11 @@ subroutine intcldch(cldchhead,rval,sval)
      if(luse_obsdiag)then
         if (lsaveobsens) then
            grad = val*cldchptr%raterr2*cldchptr%err2
-           cldchptr%diags%obssen(jiter) = grad
+           !-- cldchptr%diags%obssen(jiter) = grad
+           call obsdiagNode_set(cldchptr%diags,jiter=jiter,obssen=grad)
         else
-           if (cldchptr%luse) cldchptr%diags%tldepart(jiter)=val
+           !-- if (cldchptr%luse) cldchptr%diags%tldepart(jiter)=val
+           if (cldchptr%luse) call obsdiagNode_set(cldchptr%diags,jiter=jiter,tldepart=val)
         endif
      endif
 

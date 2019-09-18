@@ -69,7 +69,7 @@ contains
     use gridmod, only: wrf_mass_hybridcord
     use netcdf_mod, only: nc_check
 
-    use control_vectors, only : w_exist, dbz_exist
+    use wrf_vars_mod, only : w_exist, dbz_exist
     use constants, only: zero
     use obsmod, only   : if_model_dbz
     use gsi_io, only: verbose
@@ -2435,7 +2435,7 @@ contains
     use chemmod, only: laeroana_gocart, ppmv_conv,wrf_pm2_5
     use gsi_chemguess_mod, only: gsi_chemguess_get
     use netcdf_mod, only: nc_check
-    use control_vectors, only : w_exist, dbz_exist
+    use wrf_vars_mod, only : w_exist, dbz_exist
     use obsmod, only   : if_model_dbz
     use gsi_io, only: verbose
   

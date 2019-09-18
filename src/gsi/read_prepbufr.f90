@@ -138,8 +138,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2016-05-05  pondeca - add 10-m u-wind and v-wind (uwnd10m, vwnd10m)
 !   2016-06-01  zhu    - use errormod_aircraft
 !   2017-06-17  levine - add GLERL program code lookup
-!
 !   2017-03-21  Su      - add option to thin conventional data in 4 dimension 
+!   2018-08-16  akella  - explicit KX definition for ships (formerly ID'd by subtype 522/523)
 
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -172,7 +172,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
       ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
       ithin_conv,rmesh_conv,pmesh_conv,pmot_conv,ptime_conv, &
       use_prepb_satwnd
-  use convinfo, only: id_drifter
+  use convinfo, only: id_drifter,id_ship
 
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
   use obsmod, only: blacklst,offtime_data,bmiss,ext_sonde
@@ -420,7 +420,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 ! Initialize variables
 
   vdisterrmax=zero
-!  pflag=0                  !  dparrish debug compile run flags pflag as not defined ???????????
   zflag=0
   nreal=0
   satqc=zero
@@ -674,6 +673,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  kx = kx + 19
               end if
            end if
+        end if
+
+        if (id_ship .and. (kx==180) .and. (nint(hdr(3))==522 .or. nint(hdr(3))==523)) then
+           rstation_id=hdr(4)
+           kx = kx + 18
         end if
 
         if(twodvar_regional)then
@@ -946,6 +950,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  end if
               end if
 
+              if (id_ship .and. (kx==180) .and.  (nint(hdr(8))==522 .or. nint(hdr(8))==523) ) then
+                 rstation_id=hdr(1)
+                 kx = kx + 18
+              end if
+!
 
 !             check VAD subtype. 1--old, 2--new, other--old 
               if(kx==224) then
@@ -2390,6 +2399,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                    if ((kx==280).or.(kx==180)) oelev=r20+selev
                    if ((kx==299).or.(kx==199)) oelev=r20+selev
                    if ((kx==282).or.(kx==182)) oelev=r20+selev
+                   if  (kx==198)               oelev=r20+selev
                    if ((kx==285).or.(kx==185)) then
                       oelev=selev
                       selev=zero

@@ -25,6 +25,7 @@ use m_obsNode , only: obsNode
 use m_td2mNode, only: td2mNode
 use m_td2mNode, only: td2mNode_typecast
 use m_td2mNode, only: td2mNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -111,9 +112,11 @@ subroutine inttd2m(td2mhead,rval,sval)
      if(luse_obsdiag)then
         if (lsaveobsens) then
            grad = val*td2mptr%raterr2*td2mptr%err2
-           td2mptr%diags%obssen(jiter) = grad
+           !-- td2mptr%diags%obssen(jiter) = grad
+           call obsdiagNode_set(td2mptr%diags,jiter=jiter,obssen=grad)
         else
-           if (td2mptr%luse) td2mptr%diags%tldepart(jiter)=val
+           !-- if (td2mptr%luse) td2mptr%diags%tldepart(jiter)=val
+           if (td2mptr%luse) call obsdiagNode_set(td2mptr%diags,jiter=jiter,tldepart=val)
         endif
      endif
 

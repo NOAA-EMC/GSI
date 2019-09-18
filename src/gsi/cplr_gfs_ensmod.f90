@@ -1,24 +1,64 @@
 module get_gfs_ensmod_mod
 
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    get_gfs_ensmod_mod    handles gfs ensemble 
+!   prgmmr: mahajan          org: emc/ncep            date: 2016-06-30
+!
+! abstract: Handle GFS ensemble (full fields and perturbations)
+!
+! program history log:
+!   2016-06-30  mahajan  - initial code
+!   2019-07-09  todling  - revised abstract layer
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
     use mpeu_util, only: die
     use mpimod, only: mype,npe
-    use abstract_get_gfs_ensmod_mod
+    use abstract_ensmod, only: this_ens_class => abstractEnsemble
 
     implicit none
+    private
+    public :: ensemble
+    public :: ensemble_typemold
 
-    type, extends(abstract_get_gfs_ensmod_class) :: get_gfs_ensmod_class
-    contains
-        procedure, pass(this) :: non_gaussian_ens_grid_ => non_gaussian_ens_grid_gfs
-        procedure, pass(this) :: get_user_ens_ => get_user_ens_gfs
-        procedure, pass(this) :: put_gsi_ens_ => put_gsi_ens_gfs
-    end type get_gfs_ensmod_class
+    type, extends(this_ens_class) :: ensemble
+      private
+      contains
+      procedure :: get_user_ens => get_gfs_ens
+      procedure :: get_user_Nens => get_gfs_Nens
+      procedure :: put_user_ens => put_gfs_ens
+      procedure :: non_gaussian_ens_grid => non_gaussian_ens_grid_gfs
+      procedure, nopass:: mytype => typename
+      procedure, nopass:: create_sub2grid_info
+      procedure, nopass:: destroy_sub2grid_info
+    end type ensemble
+
+    character(len=*),parameter:: myname="gfs_ensmod"
+
+    type(ensemble),target:: mold_
 
 contains
 
-subroutine get_user_ens_gfs(this,grd,ntindex,atm_bundle,iret)
+function ensemble_typemold()
+  implicit none
+  type(ensemble),pointer:: ensemble_typemold
+  ensemble_typemold => mold_
+end function ensemble_typemold
+
+function typename()
+  implicit none
+  character(len=:),allocatable:: typename
+  typename='['//myname//'::ensemble]'
+end function typename
+
+subroutine get_gfs_Nens(this,grd,members,ntindex,atm_bundle,iret)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    get_user_ens_    pretend atmos bkg is the ensemble
+! subprogram:    get_gfs_Nens    pretend atmos bkg is the ensemble
 !   prgmmr: mahajan          org: emc/ncep            date: 2016-06-30
 !
 ! abstract: Read in GFS ensemble members in to GSI ensemble.
@@ -26,10 +66,11 @@ subroutine get_user_ens_gfs(this,grd,ntindex,atm_bundle,iret)
 ! program history log:
 !   2016-06-30  mahajan  - initial code
 !   2016-07-20  mpotts   - refactored into class/module
+!   2019-07-09  todling  - revised in light of truly abstract layer
 !
 !   input argument list:
 !     grd      - grd info for ensemble
-!     member   - index for ensemble member
+!     members  - number of ensemble members (size of bundle)
 !     ntindex  - time index for ensemble
 !
 !   output argument list:
@@ -45,7 +86,7 @@ subroutine get_user_ens_gfs(this,grd,ntindex,atm_bundle,iret)
     use kinds, only: i_kind,r_kind,r_single
     use gridmod, only: use_gfs_nemsio
     use general_sub2grid_mod, only: sub2grid_info
-    use hybrid_ensemble_parameters, only: n_ens,ens_fast_read
+    use hybrid_ensemble_parameters, only: ens_fast_read
     use hybrid_ensemble_parameters, only: grd_ens
     use gsi_bundlemod, only: gsi_bundle
     use control_vectors, only: nc2d,nc3d
@@ -53,8 +94,9 @@ subroutine get_user_ens_gfs(this,grd,ntindex,atm_bundle,iret)
     implicit none
 
     ! Declare passed variables
-    class(get_gfs_ensmod_class), intent(inout) :: this
+    class(ensemble),     intent(inout) :: this
     type(sub2grid_info), intent(in   ) :: grd
+    integer(i_kind),     intent(in   ) :: members
     integer(i_kind),     intent(in   ) :: ntindex
     type(gsi_bundle),    intent(inout) :: atm_bundle(:)
     integer(i_kind),     intent(  out) :: iret
@@ -71,25 +113,25 @@ subroutine get_user_ens_gfs(this,grd,ntindex,atm_bundle,iret)
     end associate
 
     if ( use_gfs_nemsio .and. ens_fast_read ) then
-       allocate(en_loc3(grd_ens%lat2,grd_ens%lon2,nc2d+nc3d*grd_ens%nsig,n_ens))
+       allocate(en_loc3(grd_ens%lat2,grd_ens%lon2,nc2d+nc3d*grd_ens%nsig,members))
        allocate(clons(grd_ens%nlon),slons(grd_ens%nlon))
        call get_user_ens_gfs_fastread_(ntindex,en_loc3,m_cvars2d,m_cvars3d, &
                          grd_ens%lat2,grd_ens%lon2,grd_ens%nsig, &
-                         nc2d,nc3d,n_ens,iret,clons,slons)
-       do n=1,n_ens
+                         nc2d,nc3d,members,iret,clons,slons)
+       do n=1,members
           call move2bundle_(grd,en_loc3(:,:,:,n),atm_bundle(n), &
                             m_cvars2d,m_cvars3d,iret,clons,slons)
        end do
        deallocate(en_loc3,clons,slons)
     else
-       do n = 1,n_ens
-          call get_user_ens_gfs_member_(grd,n,ntindex,atm_bundle(n),iret)
+       do n = 1,members
+          call get_gfs_ens(this,grd,n,ntindex,atm_bundle(n),iret)
        end do
     endif
 
     return
 
-end subroutine get_user_ens_gfs
+end subroutine get_gfs_Nens
 
 subroutine get_user_ens_gfs_fastread_(ntindex,en_loc3,m_cvars2d,m_cvars3d, &
                                 lat2in,lon2in,nsigin,nc2din,nc3din,n_ensin,iret,clons,slons)
@@ -292,6 +334,7 @@ subroutine move2bundle_(grd,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret,clons,sl
 ! program history log:
 !   2016-06-30  parrish -- copy and adapt get_user_ens_member_ to transfer 1
 !                            ensemble member
+!   2019-03-13  eliu    -- add precipitation components 
 !
 !   input argument list:
 !     grd        - grd info for ensemble
@@ -317,6 +360,7 @@ subroutine move2bundle_(grd,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret,clons,sl
     use gsi_bundlemod, only: gsi_bundlegetpointer,gsi_bundleputvar
     use gsi_bundlemod, only : assignment(=)
     use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
+    use mpeu_util, only: getindex  
 
     implicit none
 
@@ -334,9 +378,11 @@ subroutine move2bundle_(grd,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret,clons,sl
 
     integer(i_kind) :: ierr
     integer(i_kind) :: im,jm,km,m,k
+    integer(i_kind) :: icw,iql,iqi,iqr,iqs,iqg  
     real(r_kind),pointer,dimension(:,:) :: ps
     !real(r_kind),pointer,dimension(:,:) :: sst
     real(r_kind),pointer,dimension(:,:,:) :: u,v,tv,q,oz,cwmr
+    real(r_kind),pointer,dimension(:,:,:) :: qlmr,qimr,qrmr,qsmr,qgmr   
     real(r_single),allocatable,dimension(:,:)  :: scr2
     real(r_single),allocatable,dimension(:,:,:) :: scr3
     type(sub2grid_info) :: grd2d,grd3d
@@ -349,6 +395,14 @@ subroutine move2bundle_(grd,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret,clons,sl
     allocate(scr2(im,jm))
     allocate(scr3(im,jm,km))
 
+    ! Check hydrometeors in control variables 
+    icw=getindex(cvars3d,'cw')
+    iql=getindex(cvars3d,'ql')
+    iqi=getindex(cvars3d,'qi')
+    iqr=getindex(cvars3d,'qr')
+    iqs=getindex(cvars3d,'qs')
+    iqg=getindex(cvars3d,'qg')
+
 !   initialize atm_bundle to zero
 
     atm_bundle=zero
@@ -360,7 +414,12 @@ subroutine move2bundle_(grd,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret,clons,sl
     call gsi_bundlegetpointer(atm_bundle,'t' ,tv,  ierr); iret = ierr + iret
     call gsi_bundlegetpointer(atm_bundle,'q' ,q ,  ierr); iret = ierr + iret
     call gsi_bundlegetpointer(atm_bundle,'oz',oz,  ierr); iret = ierr + iret
-    call gsi_bundlegetpointer(atm_bundle,'cw',cwmr,ierr); iret = ierr + iret
+    if (icw>0) call gsi_bundlegetpointer(atm_bundle,'cw',cwmr,ierr); iret = ierr + iret
+    if (iql>0) call gsi_bundlegetpointer(atm_bundle,'ql',qlmr,ierr); iret = ierr + iret
+    if (iqi>0) call gsi_bundlegetpointer(atm_bundle,'qi',qimr,ierr); iret = ierr + iret
+    if (iqr>0) call gsi_bundlegetpointer(atm_bundle,'qr',qrmr,ierr); iret = ierr + iret
+    if (iqs>0) call gsi_bundlegetpointer(atm_bundle,'qs',qsmr,ierr); iret = ierr + iret
+    if (iqg>0) call gsi_bundlegetpointer(atm_bundle,'qg',qgmr,ierr); iret = ierr + iret
     if ( iret /= 0 ) then
        if ( mype == 0 ) then
           write(6,'(A)') trim(myname_) // ': ERROR!'
@@ -387,6 +446,11 @@ subroutine move2bundle_(grd,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret,clons,sl
        if(trim(cvars3d(m))=='q')   q    = scr3
        if(trim(cvars3d(m))=='oz')  oz   = scr3
        if(trim(cvars3d(m))=='cw')  cwmr = scr3
+       if(trim(cvars3d(m))=='ql')  qlmr = scr3
+       if(trim(cvars3d(m))=='qi')  qimr = scr3
+       if(trim(cvars3d(m))=='qr')  qrmr = scr3
+       if(trim(cvars3d(m))=='qs')  qsmr = scr3
+       if(trim(cvars3d(m))=='qg')  qgmr = scr3
     enddo
 
 !   convert ps from Pa to cb
@@ -405,7 +469,12 @@ subroutine move2bundle_(grd,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret,clons,sl
     call update_scalar_poles_(grd3d,tv)
     call update_scalar_poles_(grd3d,q)
     call update_scalar_poles_(grd3d,oz)
-    call update_scalar_poles_(grd3d,cwmr)
+    if (icw>0) call update_scalar_poles_(grd3d,cwmr)
+    if (iql>0) call update_scalar_poles_(grd3d,qlmr)
+    if (iqi>0) call update_scalar_poles_(grd3d,qimr)
+    if (iqr>0) call update_scalar_poles_(grd3d,qrmr)
+    if (iqs>0) call update_scalar_poles_(grd3d,qsmr)
+    if (iqg>0) call update_scalar_poles_(grd3d,qgmr)
 
     call gsi_bundleputvar(atm_bundle,'ps',ps,  ierr); iret = ierr
     !call gsi_bundleputvar(atm_bundle,'sst',sst,ierr); iret = ierr + iret  ! no sst for now
@@ -414,8 +483,12 @@ subroutine move2bundle_(grd,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret,clons,sl
     call gsi_bundleputvar(atm_bundle,'t' ,tv,  ierr); iret = ierr + iret
     call gsi_bundleputvar(atm_bundle,'q' ,q ,  ierr); iret = ierr + iret
     call gsi_bundleputvar(atm_bundle,'oz',oz,  ierr); iret = ierr + iret
-    call gsi_bundleputvar(atm_bundle,'cw',cwmr,ierr); iret = ierr + iret
-
+    if (icw>0) call gsi_bundleputvar(atm_bundle,'cw',cwmr,ierr); iret = ierr + iret
+    if (iql>0) call gsi_bundleputvar(atm_bundle,'ql',qlmr,ierr); iret = ierr + iret
+    if (iqi>0) call gsi_bundleputvar(atm_bundle,'qi',qimr,ierr); iret = ierr + iret
+    if (iqr>0) call gsi_bundleputvar(atm_bundle,'qr',qrmr,ierr); iret = ierr + iret
+    if (iqs>0) call gsi_bundleputvar(atm_bundle,'qs',qsmr,ierr); iret = ierr + iret
+    if (iqg>0) call gsi_bundleputvar(atm_bundle,'qg',qgmr,ierr); iret = ierr + iret
     if ( iret /= 0 ) then
        if ( mype == 0 ) then
           write(6,'(A)') trim(myname_) // ': ERROR!'
@@ -664,10 +737,10 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
    use kinds, only: i_kind,r_kind,r_single
    use constants, only: r60,r3600,zero,one,half,pi,deg2rad
    use nemsio_module, only: nemsio_init,nemsio_open,nemsio_close
-   use ncepnems_io, only: error_msg
+   use ncepnems_io, only: error_msg,imp_physics
    use nemsio_module, only: nemsio_gfile,nemsio_getfilehead,nemsio_readrecv
    use nemsio_module, only: nemsio_getrechead
-   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d,imp_physics
+   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
    use general_sub2grid_mod, only: sub2grid_info
 
    implicit none
@@ -687,6 +760,7 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
    ! Declare local variables
    integer(i_kind) i,ii,j,jj,k,lonb,latb,levs
    integer(i_kind) k2,k3,k3u,k3v,k3t,k3q,k3cw,k3oz,kf
+   integer(i_kind) k3ql,k3qi,k3qr,k3qs,k3qg       
    integer(i_kind) iret
    integer(i_kind) :: istop = 101
    integer(i_kind),dimension(7):: idate
@@ -761,6 +835,7 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
    allocate(temp3(nlat,nlon,nsig,nc3d))
    allocate(temp2(nlat,nlon,nc2d))
    k3u=0 ; k3v=0 ; k3t=0 ; k3q=0 ; k3cw=0 ; k3oz=0
+   k3ql=0; k3qi=0; k3qr=0; k3qs=0; k3qg=0 
    do k3=1,nc3d
       if(cvars3d(k3)=='sf') k3u=k3
       if(cvars3d(k3)=='vp') k3v=k3
@@ -768,6 +843,11 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
       if(cvars3d(k3)=='q') k3q=k3
       if(cvars3d(k3)=='cw') k3cw=k3
       if(cvars3d(k3)=='oz') k3oz=k3
+      if(cvars3d(k3)=='ql') k3ql=k3
+      if(cvars3d(k3)=='qi') k3qi=k3
+      if(cvars3d(k3)=='qr') k3qr=k3
+      if(cvars3d(k3)=='qs') k3qs=k3
+      if(cvars3d(k3)=='qg') k3qg=k3
       do k=1,nsig
          if(trim(cvars3d(k3))=='cw') then
             call nemsio_readrecv(gfile,'clwmr','mid layer',k,work,iret=iret)
@@ -780,6 +860,26 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
                   work = work + work2
                endif
             endif
+            call move1_(work,temp3(:,:,k,k3),nlon,nlat)
+         elseif(trim(cvars3d(k3))=='ql') then
+            call nemsio_readrecv(gfile,'clwmr','mid layer',k,work,iret=iret)
+            if (iret /= 0) call error_msg(trim(myname_),trim(filename),'clwmr','read',istop+8,iret)
+            call move1_(work,temp3(:,:,k,k3),nlon,nlat)
+         elseif(trim(cvars3d(k3))=='qi') then
+            call nemsio_readrecv(gfile,'icmr','mid layer',k,work,iret=iret)
+            if (iret /= 0) call error_msg(trim(myname_),trim(filename),'icmr','read',istop+9,iret)
+            call move1_(work,temp3(:,:,k,k3),nlon,nlat)
+         elseif(trim(cvars3d(k3))=='qr') then
+            call nemsio_readrecv(gfile,'rwmr','mid layer',k,work,iret=iret)
+            if (iret /= 0) call error_msg(trim(myname_),trim(filename),'rwmr','read',istop+10,iret)
+            call move1_(work,temp3(:,:,k,k3),nlon,nlat)
+         elseif(trim(cvars3d(k3))=='qs') then
+            call nemsio_readrecv(gfile,'snmr','mid layer',k,work,iret=iret)
+            if (iret /= 0) call error_msg(trim(myname_),trim(filename),'snmr','read',istop+11,iret)
+            call move1_(work,temp3(:,:,k,k3),nlon,nlat)
+         elseif(trim(cvars3d(k3))=='qg') then
+            call nemsio_readrecv(gfile,'grle','mid layer',k,work,iret=iret)
+            if (iret /= 0) call error_msg(trim(myname_),trim(filename),'grle','read',istop+12,iret)
             call move1_(work,temp3(:,:,k,k3),nlon,nlat)
          elseif(trim(cvars3d(k3))=='oz') then
             call nemsio_readrecv(gfile,'o3mr','mid layer',k,work,iret=iret)
@@ -804,7 +904,8 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
          endif
       enddo
    enddo
-   if (k3u==0.or.k3v==0.or.k3t==0.or.k3q==0.or.k3cw==0.or.k3oz==0) &
+!  if (k3u==0.or.k3v==0.or.k3t==0.or.k3q==0.or.k3cw==0.or.k3oz==0) & 
+   if (k3u==0.or.k3v==0.or.k3t==0.or.k3q==0.or.k3oz==0) &  
       write(6,'(" WARNING, problem with one of k3-")')
 
 !   convert T to Tv:    postpone this calculation
@@ -1031,16 +1132,17 @@ subroutine move1_(work,temp,nlon,nlat)
 
 end subroutine move1_
 
-subroutine get_user_ens_gfs_member_(grd,member,ntindex,atm_bundle,iret)
+ subroutine get_gfs_ens(this,grd,member,ntindex,atm_bundle,iret)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    get_user_ens_member_
+! subprogram:    get_gfs_ens
 !   prgmmr: mahajan          org: emc/ncep            date: 2016-06-30
 !
 ! abstract: Read in GFS ensemble members in to GSI ensemble.
 !
 ! program history log:
 !   2016-06-30  mahajan  - initial code
+!   2019-03-13  eliu     - add precipitation component 
 !
 !   input argument list:
 !     grd      - grd info for ensemble
@@ -1065,10 +1167,12 @@ subroutine get_user_ens_gfs_member_(grd,member,ntindex,atm_bundle,iret)
     use hybrid_ensemble_parameters, only: uv_hyb_ens
     use hybrid_ensemble_parameters, only: sp_ens
     use gsi_bundlemod, only: gsi_bundle
+    use gridmod, only: fv3_full_hydro   
 
     implicit none
 
     ! Declare passed variables
+    class(ensemble),     intent(inout) :: this
     type(sub2grid_info), intent(in   ) :: grd
     integer(i_kind),     intent(in   ) :: member
     integer(i_kind),     intent(in   ) :: ntindex
@@ -1081,6 +1185,9 @@ subroutine get_user_ens_gfs_member_(grd,member,ntindex,atm_bundle,iret)
     logical :: zflag = .false.
     logical,save :: inithead = .true.
 
+    associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+    end associate
+
     ! if member == 0, read ensemble mean
     if ( member == 0 ) then
        write(filename,12) trim(adjustl(ensemble_path)),ens_fhrlevs(ntindex)
@@ -1091,8 +1198,17 @@ subroutine get_user_ens_gfs_member_(grd,member,ntindex,atm_bundle,iret)
 22  format(a,'sigf',i2.2,'_ens_mem',i3.3)
 
     if ( use_gfs_nemsio ) then
-       call general_read_gfsatm_nems(grd,sp_ens,filename,uv_hyb_ens,.false., &
-            zflag,atm_bundle,.true.,iret)
+       if (fv3_full_hydro) then
+
+          call general_read_fv3atm_nems(grd,sp_ens,filename,uv_hyb_ens,.false., &
+               zflag,atm_bundle,.true.,iret)
+
+       else
+
+          call general_read_gfsatm_nems(grd,sp_ens,filename,uv_hyb_ens,.false., &
+               zflag,atm_bundle,.true.,iret)
+
+       endif
     else
        call general_read_gfsatm(grd,sp_ens,sp_ens,filename,uv_hyb_ens,.false., &
             zflag,atm_bundle,inithead,iret)
@@ -1109,12 +1225,12 @@ subroutine get_user_ens_gfs_member_(grd,member,ntindex,atm_bundle,iret)
 
     return
 
-end subroutine get_user_ens_gfs_member_
+end subroutine get_gfs_ens
 
-subroutine put_gsi_ens_gfs(this,grd,member,ntindex,atm_bundle,iret)
+subroutine put_gfs_ens(this,grd,member,ntindex,pert,iret)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    put_gsi_ens_    write out an internally gen ens to file
+! subprogram:    put_gfs_ens    write out an internally gen ens to file
 !   prgmmr: mahajan          org: emc/ncep            date: 2016-06-30
 !
 ! abstract: Write out GSI ensemble to file.
@@ -1127,7 +1243,7 @@ subroutine put_gsi_ens_gfs(this,grd,member,ntindex,atm_bundle,iret)
 !     grd      - grd info for ensemble
 !     member   - index for ensemble member
 !     ntindex  - time index for ensemble
-!   atm_bundle - bundle of ensemble perturbations
+!        pert  - bundle of ensemble perturbations
 !
 !   output argument list:
 !     iret      - return code, 0 for successful write
@@ -1149,15 +1265,15 @@ subroutine put_gsi_ens_gfs(this,grd,member,ntindex,atm_bundle,iret)
     implicit none
 
     ! Declare passed variables
-    class(get_gfs_ensmod_class), intent(inout) :: this
+    class(ensemble),     intent(inout) :: this
     type(sub2grid_info), intent(in   ) :: grd
     integer(i_kind),     intent(in   ) :: member
     integer(i_kind),     intent(in   ) :: ntindex
-    type(gsi_bundle),    intent(inout) :: atm_bundle
+    type(gsi_bundle),    intent(inout) :: pert
     integer(i_kind),     intent(  out) :: iret
 
     ! Declare internal variables
-    character(len=*),parameter :: myname_='put_gsi_ens_gfs'
+    character(len=*),parameter :: myname_='put_gfs_ens'
     character(len=70) :: filename
     integer(i_kind) :: mype_atm
     logical,save :: inithead = .true.
@@ -1177,7 +1293,7 @@ subroutine put_gsi_ens_gfs(this,grd,member,ntindex,atm_bundle,iret)
        !call write_nemsatm(grd,...)
     else
        call general_write_gfsatm(grd,sp_ens,sp_ens,filename,mype_atm, &
-            atm_bundle,ntindex,inithead,iret)
+            pert,ntindex,inithead,iret)
     endif
 
     inithead = .false.
@@ -1191,7 +1307,7 @@ subroutine put_gsi_ens_gfs(this,grd,member,ntindex,atm_bundle,iret)
 
     return
 
-end subroutine put_gsi_ens_gfs
+end subroutine put_gfs_ens
 
 subroutine non_gaussian_ens_grid_gfs(this,elats,elons)
 
@@ -1201,16 +1317,61 @@ subroutine non_gaussian_ens_grid_gfs(this,elats,elons)
     implicit none
 
     ! Declare passed variables
-    class(get_gfs_ensmod_class), intent(inout) :: this
-    real(r_kind), intent(out) :: elats(size(sp_ens%rlats)),elons(size(sp_ens%rlons))
+    class(ensemble), intent(inout) :: this
+    real(r_kind), intent(out) :: elats(:),elons(:)
+
+    character(len=*),parameter :: myname_=myname//'non_gaussian_ens_grid'
 
     associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
     end associate
-    elats=sp_ens%rlats
-    elons=sp_ens%rlons
 
-    return
+    if (size(elats)/=size(sp_ens%rlats).or.size(elons)/=size(sp_ens%rlons)) then
+       if(mype==0) then
+         write(6,*) myname_,': inconsistent ens nlat/nlon'
+         write(6,*) myname_,':  actual(vec) ', size(elats),size(elons)
+         write(6,*) myname_,': defined(vec) ', size(sp_ens%rlats),size(sp_ens%rlons)
+      endif
+      call stop2(999)
+   endif
+
+   elats=sp_ens%rlats
+   elons=sp_ens%rlons
+
+   return
 
 end subroutine non_gaussian_ens_grid_gfs
+
+subroutine create_sub2grid_info(s2gi,nsig,npe,s2gi_ref)
+!> Create temporary communication information object for read ensemble routines
+   use kinds, only: i_kind
+   use gridmod, only: regional
+   use general_sub2grid_mod, only: sub2grid_info
+   use general_sub2grid_mod, only: general_sub2grid_create_info
+   implicit none
+ 
+   ! Declare passed variables
+   type(sub2grid_info), intent(out  ) :: s2gi
+   integer(i_kind),     intent(in   ) :: nsig
+   integer(i_kind),     intent(in   ) :: npe
+   type(sub2grid_info), intent(in   ) :: s2gi_ref
+
+   call general_sub2grid_create_info(s2gi, inner_vars=1, &
+        nlat=s2gi_ref%nlat,nlon=s2gi_ref%nlon,nsig=nsig, &
+        num_fields=min(6*nsig+1,npe),regional=regional)
+return
+end subroutine create_sub2grid_info
+
+subroutine destroy_sub2grid_info(s2gi)
+!> Destroy the object
+   use general_sub2grid_mod, only: sub2grid_info
+   use general_sub2grid_mod, only: general_sub2grid_destroy_info
+   implicit none
+ 
+   ! Declare passed variables
+   type(sub2grid_info), intent(inout) :: s2gi
+
+   call general_sub2grid_destroy_info(s2gi)
+return
+end subroutine destroy_sub2grid_info
 
 end module get_gfs_ensmod_mod

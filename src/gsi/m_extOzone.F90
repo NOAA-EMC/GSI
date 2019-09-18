@@ -29,6 +29,8 @@ module m_extOzone
 !   2015-09-17  Thomas  - add l4densvar and thin4d to data selection procedure
 !   2015-10-01  guo     - consolidate use of ob location (in deg)
 !   2016-09-19  guo     - moved function dfile_format() here from obsmod.F90.
+!   2018-05-21  j.jin   - added time-thinning. Moved the checking of thin4d into satthin.F90.  
+!   2018-05-25  wargan  - added OMPS and hooks for LIMS, UARS MLS, MIPAS
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -43,6 +45,7 @@ module m_extOzone
 ! module interface:
 
   use kinds, only: i_kind,r_kind,r_double
+  use obsmod, only: time_window_max
   implicit none
   private     ! except
 
@@ -70,6 +73,8 @@ module m_extOzone
   real   (kind=r_kind), parameter:: badoz = 10000.0_r_kind
   real   (kind=r_kind), parameter:: r6    =     6.0_r_kind
   real   (kind=r_kind), parameter:: r360  =   360.0_r_kind
+  real   (kind=r_kind) :: ptime,timeinflat,crit0
+  integer(kind=i_kind) :: ithin_time,n_tbin,it_mesh
 
 contains
 function is_extOzone_(dfile,dtype,dplat,class)
@@ -151,15 +156,25 @@ function is_extOzone_(dfile,dtype,dplat,class)
   select case(class_)
   case(iANY)
     is_extOzone_= &
-      ifile_==iBUFR .and. dtype == 'o3lev'   .or. &
-      ifile_==iNC   .and. dtype == 'mls55'   .or. &
-      ifile_==iNC   .and. dtype == 'omieff'  .or. &
+      ifile_==iBUFR .and. dtype == 'o3lev'     .or. &
+      ifile_==iNC   .and. dtype == 'mls55'     .or. &
+      ifile_==iNC   .and. dtype == 'ompslpvis' .or. &
+      ifile_==iNC   .and. dtype == 'ompslpuv'  .or. &
+      ifile_==iNC   .and. dtype == 'lims'      .or. &
+      ifile_==iNC   .and. dtype == 'uarsmls'   .or. &
+      ifile_==iNC   .and. dtype == 'mipas'     .or. &
+      ifile_==iNC   .and. dtype == 'omieff'    .or. &
       ifile_==iNC   .and. dtype == 'tomseff'
 
   case(iLEVEL)
     is_extOzone_= &
-      ifile_==iBUFR .and. dtype == 'o3lev'   .or. &
-      ifile_==iNC   .and. dtype == 'mls55'
+      ifile_==iBUFR .and. dtype == 'o3lev'     .or. &
+      ifile_==iNC   .and. dtype == 'mls55'     .or. &
+      ifile_==iNC   .and. dtype == 'ompslpvis' .or. &
+      ifile_==iNC   .and. dtype == 'ompslpuv'  .or. &
+      ifile_==iNC   .and. dtype == 'lims'      .or. &
+      ifile_==iNC   .and. dtype == 'uarsmls'   .or. &
+      ifile_==iNC   .and. dtype == 'mipas'
 
   case(iLAYER)
     is_extOzone_= .false.
@@ -259,6 +274,7 @@ subroutine read_(dfile,dtype,dplat,dsis, &      ! intent(in), keys for type mana
   use constants, only: zero
   use mpeu_util, only: die,perr,tell
   use mpimod, only: npe
+  use satthin, only: satthin_time_info => radthin_time_info
 !  use mpeu_util, only: mprefix,stdout
 !     nobs     - array of observations on each subdomain for each processor
 
@@ -305,6 +321,12 @@ subroutine read_(dfile,dtype,dplat,dsis, &      ! intent(in), keys for type mana
     call perr(myname_,'                dtype =',dtype)
     call perr(myname_,'                dplat =',dplat)
     call die (myname_)
+  endif
+  call satthin_time_info(dtype, dplat, dsis, ptime, ithin_time)
+  if( ptime > 0.0_r_kind) then
+     n_tbin=nint(2*time_window_max/ptime)
+  else
+     n_tbin=1
   endif
 
   select case(dtype)
@@ -357,16 +379,16 @@ subroutine read_(dfile,dtype,dplat,dsis, &      ! intent(in), keys for type mana
                              jsatid, gstime,twind)
      end select
 
-  case('mls55')
+  case('mls55','ompslpvis','ompslpuv','lims','uarsmls','mipas')
      select case(dfile_format(dfile))
      case('nc')
         call ozlev_ncInquire_( nreal,nchan,ilat,ilon,maxobs)
 
         allocate(p_out(nreal+nchan,maxobs))
         p_out(:,:)=RMISS
-
-        call ozlev_ncRead_(dfile, p_out,nread,npuse,nouse, &
-                             gstime,twind)
+ 
+        call ozlev_ncRead_(dfile,dtype, p_out,nread,npuse,nouse, gstime,twind)
+ 
      end select
 
   end select
@@ -437,7 +459,7 @@ subroutine oztot_ncInquire_( nreal,nchan,ilat,ilon, ithin,rmesh,maxrec)
      ilon=3
 
 !    Make thinning grids, and to define the total record size.
-     call satthin_makegrids(rmesh,ithin)
+     call satthin_makegrids(rmesh,ithin,n_tbin=n_tbin)
      maxrec=satthin_itxmax
 
 end subroutine oztot_ncInquire_
@@ -457,12 +479,13 @@ subroutine oztot_ncread_(dfile,dtype,dsis, ozout,nmrecs,ndata,nodata, &
   use netcdf, only: nf90_close
 
   use satthin, only: satthin_makegrids    => makegrids
+  use satthin, only: satthin_tdiff2crit   => tdiff2crit
   use satthin, only: satthin_map2tgrid    => map2tgrid
   use satthin, only: satthin_finalcheck   => finalcheck
   use satthin, only: satthin_destroygrids => destroygrids
 
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen,l4densvar,thin4d
+  use gsi_4dvar, only: l4dvar,iwinbgn,winlen,l4densvar
   use obsmod, only: nloz_omi
 
   use constants, only: deg2rad,zero,r60inv
@@ -507,7 +530,7 @@ subroutine oztot_ncread_(dfile,dtype,dsis, ozout,nmrecs,ndata,nodata, &
 
   real   (kind=r_kind):: dlon,dlon_earth,dlon_earth_deg
   real   (kind=r_kind):: dlat,dlat_earth,dlat_earth_deg
-  real   (kind=r_kind):: tdiff,sstime,t4dv,timedif,crit1,dist1,rsat
+  real   (kind=r_kind):: tdiff,sstime,t4dv,crit1,dist1,rsat
   integer(kind=i_kind):: idate5(5)
 
   real   (kind=r_double):: totoz, sza
@@ -711,14 +734,11 @@ subroutine oztot_ncread_(dfile,dtype,dsis, ozout,nmrecs,ndata,nodata, &
 
 !       thin OMI/TOMS data
 
-        if (thin4d) then 
-           timedif = zero 
-        else 
-           timedif = r6*abs(tdiff)        ! range:  0 to 18 
-        endif 
-        crit1 = 0.01_r_kind+timedif
+        crit0 = 0.01_r_kind 
+        timeinflat=r6
+        call satthin_tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
         if (ithin /= 0) then
-           call satthin_map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,dsis)
+           call satthin_map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,dsis,it_mesh=it_mesh)
            if(.not. iuse)cycle recloop
            call satthin_finalcheck(dist1,crit1,itx,iuse)
            if(.not. iuse)cycle recloop
@@ -792,7 +812,7 @@ subroutine ozlev_ncInquire_( nreal,nchan,ilat,ilon, maxrec)
 
 !    Configure the record, they are not (dfile,dtype,dplat) dependent in this case.
      nreal = 12
-     nchan =  1   ! There are 'mlslevs' levels but each is treated 
+     nchan =  1   ! There are 'levs' levels but each is treated 
                   ! as a separate observation so that nchanl = 1
      ilat=4
      ilon=3
@@ -801,7 +821,7 @@ subroutine ozlev_ncInquire_( nreal,nchan,ilat,ilon, maxrec)
 end subroutine ozlev_ncInquire_
 
 !..................................................................................
-subroutine ozlev_ncread_(dfile, ozout,nmrecs,ndata,nodata, gstime,twind)
+subroutine ozlev_ncread_(dfile,dtype,ozout,nmrecs,ndata,nodata, gstime,twind)
 !..................................................................................
   use netcdf, only: nf90_open
   use netcdf, only: nf90_nowrite
@@ -822,6 +842,7 @@ subroutine ozlev_ncread_(dfile, ozout,nmrecs,ndata,nodata, gstime,twind)
 
   implicit none
   character(len=*), intent(in):: dfile   ! obs_input filename
+  character(len=*), intent(in):: dtype   ! obs_input dtype
 
   real   (kind=r_kind), dimension(:,:), intent(out):: ozout
   integer(kind=i_kind), intent(out):: nmrecs ! count of records read
@@ -836,27 +857,23 @@ subroutine ozlev_ncread_(dfile, ozout,nmrecs,ndata,nodata, gstime,twind)
 
   integer(kind=i_kind):: ier, iprof, nprofs, maxobs
   integer(kind=i_kind):: i, ilev, ikx, ncid, k0
-!  integer(kind=i_kind)  ier, ncid, nomilevs
   integer(kind=i_kind),allocatable,dimension(:):: ipos
 
   integer(kind=i_kind):: nrecDimId,lonVarID,latVarID,yyVarID,mmVarID
   integer(kind=i_kind):: ddVarID,hhVarID,minVarID,ssVarID
   integer(kind=i_kind):: pressVarID
-  integer(kind=i_kind):: convVarID, qualVarID, mlserrVarID, mlsozoneVarID
-  integer(kind=i_kind):: mlslevsDimID,mlslevs
+  integer(kind=i_kind):: convVarID, errVarID, ozoneVarID
+  integer(kind=i_kind):: levsDimID,levs
 
   integer(kind=i_kind), allocatable :: iya(:),ima(:),idda(:),ihha(:),imina(:),iseca(:)
   real   (kind=r_kind), allocatable :: slatsa(:),slonsa(:)
-  real   (kind=r_kind), allocatable :: mlspress(:), mlsozone(:,:), mlsqual(:)
-  real   (kind=r_kind), allocatable :: mlsconv(:), mlserr(:,:)
+  real   (kind=r_kind), allocatable :: press(:), ozone(:,:), qual(:), press2d(:,:)
+  real   (kind=r_kind), allocatable :: conv(:), err(:,:)
 
   integer(kind=i_kind):: nmind
 
   real   (kind=r_kind):: slons0,slats0
   real   (kind=r_kind):: ppmv, pres, pob, obserr, usage
-  !real(kind=r_kind) tdiff,sstime,slons,slats,dlon,dlat,t4dv,timedif,crit1,dist1
-  !real(kind=r_kind) !slons0,slats0,rsat,solzen,solzenp,dlat_earth,dlon_earth
-  !real(kind=r_kind) !rsec, ppmv, prec, pres, pob, obserr, usage
 
   real   (kind=r_kind):: dlon,dlon_earth,dlon_earth_deg
   real   (kind=r_kind):: dlat,dlat_earth,dlat_earth_deg
@@ -872,14 +889,13 @@ subroutine ozlev_ncread_(dfile, ozout,nmrecs,ndata,nodata, gstime,twind)
   nmrecs=0
   nodata=-1
 !..................................................................................
-     ! ---------------MLS NRT NetCDF -----------------------------
-     ! Process MLS o3lev in NetCDF format
+     ! ---------------MLS and other limb ozone data in NetCDF format ----------
      ! Open file and read dimensions
      call check(nf90_open(trim(dfile),nf90_nowrite,ncid),stat=ier)
 
      ! ignore if the file is not actually present.
      if(ier/=nf90_noerr) return                 
-   
+
      ! Get dimensions from OMI input file
      call check(nf90_inq_dimid(ncid, "nprofiles", nrecDimId),stat=ier)
 
@@ -889,7 +905,7 @@ subroutine ozlev_ncread_(dfile, ozout,nmrecs,ndata,nodata, gstime,twind)
         return               
      endif
 
-     ! Get dimensions from MLS input file: # of profiles and # of levels
+     ! Get dimensions from the input file: # of profiles and # of levels
      nprofs=0
      call check(nf90_inquire_dimension(ncid, nrecDimId, len = nprofs),stat=ier)
 
@@ -906,34 +922,41 @@ subroutine ozlev_ncread_(dfile, ozout,nmrecs,ndata,nodata, gstime,twind)
      endif
 
      ! Continue the input
-     call check(nf90_inq_dimid(ncid, "nlevs", mlslevsDimId))
-     call check(nf90_inquire_dimension(ncid, mlslevsDimId, len = mlslevs))
+     call check(nf90_inq_dimid(ncid, "nlevs", levsDimId))
+     call check(nf90_inquire_dimension(ncid, levsDimId, len = levs))
 
      !  NOTE: Make sure that 'ozinfo' has the same number of levels
      ! for NRT it is 55
-     allocate(ipos(mlslevs))
-
+     allocate(ipos(levs))
      ipos=999
+     
+     ! Process limb data in NetDCF format
      ikx = 0 
      first=.false.
      do i=1,jpch_oz
-        if( (.not. first) .and. index(nusis_oz(i),'mls55')/=0) then
+        if( (.not. first) .and. index(nusis_oz(i), trim(dtype))/=0) then
            k0=i
            first=.true.
         end if
-        if(first.and.index(nusis_oz(i),'mls55')/=0) then  ! MLS .nc data
+        if(first.and.index(nusis_oz(i),trim(dtype))/=0) then 
            ikx=ikx+1
            ipos(ikx)=k0+ikx-1
         end if
      end do
-     if (ikx/=mlslevs) call die(myname_//': inconsistent mlslevs')
-
+    
+     if (ikx/=levs) call die(myname_//': inconsistent levs for '//dtype)
+     
      nmrecs=0
      ! Allocate space and read data
 
      allocate(iya(nprofs),ima(nprofs),idda(nprofs),ihha(nprofs),imina(nprofs), &
-          iseca(nprofs),slatsa(nprofs),slonsa(nprofs), mlsozone(mlslevs,nprofs), &
-          mlserr(mlslevs,nprofs),mlsqual(nprofs), mlsconv(nprofs), mlspress(mlslevs))
+          iseca(nprofs),slatsa(nprofs),slonsa(nprofs), ozone(levs,nprofs), &
+          err(levs,nprofs),qual(nprofs), conv(nprofs))
+     if (index(dtype, 'ompslp') == 0) then 
+        allocate(press(levs))
+     else
+        allocate(press2d(levs,nprofs))
+     endif
 
      ! Read variables and store them in these arrays
      call check(nf90_inq_varid(ncid, "lon", lonVarId))
@@ -960,20 +983,27 @@ subroutine ozlev_ncread_(dfile, ozout,nmrecs,ndata,nodata, gstime,twind)
      call check(nf90_inq_varid(ncid, "ss", ssVarId))
      call check(nf90_get_var(ncid, ssVarId, iseca))
 
-     call check(nf90_inq_varid(ncid, "press", pressVarId))
-     call check(nf90_get_var(ncid, pressVarId, mlspress))
+     if (index(dtype, 'ompslp') == 0) then
+        call check(nf90_inq_varid(ncid, "press", pressVarId))
+        call check(nf90_get_var(ncid, pressVarId, press))
+     else
+        call check(nf90_inq_varid(ncid, "press", pressVarId))
+        call check(nf90_get_var(ncid, pressVarId, press2d))
+     endif
 
-     call check(nf90_inq_varid(ncid, "conv", convVarId))
-     call check(nf90_get_var(ncid, convVarId, mlsconv))
+     if (index(dtype, 'ompslp') == 0) then
+        call check(nf90_inq_varid(ncid, "conv", convVarId))
+        call check(nf90_get_var(ncid, convVarId, conv))
+     end if
 
-     call check(nf90_inq_varid(ncid, "qual", qualVarId))
-     call check(nf90_get_var(ncid, qualVarId, mlsqual))
+     !    call check(nf90_inq_varid(ncid, "qual", qualVarId))
+     !    call check(nf90_get_var(ncid, qualVarId, qual))
+     
+     call check(nf90_inq_varid(ncid, "oberr", errVarId))
+     call check(nf90_get_var(ncid, errVarId, err))
 
-     call check(nf90_inq_varid(ncid, "oberr", mlserrVarId))
-     call check(nf90_get_var(ncid, mlserrVarId, mlserr))
-
-     call check(nf90_inq_varid(ncid, "ozone", mlsozoneVarId))
-     call check(nf90_get_var(ncid, mlsozoneVarId, mlsozone))
+     call check(nf90_inq_varid(ncid, "ozone", ozoneVarId))
+     call check(nf90_get_var(ncid, ozoneVarId, ozone))
 
      ! close the data file
      call check(nf90_close(ncid))
@@ -982,17 +1012,12 @@ subroutine ozlev_ncread_(dfile, ozout,nmrecs,ndata,nodata, gstime,twind)
      nmrecs = 0
      nodata = 0
      do iprof = 1, nprofs
-        do ilev = 1, mlslevs
+        do ilev = 1, levs
            ! note that most of the quality control is done at the 
            ! pre-processing stage
-           if (mlspress(ilev) .gt. 262.0 .or. mlspress(ilev) .lt. 0.1 ) cycle             
-           if (mlsozone(ilev, iprof) .lt. -900.0) cycle            ! undefined
-           if (mlserr(ilev, iprof) .lt. -900.0) cycle            ! undefined
-!           if (ndata >= maxobs) then 
-!              write(6,*) ' read_ozone:   Number of MLS obs reached maxobs = ', &
-!                   maxobs
-!              return           
-!           endif
+!!         if (press(ilev) > 262.0_r_kind .or. press(ilev) < 0.1_r_kind ) cycle ! undefined
+           if (ozone(ilev, iprof) < -900.0_r_kind) cycle            ! undefined
+           if (err(ilev, iprof) < -900.0_r_kind) cycle              ! undefined
            if (iuse_oz(ipos(ilev)) < 0) then
               usage = 100._r_kind
            else
@@ -1019,8 +1044,6 @@ subroutine ozlev_ncread_(dfile, ozout,nmrecs,ndata,nodata, gstime,twind)
               dlon = dlon_earth
               call grdcrd1(dlat,rlats,nlat,1)
               call grdcrd1(dlon,rlons,nlon,1)
-             ! call grdcrd(dlat,1,rlats,nlat,1)
-             ! call grdcrd(dlon,1,rlons,nlon,1)
            endif
 
            idate5(1) = iya(iprof) !year
@@ -1032,7 +1055,7 @@ subroutine ozlev_ncread_(dfile, ozout,nmrecs,ndata,nodata, gstime,twind)
            t4dv=real((nmind-iwinbgn),r_kind)*r60inv
            if (l4dvar.or.l4densvar) then
               if (t4dv<zero .OR. t4dv>winlen) then
-                 write(6,*)'read_ozone: mls obs time idate5=',idate5,', t4dv=',&
+                 write(6,*)'read_ozone: ', dtype,' obs time idate5=',idate5,', t4dv=',&
                       t4dv,' is outside time window, sstime=',sstime*r60inv
                  cycle
               end if
@@ -1040,17 +1063,20 @@ subroutine ozlev_ncread_(dfile, ozout,nmrecs,ndata,nodata, gstime,twind)
               sstime=real(nmind,r_kind)
               tdiff=(sstime-gstime)*r60inv
               if(abs(tdiff) > twind)then
-                 write(6,*)'read_ozone: mls obs time idate5=',idate5,', tdiff=',&
+                 write(6,*)'read_ozone: ',dtype,' obs time idate5=',idate5,', tdiff=',&
                       tdiff,' is outside time window=',twind
                  cycle
               end if
            end if
-         
-           obserr = mlserr(ilev, iprof)
-           ppmv = mlsozone(ilev, iprof)
-           pres = mlspress(ilev) 
-           pob = log(pres * one_tenth)
            
+           obserr = err(ilev, iprof)
+           ppmv = ozone(ilev, iprof)
+           if (index(dtype, 'ompslp') == 0) then
+              pres = press(ilev) 
+           else
+              pres = press2d(ilev, iprof)
+           end if
+           pob = log(pres * one_tenth)
            ndata  = ndata+1
            if(ndata<=maxobs) then
               nodata = nodata + 1
@@ -1066,31 +1092,34 @@ subroutine ozlev_ncread_(dfile, ozout,nmrecs,ndata,nodata, gstime,twind)
               ozout(9,ndata)=pob                  ! pressure 
               ozout(10,ndata)=obserr              ! ozone mixing ratio precision in ppmv
               ozout(11,ndata)=float(ipos(ilev))   ! pointer of obs level index in ozinfo.txt
-              ozout(12,ndata)=mlslevs             ! # of mls vertical levels
+              ozout(12,ndata)=levs                ! # of  vertical levels
               ozout(13,ndata)=ppmv                ! ozone mixing ratio in ppmv
            endif
            
-! 145        continue
         end do
      end do
 
 
-     deallocate(iya,ima,idda,ihha,imina,iseca,slatsa,slonsa, mlsozone, &
-          mlserr,mlsqual, mlsconv, mlspress)
+     deallocate(iya,ima,idda,ihha,imina,iseca,slatsa,slonsa, ozone, &
+          err,qual, conv)
+     if (index(dtype, 'ompslp') == 0) then
+        deallocate(press)
+     else
+        deallocate(press2d)
+     end if
      deallocate(ipos)
+     
+     !     write(stdout,'(3a,3i8,f8.2)') mprefix('read_ozone'), &
+     !        ' obstype,nmrecs,ndata,nodata,no/ndata = ',dtype,nmrecs,ndata,nodata,real(nodata)/ndata
+     
+     if (ndata > maxobs) then 
+        call perr(myname_,'Number of limb obs reached maxobs = ', maxobs)
+        call perr(myname_,'                            ndata = ', ndata)
+        call perr(myname_,'                           nodata = ', nodata)
+        call die(myname_)
+     endif
 
-!     write(stdout,'(3a,3i8,f8.2)') mprefix('read_ozone'), &
-!        ' obstype,nmrecs,ndata,nodata,no/ndata = ',dtype,nmrecs,ndata,nodata,real(nodata)/ndata
-
-           if (ndata > maxobs) then 
-              call perr('read_ozone','Number of MLS obs reached maxobs = ', maxobs)
-              call perr(myname_,'Number of MLS obs reached maxobs = ', maxobs)
-              call perr(myname_,'                           ndata = ', ndata)
-              call perr(myname_,'                          nodata = ', nodata)
-              call die(myname_)
-           endif
   !---------------END MLS NRT NetCDF---------------------------
-!!end subroutine read_mlsnc_
 end subroutine ozlev_ncread_
 
 subroutine ozlev_bufrInquire_(nreal,nchan,ilat,ilon,maxrec)

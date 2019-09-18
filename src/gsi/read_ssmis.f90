@@ -61,6 +61,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2013-01-26  parrish - WCOSS debug compile error--change mype from intent(inout) to intent(in)
 !   2014-12-03  derber remove unused variables
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
+!   2018-05-21  j.jin   - added time-thinning. Moved the checking of thin4d into satthin.F90.
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -95,13 +96,15 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       checkob,finalcheck,score_crit
+  use satthin, only: radthin_time_info,tdiff2crit
+  use obsmod,  only: time_window_max
   use radinfo, only: ssmis_method
   use radinfo, only: iuse_rad,newchn,nusis,jpch_rad,&   
       use_edges,radedge1,radedge2       
   use gridmod, only: diagnostic_reg,regional,rlats,rlons,nlat,nlon,&
       tll2xy,txy2ll
   use constants, only: deg2rad,rad2deg,zero,half,one,two,four,r60inv
-  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use calc_fov_conical, only: instrument_init
   use deter_sfc_mod, only: deter_sfc,deter_sfc_fov
   use gsi_nstcouplermod, only: nst_gsi,nstinfo 
@@ -179,7 +182,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   real(r_kind) :: sfcr,r07
 ! real(r_kind) :: pred
-  real(r_kind) :: tdiff,timedif,dist1
+  real(r_kind) :: tdiff,dist1
 ! real(r_kind) :: step,start 
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
@@ -207,6 +210,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),pointer :: bt_in(:)
   real(r_kind),pointer :: crit1,rsat,t4dv,solzen,solazi,dlon_earth,dlat_earth,satazi,lza
 
+  integer(i_kind),allocatable,target :: it_mesh_save(:)
   real(r_kind),allocatable,target :: rsat_save(:)
   real(r_kind),allocatable,target :: t4dv_save(:)
   real(r_kind),allocatable,target :: dlon_earth_save(:)
@@ -219,6 +223,10 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),allocatable,target :: bt_save(:,:)
   real(r_kind),allocatable        :: relative_time_in_seconds(:)
   real(r_kind),allocatable        :: data_all(:,:)
+
+  real(r_kind)    :: ptime,timeinflat,crit0
+  integer(i_kind) :: ithin_time,n_tbin
+  integer(i_kind),pointer:: it_mesh => null()
 
 ! For solar zenith/azimuth angles calculation
   data  mlen/31,28,31,30,31,30, &
@@ -265,8 +273,14 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   end do search
   if (.not.assim) val_ssmis=zero
 
+  call radthin_time_info(obstype, jsatid, sis, ptime, ithin_time)
+  if( ptime > 0.0_r_kind) then
+     n_tbin=nint(2*time_window_max/ptime)
+  else
+     n_tbin=1
+  endif
 ! Make thinning grids
-  call makegrids(rmesh,ithin)
+  call makegrids(rmesh,ithin,n_tbin=n_tbin)
 
 ! Set various variables depending on type of data to be read
   ssmis_uas= obstype == 'ssmis_uas'
@@ -364,6 +378,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   allocate(dlon_earth_save(maxobs))
   allocate(dlat_earth_save(maxobs))
   allocate(crit1_save(maxobs))
+  allocate(it_mesh_save(maxobs))
   allocate(lza_save(maxobs))
   allocate(satazi_save(maxobs))
   allocate(solzen_save(maxobs))
@@ -392,6 +407,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
         dlon_earth  => dlon_earth_save(iobs)
         dlat_earth  => dlat_earth_save(iobs)
         crit1       => crit1_save(iobs)
+        it_mesh     => it_mesh_save(iobs)
         ifov        => ifov_save(iobs)
 !       iscan       => iscan_save(iobs)
 !       iorbn       => iorbn_save(iobs)
@@ -452,15 +468,10 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
         else
            if(abs(tdiff) > twind+one_minute) cycle read_loop
         endif
-        if (thin4d) then
-!          Give score based on time in the window 
-!          crit1 = 0.01_r_kind+ flgch  
-           crit1 = zero              
-        else
-           timedif = 6.0_r_kind*abs(tdiff) ! range:  0 to 18
-!          crit1 = 0.01_r_kind+timedif + flgch  
-           crit1 = timedif                   
-        endif
+
+        crit0 = 0.00_r_kind        ! forced to >= 0.01_r_kind in tdiff2crit()
+        timeinflat=6.0_r_kind
+        call tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
 
 !       Extract obs location, TBB, other information
 !       BUFR read 3/3 --- read in observation lat/lon
@@ -535,6 +546,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      dlon_earth_save(1:num_obs)          = dlon_earth_save(sorted_index)
      dlat_earth_save(1:num_obs)          = dlat_earth_save(sorted_index)
      crit1_save(1:num_obs)               = crit1_save(sorted_index)
+     it_mesh_save(1:num_obs)             = it_mesh_save(sorted_index)
      ifov_save(1:num_obs)                = ifov_save(sorted_index)
 !    iscan_save(1:num_obs)               = iscan_save(sorted_index)
 !    iorbn_save(1:num_obs)               = iorbn_save(sorted_index)
@@ -603,6 +615,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      dlon_earth => dlon_earth_save(iobs) 
      dlat_earth => dlat_earth_save(iobs) 
      crit1      => crit1_save(iobs) 
+     it_mesh    => it_mesh_save(iobs) 
      ifov       => ifov_save(iobs) 
      inode      => inode_save(iobs) 
      lza        => lza_save(iobs) 
@@ -645,15 +658,15 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      endif
 
 !    Check time window
+     tdiff=t4dv+(iwinbgn-gstime)*r60inv
      if (l4dvar.or.l4densvar) then
         if (t4dv<zero .OR. t4dv>winlen) cycle obsloop 
      else
-        tdiff=t4dv+(iwinbgn-gstime)*r60inv
         if(abs(tdiff) > twind) cycle ObsLoop
      endif
 
 !    Map obs to thinning grid
-     call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+     call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,it_mesh=it_mesh)
      if(.not. iuse)cycle obsloop
 
 
@@ -791,6 +804,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   deallocate(dlon_earth_save)
   deallocate(dlat_earth_save)
   deallocate(crit1_save)
+  deallocate(it_mesh_save)
   deallocate(lza_save)
   deallocate(satazi_save)
   deallocate(solzen_save)

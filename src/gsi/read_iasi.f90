@@ -66,6 +66,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !   2015-10-22  Jung    - added logic to allow subset changes based on the satinfo file
 !   2016-04-28  jung - added logic for RARS and direct broadcast from NESDIS/UW
+!   2018-05-21  j.jin   - added time-thinning. Moved the checking of thin4d into satthin.F90.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -106,6 +107,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       finalcheck,checkob,score_crit
+  use satthin, only: radthin_time_info,tdiff2crit
+  use obsmod,  only: time_window_max
   use radinfo, only:iuse_rad,nuchan,nusis,jpch_rad,crtm_coeffs_path,use_edges, &
       radedge1,radedge2,radstart,radstep
   use crtm_module, only: success, &
@@ -115,7 +118,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
       tll2xy,txy2ll,rlats,rlons
   use constants, only: zero,deg2rad,rad2deg,r60inv,one,ten,r100
-  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use calc_fov_crosstrk, only: instrument_init, fov_check, fov_cleanup
   use deter_sfc_mod, only: deter_sfc,deter_sfc_fov
   use obsmod, only: bmiss
@@ -188,7 +191,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind)     :: rsat, dlon, dlat
   real(r_kind)     :: dlon_earth,dlat_earth,dlon_earth_deg,dlat_earth_deg
   real(r_kind)     :: lza, lzaest,sat_height_ratio
-  real(r_kind)     :: timedif, pred, crit1, dist1
+  real(r_kind)     :: pred, crit1, dist1
   real(r_kind)     :: sat_zenang
   real(crtm_kind)  :: radiance
   real(r_kind)     :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr
@@ -231,6 +234,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),parameter:: earth_radius = 6371000._r_kind
   integer(i_kind),parameter :: ilon = 3
   integer(i_kind),parameter :: ilat = 4
+  real(r_kind)    :: ptime,timeinflat,crit0
+  integer(i_kind) :: ithin_time,n_tbin,it_mesh
   logical print_verbose
 
   print_verbose=.false.
@@ -372,8 +377,14 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
      rlndsea(4) = 30._r_kind
   endif
 
+  call radthin_time_info(obstype, jsatid, sis, ptime, ithin_time)
+  if( ptime > 0.0_r_kind) then
+     n_tbin=nint(2*time_window_max/ptime)
+  else
+     n_tbin=1
+  endif
 ! Make thinning grids
-  call makegrids(rmesh,ithin)
+  call makegrids(rmesh,ithin,n_tbin=n_tbin)
 
 ! Allocate arrays to hold data
 ! The number of channels in obtained from the satinfo file being used.
@@ -561,14 +572,12 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          Increment nread counter by satinfo_nchan
            nread = nread + satinfo_nchan
 
-           if (thin4d) then
-              crit1 = 0.01_r_kind
-           else
-              timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
-              crit1 = 0.01_r_kind+timedif
-           endif 
-           if( llll > 1 ) crit1 = crit1 + r100 * float(llll)
-           call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+           crit0 = 0.01_r_kind
+           if( llll > 1 ) crit0 = crit0 + r100 * float(llll)
+           timeinflat=6.0_r_kind
+           call tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
+           call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,it_mesh=it_mesh)
+
            if(.not. iuse)cycle read_loop
 
 !          Observational info

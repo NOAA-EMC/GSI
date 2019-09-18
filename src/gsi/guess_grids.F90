@@ -14,14 +14,6 @@ module guess_grids
  
   use kinds, only: r_single,r_kind,i_kind
   use constants, only: max_varname_length
-  use gridmod, only: regional
-  use gridmod, only: wrf_nmm_regional,nems_nmmb_regional,fv3_regional
-  use gridmod, only: eta1_ll
-  use gridmod, only: eta2_ll
-  use gridmod, only: aeta1_ll
-  use gridmod, only: aeta2_ll
-  use gridmod, only: pdtop_ll
-  use gridmod, only: pt_ll
 
   use gsi_bundlemod, only : gsi_bundlegetpointer
 
@@ -137,6 +129,7 @@ module guess_grids
   public :: destroy_metguess_grids
   public :: create_chemges_grids
   public :: destroy_chemges_grids
+  public :: get_ref_gesprs
 ! set passed variables to public
   public :: ntguessig,ges_prsi,ges_psfcavg,ges_prslavg
   public :: isli2,ges_prsl,nfldsig
@@ -145,7 +138,7 @@ module guess_grids
   public :: ntguessfc,ntguesnst,dsfct,ifilesig,veg_frac,soil_type,veg_type
   public :: sno2,ifilesfc,ifilenst,sfc_rough,fact10,sno,isli,soil_temp,soil_moi,coast_prox 
   public :: nfldsfc,nfldnst,hrdifsig,ges_tsen,sfcmod_mm5,sfcmod_gfs,ifact10,hrdifsfc,hrdifnst
-  public :: geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll,pbl_height
+  public :: geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pbl_height
   public :: wgt_lcbas
   public :: ges_qsat
   public :: use_compress,nsig_ext,gpstop
@@ -400,7 +393,7 @@ contains
 
 ! !USES:
 
-    use control_vectors, only : w_exist
+    use wrf_vars_mod, only : w_exist
     use constants,only: zero,one
     use gridmod, only: lat2,lon2,nsig
     implicit none
@@ -780,7 +773,7 @@ contains
   subroutine destroy_ges_grids
 
 ! !USES:
-    use control_vectors, only : w_exist
+    use wrf_vars_mod, only : w_exist
 
     implicit none
 
@@ -1280,6 +1273,52 @@ contains
     return
   end subroutine load_prsges
 
+  subroutine get_ref_gesprs(prs)
+  use constants, only: zero,one_tenth,r100,r1000
+  use gridmod, only: regional,twodvar_regional,cmaq_regional
+  use gridmod, only: wrf_nmm_regional,nems_nmmb_regional,wrf_mass_regional,fv3_regional
+  use gridmod, only: idvc5,ak5,bk5
+  use gridmod, only: eta1_ll
+  use gridmod, only: eta2_ll
+  use gridmod, only: pdtop_ll
+  use gridmod, only: pt_ll
+  use gridmod, only: nsig
+  implicit none
+  real(r_kind), dimension(nsig+1), intent(out) :: prs
+
+  integer(i_kind) k
+
+! get some reference-like pressure levels
+  do k=1,nsig+1
+     if(regional) then
+        if (wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) &
+           prs(k)=one_tenth* &
+                  (eta1_ll(k)*pdtop_ll + &
+                   eta2_ll(k)*(r1000-pdtop_ll-pt_ll) + &
+                   pt_ll)
+        if (twodvar_regional) &
+           prs(k)=one_tenth*(eta1_ll(k)*(r1000-pt_ll) + pt_ll)
+        if (fv3_regional ) &
+           prs(k)=eta1_ll(k)+r100*eta2_ll(k)
+        if (wrf_mass_regional) &
+           prs(k)=one_tenth*(eta1_ll(k)*(r1000-pt_ll) + eta2_ll(k) + pt_ll)
+     else
+        if (idvc5==1 .or. idvc5==2) then
+           prs(k)=ak5(k)+(bk5(k)*r1000)
+        else if (idvc5==3) then
+           if (k==1) then
+              prs(k)=r1000
+           else if (k==nsig+1) then
+              prs(k)=zero
+           else
+              prs(k)=ak5(k)+(bk5(k)*r1000)! +(ck5(k)*trk)
+           end if
+        end if
+     endif
+  enddo
+  end subroutine get_ref_gesprs
+
+
 !-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
 !-------------------------------------------------------------------------
@@ -1551,6 +1590,7 @@ contains
 
     use constants, only: one,rd_over_cp_mass,r1000,ten,zero,two
     use gridmod, only: lat2, lon2, nsig,wrf_mass_regional, &
+         aeta1_ll,aeta2_ll,pdtop_ll,pt_ll,&
          twodvar_regional,nems_nmmb_regional,fv3_regional
 
     implicit none

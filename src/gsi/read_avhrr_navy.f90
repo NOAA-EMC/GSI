@@ -50,6 +50,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !   2015-10-01  guo     - consolidate use of ob location (in deg)
+!   2018-05-21  j.jin   - added time-thinning. Moved the checking of thin4d into satthin.F90.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -79,10 +80,12 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       finalcheck,score_crit
+  use satthin, only: radthin_time_info,tdiff2crit
+  use obsmod,  only: time_window_max
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad, zero, one, rad2deg, r60inv
   use radinfo, only: retrieval,iuse_rad,jpch_rad,nusis
-  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc
   use obsmod, only: bmiss
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
@@ -135,7 +138,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   integer(i_kind) nlat_sst,nlon_sst,irec,next
   integer(i_kind),allocatable,dimension(:)::nrec
 
-  real(r_kind) dlon,dlat,timedif,sfcr
+  real(r_kind) dlon,dlat,sfcr
   real(r_kind) dlon_earth,dlat_earth
   real(r_kind) dlon_earth_deg,dlat_earth_deg
   real(r_kind) w00,w01,w10,w11,dx1,dy1
@@ -159,6 +162,8 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   real(r_kind) cdist,disterr,disterrmax,dlon00,dlat00
   integer(i_kind) ntest
 
+  real(r_kind)    :: ptime,timeinflat,crit0
+  integer(i_kind) :: ithin_time,n_tbin,it_mesh
 
 !**************************************************************************
 ! Start routine here.  Set constants.  Initialize variables
@@ -209,8 +214,14 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   if (.not.assim) val_avhrr=zero
 
 
+  call radthin_time_info(obstype, jsatid, sis, ptime, ithin_time)
+  if( ptime > 0.0_r_kind) then
+     n_tbin=nint(2*time_window_max/ptime)
+  else
+     n_tbin=1
+  endif
 ! Make thinning grids
-  call makegrids(rmesh,ithin)
+  call makegrids(rmesh,ithin,n_tbin=n_tbin)
 
 
 ! Read hi-res sst analysis
@@ -321,17 +332,11 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
         endif
 
 !       Set common predictor parameters
-
-        if (thin4d) then
-           crit1 = 0.01_r_kind
-        else
-           timedif = r6*abs(tdiff)        ! range:  0 to 18
-!          Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
-           crit1 = 0.01_r_kind+timedif 
-        endif
-
 !       Map obs to thinning grid
-        call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+        crit0 = 0.01_r_kind
+        timeinflat=r6
+        call tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
+        call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,it_mesh=it_mesh)
         if(.not. iuse)cycle read_loop
 
 

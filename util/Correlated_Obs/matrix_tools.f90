@@ -20,8 +20,8 @@ subroutine eigdecomp(Ain,n,D,Q)
 !Kristen Bathmann
 !8-2015
 
-use kinds, only: r_kind, i_kind
-use constants, only: zero, one, four_int, one_hundred
+use ckinds, only: r_kind, i_kind
+use cconstants, only: zero, one, four_int, one_hundred
 implicit none
 integer(i_kind),intent(in):: n
 real(r_kind),dimension(n,n),intent(in):: Ain
@@ -130,8 +130,8 @@ subroutine recondition(Q,D,n,kreq,A,method)
 !It is necessary to preform an eigendecompositon first
 !Kristen Bathmann 
 !8-2015
-use kinds, only: r_kind, i_kind
-use constants, only: zero
+use ckinds, only: r_kind, i_kind
+use cconstants, only: zero
 implicit none
 real(r_kind),dimension(:),intent(in):: D     !eigenvalues
 real(r_kind),dimension(:,:),intent(in):: Q   !eigenvectors
