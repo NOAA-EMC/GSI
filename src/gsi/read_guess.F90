@@ -89,7 +89,7 @@ subroutine read_guess(iyear,month,idd,mype)
   use kinds, only: r_kind,i_kind
   use jfunc, only: bcoption,clip_supersaturation,jiter
   use guess_grids, only: nfldsig,ges_tsen,load_prsges,load_geop_hgt,ges_prsl,&
-                         ges_tsen1, geop_hgti, geop_hgti1
+                         ges_tsen1, geop_hgti, geop_hgti1, ges_q1
   use m_gsiBiases,only : bkg_bias_correction,nbc
   use m_gsiBiases, only: gsi_bkgbias_bundle
   use gsi_bias, only: read_bias
@@ -239,6 +239,7 @@ subroutine read_guess(iyear,month,idd,mype)
                satval = max(qmin,satval)
                ges_q(i,j,k) = satval
                ges_tsen(i,j,k,it)= ges_tv(i,j,k)/(one+fv*ges_q(i,j,k))
+               ges_q1(i,j,k,it) = satval
             end do
          end do
       end do

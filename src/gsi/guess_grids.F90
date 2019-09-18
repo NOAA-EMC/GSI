@@ -150,7 +150,7 @@ module guess_grids
   public :: wgt_lcbas
   public :: ges_qsat
   public :: use_compress,nsig_ext,gpstop
-  public :: geop_hgti1,ges_tsen1
+  public :: geop_hgti1,ges_tsen1,ges_q1
 
   public :: ges_initialized
 
@@ -253,6 +253,7 @@ module guess_grids
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_lnprsi! log(interface pressure)
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_tsen  ! sensible temperature
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_tsen1  ! to save the first guess for increment
+  real(r_kind),allocatable,dimension(:,:,:,:):: ges_q1    ! to save the first guess q for increment
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_teta  ! potential temperature
 
   real(r_kind),allocatable,dimension(:,:,:):: fact_tv      ! 1./(one+fv*ges_q) for virt to sen calc.
@@ -468,6 +469,7 @@ contains
             ges_lnprsl(lat2,lon2,nsig,nfldsig),ges_lnprsi(lat2,lon2,nsig+1,nfldsig),&
             ges_tsen(lat2,lon2,nsig,nfldsig),&
             ges_tsen1(lat2,lon2,nsig,nfldsig),&
+            ges_q1(lat2,lon2,nsig,nfldsig),&
             ges_teta(lat2,lon2,nsig,nfldsig),&
             ges_rho(lat2,lon2,nsig,nfldsig), &  
             geop_hgtl(lat2,lon2,nsig,nfldsig), &
@@ -523,6 +525,7 @@ contains
                    ges_qsat(i,j,k,n)=zero
                    ges_tsen(i,j,k,n)=zero
                    ges_tsen1(i,j,k,n)=zero
+                   ges_q1(i,j,k,n)=zero
                    ges_teta(i,j,k,n)=zero
                    geop_hgtl(i,j,k,n)=zero
                 end do
@@ -828,7 +831,7 @@ contains
 !
     deallocate(ges_prsi,ges_prsl,ges_lnprsl,ges_lnprsi,&
          ges_tsen,ges_teta,geop_hgtl,geop_hgti,ges_prslavg,ges_rho,&
-         ges_tsen1,geop_hgti1,&
+         ges_tsen1,geop_hgti1,ges_q1,&
          tropprs,fact_tv,pbl_height,wgt_lcbas,ges_qsat,stat=istatus)
     if(w_exist) deallocate(ges_w_btlev,stat=istatus)
     if (istatus/=0) &
