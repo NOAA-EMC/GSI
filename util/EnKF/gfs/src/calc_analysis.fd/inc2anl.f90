@@ -138,7 +138,7 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! subroutine add_psfc_increment
   !            special case of getting surface pressure analysis from
-  !            the integral of the sum of the delp increment and delp background 
+  !            bk5 and delp increment to get sfc pressure increment 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     use vars_calc_analysis, only: fcstfile, anlfile, nlat, nlon, nlev, &
                                   incr_file
@@ -148,24 +148,61 @@ contains
     implicit none
 
     ! local variables
-    real, allocatable, dimension(:) :: work1
-    real, allocatable, dimension(:,:) :: work2d_delp, psfc
-    real, allocatable, dimension(:,:,:) :: work3d_inc, work3d_delp
-    integer :: ilev,iret,k
+    real, allocatable, dimension(:,:,:) :: nems_vcoord
+    real, allocatable, dimension(:,:) :: vcoord
+    integer :: nvcoord
+    real, allocatable, dimension(:) :: bk5, work1
+    real, allocatable, dimension(:,:) :: ps_inc, work2d
+    real, allocatable, dimension(:,:,:) :: work3d_inc
+    integer :: ilev,iret,j,jj,k
     integer :: ncid, varid
     integer :: start(3), count(3)
 
-    ! loop through all levels and save the background delp in memory
-    allocate(work1(nlat*nlon))
-    allocate(work2d_delp(nlon,nlat),work3d_delp(nlev,nlon,nlat))
-   
-    do k=1,nlev 
-      call nemsio_readrecv(fcstfile, 'dpres', 'mid layer', k, work1, iret=iret)
-      if (iret /=0) write(6,*) 'Error with NEMSIO read dpres lev=',k
-      work2d_delp = reshape(work1,(/nlon,nlat/))
-      work3d_delp(k,:,:) = work2d_delp
+
+    ! get vertical coordinate info from NEMSIO file
+    allocate(nems_vcoord(nlev+1,3,2))
+    call nemsio_getfilehead(fcstfile, iret=iret, vcoord=nems_vcoord)
+    if ( iret /= 0) then
+      write(6,*) "Error reading NEMS vcoord, stopping..."
+      stop
+    end if
+
+    nvcoord = 3
+    if (maxval(nems_vcoord(:,3,1)) ==0 .and. &
+        minval(nems_vcoord(:,3,1)) ==0 ) then
+       nvcoord=2
+       if (maxval(nems_vcoord(:,2,1)) ==0 .and. &
+           minval(nems_vcoord(:,2,1)) ==0 ) then
+          nvcoord=1
+       end if
+    end if
+    allocate(vcoord(nlev+1,nvcoord))
+    vcoord(:,1:nvcoord) = nems_vcoord(:,1:nvcoord,1)
+
+    ! get bk5 from NEMSIO file
+    allocate(bk5(nlev+1))
+    do k=1,nlev+1
+      bk5(k) = 0
     end do
 
+    if (nvcoord == 1) then
+      do k=1,nlev+1
+        bk5(k) = vcoord(k,1)
+      end do
+    else if (nvcoord == 2) then
+      do k = 1,nlev+1
+        bk5(k) = vcoord(k,2)
+      end do
+    else if (nvcoord == 3) then
+      do k = 1,nlev+1
+        bk5(k) = vcoord(k,2)
+      end do
+    else
+      write(6,*) "Error reading bk5 variable, stopping..."
+      stop
+    end if
+
+    ! read in delp increment to get ps increment
     ! read in the netCDF increment for delp
     allocate(work3d_inc(nlev,nlon,nlat))
     do k=1,nlev
@@ -179,21 +216,29 @@ contains
       call nccheck(nf90_close(ncid))
     end do
 
-    ! compute psfc
-    allocate(psfc(nlon,nlat))
-    psfc(:,:) = 0
-    ! loop through all layers, add delp and delp increment, then add to psfc
-    do k=1,nlev
-      psfc(:,:) = psfc(:,:) + work3d_delp(k,:,:) + (work3d_inc(k,:,:)*0.1)
+    ! get ps increment from delp increment and bk
+    allocate(ps_inc(nlon,nlat))
+    ps_inc(:,:) = work3d_inc(1,:,:) / (bk5(1) - bk5(2))
+
+    ! read in psfc background
+    allocate(work1(nlon*nlat))
+    allocate(work2d(nlon,nlat))
+    call nemsio_readrecv(fcstfile,'pres','sfc',1,work1,iret=iret)
+    if (iret /=0) write(6,*) 'Error with NEMSIO read surface pressure'
+    work2d = reshape(work1,(/nlon,nlat/))
+    ! add increment to background
+    do j=1,nlat
+      jj=nlat+1-j ! increment is S->N, NEMSIO is N->S
+      work2d(:,j) = work2d(:,j) + ps_inc(:,jj)
     end do
-    
+
     ! now write out new psfc to NEMSIO analysis file 
-    work1 = reshape(psfc,(/size(work1)/))
+    work1 = reshape(work2d,(/size(work1)/))
     call nemsio_writerecv(anlfile, 'pres', 'sfc', 1, work1, iret=iret)
     if (iret /=0) write(6,*) 'Error with NEMSIO write sfc pressure'
     
     ! deallocate things
-    deallocate(psfc, work3d_inc, work3d_delp, work2d_delp, work1)
+    deallocate(work3d_inc, work2d, bk5, ps_inc,  work1)
 
   end subroutine add_psfc_increment
 
