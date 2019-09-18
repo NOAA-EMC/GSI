@@ -2,14 +2,14 @@
 !! module inc2anl 
 !!        contains subroutines for calculating analysis fields
 !!        for a given input background and increment 
-!! Original: 2019-09-16   martin   - original module
+!! Original: 2019-09-18   martin   - original module
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module inc2anl 
   implicit none
 
   private
 
-  public :: compute_anl
+  public :: gen_anl
 
   integer, parameter :: nincv=10
   character(len=7) :: incvars_nemsio(nincv), incvars_netcdf(nincv)
@@ -20,9 +20,9 @@ module inc2anl
                         'T      ', 'sphum  ', 'liq_wat', 'icmr   ', 'pres   '/
 
 contains
-  subroutine compute_anl
+  subroutine gen_anl
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  ! subroutine compute_anl
+  ! subroutine gen_anl
   !            loop through fields, read in first guess, read in
   !            increment, add the two together, and write out
   !            the analysis to a new NEMSIO file
@@ -50,7 +50,7 @@ contains
         end if
       end do
       if (use_increment) then
-        print *, 'Adding Increment', recname(i), reclevtyp(i), reclev(i), incvars_netcdf(iincvar)
+        print *, 'Adding Increment ', recname(i), reclevtyp(i), reclev(i)
         if (trim(recname(i)) == 'pres') then
           ! special case for surface pressure
           call add_psfc_increment
@@ -60,14 +60,16 @@ contains
         end if
       else
         ! otherwise just write out what is in the input to the output
-        print *, 'Copying from Background', recname(i), reclevtyp(i), reclev(i), incvars_netcdf(iincvar)
+        print *, 'Copying from Background ', recname(i), reclevtyp(i), reclev(i)
         call nemsio_readrecv(fcstfile, recname(i), reclevtyp(i), reclev(i), work1, iret=iret)
         if (iret /=0) write(6,*) 'Error with NEMSIO read', recname(i),reclevtyp(i), reclev(i)
         call nemsio_writerecv(anlfile, recname(i), reclevtyp(i), reclev(i), work1, iret=iret)
         if (iret /=0) write(6,*) 'Error with NEMSIO write', recname(i),reclevtyp(i), reclev(i)
       end if
     end do
-  end subroutine compute_anl
+
+    deallocate(work1)
+  end subroutine gen_anl
 
   subroutine add_increment(recname, reclevtyp, reclev, incvar_nc)
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -127,6 +129,9 @@ contains
     call nemsio_writerecv(anlfile, recname, reclevtyp, reclev, work1, iret=iret)
     if (iret /=0) write(6,*) 'Error with NEMSIO write', recname, reclevtyp, reclev
 
+    ! cleanup / deallocate
+    deallocate(work1, work2d_bg, work2d_nc)
+
   end subroutine add_increment
 
   subroutine add_psfc_increment
@@ -146,7 +151,7 @@ contains
     real, allocatable, dimension(:) :: work1
     real, allocatable, dimension(:,:) :: work2d_delp, psfc
     real, allocatable, dimension(:,:,:) :: work3d_inc, work3d_delp
-    integer :: ilev,j,jj,iret,k
+    integer :: ilev,iret,k
     integer :: ncid, varid
     integer :: start(3), count(3)
 
@@ -165,25 +170,31 @@ contains
     allocate(work3d_inc(nlev,nlon,nlat))
     do k=1,nlev
       ! get the level from the netCDF file (opposite of NEMSIO)
-      ilev = (nlev+1)-reclev ! ilev = 64 when nlev=64 and reclev=1
+      ilev = (nlev+1)-k ! ilev = 64 when nlev=64 and k=1
       start = (/1, 1, ilev/)
       count = (/nlon, nlat, 1/)
       call nccheck(nf90_open(trim(incr_file), nf90_nowrite, ncid)) 
       call nccheck(nf90_inq_varid(ncid, "delp_inc", varid))
-      call nccheck(nf90_get_var(ncid, varid, work2d_nc, start=start, count=count))
+      call nccheck(nf90_get_var(ncid, varid, work3d_inc(k,:,:), start=start, count=count))
       call nccheck(nf90_close(ncid))
-
+    end do
 
     ! compute psfc
     allocate(psfc(nlon,nlat))
+    psfc(:,:) = 0
+    ! loop through all layers, add delp and delp increment, then add to psfc
+    do k=1,nlev
+      psfc(:,:) = psfc(:,:) + work3d_delp(k,:,:) + (work3d_inc(k,:,:)*0.1)
+    end do
+    
+    ! now write out new psfc to NEMSIO analysis file 
+    work1 = reshape(psfc,(/size(work1)/))
+    call nemsio_writerecv(anlfile, 'pres', 'sfc', 1, work1, iret=iret)
+    if (iret /=0) write(6,*) 'Error with NEMSIO write sfc pressure'
+    
+    ! deallocate things
+    deallocate(psfc, work3d_inc, work3d_delp, work2d_delp, work1)
 
-    ! read in the first guess for this field/level
-    allocate(work1(nlat*nlon))
-    allocate(work2d_bg(nlon,nlat))
-    call nemsio_readrecv(fcstfile, 'pres', 'sfc', 1, work1, iret=iret)
-    if (iret /=0) write(6,*) 'Error with NEMSIO read surface pressure'
-    work2d_bg = reshape(work1,(/nlon,nlat/))
-      
   end subroutine add_psfc_increment
 
   subroutine nccheck(status)

@@ -2,7 +2,7 @@
 !! module nemsio_interface
 !!        contains subroutines for reading NEMSIO background file
 !!        and for writing out NEMSIO analysis files
-!! Original: 2019-09-16   martin   - original module
+!! Original: 2019-09-18   martin   - original module
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module init_nemsio_io
   use nemsio_module
@@ -22,8 +22,8 @@ contains
     use vars_calc_analysis, only: fcst_file, &
                                   fcstfile, anlfile, &
                                   idate, nrec, nfday, nfhour, nfminute, nfsecondn, &
-                                  nfsecondd, nlon, nlat, nlev, nframe, nsoil, ntrac, &
-                                  lats, lons, recname, reclevtyp, &
+                                  nfsecondd, nlon, nlat, nlev, &
+                                  recname, reclevtyp, &
                                   reclev, recname, reclevtyp
     implicit none
     ! variables local to this subroutine
@@ -44,12 +44,12 @@ contains
     ! get dimensions, etc so that arrays can be allocated
     call nemsio_getfilehead(fcstfile, iret=iret, idate=idate, nrec=nrec, nfday=nfday,&
                             nfhour=nfhour, nfminute=nfminute, nfsecondn=nfsecondn,&
-                            dimx=nlon, dimy=nlat, dimz=nlev)
+                            nfsecondd=nfsecondd, dimx=nlon, dimy=nlat, dimz=nlev)
 
-    ! NOTE CRM I do not think we will need the below
-    !! get lat/lon
-    !allocate(lats(nlon*nlat), lons(nlon*nlat))
-    !call nemsio_getfilehead(fcstfile, iret=iret, lat=lats, lon=lons)
+    write(6,*) 'Background initialization date=', idate
+    write(6,*) 'nlon=', nlon
+    write(6,*) 'nlat=', nlat
+    write(6,*) 'nlev=', nlev
 
     !! get varnames
     allocate(recname(nrec), reclevtyp(nrec), reclev(nrec))
@@ -63,7 +63,7 @@ contains
 
   subroutine init_write_anl
     use vars_calc_analysis, only: anal_file, anlfile, idate, jdate, &
-                                  nfhour, nfminute, nfsecondn, nfsecondd
+                                  nhr_assim, nfhour, nfminute, nfsecondn, nfsecondd
     implicit none
     ! variables local to this subroutine
     integer :: iret
@@ -71,13 +71,16 @@ contains
     integer, dimension(8) :: ida, jda 
 
     ! modify dates for analysis file
+    ida(:) = 0
+    jda(:) = 0
     fha(:) = 0
-    fha(2) = real(nfhour)
+    fha(2) = nhr_assim  
     ida(1)=idate(1)
     ida(2)=idate(2)
     ida(3)=idate(3)
     ida(4)=0
     ida(5)=idate(4)
+    ida(6)=idate(5)
     call w3movdat(fha,ida,jda)    
     jdate(1)=jda(1)
     jdate(2)=jda(2)
@@ -91,7 +94,9 @@ contains
     nfsecondn=0
     nfsecondd=100
 
-    ! open the NEMSIO output file
+    write(6,*) 'Analysis valid date=', jdate
+
+    ! open the NEMSIO output file for writing
     call nemsio_open(anlfile, trim(anal_file), 'write', iret=iret, &
                     idate=jdate, nfhour=nfhour, nfminute=nfminute, &
                     nfsecondn=nfsecondn, nfsecondd=nfsecondd)
