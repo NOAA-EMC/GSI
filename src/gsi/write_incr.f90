@@ -81,7 +81,7 @@ contains
     use bias_predictors, only: predictors, allocate_preds, deallocate_preds
     use jfunc, only: xhatsave, iter
 
-    use guess_grids, only: load_geop_hgt, geop_hgti, geop_hgti1, ges_tsen, ges_tsen1
+    use guess_grids, only: load_geop_hgt, geop_hgti, geop_hgti1, ges_tsen, ges_tsen1, ges_q1
     use state_vectors, only: allocate_state, deallocate_state
 
     implicit none
@@ -100,11 +100,11 @@ contains
     character(len=120) :: my_name = 'WRITE_FV3INCR'
 
     real(r_kind),pointer,dimension(:,:,:) :: sub_u,sub_v
-    real(r_kind),pointer,dimension(:,:,:) :: sub_q,sub_oz
+    real(r_kind),pointer,dimension(:,:,:) :: sub_qanl,sub_oz
     real(r_kind),pointer,dimension(:,:,:) :: sub_ql, sub_qi
     real(r_kind),pointer,dimension(:,:) :: sub_ps
 
-    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) :: sub_dzb,sub_dza, sub_tsen
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) :: sub_dzb,sub_dza, sub_tsen, sub_q
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig+1,ibin) :: ges_geopi
 
     real(r_kind),dimension(grd%lat1*grd%lon1)     :: pssm
@@ -180,7 +180,7 @@ contains
     end if
 
     istatus=0
-    call gsi_bundlegetpointer(svalinc(ibin),'q', sub_q, iret); istatus=istatus+iret
+    call gsi_bundlegetpointer(gfs_bundle,'q', sub_qanl, iret); istatus=istatus+iret
     call gsi_bundlegetpointer(svalinc(ibin),'ql', sub_ql, iret); istatus=istatus+iret
     call gsi_bundlegetpointer(svalinc(ibin),'qi', sub_qi, iret); istatus=istatus+iret
     call gsi_bundlegetpointer(svalinc(ibin),'oz', sub_oz, iret); istatus=istatus+iret
@@ -247,8 +247,11 @@ contains
 
     sub_dza = sub_dza - sub_dzb !sub_dza is increment
 
-    ! compute T from Tv and get increment
+    ! compute sensible T increment
     sub_tsen = ges_tsen(:,:,:,ibin) - ges_tsen1(:,:,:,ibin)
+
+    ! compute q increment
+    sub_q = sub_qanl(:,:,:) - ges_q1(:,:,:,ibin)
 
     ! Strip off boundary points from subdomains
     call strip(sub_tsen  ,tsensm  ,grd%nsig)
