@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 2.8)
   endif()
   set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 # get a list of all the fortran source files
-  file(GLOB GSI_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*90 )
+  file(GLOB GSIFORT_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*90 )
 # get a list of all the c source files
   file(GLOB GSI_C_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*c )
 # get a list of all cplr files
@@ -15,70 +15,72 @@ cmake_minimum_required(VERSION 2.8)
 # create a list of all corresponding class files
   string(REGEX REPLACE "class" "cplr" CPLR_SRC "${CLASS_SRC}") 
 
-# these files use the cplr or stub modules, so they need to be compiled for all versions of GSI (WRF, no-WRF, etc)
-  set(LINKED_SRC "${CMAKE_CURRENT_SOURCE_DIR}/gesinfo.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/get_gefs_ensperts_dualres.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/get_gefs_for_regional.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/read_guess.F90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/bkgcov.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/bicglanczos.F90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/bicg.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/set_crtm_cloudmod.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/crtm_interface.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/gsi_nemsio_mod.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/ensctl2model_ad.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/ensctl2model.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/ensctl2state.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/ensctl2state_ad.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/lanczos.F90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/getsiga.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/test_obsens.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/sqrtmin.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/evaljgrad.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/pcgsoi.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/en_perts_io.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/bkerror.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/hybrid_ensemble_isotropic.F90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/write_all.F90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/glbsoi.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/setupaod.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/setuprad.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/general_read_nmmb.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/general_read_nmmb_radar.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/get_nmmb_ensperts.f90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90" 
-   "${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90")
+# GSIMAIN_SRC is a list of Fortram main(s), to be used to define GSIEXEC,
+# and to be excluded from GSI libraries.
+  set(GSIMAIN_SRC
+    ${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90
+    ${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90
+  )
 
-# remove all stub, cplr and linked files from the rest of the source files
-  list( REMOVE_ITEM GSI_SRC ${LINKED_SRC} )
-  list( REMOVE_ITEM GSI_SRC ${STUB_SRC} )
-  list( REMOVE_ITEM GSI_SRC ${CPLR_SRC} )
+# GSIUTIL_SRC is a list of all Fortran modules as *base level* utilities.
+# This list can be extended to include any module, which depends (USEs)
+# only on module(s) already included in this list, in one of CORE_LIBRARIES,
+# or in one of system libraries.  Any module dynamically depending on external
+# libraries through configuration, such as WRF, NCDIAG, etc. should not be
+# included.
 
-# remove stub_nstmod from the rest of the source files
-  list( REMOVE_ITEM GSI_SRC "${CMAKE_CURRENT_SOURCE_DIR}/stub_nstmod.f90" )
+  set(GSIUTIL_SRC
+    ${CMAKE_CURRENT_SOURCE_DIR}/mpeu_util.F90
+    ${CMAKE_CURRENT_SOURCE_DIR}/mpimod.F90
+    ${CMAKE_CURRENT_SOURCE_DIR}/mpeu_mpif.F90
+    ${CMAKE_CURRENT_SOURCE_DIR}/kinds.F90
+  )
+
+# GSIFORT_SRC is a list of all Fortran modules for GSI core implementations,
+# after all configuration dependent code (some stub and cplr), base level
+# utilities, the main are removed from the rest of source files
+
+# Remove CLASS_SRC list related STUB_SRC and CPLR_SRC, as configurable
+# grid components
+  list( REMOVE_ITEM GSIFORT_SRC
+    ${STUB_SRC}
+    ${CPLR_SRC}
+    ${CMAKE_CURRENT_SOURCE_DIR}/gsi_fixture_REGIONAL.F90
+    ${CMAKE_CURRENT_SOURCE_DIR}/gsi_fixture_GFS.F90
+    ${CMAKE_CURRENT_SOURCE_DIR}/stub_nstmod.f90
+    ${GSIUTIL_SRC}
+    ${GSIMAIN_SRC}
+  )
+
+# remove NCDIAG, if it is a component built somewhere else.
   if( BUILD_NCDIAG )
-    list( REMOVE_ITEM GSI_SRC "${CMAKE_CURRENT_SOURCE_DIR}/nc_diag_read_mod.f90" )
-    list( REMOVE_ITEM GSI_SRC "${CMAKE_CURRENT_SOURCE_DIR}/nc_diag_write_mod.f90" )
+    list( REMOVE_ITEM GSIFORT_SRC "${CMAKE_CURRENT_SOURCE_DIR}/nc_diag_read_mod.f90" )
+    list( REMOVE_ITEM GSIFORT_SRC "${CMAKE_CURRENT_SOURCE_DIR}/nc_diag_write_mod.f90" )
   endif( BUILD_NCDIAG )
+
 # The specific regional/WRF source files
   if(USE_WRF)
-    set( REGIONAL_SRC ${CPLR_SRC} )
-    list( APPEND REGIONAL_SRC ${LINKED_SRC} )
-    set_source_files_properties( ${REGIONAL_SRC} PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS} )
+    list( APPEND GSIFORT_SRC
+	${CPLR_SRC}
+	${CMAKE_CURRENT_SOURCE_DIR}/gsi_fixture_REGIONAL.F90
+    )
   endif()
 
-# The non-WRF specific src files
-  set( GLOBAL_SRC ${CPLR_SRC} )
-  set( GLOBAL_SRC ${STUB_SRC} )
-  list( APPEND GLOBAL_SRC ${LINKED_SRC} )
-  
-  list( APPEND GSI_SRC  ${GSI_C_SRC} )
+# The specific global source files
+  if(BUILD_GLOBAL)
+    list( APPEND GSIFORT_SRC
+	${STUB_SRC}
+	${CMAKE_CURRENT_SOURCE_DIR}/gsi_fixture_GFS.F90
+    )
+  endif(BUILD_GLOBAL)
 
 # set up the compiler flags
-  set_source_files_properties( ${GSI_SRC} PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS} )
-  set_source_files_properties( ${GLOBAL_SRC} PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS} )
-  set_source_files_properties( ${GSI_C_SRC} PROPERTIES COMPILE_FLAGS ${GSI_CFLAGS} )
-# set_source_files_properties( ${CMAKE_CURRENT_SOURCE_DIR}/blockIO.c  PROPERTIES COMPILE_FLAGS ${GSI_CFLAGS} )
+  set_source_files_properties( ${GSIMAIN_SRC}	PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS} )
+  set_source_files_properties( ${GSIFORT_SRC}	PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS} )
+  set_source_files_properties( ${GSIUTIL_SRC}	PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS} )
+  set_source_files_properties( ${GSI_C_SRC}	PROPERTIES COMPILE_FLAGS ${GSI_CFLAGS} )
+
+  set( GSICORE_SRC ${GSIFORT_SRC} ${GSI_C_SRC} )
 
 # Add the include paths
   message("MPI include PATH  ${MPI_Fortran_INCLUDE_PATH}")
@@ -86,12 +88,9 @@ cmake_minimum_required(VERSION 2.8)
 
 #define the name used for GSI Shared lib and add it with properties and include dirs
   set(GSISHAREDLIB "gsilib_shrd${debug_suffix}" CACHE INTERNAL "")
-  add_library(${GSISHAREDLIB} STATIC ${GSI_SRC} )
+  add_library(${GSISHAREDLIB} STATIC ${GSIUTIL_SRC} )
   set_target_properties(${GSISHAREDLIB} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
   target_include_directories(${GSISHAREDLIB} PUBLIC "${PROJECT_BINARY_DIR}/include")
-  if( BUILD_NCDIAG )
-      add_dependencies(${GSISHAREDLIB} ${NCDIAG_LIBRARIES} )
-  endif( BUILD_NCDIAG )
 
 # Definte the base name of the executable 
   if(BUILD_PRODUCTION)
@@ -110,27 +109,30 @@ cmake_minimum_required(VERSION 2.8)
     set(GSIEXEC "${GSIBASE}${debug_suffix}${GSISUFFIX}" CACHE INTERNAL "GSI Executable Name")
     add_executable(${GSIEXEC} ${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90 ${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90 )
     set(GSILIB "gsilib_wrf${debug_suffix}" CACHE INTERNAL "")
-    add_library(${GSILIB} STATIC ${REGIONAL_SRC} )
-    set_target_properties(${GSILIB} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include/wrf")
-    target_include_directories(${GSILIB} PUBLIC "${PROJECT_BINARY_DIR}/include/wrf")
+    add_library(${GSILIB} STATIC ${GSICORE_SRC} )
+    set_target_properties(${GSILIB} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
+    target_include_directories(${GSILIB} PUBLIC "${PROJECT_BINARY_DIR}/include")
     set_target_properties(${GSIEXEC} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-    set_target_properties(${GSIEXEC} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include/wrf")
+    target_link_libraries( ${GSILIB} ${GSISHAREDLIB} ${wrflib} )
   endif()
 
   if(BUILD_GLOBAL)
     set(GSIEXEC "${GSIBASE}${debug_suffix}${GSISUFFIX}" CACHE INTERNAL "GSI Executable Name")
-    add_executable(${GSIEXEC} ${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90 ${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90 )
+    add_executable( ${GSIEXEC} ${GSIMAIN_SRC} )
     set(GSILIB "gsilib_global${debug_suffix}" CACHE INTERNAL "")
     set(WRF_LIBRARIES "")
-    add_library(${GSILIB} STATIC ${GLOBAL_SRC} )
-    target_link_libraries( ${GSISHAREDLIB} ${GSILIB} ${CORE_LIBRARIES})
-    target_link_libraries( ${GSILIB} ${CORE_LIBRARIES})
-    set_target_properties(gsilib_global PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-    target_include_directories(gsilib_global PUBLIC "${PROJECT_BINARY_DIR}/include")
+    add_library(${GSILIB} STATIC ${GSICORE_SRC} )
+    target_link_libraries( ${GSILIB} ${GSISHAREDLIB} )
     add_dependencies(${GSILIB} ${GSISHAREDLIB} )
+    target_link_libraries( ${GSISHAREDLIB} ${CORE_LIBRARIES})
+    set_target_properties( ${GSILIB} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
+    target_include_directories( ${GSILIB} PUBLIC "${PROJECT_BINARY_DIR}/include")
     set_target_properties(${GSIEXEC} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
   endif()
 
+  if( BUILD_NCDIAG )
+      add_dependencies(${GSILIB} ${NCDIAG_LIBRARIES} )
+  endif( BUILD_NCDIAG )
   add_dependencies(${GSILIB} ${GSISHAREDLIB} )
 
 # Add dependencies if we are building the core libs or are just using pre-built libs 

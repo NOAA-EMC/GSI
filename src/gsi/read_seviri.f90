@@ -27,6 +27,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !   2015-10-01  guo     - consolidate use of ob location (in deg)
+!   2018-05-21  j.jin   - added time-thinning. Moved the checking of thin4d into satthin.F90.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -56,15 +57,18 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       checkob,finalcheck,score_crit
+  use satthin, only: radthin_time_info,tdiff2crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,txy2ll,tll2xy,rlats,rlons
   use constants, only: deg2rad,zero,one,rad2deg,r60inv
   use obsmod, only: bmiss
+  use obsmod, only: time_window_max
   use radinfo, only: iuse_rad,jpch_rad,nusis
-  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use mpimod, only: npe
+  use mpimod, only: ierror,mpi_itype,mpi_sum
 ! use radiance_mod, only: rad_obs_type
   implicit none
 
@@ -104,7 +108,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   integer(i_kind),allocatable,dimension(:)::nrec
 
   real(r_kind) dg2ew,sstime,tdiff,t4dv,sfcr
-  real(r_kind) dlon,dlat,timedif,crit1,dist1
+  real(r_kind) dlon,dlat,crit1,dist1
   real(r_kind) dlon_earth,dlat_earth
   real(r_kind) dlon_earth_deg,dlat_earth_deg
   real(r_kind) pred
@@ -123,7 +127,13 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   integer(i_kind) ntest
 
   logical :: allchnmiss
+  real(r_kind)    :: ptime,timeinflat,crit0
+  integer(i_kind) :: ithin_time,n_tbin,it_mesh
 
+  integer(i_kind),allocatable,dimension(:):: randsd
+  integer(i_kind),allocatable,dimension(:):: subset_num, subset_nnsb
+  real(r_kind),   allocatable,dimension(:):: rd_tdiffs
+  integer(i_kind) :: sdsize,jrec,nnmsg,nnsb
 !**************************************************************************
 ! Initialize variables
   maxinfo=31
@@ -172,6 +182,12 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   end do search
   if (.not.assim) val_sev=zero
 
+  call radthin_time_info(obstype, jsatid, sis, ptime, ithin_time)
+  if( ptime > 0.0_r_kind) then
+     n_tbin=nint(2*time_window_max/ptime)
+  else
+     n_tbin=1
+  endif
 
 ! Open bufr file.
   call closbf(lnbufr)
@@ -200,7 +216,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   endif
 
 ! Make thinning grids
-  call makegrids(rmesh,ithin)
+  call makegrids(rmesh,ithin,n_tbin=n_tbin)
 
 ! Set BUFR string based on seviri data set
   if (clrsky) then
@@ -230,25 +246,39 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
 !  Reopen unit to bufr file
   call closbf(lnbufr)
-  open(lnbufr,file=infile,form='unformatted')
-  call openbf(lnbufr,'IN',lnbufr)
   if(jsatid == 'm08') kidsat = 55
   if(jsatid == 'm09') kidsat = 56
   if(jsatid == 'm10') kidsat = 57
   if(jsatid == 'm11') kidsat = 70
+  if( ithin_time == 5) then
+     call read_subset_nnsb
+  endif 
+  open(lnbufr,file=infile,form='unformatted')
+  call openbf(lnbufr,'IN',lnbufr)
 
   nrec=999999
   irec=0
   next=0
+  jrec=0
 ! Big loop over bufr file
   read_msg: do while (ireadmg(lnbufr,subset,idate) >= 0)
      irec=irec+1
      if(irec < nrec_start) cycle read_msg
+     if( ithin_time == 5) then
+        jrec=jrec+1
+        if (allocated(rd_tdiffs)) deallocate(rd_tdiffs)
+        allocate(rd_tdiffs(subset_nnsb(jrec)))
+        call random_number(harvest=rd_tdiffs) 
+     endif
      next=next+1
      if(next == npe_sub)next=0     
      if(next /= mype_sub)cycle
 
+     nnsb=0
      read_loop: do while (ireadsb(lnbufr) == 0)
+        if( ithin_time == 5) then
+           nnsb=nnsb+1
+        endif
 
 !       Read through each record
         call ufbint(lnbufr,hdr,nhdr,1,iret,hdrsevi)
@@ -313,14 +343,14 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         else
            if (abs(tdiff)>twind) cycle read_loop
         endif
-        if (thin4d) then
-           crit1=0.01_r_kind
-        else
-           timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
-           crit1=0.01_r_kind+timedif
-        endif
 
-        call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+        crit0=0.01_r_kind
+        timeinflat=6.0_r_kind
+        if( ithin_time == 5) then
+           tdiff = rd_tdiffs(nnsb)
+        endif
+        call tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
+        call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,it_mesh=it_mesh)
         if(.not. iuse)cycle read_loop
 
         nread=nread+nchanl
@@ -447,6 +477,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
 !    End of satellite read block
      enddo read_loop
+     if(allocated(rd_tdiffs)) deallocate(rd_tdiffs)
   enddo read_msg
   call closbf(lnbufr)
 
@@ -480,6 +511,8 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 ! Deallocate local arrays
   deallocate(data_all,nrec)
   deallocate(hdr,datasev2,datasev1)
+  if(allocated(subset_num)) deallocate(subset_num)
+  if(allocated(subset_nnsb)) deallocate(subset_nnsb)
 
 ! Deallocate satthin arrays
   call destroygrids
@@ -495,5 +528,57 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
      'mype,ntest,disterrmax=',mype,ntest,disterrmax
 
 ! End of routine
-  return
+!  return
+
+ contains
+   subroutine  read_subset_nnsb
+     implicit none
+     open(lnbufr,file=infile,form='unformatted')
+     call openbf(lnbufr,'IN',lnbufr)
+     call random_seed(size=sdsize)
+     allocate(randsd(sdsize))
+     do i=1,sdsize
+        randsd(i)=int(gstime,i_kind)+kidsat
+     end do
+     call random_seed(put=randsd)
+     deallocate(randsd)
+
+     nnmsg=0
+     irec=0
+     read_msg1: do while (ireadmg(lnbufr,subset,idate) >= 0)
+        irec=irec+1
+        if(irec < nrec_start) cycle read_msg1
+        nnmsg=nnmsg+1
+     enddo read_msg1
+     call closbf(lnbufr)
+
+     allocate(subset_num(nnmsg))
+     allocate(subset_nnsb(nnmsg))
+     subset_num=0
+     subset_nnsb=0
+     open(lnbufr,file=infile,form='unformatted')
+     call openbf(lnbufr,'IN',lnbufr)
+     nnmsg=0
+     irec=0
+     next=0
+     read_msg2: do while (ireadmg(lnbufr,subset,idate) >= 0)
+        irec=irec+1
+        if(irec < nrec_start) cycle read_msg2
+        nnmsg=nnmsg+1
+        next=next+1
+        if(next == npe_sub)next=0     
+        if(next /= mype_sub)cycle read_msg2
+        nnsb=0
+        read_loop2: do while (ireadsb(lnbufr) == 0)
+           nnsb=nnsb+1
+        enddo read_loop2
+        subset_num(nnmsg)=nnsb
+     enddo read_msg2
+     call closbf(lnbufr)
+     if (npe_sub > 1 ) then 
+        call mpi_allreduce(subset_num, subset_nnsb, nnmsg,mpi_itype,mpi_sum,mpi_comm_sub,ierror)
+     else
+        subset_nnsb = subset_num
+     endif
+   end subroutine  read_subset_nnsb
 end subroutine read_seviri

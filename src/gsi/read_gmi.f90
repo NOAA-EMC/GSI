@@ -41,8 +41,20 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 !   2016-07-25  ejones  - increase maxobs, remove fov binning, make most arrays
 !                         static
 !   2016-03-11  guo     - Refixed dlxx_earth_deg, for the new dlxx_earth_save(:).
+!   2016-03-22  j.jin   - Set a range (0-360 degree) for satellite and Sun azimuth
+!                         angles.
 !   2016-10-05  acollard -Fix interaction with NSST.
 !   2017-01-03  todling - treat save arrays as allocatable
+!   2017-08-03  j.jin   - Re-implement the writing out geoinformation for GMI channel 10-13.
+!                         The information is needed for the processing of 1CR data, and 
+!                         should not have beend taken out.  Note: Use the same 
+!                         sun_zenith and sun_azimuth angles for ch10-13 as for ch1-9. 
+!                       - Check bufr formats while reading because of different formats
+!                         at GMAO and NOAA. Eventually the research bufr data set will be
+!                         the same at the operational one.
+!   2017-08-10  j.jin   - Bug fix: crit1 should not have been initialized as zero (when thin4d=True).
+!   2017-08-19  j.jin   - Keep the binning of ifov by 3 independent of adp_anglebc=True or False.
+!   2018-05-21  j.jin   - Added time-thinning.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -76,23 +88,25 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 !                         within a FOV. When it is equal to one, integrate
 !                         model fields over a FOV. When it is not equal to one, bilinearly
 !                         interpolate model fields at a FOV center.)
+!
 !$$$  end documentation block
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       checkob,finalcheck,score_crit
+  use satthin, only: radthin_time_info,tdiff2crit
+  use obsmod, only: time_window_max
   use radinfo, only: iuse_rad,jpch_rad,nusis,use_edges, &
                      radedge1,radedge2,gmi_method
   use gridmod, only: diagnostic_reg,regional,rlats,rlons,nlat,nlon,&
       tll2xy,txy2ll
   use constants, only: deg2rad,rad2deg,zero,one,two,three,four,r60inv,rearth
-  use gsi_4dvar, only: l4dvar,iwinbgn,winlen,l4densvar,thin4d
-  use deter_sfc_mod, only: deter_sfc
+  use gsi_4dvar, only: l4dvar,iwinbgn,winlen,l4densvar
+  use deter_sfc_mod, only: deter_sfc,deter_sfc_gmi
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use ssmis_spatial_average_mod, only : ssmis_spatial_average
   use m_sortind
   use mpimod, only: npe
-! use radiance_mod, only: rad_obs_type
 
   implicit none
 
@@ -159,7 +173,6 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   real(r_kind) :: sfcr
   real(r_kind) :: sstime,tdiff
   real(r_kind) :: dist1    
-  real(r_kind) :: timedif
   real(r_kind),allocatable,dimension(:,:):: data_all
   integer(i_kind),allocatable,dimension(:)::nrec
 
@@ -169,6 +182,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   integer(i_kind),dimension(5):: iobsdate
   integer(i_kind):: method,iobs,num_obs
   integer(i_kind),parameter   :: maxobs=4000000
+  !-- integer(i_kind),parameter   :: nscan=74       ! after binning ifov, 221/3 + 1
   integer(i_kind),parameter   :: nscan=221
 
   real(r_kind):: flgch
@@ -194,6 +208,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   integer(i_kind),target,allocatable,dimension(:) :: iscan_save
   integer(i_kind),target,allocatable,dimension(:) :: iorbn_save
   integer(i_kind),target,allocatable,dimension(:) :: inode_save
+  integer(i_kind),target,allocatable,dimension(:) :: it_mesh_save
   real(r_kind),target,allocatable,dimension(:)    :: dlon_earth_save
   real(r_kind),target,allocatable,dimension(:)    :: dlat_earth_save
   real(r_kind),target,allocatable,dimension(:)    :: sat_zen_ang_save,sat_azimuth_ang_save,sat_scan_ang_save
@@ -213,11 +228,14 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
              31,31,30,31,30,31/
 
   integer(i_kind) :: pos_max      
-  integer(i_kind),dimension(nscan)  :: pos_statis
+  integer(i_kind),allocatable       :: pos_statis(:)
   integer(i_kind),allocatable       :: npos_all(:,:)
 
 ! ---- skip some obs at the beginning and end of a scan ----
   integer(i_kind):: radedge_min,radedge_max,iscan_pos,iedge_log,j2
+  real(r_kind)    :: ptime,timeinflat,crit0
+  integer(i_kind) :: ithin_time,n_tbin
+  integer(i_kind),pointer:: it_mesh => null()
 
 !**************************************************************************
 
@@ -257,7 +275,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   if(jsatid == 'gpm')bufsat=288         ! Satellite ID (WMO as of 03Jun2014)
   tbmax = 320.0_r_kind                  ! one value for all tmi channels (see data document).
 
-  maxinfo=31
+  maxinfo=37
   if(dval_use) maxinfo = maxinfo+2
   nchanl = 13                         ! 13 channls
   nchanla = 9                         ! first 9 channels
@@ -292,8 +310,14 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   if (.not.assim) val_gmi=zero
 
 
+  call radthin_time_info(obstype, jsatid, sis, ptime, ithin_time)
+  if( ptime > 0.0_r_kind) then
+     n_tbin=nint(2*time_window_max/ptime)
+  else
+     n_tbin=1
+  endif
 ! Make thinning grids
-  call makegrids(rmesh,ithin)
+  call makegrids(rmesh,ithin,n_tbin=n_tbin)
 
   inode_save = 0
 
@@ -302,10 +326,24 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
 
+!This block may be needed if used at GMAO, for its gmi data.
+!Extract satellite id from the 1st MG.  If it is not the one we want, exit reading.
+  call readmg(lnbufr, subset, iret, idate)
+  rd_loop: do while (ireadsb(lnbufr)==0)
+
+    call ufbint(lnbufr,satinfo_v,ninfo,1,iret,satinfo)
+    if(nint(satinfo_v(1)) /= bufsat) then 
+      write(6,*) 'READ_GMI: Bufr satellie ID SAID', nint(satinfo_v(1)), &
+                 ' does not match ', bufsat
+      go to 690   ! skip to the end of read_subset block
+    endif
+  enddo rd_loop
+
 ! Big loop to read data file
   next=0
   irec=0
   iobs=1
+  nrec=999999
 
   read_subset: do while(ireadmg(lnbufr,subset,idate)>=0) ! GMI scans
      irec=irec+1
@@ -324,6 +362,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
         dlon_earth  => dlon_earth_save(iobs)
         dlat_earth  => dlat_earth_save(iobs)
         crit1       => crit1_save(iobs)
+        it_mesh     => it_mesh_save(iobs)
         ifov        => ifov_save(iobs)
         iscan       => iscan_save(iobs)
         iorbn       => iorbn_save(iobs)
@@ -339,6 +378,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
         call ufbrep(lnbufr,fovn,1, 1,iret, strfovn)
         call ufbrep(lnbufr,slnm,1, 1,iret, strslnm)
         ifov  = nint(fovn)
+        !-- ifov  = ifov/3_i_kind + 1.0_r_kind
         iscan = nint(slnm)
         if (.not. use_edges .and. &
              (ifov < radedge_min .OR. ifov > radedge_max )) then
@@ -360,17 +400,19 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
            if(abs(tdiff) > twind) then 
              cycle read_loop             
            endif                        
-
         endif
 
+        crit0=0.01_r_kind
+        timeinflat=6.0_r_kind
+        call tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
 
 ! ----- Read header record to extract obs location information  
-        call ufbint(lnbufr,midat,nloc,1,iret,'SCLAT SCLON HMSL')
-        call ufbrep(lnbufr,gmichq,1,nchanl,iret,'TPQC2')
-        call ufbrep(lnbufr,gmirfi,1,nchanl,iret,'VIIRSQ')
-        call ufbrep(lnbufr,pixelsaza,1,ngs,iret,strsaza)
-        call ufbrep(lnbufr,val_angls,n_angls,ngs,iret,str_angls)
-        call ufbint(lnbufr,pixelloc,2, 1,iret,strloc)
+          call ufbint(lnbufr,midat,nloc,1,iret,'SCLAT SCLON HMSL')
+          call ufbrep(lnbufr,gmichq,1,nchanl,iret,'GMICHQ')
+          call ufbrep(lnbufr,gmirfi,1,nchanl,iret,'GMIRFI')
+          call ufbrep(lnbufr,pixelsaza,1,ngs,iret,'SAZA')
+          call ufbrep(lnbufr,val_angls,n_angls,ngs,iret,'SAMA SZA SMA SGA')
+          call ufbint(lnbufr,pixelloc,2, 1,iret,'CLATH CLONH')
 
 !---    Extract brightness temperature data.  Apply gross check to data. 
 !       If obs fails gross check, reset to missing obs value.
@@ -416,6 +458,10 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
         ! output solar zenith angles are between -90 and 90
         ! make sure solar zenith angles are between 0 and 180
         sun_zenith = 90.0_r_kind-sun_zenith
+        ! Make sure satellite's and Sun's azimuth angles are within 0-360 degree.
+        if( sat_azimuth_ang < 0_r_kind ) sat_azimuth_ang = sat_azimuth_ang + 360_r_kind
+        if( sun_azimuth_ang < 0_r_kind ) sun_azimuth_ang = sun_azimuth_ang + 360_r_kind
+!        if( sat_azimuth_ang2< 0_r_kind ) sat_azimuth_ang2= sat_azimuth_ang2+ 360_r_kind
         
 !          If use_swath_edge is true, set missing ch10-13 TBs to 500, so they
 !          can be tossed in gross check while ch1-9 TBs go through. If
@@ -449,12 +495,6 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
         nread=nread + (nchanl - nchanla)
 
         flgch = 0
-        if (thin4d) then
-           crit1 = zero
-        else
-           timedif = 6.0_r_kind*abs(tdiff) ! range: 0 to 18
-           crit1 = timedif
-        endif
 
         iobs=iobs+1
      end do read_loop
@@ -463,7 +503,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   call closbf(lnbufr)
   
   num_obs=iobs-1
-
+  if( mype_sub==mype_root) write(6,*) 'READ_GMI: do_noise_reduction=', do_noise_reduction
   if (do_noise_reduction) then
 
 !    Sort time in ascending order and get sorted index
@@ -480,6 +520,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
      dlon_earth_save(1:num_obs)          = dlon_earth_save(sorted_index)
      dlat_earth_save(1:num_obs)          = dlat_earth_save(sorted_index)
      crit1_save(1:num_obs)               = crit1_save(sorted_index)
+     it_mesh_save(1:num_obs)             = it_mesh_save(sorted_index)
      ifov_save(1:num_obs)                = ifov_save(sorted_index)
      iscan_save(1:num_obs)               = iscan_save(sorted_index)
      iorbn_save(1:num_obs)               = iorbn_save(sorted_index)
@@ -528,6 +569,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
      dlon_earth  => dlon_earth_save(iobs)
      dlat_earth  => dlat_earth_save(iobs)
      crit1       => crit1_save(iobs)
+     it_mesh     => it_mesh_save(iobs)
      ifov        => ifov_save(iobs)
      iscan       => iscan_save(iobs)
      iorbn       => iorbn_save(iobs)
@@ -582,7 +624,8 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
     endif
 
 !   Map obs to thinning grid
-    call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+    call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,it_mesh=it_mesh)
+
     if(.not. iuse) then
       cycle obsloop
     endif
@@ -619,6 +662,8 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 
     call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
          ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+    call deter_sfc_gmi(dlat_earth,dlon_earth,isflg,sfcpct)
+
 
 !   Only keep obs over ocean    - ej
     if(isflg /= 0) cycle obsloop
@@ -678,10 +723,16 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
     data_all(29,itx)= ff10                 ! ten meter wind factor
     data_all(30,itx)= dlon_earth_deg       ! earth relative longitude (degrees)
     data_all(31,itx)= dlat_earth_deg       ! earth relative latitude (degrees)
+    data_all(iedge_log,itx) = 0            ! =0, not to be obsoleted at scan edges
+    data_all(33,itx) = sat_zen_ang2        ! local (satellite) zenith angle (radians)
+    data_all(34,itx) = sat_azimuth_ang2    ! local (satellite) azimuth_ang angle (degrees)
+    data_all(35,itx) = sat_scan_ang2       ! scan(look) angle (rad)
+    data_all(36,itx) = sun_zenith          ! solar zenith angle (deg)
+    data_all(37,itx) = sun_azimuth_ang     ! solar azimuth_ang angle (deg)
 
     if(dval_use) then
-       data_all(32,itx)= val_gmi
-       data_all(33,itx)= itt
+       data_all(maxinfo-1,itx)= val_gmi
+       data_all(maxinfo,itx)= itt
     end if
 
     if(nst_gsi>0) then
@@ -701,7 +752,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 ! information it retained and then let single task merge files together
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
      nele,itxmax,nread,ndata,data_all,score_crit,nrec)
-  write(6,*) 'READ_GMI: after combine_obs, nread,ndata is ',nread,ndata
+  if( mype_sub==mype_root) write(6,*) 'READ_GMI: after combine_obs, nread,ndata is ',nread,ndata
 
 !=========================================================================================================
   if( use_edges .and. (radedge_min > 1 .or. radedge_max < nscan).and. mype_sub==mype_root )then !nscan instead of ang_nn
@@ -713,6 +764,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
     !       JJJ, 2/12/2014
      pos_max=ndata  
      allocate(npos_all(pos_max,nscan))
+     allocate(pos_statis(nscan))
      npos_all = 0
      pos_statis = 0
      do n=1,ndata
@@ -768,6 +820,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
      enddo
      write(6,*) 'READ_', trim(obstype), ': after obsolete_obs near edges, ndata ', sum(pos_statis)
      deallocate(npos_all)
+     deallocate(pos_statis)
   endif ! use_edges, but flag part of obs at the scan edges with negative FOV values.
 !=========================================================================================================
 
@@ -828,6 +881,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   allocate(sat_zen_ang2_save(maxobs),sat_azimuth_ang2_save(maxobs),sat_scan_ang2_save(maxobs))
   allocate(t4dv_save(maxobs))
   allocate(crit1_save(maxobs))
+  allocate(it_mesh_save(maxobs))
   allocate(tbob_save(maxchanl,maxobs))
   allocate(sun_zenith_save(maxobs),sun_azimuth_ang_save(maxobs))
  end subroutine init_
@@ -835,6 +889,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   deallocate(sun_zenith_save,sun_azimuth_ang_save)
   deallocate(tbob_save)
   deallocate(crit1_save)
+  deallocate(it_mesh_save)
   deallocate(t4dv_save)
   deallocate(sat_zen_ang2_save,sat_azimuth_ang2_save,sat_scan_ang2_save)
   deallocate(sat_zen_ang_save,sat_azimuth_ang_save,sat_scan_ang_save)

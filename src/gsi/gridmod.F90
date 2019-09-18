@@ -148,6 +148,7 @@ module gridmod
   public :: jcap,jcap_b,hires_b,sp_a,grd_a
   public :: jtstart,jtstop,nthreads
   public :: use_gfs_nemsio
+  public :: fv3_full_hydro  
   public :: sfcnst_comb
   public :: use_readin_anl_sfcmask
   public :: jcap_gfs,nlat_gfs,nlon_gfs
@@ -184,6 +185,7 @@ module gridmod
   logical update_regsfc     !
   logical hires_b           ! .t. when jcap_b requires double FFT
   logical use_gfs_nemsio    ! .t. for using NEMSIO to real global first guess
+  logical fv3_full_hydro    ! .t. for using NEMSIO to real global first guess
   logical sfcnst_comb       ! .t. for using combined sfc & nst file
   logical use_sp_eqspace    ! .t. use equally-space grid in spectral transforms
 
@@ -476,6 +478,7 @@ contains
     nthreads = 1  ! initialize the number of threads
 
     use_gfs_nemsio  = .false.
+    fv3_full_hydro  = .false. 
     sfcnst_comb = .false.
     use_readin_anl_sfcmask = .false.
 
@@ -504,6 +507,7 @@ contains
     use mpeu_util, only: getindex
     use general_specmod, only: spec_cut
     use gsi_io, only: verbose
+    use gsi_metguess_mod, only: gsi_metguess_get
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -544,6 +548,8 @@ contains
     integer(i_kind) i,k,inner_vars,num_fields
     integer(i_kind) n3d,n2d,nvars,tid,nth
     integer(i_kind) ipsf,ipvp,jpsf,jpvp,isfb,isfe,ivpb,ivpe
+    integer(i_kind) istatus,icw,iql,iqi
+    integer(i_kind) icw_cv,iql_cv,iqi_cv
     logical,allocatable,dimension(:):: vector
     logical print_verbose
 
@@ -563,6 +569,17 @@ contains
     n3d  =size(cvars3d)
     n2d  =size(cvars2d)
     nvars=size(cvars)
+
+    icw_cv = getindex(cvars3d(1:n3d),'cw')
+    iql_cv = getindex(cvars3d(1:n3d),'ql')
+    iqi_cv = getindex(cvars3d(1:n3d),'qi')
+    call gsi_metguess_get('var::cw', icw, istatus)
+    call gsi_metguess_get('var::ql', iql, istatus)
+    call gsi_metguess_get('var::qi', iqi, istatus)
+    fv3_full_hydro = ( iql>0    .and. iqi>0    .and. (.not. icw>0)   ) .and. &
+                     ( iql_cv>0 .and. iqi_cv>0 .and. (.not. icw_cv>0))
+
+    if (mype==0) write(6,*) myname, ' fv3_full_hydro ', fv3_full_hydro
 
 ! Allocate and initialize variables for mapping between global
 ! domain and subdomains

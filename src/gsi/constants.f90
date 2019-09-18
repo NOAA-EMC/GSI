@@ -58,6 +58,7 @@ module constants
   public :: one,two,half,zero,deg2rad,pi,three,quarter,one_tenth
   public :: rad2deg,zero_quad,r3600,r1000,r60inv,five,four,rd_over_cp,grav
   public :: rd,rv,rozcon,rearth_equator,zero_single,tiny_r_kind,tiny_single,ten
+  public :: cvap,cliq,csol
   public :: omega,rcp,rearth,fv,h300,cp,cg_term,tpwcon,xb,ttp,psatk,xa,tmix
   public :: xai,xbi,psat,eps,omeps,wgtlim,one_quad,two_quad,epsq,climit,epsm1,hvap
   public :: hsub,cclimit,el2orc,elocp,h1000,cpr,pcpeff0,pcpeff2,delta,pcpeff1
@@ -75,6 +76,7 @@ module constants
   public :: z_w_max,tfrozen
   public :: qmin,qcmin,tgmin
   public :: i_missing, r_missing
+  public :: tice,t_wfr,e00,rvgas,rdgas,hlv,hlf,cp_vap,c_liq,c_ice,cp_air,cv_air
 
   public :: izero, qimin, qsmin, qgmin,qrmin
   public :: partialSnowThreshold
@@ -187,6 +189,19 @@ module constants
   real(r_kind),parameter::  tmix = ttp-20._r_kind
   real(r_kind),parameter::  elocp = hvap/cp
   real(r_kind),parameter::  rcp  = one/cp
+
+  real(r_kind),parameter::  tice   = t0c               ! temperature at 0 deg C [K]   
+  real(r_kind),parameter::  t_wfr  = t0c - 40.0_r_kind ! homogeneous freezing temperature  
+  real(r_kind),parameter::  e00    = psat              ! saturation vapor pressure at 0 deg C (611.21 Pa)
+  real(r_kind),parameter::  hlv    = hvap              ! latent heat of evaporation     
+  real(r_kind),parameter::  hlf    = hfus              ! latent heat of fusion     
+  real(r_kind),parameter::  cp_vap = cvap              ! heat capacity of water vapor at const. pressure     
+  real(r_kind),parameter::  rvgas  = 4.6150e+2_r_kind  ! gas constant for waver vapor     
+  real(r_kind),parameter::  rdgas  = 2.8705e+2_r_kind  ! gas constant for dry air 
+  real(r_kind),parameter::  c_liq  = 4.1855e+3_r_kind  ! heat capacity of water at 15 deg C     
+  real(r_kind),parameter::  c_ice  = 1972.0_r_kind     ! heat capacity of ice at -15 deg C  (csol)
+  real(r_kind),parameter::  cp_air = 1.0046e+3_r_kind  ! heat capacity of dry air at constant pressure (hydrostatic)
+  real(r_kind),parameter::  cv_air = cp_air - rdgas    ! heat capacity of dry air at constant volume (non-hydrostatic)
 
 ! Constants used in GFS moist physics
   real(r_kind),parameter::  h300 = 300._r_kind

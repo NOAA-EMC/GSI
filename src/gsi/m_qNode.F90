@@ -23,8 +23,8 @@ module m_qNode
 !$$$  end subprogram documentation block
 
 ! module interface:
-  use obsmod, only: obs_diag
-  use obsmod, only: obs_diags
+  use m_obsdiagNode, only: obs_diag
+  use m_obsdiagNode, only: obs_diags
   use kinds , only: i_kind,r_kind
   use mpeu_util, only: assert_,die,perr,warn,tell
   use m_obsNode, only: obsNode
@@ -55,6 +55,9 @@ module m_qNode
      !real   (r_kind) :: elat, elon      ! earth lat-lon for redistribution
      !real   (r_kind) :: dlat, dlon      ! earth lat-lon for redistribution
      real   (r_kind) :: dlev            ! reference to the vertical grid
+
+     integer(i_kind) :: ich0=0  ! ich code to mark derived data.  See
+                                ! qNode_ich0 and qNode_ich0_PBL_Pseudo below
   contains
     procedure,nopass::  mytype
     procedure::  setHop => obsNode_setHop_
@@ -74,6 +77,19 @@ module m_qNode
         interface qNode_typecast; module procedure typecast_ ; end interface
         interface qNode_nextcast; module procedure nextcast_ ; end interface
 
+  public:: qNode_appendto
+        interface qNode_appendto; module procedure appendto_ ; end interface
+
+  ! Because there are two components in qNode for an ordinary wind obs,
+  ! ich values are set to (1,2).  Therefore, ich values for PBL_pseudo_surfobsUV
+  ! are set to (3,4), and qNode_ich0_pbl_pseudo is set to 2.
+
+  public:: qNode_ich0
+  public:: qNode_ich0_PBL_pseudo
+
+        integer(i_kind),parameter :: qNode_ich0            = 0             ! ich=0+1
+        integer(i_kind),parameter :: qNode_ich0_PBL_pseudo = qNode_ich0+1  ! ich=1+1
+
   character(len=*),parameter:: MYNAME="m_qNode"
 
 #include "myassert.H"
@@ -83,16 +99,14 @@ function typecast_(aNode) result(ptr_)
 !-- cast a class(obsNode) to a type(qNode)
   use m_obsNode, only: obsNode
   implicit none
-  type(qNode),pointer:: ptr_
+  type(qNode   ),pointer:: ptr_
   class(obsNode),pointer,intent(in):: aNode
-  character(len=*),parameter:: myname_=MYNAME//"::typecast_"
   ptr_ => null()
   if(.not.associated(aNode)) return
+        ! logically, typecast of a null-reference is a null pointer.
   select type(aNode)
   type is(qNode)
     ptr_ => aNode
-  class default
-    call die(myname_,'unexpected type, aNode%mytype() =',aNode%mytype())
   end select
 return
 end function typecast_
@@ -101,14 +115,28 @@ function nextcast_(aNode) result(ptr_)
 !-- cast an obsNode_next(obsNode) to a type(qNode)
   use m_obsNode, only: obsNode,obsNode_next
   implicit none
-  type(qNode),pointer:: ptr_
-  class(obsNode),target,intent(in):: aNode
+  type(qNode   ),pointer:: ptr_
+  class(obsNode),target ,intent(in):: aNode
 
-  class(obsNode),pointer:: anode_
-  anode_ => obsNode_next(aNode)
-  ptr_ => typecast_(anode_)
+  class(obsNode),pointer:: inode_
+  inode_ => obsNode_next(aNode)
+  ptr_ => typecast_(inode_)
 return
 end function nextcast_
+
+subroutine appendto_(aNode,oll)
+!-- append aNode to linked-list oLL
+  use m_obsNode , only: obsNode
+  use m_obsLList, only: obsLList,obsLList_appendNode
+  implicit none
+  type(qNode),pointer,intent(in):: aNode
+  type(obsLList),intent(inout):: oLL
+
+  class(obsNode),pointer:: inode_
+  inode_ => aNode
+  call obsLList_appendNode(oLL,inode_)
+  inode_ => null()
+end subroutine appendto_
 
 ! obsNode implementations
 
@@ -154,6 +182,7 @@ _ENTRY_(myname_)
                                 aNode%k1     , &
                                 aNode%kx     , &
                                 aNode%dlev   , &
+                                aNode%ich0   , &
                                 aNode%wij    , &
                                 aNode%ij
                 if (istat/=0) then
@@ -162,10 +191,11 @@ _ENTRY_(myname_)
                   return
                 end if
 
-    aNode%diags => obsdiagLookup_locate(diagLookup,aNode%idv,aNode%iob,1_i_kind)
+    aNode%diags => obsdiagLookup_locate(diagLookup,aNode%idv,aNode%iob,aNode%ich0+1_i_kind)
                 if(.not.associated(aNode%diags)) then
                   call perr(myname_,'obsdiagLookup_locate(), %idv =',aNode%idv)
                   call perr(myname_,'                        %iob =',aNode%iob)
+                  call perr(myname_,'                       %ich0 =',aNode%ich0)
                   call  die(myname_)
                 endif
   endif
@@ -193,6 +223,7 @@ _ENTRY_(myname_)
                                 aNode%k1     , &
                                 aNode%kx     , &
                                 aNode%dlev   , &
+                                aNode%ich0   , &
                                 aNode%wij    , &
                                 aNode%ij
                 if (jstat/=0) then

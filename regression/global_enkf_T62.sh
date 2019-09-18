@@ -142,8 +142,6 @@ $ncp $btable_t           ./btable_t
 $ncp $btable_q           ./btable_q
 $ncp $btable_uv           ./btable_uv
 
-
-
 # Copy ensemble data to $tmpdir
 list="cnvstat oznstat radstat"
 

@@ -30,6 +30,7 @@ use m_obsNode, only: obsNode
 use m_pwNode, only: pwNode
 use m_pwNode, only: pwNode_typecast
 use m_pwNode, only: pwNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -157,9 +158,11 @@ subroutine intpw_(pwhead,rval,sval)
      if(luse_obsdiag)then
         if (lsaveobsens) then
            grad = val*pwptr%raterr2*pwptr%err2
-           pwptr%diags%obssen(jiter) = grad
+           !-- pwptr%diags%obssen(jiter) = grad
+           call obsdiagNode_set(pwptr%diags,jiter=jiter,obssen=grad)
         else
-           if (pwptr%luse) pwptr%diags%tldepart(jiter)=val
+           !-- if (pwptr%luse) pwptr%diags%tldepart(jiter)=val
+           if (pwptr%luse) call obsdiagNode_set(pwptr%diags,jiter=jiter,tldepart=val)
         endif
      end if
 

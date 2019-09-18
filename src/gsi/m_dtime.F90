@@ -203,7 +203,7 @@ subroutine dtime_show(who,what,it)
      call tell(who,what//' '//trim(bufr))
 
 #else
-     call tell(who,what//', iobs_type=',it)
+     call tell(who,what//', iobs_stream=',it)
      call tell(who,what//', nt=',nt)
      call tell(who,what//', at=',at)
 

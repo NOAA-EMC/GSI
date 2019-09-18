@@ -23,6 +23,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !   2015-10-01  guo      - calc ob location once in deg
+!   2018-05-21  j.jin    - added time-thinning. Moved the checking of thin4d into satthin.F90.
 !
 !   input argument list:
 !     obstype  - observation type to process
@@ -59,9 +60,11 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   use chemmod,   only: aod_qa_limit, luse_deepblue
   use constants, only: deg2rad, zero, two, three, four, r60inv
   use obsmod,    only: rmiss_single
-  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use satthin,   only: itxmax,makegrids,destroygrids,checkob, &
       finalcheck,map2tgrid,score_crit
+  use satthin,   only: radthin_time_info,tdiff2crit
+  use obsmod,    only: time_window_max
   use mpimod, only: npe
   implicit none
 !
@@ -139,7 +142,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
   integer(i_kind) :: itx, itt, irec
 
-  real(r_kind) :: tdiff, sstime, dlon, dlat, t4dv, timedif, crit1, dist1
+  real(r_kind) :: tdiff, sstime, dlon, dlat, t4dv, crit1, dist1
   real(r_kind) :: slons0, slats0, rsat, solzen, azimuth, dlat_earth, dlon_earth
   real(r_kind) :: dlat_earth_deg, dlon_earth_deg
   real(r_kind) :: styp, dbcf, qaod
@@ -151,7 +154,8 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   real(r_double), dimension( 10) :: hdraerog
   real(r_double)                 :: aod_550
   real(r_double), dimension(3)   :: aod_flags
-
+  real(r_kind)    :: ptime,timeinflat,crit0
+  integer(i_kind) :: ithin_time,n_tbin,it_mesh
 !**************************************************************************
 ! Set constants.  Initialize variables
   rsat=999._r_kind
@@ -172,8 +176,14 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   rlndsea(6) = 35._r_kind  ! styp 6: nnr land
 
 
+  call radthin_time_info(obstype, jsatid, sis, ptime, ithin_time)
+  if( ptime > 0.0_r_kind) then
+     n_tbin=nint(2*time_window_max/ptime)
+  else
+     n_tbin=1
+  endif
 ! Make thinning grids
-  call makegrids(rmesh,ithin)
+  call makegrids(rmesh,ithin,n_tbin=n_tbin)
 
   if ( obstype == 'modis_aod' ) then
 !
@@ -266,14 +276,6 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
               nread = nread + 1   !nread = nread + nchanl
 
-              if (thin4d) then
-                 timedif = zero
-              else
-                 timedif = two*abs(tdiff)        ! range:  0 to 6
-              endif
-
-              crit1 = 0.01_r_kind + timedif
-
               if ( aod_550 > 1.0e+10_r_double ) cycle read_modis
 
               ! extract STYP, DBCF, and QAOD
@@ -289,7 +291,10 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
               if ( qaod < aod_qa_limit ) cycle read_modis
 
               ! Map obs to thinning grid
-              call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+              crit0 = 0.01_r_kind 
+              timeinflat=two
+              call tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
+              call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,it_mesh=it_mesh)
               if ( .not. iuse ) cycle read_modis
 
               if ( (styp > rmiss_single) .and. (styp >= zero .and. styp <= four) ) then

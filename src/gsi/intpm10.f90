@@ -26,6 +26,8 @@ module intpm10mod
   use m_pm10Node, only: pm10Node
   use m_pm10Node, only: pm10Node_typecast
   use m_pm10Node, only: pm10Node_nextcast
+  use m_obsdiagNode, only: obsdiagNode_get
+  use m_obsdiagNode, only: obsdiagNode_set
   implicit none
   
   private
@@ -338,15 +340,18 @@ contains
 
           if(luse_obsdiag)then
              if (lsaveobsens) then
-                pm10ptr%diags%obssen(jiter) = val*pm10ptr%raterr2*pm10ptr%err2
+                !-- pm10ptr%diags%obssen(jiter) = val*pm10ptr%raterr2*pm10ptr%err2
+                call obsdiagNode_set(pm10ptr%diags,jiter=jiter,obssen=val*pm10ptr%raterr2*pm10ptr%err2)
              else
-                if (pm10ptr%luse) pm10ptr%diags%tldepart(jiter)=val
+                !-- if (pm10ptr%luse) pm10ptr%diags%tldepart(jiter)=val
+                if (pm10ptr%luse) call obsdiagNode_set(pm10ptr%diags,jiter=jiter,tldepart=val)
              endif
           endif
 
           if (l_do_adjoint) then
              if (lsaveobsens) then
-                grad = pm10ptr%diags%obssen(jiter)
+                !-- grad = pm10ptr%diags%obssen(jiter)
+                call obsdiagNode_get(pm10ptr%diags,jiter=jiter,obssen=grad)
 
              else
                 if( .not. ladtest_obs ) val=val-pm10ptr%res

@@ -258,7 +258,7 @@ subroutine cloud_calc(p0d,q1d,t1d,clwmr,fice,frain,frimef,&
   return
 end subroutine cloud_calc
 
-subroutine cloud_calc_gfs(g_ql,g_qi,g_cwmr,g_q,g_tv,lower_bound) 
+subroutine cloud_calc_gfs(g_ql,g_qi,g_cwmr,g_q,g_tv,lower_bound,g_cf)  
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    cloud_calc_gfs     calculate cloud mixing ratio
@@ -272,6 +272,7 @@ subroutine cloud_calc_gfs(g_ql,g_qi,g_cwmr,g_q,g_tv,lower_bound)
 !   2014-11-28 zhu  - assign cwgues0 in this subroutine;
 !                   - set lower bound to cloud after assigning cwgues0,change atrribute of g_cwmr
 !   2016-04-28 eliu - remove cwgues0 to read_gfs subroutine in ncegfs_io.f90
+!   2019-06-06 eliu - add handling for cloud fraction 
 
 
   use gridmod, only: lat2,lon2,nsig
@@ -284,6 +285,7 @@ subroutine cloud_calc_gfs(g_ql,g_qi,g_cwmr,g_q,g_tv,lower_bound)
   real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: g_cwmr ! mixing ratio of total condensates [Kg/Kg]
   real(r_kind),dimension(lat2,lon2,nsig),intent(in   ):: g_q    ! specific humidity [Kg/Kg]
   real(r_kind),dimension(lat2,lon2,nsig),intent(in   ):: g_tv   ! virtual temperature [K]
+  real(r_kind),dimension(lat2,lon2,nsig),intent(inout), optional:: g_cf   ! cloud fractio   
   logical,intent(in):: lower_bound                                ! If .true., set lower bound to cloud
 
 ! Declare local variables
@@ -317,6 +319,17 @@ subroutine cloud_calc_gfs(g_ql,g_qi,g_cwmr,g_q,g_tv,lower_bound)
         enddo
      enddo
   enddo
+
+  if (present(g_cf)) then
+      do k=1, nsig
+         do j=1, lon2
+            do i=1, lat2
+               ! set lower bound to hydrometeors 
+               g_cf(i,j,k) = min(max(zero,g_cf(i,j,k)),one)
+            enddo
+         enddo
+      enddo
+  endif
   return
 end subroutine cloud_calc_gfs
 

@@ -23,8 +23,8 @@ module m_colvkNode
 !$$$  end subprogram documentation block
 
 ! module interface:
-  use obsmod, only: obs_diag,aofp_obs_diag
-  use obsmod, only: obs_diags
+  use m_obsdiagNode, only: obs_diag,aofp_obs_diag => fptr_obsdiagNode
+  use m_obsdiagNode, only: obs_diags
   use kinds , only: i_kind,r_kind
   use mpeu_util, only: assert_,die,perr,warn,tell
   use m_obsNode, only: obsNode
@@ -77,12 +77,16 @@ module m_colvkNode
     ! procedure, nopass:: headerWrite => obsHeader_write_
     ! procedure:: init  => obsNode_init_
     procedure:: clean => obsNode_clean_
+
   end type colvkNode
 
   public:: colvkNode_typecast
   public:: colvkNode_nextcast
         interface colvkNode_typecast; module procedure typecast_ ; end interface
         interface colvkNode_nextcast; module procedure nextcast_ ; end interface
+
+  public:: colvkNode_appendto
+        interface colvkNode_appendto; module procedure appendto_ ; end interface
 
   character(len=*),parameter:: MYNAME="m_colvkNode"
 
@@ -94,16 +98,13 @@ function typecast_(aNode) result(ptr_)
   use m_obsNode, only: obsNode
   implicit none
   type(colvkNode),pointer:: ptr_
-  class(obsNode),pointer,intent(in):: aNode
-
-  character(len=*),parameter:: myname_=MYNAME//"::typecast_"
+  class(obsNode ),pointer,intent(in):: aNode
   ptr_ => null()
   if(.not.associated(aNode)) return
+        ! logically, typecast of a null-reference is a null pointer.
   select type(aNode)
   type is(colvkNode)
     ptr_ => aNode
-  class default
-    call die(myname_,'unexpected type, aNode%mytype() =',aNode%mytype())
   end select
 return
 end function typecast_
@@ -113,13 +114,26 @@ function nextcast_(aNode) result(ptr_)
   use m_obsNode, only: obsNode,obsNode_next
   implicit none
   type(colvkNode),pointer:: ptr_
-  class(obsNode),target,intent(in):: aNode
+  class(obsNode ),target ,intent(in):: aNode
 
-  class(obsNode),pointer:: anode_
-  anode_ => obsNode_next(aNode)
-  ptr_ => typecast_(anode_)
+  class(obsNode),pointer:: inode_
+  inode_ => obsNode_next(aNode)
+  ptr_ => typecast_(inode_)
 return
 end function nextcast_
+
+subroutine appendto_(aNode,oll)
+  use m_obsNode , only: obsNode
+  use m_obsLList, only: obsLList,obsLList_appendNode
+  implicit none
+  type(colvkNode),pointer,intent(in):: aNode
+  type(obsLList),intent(inout):: oLL
+
+  class(obsNode),pointer:: inode_
+  inode_ => aNode
+  call obsLList_appendNode(oLL,inode_)
+  inode_ => null()
+end subroutine appendto_
 
 ! obsNode implementations
 
@@ -146,6 +160,7 @@ _ENTRY_(myname_)
     if(associated(aNode%ap     )) deallocate(aNode%ap     )
     if(associated(aNode%wk     )) deallocate(aNode%wk     )
     if(associated(aNode%wij    )) deallocate(aNode%wij    )
+
 _EXIT_(myname_)
 return
 end subroutine obsNode_clean_

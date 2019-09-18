@@ -14,6 +14,7 @@ module intlightmod
 ! program history log:
 !   2016-05-04  apodaca  - implement TL and AD of the LFR observation operator  
 !   2018-02-08  apodaca  - replaced ob_type with polymorphic obsNode through type casting
+!   2019-03-01  j guo    - encapsulated access to obsdiagNode through obsdiagNode_set()
 !
 ! subroutines included:
 !   sub intlight_
@@ -29,6 +30,7 @@ use m_obsNode, only: obsNode
 use m_lightNode, only: lightNode
 use m_lightNode, only: lightNode_typecast
 use m_lightNode, only: lightNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -534,9 +536,11 @@ subroutine intlight_(lighthead,rval,sval)
      if (luse_obsdiag)then
          if (lsaveobsens) then
             grad = val*lightptr%raterr2*lightptr%err2
-            lightptr%diags%obssen(jiter) = grad
+            !-- lightptr%diags%obssen(jiter) = grad
+            call obsdiagNode_set(lightptr%diags,jiter=jiter,obssen=grad)
          else
-            if (lightptr%luse) lightptr%diags%tldepart(jiter)=val
+            !-- if (lightptr%luse) lightptr%diags%tldepart(jiter)=val
+            if (lightptr%luse) call obsdiagNode_set(lightptr%diags,jiter=jiter,tldepart=val)
          endif
       end if 
    
