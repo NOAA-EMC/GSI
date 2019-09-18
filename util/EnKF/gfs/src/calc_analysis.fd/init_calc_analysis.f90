@@ -2,7 +2,7 @@
 !! module init_calc_analysis
 !!        contains subroutines for reading namelist
 !!        for calc_analysis utility
-!! Original: 2019-09-16   martin   - original module
+!! Original: 2019-09-18   martin   - original module
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module init_calc_analysis
   implicit none
@@ -11,7 +11,7 @@ contains
     !! read in namelist parameters from
     !! calc_analysis.nml file in same directory
     !! as executable
-    use vars_calc_analysis, only: anal_file, fcst_file, incr_file 
+    use vars_calc_analysis, only: anal_file, fcst_file, incr_file, nhr_assim 
     implicit none
     ! local variables to this subroutine
     character(len=500) :: datapath = './'
@@ -20,7 +20,9 @@ contains
     character(len=500) :: increment_filename = 'atminc.nc'
     integer, parameter :: lunit = 10
     logical :: lexist = .false.
-    namelist /setup/ datapath, analysis_filename, firstguess_filename, increment_filename
+    namelist /setup/ datapath, analysis_filename, firstguess_filename, increment_filename, nhr_assim
+
+    nhr_assim = 6 ! default to 6 hour cycle
 
     ! read in the namelist
     inquire(file='calc_analysis.nml', exist=lexist)
@@ -35,13 +37,14 @@ contains
     end if
 
     ! combine strings to get full paths
-    anal_file = trim(adjustl(datapath)) // trim(adjustl(analysis_filename)) 
-    fcst_file = trim(adjustl(datapath)) // trim(adjustl(firstguess_filename)) 
-    incr_file = trim(adjustl(datapath)) // trim(adjustl(increment_filename)) 
+    anal_file = trim(adjustl(datapath)) // '/' // trim(adjustl(analysis_filename)) 
+    fcst_file = trim(adjustl(datapath)) // '/' // trim(adjustl(firstguess_filename)) 
+    incr_file = trim(adjustl(datapath)) // '/' // trim(adjustl(increment_filename)) 
 
     write(6,*) 'Analysis File    = ', trim(anal_file)
     write(6,*) 'First Guess File = ', trim(fcst_file)
     write(6,*) 'Increment File   = ', trim(incr_file) 
+    write(6,*) 'nhr_assim        = ', nhr_assim
     
   end subroutine read_nml
 end module init_calc_analysis
