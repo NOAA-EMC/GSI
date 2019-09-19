@@ -76,12 +76,12 @@ contains
     use constants, only: one, fv, rad2deg, r1000
 
     use gsi_4dcouplermod, only : gsi_4dcoupler_grtests
-    use gsi_4dvar, only: nobs_bins, l4dvar, nsubwin
+    use gsi_4dvar, only: nobs_bins, l4dvar, nsubwin, lwrite4danl
     use hybrid_ensemble_parameters, only: l_hyb_ens, ntlevs_ens
     use bias_predictors, only: predictors, allocate_preds, deallocate_preds
     use jfunc, only: xhatsave, iter
 
-    use guess_grids, only: load_geop_hgt, geop_hgti, geop_hgti1, ges_tsen, ges_tsen1, ges_q1
+    use guess_grids, only: load_geop_hgt, geop_hgti, ges_geopi, ges_tsen, ges_tsen1, ges_q1
     use state_vectors, only: allocate_state, deallocate_state
 
     implicit none
@@ -105,7 +105,6 @@ contains
     real(r_kind),pointer,dimension(:,:) :: sub_ps
 
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) :: sub_dzb,sub_dza, sub_tsen, sub_q
-    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig+1,ibin) :: ges_geopi
 
     real(r_kind),dimension(grd%lat1*grd%lon1)     :: pssm
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig):: sub_dp
@@ -123,6 +122,7 @@ contains
 
     integer(i_kind) :: mm1, i, j, k, iii
     integer(i_kind) :: iret, istatus 
+    integer(i_kind) :: ibin2
     integer(i_kind) :: ncid_out, lon_dimid, lat_dimid, lev_dimid, ilev_dimid
     integer(i_kind) :: lonvarid, latvarid, levvarid, pfullvarid, ilevvarid, &
                        hyaivarid, hybivarid, uvarid, vvarid, delpvarid, delzvarid, &
@@ -139,6 +139,8 @@ contains
 !   Initialize local variables
     mm1=mype+1
     llprt=(mype==0).and.(iter<=1)
+    ibin2 = ibin
+    if (.not. lwrite4danl) ibin2 = 1
 
 !   set up state space based off of xhatsave
 !   Convert from control space directly to physical
@@ -181,12 +183,12 @@ contains
 
     istatus=0
     call gsi_bundlegetpointer(gfs_bundle,'q', sub_qanl, iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(svalinc(ibin),'ql', sub_ql, iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(svalinc(ibin),'qi', sub_qi, iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(svalinc(ibin),'oz', sub_oz, iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(svalinc(ibin),'u', sub_u, iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(svalinc(ibin),'v', sub_v, iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(svalinc(ibin),'ps', sub_ps, iret); istatus=istatus+iret ! needed for delp
+    call gsi_bundlegetpointer(svalinc(ibin2),'ql', sub_ql, iret); istatus=istatus+iret
+    call gsi_bundlegetpointer(svalinc(ibin2),'qi', sub_qi, iret); istatus=istatus+iret
+    call gsi_bundlegetpointer(svalinc(ibin2),'oz', sub_oz, iret); istatus=istatus+iret
+    call gsi_bundlegetpointer(svalinc(ibin2),'u', sub_u, iret); istatus=istatus+iret
+    call gsi_bundlegetpointer(svalinc(ibin2),'v', sub_v, iret); istatus=istatus+iret
+    call gsi_bundlegetpointer(svalinc(ibin2),'ps', sub_ps, iret); istatus=istatus+iret ! needed for delp
     if ( istatus /= 0 ) then
        if ( mype == 0 ) then
          write(6,*) 'write_fv3_incr_: ERROR'
@@ -198,7 +200,6 @@ contains
     
     ! Single task writes increment to file
     if ( mype == mype_out ) then
-      print *, 'ibin',ibin,trim(filename)
       ! create the output netCDF file
       call nccheck_incr(nf90_create(path=trim(filename)//".nc", cmode=ior(nf90_clobber,nf90_64bit_offset), ncid=ncid_out))
       ! create dimensions based on analysis resolution, not guess
@@ -237,7 +238,7 @@ contains
 
     ! compute delz
     do k=1,grd%nsig
-       sub_dzb(:,:,k) = geop_hgti1(:,:,k+1,ibin) - geop_hgti1(:,:,k,ibin)
+       sub_dzb(:,:,k) = ges_geopi(:,:,k+1,ibin) - ges_geopi(:,:,k,ibin)
     enddo
 
     call load_geop_hgt

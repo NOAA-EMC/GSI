@@ -73,7 +73,7 @@ subroutine read_guess(iyear,month,idd,mype)
 !                         proximity over full domain instead of subdomain
 !   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type 
 !   2017-10-10  Wu W    - add code for FV3 netcdf guess input 
-!   2019-09-10  martin  - added new fields to save guess tsen for writing increment
+!   2019-09-18  martin  - added new fields to save guess tsen, q, geop_hgt for writing increment
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -89,7 +89,7 @@ subroutine read_guess(iyear,month,idd,mype)
   use kinds, only: r_kind,i_kind
   use jfunc, only: bcoption,clip_supersaturation,jiter
   use guess_grids, only: nfldsig,ges_tsen,load_prsges,load_geop_hgt,ges_prsl,&
-                         ges_tsen1, geop_hgti, geop_hgti1, ges_q1
+                         ges_tsen1, geop_hgti, ges_geopi, ges_q1
   use m_gsiBiases,only : bkg_bias_correction,nbc
   use m_gsiBiases, only: gsi_bkgbias_bundle
   use gsi_bias, only: read_bias
@@ -98,7 +98,7 @@ subroutine read_guess(iyear,month,idd,mype)
   use gridmod, only: wrf_mass_regional,wrf_nmm_regional,cmaq_regional,&
        fv3_regional,&
        twodvar_regional,netcdf,regional,nems_nmmb_regional,use_gfs_ozone
-  use gridmod, only: use_gfs_nemsio
+  use gridmod, only: use_gfs_nemsio,write_fv3_incr
   use gfs_stratosphere, only: use_gfs_stratosphere
 
   use constants, only: zero,one,fv,qmin
@@ -210,6 +210,7 @@ subroutine read_guess(iyear,month,idd,mype)
              do i=1,lat2
 !               ges_tsen(i,j,k,it)= ges_tv(i,j,k)/(one+fv*max(qmin,ges_q(i,j,k)))
                 ges_tsen(i,j,k,it)= ges_tv(i,j,k)/(one+fv*max(zero,ges_q(i,j,k)))
+                if (write_fv3_incr) ges_q1(i,j,k,it) = max(zero, ges_q(i,j,k))
              end do
           end do
        end do
@@ -219,6 +220,7 @@ subroutine read_guess(iyear,month,idd,mype)
 
 ! Load 3d subdomain pressure arrays from the guess fields
   call load_prsges
+
 
 ! recompute sensible temperature to remove supersaturation
   if ( clip_supersaturation ) then
@@ -239,10 +241,10 @@ subroutine read_guess(iyear,month,idd,mype)
                satval = max(qmin,satval)
                ges_q(i,j,k) = satval
                ges_tsen(i,j,k,it)= ges_tv(i,j,k)/(one+fv*ges_q(i,j,k))
-               ges_q1(i,j,k,it) = satval
             end do
          end do
       end do
+      if (write_fv3_incr) ges_q1(:,:,:,it) = ges_q(i,j,k)
     end do
   endif   ! clip_supersaturation
 
@@ -250,9 +252,11 @@ subroutine read_guess(iyear,month,idd,mype)
 ! Compute 3d subdomain geopotential heights from the guess fields
   call load_geop_hgt
 
+! save guess geopotential height at level interface for use in write_atm
+  ges_geopi=geop_hgti
+
 ! save this for writing increment
   ges_tsen1(:,:,:,:) = ges_tsen(:,:,:,:)
-  geop_hgti1(:,:,:,:) = geop_hgti(:,:,:,:)
 
 ! Compute the coast proximity
   call gsd_gen_coast_prox

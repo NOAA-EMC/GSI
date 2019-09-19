@@ -1253,8 +1253,6 @@ end subroutine write_ghg_grid
                if (count(nhr_anal==ifilesig(it))==0) cycle
             endif
             itoutsig = it
-            print *, 'itoutsig', itoutsig
-            print *, 'it', it, 'ifilesig(it)', ifilesig(it)
             if ( it == ntguessig ) then
                if ( increment > 0 .or. write_fv3_incr ) then
                    filename = 'siginc'
@@ -1270,7 +1268,6 @@ end subroutine write_ghg_grid
             endif
         else
             itoutsig = ntguessig
-            print *, 'itoutsig', itoutsig
             if ( increment > 0 .or. write_fv3_incr ) then
                 filename = 'siginc'
             else
