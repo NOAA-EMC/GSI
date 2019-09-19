@@ -114,9 +114,9 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
   real(r_kind),allocatable,dimension(:,:):: data_all
 
-  real(r_kind),allocatable,dimension(:):: hdr                        !  seviri imager header
-  real(r_kind),allocatable,dimension(:,:):: datasev1,datasev2        !  seviri imager data
-  real(r_kind) rclrsky
+  real(r_kind),allocatable,dimension(:):: hdr                          !  seviri imager header
+  real(r_kind),allocatable,dimension(:,:):: datasev,datasev1,datasev2,datasev3 !  seviri imager data
+  real(r_kind) rclrsky,rcldfrc
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
 
   real(r_kind) cdist,disterr,disterrmax,dlon00,dlat00
@@ -126,7 +126,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
 !**************************************************************************
 ! Initialize variables
-  maxinfo=31
+  maxinfo=32
   lnbufr = 10
   disterrmax=zero
   ntest=0
@@ -216,12 +216,15 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
      ncld=2
      nbrst=nchn*6                ! channel dependent: all, clear, cloudy, low, middle and high clouds
   endif
+  allocate(datasev(1,4))         ! CLDMNT for ASR: not channel dependent
   allocate(datasev1(1,ncld))     ! not channel dependent
   allocate(datasev2(1,nbrst))    ! channel dependent: all, clear, cloudy, low, middle and high clouds
+  allocate(datasev3(1,nbrst))    ! SDTB: channel dependent
   allocate(hdr(nhdr))
 
 
 ! Allocate arrays to hold all data for given satellite
+  maxinfo=maxinfo+nchanl
   if(dval_use) maxinfo = maxinfo + 2
   nreal = maxinfo + nstinfo
   nele  = nreal   + nchanl
@@ -325,17 +328,26 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
         nread=nread+nchanl
 
-        call ufbrep(lnbufr,datasev1,1,ncld,iret,'NCLDMNT')
-        rclrsky=bmiss
-        do n=1,ncld
-           if(datasev1(1,n)>= zero .and. datasev1(1,n) <= 100.0_r_kind ) then
-              rclrsky=datasev1(1,n)
+        if(clrsky) then       
+          call ufbrep(lnbufr,datasev1,1,ncld,iret,'NCLDMNT')
+          rclrsky=bmiss
+!          datasev1(1,5) is high-peaking water vapor channel
+!          for SEVIRI CSR, clear-sky percentage are different between the high-peaking WV channel and other channels
+           if(datasev1(1,5)>= zero .and. datasev1(1,5) <= 100.0_r_kind ) then
+              rclrsky=datasev1(1,5)
 !             first QC filter out data with less clear sky fraction
               if ( rclrsky < r70 ) cycle read_loop
            end if
-        end do
+        else if(allsky) then
+           call ufbrep(lnbufr,datasev1,1,2,iret,'NCLDMNT')
+           rclrsky=datasev1(1,1)  !clear-sky percentage
+!          rclrsky=datasev1(1,2)  !clear-sky percentage over sea
+           call ufbrep(lnbufr,datasev,1,4,iret,'CLDMNT')
+           rcldfrc=datasev(1,1)   !total cloud 
+        end if
 
         call ufbrep(lnbufr,datasev2,1,nbrst,iret,'TMBRST')
+        call ufbrep(lnbufr,datasev3,1,nbrst,iret,'SDTB')
 
         allchnmiss=.true.
         do n=4,11
@@ -344,6 +356,15 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
            end if
         end do
         if(allchnmiss) cycle read_loop
+
+!       toss data if SDTB>1.3
+        do i=4,11
+          if(i==5 .or. i==6) then   ! 2 water-vapor channels
+           if(datasev3(1,i)>1.3_r_kind) then
+             cycle read_loop
+           end if
+          end if
+        end do
 
 !       Locate the observation on the analysis grid.  Get sst and land/sea/ice
 !       mask.  
@@ -360,14 +381,18 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
            ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
 
         crit1=crit1+rlndsea(isflg)
-!       call checkob(dist1,crit1,itx,iuse)
-!       if(.not. iuse)cycle read_loop
+        call checkob(dist1,crit1,itx,iuse)
+        if(.not. iuse)cycle read_loop
 
 
 !       Set common predictor parameters
-!test
-        pred=zero
-!test        
+        if(clrsky) then
+!         use NCLDMNT from chn9 (10.8 micron) as a QC predictor
+!         add SDTB from chn9 as QC predictor
+          pred=10-datasev1(1,9)/10.0_r_kind+datasev3(1,9)*10.0_r_kind
+        else
+          pred=zero
+        end if
 !       Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
 
         crit1 = crit1+pred  
@@ -422,10 +447,19 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         data_all(29,itx)= ff10                        ! ten meter wind factor
         data_all(30,itx) = dlon_earth_deg             ! earth relative longitude (degrees)
         data_all(31,itx) = dlat_earth_deg             ! earth relative latitude (degrees)
+        data_all(32,itx) = rcldfrc                    ! total cloud fraction from SEVASR
+        do k=1,nchanl
+           if(clrsky) then
+             data_all(32+k,itx) = datasev3(1,k+3)     ! BT standard deviation from SEVCSR
+           else if(allsky) then
+             jj=(k+2)*6+1
+             data_all(32+k,itx) = datasev3(1,jj)      ! BT standard deviation from SEVASR 
+           end if
+        end do
 
         if(dval_use)then
-           data_all(32,itx) = val_sev
-           data_all(33,itx) = itt
+           data_all(maxinfo-1,itx) = val_sev
+           data_all(maxinfo,itx) = itt
         end if
 
         if ( nst_gsi > 0 ) then
@@ -479,7 +513,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
 ! Deallocate local arrays
   deallocate(data_all,nrec)
-  deallocate(hdr,datasev2,datasev1)
+  deallocate(hdr,datasev2,datasev1,datasev3,datasev)
 
 ! Deallocate satthin arrays
   call destroygrids
