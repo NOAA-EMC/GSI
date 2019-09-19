@@ -254,7 +254,7 @@
       izz,idomsfc,isfcr,iff10,ilone,ilate, &
       isst_hires,isst_navy,idata_type,iclr_sky,itref,idtw,idtc,itz_tr
   use clw_mod, only: calc_clw, ret_amsua
-  use qcmod, only: qc_ssmi,qc_seviri,qc_abi,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms
+  use qcmod, only: qc_ssmi,qc_geocsr,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms
   use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc,qc_noirjaco3,ifail_cloud_qc
   use qcmod, only: qc_gmi,qc_saphir,qc_amsr2
   use qcmod, only: setup_tzr_qc,ifail_scanedge_qc,ifail_outside_range
@@ -1207,20 +1207,10 @@
               aivals,errf,varinv)
            
 
-!  ---------- SEVIRI  -------------------
-!       SEVIRI Q C
+!  ---------- SEVIRI, AHI,ABI  -------------------
+!       SEVIRI, AHI,ABI Q C
 
-        else if (seviri) then
-
-           cld = 100-data_s(iclr_sky,n)
-
-           call qc_seviri(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n), &
-              zsges,tzbgr,tbc,tnoise,temp,wmix,emissivity_k,ts,id_qc,aivals,errf,varinv)
-!
-!  ---------- ABI  -------------------
-!       ABI Q C
-
-        else if (abi) then
+        else if (seviri .or. abi .or. ahi) then
            do i=1,nchanl
               m=ich(i)
               if (varinv(i) < tiny_r_kind) then
@@ -1238,18 +1228,21 @@
               tb_obs_sdv(i) = data_s(i+32,n)
            end do
 
-           call qc_abi(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n), &
+           call qc_geocsr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n), &
               zsges,trop5,tzbgr,tsavg5,tb_obs_sdv,tbc,tb_obs,tnoise,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,   &
-              id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax)
+              id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,abi,ahi,seviri)
 
            cld = 100-data_s(iclr_sky,n)
 
 !          if rclrsky < 98%, toss data for lowest water-vapor and surface channels
            if(data_s(iclr_sky,n)<98.0_r_kind) then
               do i=1,nchanl
-                 if(i/=2 .and. i/=3) then
+                 if((abi .or. ahi) .and. i/=2 .and. i/=3) then
                     varinv(i)=zero
                     varinv_use(i)=zero
+                 end if
+                 if(seviri .and. i/=2) then
+                    varinv(i)=zero
                  end if
               end do
            end if
@@ -1257,7 +1250,7 @@
 !
 !          additional qc for surface and  chn7.3: use split window chns to remove opaque clouds
            do i = 1,nchanl
-              if(i/=2 .and. i/=3) then
+              if( (abi .or. ahi ).and. i/=2 .and. i/=3 ) then
                 if( varinv(i) > tiny_r_kind .and. &
                    (tb_obs(7)-tb_obs(8))-(tsim(7)-tsim(8)) <= -0.75_r_kind) then
                     varinv(i)=zero
@@ -2050,6 +2043,7 @@
            if (.not.microwave) then
               diagbuf(25)  = cld                              ! cloud fraction (%)
               diagbuf(26)  = cldp                             ! cloud top pressure (hPa)
+              if (abi) diagbuf(26) = data_s(32,n)             ! cldfrc from bufr
            else
               if((radmod%lcloud_fwd .and. sea) .or. gmi .or. amsr2) then
                  if (gmi .or. amsr2) then
@@ -2107,7 +2101,7 @@
               else
                  diagbufchan(6,i)=emissivity(ich_diag(i))             ! surface emissivity
               endif
-              if(abi) diagbufchan(6,i)=data_s(32+i,n)                 ! temporarily store BT stdev
+              if(abi .or. ahi .or. seviri) diagbufchan(6,i)=data_s(32+i,n)  ! temporarily store BT stdev
               diagbufchan(7,i)=tlapchn(ich_diag(i))                   ! stability index
               if (radmod%lcloud_fwd) then
                  diagbufchan(8,i)=cld_rbc_idx(ich_diag(i))            ! indicator of cloudy consistency
