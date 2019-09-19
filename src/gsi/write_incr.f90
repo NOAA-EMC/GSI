@@ -76,7 +76,7 @@ contains
     use constants, only: one, fv, rad2deg, r1000
 
     use gsi_4dcouplermod, only : gsi_4dcoupler_grtests
-    use gsi_4dvar, only: nobs_bins, l4dvar, nsubwin, lwrite4danl
+    use gsi_4dvar, only: nobs_bins, l4dvar, nsubwin, lwrite4danl, l4densvar
     use hybrid_ensemble_parameters, only: l_hyb_ens, ntlevs_ens
     use bias_predictors, only: predictors, allocate_preds, deallocate_preds
     use jfunc, only: xhatsave, iter
@@ -140,7 +140,7 @@ contains
     mm1=mype+1
     llprt=(mype==0).and.(iter<=1)
     ibin2 = ibin
-    if (.not. lwrite4danl) ibin2 = 1
+    if (.not. l4densvar) ibin2 = 1
 
 !   set up state space based off of xhatsave
 !   Convert from control space directly to physical
