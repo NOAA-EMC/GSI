@@ -1001,7 +1001,7 @@ EOF
     export ERR=$rc
     export err=$ERR
     $ERRSCRIPT || exit 3
-
+  fi
 fi
 
 # Update surface fields in the FV3 restart's using global_cycle
