@@ -933,7 +933,7 @@ else
   $NCP $CALCANLEXEC $DATA
 
 # run chgres if needed
-  if [ $LONB_ENKF != $NLON_B -a $DOHYBVAR = "YES" ]; then
+  if [ $LONB_ENKF != $LONB -a $DOHYBVAR = "YES" ]; then
     $NCP $CHGRESEXEC $DATA
     SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS}.txt}
     export OMP_NUM_THREADS=$NTHREADS_CHGRES
@@ -980,7 +980,7 @@ EOF
   $ERRSCRIPT || exit 3
 
 # run chgres again back to original resolution if needed
-  if [ $LONB_ENKF != $NLON_B -a $DOHYBVAR = "YES" ]; then
+  if [ $LONB_ENKF != $LONB -a $DOHYBVAR = "YES" ]; then
     $NCP $CHGRESEXEC $DATA
     SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS}.txt}
     export OMP_NUM_THREADS=$NTHREADS_CHGRES
