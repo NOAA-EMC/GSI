@@ -295,6 +295,7 @@ RADCLOUDINFO=${RADCLOUDINFO:-${FIXgsi}/cloudy_radiance_info.txt}
 ATMSFILTER=${ATMSFILTER:-${FIXgsi}/atms_beamwidth.txt}
 ANAVINFO=${ANAVINFO:-${FIXgsi}/global_anavinfo.l${LEVS}.txt}
 CONVINFO=${CONVINFO:-${FIXgsi}/global_convinfo.txt}
+vqcdat=${vqcdat:-${FIXgsi}/vqctp001.dat}
 INSITUINFO=${INSITUINFO:-${FIXgsi}/global_insituinfo.txt}
 OZINFO=${OZINFO:-${FIXgsi}/global_ozinfo.txt}
 PCPINFO=${PCPINFO:-${FIXgsi}/global_pcpinfo.txt}
@@ -355,7 +356,7 @@ cd $DATA || exit 99
 # Clean the run-directory
 rm berror_stats hybens_info
 rm scaninfo satbias_angle satinfo
-rm anavinfo convinfo ozinfo pcpinfo aeroinfo
+rm anavinfo convinfo ozinfo pcpinfo aeroinfo vqctp001.dat
 rm errtable atms_beamwidth.txt
 rm cloudy_radiance_info.txt
 
@@ -398,6 +399,7 @@ $NLN $RADCLOUDINFO cloudy_radiance_info.txt
 $NLN $ATMSFILTER   atms_beamwidth.txt
 $NLN $ANAVINFO     anavinfo
 $NLN $CONVINFO     convinfo
+$NLN $vqcdat       vqctp001.dat
 $NLN $INSITUINFO   insituinfo
 $NLN $OZINFO       ozinfo
 $NLN $PCPINFO      pcpinfo
@@ -707,7 +709,7 @@ cat > gsiparm.anl << EOF
 /
 &OBSQC
   dfact=0.75,dfact1=3.0,noiqc=.true.,oberrflg=.false.,c_varqc=0.02,
-  use_poq7=.true.,qc_noirjaco3_pole=.true.,vqc=.true.,
+  use_poq7=.true.,qc_noirjaco3_pole=.true.,vqc=.false.,nvqc=.true.
   aircraft_t_bc=.true.,biaspredt=1000.0,upd_aircraft=.true.,cleanup_tail=.true.,
   $OBSQC
 /
