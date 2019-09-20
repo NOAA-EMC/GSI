@@ -105,8 +105,11 @@ DOIAU=${DOIAU:-"NO"}
 NTHREADS_CALCINC=${NTHREADS_CALCINC:-1}
 APRUN_CALCINC=${APRUN_CALCINC:-${APRUN:-""}}
 APRUN_CALCANL=${APRUN_CALCANL:-${APRUN:-""}}
+APRUN_CHGRES=${APRUN_CALCANL:-${APRUN:-""}}
 CALCINCEXEC=${CALCINCEXEC:-$HOMEgsi/exec/calc_increment_ens.x}
 CALCANLEXEC=${CALCANLEXEC:-$HOMEgsi/exec/calc_analysis.x}
+CHGRESEXEC=${CHGRESEXEC:-$HOMEgsi/exec/chgres_recenter.exe}
+NTHREADS_CHGRES=${NTHREADS_CHGRES:-24}
 
 # OPS flags
 RUN=${RUN:-""}
@@ -928,11 +931,41 @@ else
      $NCP siginc.nc ${COMOUT}/${APREFIX}atminc.nc      
   fi
   $NCP $CALCANLEXEC $DATA
+
+# run chgres if needed
+  if [ $LONB_ENKF != $NLON_B -a $DOHYBVAR = "YES" ]; then
+    $NCP $CHGRESEXEC $DATA
+    SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS}.txt}
+    export OMP_NUM_THREADS=$NTHREADS_CHGRES
+    rm -rf fort.43
+    cat > fort.43 << EOF
+&nam_setup
+  i_output=$LONB_ENKF
+  j_output=$LATB_ENKF
+  input_file="sigf06"
+  output_file="sigf06.chgres"
+  terrain_file="$ATMGES_ENSMEAN"
+  vcoord_file="$SIGLEVEL"
+/
+EOF
+    $APRUN_CHGRES $CHGRESEXEC
+    rc=$?
+
+    export ERR=$rc
+    export err=$ERR
+    $ERRSCRIPT || exit 3
+
+  else
+    $NLN sigf06 sigf06.chgres
+    $NLN siganl.out siganl
+  fi
+
+# run calc_analysis
   cat > calc_analysis.nml << EOF
 &setup
   datapath = './'
-  analysis_filename = 'siganl'
-  firstguess_filename = 'sigf06'
+  analysis_filename = 'siganl.out'
+  firstguess_filename = 'sigf06.chgres'
   increment_filename = 'siginc.nc'
   nhr_assim = $assim_freq 
 /
@@ -945,6 +978,30 @@ EOF
   export ERR=$rc
   export err=$ERR
   $ERRSCRIPT || exit 3
+
+# run chgres again back to original resolution if needed
+  if [ $LONB_ENKF != $NLON_B -a $DOHYBVAR = "YES" ]; then
+    $NCP $CHGRESEXEC $DATA
+    SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS}.txt}
+    export OMP_NUM_THREADS=$NTHREADS_CHGRES
+    rm -rf fort.43
+    cat > fort.43 << EOF
+&nam_setup
+  i_output=$LONB
+  j_output=$LATB
+  input_file="siganl.out"
+  output_file="siganl"
+  terrain_file="sigf06"
+  vcoord_file="$SIGLEVEL"
+/
+EOF
+    $APRUN_CHGRES $CHGRESEXEC
+    rc=$?
+
+    export ERR=$rc
+    export err=$ERR
+    $ERRSCRIPT || exit 3
+
 fi
 
 # Update surface fields in the FV3 restart's using global_cycle
