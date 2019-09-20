@@ -100,6 +100,7 @@ satangl=$fixgsi/global_satangbias.txt
 scaninfo=$fixgsi/global_scaninfo.txt
 satinfo=$fixgsi/global_satinfo.txt
 convinfo=$fixgsi/global_convinfo_reg_test.txt
+vqcdat=$fixgsi/vqctp001.dat
 ozinfo=$fixgsi/global_ozinfo.txt
 hybens_info=$fixgsi/global_hybens_info.l64.txt
 anavinfo=$fixgsi/global_anavinfo.l64.txt
@@ -128,6 +129,7 @@ $ncp $scaninfo ./scaninfo
 $ncp $satinfo  ./satinfo
 $ncp $ozinfo   ./ozinfo
 $ncp $convinfo ./convinfo
+$ncp $vqcdat ./vqctp001.dat
 $ncp $hybens_info ./hybens_info
 $ncp $anavinfo ./anavinfo
 

@@ -82,6 +82,7 @@ subroutine intt_(thead,rval,sval,rpred,spred)
 !   2013-05-26  zhu  - add aircraft temperature bias correction contribution
 !   2014-12-03  derber  - modify so that use of obsdiags can be turned off
 !   2015-12-21  yang    - Parrish's correction to the previous code in new varqc.
+!   2019-09-20  Su      - remove current VQC part and add VQC subroutine call
 !
 !   input argument list:
 !     thead    - obs type pointer to obs structure
@@ -117,13 +118,14 @@ subroutine intt_(thead,rval,sval,rpred,spred)
   use kinds, only: r_kind,i_kind,r_quad
   use constants, only: half,one,zero,tiny_r_kind,cg_term,r3600,two
   use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
-  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
+  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc,nvqc,hub_norm
   use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_bundlemod, only: gsi_bundleprint
   use gsi_4dvar, only: ladtest_obs 
   use aircraftinfo, only: npredt,ntail,aircraft_t_bc_pof,aircraft_t_bc
+  use mpimod, only: mype
   implicit none
   
 
@@ -145,11 +147,12 @@ subroutine intt_(thead,rval,sval,rpred,spred)
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,ier,istatus,isst,ix,n
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,time_t
 ! real(r_kind) penalty
-  real(r_kind) cg_t,val,p0,grad,wnotgross,wgross,t_pg
+  real(r_kind) cg_t,val,grad,rat_err2,error2,t_pg,var_jb
   real(r_kind) psfc_grad,tg_grad
   real(r_kind) ts_grad,us_grad,vs_grad,qs_grad
   real(r_kind) qs_prime0,tg_prime0,ts_prime0,psfc_prime0
   real(r_kind) us_prime0,vs_prime0
+  integer(i_kind) ibb,ikk
   type(tNode), pointer :: tptr
 
 !  If no t data return
@@ -257,22 +260,35 @@ subroutine intt_(thead,rval,sval,rpred,spred)
            if( .not. ladtest_obs)   val=val-tptr%res
  
 !          gradient of nonlinear operator
-
+           error2=tptr%err2
+           rat_err2=tptr%raterr2
            if (vqc .and. nlnqc_iter .and. tptr%pg > tiny_r_kind .and.  &
                                 tptr%b  > tiny_r_kind) then
               t_pg=tptr%pg*varqc_iter
               cg_t=cg_term/tptr%b
-              wnotgross= one-t_pg
-              wgross =t_pg*cg_t/wnotgross
-              p0=wgross/(wgross+exp(-half*tptr%err2*val**2))
-              val=val*(one-p0)                  
+           else
+              t_pg=zero
+              cg_t=zero
            endif
            if (njqc .and. tptr%jb > tiny_r_kind .and. tptr%jb <10.0_r_kind) then
-              val=sqrt(two*tptr%jb)*tanh(sqrt(tptr%err2)*val/sqrt(two*tptr%jb))
-              grad = val*tptr%raterr2*sqrt(tptr%err2)
-           else
-              grad = val*tptr%raterr2*tptr%err2
+              var_jb=tptr%jb
+           else 
+              var_jb=zero
            endif
+           if (nvqc .and. tptr%ib > tiny_r_kind ) then
+              ibb=tptr%ib
+              ikk=tptr%ik
+           else
+              ibb=0
+              ikk=0
+           endif
+
+!          if (mype ==0 .and.  nlnqc_iter) print *,'INTT1:grad,t_pg,cg_t=',grad,t_pg,cg_t,tptr%raterr2,tptr%err2,val
+
+           call vqc_int(error2,rat_err2,t_pg,cg_t,var_jb,ibb,ikk,val,grad)
+ 
+!           if (mype ==0 .and.  nlnqc_iter) print *,'INTT2:grad=',grad,nlnqc_iter,val
+
            if(ladtest_obs) then
               grad = val
            endif

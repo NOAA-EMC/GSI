@@ -221,6 +221,7 @@ scaninfo=$fixgsi/global_scaninfo.txt
 satinfo=$fixgsi/global_satinfo.txt
 cloudyinfo=$fixgsi/cloudy_radiance_info.txt
 convinfo=$fixgsi/global_convinfo_reg_test.txt
+vqcdat=$fixgsi/vqctp001.dat
 ### add 9 tables
 errtable_pw=$fixgsi/prepobs_errtable_pw.global
 errtable_ps=$fixgsi/prepobs_errtable_ps.global_nqcf
@@ -270,6 +271,7 @@ $ncp $cloudyinfo  ./cloudy_radiance_info.txt
 $ncp $pcpinfo  ./pcpinfo
 $ncp $ozinfo   ./ozinfo
 $ncp $convinfo ./convinfo
+$ncp $vqcdat ./vqctp001.dat
 $ncp $errtable ./errtable
 $ncp $anavinfo ./anavinfo
 $ncp $hybens_info ./hybens_info

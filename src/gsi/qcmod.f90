@@ -114,6 +114,9 @@ module qcmod
 !
 !   def nlnqc_iter   - logical flag (T=nonlinear qc on, F=nonlinear qc off) for iteration
 !   def njqc -  logical flag (T=Purser's nonlinear qc on, F=off)
+!   def vqc -  logical flag (T=EC vqc on, F=off)
+!   def nvqc -  logical flag (T=new vqc on, F=off)
+!   def hub_norm -  logical flag (T=mix vqc model, F=logistic model)
 !   def noiqc        - logic flag for oiqc, noiqc='false' with oiqc on
 !
 ! following used for NonLinear TRansformation to visibility and ceiling height
@@ -169,7 +172,7 @@ module qcmod
   public :: qc_amsr2
   public :: qc_saphir
 ! set passed variables to public
-  public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc,njqc,vqc
+  public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc,njqc,vqc,nvqc,hub_norm
   public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate
   public :: pboto3,ptopo3,pbotq,ptopq,newvad,tdrerr_inflate
   public :: igood_qc,ifail_crtm_qc,ifail_satinfo_qc,ifail_interchan_qc,&
@@ -179,7 +182,7 @@ module qcmod
   public :: vadwnd_l2rw_qc
   public :: pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres
 
-  logical nlnqc_iter,njqc,vqc
+  logical nlnqc_iter,njqc,vqc,nvqc,hub_norm
   logical noiqc
   logical use_poq7
   logical qc_noirjaco3
@@ -374,6 +377,8 @@ contains
     noiqc = .false.
     njqc=.false.
     vqc=.false.
+    nvqc=.false.
+    hub_norm=.true.
     c_varqc=one
 
     vadfile='none'
