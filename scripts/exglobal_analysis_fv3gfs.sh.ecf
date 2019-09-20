@@ -982,7 +982,6 @@ EOF
 # run chgres again back to original resolution if needed
   if [ $LONB_ENKF != $LONB -a $DOHYBVAR = "YES" ]; then
     $NCP $CHGRESEXEC $DATA
-    var=$((var+1))
     LEVS1=$((LEVS+1))
     SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS1}.txt}
     export OMP_NUM_THREADS=$NTHREADS_CHGRES
