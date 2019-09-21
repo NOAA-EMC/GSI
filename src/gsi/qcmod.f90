@@ -4025,6 +4025,17 @@ subroutine qc_geocsr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
         vfact=zero
         if(id_qc(i) == igood_qc)id_qc(i)=ifail_surface_qc
      end if
+     if (seviri) then
+!       QC_terrain: If seviri and terrain height > 1km. do not use
+        if (zsges > r1000) then
+           efact   = zero
+           vfact   = zero
+           if(id_qc(i) == igood_qc ) id_qc(i)=ifail_terrain_qc
+!          QC2 in statsrad
+           if(luse)aivals(9,is)= aivals(9,is) + one
+        end if
+     end if
+
 !    modified variances.
      errf(i)   = efact*errf(i)
      varinv(i) = vfact*varinv(i)
@@ -4159,15 +4170,23 @@ subroutine qc_geocsr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
           varinv(i)=zero
        end if
      end if
-     if(seviri .and. tb_obs_sdv(6)>=0.5_r_kind .and. varinv(i) > zero)then
-       if(i/=2) then
-!         QC3 in statsrad
-          if(luse)aivals(9,is)= aivals(9,is) + one
-          if(id_qc(i) == igood_qc ) id_qc(i)=ifail_std_geocsr_qc                    
-          varinv(i)=zero
+     if(seviri .and. varinv(i) > zero) then
+       if(tb_obs_sdv(6)>=0.5_r_kind)then
+         if(i/=2) then
+!           QC3 in statsrad
+            if(luse)aivals(9,is)= aivals(9,is) + one
+            if(id_qc(i) == igood_qc ) id_qc(i)=ifail_std_geocsr_qc                    
+            varinv(i)=zero
+         end if
+       end if
+!      QC_o-g: If abs(o-g) > 2.0 do not use
+       if ( i/=2 .and. abs(tbc(i)) > two ) then
+        varinv(i) = zero
+        if(id_qc(i) == igood_qc ) id_qc(i)=ifail_gross_routine_qc   !hliu check
+!       QC1 in statsrad
+        if(luse)aivals(8,is)= aivals(8,is) + one  !hliu check
        end if
      end if
-
 
 ! adjust varinv according to the BT standard deviation
      if( abi .and. i== 2 .or. i==3 .or. i==4 .and. varinv(i) > zero) then
