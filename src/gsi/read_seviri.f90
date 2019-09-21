@@ -395,6 +395,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         end if
 !       Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
 
+        pred=zero    !ignore the rclrsky and SDTB for thinning for now
         crit1 = crit1+pred  
         call finalcheck(dist1,crit1,itx,iuse)
 

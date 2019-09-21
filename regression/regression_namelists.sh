@@ -722,7 +722,6 @@ OBS_INPUT::
    amsr2bufr      amsr2       gcom-w1     amsr2_gcom-w1       0.0     3     0
    gmibufr        gmi         gpm         gmi_gpm             0.0     3     0
    saphirbufr     saphir      meghat      saphir_meghat       0.0     3     0
-   ahibufr        ahi         himawari8   ahi_himawari8       0.0     3     0
    rapidscatbufr  uv          null        uv                  0.0     0     0
    ompsnpbufr     ompsnp      npp       ompsnp_npp            0.0     0     0
    ompstcbufr     ompstc8     npp       ompstc8_npp           0.0     2     0
