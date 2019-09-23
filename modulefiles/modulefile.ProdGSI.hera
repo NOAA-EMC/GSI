@@ -32,7 +32,7 @@ module load sigio/v2.1.0-intel-18.0.5
 module load sp/v2.0.2-intel-18.0.5
 module load w3emc/v2.2.0-intel-18.0.5
 module load w3nco/v2.0.6-intel-18.0.5
-module load netcdf/4.6.1
+module load netcdf/4.7.0
 module load hdf5/1.10.4
 
 # Loading netcdf and hdf5

@@ -36,8 +36,8 @@ if [ -z ${machine+x} ]; then
      export machine="WCOSS"
   elif [ -d /glade/scratch ]; then # Cheyenne
    export machine="Cheyenne"
-  elif [ -d /scratch4/NCEPDEV/da ]; then # Theia
-   export machine="Theia"
+  elif [ -d /scratch4/NCEPDEV/da ]; then # Hera
+   export machine="Hera"
   elif [ -d /gpfs/hps/ptmp ]; then # LUNA or SURGE
    export machine="WCOSS_C"
   elif [ -d /gpfs/dell1/ptmp ]; then # venus or mars
@@ -108,7 +108,7 @@ case $machine in
    export check_resource="no"
    export accnt="p48503002"
    ;;
-   Theia)
+   Hera)
    if [ -d /scratch4/NCEPDEV/da/noscrub/$LOGNAME ]; then 
      export noscrub="/scratch4/NCEPDEV/da/noscrub/$LOGNAME"
    elif [ -d /scratch4/NCEPDEV/global/noscrub/$LOGNAME ]; then 
@@ -132,9 +132,9 @@ case $machine in
 
    export accnt="da-cpu"
 
-   #  On Theia, there are no scrubbers to remove old contents from stmp* directories.
+   #  On Hera, there are no scrubbers to remove old contents from stmp* directories.
    #  After completion of regression tests, will remove the regression test subdirecories
-   export clean=".true."
+#  export clean=".true."
    ;;
    WCOSS_C)
    if [ -d /gpfs/hps3/emc/global/noscrub/$LOGNAME ]; then
