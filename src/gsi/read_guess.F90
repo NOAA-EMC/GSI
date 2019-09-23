@@ -103,6 +103,7 @@ subroutine read_guess(iyear,month,idd,mype)
   use constants, only: zero,one,fv,qmin
   use ncepgfs_io, only: read_gfs,read_gfs_chem
   use ncepnems_io, only: read_nems,read_nems_chem
+  use netcdfgfs_io, only: read_gfsnc, read_gfsnc_chem
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsd_update_mod, only: gsd_gen_coast_prox 
