@@ -387,7 +387,7 @@ contains
           rtype(i) == 'avhrr'  .or. rtype(i) == 'amsre'    .or.  rtype(i) == 'ssmis'  .or. & 
           rtype(i) == 'ssmi'   .or. rtype(i) == 'atms'     .or.  rtype(i) == 'cris'   .or. & 
           rtype(i) == 'amsr2'  .or. rtype(i) == 'gmi'      .or.  rtype(i) == 'saphir' .or. &
-          rtype(i) == 'cris-fsr'  ) then
+          rtype(i) == 'cris-fsr' .or. rtype(i) == 'abi' ) then
           drtype(i)='rads'
        end if
     end do

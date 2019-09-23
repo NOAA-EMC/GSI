@@ -327,7 +327,8 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
            end if
         else if(allsky) then
            call ufbrep(lnbufr,dataabi1,1,2,iret,'NCLDMNT')
-           rclrsky=dataabi1(1,2)  !clear-sky percentage over sea
+           rclrsky=dataabi1(1,1)  !clear-sky percentage
+!          rclrsky=dataabi1(1,2)  !clear-sky percentage over sea
            call ufbrep(lnbufr,dataabi,1,4,iret,'CLDMNT')
            rcldfrc=dataabi(1,1)   !total cloud 
         end if
@@ -336,11 +337,13 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
         call ufbrep(lnbufr,dataabi3,1,nbrst,iret,'SDTB')
  
 !       toss data if SDTB>1.3 
-        do i=1,nbrst
-          if(i==2 .or. i==3 .or. i==4) then   ! 3 water-vapor channels
-            if(dataabi3(1,i)>1.3_r_kind) cycle read_loop
-          end if
-        end do
+        if(clrsky) then
+          do i=1,nbrst
+            if(i==2 .or. i==3 .or. i==4) then   ! 3 water-vapor channels
+              if(dataabi3(1,i)>1.3_r_kind) cycle read_loop
+            end if
+          end do
+        end if
 
         allchnmiss=.true.
         do n=1,nchn
@@ -379,9 +382,13 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
 
 
 !       Set common predictor parameters
-!       use NCLDMNT from chn7 (10.8 micron) as a QC predictor
-!       add SDTB from chn7 as QC predictor
-        pred=10-dataabi1(1,7)/10.0_r_kind+dataabi3(1,7)*10.0_r_kind
+        if(clrsky) then
+!         use NCLDMNT from chn7 (10.8 micron) as a QC predictor
+!         add SDTB from chn7 as QC predictor
+          pred=10-dataabi1(1,7)/10.0_r_kind+dataabi3(1,7)*10.0_r_kind
+        else
+          pred=0.
+        end if
 !            
 !       Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
 
@@ -444,7 +451,7 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
            if(clrsky) then
              data_all(32+k,itx) = dataabi3(1,k)       ! BT standard deviation from ABICSR
            else if(allsky) then
-             jj=k*6+1
+             jj=(k-1)*6+1
              data_all(32+k,itx) = dataabi3(1,jj)      ! BT standard deviation from ABIASR 
            end if
         end do
@@ -465,7 +472,7 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
            if (clrsky) then
               data_all(k+nreal,itx)=dataabi2(1,k)       ! for chn7,8,9,10,11,12,13,14,15,16
            else if (allsky) then
-              jj=k*6+1
+              jj=(k-1)*6+1
               data_all(k+nreal,itx)=dataabi2(1,jj)      ! all-sky radiance for chn 4,5,6,7,8,9,10,11
            end if
         end do
