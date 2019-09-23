@@ -261,9 +261,14 @@ contains
            !                     ctwind(nc),
            !                         ncnumgrp(nc),
 
-       read(crecord,*)ictype(nc),icsubtype(nc),icuse(nc),ctwind(nc),ncnumgrp(nc), &
+       read(crecord,*,iostat=istat)ictype(nc),icsubtype(nc),icuse(nc),ctwind(nc),ncnumgrp(nc), &
           ncgroup(nc),ncmiter(nc),cgross(nc),cermax(nc),cermin(nc),cvar_b(nc),cvar_pg(nc), &
           ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),idum,pmot_conv(nc),ptime_conv(nc),ibeta(nc),ikapa(nc)
+       if(istat /=0) then
+         read(crecord,*,iostat=istat)ictype(nc),icsubtype(nc),icuse(nc),ctwind(nc),ncnumgrp(nc), &
+          ncgroup(nc),ncmiter(nc),cgross(nc),cermax(nc),cermin(nc),cvar_b(nc),cvar_pg(nc), &
+          ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),idum,pmot_conv(nc),ptime_conv(nc)
+       endif
           if(nc >=2 )then
             if(trim(ioctype(nc))==trim(ioctype(nc-1)) .and. ictype(nc)==ictype(nc-1)) then
                index_sub(nc)=index_sub(nc-1)+1
