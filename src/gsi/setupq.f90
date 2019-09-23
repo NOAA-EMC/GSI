@@ -89,7 +89,9 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !                                     for coastline area
 !   2018-04-09  pondeca -  introduce duplogic to correctly handle the characterization of
 !                          duplicate obs in twodvar_regional applications
-!
+!   2019-05-24  Su      -  remove current VQC part and add subroutine call and
+!                          add new variational QC option 
+!  
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -128,9 +130,10 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use constants, only: zero,one,r1000,r10,r100
   use constants, only: huge_single,wgtlim,three
   use constants, only: tiny_r_kind,five,half,two,huge_r_kind,cg_term,r0_01
-  use qcmod, only: npres_print,ptopq,pbotq,dfact,dfact1,njqc,vqc
+  use qcmod, only: npres_print,ptopq,pbotq,dfact,dfact1,njqc,vqc,nvqc,hub_norm
   use jfunc, only: jiter,last,jiterstart,miter
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
+  use convinfo, only: ibeta,ikapa
   use convinfo, only: icsubtype
   use converr_q, only: ptabl_q 
   use converr, only: ptabl 
@@ -176,7 +179,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) ratio_errors,dlat,dlon,dtime,dpres,rmaxerr,error
   real(r_kind) rsig,dprpx,rlow,rhgh,presq,tfact,ramp
   real(r_kind) psges,sfcchk,ddiff,errorx
-  real(r_kind) cg_q,wgross,wnotgross,wgt,arg,exp_arg,term,rat_err2,qcgross
+  real(r_kind) cg_t,cvar,wgt,rat_err2,qcgross
   real(r_kind) grsmlt,ratio,val2,obserror
   real(r_kind) obserrlm,residual,ressw2,scale,ress,huge_error,var_jb
   real(r_kind) val,valqc,rwgt,prest
@@ -197,6 +200,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) ier,ilon,ilat,ipres,iqob,id,itime,ikx,iqmax,iqc
   integer(i_kind) ier2,iuse,ilate,ilone,istnelv,iobshgt,istat,izz,iprvd,isprvd
   integer(i_kind) idomsfc,iderivative
+  integer(i_kind) ibb,ikk
   real(r_kind) :: delz
   type(sparr2) :: dhx_dx
   real(r_single), dimension(nsdim) :: dhx_dx_array
@@ -271,7 +275,6 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   ijb  =23    ! index of non linear qc parameter
   iptrb=24    ! index of q perturbation
 
-  var_jb=zero
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
   end do
@@ -626,36 +629,27 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 !    Compute penalty terms
      val      = error*ddiff
+     if(nvqc .and. ibeta(ikx) >0  ) ratio_errors=0.8_r_kind*ratio_errors
      if(luse(i))then
         val2     = val*val
-        exp_arg  = -half*val2
-        rat_err2 = ratio_errors**2
-        if(njqc .and. var_jb>tiny_r_kind .and. var_jb < 10.0_r_kind .and. error >tiny_r_kind)  then
-           if(exp_arg  == zero) then
-              wgt=one
-           else
-              wgt=ddiff*error/sqrt(two*var_jb)
-              wgt=tanh(wgt)/wgt
-           endif
-           term=-two*var_jb*rat_err2*log(cosh((val)/sqrt(two*var_jb)))
-           rwgt = wgt/wgtlim
-           valqc = -two*term
-        else if (vqc .and. cvar_pg(ikx)> tiny_r_kind .and. error >tiny_r_kind) then
-           arg  = exp(exp_arg)
-           wnotgross= one-cvar_pg(ikx)
-           cg_q=cvar_b(ikx)
-           wgross = cg_term*cvar_pg(ikx)/(cg_q*wnotgross)
-           term =log((arg+wgross)/(one+wgross))
-           wgt  = one-wgross/(arg+wgross)
-           rwgt = wgt/wgtlim
-           valqc = -two*rat_err2*term
+        if(vqc) then
+           cg_t=cvar_b(ikx)
+           cvar=cvar_pg(ikx)
         else
-           term = exp_arg
-           wgt  =one 
-           rwgt = wgt/wgtlim
-           valqc = -two*rat_err2*term
+           cg_t=zero
+           cvar=zero
         endif
-        
+        if(nvqc) then
+           ibb=ibeta(ikx)
+           ikk=ikapa(ikx)
+        else
+           ibb=0
+           ikk=0
+        endif
+ 
+        call vqc_setup(val,ratio_errors,error,cvar,cg_t,ibb,ikk,&
+                      var_jb,rat_err2,wgt,valqc)
+        rwgt = wgt/wgtlim 
 !       Accumulate statistics for obs belonging to this task
         if(muse(i))then
            if(rwgt < one) awork(21) = awork(21)+one
@@ -718,6 +712,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         my_head%b      = cvar_b(ikx)
         my_head%pg     = cvar_pg(ikx)
         my_head%jb     = var_jb
+        my_head%ib     = ibeta(ikx)
+        my_head%ik     = ikapa(ikx)
         my_head%luse   = luse(i)
 
         if(oberror_tune) then
@@ -834,6 +830,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            my_head%b       = cvar_b(ikx)
            my_head%pg      = cvar_pg(ikx)
            my_head%jb      = var_jb
+           my_head%ib      = ibeta(ikx)
+           my_head%ik      = ikapa(ikx)
            my_head%luse    = luse(i)
            if (luse_obsdiag) &
               my_head%diags => obsdiags(i_q_ob_type,ibin)%tail

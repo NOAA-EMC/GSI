@@ -85,6 +85,7 @@ lobsdiag_forenkf=${lobsdiag_forenkf:-".false"}
 write_spread_diag=${write_spread_diag:-".false"}
 netcdf_diag=${netcdf_diag:-".false."}
 modelspace_vloc=${modelspace_vloc:-".false."} # if true, 'vlocal_eig.dat' is needed
+IAUFHRS_ENKF=${IAUFHRS_ENKF:-6}
 
 ################################################################################
 ATMGES_ENSMEAN=$COMIN_GES_ENS/${GPREFIX}atmf006.ensmean${GSUFFIX}
@@ -173,13 +174,15 @@ fi
 nfhrs=`echo $IAUFHRS_ENKF | sed 's/,/ /g'`
 for imem in $(seq 1 $NMEM_ENKF); do
    memchar="mem"$(printf %03i $imem)
-   if [ $USE_CFP = "YES" ]; then
-      echo "$DATA/untar.sh $memchar" | tee -a $DATA/mp_untar.sh
-   else
-      for ftype in $flist; do
-         fname=$COMOUT_ANL_ENS/$memchar/$ftype
-         tar -xvf $fname
-      done
+   if [ $lobsdiag_forenkf = ".false." ]; then
+      if [ $USE_CFP = "YES" ]; then
+         echo "$DATA/untar.sh $memchar" | tee -a $DATA/mp_untar.sh
+      else
+         for ftype in $flist; do
+            fname=$COMOUT_ANL_ENS/$memchar/$ftype
+            tar -xvf $fname
+         done
+      fi
    fi
    mkdir -p $COMOUT_ANL_ENS/$memchar
    for FHR in $nfhrs; do 

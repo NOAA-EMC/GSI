@@ -29,7 +29,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
 
   use qcmod, only: npres_print,dfact,dfact1,ptop,pbot,buddycheck_t
-  use qcmod, only: njqc,vqc
+  use qcmod, only: njqc,vqc,nvqc,hub_norm
 
   use oneobmod, only: oneobtest
   use oneobmod, only: maginnov
@@ -48,6 +48,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use constants, only: huge_single,r1000,wgtlim,r10,fv
   use constants, only: one_quad
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype,icsubtype
+  use convinfo, only: ibeta,ikapa
   use converr_t, only: ptabl_t 
   use converr, only: ptabl
   use rapidrefresh_cldsurf_mod, only: l_gsd_terrain_match_surftobs,l_sfcobserror_ramp_t
@@ -181,6 +182,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !                                     for coastline area
 !   2018-04-09  pondeca -  introduce duplogic to correctly handle the characterization of
 !                          duplicate obs in twodvar_regional applications
+!  2019-09-20  Su      -  remove current VQC part and add subroutine call on VQC with new vqc
 !
 ! !REMARKS:
 !   language: f90
@@ -222,7 +224,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) val,valqc,dlon,dlat,dtime,dpres,error,prest,rwgt,var_jb
   real(r_kind) errinv_input,errinv_adjst,errinv_final
   real(r_kind) err_input,err_adjst,err_final,tfact
-  real(r_kind) cg_t,wgross,wnotgross,wgt,arg,exp_arg,term,rat_err2,qcgross
+  real(r_kind) cg_t,cvar,wgt,rat_err2,qcgross
   real(r_kind),dimension(nobs)::dup
   real(r_kind),dimension(nsig):: prsltmp
   real(r_kind),dimension(nele,nobs):: data
@@ -246,6 +248,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) ier2,iuse,ilate,ilone,ikxx,istnelv,iobshgt,izz,iprvd,isprvd
   integer(i_kind) regime,istat
   integer(i_kind) idomsfc,iskint,iff10,isfcr
+  integer(i_kind) ibb,ikk
 
   integer(i_kind),dimension(nobs):: buddyuse
 
@@ -862,36 +865,29 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 !    Compute penalty terms
      val      = error*ddiff
+     if(nvqc .and. ibeta(ikx) >0  ) ratio_errors=0.8_r_kind*ratio_errors
      if(luse(i))then
         val2     = val*val
-        exp_arg  = -half*val2
-        rat_err2 = ratio_errors**2
-        if(njqc .and. var_jb>tiny_r_kind .and. var_jb < 10.0_r_kind .and. error >tiny_r_kind)  then
-           if(exp_arg  == zero) then
-              wgt=one
-           else
-              wgt=ddiff*error/sqrt(two*var_jb)
-              wgt=tanh(wgt)/wgt
-           endif
-           term=-two*var_jb*rat_err2*log(cosh((val)/sqrt(two*var_jb)))
-           rwgt = wgt/wgtlim
-           valqc = -two*term
-        else if (vqc .and. cvar_pg(ikx)> tiny_r_kind .and. error >tiny_r_kind) then
-           arg  = exp(exp_arg)
-           wnotgross= one-cvar_pg(ikx)
+        if(vqc) then
            cg_t=cvar_b(ikx)
-           wgross = cg_term*cvar_pg(ikx)/(cg_t*wnotgross)
-           term =log((arg+wgross)/(one+wgross))
-           wgt  = one-wgross/(arg+wgross)
-           rwgt = wgt/wgtlim
-           valqc = -two*rat_err2*term
+           cvar=cvar_pg(ikx)
         else
-           term = exp_arg
-           wgt  = one 
-           rwgt = wgt/wgtlim
-           valqc = -two*rat_err2*term
+           cg_t=zero
+           cvar=zero
         endif
-
+        if(nvqc) then
+ 
+           ibb=ibeta(ikx)
+           ikk=ikapa(ikx)
+        else
+           ibb=0
+           ikk=0
+        endif
+   
+       
+        call vqc_setup(val,ratio_errors,error,cvar,cg_t,ibb,ikk,&
+                      var_jb,rat_err2,wgt,valqc)
+        rwgt = wgt/wgtlim
 !       Accumulate statistics for obs belonging to this task
         if(muse(i))then
            if(rwgt < one) awork(21) = awork(21)+one
@@ -959,6 +955,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         my_head%b       = cvar_b(ikx)
         my_head%pg      = cvar_pg(ikx)
         my_head%jb      = var_jb
+        my_head%ib      = ibeta(ikx)
+        my_head%ik      = ikapa(ikx)
         my_head%use_sfc_model = sfctype.and.sfcmodel
         if(my_head%use_sfc_model) then
            call get_tlm_tsfc(my_head%tlm_tsfc(1), &
@@ -1135,6 +1133,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            my_head%b       = cvar_b(ikx)
            my_head%pg      = cvar_pg(ikx)
            my_head%jb      = var_jb
+           my_head%ib      = ibeta(ikx)
+           my_head%ik      = ikapa(ikx)
            my_head%use_sfc_model = sfctype.and.sfcmodel
            if(my_head%use_sfc_model) then
               call get_tlm_tsfc(my_head%tlm_tsfc(1), &

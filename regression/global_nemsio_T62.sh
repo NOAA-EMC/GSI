@@ -216,6 +216,7 @@ atmsbeamdat=$fixgsi/atms_beamwidth.txt
 pcpinfo=$fixgsi/global_pcpinfo.txt
 ozinfo=$fixgsi/global_ozinfo.txt
 convinfo=$fixgsi/global_convinfo_reg_test.txt
+vqcdat=$fixgsi/vqctp001.dat
 ### add 9 tables
 errtable_pw=$fixgsi/prepobs_errtable_pw.global
 errtable_ps=$fixgsi/prepobs_errtable_ps.global_nqcf
@@ -263,6 +264,7 @@ $ncp $scaninfo ./scaninfo
 $ncp $pcpinfo  ./pcpinfo
 $ncp $ozinfo   ./ozinfo
 $ncp $convinfo ./convinfo
+$ncp $vqcdat ./vqctp001.dat
 $ncp $errtable ./errtable
 #add 9 tables for new varqc
 $ncp $errtable_pw           ./errtable_pw

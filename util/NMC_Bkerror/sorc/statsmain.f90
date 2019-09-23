@@ -14,6 +14,9 @@ program statsmain
 !   2009-02-xx  kleist   perform complete overhaul of MPI usage to use 
 !                        subdomain structure of GSI and significanlty reduce 
 !                        memory requirements
+!   2017-10-25  Razvan Stefanescu (Spire)
+!                        added the capability of reading nemsio files using
+!                        Gael Descombes code
 !
 ! abstract:
 !   This code computes background error statistics to be used with the
@@ -44,14 +47,18 @@ program statsmain
       smoothdeg,init_defaults,create_grids,destroy_grids,&
       destroy_variables,rearth,rlats,wgtlats,mype,npe,&
       create_mapping,destroy_mapping,biasrm,destroy_biasrm,&
-      vertavg
-  use specgrid, only: jcap,jcapin,jcapsmooth,init_spec_vars,destroy_spec_vars
+      vertavg,use_enkf,use_gfs_nemsio,scaling
+  use specgrid, only: jcap,jcapin,jcapsmooth,init_spec_vars,&
+                      destroy_spec_vars,destroy_spec_varsin
   use postmod, only: writefiles
   use comm_mod, only: init_mpi_vars,destroy_mpi_vars
   implicit none
   include 'mpif.h'
 
   integer k,n,total,numcases,mycases,ierror
+  integer :: namelist_unit
+
+  character*10        :: variable
 
 ! define namelist
 ! NAMSTAT
@@ -64,9 +71,13 @@ program statsmain
 !   maxcases  - maximum number of forecast pairs to process
 !   hybrid    - logical for hybrid vertical coordinate
 !   smoothdeg - degree of horizontal smoothing to apply in latitudinal direction
+!   use_gfs_nemsio - if T, NEMS I/O file format is used
+!   use_enkf - if T, use enkf perturbations.
+!   scaling   - if T, read in scaling.txt and apply to variances
 
   namelist/namstat/jcap,jcapin,jcapsmooth,nsig,nlat,nlon,maxcases, &
-                   hybrid,smoothdeg,biasrm,vertavg
+                   hybrid,smoothdeg,biasrm,vertavg,use_gfs_nemsio, &
+                   use_enkf,scaling
 
 ! MPI initial setup
   call mpi_init(ierror)
@@ -141,6 +152,7 @@ program statsmain
   call destroy_grids
   call destroy_mapping
   call destroy_spec_vars
+  if (use_gfs_nemsio) call destroy_spec_varsin
   call destroy_mpi_vars
   call destroy_variables
   if(biasrm) call destroy_biasrm
