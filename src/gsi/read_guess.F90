@@ -73,6 +73,7 @@ subroutine read_guess(iyear,month,idd,mype)
 !                         proximity over full domain instead of subdomain
 !   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type 
 !   2017-10-10  Wu W    - add code for FV3 netcdf guess input 
+!   2019-09-23  martin  - add code for FV3 GFS netcdf guess input
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -96,7 +97,7 @@ subroutine read_guess(iyear,month,idd,mype)
   use gridmod, only: wrf_mass_regional,wrf_nmm_regional,cmaq_regional,&
        fv3_regional,&
        twodvar_regional,netcdf,regional,nems_nmmb_regional,use_gfs_ozone
-  use gridmod, only: use_gfs_nemsio
+  use gridmod, only: use_gfs_nemsio, use_gfs_ncio
   use gfs_stratosphere, only: use_gfs_stratosphere
 
   use constants, only: zero,one,fv,qmin
@@ -181,6 +182,9 @@ subroutine read_guess(iyear,month,idd,mype)
 !!           WRITE(6,*)'WARNING :: you elect to read first guess field in NEMSIO format'
            call read_nems
            call read_nems_chem(iyear,month,idd)
+        else if ( use_gfs_ncio ) then
+           call read_gfsnc
+           call read_gfsnc_chem(iyear,month,idd)
         else
            call read_gfs
            call read_gfs_chem(iyear,month,idd)

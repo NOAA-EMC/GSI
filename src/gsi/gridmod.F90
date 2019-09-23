@@ -88,6 +88,7 @@ module gridmod
 !   2017-08-31  Li      - add sfcnst_comb to handle surface and nsst combined file
 !   2018-02-15  wu      - add fv3_regional & grid_ratio_fv3_regional
 !   2019-03-05  martin  - add wgtfactlats for factqmin/factqmax scaling
+!   2019-09-23  martin  - add use_gfs_ncio to read global first guess from netCDF file
 !
 !                        
 !
@@ -148,6 +149,7 @@ module gridmod
   public :: jcap,jcap_b,hires_b,sp_a,grd_a
   public :: jtstart,jtstop,nthreads
   public :: use_gfs_nemsio
+  public :: use_gfs_ncio
   public :: sfcnst_comb
   public :: use_readin_anl_sfcmask
   public :: jcap_gfs,nlat_gfs,nlon_gfs
@@ -184,6 +186,7 @@ module gridmod
   logical update_regsfc     !
   logical hires_b           ! .t. when jcap_b requires double FFT
   logical use_gfs_nemsio    ! .t. for using NEMSIO to real global first guess
+  logical use_gfs_ncio      ! .t. for using netCDF to real global first guess
   logical sfcnst_comb       ! .t. for using combined sfc & nst file
   logical use_sp_eqspace    ! .t. use equally-space grid in spectral transforms
 
@@ -399,6 +402,7 @@ contains
 !   2011-09-14  todling - add use_sp_eqspace to better control lat/lon grid case
 !   2016-08-28       li - tic591: add use_readin_anl_sfcmask for consistent sfcmask
 !                         between analysis grids and others
+!   2019-09-23  martin  - add flag use_gfs_ncio to determine whether to use netCDF to read global first gues field
 !
 ! !REMARKS:
 !   language: f90
@@ -476,6 +480,7 @@ contains
     nthreads = 1  ! initialize the number of threads
 
     use_gfs_nemsio  = .false.
+    use_gfs_ncio = .false.
     sfcnst_comb = .false.
     use_readin_anl_sfcmask = .false.
 
