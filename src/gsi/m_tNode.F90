@@ -11,6 +11,7 @@ module m_tNode
 ! program history log:
 !   2016-05-18  j guo   - added this document block for the initial polymorphic
 !                         implementation.
+!   2019-09-20  X.Su    - add new variational QC parameters
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -44,6 +45,8 @@ module m_tNode
      real(r_kind)    :: b             !  variational quality control parameter
      real(r_kind)    :: pg            !  variational quality control parameter
      real(r_kind)    :: jb            !  variational quality control parameter
+     integer(i_kind) :: ib            !  new variational quality control parameter
+     integer(i_kind) :: ik            !  new variational quality control parameter
      real(r_kind)    :: tlm_tsfc(6)   !  sensitivity vector for sfc temp 
                                       !  forward model
      real(r_kind)    :: wij(8)        !  horizontal interpolation weights
@@ -198,6 +201,8 @@ _ENTRY_(myname_)
                                 aNode%b         , &
                                 aNode%pg        , &
                                 aNode%jb        , &
+                                aNode%ib        , &
+                                aNode%ik        , &
                                 aNode%use_sfc_model, &
                                 aNode%tlm_tsfc  , &
                                 aNode%tpertb    , &
@@ -221,6 +226,8 @@ _ENTRY_(myname_)
                                 aNode%b         , &
                                 aNode%pg        , &
                                 aNode%jb        , &
+                                aNode%ib        , &
+                                aNode%ik        , &
                                 aNode%use_sfc_model, &
                                 aNode%tlm_tsfc  , &
                                 aNode%tpertb    , &
@@ -270,6 +277,8 @@ _ENTRY_(myname_)
                                 aNode%b         , &
                                 aNode%pg        , &
                                 aNode%jb        , &
+                                aNode%ib        , &
+                                aNode%ik        , &
                                 aNode%use_sfc_model, &
                                 aNode%tlm_tsfc  , &
                                 aNode%tpertb    , &
@@ -293,6 +302,8 @@ _ENTRY_(myname_)
                                 aNode%b         , &
                                 aNode%pg        , &
                                 aNode%jb        , &
+                                aNode%ib        , &
+                                aNode%ik        , &
                                 aNode%use_sfc_model, &
                                 aNode%tlm_tsfc  , &
                                 aNode%tpertb    , &

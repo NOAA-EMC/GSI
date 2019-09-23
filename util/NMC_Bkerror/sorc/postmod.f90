@@ -105,7 +105,7 @@ subroutine writefiles
    real(r_single),allocatable,dimension(:) :: psvar4,pshln4
    real(r_kind),dimension(nlat) :: slat,glat
 
-   integer :: i,j,k,m,outf,ncfggg,iret,isig,n
+   integer :: i,j,k,m,outf,ncfggg,iret,isig,n,ntotal
    character(len=255) :: grdfile
    character(len=5) :: var(40)
 
@@ -266,6 +266,8 @@ subroutine writefiles
    call baclose(22,iret)
 
    ! ALSO CREATE GRADS CTL FILE
+   ntotal = 23 + nsig
+
    open(24,file='bgstats_sp.ctl',form='formatted',status='replace',iostat=iret)
    write(24,'("DSET ",a)') trim(grdfile)
    write(24,'("UNDEF -9.99E+33")')
@@ -275,7 +277,7 @@ subroutine writefiles
    write(24,'(5f12.6)') slat
    write(24,'("ZDEF",i6," LINEAR 1 1")') nsig
    write(24,'("TDEF",i6,1x,"LINEAR",1x,"00Z01Jan2000",1x,i3,"hr")') 1,12
-   write(24,'("VARS",i6)') 87
+   write(24,'("VARS",i6)') ntotal
    write(24,'("SF    ",i3," 0 SF VAR")') nsig
    write(24,'("VP    ",i3," 0 VP VAR")') nsig
    write(24,'("T     ",i3," 0 T  VAR")') nsig

@@ -106,6 +106,7 @@ module kinds
   integer, parameter, private :: default_real = 3  ! 3=quad
 #endif
   integer, parameter, public  :: r_kind = real_kinds( default_real )
+  integer, parameter, public  :: dp = real_kinds( default_real )
   integer, parameter, public  :: num_bytes_for_r_kind = &
        real_byte_sizes( default_real )
 
