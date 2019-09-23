@@ -245,7 +245,7 @@ TZR_QC=${TZR_QC:-1}
 USE_READIN_ANL_SFCMASK=${USE_READIN_ANL_SFCMASK:-.false.}
 SMOOTH_ENKF=${SMOOTH_ENKF:-"YES"}
 DOIAU=${DOIAU:-"NO"}
-DO_CALC_INCREMENT=${DO_CALC_INCREMENT:-"YES"}
+DO_CALC_INCREMENT=${DO_CALC_INCREMENT:-"NO"}
 INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"'NONE'"}
 
 # Get header information from Guess files
@@ -933,9 +933,13 @@ else
   $NCP $CALCANLEXEC $DATA
 
 # run chgres if needed
-  if [ $LONB_ENKF != $NLON_B -a $DOHYBVAR = "YES" ]; then
+  if [ $LONB_ENKF -ne $LONB -a $DOHYBVAR = "YES" ]; then
     $NCP $CHGRESEXEC $DATA
-    SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS}.txt}
+    LEVS2=$LEVS
+    if [ $LEVS -eq "127" ]; then
+      LEVS2=128
+    fi
+    SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS2}.txt}
     export OMP_NUM_THREADS=$NTHREADS_CHGRES
     rm -rf fort.43
     cat > fort.43 << EOF
@@ -980,7 +984,7 @@ EOF
   $ERRSCRIPT || exit 3
 
 # run chgres again back to original resolution if needed
-  if [ $LONB_ENKF != $NLON_B -a $DOHYBVAR = "YES" ]; then
+  if [ $LONB_ENKF -ne $LONB -a $DOHYBVAR = "YES" ]; then
     $NCP $CHGRESEXEC $DATA
     SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS}.txt}
     export OMP_NUM_THREADS=$NTHREADS_CHGRES
@@ -1001,6 +1005,7 @@ EOF
     export ERR=$rc
     export err=$ERR
     $ERRSCRIPT || exit 3
+  fi
 
 fi
 
