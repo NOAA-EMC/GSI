@@ -1730,7 +1730,7 @@ subroutine read_obs(ndata,mype)
                 call read_ahi(mype,val_dat,ithin,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),  &
-                     nobs_sub1(1,i))
+                     nobs_sub1(1,i),read_rec(i),dval_use)
                 string='READ_AHI'
 
 

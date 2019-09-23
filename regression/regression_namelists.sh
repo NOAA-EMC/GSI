@@ -133,6 +133,7 @@ OBS_INPUT::
    ompsnpbufr     ompsnp      npp       ompsnp_npp           0.0     0     0
    ompstcbufr     ompstc8     npp       ompstc8_npp          0.0     2     0
    abibufr        abi         g16       abi_g16              0.0     1     0
+   ahibufr        ahi         himawari8 ahi_himawari8        0.0     1     0
 ::
   &SUPEROB_RADAR
    $SUPERRAD
@@ -379,6 +380,7 @@ OBS_INPUT::
    ompsnpbufr     ompsnp      npp       ompsnp_npp            1.0     0     0
    ompstcbufr     ompstc8     npp       ompstc8_npp           1.0     6     0
    abibufr        abi         g16       abi_g16               0.0     7     0
+   ahibufr        ahi         himawari8 ahi_himawari8         0.0     7     0
 ::
   &SUPEROB_RADAR
    $SUPERRAD
@@ -541,8 +543,10 @@ OBS_INPUT::
    gsnd1bufr      sndrd2      g15       sndrD2_g15          0.0      1     0
    gsnd1bufr      sndrd3      g15       sndrD3_g15          0.0      1     0
    gsnd1bufr      sndrd4      g15       sndrD4_g15          0.0      1     0
-   ompsnpbufr     ompsnp      npp       ompsnp_npp           0.0     0     0
-   ompstcbufr     ompstc8     npp       ompstc8_npp          0.0     2     0
+   ompsnpbufr     ompsnp      npp       ompsnp_npp          0.0      0     0
+   ompstcbufr     ompstc8     npp       ompstc8_npp         0.0      2     0
+   abibufr        abi         g16       abi_g16             0.0      1     0
+   ahibufr        ahi         himawari8 ahi_himawari8       0.0      1     0
 ::
   &SUPEROB_RADAR
    $SUPERRAD
@@ -718,11 +722,11 @@ OBS_INPUT::
    amsr2bufr      amsr2       gcom-w1     amsr2_gcom-w1       0.0     3     0
    gmibufr        gmi         gpm         gmi_gpm             0.0     3     0
    saphirbufr     saphir      meghat      saphir_meghat       0.0     3     0
-   ahibufr        ahi         himawari8   ahi_himawari8       0.0     3     0
    rapidscatbufr  uv          null        uv                  0.0     0     0
    ompsnpbufr     ompsnp      npp       ompsnp_npp            0.0     0     0
    ompstcbufr     ompstc8     npp       ompstc8_npp           0.0     2     0
    abibufr        abi         g16       abi_g16               0.0     1     0
+   ahibufr        ahi         himawari8 ahi_himawari8         0.0     1     0
 ::
   &SUPEROB_RADAR
    $SUPERRAD
@@ -879,6 +883,7 @@ OBS_INPUT::
    seviribufr     seviri      m08         seviri_m08          0.0     1     0
    seviribufr     seviri      m09         seviri_m09          0.0     1     0
    seviribufr     seviri      m10         seviri_m10          0.0     1     0
+   seviribufr     seviri      m11         seviri_m11          0.0     1     0
    hirs4bufr      hirs4       metop-b     hirs4_metop-b       0.0     1     1
    amsuabufr      amsua       metop-b     amsua_metop-b       0.0     1     1
    mhsbufr        mhs         metop-b     mhs_metop-b         0.0     1     1
@@ -904,7 +909,8 @@ OBS_INPUT::
    amsr2bufr      amsr2       gcom-w1     amsr2_gcom-w1       0.0     3     0
    gmibufr        gmi         gpm         gmi_gpm             0.0     3     0
    saphirbufr     saphir      meghat      saphir_meghat       0.0     3     0
-   ahibufr        ahi         himawari8   ahi_himawari8       0.0     3     0
+   abibufr        abi         g16         abi_g16             0.0     1     0
+   ahibufr        ahi         himawari8   ahi_himawari8       0.0     1     0
    rapidscatbufr  uv          null        uv                  0.0     0     0
 ::
   &SUPEROB_RADAR
@@ -2588,6 +2594,8 @@ export gsi_namelist="
   sattypes_rad(61)= 'cris-fsr_npp',  dsis(61)= 'cris-fsr_npp',
   sattypes_rad(62)= 'cris-fsr_n20',  dsis(62)= 'cris-fsr_n20',
   sattypes_rad(63)= 'seviri_m11',    dsis(63)= 'seviri_m11',
+  sattypes_rad(64)= 'abi_g16',       dsis(64)= 'abi_g16',
+  sattypes_rad(65)= 'ahi_himawari8', dsis(65)= 'ahi_himawari8',
   $SATOBS_ENKF
  /
  &ozobs_enkf
