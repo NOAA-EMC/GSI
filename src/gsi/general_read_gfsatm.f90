@@ -1339,6 +1339,9 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    use gsi_bundlemod, only: gsi_bundle
    use gsi_bundlemod, only: gsi_bundlegetpointer
    use control_vectors, only: imp_physics
+   use nemsio_module, only: nemsio_init,nemsio_open,nemsio_close
+   use ncepnems_io, only: error_msg
+   use nemsio_module, only: nemsio_gfile,nemsio_getfilehead,nemsio_readrecv
 
    implicit none
 
