@@ -26,6 +26,7 @@ subroutine get_user_ens_gfs(this,grd,ntindex,atm_bundle,iret)
 ! program history log:
 !   2016-06-30  mahajan  - initial code
 !   2016-07-20  mpotts   - refactored into class/module
+!   2019-09-24  martin   - added in support for gfs netCDF IO
 !
 !   input argument list:
 !     grd      - grd info for ensemble
@@ -43,7 +44,7 @@ subroutine get_user_ens_gfs(this,grd,ntindex,atm_bundle,iret)
 !$$$
 
     use kinds, only: i_kind,r_kind,r_single
-    use gridmod, only: use_gfs_nemsio
+    use gridmod, only: use_gfs_nemsio, use_gfs_ncio
     use general_sub2grid_mod, only: sub2grid_info
     use hybrid_ensemble_parameters, only: n_ens,ens_fast_read
     use hybrid_ensemble_parameters, only: grd_ens
@@ -70,7 +71,7 @@ subroutine get_user_ens_gfs(this,grd,ntindex,atm_bundle,iret)
     associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
     end associate
 
-    if ( use_gfs_nemsio .and. ens_fast_read ) then
+    if ( (use_gfs_nemsio .or. use_gfs_ncio) .and. ens_fast_read ) then
        allocate(en_loc3(grd_ens%lat2,grd_ens%lon2,nc2d+nc3d*grd_ens%nsig,n_ens))
        allocate(clons(grd_ens%nlon),slons(grd_ens%nlon))
        call get_user_ens_gfs_fastread_(ntindex,en_loc3,m_cvars2d,m_cvars3d, &
@@ -115,6 +116,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,en_loc3,m_cvars2d,m_cvars3d, &
 ! program history log:
 !   2016-06-30  mahajan  - initial code
 !   2016-10-11  parrish  - create fast parallel code
+!   2019-09-24  martin   - add in support for use_gfs_ncio
 !
 !   input argument list:
 !     ntindex  - time index for ensemble
@@ -140,6 +142,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,en_loc3,m_cvars2d,m_cvars3d, &
     use control_vectors, only: nc2d,nc3d
     !use control_vectors, only: cvars2d,cvars3d
     use genex_mod, only: genex_info,genex_create_info,genex,genex_destroy_info
+    use gridmod, only: use_gfs_nemsio, use_gfs_ncio
 
     implicit none
 
@@ -236,11 +239,19 @@ subroutine get_user_ens_gfs_fastread_(ntindex,en_loc3,m_cvars2d,m_cvars3d, &
     m_cvars2dw=-999
     m_cvars3dw=-999
 
-    if ( mas == mae ) &
-        call parallel_read_nemsio_state_(en_full,m_cvars2dw,m_cvars3dw,nlon,nlat,nsig, &
+    if ( mas == mae ) then
+       if ( use_gfs_nemsio ) then
+           call parallel_read_nemsio_state_(en_full,m_cvars2dw,m_cvars3dw,nlon,nlat,nsig, &
                                          ias,jas,mas, &
                                          iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz, &
                                          filename,.true.,clons,slons)
+       else
+           call parallel_read_gfsnc_state_(en_full,m_cvars2dw,m_cvars3dw,nlon,nlat,nsig, &
+                                         ias,jas,mas, &
+                                         iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz, &
+                                         filename,.true.,clons,slons)
+       end if
+    end if
     base_pe0=-999
     if ( mas == 1 .and. mae == 1 ) base_pe0=mype
 
@@ -863,6 +874,192 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
 
 end subroutine parallel_read_nemsio_state_
 
+subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig, &
+                                        ias,jas,mas, &
+                                        iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz, &
+                                        filename,init_head,clons,slons)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    parallel_read_gfsnc_state_    read GFS netCDF ensemble member 
+!   prgmmr: Martin            org: NCEP/EMC                date: 2019-09-24
+!
+! program history log:
+!   2019-09-24 Martin    Initial version.  Based on sub parallel_read_nemsio_state_ 
+!
+!$$$
+
+   use kinds, only: i_kind,r_kind,r_single
+   use constants, only: r60,r3600,zero,one,half,pi,deg2rad
+   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d,imp_physics
+   use general_sub2grid_mod, only: sub2grid_info
+   use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                           close_dataset, get_dim, read_vardata 
+
+   implicit none
+
+   ! Declare local parameters
+
+   ! Declare passed variables
+   integer(i_kind),  intent(in   ) :: nlon,nlat,nsig
+   integer(i_kind),  intent(in   ) :: ias,jas,mas
+   integer(i_kind),  intent(in   ) :: iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz
+   integer(i_kind),  intent(inout) :: m_cvars2d(nc2d),m_cvars3d(nc3d)
+   real(r_single),   intent(inout) :: en_full(iasm:iaemz,jasm:jaemz,kasm:kaemz,masm:maemz)
+   character(len=*), intent(in   ) :: filename
+   logical,          intent(in   ) :: init_head
+   real(r_kind),     intent(inout) :: clons(nlon),slons(nlon)
+
+   ! Declare local variables
+   integer(i_kind) i,ii,j,jj,k,lonb,latb,levs,kr
+   integer(i_kind) k2,k3,k3u,k3v,k3t,k3q,k3cw,k3oz,kf
+   integer(i_kind) iret
+   integer(i_kind) :: istop = 101
+   character(len=120) :: myname_ = 'parallel_read_gfsnc_state_'
+   character(len=1)   :: null = ' '
+   real(r_single),allocatable,dimension(:,:,:) ::  temp2, rwork3d1, rwork3d2
+   real(r_single),allocatable,dimension(:,:) ::  rwork2d
+   real(r_single),allocatable,dimension(:,:,:,:) ::  temp3
+   real(r_kind),allocatable,dimension(:) :: rlats,rlons
+   real(r_single),allocatable,dimension(:,:) ::r4lats,r4lons
+   type(Dataset) :: atmges
+   type(Dimension) :: ncdim
+
+
+   atmges = open_dataset(filename)
+   ! get dimension sizes
+   ncdim = get_dim(atmges, 'grid_xt'); lonb = ncdim%len
+   ncdim = get_dim(atmges, 'grid_yt'); latb = ncdim%len
+   ncdim = get_dim(atmges, 'pfull'); levs = ncdim%len
+
+!  check nlat, nlon against latb, lonb
+
+   if ( nlat /= latb+2 .or. nlon /= lonb ) then
+      if ( mype == 0 ) &
+         write(6,*)trim(myname_),': ***ERROR*** incorrect resolution, nlat,nlon=',nlat,nlon, &
+                               ', latb+2,lonb=',latb+2,lonb
+      call die(myname_, ': ***ERROR*** incorrect resolution',101)
+   endif
+
+!  obtain r4lats,r4lons,rlats,rlons,clons,slons exactly as computed in general_read_gfsatm_nems:
+
+   allocate(rlats(latb+2),rlons(lonb))
+   call read_vardata(atmges, 'grid_xt', r4lons)
+   call read_vardata(atmges, 'grid_yt', r4lats)
+   do j=1,latb
+      rlats(latb+2-j)=deg2rad*r4lats(1,j)
+   enddo
+   do j=1,lonb
+      rlons(j)=deg2rad*r4lons(j,1)
+   enddo
+   deallocate(r4lats,r4lons)
+   rlats(1)=-half*pi
+   rlats(latb+2)=half*pi
+   do j=1,lonb
+      clons(j)=cos(rlons(j))
+      slons(j)=sin(rlons(j))
+   enddo
+
+   if (imp_physics == 11) allocate(rwork3d2(nlon,(nlat-2),nsig))
+   allocate(temp3(nlat,nlon,nsig,nc3d))
+   allocate(temp2(nlat,nlon,nc2d))
+   k3u=0 ; k3v=0 ; k3t=0 ; k3q=0 ; k3cw=0 ; k3oz=0
+   do k3=1,nc3d
+      if(cvars3d(k3)=='sf') k3u=k3
+      if(cvars3d(k3)=='vp') k3v=k3
+      if(cvars3d(k3)=='t') k3t=k3
+      if(cvars3d(k3)=='q') k3q=k3
+      if(cvars3d(k3)=='cw') k3cw=k3
+      if(cvars3d(k3)=='oz') k3oz=k3
+      if (trim(cvars3d(k3))=='cw') then
+         call read_vardata(atmges, 'clwmr', rwork3d1)
+         rwork3d2 = 0
+         if (imp_physics == 11) call read_vardata(atmges, 'icmr', rwork3d2) 
+         rwork3d1 = rwork3d1 + rwork3d2
+         do k=1,nsig
+            kr = levs+1-k
+            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
+         end do
+      else if(trim(cvars3d(k3))=='oz') then
+         call read_vardata(atmges, 'o3mr', rwork3d1)
+         do k=1,nsig
+            kr = levs+1-k
+            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
+         end do
+      else if(trim(cvars3d(k3))=='q') then
+         call read_vardata(atmges, 'spfh', rwork3d1)
+         do k=1,nsig
+            kr = levs+1-k
+            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
+         end do
+      else if(trim(cvars3d(k3))=='t') then
+         call read_vardata(atmges, 'tmp', rwork3d1)
+         do k=1,nsig
+            kr = levs+1-k
+            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
+         end do
+      else if(trim(cvars3d(k3))=='sf') then
+         call read_vardata(atmges, 'ugrd', rwork3d1)
+         do k=1,nsig
+            kr = levs+1-k
+            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
+         end do
+      else if(trim(cvars3d(k3))=='vp') then
+         call read_vardata(atmges, 'vgrd', rwork3d1)
+         do k=1,nsig
+            kr = levs+1-k
+            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
+         end do
+      end if
+   enddo
+   if (k3u==0.or.k3v==0.or.k3t==0.or.k3q==0.or.k3cw==0.or.k3oz==0) &
+      write(6,'(" WARNING, problem with one of k3-")')
+
+   temp2=zero
+   do k2=1,nc2d
+      if(trim(cvars2d(k2))=='ps') then
+         call read_vardata(atmges, 'pressfc', rwork2d)
+         call move1_(rwork2d,temp2(:,:,k2),nlon,nlat)
+      endif
+   enddo
+   deallocate(rwork2d, rwork3d1)
+   if (imp_physics == 11) deallocate(rwork3d2)
+
+!  move temp2,temp3 to en_full
+   kf=0
+   do k3=1,nc3d
+      m_cvars3d(k3)=kf+1
+      do k=1,nsig
+         kf=kf+1
+         jj=jas-1
+         do j=1,nlon
+            jj=jj+1
+            ii=ias-1
+            do i=1,nlat
+               ii=ii+1
+               en_full(ii,jj,kf,mas)=temp3(i,j,k,k3)
+            enddo
+         enddo
+      enddo
+   enddo
+   do k2=1,nc2d
+      m_cvars2d(k2)=kf+1
+      kf=kf+1
+      jj=jas-1
+      do j=1,nlon
+         jj=jj+1
+         ii=ias-1
+         do i=1,nlat
+            ii=ii+1
+            en_full(ii,jj,kf,mas)=temp2(i,j,k2)
+         enddo
+      enddo
+   enddo
+
+   deallocate(temp3)
+   deallocate(temp2)
+
+end subroutine parallel_read_gfsnc_state_
+
 subroutine fillpoles_s_(temp,nlon,nlat)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1041,6 +1238,7 @@ subroutine get_user_ens_gfs_member_(grd,member,ntindex,atm_bundle,iret)
 !
 ! program history log:
 !   2016-06-30  mahajan  - initial code
+!   2019-09-24  martin   - added option for use_gfs_ncio
 !
 !   input argument list:
 !     grd      - grd info for ensemble
@@ -1058,7 +1256,7 @@ subroutine get_user_ens_gfs_member_(grd,member,ntindex,atm_bundle,iret)
 !$$$
 
     use kinds, only: i_kind,r_kind
-    use gridmod, only: use_gfs_nemsio
+    use gridmod, only: use_gfs_nemsio, use_gfs_ncio
     use general_sub2grid_mod, only: sub2grid_info
     use gsi_4dvar, only: ens_fhrlevs
     use hybrid_ensemble_parameters, only: ensemble_path
@@ -1093,6 +1291,9 @@ subroutine get_user_ens_gfs_member_(grd,member,ntindex,atm_bundle,iret)
     if ( use_gfs_nemsio ) then
        call general_read_gfsatm_nems(grd,sp_ens,filename,uv_hyb_ens,.false., &
             zflag,atm_bundle,.true.,iret)
+    else if ( use_gfs_ncio ) then
+       call general_read_gfsatm_nc(grd,sp_ens,filename,uv_hyb_ens,.false., &
+            zflag,atm_bundle,.true.,iret)
     else
        call general_read_gfsatm(grd,sp_ens,sp_ens,filename,uv_hyb_ens,.false., &
             zflag,atm_bundle,inithead,iret)
@@ -1122,6 +1323,7 @@ subroutine put_gsi_ens_gfs(this,grd,member,ntindex,atm_bundle,iret)
 ! program history log:
 !   2016-06-30  mahajan  - initial code
 !   2016-07-20  mpotts   - refactored into class/module
+!   2019-09-24  martin   - stub for use_gfs_ncio
 !
 !   input argument list:
 !     grd      - grd info for ensemble
@@ -1144,7 +1346,7 @@ subroutine put_gsi_ens_gfs(this,grd,member,ntindex,atm_bundle,iret)
     use gsi_4dvar, only: ens_fhrlevs
     use hybrid_ensemble_parameters, only: ensemble_path
     use hybrid_ensemble_parameters, only: sp_ens
-    use gridmod, only: use_gfs_nemsio
+    use gridmod, only: use_gfs_nemsio, use_gfs_ncio
 
     implicit none
 
@@ -1175,6 +1377,12 @@ subroutine put_gsi_ens_gfs(this,grd,member,ntindex,atm_bundle,iret)
           iret = 999
        endif
        !call write_nemsatm(grd,...)
+    else if ( use_gfs_ncio ) then
+       if ( mype == 0 ) then
+          write(6,*) 'write_gfsncatm is not adapted to write out perturbations yet'
+          iret = 999
+       endif
+       !call write_gfsncatm(grd,...)
     else
        call general_write_gfsatm(grd,sp_ens,sp_ens,filename,mype_atm, &
             atm_bundle,ntindex,inithead,iret)

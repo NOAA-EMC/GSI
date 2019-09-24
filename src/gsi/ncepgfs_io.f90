@@ -1134,6 +1134,8 @@ end subroutine write_ghg_grid
 !   2013-10-19  todling - update cloud_efr module name
 !   2013-10-29  todling - revisit write to allow skipping vars not in MetGuess
 !   2019-09-04  martin  - added option to write fv3 netcdf increment file
+!   2019-09-24  martin  - added logic for when use_gfs_ncio is true, note
+!                         writing netCDF analysis for GFS not currently supported
 !
 !   input argument list:
 !     increment          - when >0 will write increment from increment-index slot
@@ -1151,7 +1153,7 @@ end subroutine write_ghg_grid
     use mpimod, only: mype
     use guess_grids, only: dsfct
     use guess_grids, only: ntguessig,ntguessfc,ifilesig,nfldsig
-    use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat,use_gfs_nemsio,write_fv3_incr
+    use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat,use_gfs_nemsio,write_fv3_incr,use_gfs_ncio
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use gsi_bundlemod, only: gsi_grid
@@ -1166,6 +1168,7 @@ end subroutine write_ghg_grid
     use general_specmod, only: general_init_spec_vars,general_destroy_spec_vars,spec_vars
     use gsi_4dvar, only: lwrite4danl,nhr_anal,nobs_bins
     use ncepnems_io, only: write_nemsatm,write_nemssfc,write_nems_sfc_nst
+    use netcdfgfs_io, only: write_gfsncsfc, write_gfsnc_sfc_nst
     use write_incr, only: write_fv3_increment
     use control_vectors, only: control_vector
 
@@ -1312,6 +1315,14 @@ end subroutine write_ghg_grid
                      atm_bundle,itoutsig)
             end if
 
+        else if ( use_gfs_ncio ) then
+            if  ( write_fv3_incr ) then
+                call write_fv3_increment(grd_a,sp_a,filename,mype_atm, &
+                     atm_bundle,itoutsig)
+            else
+               write(6,*) 'WRITE_ANALYSIS: ***ERROR*** writing GFS netCDF analysis not supported!'
+               call stop2(999)
+            end if
         else
 
             ! If hires_b, spectral to grid transform for background
@@ -1345,6 +1356,8 @@ end subroutine write_ghg_grid
         filename='sfcinc.gsi'
         if ( use_gfs_nemsio ) then
             call write_nemssfc(filename,mype_sfc,dsfct(:,:,ntguessfc))
+        else if ( use_gfs_ncio ) then
+            call write_gfsncsfc(filename,mype_sfc,dsfct(:,:,ntguessfc))
         else
             call write_gfssfc(filename,mype_sfc,dsfct(1,1,ntguessfc))
         endif
@@ -1355,6 +1368,8 @@ end subroutine write_ghg_grid
           else
              if ( use_gfs_nemsio ) then
                  call write_nems_sfc_nst(mype_sfc,dsfct(:,:,ntguessfc))
+             else if ( use_gfs_ncio ) then
+                 call write_gfsnc_sfc_nst(mype_sfc,dsfct(:,:,ntguessfc))
              else
                  call write_gfs_sfc_nst (mype_sfc,dsfct(1,1,ntguessfc))
              endif
@@ -1363,6 +1378,8 @@ end subroutine write_ghg_grid
            filename='sfcanl.gsi'
            if ( use_gfs_nemsio ) then
                call write_nemssfc(filename,mype_sfc,dsfct(:,:,ntguessfc))
+           else if ( use_gfs_ncio ) then
+               call write_gfsncsfc(filename,mype_sfc,dsfct(:,:,ntguessfc))
            else
                call write_gfssfc (filename,mype_sfc,dsfct(1,1,ntguessfc))
            endif
