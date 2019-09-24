@@ -1133,6 +1133,7 @@ end subroutine write_ghg_grid
 !                        gues while original cw gues still have negative values.
 !   2013-10-19  todling - update cloud_efr module name
 !   2013-10-29  todling - revisit write to allow skipping vars not in MetGuess
+!   2019-09-04  martin  - added option to write fv3 netcdf increment file
 !
 !   input argument list:
 !     increment          - when >0 will write increment from increment-index slot
@@ -1150,7 +1151,7 @@ end subroutine write_ghg_grid
     use mpimod, only: mype
     use guess_grids, only: dsfct
     use guess_grids, only: ntguessig,ntguessfc,ifilesig,nfldsig
-    use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat,use_gfs_nemsio
+    use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat,use_gfs_nemsio,write_fv3_incr
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use gsi_bundlemod, only: gsi_grid
@@ -1163,8 +1164,10 @@ end subroutine write_ghg_grid
     use constants, only: qcmin 
     use constants, only:zero
     use general_specmod, only: general_init_spec_vars,general_destroy_spec_vars,spec_vars
-    use gsi_4dvar, only: lwrite4danl,nhr_anal
+    use gsi_4dvar, only: lwrite4danl,nhr_anal,nobs_bins
     use ncepnems_io, only: write_nemsatm,write_nemssfc,write_nems_sfc_nst
+    use write_incr, only: write_fv3_increment
+    use control_vectors, only: control_vector
 
     implicit none
 
@@ -1251,13 +1254,13 @@ end subroutine write_ghg_grid
             endif
             itoutsig = it
             if ( it == ntguessig ) then
-               if ( increment > 0 ) then
+               if ( increment > 0 .or. write_fv3_incr ) then
                    filename = 'siginc'
                else
                    filename = 'siganl'
                endif
             else
-               if ( increment > 0 ) then
+               if ( increment > 0 .or. write_fv3_incr ) then
                    write(filename,"('sigi',i2.2)") ifilesig(it)
                else
                    write(filename,"('siga',i2.2)") ifilesig(it)
@@ -1265,7 +1268,7 @@ end subroutine write_ghg_grid
             endif
         else
             itoutsig = ntguessig
-            if ( increment > 0 ) then
+            if ( increment > 0 .or. write_fv3_incr ) then
                 filename = 'siginc'
             else
                 filename = 'siganl'
@@ -1273,7 +1276,7 @@ end subroutine write_ghg_grid
         endif
 
         if ( mype == 0 ) then
-            if ( increment > 0 ) then
+            if ( increment > 0 .or. write_fv3_incr ) then
                 write(6,'(A,I2.2)') 'WRITE_GFS: writing analysis increment for FHR ', ifilesig(itoutsig)
             else
                 write(6,'(A,I2.2)') 'WRITE_GFS: writing full analysis state for FHR ', ifilesig(itoutsig)
@@ -1301,8 +1304,13 @@ end subroutine write_ghg_grid
 
         if ( use_gfs_nemsio ) then
 
-            call write_nemsatm(grd_a,sp_a,filename,mype_atm, &
-                 atm_bundle,itoutsig)
+            if ( write_fv3_incr ) then
+                call write_fv3_increment(grd_a,sp_a,filename,mype_atm, &
+                     atm_bundle,itoutsig)
+            else
+                call write_nemsatm(grd_a,sp_a,filename,mype_atm, &
+                     atm_bundle,itoutsig)
+            end if
 
         else
 
