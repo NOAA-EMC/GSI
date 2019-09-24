@@ -1295,12 +1295,12 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    general_read_gfsatm_nc  adaptation of read_gfsatm for general resolutions
-!   prgmmr: martin          org: NCEP/EMC                date: 2019-09-23
+!   prgmmr: martin          org: NCEP/EMC                date: 2019-09-25
 !
 ! abstract: copied from read_gfsatm_nems
 !
 ! program history log:
-!   2019-09-23  martin     - original; copied from general_read_gfsatm_nems
+!   2019-09-25  martin     - original; copied from general_read_gfsatm_nems
 !
 !   input argument list:
 !     grd      - structure variable containing information about grid
@@ -1339,9 +1339,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    use gsi_bundlemod, only: gsi_bundle
    use gsi_bundlemod, only: gsi_bundlegetpointer
    use control_vectors, only: imp_physics
-   use nemsio_module, only: nemsio_init,nemsio_open,nemsio_close
-   use ncepnems_io, only: error_msg
-   use nemsio_module, only: nemsio_gfile,nemsio_getfilehead,nemsio_readrecv
+   use module_fv3gfs_ncio, only:
 
    implicit none
 
@@ -1371,13 +1369,12 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    integer(i_kind):: iret,nlatm2,nlevs,icm,nord_int
    integer(i_kind):: i,j,k,icount,kk
    integer(i_kind) :: ier,istatus,iredundant
-   integer(i_kind) :: latb, lonb, levs, nframe
-   integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
+   integer(i_kind) :: latb, lonb, levs
    integer(i_kind) :: istop = 101
    integer(i_kind),dimension(npe)::ilev,iflag,mype_use
-   integer(i_kind),dimension(7):: idate
+   integer(i_kind),dimension(6):: idate
    integer(i_kind),dimension(4):: odate
-   real(r_kind) :: fhour
+   real(r_kind),allocatable,dimension(:) :: fhour
 
    real(r_kind),allocatable,dimension(:):: spec_div,spec_vor
    real(r_kind),allocatable,dimension(:,:) :: grid, grid_v, &
