@@ -11,17 +11,17 @@ module netcdfgfs_io
 !   2019-09-24 Martin   Initial version.  Based on ncepnems_io
 !
 ! Subroutines Included:
-!   sub read_gfsnc       - driver to read ncep nems atmospheric and surface
+!   sub read_gfsnc       - driver to read fv3gfs netcdf atmospheric and surface
 !   sub read_gfsnc_chem
-!   sub read_gfsncatm    - read ncep nems atmospheric file, scatter
+!   sub read_gfsncatm    - read fv3gfs netcdf atmospheric file, scatter
 !                         on grid to analysis subdomains
-!   sub read_gfsncsfc    - read ncep nems surface file, scatter on grid to
+!   sub read_gfsncsfc    - read fv3gfs netcdf surface file, scatter on grid to
 !                         analysis subdomains
-!   sub read_gfsncsfc_anl- read ncep EnKF nems surface file, scatter on grid to
+!   sub read_gfsncsfc_anl- read ncep EnKF fv3gfs netcdf surface file, scatter on grid to
 !                         analysis subdomains
-!   sub write_gfsnc      - driver to write ncep nems atmospheric and surface
+!   sub write_gfsnc      - driver to write ncep fv3gfs netcdf atmospheric and surface
 !                         analysis files
-!   sub write_gfsncatm   - gather on grid, write ncep nems atmospheric analysis file
+!   sub write_gfsncatm   - gather on grid, write ncep fv3gfs netcdf atmospheric analysis file
 !   sub write_gfsncsfc   - gather/write on grid ncep surface analysis file
 !   sub read_gfsncnst    - read ncep nst file, scatter on grid to analysis subdomains
 !   sub write_gfsnc_sfc_nst - gather/write on grid ncep surface & nst analysis file
@@ -419,13 +419,12 @@ contains
 !   Declare local variables
     character(len=120) :: my_name = 'READ_GFSNCATM'
     character(len=1)   :: null = ' '
-    integer(i_kind),dimension(7):: idate
+    integer(i_kind),dimension(6):: idate
     integer(i_kind),dimension(4):: odate
     integer(i_kind) :: iret,nlatm2,nflds
     integer(i_kind) :: k,icount,icount_prev,mm1,i,j,kk,kr
     integer(i_kind) :: mype_hs, mype_ps,nord_int
     integer(i_kind) :: latb, lonb, levs, nframe
-    integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
     integer(i_kind) :: istop = 101
     real(r_kind),allocatable,dimension(:,:) :: grid, grid_v, &
          grid_vor, grid_div, grid_b, grid_b2
@@ -473,16 +472,14 @@ contains
       ncdim = get_dim(atmges, 'grid_yt'); latb = ncdim%len
       ncdim = get_dim(atmges, 'pfull'); levs = ncdim%len
       
-! TODO CRM - get time stamp info
-!      call nemsio_getfilehead(gfile,iret=iret, nframe=nframe, &
-!           nfhour=nfhour, nfminute=nfminute, nfsecondn=nfsecondn, nfsecondd=nfsecondd, &
-!           idate=idate, dimx=lonb, dimy=latb,dimz=levs)
-!
-!      fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
-!      odate(1) = idate(4)  !hour
-!      odate(2) = idate(2)  !month
-!      odate(3) = idate(3)  !day
-!      odate(4) = idate(1)  !year
+      ! get time information
+      idate = get_idate_from_time_units(atmges)
+      odate(1) = idate(4)  !hour
+      odate(2) = idate(2)  !month
+      odate(3) = idate(3)  !day
+      odate(4) = idate(1)  !year
+      call read_vardata(atmges, 'time', fhour) ! might need to change this to attribute later
+                                               ! depends on model changes from Jeff Whitaker
 !
 !  g_* array already pre-allocate as (lat2,lon2,<nsig>) => 2D and <3D> array
 !
@@ -901,7 +898,6 @@ contains
     character(len=1)   :: null = ' '
     integer(i_kind) :: i,j,it,n,nsfc
     integer(i_kind) :: iret, nframe, lonb, latb
-    integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
     real(r_single)  :: fhour
     integer(i_kind) :: istop = 102
     real(r_single), allocatable, dimension(:,:) :: work,outtmp
@@ -920,12 +916,14 @@ contains
        ncdim = get_dim(sfcges, 'grid_xt'); lonb = ncdim%len
        ncdim = get_dim(sfcges, 'grid_yt'); latb = ncdim%len
 
-       ! TODO CRM take care of time info here
-       !fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
-       !odate(1) = idate(4)  !hour
-       !odate(2) = idate(2)  !month
-       !odate(3) = idate(3)  !day
-       !odate(4) = idate(1)  !year
+       ! get time information
+       idate = get_idate_from_time_units(sfcges)
+       odate(1) = idate(4)  !hour
+       odate(2) = idate(2)  !month
+       odate(3) = idate(3)  !day
+       odate(4) = idate(1)  !year
+       call read_vardata(atmges, 'time', fhour) ! might need to change this to attribute later
+                                               ! depends on model changes from Jeff Whitaker
 
        if ( (latb /= nlat_sfc-2) .or. (lonb /= nlon_sfc) ) then
           if ( mype == 0 ) write(6, &
@@ -952,67 +950,67 @@ contains
 
 !            Tsea
              call read_vardata(sfcges, 'tmpsfc', work)
-             call tran_gfssfc(work,sfct(1,1,it),lonb,latb)
+             call tran_gfsncsfc(work,sfct(1,1,it),lonb,latb)
 
           elseif(n == 2 .and. use_sfc_any) then          ! soil moisture
 
 !            smc/soilw
              call read_vardata(sfcges, 'soill1', work)
-             call tran_gfssfc(work,soil_moi(1,1,it),lonb,latb)
+             call tran_gfsncsfc(work,soil_moi(1,1,it),lonb,latb)
 
           elseif(n == 3) then                            ! snow depth
 
              call read_vardata(sfcges, 'snod', work)
-             call tran_gfssfc(work,sno(1,1,it),lonb,latb)
+             call tran_gfsncsfc(work,sno(1,1,it),lonb,latb)
 
           elseif(n == 4 .and. use_sfc_any) then          ! soil temperature
 
 !            stc/tmp
              call read_vardata(sfcges, 'soilt1', work)
-             call tran_gfssfc(work,soil_temp(1,1,it),lonb,latb)
+             call tran_gfsncsfc(work,soil_temp(1,1,it),lonb,latb)
 
           elseif(n == 5 .and. use_sfc_any) then          ! vegetation cover
 
 !            vfrac
              call read_vardata(sfcges, 'veg', work)
-             call tran_gfssfc(work,veg_frac(1,1,it),lonb,latb)
+             call tran_gfsncsfc(work,veg_frac(1,1,it),lonb,latb)
 
           elseif(n == 6) then                            ! 10m wind factor
 
 !            f10m
              call read_vardata(sfcges, 'f10m', work)
-             call tran_gfssfc(work,fact10(1,1,it),lonb,latb)
+             call tran_gfsncsfc(work,fact10(1,1,it),lonb,latb)
 
           elseif(n == 7) then                            ! suface roughness
 
 !            zorl
              call read_vardata(sfcges, 'sfcr', work)
-             call tran_gfssfc(work,sfc_rough(1,1,it),lonb,latb)
+             call tran_gfsncsfc(work,sfc_rough(1,1,it),lonb,latb)
 
           elseif(n == 8 .and. use_sfc_any) then          ! vegetation type
 
 !            vtype
              call read_vardata(sfcges, 'vtype', work)
-             call tran_gfssfc(work,veg_type,lonb,latb)
+             call tran_gfsncsfc(work,veg_type,lonb,latb)
 
           elseif(n == 9 .and. use_sfc_any) then          ! soil type
 
 !            stype
              call read_vardata(sfcges, 'sotyp', work)
-             call tran_gfssfc(work,soil_type,lonb,latb)
+             call tran_gfsncsfc(work,soil_type,lonb,latb)
 
           elseif(n == 10) then                           ! terrain
 
 !            orog
              call read_vardata(sfcges, 'orog', work)
-             call tran_gfssfc(work,terrain,lonb,latb)
+             call tran_gfsncsfc(work,terrain,lonb,latb)
 
           elseif(n == 11) then                           ! sea/land/ice flag
 
 !            slmsk
              call read_vardata(sfcges, 'land', work)
              allocate(outtmp(latb+2,lonb))
-             call tran_gfssfc(work,outtmp,lonb,latb)
+             call tran_gfsncsfc(work,outtmp,lonb,latb)
              do j=1,lonb
                 do i=1,latb+2
                    isli(i,j) = nint(outtmp(i,j))
@@ -1028,31 +1026,31 @@ contains
           if ( mype == 0 ) write(6,*) ' read 9 optional NSST variables '
 
           call read_vardata(sfcges, 'tref', work)
-          call tran_gfssfc(work,tref(1,1,it),lonb,latb)
+          call tran_gfsncsfc(work,tref(1,1,it),lonb,latb)
 
           call read_vardata(sfcges, 'dtcool', work)
-          call tran_gfssfc(work,dt_cool(1,1,it),lonb,latb)
+          call tran_gfsncsfc(work,dt_cool(1,1,it),lonb,latb)
 
           call read_vardata(sfcges, 'zc', work)
-          call tran_gfssfc(work,z_c(1,1,it),lonb,latb)
+          call tran_gfsncsfc(work,z_c(1,1,it),lonb,latb)
 
           call read_vardata(sfcges, 'xt', work)
-          call tran_gfssfc(work,xt(1,1,it),lonb,latb)
+          call tran_gfsncsfc(work,xt(1,1,it),lonb,latb)
 
           call read_vardata(sfcges, 'xz', work)
-          call tran_gfssfc(work,z_w(1,1,it),lonb,latb)
+          call tran_gfsncsfc(work,z_w(1,1,it),lonb,latb)
  
           call read_vardata(sfcges, 'c0', work)
-          call tran_gfssfc(work,c_0(1,1,it),lonb,latb)
+          call tran_gfsncsfc(work,c_0(1,1,it),lonb,latb)
 
           call read_vardata(sfcges, 'cd', work)
-          call tran_gfssfc(work,c_d(1,1,it),lonb,latb)
+          call tran_gfsncsfc(work,c_d(1,1,it),lonb,latb)
 
           call read_vardata(sfcges, 'w0', work)
-          call tran_gfssfc(work,w_0(1,1,it),lonb,latb)
+          call tran_gfsncsfc(work,w_0(1,1,it),lonb,latb)
 
           call read_vardata(sfcges, 'wd', work)
-          call tran_gfssfc(work,w_d(1,1,it),lonb,latb)
+          call tran_gfsncsfc(work,w_d(1,1,it),lonb,latb)
 !
 !         Get diurnal warming amout at z=0
 !
@@ -1232,7 +1230,6 @@ contains
     character(len=1)   :: null = ' '
     integer(i_kind) :: i,j
     integer(i_kind) :: iret, nframe, lonb, latb
-    integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
     real(r_single) :: fhour
     integer(i_kind) :: istop = 102
     real(r_single), allocatable, dimension(:,:) :: work,outtmp
@@ -1248,12 +1245,14 @@ contains
     ncdim = get_dim(sfcges, 'grid_xt'); lonb = ncdim%len
     ncdim = get_dim(sfcges, 'grid_yt'); latb = ncdim%len
 
-    ! TODO CRM take care of time info here
-    !fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
-    !odate(1) = idate(4)  !hour
-    !odate(2) = idate(2)  !month
-    !odate(3) = idate(3)  !day
-    !odate(4) = idate(1)  !year
+    ! get time information
+    idate = get_idate_from_time_units(sfcges)
+    odate(1) = idate(4)  !hour
+    odate(2) = idate(2)  !month
+    odate(3) = idate(3)  !day
+    odate(4) = idate(1)  !year
+    call read_vardata(atmges, 'time', fhour) ! might need to change this to attribute later
+                                               ! depends on model changes from Jeff Whitaker
 
     if ( (latb /= nlat-2) .or. (lonb /= nlon) ) then
        if ( mype == 0 ) write(6, &
@@ -1271,7 +1270,7 @@ contains
 !   slmsk
     call read_vardata(sfcges, 'land', work)
     allocate(outtmp(latb+2,lonb))
-    call tran_gfssfc(work,outtmp,lonb,latb)
+    call tran_gfsncsfc(work,outtmp,lonb,latb)
     do j=1,lonb
        do i=1,latb+2
           isli_anl(i,j) = nint(outtmp(i,j))
@@ -1392,7 +1391,6 @@ contains
     character(len=1)   :: null = ' '
     integer(i_kind) :: i,j,it,latb,lonb
     integer(i_kind) :: iret, nframe
-    integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
     integer(i_kind) :: istop = 103
     real(r_single) :: fhour
     real(r_single), dimension(nlat_sfc,nlon_sfc,nfldnst) :: xt
@@ -1413,12 +1411,14 @@ contains
        ncdim = get_dim(sfcges, 'grid_xt'); lonb = ncdim%len
        ncdim = get_dim(sfcges, 'grid_yt'); latb = ncdim%len
 
-       ! TODO CRM take care of time info here
-       !fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
-       !odate(1) = idate(4)  !hour
-       !odate(2) = idate(2)  !month
-       !odate(3) = idate(3)  !day
-       !odate(4) = idate(1)  !year
+       ! get time information
+       idate = get_idate_from_time_units(sfcges)
+       odate(1) = idate(4)  !hour
+       odate(2) = idate(2)  !month
+       odate(3) = idate(3)  !day
+       odate(4) = idate(1)  !year
+       call read_vardata(atmges, 'time', fhour) ! might need to change this to attribute later
+                                               ! depends on model changes from Jeff Whitaker
 
        if ( (latb /= nlat_sfc-2) .or. (lonb /= nlon_sfc) ) then
           if ( mype == 0 ) &
@@ -1434,39 +1434,39 @@ contains
 
 !      Tref
        call read_vardata(sfcges, 'tref', work)
-       call tran_gfssfc(work,tref(1,1,it),lonb,latb)
+       call tran_gfsncsfc(work,tref(1,1,it),lonb,latb)
 
 !      dt_cool
        call read_vardata(sfcges, 'dtcool', work)
-       call tran_gfssfc(work,dt_cool(1,1,it),lonb,latb)
+       call tran_gfsncsfc(work,dt_cool(1,1,it),lonb,latb)
 
 !      z_c
        call read_vardata(sfcges, 'zc', work)
-       call tran_gfssfc(work,z_c(1,1,it),lonb,latb)
+       call tran_gfsncsfc(work,z_c(1,1,it),lonb,latb)
 
 !      xt
        call read_vardata(sfcges, 'xt', work)
-       call tran_gfssfc(work,xt(1,1,it),lonb,latb)
+       call tran_gfsncsfc(work,xt(1,1,it),lonb,latb)
 
 !      xz
        call read_vardata(sfcges, 'xz', work)
-       call tran_gfssfc(work,z_w(1,1,it),lonb,latb)
+       call tran_gfsncsfc(work,z_w(1,1,it),lonb,latb)
 !
 !      c_0
        call read_vardata(sfcges, 'c0', work)
-       call tran_gfssfc(work,c_0(1,1,it),lonb,latb)
+       call tran_gfsncsfc(work,c_0(1,1,it),lonb,latb)
 
 !      c_d
        call read_vardata(sfcges, 'cd', work)
-       call tran_gfssfc(work,c_d(1,1,it),lonb,latb)
+       call tran_gfsncsfc(work,c_d(1,1,it),lonb,latb)
 
 !      w_0
        call read_vardata(sfcges, 'w0', work)
-       call tran_gfssfc(work,w_0(1,1,it),lonb,latb)
+       call tran_gfsncsfc(work,w_0(1,1,it),lonb,latb)
 
 !      w_d
        call read_vardata(sfcges, 'wd', work)
-       call tran_gfssfc(work,w_d(1,1,it),lonb,latb)
+       call tran_gfsncsfc(work,w_d(1,1,it),lonb,latb)
 
 !
 !      Get diurnal warming amout at z=0
@@ -1561,9 +1561,9 @@ contains
 
 !$$$  subprogram documentation block
 !                .      .    .
-! subprogram:    write_nemsatm --- Gather, transform, and write out
+! subprogram:    write_gfsncatm --- Gather, transform, and write out
 !
-!   prgmmr: Huang            org: np23                date: 2010-02-22
+!   prgmmr: Martin          org: NCEP/EMC              date: 2019-09-24
 !
 ! abstract: This routine gathers fields needed for the GSI analysis
 !           file from subdomains and then transforms the fields from
@@ -1571,23 +1571,18 @@ contains
 !           atmospheric analysis file.
 !
 ! program history log:
-!   2010-02-22  Huang    Initial version.  Based on write_gfsatm
-!   2011-02-14  Huang    Re-arrange the write sequence to be same as model
-!                        read/rite sequence.
-!   2013-10-25  todling  reposition load_grid to commvars
-!   2016-07-28  mahajan  update with bundling ability
+!   2019-09-24  Martin    Initial version.  Based on write_nemsatm
 !
 !   input argument list:
 !     filename  - file to open and write to
 !     mype_out  - mpi task to write output file
-!    gfs_bundle - bundle containing fields on subdomains
+!     gfs_bundle - bundle containing fields on subdomains
 !     ibin      - time bin
 !
 !   output argument list:
 !
 ! attributes:
 !   language: f90
-!   machines: ibm RS/6000 SP; SGI Origin 2000; Compaq HP
 !
 !$$$ end documentation block
 
@@ -1614,8 +1609,6 @@ contains
 
     use obsmod, only: iadate
 
-    use nemsio_module, only: nemsio_gfile,nemsio_open,nemsio_init,&
-         nemsio_getfilehead,nemsio_close,nemsio_writerecv,nemsio_readrecv
     use gsi_4dvar, only: ibdate,nhr_obsbin,lwrite4danl
     use general_sub2grid_mod, only: sub2grid_info
     use egrid2agrid_mod,only: g_egrid2agrid,g_create_egrid2agrid,egrid2agrid_parm,destroy_egrid2agrid
@@ -1646,7 +1639,6 @@ contains
     integer(i_kind),dimension(4):: odate
     integer(i_kind) :: k, mm1, nlatm2, nord_int, i, j, kk
     integer(i_kind) :: iret, lonb, latb, levs, istatus
-    integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
     integer(i_kind) :: istop = 104
     integer(i_kind),dimension(5):: mydate
     integer(i_kind),dimension(8) :: ida,jda
@@ -1674,7 +1666,6 @@ contains
     real(r_kind),allocatable,dimension(:,:) :: grid_b,grid_b2
     real(r_kind),allocatable,dimension(:,:,:) :: grid_c, grid3, grid_c2, grid3b
 
-    type(nemsio_gfile) :: gfile,gfileo
     logical diff_res,eqspace
     logical,dimension(1) :: vector
     type(egrid2agrid_parm) :: p_low,p_high
@@ -2742,7 +2733,7 @@ contains
 !
 !         Get updated/analysis surface mask info from sfcgcy file
 !
-          call tran_gfssfc(slmsk_anl,work,lonb,latb)
+          call tran_gfsncsfc(slmsk_anl,work,lonb,latb)
           do j=1,lonb
              do i=1,latb+2
                 isli_gsi(i,j) = nint(work(i,j))
@@ -3261,7 +3252,7 @@ contains
   subroutine tran_gfsncsfc(ain,aout,lonb,latb)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    tran_gfssfc     transform gfs surface file to analysis grid
+! subprogram:    tran_gfsncsfc     transform gfs surface file to analysis grid
 !   prgmmr: derber          org: np2                date: 2003-04-10
 !
 ! abstract: transform gfs surface file to analysis grid
