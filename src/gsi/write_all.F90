@@ -35,10 +35,13 @@ subroutine write_all(increment)
 
   use ncepgfs_io, only: write_gfs
 
-  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_bundlemod, only: gsi_bundle, gsi_bundlegetpointer
   use gsi_metguess_mod, only: gsi_metguess_bundle
 
   use mpeu_util, only: die
+
+  use gsi_4dvar, only: nobs_bins
+  use control_vectors, only: control_vector
   
   implicit none
 
