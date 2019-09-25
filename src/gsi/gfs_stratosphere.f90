@@ -200,7 +200,7 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
    real(r_kind) ak_r(nsigr+1),bk_r(nsigr+1),p_r(nsigr+1)
    real(r_kind),dimension(:),allocatable:: p_g,dp_g ! (nsigg+1)
    real(r_kind) psfc
-   integer(i_kind) k
+   integer(i_kind) k,kr
    real(r_kind) dp_r(nsigr+1)
    real(r_kind) pref0,pref1
    real(r_kind) delpmin,delp
@@ -280,8 +280,11 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
       allocate(vcoord(levs+1,nvcoord))
       call read_attribute(atmges, 'ak', aknc)
       call read_attribute(atmges, 'bk', bknc)
-      vcoord(:,1) = aknc
-      vcoord(:,2) = bknc
+      do k=1,levs+1
+         kr = levs+2-k
+         vcoord(k,1) = aknc(kr)
+         vcoord(k,2) = bknc(kr)
+      end do
       if(print_verbose)then
          write(6,*) ' netcdf : nvcoord=', nvcoord
          do k=1,levs+1
