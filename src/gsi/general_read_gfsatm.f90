@@ -1339,7 +1339,8 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    use gsi_bundlemod, only: gsi_bundle
    use gsi_bundlemod, only: gsi_bundlegetpointer
    use control_vectors, only: imp_physics
-   use module_fv3gfs_ncio, only:
+   use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                           close_dataset, get_dim, read_vardata,get_idate_from_time_units
 
    implicit none
 
@@ -1367,7 +1368,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    character(len=120) :: my_name = 'GENERAL_READ_GFSATM_NC'
    character(len=1)   :: null = ' '
    integer(i_kind):: iret,nlatm2,nlevs,icm,nord_int
-   integer(i_kind):: i,j,k,icount,kk
+   integer(i_kind):: i,j,k,icount,kk,kr
    integer(i_kind) :: ier,istatus,iredundant
    integer(i_kind) :: latb, lonb, levs
    integer(i_kind) :: istop = 101
@@ -1380,15 +1381,17 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    real(r_kind),allocatable,dimension(:,:) :: grid, grid_v, &
         grid_vor, grid_div, grid_b, grid_b2
    real(r_kind),allocatable,dimension(:,:,:) :: grid_c, grid2, grid_c2
+   real(r_single),allocatable,dimension(:,:,:) :: rwork3d0, rwork3d1
+   real(r_single),allocatable,dimension(:,:) :: rwork2d
    real(r_kind),allocatable,dimension(:)   :: work, work_v
-   real(r_kind),allocatable,dimension(:) :: rwork1d0, rwork1d1
    real(r_kind),allocatable,dimension(:) :: rlats,rlons,clons,slons
-   real(4),allocatable,dimension(:) :: r4lats,r4lons
+   real(4),allocatable,dimension(:,:) :: r4lats,r4lons
 
    logical :: procuse,diff_res,eqspace
-   type(nemsio_gfile) :: gfile
    type(egrid2agrid_parm) :: p_high
    logical,dimension(1) :: vector
+   type(Dataset) :: atmges
+   type(Dimension) :: ncdim
 
    !******************************************************************************
    ! Initialize variables used below
@@ -1417,23 +1420,23 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
 
    if ( procuse ) then
 
-      if ( init_head)call nemsio_init(iret=iret)
-      if (iret /= 0) call error_msg(trim(my_name),trim(filename),null,'init',istop,iret)
+      atmges = open_dataset(filename)
 
-      call nemsio_open(gfile,filename,'READ',iret=iret)
-      if (iret /= 0) call error_msg(trim(my_name),trim(filename),null,'open',istop+1,iret)
+      ! get dimension sizes
+      ncdim = get_dim(atmges, 'grid_xt'); lonb = ncdim%len
+      ncdim = get_dim(atmges, 'grid_yt'); latb = ncdim%len
+      ncdim = get_dim(atmges, 'pfull'); levs = ncdim%len
 
-      call nemsio_getfilehead(gfile,iret=iret, nframe=nframe, &
-           nfhour=nfhour, nfminute=nfminute, nfsecondn=nfsecondn, nfsecondd=nfsecondd, &
-           idate=idate, dimx=lonb, dimy=latb,dimz=levs)
+      ! get time information
+      idate = get_idate_from_time_units(atmges)
+      odate(1) = idate(4)  !hour
+      odate(2) = idate(2)  !month
+      odate(3) = idate(3)  !day
+      odate(4) = idate(1)  !year
+      call read_vardata(atmges, 'time', fhour) ! might need to change this to attribute later
+                                               ! depends on model changes from
+                                               ! Jeff Whitaker
 
-      if (  nframe /= 0 ) then
-         if ( mype == 0 ) &
-            write(6,*)trim(my_name),': ***ERROR***  nframe /= 0 for global model read, nframe = ', nframe
-         call stop2(101)
-      endif
-
-      fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
       odate(1) = idate(4)  !hour
       odate(2) = idate(2)  !month
       odate(3) = idate(3)  !day
@@ -1467,17 +1470,18 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
          allocate(grid_b(lonb,latb),grid_c(latb+2,lonb,1),grid2(grd%nlat,grd%nlon,1))
          allocate(grid_b2(lonb,latb),grid_c2(latb+2,lonb,1))
       endif
-      allocate(rwork1d0(latb*lonb))
-      allocate(rlats(latb+2),rlons(lonb),clons(lonb),slons(lonb),r4lats(lonb*latb),r4lons(lonb*latb))
-      allocate(rwork1d1(latb*lonb))
-      call nemsio_getfilehead(gfile,lat=r4lats,iret=iret)
-      call nemsio_getfilehead(gfile,lon=r4lons,iret=iret)
+      allocate(rwork3d0(lonb,latb,levs))
+      allocate(rwork3d1(lonb,latb,levs))
+      allocate(rwork2d(lonb,latb))
+      allocate(rlats(latb+2),rlons(lonb),clons(lonb),slons(lonb),r4lats(lonb,latb),r4lons(lonb,latb))
+      call read_vardata(atmges, 'grid_xt', r4lons)
+      call read_vardata(atmges, 'grid_yt', r4lats)
       do j=1,latb
-         rlats(latb+2-j)=deg2rad*r4lats(lonb/2+(j-1)*lonb)
-      enddo
+        rlats(latb+2-j)=r4lats(1,j)
+      end do
       do j=1,lonb
-         rlons(j)=deg2rad*r4lons(j)
-      enddo
+        rlons(j)=r4lons(j,1)
+      end do
       deallocate(r4lats,r4lons)
       rlats(1)=-half*pi
       rlats(latb+2)=half*pi
@@ -1568,10 +1572,9 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
       ! Terrain:  spectral --> grid transform, scatter to all mpi tasks
       if (mype==mype_use(icount)) then
          ! read hs
-         call nemsio_readrecv(gfile,'hgt', 'sfc',1,rwork1d0,iret=iret)
-         if (iret /= 0) call error_msg(trim(my_name),trim(filename),'hgt','read',istop+2,iret)
+         call read_vardata(atmges, 'hgtsfc', rwork2d)
          if ( diff_res ) then
-            grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
+            grid_b=rwork2d
             vector(1)=.false.
             call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
             call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
@@ -1581,7 +1584,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
                work(kk)=grid2(i,j,1)
             enddo
          else
-            grid=reshape(rwork1d0,(/size(grid,1),size(grid,2)/))
+            grid=rwork2d
             call general_fill_ns(grd,grid,work)
          endif
       endif
@@ -1598,12 +1601,11 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    ! Surface pressure:  same procedure as terrain
    if (mype==mype_use(icount)) then
       ! read ps
-      call nemsio_readrecv(gfile,'pres','sfc',1,rwork1d0,iret=iret)
-      if (iret /= 0) call error_msg(trim(my_name),trim(filename),'pres','read',istop+3,iret)
-      rwork1d1 = r0_001*rwork1d0 ! convert Pa to cb
+      call read_vardata(atmges, 'pressfc', rwork2d)
+      rwork2d = r0_001*rwork2d ! convert Pa to cb
       if ( diff_res ) then
          vector(1)=.false.
-         grid_b=reshape(rwork1d1,(/size(grid_b,1),size(grid_b,2)/))
+         grid_b=rwork2d
          call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
          call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
          do kk=1,grd%itotsub
@@ -1612,7 +1614,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
             work(kk)=grid2(i,j,1)
          enddo
       else
-         grid=reshape(rwork1d1,(/size(grid,1),size(grid,2)/))
+         grid=rwork2d
          call general_fill_ns(grd,grid,work)
       endif
    endif
@@ -1627,21 +1629,19 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    !   Finally, the grids are loaded into guess arrays used later in the
    !   code.
 
+   call read_vardata(atmges, 'spfh', rwork3d1)
+   call read_vardata(atmges, 'tmp', rwork3d0)
    do k=1,nlevs
 
       icount=icount+1
       iflag(icount)=3
       ilev(icount)=k
+      kr = levs+1-k ! netcdf is top to bottom, need to flip
 
       if (mype==mype_use(icount)) then
-         ! read T/Tv/etc.
-         call nemsio_readrecv(gfile,'tmp','mid layer',k,rwork1d0,iret=iret)
-         if (iret /= 0) call error_msg(trim(my_name),trim(filename),'tmp','read',istop+7,iret)
-         call nemsio_readrecv(gfile,'spfh','mid layer',k,rwork1d1,iret=iret)
-         if (iret /= 0) call error_msg(trim(my_name),trim(filename),'spfh','read',istop+7,iret)
-         rwork1d0=rwork1d0*(one+fv*rwork1d1)
+         rwork2d = rwork3d0(:,:,kr) * (one+fv*rwork3d1(:,:,kr))
          if ( diff_res ) then
-            grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
+            grid_b=rwork2d
             vector(1)=.false.
             call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
             call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
@@ -1651,7 +1651,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
                work(kk)=grid2(i,j,1)
             enddo
          else
-            grid=reshape(rwork1d0,(/size(grid,1),size(grid,2)/))
+            grid=rwork2d
             call general_fill_ns(grd,grid,work)
          endif
       endif
@@ -1659,23 +1659,22 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
          call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
               icount,iflag,ilev,work,uvflag,vordivflag)
       endif
-
-      if ( vordivflag .or. .not. uvflag ) then
-
-         icount=icount+1
-         iflag(icount)=4
-         ilev(icount)=k
+   end do
+   call read_vardata(atmges, 'ugrd', rwork3d0)
+   call read_vardata(atmges, 'vgrd', rwork3d1)
+   if ( vordivflag .or. .not. uvflag ) then
+      do k=1,nlevs
+      kr = levs+1-k ! netcdf is top to bottom, need to flip
+      icount=icount+1
+      iflag(icount)=4
+      ilev(icount)=k
 
          if (mype==mype_use(icount)) then
             ! Vorticity
             ! Convert grid u,v to div and vor
-            call nemsio_readrecv(gfile,'ugrd','mid layer',k,rwork1d0,iret=iret)
-            if (iret /= 0) call error_msg(trim(my_name),trim(filename),'ugrd','read',istop+4,iret)
-            call nemsio_readrecv(gfile,'vgrd','mid layer',k,rwork1d1,iret=iret)
-            if (iret /= 0) call error_msg(trim(my_name),trim(filename),'vgrd','read',istop+5,iret)
             if ( diff_res ) then
-               grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
-               grid_b2=reshape(rwork1d1,(/size(grid_b2,1),size(grid_b2,2)/))
+               grid_b=rwork3d0(:,:,kr)
+               grid_b2=rwork3d1(:,:,kr)
                vector(1)=.true.
                call filluv2_ns(grid_b,grid_b2,grid_c(:,:,1),grid_c2(:,:,1),latb+2,lonb,slons,clons)
                call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
@@ -1701,8 +1700,8 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
                   enddo
                enddo
             else
-               grid=reshape(rwork1d0,(/size(grid,1),size(grid,2)/))
-               grid_v=reshape(rwork1d1,(/size(grid_v,1),size(grid_v,2)/))
+               grid=rwork3d0(:,:,kr)
+               grid_v=rwork3d1(:,:,kr)
                call general_filluv_ns(grd,slons,clons,grid,grid_v,work,work_v)
             endif
             allocate( grid_vor(grd%nlon,nlatm2))
@@ -1717,6 +1716,10 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
                  icount,iflag,ilev,work,uvflag,vordivflag)
          endif
 
+      end do
+      do k=1,nlevs
+         kr = levs+1-k ! netcdf is top to bottom, need to flip
+
          icount=icount+1
          iflag(icount)=5
          ilev(icount)=k
@@ -1724,13 +1727,9 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
          if (mype==mype_use(icount)) then
             ! Divergence
             ! Convert grid u,v to div and vor
-            call nemsio_readrecv(gfile,'ugrd','mid layer',k,rwork1d0,iret=iret)
-            if (iret /= 0) call error_msg(trim(my_name),trim(filename),'ugrd','read',istop+4,iret)
-            call nemsio_readrecv(gfile,'vgrd','mid layer',k,rwork1d1,iret=iret)
-            if (iret /= 0) call error_msg(trim(my_name),trim(filename),'vgrd','read',istop+5,iret)
             if ( diff_res ) then
-               grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
-               grid_b2=reshape(rwork1d1,(/size(grid_b,1),size(grid_b,2)/))
+               grid_b=rwork3d0(:,:,kr)
+               grid_b2=rwork3d1(:,:,kr)
                vector(1)=.true.
                call filluv2_ns(grid_b,grid_b2,grid_c(:,:,1),grid_c2(:,:,1),latb+2,lonb,slons,clons)
                call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
@@ -1756,8 +1755,8 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
                   enddo
                enddo
             else
-               grid=reshape(rwork1d0,(/size(grid,1),size(grid,2)/))
-               grid_v=reshape(rwork1d1,(/size(grid_v,1),size(grid_v,2)/))
+               grid=rwork3d0(:,:,kr)
+               grid_v=rwork3d1(:,:,kr)
                call general_filluv_ns(grd,slons,clons,grid,grid_v,work,work_v)
             endif
             allocate( grid_div(grd%nlon,nlatm2) )
@@ -1772,24 +1771,20 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
                  icount,iflag,ilev,work,uvflag,vordivflag)
          endif
 
-      endif ! if ( vordivflag .or. .not. uvflag )
-
-      if ( uvflag ) then
-
+      end do
+   endif ! if ( vordivflag .or. .not. uvflag )
+   if ( uvflag ) then
+      do k=1,nlevs
+         kr = levs+1-k ! netcdf is top to bottom, need to flip
          icount=icount+1
          iflag(icount)=6
          ilev(icount)=k
 
          if (mype==mype_use(icount)) then
 
-            ! U
-            call nemsio_readrecv(gfile,'ugrd','mid layer',k,rwork1d0,iret=iret)
-            if (iret /= 0) call error_msg(trim(my_name),trim(filename),'ugrd','read',istop+4,iret)
-            call nemsio_readrecv(gfile,'vgrd','mid layer',k,rwork1d1,iret=iret)
-            if (iret /= 0) call error_msg(trim(my_name),trim(filename),'vgrd','read',istop+5,iret)
             if ( diff_res ) then
-               grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
-               grid_b2=reshape(rwork1d1,(/size(grid_b2,1),size(grid_b2,2)/))
+               grid_b=rwork3d0(:,:,kr)
+               grid_b2=rwork3d1(:,:,kr)
                vector(1)=.true.
                call filluv2_ns(grid_b,grid_b2,grid_c(:,:,1),grid_c2(:,:,1),latb+2,lonb,slons,clons)
                call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
@@ -1799,8 +1794,8 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
                   work(kk)=grid2(i,j,1)
                enddo
             else
-               grid=reshape(rwork1d0,(/size(grid,1),size(grid,2)/))
-               grid_v=reshape(rwork1d1,(/size(grid_v,1),size(grid_v,2)/))
+               grid=rwork3d0(:,:,kr)
+               grid_v=rwork3d1(:,:,kr)
                call general_filluv_ns(grd,slons,clons,grid,grid_v,work,work_v)
             endif
          endif
@@ -1815,13 +1810,9 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
 
          if (mype==mype_use(icount)) then
             ! V
-            call nemsio_readrecv(gfile,'ugrd','mid layer',k,rwork1d0,iret=iret)
-            if (iret /= 0) call error_msg(trim(my_name),trim(filename),'ugrd','read',istop+4,iret)
-            call nemsio_readrecv(gfile,'vgrd','mid layer',k,rwork1d1,iret=iret)
-            if (iret /= 0) call error_msg(trim(my_name),trim(filename),'vgrd','read',istop+5,iret)
             if ( diff_res ) then
-               grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
-               grid_b2=reshape(rwork1d1,(/size(grid_b2,1),size(grid_b2,2)/))
+               grid_b=rwork3d0(:,:,kr)
+               grid_b2=rwork3d1(:,:,kr)
                vector(1)=.true.
                call filluv2_ns(grid_b,grid_b2,grid_c(:,:,1),grid_c2(:,:,1),latb+2,lonb,slons,clons)
                call g_egrid2agrid(p_high,grid_c2,grid2,1,1,vector)
@@ -1831,8 +1822,8 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
                   work(kk)=grid2(i,j,1)
                enddo
             else
-               grid=reshape(rwork1d0,(/size(grid,1),size(grid,2)/))
-               grid_v=reshape(rwork1d1,(/size(grid_v,1),size(grid_v,2)/))
+               grid=rwork3d0(:,:,kr)
+               grid_v=rwork3d1(:,:,kr)
                ! Note work_v and work are switched because output must be in work.
                call general_filluv_ns(grd,slons,clons,grid,grid_v,work_v,work)
             endif
@@ -1841,19 +1832,19 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
             call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
                  icount,iflag,ilev,work,uvflag,vordivflag)
          endif
-
-      endif ! if ( uvflag )
-
+      end do
+   endif ! if ( uvflag )
+   call read_vardata(atmges, 'spfh', rwork3d1)
+   do k=1,nlevs
+      kr = levs+1-k ! netcdf is top to bottom, need to flip
       icount=icount+1
       iflag(icount)=8
       ilev(icount)=k
 
       if (mype==mype_use(icount)) then
          ! Specific humidity
-         call nemsio_readrecv(gfile,'spfh','mid layer',k,rwork1d0,iret=iret)
-         if (iret /= 0) call error_msg(trim(my_name),trim(filename),'spfh','read',istop+6,iret)
          if ( diff_res ) then
-            grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
+            grid_b=rwork3d1(:,:,kr)
             vector(1)=.false.
             call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
             call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
@@ -1863,7 +1854,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
                work(kk)=grid2(i,j,1)
             enddo
          else
-            grid=reshape(rwork1d0,(/size(grid,1),size(grid,2)/))
+            grid=rwork3d1(:,:,kr)
             call general_fill_ns(grd,grid,work)
          endif
       endif
@@ -1871,17 +1862,19 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
          call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
               icount,iflag,ilev,work,uvflag,vordivflag)
       endif
-
+   end do
+   call read_vardata(atmges, 'o3mr', rwork3d0)
+   do k=1,nlevs
+      kr = levs+1-k ! netcdf is top to bottom, need to flip
+   
       icount=icount+1
       iflag(icount)=9
       ilev(icount)=k
 
       if (mype==mype_use(icount)) then
          ! Ozone mixing ratio
-         call nemsio_readrecv(gfile,'o3mr','mid layer',k,rwork1d0,iret=iret)
-         if (iret /= 0) call error_msg(trim(my_name),trim(filename),'o3mr','read',istop+8,iret)
          if ( diff_res ) then
-            grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
+            grid_b=rwork3d0(:,:,kr)
             vector(1)=.false.
             call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
             call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
@@ -1891,7 +1884,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
                work(kk)=grid2(i,j,1)
             enddo
          else
-            grid=reshape(rwork1d0,(/size(grid,1),size(grid,2)/))
+            grid=rwork3d0(:,:,kr)
             call general_fill_ns(grd,grid,work)
          endif
       endif
@@ -1899,26 +1892,20 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
          call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
               icount,iflag,ilev,work,uvflag,vordivflag)
       endif
-
+   end do
+   call read_vardata(atmges, 'clwmr', rwork3d0)
+   rwork3d1 = 0.0_r_kind
+   if (imp_physics == 11) call read_vardata(atmges, 'icmr', rwork3d1)
+   do k=1,nlevs
       icount=icount+1
       iflag(icount)=10
       ilev(icount)=k
 
       if (mype==mype_use(icount)) then
          ! Cloud condensate mixing ratio.
-         work=zero
-         call nemsio_readrecv(gfile,'clwmr','mid layer',k,rwork1d0,iret=iret)
-         if (iret /= 0) call error_msg(trim(my_name),trim(filename),'clwmr','read',istop+9,iret)
-         if (imp_physics == 11) then
-            call nemsio_readrecv(gfile,'icmr','mid layer',k,rwork1d1,iret=iret)
-            if (iret /= 0) then
-               call error_msg(trim(my_name),trim(filename),'icmr','read',istop+10,iret)
-            else
-               rwork1d0 = rwork1d0 + rwork1d1
-            endif
-         endif
+         rwork2d = rwork3d0(:,:,kr) + rwork3d1(:,:,kr)
          if ( diff_res ) then
-            grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
+            grid_b=rwork2d
             vector(1)=.false.
             call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
             call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
@@ -1928,11 +1915,11 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
                work(kk)=grid2(i,j,1)
             enddo
          else
-            grid=reshape(rwork1d0,(/size(grid,1),size(grid,2)/))
+            grid=rwork2d
             call general_fill_ns(grd,grid,work)
          endif
 
-            endif
+      endif
 
          if ( icount == icm .or. k == nlevs ) then
             call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
@@ -1945,11 +1932,10 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
       if ( diff_res) deallocate(grid_b,grid_b2,grid_c,grid_c2,grid2)
       call destroy_egrid2agrid(p_high)
       deallocate(spec_div,spec_vor)
-      deallocate(rwork1d1,clons,slons)
-      deallocate(rwork1d0)
+      deallocate(rwork3d1,rwork3d0,clons,slons)
+      deallocate(rwork2d)
       deallocate(grid,grid_v)
-      call nemsio_close(gfile,iret=iret)
-      if (iret /= 0) call error_msg(trim(my_name),trim(filename),null,'close',istop+9,iret)
+      call close_dataset(atmges)
    endif
    deallocate(work)
 
@@ -1996,7 +1982,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    if ( mype == 0 ) then
       write(6,700) lonb,latb,nlevs,grd%nlon,nlatm2,&
             fhour,odate,trim(filename)
-700   format('GENERAL_READ_GFSATM_NEMS: read lonb,latb,levs=',&
+700   format('GENERAL_READ_GFSATM_NC: read lonb,latb,levs=',&
             3i6,', scatter nlon,nlat=',2i6,', hour=',f6.1,', idate=',4i5,1x,a)
    endif
 

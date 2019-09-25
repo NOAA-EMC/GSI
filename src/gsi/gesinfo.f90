@@ -110,7 +110,7 @@ subroutine gesinfo
   character(6) filename,sfilename
   character(8) filetype, mdlname
 
-  integer(i_kind) iyr,ihourg,k
+  integer(i_kind) iyr,ihourg,k,kr
   integer(i_kind) mype_out,iret,iret2,intype
   integer(i_kind),dimension(5):: idate4
   integer(i_kind),dimension(8):: ida,jda
@@ -349,7 +349,7 @@ subroutine gesinfo
         gfshead%idvc = 2
         call read_attribute(atmges, 'ncnsto', ntrac)
         gfshead%ntrac = ntrac(1)
-        call read_attribute(sfcges, 'ncldt', ncld)
+        call read_attribute(sfcges, 'ncld', ncld)
         gfshead%ncldt = ncld(1)
         call close_dataset(sfcges)
         if (mype==mype_out) write(6,*)'GESINFO:  Read NCEP FV3GFS netCDF ', &
@@ -360,8 +360,11 @@ subroutine gesinfo
         allocate(gfsheadv%vcoord(gfshead%levs+1,gfshead%nvcoord))
         call read_attribute(atmges, 'ak', aknc)
         call read_attribute(atmges, 'bk', bknc)
-        gfsheadv%vcoord(:,1) = aknc
-        gfsheadv%vcoord(:,2) = bknc
+        do k=1,gfshead%levs+1
+           kr = gfshead%levs+2-k
+           gfsheadv%vcoord(k,1) = aknc(kr)
+           gfsheadv%vcoord(k,2) = bknc(kr)
+        end do
         deallocate(aknc,bknc)
 
         ! get time information
@@ -422,7 +425,7 @@ subroutine gesinfo
         tref5(k)=h300
      end do
 
-     if ( .not. use_gfs_nemsio ) then
+     if ( (.not. use_gfs_nemsio) .and. (.not. use_gfs_ncio) ) then
 !       Load surface pressure and thermodynamic variable ids
         idvm5   = gfshead%idvm
         idpsfc5 = mod ( gfshead%idvm,10 )

@@ -946,10 +946,10 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
    call read_vardata(atmges, 'grid_xt', r4lons)
    call read_vardata(atmges, 'grid_yt', r4lats)
    do j=1,latb
-      rlats(latb+2-j)=deg2rad*r4lats(1,j)
+      rlats(latb+2-j)=r4lats(1,j)
    enddo
    do j=1,lonb
-      rlons(j)=deg2rad*r4lons(j,1)
+      rlons(j)=r4lons(j,1)
    enddo
    deallocate(r4lats,r4lons)
    rlats(1)=-half*pi
