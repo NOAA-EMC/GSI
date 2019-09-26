@@ -102,8 +102,8 @@ kapr = cp/rd
 kap1 = kap + one
 nlevs_pres=nlevs+1
 if (nproc .eq. 0) then
+filename = trim(adjustl(datapath))//trim(adjustl(fileprefix))//"ensmean"
 if (use_gfs_nemsio) then
-     filename = trim(adjustl(datapath))//trim(adjustl(fileprefix))//"ensmean"
      call nemsio_init(iret=iret)
      if(iret/=0) then
         write(6,*)'grdinfo: gfs model: problem with nemsio_init, iret=',iret, ', file: ', trim(filename)
@@ -132,7 +132,6 @@ if (use_gfs_nemsio) then
        call stop2(23)
      end if
 else if (use_gfs_ncio) then
-     filename = trim(adjustl(datapath))//trim(adjustl(fileprefix))//"ensmean.nc"
      dset = open_dataset(filename)
      londim = get_dim(dset,'grid_xt'); nlonsin = londim%len
      latdim = get_dim(dset,'grid_xt'); nlatsin = latdim%len
@@ -145,7 +144,6 @@ else if (use_gfs_ncio) then
        call stop2(23)
      end if
 else
-     filename = trim(adjustl(datapath))//trim(adjustl(fileprefix))//"ensmean"
      ! define sighead on all tasks.
      call sigio_sropen(iunit,trim(filename),iret)
      if (iret /= 0) then

@@ -40,7 +40,7 @@
 !$$$
  use constants, only: zero,one,cp,fv,rd,tiny_r_kind,max_varname_length,t0c,r0_05
  use params, only: nlons,nlats,nlevs,use_gfs_nemsio,pseudo_rh, &
-                   cliptracers,datapath,imp_physics
+                   cliptracers,datapath,imp_physics,use_gfs_ncio
  use kinds, only: i_kind,r_double,r_kind,r_single
  use gridinfo, only: ntrunc,npts  ! gridinfo must be called first!
  use specmod, only: sptezv_s, sptez_s, init_spec_vars, ndimspec => nc, &
@@ -59,6 +59,8 @@
   use nemsio_module, only: nemsio_gfile,nemsio_open,nemsio_close,&
                            nemsio_getfilehead,nemsio_getheadvar,nemsio_realkind,nemsio_charkind,&
                            nemsio_readrecv,nemsio_init,nemsio_setheadvar,nemsio_writerecv
+  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                          read_attribute, close_dataset, get_dim, read_vardata 
   implicit none
 
   integer, intent(in) :: nanal1,nanal2
@@ -78,16 +80,18 @@
   real(r_kind) :: kap,kapr,kap1,clip,qi_coef
 
   real(r_kind), allocatable, dimension(:,:)     :: vmassdiv
-  real(r_single), allocatable, dimension(:,:)   :: pressi,pslg
+  real(r_single), allocatable, dimension(:,:)   :: pressi,pslg,values_2d
   real(r_kind), dimension(nlons*nlats)          :: ug,vg
   real(r_single), dimension(npts,nlevs)         :: tv, q, cw
   real(r_kind), dimension(ndimspec)             :: vrtspec,divspec
   real(r_kind), allocatable, dimension(:)       :: psg,pstend,ak,bk
-  real(r_single),allocatable,dimension(:,:,:)   :: nems_vcoord
+  real(r_single),allocatable,dimension(:,:,:)   :: nems_vcoord, ug3d,vg3d
   real(nemsio_realkind), dimension(nlons*nlats) :: nems_wrk,nems_wrk2
   type(sigio_head)   :: sighead
   type(sigio_data)   :: sigdata
   type(nemsio_gfile) :: gfile
+  type(Dataset) :: dset
+  type(Dimension) :: londim,latdim,levdim
 
   integer(i_kind) :: u_ind, v_ind, tv_ind, q_ind, oz_ind, cw_ind
   integer(i_kind) :: tsen_ind, ql_ind, qi_ind, prse_ind
@@ -127,6 +131,12 @@
        print *,'got',nlonsin,nlatsin,nlevsin
        call stop2(23)
      end if
+  else if (use_gfs_ncio) then
+     dset = open_dataset(filename)
+     londim = get_dim(dset,'grid_xt'); nlonsin = londim%len
+     latdim = get_dim(dset,'grid_xt'); nlatsin = latdim%len
+     levdim = get_dim(dset,'phalf');   nlevsin = levdim%len
+     idvc=2
   else
      call sigio_srohdc(iunitsig,trim(filename), &
                        sighead,sigdata,iret)
@@ -213,6 +223,21 @@
         if (nanal .eq. 1) print *,'nemsio, min/max pressi',k,minval(pressi(:,k)),maxval(pressi(:,k))
      enddo
      deallocate(ak,bk)
+  else if (use_gfs_ncio) then
+     call read_vardata(dset, 'ps', values_2d)
+     psg = 0.01_r_kind*reshape(values_2d,(/nlons*nlats/)) ! convert to 1d array, units to millibars.
+     call read_attribute(dset, 'ak', ak)
+     call read_attribute(dset, 'bk', bk)
+     if (nanal .eq. 1) then
+        print *,'time level ',nb
+        print *,'---------------'
+     endif
+     ! pressure at interfaces
+     do k=1,nlevs+1
+        pressi(:,k)=ak(k)+bk(k)*psg
+        if (nanal .eq. 1) print *,'nemsio, min/max pressi',k,minval(pressi(:,k)),maxval(pressi(:,k))
+     enddo
+     deallocate(ak,bk,values_2d)
   else
      vrtspec = sigdata%ps
      call sptez_s(vrtspec,psg,1)
@@ -322,6 +347,57 @@
            if (cw_ind > 0)            grdin(:,levels(cw_ind-1)+k,nb,ne) = cw(:,k)
         endif
      enddo
+  else if (use_gfs_ncio) then
+     call read_vardata(dset, 'ugrd', ug3d)
+     call read_vardata(dset, 'vgrd', vg3d)
+     do k=1,nlevs
+        ug = reshape(ug3d(:,:,k),(/nlons*nlats/))
+        vg = reshape(vg3d(:,:,k),(/nlons*nlats/))
+        if (u_ind > 0) call copytogrdin(ug,grdin(:,levels(u_ind-1) + k,nb,ne))
+        if (v_ind > 0) call copytogrdin(vg,grdin(:,levels(v_ind-1) + k,nb,ne))
+        ! calculate vertical integral of mass flux div (ps tendency)
+        ! this variable is analyzed in order to enforce mass balance in the analysis
+        if (pst_ind > 0) then
+           ug = ug*(pressi(:,k)-pressi(:,k+1))
+           vg = vg*(pressi(:,k)-pressi(:,k+1))
+           call sptezv_s(divspec,vrtspec,ug,vg,-1) ! u,v to div,vrt
+           call sptez_s(divspec,vmassdiv(:,k),1) ! divspec to divgrd
+        endif
+     enddo
+     call read_vardata(dset,'tmp', ug3d)
+     call read_vardata(dset,'spfh', vg3d)
+     do k=1,nlevs
+        ug = reshape(ug3d(:,:,k),(/nlons*nlats/))
+        vg = reshape(vg3d(:,:,k),(/nlons*nlats/))
+        if (tsen_ind > 0) call copytogrdin(ug,grdin(:,levels(tsen_ind-1)+k,nb,ne))
+        call copytogrdin(vg, q(:,k))
+        ug = ug * ( 1.0 + fv*vg ) ! convert T to Tv
+        call copytogrdin(ug,tv(:,k))
+        if (tv_ind > 0)   grdin(:,levels(tv_ind-1)+k,nb,ne) = tv(:,k)
+        if (q_ind > 0)    grdin(:,levels( q_ind-1)+k,nb,ne) =  q(:,k)
+     enddo
+     if (oz_ind > 0) then
+        call read_vardata(dset, 'o3mr', ug3d)
+        if (cliptracers)  where (ug3d < clip) ug3d = clip
+        do k=1,nlevs
+           ug = reshape(ug3d(:,:,k),(/nlons*nlats/))
+           call copytogrdin(ug,grdin(:,levels(oz_ind-1)+k,nb,ne))
+        enddo
+     endif
+     if (cw_ind > 0 .or. ql_ind > 0 .or. qi_ind > 0) then
+        call read_vardata(dset, 'clwmr', ug3d)
+        if (imp_physics == 11) then
+           call read_vardata(dset, 'icmr', vg3d)
+           ug3d = ug3d + vg3d
+        endif
+        if (cliptracers)  where (ug3d < clip) ug3d = clip
+        do k=1,nlevs
+           ug = reshape(ug3d(:,:,k),(/nlons*nlats/))
+           call copytogrdin(ug,cw(:,k))
+           if (cw_ind > 0) grdin(:,levels(cw_ind-1)+k,nb,ne) = cw(:,k)
+        enddo
+     endif
+     deallocate(ug3d,vg3d)
   else
 !$omp parallel do private(k,ug,vg,divspec,vrtspec)  shared(sigdata,pressi,vmassdiv,grdin,tv,q,cw,u_ind,v_ind,pst_ind,q_ind,tsen_ind,cw_ind,qi_ind,ql_ind)
      do k=1,nlevs
@@ -430,6 +506,7 @@
   deallocate(psg)
   if (pst_ind > 0) deallocate(vmassdiv,pstend)
   if (use_gfs_nemsio) call nemsio_close(gfile,iret=iret)
+  if (use_gfs_ncio) call close_dataset(dset)
 
   end do backgroundloop ! loop over backgrounds to read in
   end do ensmemloop ! loop over ens members to read in
@@ -462,6 +539,8 @@
                            nemsio_readrec,nemsio_writerec,nemsio_intkind,nemsio_charkind,&
                            nemsio_getheadvar,nemsio_realkind,nemsio_getfilehead,&
                            nemsio_readrecv,nemsio_init,nemsio_setheadvar,nemsio_writerecv
+  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                          read_attribute, close_dataset, get_dim, read_vardata 
   use constants, only: grav
   use params, only: nbackgrounds,anlfileprefixes,fgfileprefixes,reducedgrid
   implicit none
