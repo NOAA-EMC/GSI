@@ -156,6 +156,7 @@ logical,public :: reducedgrid = .false.
 logical,public :: univaroz = .true.
 logical,public :: regional = .false.
 logical,public :: use_gfs_nemsio = .false.
+logical,public :: use_gfs_ncio = .false.
 logical,public :: arw = .false.
 logical,public :: nmm = .true.
 logical,public :: nmm_restart = .true.
@@ -202,7 +203,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    covl_minfact,covl_efold,lupd_obspace_serial,letkf_novlocal,&
                    analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,&
                    analpertwtnh_rtpp,analpertwtsh_rtpp,analpertwttr_rtpp,&
-                   nlevs,nanals,saterrfact,univaroz,regional,use_gfs_nemsio,&
+                   nlevs,nanals,saterrfact,univaroz,regional,use_gfs_nemsio,use_gfs_ncio,&
                    paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
                    lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
                    newpc4pred,nmmb,nhr_anal,nhr_state, fhr_assim,nbackgrounds,nstatefields, &
