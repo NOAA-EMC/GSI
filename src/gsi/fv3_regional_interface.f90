@@ -29,11 +29,6 @@ subroutine convert_fv3_regional
   use kinds, only: r_single,r_kind,i_kind
   use gsi_rfv3io_mod, only: gsi_rfv3io_get_grid_specs
   use gsi_rfv3io_mod, only: bg_fv3regfilenameg 
-  use gsi_io, only: lendian_out
-  use gridmod, only: nsig,regional_time,regional_fhr,nlon_regional,nlat_regional,nsig
-  use mpimod, only: mype
-  use mpimod, only: mpi_comm_world,ierror
-
   implicit none
   integer(i_kind) ierr
   character(128) grid_spec,ak_bk
@@ -44,9 +39,6 @@ subroutine convert_fv3_regional
   ak_bk='fv3_akbk'                     ! vertical grid information
   call bg_fv3regfilenameg%init(grid_spec_input='fv3_grid_spec',ak_bk_input='fv3_akbk')
   call gsi_rfv3io_get_grid_specs(bg_fv3regfilenameg,ierr)
-                  call mpi_barrier(mpi_comm_world,ierror)
-                  write(6,*)'after gsi_rfv3io_get_grid_specs'
-                  call flush(6)
   if(ierr/=0)then
      write(6,*)' problem in convert_fv3_regional - get_grid_specs   Status = ',ierr
      call stop2 (555)

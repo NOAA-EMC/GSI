@@ -1122,7 +1122,6 @@ subroutine gsi_fv3ncdf2d_read_v1(filenamein,varname,varname2,work_sub,mype_io)
        allocate(dim_id(ndim))
        iret=nf90_inquire_variable(gfile_loc,var_id,dimids=dim_id)
        if(allocated(uu       )) deallocate(uu       )
-!cltorg       allocate(uu(dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))))
        allocate(uu(nx,ny,1))
        iret=nf90_get_var(gfile_loc,var_id,uu)
           call fv3_h_to_ll_regular_grids(uu(:,:,1),a,nx,ny,nlon,nlat,p_fv3sar2anlgrid)
@@ -1632,9 +1631,7 @@ subroutine gsi_fv3ncdf_readuv_v1(dynvarsfile,ges_u,ges_v)
        nzp1=nztmp+1
        do i=1,nztmp
           ir=nzp1-i 
-!cltthinkorg           call fv3uv2earth(temp1(:,:,i),uu(:,:,i),nx,ny,u,v)
           if(mype==mype_u)then
-!cltthinkdeb             call fv3_h_to_ll(u,a,nx,ny,nxa,nya)
              do j=1,ny
              uorv(:,j)=half*(uu(:,j,i)+uu(:,j+1,i))
              enddo
