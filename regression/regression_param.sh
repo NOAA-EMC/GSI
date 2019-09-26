@@ -4,7 +4,7 @@ case $machine in
 
 	Hera)
 	   sub_cmd="sub_hera"
-           memnode=83
+           memnode=96
            numcore=40
     ;;
 	WCOSS)
@@ -40,7 +40,7 @@ esac
 # Maximum memory per task for above machines
 #   wcoss_c :   64 Gb / 24 cores = 2.67 Gb / core
 #   wcoss_d :  128 Gb / 28 cores = 4.57 Gb / core
-#   hera   :   83 Gb / 40 cores = 2.075 Gb / core
+#   theia   :   64 Gb / 24 cores = 2.67 Gb / core
 #   discover:
 #   s4      :
 #   cheyenne:
