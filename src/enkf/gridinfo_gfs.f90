@@ -228,6 +228,7 @@ if (nproc .eq. 0) then
       spressmn = 0.01_r_kind*reshape(values_2d,(/nlons*nlats/)) ! convert to 1d array, units to millibars.
       call read_attribute(dset, 'ak', ak)
       call read_attribute(dset, 'bk', bk)
+      call close_dataset(dset)
       ! pressure at interfaces
       do k=1,nlevs+1
          pressimn(:,k) = ak(k)+bk(k)*spressmn(:)
