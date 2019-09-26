@@ -43,7 +43,7 @@ module gridinfo
 !$$$
 
 use mpisetup, only: nproc, mpi_integer, mpi_real4, mpi_comm_world
-use params, only: datapath,nlevs,nlons,nlats,use_gfs_nemsio, fgfileprefixes
+use params, only: datapath,nlevs,nlons,nlats,use_gfs_nemsio,use_gfs_ncio,fgfileprefixes
 use kinds, only: r_kind, i_kind, r_double, r_single
 use constants, only: one,zero,pi,cp,rd,grav,rearth,max_varname_length
 use specmod, only: sptezv_s, sptez_s, init_spec_vars, isinitialized, asin_gaulats, &
@@ -58,7 +58,7 @@ real(r_single),public :: ptop
 real(r_single),public, allocatable, dimension(:) :: lonsgrd, latsgrd
 ! arrays passed to kdtree2 routines must be single
 real(r_single),public, allocatable, dimension(:,:) :: gridloc
-real(r_single),public, allocatable, dimension(:,:) :: logp
+real(r_single),public, allocatable, dimension(:,:) :: logp, values_2d
 integer,public :: npts
 integer,public :: ntrunc
 ! supported variable names in anavinfo
@@ -75,8 +75,12 @@ use sigio_module, only: sigio_head, sigio_data, sigio_sclose, sigio_sropen, &
 use nemsio_module, only: nemsio_gfile,nemsio_open,nemsio_close,&
                          nemsio_getfilehead,nemsio_getheadvar,&
                          nemsio_readrecv,nemsio_init, nemsio_realkind
+ use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                        close_dataset, get_dim, read_vardata, get_idate_from_time_units 
 implicit none
 
+type(Dataset) :: dset
+type(Dimension) :: londim,latdim,levdim
 character(len=120), intent(in) :: fileprefix
 logical, intent(in)            :: reducedgrid
 
@@ -123,6 +127,19 @@ if (use_gfs_nemsio) then
      print *,'ntrunc = ',ntrunc
      if (nlons /= nlonsin .or. nlats /= nlatsin .or. nlevs /= nlevsin) then
        print *,'incorrect dims in nemsio file'
+       print *,'expected',nlons,nlats,nlevs
+       print *,'got',nlonsin,nlatsin,nlevsin
+       call stop2(23)
+     end if
+else if (use_gfs_ncio) then
+     filename = trim(adjustl(datapath))//trim(adjustl(fileprefix))//"ensmean.nc"
+     dset = open_dataset(filename)
+     londim = dset.get_dim('grid_xt'); nlonsin = londim%len
+     latdim = dset.get_dim('grid_xt'); nlatsin = latdim%len
+     levdim = dset.get_dim('phalf'); nlevsin = levdim%len
+     idvc = 2; ntrunc = nlatsin-2
+     if (nlons /= nlonsin .or. nlats /= nlatsin .or. nlevs /= nlevsin) then
+       print *,'incorrect dims in netcdf file'
        print *,'expected',nlons,nlats,nlevs
        print *,'got',nlonsin,nlatsin,nlevsin
        call stop2(23)
@@ -203,6 +220,20 @@ if (nproc .eq. 0) then
       call nemsio_close(gfile, iret=iret)
       ptop = ak(nlevs+1)
       deallocate(ak,bk)
+   else if (use_gfs_ncio) then
+      allocate(presslmn(nlons*nlats,nlevs))
+      allocate(pressimn(nlons*nlats,nlevs+1))
+      allocate(spressmn(nlons*nlats))
+      call read_vardata(dset, 'ps', values_2d)
+      spressmn = 0.01_r_kind*reshape(values_2d,(/nlons*nlats/)) ! convert to 1d array, units to millibars.
+      call read_attribute(dset, 'ak', ak)
+      call read_attribute(dset, 'bk', bk)
+      ! pressure at interfaces
+      do k=1,nlevs+1
+         pressimn(:,k) = ak(k)+bk(k)*spressmn(:)
+      enddo
+      ptop = ak(nlevs+1)
+      deallocate(ak,bk,values_2d)
    else
 ! get pressure from ensemble mean,
 ! distribute to all processors.
