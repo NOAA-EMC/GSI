@@ -40,7 +40,8 @@ module statevec
 !$$$
 
 use gridio, only: readgriddata
-use mpisetup
+use mpisetup, only: mpi_real4,mpi_sum,mpi_comm_io,mpi_in_place,numproc,nproc
+use mpimod, only: mpi_comm_world
 use gridinfo, only: getgridinfo, gridinfo_cleanup,               &
                     npts, vars3d_supported, vars2d_supported
 use params, only: nlevs,nstatefields,nanals,statefileprefixes,&

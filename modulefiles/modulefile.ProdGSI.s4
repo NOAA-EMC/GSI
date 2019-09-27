@@ -1,0 +1,43 @@
+#%Module######################################################################
+##                                                       Russ.Treadon@noaa.gov
+##                                                           NOAA/NWS/NCEP/EMC
+## GDAS_ENKF v6.2.3
+##_____________________________________________________
+#set ver v6.2.3
+
+set COMP ifort
+set COMP_MP mpfort
+set COMP_MPI mpiifort
+
+set C_COMP icc
+set C_COMP_MP mpcc
+
+# Known conflicts
+module use -a /home/mpotts/s4-cardinal/spack/share/spack/modules/linux-centos7-x86_64 
+module load license_intel/S4           
+module load intel/18.0.3              
+module load intel-mpi/18.0.3-intel-18.0.3  
+
+module load cmake/3.12.2-intel-18.0.3        
+
+module load hdf5/1.10.4-intel-18.0.3-impi    
+module load netcdf/4.6.2-intel-18.0.3-impi         
+module load netcdf-fortran/4.4.4-intel-18.0.3-impi  
+module load sp/v2.0.2-intel-18.0.3
+ 
+module load  w3emc/v2.2.0-intel-18.0.3-impi
+ 
+module load bacio/v2.1.0-intel-18.0.3 
+module load sfcio/v1.1.0-intel-18.0.3              
+module load w3nco/v2.0.6-intel-18.0.3-impi
+ 
+module load bufr/v11.2.0-intel-18.0.3 
+module load nemsio/v2.2.3-intel-18.0.3-impi  
+module load sigio/v2.1.0-intel-18.0.3-impi         
+module load crtm/v2.3.0
+module load prod-util/1.0.18-intel-18.0.3-impi
+
+echo "done loading modules"
+
+# Loading production utilities (ndate)
+
