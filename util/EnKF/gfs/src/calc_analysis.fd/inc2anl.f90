@@ -12,12 +12,20 @@ module inc2anl
   public :: gen_anl
 
   integer, parameter :: nincv=10
-  character(len=7) :: incvars_nemsio(nincv), incvars_netcdf(nincv)
+  character(len=7) :: incvars_nemsio(nincv), incvars_netcdf(nincv), incvars_ncio(nincv)
+  integer, parameter :: nnciov=19
+  character(len=7) :: iovars_netcdf(nnciov)
 
   data incvars_nemsio / 'ugrd   ', 'vgrd   ', 'dpres  ', 'delz   ', 'o3mr   ',&
                         'tmp    ', 'spfh   ', 'clwmr  ', 'icmr   ', 'pres   '/
   data incvars_netcdf / 'u      ', 'v      ', 'delp   ', 'delz   ', 'o3mr   ',&
                         'T      ', 'sphum  ', 'liq_wat', 'icmr   ', 'pres   '/
+  data incvars_ncio / 'ugrd   ', 'vgrd   ', 'dpres  ', 'delz   ', 'o3mr   ',&
+                        'tmp    ', 'spfh   ', 'clwmr  ', 'icmr   ', 'pressfc'/
+  data iovars_netcdf /  'grid_xt', 'grid_yt', 'pfull  ', 'phalf  ', 'clwmr  ',&
+                        'delz   ', 'dpres  ', 'dzdt   ', 'grle   ', 'hgtsfc ',&
+                        'icmr   ', 'o3mr   ', 'pressfc', 'rwmr   ', 'snmr   ',&
+                        'spfh   ', 'tmp    ', 'ugrd   ', 'vgrd   '/
 
 contains
   subroutine gen_anl
@@ -25,55 +33,102 @@ contains
   ! subroutine gen_anl
   !            loop through fields, read in first guess, read in
   !            increment, add the two together, and write out
-  !            the analysis to a new NEMSIO file
+  !            the analysis to a new file
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     use vars_calc_analysis, only: fcstfile, anlfile, nlat, nlon, &
-                                  nrec, recname, reclev, reclevtyp
-    use nemsio_module
-    use netcdf
+                                  nrec, recname, reclev, reclevtyp, &
+                                  use_nemsio,fcstncfile,anlncfile
+    use nemsio_module, only: nemsio_readrecv, nemsio_writerecv
+    use module_fv3gfs_ncio, only: read_vardata, write_vardata 
     implicit none
     ! variables local to this subroutine
     integer :: iret, i, j, iincvar
-    real, allocatable, dimension(:) :: work1
+    real, allocatable, dimension(:) :: work1d
+    real, allocatable, dimension(:,:) :: work2d
+    real, allocatable, dimension(:,:,:) :: work3d
     logical :: use_increment
 
-    allocate(work1(nlat*nlon))
-    ! big loop through every 'record' in the input NEMSIO file
-    do i=1,nrec
-      use_increment = .false.
-      iincvar = -999
-      ! determine if we are computing the increment for this field
-      do j=1,nincv
-        if (trim(recname(i)) == trim(incvars_nemsio(j))) then
-          use_increment = .true.
-          iincvar = j
-        end if
-      end do
-      if (use_increment) then
-        print *, 'Adding Increment ', recname(i), reclevtyp(i), reclev(i)
-        if (trim(recname(i)) == 'pres') then
-          ! special case for surface pressure
-          call add_psfc_increment
-        else
-          ! call generic subroutine for all other fields
-          call add_increment(recname(i), reclevtyp(i), reclev(i), incvars_netcdf(iincvar))
-        end if
-      else
-        ! otherwise just write out what is in the input to the output
-        print *, 'Copying from Background ', recname(i), reclevtyp(i), reclev(i)
-        call nemsio_readrecv(fcstfile, recname(i), reclevtyp(i), reclev(i), work1, iret=iret)
-        if (iret /=0) write(6,*) 'Error with NEMSIO read', recname(i),reclevtyp(i), reclev(i)
-        call nemsio_writerecv(anlfile, recname(i), reclevtyp(i), reclev(i), work1, iret=iret)
-        if (iret /=0) write(6,*) 'Error with NEMSIO write', recname(i),reclevtyp(i), reclev(i)
-      end if
-    end do
+    if (use_nemsio) then ! NEMSIO case
+       allocate(work1d(nlat*nlon))
+       ! big loop through every 'record' in the input NEMSIO file
+       do i=1,nrec
+         use_increment = .false.
+         iincvar = -999
+         ! determine if we are computing the increment for this field
+         do j=1,nincv
+           if (trim(recname(i)) == trim(incvars_nemsio(j))) then
+             use_increment = .true.
+             iincvar = j
+           end if
+         end do
+         if (use_increment) then
+           print *, 'Adding Increment ', recname(i), reclevtyp(i), reclev(i)
+           if (trim(recname(i)) == 'pres') then
+             ! special case for surface pressure
+             call add_psfc_increment_nems
+           else
+             ! call generic subroutine for all other fields
+             call add_increment_nems(recname(i), reclevtyp(i), reclev(i), incvars_netcdf(iincvar))
+           end if
+         else
+           ! otherwise just write out what is in the input to the output
+           print *, 'Copying from Background ', recname(i), reclevtyp(i), reclev(i)
+           call nemsio_readrecv(fcstfile, recname(i), reclevtyp(i), reclev(i), work1d, iret=iret)
+           if (iret /=0) write(6,*) 'Error with NEMSIO read', recname(i),reclevtyp(i), reclev(i)
+           call nemsio_writerecv(anlfile, recname(i), reclevtyp(i), reclev(i), work1d, iret=iret)
+           if (iret /=0) write(6,*) 'Error with NEMSIO write', recname(i),reclevtyp(i), reclev(i)
+         end if
+       end do
 
-    deallocate(work1)
+       deallocate(work1d)
+    else ! netCDF case
+       do i=1,nnciov
+         use_increment = .false.
+         iincvar = -999
+         ! determine if we are computing the increment for this field
+         do j=1,nincv
+           if (iovars_netcdf(i) == incvars_nemsio(j)) then
+             use_increment = .true.
+             iincvar = j
+           end if
+         end do
+         if (use_increment) then
+           print *, 'Adding Increment to ', iovars_netcdf(i)
+           if (iovars_netcdf(i) == 'pressfc') then
+             ! special case for surface pressure
+             call add_psfc_increment_netcdf
+           else
+             ! call generic subroutine for all other fields
+             call add_increment_netcdf(iovars_netcdf(i), incvars_netcdf(iincvar))
+           end if
+         else
+           ! otherwise just write out what is in the input to the output
+           print *, 'Copying from Background ', iovars_netcdf(i) 
+           select case (iovars_netcdf(i))
+             case ('grid_xt')
+               call read_vardata(fcstncfile, 'grid_xt', work2d)
+               call write_vardata(anlncfile, 'grid_xt', work2d)
+             case ('grid_yt')
+               call read_vardata(fcstncfile, 'grid_yt', work2d)
+               call write_vardata(anlncfile, 'grid_yt', work2d)
+             case ('pfull  ')
+               call read_vardata(fcstncfile, 'pfull', work1d)
+               call write_vardata(anlncfile, 'pfull', work1d)
+             case ('phalf  ')
+               call read_vardata(fcstncfile, 'phalf', work1d)
+               call write_vardata(anlncfile, 'phalf', work1d)
+             case default
+               call read_vardata(fcstncfile, trim(iovars_netcdf(i)), work3d)
+               call write_vardata(anlncfile, trim(iovars_netcdf(i)), work3d)
+           end select 
+         end if
+      end do
+    end if
   end subroutine gen_anl
 
-  subroutine add_increment(recname, reclevtyp, reclev, incvar_nc)
+  subroutine add_increment_nems(recname, reclevtyp, reclev, incvar_nc)
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  ! subroutine add_increment
+  ! subroutine add_increment_nems
   !            generic subroutine for adding increment to background
   !            and writing out to analysis 
   !  args:
@@ -85,9 +140,10 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     use vars_calc_analysis, only: fcstfile, anlfile, nlat, nlon, nlev,&
                                   incr_file
+    use module_fv3gfs_ncio, only: Dataset, read_vardata, &
+                                  open_dataset, close_dataset
                                   
     use nemsio_module
-    use netcdf
     implicit none
     ! input variables 
     character(10), intent(in) :: recname, reclevtyp
@@ -96,9 +152,9 @@ contains
     ! local variables
     real, allocatable, dimension(:) :: work1
     real, allocatable, dimension(:,:) :: work2d_nc, work2d_bg
+    real, allocatable, dimension(:,:,:) :: work3d_inc
     integer :: ilev,j,jj,iret
-    integer :: ncid, varid
-    integer :: start(3), count(3)
+    type(Dataset) :: incncfile
     
     ! read in the first guess for this field/level
     allocate(work1(nlat*nlon))
@@ -111,12 +167,9 @@ contains
     ilev = (nlev+1)-reclev ! ilev = 64 when nlev=64 and reclev=1
     ! read in the increment as a 2D array
     allocate(work2d_nc(nlon,nlat))
-    start = (/1, 1, ilev/)
-    count = (/nlon, nlat, 1/)
-    call nccheck(nf90_open(trim(incr_file), nf90_nowrite, ncid)) 
-    call nccheck(nf90_inq_varid(ncid, trim(incvar_nc)//"_inc", varid))
-    call nccheck(nf90_get_var(ncid, varid, work2d_nc, start=start, count=count))
-    call nccheck(nf90_close(ncid)) 
+    incncfile = open_dataset(incr_file)
+    call read_vardata(incncfile, trim(incvar_nc)//"_inc", work3d_inc)
+    work2d_nc(:,:) = work3d_inc(:,:,ilev)
 
     ! add increment to background
     do j=1,nlat
@@ -130,21 +183,23 @@ contains
     if (iret /=0) write(6,*) 'Error with NEMSIO write', recname, reclevtyp, reclev
 
     ! cleanup / deallocate
-    deallocate(work1, work2d_bg, work2d_nc)
+    deallocate(work1, work2d_bg, work2d_nc, work3d_inc)
+    call close_dataset(incncfile)
 
-  end subroutine add_increment
+  end subroutine add_increment_nems
 
-  subroutine add_psfc_increment
+  subroutine add_psfc_increment_nems
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  ! subroutine add_psfc_increment
+  ! subroutine add_psfc_increment_nems
   !            special case of getting surface pressure analysis from
   !            bk5 and delp increment to get sfc pressure increment 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     use vars_calc_analysis, only: fcstfile, anlfile, nlat, nlon, nlev, &
                                   incr_file
+    use module_fv3gfs_ncio, only: Dataset, open_dataset, close_dataset,&
+                                  read_vardata 
                                   
     use nemsio_module
-    use netcdf
     implicit none
 
     ! local variables
@@ -154,9 +209,8 @@ contains
     real, allocatable, dimension(:) :: bk5, work1
     real, allocatable, dimension(:,:) :: ps_inc, work2d
     real, allocatable, dimension(:,:,:) :: work3d_inc
-    integer :: ilev,iret,j,jj,k
-    integer :: ncid, varid
-    integer :: start(3), count(3)
+    integer :: iret,j,jj,k
+    type(Dataset) :: incncfile
 
 
     ! get vertical coordinate info from NEMSIO file
@@ -205,20 +259,12 @@ contains
     ! read in delp increment to get ps increment
     ! read in the netCDF increment for delp
     allocate(work3d_inc(nlev,nlon,nlat))
-    do k=1,nlev
-      ! get the level from the netCDF file (opposite of NEMSIO)
-      ilev = (nlev+1)-k ! ilev = 64 when nlev=64 and k=1
-      start = (/1, 1, ilev/)
-      count = (/nlon, nlat, 1/)
-      call nccheck(nf90_open(trim(incr_file), nf90_nowrite, ncid)) 
-      call nccheck(nf90_inq_varid(ncid, "delp_inc", varid))
-      call nccheck(nf90_get_var(ncid, varid, work3d_inc(k,:,:), start=start, count=count))
-      call nccheck(nf90_close(ncid))
-    end do
+    incncfile = open_dataset(incr_file)
+    call read_vardata(incncfile, 'delp_inc', work3d_inc)
 
     ! get ps increment from delp increment and bk
     allocate(ps_inc(nlon,nlat))
-    ps_inc(:,:) = work3d_inc(1,:,:) / (bk5(1) - bk5(2))
+    ps_inc(:,:) = work3d_inc(nlev,:,:) / (bk5(1) - bk5(2))
 
     ! read in psfc background
     allocate(work1(nlon*nlat))
@@ -239,19 +285,85 @@ contains
     
     ! deallocate things
     deallocate(work3d_inc, work2d, bk5, ps_inc,  work1)
+    call close_dataset(incncfile)
 
-  end subroutine add_psfc_increment
+  end subroutine add_psfc_increment_nems
 
-  subroutine nccheck(status)
-    use netcdf
+  subroutine add_increment_netcdf(fcstvar, incvar)
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! subroutine add_increment_netcdf
+  !            generic subroutine for adding increment to background
+  !            and writing out to analysis 
+  !  args:
+  !       fcstvar - input string of netCDF fcst/anal var name
+  !       incvar  - input string of netCDF increment var name
+  !                 (without _inc suffix added)
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    use vars_calc_analysis, only: fcstncfile, anlncfile, incr_file, nlat
+    use module_fv3gfs_ncio, only: Dataset, read_vardata, write_vardata, &
+                                  open_dataset, close_dataset
     implicit none
-    ! check if calls to netCDF API are successful
-    integer, intent (in   ) :: status
-    if (status /= nf90_noerr) then
-      print *, "calc_analysis netCDF error", trim(nf90_strerror(status))
-      stop
-    end if
+    ! input vars
+    character(7), intent(in) :: fcstvar, incvar
+    ! local variables
+    real, allocatable, dimension(:,:,:) :: work3d_inc, work3d_bg
+    integer :: j,jj
+    type(Dataset) :: incncfile
+    ! get first guess
+    call read_vardata(fcstncfile, fcstvar, work3d_bg)
+    ! get increment
+    incncfile = open_dataset(incr_file)
+    call read_vardata(incncfile, trim(incvar)//"_inc", work3d_inc)
+    ! add increment to background
+    do j=1,nlat
+       jj=nlat+1-j ! increment is S->N, history files are N->S
+       work3d_bg(:,j,:) = work3d_bg(:,j,:) + work3d_inc(:,jj,:)
+    end do
+    ! write out analysis to file
+    call write_vardata(anlncfile, fcstvar, work3d_bg)
+    ! clean up and close
+    call close_dataset(incncfile)
+  
+  end subroutine add_increment_netcdf
 
-  end subroutine nccheck
+  subroutine add_psfc_increment_netcdf
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! subroutine add_psfc_increment_netcdf
+  !            special case of getting surface pressure analysis from
+  !            bk5 and delp increment to get sfc pressure increment 
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    use vars_calc_analysis, only: fcstncfile, anlncfile, nlat, nlon, incr_file
+    use module_fv3gfs_ncio, only: Dataset, open_dataset, close_dataset,&
+                                  read_vardata, write_vardata, read_attribute
+    implicit none
+    ! local variables
+    real, allocatable, dimension(:,:,:) :: work3d_inc
+    real, allocatable, dimension(:,:) :: ps_inc, work2d
+    real, allocatable, dimension(:) :: bk5
+    integer j, jj
+    type(Dataset) :: incncfile
+
+    ! get bk5 from attributes
+    call read_attribute(fcstncfile, 'bk', bk5) 
+    ! read in delp increment to get ps increment
+    incncfile = open_dataset(incr_file)
+    call read_vardata(incncfile, 'delp_inc', work3d_inc)
+    ! get ps increment from delp increment and bk
+    allocate(ps_inc(nlon,nlat))
+    ps_inc(:,:) = work3d_inc(:,:,1) / (bk5(1) - bk5(2))
+    ! read in psfc background
+    call read_vardata(fcstncfile, 'pressfc', work2d)
+    ! add increment to background
+    do j=1,nlat
+      jj=nlat+1-j ! increment is S->N, history file is N->S
+      work2d(:,j) = work2d(:,j) + ps_inc(:,jj)
+    end do
+    ! write out to file
+    call write_vardata(anlncfile, 'pressfc', work2d)
+    ! deallocate and close
+    call close_dataset(incncfile)
+    deallocate(work2d,work3d_inc,ps_inc,bk5)
+
+  end subroutine add_psfc_increment_netcdf
 
 end module inc2anl
