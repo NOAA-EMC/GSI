@@ -7,7 +7,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 program calc_analysis_main
   use init_calc_analysis, only: read_nml
-  use init_nemsio_io, only: init_read_bg, init_write_anl
+  use init_io, only: init_read_bg, init_write_anl
   use inc2anl, only: gen_anl  
   implicit none
   write(6,*) "calc_analysis.x starting"
