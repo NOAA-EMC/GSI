@@ -565,7 +565,7 @@
   real(r_kind), dimension(nlons*nlats) :: ug,vg,uginc,vginc,psfg,psg
   real(r_kind), allocatable, dimension(:) :: delzb,work,values_1d
   real(r_kind), dimension(ndimspec) :: vrtspec,divspec
-  real(r_single), dimension(:,:,:) :: ug3d,vg3d
+  real(r_single), allocatable, dimension(:,:,:) :: ug3d,vg3d
   integer iadate(4),idate(4),nfhour,idat(7),iret,nrecs,jdate(7),jdat(6)
   integer:: nfminute, nfsecondn, nfsecondd
   integer,dimension(8):: ida,jda
@@ -932,8 +932,8 @@
         !maxval(dpanl(:,k)),minval(dpfg(:,k)),maxval(dpfg(:,k))
      enddo
      if (use_gfs_ncio) then
-        call read_vardata(dsfg,ug3d,'ugrd')
-        call read_vardata(dsfg,vg3d,'ugrd')
+        call read_vardata(dsfg,'ugrd',ug3d)
+        call read_vardata(dsfg,'vgrd',vg3d)
      endif
      do k=1,nlevs
 !       re-calculate vertical integral of mass flux div for first-guess
@@ -951,8 +951,8 @@
            endif
            vg = nems_wrk
         else if (use_gfs_ncio) then
-           ug = reshape(ug3d(:,:,k),(/nlons,nlats/))
-           vg = reshape(vg3d(:,:,k),(/nlons,nlats/))
+           ug = reshape(ug3d(:,:,k),(/nlons*nlats/))
+           vg = reshape(vg3d(:,:,k),(/nlons*nlats/))
         else
            divspec = sigdata%d(:,k); vrtspec = sigdata%z(:,k)
            call sptezv_s(divspec,vrtspec,ug,vg,1)
@@ -1396,7 +1396,7 @@
       call nemsio_close(gfileout,iret=iret)
   else if (use_gfs_ncio) then
       call close_dataset(dsfg)
-      call close_dataest(dsanl)
+      call close_dataset(dsanl)
   endif
 
   if (pst_ind > 0) then
@@ -1437,5 +1437,17 @@
       if (field == fields(n)) hasfield=.true.
    enddo
  end function checkfield
+
+ subroutine quantize_data(dataIn, dataOut, nbits, compress_err)
+   use module_fv3gfs_ncio, only : quantized
+   real(r_single), intent(in) :: dataIn(:,:,:)
+   real(r_single), intent(out) :: dataOut(:,:,:)
+   real(r_single), intent(out) :: compress_err
+   integer, intent(in) :: nbits
+   real(r_single) dataMin, dataMax
+   dataMax = maxval(dataIn); dataMin = minval(dataIn)
+   dataOut = quantized(dataIn,nbits,dataMin,dataMax)
+   compress_err = maxval(abs(dataIn-dataOut))
+ end subroutine quantize_data
 
 end module gridio
