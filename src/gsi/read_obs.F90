@@ -1878,7 +1878,6 @@ subroutine read_obs(ndata,mype)
        write(lunsave) nobs_sub
        close(lunsave)
     endif
-
 !   End of routine
     return
 end subroutine read_obs

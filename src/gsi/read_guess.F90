@@ -108,6 +108,8 @@ subroutine read_guess(iyear,month,idd,mype)
   use read_wrf_mass_guess_mod, only: read_wrf_mass_guess_class
   use read_wrf_nmm_guess_mod, only: read_wrf_nmm_guess_class
   use gsi_rfv3io_mod, only: read_fv3_netcdf_guess
+  use gsi_rfv3io_mod, only: bg_fv3regfilenameg
+    use mpimod, only: ierror,mpi_comm_world
 
   implicit none
 
@@ -158,7 +160,8 @@ subroutine read_guess(iyear,month,idd,mype)
         else if (nems_nmmb_regional) then
            call nmm_binary_guess%read_nems_nmmb_guess(mype)
         else if (fv3_regional      ) then
-           call  read_fv3_netcdf_guess
+           call bg_fv3regfilenameg%init
+           call  read_fv3_netcdf_guess(bg_fv3regfilenameg)
         else if (cmaq_regional) then
            call read_cmaq_guess(mype)
         end if

@@ -508,7 +508,7 @@ subroutine gesinfo
      fha(2)=nhr_assimilation
   endif
   call w3movdat(fha,ida,jda)
-
+  
   iedate(1:5)=(/jda(1),jda(2),jda(3),jda(5),jda(6)/)
   iadateend=jda(1)*1000000+jda(2)*10000+jda(3)*100+jda(5)
 
