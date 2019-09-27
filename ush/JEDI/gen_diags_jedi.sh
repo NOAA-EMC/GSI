@@ -9,13 +9,13 @@
 #SBATCH --mail-user=$LOGNAME@noaa.gov
 
 set -x 
-
+NOWTIME=`date +"%Y%m%d%H"`
 ### user defined arguments
 adate=2018041500
 ObsDir=/scratch1/NCEPDEV/da/Cory.R.Martin/JEDI/Obs_for_test/
 GuessDir=/scratch1/NCEPDEV/da/Cory.R.Martin/JEDI/ICs_for_test/
-WorkDir=/scratch2/NCEPDEV/stmp1/$LOGNAME/JEDI/GSI_work/$adate
-OutDir=/scratch2/NCEPDEV/stmp1/$LOGNAME/JEDI/output/$adate
+WorkDir=/scratch2/NCEPDEV/stmp1/$LOGNAME/JEDI/$NOWTIME/GSI_work/$adate
+OutDir=/scratch2/NCEPDEV/stmp1/$LOGNAME/JEDI/$NOWTIME/output/$adate
 
 GSIDir=/scratch1/NCEPDEV/da/Cory.R.Martin/GSI/ProdGSI_forJEDI
 GSIBuildDir=$GSIDir/build
@@ -27,6 +27,7 @@ USHDir=$GSIDir/ush/
 
 dumpobs=gdas
 dumpobs_nr=gdasnr
+threads=1
 
 # Set the JCAP resolution which you want.
 # All resolutions use LEVS=64
