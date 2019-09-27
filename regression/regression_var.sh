@@ -36,7 +36,7 @@ if [ -z ${machine+x} ]; then
      export machine="WCOSS"
   elif [ -d /glade/scratch ]; then # Cheyenne
    export machine="Cheyenne"
-  elif [ -d /scratch4/NCEPDEV/da ]; then # Hera
+  elif [ -d /scratch1/NCEPDEV/da ]; then # Hera
    export machine="Hera"
   elif [ -d /gpfs/hps/ptmp ]; then # LUNA or SURGE
    export machine="WCOSS_C"
