@@ -532,6 +532,7 @@
  end subroutine readgriddata
 
  subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,grdin,no_inflate_flag)
+  use netcdf
   use sigio_module, only: sigio_head, sigio_data, sigio_sclose, sigio_sropen, &
                           sigio_srohdc, sigio_sclose, sigio_axdata, &
                           sigio_aldata, sigio_swohdc
@@ -540,7 +541,10 @@
                            nemsio_getheadvar,nemsio_realkind,nemsio_getfilehead,&
                            nemsio_readrecv,nemsio_init,nemsio_setheadvar,nemsio_writerecv
   use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
-                          read_attribute, close_dataset, get_dim, read_vardata 
+                          read_attribute, close_dataset, get_dim, read_vardata,&
+                          create_dataset, get_idate_from_time_units, &
+                          get_time_units_from_idate, write_vardata, &
+                          write_attribute
   use constants, only: grav
   use params, only: nbackgrounds,anlfileprefixes,fgfileprefixes,reducedgrid
   implicit none
@@ -559,18 +563,21 @@
   real(r_kind), allocatable, dimension(:,:) :: ugtmp,vgtmp
   real(r_kind), allocatable,dimension(:) :: pstend1,pstend2,pstendfg,vmass
   real(r_kind), dimension(nlons*nlats) :: ug,vg,uginc,vginc,psfg,psg
-  real(r_kind), allocatable, dimension(:) :: delzb,work
+  real(r_kind), allocatable, dimension(:) :: delzb,work,values_1d
   real(r_kind), dimension(ndimspec) :: vrtspec,divspec
-  integer iadate(4),idate(4),nfhour,idat(7),iret,nrecs,jdate(7)
+  real(r_single), dimension(:,:,:) :: ug3d,vg3d
+  integer iadate(4),idate(4),nfhour,idat(7),iret,nrecs,jdate(7),jdat(6)
   integer:: nfminute, nfsecondn, nfsecondd
   integer,dimension(8):: ida,jda
   real(r_double),dimension(5):: fha
   real(r_kind) fhour
   type(sigio_head) sighead
   type(sigio_data) sigdata_inc
+  type(Dataset) :: dsfg, dsanl
   character(len=3) charnanal
   character(nemsio_charkind),allocatable:: recname(:)
   character(nemsio_charkind) :: field
+  character(len=nf90_max_name) :: time_units
   logical :: hasfield
 
   real(r_kind) kap,kapr,kap1,clip
@@ -648,6 +655,21 @@
          print *,'unknown vertical coordinate type',nems_idvc
          call stop2(23)
      end if
+  else if (use_gfs_ncio) then
+     clip = tiny(vg(1))
+     dsfg = open_dataset(filenamein)
+     jdat = get_idate_from_time_units(dsfg)
+     idat(4) = jdat(1) ! yr
+     idat(2) = jdat(2) ! mon
+     idat(3) = jdat(3) ! day
+     idat(1) = jdat(4) ! hr
+     call read_vardata(dsfg,'time',values_1d)
+     nfhour = int(values_1d(1))
+     nems_idvc=2
+     call read_attribute(dsfg, 'ak', values_1d)
+     ak(:) = values_1d
+     call read_attribute(dsfg, 'bk', values_1d)
+     bk(:) = values_1d
   else
      ! read in first-guess data.
      call sigio_srohdc(iunitsig,trim(filenamein), &
@@ -698,7 +720,7 @@
   if (imp_physics == 11) allocate(work(nlons*nlats))
 
 ! Compute analysis time from guess date and forecast length.
-  if (.not. use_gfs_nemsio) then
+  if (.not. use_gfs_nemsio .and. .not. use_gfs_ncio) then
      idate = sighead%idate
      fhour = sighead%fhour
   else
@@ -738,7 +760,7 @@
      print *,'iadate = ',iadate
   end if
 
-  if (.not. use_gfs_nemsio) then ! spectral sigio 
+  if (.not. use_gfs_nemsio .and. .not. use_gfs_ncio) then ! spectral sigio 
      sighead%idate = iadate
      sighead%fhour = zero
      ! ensemble info
@@ -809,7 +831,7 @@
      call sptez_s(divspec,vg,-1)
      sigdata%ps = divspec
 
-  else ! nemsio
+  else if (use_gfs_nemsio) then ! nemsio
      gfileout = gfilein
 
      nfhour    = 0        !  new forecast hour, zero at analysis time
@@ -877,6 +899,19 @@
         write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(pres), iret=',iret
         call stop2(23)
      endif
+  else if (use_gfs_ncio) then
+     dsanl = create_dataset(filenameout, dsfg)
+     deallocate(values_1d)
+     allocate(values_1d(1))
+     values_1d(1)=6.
+     call write_vardata(dsanl,'time',values_1d)
+     jdat(1) = iadate(4)
+     jdat(2) = iadate(2)
+     jdat(3) = iadate(3)
+     jdat(4) = iadate(1)
+     jdat(5) = 0; jdat(6) = 0.
+     time_units = get_time_units_from_idate(jdat)
+     call write_attribute(dsanl,'units',time_units,'time')
   endif
 
   if (pst_ind > 0) then
@@ -896,6 +931,10 @@
         !if (nanal .eq. 1) print *,'k,dpanl,dpfg',minval(dpanl(:,k)),&
         !maxval(dpanl(:,k)),minval(dpfg(:,k)),maxval(dpfg(:,k))
      enddo
+     if (use_gfs_ncio) then
+        call read_vardata(dsfg,ug3d,'ugrd')
+        call read_vardata(dsfg,vg3d,'ugrd')
+     endif
      do k=1,nlevs
 !       re-calculate vertical integral of mass flux div for first-guess
         if (use_gfs_nemsio) then
@@ -911,6 +950,9 @@
                call stop2(23)
            endif
            vg = nems_wrk
+        else if (use_gfs_ncio) then
+           ug = reshape(ug3d(:,:,k),(/nlons,nlats/))
+           vg = reshape(vg3d(:,:,k),(/nlons,nlats/))
         else
            divspec = sigdata%d(:,k); vrtspec = sigdata%z(:,k)
            call sptezv_s(divspec,vrtspec,ug,vg,1)
@@ -920,6 +962,9 @@
         call sptezv_s(divspec,vrtspec,ug,vg,-1) ! u,v to div,vrt
         call sptez_s(divspec,vmassdiv(:,k),1) ! divspec to divgrd
      enddo
+     if (use_gfs_ncio) then
+        deallocate(ug3d,vg3d)
+     endif
 
      ! analyzed ps tend increment
      call copyfromgrdin(grdin(:,levels(n3d) + pst_ind,nb,ne),pstend2)
@@ -935,7 +980,7 @@
 
   endif ! if pst_ind > 0
 
-  if (.not. use_gfs_nemsio) then
+  if (.not. use_gfs_nemsio .and. .not. use_gfs_ncio) then
   ! add increment to first guess in spectral space.
 !$omp parallel do private(k,nt,ug,vg,vrtspec,divspec)  shared(sigdata,sigdata_inc,vmassdiv,dpanl)
      do k=1,nlevs
@@ -963,7 +1008,7 @@
 
      ! don't need sigdata_inc anymore.
      call sigio_axdata(sigdata_inc,ierr)
-  else
+  else if (use_gfs_nemsio) then
      if (pst_ind > 0) then
         allocate(ugtmp(nlons*nlats,nlevs),vgtmp(nlons*nlats,nlevs))
      endif
@@ -1205,7 +1250,8 @@
            endif
         endif
     enddo
-  endif !if (.not. use_gfs_nemsio)
+  else if (use_gfs_ncio) then
+  endif 
 
   if (allocated(delzb)) deallocate(delzb)
   if (allocated(recname)) deallocate(recname)
@@ -1288,7 +1334,7 @@
 
   endif ! if pst_ind > 0
 
-  if (.not. use_gfs_nemsio) then
+  if (.not. use_gfs_nemsio .and. .not. use_gfs_ncio) then
   ! clip tracers.
      if (cliptracers) then
         clip = tiny_r_kind
@@ -1323,7 +1369,8 @@
      call sigio_swohdc(iunitsig,filenameout,sighead,sigdata,ierr)
      ! deallocate sigdata structure.
      call sigio_axdata(sigdata,ierr)
-  else
+  else if (use_gfs_ncio) then
+  else if (use_gfs_nemsio) then
      if (pst_ind > 0) then
         ! update u,v
         do k=1,nlevs
@@ -1347,6 +1394,9 @@
   if (use_gfs_nemsio) then
       call nemsio_close(gfilein,iret=iret)
       call nemsio_close(gfileout,iret=iret)
+  else if (use_gfs_ncio) then
+      call close_dataset(dsfg)
+      call close_dataest(dsanl)
   endif
 
   if (pst_ind > 0) then
