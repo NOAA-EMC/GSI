@@ -48,7 +48,8 @@ use gridinfo,  only: getgridinfo, gridinfo_cleanup,                    &
                      npts, vars3d_supported, vars2d_supported
 use params,    only: nlevs, nbackgrounds, fgfileprefixes, reducedgrid, &
                      nanals, pseudo_rh, use_qsatensmean, nlons, nlats,&
-                     nanals_per_iotask, ntasks_io, nanal1, nanal2
+                     nanals_per_iotask, ntasks_io, nanal1, nanal2, &
+                     fgsfcfileprefixes
 use kinds,     only: r_kind, i_kind, r_double, r_single
 use mpeu_util, only: gettablesize, gettable, getindex
 use constants, only: max_varname_length
@@ -210,7 +211,8 @@ if (nproc <= ntasks_io-1) then
    allocate(grdin(npts,ncdim,nbackgrounds,nanals_per_iotask))
    allocate(qsat(npts,nlevs,nbackgrounds,nanals_per_iotask))
    if (nproc == 0) t1 = mpi_wtime()
-   call readgriddata(nanal1(nproc),nanal2(nproc),cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,nbackgrounds,fgfileprefixes,reducedgrid,grdin,qsat)
+   call readgriddata(nanal1(nproc),nanal2(nproc),cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,nbackgrounds, &
+        fgfileprefixes,fgsfcfileprefixes,reducedgrid,grdin,qsat)
    !print *,'min/max qsat',nanal,'=',minval(qsat),maxval(qsat)
    if (use_qsatensmean) then
        allocate(qsatmean(npts,nlevs,nbackgrounds))

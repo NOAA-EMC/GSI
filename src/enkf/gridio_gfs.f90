@@ -33,6 +33,7 @@
 !               prse: nlevs + 1 levels). Pass "reducedgrid" parameter.
 !   2017-06-14  Adding functionality to optionally write non-inflated ensembles,  
 !               a required input for EFSO calculations 
+!   2019-07-10  Add convective clouds
 !
 ! attributes:
 !   language: f95
@@ -53,7 +54,8 @@
  public :: readgriddata, writegriddata
  contains
 
- subroutine readgriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,ntimes,fileprefixes,reducedgrid,grdin,qsat)
+ subroutine readgriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,ntimes, & 
+                         fileprefixes,filesfcprefixes,reducedgrid,grdin,qsat)
   use sigio_module, only: sigio_head, sigio_data, sigio_sclose, sigio_sropen, &
                           sigio_srohdc, sigio_sclose, sigio_aldata, sigio_axdata
   use nemsio_module, only: nemsio_gfile,nemsio_open,nemsio_close,&
@@ -68,11 +70,13 @@
   integer, dimension(0:n3d), intent(in) :: levels
   integer, intent(in) :: ndim, ntimes
   character(len=120), dimension(7), intent(in)  :: fileprefixes
+  character(len=120), dimension(7), intent(in)  :: filesfcprefixes
   logical, intent(in) :: reducedgrid
   real(r_single), dimension(npts,ndim,ntimes,nanal2-nanal1+1), intent(out) :: grdin
   real(r_double), dimension(npts,nlevs,ntimes,nanal2-nanal1+1), intent(out) :: qsat
 
   character(len=500) :: filename
+  character(len=500) :: filenamesfc
   character(len=7) charnanal
 
   real(r_kind) :: kap,kapr,kap1,clip,qi_coef
@@ -88,12 +92,14 @@
   type(sigio_head)   :: sighead
   type(sigio_data)   :: sigdata
   type(nemsio_gfile) :: gfile
+  type(nemsio_gfile) :: gfilesfc
 
   integer(i_kind) :: u_ind, v_ind, tv_ind, q_ind, oz_ind, cw_ind
   integer(i_kind) :: tsen_ind, ql_ind, qi_ind, prse_ind
   integer(i_kind) :: ps_ind, pst_ind, sst_ind
 
   integer(i_kind) :: k,iunitsig,iret,nb,i,idvc,nlonsin,nlatsin,nlevsin,ne,nanal
+  integer(i_kind) :: nlonsin_sfc,nlatsin_sfc
   logical ice
 
   ne = 0
@@ -108,6 +114,7 @@
   endif
   iunitsig = 77
   filename = trim(adjustl(datapath))//trim(adjustl(fileprefixes(nb)))//trim(charnanal)
+  filenamesfc = trim(adjustl(datapath))//trim(adjustl(filesfcprefixes(nb)))//trim(charnanal)
   if (use_gfs_nemsio) then
      call nemsio_init(iret=iret)
      if(iret/=0) then
@@ -127,6 +134,18 @@
        print *,'got',nlonsin,nlatsin,nlevsin
        call stop2(23)
      end if
+
+     call nemsio_open(gfilesfc,filenamesfc,'READ',iret=iret)
+     if (iret/=0) then
+        write(6,*)'gridio/readgriddata: gfs model: problem with sfc nemsio_open, iret=',iret
+     else
+        call nemsio_getfilehead(gfilesfc,iret=iret, dimx=nlonsin_sfc, dimy=nlatsin_sfc)
+        if (nlons /= nlonsin_sfc .or. nlats /= nlatsin_sfc) then
+          print *,'incorrect dims in nemsio sfc file'
+          print *,'expected',nlons,nlats
+          print *,'got',nlonsin_sfc,nlatsin_sfc
+        end if
+     endif
   else
      call sigio_srohdc(iunitsig,trim(filename), &
                        sighead,sigdata,iret)
@@ -316,6 +335,13 @@
                  nems_wrk2 = nems_wrk2 + nems_wrk
               endif
            endif
+           call nemsio_readrecv(gfilesfc,'cnvcldwat','mid layer',k,nems_wrk,iret=iret)
+           if (iret/=0) then
+              write(6,*)'gridio/readgriddata: gfs model: problem with nemsio_readrecv(cnvw), iret=',iret
+!             call stop2(23)
+           else
+              nems_wrk2 = nems_wrk2 + nems_wrk
+           end if
            if (cliptracers)  where (nems_wrk2 < clip) nems_wrk2 = clip
            ug = nems_wrk2
            call copytogrdin(ug,cw(:,k))
@@ -430,6 +456,7 @@
   deallocate(psg)
   if (pst_ind > 0) deallocate(vmassdiv,pstend)
   if (use_gfs_nemsio) call nemsio_close(gfile,iret=iret)
+  if (use_gfs_nemsio) call nemsio_close(gfilesfc,iret=iret)
 
   end do backgroundloop ! loop over backgrounds to read in
   end do ensmemloop ! loop over ens members to read in
