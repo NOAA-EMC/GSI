@@ -69,6 +69,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !                       - Read WMO pre-approved new BUFR Goes-16 AMVs (Goes-R)
 !   2018-06-13  Genkova - Goes-16 AMVs use ECMWF QC till new HAM late 2018
 !                         and OE/2 
+!   2019-9-25        Su - modified ithin value criteria to distinguash thinning
+!                         or hilber curve downweighting
 ! 
 !   
 !
@@ -262,7 +264,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! Set lower limits for observation errors
   werrmin=one
   nsattype=0
-  nreal=25
+  nreal=26
   if(perturb_obs ) nreal=nreal+2
   ntread=1
   ntmatch=0
@@ -274,7 +276,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
         ntmatch=ntmatch+1
         ntxall(ntmatch)=nc
         ithin=ithin_conv(nc)
-        if(ithin > 0)then
+        if(ithin > 0 .and. ithin <5)then
            ntread=ntread+1
            ntx(ntread)=nc
         end if
@@ -483,7 +485,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
         if(ncsave /= 0) then
            maxobs=maxobs+1
            nx=1
-           if(ithin_conv(ncsave) > 0)then
+           if(ithin_conv(ncsave) > 0 .and. ithin_conv(ncsave) <5)then
               do ii=2,ntread
                  if(ntx(ii) == ncsave)nx=ii
               end do
@@ -518,7 +520,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
      if(nx >1) then
         nc=ntx(nx)
         ithin=ithin_conv(nc)
-        if (ithin > 0 ) then
+        if (ithin > 0 .and. ithin <5) then
            rmesh=rmesh_conv(nc)
            pmesh=pmesh_conv(nc)
            pmot=pmot_conv(nc)
@@ -1257,7 +1259,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !!    process the thining procedure
                 
            ithin=ithin_conv(nc)
-           ithinp = ithin > 0 .and. pflag /= 0
+           ithinp = ithin > 0  .and. ithin <5 .and. pflag /= 0
 !          if(ithinp  .and. iuse >=0 )then
            if(ithinp   )then
 !          Interpolate guess pressure profile to observation location
@@ -1281,7 +1283,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            dlnpob=log(one_tenth*ppb)  ! ln(pressure in cb)
            ppb=one_tenth*ppb         ! from mb to cb
  !         Special block for data thinning - if requested
-           if (ithin > 0 .and. iuse >=0 .and. qm <4) then
+           if (ithin > 0 .and. ithin <5 .and. iuse >=0 .and. qm <4) then
               ntmp=ndata  ! counting moved to map3gridS
  !         Set data quality index for thinning
               if (thin4d) then
@@ -1398,10 +1400,11 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            cdata_all(22,iout)=r_prvstg(1,1)       ! provider name
            cdata_all(23,iout)=r_sprvstg(1,1)      ! subprovider name
            cdata_all(25,iout)=var_jb              ! non linear qc parameter
+           cdata_all(26,iout)=one              ! non linear qc parameter
 
            if(perturb_obs)then
-              cdata_all(26,iout)=ran01dom()*perturb_fact ! u perturbation
-              cdata_all(27,iout)=ran01dom()*perturb_fact ! v perturbation
+              cdata_all(27,iout)=ran01dom()*perturb_fact ! u perturbation
+              cdata_all(28,iout)=ran01dom()*perturb_fact ! v perturbation
            endif
 
         enddo  loop_readsb
