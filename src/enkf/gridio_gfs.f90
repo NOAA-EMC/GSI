@@ -41,7 +41,7 @@
 !$$$
  use constants, only: zero,one,cp,fv,rd,tiny_r_kind,max_varname_length,t0c,r0_05
  use params, only: nlons,nlats,nlevs,use_gfs_nemsio,pseudo_rh, &
-                   cliptracers,datapath,imp_physics
+                   cliptracers,datapath,imp_physics,cnvw_option
  use kinds, only: i_kind,r_double,r_kind,r_single
  use gridinfo, only: ntrunc,npts  ! gridinfo must be called first!
  use specmod, only: sptezv_s, sptez_s, init_spec_vars, ndimspec => nc, &
@@ -135,16 +135,18 @@
        call stop2(23)
      end if
 
-     call nemsio_open(gfilesfc,filenamesfc,'READ',iret=iret)
-     if (iret/=0) then
-        write(6,*)'gridio/readgriddata: gfs model: problem with sfc nemsio_open, iret=',iret
-     else
-        call nemsio_getfilehead(gfilesfc,iret=iret, dimx=nlonsin_sfc, dimy=nlatsin_sfc)
-        if (nlons /= nlonsin_sfc .or. nlats /= nlatsin_sfc) then
-          print *,'incorrect dims in nemsio sfc file'
-          print *,'expected',nlons,nlats
-          print *,'got',nlonsin_sfc,nlatsin_sfc
-        end if
+     if (cnvw_option) then
+        call nemsio_open(gfilesfc,filenamesfc,'READ',iret=iret)
+        if (iret/=0) then
+           write(6,*)'gridio/readgriddata: gfs model: problem with sfc nemsio_open, iret=',iret
+        else
+           call nemsio_getfilehead(gfilesfc,iret=iret, dimx=nlonsin_sfc, dimy=nlatsin_sfc)
+           if (nlons /= nlonsin_sfc .or. nlats /= nlatsin_sfc) then
+              print *,'incorrect dims in nemsio sfc file'
+              print *,'expected',nlons,nlats
+              print *,'got',nlonsin_sfc,nlatsin_sfc
+           end if
+        endif
      endif
   else
      call sigio_srohdc(iunitsig,trim(filename), &
@@ -335,12 +337,14 @@
                  nems_wrk2 = nems_wrk2 + nems_wrk
               endif
            endif
-           call nemsio_readrecv(gfilesfc,'cnvcldwat','mid layer',k,nems_wrk,iret=iret)
-           if (iret/=0) then
-              write(6,*)'gridio/readgriddata: gfs model: problem with nemsio_readrecv(cnvw), iret=',iret
-!             call stop2(23)
-           else
-              nems_wrk2 = nems_wrk2 + nems_wrk
+           if (cnvw_option) then
+              call nemsio_readrecv(gfilesfc,'cnvcldwat','mid layer',k,nems_wrk,iret=iret)
+              if (iret/=0) then
+                 write(6,*)'gridio/readgriddata: gfs model: problem with nemsio_readrecv(cnvw), iret=',iret
+                 call stop2(23)
+              else
+                 nems_wrk2 = nems_wrk2 + nems_wrk
+              end if
            end if
            if (cliptracers)  where (nems_wrk2 < clip) nems_wrk2 = clip
            ug = nems_wrk2
