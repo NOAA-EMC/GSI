@@ -50,6 +50,9 @@
  use mpeu_util, only: getindex
  implicit none
  private
+ interface quantize_data
+     module procedure quantize_data_2d, quantize_data_3d
+ end interface quantize_data
  public :: readgriddata, writegriddata
  contains
 
@@ -565,7 +568,8 @@
   real(r_kind), dimension(nlons*nlats) :: ug,vg,uginc,vginc,psfg,psg
   real(r_kind), allocatable, dimension(:) :: delzb,work,values_1d
   real(r_kind), dimension(ndimspec) :: vrtspec,divspec
-  real(r_single), allocatable, dimension(:,:,:) :: ug3d,vg3d
+  real(r_single), allocatable, dimension(:,:,:) :: ug3d,vg3d,values_3d
+  real(r_single), allocatable, dimension(:,:) :: values_2d,values_2d_copy
   integer iadate(4),idate(4),nfhour,idat(7),iret,nrecs,jdate(7),jdat(6)
   integer:: nfminute, nfsecondn, nfsecondd
   integer,dimension(8):: ida,jda
@@ -574,6 +578,7 @@
   type(sigio_head) sighead
   type(sigio_data) sigdata_inc
   type(Dataset) :: dsfg, dsanl
+  character(len=nf90_max_name) :: varname ! variable name
   character(len=3) charnanal
   character(nemsio_charkind),allocatable:: recname(:)
   character(nemsio_charkind) :: field
@@ -581,6 +586,7 @@
   logical :: hasfield
 
   real(r_kind) kap,kapr,kap1,clip
+  real(r_single) compress_err
   real(nemsio_realkind), dimension(nlons*nlats) :: nems_wrk,nems_wrk2
   real(r_kind), dimension(nlevs+1) :: ak,bk
   real(nemsio_realkind), dimension(nlevs+1,3,2) :: nems_vcoord
@@ -589,7 +595,7 @@
   type(nemsio_gfile) :: gfilein,gfileout
 
   integer :: u_ind, v_ind, tv_ind, q_ind, oz_ind, cw_ind
-  integer :: ps_ind, pst_ind
+  integer :: ps_ind, pst_ind, nbits
 
   integer k,nt,ierr,iunitsig,nb,i,ne,nanal
 
@@ -912,6 +918,40 @@
      jdat(5) = 0; jdat(6) = 0.
      time_units = get_time_units_from_idate(jdat)
      call write_attribute(dsanl,'units',time_units,'time')
+     call read_vardata(dsfg,'hgtsfc',values_2d)
+     call write_vardata(dsanl,'hgtsfc',values_2d)
+     call read_vardata(dsfg,'pressfc',values_2d)
+     ug = 0_r_kind
+     if (ps_ind > 0) then
+       call copyfromgrdin(grdin(:,levels(n3d) + ps_ind,nb,ne),ug)
+     endif
+     ! add increment to background (after converting to Pa)
+     values_2d = values_2d + 100.*reshape(ug,(/nlons,nlats/))
+     call read_attribute(dsfg, 'nbits', nbits, 'pressfc',ierr)
+     if (ierr == 0 .and. nbits > 0)  then
+       values_2d_copy = values_2d
+       call quantize_data(values_2d_copy, values_2d, nbits, compress_err)
+       call write_attribute(dsanl,&
+       'max_abs_compression_error',compress_err,'pressfc')
+     endif
+     call write_vardata(dsanl,'pressfc',values_2d) 
+     !print *,'nanal,min/max psfg,min/max inc',nanal,minval(values_2d),maxval(values_2d),minval(ug),maxval(ug)
+     call read_vardata(dsfg,'dpres',ug3d, ierr)
+     if (ierr == 0) then
+        call read_vardata(dsfg,'dpres',ug3d)
+        do k=1,nlevs
+           psg = ug*(bk(k)-bk(k+1))
+           vg3d(:,:,k) = ug3d(:,:,k) + 100.*reshape(psg,(/nlons,nlats/))
+        enddo 
+        call read_attribute(dsfg, 'nbits', nbits, 'delp',ierr)
+        if (ierr == 0 .and. nbits > 0)  then
+          ug3d = vg3d
+          call quantize_data(ug3d, vg3d, nbits, compress_err)
+          call write_attribute(dsanl,&
+          'max_abs_compression_error',compress_err,'dpres')
+        endif
+        call write_vardata(dsanl,'dpres',vg3d)
+     endif
   endif
 
   if (pst_ind > 0) then
@@ -962,9 +1002,6 @@
         call sptezv_s(divspec,vrtspec,ug,vg,-1) ! u,v to div,vrt
         call sptez_s(divspec,vmassdiv(:,k),1) ! divspec to divgrd
      enddo
-     if (use_gfs_ncio) then
-        deallocate(ug3d,vg3d)
-     endif
 
      ! analyzed ps tend increment
      call copyfromgrdin(grdin(:,levels(n3d) + pst_ind,nb,ne),pstend2)
@@ -1251,11 +1288,192 @@
         endif
     enddo
   else if (use_gfs_ncio) then
+     call read_vardata(dsfg,'ugrd',ug3d)
+     do k=1,nlevs
+        ug = 0_r_kind
+        if (u_ind > 0) then
+          call copyfromgrdin(grdin(:,levels(u_ind-1) + k,nb,ne),ug)
+        endif
+        ug3d(:,:,k) = ug3d(:,:,k) + reshape(ug,(/nlons,nlats/))
+     enddo
+     call read_attribute(dsfg, 'nbits', nbits, 'ugrd',ierr)
+     if (ierr == 0 .and. nbits > 0)  then
+       vg3d = ug3d
+       call quantize_data(vg3d, ug3d, nbits, compress_err)
+       call write_attribute(dsanl,&
+       'max_abs_compression_error',compress_err,'ugrd')
+     endif
+     call write_vardata(dsanl,'ugrd',ug3d)
+     call read_vardata(dsfg,'vgrd',vg3d)
+     do k=1,nlevs
+        vg = 0_r_kind
+        if (v_ind > 0) then
+          call copyfromgrdin(grdin(:,levels(v_ind-1) + k,nb,ne),vg)
+        endif
+        vg3d(:,:,k) = vg3d(:,:,k) + reshape(vg,(/nlons,nlats/))
+     enddo  
+     call read_attribute(dsfg, 'nbits', nbits, 'vgrd',ierr)
+     if (ierr == 0 .and. nbits > 0)  then
+       ug3d = vg3d
+       call quantize_data(ug3d, vg3d, nbits, compress_err)
+       call write_attribute(dsanl,&
+       'max_abs_compression_error',compress_err,'vgrd')
+     endif
+     call write_vardata(dsanl,'vgrd',vg3d)
+     if (pst_ind > 0) then
+        do k=1,nlevs
+           vgtmp(:,k) = reshape(vg3d(:,:,k),(/nlons*nlats/))
+           ug = ugtmp(:,k)*dpanl(:,k)
+           vg = vgtmp(:,k)*dpanl(:,k)
+           call sptezv_s(divspec,vrtspec,ug,vg,-1) ! u,v to div,vrt
+           call sptez_s(divspec,vmassdiv(:,k),1) ! divspec to divgrd
+        enddo
+     end if
+
+     ! read sensible temp and specific humidity
+     call read_vardata(dsfg,'tmp',ug3d)
+     call read_vardata(dsfg,'spfh',vg3d)
+     ug3d = ug3d * ( 1.0 + fv*vg3d ) !Convert T to Tv
+     call read_vardata(dsfg,'pressfc',values_2d)
+     allocate(delzb(nlons*nlats))
+     allocate(values_1d(nlons*nlats))
+     values_1d = reshape(values_2d,(/nlons*nlats/))
+     ! add Tv,q increment to background
+     do k=1,nlevs
+        ug = 0_r_kind
+        if (tv_ind > 0) then
+          call copyfromgrdin(grdin(:,levels(tv_ind-1)+k,nb,ne),ug)
+        endif
+        vg = 0_r_kind
+        if (q_ind > 0) then
+          call copyfromgrdin(grdin(:,levels(q_ind-1)+k,nb,ne),vg)
+        endif
+        delzb=(rd/grav)*reshape(ug3d(:,:,k),(/nlons*nlats/)) ! ug3d is background Tv
+        ! values_1d is background ps
+        delzb=delzb*log((ak(k)+bk(k)*values_1d)/(ak(k+1)+bk(k+1)*values_1d))
+        ug3d(:,:,k) = ug3d(:,:,k) + reshape(ug,(/nlons,nlats/))
+        vg3d(:,:,k) = vg3d(:,:,k) + reshape(vg,(/nlons,nlats/))
+     enddo
+     ! now ug3d is analysis Tv, vg3d is analysis spfh
+     if (cliptracers)  where (vg3d < clip) vg3d = clip
+     ug3d = ug3d/(1. + fv*vg3d) ! convert Tv back to T
+
+     ! write analysis T
+     call read_attribute(dsfg, 'nbits', nbits, 'tmp',ierr)
+     allocate(values_3d(nlons,nlats,nlevs))
+     if (ierr == 0 .and. nbits > 0)  then
+       values_3d = ug3d
+       call quantize_data(values_3d, ug3d, nbits, compress_err)
+       call write_attribute(dsanl,&
+       'max_abs_compression_error',compress_err,'tmp')
+     endif
+     call write_vardata(dsanl,'tmp',ug3d) ! write T
+
+     ! write analysis q
+     call read_attribute(dsfg, 'nbits', nbits, 'spfh',ierr)
+     if (ierr == 0 .and. nbits > 0)  then
+       values_3d = vg3d
+       call quantize_data(values_3d, vg3d, nbits, compress_err)
+       call write_attribute(dsanl,&
+       'max_abs_compression_error',compress_err,'spfh')
+     endif
+     call write_vardata(dsanl,'spfh',vg3d) ! write q
+     values_3d = ug3d ! save analysis T
+
+     ! write clwmr, icmr
+     call read_vardata(dsfg,'clwmr',ug3d)
+     if (imp_physics == 11) call read_vardata(dsfg,'icmr',vg3d)
+     do k=1,nlevs
+        ug = 0_r_kind
+        if (cw_ind > 0) then
+           call copyfromgrdin(grdin(:,levels(cw_ind-1)+k,nb,ne),ug)
+        endif
+        if (imp_physics == 11) then
+           work = -r0_05 * (reshape(values_3d(:,:,k),(/nlons*nlats/)) - t0c)
+           do i=1,nlons*nlats
+              work(i) = max(zero,work(i))
+              work(i) = min(one,work(i))
+           enddo
+           vg = ug * work          ! cloud ice
+           ug = ug * (one - work)  ! cloud water
+           vg3d(:,:,k) = vg3d(:,:,k) + reshape(vg,(/nlons,nlats/))
+        endif
+        ug3d(:,:,k) = ug3d(:,:,k) + reshape(ug,(/nlons,nlats/))
+     enddo
+     if (cw_ind > 0) then
+        call read_attribute(dsfg, 'nbits', nbits, 'clwmr',ierr)
+        if (cliptracers)  where (ug3d < clip) ug3d = clip
+        if (ierr == 0 .and. nbits > 0)  then
+          values_3d = ug3d
+          call quantize_data(values_3d, ug3d, nbits, compress_err)
+          call write_attribute(dsanl,&
+          'max_abs_compression_error',compress_err,'clwmr')
+        endif
+     endif
+     call write_vardata(dsanl,'clwmr',ug3d) ! write clwmr
+     if (imp_physics == 11) then
+        if (cw_ind > 0) then
+           call read_attribute(dsfg, 'nbits', nbits, 'icmr',ierr)
+           if (cliptracers)  where (vg3d < clip) vg3d = clip
+           if (ierr == 0 .and. nbits > 0)  then
+             values_3d = vg3d
+             call quantize_data(values_3d, vg3d, nbits, compress_err)
+             call write_attribute(dsanl,&
+             'max_abs_compression_error',compress_err,'icmr')
+           endif
+        endif
+        call write_vardata(dsanl,'icmr',vg3d) ! write icmr
+     endif
+
+     ! write analysis delz
+     varname= 'delz'; hasfield = checkfield_nc(dsfg,varname)
+     if (hasfield) then
+        call read_vardata(dsfg,'delz',vg3d)
+        do k=1,nlevs
+           vg = 0_r_kind
+           if (ps_ind > 0) then
+              call copyfromgrdin(grdin(:,levels(n3d) + ps_ind,nb,ne),vg)
+           endif
+           vg = values_1d + vg! analysis ps
+           ug=(rd/grav)*ug
+           ug=ug*log((ak(k)+bk(k)*vg)/(ak(k+1)+bk(k+1)*vg))
+           ug3d(:,:,k)=vg3d(:,:,k) + reshape(ug-delzb,(/nlons,nlats/))
+        enddo
+        call read_attribute(dsfg, 'nbits', nbits, 'delz',ierr)
+        if (ierr == 0 .and. nbits > 0)  then
+          values_3d = ug3d
+          call quantize_data(values_3d, ug3d, nbits, compress_err)
+          call write_attribute(dsanl,&
+          'max_abs_compression_error',compress_err,'delz')
+        endif
+        call write_vardata(dsanl,'delz',ug3d) ! write delz
+     endif
+
+     ! write analysis ozone
+     call read_vardata(dsfg, 'o3mr', vg3d)
+     do k=1,nlevs
+        ug = 0_r_kind
+        if (oz_ind > 0) then
+           call copyfromgrdin(grdin(:,levels(oz_ind-1)+k,nb,ne),ug)
+        endif
+        vg3d(:,:,k) = vg3d(:,:,k) + reshape(ug,(/nlons,nlats/))
+     enddo
+     if (cliptracers)  where (vg3d < clip) vg3d = clip
+     if (oz_ind > 0) then
+        call read_attribute(dsfg, 'nbits', nbits, 'o3mr',ierr)
+        if (ierr == 0 .and. nbits > 0)  then
+          values_3d = vg3d
+          call quantize_data(values_3d, vg3d, nbits, compress_err)
+          call write_attribute(dsanl,&
+          'max_abs_compression_error',compress_err,'spfh')
+        endif
+     endif
+     call write_vardata(dsanl,'spfh',vg3d) ! write q
   endif 
 
   if (allocated(delzb)) deallocate(delzb)
   if (allocated(recname)) deallocate(recname)
-  if (imp_physics == 11) deallocate(work)
+  if (allocated(work)) deallocate(work)
 
   if (pst_ind > 0) then
 
@@ -1291,7 +1509,7 @@
           print *,k,'min/max u inc (member 1)',&
           minval(uginc/dpanl(:,k)),maxval(uginc/dpanl(:,k))
         endif
-        if (use_gfs_nemsio) then
+        if (use_gfs_nemsio .or. use_gfs_ncio) then
            ugtmp(:,k) = (ugtmp(:,k)*dpanl(:,k) + uginc)/dpanl(:,k)
            vgtmp(:,k) = (vgtmp(:,k)*dpanl(:,k) + vginc)/dpanl(:,k)
            ug = ugtmp(:,k); vg = vgtmp(:,k)
@@ -1370,6 +1588,27 @@
      ! deallocate sigdata structure.
      call sigio_axdata(sigdata,ierr)
   else if (use_gfs_ncio) then
+     if (pst_ind > 0) then 
+        ug3d = reshape(ugtmp,(/nlons,nlats,nlevs/))
+        vg3d = reshape(vgtmp,(/nlons,nlats,nlevs/))
+        call read_attribute(dsfg, 'nbits', nbits, 'ugrd',ierr)
+        if (ierr == 0 .and. nbits > 0)  then
+          values_3d = ug3d
+          call quantize_data(values_3d, ug3d, nbits, compress_err)
+          call write_attribute(dsanl,&
+          'max_abs_compression_error',compress_err,'ugrd')
+        endif
+        call write_vardata(dsanl,'ugrd',ug3d) ! write u
+        call read_attribute(dsfg, 'nbits', nbits, 'vgrd',ierr)
+        if (ierr == 0 .and. nbits > 0)  then
+          values_3d = vg3d
+          call quantize_data(values_3d, vg3d, nbits, compress_err)
+          call write_attribute(dsanl,&
+          'max_abs_compression_error',compress_err,'vgrd')
+        endif
+        call write_vardata(dsanl,'vgrd',vg3d) ! write v
+        deallocate(ugtmp,vgtmp) 
+     endif
   else if (use_gfs_nemsio) then
      if (pst_ind > 0) then
         ! update u,v
@@ -1398,6 +1637,10 @@
       call close_dataset(dsfg)
       call close_dataset(dsanl)
   endif
+
+  if (allocated(ug3d)) deallocate(ug3d)
+  if (allocated(vg3d)) deallocate(vg3d)
+  if (allocated(values_3d)) deallocate(values_3d)
 
   if (pst_ind > 0) then
      deallocate(pressi,dpanl,dpfg)
@@ -1438,7 +1681,34 @@
    enddo
  end function checkfield
 
- subroutine quantize_data(dataIn, dataOut, nbits, compress_err)
+ logical function checkfield_nc(dset, name) result(hasfield)
+    use netcdf
+    use module_fv3gfs_ncio, only : Dataset
+    type(Dataset), intent(in) :: dset
+    character(len=nf90_max_name) :: name ! variable name
+    integer nvar
+    hasfield = .false.
+    do nvar=1,dset%nvars
+       if (trim(dset%variables(nvar)%name) == trim(name)) then
+         hasfield = .true.
+         exit      
+       endif
+    enddo
+ end function checkfield_nc
+
+ subroutine quantize_data_2d(dataIn, dataOut, nbits, compress_err)
+   use module_fv3gfs_ncio, only : quantized
+   real(r_single), intent(in) :: dataIn(:,:)
+   real(r_single), intent(out) :: dataOut(:,:)
+   real(r_single), intent(out) :: compress_err
+   integer, intent(in) :: nbits
+   real(r_single) dataMin, dataMax
+   dataMax = maxval(dataIn); dataMin = minval(dataIn)
+   dataOut = quantized(dataIn,nbits,dataMin,dataMax)
+   compress_err = maxval(abs(dataIn-dataOut))
+ end subroutine quantize_data_2d
+
+ subroutine quantize_data_3d(dataIn, dataOut, nbits, compress_err)
    use module_fv3gfs_ncio, only : quantized
    real(r_single), intent(in) :: dataIn(:,:,:)
    real(r_single), intent(out) :: dataOut(:,:,:)
@@ -1448,6 +1718,6 @@
    dataMax = maxval(dataIn); dataMin = minval(dataIn)
    dataOut = quantized(dataIn,nbits,dataMin,dataMax)
    compress_err = maxval(abs(dataIn-dataOut))
- end subroutine quantize_data
+ end subroutine quantize_data_3d
 
 end module gridio
