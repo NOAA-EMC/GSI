@@ -75,6 +75,7 @@ module qcmod
 !                         for all variables
 !   2019-03-27  h. liu  - add ABI QC
 !   2019-06-10  h. liu - add Geostationary satellites CSR data QC to replace qc_abi,qc_seviri
+!   2019-09-29  X.Su   - add troflg and lat_c for hilbert curve tunning
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -128,6 +129,12 @@ module qcmod
 !   def vis_thres    - threshold value for vis
 !   def cldch_thres  - threshold value for cldch
 !
+!   this for hilbert curve tunning
+!   def troflg       - if tro flg is on different region will have different 
+!                       down weighting criteria when appling HIlbert curve
+!   def lat_c        -  the latitude criteria for different down weighting
+!                        criteria
+!   def nrand        - hilbert premeter
 !
 ! attributes:
 !   language: f90
@@ -180,6 +187,9 @@ module qcmod
   public :: buddycheck_t,buddydiag_save
   public :: vadwnd_l2rw_qc
   public :: pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres
+  public :: troflg
+  public :: lat_c
+  public :: nrand 
 
   logical nlnqc_iter,njqc,vqc,nvqc,hub_norm
   logical noiqc
@@ -192,11 +202,14 @@ module qcmod
   logical buddycheck_t
   logical buddydiag_save
   logical vadwnd_l2rw_qc
+  logical troflg
 
   character(10):: vadfile
   integer(i_kind) npres_print
+  integer(i_kind) nrand
   real(r_kind) dfact,dfact1,erradar_inflate,c_varqc
   real(r_kind) varqc_iter
+  real(r_kind) lat_c
   real(r_kind) pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres
   real(r_kind),allocatable,dimension(:)::ptop,pbot,ptopq,pbotq,ptopo3,pboto3
 
@@ -401,6 +414,10 @@ contains
     estcldchoe=one
     vis_thres=16000.0_r_kind
     cldch_thres=16000.0_r_kind
+
+    troflg=.false.
+    lat_c=21.0_r_kind
+    nrand=13
 
     return
   end subroutine init_qcvars
