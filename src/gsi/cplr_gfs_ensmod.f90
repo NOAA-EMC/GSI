@@ -115,6 +115,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,en_loc3,m_cvars2d,m_cvars3d, &
 ! program history log:
 !   2016-06-30  mahajan  - initial code
 !   2016-10-11  parrish  - create fast parallel code
+!   2019-07-10  zhu      - read convective clouds
 !
 !   input argument list:
 !     ntindex  - time index for ensemble
@@ -140,6 +141,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,en_loc3,m_cvars2d,m_cvars3d, &
     use control_vectors, only: nc2d,nc3d
     !use control_vectors, only: cvars2d,cvars3d
     use genex_mod, only: genex_info,genex_create_info,genex,genex_destroy_info
+    use jfunc, only: cnvw_option
 
     implicit none
 
@@ -155,6 +157,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,en_loc3,m_cvars2d,m_cvars3d, &
     ! Declare internal variables
     character(len=*),parameter :: myname_='get_user_ens_gfs_fastread_'
     character(len=70) :: filename
+    character(len=70) :: filenamesfc
     integer(i_kind) :: i,ii,j,jj,k,n
     integer(i_kind) :: io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,i_ens
     integer(i_kind) :: ip,ips,ipe,jps,jpe
@@ -232,15 +235,28 @@ subroutine get_user_ens_gfs_fastread_(ntindex,en_loc3,m_cvars2d,m_cvars3d, &
     write(filename,22) trim(adjustl(ensemble_path)),ens_fhrlevs(ntindex),mas
 22  format(a,'sigf',i2.2,'_ens_mem',i3.3)
 
+    if (cnvw_option) then
+       write(filenamesfc,23) trim(adjustl(ensemble_path)),ens_fhrlevs(ntindex),mas
+23     format(a,'sfcf',i2.2,'_ens_mem',i3.3)
+    end if
+
     allocate(m_cvars2dw(nc2din),m_cvars3dw(nc3din))
     m_cvars2dw=-999
     m_cvars3dw=-999
 
-    if ( mas == mae ) &
-        call parallel_read_nemsio_state_(en_full,m_cvars2dw,m_cvars3dw,nlon,nlat,nsig, &
+    if ( mas == mae ) then
+       if (cnvw_option) then
+          call parallel_read_nemsio_state_(en_full,m_cvars2dw,m_cvars3dw,nlon,nlat,nsig, &
+                                         ias,jas,mas, &
+                                         iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz, &
+                                         filename,.true.,clons,slons,filenamesfc)
+       else
+          call parallel_read_nemsio_state_(en_full,m_cvars2dw,m_cvars3dw,nlon,nlat,nsig, &
                                          ias,jas,mas, &
                                          iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz, &
                                          filename,.true.,clons,slons)
+       end if
+    end if
     base_pe0=-999
     if ( mas == 1 .and. mae == 1 ) base_pe0=mype
 
@@ -659,7 +675,7 @@ end subroutine ens_io_partition_
 subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig, &
                                         ias,jas,mas, &
                                         iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz, &
-                                        filename,init_head,clons,slons)
+                                        filename,init_head,clons,slons,filenamesfc)
 
    use kinds, only: i_kind,r_kind,r_single
    use constants, only: r60,r3600,zero,one,half,pi,deg2rad
@@ -669,6 +685,7 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
    use nemsio_module, only: nemsio_getrechead
    use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d,imp_physics
    use general_sub2grid_mod, only: sub2grid_info
+   use jfunc, only: cnvw_option
 
    implicit none
 
@@ -681,11 +698,12 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
    integer(i_kind),  intent(inout) :: m_cvars2d(nc2d),m_cvars3d(nc3d)
    real(r_single),   intent(inout) :: en_full(iasm:iaemz,jasm:jaemz,kasm:kaemz,masm:maemz)
    character(len=*), intent(in   ) :: filename
+   character(len=*), optional, intent(in) :: filenamesfc
    logical,          intent(in   ) :: init_head
    real(r_kind),     intent(inout) :: clons(nlon),slons(nlon)
 
    ! Declare local variables
-   integer(i_kind) i,ii,j,jj,k,lonb,latb,levs
+   integer(i_kind) i,ii,j,jj,k,lonb,latb,levs,latb2,lonb2
    integer(i_kind) k2,k3,k3u,k3v,k3t,k3q,k3cw,k3oz,kf
    integer(i_kind) iret
    integer(i_kind) :: istop = 101
@@ -706,6 +724,7 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
    real(r_single),allocatable,dimension(:,:,:,:) ::  temp3
    real(r_kind) :: fhour
    type(nemsio_gfile) :: gfile
+   type(nemsio_gfile) :: gfilesfc
    real(r_kind),allocatable,dimension(:) :: rlats,rlons
    real(r_single),allocatable,dimension(:) ::r4lats,r4lons
 
@@ -729,6 +748,21 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
          write(6,*)trim(myname_),': ***ERROR*** incorrect resolution, nlat,nlon=',nlat,nlon, &
                                ', latb+2,lonb=',latb+2,lonb
       call die(myname_, ': ***ERROR*** incorrect resolution',101)
+   endif
+
+   if (cnvw_option) then
+      call nemsio_open(gfilesfc,filenamesfc,'READ',iret=iret)
+      if (iret /= 0) call error_msg(trim(myname_),trim(filenamesfc),null,'open',istop+2,iret,.true.)
+
+      call nemsio_getfilehead(gfilesfc,iret=iret,dimx=lonb2, dimy=latb2)
+      if (iret == 0) then
+         if ( latb2+2 /= nlat .or. lonb2 /=nlon) then
+            if ( mype == 0 ) &
+               write(6,*)trim(myname_),': ***ERROR*** incorrect resolution, nlat,nlon=',nlat,nlon, &
+                               ', latb2+2,lonb2=',latb2+2,lonb2 
+            call die(myname_, ': ***ERROR*** incorrect resolution',101)
+         endif
+      endif
    endif
 
 !  obtain r4lats,r4lons,rlats,rlons,clons,slons exactly as computed in general_read_gfsatm_nems:
@@ -780,6 +814,14 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
                   work = work + work2
                endif
             endif
+            if (cnvw_option) then
+               call nemsio_readrecv(gfilesfc,'cnvcldwat','mid layer',k,work2,iret=iret)
+               if (iret /= 0) then
+                  call error_msg(trim(myname_),trim(filenamesfc),'cnvcldwat','read',istop+11,iret,.true.)
+               else
+                  work = work + work2
+               end if
+            end if
             call move1_(work,temp3(:,:,k,k3),nlon,nlat)
          elseif(trim(cvars3d(k3))=='oz') then
             call nemsio_readrecv(gfile,'o3mr','mid layer',k,work,iret=iret)

@@ -567,7 +567,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,uvflag,vordivflag,zflag, &
 end subroutine general_read_gfsatm
 
 subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
-           gfs_bundle,init_head,iret_read)
+           gfs_bundle,init_head,iret_read,filenamesfc)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    general_read_gfsatm  adaptation of read_gfsatm for general resolutions
@@ -584,6 +584,7 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
 !   2014-11-30  todling    - genelize interface to handle bundle instead of fields;
 !                            internal code should be generalized
 !   2014-12-03  derber     - introduce vordivflag, zflag and optimize routines
+!   2019-07-10  zhu        - add convective clouds
 !
 !   input argument list:
 !     grd      - structure variable containing information about grid
@@ -625,6 +626,7 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    use gsi_bundlemod, only: gsi_bundle
    use gsi_bundlemod, only: gsi_bundlegetpointer
    use control_vectors, only: imp_physics
+   use jfunc, only: cnvw_option
 
    implicit none
 
@@ -634,7 +636,8 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    ! Declare passed variables
    type(sub2grid_info)                   ,intent(in   ) :: grd
    type(spec_vars)                       ,intent(in   ) :: sp_a
-   character(*)                          ,intent(in   ) :: filename
+   character(24)                          ,intent(in   ) :: filename
+   character(24),optional                 ,intent(in   ) :: filenamesfc
    logical                               ,intent(in   ) :: uvflag,zflag,vordivflag,init_head
    integer(i_kind)                       ,intent(  out) :: iret_read
    type(gsi_bundle)                      ,intent(inout) :: gfs_bundle
@@ -655,6 +658,7 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    integer(i_kind):: i,j,k,icount,kk
    integer(i_kind) :: ier,istatus,iredundant
    integer(i_kind) :: latb, lonb, levs, nframe
+   integer(i_kind) :: latb2, lonb2
    integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
    integer(i_kind) :: istop = 101
    integer(i_kind),dimension(npe)::ilev,iflag,mype_use
@@ -673,6 +677,7 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
 
    logical :: procuse,diff_res,eqspace
    type(nemsio_gfile) :: gfile
+   type(nemsio_gfile) :: gfilesfc
    type(egrid2agrid_parm) :: p_high
    logical,dimension(1) :: vector
 
@@ -746,6 +751,27 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
             trim(my_name),grd%nsig,levs
          call stop2(101)
       endif
+
+      if (cnvw_option) then
+         call nemsio_open(gfilesfc,filenamesfc,'READ',iret=iret)
+         if (iret /= 0) call error_msg(trim(my_name),trim(filenamesfc),null,'open',istop+2,iret)
+
+         call nemsio_getfilehead(gfilesfc,iret=iret,dimx=lonb2, dimy=latb2)
+         if (iret == 0) then
+            if ( latb2 /= nlatm2 ) then
+               if ( mype == 0 ) write(6, &
+                  '(a,'': different spatial dimension nlatm2 = '',i4,tr1,''latb2 ='',i4)') &
+                  trim(my_name),nlatm2,latb2
+               call stop2(101)
+            endif
+            if ( lonb2 /= grd%nlon ) then
+               if ( mype == 0 ) write(6, &
+                  '(a,'': different spatial dimension nlon   = '',i4,tr1,''lonb2 ='',i4)') &
+                  trim(my_name),grd%nlon,lonb2
+               call stop2(101)
+            endif
+         endif
+      end if
 
       allocate( spec_vor(sp_a%nc), spec_div(sp_a%nc) )
       allocate( grid(grd%nlon,nlatm2), grid_v(grd%nlon,nlatm2) )
@@ -1203,6 +1229,14 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
                rwork1d0 = rwork1d0 + rwork1d1
             endif
          endif
+         if (cnvw_option) then
+            call nemsio_readrecv(gfilesfc,'cnvcldwat','mid layer',k,rwork1d1,iret=iret)
+            if (iret /= 0) then
+               call error_msg(trim(my_name),trim(filenamesfc),'cnvcldwat','read',istop+11,iret)
+            else
+               rwork1d0 = rwork1d0 + rwork1d1
+            endif
+         endif
          if ( diff_res ) then
             grid_b=reshape(rwork1d0,(/size(grid_b,1),size(grid_b,2)/))
             vector(1)=.false.
@@ -1236,6 +1270,10 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
       deallocate(grid,grid_v)
       call nemsio_close(gfile,iret=iret)
       if (iret /= 0) call error_msg(trim(my_name),trim(filename),null,'close',istop+9,iret)
+      if (cnvw_option) then
+         call nemsio_close(gfilesfc,iret=iret)
+         if (iret /= 0) call error_msg(trim(my_name),trim(filenamesfc),null,'close',istop+10,iret)
+      end if
    endif
    deallocate(work)
 

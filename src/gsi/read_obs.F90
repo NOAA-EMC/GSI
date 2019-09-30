@@ -378,9 +378,11 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
            end if 
  
            said=nint(satid) 
-           if(((said > 739) .and.(said < 746)).or.(said == 820) .or. (said == 825) .or. &
-               (said == 786).or. (said == 4)  .or.(said == 3).or. &
-               (said == 421).or. (said == 440).or.(said == 821)) then
+           if(((said > 739) .and.(said < 746)).or.(said == 820).or. &
+               (said == 825).or. (said == 786).or.(said == 4)  .or. &
+               (said == 3)  .or. (said == 421).or.(said == 440).or. &
+               (said == 821).or. ((said > 749) .and.(said < 756)).or. &
+               (said == 44) .or. (said == 5) ) then
              lexist=.true. 
              exit gpsloop 
            end if 

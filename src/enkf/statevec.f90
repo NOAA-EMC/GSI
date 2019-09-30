@@ -44,7 +44,8 @@ use mpisetup
 use gridinfo, only: getgridinfo, gridinfo_cleanup,               &
                     npts, vars3d_supported, vars2d_supported
 use params, only: nlevs,nstatefields,nanals,statefileprefixes,&
-                  ntasks_io,nanals_per_iotask,nanal1,nanal2
+                  ntasks_io,nanals_per_iotask,nanal1,nanal2, &
+                  statesfcfileprefixes
 use kinds, only: r_kind, i_kind, r_double, r_single
 use mpeu_util, only: gettablesize, gettable, getindex
 use constants, only : max_varname_length
@@ -188,7 +189,8 @@ if (nproc <= ntasks_io-1) then
    allocate(qsat(npts,nlevs,nstatefields,nanals_per_iotask))
    nanal = nproc + 1
 
-   call readgriddata(nanal1(nproc),nanal2(nproc),svars3d,svars2d,ns3d,ns2d,slevels,nsdim,nstatefields,statefileprefixes,.false.,state_d,qsat)
+   call readgriddata(nanal1(nproc),nanal2(nproc),svars3d,svars2d,ns3d,ns2d,slevels,nsdim,nstatefields, &
+                     statefileprefixes,statesfcfileprefixes,.false.,state_d,qsat)
 
    ! subtract the mean
    allocate(state_mean(npts)) 
