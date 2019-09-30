@@ -71,7 +71,9 @@ character(len=2),dimension(7),public :: charfhr_state
 ! "analysis_fhr##." If only one time level
 ! in background, default is "firstguess." and "analysis.".
 character(len=120),dimension(7),public :: fgfileprefixes
+character(len=120),dimension(7),public :: fgsfcfileprefixes
 character(len=120),dimension(7),public :: statefileprefixes
+character(len=120),dimension(7),public :: statesfcfileprefixes
 character(len=120),dimension(7),public :: anlfileprefixes
 ! analysis date string (YYYYMMDDHH)
 character(len=10), public ::  datestring
@@ -198,7 +200,8 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh,&
                    lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh,&
                    lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh,&
-                   fgfileprefixes,anlfileprefixes,statefileprefixes,&
+                   fgfileprefixes,fgsfcfileprefixes,anlfileprefixes, &
+                   statefileprefixes,statesfcfileprefixes, &
                    covl_minfact,covl_efold,lupd_obspace_serial,letkf_novlocal,&
                    analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,&
                    analpertwtnh_rtpp,analpertwtsh_rtpp,analpertwttr_rtpp,&
@@ -353,6 +356,7 @@ dsis=' '
 ! Initialize first-guess and analysis file name prefixes.
 ! (blank means use default names)
 fgfileprefixes = ''; anlfileprefixes=''; statefileprefixes=''
+fgsfcfileprefixes = ''; statesfcfileprefixes=''
 
 ! read from namelist file, doesn't seem to work from stdin with mpich
 open(912,file='enkf.nml',form="formatted")
@@ -564,6 +568,9 @@ do while (nhr_anal(nbackgrounds+1) > 0)
       fgfileprefixes(nbackgrounds+1)="sfg_"//datestring//"_fhr"//charfhr_anal(nbackgrounds+1)//"_"
      endif
    endif
+   if (trim(fgsfcfileprefixes(nbackgrounds+1)) .eq. "") then
+      fgsfcfileprefixes(nbackgrounds+1)="sfgsfc_"//datestring//"_fhr"//charfhr_anal(nbackgrounds+1)//"_"
+   end if
    nbackgrounds = nbackgrounds+1
 end do
 
@@ -583,6 +590,9 @@ do while (nhr_state(nstatefields+1) > 0)
       statefileprefixes(nstatefields+1)="sfg_"//datestring//"_fhr"//charfhr_state(nstatefields+1)//"_"
      endif
    endif
+   if (trim(statesfcfileprefixes(nstatefields+1)) .eq. "") then
+      statesfcfileprefixes(nstatefields+1)="sfgsfc_"//datestring//"_fhr"//charfhr_state(nstatefields+1)//"_"
+   end if
    nstatefields = nstatefields+1
 end do
 
