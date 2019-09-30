@@ -1705,7 +1705,7 @@ contains
        odate(4) = jdate(1)  !year
 
        call write_vardata(sfcanl, 'time', fhour)
-       time_units = get_time_units_from_idate(sfcanl, jdate)
+       time_units = get_time_units_from_idate(jdate)
        call write_attribute(sfcanl, 'units', time_units, 'time')
 
        allocate(buffer2(lonb,latb))
@@ -2029,13 +2029,13 @@ contains
        sfcanl = create_dataset(fname_sfcanl, sfcgcy, copy_vardata=.true.)
 
        call write_vardata(sfcanl, 'time', fhour)
-       time_units = get_time_units_from_idate(sfcanl, jdate)
+       time_units = get_time_units_from_idate(jdate)
        call write_attribute(sfcanl, 'units', time_units, 'time')
 
        sfctsk = create_dataset(fname_sfctsk, sfcgcy, copy_vardata=.true.)
 
        call write_vardata(sfctsk, 'time', fhour)
-       time_units = get_time_units_from_idate(sfctsk, jdate)
+       time_units = get_time_units_from_idate(jdate)
        call write_attribute(sfctsk, 'units', time_units, 'time')
 
 !
@@ -2044,7 +2044,7 @@ contains
        nstanl = create_dataset(fname_nstanl, nstges, copy_vardata=.true.)
 
        call write_vardata(nstanl, 'time', fhour)
-       time_units = get_time_units_from_idate(nstanl, jdate)
+       time_units = get_time_units_from_idate(jdate)
        call write_attribute(nstanl, 'units', time_units, 'time')
 
 !
