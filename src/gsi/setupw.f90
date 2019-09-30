@@ -29,14 +29,14 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
   use gsi_4dvar, only: nobs_bins,hr_obsbin,min_offset
   use qcmod, only: npres_print,ptop,pbot,dfact,dfact1,qc_satwnds,njqc,vqc
-  use qcmod, only: nvqc
+  use qcmod, only: nvqc,hub_norm
   use oneobmod, only: oneobtest,oneob_type,magoberr,maginnov 
   use gridmod, only: get_ijk,nsig,twodvar_regional,regional,wrf_nmm_regional,&
       rotate_wind_xy2ll
   use guess_grids, only: nfldsig,hrdifsig,geop_hgtl,sfcmod_gfs
   use guess_grids, only: tropprs,sfcmod_mm5
   use guess_grids, only: ges_lnprsl,comp_fact10,pt_ll,pbl_height
-  use constants, only: zero,half,one,tiny_r_kind,two, &
+  use constants, only: zero,half,one,tiny_r_kind,two,cg_term, &
            three,rd,grav,four,five,huge_single,r1000,wgtlim,r10,r400
   use constants, only: grav_ratio,flattening,deg2rad, &
        grav_equator,somigliana,semi_major_axis,eccentricity
@@ -169,7 +169,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2018-04-09  pondeca -  introduce duplogic to correctly handle the characterization of
 !                          duplicate obs in twodvar_regional applications
 !   2019-09-20  Su      -  remove current VQC part and add subroutine call on VQC
-!   2019-09-25  Su      -  put hibert curve on aircraft data 
 !
 !
 ! REMARKS:
@@ -240,7 +239,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) ihgt,ier2,iuse,ilate,ilone,istat
   integer(i_kind) izz,iprvd,isprvd
   integer(i_kind) idomsfc,isfcr,iskint,iff10
-  integer(i_kind) ibb,ikk,ihil
+  integer(i_kind) ibb,ikk
 
   integer(i_kind) num_bad_ikx
 
@@ -269,7 +268,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) :: thisPBL_height,ratio_PBL_height,prest,prestsfc,dudiffsfc,dvdiffsfc
   real(r_kind) :: hr_offset
 
-
   equivalence(rstation_id,station_id)
   equivalence(r_prvstg,c_prvstg)
   equivalence(r_sprvstg,c_sprvstg)
@@ -297,7 +295,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   read(lunin)data,luse,ioid
 
-
 !    index information for data array (see reading routine)
   ier=1       ! index of obs error
   ilon=2      ! index of grid relative obs location (x)
@@ -324,9 +321,8 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   isprvd=23   ! index of observation subprovider
   icat=24     ! index of data level category
   ijb=25      ! index of non linear qc parameter
-  ihil=26     ! index of  hilbert curve weight
-  iptrbu=27   ! index of u perturbation
-  iptrbv=28   ! index of v perturbation
+  iptrbu=26   ! index of u perturbation
+  iptrbv=27   ! index of v perturbation
 
   mm1=mype+1
   scale=one
@@ -1113,7 +1109,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      valu     = error*dudiff
      valv     = error*dvdiff
      if(nvqc .and. ibeta(ikx) >0  ) ratio_errors=0.8_r_kind*ratio_errors
-     ratio_errors=ratio_errors*sqrt(data(ihil,i))       ! hilbert weight
 !    Compute penalty terms (linear & nonlinear qc).
      if(luse(i))then
         val      = valu*valu+valv*valv
@@ -1571,7 +1566,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
 
         rdiagbuf(9,ii)  = data(iqc,i)        ! input prepbufr qc or event mark
-        rdiagbuf(10,ii) = data(ihil,i)       ! hilbert curve weight 
+        rdiagbuf(10,ii) = var_jb             ! non linear qc parameter
         rdiagbuf(11,ii) = data(iuse,i)       ! read_prepbufr data usage flag
         if(muse(i)) then
            rdiagbuf(12,ii) = one             ! analysis usage flag (1=use, -1=not used)

@@ -437,7 +437,7 @@ if [[ "$CLEAN" = "YES" ]];then
       cd ../
       rmdir $tmpdir
    fi
-#fi
+fi
 
 
 # End of script

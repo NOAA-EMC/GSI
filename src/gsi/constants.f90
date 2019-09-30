@@ -30,7 +30,6 @@ module constants
 !   2012-03-07 todling   - define lower bound for trace-gases (arbitrary unit as long as small)
 !   2016-02-15 Johnson, Y. Wang, X. Wang - define additional constant values for
 !                                          radar DA, POC: xuguang.wang@ou.edu
-!   2019-09-25  X.Su     - put stndrd_atmos_ps constant values
 !
 ! Subroutines Included:
 !   sub init_constants_derived - compute derived constants
@@ -80,7 +79,6 @@ module constants
   public :: izero, qimin, qsmin, qgmin,qrmin
   public :: partialSnowThreshold
   public :: soilmoistmin
-  public :: stndrd_atmos_ps
 
 ! Declare derived constants
   integer(i_kind):: huge_i_kind
@@ -106,7 +104,7 @@ module constants
   real(r_kind),parameter::  t0c    = 2.7315e+2_r_kind            !  temperature at zero celsius     (K)
   real(r_kind),parameter::  ttp    = 2.7316e+2_r_kind            !  temperature at h2o triple point (K)
   real(r_kind),parameter::  jcal   = 4.1855e+0_r_kind            !  joules per calorie              ()
-  real(r_kind),parameter::  stndrd_atmos_ps = 1013.25e2_r_kind   ! 1976 US standard atmosphere ps   (Pa)
+! real(r_kind),parameter::  stndrd_atmos_ps = 1013.25e2_r_kind   ! 1976 US standard atmosphere ps   (Pa)
 
 ! Numeric constants
 

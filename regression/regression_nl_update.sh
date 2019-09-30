@@ -29,7 +29,7 @@ export ANBKGERR_update=""
 export JCOPTS_update=""
 if [[ `expr substr $exp 1 6` = "global" ]]; then
    export STRONGOPTS_update=""
-   export OBSQC_update="vqc=.true.,nvqc=.false.,"
+   export OBSQC_update="vqc=.false.,nvqc=.true.,"
 fi
 export OBSINPUT_update=""
 export SUPERRAD_update=""
