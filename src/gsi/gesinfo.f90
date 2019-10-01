@@ -342,7 +342,7 @@ subroutine gesinfo
         ! get dimension sizes
         ncdim = get_dim(atmges, 'grid_xt'); gfshead%lonb = ncdim%len
         ncdim = get_dim(atmges, 'grid_yt'); gfshead%latb = ncdim%len
-        ncdim = get_dim(atmges, 'pfull'); gfshead%levs = ncdim%len 
+        ncdim = get_dim(atmges, 'pfull') ; gfshead%levs = ncdim%len 
         ! hard code jcap,idsl,idvc 
         gfshead%jcap = -9999
         gfshead%idsl= 1
