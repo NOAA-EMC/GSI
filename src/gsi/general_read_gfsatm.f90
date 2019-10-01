@@ -1385,7 +1385,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    real(r_single),allocatable,dimension(:,:) :: rwork2d
    real(r_kind),allocatable,dimension(:)   :: work, work_v
    real(r_kind),allocatable,dimension(:) :: rlats,rlons,clons,slons
-   real(4),allocatable,dimension(:,:) :: r4lats,r4lons
+   real(r_kind),allocatable,dimension(:) :: rlats_tmp,rlons_tmp
 
    logical :: procuse,diff_res,eqspace
    type(egrid2agrid_parm) :: p_high
@@ -1473,16 +1473,16 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
       allocate(rwork3d0(lonb,latb,levs))
       allocate(rwork3d1(lonb,latb,levs))
       allocate(rwork2d(lonb,latb))
-      allocate(rlats(latb+2),rlons(lonb),clons(lonb),slons(lonb),r4lats(lonb,latb),r4lons(lonb,latb))
-      call read_vardata(atmges, 'grid_xt', r4lons)
-      call read_vardata(atmges, 'grid_yt', r4lats)
+      allocate(rlats(latb+2),rlons(lonb),clons(lonb),slons(lonb))
+      call read_vardata(atmges, 'grid_xt', rlons_tmp)
+      call read_vardata(atmges, 'grid_yt', rlats_tmp)
       do j=1,latb
-        rlats(latb+2-j)=r4lats(1,j)
+        rlats(latb+2-j)=rlats_tmp(j)
       end do
       do j=1,lonb
-        rlons(j)=r4lons(j,1)
+        rlons(j)=rlons_tmp(j)
       end do
-      deallocate(r4lats,r4lons)
+      deallocate(rlats_tmp,rlons_tmp)
       rlats(1)=-half*pi
       rlats(latb+2)=half*pi
       do j=1,lonb
