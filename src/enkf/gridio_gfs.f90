@@ -906,7 +906,7 @@
         call stop2(23)
      endif
   else if (use_gfs_ncio) then
-     dsanl = create_dataset(filenameout, dsfg)
+     dsanl = create_dataset(filenameout, dsfg, copy_vardata=.true.)
      deallocate(values_1d)
      allocate(values_1d(1))
      values_1d(1)=6.
@@ -927,7 +927,7 @@
      endif
      ! add increment to background (after converting to Pa)
      values_2d = values_2d + 100.*reshape(ug,(/nlons,nlats/))
-     call read_attribute(dsfg, 'nbits', nbits, 'pressfc',ierr)
+     call read_attribute(dsfg, 'nbits', nbits, 'pressfc',errcode=ierr)
      if (ierr == 0 .and. nbits > 0)  then
        values_2d_copy = values_2d
        call quantize_data(values_2d_copy, values_2d, nbits, compress_err)
@@ -943,7 +943,7 @@
            psg = ug*(bk(k)-bk(k+1))
            vg3d(:,:,k) = ug3d(:,:,k) + 100.*reshape(psg,(/nlons,nlats/))
         enddo 
-        call read_attribute(dsfg, 'nbits', nbits, 'delp',ierr)
+        call read_attribute(dsfg, 'nbits', nbits, 'delp',errcode=ierr)
         if (ierr == 0 .and. nbits > 0)  then
           ug3d = vg3d
           call quantize_data(ug3d, vg3d, nbits, compress_err)
@@ -1296,7 +1296,7 @@
         endif
         ug3d(:,:,k) = ug3d(:,:,k) + reshape(ug,(/nlons,nlats/))
      enddo
-     call read_attribute(dsfg, 'nbits', nbits, 'ugrd',ierr)
+     call read_attribute(dsfg, 'nbits', nbits, 'ugrd',errcode=ierr)
      if (ierr == 0 .and. nbits > 0)  then
        vg3d = ug3d
        call quantize_data(vg3d, ug3d, nbits, compress_err)
@@ -1312,7 +1312,7 @@
         endif
         vg3d(:,:,k) = vg3d(:,:,k) + reshape(vg,(/nlons,nlats/))
      enddo  
-     call read_attribute(dsfg, 'nbits', nbits, 'vgrd',ierr)
+     call read_attribute(dsfg, 'nbits', nbits, 'vgrd',errcode=ierr)
      if (ierr == 0 .and. nbits > 0)  then
        ug3d = vg3d
        call quantize_data(ug3d, vg3d, nbits, compress_err)
@@ -1359,7 +1359,7 @@
      ug3d = ug3d/(1. + fv*vg3d) ! convert Tv back to T
 
      ! write analysis T
-     call read_attribute(dsfg, 'nbits', nbits, 'tmp',ierr)
+     call read_attribute(dsfg, 'nbits', nbits, 'tmp',errcode=ierr)
      allocate(values_3d(nlons,nlats,nlevs))
      if (ierr == 0 .and. nbits > 0)  then
        values_3d = ug3d
@@ -1370,7 +1370,7 @@
      call write_vardata(dsanl,'tmp',ug3d) ! write T
 
      ! write analysis q
-     call read_attribute(dsfg, 'nbits', nbits, 'spfh',ierr)
+     call read_attribute(dsfg, 'nbits', nbits, 'spfh',errcode=ierr)
      if (ierr == 0 .and. nbits > 0)  then
        values_3d = vg3d
        call quantize_data(values_3d, vg3d, nbits, compress_err)
@@ -1401,7 +1401,7 @@
         ug3d(:,:,k) = ug3d(:,:,k) + reshape(ug,(/nlons,nlats/))
      enddo
      if (cw_ind > 0) then
-        call read_attribute(dsfg, 'nbits', nbits, 'clwmr',ierr)
+        call read_attribute(dsfg, 'nbits', nbits, 'clwmr',errcode=ierr)
         if (cliptracers)  where (ug3d < clip) ug3d = clip
         if (ierr == 0 .and. nbits > 0)  then
           values_3d = ug3d
@@ -1413,7 +1413,7 @@
      call write_vardata(dsanl,'clwmr',ug3d) ! write clwmr
      if (imp_physics == 11) then
         if (cw_ind > 0) then
-           call read_attribute(dsfg, 'nbits', nbits, 'icmr',ierr)
+           call read_attribute(dsfg, 'nbits', nbits, 'icmr',errcode=ierr)
            if (cliptracers)  where (vg3d < clip) vg3d = clip
            if (ierr == 0 .and. nbits > 0)  then
              values_3d = vg3d
@@ -1439,7 +1439,7 @@
            ug=ug*log((ak(k)+bk(k)*vg)/(ak(k+1)+bk(k+1)*vg))
            ug3d(:,:,k)=vg3d(:,:,k) + reshape(ug-delzb,(/nlons,nlats/))
         enddo
-        call read_attribute(dsfg, 'nbits', nbits, 'delz',ierr)
+        call read_attribute(dsfg, 'nbits', nbits, 'delz',errcode=ierr)
         if (ierr == 0 .and. nbits > 0)  then
           values_3d = ug3d
           call quantize_data(values_3d, ug3d, nbits, compress_err)
@@ -1460,7 +1460,7 @@
      enddo
      if (cliptracers)  where (vg3d < clip) vg3d = clip
      if (oz_ind > 0) then
-        call read_attribute(dsfg, 'nbits', nbits, 'o3mr',ierr)
+        call read_attribute(dsfg, 'nbits', nbits, 'o3mr',errcode=ierr)
         if (ierr == 0 .and. nbits > 0)  then
           values_3d = vg3d
           call quantize_data(values_3d, vg3d, nbits, compress_err)
@@ -1591,7 +1591,7 @@
      if (pst_ind > 0) then 
         ug3d = reshape(ugtmp,(/nlons,nlats,nlevs/))
         vg3d = reshape(vgtmp,(/nlons,nlats,nlevs/))
-        call read_attribute(dsfg, 'nbits', nbits, 'ugrd',ierr)
+        call read_attribute(dsfg, 'nbits', nbits, 'ugrd',errcode=ierr)
         if (ierr == 0 .and. nbits > 0)  then
           values_3d = ug3d
           call quantize_data(values_3d, ug3d, nbits, compress_err)
@@ -1599,7 +1599,7 @@
           'max_abs_compression_error',compress_err,'ugrd')
         endif
         call write_vardata(dsanl,'ugrd',ug3d) ! write u
-        call read_attribute(dsfg, 'nbits', nbits, 'vgrd',ierr)
+        call read_attribute(dsfg, 'nbits', nbits, 'vgrd',errcode=ierr)
         if (ierr == 0 .and. nbits > 0)  then
           values_3d = vg3d
           call quantize_data(values_3d, vg3d, nbits, compress_err)
