@@ -718,7 +718,7 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
    real(r_kind) :: fhour
    type(nemsio_gfile) :: gfile
    real(r_kind),allocatable,dimension(:) :: rlats,rlons
-   real(r_single),allocatable,dimension(:) ::r4lats,r4lons
+   real(r_single),allocatable,dimension(:) :: r4lats,r4lons
 
    if ( init_head)call nemsio_init(iret=iret)
    if (iret /= 0) call error_msg(trim(myname_),trim(filename),null,'init',istop,iret,.true.)
@@ -920,7 +920,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
    real(r_single),allocatable,dimension(:,:) ::  rwork2d
    real(r_single),allocatable,dimension(:,:,:,:) ::  temp3
    real(r_kind),allocatable,dimension(:) :: rlats,rlons
-   real(r_single),allocatable,dimension(:,:) ::r4lats,r4lons
+   real(r_kind),allocatable,dimension(:) :: rlats_tmp,rlons_tmp
    type(Dataset) :: atmges
    type(Dimension) :: ncdim
 
@@ -940,18 +940,18 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
       call die(myname_, ': ***ERROR*** incorrect resolution',101)
    endif
 
-!  obtain r4lats,r4lons,rlats,rlons,clons,slons exactly as computed in general_read_gfsatm_nems:
+!  obtain rlats_tmp,rlons_tnp,rlats,rlons,clons,slons exactly as computed in general_read_gfsatm_nems:
 
    allocate(rlats(latb+2),rlons(lonb))
-   call read_vardata(atmges, 'grid_xt', r4lons)
-   call read_vardata(atmges, 'grid_yt', r4lats)
+   call read_vardata(atmges, 'grid_xt', rlons_tmp)
+   call read_vardata(atmges, 'grid_yt', rlats_tmp)
    do j=1,latb
-      rlats(latb+2-j)=r4lats(1,j)
+      rlats(latb+2-j)=rlats_tmp(j)
    enddo
    do j=1,lonb
-      rlons(j)=r4lons(j,1)
+      rlons(j)=rlons_tmp(j)
    enddo
-   deallocate(r4lats,r4lons)
+   deallocate(rlats_tmp,rlons_tmp)
    rlats(1)=-half*pi
    rlats(latb+2)=half*pi
    do j=1,lonb
