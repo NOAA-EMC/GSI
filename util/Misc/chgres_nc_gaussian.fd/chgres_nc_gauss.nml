@@ -1,0 +1,8 @@
+&chgres_setup
+  i_output=1536
+  j_output=768
+  input_file="/scratch4/NCEPDEV/stmp4/Fanglin.Yang/gdasnc/gdas.20190828/00/gdas.t00z.atmf006.nc"
+  output_file="test.nc"
+  terrain_file="/scratch4/NCEPDEV/stmp4/Fanglin.Yang/gdasnc/enkfgdas.20190828/00/mem001/gdas.t00z.atmf006.nc"
+  vcoord_file="/scratch1/NCEPDEV/da/Cory.R.Martin/Workflows/L127_July2019/fix/fix_am/global_hyblev.l128.txt"
+/
