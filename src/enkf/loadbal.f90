@@ -99,7 +99,9 @@ module loadbal
 !
 !$$$
 
-use mpisetup
+use mpimod, only: mpi_comm_world
+use mpisetup, only: mpi_real4,mpi_sum,mpi_comm_io,mpi_in_place,numproc,nproc,&
+                mpi_integer,mpi_wtime,mpi_status,mpi_real8,mpi_max
 use params, only: datapath, nanals, simple_partition, letkf_flag, nobsl_max,&
                   neigv, corrlengthnh, corrlengthsh, corrlengthtr, lupd_obspace_serial
 use enkf_obsmod, only: nobstot, obloc, oblnp, ensmean_ob, obtime, anal_ob, anal_ob_modens, corrlengthsq
