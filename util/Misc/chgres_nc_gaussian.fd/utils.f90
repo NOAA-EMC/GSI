@@ -73,7 +73,7 @@
 
  implicit none
 
- integer  :: idim, jdim
+ integer, intent(in)  :: idim, jdim
 
  integer, intent(out)                 :: kgds(200)
 
@@ -264,7 +264,7 @@
    DO K=1,KM+1 
      AK(K)      = VCOORD(K,1) 
      BK(K)      = VCOORD(K,2) 
-     PI(1:IM,K) = AK(K) + BK(K)*PS(1:IM) 
+     PI(:,K) = AK(K) + BK(K)*PS(:) 
    ENDDO 
  ELSE 
    print*,'routine only works for idvc 2'

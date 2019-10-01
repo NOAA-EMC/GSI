@@ -93,7 +93,7 @@ contains
            end if
          end do
          if (use_increment) then
-           print *, 'Adding Increment to ', iovars_netcdf(i)
+           print *, 'Adding Increment to ', iovars_netcdf(i), incvars_netcdf(iincvar)
            if (iovars_netcdf(i) == 'pressfc') then
              ! special case for surface pressure
              call add_psfc_increment_netcdf
