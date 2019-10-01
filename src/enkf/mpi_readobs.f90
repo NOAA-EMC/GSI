@@ -32,13 +32,15 @@ module mpi_readobs
 !
 !$$$
   
-use kinds, only: r_kind, r_single, i_kind
+use kinds, only: r_kind, r_single, i_kind, r_double
 use params, only: ntasks_io, nanals_per_iotask, nanal1, nanal2
 use radinfo, only: npred
 use readconvobs
 use readsatobs
 use readozobs
-use mpisetup
+use mpimod, only: mpi_comm_world
+use mpisetup, only: mpi_real4,mpi_sum,mpi_comm_io,mpi_in_place,numproc,nproc,&
+                mpi_integer,mpi_wtime,mpi_status
 
 implicit none
 
