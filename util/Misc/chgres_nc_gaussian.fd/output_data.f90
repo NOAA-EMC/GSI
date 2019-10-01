@@ -31,6 +31,7 @@
 
  public                            :: set_output_grid
  public                            :: write_output_data
+ type(Dataset) :: indset, outdset
 
 
  contains
@@ -90,7 +91,7 @@
  subroutine write_output_data
 
 !-------------------------------------------------------------------
-! Write output grid data to a nemsio file.
+! Write output grid data to a netcdf file.
 !-------------------------------------------------------------------
 
  use input_data
@@ -98,7 +99,9 @@
 
  implicit none
 
- integer :: n
+ integer :: n,nrev
+ real, allocatable, dimension (:,:) :: out2d
+ real, allocatable, dimension (:,:,:) :: out3d
 
 
 !-------------------------------------------------------------------
@@ -110,120 +113,131 @@
 !-------------------------------------------------------------------
 ! Open and write file.
 !-------------------------------------------------------------------
-
+! TODO: note there can be compression applied to this output file if necessary
+!       see how it's done in the GSI EnKF for example
 
 
  print*
  print*,'OPEN OUTPUT FILE: ',trim(output_file)
- !call nemsio_open(gfile, output_file, gaction, iret=iret, gdatatype="bin4", &
- !                 nmeta=8, modelname="FV3GFS", nrec=nrec, &
- !                 idate=idate, dimx=i_output, &
- !                 dimy=j_output, dimz=lev, ntrac=ntrac, & 
- !                 ncldt=ncldt, idvc=idvc, idsl=idsl, idvm=idvm, &
- !                 idrt=4, recname=recname, reclevtyp=reclevtyp, &
- !                 reclev=reclev,vcoord=vcoord_header, &
- !                 lat=lat, lon=lon)
-
- !deallocate(lon, lat, recname, reclevtyp, reclev, vcoord_header)
+ allocate(out2d(i_output,j_output))
+ allocate(out3d(i_output,j_output,lev))
 
  print*,"WRITE SURFACE HEIGHT"
+ out2d = reshape(hgt_external_output, (/i_output,j_output/))
+ call write_vardata(outdset, 'hgtsfc', out2d)
  deallocate(hgt_external_output)
 
  print*,"WRITE SURFACE PRESSURE"
- !dummy = sfcp_output
+ out2d = reshape(sfcp_output, (/i_output,j_output/))
+ call write_vardata(outdset, 'pressfc', out2d)
  deallocate(sfcp_output)
 
  print*,"WRITE TEMPERATURE"
- do n = 1, lev
-   !dummy = tmp_output(:,n)
- enddo
+ do n=1,lev
+    nrev = lev+1-n
+    out3d(:,:,n) = reshape(tmp_output(:,nrev), (/i_output,j_output/))
+ end do
+ call write_vardata(outdset, 'tmp', out3d)
  deallocate(tmp_output)
 
  print*,"WRITE CLOUD LIQUID WATER"
- do n = 1, lev
-   !dummy = clwmr_output(:,n)
- enddo
+ do n=1,lev
+    nrev = lev+1-n
+    out3d(:,:,n) = reshape(clwmr_output(:,nrev), (/i_output,j_output/))
+ end do
+ call write_vardata(outdset, 'clwmr', out3d)
  deallocate(clwmr_output)
 
  print*,"WRITE SPECIFIC HUMIDITY"
- do n = 1, lev
-   !dummy = spfh_output(:,n)
- enddo
+ do n=1,lev
+    nrev = lev+1-n
+    out3d(:,:,n) = reshape(spfh_output(:,nrev), (/i_output,j_output/))
+ end do
+ call write_vardata(outdset, 'spfh', out3d)
  deallocate(spfh_output)
 
  print*,"WRITE OZONE"
- do n = 1, lev
-   !dummy = o3mr_output(:,n)
- enddo
+ do n=1,lev
+    nrev = lev+1-n
+    out3d(:,:,n) = reshape(o3mr_output(:,nrev), (/i_output,j_output/))
+ end do
+ call write_vardata(outdset, 'o3mr', out3d)
  deallocate(o3mr_output)
 
  print*,"WRITE U-WINDS"
- do n = 1, lev
-   !dummy = ugrd_output(:,n)
- enddo
+ do n=1,lev
+    nrev = lev+1-n
+    out3d(:,:,n) = reshape(ugrd_output(:,nrev), (/i_output,j_output/))
+ end do
+ call write_vardata(outdset, 'ugrd', out3d)
  deallocate(ugrd_output)
 
  print*,"WRITE V-WINDS"
- do n = 1, lev
-   !dummy = vgrd_output(:,n)
- enddo
+ do n=1,lev
+    nrev = lev+1-n
+    out3d(:,:,n) = reshape(vgrd_output(:,nrev), (/i_output,j_output/))
+ end do
+ call write_vardata(outdset, 'vgrd', out3d)
  deallocate(vgrd_output)
 
  print*,"WRITE DZDT"
- do n = 1, lev
-   !dummy = dzdt_output(:,n)
- enddo
+ do n=1,lev
+    nrev = lev+1-n
+    out3d(:,:,n) = reshape(dzdt_output(:,nrev), (/i_output,j_output/))
+ end do
+ call write_vardata(outdset, 'dzdt', out3d)
  deallocate(dzdt_output)
 
  print*,"WRITE DPRES"
- do n = 1, lev
-   !dummy = dpres_output(:,n)
- enddo
+ do n=1,lev
+    nrev = lev+1-n
+    out3d(:,:,n) = reshape(dpres_output(:,nrev), (/i_output,j_output/))
+ end do
+ call write_vardata(outdset, 'dpres', out3d)
  deallocate(dpres_output)
 
  print*,"WRITE DELZ"
- do n = 1, lev
-   !dummy = delz_output(:,n)
- enddo
+ do n=1,lev
+    nrev = lev+1-n
+    out3d(:,:,n) = reshape(delz_output(:,nrev), (/i_output,j_output/))
+ end do
+ call write_vardata(outdset, 'delz', out3d)
  deallocate(delz_output)
 
 
-   print*,"WRITE RAIN WATER"
-   do n = 1, lev
-     !dummy = rwmr_output(:,n)
-   enddo
-   deallocate(rwmr_output)
+ print*,"WRITE RAIN WATER"
+ do n=1,lev
+    nrev = lev+1-n
+    out3d(:,:,n) = reshape(rwmr_output(:,nrev), (/i_output,j_output/))
+ end do
+ call write_vardata(outdset, 'rwmr', out3d)
+ deallocate(rwmr_output)
 
-   print*,"WRITE SNOW WATER"
-   do n = 1, lev
-     !dummy = snmr_output(:,n)
-   enddo
-   deallocate(snmr_output)
+ print*,"WRITE SNOW WATER"
+ do n=1,lev
+    nrev = lev+1-n
+    out3d(:,:,n) = reshape(snmr_output(:,nrev), (/i_output,j_output/))
+ end do
+ call write_vardata(outdset, 'snmr', out3d)
+ deallocate(snmr_output)
 
-   print*,"WRITE ICE WATER"
-   do n = 1, lev
-     !dummy = icmr_output(:,n)
-   enddo
-   deallocate(icmr_output)
+ print*,"WRITE ICE WATER"
+ do n=1,lev
+    nrev = lev+1-n
+    out3d(:,:,n) = reshape(icmr_output(:,nrev), (/i_output,j_output/))
+ end do
+ call write_vardata(outdset, 'icmr', out3d)
+ deallocate(icmr_output)
 
-   print*,"WRITE GRAUPEL"
-   do n = 1, lev
-     !dummy = grle_output(:,n)
-   enddo
-   deallocate(grle_output)
+ print*,"WRITE GRAUPEL"
+ do n=1,lev
+    nrev = lev+1-n
+    out3d(:,:,n) = reshape(grle_output(:,nrev), (/i_output,j_output/))
+ end do
+ call write_vardata(outdset, 'grle', out3d)
+ deallocate(grle_output)
 
-   if (icldamt == 1) then
-      print*,"WRITE CLD_AMT"
-      do n = 1, lev
-         !dummy = cldamt_output(:,n)
-      enddo
-      deallocate(cldamt_output)
-   endif
-   
-
-
-
-
+ deallocate(out2d,out3d)
 
  return
 
@@ -240,8 +254,8 @@
  use setup
 
  implicit none
-
- type(Dataset) :: indset, outdset
+ real, allocatable, dimension(:,:) :: var2d
+ real, allocatable, dimension(:) :: var1d
 
  print*
  print*,"SET HEADER INFO FOR OUTPUT FILE."
@@ -250,6 +264,16 @@
  outdset = create_dataset(output_file, indset)
 
  ! need to write out time, pfull,phalf,lat/lon,etc
+ call read_vardata(indset, 'grid_xt', var2d)
+ call write_vardata(outdset, 'grid_xt', var2d)
+ call read_vardata(indset, 'grid_yt', var2d)
+ call write_vardata(outdset, 'grid_yt', var2d)
+ call read_vardata(indset, 'pfull', var1d)
+ call write_vardata(outdset, 'pfull', var1d)
+ call read_vardata(indset, 'phalf', var1d)
+ call write_vardata(outdset, 'phalf', var1d)
+ call read_vardata(indset, 'time', var1d)
+ call write_vardata(outdset, 'time', var1d)
  
  end subroutine header_set
 

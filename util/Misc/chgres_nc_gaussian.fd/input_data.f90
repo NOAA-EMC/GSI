@@ -9,7 +9,7 @@
  private
 
  integer, public                              :: idvc, idsl, idvm, nvcoord
- integer, public                              :: ntrac, ncldt,icldamt
+ integer, public                              :: ntrac, ncldt
  integer, public                              :: ij_input, kgds_input(200)
  integer, public                              :: i_input, j_input, lev
  integer, public                              :: idate(6)
@@ -44,10 +44,17 @@
 
  implicit none
 
- integer :: vlev
+ integer :: vlev,rvlev
  type(Dataset) :: indset
  type(Dimension) :: ncdim
  real, allocatable                            :: work2d(:,:),work3d(:,:,:)
+
+ ! hard code these values that are the same for GFS
+ idvc=2
+ idsl=1
+ idvm=1
+ ntrac = 8
+ ncldt = 5
 
  print*
  print*,"OPEN INPUT FILE: ",trim(input_file)
@@ -86,7 +93,8 @@
  allocate(ugrd_input(ij_input,lev))
  call read_vardata(indset, 'ugrd', work3d)
  do vlev = 1, lev
-   ugrd_input(:,vlev) = reshape(work3d(:,:,vlev),(/ij_input/)) 
+   rvlev = lev+1-vlev
+   ugrd_input(:,vlev) = reshape(work3d(:,:,rvlev),(/ij_input/)) 
    print*,'MAX/MIN U WIND AT LEVEL ',vlev, "IS: ", maxval(ugrd_input(:,vlev)), minval(ugrd_input(:,vlev))
  enddo
 
@@ -95,7 +103,8 @@
  allocate(vgrd_input(ij_input,lev))
  call read_vardata(indset, 'vgrd', work3d)
  do vlev = 1, lev
-   vgrd_input(:,vlev) = reshape(work3d(:,:,vlev),(/ij_input/)) 
+   rvlev = lev+1-vlev
+   vgrd_input(:,vlev) = reshape(work3d(:,:,rvlev),(/ij_input/)) 
    print*,'MAX/MIN V WIND AT LEVEL ', vlev, "IS: ", maxval(vgrd_input(:,vlev)), minval(vgrd_input(:,vlev))
  enddo
 
@@ -104,7 +113,8 @@
  allocate(tmp_input(ij_input,lev))
  call read_vardata(indset, 'tmp', work3d)
  do vlev = 1, lev
-   tmp_input(:,vlev) = reshape(work3d(:,:,vlev),(/ij_input/)) 
+   rvlev = lev+1-vlev
+   tmp_input(:,vlev) = reshape(work3d(:,:,rvlev),(/ij_input/)) 
    print*,'MAX/MIN TEMPERATURE AT LEVEL ', vlev, 'IS: ', maxval(tmp_input(:,vlev)), minval(tmp_input(:,vlev))
  enddo
 
@@ -113,7 +123,8 @@
  allocate(spfh_input(ij_input,lev))
  call read_vardata(indset, 'spfh', work3d)
  do vlev = 1, lev
-   spfh_input(:,vlev) = reshape(work3d(:,:,vlev),(/ij_input/)) 
+   rvlev = lev+1-vlev
+   spfh_input(:,vlev) = reshape(work3d(:,:,rvlev),(/ij_input/)) 
    print*,'MAX/MIN SPECIFIC HUMIDITY AT LEVEL ', vlev, 'IS: ', maxval(spfh_input(:,vlev)), minval(spfh_input(:,vlev))
  enddo
 
@@ -122,7 +133,8 @@
  allocate(clwmr_input(ij_input,lev))
  call read_vardata(indset, 'clwmr', work3d)
  do vlev = 1, lev
-   clwmr_input(:,vlev) = reshape(work3d(:,:,vlev),(/ij_input/)) 
+   rvlev = lev+1-vlev
+   clwmr_input(:,vlev) = reshape(work3d(:,:,rvlev),(/ij_input/)) 
    print*,'MAX/MIN CLOUD LIQUID WATER AT LEVEL ', vlev, 'IS: ', maxval(clwmr_input(:,vlev)), minval(clwmr_input(:,vlev))
  enddo
 
@@ -131,7 +143,8 @@
  allocate(o3mr_input(ij_input,lev))
  call read_vardata(indset, 'o3mr', work3d)
  do vlev = 1, lev
-   o3mr_input(:,vlev) = reshape(work3d(:,:,vlev),(/ij_input/))
+   rvlev = lev+1-vlev
+   o3mr_input(:,vlev) = reshape(work3d(:,:,rvlev),(/ij_input/))
    print*,'MAX/MIN OZONE AT LEVEL ', vlev, 'IS: ', maxval(o3mr_input(:,vlev)), minval(o3mr_input(:,vlev))
  enddo
 
@@ -140,7 +153,8 @@
  allocate(dzdt_input(ij_input,lev))
  call read_vardata(indset, 'dzdt', work3d)
  do vlev = 1, lev
-   dzdt_input(:,vlev) = reshape(work3d(:,:,vlev),(/ij_input/))
+   rvlev = lev+1-vlev
+   dzdt_input(:,vlev) = reshape(work3d(:,:,rvlev),(/ij_input/))
    print*,'MAX/MIN DZDT AT LEVEL ', vlev, 'IS: ', maxval(dzdt_input(:,vlev)), minval(dzdt_input(:,vlev))
  enddo
 
@@ -150,7 +164,8 @@
  allocate(rwmr_input(ij_input,lev))
  call read_vardata(indset, 'rwmr', work3d)
  do vlev = 1, lev
-   rwmr_input(:,vlev) = reshape(work3d(:,:,vlev),(/ij_input/))
+   rvlev = lev+1-vlev
+   rwmr_input(:,vlev) = reshape(work3d(:,:,rvlev),(/ij_input/))
    print*,'MAX/MIN RWMR AT LEVEL ', vlev, 'IS: ', maxval(rwmr_input(:,vlev)), minval(rwmr_input(:,vlev))
  enddo
 
@@ -159,7 +174,8 @@
  allocate(icmr_input(ij_input,lev))
  call read_vardata(indset, 'icmr', work3d)
  do vlev = 1, lev
-   icmr_input(:,vlev) = reshape(work3d(:,:,vlev),(/ij_input/)) 
+   rvlev = lev+1-vlev
+   icmr_input(:,vlev) = reshape(work3d(:,:,rvlev),(/ij_input/)) 
    print*,'MAX/MIN ICMR AT LEVEL ', vlev, 'IS: ', maxval(icmr_input(:,vlev)), minval(icmr_input(:,vlev))
  enddo
 
@@ -168,7 +184,8 @@
  allocate(snmr_input(ij_input,lev))
  call read_vardata(indset, 'snmr', work3d)
  do vlev = 1, lev
-   snmr_input(:,vlev) = reshape(work3d(:,:,vlev),(/ij_input/)) 
+   rvlev = lev+1-vlev
+   snmr_input(:,vlev) = reshape(work3d(:,:,rvlev),(/ij_input/)) 
    print*,'MAX/MIN SNMR AT LEVEL ', vlev, 'IS: ', maxval(snmr_input(:,vlev)), minval(snmr_input(:,vlev))
  enddo
 
@@ -177,12 +194,14 @@
  allocate(grle_input(ij_input,lev))
  call read_vardata(indset, 'grle', work3d)
  do vlev = 1, lev
-   grle_input(:,vlev) = reshape(work3d(:,:,vlev),(/ij_input/)) 
+   rvlev = lev+1-vlev
+   grle_input(:,vlev) = reshape(work3d(:,:,rvlev),(/ij_input/)) 
    print*,'MAX/MIN GRLE AT LEVEL ', vlev, 'IS: ', maxval(grle_input(:,vlev)), minval(grle_input(:,vlev))
  enddo
 
  print*,"CLOSE FILE"
  call close_dataset(indset)
+ deallocate(work2d,work3d)
 
 !---------------------------------------------------------------------------------------
 ! Set the grib 1 grid description array need by the NCEP IPOLATES library.
