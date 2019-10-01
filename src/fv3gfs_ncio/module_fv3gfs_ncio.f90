@@ -460,11 +460,16 @@ module module_fv3gfs_ncio
        varname = trim(dsetin%variables(nvar)%name)
        ! is this variable a coordinate variable?
        coordvar = .false.
-       do ndim=1,dset%ndims
-          if (trim(varname) == trim(dset%dimensions(ndim)%name)) then
-             coordvar = .true.
-          endif
-       enddo
+       if (trim(varname) == 'lats' .or. trim(varname) == 'lons' .or. &
+           trim(varname) == 'lat'  .or. trim(varname) == 'lon') then
+          coordvar = .true.
+       else
+          do ndim=1,dset%ndims
+             if (trim(varname) == trim(dset%dimensions(ndim)%name)) then
+                coordvar = .true.
+             endif
+          enddo
+       endif
        ! if copy_data flag not given, and not a coordinate var,
        ! skip to next var.
        if (.not. coordvar .and. .not. copyd) cycle
