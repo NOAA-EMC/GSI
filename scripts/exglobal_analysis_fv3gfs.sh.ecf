@@ -104,7 +104,12 @@ DOIAU=${DOIAU:-"NO"}
 # Dependent Scripts and Executables
 NTHREADS_CALCINC=${NTHREADS_CALCINC:-1}
 APRUN_CALCINC=${APRUN_CALCINC:-${APRUN:-""}}
+APRUN_CALCANL=${APRUN_CALCANL:-${APRUN:-""}}
+APRUN_CHGRES=${APRUN_CALCANL:-${APRUN:-""}}
 CALCINCEXEC=${CALCINCEXEC:-$HOMEgsi/exec/calc_increment_ens.x}
+CALCANLEXEC=${CALCANLEXEC:-$HOMEgsi/exec/calc_analysis.x}
+CHGRESEXEC=${CHGRESEXEC:-$HOMEgsi/exec/chgres_recenter.exe}
+NTHREADS_CHGRES=${NTHREADS_CHGRES:-24}
 
 # OPS flags
 RUN=${RUN:-""}
@@ -240,7 +245,7 @@ TZR_QC=${TZR_QC:-1}
 USE_READIN_ANL_SFCMASK=${USE_READIN_ANL_SFCMASK:-.false.}
 SMOOTH_ENKF=${SMOOTH_ENKF:-"YES"}
 DOIAU=${DOIAU:-"NO"}
-DO_CALC_INCREMENT=${DO_CALC_INCREMENT:-"YES"}
+DO_CALC_INCREMENT=${DO_CALC_INCREMENT:-"NO"}
 INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"'NONE'"}
 
 # Get header information from Guess files
@@ -284,6 +289,16 @@ NLON_A=${NLON_A:-$LONA}
 NLAT_A=${NLAT_A:-$(($LATA+2))}
 
 DELTIM=${DELTIM:-$((3600/($JCAP_A/20)))}
+
+# determine if writing or calculating increment
+if [ $DO_CALC_INCREMENT = "YES" ]; then
+  write_fv3_increment=".false."
+else
+  write_fv3_increment=".true."
+  WRITE_INCR_ZERO="incvars_to_zero= $INCREMENTS_TO_ZERO,"
+fi
+
+
 
 # GSI Fix files
 RTMFIX=${RTMFIX:-${CRTM_FIX}}
@@ -675,6 +690,8 @@ cat > gsiparm.anl << EOF
   cwoption=3,imp_physics=$imp_physics,lupp=$lupp,
   netcdf_diag=$netcdf_diag,binary_diag=$binary_diag,
   lobsdiag_forenkf=$lobsdiag_forenkf,
+  write_fv3_incr=$write_fv3_increment,
+  $WRITE_INCR_ZERO
   $SETUP
 /
 &GRIDOPTS
@@ -900,6 +917,96 @@ EOF
   export ERR=$rc
   export err=$ERR
   $ERRSCRIPT || exit 3
+# analysis increment is written by GSI, instead produce an analysis file here
+else
+  if [ $DOIAU = "YES" -a $l4densvar = ".true." -a $lwrite4danl = ".true." ]; then
+     $NCP sigi03.nc ${COMOUT}/${APREFIX}atmi003.nc      
+     $NCP sigi04.nc ${COMOUT}/${APREFIX}atmi004.nc      
+     $NCP sigi05.nc ${COMOUT}/${APREFIX}atmi005.nc      
+     $NCP siginc.nc ${COMOUT}/${APREFIX}atminc.nc      
+     $NCP sigi07.nc ${COMOUT}/${APREFIX}atmi007.nc      
+     $NCP sigi08.nc ${COMOUT}/${APREFIX}atmi008.nc      
+     $NCP sigi09.nc ${COMOUT}/${APREFIX}atmi009.nc      
+  else
+     $NCP siginc.nc ${COMOUT}/${APREFIX}atminc.nc      
+  fi
+  $NCP $CALCANLEXEC $DATA
+
+# run chgres if needed
+  if [ $LONB_ENKF -ne $LONB -a $DOHYBVAR = "YES" ]; then
+    $NCP $CHGRESEXEC $DATA
+    LEVS2=$LEVS
+    if [ $LEVS -eq "127" ]; then
+      LEVS2=128
+    fi
+    SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS2}.txt}
+    export OMP_NUM_THREADS=$NTHREADS_CHGRES
+    rm -rf fort.43
+    cat > fort.43 << EOF
+&nam_setup
+  i_output=$LONB_ENKF
+  j_output=$LATB_ENKF
+  input_file="sigf06"
+  output_file="sigf06.chgres"
+  terrain_file="$ATMGES_ENSMEAN"
+  vcoord_file="$SIGLEVEL"
+/
+EOF
+    $APRUN_CHGRES $CHGRESEXEC
+    rc=$?
+
+    export ERR=$rc
+    export err=$ERR
+    $ERRSCRIPT || exit 3
+
+  else
+    $NLN sigf06 sigf06.chgres
+    $NLN siganl.out siganl
+  fi
+
+# run calc_analysis
+  cat > calc_analysis.nml << EOF
+&setup
+  datapath = './'
+  analysis_filename = 'siganl.out'
+  firstguess_filename = 'sigf06.chgres'
+  increment_filename = 'siginc.nc'
+  nhr_assim = $assim_freq 
+/
+EOF
+  cat calc_analysis.nml
+  APRUN=$(eval echo $APRUN_CALCANL)
+  $APRUN $DATA/$(basename $CALCANLEXEC)
+  rc=$?
+
+  export ERR=$rc
+  export err=$ERR
+  $ERRSCRIPT || exit 3
+
+# run chgres again back to original resolution if needed
+  if [ $LONB_ENKF -ne $LONB -a $DOHYBVAR = "YES" ]; then
+    $NCP $CHGRESEXEC $DATA
+    LEVS1=$((LEVS+1))
+    SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS1}.txt}
+    export OMP_NUM_THREADS=$NTHREADS_CHGRES
+    rm -rf fort.43
+    cat > fort.43 << EOF
+&nam_setup
+  i_output=$LONB
+  j_output=$LATB
+  input_file="siganl.out"
+  output_file="siganl"
+  terrain_file="sigf06"
+  vcoord_file="$SIGLEVEL"
+/
+EOF
+    $APRUN_CHGRES $CHGRESEXEC
+    rc=$?
+
+    export ERR=$rc
+    export err=$ERR
+    $ERRSCRIPT || exit 3
+  fi
 fi
 
 # Update surface fields in the FV3 restart's using global_cycle
