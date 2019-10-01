@@ -1,0 +1,13 @@
+cmake_minimum_required(VERSION 2.6)
+if(BUILD_NCIO_UTIL)
+  file(GLOB LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.f90)
+
+  set(Util_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include/chgres_nc_gauss")
+  set_source_files_properties( ${LOCAL_SRC} PROPERTIES COMPILE_FLAGS ${UTIL_Fortran_FLAGS} )
+  add_executable(chgres_nc_gauss.x  ${LOCAL_SRC} )
+  set_target_properties( chgres_nc_gauss.x PROPERTIES COMPILE_FLAGS ${UTIL_Fortran_FLAGS} )
+  set_target_properties( chgres_nc_gauss.x PROPERTIES Fortran_MODULE_DIRECTORY ${Util_MODULE_DIRECTORY} )
+  SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_Fortran_FLAGS}" )
+  include_directories( ${UTIL_INC} ${NETCDF_INCLUDES} ${MPI_Fortran_INCLUDE_PATH} ${FV3GFS_NCIO_INCS}) 
+  target_link_libraries( chgres_nc_gauss.x ${BACIO_LIBRARY} ${W3NCO_4_LIBRARY} ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES} ${MPI_Fortran_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${HDF5_LIBRARIES} ${ZLIB_LIBRARIES} ${CURL_LIBRARIES} ${FV3GFS_NCIO_LIBRARIES})
+endif()
