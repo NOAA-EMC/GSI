@@ -196,14 +196,14 @@ module module_fv3gfs_ncio
     ncerr = nf90_open(trim(filename), NF90_NOWRITE, ncid=dset%ncid)
     if (return_errcode) then
        errcode=ncerr
-       return
+       if (ncerr /= 0) return
     else
        call nccheck(ncerr)
     endif
     ncerr = nf90_inquire(dset%ncid, dset%ndims, dset%nvars, dset%natts, nunlimdim)
     if (return_errcode) then
        errcode=ncerr
-       return
+       if (ncerr /= 0) return
     else
        call nccheck(ncerr)
     endif
@@ -216,7 +216,7 @@ module module_fv3gfs_ncio
                                       len=dset%dimensions(ndim)%len)
        if (return_errcode) then
           errcode=ncerr
-          return
+          if (ncerr /= 0) return
        else
           call nccheck(ncerr)
        endif
@@ -236,7 +236,7 @@ module module_fv3gfs_ncio
                                      ndims=dset%variables(nvar)%ndims)
        if (return_errcode) then
           errcode=ncerr
-          return
+          if (ncerr /= 0) return
        else
           call nccheck(ncerr)
        endif
@@ -250,7 +250,7 @@ module module_fv3gfs_ncio
                                      shuffle=dset%variables(nvar)%shuffle)
        if (return_errcode) then
           errcode=ncerr
-          return
+          if (ncerr /= 0) return
        else
           call nccheck(ncerr)
        endif
@@ -317,7 +317,7 @@ module module_fv3gfs_ncio
             ncid=dset%ncid)
     if (return_errcode) then
        errcode=ncerr
-       return
+       if (ncerr /= 0) return
     else
        call nccheck(ncerr)
     endif
@@ -326,14 +326,14 @@ module module_fv3gfs_ncio
        ncerr = nf90_inq_attname(dsetin%ncid, NF90_GLOBAL, natt, attname)
        if (return_errcode) then
           errcode=ncerr
-          return
+          if (ncerr /= 0) return
        else
           call nccheck(ncerr)
        endif
        ncerr = nf90_copy_att(dsetin%ncid, NF90_GLOBAL, attname, dset%ncid, NF90_GLOBAL)
        if (return_errcode) then
           errcode=ncerr
-          return
+          if (ncerr /= 0) return
        else
           call nccheck(ncerr)
        endif
@@ -352,7 +352,7 @@ module module_fv3gfs_ncio
                   dset%dimensions(ndim)%dimid)
           if (return_errcode) then
              errcode=ncerr
-             return
+             if (ncerr /= 0) return
           else
              call nccheck(ncerr)
           endif
@@ -366,7 +366,7 @@ module module_fv3gfs_ncio
                   dset%dimensions(ndim)%dimid)
           if (return_errcode) then
              errcode=ncerr
-             return
+             if (ncerr /= 0) return
           else
              call nccheck(ncerr)
           endif
@@ -407,7 +407,7 @@ module module_fv3gfs_ncio
                             dset%variables(nvar)%varid)
        if (return_errcode) then
           errcode=ncerr
-          return
+          if (ncerr /= 0) return
        else
           call nccheck(ncerr)
        endif
@@ -421,7 +421,7 @@ module module_fv3gfs_ncio
                   ishuffle,1,dsetin%variables(nvar)%deflate_level)
           if (return_errcode) then
              errcode=ncerr
-             return
+             if (ncerr /= 0) return
           else
              call nccheck(ncerr)
           endif
@@ -434,14 +434,14 @@ module module_fv3gfs_ncio
           ncerr = nf90_inq_attname(dsetin%ncid, dsetin%variables(nvar)%varid, natt, attname)
           if (return_errcode) then
              errcode=ncerr
-             return
+             if (ncerr /= 0) return
           else
              call nccheck(ncerr)
           endif
           ncerr = nf90_copy_att(dsetin%ncid, dsetin%variables(nvar)%varid, attname, dset%ncid, dset%variables(nvar)%varid)
           if (return_errcode) then
              errcode=ncerr
-             return
+            if (ncerr /= 0) return
           else
              call nccheck(ncerr)
           endif
@@ -450,7 +450,7 @@ module module_fv3gfs_ncio
     ncerr = nf90_enddef(dset%ncid)
     if (return_errcode) then
        errcode=ncerr
-       return
+       if (ncerr /= 0) return
     else
        call nccheck(ncerr)
     endif
@@ -535,7 +535,7 @@ module module_fv3gfs_ncio
     ncerr = nf90_close(ncid=dset%ncid)
     if (return_errcode) then
        errcode=ncerr
-       return
+       if (ncerr /= 0) return
     else
        call nccheck(ncerr)
     endif
