@@ -943,12 +943,12 @@ contains
           elseif(n == 2 .and. use_sfc_any) then          ! soil moisture
 
 !            smc/soilw
-             call read_vardata(sfcges, 'soill1', work)
+             call read_vardata(sfcges, 'soilw1', work)
              call tran_gfsncsfc(work,soil_moi(1,1,it),lonb,latb)
 
           elseif(n == 3) then                            ! snow depth
 
-             call read_vardata(sfcges, 'snod', work)
+             call read_vardata(sfcges, 'weasd', work)
              call tran_gfsncsfc(work,sno(1,1,it),lonb,latb)
 
           elseif(n == 4 .and. use_sfc_any) then          ! soil temperature
