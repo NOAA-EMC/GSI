@@ -101,6 +101,9 @@ binary_diag=${binary_diag:-".true."}
 # IAU
 DOIAU=${DOIAU:-"NO"}
 
+# netCDF I/O
+GFS_NCIO=${GFS_NCIO:-"NO"}
+
 # Dependent Scripts and Executables
 NTHREADS_CALCINC=${NTHREADS_CALCINC:-1}
 APRUN_CALCINC=${APRUN_CALCINC:-${APRUN:-""}}
@@ -108,6 +111,7 @@ APRUN_CALCANL=${APRUN_CALCANL:-${APRUN:-""}}
 APRUN_CHGRES=${APRUN_CALCANL:-${APRUN:-""}}
 CALCINCEXEC=${CALCINCEXEC:-$HOMEgsi/exec/calc_increment_ens.x}
 CALCANLEXEC=${CALCANLEXEC:-$HOMEgsi/exec/calc_analysis.x}
+CHGRESNCEXEC=${CHGRESNCEXEC:-$HOMEgsi/exec/chgres_nc_gauss.exe}
 CHGRESEXEC=${CHGRESEXEC:-$HOMEgsi/exec/chgres_recenter.exe}
 NTHREADS_CHGRES=${NTHREADS_CHGRES:-24}
 
@@ -245,7 +249,7 @@ TZR_QC=${TZR_QC:-1}
 USE_READIN_ANL_SFCMASK=${USE_READIN_ANL_SFCMASK:-.false.}
 SMOOTH_ENKF=${SMOOTH_ENKF:-"YES"}
 DOIAU=${DOIAU:-"NO"}
-DO_CALC_INCREMENT=${DO_CALC_INCREMENT:-"NO"}
+DO_CALC_INCREMENT=${DO_CALC_INCREMENT:-"YES"}
 INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"'NONE'"}
 
 # Get header information from Guess files
@@ -290,6 +294,19 @@ NLAT_A=${NLAT_A:-$(($LATA+2))}
 
 DELTIM=${DELTIM:-$((3600/($JCAP_A/20)))}
 
+# logic for netCDF I/O
+if [ $GFS_NCIO = "YES" ]; then
+  # force DO_CALC_INCREMENT to be NO in this case
+  DO_CALC_INCREMENT="NO"
+  # GSI namelist options to use netCDF background
+  use_gfs_nemsio=".false."
+  use_gfs_ncio=".true."
+else
+  # GSI namelist options to use NEMSIO background
+  use_gfs_nemsio=".true."
+  use_gfs_ncio=".false."
+fi
+
 # determine if writing or calculating increment
 if [ $DO_CALC_INCREMENT = "YES" ]; then
   write_fv3_increment=".false."
@@ -297,8 +314,6 @@ else
   write_fv3_increment=".true."
   WRITE_INCR_ZERO="incvars_to_zero= $INCREMENTS_TO_ZERO,"
 fi
-
-
 
 # GSI Fix files
 RTMFIX=${RTMFIX:-${CRTM_FIX}}
@@ -681,7 +696,7 @@ cat > gsiparm.anl << EOF
   tzr_qc=$TZR_QC,
   oneobtest=.false.,retrieval=.false.,l_foto=.false.,
   use_pbl=.false.,use_compress=.true.,nsig_ext=12,gpstop=50.,
-  use_gfs_nemsio=.true.,sfcnst_comb=.true.,
+  use_gfs_nemsio=${use_gfs_nemsio},use_gfs_ncio=${use_gfs_ncio},sfcnst_comb=.true.,
   use_readin_anl_sfcmask=${USE_READIN_ANL_SFCMASK},
   lrun_subdirs=$lrun_subdirs,
   crtm_coeffs_path='./crtm_coeffs/',
@@ -934,7 +949,11 @@ else
 
 # run chgres if needed
   if [ $LONB_ENKF -ne $LONB -a $DOHYBVAR = "YES" ]; then
-    $NCP $CHGRESEXEC $DATA
+    if [ $GFS_NCIO = "YES" ]; then
+      $NCP $CHGRESNCEXEC $DATA/chgres.x
+    else
+      $NCP $CHGRESEXEC $DATA/chgres.x
+    fi
     LEVS2=$LEVS
     if [ $LEVS -eq "127" ]; then
       LEVS2=128
@@ -952,7 +971,7 @@ else
   vcoord_file="$SIGLEVEL"
 /
 EOF
-    $APRUN_CHGRES $CHGRESEXEC
+    $APRUN_CHGRES chgres.x 
     rc=$?
 
     export ERR=$rc
@@ -972,6 +991,7 @@ EOF
   firstguess_filename = 'sigf06.chgres'
   increment_filename = 'siginc.nc'
   nhr_assim = $assim_freq 
+  use_nemsio = $use_gfs_nemsio
 /
 EOF
   cat calc_analysis.nml
