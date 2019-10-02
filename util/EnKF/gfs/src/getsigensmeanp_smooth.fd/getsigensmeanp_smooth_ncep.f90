@@ -124,6 +124,7 @@ program getsigensmeanp_smooth
 
   sigio  = .false.
   nemsio = .false.
+  ncio = .false.
 
 ! Process input files (one file per task)
   if ( mype1 <= nanals ) then
@@ -162,7 +163,7 @@ program getsigensmeanp_smooth
      if (ncio) then
         if (mype == 0) write(6,*) 'Read netcdf'
         londim = get_dim(dset,'grid_xt'); lonb = londim%len
-        latdim = get_dim(dset,'grid_xt'); latb = latdim%len
+        latdim = get_dim(dset,'grid_yt'); latb = latdim%len
         levdim = get_dim(dset,'phalf');   nlevs = levdim%len
         call read_attribute(dset, 'ncnsto', ntrac)
         ntrunc = latb-2
