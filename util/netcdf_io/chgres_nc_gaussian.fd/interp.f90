@@ -105,6 +105,7 @@
  q_b4_adj_output(:,:,5) = icmr_b4_adj_output(:,:)
  q_b4_adj_output(:,:,6) = snmr_b4_adj_output(:,:)
  q_b4_adj_output(:,:,7) = grle_b4_adj_output(:,:)
+ q_b4_adj_output(:,:,8) = cldamt_b4_adj_output(:,:)
 
  allocate(q_output(ij_output,lev,ntrac))
  q_output = 0.0
@@ -144,6 +145,8 @@
  snmr_output = q_output(:,:,6)
  allocate(grle_output(ij_output,lev))
  grle_output = q_output(:,:,7)
+ allocate(cldamt_output(ij_output,lev))
+ cldamt_output = q_output(:,:,8)
 
  deallocate(q_output)
 
@@ -207,6 +210,8 @@
 !  enddo
 
    deallocate(grle_b4_adj_output)
+
+   deallocate(cldamt_b4_adj_output)
 
    
 
@@ -474,6 +479,23 @@
    if (iret /= 0) goto 89
 
    deallocate(grle_input)
+
+
+!---------------------------
+!  Cloud amount
+!---------------------------
+
+   allocate(cldamt_b4_adj_output(ij_output,num_fields))
+   cldamt_b4_adj_output = 0
+
+   print*,'INTERPOLATE CLD_AMT'
+   call ipolates(ip, ipopt, kgds_input, kgds_output, ij_input, ij_output,&
+        num_fields, ibi, bitmap_input, cldamt_input,  &
+        numpts, rlat_output, rlon_output, ibo, bitmap_output, &
+        cldamt_b4_adj_output, iret)
+   if (iret /= 0) goto 89
+
+   deallocate(cldamt_input)
 
 
 
