@@ -199,6 +199,17 @@
    print*,'MAX/MIN GRLE AT LEVEL ', vlev, 'IS: ', maxval(grle_input(:,vlev)), minval(grle_input(:,vlev))
  enddo
 
+ print*
+ print*,"READ CLD_AMT"
+ allocate(cldamt_input(ij_input,lev))
+ call read_vardata(indset, 'cld_amt', work3d)
+ do vlev = 1, lev
+   rvlev = lev+1-vlev
+   cldamt_input(:,vlev) = reshape(work3d(:,:,rvlev),(/ij_input/))
+   print*,'MAX/MIN CLD_AMT AT LEVEL ', vlev, 'IS: ', maxval(cldamt_input(:,vlev)), minval(cldamt_input(:,vlev))
+ enddo
+
+
  print*,"CLOSE FILE"
  call close_dataset(indset)
  deallocate(work2d,work3d)

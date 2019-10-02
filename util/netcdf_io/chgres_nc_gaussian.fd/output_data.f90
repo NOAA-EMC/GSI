@@ -237,6 +237,15 @@
  call write_vardata(outdset, 'grle', out3d)
  deallocate(grle_output)
 
+ print*,"WRITE CLD_AMT"
+ do n = 1, lev
+    nrev = lev+1-n
+    out3d(:,:,n) = reshape(cldamt_output(:,nrev), (/i_output,j_output/))
+ end do
+ call write_vardata(outdset, 'cld_amt', out3d)
+ deallocate(cldamt_output)
+
+
  deallocate(out2d,out3d)
 
  return
