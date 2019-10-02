@@ -93,7 +93,7 @@ module module_fv3gfs_ncio
     type(Dimension) :: dim
     character(len=*), intent(in) :: dimname
     integer ndim
-    ndim = get_nvar(dset, dimname)
+    ndim = get_ndim(dset, dimname)
     dim = dset%dimensions(ndim)
   end function get_dim
 

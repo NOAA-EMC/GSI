@@ -88,14 +88,13 @@ output=${output:-$jobname.out}
 myuser=$LOGNAME
 myhost=$(hostname)
 
-if [ -d /scratch4/NCEPDEV/stmp4/$LOGNAME ]; then
-  DATA=/scratch4/NCEPDEV/stmp4/$LOGNAME/tmp
-elif [ -d /scratch3/BMC/gsienkf/$LOGNAME ]; then
-  DATA=/scratch3/BMC/gsienkf/$LOGNAME/tmp/tmp
+if [ -d /scratch1/NCEPDEV/stmp4/$LOGNAME ]; then
+  DATA=/scratch1/NCEPDEV/stmp4/$LOGNAME/tmp
+elif [ -d /scratch2/BMC/gsienkf/$LOGNAME ]; then
+  DATA=/scratch2/BMC/gsienkf/$LOGNAME/tmp/tmp
 fi
+DATA=${DATA:-$ptmp/tmp}
 
-#DATA=/scratch4/NCEPDEV/stmp4/$LOGNAME/tmp
-#DATA=/scratch3/BMC/gsienkf/$LOGNAME/tmp/tmp
 mkdir -p $DATA
 
 #partition=${partition:-c1ms}
@@ -137,7 +136,7 @@ echo "" >>$cfile
 
 echo ". /apps/lmod/lmod/init/sh"                           >> $cfile
 echo "module purge"                                        >> $cfile
-echo "source $gsisrc/modulefiles/modulefile.ProdGSI.theia" >> $cfile
+echo "source $gsisrc/modulefiles/modulefile.ProdGSI.hera" >> $cfile
 echo "module list"                                         >> $cfile
 echo "" >>$cfile
 

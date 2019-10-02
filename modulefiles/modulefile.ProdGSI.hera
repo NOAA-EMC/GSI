@@ -1,0 +1,38 @@
+#%Module######################################################################
+##                                                       Russ.Treadon@noaa.gov
+##                                                           NOAA/NWS/NCEP/EMC
+## GDAS_ENKF v6.2.3
+##_____________________________________________________
+#set ver v6.2.3
+
+set COMP ifort
+set COMP_MP mpfort
+set COMP_MPI mpiifort
+
+set C_COMP icc
+set C_COMP_MP mpcc
+
+# Known conflicts
+
+# Load compiler, mpi, and hdf5/netcdf
+module load intel/18.0.5.274
+module load impi/2018.0.4
+module load hdf5/1.10.4
+module load netcdf/4.6.1
+
+# Load libraries
+module use -a /contrib/da/spack/share/spack/modules/linux-centos7-x86_64
+module load bacio/v2.1.0-intel-18.0.5
+module load bufr/v11.2.0-intel-18.0.5
+module load cmake/3.9.0-intel-18.0.5
+module load nemsio/v2.2.3-intel-18.0.5-impi
+module load sfcio/v1.1.0-intel-18.0.5
+module load sigio/v2.1.0-intel-18.0.5-impi
+module load sp/v2.0.2-intel-18.0.5
+module load w3emc/v2.2.0-intel-18.0.5-impi
+module load w3nco/v2.0.6-intel-18.0.5-impi
+module load crtm/v2.2.3-intel-18.0.5
+
+# Load ndate
+module use /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/soft/modulefiles
+module load prod_util
