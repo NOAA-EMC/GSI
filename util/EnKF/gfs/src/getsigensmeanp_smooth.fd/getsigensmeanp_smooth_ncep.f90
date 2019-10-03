@@ -38,11 +38,12 @@ program getsigensmeanp_smooth
   integer,parameter :: iunit=21
   integer,parameter :: window=1 ! cosine bell window for smoothing
 
-  logical :: lexist,dosmooth,nemsio,sigio,ncio,quantize
+  logical :: lexist,dosmooth,nemsio,sigio,ncio,quantize,write_spread_ncio
   logical,allocatable,dimension(:) :: notuv,smooth_fld
   character(nemsio_charkind8) :: dtype
   character(len=3) :: charnanal
-  character(len=500) :: filenamein,filenameout,filenameouts,datapath,fileprefix,fname
+  character(len=500) :: filenamein,filenameout,filenameouts,datapath,fileprefix,fname,&
+                        filenameoutsprd
   character(len=16),allocatable,dimension(:) :: recnam
   integer :: iret,nlevs,ntrac,ntrunc,nanals,ngrd,k,ndims,nvar,nbits
   integer :: nsize,nsize2,nsize3,nsize3t
@@ -50,15 +51,15 @@ program getsigensmeanp_smooth
   integer :: nrec,latb,lonb,npts,n,idrt
   integer,allocatable,dimension(:) :: new_group_members,reclev,krecu,krecv
   integer,allocatable,dimension(:) :: smoothparm
-  real(8) :: rnanals
+  real(8) :: rnanals,rnanalsm1
   real(8),allocatable,dimension(:,:,:) :: smoothfact
   real(4),allocatable, dimension(:,:,:) :: values_3d, values_3d_avg, &
-                                           values_3d_tmp
+                                           values_3d_tmp, values_3d_sprd
   real(4),allocatable,dimension(:) :: sigdatapert_ps,sigdatapert_z,sigdatapert_d,&
                                       sigdatapert_t,sigdatapert_q,sigdatapert_oz,&
                                       sigdatapert_cw
   real(4),allocatable,dimension(:,:) :: rwork_mem,rwork_avg, values_2d, &
-                                        values_2d_avg, values_2d_tmp
+                                        values_2d_sprd,values_2d_avg, values_2d_tmp
   real(4),allocatable,dimension(:) :: rwork_hgt
   real(4),allocatable,dimension(:) :: rwork_lev,rwork_lev2,rwork_spc,rwork_spc2
   real(4) compress_err
@@ -67,7 +68,7 @@ program getsigensmeanp_smooth
   type(sigio_head) :: sigheadi,sigheadm
   type(sigio_data) :: sigdatai,sigdatam
   type(nemsio_gfile) :: gfile,gfileo,gfileos
-  type(Dataset) :: dset,dseto,dsetos
+  type(Dataset) :: dset,dseto,dseto_smooth,dseto_sprd
   type(Dimension) :: londim,latdim,levdim
 
 ! mpi definitions.
@@ -91,7 +92,17 @@ program getsigensmeanp_smooth
 
   rnanals = nanals
   rnanals = 1.0_8/rnanals
+  rnanalsm1 = nanals-1
+  rnanalsm1 = 1.0_8/rnanalsm1
   filenameout = trim(adjustl(datapath)) // trim(adjustl(filenameout))
+  ! if a 5th arg present, it's a filename to write out ensemble spread
+  ! (only used for ncio)
+  if (nargs() > 5) then
+     call getarg(5,filenameoutsprd)
+     write_spread_ncio = .true.
+     if (mype == 0) print *,'computing ensemble spread'
+     filenameoutsprd = trim(adjustl(datapath)) // trim(adjustl(filenameoutsprd))
+  endif
 
   if ( mype == 0 ) then
      write(6,'(a)')  'Command line input'
@@ -99,6 +110,9 @@ program getsigensmeanp_smooth
      write(6,'(a,a)')' filenameout = ',trim(filenameout)
      write(6,'(a,a)')' fileprefix  = ',trim(fileprefix)
      write(6,'(a,a)')' nanals      = ',trim(charnanal)
+     if (write_spread_ncio) then
+     write(6,'(a,a)')' filenameoutsprd = ',trim(filenameoutsprd)
+     endif 
      write(6,'(a)')  ' '
   endif
 
@@ -323,15 +337,19 @@ program getsigensmeanp_smooth
 
         if (mype == 0) then
            dseto = create_dataset(filenameout, dset, copy_vardata=.true.)
+           if (write_spread_ncio) then
+              dseto_sprd = create_dataset(filenameoutsprd, dset, copy_vardata=.true.)
+           endif
         endif
         if (dosmooth) then
-           dsetos = create_dataset(filenameouts, dset, copy_vardata=.true.)
+           dseto_smooth = create_dataset(filenameouts, dset, copy_vardata=.true.)
         endif
         allocate(values_2d_avg(lonb,latb))
         allocate(values_2d_tmp(lonb,latb))
         if (dosmooth) then
            allocate(rwork_spc((ntrunc+1)*(ntrunc+2)))
         endif
+        if (write_spread_ncio) allocate(values_2d_sprd(lonb,latb))
         do nvar=1,dset%nvars
            ndims = dset%variables(nvar)%ndims
            if (ndims > 2) then
@@ -340,7 +358,15 @@ program getsigensmeanp_smooth
                   if (mype == 0) print *,'processing ',trim(dset%variables(nvar)%name)
                   call read_vardata(dset,trim(dset%variables(nvar)%name),values_2d)
                   call mpi_allreduce(values_2d,values_2d_avg,lonb*latb,mpi_real4,mpi_sum,new_comm,iret)
+                  ! ens mean
                   values_2d_avg = values_2d_avg*rnanals
+                  if (write_spread_ncio) then
+                     ! ens spread
+                     values_2d_tmp = values_2d - values_2d_avg ! ens pert
+                     values_2d_tmp = values_2d_tmp**2
+                     call mpi_reduce(values_2d,values_2d_sprd,lonb*latb,mpi_real4,mpi_sum,0,new_comm,iret)
+                     values_2d_sprd= sqrt(values_2d_sprd*rnanalsm1)
+                  endif
                   call read_attribute(dset, 'nbits', nbits, &
                        trim(dset%variables(nvar)%name),errcode=iret)
                   if (iret == 0 .and. nbits > 0) then
@@ -358,10 +384,10 @@ program getsigensmeanp_smooth
                      if (quantize) then
                         values_2d_tmp = values_2d
                         call quantize_data(values_2d_tmp, values_2d, nbits, compress_err)
-                        call write_attribute(dsetos,&
+                        call write_attribute(dseto_smooth,&
                         'max_abs_compression_error',compress_err,trim(dset%variables(nvar)%name))
                      endif
-                     call write_vardata(dsetos,trim(dset%variables(nvar)%name),values_2d)
+                     call write_vardata(dseto_smooth,trim(dset%variables(nvar)%name),values_2d)
                   endif
                   ! write ens mean
                   if (mype == 0) then
@@ -372,6 +398,15 @@ program getsigensmeanp_smooth
                        'max_abs_compression_error',compress_err,trim(dset%variables(nvar)%name))
                      endif
                      call write_vardata(dseto,trim(dset%variables(nvar)%name),values_2d_avg)
+                     if (write_spread_ncio) then
+                        if (quantize) then
+                          values_2d_tmp = values_2d_sprd
+                          call quantize_data(values_2d_tmp, values_2d_sprd, nbits, compress_err)
+                          call write_attribute(dseto_sprd,&
+                          'max_abs_compression_error',compress_err,trim(dset%variables(nvar)%name))
+                        endif
+                        call write_vardata(dseto_sprd,trim(dset%variables(nvar)%name),values_2d_sprd)
+                     endif
                   endif
                else if (ndims == 4) then
                   ! 3d variables (extra dim is time)
@@ -380,9 +415,20 @@ program getsigensmeanp_smooth
                   allocate(values_3d_avg, mold=values_3d)
                   if (allocated(values_3d_tmp)) deallocate(values_3d_tmp)
                   allocate(values_3d_tmp, mold=values_3d_avg)
+                  if (write_spread_ncio) then
+                     if (allocated(values_3d_sprd)) deallocate(values_3d_sprd)
+                     allocate(values_3d_sprd, mold=values_3d_avg)
+                  endif
                   if (mype == 0) print *,'processing ',trim(dset%variables(nvar)%name)
                   call mpi_allreduce(values_3d,values_3d_avg,lonb*latb*nlevs,mpi_real4,mpi_sum,new_comm,iret)
                   values_3d_avg = values_3d_avg*rnanals
+                  if (write_spread_ncio) then
+                     ! ens spread
+                     values_3d_tmp = values_3d - values_3d_avg ! ens pert
+                     values_3d_tmp = values_3d_tmp**2
+                     call mpi_reduce(values_3d,values_3d_sprd,lonb*latb*nlevs,mpi_real4,mpi_sum,0,new_comm,iret)
+                     values_3d_sprd= sqrt(values_3d_sprd*rnanalsm1)
+                  endif
                   call read_attribute(dset, 'nbits', nbits, &
                        trim(dset%variables(nvar)%name),errcode=iret)
                   if (iret == 0 .and. nbits > 0) then
@@ -402,10 +448,10 @@ program getsigensmeanp_smooth
                      if (quantize) then
                         values_3d_tmp = values_3d
                         call quantize_data(values_3d_tmp, values_3d, nbits, compress_err)
-                        call write_attribute(dsetos,&
+                        call write_attribute(dseto_smooth,&
                         'max_abs_compression_error',compress_err,trim(dset%variables(nvar)%name))
                      endif
-                     call write_vardata(dsetos,trim(dset%variables(nvar)%name),values_3d)
+                     call write_vardata(dseto_smooth,trim(dset%variables(nvar)%name),values_3d)
                   endif
                   if (mype == 0) then
                      if (quantize) then
@@ -415,6 +461,15 @@ program getsigensmeanp_smooth
                        'max_abs_compression_error',compress_err,trim(dset%variables(nvar)%name))
                      endif
                      call write_vardata(dseto,trim(dset%variables(nvar)%name),values_3d_avg)
+                     if (write_spread_ncio) then
+                        if (quantize) then
+                          values_3d_tmp = values_3d_sprd
+                          call quantize_data(values_3d_tmp, values_3d_sprd, nbits, compress_err)
+                          call write_attribute(dseto_sprd,&
+                          'max_abs_compression_error',compress_err,trim(dset%variables(nvar)%name))
+                        endif
+                        call write_vardata(dseto_sprd,trim(dset%variables(nvar)%name),values_3d_sprd)
+                     endif
                   endif
                endif
            endif ! ndims > 2
@@ -423,11 +478,18 @@ program getsigensmeanp_smooth
         deallocate(values_2d_tmp, values_3d_tmp)
         if (dosmooth) then
            deallocate(rwork_spc, smoothfact)
-           call close_dataset(dsetos)
+           call close_dataset(dseto_smooth)
+        endif
+        if (write_spread_ncio) then
+           deallocate(values_2d_sprd, values_3d_sprd)
         endif
         if (mype == 0) then
            call close_dataset(dseto)
            write(6,'(3a,i5)')'Write ncio ensemble mean ',trim(filenameout),' iret = ', iret
+           if (write_spread_ncio) then
+             call close_dataset(dseto_sprd)
+              write(6,'(3a,i5)')'Write ncio ensemble spread ',trim(filenameoutsprd),' iret = ', iret
+           endif
         endif
 
      endif
