@@ -40,7 +40,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use jfunc, only: jiter,last,jiterstart,miter
 
   use guess_grids, only: nfldsig, hrdifsig,ges_lnprsl,&
-       geop_hgtl,ges_tsen,pt_ll,pbl_height
+       geop_hgtl,ges_tsen,pt_ll,pbl_height,ges_prsi
   use state_vectors, only: svars3d, levels, nsdim
 
   use constants, only: zero, one, four,t0c,rd_over_cp,three,rd_over_cp_mass,ten
@@ -238,7 +238,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_single),allocatable,dimension(:,:)::rdiagbufp
 
 
-  real(r_kind),dimension(nsig):: prsltmp2
+  real(r_kind),dimension(nsig):: prsltmp2, prsitmp2
 
   integer(i_kind) i,j,nchar,nreal,k,ii,iip,jj,l,nn,ibin,idia,idia0,ix,ijb
   integer(i_kind) mm1,jsig,iqt
@@ -609,6 +609,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
           nsig,mype,nfldsig)
      call tintrp2a11(ges_z,zges,dlat,dlon,dtime,hrdifsig,&
           mype,nfldsig)
+     call tintrp2a1(ges_prsi,prsitmp2,dlat,dlon,dtime,hrdifsig,&
+          nsig+1,mype,nfldsig)
 
      drpx=zero
      if(sfctype .and. .not.twodvar_regional) then
@@ -1673,6 +1675,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
     ! need additional arrays for GeoVaLs for T2
     call nc_diag_data2d("atmosphere_pressure_coordinate", sngl(prsltmp2*r1000))
+    call nc_diag_data2d("atmosphere_pressure_coordinate_interface",prsitmp2*r1000)
     call nc_diag_metadata("surface_temperature",sngl(tgges))
     call nc_diag_metadata("surface_roughness", sngl(roges/r100))
     call nc_diag_metadata("landmask",sngl(msges))
