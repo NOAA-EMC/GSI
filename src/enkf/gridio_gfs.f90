@@ -50,9 +50,6 @@
  use mpeu_util, only: getindex
  implicit none
  private
- interface quantize_data
-     module procedure quantize_data_2d, quantize_data_3d
- end interface quantize_data
  public :: readgriddata, writegriddata
  contains
 
@@ -63,7 +60,7 @@
                            nemsio_getfilehead,nemsio_getheadvar,nemsio_realkind,nemsio_charkind,&
                            nemsio_readrecv,nemsio_init,nemsio_setheadvar,nemsio_writerecv
   use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
-                          read_attribute, close_dataset, get_dim, read_vardata 
+                 quantize_data,read_attribute, close_dataset, get_dim, read_vardata
   implicit none
 
   integer, intent(in) :: nanal1,nanal2
@@ -547,7 +544,7 @@
                           read_attribute, close_dataset, get_dim, read_vardata,&
                           create_dataset, get_idate_from_time_units, &
                           get_time_units_from_idate, write_vardata, &
-                          write_attribute
+                          write_attribute, quantize_data
   use constants, only: grav
   use params, only: nbackgrounds,anlfileprefixes,fgfileprefixes,reducedgrid
   implicit none
@@ -1695,29 +1692,5 @@
        endif
     enddo
  end function checkfield_nc
-
- subroutine quantize_data_2d(dataIn, dataOut, nbits, compress_err)
-   use module_fv3gfs_ncio, only : quantized
-   real(r_single), intent(in) :: dataIn(:,:)
-   real(r_single), intent(out) :: dataOut(:,:)
-   real(r_single), intent(out) :: compress_err
-   integer, intent(in) :: nbits
-   real(r_single) dataMin, dataMax
-   dataMax = maxval(dataIn); dataMin = minval(dataIn)
-   dataOut = quantized(dataIn,nbits,dataMin,dataMax)
-   compress_err = maxval(abs(dataIn-dataOut))
- end subroutine quantize_data_2d
-
- subroutine quantize_data_3d(dataIn, dataOut, nbits, compress_err)
-   use module_fv3gfs_ncio, only : quantized
-   real(r_single), intent(in) :: dataIn(:,:,:)
-   real(r_single), intent(out) :: dataOut(:,:,:)
-   real(r_single), intent(out) :: compress_err
-   integer, intent(in) :: nbits
-   real(r_single) dataMin, dataMax
-   dataMax = maxval(dataIn); dataMin = minval(dataIn)
-   dataOut = quantized(dataIn,nbits,dataMin,dataMax)
-   compress_err = maxval(abs(dataIn-dataOut))
- end subroutine quantize_data_3d
 
 end module gridio
