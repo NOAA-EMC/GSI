@@ -300,35 +300,40 @@ program getsfcensmeanp
            call nemsio_close(gfileo,iret=iret)
            write(6,*)'Write ensmemble mean ',trim(filenameout),' iret=',iret
         endif
-     endif
-  else if (ncio) then
-     londim = get_dim(dset,'grid_xt'); lonb = londim%len
-     latdim = get_dim(dset,'grid_yt'); latb = latdim%len
-     allocate(values_2d_avg(lonb,latb))
-     if (mype == 0) then
-        dseto = create_dataset(filenameout, dset, copy_vardata=.true.)
-     endif
-     do nvar=1,dset%nvars
-!       Following fields are not averaged
-!         land = land/sea mask
-!         vtype = veg type
-!         sltype = slope type
-!         sotype = soil type
-!         orog  = orography
-        if (trim(dset%variables(nvar)%name) == 'land' .or. &
-            trim(dset%variables(nvar)%name) == 'vtype' .or. &
-            trim(dset%variables(nvar)%name) == 'sltype' .or. &
-            trim(dset%variables(nvar)%name) == 'sotyp' .or. &
-            trim(dset%variables(nvar)%name) == 'orog') then
-           cycle
+     elseif (ncio) then
+        londim = get_dim(dset,'grid_xt'); lonb = londim%len
+        latdim = get_dim(dset,'grid_yt'); latb = latdim%len
+        allocate(values_2d_avg(lonb,latb))
+        if (mype == 0) then
+           dseto = create_dataset(filenameout, dset, copy_vardata=.true.)
+           print *,'opened netcdf file ',trim(filenameout)
         endif
-        call read_vardata(dset,trim(dset%variables(nvar)%name),values_2d)
-        call mpi_allreduce(values_2d,values_2d_avg,lonb*latb,mpi_real4,mpi_sum,new_comm,iret)
-        values_2d_avg = values_2d_avg * rnanals
-        if (mype == 0) call write_vardata(dseto,trim(dset%variables(nvar)%name),values_2d_avg)
-     enddo
-     if (mype == 0) call close_dataset(dseto)
-     deallocate(values_2d,values_2d_avg)
+        do nvar=1,dset%nvars
+!          Following fields are not averaged
+!            land = land/sea mask
+!            vtype = veg type
+!            sltype = slope type
+!            sotype = soil type
+!            orog  = orography
+           if (dset%variables(nvar)%ndims < 3 .or. &
+               trim(dset%variables(nvar)%name) == 'land' .or. &
+               trim(dset%variables(nvar)%name) == 'vtype' .or. &
+               trim(dset%variables(nvar)%name) == 'sltype' .or. &
+               trim(dset%variables(nvar)%name) == 'sotyp' .or. &
+               trim(dset%variables(nvar)%name) == 'orog') then
+              cycle
+           endif
+           call read_vardata(dset,trim(dset%variables(nvar)%name),values_2d)
+           call mpi_allreduce(values_2d,values_2d_avg,lonb*latb,mpi_real4,mpi_sum,new_comm,iret)
+           values_2d_avg = values_2d_avg * rnanals
+           if (mype == 0) then
+             print *,'writing ens mean ',trim(dset%variables(nvar)%name)
+             call write_vardata(dseto,trim(dset%variables(nvar)%name),values_2d_avg)
+           endif
+        enddo
+        if (mype == 0) call close_dataset(dseto)
+        deallocate(values_2d,values_2d_avg)
+     endif
 ! Jump here if more mpi processors than files to process
   else
      write(6,*) 'No files to process for mpi task = ',mype
