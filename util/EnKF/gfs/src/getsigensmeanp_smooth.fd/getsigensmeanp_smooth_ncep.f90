@@ -28,8 +28,9 @@ program getsigensmeanp_smooth
                            nemsio_readrec,nemsio_writerec, &
                            nemsio_readrecv,nemsio_writerecv
   use module_fv3gfs_ncio, only: open_dataset, create_dataset, read_attribute, &
-                           Dataset, Dimension, close_dataset, quantized, &
-                           read_vardata, write_attribute, write_vardata, get_dim
+                           Dataset, Dimension, close_dataset, &
+                           read_vardata, write_attribute, write_vardata, &
+                           get_dim, quantize_data
 
   implicit none
 
@@ -164,7 +165,7 @@ program getsigensmeanp_smooth
         if (mype == 0) write(6,*) 'Read netcdf'
         londim = get_dim(dset,'grid_xt'); lonb = londim%len
         latdim = get_dim(dset,'grid_yt'); latb = latdim%len
-        levdim = get_dim(dset,'phalf');   nlevs = levdim%len
+        levdim = get_dim(dset,'pfull');   nlevs = levdim%len
         call read_attribute(dset, 'ncnsto', ntrac)
         ntrunc = latb-2
      endif
@@ -322,22 +323,22 @@ program getsigensmeanp_smooth
 
         if (mype == 0) then
            dseto = create_dataset(filenameout, dset, copy_vardata=.true.)
+           print *,'opened ',trim(filenameout)
         endif
         if (dosmooth) then
            dsetos = create_dataset(filenameouts, dset, copy_vardata=.true.)
         endif
         allocate(values_2d_avg(lonb,latb))
         allocate(values_2d_tmp(lonb,latb))
-        allocate(values_3d_avg(lonb,latb,nlevs))
-        allocate(values_3d_tmp(lonb,latb,nlevs))
         if (dosmooth) then
            allocate(rwork_spc((ntrunc+1)*(ntrunc+2)))
         endif
         do nvar=1,dset%nvars
            ndims = dset%variables(nvar)%ndims
            if (ndims > 2) then
-               if (ndims == 3) then
+               if (ndims == 3 .and. trim(dset%variables(nvar)%name) /= 'hgtsfc') then
                   ! pressfc
+                  if (mype == 0) print *,'processing ',trim(dset%variables(nvar)%name)
                   call read_vardata(dset,trim(dset%variables(nvar)%name),values_2d)
                   call mpi_allreduce(values_2d,values_2d_avg,lonb*latb,mpi_real4,mpi_sum,new_comm,iret)
                   values_2d_avg = values_2d_avg*rnanals
@@ -348,10 +349,6 @@ program getsigensmeanp_smooth
                   else
                       quantize=.false.
                   endif
-                  if (quantize) then
-                    values_2d_tmp = values_2d_avg
-                    call quantize_data_2d(values_2d_tmp, values_2d_avg, nbits, compress_err)
-                  endif
                   ! smooth ens pert and write out?
                   if (dosmooth) then
                      values_2d = values_2d - values_2d_avg ! ens pert
@@ -361,25 +358,30 @@ program getsigensmeanp_smooth
                      values_2d = values_2d + values_2d_avg ! add mean back
                      if (quantize) then
                         values_2d_tmp = values_2d
-                        call quantize_data_2d(values_2d_tmp, values_2d, nbits, compress_err)
-                     endif
-                     call write_vardata(dsetos,trim(dset%variables(nvar)%name),values_2d)
-                     if (quantize) then
+                        call quantize_data(values_2d_tmp, values_2d, nbits, compress_err)
                         call write_attribute(dsetos,&
                         'max_abs_compression_error',compress_err,trim(dset%variables(nvar)%name))
                      endif
+                     call write_vardata(dsetos,trim(dset%variables(nvar)%name),values_2d)
                   endif
                   ! write ens mean
                   if (mype == 0) then
-                     call write_vardata(dseto,trim(dset%variables(nvar)%name),values_2d_avg)
                      if (quantize) then
-                        call write_attribute(dseto,&
-                        'max_abs_compression_error',compress_err,trim(dset%variables(nvar)%name))
+                       values_2d_tmp = values_2d_avg
+                       call quantize_data(values_2d_tmp, values_2d_avg, nbits, compress_err)
+                       call write_attribute(dseto,&
+                       'max_abs_compression_error',compress_err,trim(dset%variables(nvar)%name))
                      endif
+                     call write_vardata(dseto,trim(dset%variables(nvar)%name),values_2d_avg)
                   endif
                else if (ndims == 4) then
                   ! 3d variables (extra dim is time)
                   call read_vardata(dset,trim(dset%variables(nvar)%name),values_3d)
+                  if (allocated(values_3d_avg)) deallocate(values_3d_avg)
+                  allocate(values_3d_avg, mold=values_3d)
+                  if (allocated(values_3d_tmp)) deallocate(values_3d_tmp)
+                  allocate(values_3d_tmp, mold=values_3d_avg)
+                  if (mype == 0) print *,'processing ',trim(dset%variables(nvar)%name)
                   call mpi_allreduce(values_3d,values_3d_avg,lonb*latb*nlevs,mpi_real4,mpi_sum,new_comm,iret)
                   values_3d_avg = values_3d_avg*rnanals
                   call read_attribute(dset, 'nbits', nbits, &
@@ -388,10 +390,6 @@ program getsigensmeanp_smooth
                       quantize=.true.
                   else
                       quantize=.false.
-                  endif
-                  if (quantize) then
-                    values_3d_tmp = values_3d_avg
-                    call quantize_data_3d(values_3d_tmp, values_3d_avg, nbits, compress_err)
                   endif
                   ! smooth ens pert and write out?
                   if (dosmooth) then
@@ -404,20 +402,20 @@ program getsigensmeanp_smooth
                      enddo
                      if (quantize) then
                         values_3d_tmp = values_3d
-                        call quantize_data_3d(values_3d_tmp, values_3d, nbits, compress_err)
-                     endif
-                     call write_vardata(dsetos,trim(dset%variables(nvar)%name),values_3d)
-                     if (quantize) then
+                        call quantize_data(values_3d_tmp, values_3d, nbits, compress_err)
                         call write_attribute(dsetos,&
                         'max_abs_compression_error',compress_err,trim(dset%variables(nvar)%name))
                      endif
+                     call write_vardata(dsetos,trim(dset%variables(nvar)%name),values_3d)
                   endif
                   if (mype == 0) then
-                     call write_vardata(dseto,trim(dset%variables(nvar)%name),values_3d_avg)
                      if (quantize) then
-                        call write_attribute(dseto,&
-                        'max_abs_compression_error',compress_err,trim(dset%variables(nvar)%name))
+                       values_3d_tmp = values_3d_avg
+                       call quantize_data(values_3d_tmp, values_3d_avg, nbits, compress_err)
+                       call write_attribute(dseto,&
+                       'max_abs_compression_error',compress_err,trim(dset%variables(nvar)%name))
                      endif
+                     call write_vardata(dseto,trim(dset%variables(nvar)%name),values_3d_avg)
                   endif
                endif
            endif ! ndims > 2
@@ -565,7 +563,7 @@ program getsigensmeanp_smooth
 100 continue
   call mpi_barrier(mpi_comm_world,iret)
 
-  if ( mype1 <= nanals .and. .not. nemsio .and. .not. sigio ) then
+  if ( mype1 <= nanals .and. .not. nemsio .and. .not. sigio .and. .not. ncio) then
      write(6,'(a)')'***ERROR***  invalid atmospheric file format'
      call mpi_abort(mpi_comm_world,98,iret)
      stop
@@ -639,28 +637,3 @@ subroutine setup_smooth(ntrunc,nlevs,smoothparm,window,smoothfact)
      enddo m_loop
   enddo k_loop
 end subroutine setup_smooth
-
- subroutine quantize_data_2d(dataIn, dataOut, nbits, compress_err)
-   use module_fv3gfs_ncio, only : quantized
-   real(4), intent(in) :: dataIn(:,:)
-   real(4), intent(out) :: dataOut(:,:)
-   real(4), intent(out) :: compress_err
-   integer, intent(in) :: nbits
-   real(4) dataMin, dataMax
-   dataMax = maxval(dataIn); dataMin = minval(dataIn)
-   dataOut = quantized(dataIn,nbits,dataMin,dataMax)
-   compress_err = maxval(abs(dataIn-dataOut))
- end subroutine quantize_data_2d
-
- subroutine quantize_data_3d(dataIn, dataOut, nbits, compress_err)
-   use module_fv3gfs_ncio, only : quantized
-   real(4), intent(in) :: dataIn(:,:,:)
-   real(4), intent(out) :: dataOut(:,:,:)
-   real(4), intent(out) :: compress_err
-   integer, intent(in) :: nbits
-   real(4) dataMin, dataMax
-   dataMax = maxval(dataIn); dataMin = minval(dataIn)
-   dataOut = quantized(dataIn,nbits,dataMin,dataMax)
-   compress_err = maxval(abs(dataIn-dataOut))
- end subroutine quantize_data_3d
-

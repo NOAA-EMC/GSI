@@ -71,10 +71,14 @@ module module_fv3gfs_ncio
       write_attribute_int_1d, write_attribute_r8_1d, write_attribute_char
   end interface
 
+  interface quantize_data
+      module procedure quantize_data_2d, quantize_data_3d
+  end interface
+
   public :: open_dataset, create_dataset, close_dataset, Dataset, Variable, Dimension, &
   read_vardata, read_attribute, write_vardata, write_attribute, get_ndim, &
-  get_nvar, get_var, get_dim, quantized, get_idate_from_time_units,&
-  get_time_units_from_idate
+  get_nvar, get_var, get_dim, get_idate_from_time_units,&
+  get_time_units_from_idate, quantize_data
 
   contains
 
@@ -807,19 +811,6 @@ module module_fv3gfs_ncio
     include "write_attribute_code.f90"
   end subroutine write_attribute_char
 
-  elemental real function quantized(dataIn, nbits, dataMin, dataMax)
-    implicit none
-    integer, intent(in) :: nbits
-    real(4), intent(in) :: dataIn, dataMin, dataMax
-    real(4) offset, scale_fact
-    ! convert data to 32 bit integers in range 0 to 2**nbits-1, then cast
-    ! cast back to 32 bit floats (data is then quantized in steps
-    ! proportional to 2**nbits so last 32-nbits in floating
-    ! point representation should be zero for efficient zlib compression).
-    scale_fact = (dataMax - dataMin) / (2**nbits-1); offset = dataMin
-    quantized = scale_fact*(nint((dataIn - offset) / scale_fact)) + offset
-  end function quantized
-
   function get_idate_from_time_units(dset) result(idate)
       ! return integer array with year,month,day,hour,minute,second
       ! parsed from time units attribute.
@@ -865,5 +856,17 @@ module module_fv3gfs_ncio
       i2.2,':',i2.2,':',i2.2)
       time_units = trim(adjustl(timechar))//time_units
   end function get_time_units_from_idate
+
+  subroutine quantize_data_2d(dataIn, dataOut, nbits, compress_err)
+    real(4), intent(in) :: dataIn(:,:)
+    real(4), intent(out) :: dataOut(:,:)
+    include "quantize_data_code.f90"
+  end subroutine quantize_data_2d
+
+  subroutine quantize_data_3d(dataIn, dataOut, nbits, compress_err)
+    real(4), intent(in) :: dataIn(:,:,:)
+    real(4), intent(out) :: dataOut(:,:,:)
+    include "quantize_data_code.f90"
+  end subroutine quantize_data_3d
 
 end module module_fv3gfs_ncio
