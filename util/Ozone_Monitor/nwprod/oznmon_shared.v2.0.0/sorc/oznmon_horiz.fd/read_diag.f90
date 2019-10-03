@@ -175,22 +175,28 @@ module read_diag
       endif
       allocate( header_nlev( header_fix%nlevs ) )
       nlevs_last = header_fix%nlevs
+    endif
+
+    if(isis /= "ompslp_npp")then
+    !--- read header (level part)
+    
       allocate (pob(header_fix%nlevs))
       allocate (grs(header_fix%nlevs))
       allocate (err(header_fix%nlevs))
       allocate (iouse(header_fix%nlevs))
-    endif
-
-    !--- read header (level part)
-    
-    read(ftin)  pob,grs,err,iouse
-    do k=1,header_fix%nlevs
+      read(ftin)  pob,grs,err,iouse
+      do k=1,header_fix%nlevs
        header_nlev(k)%pob = pob(k)
        header_nlev(k)%grs = grs(k)
        header_nlev(k)%err = err(k)
        header_nlev(k)%iouse = iouse(k)
-    end do
-    deallocate (pob,grs,err,iouse)
+      end do
+      deallocate (pob,grs,err,iouse)
+!   print*,'header_nlev%pob=', header_nlev%pob
+!   print*,'header_nlev%grs=', header_nlev%grs
+!   print*,'header_nlev%err=', header_nlev%err
+!   print*,'header_nlev%iouse=', header_nlev%iouse
+    endif
 
 
   end subroutine read_diag_header
@@ -250,7 +256,8 @@ module read_diag
       allocate( data_mpi( ntobs ) )
       print*, 'data_mpi( ntobs ) allocated', ntobs
       allocate( data_nlev( header_fix%nlevs,ntobs ) )
-      print*, 'data_nlev( header_fix%nlevs, ntobs ) allocated', header_fix%nlevs, ntobs
+      allocate( tmp_fix(3,ntobs))
+      allocate( tmp_nlev(10,header_fix%nlevs,ntobs))
       nlevs_last = header_fix%nlevs
     endif
 

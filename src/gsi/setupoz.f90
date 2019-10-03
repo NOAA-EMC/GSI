@@ -1088,7 +1088,7 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   real(r_kind) omg,rat_err2,dlat,dtime,dlon
   real(r_kind) cg_oz,wgross,wnotgross,wgt,arg,exp_arg,term
   real(r_kind) errorinv
-  real(r_kind) psges,ozlv
+  real(r_kind) psges,ozlv,airnd,uvnd,visnd
   
   real(r_kind) varinv3,ratio_errors
   real(r_kind) dpres,obserror,ozone_inv,preso3l
@@ -1102,6 +1102,7 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   integer(i_kind) isolz,iuse
   integer(i_kind) mm1,itime,ilat,ilon,ilate,ilone,iozmr,ilev,ipres,iprcs,imls_levs
   integer(i_kind),dimension(iint,nobs):: idiagbuf
+  integer(i_kind) iairnd,iuvnd,ivisnd
   real(r_kind) gross
 
   character(12) string
@@ -1142,7 +1143,7 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
 ! Initialize arrays
 
   if(ozone_diagsave)then
-     irdim1=7
+     irdim1=10
      ioff0 = irdim1
      if(lobsdiagsave) irdim1=irdim1+4*miter+1
      if (save_jacobian) then
@@ -1169,6 +1170,9 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   ilev=11     ! index of obs level
   imls_levs=12 ! index of mls nrt vertical levels
   iozmr=13    ! index of ozone mixing ratio in ppmv
+  iairnd = 14   ! index of lg10 nunber density of air
+  iuvnd = 15  ! index of log10 number density ozone - uv
+  ivisnd = 16 ! index of log10 number density ozone - vis
 
 ! Read and transform ozone data
   read(lunin) data,luse,ioid
@@ -1251,6 +1255,15 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
      endif
 
      ozlv=data(iozmr,i)      ! ozone mixing ratio in ppmv at pressure level
+     if(obstype == "ompslp")then
+       airnd = data(iairnd,i)
+       uvnd = data(iuvnd,i)
+       visnd = data(ivisnd,i)
+     else
+       airnd = zero
+       uvnd = zero
+       visnd = zero
+     endif
 
 !    Pressure level of data (dpres) converted to grid coordinate
 !    (wrt mid-layer pressure)
@@ -1567,6 +1580,9 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
         rdiagbuf(5,1,ii) = rmiss               ! fovn
         rdiagbuf(6,1,ii) = obserror            ! ozone mixing ratio precision
         rdiagbuf(7,1,ii) = 1.e+10_r_single     ! spread (filled in by EnKF)
+        rdiagbuf(8,1,ii) = airnd          ! log10 air number density
+        rdiagbuf(9,1,ii) = uvnd           ! log10 ozone number density uv
+        rdiagbuf(10,1,ii) = visnd         ! log10 ozone number density vis
 
         if (lobsdiagsave) then
            idia=6
@@ -1612,6 +1628,11 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
            call nc_diag_metadata("Obs_Minus_Forecast_unadjusted",sngl(ozone_inv)                )
            call nc_diag_metadata("Reference_Pressure",           sngl(preso3l)                  )
            call nc_diag_metadata("Input_Observation_Error",      sngl(obserror)                 ) 
+           if(obstype =="omps_lp")then
+             call nc_diag_metadata("Log10 Air Number Density",   sngl(airnd))
+             call nc_diag_metadata("Log10 Ozone Number Density UV", sngl(uvnd))
+             call nc_diag_metadata("Log10 Ozone Number Density VIS",sngl(visnd))
+           endif
 
            if (lobsdiagsave) then
               do jj=1,miter
