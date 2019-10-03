@@ -323,7 +323,6 @@ program getsigensmeanp_smooth
 
         if (mype == 0) then
            dseto = create_dataset(filenameout, dset, copy_vardata=.true.)
-           print *,'opened ',trim(filenameout)
         endif
         if (dosmooth) then
            dsetos = create_dataset(filenameouts, dset, copy_vardata=.true.)
