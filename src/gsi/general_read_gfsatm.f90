@@ -1893,13 +1893,15 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
               icount,iflag,ilev,work,uvflag,vordivflag)
       endif
    end do
+   rwork3d0 = zero
    call read_vardata(atmges, 'clwmr', rwork3d0)
-   rwork3d1 = 0.0_r_kind
+   rwork3d1 = zero
    if (imp_physics == 11) call read_vardata(atmges, 'icmr', rwork3d1)
    do k=1,nlevs
       icount=icount+1
       iflag(icount)=10
       ilev(icount)=k
+      kr = levs+1-k ! netcdf is top to bottom, need to flip
 
       if (mype==mype_use(icount)) then
          ! Cloud condensate mixing ratio.
