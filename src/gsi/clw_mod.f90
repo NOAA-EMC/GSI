@@ -38,7 +38,7 @@ implicit none
 ! set default to private
   private
 ! set routines used externally to public
-  public :: calc_clw, ret_amsua
+  public :: calc_clw, ret_amsua, gmi_37pol_diff
 
 contains
 
@@ -63,6 +63,11 @@ contains
 !               retrieval_gmi subroutine.
 !   2015-03-11  ejones- added call to retrieval_amsr2 subroutine
 !   2015-03-23  ejones- added call to retrieval_saphir subroutine
+!   2015-08-20  zhu  - set negative clw to be zero 
+!   2016-11-07  sienkiewicz - Additional constraint on AMSUA/ATMS ch 1,2 
+!                        for calculating CLW sensitivyt term to exclude 
+!                        invalid BT values  Leave CLW sensitivity term as 0. 
+!                        if retrieval failed
 !
 !  input argument list:
 !     nadir     - scan position
@@ -111,6 +116,7 @@ contains
 ! Declare local parameters
   real(r_kind),parameter:: r284=284.0_r_kind
   real(r_kind),parameter:: r285=285.0_r_kind
+  real(r_kind),parameter:: tbmax=550.0_r_kind
 
 ! Declare local variables
   real(r_kind) tbcx1,tbcx2
@@ -118,9 +124,11 @@ contains
 
   if (amsua .or. atms) then
 
+     clw = zero
     ! We want to reject sea ice points that may be frozen.  The sea freezes
     ! around -1.9C but we set the threshold at 1C to be safe.
-     if(tsavg5>t0c-one .and. tb_obs(1) > zero .and. tb_obs(2) > zero) then 
+     if(tsavg5>t0c-one .and. tb_obs(1) > zero  .and. tb_obs(2) > zero .and.  &
+                             tb_obs(1) < tbmax .and. tb_obs(2) < tbmax ) then 
         if (adp_anglebc) then
            tbcx1=tsim(1)+cbias(nadir,ich(1))*ang_rad(ich(1))+predx(1,ich(1))*air_rad(ich(1))
            tbcx2=tsim(2)+cbias(nadir,ich(2))*ang_rad(ich(2))+predx(1,ich(2))*air_rad(ich(2))
@@ -137,7 +145,7 @@ contains
              ierrret = 1
         endif
      else
-        clw = r1000
+!       clw = r1000
         ierrret = 1
      end if
      
@@ -1915,7 +1923,6 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret,scat)
 !                            surface temperature
 !      2014-01-17  zhu     - add scattering index scat 
 !      2014-01-31  mkim - add ierrret return flag for cloud qc near seaice edge 
-!      2015-08-20  zhu  - set negative clw to be zero 
 !
 !  input argument list:
 !     tb_obs    - observed brightness temperatures
@@ -1982,5 +1989,45 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret,scat)
   end if
 
 end subroutine ret_amsua
+
+subroutine gmi_37pol_diff(tb37v,tb37h,tsim37v,tsim37h,clw,ierrret)
+!$$$  subprogram documentation block
+!                .      .    .                                       .    
+! subprogram: gmi_37pol_diff 
+!
+!  prgmmr: Min-Jeong Kim
+!
+! abstract: calculates cloud amount index over ocean using normalized 37GHz polization difference
+!
+!   output argument list:
+!     clw  
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+!
+  use kinds, only: r_kind, i_kind
+  use constants, only: r1000, zero, one
+  implicit none
+
+  real(r_kind)                      ,intent(in   ) :: tb37v,tb37h
+  real(r_kind)                      ,intent(in   ) :: tsim37v,tsim37h
+  real(r_kind)                      ,intent(  out) :: clw
+  integer(i_kind)                   ,intent(  out) :: ierrret
+
+! Declare local variables
+
+     ierrret = 0
+
+     clw = one - (tb37v-tb37h)/(tsim37v-tsim37h)
+     clw=max(zero,clw)
+     if(tb37h > tb37v)  then
+        ierrret = 1
+        clw= r1000
+     endif
+
+end subroutine gmi_37pol_diff
 
 end module clw_mod

@@ -14,6 +14,8 @@ module obs_ferrscale
 !   2015-09-03  guo     - obsmod::yobs has been replaced with m_obsHeadBundle,
 !                         where yobs is created and destroyed when and where it
 !                         is needed.
+!   2018-08-10  guo     - replaced intjo() related code to a new polymorphic
+!                         implementation intjomod::intjo().
 !
 ! Subroutines Included:
 !   init_ferr_scale  - Initialize parameters
@@ -301,13 +303,9 @@ use gsi_4dvar, only: nsubwin, l4dvar
 use constants, only: zero_quad
 use mpimod, only: mype
 use intjomod, only: intjo
-use intradmod, only: setrad
 use mpl_allreducemod, only: mpl_allreduce
 use jfunc, only: nrclen,nsclen,npclen,ntclen
 
-use m_obsHeadBundle, only: obsHeadBundle
-use m_obsHeadBundle, only: obsHeadBundle_create
-use m_obsHeadBundle, only: obsHeadBundle_destroy
 implicit none
 
 ! Declare passed variables
@@ -322,13 +320,12 @@ type(gsi_bundle) :: sval(nobs_bins), rval(nobs_bins)
 type(gsi_bundle) :: mval(nsubwin)
 type(predictors) :: sbias, rbias
 real(r_quad) :: zjb,zjo,zjc,zjl
-integer(i_kind) :: ii,iobs,ibin,i
+integer(i_kind) :: ii,iobs,i
 logical :: llprt,llouter
 character(len=255) :: seqcalls
 real(r_quad),dimension(max(1,nrclen)) :: qpred
 
 
-type(obsHeadBundle),pointer,dimension(:):: yobs
 
 !**********************************************************************
 
@@ -383,15 +380,10 @@ rbias=zero
 do ii=1,nsubwin
    mval(ii)=zero
 end do
-call setrad(rval(1))
 
 qpred=zero_quad
 ! Compare obs to solution and transpose back to grid (H^T R^{-1} H)
-call obsHeadBundle_create(yobs,nobs_bins)
-do ibin=1,size(yobs)    ! == nobs_bins
-   call intjo(yobs(ibin),rval(ibin),qpred,sval(ibin),sbias,ibin)
-end do
-call obsHeadBundle_destroy(yobs)
+call intjo(rval,qpred,sval,sbias)
 
 ! Take care of background error for bias correction terms
 

@@ -36,7 +36,7 @@ subroutine general_read_nmmb_radar(grd,filename,mype,g_z,g_ps,g_u,g_v,g_w,g_qr,g
   use constants, only: zero,one_tenth,one,fv,r0_01, ten
   use gsi_nemsio_mod, only: gsi_nemsio_open,gsi_nemsio_close,gsi_nemsio_read,gsi_nemsio_read_fractionnew
   use general_sub2grid_mod, only: sub2grid_info
-  use control_vectors, only :w_exist,dbz_exist
+  use wrf_vars_mod, only :w_exist,dbz_exist
   use obsmod,only:if_model_dbz
   use gridmod, only: pt_ll,aeta2_ll,aeta1_ll,pdtop_ll
   use constants, only: rd, r1000

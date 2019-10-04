@@ -27,6 +27,8 @@ module m_obsNode
   use kinds, only: i_kind,r_kind
   use mpeu_util, only: tell,perr,die
   use mpeu_util, only: assert_
+  use m_obsdiagNode, only: obs_diag
+  use m_obsdiagNode, only: obs_diags
   implicit none
   private	! except
   public:: obsNode		! data structure
@@ -47,17 +49,20 @@ module m_obsNode
      real(r_kind)    :: elat = 0._r_kind      ! earth lat-lon for redistribution
      real(r_kind)    :: elon = 0._r_kind      ! earth lat-lon for redistribution
 
-!     real(r_kind)    :: dlat = 0._r_kind      ! for verification, only temorary
-!     real(r_kind)    :: dlon = 0._r_kind      ! for verification, only temorary
-
      integer(i_kind) :: idv  =-1              ! device ID
      integer(i_kind) :: iob  =-1              ! initial obs sequential ID
 
+#ifdef _TO_DO_
+     integer(i_kind):: nprof   ! count of corresponding profile locations
+     integer(i_kind):: idspl   ! cross referencing index to profile locations
+                                ! given i-th observation, corresponding profile
+                                ! is block ([]%idspl+1 : []%idspl+[]%nprof)
+#endif
   contains
 
         !----------- overrideable procedures -----------------------------------
-    procedure, nopass:: header_read  => obsHeader_read_         ! read a header
-    procedure, nopass:: header_write => obsHeader_write_        ! write a header
+    procedure, nopass:: headerRead  => obsHeader_read_         ! read a header
+    procedure, nopass:: headerWrite => obsHeader_write_        ! write a header
 
     procedure:: init  => init_                                  ! initialize a node
     procedure:: clean => clean_                                 ! clean a node
@@ -74,6 +79,9 @@ module m_obsNode
   end type obsNode
 
 !-- module procedures, such as base-specific operations
+
+  public:: obsNode_clean
+        interface obsNode_clean; module procedure deepclean_; end interface
 
         ! Nodes operations
   public:: obsNode_next         ! nextNode => obsNode_next (thisNode)
@@ -100,13 +108,16 @@ module m_obsNode
         interface obsNode_read   ; module procedure read_   ; end interface
         interface obsNode_write  ; module procedure write_  ; end interface
 
-  public:: obsNode_show         ! call obsNode_init(aNode)
+  public:: obsNode_show         ! call obsNode_show(aNode)
         interface obsNode_show   ; module procedure show_   ; end interface
+
+  public:: obsNode_mytype       ! call obsNode_type(aNode)
+        interface obsNode_mytype ; module procedure nodetype_   ; end interface
 
   abstract interface
     subroutine intrfc_xread_(aNode,iunit,istat,diagLookup,skip)
       use kinds,only: i_kind
-      use obsmod, only: obs_diags
+      use m_obsdiagNode, only: obs_diags
       import:: obsNode
       implicit none
       class(obsNode), intent(inout):: aNode
@@ -173,26 +184,33 @@ module m_obsNode
 #include "myassert.H"
 
 contains
-
 function next_(aNode) result(here_)
 !-- associate to thisNode%llpoint.
   implicit none
   class(obsNode),pointer:: here_
   class(obsNode),target,intent(in):: aNode
+
+  character(len=*),parameter :: myname_=myname//'::next_'
+_ENTRY_(myname_)
+        !!! trying to go next on a null reference is a serious logical error.
   here_ => aNode%llpoint
+_EXIT_(myname_)
+return
 end function next_
 
 subroutine append_(thisNode,targetNode,follow)
 !-- append targetNode to thisNode%llpoint, or thisNode if .not.associated(thisNode)
   implicit none
   class(obsNode),pointer ,intent(inout):: thisNode
-  class(obsNode),target  ,intent(in   ):: targetNode
+  class(obsNode),pointer ,intent(in   ):: targetNode
   logical       ,optional,intent(in):: follow  ! Follow targetNode%llpoint to its last node.
                                                ! The default is to nullify(thisNode%llpoint)
 
   character(len=*),parameter:: myname_=myname//"::append_"
   logical:: follow_
 _ENTRY_(myname_)
+        ASSERT(associated(targetNode))     ! verify for any exception.
+
   follow_=.false.
   if(present(follow)) follow_=follow
 
@@ -435,7 +453,7 @@ subroutine clean_(aNode)
 ! subprogram:    clean_
 !   prgmmr:      J. Guo
 !
-! abstract: clean a node
+! abstract: a shallow node clean
 !
 ! program history log:
 !   2015-01-12  guo     - constructed for generic obsNode
@@ -455,10 +473,124 @@ subroutine clean_(aNode)
   character(len=*),parameter:: myname_=MYNAME//'::clean_'
 _ENTRY_(myname_)
 !_TRACEV_(myname_,'%mytype() =',aNode%mytype())
-  call init_(aNode)
+  call anode%init()
 _EXIT_(myname_)
 return
 end subroutine clean_
+
+subroutine deepclean_(aNode,deep,depth,stat)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:	 subroutine deepclean_
+!   prgmmr:	 j guo <jguo@nasa.gov>
+!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 610.3
+!     date:	 2018-04-11
+!
+! abstract: a deep node clean
+!
+! program history log:
+!   2018-04-11  j guo   - added this document block
+!
+!   input argument list: see Fortran 90 style document below
+!
+!   output argument list: see Fortran 90 style document below
+!
+! attributes:
+!   language: Fortran 90 and/or above
+!   machine:
+!
+!$$$  end subprogram documentation block
+
+  implicit none
+  class(obsNode ),pointer ,intent(inout):: aNode
+  logical        ,optional,intent(in ):: deep   ! with deep=.true., the full
+                                                ! linked-list headed by aNode
+                                                ! will be "deep" cleaned.
+  integer(i_kind),optional,intent(out):: depth  ! depth of deep-cleaned nodes at
+                                                ! the return.  zero is expected
+                                                ! unless in an error.
+  integer(i_kind),optional,intent(out):: stat   ! status return.
+
+  character(len=*),parameter:: myname_=MYNAME//'::deepclean_'
+  integer(i_kind):: ier,depth_
+  logical:: deep_
+
+  if(present(depth)) depth=0
+  if(present(stat )) stat=0
+
+  if(.not.associated(aNode)) return
+
+  deep_=.false.
+  if(present(deep )) deep_=deep
+
+  if(deep_) then
+    depth_=0
+    call recurs_nodeclean_(aNode,depth_,ier)
+    if(present(depth)) depth=depth_
+
+        if(ier/=0) then
+          call perr(myname_,'recurs_nodeclean_(), stat =',ier)
+          call perr(myname_,'                    depth =',depth_)
+          call perr(myname_,'           aNode%mytype() =',nodetype_(aNode))
+          if(.not.present(stat)) call die(myname_)
+          stat=ier
+          return
+        endif
+
+  else
+    ! Full-clean aNode itself, but not %llpoint.  This includes any dynamic
+    ! component of aNode defined in its type/endtype block.
+    call aNode%clean()
+  endif
+
+return
+end subroutine deepclean_
+
+recursive subroutine recurs_nodeclean_(aNode,depth,stat)
+  implicit none
+  class(obsNode),pointer,intent(inout):: aNode
+        ! This routine intends to fully erase the contents of argument aNode,
+        ! but not the storage of it.  A target attribute is used to prevent any
+        ! attempt to deallocate.  Also see step (2) and (4) below.
+  integer(i_kind),intent(inout):: depth
+  integer(i_kind),intent(  out):: stat
+
+  character(len=*),parameter:: myname_=MYNAME//"::recurs_nodeclean_"
+
+  stat=0
+  if(associated(aNode)) then
+
+    if(associated(aNode%llpoint)) then
+      depth=depth+1
+
+    ! (1) deep-clean the target of %llpoint, a level deeper than aNode.
+
+      call recurs_nodeclean_(aNode%llpoint,depth,stat)
+        if(stat/=0) return
+
+    ! (2) deallocate %llpoint to release the memory associated with it.  This is
+    !     in concert with step (4) below.
+
+      deallocate(aNode%llpoint,stat=stat)
+        if(stat/=0) then
+          call perr(myname_,"deallocate(aNode%llpoint), stat =",stat)
+          call perr(myname_,'                          depth =',depth)
+          return
+        endif
+
+      depth=depth-1
+    endif
+
+    ! (3) full-clean aNode itself other than %llpoint, including any its dynamic
+    !     component defined in its type/endtype block.
+
+    call aNode%clean()
+
+    ! (4) memory storage of aNode itself is NOT expected to be deallocated.
+    !     This is in concert with step (2) above.
+  endif
+return
+end subroutine recurs_nodeclean_
 
 subroutine read_(aNode,iunit,istat,redistr,diagLookup)
 !$$$  subprogram documentation block
@@ -481,8 +613,8 @@ subroutine read_(aNode,iunit,istat,redistr,diagLookup)
 !
 !$$$ end documentation block
   use m_obsdiagNode, only: obsdiagLookup_locate
-  use obsmod, only: obs_diag
-  use obsmod, only: obs_diags
+  use m_obsdiagNode, only: obs_diag
+  use m_obsdiagNode, only: obs_diags
   implicit none
   class(obsNode),intent(inout):: aNode
   integer(i_kind),intent(in   ):: iunit
@@ -557,7 +689,6 @@ _ENTRY_(myname_)
 
   jstat=0
   write(junit,iostat=jstat) aNode%luse,aNode%time,aNode%elat,aNode%elon, &
-                            !aNode%dlat,aNode%dlon, &
                             aNode%idv,aNode%iob
                 if(jstat/=0) then
                   call perr(myname_,'write(%(luse,elat,elon,...)), jstat =',jstat)
@@ -609,5 +740,14 @@ _ENTRY_(myname_)
 _EXIT_(myname_)
 return
 end subroutine show_
+
+function nodetype_(aNode)
+!-- Return its type information, even when the argument is a NULL.
+  implicit none
+  character(len=:),allocatable:: nodetype_
+  class(obsNode),pointer,intent(in):: aNode
+  nodetype_=".null.[obsNode]"
+  if(associated(aNode)) nodetype_=aNode%mytype()
+end function nodetype_
 
 end module m_obsNode

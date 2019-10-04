@@ -30,6 +30,7 @@ use m_obsNode, only: obsNode
 use m_tcpNode, only: tcpNode
 use m_tcpNode, only: tcpNode_typecast
 use m_tcpNode, only: tcpNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -120,9 +121,11 @@ subroutine inttcp_(tcphead,rval,sval)
      if(luse_obsdiag)then
         if (lsaveobsens) then
            grad = val*tcpptr%raterr2*tcpptr%err2
-           tcpptr%diags%obssen(jiter) = grad
+           !-- tcpptr%diags%obssen(jiter) = grad
+           call obsdiagNode_set(tcpptr%diags,jiter=jiter,obssen=grad)
         else
-           if (tcpptr%luse) tcpptr%diags%tldepart(jiter)=val
+           !-- if (tcpptr%luse) tcpptr%diags%tldepart(jiter)=val
+           if (tcpptr%luse) call obsdiagNode_set(tcpptr%diags,jiter=jiter,tldepart=val)
         endif
      endif
 

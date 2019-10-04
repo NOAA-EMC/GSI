@@ -43,18 +43,17 @@ bcen=80
 chan_set=0
 #Have the radstats already been processed? 1 for yes, 0 for no
 radstats_processed=1
-#radstat version
-#rver=30303, emissivity predictor is added
-#rver=40000, ens spread and optional jacobian added
-rver=40000
-
+#netcdf or binary diag files-0 for binary, 1 for netcdf
+netcdf=0
 ndate=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/util/exec/ndate
+#ndate=/gpfs/dell2/emc/modeling/noscrub/Kristen.Bathmann/ndate
+
 ####################
 
 cdate=$bdate
 [ ! -d ${wrkdir} ] && mkdir ${wrkdir}
 [ ! -d ${savdir} ] && mkdir ${savdir}
-cp cov_calc $wrkdir
+cp ../../exec/cov_calc $wrkdir
 nt=0
 ntt=0
 cd $wrkdir
@@ -65,6 +64,11 @@ while [[ $cdate -le $edate ]] ; do
         break
      fi
    done
+   if [ $netcdf -gt 0 ] ; then
+      fil=${cdate}.nc4
+   else
+      fil=${cdate}
+   fi
    nt=`expr $nt + 1`
    if [ $nt -lt 10 ] ; then
       fon=000$nt
@@ -79,13 +83,13 @@ while [[ $cdate -le $edate ]] ; do
       if [ ! -f danl_${fon} ];
       then
          cp $diagdir/radstat.gdas.$cdate .
-         tar --extract --file=radstat.gdas.${cdate} diag_${instr}_ges.${cdate}.gz diag_${instr}_anl.${cdate}.gz
+         tar --extract --file=radstat.gdas.${cdate} diag_${instr}_ges.${fil}.gz diag_${instr}_anl.${fil}.gz
          gunzip *.gz
          rm radstat.gdas.$cdate
-         if [ -f diag_${instr}_ges.${cdate} ];
+         if [ -f diag_${instr}_ges.${fil} ];
          then
-            mv diag_${instr}_anl.${cdate} danl_${fon}
-            mv diag_${instr}_ges.${cdate} dges_${fon}
+            mv diag_${instr}_anl.${fil} danl_${fon}
+            mv diag_${instr}_ges.${fil} dges_${fon}
          else
             nt=`expr $nt - 1`
          fi
@@ -99,7 +103,7 @@ while [[ $cdate -le $edate ]] ; do
    cdate=`$ndate +06 $cdate`
 done
 ./cov_calc <<EOF
-$ntt $type $cloud $angle $instr $wave_out $err_out $corr_out $kreq $method $cov_method $chan_set $time_sep $bsize $bcen $rver
+$ntt $type $cloud $angle $instr $wave_out $err_out $corr_out $kreq $method $cov_method $chan_set $time_sep $bsize $bcen $netcdf
 EOF
 
 cp Rcov_$instr $savdir

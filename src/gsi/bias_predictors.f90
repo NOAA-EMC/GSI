@@ -12,6 +12,10 @@ module bias_predictors
 !   2012-07-13  todling - add read and write
 !   2013-05-21  zhu    - add aircraft temperature bias correction coefficients
 !   2014-02-07  todling - move bias preds update inside this module
+!   2018-08-10  guo     - added a []_getdim() interface.
+!   2018-11-29  guo     - replaced CRTM:file_utility::get_lun() with a new but
+!                         standard Fortran open(newunit=iunit)
+!
 !
 ! subroutines included:
 !   sub setup_predictors
@@ -31,7 +35,6 @@ module bias_predictors
 
 use kinds, only: r_kind,i_kind
 use constants, only : zero
-use file_utility, only : get_lun
 
 implicit none
 save
@@ -39,6 +42,8 @@ private
 public predictors, allocate_preds, deallocate_preds, &
      assignment(=), setup_predictors, read_preds, write_preds, &
      update_bias_preds
+
+public:: predictors_getdim
 
 type predictors
    real(r_kind), pointer :: values(:) => NULL()
@@ -50,7 +55,7 @@ type predictors
    logical :: lallocated = .false.
 end type predictors
 
-integer(i_kind) :: nrclen,nsclen,npclen,ntclen
+integer(i_kind),save :: nrclen,nsclen,npclen,ntclen
 
 logical :: llinit = .false.
 
@@ -97,6 +102,38 @@ subroutine setup_predictors(krclen,ksclen,kpclen,ktclen)
 
   return
 end subroutine setup_predictors
+
+subroutine predictors_getdim(lbnd_r,ubnd_r,size_r, &
+                             lbnd_s,ubnd_s,size_s, &
+                             lbnd_p,ubnd_p,size_p, &
+                             lbnd_t,ubnd_t,size_t  )
+  implicit none
+  integer(i_kind),optional,intent(out):: lbnd_r,ubnd_r,size_r
+  integer(i_kind),optional,intent(out):: lbnd_s,ubnd_s,size_s
+  integer(i_kind),optional,intent(out):: lbnd_p,ubnd_p,size_p
+  integer(i_kind),optional,intent(out):: lbnd_t,ubnd_t,size_t
+
+! total size of all predictors, (lbnd_r:ubnd_r) == (1 : size_r)
+  if(present(lbnd_r)) lbnd_r=1
+  if(present(ubnd_r)) ubnd_r=nrclen
+  if(present(size_r)) size_r=nrclen
+
+! size of rad predictors, (lbnd_s:ubnd_s) == (1 : size_s)
+  if(present(lbnd_s)) lbnd_s=1
+  if(present(ubnd_s)) ubnd_s=nsclen
+  if(present(size_s)) size_s=nsclen
+
+! size of q predictors, (lbnd_p:ubnd_p) == ubnd_s + (1:size_p)
+  if(present(lbnd_p)) lbnd_p=nsclen+1
+  if(present(ubnd_p)) ubnd_p=nsclen+npclen
+  if(present(size_p)) size_p=npclen
+
+! size of t predictors, (lbnd_t:ubnd_t) == ubnd_p+ (1:size_t)
+  if(present(lbnd_t)) lbnd_t=nsclen+npclen+1
+  if(present(ubnd_t)) ubnd_t=nsclen+npclen+ntclen
+  if(present(size_t)) size_t=ntclen
+
+end subroutine predictors_getdim
 ! ----------------------------------------------------------------------
 subroutine allocate_preds(yst)
 !$$$  subprogram documentation block
@@ -292,8 +329,7 @@ subroutine read_preds (yst,filename)
   allwell=.true.
   allocate(preds(nsclen),predp(npclen),predt(ntclen))
 
-  iunit=get_lun()
-  open(iunit,file=trim(filename),form='unformatted')
+  open(newunit=iunit,file=trim(filename),form='unformatted')
   read(iunit)nsclen_in,npclen_in,ntclen_in
   if(nsclen_in/=nsclen .or. npclen_in/=npclen) then
      allwell=.false.
@@ -358,9 +394,8 @@ subroutine write_preds (yst,filename,mype)
     predt = yst%values(ii+1:ii+ntclen)
   endif
 
-  iunit=get_lun()
   if (mype==0) then
-     open(iunit,file=trim(filename),form='unformatted')
+     open(newunit=iunit,file=trim(filename),form='unformatted')
      write(iunit)nsclen,npclen,ntclen
      if(ntclen>0) then
         write(iunit)preds,predp,predt

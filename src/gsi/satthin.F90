@@ -41,7 +41,11 @@ module satthin
 !                                 modify to use isli_anl
 !                                 determine sno2 with interpolate, accordingly 
 !                                 use the modified 2d interpolation (sfc_interpolate to intrp22)
-
+!   2018-05-21  j.jin   - add an option for time-thinning. Check time preference (including thin4d) here. 
+!
+!   2019-07-09  todling - revisit Li''s shuffling of nst init, read and final routines
+!   2019-08-08  j.jin   - add a comment block for an example of dtype-wise time-thinning
+!                         configuration through an -info file.
 !
 ! Subroutines Included:
 !   sub makegvals      - set up for superob weighting
@@ -51,12 +55,16 @@ module satthin
 !   sub destroygrids   - deallocate thinning grid arrays
 !   sub destroy_sfc    - deallocate full horizontal surface arrays
 !   sub indexx         - sort array into ascending order
+!   sub tdiff2crit          - get time preference and time cell id in time-thinning
+!   sub radthin_time_info   - read information for time-thinning.
 !
 ! Usecase destription:
 !     read_obs    -->  read_airs, etc
+!   []_radthin_time_info                - read time interval
 !   []_makegvals                        - set up for superob weighting
 !   []_getsfc                           - create full horizontal fields of surface arrays
 !                     []_makegrids      - set up thinning grids
+!                     []_tdiff2crit     - get time preference and time cell id in time-thinning 
 !                     []_map2tgrid      - map observation to location on thinning grid
 !                     []_checkob        - intermediate ob checking to see if it should not be used
 !                     []_finalcheck     - the final criterion check for sat obs and increments counters
@@ -88,6 +96,32 @@ module satthin
 !   def score_crit     - "best" quality obs score in thinning grid box
 !   def use_all        - parameter for turning satellite thinning algorithm off
 !
+! With new time-thinning mechanism, one can configure time-thinning to be device
+! specific through an -info. file, in this form,
+!
+! > rad_time_thinning_options::
+! > ! ptime:      Time interval (hour) for thinning radiance and ozone data.
+! > !             It defines the number of time thinning bins (time_window/ptime).
+! > !             0, only one time thinning bin, by default.
+! > ! ithin_time: Time preference is given 
+! > !             1, (default) at the center time when thin4d=false, or 
+! > !                observation time is ignored when thin4d=true. ptime must be 0.0;
+! > !             2, at the center of time intervals (suppressing thin4d);
+! > !             3, at the end of time intervals (suppressing thin4d);
+! > !             4, at the beginning, middle, and end of the 1st, 2nd,and 3rd two-hour 
+! > !                time interval, respectively. ptime must be 2.0 (suppressing thin4d);
+! > !             5, select observations at random time, and ptime must be 0.0
+! > !                (Only applicable to seviri data, May 2018).
+! > ! ptime=0.0 and ithin_time=1 by default if the observation type is not listed here.
+! > !dtype       dplat       dsis                  ptime   ithin_time
+! >  seviri      m08         seviri_m08            2.0     4
+! >  seviri      m09         seviri_m09            2.0     4
+! >  seviri      m10         seviri_m10            2.0     4
+! >  seviri      m11         seviri_m11            2.0     4
+! > ::
+!   
+! details through an info file.  
+!
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
@@ -96,6 +130,9 @@ module satthin
 
   use kinds, only: r_kind,i_kind,r_quad,r_single
   use mpeu_util, only: die, perr
+  use obsmod, only: time_window_max
+  use constants, only: deg2rad,rearth_equator,zero,two,pi,half,one,&
+       rad2deg,r1000
   implicit none
 
 ! set default to private
@@ -108,6 +145,8 @@ module satthin
   public :: destroygrids
   public :: destroy_sfc
   public :: indexx
+  public :: radthin_time_info
+  public :: tdiff2crit
 ! set passed variables to public
   public :: rlat_min,rlon_min,dlat_grid,dlon_grid,superp,super_val1,super_val
   public :: veg_type_full,soil_type_full,sfc_rough_full,sno_full,sst_full
@@ -116,6 +155,7 @@ module satthin
   public :: checkob,score_crit,itxmax,finalcheck,zs_full_gfs,zs_full
 
   integer(i_kind) mlat,superp,maxthin,itxmax
+  integer(i_kind) itxmax0
   integer(i_kind), save:: itx_all
   integer(i_kind),dimension(0:51):: istart_val
   
@@ -180,6 +220,7 @@ contains
     use constants, only: deg2rad,rearth_equator,zero,two,pi,half,one,&
        rad2deg,r1000
     use obsmod, only: dmesh,dthin,ndat
+    use obsmod, only: dtype,dplat,dsis
     use gridmod, only: regional,nlat,nlon,txy2ll
     use mpeu_util, only: die
     implicit none
@@ -194,11 +235,26 @@ contains
     real(r_kind) twopi,dlon_g,dlat_g,dlon_e,dlat_e
     real(r_kind) factor,delon
     real(r_kind) rkm2dg,glatm,glatx
+    integer(i_kind), allocatable, dimension(:) ::  n_tbin_m1
+    integer(i_kind) :: n_tbin0
+    real(r_kind)    :: ptime
+    integer(i_kind) :: ithin_time
 
 !   Initialize variables, set constants
     maxthin=0
     do i=1,ndat
        maxthin=max(maxthin,abs(dthin(i)))
+    end do
+!   Check if there are any time-thinning 
+    allocate(n_tbin_m1(0:maxthin))
+    n_tbin_m1 = 0
+    do i=1,ndat
+       call radthin_time_info( dtype(i), dplat(i), dsis(i), ptime, ithin_time)
+       if( ptime > 0.0_r_kind ) then
+         n_tbin0 = nint(2*time_window_max/ptime) - 1
+         j=abs(dthin(i))
+         n_tbin_m1(j)= max( n_tbin_m1(j), n_tbin0 )
+       endif
     end do
     istart_val=0
     twopi  = two*pi
@@ -270,6 +326,8 @@ contains
              enddo
 
           enddo
+          istart_val(ii+1) = istart_val(ii+1)+ & 
+                             (istart_val(ii+1)-istart_val(ii))*n_tbin_m1(ii)
        end if
     end do
     superp=istart_val(maxthin+1)
@@ -279,12 +337,13 @@ contains
     do i=0,superp
        super_val(i)=zero
     end do
+    deallocate(n_tbin_m1) 
     
     return
   end subroutine makegvals
 
 
-  subroutine makegrids(rmesh,ithin)
+  subroutine makegrids(rmesh,ithin,n_tbin)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    makegrids                            
@@ -305,6 +364,7 @@ contains
 !     rmesh - mesh size (km) of thinning grid.  If (rmesh <= one), 
 !             then no thinning of the data will occur.  Instead,
 !             all data will be used without thinning.
+!     n_tbin - (optional) number of time intervals.
 !
 !   output argument list:
 !
@@ -319,6 +379,7 @@ contains
 
     real(r_kind)   ,intent(in   ) :: rmesh
     integer(i_kind),intent(in   ) :: ithin
+    integer(i_kind),intent(in   ), optional :: n_tbin 
     real(r_kind),parameter:: r360 = 360.0_r_kind
     integer(i_kind) i,j
     integer(i_kind) mlonx,mlonj
@@ -392,6 +453,10 @@ contains
 
     end do
 
+    if (present(n_tbin)) then
+        itxmax0 = itxmax 
+        itxmax  = itxmax0 * n_tbin
+    endif
 
 !   Allocate  and initialize arrays
     allocate(icount(itxmax))
@@ -461,7 +526,7 @@ contains
     use ncepnems_io, only: read_nemssfc,intrp22,read_nemssfc_anl
     use sfcio_module, only: sfcio_realfill
     use obsmod, only: lobserver
-    use gsi_nstcouplermod, only: nst_gsi,gsi_nstcoupler_init,gsi_nstcoupler_read
+    use gsi_nstcouplermod, only: nst_gsi,gsi_nstcoupler_read
     use gsi_nstcouplermod, only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
                                  c_0_full,c_d_full,w_0_full,w_d_full
     use gsi_metguess_mod, only: gsi_metguess_bundle
@@ -503,23 +568,15 @@ contains
 !   if(mype == 0)write(6,*)'GETSFC: set nlat_sfc,nlon_sfc=',nlat_sfc,nlon_sfc
     allocate(rlats_sfc(nlat_sfc),rlons_sfc(nlon_sfc))
 
-    allocate(isli_full(nlat_sfc,nlon_sfc),fact10_full(nlat_sfc,nlon_sfc,nfldsfc))
-    allocate(sst_full(nlat_sfc,nlon_sfc,nfldsfc),sno_full(nlat_sfc,nlon_sfc,nfldsfc))
-    allocate(zs_full(nlat,nlon))
-    allocate(sfc_rough_full(nlat_sfc,nlon_sfc,nfldsfc))
     allocate(isli_anl(nlat,nlon))
     allocate(sno_anl(nlat,nlon,nfldsfc))
 
-    allocate(soil_moi_full(nlat_sfc,nlon_sfc,nfldsfc),soil_temp_full(nlat_sfc,nlon_sfc,nfldsfc))
-    allocate(veg_frac_full(nlat_sfc,nlon_sfc,nfldsfc),soil_type_full(nlat_sfc,nlon_sfc))
-    allocate(veg_type_full(nlat_sfc,nlon_sfc))
+    call create_sfc
 
     do j=1,lon1*lat1
        zsm(j)=zero
     end do
 
-!   Create full horizontal nst arrays
-    if (nst_gsi > 0) call gsi_nstcoupler_init()
 
 !  Global read
 #ifndef HAVE_ESMF
@@ -544,8 +601,6 @@ contains
           rlats_sfc(nlat_sfc)=half*pi
           deallocate(slatx,wlatx)
        end if
-
-       allocate(zs_full_gfs(nlat_sfc,nlon_sfc))
 
        if ( use_gfs_nemsio ) then
 
@@ -621,6 +676,13 @@ contains
        end if
 
     else                   ! for regional 
+#else /* HAVE_ESMF */
+!
+!      read NSST variables while .not. sfcnst_comb (in sigio or nemsio)
+!
+       if (nst_gsi > 0 .and. .not. sfcnst_comb) then
+          call gsi_nstcoupler_read(mype_io)         ! Read NST fields (each proc needs full NST fields)
+       endif
 #endif /* HAVE_ESMF */
 
        it=ntguessfc
@@ -866,7 +928,7 @@ contains
 
   end subroutine getsfc
 
-  subroutine map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+  subroutine map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,it_mesh)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    map2tgrid
@@ -885,6 +947,7 @@ contains
 !     crit1      - quality indicator for observation (smaller = better)
 !     ithin      - number of obs to retain per thinning grid box
 !     sis        - sensor/instrument/satellite
+!     it_mesh    - time meth id 
 !
 !   output argument list:
 !     itx   - combined (i,j) index of observation on thinning grid
@@ -903,9 +966,11 @@ contains
     logical        ,intent(  out) :: iuse
     integer(i_kind),intent(in   ) :: ithin
     integer(i_kind),intent(  out) :: itt,itx
-    real(r_kind)   ,intent(in   ) :: dlat_earth,dlon_earth,crit1
+    real(r_kind)   ,intent(in   ) :: dlat_earth,dlon_earth
+    real(r_kind)   ,intent(inout) :: crit1
     real(r_kind)   ,intent(  out) :: dist1
     character(20)  ,intent(in   ) :: sis
+    integer(i_kind),intent(in   ), optional :: it_mesh
 
     integer(i_kind) ix,iy
     real(r_kind) dlat1,dlon1,dx,dy,dxx,dyy
@@ -945,6 +1010,10 @@ contains
     dyy=half-min(dy,one-dy)
     dist1=dxx*dxx+dyy*dyy+half
     itx=hll(ix,iy)
+!   time mesh
+    if( present(it_mesh)  ) then
+       itx=itx+it_mesh*itxmax0
+    endif
     itt=istart_val(ithin)+itx
     if(ithin == 0) itt=0
 
@@ -1091,6 +1160,52 @@ contains
     return
   end subroutine destroygrids
 
+  subroutine create_sfc
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    create_sfc
+!     prgmmr:    todling     org: np23            date: 2019-07-09
+!
+! abstract:  This deallocate surface arrays
+!
+! program history log:
+!   2019=07-09  todling
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
+    use gridmod, only: nlat,nlon,nlat_sfc,nlon_sfc
+    use guess_grids, only: nfldsfc
+    use gsi_nstcouplermod, only: nst_gsi,gsi_nstcoupler_init,gsi_nstcoupler_read
+    implicit none
+
+#ifndef HAVE_ESMF
+    allocate(zs_full_gfs(nlat_sfc,nlon_sfc))
+#endif /* HAVE_ESMF */
+    allocate(sfc_rough_full(nlat_sfc,nlon_sfc,nfldsfc))
+    allocate(zs_full(nlat,nlon))
+    allocate(soil_moi_full(nlat_sfc,nlon_sfc,nfldsfc))
+    allocate(soil_temp_full(nlat_sfc,nlon_sfc,nfldsfc))
+    allocate(veg_frac_full(nlat_sfc,nlon_sfc,nfldsfc))
+    allocate(soil_type_full(nlat_sfc,nlon_sfc))
+    allocate(veg_type_full(nlat_sfc,nlon_sfc))
+    allocate(isli_full(nlat_sfc,nlon_sfc))
+    allocate(fact10_full(nlat_sfc,nlon_sfc,nfldsfc))
+    allocate(sno_full(nlat_sfc,nlon_sfc,nfldsfc))
+    allocate(sst_full(nlat_sfc,nlon_sfc,nfldsfc))
+
+!   Create full horizontal nst arrays
+    if (nst_gsi > 0) call gsi_nstcoupler_init()
+
+    return
+  end subroutine create_sfc
+
   subroutine destroy_sfc
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1111,7 +1226,10 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
+    use gsi_nstcouplermod, only: nst_gsi,gsi_nstcoupler_final
     implicit none
+
+    if (nst_gsi > 0) call gsi_nstcoupler_final()
 
     if(allocated(sst_full))deallocate(sst_full)
     if(allocated(sno_full))deallocate(sno_full)
@@ -1124,7 +1242,9 @@ contains
     if(allocated(soil_moi_full))deallocate(soil_moi_full)
     if(allocated(zs_full))deallocate(zs_full)
     if(allocated(sfc_rough_full))deallocate(sfc_rough_full)
+#ifndef HAVE_ESMF
     if(allocated(zs_full_gfs)) deallocate(zs_full_gfs)
+#endif /* HAVE_ESMF */
 
     return
   end subroutine destroy_sfc
@@ -1268,5 +1388,152 @@ contains
     end do loop0
 #endif
   end subroutine indexx
+
+  subroutine tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
+
+!$$$ 
+! Abstract:  Get time preference and time cell id in time-thinning.
+! Program history log:
+!   2018-05-18   j.jin      - initial code.
+! 
+!$$$ 
+!Inputs
+!     tdiff         - observational time minus gsttime.
+!     ptime         - thinning time interval
+!     ltin_time     - id for time preference
+!     timeinflat    - a factor to inflat time difference.
+!     crit0         - an added value to crit
+!Outputs
+!     crit1         - thinning crit
+!     it_mesh       - time cell id 
+
+    use constants, only: tiny_r_kind
+    use gsi_4dvar, only: thin4d 
+    implicit none
+    integer(i_kind),intent(in   ) :: ithin_time
+    real(r_kind)   ,intent(in   ) :: tdiff,ptime,timeinflat
+    real(r_kind)   ,intent(in   ) :: crit0
+    real(r_kind)   ,intent(out  ) :: crit1
+    integer(i_kind),intent(out  ) :: it_mesh
+
+    real(r_kind)     :: crita, critb, ptimeb, crit0_
+
+    if( ptime > 0.0_r_kind) then
+       crita=min(tdiff, time_window_max-tiny_r_kind)
+       it_mesh=int((crita+time_window_max)/ptime)
+       ptimeb=ptime
+    else
+       it_mesh=0
+       ptimeb=2*time_window_max
+    endif
+    critb=tdiff+time_window_max
+
+    select case (ithin_time)
+       case (1)
+          if (thin4d) then
+             crit1=zero
+          else
+             crit1=abs(tdiff)   ! .eqv. ithin_time==5
+          endif
+       case (2)
+          crit1=abs(critb-(it_mesh+0.5_r_kind)*ptimeb)
+       case (3)
+          crit1=abs(critb-(it_mesh+1_r_kind)*ptimeb)
+       case (4) 
+          crit1=abs(critb-it_mesh*time_window_max)
+       case (5)
+          crit1=abs(tdiff)      ! .eqv. ithin_time==1 .and. .not.thin4d
+    end select
+
+    crit0_=crit0
+    crit0_=max(crit0_, 0.01_r_kind)     ! This fixes a problem in some
+                                        ! obs-reader code, where a minimum
+                                        ! crit0 is set to 0, such that obs
+                                        ! thinning is limitted to a first-
+                                        ! come-first-serve situation.
+    crit1=crit0_+crit1*timeinflat
+  end subroutine tdiff2crit
+
+  subroutine radthin_time_info(obstype, platid, sis, ptime, ithin_time)
+
+!$$$ 
+! Abstract:  Read time-thinning options for radiance and ozone data.
+! Program history log:
+!   2018-05-10   j.jin      - initial code.
+! 
+!$$$ 
+
+! Inputs
+!   obstype     - observation type to process
+!   platid      - satellite indicator
+!   sis         - satellite_instrument/sensor indicator
+! Outputs
+!   ptime       - time interval 
+!   ithin_time  - indicator of time preference  
+!
+  use kinds, only: r_kind,i_kind
+  use file_utility, only: get_lun
+  use mpeu_util, only: gettablesize, gettable, die
+
+  character(len=*),intent(in):: obstype,platid,sis
+  real(r_kind),intent(out)   :: ptime
+  integer(i_kind),intent(out):: ithin_time
+
+  character(len=*),parameter:: rcname='anavinfo' 
+  character(len=*),parameter:: tbname='rad_time_thinning_options::'
+  integer(i_kind) luin,ii,ntot, nvars
+  character(len=256),allocatable,dimension(:):: utable
+  character(len=20) :: dtype_info, dplat_info, dsis_info
+  real(r_kind)   :: ptime_info
+  integer(i_kind):: ithin_time_info
+
+
+! default outputs
+  ptime=0.0_r_kind
+  ithin_time=1
+
+! load file
+  luin=get_lun()
+  open(luin,file=rcname,form='formatted')
+! Scan file for desired table first
+! and get size of table
+  call gettablesize(tbname,luin,ntot,nvars)
+  if(nvars<=0) then
+     close(luin)
+     return
+  endif
+! Get contents of table
+  allocate(utable(nvars))
+  call gettable(tbname,luin,ntot,nvars,utable)
+! release file unit
+  close(luin)
+
+  do ii=1, nvars
+     read(utable(ii),*) dtype_info, dplat_info, dsis_info, ptime_info, ithin_time_info
+     if( obstype == trim(dtype_info) ) then
+        if( platid == trim(dplat_info) ) then
+            if( sis == trim(dsis_info) ) then
+               ptime = ptime_info
+               ithin_time = ithin_time_info
+            endif
+        endif
+     endif
+  enddo
+  deallocate(utable)
+
+! Check the settings
+  if( ithin_time == 1 .or. ithin_time == 5 ) then 
+     if( ptime /= 0.0_r_kind ) then
+        call die("satthin.F90 (subroutine radthin_time_info)", &
+            "ithin_time=1 or 5 requires ptime=0.0"  )
+     endif
+  else if( ithin_time == 4) then 
+     if( ptime /= 2.0_r_kind .or. time_window_max /= 3.0_r_kind ) then
+        call die("satthin.F90 (subroutine radthin_time_info)", &
+            "ithin_time=4 requires ptime=2.0 and time_window_max=3.0" )
+     endif
+  endif
+
+  end subroutine radthin_time_info
 
 end module satthin

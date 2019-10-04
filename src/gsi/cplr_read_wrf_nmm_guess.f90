@@ -1728,7 +1728,7 @@ contains
     use control_vectors, only: cvars3d
     use cloud_efr_mod, only: cloud_calc,cloud_calc_gfs
     use obsmod,only: if_model_dbz
-    use control_vectors, only : dbz_exist
+    use wrf_vars_mod, only : dbz_exist
     implicit none
   
   ! Declare passed variables here

@@ -63,6 +63,7 @@ subroutine gsisub(init_pass,last_pass)
 !   2016-07-28  lippi   - add oneobmakerwsupob if 'rw' single ob test and skips radar_bufr_read_all.
 !   2018-02-15  wu      - add code for fv3_regional option
 !   2018-01-04  Apodaca - add lightinfo_read call for GOES/GLM lightning observations  
+!   2018-07-24  W. Gu   - move routine corr_ob_initialize/finalize from radinfo
 !
 !   input argument list:
 !
@@ -80,6 +81,7 @@ subroutine gsisub(init_pass,last_pass)
   use gridmod, only: wrf_mass_regional,wrf_nmm_regional,nems_nmmb_regional,cmaq_regional
   use mpimod, only: mype,npe,mpi_comm_world,ierror
   use radinfo, only: radinfo_read
+  use correlated_obsmod, only: corr_ob_initialize,corr_ob_finalize
   use pcpinfo, only: pcpinfo_read,create_pcp_random,&
        destroy_pcp_random
   use aeroinfo, only: aeroinfo_read
@@ -93,7 +95,6 @@ subroutine gsisub(init_pass,last_pass)
      aircraft_t_bc_ext
   use radiance_mod, only: radiance_obstype_init,radiance_parameter_cloudy_init,radiance_parameter_aerosol_init
   use gsi_io, only: verbose
-  use jfunc, only: miter
 #ifndef HAVE_ESMF
   use guess_grids, only: destroy_gesfinfo
 #endif
@@ -151,7 +152,8 @@ subroutine gsisub(init_pass,last_pass)
 ! Read info files for assimilation of various obs
   if (init_pass) then
      if (.not.twodvar_regional) then
-        call radinfo_read(miter)
+        call radinfo_read
+        call corr_ob_initialize
         call radiance_obstype_init
         call radiance_parameter_cloudy_init
         call ozinfo_read
@@ -202,6 +204,7 @@ subroutine gsisub(init_pass,last_pass)
   
   if(last_pass) then
 !    Deallocate arrays
+     call corr_ob_finalize
      call destroy_pcp_random
 #ifndef HAVE_ESMF
      call destroy_grid_vars

@@ -4,7 +4,7 @@
 
 module obs_tools
 
-use kinds, only: r_kind,i_kind
+use ckinds, only: r_kind,i_kind
 
 implicit none
 public:: cdist
@@ -16,7 +16,7 @@ subroutine cdist(po1,po2,dist)
 !This function takes two points, whose positions are specified by a latitude and
 !longitude, and computes the distance, in km, between the two by converting to
 !cartesian coordinates
-use constants, only: rad, pi
+use cconstants, only: rad, pi
 implicit none
 real(r_kind),dimension(2),intent(in):: po1,po2       !the two points, given by (lat,lon)
 real(r_kind), intent(out):: dist

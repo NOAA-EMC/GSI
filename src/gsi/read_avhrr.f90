@@ -46,6 +46,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 !                         add check: bufsat(jsatid) == satellite id
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !   2015-10-01  guo     - consolidate use of ob location (in deg)
+!   2018-05-21  j.jin   - added time-thinning. Moved the checking of thin4d into satthin.F90.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -75,12 +76,14 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
                      checkob, finalcheck,score_crit
+  use satthin, only: radthin_time_info,tdiff2crit
+  use obsmod,  only: time_window_max
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad, zero, one, two, half, rad2deg, r60inv
 ! use radinfo, only: cbias,predx,air_rad,ang_rad,newpc4pred
   use radinfo, only: retrieval,iuse_rad,jpch_rad,nusis, &
                      newchn
-  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc
   use obsmod, only: bmiss
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
@@ -135,7 +138,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   integer(i_kind) nlat_sst,nlon_sst
   integer(i_kind) ksatid
 
-  real(r_kind) dlon,dlat,timedif,rsc
+  real(r_kind) dlon,dlat,rsc
   real(r_kind) dlon_earth,dlat_earth,sfcr
   real(r_kind) dlon_earth_deg,dlat_earth_deg
   real(r_kind) w00,w01,w10,w11,dx1,dy1
@@ -166,6 +169,8 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 ! real(r_kind), dimension(3,2) :: bandcor_a,bandcor_b
 ! data bandcor_a/-1.70686_r_kind,-0.27201_r_kind,-0.30949_r_kind,-1.70388_r_kind,-0.43725_r_kind,-0.25342_r_kind/
 ! data bandcor_b/1.002629_r_kind,1.001207_r_kind,1.000989_r_kind,1.003049_r_kind,1.001395_r_kind,1.000944_r_kind/
+  real(r_kind)    :: ptime,timeinflat,crit0
+  integer(i_kind) :: ithin_time,n_tbin,it_mesh
 
 
 !**************************************************************************
@@ -227,8 +232,14 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   if (.not.assim) val_avhrr=zero
 
 
+  call radthin_time_info(obstype, jsatid, sis, ptime, ithin_time)
+  if( ptime > 0.0_r_kind) then
+     n_tbin=nint(2*time_window_max/ptime)
+  else
+     n_tbin=1
+  endif
 ! Make thinning grids
-  call makegrids(rmesh,ithin)
+  call makegrids(rmesh,ithin,n_tbin=n_tbin)
 
 
 ! Read hi-res sst analysis
@@ -334,14 +345,10 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 
         nread = nread + 1
 
-        if (thin4d) then
-           crit1 = 0.01_r_kind
-        else
-           timedif = r6*abs(tdiff)        ! range:  0 to 18
-           crit1 = 0.01_r_kind+timedif
-        endif
-        call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
-
+        crit0 = 0.01_r_kind
+        timeinflat=6.0_r_kind
+        call tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
+        call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,it_mesh=it_mesh)
         if(.not. iuse)cycle read_loop
 
 !       Interpolate hi-res sst analysis to observation location

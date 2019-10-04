@@ -16,6 +16,8 @@ module jcmod
 !   2007-10-18  tremolet - added Jc DFI option
 !   2012-02-08  kleist - add parameter ljc4tlevs 
 !   2013-05-15  todling - add knobs to control constraint on total water
+!   2018-05-19  eliu - add logic (ljclimqc) for limiting negative hydrometeors 
+!                      as a weak constraint
 !
 ! subroutines included:
 !   sub init_jcvars          - initialize Jc related variables
@@ -45,8 +47,9 @@ module jcmod
 ! set passed variables to public
   public :: ljcdfi,alphajc,wgtdfi,bamp_jcpdry,ljcpdry,eps_eer
   public :: ljc4tlevs
+  public :: ljclimqc  
 
-  logical ljcdfi,ljcpdry,ljc4tlevs
+  logical ljcdfi,ljcpdry,ljc4tlevs,ljclimqc 
   real(r_kind) alphajc,bamp_jcpdry,eps_eer
   real(r_kind),allocatable :: wgtdfi(:)
 
@@ -79,6 +82,7 @@ contains
     implicit none
 
 ! load defaults for non-allocatable arrays
+    ljclimqc=.false. 
     ljcdfi=.false.
     ljcpdry=.false.
     ljc4tlevs=.false.

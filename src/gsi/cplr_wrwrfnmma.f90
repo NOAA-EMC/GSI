@@ -1130,7 +1130,7 @@ contains
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype,mpi_integer4,mpi_min,mpi_max,mpi_sum
     use gsi_4dvar, only: nhr_assimilation
     use gsi_nemsio_mod, only: gsi_nemsio_update,gsi_nemsio_write_fraction,gsi_nemsio_write_fractionnew 
-    use control_vectors, only : dbz_exist
+    use wrf_vars_mod, only : dbz_exist
     use obsmod,only: if_model_dbz
     implicit none
   

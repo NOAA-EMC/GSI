@@ -29,6 +29,7 @@ use m_obsNode, only: obsNode
 use m_pcpNode, only: pcpNode
 use m_pcpNode, only: pcpNode_typecast
 use m_pcpNode, only: pcpNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -239,9 +240,11 @@ subroutine intpcp_(pcphead,rval,sval)
      if(luse_obsdiag)then
         if (lsaveobsens) then
            termges_ad = termges_tl*pcpptr%err2*pcpptr%raterr2
-           pcpptr%diags%obssen(jiter) = termges_ad
+           !-- pcpptr%diags%obssen(jiter) = termges_ad
+           call obsdiagNode_set(pcpptr%diags,jiter=jiter,obssen=termges_ad)
         else
-           if (pcpptr%luse) pcpptr%diags%tldepart(jiter)=termges_tl
+           !-- if (pcpptr%luse) pcpptr%diags%tldepart(jiter)=termges_tl
+           if (pcpptr%luse) call obsdiagNode_set(pcpptr%diags,jiter=jiter,tldepart=termges_tl)
         endif
      endif
 

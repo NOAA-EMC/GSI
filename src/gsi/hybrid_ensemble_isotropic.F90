@@ -249,7 +249,8 @@ subroutine init_rf_z(z_len)
 
 !    use new factorization:
 
-  allocate(fmatz(nxy,2,nsig,2),fmat0z(nxy,nsig,2))
+  if(.not.allocated(fmatz))  allocate(fmatz(nxy,2,nsig,2))
+  if(.not.allocated(fmat0z)) allocate(fmat0z(nxy,nsig,2))
   allocate(fmatz_tmp(2,nsig,2),fmat0z_tmp(nsig,2))
 !   for z_len < zero, use abs val z_len and assume localization scale is in units of ln(p)
   if(maxval(z_len) > zero) then
@@ -2535,7 +2536,8 @@ subroutine sqrt_beta_s_mult_cvec(grady)
 !   2010-03-29  kleist   comment out beta_s0 for SST
 !   2010-04-28  todling  update to use gsi_bundle
 !   2011-06-13  wu       used height dependent beta for regional
-!   12-05-2012  el akkraoui  hybrid beta parameters now vertically varying
+!   2012-05-12  el akkraoui  hybrid beta parameters now vertically varying
+!   2015-09-18  todling - add sst_staticB to control use of ensemble SST error covariance 
 !
 !   input argument list:
 !     grady    - input field  grady_x1
@@ -2552,6 +2554,7 @@ subroutine sqrt_beta_s_mult_cvec(grady)
   use gsi_4dvar, only: nsubwin
   use hybrid_ensemble_parameters, only: oz_univ_static
   use hybrid_ensemble_parameters, only: sqrt_beta_s
+  use hybrid_ensemble_parameters, only: sst_staticB
   use constants, only:  one
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use control_vectors,only: control_vector
@@ -2599,7 +2602,13 @@ subroutine sqrt_beta_s_mult_cvec(grady)
         enddo
         do ic2=1,nc2d
            ! Default to static B estimate for SST
-           if ( trim(StrUpCase(cvars2d(ic2))) == 'SST' ) cycle
+           if ( trim(StrUpCase(cvars2d(ic2))) == 'SST' ) then
+              if(sst_staticB) then
+                 cycle
+              else
+                  if(j==1.and.mype==0) write(6,*) myname_, ': scale static SST B-error by ', sqrt_beta_s(1)
+              endif
+           endif
            do i=1,lat2
               grady%step(ii)%r2(ipc2d(ic2))%q(i,j) = sqrt_beta_s(1)*grady%step(ii)%r2(ipc2d(ic2))%q(i,j)
            enddo
@@ -2626,7 +2635,8 @@ subroutine sqrt_beta_s_mult_bundle(grady)
 !   2010-03-29  kleist   comment out sqrt_beta_s for SST
 !   2010-04-28  todling  update to use gsi_bundle
 !   2011-06-13  wu       used height dependent beta for regional
-!   12-05-2012  el akkraoui  hybrid beta parameters now vertically varying
+!   2012-05-12  el akkraoui  hybrid beta parameters now vertically varying
+!   2015-09-18  todling - add sst_staticB to control use of ensemble SST error covariance 
 !
 !   input argument list:
 !     grady    - input field  grady_x1
@@ -2642,6 +2652,7 @@ subroutine sqrt_beta_s_mult_bundle(grady)
   use kinds, only: r_kind,i_kind
   use hybrid_ensemble_parameters, only: oz_univ_static
   use hybrid_ensemble_parameters, only: sqrt_beta_s
+  use hybrid_ensemble_parameters, only: sst_staticB
   use constants, only:  one
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -2688,7 +2699,13 @@ subroutine sqrt_beta_s_mult_bundle(grady)
      enddo
      do ic2=1,nc2d
         ! Default to static B estimate for SST
-        if ( trim(StrUpCase(cvars2d(ic2))) == 'SST' ) cycle
+        if ( trim(StrUpCase(cvars2d(ic2))) == 'SST' ) then
+           if(sst_staticB) then
+              cycle
+           else
+              if(mype==0) write(6,*) myname_, ': scale static SST B-error by ', sqrt_beta_s(1)
+           endif
+        endif
         do i=1,lat2
            grady%r2(ipc2d(ic2))%q(i,j) = sqrt_beta_s(1)*grady%r2(ipc2d(ic2))%q(i,j)
         enddo
@@ -3031,8 +3048,8 @@ subroutine init_sf_xy(jcap_in)
            rkm(1+(grd_sploc%nlat-2)/2), &
           -rkm(grd_sploc%nlat-(grd_sploc%nlat-2)/2)+rkm(1+(grd_sploc%nlat-2)/2),' km'
 
-  allocate(spectral_filter(sp_loc%nc,grd_sploc%nsig))
-  allocate(sqrt_spectral_filter(sp_loc%nc,grd_sploc%nsig))
+  if(.not.allocated(spectral_filter)) allocate(spectral_filter(sp_loc%nc,grd_sploc%nsig))
+  if(.not.allocated(sqrt_spectral_filter)) allocate(sqrt_spectral_filter(sp_loc%nc,grd_sploc%nsig))
   allocate(g(sp_loc%nc),gsave(sp_loc%nc))
   allocate(pn0_npole(0:sp_loc%jcap))
   allocate(ksame(grd_sploc%nsig))
@@ -3127,7 +3144,7 @@ subroutine init_sf_xy(jcap_in)
 
 !  assign array k_index for each processor, based on grd_loc%kbegin_loc,grd_loc%kend_loc
 
-  allocate(k_index(grd_loc%kbegin_loc:grd_loc%kend_alloc))
+  if(.not.allocated(k_index)) allocate(k_index(grd_loc%kbegin_loc:grd_loc%kend_alloc))
   k_index=0
   do k=grd_loc%kbegin_loc,grd_loc%kend_loc
      k_index(k)=1+mod(k-1,grd_loc%nsig)
@@ -4021,7 +4038,7 @@ subroutine hybens_localization_setup
             close(lunin)
             call stop2(123)
          endif
-         if(print_verbose) write(6,'(" LOCALIZATION, BETA_S, BETA_E VERTICAL PROFILES FOLLOW")')
+         if(mype==0) write(6,'(" LOCALIZATION, BETA_S, BETA_E VERTICAL PROFILES FOLLOW")')
          do k = 1,grd_ens%nsig
             read(lunin,101) s_ens_hv(k), s_ens_vv(k), beta_s(k), beta_e(k)
             if(mype==0) write(6,101) s_ens_hv(k), s_ens_vv(k), beta_s(k), beta_e(k)
@@ -4039,7 +4056,8 @@ subroutine hybens_localization_setup
          vvlocal = .true.
          nz = msig
          kl = grd_loc%kend_alloc-grd_loc%kbegin_loc+1
-         allocate(s_ens_h_gu_x(grd_loc%nsig*n_ens),s_ens_h_gu_y(grd_loc%nsig*n_ens))
+         if(.not.allocated(s_ens_h_gu_x)) allocate(s_ens_h_gu_x(grd_loc%nsig*n_ens))
+         if(.not.allocated(s_ens_h_gu_y)) allocate(s_ens_h_gu_y(grd_loc%nsig*n_ens))
       endif
 
    endif ! if ( readin_localization .or. readin_beta )
@@ -4065,7 +4083,8 @@ subroutine hybens_localization_setup
    if ( .not. readin_localization ) then ! assign all levels to same value, s_ens_h, s_ens_v
       nz = 1
       kl = 1
-      allocate(s_ens_h_gu_x(1),s_ens_h_gu_y(1))
+      if(.not.allocated(s_ens_h_gu_x)) allocate(s_ens_h_gu_x(1))
+      if(.not.allocated(s_ens_h_gu_y)) allocate(s_ens_h_gu_y(1))
       s_ens_hv = s_ens_h
       s_ens_vv = s_ens_v
    endif

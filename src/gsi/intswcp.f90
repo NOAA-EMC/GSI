@@ -24,6 +24,7 @@ use m_obsNode, only: obsNode
 use m_swcpNode, only: swcpNode
 use m_swcpNode, only: swcpNode_typecast
 use m_swcpNode, only: swcpNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -185,9 +186,11 @@ subroutine intswcp_(swcphead,rval,sval)
     if(luse_obsdiag)then
        if (lsaveobsens) then
           grad = val*swcpptr%raterr2*swcpptr%err2
-          swcpptr%diags%obssen(jiter) = grad
+          !-- swcpptr%diags%obssen(jiter) = grad
+          call obsdiagNode_set(swcpptr%diags,jiter=jiter,obssen=grad)
        else
-          if (swcpptr%luse) swcpptr%diags%tldepart(jiter)=val
+          !-- if (swcpptr%luse) swcpptr%diags%tldepart(jiter)=val
+          if (swcpptr%luse) call obsdiagNode_set(swcpptr%diags,jiter=jiter,tldepart=val)
        endif
     end if
 
