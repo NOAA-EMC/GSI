@@ -1168,7 +1168,7 @@ end subroutine write_ghg_grid
     use general_specmod, only: general_init_spec_vars,general_destroy_spec_vars,spec_vars
     use gsi_4dvar, only: lwrite4danl,nhr_anal,nobs_bins
     use ncepnems_io, only: write_nemsatm,write_nemssfc,write_nems_sfc_nst
-    use netcdfgfs_io, only: write_gfsncsfc, write_gfsnc_sfc_nst
+    use netcdfgfs_io, only: write_gfsncsfc, write_gfsnc_sfc_nst, write_gfsncatm
     use write_incr, only: write_fv3_increment
     use control_vectors, only: control_vector
 
@@ -1320,8 +1320,10 @@ end subroutine write_ghg_grid
                 call write_fv3_increment(grd_a,sp_a,filename,mype_atm, &
                      atm_bundle,itoutsig)
             else
-               write(6,*) 'WRITE_ANALYSIS: ***ERROR*** writing GFS netCDF analysis not supported!'
-               call stop2(999)
+               call write_gfsncatm(grd_a,sp_a,filename,mype_atm, &
+                     atm_bundle,itoutsig)
+               !write(6,*) 'WRITE_ANALYSIS: ***ERROR*** writing GFS netCDF analysis not supported!'
+               !call stop2(999)
             end if
         else
 
