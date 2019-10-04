@@ -9,6 +9,7 @@ module set_crtm_cloudmod
 ! program history log:
 !   2011-06-01  todling
 !   2011-11-17  zhu     --- merge set_crtm_cloudmod with crtm_cloud
+!   2018-05-19  eliu    --- add precipiation components (related to GFDL physics)
 !
 ! subroutines included:
 !   sub Set_CRTM_Cloud
@@ -25,7 +26,9 @@ module set_crtm_cloudmod
   use CRTM_Cloud_Define, only: WATER_CLOUD,ICE_CLOUD,RAIN_CLOUD, &
       SNOW_CLOUD,GRAUPEL_CLOUD,HAIL_CLOUD 
   use mpeu_util, only: die
-
+  use mpimod, only: mype          
+  use radiance_mod, only: cw_cv  
+  use ncepnems_io, only: imp_physics 
   implicit none
 
 private
@@ -33,7 +36,7 @@ public Set_CRTM_Cloud
 
 CONTAINS
 
-  subroutine Set_CRTM_Cloud ( km, nac, cloud_name, icmask, nc, cloud_cont, cloud_efr,jcloud, dp, tp, pr, qh, cloud)
+  subroutine Set_CRTM_Cloud ( km, nac, cloud_name, icmask, nc, cloud_cont, cloud_efr,jcloud, dp, tp, pr, qh, cloud, lprecip) 
 
   implicit none
 
@@ -41,6 +44,7 @@ CONTAINS
   integer(i_kind) , intent(in)    :: nac               ! number of actual clouds
   character(len=*), intent(in)    :: cloud_name(nac)   ! [nac]   Model cloud names: qi, ql, etc.
   logical,          intent(in)    :: icmask            ! mask determining where to consider clouds
+  logical,          intent(in)    :: lprecip           ! mask determining where to consider clouds
   integer(i_kind),  intent(in)    :: nc                ! number of clouds
   integer(i_kind),  intent(in)    :: jcloud(nc)        ! cloud index
   real(r_kind),     intent(in)    :: cloud_cont(km,nc) ! cloud content 
@@ -52,12 +56,12 @@ CONTAINS
 
   type(CRTM_Cloud_type), intent(inout) :: cloud(nc)    ! [nc]   CRTM Cloud object
 
-  call setCloud (cloud_name, icmask, cloud_cont, cloud_efr, jcloud, dp, tp, pr, qh, cloud)
+  call setCloud (cloud_name, icmask, cloud_cont, cloud_efr, jcloud, dp, tp, pr, qh, cloud, lprecip)
 
   end subroutine Set_CRTM_Cloud
 
  
-  subroutine setCloud (cloud_name, icmask, cloud_cont, cloud_efr,jcloud, dp, tp, pr, qh, cloud)
+  subroutine setCloud (cloud_name, icmask, cloud_cont, cloud_efr,jcloud, dp, tp, pr, qh, cloud, lprecip)
 
   use gridmod, only: regional,wrf_mass_regional
   use wrf_params_mod, only: cold_start
@@ -67,6 +71,7 @@ CONTAINS
 
   character(len=*), intent(in)    :: cloud_name(:)     ! [nc]    Model cloud names: Water, Ice, etc.
   logical,          intent(in)    :: icmask            !         mask for where to consider clouds  
+  logical,          intent(in)    :: lprecip           !         mask for where to consider clouds  
   integer(i_kind),  intent(in)    :: jcloud(:)         !         cloud order
   real(r_kind),     intent(in)    :: cloud_cont(:,:)   ! [km,nc] cloud contents  (kg/m2)
   real(r_kind),     intent(in)    :: cloud_efr (:,:)   ! [km,nc] cloud effective radius (microns)
@@ -98,8 +103,11 @@ CONTAINS
 
 ! Handle hand-split case as particular case
 ! -----------------------------------------
-  if (cold_start .or. (na /= nc .and. (.not. regional))) then
 
+  if (lprecip) cold_start=.false.
+
+! if (cold_start .or. (na /= nc .and. (.not. regional))) then 
+  if (cold_start .or. cw_cv) then                              
 !    Initialize Loop over clouds ...
      do n = 1, nc
         Cloud(n)%Type = CloudType_(cloud_name(jcloud(n)))
@@ -122,6 +130,7 @@ CONTAINS
         do k=1,km
            ! liquid water cloud drop size
            tem4=max(zero,(t0c-tp(k))*r0_05)
+           if (cloud(1)%water_content(k) > 1.0e-6_r_kind) &    
            cloud(1)%effective_radius(k) = five + five * min(one, tem4)
 
            ! ice water cloud particle size
@@ -130,15 +139,17 @@ CONTAINS
            tem3 = tem1 * cloud(2)%water_content(k) * (pr(k)/dp(k)) &
                  /tp(k) * (one + fv * qh(k))
 
-           if (tem2 < -50.0_r_kind ) then
-              cloud(2)%effective_radius(k) =  (1250._r_kind/9.917_r_kind)*tem3**0.109_r_kind
-           elseif (tem2 < -40.0_r_kind ) then
-              cloud(2)%effective_radius(k) =  (1250._r_kind/9.337_r_kind)*tem3**0.08_r_kind
-           elseif (tem2 < -30.0_r_kind ) then
-              cloud(2)%effective_radius(k) =  (1250._r_kind/9.208_r_kind)*tem3**0.055_r_kind
-           else
-              cloud(2)%effective_radius(k) =  (1250._r_kind/9.387_r_kind)*tem3**0.031_r_kind
-           endif
+           if (cloud(2)%water_content(k) > 1.0e-6_r_kind) then     
+              if (tem2 < -50.0_r_kind ) then
+                 cloud(2)%effective_radius(k) =  (1250._r_kind/9.917_r_kind)*tem3**0.109_r_kind
+              elseif (tem2 < -40.0_r_kind ) then
+                 cloud(2)%effective_radius(k) =  (1250._r_kind/9.337_r_kind)*tem3**0.08_r_kind
+              elseif (tem2 < -30.0_r_kind ) then
+                 cloud(2)%effective_radius(k) =  (1250._r_kind/9.208_r_kind)*tem3**0.055_r_kind
+              else
+                 cloud(2)%effective_radius(k) =  (1250._r_kind/9.387_r_kind)*tem3**0.031_r_kind
+              endif
+           endif  
 
            cloud(1)%effective_radius(k)=max(zero, cloud(1)%effective_radius(k))
            cloud(2)%effective_radius(k)=max(zero, cloud(2)%effective_radius(k))
@@ -155,7 +166,6 @@ CONTAINS
      endif
   else ! Handle general case with arbitray number of clouds
        ! --------------------------------------------------
-
 !    Loop over clouds ...
 !    --------------------
      do n = 1, nc
@@ -176,7 +186,15 @@ CONTAINS
            if (regional .and. (.not. wrf_mass_regional)) then
               cloud(n)%Effective_Radius(:) = cloud_efr(:,n)
            else
-              cloud(n)%Effective_Radius(:) = EftSize_(cloud_name(jcloud(n)))
+             !cloud(n)%Effective_Radius(:) = EftSize_(cloud_name(jcloud(n))) 
+              if ( imp_physics==11 .and. lprecip ) then
+                 cloud(n)%Effective_Radius(:) = cloud_efr(:,n)
+              else
+                 do k = 1, km
+                    if (cloud(n)%water_content(k) > 1.0e-6_r_kind) &
+                    cloud(n)%Effective_Radius(k) = EftSize_(cloud_name(jcloud(n)))
+                 enddo
+              end if 
            end if
         else
            cloud(n)%Effective_Radius(:) = zero
@@ -185,7 +203,7 @@ CONTAINS
 
      enddo
 
-  endif
+  endif 
   end subroutine setCloud
 
   function CloudType_(name) Result(ctype)
@@ -212,8 +230,8 @@ CONTAINS
 
   end function CloudType_
 
-  function EftSize_(name) Result(csize)
-    character(len=*), parameter :: myname = 'EftSize_'
+  function EftSize_(name) Result(csize)                
+    character(len=*), parameter :: myname = 'EftSize_'  
     character(len=*) :: name  ! Model cloud name
     real(r_kind)     :: csize ! CRTM cloud type
 
@@ -223,7 +241,8 @@ CONTAINS
     else if ( trim(name) == 'qi' ) then
        csize = 30.0_r_kind
     else if ( trim(name) == 'qh' ) then
-       csize = zero ! RT: can somebody fill this in?
+    !  csize = zero ! RT: can somebody fill this in? 
+       csize = 1000.0_r_kind
     else if ( trim(name) == 'qg' ) then
        csize = 600.0_r_kind
     else if ( trim(name) == 'qr' ) then
@@ -235,6 +254,6 @@ CONTAINS
        call die(myname,"cannot recognize cloud name <"//trim(name)//">")
     end if
 
-  end function EftSize_
+  end function EftSize_    
 
 end module set_crtm_cloudmod

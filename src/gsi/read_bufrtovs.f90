@@ -89,6 +89,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   2016-04-28  jung - added logic for RARS and direct broadcast from NESDIS/UW
 !   2016-10-20  collard - fix to allow monitoring and limited assimilation of spectra when key 
 !                         channels are missing.
+!   2018-04-19  eliu - allow data selection for precipitation-affected data 
+!   2018-05-21  j.jin   - added time-thinning. Moved the checking of thin4d into satthin.F90.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -128,6 +130,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,destroygrids,checkob, &
       finalcheck,map2tgrid,score_crit
+  use satthin, only: radthin_time_info,tdiff2crit
+  use obsmod, only: time_window_max
   use radinfo, only: iuse_rad,newchn,cbias,predx,nusis,jpch_rad,air_rad,ang_rad, &
       use_edges,radedge1, radedge2, radstart,radstep,newpc4pred
   use radinfo, only: crtm_coeffs_path,adp_anglebc
@@ -138,7 +142,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
       MAX_SENSOR_ZENITH_ANGLE
   use crtm_spccoeff, only: sc,crtm_spccoeff_load,crtm_spccoeff_destroy
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
-  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use antcorr_application, only: remove_antcorr
   use mpeu_util, only: getindex
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
@@ -214,7 +218,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   real(r_kind) dlon_earth_deg,dlat_earth_deg,sat_aziang
   real(r_kind) dlon_earth,dlat_earth,r01
   real(r_kind) crit1,step,start,ch8flg,dist1
-  real(r_kind) terrain,timedif,lza,df2,tt,lzaest
+  real(r_kind) terrain,lza,df2,tt,lzaest
   real(r_kind),dimension(0:4):: rlndsea
   real(r_kind),allocatable,dimension(:,:):: data_all
 
@@ -225,6 +229,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
   real(r_kind) disterr,disterrmax,cdist,dlon00,dlat00
 
+  real(r_kind)    :: ptime,timeinflat,crit0
+  integer(i_kind) :: ithin_time,n_tbin,it_mesh
   logical :: critical_channels_missing,quiet
   logical :: print_verbose
 
@@ -248,8 +254,14 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
 
+  call radthin_time_info(obstype, jsatid, sis, ptime, ithin_time)
+  if( ptime > 0.0_r_kind) then
+     n_tbin=nint(2*time_window_max/ptime)
+  else
+     n_tbin=1
+  endif
 ! Make thinning grids
-  call makegrids(rmesh,ithin)
+  call makegrids(rmesh,ithin,n_tbin=n_tbin)
 
 ! Set various variables depending on type of data to be read
 
@@ -613,17 +625,13 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
            nread=nread+nchanl
 
-           if (thin4d) then
-              timedif = zero
-           else
-              timedif = two*abs(tdiff)        ! range:  0 to 6
-           endif
-
            terrain = 50._r_kind
            if(llll == 1)terrain = 0.01_r_kind*abs(bfr1bhdr(13))                   
-           crit1 = 0.01_r_kind + terrain + timedif
-           if (llll >  1 ) crit1 = crit1 + r100 * float(llll)
-           call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+           crit0 = 0.01_r_kind + terrain
+           if (llll >  1 ) crit0 = crit0 + r100 * float(llll)
+           timeinflat=two
+           call tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
+           call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,it_mesh=it_mesh)
            if(.not. iuse)cycle read_loop
 
            call ufbint(lnbufr,bfr2bhdr,n2bhdr,1,iret,hdr2b)
@@ -800,6 +808,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
                        else
                           qval=zero
                        end if
+                       if (radmod%lprecip) qval=zero  
                        ! favor thinner clouds
                        ! cosza = cos(lza)
                        ! d0= 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza

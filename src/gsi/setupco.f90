@@ -1,4 +1,11 @@
-subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
+module colvk_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setupco; end interface
+
+contains
+subroutine setupco(obsLL,odiagLL,lunin,mype,stats_co,nlevs,nreal,nobs,&
      obstype,isis,is,co_diagsave,init_pass)
 
 !$$$  subprogram documentation block
@@ -29,6 +36,8 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
 !                       . removed (%dlat,%dlon) debris.
+!   2017-02-09  guo     - Remove m_alloc, n_alloc.
+!                       . Remove my_node with corrected typecast().
 !
 !   input argument list:
 !     lunin          - unit from which to read observations
@@ -61,20 +70,26 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
   use constants, only : zero,half,one,two,tiny_r_kind
   use constants, only : cg_term,wgtlim,h300   ! AVT need to find value for co
                                                      ! use the ozone values for the moment
+  use m_obsdiagNode, only : obs_diag
+  use m_obsdiagNode, only : obs_diags
+  use m_obsdiagNode, only : obsdiagLList_nextNode
+  use m_obsdiagNode, only : obsdiagNode_set
+  use m_obsdiagNode, only : obsdiagNode_get
+  use m_obsdiagNode, only : obsdiagNode_assert
 
-  use m_obsdiags, only : colvkhead
-  use obsmod, only : i_colvk_ob_type,dplat,nobskeep
+  use obsmod, only : dplat,nobskeep
   use obsmod, only : mype_diaghdr,dirname,time_offset,ianldate
-  use obsmod, only : obsdiags,lobsdiag_allocated,lobsdiagsave
+  use obsmod, only : lobsdiag_allocated,lobsdiagsave
   use obsmod, only: dirname
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
   use m_obsNode, only: obsNode
-  use m_colvkNode, only : colvkNode, colvkNode_typecast
-  use m_obsLList , only : obsLList_appendNode
+  use m_colvkNode, only : colvkNode
+  use m_colvkNode, only : colvkNode_appendto
+  use m_obsLList , only : obsLList
   use m_obsLList , only : obsLList_tailNode
-  use obsmod, only : obs_diag,luse_obsdiag
+  use obsmod, only : luse_obsdiag
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
 
@@ -89,10 +104,12 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
 
   use jfunc, only : jiter,last,miter
   
-  use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use m_dtime, only: dtime_setup, dtime_check
   implicit none
   
 ! !INPUT PARAMETERS:
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
 
   integer(i_kind)                  , intent(in   ) :: lunin  ! unit from which to read observations
   integer(i_kind)                  , intent(in   ) :: mype   ! mpi task id
@@ -141,7 +158,7 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_co
   
 
-  integer(i_kind) i,nlev,ii,jj,iextra,istat,ibin
+  integer(i_kind) i,nlev,ii,jj,iextra,ibin
   integer(i_kind) k,j,nz,jc,idia,irdim1,ier,istatus,k1,k2 
   integer(i_kind) ioff,itoss,ikeep,ierror_toq,ierror_poq
   integer(i_kind) isolz
@@ -162,11 +179,12 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
   logical:: l_may_be_passive,proceed
 
   logical:: in_curbin, in_anybin
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
-  class(obsNode),pointer:: my_node
   type(colvkNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
+  type(obs_diags),pointer:: my_diagLL
+
+  type(obsLList),pointer,dimension(:):: colvkhead
+  colvkhead => obsLL(:)
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
@@ -175,11 +193,7 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
 ! If require guess vars available, extract from bundle ...
   call init_vars_
 
-  n_alloc(:)=0
-  m_alloc(:)=0
-
   mm1=mype+1
-
 !
 !*********************************************************************************
 
@@ -471,15 +485,14 @@ endif   ! (in_curbin)
         endif
         IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
+        if(luse_obsdiag) my_diagLL => odiagLL(ibin)
+
         if(in_curbin) then
 !       Process obs have at least one piece of information that passed qc checks
           if (.not. last .and. ikeep==1) then
    
              allocate(my_head)
-             m_alloc(ibin) = m_alloc(ibin) +1
-             my_node => my_head        ! this is a workaround
-             call obsLList_appendNode(colvkhead(ibin),my_node)
-             my_node => null()
+             call colvkNode_appendto(my_head,colvkhead(ibin))
 
              my_head%idv = is
              my_head%iob = ioid(i)
@@ -555,78 +568,33 @@ endif   ! (in_curbin)
 !       Link obs to diagnostics structure
         do k=1,nlevs
            if(luse_obsdiag)then
-             if (.not.lobsdiag_allocated) then
-                if (.not.associated(obsdiags(i_colvk_ob_type,ibin)%head)) then
-                   obsdiags(i_colvk_ob_type,ibin)%n_alloc = 0
-                   allocate(obsdiags(i_colvk_ob_type,ibin)%head,stat=istat)
-                   if (istat/=0) then
-                      write(6,*)'setupco: failure to allocate obsdiags',istat
-                      call stop2(260)
-                   end if
-                   obsdiags(i_colvk_ob_type,ibin)%tail => obsdiags(i_colvk_ob_type,ibin)%head
-                else
-                   allocate(obsdiags(i_colvk_ob_type,ibin)%tail%next,stat=istat)
-                   if (istat/=0) then
-                      write(6,*)'setupco: failure to allocate obsdiags',istat
-                      call stop2(261)
-                   end if
-                   obsdiags(i_colvk_ob_type,ibin)%tail => obsdiags(i_colvk_ob_type,ibin)%tail%next
-                end if
-                obsdiags(i_colvk_ob_type,ibin)%n_alloc = obsdiags(i_colvk_ob_type,ibin)%n_alloc +1
-   
-                allocate(obsdiags(i_colvk_ob_type,ibin)%tail%muse(miter+1))
-                allocate(obsdiags(i_colvk_ob_type,ibin)%tail%nldepart(miter+1))
-                allocate(obsdiags(i_colvk_ob_type,ibin)%tail%tldepart(miter))
-                allocate(obsdiags(i_colvk_ob_type,ibin)%tail%obssen(miter))
-                obsdiags(i_colvk_ob_type,ibin)%tail%indxglb=ioid(i)
-                obsdiags(i_colvk_ob_type,ibin)%tail%nchnperobs=-99999
-                obsdiags(i_colvk_ob_type,ibin)%tail%luse=luse(i)
-                obsdiags(i_colvk_ob_type,ibin)%tail%muse(:)=.false.
-   
-                obsdiags(i_colvk_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-                obsdiags(i_colvk_ob_type,ibin)%tail%tldepart(:)=zero
-                obsdiags(i_colvk_ob_type,ibin)%tail%wgtjo=-huge(zero)
-                obsdiags(i_colvk_ob_type,ibin)%tail%obssen(:)=zero
-   
-                n_alloc(ibin) = n_alloc(ibin) +1
-                my_diag => obsdiags(i_colvk_ob_type,ibin)%tail
-                my_diag%idv = is
-                my_diag%iob = ioid(i)
-                my_diag%ich = k
-                my_diag%elat= data(ilate,i)
-                my_diag%elon= data(ilone,i)
-             else
-                if (.not.associated(obsdiags(i_colvk_ob_type,ibin)%tail)) then
-                   obsdiags(i_colvk_ob_type,ibin)%tail => obsdiags(i_colvk_ob_type,ibin)%head
-                else
-                   obsdiags(i_colvk_ob_type,ibin)%tail => obsdiags(i_colvk_ob_type,ibin)%tail%next
-                end if
-                if (.not.associated(obsdiags(i_colvk_ob_type,ibin)%tail)) then
-                   call die(myname,'.not.associated(obsdiags(i_colvk_ob_type,ibin)%tail)')
-                end if
-                if (obsdiags(i_colvk_ob_type,ibin)%tail%indxglb/=ioid(i)) then
-                   write(6,*)'setupco: index error'
-                   call stop2(262)
-                end if
-             endif
+             my_diag => obsdiagLList_nextNode(my_diagLL ,&
+                create = .not.lobsdiag_allocated        ,&
+                   idv = is             ,&
+                   iob = ioid(i)        ,&
+                   ich = k              ,&
+                  elat = data(ilate,i)  ,&
+                  elon = data(ilone,i)  ,&
+                  luse = luse(i)        ,&
+                 miter = miter          )
+
+             if(.not.associated(my_diag)) call die(myname,      &
+                'obsdiagLList_nextNode(), create =', .not.lobsdiag_allocated)
            endif
 
            if(in_curbin) then
               if(luse_obsdiag)then
-                obsdiags(i_colvk_ob_type,ibin)%tail%muse(jiter)= (ikeep==1)
-                obsdiags(i_colvk_ob_type,ibin)%tail%nldepart(jiter)=co_inv(k)
-                obsdiags(i_colvk_ob_type,ibin)%tail%wgtjo= varinv3(k)*ratio_errors(k)**2
+                call obsdiagNode_set(my_diag, wgtjo=varinv3(k)*ratio_errors(k)**2, &
+                        jiter=jiter,muse=(ikeep==1), nldepart=co_inv(k) )
               endif
    
               if (.not. last .and. ikeep==1) then
-                 !my_head => colvkNode_typecast(obsLList_tailNode(colvkhead(ibin)))
-                 my_node => obsLList_tailNode(colvkhead(ibin))
-                 if(.not.associated(my_node)) &
-                    call die(myname,'unexpected, associated(my_node) =',associated(my_node))
-                 my_head => colvkNode_typecast(my_node)
+                 my_head => tailNode_typecast_(colvkhead(ibin))
                  if(.not.associated(my_head)) &
                     call die(myname,'unexpected, associated(my_head) =',associated(my_head))
-                 my_node => null()
+
+                 my_head%idv        = is
+                 my_head%iob        = ioid(i)
 
                  my_head%ipos(k)    = ipos(k)
                  my_head%res(k)     = co_inv(k)
@@ -634,27 +602,18 @@ endif   ! (in_curbin)
                  my_head%raterr2(k) = ratio_errors(k)**2
 
                  if(luse_obsdiag)then
-                    my_head%diags(k)%ptr => obsdiags(i_colvk_ob_type,ibin)%tail
-
-                    my_diag => my_head%diags(k)%ptr
-                    if(my_head%idv /= my_diag%idv .or. &
-                       my_head%iob /= my_diag%iob .or. &
-                                 k /= my_diag%ich ) then
-                       call perr(myname,'mismatching %[head,diags]%(idv,iob,ich,ibin) =', &
-                          (/is,ioid(i),k,ibin/))
-                       call perr(myname,'my_head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,k/))
-                       call perr(myname,'my_diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
-                       call die(myname)
-                    endif
+                    call obsdiagNode_assert(my_diag,my_head%idv,my_head%iob,k,myname,'my_diag:my_head')
+                    my_head%diags(k)%ptr => my_diag
                  endif
                  my_head => null()
              endif
    
              if (co_diagsave.and.lobsdiagsave) then
+              associate( odiag => my_diag )
                 idia=3
                 do jj=1,miter
                    idia=idia+1
-                   if (obsdiags(i_colvk_ob_type,ibin)%tail%muse(jj)) then
+                   if (odiag%muse(jj)) then
                       rdiagbuf(idia,k,ii) = one
                    else
                       rdiagbuf(idia,k,ii) = -one
@@ -662,16 +621,17 @@ endif   ! (in_curbin)
                 enddo
                 do jj=1,miter+1
                    idia=idia+1
-                   rdiagbuf(idia,k,ii) = obsdiags(i_colvk_ob_type,ibin)%tail%nldepart(jj)
+                   rdiagbuf(idia,k,ii) = odiag%nldepart(jj)
                 enddo
                 do jj=1,miter
                    idia=idia+1
-                   rdiagbuf(idia,k,ii) = obsdiags(i_colvk_ob_type,ibin)%tail%tldepart(jj)
+                   rdiagbuf(idia,k,ii) = odiag%tldepart(jj)
                 enddo
                 do jj=1,miter
                    idia=idia+1
-                   rdiagbuf(idia,k,ii) = obsdiags(i_colvk_ob_type,ibin)%tail%obssen(jj)
+                   rdiagbuf(idia,k,ii) = odiag%obssen(jj)
                 enddo
+              end associate ! odiag
              endif
            endif        ! (in_curbin)
 
@@ -722,12 +682,26 @@ endif   ! (in_curbin)
 
 ! clean up
   if(allocated(ges_co)) deallocate(ges_co)
-  call dtime_show('setupco','diagsave:co',i_colvk_ob_type)
   if(co_diagsave) deallocate(rdiagbuf)
 
 ! End of routine
   return
   contains
+  function tailNode_typecast_(oll) result(ptr_)
+!>  Cast the tailNode of oll to an colvkNode, as in
+!>      ptr_ => typecast_(tailNode_(oll))
+
+    use m_colvkNode, only: colvkNode, typecast_ => colvkNode_typecast
+    use m_obsLList , only: obsLList , tailNode_ => obsLList_tailNode
+    use m_obsNode  , only: obsNode
+    implicit none
+    type(colvkNode),pointer:: ptr_
+    type(obsLList ),target ,intent(in):: oll
+
+    class(obsNode),pointer:: inode_
+    inode_ => tailNode_(oll)
+    ptr_   => typecast_(inode_)
+  end function tailNode_typecast_
 
   subroutine check_vars_ (proceed)
   logical,intent(inout) :: proceed
@@ -781,3 +755,4 @@ endif   ! (in_curbin)
   end subroutine final_vars_
 
 end subroutine setupco
+end module colvk_setup

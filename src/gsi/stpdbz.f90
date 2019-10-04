@@ -40,6 +40,7 @@ subroutine stpdbz(dbzhead,rval,sval,out,sges,nstep)
 !   1999-11-22  yang
 !   2004-07-29  treadon - add only to module use, add intent in/out
 !   2004-10-07  parrish - add nonlinear qc option
+!   2019-07-11  todling - introduced wrf_vars_mod
 !
 ! attributes:
 !   language: f90
@@ -52,7 +53,7 @@ subroutine stpdbz(dbzhead,rval,sval,out,sges,nstep)
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gridmod, only: wrf_mass_regional
-  use control_vectors, only : dbz_exist
+  use wrf_vars_mod, only : dbz_exist
   use m_obsNode, only: obsNode
   use m_dbzNode , only: dbzNode
   use m_dbzNode , only: dbzNode_typecast

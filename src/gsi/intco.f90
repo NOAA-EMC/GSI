@@ -32,6 +32,7 @@ use m_obsNode, only: obsNode
 use m_colvkNode , only: colvkNode
 use m_colvkNode , only: colvkNode_typecast
 use m_colvkNode , only: colvkNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -222,9 +223,11 @@ subroutine intcolev_(colvkhead,rval,sval)
            if(luse_obsdiag)then
               if (lsaveobsens) then
                  valx=val1*colvkptr%err2(k)*colvkptr%raterr2(k)
-                 colvkptr%diags(k)%ptr%obssen(jiter)=valx
+                 !-- colvkptr%diags(k)%ptr%obssen(jiter)=valx
+                 call obsdiagNode_set(colvkptr%diags(k)%ptr,jiter=jiter,obssen=real(valx,r_kind))
               else
-                 if (colvkptr%luse) colvkptr%diags(k)%ptr%tldepart(jiter)=val1
+                 !-- if (colvkptr%luse) colvkptr%diags(k)%ptr%tldepart(jiter)=val1
+                 if (colvkptr%luse) call obsdiagNode_set(colvkptr%diags(k)%ptr,tldepart=real(val1,r_kind))
               endif
            endif
 

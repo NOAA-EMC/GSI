@@ -46,9 +46,11 @@ module radiance_mod
   public :: radiance_parameter_cloudy_init
   public :: radiance_parameter_aerosol_init
   public :: radiance_ex_obserr
+  public :: radiance_ex_obserr_gmi 
   public :: radiance_ex_biascor
+  public :: radiance_ex_biascor_gmi
 
-  public :: icloud_fwd,icloud_cv,iallsky,cw_cv
+  public :: icloud_fwd,icloud_cv,iallsky,cw_cv,ql_cv
   public :: n_actual_clouds,n_clouds_fwd,n_clouds_jac
   public :: cloud_names,cloud_names_jac,cloud_names_fwd
   public :: idx_cw,idx_ql,idx_qi,idx_qr,idx_qs,idx_qg,idx_qh
@@ -65,11 +67,13 @@ module radiance_mod
   interface radiance_ex_obserr
      module procedure radiance_ex_obserr_1
      module procedure radiance_ex_obserr_2
+!     module procedure radiance_ex_obserr_3 !for GMI
   end interface 
  
   interface radiance_ex_biascor
      module procedure radiance_ex_biascor_1
      module procedure radiance_ex_biascor_2
+!     module procedure radiance_ex_biascor_3 ! for GMI
   end interface
 
   character(len=20),save,allocatable,dimension(:) :: cloud_names
@@ -78,8 +82,8 @@ module radiance_mod
   character(len=20),save,allocatable,dimension(:) :: aerosol_names
   character(len=20),save,allocatable,dimension(:) :: aerosol_names_fwd
   character(len=20),save,allocatable,dimension(:) :: aerosol_names_jac
-  logical :: icloud_fwd,icloud_cv,iallsky,cw_cv
-  logical :: iaerosol_fwd,iaerosol_cv,iaerosol
+  logical :: icloud_fwd,icloud_cv,iallsky,cw_cv,ql_cv
+  logical :: iaerosol_fwd,iaerosol_cv,iaerosol,iprecip
   integer(i_kind) :: n_actual_clouds,n_clouds_jac,n_clouds_fwd
   integer(i_kind) :: n_actual_aerosols,n_aerosols_fwd,n_aerosols_jac
   integer(i_kind) :: idx_cw,idx_ql,idx_qi,idx_qr,idx_qs,idx_qg,idx_qh
@@ -95,11 +99,13 @@ module radiance_mod
     logical :: ex_biascor             ! .true. for special bias correction
     logical :: cld_effect             ! .true. additional cloud effect quality control
     logical :: lcloud_fwd,lallsky
+    logical :: lprecip 
     integer(i_kind),pointer,dimension(:) :: lcloud4crtm=> NULL()    ! -1 clear-sky; 0 forwad operator only; 1 iallsky
     logical :: laerosol_fwd,laerosol
     integer(i_kind),pointer,dimension(:) :: laerosol4crtm => NULL() ! -1 no aero used; 0 forwad operator only; 1 iaerosol 
-    real(r_kind),pointer,dimension(:) :: cclr => NULL()
-    real(r_kind),pointer,dimension(:) :: ccld => NULL()
+    real(r_kind),pointer,dimension(:) :: cclr    => NULL()
+    real(r_kind),pointer,dimension(:) :: ccld    => NULL()
+    real(r_kind),pointer,dimension(:) :: cldval1 => NULL()
   end type rad_obs_type
 
   type(rad_obs_type),save,dimension(:),allocatable :: rad_type_info
@@ -137,6 +143,7 @@ contains
     implicit none
 
     integer(i_kind) icw_av,iql_av,iqi_av,iqtotal,ier
+    integer(i_kind) iqr,iqs,iqg 
     integer(i_kind) indx_p25,indx_dust1,indx_dust2,ip25_av,idust1_av,idust2_av
 
 !   initialize variables
@@ -144,6 +151,7 @@ contains
     icloud_cv=.false.
     iallsky=.false.
     cw_cv=.false.
+    ql_cv=.false.
 
     n_actual_clouds=0
     n_clouds_fwd=0 
@@ -152,6 +160,8 @@ contains
     iaerosol_fwd=.false.
     iaerosol_cv=.false.
     iaerosol=.false.
+
+    iprecip=.false.
 
     n_actual_aerosols=0
     n_aerosols_fwd=0
@@ -175,6 +185,10 @@ contains
              allocate(cloud_names_jac(max(n_clouds_jac,1)))
              call gsi_metguess_get ('clouds_4crtm_jac::3d', cloud_names_jac, ier)
           end if
+          iqr = getindex(cloud_names_fwd,'qr')
+          iqs = getindex(cloud_names_fwd,'qs')
+          iqg = getindex(cloud_names_fwd,'qg')
+          if (iqr>0 .or. iqs>0 .or. iqg>0) iprecip = .true.
        end if
 
 !      inquire number of clouds to participate in CRTM calculations
@@ -198,6 +212,7 @@ contains
        iqtotal=getindex(cvars3d,'qt')
 
        if (icw_av>0) cw_cv=.true.
+       if (iql_av>0) ql_cv=.true.
        if (icw_av>0 .or. iql_av>0 .or. iqi_av>0 .or. iqtotal>0) icloud_cv=.true.
        if (icloud_cv .and. icloud_fwd) iallsky=.true.
 
@@ -236,7 +251,8 @@ contains
 
     if (mype==0) then
        write(6,*) 'radiance_mode_init: icloud_fwd=',icloud_fwd,' iallsky=',iallsky, &
-                  ' cw_cv=',cw_cv,' iaerosol_fwd=',iaerosol_fwd,' iaerosol=',iaerosol
+                  ' cw_cv=',cw_cv,' ql_cv=',ql_cv,' iaerosol_fwd=',iaerosol_fwd,' iaerosol=',iaerosol, &
+                  ' iprecip=',iprecip
        write(6,*) 'radiance_mode_init: n_actual_clouds=',n_actual_clouds
        if (n_actual_clouds>0) write(6,*) 'radiance_mode_init: cloud_names=',cloud_names  
        write(6,*) 'radiance_mode_init: n_clouds_fwd=',n_clouds_fwd
@@ -435,9 +451,12 @@ contains
        rad_type_info(k)%ex_biascor=.false.
        rad_type_info(k)%cld_effect=.false.
        rad_type_info(k)%lcloud_fwd=.false.
+       rad_type_info(k)%lprecip=.false.
        rad_type_info(k)%lallsky=.false.
        rad_type_info(k)%laerosol_fwd=.false.
        rad_type_info(k)%laerosol=.false.
+
+       if (iprecip) rad_type_info(k)%lprecip=.true.
 
        ii=k2i(k)
        first=.true.
@@ -495,18 +514,22 @@ contains
              if (iaerosol4crtm(j)==0) rad_type_info(k)%laerosol_fwd=.true.
           end if
        end do
+
        if (mype==0 .and. print_verbose)  &
                                write(6,*) 'radiance_obstype_init: type=', rad_type_info(k)%rtype, &
                                ' nch=',rad_type_info(k)%nchannel, &
                                ' lcloud_fwd=',rad_type_info(k)%lcloud_fwd, &
+                               ' lprecip=',rad_type_info(k)%lprecip, &    
                                ' lallsky=',rad_type_info(k)%lallsky, &
                                ' laerosol_fwd=',rad_type_info(k)%laerosol_fwd, &
                                ' laerosol=',rad_type_info(k)%laerosol
 
        allocate(rad_type_info(k)%cclr(rad_type_info(k)%nchannel)) 
        allocate(rad_type_info(k)%ccld(rad_type_info(k)%nchannel)) 
+       allocate(rad_type_info(k)%cldval1(rad_type_info(k)%nchannel)) 
        rad_type_info(k)%cclr(:)=9999.9_r_kind
        rad_type_info(k)%ccld(:)=zero
+       rad_type_info(k)%cldval1(:)=zero
 
     end do ! end total_rad_type
 
@@ -571,6 +594,9 @@ contains
 
           radmod%cclr => rad_type_info(i)%cclr
           radmod%ccld => rad_type_info(i)%ccld
+          radmod%cldval1 => rad_type_info(i)%cldval1
+          radmod%lprecip = radmod%lcloud_fwd .and. rad_type_info(i)%lprecip 
+
           return
        end if
     end do
@@ -613,6 +639,7 @@ contains
        if(associated(rad_type_info(k)%laerosol4crtm)) deallocate(rad_type_info(k)%laerosol4crtm)
        if(associated(rad_type_info(k)%cclr)) deallocate(rad_type_info(k)%cclr)
        if(associated(rad_type_info(k)%ccld)) deallocate(rad_type_info(k)%ccld)
+       if(associated(rad_type_info(k)%cldval1)) deallocate(rad_type_info(k)%cldval1)
     end do
     if(allocated(rad_type_info)) deallocate(rad_type_info)
 
@@ -709,7 +736,11 @@ contains
 
 !            allocate space for entries from table, Obtain table contents
              tablename='obs_'//trim(obsname)
-             call sensor_parameter_table(trim(tablename),lunin,rad_type_info(i)%nchannel,rad_type_info(i)%cclr,rad_type_info(i)%ccld)
+             if ( rad_type_info(i)%ex_obserr == 'ex_obserr3' ) then
+                call sensor_parameter_table(trim(tablename),lunin,rad_type_info(i)%nchannel,rad_type_info(i)%cclr,rad_type_info(i)%ccld,rad_type_info(i)%cldval1)
+             else
+                call sensor_parameter_table(trim(tablename),lunin,rad_type_info(i)%nchannel,rad_type_info(i)%cclr,rad_type_info(i)%ccld)
+             endif
              exit
           end if
        end do
@@ -720,7 +751,7 @@ contains
   end subroutine radiance_parameter_cloudy_init
 
 
-  subroutine sensor_parameter_table(filename,lunin,nchal,cclr,ccld)
+  subroutine sensor_parameter_table(filename,lunin,nchal,cclr,ccld,cldval1)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    sensor_parameter_table
@@ -731,6 +762,8 @@ contains
 !
 ! program history log:
 !   2015-09-10  zhu
+!   2018-08-10  mkim : added a column of data 'cldval1' in the all-sky sensor parameter table
+!   2019-07-108 todling : turn cldval1 into optional to avoid forcing another column in info file when not needed
 !
 !   input argument list:
 !
@@ -751,9 +784,10 @@ contains
     integer(i_kind) , intent(in) :: lunin
     integer(i_kind) , intent(in) :: nchal
     real(r_kind)    , dimension(nchal), intent(inout) :: cclr,ccld
+    real(r_kind)    , dimension(nchal), optional, intent(inout) :: cldval1
 
     integer(i_kind) ii,ntot,nrows,ich0
-    real(r_kind) cclr0,ccld0
+    real(r_kind) cclr0,ccld0,cldval1_0
     character(len=256),allocatable,dimension(:):: utable
     logical print_verbose
 
@@ -762,6 +796,9 @@ contains
 !   Initialize the arrays
     cclr(:)=zero
     ccld(:)=zero
+    if ( present(cldval1) ) then
+       cldval1(:)=zero
+    endif
 
 !   Scan file for desired table first and get size of table
     call gettablesize(filename,lunin,ntot,nrows)
@@ -776,17 +813,29 @@ contains
 
 !   Retrieve each token of interest from table
     do ii=1,nrows
-       read(utable(ii),*) ich0,cclr0,ccld0
+       if (present(cldval1)) then
+         read(utable(ii),*) ich0,cclr0,ccld0,cldval1_0
+         cldval1(ich0)=cldval1_0
+       else
+         read(utable(ii),*) ich0,cclr0,ccld0
+       endif
        cclr(ich0)=cclr0
        ccld(ich0)=ccld0
     enddo
     deallocate(utable)
 
     if (print_verbose) then
-       write(6,*) 'sensor_parameter_table: ich  cclr  ccld '
-       do ii=1,nchal
-          write(6,*) ii,cclr(ii),ccld(ii)
-       end do
+       if (present(cldval1)) then
+          write(6,*) 'sensor_parameter_table: ich  cclr  ccld  cldval1'
+          do ii=1,nchal
+             write(6,*) ii,cclr(ii),ccld(ii),cldval1(ii)
+          end do
+       else
+          write(6,*) 'sensor_parameter_table: ich  cclr  ccld'
+          do ii=1,nchal
+             write(6,*) ii,cclr(ii),ccld(ii)
+          end do
+       endif
     end if
 
   end subroutine sensor_parameter_table
@@ -954,7 +1003,7 @@ contains
     end do
 
 !   call ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret)
-    call ret_amsua(tsim_bc,nchanl,tsavg5,zasat,clw_guess_retrieval,ierrret)
+    call ret_amsua(tsim_bc,nchanl,tsavg5,zasat,clw_guess_retrieval,ierrret) 
 
     do i=1,nchanl
        if (radmod%lcloud4crtm(i)<0) cycle
@@ -1012,6 +1061,120 @@ contains
     return
 
   end subroutine radiance_ex_biascor_2
+
+  subroutine radiance_ex_obserr_gmi(radmod,nchanl,clw_obs,clw_guess_retrieval,tnoise,tnoise_cld,error0)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    radiance_ex_obserr_3
+!
+!   prgrmmr:    min-jeong kim      org: np23                date: 2018-08-10
+!
+! abstract:  This routine include extra radiance bias correction routines.
+!
+! program history log:
+!   2015-09-20  zhu
+!   2016-10-27  zhu - add ATMS
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP
+!
+!$$$ end documentation block
+
+    use kinds, only: i_kind,r_kind
+    implicit none 
+
+    integer(i_kind),intent(in) :: nchanl
+    real(r_kind),intent(in) :: clw_obs,clw_guess_retrieval
+    real(r_kind),dimension(nchanl),intent(in):: tnoise,tnoise_cld
+    real(r_kind),dimension(nchanl),intent(inout) :: error0
+    type(rad_obs_type),intent(in) :: radmod
+
+    integer(i_kind) :: i 
+    real(r_kind) :: clwavg
+    real(r_kind),dimension(nchanl) :: cclr,ccld,tnoise_cldval1
+
+    do i=1,nchanl
+       cclr(i)=radmod%cclr(i)
+       ccld(i)=radmod%ccld(i)
+       tnoise_cldval1(i)=radmod%cldval1(i)
+    end do
+
+    do i=1,nchanl
+       if (radmod%lcloud4crtm(i)<0) cycle
+       clwavg=half*(clw_obs+clw_guess_retrieval)
+       if(clwavg < cclr(i)) then 
+          error0(i) = tnoise(i)
+       else if(clwavg >= cclr(i) .and. clwavg < ccld(i)) then 
+          error0(i) = tnoise_cldval1(i) + (tnoise(i) - tnoise_cldval1(i))*(ccld(i)-clwavg)/(ccld(i)-cclr(i))
+       else if(clwavg >= ccld(i) .and. clwavg < 0.5_r_kind) then
+          error0(i) = tnoise_cld(i) + (tnoise_cldval1(i)-tnoise_cld(i)) * (0.5_r_kind-clwavg)/(0.5_r_kind-ccld(i))
+       else
+          error0(i) = tnoise_cld(i)
+       endif
+    end do
+    return
+
+!  end subroutine radiance_ex_obserr_3
+  end subroutine radiance_ex_obserr_gmi
+
+!  subroutine radiance_ex_biascor_3(radmod,nchanl,tsim_bc,tsavg5,zasat, &
+  subroutine radiance_ex_biascor_gmi(radmod,clw_obs,clw_guess_retrieval,nchanl,cld_rbc_idx)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    radiance_ex_biascor_gmi
+!
+!   prgrmmr:    min-jeong kim      org: np23                date: 2085-08-10
+!
+! abstract:  This routine include extra radiance bias correction routines.
+!
+! program history log:
+!   2018-08-10  mkim
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP
+!
+!$$$ end documentation block
+    use kinds, only: i_kind,r_kind
+   use constants, only: zero,one
+
+    implicit none
+
+    integer(i_kind)                   ,intent(in   ) :: nchanl
+    real(r_kind),dimension(nchanl)    ,intent(inout) :: cld_rbc_idx
+    real(r_kind)                      ,intent(inout) :: clw_obs
+    real(r_kind)                      ,intent(inout) :: clw_guess_retrieval
+    type(rad_obs_type)                ,intent(in)    :: radmod
+
+    integer(i_kind) :: i
+    real(r_kind),dimension(nchanl) :: cclr
+
+    do i=1,nchanl
+       cclr(i)=radmod%cclr(i)
+    end do
+
+    do i=1,nchanl
+       if (radmod%lcloud4crtm(i)<0) cycle
+       if (clw_obs <= cclr(i) .and. clw_guess_retrieval <= cclr(i) .and. abs(clw_obs-clw_guess_retrieval) < 0.001_r_kind) then
+           cld_rbc_idx(i)=one   !clear/clear
+       else
+           cld_rbc_idx(i)=zero
+       endif
+    end do
+    return
+
+!  end subroutine radiance_ex_biascor_3
+  end subroutine radiance_ex_biascor_gmi
+
 
 end module radiance_mod
 

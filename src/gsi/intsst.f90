@@ -30,6 +30,7 @@ use m_obsNode, only: obsNode
 use m_sstNode, only: sstNode
 use m_sstNode, only: sstNode_typecast
 use m_sstNode, only: sstNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -142,9 +143,11 @@ subroutine intsst(ssthead,rval,sval)
      if(luse_obsdiag)then
         if (lsaveobsens) then
            grad = val*sstptr%raterr2*sstptr%err2
-           sstptr%diags%obssen(jiter) = grad
+           !-- sstptr%diags%obssen(jiter) = grad
+           call obsdiagNode_set(sstptr%diags,jiter=jiter,obssen=grad)
         else
-           if (sstptr%luse) sstptr%diags%tldepart(jiter)=val
+           !-- if (sstptr%luse) sstptr%diags%tldepart(jiter)=val
+           if (sstptr%luse) call obsdiagNode_set(sstptr%diags,jiter=jiter,tldepart=val)
         endif
      endif
 

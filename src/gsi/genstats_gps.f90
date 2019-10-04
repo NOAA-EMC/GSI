@@ -244,8 +244,10 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_single
+  use m_obsdiagNode, only: obs_diag
+  use m_obsdiagNode, only: obsdiagNode_set
   use obsmod, only: nprof_gps,lobsdiag_forenkf
-  use obsmod, only: obs_diag,lobsdiagsave,luse_obsdiag
+  use obsmod, only: lobsdiagsave,luse_obsdiag
   use obsmod, only: binary_diag,netcdf_diag,dirname,ianldate
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
                           nc_diag_write, nc_diag_data2d
@@ -488,7 +490,8 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
            if (associated(gpsptr)) then
               gpsptr%raterr2 = ratio_errors **2
               if(associated(obsptr) .and. luse_obsdiag)then
-                 obsptr%wgtjo=(ratio_errors*data_ier)**2
+                 !-- obsptr%wgtjo=(ratio_errors*data_ier)**2
+                 call obsdiagNode_set(obsptr,wgtjo=(ratio_errors*data_ier)**2)
               end if
            endif
         endif
@@ -524,8 +527,9 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
              if (associated(gpsptr)) then
                 gpsptr%raterr2 = ratio_errors **2
                 if(associated(obsptr) .and. luse_obsdiag)then
-                   obsptr%wgtjo=zero
-                   obsptr%muse(jiter)=.false.
+                   !-- obsptr%wgtjo=zero
+                   !-- obsptr%muse(jiter)=.false.
+                   call obsdiagNode_set(obsptr,wgtjo=zero,jiter=jiter,muse=.false.)
                 end if
              endif
           endif
@@ -555,8 +559,9 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
               if (associated(gpsptr)) then
                  gpsptr%raterr2 = ratio_errors **2
                  if(associated(obsptr) .and. luse_obsdiag)then
-                    obsptr%wgtjo=zero
-                    obsptr%muse(jiter)=.false.
+                    !-- obsptr%wgtjo=zero
+                    !-- obsptr%muse(jiter)=.false.
+                    call obsdiagNode_set(obsptr,wgtjo=zero,jiter=jiter,muse=.false.)
                  end if
               endif
           endif
@@ -601,8 +606,9 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
               if (associated(gpsptr)) then
                  gpsptr%raterr2 = ratio_errors **2
                  if(associated(obsptr) .and. luse_obsdiag)then
-                    obsptr%wgtjo=zero
-                    obsptr%muse(jiter)=.false.
+                    !-- obsptr%wgtjo=zero
+                    !-- obsptr%muse(jiter)=.false.
+                    call obsdiagNode_set(obsptr,wgtjo=zero,jiter=jiter,muse=.false.)
                  end if
               endif
            endif

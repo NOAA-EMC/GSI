@@ -1,4 +1,4 @@
-subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
+subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,jsatid,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
      mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs,nrec_start,dval_use)
 
@@ -63,6 +63,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 !   2012-03-05  akella  - nst now controlled via coupler
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !   2015-10-01  guo     - consolidate use of ob location (in deg)
+!   2018-05-21  j.jin    - added time-thinning. Moved the checking of thin4d into satthin.F90.
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -98,11 +99,13 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       checkob,finalcheck,score_crit
+  use satthin, only: radthin_time_info,tdiff2crit
+  use obsmod,  only: time_window_max
   use radinfo, only: iuse_rad,nusis,jpch_rad
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,rlats,rlons,&
       tll2xy
   use constants, only: deg2rad,zero,one,three,r60inv
-  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use calc_fov_conical, only: instrument_init
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc,deter_sfc_amsre_low
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
@@ -114,7 +117,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 
 ! Input variables
   character(len=*) ,intent(in   ) :: infile
-  character(len=*) ,intent(in   ) :: obstype
+  character(len=*) ,intent(in   ) :: obstype,jsatid
   integer(i_kind)  ,intent(in   ) :: mype,nrec_start
   integer(i_kind)  ,intent(inout) :: isfcalc
   integer(i_kind)  ,intent(in   ) :: ithin
@@ -163,7 +166,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   real(r_kind)     :: sfcr
   real(r_kind)     :: dlon, dlat
   real(r_kind)     :: dlon_earth,dlat_earth
-  real(r_kind)     :: timedif, pred, crit1, dist1
+  real(r_kind)     :: pred, crit1, dist1
   real(r_kind),allocatable,dimension(:,:):: data_all
   integer(i_kind),allocatable,dimension(:)::nrec
   integer(i_kind):: irec,next
@@ -229,6 +232,8 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 ! logical :: remove_ovlporbit = .true. !looks like AMSRE overlap problem is not as bad as SSM/I 10/14/04  kozo
   integer(i_kind) :: orbit, old_orbit, iorbit, ireadsb, ireadmg
   real(r_kind) :: saz
+  real(r_kind)    :: ptime,timeinflat,crit0
+  integer(i_kind) :: ithin_time,n_tbin,it_mesh
 
 ! data selection
 
@@ -327,8 +332,14 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
     endif
   endif
 
+  call radthin_time_info(obstype, jsatid, sis, ptime, ithin_time)
+  if( ptime > 0.0_r_kind) then
+     n_tbin=nint(2*time_window_max/ptime)
+  else
+     n_tbin=1
+  endif
 ! Make thinning grids
-  call makegrids(rmesh,ithin)
+  call makegrids(rmesh,ithin,n_tbin=n_tbin)
 
 
 ! Open BUFR file
@@ -389,11 +400,6 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
         else
            if (abs(tdiff)>twind) cycle read_loop
         endif
-        if (thin4d) then
-           timedif = zero
-        else
-           timedif = 6.0_r_kind*abs(tdiff) ! range:  0 to 18
-        endif
 
 !     --- Check observing position -----
         if(amsre_low .or. amsre_mid) then
@@ -451,8 +457,10 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 !    some observations that may be rejected later due to bad BTs.
         nread=nread+kchanl
     
-        crit1 = 0.01_r_kind+timedif 
-        call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+        crit0 = 0.01_r_kind
+        timeinflat=6.0_r_kind
+        call tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
+        call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,it_mesh=it_mesh)
         if (.not.iuse) cycle read_loop
 
 !    QC:  "Score" observation.  We use this information to identify "best" obs

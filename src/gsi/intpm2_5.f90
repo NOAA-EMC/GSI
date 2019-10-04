@@ -26,6 +26,8 @@ module intpm2_5mod
   use m_pm2_5Node, only: pm2_5Node
   use m_pm2_5Node, only: pm2_5Node_typecast
   use m_pm2_5Node, only: pm2_5Node_nextcast
+  use m_obsdiagNode, only: obsdiagNode_get
+  use m_obsdiagNode, only: obsdiagNode_set
   implicit none
   
   private
@@ -132,15 +134,18 @@ contains
 
           if(luse_obsdiag)then
              if (lsaveobsens) then
-                pm2_5ptr%diags%obssen(jiter) = val*pm2_5ptr%raterr2*pm2_5ptr%err2
+                !-- pm2_5ptr%diags%obssen(jiter) = val*pm2_5ptr%raterr2*pm2_5ptr%err2
+                call obsdiagNode_set(pm2_5ptr%diags,jiter=jiter,obssen=val*pm2_5ptr%raterr2*pm2_5ptr%err2)
              else
-                if (pm2_5ptr%luse) pm2_5ptr%diags%tldepart(jiter)=val
+                !-- if (pm2_5ptr%luse) pm2_5ptr%diags%tldepart(jiter)=val
+                if (pm2_5ptr%luse) call obsdiagNode_set(pm2_5ptr%diags,jiter=jiter,tldepart=val)
              endif
           endif
 
           if (l_do_adjoint) then
              if (lsaveobsens) then
-                grad = pm2_5ptr%diags%obssen(jiter)
+                !-- grad = pm2_5ptr%diags%obssen(jiter)
+                call obsdiagNode_get(pm2_5ptr%diags,jiter=jiter,obssen=grad)
 
              else
                 if( .not. ladtest_obs ) val=val-pm2_5ptr%res
@@ -366,15 +371,18 @@ contains
 
           if(luse_obsdiag)then
              if (lsaveobsens) then
-                pm2_5ptr%diags%obssen(jiter) = val*pm2_5ptr%raterr2*pm2_5ptr%err2
+                !-- pm2_5ptr%diags%obssen(jiter) = val*pm2_5ptr%raterr2*pm2_5ptr%err2
+                call obsdiagNode_set(pm2_5ptr%diags,jiter=jiter,obssen=val*pm2_5ptr%raterr2*pm2_5ptr%err2)
              else
-                if (pm2_5ptr%luse) pm2_5ptr%diags%tldepart(jiter)=val
+                !-- if (pm2_5ptr%luse) pm2_5ptr%diags%tldepart(jiter)=val
+                if (pm2_5ptr%luse) call obsdiagNode_set(pm2_5ptr%diags,jiter=jiter,tldepart=val)
              endif
           endif
 
           if (l_do_adjoint) then
              if (lsaveobsens) then
-                grad = pm2_5ptr%diags%obssen(jiter)
+                !-- grad = pm2_5ptr%diags%obssen(jiter)
+                call obsdiagNode_get(pm2_5ptr%diags,jiter=jiter,obssen=grad)
 
              else
                 if( .not. ladtest_obs ) val=val-pm2_5ptr%res
