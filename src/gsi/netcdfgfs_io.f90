@@ -1656,7 +1656,7 @@ contains
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: cwsm, dzsm
     real(r_kind),dimension(max(grd%iglobal,grd%itotsub))     :: work1,work2
     real(r_kind),dimension(grd%nlon,grd%nlat-2):: grid
-    real(r_kind),allocatable,dimension(:) :: rwork1d,rwork1d1,rlats,rlons,clons,slons
+    real(r_kind),allocatable,dimension(:) :: rlats,rlons,clons,slons
     real(r_kind),allocatable,dimension(:,:) :: grid_b,grid_b2
     real(r_kind),allocatable,dimension(:,:,:) :: grid_c, grid3, grid_c2, grid3b
     real(4), allocatable, dimension(:,:) :: values_2d,values_2d_tmp
@@ -1755,7 +1755,6 @@ contains
        call write_attribute(atmanl, 'units', time_units, 'time')
 
        ! Allocate structure arrays to hold data
-       allocate(rwork1d(latb*lonb),rwork1d1(latb*lonb))
        allocate(values_3d_tmp(lonb,latb,levs),values_2d_tmp(lonb,latb))
        if (imp_physics == 11) allocate(grid3b(grd%nlat,grd%nlon,1))
        if ( diff_res .or. imp_physics == 11 .or. lupp) then
@@ -1881,7 +1880,6 @@ contains
              end do
           end do
           values_2d = grid_b
-          rwork1d = reshape(grid_b,(/size(rwork1d)/))
        else
           call load_grid(work1,grid)
           values_2d = grid*r1000
@@ -1899,7 +1897,7 @@ contains
 
 !   u, v
     if (mype==mype_out) then
-       deallocate(values_3d)
+       if (allocated(values_3d)) deallocate(values_3d)
        call read_vardata(atmges, 'ugrd', ug3d, errcode=iret)
        if (iret /= 0) call error_msg(trim(my_name),trim(filename),'ugrd','read',istop,iret)
        call read_vardata(atmges, 'vgrd', vg3d, errcode=iret)
@@ -1943,7 +1941,7 @@ contains
                 end do
              end do
              ug3d(:,:,k) = grid_b
-             vg3d(:,:,k) = grid_b
+             vg3d(:,:,k) = grid_b2
           else
              call load_grid(work1,grid)
              ug3d(:,:,k) = grid
@@ -1973,8 +1971,8 @@ contains
        endif
        call write_vardata(atmanl,'vgrd',vg3d,errcode=iret)
        if (iret /= 0) call error_msg(trim(my_name),trim(filename),'vgrd','write',istop,iret)
+       deallocate(ug3d, vg3d)
     endif
-    deallocate(ug3d, vg3d)
 
 !   Thermodynamic variable
     if (mype==mype_out) then
@@ -2114,8 +2112,8 @@ contains
 !   Cloud condensate mixing ratio
     if (ntracer>2 .or. ncloud>=1) then
 
-       deallocate(values_3d)
        if (mype==mype_out) then
+          if (allocated(values_3d)) deallocate(values_3d)
           call read_vardata(atmges, 'clwmr', ug3d, errcode=iret)
           if (iret /= 0) call error_msg(trim(my_name),trim(filename),'clwmr','read',istop,iret)
           if (imp_physics == 11) then
@@ -2204,8 +2202,8 @@ contains
              call write_vardata(atmanl,'icmr',vg3d,errcode=iret)
              if (iret /= 0) call error_msg(trim(my_name),trim(filename),'icmr','write',istop,iret)
           endif
+          deallocate(ug3d, vg3d)
        endif
-       deallocate(ug3d, vg3d)
     endif !ntracer
 
 ! Variables needed by the Unified Post Processor (dzdt, delz, delp)
@@ -2267,8 +2265,10 @@ contains
 !
 ! Deallocate local array
 !
-       deallocate(rwork1d,rwork1d1)
-       deallocate(values_2d, values_2d_tmp, values_3d, values_3d_tmp)
+       if (allocated(values_2d)) deallocate(values_2d)
+       if (allocated(values_3d)) deallocate(values_3d)
+       if (allocated(values_2d_tmp)) deallocate(values_2d_tmp)
+       if (allocated(values_3d_tmp)) deallocate(values_3d_tmp)
 !
        write(6,'(a,'': atm anal written for lonb,latb,levs= '',3i6,'',valid hour= '',f4.1,'',idate= '',4i5)') &
           trim(my_name),lonb,latb,levs,fhour(1),jdate(1:4)
