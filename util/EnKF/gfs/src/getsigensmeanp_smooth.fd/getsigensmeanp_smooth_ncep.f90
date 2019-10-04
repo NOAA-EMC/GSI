@@ -477,7 +477,7 @@ program getsigensmeanp_smooth
         deallocate(values_2d, values_3d, values_2d_avg, values_3d_avg)
         deallocate(values_2d_tmp, values_3d_tmp)
         if (dosmooth) then
-           deallocate(rwork_spc, smoothfact)
+           deallocate(rwork_spc)
            call close_dataset(dseto_smooth)
         endif
         if (write_spread_ncio) then
