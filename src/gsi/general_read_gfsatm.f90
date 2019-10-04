@@ -1477,7 +1477,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
       call read_vardata(atmges, 'grid_xt', rlons_tmp)
       call read_vardata(atmges, 'grid_yt', rlats_tmp)
       do j=1,latb
-        rlats(latb+2-j)=deg2rad*rlats_tmp(j)
+        rlats(j+1)=deg2rad*rlats_tmp(j)
       end do
       do j=1,lonb
         rlons(j)=deg2rad*rlons_tmp(j)
