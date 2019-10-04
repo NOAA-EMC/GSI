@@ -134,7 +134,7 @@
   else if (use_gfs_ncio) then
      dset = open_dataset(filename)
      londim = get_dim(dset,'grid_xt'); nlonsin = londim%len
-     latdim = get_dim(dset,'grid_xt'); nlatsin = latdim%len
+     latdim = get_dim(dset,'grid_yt'); nlatsin = latdim%len
      levdim = get_dim(dset,'pfull');   nlevsin = levdim%len
      idvc=2
   else
