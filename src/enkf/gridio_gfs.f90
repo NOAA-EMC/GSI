@@ -135,7 +135,7 @@
      dset = open_dataset(filename)
      londim = get_dim(dset,'grid_xt'); nlonsin = londim%len
      latdim = get_dim(dset,'grid_xt'); nlatsin = latdim%len
-     levdim = get_dim(dset,'phalf');   nlevsin = levdim%len
+     levdim = get_dim(dset,'pfull');   nlevsin = levdim%len
      idvc=2
   else
      call sigio_srohdc(iunitsig,trim(filename), &

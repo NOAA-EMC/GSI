@@ -136,7 +136,7 @@ else if (use_gfs_ncio) then
      dset = open_dataset(filename)
      londim = get_dim(dset,'grid_xt'); nlonsin = londim%len
      latdim = get_dim(dset,'grid_xt'); nlatsin = latdim%len
-     levdim = get_dim(dset,'phalf');   nlevsin = levdim%len
+     levdim = get_dim(dset,'pfull');   nlevsin = levdim%len
      idvc = 2; ntrunc = nlatsin-2
      if (nlons /= nlonsin .or. nlats /= nlatsin .or. nlevs /= nlevsin) then
        print *,'incorrect dims in netcdf file'
