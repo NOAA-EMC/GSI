@@ -229,7 +229,7 @@
         print *,'error reading ps'
         call stop2(31)
      endif
-     psg = 0.01_r_kind*reshape(values_2d,(/nlons*nlats/)) ! convert to 1d array, units to millibars.
+     psg = 0.01_r_kind*reshape(values_2d(:,nlats:1:-1),(/nlons*nlats/))
      call read_attribute(dset, 'ak', ak)
      call read_attribute(dset, 'bk', bk)
      if (nanal .eq. 1) then
@@ -238,8 +238,8 @@
      endif
      ! pressure at interfaces
      do k=1,nlevs+1
-        pressi(:,k)=ak(k)+bk(k)*psg
-        if (nanal .eq. 1) print *,'nemsio, min/max pressi',k,minval(pressi(:,k)),maxval(pressi(:,k))
+        pressi(:,k) = ak(nlevs-k+2)+bk(nlevs-k+2)*100_r_kind*psg
+        if (nanal .eq. 1) print *,'netcdf, min/max pressi',k,minval(pressi(:,k)),maxval(pressi(:,k))
      enddo
      deallocate(ak,bk,values_2d)
   else
@@ -363,8 +363,8 @@
         call stop2(23)
      endif
      do k=1,nlevs
-        ug = reshape(ug3d(:,:,k),(/nlons*nlats/))
-        vg = reshape(vg3d(:,:,k),(/nlons*nlats/))
+        ug = reshape(ug3d(:,nlats:1:-1,nlevs-k+1),(/nlons*nlats/))
+        vg = reshape(vg3d(:,nlats:1:-1,nlevs-k+1),(/nlons*nlats/))
         if (u_ind > 0) call copytogrdin(ug,grdin(:,levels(u_ind-1) + k,nb,ne))
         if (v_ind > 0) call copytogrdin(vg,grdin(:,levels(v_ind-1) + k,nb,ne))
         ! calculate vertical integral of mass flux div (ps tendency)
@@ -387,8 +387,8 @@
         call stop2(25)
      endif
      do k=1,nlevs
-        ug = reshape(ug3d(:,:,k),(/nlons*nlats/))
-        vg = reshape(vg3d(:,:,k),(/nlons*nlats/))
+        ug = reshape(ug3d(:,nlats:1:-1,nlevs-k+1),(/nlons*nlats/))
+        vg = reshape(vg3d(:,nlats:1:-1,nlevs-k+1),(/nlons*nlats/))
         if (tsen_ind > 0) call copytogrdin(ug,grdin(:,levels(tsen_ind-1)+k,nb,ne))
         call copytogrdin(vg, q(:,k))
         ug = ug * ( 1.0 + fv*vg ) ! convert T to Tv
@@ -404,7 +404,7 @@
         endif
         if (cliptracers)  where (ug3d < clip) ug3d = clip
         do k=1,nlevs
-           ug = reshape(ug3d(:,:,k),(/nlons*nlats/))
+           ug = reshape(ug3d(:,nlats:1:-1,nlevs-k+1),(/nlons*nlats/))
            call copytogrdin(ug,grdin(:,levels(oz_ind-1)+k,nb,ne))
         enddo
      endif
@@ -424,7 +424,7 @@
         endif
         if (cliptracers)  where (ug3d < clip) ug3d = clip
         do k=1,nlevs
-           ug = reshape(ug3d(:,:,k),(/nlons*nlats/))
+           ug = reshape(ug3d(:,nlats:1:-1,nlevs-k+1),(/nlons*nlats/))
            call copytogrdin(ug,cw(:,k))
            if (cw_ind > 0) grdin(:,levels(cw_ind-1)+k,nb,ne) = cw(:,k)
         enddo

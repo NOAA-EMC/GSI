@@ -225,15 +225,16 @@ if (nproc .eq. 0) then
          print *,'error reading ps in gridinfo_gfs'
          call stop2(11)
       endif
-      spressmn = 0.01_r_kind*reshape(values_2d,(/nlons*nlats/)) ! convert to 1d array, units to millibars.
+      ! convert to 1d array, units to millibars, flip so lats go N to S.
+      spressmn = 0.01_r_kind*reshape(values_2d(:,nlats:1:-1),(/nlons*nlats/))
       call read_attribute(dset, 'ak', ak)
       call read_attribute(dset, 'bk', bk)
       call close_dataset(dset)
       ! pressure at interfaces
       do k=1,nlevs+1
-         pressimn(:,k) = ak(k)+bk(k)*spressmn(:)
+         pressimn(:,k) = ak(nlevs-k+2)+bk(nlevs-k+2)*100_r_kind*spressmn(:)
       enddo
-      ptop = ak(nlevs+1)
+      ptop = ak(1)
       deallocate(ak,bk,values_2d)
    else
 ! get pressure from ensemble mean,
