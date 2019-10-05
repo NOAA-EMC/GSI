@@ -28,6 +28,7 @@
     allocate(values(n1,n2,n3,n4,n5))
     ncerr = nf90_get_var(dset%ncid, dset%variables(nvar)%varid, values)
     if (return_errcode) then
+       call nccheck(ncerr,halt=.false.)
        errcode=ncerr
     else
        call nccheck(ncerr)

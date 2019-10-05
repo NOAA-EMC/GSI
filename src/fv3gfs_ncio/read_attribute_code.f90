@@ -18,8 +18,9 @@
     endif 
     ncerr = nf90_inquire_attribute(dset%ncid, varid, attname, len=nlen)
     if (return_errcode) then
+        call nccheck(ncerr,halt=.false.)
         errcode=ncerr
-        return
+        if (ncerr /= 0) return
     else
         call nccheck(ncerr)
     endif
@@ -27,6 +28,7 @@
     allocate(values(nlen))
     ncerr = nf90_get_att(dset%ncid, varid, trim(attname), values)
     if (return_errcode) then
+        call nccheck(ncerr,halt=.false.)
         errcode=ncerr
     else
         call nccheck(ncerr)

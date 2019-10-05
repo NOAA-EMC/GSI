@@ -18,6 +18,7 @@
     nvar = get_nvar(dset,varname)
     if (dset%variables(nvar)%ndims /= 4 .and. dset%variables(nvar)%ndims /= 5) then
        if (return_errcode) then
+          call nccheck(ncerr,halt=.false.)
           errcode=nf90_ebaddim
           return
        else
@@ -40,6 +41,7 @@
        ncerr = nf90_get_var(dset%ncid, dset%variables(nvar)%varid, values)
     endif
     if (return_errcode) then
+       call nccheck(ncerr,halt=.false.)
        errcode=ncerr
     else
        call nccheck(ncerr)
