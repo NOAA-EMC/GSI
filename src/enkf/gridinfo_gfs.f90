@@ -232,9 +232,9 @@ if (nproc .eq. 0) then
       call close_dataset(dset)
       ! pressure at interfaces
       do k=1,nlevs+1
-         pressimn(:,k) = ak(nlevs-k+2)+bk(nlevs-k+2)*100_r_kind*spressmn(:)
+         pressimn(:,k) = 0.01_r_kind*ak(nlevs-k+2)+bk(nlevs-k+2)*spressmn(:)
       enddo
-      ptop = ak(1)
+      ptop = 0.01_r_kind*ak(1)
       deallocate(ak,bk,values_2d)
    else
 ! get pressure from ensemble mean,
