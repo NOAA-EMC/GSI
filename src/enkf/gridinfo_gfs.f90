@@ -59,7 +59,7 @@ real(r_single),public :: ptop
 real(r_single),public, allocatable, dimension(:) :: lonsgrd, latsgrd
 ! arrays passed to kdtree2 routines must be single
 real(r_single),public, allocatable, dimension(:,:) :: gridloc
-real(r_single),public, allocatable, dimension(:,:) :: logp, values_2d
+real(r_single),public, allocatable, dimension(:,:) :: logp
 integer,public :: npts
 integer,public :: ntrunc
 ! supported variable names in anavinfo
@@ -89,7 +89,7 @@ integer(i_kind) nlevsin, ierr, iunit, k, nn, idvc
 character(len=500) filename
 integer(i_kind) iret,i,j,nlonsin,nlatsin
 real(r_kind), allocatable, dimension(:) :: ak,bk,spressmn,tmpspec
-real(r_kind), allocatable, dimension(:,:) :: pressimn,presslmn
+real(r_kind), allocatable, dimension(:,:) :: pressimn,presslmn,values_2d
 real(r_single),allocatable,dimension(:,:,:) :: nems_vcoord
 real(r_kind) kap,kapr,kap1
 real(nemsio_realkind), dimension(nlons*nlats) :: nems_wrk
@@ -220,10 +220,11 @@ if (nproc .eq. 0) then
       ptop = ak(nlevs+1)
       deallocate(ak,bk)
    else if (use_gfs_ncio) then
-      allocate(presslmn(nlons*nlats,nlevs))
-      allocate(pressimn(nlons*nlats,nlevs+1))
-      allocate(spressmn(nlons*nlats))
-      call read_vardata(dset, 'ps', values_2d)
+      call read_vardata(dset, 'pressfc', values_2d,errcode=iret)
+      if (iret /= 0) then
+         print *,'error reading ps in gridinfo_gfs'
+         call stop2(11)
+      endif
       spressmn = 0.01_r_kind*reshape(values_2d,(/nlons*nlats/)) ! convert to 1d array, units to millibars.
       call read_attribute(dset, 'ak', ak)
       call read_attribute(dset, 'bk', bk)
