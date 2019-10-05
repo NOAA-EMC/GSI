@@ -224,7 +224,11 @@
      enddo
      deallocate(ak,bk)
   else if (use_gfs_ncio) then
-     call read_vardata(dset, 'ps', values_2d)
+     call read_vardata(dset, 'pressfc', values_2d,errcode=iret)
+     if (iret /= 0) then
+        print *,'error reading ps'
+        call stop2(31)
+     endif
      psg = 0.01_r_kind*reshape(values_2d,(/nlons*nlats/)) ! convert to 1d array, units to millibars.
      call read_attribute(dset, 'ak', ak)
      call read_attribute(dset, 'bk', bk)
@@ -255,7 +259,7 @@
          ak = 0.01_r_kind*sighead%vcoord(1:nlevs+1,1)  ! convert to mb
      else
          print *,'unknown vertical coordinate type',sighead%idvc
-         call stop2(23)
+         call stop2(32)
      end if
      !==> pressure at interfaces.
      if (nanal .eq. 1) then
@@ -348,8 +352,16 @@
         endif
      enddo
   else if (use_gfs_ncio) then
-     call read_vardata(dset, 'ugrd', ug3d)
-     call read_vardata(dset, 'vgrd', vg3d)
+     call read_vardata(dset, 'ugrd', ug3d,errcode=iret)
+     if (iret /= 0) then
+        print *,'error reading ugrd'
+        call stop2(22)
+     endif
+     call read_vardata(dset, 'vgrd', vg3d,errcode=iret)
+     if (iret /= 0) then
+        print *,'error reading vgrd'
+        call stop2(23)
+     endif
      do k=1,nlevs
         ug = reshape(ug3d(:,:,k),(/nlons*nlats/))
         vg = reshape(vg3d(:,:,k),(/nlons*nlats/))
@@ -364,8 +376,16 @@
            call sptez_s(divspec,vmassdiv(:,k),1) ! divspec to divgrd
         endif
      enddo
-     call read_vardata(dset,'tmp', ug3d)
-     call read_vardata(dset,'spfh', vg3d)
+     call read_vardata(dset,'tmp', ug3d,errcode=iret)
+     if (iret /= 0) then
+        print *,'error reading tmp'
+        call stop2(24)
+     endif
+     call read_vardata(dset,'spfh', vg3d,errcode=iret)
+     if (iret /= 0) then
+        print *,'error reading spfh'
+        call stop2(25)
+     endif
      do k=1,nlevs
         ug = reshape(ug3d(:,:,k),(/nlons*nlats/))
         vg = reshape(vg3d(:,:,k),(/nlons*nlats/))
@@ -377,7 +397,11 @@
         if (q_ind > 0)    grdin(:,levels( q_ind-1)+k,nb,ne) =  q(:,k)
      enddo
      if (oz_ind > 0) then
-        call read_vardata(dset, 'o3mr', ug3d)
+        call read_vardata(dset, 'o3mr', ug3d,errcode=iret)
+        if (iret /= 0) then
+           print *,'error reading o3mr'
+           call stop2(26)
+        endif
         if (cliptracers)  where (ug3d < clip) ug3d = clip
         do k=1,nlevs
            ug = reshape(ug3d(:,:,k),(/nlons*nlats/))
@@ -385,9 +409,17 @@
         enddo
      endif
      if (cw_ind > 0 .or. ql_ind > 0 .or. qi_ind > 0) then
-        call read_vardata(dset, 'clwmr', ug3d)
+        call read_vardata(dset, 'clwmr', ug3d,errcode=iret)
+        if (iret /= 0) then
+           print *,'error reading clwmr'
+           call stop2(27)
+        endif
         if (imp_physics == 11) then
-           call read_vardata(dset, 'icmr', vg3d)
+           call read_vardata(dset, 'icmr', vg3d,errcode=iret)
+           if (iret /= 0) then
+              print *,'error reading icmr'
+              call stop2(28)
+           endif
            ug3d = ug3d + vg3d
         endif
         if (cliptracers)  where (ug3d < clip) ug3d = clip
@@ -666,7 +698,11 @@
      idat(2) = jdat(2) ! mon
      idat(3) = jdat(3) ! day
      idat(1) = jdat(4) ! hr
-     call read_vardata(dsfg,'time',values_1d)
+     call read_vardata(dsfg,'time',values_1d,errcode=iret)
+     if (iret /= 0) then
+        print *,'error reading time'
+        call stop2(29)
+     endif
      nfhour = int(values_1d(1))
      nems_idvc=2
      call read_attribute(dsfg, 'ak', values_1d)
@@ -688,7 +724,7 @@
          ak = 0.01_r_kind*sighead%vcoord(1:nlevs+1,1)  ! convert to mb
      else
          print *,'unknown vertical coordinate type',sighead%idvc
-         call stop2(23)
+         call stop2(20)
      end if
   endif
 
