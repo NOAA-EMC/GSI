@@ -1634,7 +1634,7 @@ contains
     character(len=120) :: my_name = 'WRITE_NEMSATM'
     character(len=1)   :: null = ' '
     integer(i_kind),dimension(6):: idate,jdate
-    integer(i_kind) :: k, mm1, nlatm2, nord_int, i, j, kk
+    integer(i_kind) :: k, mm1, nlatm2, nord_int, i, j, kk, kr, nbits
     integer(i_kind) :: iret, lonb, latb, levs, istatus
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
     integer(i_kind) :: istop = 104
@@ -1666,7 +1666,6 @@ contains
     type(Dimension) :: ncdim
     character(len=nf90_max_name) :: time_units
 
-    integer nbits
     logical diff_res,eqspace,quantize
     logical,dimension(1) :: vector
     type(egrid2agrid_parm) :: p_low,p_high
@@ -1846,6 +1845,7 @@ contains
              call read_vardata(atmges,'delp',values_3d,errcode=iret)
              if (iret /= 0) call error_msg(trim(my_name),trim(filename),'dpres','read',istop,iret)
              do k=1,grd%nsig
+                kr = grd%nsig-k+1
                 do kk=1,grd%iglobal
                    i=grd%ltosi(kk)
                    j=grd%ltosj(kk)
@@ -1854,7 +1854,7 @@ contains
                 call g_egrid2agrid(p_high,grid3,grid_c2,1,1,vector)
                 do j=1,latb
                    do i=1,lonb
-                      values_3d(i,j,k)=values_3d(i,j,k)+r1000*(grid_c2(latb-j+2,i,1))
+                      values_3d(i,j,kr)=values_3d(i,j,kr)+r1000*(grid_c2(j,i,1))
                    enddo
                 enddo
              enddo
@@ -1876,13 +1876,13 @@ contains
           call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
           do j=1,latb
              do i=1,lonb
-                grid_b(i,j)=r1000*(grid_b(i,j)+grid_c(latb-j+2,i,1))
+                grid_b(i,j)=r1000*(grid_b(i,j)+grid_c(j,i,1))
              end do
           end do
           values_2d = grid_b
        else
-          call load_grid(work1,grid)
-          values_2d = grid*r1000
+          call load_grid(work1,grid) ! this returns data N->S
+          values_2d(:,latb:1:-1) = grid*r1000
        end if
        call read_attribute(atmges, 'nbits', nbits, 'pressfc',errcode=iret)
        if (iret == 0 .and. nbits > 0)  then
@@ -1904,6 +1904,7 @@ contains
        if (iret /= 0) call error_msg(trim(my_name),trim(filename),'vgrd','read',istop,iret)
     endif
     do k=1,grd%nsig
+       kr = grd%nsig-k+1
        call mpi_gatherv(usm(1,k),grd%ijn(mm1),mpi_rtype,&
             work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
@@ -1912,8 +1913,8 @@ contains
             mype_out,mpi_comm_world,ierror)
        if (mype==mype_out) then
           if(diff_res)then
-             grid_b = ug3d(:,:,k)
-             grid_b2 = vg3d(:,:,k)
+             grid_b = ug3d(:,:,kr)
+             grid_b2 = vg3d(:,:,kr)
              vector(1)=.true.
              call filluv2_ns(grid_b,grid_b2,grid_c(:,:,1),grid_c2(:,:,1),latb+2,lonb,slons,clons)
              call g_egrid2agrid(p_low,grid_c,grid3,1,1,vector)
@@ -1925,7 +1926,7 @@ contains
              call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
              do j=1,latb
                 do i=1,lonb
-                   grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
+                   grid_b(i,j)=grid_b(i,j)+grid_c(j,i,1)
                 end do
              end do
              call g_egrid2agrid(p_low,grid_c2,grid3,1,1,vector)
@@ -1937,16 +1938,16 @@ contains
              call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
              do j=1,latb
                 do i=1,lonb
-                   grid_b2(i,j)=grid_b2(i,j)+grid_c(latb-j+2,i,1)
+                   grid_b2(i,j)=grid_b2(i,j)+grid_c(j,i,1)
                 end do
              end do
-             ug3d(:,:,k) = grid_b
-             vg3d(:,:,k) = grid_b2
+             ug3d(:,:,kr) = grid_b
+             vg3d(:,:,kr) = grid_b2
           else
              call load_grid(work1,grid)
-             ug3d(:,:,k) = grid
+             ug3d(:,latb:1:-1,kr) = grid
              call load_grid(work2,grid)
-             vg3d(:,:,k) = grid
+             vg3d(:,latb:1:-1,kr) = grid
           end if
        endif ! mype_out
     end do
@@ -1980,12 +1981,13 @@ contains
        if (iret /= 0) call error_msg(trim(my_name),trim(filename),'tmp','read',istop,iret)
     endif
     do k=1,grd%nsig
+       kr = grd%nsig-k+1
        call mpi_gatherv(tvsm(1,k),grd%ijn(mm1),mpi_rtype,&
             work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
        if (mype == mype_out) then
           if(diff_res)then
-             grid_b=values_3d(:,:,k)
+             grid_b=values_3d(:,:,kr)
              vector(1)=.false.
              call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
              call g_egrid2agrid(p_low,grid_c,grid3,1,1,vector)
@@ -1997,13 +1999,13 @@ contains
              call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
              do j=1,latb
                 do i=1,lonb
-                   grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
+                   grid_b(i,j)=grid_b(i,j)+grid_c(j,i,1)
                 end do
              end do
-             values_3d(:,:,k) = grid_b
+             values_3d(:,:,kr) = grid_b
           else
              call load_grid(work1,grid)
-             values_3d(:,:,k) = grid
+             values_3d(:,latb:1:-1,kr) = grid
           end if
        endif
     end do
@@ -2025,12 +2027,13 @@ contains
        if (iret /= 0) call error_msg(trim(my_name),trim(filename),'spfh','read',istop,iret)
     endif
     do k=1,grd%nsig
+       kr = grd%nsig-k+1
        call mpi_gatherv(qsm(1,k),grd%ijn(mm1),mpi_rtype,&
             work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
        if (mype == mype_out) then
           if(diff_res)then
-             grid_b=values_3d(:,:,k)
+             grid_b=values_3d(:,:,kr)
              vector(1)=.false.
              call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
              call g_egrid2agrid(p_low,grid_c,grid3,1,1,vector)
@@ -2042,13 +2045,13 @@ contains
              call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
              do j=1,latb
                 do i=1,lonb
-                   grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
+                   grid_b(i,j)=grid_b(i,j)+grid_c(j,i,1)
                 end do
              end do
-             values_3d(:,:,k) = grid_b
+             values_3d(:,:,kr) = grid_b
           else
              call load_grid(work1,grid)
-             values_3d(:,:,k) = grid
+             values_3d(:,latb:1:-1,kr) = grid
           end if
        endif
     end do
@@ -2070,12 +2073,13 @@ contains
        if (iret /= 0) call error_msg(trim(my_name),trim(filename),'o3mr','read',istop,iret)
     endif
     do k=1,grd%nsig
+       kr = grd%nsig-k+1
        call mpi_gatherv(ozsm(1,k),grd%ijn(mm1),mpi_rtype,&
             work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
        if (mype == mype_out) then
           if(diff_res)then
-             grid_b=values_3d(:,:,k)
+             grid_b=values_3d(:,:,kr)
              vector(1)=.false.
              call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
              call g_egrid2agrid(p_low,grid_c,grid3,1,1,vector)
@@ -2087,13 +2091,13 @@ contains
              call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
              do j=1,latb
                 do i=1,lonb
-                   grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
+                   grid_b(i,j)=grid_b(i,j)+grid_c(j,i,1)
                 end do
              end do
-             values_3d(:,:,k) = grid_b
+             values_3d(:,:,kr) = grid_b
           else
              call load_grid(work1,grid)
-             values_3d(:,:,k) = grid
+             values_3d(:,latb:1:-1,kr) = grid
           end if
        endif
     end do
@@ -2123,6 +2127,7 @@ contains
        endif
 
        do k=1,grd%nsig
+          kr = grd%nsig-k+1
           call mpi_gatherv(cwsm(1,k),grd%ijn(mm1),mpi_rtype,&
                work1,grd%ijn,grd%displs_g,mpi_rtype,&
                mype_out,mpi_comm_world,ierror)
@@ -2133,9 +2138,9 @@ contains
           endif
           if (mype == mype_out) then
              if(diff_res .or. imp_physics == 11)then
-                grid_b = ug3d(:,:,k)
+                grid_b = ug3d(:,:,kr)
                 if (imp_physics == 11) then
-                   grid_b2=vg3d(:,:,k)
+                   grid_b2=vg3d(:,:,kr)
                    grid_b = grid_b + grid_b2
                 endif
                 vector(1)=.false.
@@ -2157,10 +2162,10 @@ contains
                 if (imp_physics == 11) grid_b = grid_b - grid_b2
                 do j=1,latb
                    do i=1,lonb
-                      grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
+                      grid_b(i,j)=grid_b(i,j)+grid_c(j,i,1)
                    end do
                 end do
-                ug3d(:,:,k) = grid_b
+                ug3d(:,:,kr) = grid_b
                 if (imp_physics == 11) then
                    do kk=1,grd%iglobal
                       i=grd%ltosi(kk)
@@ -2170,14 +2175,14 @@ contains
                    call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
                    do j=1,latb
                       do i=1,lonb
-                         grid_b2(i,j)=grid_b2(i,j)+grid_c(latb-j+2,i,1)
+                         grid_b2(i,j)=grid_b2(i,j)+grid_c(j,i,1)
                       end do
                    end do
-                   vg3d(:,:,k) = grid_b2
+                   vg3d(:,:,kr) = grid_b2
                 endif
              else
                 call load_grid(work1,grid)
-                ug3d(:,:,k) = grid
+                ug3d(:,latb:1:-1,kr) = grid
              endif
           endif !mype == mype_out
        end do
@@ -2213,12 +2218,13 @@ contains
           if (iret /= 0) call error_msg(trim(my_name),trim(filename),'delz','read',istop,iret)
        endif
        do k=1,grd%nsig
+          kr = grd%nsig-k+1
           call mpi_gatherv(dzsm(1,k),grd%ijn(mm1),mpi_rtype,&
                work1,grd%ijn,grd%displs_g,mpi_rtype,&
                mype_out,mpi_comm_world,ierror)
           if (mype == mype_out) then
              if(diff_res)then
-                grid_b=values_3d(:,:,k)
+                grid_b=values_3d(:,:,kr)
                 do kk=1,grd%iglobal
                    i=grd%ltosi(kk)
                    j=grd%ltosj(kk)
@@ -2227,13 +2233,13 @@ contains
                 call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
                 do j=1,latb
                    do i=1,lonb
-                      grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
+                      grid_b(i,j)=grid_b(i,j)+grid_c(j,i,1)
                    end do
                 end do
-                values_3d(:,:,k) = grid_b
+                values_3d(:,:,kr) = grid_b
              else
                 call load_grid(work1,grid)
-                values_3d(:,:,k) = values_3d(:,:,k) + grid
+                values_3d(:,latb:1:-1,kr) = values_3d(:,latb:1:-1,kr) + grid
              end if
           endif
        end do
