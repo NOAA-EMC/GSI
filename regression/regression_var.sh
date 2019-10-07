@@ -36,8 +36,8 @@ if [ -z ${machine+x} ]; then
      export machine="WCOSS"
   elif [ -d /glade/scratch ]; then # Cheyenne
    export machine="Cheyenne"
-  elif [ -d /scratch4/NCEPDEV/da ]; then # Theia
-   export machine="Theia"
+  elif [ -d /scratch1/NCEPDEV/da ]; then # Hera
+   export machine="Hera"
   elif [ -d /gpfs/hps/ptmp ]; then # LUNA or SURGE
    export machine="WCOSS_C"
   elif [ -d /gpfs/dell1/ptmp ]; then # venus or mars
@@ -108,31 +108,31 @@ case $machine in
    export check_resource="no"
    export accnt="p48503002"
    ;;
-   Theia)
-   if [ -d /scratch4/NCEPDEV/da/noscrub/$LOGNAME ]; then 
-     export noscrub="/scratch4/NCEPDEV/da/noscrub/$LOGNAME"
-   elif [ -d /scratch4/NCEPDEV/global/noscrub/$LOGNAME ]; then 
-     export noscrub="/scratch4/NCEPDEV/global/noscrub/$LOGNAME"
-    elif [ -d /scratch3/BMC/gsienkf/$LOGNAME ]; then
-     export noscrub="/scratch3/BMC/gsienkf/$LOGNAME"
+   Hera)
+   if [ -d /scratch1/NCEPDEV/da/$LOGNAME ]; then 
+     export noscrub="/scratch1/NCEPDEV/da/$LOGNAME/noscrub"
+   elif [ -d /scratch1/NCEPDEV/global/$LOGNAME ]; then 
+     export noscrub="/scratch1/NCEPDEV/global/$LOGNAME/noscrub"
+    elif [ -d /scratch2/BMC/gsienkf/$LOGNAME ]; then
+     export noscrub="/scratch2/BMC/gsienkf/$LOGNAME"
    fi
    export group="global"
    export queue="batch"
    if [[ "$cmaketest" = "false" ]]; then
-     export basedir="/scratch4/NCEPDEV/da/save/$LOGNAME/git/gsi"
+     export basedir="/scratch1/NCEPDEV/da/$LOGNAME/git/gsi"
    fi 
 
-   export ptmp="/scratch4/NCEPDEV/stmp3/$LOGNAME/$ptmpName"
+   export ptmp="/scratch1/NCEPDEV/stmp2/$LOGNAME/$ptmpName"
 
-   export fixcrtm="/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/lib/crtm/2.2.3/fix_update"
-   export casesdir="/scratch4/NCEPDEV/da/noscrub/Michael.Lueken/CASES"
-   export ndate="/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/util/exec/ndate"
+   export fixcrtm="/scratch1/NCEPDEV/da/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update"
+   export casesdir="/scratch1/NCEPDEV/da/Michael.Lueken/noscrub/CASES"
+   export ndate=$NDATE
 
    export check_resource="no"
 
    export accnt="da-cpu"
 
-   #  On Theia, there are no scrubbers to remove old contents from stmp* directories.
+   #  On Hera, there are no scrubbers to remove old contents from stmp* directories.
    #  After completion of regression tests, will remove the regression test subdirecories
    export clean=".true."
    ;;

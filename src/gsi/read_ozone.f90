@@ -709,13 +709,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         toq=hdrozo2(5)
         if (toq/=0 .and. toq/=1) cycle read_loop2
    
-        if (obstype == 'omi') then
-!          For OMI remove the bad scan position data: fovn beyond 25
-           if (hdrozo2(7) >=25.0_r_double) cycle read_loop2
-
-!          remove the data in which the C-pair algorithm ((331 and 360 nm) is used. 
-           if (hdrozo2(8) == 3_r_double .or. hdrozo2(8) == 13_r_double) cycle read_loop2
-        endif
+!       remove the data in which the C-pair algorithm ((331 and 360 nm) is used. 
+        if (hdrozo2(8) == 3_r_double .or. hdrozo2(8) == 13_r_double) cycle read_loop2
 
 !       thin OMI/OMPS-NM(or TC8) data
 
