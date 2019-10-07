@@ -1882,7 +1882,7 @@ contains
           values_2d = grid_b
        else
           call load_grid(work1,grid) ! this returns data N->S
-          values_2d(:,nlatm2:1:-1) = grid*r1000
+          values_2d = grid*r1000
        end if
        call read_attribute(atmges, 'nbits', nbits, 'pressfc',errcode=iret)
        if (iret == 0 .and. nbits > 0)  then
@@ -1945,9 +1945,9 @@ contains
              vg3d(:,:,kr) = grid_b2
           else
              call load_grid(work1,grid)
-             ug3d(:,nlatm2:1:-1,kr) = grid
+             ug3d(:,:,kr) = grid
              call load_grid(work2,grid)
-             vg3d(:,nlatm2:1:-1,kr) = grid
+             vg3d(:,:,kr) = grid
           end if
        endif ! mype_out
     end do
@@ -2005,7 +2005,7 @@ contains
              values_3d(:,:,kr) = grid_b
           else
              call load_grid(work1,grid)
-             values_3d(:,nlatm2:1:-1,kr) = grid
+             values_3d(:,:,kr) = grid
           end if
        endif
     end do
@@ -2051,7 +2051,7 @@ contains
              values_3d(:,:,kr) = grid_b
           else
              call load_grid(work1,grid)
-             values_3d(:,nlatm2:1:-1,kr) = grid
+             values_3d(:,:,kr) = grid
           end if
        endif
     end do
@@ -2097,7 +2097,7 @@ contains
              values_3d(:,:,kr) = grid_b
           else
              call load_grid(work1,grid)
-             values_3d(:,nlatm2:1:-1,kr) = grid
+             values_3d(:,:,kr) = grid
           end if
        endif
     end do
@@ -2182,7 +2182,7 @@ contains
                 endif
              else
                 call load_grid(work1,grid)
-                ug3d(:,nlatm2:1:-1,kr) = grid
+                ug3d(:,:,kr) = grid
              endif
           endif !mype == mype_out
        end do
@@ -2239,7 +2239,7 @@ contains
                 values_3d(:,:,kr) = grid_b
              else
                 call load_grid(work1,grid)
-                values_3d(:,nlatm2:1:-1,kr) = values_3d(:,nlatm2:1:-1,kr) + grid
+                values_3d(:,:,kr) = values_3d(:,:,kr) + grid
              end if
           endif
        end do

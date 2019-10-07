@@ -229,7 +229,7 @@
         print *,'error reading ps'
         call stop2(31)
      endif
-     psg = 0.01_r_kind*reshape(values_2d(:,nlats:1:-1),(/nlons*nlats/))
+     psg = 0.01_r_kind*reshape(values_2d,(/nlons*nlats/))
      call read_attribute(dset, 'ak', ak)
      call read_attribute(dset, 'bk', bk)
      if (nanal .eq. 1) then
@@ -363,8 +363,8 @@
         call stop2(23)
      endif
      do k=1,nlevs
-        ug = reshape(ug3d(:,nlats:1:-1,nlevs-k+1),(/nlons*nlats/))
-        vg = reshape(vg3d(:,nlats:1:-1,nlevs-k+1),(/nlons*nlats/))
+        ug = reshape(ug3d(:,:,nlevs-k+1),(/nlons*nlats/))
+        vg = reshape(vg3d(:,:,nlevs-k+1),(/nlons*nlats/))
         if (u_ind > 0) call copytogrdin(ug,grdin(:,levels(u_ind-1) + k,nb,ne))
         if (v_ind > 0) call copytogrdin(vg,grdin(:,levels(v_ind-1) + k,nb,ne))
         ! calculate vertical integral of mass flux div (ps tendency)
@@ -387,8 +387,8 @@
         call stop2(25)
      endif
      do k=1,nlevs
-        ug = reshape(ug3d(:,nlats:1:-1,nlevs-k+1),(/nlons*nlats/))
-        vg = reshape(vg3d(:,nlats:1:-1,nlevs-k+1),(/nlons*nlats/))
+        ug = reshape(ug3d(:,:,nlevs-k+1),(/nlons*nlats/))
+        vg = reshape(vg3d(:,:,nlevs-k+1),(/nlons*nlats/))
         if (tsen_ind > 0) call copytogrdin(ug,grdin(:,levels(tsen_ind-1)+k,nb,ne))
         call copytogrdin(vg, q(:,k))
         ug = ug * ( 1.0 + fv*vg ) ! convert T to Tv
@@ -404,7 +404,7 @@
         endif
         if (cliptracers)  where (ug3d < clip) ug3d = clip
         do k=1,nlevs
-           ug = reshape(ug3d(:,nlats:1:-1,nlevs-k+1),(/nlons*nlats/))
+           ug = reshape(ug3d(:,:,nlevs-k+1),(/nlons*nlats/))
            call copytogrdin(ug,grdin(:,levels(oz_ind-1)+k,nb,ne))
         enddo
      endif
@@ -424,7 +424,7 @@
         endif
         if (cliptracers)  where (ug3d < clip) ug3d = clip
         do k=1,nlevs
-           ug = reshape(ug3d(:,nlats:1:-1,nlevs-k+1),(/nlons*nlats/))
+           ug = reshape(ug3d(:,:,nlevs-k+1),(/nlons*nlats/))
            call copytogrdin(ug,cw(:,k))
            if (cw_ind > 0) grdin(:,levels(cw_ind-1)+k,nb,ne) = cw(:,k)
         enddo
@@ -980,13 +980,13 @@
         print *,'error reading pressfc'
         call stop2(29)
      endif
-     psfg = 0.01*reshape(values_2d(:,nlats:1:-1),(/nlons*nlats/))
+     psfg = 0.01*reshape(values_2d,(/nlons*nlats/))
      ug = 0_r_kind
      if (ps_ind > 0) then
        call copyfromgrdin(grdin(:,levels(n3d) + ps_ind,nb,ne),ug)
      endif
      ! add increment to background (after converting to Pa)
-     values_2d(:,nlats:1:-1) = values_2d(:,nlats:1:-1) + 100_r_kind*reshape(ug,(/nlons,nlats/))
+     values_2d = values_2d + 100_r_kind*reshape(ug,(/nlons,nlats/))
      call write_vardata(dsanl,'pressfc',values_2d,errcode=iret) 
      if (iret /= 0) then
         print *,'error writing pressfc'
@@ -998,7 +998,7 @@
         call read_vardata(dsfg,'dpres',ug3d)
         do k=1,nlevs
            psg = ug*(bk(k)-bk(k+1))
-           vg3d(:,nlats:1:-1,nlevs-k+1) = ug3d(:,nlats:1:-1,nlevs-k+1) +&
+           vg3d(:,:,nlevs-k+1) = ug3d(:,:,nlevs-k+1) +&
            100_r_kind*reshape(psg,(/nlons,nlats/))
         enddo 
         call read_attribute(dsfg, 'nbits', nbits, 'delp',errcode=ierr)
@@ -1065,8 +1065,8 @@
            endif
            vg = nems_wrk
         else if (use_gfs_ncio) then
-           ug = reshape(ug3d(:,nlats:1:-1,nlevs-k+1),(/nlons*nlats/))
-           vg = reshape(vg3d(:,nlats:1:-1,nlevs-k+1),(/nlons*nlats/))
+           ug = reshape(ug3d(:,:,nlevs-k+1),(/nlons*nlats/))
+           vg = reshape(vg3d(:,:,nlevs-k+1),(/nlons*nlats/))
         else
            divspec = sigdata%d(:,k); vrtspec = sigdata%z(:,k)
            call sptezv_s(divspec,vrtspec,ug,vg,1)
@@ -1374,7 +1374,7 @@
         if (u_ind > 0) then
           call copyfromgrdin(grdin(:,levels(u_ind-1) + k,nb,ne),ug)
         endif
-        values_2d(:,nlats:1:-1) = reshape(ug,(/nlons,nlats/))
+        values_2d = reshape(ug,(/nlons,nlats/))
         ug3d(:,:,k) = ug3d(:,:,k) + values_2d
      enddo
      call read_attribute(dsfg, 'nbits', nbits, 'ugrd',errcode=ierr)
@@ -1403,7 +1403,7 @@
         if (v_ind > 0) then
           call copyfromgrdin(grdin(:,levels(v_ind-1) + k,nb,ne),vg)
         endif
-        values_2d(:,nlats:1:-1) = reshape(ug,(/nlons,nlats/))
+        values_2d = reshape(ug,(/nlons,nlats/))
         vg3d(:,:,k) = vg3d(:,:,k) + values_2d
      enddo  
      call read_attribute(dsfg, 'nbits', nbits, 'vgrd',errcode=ierr)
@@ -1424,7 +1424,7 @@
      endif
      if (pst_ind > 0) then
         do k=1,nlevs
-           vgtmp(:,k) = reshape(vg3d(:,nlats:1:-1,nlevs-k+1),(/nlons*nlats/))
+           vgtmp(:,k) = reshape(vg3d(:,:,nlevs-k+1),(/nlons*nlats/))
            ug = ugtmp(:,k)*dpanl(:,k)
            vg = vgtmp(:,k)*dpanl(:,k)
            call sptezv_s(divspec,vrtspec,ug,vg,-1) ! u,v to div,vrt
@@ -1452,7 +1452,7 @@
      allocate(delzb(nlons*nlats))
      if (allocated(values_1d)) deallocate(values_1d)
      allocate(values_1d(nlons*nlats))
-     values_1d = reshape(values_2d(:,nlats:1:-1),(/nlons*nlats/))
+     values_1d = reshape(values_2d,(/nlons*nlats/))
      ! add Tv,q increment to background
      do k=1,nlevs
         ug = 0_r_kind
@@ -1463,13 +1463,13 @@
         if (q_ind > 0) then
           call copyfromgrdin(grdin(:,levels(q_ind-1)+k,nb,ne),vg)
         endif
-        delzb=(rd/grav)*reshape(ug3d(:,nlats:1:-1,nlevs-k+1),(/nlons*nlats/)) ! ug3d is background Tv
+        delzb=(rd/grav)*reshape(ug3d(:,:,nlevs-k+1),(/nlons*nlats/)) ! ug3d is background Tv
         ! values_1d is background ps in Pa.
         ! ps in Pa here, need to multiply ak by 100.
         delzb=delzb*log((100_r_kind*ak(k)+bk(k)*values_1d)/(100_r_kind*ak(k+1)+bk(k+1)*values_1d))
-        values_2d(:,nlats:1:-1) = reshape(ug,(/nlons,nlats/))
+        values_2d = reshape(ug,(/nlons,nlats/))
         ug3d(:,:,nlevs-k+1) = ug3d(:,:,nlevs-k+1) + values_2d
-        values_2d(:,nlats:1:-1) = reshape(vg,(/nlons,nlats/))
+        values_2d = reshape(vg,(/nlons,nlats/))
         vg3d(:,:,nlevs-k+1) = vg3d(:,:,nlevs-k+1) + values_2d
      enddo
      ! now ug3d is analysis Tv, vg3d is analysis spfh
@@ -1533,17 +1533,17 @@
            call copyfromgrdin(grdin(:,levels(cw_ind-1)+k,nb,ne),ug)
         endif
         if (imp_physics == 11) then
-           work = -r0_05 * (reshape(values_3d(:,nlats:1:-1,nlevs-k+1),(/nlons*nlats/)) - t0c)
+           work = -r0_05 * (reshape(values_3d(:,:,,nlevs-k+1),(/nlons*nlats/)) - t0c)
            do i=1,nlons*nlats
               work(i) = max(zero,work(i))
               work(i) = min(one,work(i))
            enddo
            vg = ug * work          ! cloud ice
            ug = ug * (one - work)  ! cloud water
-           vg3d(:,nlats:1:-1,nlevs-k+1) = vg3d(:,nlats:1:-1,nlevs-k+1) +&
+           vg3d(:,:,nlevs-k+1) = vg3d(:,:,nlevs-k+1) +&
            reshape(vg,(/nlons,nlats/))
         endif
-        ug3d(:,nlats:1:-1,nlevs-k+1) = ug3d(:,nlats:1:-1,nlevs-k+1) + &
+        ug3d(:,:,nlevs-k+1) = ug3d(:,:,nlevs-k+1) + &
         reshape(ug,(/nlons,nlats/))
      enddo
      if (cw_ind > 0) then
@@ -1600,7 +1600,7 @@
            ug=(rd/grav)*ug
            ! ps in Pa here, need to multiply ak by 100.
            ug=ug*log((100_r_kind*ak(k)+bk(k)*vg)/(100_r_kind*ak(k+1)+bk(k+1)*vg))
-           ug3d(:,nlats:1:-1,nlevs-k+1)=vg3d(:,nlats:1:-1,nlevs-k+1) +&
+           ug3d(:,:,nlevs-k+1)=vg3d(:,:,nlevs-k+1) +&
             reshape(ug-delzb,(/nlons,nlats/))
         enddo
         call read_attribute(dsfg, 'nbits', nbits, 'delz',errcode=ierr)
@@ -1632,7 +1632,7 @@
         if (oz_ind > 0) then
            call copyfromgrdin(grdin(:,levels(oz_ind-1)+k,nb,ne),ug)
         endif
-        vg3d(:,nlats:1:-1,nlevs-k+1) = vg3d(:,nlats:1:-1,nlevs-k+1) + &
+        vg3d(:,:,nlevs-k+1) = vg3d(:,:,nlevs-k+1) + &
         reshape(ug,(/nlons,nlats/))
      enddo
      if (cliptracers)  where (vg3d < clip) vg3d = clip
@@ -1774,10 +1774,8 @@
      call sigio_axdata(sigdata,ierr)
   else if (use_gfs_ncio) then
      if (pst_ind > 0) then 
-        vg3d = reshape(ugtmp,(/nlons,nlats,nlevs/))
-        ug3d = vg3d(:,nlats:1:-1,nlevs:1:-1)
-        ug3d = reshape(vgtmp,(/nlons,nlats,nlevs/))
-        vg3d = ug3d(:,nlats:1:-1,nlevs:1:-1)
+        ug3d = reshape(ugtmp,(/nlons,nlats,nlevs/))
+        vg3d = reshape(vgtmp,(/nlons,nlats,nlevs/))
         call read_attribute(dsfg, 'nbits', nbits, 'ugrd',errcode=ierr)
         if (ierr == 0 .and. nbits > 0)  then
           values_3d = ug3d
