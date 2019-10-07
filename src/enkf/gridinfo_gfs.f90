@@ -226,7 +226,7 @@ if (nproc .eq. 0) then
          call stop2(11)
       endif
       ! convert to 1d array, units to millibars, flip so lats go N to S.
-      spressmn = 0.01_r_kind*reshape(values_2d(:,nlats:1:-1),(/nlons*nlats/))
+      spressmn = 0.01_r_kind*reshape(values_2d,(/nlons*nlats/))
       call read_attribute(dset, 'ak', ak)
       call read_attribute(dset, 'bk', bk)
       call close_dataset(dset)
