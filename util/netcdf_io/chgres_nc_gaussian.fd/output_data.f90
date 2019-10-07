@@ -50,8 +50,7 @@
 
 
  type(Dataset) :: indset
- type(Dimension) :: ncdim
- real, allocatable                            :: work2d(:,:),work3d(:,:,:)
+ real, allocatable                            :: work2d(:,:)
 
 
 
@@ -180,6 +179,7 @@
  call write_vardata(outdset, 'vgrd', out3d)
  deallocate(vgrd_output)
 
+ if (idzdt == 1) then
  print*,"WRITE DZDT"
  do n=1,lev
     nrev = lev+1-n
@@ -187,24 +187,29 @@
  end do
  call write_vardata(outdset, 'dzdt', out3d)
  deallocate(dzdt_output)
+ endif
 
+ if (idpres == 1) then
  print*,"WRITE DPRES"
  do n=1,lev
     nrev = lev+1-n
     out3d(:,:,n) = reshape(dpres_output(:,nrev), (/i_output,j_output/))
  end do
  call write_vardata(outdset, 'dpres', out3d)
+ endif
  deallocate(dpres_output)
 
+ if (idelz == 1) then
  print*,"WRITE DELZ"
  do n=1,lev
     nrev = lev+1-n
     out3d(:,:,n) = reshape(delz_output(:,nrev), (/i_output,j_output/))
  end do
  call write_vardata(outdset, 'delz', out3d)
+ endif
  deallocate(delz_output)
 
-
+ if (irwmr == 1) then
  print*,"WRITE RAIN WATER"
  do n=1,lev
     nrev = lev+1-n
@@ -212,7 +217,9 @@
  end do
  call write_vardata(outdset, 'rwmr', out3d)
  deallocate(rwmr_output)
+ endif
 
+ if (isnmr == 1) then
  print*,"WRITE SNOW WATER"
  do n=1,lev
     nrev = lev+1-n
@@ -220,7 +227,9 @@
  end do
  call write_vardata(outdset, 'snmr', out3d)
  deallocate(snmr_output)
+ endif
 
+ if (iicmr == 1) then
  print*,"WRITE ICE WATER"
  do n=1,lev
     nrev = lev+1-n
@@ -228,7 +237,9 @@
  end do
  call write_vardata(outdset, 'icmr', out3d)
  deallocate(icmr_output)
+ endif
 
+ if (igrle == 1) then
  print*,"WRITE GRAUPEL"
  do n=1,lev
     nrev = lev+1-n
@@ -236,7 +247,9 @@
  end do
  call write_vardata(outdset, 'grle', out3d)
  deallocate(grle_output)
+ endif
 
+ if (icldamt == 1) then
  print*,"WRITE CLD_AMT"
  do n = 1, lev
     nrev = lev+1-n
@@ -244,6 +257,7 @@
  end do
  call write_vardata(outdset, 'cld_amt', out3d)
  deallocate(cldamt_output)
+ endif
 
 
  deallocate(out2d,out3d)
@@ -263,8 +277,6 @@
  use setup
 
  implicit none
- real, allocatable, dimension(:,:) :: var2d
- real, allocatable, dimension(:) :: var1d
 
  print*
  print*,"SET HEADER INFO FOR OUTPUT FILE."
@@ -272,18 +284,6 @@
  indset = open_dataset(terrain_file)
  outdset = create_dataset(output_file, indset)
 
- ! need to write out time, pfull,phalf,lat/lon,etc
- call read_vardata(indset, 'grid_xt', var2d)
- call write_vardata(outdset, 'grid_xt', var2d)
- call read_vardata(indset, 'grid_yt', var2d)
- call write_vardata(outdset, 'grid_yt', var2d)
- call read_vardata(indset, 'pfull', var1d)
- call write_vardata(outdset, 'pfull', var1d)
- call read_vardata(indset, 'phalf', var1d)
- call write_vardata(outdset, 'phalf', var1d)
- call read_vardata(indset, 'time', var1d)
- call write_vardata(outdset, 'time', var1d)
- 
  end subroutine header_set
 
  end module output_data

@@ -13,6 +13,9 @@
  integer, public                              :: ij_input, kgds_input(200)
  integer, public                              :: i_input, j_input, lev
  integer, public                              :: idate(6)
+ integer, public                              :: icldamt, iicmr,  &
+                                                 idelz,idpres,idzdt, &
+                                                 irwmr,isnmr,igrle
 
 
  real, allocatable, public                    :: vcoord(:,:)
@@ -30,6 +33,7 @@
  real, allocatable, public                    :: tmp_input(:,:)
  real, allocatable, public                    :: ugrd_input(:,:)
  real, allocatable, public                    :: vgrd_input(:,:)
+ real  :: missing_value=1.e30
 
  public                                       :: read_input_data
  public                                       :: read_vcoord_info
@@ -48,6 +52,7 @@
  type(Dataset) :: indset
  type(Dimension) :: ncdim
  real, allocatable                            :: work2d(:,:),work3d(:,:,:)
+ integer iret
 
  ! hard code these values that are the same for GFS
  idvc=2
@@ -151,64 +156,118 @@
  print*
  print*,"READ DZDT"
  allocate(dzdt_input(ij_input,lev))
- call read_vardata(indset, 'dzdt', work3d)
- do vlev = 1, lev
-   rvlev = lev+1-vlev
-   dzdt_input(:,vlev) = reshape(work3d(:,:,rvlev),(/ij_input/))
-   print*,'MAX/MIN DZDT AT LEVEL ', vlev, 'IS: ', maxval(dzdt_input(:,vlev)), minval(dzdt_input(:,vlev))
- enddo
+ call read_vardata(indset, 'dzdt', work3d, errcode=iret)
+ if (iret == 0) then
+    do vlev = 1, lev
+      rvlev = lev+1-vlev
+      dzdt_input(:,vlev) = reshape(work3d(:,:,rvlev),(/ij_input/))
+      print*,'MAX/MIN DZDT AT LEVEL ', vlev, 'IS: ', maxval(dzdt_input(:,vlev)), minval(dzdt_input(:,vlev))
+    enddo
+    idzdt = 1
+ else
+    dzdt_input = missing_value
+    print*,'DZDT NOT IN INPUT FILE'
+    idzdt = 0 
+ endif
 
 
  print*
  print*,"READ RWMR"
  allocate(rwmr_input(ij_input,lev))
- call read_vardata(indset, 'rwmr', work3d)
- do vlev = 1, lev
-   rvlev = lev+1-vlev
-   rwmr_input(:,vlev) = reshape(work3d(:,:,rvlev),(/ij_input/))
-   print*,'MAX/MIN RWMR AT LEVEL ', vlev, 'IS: ', maxval(rwmr_input(:,vlev)), minval(rwmr_input(:,vlev))
- enddo
+ call read_vardata(indset, 'rwmr', work3d, errcode=iret)
+ if (iret == 0) then
+    do vlev = 1, lev
+      rvlev = lev+1-vlev
+      rwmr_input(:,vlev) = reshape(work3d(:,:,rvlev),(/ij_input/))
+      print*,'MAX/MIN RWMR AT LEVEL ', vlev, 'IS: ', maxval(rwmr_input(:,vlev)), minval(rwmr_input(:,vlev))
+    enddo
+    irwmr = 1
+ else
+    rwmr_input = missing_value
+    print*,'RWMR NOT IN INPUT FILE'
+    irwmr = 0 
+ endif
 
  print*
  print*,"READ ICMR"
  allocate(icmr_input(ij_input,lev))
- call read_vardata(indset, 'icmr', work3d)
- do vlev = 1, lev
-   rvlev = lev+1-vlev
-   icmr_input(:,vlev) = reshape(work3d(:,:,rvlev),(/ij_input/)) 
-   print*,'MAX/MIN ICMR AT LEVEL ', vlev, 'IS: ', maxval(icmr_input(:,vlev)), minval(icmr_input(:,vlev))
- enddo
+ call read_vardata(indset, 'icmr', work3d, errcode=iret)
+ if (iret == 0) then
+    do vlev = 1, lev
+      rvlev = lev+1-vlev
+      icmr_input(:,vlev) = reshape(work3d(:,:,rvlev),(/ij_input/)) 
+      print*,'MAX/MIN ICMR AT LEVEL ', vlev, 'IS: ', maxval(icmr_input(:,vlev)), minval(icmr_input(:,vlev))
+    enddo
+    iicmr = 1
+ else
+    icmr_input = missing_value
+    print*,'ICMR NOT IN INPUT FILE'
+    iicmr = 0 
+ endif
 
  print*
  print*,"READ SNMR"
  allocate(snmr_input(ij_input,lev))
- call read_vardata(indset, 'snmr', work3d)
- do vlev = 1, lev
-   rvlev = lev+1-vlev
-   snmr_input(:,vlev) = reshape(work3d(:,:,rvlev),(/ij_input/)) 
-   print*,'MAX/MIN SNMR AT LEVEL ', vlev, 'IS: ', maxval(snmr_input(:,vlev)), minval(snmr_input(:,vlev))
- enddo
+ call read_vardata(indset, 'snmr', work3d, errcode=iret)
+ if (iret == 0) then
+    do vlev = 1, lev
+      rvlev = lev+1-vlev
+      snmr_input(:,vlev) = reshape(work3d(:,:,rvlev),(/ij_input/)) 
+      print*,'MAX/MIN SNMR AT LEVEL ', vlev, 'IS: ', maxval(snmr_input(:,vlev)), minval(snmr_input(:,vlev))
+    enddo
+    isnmr = 1
+ else
+    snmr_input = missing_value
+    print*,'SNMR NOT IN INPUT FILE'
+    isnmr = 0 
+ endif
 
  print*
  print*,"READ GRLE"
  allocate(grle_input(ij_input,lev))
- call read_vardata(indset, 'grle', work3d)
- do vlev = 1, lev
-   rvlev = lev+1-vlev
-   grle_input(:,vlev) = reshape(work3d(:,:,rvlev),(/ij_input/)) 
-   print*,'MAX/MIN GRLE AT LEVEL ', vlev, 'IS: ', maxval(grle_input(:,vlev)), minval(grle_input(:,vlev))
- enddo
+ call read_vardata(indset, 'grle', work3d, errcode=iret)
+ if (iret == 0) then
+    do vlev = 1, lev
+      rvlev = lev+1-vlev
+      grle_input(:,vlev) = reshape(work3d(:,:,rvlev),(/ij_input/)) 
+      print*,'MAX/MIN GRLE AT LEVEL ', vlev, 'IS: ', maxval(grle_input(:,vlev)), minval(grle_input(:,vlev))
+    enddo
+    igrle = 1
+ else
+    grle_input = missing_value
+    print*,'GRLE NOT IN INPUT FILE'
+    igrle = 0 
+ endif
 
  print*
  print*,"READ CLD_AMT"
  allocate(cldamt_input(ij_input,lev))
- call read_vardata(indset, 'cld_amt', work3d)
- do vlev = 1, lev
-   rvlev = lev+1-vlev
-   cldamt_input(:,vlev) = reshape(work3d(:,:,rvlev),(/ij_input/))
-   print*,'MAX/MIN CLD_AMT AT LEVEL ', vlev, 'IS: ', maxval(cldamt_input(:,vlev)), minval(cldamt_input(:,vlev))
- enddo
+ call read_vardata(indset, 'cld_amt', work3d, errcode=iret)
+ if (iret == 0) then
+    do vlev = 1, lev
+      rvlev = lev+1-vlev
+      cldamt_input(:,vlev) = reshape(work3d(:,:,rvlev),(/ij_input/))
+      print*,'MAX/MIN CLD_AMT AT LEVEL ', vlev, 'IS: ', maxval(cldamt_input(:,vlev)), minval(cldamt_input(:,vlev))
+    enddo
+    icldamt = 1
+ else
+    cldamt_input = missing_value
+    print*,'CLDAMT NOT IN INPUT FILE'
+    icldamt = 0 
+ endif
 
+ call read_vardata(indset, 'dpres', work3d, errcode=iret)
+ if (iret == 0) then
+    idpres = 1
+ else
+    idpres = 0
+ endif
+ call read_vardata(indset, 'delz', work3d, errcode=iret)
+ if (iret == 0) then
+    idelz = 1
+ else
+    idelz = 0
+ endif
 
  print*,"CLOSE FILE"
  call close_dataset(indset)
