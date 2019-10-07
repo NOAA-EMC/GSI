@@ -1763,7 +1763,7 @@ contains
           call read_vardata(atmges, 'grid_xt', rlons_tmp, errcode=iret)
           call read_vardata(atmges, 'grid_yt', rlats_tmp, errcode=iret)
           do j=1,latb
-            rlats(j+1)=deg2rad*rlats_tmp(j)
+            rlats(latb+2-j)=deg2rad*rlats_tmp(j)
           enddo
           rlats(1)=-half*pi
           rlats(latb+2)=half*pi
