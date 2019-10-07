@@ -1375,7 +1375,7 @@
           call copyfromgrdin(grdin(:,levels(u_ind-1) + k,nb,ne),ug)
         endif
         values_2d = reshape(ug,(/nlons,nlats/))
-        ug3d(:,:,k) = ug3d(:,:,k) + values_2d
+        ug3d(:,:,nlevs-k+1) = ug3d(:,:,nlevs-k+1) + values_2d
      enddo
      call read_attribute(dsfg, 'nbits', nbits, 'ugrd',errcode=ierr)
      if (ierr == 0 .and. nbits > 0)  then
@@ -1404,7 +1404,7 @@
           call copyfromgrdin(grdin(:,levels(v_ind-1) + k,nb,ne),vg)
         endif
         values_2d = reshape(ug,(/nlons,nlats/))
-        vg3d(:,:,k) = vg3d(:,:,k) + values_2d
+        vg3d(:,:,nlevs-k+1) = vg3d(:,:,nlevs-k+1) + values_2d
      enddo  
      call read_attribute(dsfg, 'nbits', nbits, 'vgrd',errcode=ierr)
      if (ierr == 0 .and. nbits > 0)  then
@@ -1533,7 +1533,7 @@
            call copyfromgrdin(grdin(:,levels(cw_ind-1)+k,nb,ne),ug)
         endif
         if (imp_physics == 11) then
-           work = -r0_05 * (reshape(values_3d(:,:,,nlevs-k+1),(/nlons*nlats/)) - t0c)
+           work = -r0_05 * (reshape(values_3d(:,:,nlevs-k+1),(/nlons*nlats/)) - t0c)
            do i=1,nlons*nlats
               work(i) = max(zero,work(i))
               work(i) = min(one,work(i))
