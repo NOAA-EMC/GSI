@@ -72,12 +72,12 @@ module module_fv3gfs_ncio
   end interface
 
   interface quantize_data
-      module procedure quantize_data_2d, quantize_data_3d
+      module procedure quantize_data_2d, quantize_data_3d, quantize_data_4d
   end interface
 
   public :: open_dataset, create_dataset, close_dataset, Dataset, Variable, Dimension, &
   read_vardata, read_attribute, write_vardata, write_attribute, get_ndim, &
-  get_nvar, get_var, get_dim, get_idate_from_time_units,&
+  get_nvar, get_var, get_dim, get_idate_from_time_units, &
   get_time_units_from_idate, quantize_data
 
   contains
@@ -892,5 +892,11 @@ module module_fv3gfs_ncio
     real(4), intent(out) :: dataOut(:,:,:)
     include "quantize_data_code.f90"
   end subroutine quantize_data_3d
+
+  subroutine quantize_data_4d(dataIn, dataOut, nbits, compress_err)
+    real(4), intent(in) :: dataIn(:,:,:,:)
+    real(4), intent(out) :: dataOut(:,:,:,:)
+    include "quantize_data_code.f90"
+  end subroutine quantize_data_4d
 
 end module module_fv3gfs_ncio
