@@ -387,6 +387,7 @@ subroutine gesinfo
      idate4(2)= gfshead%idate(2)
      idate4(3)= gfshead%idate(3)
      idate4(4)= gfshead%idate(4)
+     idate4(5)= zero
      ntracer  = gfshead%ntrac
      ncloud   = gfshead%ncldt
 
