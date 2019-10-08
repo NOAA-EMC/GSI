@@ -72,23 +72,30 @@ module module_fv3gfs_ncio
   end interface
 
   interface quantize_data
-      module procedure quantize_data_2d, quantize_data_3d
+      module procedure quantize_data_2d, quantize_data_3d, quantize_data_4d
   end interface
 
   public :: open_dataset, create_dataset, close_dataset, Dataset, Variable, Dimension, &
   read_vardata, read_attribute, write_vardata, write_attribute, get_ndim, &
-  get_nvar, get_var, get_dim, get_idate_from_time_units,&
+  get_nvar, get_var, get_dim, get_idate_from_time_units, &
   get_time_units_from_idate, quantize_data
 
   contains
 
-  subroutine nccheck(status)
+  subroutine nccheck(status,halt)
     ! check return code, print error message 
     implicit none
     integer, intent (in) :: status
+    logical, intent(in), optional :: halt
+    logical stopit
+    if (present(halt)) then
+       stopit = halt
+    else
+       stopit = .true.
+    endif  
     if (status /= nf90_noerr) then
       write(0,*) status, trim(nf90_strerror(status))
-      stop "stopped"
+      if (stopit) stop "stopped"
     end if
   end subroutine nccheck
 
@@ -166,6 +173,7 @@ module module_fv3gfs_ncio
                                                dset%dimensions(n)%dimid, &
                                                len=dset%variables(nvar)%dimlens(ndim))
                 if (return_errcode) then
+                   call nccheck(ncerr,halt=.false.)
                    errcode=ncerr
                    return
                 else
@@ -199,6 +207,7 @@ module module_fv3gfs_ncio
     ! open netcdf file, get info, populate Dataset object.
     ncerr = nf90_open(trim(filename), NF90_NOWRITE, ncid=dset%ncid)
     if (return_errcode) then
+       call nccheck(ncerr,halt=.false.)
        errcode=ncerr
        if (ncerr /= 0) return
     else
@@ -207,6 +216,7 @@ module module_fv3gfs_ncio
     ncerr = nf90_inquire(dset%ncid, dset%ndims, dset%nvars, dset%natts, nunlimdim)
     if (return_errcode) then
        errcode=ncerr
+       call nccheck(ncerr,halt=.false.)
        if (ncerr /= 0) return
     else
        call nccheck(ncerr)
@@ -220,6 +230,7 @@ module module_fv3gfs_ncio
                                       len=dset%dimensions(ndim)%len)
        if (return_errcode) then
           errcode=ncerr
+          call nccheck(ncerr,halt=.false.)
           if (ncerr /= 0) return
        else
           call nccheck(ncerr)
@@ -240,6 +251,7 @@ module module_fv3gfs_ncio
                                      ndims=dset%variables(nvar)%ndims)
        if (return_errcode) then
           errcode=ncerr
+          call nccheck(ncerr,halt=.false.)
           if (ncerr /= 0) return
        else
           call nccheck(ncerr)
@@ -254,6 +266,7 @@ module module_fv3gfs_ncio
                                      shuffle=dset%variables(nvar)%shuffle)
        if (return_errcode) then
           errcode=ncerr
+          call nccheck(ncerr,halt=.false.)
           if (ncerr /= 0) return
        else
           call nccheck(ncerr)
@@ -321,6 +334,7 @@ module module_fv3gfs_ncio
             ncid=dset%ncid)
     if (return_errcode) then
        errcode=ncerr
+       call nccheck(ncerr,halt=.false.)
        if (ncerr /= 0) return
     else
        call nccheck(ncerr)
@@ -330,6 +344,7 @@ module module_fv3gfs_ncio
        ncerr = nf90_inq_attname(dsetin%ncid, NF90_GLOBAL, natt, attname)
        if (return_errcode) then
           errcode=ncerr
+          call nccheck(ncerr,halt=.false.)
           if (ncerr /= 0) return
        else
           call nccheck(ncerr)
@@ -337,6 +352,7 @@ module module_fv3gfs_ncio
        ncerr = nf90_copy_att(dsetin%ncid, NF90_GLOBAL, attname, dset%ncid, NF90_GLOBAL)
        if (return_errcode) then
           errcode=ncerr
+          call nccheck(ncerr,halt=.false.)
           if (ncerr /= 0) return
        else
           call nccheck(ncerr)
@@ -356,6 +372,7 @@ module module_fv3gfs_ncio
                   dset%dimensions(ndim)%dimid)
           if (return_errcode) then
              errcode=ncerr
+             call nccheck(ncerr,halt=.false.)
              if (ncerr /= 0) return
           else
              call nccheck(ncerr)
@@ -370,6 +387,7 @@ module module_fv3gfs_ncio
                   dset%dimensions(ndim)%dimid)
           if (return_errcode) then
              errcode=ncerr
+             call nccheck(ncerr,halt=.false.)
              if (ncerr /= 0) return
           else
              call nccheck(ncerr)
@@ -411,6 +429,7 @@ module module_fv3gfs_ncio
                             dset%variables(nvar)%varid)
        if (return_errcode) then
           errcode=ncerr
+          call nccheck(ncerr,halt=.false.)
           if (ncerr /= 0) return
        else
           call nccheck(ncerr)
@@ -425,6 +444,7 @@ module module_fv3gfs_ncio
                   ishuffle,1,dsetin%variables(nvar)%deflate_level)
           if (return_errcode) then
              errcode=ncerr
+             call nccheck(ncerr,halt=.false.)
              if (ncerr /= 0) return
           else
              call nccheck(ncerr)
@@ -438,6 +458,7 @@ module module_fv3gfs_ncio
           ncerr = nf90_inq_attname(dsetin%ncid, dsetin%variables(nvar)%varid, natt, attname)
           if (return_errcode) then
              errcode=ncerr
+             call nccheck(ncerr,halt=.false.)
              if (ncerr /= 0) return
           else
              call nccheck(ncerr)
@@ -445,7 +466,8 @@ module module_fv3gfs_ncio
           ncerr = nf90_copy_att(dsetin%ncid, dsetin%variables(nvar)%varid, attname, dset%ncid, dset%variables(nvar)%varid)
           if (return_errcode) then
              errcode=ncerr
-            if (ncerr /= 0) return
+             call nccheck(ncerr,halt=.false.)
+             if (ncerr /= 0) return
           else
              call nccheck(ncerr)
           endif
@@ -454,6 +476,7 @@ module module_fv3gfs_ncio
     ncerr = nf90_enddef(dset%ncid)
     if (return_errcode) then
        errcode=ncerr
+       call nccheck(ncerr,halt=.false.)
        if (ncerr /= 0) return
     else
        call nccheck(ncerr)
@@ -539,6 +562,7 @@ module module_fv3gfs_ncio
     ncerr = nf90_close(ncid=dset%ncid)
     if (return_errcode) then
        errcode=ncerr
+       call nccheck(ncerr,halt=.false.)
        if (ncerr /= 0) return
     else
        call nccheck(ncerr)
@@ -868,5 +892,11 @@ module module_fv3gfs_ncio
     real(4), intent(out) :: dataOut(:,:,:)
     include "quantize_data_code.f90"
   end subroutine quantize_data_3d
+
+  subroutine quantize_data_4d(dataIn, dataOut, nbits, compress_err)
+    real(4), intent(in) :: dataIn(:,:,:,:)
+    real(4), intent(out) :: dataOut(:,:,:,:)
+    include "quantize_data_code.f90"
+  end subroutine quantize_data_4d
 
 end module module_fv3gfs_ncio

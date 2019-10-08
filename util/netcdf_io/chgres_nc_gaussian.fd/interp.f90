@@ -37,8 +37,6 @@
 
  implicit none
 
- integer               :: k
-
  real, allocatable     :: pres_b4_adj_output(:,:)
  real, allocatable     :: pres_output(:,:)
  real, allocatable     :: q_b4_adj_output(:,:,:), q_output(:,:,:)

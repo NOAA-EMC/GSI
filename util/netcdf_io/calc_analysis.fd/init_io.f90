@@ -155,7 +155,7 @@ contains
        allocate(fhour(1))
        fhour = 0
        call write_vardata(anlncfile, 'time', fhour)
-       time_units = get_time_units_from_idate(anlncfile, jdate6)
+       time_units = get_time_units_from_idate(jdate6)
        call write_attribute(anlncfile, 'units', time_units, 'time')
     end if
 
