@@ -237,7 +237,7 @@ subroutine read_files(mype)
            atmges = open_dataset(filename)
            idate6 = get_idate_from_time_units(atmges) 
            call read_vardata(atmges, 'time', fhour)
-           hourg4 = fhour(1)
+           hourg4 = float(nint(fhour(1))) ! going to make this nearest integer for now
            idateg(1) = idate6(4)
            idateg(2) = idate6(2)
            idateg(3) = idate6(3)
@@ -313,7 +313,7 @@ subroutine read_files(mype)
            ncdim = get_dim(sfcges, 'grid_yt'); sfc_head%latb = ncdim%len
            idate6 = get_idate_from_time_units(sfcges) 
            call read_vardata(sfcges, 'time', fhour)
-           hourg4 = fhour(1)
+           hourg4 = float(nint(fhour(1))) ! going to make this nearest integer for now
            idateg(1) = idate6(4)
            idateg(2) = idate6(2)
            idateg(3) = idate6(3)

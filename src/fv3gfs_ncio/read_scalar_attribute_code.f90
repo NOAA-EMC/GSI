@@ -23,7 +23,9 @@
     endif 
     ncerr = nf90_get_att(dset%ncid, varid, trim(attname), values)
     if (return_errcode) then
-        errcode=ncerr
+       call nccheck(ncerr,halt=.false.)
+       errcode=ncerr
+       return
     else
-        call nccheck(ncerr)
+       call nccheck(ncerr)
     endif

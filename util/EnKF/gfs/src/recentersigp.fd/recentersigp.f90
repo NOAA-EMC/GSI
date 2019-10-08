@@ -28,6 +28,10 @@ program recentersigp
   use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
   use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_readrec,&
        nemsio_writerec,nemsio_readrecv,nemsio_writerecv,nemsio_getrechead
+  use module_fv3gfs_ncio, only: open_dataset, create_dataset, read_attribute, &
+                           Dataset, Dimension, close_dataset, &
+                           read_vardata, write_attribute, write_vardata, &
+                           get_dim, quantize_data
 
   implicit none
 
@@ -37,7 +41,7 @@ program recentersigp
 
   TYPE(SIGIO_HEAD) :: SIGHEADI,SIGHEADO,SIGHEADMI,SIGHEADMO
   TYPE(SIGIO_DATA) :: SIGDATAI,SIGDATAO,SIGDATAMI,SIGDATAMO
-  logical:: nemsio, sigio
+  logical:: nemsio, sigio, ncio, quantize
   character*500 filename_meani,filename_meano,filenamein,filenameout
   character*3 charnanal
   character(len=4) charnin
@@ -45,11 +49,18 @@ program recentersigp
   character(16),dimension(:),allocatable:: fieldlevtyp_di,fieldlevtyp_mi,fieldlevtyp_mo
   integer,dimension(:),allocatable:: fieldlevel_di,fieldlevel_mi,fieldlevel_mo,orderdi,ordermi
   integer nsigi,nsigo,iret,mype,mype1,npe,nanals,ierr
-  integer:: nrec,latb,lonb,levs,npts,n,i
+  integer:: nrec,latb,lonb,levs,npts,n,i,nbits,nvar,ndims
   real,allocatable,dimension(:):: rwork1d
   real,allocatable,dimension(:,:)   :: rwork1di,rwork1do,rwork1dmi,rwork1dmo
+  real(4),allocatable, dimension(:,:) :: values_2d, values_2d_i, values_2d_mi,&
+                                         values_2d_mo
+  real(4),allocatable, dimension(:,:,:) :: values_3d, values_3d_i, values_3d_mi,&
+                                         values_3d_mo
+  real(4) compress_err
 
   type(nemsio_gfile) :: gfilei, gfileo, gfilemi, gfilemo
+  type(Dataset) :: dseti,dseto,dsetmi,dsetmo
+  type(Dimension) :: londim,latdim,levdim
 
 ! Initialize mpi
   call MPI_Init(ierr)
@@ -89,28 +100,41 @@ program recentersigp
 
   sigio=.false.
   nemsio=.false.
+  ncio=.false.
 
   mype1 = mype+1
   if (mype1 <= nanals) then
-     call nemsio_init(iret=iret)
-     call sigio_srohdc(nsigi,trim(filename_meani),  &
-          sigheadmi,sigdatami,iret)
-     if (iret == 0 ) then
-        sigio = .true.
-        write(6,*)'Read sigio ',trim(filename_meani),' iret=',iret
+
+     dsetmi = open_dataset(filename_meani,errcode=iret)
+     if (iret == 0) then
+        ncio = .true.
      else
-        call nemsio_open(gfilemi,trim(filename_meani),'READ',iret=iret)
+        ncio = .false.
+     endif
+
+     if (.not. ncio) then
+        call sigio_srohdc(nsigi,trim(filename_meani),  &
+             sigheadmi,sigdatami,iret)
         if (iret == 0 ) then
-           nemsio = .true.
-           write(6,*)'Read nemsio ',trim(filename_meani),' iret=',iret
-           call nemsio_getfilehead(gfilemi, nrec=nrec, dimx=lonb, dimy=latb, dimz=levs, iret=iret)
-           write(6,*)' lonb=',lonb,' latb=',latb,' levs=',levs,' nrec=',nrec
+           sigio = .true.
+           write(6,*)'Read sigio ',trim(filename_meani),' iret=',iret
         else
-           write(6,*)'***ERROR*** ',trim(filenamein),' contains unrecognized format.  ABORT'
+           call nemsio_init(iret=iret)
+           call nemsio_open(gfilemi,trim(filename_meani),'READ',iret=iret)
+           if (iret == 0 ) then
+              nemsio = .true.
+              write(6,*)'Read nemsio ',trim(filename_meani),' iret=',iret
+              call nemsio_getfilehead(gfilemi, nrec=nrec, dimx=lonb, dimy=latb, dimz=levs, iret=iret)
+              write(6,*)' lonb=',lonb,' latb=',latb,' levs=',levs,' nrec=',nrec
+           else
+              write(6,*)'***ERROR*** ',trim(filenamein),' contains unrecognized format.  ABORT'
+           endif
         endif
      endif
-     if (.not.nemsio .and. .not.sigio) goto 100
-     if (mype==0) write(6,*)'processing files with nemsio=',nemsio,' sigio=',sigio
+
+     if (.not.nemsio .and. .not.sigio .and. .not.ncio) goto 100
+
+     if (mype==0) write(6,*)'processing files with nemsio=',nemsio,' sigio=',sigio,' ncio=',ncio
 
 
      if (sigio) then
@@ -198,7 +222,67 @@ program recentersigp
         call nemsio_close(gfileo,iret=iret)
         write(6,*)'task mype=',mype,' process ',trim(filenameout)//"_mem"//charnanal,' iret=',iret
 
+     else if (ncio) then
+
+        if (mype == 0) write(6,*) 'Read netcdf'
+        londim = get_dim(dsetmi,'grid_xt'); lonb = londim%len
+        latdim = get_dim(dsetmi,'grid_yt'); latb = latdim%len
+        levdim = get_dim(dsetmi,'pfull');   levs = levdim%len
+        dsetmo = open_dataset(filename_meano)
+        dseti  = open_dataset(filenamein)
+        dseto  = create_dataset(filenameout, dseti, copy_vardata=.true.)
+        do nvar=1,dseti%nvars
+           ndims = dseti%variables(nvar)%ndims
+           if (ndims > 2) then
+               if (ndims == 3 .and. trim(dseti%variables(nvar)%name) /= 'hgtsfc') then
+                  ! pressfc
+                  call read_vardata(dseti,trim(dseti%variables(nvar)%name),values_2d_i)
+                  call read_vardata(dsetmi,trim(dseti%variables(nvar)%name),values_2d_mi)
+                  call read_vardata(dsetmo,trim(dseti%variables(nvar)%name),values_2d_mo)
+                  values_2d = values_2d_i - values_2d_mi + values_2d_mo 
+                  call read_attribute(dseti, 'nbits', nbits, &
+                       trim(dseti%variables(nvar)%name),errcode=iret)
+                  if (iret == 0 .and. nbits > 0) then
+                      quantize=.true.
+                  else
+                      quantize=.false.
+                  endif
+                  if (quantize) then
+                    values_2d_mi = values_2d
+                    call quantize_data(values_2d_mi, values_2d, nbits, compress_err)
+                    call write_attribute(dseto,&
+                    'max_abs_compression_error',compress_err,trim(dseti%variables(nvar)%name))
+                  endif
+                  call write_vardata(dseto,trim(dseti%variables(nvar)%name),values_2d)
+               else if (ndims == 4) then
+                  call read_vardata(dseti,trim(dseti%variables(nvar)%name),values_3d_i)
+                  call read_vardata(dsetmi,trim(dseti%variables(nvar)%name),values_3d_mi)
+                  call read_vardata(dsetmo,trim(dseti%variables(nvar)%name),values_3d_mo)
+                  values_3d = values_3d_i - values_3d_mi + values_3d_mo 
+                  call read_attribute(dseti, 'nbits', nbits, &
+                       trim(dseti%variables(nvar)%name),errcode=iret)
+                  if (iret == 0 .and. nbits > 0) then
+                      quantize=.true.
+                  else
+                      quantize=.false.
+                  endif
+                  if (quantize) then
+                    values_3d_mi = values_3d
+                    call quantize_data(values_3d_mi, values_3d, nbits, compress_err)
+                    call write_attribute(dseto,&
+                    'max_abs_compression_error',compress_err,trim(dseti%variables(nvar)%name))
+                  endif
+                  call write_vardata(dseto,trim(dseti%variables(nvar)%name),values_3d)
+               endif
+           endif ! ndims > 2
+        enddo  ! nvars
      endif
+     deallocate(values_2d,values_2d_i,values_2d_mi,values_2d_mo)
+     deallocate(values_3d,values_3d_i,values_3d_mi,values_3d_mo)
+     call close_dataset(dsetmi)
+     call close_dataset(dsetmo)
+     call close_dataset(dseti)
+     call close_dataset(dseto)
 
 ! Jump here if more mpi processors than files to process
   else
