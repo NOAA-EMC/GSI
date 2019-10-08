@@ -1436,6 +1436,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
       call read_vardata(atmges, 'time', fhour) ! might need to change this to attribute later
                                                ! depends on model changes from
                                                ! Jeff Whitaker
+      fhour = float(nint(fhour))
 
       odate(1) = idate(4)  !hour
       odate(2) = idate(2)  !month
