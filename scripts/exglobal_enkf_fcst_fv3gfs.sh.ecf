@@ -35,6 +35,8 @@ export DATA=${DATA:-$pwd/enkf_fcst.$$}
 export COMIN=${COMIN:-$pwd}
 export COMOUT=${COMOUT:-$COMIN}
 
+GSUFFIX=${GSUFFIX:-".nc"}
+
 # Utilities
 export NCP=${NCP:-"/bin/cp -p"}
 export NMV=${NMV:-"/bin/mv"}
@@ -184,7 +186,7 @@ for imem in $(seq $ENSBEG $ENSEND); do
      while [ $fhr -le $FHMAX ]; do
        FH3=$(printf %03i $fhr)
        if [ $(expr $fhr % 3) -eq 0 ]; then
-         $DBNROOT/bin/dbn_alert MODEL GFS_ENKF $job $COMOUT/$memchar/${CDUMP}.t${cyc}z.sfcf${FH3}.nemsio
+         $DBNROOT/bin/dbn_alert MODEL GFS_ENKF $job $COMOUT/$memchar/${CDUMP}.t${cyc}z.sfcf${FH3}.${GSUFFIX}
        fi
        fhr=$((fhr+FHOUT))
      done

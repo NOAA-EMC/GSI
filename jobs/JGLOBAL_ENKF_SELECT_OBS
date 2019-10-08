@@ -74,12 +74,19 @@ GDUMP=${GDUMP:-"gdas"}
 export CASE=$CASE_ENKF
 export CDUMP_OBS=${CDUMP_OBS:-$CDUMP}
 
+export GFS_NCIO=${GFS_NCIO:-"YES"}
+
+if [ $GFS_NCIO = "YES" ]; then
+   export ASUFFIX=".nc"
+   export GSUFFIX=".nc"
+else
+   export ASUFFIX=".nemsio"
+   export GSUFFIX=".nemsio"
+fi
 
 export OPREFIX="${CDUMP_OBS}.t${cyc}z."
 export APREFIX="${CDUMP}.t${cyc}z."
-export ASUFFIX=".nemsio"
 export GPREFIX="${GDUMP}.t${gcyc}z."
-export GSUFFIX=".ensmean.nemsio"
 
 if [ $RUN_ENVIR = "nco" -o ${ROTDIR_DUMP:-NO} = "YES" ]; then
     export COMIN_OBS=${COMIN_OBS:-$ROTDIR/$RUN.$PDY/$cyc}
@@ -104,7 +111,7 @@ if [ ! -f $ATMGES_ENSMEAN ]; then
     exit 1
 fi
 
-export LEVS=$($NEMSIOGET $ATMGES_ENSMEAN dimz | awk '{print $2}')
+export LEVS=$($NCDUMP -h $ATMGES_ENSMEAN | grep -i "pfull" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}') # get LEVS
 status=$?
 [[ $status -ne 0 ]] && exit $status
 

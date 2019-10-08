@@ -58,6 +58,7 @@ export NMV=${NMV:-"/bin/mv"}
 export NLN=${NLN:-"/bin/ln -sf"}
 export CHGRP_CMD=${CHGRP_CMD:-"chgrp ${group_name:-rstprod}"}
 export NEMSIOGET=${NEMSIOGET:-${NWPROD}/exec/nemsio_get}
+export NCDUMP=${NCDUMP:-$NETCDF/bin/ncdump}
 export CATEXEC=${CATEXEC:-$HOMEgsi/exec/nc_diag_cat_serial.x}
 export ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
 COMPRESS=${COMPRESS:-gzip}
@@ -102,7 +103,7 @@ binary_diag=${binary_diag:-".true."}
 DOIAU=${DOIAU:-"NO"}
 
 # netCDF I/O
-GFS_NCIO=${GFS_NCIO:-"NO"}
+GFS_NCIO=${GFS_NCIO:-"YES"}
 
 # Dependent Scripts and Executables
 NTHREADS_CALCINC=${NTHREADS_CALCINC:-1}
@@ -250,13 +251,21 @@ USE_READIN_ANL_SFCMASK=${USE_READIN_ANL_SFCMASK:-.false.}
 SMOOTH_ENKF=${SMOOTH_ENKF:-"YES"}
 DOIAU=${DOIAU:-"NO"}
 DO_CALC_INCREMENT=${DO_CALC_INCREMENT:-"YES"}
+DO_CALC_ANALYSIS=${DO_CALC_ANALYSIS:-"NO"}
 INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"'NONE'"}
 
 # Get header information from Guess files
-LONB=${LONB:-$($NEMSIOGET $ATMGES dimx | grep -i "dimx" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get LONB
-LATB=${LATB:-$($NEMSIOGET $ATMGES dimy | grep -i "dimy" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get LATB
-LEVS=${LEVS:-$($NEMSIOGET $ATMGES dimz | grep -i "dimz" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get LEVS
-JCAP=${JCAP:-$($NEMSIOGET $ATMGES jcap | grep -i "jcap" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get JCAP
+if [ $GFS_NCIO = "YES" ]; then
+   LONB=${LONB:-$($NCDUMP -h $ATMGES | grep -i "grid_xt" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LONB
+   LATB=${LATB:-$($NCDUMP -h $ATMGES | grep -i "grid_yt" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LATB
+   LEVS=${LEVS:-$($NCDUMP -h $ATMGES | grep -i "pfull" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LEVS
+   JCAP=${JCAP:--9999} # there is no jcap in these files
+else
+   LONB=${LONB:-$($NEMSIOGET $ATMGES dimx | grep -i "dimx" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get LONB
+   LATB=${LATB:-$($NEMSIOGET $ATMGES dimy | grep -i "dimy" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get LATB
+   LEVS=${LEVS:-$($NEMSIOGET $ATMGES dimz | grep -i "dimz" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get LEVS
+   JCAP=${JCAP:-$($NEMSIOGET $ATMGES jcap | grep -i "jcap" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get JCAP
+fi
 [ $JCAP -eq -9999 -a $LATB -ne -9999 ] && JCAP=$((LATB-2))
 [ $LONB -eq -9999 -o $LATB -eq -9999 -o $LEVS -eq -9999 -o $JCAP -eq -9999 ] && exit -9999
 
@@ -264,13 +273,21 @@ JCAP=${JCAP:-$($NEMSIOGET $ATMGES jcap | grep -i "jcap" | awk -F"= " '{print $2}
 if [ $DOHYBVAR = "YES" ]; then
    SFCGES_ENSMEAN=${SFCGES_ENSMEAN:-${COMIN_GES_ENS}/${GPREFIX}sfcf006.ensmean${GSUFFIX}}
    ATMGES_ENSMEAN=${ATMGES_ENSMEAN:-${COMIN_GES_ENS}/${GPREFIX}atmf006.ensmean${GSUFFIX}}
-   LONB_ENKF=${LONB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimx | grep -i "dimx" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get LONB_ENKF
-   LATB_ENKF=${LATB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimy | grep -i "dimy" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get LATB_ENKF
+   if [ $GFS_NCIO = "YES" ]; then
+      LONB_ENKF=${LONB_ENKF:-$($NCDUMP -h $ATMGES_ENSMEAN | grep -i "grid_xt" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LONB_ENKF
+      LATB_ENKF=${LATB_ENKF:-$($NCDUMP -h $ATMGES_ENSMEAN | grep -i "grid_yt" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LATB_ENFK
+      JCAP_ENKF=${JCAP_ENKF:--9999} # again, no jcap in the netcdf files
+   else
+      LONB_ENKF=${LONB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimx | grep -i "dimx" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get LONB_ENKF
+      LATB_ENKF=${LATB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimy | grep -i "dimy" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get LATB_ENKF
+      JCAP_ENKF=${JCAP_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN jcap | grep -i "jcap" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get JCAP_ENKF
+   fi
    NLON_ENKF=${NLON_ENKF:-$LONB_ENKF}
    NLAT_ENKF=${NLAT_ENKF:-$(($LATB_ENKF+2))}
-   JCAP_ENKF=${JCAP_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN jcap | grep -i "jcap" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get JCAP_ENKF
    [ $JCAP_ENKF -eq -9999 -a $LATB_ENKF -ne -9999 ] && JCAP_ENKF=$((LATB_ENKF-2))
    [ $LONB_ENKF -eq -9999 -o $LATB_ENKF -eq -9999 -o $LEVS_ENKF -eq -9999 -o $JCAP_ENKF -eq -9999 ] && exit -9999
+else
+   LONB_ENKF=0 # just for if statement later
 fi
 
 # Get dimension information based on CASE
@@ -933,7 +950,7 @@ EOF
   export err=$ERR
   $ERRSCRIPT || exit 3
 # analysis increment is written by GSI, instead produce an analysis file here
-else
+elif [ $DO_CALC_ANALYSIS == "YES" ]; then 
   if [ $DOIAU = "YES" -a $l4densvar = ".true." -a $lwrite4danl = ".true." ]; then
      $NCP sigi03.nc ${COMOUT}/${APREFIX}atmi003.nc      
      $NCP sigi04.nc ${COMOUT}/${APREFIX}atmi004.nc      
@@ -971,7 +988,7 @@ else
   vcoord_file="$SIGLEVEL"
 /
 EOF
-    $APRUN_CHGRES chgres.x 
+    $APRUN_CHGRES $DATA/chgres.x 
     rc=$?
 
     export ERR=$rc
@@ -1005,7 +1022,6 @@ EOF
 
 # run chgres again back to original resolution if needed
   if [ $LONB_ENKF -ne $LONB -a $DOHYBVAR = "YES" ]; then
-    $NCP $CHGRESEXEC $DATA
     LEVS1=$((LEVS+1))
     SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS1}.txt}
     export OMP_NUM_THREADS=$NTHREADS_CHGRES
@@ -1020,13 +1036,15 @@ EOF
   vcoord_file="$SIGLEVEL"
 /
 EOF
-    $APRUN_CHGRES $CHGRESEXEC
+    $APRUN_CHGRES $DATA/chgres.x
     rc=$?
 
     export ERR=$rc
     export err=$ERR
     $ERRSCRIPT || exit 3
   fi
+else
+   echo "Increment nor analysis are generated by external utils"
 fi
 
 # Update surface fields in the FV3 restart's using global_cycle
