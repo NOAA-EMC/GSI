@@ -40,6 +40,7 @@ NCP=${NCP:-"/bin/cp -p"}
 NLN=${NLN:-"/bin/ln -sf"}
 ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
 NEMSIOGET=${NEMSIOGET:-$NWPROD/utils/exec/nemsio_get}
+NCDUMP=${NCDUMP:-$NETCDF/bin/ncdump}
 USE_CFP=${USE_CFP:-"NO"}
 APRUNCFP=${APRUNCFP:-""}
 APRUN_ENKF=${APRUN_ENKF:-${APRUN:-""}}
@@ -58,6 +59,7 @@ APREFIX=${APREFIX:-""}
 ASUFFIX=${ASUFFIX:-""}
 
 SMOOTH_ENKF=${SMOOTH_ENKF:-"YES"}
+GFS_NCIO=${GFS_NCIO:-"YES"}
 
 GBIASe=${GBIASe:-${APREFIX}abias_int.ensmean}
 CNVSTAT=${CNVSTAT:-${APREFIX}cnvstat}
@@ -89,9 +91,19 @@ IAUFHRS_ENKF=${IAUFHRS_ENKF:-6}
 
 ################################################################################
 ATMGES_ENSMEAN=$COMIN_GES_ENS/${GPREFIX}atmf006.ensmean${GSUFFIX}
-LEVS_ENKF=${LEVS_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimz | awk '{print $2}')}
-LATB_ENKF=${LATB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimy | awk '{print $2}')}
-LONB_ENKF=${LONB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimx | awk '{print $2}')}
+if [ $GFS_NCIO = "YES" ]; then
+   LONB_ENKF=${LONB_ENKF:-$($NCDUMP -h $ATMGES_ENSMEAN | grep -i "grid_xt" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LONB_ENKF
+   LATB_ENKF=${LATB_ENKF:-$($NCDUMP -h $ATMGES_ENSMEAN | grep -i "grid_yt" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LATB_ENFK
+   LEVS_ENKF=${LEVS_ENKF:-$($NCDUMP -h $ATMGES_ENSMEAN | grep -i "pfull" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LEVS_ENFK
+   use_gfs_ncio=".true."
+   use_gfs_nemsio=".false."
+else
+   LEVS_ENKF=${LEVS_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimz | awk '{print $2}')}
+   LATB_ENKF=${LATB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimy | awk '{print $2}')}
+   LONB_ENKF=${LONB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimx | awk '{print $2}')}
+   use_gfs_ncio=".false."
+   use_gfs_nemsio=".true."
+fi
 LATA_ENKF=${LATA_ENKF:-$LATB_ENKF}
 LONA_ENKF=${LONA_ENKF:-$LONB_ENKF}
 
@@ -229,7 +241,7 @@ cat > enkf.nml << EOFnml
    nlons=$LONA_ENKF,nlats=$LATA_ENKF,nlevs=$LEVS_ENKF,nanals=$NMEM_ENKF,
    deterministic=.true.,sortinc=.true.,lupd_satbiasc=.false.,
    reducedgrid=${reducedgrid},readin_localization=${readin_localization_enkf}.,
-   use_gfs_nemsio=.true.,imp_physics=$imp_physics,lupp=$lupp,
+   use_gfs_nemsio=${use_gfs_nemsio},use_gfs_ncio=${use_gfs_ncio},imp_physics=$imp_physics,lupp=$lupp,
    univaroz=.false.,adp_anglebc=.true.,angord=4,use_edges=.false.,emiss_bc=.true.,
    letkf_flag=${letkf_flag},nobsl_max=${nobsl_max},denkf=${denkf},getkf=${getkf}.,
    nhr_anal=${IAUFHRS_ENKF},nhr_state=${IAUFHRS_ENKF},use_qsatensmean=.true.,

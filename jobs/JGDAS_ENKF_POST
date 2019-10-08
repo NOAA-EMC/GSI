@@ -65,10 +65,15 @@ fi
 ##############################################
 # Begin JOB SPECIFIC work
 ##############################################
+export GFS_NCIO=${GFS_NCIO:-"YES"}
 
 export PREFIX="${CDUMP}.t${cyc}z."
-export SUFFIX=".nemsio"
 
+if [ $GFS_NCIO = "YES" ]; then
+   export SUFFIX=".nc"
+else
+   export SUFFIX=".nemsio"
+fi
 
 # COMIN, COMOUT are used in exglobal script
 # TO DO: Map NCO's directory into these variables

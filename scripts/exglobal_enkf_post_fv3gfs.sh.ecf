@@ -51,7 +51,6 @@ HYBENSMOOTH=${HYBENSMOOTH:-$FIXgsi/global_hybens_smoothinfo.l${LEVS}.txt}
 # Executables.
 GETATMENSMEANEXEC=${GETATMENSMEANEXEC:-$HOMEgsi/exec/getsigensmeanp_smooth.x}
 GETSFCENSMEANEXEC=${GETSFCENSMEANEXEC:-$HOMEgsi/exec/getsfcensmeanp.x}
-GETATMENSSTATEXEC=${GETATMENSSTATEXEC:-$HOMEgsi/exec/getsigensstatp.x}
 
 # Other variables.
 PREFIX=${PREFIX:-""}
@@ -78,7 +77,6 @@ ENKF_SUFFIX="s"
 # Copy executables to working directory
 $NCP $GETSFCENSMEANEXEC $DATA
 $NCP $GETATMENSMEANEXEC $DATA
-$NCP $GETATMENSSTATEXEC $DATA
 
 export OMP_NUM_THREADS=$NTHREADS_EPOS
 
@@ -120,10 +118,7 @@ for fhr in $(seq $FHMIN $FHOUT $FHMAX); do
    $APRUN_EPOS ${DATA}/$(basename $GETSFCENSMEANEXEC) ./ sfcf${fhrchar}.ensmean sfcf${fhrchar} $NMEM_ENKF
    ra=$?
    ((rc+=ra))
-   $APRUN_EPOS ${DATA}/$(basename $GETATMENSMEANEXEC) ./ atmf${fhrchar}.ensmean atmf${fhrchar} $NMEM_ENKF
-   ra=$?
-   ((rc+=ra))
-   $APRUN_EPOS ${DATA}/$(basename $GETATMENSSTATEXEC) ./ atmf${fhrchar} $NMEM_ENKF
+   $APRUN_EPOS ${DATA}/$(basename $GETATMENSMEANEXEC) ./ atmf${fhrchar}.ensmean atmf${fhrchar} $NMEM_ENKF atmf${fhrchar}.ensspread
    ra=$?
    ((rc+=ra))
 done

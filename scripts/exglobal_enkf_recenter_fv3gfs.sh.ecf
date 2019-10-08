@@ -50,6 +50,7 @@ ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
 NCP=${NCP:-"/bin/cp -p"}
 NLN=${NLN:-"/bin/ln -sf"}
 NEMSIOGET=${NEMSIOGET:-${NWPROD}/exec/nemsio_get}
+NCDUMP=${NCDUMP:-$NETCDF/bin/ncdump}
 
 # Scripts
 
@@ -74,6 +75,7 @@ imp_physics=${imp_physics:-99}
 INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"'NONE'"}
 DOIAU=${DOIAU_ENKF:-"NO"}
 IAUFHRS_ENKF=${IAUFHRS_ENKF:-6}
+GFS_NCIO=${GFS_NCIO:-"YES"}
 
 # global_chgres stuff
 CHGRESEXEC=${CHGRESEXEC:-$HOMEgfs/exec/chgres_recenter.exe}
@@ -161,10 +163,17 @@ export ERR=$rc
 export err=$ERR
 $ERRSCRIPT || exit 2
 
-LONB_ENKF=${LONB_ENKF:-$($NEMSIOGET atmanl_ensmean dimx | awk '{print $2}')}
-LATB_ENKF=${LATB_ENKF:-$($NEMSIOGET atmanl_ensmean dimy | awk '{print $2}')}
-LEVS_ENKF=${LEVS_ENKF:-$($NEMSIOGET atmanl_ensmean dimz | awk '{print $2}')}
-JCAP_ENKF=${JCAP_ENKF:-$($NEMSIOGET atmanl_ensmean jcap | awk '{print $2}')}
+if [ $GFS_NCIO = "YES" ]; then
+   LONB_ENKF=${LONB_ENKF:-$($NCDUMP -h atmanl_ensmean | grep -i "grid_xt" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LONB
+   LATB_ENKF=${LATB_ENKF:-$($NCDUMP -h atmanl_ensmean | grep -i "grid_yt" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LATB
+   LEVS_ENKF=${LEVS_ENKF:-$($NCDUMP -h atmanl_ensmean | grep -i "pfull" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LEVS
+   JCAP_ENKF=${JCAP_ENKF:--9999} # there is no jcap in these files
+else
+   LONB_ENKF=${LONB_ENKF:-$($NEMSIOGET atmanl_ensmean dimx | awk '{print $2}')}
+   LATB_ENKF=${LATB_ENKF:-$($NEMSIOGET atmanl_ensmean dimy | awk '{print $2}')}
+   LEVS_ENKF=${LEVS_ENKF:-$($NEMSIOGET atmanl_ensmean dimz | awk '{print $2}')}
+   JCAP_ENKF=${JCAP_ENKF:-$($NEMSIOGET atmanl_ensmean jcap | awk '{print $2}')}
+fi
 [ $JCAP_ENKF -eq -9999 -a $LATB_ENKF -ne -9999 ] && JCAP_ENKF=$((LATB_ENKF-2))
 [ $LONB_ENKF -eq -9999 -o $LATB_ENKF -eq -9999 -o $LEVS_ENKF -eq -9999 -o $JCAP_ENKF -eq -9999 ] && exit -9999
 
@@ -176,9 +185,15 @@ if [ $RECENTER_ENKF = "YES" ]; then
    ATMANL_GSI=${ATMANL_GSI:-$COMIN/${APREFIX}atmanl$ASUFFIX}
    ATMANL_GSI_ENSRES=${ATMANL_GSI_ENSRES:-$COMIN/${APREFIX}atmanl.ensres$ASUFFIX}
 
-   LONB=${LONB:-$($NEMSIOGET $ATMANL_GSI dimx | awk '{print $2}')}
-   LATB=${LATB:-$($NEMSIOGET $ATMANL_GSI dimy | awk '{print $2}')}
-   JCAP=${JCAP:-$($NEMSIOGET $ATMANL_GSI jcap | awk '{print $2}')}
+   if [ $GFS_NCIO = "YES" ]; then
+      LONB=${LONB:-$($NCDUMP -h $ATMANL_GSI | grep -i "grid_xt" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LONB
+      LATB=${LATB:-$($NCDUMP -h $ATMANL_GSI | grep -i "grid_yt" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LATB
+   JCAP=${JCAP:--9999} # there is no jcap in these files
+   else
+      LONB=${LONB:-$($NEMSIOGET $ATMANL_GSI dimx | awk '{print $2}')}
+      LATB=${LATB:-$($NEMSIOGET $ATMANL_GSI dimy | awk '{print $2}')}
+      JCAP=${JCAP:-$($NEMSIOGET $ATMANL_GSI jcap | awk '{print $2}')}
+   fi
    [ $JCAP -eq -9999 -a $LATB -ne -9999 ] && JCAP=$((LATB-2))
 
    # If GSI EnVar analysis is at ensemble resolution, no chgres is required
