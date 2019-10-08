@@ -775,10 +775,10 @@
      idate = sighead%idate
      fhour = sighead%fhour
   else
-     idate(3)=idat(3) 
-     idate(2)=idat(2)
-     idate(4)=idat(1) 
-     idate(1)=idat(4)
+     idate(3)=idat(3)  !day 
+     idate(2)=idat(2)  !mon
+     idate(4)=idat(4)  !yr
+     idate(1)=idat(1)  !hr 
      fhour = nfhour
   endif
   fha=zero; ida=0; jda=0
@@ -958,7 +958,7 @@
      endif
      deallocate(values_1d)
      allocate(values_1d(1))
-     values_1d(1)=6.
+     values_1d(1)=zero
      call write_vardata(dsanl,'time',values_1d,errcode=iret)
      if (iret /= 0) then
         print *,'error writing time'
@@ -968,7 +968,7 @@
      jdat(2) = iadate(2)
      jdat(3) = iadate(3)
      jdat(4) = iadate(1)
-     jdat(5) = 0; jdat(6) = 0.
+     jdat(5) = jda(6); jdat(6) = jda(7)
      time_units = get_time_units_from_idate(jdat)
      call write_attribute(dsanl,'units',time_units,'time',errcode=iret)
      if (iret /= 0) then
