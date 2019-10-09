@@ -1631,7 +1631,7 @@ contains
 
     real(r_kind),parameter:: r0_001 = 0.001_r_kind
     character(6):: fname_ges
-    character(len=120) :: my_name = 'WRITE_NEMSATM'
+    character(len=120) :: my_name = 'WRITE_GFSNCATM'
     character(len=1)   :: null = ' '
     integer(i_kind),dimension(6):: idate,jdate
     integer(i_kind) :: k, mm1, nlatm2, nord_int, i, j, kk, kr, nbits
@@ -1892,7 +1892,7 @@ contains
          'max_abs_compression_error',compress_err,'pressfc')
        endif
        call write_vardata(atmanl,'pressfc',values_2d,errcode=iret)
-       if (iret /= 0) call error_msg(trim(my_name),trim(filename),'dpres','write',istop,iret)
+       if (iret /= 0) call error_msg(trim(my_name),trim(filename),'pressfc','write',istop,iret)
     endif
 
 !   u, v
