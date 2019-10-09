@@ -988,6 +988,7 @@ elif [ $DO_CALC_ANALYSIS == "YES" ]; then
   vcoord_file="$SIGLEVEL"
 /
 EOF
+    cat fort.43
     $APRUN_CHGRES $DATA/chgres.x 
     rc=$?
 
@@ -1036,6 +1037,7 @@ EOF
   vcoord_file="$SIGLEVEL"
 /
 EOF
+    cat fort.43
     $APRUN_CHGRES $DATA/chgres.x
     rc=$?
 
