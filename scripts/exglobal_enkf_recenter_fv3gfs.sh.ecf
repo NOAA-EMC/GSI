@@ -58,7 +58,8 @@ NCDUMP=${NCDUMP:-$NETCDF/bin/ncdump}
 GETATMENSMEANEXEC=${GETATMENSMEANEXEC:-$HOMEgsi/exec/getsigensmeanp_smooth.x}
 GETSFCENSMEANEXEC=${GETSFCENSMEANEXEC:-$HOMEgsi/exec/getsfcensmeanp.x}
 RECENATMEXEC=${RECENATMEXEC:-$HOMEgsi/exec/recentersigp.x}
-CALCINCEXEC=${CALCINCEXEC:-$HOMEgsi/exec/calc_increment_ens.x}
+CALCINCNEMSEXEC=${CALCINCNEMSEXEC:-$HOMEgsi/exec/calc_increment_ens.x}
+CALCINCNCEXEC=${CALCINCEXEC:-$HOMEgsi/exec/calc_increment_ens_ncio.x}
 
 # Files.
 OPREFIX=${OPREFIX:-""}
@@ -78,7 +79,8 @@ IAUFHRS_ENKF=${IAUFHRS_ENKF:-6}
 GFS_NCIO=${GFS_NCIO:-"YES"}
 
 # global_chgres stuff
-CHGRESEXEC=${CHGRESEXEC:-$HOMEgfs/exec/chgres_recenter.exe}
+CHGRESNEMS=${CHGRESNEMS:-$HOMEgfs/exec/chgres_recenter.exe}
+CHGRESNC=${CHGRESNC:-$HOMEgfs/exec/chgres_nc_gauss.exe}
 NTHREADS_CHGRES=${NTHREADS_CHGRES:-24}
 APRUN_CHGRES=${APRUN_CHGRES:-""}
 
@@ -188,7 +190,7 @@ if [ $RECENTER_ENKF = "YES" ]; then
    if [ $GFS_NCIO = "YES" ]; then
       LONB=${LONB:-$($NCDUMP -h $ATMANL_GSI | grep -i "grid_xt" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LONB
       LATB=${LATB:-$($NCDUMP -h $ATMANL_GSI | grep -i "grid_yt" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LATB
-   JCAP=${JCAP:--9999} # there is no jcap in these files
+      JCAP=${JCAP:--9999} # there is no jcap in these files
    else
       LONB=${LONB:-$($NEMSIOGET $ATMANL_GSI dimx | awk '{print $2}')}
       LATB=${LATB:-$($NEMSIOGET $ATMANL_GSI dimy | awk '{print $2}')}
@@ -205,14 +207,24 @@ if [ $RECENTER_ENKF = "YES" ]; then
 
       $NLN $ATMANL_GSI        atmanl_gsi
       $NLN $ATMANL_GSI_ENSRES atmanl_gsi_ensres
-
-      SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS}.txt}
+      if [ $GFS_NCIO = "YES" ]; then
+         LEVS1=$((LEVS+1))
+         SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS1}.txt}
+         $NLN $CHGRESNC chgres.x
+         chgresnml=chgres_nc_gauss.nml
+         nmltitle=chgres
+      else
+         SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS}.txt}
+         $NLN $CHGRESNEMS chgres.x
+         chgresnml=fort.43
+         nmltitle=nam
+      fi
 
       export OMP_NUM_THREADS=$NTHREADS_CHGRES
 
-      rm -f fort.43
-      cat > fort.43 << EOF
-&nam_setup
+      rm -f $chgresnml
+      cat > $chgresnml << EOF
+&${nmltitle}_setup
   i_output=$LONB_ENKF
   j_output=$LATB_ENKF
   input_file="atmanl_gsi"
@@ -221,8 +233,8 @@ if [ $RECENTER_ENKF = "YES" ]; then
   vcoord_file="$SIGLEVEL"
 /
 EOF
-
-      $APRUN_CHGRES $CHGRESEXEC
+      cat $chgresnml
+      $APRUN_CHGRES ./chgres.x
       rc=$?
 
       export ERR=$rc
@@ -269,6 +281,11 @@ else
 fi
 
 export OMP_NUM_THREADS=$NTHREADS_CALCINC
+if [ $GFS_NCIO = "YES" ]; then
+   CALCINCEXEC=$CALCINCNCEXEC
+else
+   CALCINCEXEC=$CALCINCNEMSEXEC
+fi
 $NCP $CALCINCEXEC $DATA
 
 rm calc_increment.nml
