@@ -112,13 +112,20 @@ integer(i_kind) :: isps(nsvars)
 character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed here
                 'u   ', 'v   ', 'prse', 'q   ', 'tsen', 'ql  ', 'qi  ', 'w   ' /)
 logical :: ls_u,ls_v,ls_w,ls_prse,ls_q,ls_tsen,ls_ql,ls_qi
-real(r_kind),pointer,dimension(:,:)   :: rv_ps,rv_sst
-real(r_kind),pointer,dimension(:,:)   :: rv_gust,rv_vis,rv_pblh,rv_wspd10m,rv_tcamt,rv_lcbas
-real(r_kind),pointer,dimension(:,:)   :: rv_td2m,rv_mxtm,rv_mitm,rv_pmsl,rv_howv,rv_cldch
-real(r_kind),pointer,dimension(:,:)   :: rv_uwnd10m,rv_vwnd10m
-real(r_kind),pointer,dimension(:,:,:) :: rv_u,rv_v,rv_w,rv_prse,rv_q,rv_tsen,rv_tv,rv_oz
-real(r_kind),pointer,dimension(:,:,:) :: rv_rank3
-real(r_kind),pointer,dimension(:,:)   :: rv_rank2
+real(r_kind),pointer,dimension(:,:)   :: rv_ps=>NULL(),rv_sst=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: rv_gust=>NULL(),rv_vis=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: rv_pblh=>NULL(),rv_wspd10m=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: rv_tcamt=>NULL(),rv_lcbas=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: rv_td2m=>NULL(),rv_mxtm=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: rv_mitm=>NULL(),rv_pmsl=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: rv_howv=>NULL(),rv_cldch=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: rv_uwnd10m=>NULL(),rv_vwnd10m=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_u=>NULL(),rv_v=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_w=>NULL(),rv_prse=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_q=>NULL(),rv_tsen=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_tv=>NULL(),rv_oz=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_rank3=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: rv_rank2=>NULL()
 
 real(r_kind),allocatable,dimension(:,:,:):: uland,vland,uwter,vwter
 
