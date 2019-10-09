@@ -1320,10 +1320,8 @@ end subroutine write_ghg_grid
                 call write_fv3_increment(grd_a,sp_a,filename,mype_atm, &
                      atm_bundle,itoutsig)
             else
-               call write_gfsncatm(grd_a,sp_a,filename,mype_atm, &
+                call write_gfsncatm(grd_a,sp_a,filename,mype_atm, &
                      atm_bundle,itoutsig)
-               !write(6,*) 'WRITE_ANALYSIS: ***ERROR*** writing GFS netCDF analysis not supported!'
-               !call stop2(999)
             end if
         else
 
