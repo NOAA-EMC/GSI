@@ -115,6 +115,7 @@ CALCANLEXEC=${CALCANLEXEC:-$HOMEgsi/exec/calc_analysis.x}
 CHGRESNCEXEC=${CHGRESNCEXEC:-$HOMEgsi/exec/chgres_nc_gauss.exe}
 CHGRESEXEC=${CHGRESEXEC:-$HOMEgsi/exec/chgres_recenter.exe}
 NTHREADS_CHGRES=${NTHREADS_CHGRES:-24}
+CALCINCPY=${CALCINCPY:-$HOMEgfs/ush/calcinc_gfs.py}
 
 # OPS flags
 RUN=${RUN:-""}
@@ -909,42 +910,7 @@ $ERRSCRIPT || exit 2
 ##############################################################
 # Calculate analysis increment here before releasing FV3 forecast
 if [ $DO_CALC_INCREMENT = "YES" ]; then
-  if [ $DOIAU = "YES" -a $l4densvar = ".true." -a $lwrite4danl = ".true." ]; then
-     ncmd=7
-     $NLN sigf03 atmges_mem001 ; $NLN siga03 atmanl_mem001 ; $NLN ${COMOUT}/${APREFIX}atmi003.nc atminc_mem001
-     $NLN sigf04 atmges_mem002 ; $NLN siga04 atmanl_mem002 ; $NLN ${COMOUT}/${APREFIX}atmi004.nc atminc_mem002
-     $NLN sigf05 atmges_mem003 ; $NLN siga05 atmanl_mem003 ; $NLN ${COMOUT}/${APREFIX}atmi005.nc atminc_mem003
-     $NLN sigf06 atmges_mem004 ; $NLN siganl atmanl_mem004 ; $NLN ${COMOUT}/${APREFIX}atminc.nc  atminc_mem004
-     $NLN sigf07 atmges_mem005 ; $NLN siga07 atmanl_mem005 ; $NLN ${COMOUT}/${APREFIX}atmi007.nc atminc_mem005
-     $NLN sigf08 atmges_mem006 ; $NLN siga08 atmanl_mem006 ; $NLN ${COMOUT}/${APREFIX}atmi008.nc atminc_mem006
-     $NLN sigf09 atmges_mem007 ; $NLN siga09 atmanl_mem007 ; $NLN ${COMOUT}/${APREFIX}atmi009.nc atminc_mem007
-  else
-     ncmd=1
-     $NLN sigf06 atmges_mem001 ; $NLN siganl atmanl_mem001 ; $NLN ${COMOUT}/${APREFIX}atminc.nc  atminc_mem001
-  fi
-
-  export OMP_NUM_THREADS=$NTHREADS_CALCINC
-  $NCP $CALCINCEXEC $DATA
-
-  rm calc_increment.nml
-  cat > calc_increment.nml << EOF
-&setup
-  datapath = './'
-  analysis_filename = 'atmanl'
-  firstguess_filename = 'atmges'
-  increment_filename = 'atminc'
-  debug = .false.
-  nens = $ncmd
-  imp_physics = $imp_physics
-/
-&zeroinc
-  incvars_to_zero = $INCREMENTS_TO_ZERO
-/
-EOF
-  cat calc_increment.nml
-
-  APRUN=$(eval echo $APRUN_CALCINC)
-  $APRUN $DATA/$(basename $CALCINCEXEC)
+  $CALCINCPY
   rc=$?
 
   export ERR=$rc
