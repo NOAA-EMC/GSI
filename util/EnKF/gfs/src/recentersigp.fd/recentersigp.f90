@@ -127,7 +127,7 @@ program recentersigp
               call nemsio_getfilehead(gfilemi, nrec=nrec, dimx=lonb, dimy=latb, dimz=levs, iret=iret)
               write(6,*)' lonb=',lonb,' latb=',latb,' levs=',levs,' nrec=',nrec
            else
-              write(6,*)'***ERROR*** ',trim(filenamein),' contains unrecognized format.  ABORT'
+              write(6,*)'***ERROR*** ',trim(filenamein)//"_mem"//charnanal,' contains unrecognized format.  ABORT'
            endif
         endif
      endif
@@ -228,9 +228,10 @@ program recentersigp
         londim = get_dim(dsetmi,'grid_xt'); lonb = londim%len
         latdim = get_dim(dsetmi,'grid_yt'); latb = latdim%len
         levdim = get_dim(dsetmi,'pfull');   levs = levdim%len
+        write(charnanal,'(i3.3)') mype1
         dsetmo = open_dataset(filename_meano)
-        dseti  = open_dataset(filenamein)
-        dseto  = create_dataset(filenameout, dseti, copy_vardata=.true.)
+        dseti  = open_dataset(trim(filenamein)//"_mem"//charnanal)
+        dseto  = create_dataset(trim(filenameout)//"_mem"//charnanal, dseti, copy_vardata=.true.)
         do nvar=1,dseti%nvars
            ndims = dseti%variables(nvar)%ndims
            if (ndims > 2) then
@@ -292,7 +293,7 @@ program recentersigp
 100 continue
   call MPI_Barrier(MPI_COMM_WORLD,ierr)
 
-  if (mype1 <= nanals .and. .not.nemsio .and. .not.sigio) then
+  if (mype1 <= nanals .and. .not.nemsio .and. .not.sigio .and. .not. ncio) then
      call MPI_Abort(MPI_COMM_WORLD,98,iret)
      stop
   endif

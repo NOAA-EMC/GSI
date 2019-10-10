@@ -774,11 +774,17 @@
   if (.not. use_gfs_nemsio .and. .not. use_gfs_ncio) then
      idate = sighead%idate
      fhour = sighead%fhour
-  else
+  else if (use_gfs_ncio) then 
      idate(3)=idat(3)  !day 
      idate(2)=idat(2)  !mon
      idate(4)=idat(4)  !yr
      idate(1)=idat(1)  !hr 
+     fhour = nfhour
+  else if (use_gfs_nemsio) then
+     idate(3)=idat(3) 
+     idate(2)=idat(2)
+     idate(4)=idat(1) 
+     idate(1)=idat(4)
      fhour = nfhour
   endif
   fha=zero; ida=0; jda=0
@@ -1403,7 +1409,7 @@
         if (v_ind > 0) then
           call copyfromgrdin(grdin(:,levels(v_ind-1) + k,nb,ne),vg)
         endif
-        values_2d = reshape(ug,(/nlons,nlats/))
+        values_2d = reshape(vg,(/nlons,nlats/))
         vg3d(:,:,nlevs-k+1) = vg3d(:,:,nlevs-k+1) + values_2d
      enddo  
      call read_attribute(dsfg, 'nbits', nbits, 'vgrd',errcode=ierr)
@@ -1601,7 +1607,7 @@
            ! ps in Pa here, need to multiply ak by 100.
            ug=ug*log((100_r_kind*ak(k)+bk(k)*vg)/(100_r_kind*ak(k+1)+bk(k+1)*vg))
            ug3d(:,:,nlevs-k+1)=vg3d(:,:,nlevs-k+1) +&
-            reshape(ug-delzb,(/nlons,nlats/))
+           reshape(ug-delzb,(/nlons,nlats/))
         enddo
         call read_attribute(dsfg, 'nbits', nbits, 'delz',errcode=ierr)
         if (ierr == 0 .and. nbits > 0)  then

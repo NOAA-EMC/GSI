@@ -1631,7 +1631,7 @@ contains
 
     real(r_kind),parameter:: r0_001 = 0.001_r_kind
     character(6):: fname_ges
-    character(len=120) :: my_name = 'WRITE_NEMSATM'
+    character(len=120) :: my_name = 'WRITE_GFSNCATM'
     character(len=1)   :: null = ' '
     integer(i_kind),dimension(6):: idate,jdate
     integer(i_kind) :: k, mm1, nlatm2, nord_int, i, j, kk, kr, nbits
@@ -1876,7 +1876,7 @@ contains
           call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
           do j=1,latb
              do i=1,lonb
-                grid_b(i,j)=r1000*(grid_b(i,j)+grid_c(j,i,1))
+                grid_b(i,j)=r1000*(grid_b(i,j)+grid_c(latb-j+2,i,1))
              end do
           end do
           values_2d = grid_b
@@ -1892,7 +1892,7 @@ contains
          'max_abs_compression_error',compress_err,'pressfc')
        endif
        call write_vardata(atmanl,'pressfc',values_2d,errcode=iret)
-       if (iret /= 0) call error_msg(trim(my_name),trim(filename),'dpres','write',istop,iret)
+       if (iret /= 0) call error_msg(trim(my_name),trim(filename),'pressfc','write',istop,iret)
     endif
 
 !   u, v
@@ -1926,7 +1926,7 @@ contains
              call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
              do j=1,latb
                 do i=1,lonb
-                   grid_b(i,j)=grid_b(i,j)+grid_c(j,i,1)
+                   grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
                 end do
              end do
              call g_egrid2agrid(p_low,grid_c2,grid3,1,1,vector)
@@ -1938,7 +1938,7 @@ contains
              call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
              do j=1,latb
                 do i=1,lonb
-                   grid_b2(i,j)=grid_b2(i,j)+grid_c(j,i,1)
+                   grid_b2(i,j)=grid_b2(i,j)+grid_c(latb-j+2,i,1)
                 end do
              end do
              ug3d(:,:,kr) = grid_b
@@ -1999,7 +1999,7 @@ contains
              call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
              do j=1,latb
                 do i=1,lonb
-                   grid_b(i,j)=grid_b(i,j)+grid_c(j,i,1)
+                   grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
                 end do
              end do
              values_3d(:,:,kr) = grid_b
@@ -2045,7 +2045,7 @@ contains
              call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
              do j=1,latb
                 do i=1,lonb
-                   grid_b(i,j)=grid_b(i,j)+grid_c(j,i,1)
+                   grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
                 end do
              end do
              values_3d(:,:,kr) = grid_b
@@ -2091,7 +2091,7 @@ contains
              call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
              do j=1,latb
                 do i=1,lonb
-                   grid_b(i,j)=grid_b(i,j)+grid_c(j,i,1)
+                   grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
                 end do
              end do
              values_3d(:,:,kr) = grid_b
@@ -2162,7 +2162,7 @@ contains
                 if (imp_physics == 11) grid_b = grid_b - grid_b2
                 do j=1,latb
                    do i=1,lonb
-                      grid_b(i,j)=grid_b(i,j)+grid_c(j,i,1)
+                      grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
                    end do
                 end do
                 ug3d(:,:,kr) = grid_b
@@ -2175,7 +2175,7 @@ contains
                    call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
                    do j=1,latb
                       do i=1,lonb
-                         grid_b2(i,j)=grid_b2(i,j)+grid_c(j,i,1)
+                         grid_b2(i,j)=grid_b2(i,j)+grid_c(latb-j+2,i,1)
                       end do
                    end do
                    vg3d(:,:,kr) = grid_b2
@@ -2233,7 +2233,7 @@ contains
                 call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
                 do j=1,latb
                    do i=1,lonb
-                      grid_b(i,j)=grid_b(i,j)+grid_c(j,i,1)
+                      grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
                    end do
                 end do
                 values_3d(:,:,kr) = grid_b
