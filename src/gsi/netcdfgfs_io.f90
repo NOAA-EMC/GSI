@@ -1876,7 +1876,7 @@ contains
           call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
           do j=1,latb
              do i=1,lonb
-                grid_b(i,j)=r1000*(grid_b(i,j)+grid_c(j,i,1))
+                grid_b(i,j)=r1000*(grid_b(i,j)+grid_c(latb-j+2,i,1))
              end do
           end do
           values_2d = grid_b
@@ -1926,7 +1926,7 @@ contains
              call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
              do j=1,latb
                 do i=1,lonb
-                   grid_b(i,j)=grid_b(i,j)+grid_c(j,i,1)
+                   grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
                 end do
              end do
              call g_egrid2agrid(p_low,grid_c2,grid3,1,1,vector)
@@ -1938,7 +1938,7 @@ contains
              call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
              do j=1,latb
                 do i=1,lonb
-                   grid_b2(i,j)=grid_b2(i,j)+grid_c(j,i,1)
+                   grid_b2(i,j)=grid_b2(i,j)+grid_c(latb-j+2,i,1)
                 end do
              end do
              ug3d(:,:,kr) = grid_b
@@ -1999,7 +1999,7 @@ contains
              call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
              do j=1,latb
                 do i=1,lonb
-                   grid_b(i,j)=grid_b(i,j)+grid_c(j,i,1)
+                   grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
                 end do
              end do
              values_3d(:,:,kr) = grid_b
@@ -2045,7 +2045,7 @@ contains
              call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
              do j=1,latb
                 do i=1,lonb
-                   grid_b(i,j)=grid_b(i,j)+grid_c(j,i,1)
+                   grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
                 end do
              end do
              values_3d(:,:,kr) = grid_b
@@ -2091,7 +2091,7 @@ contains
              call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
              do j=1,latb
                 do i=1,lonb
-                   grid_b(i,j)=grid_b(i,j)+grid_c(j,i,1)
+                   grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
                 end do
              end do
              values_3d(:,:,kr) = grid_b
@@ -2162,7 +2162,7 @@ contains
                 if (imp_physics == 11) grid_b = grid_b - grid_b2
                 do j=1,latb
                    do i=1,lonb
-                      grid_b(i,j)=grid_b(i,j)+grid_c(j,i,1)
+                      grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
                    end do
                 end do
                 ug3d(:,:,kr) = grid_b
@@ -2175,7 +2175,7 @@ contains
                    call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
                    do j=1,latb
                       do i=1,lonb
-                         grid_b2(i,j)=grid_b2(i,j)+grid_c(j,i,1)
+                         grid_b2(i,j)=grid_b2(i,j)+grid_c(latb-j+2,i,1)
                       end do
                    end do
                    vg3d(:,:,kr) = grid_b2
@@ -2233,7 +2233,7 @@ contains
                 call g_egrid2agrid(p_high,grid3,grid_c,1,1,vector)
                 do j=1,latb
                    do i=1,lonb
-                      grid_b(i,j)=grid_b(i,j)+grid_c(j,i,1)
+                      grid_b(i,j)=grid_b(i,j)+grid_c(latb-j+2,i,1)
                    end do
                 end do
                 values_3d(:,:,kr) = grid_b
