@@ -207,14 +207,12 @@ if [ $RECENTER_ENKF = "YES" ]; then
 
       $NLN $ATMANL_GSI        atmanl_gsi
       $NLN $ATMANL_GSI_ENSRES atmanl_gsi_ensres
+      SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS}.txt}
       if [ $GFS_NCIO = "YES" ]; then
-         LEVS1=$((LEVS+1))
-         SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS1}.txt}
          $NLN $CHGRESNC chgres.x
          chgresnml=chgres_nc_gauss.nml
          nmltitle=chgres
       else
-         SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS}.txt}
          $NLN $CHGRESNEMS chgres.x
          chgresnml=fort.43
          nmltitle=nam
