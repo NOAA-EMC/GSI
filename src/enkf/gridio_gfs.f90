@@ -774,11 +774,17 @@
   if (.not. use_gfs_nemsio .and. .not. use_gfs_ncio) then
      idate = sighead%idate
      fhour = sighead%fhour
-  else
+  else if (use_gfs_ncio) then 
      idate(3)=idat(3)  !day 
      idate(2)=idat(2)  !mon
      idate(4)=idat(4)  !yr
      idate(1)=idat(1)  !hr 
+     fhour = nfhour
+  else if (use_gfs_nemsio) then
+     idate(3)=idat(3) 
+     idate(2)=idat(2)
+     idate(4)=idat(1) 
+     idate(1)=idat(4)
      fhour = nfhour
   endif
   fha=zero; ida=0; jda=0
