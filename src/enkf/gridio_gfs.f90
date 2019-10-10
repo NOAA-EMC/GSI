@@ -607,7 +607,6 @@
   type(sigio_head) sighead
   type(sigio_data) sigdata_inc
   type(Dataset) :: dsfg, dsanl
-  character(len=nf90_max_name) :: varname ! variable name
   character(len=3) charnanal
   character(nemsio_charkind),allocatable:: recname(:)
   character(nemsio_charkind) :: field
@@ -711,7 +710,7 @@
         call stop2(29)
      endif
      do k=1,nlevs+1
-        ak(nlevs-k+1) = 0.01_r_kind*values_1d(k)
+        ak(nlevs-k+2) = 0.01_r_kind*values_1d(k)
      enddo
      call read_attribute(dsfg, 'bk', values_1d,errcode=iret)
      if (iret /= 0) then
@@ -719,7 +718,7 @@
         call stop2(29)
      endif
      do k=1,nlevs+1
-        bk(nlevs-k+1) = values_1d(k)
+        bk(nlevs-k+2) = values_1d(k)
      enddo
   else
      ! read in first-guess data.
@@ -767,6 +766,7 @@
      allocate(pstendfg(nlons*nlats))
      allocate(pstend1(nlons*nlats))
      allocate(pstend2(nlons*nlats),vmass(nlons*nlats))
+     allocate(ugtmp(nlons*nlats,nlevs),vgtmp(nlons*nlats,nlevs))
   endif
   if (imp_physics == 11) allocate(work(nlons*nlats))
 
@@ -991,21 +991,22 @@
      if (ps_ind > 0) then
        call copyfromgrdin(grdin(:,levels(n3d) + ps_ind,nb,ne),ug)
      endif
-     ! add increment to background (after converting to Pa)
-     values_2d = values_2d + 100_r_kind*reshape(ug,(/nlons,nlats/))
+     ! add increment to background.
+     psg = psfg + ug ! analysis pressure in mb.
+     values_2d = 100.*reshape(psg,(/nlons,nlats/))
      call write_vardata(dsanl,'pressfc',values_2d,errcode=iret) 
      if (iret /= 0) then
         print *,'error writing pressfc'
         call stop2(29)
      endif
      !print *,'nanal,min/max psfg,min/max inc',nanal,minval(values_2d),maxval(values_2d),minval(ug),maxval(ug)
-     call read_vardata(dsfg,'dpres',ug3d, errcode=ierr)
-     if (ierr == 0) then
+     hasfield = checkfield_nc(dsfg,'dpres')
+     if (hasfield) then
         call read_vardata(dsfg,'dpres',ug3d)
         do k=1,nlevs
-           psg = ug*(bk(k)-bk(k+1))
+           vg = ug*(bk(k)-bk(k+1))
            vg3d(:,:,nlevs-k+1) = ug3d(:,:,nlevs-k+1) +&
-           100_r_kind*reshape(psg,(/nlons,nlats/))
+           100_r_kind*reshape(vg,(/nlons,nlats/))
         enddo 
         call read_attribute(dsfg, 'nbits', nbits, 'delp',errcode=ierr)
         if (ierr == 0 .and. nbits > 0)  then
@@ -1126,9 +1127,6 @@
      ! don't need sigdata_inc anymore.
      call sigio_axdata(sigdata_inc,ierr)
   else if (use_gfs_nemsio) then
-     if (pst_ind > 0) then
-        allocate(ugtmp(nlons*nlats,nlevs),vgtmp(nlons*nlats,nlevs))
-     endif
      field = 'delz'; hasfield = checkfield(field,recname,nrecs)
      if (hasfield) allocate(delzb(nlons*nlats))
      ! update u,v,Tv,q,oz,clwmr
@@ -1151,7 +1149,7 @@
               call stop2(23)
            endif
         else
-           ugtmp(:,k) = ug
+           ugtmp(:,k) = ug ! save analysis u if pst_ind>0
         endif
      
         call nemsio_readrecv(gfilein,'vgrd','mid layer',k,nems_wrk,iret=iret)
@@ -1172,7 +1170,7 @@
               call stop2(23)
            endif
         else
-           vgtmp(:,k) = vg
+           vgtmp(:,k) = vg ! save analysis v if pst_ind>0
         endif
 
         if (pst_ind > 0) then
@@ -1382,6 +1380,9 @@
         endif
         values_2d = reshape(ug,(/nlons,nlats/))
         ug3d(:,:,nlevs-k+1) = ug3d(:,:,nlevs-k+1) + values_2d
+        if (pst_ind > 0) then
+           ugtmp(:,k) = reshape(ug3d(:,:,nlevs-k+1),(/nlons*nlats/))
+        endif
      enddo
      call read_attribute(dsfg, 'nbits', nbits, 'ugrd',errcode=ierr)
      if (ierr == 0 .and. nbits > 0)  then
@@ -1411,6 +1412,9 @@
         endif
         values_2d = reshape(vg,(/nlons,nlats/))
         vg3d(:,:,nlevs-k+1) = vg3d(:,:,nlevs-k+1) + values_2d
+        if (pst_ind > 0) then
+           vgtmp(:,k) = reshape(vg3d(:,:,nlevs-k+1),(/nlons*nlats/))
+        endif
      enddo  
      call read_attribute(dsfg, 'nbits', nbits, 'vgrd',errcode=ierr)
      if (ierr == 0 .and. nbits > 0)  then
@@ -1430,7 +1434,6 @@
      endif
      if (pst_ind > 0) then
         do k=1,nlevs
-           vgtmp(:,k) = reshape(vg3d(:,:,nlevs-k+1),(/nlons*nlats/))
            ug = ugtmp(:,k)*dpanl(:,k)
            vg = vgtmp(:,k)*dpanl(:,k)
            call sptezv_s(divspec,vrtspec,ug,vg,-1) ! u,v to div,vrt
@@ -1594,7 +1597,7 @@
      endif
 
      ! write analysis delz
-     varname= 'delz'; hasfield = checkfield_nc(dsfg,varname)
+     hasfield = checkfield_nc(dsfg,'delz')
      if (hasfield) then
         call read_vardata(dsfg,'delz',vg3d)
         do k=1,nlevs
@@ -1780,8 +1783,10 @@
      call sigio_axdata(sigdata,ierr)
   else if (use_gfs_ncio) then
      if (pst_ind > 0) then 
-        ug3d = reshape(ugtmp,(/nlons,nlats,nlevs/))
-        vg3d = reshape(vgtmp,(/nlons,nlats,nlevs/))
+        do k=1,nlevs
+           ug3d(:,:,nlevs-k+1) = reshape(ugtmp(:,k),(/nlons,nlats/))
+           vg3d(:,:,nlevs-k+1) = reshape(vgtmp(:,k),(/nlons,nlats/))
+        enddo
         call read_attribute(dsfg, 'nbits', nbits, 'ugrd',errcode=ierr)
         if (ierr == 0 .and. nbits > 0)  then
           values_3d = ug3d
@@ -1892,7 +1897,7 @@
     use netcdf
     use module_fv3gfs_ncio, only : Dataset
     type(Dataset), intent(in) :: dset
-    character(len=nf90_max_name) :: name ! variable name
+    character(len=*) :: name ! variable name
     integer nvar
     hasfield = .false.
     do nvar=1,dset%nvars
