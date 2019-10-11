@@ -708,8 +708,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !       only accept flag 0 1, flag 2 is high SZA data which is not used for now
         toq=hdrozo2(5)
         if (toq/=0 .and. toq/=1) cycle read_loop2
-
-
+   
 !       remove the data in which the C-pair algorithm ((331 and 360 nm) is used. 
         if (hdrozo2(8) == 3_r_double .or. hdrozo2(8) == 13_r_double) cycle read_loop2
 
