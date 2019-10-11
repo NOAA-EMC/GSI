@@ -63,7 +63,7 @@
 
  do k = 1, levp
    do i = 1, ijm
-     delz(i,k) = zh(i,k+1) - zh(i,k)
+     delz(i,k) = zh(i,k) - zh(i,k+1)
    enddo
  enddo
 
