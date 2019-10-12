@@ -95,12 +95,14 @@
 
  use input_data
  use setup
+ use netcdf, only : nf90_max_name
 
  implicit none
 
  integer :: n,nrev
  real, allocatable, dimension (:,:) :: out2d
  real, allocatable, dimension (:,:,:) :: out3d
+ character(len=nf90_max_name) varname
 
 
 !-------------------------------------------------------------------
@@ -136,7 +138,8 @@
     nrev = lev+1-n
     out3d(:,:,n) = reshape(tmp_output(:,nrev), (/i_output,j_output/))
  end do
- call write_vardata(outdset, 'tmp', out3d)
+ varname = 'tmp'
+ call quantize_and_write(outdset, varname, out3d)
  deallocate(tmp_output)
 
  print*,"WRITE CLOUD LIQUID WATER"
@@ -144,7 +147,8 @@
     nrev = lev+1-n
     out3d(:,:,n) = reshape(clwmr_output(:,nrev), (/i_output,j_output/))
  end do
- call write_vardata(outdset, 'clwmr', out3d)
+ varname = 'clwmr'
+ call quantize_and_write(outdset, varname, out3d)
  deallocate(clwmr_output)
 
  print*,"WRITE SPECIFIC HUMIDITY"
@@ -152,7 +156,8 @@
     nrev = lev+1-n
     out3d(:,:,n) = reshape(spfh_output(:,nrev), (/i_output,j_output/))
  end do
- call write_vardata(outdset, 'spfh', out3d)
+ varname = 'spfh'
+ call quantize_and_write(outdset, varname, out3d)
  deallocate(spfh_output)
 
  print*,"WRITE OZONE"
@@ -160,7 +165,8 @@
     nrev = lev+1-n
     out3d(:,:,n) = reshape(o3mr_output(:,nrev), (/i_output,j_output/))
  end do
- call write_vardata(outdset, 'o3mr', out3d)
+ varname = 'o3mr'
+ call quantize_and_write(outdset, varname, out3d)
  deallocate(o3mr_output)
 
  print*,"WRITE U-WINDS"
@@ -168,7 +174,8 @@
     nrev = lev+1-n
     out3d(:,:,n) = reshape(ugrd_output(:,nrev), (/i_output,j_output/))
  end do
- call write_vardata(outdset, 'ugrd', out3d)
+ varname = 'ugrd'
+ call quantize_and_write(outdset, varname, out3d)
  deallocate(ugrd_output)
 
  print*,"WRITE V-WINDS"
@@ -176,7 +183,8 @@
     nrev = lev+1-n
     out3d(:,:,n) = reshape(vgrd_output(:,nrev), (/i_output,j_output/))
  end do
- call write_vardata(outdset, 'vgrd', out3d)
+ varname = 'vgrd'
+ call quantize_and_write(outdset, varname, out3d)
  deallocate(vgrd_output)
 
  if (idzdt == 1) then
@@ -185,7 +193,8 @@
     nrev = lev+1-n
     out3d(:,:,n) = reshape(dzdt_output(:,nrev), (/i_output,j_output/))
  end do
- call write_vardata(outdset, 'dzdt', out3d)
+ varname = 'dzdt'
+ call quantize_and_write(outdset, varname, out3d)
  deallocate(dzdt_output)
  endif
 
@@ -195,7 +204,8 @@
     nrev = lev+1-n
     out3d(:,:,n) = reshape(dpres_output(:,nrev), (/i_output,j_output/))
  end do
- call write_vardata(outdset, 'dpres', out3d)
+ varname = 'dpres'
+ call quantize_and_write(outdset, varname, out3d)
  endif
  deallocate(dpres_output)
 
@@ -205,7 +215,8 @@
     nrev = lev+1-n
     out3d(:,:,n) = reshape(delz_output(:,nrev), (/i_output,j_output/))
  end do
- call write_vardata(outdset, 'delz', out3d)
+ varname = 'delz'
+ call quantize_and_write(outdset, varname, out3d)
  endif
  deallocate(delz_output)
 
@@ -215,7 +226,8 @@
     nrev = lev+1-n
     out3d(:,:,n) = reshape(rwmr_output(:,nrev), (/i_output,j_output/))
  end do
- call write_vardata(outdset, 'rwmr', out3d)
+ varname = 'rwmr'
+ call quantize_and_write(outdset, varname, out3d)
  deallocate(rwmr_output)
  endif
 
@@ -225,7 +237,8 @@
     nrev = lev+1-n
     out3d(:,:,n) = reshape(snmr_output(:,nrev), (/i_output,j_output/))
  end do
- call write_vardata(outdset, 'snmr', out3d)
+ varname = 'snmr'
+ call quantize_and_write(outdset, varname, out3d)
  deallocate(snmr_output)
  endif
 
@@ -235,7 +248,8 @@
     nrev = lev+1-n
     out3d(:,:,n) = reshape(icmr_output(:,nrev), (/i_output,j_output/))
  end do
- call write_vardata(outdset, 'icmr', out3d)
+ varname = 'icmr'
+ call quantize_and_write(outdset, varname, out3d)
  deallocate(icmr_output)
  endif
 
@@ -245,7 +259,8 @@
     nrev = lev+1-n
     out3d(:,:,n) = reshape(grle_output(:,nrev), (/i_output,j_output/))
  end do
- call write_vardata(outdset, 'grle', out3d)
+ varname = 'grle'
+ call quantize_and_write(outdset, varname, out3d)
  deallocate(grle_output)
  endif
 
@@ -255,7 +270,8 @@
     nrev = lev+1-n
     out3d(:,:,n) = reshape(cldamt_output(:,nrev), (/i_output,j_output/))
  end do
- call write_vardata(outdset, 'cld_amt', out3d)
+ varname = 'cld_amt'
+ call quantize_and_write(outdset, varname, out3d)
  deallocate(cldamt_output)
  endif
 
@@ -285,5 +301,23 @@
  outdset = create_dataset(output_file, indset)
 
  end subroutine header_set
+
+ subroutine quantize_and_write(outdset, varname, out3d)
+ type(Dataset), intent(inout) :: outdset
+ real, intent(inout), dimension (:,:,:) :: out3d
+ character(len=*), intent(in) :: varname
+ real, allocatable, dimension(:,:,:) :: out3d_save
+ integer nbits,ierr
+ real compress_err
+ allocate(out3d_save, mold=out3d)
+ call read_attribute(outdset, 'nbits', nbits, trim(varname),errcode=ierr)
+ if (ierr == 0 .and. nbits > 0)  then
+   out3d_save = out3d
+   call quantize_data(out3d_save, out3d, nbits, compress_err)
+   call write_attribute(outdset,'max_abs_compression_error',compress_err,trim(varname))
+ endif
+ call write_vardata(outdset, trim(varname), out3d)
+ deallocate(out3d_save)
+ end subroutine quantize_and_write
 
  end module output_data
