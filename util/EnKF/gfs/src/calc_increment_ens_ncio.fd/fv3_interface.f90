@@ -534,10 +534,10 @@ contains
     ! Read in the variable, level-by-level:
     call gfs_ncio_read(workgrid,varname)
     do k = 1, grid%nz
-       grid%var3d(:,:,grid%nz-k+1)=workgrid(:,:,k)
+       grid%var3d(:,:,k)=workgrid(:,:,k)
        if (grid%flip_lats) then
           call gfs_ncio_flip_xlat_axis( &
-               meta_ncio,grid%var3d(:,:,grid%nz - k + 1))
+               meta_ncio,grid%var3d(:,:,k))
        endif
     end do
 
@@ -569,11 +569,11 @@ contains
     ! Calculate or read the mid-level 3D pressure:
     call gfs_ncio_read(workgrid,'dpres     ')
     do k = 1, meta_ncio%dimz
-       grid%var3d(:,:,meta_ncio%dimz-k+1)=workgrid(:,:,k)
+       grid%var3d(:,:,k)=workgrid(:,:,k)
        ! Flip the pressure in the latitude direction if needed
        if (grid%flip_lats) then
           call gfs_ncio_flip_xlat_axis( &
-               meta_ncio, grid%var3d(:,:,meta_ncio%dimz - k + 1) )
+               meta_ncio, grid%var3d(:,:,k) )
        endif
     enddo
 
