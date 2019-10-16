@@ -553,10 +553,10 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            if (aircraft_t_bc) then
               pof_idx = one
               pred(1) = one
-              if (abs(data(ivvlc,i))>=50.0_r_kind) then
-                 pred(2) = zero
-                 pred(3) = zero
-                 data(ier,i) = 1.2_r_kind*data(ier,i)
+              if (abs(data(ivvlc,i))>=30.0_r_kind) then
+                 pred(2) = 30.0_r_kind
+                 pred(3) = pred(2)*pred(2)
+                 data(ier,i) = 1.5_r_kind*data(ier,i)
               else
                  pred(2) = data(ivvlc,i)
                  pred(3) = data(ivvlc,i)*data(ivvlc,i)
