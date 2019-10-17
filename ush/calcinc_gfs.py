@@ -68,7 +68,7 @@ if __name__ == '__main__':
   NThreads = os.getenv('NTHREADS_CALCINC', 1)
   IMP_Physics = os.getenv('imp_physics', 11)
   RunDir = os.getenv('DATA', './')
-  Exec = os.getenv('CALCINCEXEC', './calc_increment_ens.x')
+  Exec = os.getenv('CALCINCNCEXEC', './calc_increment_ens.x')
   Inc2Zero = os.getenv('INCREMENTS_TO_ZERO', '"NONE"')
   ExecCMD = os.getenv('APRUN_CALCINC', '')
   calcinc_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
