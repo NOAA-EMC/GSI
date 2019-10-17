@@ -58,5 +58,27 @@ def get_ncdims(ncfile):
   ncdims = {}
   for d in ncf.dimensions.keys():
     ncdims[d] = int(len(ncf.dimensions[d]))
-
+  ncf.close()
+  
   return ncdims
+
+def get_timeinfo(ncfile):
+  """ get_timeinfo(ncfile)
+   - function to return datetime objects of initialized time and valid time
+   input: ncfile - string to path to netCDF file
+   returns: inittime, validtime - datetime objects
+            nfhour - integer forecast hour
+  """
+  import netCDF4 as nc
+  import datetime as dt
+  from cftime import _parse_date
+  ncf = nc.Dataset(ncfile)
+  time_units = ncf['time'].units
+  date_str = time_units.split('since ')[1]
+  initstr = '%04i%02i%02i%02i' % _parse_date(date_str)[0:4]
+  inittime = dt.datetime.strptime(initstr,"%Y%m%d%H")
+  nfhour = int(ncf['time'][0])
+  validtime = inittime + dt.timedelta(hours=nfhour)
+  ncf.close()
+
+  return inittime, validtime, nfhour
