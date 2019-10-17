@@ -91,7 +91,7 @@ export CASE=${CASE:-"C384"}
 ntiles=${ntiles:-6}
 
 # Microphysics in the model; 99:ZC, 11:GFDLMP
-imp_physics=${imp_physics:-99}
+export imp_physics=${imp_physics:-99}
 lupp=${lupp:-".true."}
 
 # Diagnostic files options
@@ -106,15 +106,16 @@ DOIAU=${DOIAU:-"NO"}
 GFS_NCIO=${GFS_NCIO:-"YES"}
 
 # Dependent Scripts and Executables
-NTHREADS_CALCINC=${NTHREADS_CALCINC:-1}
-APRUN_CALCINC=${APRUN_CALCINC:-${APRUN:-""}}
-APRUN_CALCANL=${APRUN_CALCANL:-${APRUN:-""}}
-APRUN_CHGRES=${APRUN_CALCANL:-${APRUN:-""}}
-CALCINCEXEC=${CALCINCEXEC:-$HOMEgsi/exec/calc_increment_ens.x}
-CALCANLEXEC=${CALCANLEXEC:-$HOMEgsi/exec/calc_analysis.x}
-CHGRESNCEXEC=${CHGRESNCEXEC:-$HOMEgsi/exec/chgres_nc_gauss.exe}
+export NTHREADS_CALCINC=${NTHREADS_CALCINC:-1}
+export APRUN_CALCINC=${APRUN_CALCINC:-${APRUN:-""}}
+export APRUN_CALCANL=${APRUN_CALCANL:-${APRUN:-""}}
+export APRUN_CHGRES=${APRUN_CALCANL:-${APRUN:-""}}
+export CALCINCEXEC=${CALCINCEXEC:-$HOMEgsi/exec/calc_increment_ens.x}
+export CALCANLEXEC=${CALCANLEXEC:-$HOMEgsi/exec/calc_analysis.x}
+export CHGRESNCEXEC=${CHGRESNCEXEC:-$HOMEgsi/exec/chgres_nc_gauss.exe}
+export CHGRESINCEXEC=${CHGRESNCEXEC:-$HOMEgsi/exec/chgres_increment.exe}
 CHGRESEXEC=${CHGRESEXEC:-$HOMEgsi/exec/chgres_recenter.exe}
-NTHREADS_CHGRES=${NTHREADS_CHGRES:-24}
+export NTHREADS_CHGRES=${NTHREADS_CHGRES:-24}
 CALCINCPY=${CALCINCPY:-$HOMEgfs/ush/calcinc_gfs.py}
 CALCANLPY=${CALCINCPY:-$HOMEgfs/ush/calcanl_gfs.py}
 
@@ -209,7 +210,7 @@ GBIASAIR=${GBIASAIR:-${COMIN_GES}/${GPREFIX}abias_air}
 GRADSTAT=${GRADSTAT:-${COMIN_GES}/${GPREFIX}radstat}
 
 # Analysis files
-APREFIX=${APREFIX:-""}
+export APREFIX=${APREFIX:-""}
 ASUFFIX=${ASUFFIX:-""}
 SFCANL=${SFCANL:-${COMOUT}/${APREFIX}sfcanl${ASUFFIX}}
 DTFANL=${DTFANL:-${COMOUT}/${APREFIX}dtfanl.nc}
@@ -251,10 +252,10 @@ FAC_TSL=${FAC_TSL:-1}
 TZR_QC=${TZR_QC:-1}
 USE_READIN_ANL_SFCMASK=${USE_READIN_ANL_SFCMASK:-.false.}
 SMOOTH_ENKF=${SMOOTH_ENKF:-"YES"}
-DOIAU=${DOIAU:-"NO"}
+export DOIAU=${DOIAU:-"NO"}
 DO_CALC_INCREMENT=${DO_CALC_INCREMENT:-"NO"}
 DO_CALC_ANALYSIS=${DO_CALC_ANALYSIS:-"NO"}
-INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"'NONE'"}
+export INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"'NONE'"}
 
 # Get header information from Guess files
 if [ $GFS_NCIO = "YES" ]; then
@@ -274,7 +275,7 @@ fi
 # Get header information from Ensemble Guess files
 if [ $DOHYBVAR = "YES" ]; then
    SFCGES_ENSMEAN=${SFCGES_ENSMEAN:-${COMIN_GES_ENS}/${GPREFIX}sfcf006.ensmean${GSUFFIX}}
-   ATMGES_ENSMEAN=${ATMGES_ENSMEAN:-${COMIN_GES_ENS}/${GPREFIX}atmf006.ensmean${GSUFFIX}}
+   export ATMGES_ENSMEAN=${ATMGES_ENSMEAN:-${COMIN_GES_ENS}/${GPREFIX}atmf006.ensmean${GSUFFIX}}
    if [ $GFS_NCIO = "YES" ]; then
       LONB_ENKF=${LONB_ENKF:-$($NCLEN $ATMGES_ENSMEAN grid_xt)} # get LONB_ENKF
       LATB_ENKF=${LATB_ENKF:-$($NCLEN $ATMGES_ENSMEAN grid_yt)} # get LATB_ENFK
@@ -373,12 +374,12 @@ NST=${NST:-""}
 lrun_subdirs=${lrun_subdirs:-".true."}
 if [ $DOHYBVAR = "YES" ]; then
    l_hyb_ens=.true.
-   l4densvar=${l4densvar:-".false."}
-   lwrite4danl=${lwrite4danl:-".false."}
+   export l4densvar=${l4densvar:-".false."}
+   export lwrite4danl=${lwrite4danl:-".false."}
 else
    l_hyb_ens=.false.
-   l4densvar=.false.
-   lwrite4danl=.false.
+   export l4densvar=.false.
+   export lwrite4danl=.false.
 fi
 
 # Set 4D-EnVar specific variables
