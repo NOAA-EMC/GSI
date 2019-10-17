@@ -71,7 +71,7 @@ contains
     use general_sub2grid_mod, only: sub2grid_info
 
     use gsi_bundlemod, only: gsi_bundle, gsi_bundlegetpointer
-    use control_vectors, only: lupp, control_vector, incvars_to_zero
+    use control_vectors, only: control_vector, incvars_to_zero
 
     use constants, only: one, fv, rad2deg, r1000
 
