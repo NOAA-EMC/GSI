@@ -47,3 +47,6 @@ module load NetCDF/4.5.0
 
 # Loading cmake
 module load cmake/3.10.0
+
+# Loading python
+module load python/3.6.3
