@@ -31,6 +31,7 @@ module m_latlonRange
   use mpeu_mpif, only: MPI_iKIND
   use mpeu_util, only: assert_
   use mpeu_util, only: tell,perr,die
+  use timermod, only: timer_ini,timer_fnl
   implicit none
   private       ! except
   public :: latlonRange          ! data structure
@@ -147,14 +148,11 @@ module m_latlonRange
 #ifdef  _TIMER_ON_
 #undef  _TIMER_ON_
 #undef  _TIMER_OFF_
-#undef  _TIMER_USE_
 #define _TIMER_ON_(id)  call timer_ini(id)
 #define _TIMER_OFF_(id) call timer_fnl(id)
-#define _TIMER_USE_     use timermod, only: timer_ini,timer_fnl
 #else
 #define _TIMER_ON_(id)
 #define _TIMER_OFF_(id)
-#define _TIMER_USE_
 #endif
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   character(len=*),parameter :: myname='m_latlonRange'
@@ -352,7 +350,6 @@ subroutine gatherWrite_(llrange,hdfile,root,comm)
   use gsi_unformatted, only: unformatted_open
   use mpimod, only: nPEs => nPE
   use mpimod, only: myPE
-  _TIMER_USE_
   implicit none
   type(latlonRange   ),intent(in):: llrange     ! a laglonRange to write
   character(len=*    ),intent(in):: hdfile      ! a filename to write to
@@ -421,7 +418,6 @@ subroutine readBcast_(hdfile,allRanges,root,comm)
   use gsi_unformatted, only: unformatted_open
   use mpeu_mpif, only: MPI_type
   use mpimod, only: myPE
-  _TIMER_USE_
   implicit none
   character(len=*    ),intent(in):: hdfile      ! input file
   type(latlonRange),dimension(0:),intent(out):: allranges ! data received by all PEs.
@@ -492,7 +488,6 @@ subroutine alldump_(allRanges,varname)
   use mpeu_util, only: stdout_lead
   use mpeu_util, only: stdout_open
   use mpeu_util, only: stdout_close
-  _TIMER_USE_
   implicit none
   type(latlonRange), dimension(0:), intent(in):: allRanges
   character(len=* ), intent(in):: varname
@@ -514,8 +509,7 @@ _TIMER_OFF_(myname_)
 end subroutine alldump_
 
 subroutine gatherdump_local_(varname,root,comm)
-!-- gahter-dump the internal lat-lon-range of the cvgrid, localRange_
-  _TIMER_USE_
+!-- gather-dump the internal lat-lon-range of the cvgrid, localRange_
   implicit none
   character(len=*    ),intent(in):: varname     ! identity of the range
   integer(kind=i_kind),intent(in):: root
@@ -537,7 +531,6 @@ subroutine gatherdump_(llrange,varname,root,comm)
   use mpeu_util, only: stdout_lead
   use mpimod, only: nPEs => nPE
   use mpimod, only: myPE
-  _TIMER_USE_
   implicit none
   type(latlonRange   ),intent(in):: llrange     ! a laglonRange to write
   character(len=*    ),intent(in):: varname       ! identity of the range

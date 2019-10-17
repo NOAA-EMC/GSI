@@ -448,12 +448,12 @@ subroutine glbsoi
 ! Write updated bias correction coefficients
   if (.not.twodvar_regional) then
      if (l4dvar) then
-        if(mype == 0) call radinfo_write
+        call radinfo_write(0)
         if(mype == npe-1) call pcpinfo_write
         if(mype==mype_airobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc)) call aircraftinfo_write
      else
         if (jiter==miter+1 ) then
-           if(mype == 0) call radinfo_write
+           call radinfo_write(0)
            if(mype == npe-1) call pcpinfo_write
            if(mype==mype_airobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc)) call aircraftinfo_write
         endif

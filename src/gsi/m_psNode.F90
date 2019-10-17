@@ -11,6 +11,7 @@ module m_psNode
 ! program history log:
 !   2016-05-18  j guo   - added this document block for the initial polymorphic
 !                         implementation.
+!   2019-09-20  X.Su    - add new variational QC parameters
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -25,7 +26,7 @@ module m_psNode
 ! module interface:
   use kinds , only: i_kind,r_kind
   use mpeu_util, only: assert_,die,perr,warn,tell
-  use obsmod, only: obs_diag
+  use m_obsdiagNode, only: obs_diag
   use m_obsNode, only: obsNode
   implicit none
   private
@@ -37,11 +38,14 @@ module m_psNode
      type(obs_diag), pointer :: diags => NULL()
      real(r_kind)    :: res    =0._r_kind    !  surface pressure residual
      real(r_kind)    :: err2   =0._r_kind    !  surface pressure error squared
+                                             !  in reciprocal
      real(r_kind)    :: raterr2=0._r_kind    !  square of ratio of final obs error 
                                              !  to original obs error
      real(r_kind)    :: b      =0._r_kind    !  variational quality control parameter
      real(r_kind)    :: pg     =0._r_kind    !  variational quality control parameter
      real(r_kind)    :: jb     =0._r_kind    !  variational quality control parameter
+     integer(i_kind) :: ib     =0_i_kind     !  new variational quality control parameter
+     integer(i_kind) :: ik     =0_i_kind     !  new variational quality control parameter
      real(r_kind)    :: wij(4) =0._r_kind    !  horizontal interpolation weights
      real(r_kind)    :: ppertb =0._r_kind    !  random number adding to the obs
      integer(i_kind) :: ij(4)  =0_i_kind     !  horizontal locations
@@ -72,6 +76,9 @@ module m_psNode
         interface psNode_typecast; module procedure typecast_ ; end interface
         interface psNode_nextcast; module procedure nextcast_ ; end interface
 
+  public:: psNode_appendto
+        interface psNode_appendto; module procedure appendto_ ; end interface
+
   character(len=*),parameter:: MYNAME="m_psNode"
 
 #include "myassert.H"
@@ -81,16 +88,14 @@ function typecast_(aNode) result(ptr_)
 !-- cast a class(obsNode) to a type(psNode)
   use m_obsNode, only: obsNode
   implicit none
-  type(psNode),pointer:: ptr_
+  type (psNode ),pointer:: ptr_
   class(obsNode),pointer,intent(in):: aNode
-  character(len=*),parameter:: myname_=MYNAME//"::typecast_"
   ptr_ => null()
   if(.not.associated(aNode)) return
+        ! logically, typecast of a null-reference is a null pointer.
   select type(aNode)
   type is(psNode)
     ptr_ => aNode
-  class default
-    call die(myname_,'unexpected type, aNode%mytype() =',aNode%mytype())
   end select
 return
 end function typecast_
@@ -99,14 +104,28 @@ function nextcast_(aNode) result(ptr_)
 !-- cast an obsNode_next(obsNode) to a type(psNode)
   use m_obsNode, only: obsNode,obsNode_next
   implicit none
-  type(psNode),pointer:: ptr_
-  class(obsNode),target,intent(in):: aNode
+  type (psNode ),pointer:: ptr_
+  class(obsNode),target ,intent(in):: aNode
 
-  class(obsNode),pointer:: anode_
-  anode_ => obsNode_next(aNode)
-  ptr_ => typecast_(anode_)
+  class(obsNode),pointer:: inode_
+  inode_ => obsNode_next(aNode)
+  ptr_ => typecast_(inode_)
 return
 end function nextcast_
+
+subroutine appendto_(aNode,oll)
+!-- append aNode to linked-list oLL
+  use m_obsNode , only: obsNode
+  use m_obsLList, only: obsLList,obsLList_appendNode
+  implicit none
+  type(psNode),pointer,intent(in):: aNode
+  type(obsLList),intent(inout):: oLL
+
+  class(obsNode),pointer:: inode_
+  inode_ => aNode
+  call obsLList_appendNode(oLL,inode_)
+  inode_ => null()
+end subroutine appendto_
 
 ! obsNode implementations
 
@@ -118,7 +137,7 @@ end function mytype
 
 subroutine obsNode_xread_(aNode,iunit,istat,diagLookup,skip)
   use m_obsdiagNode, only: obsdiagLookup_locate
-  use obsmod, only: obs_diags
+  use m_obsdiagNode, only: obs_diags
   implicit none
   class(psNode), intent(inout):: aNode
   integer(i_kind), intent(in   ):: iunit
@@ -148,6 +167,8 @@ _ENTRY_(myname_)
                                 aNode%b      , &
                                 aNode%pg     , &
                                 aNode%jb     , &
+                                aNode%ib     , &
+                                aNode%ik     , &
                                 aNode%ppertb , &
                                 aNode%kx     , &
                                 aNode%wij    , &
@@ -184,6 +205,8 @@ _ENTRY_(myname_)
                                 aNode%b      , &
                                 aNode%pg     , &
                                 aNode%jb     , &
+                                aNode%ib     , &
+                                aNode%ik     , &
                                 aNode%ppertb , &
                                 aNode%kx     , &
                                 aNode%wij    , &

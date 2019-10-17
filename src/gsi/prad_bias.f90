@@ -139,9 +139,10 @@ contains
 !$$$  end documentation block
     implicit none
 
-    call lreset_(radheadm(:))
-    deallocate(radheadm)
-
+    if(associated(radheadm)) then
+      call lreset_(radheadm(:))
+      deallocate(radheadm)
+    endif
     return
   end subroutine destroyobs_passive
 

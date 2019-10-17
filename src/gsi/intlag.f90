@@ -27,6 +27,7 @@ use m_obsNode, only: obsNode
 use m_lagNode, only: lagNode
 use m_lagNode, only: lagNode_typecast
 use m_lagNode, only: lagNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -152,17 +153,21 @@ subroutine intlag(laghead,rval,sval,obsbin)
      if (iv_debug>=1) print *,'TL correction:',lon_tl*rad2deg,lat_tl*rad2deg
 
      if (lsaveobsens) then
-        lagptr%diag_lon%obssen(jiter) = lon_tl*lagptr%raterr2*lagptr%err2_lon
-        lagptr%diag_lat%obssen(jiter) = lat_tl*lagptr%raterr2*lagptr%err2_lat
+        grad_lon = lon_tl*lagptr%raterr2*lagptr%err2_lon
+        grad_lat = lat_tl*lagptr%raterr2*lagptr%err2_lat
+        !-- lagptr%diag_lon%obssen(jiter) = lon_tl*lagptr%raterr2*lagptr%err2_lon
+        !-- lagptr%diag_lat%obssen(jiter) = lat_tl*lagptr%raterr2*lagptr%err2_lat
+        call obsdiagNode_set(lagptr%diag_lon,jiter=jiter,obssen=grad_lon)
+        call obsdiagNode_set(lagptr%diag_lat,jiter=jiter,obssen=grad_lat)
      else
-        if (lagptr%luse) lagptr%diag_lon%tldepart(jiter)=lon_tl
-        if (lagptr%luse) lagptr%diag_lat%tldepart(jiter)=lat_tl
+        !-- if (lagptr%luse) lagptr%diag_lon%tldepart(jiter)=lon_tl
+        !-- if (lagptr%luse) lagptr%diag_lat%tldepart(jiter)=lat_tl
+        if (lagptr%luse) call obsdiagNode_set(lagptr%diag_lon,jiter=jiter,tldepart=lon_tl)
+        if (lagptr%luse) call obsdiagNode_set(lagptr%diag_lat,jiter=jiter,tldepart=lat_tl)
      endif
 
      if (l_do_adjoint) then
         if (lsaveobsens) then
-           grad_lon = lagptr%diag_lon%obssen(jiter)
-           grad_lat = lagptr%diag_lat%obssen(jiter)
            grad_p   = zero
  
         else

@@ -20,6 +20,7 @@ module bicglanczos
 !   2016-03-25  todling - beta-mult param now within cov (following Dave Parrish corrections)
 !   2016-05-13  parrish - remove call to beta12mult -- replaced by sqrt_beta_s_mult in
 !                          bkerror, and sqrt_beta_e_mult inside bkerror_a_en.
+!   2017-06-27  todling - knob to bypass calc when gradient is tiny(zero)
 !
 ! Subroutines Included:
 !   save_pcgprecond - Save eigenvectors for constructing the next preconditioner
@@ -53,7 +54,7 @@ module bicglanczos
 
 !=============================================================
 use kinds    , only : r_kind,i_kind,r_quad,r_single,r_double
-use constants, only : zero, one, half,two, zero_quad
+use constants, only : zero, one, half,two, zero_quad,tiny_r_kind
 use timermod , only : timer_ini, timer_fnl
 use lanczos  , only : save_precond
 use gsi_4dvar, only : iorthomax
@@ -255,10 +256,6 @@ zreqrd = preduc
 ilen=xhat%lencv
 
 
-allocate(alpha(kmaxit),beta(kmaxit),delta(0:kmaxit),gam(0:kmaxit))
-alpha(:)=zero_quad
-beta(:)=zero_quad
-
 if(diag_precon) dirw=zero
 
 !$omp parallel do
@@ -285,6 +282,26 @@ if(LMPCGL) then
 end if
 
 zg0=dot_product(gradx,grady,r_quad)
+if(zg0<tiny_r_kind) then ! this is unlikely to occur, expect when nobs=0
+   ! clean up and ...
+   if(diag_precon) call deallocate_cv(dirw)
+   if(nprt>=1.and.ltcost_) call deallocate_cv(gradf)
+   call deallocate_cv(diry)
+   call deallocate_cv(dirx)
+   call deallocate_cv(gradw)
+   call deallocate_cv(ytry)  ! not in PCGSOI
+   call deallocate_cv(xtry)  ! not in PCGSOI
+   call deallocate_cv(grad0) ! not in PCGSOI (use ydiff instead)
+   if (mype==0) then
+       write(6,999)trim(myname),': zero gradient, likely no observations', jiter,iter,zg0
+   endif
+   return ! get out of here.
+endif
+
+allocate(alpha(kmaxit),beta(kmaxit),delta(0:kmaxit),gam(0:kmaxit))
+alpha(:)=zero_quad
+beta(:)=zero_quad
+
 zgk=zg0
 delta(0)=zg0
 zg0=sqrt(zg0)

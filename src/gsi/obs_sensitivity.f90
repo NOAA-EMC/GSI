@@ -23,6 +23,8 @@ module obs_sensitivity
 !   2016-05-05 pondeca  - add reference to uwnd10m, vwnd10m
 !   2017-05-12 Y. Wang and X. Wang - add reflectivity (dBZ), POC: xuguang.wang@ou.edu
 !   2017-01-16 Apodaca  - add reference to lightning
+!   2017-05-06 todling  - reload ensemble when FSOI calc doing EFSOI-like
+!   2017-05-21 todling  - implement ability to do 2nd EFSOI-like calc
 !
 ! Subroutines Included:
 !   init_fc_sens  - Initialize computations
@@ -39,30 +41,26 @@ module obs_sensitivity
 use kinds, only: r_kind,i_kind,r_quad
 use constants, only: zero, zero_quad, two
 use gsi_4dvar, only: nobs_bins, l4dvar, lsqrtb, nsubwin
+use gsi_4dvar, only: tau_fcst,efsoi_order,efsoi_afcst,efsoi_ana
 use jfunc, only: jiter, miter, niter, iter
-use obsmod, only: cobstype, nobs_type, obscounts, &
-                  i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
-                  i_spd_ob_type, i_rw_ob_type, i_dw_ob_type, &
-                  i_sst_ob_type, i_pw_ob_type, i_pcp_ob_type, i_oz_ob_type, &
-                  i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type, i_tcp_ob_type, &
-                  i_lag_ob_type, i_colvk_ob_type, i_aero_ob_type, i_aerol_ob_type, &
-                  i_pm2_5_ob_type, i_gust_ob_type, i_vis_ob_type, i_pblh_ob_type, &
-                  i_wspd10m_ob_type, i_td2m_ob_type, i_mxtm_ob_type, i_mitm_ob_type, &
-                  i_pmsl_ob_type, i_howv_ob_type, i_tcamt_ob_type, i_lcbas_ob_type, &
-                  i_cldch_ob_type, i_uwnd10m_ob_type, i_vwnd10m_ob_type, i_pm10_ob_type, &
-                  i_swcp_ob_type, i_lwcp_ob_type, i_light_ob_type,i_dbz_ob_type
 
+use gsi_obOperTypeManager, only: nobs_type => obOper_count
+use gsi_obOperTypeManager, only: obOper_typeinfo
 use mpimod, only: mype
 use control_vectors, only: control_vector,allocate_cv,read_cv,deallocate_cv, &
     dot_product,assignment(=)
 use state_vectors, only: allocate_state,deallocate_state
+use gsi_bundlemod, only: self_add
 use gsi_bundlemod, only: assignment(=)
 use gsi_bundlemod, only: gsi_bundle
 use bias_predictors, only: predictors,allocate_preds,deallocate_preds, &
     assignment(=)
 use mpl_allreducemod, only: mpl_allreduce
 use gsi_4dcouplermod, only: gsi_4dcoupler_getpert
-use hybrid_ensemble_parameters,only : l_hyb_ens,ntlevs_ens
+use hybrid_ensemble_parameters,only : l_hyb_ens,ntlevs_ens,destroy_hybens_localization_parameters
+use hybrid_ensemble_isotropic, only: create_ensemble,load_ensemble,destroy_ensemble
+use hybrid_ensemble_isotropic, only: hybens_localization_setup
+use mpeu_util, only: perr,die
 ! ------------------------------------------------------------------------------
 implicit none
 save
@@ -71,6 +69,11 @@ public lobsensfc,lobsensjb,lobsensincr,lobsensadj,&
        lobsensmin,iobsconv,llancdone,lsensrecompute, &
        fcsens, sensincr, &
        init_obsens, init_fc_sens, save_fc_sens, dot_prod_obs
+public efsoi_o2_update
+
+public:: obsensCounts_realloc
+public:: obsensCounts_set
+public:: obsensCounts_dealloc
 
 logical lobsensfc,lobsensjb,lobsensincr, &
         lobsensadj,lobsensmin,llancdone,lsensrecompute
@@ -79,10 +82,55 @@ integer(i_kind) :: iobsconv
 ! ------------------------------------------------------------------------------
 type(control_vector) :: fcsens
 real(r_kind), allocatable :: sensincr(:,:,:)
-character(len=5) :: cobtype(nobs_type)
-integer(i_kind):: my_nobs_type=34
+integer(i_kind):: orig_tau_fcst=-1
+
+integer(i_kind),save,allocatable:: obscounts(:,:)
+
+character(len=*),parameter:: myname="obs_sensitivity"
 ! ------------------------------------------------------------------------------
 contains
+!>> object obsensCounts_:
+!>> this object was public obsmod::obscounts(:,:), but now private module
+!>> variable in this module.  It is accessed through following module procedures
+!>> []_alloc(), []_set() and []_dealloc().
+
+subroutine obsensCounts_realloc(ntype,nbin)
+!>> was implemented in setuprhsall()
+  implicit none
+  integer(i_kind),intent(in):: ntype
+  integer(i_kind),intent(in):: nbin
+  character(len=*),parameter:: myname_=myname//"::obsensCounts_realloc"
+  if(allocated(obscounts)) deallocate(obscounts)
+  allocate(obscounts(ntype,nbin))
+end subroutine obsensCounts_realloc
+
+subroutine obsensCounts_set(iobsglb)
+!>> was implemented in evaljo()
+  implicit none
+  integer(i_kind),dimension(:,:),intent(in):: iobsglb
+  character(len=*),parameter:: myname_=myname//"::obsensCounts_set"
+  if(.not.allocated(obscounts)) then
+    call perr(myname_,'not allocated, obscounts')
+    call perr(myname_,'was evaljo() exception 125')
+    call  die(myname_)
+  endif
+  if(any(shape(obscounts)/=shape(iobsglb))) then
+    call perr(myname_,'mismatched, storage size(obscounts,1) =',size(obscounts,1))
+    call perr(myname_,'             argument size(iobsglb,1) =',size(iobsglb,1))
+    call perr(myname_,'            storage size(obscounts,2) =',size(obscounts,2))
+    call perr(myname_,'             argument size(iobsglb,2) =',size(iobsglb,2))
+    call  die(myname_)
+  endif
+  obscounts(:,:)=iobsglb(:,:)
+end subroutine obsensCounts_set
+
+subroutine obsensCounts_dealloc()
+!>> was a part of obsmod::destroyobs_().
+  implicit none
+  character(len=*),parameter:: myname_=myname//"::obsensCounts_dealloc"
+  if(allocated(obscounts)) deallocate(obscounts)
+end subroutine obsensCounts_dealloc
+
 ! ------------------------------------------------------------------------------
 subroutine init_obsens
 !$$$  subprogram documentation block
@@ -153,10 +201,6 @@ real(r_kind) :: zjx
 integer(i_kind) :: ii
 character(len=80),allocatable,dimension(:)::fname
 
-if(my_nobs_type/=nobs_type) then
-   write(6,*)'init_fc_sens: inconsistent nobs_types, code needs update'
-   call stop2(999)
-endif
 if (mype==0) then
    write(6,*)'init_fc_sens: lobsensincr,lobsensfc,lobsensjb=', &
                             lobsensincr,lobsensfc,lobsensjb
@@ -206,6 +250,9 @@ if (lobsensfc) then
 !           read and convert output of GCM adjoint
             allocate(fname(nsubwin))
             fname='NULL'
+            if (tau_fcst>0) then
+               fname='B'
+            endif
             do ii=1,nsubwin
                call allocate_state(fcgrad(ii))
             end do
@@ -226,6 +273,17 @@ if (lobsensfc) then
                   do ii=1,ntlevs_ens
                      call deallocate_state(eval(ii))
                   end do
+                  if (tau_fcst>0) then
+                     call destroy_hybens_localization_parameters
+                     call destroy_ensemble
+                     call create_ensemble
+                     ! now load actual ens background
+                     efsoi_afcst=.false.
+                     orig_tau_fcst=tau_fcst
+                     tau_fcst=-1
+                     call load_ensemble
+                     call hybens_localization_setup
+                  endif
                else
                   call control2state_ad(fcgrad,zbias,fcsens)
                end if
@@ -248,51 +306,141 @@ if (lobsensfc) then
 endif
 888 format(A,3(1X,ES25.18))
 
-! Define short name for obs types
-cobtype( i_ps_ob_type)   ="spr  "
-cobtype(  i_t_ob_type)   ="tem  "
-cobtype(  i_w_ob_type)   ="uv   "
-cobtype(  i_q_ob_type)   ="hum  "
-cobtype(i_spd_ob_type)   ="spd  "
-cobtype( i_rw_ob_type)   ="rw   "
-cobtype( i_dw_ob_type)   ="dw   "
-cobtype(i_sst_ob_type)   ="sst  "
-cobtype( i_pw_ob_type)   ="pw   "
-cobtype(i_pcp_ob_type)   ="pcp  "
-cobtype( i_oz_ob_type)   ="oz   "
-cobtype(i_o3l_ob_type)   ="o3l  "
-cobtype(i_gps_ob_type)   ="gps  "
-cobtype(i_rad_ob_type)   ="rad  "
-cobtype(i_tcp_ob_type)   ="tcp  "
-cobtype(i_lag_ob_type)   ="lag  "
-cobtype(i_colvk_ob_type) ="colvk"
-cobtype(i_aero_ob_type)  ="aero "
-cobtype(i_aerol_ob_type) ="aerol"
-cobtype(i_pm2_5_ob_type) ="pm2_5"
-cobtype(i_pm10_ob_type)  ="pm10 "
-cobtype(i_gust_ob_type)  ="gust "
-cobtype(i_vis_ob_type)   ="vis  "
-cobtype(i_pblh_ob_type)  ="pblh "
-cobtype(i_wspd10m_ob_type)  ="ws10m"
-cobtype(i_td2m_ob_type)  ="td2m "
-cobtype(i_mxtm_ob_type)  ="mxtm "
-cobtype(i_mitm_ob_type)  ="mitm "
-cobtype(i_pmsl_ob_type)  ="pmsl "
-cobtype(i_howv_ob_type)  ="howv "
-cobtype(i_tcamt_ob_type)  ="tcamt"
-cobtype(i_lcbas_ob_type)  ="lcbas"
-cobtype(i_cldch_ob_type)  ="cldch"
-cobtype(i_uwnd10m_ob_type) ="u10m "
-cobtype(i_vwnd10m_ob_type) ="v10m "
-cobtype(i_swcp_ob_type)  ="swcp "
-cobtype(i_lwcp_ob_type)  ="lwcp "
-cobtype(i_light_ob_type) ="light"
-cobtype(i_dbz_ob_type)    ="dbz"
-
-
 return
 end subroutine init_fc_sens
 ! ------------------------------------------------------------------------------
+subroutine efsoi_o2_update(sval)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    order2_fc_sens
+!   prgmmr:      todling
+!
+! abstract: Read forecast sensitivity gradient
+!
+! program history log:
+!   2007-06-26  tremolet - initial code
+!   2009-08-07  lueken - added subprogram doc block
+!   2010-05-27  todling - gsi_4dcoupler; remove dependence on GMAO specifics
+!   2012-05-22  todling - update interface to getpert
+!   2015-12-01  todling - add several obs-types that Pondeca forget to add here
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+implicit none
+type(gsi_bundle),intent(inout)  :: sval(nobs_bins)
+
+character(len=80),allocatable,dimension(:)::fname
+type(gsi_bundle) :: fcgrad(nsubwin)
+type(gsi_bundle) :: eval(ntlevs_ens)
+type(gsi_bundle) :: mval(nsubwin)
+type(predictors) :: zbias
+real(r_kind) :: zjx
+integer(i_kind) :: ii
+
+tau_fcst=orig_tau_fcst
+if (tau_fcst<=0) return
+if (efsoi_order/=2) return
+if (.not.l_hyb_ens) return
+
+if (mype==0) then
+   print *, 'in order2_fc_sens ...'
+endif
+
+if (lobsensadj.and.lobsensmin) then
+   write(6,*)'order2_fc_sens: unknown method',lobsensadj,lobsensmin
+   call stop2(155)
+end if
+
+! Zero out whatever is in fcsens
+ fcsens=zero
+
+! read and convert output of GCM adjoint
+ allocate(fname(nsubwin))
+ fname='A'
+ do ii=1,nsubwin
+    call allocate_state(fcgrad(ii))
+ end do
+ call allocate_preds(zbias)
+ zbias=zero
+ do ii=1,ntlevs_ens
+    call allocate_state(eval(ii))
+ end do
+ do ii=1,nsubwin
+    fcgrad(ii)=zero
+ end do
+ call gsi_4dcoupler_getpert(fcgrad,nsubwin,'adm',fname)
+! Wipe out loaded ensemble members to allow reloading ensemble of analysis
+ call destroy_ensemble
+! Read in ens forecasts issues from "analysis" 
+ efsoi_afcst=.true.
+ call create_ensemble
+ call load_ensemble
+ do ii=1,ntlevs_ens
+    call allocate_state(eval(ii))
+ end do
+ eval(1)=fcgrad(1)
+ fcgrad(1)=zero
+ call ensctl2state_ad(eval,fcgrad(1),fcsens)
+ call control2state_ad(fcgrad,zbias,fcsens)
+ do ii=1,ntlevs_ens
+    call deallocate_state(eval(ii))
+ end do
+ do ii=1,nsubwin
+    call deallocate_state(fcgrad(ii))
+ end do
+ call deallocate_preds(zbias)
+ deallocate(fname)
+! Wipe  outensemble from memory
+ call destroy_ensemble
+
+! Report magnitude of input vector
+ zjx=dot_product(fcsens,fcsens)
+ if (mype==0) write(6,888)'order2_fc_sens: Norm fcsens=',sqrt(zjx)
+888 format(A,3(1X,ES25.18))
+
+! Read in ensemble of analysis (these are EnKF, not GSI, analyses obviously)
+ efsoi_ana=.true.
+ tau_fcst=-1
+ call create_ensemble
+ call load_ensemble
+
+! Allocate local variables
+ do ii=1,nsubwin
+    call allocate_state(mval(ii))
+ end do
+ do ii=1,ntlevs_ens
+    call allocate_state(eval(ii))
+ end do
+ call allocate_preds(zbias)
+
+! Convert from control variable to state space
+ call control2state(fcsens,mval,zbias)
+
+! Convert ensemble control variable to state space and update from previous value
+ call ensctl2state(fcsens,mval(1),eval)
+ do ii=1,ntlevs_ens
+    call self_add(sval(ii),eval(ii))
+ end do
+
+! Release memory
+call deallocate_preds(zbias)
+do ii=1,ntlevs_ens
+   call deallocate_state(eval(ii))
+end do
+do ii=1,nsubwin
+   call deallocate_state(mval(ii))
+end do
+
+return
+end subroutine efsoi_o2_update
 subroutine save_fc_sens
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -324,7 +472,7 @@ if (mype==0) then
 
 !  Full stats
    do jj=1,nobs_type
-      write(6,'(A,2X,I3,2X,A)')'Obs types:',jj,cobtype(jj)
+      write(6,'(A,2X,I3,2X,A)')'Obs types:',jj,obOper_typeinfo(jj)
    enddo
    write(6,'(A,2X,I4)')'Obs bins:',nobs_bins
    write(6,*)'Obs Count Begin'
@@ -357,7 +505,7 @@ if (mype==0) then
       do ii=1,nobs_bins
          zz=zz+sensincr(ii,jj,kk)
       enddo
-      if (zz/=zero) write(6,'(A,2X,A3,2X,ES12.5)')'Obs Impact type',cobtype(jj),zz
+      if (zz/=zero) write(6,'(A,2X,A3,2X,ES12.5)')'Obs Impact type',obOper_typeinfo(jj),zz
    enddo
 
 !  Summary by obs bins
@@ -400,8 +548,8 @@ real(r_kind) function dot_prod_obs()
 !   machine:
 !
 !$$$ end documentation block
-use obsmod, only: obs_diag
-use obsmod, only: obsdiags
+use m_obsdiagNode, only: obs_diag
+use m_obsdiags, only: obsdiags
 implicit none
 
 integer(i_kind) :: ii,jj,ij,it
@@ -413,8 +561,8 @@ type(obs_diag),pointer:: obsptr
 zprods(:)=zero_quad
 
 ij=0
-do ii=1,nobs_bins
-   do jj=1,nobs_type
+do ii=1,size(obsdiags,2)
+   do jj=1,size(obsdiags,1)
       ij=ij+1
 
       obsptr => obsdiags(jj,ii)%head

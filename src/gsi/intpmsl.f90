@@ -25,6 +25,7 @@ use m_obsNode , only: obsNode
 use m_pmslNode, only: pmslNode
 use m_pmslNode, only: pmslNode_typecast
 use m_pmslNode, only: pmslNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -111,9 +112,11 @@ subroutine intpmsl(pmslhead,rval,sval)
      if(luse_obsdiag)then
         if (lsaveobsens) then
            grad = val*pmslptr%raterr2*pmslptr%err2
-           pmslptr%diags%obssen(jiter) = grad
+           !-- pmslptr%diags%obssen(jiter) = grad
+           call obsdiagNode_set(pmslptr%diags,jiter=jiter,obssen=grad)
         else
-           if (pmslptr%luse) pmslptr%diags%tldepart(jiter)=val
+           !-- if (pmslptr%luse) pmslptr%diags%tldepart(jiter)=val
+           if (pmslptr%luse) call obsdiagNode_set(pmslptr%diags,jiter=jiter,tldepart=val)
         endif
      endif
 

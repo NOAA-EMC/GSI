@@ -5,25 +5,13 @@ program cov_calc
 !Kristen Bathmann
 !5-2015
 
-use kinds, only:             r_kind, i_kind
+use ckinds, only:        r_kind, i_kind
 use matrix_tools
 use obs_tools
 use pairs
-use constants, only:         zero_int,zero,one,two,five, &
-                             small, sixty, threesixty
-use RadDiag_IO, only:        RadDiag_Hdr_type, &
-                             RadDiag_Data_type, &
-                             RadDiag_ReadMode, &
-                             RadDiag_WriteMode, &
-                             RadDiag_AppendMode, &
-                             RadDiag_OpenFile, &
-                             RadDiag_CloseFile, &
-                             RadDiag_Hdr_ReadFile, &
-                             RadDiag_Data_ReadFile
-use Message_Handler, only:   success, warning, failure, eof, &
-                             program_message, display_message
-use RadDiag_Define, only:    RadDiag_Data_Destroy, &
-                             RadDiag_Hdr_Destroy
+use cconstants, only:    zero_int,zero,one,two,five, &
+                         small, sixty, threesixty
+use readsatobs
 
 
 implicit none
@@ -31,11 +19,10 @@ implicit none
 character(*), parameter:: program_name='Compute_Covariance'
 
 !loop counters
-integer(i_kind):: i,j, r, c, jj,dd,dis
+integer(i_kind):: j,r, c, dd,dis,ka
 integer(i_kind):: tim                                    !time step
 integer(i_kind):: n_pair                                 !number of pairs made for one analysis obs at one time step
 integer(i_kind):: ntimes                                 !number of time steps to process
-integer(i_kind):: nc
 
 !file variables
 character(5):: ges_stub, anl_stub
@@ -45,58 +32,19 @@ character(256):: wave_file                               !name of outputted file
 character(256):: err_file                                !name of outputted file containing assumed obs errors
 character(256):: corr_file                               !name of outputted correlation file
 character(256):: instr
-integer(i_kind):: Error_Status, gesid, anlid
 integer(i_kind), parameter:: dsize=4500                  !cap size on the number of omg's that can be stored at each time step
-integer(i_kind):: read_status, leninstr
 integer(i_kind):: lencov, lencorr, lenwave, lenerr
-integer(i_kind):: reclen
+integer(i_kind):: reclen, leninstr
 logical:: out_wave                                       !option to output channel wavenumbers
 logical:: out_err                                        !option to output assigned obs errors
 logical:: out_corr                                       !option to output correlation matrix
 
 !Diag data
-integer(i_kind):: radver
-integer(i_kind):: no_chn                                 !number of instrument channels available
-type(RadDiag_Hdr_type):: RadDiag_Hdr                     !header info about the diag data
-type(RadDiag_Data_type):: RadDiag_Data                   !diag data
-real(r_kind), dimension(:,:), allocatable:: ges          !background omg data for three files
-real(r_kind),dimension(:),allocatable:: anl              !analysis omg for one file
-integer(i_kind), dimension(:,:), allocatable:: gesuse    !specifies whether a particular background omg should be used
-integer(i_kind), dimension(:), allocatable:: anluse      !specifies whether a particular analysis omg should be used
-real(r_kind), dimension(:), allocatable:: chaninfo       !wavenumbers of assimilated channels
-real(r_kind), dimension(:), allocatable:: errout         !assumed obs errors of assimilated channels
-integer(i_kind):: nch_active                             !number of assimilated channels for this instrument
-integer(i_kind),dimension(:),allocatable:: indR          !indices of the assimlated channels
-integer(i_kind):: ng                                     !the number of background omg's for three time steps
-
-!FOV choice
-integer(i_kind):: Surface_Type, Cloud_Type
-integer(i_kind), parameter:: Sea=1
-integer(i_kind), parameter:: Land =2
-integer(i_kind), parameter:: Snow=3
-integer(i_kind), parameter:: Mixed=4
-integer(i_kind), parameter:: Ice=5
-integer(i_kind), parameter:: Snow_and_Ice=6
-integer(i_kind), parameter:: Clear_FOV=1
-integer(i_kind), parameter:: Clear_Channel=2
-real(r_kind), parameter:: clear_threshold=0.01_r_kind     !if using clear sky data, do not use if above this threshold
-real(r_kind), parameter:: sea_threshold=0.99_r_kind       !if using sea data, do not use if below this threshold
-real(r_kind), parameter:: lower_sea_threshold=0.9_r_kind  !if using mixed data, do not use if above this threshold
-real(r_kind), parameter:: lower_land_threshold=0.9_r_kind !if using mixed data, do not use if above this threshold
-real(r_kind), parameter:: lower_ice_threshold=0.9_r_kind  !if using mixed data, do not use if above this threshold
-real(r_kind), parameter:: lower_snow_threshold=0.9_r_kind !if using mixed data, do not use if above this threshold
-real(r_kind), parameter:: land_threshold=0.99_r_kind      !if using land data, do not use if above this threshold
-real(r_kind), parameter:: ice_threshold=0.95_r_kind       !if using ice data, do not use if below this threshold
-real(r_kind), parameter:: snow_threshold=0.99_r_kind      !if using snow data, do not use if below this threshold
-real(r_kind):: satang
-
-!Data times
-real(r_kind):: time_min                                  !time of obs, relative to time of corresponding diag file
-real(r_kind),dimension(:), allocatable:: ges_times       !times of background obs, relative to time of first diag file
+type(RadData):: Radges,Radanl                            !actual data from the radstats
+integer(i_kind):: netcdf_in
+logical:: netcdf
+integer(i_kind):: ng, na                                 !the number of omg's 
 real(r_kind):: anl_time                                  !time of analysis obs, relative ot time of first diag file
-
-!Data locations
-real(r_kind), dimension(:,:), allocatable::gesloc        !locations (lat,lon) of background obs
 real(r_kind), dimension(2):: anlloc                      !location (lat,lon) of analysis obs
 integer(i_kind):: num_bin,num_bins
 real(r_kind):: bin_size, timeth
@@ -106,8 +54,8 @@ real(r_kind)::bin_center                                 !bin center, km, used f
 !Covariance Definition
 integer(i_kind), parameter:: hl_method=1
 integer(i_kind), parameter:: desroziers=2
-integer(i_kind), parameter:: full_chan=1
-integer(i_kind):: cov_method, chan_choice
+integer(i_kind):: cov_method, chan_choice,Surface_Type,Cloud_Type
+real(r_kind):: satang
 integer(i_kind),dimension(:), allocatable:: n_pair_hl
 integer(i_kind),dimension(:), allocatable:: obs_pairs
 integer(i_kind),dimension(:,:), allocatable:: obs_pairs_hl
@@ -134,7 +82,9 @@ real(r_kind), parameter:: errt=0.0001_r_kind
 
 read(5,*) ntimes, Surface_Type, Cloud_Type, satang, instr, out_wave, out_err,  &
    out_corr, kreq, rec_method, cov_method, chan_choice, timeth, bin_size, &
-   bin_center, radver
+   bin_center, netcdf_in
+netcdf=.false.
+if (netcdf_in>0) netcdf=.true.
 if (cov_method==desroziers) then
    allocate(bin_dist(1))
    bin_dist(1)=bin_size
@@ -166,229 +116,70 @@ err_file(lenerr+1:leninstr+lenerr)=instr
 
 ges_stub(1:5)='dges_'
 anl_stub(1:5)='danl_'
-allocate(gesloc(dsize,2))
-allocate(ges_times(dsize))
+tim=1
+call get_filename(tim,ges_stub,gesfile)  
+call get_chaninfo(trim(gesfile),netcdf,chan_choice)
+allocate(Radges%omg(dsize,nch_active))
+allocate(Radges%latlon(dsize,2),Radges%timeobs(dsize))
+allocate(Rcov(nch_active,nch_active))
+allocate(divider(nch_active,nch_active))
+allocate(ges_ave(nch_active,nch_active))
+if (bin_size<five) then
+   allocate(obs_pairs(1))
+else
+   allocate(obs_pairs(dsize))
+end if
+if (cov_method==desroziers) then
+   allocate(Radanl%latlon(dsize,2),Radanl%timeobs(dsize))
+   allocate(Radanl%omg(dsize,nch_active))
+   allocate(anl_ave(nch_active,nch_active))
+   anl_ave=zero
+else if (cov_method==hl_method) then
+   allocate(Rcovbig(nch_active,nch_active,num_bins))
+   allocate(ges_avebig1(nch_active,nch_active,num_bin))
+   allocate(ges_avebig2(nch_active,nch_active,num_bin))
+   allocate(divbig(nch_active,nch_active,num_bins))
+   allocate(n_pair_hl(num_bins), obs_pairs_hl(dsize,num_bins))
+   Rcovbig=zero
+   divbig=zero_int
+   ges_avebig1=zero
+   ges_avebig2=zero
+end if
+if (out_corr) then 
+   allocate(Rcorr(nch_active,nch_active))
+   Rcorr=zero
+end if
+if (kreq>zero) then
+   allocate(eigs(nch_active),eigv(nch_active,nch_active))
+   allocate(Rout(nch_active,nch_active))
+end if            
+Rcov=zero
+divider=zero_int
+ges_ave=zero
+!loop over the files
 do tim=1,ntimes
    call get_filename(tim,anl_stub,anlfile)
-   !we read in one analysis diag file at each time step.
-   !ges diag data is overwritten when no longer needed
    call get_filename(tim,ges_stub,gesfile)
-   !opening ges diag file
-   Error_Status=RadDiag_OpenFile(trim(gesfile),gesid)
-   if (Error_Status /= success ) then
-      call display_message(program_name,'Error opening '//trim(gesfile),failure)
-      stop
-   end if
-   !read ges header
-   Error_Status=RadDiag_Hdr_ReadFile(gesid,radver,RadDiag_Hdr)
-   if (Error_Status /= success ) then
-      call display_message(program_name,'Error reading ges header',failure)
-      stop
-   end if
-
-   !allocate
-   if ((tim==1)) then
-      no_chn=RadDiag_Hdr%Scalar%nchan
-      nch_active=0
-      i=0
-      if ((chan_choice==full_chan)) then
-         nch_active=no_chn
-      else
-         do j=1,no_chn
-            !only want to use actively assimilated channels
-            if (RadDiag_Hdr%Channel(j)%iuse.gt.zero) then
-               nch_active=nch_active+1
-            end if
-         end do
-      end if
-      !indicies of the actively assimilated channels, needed
-      !by the GSI
-      allocate(indR(nch_active))
-      i=0
-      do j=1,no_chn
-         if (chan_choice==full_chan) then
-            indR(j)=j
-         else if (RadDiag_Hdr%Channel(j)%iuse.gt.zero) then
-            i=i+1
-            indR(i)=j
-         end if
-      end do
-      allocate(ges(dsize,nch_active))
-      allocate(gesuse(dsize,nch_active))
-      allocate(Rcov(nch_active,nch_active))
-      allocate(divider(nch_active,nch_active))
-      allocate(ges_ave(nch_active,nch_active))
-      allocate(chaninfo(nch_active),errout(nch_active))
-      if (bin_size<five) then
-         allocate(obs_pairs(1))
-      else
-         allocate(obs_pairs(dsize))
-      end if
-      if (cov_method==desroziers) then
-         allocate(anl(nch_active),anluse(nch_active))
-         allocate(anl_ave(nch_active,nch_active))
-         anl_ave=zero
-      else if (cov_method==hl_method) then
-         allocate(Rcovbig(nch_active,nch_active,num_bins))
-         allocate(ges_avebig1(nch_active,nch_active,num_bin))
-         allocate(ges_avebig2(nch_active,nch_active,num_bin))
-         allocate(divbig(nch_active,nch_active,num_bins))
-         allocate(n_pair_hl(num_bins), obs_pairs_hl(dsize,num_bins))
-         Rcovbig=zero
-         divbig=zero_int
-         ges_avebig1=zero
-         ges_avebig2=zero
-      end if
-      if (out_corr) then 
-         allocate(Rcorr(nch_active,nch_active))
-         Rcorr=zero
-      end if
-      if (kreq>zero) then
-         allocate(eigs(nch_active),eigv(nch_active,nch_active))
-         allocate(Rout(nch_active,nch_active))
-      end if
-      do r=1,nch_active
-         chaninfo(r)=RadDiag_Hdr%Channel(indR(r))%wave
-         errout(r)=RadDiag_Hdr%Channel(indR(r))%varch
-      end do               
-      Rcov=zero
-      divider=zero_int
-      ges_ave=zero
-   end if !tim=1
-   ng=0
-   ges_read_loop: do 
-      read_status=RadDiag_Data_ReadFile(gesid,RadDiag_Hdr,radver,RadDiag_Data)
-      select case (read_status)
-      case(eof)
-         exit ges_read_loop
-      case(failure)
-         call display_message(program_name, 'Error reading ges data', warning)
-         exit ges_read_loop
-      case default
-         !do nothing
-      end select
-      !if doesnt meet criteria, dont save, cycle
-      if ((Surface_Type==Sea).and.(RadDiag_Data%Scalar%Water_Frac<sea_threshold)) &
-         cycle ges_read_loop
-      if ((Surface_Type==Land).and.(RadDiag_Data%Scalar%Land_Frac<land_threshold)) & 
-         cycle ges_read_loop
-      if ((Surface_Type==Snow_And_Ice).and.((RadDiag_Data%Scalar%Snow_Frac<snow_threshold).and. &
-         (RadDiag_Data%Scalar%Ice_Frac<ice_threshold))) &
-         cycle ges_read_loop
-      if ((Surface_Type==Snow).and.(RadDiag_Data%Scalar%Snow_Frac<snow_threshold)) &
-         cycle ges_read_loop
-      if ((Surface_Type==Ice).and.(RadDiag_Data%Scalar%Ice_Frac<ice_threshold)) &
-         cycle ges_read_loop
-      if ((Surface_Type==Mixed).and.(RadDiag_Data%Scalar%Water_Frac>=lower_sea_threshold)) &
-         cycle ges_read_loop
-      if ((Surface_Type==Mixed).and.(RadDiag_Data%Scalar%Land_Frac>=lower_land_threshold)) &
-         cycle ges_read_loop             
-      if ((Surface_Type==Mixed).and.(RadDiag_Data%Scalar%Ice_Frac>=lower_ice_threshold)) &
-         cycle ges_read_loop
-      if ((Surface_Type==Mixed).and.(RadDiag_Data%Scalar%Snow_Frac>=lower_snow_threshold)) &
-         cycle ges_read_loop
-      if ((Cloud_Type==Clear_FOV).and.(RadDiag_Data%Scalar%qcdiag1>clear_threshold)) &
-         cycle ges_read_loop
-      if (abs(RadDiag_Data%Scalar%satzen_ang)>satang) cycle ges_read_loop
-      nc=0
-      ng=ng+1
-      if (ng>dsize) then
-         ng=dsize
-         print *, 'Warning:  Number of obs meeting criteria exceeds dsize. Consider increasing dsize'
-         cycle ges_read_loop
-      end if
-      ges_channel_loop: do jj=1,nch_active
-         j=indR(jj)
-         if (((abs(RadDiag_Data%Channel(j)%qcmark)<one)).and. &
-            (abs(RadDiag_Data%Channel(j)%errinv)>errt)) then 
-            ges(ng,jj)=real(RadDiag_Data%Channel(j)%omgbc,r_kind)
-            gesuse(ng,jj)=1
-            nc=nc+1
-         else
-            ges(ng,jj)=zero
-            gesuse(ng,jj)=0
-         end if
-      end do ges_channel_loop
-      if (nc<1) then
-         cycle ges_read_loop
-         ng=ng-1
-      end if
-      time_min=RadDiag_Data%Scalar%obstime
-      ges_times(ng)=(time_min*sixty)+(threesixty*(tim-1))
-      gesloc(ng,1)=RadDiag_Data%Scalar%lat
-      gesloc(ng,2)=RadDiag_Data%Scalar%lon
-   end do ges_read_loop
-   close(gesid)
+   Radges%omg=zero
+   Radges%latlon=zero
+   Radges%timeobs=zero
+   call get_satobs_data(gesfile,netcdf,dsize,Surface_type,Cloud_Type,satang,Radges,ng)
+   do ka=1,ng
+      Radges%timeobs(ka)=(Radges%timeobs(ka)*sixty)+(threesixty*(tim-1))
+   end do
    if (cov_method==desroziers) then
       !read anl data
-      Error_Status=RadDiag_OpenFile(trim(anlfile),anlid)
-      if (Error_Status /= success ) then
-         call display_message(program_name,'Error opening'//trim(anlfile),failure)
-         stop
-      end if
-      !read anl header
-      Error_Status=RadDiag_Hdr_ReadFile(anlid,radver,RadDiag_Hdr)
-      if (Error_Status /= success ) then
-         call display_message(program_name,'Error reading anl header',failure)
-         stop
-      end if
-      anl_read_loop: do
-         read_status=RadDiag_Data_ReadFile(anlid,RadDiag_Hdr,radver,RadDiag_Data)
-         select case (read_status)
-         case(eof)
-            exit anl_read_loop
-         case(failure)
-            call display_message(program_name, 'Error reading anl data', warning)
-            exit anl_read_loop
-         case default
-            !do nothing
-         end select
-         !if doesnt meet criteria, cycle 
-         if ((Surface_Type==Sea).and.(RadDiag_Data%Scalar%Water_Frac<sea_threshold)) &
-            cycle anl_read_loop
-         if ((Surface_Type==Land).and.(RadDiag_Data%Scalar%Land_Frac<land_threshold)) &
-            cycle anl_read_loop
-         if ((Surface_Type==Snow_and_Ice).and.((RadDiag_Data%Scalar%Snow_Frac<snow_threshold).and. &
-            (RadDiag_Data%Scalar%Ice_Frac<ice_threshold))) &
-            cycle anl_read_loop
-         if ((Surface_Type==Snow).and.(RadDiag_Data%Scalar%Snow_Frac<snow_threshold)) &
-            cycle anl_read_loop
-         if ((Surface_Type==Ice).and.(RadDiag_Data%Scalar%Ice_Frac<ice_threshold)) &
-            cycle anl_read_loop
-         if ((Surface_Type==Mixed).and.(RadDiag_Data%Scalar%Water_Frac>=lower_sea_threshold)) &
-            cycle anl_read_loop
-         if ((Surface_Type==Mixed).and.(RadDiag_Data%Scalar%Land_Frac>=lower_land_threshold)) &
-            cycle anl_read_loop
-         if ((Surface_Type==Mixed).and.(RadDiag_Data%Scalar%Ice_Frac>=lower_ice_threshold)) &
-            cycle anl_read_loop
-         if ((Surface_Type==Mixed).and.(RadDiag_Data%Scalar%Snow_Frac>=lower_snow_threshold)) &
-            cycle anl_read_loop
-         if ((Cloud_Type==Clear_FOV).and.(RadDiag_Data%Scalar%qcdiag1>clear_threshold)) &
-            cycle anl_read_loop
-         if (abs(RadDiag_Data%Scalar%satzen_ang)>satang) cycle anl_read_loop
-         nc=0
-         anl_channel_loop: do jj=1,nch_active
-            j=indR(jj)
-            if (((abs(RadDiag_Data%Channel(j)%qcmark)<one)).and.&
-               (abs(RadDiag_Data%Channel(j)%errinv)>errt)) then 
-               anl(jj)=real(RadDiag_Data%Channel(j)%omgbc,r_kind)
-               anluse(jj)=1
-               nc=nc+1
-            else
-               anl(jj)=zero
-               anluse(jj)=0
-            end if
-         end do anl_channel_loop
-         if (nc<one) cycle anl_read_loop
-         time_min=RadDiag_Data%Scalar%obstime
-         anl_time=(time_min*sixty)+(threesixty*(tim-1))
-         anlloc(1)=RadDiag_Data%Scalar%lat
-         anlloc(2)=RadDiag_Data%Scalar%lon
-         n_pair=zero_int
-         obs_pairs=zero_int
-         !find all possible pairs for this one oma
-         !cycle through current ges file to find all matches
-         call make_pairs(gesloc(:,:),anlloc,ges_times(:),anl_time,ng, &
+      Radanl%omg=zero
+      Radanl%latlon=zero
+      Radanl%timeobs=zero
+      call get_satobs_data(anlfile,netcdf,dsize,Surface_type,Cloud_Type,satang,Radanl,na)
+      n_pair=zero_int
+      obs_pairs=zero_int
+      do ka=1,na
+         anlloc(1)=Radanl%latlon(ka,1)
+         anlloc(2)=Radanl%latlon(ka,2)
+         anl_time=(Radanl%timeobs(ka)*sixty)+(threesixty*(tim-1))
+         call make_pairs(Radges%latlon(:,:),anlloc,Radges%timeobs(:),anl_time,ng, &
               bin_dist(1),timeth,obs_pairs,n_pair)
          if (n_pair>zero) then
 !$omp parallel do private(r,c,cov_sum,div,anl_sum,ges_sum,j) 
@@ -399,12 +190,12 @@ do tim=1,ntimes
                   anl_sum=zero
                   ges_sum=zero
                   do j=1,n_pair
-                     if ((anluse(r)>zero).and.(gesuse(obs_pairs(j),c)>zero)) then
-                        cov_sum=cov_sum+(anl(r)*ges(obs_pairs(j),c))
-                        anl_sum=anl_sum+anl(r)
-                        ges_sum=ges_sum+ges(obs_pairs(j),c)
+                     if ((abs(Radanl%omg(ka,r))>zero).and.(abs(Radges%omg(obs_pairs(j),c))>zero)) then
+                        cov_sum=cov_sum+(Radanl%omg(ka,r)*Radges%omg(obs_pairs(j),c))
+                        anl_sum=anl_sum+Radanl%omg(ka,r)
+                        ges_sum=ges_sum+Radges%omg(obs_pairs(j),c)
                         div=div+1
-                     end if
+                     endif
                   end do
                   Rcov(r,c)=Rcov(r,c)+cov_sum
                   anl_ave(r,c)=anl_ave(r,c)+anl_sum
@@ -414,14 +205,13 @@ do tim=1,ntimes
             end do  !c=1,nch_active
 !$omp end parallel do
          end if  !npair>zero 
-      end do anl_read_loop
-      close(anlid)
+      end do !ka
    else if (cov_method==hl_method) then  !end of cov_method=desroziers
       do dd=1,ng
          obs_pairs_hl=zero_int
          n_pair_hl=zero_int
-         call make_pairs_hl(gesloc(:,:),gesloc(dd,:),ges_times(:), &
-              ges_times(dd),ng,bin_dist,timeth, num_bin, obs_pairs_hl,n_pair_hl)
+         call make_pairs_hl(Radges%latlon(:,:),Radges%latlon(dd,:),Radges%timeobs(:), &
+              Radges%timeobs(dd),ng,bin_dist,timeth, num_bin, obs_pairs_hl,n_pair_hl)
          do dis=1,num_bins
             if (n_pair_hl(dis)>zero) then
 !$omp parallel do private(r,c,j,cov_sum,div,ges_sum1,ges_sum2)
@@ -432,12 +222,13 @@ do tim=1,ntimes
                      ges_sum1=zero
                      ges_sum2=zero
                      do j=1,n_pair_hl(dis)
-                        if ((gesuse(dd,r)>zero).and.(gesuse(obs_pairs_hl(j,dis),c)>zero)) then
-                           cov_sum=cov_sum+(ges(dd,r)*ges(obs_pairs_hl(j,dis),c))
-                           ges_sum1=ges_sum1+ges(obs_pairs_hl(j,dis),c)
-                           ges_sum2=ges_sum2+ges(dd,r)
+                        if ((abs(Radges%omg(dd,r))>zero).and. &
+                           (abs(Radges%omg(obs_pairs_hl(j,dis),c))>zero)) then
+                           cov_sum=cov_sum+(Radges%omg(dd,r)*Radges%omg(obs_pairs_hl(j,dis),c))
+                           ges_sum1=ges_sum1+Radges%omg(obs_pairs_hl(j,dis),c)
+                           ges_sum2=ges_sum2+Radges%omg(dd,r) 
                            div=div+1
-                        end if
+                        endif
                      end do
                      Rcovbig(r,c,dis)=Rcovbig(r,c,dis)+cov_sum
                      divbig(r,c,dis)=divbig(r,c,dis)+div
@@ -534,35 +325,34 @@ if (out_corr) then
    end do
    Rcorr=(Rcorr+TRANSPOSE(Rcorr))/two
 end if
-call RadDiag_Hdr_Destroy(RadDiag_Hdr)
-call RadDiag_Data_Destroy(RadDiag_Data)
-deallocate(ges_times,gesloc,ges,gesuse, ges_ave,bin_dist,obs_pairs)
+deallocate(ges_ave,bin_dist,obs_pairs)
 if (cov_method==desroziers) then
-   deallocate(anl, anluse, anl_ave)
+   deallocate(anl_ave)
 else if (cov_method==hl_method) then
    deallocate(Rcovbig,divbig,ges_avebig1,ges_avebig2)
    deallocate(n_pair_hl, obs_pairs_hl)
 end if
+
 !output
-inquire(iolength=reclen) Rcov(1,1)
+reclen=kind(Rcov(1,1))
 open(26,file=trim(cov_file),form='unformatted')
-write(26) nch_active, no_chn, reclen
+write(26) nch_active, nctot, reclen
 write(26) indR
 write(26) Rcov
 close(26)
 
 if (out_wave) then
-   open(28,file=trim(wave_file),form='unformatted',access='direct',recl=nch_active*reclen)
+   open(28,file=trim(wave_file),form='unformatted',access='direct',recl=nch_active)
    write(28,rec=1) chaninfo
    close(28)
 end if
 if (out_err) then
-   open(29,file=trim(err_file),form='unformatted',access='direct',recl=nch_active*reclen)
+   open(29,file=trim(err_file),form='unformatted',access='direct',recl=nch_active)
    write(29,rec=1) errout
    close(29)
 end if
 if (out_corr) then 
-   open(25,file=trim(corr_file),form='unformatted',access='direct',recl=nch_active*nch_active*reclen)
+   open(25,file=trim(corr_file),form='unformatted',access='direct',recl=nch_active*nch_active)
    write(25,rec=1) Rcorr
    close(25)
 end if

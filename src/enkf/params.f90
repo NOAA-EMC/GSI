@@ -71,7 +71,9 @@ character(len=2),dimension(7),public :: charfhr_state
 ! "analysis_fhr##." If only one time level
 ! in background, default is "firstguess." and "analysis.".
 character(len=120),dimension(7),public :: fgfileprefixes
+character(len=120),dimension(7),public :: fgsfcfileprefixes
 character(len=120),dimension(7),public :: statefileprefixes
+character(len=120),dimension(7),public :: statesfcfileprefixes
 character(len=120),dimension(7),public :: anlfileprefixes
 ! analysis date string (YYYYMMDDHH)
 character(len=10), public ::  datestring
@@ -83,6 +85,7 @@ character(len=500),public :: datapath
 logical, public :: deterministic, sortinc, pseudo_rh, &
                    varqc, huber, cliptracers, readin_localization
 logical, public :: lupp
+logical, public :: cnvw_option
 integer(i_kind),public ::  iassim_order,nlevs,nanals,numiter,&
                            nlons,nlats,nbackgrounds,nstatefields,&
                            nanals_per_iotask, ntasks_io
@@ -199,7 +202,8 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh,&
                    lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh,&
                    lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh,&
-                   fgfileprefixes,anlfileprefixes,statefileprefixes,&
+                   fgfileprefixes,fgsfcfileprefixes,anlfileprefixes, &
+                   statefileprefixes,statesfcfileprefixes, &
                    covl_minfact,covl_efold,lupd_obspace_serial,letkf_novlocal,&
                    analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,&
                    analpertwtnh_rtpp,analpertwtsh_rtpp,analpertwttr_rtpp,&
@@ -211,7 +215,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs,npefiles,&
                    getkf,getkf_inflation,denkf,modelspace_vloc,dfs_sort,write_spread_diag,&
                    covinflatenh,covinflatesh,covinflatetr,lnsigcovinfcutoff,&
-                   fso_cycling,fso_calculate,imp_physics,lupp
+                   fso_cycling,fso_calculate,imp_physics,lupp,cnvw_option
 namelist /nam_wrf/arw,nmm,nmm_restart
 namelist /satobs_enkf/sattypes_rad,dsis
 namelist /ozobs_enkf/sattypes_oz
@@ -354,6 +358,10 @@ dsis=' '
 ! Initialize first-guess and analysis file name prefixes.
 ! (blank means use default names)
 fgfileprefixes = ''; anlfileprefixes=''; statefileprefixes=''
+fgsfcfileprefixes = ''; statesfcfileprefixes=''
+
+! option for including convective clouds in the all-sky 
+cnvw_option=.false.
 
 ! read from namelist file, doesn't seem to work from stdin with mpich
 open(912,file='enkf.nml',form="formatted")
@@ -565,6 +573,9 @@ do while (nhr_anal(nbackgrounds+1) > 0)
       fgfileprefixes(nbackgrounds+1)="sfg_"//datestring//"_fhr"//charfhr_anal(nbackgrounds+1)//"_"
      endif
    endif
+   if (trim(fgsfcfileprefixes(nbackgrounds+1)) .eq. "") then
+      fgsfcfileprefixes(nbackgrounds+1)="sfgsfc_"//datestring//"_fhr"//charfhr_anal(nbackgrounds+1)//"_"
+   end if
    nbackgrounds = nbackgrounds+1
 end do
 
@@ -584,6 +595,9 @@ do while (nhr_state(nstatefields+1) > 0)
       statefileprefixes(nstatefields+1)="sfg_"//datestring//"_fhr"//charfhr_state(nstatefields+1)//"_"
      endif
    endif
+   if (trim(statesfcfileprefixes(nstatefields+1)) .eq. "") then
+      statesfcfileprefixes(nstatefields+1)="sfgsfc_"//datestring//"_fhr"//charfhr_state(nstatefields+1)//"_"
+   end if
    nstatefields = nstatefields+1
 end do
 

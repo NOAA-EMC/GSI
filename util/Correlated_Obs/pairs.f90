@@ -4,9 +4,9 @@
 !5-2015
 module pairs
 
-use kinds, only: r_kind,i_kind
+use ckinds, only: r_kind,i_kind
 use obs_tools, only: cdist
-use constants, only: five
+use cconstants, only: five
 implicit none
 public :: make_pairs
 

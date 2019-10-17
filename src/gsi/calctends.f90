@@ -30,6 +30,8 @@ subroutine calctends(mype,teta,pri,guess,xderivative,yderivative,tendency)
 !   2013-10-19  todling - revamp interface with fields now in bundles; still
 !                         needs generalization
 !   2013-10-28  todling - rename p3d to prse
+!   2019-03-13  eliu - use derivative var table instead of the control var table  
+!   2019-05-09  eliu - point cloud water(cw) to derived value (cwgues) when cw is not in met_guess table  
 !
 ! usage:
 !   input argument list:
@@ -53,7 +55,7 @@ subroutine calctends(mype,teta,pri,guess,xderivative,yderivative,tendency)
   use constants, only: zero,half,one,two,rearth,rd,rcp,omega,grav
   use tendsmod, only: what9,prsth9,r_prsum9,r_prdif9,prdif9,pr_xsum9,pr_xdif9,pr_ysum9,&
      pr_ydif9,curvx,curvy,coriolis
-  use control_vectors, only: cvars3d
+  use derivsmod, only: dvars3d,cwgues  
   use mpeu_util, only: getindex
 
   use gsi_bundlemod, only: gsi_bundle
@@ -77,7 +79,7 @@ subroutine calctends(mype,teta,pri,guess,xderivative,yderivative,tendency)
   real(r_kind),dimension(lat2,lon2,nsig+1):: pri_x,pri_y
   real(r_kind),dimension(lat2,lon2):: sumkm1,sumvkm1,sum2km1,sum2vkm1
   real(r_kind) tmp,tmp2
-  integer(i_kind) i,j,k,ix,ixm,ixp,jx,jxm,jxp,kk,icw
+  integer(i_kind) i,j,k,ix,ixm,ixp,jx,jxm,jxp,kk,icw,iq,ioz,ip3d  
   real(r_kind) sumk,sumvk,sum2k,sum2vk,uuvv
 
   real(r_kind),dimension(:,:  ),pointer :: z   =>NULL()
@@ -263,13 +265,16 @@ subroutine calctends(mype,teta,pri,guess,xderivative,yderivative,tendency)
 !   what9(i,k,1) & what9(i,j,nsig+1) = zero
 !   p_t(i,j,1) is the same as the surface pressure tendency
 
-    do k=1,nsig+1
-      do j=jtstart(kk),jtstop(kk)
-        do i=1,lat2
-           p_t(i,j,k)=prsth9(i,j,k)-what9(i,j,k)
-        end do
-      end do
-    end do
+    ip3d=getindex(dvars3d,'prse')
+    if (ip3d>0) then  
+       do k=1,nsig+1
+         do j=jtstart(kk),jtstop(kk)
+           do i=1,lat2
+              p_t(i,j,k)=prsth9(i,j,k)-what9(i,j,k)
+           end do
+         end do
+       end do
+    endif
 
 !   before big k loop, zero out the km1 summation arrays
     do j=jtstart(kk),jtstop(kk)
@@ -283,7 +288,10 @@ subroutine calctends(mype,teta,pri,guess,xderivative,yderivative,tendency)
 
 !   Compute tendencies for wind components & Temperature
 
-    icw=getindex(cvars3d,'cw')
+    icw =getindex(dvars3d,'cw')  
+    ioz =getindex(dvars3d,'oz')  
+    iq  =getindex(dvars3d,'q')   
+    ip3d=getindex(dvars3d,'prse')
     do k=1,nsig
       do j=jtstart(kk),jtstop(kk)
         do i=1,lat2
@@ -299,11 +307,9 @@ subroutine calctends(mype,teta,pri,guess,xderivative,yderivative,tendency)
 
 !   horizontal advection of "tracer" quantities
 
-           q_t (i,j,k) = -u(i,j,k)*q_x (i,j,k) - v(i,j,k)*q_y (i,j,k)
-           oz_t(i,j,k) = -u(i,j,k)*oz_x(i,j,k) - v(i,j,k)*oz_y(i,j,k)
-           if(icw>0)then
-              cw_t(i,j,k) = -u(i,j,k)*cw_x(i,j,k) - v(i,j,k)*cw_y(i,j,k)
-           end if
+           if (iq >0) q_t (i,j,k) = -u(i,j,k)*q_x (i,j,k) - v(i,j,k)*q_y (i,j,k)    
+           if (ioz>0) oz_t(i,j,k) = -u(i,j,k)*oz_x(i,j,k) - v(i,j,k)*oz_y(i,j,k) 
+           if (icw>0) cw_t(i,j,k) = -u(i,j,k)*cw_x(i,j,k) - v(i,j,k)*cw_y(i,j,k) 
  
 !   vertical flux terms
 
@@ -312,22 +318,18 @@ subroutine calctends(mype,teta,pri,guess,xderivative,yderivative,tendency)
               u_t (i,j,k) = u_t (i,j,k) - tmp*(u (i,j,k-1)-u (i,j,k))
               v_t (i,j,k) = v_t (i,j,k) - tmp*(v (i,j,k-1)-v (i,j,k))
               t_t (i,j,k) = t_t (i,j,k) - tmp*(t (i,j,k-1)-t (i,j,k))
-              q_t (i,j,k) = q_t (i,j,k) - tmp*(q (i,j,k-1)-q (i,j,k))
-              oz_t(i,j,k) = oz_t(i,j,k) - tmp*(oz(i,j,k-1)-oz(i,j,k))
-              if(icw>0)then
-                 cw_t(i,j,k) = cw_t(i,j,k) - tmp*(cw(i,j,k-1)-cw(i,j,k))
-              end if
+              if (iq >0) q_t (i,j,k) = q_t (i,j,k) - tmp*(q (i,j,k-1)-q (i,j,k)) 
+              if (ioz>0) oz_t(i,j,k) = oz_t(i,j,k) - tmp*(oz(i,j,k-1)-oz(i,j,k)) 
+              if (icw>0) cw_t(i,j,k) = cw_t(i,j,k) - tmp*(cw(i,j,k-1)-cw(i,j,k)) 
            end if
            if (k<nsig) then
               tmp = half*what9(i,j,k+1)*r_prdif9(i,j,k)
               u_t (i,j,k) = u_t (i,j,k) - tmp*(u (i,j,k)-u (i,j,k+1))
               v_t (i,j,k) = v_t (i,j,k) - tmp*(v (i,j,k)-v (i,j,k+1))
               t_t (i,j,k) = t_t (i,j,k) - tmp*(t (i,j,k)-t (i,j,k+1))
-              q_t (i,j,k) = q_t (i,j,k) - tmp*(q (i,j,k)-q (i,j,k+1))
-              oz_t(i,j,k) = oz_t(i,j,k) - tmp*(oz(i,j,k)-oz(i,j,k+1))
-              if(icw>0)then 
-                 cw_t(i,j,k) = cw_t(i,j,k) - tmp*(cw(i,j,k)-cw(i,j,k+1))
-              end if
+              if (iq >0) q_t (i,j,k) = q_t (i,j,k) - tmp*(q (i,j,k)-q (i,j,k+1))
+              if (ioz>0) oz_t(i,j,k) = oz_t(i,j,k) - tmp*(oz(i,j,k)-oz(i,j,k+1)) 
+              if (icw>0) cw_t(i,j,k) = cw_t(i,j,k) - tmp*(cw(i,j,k)-cw(i,j,k+1)) 
            end if        
         end do  !end do j
       end do    !end do i
@@ -391,6 +393,11 @@ subroutine calctends(mype,teta,pri,guess,xderivative,yderivative,tendency)
 !      code. However, this can be easily generalized by a little re-write
 !      of the main code in the subroutine above - TO BE DONE.
 
+  icw =getindex(dvars3d,'cw')  
+  ioz =getindex(dvars3d,'oz')  
+  iq  =getindex(dvars3d,'q')   
+  ip3d=getindex(dvars3d,'prse')
+
 ! If require guess vars available, extract from bundle ...
   if (trim(thiscase)=='guess') then
      ier=0
@@ -402,12 +409,22 @@ subroutine calctends(mype,teta,pri,guess,xderivative,yderivative,tendency)
      ier=ier+istatus
      call gsi_bundlegetpointer(bundle,'tv',t   ,istatus)
      ier=ier+istatus
-     call gsi_bundlegetpointer(bundle,'q' ,q   ,istatus)
-     ier=ier+istatus
-     call gsi_bundlegetpointer(bundle,'oz',oz  ,istatus)
-     ier=ier+istatus
-     call gsi_bundlegetpointer(bundle,'cw',cw  ,istatus)
-     ier=ier+istatus
+     if (iq>0) then
+        call gsi_bundlegetpointer(bundle,'q' ,q   ,istatus)
+        ier=ier+istatus
+     endif
+     if (ioz>0) then
+        call gsi_bundlegetpointer(bundle,'oz',oz  ,istatus)
+        ier=ier+istatus
+     endif
+     if (icw>0) then
+        call gsi_bundlegetpointer(bundle,'cw',cw  ,istatus)
+        if (istatus /=0) then
+            cw => cwgues
+            istatus=0
+        endif 
+        ier=ier+istatus
+     endif
   endif
   if (trim(thiscase)=='xderivative') then
      ier=0
@@ -419,12 +436,18 @@ subroutine calctends(mype,teta,pri,guess,xderivative,yderivative,tendency)
      ier=ier+istatus
      call gsi_bundlegetpointer(bundle,'tv',t_x ,istatus)
      ier=ier+istatus
-     call gsi_bundlegetpointer(bundle,'q' ,q_x ,istatus)
-     ier=ier+istatus
-     call gsi_bundlegetpointer(bundle,'oz',oz_x,istatus)
-     ier=ier+istatus
-     call gsi_bundlegetpointer(bundle,'cw',cw_x,istatus)
-     ier=ier+istatus
+     if (iq>0) then
+        call gsi_bundlegetpointer(bundle,'q' ,q_x ,istatus)
+        ier=ier+istatus
+     endif
+     if (ioz>0) then
+        call gsi_bundlegetpointer(bundle,'oz',oz_x,istatus)
+        ier=ier+istatus
+     endif
+     if (icw>0) then
+        call gsi_bundlegetpointer(bundle,'cw',cw_x,istatus)
+        ier=ier+istatus
+     endif
   endif
   if (trim(thiscase)=='yderivative') then
      ier=0
@@ -436,12 +459,18 @@ subroutine calctends(mype,teta,pri,guess,xderivative,yderivative,tendency)
      ier=ier+istatus
      call gsi_bundlegetpointer(bundle,'tv',t_y ,istatus)
      ier=ier+istatus
-     call gsi_bundlegetpointer(bundle,'q' ,q_y ,istatus)
-     ier=ier+istatus
-     call gsi_bundlegetpointer(bundle,'oz',oz_y,istatus)
-     ier=ier+istatus
-     call gsi_bundlegetpointer(bundle,'cw',cw_y,istatus)
-     ier=ier+istatus
+     if (iq>0) then
+        call gsi_bundlegetpointer(bundle,'q' ,q_y ,istatus)
+        ier=ier+istatus
+     endif
+     if (ioz>0) then
+        call gsi_bundlegetpointer(bundle,'oz',oz_y,istatus)
+        ier=ier+istatus
+     endif
+     if (icw>0) then
+        call gsi_bundlegetpointer(bundle,'cw',cw_y,istatus)
+        ier=ier+istatus
+     endif
   endif
   if(trim(thiscase)=='tendency') then
      ier=0
@@ -451,14 +480,22 @@ subroutine calctends(mype,teta,pri,guess,xderivative,yderivative,tendency)
      ier=ier+istatus
      call gsi_bundlegetpointer(bundle,'tv',t_t ,istatus)
      ier=ier+istatus
-     call gsi_bundlegetpointer(bundle,'q' ,q_t ,istatus)
-     ier=ier+istatus
-     call gsi_bundlegetpointer(bundle,'oz',oz_t,istatus)
-     ier=ier+istatus
-     call gsi_bundlegetpointer(bundle,'cw',cw_t,istatus)
-     ier=ier+istatus
-     call gsi_bundlegetpointer(bundle,'prse',p_t,istatus)
-     ier=ier+istatus
+     if (iq>0) then
+        call gsi_bundlegetpointer(bundle,'q' ,q_t ,istatus)
+        ier=ier+istatus
+     endif
+     if (ioz>0) then
+        call gsi_bundlegetpointer(bundle,'oz',oz_t,istatus)
+        ier=ier+istatus
+     endif
+     if (icw>0) then
+        call gsi_bundlegetpointer(bundle,'cw',cw_t,istatus)
+        ier=ier+istatus
+     endif
+     if (ip3d>0) then
+        call gsi_bundlegetpointer(bundle,'prse',p_t,istatus)
+        ier=ier+istatus
+     endif
   endif
   if (ier/=0) then
       call die(myname_,': missing fields in '//trim(thiscase)//' ier=',ier)

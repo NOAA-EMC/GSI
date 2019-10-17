@@ -26,7 +26,7 @@ use m_obsNode    , only: obsNode
 use m_uwnd10mNode, only: uwnd10mNode
 use m_uwnd10mNode, only: uwnd10mNode_typecast
 use m_uwnd10mNode, only: uwnd10mNode_nextcast
-
+use m_obsdiagNode, only: obsdiagNode_set
 
 implicit none
 
@@ -115,9 +115,11 @@ subroutine intuwnd10m(uwnd10mhead,rval,sval)
      if(luse_obsdiag)then
         if (lsaveobsens) then
            grad = val*uwnd10mptr%raterr2*uwnd10mptr%err2
-           uwnd10mptr%diags%obssen(jiter) = grad
+           !-- uwnd10mptr%diags%obssen(jiter) = grad
+           call obsdiagNode_set(uwnd10mptr%diags,jiter=jiter,obssen=grad)
         else
-           if (uwnd10mptr%luse) uwnd10mptr%diags%tldepart(jiter)=val
+           !-- if (uwnd10mptr%luse) uwnd10mptr%diags%tldepart(jiter)=val
+           if (uwnd10mptr%luse) call obsdiagNode_set(uwnd10mptr%diags,jiter=jiter,tldepart=val)
         endif
      endif
 

@@ -328,31 +328,31 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
                     zob = ship%depth(n)
                     if ( trim(ship%sensor(n)) == 'BU' ) then
                        kx = 181
-                       sstoe = r1_5
+                       sstoe = 0.75_r_kind
                     elseif ( trim(ship%sensor(n)) == 'C' ) then
                        kx = 182
-                       sstoe = two
+                       sstoe = one
                     elseif ( trim(ship%sensor(n)) == 'HC' ) then
                        kx = 183
-                       sstoe = two
+                       sstoe = one
                     elseif ( trim(ship%sensor(n)) == 'BTT' ) then
                        kx = 184
-                       sstoe = two
+                       sstoe = one
                     elseif ( trim(ship%sensor(n)) == 'HT' ) then
                        kx = 185
-                       sstoe = two
+                       sstoe = one
                     elseif ( trim(ship%sensor(n)) == 'RAD' ) then
                        kx = 186
-                       sstoe = two
+                       sstoe = one
                     elseif ( trim(ship%sensor(n)) == 'TT' ) then
                        kx = 187
-                       sstoe = two
+                       sstoe = one
                     elseif ( trim(ship%sensor(n)) == 'OT' ) then
                        kx = 188
-                       sstoe = two
+                       sstoe = one
                     else
                        kx = 189
-                       sstoe = three
+                       sstoe = two
                     endif
                  endif
               enddo
@@ -360,16 +360,16 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
               if ( ship_mod == 0 ) then
                  if ( msst == two ) then                                  ! positive or zero bucket
                     kx = 181
-                    sstoe = two
+                    sstoe = 0.75_r_kind
                     zob = one
                  elseif ( msst == zero .or. msst == one ) then            ! positive/negative/zero intake
                     kx = 182
-                    sstoe = 2.5_r_kind
+                    sstoe = one
                     zob = three
                  else
                     kx = 189
+                    sstoe = two
                     zob = 2.5_r_kind
-                    sstoe = three
                  endif
               endif
 
@@ -388,20 +388,20 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 
                  zob = r1_2
                  kx = 192
-                 sstoe = half
+                 sstoe = 0.75_r_kind
 
               elseif ( cid_pos > n_scripps .and. cid_pos <= n_triton ) then    ! Triton buoy
  
                  zob = r1_5
                  kx = 194
-                 sstoe = 0.4_r_kind
+                 sstoe = half
  
               elseif ( cid_pos == 0 ) then
  
                  zob = r0_2
                  if ( cid(3:3) == '5' .or. cid(3:3) == '6' .or. cid(3:3) == '7' .or. cid(3:3) == '8' .or. cid(3:3) == '9' ) then
                     kx = 190
-                    sstoe = r0_6
+                    sstoe = half
                  elseif ( cid(3:3) == '0' .or. cid(3:3) == '1' .or. cid(3:3) == '2' .or. cid(3:3) == '3' .or. cid(3:3) == '4') then
                     kx = 191
                     sstoe = half
@@ -412,7 +412,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            elseif ( trim(subset) == 'NC001102'  ) then                           ! DBUOYB
               zob = r0_2
               kx = 190
-              sstoe = r0_6
+              sstoe = half
            elseif ( trim(subset) == 'NC001003' ) then                            ! MBUOY
 
               cid_pos = 0
@@ -426,23 +426,23 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
               if ( cid_pos >= 1 .and. cid_pos <= n_comps ) then                  ! COMPS moored buoy
                  zob = r1_2
                  kx = 192
-                 sstoe = one
+                 sstoe = 0.75_r_kind
               elseif ( cid_pos > n_comps .and. cid_pos <= n_scripps ) then       ! SCRIPPS moored buoy
                  zob = r0_45
                  kx = 193
-                 sstoe = 1.5_r_kind
+                 sstoe = 0.75_r_kind
               elseif ( cid_pos > n_scripps .and. cid_pos <= n_triton ) then      ! Triton buoy
                  zob = r1_5
                  kx = 194
-                 sstoe = 0.4_r_kind
+                 sstoe = half
               elseif ( cid_pos > n_triton .and. cid_pos <= n_3mdiscus ) then     ! Moored buoy with 3-m discus
                  zob = r0_6
                  kx = 195
-                 sstoe = 1.5_r_kind
+                 sstoe = 0.75_r_kind
               elseif ( cid_pos == 0 ) then                                       ! All other moored buoys (usually with 1-m observation depth)
                  zob = one
                  kx = 196
-                 sstoe = one
+                 sstoe = 0.75_r_kind
               endif
 
            elseif ( trim(subset) == 'NC001103' ) then                            ! MBUOYB
@@ -458,29 +458,30 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
               if ( cid_pos >= 1 .and. cid_pos <= n_comps ) then                  ! COMPS moored buoyb
                  zob = r1_2
                  kx = 192
-                 sstoe = one
+                 sstoe = 0.75_r_kind
               elseif ( cid_pos > n_comps .and. cid_pos <= n_scripps ) then       ! SCRIPPS moored buoyb
                  zob = r0_45
                  kx = 193
-                 sstoe = 1.5_r_kind
+                 sstoe = 0.75_r_kind
               elseif ( cid_pos > n_scripps .and. cid_pos <= n_triton ) then      ! Triton buoyb
                  zob = r1_5
                  kx = 194
-                 sstoe = 0.4_r_kind
+                 sstoe = half
               elseif ( cid_pos > n_triton .and. cid_pos <= n_3mdiscus ) then     ! Moored buoyb with 3-m discus
                  zob = r0_6
                  kx = 195
-                 sstoe = 1.5_r_kind
+                 sstoe = 0.75_r_kind
               elseif ( cid_pos == 0 ) then                                       ! All other moored buoysb (usually with 1-m observation depth)
                  zob = one
                  kx = 196
-                 sstoe = one
+                 sstoe = 0.75_r_kind
               endif
 
-           elseif ( trim(subset) == 'NC001004' ) then                            ! LCMAN
+           elseif ( trim(subset) == 'NC001004' .or. trim(subset) == 'NC031003' .or. &    ! LCMAN, TRKOB
+                    trim(subset) == 'NC001005' .or. trim(subset) == 'NC001007' ) then    ! TIDEG, CSTGD
               zob = one
               kx = 197
-              sstoe = 2.5_r_kind
+              sstoe = one
            elseif ( trim(subset) == 'NC031002' ) then                            ! TESAC/ARGO
               if (  tpf(1,1) >= one .and.  tpf(1,1) < 5.0_r_kind ) then
                  zob = tpf(1,1)
@@ -488,7 +489,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
                  zob = one
               endif
               kx = 198
-              sstoe = 2.5_r_kind 
+              sstoe = one
            elseif ( trim(subset) == 'NC031001' ) then                            ! BATHY
               if (  tpf(1,1) >= one .and.  tpf(1,1) < 5.0_r_kind ) then
                  zob = tpf(1,1)
@@ -497,18 +498,6 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
               endif
               kx = 199
               sstoe = half
-           elseif ( trim(subset) == 'NC031003' ) then                             ! TRKOB
-              zob = one
-              kx = 200
-              sstoe = two
-           elseif ( trim(subset) == 'NC001005' ) then                             ! TIDEG
-              zob = one
-              kx = 201
-              sstoe = two
-           elseif ( trim(subset) == 'NC001007' ) then                             ! CSTGD
-              zob = one
-              kx = 202
-              sstoe = two
            endif
 !
 !          Determine usage
