@@ -40,7 +40,7 @@ NCP=${NCP:-"/bin/cp -p"}
 NLN=${NLN:-"/bin/ln -sf"}
 ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
 NEMSIOGET=${NEMSIOGET:-$NWPROD/utils/exec/nemsio_get}
-NCDUMP=${NCDUMP:-$NETCDF/bin/ncdump}
+NCLEN=${NCLEN:-$HOMEgfs/ush/getncdimlen}
 USE_CFP=${USE_CFP:-"NO"}
 APRUNCFP=${APRUNCFP:-""}
 APRUN_ENKF=${APRUN_ENKF:-${APRUN:-""}}
@@ -92,9 +92,9 @@ IAUFHRS_ENKF=${IAUFHRS_ENKF:-6}
 ################################################################################
 ATMGES_ENSMEAN=$COMIN_GES_ENS/${GPREFIX}atmf006.ensmean${GSUFFIX}
 if [ $GFS_NCIO = "YES" ]; then
-   LONB_ENKF=${LONB_ENKF:-$($NCDUMP -h $ATMGES_ENSMEAN | grep -i "grid_xt" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LONB_ENKF
-   LATB_ENKF=${LATB_ENKF:-$($NCDUMP -h $ATMGES_ENSMEAN | grep -i "grid_yt" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LATB_ENFK
-   LEVS_ENKF=${LEVS_ENKF:-$($NCDUMP -h $ATMGES_ENSMEAN | grep -i "pfull" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LEVS_ENFK
+   LONB_ENKF=${LONB_ENKF:-$($NCLEN $ATMGES_ENSMEAN grid_xt)} # get LONB_ENKF
+   LATB_ENKF=${LATB_ENKF:-$($NCLEN $ATMGES_ENSMEAN grid_yt)} # get LATB_ENFK
+   LEVS_ENKF=${LEVS_ENKF:-$($NCLEN $ATMGES_ENSMEAN pfull)} # get LEVS_ENFK
    use_gfs_ncio=".true."
    use_gfs_nemsio=".false."
 else

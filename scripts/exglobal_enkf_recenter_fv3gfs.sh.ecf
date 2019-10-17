@@ -50,7 +50,7 @@ ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
 NCP=${NCP:-"/bin/cp -p"}
 NLN=${NLN:-"/bin/ln -sf"}
 NEMSIOGET=${NEMSIOGET:-${NWPROD}/exec/nemsio_get}
-NCDUMP=${NCDUMP:-$NETCDF/bin/ncdump}
+NCLEN=${NCLEN:-$HOMEgfs/ush/getncdimlen}
 
 # Scripts
 
@@ -166,9 +166,9 @@ export err=$ERR
 $ERRSCRIPT || exit 2
 
 if [ $GFS_NCIO = "YES" ]; then
-   LONB_ENKF=${LONB_ENKF:-$($NCDUMP -h atmanl_ensmean | grep -i "grid_xt" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LONB
-   LATB_ENKF=${LATB_ENKF:-$($NCDUMP -h atmanl_ensmean | grep -i "grid_yt" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LATB
-   LEVS_ENKF=${LEVS_ENKF:-$($NCDUMP -h atmanl_ensmean | grep -i "pfull" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LEVS
+   LONB_ENKF=${LONB_ENKF:-$($NCLEN atmanl_ensmean grid_xt)} # get LONB
+   LATB_ENKF=${LATB_ENKF:-$($NCLEN atmanl_ensmean grid_yt)} # get LATB
+   LEVS_ENKF=${LEVS_ENKF:-$($NCLEN atmanl_ensmean pfull)} # get LEVS
    JCAP_ENKF=${JCAP_ENKF:--9999} # there is no jcap in these files
 else
    LONB_ENKF=${LONB_ENKF:-$($NEMSIOGET atmanl_ensmean dimx | awk '{print $2}')}
@@ -188,8 +188,8 @@ if [ $RECENTER_ENKF = "YES" ]; then
    ATMANL_GSI_ENSRES=${ATMANL_GSI_ENSRES:-$COMIN/${APREFIX}atmanl.ensres$ASUFFIX}
 
    if [ $GFS_NCIO = "YES" ]; then
-      LONB=${LONB:-$($NCDUMP -h $ATMANL_GSI | grep -i "grid_xt" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LONB
-      LATB=${LATB:-$($NCDUMP -h $ATMANL_GSI | grep -i "grid_yt" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LATB
+      LONB=${LONB:-$($NCLEN $ATMANL_GSI grid_xt)} # get LONB
+      LATB=${LATB:-$($NCLEN $ATMANL_GSI grid_yt)} # get LATB
       JCAP=${JCAP:--9999} # there is no jcap in these files
    else
       LONB=${LONB:-$($NEMSIOGET $ATMANL_GSI dimx | awk '{print $2}')}
