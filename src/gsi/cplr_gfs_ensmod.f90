@@ -301,6 +301,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,en_loc3,m_cvars2d,m_cvars3d, &
                                             ias,jas,mas, &
                                             iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz, &
                                             filename,.true.,clons,slons)
+          end if
        else
            call parallel_read_gfsnc_state_(en_full,m_cvars2dw,m_cvars3dw,nlon,nlat,nsig, &
                                          ias,jas,mas, &
@@ -1031,7 +1032,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
 
    use kinds, only: i_kind,r_kind,r_single
    use constants, only: r60,r3600,zero,one,half,pi,deg2rad
-   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d,imp_physics
+   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
    use general_sub2grid_mod, only: sub2grid_info
    use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
                            close_dataset, get_dim, read_vardata 
@@ -1100,7 +1101,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
       slons(j)=sin(rlons(j))
    enddo
 
-   if (imp_physics == 11) allocate(rwork3d2(nlon,(nlat-2),nsig))
+   allocate(rwork3d2(nlon,(nlat-2),nsig))
    allocate(temp3(nlat,nlon,nsig,nc3d))
    allocate(temp2(nlat,nlon,nc2d))
    k3u=0 ; k3v=0 ; k3t=0 ; k3q=0 ; k3cw=0 ; k3oz=0
@@ -1114,7 +1115,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
       if (trim(cvars3d(k3))=='cw') then
          call read_vardata(atmges, 'clwmr', rwork3d1)
          rwork3d2 = 0
-         if (imp_physics == 11) call read_vardata(atmges, 'icmr', rwork3d2) 
+         call read_vardata(atmges, 'icmr', rwork3d2) 
          rwork3d1 = rwork3d1 + rwork3d2
          do k=1,nsig
             kr = levs+1-k
@@ -1163,7 +1164,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
       endif
    enddo
    deallocate(rwork2d, rwork3d1)
-   if (imp_physics == 11) deallocate(rwork3d2)
+   deallocate(rwork3d2)
 
 !  move temp2,temp3 to en_full
    kf=0
