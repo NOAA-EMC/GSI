@@ -87,7 +87,7 @@ contains
          iincvar = -999
          ! determine if we are computing the increment for this field
          do j=1,nincv
-           if (iovars_netcdf(i) == incvars_nemsio(j)) then
+           if (iovars_netcdf(i) == incvars_ncio(j)) then
              use_increment = .true.
              iincvar = j
            end if
