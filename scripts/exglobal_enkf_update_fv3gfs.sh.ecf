@@ -78,13 +78,14 @@ corrlength=${corrlength:-1250}
 lnsigcutoff=${lnsigcutoff:-2.5}
 analpertwt=${analpertwt:-0.85}
 readin_localization_enkf=${readin_localization_enkf:-".true."}
-reducedgrid=${reducedgrid:-".true"}
-letkf_flag=${letkf_flag:-".false"}
-getkf=${getkf:-".false"}
-denkf=${denkf:-".false"}
+reducedgrid=${reducedgrid:-".true."}
+letkf_flag=${letkf_flag:-".false."}
+getkf=${getkf:-".false."}
+denkf=${denkf:-".false."}
 nobsl_max=${nobsl_max:-10000}
-lobsdiag_forenkf=${lobsdiag_forenkf:-".false"}
-write_spread_diag=${write_spread_diag:-".false"}
+lobsdiag_forenkf=${lobsdiag_forenkf:-".false."}
+write_spread_diag=${write_spread_diag:-".false."}
+cnvw_option=${cnvw_option:-".false."}
 netcdf_diag=${netcdf_diag:-".false."}
 modelspace_vloc=${modelspace_vloc:-".false."} # if true, 'vlocal_eig.dat' is needed
 IAUFHRS_ENKF=${IAUFHRS_ENKF:-6}
@@ -186,17 +187,22 @@ fi
 nfhrs=`echo $IAUFHRS_ENKF | sed 's/,/ /g'`
 for imem in $(seq 1 $NMEM_ENKF); do
    memchar="mem"$(printf %03i $imem)
-   if [ $USE_CFP = "YES" ]; then
-      echo "$DATA/untar.sh $memchar" | tee -a $DATA/mp_untar.sh
-   else
-      for ftype in $flist; do
-         fname=$COMOUT_ANL_ENS/$memchar/$ftype
-         tar -xvf $fname
-      done
+   if [ $lobsdiag_forenkf = ".false." ]; then
+      if [ $USE_CFP = "YES" ]; then
+         echo "$DATA/untar.sh $memchar" | tee -a $DATA/mp_untar.sh
+      else
+         for ftype in $flist; do
+            fname=$COMOUT_ANL_ENS/$memchar/$ftype
+            tar -xvf $fname
+         done
+      fi
    fi
    mkdir -p $COMOUT_ANL_ENS/$memchar
    for FHR in $nfhrs; do 
       $NLN $COMIN_GES_ENS/$memchar/${GPREFIX}atmf00${FHR}${ENKF_SUFFIX}${GSUFFIX}  sfg_${CDATE}_fhr0${FHR}_${memchar}
+      if [ $cnvw_option = ".true." ]; then
+         $NLN $COMIN_GES_ENS/$memchar/${GPREFIX}sfcf00${FHR}${GSUFFIX} sfgsfc_${CDATE}_fhr0${FHR}_${memchar}
+      fi
       if [ $FHR -eq 6 ]; then
          $NLN $COMOUT_ANL_ENS/$memchar/${APREFIX}atmanl${ASUFFIX}             sanl_${CDATE}_fhr0${FHR}_${memchar}
       else
@@ -208,6 +214,9 @@ done
 # Ensemble mean guess
 for FHR in $nfhrs; do 
    $NLN $COMIN_GES_ENS/${GPREFIX}atmf00${FHR}.ensmean${GSUFFIX} sfg_${CDATE}_fhr0${FHR}_ensmean
+   if [ $cnvw_option = ".true." ]; then 
+      $NLN $COMIN_GES_ENS/${GPREFIX}sfcf00${FHR}.ensmean${GSUFFIX} sfgsfc_${CDATE}_fhr0${FHR}_ensmean
+   fi
 done
 
 if [ $USE_CFP = "YES" ]; then
@@ -248,7 +257,7 @@ cat > enkf.nml << EOFnml
    lobsdiag_forenkf=$lobsdiag_forenkf,
    write_spread_diag=$write_spread_diag,
    modelspace_vloc=$modelspace_vloc,
-   netcdf_diag=$netcdf_diag,
+   netcdf_diag=$netcdf_diag,cnvw_option=$cnvw_option,
    $NAM_ENKF
 /
 &satobs_enkf
@@ -319,6 +328,8 @@ cat > enkf.nml << EOFnml
    sattypes_rad(65)= 'saphir_meghat', dsis(65)= 'saphir_meghat',
    sattypes_rad(66)= 'amsua_metop-c', dsis(66)= 'amsua_metop-c',
    sattypes_rad(67)= 'mhs_metop-c',   dsis(67)= 'mhs_metop-c',
+   sattypes_rad(68)= 'ahi_himawari8', dsis(68)= 'ahi_himawari8',
+   sattypes_rad(69)= 'abi_g16',       dsis(69)= 'abi_g16',
    $SATOBS_ENKF
 /
 &ozobs_enkf

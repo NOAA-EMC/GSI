@@ -88,7 +88,7 @@ subroutine read_guess(iyear,month,idd,mype)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use jfunc, only: bcoption,clip_supersaturation,jiter
+  use jfunc, only: bcoption,clip_supersaturation
   use guess_grids, only: nfldsig,ges_tsen,load_prsges,load_geop_hgt,ges_prsl,&
                          ges_tsen1, geop_hgti, ges_geopi, ges_q1
   use m_gsiBiases,only : bkg_bias_correction,nbc

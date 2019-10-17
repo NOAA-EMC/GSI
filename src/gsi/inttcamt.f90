@@ -25,6 +25,7 @@ use m_obsNode  , only: obsNode
 use m_tcamtNode, only: tcamtNode
 use m_tcamtNode, only: tcamtNode_typecast
 use m_tcamtNode, only: tcamtNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -112,9 +113,11 @@ subroutine inttcamt(tcamthead,rval,sval)
      if(luse_obsdiag)then
         if (lsaveobsens) then
            grad = val*tcamtptr%raterr2*tcamtptr%err2
-           tcamtptr%diags%obssen(jiter) = grad
+           !-- tcamtptr%diags%obssen(jiter) = grad
+           call obsdiagNode_set(tcamtptr%diags,jiter=jiter,obssen=grad)
         else
-           if (tcamtptr%luse) tcamtptr%diags%tldepart(jiter)=val
+           !-- if (tcamtptr%luse) tcamtptr%diags%tldepart(jiter)=val
+           if (tcamtptr%luse) call obsdiagNode_set(tcamtptr%diags,jiter=jiter,tldepart=val)
         endif
      endif
 

@@ -33,6 +33,8 @@
 !               prse: nlevs + 1 levels). Pass "reducedgrid" parameter.
 !   2017-06-14  Adding functionality to optionally write non-inflated ensembles,  
 !               a required input for EFSO calculations 
+!   2019-03-13  Add precipitation components  
+!   2019-07-10  Add convective clouds
 !
 ! attributes:
 !   language: f95
@@ -40,7 +42,7 @@
 !$$$
  use constants, only: zero,one,cp,fv,rd,tiny_r_kind,max_varname_length,t0c,r0_05
  use params, only: nlons,nlats,nlevs,use_gfs_nemsio,pseudo_rh, &
-                   cliptracers,datapath,imp_physics,use_gfs_ncio
+                   cliptracers,datapath,imp_physics,use_gfs_ncio,cnvw_option
  use kinds, only: i_kind,r_double,r_kind,r_single
  use gridinfo, only: ntrunc,npts  ! gridinfo must be called first!
  use specmod, only: sptezv_s, sptez_s, init_spec_vars, ndimspec => nc, &
@@ -53,7 +55,8 @@
  public :: readgriddata, writegriddata
  contains
 
- subroutine readgriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,ntimes,fileprefixes,reducedgrid,grdin,qsat)
+ subroutine readgriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,ntimes, & 
+                         fileprefixes,filesfcprefixes,reducedgrid,grdin,qsat)
   use sigio_module, only: sigio_head, sigio_data, sigio_sclose, sigio_sropen, &
                           sigio_srohdc, sigio_sclose, sigio_aldata, sigio_axdata
   use nemsio_module, only: nemsio_gfile,nemsio_open,nemsio_close,&
@@ -70,11 +73,13 @@
   integer, dimension(0:n3d), intent(in) :: levels
   integer, intent(in) :: ndim, ntimes
   character(len=120), dimension(7), intent(in)  :: fileprefixes
+  character(len=120), dimension(7), intent(in)  :: filesfcprefixes
   logical, intent(in) :: reducedgrid
   real(r_single), dimension(npts,ndim,ntimes,nanal2-nanal1+1), intent(out) :: grdin
   real(r_double), dimension(npts,nlevs,ntimes,nanal2-nanal1+1), intent(out) :: qsat
 
   character(len=500) :: filename
+  character(len=500) :: filenamesfc
   character(len=7) charnanal
 
   real(r_kind) :: kap,kapr,kap1,clip,qi_coef
@@ -83,6 +88,7 @@
   real(r_single), allocatable, dimension(:,:)   :: pressi,pslg,values_2d
   real(r_kind), dimension(nlons*nlats)          :: ug,vg
   real(r_single), dimension(npts,nlevs)         :: tv, q, cw
+  real(r_single), dimension(npts,nlevs)         :: ql, qi, qr, qs, qg 
   real(r_kind), dimension(ndimspec)             :: vrtspec,divspec
   real(r_kind), allocatable, dimension(:)       :: psg,pstend,ak,bk
   real(r_single),allocatable,dimension(:,:,:)   :: nems_vcoord, ug3d,vg3d
@@ -92,13 +98,19 @@
   type(nemsio_gfile) :: gfile
   type(Dataset) :: dset
   type(Dimension) :: londim,latdim,levdim
+  type(nemsio_gfile) :: gfilesfc
 
   integer(i_kind) :: u_ind, v_ind, tv_ind, q_ind, oz_ind, cw_ind
+  integer(i_kind) :: qr_ind, qs_ind, qg_ind   
   integer(i_kind) :: tsen_ind, ql_ind, qi_ind, prse_ind
   integer(i_kind) :: ps_ind, pst_ind, sst_ind
 
   integer(i_kind) :: k,iunitsig,iret,nb,i,idvc,nlonsin,nlatsin,nlevsin,ne,nanal
+  integer(i_kind) :: nlonsin_sfc,nlatsin_sfc
   logical ice
+  logical use_full_hydro   
+
+  use_full_hydro = .false. 
 
   ne = 0
   ensmemloop: do nanal=nanal1,nanal2
@@ -112,6 +124,7 @@
   endif
   iunitsig = 77
   filename = trim(adjustl(datapath))//trim(adjustl(fileprefixes(nb)))//trim(charnanal)
+  filenamesfc = trim(adjustl(datapath))//trim(adjustl(filesfcprefixes(nb)))//trim(charnanal)
   if (use_gfs_nemsio) then
      call nemsio_init(iret=iret)
      if(iret/=0) then
@@ -131,6 +144,20 @@
        print *,'got',nlonsin,nlatsin,nlevsin
        call stop2(23)
      end if
+
+     if (cnvw_option) then
+        call nemsio_open(gfilesfc,filenamesfc,'READ',iret=iret)
+        if (iret/=0) then
+           write(6,*)'gridio/readgriddata: gfs model: problem with sfc nemsio_open, iret=',iret
+        else
+           call nemsio_getfilehead(gfilesfc,iret=iret, dimx=nlonsin_sfc, dimy=nlatsin_sfc)
+           if (nlons /= nlonsin_sfc .or. nlats /= nlatsin_sfc) then
+              print *,'incorrect dims in nemsio sfc file'
+              print *,'expected',nlons,nlats
+              print *,'got',nlonsin_sfc,nlatsin_sfc
+           end if
+        endif
+     endif
   else if (use_gfs_ncio) then
      dset = open_dataset(filename)
      londim = get_dim(dset,'grid_xt'); nlonsin = londim%len
@@ -157,14 +184,18 @@
   oz_ind  = getindex(vars3d, 'oz')  ! Oz (3D)
   cw_ind  = getindex(vars3d, 'cw')  ! CW (3D)
   tsen_ind = getindex(vars3d, 'tsen') !sensible T (3D)
-  ql_ind  = getindex(vars3d, 'ql')
-  qi_ind  = getindex(vars3d, 'qi')
+  ql_ind  = getindex(vars3d, 'ql')  ! QL (3D)
+  qi_ind  = getindex(vars3d, 'qi')  ! QI (3D)
   prse_ind = getindex(vars3d, 'prse')
-
+  qr_ind  = getindex(vars3d, 'qr')  ! QR (3D)
+  qs_ind  = getindex(vars3d, 'qs')  ! QS (3D)
+  qg_ind  = getindex(vars3d, 'qg')  ! QG (3D)
   ps_ind  = getindex(vars2d, 'ps')  ! Ps (2D)
   pst_ind = getindex(vars2d, 'pst') ! Ps tendency (2D)   // equivalent of
                                      ! old logical massbal_adjust, if non-zero
   sst_ind = getindex(vars2d, 'sst')
+  use_full_hydro = ( ql_ind > 0 .and. qi_ind > 0  .and. &
+                     qr_ind > 0 .and. qs_ind > 0 .and. qg_ind > 0 )
 
 !  if (nproc == 0) then
 !    print *, 'indices: '
@@ -330,26 +361,93 @@
            ug = nems_wrk2
            call copytogrdin(ug,grdin(:,levels(oz_ind-1)+k,nb,ne))
         endif
-        if (cw_ind > 0 .or. ql_ind > 0 .or. qi_ind > 0) then
-           call nemsio_readrecv(gfile,'clwmr','mid layer',k,nems_wrk2,iret=iret)
-           if (iret/=0) then
-              write(6,*)'gridio/readgriddata: gfs model: problem with nemsio_readrecv(clwmr), iret=',iret
-              call stop2(23)
+        if (.not. use_full_hydro) then  
+           if (cw_ind > 0 .or. ql_ind > 0 .or. qi_ind > 0) then
+              call nemsio_readrecv(gfile,'clwmr','mid layer',k,nems_wrk2,iret=iret)
+              if (iret/=0) then
+                 write(6,*)'gridio/readgriddata: gfs model: problem with nemsio_readrecv(clwmr), iret=',iret
+                 call stop2(23)
+              endif
+              if (imp_physics == 11) then
+                 call nemsio_readrecv(gfile,'icmr','mid layer',k,nems_wrk,iret=iret)
+                 if (iret/=0) then
+                    write(6,*)'gridio/readgriddata: gfs model: problem with nemsio_readrecv(icmr), iret=',iret
+                    call stop2(23)
+                 else
+                    nems_wrk2 = nems_wrk2 + nems_wrk
+                 endif
+              endif
+              if (cnvw_option) then
+                 call nemsio_readrecv(gfilesfc,'cnvcldwat','mid layer',k,nems_wrk,iret=iret)
+                 if (iret/=0) then
+                    write(6,*)'gridio/readgriddata: gfs model: problem with nemsio_readrecv(cnvw), iret=',iret
+                    call stop2(23)
+                 else
+                    nems_wrk2 = nems_wrk2 + nems_wrk
+                 end if
+              end if
+              if (cliptracers)  where (nems_wrk2 < clip) nems_wrk2 = clip
+              ug = nems_wrk2
+              call copytogrdin(ug,cw(:,k))
+              if (cw_ind > 0)            grdin(:,levels(cw_ind-1)+k,nb,ne) = cw(:,k)
            endif
-           if (imp_physics == 11) then
+        else
+           if (ql_ind > 0) then
+              call nemsio_readrecv(gfile,'clwmr','mid layer',k,nems_wrk,iret=iret)
+              if (iret/=0) then
+                 write(6,*)'gridio/readgriddata: gfs model: problem with nemsio_readrecv(clwmr), iret=',iret
+                 call stop2(23)
+              endif
+              if (cliptracers)  where (nems_wrk < clip) nems_wrk = clip
+              ug = nems_wrk
+              call copytogrdin(ug,ql(:,k))
+              grdin(:,levels(ql_ind-1)+k,nb,ne) = ql(:,k)
+           endif
+           if (qi_ind > 0) then
               call nemsio_readrecv(gfile,'icmr','mid layer',k,nems_wrk,iret=iret)
               if (iret/=0) then
                  write(6,*)'gridio/readgriddata: gfs model: problem with nemsio_readrecv(icmr), iret=',iret
                  call stop2(23)
-              else
-                 nems_wrk2 = nems_wrk2 + nems_wrk
               endif
+              if (cliptracers)  where (nems_wrk < clip) nems_wrk = clip
+              ug = nems_wrk
+              call copytogrdin(ug,qi(:,k))
+              grdin(:,levels(qi_ind-1)+k,nb,ne) = qi(:,k)
            endif
-           if (cliptracers)  where (nems_wrk2 < clip) nems_wrk2 = clip
-           ug = nems_wrk2
-           call copytogrdin(ug,cw(:,k))
-           if (cw_ind > 0)            grdin(:,levels(cw_ind-1)+k,nb,ne) = cw(:,k)
-        endif
+           if (qr_ind > 0) then
+              call nemsio_readrecv(gfile,'rwmr','mid layer',k,nems_wrk,iret=iret)
+              if (iret/=0) then
+                 write(6,*)'gridio/readgriddata: gfs model: problem with nemsio_readrecv(rwmr), iret=',iret
+                 call stop2(23)
+              endif
+              if (cliptracers)  where (nems_wrk < clip) nems_wrk = clip
+              ug = nems_wrk
+              call copytogrdin(ug,qr(:,k))
+              grdin(:,levels(qr_ind-1)+k,nb,ne) = qr(:,k)
+           endif
+           if (qs_ind > 0) then
+              call nemsio_readrecv(gfile,'snmr','mid layer',k,nems_wrk,iret=iret)
+              if (iret/=0) then
+                 write(6,*)'gridio/readgriddata: gfs model: problem with nemsio_readrecv(snmr), iret=',iret
+                 call stop2(23)
+              endif
+              if (cliptracers)  where (nems_wrk < clip) nems_wrk = clip
+              ug = nems_wrk
+              call copytogrdin(ug,qs(:,k))
+              grdin(:,levels(qs_ind-1)+k,nb,ne) = qs(:,k)
+           endif
+           if (qg_ind > 0) then
+              call nemsio_readrecv(gfile,'grle','mid layer',k,nems_wrk,iret=iret)
+              if (iret/=0) then
+                 write(6,*)'gridio/readgriddata: gfs model: problem with nemsio_readrecv(grle), iret=',iret
+                 call stop2(23)
+              endif
+              if (cliptracers)  where (nems_wrk < clip) nems_wrk = clip
+              ug = nems_wrk
+              call copytogrdin(ug,qg(:,k))
+              grdin(:,levels(qg_ind-1)+k,nb,ne) = qg(:,k)
+           endif
+        endif  ! use_full_hydro
      enddo
   else if (use_gfs_ncio) then
      call read_vardata(dset, 'ugrd', ug3d,errcode=iret)
@@ -514,6 +612,7 @@
   end if
 
   ! cloud derivatives
+  if (.not. use_full_hydro) then  
   if (ql_ind > 0 .or. qi_ind > 0) then
      do k = 1, nlevs
         do i = 1, npts
@@ -529,6 +628,7 @@
         enddo
      enddo
   endif
+  endif  
 
   if (sst_ind > 0) then
     grdin(:,levels(n3d)+sst_ind, nb,ne) = zero
@@ -539,6 +639,7 @@
   if (pst_ind > 0) deallocate(vmassdiv,pstend)
   if (use_gfs_nemsio) call nemsio_close(gfile,iret=iret)
   if (use_gfs_ncio) call close_dataset(dset)
+  if (use_gfs_nemsio) call nemsio_close(gfilesfc,iret=iret)
 
   end do backgroundloop ! loop over backgrounds to read in
   end do ensmemloop ! loop over ens members to read in
@@ -588,7 +689,7 @@
   integer, dimension(0:n3d), intent(in) :: levels
   real(r_single), dimension(npts,ndim,nbackgrounds,nanal2-nanal1+1), intent(inout) :: grdin
   logical, intent(in) :: no_inflate_flag
-
+  logical:: use_full_hydro  
   character(len=500):: filenamein, filenameout
   real(r_kind), allocatable, dimension(:,:) :: vmassdiv,dpanl,dpfg,pressi
   real(r_kind), allocatable, dimension(:,:) :: vmassdivinc
@@ -624,9 +725,11 @@
 
   integer :: u_ind, v_ind, tv_ind, q_ind, oz_ind, cw_ind
   integer :: ps_ind, pst_ind, nbits
+  integer :: ql_ind, qi_ind, qr_ind, qs_ind, qg_ind     
 
   integer k,nt,ierr,iunitsig,nb,i,ne,nanal
 
+  use_full_hydro = .false.  
   iunitsig = 78
   kapr = cp/rd
   kap = rd/cp
@@ -741,14 +844,21 @@
 
   u_ind   = getindex(vars3d, 'u')   !< indices in the state var arrays
   v_ind   = getindex(vars3d, 'v')   ! U and V (3D)
-  tv_ind   = getindex(vars3d, 'tv')  ! Tv (3D)
+  tv_ind  = getindex(vars3d, 'tv')  ! Tv (3D)
   q_ind   = getindex(vars3d, 'q')   ! Q (3D)
   oz_ind  = getindex(vars3d, 'oz')  ! Oz (3D)
   cw_ind  = getindex(vars3d, 'cw')  ! CW (3D)
-
+  ql_ind  = getindex(vars3d, 'ql')  ! QL (3D)
+  qi_ind  = getindex(vars3d, 'qi')  ! QI (3D)
+  qr_ind  = getindex(vars3d, 'qr')  ! QR (3D)
+  qs_ind  = getindex(vars3d, 'qs')  ! QS (3D)
+  qg_ind  = getindex(vars3d, 'qg')  ! QG (3D)
   ps_ind  = getindex(vars2d, 'ps')  ! Ps (2D)
   pst_ind = getindex(vars2d, 'pst') ! Ps tendency (2D)   // equivalent of
-                                     ! old logical massbal_adjust, if non-zero
+                                    ! old logical massbal_adjust, if non-zero
+  use_full_hydro = ( ql_ind > 0 .and. qi_ind > 0 .and. &
+                     qr_ind > 0 .and. qs_ind > 0 .and. qg_ind > 0 )
+
 
 !  if (nproc == 0) then
 !    print *, 'indices: '
@@ -768,7 +878,8 @@
      allocate(pstend2(nlons*nlats),vmass(nlons*nlats))
      allocate(ugtmp(nlons*nlats,nlevs),vgtmp(nlons*nlats,nlevs))
   endif
-  if (imp_physics == 11) allocate(work(nlons*nlats))
+! if (imp_physics == 11) allocate(work(nlons*nlats))    !orig
+  if (imp_physics == 11 .and. (.not. use_full_hydro) ) allocate(work(nlons*nlats)) 
 
 ! Compute analysis time from guess date and forecast length.
   if (.not. use_gfs_nemsio .and. .not. use_gfs_ncio) then
@@ -1212,7 +1323,8 @@
         endif
         ! convert Tv back to T
         nems_wrk = ug/(1. + fv*vg)
-        if (imp_physics == 11) then
+    !   if (imp_physics == 11) then  !orig
+        if (imp_physics == 11 .and. (.not. use_full_hydro) ) then
            do i=1,nlons*nlats  ! compute work for cloud water partitioning
               work(i) = -r0_05 * (nems_wrk(i) - t0c)
               work(i) = max(zero,work(i))
@@ -1271,76 +1383,172 @@
            call stop2(23)
         endif
 
-        call nemsio_readrecv(gfilein,'clwmr','mid layer',k,nems_wrk,iret=iret)
-        if (iret/=0) then
-           write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_readrecv(clwmr), iret=',iret
-           call stop2(23)
-        endif
-        ug = 0_r_kind
-        if (cw_ind > 0) then
-           call copyfromgrdin(grdin(:,levels(cw_ind-1)+k,nb,ne),ug)
-        endif
-        if (imp_physics == 11) then
-           call nemsio_readrecv(gfilein,'icmr','mid layer',k,nems_wrk2,iret=iret)
+        if ( .not. use_full_hydro) then  
+           call nemsio_readrecv(gfilein,'clwmr','mid layer',k,nems_wrk,iret=iret)
            if (iret/=0) then
-              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_readrecv(icmr), iret=',iret
+              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_readrecv(clwmr), iret=',iret
               call stop2(23)
            endif
-           vg = ug * work  !cloud ice
-           ug = ug * (one - work)  !cloud water
-           nems_wrk2 = nems_wrk2 + vg
-        endif
-        nems_wrk = nems_wrk + ug
-        if (cliptracers)  where (nems_wrk < clip) nems_wrk = clip
-        if (cliptracers.and.imp_physics==11)  where (nems_wrk2 < clip) nems_wrk2 = clip
-        call nemsio_writerecv(gfileout,'clwmr','mid layer',k,nems_wrk,iret=iret)
-        if (iret/=0) then
-           write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(clwmr), iret=',iret
-           call stop2(23)
-        endif
-        if (imp_physics == 11) then
-           call nemsio_writerecv(gfileout,'icmr','mid layer',k,nems_wrk2,iret=iret)
+           ug = 0_r_kind
+           if (cw_ind > 0) then
+              call copyfromgrdin(grdin(:,levels(cw_ind-1)+k,nb,ne),ug)
+           endif
+           if (imp_physics == 11) then
+              call nemsio_readrecv(gfilein,'icmr','mid layer',k,nems_wrk2,iret=iret)
+              if (iret/=0) then
+                 write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_readrecv(icmr), iret=',iret
+                 call stop2(23)
+              endif
+              vg = ug * work  !cloud ice
+              ug = ug * (one - work)  !cloud water
+              nems_wrk2 = nems_wrk2 + vg
+           endif
+           nems_wrk = nems_wrk + ug
+           if (cliptracers)  where (nems_wrk < clip) nems_wrk = clip
+           if (cliptracers.and.imp_physics==11)  where (nems_wrk2 < clip) nems_wrk2 = clip
+           call nemsio_writerecv(gfileout,'clwmr','mid layer',k,nems_wrk,iret=iret)
+           if (iret/=0) then
+              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(clwmr), iret=',iret
+              call stop2(23)
+           endif
+           if (imp_physics == 11) then
+              call nemsio_writerecv(gfileout,'icmr','mid layer',k,nems_wrk2,iret=iret)
+              if (iret/=0) then
+                 write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(icmr), iret=',iret
+                 call stop2(23)
+              endif
+              
+              field = 'rwmr'; hasfield = checkfield(field,recname,nrecs)
+              if (hasfield) then
+                 call nemsio_readrecv(gfilein,'rwmr','mid layer',k,nems_wrk2,iret=iret)
+                 if (iret/=0) then
+                    write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_readrecv(rwmr), iret=',iret
+                    call stop2(23)
+                 endif
+                 call nemsio_writerecv(gfileout,'rwmr','mid layer',k,nems_wrk2,iret=iret)
+                 if (iret/=0) then
+                    write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(rwmr), iret=',iret
+                    call stop2(23)
+                 endif
+   
+                 call nemsio_readrecv(gfilein,'snmr','mid layer',k,nems_wrk2,iret=iret)
+                 if (iret/=0) then
+                    write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_readrecv(snmr), iret=',iret
+                    call stop2(23)
+                 endif
+                 call nemsio_writerecv(gfileout,'snmr','mid layer',k,nems_wrk2,iret=iret)
+                 if (iret/=0) then
+                    write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(snmr), iret=',iret
+                    call stop2(23)
+                 endif
+
+                 call nemsio_readrecv(gfilein,'grle','mid layer',k,nems_wrk2,iret=iret)
+                 if (iret/=0) then
+                    write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_readrecv(grle), iret=',iret
+                    call stop2(23)
+                 endif
+                 call nemsio_writerecv(gfileout,'grle','mid layer',k,nems_wrk2,iret=iret)
+                 if (iret/=0) then
+                    write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(grle), iret=',iret
+                    call stop2(23)
+                 endif
+              endif
+              call nemsio_readrecv(gfilein,'cld_amt','mid layer',k,nems_wrk2,iret=iret)
+              if (iret == 0 ) then
+                 call nemsio_writerecv(gfileout,'cld_amt','mid layer',k,nems_wrk2,iret=iret)
+                 if (iret/=0) then
+                    write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(cld_amt), iret=',iret
+                    call stop2(23)
+                 endif
+              endif
+           endif
+        else 
+           ! Update clwmr 
+           call nemsio_readrecv(gfilein,'clwmr','mid layer',k,nems_wrk,iret=iret)
+           if (iret/=0) then
+              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_readrecv(clwmr), iret=',iret
+              call stop2(23)
+           endif
+           ug = 0.
+           if (ql_ind > 0) then
+              call copyfromgrdin(grdin(:,levels(ql_ind-1)+k,nb,ne),ug)
+           endif
+           nems_wrk = nems_wrk + ug
+           if (cliptracers)  where (nems_wrk < clip) nems_wrk = clip
+           call nemsio_writerecv(gfileout,'clwmr','mid layer',k,nems_wrk,iret=iret)
+           if (iret/=0) then
+              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(clwmr), iret=',iret
+              call stop2(23)
+           endif
+           ! Update icmr 
+           call nemsio_readrecv(gfilein,'icmr','mid layer',k,nems_wrk,iret=iret)
+           if (iret/=0) then
+              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_readrecv(icrm), iret=',iret
+              call stop2(23)
+           endif
+           ug = 0.
+           if (qi_ind > 0) then
+              call copyfromgrdin(grdin(:,levels(qi_ind-1)+k,nb,ne),ug)
+           endif
+           nems_wrk = nems_wrk + ug
+           if (cliptracers)  where (nems_wrk < clip) nems_wrk = clip
+           call nemsio_writerecv(gfileout,'icmr','mid layer',k,nems_wrk,iret=iret)
            if (iret/=0) then
               write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(icmr), iret=',iret
               call stop2(23)
            endif
-            
-           field = 'rwmr'; hasfield = checkfield(field,recname,nrecs)
-           if (hasfield) then
-              call nemsio_readrecv(gfilein,'rwmr','mid layer',k,nems_wrk2,iret=iret)
-              if (iret/=0) then
-                 write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_readrecv(rwmr), iret=',iret
-                 call stop2(23)
-              endif
-              call nemsio_writerecv(gfileout,'rwmr','mid layer',k,nems_wrk2,iret=iret)
-              if (iret/=0) then
-                 write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(rwmr), iret=',iret
-                 call stop2(23)
-              endif
-
-              call nemsio_readrecv(gfilein,'snmr','mid layer',k,nems_wrk2,iret=iret)
-              if (iret/=0) then
-                 write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_readrecv(snmr), iret=',iret
-                 call stop2(23)
-              endif
-              call nemsio_writerecv(gfileout,'snmr','mid layer',k,nems_wrk2,iret=iret)
-              if (iret/=0) then
-                 write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(snmr), iret=',iret
-                 call stop2(23)
-              endif
-
-              call nemsio_readrecv(gfilein,'grle','mid layer',k,nems_wrk2,iret=iret)
-              if (iret/=0) then
-                 write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_readrecv(grle), iret=',iret
-                 call stop2(23)
-              endif
-              call nemsio_writerecv(gfileout,'grle','mid layer',k,nems_wrk2,iret=iret)
-              if (iret/=0) then
-                 write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(grle), iret=',iret
-                 call stop2(23)
-              endif
+           ! Update rwmr 
+           call nemsio_readrecv(gfilein,'rwmr','mid layer',k,nems_wrk,iret=iret)
+           if (iret/=0) then
+              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_readrecv(rwmr), iret=',iret
+              call stop2(23)
            endif
-
+           ug = 0.
+           if (qr_ind > 0) then
+              call copyfromgrdin(grdin(:,levels(qr_ind-1)+k,nb,ne),ug)
+           endif
+           nems_wrk = nems_wrk + ug
+           if (cliptracers)  where (nems_wrk < clip) nems_wrk = clip
+           call nemsio_writerecv(gfileout,'rwmr','mid layer',k,nems_wrk,iret=iret)
+           if (iret/=0) then
+              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(rwmr), iret=',iret
+              call stop2(23)
+           endif
+           ! Update snmr 
+           call nemsio_readrecv(gfilein,'snmr','mid layer',k,nems_wrk,iret=iret)
+           if (iret/=0) then
+              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_readrecv(snmr), iret=',iret
+              call stop2(23)
+           endif
+           ug = 0.
+           if (qs_ind > 0) then
+              call copyfromgrdin(grdin(:,levels(qs_ind-1)+k,nb,ne),ug)
+           endif
+           nems_wrk = nems_wrk + ug
+           if (cliptracers)  where (nems_wrk < clip) nems_wrk = clip
+           call nemsio_writerecv(gfileout,'snmr','mid layer',k,nems_wrk,iret=iret)
+           if (iret/=0) then
+              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(snmr), iret=',iret
+              call stop2(23)
+           endif
+           ! Update grle 
+           call nemsio_readrecv(gfilein,'grle','mid layer',k,nems_wrk,iret=iret)
+           if (iret/=0) then
+              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_readrecv(grle), iret=',iret
+              call stop2(23)
+           endif
+           ug = 0.
+           if (qg_ind > 0) then
+              call copyfromgrdin(grdin(:,levels(qg_ind-1)+k,nb,ne),ug)
+           endif
+           nems_wrk = nems_wrk + ug
+           if (cliptracers)  where (nems_wrk < clip) nems_wrk = clip
+           call nemsio_writerecv(gfileout,'grle','mid layer',k,nems_wrk,iret=iret)
+           if (iret/=0) then
+              write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_writerecv(grle), iret=',iret
+              call stop2(23)
+           endif
+           ! No enkf update for cld_amt, just copy the background into analysis
            call nemsio_readrecv(gfilein,'cld_amt','mid layer',k,nems_wrk2,iret=iret)
            if (iret == 0 ) then
               call nemsio_writerecv(gfileout,'cld_amt','mid layer',k,nems_wrk2,iret=iret)
@@ -1349,9 +1557,7 @@
                  call stop2(23)
               endif
            endif
-
-        endif
-
+        endif  ! use_full_hydro
         !Additional variables needed for Unified Post Processor
         field = 'dzdt'; hasfield = checkfield(field,recname,nrecs)
         if (hasfield) then
@@ -1667,7 +1873,7 @@
 
   if (allocated(delzb)) deallocate(delzb)
   if (allocated(recname)) deallocate(recname)
-  if (allocated(work)) deallocate(work)
+  if (imp_physics == 11 .and. (.not. use_full_hydro)) deallocate(work) 
 
   if (pst_ind > 0) then
 

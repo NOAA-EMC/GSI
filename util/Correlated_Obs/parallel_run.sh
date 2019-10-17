@@ -60,11 +60,10 @@ account=da-cpu
 project_code=GFS-T2O
 #machine-theia or wcoss, all lower case
 machine=theia
-#radstat version
-#rver=30303, emissivity predictor is added
-#rver=40000, ens spread and optional jacobian added
-rver=40000
+#netcdf or binary diag files-0 for binary, 1 for netcdf
+netcdf=0
 ndate=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/util/exec/ndate
+#ndate=/gpfs/dell2/emc/modeling/noscrub/Kristen.Bathmann/ndate
 
 ####################################################################
 
@@ -86,7 +85,7 @@ dattot=$nt
 cp unpack_rads.sh $wrkdir
 cp par_run.sh $wrkdir
 cp sort_diags.sh $wrkdir
-cp cov_calc $wrkdir
+cp ../../exec/cov_calc $wrkdir
 
 cd $wrkdir
 num_jobs=$num_proc
@@ -131,6 +130,7 @@ ndate=$ndate
 wrkdir=$wrkdir
 diagdir=$diagdir
 instr=$instr
+netcdf=$netcdf
 EOF
    chmod +rwx params.sh
    cat unpack_rads.sh >> params.sh
@@ -151,18 +151,18 @@ chmod +rwx jobchoice.sh
 if [ $machine = theia ] ; then
 cat << EOF > jobarray.sh
 #!/bin/sh
-#PBS -A $account
-#PBS -o unpack_out
-#PBS -e unpack_err
-#PBS -q batch
-#PBS -l walltime=${unpack_walltime}
-#PBS -l procs=1
-#PBS -N unpack
-#PBS -t 1-${num_jobs}
+#SBATCH -A $account
+#SBATCH -o unpack_out
+#SBATCH -e unpack_err
+#SBATCH -q batch
+#SBATCH --time=${unpack_walltime}
+#SBATCH --ntasks=1
+#SBATCH -J unpack
+#SBATCH --array 1-${num_jobs}
 cd $wrkdir
-./jobchoice.sh \${PBS_ARRAYID}
+./jobchoice.sh \${SLURM_ARRAY_TASK_ID}
 EOF
-jobid=$(qsub jobarray.sh)
+jobid=$(sbatch jobarray.sh)
 elif [ $machine = wcoss ] ; then
 cat << EOF > jobarray.sh
 #!/bin/sh
@@ -184,19 +184,18 @@ else
    echo cannot submit job, not on theia or wcoss
    exit 1
 fi
-echo $jobid
 #check if shifts are needed
 if [ $machine = theia ] ; then
 cat << EOF > params.sh
 #!/bin/sh
-#PBS -A $account
-#PBS -o sort_out
-#PBS -e sort_err
-#PBS -q batch
-#PBS -l walltime=00:02:00
-#PBS -l procs=1
-#PBS -N sort_diag
-#PBS -W depend=afteranyarray:${jobid}
+#SBATCH -A $account
+#SBATCH -o sort_out
+#SBATCH -e sort_err
+#SBATCH -q batch
+#SBATCH --time=00:02:00
+#SBATCH --ntasks=1
+#SBATCH -J sort_diag
+#SBATCH --dependency=afterany:${jobid##* }
 wrkdir=$wrkdir
 ntot=$dattot
 EOF
@@ -204,8 +203,7 @@ chmod +rwx params.sh
 cat sort_diags.sh >> params.sh
 mv params.sh sort_diags.sh
 
-jobid=$(qsub sort_diags.sh )
-echo $jobid
+jobid=$(sbatch sort_diags.sh )
 elif [ $machine = wcoss ] ; then
 cat << EOF > params.sh
 #!/bin/sh
@@ -233,14 +231,15 @@ fi
 if [ $machine = theia ] ; then
 cat << EOF > params.sh
 #!/bin/sh
-#PBS -A $account
-#PBS -o comp_out
-#PBS -e comp_err
-#PBS -q batch
-#PBS -l walltime=$wall_time
-#PBS -l nodes=1:ppn=$NP
-#PBS -N cov_calc
-#PBS -W depend=afterany:${jobid}
+#SBATCH -A $account
+#SBATCH -o comp_out
+#SBATCH -e comp_err
+#SBATCH -q batch
+#SBATCH --time=$wall_time
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=$NP
+#SBATCH -J cov_calc
+#SBATCH --dependency=after:${jobid##* }
 bdate=$bdate
 edate=$edate
 instr=$instr
@@ -262,12 +261,12 @@ bcen=$bcen
 chan_set=$chan_set
 ntot=$dattot
 NP=$NP
-rver=$rver
+netcdf=$netcdf
 EOF
 chmod +rwx params.sh
 cat par_run.sh >> params.sh
 mv params.sh par_run.sh
-qsub par_run.sh
+sbatch par_run.sh
 elif [ $machine = wcoss ] ; then
 cat << EOF > params.sh
 #!/bin/sh
@@ -298,7 +297,7 @@ method=$method
 cov_method=$cov_method
 time_sep=$time_sep
 bsize=$bsize
-rver=$rver
+netcdf=$netcdf
 bcen=$bcen
 chan_set=$chan_set
 ntot=$dattot

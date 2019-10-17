@@ -1,4 +1,11 @@
-subroutine setupdbz(lunin,mype,bwork,awork,nele,nobs,is,radardbz_diagsave,init_pass)
+module dbz_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setupdbz; end interface
+
+contains
+subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_diagsave,init_pass)
 ! modified from setupdbz, now dbz is also a state variable
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -27,6 +34,8 @@ subroutine setupdbz(lunin,mype,bwork,awork,nele,nobs,is,radardbz_diagsave,init_p
 !                                           1) Explicitly apply the operator H(qr, qs, qg) to hydrometeors
 !                                           2) Directly use the reflectivity from the wrfout
 !                                           POC: xuguang.wang@ou.edu
+!   2017-02-09  guo     - Removed m_alloc, n_alloc.
+!                       . Removed my_node with corrected typecast().
 !   2017-05-12 Y. Wang and X. Wang - Following Guo replacing ob_type with polymorphic obsNode through type casting,
 !                                           POC: xuguang.wang@ou.edu
 !
@@ -47,18 +56,24 @@ subroutine setupdbz(lunin,mype,bwork,awork,nele,nobs,is,radardbz_diagsave,init_p
 !$$$
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind
-  use m_obsdiags, only: dbzhead
-  use obsmod, only: rmiss_single,i_dbz_ob_type,obsdiags,&
+  use m_obsdiagNode, only: obs_diag
+  use m_obsdiagNode, only: obs_diags
+  use m_obsdiagNode, only: obsdiagLList_nextNode
+  use m_obsdiagNode, only: obsdiagNode_set
+  use m_obsdiagNode, only: obsdiagNode_get
+  use m_obsdiagNode, only: obsdiagNode_assert
+  use obsmod, only: rmiss_single,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,&
                     ens_hx_dbz_cut,static_gsi_nopcp_dbz
 
   use m_obsNode, only: obsNode
   use m_dbzNode, only: dbzNode
-  use m_obsLList, only: obsLList_appendNode
+  use m_dbzNode, only: dbzNode_appendto
+  use m_obsLList,only: obsLList
                      
   use hybrid_ensemble_parameters,only: l_hyb_ens
   use obsmod, only: luse_obsdiag, netcdf_diag, binary_diag, dirname, ianldate
-  use obsmod, only: obs_diag ,doradaroneob,oneobddiff,oneobvalue
+  use obsmod, only: doradaroneob,oneobddiff,oneobvalue
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim,nc_diag_read_close
@@ -78,7 +93,7 @@ subroutine setupdbz(lunin,mype,bwork,awork,nele,nobs,is,radardbz_diagsave,init_p
   use jfunc, only: jiter,last,miter
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
-  use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use m_dtime, only: dtime_setup, dtime_check
   use obsmod, only   : if_model_dbz, inflate_obserr
   use setupdbz_lib, only:hx_dart,jqr_dart,jqs_dart,jqg_dart 
   use gridmod, only: wrf_mass_regional,nems_nmmb_regional 
@@ -87,11 +102,14 @@ subroutine setupdbz(lunin,mype,bwork,awork,nele,nobs,is,radardbz_diagsave,init_p
  
   implicit none
 ! Declare passed variables
-  logical                                          ,intent(in   ) :: radardbz_diagsave
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
+
   integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
   real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
   integer(i_kind)                                  ,intent(in   ) :: is ! ndat index
+  logical                                          ,intent(in   ) :: radardbz_diagsave
   logical                                          ,intent(in   ) :: init_pass ! state of "setup" parameters
 
 ! Declare local parameters
@@ -140,21 +158,21 @@ subroutine setupdbz(lunin,mype,bwork,awork,nele,nobs,is,radardbz_diagsave,init_p
   character(80):: string
   character(128):: diag_file
   logical :: diagexist
+  integer(i_kind):: lu_diag
 
   integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
   logical :: proceed
   logical,dimension(nobs):: luse,muse
   equivalence(rstation_id,station_id)
   real(r_kind) wrange
-  integer(i_kind) numequal,numnotequal,istat
+  integer(i_kind) numequal,numnotequal
  
   logical:: debugging
 
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
-  class(obsNode),pointer:: my_node
   type(dbzNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
+  type(obs_diags),pointer:: my_diagLL
+
   character(len=*),parameter:: myname='setupdbz'
   integer(i_kind) irefsmlobs, irejrefsmlobs
 
@@ -167,9 +185,9 @@ subroutine setupdbz(lunin,mype,bwork,awork,nele,nobs,is,radardbz_diagsave,init_p
   real(r_kind),allocatable,dimension(:,:,:,: ) :: ges_qli
   real(r_kind),allocatable,dimension(:,:,:,: ) :: ges_dbz
 
-  n_alloc(:)=0
-  m_alloc(:)=0
- 
+  type(obsLList),pointer,dimension(:):: dbzhead
+  dbzhead => obsLL(:)
+
 !******************************************************************************* 
   ! Read and reformat observations in work arrays.
   read(lunin)data,luse, ioid
@@ -254,60 +272,22 @@ subroutine setupdbz(lunin,mype,bwork,awork,nele,nobs,is,radardbz_diagsave,init_p
         ibin = 1
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
+
+     if (luse_obsdiag) my_diagLL => odiagLL(ibin)
+
 !    Link obs to diagnostics structure
      if(luse_obsdiag)then
-       if (.not.lobsdiag_allocated) then
-          if (.not.associated(obsdiags(i_dbz_ob_type,ibin)%head)) then
-             obsdiags(i_dbz_ob_type,ibin)%n_alloc = 0
-             allocate(obsdiags(i_dbz_ob_type,ibin)%head,stat=istat)
-             
-             if (istat/=0) then
-                write(6,*)'setupdbz: failure to allocate obsdiags',istat
-                call stop2(286)
-             end if
-             obsdiags(i_dbz_ob_type,ibin)%tail => obsdiags(i_dbz_ob_type,ibin)%head
-          else
-             allocate(obsdiags(i_dbz_ob_type,ibin)%tail%next,stat=istat)
-             if (istat/=0) then
-                write(6,*)'setupdbz: failure to allocate obsdiags',istat
-                call stop2(286)
-             end if
-             obsdiags(i_dbz_ob_type,ibin)%tail => obsdiags(i_dbz_ob_type,ibin)%tail%next
-          end if
-          obsdiags(i_dbz_ob_type,ibin)%n_alloc = obsdiags(i_dbz_ob_type,ibin)%n_alloc +1
-          allocate(obsdiags(i_dbz_ob_type,ibin)%tail%muse(miter+1))
-          allocate(obsdiags(i_dbz_ob_type,ibin)%tail%nldepart(miter+1))
-          allocate(obsdiags(i_dbz_ob_type,ibin)%tail%tldepart(miter))
-          allocate(obsdiags(i_dbz_ob_type,ibin)%tail%obssen(miter))
-          obsdiags(i_dbz_ob_type,ibin)%tail%indxglb=ioid(i)
-          obsdiags(i_dbz_ob_type,ibin)%tail%nchnperobs=-99999
-          obsdiags(i_dbz_ob_type,ibin)%tail%luse=.false.
-          obsdiags(i_dbz_ob_type,ibin)%tail%muse(:)=.false.
-          obsdiags(i_dbz_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-          obsdiags(i_dbz_ob_type,ibin)%tail%tldepart(:)=zero
-          obsdiags(i_dbz_ob_type,ibin)%tail%wgtjo=-huge(zero)
-          obsdiags(i_dbz_ob_type,ibin)%tail%obssen(:)=zero
-          n_alloc(ibin) = n_alloc(ibin) +1
-          my_diag => obsdiags(i_dbz_ob_type,ibin)%tail
-          my_diag%idv = is
-          my_diag%iob = ioid(i)
-          my_diag%ich = 1
-          my_diag%elat= data(ilate,i)
-          my_diag%elon= data(ilone,i)
-       else
-          if (.not.associated(obsdiags(i_dbz_ob_type,ibin)%tail)) then
-             obsdiags(i_dbz_ob_type,ibin)%tail => obsdiags(i_dbz_ob_type,ibin)%head
-          else
-             obsdiags(i_dbz_ob_type,ibin)%tail => obsdiags(i_dbz_ob_type,ibin)%tail%next
-          end if
-          if (.not.associated(obsdiags(i_dbz_ob_type,ibin)%tail)) then
-            call die(myname,'.not.associated(obsdiags(i_dbz_ob_type,ibin)%tail)')
-          end if
-          if (obsdiags(i_dbz_ob_type,ibin)%tail%indxglb/=ioid(i)) then
-             write(6,*)'setupdbz: index error'
-             call stop2(288)
-          end if
-       endif
+        my_diag => obsdiagLList_nextNode(my_diagLL      ,&
+                create = .not.lobsdiag_allocated        ,&
+                   idv = is             ,&
+                   iob = ioid(i)        ,&
+                   ich = 1              ,&
+                  elat = data(ilate,i)  ,&
+                  elon = data(ilone,i)  ,&
+                  luse = luse(i)        ,&
+                 miter = miter          )
+        if(.not.associated(my_diag)) call die(myname, &
+                'obsdiagLList_nextNode(), create =',.not.lobsdiag_allocated)
      endif
 
      call tintrp2a11(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
@@ -522,7 +502,8 @@ subroutine setupdbz(lunin,mype,bwork,awork,nele,nobs,is,radardbz_diagsave,init_p
      end if
 
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false. 
-     if (nobskeep>0 .and. luse_obsdiag) muse(i)=obsdiags(i_dbz_ob_type,ibin)%tail%muse(nobskeep)
+     !-- if (nobskeep>0 .and. luse_obsdiag) muse(i)=obsdiags(i_dbz_ob_type,ibin)%tail%muse(nobskeep)
+     if (nobskeep>0.and.luse_obsdiag) call obsdiagNode_get(my_diag, jiter=nobskeep, muse=muse(i))
      
      val     = error*ddiff
              
@@ -576,9 +557,8 @@ subroutine setupdbz(lunin,mype,bwork,awork,nele,nobs,is,radardbz_diagsave,init_p
         end do
      end if
      if(luse_obsdiag)then
-        obsdiags(i_dbz_ob_type,ibin)%tail%muse(jiter)=muse(i)
-        obsdiags(i_dbz_ob_type,ibin)%tail%nldepart(jiter)=ddiff
-        obsdiags(i_dbz_ob_type,ibin)%tail%wgtjo= (error*ratio_errors)**2
+        call obsdiagNode_set(my_diag, wgtjo=(error*ratio_errors)**2, &
+           jiter=jiter, muse=muse(i), nldepart=ddiff)
      end if
 
      
@@ -587,11 +567,7 @@ subroutine setupdbz(lunin,mype,bwork,awork,nele,nobs,is,radardbz_diagsave,init_p
      if ( .not. last .and. muse(i)) then             
        
         allocate(my_head)
-
-        m_alloc(ibin) = m_alloc(ibin) +1
-        my_node => my_head        ! this is a workaround
-        call obsLList_appendNode(dbzhead(ibin),my_node)
-        my_node => null()
+        call dbzNode_appendto(my_head,dbzhead(ibin))
 
         my_head%idv = is
         my_head%iob = ioid(i)
@@ -599,7 +575,7 @@ subroutine setupdbz(lunin,mype,bwork,awork,nele,nobs,is,radardbz_diagsave,init_p
         my_head%elon= data(ilone,i)
 
 !       Set (i,j,k) indices of guess gridpoint that bound obs location
-        call get_ijk(mm1,dlat,dlon,dpres,my_head%ij(1),my_head%wij(1))   
+        call get_ijk(mm1,dlat,dlon,dpres,my_head%ij,my_head%wij)   
 
         my_head%raterr2 = ratio_errors**2
         my_head%res     = ddiff
@@ -615,17 +591,8 @@ subroutine setupdbz(lunin,mype,bwork,awork,nele,nobs,is,radardbz_diagsave,init_p
         end if
  
         if(luse_obsdiag)then
-          my_head%diags => obsdiags(i_dbz_ob_type,ibin)%tail
-       
-          my_diag => my_head%diags
-          if(my_head%idv /= my_diag%idv .or. &
-             my_head%iob /= my_diag%iob ) then
-             call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
-                   (/is,ioid(i),ibin/))
-             call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
-             call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
-             call die(myname)
-          endif
+          call obsdiagNode_assert(my_diag,my_head%idv,my_head%iob,1,myname,'my_diag:my_head')
+          my_head%diags => my_diag
         endif
 
         my_head => null()
@@ -650,8 +617,8 @@ subroutine setupdbz(lunin,mype,bwork,awork,nele,nobs,is,radardbz_diagsave,init_p
         if (err_adjst>tiny_r_kind) errinv_adjst = one/err_adjst
         if (err_final>tiny_r_kind) errinv_final = one/err_final
 
-        if(binary_diag) call contents_binary_diag_
-        if(netcdf_diag) call contents_netcdf_diag_
+        if(binary_diag) call contents_binary_diag_(my_diag)
+        if(netcdf_diag) call contents_netcdf_diag_(my_diag)
 
 
      end if
@@ -668,26 +635,25 @@ subroutine setupdbz(lunin,mype,bwork,awork,nele,nobs,is,radardbz_diagsave,init_p
 600  format('radardbz_',i2.2)
      diag_file=trim(dirname) // trim(string)
      if(init_pass) then
-        open(66,file=trim(diag_file),form='unformatted',status='unknown',position='rewind')
+        open(newunit=lu_diag,file=trim(diag_file),form='unformatted',status='unknown',position='rewind')
      else
         inquire(file=trim(diag_file),exist=diagexist)
         if (diagexist) then
-           open(66,file=trim(diag_file),form='unformatted',status='old',position='append')
+           open(lu_diag,file=trim(diag_file),form='unformatted',status='old',position='append')
         else
-           open(66,file=trim(diag_file),form='unformatted',status='unknown',position='rewind')
+           open(lu_diag,file=trim(diag_file),form='unformatted',status='unknown',position='rewind')
         endif
      endif
      if(init_pass .and. mype == 0) then
-        write(66) ianldate
+        write(lu_diag) ianldate
         write(6,*)'SETUPDBZ:   write time record to file ',&
                 trim(diag_file), ' ',ianldate
      endif
 
-     call dtime_show(myname,'diagsave:dbz',i_dbz_ob_type)
-     write(66)'dbz',nchar,nreal,ii,mype,ioff0
-     write(66)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
+     write(lu_diag)'dbz',nchar,nreal,ii,mype,ioff0
+     write(lu_diag)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
      deallocate(cdiagbuf,rdiagbuf)
-     close(66)
+     close(lu_diag)
   end if
   write(6,*)'mype, irefsmlobs,irejrefsmlobs are ',mype,' ',irefsmlobs, ' ',irejrefsmlobs
 ! close(52) !simulated obs
@@ -910,7 +876,8 @@ subroutine setupdbz(lunin,mype,bwork,awork,nele,nobs,is,radardbz_diagsave,init_p
         call nc_diag_header("Number_of_state_vars", nsdim          )
      endif
   end subroutine init_netcdf_diag_
-  subroutine contents_binary_diag_
+  subroutine contents_binary_diag_(odiag)
+  type(obs_diag),pointer,intent(in):: odiag
 
         cdiagbuf(ii)    = station_id         ! station id
 
@@ -953,7 +920,7 @@ subroutine setupdbz(lunin,mype,bwork,awork,nele,nobs,is,radardbz_diagsave,init_p
            ioff=nreal
            do jj=1,miter
               ioff=ioff+1
-              if (obsdiags(i_dbz_ob_type,ibin)%tail%muse(jj)) then
+              if (odiag%muse(jj)) then
                  rdiagbuf(ioff,ii) = one
               else
                  rdiagbuf(ioff,ii) = -one
@@ -961,20 +928,21 @@ subroutine setupdbz(lunin,mype,bwork,awork,nele,nobs,is,radardbz_diagsave,init_p
            enddo
            do jj=1,miter+1
               ioff=ioff+1
-              rdiagbuf(ioff,ii) = obsdiags(i_dbz_ob_type,ibin)%tail%nldepart(jj)
+              rdiagbuf(ioff,ii) = odiag%nldepart(jj)
            enddo
            do jj=1,miter
               ioff=ioff+1
-              rdiagbuf(ioff,ii) = obsdiags(i_dbz_ob_type,ibin)%tail%tldepart(jj)
+              rdiagbuf(ioff,ii) = odiag%tldepart(jj)
            enddo
            do jj=1,miter
               ioff=ioff+1
-              rdiagbuf(ioff,ii) = obsdiags(i_dbz_ob_type,ibin)%tail%obssen(jj)
+              rdiagbuf(ioff,ii) = odiag%obssen(jj)
            enddo
         endif
 
   end subroutine contents_binary_diag_
-  subroutine contents_netcdf_diag_
+  subroutine contents_netcdf_diag_(odiag)
+  type(obs_diag),pointer,intent(in):: odiag
 ! Observation class
   character(7),parameter     :: obsclass = '    dbz'
   real(r_kind),dimension(miter) :: obsdiag_iuse
@@ -1008,7 +976,7 @@ subroutine setupdbz(lunin,mype,bwork,awork,nele,nobs,is,radardbz_diagsave,init_p
 
            if (lobsdiagsave) then
               do jj=1,miter
-                 if (obsdiags(i_dbz_ob_type,ibin)%tail%muse(jj)) then
+                 if (odiag%muse(jj)) then
                        obsdiag_iuse(jj) =  one
                  else
                        obsdiag_iuse(jj) = -one
@@ -1016,9 +984,9 @@ subroutine setupdbz(lunin,mype,bwork,awork,nele,nobs,is,radardbz_diagsave,init_p
               enddo
 
               call nc_diag_data2d("ObsDiagSave_iuse",     obsdiag_iuse              )
-              call nc_diag_data2d("ObsDiagSave_nldepart", obsdiags(i_dbz_ob_type,ibin)%tail%nldepart )
-              call nc_diag_data2d("ObsDiagSave_tldepart", obsdiags(i_dbz_ob_type,ibin)%tail%tldepart )
-              call nc_diag_data2d("ObsDiagSave_obssen", obsdiags(i_dbz_ob_type,ibin)%tail%obssen   )
+              call nc_diag_data2d("ObsDiagSave_nldepart", odiag%nldepart )
+              call nc_diag_data2d("ObsDiagSave_tldepart", odiag%tldepart )
+              call nc_diag_data2d("ObsDiagSave_obssen"  , odiag%obssen   )
            endif
 
   end subroutine contents_netcdf_diag_
@@ -1033,3 +1001,4 @@ subroutine setupdbz(lunin,mype,bwork,awork,nele,nobs,is,radardbz_diagsave,init_p
     if(allocated(ges_dbz)) deallocate(ges_dbz)
   end subroutine final_vars_
 end subroutine setupdbz
+end module dbz_setup

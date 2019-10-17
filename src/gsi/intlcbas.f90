@@ -24,6 +24,7 @@ use m_obsNode  , only: obsNode
 use m_lcbasNode, only: lcbasNode
 use m_lcbasNode, only: lcbasNode_typecast
 use m_lcbasNode, only: lcbasNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -111,9 +112,11 @@ subroutine intlcbas(lcbashead,rval,sval)
      if(luse_obsdiag)then
         if (lsaveobsens) then
            grad = val*lcbasptr%raterr2*lcbasptr%err2
-           lcbasptr%diags%obssen(jiter) = grad
+           !-- lcbasptr%diags%obssen(jiter) = grad
+           call obsdiagNode_set(lcbasptr%diags,jiter=jiter,obssen=grad)
         else
-           if (lcbasptr%luse) lcbasptr%diags%tldepart(jiter)=val
+           !-- if (lcbasptr%luse) lcbasptr%diags%tldepart(jiter)=val
+           if (lcbasptr%luse) call obsdiagNode_set(lcbasptr%diags,jiter=jiter,tldepart=val)
         endif
      endif
 

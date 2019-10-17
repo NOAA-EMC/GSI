@@ -1,4 +1,11 @@
-   subroutine setupaod(lunin,mype,nchanl,nreal,nobs,&
+module aero_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setupaod; end interface
+
+contains
+subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
      obstype,isis,is,aero_diagsave,init_pass)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -19,6 +26,9 @@
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
 !                       . removed (%dlat,%dlon) debris.
+!   2017-02-09  guo     - Remove m_alloc, n_alloc.
+!                       . Remove my_node with corrected typecast().
+!   2018-05-19  eliu    - updated crtm interface 
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -47,9 +57,9 @@
   use kinds, only: r_kind,r_single,i_kind
   use crtm_spccoeff, only: sc
   use obsmod, only: ianldate,mype_diaghdr,nchan_total, &
-           dplat,obsdiags,obsptr,lobsdiagsave,lobsdiag_allocated,&
+           dplat,lobsdiagsave,lobsdiag_allocated,&
            dirname,time_offset
-  use obsmod, only: obs_diag,luse_obsdiag
+  use obsmod, only: luse_obsdiag
   use obsmod, only: dirname
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d
@@ -58,16 +68,22 @@
   use gridmod, only: nsig,get_ij
   use constants, only: tiny_r_kind,zero,one,three,r10
   use jfunc, only: jiter,miter
-  use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use m_dtime, only: dtime_setup, dtime_check
   use chemmod, only: laeroana_gocart, l_aoderr_table
   use aeroinfo, only: jpch_aero, nusis_aero, nuchan_aero, iuse_aero, &
        error_aero, gross_aero
-  use obsmod, only: i_aero_ob_type
-  use m_obsdiags, only: aerohead
+  use m_obsdiagNode, only: obs_diag
+  use m_obsdiagNode, only: obs_diags
+  use m_obsdiagNode, only: obsdiagLList_nextNode
+  use m_obsdiagNode, only: obsdiagNode_set
+  use m_obsdiagNode, only: obsdiagNode_get
+  use m_obsdiagNode, only: obsdiagNode_assert
+
   use m_obsNode, only: obsNode
-  use m_aeroNode, only: aeroNode, aeroNode_typecast
-  use m_obsLList, only: obsLList_appendNode
-  use m_obsLlist, only: obsLList_tailNode
+  use m_aeroNode, only: aeroNode
+  use m_aeroNode, only: aeroNode_appendto
+  use m_obsLList, only: obsLList
+  use m_obsLList, only: obsLList_tailNode
   use obsmod, only: rmiss_single
   use qcmod, only: ifail_crtm_qc
   use radiance_mod, only: rad_obs_type,radiance_obstype_search
@@ -75,6 +91,8 @@
   implicit none
 
 ! Declare passed variables
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
   logical                           ,intent(in   ) :: aero_diagsave
   character(10)                     ,intent(in   ) :: obstype
   character(20)                     ,intent(in   ) :: isis
@@ -93,7 +111,7 @@
 ! Declare local variables
   character(128) diag_aero_file
 
-  integer(i_kind) error_status,istat
+  integer(i_kind) error_status
   integer(i_kind) m,jc
   integer(i_kind) icc
   integer(i_kind) j,k,ncnt,i
@@ -130,13 +148,12 @@
   logical toss,l_may_be_passive
   logical,dimension(nobs):: luse
   integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
+  integer(i_kind):: nperobs     ! No. of data points, in channels, levels, or components, per obs.
 
   logical:: in_curbin, in_anybin
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
-  class(obsNode),pointer:: my_node
   type(aeroNode),pointer:: my_head
-  type(obs_diag),pointer:: my_diag
+  type(obs_diag),pointer:: my_diag, obsptr
+  type(obs_diags),pointer:: my_diagLL
   type(rad_obs_type) :: radmod
   character(len=*),parameter:: myname="setupaod"
 
@@ -151,14 +168,15 @@
   real(r_kind),dimension(nsigradjac,nchanl):: jacobian
   real(r_kind),dimension(nsigaerojac,nchanl):: jacobian_aero
   real(r_kind),dimension(nsig,nchanl):: layer_od
-  real(r_kind) :: clw_guess, tzbgr, sfc_speed
+  real(r_kind) :: clw_guess, tzbgr, sfc_speed,ciw_guess,rain_guess,snow_guess
+
+  type(obsLList),pointer,dimension(:):: aerohead
+  aerohead => obsLL(:)
 
   if ( .not. laeroana_gocart ) then
      return
   endif
 
-  n_alloc(:)=0
-  m_alloc(:)=0
 !**************************************************************************************
 ! Initialize variables and constants.
   mm1        = mype+1
@@ -326,7 +344,7 @@
  
 !       Interpolate model fields to observation location, call crtm and create jacobians
         call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
-             tvp,qvp,clw_guess,prsltmp,prsitmp, &
+             tvp,qvp,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
              trop5,tzbgr,dtsavg,sfc_speed, &
              tsim,emissivity,ptau5,ts,emissivity_k, &
              temp,wmix,jacobian,error_status,layer_od=layer_od,jacobian_aero=jacobian_aero)
@@ -393,6 +411,8 @@
         endif
         if (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
+        if(luse_obsdiag) my_diagLL => odiagLL(ibin)
+
         if (in_curbin) then
 !          Load data into output arrays
            if (icc > 0) then
@@ -400,10 +420,7 @@
               nchan_total=nchan_total+icc
 
               allocate(my_head)
-              m_alloc(ibin) = m_alloc(ibin) +1
-              my_node => my_head        ! this is a workaround
-              call obsLList_appendNode(aerohead(ibin),my_node)
-              my_node => null()
+              call aeroNode_appendto(my_head,aerohead(ibin))
 
               my_head%idv = is
               my_head%iob = ioid(n)
@@ -445,98 +462,42 @@
         endif ! (in_curbin)
 
 !       Link obs to diagnostics structure
-        if(luse_obsdiag)then
+        if(luse_obsdiag) then
            iii=0
+           obsptr => null()
            do ii=1,nchanl
-              if (.not.lobsdiag_allocated) then
-                 if (.not.associated(obsdiags(i_aero_ob_type,ibin)%head)) then
-                    obsdiags(i_aero_ob_type,ibin)%n_alloc = 0
-                    allocate(obsdiags(i_aero_ob_type,ibin)%head,stat=istat)
-                    if (istat/=0) then
-                       write(6,*)'setupaod: failure to allocate obsdiags',istat
-                       call stop2(276)
-                    end if
-                    obsdiags(i_aero_ob_type,ibin)%tail => obsdiags(i_aero_ob_type,ibin)%head
-                 else
-                    allocate(obsdiags(i_aero_ob_type,ibin)%tail%next,stat=istat)
-                    if (istat/=0) then
-                       write(6,*)'setupaod: failure to allocate obsdiags',istat
-                       call stop2(277)
-                    end if
-                    obsdiags(i_aero_ob_type,ibin)%tail => obsdiags(i_aero_ob_type,ibin)%tail%next
-                 end if
-                 obsdiags(i_aero_ob_type,ibin)%n_alloc = obsdiags(i_aero_ob_type,ibin)%n_alloc +1
-    
-                 allocate(obsdiags(i_aero_ob_type,ibin)%tail%muse(miter+1))
-                 allocate(obsdiags(i_aero_ob_type,ibin)%tail%nldepart(miter+1))
-                 allocate(obsdiags(i_aero_ob_type,ibin)%tail%tldepart(miter))
-                 allocate(obsdiags(i_aero_ob_type,ibin)%tail%obssen(miter))
-                 obsdiags(i_aero_ob_type,ibin)%tail%indxglb=(ioid(n)-1)*nchanl+ii
-                 obsdiags(i_aero_ob_type,ibin)%tail%nchnperobs=-99999
-                 obsdiags(i_aero_ob_type,ibin)%tail%luse=luse(n)
-                 obsdiags(i_aero_ob_type,ibin)%tail%muse(:)=.false.
-                 obsdiags(i_aero_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-                 obsdiags(i_aero_ob_type,ibin)%tail%tldepart(:)=zero
-                 obsdiags(i_aero_ob_type,ibin)%tail%wgtjo=-huge(zero)
-                 obsdiags(i_aero_ob_type,ibin)%tail%obssen(:)=zero
-    
-                 n_alloc(ibin) = n_alloc(ibin) +1
-                 my_diag => obsdiags(i_aero_ob_type,ibin)%tail
-                 my_diag%idv = is
-                 my_diag%iob = ioid(n)
-                 my_diag%ich = ii
-                 my_diag%elat= data_s(ilate,n)
-                 my_diag%elon= data_s(ilone,n)
-              else
-                 if (.not.associated(obsdiags(i_aero_ob_type,ibin)%tail)) then
-                    obsdiags(i_aero_ob_type,ibin)%tail => obsdiags(i_aero_ob_type,ibin)%head
-                 else
-                    obsdiags(i_aero_ob_type,ibin)%tail => obsdiags(i_aero_ob_type,ibin)%tail%next
-                 end if
-                 if (.not.associated(obsdiags(i_aero_ob_type,ibin)%tail)) then
-                    call die(myname,'.not.associated(obsdiags(i_aero_ob_type,ibin)%tail)')
-                 end if
-                 if (obsdiags(i_aero_ob_type,ibin)%tail%indxglb/=(ioid(n)-1)*nchanl+ii) then
-                    write(6,*)'setupaod: index error'
-                    call stop2(278)
-                 endif
-              endif
+              nperobs=-99999; if(ii==1) nperobs=nchanl
+              my_diag => obsdiagLList_nextNode(my_diagLL        ,&
+                 create = .not.lobsdiag_allocated               ,&
+                    idv = is                    ,&
+                    iob = ioid(n)               ,&
+                    ich = ii                    ,&
+                   elat = data_s(ilate,n)       ,&
+                   elon = data_s(ilone,n)       ,&
+                   luse = luse(n)               ,&
+                  miter = miter                 )
+
+              if(.not.associated(my_diag)) call die(myname,'not associated(my_diag)')
+
+              if (ii==1) obsptr => my_diag      ! this is the lead node
 
               if (in_curbin.and.icc>0) then
-                 !my_head => aeroNode_typecast(obsLList_tailNode(aerohead(ibin)))
-                 my_node => obsLList_tailNode(aerohead(ibin))
-                 if(.not.associated(my_node)) &
-                    call die(myname,'unexpected, associated(my_node) =',associated(my_node))
-                 my_head => aeroNode_typecast(my_node)
+                 my_head => tailNode_typecast_(aerohead(ibin))
                  if(.not.associated(my_head)) &
                     call die(myname,'unexpected, associated(my_head) =',associated(my_head))
-                 my_node => null()
 
-                 if (ii==1) obsptr => obsdiags(i_aero_ob_type,ibin)%tail
-                 if (ii==1) obsdiags(i_aero_ob_type,ibin)%tail%nchnperobs = nchanl
-                 obsdiags(i_aero_ob_type,ibin)%tail%nldepart(jiter) = aod(ii)
-                 obsdiags(i_aero_ob_type,ibin)%tail%wgtjo=varinv(ii)
+                 call obsdiagNode_set(my_diag, wgtjo=varinv(ii), jiter=jiter, nldepart=aod(ii) )
  
 !                Load data into output arrays
                  m=ich(ii)
                  if (varinv(ii)>tiny_r_kind .and. iuse_aero(m)>=1) then
                     iii=iii+1
-                    my_head%diags(iii)%ptr => obsdiags(i_aero_ob_type,ibin)%tail
-                    obsdiags(i_aero_ob_type,ibin)%tail%muse(jiter) = .true.
-  
-                    ! verify the pointer to obsdiags
- 
-                    my_diag => my_head%diags(iii)%ptr
- 
-                    if (my_head%idv      /= my_diag%idv .or. &
-                        my_head%iob      /= my_diag%iob .or. &
-                        my_head%ich(iii) /= my_diag%ich ) then
-                       call perr(myname,'mismatching %[head,diags]%(idv,iob,ich,ibin) =', &
-                             (/is,ioid(n),ii,ibin/))
-                       call perr(myname,'my_head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,my_head%ich(iii)/))
-                       call perr(myname,'my_diag%(idv,iob,ich) =',(/my_diag%idv,my_diag%iob,my_diag%ich/))
-                       call die(myname)
-                    endif
+
+                    call obsdiagNode_assert(my_diag,my_head%idv,my_head%iob,my_head%ich(iii),myname,'my_diag:my_head error')
+
+                    call obsdiagNode_set(my_diag, jiter=jiter, muse=.true.)
+
+                    my_head%diags(iii)%ptr => my_diag
                  endif
 
                  my_head => null()
@@ -579,10 +540,6 @@
                     if (.not.associated(obsptr)) then
                        write(6,*)'setupaod: error obsptr'
                        call stop2(280)
-                    end if
-                    if (obsptr%indxglb/=(ioid(n)-1)*nchanl+ii) then
-                       write(6,*)'setupaod: error writing diagnostics'
-                       call stop2(281)
                     end if
 
                     ioff=ioff0
@@ -631,7 +588,6 @@
   deallocate(diagbufchan)
 
   if (aero_diagsave) then
-     call dtime_show(myname,'diagsave:aero',i_aero_ob_type)
      close(4)
   endif
 
@@ -642,6 +598,22 @@
   return
 
 contains
+  function tailNode_typecast_(oll) result(ptr_)
+!>  Cast the tailNode of oll to an aeroNode, as in
+!>      ptr_ => typecast_(tailNode_(oll))
+
+    use m_aeroNode, only: aeroNode, typecast_ => aeroNode_typecast
+    use m_obsLList, only: obsLList, tailNode_ => obsLList_tailNode
+    use m_obsNode , only: obsNode
+    implicit none
+    type(aeroNode),pointer:: ptr_
+    type(obsLList),target ,intent(in):: oll
+
+    class(obsNode),pointer:: inode_
+    inode_ => tailNode_(oll)
+    ptr_   => typecast_(inode_)
+  end function tailNode_typecast_
+
   subroutine init_netcdf_diag_
   end subroutine init_netcdf_diag_
   subroutine contents_binary_diag_
@@ -651,3 +623,4 @@ contains
   character(7),parameter     :: obsclass = '    aod'
   end subroutine contents_netcdf_diag_
 end subroutine setupaod
+end module aero_setup

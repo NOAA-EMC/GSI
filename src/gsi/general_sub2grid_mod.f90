@@ -143,30 +143,30 @@ module general_sub2grid_mod
 
    type sub2grid_info
 
-      integer(i_kind) inner_vars      ! number of inner-most loop variables
-      integer(i_kind) lat1            ! no. of lats on subdomain (no buffer)
-      integer(i_kind) lon1            ! no. of lons on subdomain (no buffer)
-      integer(i_kind) lat2            ! no. of lats on subdomain (buffer)
-      integer(i_kind) lon2            ! no. of lons on subdomain (buffer)
-      integer(i_kind) latlon11        ! no. of points on subdomain (including buffer)
-      integer(i_kind) latlon1n        ! latlon11*nsig
-      integer(i_kind) nlat            ! no. of latitudes
-      integer(i_kind) nlon            ! no. of longitudes
-      integer(i_kind) nsig            ! no. of vertical levels
-      integer(i_kind) num_fields      ! total number of fields/levels
-      integer(i_kind) iglobal         ! number of horizontal points on global grid
-      integer(i_kind) itotsub         ! number of horizontal points of all subdomains combined
-      integer(i_kind) kbegin_loc      ! starting slab index for local processor
-      integer(i_kind) kend_loc        ! ending slab index for local processor
-      integer(i_kind) kend_alloc      ! kend_loc can = kbegin_loc - 1, for a processor not involved.
-                                      !  this causes problems with array allocation:
-                                      !  to correct this, use kend_alloc=max(kend_loc,kbegin_loc)
-      integer(i_kind) nlevs_loc       ! number of active local levels ( = kend_loc-kbegin_loc+1)
-      integer(i_kind) nlevs_alloc     ! number of allocatec local levels ( = kend_alloc-kbegin_loc+1)
-      integer(i_kind) npe             ! total number of processors
-      integer(i_kind) mype            ! local processor
-      integer(i_kind) nskip           ! # of processors skipped between full horizontal fields in grid mode.
-      logical periodic                ! logical flag for periodic e/w domains
+      integer(i_kind):: inner_vars=0    ! number of inner-most loop variables
+      integer(i_kind):: lat1=0          ! no. of lats on subdomain (no buffer)
+      integer(i_kind):: lon1=0          ! no. of lons on subdomain (no buffer)
+      integer(i_kind):: lat2=0          ! no. of lats on subdomain (buffer)
+      integer(i_kind):: lon2=0          ! no. of lons on subdomain (buffer)
+      integer(i_kind):: latlon11=0      ! no. of points on subdomain (including buffer)
+      integer(i_kind):: latlon1n=0      ! latlon11*nsig
+      integer(i_kind):: nlat=0          ! no. of latitudes
+      integer(i_kind):: nlon=0          ! no. of longitudes
+      integer(i_kind):: nsig=0          ! no. of vertical levels
+      integer(i_kind):: num_fields=0    ! total number of fields/levels
+      integer(i_kind):: iglobal=0       ! number of horizontal points on global grid
+      integer(i_kind):: itotsub=0       ! number of horizontal points of all subdomains combined
+      integer(i_kind):: kbegin_loc=0    ! starting slab index for local processor
+      integer(i_kind):: kend_loc=0      ! ending slab index for local processor
+      integer(i_kind):: kend_alloc=0    ! kend_loc can = kbegin_loc - 1, for a processor not involved.
+                                        !  this causes problems with array allocation:
+                                        !  to correct this, use kend_alloc=max(kend_loc,kbegin_loc)
+      integer(i_kind):: nlevs_loc=0     ! number of active local levels ( = kend_loc-kbegin_loc+1)
+      integer(i_kind):: nlevs_alloc=0   ! number of allocatec local levels ( = kend_alloc-kbegin_loc+1)
+      integer(i_kind):: npe=0           ! total number of processors
+      integer(i_kind):: mype=-1         ! local processor
+      integer(i_kind):: nskip=0         ! # of processors skipped between full horizontal fields in grid mode.
+      logical:: periodic=.false.        ! logical flag for periodic e/w domains
       logical,pointer :: periodic_s(:) => null()    ! logical flag for periodic e/w subdomain (all tasks)
       logical,pointer :: vector(:)     => null()    ! logical flag, true for vector variables
       integer(i_kind),pointer :: ilat1(:)       => null()    !  no. of lats for each subdomain (no buffer)

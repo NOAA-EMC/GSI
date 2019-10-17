@@ -30,6 +30,7 @@ module constants
 !   2012-03-07 todling   - define lower bound for trace-gases (arbitrary unit as long as small)
 !   2016-02-15 Johnson, Y. Wang, X. Wang - define additional constant values for
 !                                          radar DA, POC: xuguang.wang@ou.edu
+!   2019-09-25  X.Su     - put stndrd_atmos_ps constant values
 !
 ! Subroutines Included:
 !   sub init_constants_derived - compute derived constants
@@ -58,16 +59,17 @@ module constants
   public :: one,two,half,zero,deg2rad,pi,three,quarter,one_tenth
   public :: rad2deg,zero_quad,r3600,r1000,r60inv,five,four,rd_over_cp,grav
   public :: rd,rv,rozcon,rearth_equator,zero_single,tiny_r_kind,tiny_single,ten
+  public :: cvap,cliq,csol
   public :: omega,rcp,rearth,fv,h300,cp,cg_term,tpwcon,xb,ttp,psatk,xa,tmix
   public :: xai,xbi,psat,eps,omeps,wgtlim,one_quad,two_quad,epsq,climit,epsm1,hvap
   public :: hsub,cclimit,el2orc,elocp,h1000,cpr,pcpeff0,pcpeff2,delta,pcpeff1
   public :: factor1,c0,pcpeff3,factor2,dx_inv,dx_min,rhcbot,rhctop,hfus,ke2
-  public :: rrow,cmr,cws,r60,huge_i_kind,huge_r_kind,t0c,rd_over_cp_mass
+  public :: rrow,cmr,cws,r18,r60,r61,r63,huge_i_kind,huge_r_kind,t0c,rd_over_cp_mass
   public :: somigliana,grav_equator,grav_ratio,flattening,semi_major_axis
   public :: n_b,n_a,eccentricity,huge_single,constoz,g_over_rd,amsua_clw_d2
   public :: amsua_clw_d1,n_c,rd_over_g,zero_ilong
-  public :: r10,r100,sqrt_tiny_r_kind,r2000,r4000
-  public :: r0_01,r0_02,r0_03,r0_04,r0_05,r400,r2400
+  public :: r10,r100,sqrt_tiny_r_kind,r2000,r4000,r10000
+  public :: r0_01,r0_02,r0_03,r0_04,r0_05,r1_25,r400,r2400
   public :: cpf_a0, cpf_a1, cpf_a2, cpf_b0, cpf_b1, cpf_c0, cpf_c1, cpf_d, cpf_e
   public :: psv_a, psv_b, psv_c, psv_d
   public :: ef_alpha, ef_beta, ef_gamma
@@ -75,10 +77,12 @@ module constants
   public :: z_w_max,tfrozen
   public :: qmin,qcmin,tgmin
   public :: i_missing, r_missing
+  public :: tice,t_wfr,e00,rvgas,rdgas,hlv,hlf,cp_vap,c_liq,c_ice,cp_air,cv_air
 
   public :: izero, qimin, qsmin, qgmin,qrmin
   public :: partialSnowThreshold
   public :: soilmoistmin
+  public :: stndrd_atmos_ps
 
 ! Declare derived constants
   integer(i_kind):: huge_i_kind
@@ -104,7 +108,7 @@ module constants
   real(r_kind),parameter::  t0c    = 2.7315e+2_r_kind            !  temperature at zero celsius     (K)
   real(r_kind),parameter::  ttp    = 2.7316e+2_r_kind            !  temperature at h2o triple point (K)
   real(r_kind),parameter::  jcal   = 4.1855e+0_r_kind            !  joules per calorie              ()
-! real(r_kind),parameter::  stndrd_atmos_ps = 1013.25e2_r_kind   ! 1976 US standard atmosphere ps   (Pa)
+  real(r_kind),parameter::  stndrd_atmos_ps = 1013.25e2_r_kind   ! 1976 US standard atmosphere ps   (Pa)
 
 ! Numeric constants
 
@@ -121,13 +125,17 @@ module constants
   real(r_kind),parameter::  one_tenth = 0.10_r_kind
   real(r_kind),parameter::  quarter   = 0.25_r_kind
   real(r_kind),parameter::  one       = 1.0_r_kind
+  real(r_kind),parameter::  r1_25     = 1.25_r_kind
   real(r_kind),parameter::  two       = 2.0_r_kind
   real(r_kind),parameter::  three     = 3.0_r_kind
   real(r_kind),parameter::  four      = 4.0_r_kind
   real(r_kind),parameter::  five      = 5.0_r_kind
   real(r_kind),parameter::  ten       = 10.0_r_kind
   real(r_kind),parameter::  r10       = 10.0_r_kind
+  real(r_kind),parameter::  r18       = 18.0_r_kind 
   real(r_kind),parameter::  r60       = 60._r_kind
+  real(r_kind),parameter::  r61       = 61._r_kind
+  real(r_kind),parameter::  r63       = 63._r_kind
   real(r_kind),parameter::  r100      = 100.0_r_kind
   real(r_kind),parameter::  r400      = 400.0_r_kind
   real(r_kind),parameter::  r1000     = 1000.0_r_kind
@@ -135,7 +143,7 @@ module constants
   real(r_kind),parameter::  r2400     = 2400.0_r_kind
   real(r_kind),parameter::  r4000     = 4000.0_r_kind
   real(r_kind),parameter::  r3600     = 3600.0_r_kind
-
+  real(r_kind),parameter::  r10000    = 10000.0_r_kind
   real(r_kind),parameter:: z_w_max    = 30.0_r_kind     ! maximum diurnal thermocline thickness
   real(r_kind),parameter:: tfrozen    = 271.2_r_kind    ! sea water frozen point temperature
 
@@ -187,6 +195,19 @@ module constants
   real(r_kind),parameter::  tmix = ttp-20._r_kind
   real(r_kind),parameter::  elocp = hvap/cp
   real(r_kind),parameter::  rcp  = one/cp
+
+  real(r_kind),parameter::  tice   = t0c               ! temperature at 0 deg C [K]   
+  real(r_kind),parameter::  t_wfr  = t0c - 40.0_r_kind ! homogeneous freezing temperature  
+  real(r_kind),parameter::  e00    = psat              ! saturation vapor pressure at 0 deg C (611.21 Pa)
+  real(r_kind),parameter::  hlv    = hvap              ! latent heat of evaporation     
+  real(r_kind),parameter::  hlf    = hfus              ! latent heat of fusion     
+  real(r_kind),parameter::  cp_vap = cvap              ! heat capacity of water vapor at const. pressure     
+  real(r_kind),parameter::  rvgas  = 4.6150e+2_r_kind  ! gas constant for waver vapor     
+  real(r_kind),parameter::  rdgas  = 2.8705e+2_r_kind  ! gas constant for dry air 
+  real(r_kind),parameter::  c_liq  = 4.1855e+3_r_kind  ! heat capacity of water at 15 deg C     
+  real(r_kind),parameter::  c_ice  = 1972.0_r_kind     ! heat capacity of ice at -15 deg C  (csol)
+  real(r_kind),parameter::  cp_air = 1.0046e+3_r_kind  ! heat capacity of dry air at constant pressure (hydrostatic)
+  real(r_kind),parameter::  cv_air = cp_air - rdgas    ! heat capacity of dry air at constant volume (non-hydrostatic)
 
 ! Constants used in GFS moist physics
   real(r_kind),parameter::  h300 = 300._r_kind

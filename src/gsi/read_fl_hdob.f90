@@ -204,7 +204,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      data mststr   / 'QMDD TMDP REHU' /
      data wndstr   / 'QMWN WDIR WSPD PKWDSP' /
      data prsstr   / 'PRLC' /
-     data psfstr   / '' /        ! *emily: nor in the bufr yet
+     data psfstr   / '' /        ! nor in the bufr yet
      data g10str   / 'GP10' /
      data qcmstr   / 'QHDOP QHDOM'/
      data lunin    / 13 /
@@ -241,7 +241,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
         iecol  =  2 
         errmin = half      ! set lower bound of ob error for T or Tv
      else if (luvob) then
-        nreal  = 25
+        nreal  = 26
         iecol  =  4  
         errmin = one       ! set lower bound of ob error for u,v winds
      else if (lspdob) then
@@ -971,8 +971,8 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               cdata_all( 2,iout)=dlon                   ! grid relative longitude                  
               cdata_all( 3,iout)=dlat                   ! grid relative latitude          
               cdata_all( 4,iout)=exp(dlnpsob)           ! pressure (in cb)
-              cdata_all( 5,iout)=zz                     ! surface height         *emily:use model terrian elevation from model surface file                   
-              cdata_all( 6,iout)=bmiss                  ! surface temperature    *emily:this is not provided                                    
+              cdata_all( 5,iout)=zz                     ! surface height         ! use model terrian elevation from model surface file                   
+              cdata_all( 6,iout)=bmiss                  ! surface temperature    ! this is not provided                                    
               cdata_all( 7,iout)=rstation_id            ! station id
               cdata_all( 8,iout)=t4dv                   ! time
               cdata_all( 9,iout)=nc                     ! type
@@ -1035,6 +1035,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               cdata_all(23,iout)=r_sprvstg(1,1)         ! subprovider name
               cdata_all(24,iout)=qcm                    ! cat
               cdata_all(25,iout)=var_jb                 ! non linear qc 
+              cdata_all(26,iout)=one
               if(perturb_obs)then
                  cdata_all(26,iout)=ran01dom()*perturb_fact ! u perturbation
                  cdata_all(27,iout)=ran01dom()*perturb_fact ! v perturbation
@@ -1132,7 +1133,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               cdata_all( 7,iout)=rstation_id            ! station id
               cdata_all( 8,iout)=t4dv                   ! time
               cdata_all( 9,iout)=nc                     ! type
-              cdata_all(10,iout)=r10                    !  elevation of observation *emily:10-m wind       
+              cdata_all(10,iout)=r10                    !  elevation of observation ! 10-m wind       
               cdata_all(11,iout)=qcm                    !  quality mark 
               cdata_all(12,iout)=obserr                 !  original obs error 
               cdata_all(13,iout)=usage                  ! usage parameter 

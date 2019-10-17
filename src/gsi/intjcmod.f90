@@ -14,6 +14,8 @@ module intjcmod
 !   2014-06-17  carley/zhu - add intliml for lcbas + some cleanup
 !   2015-07-10  pondeca - add weak constraint subroutine for cldch
 !   2019-03-05  martin - update intlimq to weight factqmin/max by latitude
+!   2019-03-14  eliu - add intlimqc to constraint negative hydrometeors 
+!   2019-03-14  eliu - add precipitation components in various constraints 
 !
 ! subroutines included:
 !
@@ -29,7 +31,7 @@ use gsi_bundlemod, only: gsi_bundle,gsi_bundlegetpointer
 implicit none
 
 PRIVATE
-PUBLIC intlimq,intlimg,intlimp,intlimv,intlimw10m,intlimhowv,intliml,intlimcldch,intjcdfi,intjcpdry,intjcpdry1,intjcpdry2
+PUBLIC intlimqc,intlimq,intlimg,intlimp,intlimv,intlimw10m,intlimhowv,intliml,intlimcldch,intjcdfi,intjcpdry,intjcpdry1,intjcpdry2  
 
 contains
 
@@ -125,7 +127,106 @@ subroutine intlimq(rval,sval,itbin)
   
   return
 end subroutine intlimq
+subroutine intlimqc(rval,sval,itbin,cldtype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    intlimqc
+!   prgmmr: eliu           org: np23                date: 2018-05-19
+!
+! abstract: limit negative hydrometeors as a weak constraint
+!
+! program history log:
+!   2018-05-19  eliu  
+!
+!   input argument list:
+!     sqc      - increment in grid space
+!     itbin    - observation bin (time level)
+!
+!   output argument list:
+!     rqc      - results from limiting operator                 
+!
+! remarks: see modules used
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use mpimod, only: mype                                
+  use gridmod, only: nsig,lat1,lon1
+  use jfunc, only: factql,factqi,factqr,factqs,factqg   
+  use gsi_metguess_mod, only: gsi_metguess_bundle 
+  use guess_grids, only: ges_qsat
+  implicit none
 
+! Declare passed variables
+  type(gsi_bundle),intent(in   ) :: sval
+  type(gsi_bundle),intent(inout) :: rval
+  integer(i_kind), intent(in)    :: itbin
+  character(2), intent(in)       :: cldtype 
+
+! Declare local variables
+  integer(i_kind) i,j,k,ier,ier1,istatus
+  real(r_kind) qc
+  real(r_kind) factqc   
+  real(r_kind),pointer,dimension(:,:,:) :: sqc=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: rqc=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_qc_it=>NULL()
+
+  ier=0
+  ier1=0
+  if (trim(cldtype) == 'ql') then 
+     factqc = factql
+     call gsi_bundlegetpointer(sval,'ql',sqc,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(rval,'ql',rqc,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(gsi_metguess_bundle(itbin),'ql',ges_qc_it,ier1)
+  endif
+  if (trim(cldtype) == 'qi') then 
+     factqc = factqi
+     call gsi_bundlegetpointer(sval,'qi',sqc,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(rval,'qi',rqc,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(gsi_metguess_bundle(itbin),'qi',ges_qc_it,ier1)
+  endif
+  if (trim(cldtype) == 'qr') then 
+     factqc = factqr
+     call gsi_bundlegetpointer(sval,'qr',sqc,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(rval,'qr',rqc,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(gsi_metguess_bundle(itbin),'qr',ges_qc_it,ier1)
+  endif
+  if (trim(cldtype) == 'qs') then 
+     factqc = factqs
+     call gsi_bundlegetpointer(sval,'qs',sqc,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(rval,'qs',rqc,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(gsi_metguess_bundle(itbin),'qs',ges_qc_it,ier1)
+  endif
+  if (trim(cldtype) == 'qg') then 
+     factqc = factqg
+     call gsi_bundlegetpointer(sval,'qg',sqc,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(rval,'qg',rqc,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(gsi_metguess_bundle(itbin),'qg',ges_qc_it,ier1)
+  endif
+  if (mype==0) write(6,*) 'intlimqc: factqc  = ', factqc
+  if (mype==0) write(6,*) 'intlimqc: ier ier1= ', ier, ier1 
+  if (factqc == zero) return
+  if (ier/=0 .or. ier1/=0) return
+
+!$omp parallel do  schedule(dynamic,1) private(k,j,i,qc)
+  do k = 1,nsig
+     do j = 2,lon1+1
+        do i = 2,lat1+1
+           qc = ges_qc_it(i,j,k) + sqc(i,j,k)
+           
+!          Lower constraint limit
+           if (qc < zero) then
+              rqc(i,j,k) = rqc(i,j,k) + factqc*qc/(ges_qsat(i,j,k,itbin)*ges_qsat(i,j,k,itbin))
+           end if
+
+        end do
+     end do
+  end do
+  
+  return
+end subroutine intlimqc
 subroutine intlimg(rval,sval)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -755,6 +856,7 @@ subroutine intjcpdry1(sval,nbins,mass)
 !   2013-05-05  todling - separate dry mass from the rest (zero-diff change)
 !                         collapse two verions of this routine into one (add opt arg)
 !   2014-12-02  derber  - fix comments - break up into 2 parts to minimize
+!   2018-04-16  eliu    - add controbution from precipitating hydrometeors 
 !   communications
 !
 !   input argument list:
@@ -783,11 +885,16 @@ subroutine intjcpdry1(sval,nbins,mass)
 ! Declare local variables
   real(r_quad),dimension(nsig) :: mass2
   real(r_quad) rcon,con
-  integer(i_kind) i,j,k,it,ii,mm1,ier,icw,iql,iqi,istatus
+  integer(i_kind) i,j,k,it,ii,mm1,icw,iql,iqi
+  integer(i_kind) iq,iqr,iqs,iqg,iqh,ips    
   real(r_kind),pointer,dimension(:,:,:) :: sq =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: sc =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: sql=>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: sqi=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: sqr=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: sqs=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: sqg=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: sqh=>NULL()
   real(r_kind),pointer,dimension(:,:)   :: sp =>NULL()
 
   integer(i_kind) :: n
@@ -800,17 +907,21 @@ subroutine intjcpdry1(sval,nbins,mass)
   do n=1,nbins
 ! Retrieve pointers
 ! Simply return if any pointer not found
-     ier=0; icw=0; iql=0; iqi=0
-     call gsi_bundlegetpointer(sval(n),'q' ,sq, istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(sval(n),'cw',sc, istatus);icw=istatus+icw
-     call gsi_bundlegetpointer(sval(n),'ql',sql,istatus);iql=istatus+iql
-     call gsi_bundlegetpointer(sval(n),'qi',sqi,istatus);iqi=istatus+iqi
-     call gsi_bundlegetpointer(sval(n),'ps',sp, istatus);ier=istatus+ier
-     if(ier+icw*(iql+iqi)/=0)then
-       if (mype==0) write(6,*)'intjcpdry: checking ier+icw*(iql+iqi)=', ier+icw*(iql+iqi)
+     iq=0; icw=0; iql=0; iqi=0; iqr=0; iqs=0; iqg=0; iqh=0
+     call gsi_bundlegetpointer(sval(n),'q' ,sq,  iq  )
+     call gsi_bundlegetpointer(sval(n),'cw',sc,  icw )
+     call gsi_bundlegetpointer(sval(n),'ql',sql, iql )
+     call gsi_bundlegetpointer(sval(n),'qi',sqi, iqi )
+     call gsi_bundlegetpointer(sval(n),'qr',sqr, iqr )
+     call gsi_bundlegetpointer(sval(n),'qs',sqs, iqs )
+     call gsi_bundlegetpointer(sval(n),'qg',sqg, iqg )
+     call gsi_bundlegetpointer(sval(n),'qh',sqh, iqh )
+     call gsi_bundlegetpointer(sval(n),'ps',sp,  ips )
+     if ( iq*ips/=0 .or. icw*(iql+iqi)/=0 ) then
+       if (mype==0) write(6,*)'intjcpdry1: warning - missing some required variables'        
+       if (mype==0) write(6,*)'intjcpdry1: constraint for dry mass constraint not performed'  
        return
      end if
-
 
 ! Calculate mean surface pressure contribution in subdomain
      do j=2,lon2-1
@@ -833,6 +944,10 @@ subroutine intjcpdry1(sval,nbins,mass)
                  mass2(k)=mass2(k)+sc(i,j,k)*con
               else
                  mass2(k)=mass2(k)+(sql(i,j,k)+sqi(i,j,k))*con
+                 if (iqr==0) mass2(k)=mass2(k)+sqr(i,j,k)*con
+                 if (iqs==0) mass2(k)=mass2(k)+sqs(i,j,k)*con
+                 if (iqg==0) mass2(k)=mass2(k)+sqg(i,j,k)*con
+                 if (iqh==0) mass2(k)=mass2(k)+sqh(i,j,k)*con
               endif
            end do
         end do
@@ -861,6 +976,7 @@ subroutine intjcpdry2(rval,nbins,mass,pjc)
 !   2013-05-05  todling - separate dry mass from the rest (zero-diff change)
 !                         collapse two verions of this routine into one (add opt arg)
 !   2014-12-02  derber  - fix comments - break up into 2 parts to minimize
+!   2018-04-16  eliu    - add controbution from precipitating hydrometeors 
 !   communications
 !
 !   input argument list:
@@ -892,11 +1008,16 @@ subroutine intjcpdry2(rval,nbins,mass,pjc)
 
 ! Declare local variables
   real(r_quad) rcon,con,dmass
-  integer(i_kind) i,j,k,it,ii,mm1,ier,icw,iql,iqi,istatus
+  integer(i_kind) i,j,k,it,ii,mm1,icw,iql,iqi
+  integer(i_kind) iq,iqr,iqs,iqg,iqh,ips
   real(r_kind),pointer,dimension(:,:,:) :: rq =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: rc =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: rql=>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: rqi=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: rqr=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: rqs=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: rqg=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: rqh=>NULL()
   real(r_kind),pointer,dimension(:,:)   :: rp =>NULL()
 
   integer(i_kind) :: n
@@ -906,14 +1027,19 @@ subroutine intjcpdry2(rval,nbins,mass,pjc)
   mm1=mype+1
 
   do n=1,nbins
-     ier=0; icw=0; iql=0; iqi=0
-     call gsi_bundlegetpointer(rval(n),'q' ,rq, istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(rval(n),'cw',rc, istatus);icw=istatus+icw
-     call gsi_bundlegetpointer(rval(n),'ql',rql,istatus);iql=istatus+iql
-     call gsi_bundlegetpointer(rval(n),'qi',rqi,istatus);iqi=istatus+iqi
-     call gsi_bundlegetpointer(rval(n),'ps',rp, istatus);ier=istatus+ier
-     if(ier+icw*(iql+iqi)/=0)then
-       if (mype==0) write(6,*)'intjcpdry: checking ier+icw*(iql+iqi)=', ier+icw*(iql+iqi)
+     iq=0; icw=0; iql=0; iqi=0; iqr=0; iqs=0; iqg=0; iqh=0
+     call gsi_bundlegetpointer(rval(n),'q' ,rq,  iq  )
+     call gsi_bundlegetpointer(rval(n),'cw',rc,  icw )
+     call gsi_bundlegetpointer(rval(n),'ql',rql, iql )
+     call gsi_bundlegetpointer(rval(n),'qi',rqi, iqi )
+     call gsi_bundlegetpointer(rval(n),'qr',rqr, iqr )
+     call gsi_bundlegetpointer(rval(n),'qs',rqs, iqs )
+     call gsi_bundlegetpointer(rval(n),'qg',rqg, iqg )
+     call gsi_bundlegetpointer(rval(n),'qh',rqh, iqh )
+     call gsi_bundlegetpointer(rval(n),'ps',rp,  ips )
+     if( iq*ips /=0 .or. icw*(iql+iqi) /=0 ) then
+       if (mype==0) write(6,*)'intjcpdry2: warning - missing some required variables' 
+       if (mype==0) write(6,*)'intjcpdry2: constraint for dry mass constraint not performed' 
        return
      end if
 !    Remove water-vapor contribution to get incremental dry ps
@@ -945,6 +1071,10 @@ subroutine intjcpdry2(rval,nbins,mass,pjc)
               else
                  rql(i,j,k)=rql(i,j,k)-con
                  rqi(i,j,k)=rqi(i,j,k)-con
+                 if (iqr==0) rqr(i,j,k)=rqr(i,j,k)-con
+                 if (iqs==0) rqs(i,j,k)=rqs(i,j,k)-con
+                 if (iqg==0) rqg(i,j,k)=rqg(i,j,k)-con
+                 if (iqh==0) rqh(i,j,k)=rqh(i,j,k)-con
               endif
            end do
         end do
