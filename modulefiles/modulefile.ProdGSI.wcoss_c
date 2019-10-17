@@ -64,3 +64,5 @@ module load crtm-intel/2.2.6
 module use /usrx/local/nceplibs/modulefiles
 module load bacio-intel/2.0.2
 
+# Loading python
+module load python/3.6.3

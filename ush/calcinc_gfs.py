@@ -8,46 +8,31 @@ import os
 import shutil
 import subprocess
 import sys
+import gsi_utils
 from collections import OrderedDict
 
-# function to translate shell variables to python logicals
-def isTrue(str_in):
-  str_in = str_in.upper()
-  if str_in in ['YES','.TRUE.']:
-    status = True
-  else:
-    status = False
-
-  return status
-
-# function to check if path exists and if not, symlink it
-def link_file(from_file, to_file):
-  if not os.path.exists(to_file):
-    if not os.path.islink(to_file):
-      os.symlink(from_file, to_file)
-
 # main function
-def calcinc_gfs(DoIAU, fDEnsVar, Write4Danl, ComOut, APrefix,
+def calcinc_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
                 NThreads, IMP_Physics, Inc2Zero, RunDir, Exec, ExecCMD):
   # run the calc_increment_ens executable
 
   # copy and link files
-  if DoIAU and fDEnsVar and Write4Danl:
+  if DoIAU and l4DEnsVar and Write4Danl:
     nFH=6
     for fh in range(3,10):
       if fh == 6:
-        link_file('sigf06', 'atmges_mem004')
-        link_file('siganl', 'atmanl_mem004')
-        link_file(ComOut+'/'+APrefix+'atminc', 'atminc_mem004')
+        gsi_utils.link_file('sigf06', 'atmges_mem004')
+        gsi_utils.link_file('siganl', 'atmanl_mem004')
+        gsi_utils.link_file(ComOut+'/'+APrefix+'atminc', 'atminc_mem004')
       else:
-        link_file('sigf'+format(fh, '02'), 'atmges_mem'+(format(fh-2), '03'))
-        link_file('siga'+format(fh, '02'), 'atmanl_mem'+(format(fh-2), '03'))
-        link_file(ComOut+'/'+APrefix+'atmi'+format(fh, '03'), 'atminc_mem'+(format(fh-2), '03'))
+        gsi_utils.link_file('sigf'+format(fh, '02'), 'atmges_mem'+(format(fh-2), '03'))
+        gsi_utils.link_file('siga'+format(fh, '02'), 'atmanl_mem'+(format(fh-2), '03'))
+        gsi_utils.link_file(ComOut+'/'+APrefix+'atmi'+format(fh, '03'), 'atminc_mem'+(format(fh-2), '03'))
   else:
     nFH=1
-    link_file('sigf06', 'atmges_mem001')
-    link_file('siganl', 'atmanl_mem001')
-    link_file(ComOut+'/'+APrefix+'atminc', 'atminc_mem001')
+    gsi_utils.link_file('sigf06', 'atmges_mem001')
+    gsi_utils.link_file('siganl', 'atmanl_mem001')
+    gsi_utils.link_file(ComOut+'/'+APrefix+'atminc', 'atminc_mem001')
   os.environ['OMP_NUM_THREADS'] = str(NThreads)
   shutil.copy(Exec,RunDir+'/calc_inc.x')
 
@@ -64,12 +49,7 @@ def calcinc_gfs(DoIAU, fDEnsVar, Write4Danl, ComOut, APrefix,
 
   namelist["zeroinc"] = {"incvars_to_zero": Inc2Zero}
   
-  for nml, nmlvars in namelist.items():
-    nml_file.write('&'+nml+'\n')
-    for var, val in nmlvars.items():
-      nml_file.write('  '+var+' = '+val+'\n')
-    nml_file.write('/\n\n')
-  nml_file.close() 
+  gsi_utils.write_nml(namelist, nml_file)
 
   # run the executable
   try:
@@ -80,9 +60,9 @@ def calcinc_gfs(DoIAU, fDEnsVar, Write4Danl, ComOut, APrefix,
 
 # run the function if this script is called from the command line
 if __name__ == '__main__':
-  DoIAU = isTrue(os.getenv('DOIAU', 'NO')) 
-  fDEnsVar = isTrue(os.getenv('l4densvar', 'NO'))
-  Write4Danl = isTrue(os.getenv('lwrite4dan', 'NO'))
+  DoIAU = gsi_utils.isTrue(os.getenv('DOIAU', 'NO')) 
+  l4DEnsVar = gsi_utils.isTrue(os.getenv('l4densvar', 'NO'))
+  Write4Danl = gsi_utils.isTrue(os.getenv('lwrite4dan', 'NO'))
   ComOut = os.getenv('COMOUT', './')
   APrefix = os.getenv('APREFIX', '')
   NThreads = os.getenv('NTHREADS_CALCINC', 1)
@@ -91,5 +71,5 @@ if __name__ == '__main__':
   Exec = os.getenv('CALCINCEXEC', './calc_increment_ens.x')
   Inc2Zero = os.getenv('INCREMENTS_TO_ZERO', '"NONE"')
   ExecCMD = os.getenv('APRUN_CALCINC', '')
-  calcinc_gfs(DoIAU, fDEnsVar, Write4Danl, ComOut, APrefix,
+  calcinc_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
               NThreads, IMP_Physics, Inc2Zero, RunDir, Exec, ExecCMD)
