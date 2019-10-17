@@ -1842,7 +1842,7 @@ contains
              if (lupp) work1(kk)=grid3(i,j,1)
           end do
           if (lupp) then
-             call read_vardata(atmges,'delp',values_3d,errcode=iret)
+             call read_vardata(atmges,'dpres',values_3d,errcode=iret)
              if (iret /= 0) call error_msg(trim(my_name),trim(filename),'dpres','read',istop,iret)
              do k=1,grd%nsig
                 kr = grd%nsig-k+1
@@ -1858,14 +1858,14 @@ contains
                    enddo
                 enddo
              enddo
-             call read_attribute(atmges, 'nbits', nbits, 'delp',errcode=iret)
+             call read_attribute(atmges, 'nbits', nbits, 'dpres',errcode=iret)
              if (iret == 0 .and. nbits > 0)  then
                values_3d_tmp = values_3d
                call quantize_data(values_3d_tmp, values_3d, nbits, compress_err)
                call write_attribute(atmanl,&
                'max_abs_compression_error',compress_err,'dpres')
              endif
-             call write_vardata(atmanl,'delp',values_3d,errcode=iret)
+             call write_vardata(atmanl,'dpres',values_3d,errcode=iret)
              if (iret /= 0) call error_msg(trim(my_name),trim(filename),'dpres','write',istop,iret)
              do kk=1,grd%iglobal
                 i=grd%ltosi(kk)
