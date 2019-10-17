@@ -58,7 +58,7 @@ export NMV=${NMV:-"/bin/mv"}
 export NLN=${NLN:-"/bin/ln -sf"}
 export CHGRP_CMD=${CHGRP_CMD:-"chgrp ${group_name:-rstprod}"}
 export NEMSIOGET=${NEMSIOGET:-${NWPROD}/exec/nemsio_get}
-export NCDUMP=${NCDUMP:-$NETCDF/bin/ncdump}
+export NCLEN=${NCLEN:-$HOMEgfs/ush/getncdimlen}
 export CATEXEC=${CATEXEC:-$HOMEgsi/exec/nc_diag_cat_serial.x}
 export ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
 COMPRESS=${COMPRESS:-gzip}
@@ -258,9 +258,9 @@ INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"'NONE'"}
 
 # Get header information from Guess files
 if [ $GFS_NCIO = "YES" ]; then
-   LONB=${LONB:-$($NCDUMP -h $ATMGES | grep -i "grid_xt" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LONB
-   LATB=${LATB:-$($NCDUMP -h $ATMGES | grep -i "grid_yt" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LATB
-   LEVS=${LEVS:-$($NCDUMP -h $ATMGES | grep -i "pfull" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LEVS
+   LONB=${LONB:-$($NCLEN $ATMGES grid_xt)} # get LONB
+   LATB=${LATB:-$($NCLEN $ATMGES grid_yt)} # get LATB
+   LEVS=${LEVS:-$($NCLEN $ATMGES pfull)} # get LEVS
    JCAP=${JCAP:--9999} # there is no jcap in these files
 else
    LONB=${LONB:-$($NEMSIOGET $ATMGES dimx | grep -i "dimx" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get LONB
@@ -276,9 +276,9 @@ if [ $DOHYBVAR = "YES" ]; then
    SFCGES_ENSMEAN=${SFCGES_ENSMEAN:-${COMIN_GES_ENS}/${GPREFIX}sfcf006.ensmean${GSUFFIX}}
    ATMGES_ENSMEAN=${ATMGES_ENSMEAN:-${COMIN_GES_ENS}/${GPREFIX}atmf006.ensmean${GSUFFIX}}
    if [ $GFS_NCIO = "YES" ]; then
-      LONB_ENKF=${LONB_ENKF:-$($NCDUMP -h $ATMGES_ENSMEAN | grep -i "grid_xt" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LONB_ENKF
-      LATB_ENKF=${LATB_ENKF:-$($NCDUMP -h $ATMGES_ENSMEAN | grep -i "grid_yt" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LATB_ENFK
-      LEVS_ENKF=${LEVS_ENKF:-$($NCDUMP -h $ATMGES_ENSMEAN | grep -i "pfull" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}')} # get LATB_ENFK
+      LONB_ENKF=${LONB_ENKF:-$($NCLEN $ATMGES_ENSMEAN grid_xt)} # get LONB_ENKF
+      LATB_ENKF=${LATB_ENKF:-$($NCLEN $ATMGES_ENSMEAN grid_yt)} # get LATB_ENFK
+      LEVS_ENKF=${LEVS_ENKF:-$($NCLEN $ATMGES_ENSMEAN pfull)} # get LATB_ENFK
       JCAP_ENKF=${JCAP_ENKF:--9999} # again, no jcap in the netcdf files
    else
       LONB_ENKF=${LONB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimx | grep -i "dimx" | awk -F"= " '{print $2}' | awk -F" " '{print $1}')}  # 'get LONB_ENKF
