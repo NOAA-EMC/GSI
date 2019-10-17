@@ -1666,7 +1666,6 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    use constants, only: two,pi,half,deg2rad,r60,r3600
    use gsi_bundlemod, only: gsi_bundle
    use gsi_bundlemod, only: gsi_bundlegetpointer
-   use control_vectors, only: imp_physics
    use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
                            close_dataset, get_dim, read_vardata,get_idate_from_time_units
    use gfsreadmod, only: general_reload
@@ -2226,7 +2225,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    rwork3d0 = zero
    call read_vardata(atmges, 'clwmr', rwork3d0)
    rwork3d1 = zero
-   if (imp_physics == 11) call read_vardata(atmges, 'icmr', rwork3d1)
+   call read_vardata(atmges, 'icmr', rwork3d1)
    do k=1,nlevs
       icount=icount+1
       iflag(icount)=10
