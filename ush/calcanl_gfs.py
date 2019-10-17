@@ -96,7 +96,6 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
     sys.exit(e.returncode)
 
   ######## generate ensres analysis from interpolated background
-  ######## generate analysis from interpolated increment
 
   # set up the namelist
   nml_file = open(RunDir+'/calc_analysis.nml','w')
