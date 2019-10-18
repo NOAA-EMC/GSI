@@ -2516,6 +2516,7 @@ contains
                  call nc_diag_metadata("Sol_Zenith_Angle",      sngl(pangs)                         ) ! solar zenith angle (degrees)
                  call nc_diag_metadata("Sol_Azimuth_Angle",     sngl(data_s(isazi_ang,n))           ) ! solar azimuth angle (degrees)
                  call nc_diag_metadata("Sun_Glint_Angle",       sngl(sgagl)                         ) ! sun glint angle (degrees) (sgagl)
+                 call nc_diag_metadata("Scan_Angle",            sngl(data_s(iscan_ang,n)*rad2deg)   ) ! scan angle
 
                  call nc_diag_metadata("Water_Fraction",        sngl(surface(1)%water_coverage)     ) ! fractional coverage by water
                  call nc_diag_metadata("Land_Fraction",         sngl(surface(1)%land_coverage)      ) ! fractional coverage by land
