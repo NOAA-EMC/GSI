@@ -1,6 +1,6 @@
 module module_fv3gfs_ncio
 ! module for reading/writing netcdf global lat/lon grid files output by FV3GFS
-! jeff whitaker 201909
+! jeff whitaker <jeffrey.s.whitaker@noaa.gov>  201910
 
   use netcdf
 
@@ -78,7 +78,7 @@ module module_fv3gfs_ncio
   public :: open_dataset, create_dataset, close_dataset, Dataset, Variable, Dimension, &
   read_vardata, read_attribute, write_vardata, write_attribute, get_ndim, &
   get_nvar, get_var, get_dim, get_idate_from_time_units, &
-  get_time_units_from_idate, quantize_data
+  get_time_units_from_idate, quantize_data, has_var, has_attr
 
   contains
 
@@ -112,7 +112,6 @@ module module_fv3gfs_ncio
     ! get dimension index given name
     type(Dataset), intent(in) :: dset
     character(len=*), intent(in) :: dimname
-    logical foundit
     integer ndim
     get_ndim = -1
     do ndim=1,dset%ndims
@@ -132,11 +131,49 @@ module module_fv3gfs_ncio
     var = dset%variables(nvar)
   end function get_var
 
+  logical function has_var(dset, varname)
+    ! returns .true. is varname exists in dset, otherwise .false.
+    type(Dataset) :: dset
+    character(len=*) :: varname
+    integer nvar
+    nvar = get_nvar(dset, varname)
+    if (nvar > 0) then
+       has_var=.true.
+    else
+       has_var=.false.
+    endif
+  end function has_var
+
+  logical function has_attr(dset, attname, varname)
+    ! returns .true. is varname exists in dset, otherwise .false.
+    ! use optional kwarg varname to check for a variable attribute.
+    type(Dataset) :: dset
+    character(len=*) :: attname
+    character(len=*), optional :: varname
+    integer nvar, varid, ncerr
+    nvar = get_nvar(dset, varname)
+    if(present(varname))then
+        nvar = get_nvar(dset,varname)
+        if (nvar < 0) then
+           has_attr = .false.
+           return
+        endif
+        varid = dset%variables(nvar)%varid
+    else
+        varid = NF90_GLOBAL
+    endif
+    ncerr = nf90_inquire_attribute(dset%ncid, varid, attname)
+    if (ncerr /= 0) then
+       has_attr=.false.
+    else
+       has_attr=.true.
+    endif
+  end function has_attr
+
   integer function get_nvar(dset,varname)
     ! get variable index given name
     type(Dataset), intent(in) :: dset
     character(len=*), intent(in) :: varname
-    logical foundit
     integer nvar
     get_nvar = -1
     do nvar=1,dset%nvars
