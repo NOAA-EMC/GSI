@@ -677,7 +677,7 @@
                           read_attribute, close_dataset, get_dim, read_vardata,&
                           create_dataset, get_idate_from_time_units, &
                           get_time_units_from_idate, write_vardata, &
-                          write_attribute, quantize_data
+                          write_attribute, quantize_data, has_var, has_attr
   use constants, only: grav
   use params, only: nbackgrounds,anlfileprefixes,fgfileprefixes,reducedgrid
   implicit none
@@ -1111,16 +1111,15 @@
         call stop2(29)
      endif
      !print *,'nanal,min/max psfg,min/max inc',nanal,minval(values_2d),maxval(values_2d),minval(ug),maxval(ug)
-     hasfield = checkfield_nc(dsfg,'dpres')
-     if (hasfield) then
+     if (has_var(dsfg,'dpres')) then
         call read_vardata(dsfg,'dpres',ug3d)
         do k=1,nlevs
            vg = ug*(bk(k)-bk(k+1))
            vg3d(:,:,nlevs-k+1) = ug3d(:,:,nlevs-k+1) +&
            100_r_kind*reshape(vg,(/nlons,nlats/))
         enddo 
-        call read_attribute(dsfg, 'nbits', nbits, 'delp',errcode=ierr)
-        if (ierr == 0 .and. nbits > 0)  then
+        if (has_attr(dsfg, 'nbits', 'delp')) then
+          call read_attribute(dsfg, 'nbits', nbits, 'delp')
           ug3d = vg3d
           call quantize_data(ug3d, vg3d, nbits, compress_err)
           call write_attribute(dsanl,&
@@ -1590,8 +1589,8 @@
            ugtmp(:,k) = reshape(ug3d(:,:,nlevs-k+1),(/nlons*nlats/))
         endif
      enddo
-     call read_attribute(dsfg, 'nbits', nbits, 'ugrd',errcode=ierr)
-     if (ierr == 0 .and. nbits > 0)  then
+     if (has_attr(dsfg, 'nbits', 'ugrd')) then
+       call read_attribute(dsfg, 'nbits', nbits, 'ugrd')
        vg3d = ug3d
        call quantize_data(vg3d, ug3d, nbits, compress_err)
        call write_attribute(dsanl,&
@@ -1622,8 +1621,8 @@
            vgtmp(:,k) = reshape(vg3d(:,:,nlevs-k+1),(/nlons*nlats/))
         endif
      enddo  
-     call read_attribute(dsfg, 'nbits', nbits, 'vgrd',errcode=ierr)
-     if (ierr == 0 .and. nbits > 0)  then
+     if (has_attr(dsfg, 'nbits', 'vgrd')) then
+       call read_attribute(dsfg, 'nbits', nbits, 'vgrd')
        ug3d = vg3d
        call quantize_data(ug3d, vg3d, nbits, compress_err)
        call write_attribute(dsanl,&
@@ -1692,9 +1691,9 @@
      ug3d = ug3d/(1. + fv*vg3d) ! convert Tv back to T
 
      ! write analysis T
-     call read_attribute(dsfg, 'nbits', nbits, 'tmp',errcode=ierr)
      allocate(values_3d(nlons,nlats,nlevs))
-     if (ierr == 0 .and. nbits > 0)  then
+     if (has_attr(dsfg, 'nbits', 'tmp')) then
+       call read_attribute(dsfg, 'nbits', nbits, 'tmp')
        values_3d = ug3d
        call quantize_data(values_3d, ug3d, nbits, compress_err)
        call write_attribute(dsanl,&
@@ -1711,8 +1710,8 @@
      endif
 
      ! write analysis q
-     call read_attribute(dsfg, 'nbits', nbits, 'spfh',errcode=ierr)
-     if (ierr == 0 .and. nbits > 0)  then
+     if (has_attr(dsfg, 'nbits', 'spfh')) then
+       call read_attribute(dsfg, 'nbits', nbits, 'spfh')
        values_3d = vg3d
        call quantize_data(values_3d, vg3d, nbits, compress_err)
        call write_attribute(dsanl,&
@@ -1762,11 +1761,11 @@
         reshape(ug,(/nlons,nlats/))
      enddo
      if (cw_ind > 0) then
-        call read_attribute(dsfg, 'nbits', nbits, 'clwmr',errcode=ierr)
-        if (cliptracers)  where (ug3d < clip) ug3d = clip
-        if (ierr == 0 .and. nbits > 0)  then
+        if (has_attr(dsfg, 'nbits', 'clwmr')) then
+          call read_attribute(dsfg, 'nbits', nbits, 'clwmr')
           values_3d = ug3d
           call quantize_data(values_3d, ug3d, nbits, compress_err)
+          if (cliptracers)  where (ug3d < clip) ug3d = clip
           call write_attribute(dsanl,&
           'max_abs_compression_error',compress_err,'clwmr',errcode=iret)
           if (iret /= 0) then
@@ -1774,6 +1773,7 @@
             call stop2(29)
           endif
         endif
+        if (cliptracers)  where (ug3d < clip) ug3d = clip
      endif
      call write_vardata(dsanl,'clwmr',ug3d,errcode=iret) ! write clwmr
      if (iret /= 0) then
@@ -1782,11 +1782,11 @@
      endif
      if (imp_physics == 11) then
         if (cw_ind > 0) then
-           call read_attribute(dsfg, 'nbits', nbits, 'icmr',errcode=ierr)
-           if (cliptracers)  where (vg3d < clip) vg3d = clip
-           if (ierr == 0 .and. nbits > 0)  then
+           if (has_attr(dsfg, 'nbits', 'clwmr')) then
+             call read_attribute(dsfg, 'nbits', nbits, 'clwmr')
              values_3d = vg3d
              call quantize_data(values_3d, vg3d, nbits, compress_err)
+             if (cliptracers)  where (vg3d < clip) vg3d = clip
              call write_attribute(dsanl,&
              'max_abs_compression_error',compress_err,'icmr',errcode=iret)
              if (iret /= 0) then
@@ -1794,6 +1794,7 @@
                call stop2(29)
              endif
            endif
+           if (cliptracers)  where (vg3d < clip) vg3d = clip
         endif
         call write_vardata(dsanl,'icmr',vg3d,errcode=iret) ! write icmr
         if (iret /= 0) then
@@ -1803,8 +1804,7 @@
      endif
 
      ! write analysis delz
-     hasfield = checkfield_nc(dsfg,'delz')
-     if (hasfield) then
+     if (has_var(dsfg,'delz')) then
         call read_vardata(dsfg,'delz',vg3d)
         do k=1,nlevs
            vg = 0_r_kind
@@ -1818,8 +1818,8 @@
            ug3d(:,:,nlevs-k+1)=vg3d(:,:,nlevs-k+1) +&
            reshape(ug-delzb,(/nlons,nlats/))
         enddo
-        call read_attribute(dsfg, 'nbits', nbits, 'delz',errcode=ierr)
-        if (ierr == 0 .and. nbits > 0)  then
+        if (has_attr(dsfg, 'nbits', 'delz')) then
+          call read_attribute(dsfg, 'nbits', nbits, 'delz')
           values_3d = ug3d
           call quantize_data(values_3d, ug3d, nbits, compress_err)
           call write_attribute(dsanl,&
@@ -1850,12 +1850,12 @@
         vg3d(:,:,nlevs-k+1) = vg3d(:,:,nlevs-k+1) + &
         reshape(ug,(/nlons,nlats/))
      enddo
-     if (cliptracers)  where (vg3d < clip) vg3d = clip
      if (oz_ind > 0) then
-        call read_attribute(dsfg, 'nbits', nbits, 'o3mr',errcode=ierr)
-        if (ierr == 0 .and. nbits > 0)  then
+        if (has_attr(dsfg, 'nbits', 'o3mr')) then
+          call read_attribute(dsfg, 'nbits', nbits, 'o3mr')
           values_3d = vg3d
           call quantize_data(values_3d, vg3d, nbits, compress_err)
+          if (cliptracers)  where (vg3d < clip) vg3d = clip
           call write_attribute(dsanl,&
           'max_abs_compression_error',compress_err,'o3mr',errcode=iret)
           if (iret /= 0) then
@@ -1863,6 +1863,7 @@
             call stop2(29)
           endif
         endif
+        if (cliptracers)  where (vg3d < clip) vg3d = clip
      endif
      call write_vardata(dsanl,'o3mr',vg3d) ! write o3mr
      if (iret /= 0) then
@@ -1993,8 +1994,8 @@
            ug3d(:,:,nlevs-k+1) = reshape(ugtmp(:,k),(/nlons,nlats/))
            vg3d(:,:,nlevs-k+1) = reshape(vgtmp(:,k),(/nlons,nlats/))
         enddo
-        call read_attribute(dsfg, 'nbits', nbits, 'ugrd',errcode=ierr)
-        if (ierr == 0 .and. nbits > 0)  then
+        if (has_attr(dsfg, 'nbits', 'ugrd')) then
+          call read_attribute(dsfg, 'nbits', nbits, 'ugrd')
           values_3d = ug3d
           call quantize_data(values_3d, ug3d, nbits, compress_err)
           call write_attribute(dsanl,&
@@ -2009,8 +2010,8 @@
            print *,'error writing ugrd'
            call stop2(29)
         endif
-        call read_attribute(dsfg, 'nbits', nbits, 'vgrd',errcode=ierr)
-        if (ierr == 0 .and. nbits > 0)  then
+        if (has_attr(dsfg, 'nbits', 'vgrd')) then
+          call read_attribute(dsfg, 'nbits', nbits, 'vgrd')
           values_3d = vg3d
           call quantize_data(values_3d, vg3d, nbits, compress_err)
           call write_attribute(dsanl,&
@@ -2098,20 +2099,5 @@
       if (field == fields(n)) hasfield=.true.
    enddo
  end function checkfield
-
- logical function checkfield_nc(dset, name) result(hasfield)
-    use netcdf
-    use module_fv3gfs_ncio, only : Dataset
-    type(Dataset), intent(in) :: dset
-    character(len=*) :: name ! variable name
-    integer nvar
-    hasfield = .false.
-    do nvar=1,dset%nvars
-       if (trim(dset%variables(nvar)%name) == trim(name)) then
-         hasfield = .true.
-         exit      
-       endif
-    enddo
- end function checkfield_nc
 
 end module gridio
