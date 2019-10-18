@@ -1609,7 +1609,7 @@ contains
     use netcdf
     use module_fv3gfs_ncio, only: open_dataset, close_dataset, Dimension, Dataset,&
          read_attribute, write_attribute,get_dim, create_dataset, write_vardata, read_vardata,&
-         get_idate_from_time_units,quantize_data,get_time_units_from_idate
+         get_idate_from_time_units,quantize_data,get_time_units_from_idate,has_attr,has_var
     use ncepnems_io, only: error_msg
 
     implicit none
@@ -1832,31 +1832,33 @@ contains
           grid3(i,j,1)=work1(kk)-grid3(i,j,1)
           work1(kk)=grid3(i,j,1)
        end do
-       call read_vardata(atmges,'dpres',values_3d,errcode=iret)
-       if (iret /= 0) call error_msg(trim(my_name),trim(filename),'dpres','read',istop,iret)
-       do k=1,grd%nsig
-          kr = grd%nsig-k+1
-          do kk=1,grd%iglobal
-             i=grd%ltosi(kk)
-             j=grd%ltosj(kk)
-             grid3(i,j,1)=work1(kk)*(bk5(k)-bk5(k+1))
-          enddo
-          call g_egrid2agrid(p_high,grid3,grid_c2,1,1,vector)
-          do j=1,latb
-             do i=1,lonb
-                values_3d(i,j,kr)=values_3d(i,j,kr)+r1000*(grid_c2(j,i,1))
+       if (has_var(atmges,'dpres')) then ! skip this if delp not in guess file.
+          call read_vardata(atmges,'dpres',values_3d,errcode=iret)
+          if (iret /= 0) call error_msg(trim(my_name),trim(filename),'dpres','read',istop,iret)
+          do k=1,grd%nsig
+             kr = grd%nsig-k+1
+             do kk=1,grd%iglobal
+                i=grd%ltosi(kk)
+                j=grd%ltosj(kk)
+                grid3(i,j,1)=work1(kk)*(bk5(k)-bk5(k+1))
+             enddo
+             call g_egrid2agrid(p_high,grid3,grid_c2,1,1,vector)
+             do j=1,latb
+                do i=1,lonb
+                   values_3d(i,j,kr)=values_3d(i,j,kr)+r1000*(grid_c2(j,i,1))
+                enddo
              enddo
           enddo
-       enddo
-       call read_attribute(atmges, 'nbits', nbits, 'dpres',errcode=iret)
-       if (iret == 0 .and. nbits > 0)  then
-         values_3d_tmp = values_3d
-         call quantize_data(values_3d_tmp, values_3d, nbits, compress_err)
-         call write_attribute(atmanl,&
-         'max_abs_compression_error',compress_err,'dpres')
+          if (has_attr(atmges, 'nbits', 'dpres')) then
+            call read_attribute(atmges, 'nbits', nbits, 'dpres')
+            values_3d_tmp = values_3d
+            call quantize_data(values_3d_tmp, values_3d, nbits, compress_err)
+            call write_attribute(atmanl,&
+            'max_abs_compression_error',compress_err,'dpres')
+          endif
+          call write_vardata(atmanl,'dpres',values_3d,errcode=iret)
+          if (iret /= 0) call error_msg(trim(my_name),trim(filename),'dpres','write',istop,iret)
        endif
-       call write_vardata(atmanl,'dpres',values_3d,errcode=iret)
-       if (iret /= 0) call error_msg(trim(my_name),trim(filename),'dpres','write',istop,iret)
        do kk=1,grd%iglobal
           i=grd%ltosi(kk)
           j=grd%ltosj(kk)
@@ -1869,8 +1871,8 @@ contains
           end do
        end do
        values_2d = grid_b
-       call read_attribute(atmges, 'nbits', nbits, 'pressfc',errcode=iret)
-       if (iret == 0 .and. nbits > 0)  then
+       if (has_attr(atmges, 'nbits', 'pressfc')) then
+         call read_attribute(atmges, 'nbits', nbits, 'pressfc')
          values_2d_tmp = values_2d
          call quantize_data(values_2d_tmp, values_2d, nbits, compress_err)
          call write_attribute(atmanl,&
@@ -1938,8 +1940,8 @@ contains
     end do
     ! Zonal wind
     if (mype==mype_out) then
-       call read_attribute(atmges, 'nbits', nbits, 'ugrd',errcode=iret)
-       if (iret == 0 .and. nbits > 0)  then
+       if (has_attr(atmges, 'nbits', 'ugrd')) then
+         call read_attribute(atmges, 'nbits', nbits, 'ugrd')
          values_3d_tmp = ug3d 
          call quantize_data(values_3d_tmp, ug3d, nbits, compress_err)
          call write_attribute(atmanl,&
@@ -1948,8 +1950,8 @@ contains
        call write_vardata(atmanl,'ugrd',ug3d,errcode=iret)
        if (iret /= 0) call error_msg(trim(my_name),trim(filename),'ugrd','write',istop,iret)
        ! Meridional wind
-       call read_attribute(atmges, 'nbits', nbits, 'vgrd',errcode=iret)
-       if (iret == 0 .and. nbits > 0)  then
+       if (has_attr(atmges, 'nbits', 'vgrd')) then
+         call read_attribute(atmges, 'nbits', nbits, 'vgrd')
          values_3d_tmp = vg3d 
          call quantize_data(values_3d_tmp, vg3d, nbits, compress_err)
          call write_attribute(atmanl,&
@@ -1995,8 +1997,8 @@ contains
        endif
     end do
     if (mype==mype_out) then
-       call read_attribute(atmges, 'nbits', nbits, 'tmp',errcode=iret)
-       if (iret == 0 .and. nbits > 0)  then
+       if (has_attr(atmges, 'nbits', 'tmp')) then
+         call read_attribute(atmges, 'nbits', nbits, 'tmp')
          values_3d_tmp = values_3d 
          call quantize_data(values_3d_tmp, values_3d, nbits, compress_err)
          call write_attribute(atmanl,&
@@ -2041,8 +2043,8 @@ contains
        endif
     end do
     if (mype==mype_out) then
-       call read_attribute(atmges, 'nbits', nbits, 'spfh',errcode=iret)
-       if (iret == 0 .and. nbits > 0)  then
+       if (has_attr(atmges, 'nbits', 'spfh')) then
+         call read_attribute(atmges, 'nbits', nbits, 'spfh')
          values_3d_tmp = values_3d 
          call quantize_data(values_3d_tmp, values_3d, nbits, compress_err)
          call write_attribute(atmanl,&
@@ -2087,8 +2089,8 @@ contains
        endif
     end do
     if (mype==mype_out) then
-       call read_attribute(atmges, 'nbits', nbits, 'o3mr',errcode=iret)
-       if (iret == 0 .and. nbits > 0)  then
+       if (has_attr(atmges, 'nbits', 'o3mr')) then
+         call read_attribute(atmges, 'nbits', nbits, 'o3mr')
          values_3d_tmp = values_3d 
          call quantize_data(values_3d_tmp, values_3d, nbits, compress_err)
          call write_attribute(atmanl,&
@@ -2157,8 +2159,8 @@ contains
           endif !mype == mype_out
        end do
        if (mype==mype_out) then
-          call read_attribute(atmges, 'nbits', nbits, 'clwmr',errcode=iret)
-          if (iret == 0 .and. nbits > 0)  then
+          if (has_attr(atmges, 'nbits', 'clwmr')) then
+            call read_attribute(atmges, 'nbits', nbits, 'clwmr')
             values_3d_tmp = ug3d 
             call quantize_data(values_3d_tmp, ug3d, nbits, compress_err)
             call write_attribute(atmanl,&
@@ -2166,8 +2168,8 @@ contains
           endif
           call write_vardata(atmanl,'clwmr',ug3d,errcode=iret)
           if (iret /= 0) call error_msg(trim(my_name),trim(filename),'clwmr','write',istop,iret)
-          call read_attribute(atmges, 'nbits', nbits, 'icmr',errcode=iret)
-          if (iret == 0 .and. nbits > 0)  then
+          if (has_attr(atmges, 'nbits', 'icmr')) then
+            call read_attribute(atmges, 'nbits', nbits, 'icmr')
             values_3d_tmp = vg3d 
             call quantize_data(values_3d_tmp, vg3d, nbits, compress_err)
             call write_attribute(atmanl,&
@@ -2181,8 +2183,10 @@ contains
 
 ! Variables needed by the Unified Post Processor (dzdt, delz, delp)
     if (mype==mype_out) then
-       call read_vardata(atmges, 'delz', values_3d, errcode=iret)
-       if (iret /= 0) call error_msg(trim(my_name),trim(filename),'delz','read',istop,iret)
+       if (has_var(atmges,'delz')) then ! if delz in guess file, read it.
+          call read_vardata(atmges, 'delz', values_3d, errcode=iret)
+          if (iret /= 0) call error_msg(trim(my_name),trim(filename),'delz','read',istop,iret)
+       endif
     endif
     do k=1,grd%nsig
        kr = grd%nsig-k+1
@@ -2190,6 +2194,7 @@ contains
             work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
        if (mype == mype_out) then
+          if (has_var(atmges,'delz')) then 
           if(diff_res)then
              grid_b=values_3d(:,:,kr)
              do kk=1,grd%iglobal
@@ -2208,18 +2213,22 @@ contains
              call load_grid(work1,grid)
              values_3d(:,:,kr) = values_3d(:,:,kr) + grid
           end if
+          end if
        endif
     end do
     if (mype==mype_out) then
-       call read_attribute(atmges, 'nbits', nbits, 'delz',errcode=iret)
-       if (iret == 0 .and. nbits > 0)  then
-         values_3d_tmp = values_3d 
-         call quantize_data(values_3d_tmp, values_3d, nbits, compress_err)
-         call write_attribute(atmanl,&
-         'max_abs_compression_error',compress_err,'delz')
+       ! if delz in guess file, write to analysis file.
+       if (has_var(atmges,'delz')) then 
+          if (has_attr(atmges, 'nbits', 'delz')) then
+            call read_attribute(atmges, 'nbits', nbits, 'delz')
+            values_3d_tmp = values_3d 
+            call quantize_data(values_3d_tmp, values_3d, nbits, compress_err)
+            call write_attribute(atmanl,&
+            'max_abs_compression_error',compress_err,'delz')
+          endif
+          call write_vardata(atmanl,'delz',values_3d,errcode=iret)
+          if (iret /= 0) call error_msg(trim(my_name),trim(filename),'delz','write',istop,iret)
        endif
-       call write_vardata(atmanl,'delz',values_3d,errcode=iret)
-       if (iret /= 0) call error_msg(trim(my_name),trim(filename),'delz','write',istop,iret)
     endif
     
 !
