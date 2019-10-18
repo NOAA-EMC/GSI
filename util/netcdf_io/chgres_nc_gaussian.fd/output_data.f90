@@ -307,11 +307,11 @@
  real, intent(inout), dimension (:,:,:) :: out3d
  character(len=*), intent(in) :: varname
  real, allocatable, dimension(:,:,:) :: out3d_save
- integer nbits,ierr
+ integer nbits
  real compress_err
  allocate(out3d_save, mold=out3d)
- call read_attribute(outdset, 'nbits', nbits, trim(varname),errcode=ierr)
- if (ierr == 0 .and. nbits > 0)  then
+ if (has_attr(outdset, 'nbits', trim(varname))) then
+   call read_attribute(outdset, 'nbits', nbits, trim(varname))
    out3d_save = out3d
    call quantize_data(out3d_save, out3d, nbits, compress_err)
    call write_attribute(outdset,'max_abs_compression_error',compress_err,trim(varname))
