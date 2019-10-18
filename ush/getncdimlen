@@ -4,15 +4,14 @@
 # 2019-10-17
 # script to return length of requested dimension
 # for specified netCDF file
-import sys
+import argparse
 import gsi_utils
 
 if __name__ == '__main__':
-  if len(sys.argv) != 3:
-    print('usage: getncdimlen ncfile.nc dimname')
-    sys.exit(1)
-  NCFile = sys.argv[1]
-  NCDim = sys.argv[2]
-  FileDims = gsi_utils.get_ncdims(NCFile)
-  print(FileDims[NCDim])
-  sys.exit(0)
+  parser = argparse.ArgumentParser(
+           description='Get length of dimension specified from a FV3GFS netCDF file')
+  parser.add_argument('ncfile', help='path to input netCDF file', type=str)
+  parser.add_argument('dimname', help='name of dimension (ex: grid_xt)', type=str)
+  args = parser.parse_args()
+  FileDims = gsi_utils.get_ncdims(args.ncfile)
+  print(FileDims[args.dimname])

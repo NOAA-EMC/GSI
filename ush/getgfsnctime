@@ -4,29 +4,31 @@
 # 2019-10-17
 # script to return initial and valid time 
 # for specified netCDF file
-import sys
+import argparse
 import gsi_utils
 import datetime
 
 if __name__ == '__main__':
-  if len(sys.argv) < 2:
-    print('usage: getgfsnctime ncfile.nc <init|valid|fhour>')
-    sys.exit(1)
-  NCFile = sys.argv[1]
-  if len(sys.argv) == 3:
-    option = sys.argv[2]
-  else:
-    option = None
-  inittime, validtime, nfhour = gsi_utils.get_timeinfo(NCFile)
-  if option == 'init':
+  parser = argparse.ArgumentParser(
+           description='Get initial/valid time information from a FV3GFS netCDF file')
+  parser.add_argument('ncfile', help='path to input netCDF file',
+                      type=str)
+  parser.add_argument('-i','--init', action='store_true', default=False,
+                      help='option to print out initialized time YYYYMMDDHHMM')
+  parser.add_argument('-v','--valid', action='store_true', default=False,
+                      help='option to print out valid time YYYYMMDDHHMM')
+  parser.add_argument('-f','--fhour', action='store_true', default=False,
+                      help='option to print out forecast hour')
+  args = parser.parse_args()
+  inittime, validtime, nfhour = gsi_utils.get_timeinfo(args.ncfile)
+  if args.init:
      print(inittime.strftime("%Y%m%d%H%M"))
-  elif option == 'valid':
+  elif args.valid:
      print(validtime.strftime("%Y%m%d%H%M"))
-  elif option == 'fhour':
+  elif args.fhour:
      print(nfhour)
   else:
-     print(sys.argv[1])
+     print(args.ncfile)
      print('Initial time: '+inittime.strftime("%Y-%m-%d %H:%M"))
      print('Valid time: '+validtime.strftime("%Y-%m-%d %H:%M"))
      print('Forecast hour: '+str(nfhour))
-  sys.exit(0)
