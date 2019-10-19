@@ -145,7 +145,7 @@ module module_fv3gfs_ncio
   end function has_var
 
   logical function has_attr(dset, attname, varname)
-    ! returns .true. is varname exists in dset, otherwise .false.
+    ! returns .true. if attribute exists in dset, otherwise .false.
     ! use optional kwarg varname to check for a variable attribute.
     type(Dataset) :: dset
     character(len=*) :: attname
