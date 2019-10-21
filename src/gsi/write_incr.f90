@@ -269,7 +269,7 @@ contains
     if (mype == mype_out) then
        ! latitudes
        do j=2,grd%nlat-1
-          deglats(j) = rlats(j)*rad2deg
+          deglats(j-1) = rlats(j)*rad2deg
        end do
        ! write to file
        call nccheck_incr(nf90_put_var(ncid_out, latvarid, sngl(deglats), &
