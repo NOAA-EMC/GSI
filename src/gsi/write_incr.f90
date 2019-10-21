@@ -475,11 +475,23 @@ contains
        endif
        ncstart(3) = grd%nsig-k ! GSI is sfc->top, FV3 is top->sfc
     end do
-   ! cleanup and exit
-   if ( mype == mype_out ) then
-      call nccheck_incr(nf90_close(ncid_out))
-      write(6,*) "FV3 netCDF increment written, file= "//trim(filename)//".nc"
-   end if
+    ! cleanup and exit
+    if ( mype == mype_out ) then
+       call nccheck_incr(nf90_close(ncid_out))
+       write(6,*) "FV3 netCDF increment written, file= "//trim(filename)//".nc"
+    end if
+
+    ! deallocate preds/state
+    call deallocate_preds(sbiasinc)
+    do iii=1,nobs_bins
+       call deallocate_state(svalinc(iii))
+    end do
+    do iii=1,nsubwin
+       call deallocate_state(mvalinc(iii))
+    end do
+    do iii=1,ntlevs_ens
+       call deallocate_state(evalinc(iii))
+    end do
 
   end subroutine write_fv3_inc_
 
