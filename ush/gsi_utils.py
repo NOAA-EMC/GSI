@@ -36,12 +36,14 @@ def write_nml(nml_dict, nml_file):
                      NOTE: this shoudl be an OrderedDict or else it might fail
           nml_file - string path to write namelist file to
   """
+  nfile = open(nml_file, 'w')
+
   for nml, nmlvars in nml_dict.items():
-    nml_file.write('&'+nml+'\n')
+    nfile.write('&'+nml+'\n')
     for var, val in nmlvars.items():
-      nml_file.write('  '+var+' = '+val+'\n')
-    nml_file.write('/\n\n')
-  nml_file.close() 
+      nfile.write('  '+var+' = '+val+'\n')
+    nfile.write('/\n\n')
+  nfile.close() 
 
 
 def get_ncdims(ncfile):
