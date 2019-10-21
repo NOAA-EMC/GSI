@@ -37,7 +37,6 @@ def calcinc_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
   shutil.copy(Exec,RunDir+'/calc_inc.x')
 
   # set up the namelist
-  nml_file = open(RunDir+'/calc_increment.nml','w')
   namelist = OrderedDict()
   namelist["setup"] =  {"datapath": "'./'",
                         "analysis_filename": "'atmanl'",
@@ -49,7 +48,7 @@ def calcinc_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
 
   namelist["zeroinc"] = {"incvars_to_zero": Inc2Zero}
   
-  gsi_utils.write_nml(namelist, nml_file)
+  gsi_utils.write_nml(namelist, RunDir+'/calc_increment.nml')
 
   # run the executable
   try:

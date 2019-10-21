@@ -57,7 +57,6 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
 
   ######## generate analysis from interpolated increment
   # set up the namelist
-  nml_file = open(RunDir+'/calc_analysis.nml','w')
   namelist = OrderedDict()
   namelist["setup"] =  {"datapath": "'./'",
                         "analysis_filename": "'siganl'",
@@ -66,7 +65,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
                         "nhr_assim": AssimFreq,
                         "use_nemsio": ".false.")}
   
-  gsi_utils.write_nml(namelist, nml_file)
+  gsi_utils.write_nml(namelist, RunDir+'/calc_analysis.nml')
 
   # run the executable
   try:
@@ -77,7 +76,6 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
 
   ######## run chgres to get background on ensemble resolution
   # set up the namelist
-  nml_file = open(RunDir+'/chgres_nc_gauss.nml','w')
   namelist = OrderedDict()
   namelist["chgres_setup"] =  {"i_output": str(LonA),
                                "j_output": str(LatA),
@@ -86,7 +84,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
                                "terrain_file": "'"+atmges_ens_mean+"'",
                                "vcoord_file": "'"+siglevel+"'"}
   
-  gsi_utils.write_nml(namelist, nml_file)
+  gsi_utils.write_nml(namelist, RunDir+'/chgres_nc_gauss.nml')
 
   # run the executable
   try:
@@ -98,7 +96,6 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
   ######## generate ensres analysis from interpolated background
 
   # set up the namelist
-  nml_file = open(RunDir+'/calc_analysis.nml','w')
   namelist = OrderedDict()
   namelist["setup"] =  {"datapath": "'./'",
                         "analysis_filename": "'siganl.ensres'",
@@ -108,7 +105,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
                         "use_nemsio": ".false.")}
 
   
-  gsi_utils.write_nml(namelist, nml_file)
+  gsi_utils.write_nml(namelist, RunDir+'/calc_analysis.nml')
 
   # run the executable
   try:
