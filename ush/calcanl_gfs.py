@@ -15,7 +15,7 @@ from collections import OrderedDict
 # function to calculate analysis from a given increment file and background
 def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, 
                 FixDir, atmges_ens_mean, RunDir, 
-                ExecCMD, ExecAnl, ExecChgresGes, ExecChgresInc)
+                ExecCMD, ExecAnl, ExecChgresGes, ExecChgresInc):
 
   ######## copy and link files
   if DoIAU and l4DEnsVar and Write4Danl:
