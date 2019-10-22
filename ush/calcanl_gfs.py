@@ -42,6 +42,8 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
   levs = AnlDims['pfull']
   LonA = AnlDims['grid_xt']
   LatA = AnlDims['grid_yt']
+  LonB = GesDims['grid_xt']
+  LatB = GesDims['grid_yt']
 
   # vertical coordinate info
   # NOTE I Don't know why this file is 128 when it should be 127, perhaps a mislabeled filename?
@@ -54,6 +56,22 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
   os.environ['OMP_NUM_THREADS'] = str(NThreads)
 
   ######## interpolate increment to full background resolution
+  # set up the namelist
+  namelist = OrderedDict()
+  namelist["setup" = {"lon_out": LonB,
+                      "lat_out": LatB,
+                      "lev": levs,
+                      "infile": "'siginc.nc'",
+                      "outfile": "'siginc.nc.fullres'",
+                     }
+  gsi_utils.write_nml(namelist, RunDir+'/fort.43')
+
+  # run the executable
+  try:
+    err = subprocess.check_call(ExecCMD+' '+RunDir+'/chgres_inc.x', shell=True)
+  except subprocess.CalledProcessError as e:
+    print('Error with chgres_inc.x, exit code='+str(e.returncode))
+    sys.exit(e.returncode)
 
   ######## generate analysis from interpolated increment
   # set up the namelist
@@ -63,7 +81,8 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
                         "firstguess_filename": "'sigf06'",
                         "increment_filename": "'siginc.nc.fullres'",
                         "nhr_assim": AssimFreq,
-                        "use_nemsio": ".false.")}
+                        "use_nemsio": ".false.",
+                       }
   
   gsi_utils.write_nml(namelist, RunDir+'/calc_analysis.nml')
 
