@@ -116,11 +116,11 @@ export CALCINCEXEC=${CALCINCEXEC:-$HOMEgsi/exec/calc_increment_ens.x}
 export CALCINCNCEXEC=${CALCINCNCEXEC:-$HOMEgsi/exec/calc_increment_ens_ncio.x}
 export CALCANLEXEC=${CALCANLEXEC:-$HOMEgsi/exec/calc_analysis.x}
 export CHGRESNCEXEC=${CHGRESNCEXEC:-$HOMEgsi/exec/chgres_recenter_ncio.exe}
-export CHGRESINCEXEC=${CHGRESNCEXEC:-$HOMEgsi/exec/interp_inc.x}
+export CHGRESINCEXEC=${CHGRESINCEXEC:-$HOMEgsi/exec/interp_inc.x}
 CHGRESEXEC=${CHGRESEXEC:-$HOMEgsi/exec/chgres_recenter.exe}
 export NTHREADS_CHGRES=${NTHREADS_CHGRES:-24}
 CALCINCPY=${CALCINCPY:-$HOMEgfs/ush/calcinc_gfs.py}
-CALCANLPY=${CALCINCPY:-$HOMEgfs/ush/calcanl_gfs.py}
+CALCANLPY=${CALCANLPY:-$HOMEgfs/ush/calcanl_gfs.py}
 
 # OPS flags
 RUN=${RUN:-""}
