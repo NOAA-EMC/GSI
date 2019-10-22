@@ -489,9 +489,6 @@ contains
     do iii=1,nsubwin
        call deallocate_state(mvalinc(iii))
     end do
-    do iii=1,ntlevs_ens
-       call deallocate_state(evalinc(iii))
-    end do
 
   end subroutine write_fv3_inc_
 
