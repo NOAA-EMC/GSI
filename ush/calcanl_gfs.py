@@ -23,9 +23,9 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
     for fh in range(3,10):
       if fh == 6:
         shutil.copy('siginc.nc', ComOut+'/'+APrefix+'atminc.nc')
-      else
+      else:
         shutil.copy('sigi'+format(fh, '02')+'.nc', ComOut+'/'+APrefix+'atmi'+format(fh, '02')+'.nc')
-  else
+  else:
     shutil.copy('siginc.nc', ComOut+'/'+APrefix+'atminc.nc')
 
   shutil.copy(ExecChgresGes, RunDir+'/chgres_ges.x')
