@@ -115,8 +115,8 @@ export APRUN_CHGRES=${APRUN_CALCANL:-${APRUN:-""}}
 export CALCINCEXEC=${CALCINCEXEC:-$HOMEgsi/exec/calc_increment_ens.x}
 export CALCINCNCEXEC=${CALCINCEXEC:-$HOMEgsi/exec/calc_increment_ens_ncio.x}
 export CALCANLEXEC=${CALCANLEXEC:-$HOMEgsi/exec/calc_analysis.x}
-export CHGRESNCEXEC=${CHGRESNCEXEC:-$HOMEgsi/exec/chgres_nc_gauss.exe}
-export CHGRESINCEXEC=${CHGRESNCEXEC:-$HOMEgsi/exec/chgres_increment.exe}
+export CHGRESNCEXEC=${CHGRESNCEXEC:-$HOMEgsi/exec/chgres_recenter_ncio.exe}
+export CHGRESINCEXEC=${CHGRESNCEXEC:-$HOMEgsi/exec/interp_inc.x}
 CHGRESEXEC=${CHGRESEXEC:-$HOMEgsi/exec/chgres_recenter.exe}
 export NTHREADS_CHGRES=${NTHREADS_CHGRES:-24}
 CALCINCPY=${CALCINCPY:-$HOMEgfs/ush/calcinc_gfs.py}
@@ -258,7 +258,7 @@ USE_READIN_ANL_SFCMASK=${USE_READIN_ANL_SFCMASK:-.false.}
 SMOOTH_ENKF=${SMOOTH_ENKF:-"YES"}
 export DOIAU=${DOIAU:-"NO"}
 DO_CALC_INCREMENT=${DO_CALC_INCREMENT:-"NO"}
-DO_CALC_ANALYSIS=${DO_CALC_ANALYSIS:-"NO"}
+DO_CALC_ANALYSIS=${DO_CALC_ANALYSIS:-"YES"}
 export INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"'NONE'"}
 
 # Get header information from Guess files
