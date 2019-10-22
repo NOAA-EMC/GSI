@@ -1954,7 +1954,6 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret,scat)
   integer(i_kind)                   ,intent(  out) :: ierrret 
   real(r_kind),optional             ,intent(  out) :: scat
 
-! real(r_kind)                    ::  tpwc_amsua
   real(r_kind),parameter:: r285=285.0_r_kind
   real(r_kind),parameter:: r284=284.0_r_kind
   real(r_kind),parameter:: r1000=1000.0_r_kind
@@ -1972,13 +1971,10 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret,scat)
   if (tsavg5>t0c-one .and. tb_obs(1)<=r284 .and. tb_obs(2)<=r284  .and. &
       tb_obs(1)>zero .and. tb_obs(2)>zero) then
      clwp_amsua=cos(zasat)*(d0 + d1*log(r285-tb_obs(1)) + d2*log(r285-tb_obs(2))) 
-!    tpwc_amsua=cos(zasat)*(c0 + c1*log(r285-tb_obs(1)) + c2*log(r285-tb_obs(2)))
      ierrret = 0
      clwp_amsua=max(zero,clwp_amsua)
-!    tpwc_amsua=max(zero,tpwc_amsua)
   else
      clwp_amsua = r1000  
-!    tpwc_amsua = r1000  
      ierrret = 1
   endif
 
