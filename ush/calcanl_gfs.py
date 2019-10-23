@@ -47,7 +47,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
 
   # vertical coordinate info
   # NOTE I Don't know why this file is 128 when it should be 127, perhaps a mislabeled filename?
-  if levs == 127 then
+  if levs == 127:
     levs2 = 128
   else:
     levs2 = levs 
