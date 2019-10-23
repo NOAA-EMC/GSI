@@ -1,4 +1,4 @@
- program test
+ program interp_inc
 
 !---------------------------------------------------------------------
 !
@@ -6,14 +6,16 @@
 ! all fields to another gaussian resolution.  Output the result
 ! in another netcdf file.
 !
-! Input files:
-! -----------
-!
-! Output files:
-! ------------
-!
 ! Namelist variables:
-! ------------------
+! -------------------
+! lon_out               - 'i' dimension of output gaussian grid
+! lat_out               - 'j' dimension of output gaussian grid
+! lev                   - Number of vertical levels.  Must be
+!                         the same for the input and output grids.
+! infile                - Path/name of input gaussian increment
+!                         file (netcdf)
+! outfile               - Path/name of output gaussian increment
+!                         file (netcdf)
 !
 ! 2019-10-24        Initial version.
 !
@@ -69,7 +71,7 @@
 ! with data below.
 !-----------------------------------------------------------------
 
- call w3tagb('TEST', 2019, 100, 0, 'EMC')
+ call w3tagb('INTERP_INC', 2019, 100, 0, 'EMC')
 
  print*,'- READ SETUP NAMELIST'
  open (43, file="./fort.43")
@@ -179,14 +181,14 @@
  enddo
  deallocate(slat, wlat)
 
- print*,'lat out ',latitude_out(1), latitude_out(lat_out)
+!print*,'lat out ',latitude_out(1), latitude_out(lat_out)
 
  allocate(longitude_out(lon_out))
  do i = 1, lon_out
    longitude_out(i) = float(i-1) * 360.0 / float(lon_out)
  enddo
 
- print*,'lon out ',longitude_out(1), longitude_out(lon_out)
+!print*,'lon out ',longitude_out(1), longitude_out(lon_out)
 
 !-----------------------------------------------------------------
 ! Compute grib 1 grid description section for output gaussian
@@ -209,7 +211,7 @@
  kgds_out(19) = 0           ! oct 4 - # vert coordinate parameters
  kgds_out(20) = 255         ! oct 5 - not used set to 255 (missing)
 
- print*,'kgds out ',kgds_out(1:20)
+!print*,'kgds out ',kgds_out(1:20)
 
 !----------------------------------------------------
 ! Open and read input file
@@ -225,21 +227,21 @@
  error = nf90_inquire_dimension(ncid_in, id_dim, len=lon_in)
  call netcdf_err(error, 'reading lon dimension for file='//trim(infile) )
 
- print*,'lon of input file is ',lon_in
+!print*,'lon of input file is ',lon_in
 
  error = nf90_inq_dimid(ncid_in, 'lat', id_dim)
  call netcdf_err(error, 'inquiring lat dimension for file='//trim(infile) )
  error = nf90_inquire_dimension(ncid_in, id_dim, len=lat_in)
  call netcdf_err(error, 'reading lat dimension for file='//trim(infile) )
 
- print*,'lat of input file is ',lat_in
+!print*,'lat of input file is ',lat_in
 
  error = nf90_inq_dimid(ncid_in, 'lev', id_dim)
  call netcdf_err(error, 'inquiring lev dimension for file='//trim(infile) )
  error = nf90_inquire_dimension(ncid_in, id_dim, len=lev_in)
  call netcdf_err(error, 'reading lev dimension for file='//trim(infile) )
 
- print*,'lev of input file is ',lev_in
+!print*,'lev of input file is ',lev_in
 
 !---------------------------------------------------------------------------
 ! Compute latitude and longitude of input grid because the values
@@ -256,14 +258,14 @@
  enddo
  deallocate(slat, wlat)
 
- print*,'lat in ',latitude_in(1), latitude_in(lat_in)
+!print*,'lat in ',latitude_in(1), latitude_in(lat_in)
 
  allocate(longitude_in(lon_in))
 
  do i = 1, lon_in
    longitude_in(i) = float(i-1) * 360.0 / float(lon_in)
  enddo
- print*,'lon in ',longitude_in(1), longitude_in(lon_in)
+!print*,'lon in ',longitude_in(1), longitude_in(lon_in)
 
 !-----------------------------------------------------------------
 ! Compute grib 1 grid description section for input gaussian
@@ -286,11 +288,11 @@
  kgds_in(19) = 0           ! oct 4 - # vert coordinate parameters
  kgds_in(20) = 255         ! oct 5 - not used set to 255 (missing)
 
- print*,'kgds in ',kgds_in(1:20)
+!print*,'kgds in ',kgds_in(1:20)
 
  if (lev /= lev_in) then
    print*,'- FATAL ERROR: input and output levels dont match: ',lev_in, lev
-   stop
+   stop 56
  endif
 
 !-----------------------------------------------------------------
@@ -320,7 +322,7 @@
    error = nf90_get_var(ncid_in, id_var, dummy_in)
    call netcdf_err(error, 'reading ' //  trim(records(rec)) // ' for file='//trim(infile) )
 
-   print*,'dummy in ',maxval(dummy_in), minval(dummy_in)
+!  print*,'dummy in ',maxval(dummy_in), minval(dummy_in)
 
    ip = 0 ! bilinear
    ipopt = 0
@@ -339,13 +341,13 @@
               lo, go, iret)
 
    if (iret /= 0) then
-     print*,'error in ipolates ',iret
-     stop
+     print*,'FATAL ERROR in ipolates, iret: ',iret
+     stop 76
    endif
 
    if (no /= mo) then
-     print*,'ipolates returned wrong number of pts ',no
-     stop
+     print*,'FATAL ERROR: ipolates returned wrong number of pts ',no
+     stop 77
    endif
 
    dummy_out = reshape(go, (/lon_out,lat_out,lev/))
@@ -365,6 +367,8 @@
 !------------------------------------------------------------------
 ! Update remaining output file records according to Cory's sample.
 !------------------------------------------------------------------
+
+ print*,"- WRITE OUTPUT FILE: ", trim(outfile)
 
 ! lev
 
@@ -418,9 +422,9 @@
 
  print*,'- NORMAL TERMINATION'
 
- call w3tage('TEST')
+ call w3tage('INTERP_INC')
 
- end program test
+ end program interp_inc
 
  subroutine netcdf_err( err, string )
 
