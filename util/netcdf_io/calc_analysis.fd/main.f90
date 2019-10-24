@@ -4,6 +4,8 @@
 !          2. NEMSIO background file on gaussian grid
 ! write out: 1. NEMSIO analysis file
 ! Original:  2019-09-18  Martin - Original version
+!            2019-10-24  Martin - rewrote to support netCDF background and write
+!                                 either NEMSIO or netCDF analysis output
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 program calc_analysis_main
   use init_calc_analysis, only: read_nml
