@@ -41,7 +41,7 @@ def write_nml(nml_dict, nml_file):
   for nml, nmlvars in nml_dict.items():
     nfile.write('&'+nml+'\n')
     for var, val in nmlvars.items():
-      nfile.write('  '+var+' = '+val+'\n')
+      nfile.write('  '+str(var)+' = '+str(val)+'\n')
     nfile.write('/\n\n')
   nfile.close() 
 
