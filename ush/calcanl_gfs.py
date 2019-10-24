@@ -39,9 +39,9 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
   AnlDims = gsi_utils.get_ncdims('siginc.nc')
   GesDims = gsi_utils.get_ncdims('sigf06') 
 
-  levs = AnlDims['pfull']
-  LonA = AnlDims['grid_xt']
-  LatA = AnlDims['grid_yt']
+  levs = AnlDims['lev']
+  LonA = AnlDims['lon']
+  LatA = AnlDims['lat']
   LonB = GesDims['grid_xt']
   LatB = GesDims['grid_yt']
 
@@ -81,7 +81,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
                         "firstguess_filename": "'sigf06'",
                         "increment_filename": "'siginc.nc.fullres'",
                         "nhr_assim": AssimFreq,
-                        "use_nemsio": ".false.",
+                        "use_nemsio_anl": ".true.",
                        }
   
   gsi_utils.write_nml(namelist, RunDir+'/calc_analysis.nml')
@@ -121,7 +121,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
                         "firstguess_filename": "'sigf06.ensres'",
                         "increment_filename": "'siginc.nc'",
                         "nhr_assim": AssimFreq,
-                        "use_nemsio": ".false.")}
+                        "use_nemsio_anl": ".true."}
 
   
   gsi_utils.write_nml(namelist, RunDir+'/calc_analysis.nml')
