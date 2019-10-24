@@ -58,11 +58,11 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
   ######## interpolate increment to full background resolution
   # set up the namelist
   namelist = OrderedDict()
-  namelist["setup" = {"lon_out": LonB,
-                      "lat_out": LatB,
-                      "lev": levs,
-                      "infile": "'siginc.nc'",
-                      "outfile": "'siginc.nc.fullres'",
+  namelist["setup"] = {"lon_out": LonB,
+                       "lat_out": LatB,
+                       "lev": levs,
+                       "infile": "'siginc.nc'",
+                       "outfile": "'siginc.nc.fullres'",
                      }
   gsi_utils.write_nml(namelist, RunDir+'/fort.43')
 
