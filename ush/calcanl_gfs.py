@@ -11,6 +11,7 @@ import sys
 import gsi_utils
 from collections import OrderedDict
 
+AssimFreq=6 # going to assume global here for now
 
 # function to calculate analysis from a given increment file and background
 def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, 
@@ -145,7 +146,7 @@ if __name__ == '__main__':
   FixDir = os.getenv('FIXgsm', './')
   atmges_ens_mean = os.getenv('ATMGES_ENSMEAN', './atmges_ensmean')
   RunDir = os.getenv('DATA', './')
-  ExecCMD = os.getenv('APRUN_CALCINC', '')
+  ExecCMD = os.getenv('APRUN_CALCANL', '')
   ExecAnl = os.getenv('CALCANLEXEC', './calc_analysis.x')
   ExecChgresGes = os.getenv('CHGRESNCEXEC', './chgres_nc_gauss.exe')
   ExecChgresInc = os.getenv('CHGRESINCEXEC', './chgres_increment.exe')
