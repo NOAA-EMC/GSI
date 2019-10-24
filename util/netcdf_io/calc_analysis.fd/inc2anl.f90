@@ -211,7 +211,7 @@ contains
     call read_vardata(incncfile, 'delp_inc', work3d_inc)
     ! get ps increment from delp increment and bk
     allocate(ps_inc(nlon,nlat))
-    ps_inc(:,:) = work3d_inc(:,:,1) / (bk5(nlev-1) - bk5(nlev))
+    ps_inc(:,:) = work3d_inc(:,:,nlev) / (bk5(nlev) - bk5(nlev-1))
     ! read in psfc background
     call read_vardata(fcstncfile, 'pressfc', work2d)
     ! add increment to background
