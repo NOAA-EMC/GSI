@@ -47,7 +47,6 @@ contains
     write(6,*) 'nlat=', nlat
     write(6,*) 'nlev=', nlev
 
-    print *, 'temp for little big endian'
     ! need to extract lat, lon, vcoord info
     if (use_nemsio_anl) then
       allocate(lats(nlon*nlat),lons(nlon*nlat))
@@ -85,8 +84,9 @@ contains
     character(len=nf90_max_name) :: time_units
     real,allocatable,dimension(:) :: fhour
     ! nemsio variables needed
-    character(nemsio_charkind), allocatable :: recname(:), reclevtyp(:)
-    integer(nemsio_intkind), allocatable :: reclev(:)
+    character(nemsio_charkind), allocatable :: recname(:), reclevtyp(:), variname(:)
+    character(nemsio_charkind), allocatable :: varcname(:), varcval(:)
+    integer(nemsio_intkind), allocatable :: reclev(:), varival(:)
     character(len=7) :: iovars_recs(16)
     character(len=9) ::  iovars_levs(16)
     data iovars_recs /  'ugrd   ', 'vgrd   ', 'dzdt   ', 'delz   ', 'tmp    ',&
@@ -115,7 +115,7 @@ contains
     nfhour=0
     nfminute=0
     nfsecondn=0
-    nfsecondd=100
+    nfsecondd=1
     jdate6(1)=jda(1)
     jdate6(2)=jda(2)
     jdate6(3)=jda(3)
@@ -148,14 +148,41 @@ contains
        reclevtyp(nrecs) = iovars_levs(16)
        reclev(nrecs) = 1
        
+       ! more metadata
+       allocate(variname(3), varival(3), varcname(5), varcval(5))
+       variname(1) = 'ncnsto'
+       variname(2) = 'im'
+       variname(3) = 'jm'
+       varival(1) = 9
+       varival(2) = nlon
+       varival(3) = nlat
+       varcname(1) = 'hydrostatic'
+       varcname(2) = 'source'
+       varcname(3) = 'grid'
+       varcname(4) = 'y-direction'
+       varcname(5) = 'z-direction'
+       varcval(1) = 'non-hydrostatic'
+       varcval(2) = 'FV3GFS'
+       varcval(3) = 'gaussian'
+       varcval(4) = 'north2south'
+       varcval(5) = 'bottom2top'
        ! open the NEMSIO output file for writing
+       call nemsio_init(iret)
+       if (iret /= 0) then
+         write(*,*) 'Error with NEMSIO Init, iret=',iret
+         stop
+       end if
        call nemsio_open(anlfile, trim(anal_file), 'write', iret=iret, &
                        modelname="FV3GFS", gdatatype="bin4", &
                        idate=jdate, nfhour=nfhour, nfminute=nfminute, &
                        nfsecondn=nfsecondn, nfsecondd=nfsecondd, &
                        dimx=nlon,dimy=nlat,dimz=nlev,nrec=nrecs, &
-                       nmeta=8, ntrac=9, ncldt=5, idvc=2, idsl=1, &
+                       nmeta=8, ntrac=9, ncldt=5, idvc=2, idsl=1, & ! see below
                        idvm=1, idrt=4, nsoil=4, jcap=-9999,& ! hard coded to match FV3GFS history files
+                       nmetavari=3, nmetavarr=0, nmetavarl=0, nmetavarc=5, & ! more hard coded vars
+                       nmetaaryi=0, nmetaaryr=0, nmetaaryl=0, nmetaaryc=0, &
+                       extrameta=.true., varival=varival, variname=variname, &
+                       varcname=varcname, varcval=varcval,&
                        nframe=0, recname=recname, reclevtyp=reclevtyp, &
                        reclev=reclev, lat=lats, lon=lons, vcoord=vcoord)
        if (iret /= 0) then
