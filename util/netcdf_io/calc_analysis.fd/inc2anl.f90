@@ -159,7 +159,7 @@ contains
     integer :: j,jj,k,krev,iret
     type(Dataset) :: incncfile
     
-    if (has_var(fcstncfile, varname)) then
+    if (has_var(fcstncfile, fcstvar)) then
       ! get first guess
       call read_vardata(fcstncfile, fcstvar, work3d_bg)
       ! get increment
@@ -187,7 +187,7 @@ contains
       deallocate(work3d_bg, work3d_inc)
       call close_dataset(incncfile)
     else 
-      write(6,*) varname, 'not in background file, skipping...'
+      write(6,*) fcstvar, 'not in background file, skipping...'
     end if
   
   end subroutine add_increment
