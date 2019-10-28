@@ -37,8 +37,6 @@ contains
   !            increment, add the two together, and write out
   !            the analysis to a new file
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    use nemsio_module, only: nemsio_readrecv, nemsio_writerecv
-    use module_fv3gfs_ncio, only: read_vardata, write_vardata 
     implicit none
     ! variables local to this subroutine
     integer :: i, j, iincvar
@@ -86,7 +84,7 @@ contains
     use vars_calc_analysis, only: fcstncfile, anlncfile, &
                                   nlat, nlon, nlev, anlfile, use_nemsio_anl
     use module_fv3gfs_ncio, only: Dataset, read_vardata, write_vardata, &
-                                  open_dataset, close_dataset
+                                  open_dataset, close_dataset, has_var
     use nemsio_module
     implicit none
     character(7), intent(in) :: varname
@@ -95,41 +93,45 @@ contains
     real, allocatable, dimension(:,:,:) :: work3d
     integer :: iret, k, krev
 
-    select case (varname)
-      case ('grid_xt', 'grid_yt', 'pfull  ', 'phalf  ')
-        if (.not. use_nemsio_anl) then
-          call read_vardata(fcstncfile, varname, work1d)
-          call write_vardata(anlncfile, varname, work1d)
-        end if
-      case ('lat    ', 'lon    ')
-        if (.not. use_nemsio_anl) then
+    if (has_var(fcstncfile, varname)) then
+      select case (varname)
+        case ('grid_xt', 'grid_yt', 'pfull  ', 'phalf  ')
+          if (.not. use_nemsio_anl) then
+            call read_vardata(fcstncfile, varname, work1d)
+            call write_vardata(anlncfile, varname, work1d)
+          end if
+        case ('lat    ', 'lon    ')
+          if (.not. use_nemsio_anl) then
+            call read_vardata(fcstncfile, varname, work2d)
+            call write_vardata(anlncfile, varname, work2d)
+          end if
+        case ('hgtsfc ')
           call read_vardata(fcstncfile, varname, work2d)
-          call write_vardata(anlncfile, varname, work2d)
-        end if
-      case ('hgtsfc ')
-        call read_vardata(fcstncfile, varname, work2d)
-        if (use_nemsio_anl) then
-          if (.not. allocated(work1d)) allocate(work1d(nlat*nlon))
-          work1d = reshape(work2d,(/size(work1d)/))
-          call nemsio_writerecv(anlfile, 'hgt', 'sfc', 1, work1d, iret=iret)
-          if (iret /=0) write(6,*) 'Error with NEMSIO write', 'hgt', 'sfc', 1, 'iret=',iret
-        else
-          call write_vardata(anlncfile, varname, work2d)
-        end if
-      case default
-        call read_vardata(fcstncfile, varname, work3d)
-        if (use_nemsio_anl) then
-          if (.not. allocated(work1d)) allocate(work1d(nlat*nlon))
-          do k=1,nlev
-            krev = (nlev+1)-k
-            work1d = reshape(work3d(:,:,krev),(/size(work1d)/))
-            call nemsio_writerecv(anlfile, trim(varname), 'mid layer', k, work1d, iret=iret)
-            if (iret /=0) write(6,*) 'Error with NEMSIO write', trim(varname), 'mid layer', k, 'iret=',iret
-          end do
-        else
-          call write_vardata(anlncfile, varname, work3d)
-        end if
-    end select
+          if (use_nemsio_anl) then
+            if (.not. allocated(work1d)) allocate(work1d(nlat*nlon))
+            work1d = reshape(work2d,(/size(work1d)/))
+            call nemsio_writerecv(anlfile, 'hgt', 'sfc', 1, work1d, iret=iret)
+            if (iret /=0) write(6,*) 'Error with NEMSIO write', 'hgt', 'sfc', 1, 'iret=',iret
+          else
+            call write_vardata(anlncfile, varname, work2d)
+          end if
+        case default
+          call read_vardata(fcstncfile, varname, work3d)
+          if (use_nemsio_anl) then
+            if (.not. allocated(work1d)) allocate(work1d(nlat*nlon))
+            do k=1,nlev
+              krev = (nlev+1)-k
+              work1d = reshape(work3d(:,:,krev),(/size(work1d)/))
+              call nemsio_writerecv(anlfile, trim(varname), 'mid layer', k, work1d, iret=iret)
+              if (iret /=0) write(6,*) 'Error with NEMSIO write', trim(varname), 'mid layer', k, 'iret=',iret
+            end do
+          else
+            call write_vardata(anlncfile, varname, work3d)
+          end if
+      end select
+    else 
+      write(6,*) varname, 'not in background file, skipping...'
+    end if
 
   end subroutine copy_ges_to_anl
 
@@ -146,7 +148,7 @@ contains
     use vars_calc_analysis, only: fcstncfile, anlncfile, incr_file,&
                                   nlat, nlon, nlev, anlfile, use_nemsio_anl
     use module_fv3gfs_ncio, only: Dataset, read_vardata, write_vardata, &
-                                  open_dataset, close_dataset
+                                  open_dataset, close_dataset, has_var
     use nemsio_module
     implicit none
     ! input vars
@@ -156,32 +158,37 @@ contains
     real, allocatable, dimension(:) :: work1d
     integer :: j,jj,k,krev,iret
     type(Dataset) :: incncfile
-    ! get first guess
-    call read_vardata(fcstncfile, fcstvar, work3d_bg)
-    ! get increment
-    incncfile = open_dataset(incr_file)
-    call read_vardata(incncfile, trim(incvar)//"_inc", work3d_inc)
-    ! add increment to background
-    do j=1,nlat
-       jj=nlat+1-j ! increment is S->N, history files are N->S
-       work3d_bg(:,j,:) = work3d_bg(:,j,:) + work3d_inc(:,jj,:)
-    end do
-    ! write out analysis to file
-    if (use_nemsio_anl) then
-      allocate(work1d(nlat*nlon))
-      do k=1,nlev
-        krev = (nlev+1)-k
-        work1d = reshape(work3d_bg(:,:,krev),(/size(work1d)/))
-        call nemsio_writerecv(anlfile, trim(fcstvar), 'mid layer', k, work1d, iret=iret)
-        if (iret /=0) write(6,*) 'Error with NEMSIO write', trim(fcstvar), 'mid layer', k, 'iret=',iret
+    
+    if (has_var(fcstncfile, varname)) then
+      ! get first guess
+      call read_vardata(fcstncfile, fcstvar, work3d_bg)
+      ! get increment
+      incncfile = open_dataset(incr_file)
+      call read_vardata(incncfile, trim(incvar)//"_inc", work3d_inc)
+      ! add increment to background
+      do j=1,nlat
+         jj=nlat+1-j ! increment is S->N, history files are N->S
+         work3d_bg(:,j,:) = work3d_bg(:,j,:) + work3d_inc(:,jj,:)
       end do
-      deallocate(work1d)
-    else
-      call write_vardata(anlncfile, fcstvar, work3d_bg)
+      ! write out analysis to file
+      if (use_nemsio_anl) then
+        allocate(work1d(nlat*nlon))
+        do k=1,nlev
+          krev = (nlev+1)-k
+          work1d = reshape(work3d_bg(:,:,krev),(/size(work1d)/))
+          call nemsio_writerecv(anlfile, trim(fcstvar), 'mid layer', k, work1d, iret=iret)
+          if (iret /=0) write(6,*) 'Error with NEMSIO write', trim(fcstvar), 'mid layer', k, 'iret=',iret
+        end do
+        deallocate(work1d)
+      else
+        call write_vardata(anlncfile, fcstvar, work3d_bg)
+      end if
+      ! clean up and close
+      deallocate(work3d_bg, work3d_inc)
+      call close_dataset(incncfile)
+    else 
+      write(6,*) varname, 'not in background file, skipping...'
     end if
-    ! clean up and close
-    deallocate(work3d_bg, work3d_inc)
-    call close_dataset(incncfile)
   
   end subroutine add_increment
 
