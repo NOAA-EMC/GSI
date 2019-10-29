@@ -34,6 +34,7 @@ module control_vectors
 !   2019-07-11  Todling  - move WRF specific variables w_exist and dbz_exit to a new wrf_vars_mod.f90.
 !                        . move imp_physics and lupp to ncepnems_io.f90.
 !   2019-09-13  martin   - added incvars_to_zero variable for writing out fv3 netCDF increments
+!   2019-10-28  martin   - added incvars_zero_strat variable for zeroing out increments above tropopause
 !
 ! subroutines included:
 !   sub init_anacv   
@@ -133,6 +134,8 @@ public nrf2_loc,nrf3_loc,nmotl_loc   ! what are these for??
 public ntracer
 
 public :: incvars_to_zero ! array of fieldnames to zero out increments for
+public :: incvars_zero_strat ! array of fieldnames to zero out increments above tropopause
+public :: incvars_efold ! scale factor x in which e^(-(k-ktrop)/x) for above fields
 
 type control_vector
    integer(i_kind) :: lencv
@@ -176,6 +179,8 @@ real(r_kind)    ,allocatable,dimension(:) :: an_amp0
 
 logical :: llinit = .false.
 character(len=10),allocatable,dimension(:) :: incvars_to_zero 
+character(len=10),allocatable,dimension(:) :: incvars_zero_strat 
+real(r_kind) :: incvars_efold
 
 ! ----------------------------------------------------------------------
 INTERFACE ASSIGNMENT (=)
@@ -341,7 +346,10 @@ allocate(cvarsmd(mvars))
 allocate(atsfc_sdv(mvars))
 allocate(an_amp0(nvars))
 allocate(incvars_to_zero(nvars))
+allocate(incvars_zero_strat(nvars))
 incvars_to_zero(:) = 'NONE'
+incvars_zero_strat(:) = 'NONE'
+incvars_efold = 5.0_r_kind
 
 ! want to rid code from the following ...
 nrf=nc2d+nc3d
