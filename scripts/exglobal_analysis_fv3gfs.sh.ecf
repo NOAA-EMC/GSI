@@ -69,6 +69,7 @@ NTHREADS_GSI=${NTHREADS_GSI:-${NTHREADS:-1}}
 
 # Surface cycle related parameters
 DOGCYCLE=${DOGCYCLE:-"NO"}
+USE_CORRELATED_OBERRS=${USE_CORRELATED_OBERRS:-"YES"}
 CYCLESH=${CYCLESH:-$HOMEgfs/ush/global_cycle.sh}
 export CYCLEXEC=${CYCLEXEC:-$HOMEgfs/exec/global_cycle}
 NTHREADS_CYCLE=${NTHREADS_CYCLE:-24}
@@ -462,16 +463,17 @@ $NLN $HYBENSINFO   hybens_info
 $NLN $OBERROR      errtable
 
 #If using correlated error, link to the covariance files
-if grep -q "Rcov" $ANAVINFO ; 
-then
-  if ls ${FIXgsi}/Rcov* 1> /dev/null 2>&1;
-  then
+if [ $USE_CORRELATED_OBERRS == "YES" ];  then
+  if ls ${FIXgsi}/Rcov* 1> /dev/null 2>&1; then
     $NLN ${FIXgsi}/Rcov* $DATA
+    echo "using correlated obs error"
   else
     echo "Warning: Satellite error covariance files are missing."
     echo "Check for the required Rcov files in " $ANAVINFO
     exit 1
   fi
+else
+  echo "not using correlated obs error"
 fi
 
 ##############################################################
