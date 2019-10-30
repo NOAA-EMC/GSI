@@ -82,7 +82,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
                         "firstguess_filename": "'sigf06'",
                         "increment_filename": "'siginc.nc.fullres'",
                         "nhr_assim": AssimFreq,
-                        "use_nemsio_anl": ".true.",
+                        "use_nemsio_anl": ".true.", # for UPP, temporary
                        }
   
   gsi_utils.write_nml(namelist, RunDir+'/calc_analysis.nml')
@@ -122,7 +122,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
                         "firstguess_filename": "'sigf06.ensres'",
                         "increment_filename": "'siginc.nc'",
                         "nhr_assim": AssimFreq,
-                        "use_nemsio_anl": ".true."}
+                        "use_nemsio_anl": ".false."} # EnKF needs netcdf
 
   
   gsi_utils.write_nml(namelist, RunDir+'/calc_analysis.nml')
