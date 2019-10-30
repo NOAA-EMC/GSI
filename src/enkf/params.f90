@@ -128,6 +128,11 @@ integer,public :: nobsl_max = -1
 ! matrix are read from a file called 'vlocal_eig.dat'
 ! (created by an external python utility).
 logical,public :: modelspace_vloc=.false.
+! use correlated obs errors
+! (implies letkf_flag=T, modelspace_vloc=T and lobsdiag_forenkf=T)
+! if T, extra fields read from diag file and innovation stats
+! are in transformed space (R**{-1/2}).
+logical,public :: use_correlated_oberrs=.false.
 ! number of eigenvectors of vertical localization
 ! used.  Zero if modelspace_vloc=.false., read from
 ! file 'vlocal_eig.dat' if modelspace_vloc=.true.
@@ -215,7 +220,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs,npefiles,&
                    getkf,getkf_inflation,denkf,modelspace_vloc,dfs_sort,write_spread_diag,&
                    covinflatenh,covinflatesh,covinflatetr,lnsigcovinfcutoff,&
-                   fso_cycling,fso_calculate,imp_physics,lupp,cnvw_option
+                   fso_cycling,fso_calculate,imp_physics,lupp,cnvw_option,use_correlated_oberrs
 namelist /nam_wrf/arw,nmm,nmm_restart
 namelist /satobs_enkf/sattypes_rad,dsis
 namelist /ozobs_enkf/sattypes_oz
@@ -534,6 +539,26 @@ if (nproc == 0) then
      print *,'univaroz is not supported in LETKF!'
      call stop2(19)
    end if
+   if (lupd_satbiasc .and. letkf_flag) then
+     print *,'lupd_satbiasc not supported with LETKF'
+     call stop2(19)
+   endif
+   if (use_correlated_oberrs .and. .not. netcdf_diag) then
+     print *,'use_correlated_oberrs only works with netcdf_diag'
+     call stop2(19)
+   endif
+   if (use_correlated_oberrs .and. .not. letkf_flag) then
+     print *,'use_correlated_oberrs implies letkf_flag,modelspace_vloc,lobsdiag_forenkf=T'
+     call stop2(19)
+   endif
+   if (use_correlated_oberrs .and. .not. modelspace_vloc) then
+     print *,'use_correlated_oberrs implies letkf_flag,modelspace_vloc,lobsdiag_forenkf=T'
+     call stop2(19)
+   endif
+   if (use_correlated_oberrs .and. .not. lobsdiag_forenkf) then
+     print *,'use_correlated_oberrs implies letkf_flag,modelspace_vloc,lobsdiag_forenkf=T'
+     call stop2(19)
+   endif
    if ((obtimelnh < 1.e10 .or. obtimeltr < 1.e10 .or. obtimelsh < 1.e10) .and. &
        letkf_flag) then
      print *,'warning: no time localization in LETKF!'
