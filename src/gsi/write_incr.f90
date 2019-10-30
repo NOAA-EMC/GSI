@@ -71,7 +71,8 @@ contains
     use general_sub2grid_mod, only: sub2grid_info
 
     use gsi_bundlemod, only: gsi_bundle, gsi_bundlegetpointer
-    use control_vectors, only: control_vector, incvars_to_zero
+    use control_vectors, only: control_vector, incvars_to_zero, &
+                               incvars_zero_strat
 
     use constants, only: one, fv, rad2deg, r1000
 
@@ -81,7 +82,8 @@ contains
     use bias_predictors, only: predictors, allocate_preds, deallocate_preds
     use jfunc, only: xhatsave, iter
 
-    use guess_grids, only: load_geop_hgt, geop_hgti, ges_geopi, ges_tsen, ges_tsen1, ges_q1
+    use guess_grids, only: load_geop_hgt, geop_hgti, ges_geopi, ges_tsen, ges_tsen1,&
+                           ges_q1
     use state_vectors, only: allocate_state, deallocate_state
 
     implicit none
@@ -112,6 +114,7 @@ contains
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: dpsm, qsm, ozsm
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: qism, qlsm 
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: dzsm
+    real(r_kind),dimension(grd%lat1,grd%lon1) :: tmpinc2
     real(r_kind),dimension(max(grd%iglobal,grd%itotsub)) :: work1,work2
     real(r_kind),dimension(grd%nlon,grd%nlat-2):: grid, gridrev
     real(r_kind),dimension(grd%nlon,grd%nlat-2,grd%nsig):: delp
@@ -134,6 +137,8 @@ contains
     type(gsi_bundle) :: mvalinc(nsubwin)
     type(predictors) :: sbiasinc
     logical llprt
+
+    integer(i_kind),dimension(grd%lat1,grd%lon1) :: troplev
 
 !*************************************************************************
 !   Initialize local variables
@@ -303,9 +308,18 @@ contains
        call nccheck_incr(nf90_put_var(ncid_out, hybivarid, sngl(ilevsout), &
                          start = (/1/), count = (/grd%nsig+1/)))
     end if
+
+    ! get levels that are nearest the tropopause pressure
+    call get_troplev(troplev,ibin)
+
     ! u increment
     ncstart = (/ 1, 1, grd%nsig /)
     do k=1,grd%nsig
+       if (zero_increment_strat('u_inc')) then 
+         tmpinc2 = reshape(usm(:,k),(/grd%lat1,grd%lon1/))
+         call zero_inc_strat(tmpinc2, k, troplev) 
+         usm(:,k) = reshape(tmpinc2,(/grd%lat1*grd%lon1/))
+       end if
        call mpi_gatherv(usm(1,k),grd%ijn(mm1),mpi_rtype,&
             work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
@@ -325,6 +339,11 @@ contains
     ! v increment
     ncstart = (/ 1, 1, grd%nsig /)
     do k=1,grd%nsig
+       if (zero_increment_strat('v_inc')) then 
+         tmpinc2 = reshape(vsm(:,k),(/grd%lat1,grd%lon1/))
+         call zero_inc_strat(tmpinc2, k, troplev) 
+         vsm(:,k) = reshape(tmpinc2,(/grd%lat1*grd%lon1/))
+       end if
        call mpi_gatherv(vsm(1,k),grd%ijn(mm1),mpi_rtype,&
             work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
@@ -335,6 +354,7 @@ contains
              grid(:,j) = gridrev(:,grd%nlat-1-j)
           end do
           if (should_zero_increments_for('v_inc')) grid = 0.0_r_kind
+          if (zero_increment_strat('v_inc')) call zero_inc_strat(grid, k, troplev) 
           ! write to file
           call nccheck_incr(nf90_put_var(ncid_out, vvarid, sngl(grid), &
                             start = ncstart, count = nccount))
@@ -355,6 +375,7 @@ contains
           end do
           delp(:,:,k) = grid * (bk5(k)-bk5(k+1)) * r1000
           if (should_zero_increments_for('delp_inc')) delp(:,:,k) = 0.0_r_kind
+          if (zero_increment_strat('delp_inc')) call zero_inc_strat(grid, k, troplev) 
           ! write to file
           call nccheck_incr(nf90_put_var(ncid_out, delpvarid, sngl(delp(:,:,k)), &
                             start = ncstart, count = nccount))
@@ -364,6 +385,11 @@ contains
     ! delz increment
     ncstart = (/ 1, 1, grd%nsig /)
     do k=1,grd%nsig
+       if (zero_increment_strat('delz_inc')) then 
+         tmpinc2 = reshape(dzsm(:,k),(/grd%lat1,grd%lon1/))
+         call zero_inc_strat(tmpinc2, k, troplev) 
+         dzsm(:,k) = reshape(tmpinc2,(/grd%lat1*grd%lon1/))
+       end if
        call mpi_gatherv(dzsm(1,k),grd%ijn(mm1),mpi_rtype,&
             work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
@@ -383,6 +409,11 @@ contains
     ! Temperature Increment
     ncstart = (/ 1, 1, grd%nsig /)
     do k=1,grd%nsig
+       if (zero_increment_strat('T_inc')) then
+         tmpinc2 = reshape(tsensm(:,k),(/grd%lat1,grd%lon1/))
+         call zero_inc_strat(tmpinc2, k, troplev) 
+         tsensm(:,k) = reshape(tmpinc2,(/grd%lat1*grd%lon1/))
+       end if
        call mpi_gatherv(tsensm(1,k),grd%ijn(mm1),mpi_rtype,&
             work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
@@ -402,6 +433,11 @@ contains
     ! specific humidity increment
     ncstart = (/ 1, 1, grd%nsig /)
     do k=1,grd%nsig
+       if (zero_increment_strat('sphum_inc')) then 
+         tmpinc2 = reshape(qsm(:,k),(/grd%lat1,grd%lon1/))
+         call zero_inc_strat(tmpinc2, k, troplev) 
+         qsm(:,k) = reshape(tmpinc2,(/grd%lat1*grd%lon1/))
+       end if
        call mpi_gatherv(qsm(1,k),grd%ijn(mm1),mpi_rtype,&
             work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
@@ -421,6 +457,11 @@ contains
     ! liquid water increment
     ncstart = (/ 1, 1, grd%nsig /)
     do k=1,grd%nsig
+       if (zero_increment_strat('liq_wat_inc')) then 
+         tmpinc2 = reshape(qlsm(:,k),(/grd%lat1,grd%lon1/))
+         call zero_inc_strat(tmpinc2, k, troplev) 
+         qlsm(:,k) = reshape(tmpinc2,(/grd%lat1*grd%lon1/))
+       end if
        call mpi_gatherv(qlsm(1,k),grd%ijn(mm1),mpi_rtype,&
             work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
@@ -440,6 +481,11 @@ contains
     ! ozone increment
     ncstart = (/ 1, 1, grd%nsig /)
     do k=1,grd%nsig
+       if (zero_increment_strat('o3mr_inc')) then 
+         tmpinc2 = reshape(ozsm(:,k),(/grd%lat1,grd%lon1/))
+         call zero_inc_strat(tmpinc2, k, troplev) 
+         ozsm(:,k) = reshape(tmpinc2,(/grd%lat1*grd%lon1/))
+       end if
        call mpi_gatherv(ozsm(1,k),grd%ijn(mm1),mpi_rtype,&
             work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
@@ -450,6 +496,7 @@ contains
              grid(:,j) = gridrev(:,grd%nlat-1-j)
           end do
           if (should_zero_increments_for('o3mr_inc')) grid = 0.0_r_kind
+          if (zero_increment_strat('o3mr_inc')) call zero_inc_strat(grid, k, troplev) 
           ! write to file
           call nccheck_incr(nf90_put_var(ncid_out, o3varid, sngl(grid), &
                             start = ncstart, count = nccount))
@@ -459,6 +506,11 @@ contains
     ! ice mixing ratio increment
     ncstart = (/ 1, 1, grd%nsig /)
     do k=1,grd%nsig
+       if (zero_increment_strat('icmr_inc')) then 
+         tmpinc2 = reshape(qism(:,k),(/grd%lat1,grd%lon1/))
+         call zero_inc_strat(tmpinc2, k, troplev) 
+         qism(:,k) = reshape(tmpinc2,(/grd%lat1*grd%lon1/))
+       end if
        call mpi_gatherv(qism(1,k),grd%ijn(mm1),mpi_rtype,&
             work1,grd%ijn,grd%displs_g,mpi_rtype,&
             mype_out,mpi_comm_world,ierror)
@@ -481,17 +533,55 @@ contains
        write(6,*) "FV3 netCDF increment written, file= "//trim(filename)//".nc"
     end if
 
-    ! deallocate preds/state
-    call deallocate_preds(sbiasinc)
-    do iii=1,nobs_bins
-       call deallocate_state(svalinc(iii))
-    end do
-    do iii=1,nsubwin
-       call deallocate_state(mvalinc(iii))
-    end do
-
   end subroutine write_fv3_inc_
 
+  !=======================================================================
+  subroutine get_troplev(troplev,ifldsig)
+    ! find the model level that is first above the tropopause pressure
+    use guess_grids, only: tropprs, ges_prsl
+    use gridmod, only: lat1, lon1, nsig
+    use kinds, only: i_kind, r_kind
+    implicit none
+    integer(i_kind), intent(in   ) :: ifldsig
+    integer(i_kind),dimension(lat1,lon1), intent(  out) :: troplev
+    integer(i_kind) :: i,j,k
+    do j=1,lat1
+      do i=1,lon1
+        do k=1,nsig
+          if (ges_prsl(j+1,i+1,k,ifldsig)*10.0_r_kind <= tropprs(j+1,i+1)) then
+            troplev(j,i) = k
+            exit 
+          end if
+        end do
+      end do
+    end do
+  end subroutine get_troplev
+  !=======================================================================
+  subroutine zero_inc_strat(grid, k, troplev)
+    ! adjust increments based off of location of tropopause and some scaling factor
+    use gridmod, only: lat1, lon1
+    use kinds, only: i_kind, r_kind
+    use control_vectors, only: incvars_efold
+    implicit none
+    real(r_kind),dimension(lat1,lon1), intent(inout) :: grid
+    integer(i_kind),intent(in   ) :: k
+    integer(i_kind),dimension(lat1,lon1), intent(in   ) :: troplev
+    real(r_kind) :: scalefac    
+    integer(i_kind) :: i,j
+
+    do j=1,lat1
+      do i=1,lon1
+        ! do nothing if troplev is below or equal to k, if above, scale it
+        if (troplev(j,i) < k) then
+          scalefac = exp(-(real(k-troplev(j,i)))/incvars_efold)
+          grid(j,i) = grid(j,i) * scalefac 
+        end if
+      end do
+    end do
+       
+    
+  end subroutine zero_inc_strat
+    
   !=======================================================================
 
   !! Is this variable in incvars_to_zero?
@@ -516,6 +606,29 @@ contains
     end do zeros_loop
 
   end function should_zero_increments_for
+
+  !! is this variable in incvars_zero_strat?
+  logical function zero_increment_strat(check_var)
+    use control_vectors, only: nvars, incvars_zero_strat
+
+    character(len=*), intent(in) :: check_var !! Variable to search for
+
+    ! Local variables
+
+    character(len=10) :: varname ! temporary string for storing variable names
+    integer :: i ! incvars_zero_strat loop index
+
+    zero_increment_strat=.false.
+
+    zeros_loop: do i=1,nvars
+       varname = incvars_zero_strat(i)
+       if ( trim(varname) == check_var ) then
+          zero_increment_strat=.true.
+          return
+       endif
+    end do zeros_loop
+  end function zero_increment_strat
+
 
 
   subroutine nccheck_incr(status)
