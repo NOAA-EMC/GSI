@@ -9,7 +9,9 @@ program horiz
 
   logical first
 
-  character(6),dimension(ntype):: ftype
+  character(6),dimension(ntype):: var_list
+  character(6),dimension(ntype):: ges_vars
+  character(6),dimension(ntype):: anl_vars
   character(8) stid
   character(20) satname,stringd,satsis
   character(10) dum,satype,dplat
@@ -43,11 +45,19 @@ program horiz
 
 ! Namelist with defaults
   logical               :: new_hdr            = .true.
-  namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,new_hdr
+  character(10)         :: ptype              = 'ges'
+  namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,new_hdr,ptype
 
   data luname,lungrd,lunctl,lndiag / 5, 100, 51, 21 /
   data rmiss /-999./
-  data ftype / 'obs', 'ges', 'obsges', 'ozmp' /
+
+  !***************************************************
+  ! anl_vars and ges_vars are the lists of variables
+  ! used in the output GrADS control (.ctl) files
+  !
+  data anl_vars / 'obs', 'anl', 'obsanl', 'ozmp' /
+  data ges_vars / 'obs', 'ges', 'obsges', 'ozmp' /
+
   data first / .true. /
   data stringd / '.%y4%m2%d2%h2' /
   
@@ -64,30 +74,35 @@ program horiz
   write(6,input)
   write(6,*)' '
 
-!   Create filenames for diagnostic input, GrADS output, and
-!   GrADS control files    
+!**********************************************
+! Create filenames for diagnostic input, 
+!   GrADS output, and GrADS control files    
 
   write(stringd,100) iyy,imm,idd,ihh
 100 format('.',i4.4,3i2.2)
-  diag_oz = trim(satname)
-  grad_file= trim(satname) // trim(stringd) // '.ieee_d'
-  ctl_file = trim(satname) // '.ctl'
+  diag_oz   = trim(satname) // '.' // trim(ptype)
+  grad_file = trim(satname) // '.' // trim(ptype) // trim(stringd) // '.ieee_d'
+  ctl_file  = trim(satname) // '.' // trim(ptype) // '.ctl'
 
   write(6,*)'diag_oz =',diag_oz
   write(6,*)'grad_file=',grad_file
   write(6,*)'ctl_file =',ctl_file
 
-! Open unit to diagnostic file.  Read portion of header to 
-! see if file exists
+!**********************************************
+! Open unit to diagnostic file.  Read portion 
+!   of header to see if file exists
   open(lndiag,file=diag_oz,form='unformatted')
   read(lndiag,err=900,end=900) dum
   rewind lndiag
 
+!**********************************************
 ! File exists.  Read header
   write(6,*)'call read_diag_header'
   call read_diag_header( lndiag, header_fix, header_nlev, new_hdr )
 
-! Extract observation type, satellite id, and number of levels
+!**********************************************
+! Extract observation type, satellite id, 
+!   and number of levels
   satype = header_fix%obstype
   satsis = header_fix%isis
   dplat  = header_fix%id
@@ -111,6 +126,7 @@ program horiz
   endif
 
 
+!******************************************************
 ! Allocate arrays to hold observational information
   write(6,*)'allocate arrays'
   allocate ( prs_nlev(n_levs))
@@ -121,6 +137,7 @@ program horiz
   allocate(jmax(n_levs))
   allocate(jmin(n_levs))
 
+!**********************************************
 ! Extract ozinfo relative index
   do j=1,n_levs
      error(j)     = real( header_nlev(j)%err, 4)
@@ -129,12 +146,22 @@ program horiz
   end do
 
 
+!**********************************************
 ! Create GrADS control file
   write(6,*)'call create_ctl_horiz'
-  call create_ctl_horiz(ntype,ftype,n_levs,iyy,imm,idd,ihh,idhh,incr,&
+
+  if( trim(ptype) == 'ges' )then
+     var_list = ges_vars
+  else
+     var_list = anl_vars
+  end if
+
+  call create_ctl_horiz(ntype,ptype,var_list,n_levs,iyy,imm,idd,ihh,idhh,incr,&
        ctl_file,lunctl,rmiss,satname,prs_nlev,&
        error,iuse,satype,dplat)
 
+
+!**********************************************
 ! Loop to read entries in diagnostic file
   iflag = 0
   m_levs=n_levs
@@ -151,7 +178,9 @@ program horiz
 
   loopd:  do while (iflag == 0)
 
-!    Read a record.  If read flag, iflag does not equal zero, exit loopd
+     !**********************************************
+     ! Read a record.  If read flag, iflag does not 
+     !   equal zero, exit loopd
      call read_diag_data( lndiag, header_fix, data_fix, data_nlev, data_extra, iread, iflag )
      if( iflag /= 0 ) exit loopd
      nobs=nobs+iread
@@ -163,7 +192,8 @@ program horiz
         allocate(var1(iread,ntype))
      end if
 
-!    Extract obervation location
+     !**********************************************
+     ! Extract obervation location
 
    do iobs=1,iread
 
@@ -174,19 +204,25 @@ program horiz
         dlon(iobs)=rlon
      end if
      
-!    Level loop
+     !**********************************************
+     ! Level loop
      isave=0
      do j = 1, m_levs
 
-!       If observation was assimilated, save it
-!        if (data_nlev(j,iobs)%varinv > 1.e-6 ) then
-           isave = 1
-           obs   = data_nlev(j,iobs)%ozobs
-           ges   = data_nlev(j,iobs)%ozobs - data_nlev(j,iobs)%ozone_inv
-           obsges = data_nlev(j,iobs)%ozone_inv
-           tmp_ozmp = data_nlev(j,iobs)%toqf
-!          MLS v2 obs between levels 8 and 23 should be good
-           if(index(satype,'mls')/=0 .and. j<24 .and. j>7 .and. (obs<1.0e-8 .or. ges<1.0e-8) ) print*, 'obs,ges,omg=',obs,ges,obsges, m_levs,rlat,rlon,iobs
+        isave = 1
+        obs   = data_nlev(j,iobs)%ozobs
+        ges   = data_nlev(j,iobs)%ozobs - data_nlev(j,iobs)%ozone_inv
+        obsges = data_nlev(j,iobs)%ozone_inv
+        tmp_ozmp = data_nlev(j,iobs)%toqf
+
+
+        !*****************************************************
+        !  MLS v2 obs between levels 8 and 23 should be good
+
+        if( index( satype,'mls' ) /=0 .and. j<24 .and. j>7 &
+           .and. ( obs<1.0e-8 .or. ges<1.0e-8 ) ) &
+           print*, 'obs,ges,omg=',obs,ges,obsges, m_levs,rlat,rlon,iobs
+
 !         Set data values to missing flag
 !        else
 !           obs       = rmiss
@@ -195,36 +231,36 @@ program horiz
 !           tmp_ozmp  = rmiss
 !        endif
 
-!       Load into output array
+
+        !*****************************************************
+        !  Load into output array
         var(j,1) = obs
         var(j,2) = ges
         var(j,3) = obsges
         var(j,4) = tmp_ozmp
         if(index(satype,'mls')/=0) then
-          do i=1,ntype
-             var1(iobs,i)=var(1,i)  !MLS is set to 1 level
-          end do
-!         MLS obs between levels 8 and 23 should be good
-          klev=mod(iobs,n_levs)
-          if(klev==0) klev=n_levs
-          if( klev<24 .and. klev>7 ) then
-            if( (var1(iobs,1)<=0. .or. var1(iobs,1)>100.0) .and. (var1(iobs,1) /= rmiss) ) then   !if obs<0. or obs>100
-              print*, 'iobs= ', iobs, ' obs is unreasonable', klev, iobs, var(1,1), var1(iobs,1),var1(iobs,3)
-!             var1(iobs,1)=rmiss
-!             var1(iobs,2)=rmiss
-!             var1(iobs,3)=rmiss
-            end if
-            if( (var1(iobs,2)<=0. .or. var1(iobs,2)>100.0) .and. (var1(iobs,1) /= rmiss) ) then  !if ges<0. or ges>100
-              print*, 'iobs= ', iobs, ' ges is unreasonable', klev, iobs, var(1,2), var1(iobs,2),var1(iobs,3)
-!             var1(iobs,1)=rmiss
-!             var1(iobs,2)=rmiss
-!             var1(iobs,3)=rmiss
-            end if
-          end if
-        end if
-     enddo ! level loop
-  
-!    Write GrADS record
+           do i=1,ntype
+              var1(iobs,i)=var(1,i)  !MLS is set to 1 level
+           end do
+
+           !*****************************************************
+           !  MLS obs between levels 8 and 23 should be good
+           klev=mod(iobs,n_levs)
+           if(klev==0) klev=n_levs
+              if( klev<24 .and. klev>7 ) then
+                 if( (var1(iobs,1)<=0. .or. var1(iobs,1)>100.0) .and. (var1(iobs,1) /= rmiss) ) then   !if obs<0. or obs>100
+                    print*, 'iobs= ', iobs, ' obs is unreasonable', klev, iobs, var(1,1), var1(iobs,1),var1(iobs,3)
+                 end if
+                 if( (var1(iobs,2)<=0. .or. var1(iobs,2)>100.0) .and. (var1(iobs,1) /= rmiss) ) then  !if ges<0. or ges>100
+                    print*, 'iobs= ', iobs, ' ges is unreasonable', klev, iobs, var(1,2), var1(iobs,2),var1(iobs,3)
+                 end if
+              end if
+           end if
+        enddo ! level loop
+ 
+ 
+     !*****************************************************
+     ! Write GrADS record
      if (isave==1) then
         if (first) then
            first=.false.
@@ -269,8 +305,8 @@ program horiz
               jmin(klev)=lev_nobs
            end if
        end do
-!      write(60,*) stid,dlat(i),dlon(i),rtim,nlev,nflag
-!      write(60,*) ((var1(k,j),k=i,i+n_levs-1),j=1,ntype)
+
+
      end do
      deallocate(dlat)
      deallocate(dlon)
@@ -296,6 +332,7 @@ program horiz
   enddo loopd
 
   write(6,*)'read in ',nobs,' obs & write out ',irite,' obs'
+  write(6,*)'write output to lungrd=',lungrd,', file=',trim(grad_file)
 
 ! Deallocate arrays
   deallocate(var,iuse,error)

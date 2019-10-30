@@ -1,1 +1,1 @@
-gome_metop-a gome_metop-b omi_aura sbuv2_n19
+gome_metop-a gome_metop-b ompsnp_npp ompstc8_npp omi_aura sbuv2_n19
