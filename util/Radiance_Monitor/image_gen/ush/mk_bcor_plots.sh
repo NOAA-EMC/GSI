@@ -57,6 +57,10 @@ for type in ${SATYPE}; do
          ieee_src=${TANKverf}/${RUN}.${PDY}/${MONITOR}
       else
          ieee_src=${TANKverf}/${MONITOR}.${PDY}
+         if [[ ! -d ${ieee_src} ]]; then
+            ieee_src=${TANKverf}/${RUN}.${PDY}
+         fi
+
       fi
 
       if [[ -s ${ieee_src}/bcor.${type}.ctl.${Z} ]]; then
@@ -164,7 +168,7 @@ ${COMPRESS} ${imgndir}/*.ctl
 
   ctr=0
   for sat in ${SATLIST}; do
-     if [[ $MY_MACHINE = "theia" ]]; then
+     if [[ $MY_MACHINE = "hera" ]]; then
         echo "${ctr} $IG_SCRIPTS/plot_bcor.sh $sat $suffix '$plot_list'" >> $cmdfile
      else   
         echo "$IG_SCRIPTS/plot_bcor.sh $sat $suffix '$plot_list'" >> $cmdfile
@@ -189,7 +193,7 @@ ${COMPRESS} ${imgndir}/*.ctl
      $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -o ${logfile} -W ${wall_tm} \
           -J ${jobname} -cwd ${PWD} ./$cmdfile
 
-  elif [[ $MY_MACHINE = "theia" ]]; then
+  elif [[ $MY_MACHINE = "hera" ]]; then
      $SUB --account ${ACCOUNT} -n $ctr  -o ${logfile} -D . -J ${jobname} \
           --time=2:00:00 --wrap "srun -l --multi-prog ${cmdfile}"
   fi
@@ -216,7 +220,7 @@ ${COMPRESS} ${imgndir}/*.ctl
 
      ctr=0
      for var in $plot_list; do
-        if [[ $MY_MACHINE = "theia" ]]; then
+        if [[ $MY_MACHINE = "hera" ]]; then
            echo "$ctr $IG_SCRIPTS/plot_bcor.sh $sat $var $var" >> $cmdfile
         else
            echo "$IG_SCRIPTS/plot_bcor.sh $sat $var $var" >> $cmdfile
@@ -240,7 +244,7 @@ ${COMPRESS} ${imgndir}/*.ctl
         $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -o ${logfile} -W ${wall_tm} \
              -J ${jobname} -cwd ${PWD} ./$cmdfile
 
-     elif [[ $MY_MACHINE = "theia" ]]; then
+     elif [[ $MY_MACHINE = "hera" ]]; then
         $SUB --account ${ACCOUNT} -n $ctr  -o ${logfile} -D . -J ${jobname} \
              --time=1:00:00 --wrap "srun -l --multi-prog ${cmdfile}"
 
