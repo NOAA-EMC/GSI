@@ -18,8 +18,8 @@
 ##############################################################
 
 echo "--> start validate.sh"
-echo "       TEST:  COMPRESS        = $COMPRESS"
-echo "       TEST:  RADMON_SUFFIX   = $RADMON_SUFFIX"
+
+set -ax
 
    nargs=$#
    if [[ $nargs -ne 1 ]]; then
@@ -36,16 +36,29 @@ echo "       TEST:  RADMON_SUFFIX   = $RADMON_SUFFIX"
    idd=`echo $PDATE | cut -c7-8`
    ihh=`echo $PDATE | cut -c9-10`
 
-#
+#---------------------------------------------------
 #  Get the gdas_radmon_base.tar file and open it
-#
-   cp ${TANKverf}/info/${RUN}_radmon_base.tar* .
-#   cp /nwprod2/gdas_radmon.v2.0.2/fix/gdas_radmon_base.tar .
-   if [[ -s gdas_radmon_base.tar.gz ]]; then
-      gunzip gdas_radmon_base.tar.gz
+# 
+   base_file=${RUN}_radmon_base.tar
+
+   if [[ -s ${TANKverf}/info/${base_file} || \
+	 -s ${TANKverf}/info/${base_file}.${Z} ]]; then
+      cp ${TANKverf}/info/${base_file}* .
    fi
-   tar -xvf gdas_radmon_base.tar
-   rm -f gdas_radmon_base.tar
+
+   if [[ ! -s ${base_file} && ! -s ${base_file}.${Z} ]]; then
+      cp ${FIXgdas}/${base_file}* .
+   fi
+   if [[ ! -s ${base_file} && ! -s ${base_file}.${Z} ]]; then
+      echo "WARNING:  Unable to locate ${base_file}"
+   fi
+
+   if [[ -s ${base_file}.${Z} ]]; then
+      $UNCOMPRESS ${base_file}.${Z}
+   fi
+
+   tar -xvf ${base_file}
+   rm -f ${base_file}
 
 #
 #  Get satype list, loop over satype
@@ -61,10 +74,6 @@ echo "       TEST:  RADMON_SUFFIX   = $RADMON_SUFFIX"
    done
    echo $SATYPE_LIST
 
-# testing
-#  SATYPE_LIST="sndrd4_g15"
-
-
 
 #
 # loop over SATYPE_LIST  
@@ -72,8 +81,8 @@ echo "       TEST:  RADMON_SUFFIX   = $RADMON_SUFFIX"
    for sat in ${SATYPE_LIST}; do
       echo sat = $sat
 
-      gunzip time.${sat}.${PDATE}.ieee_d.gz
-      gunzip time.${sat}.ctl.gz
+      gunzip time.${sat}.${PDATE}.ieee_d.${Z}
+      gunzip time.${sat}.ctl.${Z}
 
 
       nchan=`cat time.${sat}.ctl | gawk '/title/{print $NF}'`
@@ -108,10 +117,10 @@ cat << EOF > input
  /
 EOF
 
-      ./validate_time.x < input >   stdout.validate.$sat.$ihh
+      ./radmon_validate_tm.x < input >   stdout.validate.$sat.$ihh
 
 
-      gzip time.${sat}.${PDATE}.ieee_d
+      ${COMPRESS} time.${sat}.${PDATE}.ieee_d
 
    done              #  end loop over SATYPE_LIST
 

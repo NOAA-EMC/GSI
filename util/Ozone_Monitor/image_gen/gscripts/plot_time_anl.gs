@@ -20,7 +20,7 @@ ysize=subwrd(args,6)
 platform=plotfile
 
 *say 'process 'field' from 'plotfile
-*'open 'plotfile'.ctl'
+*'open 'plotfile'.anl.ctl'
 
 debug=0
 
@@ -33,7 +33,7 @@ nlev=subwrd(lin1,6)
 if (field = cnt)
  type="number of observations"
 endif
-if (field = omg )
+if (field = oma )
  type="obs-anl"
 endif
 if (field = cpen )
@@ -66,7 +66,7 @@ while (region<=nregion)
 *say 'top of region loop with region='region
 
 '!rm -f area.txt'
-'!cat 'plotfile'.ctl |grep "region= 'region' " > area.txt'
+'!cat 'plotfile'.anl.ctl |grep "region= 'region' " > area.txt'
 result=read(area.txt)
 rc=sublin(result,1)
 area="uknown"
@@ -147,7 +147,7 @@ while (levn<=nlev)
    endif
 
    '!rm -f info.txt'
-   '!cat 'plotfile'.ctl |grep "'levn', level" > info.txt'
+   '!cat 'plotfile'.anl.ctl |grep "'levn', level" > info.txt'
    result=read(info.txt)
    rc=sublin(result,1)
    iuse=0
@@ -262,7 +262,7 @@ while (levn<=nlev)
       'draw string 0.2 10.30 region  :  'area
       'draw string 0.2 10.05 variable:  'type
       'draw string 0.2 09.80 valid   :  'date1' to 'date2
-      outfile=plotfile'.'field'_region'region'_fr'fr'.png'
+      outfile=plotfile'.anl.'field'_region'region'_fr'fr'.png'
       'printim 'outfile' 'xsize' 'ysize' white'
 *      say 'output to file 'outfile
       if (debug=1) 

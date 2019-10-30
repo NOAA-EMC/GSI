@@ -5,7 +5,7 @@
 #
 #  This script makes sets all necessary configuration definitions
 #  and calls the makeall.sh script to build all the necessary
-#  executables.  This script works for zeus, theia, wcoss and
+#  executables.  This script works for hera, wcoss, cray, and
 #  wcoss_d machines.
 #
 #-------------------------------------------------------------------
@@ -16,7 +16,7 @@
    my $machine = `/usr/bin/perl get_hostname.pl`;
    my $my_machine="export MY_MACHINE=$machine";
 
-   if( $machine ne "cray" && $machine ne "theia" && $machine ne "wcoss" && $machine ne "wcoss_d" ) {
+   if( $machine ne "cray" && $machine ne "hera" && $machine ne "wcoss" && $machine ne "wcoss_d" ) {
       die( "ERROR --- Unrecognized machine hostname, $machine.  Exiting now...\n" );
    }
    else {
@@ -24,7 +24,7 @@
    }
 
    #
-   #  surge, theia, wcoss, wcoss_d are all little endian machines, and all run linux
+   #  hera, wcoss, cray, wcoss_d are all little endian machines, and all run linux
    # 
    my $little_endian = "export LITTLE_ENDIAN=\${LITTLE_ENDIAN:-0}";
    my $my_os = "linux";
@@ -53,11 +53,11 @@
    #  TANKDIR location
    #
    my $user_name = $ENV{ 'USER' };
-   if( $machine eq "theia" ){
-      $tankdir = "/scratch4/NCEPDEV/da/save/$user_name/nbns";
+   if( $machine eq "hera" ){
+      $tankdir = "/scratch1/NCEPDEV/da/$user_name/nbns";
    }
    elsif( $machine eq "wcoss_d" ){
-      $tankdir = "/gpfs/dell2/emc/verification/noscrub/$user_name/nbns";
+      $tankdir = "/gpfs/dell2/emc/modeling/noscrub/$user_name/nbns";
    }
    elsif( $machine eq "cray" ){
       $tankdir = "/gpfs/hps/emc/da/noscrub/$user_name/nbns";
@@ -209,9 +209,46 @@
       $my_ptmp="export OZN_PTMP=\${OZN_PTMP:-/gpfs/hps2/ptmp}";
       $my_stmp="export OZN_STMP=\${OZN_STMP:-/gpfs/hps2/stmp}";
    }
-   elsif( $machine eq "theia" ){
-      $my_ptmp="export OZN_PTMP=\${OZN_PTMP:-/scratch4/NCEPDEV/stmp4}";
-      $my_stmp="export OZN_STMP=\${OZN_STMP:-/scratch4/NCEPDEV/stmp3}";
+   elsif( $machine eq "hera" ){
+      $ptmp = "/scratch2/NCEPDEV/stmp3";
+
+      print "Please specify PTMP location.  This is used for temporary work space.\n";
+      print "\n";
+      print "  Return to accept default location or enter new location now.\n";
+      print "\n";
+      print "  Default PTMP:  $ptmp \n";
+      print "     ?\n";
+      my $new_ptmp = <>;
+      $new_ptmp =~ s/^\s+|\s+$//g;
+
+      if( length($new_ptmp ) > 0 ) {
+         $ptmp = $new_ptmp;
+      }
+      $my_ptmp="export OZN_PTMP=\${OZN_PTMP:-$ptmp}";
+      print "my_ptmp = $my_ptmp\n";
+      print "\n\n";
+      sleep( 1 );
+
+
+      $stmp = "/scratch2/NCEPDEV/stmp1";
+
+      print "Please specify STMP location.  This is used for temporary work space.\n";
+      print "\n";
+      print "  Return to accept default location or enter new location now.\n";
+      print "\n";
+      print "  Default STMP:  $stmp \n";
+      print "     ?\n";
+      my $new_stmp = <>;
+      $new_stmp =~ s/^\s+|\s+$//g;
+
+      if( length($new_stmp ) > 0 ) {
+         $stmp = $new_stmp;
+      }
+      $my_stmp="export OZN_STMP=\${OZN_STMP:-$stmp}";
+      print "my_stmp = $my_stmp\n";
+      print "\n\n";
+      sleep( 1 );
+
    } 
 
    print "my_ptmp = $my_ptmp\n";
@@ -257,6 +294,30 @@
    close $in;
    move "$oznmon_config.new", $oznmon_config;
 
+   sleep( 1 );
+
+   print "\n\n";
+
+   my $rpt = 0;
+   print "  The DO_DATA_RPT flag is used to set the validation and notification process\n";
+   print "  to off/on.  The default is off.\n";
+   print "  Return to accept default setting of 0 (off) or enter 1 to turn it on.\n";
+   print "\n";
+   print "  Default DO_DATA_RPT  $rpt \n";
+   print "     ?\n";
+
+   my $new_rpt = <>;
+   $new_rpt =~ s/^\s+|\s+$//g;
+   
+   if( length($new_rpt ) > 0 ) {
+      if( $new_rpt =~ '1' ) {
+         $rpt = 1;
+      }
+   }
+   my $my_rpt="export DO_DATA_RPT=\${DO_DATA_RPT:-$rpt}";
+   print "my_rpt = $my_rpt\n";
+   print "\n\n";
+   sleep( 1 );
 
    # 
    #   Update the default account settings in the OznMon_user_settings script.
@@ -265,7 +326,7 @@
    print "Updating parm/OznMon_user_settings\n";
 
    my $account = "export ACCOUNT=\${ACCOUNT:-fv3-cpu}";
-   if( $machine ne "zeus" && $machine ne "theia" ) {
+   if( $machine ne "theia" && $machine ne "hera" ) {
       $account = "export ACCOUNT=\${ACCOUNT:-}";
    }
 
@@ -305,6 +366,9 @@
        elsif( $line =~ m/export HPSS_DIR/ ){
           $line = $hpss_dir;
        }
+       elsif( $line =~ m/export DO_DATA_RPT/ ){
+          $line = $my_rpt; 
+       }
        print OUT "$line\n";    
     }    
     close OUT;    
@@ -312,14 +376,11 @@
 
     move $outfile, $infile;
 
-
     print "\n";
     print "Making all executables\n";
 
     `./build_OznMon_cmake.sh`;
 
-#    `./makeall.sh clean`;
-#    `./makeall.sh`;
  
    exit 0;
 

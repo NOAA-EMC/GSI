@@ -216,7 +216,7 @@ elif [[ $MY_MACHINE = "wcoss" ]]; then
 
 elif [[ $MY_MACHINE = "wcoss_d" ]]; then
 
-   $SUB -q $JOB_QUEUE -P $PROJECT -M 200 -R affinity[core] \
+   $SUB -q $JOB_QUEUE -P $PROJECT -M 400 -R affinity[core] \
         -o ${OZN_LOGdir}/DE.${PDY}.${cyc}.log \
         -e ${OZN_LOGdir}/DE.${PDY}.${cyc}.err \
         -W 0:05 -J ${job} -cwd ${PWD} $jobfile
