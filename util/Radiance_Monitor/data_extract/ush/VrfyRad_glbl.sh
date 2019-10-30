@@ -138,7 +138,7 @@ jobname=$DATA_EXTRACT_JOBNAME
 if [[ $RUN_ENVIR = dev ]]; then
    if [[ $MY_MACHINE = "wcoss" ]]; then
       total=`bjobs -l | grep ${jobname} | wc -l`
-   elif [[ $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
+   elif [[ $MY_MACHINE = "hera" || $MY_MACHINE = "theia" ]]; then
       total=0
       line=`qstat -u ${LOGNAME} | grep ${jobname}`
       test=`echo $line | gawk '{print $10}'`
@@ -185,7 +185,13 @@ if [[ $RUN_ENVIR = dev ]]; then
    #---------------------------------------------------------------
    # Locate required files.             
    #---------------------------------------------------------------
-   if [[ -d ${DATDIR}/gdas.$PDY ]]; then
+   if [[ -d ${DATDIR}/gdas.${PDY}/${CYC} ]]; then
+      export DATDIR=${DATDIR}/gdas.${PDY}/${CYC}
+
+      export biascr=$DATDIR/gdas.t${CYC}z.abias  
+      export radstat=$DATDIR/gdas.t${CYC}z.radstat
+
+   elif [[ -d ${DATDIR}/gdas.$PDY ]]; then
       export DATDIR=${DATDIR}/gdas.${PDY}
 
       export biascr=$DATDIR/gdas.t${CYC}z.abias  
@@ -247,10 +253,10 @@ if [[ -e ${radstat} ]]; then
    export VERBOSE=${VERBOSE:-YES}
    prev_day=`${NDATE} -06 $PDATE | cut -c1-8`
 
-   if [[ $TANK_USE_RUN -eq 1 ]]; then 
-      export TANKverf_rad=${TANKverf_rad:-${TANKverf}/${RUN}.${PDY}/${MONITOR}} 
-      export TANKverf_radM1=${TANKverf_radM1:-${TANKverf}/${RUN}.${prev_day}/${MONITOR}}
-   else
+   if [[ $TANK_USE_RUN -eq 0 ]]; then 
+#      export TANKverf_rad=${TANKverf_rad:-${TANKverf}/${RUN}.${PDY}/${MONITOR}} 
+#      export TANKverf_radM1=${TANKverf_radM1:-${TANKverf}/${RUN}.${prev_day}/${MONITOR}}
+#   else
       export TANKverf_rad=${TANKverf_rad:-${TANKverf}/${MONITOR}.${PDY}}
       export TANKverf_radM1=${TAKverf_radM1:-${TANKverf}/${MONITOR}.${prev_day}}
    fi
@@ -281,7 +287,7 @@ if [[ -e ${radstat} ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGdir/data_extract.${PDY}.${cyc}.log \
            -M 100 -W 0:20 -J ${jobname} -cwd ${PWD} $HOMEgdas/jobs/JGDAS_VERFRAD
 
-   elif [[ $MY_MACHINE = "theia" ]]; then
+   elif [[ $MY_MACHINE = "hera" ]]; then
       $SUB --account=${ACCOUNT} --time=10 -J ${jobname} -D . \
         -o ${LOGdir}/DE.${PDY}.${cyc}.log \
         --ntasks=1 --mem=5g \

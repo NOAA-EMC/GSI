@@ -125,7 +125,11 @@ mkdir -p $LOGdir
 # set PDATE to it.  Otherwise, determie the last cycle processed 
 # (into *.ieee_d files) and use that as the PDATE.
 #--------------------------------------------------------------------
-export PRODATE=`${IG_SCRIPTS}/find_cycle.pl --cyc 1 --dir ${TANKDIR} --run ${RUN}`
+if [[ $TANK_USE_RUN = 1 ]]; then
+   export PRODATE=`${IG_SCRIPTS}/nu_find_cycle.pl --cyc 1 --dir ${TANKDIR} --run ${RUN}`
+else
+   export PRODATE=`${IG_SCRIPTS}/find_cycle.pl --cyc 1 --dir ${TANKDIR}`
+fi
 
 if [[ $plot_time != "" ]]; then
    export PDATE=$plot_time
@@ -142,7 +146,7 @@ export START_DATE=`$NDATE ${hrs} $PDATE`
 echo "start_date, prodate, pdate = $START_DATE $PRODATE  $PDATE"
 
 sdate=`echo $PDATE|cut -c1-8`
-export CYA=`echo $PDATE|cut -c9-10`
+export CYC=`echo $PDATE|cut -c9-10`
 export PDY=`echo $PDATE|cut -c1-8`
 
 
@@ -151,12 +155,21 @@ export PDY=`echo $PDATE|cut -c1-8`
 #
 
 if [[ $TANK_USE_RUN -eq 1 ]]; then
-   ieee_src=${TANKverf}/${RUN}.${PDY}/${MONITOR}
+   ieee_src=${TANKverf}/${RUN}.${PDY}/${CYC}/${MONITOR}
+   if [[ ! -d ${ieee_src} ]]; then
+      ieee_src=${TANKverf}/${RUN}.${PDY}/${MONITOR}
+   fi
 else
    ieee_src=${TANKverf}/${MONITOR}.${PDY}
+   if [[ ! -d ${ieee_src} ]]; then
+      ieee_src=${TANKverf}/${RUN}.${PDY}
+   fi 
 fi
 
-echo "ieee_src = $ieee_src"
+if [[ ! -d ${ieee_src} ]]; then
+   echo "unable to set ieee_src, aborting plot"
+   exit
+fi
 
 
 #--------------------------------------------------------------------
@@ -296,11 +309,11 @@ fi
 #--------------------------------------------------------------------
 if [[ $DO_DATA_RPT -eq 1 || $DO_DIAG_RPT -eq 1 ]]; then
 
-   logfile=${LOGdir}/data_extract.${sdate}.${CYA}.log
+   logfile=${LOGdir}/data_extract.${sdate}.${CYC}.log
   
    if [[ -s $logfile ]]; then
       ${IG_SCRIPTS}/ck_missing_diags.sh ${PDATE} ${TANKDIR}
-      ${IG_SCRIPTS}/extract_err_rpts.sh ${sdate} ${CYA} ${logfile}
+      ${IG_SCRIPTS}/extract_err_rpts.sh ${sdate} ${CYC} ${logfile}
    fi
 fi
 
@@ -312,7 +325,7 @@ fi
 #----------------------------------------------------------------------
 if [[ $RUN_TRANSFER -eq 1 ]]; then
 
-   if [[ $MY_MACHINE = "wcoss" ]]; then
+   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "wcoss_d" ]]; then
       cmin=`date +%M`		# minute (MM)
       ctime=`date +%G%m%d%H`	# YYYYMMDDHH
       rtime=`$NDATE +1 $ctime`	# ctime + 1 hour
@@ -321,7 +334,11 @@ if [[ $RUN_TRANSFER -eq 1 ]]; then
       run_time="$rhr:$cmin"	# HH:MM format for lsf (bsub command) 		
 
       transfer_log=${LOGdir}/Transfer_${RADMON_SUFFIX}.log
-      TRANSFER_QUEUE=transfer
+
+      transfer_queue=transfer
+      if [[ $MY_MACHINE = "wcoss_d" ]]; then
+         transfer_queue=dev_transfer
+      fi
 
       jobname=transfer_${RADMON_SUFFIX}
       job="${IG_SCRIPTS}/Transfer.sh --nosrc --area $RAD_AREA ${RADMON_SUFFIX}"
@@ -331,7 +348,7 @@ if [[ $RUN_TRANSFER -eq 1 ]]; then
       fi
       echo "job = $job"
 
-      $SUB -P $PROJECT -q $TRANSFER_QUEUE -o ${transfer_log} -M 80 -W 0:45 -R affinity[core] -J ${jobname} -cwd ${PWD} -b $run_time ${job}
+      $SUB -P $PROJECT -q $transfer_queue -o ${transfer_log} -M 80 -W 0:45 -R affinity[core] -J ${jobname} -cwd ${PWD} -b $run_time ${job}
 
    else
       ${IG_SCRIPTS}/Transfer.sh ${RADMON_SUFFIX} --nosrc \

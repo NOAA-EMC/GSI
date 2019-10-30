@@ -28,9 +28,9 @@ elif [[ -d /cm ]] ; then
 elif [[ -d /ioddev_dell ]]; then
     . $MODULESHOME/init/sh
     target=wcoss_d
-elif [[ -d /scratch3 ]] ; then
+elif [[ -d /scratch1 ]] ; then
     . /apps/lmod/lmod/init/sh
-    target=theia
+    target=hera
 else
     echo "unknown target = $target"
     exit 9
@@ -39,7 +39,6 @@ fi
 GSI_Pkg=${top_level}/../..
 echo "GSI_Pkg = ${GSI_Pkg}"
 
-#machine=`./get_hostname.pl`
 echo "target = $target"
 
 dir_modules=${GSI_Pkg}/modulefiles
@@ -53,14 +52,13 @@ fi
 #  source RadMon_config
 #------------------------------
 . ${top_level}/parm/RadMon_config
-#. ${top_level}/parm/radmon.ver
 
 
 #---------------------------------------------------           
 #  Verify this is a supported machine
 #---------------------------------------------------           
 
-if [[ ${target} = "theia"    || ${target} = "wcoss" \
+if [[ ${target} = "hera"     || ${target} = "wcoss" \
    || ${target} = "wcoss_c"  || ${target} = "wcoss_d" ]]; then
    echo Building nwprod executables on ${target}
    echo
@@ -76,7 +74,7 @@ if [[ ${target} = "theia"    || ${target} = "wcoss" \
    elif [ $target = wcoss -o $target = gaea ]; then
       module purge
       module load $dir_modules/modulefile.ProdGSI.$target
-   elif [ $target = theia -o $target = cheyenne ]; then
+   elif [ $target = hera -o $target = cheyenne ]; then
       module purge
       source $dir_modules/modulefile.ProdGSI.$target
    elif [ $target = wcoss_c ]; then
