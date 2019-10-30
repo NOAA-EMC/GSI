@@ -6,7 +6,9 @@ program main
   integer ntype,mregion,mls2_levs,mls3_levs
   parameter (ntype=4,mregion=25,mls2_levs=37,mls3_levs=55)
 
-  character(10),dimension(ntype):: ftype
+  character(10),dimension(ntype):: var_list
+  character(10),dimension(ntype):: anl_vars
+  character(10),dimension(ntype):: ges_vars
   character(20) satname,stringd,satsis
   character(10) dum,satype,dplat
   character(40) string,diag_oz,grad_file,ctl_file
@@ -40,13 +42,16 @@ program main
 
 ! Namelist with defaults
   logical               :: new_hdr            = .false.
+  character(10)         :: ptype              = "ges"
   namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,&
-       nregion,region,rlonmin,rlonmax,rlatmin,rlatmax,validate,new_hdr
+       nregion,region,rlonmin,rlonmax,rlatmin,rlatmax,validate,new_hdr,ptype
 
   data luname,lungrd,lunctl,lndiag,lupen,lucnt / 5, 100, 51, 21, 52, 53 /
   data rmiss /-999./
   data stringd / '.%y4%m2%d2%h2' /
-  data ftype / 'cnt', 'cpen', 'avgomg', 'sdvomg' /
+!  data ftype / 'cnt', 'cpen', 'avgomg', 'sdvomg' /
+  data anl_vars / 'cnt', 'cpen', 'avgoma', 'sdvoma' /
+  data ges_vars / 'cnt', 'cpen', 'avgomg', 'sdvomg' /
 
 
   penformat = "(A15,A7,I3,A8,I1,A10,ES13.7E2,A8,ES13.7E2)"
@@ -76,9 +81,10 @@ program main
 ! Create filenames for diagnostic input, GrADS output, and GrADS control files    
   write(stringd,100) iyy,imm,idd,ihh
 100 format('.',i4.4,3i2.2)
-  diag_oz = trim(satname)
-  grad_file= trim(satname) // trim(stringd) // '.ieee_d'
-  ctl_file = trim(satname) // '.ctl'
+
+  diag_oz   = trim(satname) // '.' // trim(ptype)
+  grad_file = trim(satname) // '.' // trim(ptype) // trim(stringd) // '.ieee_d'
+  ctl_file  = trim(satname) // '.' // trim(ptype) // '.ctl'
 
   bad_pen_file = 'bad_pen' // trim(stringd)
   bad_cnt_file = 'bad_cnt' // trim(stringd)
@@ -100,7 +106,8 @@ program main
 ! File exists.  Read header
   write(6,*)'call read_diag_header'
   call read_diag_header( lndiag, header_fix, header_nlev, new_hdr )
-
+  write(6,*)'after read_diag_header, new_hdr = ', new_hdr 
+  
 ! Extract observation type, satellite id, and number of levels
   satype = header_fix%obstype
   satsis = header_fix%isis
@@ -114,10 +121,10 @@ program main
     n_levs = mls3_levs
   end if
 
-!  write(6,*)'satype,dplat,n_levs=',satype,' ',dplat,n_levs
+  write(6,*)'satype,dplat,n_levs=',satype,' ',dplat,n_levs
 
   string = trim(satype)//'_'//trim(dplat)
-!  write(6,*)'string,satname=',string,' ',satname
+  write(6,*)'string,satname=',string,' ',satname
   if ( trim(string) /= trim(satname) ) then
      write(6,*)'***ERROR*** inconsistent instrument types'
      write(6,*)'  satname,string  =',satname,' ',string
@@ -126,8 +133,8 @@ program main
 
 
 ! Allocate arrays to hold observational information
-!  write(6,*)' '
-!  write(6,*)'allocate arrays'
+  write(6,*)' '
+  write(6,*)'allocate arrays'
   allocate ( prs_nlev(n_levs))
   allocate (omg_cor(n_levs,mregion,2), &
        cnt(n_levs,mregion), & 
@@ -161,7 +168,19 @@ program main
 
 ! Create GrADS control file
   write(6,*)'call create_ctl_oz'
-  call create_ctl_oz(ntype,ftype,n_levs,iyy,imm,idd,ihh,idhh,&
+
+! ----------------------------------------------------
+! Set the var_list list to use either the ges or anl 
+! version per the ptype value
+
+  if( trim(ptype) == 'ges' ) then
+     var_list=ges_vars
+  else
+     var_list=anl_vars
+  end if
+
+
+  call create_ctl_oz(ntype,ptype, var_list,n_levs,iyy,imm,idd,ihh,idhh,&
        incr,ctl_file,lunctl,rmiss,satname,satype,dplat,nregion,&
        region,rlonmin,rlonmax,rlatmin,rlatmax,prs_nlev,use(1,1),error(1,1))
 
@@ -245,8 +264,8 @@ program main
 
    enddo   ! END do iobs=1,iread
 
-!  End of loop over diagnostic file
-  enddo loopd
+  enddo loopd !  End of loop over diagnostic file
+
 
   close(lndiag)
   print*, 'read in ', nobs, ' observations in total',cnt(12,1),cnt(12,4),sum(omg_cor),sum(penalty)

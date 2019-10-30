@@ -2,7 +2,7 @@
 
 set -xa
 
-OZN_SUFFIX=GFS
+OZN_SUFFIX=GEOIRimg4
 run=gdas
 
 NET=gfs
@@ -46,20 +46,20 @@ idate=`${scripts}/find_cycle.pl -dir ~/nbns/stats/${OZN_SUFFIX} -cyc 1 -run ${ru
 echo "idate = $idate"
 
 export NDATE=/gpfs/dell1/nco/ops/nwprod/prod_util.v1.1.1/exec/ips/ndate
-#export START_DATE=2019082906
+#export START_DATE=2019062812
 START_DATE=`${NDATE} +06 $idate`
 
 PDY=`echo $START_DATE | cut -c1-8`
 cyc=`echo $START_DATE | cut -c9-10`
 
 
-export COM_IN=/gpfs/dell1/nco/ops/com/${NET}/${envir}/${run}.${PDY}/${cyc}
-#export COM_IN=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/test_data/${run}.${PDY}/${cyc}
+#export COM_IN=/gpfs/dell1/nco/ops/com/${NET}/${envir}/${run}.${PDY}/${cyc}
+export COM_IN=/gpfs/dell3/ptmp/Haixia.Liu/ROTDIRS/prfv3_${OZN_SUFFIX}/${run}.${PDY}/${cyc}
 
 export oznstat=${COM_IN}/${run}.t${cyc}z.oznstat
 
 export OZN_TANKDIR=/u/${LOGNAME}/nbns
-#export OZN_TANKDIR=/home/${LOGNAME}/nbns
+export OZNMON_NEW_HDR=1
 
 log=/gpfs/dell2/ptmp/Edward.Safford/logs/${OZN_SUFFIX}/${run}/oznmon/OznMon_DE.log
 #log=/ptmpd1/Edward.Safford/logs/${OZN_SUFFIX}/${run}/oznmon/OznMon_DE.log
