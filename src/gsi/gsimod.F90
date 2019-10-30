@@ -82,7 +82,7 @@
      clip_supersaturation,cnvw_option
   use state_vectors, only: init_anasv,final_anasv
   use control_vectors, only: init_anacv,final_anacv,nrf,nvars,nrf_3d,cvars3d,cvars2d,&
-     nrf_var,lcalc_gfdl_cfrac,incvars_to_zero 
+     nrf_var,lcalc_gfdl_cfrac,incvars_to_zero,incvars_zero_strat,incvars_efold 
   use derivsmod, only: init_anadv
   use berror, only: norh,ndeg,vs,bw,init_berror,hzscl,hswgt,pert_berr,pert_berr_fct,&
      bkgv_flowdep,bkgv_rewgtfct,bkgv_write,fpsproj,nhscrf,adjustozvar,fut2ps,cwcoveqqcov
@@ -403,6 +403,7 @@
 !  09-13-2019 Martin    Add option incvars_to_zero(nvars) to zero out netCDF increment fields
 !  09-20-2019 Su        add new variational QC and hub norm option
 !  09-23-2019 Martin    Add option use_gfs_ncio to read in first-guess netCDF file
+!  10-28-2019 Martin    Add option incvars_zero_strat(nvars) to zero out increments above tropopause
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -590,6 +591,10 @@
 !                      rather than NEMSIO analysis
 !     incvars_to_zero - list of strings of variable names in FV3 netCDF
 !                       increment file that should be forced to be zero
+!     incvars_zero_strat - list of strings of variable names in FV3 netcdf
+!                          increment file that will be reduced to zero
+!                          above the tropopause
+!     incvars_efold - scale factor x in which e^(-(k-ktrop)/x) for above fields 
 !
 !     diag_version - specifies desired version of diag files
 !     l_wcp_cwm - namelist logical whether to use swcp/lwcp operator that includes cwm
@@ -636,7 +641,8 @@
        rmesh_vr,zmesh_dbz,zmesh_vr, ntilt_radarfiles, whichradar,&
        radar_no_thinning,ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,&
        minobrangevr, maxtiltdbz, mintiltvr,mintiltdbz,if_vterminal,if_vrobs_raw,&
-       if_model_dbz,imp_physics,lupp,netcdf_diag,binary_diag,l_wcp_cwm,write_fv3_incr,incvars_to_zero,diag_version,&
+       if_model_dbz,imp_physics,lupp,netcdf_diag,binary_diag,l_wcp_cwm,&
+       write_fv3_incr,incvars_to_zero,incvars_zero_strat,incvars_efold,diag_version,&
        cao_check,lcalc_gfdl_cfrac,tau_fcst,efsoi_order,lupdqc,lqcoef,cnvw_option
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):

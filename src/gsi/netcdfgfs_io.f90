@@ -2211,7 +2211,7 @@ contains
              values_3d(:,:,kr) = grid_b
           else
              call load_grid(work1,grid)
-             values_3d(:,:,kr) = values_3d(:,:,kr) + grid
+             values_3d(:,:,kr) = values_3d(:,:,kr) - grid
           end if
           end if
        endif
