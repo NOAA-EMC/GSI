@@ -52,9 +52,16 @@ for type in ${SATYPE}; do
       fi
 
       if [[ $TANK_USE_RUN -eq 1 ]]; then
-         ieee_src=${TANKverf}/${RUN}.${PDY}/${MONITOR}
+         ieee_src=${TANKverf}/${RUN}.${PDY}/${CYC}/${MONITOR}
+         if [[ ! -d ${ieee_src} ]]; then
+            ieee_src=${TANKverf}/${RUN}.${PDY}/${MONITOR}
+         fi
       else
          ieee_src=${TANKverf}/${MONITOR}.${PDY}
+         if [[ ! -d ${ieee_src} ]]; then
+            ieee_src=${TANKverf}/${RUN}.${PDY}
+         fi
+
       fi
 
       if [[ -s ${ieee_src}/time.${type}.ctl.${Z} ]]; then
@@ -140,7 +147,7 @@ fi
       $SUB -q $JOB_QUEUE -P $PROJECT -M 100 -o ${logfile} -W 1:00 \
            -J ${jobname} -cwd ${PWD} $IG_SCRIPTS/plot_summary.sh
 
-   elif [[ $MY_MACHINE = "theia" ]]; then
+   elif [[ $MY_MACHINE = "hera" ]]; then
       $SUB --account $ACCOUNT  --ntasks=1 --mem=5g --time=1:00:00 -J ${jobname} \
            -o ${logfile} $IG_SCRIPTS/plot_summary.sh
    fi
@@ -157,22 +164,21 @@ fi
 #-------------------------------------------------------------------
 #   Rename PLOT_WORK_DIR to time subdir.
 #
-  export PLOT_WORK_DIR="${PLOT_WORK_DIR}/plottime_${RADMON_SUFFIX}"
-  if [ -d $PLOT_WORK_DIR ] ; then
-     rm -f $PLOT_WORK_DIR
-  fi
-  mkdir -p $PLOT_WORK_DIR
-  cd $PLOT_WORK_DIR
+   export PLOT_WORK_DIR="${PLOT_WORK_DIR}/plottime_${RADMON_SUFFIX}"
+   if [ -d $PLOT_WORK_DIR ] ; then
+      rm -f $PLOT_WORK_DIR
+   fi
+   mkdir -p $PLOT_WORK_DIR
+   cd $PLOT_WORK_DIR
 
+   list="count penalty omgnbc total omgbc"
 
 #-------------------------------------------------------------------
 #  Look over satellite types.  Submit plot job for each type.
 #
 
-   list="count penalty omgnbc total omgbc"
-
-
-   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "cray" || $MY_MACHINE = "theia" ]]; then	
+   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "wcoss_d"  || \
+	 $MY_MACHINE = "cray" || $MY_MACHINE = "theia" ]]; then	
       suffix=a
       cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${suffix}
       jobname=plot_${RADMON_SUFFIX}_tm_${suffix}
@@ -202,7 +208,7 @@ fi
          wall_tm="0:45"
       fi
 
-      if [[ $MY_MACHINE = "wcoss" ]]; then
+      if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "wcoss_d" ]]; then
          $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -R affinity[core] -o ${logfile} \
               -W ${wall_tm} -J ${jobname} -cwd ${PWD} ${cmdfile}
 
@@ -227,7 +233,9 @@ fi
 #---------------------------------------------------------------------------
    for sat in ${bigSATLIST}; do 
 
-      if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "cray" ]]; then	
+      list="penalty count omgnbc total omgbc"
+
+      if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "cray" ]]; then	
          cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}
          jobname=plot_${RADMON_SUFFIX}_tm_${sat}
          logfile=${LOGdir}/plot_time_${sat}.log
@@ -235,7 +243,6 @@ fi
          rm -f ${logfile}
          rm -f ${cmdfile}
  
-         list="penalty count omgnbc total omgbc"
          for var in $list; do
             echo "$IG_SCRIPTS/plot_time.sh $sat $var $var" >> $cmdfile
          done
@@ -246,7 +253,7 @@ fi
          else
             wall_tm="1:00"
          fi
-         if [[ $MY_MACHINE = "wcoss" ]]; then
+         if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "wcoss_d" ]]; then
             $SUB -q $JOB_QUEUE -P $PROJECT -M 500  -R affinity[core] -o ${logfile} \
                  -W ${wall_tm} -J ${jobname} -cwd ${PWD} ${cmdfile}
          else
@@ -256,6 +263,8 @@ fi
 
       elif [[ $MY_MACHINE = "theia" ]]; then	
 
+         echo "bigSAT, theia, list = $list"
+
          cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}
          jobname=plot_${RADMON_SUFFIX}_tm_${sat}
          logfile=${LOGdir}/plot_time_${sat}.log
@@ -264,11 +273,11 @@ fi
 
          ii=0
          while [[ $ii -le ${#list[@]}-1 ]]; do
-            echo "${ii} ${IG_SCRIPTS}/plot_time.sh $sat ${list[ii]} ${list[$ii]}"  >> $cmdfile
+             echo "${ii} $IG_SCRIPTS/plot_time.sh $sat $sat '$list'" >> $cmdfile
             (( ii=ii+1 ))
          done
 
-         $SUB --account ${ACCOUNT} -n $ii  -o ${logfile} -D . -J ${jobname} --time=1:00:00 \
+         $SUB --account ${ACCOUNT} -n $ii  -o ${logfile} -D . -J ${jobname} --time=4:00:00 \
               --wrap "srun -l --multi-prog ${cmdfile}"
 
       fi

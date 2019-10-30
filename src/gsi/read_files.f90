@@ -36,6 +36,7 @@ subroutine read_files(mype)
 !                         to access needed sigf and sfcf w/ fcst_hr_sig and *_sfc.
 !   2015-02-23  Rancic/Thomas - add l4densvar to time window logical
 !   2017-09-08  li      - add sfcnst_comb to get nfldnst and control when sfc & nst combined 
+!   2019-03-21  Wei/Martin - add capability to read in aerosol guess from NEMS
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -78,6 +79,7 @@ subroutine read_files(mype)
   use guess_grids, only: nfldsig,nfldsfc,nfldnst,ntguessig,ntguessfc,ntguesnst,&
        ifilesig,ifilesfc,ifilenst,hrdifsig,hrdifsfc,hrdifnst,create_gesfinfo
   use guess_grids, only: hrdifsig_all,hrdifsfc_all,hrdifnst_all
+  use guess_grids, only: nfldaer, ntguesaer, ifileaer, hrdifaer, hrdifaer_all !for aerosol
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,nhr_assimilation
   use hybrid_ensemble_parameters, only: ntlevs_ens
   use gridmod, only: nlat_sfc,nlon_sfc,lpl_gfs,dx_gfs,use_gfs_nemsio,sfcnst_comb
@@ -94,6 +96,7 @@ subroutine read_files(mype)
   use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_getheadvar
   use read_obsmod, only: gsi_inquire
   use gsi_io, only: verbose
+  use chemmod, only: lread_ext_aerosol
   
   implicit none
 
@@ -113,7 +116,7 @@ subroutine read_files(mype)
   character(6) filename
   integer(i_kind) i,j,iwan,npem1,iret
   integer(i_kind) nhr_half
-  integer(i_kind) iamana(3)
+  integer(i_kind) iamana(4) ! changed to 4 from 3 for aer files
   integer(i_kind) nminanl,nmings,nming2,ndiff
   integer(i_kind),dimension(4):: idateg
   integer(i_kind),dimension(2):: i_ges
@@ -129,11 +132,12 @@ subroutine read_files(mype)
   real(r_kind),allocatable,dimension(:,:):: time_atm
   real(r_kind),allocatable,dimension(:,:):: time_sfc
   real(r_kind),allocatable,dimension(:,:):: time_nst
+  real(r_kind),allocatable,dimension(:,:):: time_aer
 
   type(sfcio_head):: sfc_head
   type(sigio_head):: sigatm_head
   type(nstio_head):: nst_head
-  type(nemsio_gfile) :: gfile_atm,gfile_sfc,gfile_nst
+  type(nemsio_gfile) :: gfile_atm,gfile_sfc,gfile_nst,gfile_aer
   logical :: print_verbose
 
 
@@ -151,9 +155,9 @@ subroutine read_files(mype)
   nfldnst=0
   iamana=0
 
-! Check for non-zero length atm, sfc, and nst files on single task
+! Check for non-zero length atm, sfc, aer, and nst files on single task
   if(mype==npem1)then
-     allocate( irec(max_file,3) )
+     allocate( irec(max_file,4) )
      irec=i_missing
 
 ! Check for atm files with non-zero length
@@ -426,6 +430,58 @@ subroutine read_files(mype)
            deallocate(nst_ges)
         endif                       ! if ( sfcnst_comb ) then
      endif                          ! if ( nst_gsi > 0 ) then
+
+!    for external aerosol files only
+!    Check for consistency of times from aer guess files.
+     if ( lread_ext_aerosol ) then
+        iwan=0
+        do i=1,nfldaer
+           write(filename,'(''aerf'',i2.2)')irec(i,4)
+           write(6,*)'READ_FILES:  process ',trim(filename)
+           if ( .not. use_gfs_nemsio ) then
+              write(6,*)'READ_FILES: ***ERROR*** aerosol files only work with nemsio'
+           else
+              call nemsio_init(iret=iret)
+              call nemsio_open(gfile_aer,filename,'READ',iret=iret)
+              idate         = i_missing
+              nfhour        = i_missing; nfminute      = i_missing
+              nfsecondn     = i_missing; nfsecondd     = i_missing
+              call nemsio_getfilehead(gfile_aer, nfhour=nfhour, nfminute=nfminute,  &
+                 nfsecondn=nfsecondn, nfsecondd=nfsecondd, idate=idate )
+              call nemsio_close(gfile_aer,iret=iret)
+              if ( nfhour == i_missing .or. nfminute == i_missing .or. &
+                   nfsecondn == i_missing .or. nfsecondd == i_missing ) then
+                 write(6,*)'READ_FILES: ***ERROR*** some forecast hour info ', &
+                      'are not defined in ', trim(filename)
+                 write(6,*)'READ_FILES: nfhour, nfminute, nfsecondn, and nfsecondd = ', &
+                      nfhour, nfminute, nfsecondn, nfsecondd
+                 call stop2(80)
+              endif
+              hourg4   = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
+              idateg(1) = idate(4)  !hour
+              idateg(2) = idate(2)  !month
+              idateg(3) = idate(3)  !day
+              idateg(4) = idate(1)  !year
+           endif
+           hourg = hourg4
+           idate5(1)=idateg(4); idate5(2)=idateg(2)
+           idate5(3)=idateg(3); idate5(4)=idateg(1); idate5(5)=0
+           call w3fs21(idate5,nmings)
+           nming2=nmings+60*hourg
+           write(6,*)'READ_FILES:  aer guess file, hourg, idateg, nming2 ',hourg,idateg,nming2
+           t4dv=real((nming2-iwinbgn),r_kind)*r60inv
+           if (l4dvar.or.l4densvar) then
+              if (t4dv<zero .OR. t4dv>winlen) cycle
+           else
+              ndiff=nming2-nminanl
+              if(abs(ndiff) > 60*nhr_half ) cycle
+           endif
+           iwan=iwan+1
+           if(nminanl==nming2) iamana(4)=iwan
+           time_aer(iwan,1) = t4dv
+           time_aer(iwan,2) = irec(i,4)+r0_001
+        end do
+     endif ! if ( lread_ext_aerosol ) then
      deallocate( irec )
   end if
 
@@ -435,6 +491,8 @@ subroutine read_files(mype)
   print_verbose=.false.
   if(verbose)print_verbose=.true.
   if (nst_gsi > 0) call mpi_bcast(nfldnst,1,mpi_itype,npem1,mpi_comm_world,ierror)
+  if (lread_ext_aerosol) call mpi_bcast(nfldaer,1,mpi_itype,npem1,mpi_comm_world,ierror)! for external aerosol files
+
   if(.not.allocated(time_atm)) allocate(time_atm(nfldsig,2))
   if(.not.allocated(time_sfc)) allocate(time_sfc(nfldsfc,2))
 
@@ -442,6 +500,10 @@ subroutine read_files(mype)
   call mpi_bcast(time_sfc,2*nfldsfc,mpi_rtype,npem1,mpi_comm_world,ierror)
   if(.not.allocated(time_nst)) allocate(time_nst(nfldnst,2))
   if (nst_gsi > 0 ) call mpi_bcast(time_nst,2*nfldnst,mpi_rtype,npem1,mpi_comm_world,ierror)
+
+! for external aerosol files
+  if(.not.allocated(time_aer)) allocate(time_aer(nfldaer,2))
+  if (lread_ext_aerosol) call mpi_bcast(time_aer,2*nfldaer,mpi_rtype,npem1,mpi_comm_world,ierror)
 
   call mpi_bcast(iamana,3,mpi_rtype,npem1,mpi_comm_world,ierror)
   call mpi_bcast(i_ges,2,mpi_itype,npem1,mpi_comm_world,ierror)
@@ -525,6 +587,27 @@ subroutine read_files(mype)
     deallocate(time_nst)
   endif
 
+! for external aerosol files
+! Load time information for aer guess field info into output arrays
+  ntguesaer = iamana(4)
+  if ( lread_ext_aerosol ) then
+    do i=1,nfldaer
+       hrdifaer(i) = time_aer(i,1)
+       ifileaer(i) = nint(time_aer(i,2))
+       hrdifaer_all(i) = hrdifaer(i)
+    end do
+    if(mype == 0) write(6,*)'READ_FILES:  aer fcst files used in analysis:  ',&
+         (ifileaer(i),i=1,nfldaer),(hrdifaer(i),i=1,nfldaer),ntguesaer
+    if (ntguesaer==0) then
+       write(6,*)'READ_FILES: ***ERROR*** center aer fcst NOT AVAILABLE: PROGRAM STOPS'
+       call stop2(99)
+    endif
+    if (l4densvar .and. nfldaer/=ntlevs_ens) then
+       write(6,*)'READ_FILES: ***ERROR*** insufficient aer fcst for 4densvar: PROGRAM STOPS'
+       call stop2(99)
+    endif
+    deallocate(time_aer)
+  endif
 ! End of routine
   return
 end subroutine read_files

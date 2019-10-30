@@ -1134,6 +1134,7 @@ end subroutine write_ghg_grid
 !   2013-10-19  todling - update cloud_efr module name
 !   2013-10-29  todling - revisit write to allow skipping vars not in MetGuess
 !   2018-05-19  eliu    - add I/O for fv3 hydrometeors
+!   2019-03-21  Wei/Martin - write out global aerosol arrays if needed
 !
 !   input argument list:
 !     increment          - when >0 will write increment from increment-index slot
@@ -1168,6 +1169,9 @@ end subroutine write_ghg_grid
     use ncepnems_io, only: write_nemsatm,write_nemssfc,write_nems_sfc_nst
     use ncepnems_io, only: write_fv3atm_nems     
     use gridmod, only: fv3_full_hydro   
+    use gsi_chemguess_mod, only: gsi_chemguess_get,gsi_chemguess_bundle
+    use chemmod, only: laeroana_gocart
+    use radiance_mod, only: aerosol_names
 
     implicit none
 
@@ -1207,6 +1211,25 @@ end subroutine write_ghg_grid
     real(r_kind),pointer,dimension(:,:,:):: ges_qg_it  =>null()
     real(r_kind),pointer,dimension(:,:,:):: ges_cf_it  =>null()
 
+!   for aerosols
+    real(r_kind),pointer,dimension(:,:,:):: aux_du1,aux_du2,aux_du3,aux_du4,aux_du5
+    real(r_kind),pointer,dimension(:,:,:):: aux_ss1,aux_ss2,aux_ss3,aux_ss4,aux_so4
+    real(r_kind),pointer,dimension(:,:,:):: aux_oc1,aux_oc2,aux_bc1,aux_bc2
+    real(r_kind),pointer,dimension(:,:,:):: ges_du1_it=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_du2_it=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_du3_it=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_du4_it=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_du5_it=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_ss1_it=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_ss2_it=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_ss3_it=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_ss4_it=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_so4_it=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_oc1_it=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_oc2_it=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_bc1_it=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_bc2_it=>NULL()
+    type(gsi_bundle) :: chem_bundle
     type(gsi_bundle) :: atm_bundle
     type(gsi_grid)   :: atm_grid
     integer(i_kind),parameter :: n2d=2
@@ -1269,6 +1292,43 @@ end subroutine write_ghg_grid
     if ( istatus == 0 ) aux_cf = zero
     call gsi_bundlegetpointer(atm_bundle,'cw',aux_cwmr,istatus)
     if ( istatus == 0 ) aux_cwmr = zero
+    
+    ! if aerosols
+    if ( laeroana_gocart ) then
+       call gsi_bundlecreate(chem_bundle,atm_grid,'aux-chem-write',istatus,names3d=aerosol_names)
+       if ( istatus /= 0 ) then
+          write(6,*)' write_gfs: trouble creating chem_bundle'
+          call stop2(999)
+       endif
+       call gsi_bundlegetpointer(chem_bundle,'sulf',aux_so4,istatus)
+       if ( istatus == 0 ) aux_so4 = zero
+       call gsi_bundlegetpointer(chem_bundle,'bc1',aux_bc1,istatus)
+       if ( istatus == 0 ) aux_bc1 = zero
+       call gsi_bundlegetpointer(chem_bundle,'bc2',aux_bc2,istatus)
+       if ( istatus == 0 ) aux_bc2 = zero
+       call gsi_bundlegetpointer(chem_bundle,'oc1',aux_oc1,istatus)
+       if ( istatus == 0 ) aux_oc1 = zero
+       call gsi_bundlegetpointer(chem_bundle,'oc2',aux_oc2,istatus)
+       if ( istatus == 0 ) aux_oc2 = zero
+       call gsi_bundlegetpointer(chem_bundle,'dust1',aux_du1,istatus)
+       if ( istatus == 0 ) aux_du1 = zero
+       call gsi_bundlegetpointer(chem_bundle,'dust2',aux_du2,istatus)
+       if ( istatus == 0 ) aux_du2 = zero
+       call gsi_bundlegetpointer(chem_bundle,'dust3',aux_du3,istatus)
+       if ( istatus == 0 ) aux_du3 = zero
+       call gsi_bundlegetpointer(chem_bundle,'dust4',aux_du4,istatus)
+       if ( istatus == 0 ) aux_du4 = zero
+       call gsi_bundlegetpointer(chem_bundle,'dust5',aux_du5,istatus)
+       if ( istatus == 0 ) aux_du5 = zero
+       call gsi_bundlegetpointer(chem_bundle,'seas1',aux_ss1,istatus)
+       if ( istatus == 0 ) aux_ss1 = zero
+       call gsi_bundlegetpointer(chem_bundle,'seas2',aux_ss2,istatus)
+       if ( istatus == 0 ) aux_ss2 = zero
+       call gsi_bundlegetpointer(chem_bundle,'seas3',aux_ss3,istatus)
+       if ( istatus == 0 ) aux_ss3 = zero
+       call gsi_bundlegetpointer(chem_bundle,'seas4',aux_ss4,istatus)
+       if ( istatus == 0 ) aux_ss4 = zero
+    end if ! laeroana_gocart
 
     inithead=.true.
     do it=1,ntlevs
@@ -1341,15 +1401,54 @@ end subroutine write_ghg_grid
         call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'cw',ges_cwmr_it,istatus)
         if ( istatus == 0 ) aux_cwmr = ges_cwmr_it
 
+! if aerosols, get the data from chem bundle to output
+        if ( laeroana_gocart ) then
+           call gsi_bundlegetpointer(gsi_chemguess_bundle(itoutsig),'dust1',ges_du1_it,istatus)
+           if( istatus==0 ) aux_du1 = ges_du1_it
+           call gsi_bundlegetpointer(gsi_chemguess_bundle(itoutsig),'dust2',ges_du2_it,istatus)
+           if( istatus==0 ) aux_du2 = ges_du2_it
+           call gsi_bundlegetpointer(gsi_chemguess_bundle(itoutsig),'dust3',ges_du3_it,istatus)
+           if( istatus==0 ) aux_du3 = ges_du3_it
+           call gsi_bundlegetpointer(gsi_chemguess_bundle(itoutsig),'dust4',ges_du4_it,istatus)
+           if( istatus==0 ) aux_du4 = ges_du4_it
+           call gsi_bundlegetpointer(gsi_chemguess_bundle(itoutsig),'dust5',ges_du5_it,istatus)
+           if( istatus==0 ) aux_du5 = ges_du5_it
+           call gsi_bundlegetpointer(gsi_chemguess_bundle(itoutsig),'seas1',ges_ss1_it,istatus)
+           if( istatus==0 ) aux_ss1 = ges_ss1_it
+           call gsi_bundlegetpointer(gsi_chemguess_bundle(itoutsig),'seas2',ges_ss2_it,istatus)
+           if( istatus==0 ) aux_ss2 = ges_ss2_it
+           call gsi_bundlegetpointer(gsi_chemguess_bundle(itoutsig),'seas3',ges_ss3_it,istatus)
+           if( istatus==0 ) aux_ss3 = ges_ss3_it
+           call gsi_bundlegetpointer(gsi_chemguess_bundle(itoutsig),'seas4',ges_ss4_it,istatus)
+           if( istatus==0 ) aux_ss4 = ges_ss4_it
+           call gsi_bundlegetpointer (gsi_chemguess_bundle(itoutsig),'sulf',ges_so4_it,istatus)
+           if( istatus==0 ) aux_so4 = ges_so4_it
+           call gsi_bundlegetpointer (gsi_chemguess_bundle(itoutsig),'oc1',ges_oc1_it,istatus)
+           if( istatus==0 ) aux_oc1 = ges_oc1_it
+           call gsi_bundlegetpointer (gsi_chemguess_bundle(itoutsig),'oc2',ges_oc2_it,istatus)
+           if( istatus==0 ) aux_oc2 = ges_oc2_it
+           call gsi_bundlegetpointer (gsi_chemguess_bundle(itoutsig),'bc1',ges_bc1_it,istatus)
+           if( istatus==0 ) aux_bc1 = ges_bc1_it
+           call gsi_bundlegetpointer (gsi_chemguess_bundle(itoutsig),'bc2',ges_bc2_it,istatus)
+           if( istatus==0 ) aux_bc2 = ges_bc2_it
+        end if ! laeroana_gocart
         if ( use_gfs_nemsio ) then
 
            if (fv3_full_hydro) then
               call write_fv3atm_nems(grd_a,sp_a,filename,mype_atm, &
                    atm_bundle,itoutsig)
            else
-              call write_nemsatm(grd_a,sp_a,filename,mype_atm, &
-                   atm_bundle,itoutsig)
+              ! if using aerosols, optional chem_bundle argument
+              if ( laeroana_gocart ) then
+                  call write_nemsatm(grd_a,sp_a,filename,mype_atm, &
+                       atm_bundle,itoutsig,chem_bundle)
+              else
+              ! otherwise, just atm_bundle
+                  call write_nemsatm(grd_a,sp_a,filename,mype_atm, &
+                       atm_bundle,itoutsig)
+              end if ! laeroana_gocart
            endif  
+
         else
 
             ! If hires_b, spectral to grid transform for background
