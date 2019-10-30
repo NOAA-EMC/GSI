@@ -117,7 +117,7 @@ module read_diag
     !--- variables
     
     integer,save :: nlevs_last = -1
-    integer :: ilev,k,ioff
+    integer :: ilev,k,ioff0
     character(len=10):: id,obstype
     character(len=20):: isis
     integer(i_kind):: jiter,nlevs,ianldate,iint,ireal,iextra
@@ -125,14 +125,16 @@ module read_diag
     real(r_single),dimension(:),allocatable:: pob,grs,err
     
     !--- read header (fix part)
-
+    !--- the new header format contains one additional integer value 
+    !
     if ( new_hdr ) then
-       read(ftin) isis,id,obstype,jiter,nlevs,ianldate,iint,ireal,iextra,ioff
-       print*,'new header format'
+       read(ftin) isis,id,obstype,jiter,nlevs,ianldate,iint,ireal,iextra,ioff0
+       print*,'isis,id,obstype,jiter,nlevs,ianldate,iint,ireal,iextra,ioff0 = ', isis,id,obstype,jiter,nlevs,ianldate,iint,ireal,iextra,ioff0
     else
        read(ftin) isis,id,obstype,jiter,nlevs,ianldate,iint,ireal,iextra
-       print*,'old header format'
-    endif 
+       print*,'isis,id,obstype,jiter,nlevs,ianldate,iint,ireal,iextra= ', isis,id,obstype,jiter,nlevs,ianldate,iint,ireal,iextra
+    endif
+
 
     header_fix%isis      = isis
     header_fix%id        = id
@@ -145,8 +147,10 @@ module read_diag
     header_fix%iextra    = iextra
 
 
-    print*,'header_fix=', header_fix
-    print*,'header_fix%mpi=', header_fix%iint
+    print*,'header_fix%nlevs  = ', header_fix%nlevs
+    print*,'header_fix%iint   = ', header_fix%iint
+    print*,'header_fix%ireal  = ', header_fix%ireal
+    print*,'header_fix%iextra = ', header_fix%iextra
 
     !--- check header
     
@@ -187,10 +191,6 @@ module read_diag
        header_nlev(k)%iouse = iouse(k)
     end do
     deallocate (pob,grs,err,iouse)
-!   print*,'header_nlev%pob=', header_nlev%pob
-!   print*,'header_nlev%grs=', header_nlev%grs
-!   print*,'header_nlev%err=', header_nlev%err
-!   print*,'header_nlev%iouse=', header_nlev%iouse
 
 
   end subroutine read_diag_header
@@ -207,6 +207,12 @@ module read_diag
 
     integer                    ,intent(in)  :: ftin
     type(diag_header_fix_list ),intent(in)  :: header_fix
+
+    !--- NOTE:  These pointers are used to build an array numbering
+    !           iobs.  So they should be allocated every time this
+    !           routine is called and should not be deallocated
+    !           here.  The time.f90 could deallocate them at the
+    !           very end of the program, I think.
     type(diag_data_fix_list),   pointer     :: data_fix(:)
     type(diag_data_nlev_list)  ,pointer     :: data_nlev(:,:)
     type(diag_data_extra_list) ,pointer     :: data_extra(:,:)
@@ -219,16 +225,16 @@ module read_diag
     integer,save :: nlevs_last = -1
     integer,save :: iextra_last = -1
     integer :: iev,iobs,i,j
-    real(r_single),allocatable,dimension(:,:)  :: tmp_fix
-    real(r_single),allocatable,dimension(:,:,:):: tmp_nlev
-    real(r_single),allocatable,dimension(:,:)  :: tmp_extra
+    real(r_single),allocatable,dimension(:,:)  :: tmp_fix       ! correct
+    real(r_single),allocatable,dimension(:,:,:):: tmp_nlev      ! correct
+    real(r_single),allocatable,dimension(:,:)  :: tmp_extra     ! correct
 
     !--- allocate if necessary
-
+    print*, '===> read_diag_data'
     print*, 'nlevs_last, header_fix%nlevs=',nlevs_last,header_fix%nlevs
 
     read(ftin,IOSTAT=iflag) ntobs
-    print*,'ntobs=',ntobs
+    print*,'ntobs, iflag =',ntobs, iflag
 
     if( header_fix%nlevs /= nlevs_last )then
       if( nlevs_last > 0 )then
@@ -237,44 +243,64 @@ module read_diag
         deallocate( data_fix )
         deallocate( data_mpi )
       endif
-      print*, 'allocate array data_nlev, data_mpi and data_fix'
-      allocate( data_mpi( ntobs ) )
+
+      print*, 'attempt to allocate array data_fix, data_nlev, data_mpi'
       allocate( data_fix( ntobs ) )
+      print*, 'data_fix( ntobs ) allocated', ntobs
+      allocate( data_mpi( ntobs ) )
+      print*, 'data_mpi( ntobs ) allocated', ntobs
       allocate( data_nlev( header_fix%nlevs,ntobs ) )
-      allocate( tmp_fix(3,ntobs))
-      allocate( tmp_nlev(6,header_fix%nlevs,ntobs))
+      print*, 'data_nlev( header_fix%nlevs, ntobs ) allocated', header_fix%nlevs, ntobs
       nlevs_last = header_fix%nlevs
     endif
 
-    if (header_fix%iextra /= iextra_last) then
+!------------------------------------------------------------------------
+!   looks like this might be the issue:
+!     data_extra is dimensioned by iextra and ntobs but is only
+!     de/allocated based on not agreeing with the iextra_last value
+!     but _obs_ will vary from call to call, so that won't always work.
+!------------------------------------------------------------------------
+    print*, 'header_fix%iextra, iextra_last =', header_fix%iextra, iextra_last
+!    if (header_fix%iextra /= iextra_last) then
        if (iextra_last > 0) then
           deallocate (data_extra)
+          print*, 'deallocated data_extra'
        endif
        allocate( data_extra(header_fix%iextra,ntobs) )
-       allocate(  tmp_extra(header_fix%iextra,ntobs) )
+       print*, 'allocated data_extra, iextra, ntobs', header_fix%iextra, ntobs
        iextra_last = header_fix%iextra
-    endif
+!    endif
 
     !--- read a record
 
-!   print*, 'iextra=', header_fix%iextra
+    print*, 'iextra=', header_fix%iextra
+    allocate( tmp_fix(3,ntobs))
+    allocate( tmp_nlev(6,header_fix%nlevs,ntobs))
+
     if (header_fix%iextra == 0) then
        read(ftin,IOSTAT=iflag) data_mpi, tmp_fix, tmp_nlev
+       print*,'iflag = ', iflag
     else
+       allocate(  tmp_extra(header_fix%iextra,ntobs) )
        read(ftin,IOSTAT=iflag) data_mpi, tmp_fix, tmp_nlev, tmp_extra
+       print*,'iflag =',iflag
+
        do j=1,ntobs
           do i=1,header_fix%iextra
              data_extra(i,j)%extra=tmp_extra(i,j)
           end do
        end do
+
        deallocate(tmp_extra)
     endif
+
     do j=1,ntobs
        data_fix(j)%lat     = tmp_fix(1,j)
        data_fix(j)%lon     = tmp_fix(2,j)
        data_fix(j)%obstime = tmp_fix(3,j)
     end do
     deallocate(tmp_fix)
+
     do j=1,ntobs
        do i=1,header_fix%nlevs
           data_nlev(i,j)%ozobs  = tmp_nlev(1,i,j)
@@ -287,12 +313,9 @@ module read_diag
     end do
     deallocate(tmp_nlev)
 
-!   do iobs=1,ntobs
-!      print*,'iobs,data_mpi,data_fix%lat,data_nlev%ozobs= ',  iobs,data_mpi(iobs),data_fix(iobs)%lat,data_nlev(1,iobs)%ozobs
-!   end do
-
     nlevs_last = -1
 
+    print*, '<=== read_diag_data'
   end subroutine read_diag_data
 
 

@@ -18,7 +18,7 @@
 set -x
 
 export OZNMON_NEW_HDR=${OZN_NEW_HDR:-0}
-export PDATE=${PDATE:-2017072206}
+export PDATE=${PDATE:-2018110206}
 export NET=${NET:-gfs}
 export RUN=${RUN:-gdas}
 
@@ -29,7 +29,7 @@ export job=gdas_verfozn.${cyc}
 export pid=${pid:-$$}
 export jobid=${job}.${pid}
 export envir=${envir:-test}
-export DATAROOT=${DATAROOT:-/gpfs/dell2/emc/verification/noscrub/${LOGNAME}/test_data}
+export DATAROOT=${DATAROOT:-/gpfs/dell2/emc/modeling/noscrub/${LOGNAME}/test_data}
 export COMROOT=/gpfs/dell2/ptmp/${LOGNAME}/com
 export OZN_WORK_DIR=${OZN_WORK_DIR:-/gpfs/dell2/stmp/${LOGNAME}/oznmon.${pid}}
 
@@ -46,7 +46,16 @@ export oznmon_shared_ver=v2.0.0
 #. /usrx/local/Modules/3.2.9/init/ksh
 #module use /nwprod2/modulefiles
 
-/usrx/local/prod/lmod/lmod/init/profile
+shell=ksh
+source /usrx/local/prod/lmod/lmod/init/${shell}
+
+MODULEPATH=/usrx/local/prod/lmod/lmod/modulefiles/Core
+MODULEPATH=${MODULEPATH}:/usrx/local/prod/modulefiles/core_third
+MODULEPATH=${MODULEPATH}:/usrx/local/prod/modulefiles/defs
+MODULEPATH=${MODULEPATH}:/gpfs/dell1/nco/ops/nwprod/modulefiles/core_prod
+export MODULEPATH=${MODULEPATH}:/usrx/local/dev/modulefiles
+
+module purge
 
 module load lsf/10.1
 module load ips/18.0.1.163
@@ -54,9 +63,6 @@ module load impi/18.0.1
 module load prod_util/1.1.0
 module load grib_util/1.1.0
 module load util_shared/1.1.0
-
-#module load prod_util
-#module load util_shared
 
 
 module list
@@ -72,7 +78,7 @@ export POE=YES
 # Set user specific variables
 #
 export OZNMON_SUFFIX=${OZNMON_SUFFIX:-testozn}
-export NWTEST=${NWTEST:-/gpfs/dell2/emc/verification/noscrub/Edward.Safford/ProdGSI/util/Ozone_Monitor/nwprod}
+export NWTEST=${NWTEST:-/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/ProdGSI/util/Ozone_Monitor/nwprod}
 export HOMEgdas_ozn=${NWTEST}/gdas_oznmon.${gdas_oznmon_ver}
 export PARMgdas_ozn=${HOMEgdas_ozn}/parm
 export FIXgdas_ozn=${FIXgdas_ozn:-${HOMEgdas_ozn}/fix}
