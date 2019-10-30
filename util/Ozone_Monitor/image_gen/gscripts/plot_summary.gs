@@ -4,6 +4,7 @@
 *    net      = $NET value, or identifying source (e.g. GFS|fv3rt1)
 *    run      = $RUN value (e.g. gfs|gdas)
 *    plotfile = satellite id (name and number ... e.g., msu.014 = noaa-14 msu)
+*    ptype    = 'ges' or 'anl'
 *    xsize    = horiz image size
 *    ysize    = vert image size
 
@@ -13,12 +14,12 @@ function plotsummary (args)
 net=subwrd(args,1)
 run=subwrd(args,2)
 plotfile=subwrd(args,3)
-xsize=subwrd(args,4)
-ysize=subwrd(args,5)
+ptype=subwrd(args,4)
+xsize=subwrd(args,5)
+ysize=subwrd(args,6)
 platform=plotfile
 
 say 'process plotfile 'plotfile
-*'open 'plotfile'.ctl'
 
 'q file'
 lin1=sublin(result,1)
@@ -30,10 +31,16 @@ nlev=subwrd(lin1,6)
 nfield=3
 field.1=cnt
 field.2=omg
+if (ptype = "anl")
+   field.2=oma
+endif
 field.3=cpen
 
 title.1="number of observations passing quality control"
 title.2="obs - ges"
+if (ptype = "anl")
+   title.2="obs - anl"
+endif
 title.3="contribution to penalty"
 
 color.1=7
@@ -72,7 +79,9 @@ t7days=tlast-27
 i=1
 while (i<=nfield)
 
+*---------------------
 * Counts plot
+*---------------------
 if (field.i = "cnt")
    y1=7.5
    t1=t1day
@@ -138,7 +147,7 @@ if (field.i = "cnt")
       xpos=subwrd(result,3)
       ypos=subwrd(result,6)
       '!rm -f info.txt'
-      '!cat 'plotfile'.ctl |grep "'ic', level" > info.txt'
+      '!cat 'plotfile'.'ptype'.ctl |grep "'ic', level" > info.txt'
       result=read(info.txt)
       rc=sublin(result,1)
       iuse=0
@@ -175,9 +184,11 @@ if (field.i = "cnt")
 endif
 
 
-* obs - ges plot
+*---------------------
+* obs - ges|anl plot
+*---------------------
 * say 'i,field.i='i' 'field.i
-if (field.i = "omg")
+if (field.i = "omg" | field.i = "oma")
    y1=y1-2.5
    'set t 'tlast
    t1=tlast
@@ -419,7 +430,9 @@ if (field.i = "omg")
 endif
 
 
+*-------------------------
 * Contribution to penalty
+*-------------------------
 if (field.i = "cpen")
    y1=y1-2.5
    'set t 'tlast
@@ -541,7 +554,7 @@ endwhile
 'set string 1 c 6'
 'draw string 4.05 2.0  l  e  v  e  l      n  u  m  b  e  r'
 
-outfile=plotfile'.summary.png'
+outfile=plotfile'.'ptype'.summary.png'
 'printim 'outfile' 'xsize' 'ysize' white'
 
 return
