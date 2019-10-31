@@ -88,6 +88,7 @@ subroutine read_guess(iyear,month,idd,mype)
   use kinds, only: r_kind,i_kind
   use jfunc, only: bcoption,clip_supersaturation
   use guess_grids, only:  nfldsig,ges_tsen,load_prsges,load_geop_hgt,ges_prsl
+  use guess_grids, only:  geop_hgti,ges_geopi
   use m_gsiBiases,only : bkg_bias_correction,nbc
   use m_gsiBiases, only: gsi_bkgbias_bundle
   use gsi_bias, only: read_bias
@@ -245,6 +246,9 @@ subroutine read_guess(iyear,month,idd,mype)
 
 ! Compute 3d subdomain geopotential heights from the guess fields
   call load_geop_hgt
+
+! Save guess geopotential height at level interface for use in write_atm
+  ges_geopi=geop_hgti
 
 ! Compute the coast proximity
   call gsd_gen_coast_prox
