@@ -465,13 +465,18 @@ $NLN $OBERROR      errtable
 
 #If using correlated error, link to the covariance files
 if [ $USE_CORRELATED_OBERRS == "YES" ];  then
-  if ls ${FIXgsi}/Rcov* 1> /dev/null 2>&1; then
-    $NLN ${FIXgsi}/Rcov* $DATA
-    echo "using correlated obs error"
+  if grep -q "Rcov" $ANAVINFO ;  then
+     if ls ${FIXgsi}/Rcov* 1> /dev/null 2>&1; then
+       $NLN ${FIXgsi}/Rcov* $DATA
+       echo "using correlated obs error"
+     else
+       echo "Error: Satellite error covariance files are missing."
+       echo "Check for the required Rcov files in " $ANAVINFO
+       exit 1
+     fi
   else
-    echo "Warning: Satellite error covariance files are missing."
-    echo "Check for the required Rcov files in " $ANAVINFO
-    exit 1
+     echo "Error: Satellite error covariance info missing in " $ANAVINFO
+     exit 1
   fi
 else
   echo "not using correlated obs error"
