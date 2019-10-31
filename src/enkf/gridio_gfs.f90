@@ -1086,6 +1086,7 @@
               write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_readrecv(delz), iret=',iret
               call stop2(23)
            endif
+           if (sum(nems_wrk) < 0.0_r_kind) ug = ug * -1.0_r_kind
            nems_wrk = nems_wrk + ug
            call nemsio_writerecv(gfileout,'delz','mid layer',k,nems_wrk,iret=iret)
            if (iret/=0) then

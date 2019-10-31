@@ -2085,7 +2085,7 @@ contains
 
     use guess_grids, only: ifilesig
     use guess_grids, only: ges_prsl,ges_prsi
-    use guess_grids, only: load_geop_hgt,geop_hgti
+    use guess_grids, only: load_geop_hgt,geop_hgti,ges_geopi
 
     use gridmod, only: ntracer
     use gridmod, only: ncloud
@@ -2141,14 +2141,10 @@ contains
     real(r_kind),pointer,dimension(:,:,:) :: sub_ql,sub_qi,sub_qr,sub_qs,sub_qg
 
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) :: sub_dzb,sub_dza
-    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) :: sub_prsl
-    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig+1) :: sub_prsi
-    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig+1,ibin) :: ges_geopi
 
     real(r_kind),dimension(grd%lat1*grd%lon1)     :: psm
-    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig):: sub_dp
-    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: tvsm,prslm, usm, vsm
-    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: dpsm, qsm, ozsm
+    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: tvsm, usm, vsm
+    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: qsm, ozsm
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: dzsm
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: qlsm,qism,qrsm,qssm,qgsm
 
@@ -2312,16 +2308,8 @@ contains
        if (iret /= 0) call error_msg(trim(my_name),trim(filename),'hgt','write',istop,iret)
     endif ! if ( mype == mype_out )
 
-    sub_prsl = ges_prsl(:,:,:,ibin)
-    sub_prsi = ges_prsi(:,:,:,ibin)
-
-    do k=1,grd%nsig
-       sub_dp(:,:,k) = sub_prsi(:,:,k) - sub_prsi(:,:,k+1)
-    end do
-
     ! Calculate delz increment for UPP
     if (lupp) then
-       if ((.not. lwrite4danl) .or. ibin == 1) ges_geopi = geop_hgti
        do k=1,grd%nsig
           sub_dzb(:,:,k) = ges_geopi(:,:,k+1,ibin) - ges_geopi(:,:,k,ibin)
        enddo
@@ -2339,8 +2327,6 @@ contains
     call strip(sub_tv  ,tvsm  ,grd%nsig)
     call strip(sub_q   ,qsm   ,grd%nsig)
     call strip(sub_oz  ,ozsm  ,grd%nsig)
-    call strip(sub_dp  ,dpsm  ,grd%nsig)
-    call strip(sub_prsl,prslm ,grd%nsig)
     call strip(sub_u   ,usm   ,grd%nsig)
     call strip(sub_v   ,vsm   ,grd%nsig)
     if (lql ) call strip(sub_ql  ,qlsm  ,grd%nsig)
@@ -2816,6 +2802,7 @@ contains
           if (mype == mype_out) then
              call nemsio_readrecv(gfile,'delz','mid layer',k,rwork1d,iret=iret)
              if (iret /= 0) call error_msg(trim(my_name),trim(filename),'delz','read',istop,iret)
+             if (sum(rwork1d) < zero) work1 = work1 * -1.0_r_kind  !Flip sign, FV3 is top to bottom 
              if(diff_res)then
                 grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
                 do kk=1,grd%iglobal
@@ -2909,7 +2896,7 @@ contains
 
     use guess_grids, only: ifilesig
     use guess_grids, only: ges_prsl,ges_prsi
-    use guess_grids, only: load_geop_hgt,geop_hgti
+    use guess_grids, only: load_geop_hgt,geop_hgti,ges_geopi
 
     use gridmod, only: ntracer
     use gridmod, only: ncloud
@@ -2970,14 +2957,10 @@ contains
     real(r_kind),pointer,dimension(:,:,:) :: sub_oc1,sub_oc2,sub_bc1,sub_bc2
 
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) :: sub_dzb,sub_dza
-    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) :: sub_prsl
-    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig+1) :: sub_prsi
-    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig+1,ibin) :: ges_geopi
 
     real(r_kind),dimension(grd%lat1*grd%lon1)     :: psm
-    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig):: sub_dp
-    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: tvsm,prslm, usm, vsm
-    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: dpsm, qsm, ozsm
+    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: tvsm, usm, vsm
+    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: qsm, ozsm
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: cwsm, dzsm
 !   Aerosol array
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: &
@@ -3154,16 +3137,8 @@ contains
        if (iret /= 0) call error_msg(trim(my_name),trim(filename),'hgt','write',istop,iret)
     endif ! if ( mype == mype_out )
 
-    sub_prsl = ges_prsl(:,:,:,ibin)
-    sub_prsi = ges_prsi(:,:,:,ibin)
-
-    do k=1,grd%nsig
-       sub_dp(:,:,k) = sub_prsi(:,:,k) - sub_prsi(:,:,k+1)
-    end do
-
     ! Calculate delz increment for UPP
     if (lupp) then
-       if ((.not. lwrite4danl) .or. ibin == 1) ges_geopi = geop_hgti
        do k=1,grd%nsig
           sub_dzb(:,:,k) = ges_geopi(:,:,k+1,ibin) - ges_geopi(:,:,k,ibin)
        enddo
@@ -3182,8 +3157,6 @@ contains
     call strip(sub_q   ,qsm   ,grd%nsig)
     call strip(sub_oz  ,ozsm  ,grd%nsig)
     call strip(sub_cwmr,cwsm  ,grd%nsig)
-    call strip(sub_dp  ,dpsm  ,grd%nsig)
-    call strip(sub_prsl,prslm ,grd%nsig)
     call strip(sub_u   ,usm   ,grd%nsig)
     call strip(sub_v   ,vsm   ,grd%nsig)
     if (lupp) call strip(sub_dza ,dzsm  ,grd%nsig)
@@ -3550,6 +3523,7 @@ contains
           if (mype == mype_out) then
              call nemsio_readrecv(gfile,'delz','mid layer',k,rwork1d,iret=iret)
              if (iret /= 0) call error_msg(trim(my_name),trim(filename),'delz','read',istop,iret)
+             if (sum(rwork1d) < zero) work1 = work1 * -1.0_r_kind  ! Flip sign, FV3 is top to bottom
              if(diff_res)then
                 grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
                 do kk=1,grd%iglobal
