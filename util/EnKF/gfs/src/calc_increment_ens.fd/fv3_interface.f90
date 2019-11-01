@@ -244,6 +244,13 @@ contains
           
           ! Subtract and write
           an_grid%var3d = an_grid%var3d - fg_grid%var3d
+
+          ! Flip increment if the delz background is positive (GFSv15)
+          if(trim(input_vars(ivar)) == 'delz') then
+             if (sum(fg_grid%var3d) > 0.0_r_kind) then
+                an_grid%var3d = an_grid%var3d * -1.0_r_kind
+             endif
+          endif
        endif zero_or_read
 
        call fv3_netcdf_write_var3d(ncdat,output_vars(ivar),an_grid%var3d)

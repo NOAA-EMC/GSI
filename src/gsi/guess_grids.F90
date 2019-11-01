@@ -538,6 +538,7 @@ contains
                    ges_prsi(i,j,k,n)=zero
                    ges_lnprsi(i,j,k,n)=zero
                    geop_hgti(i,j,k,n)=zero
+                   ges_geopi(i,j,k,n)=zero
                 end do
              end do
           end do
