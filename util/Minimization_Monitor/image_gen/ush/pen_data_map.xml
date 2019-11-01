@@ -1,0 +1,16 @@
+<?xml version="1.0" standalone="yes"?>
+<opt>
+  <global_default>
+    <area>glb</area>
+    <gsistat_location>/com/gfs/prod</gsistat_location>
+    <outfile_location/>
+    <prodate/>
+    <tankdir>/u/${LOGNAME}/nbns/stats</tankdir>
+    <use_gsistat>1</use_gsistat>
+  </global_default>
+  <testmm_gfs>
+    <area>glb</area>
+    <use_gsistat>1</use_gsistat>
+    <imgdate>2016030706</imgdate>
+  </testmm_gfs>
+</opt>

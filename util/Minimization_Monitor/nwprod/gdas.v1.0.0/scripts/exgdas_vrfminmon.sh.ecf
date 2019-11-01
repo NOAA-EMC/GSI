@@ -28,8 +28,6 @@ fi
 
 export scr=exgdas_vrfyminmon.sh.ecf
 
-msg="${scr} HAS STARTED"
-postmsg "$jlogfile" "$msg"
 
 export RUN_ENVIR=${RUN_ENVIR:-nco}
 export NET=${NET:-gfs}
@@ -123,8 +121,6 @@ if [[ "$VERBOSE" = "YES" ]]; then
    echo "end exgdas_vrfminmon.sh.ecf, exit value = ${err}"
 fi
 
-msg="${scr} HAS ENDED"
-postmsg "$jlogfile" "$msg"
 
 set +x
 exit ${err}
