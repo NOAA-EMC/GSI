@@ -95,26 +95,6 @@ else
    exit 4
 fi
 
-plot_minmon_conf=${plot_minmon_conf:-${M_IG_PARM}/plot_minmon_conf}
-if [[ -s ${plot_minmon_conf} ]]; then
-   . ${plot_minmon_conf}
-   echo "able to source ${plot_minmon_conf}"
-else
-   echo "Unable to source ${plot_minmon_conf} file"
-   exit 5
-fi
-
-
-#--------------------------------------------------------------------
-#  Check for my monitoring use.  Abort if running on prod machine.
-#--------------------------------------------------------------------
-if [[ RUN_ONLY_ON_DEV =  1 ]]; then
-   is_prod=`${M_IG_SCRIPTS}/onprod.sh`
-   if [[ $is_prod = 1 ]]; then
-      exit 10
-   fi
-fi
-
 
 #--------------------------------------------------------------------
 #  Specify TANKDIR for this suffix
@@ -373,7 +353,8 @@ fi
 #--------------------------------------------------------------------
 #  Push the image & txt files over to the server
 #--------------------------------------------------------------------
-   if [[ ${MY_MACHINE} = "wcoss" || ${MY_MACHINE} = "cray" ]]; then
+   if [[ ${MY_MACHINE} = "wcoss" || ${MY_MACHINE} = "cray" || \
+	 ${MY_MACHINE} = "wcoss_d" ]]; then
       cd ./tmp
       $RSYNC -ave ssh --exclude *.ctl*  ./ \
         ${WEBUSER}@${WEBSERVER}:${WEBDIR}/$run_suffix/
