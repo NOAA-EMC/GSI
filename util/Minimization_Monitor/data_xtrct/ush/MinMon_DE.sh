@@ -31,7 +31,7 @@ fi
 #-----------------------------------------------
 #  Process command line arguments
 #
-export RUN=gdas
+RUN=gdas
 
 while [[ $# -ge 1 ]]
 do
@@ -44,7 +44,7 @@ do
          shift # past argument
       ;;
       -r|--run)
-         export RUN="$2"
+         RUN="$2"
          shift # past argument
       ;;
       *)
@@ -56,6 +56,7 @@ do
    shift
 done
 
+export RUN=$RUN
 
 this_dir=`dirname $0`
 
@@ -80,6 +81,7 @@ else
    exit 2
 fi
 
+echo "MINMON_CONFIG = $MINMON_CONFIG"
 minmon_config=${minmon_config:-${top_parm}/MinMon_config}
 if [[ -s ${minmon_config} ]]; then
    . ${minmon_config}
@@ -112,6 +114,10 @@ if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
    fi
 fi
 
+
+if [[ ${RUN} = "gdas" ]]; then
+   export HOMEgfs=${HOMEgdas}
+fi
 
 ##########################################
 #  expand M_TANKverf for this MINMON_SUFFIX
@@ -166,8 +172,6 @@ export COMROOT=${COMROOT:-/com2}
 
 echo "MY_MACHINE = $MY_MACHINE"
 
-module list
-
 
 jobname=minmon_de_${MINMON_SUFFIX}
 
@@ -181,15 +185,25 @@ echo "jobname    = $jobname"
 if [[ $GLB_AREA -eq 0 ]]; then
    jobfile=${jobfile:-${HOMEnam}/jobs/JNAM_VMINMON}
 else
-   jobfile=${jobfile:-${HOMEgdas}/jobs/JGDAS_VMINMON}
+   if [[ $RUN = "gfs" ]]; then
+      jobfile=${jobfile:-${HOMEgfs}/jobs/JGFS_VMINMON}
+   else
+      jobfile=${jobfile:-${HOMEgdas}/jobs/JGDAS_VMINMON}
+   fi
 fi
 
-if [[ $MY_MACHINE = "wcoss" ]]; then
-   $SUB -q $JOB_QUEUE -P $PROJECT -o ${m_jlogfile} -M 50 -R affinity[core] -W 0:10 -J ${jobname} $jobfile
+if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "wcoss_d" ]]; then
+   $SUB -P $PROJECT -q $JOB_QUEUE -o ${m_jlogfile} -M 50 -R affinity[core] -W 0:10 -J ${jobname} $jobfile
+
 elif [[ $MY_MACHINE = "cray" ]]; then
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${m_jlogfile} -M 80 -R "select[mem>80] rusage[mem=80]" -W 0:10 -J ${jobname} $jobfile
-elif [[ $MY_MACHINE = "theia" ]]; then
-   echo "theia job sumission goes here"
+
+elif [[ $MY_MACHINE = "hera" ]]; then
+   $SUB --account=${ACCOUNT} --time=05 -J ${job} -D . \
+        -o ${LOGdir}/DE.${PDY}.${cyc}.log \
+        --ntasks=1 --mem=5g \
+        ${jobfile}
+
 fi
 
 
