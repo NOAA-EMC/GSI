@@ -170,6 +170,8 @@ logical,public :: nmm = .true.
 logical,public :: nmm_restart = .true.
 logical,public :: nmmb = .false.
 logical,public :: letkf_flag = .false.
+! use brute force search in LETKF instead of kdtree
+logical,public :: letkf_bruteforce_search=.false.
 
 ! next two are no longer used, instead they are inferred from anavinfo
 logical,public :: massbal_adjust = .false. 
@@ -219,7 +221,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    save_inflation,nobsl_max,lobsdiag_forenkf,netcdf_diag,&
                    letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs,npefiles,&
                    getkf,getkf_inflation,denkf,modelspace_vloc,dfs_sort,write_spread_diag,&
-                   covinflatenh,covinflatesh,covinflatetr,lnsigcovinfcutoff,&
+                   covinflatenh,covinflatesh,covinflatetr,lnsigcovinfcutoff,letkf_bruteforce_search,&
                    fso_cycling,fso_calculate,imp_physics,lupp,cnvw_option,use_correlated_oberrs
 namelist /nam_wrf/arw,nmm,nmm_restart
 namelist /satobs_enkf/sattypes_rad,dsis
