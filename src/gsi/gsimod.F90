@@ -104,7 +104,8 @@
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
      nlayers,use_gfs_ozone,check_gfs_ozone_date,regional_ozone,jcap,jcap_b,vlevs,&
      use_gfs_nemsio,sfcnst_comb,use_readin_anl_sfcmask,use_sp_eqspace,final_grid_vars,&
-     jcap_gfs,nlat_gfs,nlon_gfs,jcap_cut,wrf_mass_hybridcord,use_gfs_ncio,write_fv3_incr
+     jcap_gfs,nlat_gfs,nlon_gfs,jcap_cut,wrf_mass_hybridcord,use_gfs_ncio,write_fv3_incr,&
+     use_fv3_aero
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop
   use gsi_io, only: init_io,lendian_in,verbose,print_obs_para
   use regional_io_mod, only: regional_io_class
@@ -152,7 +153,7 @@
        oneob_type_chem,oblat_chem,&
        oblon_chem,obpres_chem,diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname, &
-       laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue
+       laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue, lread_ext_aerosol
   use chemmod, only : wrf_pm2_5,aero_ratios
   use gfs_stratosphere, only: init_gfs_stratosphere,use_gfs_stratosphere,pblend0,pblend1
   use gfs_stratosphere, only: broadcast_gfs_stratosphere_vars
@@ -403,6 +404,8 @@
 !  09-13-2019 Martin    Add option incvars_to_zero(nvars) to zero out netCDF increment fields
 !  09-20-2019 Su        add new variational QC and hub norm option
 !  09-23-2019 Martin    Add option use_gfs_ncio to read in first-guess netCDF file
+!  10-15-2019 Wei/Martin   added option lread_ext_aerosol to read in aerfXX file for NEMS aerosols;
+!                          added option use_fv3_aero to choose between NGAC and FV3GFS-GSDChem 
 !  10-28-2019 Martin    Add option incvars_zero_strat(nvars) to zero out increments above tropopause
 !
 !EOP
@@ -530,6 +533,7 @@
 !     gpstop - maximum height for gpsro data assimilation. Reject anything above this height. 
 !     use_gfs_nemsio  - option to use nemsio to read global model NEMS/GFS first guess
 !     use_gfs_ncio - option to use netCDF to read global model FV3-GFS first guess
+!     use_fv3_aero - option to use FV3-Chem vs NGAC for global aerosol analysis
 !     sfcnst_comb   - option to use nemsio sfc history file by regriding FV3 grid
 !     use_readin_anl_sfcmask  - option to use readin surface mask
 !     use_prepb_satwnd - allow using satwnd''s from prepbufr (historical) file
@@ -626,6 +630,7 @@
        l4dvar,lbicg,lsqrtb,lcongrad,lbfgsmin,ltlint,nhr_obsbin,nhr_subwin,&
        mPES_observer,&
        alwaysLocal,&
+       use_fv3_aero,&
        nwrvecs,iorthomax,ladtest,ladtest_obs, lgrtest,lobskeep,lsensrecompute,jsiga,ltcost, &
        lobsensfc,lobsensjb,lobsensincr,lobsensadj,lobsensmin,iobsconv, &
        idmodel,iwrtinc,lwrite4danl,nhr_anal,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
@@ -1124,17 +1129,18 @@
 !     in_fname          - CMAQ input filename
 !     out_fname         - CMAQ output filename
 !     incr_fname        - CMAQ increment filename
-!     laeroana_gocart   - when true, do chem analysis with wrfchem and modis
+!     laeroana_gocart   - when true, do chem analysis with wrfchem (or NGAC)
 !     l_aoderr_table    - whethee to use aod error table or default error
 !     aod_qa_limit      - minimum acceptable value of error flag for total column AOD
 !     luse_deepblue     - whether to use MODIS AOD from the deepblue   algorithm
+!     lread_ext_aerosol - if true, reads aerfNN file for aerosol arrays rather than sigfNN (NGAC NEMS IO)
 
   namelist/chem/berror_chem,oneobtest_chem,maginnov_chem,magoberr_chem,&
        oneob_type_chem,oblat_chem,oblon_chem,obpres_chem,&
        diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname,&
        laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue,&
-       aero_ratios,wrf_pm2_5
+       aero_ratios,wrf_pm2_5, lread_ext_aerosol
 
 ! NST (NSST control namelist) :
 !     nst_gsi  - indicator to control the Tr Analysis mode: 0 = no nst info in gsi at all;
@@ -1558,7 +1564,6 @@
 ! Turn off Jc-pdry weak constraint if regional application
   if (regional) ljcpdry=.false.
 
-
 ! Initialize lagrangian data assimilation - must be called after gsi_4dvar
   call lag_modini()
 
@@ -1714,6 +1719,7 @@
 
 ! Initialize values in aeroinfo
   call init_aero_vars
+
 
   end subroutine gsimain_initialize
 

@@ -60,16 +60,6 @@ export USHoznmon=${USHoznmon:-$HOMEoznmon/ush}
 .  ${PARMgdas_ozn}/gdas_oznmon.parm
 
 
-#--------------------------------------------
-# Run setpdy and initialize PDY variables
-#
-#  Question:  is setpdy necessary?
-#
-if [[ $MY_MACHINE != "theia" ]]; then
-   setpdy.sh
-   . ./PDY
-fi   
-
 #############################################
 #  determine PDY and cyc for previous cycle
 #############################################

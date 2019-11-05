@@ -139,9 +139,9 @@ while [[ $done -eq 0 ]]; do
    #--------------------------------------------------------------------
    # Check for running jobs   
    #--------------------------------------------------------------------
-   if [[ $MY_MACHINE = "wcoss" ]]; then
+   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "wcoss_d" ]]; then
       running=`bjobs -l | grep minmon_de_${SUFFIX} | wc -l`
-   elif [[ $MY_MACHINE = "theia" ]]; then
+   elif [[ $MY_MACHINE = "hera" ]]; then
       running=`qstat -u $LOGNAME | grep minmon_de_${SUFFIX} | wc -l`
    fi
 

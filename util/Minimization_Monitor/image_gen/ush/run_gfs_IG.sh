@@ -8,19 +8,12 @@ package=ProdGSI/util/Minimization_Monitor
 suffix=GFS
 run=gfs
 
-idev=`cat /etc/dev | cut -c1`
-iprod=`cat /etc/prod | cut -c1`
-
-. /usrx/local/Modules/3.2.9/init/ksh
-module use /nwprod2/modulefiles
-module load prod_util
-module load GrADS
-
+NDATE=/gpfs/dell1/nco/ops/nwprod/prod_util.v1.1.0/exec/ips/ndate
 echo NDATE = $NDATE
 ch=`hostname | cut -c1`
 
-scripts=/gpfs/${ch}d2/emc/da/noscrub/${LOGNAME}/${package}/image_gen/ush
-ptmp=/ptmpd1/Edward.Safford
+scripts=/gpfs/dell2/emc/modeling/noscrub/${LOGNAME}/${package}/image_gen/ush
+ptmp=/gpfs/dell2/ptmp/Edward.Safford
 
 export DO_ARCHIVE=0
 export JOB_QUEUE=dev_shared
@@ -38,7 +31,7 @@ idate=`$NDATE +6 $imgdate`
 PDY=`echo $idate | cut -c1-8`
 cyc=`echo $idate | cut -c9-10`
 
-prodate=`${scripts}/find_cycle.pl --run gfs --cyc 1 --dir ${tankdir}`
+prodate=`${scripts}/find_cycle.pl --run $run --cyc 1 --dir ${tankdir}`
 echo "imgdate, prodate = $imgdate, $prodate"
 if [[ $idate -le $prodate ]]; then
 

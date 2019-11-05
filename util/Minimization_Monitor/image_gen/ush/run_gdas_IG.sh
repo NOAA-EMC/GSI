@@ -8,25 +8,18 @@ package=ProdGSI/util/Minimization_Monitor
 suffix=GFS
 run=gdas
 
-idev=`cat /etc/dev | cut -c1`
-iprod=`cat /etc/prod | cut -c1`
-
-. /usrx/local/Modules/3.2.9/init/ksh
-module use /nwprod2/modulefiles
-module load prod_util
-module load GrADS
-
+NDATE=/gpfs/dell1/nco/ops/nwprod/prod_util.v1.1.0/exec/ips/ndate
 echo NDATE = $NDATE
 ch=`hostname | cut -c1`
 
-scripts=/gpfs/${ch}d2/emc/da/noscrub/${LOGNAME}/${package}/image_gen/ush
-ptmp=/ptmpd1/Edward.Safford
+scripts=/gpfs/dell2/emc/modeling/noscrub/${LOGNAME}/${package}/image_gen/ush
+ptmp=/gpfs/dell2/ptmp/Edward.Safford
 
 export DO_ARCHIVE=0
 export JOB_QUEUE=dev_shared
 export DO_ERROR_RPT=1
 
-#export MAIL_CC="russ.treadon@noaa.gov, andrew.collard@noaa.gov"
+export MAIL_CC="russ.treadon@noaa.gov, andrew.collard@noaa.gov"
 export MAIL_TO="edward.safford@noaa.gov"
 
 data_map=${scripts}/pen_data_map.xml

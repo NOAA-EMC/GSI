@@ -1,4 +1,4 @@
-subroutine create_ctl_horiz(ntype,ftype,n_levs,iyy,imm,idd,ihh,idhh,&
+subroutine create_ctl_horiz(ntype,ptype,var_list,n_levs,iyy,imm,idd,ihh,idhh,&
      incr,ctl_file,lunctl,rmiss,satname,prs_nlev,&
      error,iuse,satype,dplat)
 
@@ -8,10 +8,10 @@ subroutine create_ctl_horiz(ntype,ftype,n_levs,iyy,imm,idd,ihh,idhh,&
 
   character(3),dimension(12):: mon
   character(4) obsnum
-  character(6),dimension(ntype):: ftype
+  character(6),dimension(ntype):: var_list
   character(13) stringd
   character(20) satname
-  character(10) satype,dplat
+  character(10) satype,dplat,ptype
   character(40) ctl_file,grad_file
   character(80) string
 
@@ -54,7 +54,7 @@ subroutine create_ctl_horiz(ntype,ftype,n_levs,iyy,imm,idd,ihh,idhh,&
   open(lunctl,file=ctl_file,form='formatted')
 
 ! Write header information
-  grad_file = trim(satname) // stringd // '.ieee_d'
+  grad_file = trim(satname) // '.' // trim(ptype) // stringd // '.ieee_d'
   write(lunctl,100) grad_file
   write(lunctl,110) 
   string = trim(satname) // '.map'
@@ -84,8 +84,8 @@ subroutine create_ctl_horiz(ntype,ftype,n_levs,iyy,imm,idd,ihh,idhh,&
   do i=1,ntype
      do j=1,n_levs
         write(obsnum,'(i4)') j
-        string = trim(ftype(i)) // adjustl(obsnum)
-        write(lunctl,180) adjustl(string),trim(ftype(i))
+        string = trim(var_list(i)) // adjustl(obsnum)
+        write(lunctl,180) adjustl(string),trim(var_list(i))
 180     format(a10,' 0 0 ',a6)
      end do
   end do

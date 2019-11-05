@@ -89,11 +89,7 @@ echo "VALIDATE_DATA, validate = $VALIDATE_DATA, $validate "
 # ptype here is the processing type which is intended to be "ges" 
 # or "anl".  Default is "ges".  
 #
-# If this needs to change to include __both__ then the extraction 
-# executables will need to be modified to handle the ges && anl
-# inputs in the diag file names.
-#
-ozn_ptype=${ozn_ptype:-"ges"}
+ozn_ptype=${ozn_ptype:-"ges anl"}
 
 
 #---------------------------------------------------------------------------
@@ -136,22 +132,6 @@ if [[ $DO_DATA_RPT -eq 1 && $len_satype -lt 1 ]]; then
 
 else
 
-   #---------------------------------------------------------------------------
-   #  NOTE:  If ges && anl are to be processed then add an outer for loop on 
-   #  $ozn_ptype
-   #
-   if [[ -e ${type}.gz ]]; then
-      rm -f ${type}.gz
-   fi
-   if [[ -e ${type} ]]; then 
-      rm -f ${type}
-   fi
-   for type in ${SATYPE}; do
-      mv diag_${type}_${ozn_ptype}.${PDATE}.gz ${type}.gz
-      gunzip ./${type}.gz
-   done
-
-
    #--------------------------------------------------------------------
    #   Copy extraction programs to working directory
    #
@@ -167,16 +147,32 @@ else
    fi
 
 
-   #--------------------------------------------------------------------
-   #   Run programs for given time
+   #---------------------------------------------------------------------------
+   #  NOTE:  If ges && anl are to be processed then add an outer for loop on 
+   #  $ozn_ptype
+   #
+   echo "ozn_ptype = $ozn_ptype"
+   for ptype in ${ozn_ptype}; do
+      echo "ptype = $ptype"
 
-   iyy=`echo $PDATE | cut -c1-4`
-   imm=`echo $PDATE | cut -c5-6`
-   idd=`echo $PDATE | cut -c7-8`
-   ihh=`echo $PDATE | cut -c9-10`
+ 
+      for type in ${SATYPE}; do
+         mv diag_${type}_${ptype}.${PDATE}.gz ${type}.${ptype}.gz
+         gunzip ./${type}.${ptype}.gz
+      done
 
-   for type in ${SATYPE}; do
-      rm -f input
+
+      #--------------------------------------------------------------------
+      #   Run programs for given time
+   
+      iyy=`echo $PDATE | cut -c1-4`
+      imm=`echo $PDATE | cut -c5-6`
+      idd=`echo $PDATE | cut -c7-8`
+      ihh=`echo $PDATE | cut -c9-10`
+
+      for type in ${SATYPE}; do
+         echo "processing ptype, type:  $ptype, $type"
+         rm -f input
 
 cat << EOF > input
          &INPUT
@@ -195,59 +191,73 @@ cat << EOF > input
          region(5)='20S-70S',   rlonmin(5)=-180.0,rlonmax(5)=180.0,rlatmin(5)=-70.0,rlatmax(5)=-20.0,
          region(6)='70S-90S',   rlonmin(6)=-180.0,rlonmax(6)=180.0,rlatmin(6)=-90.0,rlatmax(6)=-70.0,
          validate=$validate,
-         new_hdr=${new_hdr}
+         new_hdr=${new_hdr},
+	 ptype=${ptype}
       /
 EOF
 
 
-      echo "oznmon_time.x HAS STARTED $type"
+         echo "oznmon_time.x HAS STARTED $type"
+   
+         ./oznmon_time.x < input >   stdout.time.${type}.${ptype}
 
-      ./oznmon_time.x < input >   stdout.time.$type
+         echo "oznmon_time.x HAS ENDED $type"
 
-      echo "oznmon_time.x HAS ENDED $type"
+         if [[ ! -d ${TANKverf_ozn}/time ]]; then
+            mkdir -p ${TANKverf_ozn}/time
+         fi
+         $NCP ${type}.${ptype}.ctl             	  ${TANKverf_ozn}/time/
+         $NCP ${type}.${ptype}.${PDATE}.ieee_d 	  ${TANKverf_ozn}/time/
 
-      if [[ ! -d ${TANKverf_ozn}/time ]]; then
-         mkdir -p ${TANKverf_ozn}/time
-      fi
-      $NCP ${type}.ctl                ${TANKverf_ozn}/time/
-      $NCP ${type}.${PDATE}.ieee_d    ${TANKverf_ozn}/time/
+#         $COMPRESS stdout.time.${type}.${ptype}
+#         $NCP stdout.time.${type}.${ptype}.${Z}   ${TANKverf_ozn}/time/
+         $NCP bad*                                ${TANKverf_ozn}/time/
 
-      $COMPRESS stdout.time.${type}
-      $NCP stdout.time.${type}.${Z}   ${TANKverf_ozn}/time/
-      $NCP bad*                       ${TANKverf_ozn}/time/
-
-      rm -f input
+         rm -f input
 
 cat << EOF > input
-        &INPUT
-        satname='${type}',
-        iyy=${iyy},
-        imm=${imm},
-        idd=${idd},
-        ihh=${ihh},
-        idhh=-18,
-        incr=6,
-        new_hdr=${new_hdr}
+         &INPUT
+         satname='${type}',
+         iyy=${iyy},
+         imm=${imm},
+         idd=${idd},
+         ihh=${ihh},
+         idhh=-18,
+         incr=6,
+         new_hdr=${new_hdr},
+         ptype=${ptype}
       /
 EOF
 
-      echo "oznmon_horiz.x HAS STARTED $type"
+         echo "oznmon_horiz.x HAS STARTED $type"
+   
+         ./oznmon_horiz.x < input >   stdout.horiz.${type}.${ptype}
 
-      ./oznmon_horiz.x < input >   stdout.horiz.$type
+         echo "oznmon_horiz.x HAS ENDED $type"
 
-      echo "oznmon_horiz.x HAS ENDED $type"
+         if [[ ! -d ${TANKverf_ozn}/horiz ]]; then
+            mkdir -p ${TANKverf_ozn}/horiz
+         fi
+         $NCP ${type}.${ptype}.ctl                  ${TANKverf_ozn}/horiz/
 
-      if [[ ! -d ${TANKverf_ozn}/horiz ]]; then
-         mkdir -p ${TANKverf_ozn}/horiz
-      fi
-      $NCP ${type}.ctl                ${TANKverf_ozn}/horiz/
-
-      $COMPRESS ${type}.${PDATE}.ieee_d
-      $NCP ${type}.${PDATE}.ieee_d.${Z}    ${TANKverf_ozn}/horiz/
+         $COMPRESS ${type}.${ptype}.${PDATE}.ieee_d
+         $NCP ${type}.${ptype}.${PDATE}.ieee_d.${Z} ${TANKverf_ozn}/horiz/
       
-      $COMPRESS stdout.horiz.${type}
-      $NCP stdout.horiz.${type}.${Z}  ${TANKverf_ozn}/horiz/
-   done
+#         $COMPRESS stdout.horiz.${type}.${ptype}
+#         $NCP stdout.horiz.${type}.${ptype}.${Z}   ${TANKverf_ozn}/horiz/
+
+         echo "finished processing ptype, type:  $ptype, $type"
+      done  # type in SATYPE
+
+   done	 # ptype in $ozn_ptype
+
+   tar -cvf stdout.horiz.tar stdout.horiz*
+   $COMPRESS stdout.horiz.tar
+   $NCP stdout.horiz.tar.${Z} ${TANKverf_ozn}/horiz/
+
+   tar -cvf stdout.time.tar stdout.time*
+   $COMPRESS stdout.time.tar
+   $NCP stdout.time.tar.${Z} ${TANKverf_ozn}/time/
 fi
 
 echo "ozn_xtrct.sh HAS ENDED, iret = $iret"
