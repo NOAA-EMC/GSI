@@ -42,11 +42,8 @@
       $host = $hostnames[0];
    }
 
-   if( $host =~ /tfe/ ) { 
-      $machine = "theia";
-   } 
-   elsif( $host =~ /fe/ ) { 
-      $machine = "zeus";
+   if( $host =~ /hfe/ ) { 
+      $machine = "hera";
    } 
    elsif( $host =~ /login/ ) {
       $machine = "cray";

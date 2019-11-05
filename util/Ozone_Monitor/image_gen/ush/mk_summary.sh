@@ -11,7 +11,7 @@
 echo "begin mk_summary.sh"
 set -ax
 
-export string=ges
+export process_type="ges anl"
 
 
 #------------------------------------------------------------------
@@ -36,12 +36,17 @@ fi
 # Loop over sat types and create entry in cmdfile for each.
 #
 
-if [[ ${string} = "ges" ]]; then
+for ptype in ${process_type}; do
+
+   if [[ ${ptype} = "ges" ]]; then
+      list="count omg cpen"
+   else
+      list="count oma cpen"
+   fi
 
    suffix=a
-   list="count omg cpen"
 
-   cmdfile=cmdfile_psummary
+   cmdfile=cmdfile_${ptype}_psummary
    rm -f $cmdfile
 
    ctr=0
@@ -49,27 +54,27 @@ if [[ ${string} = "ges" ]]; then
    for type in ${SATYPE}; do
       if [[ $type != "omi_aura" && $type != "gome_metop-a" && $type != "gome_metop-b" ]]; then
          if [[ ${MY_MACHINE} = "theia" ]]; then
-            echo "${ctr} ${OZN_IG_SCRIPTS}/plot_summary.sh $type" >> $cmdfile
+            echo "${ctr} ${OZN_IG_SCRIPTS}/plot_summary.sh $type $ptype" >> $cmdfile
          else
-            echo "${OZN_IG_SCRIPTS}/plot_summary.sh $type" >> $cmdfile
+            echo "${OZN_IG_SCRIPTS}/plot_summary.sh $type $ptype" >> $cmdfile
          fi
          ((ctr=ctr+1))
       fi
    done
    chmod a+x $cmdfile
 
-   job=${OZNMON_SUFFIX}_ozn_psummary
-   o_logfile=${OZN_LOGdir}/plot_summary.${PDATE}
+   job=${OZNMON_SUFFIX}_ozn_${ptype}_psummary
+   o_logfile=${OZN_LOGdir}/plot_summary.${ptype}.${PDATE}
    if [[ -e ${o_logfile} ]]; then
       rm -f ${o_logfile}
    fi
 
-   logf=${OZN_LOGdir}/IG.${PDY}.${cyc}.summary.log
+   logf=${OZN_LOGdir}/IG.${PDY}.${cyc}.${ptype}.summary.log
    if [[ -e $logf ]]; then
       rm -f $logf
    fi
 
-   errf=${OZN_LOGdir}/IG.${PDY}.${cyc}.summary.err
+   errf=${OZN_LOGdir}/IG.${PDY}.${cyc}.${ptype}.summary.err
    if [[ -e $errf ]]; then
       rm -f $errf
    fi
@@ -93,11 +98,12 @@ if [[ ${string} = "ges" ]]; then
    elif [[ ${MY_MACHINE} = "wcoss_d" ]]; then
 
       $SUB -q ${JOB_QUEUE} -P ${PROJECT} -M 50 -R affinity[core] \
-           -o ${logf} -e ${errf} -W 0:05 -J ${job} -cwd ${WORKDIR} ${WORKDIR}/${cmdfile}
+           -o ${logf} -e ${errf} -W 0:05 -J ${job} \
+	   -cwd ${WORKDIR} ${WORKDIR}/${cmdfile}
 
    fi
 
-fi
+done
 
 echo "end mk_summary.sh"
 exit

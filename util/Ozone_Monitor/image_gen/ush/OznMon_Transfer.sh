@@ -112,15 +112,19 @@ fi
 transfer_script=${OZN_IG_SCRIPTS}/transfer.sh
 job=${OZNMON_SUFFIX}_ozn_transfer
 
-if [[ $MY_MACHINE = "wcoss" ]]; then
+if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "wcoss_d" ]]; then
 
-   JOB_QUEUE="transfer"
+   job_queue="transfer"
+   if [[ $MY_MACHINE = "wcoss_d" ]]; then
+      job_queue="dev_transfer"
+   fi
+
    echo "PROJECT = $PROJECT"
    echo "logf    = $logf"
    echo "errf    = $errf"
    echo "transfer_script = $transfer_script"
 
-   $SUB -P $PROJECT -q $JOB_QUEUE -o ${logf} -e ${errf} -M 50 -W 0:20 \
+   $SUB -P $PROJECT -q $job_queue -o ${logf} -e ${errf} -M 50 -W 0:20 \
         -R affinity[core] -J ${job} -cwd ${OZN_IG_SCRIPTS} \
         ${transfer_script} 
    
