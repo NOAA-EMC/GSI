@@ -1112,19 +1112,21 @@
      !print *,'nanal,min/max psfg,min/max inc',nanal,minval(values_2d),maxval(values_2d),minval(ug),maxval(ug)
      if (has_var(dsfg,'dpres')) then
         call read_vardata(dsfg,'dpres',ug3d)
+        allocate(vg3d(nlons,nlats,nlevs))
+        ! infer dpres increment from ps increment
         do k=1,nlevs
-           vg = ug*(bk(k)-bk(k+1))
+           vg = ug*(bk(k)-bk(k+1)) ! ug is ps increment
            vg3d(:,:,nlevs-k+1) = ug3d(:,:,nlevs-k+1) +&
            100_r_kind*reshape(vg,(/nlons,nlats/))
         enddo 
-        if (has_attr(dsfg, 'nbits', 'delp')) then
-          call read_attribute(dsfg, 'nbits', nbits, 'delp')
+        if (has_attr(dsfg, 'nbits', 'dpres')) then
+          call read_attribute(dsfg, 'nbits', nbits, 'dpres')
           ug3d = vg3d
           call quantize_data(ug3d, vg3d, nbits, compress_err)
           call write_attribute(dsanl,&
-          'max_abs_compression_error',compress_err,'delp',errcode=iret)
+          'max_abs_compression_error',compress_err,'dpres',errcode=iret)
           if (iret /= 0) then
-            print *,'error writing delp attribute'
+            print *,'error writing dpres attribute'
             call stop2(29)
           endif
         endif
@@ -1627,7 +1629,7 @@
        call write_attribute(dsanl,&
        'max_abs_compression_error',compress_err,'vgrd',errcode=iret)
        if (iret /= 0) then
-         print *,'error writing delp attribute'
+         print *,'error writing vgrd attribute'
          call stop2(29)
        endif
      endif
@@ -1708,12 +1710,12 @@
      if (has_var(dsfg,'delz')) then
         allocate(delzb(nlons*nlats))
         call read_vardata(dsfg,'delz',values_3d)
+        vg = 0_r_kind
+        if (ps_ind > 0) then
+           call copyfromgrdin(grdin(:,levels(n3d) + ps_ind,nb,ne),vg)
+        endif
+        vg = values_1d + vg ! analysis ps (values_1d is background ps)
         do k=1,nlevs
-           vg = 0_r_kind
-           if (ps_ind > 0) then
-              call copyfromgrdin(grdin(:,levels(n3d) + ps_ind,nb,ne),vg)
-           endif
-           vg = values_1d + vg ! analysis ps (values_1d is background ps)
            ug=(rd/grav)*reshape(tv_anal(:,:,nlevs-k+1),(/nlons*nlats/)) 
            ! ps in Pa here, need to multiply ak by 100.
            ug=ug*log((100_r_kind*ak(k)+bk(k)*vg)/(100_r_kind*ak(k+1)+bk(k+1)*vg))
