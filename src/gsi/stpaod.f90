@@ -10,6 +10,8 @@ module stpaodmod
 ! program history log:
 !   2016-02-20  pagowski - a module for aod 
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
+!   2019-03-21  martin  - changed if in stpaod from wrf_mass_regional to
+!                         laeroana_gocart; modified code from S-W Wei (UAlbany)
 !
 ! subroutines included:
 !   sub stpaod
@@ -42,6 +44,8 @@ contains
 !
 ! program history log:
 !   2016-01-15  pagowski - original routine 
+!   2019-03-21  martin  - changed if in stpaod from wrf_mass_regional to
+!                         laeroana_gocart; modified code from S-W Wei (UAlbany)
 !
 !   input argument list:
 !     aerohead
@@ -65,7 +69,8 @@ contains
     use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,zero
     use gsi_bundlemod, only: gsi_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
-    use gridmod, only: cmaq_regional,wrf_mass_regional,latlon11,nsig
+    use gridmod, only: cmaq_regional,latlon11,nsig
+    use chemmod, only: laeroana_gocart
     implicit none
     
 ! declare passed variables
@@ -78,7 +83,7 @@ contains
 ! declare local variables
     integer(i_kind) istatus,naero
     integer(i_kind) j1,j2,j3,j4,kk,k,ic,nn
-    real(r_kind) cg_aero,val,val2,wgross,wnotgross
+    real(r_kind) val,val2
     integer(i_kind),dimension(nsig) :: j1n,j2n,j3n,j4n
     real(r_kind),dimension(max(1,nstep)):: term,rad
     real(r_kind) w1,w2,w3,w4
@@ -102,12 +107,11 @@ contains
 
     endif
 
-    if (wrf_mass_regional) then
+    if (laeroana_gocart) then
 
        tdir=zero
        rdir=zero
 
-       !aeroptr => aerohead
        aeroptr => aeroNode_typecast(aerohead)
 
        do while (associated(aeroptr))
@@ -177,7 +181,7 @@ contains
                    end do
 
                 else
-                   rad(kk)= val2
+                   rad(1) = aeroptr%res(nn)
                 end if
 
 !          calculate contribution to j
@@ -187,17 +191,6 @@ contains
                 end do
 
 !          modify penalty term if nonlinear qc
-
-                if(nlnqc_iter .and. pg_aero(ic) > tiny_r_kind .and. &
-                     b_aero(ic)  > tiny_r_kind)then
-                   cg_aero=cg_term/b_aero(ic)
-                   wnotgross= one-pg_aero(ic)*varqc_iter
-                   wgross = varqc_iter*pg_aero(ic)*cg_aero/wnotgross
-                   do kk=1,max(1,nstep)
-                      term(kk)  = -two*log((exp(-half*term(kk) ) + wgross)/&
-                           (one+wgross))
-                   end do
-                endif
 
                 out(1) = out(1) + term(1)*aeroptr%raterr2(nn)
 
@@ -209,7 +202,6 @@ contains
 
           endif
 
-          !aeroptr => aeroptr%llpoint
           aeroptr => aeroNode_nextcast(aeroptr)
 
        end do

@@ -61,6 +61,8 @@ module radiance_mod
 
   public :: total_rad_type
   public :: rad_type_info
+  public :: total_aod_type
+  public :: aod_type_info
 
   public :: rad_obs_type
 
@@ -89,6 +91,7 @@ module radiance_mod
   integer(i_kind) :: idx_cw,idx_ql,idx_qi,idx_qr,idx_qs,idx_qg,idx_qh
 
   integer(i_kind) :: total_rad_type
+  integer(i_kind) :: total_aod_type
 
   type rad_obs_type
     character(len=10) :: rtype            ! instrument
@@ -109,6 +112,7 @@ module radiance_mod
   end type rad_obs_type
 
   type(rad_obs_type),save,dimension(:),allocatable :: rad_type_info
+  type(rad_obs_type),save,dimension(:),allocatable :: aod_type_info
 
 contains
 
@@ -317,6 +321,7 @@ contains
 !   2015-07-20  zhu -- initial code    
 !   2018-04-04  zhu -- move rad_type_info(k)%cclr and rad_type_info(k)%ccld to this subroutine
 !   2018-04-06  derber -- change rad_type_info(k)%cclr default value from zero to a large number
+!   2019-03-21  Wei/Martin - fix capabilities for AOD assimilation
 !
 !   input argument list:
 !
@@ -332,6 +337,7 @@ contains
     use radinfo, only: nusis,jpch_rad,icloud4crtm,iaerosol4crtm
     use obsmod, only: ndat,dtype,dsis
     use gsi_io, only: verbose
+    use chemmod, only: laeroana_gocart, lread_ext_aerosol
     implicit none
 
     logical :: first,diffistr,found
@@ -364,12 +370,14 @@ contains
     end if
 
     if (iaerosol_fwd .and. all(iaerosol4crtm<0)) then
-       iaerosol_fwd=.false.
        iaerosol=.false.
-       n_aerosols_fwd=0
-       n_aerosols_jac=0   
-       aerosol_names_fwd=' '
-       aerosol_names_jac=' '
+       if ( .not. laeroana_gocart ) then
+          iaerosol_fwd=.false.
+          n_aerosols_fwd=0
+          n_aerosols_jac=0   
+          aerosol_names_fwd=' '
+          aerosol_names_jac=' '
+       end if
     end if
 
     if (iallsky .and. all(icloud4crtm<1)) then
@@ -547,6 +555,7 @@ contains
 !
 ! program history log:
 !   2015-08-20  zhu
+!   2019-03-21  Wei/Martin - added in AOD type support
 !
 !   input argument list:
 !         obstype
@@ -565,7 +574,7 @@ contains
     logical match
     integer(i_kind) i
 
-    if (total_rad_type<=0) return
+    if (total_rad_type<=0 .and. total_aod_type<=0) return
     
     match=.false.
     do i=1,total_rad_type
@@ -600,6 +609,29 @@ contains
           return
        end if
     end do
+    do i=1,total_aod_type
+       match=index(trim(obstype),trim(aod_type_info(i)%rtype)) /= 0
+       if (match) then
+          radmod%rtype = aod_type_info(i)%rtype
+          radmod%nchannel = aod_type_info(i)%nchannel
+          radmod%cld_sea_only = aod_type_info(i)%cld_sea_only
+          radmod%cld_effect = aod_type_info(i)%cld_effect
+          radmod%ex_obserr = aod_type_info(i)%ex_obserr
+          radmod%ex_biascor = aod_type_info(i)%ex_biascor
+ 
+          radmod%lcloud_fwd = aod_type_info(i)%lcloud_fwd
+          radmod%lallsky = aod_type_info(i)%lallsky
+          radmod%lcloud4crtm => aod_type_info(i)%lcloud4crtm
+
+          radmod%laerosol_fwd = aod_type_info(i)%laerosol_fwd
+          radmod%laerosol = aod_type_info(i)%laerosol
+          radmod%laerosol4crtm => aod_type_info(i)%laerosol4crtm
+
+          radmod%cclr => aod_type_info(i)%cclr
+          radmod%ccld => aod_type_info(i)%ccld
+          return
+       end if ! match
+    end do
     if (mype==0) write(6,*) 'radiance_obstype_search type not found: obstype=',obstype
 
     if (.not. match) then
@@ -620,6 +652,7 @@ contains
 !
 ! program history log:
 !   2015-07-20  zhu
+!   2019-03-21 Wei/Martin - added in aod_type support
 !
 !   input argument list:
 !
@@ -633,6 +666,22 @@ contains
     implicit none
 
     integer(i_kind) :: k
+    if (total_rad_type>0) then
+       do k=1, total_rad_type
+          if(associated(rad_type_info(k)%lcloud4crtm)) deallocate(rad_type_info(k)%lcloud4crtm)
+          if(associated(rad_type_info(k)%laerosol4crtm)) deallocate(rad_type_info(k)%laerosol4crtm)
+          if(associated(rad_type_info(k)%cclr)) deallocate(rad_type_info(k)%cclr)
+          if(associated(rad_type_info(k)%ccld)) deallocate(rad_type_info(k)%ccld)
+       end do
+    end if
+    if (total_aod_type>0) then
+       do k=1, total_aod_type
+          if(associated(aod_type_info(k)%lcloud4crtm)) deallocate(aod_type_info(k)%lcloud4crtm)
+          if(associated(aod_type_info(k)%laerosol4crtm)) deallocate(aod_type_info(k)%laerosol4crtm)
+          if(associated(aod_type_info(k)%cclr)) deallocate(aod_type_info(k)%cclr)
+          if(associated(aod_type_info(k)%ccld)) deallocate(aod_type_info(k)%ccld)
+       end do
+    end if
 
     do k=1, total_rad_type
        if(associated(rad_type_info(k)%lcloud4crtm)) deallocate(rad_type_info(k)%lcloud4crtm)
@@ -642,7 +691,7 @@ contains
        if(associated(rad_type_info(k)%cldval1)) deallocate(rad_type_info(k)%cldval1)
     end do
     if(allocated(rad_type_info)) deallocate(rad_type_info)
-
+    if(allocated(aod_type_info)) deallocate(aod_type_info)
   end subroutine radiance_obstype_destroy
 
 
@@ -841,9 +890,121 @@ contains
   end subroutine sensor_parameter_table
 
   subroutine radiance_parameter_aerosol_init
+    ! History:   2018-10-31 Wei/Martin - fix stub
+    use aeroinfo, only: jpch_aero,nusis_aero
+    use obsmod, only: ndat,dtype,dsis
+    use gsi_io, only: verbose
     implicit none
+    logical :: first,diffistr,found
+    integer(i_kind) :: i,j,k,ii,nn1,nn2
+    integer(i_kind),dimension(ndat) :: k2i
+    character(10),dimension(ndat) :: rtype,rrtype,drtype
+    logical print_verbose
 
     if (.not. iaerosol_fwd) return
+
+    print_verbose=.false.
+    if(verbose)print_verbose=.true.
+    
+    drtype='nonaod'
+    do i=1,ndat
+       rtype(i)=dtype(i)!     rtype  - observation types to process
+       if (rtype(i) == 'modis_aod' .or. rtype(i) == 'viirs_aod') then
+           drtype='aod'
+       end if 
+    end do
+   
+    k=0
+    k2i=0
+    first=.true.
+    rrtype=''
+    do i=1,ndat
+       if (drtype(i) /= 'aod') cycle
+
+       found=.false.
+       if (first) then
+          k=k+1
+          rrtype(k)=rtype(i)
+          k2i(k)=i
+          first=.false.
+       else
+          do j=1,k
+             if (trim(rtype(i)) == trim(rrtype(j))) then
+                found=.true.
+                exit
+             end if
+          end do
+          if (.not. found) then
+             k=k+1
+             rrtype(k)=rtype(i)
+             k2i(k)=i
+          end if
+       end if
+    end do
+    total_aod_type=k
+
+    if (mype==0) write(6,*) 'radiance_obstype_init: total_aod_type=',k,' types are: ', rrtype(1:total_aod_type)
+
+    if (total_aod_type<=0) return
+    allocate(aod_type_info(total_aod_type))
+
+    do k=1, total_aod_type
+       aod_type_info(k)%rtype=rrtype(k)
+       aod_type_info(k)%cld_sea_only=.false.
+       aod_type_info(k)%ex_obserr=' '
+       aod_type_info(k)%ex_biascor=.false.
+       aod_type_info(k)%cld_effect=.false.
+       aod_type_info(k)%lcloud_fwd=.false.
+       aod_type_info(k)%lallsky=.false.
+       aod_type_info(k)%laerosol_fwd=.true.
+       aod_type_info(k)%laerosol=.true.
+
+       ii=k2i(k)
+       first=.true.
+       nn1=0
+       nn2=0
+       do j=1,jpch_aero
+          if (j==jpch_aero) then
+             diffistr = .true.
+          else
+             diffistr = trim(nusis_aero(j))/=trim(nusis_aero(j+1))
+          end if
+          if (trim(dsis(ii))==trim(nusis_aero(j))) then
+             if (first) then
+                nn1=j
+                first=.false.
+             else
+                nn2=j
+             end if
+             if (diffistr) exit
+          end if
+       end do
+       if (nn1/=0 .and. nn2/=0) then
+          aod_type_info(k)%nchannel=nn2-nn1+1
+       else
+          cycle
+       end if
+
+       allocate(aod_type_info(k)%lcloud4crtm(aod_type_info(k)%nchannel))
+       allocate(aod_type_info(k)%laerosol4crtm(aod_type_info(k)%nchannel))
+       aod_type_info(k)%lcloud4crtm=0
+       aod_type_info(k)%laerosol4crtm=0
+
+       if (mype==0)  &
+                               write(6,*) 'radiance_obstype_init: type=',aod_type_info(k)%rtype, &
+                               ' nch=',aod_type_info(k)%nchannel, &
+                               ' lcloud_fwd=',aod_type_info(k)%lcloud_fwd, &
+                               ' lallsky=',aod_type_info(k)%lallsky, &
+                               ' laerosol_fwd=',aod_type_info(k)%laerosol_fwd, &
+                               ' laerosol=',aod_type_info(k)%laerosol
+
+       allocate(aod_type_info(k)%cclr(aod_type_info(k)%nchannel))
+       allocate(aod_type_info(k)%ccld(aod_type_info(k)%nchannel))
+       aod_type_info(k)%cclr(:)=9999.9_r_kind
+       aod_type_info(k)%ccld(:)=zero
+
+    end do ! end total_aod_type
+
   end subroutine radiance_parameter_aerosol_init
 
   subroutine radiance_ex_obserr_1(radmod,nchanl,clwp_amsua,clw_guess_retrieval, &

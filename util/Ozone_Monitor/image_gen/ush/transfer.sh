@@ -32,7 +32,8 @@ set -ax
 
    if [[ ${OZN_IMGN_TANKDIR} != "/" ]]; then			# sanity check 
 
-      if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "cray" ]]; then
+      if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "wcoss_d" || \
+            $MY_MACHINE = "cray" ]]; then
 
          #----------------------------------------------------------------
          #  expand WEB_DIR to include the suffix and conditionally the RUN 
