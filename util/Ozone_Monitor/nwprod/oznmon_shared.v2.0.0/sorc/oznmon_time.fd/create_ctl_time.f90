@@ -1,4 +1,4 @@
-subroutine create_ctl_oz(ntype,ftype,n_levs,iyy,imm,idd,ihh,idhh,&
+subroutine create_ctl_oz(ntype,ptype,var_list,n_levs,iyy,imm,idd,ihh,idhh,&
      incr,ctl_file,lunctl,rmiss,satname,satype,dplat,nregion,&
      region,rlonmin,rlonmax,rlatmin,rlatmax,nu_nlev,use,error)
 
@@ -10,10 +10,10 @@ subroutine create_ctl_oz(ntype,ftype,n_levs,iyy,imm,idd,ihh,idhh,&
   character(3),dimension(12):: mon
   character(3):: clatmin,clatmax
   character(4):: clonmin,clonmax
-  character(10),dimension(ntype):: ftype
+  character(10),dimension(ntype):: var_list
   character(13) stringd
   character(20) satname
-  character(10) satype,dplat
+  character(10) satype,dplat,ptype
   character(40) ctl_file,grad_file
   character(80) string
   character(40),dimension(nregion):: region
@@ -89,7 +89,7 @@ subroutine create_ctl_oz(ntype,ftype,n_levs,iyy,imm,idd,ihh,idhh,&
 40 format(i3,'W')
 
 ! Write header information
-  grad_file = trim(satname) // stringd // '.ieee_d'
+  grad_file = trim(satname) // '.' // trim(ptype) // stringd // '.ieee_d'
   write(lunctl,100) grad_file
   write(lunctl,110) 
   write(lunctl,120) rmiss
@@ -127,8 +127,8 @@ subroutine create_ctl_oz(ntype,ftype,n_levs,iyy,imm,idd,ihh,idhh,&
 
 ! Write data portion of GraDS control file  
   do i=1,ntype
-     string = trim(ftype(i))
-     write(lunctl,190) adjustl(string),trim(ftype(i))
+     string = trim(var_list(i))
+     write(lunctl,190) adjustl(string),trim(var_list(i))
 190  format(a10,' 0 0 ',a10)
   end do
 

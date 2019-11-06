@@ -20,7 +20,7 @@ export MONITOR=radmon
 # you checked out only the Radiance_Monitor portion of the branch then
 # MY_RADMON should point to that.
 #
-export MY_RADMON=${MY_RADMON:-/scratch4/NCEPDEV/da/noscrub/Edward.Safford/ProdGSI/util/Radiance_Monitor}
+export MY_RADMON=${MY_RADMON:-/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/ProdGSI/util/Radiance_Monitor}
 
 #
 #  The MY_TANKDIR will be the location for the extracted data files and
@@ -28,7 +28,7 @@ export MY_RADMON=${MY_RADMON:-/scratch4/NCEPDEV/da/noscrub/Edward.Safford/ProdGS
 #  and the succedding scripts will construct and use subdirectories under
 #  this location.
 #
-export MY_TANKDIR=${MY_TANKDIR:-/scratch4/NCEPDEV/da/save/Edward.Safford/nbns}
+export MY_TANKDIR=${MY_TANKDIR:-/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/nbns}
 
 export RUN=${RUN:-gdas}
 
@@ -67,16 +67,16 @@ export WEBDIR=${WEBDIR:-/home/people/emc/www/htdocs/gmb/gdas/radiance/esafford}
 ###############################################################################
 ###############################################################################
 
-export MY_MACHINE=theia
+export MY_MACHINE=wcoss_d
 export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 
 
 #
 #  Log and work space definitions
 #
-export MY_PTMP=${MY_PTMP:-/scratch4/NCEPDEV/stmp4}
+export MY_PTMP=${MY_PTMP:-/gpfs/dell2/ptmp}
 export PTMP_USER=${PTMP_USER:-${MY_PTMP}/${LOGNAME}}
-export MY_STMP=${MY_STMP:-/scratch4/NCEPDEV/stmp3}
+export MY_STMP=${MY_STMP:-/gpfs/dell2/stmp}
 export STMP_USER=${STMP_USER:-${MY_STMP}/${LOGNAME}}
 
 export LOGSverf_rad=${LOGSverf_rad:-${PTMP_USER}/logs}
@@ -158,15 +158,29 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    export COMPRESS=/usrx/local/bin/pigz
    export UNCOMPRESS="/usrx/local/bin/unpigz -f"
 
+elif [[ $MY_MACHINE = "wcoss_d" ]]; then
+   shell=sh
+   source /usrx/local/prod/lmod/lmod/init/${shell}
+
+   export MODULEPATH=/usrx/local/prod/lmod/lmod/modulefiles/Core:/usrx/local/prod/modulefiles/core_third:/usrx/local/prod/modulefiles/defs:/gpfs/dell1/nco/ops/nwprod/modulefiles/core_prod:/usrx/local/dev/modulefiles
+   module load ips/18.0.1.163
+   module load metplus/2.1
+   module load lsf/10.1
+   module load prod_util/1.1.2
+   module load GrADS/2.2.0
+
+   export GRADS=`which grads`
+   export SUB="bsub"
+   export COMPRESS=/usr/bin/gzip
+   export UNCOMPRESS="/usr/bin/gunzip -f"
+
 elif [[ $MY_MACHINE = "cray" ]]; then
    . /opt/modules/3.2.6.7/init/sh
    module use -a /gpfs/hps/nco/ops/nwprod/modulefiles
    module load prod_util        # defines $NDATE among other things
    module load prod_envir
    module load xt-lsfhpc
-#   export SUB="/gpfs/slsf/xt-lsfhpc/9.1/linux2.6-glibc2.3-x86_64-cray/bin/bsub"
    export SUB=`which bsub`
-   export NWPROD=${COMROOTp1}
    export COMPRESS="gzip -f"
    export UNCOMPRESS="gunzip -f"
 

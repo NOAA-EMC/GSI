@@ -5,8 +5,8 @@
 #
 #  This script makes sets all necessary configuration definitions
 #  and calls the makeall.sh script to build all the necessary
-#  executables.  This script works for zeus, theia, and wcoss 
-#  machines.
+#  executables.  This script works for hera, wcoss, wcoss_c, and 
+#  wcoss_d machines.
 #
 #-------------------------------------------------------------------
 
@@ -16,7 +16,7 @@
    my $machine = `/usr/bin/perl get_hostname.pl`;
    my $my_machine="export MY_MACHINE=$machine";
 
-   if( $machine ne "cray" && $machine ne "theia" && $machine ne "wcoss" && $machine ne "wcoss_d" ) {
+   if( $machine ne "cray" && $machine ne "hera" && $machine ne "wcoss" && $machine ne "wcoss_d" ) {
       die( "ERROR --- Unrecognized machine hostname, $machine.  Exiting now...\n" );
    }
    else {
@@ -24,7 +24,7 @@
    }
 
    #
-   #  surge, theia, and wcoss are all little endian machines, and all run linux
+   #  surge, hera, and wcoss are all little endian machines, and all run linux
    # 
    my $little_endian = "export LITTLE_ENDIAN=\${LITTLE_ENDIAN:-0}";
    my $my_os = "linux";
@@ -53,8 +53,8 @@
    #  TANKDIR location
    #
    my $user_name = $ENV{ 'USER' };
-   if( $machine eq "theia" ){
-      $tankdir = "/scratch4/NCEPDEV/da/save/$user_name/nbns";
+   if( $machine eq "hera" ){
+      $tankdir = "/scratch1/NCEPDEV/da/$user_name/nbns";
    }
    elsif( $machine eq "cray" ){
       $tankdir = "/gpfs/hps/emc/da/noscrub/$user_name/nbns";
@@ -207,9 +207,9 @@
       $my_ptmp="export MY_PTMP=\${MY_PTMP:-/gpfs/hps/ptmp}";
       $my_stmp="export MY_STMP=\${MY_STMP:-/gpfs/hps/stmp}";
    }
-   elsif( $machine eq "theia" ){
-      $my_ptmp="export MY_PTMP=\${MY_PTMP:-/scratch4/NCEPDEV/stmp4}";
-      $my_stmp="export MY_STMP=\${MY_STMP:-/scratch4/NCEPDEV/stmp3}";
+   elsif( $machine eq "hera" ){
+      $my_ptmp="export MY_PTMP=\${MY_PTMP:-/scratch2/NCEPDEV/stmp3}";
+      $my_stmp="export MY_STMP=\${MY_STMP:-/scratch2/NCEPDEV/stmp1}";
    } 
 
    print "my_ptmp = $my_ptmp\n";
@@ -263,7 +263,7 @@
    print "Updating parm/RadMon_user_settings\n";
 
    my $account = "export ACCOUNT=\${ACCOUNT:-fv3-cpu}";
-   if( $machine ne "zeus" && $machine ne "theia" ) {
+   if( $machine ne "hera" ) {
       $account = "export ACCOUNT=\${ACCOUNT:-}";
    }
 

@@ -538,8 +538,8 @@ type(ObsErrorCov),intent(inout) :: ErrorCov
 !-------------------------------------------------------------------------
 !BOC
    if (associated(ErrorCov%Revals)) deallocate(ErrorCov%Revals)
-   if (associated(ErrorCov%indxR)) deallocate(ErrorCov%indxR)
-   if (associated(ErrorCov%R)) deallocate(ErrorCov%R)
+   if (associated(ErrorCov%indxR))  deallocate(ErrorCov%indxR)
+   if (associated(ErrorCov%R))      deallocate(ErrorCov%R)
 end subroutine destroy_
 !EOC
 

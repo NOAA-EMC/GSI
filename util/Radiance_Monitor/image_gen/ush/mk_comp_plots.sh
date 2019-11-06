@@ -100,7 +100,7 @@ fi
 
       ${IG_SCRIPTS}/update_ctl_tdef.sh ${PLOT_WORK_DIR}/${type}.ctl ${SDATE} ${NUM_CYCLES}
  
-      if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
+      if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "hera" || $MY_MACHINE = "theia" ]]; then
          sed -e 's/cray_32bit_ieee/ /' ${PLOT_WORK_DIR}/${type}.ctl > ${PLOT_WORK_DIR}/tmp_${type}.ctl
          sed -s 's/\^/\'"^${SUFFIX1}."'/1' ${PLOT_WORK_DIR}/tmp_${type}.ctl > ${PLOT_WORK_DIR}/${SUFFIX1}.${type}.ctl
          sed -s 's/\^/\'"^${SUFFIX2}."'/1' ${PLOT_WORK_DIR}/tmp_${type}.ctl > ${PLOT_WORK_DIR}/${SUFFIX2}.${type}.ctl
@@ -147,7 +147,7 @@ fi
    elif [[ $MY_MACHINE = "cray" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -o ${logfile} -W 0:20 \
            -J ${jobname} -cwd ${PWD} $IG_SCRIPTS/plot_comp.sh
-   elif [[ $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
+   elif [[ $MY_MACHINE = "hera" || $MY_MACHINE = "theia" ]]; then
       $SUB -A $ACCOUNT -l procs=1,walltime=0:30:00 -N ${jobname} \
            -V -j oe -o ${logfile} $IG_SCRIPTS/plot_comp.sh
    fi
