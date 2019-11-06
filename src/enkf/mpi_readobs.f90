@@ -250,15 +250,15 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
         analsim1=1._r_single/float(nanals-1)
 !$omp parallel do private(nob)
         do nob=1,nobs_tot
-           ensmean_ob(nob)  = sum(anal_ob(:,nob))*analsi
+           ensmean_obbc(nob)  = sum(anal_ob(:,nob))*analsi
 ! remove ensemble mean from each member.
-! ensmean_ob is unbiascorrected ensemble mean (anal_ob is ens pert)
-           anal_ob(:,nob) = anal_ob(:,nob)-ensmean_ob(nob)
+! ensmean_obbc is biascorrected ensemble mean (anal_ob is ens pert)
+           anal_ob(:,nob) = anal_ob(:,nob)-ensmean_obbc(nob)
 ! compute sprd
            sprd_ob(nob) = sum(anal_ob(:,nob)**2)*analsim1
 ! modulated ensemble.
            if (neigv > 0) then
-              anal_ob_modens(:,nob) = anal_ob_modens(:,nob)-ensmean_ob(nob)
+              anal_ob_modens(:,nob) = anal_ob_modens(:,nob)-ensmean_obbc(nob)
               sprd_ob(nob) = sum(anal_ob_modens(:,nob)**2)*analsim1
            endif
         enddo
@@ -270,7 +270,7 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
                                      maxval(sprd_ob(nobs_conv+nobs_oz+1:nobs_tot))
        do nob =nobs_conv+nobs_oz+1 , nobs_tot
           if (sprd_ob(nob) > 1000.) then 
-             print *, nob, ' sat spread: ', sprd_ob(nob), ', ensmean_ob: ', ensmean_ob(nob), &
+             print *, nob, ' sat spread: ', sprd_ob(nob), ', ensmean_ob: ', ensmean_obbc(nob), &
                            ', anal_ob: ', anal_ob(:,nob), ', mem_ob: ', mem_ob(nob)
           endif
        enddo
@@ -282,7 +282,7 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
     if (allocated(mem_ob_modens)) deallocate(mem_ob_modens)
 
     if (nproc == 0) t1 = mpi_wtime()
-    call mpi_bcast(ensmean_ob,nobs_tot,mpi_real4,0,mpi_comm_world,ierr)
+    call mpi_bcast(ensmean_obbc,nobs_tot,mpi_real4,0,mpi_comm_world,ierr)
     call mpi_bcast(sprd_ob,nobs_tot,mpi_real4,0,mpi_comm_world,ierr)
     if (nproc == 0) then
         t2 = mpi_wtime()
