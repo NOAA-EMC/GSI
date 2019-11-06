@@ -306,10 +306,6 @@ if (nproc == 0 .and. .not. deterministic) then
    print *,'warning - perturbed obs not used in LETKF (deterministic=F ignored)'
 endif
 
-! apply bias correction with latest estimate of bias coeffs
-! (if bias correction update in ob space turned on).
-if (nobs_sat > 0 .and. lupd_satbiasc .and. lupd_obspace_serial) call apply_biascorr()
-
 nrej=0
 ! reset ob error to account for gross errors 
 if (varqc .and. lupd_obspace_serial) then

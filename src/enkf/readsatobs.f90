@@ -34,7 +34,7 @@ use kinds, only: r_kind,i_kind,r_single,r_double
 use read_diag, only: diag_data_fix_list,diag_header_fix_list,diag_header_chan_list, &
     diag_data_chan_list,diag_data_extra_list,read_radiag_data,read_radiag_header, &
     diag_data_name_list, open_radiag, close_radiag
-use params, only: nsats_rad, dsis, sattypes_rad, npefiles, netcdf_diag, lupd_satbiasc
+use params, only: nsats_rad, dsis, sattypes_rad, npefiles, netcdf_diag, lupd_satbiasc, use_correlated_oberrs
 
 implicit none
 
@@ -523,7 +523,7 @@ subroutine get_satobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, hx_m
          if (nanal <= nanals) then
             ! read full Hx
             if (.not. lobsdiag_forenkf) then
-               hx(nob) = x_obs(nob) - data_chan2(n)%omgnbc
+               hx(nob) = x_obs(nob) - data_chan2(n)%omgbc
             ! run linearized Hx
             else
                rlat = x_lat(nob)*deg2rad
@@ -541,13 +541,13 @@ subroutine get_satobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, hx_m
                                 ix, delx, ixp, delxp, iy, dely,  &
                                 iyp, delyp, it, delt, itp, deltp)
                endif
-               call calc_linhx(hx_mean_nobc(nob), state_d(:,:,:,nmem),       &
+               call calc_linhx(hx_mean(nob), state_d(:,:,:,nmem),       &
                                data_chan(n)%dhx_dx, hx(nob),     &
                                ix, delx, ixp, delxp, iy, dely,   &
                                iyp, delyp, it, delt, itp, deltp)
                ! compute modulated ensemble in obs space
                if (neigv > 0) then
-                  call calc_linhx_modens(hx_mean_nobc(nob), state_d(:,:,:,nmem),         &
+                  call calc_linhx_modens(hx_mean(nob), state_d(:,:,:,nmem),         &
                                   data_chan(n)%dhx_dx, hx_modens(:,nob),     &
                                   ix, delx, ixp, delxp, iy, dely, iyp, delyp, &
                                   it, delt, itp, deltp, vlocal_evecs)
@@ -689,10 +689,13 @@ subroutine get_satobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_me
 
   integer(i_kind), dimension(:), allocatable :: Satinfo_Chan, Use_Flag, chind, chaninfoidx
   real(r_kind), dimension(:), allocatable :: error_variance
-  real(r_single), dimension(:), allocatable :: Pressure, QC_Flag, Inv_Error, Observation
+  real(r_single), dimension(:), allocatable :: Pressure, QC_Flag, Inv_Error, Inv_Error_scaled, &
+                                               Observation, Observation_scaled
   real(r_single), dimension(:), allocatable :: Latitude, Longitude, Time
   real(r_single), dimension(:), allocatable :: Obs_Minus_Forecast_adjusted
-  real(r_single), dimension(:), allocatable :: Obs_Minus_Forecast_unadjusted, Obs_Minus_Forecast_unadjusted2
+  real(r_single), dimension(:), allocatable :: Obs_Minus_Forecast_adjusted_scaled
+  real(r_single), dimension(:), allocatable :: Obs_Minus_Forecast_adjusted_scaled2
+  real(r_single), dimension(:), allocatable :: Obs_Minus_Forecast_unadjusted, Obs_Minus_Forecast_adjusted2
   integer(i_kind), allocatable, dimension (:,:) :: Observation_Operator_Jacobian_stind
   integer(i_kind), allocatable, dimension (:,:) :: Observation_Operator_Jacobian_endind
   real(r_single), allocatable, dimension (:,:) :: Observation_Operator_Jacobian_val
@@ -791,6 +794,13 @@ subroutine get_satobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_me
      call nc_diag_read_get_var(iunit, 'Observation', Observation)
      call nc_diag_read_get_var(iunit, 'Obs_Minus_Forecast_unadjusted', Obs_Minus_Forecast_unadjusted)
      call nc_diag_read_get_var(iunit, 'Obs_Minus_Forecast_adjusted', Obs_Minus_Forecast_adjusted)
+     if (use_correlated_oberrs) then
+        call nc_diag_read_get_var(iunit, 'Observation_scaled', Observation_scaled)
+        call nc_diag_read_get_var(iunit, 'Obs_Minus_Forecast_adjusted_scaled', &
+                                  Obs_Minus_Forecast_adjusted_scaled)
+        call nc_diag_read_get_var(iunit, 'Inverse_Observation_Error_scaled', &
+                                  Inv_Error_scaled)
+     endif
 
      if (lupd_satbiasc) then ! bias predictors only needed if lupd_satbiasc=T
         allocate(BC_Fixed_Scan_Position(nobs), BCPred_Constant(nobs), BCPred_Scan_Angle(nobs), &
@@ -854,9 +864,15 @@ subroutine get_satobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_me
 
        if (nobs2 /= nobs) print *, nanal, trim(obsfile), nobs, nobs2
 
-       allocate(Obs_Minus_Forecast_unadjusted2(nobs))
-       call nc_diag_read_get_var(iunit2, 'Obs_Minus_Forecast_unadjusted', Obs_Minus_Forecast_unadjusted2)
-
+       if (use_correlated_oberrs) then
+           allocate(Obs_Minus_Forecast_adjusted_scaled2(nobs))
+           call nc_diag_read_get_var(iunit2, 'Obs_Minus_Forecast_adjusted_scaled', &
+                                     Obs_Minus_Forecast_adjusted_scaled2)
+       else
+           allocate(Obs_Minus_Forecast_adjusted2(nobs))
+           call nc_diag_read_get_var(iunit2, 'Obs_Minus_Forecast_adjusted', &
+                                     Obs_Minus_Forecast_adjusted2)
+       endif
        call nc_diag_read_close(obsfile2)
 
      end if
@@ -882,16 +898,22 @@ subroutine get_satobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_me
         x_lon(nob) = Longitude(i)
         x_lat(nob) = Latitude(i)
         x_time(nob) = Time(i)
-        x_obs(nob) = Observation(i)
         ! bias corrected Hx
-        hx_mean(nob) = x_obs(nob) - Obs_Minus_Forecast_adjusted(i)
+        if (use_correlated_oberrs) then
+           x_obs(nob) = Observation_scaled(i)
+           hx_mean(nob) = x_obs(nob) - Obs_Minus_Forecast_adjusted_scaled(i)
+        else
+           x_obs(nob) = Observation(i)
+           hx_mean(nob) = x_obs(nob) - Obs_Minus_Forecast_adjusted(i)
+        endif
         ! un-bias corrected Hx
         hx_mean_nobc(nob) = x_obs(nob) - Obs_Minus_Forecast_unadjusted(i)
 
         if (nanal <= nanals) then
            ! read full Hx
+           ! use_correlated_oberrs implies lobsdiag_forenkf
            if (.not. lobsdiag_forenkf) then
-              hx(nob) = x_obs(nob) - Obs_Minus_Forecast_unadjusted2(i)
+              hx(nob) = x_obs(nob) - Obs_Minus_Forecast_adjusted2(i)
            ! run linearized Hx
            else
               call new(dhx_dx_read, nnz, nind)
@@ -915,13 +937,14 @@ subroutine get_satobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_me
                                ix, delx, ixp, delxp, iy, dely,  &
                                iyp, delyp, it, delt, itp, deltp)
               endif
-              call calc_linhx(hx_mean_nobc(nob), state_d(:,:,:,nmem),       &
+              ! note: bias corrected mean added here, but removed later from hx
+              call calc_linhx(hx_mean(nob), state_d(:,:,:,nmem),       &
                               dhx_dx, hx(nob),     &
                               ix, delx, ixp, delxp, iy, dely,   &
                               iyp, delyp, it, delt, itp, deltp)
               ! compute modulated ensemble in obs space
               if (neigv > 0) then
-                 call calc_linhx_modens(hx_mean_nobc(nob), state_d(:,:,:,nmem),         &
+                 call calc_linhx_modens(hx_mean(nob), state_d(:,:,:,nmem),         &
                                  dhx_dx, hx_modens(:,nob),     &
                                  ix, delx, ixp, delxp, iy, dely, iyp, delyp, &
                                  it, delt, itp, deltp, vlocal_evecs)
@@ -934,7 +957,11 @@ subroutine get_satobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_me
         endif
 
         x_errorig(nob) = error_variance(chind(i))**2
-        x_err(nob) = (1._r_kind/Inv_Error(i))**2
+        if (use_correlated_oberrs) then
+           x_err(nob) = (1._r_kind/Inv_Error_scaled(i))**2
+        else
+           x_err(nob) = (1._r_kind/Inv_Error(i))**2
+        endif
         x_press(nob) = Pressure(i)
 
 ! DTK:  **NOTE**
@@ -987,18 +1014,26 @@ subroutine get_satobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_me
      deallocate(Pressure, QC_Flag, Inv_Error, Latitude, Longitude, Time, &
                 Observation, chind, Obs_Minus_Forecast_unadjusted,       &
                 Obs_Minus_Forecast_adjusted)
+     if (use_correlated_oberrs) then
+         deallocate(Obs_Minus_Forecast_adjusted_scaled,Inv_Error_scaled,&
+                    Observation_scaled)
+     endif
      if (lupd_satbiasc) then ! bias predictors only used if lupd_satbiasc=T
         deallocate(BC_Fixed_Scan_Position, BCPred_Constant, BCPred_Scan_Angle,      &
                   BCPred_Cloud_Liquid_Water, BCPred_Lapse_Rate_Squared,             &
                   BCPred_Lapse_Rate)
+
         deallocate(BCPred_Cosine_Latitude_times_Node, BCPred_Sine_Latitude)
         if (emiss_bc)    deallocate(BCPred_Emissivity)
         if (adp_anglebc) deallocate(BCPred_angord)
-        endif
-        if (twofiles) deallocate(Obs_Minus_Forecast_unadjusted2)
-        if (lobsdiag_forenkf) then
-           deallocate(Observation_Operator_Jacobian_stind, Observation_Operator_Jacobian_endind, &
-                      Observation_Operator_Jacobian_val)
+     endif
+     if (twofiles) then
+         deallocate(Obs_Minus_Forecast_adjusted2)
+         if (use_correlated_oberrs) deallocate(Obs_Minus_Forecast_adjusted_scaled2)
+     endif
+     if (lobsdiag_forenkf) then
+        deallocate(Observation_Operator_Jacobian_stind, Observation_Operator_Jacobian_endind, &
+                   Observation_Operator_Jacobian_val)
      endif
 
      enddo peloop ! ipe

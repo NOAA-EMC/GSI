@@ -712,12 +712,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
            if (nanal <= nanals) then
               ! read full Hx from file
               if (.not. lobsdiag_forenkf) then
-                 hx(nob) = Observation(i) - Obs_Minus_Forecast_unadjusted2(i)
-                 if (obtype == '  q' .or. obtype == 'spd' .or. obtype == ' dw' .or. &
-                     obtype == ' pw') then
-                    hx(nob) = Observation(i) - Obs_Minus_Forecast_adjusted2(i)
-                 endif
-
+                 hx(nob) = Observation(i) - Obs_Minus_Forecast_adjusted2(i)
               ! run the linearized Hx
               else
                  dhx_dx = Observation_Operator_Jacobian(1:nsdim,i)
@@ -738,13 +733,13 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
                                   ix, delx, ixp, delxp, iy, dely,  &
                                   iyp, delyp, it, delt, itp, deltp)
                  endif
-                 call calc_linhx(hx_mean_nobc(nob), state_d(:,:,:,nmem),&
+                 call calc_linhx(hx_mean(nob), state_d(:,:,:,nmem),&
                                  dhx_dx, hx(nob),                  &
                                  ix, delx, ixp, delxp, iy, dely,   &
                                  iyp, delyp, it, delt, itp, deltp)
                  ! compute modulated ensemble in obs space
                  if (neigv > 0) then
-                    call calc_linhx_modens(hx_mean_nobc(nob), state_d(:,:,:,nmem), &
+                    call calc_linhx_modens(hx_mean(nob), state_d(:,:,:,nmem), &
                                     dhx_dx, hx_modens(:,nob),          &
                                     ix, delx, ixp, delxp, iy, dely,    &
                                     iyp, delyp, it, delt, itp, delxp,  &
@@ -803,7 +798,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
               if (nanal <= nanals) then
                  ! read full Hx
                  if (.not. lobsdiag_forenkf) then
-                    hx(nob) = v_Observation(i) - v_Obs_Minus_Forecast_unadjusted2(i)
+                    hx(nob) = v_Observation(i) - v_Obs_Minus_Forecast_adjusted2(i)
 
                  ! run linearized Hx
                  else
@@ -825,13 +820,13 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
                                      ix, delx, ixp, delxp, iy, dely,  &
                                      iyp, delyp, it, delt, itp, deltp)
                     endif
-                    call calc_linhx(hx_mean_nobc(nob), state_d(:,:,:,nmem),    &
+                    call calc_linhx(hx_mean(nob), state_d(:,:,:,nmem),    &
                                     dhx_dx, hx(nob),                  &
                                     ix, delx, ixp, delxp, iy, dely,   &
                                     iyp, delyp, it, delt, itp, deltp)
                     ! compute modulated ensemble in obs space
                     if (neigv > 0) then
-                       call calc_linhx_modens(hx_mean_nobc(nob), state_d(:,:,:,nmem), &
+                       call calc_linhx_modens(hx_mean(nob), state_d(:,:,:,nmem), &
                                        dhx_dx, hx_modens(:,nob),          &
                                        ix, delx, ixp, delxp, iy, dely,    &
                                        iyp, delyp, it, delt, itp, delxp,  &
@@ -1148,10 +1143,6 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
                 if (obtype == 'gps') then
                    hx(nob) = rdiagbuf2(17,n) - (rdiagbuf2(5,n)*rdiagbuf2(17,n))
                 else
-                   hx(nob) = rdiagbuf(17,n) - rdiagbuf2(19,n)
-                endif
-                if (obtype == '  q' .or. obtype == 'spd' .or. obtype == ' dw' .or. &
-                    obtype == ' pw') then
                    hx(nob) = rdiagbuf(17,n) - rdiagbuf2(18,n)
                 endif
 
@@ -1177,13 +1168,13 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
                                  ix, delx, ixp, delxp, iy, dely,  &
                                  iyp, delyp, it, delt, itp, deltp)
                 endif
-                call calc_linhx(hx_mean_nobc(nob), state_d(:,:,:,nmem),  &
+                call calc_linhx(hx_mean(nob), state_d(:,:,:,nmem),  &
                                 dhx_dx, hx(nob),                  &
                                 ix, delx, ixp, delxp, iy, dely,   &
                                 iyp, delyp, it, delt, itp, deltp)
                 ! compute modulated ensemble in obs space
                 if (neigv > 0) then
-                   call calc_linhx_modens(hx_mean_nobc(nob), state_d(:,:,:,nmem), &
+                   call calc_linhx_modens(hx_mean(nob), state_d(:,:,:,nmem), &
                                    dhx_dx, hx_modens(:,nob),          &
                                    ix, delx, ixp, delxp, iy, dely,    &
                                    iyp, delyp, it, delt, itp, delxp,  &
@@ -1244,7 +1235,7 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
              if (nanal <= nanals) then
                 ! read full Hx
                 if (.not. lobsdiag_forenkf) then
-                   hx(nob) = rdiagbuf(20,n)-rdiagbuf2(22,n)
+                   hx(nob) = rdiagbuf(20,n)-rdiagbuf2(21,n)
                 ! run linearized Hx
                 else
                    call readarray(dhx_dx_read, rdiagbuf(ind:nreal,n))
@@ -1267,13 +1258,13 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
                                     ix, delx, ixp, delxp, iy, dely,  &
                                     iyp, delyp, it, delt, itp, deltp)
                    endif
-                   call calc_linhx(hx_mean_nobc(nob), state_d(:,:,:,nmem), &
+                   call calc_linhx(hx_mean(nob), state_d(:,:,:,nmem), &
                                    dhx_dx, hx(nob),                  &
                                    ix, delx, ixp, delxp, iy, dely,   &
                                    iyp, delyp, it, delt, itp, deltp)
                    ! compute modulated ensemble in obs space
                    if (neigv > 0) then
-                      call calc_linhx_modens(hx_mean_nobc(nob), state_d(:,:,:,nmem), &
+                      call calc_linhx_modens(hx_mean(nob), state_d(:,:,:,nmem), &
                                       dhx_dx, hx_modens(:,nob),          &
                                       ix, delx, ixp, delxp, iy, dely,    &
                                       iyp, delyp, it, delt, itp, delxp,  &

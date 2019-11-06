@@ -68,10 +68,15 @@ RADSTAT=${RADSTAT:-${APREFIX}radstat}
 ENKFSTAT=${ENKFSTAT:-${APREFIX}enkfstat}
 
 # Namelist parameters
+USE_CORRELATED_OBERRS=${USE_CORRELATED_OBERRS:-"NO"}
 NMEM_ENKF=${NMEM_ENKF:-80}
 NAM_ENKF=${NAM_ENKF:-""}
 SATOBS_ENKF=${SATOBS_ENKF:-""}
 OZOBS_ENKF=${OZOBS_ENKF:-""}
+use_correlated_oberrs=${use_correlated_oberrs:-".false."}
+if [ $USE_CORRELATED_OBERRS == "YES" ]; then
+   use_correlated_oberrs=".true."
+fi
 imp_physics=${imp_physics:-"99"}
 lupp=${lupp:-".true."}
 corrlength=${corrlength:-1250}
@@ -257,6 +262,7 @@ cat > enkf.nml << EOFnml
    lobsdiag_forenkf=$lobsdiag_forenkf,
    write_spread_diag=$write_spread_diag,
    modelspace_vloc=$modelspace_vloc,
+   use_correlated_oberrs=${use_correlated_oberrs},
    netcdf_diag=$netcdf_diag,cnvw_option=$cnvw_option,
    $NAM_ENKF
 /
