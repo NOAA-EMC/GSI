@@ -35,7 +35,7 @@ export DATA=${DATA:-$pwd/enkf_fcst.$$}
 export COMIN=${COMIN:-$pwd}
 export COMOUT=${COMOUT:-$COMIN}
 
-GSUFFIX=${GSUFFIX:-".nc"}
+GSUFFIX=${GSUFFIX:-$SUFFIX}
 
 # Utilities
 export NCP=${NCP:-"/bin/cp -p"}

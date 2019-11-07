@@ -42,7 +42,7 @@ ANALYSISSH=${ANALYSISSH:-$HOMEgsi/scripts/exglobal_analysis_fv3gfs.sh.ecf}
 
 # Prefix and Suffix Variables.
 export APREFIX=${APREFIX:-""}
-export ASUFFIX=${ASUFFIX:-""}
+export ASUFFIX=${ASUFFIX:-$SUFFIX}
 
 # Select obs
 export RUN_SELECT=${RUN_SELECT:-"YES"}
