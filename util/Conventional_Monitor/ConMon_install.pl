@@ -1,6 +1,7 @@
 #! /usr/bin/perl
 
 #-------------------------------------------------------------------
+#
 #  ConMon_install.pl
 #
 #  This script makes sets all necessary configuration definitions
@@ -13,10 +14,12 @@
    use File::Copy qw(move);
 
    print "--> ConMon_install.sh\n";
+
    my $machine = `/usr/bin/perl ./get_hostname.pl`;
    my $my_machine="export MY_MACHINE=$machine";
 
-   if( $machine ne "theia" && $machine ne "wcoss" && $machine ne "cray" ) {
+   if( $machine ne "hera" && $machine ne "wcoss" && 
+       $machine ne "wcoss_c" && $machine ne "wcoss_d" ) {
       die( "ERROR --- Unrecognized machine hostname, $machine.  Exiting now...\n" );
    }
    else {
@@ -24,6 +27,7 @@
    }
 
    #---------------------------------------------------------------------------------
+   #
    #  All 3 currently supported platforms are little endian machines and linux OSes.
    #    I'm keeping these switches though because that will surely change at some
    #    point and I'll just have to re-introduce the same switches.
@@ -34,6 +38,7 @@
    my $my_os = "export MY_OS=$os";
 
 
+   #---------------------------------------------------------------
    #
    #  Idenfity basedir location of package
    #
@@ -53,18 +58,25 @@
 
    sleep( 1 );
 
+   #---------------------------------------------------------------
    #
    #  TANKDIR location
    #
    my $user_name = $ENV{ 'USER' };
-   if( $machine eq "theia" ) {
+#====================================
+#  Hera needs updated here:
+#====================================
+   if( $machine eq "hera" ) {
       $tankdir = "/scratch4/NCEPDEV/da/save/$user_name/nbns";
    }
    elsif( $machine eq "wcoss" ) {
       $tankdir = "/global/save/$user_name/nbns";
    }
-   elsif( $machine eq "cray" ) {
+   elsif( $machine eq "wcoss_c" ) {
       $tankdir = "/gpfs/hps/emc/da/noscrub/$user_name"
+   }
+   elsif( $machine eq "wcoss_d" ) {
+      $tankdir = "/gpfs/dell2/emc/modeling/noscrub/$user_name/nbns";
    }
 
    print "Please specify TANKDIR location for storage of data and image files.\n";
@@ -84,6 +96,7 @@
    sleep( 1 );
 
 
+   #---------------------------------------------------------------
    #
    #  Web sever name
    #
@@ -104,6 +117,7 @@
    sleep( 1 );
 
 
+   #---------------------------------------------------------------
    #
    #  Web server user name 
    #
@@ -124,10 +138,10 @@
    sleep( 1 );
 
 
+   #---------------------------------------------------------------
    #
    #  Web directory
    #
-   my $webdir = "/home/people/emc/www/htdocs/gmb/gdas/radiance/${webuser}";
    my $webdir = "/home/people/emc/www/htdocs/gmb/gdas";
    print "Please specify the top level web site directory $server.\n";
    print "  Return to accept default directory location or enter new location.\n";
@@ -145,7 +159,7 @@
    sleep( 1 );
 
 
-   #
+   #----------------------------------------------------
    #  Set up ptmp and stmp locations according to $arch.
    #
    my $ptmp    = "/ptmpd1";
@@ -153,15 +167,27 @@
    my $my_ptmp = "export C_PTMP=\${C_PTMP:-$ptmp}";
    my $my_stmp = "export C_STMP=\${C_STMP:-$stmp}";
 
-   if( $machine eq "theia" ) {
+   if( $machine eq "hera" ) {
+#====================================
+#  This needs an update for hera.
+#====================================
       $my_ptmp="export C_PTMP=\${C_PTMP:-/scratch4/NCEPDEV/stmp4}";
       $my_stmp="export C_STMP=\${C_STMP:-/scratch4/NCEPDEV/stmp3}";
    }
-   elsif( $machine eq "cray" ) {
+   elsif( $machine eq "wcoss_c" ) {
       $my_ptmp="export C_PTMP=\${C_PTMP:-/gpfs/hps/ptmp/$user_name}";
       $my_stmp="export C_STMP=\${C_STMP:-/gpfs/hps/stmp/$user_name}";
    } 
-   else {
+   elsif( $machine eq "wcoss_d" ) {
+      $my_ptmp="export C_PTMP=\${C_PTMP:-/gpfs/dell2/ptmp/$user_name}";
+      $my_stmp="export C_STMP=\${C_STMP:-/gpfs/dell2/stmp/$user_name}";
+   }
+
+   #---------------------------------------
+   #
+   #  wcoss has several options available:
+   #
+   else {		
       print "Please specify PTMP location.  This is used for temporary work space.\n";
       print "  Available options are: \n";
       print "      /ptmpd1  (default)\n";
@@ -215,16 +241,18 @@
 
 
    my $account = "export ACCOUNT=\${ACCOUNT:-fv3-cpu}";
-   if( $machine ne "theia" ) {
+   if( $machine ne "hera" ) {
       $account = "export ACCOUNT=\${ACCOUNT:-}";
    }
 
+   
+   #------------------------------------------------------------
    #
-   #  Update the conv_conf with the configuration information
+   #  Update the config file with the configuration information
    #
-   my $conv_conf = "parm/ConMon_config";
-   open my $in,  '<',  $conv_conf      or die "Can't read $conv_conf: $!";
-   open my $out, '>', "$conv_conf.new" or die "Can't write $conv_conf.new: $!";
+   my $config = "parm/ConMon_config";
+   open my $in,  '<',  $config      or die "Can't read $config $!";
+   open my $out, '>', "$config.new" or die "Can't write $config.new: $!";
 
    while( <$in> ) {
       if( $_ =~ "MY_CMON=" ) {
@@ -266,25 +294,14 @@
    }
    close $out;
    close $in;
-   move "$conv_conf.new", $conv_conf;
 
-   print "building executables\n"; 
-   `./makeall.sh clean`;
-   `./makeall.sh`;
+   move "$config.new", $config;
+#   move $out, $in;
 
-   #     
-   #   Update the default account settings in the data_map.xml file.
-   #      
-#   print "updating defaults in data_map.xml \n";
-#   my $glbl_account = "GDAS-MTN";
-#   if( $machine eq "zeus" ) {
-#      $glbl_account = "ada"; 
-#   }
-#   elsif( $machine eq "wcoss" ) {
-#      $glbl_account = "dev";
-#   }
 
-#   `/usr/bin/perl ./scripts/update_data_map.pl ./parm/data_map.xml global_default account $glbl_account`;
+#   print "building executables\n"; 
+#   `./makeall.sh clean`;
+#   `./makeall.sh`;
 
 
    print "<-- ConMon_install.sh\n";
