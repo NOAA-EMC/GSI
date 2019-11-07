@@ -73,19 +73,11 @@ gPDY=$(echo $GDATE | cut -c1-8)
 gcyc=$(echo $GDATE | cut -c9-10)
 GDUMP=${GDUMP:-"gdas"}
 
-export GFS_NCIO=${GFS_NCIO:-"YES"}
-
-if [ $GFS_NCIO = "YES" ]; then
-   export ASUFFIX=".nc"
-   export GSUFFIX=".nc"
-else
-   export ASUFFIX=".nemsio"
-   export GSUFFIX=".nemsio"
-fi
-
 export OPREFIX="${CDUMP}.t${cyc}z."
 export GPREFIX="${GDUMP}.t${gcyc}z."
 export APREFIX="${CDUMP}.t${cyc}z."
+export GSUFFIX=${GSUFFIX:-$SUFFIX}
+export ASUFFIX=${ASUFFIX:-$SUFFIX}
 
 
 if [ $RUN_ENVIR = "nco" -o ${ROTDIR_DUMP:-NO} = "YES" ]; then

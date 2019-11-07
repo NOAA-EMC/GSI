@@ -74,19 +74,11 @@ GDUMP=${GDUMP:-"gdas"}
 export CASE=$CASE_ENKF
 export CDUMP_OBS=${CDUMP_OBS:-$CDUMP}
 
-export GFS_NCIO=${GFS_NCIO:-"YES"}
-
-if [ $GFS_NCIO = "YES" ]; then
-   export ASUFFIX=".nc"
-   export GSUFFIX=".ensmean.nc"
-else
-   export ASUFFIX=".nemsio"
-   export GSUFFIX=".ensmean.nemsio"
-fi
-
 export OPREFIX="${CDUMP_OBS}.t${cyc}z."
 export APREFIX="${CDUMP}.t${cyc}z."
 export GPREFIX="${GDUMP}.t${gcyc}z."
+export GSUFFIX="${GSUFFIX:-".ensmean${SUFFIX}"}"
+export ASUFFIX="${ASUFFIX:-"${SUFFIX}"}"
 
 if [ $RUN_ENVIR = "nco" -o ${ROTDIR_DUMP:-NO} = "YES" ]; then
     export COMIN_OBS=${COMIN_OBS:-$ROTDIR/$RUN.$PDY/$cyc}
