@@ -44,16 +44,16 @@
    #
    print "\n";
    print "locating and saving ConMon package location\n";
-   my $cmondir;
-   $cmondir = `dirname $0`;
-   $cmondir =~ s/^\s+|\s+$//g;
+   my $conmon_dir;
+   $conmon_dir = `dirname $0`;
+   $conmon_dir =~ s/^\s+|\s+$//g;
 
-   if( $cmondir eq "." ) {
-      $cmondir = `pwd`;
-      $cmondir =~ s/^\s+|\s+$//g;
+   if( $conmon_dir eq "." ) {
+      $conmon_dir = `pwd`;
+      $conmon_dir =~ s/^\s+|\s+$//g;
    }
-   my $my_cmon = "export MY_CMON=$cmondir";
-   print "my_cmon = $my_cmon \n";
+   my $my_conmon = "export MY_CONMON=$conmon_dir";
+   print "my_conmon = $my_conmon \n";
    print"\n\n";
 
    sleep( 1 );
@@ -90,7 +90,7 @@
    if( length($new_tankdir ) > 0 ) {
       $tankdir = $new_tankdir;
    }
-   my $my_tankdir="export CMON_TANKDIR=$tankdir";
+   my $my_tankdir="export CONMON_TANKDIR=$tankdir";
    print "my_tankdir = $my_tankdir\n";
    print "\n\n";
    sleep( 1 );
@@ -255,13 +255,13 @@
    open my $out, '>', "$config.new" or die "Can't write $config.new: $!";
 
    while( <$in> ) {
-      if( $_ =~ "MY_CMON=" ) {
-         print $out "$my_cmon\n";
+      if( $_ =~ "MY_CONMON=" ) {
+         print $out "$my_conmon\n";
       }
       elsif( $_ =~ "ACCOUNT=" ) {
          print $out "$account\n";
       }
-      elsif( $_ =~ "CMON_TANKDIR=" ) {
+      elsif( $_ =~ "CONMON_TANKDIR=" ) {
          print $out "$my_tankdir\n";
       }
       elsif( $_ =~ "WEBSVR=" ) {

@@ -141,9 +141,9 @@ export CMON_PARM=${CMON_PARM:-${MY_CONMON}/parm}
 export CONMON_PARM=${CMON_PARM}
 . $CONMON_PARM/ConMon.ver
 
-export HOMEgdascmon=${HOMEgdascmon:-${MY_CONMON}/nwprod/gdas_cmon.v${gdas_cmon_ver}}
+export HOMEgdascmon=${HOMEgdascmon:-${MY_CONMON}/nwprod/gdas_conmon.v${gdas_cmon_ver}}
 export HOMEgdas_conmon=${HOMEgdascmon}
 
-export HOMEcmon=${HOMEcmon:-${MY_CONMON}/nwprod/cmon_shared.v${cmon_shared_ver}}
+export HOMEcmon=${HOMEcmon:-${MY_CONMON}/nwprod/conmon_shared.v${cmon_shared_ver}}
 export HOMEconmon_shared=${HOMEcmon}
 
