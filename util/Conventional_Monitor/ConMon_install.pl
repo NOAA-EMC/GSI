@@ -296,7 +296,6 @@
    close $in;
 
    move "$config.new", $config;
-#   move $out, $in;
 
 
 #   print "building executables\n"; 

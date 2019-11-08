@@ -6,12 +6,15 @@ echo "begin ConMon_config"
 
 export MY_MACHINE=theia
 
+export CONMON_SUFFIX=${CMON_SUFFIX}
+
 #
 # MY_CMON should point to your working directory which contains the
 # top level directory to the ConMon package. 
 #
 
 export MY_CMON=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/ProdGSI/util/Conventional_Monitor
+export MY_CONMON=${MY_CMON}
 
 #
 #  The CMON_TANKDIR will be the location for the extracted data files and
@@ -21,10 +24,11 @@ export MY_CMON=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/ProdGSI/util/Conventi
 #
 
 export CMON_TANKDIR=/scratch4/NCEPDEV/da/save/Edward.Safford/nbns
-export C_TANKverf=${C_TANKverf:-${CMON_TANKDIR}}
+export CONMON_TANKDIR=${CMON_TANKDIR}
+export C_TANKverf=${C_TANKverf:-${CONMON_TANKDIR}}
 
-export C_TANKDIR=${CMON_TANKDIR}/stats/${CMON_SUFFIX}
-export C_IMGNDIR=${CMON_TANKDIR}/imgn/${CMON_SUFFIX}
+export C_TANKDIR=${CONMON_TANKDIR}/stats/${CONMON_SUFFIX}
+export C_IMGNDIR=${CONMON_TANKDIR}/imgn/${CONMON_SUFFIX}
 
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
@@ -121,21 +125,27 @@ export WEBSVR=emcrzdm
 #  Definitions for internal reference
 #
 export CMON_DATA_EXTRACT=${CMON_DATA_EXTRACT:-${MY_CMON}/data_extract}
-export C_DE_EXEC=${C_DE_EXEC:-${CMON_DATA_EXTRACT}/exec}
-export C_DE_PARM=${C_DE_PARM:-${CMON_DATA_EXTRACT}/parm}
-export C_DE_SCRIPTS=${C_DE_SCRIPTS:-${CMON_DATA_EXTRACT}/ush}
+export CONMON_DATA_EXTRACT=${CMON_DATA_EXTRACT}
+export C_DE_EXEC=${C_DE_EXEC:-${CONMON_DATA_EXTRACT}/exec}
+export C_DE_PARM=${C_DE_PARM:-${CONMON_DATA_EXTRACT}/parm}
+export C_DE_SCRIPTS=${C_DE_SCRIPTS:-${CONMON_DATA_EXTRACT}/ush}
 
 export CMON_IMAGE_GEN=${CMON_IMAGE_GEN:-${MY_CMON}/image_gen}
-export C_IG_EXEC=${C_IG_EXEC:-${CMON_IMAGE_GEN}/exec}
-export C_IG_GSCRIPTS=${C_IG_GSCRIPTS:-${CMON_IMAGE_GEN}/gscripts}
-export C_IG_PARM=${C_IG_PARM:-${CMON_IMAGE_GEN}/parm}
-export C_IG_SCRIPTS=${C_IG_SCRIPTS:-${CMON_IMAGE_GEN}/ush}
-export C_IG_FIX=${C_IG_FIX:-${CMON_IMAGE_GEN}/fix}
-export C_IG_HTML=${C_IG_HTML:-${CMON_IMAGE_GEN}/html}
+export CONMON_IMAGE_GEN=${CMON_IMAGE_GEN}
+export C_IG_EXEC=${C_IG_EXEC:-${CONMON_IMAGE_GEN}/exec}
+export C_IG_GSCRIPTS=${C_IG_GSCRIPTS:-${CONMON_IMAGE_GEN}/gscripts}
+export C_IG_PARM=${C_IG_PARM:-${CONMON_IMAGE_GEN}/parm}
+export C_IG_SCRIPTS=${C_IG_SCRIPTS:-${CONMON_IMAGE_GEN}/ush}
+export C_IG_FIX=${C_IG_FIX:-${CONMON_IMAGE_GEN}/fix}
+export C_IG_HTML=${C_IG_HTML:-${CONMON_IMAGE_GEN}/html}
 
 export CMON_PARM=${CMON_PARM:-${MY_CMON}/parm}
-. $CMON_PARM/ConMon.ver
+export CONMON_PARM=${CMON_PARM}
+. $CONMON_PARM/ConMon.ver
 
 export HOMEgdascmon=${HOMEgdascmon:-${MY_CMON}/nwprod/gdas_cmon.v${gdas_cmon_ver}}
+export HOMEgdas_conmon=${HOMEgdascmon}
+
 export HOMEcmon=${HOMEcmon:-${MY_CMON}/nwprod/cmon_shared.v${cmon_shared_ver}}
+export HOMEconmon_shared=${HOMEcmon}
 
