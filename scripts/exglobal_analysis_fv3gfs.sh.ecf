@@ -261,7 +261,7 @@ export INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"'NONE'"}
 USE_CORRELATED_OBERRS=${USE_CORRELATED_OBERRS:-"YES"}
 
 # Get header information from Guess files
-if [ ${GSUFFIX} = ".nc" ]; then
+if [ ${SUFFIX} = ".nc" ]; then
    LONB=${LONB:-$($NCLEN $ATMGES grid_xt)} # get LONB
    LATB=${LATB:-$($NCLEN $ATMGES grid_yt)} # get LATB
    LEVS=${LEVS:-$($NCLEN $ATMGES pfull)} # get LEVS
@@ -279,7 +279,7 @@ fi
 if [ $DOHYBVAR = "YES" ]; then
    SFCGES_ENSMEAN=${SFCGES_ENSMEAN:-${COMIN_GES_ENS}/${GPREFIX}sfcf006.ensmean${GSUFFIX}}
    export ATMGES_ENSMEAN=${ATMGES_ENSMEAN:-${COMIN_GES_ENS}/${GPREFIX}atmf006.ensmean${GSUFFIX}}
-   if [ ${GSUFFIX} = ".nc" ]; then
+   if [ ${SUFFIX} = ".nc" ]; then
       LONB_ENKF=${LONB_ENKF:-$($NCLEN $ATMGES_ENSMEAN grid_xt)} # get LONB_ENKF
       LATB_ENKF=${LATB_ENKF:-$($NCLEN $ATMGES_ENSMEAN grid_yt)} # get LATB_ENFK
       LEVS_ENKF=${LEVS_ENKF:-$($NCLEN $ATMGES_ENSMEAN pfull)} # get LATB_ENFK
