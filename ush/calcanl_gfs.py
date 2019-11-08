@@ -34,7 +34,13 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
   shutil.copy(ExecAnl, RunDir+'/calc_anl.x')
 
   # we need an analysis on the ensemble resolution as well as on the determinstic
-  gsi_utils.link_file(ComOut+'/'+APrefix+'atmanl.ensres.nc', 'siganl.ensres')
+  gsi_utils.link_file(ComOut+'/'+APrefix+'atmanl.ensres'+ASuffix, 'siganl.ensres')
+
+  # determine if the analysis is to be written in netCDF or NEMSIO
+  if ASuffix = ".nc":
+     nemsanl = ".false."
+  else:
+     nemsanl = ".true."
 
   ######## get dimension information from background and increment files
   AnlDims = gsi_utils.get_ncdims('siginc.nc')
@@ -82,7 +88,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
                         "firstguess_filename": "'sigf06'",
                         "increment_filename": "'siginc.nc.fullres'",
                         "nhr_assim": AssimFreq,
-                        "use_nemsio_anl": ".true.", # for UPP, temporary
+                        "use_nemsio_anl": nemsanl,
                        }
   
   gsi_utils.write_nml(namelist, RunDir+'/calc_analysis.nml')
@@ -102,7 +108,8 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
                                "input_file": "'sigf06'",
                                "output_file": "'sigf06.ensres'",
                                "terrain_file": "'"+atmges_ens_mean+"'",
-                               "vcoord_file": "'"+siglevel+"'"}
+                               "vcoord_file": "'"+siglevel+"'",
+                              }
   
   gsi_utils.write_nml(namelist, RunDir+'/chgres_nc_gauss.nml')
 
@@ -122,7 +129,8 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
                         "firstguess_filename": "'sigf06.ensres'",
                         "increment_filename": "'siginc.nc'",
                         "nhr_assim": AssimFreq,
-                        "use_nemsio_anl": ".false."} # EnKF needs netcdf
+                        "use_nemsio_anl": nemsanl,
+                       }
 
   
   gsi_utils.write_nml(namelist, RunDir+'/calc_analysis.nml')
@@ -142,6 +150,7 @@ if __name__ == '__main__':
   Write4Danl = gsi_utils.isTrue(os.getenv('lwrite4dan', 'NO'))
   ComOut = os.getenv('COMOUT', './')
   APrefix = os.getenv('APREFIX', '')
+  ASuffix= os.getenv('ASUFFIX', '')
   NThreads = os.getenv('NTHREADS_CHGRES', 1)
   FixDir = os.getenv('FIXgsm', './')
   atmges_ens_mean = os.getenv('ATMGES_ENSMEAN', './atmges_ensmean')
@@ -151,5 +160,5 @@ if __name__ == '__main__':
   ExecChgresGes = os.getenv('CHGRESNCEXEC', './chgres_nc_gauss.exe')
   ExecChgresInc = os.getenv('CHGRESINCEXEC', './chgres_increment.exe')
   calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, 
-              FixDir, atmges_ens_mean, RunDir, 
+              FixDir, atmges_ens_mean, RunDir, ASuffix, 
               ExecCMD, ExecAnl, ExecChgresGes, ExecChgresInc)

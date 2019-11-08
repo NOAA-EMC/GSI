@@ -213,12 +213,10 @@ GRADSTAT=${GRADSTAT:-${COMIN_GES}/${GPREFIX}radstat}
 
 # Analysis files
 export APREFIX=${APREFIX:-""}
-ASUFFIX=${ASUFFIX:-$SUFFIX}
+export ASUFFIX=${ASUFFIX:-$SUFFIX}
 SFCANL=${SFCANL:-${COMOUT}/${APREFIX}sfcanl${ASUFFIX}}
 DTFANL=${DTFANL:-${COMOUT}/${APREFIX}dtfanl.nc}
-#ATMANL=${ATMANL:-${COMOUT}/${APREFIX}atmanl${ASUFFIX}}
-# below is because UPP is not yet supporting netCDF
-ATMANL=${ATMANL:-${COMOUT}/${APREFIX}atmanl.nemsio}
+ATMANL=${ATMANL:-${COMOUT}/${APREFIX}atmanl${ASUFFIX}}
 ABIAS=${ABIAS:-${COMOUT}/${APREFIX}abias}
 ABIASPC=${ABIASPC:-${COMOUT}/${APREFIX}abias_pc}
 ABIASAIR=${ABIASAIR:-${COMOUT}/${APREFIX}abias_air}
@@ -263,7 +261,7 @@ export INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"'NONE'"}
 USE_CORRELATED_OBERRS=${USE_CORRELATED_OBERRS:-"YES"}
 
 # Get header information from Guess files
-if [ ${GSUFFIX##*\.} = "nc" ]; then
+if [ ${GSUFFIX} = ".nc" ]; then
    LONB=${LONB:-$($NCLEN $ATMGES grid_xt)} # get LONB
    LATB=${LATB:-$($NCLEN $ATMGES grid_yt)} # get LATB
    LEVS=${LEVS:-$($NCLEN $ATMGES pfull)} # get LEVS
@@ -281,7 +279,7 @@ fi
 if [ $DOHYBVAR = "YES" ]; then
    SFCGES_ENSMEAN=${SFCGES_ENSMEAN:-${COMIN_GES_ENS}/${GPREFIX}sfcf006.ensmean${GSUFFIX}}
    export ATMGES_ENSMEAN=${ATMGES_ENSMEAN:-${COMIN_GES_ENS}/${GPREFIX}atmf006.ensmean${GSUFFIX}}
-   if [ ${GSUFFIX##*\.} = "nc" ]; then
+   if [ ${GSUFFIX} = ".nc" ]; then
       LONB_ENKF=${LONB_ENKF:-$($NCLEN $ATMGES_ENSMEAN grid_xt)} # get LONB_ENKF
       LATB_ENKF=${LATB_ENKF:-$($NCLEN $ATMGES_ENSMEAN grid_yt)} # get LATB_ENFK
       LEVS_ENKF=${LEVS_ENKF:-$($NCLEN $ATMGES_ENSMEAN pfull)} # get LATB_ENFK
@@ -321,7 +319,7 @@ NLAT_A=${NLAT_A:-$(($LATA+2))}
 DELTIM=${DELTIM:-$((3600/($JCAP_A/20)))}
 
 # logic for netCDF I/O
-if [ ${SUFFIX##*\.} = "nc" ]; then
+if [ ${SUFFIX} = ".nc" ]; then
   # GSI namelist options to use netCDF background
   use_gfs_nemsio=".false."
   use_gfs_ncio=".true."
