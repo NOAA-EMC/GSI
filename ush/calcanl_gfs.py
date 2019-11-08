@@ -15,7 +15,7 @@ AssimFreq=6 # going to assume global here for now
 
 # function to calculate analysis from a given increment file and background
 def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, 
-                FixDir, atmges_ens_mean, RunDir, 
+                FixDir, atmges_ens_mean, RunDir, ASuffix,
                 ExecCMD, ExecAnl, ExecChgresGes, ExecChgresInc):
 
   ######## copy and link files
