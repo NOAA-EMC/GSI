@@ -37,7 +37,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
   gsi_utils.link_file(ComOut+'/'+APrefix+'atmanl.ensres'+ASuffix, 'siganl.ensres')
 
   # determine if the analysis is to be written in netCDF or NEMSIO
-  if ASuffix = ".nc":
+  if ASuffix == ".nc":
      nemsanl = ".false."
   else:
      nemsanl = ".true."
