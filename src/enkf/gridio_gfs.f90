@@ -846,10 +846,6 @@
   tv_ind  = getindex(vars3d, 'tv')  ! Tv (3D)
   q_ind   = getindex(vars3d, 'q')   ! Q (3D)
   ps_ind  = getindex(vars2d, 'ps')  ! Ps (2D)
-  if (u_ind < 0 .or. v_ind < 0 .or. tv_ind < 0 .or. q_ind < 0 .or. ps_ind < 0) then
-     write(6,*)'gridio/writegriddata: gfs model: control vector must include at least u,v,tv,q and ps'
-     call stop2(23)
-  endif
   oz_ind  = getindex(vars3d, 'oz')  ! Oz (3D)
   cw_ind  = getindex(vars3d, 'cw')  ! CW (3D)
   ql_ind  = getindex(vars3d, 'ql')  ! QL (3D)
