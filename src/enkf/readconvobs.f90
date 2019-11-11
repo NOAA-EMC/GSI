@@ -31,7 +31,7 @@ module readconvobs
 
 use kinds, only: r_kind,i_kind,r_single,r_double
 use constants, only: one,zero,deg2rad
-use params, only: npefiles, netcdf_diag
+use params, only: npefiles, netcdf_diag, modelspace_vloc
 implicit none
 
 private
@@ -360,8 +360,9 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
               nobs(itype,1) = nobs(itype,1) + 1
            endif
            if (error < errorlimit .or. error > errorlimit2 .or.  &
-               abs(obmax) > 1.e9_r_kind .or.                     &
-               pres < 0.001_r_kind .or. pres > 1200._r_kind) cycle
+               abs(obmax) > 1.e9_r_kind) cycle
+           if (.not. modelspace_vloc .and. &
+              (pres < 0.001_r_kind .or. pres > 1200._r_kind)) cycle
            ! skipping sst obs since ENKF does not how how to handle them yet.
            nobs(itype,2) = nobs(itype,2) + 1
            if (obtype == ' uv') then
@@ -664,8 +665,9 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
            endif
            if (Analysis_Use_Flag(i) < zero .or.                  &
                error < errorlimit .or. error > errorlimit2 .or.  &
-               abs(obmax) > 1.e9_r_kind .or.                     &
-               pres < 0.001_r_kind .or. pres > 1200._r_kind) cycle
+               abs(obmax) > 1.e9_r_kind) cycle
+           if (.not. modelspace_vloc .and. &
+              (pres < 0.001_r_kind .or. pres > 1200._r_kind)) cycle
            ! skipping sst obs since ENKF does not how how to handle them yet.
            if (obtype == 'sst') cycle
 
@@ -1075,8 +1077,9 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
           endif
           if (rdiagbuf(12,n) < zero .or.                        &
               error < errorlimit .or. error > errorlimit2 .or.  &
-              abs(obmax) > 1.e9_r_kind .or.                     &
-              pres < 0.001_r_kind .or. pres > 1200._r_kind) cycle
+              abs(obmax) > 1.e9_r_kind) cycle
+          if (.not. modelspace_vloc .and. &
+              (pres < 0.001_r_kind .or. pres > 1200._r_kind)) cycle
           ! skipping sst obs since ENKF does not how how to handle them yet.
           if (obtype == 'sst') cycle
           if (twofiles) then
@@ -1295,10 +1298,11 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
        do n=1,ii
           nobdiag = nobdiag + 1
           if(rdiagbuf(6,n) < errorlimit .or.        &
-             rdiagbuf(6,n) > errorlimit2)cycle
-          if(abs(rdiagbuf(7,n)) > 1.e9_r_kind  .or. &
-             rdiagbuf(4,n) < 0.001_r_kind .or.      &
-             rdiagbuf(4,n) > 1200._r_kind) cycle
+             rdiagbuf(6,n) > errorlimit2 .or.       &
+             abs(rdiagbuf(7,n)) > 1.e9_r_kind )cycle
+          if(.not. modelspace_vloc .and. &
+             (rdiagbuf(4,n) < 0.001_r_kind .or.      &
+             rdiagbuf(4,n) > 1200._r_kind)) cycle
           if (twofiles) then
           if (abs(rdiagbuf(2,n)-rdiagbuf2(2,n)) .gt. 1.e-5 .or. &
               abs(rdiagbuf(3,n)-rdiagbuf2(3,n)) .gt. 1.e-5) then

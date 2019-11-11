@@ -34,7 +34,8 @@ use kinds, only: r_kind,i_kind,r_single,r_double
 use read_diag, only: diag_data_fix_list,diag_header_fix_list,diag_header_chan_list, &
     diag_data_chan_list,diag_data_extra_list,read_radiag_data,read_radiag_header, &
     diag_data_name_list, open_radiag, close_radiag
-use params, only: nsats_rad, dsis, sattypes_rad, npefiles, netcdf_diag, lupd_satbiasc, use_correlated_oberrs
+use params, only: nsats_rad, dsis, sattypes_rad, npefiles, netcdf_diag, &
+                  lupd_satbiasc, use_correlated_oberrs, modelspace_vloc
 
 implicit none
 
@@ -149,9 +150,9 @@ subroutine get_num_satobs_bin(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
                          .or. data_chan0(n)%errinv > errorlimit2 &
                          .or. indxsat == 0) cycle chan
                 if (header_fix0%iextra > 0) then
-                   if(data_extra0(1,n)%extra <= 0.001_r_kind .or.  &
-                      data_extra0(1,n)%extra > 1200._r_kind  .or. &
-                      abs(data_chan0(n)%tbobs) > 1.e9_r_kind) cycle chan
+                   if(.not. modelspace_vloc .and. (data_extra0(1,n)%extra <= 0.001_r_kind .or.  &
+                      data_extra0(1,n)%extra > 1200._r_kind)) cycle chan
+                   if(abs(data_chan0(n)%tbobs) > 1.e9_r_kind) cycle chan
                 else
                    if(abs(data_chan0(n)%tbobs) > 1.e9_r_kind) cycle chan
                 endif
@@ -268,9 +269,9 @@ subroutine get_num_satobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
               if(QC_Flag(i) < 0. .or. Inv_Error(i) < errorlimit &
                  .or. Inv_Error(i) > errorlimit2 &
                  .or. Satinfo_Chan(chind(i)) == 0) cycle
-              if(Pressure(i) <= 0.001_r_kind .or.  &
-                 Pressure(i) > 1200._r_kind  .or. &
-                  abs(Observation(i)) > 1.e9_r_kind) cycle 
+              if(.not. modelspace_vloc .and. (Pressure(i) <= 0.001_r_kind .or.  &
+                 Pressure(i) > 1200._r_kind)) cycle
+              if(abs(Observation(i)) > 1.e9_r_kind) cycle 
               nkeep = nkeep + 1
            enddo
            num_obs_tot = num_obs_tot + nkeep
@@ -495,9 +496,9 @@ subroutine get_satobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, hx_m
                   .or. data_chan(n)%errinv > errorlimit2 &
                   .or. indxsat == 0) cycle chan
          if (header_fix%iextra > 0) then
-            if(data_extra(1,n)%extra <= 0.001_r_kind .or.  &
-               data_extra(1,n)%extra > 1200._r_kind  .or.  &
-               abs(data_chan(n)%tbobs) > 1.e9_r_kind) cycle chan
+            if(.not. modelspace_vloc .and. (data_extra(1,n)%extra <= 0.001_r_kind .or.  &
+               data_extra(1,n)%extra > 1200._r_kind)) cycle chan
+            if(abs(data_chan(n)%tbobs) > 1.e9_r_kind) cycle chan
          else
             if(abs(data_chan(n)%tbobs) > 1.e9_r_kind) cycle chan
          endif
@@ -883,9 +884,9 @@ subroutine get_satobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_me
         if (QC_Flag(i) < 0. .or. Inv_Error(i) < errorlimit &
                   .or. Inv_Error(i) > errorlimit2 &
                   .or. Satinfo_Chan(chind(i)) == 0) cycle
-        if (Pressure(i) <= 0.001_r_kind .or.  &
-            Pressure(i) > 1200._r_kind  .or.  &
-            abs(Observation(i)) > 1.e9_r_kind) cycle 
+        if (.not. modelspace_vloc .and. (Pressure(i) <= 0.001_r_kind .or.  &
+            Pressure(i) > 1200._r_kind)) cycle
+        if (abs(Observation(i)) > 1.e9_r_kind) cycle 
 
         nob = nob + 1
 
