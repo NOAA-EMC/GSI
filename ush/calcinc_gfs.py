@@ -64,11 +64,20 @@ if __name__ == '__main__':
   Write4Danl = gsi_utils.isTrue(os.getenv('lwrite4dan', 'NO'))
   ComOut = os.getenv('COMOUT', './')
   APrefix = os.getenv('APREFIX', '')
+  ASuffix= os.getenv('ASUFFIX', '')
   NThreads = os.getenv('NTHREADS_CALCINC', 1)
   IMP_Physics = os.getenv('imp_physics', 11)
   RunDir = os.getenv('DATA', './')
-  Exec = os.getenv('CALCINCNCEXEC', './calc_increment_ens.x')
+  ExecNC = os.getenv('CALCINCNCEXEC', './calc_increment_ens_ncio.x')
+  ExecNEMS = os.getenv('CALCINCEXEC', './calc_increment_ens.x')
   Inc2Zero = os.getenv('INCREMENTS_TO_ZERO', '"NONE"')
   ExecCMD = os.getenv('APRUN_CALCINC', '')
-  calcinc_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
+
+  # determine if the analysis is in netCDF or NEMSIO
+  if ASuffix == ".nc":
+     Exec = ExecNC
+  else:
+     Exec = ExecNEMS
+
+  calcinc_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
               NThreads, IMP_Physics, Inc2Zero, RunDir, Exec, ExecCMD)

@@ -335,6 +335,8 @@ if [ $DO_CALC_INCREMENT = "YES" ]; then
 else
   write_fv3_increment=".true."
   WRITE_INCR_ZERO="incvars_to_zero= $INCREMENTS_TO_ZERO,"
+  WRITE_ZERO_STRAT="incvars_zero_strat= $INCVARS_ZERO_STRAT,"
+  WRITE_STRAT_EFOLD="incvars_efold= $INCVARS_EFOLD,"
 fi
 
 # GSI Fix files
@@ -756,6 +758,8 @@ cat > gsiparm.anl << EOF
   write_fv3_incr=$write_fv3_increment,
   nhr_anal=${IAUFHRS},
   $WRITE_INCR_ZERO
+  $WRITE_ZERO_STRAT
+  $WRITE_STRAT_EFOLD
   $SETUP
 /
 &GRIDOPTS
