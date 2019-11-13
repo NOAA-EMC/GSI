@@ -178,8 +178,8 @@ real(r_kind)    ,allocatable,dimension(:) :: atsfc_sdv
 real(r_kind)    ,allocatable,dimension(:) :: an_amp0
 
 logical :: llinit = .false.
-character(len=10),allocatable,dimension(:) :: incvars_to_zero 
-character(len=10),allocatable,dimension(:) :: incvars_zero_strat 
+character(len=12),allocatable,dimension(:) :: incvars_to_zero 
+character(len=12),allocatable,dimension(:) :: incvars_zero_strat 
 real(r_kind) :: incvars_efold
 
 ! ----------------------------------------------------------------------
