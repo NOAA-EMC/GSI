@@ -64,26 +64,27 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
 
   ######## interpolate increment to full background resolution
   # set up the namelist
-  namelist = OrderedDict()
-  namelist["setup"] = {"lon_out": LonB,
+  namelist1 = OrderedDict()
+  namelist1["setup"] = {"lon_out": LonB,
                        "lat_out": LatB,
                        "lev": levs,
                        "infile": "'siginc.nc'",
                        "outfile": "'siginc.nc.fullres'",
                      }
-  gsi_utils.write_nml(namelist, RunDir+'/fort.43')
+  gsi_utils.write_nml(namelist1, RunDir+'/fort.43')
 
   # run the executable
   try:
     err = subprocess.check_call(ExecCMD+' '+RunDir+'/chgres_inc.x', shell=True)
   except subprocess.CalledProcessError as e:
     print('Error with chgres_inc.x, exit code='+str(e.returncode))
+    print(locals())
     sys.exit(e.returncode)
 
   ######## generate analysis from interpolated increment
   # set up the namelist
-  namelist = OrderedDict()
-  namelist["setup"] =  {"datapath": "'./'",
+  namelist2 = OrderedDict()
+  namelist2["setup"] =  {"datapath": "'./'",
                         "analysis_filename": "'siganl'",
                         "firstguess_filename": "'sigf06'",
                         "increment_filename": "'siginc.nc.fullres'",
@@ -91,19 +92,20 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
                         "use_nemsio_anl": nemsanl,
                        }
   
-  gsi_utils.write_nml(namelist, RunDir+'/calc_analysis.nml')
+  gsi_utils.write_nml(namelist2, RunDir+'/calc_analysis.nml')
 
   # run the executable
   try:
     err = subprocess.check_call(ExecCMD+' '+RunDir+'/calc_anl.x', shell=True)
   except subprocess.CalledProcessError as e:
     print('Error with calc_anl.x, exit code='+str(e.returncode))
+    print(locals())
     sys.exit(e.returncode)
 
   ######## run chgres to get background on ensemble resolution
   # set up the namelist
-  namelist = OrderedDict()
-  namelist["chgres_setup"] =  {"i_output": str(LonA),
+  namelist3 = OrderedDict()
+  namelist3["chgres_setup"] =  {"i_output": str(LonA),
                                "j_output": str(LatA),
                                "input_file": "'sigf06'",
                                "output_file": "'sigf06.ensres'",
@@ -111,20 +113,21 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
                                "vcoord_file": "'"+siglevel+"'",
                               }
   
-  gsi_utils.write_nml(namelist, RunDir+'/chgres_nc_gauss.nml')
+  gsi_utils.write_nml(namelist3, RunDir+'/chgres_nc_gauss.nml')
 
   # run the executable
   try:
     err = subprocess.check_call(ExecCMD+' '+RunDir+'/chgres_ges.x', shell=True)
   except subprocess.CalledProcessError as e:
     print('Error with chgres_ges.x, exit code='+str(e.returncode))
+    print(locals())
     sys.exit(e.returncode)
 
   ######## generate ensres analysis from interpolated background
 
   # set up the namelist
-  namelist = OrderedDict()
-  namelist["setup"] =  {"datapath": "'./'",
+  namelist4 = OrderedDict()
+  namelist4["setup"] =  {"datapath": "'./'",
                         "analysis_filename": "'siganl.ensres'",
                         "firstguess_filename": "'sigf06.ensres'",
                         "increment_filename": "'siginc.nc'",
@@ -133,13 +136,15 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
                        }
 
   
-  gsi_utils.write_nml(namelist, RunDir+'/calc_analysis.nml')
+  gsi_utils.write_nml(namelist4, RunDir+'/calc_analysis.nml')
 
   # run the executable
   try:
     err = subprocess.check_call(ExecCMD+' '+RunDir+'/calc_anl.x', shell=True)
+    print(locals())
   except subprocess.CalledProcessError as e:
     print('Error with calc_anl.x, exit code='+str(e.returncode))
+    print(locals())
     sys.exit(e.returncode)
 
 
@@ -159,6 +164,7 @@ if __name__ == '__main__':
   ExecAnl = os.getenv('CALCANLEXEC', './calc_analysis.x')
   ExecChgresGes = os.getenv('CHGRESNCEXEC', './chgres_nc_gauss.exe')
   ExecChgresInc = os.getenv('CHGRESINCEXEC', './chgres_increment.exe')
+  print(locals())
   calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, 
               FixDir, atmges_ens_mean, RunDir, ASuffix, 
               ExecCMD, ExecAnl, ExecChgresGes, ExecChgresInc)

@@ -12,13 +12,13 @@ import gsi_utils
 from collections import OrderedDict
 
 # main function
-def calcinc_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
+def calcinc_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
                 NThreads, IMP_Physics, Inc2Zero, RunDir, Exec, ExecCMD):
   # run the calc_increment_ens executable
 
   # copy and link files
   if DoIAU and l4DEnsVar and Write4Danl:
-    nFH=6
+    nFH=7
     for fh in range(3,10):
       if fh == 6:
         gsi_utils.link_file('sigf06', 'atmges_mem004')
@@ -34,7 +34,9 @@ def calcinc_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
     gsi_utils.link_file('siganl', 'atmanl_mem001')
     gsi_utils.link_file(ComOut+'/'+APrefix+'atminc', 'atminc_mem001')
   os.environ['OMP_NUM_THREADS'] = str(NThreads)
+  os.environ['ncmd'] = str(nFH)
   shutil.copy(Exec,RunDir+'/calc_inc.x')
+  ExecCMD = ExecCMD.replace("$ncmd",str(nFH))
 
   # set up the namelist
   namelist = OrderedDict()
@@ -53,8 +55,10 @@ def calcinc_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix,
   # run the executable
   try:
     err = subprocess.check_call(ExecCMD+' '+RunDir+'/calc_inc.x', shell=True)
+    print(locals())
   except subprocess.CalledProcessError as e:
     print('Error with calc_inc.x, exit code='+str(e.returncode))
+    print(locals())
     sys.exit(e.returncode)
 
 # run the function if this script is called from the command line
@@ -79,5 +83,6 @@ if __name__ == '__main__':
   else:
      Exec = ExecNEMS
 
+  print(locals())
   calcinc_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
               NThreads, IMP_Physics, Inc2Zero, RunDir, Exec, ExecCMD)
