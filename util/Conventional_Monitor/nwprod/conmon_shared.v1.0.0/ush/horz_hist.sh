@@ -12,31 +12,31 @@
    date
    rc=0
   
-   echo "CMON_SUFFIX = $CMON_SUFFIX"
+   echo "CONMON_SUFFIX = $CONMON_SUFFIX"
    export hint=10    ##(mb) the plot pressure interval press+-hint
 
    #----------------------------------------------------------
    # The list of data type, based on convinfo.txt file
    #----------------------------------------------------------
 #   ps_TYPE=" ps120_00 ps180_00 ps181_00 ps183_00 ps187_00 "
-   ps_TYPE=`${USHcmon}/get_typelist.pl --file $convinfo --type ps --mon`
+   ps_TYPE=`${USHconmon}/get_typelist.pl --file $convinfo --type ps --mon`
 
 #   q_TYPE=" q120_00 q130_00 q132_00 q133_00 q134_00 q135_00 q180_00 q181_00 q183_00 q187_00 "
-   q_TYPE=`${USHcmon}/get_typelist.pl --file $convinfo --type q --mon`
+   q_TYPE=`${USHconmon}/get_typelist.pl --file $convinfo --type q --mon`
    
 #   t_TYPE=" t120_00 t130_00 t131_00 t132_00 t133_00 t134_00 t135_00 t180_00 t181_00 t183_00 t187_00 "
-   t_TYPE=`${USHcmon}/get_typelist.pl --file $convinfo --type t --mon`
+   t_TYPE=`${USHconmon}/get_typelist.pl --file $convinfo --type t --mon`
 
 #   uv_TYPE=" uv220_00 uv221_00 uv223_00 uv224_00 uv228_00 uv229_00 uv230_00 uv231_00 uv232_00 uv233_00 uv234_00 uv235_00 uv242_00 uv243_00 uv243_55 uv243_56 uv245_257 uv245_259 uv245_270 uv246_257 uv246_259 uv246_270 uv247_257 uv247_259 uv247_270 uv248_00 uv249_00 uv250_00 uv251_00 uv252_00 uv253_00 uv253_55 uv253_56 uv254_00 uv254_55 uv254_56 uv255_00 uv256_00 uv257_00 uv258_00 uv280_00 uv281_00 uv282_00 uv284_00 uv287_00"
 
-   uv_TYPE=`${USHcmon}/get_typelist.pl --file $convinfo --type uv --mon`
+   uv_TYPE=`${USHconmon}/get_typelist.pl --file $convinfo --type uv --mon`
 #   echo "uv_TYPE = $uv_TYPE"
 
 
-   echo TANKDIR_cmon = $TANKDIR_cmon
+   echo TANKDIR_conmon = $TANKDIR_conmon
 
-   mkdir -p ${TANKDIR_cmon}/horz_hist/ges
-   mkdir -p ${TANKDIR_cmon}/horz_hist/anl
+   mkdir -p ${TANKDIR_conmon}/horz_hist/ges
+   mkdir -p ${TANKDIR_conmon}/horz_hist/anl
 
    export nreal_ps=${nreal_ps:-19}
    export nreal_q=${nreal_q:-20} 
@@ -71,7 +71,7 @@
                echo "cycle = $cycle"
             fi 
 
-            ${USHcmon}/diag2grad_${type}_case.sh
+            ${USHconmon}/diag2grad_${type}_case.sh
 
          done    #### done with cycle
 

@@ -19,15 +19,15 @@ export nregion=10
 #------------------------------------------
 # set up TANKDIR (output) sub-directories
 #
-echo TANKDIR_cmon = $TANKDIR_cmon
-export savedir=$TANKDIR_cmon/time_vert
+echo TANKDIR_conmon = $TANKDIR_conmon
+export savedir=$TANKDIR_conmon/time_vert
 mkdir -p ${savedir}
 
 
 echo "convinfo = $convinfo"			# defined in calling script
 cp ${convinfo} ./convinfo
 
-export execfile=${EXECcmon}/conv_time.x
+export execfile=${EXECconmon}/conmon_time.x
 cp ${execfile} ./execfile
 
 export CYA=`echo $PDATE | cut -c9-10`

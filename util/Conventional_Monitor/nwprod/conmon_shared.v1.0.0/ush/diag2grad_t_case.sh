@@ -9,11 +9,11 @@ set -xa
 
 echo "--> diag2grad_t_case.sh"
 
-   echo "CMON_SUFFIX   = $CMON_SUFFIX"
-   echo "TANKDIR_cmon  = $TANKDIR_cmon"
+   echo "CONMON_SUFFIX   = $CONMON_SUFFIX"
+   echo "TANKDIR_conmon  = $TANKDIR_conmon"
    echo "type          = $type"
    echo "PDATE         = $PDATE"
-   echo "EXECcmon      = $EXECcmon"
+   echo "EXECconmon      = $EXECconmon"
    echo "cycle         = $cycle"
    echo "nreal         = $nreal"
    echo "mtype         = $mtype (type = $type)"
@@ -39,7 +39,7 @@ echo "--> diag2grad_t_case.sh"
    fi
 
    if [ "$mtype" = 't130' -o "$mtype" = 't131' -o "$mtype" = 't132' -o "$mtype" = 't133' -o "$mtype" = 't134' -o "$mtype" = 't135' ]; then
-      cp $EXECcmon/grads_lev.x ./diag2grads
+      cp $EXECconmon/conmon_grads_lev.x ./diag2grads
 
       cat <<EOF >input
          &input
@@ -49,7 +49,7 @@ echo "--> diag2grad_t_case.sh"
 EOF
   
    elif [ "$mtype" = 't120' ]; then
-      cp $EXECcmon/grads_mandlev.x ./diag2grads
+      cp $EXECconmon/conmon_grads_mandlev.x ./diag2grads
 
       cat <<EOF >input
          &input
@@ -59,7 +59,7 @@ EOF
 EOF
 
    elif [ "$mtype" = 't180' -o "$mtype" = 't181' -o "$mtype" = 't182' -o "$mtype" = 't183'  -o "$mtype" = 't187' ]; then
-      cp $EXECcmon/grads_sfc.x ./diag2grads
+      cp $EXECconmon/conmon_grads_sfc.x ./diag2grads
       cat <<EOF >input
          &input
          intype='  t',stype='${mtype}',itype=$ctype,nreal=$nreal,
@@ -74,7 +74,7 @@ EOF
 rm -f *tmp
 mv stdout stdout_diag2grads_${mtype}_${subtype}.${cycle}
 
-dest_dir="${TANKDIR_cmon}/horz_hist/${cycle}"
+dest_dir="${TANKDIR_conmon}/horz_hist/${cycle}"
 
 for file in t*grads; do
    mv ${file} ${dest_dir}/${file}.${PDATE}

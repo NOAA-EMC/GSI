@@ -1,4 +1,4 @@
-#!/bin/sh
+
 #############################################################
 # Set up environment for GDAS Conventional Monitor job
 ########################################
@@ -25,8 +25,8 @@ export PS4='$SECONDS + '
 # set up working directory space
 ###########################################################
 #export pid=$$
-export CMON_WORK_DIR=${CMON_WORK_DIR:-/tmpnwprd}
-export DATA=${DATA:-${CMON_WORK_DIR}/${jobid}}
+export CONMON_WORK_DIR=${CONMON_WORK_DIR:-/tmpnwprd}
+export DATA=${DATA:-${CONMON_WORK_DIR}/${jobid}}
 mkdir -p $DATA
 cd $DATA
 
@@ -54,16 +54,17 @@ export RUN=${RUN:-gdas}
 export SENDCOM=${SENDCOM:-YES}
 export SENDDBN=${SENDDBN:-NO}
 export VERBOSE=${VERBOSE:-YES}
-export ERRSCRIPT=${ERRSCRIPT:-err_chk}
 
-export HOMEgdascmon=${HOMEgdascmon:-/nw${envir}/gdas_cmon.${gdas_cmon_ver}}
-export SCRIPTSgdascmon=${SCRIPTSgdascmon:-$HOMEgdascmon/scripts}
-export FIXgdascmon=${FIXgdascmon:-$HOMEgdascmon/fix}
+export HOMEgfs=${HOMEgfs:-${NWROOT}/gfs.${gfs_ver}}
 
-export HOMEcmon=${HOMEcmon:-/nw${envir}/cmon_shared.${cmon_shared_ver}}
-export EXECcmon=${EXECcmon:-$HOMEcmon/exec}
-export FIXcmon=${FIXcmon:-${FIXgdascmon}}
-export USHcmon=${USHcmon:-$HOMEcmon/ush}
+export FIXgdas=${FIXgdas:-${HOMEgfs}/fix}
+export PARMmon=${PARMmon:-${HOMEgfs}/parm/mon}
+
+export HOMEconmon=${HOMEconmon:-${HOMEgfs}}
+export EXECconmon=${EXECconmon:-${HOMEconmon}/exec}
+
+export FIXconmon=${FIXconmon:-${FIXgfs}}
+export USHconmon=${USHconmon:-${HOMEconmon}/ush}
 
 export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 export COMPRESS=${COMPRESS:-gzip}
@@ -81,25 +82,16 @@ export utilscript=${utilscript:-$UTILROOT/ush}
 export utilexec=${utilexec:-$UTILROOT/exec}
 export NDATE=${NDATE:-$utilexec/ndate}
 
-# Run setup to initialize working directory and utility scripts
-#  per the setup.sh (on wcoss, it's not available on cray), the setup.sh
-#  utility is deprecated and we can call the utilities directly
-#$utilscript/setup.sh
-
-# Run setpdy and initialize PDY variables
-#$utilscript/setpdy.sh
-#source ./PDY
-
 
 ##############################################################
 # COMIN    - WHERE GSI OUTPUT (which is input data) RESIDES
 # TANKDIR_cmon - WHERE OUTPUT DATA WILL RESIDE
 ##############################################################
 export C_TANKDIR=${C_TANKDIR:-/com/verf/${envir}}
-export TANKDIR_cmon=${C_TANKDIR}/cmon.${PDY}
-export COM_IN=${COM_IN:-/com/${NET}/${envir}}
-export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
-export CMON_SUFFIX=${CMON_SUFFIX:-gdas}
+#export TANKDIR_conmon=${C_TANKDIR}/conmon.${PDY}
+export C_COM_IN=${C_COM_IN:-/com/${NET}/${envir}}
+export C_COMIN=${C_COMIN:-$C_COM_IN/${RUN}.${PDY}}
+export CONMON_SUFFIX=${CMON_SUFFIX:-gdas}
 
 mkdir -p -m 775 $TANKDIR_cmon
 
@@ -107,7 +99,7 @@ m6h_date=`$NDATE -06 $PDATE`
 export CYC_m6h=`echo $m6h_date|cut -c9-10`
 export PDY_m6h=`echo $m6h_date|cut -c1-8`
 
-export COMIN_m6h=${COMIN_m6h:-$COM_IN/${RUN}.${PDY_m6h}}
+export C_COMIN_m6h=${C_COMIN_m6h:-$C_COM_IN/${RUN}.${PDY_m6h}}
 
 env
 
@@ -121,27 +113,23 @@ env
 #        instead of pgrbanl.
 #############################################################################
 #############################################################################
-export CMON_AREA=${CMON_AREA:-glb}
+export CONMON_AREA=${CONMON_AREA:-glb}
 
-export cnvstat=${cnvstat:-${COMIN}/gdas.t${CYC}z.cnvstat}
-export pgrbf00=${pgrbf00:-${COMIN}/gdas.t${CYC}z.pgrbf00}
-export pgrbf06=${pgrbf06:-${COMIN_m6h}/gdas.t${CYC_m6h}z.pgrbf06}
+#export cnvstat=${cnvstat:-${C_COMIN}/gdas.t${CYC}z.cnvstat}
+#export pgrbf00=${pgrbf00:-${C_COMIN}/gdas.t${CYC}z.pgrbf00}
+#export pgrbf06=${pgrbf06:-${C_COMIN_m6h}/gdas.t${CYC_m6h}z.pgrbf06}
 
 
-echo "cnvstat = $cnvstat"
-echo "pgrbf00 = $pgrbf00"
-echo "pgrbf06 = $pgrbf06"
+#echo "cnvstat = $cnvstat"
+#echo "pgrbf00 = $pgrbf00"
+#echo "pgrbf06 = $pgrbf06"
 
-msg="JOB HAS STARTED"
-postmsg "$jlogfile" "$msg"
 
 ########################################################
 # Execute the script.
-${CMONSH:-$HOMEgdascmon/scripts/exgdas_vrfyconv.sh.ecf} ${PDY} ${CYC}
+${CONMONSH:-$HOMEgdas/scripts/exgdas_conmon.sh.ecf} ${PDY} ${CYC}
 ########################################################
 
-msg="J-JOB COMPLETED NORMALLY"
-postmsg "$jlogfile" "$msg"
 
 ################################
 # Remove the Working Directory

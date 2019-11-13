@@ -36,7 +36,7 @@ if [ "$mtype" = 'uv221' -o "$mtype" = 'uv224' -o "$mtype" = 'uv229' -o "$mtype" 
 
    echo "IN if condition 1, using GRADS_LEV.X"
    rm -f diag2grads
-   cp ${EXECcmon}/grads_lev.x ./diag2grads
+   cp ${EXECconmon}/conmon_grads_lev.x ./diag2grads
 
       echo "INPUTS to grads_lev.x = "
       echo "intype   =  uv"
@@ -63,7 +63,7 @@ elif  [ "$mtype" = 'uv223' -o "$mtype" = 'uv224' -o "$mtype" = 'uv228' ]; then
    echo "IN if condition 2, using GRADS_SIG.X"
 
    rm -f diag2grads
-   cp ${EXECcmon}/grads_sig.x ./diag2grads
+   cp ${EXECconmon}/conmon_grads_sig.x ./diag2grads
    rm -f input
 
    echo "9 inputs to grads_sig.x = "
@@ -88,7 +88,7 @@ elif [ "$mtype" = 'uv220' ]; then
    echo "IN if condition 3, using GRADS_MANDLEV.X"
 
    rm -f diag2grads
-   cp ${EXECcmon}/grads_mandlev.x ./diag2grads
+   cp ${EXECconmon}/conmon_grads_mandlev.x ./diag2grads
    rm -f input
    cat <<EOF >input
       &input
@@ -101,7 +101,7 @@ elif [ "$mtype" = 'uv280' -o "$mtype" = 'uv281' -o "$mtype" = 'uv282' -o "$mtype
    echo "IN if condition 4, using GRADS_SFCTIME.X"
 
    rm -f diag2grads
-   cp ${EXECcmon}/grads_sfctime.x ./diag2grads
+   cp ${EXECconmon}/conmon_grads_sfctime.x ./diag2grads
    rm -f input
    cat <<EOF >input
       &input
@@ -113,7 +113,7 @@ EOF
 elif [ "$mtype" = 'uv229' ]; then
    echo "IN if condition 5, using GRADS_SFCTIME.X"
    rm -f diag2grads
-   cp ${EXECcmon}/grads_sfctime.x ./diag2grads
+   cp ${EXECconmon}/conmon_grads_sfctime.x ./diag2grads
    rm -f input
    cat <<EOF >input
       &input
@@ -129,20 +129,20 @@ fi
 
 ##############################################
 #  Create the nt file, rename stdout, move nt,
-#  grads, and scatter files to $TANDIR_cmon
+#  grads, and scatter files to $TANDIR_conmon
 ##############################################
 ntline=`tail -n1 stdout`
 nt=`echo ${ntline} | sed 's/^ *//g' | sed 's/ *$//g'`
 if [ ${#nt} = 1 ]; then
    ntfile="nt_${mtype}_${subtype}.${PDATE}"
    echo ${nt} > ${ntfile}
-   cp ${ntfile} ${TANKDIR_cmon}/horz_hist/${cycle}/.
+   cp ${ntfile} ${TANKDIR_conmon}/horz_hist/${cycle}/.
 fi
 
 rm -f *tmp
 mv stdout stdout_diag2grads_${mtype}_${subtype}.${cycle} 
 
-dest_dir="${TANKDIR_cmon}/horz_hist/${cycle}"
+dest_dir="${TANKDIR_conmon}/horz_hist/${cycle}"
 
 grads_list=`ls uv*grads`
 for file in $grads_list; do
