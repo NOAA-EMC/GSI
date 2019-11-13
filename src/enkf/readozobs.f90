@@ -27,7 +27,7 @@ module readozobs
 !$$$
 
 use kinds, only: r_single,i_kind,r_kind,r_double
-use params, only: nsats_oz,sattypes_oz,npefiles,netcdf_diag
+use params, only: nsats_oz,sattypes_oz,npefiles,netcdf_diag,modelspace_vloc
 use constants, only: deg2rad, zero
 implicit none
 
@@ -115,8 +115,9 @@ subroutine get_num_ozobs_bin(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
            do k=1,nlevsoz
              nread=nread+ii
              num_obs_totdiag = num_obs_totdiag + ii
-             if (iouse(k) < 0 .or. pob(k) <= 0.001 .or. &
-                 pob(k) > 1200._r_kind) cycle
+             if (iouse(k) < 0) cycle
+             if (.not. modelspace_vloc .and. (pob(k) <= 0.001 .or. &
+                 pob(k) > 1200._r_kind)) cycle
              do n=1,ii
                if (rdiagbuf(3,k,n) <= errorlimit .or.  &
                    rdiagbuf(3,k,n) >= errorlimit2 .or.  &
@@ -212,8 +213,9 @@ subroutine get_num_ozobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
            num_obs_totdiag = num_obs_totdiag + nobs_curr
            nread = nread + nobs_curr
            do i = 1, nobs_curr
-             if (Analysis_Use_Flag(i) < 0 .or. Pressure(i) <= 0.001 .or. &
-                 Pressure(i) > 1200._r_kind) cycle
+             if (Analysis_Use_Flag(i) < 0) cycle
+             if (.not. modelspace_vloc .and. (Pressure(i) <= 0.001 .or. &
+                 Pressure(i) > 1200._r_kind)) cycle
              if (Errinv(i) <= errorlimit .or.  &
                  Errinv(i) >= errorlimit2 .or.  &
                  abs(Observation(i)) > 1.e9_r_kind) cycle
@@ -435,8 +437,12 @@ subroutine get_ozobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, hx_me
             read(iunit2,err=20,end=30) idiagbuf2,diagbuf2,rdiagbuf2
          endif
          do k=1,nlevsoz
-           if (iouse(k) < 0 .or. pob(k) <= 0.001 .or. &
-               pob(k) > 1200._r_kind) then
+           if (iouse(k) < 0) then
+              nobdiag = nobdiag + ii
+              cycle
+           endif
+           if (.not. modelspace_vloc .and.(pob(k) <= 0.001 .or. &
+               pob(k) > 1200._r_kind)) then
               nobdiag = nobdiag + ii
               cycle
            endif
@@ -688,8 +694,9 @@ subroutine get_ozobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_mea
 
         do i = 1, nobs_curr
            nobdiag = nobdiag + 1
-           if (Analysis_Use_Flag(i) < 0 .or. Pressure(i) <= 0.001 .or. &
-               Pressure(i) > 1200._r_kind) cycle
+           if (Analysis_Use_Flag(i) < 0) cycle
+           if (.not. modelspace_vloc .and. (Pressure(i) <= 0.001 .or. &
+               Pressure(i) > 1200._r_kind)) cycle
 
            if (Errinv(i) <= errorlimit .or. Errinv(i) >= errorlimit2 .or.  &
                abs(Observation(i)) > 1.e9_r_kind) cycle

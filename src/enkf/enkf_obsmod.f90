@@ -108,7 +108,7 @@ use params, only: &
       lnsigcutoffnh, lnsigcutoffsh, lnsigcutofftr, corrlengthnh,&
       corrlengthtr, corrlengthsh, obtimelnh, obtimeltr, obtimelsh,&
       lnsigcutoffsatnh, lnsigcutoffsatsh, lnsigcutoffsattr,&
-      varqc, huber, zhuberleft, zhuberright,&
+      varqc, huber, zhuberleft, zhuberright, modelspace_vloc, &
       lnsigcutoffpsnh, lnsigcutoffpssh, lnsigcutoffpstr, neigv
 
 use state_vectors, only: init_anasv
@@ -250,6 +250,7 @@ do nob=1,nobstot
    obloc(3,nob) = sin(radlat)
    deglat = obloclat(nob)
 !  get limits on corrlength,lnsig,and obtime
+   if (.not. modelspace_vloc) then
    if (nob > nobs_conv+nobs_oz) then
       lnsigl(nob) = latval(deglat,lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh)
    else if (obtype(nob)(1:3) == ' ps') then
@@ -257,6 +258,7 @@ do nob=1,nobstot
    else
       lnsigl(nob)=latval(deglat,lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh)
    end if
+   endif
    corrlengthsq(nob)=latval(deglat,corrlengthnh,corrlengthtr,corrlengthsh)**2
    obtimel(nob)=latval(deglat,obtimelnh,obtimeltr,obtimelsh)
 end do

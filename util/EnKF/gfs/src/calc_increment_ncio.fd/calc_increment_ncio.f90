@@ -8,6 +8,8 @@ PROGRAM calc_increment_ncio
 ! abstract:  difference two ncio files, write out increment netcdf increment
 ! file for ingest into FV3.  The data in increment file must be oriented
 ! from south to north and from top to bottom in the vertical.
+! if dpres and delz are not in ncio files, increments are inferred from
+! ps and T.
 !
 ! program history log:
 !   2019-02-12  Initial version.
@@ -18,9 +20,7 @@ PROGRAM calc_increment_ncio
 !   output files: filename_inc (3rd command line arg)
 
 !   4th command line arg is logical for controlling whether microphysics
-!   increment is computed.  5th command line argument is logical controlling
-!   whether delz increment is computed hydrostatically from temp, humidity
-!   and dpres.
+!   increment is computed. 
 !
 ! attributes:
 !   language: f95
@@ -33,7 +33,7 @@ PROGRAM calc_increment_ncio
   use module_fv3gfs_ncio, only: open_dataset, create_dataset, read_attribute, &
                            Dataset, Dimension, close_dataset, &
                            read_vardata, write_attribute, write_vardata, &
-                           get_nvar, get_dim
+                           has_var, has_attr, get_dim
   use netcdf
 
   implicit none
@@ -42,16 +42,19 @@ PROGRAM calc_increment_ncio
   character(len=nf90_max_name) :: ncvarname
   integer k,nvar,ndims,nlats,nlons,nlevs,iret,nlons2,nlats2,nlevs2
   real, allocatable, dimension(:)     :: lats_tmp, lats, lons, ak, bk, ilevs, levs
-  real, allocatable, dimension(:,:)   :: values_2d_fg,values_2d_anal,values_2d_inc
-  real, allocatable, dimension(:,:,:) :: values_3d_fg,values_3d_anal,values_3d_inc
+  real, allocatable, dimension(:,:)   :: values_2d_fg,values_2d_anal,values_2d_inc,&
+                                         ps_fg, ps_anal
+  real, allocatable, dimension(:,:,:) :: values_3d_fg,values_3d_anal,values_3d_inc,&
+                                         tmp_fg, tmp_anal, delzb, delza
   type(Dataset) :: dset_anal,dset_fg
   type(Dimension) :: londim,latdim,levdim
   integer, dimension(3) :: dimid_3d
   integer, dimension(1) :: dimid_1d
   integer varid_lon,varid_lat,varid_lev,varid_ilev,varid_hyai,varid_hybi,&
           dimid_lon,dimid_lat,dimid_lev,dimid_ilev,ncfileid,ncstatus
-  logical :: no_mpinc, has_dpres
+  logical :: no_mpinc, has_dpres, has_delz
   character(len=10) :: bufchar
+  real rd,grav
 
   call getarg(1,filename_fg)    ! first guess ncio file
   call getarg(2,filename_anal)  ! analysis ncio file
@@ -96,10 +99,6 @@ PROGRAM calc_increment_ncio
   allocate(ak(nlevs+1),bk(nlevs+1),levs(nlevs),ilevs(nlevs+1))
   call read_attribute(dset_fg, 'ak', ak)
   call read_attribute(dset_fg, 'bk', bk)
-  if (iret /= 0) then
-    print *, 'problem with ncio_getfilehead getting vcoord, iret=', iret
-    stop 
-  endif
   lats = lats_tmp(nlats:1:-1)
   if (lats(1) .gt. lats(nlats)) then
     print *,'error: code assumes lats in ncio files are N to S'
@@ -241,13 +240,10 @@ PROGRAM calc_increment_ncio
   dimid_3d(2) = dimid_lat
   dimid_3d(3) = dimid_lev
 
-  nvar = get_nvar(dset_fg,'dpres')
-  if (nvar > 0) then 
-    has_dpres = .true.
-  else
-    has_dpres = .false.
-  endif
+  has_dpres = has_var(dset_fg,'dpres')
+  has_delz  = has_var(dset_fg,'delz')
   print *,'has_dpres ',has_dpres
+  print *,'has_delz ',has_delz
 
   ! ps increment.
   allocate(values_2d_inc(nlons,nlats))
@@ -303,6 +299,26 @@ PROGRAM calc_increment_ncio
      do k=1,nlevs
         values_3d_inc(:,:,k) = values_2d_inc*(bk(k+1)-bk(k))
      enddo
+     call write_ncdata3d(values_3d_inc,ncvarname,nlons,nlats,nlevs,ncfileid,dimid_3d)
+  endif
+  ! infer delz increment from background, analysis ps & T
+  if (.not. has_delz) then
+     ncvarname = 'delz_inc'
+     rd     = 287.04
+     grav   = 9.80665
+     call read_vardata(dset_fg,'tmp',tmp_fg)
+     call read_vardata(dset_anal,'tmp',tmp_anal)
+     call read_vardata(dset_fg,'pressfc',ps_fg)
+     call read_vardata(dset_anal,'pressfc',ps_anal)
+     allocate(delzb(nlons,nlats,nlevs))
+     allocate(delza(nlons,nlats,nlevs))
+     delzb = (rd/grav)*tmp_fg
+     delza = (rd/grav)*tmp_anal
+     do k=1,nlevs
+        delzb(:,:,k)=delzb(:,:,k)*log((ak(k)+bk(k)*ps_fg)/(ak(k+1)+bk(k+1)*ps_fg))
+        delza(:,:,k)=delza(:,:,k)*log((ak(k)+bk(k)*ps_anal)/(ak(k+1)+bk(k+1)*ps_anal))
+     enddo
+     values_3d_inc(:,nlats:1:-1,:) = delzb - delza
      call write_ncdata3d(values_3d_inc,ncvarname,nlons,nlats,nlevs,ncfileid,dimid_3d)
   endif
 

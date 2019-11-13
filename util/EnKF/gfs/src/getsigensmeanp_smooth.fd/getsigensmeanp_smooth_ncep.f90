@@ -596,7 +596,7 @@ program getsigensmeanp_smooth
         endif
 
 !       Deallocate smoothing factors
-        deallocate(smoothfact)
+        if (allocated(smoothfact)) deallocate(smoothfact)
 
 !    End of smoothing block
      endif
