@@ -1593,6 +1593,7 @@
      enddo
      if (has_attr(dsfg, 'nbits', 'ugrd')) then
        call read_attribute(dsfg, 'nbits', nbits, 'ugrd')
+       if (.not. allocated(vg3d)) allocate(vg3d(nlons,nlats,nlevs))
        vg3d = ug3d
        call quantize_data(vg3d, ug3d, nbits, compress_err)
        call write_attribute(dsanl,&
