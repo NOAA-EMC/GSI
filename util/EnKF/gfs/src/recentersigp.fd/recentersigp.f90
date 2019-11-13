@@ -277,13 +277,15 @@ program recentersigp
                endif
            endif ! ndims > 2
         enddo  ! nvars
+
+        deallocate(values_2d,values_2d_i,values_2d_mi,values_2d_mo)
+        deallocate(values_3d,values_3d_i,values_3d_mi,values_3d_mo)
+        call close_dataset(dsetmi)
+        call close_dataset(dsetmo)
+        call close_dataset(dseti)
+        call close_dataset(dseto)
+
      endif
-     deallocate(values_2d,values_2d_i,values_2d_mi,values_2d_mo)
-     deallocate(values_3d,values_3d_i,values_3d_mi,values_3d_mo)
-     call close_dataset(dsetmi)
-     call close_dataset(dsetmo)
-     call close_dataset(dseti)
-     call close_dataset(dseto)
 
 ! Jump here if more mpi processors than files to process
   else
