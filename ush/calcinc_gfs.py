@@ -65,7 +65,7 @@ def calcinc_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
 if __name__ == '__main__':
   DoIAU = gsi_utils.isTrue(os.getenv('DOIAU', 'NO')) 
   l4DEnsVar = gsi_utils.isTrue(os.getenv('l4densvar', 'NO'))
-  Write4Danl = gsi_utils.isTrue(os.getenv('lwrite4dan', 'NO'))
+  Write4Danl = gsi_utils.isTrue(os.getenv('lwrite4danl', 'NO'))
   ComOut = os.getenv('COMOUT', './')
   APrefix = os.getenv('APREFIX', '')
   ASuffix= os.getenv('ASUFFIX', '')
