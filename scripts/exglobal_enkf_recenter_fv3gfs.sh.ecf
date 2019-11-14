@@ -184,11 +184,11 @@ if [ $RECENTER_ENKF = "YES" ]; then
 
    # GSI EnVar analysis
    if [ $FHR -eq 6 ]; then
-     ATMANL_GSI=${ATMANL_GSI:-$COMIN/${APREFIX}atmanl$ASUFFIX}
-     ATMANL_GSI_ENSRES=${ATMANL_GSI_ENSRES:-$COMIN/${APREFIX}atmanl.ensres$ASUFFIX}
+     ATMANL_GSI=$COMIN/${APREFIX}atmanl$ASUFFIX
+     ATMANL_GSI_ENSRES=$COMIN/${APREFIX}atmanl.ensres$ASUFFIX
    else
-     ATMANL_GSI=${ATMANL_GSI:-$COMIN/${APREFIX}atma0${FHR}$ASUFFIX}
-     ATMANL_GSI_ENSRES=${ATMANL_GSI_ENSRES:-$COMIN/${APREFIX}atma0${FHR}.ensres$ASUFFIX}
+     ATMANL_GSI=$COMIN/${APREFIX}atma0${FHR}$ASUFFIX
+     ATMANL_GSI_ENSRES=$COMIN/${APREFIX}atma0${FHR}.ensres$ASUFFIX
    fi
 
    if [ ${SUFFIX} = ".nc" ]; then
