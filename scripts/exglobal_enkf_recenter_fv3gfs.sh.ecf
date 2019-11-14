@@ -76,11 +76,10 @@ imp_physics=${imp_physics:-99}
 INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"'NONE'"}
 DOIAU=${DOIAU_ENKF:-"NO"}
 IAUFHRS_ENKF=${IAUFHRS_ENKF:-6}
-GFS_NCIO=${GFS_NCIO:-"YES"}
 
 # global_chgres stuff
 CHGRESNEMS=${CHGRESNEMS:-$HOMEgfs/exec/chgres_recenter.exe}
-CHGRESNC=${CHGRESNC:-$HOMEgfs/exec/chgres_nc_gauss.exe}
+CHGRESNC=${CHGRESNC:-$HOMEgfs/exec/chgres_recenter_ncio.exe}
 NTHREADS_CHGRES=${NTHREADS_CHGRES:-24}
 APRUN_CHGRES=${APRUN_CHGRES:-""}
 
@@ -165,7 +164,7 @@ export ERR=$rc
 export err=$ERR
 $ERRSCRIPT || exit 2
 
-if [ $GFS_NCIO = "YES" ]; then
+if [ ${SUFFIX} = ".nc" ]; then
    LONB_ENKF=${LONB_ENKF:-$($NCLEN atmanl_ensmean grid_xt)} # get LONB
    LATB_ENKF=${LATB_ENKF:-$($NCLEN atmanl_ensmean grid_yt)} # get LATB
    LEVS_ENKF=${LEVS_ENKF:-$($NCLEN atmanl_ensmean pfull)} # get LEVS
@@ -184,21 +183,13 @@ fi
 if [ $RECENTER_ENKF = "YES" ]; then
 
    # GSI EnVar analysis
-   #ATMANL_GSI=${ATMANL_GSI:-$COMIN/${APREFIX}atmanl$ASUFFIX}
-   ATMANL_GSI=${ATMANL_GSI:-$COMIN/${APREFIX}atmanl.nemsio} # temporary hack
+   ATMANL_GSI=${ATMANL_GSI:-$COMIN/${APREFIX}atmanl$ASUFFIX}
    ATMANL_GSI_ENSRES=${ATMANL_GSI_ENSRES:-$COMIN/${APREFIX}atmanl.ensres$ASUFFIX}
 
-   if [ $GFS_NCIO = "YES" ]; then
-      if [ -f $ATMANL_GSI_ENSRES ]; then
-         # This is a temporary solution because the analysis file at full res is still NEMSIO
-         LONB=${LONB:-$($NEMSIOGET $ATMANL_GSI dimx | awk '{print $2}')}
-         LATB=${LATB:-$($NEMSIOGET $ATMANL_GSI dimy | awk '{print $2}')}
-         JCAP=${JCAP:-$($NEMSIOGET $ATMANL_GSI jcap | awk '{print $2}')}
-      else
-         LONB=${LONB:-$($NCLEN $ATMANL_GSI grid_xt)} # get LONB
-         LATB=${LATB:-$($NCLEN $ATMANL_GSI grid_yt)} # get LATB
-         JCAP=${JCAP:--9999} # there is no jcap in these files
-      fi
+   if [ ${SUFFIX} = ".nc" ]; then
+      LONB=${LONB:-$($NCLEN $ATMANL_GSI grid_xt)} # get LONB
+      LATB=${LATB:-$($NCLEN $ATMANL_GSI grid_yt)} # get LATB
+      JCAP=${JCAP:--9999} # there is no jcap in these files
    else
       LONB=${LONB:-$($NEMSIOGET $ATMANL_GSI dimx | awk '{print $2}')}
       LATB=${LATB:-$($NEMSIOGET $ATMANL_GSI dimy | awk '{print $2}')}
@@ -216,7 +207,7 @@ if [ $RECENTER_ENKF = "YES" ]; then
       $NLN $ATMANL_GSI        atmanl_gsi
       $NLN $ATMANL_GSI_ENSRES atmanl_gsi_ensres
       SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS}.txt}
-      if [ $GFS_NCIO = "YES" ]; then
+      if [ ${SUFFIX} = ".nc" ]; then
          $NLN $CHGRESNC chgres.x
          chgresnml=chgres_nc_gauss.nml
          nmltitle=chgres
@@ -287,7 +278,8 @@ else
 fi
 
 export OMP_NUM_THREADS=$NTHREADS_CALCINC
-if [ $GFS_NCIO = "YES" ]; then
+if [ ${SUFFIX} = ".nc" ]; then
+
    CALCINCEXEC=$CALCINCNCEXEC
 else
    CALCINCEXEC=$CALCINCNEMSEXEC
