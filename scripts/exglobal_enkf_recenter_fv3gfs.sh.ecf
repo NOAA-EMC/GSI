@@ -185,6 +185,13 @@ if [ $RECENTER_ENKF = "YES" ]; then
    # GSI EnVar analysis
    ATMANL_GSI=${ATMANL_GSI:-$COMIN/${APREFIX}atmanl$ASUFFIX}
    ATMANL_GSI_ENSRES=${ATMANL_GSI_ENSRES:-$COMIN/${APREFIX}atmanl.ensres$ASUFFIX}
+   if [ $FHR -eq 6 ]; then
+     ATMANL_GSI=${ATMANL_GSI:-$COMIN/${APREFIX}atmanl$ASUFFIX}
+     ATMANL_GSI_ENSRES=${ATMANL_GSI_ENSRES:-$COMIN/${APREFIX}atmanl.ensres$ASUFFIX}
+   else
+     ATMANL_GSI=${ATMANL_GSI:-$COMIN/${APREFIX}atmanl00${FHR}$ASUFFIX}
+     ATMANL_GSI_ENSRES=${ATMANL_GSI_ENSRES:-$COMIN/${APREFIX}atm00${FHR}.ensres$ASUFFIX}
+   fi
 
    if [ ${SUFFIX} = ".nc" ]; then
       LONB=${LONB:-$($NCLEN $ATMANL_GSI grid_xt)} # get LONB
