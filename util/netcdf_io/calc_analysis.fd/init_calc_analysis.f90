@@ -21,7 +21,7 @@ contains
     character(len=500) :: analysis_filename = 'atmanl.nc'
     character(len=500) :: firstguess_filename = 'atmges.nc'
     character(len=500) :: increment_filename = 'atminc.nc'
-    character(len=3) :: hrstr
+    character(len=2) :: hrstr
     integer, parameter :: lunit = 10
     logical :: lexist = .false.
     namelist /setup/ datapath, analysis_filename, firstguess_filename, increment_filename, nhrs_assim, use_nemsio_anl
@@ -44,7 +44,7 @@ contains
 
     ! combine strings to get full paths
     fhr = fhrs_pe(mype+1)
-    write(hrstr,'(I0.3)') fhr 
+    write(hrstr,'(I0.2)') fhr 
     anal_file = trim(adjustl(datapath)) // '/' // trim(adjustl(analysis_filename)) // '.' // hrstr 
     fcst_file = trim(adjustl(datapath)) // '/' // trim(adjustl(firstguess_filename)) // '.' // hrstr 
     incr_file = trim(adjustl(datapath)) // '/' // trim(adjustl(increment_filename)) // '.' // hrstr

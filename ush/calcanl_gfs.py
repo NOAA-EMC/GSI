@@ -22,28 +22,29 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
       if fh == 6:
         # for archiving
         shutil.copy('siginc.nc', ComOut+'/'+APrefix+'atminc.nc')
-        gsi_utils.link_file(ComOut+'/'+APrefix+'atmanl.ensres'+ASuffix, 'anl.ensres.006')
+        gsi_utils.link_file(ComOut+'/'+APrefix+'atmanl.ensres'+ASuffix, 'anl.ensres.06')
         # for calc_analysis
-        gsi_utils.link_file('siginc.nc', 'siginc.nc.006')
-        gsi_utils.link_file('sigf06', 'ges.006')
-        gsi_utils.link_file('siganl', 'anl.006')
+        gsi_utils.link_file('siginc.nc', 'siginc.nc.06')
+        gsi_utils.link_file('sigf06', 'ges.06')
+        gsi_utils.link_file('siganl', 'anl.06')
       else:
-        # for archiving
-        shutil.copy('sigi'+format(fh, '02')+'.nc', ComOut+'/'+APrefix+'atmi'+format(fh, '02')+'.nc')
-        gsi_utils.link_file(ComOut+'/'+APrefix+'atmanl'+format(fh, '03')+'.ensres'+ASuffix, 'anl.ensres.'+format(fh, '03'))
-        gsi_utils.link_file(ComOut+'/'+APrefix+'atmanl'+format(fh, '03')+ASuffix, 'anl.'+format(fh, '03'))
-        # for calc_analysis
-        gsi_utils.link_file('sigi'+format(fh, '02')+'.nc', 'siginc.nc.'+format(fh, '03'))
-        gsi_utils.link_file('sigf'+format(fh, '02'), 'ges.'+format(fh, '03'))
-        gsi_utils.link_file('siga'+format(fh, '02'), 'anl.'+format(fh, '03'))
+        if os.path.isfile('sigi'+format(fh, '02')+'.nc'):
+          # for archiving
+          shutil.copy('sigi'+format(fh, '02')+'.nc', ComOut+'/'+APrefix+'atmi'+format(fh, '02')+'.nc')
+          gsi_utils.link_file(ComOut+'/'+APrefix+'atma'+format(fh, '02')+'.ensres'+ASuffix, 'anl.ensres.'+format(fh, '02'))
+          gsi_utils.link_file(ComOut+'/'+APrefix+'atma'+format(fh, '02')+ASuffix, 'anl.'+format(fh, '02'))
+          # for calc_analysis
+          gsi_utils.link_file('sigi'+format(fh, '02')+'.nc', 'siginc.nc.'+format(fh, '02'))
+          gsi_utils.link_file('sigf'+format(fh, '02'), 'ges.'+format(fh, '02'))
+          gsi_utils.link_file('siga'+format(fh, '02'), 'anl.'+format(fh, '02'))
   else:
     # for archiving
     shutil.copy('siginc.nc', ComOut+'/'+APrefix+'atminc.nc')
-    gsi_utils.link_file(ComOut+'/'+APrefix+'atmanl.ensres'+ASuffix, 'anl.ensres.006')
+    gsi_utils.link_file(ComOut+'/'+APrefix+'atmanl.ensres'+ASuffix, 'anl.ensres.06')
     # for calc_analysis
-    gsi_utils.link_file('siginc.nc', 'siginc.nc.006')
-    gsi_utils.link_file('sigf06', 'ges.006')
-    gsi_utils.link_file('siganl', 'anl.006')
+    gsi_utils.link_file('siginc.nc', 'siginc.nc.06')
+    gsi_utils.link_file('sigf06', 'ges.06')
+    gsi_utils.link_file('siganl', 'anl.06')
 
   shutil.copy(ExecChgresGes, RunDir+'/chgres_ges.x')
   shutil.copy(ExecChgresInc, RunDir+'/chgres_inc.x')
@@ -78,15 +79,15 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
   ExecCMD = ExecCMD.replace("$ncmd","1")
   for fh in range(3,10):
     # first check to see if increment file exists
-    if (os.path.isfile('siginc.nc.'+format(fh, '03'))):
+    if (os.path.isfile('siginc.nc.'+format(fh, '02'))):
       nFH+=1
       # set up the namelist
       namelist = OrderedDict()
       namelist["setup"] = {"lon_out": LonB,
                            "lat_out": LatB,
                            "lev": levs,
-                           "infile": "'siginc.nc."+format(fh, '03')+"'",
-                           "outfile": "'inc.fullres."+format(fh, '03')+"'",
+                           "infile": "'siginc.nc."+format(fh, '02')+"'",
+                           "outfile": "'inc.fullres."+format(fh, '02')+"'",
                          }
       gsi_utils.write_nml(namelist, RunDir+'/fort.43')
 
@@ -128,13 +129,13 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
   ######## run chgres to get background on ensemble resolution
   for fh in range(3,10):
     # first check to see if increment file exists
-    if (os.path.isfile('siginc.nc.'+format(fh, '03'))):
+    if (os.path.isfile('siginc.nc.'+format(fh, '02'))):
       # set up the namelist
       namelist = OrderedDict()
       namelist["chgres_setup"] =  {"i_output": str(LonA),
                                    "j_output": str(LatA),
-                                   "input_file": "'ges."+format(fh, '03')+"'",
-                                   "output_file": "'ges.ensres."+format(fh, '03')+"'",
+                                   "input_file": "'ges."+format(fh, '02')+"'",
+                                   "output_file": "'ges.ensres."+format(fh, '02')+"'",
                                    "terrain_file": "'"+atmges_ens_mean+"'",
                                    "vcoord_file": "'"+siglevel+"'",
                                   }
