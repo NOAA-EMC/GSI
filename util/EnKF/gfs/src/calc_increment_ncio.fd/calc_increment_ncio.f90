@@ -96,7 +96,7 @@ PROGRAM calc_increment_ncio
 
   call read_vardata(dset_fg, 'grid_xt', lons)
   call read_vardata(dset_fg, 'grid_yt', lats_tmp)
-  allocate(ak(nlevs+1),bk(nlevs+1),levs(nlevs),ilevs(nlevs+1))
+  allocate(ak(nlevs+1),bk(nlevs+1),levs(nlevs),ilevs(nlevs+1),lats(nlats))
   call read_attribute(dset_fg, 'ak', ak)
   call read_attribute(dset_fg, 'bk', bk)
   lats = lats_tmp(nlats:1:-1)
