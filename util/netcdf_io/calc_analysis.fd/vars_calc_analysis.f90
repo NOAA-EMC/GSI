@@ -20,9 +20,11 @@ module vars_calc_analysis
   public :: lats, lons, vcoord
   public :: anlfile
   public :: work1
-  public :: nhr_assim
+  public :: nhrs_assim
   public :: use_nemsio_anl
   public :: fcstncfile, anlncfile, incncfile
+  public :: fhrs_pe
+  public :: fhr
 
   character(len=500) :: anal_file, fcst_file, incr_file
   integer, dimension(7) :: idate, jdate
@@ -33,8 +35,9 @@ module vars_calc_analysis
   real, allocatable, dimension(:,:,:) :: vcoord
   type(nemsio_gfile) :: anlfile
   real, allocatable, dimension(:) :: work1
-  integer :: nhr_assim
+  integer :: nhrs_assim, fhr
   logical :: use_nemsio_anl
   type(Dataset) :: fcstncfile, anlncfile, incncfile
+  integer, dimension(7) :: fhrs_pe
 
 end module vars_calc_analysis
