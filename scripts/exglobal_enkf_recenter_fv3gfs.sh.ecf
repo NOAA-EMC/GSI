@@ -121,23 +121,23 @@ for FHR in $nfhrs; do  # loop over analysis times in window
 
 for imem in $(seq 1 $NMEM_ENKF); do
    memchar="mem"$(printf %03i $imem)
-   $NLN $COMIN_GES_ENS/$memchar/${GPREFIX}atmf00${FHR}${ENKF_SUFFIX}$GSUFFIX ./atmges_$memchar
+   $NLN $COMIN_GES_ENS/$memchar/${GPREFIX}atmf0${FHR}${ENKF_SUFFIX}$GSUFFIX ./atmges_$memchar
    if [ $FHR -eq 6 ]; then
       $NLN $COMIN_ENS/$memchar/${APREFIX_ENKF}atmanl$ASUFFIX ./atmanl_$memchar
    else
-      $NLN $COMIN_ENS/$memchar/${APREFIX_ENKF}atmanl00${FHR}$ASUFFIX ./atmanl_$memchar
+      $NLN $COMIN_ENS/$memchar/${APREFIX_ENKF}atmanl0${FHR}$ASUFFIX ./atmanl_$memchar
    fi
    mkdir -p $COMOUT_ENS/$memchar
    if [ $FHR -eq 6 ]; then
       $NLN $COMOUT_ENS/$memchar/${APREFIX}atminc.nc ./atminc_$memchar
    else
-      $NLN $COMOUT_ENS/$memchar/${APREFIX}atmi00${FHR}.nc ./atminc_$memchar
+      $NLN $COMOUT_ENS/$memchar/${APREFIX}atmi0${FHR}.nc ./atminc_$memchar
    fi
    if [[ $RECENTER_ENKF = "YES" ]]; then
       if [ $FHR -eq 6 ]; then
          $NLN $COMOUT_ENS/$memchar/${APREFIX}ratmanl$ASUFFIX ./ratmanl_$memchar
       else
-         $NLN $COMOUT_ENS/$memchar/${APREFIX}ratmanl00${FHR}$ASUFFIX ./ratmanl_$memchar
+         $NLN $COMOUT_ENS/$memchar/${APREFIX}ratma0${FHR}$ASUFFIX ./ratmanl_$memchar
       fi
    fi
 done
@@ -146,7 +146,7 @@ done
 if [ $FHR -eq 6 ]; then
    $NLN $COMIN_ENS/${APREFIX_ENKF}atmanl.ensmean$ASUFFIX ./atmanl_ensmean
 else
-   $NLN $COMIN_ENS/${APREFIX_ENKF}atmanl00${FHR}.ensmean$ASUFFIX ./atmanl_ensmean
+   $NLN $COMIN_ENS/${APREFIX_ENKF}atma0${FHR}.ensmean$ASUFFIX ./atmanl_ensmean
 fi
 
 # Compute ensemble mean analysis
@@ -183,14 +183,12 @@ fi
 if [ $RECENTER_ENKF = "YES" ]; then
 
    # GSI EnVar analysis
-   ATMANL_GSI=${ATMANL_GSI:-$COMIN/${APREFIX}atmanl$ASUFFIX}
-   ATMANL_GSI_ENSRES=${ATMANL_GSI_ENSRES:-$COMIN/${APREFIX}atmanl.ensres$ASUFFIX}
    if [ $FHR -eq 6 ]; then
      ATMANL_GSI=${ATMANL_GSI:-$COMIN/${APREFIX}atmanl$ASUFFIX}
      ATMANL_GSI_ENSRES=${ATMANL_GSI_ENSRES:-$COMIN/${APREFIX}atmanl.ensres$ASUFFIX}
    else
-     ATMANL_GSI=${ATMANL_GSI:-$COMIN/${APREFIX}atmanl00${FHR}$ASUFFIX}
-     ATMANL_GSI_ENSRES=${ATMANL_GSI_ENSRES:-$COMIN/${APREFIX}atm00${FHR}.ensres$ASUFFIX}
+     ATMANL_GSI=${ATMANL_GSI:-$COMIN/${APREFIX}atma0${FHR}$ASUFFIX}
+     ATMANL_GSI_ENSRES=${ATMANL_GSI_ENSRES:-$COMIN/${APREFIX}atma0${FHR}.ensres$ASUFFIX}
    fi
 
    if [ ${SUFFIX} = ".nc" ]; then

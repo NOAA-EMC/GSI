@@ -388,12 +388,12 @@ fi
 
 # Set 4D-EnVar specific variables
 if [ $DOHYBVAR = "YES" -a $l4densvar = ".true." -a $lwrite4danl = ".true." ]; then
-   ATMA03=${ATMA03:-${COMOUT}/${APREFIX}atma003${ASUFFIX}}
-   ATMA04=${ATMA04:-${COMOUT}/${APREFIX}atma004${ASUFFIX}}
-   ATMA05=${ATMA05:-${COMOUT}/${APREFIX}atma005${ASUFFIX}}
-   ATMA07=${ATMA07:-${COMOUT}/${APREFIX}atma007${ASUFFIX}}
-   ATMA08=${ATMA08:-${COMOUT}/${APREFIX}atma008${ASUFFIX}}
-   ATMA09=${ATMA09:-${COMOUT}/${APREFIX}atma009${ASUFFIX}}
+   ATMA03=${ATMA03:-${COMOUT}/${APREFIX}atma03${ASUFFIX}}
+   ATMA04=${ATMA04:-${COMOUT}/${APREFIX}atma04${ASUFFIX}}
+   ATMA05=${ATMA05:-${COMOUT}/${APREFIX}atma05${ASUFFIX}}
+   ATMA07=${ATMA07:-${COMOUT}/${APREFIX}atma07${ASUFFIX}}
+   ATMA08=${ATMA08:-${COMOUT}/${APREFIX}atma08${ASUFFIX}}
+   ATMA09=${ATMA09:-${COMOUT}/${APREFIX}atma09${ASUFFIX}}
 fi
 
 ################################################################################
@@ -791,7 +791,7 @@ cat > gsiparm.anl << EOF
 /
 &OBSQC
   dfact=0.75,dfact1=3.0,noiqc=.true.,oberrflg=.false.,c_varqc=0.02,
-  use_poq7=.true.,qc_noirjaco3_pole=.true.,vqc=.false.,nvqc=.true.,
+  use_poq7=.true.,qc_noirjaco3_pole=.true.,vqc=.false.,nvqc=.false.,
   aircraft_t_bc=.true.,biaspredt=1.0e5,upd_aircraft=.true.,cleanup_tail=.true.,
   $OBSQC
 /
