@@ -103,10 +103,10 @@ export C_PTMP=${C_PTMP:-/scratch4/NCEPDEV/stmp4}
 export C_PTMP_USER=${C_PTMP_USER:-${C_PTMP}/${LOGNAME}}
 
 export C_LOGDIR=${C_PTMP_USER}/logs/${CONMON_SUFFIX}/ConMon
-export LOGSverf_cmon=${LOGSverf_cmon:-${C_LOGDIR}}
-export WORKverf_cmon=${WORKverf_cmon:-${C_STMP_USER}}
+export LOGS_conmon=${LOGS_conmon:-${C_LOGDIR}}
+export WORK_conmon=${WORK_conmon:-${C_STMP_USER}/${CONMON_SUFFIX}/${NET}/ConMon}
 
-export CONVINFO_FILE=${FIXDIR}/global_convinfo.txt  # does this belong in this config file? IMG/parm?
+#export CONVINFO_FILE=${FIXDIR}/global_convinfo.txt  # does this belong in this config file? IMG/parm?
 
 
 #
