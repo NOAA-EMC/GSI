@@ -125,7 +125,7 @@ for imem in $(seq 1 $NMEM_ENKF); do
    if [ $FHR -eq 6 ]; then
       $NLN $COMIN_ENS/$memchar/${APREFIX_ENKF}atmanl$ASUFFIX ./atmanl_$memchar
    else
-      $NLN $COMIN_ENS/$memchar/${APREFIX_ENKF}atmanl0${FHR}$ASUFFIX ./atmanl_$memchar
+      $NLN $COMIN_ENS/$memchar/${APREFIX_ENKF}atma0${FHR}$ASUFFIX ./atmanl_$memchar
    fi
    mkdir -p $COMOUT_ENS/$memchar
    if [ $FHR -eq 6 ]; then

@@ -210,7 +210,7 @@ for imem in $(seq 1 $NMEM_ENKF); do
       if [ $FHR -eq 6 ]; then
          $NLN $COMOUT_ANL_ENS/$memchar/${APREFIX}atmanl${ASUFFIX}             sanl_${CDATE}_fhr0${FHR}_${memchar}
       else
-         $NLN $COMOUT_ANL_ENS/$memchar/${APREFIX}atmanl0${FHR}${ASUFFIX}             sanl_${CDATE}_fhr0${FHR}_${memchar}
+         $NLN $COMOUT_ANL_ENS/$memchar/${APREFIX}atma0${FHR}${ASUFFIX}             sanl_${CDATE}_fhr0${FHR}_${memchar}
       fi
    done
 done
