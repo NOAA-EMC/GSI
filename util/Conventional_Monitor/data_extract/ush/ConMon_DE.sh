@@ -173,9 +173,9 @@ export PDYm6h=`echo $GDATE|cut -c1-8`
 echo PDYm6h = $PDYm6h
 
 
-export CNVSTAT_LOCATION=${CNVSTAT_LOCATION:-/gpfs/dell1/nco/ops/com/gfs/prod/}
-export C_DATDIR=${C_DATDIR:-${CNVSTAT_LOCATION}/gdas.$PDY}
-export C_GDATDIR=${C_GDATDIR:-${CNVSTAT_LOCATION}/gdas.$PDYm6h}
+export CNVSTAT_LOCATION=${CNVSTAT_LOCATION:-/gpfs/dell1/nco/ops/com/gfs/prod}
+export C_DATDIR=${C_DATDIR:-${CNVSTAT_LOCATION}/${RUN}.${PDY}}
+export C_GDATDIR=${C_GDATDIR:-${CNVSTAT_LOCATION}/${RUN}.${PDYm6h}}
 
 export C_COMIN=${C_DATDIR}
 export C_COMINm6h=${C_GDATDIR}
@@ -197,48 +197,52 @@ export jobid=cmon_DE_${CONMON_SUFFIX}.${pid}
 # GSI. 
 
 export grib2=${grib2:-0}
-export cnvstat="${C_DATDIR}/gdas.t${CYC}z.cnvstat"
+export cnvstat="${C_DATDIR}/${CYC}/gdas.t${CYC}z.cnvstat"
 if [[ ! -s ${cnvstat} ]]; then
-   export cnvstat=${C_DATDIR}/cnvstat.gdas.${PDATE}
+   export cnvstat="${C_DATDIR}/gdas.t${CYC}z.cnvstat"
 fi
 
-export pgrbf00="${C_DATDIR}/gdas.t${CYC}z.pgrbf00"
+export pgrbf00="${C_DATDIR}/${CYC}/gdas.t${CYC}z.pgrb2b.1p00.anl"
 if [[ ! -s ${pgrbf00} ]]; then
-   export pgrbf00=${C_DATDIR}/pgbanl.gdas.${PDATE}
+   export pgrbf00="${C_DATDIR}//gdas.t${CYC}z.pgrbf00"
 fi
 
-export pgrbf06="${C_GDATDIR}/gdas.t${GCYC}z.pgrbf06"
+export pgrbf06="${C_GDATDIR}/${GCYC}/gdas.t${GCYC}z.pgrb2b.1p00.anl"
 if [[ ! -s ${pgrbf06} ]]; then
-   export pgrbf06=${C_DATDIR}/pgbf06.gdas.${GDATE}
+   export pgrbf06="${C_GDATDIR}/gdas.t${GCYC}z.pgrbf06"
 fi
 
 exit_value=0
-#if [ -s $cnvstat  -a -s $pgrbf00 -a -s $pgrbf06 ]; then
+if [ -s $cnvstat  -a -s $pgrbf00 -a -s $pgrbf06 ]; then
    #------------------------------------------------------------------
    #   Submit data extraction job.
    #------------------------------------------------------------------
-#   if [ -s $pgrbf06 ]; then
-#
-#      if [[ $MY_MACHINE = "wcoss" ]]; then
-#        $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/DE.${PDY}.${CYC}.log -M 500 -R affinity[core] -W 0:25 -J ${jobname} -cwd $PWD ${HOMEgdascmon}/jobs/JGDAS_VCONMON
-#
-#      elif [[ $MY_MACHINE = "wcoss_d" ]]; then
-#        $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/DE.${PDY}.${CYC}.log -M 500 -R affinity[core] -W 0:25 -J ${jobname} -cwd $PWD ${HOMEgdascmon}/jobs/JGDAS_VCONMON
-#
-#      elif [[ $MY_MACHINE = "hera" ]]; then
-#         $SUB -A $ACCOUNT --ntasks=1 --time=00:20:00 \
-#		-p service -J ${jobname} -o $C_LOGDIR/DE.${PDY}.${CYC}.log \
-#		$HOMEgdascmon/jobs/JGDAS_VCONMON
-#      fi
-#
-#   else
-#      echo data not available, missing $pgrbf06 file
-#      exit_value=6
-#   fi
-#else
-#   echo data not available -- missing $cnvstat and/or $pgrbf00 files
-#   exit_value=7
-#fi
+   if [ -s $pgrbf06 ]; then
+
+      echo "Ok to proceed with DE"
+      logdir=${C_LOGDIR}/${RUN}/conmon
+      echo "logdir = $logdir"
+
+      if [[ $MY_MACHINE = "wcoss" ]]; then
+        $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/DE.${PDY}.${CYC}.log -M 500 -R affinity[core] -W 0:25 -J ${jobname} -cwd $PWD ${HOMEgdas_conmon}/jobs/JGDAS_VCONMON
+
+      elif [[ $MY_MACHINE = "wcoss_d" ]]; then
+        $SUB -q $JOB_QUEUE -P $PROJECT -o ${logdir}/DE.${PDY}.${CYC}.log -M 500 -R affinity[core] -W 0:25 -J ${jobname} -cwd $PWD ${HOMEgdas_conmon}/jobs/JGDAS_VCONMON
+
+      elif [[ $MY_MACHINE = "hera" ]]; then
+         $SUB -A $ACCOUNT --ntasks=1 --time=00:20:00 \
+		-p service -J ${jobname} -o $C_LOGDIR/DE.${PDY}.${CYC}.log \
+		${HOMEgdas_conmon}/jobs/JGDAS_VCONMON
+      fi
+
+   else
+      echo data not available, missing $pgrbf06 file
+      exit_value=6
+   fi
+else
+   echo data not available -- missing $cnvstat and/or $pgrbf00 files
+   exit_value=7
+fi
 
 
 #--------------------------------------------------------------------
