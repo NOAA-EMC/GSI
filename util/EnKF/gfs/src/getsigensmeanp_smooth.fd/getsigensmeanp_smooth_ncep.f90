@@ -378,7 +378,7 @@ program getsigensmeanp_smooth
                   if (dosmooth) then
                      values_2d = values_2d - values_2d_avg ! ens pert
                      call sptez(0,ntrunc,idrt,lonb,latb,rwork_spc,values_2d,-1)
-                     call smooth(rwork_spc,ntrunc,smoothfact(:,:,1))
+                     call smooth(rwork_spc,ntrunc,smoothfact(:,:,nlevs))
                      call sptez(0,ntrunc,idrt,lonb,latb,rwork_spc,values_2d,1)
                      values_2d = values_2d + values_2d_avg ! add mean back
                      if (quantize) then
@@ -441,7 +441,7 @@ program getsigensmeanp_smooth
                      do k=1,nlevs
                         values_3d(:,:,k) = values_3d(:,:,k) - values_3d_avg(:,:,k) ! ens pert
                         call sptez(0,ntrunc,idrt,lonb,latb,rwork_spc,values_3d(1,1,k),-1)
-                        call smooth(rwork_spc,ntrunc,smoothfact(:,:,k))
+                        call smooth(rwork_spc,ntrunc,smoothfact(:,:,nlevs+1-k))
                         call sptez(0,ntrunc,idrt,lonb,latb,rwork_spc,values_3d(1,1,k),1)
                         values_3d(:,:,k) = values_3d(:,:,k) + values_3d_avg(:,:,k) ! add mean back
                      enddo
