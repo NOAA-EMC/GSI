@@ -30,9 +30,9 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
       else:
         if os.path.isfile('sigi'+format(fh, '02')+'.nc'):
           # for archiving
-          shutil.copy('sigi'+format(fh, '02')+'.nc', ComOut+'/'+APrefix+'atmi'+format(fh, '02')+'.nc')
-          gsi_utils.link_file(ComOut+'/'+APrefix+'atma'+format(fh, '02')+'.ensres'+ASuffix, 'anl.ensres.'+format(fh, '02'))
-          gsi_utils.link_file(ComOut+'/'+APrefix+'atma'+format(fh, '02')+ASuffix, 'anl.'+format(fh, '02'))
+          shutil.copy('sigi'+format(fh, '02')+'.nc', ComOut+'/'+APrefix+'atmi'+format(fh, '03')+'.nc')
+          gsi_utils.link_file(ComOut+'/'+APrefix+'atma'+format(fh, '03')+'.ensres'+ASuffix, 'anl.ensres.'+format(fh, '02'))
+          gsi_utils.link_file(ComOut+'/'+APrefix+'atma'+format(fh, '03')+ASuffix, 'anl.'+format(fh, '02'))
           # for calc_analysis
           gsi_utils.link_file('sigi'+format(fh, '02')+'.nc', 'siginc.nc.'+format(fh, '02'))
           gsi_utils.link_file('sigf'+format(fh, '02'), 'ges.'+format(fh, '02'))
