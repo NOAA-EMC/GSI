@@ -388,12 +388,12 @@ fi
 
 # Set 4D-EnVar specific variables
 if [ $DOHYBVAR = "YES" -a $l4densvar = ".true." -a $lwrite4danl = ".true." ]; then
-   ATMA03=${ATMA03:-${COMOUT}/${APREFIX}atma03${ASUFFIX}}
-   ATMA04=${ATMA04:-${COMOUT}/${APREFIX}atma04${ASUFFIX}}
-   ATMA05=${ATMA05:-${COMOUT}/${APREFIX}atma05${ASUFFIX}}
-   ATMA07=${ATMA07:-${COMOUT}/${APREFIX}atma07${ASUFFIX}}
-   ATMA08=${ATMA08:-${COMOUT}/${APREFIX}atma08${ASUFFIX}}
-   ATMA09=${ATMA09:-${COMOUT}/${APREFIX}atma09${ASUFFIX}}
+   ATMA03=${ATMA03:-${COMOUT}/${APREFIX}atma003${ASUFFIX}}
+   ATMA04=${ATMA04:-${COMOUT}/${APREFIX}atma004${ASUFFIX}}
+   ATMA05=${ATMA05:-${COMOUT}/${APREFIX}atma005${ASUFFIX}}
+   ATMA07=${ATMA07:-${COMOUT}/${APREFIX}atma007${ASUFFIX}}
+   ATMA08=${ATMA08:-${COMOUT}/${APREFIX}atma008${ASUFFIX}}
+   ATMA09=${ATMA09:-${COMOUT}/${APREFIX}atma009${ASUFFIX}}
 fi
 
 ################################################################################
