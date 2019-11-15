@@ -16,31 +16,70 @@
 #--------------------------------------------------------------------
 #  usage
 #--------------------------------------------------------------------
+#function usage {
+#  echo "Usage:  ConMon_DE.sh suffix [pdate]"
+#  echo "            Suffix is the indentifier for this data source."
+#  echo "            Pdate is the full YYYYMMDDHH cycle to run.  This 
+#		    param is optional"
+#}
 function usage {
-  echo "Usage:  ConMon_DE.sh suffix [pdate]"
+  echo "Usage:  ConMon_DE.sh suffix [-p|--pdate pdate -r|--run gdas|gfs]"
   echo "            Suffix is the indentifier for this data source."
-  echo "            Pdate is the full YYYYMMDDHH cycle to run.  This 
-		    param is optional"
+  echo "            -p | --pdate yyyymmddcc to specify the cycle to be processed"
+  echo "              if unspecified the last available date will be processed"
+  echo "            -r | --run   the gdas|gfs run to be processed"
+  echo "              use only if data in TANKdir stores both runs, otherwise"
+  echo "	      gdas is assumed."
+  echo " "
 }
 
+
 #--------------------------------------------------------------------
-#  CMon_DE.sh begins here
+#  ConMon_DE.sh begins here
 #--------------------------------------------------------------------
+set -ax
+echo "Begin ConMon_DE.sh"
 
 nargs=$#
-if [[ $nargs -lt 1 || $nargs -gt 2 ]]; then
+if [[ $nargs -lt 1 || $nargs -gt 5 ]]; then
    usage
    exit 1
 fi
 
-set -ax
-echo "Begin ConMon_DE.sh"
+
+#-----------------------------------------------
+#  Process command line arguments
+#
+
+export RUN=gdas
+
+while [[ $# -ge 1 ]]
+do
+   key="$1"
+   echo $key
+
+   case $key in
+      -p|--pdate)
+         export PDATE="$2"
+         shift # past argument
+      ;;
+      -r|--run)
+         export RUN="$2"
+         shift # past argument
+      ;;
+      *)
+         #any unspecified key is CONMON_SUFFIX
+         export CONMON_SUFFIX=$key
+      ;;
+   esac
+
+   shift
+done
+
 
 this_file=`basename $0`
 this_dir=`dirname $0`
 
-
-export CMON_SUFFIX=$1
 
 #--------------------------------------------------------------------
 #  RUN_ENVIR:  can be either "dev" or "para".
@@ -48,46 +87,32 @@ export CMON_SUFFIX=$1
 #export RUN_ENVIR=$2		
 export RUN_ENVIR=${RUN_ENVIR:-"dev"}
 
-#--------------------------------------------------------------------
-#  load modules
-#--------------------------------------------------------------------
-#. /usrx/local/Modules/3.2.9/init/ksh
-#module use /nwprod2/modulefiles
-#module load grib_util
-#module load prod_util
-#module load util_shared
 
-
-if [[ $nargs -ge 1 ]]; then
-   export PDATE=$2;
-   echo "PDATE set to $PDATE"
-fi
-
-echo CMON_SUFFIX = $CMON_SUFFIX
+echo CONMON_SUFFIX = $CONMON_SUFFIX
 echo RUN_ENVIR = $RUN_ENVIR
 
 top_parm=${this_dir}/../../parm
 
-cmon_version_file=${cmon_version:-${top_parm}/ConMon.ver}
-if [[ -s ${cmon_version_file} ]]; then
-   . ${cmon_version_file}
-   echo "able to source ${cmon_version_file}"
+conmon_version_file=${conmon_version:-${top_parm}/ConMon.ver}
+if [[ -s ${conmon_version_file} ]]; then
+   . ${conmon_version_file}
+   echo "able to source ${conmon_version_file}"
 else
-   echo "Unable to source ${cmon_version_file} file"
+   echo "Unable to source ${conmon_version_file} file"
    exit 2
 fi
 
-cmon_config=${cmon_config:-${top_parm}/ConMon_config}
-if [[ -s ${cmon_config} ]]; then
-   . ${cmon_config}
-   echo "able to source ${cmon_config}"
+conmon_config=${conmon_config:-${top_parm}/ConMon_config}
+if [[ -s ${conmon_config} ]]; then
+   . ${conmon_config}
+   echo "able to source ${conmon_config}"
 else
-   echo "Unable to source ${cmon_config} file"
+   echo "Unable to source ${conmon_config} file"
    exit 3
 fi
 
 
-jobname=ConMon_de_${CMON_SUFFIX}
+jobname=ConMon_DE_${CONMON_SUFFIX}
 
 #--------------------------------------------------------------------
 # Create any missing directories
@@ -105,23 +130,28 @@ if [[ ! -d ${C_IMGNDIR} ]]; then
    mkdir -p ${C_IMGNDIR}
 fi
 
-
-tmpdir=${WORKverf_cmon}/de_cmon_${CMON_SUFFIX}
-rm -rf $tmpdir
-mkdir -p $tmpdir
-cd $tmpdir
+#
+#  Make tmpdir and work space conform to *Mon standard
+#
+#tmpdir=${WORKverf_conmon}/DE_conmon_${CONMON_SUFFIX}
+#rm -rf $tmpdir
+#mkdir -p $tmpdir
+#cd $tmpdir
 
 #--------------------------------------------------------------------
 # Check status of monitoring job.  Is it already running?  If so, exit
 # this script and wait for job to finish.
 
-if [[ $MY_MACHINE = "wcoss" ]]; then
-   count=`bjobs -u ${LOGNAME} -p -r -J "${jobname}" | wc -l`
-   if [[ $count -ne 0 ]] ; then
-      echo "Previous cmon jobs are still running for ${CMON_SUFFIX}" 
-      exit 5
-   fi
-fi
+#  If I add a pid to the working dir name then more than one can run
+#  at the same time.
+
+#if [[ $MY_MACHINE = "wcoss" ]]; then
+#   count=`bjobs -u ${LOGNAME} -p -r -J "${jobname}" | wc -l`
+#   if [[ $count -ne 0 ]] ; then
+#      echo "Previous conmon jobs are still running for ${CONMON_SUFFIX}" 
+#      exit 5
+#   fi
+#fi
 
 #--------------------------------------------------------------------
 # Get date of cycle to process and/or previous cycle processed.
@@ -143,17 +173,17 @@ export PDYm6h=`echo $GDATE|cut -c1-8`
 echo PDYm6h = $PDYm6h
 
 
-export CNVSTAT_LOCATION=${CNVSTAT_LOCATION:-/gpfs/hps/nco/ops/com/gfs/prod}
+export CNVSTAT_LOCATION=${CNVSTAT_LOCATION:-/gpfs/dell1/nco/ops/com/gfs/prod/}
 export C_DATDIR=${C_DATDIR:-${CNVSTAT_LOCATION}/gdas.$PDY}
 export C_GDATDIR=${C_GDATDIR:-${CNVSTAT_LOCATION}/gdas.$PDYm6h}
 
 export C_COMIN=${C_DATDIR}
 export C_COMINm6h=${C_GDATDIR}
 
-export DATA_IN=${WORKverf_cmon}
-export CMON_WORK_DIR=${CMON_WORK_DIR:-${C_STMP_USER}/cmon_${CMON_SUFFIX}}
+#export DATA_IN=${WORKverf_conmon}
+export CMON_WORK_DIR=${CMON_WORK_DIR:-${C_STMP_USER}/conmon_${CONMON_SUFFIX}}
 pid=$$
-export jobid=cmon_DE_${CMON_SUFFIX}.${pid}
+export jobid=cmon_DE_${CONMON_SUFFIX}.${pid}
 
 #--------------------------------------------------------------------
 # If data is available, export variables, and submit driver for
@@ -183,29 +213,32 @@ if [[ ! -s ${pgrbf06} ]]; then
 fi
 
 exit_value=0
-if [ -s $cnvstat  -a -s $pgrbf00 -a -s $pgrbf06 ]; then
+#if [ -s $cnvstat  -a -s $pgrbf00 -a -s $pgrbf06 ]; then
    #------------------------------------------------------------------
    #   Submit data extraction job.
    #------------------------------------------------------------------
-   if [ -s $pgrbf06 ]; then
-
-      if [[ $MY_MACHINE = "wcoss" ]]; then
-        $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/DE.${PDY}.${CYC}.log -M 500 -R affinity[core] -W 0:25 -J ${jobname} -cwd $PWD ${HOMEgdascmon}/jobs/JGDAS_VCMON
-
-      elif [[ $MY_MACHINE = "theia" ]]; then
-         $SUB -A $ACCOUNT --ntasks=1 --time=00:20:00 \
-		-p service -J ${jobname} -o $C_LOGDIR/DE.${PDY}.${CYC}.log \
-		$HOMEgdascmon/jobs/JGDAS_VCMON
-      fi
-
-   else
-      echo data not available, missing $pgrbf06 file
-      exit_value=6
-   fi
-else
-   echo data not available -- missing $cnvstat and/or $pgrbf00 files
-   exit_value=7
-fi
+#   if [ -s $pgrbf06 ]; then
+#
+#      if [[ $MY_MACHINE = "wcoss" ]]; then
+#        $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/DE.${PDY}.${CYC}.log -M 500 -R affinity[core] -W 0:25 -J ${jobname} -cwd $PWD ${HOMEgdascmon}/jobs/JGDAS_VCONMON
+#
+#      elif [[ $MY_MACHINE = "wcoss_d" ]]; then
+#        $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/DE.${PDY}.${CYC}.log -M 500 -R affinity[core] -W 0:25 -J ${jobname} -cwd $PWD ${HOMEgdascmon}/jobs/JGDAS_VCONMON
+#
+#      elif [[ $MY_MACHINE = "hera" ]]; then
+#         $SUB -A $ACCOUNT --ntasks=1 --time=00:20:00 \
+#		-p service -J ${jobname} -o $C_LOGDIR/DE.${PDY}.${CYC}.log \
+#		$HOMEgdascmon/jobs/JGDAS_VCONMON
+#      fi
+#
+#   else
+#      echo data not available, missing $pgrbf06 file
+#      exit_value=6
+#   fi
+#else
+#   echo data not available -- missing $cnvstat and/or $pgrbf00 files
+#   exit_value=7
+#fi
 
 
 #--------------------------------------------------------------------
