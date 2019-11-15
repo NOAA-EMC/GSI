@@ -43,7 +43,11 @@ contains
     end if
 
     ! combine strings to get full paths
-    fhr = fhrs_pe(mype+1)
+    if (mype < nhrs_assim) then
+      fhr = fhrs_pe(mype+1)
+    else
+      fhr = 0
+    end if
     write(hrstr,'(I0.2)') fhr 
     anal_file = trim(adjustl(datapath)) // '/' // trim(adjustl(analysis_filename)) // '.' // hrstr 
     fcst_file = trim(adjustl(datapath)) // '/' // trim(adjustl(firstguess_filename)) // '.' // hrstr 
