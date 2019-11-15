@@ -375,12 +375,14 @@ program getsigensmeanp_smooth
                       quantize=.false.
                   endif
                   ! smooth ens pert and write out?
+                  ! don't smooth 2d fields
                   if (dosmooth) then
-                     values_2d = values_2d - values_2d_avg ! ens pert
-                     call sptez(0,ntrunc,idrt,lonb,latb,rwork_spc,values_2d,-1)
-                     call smooth(rwork_spc,ntrunc,smoothfact(:,:,nlevs))
-                     call sptez(0,ntrunc,idrt,lonb,latb,rwork_spc,values_2d,1)
-                     values_2d = values_2d + values_2d_avg ! add mean back
+                     ! don't smooth 2d fields
+                     !values_2d = values_2d - values_2d_avg ! ens pert
+                     !call sptez(0,ntrunc,idrt,lonb,latb,rwork_spc,values_2d,-1)
+                     !call smooth(rwork_spc,ntrunc,smoothfact(:,:,nlevs))
+                     !call sptez(0,ntrunc,idrt,lonb,latb,rwork_spc,values_2d,1)
+                     !values_2d = values_2d + values_2d_avg ! add mean back
                      if (quantize) then
                         values_2d_tmp = values_2d
                         call quantize_data(values_2d_tmp, values_2d, nbits, compress_err)
@@ -438,13 +440,20 @@ program getsigensmeanp_smooth
                   endif
                   ! smooth ens pert and write out?
                   if (dosmooth) then
-                     do k=1,nlevs
-                        values_3d(:,:,k) = values_3d(:,:,k) - values_3d_avg(:,:,k) ! ens pert
-                        call sptez(0,ntrunc,idrt,lonb,latb,rwork_spc,values_3d(1,1,k),-1)
-                        call smooth(rwork_spc,ntrunc,smoothfact(:,:,nlevs+1-k))
-                        call sptez(0,ntrunc,idrt,lonb,latb,rwork_spc,values_3d(1,1,k),1)
-                        values_3d(:,:,k) = values_3d(:,:,k) + values_3d_avg(:,:,k) ! add mean back
-                     enddo
+                     ! don't smooth u,v,dzdt,delz,dpres
+                     if (trim(dset%variables(nvar)%name) /= 'ugrd' .and. &
+                         trim(dset%variables(nvar)%name) /= 'vgrd' .and. &
+                         trim(dset%variables(nvar)%name) /= 'dzdt' .and. &
+                         trim(dset%variables(nvar)%name) /= 'delz' .and. &
+                         trim(dset%variables(nvar)%name) /= 'dpres') then
+                        do k=1,nlevs
+                           values_3d(:,:,k) = values_3d(:,:,k) - values_3d_avg(:,:,k) ! ens pert
+                           call sptez(0,ntrunc,idrt,lonb,latb,rwork_spc,values_3d(1,1,k),-1)
+                           call smooth(rwork_spc,ntrunc,smoothfact(:,:,nlevs-k+1))
+                           call sptez(0,ntrunc,idrt,lonb,latb,rwork_spc,values_3d(1,1,k),1)
+                           values_3d(:,:,k) = values_3d(:,:,k) + values_3d_avg(:,:,k) ! add mean back
+                        enddo
+                     endif
                      if (quantize) then
                         values_3d_tmp = values_3d
                         call quantize_data(values_3d_tmp, values_3d, nbits, compress_err)
