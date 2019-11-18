@@ -90,6 +90,7 @@ export RUN_ENVIR=${RUN_ENVIR:-"dev"}
 
 echo CONMON_SUFFIX = $CONMON_SUFFIX
 echo RUN_ENVIR = $RUN_ENVIR
+export NET=${CONMON_SUFFIX}
 
 top_parm=${this_dir}/../../parm
 
@@ -181,9 +182,9 @@ export C_COMIN=${C_DATDIR}
 export C_COMINm6h=${C_GDATDIR}
 
 #export DATA_IN=${WORKverf_conmon}
-export CMON_WORK_DIR=${CMON_WORK_DIR:-${C_STMP_USER}/conmon_${CONMON_SUFFIX}}
+export CONMON_WORK_DIR=${CONMON_WORK_DIR:-${C_STMP_USER}/${CONMON_SUFFIX}}/${RUN}/conmon
 pid=$$
-export jobid=cmon_DE_${CONMON_SUFFIX}.${pid}
+export jobid=DE_${PDATE}.${pid}
 
 #--------------------------------------------------------------------
 # If data is available, export variables, and submit driver for
@@ -221,18 +222,27 @@ if [ -s $cnvstat  -a -s $pgrbf00 -a -s $pgrbf06 ]; then
 
       echo "Ok to proceed with DE"
       logdir=${C_LOGDIR}/${RUN}/conmon
-      echo "logdir = $logdir"
+      if [[ ! -d ${logdir} ]]; then
+         mkdir -p ${logdir}
+      fi
+
+      logfile=${logdir}/DE.${PDY}.${CYC}.log
+      if [[ -e ${logfile} ]]; then
+         rm -f ${logfile}
+      fi
 
       if [[ $MY_MACHINE = "wcoss" ]]; then
-        $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/DE.${PDY}.${CYC}.log -M 500 -R affinity[core] -W 0:25 -J ${jobname} -cwd $PWD ${HOMEgdas_conmon}/jobs/JGDAS_VCONMON
+        $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/DE.${PDY}.${CYC}.log -M 500 -R affinity[core] -W 0:25 -J ${jobname} -cwd $PWD ${HOMEgdas_conmon}/jobs/JGDAS_CONMON
 
       elif [[ $MY_MACHINE = "wcoss_d" ]]; then
-        $SUB -q $JOB_QUEUE -P $PROJECT -o ${logdir}/DE.${PDY}.${CYC}.log -M 500 -R affinity[core] -W 0:25 -J ${jobname} -cwd $PWD ${HOMEgdas_conmon}/jobs/JGDAS_VCONMON
+        $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 500 \
+		-R affinity[core] -W 0:25 -J ${jobname} \
+		-cwd $PWD ${HOMEgdas_conmon}/jobs/JGDAS_CONMON
 
       elif [[ $MY_MACHINE = "hera" ]]; then
          $SUB -A $ACCOUNT --ntasks=1 --time=00:20:00 \
 		-p service -J ${jobname} -o $C_LOGDIR/DE.${PDY}.${CYC}.log \
-		${HOMEgdas_conmon}/jobs/JGDAS_VCONMON
+		${HOMEgdas_conmon}/jobs/JGDAS_CONMON
       fi
 
    else

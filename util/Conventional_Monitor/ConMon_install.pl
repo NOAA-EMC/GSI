@@ -179,8 +179,8 @@
       $my_stmp="export C_STMP=\${C_STMP:-/gpfs/hps/stmp/$user_name}";
    } 
    elsif( $machine eq "wcoss_d" ) {
-      $my_ptmp="export C_PTMP=\${C_PTMP:-/gpfs/dell2/ptmp/$user_name}";
-      $my_stmp="export C_STMP=\${C_STMP:-/gpfs/dell2/stmp/$user_name}";
+      $my_ptmp="export C_PTMP=\${C_PTMP:-/gpfs/dell2/ptmp}";
+      $my_stmp="export C_STMP=\${C_STMP:-/gpfs/dell2/stmp}";
    }
 
    #---------------------------------------
