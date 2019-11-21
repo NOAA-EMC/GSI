@@ -69,7 +69,7 @@ contains
 
   subroutine init_write_anl
     use vars_calc_analysis, only: anal_file, anlfile, jdate, idate6, jdate6,&
-                                  nhr_assim, nfhour, nfminute, nfsecondn, nfsecondd,&
+                                  fhr, nfhour, nfminute, nfsecondn, nfsecondd,&
                                   use_nemsio_anl, anlncfile, fcstncfile,&
                                   nlon, nlat, nlev, lats, lons, vcoord
     use module_fv3gfs_ncio, only: create_dataset, get_time_units_from_idate,&
@@ -103,7 +103,7 @@ contains
     ida(:) = 0
     jda(:) = 0
     fha(:) = 0
-    fha(2) = nhr_assim  
+    fha(2) = fhr  
 
     ida(1)=idate6(1)
     ida(2)=idate6(2)
