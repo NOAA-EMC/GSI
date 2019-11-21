@@ -1,0 +1,23 @@
+#!/bin/sh
+
+set -xe
+
+echo "Cleaning up the build and/or exec dir for ProdGSI ..."
+if [[ "$1" == '-a' ]] ; then
+
+if [[ -d build ]] ; then
+  rm -r ./build
+fi
+if [[ -d exec ]] ; then
+  rm -r ./exec
+fi
+
+else
+
+if [[ -d build ]] ; then
+  rm -r ./build
+fi
+
+fi
+
+exit

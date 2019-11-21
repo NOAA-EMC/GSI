@@ -1,0 +1,6 @@
+#!/bin/sh
+
+set -x
+
+echo "Using CMake to build ProdGSI, do nothing with this configure step"
+
