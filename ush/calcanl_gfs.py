@@ -13,7 +13,7 @@ from collections import OrderedDict
 
 # function to calculate analysis from a given increment file and background
 def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix, 
-                FixDir, atmges_ens_mean, RunDir, NThreads, 
+                FixDir, atmges_ens_mean, RunDir, NThreads, NEMSGet, 
                 ExecCMD, ExecCMDMPI, ExecAnl, ExecChgresGes, ExecChgresInc):
 
   ######## copy and link files
@@ -58,7 +58,10 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
 
   ######## get dimension information from background and increment files
   AnlDims = gsi_utils.get_ncdims('siginc.nc')
-  GesDims = gsi_utils.get_ncdims('sigf06') 
+  if ASuffix == ".nc":
+    GesDims = gsi_utils.get_ncdims('sigf06') 
+  else
+    GesDims = gsi_utils.get_nemsdims('sigf06',NEMSGet)
 
   levs = AnlDims['lev']
   LonA = AnlDims['lon']
@@ -194,7 +197,8 @@ if __name__ == '__main__':
   ExecAnl = os.getenv('CALCANLEXEC', './calc_analysis.x')
   ExecChgresGes = os.getenv('CHGRESNCEXEC', './chgres_nc_gauss.exe')
   ExecChgresInc = os.getenv('CHGRESINCEXEC', './chgres_increment.exe')
+  NEMSGet = os.getenv('NEMSIOGET','nemsio_get')
   print(locals())
   calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix, 
-              FixDir, atmges_ens_mean, RunDir, NThreads, 
+              FixDir, atmges_ens_mean, RunDir, NThreads, NEMSGet, 
               ExecCMD, ExecCMDMPI, ExecAnl, ExecChgresGes, ExecChgresInc)
