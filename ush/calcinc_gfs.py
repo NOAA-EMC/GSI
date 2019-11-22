@@ -25,9 +25,9 @@ def calcinc_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
         gsi_utils.link_file('siganl', 'atmanl_mem004')
         gsi_utils.link_file(ComOut+'/'+APrefix+'atminc', 'atminc_mem004')
       else:
-        gsi_utils.link_file('sigf'+format(fh, '02'), 'atmges_mem'+(format(fh-2), '03'))
-        gsi_utils.link_file('siga'+format(fh, '02'), 'atmanl_mem'+(format(fh-2), '03'))
-        gsi_utils.link_file(ComOut+'/'+APrefix+'atmi'+format(fh, '03'), 'atminc_mem'+(format(fh-2), '03'))
+        gsi_utils.link_file('sigf'+format(fh, '02'), 'atmges_mem'+format(fh-2, '03'))
+        gsi_utils.link_file('siga'+format(fh, '02'), 'atmanl_mem'+format(fh-2, '03'))
+        gsi_utils.link_file(ComOut+'/'+APrefix+'atmi'+format(fh, '03'), 'atminc_mem'+format(fh-2, '03'))
   else:
     nFH=1
     gsi_utils.link_file('sigf06', 'atmges_mem001')
