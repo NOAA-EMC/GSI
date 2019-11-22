@@ -13,12 +13,12 @@ from collections import OrderedDict
 
 # function to calculate analysis from a given increment file and background
 def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix, 
-                FixDir, atmges_ens_mean, RunDir, NThreads, NEMSGet, 
+                FixDir, atmges_ens_mean, RunDir, NThreads, NEMSGet, IAUHrs, 
                 ExecCMD, ExecCMDMPI, ExecAnl, ExecChgresGes, ExecChgresInc):
 
   ######## copy and link files
   if DoIAU and l4DEnsVar and Write4Danl:
-    for fh in range(3,10):
+    for fh in IAUHrs:
       if fh == 6:
         # for archiving
         shutil.copy('siginc.nc', ComOut+'/'+APrefix+'atminc.nc')
@@ -80,7 +80,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
   ######## interpolate increment to full background resolution
   nFH=0
   ExecCMD = ExecCMD.replace("$ncmd","1")
-  for fh in range(3,10):
+  for fh in IAUHrs:
     # first check to see if increment file exists
     if (os.path.isfile('siginc.nc.'+format(fh, '02'))):
       nFH+=1
@@ -130,7 +130,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
     sys.exit(e.returncode)
 
   ######## run chgres to get background on ensemble resolution
-  for fh in range(3,10):
+  for fh in IAUHrs:
     # first check to see if increment file exists
     if (os.path.isfile('siginc.nc.'+format(fh, '02'))):
       # set up the namelist
@@ -198,7 +198,9 @@ if __name__ == '__main__':
   ExecChgresGes = os.getenv('CHGRESNCEXEC', './chgres_nc_gauss.exe')
   ExecChgresInc = os.getenv('CHGRESINCEXEC', './chgres_increment.exe')
   NEMSGet = os.getenv('NEMSIOGET','nemsio_get')
+  IAUHrs = map(int,os.getenv('IAUHRS','6').split(',')) 
+
   print(locals())
   calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix, 
-              FixDir, atmges_ens_mean, RunDir, NThreads, NEMSGet, 
+              FixDir, atmges_ens_mean, RunDir, NThreads, NEMSGet, IAUHrs, 
               ExecCMD, ExecCMDMPI, ExecAnl, ExecChgresGes, ExecChgresInc)
