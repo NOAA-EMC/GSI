@@ -46,7 +46,7 @@ module gridio
   ! Define all public subroutines within this module
   private
   public :: readgriddata
-  public :: writegriddata_wrf
+  public :: writegriddata
 
   !-------------------------------------------------------------------------
 
