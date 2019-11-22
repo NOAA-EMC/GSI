@@ -60,7 +60,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
   AnlDims = gsi_utils.get_ncdims('siginc.nc')
   if ASuffix == ".nc":
     GesDims = gsi_utils.get_ncdims('sigf06') 
-  else
+  else:
     GesDims = gsi_utils.get_nemsdims('sigf06',NEMSGet)
 
   levs = AnlDims['lev']
