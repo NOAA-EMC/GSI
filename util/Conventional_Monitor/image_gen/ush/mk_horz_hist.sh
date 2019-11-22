@@ -30,7 +30,7 @@ set -ax
 
    export t_TYPE=" t120_00 t130_00 t131_00 t132_00 t133_00 t134_00 t135_00 t180_00 t181_00 t182_00 t183_00 t187_00 "
 
-   export uv_TYPE=" uv220_00 uv221_00 uv223_00 uv224_00 uv228_00 uv229_00 uv230_00 uv231_00 uv232_00 uv233_00 uv234_00 uv235_00 uv242_00 uv243_00 uv243_55 uv243_56 uv245_00 uv245_15 uv246_00 uv246_15 uv247_00 uv248_00 uv249_00 uv250_00 uv251_00 uv252_00 uv253_00 uv253_55 uv253_56 uv254_00 uv254_55 uv254_56 uv255_00 uv256_00 uv257_00 uv258_00 uv280_00 uv281_00 uv282_00 uv284_00 uv287_00"
+   export uv_TYPE=" uv220_00 uv221_00 uv223_00 uv224_00 uv228_00 uv229_00 uv230_00 uv231_00 uv232_00 uv233_00 uv234_00 uv235_00 uv242_00 uv243_00 uv243_55 uv243_56 uv245_257 uv245_259 uv245_270 uv246_257 uv246_257 uv246_270 uv247_257 uv247_259 uv247_270 uv248_00 uv249_00 uv250_00 uv251_00 uv252_00 uv253_00 uv253_55 uv253_56 uv254_00 uv254_55 uv254_56 uv255_00 uv256_00 uv257_00 uv258_00 uv280_00 uv281_00 uv282_00 uv284_00 uv287_00"
 
 
    export nreal_ps=${nreal_ps:-17}
@@ -54,7 +54,8 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 100 -R affinity[core] -W 0:20 -J ${jobname} -cwd ${PWD} ${plot_hist}
 
 elif [[ $MY_MACHINE = "theia" ]]; then
-   ${SUB} -A ${ACCOUNT} -l procs=1,walltime=0:15:00 -N ${jobname} -V -o ${logfile} -e ${errfile} ${plot_hist}
+   ${SUB} -A ${ACCOUNT} --ntasks=1 --time=00:15:00 \
+		-p service -J ${jobname} -o ${logfile} ${plot_hist}
 fi
 
 
@@ -73,7 +74,8 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 100 -R affinity[core] -W 0:20 -J ${jobname} -cwd ${PWD} ${plot_horz}
 
 elif [[ $MY_MACHINE = "theia" ]]; then
-   ${SUB} -A ${ACCOUNT} -l procs=1,walltime=0:15:00 -N ${jobname} -V -o ${logfile} -e ${errfile} ${plot_horz}
+   ${SUB} -A ${ACCOUNT} --ntasks=1 --time=00:15:00 \
+		-p service -J ${jobname} -o ${logfile} ${plot_horz}
 fi
 
 
@@ -92,7 +94,8 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 100 -R affinity[core] -W 0:20 -J ${jobname} ${plot_horz_uv}
 
 elif [[ $MY_MACHINE = "theia" ]]; then
-   ${SUB} -A ${ACCOUNT} -l procs=1,walltime=0:15:00 -N ${jobname} -V -o ${logfile} -e ${errfile} ${plot_horz_uv}
+   ${SUB} -A ${ACCOUNT} --ntasks=1 --time=00:15:00 \
+		-p service -J ${jobname} -o ${logfile} ${plot_horz_uv}
 fi
 
 echo "<-- mk_horz_hist.sh"

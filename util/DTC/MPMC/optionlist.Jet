@@ -1,0 +1,6 @@
+# Jet build option list
+#    buildID, compiler,         MPI,            NETCDF,       cc,  cxx       
+       ji01, intel/18.0.3.222, impi/5.1.1.109, netcdf4/4.2.1.1, icc, icpc
+       ji02, intel/18.0.3.222, mvapich2/1.8,   netcdf4/4.2.1.1, icc, icpc
+       ji03, intel/15.0.3.187, impi/5.1.1.109, netcdf4/4.2.1.1, icc, icpc
+       ji04, intel/15.0.3.187, mvapich2/1.8,   netcdf4/4.2.1.1, icc, icpc

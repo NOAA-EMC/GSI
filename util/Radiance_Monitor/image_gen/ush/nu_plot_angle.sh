@@ -38,9 +38,9 @@ fi
 
 
 #----------------------------------
-#  copy time.x executable locally
+#  copy angle executable locally
 #
-ang_exec="angle.x"
+ang_exec="radmon_ig_angle.x"
 if [[ ! -e $ang_exec ]]; then
    $NCP ${IG_EXEC}/${ang_exec}  ./${ang_exec}
 fi
@@ -140,6 +140,6 @@ EOF
 done
 
 
-echo "Exiting nu_plot_time.sh"
+echo "Exiting nu_plot_angle.sh"
 exit
 

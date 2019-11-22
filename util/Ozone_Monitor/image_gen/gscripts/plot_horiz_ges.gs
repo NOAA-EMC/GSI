@@ -1,15 +1,21 @@
 * Script to plot horizontal maps of given field for given satellite instrument
 * 
-* Two arguments are expected
+* Expected Arguments:        
+*    net      = $NET value, or data source identifier (e.g. GFS|fv3rt1)
+*    run      = $RUN value (e.g. gfs|gdas)
 *    plotfile = satellite id (name and number ... e.g., sbuv2_n17 = noaa-17 sbuv/2)
-*    field  = field to plot  (valid strings are:  obs, ges, obsges)
+*    field    = field to plot  (valid strings are:  obs, ges, obsges)
+*    xsize    = horiz plot image size 
+*    ysize    = vert plot image size 
 
 function plottime (args)
 
-plotfile=subwrd(args,1)
-field=subwrd(args,2)
-xsize=subwrd(args,3)
-ysize=subwrd(args,4)
+net=subwrd(args,1)
+run=subwrd(args,2)
+plotfile=subwrd(args,3)
+field=subwrd(args,4)
+xsize=subwrd(args,5)
+ysize=subwrd(args,6)
 platform=plotfile
 
 *say 'plotfile='plotfile
@@ -145,7 +151,7 @@ while (levn<=mxlev)
  endwhile
 
    '!rm -f info.txt'
-   '!cat 'plotfile'.ctl |grep " 'levn', level" > info.txt'
+   '!cat 'plotfile'.ges.ctl | grep " 'levn', level" > info.txt'
    result=read(info.txt)
    rc=sublin(result,1)
    iuse=0
@@ -163,12 +169,13 @@ while (levn<=mxlev)
     'set string 1 r 6'
     'set string 1 l 6'
     'set strsiz 0.15 0.15'
+    'draw string 0.2 8.3 Net, run   :  'net', 'run
     if (iuse>0) 
-       'draw string 0.2 8.3 platform:  'satnam' 'satnum
+       'draw string 4.0 8.3 platform:  'satnam' 'satnum
     endif
     if (iuse<=0) 
        'set string 2 l 6'
-       'draw string 0.2 8.3 platform:  'satnam' 'satnum' (NOT ASSIMILATED)'
+       'draw string 4.0 8.3 platform:  'satnam' 'satnum' (NOT ASSIMILATED)'
     endif
     if ( level > 0.0 )
        'set string 1 l 6'
@@ -184,7 +191,7 @@ while (levn<=mxlev)
     endif
 *    say 'iuse='iuse
 *	say plotfile'.'field'_'levn'.png'
-    'printim 'plotfile'.'field'_'levn'.png 'xsize' 'ysize' white'
+    'printim 'plotfile'.ges.'field'_'levn'.png 'xsize' 'ysize' white'
 *    'enable print 'plotfile'.'field'_'levn
 *    'print'
 *    'disable print'
@@ -203,7 +210,7 @@ while (levn<=mxlev)
     endif
     'set string 1 l 6'
     'draw string 0.2 8.1 variable:  level 'levn' 'type
-    'printim 'plotfile'.'field'_'levn'.png 'xsize' 'ysize
+    'printim 'plotfile'.ges.'field'_'levn'.png 'xsize' 'ysize
  endif
 
 

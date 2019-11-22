@@ -40,7 +40,7 @@ fi
 #----------------------------------
 #  copy time.x executable locally
 #
-time_exec="time.x"
+time_exec="radmon_ig_time.x"
 if [[ ! -e $time_exec ]]; then
    $NCP ${IG_EXEC}/${time_exec}  ./${time_exec}
 fi

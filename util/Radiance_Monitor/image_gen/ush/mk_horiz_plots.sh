@@ -34,7 +34,7 @@ cd $DATADIR
 #--------------------------------------------------------------------
 #   Copy extraction program to working directory
 
-$NCP ${IG_EXEC}/horiz.x  ./horiz.x
+$NCP ${IG_EXEC}/radmon_ig_horiz.x  ./horiz.x
 
 
 #--------------------------------------------------------------------
@@ -119,7 +119,7 @@ fi
 
 for sat in ${SATYPE}; do
 
-   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
+   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "hera" || $MY_MACHINE = "theia" ]]; then
       sed -e 's/cray_32bit_ieee/ /' ${sat}.ctl > tmp_${type}.ctl
       mv -f tmp_${type}.ctl ${sat}.ctl
    fi

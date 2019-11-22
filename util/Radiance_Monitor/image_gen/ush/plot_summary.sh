@@ -65,22 +65,26 @@ for type in ${SATYPE2}; do
       if [[ $REGIONAL_RR -eq 1 ]]; then
          tdate=`$NDATE +6 $cdate`
          day=`echo $tdate | cut -c1-8`
+         cyc=`echo $cdate | cut -c9-10`
+         . ${IG_SCRIPTS}/rr_set_tz.sh $cyc
       else
          day=`echo $cdate | cut -c1-8`
+         cyc=`echo $cdate | cut -c9-10`
       fi
-
-      if [[ $REGIONAL_RR -eq 1 ]]; then
-         hh=`echo $cdate | cut -c9-10`
-         . ${IG_SCRIPTS}/rr_set_tz.sh $hh
-      fi   
 
       if [[ $TANK_USE_RUN -eq 1 ]]; then
-         ieee_src=${TANKverf}/${RUN}.${day}/${MONITOR}
+         ieee_src=${TANKverf}/${RUN}.${day}/${cyc}/${MONITOR}
+         if [[ ! -d ${ieee_src} ]]; then
+            ieee_src=${TANKverf}/${RUN}.${day}/${MONITOR}
+         fi
       else
          ieee_src=${TANKverf}/${MONITOR}.${day}
+         if [[ ! -d ${ieee_src} ]]; then
+            ieee_src=${TANKverf}/${RUN}.${day}
+         fi
       fi
 
-#      echo "rgnHH, rgnTM = $rgnHH, $rgnTM"
+      echo "rgnHH, rgnTM = $rgnHH, $rgnTM"
 
 
       if [[ -d ${ieee_src} ]]; then
@@ -162,7 +166,7 @@ EOF
    rm -f $timesf
    
    if [[ ! -s summary.x ]]; then
-      $NCP ${IG_EXEC}/summary.x .
+      $NCP ${IG_EXEC}/radmon_ig_summary.x summary.x 
    fi
 
    ls ${type}.*.ieee_d | cut -d'.' -f2 > tmp
@@ -231,9 +235,9 @@ $NCP *.sum.txt ${IMGNDIR}/summary/.
 #--------------------------------------------------------------------
 # Clean $tmpdir. 
 #
-#cd $tmpdir
-#cd ../
-#rm -rf $tmpdir
+cd $tmpdir
+cd ../
+rm -rf $tmpdir
 
 echo "End plot_summary.sh"
 

@@ -256,6 +256,17 @@ for var in $(eval echo $envars | tr , ' ') ; do
  echo "export $var"                                             >> $cfile
 done
 
+if [ $INHERIT_ENV = YES ] ; then
+ echo ". $MODULESHOME/init/ksh"               >> $cfile
+else
+ echo ". $MODULESHOME/init/sh"                >> $cfile
+fi
+echo "module purge"                           >> $cfile
+echo "module use -a $gsisrc/modulefiles"      >> $cfile
+echo "module load modulefile.ProdGSI.wcoss_c" >> $cfile
+echo "module list"                            >> $cfile
+echo "" >>$cfile
+
 APRUN="aprun -j1 -n $procs -N $pe_node -d $nthreads -cc depth"
 echo "export APRUN='$APRUN'"                                    >> $cfile
 

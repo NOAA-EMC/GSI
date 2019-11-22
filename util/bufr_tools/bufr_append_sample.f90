@@ -19,7 +19,7 @@ program bufr_append_sample
  subset='ADPSFC'   ! surface land reports
 
 ! get bufr table from existing bufr file
- open(unit_table,file='table_prepbufr_app.txt')
+ open(unit_table,file='prepbufr.table')
  open(unit_out,file='sample.bufr',status='old',form='unformatted')
  call openbf(unit_out,'IN',unit_out)
  call dxdump(unit_out,unit_table)

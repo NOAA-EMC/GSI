@@ -1,4 +1,4 @@
-#! /bin/ksh
+#! /bin/ksh -l
 
 #------------------------------------------------------------------
 #  plot_time.sh
@@ -6,156 +6,143 @@
 
 set -ax
 
-export SATYPE2=$1
+if [[ ${MY_MACHINE} = "theia" ]]; then
+   module load grads
+fi
+
+
+export SATYPE=$1
 export PVAR=$2
 export PTYPE=$3
+dsrc=$4
 
-echo "SATYPE2, PVAR, PTYPE = $SATYPE2, $PVAR, $PTYPE"
+echo "SATYPE, PVAR, PTYPE, dsrc = $SATYPE, $PVAR, $PTYPE $dsrc"
 echo "RUN = $RUN"
 
-#if [[ "$SUFFIX" != "opr" ]]; then
-#  export plot_2files=0
-#else 
-#  export plot_2files=0
-#fi
+echo COMP1, COMP2, DO_COMP = $COMP1, $COMP2, $DO_COMP
+
+ADD_COMP=0
+if [[ $SATYPE = $COMP1 ]]; then
+   ADD_COMP=1
+fi
 
 #------------------------------------------------------------------
-# Set work space for this SATYPE2 source.
+# Set work space for this SATYPE source.
 #
-tmpdir=${WORKDIR}/${SATYPE2}.$PDATE.${PVAR}
+tmpdir=${WORKDIR}/${SATYPE}.${dsrc}.$PDATE.${PVAR}
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
 
 #------------------------------------------------------------------
-#   Set dates
-bdate=`$NDATE -720 $PDATE`
-edate=$PDATE
-bdate0=`echo $bdate|cut -c1-8`
-edate0=`echo $edate|cut -c1-8`
-
-#--------------------------------------------------------------------
-# Copy control and data files to $tmpdir
+#   Set dates and copy data files
 #
-tankdir_bdate0=${TANKDIR}/${RUN}.${bdate0}/oznmon/time
-tankdir_edate0=${TANKDIR}/${RUN}.${edate0}/oznmon/time
+#   120 cycles worth of data (30 days) are required for time plots.
+#   Start with PDATE and back up 119 times to get what we need.
+#
 
-for type in ${SATYPE2}; do
-   cdate=$bdate
+ctr=0
+cdate=$PDATE
 
-   while [[ $cdate -le $edate ]]; do
-      cdate0=`echo $cdate|cut -c1-8`
-      tankdir_cdate0=${TANKDIR}/${RUN}.${cdate0}/oznmon/time
+while [[ $ctr -le 119 ]]; do
+   c_pdy=`echo $cdate|cut -c1-8`
+   c_cyc=`echo $cdate|cut -c9-10`
+   tankdir_cdate=${TANKDIR}/${RUN}.${c_pdy}/${c_cyc}/oznmon/time
 
-      if [[ ! -e ${type}.ctl ]]; then 
-         $NCP ${tankdir_cdate0}/${type}.ctl ./
-      fi
-
-      $NCP ${tankdir_cdate0}/${type}.${cdate}.ieee_d ./
-      adate=`$NDATE +6 $cdate`
-      cdate=$adate
-   done
-
-   #----------------------------------------------------------------
-   #  Modify tdef line in .ctl file to start at bdate.
-   #
-   if [[ -e ${type}.ctl ]]; then
-      ${OZN_IG_SCRIPTS}/update_ctl_tdef.sh ${type}.ctl ${bdate} 121
+   if [[ ! -e ./${SATYPE}.${dsrc}.ctl ]]; then
+      $NCP ${tankdir_cdate}/${SATYPE}.${dsrc}.ctl ./
    fi
 
+   data_file=${tankdir_cdate}/${SATYPE}.${dsrc}.${cdate}.ieee_d
+   if [[ -s ${data_file} ]]; then
+      $NCP ${data_file} ./
+   else
+      data_file=${data_file}.${Z}
+      if [[ -s ${data_file} ]]; then
+         $NCP ${data_file} ./
+         $UNCOMPRESS ${data_file}
+      fi
+   fi
 
-#   if [[ $plot_2files == 1 ]] ; then
-#      ln -s /da/noscrub/Haixia.Liu/ozone/monitor/stats/opr/ges/time time_opr
-#
-#      for var in ${PTYPE}; do
-#         echo $var
-#cat << EOF > ${type}_${var}.gs
-#'reinit'
-#'clear'
-#'open  ${type}.ctl'
-#'open  time_opr/${type}.ctl'
-#'run ${OZN_IG_GSCRPTS}/plot_time_${string}.gs.2files ${type} ${var} x750 y700'
-#'quit'
-#EOF
-#
-#         echo ${tmpdir}/${type}_${var}.gs
-#
-#         $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
-#      done 
-#
-#   else
-      for var in ${PTYPE}; do
-         echo $var
+   if [[ $ADD_COMP -eq 1 ]]; then
+      if [[ ! -e ./${COMP2}.${dsrc}.ctl ]]; then
+         $NCP ${tankdir_cdate}/${COMP2}.${dsrc}.ctl ./
+      fi
+      
+      data_file=${tankdir_cdate}/${COMP2}.${dsrc}.${cdate}.ieee_d
+      if [[ -s ${data_file} ]]; then
+         $NCP ${data_file} ./
+      else
+         data_file=${data_file}.${Z}
+         if [[ -s ${data_file} ]]; then
+            $NCP ${data_file} ./
+            $UNCOMPRESS ${data_file}
+         fi
+      fi
 
-cat << EOF > ${type}_${var}.gs
+   fi
+
+   cdate=`$NDATE -6 $cdate`
+   ctr=`expr $ctr + 1`
+done
+
+
+
+#----------------------------------------------------------------
+#  Modify tdef line in .ctl file to start at bdate.
+#
+if [[ -e ${SATYPE}.${dsrc}.ctl ]]; then
+   edate=`$NDATE -720 $PDATE`
+   ${OZN_IG_SCRIPTS}/update_ctl_tdef.sh ${SATYPE}.${dsrc}.ctl ${edate} 121
+
+   if [[ $ADD_COMP -eq 1 ]]; then
+      ${OZN_IG_SCRIPTS}/update_ctl_tdef.sh ${COMP2}.${dsrc}.ctl ${edate} 121
+   fi
+fi
+
+
+for var in ${PTYPE}; do
+   echo $var
+
+   if [[ $ADD_COMP -eq 0 ]]; then
+
+cat << EOF > ${SATYPE}_${var}.gs
 'reinit'
 'clear'
-'open  ${type}.ctl'
-'run ${OZN_IG_GSCRPTS}/plot_time_${string}.gs ${type} ${var} x750 y700'
+'open  ${SATYPE}.${dsrc}.ctl'
+'run ${OZN_IG_GSCRPTS}/plot_time_${dsrc}.gs ${OZNMON_SUFFIX} ${RUN} ${SATYPE} ${var} x750 y700'
 'quit'
 EOF
 
-         echo ${tmpdir}/${type}_${var}.gs
+   else
 
-         $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+cat << EOF > ${SATYPE}_${var}.gs
+'reinit'
+'clear'
+'open  ${SATYPE}.${dsrc}.ctl'
+'open  ${COMP2}.${dsrc}.ctl'
+'run ${OZN_IG_GSCRPTS}/plot_time_${dsrc}_2x.gs ${OZNMON_SUFFIX} ${RUN} ${SATYPE} ${COMP2} ${var} x750 y700'
+'quit'
+EOF
 
-         #----------------------------------------------
-         #  rename the analysis plots
-         #
-#         if [[ $string == 'anl' ]] ; then
-#            reglist='region1 region2 region3 region4 region5 region6'
-#            frlist='fr1 fr2 fr3 fr4 fr5 fr6'
-#            if [[ ${var} == 'count' ]] ; then
-#               if [[ $type == 'omi_aura' || $type == 'gome_metop-a' || $type == 'gome_metop-b' ]] ; then
-#                  for region in $reglist ; do
-#                     mv ${type}.count_${region}_fr1.png ${type}.countanl_${region}_fr1.png
-#                  done
-#               else
-#                  for region in $reglist ; do
-#                     for fr in $frlist ; do
-#                        mv ${type}.count_${region}_${fr}.png ${type}.countanl_${region}_${fr}.png
-#                     done
-#                  done
-#               fi
-#            elif [[ ${var} == 'omg' ]] ; then
-#               if [[ $type == 'omi_aura' || $type == 'gome_metop-a' || $type == 'gome_metop-b' ]] ; then
-#                  for region in $reglist ; do
-#                     mv ${type}.omg_${region}_fr1.png ${type}.oma_${region}_fr1.png
-#                  done
-#               else
-#                  for region in $reglist ; do
-#                     for fr in $frlist ; do
-#                        mv ${type}.omg_${region}_${fr}.png ${type}.oma_${region}_${fr}.png
-#                     done
-#                  done
-#               fi
-#            else
-#               if [[ $type == 'omi_aura' || $type == 'gome_metop-a' || $type == 'gome_metop-b' ]] ; then
-#                  for region in $reglist ; do
-#                     mv ${type}.cpen_${region}_fr1.png ${type}.cpenanl_${region}_fr1.png
-#                  done
-#               else
-#                  for region in $reglist ; do
-#                     for fr in $frlist ; do
-#                        mv ${type}.cpen_${region}_${fr}.png ${type}.cpenanl_${region}_${fr}.png
-#                     done
-#                  done
-#               fi
-#            fi
-#         fi
-      done 
-#   fi
-done
+   fi
+
+   echo ${tmpdir}/${SATYPE}_${var}.gs
+   $GRADS -bpc "run ${tmpdir}/${SATYPE}_${var}.gs"
+
+done 
+
 
 #--------------------------------------------------------------------
 #  copy image files to TANKDIR
 #
 ${NCP} *.png ${OZN_IMGN_TANKDIR}/.
 
+
 #--------------------------------------------------------------------
 # Clean $tmpdir.  Submit done job.
-cd $tmpdir
-cd ../
+#cd $tmpdir
+#cd ../
 #rm -rf $tmpdir
 
 exit

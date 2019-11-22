@@ -9,6 +9,7 @@ date
 #############################
 # Source relevant config files
 #############################
+export EXPDIR=${EXPDIR:-$HOMEgfs/parm/config}
 configs="base epos"
 config_path=${EXPDIR:-$NWROOT/gfs.${gfs_ver}/parm/config}
 for config in $configs; do
@@ -29,17 +30,9 @@ status=$?
 ##############################################
 # Obtain unique process id (pid) and make temp directory
 ##############################################
-export job=${job:-"epos"}
 export pid=${pid:-$$}
 export outid=${outid:-"LL$job"}
-export jobid=${jobid:-"${outid}.o${pid}"}
-if [ $RUN_ENVIR = "nco" ]; then
-    export DATA="$DATAROOT/$jobid"
-else
-    export DATAROOT="$RUNDIR/$CDATE/$CDUMP"
-    export DATA="$DATAROOT/$job"
-fi
-[[ -d $DATA ]] && rm -rf $DATA
+export DATA=${DATA:-${DATAROOT}/${jobid:?}}
 mkdir -p $DATA
 cd $DATA
 
@@ -50,12 +43,6 @@ cd $DATA
 export cycle="t${cyc}z"
 setpdy.sh
 . ./PDY
-
-
-##############################################
-# Define the Log File directory
-##############################################
-export jlogfile=${jlogfile:-$COMROOT/logs/jlogfiles/jlogfile.${job}.${pid}}
 
 
 ##############################################
@@ -85,8 +72,8 @@ export SUFFIX=".nemsio"
 
 # COMIN, COMOUT are used in exglobal script
 # TO DO: Map NCO's directory into these variables
-export COMIN="$ROTDIR/enkf.$CDUMP.$PDY/$cyc"
-export COMOUT="$ROTDIR/enkf.$CDUMP.$PDY/$cyc"
+export COMIN="$ROTDIR/enkf$CDUMP.$PDY/$cyc"
+export COMOUT="$ROTDIR/enkf$CDUMP.$PDY/$cyc"
 
 
 export LEVS=$((LEVS-1))
@@ -112,7 +99,9 @@ status=$?
 ##############################################
 # Final processing
 ##############################################
-cat $pgmout
+if [ -e "$pgmout" ] ; then
+  cat $pgmout
+fi
 
 
 msg="ENDED NORMALLY."

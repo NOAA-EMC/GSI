@@ -6,9 +6,13 @@
 #  usage
 #--------------------------------------------------------------------
 function usage {
-  echo "Usage:  MinMonDE.sh suffix [pdate]"
+  echo "Usage:  MinMon_DE.sh suffix [-p|--pdate pdate -r|--run gdas|gfs]"
   echo "            Suffix is the indentifier for this data source."
-  echo "            Pdate is the full YYYYMMDDHH cycle to run.  This param is optional"
+  echo "            -p | --pdate yyyymmddcc to specify the cycle to be processed"
+  echo "              if unspecified the last available date will be processed"
+  echo "            -r | --run   the gdas|gfs run to be processed"
+  echo "              use only if data in TANKdir stores both runs"
+  echo " "
 }
 
 #--------------------------------------------------------------------
@@ -18,21 +22,44 @@ function usage {
 set -x
 
 nargs=$#
-if [[ $nargs -lt 1 || $nargs -gt 2 ]]; then
+if [[ $nargs -lt 1 || $nargs -gt 5 ]]; then
    usage
    exit 1
 fi
 
-this_file=`basename $0`
+
+#-----------------------------------------------
+#  Process command line arguments
+#
+RUN=gdas
+
+while [[ $# -ge 1 ]]
+do
+   key="$1"
+   echo $key
+
+   case $key in
+      -p|--pdate)
+         export PDATE="$2"
+         shift # past argument
+      ;;
+      -r|--run)
+         RUN="$2"
+         shift # past argument
+      ;;
+      *)
+         #any unspecified key is MINMON_SUFFIX
+         export MINMON_SUFFIX=$key
+      ;;
+   esac
+
+   shift
+done
+
+export RUN=$RUN
+
 this_dir=`dirname $0`
 
-export MINMON_SUFFIX=$1
-echo "TANK_USE_RUN = $TANK_USE_RUN"
-
-if [[ $nargs -ge 2 ]]; then
-   export PDATE=$2;
-   echo "PDATE set to $PDATE"
-fi
 
 if [[ $COMOUT = "" ]]; then
   export RUN_ENVIR="dev"
@@ -54,6 +81,7 @@ else
    exit 2
 fi
 
+echo "MINMON_CONFIG = $MINMON_CONFIG"
 minmon_config=${minmon_config:-${top_parm}/MinMon_config}
 if [[ -s ${minmon_config} ]]; then
    . ${minmon_config}
@@ -73,6 +101,24 @@ else
    exit 4
 fi
 
+
+#--------------------------------------------------------------------
+#  Check setting of RUN_ONLY_ON_DEV and possible abort if on prod and
+#  not permitted to run there.
+#--------------------------------------------------------------------
+
+if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
+   is_prod=`${M_DE_SCRIPTS}/onprod.sh`
+   if [[ $is_prod = 1 ]]; then
+      exit 10
+   fi
+fi
+
+
+if [[ ${RUN} = "gdas" ]]; then
+   export HOMEgfs=${HOMEgdas}
+fi
+
 ##########################################
 #  expand M_TANKverf for this MINMON_SUFFIX
 ##########################################
@@ -90,10 +136,12 @@ echo "M_TANKverf = $M_TANKverf"
 #    If PDATE wasn't an argument then call find_cycle.pl
 #    to determine the last processed cycle, and set PDATE to
 #    the next cycle
+#
+#  NOTE:  Need to make gdas the default value to $run
 ##############################################################
 if [[ ${#PDATE} -le 0 ]]; then  
    echo "PDATE not specified:  setting PDATE using last cycle"
-   date=`${M_DE_SCRIPTS}/find_cycle.pl GDAS 1 ${M_TANKverf}`
+   date=`${M_DE_SCRIPTS}/find_cycle.pl --run gdas --cyc 1 --dir ${M_TANKverf}`
    export PDATE=`$NDATE +6 $date`
 else
    echo "PDATE was specified:  $PDATE"
@@ -103,12 +151,10 @@ export PDY=`echo $PDATE|cut -c1-8`
 export cyc=`echo $PDATE|cut -c9-10`
 echo "PDY, cyc = $PDY, $cyc "
 
-mdate=`$NDATE -24 $PDATE`
-m1=`echo $mdate|cut -c1-8`
 
-
-#export M_TANKverfM0=${M_TANKverf}/minmon.${PDY}
-#export M_TANKverfM1=${M_TANKverf}/minmon.${m1}
+if [[ ! -d ${LOGdir} ]]; then
+   mkdir -p ${LOGdir}
+fi
 
 lfile=${LOGdir}/DE.${PDY}.${cyc}
 export pid=${pid:-$$}
@@ -117,57 +163,19 @@ export m_jlogfile="${lfile}.log"
 echo  "m_jlogfile = $m_jlogfile"
 
 #############################################################
-export job=${job:-${MINMON_SUFFIX}_vminmon}
-export jobid=${jobid:-${job}.${cyc}.${pid}}
+
+export job=${job:-DE.${RUN}}
+export jobid=${jobid:-${job}.${PDY}.${pid}}
 export envir=prod
-export DATAROOT=${DATA_IN:-${STMP_USER}}
+export DATAROOT=${DATA_IN:-${WORKDIR}}
 export COMROOT=${COMROOT:-/com2}
 
 echo "MY_MACHINE = $MY_MACHINE"
-
-#
-#  Note:  J-job's default location for the gsistat file is
-#         /com2/gfs/prod/gdas.yyyymmdd/gdas1.hhz.gsistat
-#  The directory containing the gsistat file can overriden or
-#    the gsistat file can be directly overriden by exporting 
-#    value for $gsistat
-#export COMIN=${COMIN:-${COMROOT}/gfs/${envir}}/${MINMON_SUFFIX}.${PDY}
-#export gsistat=
-#############################################################
-# Load modules
-#############################################################
-#if [[ $MY_MACHINE = "wcoss" ]]; then
-#   . /usrx/local/Modules/3.2.9/init/ksh
-#
-#   module use /nwprod2/modulefiles
-#   module load grib_util
-#   module load prod_util
-#   module load util_shared
-#
-#   module unload ics/12.1
-#   module load ics/15.0.3
-#
-#if [[ $MY_MACHINE = "cray" ]]; then
-#   . $MODULESHOME/init/ksh
-
-#   module use -a /gpfs/hps/nco/ops/nwprod/modulefiles
-#   module use /usrx/local/prod/modulefiles
-#   module use -a /opt/modulefiles
-#
-#   module load prod_util
-#   module load prod_envir
-#   module load pm5/5.10.0
-#   module load xt-lsfhpc
-#
-#fi
-
-module list
 
 
 jobname=minmon_de_${MINMON_SUFFIX}
 
 rm -f $m_jlogfile
-#rm -rf $DATA_IN
 
 echo "SUB        = $SUB"
 echo "JOB_QUEUE  = $JOB_QUEUE"
@@ -177,15 +185,25 @@ echo "jobname    = $jobname"
 if [[ $GLB_AREA -eq 0 ]]; then
    jobfile=${jobfile:-${HOMEnam}/jobs/JNAM_VMINMON}
 else
-   jobfile=${jobfile:-${HOMEgdas}/jobs/JGDAS_VMINMON}
+   if [[ $RUN = "gfs" ]]; then
+      jobfile=${jobfile:-${HOMEgfs}/jobs/JGFS_VMINMON}
+   else
+      jobfile=${jobfile:-${HOMEgdas}/jobs/JGDAS_VMINMON}
+   fi
 fi
 
-if [[ $MY_MACHINE = "wcoss" ]]; then
-   $SUB -q $JOB_QUEUE -P $PROJECT -o ${m_jlogfile} -M 50 -R affinity[core] -W 0:10 -J ${jobname} $jobfile
+if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "wcoss_d" ]]; then
+   $SUB -P $PROJECT -q $JOB_QUEUE -o ${m_jlogfile} -M 50 -R affinity[core] -W 0:10 -J ${jobname} $jobfile
+
 elif [[ $MY_MACHINE = "cray" ]]; then
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${m_jlogfile} -M 80 -R "select[mem>80] rusage[mem=80]" -W 0:10 -J ${jobname} $jobfile
-elif [[ $MY_MACHINE = "theia" ]]; then
-   echo "theia job sumission goes here"
+
+elif [[ $MY_MACHINE = "hera" ]]; then
+   $SUB --account=${ACCOUNT} --time=05 -J ${job} -D . \
+        -o ${LOGdir}/DE.${PDY}.${cyc}.log \
+        --ntasks=1 --mem=5g \
+        ${jobfile}
+
 fi
 
 

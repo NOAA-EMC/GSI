@@ -126,6 +126,8 @@ subroutine put_bkerror(i_fname, i_nsig, i_nlat, i_nlon, i_var, &
     write(lunit) i_nsig, i_nlat, i_nlon
     write(lunit) i_agvin, i_bgvin, i_wgvin
 
+    var='     '
+
     do i=1,6
         call arr2str(i_var(i,:), var, 3)
         write(6,*) i, var, i_nsig

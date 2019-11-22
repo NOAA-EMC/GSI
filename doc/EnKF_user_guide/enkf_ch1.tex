@@ -1,4 +1,4 @@
-\chapter{Overview}
+\chapter{Overview}\label{overview}
 
 %----------------------------------------------
 \section{EnKF History and Background}
@@ -55,7 +55,7 @@ To facilitate this process, the DTC is providing code transition assistance to t
 \section{About This EnKF Release}
 %----------------------------------------------
 
-This user\textquotesingle s guide was composed for the EnKF community release version(v) 1.1. This version of EnKF is compatible with the GSI community release v3.5. Please note the major focuses of the DTC are currently on testing and evaluation of EnKF for regional numerical weather prediction (NWP) applications though the instructions and cases for EnKF global applications are available with this release. 
+This user\textquotesingle s guide was composed for the EnKF community release version(v) 1.2. This version of EnKF is compatible with the GSI community release v3.6. Please note the major focuses of the DTC are currently on testing and evaluation of EnKF for regional numerical weather prediction (NWP) applications though the instructions and cases for EnKF global applications are available with this release. 
 
 
 Running this EnKF system requires running GSI a prior for its observation operators. Therefore, the GSI 
@@ -63,10 +63,10 @@ User\textquotesingle s Guide is referred throughout this documentation. This GSI
 
 \subsection{What Is New in This Release Version}
 
-Major updates to this version of EnKF are code optimization, including bug fixes and code cleanup. Added features include new capabilities to update multiple-time background ensembles and use of the NCEP I/O library \textit {nemio}. The observation types assimilated by EnKF were also updated as part of the GSI v3.5 updates.
+Major updates to this version of EnKF are code optimization, including bug fixes and code cleanup. Added features include a new namelist to speed up the reading of GSI diagnostic files  and added ensemble spread calculation utility for GFS sigma files . The observation types assimilated by EnKF were also updated as part of the GSI v3.6 updates.
 
 \subsection{Observations Used by This Version }
-EnKF is using the GSI system as the observation operator to generate observation innovations. Therefore, the observation types assimilated by EnKF are the same as GSI. This version of EnKF has been tested to work with the community GSI release v3.5. It can assimilate, but is not limited to, the following types of observations:
+EnKF is using the GSI system as the observation operator to generate observation innovations. Therefore, the observation types assimilated by EnKF are the same as GSI. This version of EnKF has been tested to work with the community GSI release v3.6. It can assimilate, but is not limited to, the following types of observations:
 
 \textbf{Conventional observations (including satellite retrievals):}
 \begin{itemize}
@@ -88,13 +88,11 @@ EnKF is using the GSI system as the observation operator to generate observation
 \item Quick Scatterometer (QuikSCAT), the Advanced Scatterometer (ASCAT) and Oceansat-2 Scatterometer (OSCAT) wind speed and direction
 \item RapidScat observations
 \item SSM/I and Tropical Rainfall Measuring Mission (TRMM) Microwave Imager (TMI) precipitation estimates
-\item Doppler radial velocities
 \item Velocity-Azimuth Display (VAD) Next Generation Weather Radar ((NEXRAD) winds
 \item Global Positioning System (GPS) precipitable water estimates
-\item Solar Backscatter Ultraviolet (SBUV) ozone profiles, Microwave Limb Sounder (MLS) (including NRT) ozone, and Ozone Monitoring Instrument (OMI) total ozone
 \item Sea surface temperature (SST)
-\item Tropical Cyclone Vitals Database (TCVital)
 \item Doppler wind Lidar
+\item Aviation routine weather report (METAR) cloud coverage
 \item Flight level and Stepped Frequency Microwave Radiometer (SFMR) High Density
 Observation (HDOB) from reconnaissance aircraft
 \item Tall tower wind
@@ -126,4 +124,18 @@ Observation (HDOB) from reconnaissance aircraft
 \item Himawari AHI
 \end{itemize}
 
-\setlength{\parskip}{12pt}
+\textbf{Others:}
+\begin{itemize}
+\item GPS Radio occultation (RO) refractivity and bending angle profiles
+\item Solar Backscatter Ultraviolet (SBUV) ozone profiles, Microwave Limb Sounder (MLS) (including NRT) ozone, and Ozone Monitoring Instrument (OMI) total ozone
+\item Doppler  radar radial velocities
+\item Radar reflectivity Mosaic
+\item Tail Doppler Radar (TDR) radial velocity and super-observation
+\item Tropical Cyclone Vitals Database (TCVital)
+\item Particulate matter (PM) of 10-um diameter, 2.5-um diameter or less
+\item MODIS AOD (when using GSI-chem package)
+\end{itemize}\setlength{\parskip}{12pt}
+
+
+Please note some of these above mentioned data are not yet fully tested and/or implemented for operations. Therefore, the current GSI code might not have the optimal setup for these data. 
+

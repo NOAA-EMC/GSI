@@ -36,7 +36,7 @@ export RAD_AREA=${RAD_AREA:-glb}
 #    need to be set to the directory of the radstat files (we only extract 
 #    horizontal data when it's needed rather than storing huge files all the time).
 #
-export RADSTAT_LOCATION=${RADSTAT_LOCATION:-/com/gfs/prod}
+export RADSTAT_LOCATION=${RADSTAT_LOCATION:-/gpfs/dell1/nco/ops/com/gfs/prod}
 
 #
 #  USE_ANL switches on/off data extraction for analysis files (ges is always on)
@@ -135,3 +135,11 @@ export REGIONAL_RR=${REGIONAL_RR:-0}
 #  data source.  This is generally 6 hrs, but can be 3 or 1 hr for rapid refresh sources.
 #
 export CYCLE_INTERVAL=${CYCLE_INTERVAL:-6}
+
+#
+#  RUN_TRANSFER allows for an immediate invocation of the Transfer.sh script
+#  after plotting is complete.
+#
+#  0 = do not run transfer, 1 = run transfer
+#
+export RUN_TRANSFER=${RUN_TRANSFER:-0}

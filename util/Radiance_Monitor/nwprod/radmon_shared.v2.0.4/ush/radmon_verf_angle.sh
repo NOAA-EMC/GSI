@@ -205,21 +205,15 @@ EOF
 
          if [[ -s ${data_file} ]]; then
             mv ${data_file} ${angl_file}
-            mv ${angl_file} $TANKverf_rad/.
-            ${COMPRESS} -f $TANKverf_rad/${angl_file}
+	    ${COMPRESS} -f ${angle_file}
+            mv ${angl_file}* $TANKverf_rad/.
          fi
 
          if [[ -s ${ctl_file} ]]; then
             mv ${ctl_file} ${angl_ctl}
-            mv ${angl_ctl}  ${TANKverf_rad}/.
-            ${COMPRESS} -f ${TANKverf_rad}/${angl_ctl}
+	    ${COMPRESS} -f ${angl_ctl}
+            mv ${angl_ctl}*  ${TANKverf_rad}/.
          fi 
-
-#         if [[ -s ${stdout_file} ]]; then
-#            mv ${stdout_file} ${angl_stdout}
-#            mv ${angl_stdout}  ${TANKverf_rad}/.
-#            ${COMPRESS} -f ${TANKverf_rad}/${angl_stdout}
-#         fi
 
       done    # for dtype in ${gesanl} loop
 

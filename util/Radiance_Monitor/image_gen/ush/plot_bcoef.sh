@@ -66,16 +66,23 @@ for type in ${SATYPE}; do
       if [[ $REGIONAL_RR -eq 1 ]]; then
          tdate=`$NDATE +6 $cdate`
          day=`echo $tdate | cut -c1-8 `
-         hh=`echo $cdate | cut -c9-10`
-         . ${IG_SCRIPTS}/rr_set_tz.sh $hh
+         cyc=`echo $cdate | cut -c9-10`
+         . ${IG_SCRIPTS}/rr_set_tz.sh $cyc
       else
          day=`echo $cdate | cut -c1-8 `
+         cyc=`echo $cdate | cut -c9-10`
       fi
 
       if [[ $TANK_USE_RUN -eq 1 ]]; then
-         ieee_src=${TANKverf}/${RUN}.${day}/${MONITOR}
+         ieee_src=${TANKverf}/${RUN}.${day}/${cyc}/${MONITOR}
+         if [[ ! -d ${ieee_src} ]]; then
+            ieee_src=${TANKverf}/${RUN}.${day}/${MONITOR}
+         fi
       else
          ieee_src=${TANKverf}/${MONITOR}.${day}
+         if [[ ! -d ${ieee_src} ]]; then
+            ieee_src=${TANKverf}/${RUN}.${day}
+         fi
       fi
 
       if [[ -d ${ieee_src} ]]; then
@@ -110,16 +117,6 @@ for type in ${SATYPE}; do
 
       fi
 
-#      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${Z} ]]; then
-#         $NCP $TANKDIR/bcoef/${type}.${cdate}.ieee_d* ./
-#      fi
-
-#      if [[ $REGIONAL_RR -eq 1 ]]; then
-#         adate=`$NDATE +1 $cdate`
-#      else
-#         adate=`$NDATE +6 $cdate`
-#      fi
-
       adate=`$NDATE +${CYCLE_INTERVAL} $cdate`
       cdate=$adate
 
@@ -153,24 +150,15 @@ EOF
 
 
 
-#   rm -f ${type}.ieee_d
-#   rm -f ${type}.ctl
-
 done
 
-rm -f nu_plot_time.sh
-
-
-#for var in $list; do
-#   rm -f ${type}.${var}*.png
-#done
 
 #--------------------------------------------------------------------
 # Clean $tmpdir.  Submit done job.
 
-#cd $tmpdir
-#cd ../
-#rm -rf $tmpdir
+cd $tmpdir
+cd ../
+rm -rf $tmpdir
 
 
 exit

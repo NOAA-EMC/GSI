@@ -49,13 +49,21 @@ NP=16
 unpack_walltime=02:30:00
 #wall time to run cov_calc hh:mm:ss for theia, hh:mm for wcoss
 wall_time=01:00:00
+#requested memory in MB to unpack radstats, on WCOSS/Cray.  Increases with decreasing $num_proc
+#should be at least 15
+Umem=50
+#requested memory in MB for cov_calc, on WCOSS/Cray
+Mem=50
 #job account name (needed on theia only)
 account=da-cpu
 #job project code (needed on wcoss only)
 project_code=GFS-T2O
 #machine-theia or wcoss, all lower case
 machine=theia
+#netcdf or binary diag files-0 for binary, 1 for netcdf
+netcdf=0
 ndate=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/util/exec/ndate
+#ndate=/gpfs/dell2/emc/modeling/noscrub/Kristen.Bathmann/ndate
 
 ####################################################################
 
@@ -77,7 +85,7 @@ dattot=$nt
 cp unpack_rads.sh $wrkdir
 cp par_run.sh $wrkdir
 cp sort_diags.sh $wrkdir
-cp cov_calc $wrkdir
+cp ../../exec/cov_calc $wrkdir
 
 cd $wrkdir
 num_jobs=$num_proc
@@ -122,6 +130,7 @@ ndate=$ndate
 wrkdir=$wrkdir
 diagdir=$diagdir
 instr=$instr
+netcdf=$netcdf
 EOF
    chmod +rwx params.sh
    cat unpack_rads.sh >> params.sh
@@ -142,27 +151,27 @@ chmod +rwx jobchoice.sh
 if [ $machine = theia ] ; then
 cat << EOF > jobarray.sh
 #!/bin/sh
-#PBS -A $account
-#PBS -o unpack_out
-#PBS -e unpack_err
-#PBS -q batch
-#PBS -l walltime=${unpack_walltime}
-#PBS -l procs=1
-#PBS -N unpack
-#PBS -t 1-${num_jobs}
+#SBATCH -A $account
+#SBATCH -o unpack_out
+#SBATCH -e unpack_err
+#SBATCH -q batch
+#SBATCH --time=${unpack_walltime}
+#SBATCH --ntasks=1
+#SBATCH -J unpack
+#SBATCH --array 1-${num_jobs}
 cd $wrkdir
-./jobchoice.sh \${PBS_ARRAYID}
+./jobchoice.sh \${SLURM_ARRAY_TASK_ID}
 EOF
-jobid=$(qsub jobarray.sh)
+jobid=$(sbatch jobarray.sh)
 elif [ $machine = wcoss ] ; then
 cat << EOF > jobarray.sh
 #!/bin/sh
 #BSUB -o unpack_out
 #BSUB -e unpack_err
 #BSUB -q dev
+#BSUB -M ${Umem}
 #BSUB -n 1
 #BSUB -W ${unpack_walltime}
-#BSUB -R affinity[core]
 #BSUB -R span[ptile=1]
 #BSUB -P ${project_code}
 #BSUB -J unpack[1-${num_jobs}]
@@ -175,19 +184,18 @@ else
    echo cannot submit job, not on theia or wcoss
    exit 1
 fi
-echo $jobid
 #check if shifts are needed
 if [ $machine = theia ] ; then
 cat << EOF > params.sh
 #!/bin/sh
-#PBS -A $account
-#PBS -o sort_out
-#PBS -e sort_err
-#PBS -q batch
-#PBS -l walltime=00:02:00
-#PBS -l procs=1
-#PBS -N sort_diag
-#PBS -W depend=afteranyarray:${jobid}
+#SBATCH -A $account
+#SBATCH -o sort_out
+#SBATCH -e sort_err
+#SBATCH -q batch
+#SBATCH --time=00:02:00
+#SBATCH --ntasks=1
+#SBATCH -J sort_diag
+#SBATCH --dependency=afterany:${jobid##* }
 wrkdir=$wrkdir
 ntot=$dattot
 EOF
@@ -195,17 +203,16 @@ chmod +rwx params.sh
 cat sort_diags.sh >> params.sh
 mv params.sh sort_diags.sh
 
-jobid=$(qsub sort_diags.sh )
-echo $jobid
+jobid=$(sbatch sort_diags.sh )
 elif [ $machine = wcoss ] ; then
 cat << EOF > params.sh
 #!/bin/sh
 #BSUB -o sort_out
 #BSUB -e sort_err
 #BSUB -q dev
+#BSUB -M 30
 #BSUB -n 1
-#BSUB -W 02:00
-#BSUB -R affinity[core]
+#BSUB -W 00:02
 #BSUB -R span[ptile=1]
 #BSUB -P ${project_code}
 #BSUB -J sort_diag
@@ -224,14 +231,15 @@ fi
 if [ $machine = theia ] ; then
 cat << EOF > params.sh
 #!/bin/sh
-#PBS -A $account
-#PBS -o comp_out
-#PBS -e comp_err
-#PBS -q batch
-#PBS -l walltime=$wall_time
-#PBS -l nodes=1:ppn=$NP
-#PBS -N cov_calc
-#PBS -W depend=afterany:${jobid}
+#SBATCH -A $account
+#SBATCH -o comp_out
+#SBATCH -e comp_err
+#SBATCH -q batch
+#SBATCH --time=$wall_time
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=$NP
+#SBATCH -J cov_calc
+#SBATCH --dependency=after:${jobid##* }
 bdate=$bdate
 edate=$edate
 instr=$instr
@@ -253,11 +261,12 @@ bcen=$bcen
 chan_set=$chan_set
 ntot=$dattot
 NP=$NP
+netcdf=$netcdf
 EOF
 chmod +rwx params.sh
 cat par_run.sh >> params.sh
 mv params.sh par_run.sh
-qsub par_run.sh
+sbatch par_run.sh
 elif [ $machine = wcoss ] ; then
 cat << EOF > params.sh
 #!/bin/sh
@@ -265,6 +274,7 @@ cat << EOF > params.sh
 #BSUB -e comp_err
 #BSUB -openmp
 #BSUB -q dev
+#BSUB -M ${Mem}
 #BSUB -n $NP
 #BSUB -W $wall_time
 #BSUB -R span[ptile=$NP]
@@ -287,6 +297,7 @@ method=$method
 cov_method=$cov_method
 time_sep=$time_sep
 bsize=$bsize
+netcdf=$netcdf
 bcen=$bcen
 chan_set=$chan_set
 ntot=$dattot

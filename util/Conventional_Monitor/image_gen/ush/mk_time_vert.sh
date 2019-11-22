@@ -34,7 +34,8 @@ echo "--> mk_time_vert.sh"
       $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -R affinity[core] -M 100 -W 0:50 -J $jobname -cwd ${PWD} $pltfile
 
    elif [[ $MY_MACHINE == "theia" ]]; then
-      ${SUB} -A ${ACCOUNT} -l procs=1,walltime=0:15:00 -N ${jobname} -V -o ${logfile} -e ${errfile} ${pltfile}
+      ${SUB} -A ${ACCOUNT} --ntasks=1 --time=00:15:00 \
+                -p service -J ${jobname} -o ${logfile} ${pltfile}
    fi
 
    #--------------------------------------------
@@ -54,12 +55,13 @@ echo "--> mk_time_vert.sh"
 
       elif [[ $MY_MACHINE == "theia" ]]; then
          if [[ ${type} == "uv" || ${type} == "u" || ${type} == "v" ]]; then
-            walltime="walltime=0:22:00"
+            walltime="00:22:00"
          else
-            walltime="walltime=0:10:00"
+            walltime="00:10:00"
          fi
  
-         ${SUB} -A ${ACCOUNT} -l procs=1,${walltime} -N ${jobname} -V -o ${logfile} -e ${errfile} ${pltfile}
+         ${SUB} -A ${ACCOUNT} --ntasks=1 --time=${walltime} \
+                -p service -J ${jobname} -o ${logfile} ${pltfile}
 
       fi
    done
@@ -82,12 +84,13 @@ echo "--> mk_time_vert.sh"
 
       elif [[ $MY_MACHINE == "theia" ]]; then
          if [[ ${type} == "uv" || ${type} == "u" || ${type} == "v" ]]; then
-            walltime="walltime=0:22:00"
+            walltime="00:22:00"
          else
-            walltime="walltime=0:10:00"
+            walltime="00:10:00"
          fi
  
-         ${SUB} -A ${ACCOUNT} -l procs=1,${walltime} -N ${jobname} -V -o ${logfile} -e ${errfile} ${pltfile}
+         ${SUB} -A ${ACCOUNT} --ntasks=1 --time=${walltime} \
+                -p service -J ${jobname} -o ${logfile} ${pltfile}
 
       fi
    done

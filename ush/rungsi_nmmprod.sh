@@ -282,7 +282,7 @@ cp $mesonetuselist ./mesonetuselist
 
 
 # Copy executable and fixed files to $tmpdir
-gsiexec=/u/wx20xs/home/gsi/xsu/src/global_gsi
+gsiexec=/u/wx20xs/home/gsi/xsu/src/global_gsi.x
 cp $gsiexec  ./gsi.x
 
 # Copy CRTM coefficient files based on entries in satinfo file

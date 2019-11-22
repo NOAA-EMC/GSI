@@ -8,7 +8,7 @@ exp=$jobname
 # Set path/file for gsi executable
 #basedir=/scratch1/portfolios/NCEPDEV/da/save/Daryl.Kleist
 #gsipath=$basedir/gsi/
-#gsiexec=$gsipath/trunk/src/global_gsi
+#gsiexec=$gsipath/trunk/src/global_gsi.x
 
 # Set the JCAP resolution which you want.
 # All resolutions use LEVS=64
@@ -22,8 +22,7 @@ tmpdir=$tmpdir/$tmpregdir/${exp}
 savdir=$savdir/out${JCAP}/${exp}
 
 # Specify GSI fixed field and data directories.
-#fixgsi=$gsipath/trunk/fix
-#fixcrtm=$gsipath/EXP-port410/lib/CRTM_REL-2.2.3/fix
+#fixcrtm=${fixcrtm:-$CRTM_FIX}
 
 #datobs=/scratch1/portfolios/NCEPDEV/da/noscrub/Daryl.Kleist/CASES/$adate/obs
 #datges=/scratch1/portfolios/NCEPDEV/da/noscrub/Daryl.Kleist/CASES/$adate/ges
@@ -302,6 +301,18 @@ for file in `awk '{if($1!~"!"){print $1}}' ./satinfo | sort | uniq` ;do
     $ncp $fixcrtm/${file}.TauCoeff.bin ./
 done
 
+#if using correlated error, link to the covariance files
+#if grep -q "Rcov" $anavinfo ;
+#then
+#  if ls ${fixgsi}/Rcov* 1> /dev/null 2>&1;
+#  then
+#    $ncp ${fixgsi}/Rcov* .
+#  else
+#    echo "Warning: Satellite error covariance files are missing."
+#    echo "Check for the required Rcov files in " $anavinfo
+#    exit 1
+#  fi
+#fi
 
 # Copy observational data to $tmpdir
 $ncp $global_4denvar_T126_datobs/prepqc.gdas.$global_4denvar_T126_adate                 ./prepbufr
@@ -340,6 +351,7 @@ $ncp $global_4denvar_T126_datobs/sevcsr.gdas.$global_4denvar_T126_adate         
 $ncp $global_4denvar_T126_datobs/atms.gdas.$global_4denvar_T126_adate                   ./atmsbufr
 $ncp $global_4denvar_T126_datobs/atmsdb.gdas.$global_4denvar_T126_adate                 ./atmsbufr_db
 $ncp $global_4denvar_T126_datobs/ssmisu.gdas.$global_4denvar_T126_adate                 ./ssmisbufr
+$ncp $global_4denvar_T126_datobs/abicsr.gdas.$global_4denvar_T126_adate                 ./abibufr
 
 
 # Copy bias correction, atmospheric and surface files

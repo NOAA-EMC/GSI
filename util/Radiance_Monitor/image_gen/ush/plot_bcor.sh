@@ -13,6 +13,7 @@ SATYPE2=$1
 PVAR=$2
 PTYPE=$3
 
+echo "begin plot_bcor.sh"
 
 #------------------------------------------------------------------
 # Set environment variables.
@@ -157,9 +158,9 @@ cp -r *.png  ${IMGNDIR}/bcor
 #--------------------------------------------------------------------
 # Clean $tmpdir  
 
-#cd $tmpdir
-#cd ../
-#rm -rf $tmpdir
+cd $tmpdir
+cd ../
+rm -rf $tmpdir
 
 
 #--------------------------------------------------------------------
@@ -177,4 +178,5 @@ cp -r *.png  ${IMGNDIR}/bcor
 #   rm -rf ${PLOT_WORK_DIR}
 #fi
 
+echo "end plot_bcor.sh"
 exit

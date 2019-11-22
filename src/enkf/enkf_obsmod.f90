@@ -70,6 +70,7 @@ module enkf_obsmod
 !   biaspreds(npred+1, nobs_sat):  real array of bias predictors for 
 !     each satellite radiance ob (includes non-adaptive scan angle
 !     bias correction term in biaspreds(1,1:nobs_sat)).
+!     npred from radinfo module
 !   deltapredx(npred,jpch_rad): real array of bias coefficient increments
 !     (initialized to zero, updated by analysis).
 !   obloc(3,nobstot): real array of spherical cartesian coordinates
@@ -90,6 +91,7 @@ module enkf_obsmod
 !        otherwise svars3d is not defined such that EnKF does not work right
 !        for oz and it crashes EnKF compiled by GNU Fortran
 !     NOTE: this requires anavinfo file to be present at running directory
+!   2016-11-29  shlyaeva: Added the option of writing out ensemble spread in diag files
 !
 ! attributes:
 !   language: f95
@@ -105,14 +107,14 @@ use params, only: &
       corrlengthtr, corrlengthsh, obtimelnh, obtimeltr, obtimelsh,&
       lnsigcutoffsatnh, lnsigcutoffsatsh, lnsigcutoffsattr,&
       varqc, huber, zhuberleft, zhuberright,&
-      lnsigcutoffpsnh, lnsigcutoffpssh, lnsigcutoffpstr
+      lnsigcutoffpsnh, lnsigcutoffpssh, lnsigcutoffpstr, neigv
 
 use state_vectors, only: init_anasv
 use mpi_readobs, only:  mpi_getobs
 
 implicit none
 private
-public :: readobs, obsmod_cleanup
+public :: readobs, obsmod_cleanup, write_obsstats
 
 real(r_single), public, allocatable, dimension(:) :: obsprd_prior, ensmean_obnobc,&
  ensmean_ob, ob, oberrvar, obloclon, obloclat, &
@@ -120,6 +122,7 @@ real(r_single), public, allocatable, dimension(:) :: obsprd_prior, ensmean_obnob
  oblnp, obfit_prior, prpgerr, oberrvarmean, probgrosserr, &
  lnsigl,corrlengthsq,obtimel
 integer(i_kind), public, allocatable, dimension(:) :: numobspersat
+integer(i_kind), allocatable, dimension(:)         :: diagused
 ! posterior stats computed in enkf_update
 real(r_single), public, allocatable, dimension(:) :: obfit_post, obsprd_post
 real(r_single), public, allocatable, dimension(:,:) :: biaspreds
@@ -127,14 +130,15 @@ real(r_kind), public, allocatable, dimension(:,:) :: deltapredx
 ! arrays passed to kdtree2 routines must be single.
 real(r_single), public, allocatable, dimension(:,:) :: obloc
 integer(i_kind), public, allocatable, dimension(:) :: stattype, indxsat
-real(r_single), public, allocatable, dimension(:) :: biasprednorm,biasprednorminv
 character(len=20), public, allocatable, dimension(:) :: obtype
 integer(i_kind), public ::  nobs_sat, nobs_oz, nobs_conv, nobstot
+integer(i_kind) :: nobs_convdiag, nobs_ozdiag, nobs_satdiag, nobstotdiag
 
 ! for serial enkf, anal_ob is only used here and in loadbal. It is deallocated in loadbal.
 ! for letkf, anal_ob used on all tasks in letkf_update (bcast from root in loadbal), deallocated
 ! in letkf_update.
-real(r_single), public, allocatable, dimension(:,:) :: anal_ob
+! same goes for anal_ob_modens when modelspace_vloc=T.
+real(r_single), public, allocatable, dimension(:,:) :: anal_ob, anal_ob_modens
 
 contains
 
@@ -144,12 +148,12 @@ subroutine readobs()
 ! all tasks.  Ob prior perturbations for each ensemble member
 ! are written to a temp file, since the entire array can be 
 ! very large.
-use radinfo, only: npred,nusis,nuchan,jpch_rad,iuse_rad,radinfo_read,predx,pg_rad
+use radinfo, only: npred,jpch_rad,radinfo_read,pg_rad
 use convinfo, only: convinfo_read, init_convinfo, cvar_pg, nconvtype, ictype,&
                     ioctype
 use ozinfo, only: init_oz, ozinfo_read, pg_oz, jpch_oz, nusis_oz, nulev
 use covlocal, only: latval
-integer nob,n,j,ierr
+integer nob,j,ierr
 real(r_double) t1
 real(r_single) tdiff,tdiffmax,deglat,radlat,radlon
 ! read in conv data info
@@ -170,35 +174,17 @@ call radinfo_read()
 ! so bias coefficents have same units as radiance obs.
 ! (by computing RMS values over many analyses)
 if (nproc == 0) print*, 'npred  = ', npred
-allocate(biasprednorm(npred),biasprednorminv(npred))
-!biasprednorm(1) = 0.01_r_single   ! constant term
-!biasprednorm(2) = 2.6e-2_r_single ! scan angle path
-!biasprednorm(3) = 1.6e-2_r_single ! total column water
-!biasprednorm(5) = 1.9e-2_r_single ! integrated weighted (by weighting fns) lapse rate
-!biasprednorm(4) = zero   ! IWLR**2, don't use this predictor (too co-linear)?
-!biasprednorm(4) = 1.1e-3_r_single
-!biasprednorm(4) = zero   ! don't use this predictor (too co-linear)?
-! what the heck, just scale them all by 0.01!
-!biasprednorm = 0.01_r_single
-biasprednorm=one
-biasprednorminv=zero
-do n=1,npred
-   if (nproc == 0) print *,n,'biasprednorm = ',biasprednorm(n)
-   if (biasprednorm(n) > 1.e-7_r_single) biasprednorminv(n)=one/biasprednorm(n)
-enddo
-! scale bias coefficients.
-do j=1,jpch_rad
-   predx(:,j) = biasprednorm(:)*predx(:,j)
-enddo 
 ! allocate array for bias correction increments, initialize to zero.
 allocate(deltapredx(npred,jpch_rad))
 deltapredx = zero
 t1 = mpi_wtime()
-call mpi_getobs(datapath, datestring, nobs_conv, nobs_oz, nobs_sat, nobstot, &
-                obsprd_prior, ensmean_obnobc, ensmean_ob, ob, &
-                oberrvar, obloclon, obloclat, obpress, &
-                obtime, oberrvar_orig, stattype, obtype, biaspreds,&
-                anal_ob,indxsat,nanals)
+call mpi_getobs(datapath, datestring, nobs_conv, nobs_oz, nobs_sat, nobstot,  &
+                nobs_convdiag,nobs_ozdiag, nobs_satdiag, nobstotdiag,         &
+                obsprd_prior, ensmean_obnobc, ensmean_ob, ob,                 &
+                oberrvar, obloclon, obloclat, obpress,                        &
+                obtime, oberrvar_orig, stattype, obtype, biaspreds, diagused, &
+                anal_ob,anal_ob_modens,indxsat,nanals,neigv)
+
 tdiff = mpi_wtime()-t1
 call mpi_reduce(tdiff,tdiffmax,1,mpi_real4,mpi_max,0,mpi_comm_world,ierr)
 if (nproc == 0) then
@@ -243,11 +229,6 @@ if (varqc .and. .not. huber) then
 endif
 ! compute number of usuable obs, average ob error for each satellite sensor/channel.
 if (nobs_sat > 0) then
-  do nob=1,nobs_sat
-     do n=2,npred+1
-       biaspreds(n,nob)=biaspreds(n,nob)* biasprednorminv(n-1)
-     end do
-  end do
   call channelstats()
 end if
 
@@ -285,11 +266,70 @@ allocate(obsprd_post(nobstot))
 obsprd_post = zero
 end subroutine readobs
 
+subroutine write_obsstats()
+use readconvobs, only: write_convobs_data
+use readozobs,   only: write_ozobs_data
+use readsatobs,  only: write_satobs_data
+character(len=10) :: id,id2,gesid2
+
+  id = 'ensmean'
+  id2 = 'enssprd'
+  if (nproc==0) then
+    if (nobs_conv > 0) then
+       print *, 'obsprd, conv: ', minval(obsprd_prior(1:nobs_conv)),    &
+              maxval(obsprd_prior(1:nobs_conv))
+       gesid2 = 'ges'
+       call write_convobs_data(datapath, datestring, nobs_conv, nobs_convdiag,  &
+             obfit_prior(1:nobs_conv), obsprd_prior(1:nobs_conv),               &
+             diagused(1:nobs_convdiag),                                         &
+             id, id2, gesid2)
+       gesid2 = 'anl'
+       call write_convobs_data(datapath, datestring, nobs_conv, nobs_convdiag,  &
+             obfit_post(1:nobs_conv), obsprd_post(1:nobs_conv),                 &
+             diagused(1:nobs_convdiag),                                         &
+             id, id2, gesid2)
+    end if
+    if (nobs_oz > 0) then
+       print *, 'obsprd, oz: ', minval(obsprd_prior(nobs_conv+1:nobs_conv+nobs_oz)), &
+              maxval(obsprd_prior(nobs_conv+1:nobs_conv+nobs_oz))
+       gesid2 = 'ges'
+       call write_ozobs_data(datapath, datestring, nobs_oz, nobs_ozdiag,  &
+             obfit_prior(nobs_conv+1:nobs_conv+nobs_oz),                  &
+             obsprd_prior(nobs_conv+1:nobs_conv+nobs_oz),                 &
+             diagused(nobs_convdiag+1:nobs_convdiag+nobs_ozdiag),         &
+             id, id2, gesid2)
+       gesid2 = 'anl'
+       call write_ozobs_data(datapath, datestring, nobs_oz, nobs_ozdiag,  &
+             obfit_post(nobs_conv+1:nobs_conv+nobs_oz),                   &
+             obsprd_post(nobs_conv+1:nobs_conv+nobs_oz),                  &
+             diagused(nobs_convdiag+1:nobs_convdiag+nobs_ozdiag),         &
+             id, id2, gesid2)
+    end if
+    if (nobs_sat > 0) then
+       print *, 'obsprd, sat: ', minval(obsprd_prior(nobs_conv+nobs_oz+1:nobstot)), &
+              maxval(obsprd_prior(nobs_conv+nobs_oz+1:nobstot))
+       gesid2 = 'ges'
+       call write_satobs_data(datapath, datestring, nobs_sat, nobs_satdiag, &
+             obfit_prior(nobs_conv+nobs_oz+1:nobstot),                      &
+             obsprd_prior(nobs_conv+nobs_oz+1:nobstot),                     & 
+             diagused(nobs_convdiag+nobs_ozdiag+1:nobstotdiag),             &
+             id, id2, gesid2)
+       gesid2 = 'anl'
+       call write_satobs_data(datapath, datestring, nobs_sat, nobs_satdiag, &
+             obfit_post(nobs_conv+nobs_oz+1:nobstot),                       &
+             obsprd_post(nobs_conv+nobs_oz+1:nobstot),                      &
+             diagused(nobs_convdiag+nobs_ozdiag+1:nobstotdiag),             &
+             id, id2, gesid2)
+    end if
+  endif
+
+
+end subroutine write_obsstats
+
 subroutine screenobs()
 ! screen out obs with large observation errors or 
 ! that fail background check.  For screened obs oberrvar is set to 1.e31_r_single
 !use radbias, only: apply_biascorr
-use radinfo, only: iuse_rad,nuchan,nusis,jpch_rad
 real(r_single) fail,failm
 integer nn,nob
 fail=1.e31_r_single
@@ -348,7 +388,7 @@ end if ! nproc=0
 end subroutine screenobs
 
 subroutine channelstats
-use radinfo, only: npred,nusis,nuchan,jpch_rad
+use radinfo, only: jpch_rad
 implicit none
 integer(i_kind) nob,nob2,i
 ! count number of obs per channel/sensor.
@@ -402,9 +442,9 @@ if (allocated(indxsat)) deallocate(indxsat)
 if (allocated(obtype)) deallocate(obtype)
 if (allocated(probgrosserr)) deallocate(probgrosserr)
 if (allocated(prpgerr)) deallocate(prpgerr)
-if (allocated(biasprednorm)) deallocate(biasprednorm)
-if (allocated(biasprednorminv)) deallocate(biasprednorminv)
 if (allocated(anal_ob)) deallocate(anal_ob)
+if (allocated(anal_ob_modens)) deallocate(anal_ob_modens)
+if (allocated(diagused)) deallocate(diagused)
 end subroutine obsmod_cleanup
 
 

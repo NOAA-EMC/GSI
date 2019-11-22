@@ -15,7 +15,6 @@ echo start VrfyRad_rgnl.sh
 #--------------------------------------------------------------------
 function usage {
   echo "Usage:  VrfyRad_rgnl.sh suffix [pdate] "
-  echo "            File name for VrfyRad_rgnl.sh can be full or relative path"
   echo "            Suffix is the indentifier for this data source."
   echo "            Pdate is the full YYYYMMDDHH cycle to run.  This param is optional"
 }
@@ -135,7 +134,7 @@ jobname=$DATA_EXTRACT_JOBNAME
 if [[ ${RUN_ENVIR} = dev ]]; then
    if [[ $MY_MACHINE = "wcoss" ]]; then
       total=`bjobs -l | grep ${jobname} | wc -l`
-   elif [[ $MY_MACHINE = "zeus" || $MY_MACHINE = "theia" ]]; then
+   elif [[ $MY_MACHINE = "hera" || $MY_MACHINE = "theia" ]]; then
       total=0
       line=`qstat -u ${LOGNAME} | grep ${jobname}`
       test=`echo $line | gawk '{print $10}'`
@@ -182,7 +181,7 @@ if [[ $RUN_ENVIR = dev ]]; then
    export com=${RADSTAT_LOCATION}
 
    if [[ $PDATE = "" ]]; then
-      pdate=`${DE_SCRIPTS}/find_cycle.pl 1 ${TANKverf}`
+      pdate=`${DE_SCRIPTS}/find_cycle.pl --cyc 1 --dir ${TANKverf}`
 
       if [[ ${#pdate} -ne 10 ]]; then
          echo "ERROR:  Unable to locate any previous cycle's data files"
@@ -453,7 +452,7 @@ if [ -s $radstat -a -s $biascr ]; then
    elif [[ $MY_MACHINE = "cray" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -o ${logfile} -W 0:10 \
            -J ${jobname} -cwd ${PWD} $HOMEnam/jobs/JNAM_VERFRAD
-   elif [[ $MY_MACHINE = "zeus" || $MY_MACHINE = "theia"  ]]; then
+   elif [[ $MY_MACHINE = "hera" || $MY_MACHINE = "theia"  ]]; then
       $SUB -A $ACCOUNT -l procs=1,walltime=0:05:00 -N ${jobname} -V \
            -j oe -o ${logfile} ${HOMEnam}/jobs/JNAM_VERFRAD
    fi

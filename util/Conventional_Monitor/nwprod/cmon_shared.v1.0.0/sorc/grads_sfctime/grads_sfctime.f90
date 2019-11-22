@@ -47,7 +47,7 @@ subroutine grads_sfctime(fileo,ifileo,nobs,nreal,nlev,plev,iscater,&
 
    character(8) :: stidend
    character(ifileo) :: fileo
-   character(2) :: subtype 
+   character(3) :: subtype 
    character(30) :: files,filein,filegrads
    integer :: nobs,nreal,nlfag,nflag0,nlev,nlev0,getlev,iscater,igrads
    real(4) :: rmiss,rtim,xlat0,xlon0,rtime

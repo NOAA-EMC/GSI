@@ -8,7 +8,7 @@ exp=$jobname
 # Set path/file for gsi executable
 #basedir=/scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken
 #gsiexec=$gsiexec
-#gsiexec=$basedir/EXP-port/src/global_gsi
+#gsiexec=$basedir/EXP-port/src/global_gsi.x
 
 
 # Set the JCAP resolution which you want.
@@ -22,10 +22,7 @@ tmpdir=$tmpdir/$tmpregdir/${exp}
 savdir=$savdir/out${JCAP}_ozonly/${exp}
 
 # Specify GSI fixed field and data directories.
-#fixgsi=$fixgsi
-#fixgsi=$basedir/EXP-port/fix
-#fixcrtm=$fixcrtm
-#fixcrtm=$basedir/nwprod/lib/sorc/CRTM_REL-2.2.3/Big_Endian
+fixcrtm=${fixcrtm:-$CRTM_FIX}
 
 #datobs=$datobs
 #datobs=/scratch1/portfolios/NCEPDEV/da/noscrub/Michael.Lueken/CASES/sigmap/$adate
@@ -80,7 +77,8 @@ prefix_prep=$prefix_obs
 prefix_tbc=gdas1.t${hhg}z
 prefix_sfc=gdas${resol}.t${hhg}z
 prefix_atm=gdas${resol}.t${hha}z
-suffix=tm00.bufr_d
+suffix_obs=gdas.${global_T62_adate}
+suffix_bias=gdas.${gdate}
 
 
 # Set up $tmpdir
@@ -308,15 +306,15 @@ done
 
 
 # Copy observational data to $tmpdir
-ln -s -f $global_T62_obs/${prefix_obs}prepbufr           ./prepbufr
+ln -s -f $global_T62_obs/prepqc.${suffix_obs}                ./prepbufr
 #ln -s -f $global_T62_obs/${prefix_obs}satwnd.${suffix}   ./satwndbufr
 #ln -s -f $global_T62_obs/${prefix_obs}gpsro.${suffix}    ./gpsrobufr
 #ln -s -f $global_T62_obs/${prefix_obs}spssmi.${suffix}   ./ssmirrbufr
 #ln -s -f $global_T62_obs/${prefix_obs}sptrmm.${suffix}   ./tmirrbufr
-ln -s -f $global_T62_obs/${prefix_obs}gome.${suffix}     ./gomebufr
-ln -s -f $global_T62_obs/${prefix_obs}omi.${suffix}      ./omibufr
-ln -s -f $global_T62_obs/${prefix_obs}mls.${suffix}      ./mlsbufr
-ln -s -f $global_T62_obs/${prefix_obs}osbuv8.${suffix}   ./sbuvbufr
+ln -s -f $global_T62_obs/gome.${suffix_obs}     ./gomebufr
+ln -s -f $global_T62_obs/omi.${suffix_obs}      ./omibufr
+ln -s -f $global_T62_obs/mls.${suffix_obs}      ./mlsbufr
+ln -s -f $global_T62_obs/osbuv8.${suffix_obs}   ./sbuvbufr
 #ln -s -f $global_T62_obs/${prefix_obs}goesfv.${suffix}   ./gsnd1bufr
 #ln -s -f $global_T62_obs/${prefix_obs}1bamua.${suffix}   ./amsuabufr
 #ln -s -f $global_T62_obs/${prefix_obs}1bamub.${suffix}   ./amsubbufr
@@ -338,10 +336,9 @@ ln -s -f $global_T62_obs/${prefix_obs}osbuv8.${suffix}   ./sbuvbufr
 
 
 # Copy bias correction, atmospheric and surface files
-ln -s -f $global_T62_ges/${prefix_tbc}.abias              ./satbias_in
-ln -s -f $global_T62_ges/${prefix_tbc}.abias_pc           ./satbias_pc
-ln -s -f $global_T62_ges/${prefix_tbc}.satang             ./satbias_angle
-ln -s -f $global_T62_ges/${prefix_tbc}.radstat            ./radstat.gdas
+ln -s -f $global_T62_ges/biascr.${suffix_bias}           ./satbias_in
+ln -s -f $global_T62_ges/biascr_pc.${suffix_bias}        ./satbias_pc
+ln -s -f $global_T62_ges/radstat.${suffix_bias}          ./radstat.gdas
 
 listdiag=`tar xvf radstat.gdas | cut -d' ' -f2 | grep _ges`
 for type in $listdiag; do

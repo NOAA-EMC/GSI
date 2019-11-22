@@ -20,8 +20,8 @@ subroutine eigdecomp(Ain,n,D,Q)
 !Kristen Bathmann
 !8-2015
 
-use kinds, only: r_kind, i_kind
-use constants, only: zero, one, four_int, one_hundred
+use ckinds, only: r_kind, i_kind
+use cconstants, only: zero, one, four_int, one_hundred
 implicit none
 integer(i_kind),intent(in):: n
 real(r_kind),dimension(n,n),intent(in):: Ain
@@ -130,8 +130,8 @@ subroutine recondition(Q,D,n,kreq,A,method)
 !It is necessary to preform an eigendecompositon first
 !Kristen Bathmann 
 !8-2015
-use kinds, only: r_kind, i_kind
-use constants, only: zero
+use ckinds, only: r_kind, i_kind
+use cconstants, only: zero
 implicit none
 real(r_kind),dimension(:),intent(in):: D     !eigenvalues
 real(r_kind),dimension(:,:),intent(in):: Q   !eigenvectors
@@ -139,12 +139,12 @@ real(r_kind),intent(in):: kreq               !condition number
 integer(i_kind),intent(in):: n               !number of channels
 real(r_kind),dimension(:,:),allocatable:: Dn !new eigenvalues
 real(r_kind),dimension(:,:),intent(out):: A  !reconditioned covariance
-integer,intent(in)::method
+integer(i_kind),intent(in)::method
 real(r_kind):: mx, mn, K
 real(r_kind):: laminc
-integer:: i,coun, dw
-integer,parameter:: trace=1
-integer,parameter:: weston2=2
+integer(i_kind):: i,coun, dw
+integer(i_kind),parameter:: trace=1
+integer(i_kind),parameter:: weston2=2
 allocate(Dn(n,n))
 Dn=zero
 mn=D(1)

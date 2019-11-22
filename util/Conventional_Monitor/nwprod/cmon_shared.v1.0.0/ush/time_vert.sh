@@ -25,6 +25,7 @@ mkdir -p ${savedir}
 
 
 echo "convinfo = $convinfo"			# defined in calling script
+cp ${convinfo} ./convinfo
 
 export execfile=${EXECcmon}/conv_time.x
 cp ${execfile} ./execfile
@@ -59,20 +60,9 @@ for cycle in ges anl;do
 EOF
 
 
-   ./execfile <input  > stdout  2>&1
+   ./execfile <input  >${cycle}_stdout  2>&1
 
    echo " after execfile completed "
-
-
-   # ----------------------------------
-   #  pack stdout into 2 common files
-   #
-   if [[ ! -e ${cycle}_stdout ]]; then
-      mv stdout ${cycle}_stdout
-   else      
-      cat stdout >> ${cycle}_stdout
-      rm -f stdout
-   fi
 
 
    cp uv_stas.ctl u_stas.ctl

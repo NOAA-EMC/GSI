@@ -61,7 +61,7 @@ exp=test_conv_prof_2thrds
 # Set path/file for enkf executable
 basedir=/global/save
 enkfpath=$basedir/wx20kd/enkf/work/src
-enkfexec=$enkfpath/global_enkf_gfs
+enkfexec=$enkfpath/global_enkf.x
 
 # directories for case
 dirges=/global/noscrub/wx20kd/CASES/$adate/ensges

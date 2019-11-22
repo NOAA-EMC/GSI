@@ -19,7 +19,7 @@ tmpdir=$tmpdir/$tmpregdir/${exp}
 savdir=$savdir/4dvar_out${JCAP}/sigmap/${exp}
 
 # Specify GSI fixed field and data directories.
-
+fixcrtm=${fixcrtm:-$CRTM_FIX}
 
 # Set variables used in script
 #   CLEAN up $tmpdir when finished (YES=remove, NO=leave alone)
@@ -299,6 +299,19 @@ $ncp $btable_uv           ./btable_uv
 
 $ncp $bufrtable ./prepobs_prep.bufrtable
 $ncp $bftab_sst ./bftab_sstphr
+
+#if using correlated error, link to the covariance files
+#if grep -q "Rcov" $anavinfo ;
+#then 
+#  if ls ${fixgsi}/Rcov* 1> /dev/null 2>&1;
+#  then
+#    $ncp ${fixgsi}/Rcov* .
+#  else
+#    echo "Warning: Satellite error covariance files are missing."
+#    echo "Check for the required Rcov files in " $anavinfo
+#    exit 1
+#  fi
+#fi
 
 # Adjust data usage flags in convinfo file.
 rm new
