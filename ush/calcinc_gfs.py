@@ -12,14 +12,14 @@ import gsi_utils
 from collections import OrderedDict
 
 # main function
-def calcinc_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
+def calcinc_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix, IAUHrs,
                 NThreads, IMP_Physics, Inc2Zero, RunDir, Exec, ExecCMD):
   # run the calc_increment_ens executable
 
   # copy and link files
   if DoIAU and l4DEnsVar and Write4Danl:
     nFH=7
-    for fh in range(3,10):
+    for fh in IAUHrs:
       if fh == 6:
         gsi_utils.link_file('sigf06', 'atmges_mem004')
         gsi_utils.link_file('siganl', 'atmanl_mem004')
@@ -76,6 +76,7 @@ if __name__ == '__main__':
   ExecNEMS = os.getenv('CALCINCEXEC', './calc_increment_ens.x')
   Inc2Zero = os.getenv('INCREMENTS_TO_ZERO', '"NONE"')
   ExecCMD = os.getenv('APRUN_CALCINC', '')
+  IAUHrs = map(int,os.getenv('IAUHRS','6').split(','))
 
   # determine if the analysis is in netCDF or NEMSIO
   if ASuffix == ".nc":
@@ -84,5 +85,5 @@ if __name__ == '__main__':
      Exec = ExecNEMS
 
   print(locals())
-  calcinc_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
+  calcinc_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix, IAUHrs,
               NThreads, IMP_Physics, Inc2Zero, RunDir, Exec, ExecCMD)
