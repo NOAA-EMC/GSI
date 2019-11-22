@@ -64,6 +64,28 @@ def get_ncdims(ncfile):
   
   return ncdims
 
+def get_nemsdims(nemsfile,nemsexe):
+  """ get_nemsdims(nemsfile,nemsexe)
+   - function to return dictionary of NEMSIO file dimensions for use
+   input: nemsfile - string to path nemsio file
+          nemsexe  - string to path nemsio_get executable
+   output: nemsdims - dictionary where key is the name of a dimension and the
+                      value is the length of that dimension
+                ex: nemsdims['pfull'] = 127
+  """
+  import subprocess
+  ncdims = {
+            'dimx': 'grid_xt',
+            'dimy': 'grid_yt',
+            'dimz': 'pfull',
+           } 
+  nemsdims = {}
+  for dim in ['dimx','dimy','dimz']:
+    out = subprocess.Popen([nemsexe,nemsfile,dim],stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+    stdout, stderr = out.communicate()
+    nemsdims[ncdims[dim]] = int(stdout.split(' ')[-1].rstrip())
+  return nemsdims
+
 def get_timeinfo(ncfile):
   """ get_timeinfo(ncfile)
    - function to return datetime objects of initialized time and valid time
