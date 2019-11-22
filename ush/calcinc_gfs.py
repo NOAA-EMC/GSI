@@ -18,8 +18,9 @@ def calcinc_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix, IAUHrs,
 
   # copy and link files
   if DoIAU and l4DEnsVar and Write4Danl:
-    nFH=7
+    nFH=0
     for fh in IAUHrs:
+      nFH+=1
       if fh == 6:
         gsi_utils.link_file('sigf06', 'atmges_mem004')
         gsi_utils.link_file('siganl', 'atmanl_mem004')
