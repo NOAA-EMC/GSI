@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+nf#!/usr/bin/env python
 # calcanl_gfs.py
 # cory.r.martin@noaa.gov
 # 2019-10-11
@@ -198,7 +198,7 @@ if __name__ == '__main__':
   ExecChgresGes = os.getenv('CHGRESNCEXEC', './chgres_nc_gauss.exe')
   ExecChgresInc = os.getenv('CHGRESINCEXEC', './chgres_increment.exe')
   NEMSGet = os.getenv('NEMSIOGET','nemsio_get')
-  IAUHrs = map(int,os.getenv('IAUHRS','6').split(',')) 
+  IAUHrs = map(int,os.getenv('IAUFHRS','6').split(',')) 
 
   print(locals())
   calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix, 
