@@ -12,22 +12,23 @@ import gsi_utils
 from collections import OrderedDict
 
 # main function
-def calcinc_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
+def calcinc_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix, IAUHrs,
                 NThreads, IMP_Physics, Inc2Zero, RunDir, Exec, ExecCMD):
   # run the calc_increment_ens executable
 
   # copy and link files
   if DoIAU and l4DEnsVar and Write4Danl:
-    nFH=7
-    for fh in range(3,10):
+    nFH=0
+    for fh in IAUHrs:
+      nFH+=1
       if fh == 6:
-        gsi_utils.link_file('sigf06', 'atmges_mem004')
-        gsi_utils.link_file('siganl', 'atmanl_mem004')
-        gsi_utils.link_file(ComOut+'/'+APrefix+'atminc', 'atminc_mem004')
+        gsi_utils.link_file('sigf06', 'atmges_mem'+format(nFH, '03'))
+        gsi_utils.link_file('siganl', 'atmanl_mem'+format(nFH, '03'))
+        gsi_utils.link_file(ComOut+'/'+APrefix+'atminc.nc', 'atminc_mem'+format(nFH, '03'))
       else:
-        gsi_utils.link_file('sigf'+format(fh, '02'), 'atmges_mem'+(format(fh-2), '03'))
-        gsi_utils.link_file('siga'+format(fh, '02'), 'atmanl_mem'+(format(fh-2), '03'))
-        gsi_utils.link_file(ComOut+'/'+APrefix+'atmi'+format(fh, '03'), 'atminc_mem'+(format(fh-2), '03'))
+        gsi_utils.link_file('sigf'+format(fh, '02'), 'atmges_mem'+format(nFH, '03'))
+        gsi_utils.link_file('siga'+format(fh, '02'), 'atmanl_mem'+format(nFH, '03'))
+        gsi_utils.link_file(ComOut+'/'+APrefix+'atmi'+format(fh, '03')+'.nc', 'atminc_mem'+format(nFH, '03'))
   else:
     nFH=1
     gsi_utils.link_file('sigf06', 'atmges_mem001')
@@ -76,6 +77,7 @@ if __name__ == '__main__':
   ExecNEMS = os.getenv('CALCINCEXEC', './calc_increment_ens.x')
   Inc2Zero = os.getenv('INCREMENTS_TO_ZERO', '"NONE"')
   ExecCMD = os.getenv('APRUN_CALCINC', '')
+  IAUHrs = map(int,os.getenv('IAUFHRS','6').split(','))
 
   # determine if the analysis is in netCDF or NEMSIO
   if ASuffix == ".nc":
@@ -84,5 +86,5 @@ if __name__ == '__main__':
      Exec = ExecNEMS
 
   print(locals())
-  calcinc_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
+  calcinc_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix, IAUHrs,
               NThreads, IMP_Physics, Inc2Zero, RunDir, Exec, ExecCMD)
