@@ -38,7 +38,7 @@ export LEVS=64
 # load modules here used to compile GSI
 
 module purge
-module use -a $GSIDir/modulefiles
+module use -a /scratch1/NCEPDEV/da/Cory.R.Martin/Modulefiles
 module load modulefile.ProdGSI.hera
 module list
 
