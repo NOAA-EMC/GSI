@@ -102,7 +102,7 @@ for fhr in $(seq $FHMIN $FHOUT $FHMAX); do
          $NLN $COMOUT/$memchar/${PREFIX}atmf${fhrchar}${ENKF_SUFFIX}${SUFFIX} atmf${fhrchar}${ENKF_SUFFIX}_$memchar
       done
    fi
-   $NLN $COMOUT/${PREFIX}atmf${fhrchar}.ensspread${SUFFIX} atmf${fhrchar}_ensspread
+   $NLN $COMOUT/${PREFIX}atmf${fhrchar}.ensspread${SUFFIX} atmf${fhrchar}.ensspread
 done
 
 ################################################################################
