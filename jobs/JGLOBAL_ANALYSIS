@@ -103,10 +103,6 @@ if [ ! -f $ATMGES ]; then
     exit 1
 fi
 
-export LEVS=$($NCDUMP -h $ATMGES | grep -i "pfull" | head -1 | awk -F" = " '{print $2}' | awk -F" " '{print $1}') # get LEVS
-status=$?
-[[ $status -ne 0 ]] && exit $status
-
 
 if [ $DOHYBVAR = "YES" ]; then
     export ATMGES_ENSMEAN="$COMIN_GES_ENS/${GPREFIX}atmf006.ensmean$GSUFFIX"
