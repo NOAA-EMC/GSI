@@ -55,12 +55,12 @@ export SENDCOM=${SENDCOM:-YES}
 export SENDDBN=${SENDDBN:-NO}
 export VERBOSE=${VERBOSE:-YES}
 
-export HOMEgfs=${HOMEgfs:-${NWROOT}/gfs.${gfs_ver}}
+export HOMEgfs_conmon=${HOMEgfs_conmon:-${NWROOT}/gfs.${gfs_ver}}
 
-export FIXgdas=${FIXgdas:-${HOMEgfs}/fix}
-export PARMmon=${PARMmon:-${HOMEgfs}/parm/mon}
+export FIXgdas=${FIXgdas:-${HOMEgfs_conmon}/fix}
+export PARMmon=${PARMmon:-${HOMEgfs_conmon}/parm/mon}
 
-export HOMEconmon=${HOMEconmon:-${HOMEgfs}}
+export HOMEconmon=${HOMEconmon:-${HOMEgfs_conmon}}
 export EXECconmon=${EXECconmon:-${HOMEconmon}/exec}
 
 export FIXconmon=${FIXconmon:-${FIXgfs}}

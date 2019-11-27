@@ -65,7 +65,7 @@ export NWTEST=${NWTEST:-/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/ProdGSI/
 export HOMEconmon=${HOMEconmon:-${NWTEST}/conmon_shared.${conmon_shared_ver}}
 
 export HOMEgdas_conmon=${HOMEgdas_conmon:-${NWTEST}/gdas_conmon.${gdas_conmon_ver}}
-export HOMEgfs=${HOMEgdas_conmon}
+export HOMEgfs_conmon=${HOMEgdas_conmon}
 
 export JOBGLOBAL=${HOMEgdas_conmon}/jobs
 export C_COM_IN=${C_COM_IN:-${DATAROOT}}

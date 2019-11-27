@@ -158,7 +158,7 @@ fi
 # Get date of cycle to process and/or previous cycle processed.
 #
 if [[ $PDATE = "" ]]; then
-   GDATE=`${C_DE_SCRIPTS}/find_cycle.pl 1 ${C_TANKDIR}`
+   GDATE=`${C_DE_SCRIPTS}/find_cycle.pl --cyc 1 --dir ${C_TANKDIR} --run $RUN `
    PDATE=`$NDATE +06 $GDATE`
 else
    GDATE=`$NDATE -06 $PDATE`
@@ -235,7 +235,7 @@ if [ -s $cnvstat  -a -s $pgrbf00 -a -s $pgrbf06 ]; then
         $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/DE.${PDY}.${CYC}.log -M 500 -R affinity[core] -W 0:25 -J ${jobname} -cwd $PWD ${HOMEgdas_conmon}/jobs/JGDAS_CONMON
 
       elif [[ $MY_MACHINE = "wcoss_d" ]]; then
-        $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 500 \
+        $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 200 \
 		-R affinity[core] -W 0:25 -J ${jobname} \
 		-cwd $PWD ${HOMEgdas_conmon}/jobs/JGDAS_CONMON
 
