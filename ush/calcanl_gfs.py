@@ -198,7 +198,7 @@ if __name__ == '__main__':
   ExecChgresGes = os.getenv('CHGRESNCEXEC', './chgres_nc_gauss.exe')
   ExecChgresInc = os.getenv('CHGRESINCEXEC', './chgres_increment.exe')
   NEMSGet = os.getenv('NEMSIOGET','nemsio_get')
-  IAUHrs = map(int,os.getenv('IAUFHRS','6').split(',')) 
+  IAUHrs = list(map(int,os.getenv('IAUFHRS','6').split(',')))
 
   print(locals())
   calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix, 
