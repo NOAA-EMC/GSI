@@ -276,6 +276,8 @@ module hybrid_ensemble_parameters
   public :: pseudo_hybens
   public :: merge_two_grid_ensperts
   public :: regional_ensemble_option
+  public :: fv3sar_ensemble_opt 
+  
   public :: write_ens_sprd
   public :: nval_lenz_en
   public :: ntlevs_ens
@@ -324,6 +326,7 @@ module hybrid_ensemble_parameters
   integer(i_kind) nval_lenz_en
   integer(i_kind) ntlevs_ens
   integer(i_kind) regional_ensemble_option
+  integer(i_kind) fv3sar_ensemble_opt 
   character(len=512),save :: ensemble_path
 
 ! following is for storage of ensemble perturbations:
@@ -383,6 +386,7 @@ subroutine init_hybrid_ensemble_parameters
   pseudo_hybens=.false.
   merge_two_grid_ensperts=.false.
   regional_ensemble_option=0
+  fv3sar_ensemble_opt=0
   write_ens_sprd=.false.
   readin_localization=.false.
   readin_beta=.false.
