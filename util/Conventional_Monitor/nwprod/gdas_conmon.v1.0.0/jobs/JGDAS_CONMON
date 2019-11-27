@@ -127,7 +127,7 @@ export CONMON_AREA=${CONMON_AREA:-glb}
 
 ########################################################
 # Execute the script.
-${CONMONSH:-$HOMEgdas/scripts/exgdas_conmon.sh.ecf} ${PDY} ${CYC}
+${CONMONSH:-$HOMEgdas_conmon/scripts/exgdas_conmon.sh.ecf} ${PDY} ${CYC}
 ########################################################
 
 

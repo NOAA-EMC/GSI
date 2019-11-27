@@ -145,9 +145,14 @@ export C_IG_HTML=${C_IG_HTML:-${CONMON_IMAGE_GEN}/html}
 export CONMON_PARM=${CONMON_PARM:-${MY_CONMON}/parm}
 . $CONMON_PARM/ConMon.ver
 
+export HOMEcmon=${HOMEcmon:-${MY_CONMON}/nwprod/conmon_shared.v${conmon_shared_ver}}  # use below instead
+export HOMEconmon_shared=${HOMEcmon}
 export HOMEgdascmon=${HOMEgdascmon:-${MY_CONMON}/nwprod/gdas_conmon.v${gdas_conmon_ver}}
 export HOMEgdas_conmon=${HOMEgdascmon}
+export HOMEgfs=$HOMEgdas_conmon		# need to make this HOMEgfs_conmon
 
 export HOMEcmon=${HOMEcmon:-${MY_CONMON}/nwprod/conmon_shared.v${conmon_shared_ver}}
 export HOMEconmon_shared=${HOMEcmon}
+export USHconmon=${USHconmon:-${HOMEconmon_shared}/ush}
+export EXECconmon=${EXECconmon:-${HOMEconmon_shared}/exec}
 
