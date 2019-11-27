@@ -70,11 +70,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
   LatB = GesDims['grid_yt']
 
   # vertical coordinate info
-  # NOTE I Don't know why this file is 128 when it should be 127, perhaps a mislabeled filename?
-  if levs == 127:
-    levs2 = 128
-  else:
-    levs2 = levs 
+  levs2 = levs + 1
   siglevel = FixDir+'/global_hyblev.l'+str(levs2)+'.txt'
 
   ######## interpolate increment to full background resolution
