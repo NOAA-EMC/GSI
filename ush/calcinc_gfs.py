@@ -77,7 +77,7 @@ if __name__ == '__main__':
   ExecNEMS = os.getenv('CALCINCEXEC', './calc_increment_ens.x')
   Inc2Zero = os.getenv('INCREMENTS_TO_ZERO', '"NONE"')
   ExecCMD = os.getenv('APRUN_CALCINC', '')
-  IAUHrs = map(int,os.getenv('IAUFHRS','6').split(','))
+  IAUHrs = list(map(int,os.getenv('IAUFHRS','6').split(',')))
 
   # determine if the analysis is in netCDF or NEMSIO
   if ASuffix == ".nc":
