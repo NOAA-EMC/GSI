@@ -549,10 +549,6 @@ if (nproc == 0) then
      print *,'use_correlated_oberrs only works with netcdf_diag'
      call stop2(19)
    endif
-   if (use_correlated_oberrs .and. .not. letkf_flag) then
-     print *,'use_correlated_oberrs implies letkf_flag,modelspace_vloc,lobsdiag_forenkf=T'
-     call stop2(19)
-   endif
    if (use_correlated_oberrs .and. .not. modelspace_vloc) then
      print *,'use_correlated_oberrs implies letkf_flag,modelspace_vloc,lobsdiag_forenkf=T'
      call stop2(19)
