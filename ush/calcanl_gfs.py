@@ -70,11 +70,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
   LatB = GesDims['grid_yt']
 
   # vertical coordinate info
-  # NOTE I Don't know why this file is 128 when it should be 127, perhaps a mislabeled filename?
-  if levs == 127:
-    levs2 = 128
-  else:
-    levs2 = levs 
+  levs2 = levs + 1
   siglevel = FixDir+'/global_hyblev.l'+str(levs2)+'.txt'
 
   ######## interpolate increment to full background resolution
@@ -198,7 +194,7 @@ if __name__ == '__main__':
   ExecChgresGes = os.getenv('CHGRESNCEXEC', './chgres_nc_gauss.exe')
   ExecChgresInc = os.getenv('CHGRESINCEXEC', './chgres_increment.exe')
   NEMSGet = os.getenv('NEMSIOGET','nemsio_get')
-  IAUHrs = map(int,os.getenv('IAUFHRS','6').split(',')) 
+  IAUHrs = list(map(int,os.getenv('IAUFHRS','6').split(',')))
 
   print(locals())
   calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix, 
