@@ -161,7 +161,7 @@
          if( -d $newdir ) {
             opendir DIR, $newdir or die "Cannot open the current directory: $!";
 
-            my @timefiles = grep { /stas/ } readdir DIR;
+            my @timefiles = grep { /stas/ && !/ctl/ } readdir DIR;
 
             if( $#timefiles >= 0 ) {
                my @sorttime = sort( @timefiles );

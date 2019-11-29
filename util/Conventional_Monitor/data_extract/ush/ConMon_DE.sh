@@ -16,12 +16,6 @@
 #--------------------------------------------------------------------
 #  usage
 #--------------------------------------------------------------------
-#function usage {
-#  echo "Usage:  ConMon_DE.sh suffix [pdate]"
-#  echo "            Suffix is the indentifier for this data source."
-#  echo "            Pdate is the full YYYYMMDDHH cycle to run.  This 
-#		    param is optional"
-#}
 function usage {
   echo "Usage:  ConMon_DE.sh suffix [-p|--pdate pdate -r|--run gdas|gfs]"
   echo "            Suffix is the indentifier for this data source."
@@ -82,10 +76,9 @@ this_dir=`dirname $0`
 
 
 #--------------------------------------------------------------------
-#  RUN_ENVIR:  can be either "dev" or "para".
+#  RUN_ENVIR:  can be "dev", "para", or "prod".
 #--------------------------------------------------------------------
-#export RUN_ENVIR=$2		
-export RUN_ENVIR=${RUN_ENVIR:-"dev"}
+export RUN_ENVIR=${RUN_ENVIR:-"prod"}
 
 
 echo CONMON_SUFFIX = $CONMON_SUFFIX
@@ -174,7 +167,7 @@ export PDYm6h=`echo $GDATE|cut -c1-8`
 echo PDYm6h = $PDYm6h
 
 
-export CNVSTAT_LOCATION=${CNVSTAT_LOCATION:-/gpfs/dell1/nco/ops/com/gfs/prod}
+export CNVSTAT_LOCATION=${CNVSTAT_LOCATION:-/gpfs/dell1/nco/ops/com/gfs/${RUN_ENVIR}}
 export C_DATDIR=${C_DATDIR:-${CNVSTAT_LOCATION}/${RUN}.${PDY}}
 export C_GDATDIR=${C_GDATDIR:-${CNVSTAT_LOCATION}/${RUN}.${PDYm6h}}
 
