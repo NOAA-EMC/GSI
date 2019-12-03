@@ -19,7 +19,7 @@ program calc_analysis_main
   call mpi_init(ierr)
   call mpi_comm_rank(mpi_comm_world, mype, ierr)
   call mpi_comm_size(mpi_comm_world, npes, ierr)
-  if (mype==0) write(6,*) "calc_analysis.x starting"
+  if (mype==0) call w3tagb('CALC_ANALYSIS', 2019, 300, 0, 'EMC')
   call read_nml(mype)
   if ( npes < nhrs_assim ) then
     if ( mype == 0 ) then
@@ -34,5 +34,6 @@ program calc_analysis_main
     call gen_anl
   end if
   call mpi_barrier(mpi_comm_world, ierr)
+  if (mype==0) call w3tage('CALC_ANALYSIS')
   call mpi_finalize(ierr)
 end program calc_analysis_main
