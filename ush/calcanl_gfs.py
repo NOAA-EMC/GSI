@@ -137,20 +137,38 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
 
   # are we using mpirun with lsf, srun, or aprun with Cray?
   launcher = ExecCMDMPI.split(' ')[0]
-  ## TODO support others later, for now just lsf mpirun for dell
   if launcher == 'mpirun':
-    hosts_tmp = os.getenv('LSB_HOSTS','').split(' ') 
+    hostfile = os.getenv('LSB_DJOB_HOSTFILE','')
+    with open(hostfile) as f:
+      hosts_tmp = f.readlines()
+    hosts_tmp = [x.strip() for x in hosts_tmp]
     hosts = []
     [hosts.append(x) for x in hosts_tmp if x not in hosts]
     nhosts = len(hosts)
-    ExecCMDSplit = ExecCMDMPI.split(' ')
-    ExecCMDMPI_host = launcher+' --hostfile hosts '+(' ').join(ExecCMDMPI.split(' ')[1:]) 
-    ExecCMDMPI1_host = launcher+' --hostfile hosts '+(' ').join(ExecCMDMPI1.split(' ')[1:]) 
+    ExecCMDMPI_host = 'mpirun -np '+str(nFH)+' --hostfile hosts' 
+    ExecCMDMPI1_host = 'mpirun -np 1 --hostfile hosts' 
+  elif launcher == 'srun':
+    hosts_tmp = subprocess.check_output('scontrol show hostnames '+nodes, shell=True) 
+    hosts_tmp = str(hosts_tmp).split('\n')
+    hosts_tmp = [x.strip() for x in hosts_tmp]
+    hosts = []
+    [hosts.append(x) for x in hosts_tmp if x not in hosts]
+    nhosts = len(hosts)
+    ExecCMDMPI_host = 'srun --verbose --export=ALL -c '+str(NThreads)+' --distribution=arbitrary --cpu-bind=cores'
+    ExecCMDMPI1_host = 'srun -n 1 --verbose --export=ALL -c '+str(NThreads)+' --distribution=arbitrary --cpu-bind=cores'
+  elif launcher == 'aprun':
+    hostfile = os.getenv('LSB_DJOB_HOSTFILE','')
+    with open(hostfile) as f:
+      hosts_tmp = f.readlines()
+    hosts_tmp = [x.strip() for x in hosts_tmp]
+    hosts = []
+    [hosts.append(x) for x in hosts_tmp if x not in hosts]
+    nhosts = len(hosts)
+    ExecCMDMPI_host = 'aprun -l hosts -d '+str(NThreads)+' -n '+str(nFH)
+    ExecCMDMPI1_host = 'aprun -l hosts -d '+str(NThreads)+' -n 1'
   else:
-    nhosts = 1
-    hosts = ['dummy']
-    ExecCMDMPI_host = ExecCMDMPI
-    ExecCMDMPI1_host = ExecCMDMPI1
+    print('unknown MPI launcher. Failure.')
+    sys.exit(1)
 
   ####### generate the full resolution analysis
   interp_jobs = []
@@ -174,6 +192,8 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
         ihost = 0
       with open(CalcAnlDir+'/hosts', 'w') as hostfile:
           hostfile.write(hosts[ihost]+'\n')
+      if launcher == 'srun':
+        os.environ['SLURM_HOSTFILE'] = CalcAnlDir+'/hosts'
       print('interp_inc', fh, namelist)
       job = subprocess.Popen(ExecCMDMPI1_host+' '+CalcAnlDir+'/chgres_inc.x', shell=True, cwd=CalcAnlDir)
       interp_jobs.append(job)
@@ -207,6 +227,8 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
     ihost = 0
   with open(CalcAnlDir6+'/hosts', 'w') as hostfile:
       hostfile.write(hosts[ihost]+'\n')
+  if launcher == 'srun':
+    os.environ['SLURM_HOSTFILE'] = CalcAnlDir6+'/hosts'
   print('fullres_calc_anl', namelist)
   fullres_anl_job = subprocess.Popen(ExecCMDMPI_host+' '+CalcAnlDir6+'/calc_anl.x', shell=True, cwd=CalcAnlDir6)
   print(ExecCMDMPI_host+' '+CalcAnlDir6+'/calc_anl.x submitted on '+hosts[ihost])
@@ -236,7 +258,9 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
       if ihost > nhosts:
         ihost = 0
       with open(CalcAnlDir+'/hosts', 'w') as hostfile:
-          hostfile.write(hosts[ihost]+'\n')
+           hostfile.write(hosts[ihost]+'\n')
+      if launcher == 'srun':
+        os.environ['SLURM_HOSTFILE'] = CalcAnlDir+'/hosts'
       print('chgres_nc_gauss', fh, namelist)
       job = subprocess.Popen(ExecCMDMPI1_host+' '+CalcAnlDir+'/chgres_ges.x', shell=True, cwd=CalcAnlDir)
       chgres_jobs.append(job)
@@ -272,6 +296,8 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
     ihost = 0
   with open(CalcAnlDir6+'/hosts', 'w') as hostfile:
       hostfile.write(hosts[ihost]+'\n')
+  if launcher == 'srun':
+    os.environ['SLURM_HOSTFILE'] = CalcAnlDir6+'/hosts'
   print('ensres_calc_anl', namelist)
   ensres_anl_job = subprocess.Popen(ExecCMDMPI_host+' '+CalcAnlDir6+'/calc_anl.x', shell=True, cwd=CalcAnlDir6)
   print(ExecCMDMPI_host+' '+CalcAnlDir6+'/calc_anl.x submitted on '+hosts[ihost])
