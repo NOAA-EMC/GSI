@@ -97,7 +97,12 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !   2017-03-31  Hu      -  addd option i_coastline to use observation operater
 !                                     for coastline area
 !   2018-04-09  pondeca -  introduce duplogic to correctly handle the characterization of
-!                          duplicate obs in twodvar_regional applications
+!                          duplicate obs in twodvar_regional applications  
+!   2020-01-27  Winterbottom - moved the linear regression derived
+!                              coefficients for the dynamic observation
+!                              error (DOE) calculation to the namelist
+!                              level; they are now loaded by
+!                              aircraftinfo.
 !
 !
 !   input argument list:
@@ -127,7 +132,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   use obsmod, only: rmiss_single,perturb_obs,oberror_tune,&
        lobsdiagsave,nobskeep,lobsdiag_allocated,&
-       time_offset,lobsdiag_forenkf
+       time_offset,lobsdiag_forenkf,aircraft_recon
   use m_obsNode, only: obsNode
   use m_qNode, only: qNode
   use m_qNode, only: qNode_appendto
@@ -159,6 +164,15 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use sparsearr, only: sparr2, new, size, writearray, fullarray
   use state_vectors, only: svars3d, levels, nsdim
+
+  ! The following variables are the coefficients that describe the
+  ! linear regression fits that are used to define the dynamic
+  ! observation error (DOE) specifications for all reconnissance
+  ! observations collected within hurricanes/tropical cyclones; these
+  ! apply only to the regional forecast models (e.g., HWRF); Henry
+  ! R. Winterbottom (henry.winterbottom@noaa.gov).
+  
+  use obsmod, only: q_doe_a_136,q_doe_a_137,q_doe_b_136,q_doe_b_137
 
   implicit none
 
@@ -488,6 +502,29 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      rmaxerr=rmaxerr*qsges
      rmaxerr=max(small2,rmaxerr)
      errorx =(data(ier,i)+dprpx)*qsges
+
+! Interpolate guess moisture to observation location and time
+     call tintrp31(ges_q,qges,dlat,dlon,dpres,dtime, &
+        hrdifsig,mype,nfldsig)
+    
+     ddiff=qob-qges 
+  
+!    Setup dynamic ob error specification for aircraft recon in hurricanes 
+
+     if (aircraft_recon) then
+       if (itype == 136 ) then
+
+         errorx = q_doe_a_136*abs(ddiff)+q_doe_b_136
+         
+       endif
+
+       if (itype == 137 ) then
+
+         errorx = q_doe_a_137*abs(ddiff)+q_doe_b_137
+         
+       endif
+     endif
+
      errorx =max(small1,errorx)
     
 
@@ -516,11 +553,6 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !    Check to see if observations is above the top of the model (regional mode)
      if (dpres > rsig) ratio_errors=zero
      error=one/(error*qsges)
-
-
-! Interpolate guess moisture to observation location and time
-     call tintrp31(ges_q,qges,dlat,dlon,dpres,dtime, &
-        hrdifsig,mype,nfldsig)
 
      iz = max(1, min( int(dpres), nsig))
      delz = max(zero, min(dpres - float(iz), one))
@@ -564,12 +596,10 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            write(6,*) 'Invalid i_use_2mq4b number=',i_use_2mq4b
            call stop2(100)
         endif
+        ddiff=qob-qges
      endif
 
-! Compute innovations
 
-     ddiff=qob-qges
-!
 !    If requested, setup for single obs test.
      if (oneobtest) then
         ddiff=maginnov*1.e-3_r_kind

@@ -15,7 +15,7 @@ contains
 ! !INTERFACE:
 !
 subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
-
+  
 ! !USES:
 
   use mpeu_util, only: die,perr,getindex
@@ -29,7 +29,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use m_obsdiagNode, only: obsdiagNode_assert
 
   use obsmod, only: sfcmodel,perturb_obs,oberror_tune,lobsdiag_forenkf,ianldate,&
-       lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
+       lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,aircraft_recon
   use m_obsNode, only: obsNode
   use m_tNode, only: tNode
   use m_tNode, only: tNode_appendto
@@ -80,6 +80,16 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use buddycheck_mod, only: buddy_check_t
 
   use sparsearr, only: sparr2, new, size, writearray, fullarray
+
+  ! The following variables are the coefficients that describe the
+  ! linear regression fits that are used to define the dynamic
+  ! observation error (DOE) specifications for all reconnissance
+  ! observations collected within hurricanes/tropical cyclones; these
+  ! apply only to the regional forecast models (e.g., HWRF); Henry
+  ! R. Winterbottom (henry.winterbottom@noaa.gov).
+  
+  use obsmod, only: t_doe_a_136,t_doe_a_137,t_doe_b_136,t_doe_b_137
+  
 
   implicit none
 
@@ -201,7 +211,12 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !   2017-02-09  guo     - Remove m_alloc, n_alloc.
 !                       . Remove my_node with corrected typecast().
 !   2018-04-09  pondeca -  introduce duplogic to correctly handle the characterization of
-!                          duplicate obs in twodvar_regional applications
+!                          duplicate obs in twodvar_regional applications  
+!   2020-01-27  Winterbottom - moved the linear regression derived
+!                              coefficients for the dynamic
+!                              observation error (DOE) calculation to
+!                              the namelist level; they are now
+!                              loaded by obsmod.
 !
 ! !REMARKS:
 !   language: f90
@@ -744,6 +759,25 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      end if
      
      ratio_errors=error/(data(ier,i)+drpx+1.0e6_r_kind*rhgh+r8*ramp)
+
+! Compute innovation
+     if(i_use_2mt4b>0 .and. sfctype) then
+        ddiff = tob-tges2m
+     else
+        ddiff = tob-tges
+     endif
+    
+!    Setup dynamic error specification for aircraft recon in hurricanes
+     if (aircraft_recon) then 
+       if ( itype == 136 ) then
+         ratio_errors=error/((t_doe_a_136*abs(ddiff)+t_doe_b_136)+1.0e6_r_kind*rhgh+r8*ramp)
+       endif
+     
+       if ( itype == 137 ) then
+         ratio_errors=error/((t_doe_a_137*abs(ddiff)+t_doe_b_137)+1.0e6_r_kind*rhgh+r8*ramp)
+       endif
+     endif
+
      error=one/error
 !    if (dpres > rsig) ratio_errors=zero
      if (dpres > rsig )then
@@ -754,12 +788,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         endif
      endif
 
-! Compute innovation
-     if(i_use_2mt4b>0 .and. sfctype) then
-        ddiff = tob-tges2m
-     else
-        ddiff = tob-tges
-     endif
 
 ! Apply bias correction to innovation
      if (aircraftobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc .or. &
