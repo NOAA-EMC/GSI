@@ -34,6 +34,7 @@
   use obsmod, only: luse_obsdiag
   use obsmod, only: netcdf_diag, binary_diag
   use obsmod, only: l_wcp_cwm
+  use obsmod, only: aircraft_recon
   use aircraftinfo, only: init_aircraft,hdist_aircraft,aircraft_t_bc_pof,aircraft_t_bc, &
                           aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail
   use obs_sensitivity, only: lobsensfc,lobsensincr,lobsensjb,lsensrecompute, &
@@ -590,6 +591,7 @@
 !     netcdf_diag - trigger netcdf diag-file output
 !     diag_version - specifies desired version of diag files
 !     l_wcp_cwm - namelist logical whether to use swcp/lwcp operator that includes cwm
+!     aircraft_recon - namelist logibal whether to apply DOE to aircraft data
 !     tau_fcst - controls EFSOI-like calculation
 !     efsoi_order - sets order of EFSOI-like calculation
 !     lupdqc - logical to replace the obs errors from satinfo with diag of est(R) in the case of correlated obs
@@ -634,7 +636,7 @@
        rmesh_vr,zmesh_dbz,zmesh_vr, ntilt_radarfiles, whichradar,&
        radar_no_thinning,ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,&
        minobrangevr, maxtiltdbz, mintiltvr,mintiltdbz,if_vterminal,if_vrobs_raw,&
-       if_model_dbz,imp_physics,lupp,netcdf_diag,binary_diag,l_wcp_cwm,diag_version,&
+       if_model_dbz,imp_physics,lupp,netcdf_diag,binary_diag,l_wcp_cwm,aircraft_recon,diag_version,&
        cao_check,lcalc_gfdl_cfrac,tau_fcst,efsoi_order,lupdqc,lqcoef
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):

@@ -723,7 +723,7 @@ contains
 
     !----------------------------------------------------------------------
     if (nbackgrounds > 1) then
-       write(6,*)'gridio/writegriddata: writing multiple backgrounds not yet supported'
+       write(6,*)'gridio/writegriddata_wrf: writing multiple backgrounds not yet supported'
        call stop2(23)
     endif
 

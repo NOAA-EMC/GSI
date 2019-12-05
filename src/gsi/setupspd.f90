@@ -101,7 +101,7 @@ subroutine setupspd(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
 
   use obsmod, only: rmiss_single,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,&
-                    lobsdiag_forenkf
+                    lobsdiag_forenkf,aircraft_recon
   use obsmod, only: netcdf_diag, binary_diag, dirname, ianldate
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d
@@ -466,12 +466,7 @@ subroutine setupspd(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
      end if
 
      ratio_errors=error/(data(ier,i)+drpx+1.0e6_r_kind*rhgh+four*rlow)
-
-     error=one/error
-
-!    Check to see if observations is above the top of the model (regional mode)
-     if (dpres>rsig) ratio_errors=zero
-
+     
 
 ! Interpolate guess u and v to observation location and time.
      call tintrp31(ges_u,ugesin,dlat,dlon,dpres,dtime, &
@@ -517,6 +512,19 @@ subroutine setupspd(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
 
 
      ddiff = spdob-spdges
+     
+     if (aircraft_recon) then
+      if ( nty == 292 ) then 
+         ratio_errors=error/(abs(ddiff)+5.0_r_kind)
+         if (spdob < 10.) ratio_errors=zero
+      endif 
+     endif
+   
+     error=one/error
+
+!    Check to see if observations is above the top of the model (regional mode)
+     if (dpres>rsig) ratio_errors=zero
+
 
 !    Gross error checks
      obserror = one/max(ratio_errors*error,tiny_r_kind)

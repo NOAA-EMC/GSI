@@ -29,7 +29,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use m_obsdiagNode, only: obsdiagNode_assert
 
   use obsmod, only: sfcmodel,perturb_obs,oberror_tune,lobsdiag_forenkf,ianldate,&
-       lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
+       lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,aircraft_recon
   use m_obsNode, only: obsNode
   use m_tNode, only: tNode
   use m_tNode, only: tNode_appendto
@@ -744,6 +744,25 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      end if
      
      ratio_errors=error/(data(ier,i)+drpx+1.0e6_r_kind*rhgh+r8*ramp)
+
+! Compute innovation
+     if(i_use_2mt4b>0 .and. sfctype) then
+        ddiff = tob-tges2m
+     else
+        ddiff = tob-tges
+     endif
+    
+!    Setup dynamic error specification for aircraft recon in hurricanes
+     if (aircraft_recon) then 
+      if ( itype == 136 ) then
+         ratio_errors=error/(1.15_r_kind*(abs(ddiff)+0.2_r_kind)+1.0e6_r_kind*rhgh+r8*ramp)
+      endif
+     
+      if ( itype == 137 ) then
+         ratio_errors=error/(abs(ddiff)+0.2_r_kind+1.0e6_r_kind*rhgh+r8*ramp)
+      endif
+     endif
+
      error=one/error
 !    if (dpres > rsig) ratio_errors=zero
      if (dpres > rsig )then
@@ -754,12 +773,13 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         endif
      endif
 
+!JS MOVED THIS UP A FEW LINES
 ! Compute innovation
-     if(i_use_2mt4b>0 .and. sfctype) then
-        ddiff = tob-tges2m
-     else
-        ddiff = tob-tges
-     endif
+!     if(i_use_2mt4b>0 .and. sfctype) then
+!        ddiff = tob-tges2m
+!     else
+!        ddiff = tob-tges
+!     endif
 
 ! Apply bias correction to innovation
      if (aircraftobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc .or. &
