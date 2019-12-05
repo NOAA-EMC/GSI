@@ -11,7 +11,7 @@ echo "--> mk_time_vert.sh"
 
    export nregion=10
 
-   echo "CMON_SUFFIX = $CMON_SUFFIX"
+   echo "CONMON_SUFFIX = $CONMON_SUFFIX"
    echo "C_TANKDIR   = $C_TANKDIR"
    echo "PDATE       = $PDATE"
 
@@ -24,8 +24,8 @@ echo "--> mk_time_vert.sh"
    #  submit time ps plots
    #--------------------------------------------
    jobname="${JOBNAME}_time_ps"
-   logfile="${C_LOGDIR}/plot_time_ps_${CMON_SUFFIX}.${PDY}.${CYC}.log"
-   errfile="${C_LOGDIR}/plot_time_ps_${CMON_SUFFIX}.${PDY}.${CYC}.err"
+   logfile="${C_LOGDIR}/plot_time_ps_${CONMON_SUFFIX}.${PDY}.${CYC}.log"
+   errfile="${C_LOGDIR}/plot_time_ps_${CONMON_SUFFIX}.${PDY}.${CYC}.err"
    pltfile="${C_IG_SCRIPTS}/plot_time_ps.sh"
    rm -f $logfile
    rm -f $errfile
@@ -43,8 +43,8 @@ echo "--> mk_time_vert.sh"
    #--------------------------------------------
    for type in q t uv u v; do
       jobname="${JOBNAME}_time_${type}"
-      logfile="${C_LOGDIR}/plot_time_${type}_${CMON_SUFFIX}.${PDY}.${CYC}.log"
-      errfile="${C_LOGDIR}/plot_time_${type}_${CMON_SUFFIX}.${PDY}.${CYC}.err"
+      logfile="${C_LOGDIR}/plot_time_${type}_${CONMON_SUFFIX}.${PDY}.${CYC}.log"
+      errfile="${C_LOGDIR}/plot_time_${type}_${CONMON_SUFFIX}.${PDY}.${CYC}.err"
       pltfile="${C_IG_SCRIPTS}/plot_time.sh "
       export TYPE=${type}
       rm -f $logfile
@@ -72,8 +72,8 @@ echo "--> mk_time_vert.sh"
    #--------------------------------------------
    for type in q t uv u v; do
       jobname="${JOBNAME}_vert_${type}"
-      logfile="${C_LOGDIR}/plot_vert_${type}_${CMON_SUFFIX}.${PDY}.${CYC}.log"
-      errfile="${C_LOGDIR}/plot_vert_${type}_${CMON_SUFFIX}.${PDY}.${CYC}.err"
+      logfile="${C_LOGDIR}/plot_vert_${type}_${CONMON_SUFFIX}.${PDY}.${CYC}.log"
+      errfile="${C_LOGDIR}/plot_vert_${type}_${CONMON_SUFFIX}.${PDY}.${CYC}.err"
       pltfile="${C_IG_SCRIPTS}/plot_vert.sh "
       export TYPE=${type}
       rm -f $logfile

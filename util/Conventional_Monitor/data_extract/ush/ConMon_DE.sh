@@ -190,7 +190,8 @@ export jobid=DE_${PDATE}.${pid}
 # grib2 will be the only standard with the next major release of 
 # GSI. 
 
-export grib2=${grib2:-0}
+export grib2=${grib2:-1}
+
 export cnvstat="${C_DATDIR}/${CYC}/gdas.t${CYC}z.cnvstat"
 if [[ ! -s ${cnvstat} ]]; then
    export cnvstat="${C_DATDIR}/gdas.t${CYC}z.cnvstat"

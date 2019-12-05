@@ -146,7 +146,7 @@ if [[ -s ${cnvstat} && -s ${pgrbf00} && -s ${pgrbf06} ]]; then
    #  Untar cnvstat file.  
    #------------------------------------------------------------------
 
-   export grib2=${grib2:-0}   
+   export grib2=${grib2:-1}   
    $NCP $cnvstat ./cnvstat.$PDATE
    $NCP $pgrbf00 ./pgbanl.$PDATE
    $NCP $pgrbf06 ./pgbf06.$GDATE
@@ -183,12 +183,13 @@ if [[ -s ${cnvstat} && -s ${pgrbf00} && -s ${pgrbf06} ]]; then
 
    else
       
-      ${WGRIB2} -s pgbanl.${PDATE} | awk '(/:RH:/ && /mb:/) || (/:PRES:sfc/) || (/:UGRD:/ && /mb:/) || (/:VGRD:/ && /mb:/) || (/:TMP:/ && /mb:/)' | ${WGRIB2} -i -grib pgbanl.${PDATE} > ./pared_pgbanl.${PDATE}
+      ${WGRIB2} pgbanl.${PDATE} | awk '(/:RH:/ && /mb:/) || (/:PRES:sfc/) || (/:UGRD:/ && /mb:/) || (/:VGRD:/ && /mb:/) || (/:TMP:/ && /mb:/)' | ${WGRIB2} pgbanl.${PDATE} -i -grib  ./pared_anal.${PDATE}
 
-      ${WGRIB2} -s pgbf06.${GDATE} | awk '(/:RH:/ && /mb:/) || (/:PRES:sfc/) || (/:UGRD:/ && /mb:/) || (/:VGRD:/ && /mb:/) || (/:TMP:/ && /mb:/)' | ${WGRIB2} -i -grib pgbf06.${GDATE} > ./pared_pgbf06.${GDATE}
-      echo "using g2ctl.pl"
-      ${USHcmon}/g2ctl.pl -0 pared_pgbanl.$PDATE > pared_anal_${PDATE}.ctl
-      ${USHcmon}/g2ctl.pl pared_pgbf06.$GDATE > guess_${GDATE}.ctl
+      ${WGRIB2} pgbf06.${GDATE} | awk '(/:RH:/ && /mb:/) || (/:PRES:sfc/) || (/:UGRD:/ && /mb:/) || (/:VGRD:/ && /mb:/) || (/:TMP:/ && /mb:/)' | ${WGRIB2} pgbf06.${GDATE} -i -grib ./pared_guess.${PDATE}
+
+#      echo "using g2ctl.pl"
+#      ${USHconmon}/g2ctl.pl -0 pared_anal.$PDATE > anal_${PDATE}.ctl
+#      ${USHconmon}/g2ctl.pl pared_guess.$GDATE > guess_${GDATE}.ctl
    fi
 
    ${NCP} ./pared_anal.${PDATE} ${TANKDIR_conmon}/horz_hist/anl/anal.${PDATE}

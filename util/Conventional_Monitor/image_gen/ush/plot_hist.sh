@@ -35,7 +35,7 @@ for type in ps q t uv; do
 
    eval stype=\${${type}_TYPE} 
    eval nreal=\${nreal_${type}} 
-   exec=read_${type}.x
+   exec=conmon_read_${type}_IG.x
 
    echo "stype, nreal, exec = $stype, $nreal, $exec"
 
@@ -46,17 +46,23 @@ for type in ps q t uv; do
       subtype=`echo ${dtype} | cut -f2 -d_`
       rm -f ./fileout
 
+      tankdir=${C_TANKDIR}/${RUN}.${PDY}/${CYC}/conmon
 
-      for cycle in ges anl; do
+      for cycle in ges anl; do		# cycle is a poor choice
 
-         ### read scatter data for histgram file
+         #------------------------------------------
+         # read scatter data for histgram file
+         #
+         /bin/sh  ${C_IG_SCRIPTS}/read_scatter.sh $CONMON_SUFFIX \
+		  $dtype $mtype $subtype $PDATE ${HOMEgdascmon}/fix \
+		  ${nreal} ${exec} ${type} ${cycle} \
+		  ${tankdir}/horz_hist/${cycle} ${C_IG_EXEC} 
 
-         /bin/sh  ${C_IG_SCRIPTS}/read_scatter.sh $CMON_SUFFIX $dtype $mtype $subtype $PDATE ${HOMEgdascmon}/fix ${nreal} ${exec} ${type} ${cycle} ${C_TANKDIR}/cmon.${PDY}/horz_hist/${cycle} ${C_IG_EXEC} 
 
-
-         ### build the control file for the data
-
-         if [  -s $C_TANKDIR/cmon.${PDY}/horz_hist/$cycle/${dtype}.scater.${PDATE} ];then
+         #------------------------------------------
+         # build the control file for the data
+         #
+         if [  -s ${tankdir}/horz_hist/$cycle/${dtype}.scater.${PDATE} ];then
             cp ${C_IG_FIX}/hist_${type}.ctl ./hist_${dtype}.ctl
 
             nlev_str=`cat stdout_${dtype}_${cycle}.${PDATE} | grep nlev`
@@ -108,7 +114,7 @@ for type in ps q t uv; do
 
       ### set up plot variables
 
-      if [  -s $C_TANKDIR/cmon.${PDY}/horz_hist/$cycle/${dtype}.scater.${PDATE} ];then
+      if [  -s ${tankdir}/horz_hist/$cycle/${dtype}.scater.${PDATE} ];then
 
          cp ${C_IG_GSCRIPTS}/plot_hist.gs ./plot_hist.gs 
          cp ${C_IG_GSCRIPTS}/setvpage.gs ./setvpage.gs

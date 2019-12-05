@@ -38,14 +38,12 @@ ln -s ${hh_tankdir}/ges/guess.${PDATE} guess.${PDATE}
 echo "grib2 = $grib2"
 
 if [[ $grib2 -eq 0 ]]; then             # grib files
-#   `module load wgrib`
    echo "handling grib files"
    ${C_IG_SCRIPTS}/grib2ctl.pl anal.${PDATE} > anal.ctl
    gribmap -i anal.ctl -0
    ${C_IG_SCRIPTS}/grib2ctl.pl -verf guess.${PDATE} > guess.ctl
    gribmap -i guess.ctl
 else                                    # grib2
-#   `module load wgrib2`
    echo "handling grib2 files"
    ${C_IG_SCRIPTS}/g2ctl.pl -0 anal.$PDATE > anal.ctl
    gribmap -0 -i anal.ctl

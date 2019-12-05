@@ -4,7 +4,7 @@
 
 echo "begin ConMon_config"
 
-export MY_MACHINE=theia
+export MY_MACHINE=wcoss_d
 
 
 #
@@ -12,7 +12,7 @@ export MY_MACHINE=theia
 # top level directory to the ConMon package. 
 #
 
-export MY_CONMON=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/ProdGSI/util/Conventional_Monitor
+export MY_CONMON=/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/ProdGSI/util/Conventional_Monitor
 
 #
 #  The CONMON_TANKDIR will be the location for the extracted data files and
@@ -21,11 +21,11 @@ export MY_CONMON=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/ProdGSI/util/Conven
 #  this location.
 #
 
-export CONMON_TANKDIR=/scratch4/NCEPDEV/da/save/Edward.Safford/nbns
+export CONMON_TANKDIR=/u/Edward.Safford/nbns
 export C_TANKverf=${C_TANKverf:-${CONMON_TANKDIR}}
 
 export C_TANKDIR=${CONMON_TANKDIR}/stats/${CONMON_SUFFIX}
-export C_IMGNDIR=${CONMON_TANKDIR}/imgn/${CONMON_SUFFIX}
+export C_IMGNDIR=${CONMON_TANKDIR}/imgn/${CONMON_SUFFIX}/${RUN}/conmon
 
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
@@ -102,11 +102,11 @@ fi
 
 export Z="gz"
 
-export ACCOUNT=${ACCOUNT:-fv3-cpu}
+export ACCOUNT=${ACCOUNT:-}
  
-export C_STMP=${C_STMP:-/scratch4/NCEPDEV/stmp3}
+export C_STMP=${C_STMP:-/gpfs/dell2/stmp}
 export C_STMP_USER=${C_STMP_USER:-${C_STMP}/${LOGNAME}}
-export C_PTMP=${C_PTMP:-/scratch4/NCEPDEV/stmp4}
+export C_PTMP=${C_PTMP:-/gpfs/dell2/ptmp}
 export C_PTMP_USER=${C_PTMP_USER:-${C_PTMP}/${LOGNAME}}
 
 export C_LOGDIR=${C_PTMP_USER}/logs/${CONMON_SUFFIX}
@@ -122,7 +122,7 @@ export WORK_conmon=${WORK_conmon:-${C_STMP_USER}/${CONMON_SUFFIX}/${NET}/ConMon}
 #  for the html on the web server (WEBDIR).
 #
 export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas
-export WEBUSER=${USER_NAME}
+export WEBUSER=esafford
 export WEBSVR=emcrzdm
 
 

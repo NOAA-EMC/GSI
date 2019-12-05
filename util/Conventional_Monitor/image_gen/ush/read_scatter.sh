@@ -7,7 +7,7 @@ set -xa
 #-----------------------------------------------------------------------------------
 
 echo "---> read_scatter.sh"
-echo " CMON_SUFFIX = $CMON_SUFFIX"
+echo " CONMON_SUFFIX = $CONMON_SUFFIX"
 
 ##if  [ $# -ne 1 ] ; then
 ## echo "usage: $0 date"

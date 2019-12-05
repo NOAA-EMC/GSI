@@ -37,11 +37,12 @@ use POSIX;
 use Math::Trig qw(deg2rad rad2deg);
 
 
-# ***** if wgrib2 is not on path, add it here
-#$wgrib2='wgrib2';
-$wgrib2='/nwprod/util/exec/wgrib2';
-# $wgrib2='/export/cpc-lw-webisuzak/wd51we/bin.lnx64/wgrib2';
-# $wgrib2='/export/cpc-lw-webisuzak/wd51we/grib2/wgrib2/wgrib2';
+#------------------------------------------------
+#   Assuming module grib_util/1.1.1 (or later)
+#   has been loaded, this should correctly 
+#   set wgrib2.
+#
+$wgrib2="$ENV{ WGRIB2 }";
 
 $wflag="";
 $tflag="-VT";
