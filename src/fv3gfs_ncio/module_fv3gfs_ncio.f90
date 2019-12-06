@@ -487,12 +487,22 @@ module module_fv3gfs_ncio
        enddo
        dset%variables(nvar)%name = dsetin%variables(nvar)%name
        dset%variables(nvar)%dtype = dsetin%variables(nvar)%dtype
+       if (maxval(dset%variables(nvar)%chunksizes) > 0) then
+       ! workaround for older versions of netcdf-fortran that don't
+       ! like zero chunksize to be specified.
        ncerr = nf90_def_var(dset%ncid, &
                             trim(dset%variables(nvar)%name),&
                             dset%variables(nvar)%dtype, &
                             dset%variables(nvar)%dimids, &
                             dset%variables(nvar)%varid, &
                             chunksizes=dset%variables(nvar)%chunksizes)
+       else
+       ncerr = nf90_def_var(dset%ncid, &
+                            trim(dset%variables(nvar)%name),&
+                            dset%variables(nvar)%dtype, &
+                            dset%variables(nvar)%dimids, &
+                            dset%variables(nvar)%varid)
+       endif
        if (return_errcode) then
           errcode=ncerr
           call nccheck(ncerr,halt=.false.)
