@@ -148,6 +148,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
     ExecCMDMPI_host = 'mpirun -np '+str(nFH)+' --hostfile hosts' 
     ExecCMDMPI1_host = 'mpirun -np 1 --hostfile hosts' 
   elif launcher == 'srun':
+    nodes = os.getenv('SLURM_JOB_NODELIST','')
     hosts_tmp = subprocess.check_output('scontrol show hostnames '+nodes, shell=True) 
     hosts_tmp = str(hosts_tmp).split('\n')
     hosts_tmp = [x.strip() for x in hosts_tmp]
