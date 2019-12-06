@@ -26,6 +26,7 @@ module module_fv3gfs_ncio
      character(len=nf90_max_name), allocatable, dimension(:) :: dimnames 
      ! current dimension lengths (updated after every write_vardata call)
      integer, allocatable, dimension(:) :: dimlens
+     integer, allocatable, dimension(:) :: chunksizes
   end type Variable   
   type Dimension 
      integer dimid ! netCDF dimension ID
@@ -315,10 +316,12 @@ module module_fv3gfs_ncio
        allocate(dset%variables(nvar)%dimids(dset%variables(nvar)%ndims))
        allocate(dset%variables(nvar)%dimindxs(dset%variables(nvar)%ndims))
        allocate(dset%variables(nvar)%dimlens(dset%variables(nvar)%ndims))
+       allocate(dset%variables(nvar)%chunksizes(dset%variables(nvar)%ndims))
        allocate(dset%variables(nvar)%dimnames(dset%variables(nvar)%ndims))
        ncerr = nf90_inquire_variable(dset%ncid, nvar,&
                                      dimids=dset%variables(nvar)%dimids,&
                                      deflate_level=dset%variables(nvar)%deflate_level,&
+                                     chunksizes=dset%variables(nvar)%chunksizes,&
                                      shuffle=dset%variables(nvar)%shuffle)
        if (return_errcode) then
           errcode=ncerr
@@ -465,6 +468,8 @@ module module_fv3gfs_ncio
        allocate(dset%variables(nvar)%dimindxs(dset%variables(nvar)%ndims))
        allocate(dset%variables(nvar)%dimnames(dset%variables(nvar)%ndims))
        allocate(dset%variables(nvar)%dimlens(dset%variables(nvar)%ndims))
+       allocate(dset%variables(nvar)%chunksizes(dset%variables(nvar)%ndims))
+       dset%variables(nvar)%chunksizes = dsetin%variables(nvar)%chunksizes
        do ndim=1,dset%variables(nvar)%ndims
           do n=1,dset%ndims
             if (trim(dsetin%variables(nvar)%dimnames(ndim)) == &
@@ -486,7 +491,8 @@ module module_fv3gfs_ncio
                             trim(dset%variables(nvar)%name),&
                             dset%variables(nvar)%dtype, &
                             dset%variables(nvar)%dimids, &
-                            dset%variables(nvar)%varid)
+                            dset%variables(nvar)%varid, &
+                            chunksizes=dset%variables(nvar)%chunksizes)
        if (return_errcode) then
           errcode=ncerr
           call nccheck(ncerr,halt=.false.)
@@ -649,6 +655,7 @@ module module_fv3gfs_ncio
        deallocate(dset%variables(nvar)%dimids)
        deallocate(dset%variables(nvar)%dimindxs)
        deallocate(dset%variables(nvar)%dimlens)
+       deallocate(dset%variables(nvar)%chunksizes)
        deallocate(dset%variables(nvar)%dimnames)
     enddo
     deallocate(dset%variables,dset%dimensions)
