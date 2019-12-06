@@ -206,7 +206,7 @@ contains
     ! Single task writes increment to file
     if ( mype == mype_out ) then
       ! create the output netCDF file
-      call nccheck_incr(nf90_create(path=trim(filename)//".nc", cmode=ior(nf90_clobber,nf90_64bit_offset), ncid=ncid_out))
+      call nccheck_incr(nf90_create(path=trim(filename)//".nc", cmode=ior(nf90_clobber,nf90_netcdf4), ncid=ncid_out))
       ! create dimensions based on analysis resolution, not guess
       call nccheck_incr(nf90_def_dim(ncid_out, "lon", grd%nlon, lon_dimid))
       call nccheck_incr(nf90_def_dim(ncid_out, "lat", grd%nlat-2, lat_dimid))
