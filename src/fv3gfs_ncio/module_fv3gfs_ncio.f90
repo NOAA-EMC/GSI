@@ -40,6 +40,7 @@ module module_fv3gfs_ncio
      integer :: ndims ! number of dimensions in dataset
      integer :: natts ! number of dataset (global) attributes
      integer :: nunlimdim ! dimension ID for unlimited dimension
+     logical :: ishdf5 ! is underlying disk format HDF5?
      character(len=500) filename ! netCDF filename
      ! array of Variable instances
      type(Variable), allocatable, dimension(:) :: variables
@@ -253,7 +254,7 @@ module module_fv3gfs_ncio
     character(len=*), intent(in) :: filename
     type(Dataset) :: dset
     integer, intent(out), optional :: errcode
-    integer ncerr,nunlimdim,ndim,nvar,n
+    integer ncerr,nunlimdim,ndim,nvar,n,formatnum
     logical return_errcode
     if(present(errcode)) then
        return_errcode=.true.
@@ -270,13 +271,18 @@ module module_fv3gfs_ncio
     else
        call nccheck(ncerr)
     endif
-    ncerr = nf90_inquire(dset%ncid, dset%ndims, dset%nvars, dset%natts, nunlimdim)
+    ncerr = nf90_inquire(dset%ncid, dset%ndims, dset%nvars, dset%natts, nunlimdim, formatnum=formatnum)
     if (return_errcode) then
        errcode=ncerr
        call nccheck(ncerr,halt=.false.)
        if (ncerr /= 0) return
     else
        call nccheck(ncerr)
+    endif
+    if (formatnum == nf90_format_netcdf4 .or. formatnum == nf90_format_netcdf4_classic) then
+       dset%ishdf5 = .true.
+    else
+       dset%ishdf5 = .false.
     endif
     dset%filename = trim(filename)
     allocate(dset%variables(dset%nvars))
@@ -318,11 +324,16 @@ module module_fv3gfs_ncio
        allocate(dset%variables(nvar)%dimlens(dset%variables(nvar)%ndims))
        allocate(dset%variables(nvar)%chunksizes(dset%variables(nvar)%ndims))
        allocate(dset%variables(nvar)%dimnames(dset%variables(nvar)%ndims))
+       if (dset%ishdf5) then
        ncerr = nf90_inquire_variable(dset%ncid, nvar,&
                                      dimids=dset%variables(nvar)%dimids,&
                                      deflate_level=dset%variables(nvar)%deflate_level,&
                                      chunksizes=dset%variables(nvar)%chunksizes,&
                                      shuffle=dset%variables(nvar)%shuffle)
+       else
+       ncerr = nf90_inquire_variable(dset%ncid, nvar,&
+                                     dimids=dset%variables(nvar)%dimids)
+       endif
        if (return_errcode) then
           errcode=ncerr
           call nccheck(ncerr,halt=.false.)
@@ -391,10 +402,18 @@ module module_fv3gfs_ncio
        copyd = .false. ! only copy coordinate variable data
     endif
     ! create netcdf file
-    ncerr = nf90_create(trim(filename), &
-            cmode=IOR(IOR(NF90_CLOBBER,NF90_NETCDF4),NF90_CLASSIC_MODEL), &
-            !cmode=IOR(NF90_CLOBBER,NF90_NETCDF4), &
-            ncid=dset%ncid)
+    if (dsetin%ishdf5) then
+       ncerr = nf90_create(trim(filename), &
+               cmode=IOR(IOR(NF90_CLOBBER,NF90_NETCDF4),NF90_CLASSIC_MODEL), &
+               !cmode=IOR(NF90_CLOBBER,NF90_NETCDF4), &
+               ncid=dset%ncid)
+       dset%ishdf5 = .true.
+    else
+       ncerr = nf90_create(trim(filename), &
+               cmode=IOR(IOR(NF90_CLOBBER,NF90_64BIT_OFFSET),NF90_SHARE), &
+               ncid=dset%ncid)
+       dset%ishdf5 = .false.
+    endif
     if (return_errcode) then
        errcode=ncerr
        call nccheck(ncerr,halt=.false.)
@@ -487,21 +506,21 @@ module module_fv3gfs_ncio
        enddo
        dset%variables(nvar)%name = dsetin%variables(nvar)%name
        dset%variables(nvar)%dtype = dsetin%variables(nvar)%dtype
-       if (maxval(dset%variables(nvar)%chunksizes) > 0) then
-       ! workaround for older versions of netcdf-fortran that don't
-       ! like zero chunksize to be specified.
-       ncerr = nf90_def_var(dset%ncid, &
-                            trim(dset%variables(nvar)%name),&
-                            dset%variables(nvar)%dtype, &
-                            dset%variables(nvar)%dimids, &
-                            dset%variables(nvar)%varid, &
-                            chunksizes=dset%variables(nvar)%chunksizes)
+       if (maxval(dset%variables(nvar)%chunksizes) > 0 .and. dset%ishdf5) then
+          ! workaround for older versions of netcdf-fortran that don't
+          ! like zero chunksize to be specified.
+          ncerr = nf90_def_var(dset%ncid, &
+                               trim(dset%variables(nvar)%name),&
+                               dset%variables(nvar)%dtype, &
+                               dset%variables(nvar)%dimids, &
+                               dset%variables(nvar)%varid, &
+                               chunksizes=dset%variables(nvar)%chunksizes)
        else
-       ncerr = nf90_def_var(dset%ncid, &
-                            trim(dset%variables(nvar)%name),&
-                            dset%variables(nvar)%dtype, &
-                            dset%variables(nvar)%dimids, &
-                            dset%variables(nvar)%varid)
+          ncerr = nf90_def_var(dset%ncid, &
+                               trim(dset%variables(nvar)%name),&
+                               dset%variables(nvar)%dtype, &
+                               dset%variables(nvar)%dimids, &
+                               dset%variables(nvar)%varid)
        endif
        if (return_errcode) then
           errcode=ncerr
@@ -510,7 +529,7 @@ module module_fv3gfs_ncio
        else
           call nccheck(ncerr)
        endif
-       if (dsetin%variables(nvar)%deflate_level > 0) then
+       if (dsetin%variables(nvar)%deflate_level > 0 .and. dset%ishdf5) then
           if (dsetin%variables(nvar)%shuffle) then
             ishuffle=1
           else
