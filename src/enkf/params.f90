@@ -541,6 +541,10 @@ if (nproc == 0) then
      print *,'univaroz is not supported in LETKF!'
      call stop2(19)
    end if
+   if (letkf_flag .and. .not. getkf .and. denkf) then
+     print *,'denkf only works when letkf_flag=T *and* getkf=T'
+     call stop2(19)
+   end if
    if (lupd_satbiasc .and. letkf_flag) then
      print *,'lupd_satbiasc not supported with LETKF'
      call stop2(19)

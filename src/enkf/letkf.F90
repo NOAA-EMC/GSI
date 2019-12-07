@@ -894,7 +894,7 @@ deallocate(swork1)
 ! For DEnKF factor is -0.5*C (Gamma + I)**-1 C^T (HZ)^ T R**-1/2 HXprime
 ! = -0.5 Pa (HZ)^ T R**-1/2 HXprime (Pa already computed)
 
-if (getkf .or. denkf) then ! use Gain formulation for LETKF weights
+if (getkf) then ! use Gain formulation for LETKF weights
 
 if (denkf) then
    ! use Pa = C (Gamma + I)**-1 C^T (already computed)
