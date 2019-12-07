@@ -155,7 +155,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
     hosts = []
     [hosts.append(x) for x in hosts_tmp if x not in hosts]
     nhosts = len(hosts)
-    ExecCMDMPI_host = 'srun --verbose --export=ALL -c '+str(NThreads)+' --distribution=arbitrary --cpu-bind=cores'
+    ExecCMDMPI_host = 'srun -n '+str(nFH)+' --verbose --export=ALL -c '+str(NThreads)+' --distribution=arbitrary --cpu-bind=cores'
     ExecCMDMPI1_host = 'srun -n 1 --verbose --export=ALL -c '+str(NThreads)+' --distribution=arbitrary --cpu-bind=cores'
   elif launcher == 'aprun':
     hostfile = os.getenv('LSB_DJOB_HOSTFILE','')
