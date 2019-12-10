@@ -29,7 +29,7 @@ program recentersigp
   use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_readrec,&
        nemsio_writerec,nemsio_readrecv,nemsio_writerecv,nemsio_getrechead
   use module_fv3gfs_ncio, only: open_dataset, create_dataset, read_attribute, &
-                           Dataset, Dimension, close_dataset, &
+                           Dataset, Dimension, close_dataset, has_attr, &
                            read_vardata, write_attribute, write_vardata, &
                            get_dim, quantize_data
 
@@ -241,12 +241,13 @@ program recentersigp
                   call read_vardata(dsetmi,trim(dseti%variables(nvar)%name),values_2d_mi)
                   call read_vardata(dsetmo,trim(dseti%variables(nvar)%name),values_2d_mo)
                   values_2d = values_2d_i - values_2d_mi + values_2d_mo 
-                  call read_attribute(dseti, 'nbits', nbits, &
-                       trim(dseti%variables(nvar)%name),errcode=iret)
-                  if (iret == 0 .and. nbits > 0) then
-                      quantize=.true.
+                  if (has_attr(dseti, 'nbits', trim(dseti%variables(nvar)%name))) then
+                      call read_attribute(dseti, 'nbits', nbits, &
+                           trim(dseti%variables(nvar)%name))
+                      quantize = .true.
+                      if (nbits < 1) quantize = .false. 
                   else
-                      quantize=.false.
+                      quantize = .false.
                   endif
                   if (quantize) then
                     values_2d_mi = values_2d
@@ -260,12 +261,13 @@ program recentersigp
                   call read_vardata(dsetmi,trim(dseti%variables(nvar)%name),values_3d_mi)
                   call read_vardata(dsetmo,trim(dseti%variables(nvar)%name),values_3d_mo)
                   values_3d = values_3d_i - values_3d_mi + values_3d_mo 
-                  call read_attribute(dseti, 'nbits', nbits, &
-                       trim(dseti%variables(nvar)%name),errcode=iret)
-                  if (iret == 0 .and. nbits > 0) then
-                      quantize=.true.
+                  if (has_attr(dseti, 'nbits', trim(dseti%variables(nvar)%name))) then
+                      call read_attribute(dseti, 'nbits', nbits, &
+                           trim(dseti%variables(nvar)%name))
+                      quantize = .true.
+                      if (nbits < 1) quantize = .false. 
                   else
-                      quantize=.false.
+                      quantize = .false.
                   endif
                   if (quantize) then
                     values_3d_mi = values_3d
