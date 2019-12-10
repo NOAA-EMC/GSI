@@ -28,7 +28,7 @@ program getsigensmeanp_smooth
                            nemsio_readrec,nemsio_writerec, &
                            nemsio_readrecv,nemsio_writerecv
   use module_fv3gfs_ncio, only: open_dataset, create_dataset, read_attribute, &
-                           Dataset, Dimension, close_dataset, &
+                           Dataset, Dimension, close_dataset, has_attr, &
                            read_vardata, write_attribute, write_vardata, &
                            get_dim, quantize_data
 
@@ -51,10 +51,12 @@ program getsigensmeanp_smooth
   integer :: nrec,latb,lonb,npts,n,idrt
   integer,allocatable,dimension(:) :: new_group_members,reclev,krecu,krecv
   integer,allocatable,dimension(:) :: smoothparm
-  real(8) :: rnanals,rnanalsm1
+  real(8) :: rnanals,rnanalsm1,t1,t2
   real(8),allocatable,dimension(:,:,:) :: smoothfact
   real(4),allocatable, dimension(:,:,:) :: values_3d, values_3d_avg, &
                                            values_3d_tmp, values_3d_sprd
+  real(4),allocatable, dimension(:,:,:) :: values_3dv, values_3dv_avg, &
+                                           values_3dv_tmp, values_3dv_sprd
   real(4),allocatable,dimension(:) :: sigdatapert_ps,sigdatapert_z,sigdatapert_d,&
                                       sigdatapert_t,sigdatapert_q,sigdatapert_oz,&
                                       sigdatapert_cw
@@ -336,6 +338,7 @@ program getsigensmeanp_smooth
      else if (ncio) then
 
         if (mype == 0) then
+           t1 = mpi_wtime()
            dseto = create_dataset(filenameout, dset, copy_vardata=.true.)
            if (write_spread_ncio) then
               dseto_sprd = create_dataset(filenameoutsprd, dset, copy_vardata=.true.)
@@ -347,10 +350,12 @@ program getsigensmeanp_smooth
         allocate(values_2d_avg(lonb,latb))
         allocate(values_2d_tmp(lonb,latb))
         if (dosmooth) then
-           allocate(rwork_spc((ntrunc+1)*(ntrunc+2)))
+           allocate(rwork_spc((ntrunc+1)*(ntrunc+2)),rwork_spc2((ntrunc+1)*(ntrunc+2)))
         endif
         if (write_spread_ncio) allocate(values_2d_sprd(lonb,latb))
         do nvar=1,dset%nvars
+           ! if smoothing is on, u&v done together.
+           if (dosmooth .and. trim(dset%variables(nvar)%name) == 'vgrd') cycle
            ndims = dset%variables(nvar)%ndims
            if (ndims > 2) then
                if (ndims == 3 .and. trim(dset%variables(nvar)%name) /= 'hgtsfc') then
@@ -367,12 +372,13 @@ program getsigensmeanp_smooth
                      call mpi_reduce(values_2d,values_2d_sprd,lonb*latb,mpi_real4,mpi_sum,0,new_comm,iret)
                      values_2d_sprd= sqrt(values_2d_sprd*rnanalsm1)
                   endif
-                  call read_attribute(dset, 'nbits', nbits, &
-                       trim(dset%variables(nvar)%name),errcode=iret)
-                  if (iret == 0 .and. nbits > 0) then
-                      quantize=.true.
+                  if (has_attr(dset, 'nbits', trim(dset%variables(nvar)%name))) then
+                      call read_attribute(dset, 'nbits', nbits, &
+                           trim(dset%variables(nvar)%name))
+                      quantize = .true.
+                      if (nbits < 1) quantize = .false. 
                   else
-                      quantize=.false.
+                      quantize = .false.
                   endif
                   ! smooth ens pert and write out?
                   ! don't smooth 2d fields
@@ -431,36 +437,93 @@ program getsigensmeanp_smooth
                      call mpi_reduce(values_3d,values_3d_sprd,lonb*latb*nlevs,mpi_real4,mpi_sum,0,new_comm,iret)
                      values_3d_sprd= sqrt(values_3d_sprd*rnanalsm1)
                   endif
-                  call read_attribute(dset, 'nbits', nbits, &
-                       trim(dset%variables(nvar)%name),errcode=iret)
-                  if (iret == 0 .and. nbits > 0) then
-                      quantize=.true.
+                  if (has_attr(dset, 'nbits', trim(dset%variables(nvar)%name))) then
+                      call read_attribute(dset, 'nbits', nbits, &
+                           trim(dset%variables(nvar)%name))
+                      quantize = .true.
+                      if (nbits < 1) quantize = .false. 
                   else
-                      quantize=.false.
+                      quantize = .false.
+                  endif
+                  ! if smoothing on, read u and v together
+                  if (dosmooth .and. trim(dset%variables(nvar)%name) == 'ugrd') then
+                     call read_vardata(dset,'vgrd',values_3dv)
+                     if (allocated(values_3dv_avg)) deallocate(values_3dv_avg)
+                     allocate(values_3dv_avg, mold=values_3dv)
+                     if (allocated(values_3dv_tmp)) deallocate(values_3dv_tmp)
+                     allocate(values_3dv_tmp, mold=values_3dv_avg)
+                     if (write_spread_ncio) then
+                        if (allocated(values_3dv_sprd)) deallocate(values_3dv_sprd)
+                        allocate(values_3dv_sprd, mold=values_3dv_avg)
+                     endif
+                     if (mype == 0) print *,'processing vgrd'
+                     call mpi_allreduce(values_3dv,values_3dv_avg,lonb*latb*nlevs,mpi_real4,mpi_sum,new_comm,iret)
+                     values_3dv_avg = values_3dv_avg*rnanals
+                     if (write_spread_ncio) then
+                        ! ens spread
+                        values_3dv_tmp = values_3dv - values_3dv_avg ! ens pert
+                        values_3dv_tmp = values_3dv_tmp**2
+                        call mpi_reduce(values_3dv,values_3dv_sprd,lonb*latb*nlevs,mpi_real4,mpi_sum,0,new_comm,iret)
+                        values_3dv_sprd= sqrt(values_3dv_sprd*rnanalsm1)
+                     endif
                   endif
                   ! smooth ens pert and write out?
                   if (dosmooth) then
-                     ! don't smooth u,v,dzdt,delz,dpres
-                     if (trim(dset%variables(nvar)%name) /= 'ugrd' .and. &
-                         trim(dset%variables(nvar)%name) /= 'vgrd' .and. &
-                         trim(dset%variables(nvar)%name) /= 'dzdt' .and. &
-                         trim(dset%variables(nvar)%name) /= 'delz' .and. &
-                         trim(dset%variables(nvar)%name) /= 'dpres') then
+                     if (trim(dset%variables(nvar)%name) == 'ugrd') then
+                        ! do u,v together
+!$omp parallel do schedule(dynamic,1) private(k,rwork_spc,rwork_spc2)
                         do k=1,nlevs
+                          if ( smoothparm(nlevs-k+1) > 0 ) then
                            values_3d(:,:,k) = values_3d(:,:,k) - values_3d_avg(:,:,k) ! ens pert
-                           call sptez(0,ntrunc,idrt,lonb,latb,rwork_spc,values_3d(1,1,k),-1)
-                           call smooth(rwork_spc,ntrunc,smoothfact(:,:,nlevs-k+1))
-                           call sptez(0,ntrunc,idrt,lonb,latb,rwork_spc,values_3d(1,1,k),1)
+                           values_3dv(:,:,k) = values_3dv(:,:,k) - values_3dv_avg(:,:,k) ! ens pert
+                           call sptezv(0,ntrunc,idrt,lonb,latb,rwork_spc,rwork_spc2,&
+                                       values_3d(:,:,k),values_3dv(:,:,k),-1)
+                           call smooth(rwork_spc, ntrunc,smoothfact(:,:,nlevs-k+1))
+                           call smooth(rwork_spc2,ntrunc,smoothfact(:,:,nlevs-k+1))
+                           call sptezv(0,ntrunc,idrt,lonb,latb,rwork_spc,rwork_spc2,&
+                                       values_3d(:,:,k),values_3dv(:,:,k),1)
                            values_3d(:,:,k) = values_3d(:,:,k) + values_3d_avg(:,:,k) ! add mean back
+                           values_3dv(:,:,k) = values_3dv(:,:,k) + values_3dv_avg(:,:,k) ! add mean back
+                          endif
                         enddo
+                        if (quantize) then
+                           values_3d_tmp = values_3d
+                           values_3dv_tmp = values_3dv
+                           call quantize_data(values_3d_tmp, values_3d, nbits, compress_err)
+                           call write_attribute(dseto_smooth,&
+                           'max_abs_compression_error',compress_err,'ugrd')
+                           call quantize_data(values_3dv_tmp, values_3dv, nbits, compress_err)
+                           call write_attribute(dseto_smooth,&
+                           'max_abs_compression_error',compress_err,'vgrd')
+                        endif
+                        call write_vardata(dseto_smooth,'ugrd',values_3d)
+                        call write_vardata(dseto_smooth,'vgrd',values_3dv)
+                     else
+                        ! do scalars, don't smooth dzdt,delz,dpres
+                        if (trim(dset%variables(nvar)%name) /= 'ugrd' .and. &
+                            trim(dset%variables(nvar)%name) /= 'vgrd' .and. &
+                            trim(dset%variables(nvar)%name) /= 'dzdt' .and. &
+                            trim(dset%variables(nvar)%name) /= 'delz' .and. &
+                            trim(dset%variables(nvar)%name) /= 'dpres') then
+!$omp parallel do schedule(dynamic,1) private(k,rwork_spc)
+                           do k=1,nlevs
+                             if ( smoothparm(nlevs-k+1) > 0 ) then
+                              values_3d(:,:,k) = values_3d(:,:,k) - values_3d_avg(:,:,k) ! ens pert
+                              call sptez(0,ntrunc,idrt,lonb,latb,rwork_spc,values_3d(:,:,k),-1)
+                              call smooth(rwork_spc,ntrunc,smoothfact(:,:,nlevs-k+1))
+                              call sptez(0,ntrunc,idrt,lonb,latb,rwork_spc,values_3d(:,:,k),1)
+                              values_3d(:,:,k) = values_3d(:,:,k) + values_3d_avg(:,:,k) ! add mean back
+                             endif
+                           enddo
+                        endif
+                        if (quantize) then
+                           values_3d_tmp = values_3d
+                           call quantize_data(values_3d_tmp, values_3d, nbits, compress_err)
+                           call write_attribute(dseto_smooth,&
+                           'max_abs_compression_error',compress_err,trim(dset%variables(nvar)%name))
+                        endif
+                        call write_vardata(dseto_smooth,trim(dset%variables(nvar)%name),values_3d)
                      endif
-                     if (quantize) then
-                        values_3d_tmp = values_3d
-                        call quantize_data(values_3d_tmp, values_3d, nbits, compress_err)
-                        call write_attribute(dseto_smooth,&
-                        'max_abs_compression_error',compress_err,trim(dset%variables(nvar)%name))
-                     endif
-                     call write_vardata(dseto_smooth,trim(dset%variables(nvar)%name),values_3d)
                   endif
                   if (mype == 0) then
                      if (quantize) then
@@ -478,6 +541,15 @@ program getsigensmeanp_smooth
                           'max_abs_compression_error',compress_err,trim(dset%variables(nvar)%name))
                         endif
                         call write_vardata(dseto_sprd,trim(dset%variables(nvar)%name),values_3d_sprd)
+                        if (dosmooth .and. trim(dset%variables(nvar)%name) == 'ugrd') then
+                           if (quantize) then
+                             values_3dv_tmp = values_3dv_sprd
+                             call quantize_data(values_3dv_tmp, values_3dv_sprd, nbits, compress_err)
+                             call write_attribute(dseto_sprd,&
+                             'max_abs_compression_error',compress_err,'vgrd')
+                           endif
+                           call write_vardata(dseto_sprd,'vgrd',values_3dv_sprd)
+                        endif
                      endif
                   endif
                endif
@@ -494,6 +566,8 @@ program getsigensmeanp_smooth
         endif
         if (mype == 0) then
            call close_dataset(dseto)
+           t2 = mpi_wtime()
+           print *,'time to write ens mean on root',t2-t1
            write(6,'(3a,i5)')'Write ncio ensemble mean ',trim(filenameout),' iret = ', iret
            if (write_spread_ncio) then
              call close_dataset(dseto_sprd)
