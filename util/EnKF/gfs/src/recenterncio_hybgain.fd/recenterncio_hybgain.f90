@@ -23,7 +23,7 @@ program recenterncio_hybgain
 !$$$
 
   use module_fv3gfs_ncio, only: open_dataset, create_dataset, read_attribute, &
-                           Dataset, Dimension, close_dataset, &
+                           Dataset, Dimension, close_dataset, has_attr, &
                            read_vardata, write_attribute, write_vardata, &
                            get_dim, quantize_data
 
@@ -154,8 +154,12 @@ program recenterncio_hybgain
                             beta*values_2d_enkfanal
                ! recentered ensemble member
                values_2d = values_2d - values_2d_enkfanal + values_2d_anal
-               call read_attribute(dset_fg, 'nbits', nbits, &
-                    trim(dset_fg%variables(nvar)%name),errcode=iret)
+               if (has_attr(dset_fg, 'nbits', trim(dset_fg%variables(nvar)%name))) then
+                   call read_attribute(dset_fg, 'nbits', nbits, &
+                        trim(dset_fg%variables(nvar)%name),errcode=iret)
+               else
+                   iret = 1
+               endif
                if (mype == 0) then ! write out blended analysis on root task
                   if (iret == 0 .and. nbits > 0) then
                     values_2d_tmp = values_2d_anal
@@ -183,8 +187,12 @@ program recenterncio_hybgain
                             beta*values_3d_enkfanal
                ! recentered ensemble member
                values_3d = values_3d - values_3d_enkfanal + values_3d_anal
-               call read_attribute(dset_fg, 'nbits', nbits, &
-                    trim(dset_fg%variables(nvar)%name),errcode=iret)
+               if (has_attr(dset_fg, 'nbits', trim(dset_fg%variables(nvar)%name))) then
+                   call read_attribute(dset_fg, 'nbits', nbits, &
+                        trim(dset_fg%variables(nvar)%name),errcode=iret)
+               else
+                   iret = 1
+               endif
                if (mype == 0) then ! write out blended analysis on root task
                   if (iret == 0 .and. nbits > 0) then
                     values_3d_tmp = values_3d_anal
