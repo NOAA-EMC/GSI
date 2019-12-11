@@ -227,6 +227,9 @@ PCPSTAT=${PCPSTAT:-${COMOUT}/${APREFIX}pcpstat}
 CNVSTAT=${CNVSTAT:-${COMOUT}/${APREFIX}cnvstat}
 OZNSTAT=${OZNSTAT:-${COMOUT}/${APREFIX}oznstat}
 
+# Increment files
+ATMINC=${ATMINC:-${COMOUT}/${APREFIX}atminc.nc}
+
 # Obs diag
 RUN_SELECT=${RUN_SELECT:-"NO"}
 USE_SELECT=${USE_SELECT:-"NO"}
@@ -390,11 +393,17 @@ fi
 # Set 4D-EnVar specific variables
 if [ $DOHYBVAR = "YES" -a $l4densvar = ".true." -a $lwrite4danl = ".true." ]; then
    ATMA03=${ATMA03:-${COMOUT}/${APREFIX}atma003${ASUFFIX}}
+   ATMI03=${ATMI03:-${COMOUT}/${APREFIX}atmi003.nc}
    ATMA04=${ATMA04:-${COMOUT}/${APREFIX}atma004${ASUFFIX}}
+   ATMI04=${ATMI04:-${COMOUT}/${APREFIX}atmi004.nc}
    ATMA05=${ATMA05:-${COMOUT}/${APREFIX}atma005${ASUFFIX}}
+   ATMI05=${ATMI05:-${COMOUT}/${APREFIX}atmi005.nc}
    ATMA07=${ATMA07:-${COMOUT}/${APREFIX}atma007${ASUFFIX}}
+   ATMI07=${ATMI07:-${COMOUT}/${APREFIX}atmi007.nc}
    ATMA08=${ATMA08:-${COMOUT}/${APREFIX}atma008${ASUFFIX}}
+   ATMI08=${ATMI08:-${COMOUT}/${APREFIX}atmi008.nc}
    ATMA09=${ATMA09:-${COMOUT}/${APREFIX}atma009${ASUFFIX}}
+   ATMI09=${ATMI09:-${COMOUT}/${APREFIX}atmi009.nc}
 fi
 
 ################################################################################
@@ -438,6 +447,7 @@ rm aircftbias_in aircftbias_out
 
 rm sfcf* sigf* nstf*
 rm sfca* siga* nsta*
+rm sigi*
 
 rm gsiparm.anl
 
@@ -640,13 +650,20 @@ fi
 # Output files
 # $SFCANL is no longer created here since global_cycle is not called
 $NLN $ATMANL siganl
+$NLN $ATMINC siginc
 if [ $DOHYBVAR = "YES" -a $l4densvar = ".true." -a $lwrite4danl = ".true." ]; then
    $NLN $ATMA03   siga03
+   $NLN $ATMI03   sigi03
    $NLN $ATMA04   siga04
+   $NLN $ATMI04   sigi04
    $NLN $ATMA05   siga05
+   $NLN $ATMI05   sigi05
    $NLN $ATMA07   siga07
+   $NLN $ATMI07   sigi07
    $NLN $ATMA08   siga08
+   $NLN $ATMI08   sigi08
    $NLN $ATMA09   siga09
+   $NLN $ATMI09   sigi09
 fi
 $NLN $ABIAS    satbias_out
 $NLN $ABIASPC  satbias_pc.out
@@ -655,6 +672,7 @@ $NLN $ABIASAIR aircftbias_out
 if [ $DONST = "YES" ]; then
    $NLN $DTFANL dtfanl
 fi
+
 
 # If requested, link (and if tarred, de-tar obsinput.tar) into obs_input.* files
 if [ $USE_SELECT = "YES" ]; then
