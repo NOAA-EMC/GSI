@@ -75,6 +75,7 @@ echo "CONMON_SUFFIX = $CONMON_SUFFIX"
 export NUM_CYCLES=${NUM_CYCLES:-121}			# number of cycles in plot
 export JOBNAME=${JOBNAME:-ConMon_plt_${CONMON_SUFFIX}}
 export grib2=${grib2:-1}				# 1 = grib2 (true), 0 = grib
+							# should this move to config?
 
 plot_time=${PDATE}
 

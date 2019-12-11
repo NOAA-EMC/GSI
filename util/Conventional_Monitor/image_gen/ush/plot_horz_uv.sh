@@ -12,7 +12,7 @@ echo "--> plot_horz_uv.sh"
 rc=0
 pdy=`echo $PDATE|cut -c1-8`
 cyc=`echo $PDATE|cut -c9-10`
-hh_tankdir=${C_TANKDIR}/cmon.${pdy}/horz_hist
+hh_tankdir=${C_TANKDIR}/${RUN}.${PDY}/${CYC}/conmon/horz_hist
 export savedir=${hh_tankdir}
 
 export tmpdir_plothorz=${C_PLOT_WORKDIR}/plothorz_uv
