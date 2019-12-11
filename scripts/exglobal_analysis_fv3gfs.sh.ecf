@@ -650,20 +650,20 @@ fi
 # Output files
 # $SFCANL is no longer created here since global_cycle is not called
 $NLN $ATMANL siganl
-$NLN $ATMINC siginc
+$NLN $ATMINC siginc.nc
 if [ $DOHYBVAR = "YES" -a $l4densvar = ".true." -a $lwrite4danl = ".true." ]; then
    $NLN $ATMA03   siga03
-   $NLN $ATMI03   sigi03
+   $NLN $ATMI03   sigi03.nc
    $NLN $ATMA04   siga04
-   $NLN $ATMI04   sigi04
+   $NLN $ATMI04   sigi04.nc
    $NLN $ATMA05   siga05
-   $NLN $ATMI05   sigi05
+   $NLN $ATMI05   sigi05.nc
    $NLN $ATMA07   siga07
-   $NLN $ATMI07   sigi07
+   $NLN $ATMI07   sigi07.nc
    $NLN $ATMA08   siga08
-   $NLN $ATMI08   sigi08
+   $NLN $ATMI08   sigi08.nc
    $NLN $ATMA09   siga09
-   $NLN $ATMI09   sigi09
+   $NLN $ATMI09   sigi09.nc
 fi
 $NLN $ABIAS    satbias_out
 $NLN $ABIASPC  satbias_pc.out
