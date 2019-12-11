@@ -36,7 +36,6 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
         if not os.path.exists(CalcAnlDir):
           os.makedirs(CalcAnlDir)
         shutil.copy(ExecAnl, CalcAnlDir+'/calc_anl.x')
-        shutil.copy('siginc.nc', ComOut+'/'+APrefix+'atminc.nc')
         gsi_utils.link_file(RunDir+'/siginc.nc', CalcAnlDir+'/siginc.nc.06')
         gsi_utils.link_file(ComOut+'/'+APrefix+'atmanl.ensres'+ASuffix, CalcAnlDir+'/anl.ensres.06')
         gsi_utils.link_file(RunDir+'/sigf06', CalcAnlDir+'/ges.06')
@@ -64,7 +63,6 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
             os.makedirs(CalcAnlDir)
           if not os.path.exists(CalcAnlDir6):
             os.makedirs(CalcAnlDir6)
-          shutil.copy('sigi'+format(fh, '02')+'.nc', ComOut+'/'+APrefix+'atmi'+format(fh, '03')+'.nc')
           gsi_utils.link_file(ComOut+'/'+APrefix+'atma'+format(fh, '03')+'.ensres'+ASuffix, CalcAnlDir6+'/anl.ensres.'+format(fh, '02'))
           gsi_utils.link_file(RunDir+'/sigi'+format(fh, '02')+'.nc', CalcAnlDir6+'/siginc.nc.'+format(fh, '02'))
           gsi_utils.link_file(RunDir+'/sigf'+format(fh, '02'), CalcAnlDir+'/ges.'+format(fh, '02'))
@@ -87,7 +85,6 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
     if not os.path.exists(CalcAnlDir):
       os.makedirs(CalcAnlDir)
     shutil.copy(ExecAnl, CalcAnlDir+'/calc_anl.x')
-    shutil.copy(RunDir+'/siginc.nc', ComOut+'/'+APrefix+'atminc.nc')
     gsi_utils.link_file(RunDir+'/siginc.nc', CalcAnlDir+'/siginc.nc.06')
     gsi_utils.link_file(ComOut+'/'+APrefix+'atmanl.ensres'+ASuffix, CalcAnlDir+'/anl.ensres.06')
     gsi_utils.link_file(RunDir+'/sigf06', CalcAnlDir+'/ges.06')
