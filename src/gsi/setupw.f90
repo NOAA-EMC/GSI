@@ -31,7 +31,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   use obsmod, only: rmiss_single,perturb_obs,oberror_tune,lobsdiag_forenkf,&
        lobsdiagsave,nobskeep,lobsdiag_allocated,&
-       time_offset,bmiss,ianldate
+       time_offset,bmiss,ianldate,aircraft_recon
   use m_obsNode, only: obsNode
   use m_wNode, only: wNode
   use m_wNode, only: wNode_appendto
@@ -789,7 +789,6 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      end if
      ratio_errors=error/(data(ier,i)+drpx+1.0e6_r_kind*rhgh+four*rlow)
 
-!JS - MOVED THIS HERE
 !    Compute innovations
      lowlevelsat=itype==242.or.itype==243.or.itype==245.or.itype==246.or. &
                  itype==247.or.itype==250.or.itype==251.or.itype==252.or. &
@@ -807,13 +806,15 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      spdb=sqrt(uob**2+vob**2)-sqrt(ugesin**2+vgesin**2)
     
 !    Setup dynamic ob error specification for aircraft recon in hurricanes 
-     if (itype==236) then
-        magomb=sqrt(dudiff*dudiff+dvdiff*dvdiff)
-        ratio_errors=error/((0.75_r_kind*magomb+0.5_r_kind)+drpx+1.0e6_r_kind*rhgh+four*rlow)
-     endif
-     if (itype==237) then
-        magomb=sqrt(dudiff*dudiff+dvdiff*dvdiff)
-        ratio_errors=error/((0.75_r_kind*magomb+0.3_r_kind)+drpx+1.0e6_r_kind*rhgh+four*rlow)
+     if (aircraft_recon) then
+      if (itype==236) then
+         magomb=sqrt(dudiff*dudiff+dvdiff*dvdiff)
+         ratio_errors=error/((0.75_r_kind*magomb+0.5_r_kind)+drpx+1.0e6_r_kind*rhgh+four*rlow)
+      endif
+      if (itype==237) then
+         magomb=sqrt(dudiff*dudiff+dvdiff*dvdiff)
+         ratio_errors=error/((0.75_r_kind*magomb+0.3_r_kind)+drpx+1.0e6_r_kind*rhgh+four*rlow)
+      endif
      endif
 
 !    Invert observation error

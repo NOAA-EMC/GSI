@@ -34,6 +34,7 @@
   use obsmod, only: luse_obsdiag
   use obsmod, only: netcdf_diag, binary_diag
   use obsmod, only: l_wcp_cwm
+  use obsmod, only: aircraft_recon
   use aircraftinfo, only: init_aircraft,hdist_aircraft,aircraft_t_bc_pof,aircraft_t_bc, &
                           aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail
   use obs_sensitivity, only: lobsensfc,lobsensincr,lobsensjb,lsensrecompute, &
@@ -121,7 +122,7 @@
   use lag_traj,only   : lag_stepduration
   use hybrid_ensemble_parameters,only : l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,&
                          n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,oz_univ_static,&
-                         regional_ensemble_option,merge_two_grid_ensperts, &
+                         regional_ensemble_option,fv3sar_ensemble_opt,merge_two_grid_ensperts, &
                          full_ensemble,pseudo_hybens,pwgtflg,&
                          beta_s0,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
                          readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens,&
@@ -163,6 +164,7 @@
   use gsi_nstcouplermod, only: nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl
   use ncepnems_io, only: init_nems,imp_physics,lupp
   use wrf_vars_mod, only: init_wrf_vars
+  use gsi_rfv3io_mod,only : fv3sar_bg_opt
 
   implicit none
 
@@ -386,6 +388,9 @@
 !                           data assimilation
 !  08-16-2018 akella    id_ship flag - modify KX values for ships if set
 !  08-25-2018 Collard   Introduce bias_zero_start
+!  03-29-2019 lei       add integer parameter fv3sar_ensemble_opt to select the format of the FV3SAR ensembles 
+!                                 =0;  restart files
+!                                 =1;  cold start IC files from CHGRES
 !  09-12-2018 Ladwig    added option l_precip_clear_only
 !  03-28-2019 Ladwig    merging additional options for cloud product assimilation
 !  03-11-2019 Collard   Introduce ec_amv_qc as temporary control of GOES-16/17 AMVS
@@ -586,6 +591,7 @@
 !     netcdf_diag - trigger netcdf diag-file output
 !     diag_version - specifies desired version of diag files
 !     l_wcp_cwm - namelist logical whether to use swcp/lwcp operator that includes cwm
+!     aircraft_recon - namelist logibal whether to apply DOE to aircraft data
 !     tau_fcst - controls EFSOI-like calculation
 !     efsoi_order - sets order of EFSOI-like calculation
 !     lupdqc - logical to replace the obs errors from satinfo with diag of est(R) in the case of correlated obs
@@ -630,7 +636,7 @@
        rmesh_vr,zmesh_dbz,zmesh_vr, ntilt_radarfiles, whichradar,&
        radar_no_thinning,ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,&
        minobrangevr, maxtiltdbz, mintiltvr,mintiltdbz,if_vterminal,if_vrobs_raw,&
-       if_model_dbz,imp_physics,lupp,netcdf_diag,binary_diag,l_wcp_cwm,diag_version,&
+       if_model_dbz,imp_physics,lupp,netcdf_diag,binary_diag,l_wcp_cwm,aircraft_recon,diag_version,&
        cao_check,lcalc_gfdl_cfrac,tau_fcst,efsoi_order,lupdqc,lqcoef
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
@@ -962,7 +968,7 @@
 !              
 !                         
   namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
-                pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,full_ensemble,pwgtflg,&
+                pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,fv3sar_bg_opt,fv3sar_ensemble_opt,full_ensemble,pwgtflg,&
                 jcap_ens_test,beta_s0,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,readin_beta,&
                 grid_ratio_ens, &
                 oz_univ_static,write_ens_sprd,use_localization_grid,use_gfs_ens, &
@@ -1300,7 +1306,6 @@
 
   close(11)
 #endif
-
   if(jcap > jcap_cut)then
     jcap_cut = jcap+1
     if(mype == 0)then

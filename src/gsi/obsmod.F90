@@ -385,6 +385,7 @@ module obsmod
 !   def netcdf_diag    - trigger netcdf diag-file output
 !   def l_wcp_cwm      - namelist logical whether to use operator that
 !                        includes cwm for both swcp and lwcp or not
+!   def aircraft_recon - namelist logibal whether to use DOE for aircraft
 !
 ! attributes:
 !   langauge: f90
@@ -464,6 +465,7 @@ module obsmod
   public :: netcdf_diag, binary_diag
 
   public :: l_wcp_cwm
+  public :: aircraft_recon
 
   interface obsmod_init_instr_table
           module procedure init_instr_table_
@@ -573,6 +575,7 @@ module obsmod
   logical l_foreaft_thin
 
   logical l_wcp_cwm
+  logical aircraft_recon
 
   character(len=*),parameter:: myname='obsmod'
 contains
@@ -797,6 +800,7 @@ contains
     binary_diag = .true.  ! by default, do write binary diag
 
     l_wcp_cwm          = .false.                 ! .true. = use operator that involves cwm
+    aircraft_recon     = .false.                 ! .true. = use DOE for aircraft data
 
     return
   end subroutine init_obsmod_dflts

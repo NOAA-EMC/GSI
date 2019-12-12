@@ -127,7 +127,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   use obsmod, only: rmiss_single,perturb_obs,oberror_tune,&
        lobsdiagsave,nobskeep,lobsdiag_allocated,&
-       time_offset,lobsdiag_forenkf
+       time_offset,lobsdiag_forenkf,aircraft_recon
   use m_obsNode, only: obsNode
   use m_qNode, only: qNode
   use m_qNode, only: qNode_appendto
@@ -489,21 +489,23 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      rmaxerr=max(small2,rmaxerr)
      errorx =(data(ier,i)+dprpx)*qsges
 
-!JS - MOVED TO HERE
 ! Interpolate guess moisture to observation location and time
      call tintrp31(ges_q,qges,dlat,dlon,dpres,dtime, &
         hrdifsig,mype,nfldsig)
      
   
 !    Setup dynamic ob error specification for aircraft recon in hurricanes 
-     if (itype == 136 ) then
-        ddiff=qob-qges
-        errorx = 1.4_r_kind*abs(ddiff)+.0003_r_kind
-     endif
 
-     if (itype == 137 ) then
-        ddiff=qob-qges
-        errorx = abs(ddiff)+0.0002_r_kind
+     if (aircraft_recon) then
+      if (itype == 136 ) then
+         ddiff=qob-qges
+         errorx = 1.4_r_kind*abs(ddiff)+.0003_r_kind
+      endif
+
+      if (itype == 137 ) then
+         ddiff=qob-qges
+         errorx = abs(ddiff)+0.0002_r_kind
+      endif
      endif
 
      errorx =max(small1,errorx)
