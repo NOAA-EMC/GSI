@@ -918,6 +918,12 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
      if (.not. append_diag) then ! don't write headers on append - the module will break?
         call nc_diag_header("date_time",ianldate )
         call nc_diag_header("Number_of_state_vars", nsdim          )
+        call nc_diag_header("Satellite_Sensor", isis)
+        call nc_diag_header("Satellite", dplat(is))
+        call nc_diag_header("Observation_type", obstype)
+        call nc_diag_header("pobs", pobs)
+        call nc_diag_header("gross",gross)
+        call nc_diag_header("tnoise",tnoise)
      endif
 
   end subroutine init_netcdf_diag_
