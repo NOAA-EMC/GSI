@@ -447,7 +447,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
                             hx_mean, hx_mean_nobc, hx, hx_modens, x_obs, x_err,       &
                             x_lon, x_lat, x_press, x_time, x_code,         &
                             x_errorig, x_type, x_used, id, nanal, nmem)
-  use sparsearr, only: sparr, delete, assignment(=)
+  use sparsearr, only: sparr, delete, assignment(=), init_raggedarr, raggedarr
   use params, only: nanals, lobsdiag_forenkf, neigv, vlocal_evecs
   use statevec, only: state_d
   use mpisetup, only: nproc, mpi_wtime
@@ -484,6 +484,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
   character*500 obsfile, obsfile2
   character(len=10) :: id2
   type(sparr)     :: dhx_dx
+  type(raggedarr) :: hxpert
 
   character(len=3) :: obtype
 
@@ -504,7 +505,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
   real(r_single), allocatable, dimension (:) :: Obs_Minus_Forecast_unadjusted2, v_Obs_Minus_Forecast_unadjusted2
   real(r_single), allocatable, dimension (:) :: Forecast_Saturation_Spec_Hum
   real(r_single), allocatable, dimension (:,:) :: Observation_Operator_Jacobian, v_Observation_Operator_Jacobian
-  integer(i_kind) :: ix, iy, it, ixp, iyp, itp
+  integer(i_kind) :: ix, iy, it, ixp, iyp, itp, nprof
   real(r_kind) :: delx, dely, delxp, delyp, delt, deltp
   real(r_single) :: rlat,rlon,rtim,rlat_prev,rlon_prev,rtim_prev,eps
 ! Error limit is made consistent with screenobs routine
@@ -525,6 +526,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
   rlat_prev = -1.e30; rlon_prev=-1.e30; rtim_prev = -1.e30
   nobdiag = 0
   x_used = 0
+  nprof = 0
 
   hx = zero
 
@@ -734,19 +736,16 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
                     call setup_linhx(rlat,rlon,rtim,              &
                                   ix, delx, ixp, delxp, iy, dely,  &
                                   iyp, delyp, it, delt, itp, deltp)
+                 else
+                    nprof = nprof + 1
                  endif
+                 call init_raggedarr(hxpert, dhx_dx%nnz)
                  call calc_linhx(hx_mean(nob), state_d(:,:,:,nmem),&
-                                 dhx_dx, hx(nob),                  &
+                                 dhx_dx, hxpert, hx(nob),          &
                                  ix, delx, ixp, delxp, iy, dely,   &
                                  iyp, delyp, it, delt, itp, deltp)
                  ! compute modulated ensemble in obs space
-                 if (neigv > 0) then
-                    call calc_linhx_modens(hx_mean(nob), state_d(:,:,:,nmem), &
-                                    dhx_dx, hx_modens(:,nob),          &
-                                    ix, delx, ixp, delxp, iy, dely,    &
-                                    iyp, delyp, it, delt, itp, delxp,  &
-                                    vlocal_evecs)
-                 endif
+                 if (neigv>0) call calc_linhx_modens(hx_mean(nob),dhx_dx,hxpert,hx_modens(:,nob),vlocal_evecs)
 
                  t2 = mpi_wtime()
                  tsum = tsum + t2-t1
@@ -822,18 +821,13 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
                                      ix, delx, ixp, delxp, iy, dely,  &
                                      iyp, delyp, it, delt, itp, deltp)
                     endif
+                    call init_raggedarr(hxpert, dhx_dx%nnz)
                     call calc_linhx(hx_mean(nob), state_d(:,:,:,nmem),    &
-                                    dhx_dx, hx(nob),                  &
+                                    dhx_dx, hxpert, hx(nob),              &
                                     ix, delx, ixp, delxp, iy, dely,   &
                                     iyp, delyp, it, delt, itp, deltp)
                     ! compute modulated ensemble in obs space
-                    if (neigv > 0) then
-                       call calc_linhx_modens(hx_mean(nob), state_d(:,:,:,nmem), &
-                                       dhx_dx, hx_modens(:,nob),          &
-                                       ix, delx, ixp, delxp, iy, dely,    &
-                                       iyp, delyp, it, delt, itp, delxp,  &
-                                       vlocal_evecs)
-                    endif
+                    if (neigv>0) call calc_linhx_modens(hx_mean(nob),dhx_dx,hxpert,hx_modens(:,nob),vlocal_evecs)
                     t2 = mpi_wtime()
                     tsum = tsum + t2-t1
                     call delete(dhx_dx)
@@ -878,6 +872,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
      enddo peloop ! ipe loop
   enddo obtypeloop
 
+  if (nanal == nanals) print *,'conv ob profiles, total obs',nprof,nob
   if (nanal == nanals .and. lobsdiag_forenkf) print *,'time in calc_linhx for conv obs on proc',nproc,' =',tsum
   if (nob .ne. nobs_max) then
       print *,'nc: number of obs not what expected in get_convobs_data',nob,nobs_max
@@ -900,11 +895,13 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
   use statevec, only: state_d
   use mpisetup, only: nproc, mpi_wtime
   use observer_enkf, only: calc_linhx,calc_linhx_modens,setup_linhx
+  use sparsearr, only: sparr, init_raggedarr, raggedarr
   implicit none
 
   character*500,   intent(in) :: obspath
   character*10,    intent(in) :: datestring
   integer(i_kind), intent(in) :: nobs_max, nobs_maxdiag
+  type(raggedarr)     :: hxpert
 
   real(r_single), dimension(nobs_max), intent(out)    :: hx_mean
   real(r_single), dimension(nobs_max), intent(out)    :: hx_mean_nobc
@@ -1171,18 +1168,13 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
                                  ix, delx, ixp, delxp, iy, dely,  &
                                  iyp, delyp, it, delt, itp, deltp)
                 endif
+                call init_raggedarr(hxpert, dhx_dx%nnz)
                 call calc_linhx(hx_mean(nob), state_d(:,:,:,nmem),  &
-                                dhx_dx, hx(nob),                  &
+                                dhx_dx, hxpert, hx(nob),            &
                                 ix, delx, ixp, delxp, iy, dely,   &
                                 iyp, delyp, it, delt, itp, deltp)
                 ! compute modulated ensemble in obs space
-                if (neigv > 0) then
-                   call calc_linhx_modens(hx_mean(nob), state_d(:,:,:,nmem), &
-                                   dhx_dx, hx_modens(:,nob),          &
-                                   ix, delx, ixp, delxp, iy, dely,    &
-                                   iyp, delyp, it, delt, itp, delxp,  &
-                                   vlocal_evecs)
-                endif
+                if (neigv>0) call calc_linhx_modens(hx_mean(nob),dhx_dx,hxpert,hx_modens(:,nob),vlocal_evecs)
 
                 t2 = mpi_wtime()
                 tsum = tsum + t2-t1
@@ -1261,18 +1253,13 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
                                     ix, delx, ixp, delxp, iy, dely,  &
                                     iyp, delyp, it, delt, itp, deltp)
                    endif
+                   call init_raggedarr(hxpert, dhx_dx%nnz)
                    call calc_linhx(hx_mean(nob), state_d(:,:,:,nmem), &
-                                   dhx_dx, hx(nob),                  &
-                                   ix, delx, ixp, delxp, iy, dely,   &
+                                   dhx_dx, hxpert, hx(nob),           &
+                                   ix, delx, ixp, delxp, iy, dely,    &
                                    iyp, delyp, it, delt, itp, deltp)
                    ! compute modulated ensemble in obs space
-                   if (neigv > 0) then
-                      call calc_linhx_modens(hx_mean(nob), state_d(:,:,:,nmem), &
-                                      dhx_dx, hx_modens(:,nob),          &
-                                      ix, delx, ixp, delxp, iy, dely,    &
-                                      iyp, delyp, it, delt, itp, delxp,  &
-                                      vlocal_evecs)
-                   endif
+                   if (neigv>0) call calc_linhx_modens(hx_mean(nob),dhx_dx,hxpert,hx_modens(:,nob),vlocal_evecs)
 
                    t2 = mpi_wtime()
                    tsum = tsum + t2-t1
