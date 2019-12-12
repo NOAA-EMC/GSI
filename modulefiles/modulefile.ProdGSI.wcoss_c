@@ -36,6 +36,8 @@ module load prod_util/1.0.29
 
 # Loading Intel Compiler Suite
 module load PrgEnv-intel/5.2.56
+module unload intel/15.0.3.187
+module load intel/18.1.163
 
 # Loading pe environment
 module load cray-mpich/7.2.0
