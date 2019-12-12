@@ -45,28 +45,36 @@ PROGRAM calc_increment_ncio
   real, allocatable, dimension(:,:)   :: values_2d_fg,values_2d_anal,values_2d_inc,&
                                          ps_fg, ps_anal
   real, allocatable, dimension(:,:,:) :: values_3d_fg,values_3d_anal,values_3d_inc,&
-                                         tmp_fg, tmp_anal, delzb, delza
+                                         q_fg, q_anal, tmp_fg, tmp_anal, delzb, delza
   type(Dataset) :: dset_anal,dset_fg
   type(Dimension) :: londim,latdim,levdim
   integer, dimension(3) :: dimid_3d
   integer, dimension(1) :: dimid_1d
   integer varid_lon,varid_lat,varid_lev,varid_ilev,varid_hyai,varid_hybi,&
           dimid_lon,dimid_lat,dimid_lev,dimid_ilev,ncfileid,ncstatus
-  logical :: no_mpinc, has_dpres, has_delz
+  logical :: no_mpinc, no_delzinc, has_dpres, has_delz
   character(len=10) :: bufchar
-  real rd,grav
+  real rd,rv,fv,grav
+
+  rd     = 2.8705e+2
+  rv     = 4.6150e+2
+  fv     = rv/rd-1.    ! used in virtual temperature equation 
+  grav   = 9.80665
 
   call getarg(1,filename_fg)    ! first guess ncio file
   call getarg(2,filename_anal)  ! analysis ncio file
   call getarg(3,filename_inc)   ! output increment file
   call getarg(4, bufchar)
-  read(bufchar,'(L)') no_mpinc  ! if T, microsphysics increments computed
+  read(bufchar,'(L)') no_mpinc  ! if T, no microphysics increments computed
+  call getarg(5, bufchar)
+  read(bufchar,'(L)') no_delzinc  ! if T, no delz increments computed
 
   write(6,*)'CALC_INCREMENT_NCIO:'
   write(6,*)'filename_fg=',trim(filename_fg)
   write(6,*)'filename_anal=',trim(filename_anal)
   write(6,*)'filename_inc=',trim(filename_inc)
   write(6,*)'no_mpinc',no_mpinc
+  write(6,*)'no_delzinc',no_delzinc
 
   dset_fg = open_dataset(trim(filename_fg),errcode=iret)
   if (iret .ne. 0) then
@@ -242,6 +250,7 @@ PROGRAM calc_increment_ncio
 
   has_dpres = has_var(dset_fg,'dpres')
   has_delz  = has_var(dset_fg,'delz')
+  !has_dpres = .false.; has_delz = .false. ! for debugging only
   print *,'has_dpres ',has_dpres
   print *,'has_delz ',has_delz
 
@@ -269,13 +278,15 @@ PROGRAM calc_increment_ncio
            ncvarname = 'v_inc'
         else if (trim(dset_fg%variables(nvar)%name) == 'tmp') then
            ncvarname = 'T_inc'
-        else if (trim(dset_fg%variables(nvar)%name) == 'dpres') then
+        else if (trim(dset_fg%variables(nvar)%name) == 'dpres' .and. &
+                 has_dpres) then
            ncvarname = 'delp_inc'
         else if (trim(dset_fg%variables(nvar)%name) == 'spfh') then
            ncvarname = 'sphum_inc'
         else if (trim(dset_fg%variables(nvar)%name) == 'o3mr') then
            ncvarname = 'o3mr_inc'
-        else if (trim(dset_fg%variables(nvar)%name) == 'delz') then
+        else if (trim(dset_fg%variables(nvar)%name) == 'delz' .and. &
+                .not. no_delzinc .and. has_delz) then
            ncvarname = 'delz_inc'
         else if (trim(dset_fg%variables(nvar)%name) == 'clwmr' .and. &
                  .not. no_mpinc) then
@@ -295,21 +306,26 @@ PROGRAM calc_increment_ncio
   enddo  ! nvars
   ! infer delp increment from ps increment
   if (.not. has_dpres) then
+     print *,'inferring delp_inc from ps inc'
      ncvarname = 'delp_inc'
+     ! ak,bk go from top to bottom, so bk(k+1)-bk(k) > 0
      do k=1,nlevs
         values_3d_inc(:,:,k) = values_2d_inc*(bk(k+1)-bk(k))
      enddo
      call write_ncdata3d(values_3d_inc,ncvarname,nlons,nlats,nlevs,ncfileid,dimid_3d)
   endif
-  ! infer delz increment from background, analysis ps & T
-  if (.not. has_delz) then
+  ! infer delz increment from background, analysis ps & Tv
+  if (.not. has_delz .and. .not. no_delzinc) then
+     print *,'inferring delz_inc from anal and background ps & Tv'
      ncvarname = 'delz_inc'
-     rd     = 287.04
-     grav   = 9.80665
      call read_vardata(dset_fg,'tmp',tmp_fg)
      call read_vardata(dset_anal,'tmp',tmp_anal)
+     call read_vardata(dset_fg,'spfh',q_fg)
+     call read_vardata(dset_anal,'spfh',q_anal)
      call read_vardata(dset_fg,'pressfc',ps_fg)
      call read_vardata(dset_anal,'pressfc',ps_anal)
+     tmp_fg = tmp_fg * ( 1.0 + fv*q_fg ) ! convert T to Tv
+     tmp_anal = tmp_anal * ( 1.0 + fv*q_anal ) 
      allocate(delzb(nlons,nlats,nlevs))
      allocate(delza(nlons,nlats,nlevs))
      delzb = (rd/grav)*tmp_fg
@@ -317,8 +333,11 @@ PROGRAM calc_increment_ncio
      do k=1,nlevs
         delzb(:,:,k)=delzb(:,:,k)*log((ak(k)+bk(k)*ps_fg)/(ak(k+1)+bk(k+1)*ps_fg))
         delza(:,:,k)=delza(:,:,k)*log((ak(k)+bk(k)*ps_anal)/(ak(k+1)+bk(k+1)*ps_anal))
+        !print *,k,minval(delzb(:,:,k)),maxval(delzb(:,:,k)),bk(k),bk(k+1)-bk(k)
      enddo
-     values_3d_inc(:,nlats:1:-1,:) = delzb - delza
+     !print *,'min/max anal delz',minval(delza),maxval(delza)
+     !print *,'min/max fg delz',minval(delzb),maxval(delzb)
+     values_3d_inc(:,nlats:1:-1,:) = delza - delzb
      call write_ncdata3d(values_3d_inc,ncvarname,nlons,nlats,nlevs,ncfileid,dimid_3d)
   endif
 
@@ -347,7 +366,7 @@ subroutine write_ncdata3d(incdata,ncvarname,&
   endif
   ncstatus = nf90_def_var(ncfileid,trim(ncvarname),nf90_float,dimid_3d,varid)
   if (ncstatus /= nf90_noerr) then
-     print *, 'error creating',trim(ncvarname),' ',trim(nf90_strerror(ncstatus))
+     print *, 'error creating ',trim(ncvarname),' ',trim(nf90_strerror(ncstatus))
      stop
   endif
   ! turn on compression (level 1)
