@@ -333,10 +333,12 @@ subroutine get_satobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, hx_m
   use constants, only: deg2rad, zero
   use mpisetup, only: nproc, mpi_wtime
   use observer_enkf, only: calc_linhx, calc_linhx_modens, setup_linhx
+  use sparsearr, only: sparr, init_raggedarr, raggedarr
   implicit none
 
   character*500, intent(in)     :: obspath
   character(len=10), intent(in) ::  datestring
+  type(raggedarr)     :: hxpert
 
   integer(i_kind), intent(in) :: nobs_max, nobs_maxdiag
 
@@ -542,17 +544,13 @@ subroutine get_satobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, hx_m
                                 ix, delx, ixp, delxp, iy, dely,  &
                                 iyp, delyp, it, delt, itp, deltp)
                endif
+               call init_raggedarr(hxpert, data_chan(n)%dhx_dx%nnz)
                call calc_linhx(hx_mean(nob), state_d(:,:,:,nmem),       &
-                               data_chan(n)%dhx_dx, hx(nob),     &
+                               data_chan(n)%dhx_dx, hxpert, hx(nob),    &
                                ix, delx, ixp, delxp, iy, dely,   &
                                iyp, delyp, it, delt, itp, deltp)
                ! compute modulated ensemble in obs space
-               if (neigv > 0) then
-                  call calc_linhx_modens(hx_mean(nob), state_d(:,:,:,nmem),         &
-                                  data_chan(n)%dhx_dx, hx_modens(:,nob),     &
-                                  ix, delx, ixp, delxp, iy, dely, iyp, delyp, &
-                                  it, delt, itp, deltp, vlocal_evecs)
-               endif
+               if (neigv>0) call calc_linhx_modens(hx_mean(nob),data_chan(n)%dhx_dx,hxpert,hx_modens(:,nob),vlocal_evecs)
                t2 = mpi_wtime()
                tsum = tsum + t2-t1
             endif
@@ -645,7 +643,8 @@ subroutine get_satobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_me
   use constants, only: deg2rad, zero
   use mpisetup, only: nproc, mpi_wtime
   use observer_enkf, only: calc_linhx, calc_linhx_modens, setup_linhx
-  use sparsearr, only: sparr, assignment(=), delete, sparr2, new
+  use sparsearr, only: sparr, assignment(=), delete, sparr2, new, &
+                       init_raggedarr, raggedarr
 
   implicit none
 
@@ -687,6 +686,7 @@ subroutine get_satobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_me
 
   type(sparr2)    :: dhx_dx_read
   type(sparr)     :: dhx_dx
+  type(raggedarr) :: hxpert
 
   integer(i_kind), dimension(:), allocatable :: Satinfo_Chan, Use_Flag, chind, chaninfoidx
   real(r_kind), dimension(:), allocatable :: error_variance
@@ -705,7 +705,7 @@ subroutine get_satobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_me
   real(r_single), dimension(:), allocatable :: BCPred_Cosine_Latitude_times_Node, BCPred_Sine_Latitude
   real(r_single), dimension(:), allocatable :: BCPred_Emissivity
   real(r_single), allocatable, dimension (:,:) :: BCPred_angord
-  integer(i_kind) :: ix, iy, it, ixp, iyp, itp
+  integer(i_kind) :: ix, iy, it, ixp, iyp, itp, nprof
   real(r_kind) :: delx, dely, delxp, delyp, delt, deltp
 
 ! make consistent with screenobs
@@ -727,6 +727,7 @@ subroutine get_satobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_me
   rlat_prev = huge(rlat); rlon_prev=huge(rlon); rtim_prev = huge(rtim)
   nobdiag = 0
   x_used = 0
+  nprof = 0
 
   do nsat=1,nsats_rad
      jpchstart=0
@@ -922,6 +923,7 @@ subroutine get_satobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_me
               dhx_dx_read%end_ind = Observation_Operator_Jacobian_endind(:,i)
               dhx_dx_read%val = Observation_Operator_Jacobian_val(:,i)
               dhx_dx = dhx_dx_read
+              call init_raggedarr(hxpert, dhx_dx%nnz)
               t1 = mpi_wtime()
               rlat = x_lat(nob)*deg2rad
               rlon = x_lon(nob)*deg2rad
@@ -937,19 +939,16 @@ subroutine get_satobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_me
                  call setup_linhx(rlat,rlon,rtim,              &
                                ix, delx, ixp, delxp, iy, dely,  &
                                iyp, delyp, it, delt, itp, deltp)
+              else
+                 nprof = nprof + 1
               endif
               ! note: bias corrected mean added here, but removed later from hx
               call calc_linhx(hx_mean(nob), state_d(:,:,:,nmem),       &
-                              dhx_dx, hx(nob),     &
+                              dhx_dx, hxpert,  hx(nob),     &
                               ix, delx, ixp, delxp, iy, dely,   &
                               iyp, delyp, it, delt, itp, deltp)
               ! compute modulated ensemble in obs space
-              if (neigv > 0) then
-                 call calc_linhx_modens(hx_mean(nob), state_d(:,:,:,nmem),         &
-                                 dhx_dx, hx_modens(:,nob),     &
-                                 ix, delx, ixp, delxp, iy, dely, iyp, delyp, &
-                                 it, delt, itp, deltp, vlocal_evecs)
-              endif
+              if (neigv>0) call calc_linhx_modens(hx_mean(nob),dhx_dx,hxpert,hx_modens(:,nob),vlocal_evecs)
               t2 = mpi_wtime()
               tsum = tsum + t2-t1
               call delete(dhx_dx)
@@ -1039,6 +1038,7 @@ subroutine get_satobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_me
 
      enddo peloop ! ipe
  enddo ! satellite
+ if (nanal == nanals) print *,'radiance ob profiles, total obs',nprof,nob
  if (nanal == nanals .and. lobsdiag_forenkf) print *,'time in calc_linhx for sat obs on proc',nproc,' = ',tsum
  if (nanal == nanals) print *,'time in read_raddiag_data for sat obs on proc',nproc,' = ',tsum2
 
