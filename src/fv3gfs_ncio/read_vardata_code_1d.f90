@@ -47,11 +47,12 @@
        endif
     endif
     if (allocated(values)) deallocate(values)
-    allocate(values(dimlen))
     if (dset%variables(nvar)%ndims == 2) then
+       allocate(values(dimlen))
        ncerr = nf90_get_var(dset%ncid, dset%variables(nvar)%varid, values,&
                start=start, count=count)
     else
+       allocate(values(dset%variables(nvar)%dimlens(1)))
        ncerr = nf90_get_var(dset%ncid, dset%variables(nvar)%varid, values)
     end if
     if (return_errcode) then

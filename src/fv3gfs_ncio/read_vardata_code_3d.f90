@@ -53,11 +53,14 @@
     endif
     
     if (allocated(values)) deallocate(values)
-    allocate(values(dimlens(1),dimlens(2),dimlens(3)))
     if (dset%variables(nvar)%ndims == 4) then
+       allocate(values(dimlens(1),dimlens(2),dimlens(3)))
        ncerr = nf90_get_var(dset%ncid, dset%variables(nvar)%varid, values,&
                start=start, count=count)
     else
+       allocate(values(dset%variables(nvar)%dimlens(1),&
+                       dset%variables(nvar)%dimlens(2),&
+                       dset%variables(nvar)%dimlens(3)))
        ncerr = nf90_get_var(dset%ncid, dset%variables(nvar)%varid, values)
     end if
     if (return_errcode) then
