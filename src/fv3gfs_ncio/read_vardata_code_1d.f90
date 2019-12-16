@@ -1,8 +1,10 @@
     type(Dataset), intent(in) :: dset
     character(len=*), intent(in) :: varname
     integer, intent(in), optional :: nslice
+    integer, intent(in), optional :: slicedim
     integer, intent(out), optional :: errcode
-    integer ncerr, nvar, n1,n2, ncount
+    integer ncerr, nvar, n, nd, dimlen, ncount
+    integer, allocatable, dimension(:) :: start, count
     logical return_errcode
     if(present(errcode)) then
        return_errcode=.true.
@@ -16,6 +18,24 @@
        ncount = 1
     endif
     nvar = get_nvar(dset,varname)
+    allocate(start(dset%variables(nvar)%ndims),count(dset%variables(nvar)%ndims))    
+    start(:) = 1
+    count(:) = 1
+    if (present(slicedim)) then
+       nd = slicedim
+    else
+       nd = dset%variables(nvar)%ndims
+    end if
+    do n=1,dset%variables(nvar)%ndims
+       if (n == nd) then
+          start(n) = ncount
+          count(n) = 1
+       else
+          start(n) = 1
+          count(n) = dset%variables(nvar)%dimlens(n)
+          dimlen = dset%variables(nvar)%dimlens(n)
+       end if
+    end do
     if (dset%variables(nvar)%ndims /= 1 .and. dset%variables(nvar)%ndims /= 2) then
        if (return_errcode) then
           call nccheck(ncerr,halt=.false.)
@@ -26,17 +46,14 @@
           stop "stopped"
        endif
     endif
-    n1 = dset%variables(nvar)%dimlens(1)
-    if (dset%variables(nvar)%ndims == 2) n2 = dset%variables(nvar)%dimlens(2)
     if (allocated(values)) deallocate(values)
-    allocate(values(n1))
-    if (dset%variables(nvar)%ndims == 2 .and. n2 == 1) then
-       ! return slice along last dimension
+    allocate(values(dimlen))
+    if (dset%variables(nvar)%ndims == 2) then
        ncerr = nf90_get_var(dset%ncid, dset%variables(nvar)%varid, values,&
-               start=(/1,ncount/), count=(/n1,1/))
+               start=start, count=count)
     else
        ncerr = nf90_get_var(dset%ncid, dset%variables(nvar)%varid, values)
-    endif
+    end if
     if (return_errcode) then
        call nccheck(ncerr,halt=.false.)
        errcode=ncerr

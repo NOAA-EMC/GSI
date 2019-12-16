@@ -10,7 +10,7 @@
        return_errcode=.false.
     endif
     nvar = get_nvar(dset,varname)
-    if (dset%variables(nvar)%ndims /= 4) then
+    if (dset%variables(nvar)%ndims /= 5) then
        if (return_errcode) then
           errcode=nf90_ebaddim
           return
