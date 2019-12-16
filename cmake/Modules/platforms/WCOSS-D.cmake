@@ -1,6 +1,6 @@
 macro (setWCOSS_D)
   message("Setting paths for Dell")
-  option(FIND_HDF5 "Try to Find HDF5 libraries" OFF)
+  option(FIND_HDF5 "Try to Find HDF5 libraries" ON)
   option(FIND_HDF5_HL "Try to Find HDF5 libraries" OFF)
 
   set(HOST_FLAG "-xHOST" CACHE INTERNAL "Host Flag")

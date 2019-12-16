@@ -1721,6 +1721,8 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    type(Dataset) :: atmges
    type(Dimension) :: ncdim
 
+
+
    !******************************************************************************
    ! Initialize variables used below
    iret_read=0
@@ -1748,7 +1750,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
 
    if ( procuse ) then
 
-      atmges = open_dataset(filename)
+      atmges = open_dataset(filename, paropen=.true.)
 
       ! get dimension sizes
       ncdim = get_dim(atmges, 'grid_xt'); lonb = ncdim%len
@@ -1799,8 +1801,8 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
          allocate(grid_b(lonb,latb),grid_c(latb+2,lonb,1),grid2(grd%nlat,grd%nlon,1))
          allocate(grid_b2(lonb,latb),grid_c2(latb+2,lonb,1))
       endif
-      allocate(rwork3d0(lonb,latb,levs))
-      allocate(rwork3d1(lonb,latb,levs))
+      !allocate(rwork3d0(lonb,latb,levs))
+      !allocate(rwork3d1(lonb,latb,levs))
       allocate(rwork2d(lonb,latb))
       allocate(rlats(latb+2),rlons(lonb),clons(lonb),slons(lonb))
       call read_vardata(atmges, 'grid_xt', rlons_tmp)
@@ -1958,8 +1960,6 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    !   Finally, the grids are loaded into guess arrays used later in the
    !   code.
 
-   call read_vardata(atmges, 'spfh', rwork3d1)
-   call read_vardata(atmges, 'tmp', rwork3d0)
    do k=1,nlevs
 
       icount=icount+1
@@ -1968,7 +1968,9 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
       kr = levs+1-k ! netcdf is top to bottom, need to flip
 
       if (mype==mype_use(icount)) then
-         rwork2d = rwork3d0(:,:,kr) * (one+fv*rwork3d1(:,:,kr))
+         call read_vardata(atmges, 'spfh', rwork3d1, nslice=kr, slicedim=3)
+         call read_vardata(atmges, 'tmp', rwork3d0, nslice=kr, slicedim=3)
+         rwork2d = rwork3d0(:,:,1) * (one+fv*rwork3d1(:,:,1))
          if ( diff_res ) then
             grid_b=rwork2d
             vector(1)=.false.
@@ -1989,21 +1991,22 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
               icount,iflag,ilev,work,uvflag,vordivflag)
       endif
    end do
-   call read_vardata(atmges, 'ugrd', rwork3d0)
-   call read_vardata(atmges, 'vgrd', rwork3d1)
+
    if ( vordivflag .or. .not. uvflag ) then
       do k=1,nlevs
-      kr = levs+1-k ! netcdf is top to bottom, need to flip
-      icount=icount+1
-      iflag(icount)=4
-      ilev(icount)=k
+         kr = levs+1-k ! netcdf is top to bottom, need to flip
+         icount=icount+1
+         iflag(icount)=4
+         ilev(icount)=k
 
          if (mype==mype_use(icount)) then
+            call read_vardata(atmges, 'ugrd', rwork3d0, nslice=kr, slicedim=3)
+            call read_vardata(atmges, 'vgrd', rwork3d1, nslice=kr, slicedim=3)
             ! Vorticity
             ! Convert grid u,v to div and vor
             if ( diff_res ) then
-               grid_b=rwork3d0(:,:,kr)
-               grid_b2=rwork3d1(:,:,kr)
+               grid_b = rwork3d0(:,:,1)
+               grid_b2 = rwork3d1(:,:,1)
                vector(1)=.true.
                call filluv2_ns(grid_b,grid_b2,grid_c(:,:,1),grid_c2(:,:,1),latb+2,lonb,slons,clons)
                call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
@@ -2029,8 +2032,8 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
                   enddo
                enddo
             else
-               grid=rwork3d0(:,:,kr)
-               grid_v=rwork3d1(:,:,kr)
+               grid = rwork3d0(:,:,1)
+               grid_v = rwork3d1(:,:,1)
                call general_filluv_ns(grd,slons,clons,grid,grid_v,work,work_v)
             endif
             allocate( grid_vor(grd%nlon,nlatm2))
@@ -2054,11 +2057,13 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
          ilev(icount)=k
 
          if (mype==mype_use(icount)) then
+            call read_vardata(atmges, 'ugrd', rwork3d0, nslice=kr, slicedim=3)
+            call read_vardata(atmges, 'vgrd', rwork3d1, nslice=kr, slicedim=3)
             ! Divergence
             ! Convert grid u,v to div and vor
             if ( diff_res ) then
-               grid_b=rwork3d0(:,:,kr)
-               grid_b2=rwork3d1(:,:,kr)
+               grid_b = rwork3d0(:,:,1)
+               grid_b2 = rwork3d1(:,:,1)
                vector(1)=.true.
                call filluv2_ns(grid_b,grid_b2,grid_c(:,:,1),grid_c2(:,:,1),latb+2,lonb,slons,clons)
                call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
@@ -2084,8 +2089,8 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
                   enddo
                enddo
             else
-               grid=rwork3d0(:,:,kr)
-               grid_v=rwork3d1(:,:,kr)
+               grid = rwork3d0(:,:,1)
+               grid_v = rwork3d1(:,:,1)
                call general_filluv_ns(grd,slons,clons,grid,grid_v,work,work_v)
             endif
             allocate( grid_div(grd%nlon,nlatm2) )
@@ -2110,10 +2115,12 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
          ilev(icount)=k
 
          if (mype==mype_use(icount)) then
+            call read_vardata(atmges, 'ugrd', rwork3d0, nslice=kr, slicedim=3)
+            call read_vardata(atmges, 'vgrd', rwork3d1, nslice=kr, slicedim=3)
 
             if ( diff_res ) then
-               grid_b=rwork3d0(:,:,kr)
-               grid_b2=rwork3d1(:,:,kr)
+               grid_b = rwork3d0(:,:,1)
+               grid_b2 = rwork3d1(:,:,1)
                vector(1)=.true.
                call filluv2_ns(grid_b,grid_b2,grid_c(:,:,1),grid_c2(:,:,1),latb+2,lonb,slons,clons)
                call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
@@ -2123,8 +2130,8 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
                   work(kk)=grid2(i,j,1)
                enddo
             else
-               grid=rwork3d0(:,:,kr)
-               grid_v=rwork3d1(:,:,kr)
+               grid = rwork3d0(:,:,1)
+               grid_v = rwork3d1(:,:,1)
                call general_filluv_ns(grd,slons,clons,grid,grid_v,work,work_v)
             endif
          endif
@@ -2139,9 +2146,11 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
 
          if (mype==mype_use(icount)) then
             ! V
+            call read_vardata(atmges, 'ugrd', rwork3d0, nslice=kr, slicedim=3)
+            call read_vardata(atmges, 'vgrd', rwork3d1, nslice=kr, slicedim=3)
             if ( diff_res ) then
-               grid_b=rwork3d0(:,:,kr)
-               grid_b2=rwork3d1(:,:,kr)
+               grid_b = rwork3d0(:,:,1)
+               grid_b2 = rwork3d1(:,:,1)
                vector(1)=.true.
                call filluv2_ns(grid_b,grid_b2,grid_c(:,:,1),grid_c2(:,:,1),latb+2,lonb,slons,clons)
                call g_egrid2agrid(p_high,grid_c2,grid2,1,1,vector)
@@ -2151,8 +2160,8 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
                   work(kk)=grid2(i,j,1)
                enddo
             else
-               grid=rwork3d0(:,:,kr)
-               grid_v=rwork3d1(:,:,kr)
+               grid = rwork3d0(:,:,1)
+               grid_v = rwork3d1(:,:,1)
                ! Note work_v and work are switched because output must be in work.
                call general_filluv_ns(grd,slons,clons,grid,grid_v,work_v,work)
             endif
@@ -2163,7 +2172,6 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
          endif
       end do
    endif ! if ( uvflag )
-   call read_vardata(atmges, 'spfh', rwork3d1)
    do k=1,nlevs
       kr = levs+1-k ! netcdf is top to bottom, need to flip
       icount=icount+1
@@ -2172,8 +2180,9 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
 
       if (mype==mype_use(icount)) then
          ! Specific humidity
+         call read_vardata(atmges, 'spfh', rwork3d0, nslice=kr, slicedim=3)
          if ( diff_res ) then
-            grid_b=rwork3d1(:,:,kr)
+            grid_b=rwork3d0(:,:,1)
             vector(1)=.false.
             call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
             call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
@@ -2183,7 +2192,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
                work(kk)=grid2(i,j,1)
             enddo
          else
-            grid=rwork3d1(:,:,kr)
+            grid = rwork3d0(:,:,1)
             call general_fill_ns(grd,grid,work)
          endif
       endif
@@ -2192,7 +2201,6 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
               icount,iflag,ilev,work,uvflag,vordivflag)
       endif
    end do
-   call read_vardata(atmges, 'o3mr', rwork3d0)
    do k=1,nlevs
       kr = levs+1-k ! netcdf is top to bottom, need to flip
    
@@ -2201,9 +2209,10 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
       ilev(icount)=k
 
       if (mype==mype_use(icount)) then
+         call read_vardata(atmges, 'o3mr', rwork3d0, nslice=kr, slicedim=3)
          ! Ozone mixing ratio
          if ( diff_res ) then
-            grid_b=rwork3d0(:,:,kr)
+            grid_b=rwork3d0(:,:,1)
             vector(1)=.false.
             call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
             call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
@@ -2213,7 +2222,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
                work(kk)=grid2(i,j,1)
             enddo
          else
-            grid=rwork3d0(:,:,kr)
+            grid=rwork3d0(:,:,1)
             call general_fill_ns(grd,grid,work)
          endif
       endif
@@ -2223,9 +2232,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
       endif
    end do
    rwork3d0 = zero
-   call read_vardata(atmges, 'clwmr', rwork3d0)
    rwork3d1 = zero
-   call read_vardata(atmges, 'icmr', rwork3d1)
    do k=1,nlevs
       icount=icount+1
       iflag(icount)=10
@@ -2233,8 +2240,10 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
       kr = levs+1-k ! netcdf is top to bottom, need to flip
 
       if (mype==mype_use(icount)) then
+         call read_vardata(atmges, 'clwmr', rwork3d0, nslice=kr, slicedim=3)
+         call read_vardata(atmges, 'icmr', rwork3d1, nslice=kr, slicedim=3)
          ! Cloud condensate mixing ratio.
-         rwork2d = rwork3d0(:,:,kr) + rwork3d1(:,:,kr)
+         rwork2d = rwork3d0(:,:,1)+rwork3d1(:,:,1)
          if ( diff_res ) then
             grid_b=rwork2d
             vector(1)=.false.

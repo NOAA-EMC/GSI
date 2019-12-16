@@ -6,6 +6,7 @@ module module_fv3gfs_ncio
 ! jeff whitaker <jeffrey.s.whitaker@noaa.gov>  201910
 
   use netcdf
+  use mpi
 
   implicit none
   private
@@ -41,6 +42,7 @@ module module_fv3gfs_ncio
      integer :: natts ! number of dataset (global) attributes
      integer :: nunlimdim ! dimension ID for unlimited dimension
      logical :: ishdf5 ! is underlying disk format HDF5?
+     logical :: isparallel ! was file opened for parallel I/O?
      character(len=500) filename ! netCDF filename
      ! array of Variable instances
      type(Variable), allocatable, dimension(:) :: variables
@@ -246,7 +248,7 @@ module module_fv3gfs_ncio
     enddo
   end subroutine set_varunlimdimlens_
  
-  function open_dataset(filename,errcode) result(dset)
+  function open_dataset(filename,errcode,paropen) result(dset)
     ! open existing dataset, create dataset object for reading netcdf file 
     ! if optional error return code errcode is not specified,
     ! program will stop if a nonzero error code returned by the netcdf lib.
@@ -254,6 +256,7 @@ module module_fv3gfs_ncio
     character(len=*), intent(in) :: filename
     type(Dataset) :: dset
     integer, intent(out), optional :: errcode
+    logical, intent(in), optional :: paropen
     integer ncerr,nunlimdim,ndim,nvar,n,formatnum
     logical return_errcode
     if(present(errcode)) then
@@ -262,8 +265,22 @@ module module_fv3gfs_ncio
     else
        return_errcode=.false.
     endif
+    if (present(paropen)) then
+       if (paropen) then
+         dset%isparallel = .true.
+       else
+         dset%isparallel = .false.
+       end if
+    else
+      dset%isparallel = .false.
+    end if
     ! open netcdf file, get info, populate Dataset object.
-    ncerr = nf90_open(trim(filename), NF90_NOWRITE, ncid=dset%ncid)
+    if (dset%isparallel) then
+      ncerr = nf90_open(trim(filename), ior(NF90_NOWRITE, NF90_MPIIO), &
+                        comm=mpi_comm_world, info = mpi_info_null, ncid=dset%ncid)
+    else
+      ncerr = nf90_open(trim(filename), NF90_NOWRITE, ncid=dset%ncid)
+    end if
     if (return_errcode) then
        call nccheck(ncerr,halt=.false.)
        errcode=ncerr
@@ -690,30 +707,30 @@ module module_fv3gfs_ncio
     deallocate(dset%variables,dset%dimensions)
   end subroutine close_dataset
  
-  !subroutine read_vardata(dset,varname,values,nslice,errcode)
+  !subroutine read_vardata(dset,varname,values,nslice,slicedim,errcode)
   ! read data from variable varname in dataset dset, return in it array values.
   ! dset:    Input dataset instance returned by open_dataset/create_dataset.
   ! varname: Input string name of variable.
   ! values:  Array to hold variable data.  Must be
   !          an allocatable array with same rank 
   !          as variable varname (or 1 dimension less).
-  ! nslice:  optional index along last dimension of 
-  !          variable if rank of values is rank of 
-  !          variable minus 1.  Default is 1.  
+  ! nslice:  optional index along dimension slicedim 
+  ! slicedim: optional, if nslice is set, index of which dimension to slice with
+  !          nslice, default is ndims 
   ! errcode: optional error return code.  If not specified,
   !          program will stop if a nonzero error code returned
   !          from netcdf library.
 
-  !subroutine write_vardata(dset,varname,values,nslice,errcode)
+  !subroutine write_vardata(dset,varname,values,nslice,slicedim,errcode)
   ! write data (in array values) to variable varname in dataset dset.
   ! dset:    Input dataset instance returned by open_dataset/create_dataset.
   ! varname: Input string name of variable.
   ! values:  Array with variable data.  Must be
   !          an allocatable array with same rank 
   !          as variable varname (or 1 dimension less).
-  ! nslice:  optional index along last dimension of 
-  !          variable if rank of values is rank of 
-  !          variable minus 1.  Default is 1.  
+  ! nslice:  optional index along dimension slicedim 
+  ! slicedim: optional, if nslice is set, index of which dimension to slice with
+  !          nslice, default is ndims 
   ! errcode: optional error return code.  If not specified,
   !          program will stop if a nonzero error code returned
   !          from netcdf library.
@@ -729,22 +746,22 @@ module module_fv3gfs_ncio
   ! argument 'varname' is given, a variable attribute is written.
   ! values can be a real(4), real(8), integer, string or 1d array.
 
-  subroutine read_vardata_1d_r4(dset, varname, values, nslice, errcode)
+  subroutine read_vardata_1d_r4(dset, varname, values, nslice, slicedim, errcode)
     real(4), allocatable, dimension(:), intent(inout) :: values
     include "read_vardata_code_1d.f90"
   end subroutine read_vardata_1d_r4
 
-  subroutine read_vardata_2d_r4(dset, varname, values, nslice, errcode)
+  subroutine read_vardata_2d_r4(dset, varname, values, nslice, slicedim, errcode)
     real(4), allocatable, dimension(:,:), intent(inout) :: values
     include "read_vardata_code_2d.f90"
   end subroutine read_vardata_2d_r4
 
-  subroutine read_vardata_3d_r4(dset, varname, values, nslice, errcode)
+  subroutine read_vardata_3d_r4(dset, varname, values, nslice, slicedim, errcode)
     real(4), allocatable, dimension(:,:,:), intent(inout) :: values
     include "read_vardata_code_3d.f90"
   end subroutine read_vardata_3d_r4
 
-  subroutine read_vardata_4d_r4(dset, varname, values, nslice, errcode)
+  subroutine read_vardata_4d_r4(dset, varname, values, nslice, slicedim, errcode)
     real(4), allocatable, dimension(:,:,:,:), intent(inout) :: values
     include "read_vardata_code_4d.f90"
   end subroutine read_vardata_4d_r4
@@ -754,22 +771,22 @@ module module_fv3gfs_ncio
     include "read_vardata_code_5d.f90"
   end subroutine read_vardata_5d_r4
 
-  subroutine read_vardata_1d_r8(dset, varname, values, nslice, errcode)
+  subroutine read_vardata_1d_r8(dset, varname, values, nslice, slicedim, errcode)
     real(8), allocatable, dimension(:), intent(inout) :: values
     include "read_vardata_code_1d.f90"
   end subroutine read_vardata_1d_r8
 
-  subroutine read_vardata_2d_r8(dset, varname, values, nslice, errcode)
+  subroutine read_vardata_2d_r8(dset, varname, values, nslice, slicedim, errcode)
     real(8), allocatable, dimension(:,:), intent(inout) :: values
     include "read_vardata_code_2d.f90"
   end subroutine read_vardata_2d_r8
 
-  subroutine read_vardata_3d_r8(dset, varname, values, nslice, errcode)
+  subroutine read_vardata_3d_r8(dset, varname, values, nslice, slicedim, errcode)
     real(8), allocatable, dimension(:,:,:), intent(inout) :: values
     include "read_vardata_code_3d.f90"
   end subroutine read_vardata_3d_r8
 
-  subroutine read_vardata_4d_r8(dset, varname, values, nslice, errcode)
+  subroutine read_vardata_4d_r8(dset, varname, values, nslice, slicedim, errcode)
     real(8), allocatable, dimension(:,:,:,:), intent(inout) :: values
     include "read_vardata_code_4d.f90"
   end subroutine read_vardata_4d_r8
@@ -779,22 +796,22 @@ module module_fv3gfs_ncio
     include "read_vardata_code_5d.f90"
   end subroutine read_vardata_5d_r8
 
-  subroutine read_vardata_1d_int(dset, varname, values, nslice, errcode)
+  subroutine read_vardata_1d_int(dset, varname, values, nslice, slicedim, errcode)
     integer, allocatable, dimension(:), intent(inout) :: values
     include "read_vardata_code_1d.f90"
   end subroutine read_vardata_1d_int
 
-  subroutine read_vardata_2d_int(dset, varname, values, nslice, errcode)
+  subroutine read_vardata_2d_int(dset, varname, values, nslice, slicedim, errcode)
     integer, allocatable, dimension(:,:), intent(inout) :: values
     include "read_vardata_code_2d.f90"
   end subroutine read_vardata_2d_int
 
-  subroutine read_vardata_3d_int(dset, varname, values, nslice, errcode)
+  subroutine read_vardata_3d_int(dset, varname, values, nslice, slicedim, errcode)
     integer, allocatable, dimension(:,:,:), intent(inout) :: values
     include "read_vardata_code_3d.f90"
   end subroutine read_vardata_3d_int
 
-  subroutine read_vardata_4d_int(dset, varname, values, nslice, errcode)
+  subroutine read_vardata_4d_int(dset, varname, values, nslice, slicedim, errcode)
     integer, allocatable, dimension(:,:,:,:), intent(inout) :: values
     include "read_vardata_code_4d.f90"
   end subroutine read_vardata_4d_int
@@ -804,22 +821,22 @@ module module_fv3gfs_ncio
     include "read_vardata_code_5d.f90"
   end subroutine read_vardata_5d_int
 
-  subroutine read_vardata_1d_short(dset, varname, values, nslice, errcode)
+  subroutine read_vardata_1d_short(dset, varname, values, nslice, slicedim, errcode)
     integer(2), allocatable, dimension(:), intent(inout) :: values
     include "read_vardata_code_1d.f90"
   end subroutine read_vardata_1d_short
 
-  subroutine read_vardata_2d_short(dset, varname, values, nslice, errcode)
+  subroutine read_vardata_2d_short(dset, varname, values, nslice, slicedim, errcode)
     integer(2), allocatable, dimension(:,:), intent(inout) :: values
     include "read_vardata_code_2d.f90"
   end subroutine read_vardata_2d_short
 
-  subroutine read_vardata_3d_short(dset, varname, values, nslice, errcode)
+  subroutine read_vardata_3d_short(dset, varname, values, nslice, slicedim, errcode)
     integer(2), allocatable, dimension(:,:,:), intent(inout) :: values
     include "read_vardata_code_3d.f90"
   end subroutine read_vardata_3d_short
 
-  subroutine read_vardata_4d_short(dset, varname, values, nslice, errcode)
+  subroutine read_vardata_4d_short(dset, varname, values, nslice, slicedim, errcode)
     integer(2), allocatable, dimension(:,:,:,:), intent(inout) :: values
     include "read_vardata_code_4d.f90"
   end subroutine read_vardata_4d_short
@@ -829,22 +846,22 @@ module module_fv3gfs_ncio
     include "read_vardata_code_5d.f90"
   end subroutine read_vardata_5d_short
 
-  subroutine read_vardata_1d_byte(dset, varname, values, nslice, errcode)
+  subroutine read_vardata_1d_byte(dset, varname, values, nslice, slicedim, errcode)
     integer(1), allocatable, dimension(:), intent(inout) :: values
     include "read_vardata_code_1d.f90"
   end subroutine read_vardata_1d_byte
 
-  subroutine read_vardata_2d_byte(dset, varname, values, nslice, errcode)
+  subroutine read_vardata_2d_byte(dset, varname, values, nslice, slicedim, errcode)
     integer(1), allocatable, dimension(:,:), intent(inout) :: values
     include "read_vardata_code_2d.f90"
   end subroutine read_vardata_2d_byte
 
-  subroutine read_vardata_3d_byte(dset, varname, values, nslice, errcode)
+  subroutine read_vardata_3d_byte(dset, varname, values, nslice, slicedim, errcode)
     integer(1), allocatable, dimension(:,:,:), intent(inout) :: values
     include "read_vardata_code_3d.f90"
   end subroutine read_vardata_3d_byte
 
-  subroutine read_vardata_4d_byte(dset, varname, values, nslice, errcode)
+  subroutine read_vardata_4d_byte(dset, varname, values, nslice, slicedim, errcode)
     integer(1), allocatable, dimension(:,:,:,:), intent(inout) :: values
     include "read_vardata_code_4d.f90"
   end subroutine read_vardata_4d_byte
@@ -854,22 +871,22 @@ module module_fv3gfs_ncio
     include "read_vardata_code_5d.f90"
   end subroutine read_vardata_5d_byte
 
-  subroutine read_vardata_1d_char(dset, varname, values, nslice, errcode)
+  subroutine read_vardata_1d_char(dset, varname, values, nslice, slicedim, errcode)
     character, allocatable, dimension(:), intent(inout) :: values
     include "read_vardata_code_1d.f90"
   end subroutine read_vardata_1d_char
 
-  subroutine read_vardata_2d_char(dset, varname, values, nslice, errcode)
+  subroutine read_vardata_2d_char(dset, varname, values, nslice, slicedim, errcode)
     character, allocatable, dimension(:,:), intent(inout) :: values
     include "read_vardata_code_2d.f90"
   end subroutine read_vardata_2d_char
 
-  subroutine read_vardata_3d_char(dset, varname, values, nslice, errcode)
+  subroutine read_vardata_3d_char(dset, varname, values, nslice, slicedim, errcode)
     character, allocatable, dimension(:,:,:), intent(inout) :: values
     include "read_vardata_code_3d.f90"
   end subroutine read_vardata_3d_char
 
-  subroutine read_vardata_4d_char(dset, varname, values, nslice, errcode)
+  subroutine read_vardata_4d_char(dset, varname, values, nslice, slicedim, errcode)
     character, allocatable, dimension(:,:,:,:), intent(inout) :: values
     include "read_vardata_code_4d.f90"
   end subroutine read_vardata_4d_char
