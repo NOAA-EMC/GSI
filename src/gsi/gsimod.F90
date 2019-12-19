@@ -1290,8 +1290,13 @@
         c_varqc=c_varqc_new
      end if
   end if
-  if(.not.  l_both_fv3sar_gfs_ens) then
-     n_ens_gfs=n_ens
+  if(.not. l_both_fv3sar_gfs_ens) then
+    if (regional_ensemble_option==5) then 
+     n_ens_gfs=0
+     n_ens_fv3sar=n_ens
+    else
+     write(6,*)'n_ens_gfs and n_ens_fv3sar won"t be used if not regional_ensemble_option==5' 
+    endif
   endif
   if(ltlint) then
      if(vqc .or. njqc)then

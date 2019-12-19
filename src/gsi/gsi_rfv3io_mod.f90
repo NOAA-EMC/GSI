@@ -230,7 +230,6 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
     regional_time(6)=msecond
     regional_fhr=zero          ! forecast hour set zero for now
     regional_fmin=zero          ! forecast min set zero for now
-    write(6,*)'thinkdeb regional_time is ',regional_time
 
 !!!!!!!!!!    grid_spec  !!!!!!!!!!!!!!!
     ierr=0
