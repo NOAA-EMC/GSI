@@ -2231,8 +2231,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
               icount,iflag,ilev,work,uvflag,vordivflag)
       endif
    end do
-   rwork3d0 = zero
-   rwork3d1 = zero
+
    do k=1,nlevs
       icount=icount+1
       iflag(icount)=10
