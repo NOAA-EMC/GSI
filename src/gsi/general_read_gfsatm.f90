@@ -1801,8 +1801,8 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
          allocate(grid_b(lonb,latb),grid_c(latb+2,lonb,1),grid2(grd%nlat,grd%nlon,1))
          allocate(grid_b2(lonb,latb),grid_c2(latb+2,lonb,1))
       endif
-      !allocate(rwork3d0(lonb,latb,levs))
-      !allocate(rwork3d1(lonb,latb,levs))
+      allocate(rwork3d0(lonb,latb,1))
+      allocate(rwork3d1(lonb,latb,1))
       allocate(rwork2d(lonb,latb))
       allocate(rlats(latb+2),rlons(lonb),clons(lonb),slons(lonb))
       call read_vardata(atmges, 'grid_xt', rlons_tmp)
