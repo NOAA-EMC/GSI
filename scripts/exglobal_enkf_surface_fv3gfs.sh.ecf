@@ -41,6 +41,7 @@ COMOUT_ENS=${COMOUT_ENS:-$COMIN_ENS}
 
 CDATE=${CDATE:-"2010010100"}
 DONST=${DONST:-"NO"}
+DOSFCANL_ENKF=${DOSFCANL_ENKF:-"YES"}
 
 export CASE=${CASE:-384}
 ntiles=${ntiles:-6}
@@ -183,7 +184,8 @@ if [ $DOIAU = "YES" ]; then
 
 fi
 
-for n in $(seq 1 $ntiles); do
+if [ $DOSFCANL_ENKF = "YES" ]; then
+ for n in $(seq 1 $ntiles); do
 
     export TILE_NUM=$n
 
@@ -207,8 +209,8 @@ for n in $(seq 1 $ntiles); do
     export err=$ERR
     $ERRSCRIPT || exit 11
 
-done
-
+ done
+fi
 
 ################################################################################
 
