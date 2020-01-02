@@ -1726,7 +1726,7 @@
            delzb=(rd/grav)*reshape(tv_bg(:,:,nlevs-k+1),(/nlons*nlats/)) 
            delzb=delzb*log((100_r_kind*ak(k)+bk(k)*values_1d)/(100_r_kind*ak(k+1)+bk(k+1)*values_1d))
            ug3d(:,:,nlevs-k+1)=values_3d(:,:,nlevs-k+1) +&
-           reshape(ug-delzb,(/nlons,nlats/))
+           reshape(delzb-ug,(/nlons,nlats/))
         enddo
         !print *,'min/max delz',minval(values_3d),maxval(values_3d),&
         !  minval(ug3d),maxval(ug3d)

@@ -275,10 +275,12 @@ subroutine get_ozobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, hx_me
   use statevec, only: state_d
   use mpisetup, only: mpi_wtime, nproc
   use observer_enkf, only: calc_linhx, calc_linhx_modens, setup_linhx
+  use sparsearr, only: sparr, init_raggedarr, raggedarr
   implicit none
 
   character*500, intent(in) :: obspath
   character*10, intent(in)  :: datestring
+  type(raggedarr)     :: hxpert
 
   integer(i_kind), intent(in) :: nobs_max, nobs_maxdiag
   real(r_single), dimension(nobs_max), intent(out)      :: hx_mean, hx_mean_nobc, hx
@@ -498,17 +500,13 @@ subroutine get_ozobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, hx_me
                                    ix, delx, ixp, delxp, iy, dely,  &
                                    iyp, delyp, it, delt, itp, deltp)
                   endif
+                  call init_raggedarr(hxpert, dhx_dx%nnz)
                   call calc_linhx(hx_mean(nob), state_d(:,:,:,nmem),       &
-                                  dhx_dx, hx(nob),                  &
+                                  dhx_dx, hxpert, hx(nob),                 &
                                   ix, delx, ixp, delxp, iy, dely,   &
                                   iyp, delyp, it, delt, itp, deltp)
                   ! compute modulated ensemble in obs space
-                  if (neigv > 0) then
-                     call calc_linhx_modens(hx_mean(nob), state_d(:,:,:,nmem), &
-                                     dhx_dx, hx_modens(:,nob),          &
-                                     ix, delx, ixp, delxp, iy, dely,    &
-                                     iyp, delyp, it, delt, itp, deltp, vlocal_evecs)
-                  endif
+                  if (neigv>0) call calc_linhx_modens(hx_mean(nob),dhx_dx,hxpert,hx_modens(:,nob),vlocal_evecs)
                   t2 = mpi_wtime()
                   tsum = tsum + t2-t1
 
@@ -552,7 +550,7 @@ subroutine get_ozobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_mea
   use nc_diag_read_mod, only: nc_diag_read_get_dim, nc_diag_read_get_global_attr
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_close
 
-  use sparsearr,only:sparr, sparr2, readarray, delete, assignment(=)
+  use sparsearr,only:sparr, sparr2, readarray, delete, assignment(=), init_raggedarr, raggedarr
   use params,only: nanals, lobsdiag_forenkf, neigv, vlocal_evecs
   use statevec, only: state_d
   use mpisetup, only: mpi_wtime, nproc
@@ -581,11 +579,12 @@ subroutine get_ozobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_mea
   character(len=8) :: id2
   character(len=4) :: pe_name
 
-  integer(i_kind) :: nobs_curr, nob, nobdiag, i, nsat, ipe, nsdim
+  integer(i_kind) :: nobs_curr, nob, nobdiag, i, nsat, ipe, nsdim, nprof
   integer(i_kind) :: iunit, iunit2
 
   real(r_double) t1,t2,tsum
   type(sparr)   :: dhx_dx
+  type(raggedarr) :: hxpert
 
   real(r_single),  allocatable, dimension (:) :: Latitude, Longitude, Pressure, Time
   integer(i_kind), allocatable, dimension (:) :: Analysis_Use_Flag
@@ -619,6 +618,7 @@ subroutine get_ozobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_mea
   rlat_prev = -1.e30; rlon_prev=-1.e30; rtim_prev = -1.e30
   nobdiag = 0
   x_used = 0
+  nprof = 0
 
   hx = zero
 
@@ -735,18 +735,16 @@ subroutine get_ozobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_mea
                    call setup_linhx(rlat,rlon,rtim,              &
                                  ix, delx, ixp, delxp, iy, dely,  &
                                  iyp, delyp, it, delt, itp, deltp)
+                else
+                   nprof = nprof + 1
                 endif
+                call init_raggedarr(hxpert, dhx_dx%nnz)
                 call calc_linhx(hx_mean(nob), state_d(:,:,:,nmem),       &
-                                dhx_dx, hx(nob),                  &
+                                dhx_dx, hxpert, hx(nob),                 &
                                 ix, delx, ixp, delxp, iy, dely,   &
                                 iyp, delyp, it, delt, itp, deltp)
                 ! compute modulated ensemble in obs space
-                if (neigv > 0) then
-                   call calc_linhx_modens(hx_mean(nob), state_d(:,:,:,nmem), &
-                                   dhx_dx, hx_modens(:,nob),          &
-                                   ix, delx, ixp, delxp, iy, dely,    &
-                                   iyp, delyp, it, delt, itp, deltp, vlocal_evecs)
-                endif
+                if (neigv>0) call calc_linhx_modens(hx_mean(nob),dhx_dx,hxpert,hx_modens(:,nob),vlocal_evecs)
                 t2 = mpi_wtime()
                 tsum = tsum + t2-t1
 
@@ -767,6 +765,7 @@ subroutine get_ozobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, hx_mea
          endif
       enddo peloop ! ipe
   enddo ! satellite
+  if (nanal == nanals) print *,'oz obs profiles, total obs',nprof,nob
   if (nanal == nanals .and. lobsdiag_forenkf) print *, 'time in calc_linhx for oz obs on proc',nproc,' =',tsum
 
   if (nob /= nobs_max) then
