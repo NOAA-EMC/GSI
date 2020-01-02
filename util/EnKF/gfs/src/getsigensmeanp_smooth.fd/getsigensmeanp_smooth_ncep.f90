@@ -369,8 +369,9 @@ program getsigensmeanp_smooth
                      ! ens spread
                      values_2d_tmp = values_2d - values_2d_avg ! ens pert
                      values_2d_tmp = values_2d_tmp**2
-                     call mpi_reduce(values_2d,values_2d_sprd,lonb*latb,mpi_real4,mpi_sum,0,new_comm,iret)
+                     call mpi_reduce(values_2d_tmp,values_2d_sprd,lonb*latb,mpi_real4,mpi_sum,0,new_comm,iret)
                      values_2d_sprd= sqrt(values_2d_sprd*rnanalsm1)
+                     if (mype == 0) print *,trim(dset%variables(nvar)%name),' min/max spread',minval(values_2d_sprd),maxval(values_2d_sprd)
                   endif
                   if (has_attr(dset, 'nbits', trim(dset%variables(nvar)%name))) then
                       call read_attribute(dset, 'nbits', nbits, &
@@ -434,8 +435,9 @@ program getsigensmeanp_smooth
                      ! ens spread
                      values_3d_tmp = values_3d - values_3d_avg ! ens pert
                      values_3d_tmp = values_3d_tmp**2
-                     call mpi_reduce(values_3d,values_3d_sprd,lonb*latb*nlevs,mpi_real4,mpi_sum,0,new_comm,iret)
+                     call mpi_reduce(values_3d_tmp,values_3d_sprd,lonb*latb*nlevs,mpi_real4,mpi_sum,0,new_comm,iret)
                      values_3d_sprd= sqrt(values_3d_sprd*rnanalsm1)
+                     if (mype == 0) print *,trim(dset%variables(nvar)%name),' min/max spread',minval(values_3d_sprd),maxval(values_3d_sprd)
                   endif
                   if (has_attr(dset, 'nbits', trim(dset%variables(nvar)%name))) then
                       call read_attribute(dset, 'nbits', nbits, &
