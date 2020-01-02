@@ -452,20 +452,9 @@ program getsigensmeanp_smooth
                      allocate(values_3dv_avg, mold=values_3dv)
                      if (allocated(values_3dv_tmp)) deallocate(values_3dv_tmp)
                      allocate(values_3dv_tmp, mold=values_3dv_avg)
-                     if (write_spread_ncio) then
-                        if (allocated(values_3dv_sprd)) deallocate(values_3dv_sprd)
-                        allocate(values_3dv_sprd, mold=values_3dv_avg)
-                     endif
                      if (mype == 0) print *,'processing vgrd'
                      call mpi_allreduce(values_3dv,values_3dv_avg,lonb*latb*nlevs,mpi_real4,mpi_sum,new_comm,iret)
                      values_3dv_avg = values_3dv_avg*rnanals
-                     if (write_spread_ncio) then
-                        ! ens spread
-                        values_3dv_tmp = values_3dv - values_3dv_avg ! ens pert
-                        values_3dv_tmp = values_3dv_tmp**2
-                        call mpi_reduce(values_3dv,values_3dv_sprd,lonb*latb*nlevs,mpi_real4,mpi_sum,0,new_comm,iret)
-                        values_3dv_sprd= sqrt(values_3dv_sprd*rnanalsm1)
-                     endif
                   endif
                   ! smooth ens pert and write out?
                   if (dosmooth) then
