@@ -17,6 +17,10 @@ if(BUILD_ENKF)
   elseif(BUILD_NMMB)
     set(ENKF_SUFFIX "nmmb")
     set(ENKF_BASE "enkf_nmmb")
+  elseif(BUILD_FV3reg)
+    set(ENKF_SUFFIX "fv3reg")
+    set(ENKF_BASE "enkf_fv3reg")
+    set(ENKF_extra_src1 read_fv3reg_restarts.f90 write_fv3reg_restarts.f90)
   else()
     set(ENKF_SUFFIX "wrf")
     set(ENKF_BASE "enkf_wrf")
@@ -26,15 +30,16 @@ if(BUILD_ENKF)
 # else()
 #   set(GSILIB  "gsilib_global${debug_suffix}")
 # endif()
-  set(ENKF_EXTRA_SRCS gridio_${ENKF_SUFFIX}.f90 )
+  set(ENKF_EXTRA_SRCS ${ENKF_extra_src1} gridio_${ENKF_SUFFIX}.f90 )
   add_library( MODS1 OBJECT gridinfo_${ENKF_SUFFIX}.f90 )  
   add_library( MODS2 OBJECT ${ENKF_EXTRA_SRCS} )  
 
   set(ENKFMOD_SRCS 
-  netcdf_io_wrf.f90 params.f90 covlocal.f90 fftpack.f90 genqsat1.f90 mpisetup.F90 rnorm.f90
+  netcdf_io_wrf.f90  params.f90 covlocal.f90 fftpack.f90 genqsat1.f90 mpisetup.F90 rnorm.f90
   sorting.f90 specmod.f90 reducedgrid.f90 readozobs.f90 readsatobs.f90 readconvobs.f90
   write_logfile.f90 kdtree2.f90 mpi_readobs.f90 enkf_obsmod.f90 statevec.f90 controlvec.f90
   observer_${ENKF_SUFFIX}.f90 gridio_${ENKF_SUFFIX}.f90 gridinfo_${ENKF_SUFFIX}.f90 expand_ens.f90
+  ${ENKF_extra_src1} 
   )
   set(ENKF_SRCS 
   innovstats.f90
@@ -62,6 +67,7 @@ if(BUILD_ENKF)
 
   set_source_files_properties( ${ENKF_SRCS} PROPERTIES COMPILE_FLAGS ${ENKF_Fortran_FLAGS} )
   set_source_files_properties( ${ENKFMOD_SRCS} PROPERTIES COMPILE_FLAGS ${ENKF_Fortran_FLAGS} )
+  set_source_files_properties( ${ENKF_EXTRA_SRCS} PROPERTIES COMPILE_FLAGS ${ENKF_Fortran_FLAGS} )
   
   add_library(enkfdeplib STATIC ${ENKFMOD_SRCS} )
   add_library(enkflib STATIC ${ENKF_SRCS} $<TARGET_OBJECTS:MODS1> $<TARGET_OBJECTS:MODS2> )
