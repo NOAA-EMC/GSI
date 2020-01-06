@@ -1,24 +1,44 @@
+###################################################
+#
+# by Guoqing Ge, 2018/8/28, guoqing.ge@noaa.gov
+#
+#
 import os, getpass, socket; hostnode=socket.gethostname()
+from datetime import datetime
 ######### only make changes to project_acct and/or queue_name ############
 #
-if hostnode.startswith("cheyenne"):    ## Cheyenne
+cheyenne=os.popen('grep -i "cheyenne" /etc/hosts | head -n1').read()
+theia=os.popen('grep -i "theia" /etc/hosts | head -n1').read()
+hera=os.popen('grep -i "hera" /etc/hosts | head -n1').read()
+jet=os.popen('grep -i "jet" /etc/hosts | head -n1').read()
+
+if cheyenne:
   project_acct="P48503002"  #"P48500053"
   queue_name = 'premium'
+  hostname="Cheyenne"  ### Don't change hostname
 
-elif hostnode.startswith("tfe"):  ## THEIA
-  project_acct="wrfruc" #comgsi
+elif theia:
+  project_acct="comgsi" #wrfruc
   queue_name = 'batch'
+  hostname="Theia"  ### Don't change hostname
 
-elif hostnode.startswith("fe"):  ## Jet
+elif hera:
+  project_acct="comgsi" #wrfruc
+  queue_name = 'batch'
+  hostname="Hera"  ### Don't change hostname
+
+elif jet:
   project_acct="wrfruc"
-  queue_name = 'batch'
+  queue_name = 'windfall' #'batch'
+  hostname="Jet"  ### Don't change hostname
 
 elif hostnode.startswith("GSI_Docker"):
   project_acct="comgsi"
   queue_name = 'batch'
+  hostname="GSI_Docker"  ### Don't change hostname
 
 else:
-  print("I'm new to host: "+hostnode+"\nPlease set me up first")
+  print("\nI'm new to host: "+hostnode+"\nEmail gsi-help@ucar.edu for helps\n")
   exit()
 
 ########## Make changes to the following variable only if really necessary--------------
@@ -31,17 +51,16 @@ commitID=commitID_full[0:8]
 if not commitID: #empty commitID
   build_root = os.getcwd()+"/build"
 else:
-  build_root = os.getcwd()+"/b_"+branchName+"_"+commitID 
+  build_root = os.getcwd()+"/b_"+datetime.now().strftime("%Y%m%d")+"_"+branchName+"_"+commitID 
 #
 username=getpass.getuser()
+################# read project_acct and queue_name from config.acct_queue if it exists--------------
+if os.path.isfile("config.acct_queue"):
+  with open("config.acct_queue",'r') as f1:
+    project_acct=f1.readline().strip()
+    queue_name=f1.readline().strip()
 #
 ################## Users usually don't make changes after this line ############
-#
-if hostnode.startswith("cheyenne"):hostname="Cheyenne"### Don't change hostname
-elif hostnode.startswith("tfe"):hostname="Theia"  ### Don't change hostname
-elif hostnode.startswith("fe"):hostname="Jet"  ### Don't change hostname
-elif hostnode.startswith("GSI_Docker"):hostname="GSI_Docker"  ### Don't change hostname
-else: print("unkonw host:"+hostnode+"\n\n"); exit()
 #
 module_pre = 'source /etc/profile.d/modules.sh\nmodule purge\n'
 #construct PBS queue directives
@@ -49,6 +68,9 @@ q_directives =              '#PBS -A ' + project_acct + '\n'
 q_directives = q_directives+'#PBS -l walltime=00:30:00 \n'  
 q_directives = q_directives+'#PBS -q '+ queue_name+'\n'
 q_directives = q_directives+'#PBS -j oe \n'
+s_directives =              '#SBATCH --account ' + project_acct + '\n'
+s_directives = s_directives+'#SBATCH -t 00:45:00 \n'  
+s_directives = s_directives+'#SBATCH --qos '+ queue_name+'\n'
 cmake_version = ''
 comp_post=''
 XML_native=''
@@ -62,20 +84,24 @@ if hostname.startswith("Cheyenne"):  ######################################### C
   cmake_version = 'cmake/3.9.1'
   q_directives = q_directives+'#PBS -l select=1:ncpus=8:mpiprocs=8\n'
   q_directives = q_directives+'#PBS -l inception=login\n'
-  comp_post='ncarenv/1.2 ncarcompilers/0.4.1'
+  comp_post='ncarenv ncarcompilers'
 
 elif hostname.startswith("Theia"):  ######################################### Theia
-  rocoto_exe='/apps/rocoto/1.2.4/bin/rocotorun'
-  rocoto_scheduler='moabtorque'
-  q_directives = q_directives+'#PBS -l procs=8\n'
+  rocoto_exe='/apps/rocoto/default/bin/rocotorun'
+  rocoto_scheduler='slurm'
+  s_directives = s_directives+'#SBATCH --ntasks=8\n'
+
+elif hostname.startswith("Hera"):  ######################################### Hera
+  rocoto_exe='/apps/rocoto/default/bin/rocotorun'
+  rocoto_scheduler='slurm'
+  s_directives = s_directives+'#SBATCH --ntasks=8\n'
 
 elif hostname.startswith("Jet"):  ######################################### Jet
-  rocoto_exe='/apps/rocoto/1.2.4.1/bin/rocotorun'
-  rocoto_scheduler='moabtorque'
-  XML_native='-l partition=xjet' #xjet 24 cores/node
-  q_directives = q_directives+'#PBS -l procs=8\n'
-  q_directives = q_directives+'#PBS -l partition=xjet\n'
-  module_pre=module_pre+"module load newdefaults\n"  #specific for Jet
+  rocoto_exe='/apps/rocoto/default/bin/rocotorun'
+  rocoto_scheduler='slurm'
+  s_directives = s_directives+'#SBATCH --ntasks=8\n'
+  s_directives = s_directives+'#SBATCH --partition=kjet\n'
+  #module_pre=module_pre+"module load newdefaults\n"  #specific for Jet
 
 elif hostname.startswith("GSI_Docker"):  ######################################### GSI_Docker
   rocoto_exe='/fake/rocotorun'
@@ -84,19 +110,3 @@ elif hostname.startswith("GSI_Docker"):  #######################################
   serial_run=True
 
 #elif hostname.startswith("a_new_host"):
- 
-#---------------------------------------------------------------|
-#Read in build options
-foptions=open("optionlist."+hostname, "r")
-build_options=[]
-while True:
-  line=foptions.readline()
-  if not line:
-    break;
-  if not (line.strip().startswith('#') or line.strip()==''):
-    build_options.append(line.strip())
-    
-#for x in build_options:
-#   print(x)
-
-
