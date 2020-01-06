@@ -76,7 +76,11 @@ arguments = len(sys.argv) - 1
 if (arguments >=1):
   cmdparam=sys.argv[1]
 else:
-  print("Usage: report.py  <one_build_directory | list_file_name> [1|2]")
+  cmdparam="list.all"
+  report_option="all"
+
+if cmdparam.find('help')>=0:
+  print("Usage: report.py  [one_build_directory | list_file_name] [1|2]")
   exit()
 
 report_option="all"
@@ -243,10 +247,10 @@ if (report_option=="1" or report_option=='all'):
   print(title+'-'*(width_tot-len(title)))
   print('1-Makefile  2-gsi.x  3-enkf_gfs.x  4-enkf_wrf.x 5-ndate.x, nc_diag_cat.x and test_nc_unlimdims.x \
        \n6-community utilities (read_diag, etc) \
-       \n|1|2|3|4|5|')
+       \n|1|2|3|4|5|6|')
   for i in range(len(dir_list)):
     print(build_result[i].ljust(8),end='=>|')
-    print(build_list[i][0:4].ljust(5),end='|')
+    print(build_list[i][0:2].ljust(3),end='|')
     print(compiler[i].ljust(max_compiler+1),end='|')
     print(mpi[i].ljust(max_mpi+1),end='|')
     print(netcdf[i].ljust(max_netcdf+1),end='|')

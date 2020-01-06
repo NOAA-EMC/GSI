@@ -10,7 +10,7 @@
 <!ENTITY WALLTIME "00:30:00">
 <!ENTITY BUILD_ROOT "/scratch4/BMC/comgsi/gge/MPMC/MPMCtest/build">
 <!ENTITY MPMC_ROOT "/scratch4/BMC/comgsi/gge/MPMC/MPMCtest">
-<!ENTITY NATIVE "">
+<!ENTITY PARTITION "kjet">
 
 <!ENTITY build_ID "ti01 ti02">
 <!ENTITY compiler "intel_18.1.163 intel_18.0.1.163"> 
@@ -39,7 +39,6 @@
 
     <task name="compile-#build_ID#" cycledefs="always" maxtries="1">
       <walltime>&WALLTIME;</walltime>
-      <native>&NATIVE;</native>
       <queue>&QUEUE;</queue>
       <account>&ACCOUNT;</account>
       <cores>&COMPILE_PROC;</cores>
@@ -60,11 +59,11 @@
       <var name="casenum">&casenum;</var>
       <task name="#build_ID#-#casenum#" cycledefs="always" maxtries="1">
         <walltime>&WALLTIME;</walltime>
-        <native>&NATIVE;</native>
         <queue>&QUEUE;</queue>
         <account>&ACCOUNT;</account>
         <cores>&GSI_PROC;</cores>
         <nodesize>&GSI_PROC;</nodesize>
+        <partition>&PARTITION;</partition>
         <jobname>#build_ID#-#case_ID#</jobname>
         <join>&BUILD_ROOT;/#build_ID#.#compiler#.#mpi#/run/out.#case_ID#</join>
         <command>&BUILD_ROOT;/#build_ID#.#compiler#.#mpi#/run/run.#case_ID#</command>
@@ -91,11 +90,11 @@
       <var name="dependent">&enkf_dependent;</var>
       <task name="#build_ID#-#enkfnum#" cycledefs="always" maxtries="1">
         <walltime>&WALLTIME;</walltime>
-        <native>&NATIVE;</native>
         <queue>&QUEUE;</queue>
         <account>&ACCOUNT;</account>
         <cores>&ENKF_PROC;</cores>
         <nodesize>&ENKF_PROC;</nodesize>
+        <partition>&PARTITION;</partition>
         <jobname>#build_ID#-#enkf_ID#</jobname>
         <join>&BUILD_ROOT;/#build_ID#.#compiler#.#mpi#/run/out.#enkf_ID#</join>
         <command>&BUILD_ROOT;/#build_ID#.#compiler#.#mpi#/run/run.#enkf_ID#</command>
@@ -111,17 +110,16 @@
     </metatask>
   </metatask>
 
-<!--- drop report task in rocoto, too complicated to implment
   <task name="report" cycledefs="always" maxtries="1">
     <walltime>00:03:00</walltime>
-    <native>&NATIVE;</native>
     <queue>&QUEUE;</queue>
     <account>&ACCOUNT;</account>
     <cores>1</cores>
     <nodesize>1</nodesize>
+    <partition>&PARTITION;</partition>
     <jobname>report</jobname>
     <join>&BUILD_ROOT;/out.report</join>
-    <command>&MPMC_ROOT;/report.ksh</command>
+    <command>&MPMC_ROOT;/report.py > &MPMC_ROOT;/report.txt </command>
     <dependency>
       <or>
         <datadep>&MPMC_ROOT;/.force.report</datadep>
@@ -129,6 +127,5 @@
       </or>
     </dependency>
   </task>
--->
 
 </workflow>
