@@ -1,0 +1,3 @@
+# Theia build option list
+# compiler,         MPI,            NETCDF
+  intel/18.1.163,   impi/5.1.2.150, netcdf/4.3.0
