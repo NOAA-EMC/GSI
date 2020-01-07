@@ -214,8 +214,8 @@ contains
       call nccheck_incr(nf90_def_dim(ncid_out, "ilev", grd%nsig+1, ilev_dimid))
       dimids3 = (/ lon_dimid, lat_dimid, lev_dimid /)
       ! create variables
-      call nccheck_incr(nf90_def_var(ncid_out, "lon", nf90_real, (/lon_dimid/), lonvarid))
-      call nccheck_incr(nf90_def_var(ncid_out, "lat", nf90_real, (/lat_dimid/), latvarid))
+      call nccheck_incr(nf90_def_var(ncid_out, "lon", nf90_double, (/lon_dimid/), lonvarid))
+      call nccheck_incr(nf90_def_var(ncid_out, "lat", nf90_double, (/lat_dimid/), latvarid))
       call nccheck_incr(nf90_def_var(ncid_out, "lev", nf90_real, (/lev_dimid/), levvarid))
       call nccheck_incr(nf90_def_var(ncid_out, "pfull", nf90_real, (/lev_dimid/), pfullvarid))
       call nccheck_incr(nf90_def_var(ncid_out, "ilev", nf90_real, (/ilev_dimid/), ilevvarid))
@@ -277,14 +277,14 @@ contains
           deglats(j-1) = rlats(j)*rad2deg
        end do
        ! write to file
-       call nccheck_incr(nf90_put_var(ncid_out, latvarid, sngl(deglats), &
+       call nccheck_incr(nf90_put_var(ncid_out, latvarid, deglats, &
                          start = (/1/), count = (/grd%nlat-2/)))
        ! longitudes
        do i=1,grd%nlon
           deglons(i) = rlons(i)*rad2deg
        end do
        ! write to file
-       call nccheck_incr(nf90_put_var(ncid_out, lonvarid, sngl(deglons), &
+       call nccheck_incr(nf90_put_var(ncid_out, lonvarid, deglons, &
                          start = (/1/), count = (/grd%nlon/)))
        ! levels
        do k=1,grd%nsig
