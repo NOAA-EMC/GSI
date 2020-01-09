@@ -57,7 +57,12 @@ iret=0
 export NCP=${NCP:-/bin/cp}
 VALIDATE_DATA=${VALIDATE_DATA:-0}
 nregion=${nregion:-6}
-DO_DATA_RPT=${DO_DATA_RPT:-1}
+DO_DATA_RPT=${DO_DATA_RPT:-0}
+
+netcdf_boolean=".false."
+if [[ $OZNMON_NETCDF -eq 1 ]]; then
+   netcdf_boolean=".true."
+fi
 
 OZNMON_NEW_HDR=${OZNMON_NEW_HDR:-0}
 new_hdr="F"
@@ -192,7 +197,8 @@ cat << EOF > input
          region(6)='70S-90S',   rlonmin(6)=-180.0,rlonmax(6)=180.0,rlatmin(6)=-90.0,rlatmax(6)=-70.0,
          validate=$validate,
          new_hdr=${new_hdr},
-	 ptype=${ptype}
+	 ptype=${ptype},
+         netcdf=${netcdf_boolean}
       /
 EOF
 
@@ -225,7 +231,8 @@ cat << EOF > input
          idhh=-18,
          incr=6,
          new_hdr=${new_hdr},
-         ptype=${ptype}
+         ptype=${ptype},
+         netcdf=${netcdf_boolean}
       /
 EOF
 
