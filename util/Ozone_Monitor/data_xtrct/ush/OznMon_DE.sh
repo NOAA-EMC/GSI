@@ -94,6 +94,9 @@ fi
 export OZN_TANKDIR=$OZN_STATS_TANKDIR
 export DATAROOT=${STMP_USER}
 
+if [[ -e ${OZN_TANKDIR}/info/gdas_oznmon_satype.txt ]]; then
+   export satype_file=${satype_file:-${OZN_TANKDIR}/info/gdas_oznmon_satype.txt}
+fi
 
 #--------------------------------------------------------------
 #  Determine next cycle
@@ -148,7 +151,7 @@ export COMROOT=${PTMP_USER}
 
 #-------------------------------------------------------------
 #  This is default for wcoss/cray machines.  Need to reset 
-#  COM_IN in parm files for theia.
+#  COM_IN in parm files for hera.
 #
 export COM_IN=${COM_IN:-/gpfs/hps/nco/ops/com/gfs/prod}
 
@@ -201,7 +204,7 @@ echo "jobfile = $jobfile"
 echo "out:  $OZN_LOGdir/DE.$PDY.$cyc.log"
 echo "err:  $OZN_LOGdir/DE.$PDY.$cyc.err"
 
-if [[ $MY_MACHINE = "theia" ]]; then
+if [[ $MY_MACHINE = "hera" ]]; then
    $SUB --account=${ACCOUNT} --time=05 -J ${job} -D . \
         -o ${OZN_LOGdir}/DE.${PDY}.${cyc}.log \
 	--ntasks=1 --mem=5g \

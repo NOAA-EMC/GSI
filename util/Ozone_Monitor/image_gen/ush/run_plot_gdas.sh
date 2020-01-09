@@ -22,8 +22,7 @@ data_map=${scripts}/data_map.xml
 #export NDATE=/nwprod/util/exec/ndate
 export NDATE=/gpfs/dell1/nco/ops/nwprod/prod_util.v1.1.0/exec/ips/ndate
 
-#export MAIL_CC="russ.treadon@noaa.gov, andrew.collard@noaa.gov, haixia.liu@noaa.gov"
-#export MAIL_CC="edward.c.safford@gmail.com"
+export MAIL_CC="russ.treadon@noaa.gov, andrew.collard@noaa.gov, haixia.liu@noaa.gov"
 export MAIL_TO="edward.safford@noaa.gov"
 
 export OZN_USE_RUN=1
@@ -52,21 +51,17 @@ if [[ $idate -le $prodate ]]; then
                 -c1 $COMP1 -c2 $COMP2 \
          1>${logdir}/${suffix}/${run}/oznmon/OznMon_Plt.log \
          2>${logdir}/${suffix}/${run}/oznmon/OznMon_Plt.err
-   else
 
+   else
       ${scripts}/OznMon_Plt.sh $suffix -p $idate -r $run \
          1>${logdir}/${suffix}/${run}/oznmon/OznMon_Plt.log \
          2>${logdir}/${suffix}/${run}/oznmon/OznMon_Plt.err
    fi
 
-#   ${scripts}/OznMon_Plt.sh $suffix -p $idate -r $run  \
-#      1>/gpfs/dell2/ptmp/Edward.Safford/logs/${suffix}/${run}/oznmon/OznMon_Plt.log \
-#      2>/gpfs/dell2/ptmp/Edward.Safford/logs/${suffix}/${run}/oznmon/OznMon_Plt.err 
+   rc=`${scripts}/update_data_map.pl ${data_map} \
+      ${suffix}_${run} imgdate ${idate}`
 
-#   rc=`${scripts}/update_data_map.pl ${data_map} \
-#      ${suffix}_${run} imgdate ${idate}`
-
-#   echo "rc from update_data_map.pl = $rc"
+   echo "rc from update_data_map.pl = $rc"
 
 fi
 
