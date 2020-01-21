@@ -60,6 +60,7 @@ ln -s ${C_IG_GSCRIPTS}/rgbset2.gs ./rgbset2.gs
 ln -s ${C_IG_GSCRIPTS}/page.gs ./page.gs 
 ln -s ${C_IG_GSCRIPTS}/defint.gs ./defint.gs 
 ln -s ${C_IG_GSCRIPTS}/setvpage.gs ./setvpage.gs
+ln -s ${C_IG_GSCRIPRT}/colorbar.gs ./colorbar.gs
 
 
 for type in ps q t; do

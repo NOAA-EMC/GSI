@@ -168,6 +168,7 @@ echo PDYm6h = $PDYm6h
 
 
 export CNVSTAT_LOCATION=${CNVSTAT_LOCATION:-/gpfs/dell1/nco/ops/com/gfs/${RUN_ENVIR}}
+#export CNVSTAT_LOCATION=${CNVSTAT_LOCATION:-${COMROOTp3}/gfs/${RUN_ENVIR}}
 export C_DATDIR=${C_DATDIR:-${CNVSTAT_LOCATION}/${RUN}.${PDY}}
 export C_GDATDIR=${C_GDATDIR:-${CNVSTAT_LOCATION}/${RUN}.${PDYm6h}}
 
@@ -192,17 +193,27 @@ export jobid=DE_${PDATE}.${pid}
 
 export grib2=${grib2:-1}
 
+#----------------------------------------------------
+#  Note to self:
+# investigate swapping C_DATDIR for $COMROOTp3
+#
 export cnvstat="${C_DATDIR}/${CYC}/gdas.t${CYC}z.cnvstat"
 if [[ ! -s ${cnvstat} ]]; then
    export cnvstat="${C_DATDIR}/gdas.t${CYC}z.cnvstat"
 fi
 
-export pgrbf00="${C_DATDIR}/${CYC}/gdas.t${CYC}z.pgrb2b.1p00.anl"
+#---------------
+# analysis file
+#
+export pgrbf00="${C_DATDIR}/${CYC}/gdas.t${CYC}z.pgrb2.1p00.anl"
 if [[ ! -s ${pgrbf00} ]]; then
-   export pgrbf00="${C_DATDIR}//gdas.t${CYC}z.pgrbf00"
+   export pgrbf00="${C_DATDIR}/gdas.t${CYC}z.pgrbf00"
 fi
 
-export pgrbf06="${C_GDATDIR}/${GCYC}/gdas.t${GCYC}z.pgrb2b.1p00.anl"
+#---------------
+# guess file
+#
+export pgrbf06="${C_GDATDIR}/${GCYC}/gdas.t${GCYC}z.pgrb2.1p00.f006"
 if [[ ! -s ${pgrbf06} ]]; then
    export pgrbf06="${C_GDATDIR}/gdas.t${GCYC}z.pgrbf06"
 fi

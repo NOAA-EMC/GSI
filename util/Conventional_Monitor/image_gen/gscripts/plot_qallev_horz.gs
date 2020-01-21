@@ -79,7 +79,7 @@ function plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,levx,levx1,hint)
    'defint.gs  0.5 0'
    endif
    'd 10*(RHprs.1-RHprs.2)/RHprs.1'
-*   'cbarb'
+   'colorbar'
    'set ccolor 6'
    'set digsiz 0.12'
    levy=levx-hint
@@ -103,7 +103,7 @@ function plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,levx,levx1,hint)
       'defint.gs  0.5 0'
    endif
    'd 10*(RHprs.1-RHprs.2)/RHprs.1'
-*   'cbarb'
+   'colorbar'
 *   'set ccolor 98'
    'set ccolor 6'
    'set digsiz 0.12'
@@ -127,7 +127,7 @@ function plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,levx,levx1,hint)
       'defint.gs  0.5 0'
    endif
    'd 10*(RHprs.1-RHprs.2)/RHprs.1'
-*   'cbarb'
+   'colorbar'
    'set ccolor 98'
    'draw title Humidity INCT*10/Anal 'levx'mb at 'rdate'z' 
 
@@ -138,7 +138,7 @@ function plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,levx,levx1,hint)
    'set gxout shaded'
    'defint 10 50'
    'd RHprs.1'
-*   'cbarb'
+   'colorbar'
    'draw title Humidity Analysis(RH,%) 'levx'mb at 'rdate'z'
 
    if(dbug=1)

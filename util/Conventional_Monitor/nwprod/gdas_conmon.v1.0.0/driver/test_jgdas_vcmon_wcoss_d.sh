@@ -8,11 +8,11 @@
 #BSUB -R affinity[core]
 #BSUB -M 160
 #BSUB -W 00:30
-#BSUB -P GFS-T2O
+#BSUB -P GFS-DEV
 
 set -x
 
-export PDATE=${PDATE:-2019111018}
+export PDATE=${PDATE:-2019111006}
 
 
 #############################################################

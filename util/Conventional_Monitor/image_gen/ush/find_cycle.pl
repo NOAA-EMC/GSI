@@ -65,8 +65,7 @@
                'run:s' => \$run,
                'dir=s' => \$dir,
                'lcm:s' => \$lcm );  
-  
-
+ 
    my @alldirs;
    my $dirpath = $dir;
 

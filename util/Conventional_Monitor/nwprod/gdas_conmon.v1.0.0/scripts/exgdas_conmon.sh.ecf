@@ -61,13 +61,19 @@ if [[ ! -e ${cnvstat} ]]; then
 fi 
 export cnvstat=${cnvstat}
 
-pgrbf00=${pgrbf00:-${C_COMIN}/${CYC}/gdas.t${CYC}z.pgrb2b.1p00.anl}
+#--------------
+#analysis file:
+#
+pgrbf00=${pgrbf00:-${C_COMIN}/${CYC}/gdas.t${CYC}z.pgrb2.1p00.anl}
 if [[ ! -e ${pgrbf00} ]]; then
    pgrbf00=${C_COMIN}/gdas.t${CYC}z.pgrb2b.1p00.anl}
 fi
 export pgrbf00=${pgrbf00}
 
-pgrbf06=${pgrbf06:-${C_COMINm6h}/${GCYC}/gdas.t${GCYC}z.pgrb2b.1p00.anl}
+#--------------
+#guess file:
+#
+pgrbf06=${pgrbf06:-${C_COMINm6h}/${GCYC}/gdas.t${GCYC}z.pgrb2.1p00.f006}  
 if [[ ! -e ${pgrbf06} ]]; then
    pgrbf06=${C_COMINm6h}/gdas.t${GCYC}z.pgrb2b.1p00.anl}
 fi
@@ -183,13 +189,10 @@ if [[ -s ${cnvstat} && -s ${pgrbf00} && -s ${pgrbf06} ]]; then
 
    else
       
-      ${WGRIB2} pgbanl.${PDATE} | awk '(/:RH:/ && /mb:/) || (/:PRES:sfc/) || (/:UGRD:/ && /mb:/) || (/:VGRD:/ && /mb:/) || (/:TMP:/ && /mb:/)' | ${WGRIB2} pgbanl.${PDATE} -i -grib  ./pared_anal.${PDATE}
+      ${WGRIB2} pgbanl.${PDATE} | awk '(/:RH:/ && /mb:/) || (/:PRES:surface:/) || (/:UGRD:/ && /mb:/) || (/:VGRD:/ && /mb:/) || (/:TMP:/ && /mb:/)' | ${WGRIB2} pgbanl.${PDATE} -i -grib  ./pared_anal.${PDATE}
 
-      ${WGRIB2} pgbf06.${GDATE} | awk '(/:RH:/ && /mb:/) || (/:PRES:sfc/) || (/:UGRD:/ && /mb:/) || (/:VGRD:/ && /mb:/) || (/:TMP:/ && /mb:/)' | ${WGRIB2} pgbf06.${GDATE} -i -grib ./pared_guess.${PDATE}
+      ${WGRIB2} pgbf06.${GDATE} | awk '(/:RH:/ && /mb:/) || (/:PRES:surface:/) || (/:UGRD:/ && /mb:/) || (/:VGRD:/ && /mb:/) || (/:TMP:/ && /mb:/)' | ${WGRIB2} pgbf06.${GDATE} -i -grib ./pared_guess.${PDATE}
 
-#      echo "using g2ctl.pl"
-#      ${USHconmon}/g2ctl.pl -0 pared_anal.$PDATE > anal_${PDATE}.ctl
-#      ${USHconmon}/g2ctl.pl pared_guess.$GDATE > guess_${GDATE}.ctl
    fi
 
    ${NCP} ./pared_anal.${PDATE} ${TANKDIR_conmon}/horz_hist/anl/anal.${PDATE}

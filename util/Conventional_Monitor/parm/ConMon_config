@@ -121,7 +121,7 @@ export WORK_conmon=${WORK_conmon:-${C_STMP_USER}/${CONMON_SUFFIX}/${NET}/ConMon}
 #  on the web server (WEB_USER), and location of the top level directory
 #  for the html on the web server (WEBDIR).
 #
-export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas
+export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/es_conv
 export WEBUSER=esafford
 export WEBSVR=emcrzdm
 

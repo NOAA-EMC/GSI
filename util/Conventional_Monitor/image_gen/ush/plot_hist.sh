@@ -135,11 +135,12 @@ for type in ps q t uv; do
                for cycle in ges anl ; do
 
                   nlev_str=`cat stdout_${dtype}_${uvtype}_${cycle}.${PDATE} | grep nlev`
-                  if [[ $MY_MACHINE == "ccs" ]]; then
-                     nlev=`echo $nlev_str | sed 's/:/ /g' | gawk '{print $1}'`        
-                  elif [[ $MY_MACHINE == "wcoss" ]]; then
-                     nlev=`echo $nlev_str | gawk '{print $2}'`
-                  fi
+                  nlev=`echo $nlev_str | gawk '{print $2}'`
+#                  if [[ $MY_MACHINE == "ccs" ]]; then
+#                     nlev=`echo $nlev_str | sed 's/:/ /g' | gawk '{print $1}'`        
+#                  elif [[ $MY_MACHINE == "wcoss" ]]; then
+#                     nlev=`echo $nlev_str | gawk '{print $2}'`
+#                  fi
  
                   sdir=" dset ^out_${dtype}_${uvtype}_${cycle}.${PDATE}"
                   title="title  ${dtype}_${uvtype}  ${cycle}"

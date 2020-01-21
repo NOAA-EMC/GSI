@@ -20,7 +20,7 @@ echo "--> plot_vert.sh "
    dday=`echo $PDATE|cut -c7-8`
    cyc=`echo ${PDATE}|cut -c9-10`
 
-   tv_tankdir=${C_TANKDIR}/cmon.${pdy}/time_vert
+   tv_tankdir=${C_TANKDIR}/${RUN}.${pdy}/${cyc}/conmon/time_vert
 
 
    #---------------------------------------------------
@@ -32,15 +32,16 @@ echo "--> plot_vert.sh "
 
    while [[ $cdate -le $edate ]] ; do
       day=`echo $cdate | cut -c1-8 `
+      dcyc=`echo $cdate | cut -c9-10 `
 
-      if [[ -d ${C_TANKDIR}/cmon.${day} ]]; then
+      if [[ -d ${C_TANKDIR}/${RUN}.${day}/${dcyc}/conmon ]]; then
          for cycle in ges anl; do
-            if [[ -s ${C_TANKDIR}/cmon.${day}/time_vert/${cycle}_${type}_stas.${cdate} ]]
+            if [[ -s ${C_TANKDIR}/${RUN}.${day}/${dcyc}/conmon/time_vert/${cycle}_${type}_stas.${cdate} ]]
             then
-               ln -s ${C_TANKDIR}/cmon.${day}/time_vert/${cycle}_${type}_stas.${cdate} .
+               ln -s ${C_TANKDIR}/${RUN}.${day}/${dcyc}/conmon/time_vert/${cycle}_${type}_stas.${cdate} .
             fi
          done
-         echo " ${C_TANKDIR}/cmon.${day} exists"
+         echo " ${C_TANKDIR}/${RUN}.${day}/${dcyc}/conmon exists"
       fi
 
       adate=`${NDATE} +6 ${cdate}`

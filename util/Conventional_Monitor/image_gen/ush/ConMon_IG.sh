@@ -71,6 +71,8 @@ this_file=`basename $0`
 this_dir=`dirname $0`
 
 echo "CONMON_SUFFIX = $CONMON_SUFFIX"
+echo "PDATE         = $PDATE"
+echo "RUN           = $RUN"
 
 export NUM_CYCLES=${NUM_CYCLES:-121}			# number of cycles in plot
 export JOBNAME=${JOBNAME:-ConMon_plt_${CONMON_SUFFIX}}
@@ -198,7 +200,7 @@ echo "start_date, prodate, pdate = $START_DATE $PRODATE  $PDATE"
 
 ${C_IG_SCRIPTS}/mk_horz_hist.sh
 
-#${C_IG_SCRIPTS}/mk_time_vert.sh
+${C_IG_SCRIPTS}/mk_time_vert.sh
 
 
 #------------------------------------------------------------------
