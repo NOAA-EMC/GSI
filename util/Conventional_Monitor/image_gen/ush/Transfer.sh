@@ -75,7 +75,7 @@ fi
 log_file=${LOGdir}/Transfer_${CMON_SUFFIX}.log
 err_file=${LOGdir}/Transfer_${CMON_SUFFIX}.err
 
-WEBDIR=${WEBDIR}/${CMON_SUFFIX}
+WEBDIR=${WEBDIR}/${CMON_SUFFIX}/${RUN}
 
 if [[ ${C_IMGNDIR} != "/" ]]; then
    echo "C_IMGNDIR   = $C_IMGNDIR"
@@ -84,10 +84,10 @@ if [[ ${C_IMGNDIR} != "/" ]]; then
    echo "WEBSVR      = $WEBSVR"
    echo "WEBDIR      = $WEBDIR"
    
-#   if [[ $MY_MACHINE = "wcoss" $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "cray" ]]; then
-#      /usr/bin/rsync -ave ssh --exclude *.ctl.${Z} ${C_IMGNDIR}/ \
-#         ${WEBUSER}@${WEBSVR}.ncep.noaa.gov:${WEBDIR}/
-#   fi
+   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "cray" ]]; then
+      /usr/bin/rsync -ave ssh --exclude *.ctl.${Z} ${C_IMGNDIR}/ \
+         ${WEBUSER}@${WEBSVR}.ncep.noaa.gov:${WEBDIR}/
+   fi
 fi
 
 echo end Transfer.sh

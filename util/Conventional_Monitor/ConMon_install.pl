@@ -142,7 +142,7 @@
    #
    #  Web directory
    #
-   my $webdir = "/home/people/emc/www/htdocs/gmb/gdas";
+   my $webdir = "/home/people/emc/www/htdocs/gmb/gdas/es_conv";
    print "Please specify the top level web site directory $server.\n";
    print "  Return to accept default directory location or enter new location.\n";
    print " \n";
