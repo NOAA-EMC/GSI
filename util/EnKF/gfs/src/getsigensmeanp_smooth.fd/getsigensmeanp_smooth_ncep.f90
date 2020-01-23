@@ -504,7 +504,7 @@ program getsigensmeanp_smooth
                         if (trim(dset%variables(nvar)%name) /= 'ugrd' .and. &
                             trim(dset%variables(nvar)%name) /= 'dzdt' .and. &
                             trim(dset%variables(nvar)%name) /= 'delz' .and. &
-                            trim(dset%variables(nvar)%name) /= 'dpres' .and. &)
+                            trim(dset%variables(nvar)%name) /= 'dpres' .and. &
                             trim(dset%variables(nvar)%name) /= 'vgrd') then
 !$omp parallel do schedule(dynamic,1) private(k,rwork_spc)
                            do k=1,nlevs
