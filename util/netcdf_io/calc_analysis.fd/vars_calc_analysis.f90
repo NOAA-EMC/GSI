@@ -5,6 +5,7 @@
 !! Original: 2019-09-18   martin   - original module
 !!           2019-09-26   martin   - add support for netCDF read/write
 !!           2019-10-24   martin   - support NEMSIO output write
+!!           2020-01-17   martin   - parallel IO support added
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module vars_calc_analysis
   use nemsio_module, only: nemsio_gfile
@@ -25,6 +26,8 @@ module vars_calc_analysis
   public :: fcstncfile, anlncfile, incncfile
   public :: fhrs_pe
   public :: fhr
+  public :: mype, npes
+  public :: levpe
 
   character(len=500) :: anal_file, fcst_file, incr_file
   integer, dimension(7) :: idate, jdate
@@ -39,5 +42,7 @@ module vars_calc_analysis
   logical :: use_nemsio_anl
   type(Dataset) :: fcstncfile, anlncfile, incncfile
   integer, dimension(7) :: fhrs_pe
+  integer :: mype, npes
+  integer, allocatable, dimension(:) :: levpe
 
 end module vars_calc_analysis

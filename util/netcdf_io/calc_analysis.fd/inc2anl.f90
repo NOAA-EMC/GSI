@@ -5,13 +5,14 @@
 !! Original: 2019-09-18   martin   - original module
 !!           2019-10-24   martin   - removed support for NEMSIO background but
 !!                                   allows for either NEMSIO or netCDF analysis write
+!!           2020-01-21   martin   - parallel IO support added
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module inc2anl 
   implicit none
 
   private
 
-  public :: gen_anl
+  public :: gen_anl, close_files
 
   integer, parameter :: nincv=10
   character(len=7) :: incvars_nemsio(nincv), incvars_netcdf(nincv), incvars_ncio(nincv)
@@ -37,6 +38,7 @@ contains
   !            increment, add the two together, and write out
   !            the analysis to a new file
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    use vars_calc_analysis, only: mype 
     implicit none
     ! variables local to this subroutine
     integer :: i, j, iincvar
@@ -57,21 +59,34 @@ contains
       if (use_increment) then
         if (iovars_netcdf(i) == 'pressfc') then
           ! special case for surface pressure
-          print *, 'Computing and Adding Surface Pressure Increment'
+          if (mype==0) print *, 'Computing and Adding Surface Pressure Increment'
           call add_psfc_increment
         else
           ! call generic subroutine for all other fields
-          print *, 'Adding Increment to ', iovars_netcdf(i), incvars_netcdf(iincvar)
+          if (mype==0) print *, 'Adding Increment to ', iovars_netcdf(i), incvars_netcdf(iincvar)
           call add_increment(iovars_netcdf(i), incvars_netcdf(iincvar))
         end if
       else
         ! otherwise just write out what is in the input to the output
-        print *, 'Copying from Background ', iovars_netcdf(i) 
+        if (mype==0) print *, 'Copying from Background ', iovars_netcdf(i) 
         call copy_ges_to_anl(iovars_netcdf(i))
       end if
     end do
 
   end subroutine gen_anl
+
+  subroutine close_files
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! subroutine close_files
+  !            close netCDF files before ending program
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    use vars_calc_analysis, only: fcstncfile, anlncfile
+    use module_fv3gfs_ncio, only: close_dataset
+    implicit none
+
+    call close_dataset(fcstncfile)
+    call close_dataset(anlncfile)
+  end subroutine close_files
 
   subroutine copy_ges_to_anl(varname)
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -82,7 +97,8 @@ contains
   !       varname - input string of variable to process
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     use vars_calc_analysis, only: fcstncfile, anlncfile, &
-                                  nlat, nlon, nlev, anlfile, use_nemsio_anl
+                                  nlat, nlon, nlev, anlfile, use_nemsio_anl, &
+                                  mype, levpe
     use module_fv3gfs_ncio, only: Dataset, read_vardata, write_vardata, &
                                   open_dataset, close_dataset, has_var
     use nemsio_module
@@ -116,8 +132,8 @@ contains
             call write_vardata(anlncfile, varname, work2d)
           end if
         case default
-          call read_vardata(fcstncfile, varname, work3d)
           if (use_nemsio_anl) then
+            call read_vardata(fcstncfile, varname, work3d)
             if (.not. allocated(work1d)) allocate(work1d(nlat*nlon))
             do k=1,nlev
               krev = (nlev+1)-k
@@ -126,11 +142,16 @@ contains
               if (iret /=0) write(6,*) 'Error with NEMSIO write', trim(varname), 'mid layer', k, 'iret=',iret
             end do
           else
-            call write_vardata(anlncfile, varname, work3d)
+            do k=1,nlev
+              if (mype == levpe(k)) then
+                call read_vardata(fcstncfile, varname, work3d, nslice=k, slicedim=3)
+                call write_vardata(anlncfile, varname, work3d, nslice=k, slicedim=3)
+              end if
+            end do
           end if
       end select
     else 
-      write(6,*) varname, 'not in background file, skipping...'
+      if (mype == 0) write(6,*) varname, 'not in background file, skipping...'
     end if
 
   end subroutine copy_ges_to_anl
@@ -146,7 +167,8 @@ contains
   !                 (without _inc suffix added)
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     use vars_calc_analysis, only: fcstncfile, anlncfile, incr_file,&
-                                  nlat, nlon, nlev, anlfile, use_nemsio_anl
+                                  nlat, nlon, nlev, anlfile, use_nemsio_anl, &
+                                  levpe, mype
     use module_fv3gfs_ncio, only: Dataset, read_vardata, write_vardata, &
                                   open_dataset, close_dataset, has_var
     use nemsio_module
@@ -154,40 +176,43 @@ contains
     ! input vars
     character(7), intent(in) :: fcstvar, incvar
     ! local variables
-    real, allocatable, dimension(:,:,:) :: work3d_inc, work3d_bg
+    real, allocatable, dimension(:,:,:) :: work3d_bg
+    real, allocatable, dimension(:,:) :: work3d_inc
     real, allocatable, dimension(:) :: work1d
     integer :: j,jj,k,krev,iret
     type(Dataset) :: incncfile
     
     if (has_var(fcstncfile, fcstvar)) then
-      ! get first guess
-      call read_vardata(fcstncfile, fcstvar, work3d_bg)
-      ! get increment
-      incncfile = open_dataset(incr_file)
-      call read_vardata(incncfile, trim(incvar)//"_inc", work3d_inc)
-      ! add increment to background
-      do j=1,nlat
-         jj=nlat+1-j ! increment is S->N, history files are N->S
-         work3d_bg(:,j,:) = work3d_bg(:,j,:) + work3d_inc(:,jj,:)
+      do k=1,nlev
+        if (mype == levpe(k)) then
+          ! get first guess
+          call read_vardata(fcstncfile, fcstvar, work3d_bg, nslice=k, slicedim=3)
+          ! get increment
+          incncfile = open_dataset(incr_file, paropen=.true.)
+          call read_vardata(incncfile, trim(incvar)//"_inc", work3d_inc, nslice=k, slicedim=3)
+          ! add increment to background
+          do j=1,nlat
+             jj=nlat+1-j ! increment is S->N, history files are N->S
+             work3d_bg(:,j,1) = work3d_bg(:,j,1) + work3d_inc(:,jj)
+          end do
+          ! write out analysis to file
+          if (use_nemsio_anl) then
+            allocate(work1d(nlat*nlon))
+              krev = (nlev+1)-k
+              work1d = reshape(work3d_bg(:,:,krev),(/size(work1d)/))
+              call nemsio_writerecv(anlfile, trim(fcstvar), 'mid layer', k, work1d, iret=iret)
+              if (iret /=0) write(6,*) 'Error with NEMSIO write', trim(fcstvar), 'mid layer', k, 'iret=',iret
+            deallocate(work1d)
+          else
+            call write_vardata(anlncfile, fcstvar, work3d_bg, nslice=k, slicedim=3)
+          end if
+        end if
       end do
-      ! write out analysis to file
-      if (use_nemsio_anl) then
-        allocate(work1d(nlat*nlon))
-        do k=1,nlev
-          krev = (nlev+1)-k
-          work1d = reshape(work3d_bg(:,:,krev),(/size(work1d)/))
-          call nemsio_writerecv(anlfile, trim(fcstvar), 'mid layer', k, work1d, iret=iret)
-          if (iret /=0) write(6,*) 'Error with NEMSIO write', trim(fcstvar), 'mid layer', k, 'iret=',iret
-        end do
-        deallocate(work1d)
-      else
-        call write_vardata(anlncfile, fcstvar, work3d_bg)
-      end if
       ! clean up and close
       deallocate(work3d_bg, work3d_inc)
       call close_dataset(incncfile)
     else 
-      write(6,*) fcstvar, 'not in background file, skipping...'
+      write(6,*) fcstvar, ' not in background file, skipping...'
     end if
   
   end subroutine add_increment

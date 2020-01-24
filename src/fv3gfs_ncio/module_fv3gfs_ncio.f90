@@ -374,7 +374,7 @@ module module_fv3gfs_ncio
     enddo
   end function open_dataset
 
-  function create_dataset(filename, dsetin, copy_vardata, errcode) result(dset)
+  function create_dataset(filename, dsetin, copy_vardata, paropen, errcode) result(dset)
     ! create new dataset, using an existing dataset object to define
     ! variables, dimensions and attributes.
     ! If copy_vardata=T, all variable data (not just coordinate
@@ -388,6 +388,7 @@ module module_fv3gfs_ncio
     logical, intent(in), optional :: copy_vardata
     type(Dataset) :: dset
     type(Dataset), intent(in) :: dsetin
+    logical, intent(in), optional :: paropen
     integer, intent(out), optional :: errcode
     integer ncerr,ndim,nvar,n,ishuffle,natt
     logical copyd, coordvar
@@ -418,12 +419,27 @@ module module_fv3gfs_ncio
     else
        copyd = .false. ! only copy coordinate variable data
     endif
+    if (present(paropen)) then
+       if (paropen) then
+         dset%isparallel = .true.
+       else
+         dset%isparallel = .false.
+       end if
+    else
+      dset%isparallel = .false.
+    end if
     ! create netcdf file
     if (dsetin%ishdf5) then
-       ncerr = nf90_create(trim(filename), &
-               cmode=IOR(IOR(NF90_CLOBBER,NF90_NETCDF4),NF90_CLASSIC_MODEL), &
-               !cmode=IOR(NF90_CLOBBER,NF90_NETCDF4), &
-               ncid=dset%ncid)
+       if (dset%isparallel) then
+          ncerr = nf90_create(trim(filename), &
+                  cmode=IOR(NF90_CLOBBER,NF90_NETCDF4), ncid=dset%ncid, &
+                  comm = mpi_comm_world, info = mpi_info_null)
+       else
+          ncerr = nf90_create(trim(filename), &
+                  cmode=IOR(IOR(NF90_CLOBBER,NF90_NETCDF4),NF90_CLASSIC_MODEL), &
+                  !cmode=IOR(NF90_CLOBBER,NF90_NETCDF4), &
+                  ncid=dset%ncid)
+       end if
        dset%ishdf5 = .true.
     else
        ncerr = nf90_create(trim(filename), &
@@ -896,152 +912,152 @@ module module_fv3gfs_ncio
     include "read_vardata_code_5d.f90"
   end subroutine read_vardata_5d_char
 
-  subroutine write_vardata_1d_r4(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_1d_r4(dset, varname, values, nslice, slicedim, errcode)
     real(4),  dimension(:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_1d_r4
 
-  subroutine write_vardata_2d_r4(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_2d_r4(dset, varname, values, nslice, slicedim, errcode)
     real(4),  dimension(:,:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_2d_r4
 
-  subroutine write_vardata_3d_r4(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_3d_r4(dset, varname, values, nslice, slicedim, errcode)
     real(4),  dimension(:,:,:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_3d_r4
 
-  subroutine write_vardata_4d_r4(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_4d_r4(dset, varname, values, nslice, slicedim, errcode)
     real(4),  dimension(:,:,:,:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_4d_r4
 
-  subroutine write_vardata_5d_r4(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_5d_r4(dset, varname, values, nslice, slicedim, errcode)
     real(4),  dimension(:,:,:,:,:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_5d_r4
 
-  subroutine write_vardata_1d_r8(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_1d_r8(dset, varname, values, nslice, slicedim, errcode)
     real(8),  dimension(:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_1d_r8
 
-  subroutine write_vardata_2d_r8(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_2d_r8(dset, varname, values, nslice, slicedim, errcode)
     real(8),  dimension(:,:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_2d_r8
 
-  subroutine write_vardata_3d_r8(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_3d_r8(dset, varname, values, nslice, slicedim, errcode)
     real(8),  dimension(:,:,:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_3d_r8
 
-  subroutine write_vardata_4d_r8(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_4d_r8(dset, varname, values, nslice, slicedim, errcode)
     real(8),  dimension(:,:,:,:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_4d_r8
 
-  subroutine write_vardata_5d_r8(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_5d_r8(dset, varname, values, nslice, slicedim, errcode)
     real(8),  dimension(:,:,:,:,:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_5d_r8
 
-  subroutine write_vardata_1d_int(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_1d_int(dset, varname, values, nslice, slicedim, errcode)
     integer,  dimension(:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_1d_int
 
-  subroutine write_vardata_2d_int(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_2d_int(dset, varname, values, nslice, slicedim, errcode)
     integer,  dimension(:,:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_2d_int
 
-  subroutine write_vardata_3d_int(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_3d_int(dset, varname, values, nslice, slicedim, errcode)
     integer,  dimension(:,:,:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_3d_int
 
-  subroutine write_vardata_4d_int(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_4d_int(dset, varname, values, nslice, slicedim, errcode)
     integer,  dimension(:,:,:,:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_4d_int
 
-  subroutine write_vardata_5d_int(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_5d_int(dset, varname, values, nslice, slicedim, errcode)
     integer,  dimension(:,:,:,:,:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_5d_int
 
-  subroutine write_vardata_1d_short(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_1d_short(dset, varname, values, nslice, slicedim, errcode)
     integer(2),  dimension(:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_1d_short
 
-  subroutine write_vardata_2d_short(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_2d_short(dset, varname, values, nslice, slicedim, errcode)
     integer(2),  dimension(:,:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_2d_short
 
-  subroutine write_vardata_3d_short(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_3d_short(dset, varname, values, nslice, slicedim, errcode)
     integer(2),  dimension(:,:,:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_3d_short
 
-  subroutine write_vardata_4d_short(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_4d_short(dset, varname, values, nslice, slicedim, errcode)
     integer(2),  dimension(:,:,:,:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_4d_short
 
-  subroutine write_vardata_5d_short(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_5d_short(dset, varname, values, nslice, slicedim, errcode)
     integer(2),  dimension(:,:,:,:,:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_5d_short
 
-  subroutine write_vardata_1d_byte(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_1d_byte(dset, varname, values, nslice, slicedim, errcode)
     integer(1),  dimension(:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_1d_byte
 
-  subroutine write_vardata_2d_byte(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_2d_byte(dset, varname, values, nslice, slicedim, errcode)
     integer(1),  dimension(:,:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_2d_byte
 
-  subroutine write_vardata_3d_byte(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_3d_byte(dset, varname, values, nslice, slicedim, errcode)
     integer(1),  dimension(:,:,:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_3d_byte
 
-  subroutine write_vardata_4d_byte(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_4d_byte(dset, varname, values, nslice, slicedim, errcode)
     integer(1),  dimension(:,:,:,:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_4d_byte
 
-  subroutine write_vardata_5d_byte(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_5d_byte(dset, varname, values, nslice, slicedim, errcode)
     integer(1),  dimension(:,:,:,:,:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_5d_byte
 
-  subroutine write_vardata_1d_char(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_1d_char(dset, varname, values, nslice, slicedim, errcode)
     character,  dimension(:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_1d_char
 
-  subroutine write_vardata_2d_char(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_2d_char(dset, varname, values, nslice, slicedim, errcode)
     character,  dimension(:,:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_2d_char
 
-  subroutine write_vardata_3d_char(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_3d_char(dset, varname, values, nslice, slicedim, errcode)
     character,  dimension(:,:,:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_3d_char
 
-  subroutine write_vardata_4d_char(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_4d_char(dset, varname, values, nslice, slicedim, errcode)
     character,  dimension(:,:,:,:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_4d_char
 
-  subroutine write_vardata_5d_char(dset, varname, values, nslice, errcode)
+  subroutine write_vardata_5d_char(dset, varname, values, nslice, slicedim, errcode)
     character,  dimension(:,:,:,:,:), intent(in) :: values
     include "write_vardata_code.f90"
   end subroutine write_vardata_5d_char

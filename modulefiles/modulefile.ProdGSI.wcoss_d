@@ -57,6 +57,8 @@ module load crtm/2.3.0
 
 # parallel netcdf
 module use -a /gpfs/dell2/emc/modeling/noscrub/Cory.R.Martin/Modules/modulefiles
-module load hdf5-1.10.5-intel-18.0.1.163-impi-18
-module load netcdf-4.7.3-intel-18.0.1.163-impi-18
+#module load hdf5-1.10.5-intel-18.0.1.163-impi-18
+#module load netcdf-4.7.3-intel-18.0.1.163-impi-18
+module load hdf5-parallel
+module load netcdf-parallel
 
