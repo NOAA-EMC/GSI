@@ -5,6 +5,7 @@
 !! Original: 2019-09-18   martin   - original module
 !!           2019-09-27   martin   - added support for netCDF IO
 !!           2019-10-24   martin   - support NEMSIO analysis write
+!!           2020-01-21   martin   - parallel IO support added
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module init_io
   use nemsio_module
@@ -23,29 +24,40 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     use vars_calc_analysis, only: fcst_file, fcstncfile, &
                                   idate6, nlon, nlat, nlev, &
-                                  use_nemsio_anl, lats, lons, vcoord
+                                  use_nemsio_anl, lats, lons, vcoord, &
+                                  mype, npes, levpe
     use module_fv3gfs_ncio, only: Dimension, open_dataset, get_dim,&
                                   get_idate_from_time_units, &
                                   read_vardata, read_attribute
     implicit none
     ! variables local to this subroutine
-    integer ::k,kk
+    integer ::k,kk,ilev
     type(Dimension) :: ncdim    
     real, allocatable, dimension(:) :: ak, bk
     real, allocatable, dimension(:,:) :: tmp2d
 
     ! open the background file
-    fcstncfile = open_dataset(fcst_file)
+    fcstncfile = open_dataset(fcst_file, paropen=.true.)
     ! get dimensions
     ncdim = get_dim(fcstncfile,'grid_xt'); nlon=ncdim%len
     ncdim = get_dim(fcstncfile,'grid_yt'); nlat=ncdim%len
     ncdim = get_dim(fcstncfile,'pfull'); nlev=ncdim%len
     ! get valid time
     idate6 = get_idate_from_time_units(fcstncfile)
-    write(6,*) 'Background initialization date=', idate6
-    write(6,*) 'nlon=', nlon
-    write(6,*) 'nlat=', nlat
-    write(6,*) 'nlev=', nlev
+    if (mype==0) then
+      write(6,*) 'Background initialization date=', idate6
+      write(6,*) 'nlon=', nlon
+      write(6,*) 'nlat=', nlat
+      write(6,*) 'nlev=', nlev
+    end if
+    ! determine which PEs will be used for each model level
+    ilev = 0
+    allocate(levpe(nlev))
+    do k=1,nlev
+      levpe(k) = ilev
+      ilev = ilev + 1
+      if (ilev == npes) ilev = 0
+    end do
 
     ! need to extract lat, lon, vcoord info
     if (use_nemsio_anl) then
@@ -71,7 +83,7 @@ contains
     use vars_calc_analysis, only: anal_file, anlfile, jdate, idate6, jdate6,&
                                   fhr, nfhour, nfminute, nfsecondn, nfsecondd,&
                                   use_nemsio_anl, anlncfile, fcstncfile,&
-                                  nlon, nlat, nlev, lats, lons, vcoord
+                                  nlon, nlat, nlev, lats, lons, vcoord, mype
     use module_fv3gfs_ncio, only: create_dataset, get_time_units_from_idate,&
                                   write_vardata, write_attribute
     use netcdf, only: nf90_max_name
@@ -122,7 +134,7 @@ contains
     jdate6(4)=jda(5)
     jdate6(5)=idate6(5)
     jdate6(6)=0
-    write(6,*) 'Analysis valid date=', jdate6
+    if (mype==0) write(6,*) 'Analysis valid date=', jdate6
     jdate(1:6)=jdate6
     jdate(7)=1
 
@@ -191,7 +203,7 @@ contains
        end if
     else
        ! open the netCDF file for writing and copy everything
-       anlncfile = create_dataset(anal_file, fcstncfile) 
+       anlncfile = create_dataset(anal_file, fcstncfile, paropen=.true.) 
        ! update the valid time info
        allocate(fhour(1))
        fhour = 0

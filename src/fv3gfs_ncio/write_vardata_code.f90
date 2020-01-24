@@ -1,8 +1,10 @@
     type(Dataset), intent(inout) :: dset
     character(len=*), intent(in) :: varname
     integer, intent(in), optional :: nslice
+    integer, intent(in), optional :: slicedim
     integer, intent(out), optional :: errcode
-    integer ncerr, nvar, ncount, n1,n2,n3
+    integer ncerr, nvar, ncount, ndim, nd, n
+    integer, allocatable, dimension(:) :: start, count, dimlens
     logical is_slice
     logical return_errcode
     if(present(errcode)) then
@@ -15,25 +17,46 @@
        ncount = nslice
        is_slice = .true.
     else
+       ncount = 1
        is_slice = .false.
     endif
     nvar = get_nvar(dset,varname)
+    allocate(start(dset%variables(nvar)%ndims),count(dset%variables(nvar)%ndims))
+    allocate(dimlens(dset%variables(nvar)%ndims))
+    start(:) = 1
+    count(:) = 1
+    dimlens(:) = 1
+    if (present(slicedim)) then
+       nd = slicedim
+    else
+       nd = dset%variables(nvar)%ndims
+    end if
+    ndim = 1
+    do n=1,dset%variables(nvar)%ndims
+       if (n == nd) then
+          start(n) = ncount
+          count(n) = 1
+       else
+          start(n) = 1
+          count(n) = dset%variables(nvar)%dimlens(n)
+          dimlens(ndim) = dset%variables(nvar)%dimlens(n)
+          ndim = ndim + 1
+       end if
+    end do
+    
+
+
+    ncerr = nf90_var_par_access(dset%ncid, dset%variables(nvar)%varid, nf90_collective)
     if (is_slice) then
         if (dset%variables(nvar)%ndims == 4) then
-           n1 = dset%variables(nvar)%dimlens(1)
-           n2 = dset%variables(nvar)%dimlens(2)
-           n3 = dset%variables(nvar)%dimlens(3)
            ncerr = nf90_put_var(dset%ncid, dset%variables(nvar)%varid,values, &
-                   start=(/1,1,1,ncount/),count=(/n1,n2,n3,1/))
+                   start=start,count=count)
         else if (dset%variables(nvar)%ndims == 3) then
-           n1 = dset%variables(nvar)%dimlens(1)
-           n2 = dset%variables(nvar)%dimlens(2)
            ncerr = nf90_put_var(dset%ncid, dset%variables(nvar)%varid,values, &
-                   start=(/1,1,ncount/),count=(/n1,n2,1/))
+                   start=start,count=count)
         else if (dset%variables(nvar)%ndims == 2) then
-           n1 = dset%variables(nvar)%dimlens(1)
            ncerr = nf90_put_var(dset%ncid, dset%variables(nvar)%varid,values, &
-                   start=(/1,ncount/),count=(/n1,1/))
+                   start=start,count=count)
         else if (dset%variables(nvar)%ndims == 1) then
            if (return_errcode) then
               errcode = -1

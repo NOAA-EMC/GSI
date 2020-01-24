@@ -40,6 +40,7 @@ contains
 ! program history log:
 !   2019-09-04  martin  Initial version. Based on write_atm_nemsio 
 !   2019-09-13  martin  added option to zero out certain increment fields 
+!   2020-01-10  martin  added in parallel write to decrease wallclock time
 !
 !   input argument list:
 !     filename  - file to open and write to
@@ -60,13 +61,13 @@ contains
     use kinds, only: r_kind,i_kind
 
     use mpimod, only: mpi_rtype
-    use mpimod, only: mpi_comm_world
+    use mpimod, only: mpi_comm_world, mpi_info_null
     use mpimod, only: ierror
-    use mpimod, only: mype
+    use mpimod, only: mype,npe
 
     use gridmod, only: strip, rlats, rlons, bk5
+    use gridmod, only: istart, jstart
 
-    use general_commvars_mod, only: load_grid
     use general_specmod, only: spec_vars
     use general_sub2grid_mod, only: sub2grid_info
 
@@ -108,29 +109,27 @@ contains
 
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) :: sub_dzb,sub_dza, sub_tsen, sub_q
 
-    real(r_kind),dimension(grd%lat1*grd%lon1)     :: pssm
+    real(r_kind),dimension(grd%lat1,grd%lon1)     :: pssm
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig):: sub_dp
-    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: tsensm,tvsm, prslm, usm, vsm
-    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: dpsm, qsm, ozsm
-    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: qism, qlsm 
-    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: dzsm
-    real(r_kind),dimension(grd%lat1,grd%lon1) :: tmpinc2
+    real(r_kind),dimension(grd%lat1,grd%lon1,grd%nsig):: tsensm,tvsm, prslm, usm, vsm
+    real(r_kind),dimension(grd%lat1,grd%lon1,grd%nsig):: dpsm, qsm, ozsm
+    real(r_kind),dimension(grd%lat1,grd%lon1,grd%nsig):: qism, qlsm 
+    real(r_kind),dimension(grd%lat1,grd%lon1,grd%nsig):: dzsm
     real(r_kind),dimension(max(grd%iglobal,grd%itotsub)) :: work1,work2
-    real(r_kind),dimension(grd%nlon,grd%nlat-2):: grid, gridrev
-    real(r_kind),dimension(grd%nlon,grd%nlat-2,grd%nsig):: delp
+    real(r_kind),dimension(grd%lat1,grd%lon1,grd%nsig):: delp
     real(r_kind),dimension(grd%nlon) :: deglons
     real(r_kind),dimension(grd%nlat-2) :: deglats
     real(r_kind),dimension(grd%nsig) :: levsout
     real(r_kind),dimension(grd%nsig+1) :: ilevsout
 
-    integer(i_kind) :: mm1, i, j, k, iii
+    integer(i_kind) :: mm1, i, j, k, iii, krev
     integer(i_kind) :: iret, istatus 
     integer(i_kind) :: ibin2
     integer(i_kind) :: ncid_out, lon_dimid, lat_dimid, lev_dimid, ilev_dimid
     integer(i_kind) :: lonvarid, latvarid, levvarid, pfullvarid, ilevvarid, &
                        hyaivarid, hybivarid, uvarid, vvarid, delpvarid, delzvarid, &
                        tvarid, sphumvarid, liqwatvarid, o3varid, icvarid
-    integer(i_kind) :: dimids3(3),nccount(3),ncstart(3)
+    integer(i_kind) :: dimids3(3),nccount(3),ncstart(3), cnksize(3), j1, j2, jj
 
     type(gsi_bundle) :: svalinc(nobs_bins)
     type(gsi_bundle) :: evalinc(ntlevs_ens)
@@ -139,6 +138,10 @@ contains
     logical llprt
 
     integer(i_kind),dimension(grd%lat1,grd%lon1) :: troplev
+
+    real(r_kind), allocatable, dimension(:,:,:) :: out3d
+    integer :: time, stime
+
 
 !*************************************************************************
 !   Initialize local variables
@@ -203,43 +206,52 @@ contains
       call stop2(999)
     end if
     
-    ! Single task writes increment to file
-    if ( mype == mype_out ) then
-      ! create the output netCDF file
-      call nccheck_incr(nf90_create(path=trim(filename)//".nc", cmode=ior(nf90_clobber,nf90_netcdf4), ncid=ncid_out))
-      ! create dimensions based on analysis resolution, not guess
-      call nccheck_incr(nf90_def_dim(ncid_out, "lon", grd%nlon, lon_dimid))
-      call nccheck_incr(nf90_def_dim(ncid_out, "lat", grd%nlat-2, lat_dimid))
-      call nccheck_incr(nf90_def_dim(ncid_out, "lev", grd%nsig, lev_dimid))
-      call nccheck_incr(nf90_def_dim(ncid_out, "ilev", grd%nsig+1, ilev_dimid))
-      dimids3 = (/ lon_dimid, lat_dimid, lev_dimid /)
-      ! create variables
-      call nccheck_incr(nf90_def_var(ncid_out, "lon", nf90_real, (/lon_dimid/), lonvarid))
-      call nccheck_incr(nf90_def_var(ncid_out, "lat", nf90_real, (/lat_dimid/), latvarid))
-      call nccheck_incr(nf90_def_var(ncid_out, "lev", nf90_real, (/lev_dimid/), levvarid))
-      call nccheck_incr(nf90_def_var(ncid_out, "pfull", nf90_real, (/lev_dimid/), pfullvarid))
-      call nccheck_incr(nf90_def_var(ncid_out, "ilev", nf90_real, (/ilev_dimid/), ilevvarid))
-      call nccheck_incr(nf90_def_var(ncid_out, "hyai", nf90_real, (/ilev_dimid/), hyaivarid))
-      call nccheck_incr(nf90_def_var(ncid_out, "hybi", nf90_real, (/ilev_dimid/), hybivarid))
-      call nccheck_incr(nf90_def_var(ncid_out, "u_inc", nf90_real, dimids3, uvarid)) 
-      call nccheck_incr(nf90_def_var(ncid_out, "v_inc", nf90_real, dimids3, vvarid)) 
-      call nccheck_incr(nf90_def_var(ncid_out, "delp_inc", nf90_real, dimids3, delpvarid)) 
-      call nccheck_incr(nf90_def_var(ncid_out, "delz_inc", nf90_real, dimids3, delzvarid)) 
-      call nccheck_incr(nf90_def_var(ncid_out, "T_inc", nf90_real, dimids3, tvarid)) 
-      call nccheck_incr(nf90_def_var(ncid_out, "sphum_inc", nf90_real, dimids3, sphumvarid)) 
-      call nccheck_incr(nf90_def_var(ncid_out, "liq_wat_inc", nf90_real, dimids3, liqwatvarid)) 
-      call nccheck_incr(nf90_def_var(ncid_out, "o3mr_inc", nf90_real, dimids3, o3varid)) 
-      call nccheck_incr(nf90_def_var(ncid_out, "icmr_inc", nf90_real, dimids3, icvarid)) 
-      ! place global attributes to parallel calc_increment output
-      call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "source", "GSI"))
-      call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "comment", &
-                                      "global analysis increment from write_fv3_increment"))
-      ! add units to lat/lon because that's what the calc_increment utility has
-      call nccheck_incr(nf90_put_att(ncid_out, lonvarid, "units", "degrees_east"))
-      call nccheck_incr(nf90_put_att(ncid_out, latvarid, "units", "degrees_north"))
-      ! end the netCDF file definition
-      call nccheck_incr(nf90_enddef(ncid_out))
-    end if
+    stime = time()
+    ! create the output netCDF file
+    call nccheck_incr(nf90_create(path=trim(filename)//".nc", cmode=ior(nf90_netcdf4, nf90_mpiio), ncid=ncid_out, &
+                                 comm = mpi_comm_world, info = mpi_info_null))
+    ! create dimensions based on analysis resolution, not guess
+    call nccheck_incr(nf90_def_dim(ncid_out, "lon", grd%nlon, lon_dimid))
+    call nccheck_incr(nf90_def_dim(ncid_out, "lat", grd%nlat-2, lat_dimid))
+    call nccheck_incr(nf90_def_dim(ncid_out, "lev", grd%nsig, lev_dimid))
+    call nccheck_incr(nf90_def_dim(ncid_out, "ilev", grd%nsig+1, ilev_dimid))
+    dimids3 = (/ lon_dimid, lat_dimid, lev_dimid /)
+    cnksize = (/ grd%lon1, grd%lat1, grd%nsig /)
+    ! create variables
+    call nccheck_incr(nf90_def_var(ncid_out, "lon", nf90_real, (/lon_dimid/), lonvarid))
+    call nccheck_incr(nf90_def_var(ncid_out, "lat", nf90_real, (/lat_dimid/), latvarid))
+    call nccheck_incr(nf90_def_var(ncid_out, "lev", nf90_real, (/lev_dimid/), levvarid))
+    call nccheck_incr(nf90_def_var(ncid_out, "pfull", nf90_real, (/lev_dimid/), pfullvarid))
+    call nccheck_incr(nf90_def_var(ncid_out, "ilev", nf90_real, (/ilev_dimid/), ilevvarid))
+    call nccheck_incr(nf90_def_var(ncid_out, "hyai", nf90_real, (/ilev_dimid/), hyaivarid))
+    call nccheck_incr(nf90_def_var(ncid_out, "hybi", nf90_real, (/ilev_dimid/), hybivarid))
+    call nccheck_incr(nf90_def_var(ncid_out, "u_inc", nf90_real, dimids3, uvarid, deflate_level=1)) 
+    call nccheck_incr(nf90_var_par_access(ncid_out, uvarid, nf90_collective))
+    call nccheck_incr(nf90_def_var(ncid_out, "v_inc", nf90_real, dimids3, vvarid)) 
+    call nccheck_incr(nf90_var_par_access(ncid_out, vvarid, nf90_collective))
+    call nccheck_incr(nf90_def_var(ncid_out, "delp_inc", nf90_real, dimids3, delpvarid)) 
+    call nccheck_incr(nf90_var_par_access(ncid_out, delpvarid, nf90_collective))
+    call nccheck_incr(nf90_def_var(ncid_out, "delz_inc", nf90_real, dimids3, delzvarid)) 
+    call nccheck_incr(nf90_var_par_access(ncid_out, delzvarid, nf90_collective))
+    call nccheck_incr(nf90_def_var(ncid_out, "T_inc", nf90_real, dimids3, tvarid)) 
+    call nccheck_incr(nf90_var_par_access(ncid_out, tvarid, nf90_collective))
+    call nccheck_incr(nf90_def_var(ncid_out, "sphum_inc", nf90_real, dimids3, sphumvarid)) 
+    call nccheck_incr(nf90_var_par_access(ncid_out, sphumvarid, nf90_collective))
+    call nccheck_incr(nf90_def_var(ncid_out, "liq_wat_inc", nf90_real, dimids3, liqwatvarid)) 
+    call nccheck_incr(nf90_var_par_access(ncid_out, liqwatvarid, nf90_collective))
+    call nccheck_incr(nf90_def_var(ncid_out, "o3mr_inc", nf90_real, dimids3, o3varid)) 
+    call nccheck_incr(nf90_var_par_access(ncid_out, o3varid, nf90_collective))
+    call nccheck_incr(nf90_def_var(ncid_out, "icmr_inc", nf90_real, dimids3, icvarid)) 
+    call nccheck_incr(nf90_var_par_access(ncid_out, icvarid, nf90_collective))
+    ! place global attributes to parallel calc_increment output
+    call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "source", "GSI"))
+    call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "comment", &
+                                    "global analysis increment from write_fv3_increment"))
+    ! add units to lat/lon because that's what the calc_increment utility has
+    call nccheck_incr(nf90_put_att(ncid_out, lonvarid, "units", "degrees_east"))
+    call nccheck_incr(nf90_put_att(ncid_out, latvarid, "units", "degrees_north"))
+    ! end the netCDF file definition
+    call nccheck_incr(nf90_enddef(ncid_out))
 
     ! compute delz
     do k=1,grd%nsig
@@ -270,7 +282,7 @@ contains
     call strip(sub_v   ,vsm   ,grd%nsig)
     call strip(sub_dza, dzsm, grd%nsig)
 
-    nccount = (/ grd%nlon, grd%nlat-2, 1 /)
+    nccount = (/ grd%lon1, grd%lat1, grd%nsig /)
     if (mype == mype_out) then
        ! latitudes
        do j=2,grd%nlat-1
@@ -312,224 +324,122 @@ contains
     ! get levels that are nearest the tropopause pressure
     call get_troplev(troplev,ibin)
 
+    j1 = 1
+    j2 = grd%lat1
+    ncstart = (/ jstart(mype+1), istart(mype+1), 1 /)
+    nccount = (/ grd%lon1, grd%lat1, grd%nsig /)
+    if (istart(mype+1) == 1) then
+      ncstart = (/ jstart(mype+1), 2, 1 /)
+      nccount = (/ grd%lon1, grd%lat1-1, grd%nsig /)
+      j1 = 2
+      j2 = grd%lat1-1
+    else if (istart(mype+1)+grd%lat1 == grd%nlat+1) then
+      nccount = (/ grd%lon1, grd%lat1-2, grd%nsig /)
+      j2 = grd%lat1-2
+    end if
+    call mpi_barrier(mpi_comm_world,ierror)
+    allocate(out3d(nccount(1),nccount(2),grd%nsig))
     ! u increment
-    ncstart = (/ 1, 1, grd%nsig /)
     do k=1,grd%nsig
+       krev = grd%nsig+1-k
        if (zero_increment_strat('u_inc')) then 
-         tmpinc2 = reshape(usm(:,k),(/grd%lat1,grd%lon1/))
-         call zero_inc_strat(tmpinc2, k, troplev) 
-         usm(:,k) = reshape(tmpinc2,(/grd%lat1*grd%lon1/))
+         call zero_inc_strat(usm(:,:,k), k, troplev) 
        end if
-       call mpi_gatherv(usm(1,k),grd%ijn(mm1),mpi_rtype,&
-            work1,grd%ijn,grd%displs_g,mpi_rtype,&
-            mype_out,mpi_comm_world,ierror)
-       if (mype == mype_out) then
-          call load_grid(work1,gridrev)
-          ! GSI is N->S, we want S->N 
-          do j=1,grd%nlat-2
-             grid(:,j) = gridrev(:,grd%nlat-1-j)
-          end do
-          if (should_zero_increments_for('u_inc')) grid = 0.0_r_kind
-          ! write to file
-          call nccheck_incr(nf90_put_var(ncid_out, uvarid, sngl(grid), &
-                            start = ncstart, count = nccount))
-       endif
-       ncstart(3) = grd%nsig-k ! GSI is sfc->top, FV3 is top->sfc
+       if (should_zero_increments_for('u_inc')) usm(:,:,k) = 0.0_r_kind
+       out3d(:,:,krev) = transpose(usm(j1:j2,:,k))
     end do
-    ! v increment
-    ncstart = (/ 1, 1, grd%nsig /)
+    call nccheck_incr(nf90_put_var(ncid_out, uvarid, sngl(out3d), &
+                      start = ncstart, count = nccount))
+!    ! v increment
     do k=1,grd%nsig
+       krev = grd%nsig+1-k
        if (zero_increment_strat('v_inc')) then 
-         tmpinc2 = reshape(vsm(:,k),(/grd%lat1,grd%lon1/))
-         call zero_inc_strat(tmpinc2, k, troplev) 
-         vsm(:,k) = reshape(tmpinc2,(/grd%lat1*grd%lon1/))
+         call zero_inc_strat(vsm(:,:,k), k, troplev) 
        end if
-       call mpi_gatherv(vsm(1,k),grd%ijn(mm1),mpi_rtype,&
-            work1,grd%ijn,grd%displs_g,mpi_rtype,&
-            mype_out,mpi_comm_world,ierror)
-       if (mype == mype_out) then
-          call load_grid(work1,gridrev)
-          ! GSI is N->S, we want S->N 
-          do j=1,grd%nlat-2
-             grid(:,j) = gridrev(:,grd%nlat-1-j)
-          end do
-          if (should_zero_increments_for('v_inc')) grid = 0.0_r_kind
-          if (zero_increment_strat('v_inc')) call zero_inc_strat(grid, k, troplev) 
-          ! write to file
-          call nccheck_incr(nf90_put_var(ncid_out, vvarid, sngl(grid), &
-                            start = ncstart, count = nccount))
-       endif
-       ncstart(3) = grd%nsig-k ! GSI is sfc->top, FV3 is top->sfc
+       if (should_zero_increments_for('v_inc')) vsm(:,:,k) = 0.0_r_kind
+       out3d(:,:,krev) = transpose(vsm(j1:j2,:,k))
     end do
-    ! delp increment
-    ncstart = (/ 1, 1, grd%nsig /)
-    call mpi_gatherv(pssm(1),grd%ijn(mm1),mpi_rtype,&
-         work1,grd%ijn,grd%displs_g,mpi_rtype,&
-         mype_out,mpi_comm_world,ierror)
+    call nccheck_incr(nf90_put_var(ncid_out, vvarid, sngl(out3d), &
+                      start = ncstart, count = nccount))
+!    ! delp increment
     do k=1,grd%nsig
-       if (mype == mype_out) then
-          call load_grid(work1,gridrev)
-          ! GSI is N->S, we want S->N 
-          do j=1,grd%nlat-2
-             grid(:,j) = gridrev(:,grd%nlat-1-j)
-          end do
-          delp(:,:,k) = grid * (bk5(k)-bk5(k+1)) * r1000
-          if (should_zero_increments_for('delp_inc')) delp(:,:,k) = 0.0_r_kind
-          if (zero_increment_strat('delp_inc')) call zero_inc_strat(grid, k, troplev) 
-          ! write to file
-          call nccheck_incr(nf90_put_var(ncid_out, delpvarid, sngl(delp(:,:,k)), &
-                            start = ncstart, count = nccount))
-       endif
-       ncstart(3) = grd%nsig-k ! GSI is sfc->top, FV3 is top->sfc
+       krev = grd%nsig+1-k
+       delp(:,:,k) = pssm * (bk5(k)-bk5(k+1)) * r1000
+       if (should_zero_increments_for('delp_inc')) delp(:,:,k) = 0.0_r_kind
+       if (zero_increment_strat('delp_inc')) call zero_inc_strat(delp(:,:,k), k, troplev) 
+       out3d(:,:,krev) = transpose(delp(j1:j2,:,k))
     end do
+    call nccheck_incr(nf90_put_var(ncid_out, delpvarid, sngl(out3d), &
+                     start = ncstart, count = nccount))
     ! delz increment
-    ncstart = (/ 1, 1, grd%nsig /)
     do k=1,grd%nsig
+       krev = grd%nsig+1-k
        if (zero_increment_strat('delz_inc')) then 
-         tmpinc2 = reshape(dzsm(:,k),(/grd%lat1,grd%lon1/))
-         call zero_inc_strat(tmpinc2, k, troplev) 
-         dzsm(:,k) = reshape(tmpinc2,(/grd%lat1*grd%lon1/))
+         call zero_inc_strat(dzsm(:,:,k), k, troplev) 
        end if
-       call mpi_gatherv(dzsm(1,k),grd%ijn(mm1),mpi_rtype,&
-            work1,grd%ijn,grd%displs_g,mpi_rtype,&
-            mype_out,mpi_comm_world,ierror)
-       if (mype == mype_out) then
-          call load_grid(work1,gridrev)
-          ! GSI is N->S, we want S->N 
-          do j=1,grd%nlat-2
-             grid(:,j) = gridrev(:,grd%nlat-1-j) * -1.0_r_kind ! flip sign
-          end do
-          if (should_zero_increments_for('delz_inc')) grid = 0.0_r_kind
-          ! write to file
-          call nccheck_incr(nf90_put_var(ncid_out, delzvarid, sngl(grid), &
-                            start = ncstart, count = nccount))
-       endif
-       ncstart(3) = grd%nsig-k ! GSI is sfc->top, FV3 is top->sfc
+       if (should_zero_increments_for('delz_inc')) dzsm(:,:,k) = 0.0_r_kind
+       out3d(:,:,krev) = transpose(dzsm(j1:j2,:,k))
     end do
+    call nccheck_incr(nf90_put_var(ncid_out, delzvarid, sngl(out3d), &
+                      start = ncstart, count = nccount))
     ! Temperature Increment
-    ncstart = (/ 1, 1, grd%nsig /)
     do k=1,grd%nsig
+       krev = grd%nsig+1-k
        if (zero_increment_strat('T_inc')) then
-         tmpinc2 = reshape(tsensm(:,k),(/grd%lat1,grd%lon1/))
-         call zero_inc_strat(tmpinc2, k, troplev) 
-         tsensm(:,k) = reshape(tmpinc2,(/grd%lat1*grd%lon1/))
+         call zero_inc_strat(tsensm(:,:,k), k, troplev) 
        end if
-       call mpi_gatherv(tsensm(1,k),grd%ijn(mm1),mpi_rtype,&
-            work1,grd%ijn,grd%displs_g,mpi_rtype,&
-            mype_out,mpi_comm_world,ierror)
-       if (mype == mype_out) then
-          call load_grid(work1,gridrev)
-          ! GSI is N->S, we want S->N 
-          do j=1,grd%nlat-2
-             grid(:,j) = gridrev(:,grd%nlat-1-j)
-          end do
-          if (should_zero_increments_for('T_inc')) grid = 0.0_r_kind
-          ! write to file
-          call nccheck_incr(nf90_put_var(ncid_out, tvarid, sngl(grid), &
-                            start = ncstart, count = nccount))
-       endif
-       ncstart(3) = grd%nsig-k ! GSI is sfc->top, FV3 is top->sfc
+       if (should_zero_increments_for('T_inc')) tsensm(:,:,k) = 0.0_r_kind
+       out3d(:,:,krev) = transpose(tsensm(j1:j2,:,k))
     end do
+    call nccheck_incr(nf90_put_var(ncid_out, tvarid, sngl(out3d), &
+                      start = ncstart, count = nccount))
     ! specific humidity increment
-    ncstart = (/ 1, 1, grd%nsig /)
     do k=1,grd%nsig
+       krev = grd%nsig+1-k
        if (zero_increment_strat('sphum_inc')) then 
-         tmpinc2 = reshape(qsm(:,k),(/grd%lat1,grd%lon1/))
-         call zero_inc_strat(tmpinc2, k, troplev) 
-         qsm(:,k) = reshape(tmpinc2,(/grd%lat1*grd%lon1/))
+         call zero_inc_strat(qsm(:,:,k), k, troplev) 
        end if
-       call mpi_gatherv(qsm(1,k),grd%ijn(mm1),mpi_rtype,&
-            work1,grd%ijn,grd%displs_g,mpi_rtype,&
-            mype_out,mpi_comm_world,ierror)
-       if (mype == mype_out) then
-          call load_grid(work1,gridrev)
-          ! GSI is N->S, we want S->N 
-          do j=1,grd%nlat-2
-             grid(:,j) = gridrev(:,grd%nlat-1-j)
-          end do
-          if (should_zero_increments_for('sphum_inc')) grid = 0.0_r_kind
-          ! write to file
-          call nccheck_incr(nf90_put_var(ncid_out, sphumvarid, sngl(grid), &
-                            start = ncstart, count = nccount))
-       endif
-       ncstart(3) = grd%nsig-k ! GSI is sfc->top, FV3 is top->sfc
+       if (should_zero_increments_for('sphum_inc')) qsm(:,:,k) = 0.0_r_kind
+       out3d(:,:,krev) = transpose(qsm(j1:j2,:,k))
     end do
+    call nccheck_incr(nf90_put_var(ncid_out, sphumvarid, sngl(out3d), &
+                      start = ncstart, count = nccount))
     ! liquid water increment
-    ncstart = (/ 1, 1, grd%nsig /)
     do k=1,grd%nsig
+       krev = grd%nsig+1-k
        if (zero_increment_strat('liq_wat_inc')) then 
-         tmpinc2 = reshape(qlsm(:,k),(/grd%lat1,grd%lon1/))
-         call zero_inc_strat(tmpinc2, k, troplev) 
-         qlsm(:,k) = reshape(tmpinc2,(/grd%lat1*grd%lon1/))
+         call zero_inc_strat(qlsm(:,:,k), k, troplev) 
        end if
-       call mpi_gatherv(qlsm(1,k),grd%ijn(mm1),mpi_rtype,&
-            work1,grd%ijn,grd%displs_g,mpi_rtype,&
-            mype_out,mpi_comm_world,ierror)
-       if (mype == mype_out) then
-          call load_grid(work1,gridrev)
-          ! GSI is N->S, we want S->N 
-          do j=1,grd%nlat-2
-             grid(:,j) = gridrev(:,grd%nlat-1-j)
-          end do
-          if (should_zero_increments_for('liq_wat_inc')) grid = 0.0_r_kind
-          ! write to file
-          call nccheck_incr(nf90_put_var(ncid_out, liqwatvarid, sngl(grid), &
-                            start = ncstart, count = nccount))
-       endif
-       ncstart(3) = grd%nsig-k ! GSI is sfc->top, FV3 is top->sfc
+       if (should_zero_increments_for('liq_wat_inc')) qlsm(:,:,k) = 0.0_r_kind
+       out3d(:,:,krev) = transpose(qlsm(j1:j2,:,k))
     end do
+    call nccheck_incr(nf90_put_var(ncid_out, liqwatvarid, sngl(out3d), &
+                      start = ncstart, count = nccount))
     ! ozone increment
-    ncstart = (/ 1, 1, grd%nsig /)
     do k=1,grd%nsig
+       krev = grd%nsig+1-k
        if (zero_increment_strat('o3mr_inc')) then 
-         tmpinc2 = reshape(ozsm(:,k),(/grd%lat1,grd%lon1/))
-         call zero_inc_strat(tmpinc2, k, troplev) 
-         ozsm(:,k) = reshape(tmpinc2,(/grd%lat1*grd%lon1/))
+         call zero_inc_strat(ozsm(:,:,k), k, troplev) 
        end if
-       call mpi_gatherv(ozsm(1,k),grd%ijn(mm1),mpi_rtype,&
-            work1,grd%ijn,grd%displs_g,mpi_rtype,&
-            mype_out,mpi_comm_world,ierror)
-       if (mype == mype_out) then
-          call load_grid(work1,gridrev)
-          ! GSI is N->S, we want S->N 
-          do j=1,grd%nlat-2
-             grid(:,j) = gridrev(:,grd%nlat-1-j)
-          end do
-          if (should_zero_increments_for('o3mr_inc')) grid = 0.0_r_kind
-          if (zero_increment_strat('o3mr_inc')) call zero_inc_strat(grid, k, troplev) 
-          ! write to file
-          call nccheck_incr(nf90_put_var(ncid_out, o3varid, sngl(grid), &
-                            start = ncstart, count = nccount))
-       endif
-       ncstart(3) = grd%nsig-k ! GSI is sfc->top, FV3 is top->sfc
+       if (should_zero_increments_for('o3mr_inc')) ozsm(:,:,k) = 0.0_r_kind
+       out3d(:,:,krev) = transpose(ozsm(j1:j2,:,k))
     end do
+       call nccheck_incr(nf90_put_var(ncid_out, o3varid, sngl(out3d), &
+                         start = ncstart, count = nccount))
     ! ice mixing ratio increment
-    ncstart = (/ 1, 1, grd%nsig /)
     do k=1,grd%nsig
+       krev = grd%nsig+1-k
        if (zero_increment_strat('icmr_inc')) then 
-         tmpinc2 = reshape(qism(:,k),(/grd%lat1,grd%lon1/))
-         call zero_inc_strat(tmpinc2, k, troplev) 
-         qism(:,k) = reshape(tmpinc2,(/grd%lat1*grd%lon1/))
+         call zero_inc_strat(qism(:,:,k), k, troplev) 
        end if
-       call mpi_gatherv(qism(1,k),grd%ijn(mm1),mpi_rtype,&
-            work1,grd%ijn,grd%displs_g,mpi_rtype,&
-            mype_out,mpi_comm_world,ierror)
-       if (mype == mype_out) then
-          call load_grid(work1,gridrev)
-          ! GSI is N->S, we want S->N 
-          do j=1,grd%nlat-2
-             grid(:,j) = gridrev(:,grd%nlat-1-j)
-          end do
-          if (should_zero_increments_for('icmr_inc')) grid = 0.0_r_kind
-          ! write to file
-          call nccheck_incr(nf90_put_var(ncid_out, icvarid, sngl(grid), &
-                            start = ncstart, count = nccount))
-       endif
-       ncstart(3) = grd%nsig-k ! GSI is sfc->top, FV3 is top->sfc
+       if (should_zero_increments_for('icmr_inc')) qism(:,:,k) = 0.0_r_kind
+       out3d(:,:,krev) = transpose(qism(j1:j2,:,k))
     end do
-    ! cleanup and exit
+    call nccheck_incr(nf90_put_var(ncid_out, icvarid, sngl(out3d), &
+                      start = ncstart, count = nccount))
+!    ! cleanup and exit
+    call nccheck_incr(nf90_close(ncid_out))
     if ( mype == mype_out ) then
-       call nccheck_incr(nf90_close(ncid_out))
        write(6,*) "FV3 netCDF increment written, file= "//trim(filename)//".nc"
     end if
 
@@ -635,7 +545,7 @@ contains
     use netcdf
     integer, intent (in   ) :: status
     if (status /= nf90_noerr) then
-      print *, "fv3_increment netCDF error", trim(nf90_strerror(status))
+      print *, "fv3_increment netCDF error ", trim(nf90_strerror(status))
       call stop2(999)
     end if
   end subroutine nccheck_incr
