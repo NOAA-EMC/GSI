@@ -140,7 +140,6 @@ contains
     integer(i_kind),dimension(grd%lat1,grd%lon1) :: troplev
 
     real(r_kind), allocatable, dimension(:,:,:) :: out3d
-    integer :: time, stime
 
 
 !*************************************************************************
@@ -206,7 +205,6 @@ contains
       call stop2(999)
     end if
     
-    stime = time()
     ! create the output netCDF file
     call nccheck_incr(nf90_create(path=trim(filename)//".nc", cmode=ior(nf90_netcdf4, nf90_mpiio), ncid=ncid_out, &
                                  comm = mpi_comm_world, info = mpi_info_null))
