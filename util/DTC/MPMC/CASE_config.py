@@ -5,26 +5,37 @@
 #
 ###################################################
 #
-from MPMC_config import ProdGSI_root, build_root, project_acct, queue_name, hostname
+from MPMC_config import ProdGSI_root, build_root, project_acct, queue_name, hostname, rocoto_scheduler
 import os
 
-PBS_extras=""
+SBATCH_extras=""
 MPI_CMD_ORG='      RUN_COMMAND="mpirun -np ${GSIPROC} " ;;\n'
 if hostname.startswith("Theia"):  ## Theia
   crtm_dir="/scratch4/BMC/comgsi/case_data/CRTM_v2.3.0"
   data_root="/scratch4/BMC/comgsi/case_data"
   myARCH="  ARCH='LINUX_PBS'\n" 
-  few_cpu_res="procs=4"; few_procs="4" 
-  many_cpu_res="procs=24"; many_procs="24"  #24 cores/node
+  few_cpu_res="--ntasks=4"; few_procs="4" 
+  many_cpu_res="--ntasks=24"; many_procs="24"  #24 cores/node
+  MPI_CMD_ORG='      RUN_COMMAND="srun " ;;\n'
+
+elif hostname.startswith("Hera"):  ## Hera
+  crtm_dir="/scratch1/BMC/comgsi/case_data/CRTM_v2.3.0"
+  data_root="/scratch1/BMC/comgsi/case_data"
+  myARCH="  ARCH='LINUX_PBS'\n" 
+  few_cpu_res="--ntasks=4"; few_procs="4" 
+  many_cpu_res="--ntasks=24"; many_procs="24"  #24 cores/node
+  MPI_CMD_ORG='      RUN_COMMAND="srun " ;;\n'
 
 elif hostname.startswith("Jet"): ## Jet
   crtm_dir="/lfs1/projects/wrfruc/gge/MPMC/case_data/CRTM_v2.3.0"
   data_root="/lfs1/projects/wrfruc/gge/MPMC/case_data"
   myARCH="  ARCH='LINUX_PBS'\n" 
-  few_cpu_res="procs=4"; few_procs="4" 
-  #PBS_extras="#PBS -l partition=tjet\n" #12 cores/node
-  PBS_extras="#PBS -l partition=xjet\n" #24 cores/node
-  many_cpu_res="procs=24"; many_procs="24" 
+  few_cpu_res="--ntasks=4"; few_procs="4" 
+  #SBATCH_extras="#SBATCH --partition=tjet\n" #12 cores/node
+  #SBATCH_extras="#SBATCH --partition=xjet\n" #24 cores/node
+  SBATCH_extras="#SBATCH --partition=kjet\n" #40 cores/node
+  many_cpu_res="--ntasks=40"; many_procs="40" 
+  MPI_CMD_ORG='      RUN_COMMAND="srun " ;;\n'
 
 elif hostname.startswith("Cheyenne"):  ## Cheyenne
   crtm_dir="/glade/p/ral/jntp/DAtask/case_data/CRTM_v2.3.0"
@@ -173,17 +184,28 @@ def generateAjob(case_name, srcfname, build_ID, modules, job_dir, MPI_CMD):
     cpu_res=many_cpu_res
   else:
     cpu_res=few_cpu_res
-  PBScmds="### in PBS, cannnot put comments after job decription commands\n" \
-  +"#PBS -A "+project_acct+"\n" \
-  +"#PBS -l walltime=00:20:00\n" \
-  +"#PBS -N "+build_ID+"-"+case_name+"\n" \
-  +"#PBS -l "+cpu_res+"\n" \
-  +"#PBS -q "+queue_name+"\n" \
-  +PBS_extras \
-  +"#PBS -o out."+case_name+"\n" \
-  +"#PBS -j oe\n\n" \
-  +modules+"\n\n" \
-  +"set -x\n"
+
+  if rocoto_scheduler.find('slurm')>=0:
+    PBScmds="#SBATCH --account "+project_acct+"\n" \
+    +"#SBATCH -t 00:20:00\n" \
+    +"#SBATCH --job-name "+build_ID+"-"+case_name+"\n" \
+    +"#SBATCH "+cpu_res+"\n" \
+    +"#SBATCH --qos "+queue_name+"\n" \
+    +SBATCH_extras \
+    +"#SBATCH -o out."+case_name+"\n" \
+    +modules+"\n\n" \
+    +"set -x\n"
+  else:
+    PBScmds="### in PBS, cannnot put comments after job decription commands\n" \
+    +"#PBS -A "+project_acct+"\n" \
+    +"#PBS -l walltime=00:20:00\n" \
+    +"#PBS -N "+build_ID+"-"+case_name+"\n" \
+    +"#PBS -l "+cpu_res+"\n" \
+    +"#PBS -q "+queue_name+"\n" \
+    +"#PBS -o out."+case_name+"\n" \
+    +"#PBS -j oe\n\n" \
+    +modules+"\n\n" \
+    +"set -x\n"
 
   common={"set -x"                   :PBScmds \
       ,'      RUN_COMMAND="mpirun -np ${GSIPROC} "'  :MPI_CMD \

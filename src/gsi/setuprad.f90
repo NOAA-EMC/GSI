@@ -1233,7 +1233,7 @@ contains
               tsim_clr_bc(i)=tsim_clr_bc(i)+predbias(npred+2,i)
            end do
 
-           if(amsua) call ret_amsua(tsim_bc,nchanl,tsavg5,zasat,clw_guess_retrieval,ierrret)
+           if(amsua.or.atms) call ret_amsua(tsim_bc,nchanl,tsavg5,zasat,clw_guess_retrieval,ierrret)
            if(gmi) then
              call gmi_37pol_diff(tsim_bc(6),tsim_bc(7),tsim_clr_bc(6),tsim_clr_bc(7),clw_guess_retrieval,ierrret)
              call gmi_37pol_diff(tb_obs(6),tb_obs(7),tsim_clr_bc(6),tsim_clr_bc(7),clw_obs,ierrret)
