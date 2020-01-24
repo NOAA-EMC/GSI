@@ -1,25 +1,10 @@
 # Jet build option list
-#    buildID, compiler,         MPI,            NETCDF,       cc,  cxx       
-       ji01, intel/18.0.3.222, impi/5.1.1.109, netcdf4/4.2.1.1, icc, icpc
-       ji02, intel/18.0.3.222, mvapich2/1.8,   netcdf4/4.2.1.1, icc, icpc
-       ji03, intel/2016.2.181, impi/5.1.1.109, netcdf4/4.2.1.1, icc, icpc
-       ji04, intel/2016.2.181, mvapich2/1.8,   netcdf4/4.2.1.1, icc, icpc
-       ji05, intel/15.0.3.187, impi/5.1.1.109, netcdf4/4.2.1.1, icc, icpc
-       ji10, intel/15.0.3.187, impi/2018.0.3,  netcdf4/4.2.1.1, icc, icpc
-       ji11, intel/15.0.3.187, impi/5.0.3.048, netcdf4/4.2.1.1, icc, icpc
-       ji12, intel/15.0.3.187, impi/5.1.3.181, netcdf4/4.2.1.1, icc, icpc
-       ji13, intel/15.0.3.187, mvapich2/1.6,   netcdf4/4.2.1.1, icc, icpc
-       ji14, intel/15.0.3.187, mvapich2/1.8,   netcdf4/4.2.1.1, icc, icpc
-       ji15, intel/15.0.3.187, mvapich2/1.9,   netcdf4/4.2.1.1, icc, icpc
+#    compiler,         MPI,             NETCDF,            
+    intel/19.0.1.144, impi           , netcdf/4.2.1.1
+    intel/18.0.5.274, impi           , netcdf/4.2.1.1
+    intel/15.0.3.187, impi           , netcdf/4.2.1.1
 
-#known ji16, intel/15.0.3.187, mvapich2/2.1,   netcdf4/4.2.1.1, icc, icpc
-#known jp01, pgi/18.3-0,       mvapich2/1.8,   netcdf4/4.2.1.1, pgcc, pgc++
-#known ji06, intel/14.0.3,     impi/5.1.1.109, netcdf4/4.2.1.1, icc, icpc
-#known ji07, intel/13.1.1,     impi/5.1.1.109, netcdf4/4.2.1.1, icc, icpc
-#known ji08, intel/12.1.5,     impi/5.1.1.109, netcdf4/4.2.1.1, icc, icpc
-#known ji09, intel/12.1.4,     impi/5.1.1.109, netcdf4/4.2.1.1, icc, icpc
-#known jp02, pgi/15.3,        mvapich2/1.8,    netcdf4/4.2.1.1, pgcc, pgc++
-#known jp03, pgi/14.3-0,      mvapich2/1.8,    netcdf4/4.2.1.1, pgcc, pgc++
-#known jp04, pgi/13.2-0,      mvapich2/1.8,    netcdf4/4.2.1.1, pgcc, pgc++
-#known jp05, pgi/12.5-0,      mvapich2/1.8,    netcdf4/4.2.1.1, pgcc, pgc++
-#known jp06, pgi/15.3,        mvapich2/2.1,    netcdf4/4.2.1.1, pgcc, pgc++
+    intel/19.0.1.144, mvapich2/2.3,    netcdf/4.2.1.1
+    intel/18.0.5.274, mvapich2/2.3,    netcdf/4.2.1.1
+
+    pgi/18.10       , mvapich2/2.3,    netcdf/4.2.1.1

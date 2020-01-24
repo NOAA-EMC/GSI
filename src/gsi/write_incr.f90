@@ -289,14 +289,14 @@ contains
           deglats(j-1) = rlats(j)*rad2deg
        end do
        ! write to file
-       call nccheck_incr(nf90_put_var(ncid_out, latvarid, sngl(deglats), &
+       call nccheck_incr(nf90_put_var(ncid_out, latvarid, deglats, &
                          start = (/1/), count = (/grd%nlat-2/)))
        ! longitudes
        do i=1,grd%nlon
           deglons(i) = rlons(i)*rad2deg
        end do
        ! write to file
-       call nccheck_incr(nf90_put_var(ncid_out, lonvarid, sngl(deglons), &
+       call nccheck_incr(nf90_put_var(ncid_out, lonvarid, deglons, &
                          start = (/1/), count = (/grd%nlon/)))
        ! levels
        do k=1,grd%nsig

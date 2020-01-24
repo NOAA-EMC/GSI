@@ -3,7 +3,7 @@
         (MPMC=Multiple Platforms Multiple Compilers)
 
 The MPMC test is a test suite developed by the DTC (Development Testbed Center) DA group 
-which builds and runs ProdGSI under different platforms (Theia, Cheyenne, Jet, Docker container
+which builds and runs ProdGSI under different platforms (Hera, Theia, Cheyenne, Jet, Docker container
 comgsi/docker, etc) under all available Fortran compliers in combination with different MPI libraries.
 
 At this time, 18 test cases are selected. They cover runs on single observation, 3DVAR, 
@@ -14,62 +14,44 @@ Visit https://dtcenter.org/com-GSI/MPMC/ for more information.
 The ultimate goal is to test each major ProdGSI commit automatically so as to improve ProdGSI 
 compatibility and portability and facilitate R2O2R.
 
-The general work flow of the MPMC flow is as follows:
-      generate.py  ->  rocoto (automatically) or run.py  ->  report.py
-
 **** how to run MPMC scripts ****
 
 1. Get latetest codes:
 
-    git clone gerrit:MPMC
+  (1) ProdGSI/util/DTC/MPMC
+or
+  (2)  git clone gerrit:MPMC
+     (you will need to contact gsi-help@ucar.edu for access to the MPMC project)
 
-  (you will need to contact gsi-help@ucar.edu for access to the MPMC project)
+Either (1) or (2) works.
 
-2. If this is the first run after getting the code, do:
+2. If this is the first time you run MPMC on a machine after getting the code, do this first
       
     ./initmpmc
 
-   It will ask you the location of ProdGSI and linke it to current directory
+   It will require a copy of ProdGSI under current directory (a link or a real copy)
 
-3. make changes to MPMC_config.py
-   a minimum change to MPMC_config.py may be required.
-
-     Change the variable "project_acct" if necessary, which is your project account or charge code
-     You may also want to change "queue_name" if you want to use another queue
+3. Create a file named "config.acct_queue", 
+put your project account name in the first line
+put your queue name in the second line
 
 4. do GSI/EnKF compiling and running tests:
-    
-     ./generate.py rocoto submit
+
+     ./run.py generate  ----- generate compiling, running scripts, and rocoto xml files
+     ./run.py compile   ----- generate compiling, running scripts and submit compiling jobs
+     ./run.py all    ----- generate all required files, do compiling and case tests
 
   ***tips1: If you receive an error message similar as follows, it means you need to run "initmpmc" first.
-       ./generate.py: Command not found.
-
-  ***tips2: if you elect not to or cannot use rocoto:
-     ./generate.py submit
-     run.py list.all submit
-     run.py list.all submit enkf
+       ./run.py: Command not found.
 
 6. genereate a report of testing results:
 
-      ./report.py list.all  > results.YYYYMMDD
+      ./report.py         ----- report both running and compiling results
 
-****
+***********
 Be sure NOT to change to another branch of ProdGSI once started the MPMC test, wait until the test finished.
-****
-
-For more details, please visit: https://vlab.ncep.noaa.gov/redmine/projects/mpmc/wiki
-
-Contact gsi-help@ucar.edu or guoqing.ge@noaa.gov for any questions.
+***********
 
 
-                                                  2018/8/31 by Guoqing Ge
-
-
-
-
-
-
-  
-
-
+Contact gsi-help@ucar.edu for any questions.
 

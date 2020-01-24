@@ -59,4 +59,5 @@
  saphir_meghat          -42.960     0.666      130
  abi_g16                  0.00      1.00        90
  ahi_himawari8            0.00      1.00        90
+ abi_g17                  0.00      1.00        90
 !sat_sis                  start      step       nstep

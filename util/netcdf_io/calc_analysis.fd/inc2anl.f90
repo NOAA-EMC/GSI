@@ -106,20 +106,27 @@ contains
     character(7), intent(in) :: varname
     real, allocatable, dimension(:) :: work1d
     real, allocatable, dimension(:,:) :: work2d
+    real(8), allocatable, dimension(:) :: work1d8
+    real(8), allocatable, dimension(:,:) :: work2d8
     real, allocatable, dimension(:,:,:) :: work3d
     integer :: iret, k, krev
 
     if (has_var(fcstncfile, varname)) then
       select case (varname)
-        case ('grid_xt', 'grid_yt', 'pfull  ', 'phalf  ')
+        case ('grid_xt', 'grid_yt')
+          if (.not. use_nemsio_anl) then
+            call read_vardata(fcstncfile, varname, work1d8)
+            call write_vardata(anlncfile, varname, work1d8)
+          end if
+        case ('pfull  ', 'phalf  ')
           if (.not. use_nemsio_anl) then
             call read_vardata(fcstncfile, varname, work1d)
             call write_vardata(anlncfile, varname, work1d)
           end if
         case ('lat    ', 'lon    ')
           if (.not. use_nemsio_anl) then
-            call read_vardata(fcstncfile, varname, work2d)
-            call write_vardata(anlncfile, varname, work2d)
+            call read_vardata(fcstncfile, varname, work2d8)
+            call write_vardata(anlncfile, varname, work2d8)
           end if
         case ('hgtsfc ')
           call read_vardata(fcstncfile, varname, work2d)

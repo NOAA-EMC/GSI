@@ -53,13 +53,15 @@
 
  logical*1, allocatable :: li(:,:), lo(:,:)
 
- real, allocatable :: dummy_in(:,:,:), latitude_in(:)
- real, allocatable :: longitude_in(:)
- real, allocatable :: latitude_out(:), longitude_out(:)
+ real, allocatable :: dummy_in(:,:,:)
  real, allocatable :: dummy_out(:,:,:)
- real, allocatable :: slat(:), wlat(:)
- real, allocatable :: rlat(:), rlon(:)
- real, allocatable :: gi(:,:), go(:,:)
+
+ real(8) :: rad2deg,dlondeg
+ real(8), allocatable :: latitude_in(:), longitude_in(:)
+ real(8), allocatable :: latitude_out(:), longitude_out(:)
+ real(8), allocatable :: slat(:), wlat(:)
+ real(8), allocatable :: rlon(:), rlat(:)
+ real(8), allocatable :: gi(:,:), go(:,:)
 
  data records /'u_inc', 'v_inc', 'delp_inc', 'delz_inc', 'T_inc', &
                'sphum_inc', 'liq_wat_inc', 'o3mr_inc', 'icmr_inc' /
@@ -84,6 +86,10 @@
 
  print*,"- WILL INTERPOLATE TO GAUSSIAN GRID OF DIMENSION ",lon_out, lat_out
 
+! Set constants
+ rad2deg = 180.0_8 / (4.0_8 * atan(1.0_8))
+ dlondeg = 360.0_8 / real(lon_out,8)
+
  ilev=lev+1
 
  print*,'- OPEN OUTPUT FILE: ', trim(outfile)
@@ -104,13 +110,13 @@
  error = nf90_def_dim(ncid_out, 'ilev', ilev, dim_ilev_out)
  call netcdf_err(error, 'defining dimension ilev for file='//trim(outfile) )
 
- error = nf90_def_var(ncid_out, 'lon', nf90_float, (/dim_lon_out/), id_lon_out)
+ error = nf90_def_var(ncid_out, 'lon', nf90_double, (/dim_lon_out/), id_lon_out)
  call netcdf_err(error, 'defining variable lon for file='//trim(outfile) )
 
  error = nf90_put_att(ncid_out, id_lon_out, "units", "degrees_east")
  call netcdf_err(error, 'define lon attribute for file='//trim(outfile) )
 
- error = nf90_def_var(ncid_out, 'lat', nf90_float, (/dim_lat_out/), id_lat_out)
+ error = nf90_def_var(ncid_out, 'lat', nf90_double, (/dim_lat_out/), id_lat_out)
  call netcdf_err(error, 'defining varable lat for file='//trim(outfile) )
 
  error = nf90_put_att(ncid_out, id_lat_out, "units", "degrees_north")
@@ -177,7 +183,7 @@
 
  call splat(4, lat_out, slat, wlat)
  do j = 1, lat_out
-   latitude_out(j) = -( 90.0 - (acos(slat(j))* 180.0 / (4.*atan(1.))) )
+   latitude_out(j) = -( 90.0_8 - (acos(slat(j))* rad2deg) )
  enddo
  deallocate(slat, wlat)
 
@@ -185,7 +191,7 @@
 
  allocate(longitude_out(lon_out))
  do i = 1, lon_out
-   longitude_out(i) = float(i-1) * 360.0 / float(lon_out)
+   longitude_out(i) = real(i-1,8) * dlondeg
  enddo
 
 !print*,'lon out ',longitude_out(1), longitude_out(lon_out)
@@ -199,12 +205,12 @@
  kgds_out(1) = 4            ! oct 6 - type of grid (gaussian)
  kgds_out(2) = lon_out      ! oct 7-8 - # pts on latitude circle
  kgds_out(3) = lat_out      ! oct 9-10 - # pts on longitude circle
- kgds_out(4) = nint(latitude_out(1)*1000.0)  ! oct 11-13 - lat of origin
+ kgds_out(4) = nint(latitude_out(1)*1000.0_8)  ! oct 11-13 - lat of origin
  kgds_out(5) = 0            ! oct 14-16 - lon of origin
  kgds_out(6) = 128          ! oct 17 - resolution flag
- kgds_out(7) = nint(latitude_out(lat_out)*1000.)     ! oct 18-20 - lat of extreme pt
- kgds_out(8) = nint(longitude_out(lon_out)*1000.)    ! oct 21-23 - lon of extreme pt
- kgds_out(9) = nint((360.0 / float(lon_out))*1000.0) ! oct 24-25 - long increment
+ kgds_out(7) = nint(latitude_out(lat_out)*1000.0_8)     ! oct 18-20 - lat of extreme pt
+ kgds_out(8) = nint(longitude_out(lon_out)*1000.0_8)    ! oct 21-23 - lon of extreme pt
+ kgds_out(9) = nint((360.0_8 / real(lon_out,8))*1000.0_8) ! oct 24-25 - long increment
  kgds_out(10) = lat_out / 2 ! oct 26-27 - number of circles pole to equator
  kgds_out(11) = 64          ! oct 28 - scan mode
  kgds_out(12) = 255         ! oct 29 - reserved
@@ -226,15 +232,23 @@
  call netcdf_err(error, 'inquiring lon dimension for file='//trim(infile) )
  error = nf90_inquire_dimension(ncid_in, id_dim, len=lon_in)
  call netcdf_err(error, 'reading lon dimension for file='//trim(infile) )
+ allocate(longitude_in(lon_in))
+ error = nf90_get_var(ncid_in, id_dim, longitude_in)
+ call netcdf_err(error, 'reading longitude_in for file='//trim(infile) )
 
 !print*,'lon of input file is ',lon_in
+!print*,'lon in ',longitude_in(1), longitude_in(lon_in)
 
  error = nf90_inq_dimid(ncid_in, 'lat', id_dim)
  call netcdf_err(error, 'inquiring lat dimension for file='//trim(infile) )
  error = nf90_inquire_dimension(ncid_in, id_dim, len=lat_in)
  call netcdf_err(error, 'reading lat dimension for file='//trim(infile) )
+ allocate(latitude_in(lat_in))
+ error = nf90_get_var(ncid_in, id_dim, latitude_in)
+ call netcdf_err(error, 'reading latitude_in for file='//trim(infile) )
 
 !print*,'lat of input file is ',lat_in
+!print*,'lat in ',latitude_in(1), latitude_in(lat_in)
 
  error = nf90_inq_dimid(ncid_in, 'lev', id_dim)
  call netcdf_err(error, 'inquiring lev dimension for file='//trim(infile) )
@@ -242,30 +256,6 @@
  call netcdf_err(error, 'reading lev dimension for file='//trim(infile) )
 
 !print*,'lev of input file is ',lev_in
-
-!---------------------------------------------------------------------------
-! Compute latitude and longitude of input grid because the values
-! in the sample input file were not correct.
-!---------------------------------------------------------------------------
-
- allocate(latitude_in(lat_in))
- allocate(slat(lat_in))
- allocate(wlat(lat_in))
-
- call splat(4, lat_in, slat, wlat)
- do j = 1, lat_in
-   latitude_in(j) = -( 90.0 - (acos(slat(j))* 180.0 / (4.*atan(1.))) )
- enddo
- deallocate(slat, wlat)
-
-!print*,'lat in ',latitude_in(1), latitude_in(lat_in)
-
- allocate(longitude_in(lon_in))
-
- do i = 1, lon_in
-   longitude_in(i) = float(i-1) * 360.0 / float(lon_in)
- enddo
-!print*,'lon in ',longitude_in(1), longitude_in(lon_in)
 
 !-----------------------------------------------------------------
 ! Compute grib 1 grid description section for input gaussian
@@ -276,12 +266,12 @@
  kgds_in(1) = 4            ! oct 6 - type of grid (gaussian)
  kgds_in(2) = lon_in       ! oct 7-8 - # pts on latitude circle
  kgds_in(3) = lat_in       ! oct 9-10 - # pts on longitude circle
- kgds_in(4) = nint(latitude_in(1)*1000.0)  ! oct 11-13 - lat of origin
+ kgds_in(4) = nint(latitude_in(1)*1000.0_8)  ! oct 11-13 - lat of origin
  kgds_in(5) = 0            ! oct 14-16 - lon of origin
  kgds_in(6) = 128          ! oct 17 - resolution flag
- kgds_in(7) = nint(latitude_in(lat_in)*1000.)  ! oct 18-20 - lat of extreme pt
- kgds_in(8) = nint(longitude_in(lon_in)*1000.) ! oct 21-23 - lon of extreme pt
- kgds_in(9) = nint((360.0 / float(lon_in))*1000.0) ! oct 24-25 - long increment
+ kgds_in(7) = nint(latitude_in(lat_in)*1000.0_8)  ! oct 18-20 - lat of extreme pt
+ kgds_in(8) = nint(longitude_in(lon_in)*1000.0_8) ! oct 21-23 - lon of extreme pt
+ kgds_in(9) = nint((360.0_8 / real(lon_in,8))*1000.0_8) ! oct 24-25 - long increment
  kgds_in(10) = lat_in / 2  ! oct 26-27 - number of circles pole to equator
  kgds_in(11) = 64          ! oct 28 - scan mode
  kgds_in(12) = 255         ! oct 29 - reserved
@@ -328,12 +318,12 @@
    ipopt = 0
    ibi = 0
    li = 0
-   gi = 0
-   rlat = 0.
-   rlon = 0.
+   gi = 0.0_8
+   rlat = 0.0_8
+   rlon = 0.0_8
    ibo = 0
    lo = 0
-   go = 0
+   go = 0.0_8
    gi = reshape (dummy_in, (/mi, lev/))
 
    call ipolates(ip, ipopt, kgds_in, kgds_out, mi, mo, &
