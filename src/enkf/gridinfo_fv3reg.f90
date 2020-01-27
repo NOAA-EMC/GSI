@@ -204,7 +204,7 @@ if (nproc .eq. 0) then
    enddo  !loop for ntilet
       latsgrd = latsgrd*deg2rad
       lonsgrd = lonsgrd*deg2rad
-!cltthink the unit of the lat/lon
+!cltthink0 the unit of the lat/lon
    allocate(delp(nx_res,ny_res,nlevs),ps(nx_res,ny_res))
    allocate(g_prsi(nx_res,ny_res,nlevsp1))
    allocate(pressimn(npts,nlevsp1),presslmn(npts,nlevs))
