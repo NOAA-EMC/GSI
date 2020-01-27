@@ -115,6 +115,7 @@ subroutine get_num_convobs_bin(obspath,datestring,num_obs_tot,num_obs_totdiag,id
            obsfile =&
              trim(adjustl(obspath))//'gsitmp_'//trim(adjustl(id))//'/pe'//pe_name//'.conv_01'
        endif
+       write(6,*)'thinkdeb obsfile is ',trim(obsfile)
        inquire(file=obsfile,exist=fexist)
        if (.not. fexist) cycle peloop
        open(iunit,form="unformatted",file=obsfile,iostat=ios)
@@ -1540,7 +1541,7 @@ subroutine write_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, &
   close(iunit2)
 
   if (nob .ne. nobs_max) then
-      print *,'number of obs not what expected in write_convobs_data',nob,nobs_max
+      print *,'number of obs not what expected in write_convobs_data2',nob,nobs_max
       call stop2(94)
   end if
   if (nobdiag /= nobs_maxdiag) then
@@ -1687,7 +1688,7 @@ subroutine write_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, &
   enddo obtypeloop
 
   if (nob .ne. nobs_max) then
-      print *,'number of obs not what expected in write_convobs_data',nob,nobs_max
+      print *,'number of obs not what expected in write_convobs_data1',nob,nobs_max
       call stop2(94)
   end if
   if (nobdiag /= nobs_maxdiag) then

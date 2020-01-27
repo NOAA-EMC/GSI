@@ -46,7 +46,7 @@ use params, only: datapath,nlevs,nlons,nlats,use_gfs_nemsio, fgfileprefixes, &
                   fv3fixpath, nx_res,ny_res, ntiles
 use kinds, only: r_kind, i_kind, r_double, r_single
 use constants, only: one,zero,pi,cp,rd,grav,rearth,max_varname_length
-use constants, only: half
+use constants, only: half,deg2rad
 use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
 use netcdf, only: nf90_inq_dimid,nf90_inq_varid
 use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
@@ -202,8 +202,8 @@ if (nproc .eq. 0) then
          enddo
       enddo
    enddo  !loop for ntilet
-      latsgrd = pi*latsgrd/180._r_single
-      lonsgrd = pi*lonsgrd/180._r_single
+      latsgrd = latsgrd*deg2rad
+      lonsgrd = lonsgrd*deg2rad
 !cltthink the unit of the lat/lon
    allocate(delp(nx_res,ny_res,nlevs),ps(nx_res,ny_res))
    allocate(g_prsi(nx_res,ny_res,nlevsp1))

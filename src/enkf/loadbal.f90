@@ -523,7 +523,7 @@ do nb=1,nbackgrounds
       do nanal=2,nanals
          anal_chunk_prior(nanal,i,nn,nb)=0.0_r_kind 
       enddo
-         anal_chunk(1,i,nn,nb) = 0.0_r_kind
+         anal_chunk(1,i,nn,nb) = ensmean_chunk(i,nn,nb)-anal_chunk(1,i,nn,nb) 
          anal_chunk_prior(1,i,nn,nb)=0.0_r_kind  
    end do
   end do
