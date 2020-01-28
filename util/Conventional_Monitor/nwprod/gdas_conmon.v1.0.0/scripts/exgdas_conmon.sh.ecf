@@ -42,7 +42,7 @@ export PDY=${1:-${PDY:?}}
 export CYC=${2:-${CYC:?}}
 
 #  Directories
-export DATA=${DATA:-$(pwd)}			# work directory
+export DATA=${DATA:-$(pwd)/workdir}			# work directory
 export C_COM_IN=${C_COM_IN:-/${COMROOT}/${NET}/${envir}}
 export C_COMIN=${C_COMIN:-$C_COM_IN/${RUN}.${PDY}}
 
