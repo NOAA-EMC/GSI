@@ -137,6 +137,8 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
   os.environ['ncmd'] = str(nFH)
   ExecCMDMPI1 = ExecCMDMPI.replace("$ncmd",str(1))
   ExecCMDMPI = ExecCMDMPI.replace("$ncmd",str(nFH))
+  ExecCMDLevs = ExecCMDMPI.replace("$ncmd",str(levs))
+  ExecCMDMPI10 = ExecCMDMPI.replace("$ncmd",str(10))
 
   # are we using mpirun with lsf, srun, or aprun with Cray?
   launcher = ExecCMDMPI.split(' ')[0]
@@ -149,7 +151,9 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
     [hosts.append(x) for x in hosts_tmp if x not in hosts]
     nhosts = len(hosts)
     ExecCMDMPI_host = 'mpirun -np '+str(nFH)+' --hostfile hosts' 
+    ExecCMDMPILevs_host = 'mpirun -np '+str(levs)+' --hostfile hosts'
     ExecCMDMPI1_host = 'mpirun -np 1 --hostfile hosts' 
+    ExecCMDMPI10_host = 'mpirun -np 10 --hostfile hosts' 
   elif launcher == 'srun':
     nodes = os.getenv('SLURM_JOB_NODELIST','')
     hosts_tmp = subprocess.check_output('scontrol show hostnames '+nodes, shell=True) 
@@ -159,7 +163,9 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
     [hosts.append(x) for x in hosts_tmp if x not in hosts]
     nhosts = len(hosts)
     ExecCMDMPI_host = 'srun -n '+str(nFH)+' --verbose --export=ALL -c 1 --distribution=arbitrary --cpu-bind=cores'
+    ExecCMDMPILevs_host = 'srun -n '+str(levs)+' --verbose --export=ALL -c 1 --distribution=arbitrary --cpu-bind=cores'
     ExecCMDMPI1_host = 'srun -n 1 --verbose --export=ALL -c 1 --distribution=arbitrary --cpu-bind=cores'
+    ExecCMDMPI10_host = 'srun -n 10 --verbose --export=ALL -c 1 --distribution=arbitrary --cpu-bind=cores'
   elif launcher == 'aprun':
     hostfile = os.getenv('LSB_DJOB_HOSTFILE','')
     with open(hostfile) as f:
@@ -169,7 +175,9 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
     [hosts.append(x) for x in hosts_tmp if x not in hosts]
     nhosts = len(hosts)
     ExecCMDMPI_host = 'aprun -l hosts -d '+str(NThreads)+' -n '+str(nFH)
+    ExecCMDMPILevs_host = 'aprun -l hosts -d '+str(NThreads)+' -n '+str(levs)
     ExecCMDMPI1_host = 'aprun -l hosts -d '+str(NThreads)+' -n 1'
+    ExecCMDMPI10_host = 'aprun -l hosts -d '+str(NThreads)+' -n 10'
   else:
     print('unknown MPI launcher. Failure.')
     sys.exit(1)
@@ -199,9 +207,9 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
       if launcher == 'srun':
         os.environ['SLURM_HOSTFILE'] = CalcAnlDir+'/hosts'
       print('interp_inc', fh, namelist)
-      job = subprocess.Popen(ExecCMDMPI1_host+' '+CalcAnlDir+'/chgres_inc.x', shell=True, cwd=CalcAnlDir)
+      job = subprocess.Popen(ExecCMDMPI10_host+' '+CalcAnlDir+'/chgres_inc.x', shell=True, cwd=CalcAnlDir)
       interp_jobs.append(job)
-      print(ExecCMDMPI1_host+' '+CalcAnlDir+'/chgres_inc.x submitted on '+hosts[ihost])
+      print(ExecCMDMPI10_host+' '+CalcAnlDir+'/chgres_inc.x submitted on '+hosts[ihost])
       ihost+=1
 
   sys.stdout.flush()
@@ -220,8 +228,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
                         "analysis_filename": "'anl'",
                         "firstguess_filename": "'ges'",
                         "increment_filename": "'inc.fullres'",
-                        "nhrs_assim": nFH,
-                        "use_nemsio_anl": nemsanl,
+                        "fhr": 6,
                        }
   
   gsi_utils.write_nml(namelist, CalcAnlDir6+'/calc_analysis.nml')
@@ -238,8 +245,8 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
     with open(CalcAnlDir6+'/hosts', 'w') as hostfile:
         hostfile.write(hosts[ihost]+'\n')
   print('fullres_calc_anl', namelist)
-  fullres_anl_job = subprocess.Popen(ExecCMDMPI_host+' '+CalcAnlDir6+'/calc_anl.x', shell=True, cwd=CalcAnlDir6)
-  print(ExecCMDMPI_host+' '+CalcAnlDir6+'/calc_anl.x submitted on '+hosts[ihost])
+  fullres_anl_job = subprocess.Popen(ExecCMDMPILevs_host+' '+CalcAnlDir6+'/calc_anl.x', shell=True, cwd=CalcAnlDir6)
+  print(ExecCMDMPILevs_host+' '+CalcAnlDir6+'/calc_anl.x submitted on '+hosts[ihost])
 
   ihost+=1
   sys.stdout.flush()
@@ -286,42 +293,42 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
 
     sys.stdout.flush()
     ######## generate ensres analysis from interpolated background
-    CalcAnlDir6 = RunDir+'/calcanl_ensres_'+format(6, '02')
-    # set up the namelist
-    namelist = OrderedDict()
-    namelist["setup"] =  {"datapath": "'./'",
-                          "analysis_filename": "'anl.ensres'",
-                          "firstguess_filename": "'ges.ensres'",
-                          "increment_filename": "'siginc.nc'",
-                          "nhrs_assim": nFH,
-                          "use_nemsio_anl": nemsanl,
-                        }
+    for fh in IAUHH:
+      CalcAnlDir6 = RunDir+'/calcanl_ensres_'+format(6, '02')
+      # set up the namelist
+      namelist = OrderedDict()
+      namelist["setup"] =  {"datapath": "'./'",
+                            "analysis_filename": "'anl.ensres'",
+                            "firstguess_filename": "'ges.ensres'",
+                            "increment_filename": "'siginc.nc'",
+                            "fhr": fh,
+                          }
 
   
-    gsi_utils.write_nml(namelist, CalcAnlDir6+'/calc_analysis.nml')
+      gsi_utils.write_nml(namelist, CalcAnlDir6+'/calc_analysis.nml')
 
-    # run the executable
-    if ihost > nhosts:
-      ihost = 0
-    if launcher == 'srun':
-      os.environ['SLURM_HOSTFILE'] = CalcAnlDir6+'/hosts'
-      with open(CalcAnlDir6+'/hosts', 'w') as hostfile:
-        for a in range(nFH):
+      # run the executable
+      if ihost > nhosts:
+        ihost = 0
+      if launcher == 'srun':
+        os.environ['SLURM_HOSTFILE'] = CalcAnlDir6+'/hosts'
+        with open(CalcAnlDir6+'/hosts', 'w') as hostfile:
+          for a in range(nFH):
+            hostfile.write(hosts[ihost]+'\n')
+      else:
+        with open(CalcAnlDir6+'/hosts', 'w') as hostfile:
           hostfile.write(hosts[ihost]+'\n')
-    else:
-      with open(CalcAnlDir6+'/hosts', 'w') as hostfile:
-        hostfile.write(hosts[ihost]+'\n')
-    print('ensres_calc_anl', namelist)
-    ensres_anl_job = subprocess.Popen(ExecCMDMPI_host+' '+CalcAnlDir6+'/calc_anl.x', shell=True, cwd=CalcAnlDir6)
-    print(ExecCMDMPI_host+' '+CalcAnlDir6+'/calc_anl.x submitted on '+hosts[ihost])
+      print('ensres_calc_anl', namelist)
+      ensres_anl_job = subprocess.Popen(ExecCMDMPILevs_host+' '+CalcAnlDir6+'/calc_anl.x', shell=True, cwd=CalcAnlDir6)
+      print(ExecCMDMPILevs_host+' '+CalcAnlDir6+'/calc_anl.x submitted on '+hosts[ihost])
 
-    sys.stdout.flush()
-    ####### check on analysis steps
-    exit_ensres = ensres_anl_job.wait()
-    if exit_ensres != 0:
-      print('Error with calc_analysis.x for ensemble resolution, exit code='+str(exit_ensres))
-      print(locals())
-      sys.exit(exit_ensres)
+      sys.stdout.flush()
+      ####### check on analysis steps
+      exit_ensres = ensres_anl_job.wait()
+      if exit_ensres != 0:
+        print('Error with calc_analysis.x for ensemble resolution, exit code='+str(exit_ensres))
+        print(locals())
+        sys.exit(exit_ensres)
 
   exit_fullres = fullres_anl_job.wait()
   if exit_fullres != 0:
