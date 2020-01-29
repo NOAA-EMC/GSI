@@ -223,7 +223,7 @@ contains
     call nccheck_incr(nf90_def_var(ncid_out, "ilev", nf90_real, (/ilev_dimid/), ilevvarid))
     call nccheck_incr(nf90_def_var(ncid_out, "hyai", nf90_real, (/ilev_dimid/), hyaivarid))
     call nccheck_incr(nf90_def_var(ncid_out, "hybi", nf90_real, (/ilev_dimid/), hybivarid))
-    call nccheck_incr(nf90_def_var(ncid_out, "u_inc", nf90_real, dimids3, uvarid, deflate_level=1)) 
+    call nccheck_incr(nf90_def_var(ncid_out, "u_inc", nf90_real, dimids3, uvarid)) 
     call nccheck_incr(nf90_var_par_access(ncid_out, uvarid, nf90_collective))
     call nccheck_incr(nf90_def_var(ncid_out, "v_inc", nf90_real, dimids3, vvarid)) 
     call nccheck_incr(nf90_var_par_access(ncid_out, vvarid, nf90_collective))
@@ -280,7 +280,6 @@ contains
     call strip(sub_v   ,vsm   ,grd%nsig)
     call strip(sub_dza, dzsm, grd%nsig)
 
-    nccount = (/ grd%lon1, grd%lat1, grd%nsig /)
     if (mype == mype_out) then
        ! latitudes
        do j=2,grd%nlat-1
@@ -324,7 +323,7 @@ contains
 
     j1 = 1
     j2 = grd%lat1
-    ncstart = (/ jstart(mype+1), istart(mype+1), 1 /)
+    ncstart = (/ jstart(mype+1), istart(mype+1)-1, 1 /)
     nccount = (/ grd%lon1, grd%lat1, grd%nsig /)
     if (istart(mype+1) == 1) then
       ncstart = (/ jstart(mype+1), 1, 1 /)
@@ -335,6 +334,7 @@ contains
       nccount = (/ grd%lon1, grd%lat1-2, grd%nsig /)
       j2 = grd%lat1-2
     end if
+    print *, mype, ncstart, nccount, j1, j2
     call mpi_barrier(mpi_comm_world,ierror)
     allocate(out3d(nccount(1),nccount(2),grd%nsig))
     ! u increment
@@ -348,6 +348,7 @@ contains
     end do
     call nccheck_incr(nf90_put_var(ncid_out, uvarid, sngl(out3d), &
                       start = ncstart, count = nccount))
+    call mpi_barrier(mpi_comm_world,ierror)
 !    ! v increment
     do k=1,grd%nsig
        krev = grd%nsig+1-k
@@ -359,6 +360,7 @@ contains
     end do
     call nccheck_incr(nf90_put_var(ncid_out, vvarid, sngl(out3d), &
                       start = ncstart, count = nccount))
+    call mpi_barrier(mpi_comm_world,ierror)
 !    ! delp increment
     do k=1,grd%nsig
        krev = grd%nsig+1-k
@@ -369,6 +371,7 @@ contains
     end do
     call nccheck_incr(nf90_put_var(ncid_out, delpvarid, sngl(out3d), &
                      start = ncstart, count = nccount))
+    call mpi_barrier(mpi_comm_world,ierror)
     ! delz increment
     do k=1,grd%nsig
        krev = grd%nsig+1-k
@@ -380,6 +383,7 @@ contains
     end do
     call nccheck_incr(nf90_put_var(ncid_out, delzvarid, sngl(out3d), &
                       start = ncstart, count = nccount))
+    call mpi_barrier(mpi_comm_world,ierror)
     ! Temperature Increment
     do k=1,grd%nsig
        krev = grd%nsig+1-k
@@ -391,6 +395,7 @@ contains
     end do
     call nccheck_incr(nf90_put_var(ncid_out, tvarid, sngl(out3d), &
                       start = ncstart, count = nccount))
+    call mpi_barrier(mpi_comm_world,ierror)
     ! specific humidity increment
     do k=1,grd%nsig
        krev = grd%nsig+1-k
@@ -402,6 +407,7 @@ contains
     end do
     call nccheck_incr(nf90_put_var(ncid_out, sphumvarid, sngl(out3d), &
                       start = ncstart, count = nccount))
+    call mpi_barrier(mpi_comm_world,ierror)
     ! liquid water increment
     do k=1,grd%nsig
        krev = grd%nsig+1-k
@@ -413,6 +419,7 @@ contains
     end do
     call nccheck_incr(nf90_put_var(ncid_out, liqwatvarid, sngl(out3d), &
                       start = ncstart, count = nccount))
+    call mpi_barrier(mpi_comm_world,ierror)
     ! ozone increment
     do k=1,grd%nsig
        krev = grd%nsig+1-k
@@ -424,6 +431,7 @@ contains
     end do
        call nccheck_incr(nf90_put_var(ncid_out, o3varid, sngl(out3d), &
                          start = ncstart, count = nccount))
+    call mpi_barrier(mpi_comm_world,ierror)
     ! ice mixing ratio increment
     do k=1,grd%nsig
        krev = grd%nsig+1-k
@@ -435,6 +443,7 @@ contains
     end do
     call nccheck_incr(nf90_put_var(ncid_out, icvarid, sngl(out3d), &
                       start = ncstart, count = nccount))
+    call mpi_barrier(mpi_comm_world,ierror)
 !    ! cleanup and exit
     call nccheck_incr(nf90_close(ncid_out))
     if ( mype == mype_out ) then
