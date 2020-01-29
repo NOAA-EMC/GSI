@@ -334,7 +334,6 @@ contains
       nccount = (/ grd%lon1, grd%lat1-2, grd%nsig /)
       j2 = grd%lat1-2
     end if
-    print *, mype, ncstart, nccount, j1, j2
     call mpi_barrier(mpi_comm_world,ierror)
     allocate(out3d(nccount(1),nccount(2),grd%nsig))
     ! u increment
