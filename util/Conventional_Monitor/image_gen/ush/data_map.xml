@@ -1,0 +1,30 @@
+<?xml version="1.0" standalone="yes"?>
+<opt>
+  <global_default>
+    <account>GDAS-MTN</account>
+    <use_anl>0</use_anl>
+    <area>glb</area>
+    <comp_plotdate/>
+    <do_archive>0</do_archive>
+    <do_data_rpt>0</do_data_rpt>
+    <do_diag_rpt>0</do_diag_rpt>
+    <hpss_dir/>
+    <imgdate/>
+    <logfile_dir/>
+    <mail_cc/>
+    <mail_to/>
+    <plot_all_regions>1</plot_all_regions>
+    <plot_sub_avgs>0</plot_sub_avgs>
+    <prodate/>
+    <convstat_location>/com2/gfs/prod</convstat_location>
+    <run_envir>dev</run_envir>
+    <static_satype>0</static_satype>
+    <use_mail>0</use_mail>
+    <user_class>dev</user_class>
+  </global_default>
+  <GFS_gdas>
+    <area>glb</area>
+    <imgdate>2020012012</imgdate>
+    <convstat_location>/com2/gfs/prod</convstat_location>
+  </GFS_gdas>
+</opt>

@@ -54,7 +54,7 @@ if [[ ${MY_MACHINE} = "wcoss" || ${MY_MACHINE} = "wcoss_d" ]]; then
    ${SUB} -q ${JOB_QUEUE} -P ${PROJECT} -o ${logfile} -M 100 \
 	-R affinity[core] -W 0:20 -J ${jobname} -cwd ${PWD} ${plot_hist}
 
-elif [[ $MY_MACHINE = "theia" ]]; then
+elif [[ $MY_MACHINE = "hera" ]]; then
    ${SUB} -A ${ACCOUNT} --ntasks=1 --time=00:15:00 \
 		-p service -J ${jobname} -o ${logfile} ${plot_hist}
 fi
@@ -75,7 +75,7 @@ if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "wcoss_d" ]]; then
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 100 \
 	-R affinity[core] -W 0:20 -J ${jobname} -cwd ${PWD} ${plot_horz}
 
-elif [[ $MY_MACHINE = "theia" ]]; then
+elif [[ $MY_MACHINE = "hera" ]]; then
    ${SUB} -A ${ACCOUNT} --ntasks=1 --time=00:15:00 \
 		-p service -J ${jobname} -o ${logfile} ${plot_horz}
 fi
@@ -96,7 +96,7 @@ if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "wcoss_d" ]]; then
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 100 \
 	-R affinity[core] -W 0:20 -J ${jobname} ${plot_horz_uv}
 
-elif [[ $MY_MACHINE = "theia" ]]; then
+elif [[ $MY_MACHINE = "hera" ]]; then
    ${SUB} -A ${ACCOUNT} --ntasks=1 --time=00:15:00 \
 		-p service -J ${jobname} -o ${logfile} ${plot_horz_uv}
 fi

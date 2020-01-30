@@ -65,7 +65,7 @@
    my $user_name = $ENV{ 'USER' };
 
    if( $machine eq "hera" ) {
-      $tankdir = "/scratch1/NCEPDEV/da/save/$user_name/nbns";
+      $tankdir = "/scratch1/NCEPDEV/da/$user_name/save/nbns";
    }
    elsif( $machine eq "wcoss" ) {
       $tankdir = "/global/save/$user_name/nbns";

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -l
 
 #--------------------------------------------------------------------
 #
@@ -124,28 +124,6 @@ if [[ ! -d ${C_IMGNDIR} ]]; then
    mkdir -p ${C_IMGNDIR}
 fi
 
-#
-#  Make tmpdir and work space conform to *Mon standard
-#
-#tmpdir=${WORKverf_conmon}/DE_conmon_${CONMON_SUFFIX}
-#rm -rf $tmpdir
-#mkdir -p $tmpdir
-#cd $tmpdir
-
-#--------------------------------------------------------------------
-# Check status of monitoring job.  Is it already running?  If so, exit
-# this script and wait for job to finish.
-
-#  If I add a pid to the working dir name then more than one can run
-#  at the same time.
-
-#if [[ $MY_MACHINE = "wcoss" ]]; then
-#   count=`bjobs -u ${LOGNAME} -p -r -J "${jobname}" | wc -l`
-#   if [[ $count -ne 0 ]] ; then
-#      echo "Previous conmon jobs are still running for ${CONMON_SUFFIX}" 
-#      exit 5
-#   fi
-#fi
 
 #--------------------------------------------------------------------
 # Get date of cycle to process and/or previous cycle processed.
@@ -167,15 +145,18 @@ export PDYm6h=`echo $GDATE|cut -c1-8`
 echo PDYm6h = $PDYm6h
 
 
-export CNVSTAT_LOCATION=${CNVSTAT_LOCATION:-/gpfs/dell1/nco/ops/com/gfs/${RUN_ENVIR}}
-#export CNVSTAT_LOCATION=${CNVSTAT_LOCATION:-${COMROOTp3}/gfs/${RUN_ENVIR}}
+if [[ $MY_MACHINE == "hera" ]]; then
+   export CNVSTAT_LOCATION=${CNVSTAT_LOCATION:-/scratch1/NCEPDEV/da/Edward.Safford/noscrub/test_data}
+else
+   export CNVSTAT_LOCATION=${CNVSTAT_LOCATION:-${COMROOTp3}/gfs/${RUN_ENVIR}}
+fi
+
 export C_DATDIR=${C_DATDIR:-${CNVSTAT_LOCATION}/${RUN}.${PDY}}
 export C_GDATDIR=${C_GDATDIR:-${CNVSTAT_LOCATION}/${RUN}.${PDYm6h}}
 
 export C_COMIN=${C_DATDIR}
 export C_COMINm6h=${C_GDATDIR}
 
-#export DATA_IN=${WORKverf_conmon}
 export CONMON_WORK_DIR=${CONMON_WORK_DIR:-${C_STMP_USER}/${CONMON_SUFFIX}}/${RUN}/conmon
 pid=$$
 export jobid=DE_${PDATE}.${pid}
@@ -237,9 +218,11 @@ if [ -s $cnvstat  -a -s $pgrbf00 -a -s $pgrbf06 ]; then
       fi
 
       if [[ $MY_MACHINE = "wcoss" ]]; then
-        $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/DE.${PDY}.${CYC}.log -M 500 -R affinity[core] -W 0:25 -J ${jobname} -cwd $PWD ${HOMEgdas_conmon}/jobs/JGDAS_CONMON
+        $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/DE.${PDY}.${CYC}.log \
+		-M 500 -R affinity[core] -W 0:25 -J ${jobname} \
+		-cwd $PWD ${HOMEgdas_conmon}/jobs/JGDAS_CONMON
 
-      elif [[ $MY_MACHINE = "wcoss_d" ]]; then
+      elif [[ $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "wcoss_c" ]]; then
         $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 200 \
 		-R affinity[core] -W 0:25 -J ${jobname} \
 		-cwd $PWD ${HOMEgdas_conmon}/jobs/JGDAS_CONMON
@@ -260,11 +243,6 @@ else
 fi
 
 
-#--------------------------------------------------------------------
-# Clean up and exit
-#cd $tmpdir
-#cd ../
-#rm -rf $tmpdir
 
 echo "End ConMon_DE.sh"
 exit ${exit_value}

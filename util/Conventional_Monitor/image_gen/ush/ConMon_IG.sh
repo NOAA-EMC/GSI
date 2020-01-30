@@ -153,23 +153,6 @@ echo "PRODATE, PDATE = $PRODATE, $PDATE"
 
 
 #--------------------------------------------------------------------
-# Check for running plot jobs and abort if found
-#--------------------------------------------------------------------
-
-#if [[ $MY_MACHINE = "wcoss" ]]; then
-#   running=`bjobs -l | grep ${jobname} | wc -l`
-#else
-#   running=`showq -n -u ${LOGNAME} | grep ${jobname} | wc -l`
-#fi
-#
-#echo "running = $running"
-#if [[ $running -ne 0 ]]; then
-#   echo "Plot jobs still running for $CONMON_SUFFIX, must exit"
-#   exit 9 
-#fi
-
-
-#--------------------------------------------------------------------
 #  Create workdir and cd to it
 #--------------------------------------------------------------------
 pid=$$
