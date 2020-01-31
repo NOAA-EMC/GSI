@@ -30,7 +30,7 @@ echo "--> mk_time_vert.sh"
    rm -f $logfile
    rm -f $errfile
 
-   if [[ $MY_MACHINE == "wcoss" || $MY_MACHINE == "wcoss_d" ]]; then
+   if [[ $MY_MACHINE == "wcoss" || $MY_MACHINE == "wcoss_d" || ${MY_MACHINE} = "wcoss_c" ]]; then
       $SUB -q ${JOB_QUEUE} -P ${PROJECT} -o ${logfile} -R affinity[core] \
 		-M 100 -W 0:50 -J ${jobname} -cwd ${PWD} ${pltfile}
 
@@ -51,7 +51,7 @@ echo "--> mk_time_vert.sh"
       rm -f $logfile
       rm -f $errfile
 
-      if [[ $MY_MACHINE == "wcoss" || $MY_MACHINE == "wcoss_d" ]]; then
+      if [[ $MY_MACHINE == "wcoss" || $MY_MACHINE == "wcoss_d" || ${MY_MACHINE} = "wcoss_c" ]]; then
          $SUB -q ${JOB_QUEUE} -P ${PROJECT} -o ${logfile} -R affinity[core] \
 		-M 100 -W 0:50 -J ${jobname} -cwd ${PWD} ${pltfile}
 
@@ -81,7 +81,7 @@ echo "--> mk_time_vert.sh"
       rm -f $logfile
       rm -f $errfile
 
-      if [[ $MY_MACHINE == "wcoss" || $MY_MACHINE == "wcoss_d" ]]; then
+      if [[ $MY_MACHINE == "wcoss" || $MY_MACHINE == "wcoss_d" || ${MY_MACHINE} = "wcoss_c" ]]; then
          $SUB -q ${JOB_QUEUE} -P ${PROJECT} -o ${logfile} -R affinity[core] \
 		-M 100 -W 0:50 -J ${jobname} -cwd ${PWD} ${pltfile}
 

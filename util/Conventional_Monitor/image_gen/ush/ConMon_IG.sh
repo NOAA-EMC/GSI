@@ -105,19 +105,6 @@ else
    exit 3
 fi
 
-#--------------------------------------------------------------------
-#  Check for my monitoring use.  Abort if running on prod machine.
-#--------------------------------------------------------------------
-
-#if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
-#   is_prod=`${C_IG_SCRIPTS}/onprod.sh`
-#   if [[ $is_prod = 1 ]]; then
-#      exit 10
-#   fi
-#fi
-#
-#jobname=CMon_ig_${CONMON_SUFFIX}
-
 
 #--------------------------------------------------------------------
 #  Create LOGdir as needed
@@ -155,9 +142,6 @@ echo "PRODATE, PDATE = $PRODATE, $PDATE"
 #--------------------------------------------------------------------
 #  Create workdir and cd to it
 #--------------------------------------------------------------------
-pid=$$
-#export jobid=IG_${PDATE}.${pid}
-
 export C_PLOT_WORKDIR=${C_PLOT_WORKDIR:-${C_STMP_USER}/${CONMON_SUFFIX}/${RUN}/conmon}
 rm -rf $C_PLOT_WORKDIR
 mkdir -p $C_PLOT_WORKDIR

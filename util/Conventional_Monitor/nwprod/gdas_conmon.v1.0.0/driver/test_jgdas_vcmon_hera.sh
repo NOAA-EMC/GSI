@@ -69,30 +69,16 @@ if [[ ! -d $CONMON_WORK_DIR ]]; then
    mkdir -p ${CONMON_WORK_DIR}
 fi
 
-#export CMON_LOG_DIR=${CMON_LOG_DIR:-${COMROOT}/logs/jlogfiles}
-#if [[ ! -d $CMON_LOG_DIR ]]; then
-#   mkdir -p ${CMON_LOG_DIR}
-#fi
-
-#export jlogfile=${jlogfile:-${CMON_LOG_DIR}/jlogfile.${jobname}.${pid}}
-
 
 #######################################################################
-#  theia specific hacks for no prod_utils module & no setpdy.sh script
+#  hera specific hacks for no prod_utils module
 #######################################################################
 export NDATE=${NDATE:-/home/Edward.Safford/bin/ndate}
 export MY_MACHINE=hera
 
 prevday=`$NDATE -24 $PDATE`
 export PDYm1=`echo $prevday | cut -c1-8`
-#ln -s ${NWPRODush}/startmsg.sh ${COMROOT}/startmsg
-#ln -s ${NWPRODush}/postmsg.sh ${COMROOT}/postmsg
-#ln -s ${NWPRODush}/prep_step.sh ${COMROOT}/prep_step
-#ln -s ${NWPRODush}/err_chk.sh ${COMROOT}/err_chk
-#export PATH=$PATH:${COMROOT}
-#export utilscript=${utilscript:-${NWPRODush}}      # err_chk calls postmsg.sh
-                                                   #  directly so need to override
-                                                   #  utilscript location
+
 
 #############################################################
 # Execute job
