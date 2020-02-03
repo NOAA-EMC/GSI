@@ -488,6 +488,12 @@ if [ $USE_CORRELATED_OBERRS == "YES" ];  then
      echo "Error: Satellite error covariance info missing in " $ANAVINFO
      exit 1
   fi
+
+# Correlated error utlizes mkl lapack.  Found it necesary to fix the 
+# number of mkl threads to ensure reproducible results independent
+# of the job configuration.
+  export MKL_NUM_THREADS=1
+
 else
   echo "not using correlated obs error"
 fi
