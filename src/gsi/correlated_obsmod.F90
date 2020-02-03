@@ -868,7 +868,7 @@ subroutine upd_varch_
       nsat=nsatype(isurf)
       if (nsat>0) then
 
-         do jj0=1,nsat
+         read_tab: do jj0=1,nsat
 
             itbl=tblidx(isurf,jj0) !a row number
             jc=0
@@ -894,9 +894,9 @@ subroutine upd_varch_
             nchanl1=jc
 
             if(nchanl1==0) call die(myname_,' improperly set GSI_BundleErrorCov')
-            if(.not.amiset_(GSI_BundleErrorCov(itbl))) then !KAB
+            if(.not.amiset_(GSI_BundleErrorCov(itbl))) then 
                if (iamroot_) write(6,*) 'WARNING: Error Covariance not set for ',trim(idnames(itbl))
-               return
+               cycle read_tab
             endif
 
             nch_active=GSI_BundleErrorCov(itbl)%nch_active
@@ -989,7 +989,7 @@ subroutine upd_varch_
                deallocate(ijac)
                deallocate(ircv)
             endif
-         enddo !jj=1,nsat
+         enddo read_tab !jj0=1,nsat
       endif !nsat >0
    enddo !isurf=1,5
 
