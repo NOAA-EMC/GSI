@@ -1709,8 +1709,8 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    real(r_kind),allocatable,dimension(:,:) :: grid, grid_v, &
         grid_vor, grid_div, grid_b, grid_b2
    real(r_kind),allocatable,dimension(:,:,:) :: grid_c, grid2, grid_c2
-   real(r_single),allocatable,dimension(:,:,:) :: rwork3d0, rwork3d1
-   real(r_single),allocatable,dimension(:,:) :: rwork2d
+   real(r_kind),allocatable,dimension(:,:,:) :: rwork3d0, rwork3d1
+   real(r_kind),allocatable,dimension(:,:) :: rwork2d
    real(r_kind),allocatable,dimension(:)   :: work, work_v
    real(r_kind),allocatable,dimension(:) :: rlats,rlons,clons,slons
    real(r_kind),allocatable,dimension(:) :: rlats_tmp,rlons_tmp
