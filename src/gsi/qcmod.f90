@@ -2899,7 +2899,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
 ! If window channels are missing, skip the following QC and do not
 ! assimilate channels 1-6 & 15.
 
-  if (any(abs(tbc((/ ich238, ich314, ich503, ich528, ich536, ich544, ich890 /))) &
+  if (any(abs(tbc((/ ich238, ich314, ich528, ich536, ich544, ich890 /))) &
        > 200.0_r_kind))  then
 
           errf(1:ich544)=zero
