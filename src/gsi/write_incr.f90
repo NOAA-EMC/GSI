@@ -331,7 +331,7 @@ contains
       j1 = 2
       j2 = grd%lat1-1
     else if (istart(mype+1)+grd%lat1 == grd%nlat+1) then
-      nccount = (/ grd%lon1, grd%lat1-2, grd%nsig /)
+      nccount = (/ grd%lon1, grd%lat1-1, grd%nsig /)
       j2 = grd%lat1-2
     end if
     call mpi_barrier(mpi_comm_world,ierror)
