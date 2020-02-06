@@ -63,11 +63,9 @@
    #  TANKDIR location
    #
    my $user_name = $ENV{ 'USER' };
-#====================================
-#  Hera needs updated here:
-#====================================
+
    if( $machine eq "hera" ) {
-      $tankdir = "/scratch4/NCEPDEV/da/save/$user_name/nbns";
+      $tankdir = "/scratch1/NCEPDEV/da/$user_name/save/nbns";
    }
    elsif( $machine eq "wcoss" ) {
       $tankdir = "/global/save/$user_name/nbns";
@@ -168,11 +166,8 @@
    my $my_stmp = "export C_STMP=\${C_STMP:-$stmp}";
 
    if( $machine eq "hera" ) {
-#====================================
-#  This needs an update for hera.
-#====================================
-      $my_ptmp="export C_PTMP=\${C_PTMP:-/scratch4/NCEPDEV/stmp4}";
-      $my_stmp="export C_STMP=\${C_STMP:-/scratch4/NCEPDEV/stmp3}";
+      $my_ptmp="export C_PTMP=\${C_PTMP:-/scratch2/NCEPDEV/stmp3}";
+      $my_stmp="export C_STMP=\${C_STMP:-/scratch2/NCEPDEV/stmp1}";
    }
    elsif( $machine eq "wcoss_c" ) {
       $my_ptmp="export C_PTMP=\${C_PTMP:-/gpfs/hps/ptmp/$user_name}";

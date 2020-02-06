@@ -54,7 +54,7 @@ for type in ps q t uv; do
          # read scatter data for histgram file
          #
          /bin/sh  ${C_IG_SCRIPTS}/read_scatter.sh $CONMON_SUFFIX \
-		  $dtype $mtype $subtype $PDATE ${HOMEgdascmon}/fix \
+		  $dtype $mtype $subtype $PDATE ${HOMEgdas_conmon}/fix \
 		  ${nreal} ${exec} ${type} ${cycle} \
 		  ${tankdir}/horz_hist/${cycle} ${C_IG_EXEC} 
 

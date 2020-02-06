@@ -1,2 +1,12 @@
-export gdas_conmon_ver=1.0.0
-export conmon_shared_ver=1.0.0
+
+if [[ $CONMON_VER -ne 1 ]]; then
+
+   export CONMON_VER=1
+
+   export gdas_conmon_ver=1.0.0
+   export conmon_shared_ver=1.0.0
+
+else
+   echo "ConMon.ver is already loaded"
+fi
+

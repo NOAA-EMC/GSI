@@ -30,11 +30,11 @@ echo "--> mk_time_vert.sh"
    rm -f $logfile
    rm -f $errfile
 
-   if [[ $MY_MACHINE == "wcoss" || $MY_MACHINE == "wcoss_d" ]]; then
+   if [[ $MY_MACHINE == "wcoss" || $MY_MACHINE == "wcoss_d" || ${MY_MACHINE} = "wcoss_c" ]]; then
       $SUB -q ${JOB_QUEUE} -P ${PROJECT} -o ${logfile} -R affinity[core] \
 		-M 100 -W 0:50 -J ${jobname} -cwd ${PWD} ${pltfile}
 
-   elif [[ $MY_MACHINE == "theia" ]]; then
+   elif [[ $MY_MACHINE == "hera" ]]; then
       ${SUB} -A ${ACCOUNT} --ntasks=1 --time=00:15:00 \
                 -p service -J ${jobname} -o ${logfile} ${pltfile}
    fi
@@ -51,11 +51,11 @@ echo "--> mk_time_vert.sh"
       rm -f $logfile
       rm -f $errfile
 
-      if [[ $MY_MACHINE == "wcoss" || $MY_MACHINE == "wcoss_d" ]]; then
+      if [[ $MY_MACHINE == "wcoss" || $MY_MACHINE == "wcoss_d" || ${MY_MACHINE} = "wcoss_c" ]]; then
          $SUB -q ${JOB_QUEUE} -P ${PROJECT} -o ${logfile} -R affinity[core] \
 		-M 100 -W 0:50 -J ${jobname} -cwd ${PWD} ${pltfile}
 
-      elif [[ $MY_MACHINE == "theia" ]]; then
+      elif [[ $MY_MACHINE == "hera" ]]; then
          if [[ ${type} == "uv" || ${type} == "u" || ${type} == "v" ]]; then
             walltime="00:22:00"
          else
@@ -81,11 +81,11 @@ echo "--> mk_time_vert.sh"
       rm -f $logfile
       rm -f $errfile
 
-      if [[ $MY_MACHINE == "wcoss" || $MY_MACHINE == "wcoss_d" ]]; then
+      if [[ $MY_MACHINE == "wcoss" || $MY_MACHINE == "wcoss_d" || ${MY_MACHINE} = "wcoss_c" ]]; then
          $SUB -q ${JOB_QUEUE} -P ${PROJECT} -o ${logfile} -R affinity[core] \
 		-M 100 -W 0:50 -J ${jobname} -cwd ${PWD} ${pltfile}
 
-      elif [[ $MY_MACHINE == "theia" ]]; then
+      elif [[ $MY_MACHINE == "hera" ]]; then
          if [[ ${type} == "uv" || ${type} == "u" || ${type} == "v" ]]; then
             walltime="00:22:00"
          else

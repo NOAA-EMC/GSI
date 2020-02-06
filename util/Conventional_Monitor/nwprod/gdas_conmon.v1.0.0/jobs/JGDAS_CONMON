@@ -1,4 +1,5 @@
-
+#!/bin/sh
+#
 #############################################################
 # Set up environment for GDAS Conventional Monitor job
 ########################################
@@ -76,12 +77,9 @@ export NDATE=${NDATE:-$utilexec/ndate}
 # TANKDIR_cmon - WHERE OUTPUT DATA WILL RESIDE
 ##############################################################
 export C_TANKDIR=${C_TANKDIR:-/com/verf/${envir}}
-#export TANKDIR_conmon=${C_TANKDIR}/conmon.${PDY}
 export C_COM_IN=${C_COM_IN:-/com/${NET}/${envir}}
 export C_COMIN=${C_COMIN:-$C_COM_IN/${RUN}.${PDY}}
 export CONMON_SUFFIX=${CMON_SUFFIX:-gdas}
-
-mkdir -p -m 775 $TANKDIR_cmon
 
 m6h_date=`$NDATE -06 $PDATE`
 export CYC_m6h=`echo $m6h_date|cut -c9-10`
