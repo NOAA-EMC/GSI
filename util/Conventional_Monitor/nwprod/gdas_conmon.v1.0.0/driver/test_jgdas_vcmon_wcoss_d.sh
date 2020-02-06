@@ -32,7 +32,6 @@ module load lsf/10.1
 module load ips/18.0.1.163
 module load impi/18.0.1
 module load prod_util/1.1.0
-module load grib_util/1.1.0
 module load util_shared/1.1.0
 module load grib_util/1.1.1
 
