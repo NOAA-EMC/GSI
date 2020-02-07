@@ -152,6 +152,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
     nhosts = len(hosts)
     ExecCMDMPI_host = 'mpirun -np '+str(nFH)+' --hostfile hosts' 
     ExecCMDMPILevs_host = 'mpirun -np '+str(levs)+' --hostfile hosts'
+    ExecCMDMPILevs_nohost = 'mpirun -np '+str(levs)
     ExecCMDMPI1_host = 'mpirun -np 1 --hostfile hosts' 
     ExecCMDMPI10_host = 'mpirun -np 10 --hostfile hosts' 
   elif launcher == 'srun':
@@ -164,6 +165,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
     nhosts = len(hosts)
     ExecCMDMPI_host = 'srun -n '+str(nFH)+' --verbose --export=ALL -c 1 --distribution=arbitrary --cpu-bind=cores'
     ExecCMDMPILevs_host = 'srun -n '+str(levs)+' --verbose --export=ALL -c 1 --distribution=arbitrary --cpu-bind=cores'
+    ExecCMDMPILevs_nohost = 'srun -n '+str(levs)+' --verbose --export=ALL'
     ExecCMDMPI1_host = 'srun -n 1 --verbose --export=ALL -c 1 --distribution=arbitrary --cpu-bind=cores'
     ExecCMDMPI10_host = 'srun -n 10 --verbose --export=ALL -c 1 --distribution=arbitrary --cpu-bind=cores'
   elif launcher == 'aprun':
@@ -176,6 +178,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
     nhosts = len(hosts)
     ExecCMDMPI_host = 'aprun -l hosts -d '+str(NThreads)+' -n '+str(nFH)
     ExecCMDMPILevs_host = 'aprun -l hosts -d '+str(NThreads)+' -n '+str(levs)
+    ExecCMDMPILevs_nohost = 'aprun -d '+str(NThreads)+' -n '+str(levs)
     ExecCMDMPI1_host = 'aprun -l hosts -d '+str(NThreads)+' -n 1'
     ExecCMDMPI10_host = 'aprun -l hosts -d '+str(NThreads)+' -n 10'
   else:
@@ -200,7 +203,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
                          }
       gsi_utils.write_nml(namelist, CalcAnlDir+'/fort.43')
 
-      if ihost > nhosts:
+      if ihost >= nhosts:
         ihost = 0
       with open(CalcAnlDir+'/hosts', 'w') as hostfile:
           hostfile.write(hosts[ihost]+'\n')
@@ -234,7 +237,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
   gsi_utils.write_nml(namelist, CalcAnlDir6+'/calc_analysis.nml')
 
   # run the executable
-  if ihost > nhosts:
+  if ihost >= nhosts:
     ihost = 0
   if launcher == 'srun':
     os.environ['SLURM_HOSTFILE'] = CalcAnlDir6+'/hosts'
@@ -245,11 +248,18 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
     with open(CalcAnlDir6+'/hosts', 'w') as hostfile:
         hostfile.write(hosts[ihost]+'\n')
   print('fullres_calc_anl', namelist)
-  fullres_anl_job = subprocess.Popen(ExecCMDMPILevs_host+' '+CalcAnlDir6+'/calc_anl.x', shell=True, cwd=CalcAnlDir6)
-  print(ExecCMDMPILevs_host+' '+CalcAnlDir6+'/calc_anl.x submitted on '+hosts[ihost])
+  fullres_anl_job = subprocess.Popen(ExecCMDMPILevs_nohost+' '+CalcAnlDir6+'/calc_anl.x', shell=True, cwd=CalcAnlDir6)
+  print(ExecCMDMPILevs_nohost+' '+CalcAnlDir6+'/calc_anl.x submitted')
 
   ihost+=1
   sys.stdout.flush()
+  exit_fullres = fullres_anl_job.wait()
+  sys.stdout.flush()
+  if exit_fullres != 0:
+    print('Error with calc_analysis.x for deterministic resolution, exit code='+str(exit_fullres))
+    print(locals())
+    sys.exit(exit_fullres)
+
 
   ######## run chgres to get background on ensemble resolution
   if Cdump == "gdas":
@@ -271,7 +281,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
         gsi_utils.write_nml(namelist, CalcAnlDir+'/chgres_nc_gauss.nml')
     
         # run the executable
-        if ihost > nhosts:
+        if ihost >= nhosts:
           ihost = 0
         with open(CalcAnlDir+'/hosts', 'w') as hostfile:
           hostfile.write(hosts[ihost]+'\n')
@@ -319,8 +329,8 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
         with open(CalcAnlDir6+'/hosts', 'w') as hostfile:
           hostfile.write(hosts[ihost]+'\n')
       print('ensres_calc_anl', namelist)
-      ensres_anl_job = subprocess.Popen(ExecCMDMPILevs_host+' '+CalcAnlDir6+'/calc_anl.x', shell=True, cwd=CalcAnlDir6)
-      print(ExecCMDMPILevs_host+' '+CalcAnlDir6+'/calc_anl.x submitted on '+hosts[ihost])
+      ensres_anl_job = subprocess.Popen(ExecCMDMPILevs_nohost+' '+CalcAnlDir6+'/calc_anl.x', shell=True, cwd=CalcAnlDir6)
+      print(ExecCMDMPILevs_nohost+' '+CalcAnlDir6+'/calc_anl.x submitted')
 
       sys.stdout.flush()
       ####### check on analysis steps
@@ -329,12 +339,6 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
         print('Error with calc_analysis.x for ensemble resolution, exit code='+str(exit_ensres))
         print(locals())
         sys.exit(exit_ensres)
-
-  exit_fullres = fullres_anl_job.wait()
-  if exit_fullres != 0:
-    print('Error with calc_analysis.x for deterministic resolution, exit code='+str(exit_fullres))
-    print(locals())
-    sys.exit(exit_fullres)
 
   print('calcanl_gfs successfully completed at: ',datetime.datetime.utcnow())
   print(locals())
