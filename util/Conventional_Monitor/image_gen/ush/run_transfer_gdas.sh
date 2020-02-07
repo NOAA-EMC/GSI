@@ -1,5 +1,6 @@
 #!/bin/sh
 
+set -ax
 package=ProdGSI/util/Conventional_Monitor
 
 
@@ -30,18 +31,22 @@ export JOB_QUEUE=dev_transfer
 
 export jobname=transfer_${suffix}_conmon
 
-if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE == "wcoss_d" ]]; then
+#--------------------------------------------------------
+#  Note that transfers from hera are not straightforward,
+#  and must go through a system that is allowed to access
+#  emcrzdm.  This script will just report that situation 
+#  and leave it to the user to manually transfer files to 
+#  the server.
+#
+if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE == "wcoss_d" || $MY_MACHINE == "wcoss_c" ]]; then
    $SUB -P $PROJECT -q $JOB_QUEUE -o ${logfile} -M 80 -W 1:30 \
         -R affinity[core] -J ${jobname} -cwd ${PWD} \
         ${scripts}/Transfer.sh ${suffix} --run ${run}
-
-else			# wcoss_c can probably use the above if condition, 
-			# block hera from doing a transfer though.
-
-   ${scripts}/Transfer.sh ${suffix} \
-     1>/ptmpp1/${USER}/logs/${suffix}/ConMon/Transfer.log \
-     2>/ptmpp1/${USER}/logs/${suffix}/ConMon/Transfer.err
-
+else
+   echo "Unable to transfer files from $MY_MACHINE to $WEBSVR."
+   echo "Manual intervention is required."
 fi
+
+unset -ax
 
 exit

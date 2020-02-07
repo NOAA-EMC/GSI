@@ -92,6 +92,13 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
       module load GrADS/2.2.0
       module load grib_util/1.1.1
 
+#     module prod_envir won't load at the moment.  Maybe
+#     that's file system problems, maybe it's worse.
+#     Either way I need COMROOTp3 defined, so I'll do it
+#     manually for the moment.
+#      module load prod_envir/1.0.3
+      export COMROOTp3="/gpfs/dell1/nco/ops/com"
+
       export GRADS=`which grads`
       export SUB="bsub"
       export COMPRESS=/usr/bin/gzip

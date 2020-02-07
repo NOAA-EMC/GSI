@@ -62,13 +62,6 @@ else
    exit
 fi
 
-if [[ -s ${CMON_USER_SETTINGS} ]]; then
-   . ${CMON_USER_SETTINGS}
-else
-   echo "ERROR:  Unable to source ${CMON_USER_SETTINGS}"
-   exit
-fi
-
 
 #--------------------------------------------------------------------
 #
