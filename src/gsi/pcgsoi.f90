@@ -132,7 +132,7 @@ subroutine pcgsoi()
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, iwrtinc, ladtest, &
                        iorthomax
   use gridmod, only: twodvar_regional
-  use constants, only: zero,one,five,tiny_r_kind
+  use constants, only: zero,one,tiny_r_kind
   use anberror, only: anisotropic
   use mpimod, only: mype
   use mpl_allreducemod, only: mpl_allreduce
@@ -460,7 +460,7 @@ subroutine pcgsoi()
      b=zero
      if (gsave>1.e-16_r_kind .and. iter>0) b=gnorm(2)/gsave
      if(mype == 0)write(iout_iter,*)'Minimization iteration',iter
-     if (b<zero .or. b>five) then
+     if (b<zero .or. b>7.0_r_kind) then
         if (mype==0) then
            if (iout_6) write(6,105) gnorm(2),gsave,b
            write(iout_iter,105) gnorm(2),gsave,b
