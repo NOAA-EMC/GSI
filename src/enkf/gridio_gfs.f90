@@ -1067,7 +1067,7 @@
         call stop2(23)
      endif
   else if (use_gfs_ncio) then
-     dsanl = create_dataset(filenameout, dsfg, copy_vardata=.true.,errcode=iret)
+     dsanl = create_dataset(filenameout, dsfg, copy_vardata=.true., nocompress=.true., errcode=iret)
      if (iret /= 0) then
         print *,'error creating netcdf file'
         call stop2(29)
