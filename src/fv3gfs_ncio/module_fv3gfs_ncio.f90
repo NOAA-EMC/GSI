@@ -374,12 +374,13 @@ module module_fv3gfs_ncio
     enddo
   end function open_dataset
 
-  function create_dataset(filename, dsetin, copy_vardata, paropen, errcode) result(dset)
+  function create_dataset(filename, dsetin, copy_vardata, paropen, nocompress, errcode) result(dset)
     ! create new dataset, using an existing dataset object to define
     ! variables, dimensions and attributes.
     ! If copy_vardata=T, all variable data (not just coordinate
     ! variable data) is copied. Default is F (only coord var data
     ! copied).
+    ! if optional nocompress=.true., outputfile will not use compression even if input file does
     ! if optional error return code errcode is not specified,
     ! program will stop if a nonzero error code returned by the netcdf lib.
     implicit none
@@ -389,9 +390,10 @@ module module_fv3gfs_ncio
     type(Dataset) :: dset
     type(Dataset), intent(in) :: dsetin
     logical, intent(in), optional :: paropen
+    logical, intent(in), optional :: nocompress
     integer, intent(out), optional :: errcode
     integer ncerr,ndim,nvar,n,ishuffle,natt
-    logical copyd, coordvar
+    logical copyd, coordvar, compress
     real(8), allocatable, dimension(:) :: values_1d
     real(8), allocatable, dimension(:,:) :: values_2d
     real(8), allocatable, dimension(:,:,:) :: values_3d
@@ -428,6 +430,12 @@ module module_fv3gfs_ncio
     else
       dset%isparallel = .false.
     end if
+    compress = .true.
+    if (present(nocompress)) then
+      if (nocompress) then
+        compress = .false.
+      end if
+    end if 
     ! create netcdf file
     if (dsetin%ishdf5) then
        if (dset%isparallel) then
@@ -562,7 +570,7 @@ module module_fv3gfs_ncio
        else
           call nccheck(ncerr)
        endif
-       if (dsetin%variables(nvar)%deflate_level > 0 .and. dset%ishdf5) then
+       if (dsetin%variables(nvar)%deflate_level > 0 .and. dset%ishdf5 .and. compress) then
           if (dsetin%variables(nvar)%shuffle) then
             ishuffle=1
           else
