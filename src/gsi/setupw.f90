@@ -70,6 +70,15 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use sparsearr, only: sparr2, new, size, writearray, fullarray
 
+  ! The following variables are the coefficients that describe the
+  ! linear regression fits that are used to define the dynamic
+  ! observation error (DOE) specifications for all reconnissance
+  ! observations collected within hurricanes/tropical cyclones; these
+  ! apply only to the regional forecast models (e.g., HWRF); Henry
+  ! R. Winterbottom (henry.winterbottom@noaa.gov).
+  
+  use obsmod, only: uv_doe_a_236,uv_doe_a_237,uv_doe_b_236,uv_doe_b_237
+  
   implicit none
   
   type(obsLList ),target,dimension(:),intent(in):: obsLL
@@ -189,7 +198,11 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !                       . Remove my_node with corrected typecast().
 !   2018-04-09  pondeca -  introduce duplogic to correctly handle the characterization of
 !                          duplicate obs in twodvar_regional applications
-!
+!   2020-01-27  Winterbottom - moved the linear regression derived
+!                              coefficients for the dynamic observation
+!                              error (DOE) calculation to the namelist
+!                              level; they are now loaded by
+!                              aircraftinfo.
 !
 ! REMARKS:
 !   language: f90
@@ -809,11 +822,11 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      if (aircraft_recon) then
       if (itype==236) then
          magomb=sqrt(dudiff*dudiff+dvdiff*dvdiff)
-         ratio_errors=error/((0.75_r_kind*magomb+0.5_r_kind)+drpx+1.0e6_r_kind*rhgh+four*rlow)
+         ratio_errors=error/((uv_doe_a_236*magomb+uv_doe_b_236)+drpx+1.0e6_r_kind*rhgh+four*rlow)
       endif
       if (itype==237) then
          magomb=sqrt(dudiff*dudiff+dvdiff*dvdiff)
-         ratio_errors=error/((0.75_r_kind*magomb+0.3_r_kind)+drpx+1.0e6_r_kind*rhgh+four*rlow)
+         ratio_errors=error/((uv_doe_a_237*magomb+uv_doe_b_237)+drpx+1.0e6_r_kind*rhgh+four*rlow)
       endif
      endif
 

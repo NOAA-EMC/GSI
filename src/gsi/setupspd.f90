@@ -74,6 +74,11 @@ subroutine setupspd(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
 !   2017-02-06  todling - add netcdf_diag capability; hidden as contained code
 !   2017-02-09  guo     - Remove m_alloc, n_alloc.
 !                       . Remove my_node with corrected typecast().
+!   2020-01-27  Winterbottom - moved the linear regression derived
+!                              coefficients for the dynamic observation
+!                              error (DOE) calculation to the namelist
+!                              level; they are now loaded by
+!                              aircraftinfo.  
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -128,6 +133,16 @@ subroutine setupspd(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use m_dtime, only: dtime_setup, dtime_check
   use sparsearr, only: sparr2, new, size, writearray, fullarray
+
+  ! The following variables are the coefficients that describe the
+  ! linear regression fits that are used to define the dynamic
+  ! observation error (DOE) specifications for all reconnissance
+  ! observations collected within hurricanes/tropical cyclones; these
+  ! apply only to the regional forecast models (e.g., HWRF); Henry
+  ! R. Winterbottom (henry.winterbottom@noaa.gov).
+  
+  use obsmod, only: uv_doe_a_292,uv_doe_b_292
+  
   implicit none
 
 ! Declare passed variables
@@ -515,7 +530,7 @@ subroutine setupspd(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
      
      if (aircraft_recon) then
       if ( nty == 292 ) then 
-         ratio_errors=error/(abs(ddiff)+5.0_r_kind)
+         ratio_errors=error/(uv_doe_a_292*abs(ddiff)+uv_doe_b_292)
          if (spdob < 10.) ratio_errors=zero
       endif 
      endif
