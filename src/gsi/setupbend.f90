@@ -140,7 +140,8 @@ subroutine setupbend(obsLL,odiagLL, &
   use gridmod, only: get_ij,latlon11
   use constants, only: fv,n_a,n_b,n_c,deg2rad,tiny_r_kind,r0_01,r18,r61,r63,r10000
   use constants, only: zero,half,one,two,eccentricity,semi_major_axis,&
-      grav_equator,somigliana,flattening,grav_ratio,grav,rd,eps,three,four,five
+      grav_equator,somigliana,flattening,grav_ratio,grav,rd,eps,three,four,five,&
+      r100,r400
   use lagmod, only: setq, setq_TL
   use lagmod, only: slagdw, slagdw_TL
   use jfunc, only: jiter,miter,jiterstart
@@ -205,7 +206,7 @@ subroutine setupbend(obsLL,odiagLL, &
   real(r_kind) rsig,rsig_up,ddbend,tmean,qmean
   real(r_kind) termg,termr,termrg,hob,dbend,grad_mod
   real(r_kind) fact,pw,nrefges1,nrefges2,nrefges3,k4,delz
-  real(r_kind) ratio,residual,obserror,obserrlm
+  real(r_kind) ratio,residual,obserror,obserrlm,cermaxuse,cerminuse,cgrossuse
   real(r_kind) errinv_input,errinv_adjst,errinv_final,err_final,repe_gps
 
   real(r_kind),dimension(nele,nobs):: data
@@ -714,14 +715,21 @@ subroutine setupbend(obsLL,odiagLL, &
          data(igps,i)=data(igps,i)-dbend !innovation vector
 
          if (alt <= gpstop) then ! go into qc checks
-
+            cgrossuse=cgross(ikx)
+            cermaxuse=cermax(ikx)
+            cerminuse=cermin(ikx) 
+            if (alt > five) then
+               cgrossuse=cgrossuse*r400
+               cermaxuse=cermaxuse*r400
+               cerminuse=cerminuse*r100
+            endif
 !           Gross error check
             obserror = one/max(ratio_errors(i)*data(ier,i),tiny_r_kind)
-            obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
+            obserrlm = max(cerminuse,min(cermaxuse,obserror))
             residual = abs(data(igps,i))
             ratio    = residual/obserrlm
 
-            if (ratio > cgross(ikx)) then
+            if (ratio > cgrossuse) then
                 if (luse(i)) then
                    awork(4) = awork(4)+one
                 endif
