@@ -1,16 +1,16 @@
+#-------------------------------------------------------
+#  Conventional Monitor package configuration file
+#
+#-------------------------------------------------------
 
 if [[ $CONMON_CONFIG -ne 1 ]]; then
 
-
-   #---------------------------------------------------
-   #  Conventional Monitor package configuration file
-   #---------------------------------------------------
-   #
    echo "begin ConMon_config"
 
    export CONMON_CONFIG=1
 
    export MY_MACHINE=hera
+
 
    #-----------------------------------------------------
    #   The grib2 flag indicates if the data files are in
@@ -91,6 +91,7 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
       module load prod_util/1.1.2
       module load GrADS/2.2.0
       module load grib_util/1.1.1
+      module load prod_envir/1.0.3
 
 #     module prod_envir won't load at the moment.  Maybe
 #     that's file system problems, maybe it's worse.
@@ -135,8 +136,6 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
    export LOGS_conmon=${LOGS_conmon:-${C_LOGDIR}}
    export WORK_conmon=${WORK_conmon:-${C_STMP_USER}/${CONMON_SUFFIX}/${NET}/ConMon}
 
-   #export CONVINFO_FILE=${FIXDIR}/global_convinfo.txt  # does this belong in this config file? IMG/parm?
-
 
    #
    #  Web server resources include the sever name (WEB_SVR), the user name
@@ -168,7 +167,6 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
    . $CONMON_PARM/ConMon.ver
 
    export HOMEconmon_shared=${HOMEconmon_shared:-${MY_CONMON}/nwprod/conmon_shared.v${conmon_shared_ver}}
-#   export HOMEgdascmon=${HOMEgdascmon:-${MY_CONMON}/nwprod/gdas_conmon.v${gdas_conmon_ver}}
    export HOMEgdas_conmon=${HOMEgdas_conmon:-${MY_CONMON}/nwprod/gdas_conmon.v${gdas_conmon_ver}}
    export HOMEgfs_conmon=$HOMEgdas_conmon
 
