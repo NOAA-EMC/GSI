@@ -89,6 +89,7 @@ logical, public :: cnvw_option
 integer(i_kind),public ::  iassim_order,nlevs,nanals,numiter,&
                            nlons,nlats,nbackgrounds,nstatefields,&
                            nanals_per_iotask, ntasks_io
+integer(i_kind),public, allocatable, dimension(:) :: task_ianal 
 integer(i_kind),public, allocatable, dimension(:) ::  nanal1,nanal2
 integer(i_kind),public :: nsats_rad,nsats_oz,imp_physics
 ! random seed for perturbed obs (deterministic=.false.)
@@ -207,6 +208,9 @@ integer(i_kind),public :: ntiles=6
 integer(i_kind),public :: nx_res=0,ny_res=0
 logical,public ::l_pres_add_saved 
 
+! option for parallel GFS read
+logical,public :: paranc = .false.
+
 namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    covinflatemax,covinflatemin,deterministic,sortinc,&
                    corrlengthnh,corrlengthtr,corrlengthsh,&
@@ -230,7 +234,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    getkf,getkf_inflation,denkf,modelspace_vloc,dfs_sort,write_spread_diag,&
                    covinflatenh,covinflatesh,covinflatetr,lnsigcovinfcutoff,letkf_bruteforce_search,&
                    fso_cycling,fso_calculate,imp_physics,lupp,cnvw_option,use_correlated_oberrs,&
-                   fv3_native
+                   fv3_native,paranc
 namelist /nam_wrf/arw,nmm,nmm_restart
 namelist /nam_fv3/fv3fixpath,nx_res,ny_res,ntiles,l_pres_add_saved
 namelist /satobs_enkf/sattypes_rad,dsis
@@ -240,6 +244,7 @@ contains
 
 subroutine read_namelist()
 integer i,j,nb,np
+integer iskip,jskip,imem ! for parallel netCDF
 logical fexist
 real(r_single) modelspace_vloc_cutoff, modelspace_vloc_thresh
 ! have all processes read namelist from file enkf.nml
@@ -490,15 +495,39 @@ if (modelspace_vloc) then
   lnsigcutoffpstr = 1.e30_r_single
 endif
 
+
+allocate(task_ianal(0:numproc-1))
+task_ianal(:) = 0
 if (nanals <= numproc) then
-   ! one ensemble member read in on each of first nanals tasks.
-   ntasks_io = nanals
-   nanals_per_iotask = 1
-   allocate(nanal1(0:ntasks_io-1),nanal2(0:ntasks_io-1))
-   do np=0,ntasks_io-1
-      nanal1(np) = np+1
-      nanal2(np) = np+1
-   enddo
+   if (paranc) then
+      ntasks_io = nanals
+      nanals_per_iotask = 1
+      ! need to determine which members go on which PEs
+      iskip = numproc/nanals
+      allocate(nanal1(0:numproc-1),nanal2(0:numproc-1))
+      imem=1
+      jskip = 1
+      do i=0,numproc-1
+         nanal1(i) = imem
+         nanal2(i) = imem
+         task_ianal(i) = imem
+         jskip = jskip + 1
+         if (jskip == iskip) then
+            jskip = 1
+            imem = imem +1
+         end if
+      end do
+   else
+      ! one ensemble member read in on each of first nanals tasks.
+      ntasks_io = nanals
+      nanals_per_iotask = 1
+      allocate(nanal1(0:ntasks_io-1),nanal2(0:ntasks_io-1))
+      do np=0,ntasks_io-1
+         nanal1(np) = np+1
+         nanal2(np) = np+1
+         task_ianal(np) = np+1 
+      enddo
+   end if
 else
    nanals_per_iotask = 1
    do

@@ -2,6 +2,8 @@
     character(len=*), intent(in) :: varname
     integer, intent(in), optional :: nslice
     integer, intent(in), optional :: slicedim
+    integer, intent(in), optional :: ncstart(4)
+    integer, intent(in), optional :: nccount(4)
     integer, intent(out), optional :: errcode
     integer ncerr, nvar, n, nd, ndim, ncount
     integer, allocatable, dimension(:) :: start, count
@@ -53,12 +55,25 @@
     endif
 
     if (allocated(values)) deallocate(values)
-    allocate(values(dimlens(1),dimlens(2),dimlens(3),dimlens(4)))
-    if (dset%variables(nvar)%ndims == 5) then
+    if (present(ncstart) .and. present(nccount)) then
+       allocate(values(nccount(1),nccount(2),nccount(3),nccount(4)))
+       start(1)=ncstart(1); count(1)=nccount(1)
+       start(2)=ncstart(2); count(2)=nccount(2)
+       start(3)=ncstart(3); count(3)=nccount(3)
+       start(4)=ncstart(4); count(4)=nccount(4)
+       if (dset%variables(nvar)%ndims == 5) then
+         start(5)=1; count(5)=1
+       end if 
        ncerr = nf90_get_var(dset%ncid, dset%variables(nvar)%varid, values,&
                start=start, count=count)
     else
-       ncerr = nf90_get_var(dset%ncid, dset%variables(nvar)%varid, values)
+       allocate(values(dimlens(1),dimlens(2),dimlens(3),dimlens(4)))
+       if (dset%variables(nvar)%ndims == 5) then
+          ncerr = nf90_get_var(dset%ncid, dset%variables(nvar)%varid, values,&
+                  start=start, count=count)
+       else
+          ncerr = nf90_get_var(dset%ncid, dset%variables(nvar)%varid, values)
+       end if
     end if
     if (return_errcode) then
        call nccheck(ncerr,halt=.false.)

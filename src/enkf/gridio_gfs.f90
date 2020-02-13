@@ -159,6 +159,7 @@
         endif
      endif
   else if (use_gfs_ncio) then
+     print *, 'mype is=',nproc, 'filename=',trim(filename)
      dset = open_dataset(filename)
      londim = get_dim(dset,'grid_xt'); nlonsin = londim%len
      latdim = get_dim(dset,'grid_yt'); nlatsin = latdim%len

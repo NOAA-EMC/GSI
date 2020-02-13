@@ -46,7 +46,7 @@ use gridinfo, only: getgridinfo, gridinfo_cleanup,               &
                     npts, vars3d_supported, vars2d_supported
 use params, only: nlevs,nstatefields,nanals,statefileprefixes,&
                   ntasks_io,nanals_per_iotask,nanal1,nanal2, &
-                  statesfcfileprefixes
+                  statesfcfileprefixes, paranc, task_ianal
 use kinds, only: r_kind, i_kind, r_double, r_single
 use mpeu_util, only: gettablesize, gettable, getindex
 use constants, only : max_varname_length
@@ -185,7 +185,7 @@ if (npts < numproc) then
 end if
 
 ! read in whole state vector on i/o procs - keep in memory 
-if (nproc <= ntasks_io-1) then
+if (task_ianal(nproc) > 0) then
    allocate(state_d(npts,nsdim,nstatefields,nanals_per_iotask))
    allocate(qsat(npts,nlevs,nstatefields,nanals_per_iotask))
    nanal = nproc + 1
