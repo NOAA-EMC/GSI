@@ -170,8 +170,8 @@
       $my_stmp="export C_STMP=\${C_STMP:-/scratch2/NCEPDEV/stmp1}";
    }
    elsif( $machine eq "wcoss_c" ) {
-      $my_ptmp="export C_PTMP=\${C_PTMP:-/gpfs/hps/ptmp/$user_name}";
-      $my_stmp="export C_STMP=\${C_STMP:-/gpfs/hps/stmp/$user_name}";
+      $my_ptmp="export C_PTMP=\${C_PTMP:-/gpfs/hps/ptmp}";
+      $my_stmp="export C_STMP=\${C_STMP:-/gpfs/hps/stmp}";
    } 
    elsif( $machine eq "wcoss_d" ) {
       $my_ptmp="export C_PTMP=\${C_PTMP:-/gpfs/dell2/ptmp}";
