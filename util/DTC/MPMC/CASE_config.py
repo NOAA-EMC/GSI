@@ -23,7 +23,7 @@ elif hostname.startswith("Hera"):  ## Hera
   data_root="/scratch1/BMC/comgsi/case_data"
   myARCH="  ARCH='LINUX_PBS'\n" 
   few_cpu_res="--ntasks=4"; few_procs="4" 
-  many_cpu_res="--ntasks=24"; many_procs="24"  #24 cores/node
+  many_cpu_res="--ntasks=40"; many_procs="40"  #40 cores/node
   MPI_CMD_ORG='      RUN_COMMAND="srun " ;;\n'
 
 elif hostname.startswith("Jet"): ## Jet
@@ -35,6 +35,15 @@ elif hostname.startswith("Jet"): ## Jet
   #SBATCH_extras="#SBATCH --partition=xjet\n" #24 cores/node
   SBATCH_extras="#SBATCH --partition=kjet\n" #40 cores/node
   many_cpu_res="--ntasks=40"; many_procs="40" 
+  MPI_CMD_ORG='      RUN_COMMAND="srun " ;;\n'
+
+elif hostname.startswith("Orion"):  ## Orion
+  crtm_dir="/work/noaa/comgsi/MPMC/case_data/CRTM_v2.3.0"
+  data_root="/work/noaa/comgsi/MPMC/case_data"
+  myARCH="  ARCH='LINUX_PBS'\n" 
+  few_cpu_res="--ntasks=4"; few_procs="4" 
+  SBATCH_extras="#SBATCH --partition=orion\n" #40 cores/node
+  many_cpu_res="--ntasks=40"; many_procs="40"  #40 cores/node
   MPI_CMD_ORG='      RUN_COMMAND="srun " ;;\n'
 
 elif hostname.startswith("Cheyenne"):  ## Cheyenne
