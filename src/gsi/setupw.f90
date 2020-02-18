@@ -1562,6 +1562,8 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      if (.not. append_diag) then ! don't write headers on append - the module will break?
         call nc_diag_header("date_time",ianldate )
         call nc_diag_header("Number_of_state_vars", nsdim          )
+        call nc_diag_header("jac_nnz", nnz)
+        call nc_diag_header("jac_nind", nind)
      endif
   end subroutine init_netcdf_diag_
   subroutine contents_binary_diag_(udiag,vdiag)
@@ -1766,10 +1768,12 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               call nc_diag_metadata("Subprovider_Name",  c_sprvstg                    )
            endif
            if (save_jacobian) then
-              call fullarray(dhx_dx_u, dhx_dx_array)
-              call nc_diag_data2d("u_Observation_Operator_Jacobian", dhx_dx_array)
-              call fullarray(dhx_dx_v, dhx_dx_array)
-              call nc_diag_data2d("v_Observation_Operator_Jacobian", dhx_dx_array)
+              call nc_diag_data2d("u_Observation_Operator_Jacobian_stind", dhx_dx_u%st_ind)
+              call nc_diag_data2d("u_Observation_Operator_Jacobian_endind", dhx_dx_u%end_ind)
+              call nc_diag_data2d("u_Observation_Operator_Jacobian_val", real(dhx_dx_u%val,r_single))
+              call nc_diag_data2d("v_Observation_Operator_Jacobian_stind", dhx_dx_v%st_ind)
+              call nc_diag_data2d("v_Observation_Operator_Jacobian_endind", dhx_dx_v%end_ind)
+              call nc_diag_data2d("v_Observation_Operator_Jacobian_val", real(dhx_dx_v%val,r_single))
            endif
 
 
