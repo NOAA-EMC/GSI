@@ -67,9 +67,9 @@ commitID=`git log -1 | head -n1 |cut -c8-15`
 repoName=`git config --get remote.origin.url | cut -d: -f2`
 datestamp=`date +%Y%m%d`
 cd bin
-ln -sf gsi.x gsi.x_${repoName}_${commitID}_${datestamp}
-ln -sf enkf_wrf.x enkf_wrf.x_${repoName}_${commitID}_${datestamp}
-ln -sf enspreproc.x enspreproc.x_${repoName}_${commitID}_${datestamp}
+ln -sf gsi.x gsi.x_${repoName}_${datestamp}_${commitID}
+ln -sf enkf_wrf.x enkf_wrf.x_${repoName}_${datestamp}_${commitID}
+ln -sf enspreproc.x enspreproc.x_${repoName}_${datestamp}_${commitID}
 ###mv $dir_root/build $dir_root/build_$commitID
 
 echo -e "\n\nAll build results are at ./build/ \n\n"

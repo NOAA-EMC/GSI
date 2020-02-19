@@ -512,17 +512,17 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !    Setup dynamic ob error specification for aircraft recon in hurricanes 
 
      if (aircraft_recon) then
-      if (itype == 136 ) then
+       if (itype == 136 ) then
 
          errorx = q_doe_a_136*abs(ddiff)+q_doe_b_136
          
-      endif
+       endif
 
-      if (itype == 137 ) then
+       if (itype == 137 ) then
 
          errorx = q_doe_a_137*abs(ddiff)+q_doe_b_137
          
-      endif
+       endif
      endif
 
      errorx =max(small1,errorx)

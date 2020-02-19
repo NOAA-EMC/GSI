@@ -1,11 +1,11 @@
 # Theia build option list
-#    buildID, compiler,         MPI,            NETCDF,       cc,  cxx       
-       ti01, intel/18.1.163,   impi/5.1.2.150, netcdf/4.3.0, icc, icpc
-       ti10, intel/14.0.2,     impi/5.1.2.150, netcdf/4.3.0, icc, icpc
+#  compiler,         MPI,            NETCDF,          
+  intel/18.1.163,   impi/5.1.2.150, netcdf/4.3.0
+  intel/14.0.2,     impi/5.1.2.150, netcdf/4.3.0
 
-       ti21, intel/18.1.163,   mvapich2/2.1a,  netcdf/4.3.0, icc, icpc
-       ti30, intel/14.0.2,     mvapich2/2.1a,  netcdf/4.3.0, icc, icpc
+  intel/18.1.163,   mvapich2/2.1a,  netcdf/4.3.0
+  intel/14.0.2,     mvapich2/2.1a,  netcdf/4.3.0
 
-       ###at theia, PGI can only use netcdf/4.4.0 and netcdf/3.6.3
-       tp01, pgi/18.5,  mvapich2/2.1a, netcdf/4.4.0, pgcc, pgc++
-       tp02, pgi/16.5,  mvapich2/2.1a, netcdf/4.4.0, pgcc, pgc++
+#  theia, PGI can only use netcdf/4.4.0 and netcdf/3.6.3
+  pgi/18.5,  mvapich2/2.1a, netcdf/4.4.0
+  pgi/16.5,  mvapich2/2.1a, netcdf/4.4.0

@@ -769,13 +769,13 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     
 !    Setup dynamic error specification for aircraft recon in hurricanes
      if (aircraft_recon) then 
-      if ( itype == 136 ) then
+       if ( itype == 136 ) then
          ratio_errors=error/((t_doe_a_136*abs(ddiff)+t_doe_b_136)+1.0e6_r_kind*rhgh+r8*ramp)
-      endif
+       endif
      
-      if ( itype == 137 ) then
+       if ( itype == 137 ) then
          ratio_errors=error/((t_doe_a_137*abs(ddiff)+t_doe_b_137)+1.0e6_r_kind*rhgh+r8*ramp)
-      endif
+       endif
      endif
 
      error=one/error
@@ -788,13 +788,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         endif
      endif
 
-!JS MOVED THIS UP A FEW LINES
-! Compute innovation
-!     if(i_use_2mt4b>0 .and. sfctype) then
-!        ddiff = tob-tges2m
-!     else
-!        ddiff = tob-tges
-!     endif
 
 ! Apply bias correction to innovation
      if (aircraftobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc .or. &

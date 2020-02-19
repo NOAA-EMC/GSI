@@ -529,10 +529,10 @@ subroutine setupspd(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
      ddiff = spdob-spdges
      
      if (aircraft_recon) then
-      if ( nty == 292 ) then 
+       if ( nty == 292 ) then 
          ratio_errors=error/(uv_doe_a_292*abs(ddiff)+uv_doe_b_292)
-         if (spdob < 10.) ratio_errors=zero
-      endif 
+         if (spdob < 10._r_kind) ratio_errors=zero
+       endif 
      endif
    
      error=one/error

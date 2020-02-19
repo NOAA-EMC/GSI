@@ -820,14 +820,14 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     
 !    Setup dynamic ob error specification for aircraft recon in hurricanes 
      if (aircraft_recon) then
-      if (itype==236) then
+       if (itype==236) then
          magomb=sqrt(dudiff*dudiff+dvdiff*dvdiff)
          ratio_errors=error/((uv_doe_a_236*magomb+uv_doe_b_236)+drpx+1.0e6_r_kind*rhgh+four*rlow)
-      endif
-      if (itype==237) then
+       endif
+       if (itype==237) then
          magomb=sqrt(dudiff*dudiff+dvdiff*dvdiff)
          ratio_errors=error/((uv_doe_a_237*magomb+uv_doe_b_237)+drpx+1.0e6_r_kind*rhgh+four*rlow)
-      endif
+       endif
      endif
 
 !    Invert observation error
@@ -845,22 +845,6 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
      if ( (itype>=221 .and. itype<=229).and. (dpres<zero) ) ratio_errors=zero
  
-!JS - MOVED THIS UP A FEW LINES
-!    Compute innovations
-!     lowlevelsat=itype==242.or.itype==243.or.itype==245.or.itype==246.or. &
-!                 itype==247.or.itype==250.or.itype==251.or.itype==252.or. &
-!                 itype==253.or.itype==254.or.itype==257.or.itype==258.or. &
-!                 itype==259
-!     if (lowlevelsat .and. twodvar_regional) then
-!         call windfactor(presw,factw)
-!         data(iuob,i)=factw*data(iuob,i)
-!         data(ivob,i)=factw*data(ivob,i)
-!         uob = data(iuob,i)
-!         vob = data(ivob,i)
-!     endif
-!     dudiff=uob-ugesin
-!     dvdiff=vob-vgesin
-!     spdb=sqrt(uob**2+vob**2)-sqrt(ugesin**2+vgesin**2)
 
 ! QC PBL profiler  227 and 223, 224
      if(itype==227 .or. itype==223 .or. itype==224 .or. itype==228 .or. itype==229) then

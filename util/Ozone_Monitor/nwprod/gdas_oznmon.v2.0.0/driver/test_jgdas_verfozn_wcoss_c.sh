@@ -6,7 +6,7 @@
 #BSUB -q dev
 #BSUB -M 100
 #BSUB -W 00:05
-#BSUB -P GFS-T2O
+#BSUB -P GFS-DEV
 #BSUB -R "select[mem>100] rusage[mem=100]"
 
 ##BSUB -cwd /gpfs/hps/ptmp/Edward.Safford
@@ -19,7 +19,7 @@
 
 set -x
 export OZNMON_NEW_HDR=${OZN_NEW_HDR:-0}
-export PDATE=${PDATE:-2017072212}
+export PDATE=${PDATE:-2019083100}
 export NET=${NET:-gfs}
 export RUN=${RUN:-gdas}
 
