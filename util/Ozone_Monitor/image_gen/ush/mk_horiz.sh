@@ -55,7 +55,7 @@ for dsrc in ${data_source}; do
          list="obs anl obsanl"
       fi
 
-      if [[ ${MY_MACHINE} = "theia" ]]; then
+      if [[ ${MY_MACHINE} = "hera" ]]; then
          echo "$ctr ${OZN_IG_SCRIPTS}/plot_horiz.sh $type $suffix '$list' $dsrc" >> $cmdfile
       else
          echo "${OZN_IG_SCRIPTS}/plot_horiz.sh $type $suffix '$list' $dsrc" >> $cmdfile
@@ -85,7 +85,7 @@ for dsrc in ${data_source}; do
            -o ${logf} -e ${errf} -W 0:05 -J ${job} -cwd ${WORKDIR} \
 	   ${WORKDIR}/${cmdfile}
 
-   elif [[ ${MY_MACHINE} = "theia" ]]; then
+   elif [[ ${MY_MACHINE} = "hera" ]]; then
 
       $SUB --account ${ACCOUNT} -n $ctr  -o ${logf} -D . -J ${job} \
            --time=10 --wrap "srun -l --multi-prog ${cmdfile}"

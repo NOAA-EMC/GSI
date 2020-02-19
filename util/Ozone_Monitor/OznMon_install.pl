@@ -330,7 +330,7 @@
       $account = "export ACCOUNT=\${ACCOUNT:-}";
    }
 
-   my $project = "export PROJECT=\${PROJECT:-GDAS-T2O}";
+   my $project = "export PROJECT=\${PROJECT:-GFS-DEV}";
    if( $machine ne "wcoss" && $machine ne "cray" && $machine ne "wcoss_d" ) {
       $project="export PROJECT=";
    } 

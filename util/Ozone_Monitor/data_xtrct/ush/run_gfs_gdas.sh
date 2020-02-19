@@ -32,7 +32,7 @@ elif [[ $MY_MACHINE = "wcoss_d" ]]; then
 fi
 
 
-if [[ $MY_MACHINE = "theia" ]]; then
+if [[ $MY_MACHINE = "hera" ]]; then
    scripts=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/ProdGSI/util/Ozone_Monitor/data_xtrct/ush
 elif [[ $MY_MACHINE = "wcoss" ]]; then
    scripts=/gpfs/gd2/emc/da/noscrub/Edward.Safford/${package}/data_xtrct/ush
@@ -46,7 +46,7 @@ idate=`${scripts}/find_cycle.pl -dir ~/nbns/stats/${OZN_SUFFIX} -cyc 1 -run ${ru
 echo "idate = $idate"
 
 export NDATE=/gpfs/dell1/nco/ops/nwprod/prod_util.v1.1.1/exec/ips/ndate
-#export START_DATE=2019082906
+#export START_DATE=2020010500
 START_DATE=`${NDATE} +06 $idate`
 
 PDY=`echo $START_DATE | cut -c1-8`
@@ -65,8 +65,8 @@ log=/gpfs/dell2/ptmp/Edward.Safford/logs/${OZN_SUFFIX}/${run}/oznmon/OznMon_DE.l
 #log=/ptmpd1/Edward.Safford/logs/${OZN_SUFFIX}/${run}/oznmon/OznMon_DE.log
 #log=./log
 
-#err=/ptmpd1/Edward.Safford/logs/${OZN_SUFFIX}/${run}/oznmon/OznMon_DE.err
 err=/gpfs/dell2/ptmp/Edward.Safford/logs/${OZN_SUFFIX}/${run}/oznmon/OznMon_DE.err
+#err=/ptmpd1/Edward.Safford/logs/${OZN_SUFFIX}/${run}/oznmon/OznMon_DE.err
 #err=./err
 
 ${scripts}/OznMon_DE.sh $OZN_SUFFIX -p $START_DATE -r gdas 1>$log 2>$err
