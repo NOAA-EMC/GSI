@@ -11,6 +11,7 @@ cheyenne=os.popen('grep -i "cheyenne" /etc/hosts | head -n1').read()
 theia=os.popen('grep -i "theia" /etc/hosts | head -n1').read()
 hera=os.popen('grep -i "hera" /etc/hosts | head -n1').read()
 jet=os.popen('grep -i "jet" /etc/hosts | head -n1').read()
+orion=os.popen('hostname | grep -i "orion" | head -n1').read()
 
 if cheyenne:
   project_acct="P48503002"  #"P48500053"
@@ -26,6 +27,11 @@ elif hera:
   project_acct="comgsi" #wrfruc
   queue_name = 'batch'
   hostname="Hera"  ### Don't change hostname
+
+elif orion:
+  project_acct="comgsi" #wrfruc
+  queue_name = 'batch'
+  hostname="Orion"  ### Don't change hostname
 
 elif jet:
   project_acct="wrfruc"
@@ -102,6 +108,13 @@ elif hostname.startswith("Jet"):  ######################################### Jet
   s_directives = s_directives+'#SBATCH --ntasks=8\n'
   s_directives = s_directives+'#SBATCH --partition=kjet\n'
   #module_pre=module_pre+"module load newdefaults\n"  #specific for Jet
+
+elif hostname.startswith("Orion"):  ######################################### Jet
+  rocoto_exe='/apps/contrib/rocoto/1.3.1/bin/rocotorun'
+  rocoto_scheduler='slurm'
+  s_directives = s_directives+'#SBATCH --ntasks=8\n'
+  s_directives = s_directives+'#SBATCH --partition=orion\n'
+  module_pre = 'ulimit -s unlimited\nsource /home/gge/modulefiles/module.sh\nmodule purge\n'
 
 elif hostname.startswith("GSI_Docker"):  ######################################### GSI_Docker
   rocoto_exe='/fake/rocotorun'
