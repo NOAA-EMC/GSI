@@ -140,6 +140,8 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   use setupdbz_lib, only:hx_dart
   use sparsearr, only: sparr2, new, size, writearray, fullarray
   use state_vectors, only: nsdim
+  use obsmod, only: l2rwthin
+
   implicit none
 
 ! Declare passed variables
@@ -650,10 +652,18 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
      endif
 
 !    adjust obs error for TDR data
-     if(data(iobs_type,i) > three .and. ratio_errors*error > tiny_r_kind &
+     !if(data(iobs_type,i) > three .and. ratio_errors*error > tiny_r_kind &
+     if( ratio_errors*error > tiny_r_kind &
         .and. tdrerr_inflate) then
         ratio_errors = data(ier2,i)/abs(data(ier,i) + 1.0e6_r_kind*rhgh +  &
           r8*rlow + min(max((abs(ddiff)-ten),zero)/ten,one)*data(ier,i))
+        if(data(iobs_type,i) <= three) then
+           ratio_errors = data(ier2,i)/(5.0_r_kind + abs( 1.0e6_r_kind*rhgh +  &
+             r8*rlow + min(max((abs(ddiff)-ten),zero)/ten,one)*5.0_r_kind))
+           if((.not. l2rwthin) .and. ( data(irange,i) <= 20.0_r_kind )) then
+              muse(i)=.false.
+           end if
+        end if
      end if 
 
 !    Gross error checks
