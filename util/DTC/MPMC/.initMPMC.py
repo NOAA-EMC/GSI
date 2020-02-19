@@ -27,6 +27,10 @@ elif hostnode.startswith("fe"): ## Jet
   python3Location="/lfs1/projects/wrfruc/gge/miniconda3/bin/python3"
   hostname="Jet"
 
+elif hostnode.startswith("Orion"): ## Orion
+  python3Location="/apps/python-3.7.5/bin/python3"
+  hostname="Orion"
+
 elif hostnode.startswith("GSI_Docker"): ## GSI_Docker
   python3Location="/usr/bin/python3"
   hostname="GSI_Docker"

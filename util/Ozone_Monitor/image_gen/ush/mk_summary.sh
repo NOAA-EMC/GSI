@@ -53,7 +53,7 @@ for ptype in ${process_type}; do
 >$cmdfile
    for type in ${SATYPE}; do
       if [[ $type != "omi_aura" && $type != "gome_metop-a" && $type != "gome_metop-b" ]]; then
-         if [[ ${MY_MACHINE} = "theia" ]]; then
+         if [[ ${MY_MACHINE} = "hera" ]]; then
             echo "${ctr} ${OZN_IG_SCRIPTS}/plot_summary.sh $type $ptype" >> $cmdfile
          else
             echo "${OZN_IG_SCRIPTS}/plot_summary.sh $type $ptype" >> $cmdfile
@@ -84,7 +84,7 @@ for ptype in ${process_type}; do
       $SUB -q ${JOB_QUEUE} -P ${PROJECT} -M 50 -R affinity[core] \
            -o ${logf} -e ${errf} -W 0:05 -J ${job} -cwd ${WORKDIR} ${WORKDIR}/${cmdfile}
 
-   elif [[ ${MY_MACHINE} = "theia" ]]; then
+   elif [[ ${MY_MACHINE} = "hera" ]]; then
 
       $SUB --account ${ACCOUNT} -n $ctr  -o ${logf} -D . -J ${job} --time=10 \
            --wrap "srun -l --multi-prog ${cmdfile}"

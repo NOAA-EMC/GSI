@@ -8,7 +8,7 @@
 #BSUB -R affinity[core]
 #BSUB -M 500
 #BSUB -W 00:05
-#BSUB -P GFS-T2O
+#BSUB -P GFS-DEV
 
 ##------------------------------------------------------------
 ##  This is the test driver script for the wcoss/ibm systems
@@ -18,7 +18,15 @@
 set -x
 
 export OZNMON_NEW_HDR=${OZN_NEW_HDR:-0}
-export PDATE=${PDATE:-2018110206}
+
+#-------------------------------------------------------------
+# PDATE settings for this test driver script correspond to 
+# available data in the $DATAROOT space (defined below).  
+# References to netcdf and binary indicate available files in 
+# the test_data space.
+#
+#export PDATE=${PDATE:-2019083100}		# netcdf
+export PDATE=${PDATE:-2018091706}      	# binary
 export NET=${NET:-gfs}
 export RUN=${RUN:-gdas}
 

@@ -6,7 +6,7 @@
 
 set -ax
 
-if [[ ${MY_MACHINE} = "theia" ]]; then
+if [[ ${MY_MACHINE} = "hera" ]]; then
    module load grads
 fi
 
