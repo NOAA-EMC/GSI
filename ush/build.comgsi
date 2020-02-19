@@ -12,15 +12,21 @@
 
 dir_root=$(pwd)
 
-source /etc/profile.d/modules.sh
 if [[ "`grep -i "theia" /etc/hosts | head -n1`" != "" ]] ; then ###theia
+    source /etc/profile.d/modules.sh
     modulefile="/home/rtrr/PARM_EXEC/modulefiles/modulefile.theia.GSI_UPP_WRF"
 elif [[ "`grep -i "hera" /etc/hosts | head -n1`" != "" ]] ; then ###hera
+    source /etc/profile.d/modules.sh
     modulefile="/home/rtrr/PARM_EXEC/modulefiles/modulefile.hera.GSI_UPP_WRF"
 elif [[ -d /jetmon ]] ; then ### jet
+    source /etc/profile.d/modules.sh
     modulefile="/home/rtrr/PARM_EXEC/modulefiles/modulefile.jet.GSI_UPP_WRF"
 elif [[ -d /glade ]] ; then  ### cheyenne
+    source /etc/profile.d/modules.sh
     modulefile="/glade/p/ral/jntp/gge/modulefiles/modulefile.cheyenne.GSI_UPP_WRF"
+elif [[ -d /work/noaa ]] ; then  ### orion
+    modulefile="/work/noaa/comgsi/modulefiles/modulefile.orion.GSI_UPP_WRF"
+    #modulefile="/work/noaa/comgsi/modulefiles/modulefile.intel20"
 else
     echo "unknown machine"
     exit 9
