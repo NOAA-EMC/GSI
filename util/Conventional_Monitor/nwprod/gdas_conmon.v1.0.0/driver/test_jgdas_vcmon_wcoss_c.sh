@@ -7,12 +7,12 @@
 #BSUB -n 1
 #BSUB -M 160
 #BSUB -W 00:50
-#BSUB -P GFS-T2O
+#BSUB -P GFS-DEV
 #BSUB -R "select[mem>160] rusage[mem=160]"
 
 set -x
 
-export PDATE=${PDATE:-2020012018
+export PDATE=${PDATE:-2020012006}
 
 
 #############################################################
