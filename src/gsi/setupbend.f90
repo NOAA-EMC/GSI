@@ -333,6 +333,29 @@ subroutine setupbend(obsLL,odiagLL, &
     nind   = 3             ! number of dense subarrays 
     call new(dhx_dx, nnz, nind)
     nreal = nreal + size(dhx_dx)
+    ! jacobian sparse array indices are the same for all obs and can be filled
+    ! in once here:
+    t_ind = getindex(svars3d, 'tv')
+    if (t_ind < 0) then
+      print *, 'Error: no variable tv in state vector. Exiting.'
+      call stop2(1300)
+    endif
+    q_ind = getindex(svars3d, 'q')
+    if (q_ind < 0) then
+      print *, 'Error: no variable q in state vector. Exiting.'
+      call stop2(1300)
+    endif
+    p_ind = getindex(svars3d, 'prse')
+    if (p_ind < 0) then
+      print *, 'Error: no variable prse in state vector. Exiting.'
+      call stop2(1300)
+    endif
+    dhx_dx%st_ind(1)  = sum(levels(1:t_ind-1)) + 1
+    dhx_dx%end_ind(1) = sum(levels(1:t_ind-1)) + nsig
+    dhx_dx%st_ind(2)  = sum(levels(1:q_ind-1)) + 1
+    dhx_dx%end_ind(2) = sum(levels(1:q_ind-1)) + nsig
+    dhx_dx%st_ind(3)  = sum(levels(1:p_ind-1)) + 1
+    dhx_dx%end_ind(3) = sum(levels(1:p_ind-1)) + nsig
   endif
   if(init_pass) call gpsrhs_alloc(is,'bend',nobs,nsig,nreal,grids_dim,nsig_ext)
   call gpsrhs_aliases(is)
@@ -970,10 +993,11 @@ subroutine setupbend(obsLL,odiagLL, &
            enddo
          end associate  ! odiag
        endif
- 
-        do j=1,nreal
-           gps_alltail(ibin)%head%rdiag(j)= rdiagbuf(j,i)
-        end do
+
+       ! if obs is not "acceptable" and jacobian is not computed, fill jacobian
+       ! with zeros
+       dhx_dx%val = 0._r_kind
+       call writearray(dhx_dx, rdiagbuf(ioff+1:nreal,i))
 
 ! If obs is "acceptable", load array with obs info for use
 ! in inner loop minimization (int* and stp* routines)
@@ -1111,29 +1135,7 @@ subroutine setupbend(obsLL,odiagLL, &
            my_head%jac_p(nsig+1) = zero
 
            if (save_jacobian) then
-              t_ind = getindex(svars3d, 'tv')
-              if (t_ind < 0) then
-                 print *, 'Error: no variable tv in state vector. Exiting.'
-                 call stop2(1300)
-              endif
-              q_ind = getindex(svars3d, 'q')
-              if (q_ind < 0) then
-                 print *, 'Error: no variable q in state vector. Exiting.'
-                 call stop2(1300)
-              endif
-              p_ind = getindex(svars3d, 'prse')
-              if (p_ind < 0) then
-                 print *, 'Error: no variable prse in state vector. Exiting.'
-                 call stop2(1300)
-              endif
-
-              dhx_dx%st_ind(1)  = sum(levels(1:t_ind-1)) + 1
-              dhx_dx%end_ind(1) = sum(levels(1:t_ind-1)) + nsig
-              dhx_dx%st_ind(2)  = sum(levels(1:q_ind-1)) + 1
-              dhx_dx%end_ind(2) = sum(levels(1:q_ind-1)) + nsig
-              dhx_dx%st_ind(3)  = sum(levels(1:p_ind-1)) + 1
-              dhx_dx%end_ind(3) = sum(levels(1:p_ind-1)) + nsig
-
+              ! fill in the jacobian
               do iz = 1, nsig
                  dhx_dx%val(iz)        = my_head%jac_t(iz)
                  dhx_dx%val(iz+nsig)   = my_head%jac_q(iz)
@@ -1143,10 +1145,6 @@ subroutine setupbend(obsLL,odiagLL, &
               call writearray(dhx_dx, rdiagbuf(ioff+1:nreal,i))
               ioff = ioff + size(dhx_dx)
            endif
-
-           do j=1,nreal
-              gps_alltail(ibin)%head%rdiag(j)= rdiagbuf(j,i)
-           end do
 
            my_head%jac_p(nsig+1) = zero
            my_head%raterr2= ratio_errors(i)**2     
@@ -1164,6 +1162,9 @@ subroutine setupbend(obsLL,odiagLL, &
 
            my_head => null()
         end if ! (in_curbin .and. muse=1)
+        do j=1,nreal
+           gps_alltail(ibin)%head%rdiag(j)= rdiagbuf(j,i)
+        end do
      endif ! (last_pass)
   end do ! i=1,nobs
   deallocate(ddnj,grid_s,ref_rad_s)
