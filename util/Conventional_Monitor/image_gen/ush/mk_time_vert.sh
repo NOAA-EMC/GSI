@@ -52,8 +52,15 @@ echo "--> mk_time_vert.sh"
       rm -f $errfile
 
       if [[ $MY_MACHINE == "wcoss" || $MY_MACHINE == "wcoss_d" || ${MY_MACHINE} = "wcoss_c" ]]; then
+
+         if [[ ${type} == "uv" || ${type} == "u" || ${type} == "v" ]]; then
+            walltime="02:00"
+         else
+            walltime="00:50"
+         fi
+
          $SUB -q ${JOB_QUEUE} -P ${PROJECT} -o ${logfile} -R affinity[core] \
-		-M 100 -W 0:50 -J ${jobname} -cwd ${PWD} ${pltfile}
+		-M 100 -W ${walltime} -J ${jobname} -cwd ${PWD} ${pltfile}
 
       elif [[ $MY_MACHINE == "hera" ]]; then
          if [[ ${type} == "uv" || ${type} == "u" || ${type} == "v" ]]; then
@@ -83,7 +90,7 @@ echo "--> mk_time_vert.sh"
 
       if [[ $MY_MACHINE == "wcoss" || $MY_MACHINE == "wcoss_d" || ${MY_MACHINE} = "wcoss_c" ]]; then
          $SUB -q ${JOB_QUEUE} -P ${PROJECT} -o ${logfile} -R affinity[core] \
-		-M 100 -W 0:50 -J ${jobname} -cwd ${PWD} ${pltfile}
+		-M 100 -W 1:30 -J ${jobname} -cwd ${PWD} ${pltfile}
 
       elif [[ $MY_MACHINE == "hera" ]]; then
          if [[ ${type} == "uv" || ${type} == "u" || ${type} == "v" ]]; then

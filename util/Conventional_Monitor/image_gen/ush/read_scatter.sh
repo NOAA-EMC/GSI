@@ -78,23 +78,22 @@ cat << EOF > input
 EOF
 
 cp $sorcdir/$exec ./$exec
-#cp $CONVINFO_FILE ./convinfo
 
 ./$exec <input  > stdout  2>&1
 
 #rm -f $exec
-##rm -f convinfo
 #rm -f input
 #rm -f fname.out
+
 mv out out_${dtype}_${cycle}.${rdate}
 mv stdout stdout_${dtype}_${cycle}.${rdate}
 
-#if [ "${type}" = 'uv' ]; then
-#mv out_u out_${dtype}_u_${cycle}.${rdate}
-#mv out_v out_${dtype}_v_${cycle}.${rdate}
-#mv stdout_u stdout_${dtype}_u_${cycle}.${rdate}
-#mv stdout_v stdout_${dtype}_v_${cycle}.${rdate}
-#fi
+if [ "${type}" = 'uv' ]; then
+   mv out_u out_${dtype}_u_${cycle}.${rdate}
+   mv out_v out_${dtype}_v_${cycle}.${rdate}
+   mv stdout_u stdout_${dtype}_u_${cycle}.${rdate}
+   mv stdout_v stdout_${dtype}_v_${cycle}.${rdate}
+fi
 
 
 echo "<--- read_scatter.sh"

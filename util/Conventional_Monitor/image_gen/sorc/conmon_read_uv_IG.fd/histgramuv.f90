@@ -32,9 +32,9 @@ subroutine histuv(dtype,rmodnbc,nchan,nxdata,ndata,rmin,rmax,rlev,fileo,ncount_v
 
    open (11,file=fileo2,form='formatted')
 
-   write(11,100) nlev
- 
-100 format(i5)
+   write(11,100) 'nlev=', nlev
+
+100 format(A,i5)
 
    write(11,110) ndata(1),ndata(2),ndata(3)
 
@@ -129,7 +129,7 @@ subroutine histuv(dtype,rmodnbc,nchan,nxdata,ndata,rmin,rmax,rlev,fileo,ncount_v
 !   enddo
 
    open (10,file=fileo,form='unformatted',access='direct',recl=nlev*4)
-    
+
    write(10,rec=1) (xs(i),i=1,nlev)
    do j=1,nchan
       write(10,rec=2+j-1) (ys(j,i),i=1,nlev)
