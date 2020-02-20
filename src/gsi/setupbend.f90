@@ -996,8 +996,10 @@ subroutine setupbend(obsLL,odiagLL, &
 
        ! if obs is not "acceptable" and jacobian is not computed, fill jacobian
        ! with zeros
-       dhx_dx%val = 0._r_kind
-       call writearray(dhx_dx, rdiagbuf(ioff+1:nreal,i))
+       if (save_jacobian) then
+          dhx_dx%val = 0._r_kind
+          call writearray(dhx_dx, rdiagbuf(ioff+1:nreal,i))
+       endif
 
 ! If obs is "acceptable", load array with obs info for use
 ! in inner loop minimization (int* and stp* routines)
