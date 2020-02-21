@@ -920,6 +920,9 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
         call nc_diag_header("Satellite_Sensor", isis)
         call nc_diag_header("Satellite", dplat(is))
         call nc_diag_header("Observation_type", obstype)
+        call nc_diag_header("pobs", pobs)
+        call nc_diag_header("gross",gross)
+        call nc_diag_header("tnoise",tnoise)
         if (save_jacobian) then
           call nc_diag_header("jac_nnz", nnz)
           call nc_diag_header("jac_nind", nind)
