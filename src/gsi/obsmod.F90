@@ -470,6 +470,7 @@ module obsmod
 
   public :: l_wcp_cwm
   public :: aircraft_recon
+  public :: hurricane_radar 
 
   ! The following public variables are the coefficients that describe
   ! the linear regression fits that are used to define the dynamic
@@ -620,6 +621,7 @@ module obsmod
 
   logical l_wcp_cwm
   logical aircraft_recon
+  logical hurricane_radar 
 
   character(len=*),parameter:: myname='obsmod'
 
@@ -879,6 +881,7 @@ contains
 
     l_wcp_cwm          = .false.                 ! .true. = use operator that involves cwm
     aircraft_recon     = .false.                 ! .true. = use DOE for aircraft data
+    hurricane_radar    = .false.                 ! .true. = use radar data for hurricane application 
 
     ! The following variable initializations pertain to the
     ! coefficients that describe the linear regression fits that are
