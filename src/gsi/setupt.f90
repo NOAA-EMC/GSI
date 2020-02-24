@@ -823,6 +823,10 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
         ! Gross error relaxation for when buddycheck_t==.true.
         if (buddycheck_t) then 
+
+        !--Disable the buddy check gross error relaxation for any GLERL obs--!
+           if (itype==196 .or. itype==197 .or. itype==198 .or. itype==199) buddyuse(i)=0
+
            if (buddyuse(i)==1) then
               ! - Passed buddy check, relax gross qc
               qcgross=r3p5*qcgross
@@ -831,15 +835,21 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            else if (buddyuse(i)==0) then
               ! - Buddy check did not run (too few buddies, rusage >= 100, outside twindow, etc.)
               ! - In the case of an isolated ob in complex terrain, see about relaxing the the gross qc 
-              if ( (data(iuse,i)-real(int(data(iuse,i)),kind=r_kind)) == 0.25_r_kind) then 
+              if ( abs( (data(iuse,i)-real(int(data(iuse,i)),kind=r_kind)) - 0.25_r_kind ) <= tiny_r_kind ) then
                  qcgross=r3p5*qcgross                ! Terrain aware modification
                                                      ! to gross error check
               end if         
            else if (buddyuse(i)==-1) then
-              ! - Observation has failed the buddy check - reject.
-              ratio_errors = zero
+              ! - Observation has failed the buddy check - do NOT(!) reject, however.
+              !!!ratio_errors = zero
+              !
+              ! see about relaxing the gross qc in complex terrain
+              if ( abs( (data(iuse,i)-real(int(data(iuse,i)),kind=r_kind)) - 0.25_r_kind ) <= tiny_r_kind ) then
+                 qcgross=r3p5*qcgross                ! Terrain aware modification
+                                                     ! to gross error check
+              end if
            end if
-        else if ( (data(iuse,i)-real(int(data(iuse,i)),kind=r_kind)) == 0.25_r_kind) then 
+        else if ( abs( (data(iuse,i)-real(int(data(iuse,i)),kind=r_kind)) - 0.25_r_kind ) <= tiny_r_kind ) then
           qcgross=r3p5*qcgross                ! Terrain aware modification
                                               ! to gross error check       
         end if  

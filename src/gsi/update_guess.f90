@@ -87,6 +87,7 @@ subroutine update_guess(sval,sbias)
 !   2016-04-28  eliu    - revise update for cloud water 
 !   2016-06-23  lippi   - Add update for vertical velocity (w).
 !   2018-05-01  yang    - modify the constrains to C and V in g-space, or using NLTF transfermation to C/V
+!   2019-06-17  mmorris - Enforce consistency b/w ceiling and sky cover fields
 !
 !   input argument list:
 !    sval
@@ -148,7 +149,7 @@ subroutine update_guess(sval,sbias)
   integer(i_kind) icloud,ncloud
   integer(i_kind) idq
   real(r_kind) :: zt
-  real(r_kind) :: glow,ghigh
+  real(r_kind) :: glow,ghigh,ghigh_cldch
 
   real(r_kind),pointer,dimension(:,:  ) :: ptr2dinc =>NULL()
   real(r_kind),pointer,dimension(:,:  ) :: ptr2dges =>NULL()
@@ -163,6 +164,8 @@ subroutine update_guess(sval,sbias)
   real(r_kind),pointer,dimension(:,:,:) :: ges_qs   =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: ges_qg   =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: ges_qh   =>NULL()
+  real(r_kind),pointer,dimension(:,:  ) :: ptr2dcldch =>NULL()
+  real(r_kind),pointer,dimension(:,:  ) :: ptr2dtcamt =>NULL()
 
   real(r_kind),dimension(lat2,lon2)     :: tinc_1st,qinc_1st
 
@@ -321,6 +324,7 @@ subroutine update_guess(sval,sbias)
                ghigh=(cldch_thres**pcldch-one)/pcldch
                ptr2dges = max(min(ptr2dges,ghigh),glow)
              endif
+             ghigh_cldch=ghigh
            endif
 
            if (trim(guess(ic))=='wspd10m') ptr2dges = max(ptr2dges,zero)
@@ -332,6 +336,12 @@ subroutine update_guess(sval,sbias)
            cycle
         endif
      enddo
+     ! Clear out ceiling when sky cover < 50% to enforce consistency b/w fields
+     if (getindex(svars2d,'cldch')>0 .and. getindex(svars2d,'tcamt')>0) then
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cldch',ptr2dcldch,istatus)
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tcamt',ptr2dtcamt,istatus)
+        where (ptr2dtcamt < 50._r_kind) ptr2dcldch=ghigh_cldch
+     endif
      if (getindex(svars3d,'ql')>0 .and. getindex(svars3d,'qi')>0) then
         ier=0
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ptr3dges,istatus) ; ier=istatus                                                              
