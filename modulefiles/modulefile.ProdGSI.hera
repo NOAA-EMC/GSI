@@ -14,8 +14,13 @@ set C_COMP_MP mpcc
 
 # Known conflicts
 
+
 # Load compiler, mpi, cmake, and hdf5/netcdf
 module load intel/18.0.5.274
+# python
+module use -a /contrib/modulefiles
+module load anaconda/2.3.0 
+
 module load impi/2018.0.4
 
 module load contrib
@@ -41,6 +46,3 @@ module load netcdf_parallel/4.7.4
 export MKL_NUM_THREADS=4
 export MKL_CBWR=AUTO
 
-# python
-module use -a /contrib/modulefiles
-module load anaconda/2.3.0 
