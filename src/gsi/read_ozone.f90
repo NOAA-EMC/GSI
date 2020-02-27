@@ -1120,6 +1120,14 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
           cycle read_loop5
         endif        
 
+       do k=1,nloz
+           if (iuse_oz(ipos(k)) < 0) then
+              usage1(k) = 1000._r_kind
+           else
+              usage1(k) = zero
+           endif
+        enddo
+
        call ufbint(lunin,said,1,1,iret,"SAID")
 
        !Convert observation location to radians
@@ -1172,15 +1180,15 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
        call ufbseq(lunin, olpdtsq, 12, 81, iret, "OLPDTSQ")
        !Read Ozone Mixing Ratio Standard Deviation
        call ufbseq(lunin, lpsdvals,3,81,iret,"LPSDVALS")
-       usage1(:) = 1000._r_kind
        j = 0
        do k = 1, nloz
          press(k) = olpdtsq(2,k)*0.001_r_double ! centibars
          omr(k) = olpdtsq(11,k) ! ppmv
          omrstd(k) = lpsdvals(3,k) !omr std
-         if(omr(k) > 0._r_double .and. omr(k) < 100._r_double) then
-            usage1(k) = zero
-            j = j + 1
+         j = j + 1
+         if(omr(k) < 0._r_double .or. omr(k) > 100._r_double) then
+            usage1(k) = 1000._r_kind
+            j = j - 1
          endif
        enddo
 
