@@ -207,6 +207,9 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
         ihost = 0
       with open(CalcAnlDir+'/hosts', 'w') as hostfile:
           hostfile.write(hosts[ihost]+'\n')
+          if launcher == 'srun': # need to write host per task not per node for slurm
+            for a in range(0,9): # need 9 more of the same host for the 10 tasks for chgres_inc
+              hostfile.write(hosts[ihost]+'\n')
       if launcher == 'srun':
         os.environ['SLURM_HOSTFILE'] = CalcAnlDir+'/hosts'
       print('interp_inc', fh, namelist)
@@ -239,14 +242,6 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
   # run the executable
   if ihost >= nhosts:
     ihost = 0
-  if launcher == 'srun':
-    os.environ['SLURM_HOSTFILE'] = CalcAnlDir6+'/hosts'
-    with open(CalcAnlDir6+'/hosts', 'w') as hostfile:
-      for a in range(nFH):
-        hostfile.write(hosts[ihost]+'\n')
-  else:
-    with open(CalcAnlDir6+'/hosts', 'w') as hostfile:
-        hostfile.write(hosts[ihost]+'\n')
   print('fullres_calc_anl', namelist)
   fullres_anl_job = subprocess.Popen(ExecCMDMPILevs_nohost+' '+CalcAnlDir6+'/calc_anl.x', shell=True, cwd=CalcAnlDir6)
   print(ExecCMDMPILevs_nohost+' '+CalcAnlDir6+'/calc_anl.x submitted')
@@ -320,14 +315,6 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
       # run the executable
       if ihost > nhosts:
         ihost = 0
-      if launcher == 'srun':
-        os.environ['SLURM_HOSTFILE'] = CalcAnlDir6+'/hosts'
-        with open(CalcAnlDir6+'/hosts', 'w') as hostfile:
-          for a in range(nFH):
-            hostfile.write(hosts[ihost]+'\n')
-      else:
-        with open(CalcAnlDir6+'/hosts', 'w') as hostfile:
-          hostfile.write(hosts[ihost]+'\n')
       print('ensres_calc_anl', namelist)
       ensres_anl_job = subprocess.Popen(ExecCMDMPILevs_nohost+' '+CalcAnlDir6+'/calc_anl.x', shell=True, cwd=CalcAnlDir6)
       print(ExecCMDMPILevs_nohost+' '+CalcAnlDir6+'/calc_anl.x submitted')
