@@ -59,7 +59,8 @@ FHMIN=${FHMIN_EPOS:-3}
 FHMAX=${FHMAX_EPOS:-9}
 FHOUT=${FHOUT_EPOS:-3}
 NMEM_ENKF=${NMEM_ENKF:-80}
-SMOOTH_ENKF=${SMOOTH_ENKF:-"YES"}
+SMOOTH_ENKF=${SMOOTH_ENKF:-"NO"}
+ENKF_SPREAD=${ENKF_SPREAD:-"NO"}
 
 ################################################################################
 #  Preprocessing
@@ -102,7 +103,7 @@ for fhr in $(seq $FHMIN $FHOUT $FHMAX); do
          $NLN $COMOUT/$memchar/${PREFIX}atmf${fhrchar}${ENKF_SUFFIX}${SUFFIX} atmf${fhrchar}${ENKF_SUFFIX}_$memchar
       done
    fi
-   $NLN $COMOUT/${PREFIX}atmf${fhrchar}.ensspread${SUFFIX} atmf${fhrchar}.ensspread
+   [[ $ENKF_SPREAD = "YES" ]] && $NLN $COMOUT/${PREFIX}atmf${fhrchar}.ensspread${SUFFIX} atmf${fhrchar}.ensspread
 done
 
 ################################################################################
@@ -117,7 +118,11 @@ for fhr in $(seq $FHMIN $FHOUT $FHMAX); do
    $APRUN_EPOS ${DATA}/$(basename $GETSFCENSMEANEXEC) ./ sfcf${fhrchar}.ensmean sfcf${fhrchar} $NMEM_ENKF
    ra=$?
    ((rc+=ra))
-   $APRUN_EPOS ${DATA}/$(basename $GETATMENSMEANEXEC) ./ atmf${fhrchar}.ensmean atmf${fhrchar} $NMEM_ENKF atmf${fhrchar}.ensspread
+   if [ $ENKF_SPREAD = "YES" ]; then
+      $APRUN_EPOS ${DATA}/$(basename $GETATMENSMEANEXEC) ./ atmf${fhrchar}.ensmean atmf${fhrchar} $NMEM_ENKF atmf${fhrchar}.ensspread
+   else
+      $APRUN_EPOS ${DATA}/$(basename $GETATMENSMEANEXEC) ./ atmf${fhrchar}.ensmean atmf${fhrchar} $NMEM_ENKF
+   fi
    ra=$?
    ((rc+=ra))
 done
