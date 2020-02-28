@@ -4,7 +4,7 @@ set -xe
 
 echo "Building ProdGSI ..."
 cd ush
-./build_all_cmake.sh
+./build_all_cmake_hwrf.sh
 
 echo "Building ProdGSI done."
 

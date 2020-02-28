@@ -64,11 +64,23 @@ elif [ $target = wcoss -o $target = gaea ]; then
     module purge
     module load $dir_modules/modulefile.ProdGSI.$target
 elif [ $target = hera -o $target = cheyenne ]; then
-    module purge
-    source $dir_modules/modulefile.ProdGSI.$target
+    # commented out purge, since using modules already loaded
+    #by the HWRF build system.
+    # module purge
+    source $dir_modules/modulefile.ProdGSI_hwrf.$target
+    module list
+elif [ $target = jet ]; then
+    # commented out purge, since using modules already loaded
+    # by the HWRF build system.
+    #module purge
+    source $dir_modules/modulefile.ProdGSI_hwrf.$target
+    module list
 elif [ $target = wcoss_c ]; then
-    module purge
-    module load $dir_modules/modulefile.ProdGSI.$target
+    # commented out purge, since using modules already loaded
+    # by the HWRF build system.
+    #module purge
+    module load $dir_modules/modulefile.ProdGSI_hwrf.$target
+    module list
 elif [ $target = discover ]; then
     module load $dir_modules/modulefile.ProdGSI.$target
 else 

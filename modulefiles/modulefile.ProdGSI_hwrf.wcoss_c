@@ -30,29 +30,46 @@ setenv WRF_SHARED_PATH ${WRF_SHARED_ROOT}.${WRF_SHARED_VER}-${COMPILER}
 
 # Known conflicts
 
+# Changes made for HWRF build system.
+# Commented out duplicate modules already loaded, and
+# defined by the HWRF build system for WCOSS Cray, based on 
+# the modulefiles/wcossluna/HWRF/build file. 
+# 
+# commented out for hwrf system indicated by #hwrf#
+#
+# Doing so makes sure gsi is being built and run with same modules that 
+# the HWRF system is using and we don't have to keep this module 
+# file in sync with changes to the HWRF module files.
+# Note: Since some module loads are being commented out, any other 
+# scripts under ProdGSI, such as the sub_hera script, that may use
+# this file will no longer work, since it depends on these commented 
+# modules being loaded. However, the choice was made, that 
+# this branch is for the HWRF system only and those scripts 
+# will not be used.
+
 # Loading ncep environment
-module load ncep/1.0
+#hwrf# module load ncep/1.0
 module load prod_util/1.0.29
 
 # Loading Intel Compiler Suite
 #module load PrgEnv-intel/5.2.56
 #module unload intel/15.0.3.187
 #module load intel/18.1.163
-module load PrgEnv-intel/5.2.82
-module switch intel intel/15.0.3.187
+#hwrf# module load PrgEnv-intel/5.2.82
+#hwrf# module switch intel intel/15.0.3.187
 
 # Loading pe environment
 module load cray-mpich/7.2.0
-module load craype-haswell
+#hwrf# module load craype-haswell
 
 module use /usrx/local/dev/modulefiles
 module load cmake/3.6.2
 module unuse /usrx/local/dev/modulefiles
 
 # Loading netcdf modules
-module use /usrx/local/prod/modulefiles
-module load HDF5-serial-intel-haswell/1.8.9
-module load NetCDF-intel-haswell/4.2
+#hwrf# module use /usrx/local/prod/modulefiles
+#hwrf# module load HDF5-serial-intel-haswell/1.8.9
+#hwrf# module load NetCDF-intel-haswell/4.2
 
 # Loading nceplibs modules
 module use /gpfs/hps/nco/ops/nwprod/lib/modulefiles

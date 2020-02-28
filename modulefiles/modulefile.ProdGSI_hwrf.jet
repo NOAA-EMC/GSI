@@ -1,0 +1,72 @@
+#%Module######################################################################
+##                                                       Russ.Treadon@noaa.gov
+##                                                           NOAA/NWS/NCEP/EMC
+## GDAS_ENKF v6.2.3
+##_____________________________________________________
+#proc ModulesHelp { } {
+#puts stderr "Set environment veriables for GSI build with CMake"
+#puts stderr "This module initializes the environment "
+#puts stderr "for the Intel Compiler Suite $version\n"
+#}
+#module-whatis " GDAS_ENKF whatis description"
+#
+#
+
+# Changes made for HWRF build system.
+# Commented out duplicate modules already loaded, and
+# defined by the HWRF build system for Jet, based on 
+# the modulefiles/jet/HWRF/build file. 
+# 
+# Commented out for hwrf system indicated by #hwrf#
+#
+# Doing so makes sure gsi is being built and run with same modules that 
+# the HWRF system is using and we don't have to keep this module 
+# file in sync with changes to the HWRF module files.
+# Note: Since some module loads are being commented out, any other 
+# scripts under ProdGSI, such as the sub_hera script, that may use 
+# this file will no longer work, since it depends on these commented 
+# modules being loaded. However, the choice was made, that 
+# this branch is for the HWRF system only and those scripts 
+# will not be used.
+#hwrf# module load intel/15.0.3.187
+#hwrf# module load impi
+#
+#hwrf# module load szip/2.1
+#hwrf# module load hdf5/1.8.9
+#hwrf# module load netcdf4/4.2.1.1
+
+#hwrf# Commented out first COREPATH defintions since it is 
+# overwritten by second one under gwv anyway.
+#export COREPATH=/lfs3/projects/hfv3gfs/nwprod/lib
+export COREPATH=/mnt/lfs3/projects/hfv3gfs/gwv/ljtjet/lib
+export NCEPLIBS=$COREPATH
+module use $NCEPLIBS/modulefiles
+
+export FFLAGS="-openmp"
+export LDFLAGS="-openmp"
+module load ip-intel-sandybridge/3.0.0
+module load bacio-intel-sandybridge/2.0.2
+module load crtm-intel-sandybridge/2.2.5
+module load bufr-intel-sandybridge/11.1.0
+module load nemsio-intel-sandybridge/2.2.2
+module load sp-intel-sandybridge/2.0.2
+module load w3emc-intel-sandybridge/2.2.0
+module load w3nco-intel-sandybridge/2.0.6
+module load sigio-intel-sandybridge/2.0.1
+module load sfcio-intel-sandybridge/1.0.0
+
+#hwrf# not sure why these were defined.
+#module use /home/George.Vandenberghe/t1/l1025/lib/modulefiles
+#module load hdf5
+#module load netcdf
+
+# These NETCDF vars should not be set when running make with the hwrf 
+# system, it will break the ProdGSI build since NETCDF4 is not inherited
+# and defined. Cmake, FindNetCDF.cmake will properly define NETCDF when
+# hwrf sorc/make is run.
+# However, these are required when calling ProdGSI/compile directly
+# and not using the hwrf sorc/make build system.
+#
+# The HWRF system is currently /apps/netcdf/4.2.1.1-intel
+#hwrf# export NETCDF=${NETCDF4}
+#hwrf# export NETCDF_DIR=${NETCDF4}
