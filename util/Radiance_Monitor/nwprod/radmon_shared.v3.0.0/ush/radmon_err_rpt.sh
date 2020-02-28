@@ -19,9 +19,6 @@
 #            directory before invoking this script.
 #
 #
-# Script history log:
-# 2012-02-02  Safford  initial script
-#
 # Usage:  radmon_err_rpt.sh file1 file2 type cycle1 cycle2 diag_rpt outfile
 #
 #   Input script positional parameters:
@@ -30,7 +27,7 @@
 #     file2		obs, penalty, or channel error file
 #                       required
 #     type              type of error file
-#                       choises are obs, pen, or chan; required
+#                       choices are obs, pen, chan, or cnt; required
 #     cycle1		first cycle processing date
 #                       yyyymmddcc format; required
 #     cycle2		second cycle processing date
@@ -40,30 +37,14 @@
 #     outfile           output file name
 #                       required
 #
-#   Imported Shell Variables:
-#
-#     HOMEradmon        package's nwprod subdirectory
-#                       defaults to pwd
-#
-#   Exported Shell Variables:
-#     err           Last return code
-#
-#   Modules and files referenced:
-#     scripts    : 
-#
-#     fixed data : $ctlfile
-#
-#     input data : $file1
-#                  $file2
-#
-#     output data: $outfile
-#
 # Remarks:
 #
 #   Condition codes
 #      0 - no problem encountered
 #     >0 - some problem encountered
 ####################################################################
+
+echo "-->  radmon_err_rpt.sh"
 
 #  Command line arguments.
 file1=${1:-${file1:?}}
@@ -94,7 +75,7 @@ if [[ -s $diag_rpt ]]; then
 else
    err=1
 fi
-
+echo "have_diag_rpt = $have_diag_rpt"
 
 #-----------------------------------------------------------------------------
 #  read each line in the $file1 
@@ -102,17 +83,14 @@ fi
 #  if same combination is in both files, add the values to the output file
 #  
 { while read myline; do
+   echo "myline = $myline"
    bound=""
 
    echo $myline
    satname=`echo $myline | gawk '{print $1}'`
-   echo satname = $satname
    channel=`echo $myline | gawk '{print $3}'`
-   echo channel = $channel
    region=`echo $myline | gawk '{print $5}'`
-   echo region = $region
    value1=`echo $myline | gawk '{print $7}'`
-   echo value1 = $value1
    bound=`echo $myline | gawk '{print $9}'`
 
 #
@@ -136,11 +114,8 @@ fi
       if [[ $type == "chan" ]]; then
          echo "looking for match for $satname and $channel"
          { while read myline2; do
-            echo $myline
             satname2=`echo $myline2 | gawk '{print $1}'`
-            echo satname = $satname
             channel2=`echo $myline2 | gawk '{print $3}'`
-            echo channel = $channel
 
             if [[ $satname == $satname2 && $channel == $channel2 ]]; then
                match="$satname  channel=  $channel" 
@@ -151,6 +126,7 @@ fi
             fi
 
          done } < $file2
+     
 
       else
          match=`gawk "/$satname/ && /channel= $channel / && /region= $region /" $file2`
@@ -159,17 +135,17 @@ fi
          match_len=`echo ${#match}`
          if [[ $match_len > 0 ]]; then
             channel2=`echo $match | gawk '{print $3}'`
-            echo channel2 = $channel2
+
             if [[ $channel2 != $channel ]]; then
                match=""
             fi
          fi            
-         echo match = $match
+
       fi
       match_len=`echo ${#match}`
          
       if [[ $match_len > 0 ]]; then
-         echo $match_len
+
          value2=`echo $match | gawk '{print $7}'`
          bound2=`echo $match | gawk '{print $9}'`
 
@@ -178,6 +154,10 @@ fi
             tmpb=""
 
          elif [[ $type == "pen" ]]; then
+            tmpa="$satname  channel= $channel region= $region"
+            tmpb="$cycle1         	$value1	$bound"
+
+         elif [[ $type == "cnt" ]]; then
             tmpa="$satname  channel= $channel region= $region"
             tmpb="$cycle1         	$value1	$bound"
 
@@ -192,7 +172,7 @@ fi
          if [[ $type != "chan" ]]; then
             tmpc=`echo $tmpa |sed 's/[a-z]/ /g' | sed 's/[0-9]/ /g' | sed 's/=/ /g' | sed 's/_/ /g' | sed 's/-/ /g'`
 
-            if [[ $type == "pen" ]]; then
+            if [[ $type == "pen" || $type == "cnt" ]]; then
                line2=" $tmpc $cycle2         	$value2	$bound2"
             else
                line2=" $tmpc $cycle2: $type= $value2"
@@ -201,15 +181,9 @@ fi
             echo "$line2" >> $outfile
          fi
 
-         #----------------------------------------------------------
-         #  Access the control file to deterimine channel grouping 
-         #  number.  Not all sources have consecutively numbered 
-         #  channels, and we need to map the channel to the correct
-         #  grouping number in order to produce an accurate hyperlink.
-         #
-         #  Update: with the new js plotting the actual channel number
-         #  can be sent so the chgrp is no longer used here. 
-
+         !-----------------------------------------
+         ! add hyperlink to warning entry
+         !
          line3="   http://www.emc.ncep.noaa.gov/gmb/gdas/radiance/es_rad/${RADMON_SUFFIX}/index.html?sat=${satname}&region=${region}&channel=${channel}&stat=${type}"
          if [[ $channel -gt 0 ]]; then
             echo "$line3" >> $outfile
@@ -226,6 +200,7 @@ if [[ "$VERBOSE" = "YES" ]]; then
    echo $(date) EXITING $0 with error code ${err} >&2
 fi
 
+echo "<--  radmon_err_rpt.sh"
 
 set +x
 exit ${err}

@@ -8,13 +8,13 @@
 #BSUB -R affinity[core]
 #BSUB -M 5000
 #BSUB -W 00:20
-#BSUB -P GFS-T2O
+#BSUB -P GFS-DEV
 
 set -x
 
 #export PDATE=2018091706	    	# binary radstat
 #export PDATE=2018110206		   # netcdf radstat
-export PDATE=2019062900 		   # netcdf radstat
+export PDATE=2020022806 		   # netcdf radstat
 
 #############################################################
 # Specify whether the run is production or development
@@ -24,15 +24,15 @@ export cyc=`echo $PDATE | cut -c9-10`
 export job=gdas_verfrad.${cyc}
 export pid=${pid:-$$}
 export jobid=${job}.${pid}
-export envir=para
+export envir=prod
 #export DATAROOT=/gpfs/dell2/emc/modeling/noscrub/${LOGNAME}/test_data
-export DATAROOT=/gpfs/dell3/ptmp/emc.glopara/ROTDIRS/v16rt0
-export COMROOT=/gpfs/dell2/ptmp/$LOGNAME/com
+#export DATAROOT=/gpfs/dell3/ptmp/emc.glopara/ROTDIRS/v16rt0
+export DATAROOT=/gpfs/dell1/nco/ops/com/gfs/prod
+export COMROOT=/gpfs/dell2/ptmp/${LOGNAME}
 
 if [[ ! -d ${COMROOT}/logs/jlogfiles ]]; then
    mkdir -p ${COMROOT}/logs/jlogfiles
 fi
-
 
 #############################################################
 # Specify versions
@@ -67,8 +67,13 @@ export POE=YES
 #############################################################
 # Set user specific variables
 #############################################################
-export RADMON_SUFFIX=run2netcdf
+export RADMON_SUFFIX=test_rad
 export DATA=/gpfs/dell2/stmp/Edward.Safford/${RADMON_SUFFIX}		# rename this to WORKDIR
+if [[ -d ${DATA} ]]; then
+   rm -rf ${DATA}
+   mkdir -p ${DATA}
+fi
+export jlogfile=${COMROOT}/logs/jlogfiles/${RADMON_SUFFIX}_jlog
 
 export NWTEST=/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/ProdGSI/util/Radiance_Monitor/nwprod
 
