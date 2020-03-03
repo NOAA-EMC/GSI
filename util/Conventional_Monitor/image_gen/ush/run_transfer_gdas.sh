@@ -47,6 +47,5 @@ else
    echo "Manual intervention is required."
 fi
 
-unset -ax
 
 exit
