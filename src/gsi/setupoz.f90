@@ -212,7 +212,6 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   real(r_kind),dimension(nsig,nloz_omi+1):: doz_dz1
   integer(i_kind) :: oz_ind, nind, nnz
   type(sparr2) :: dhx_dx
-  real(r_single), dimension(nsdim) :: dhx_dx_array
 
   integer(i_kind) i,nlev,ii,jj,iextra,ibin, kk, nperobs
   integer(i_kind) k,j,nz,jc,idia,irdim1,istatus,ioff0
@@ -587,8 +586,9 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
                     call nc_diag_metadata("Row_Anomaly_Index",         sngl(rmiss)  )
                  endif
                  if (save_jacobian) then
-                    call fullarray(dhx_dx, dhx_dx_array)
-                    call nc_diag_data2d("Observation_Operator_Jacobian", dhx_dx_array)
+                   call nc_diag_data2d("Observation_Operator_Jacobian_stind", dhx_dx%st_ind)
+                   call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind)
+                   call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val,r_single))
                  endif
               endif
            endif
@@ -920,7 +920,13 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
         call nc_diag_header("Satellite_Sensor", isis)
         call nc_diag_header("Satellite", dplat(is))
         call nc_diag_header("Observation_type", obstype)
-        call nc_diag_header("Number_of_state_vars", nsdim          )
+        call nc_diag_header("pobs", pobs)
+        call nc_diag_header("gross",gross)
+        call nc_diag_header("tnoise",tnoise)
+        if (save_jacobian) then
+          call nc_diag_header("jac_nnz", nnz)
+          call nc_diag_header("jac_nind", nind)
+        endif
      endif
 
   end subroutine init_netcdf_diag_

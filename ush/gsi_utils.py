@@ -55,7 +55,14 @@ def get_ncdims(ncfile):
 
                ex:  ncdims['pfull'] = 127
   """
-  import netCDF4 as nc
+  try:
+    import netCDF4 as nc
+  except ImportError:
+    print("Python Error!")
+    print("netCDF4 Python module not available. Do you have the proper Python available in your environment?")
+    print("Hera: module use -a /contrib/modulefiles && module load anaconda/2.3.0")
+    print("Dell: module load python/3.6.3") 
+    print(" ")
   ncf = nc.Dataset(ncfile)
   ncdims = {}
   for d in ncf.dimensions.keys():
@@ -93,13 +100,21 @@ def get_timeinfo(ncfile):
    returns: inittime, validtime - datetime objects
             nfhour - integer forecast hour
   """
-  import netCDF4 as nc
+  try:
+    import netCDF4 as nc
+  except ImportError:
+    print("Python Error!")
+    print("netCDF4 Python module not available. Do you have the proper Python available in your environment?")
+    print("Hera: module use -a /contrib/modulefiles && module load anaconda/2.3.0")
+    print("Dell: module load python/3.6.3") 
+    print(" ")
   import datetime as dt
-  from cftime import _parse_date
+  import re
   ncf = nc.Dataset(ncfile)
   time_units = ncf['time'].units
   date_str = time_units.split('since ')[1]
-  initstr = '%04i%02i%02i%02i' % _parse_date(date_str)[0:4]
+  date_str = re.sub("[^0-9]", "", date_str)
+  initstr = date_str[0:10]
   inittime = dt.datetime.strptime(initstr,"%Y%m%d%H")
   nfhour = int(ncf['time'][0])
   validtime = inittime + dt.timedelta(hours=nfhour)

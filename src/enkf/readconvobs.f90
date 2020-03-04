@@ -447,7 +447,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
                             hx_mean, hx_mean_nobc, hx, hx_modens, x_obs, x_err,       &
                             x_lon, x_lat, x_press, x_time, x_code,         &
                             x_errorig, x_type, x_used, id, nanal, nmem)
-  use sparsearr, only: sparr, delete, assignment(=), init_raggedarr, raggedarr
+  use sparsearr, only: sparr, sparr2, new, delete, assignment(=), init_raggedarr, raggedarr
   use params, only: nanals, lobsdiag_forenkf, neigv, vlocal_evecs
   use statevec, only: state_d
   use mpisetup, only: nproc, mpi_wtime
@@ -483,13 +483,15 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
   character(len=4) pe_name
   character*500 obsfile, obsfile2
   character(len=10) :: id2
+
+  type(sparr2)    :: dhx_dx_read
   type(sparr)     :: dhx_dx
   type(raggedarr) :: hxpert
 
   character(len=3) :: obtype
 
   integer(i_kind) :: iunit, iunit2, ipe, itype
-  integer(i_kind) :: nobs, nobdiag, i, nob, nsdim
+  integer(i_kind) :: nobs, nobdiag, i, nob, nnz, nind
   real(r_kind) :: errorlimit,errorlimit2,error,errororig
   real(r_kind) :: obmax, pres
   real(r_kind) :: errorlimit2_obs,errorlimit2_bnd
@@ -504,7 +506,10 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
   real(r_single), allocatable, dimension (:) :: Obs_Minus_Forecast_adjusted2, v_Obs_Minus_Forecast_adjusted2
   real(r_single), allocatable, dimension (:) :: Obs_Minus_Forecast_unadjusted2, v_Obs_Minus_Forecast_unadjusted2
   real(r_single), allocatable, dimension (:) :: Forecast_Saturation_Spec_Hum
-  real(r_single), allocatable, dimension (:,:) :: Observation_Operator_Jacobian, v_Observation_Operator_Jacobian
+  integer(i_kind), allocatable, dimension (:,:) :: Observation_Operator_Jacobian_stind, v_Observation_Operator_Jacobian_stind
+  integer(i_kind), allocatable, dimension (:,:) :: Observation_Operator_Jacobian_endind, v_Observation_Operator_Jacobian_endind
+  real(r_single), allocatable, dimension (:,:) :: Observation_Operator_Jacobian_val, v_Observation_Operator_Jacobian_val
+
   integer(i_kind) :: ix, iy, it, ixp, iyp, itp, nprof
   real(r_kind) :: delx, dely, delxp, delyp, delt, deltp
   real(r_single) :: rlat,rlon,rtim,rlat_prev,rlon_prev,rtim_prev,eps
@@ -595,15 +600,26 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
            call nc_diag_read_get_var(iunit, 'Forecast_Saturation_Spec_Hum', Forecast_Saturation_Spec_Hum)
         endif
         if (lobsdiag_forenkf) then
-           call nc_diag_read_get_global_attr(iunit, "Number_of_state_vars", nsdim)
-           allocate(Observation_Operator_Jacobian(nsdim, nobs))
-           if (obtype == ' uv') then
-              call nc_diag_read_get_var(iunit, 'u_Observation_Operator_Jacobian', Observation_Operator_Jacobian)
-              allocate(v_Observation_Operator_Jacobian(nsdim, nobs))
-              call nc_diag_read_get_var(iunit, 'v_Observation_Operator_Jacobian', v_Observation_Operator_Jacobian)
-           else
-              call nc_diag_read_get_var(iunit, 'Observation_Operator_Jacobian', Observation_Operator_Jacobian)
-           endif
+          call nc_diag_read_get_global_attr(iunit, "jac_nnz", nnz)
+          call nc_diag_read_get_global_attr(iunit, "jac_nind", nind)
+          allocate(Observation_Operator_Jacobian_stind(nind, nobs))
+          allocate(Observation_Operator_Jacobian_endind(nind, nobs))
+          allocate(Observation_Operator_Jacobian_val(nnz, nobs))
+          if (obtype == ' uv') then
+            allocate(v_Observation_Operator_Jacobian_stind(nind, nobs))
+            allocate(v_Observation_Operator_Jacobian_endind(nind, nobs))
+            allocate(v_Observation_Operator_Jacobian_val(nnz, nobs))
+            call nc_diag_read_get_var(iunit, 'u_Observation_Operator_Jacobian_stind', Observation_Operator_Jacobian_stind)
+            call nc_diag_read_get_var(iunit, 'u_Observation_Operator_Jacobian_endind', Observation_Operator_Jacobian_endind)
+            call nc_diag_read_get_var(iunit, 'u_Observation_Operator_Jacobian_val', Observation_Operator_Jacobian_val)
+            call nc_diag_read_get_var(iunit, 'v_Observation_Operator_Jacobian_stind', v_Observation_Operator_Jacobian_stind)
+            call nc_diag_read_get_var(iunit, 'v_Observation_Operator_Jacobian_endind', v_Observation_Operator_Jacobian_endind)
+            call nc_diag_read_get_var(iunit, 'v_Observation_Operator_Jacobian_val',v_Observation_Operator_Jacobian_val)
+          else
+            call nc_diag_read_get_var(iunit, 'Observation_Operator_Jacobian_stind', Observation_Operator_Jacobian_stind)
+            call nc_diag_read_get_var(iunit, 'Observation_Operator_Jacobian_endind', Observation_Operator_Jacobian_endind)
+            call nc_diag_read_get_var(iunit, 'Observation_Operator_Jacobian_val', Observation_Operator_Jacobian_val)
+          endif
         endif
 
 
@@ -719,8 +735,11 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
                  hx(nob) = Observation(i) - Obs_Minus_Forecast_adjusted2(i)
               ! run the linearized Hx
               else
-                 dhx_dx = Observation_Operator_Jacobian(1:nsdim,i)
-
+                 call new(dhx_dx_read, nnz, nind)
+                 dhx_dx_read%st_ind = Observation_Operator_Jacobian_stind(:,i)
+                 dhx_dx_read%end_ind = Observation_Operator_Jacobian_endind(:,i)
+                 dhx_dx_read%val = Observation_Operator_Jacobian_val(:,i)
+                 dhx_dx = dhx_dx_read
                  t1 = mpi_wtime()
                  rlat = x_lat(nob)*deg2rad
                  rlon = x_lon(nob)*deg2rad
@@ -751,6 +770,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
                  tsum = tsum + t2-t1
 
                  call delete(dhx_dx)
+                 call delete(dhx_dx_read)
               endif
 
               ! normalize q by qsatges
@@ -804,7 +824,11 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
                  ! run linearized Hx
                  else
                     t1 = mpi_wtime()
-                    dhx_dx = v_Observation_Operator_Jacobian(1:nsdim,i)
+                    call new(dhx_dx_read, nnz, nind)
+                    dhx_dx_read%st_ind = v_Observation_Operator_Jacobian_stind(:,i)
+                    dhx_dx_read%end_ind = v_Observation_Operator_Jacobian_endind(:,i)
+                    dhx_dx_read%val = v_Observation_Operator_Jacobian_val(:,i)
+                    dhx_dx = dhx_dx_read
                     ! don't need this since we know ob location is the same?
                     rlat = x_lat(nob)*deg2rad
                     rlon = x_lon(nob)*deg2rad
@@ -831,6 +855,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
                     t2 = mpi_wtime()
                     tsum = tsum + t2-t1
                     call delete(dhx_dx)
+                    call delete(dhx_dx_read)
                  endif
               endif
            endif
@@ -854,9 +879,13 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
         endif
 
         if (lobsdiag_forenkf) then
-           deallocate(Observation_Operator_Jacobian)
+           deallocate(Observation_Operator_Jacobian_stind)
+           deallocate(Observation_Operator_Jacobian_endind)
+           deallocate(Observation_Operator_Jacobian_val)
            if (obtype == ' uv') then
-              deallocate(v_Observation_Operator_Jacobian)
+              deallocate(v_Observation_Operator_Jacobian_stind)
+              deallocate(v_Observation_Operator_Jacobian_endind)
+              deallocate(v_Observation_Operator_Jacobian_val)
            endif
         endif
 

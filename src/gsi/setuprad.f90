@@ -361,7 +361,6 @@ contains
   logical cao_flag                       
   logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,ahi,mhs,abi
   type(sparr2) :: dhx_dx
-  real(r_single), dimension(nsdim) :: dhx_dx_array
   logical avhrr,avhrr_navy,lextra,ssu,iasi,cris,seviri,atms
   logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig,amsr2,gmi,saphir
   logical ssmis_las,ssmis_uas,ssmis_env,ssmis_img
@@ -2211,9 +2210,10 @@ contains
            call nc_diag_header("New_pc4pred",          inewpc         )        ! indicator of newpc4pred (1 on, 0 off)
            call nc_diag_header("ioff0",                ioff0          )
            call nc_diag_header("ijacob",               ijacob         )
-!           call nc_diag_header("Number_of_state_vars", nsdim          )
-           call nc_diag_header("jac_nnz", nsigradjac)
-           call nc_diag_header("jac_nind", nvarjac)
+           if (save_jacobian) then
+             call nc_diag_header("jac_nnz", nnz)
+             call nc_diag_header("jac_nind", nind)
+           endif
 
 !           call nc_diag_header("Outer_Loop_Iteration", headfix%jiter)
 !           call nc_diag_header("Satellite_Sensor", headfix%isis)
@@ -2619,7 +2619,6 @@ contains
                        endif
                     enddo
 
-                    call fullarray(dhx_dx, dhx_dx_array)
                     call nc_diag_data2d("Observation_Operator_Jacobian_stind", dhx_dx%st_ind)
                     call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind)
                     call nc_diag_data2d("Observation_Operator_Jacobian_val",  real(dhx_dx%val,r_single))

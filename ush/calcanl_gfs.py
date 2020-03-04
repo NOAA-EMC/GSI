@@ -151,8 +151,13 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
     [hosts.append(x) for x in hosts_tmp if x not in hosts]
     nhosts = len(hosts)
     ExecCMDMPI_host = 'mpirun -np '+str(nFH)+' --hostfile hosts' 
-    ExecCMDMPILevs_host = 'mpirun -np '+str(levs)+' --hostfile hosts'
-    ExecCMDMPILevs_nohost = 'mpirun -np '+str(levs)
+    tasks = int(os.getenv('LSB_DJOB_NUMPROC',1))
+    if levs > tasks:
+      ExecCMDMPILevs_host = 'mpirun -np '+str(tasks)+' --hostfile hosts'
+      ExecCMDMPILevs_nohost = 'mpirun -np '+str(tasks)
+    else:
+      ExecCMDMPILevs_host = 'mpirun -np '+str(levs)+' --hostfile hosts'
+      ExecCMDMPILevs_nohost = 'mpirun -np '+str(levs)
     ExecCMDMPI1_host = 'mpirun -np 1 --hostfile hosts' 
     ExecCMDMPI10_host = 'mpirun -np 10 --hostfile hosts' 
   elif launcher == 'srun':
@@ -164,8 +169,14 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
     [hosts.append(x) for x in hosts_tmp if x not in hosts]
     nhosts = len(hosts)
     ExecCMDMPI_host = 'srun -n '+str(nFH)+' --verbose --export=ALL -c 1 --distribution=arbitrary --cpu-bind=cores'
-    ExecCMDMPILevs_host = 'srun -n '+str(levs)+' --verbose --export=ALL -c 1 --distribution=arbitrary --cpu-bind=cores'
-    ExecCMDMPILevs_nohost = 'srun -n '+str(levs)+' --verbose --export=ALL'
+    # need to account for when fewer than LEVS tasks are available
+    tasks = int(os.getenv('SLURM_NPROCS',1))
+    if levs > tasks:
+      ExecCMDMPILevs_host = 'srun -n '+str(tasks)+' --verbose --export=ALL -c 1 --distribution=arbitrary --cpu-bind=cores'
+      ExecCMDMPILevs_nohost = 'srun -n '+str(tasks)+' --verbose --export=ALL'
+    else:
+      ExecCMDMPILevs_host = 'srun -n '+str(levs)+' --verbose --export=ALL -c 1 --distribution=arbitrary --cpu-bind=cores'
+      ExecCMDMPILevs_nohost = 'srun -n '+str(levs)+' --verbose --export=ALL'
     ExecCMDMPI1_host = 'srun -n 1 --verbose --export=ALL -c 1 --distribution=arbitrary --cpu-bind=cores'
     ExecCMDMPI10_host = 'srun -n 10 --verbose --export=ALL -c 1 --distribution=arbitrary --cpu-bind=cores'
   elif launcher == 'aprun':
@@ -207,6 +218,9 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
         ihost = 0
       with open(CalcAnlDir+'/hosts', 'w') as hostfile:
           hostfile.write(hosts[ihost]+'\n')
+          if launcher == 'srun': # need to write host per task not per node for slurm
+            for a in range(0,9): # need 9 more of the same host for the 10 tasks for chgres_inc
+              hostfile.write(hosts[ihost]+'\n')
       if launcher == 'srun':
         os.environ['SLURM_HOSTFILE'] = CalcAnlDir+'/hosts'
       print('interp_inc', fh, namelist)
@@ -240,13 +254,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
   if ihost >= nhosts:
     ihost = 0
   if launcher == 'srun':
-    os.environ['SLURM_HOSTFILE'] = CalcAnlDir6+'/hosts'
-    with open(CalcAnlDir6+'/hosts', 'w') as hostfile:
-      for a in range(nFH):
-        hostfile.write(hosts[ihost]+'\n')
-  else:
-    with open(CalcAnlDir6+'/hosts', 'w') as hostfile:
-        hostfile.write(hosts[ihost]+'\n')
+    del os.environ['SLURM_HOSTFILE']
   print('fullres_calc_anl', namelist)
   fullres_anl_job = subprocess.Popen(ExecCMDMPILevs_nohost+' '+CalcAnlDir6+'/calc_anl.x', shell=True, cwd=CalcAnlDir6)
   print(ExecCMDMPILevs_nohost+' '+CalcAnlDir6+'/calc_anl.x submitted')
@@ -303,6 +311,8 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
 
     sys.stdout.flush()
     ######## generate ensres analysis from interpolated background
+    if launcher == 'srun':
+      del os.environ['SLURM_HOSTFILE']
     for fh in IAUHH:
       CalcAnlDir6 = RunDir+'/calcanl_ensres_'+format(6, '02')
       # set up the namelist
@@ -320,14 +330,6 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
       # run the executable
       if ihost > nhosts:
         ihost = 0
-      if launcher == 'srun':
-        os.environ['SLURM_HOSTFILE'] = CalcAnlDir6+'/hosts'
-        with open(CalcAnlDir6+'/hosts', 'w') as hostfile:
-          for a in range(nFH):
-            hostfile.write(hosts[ihost]+'\n')
-      else:
-        with open(CalcAnlDir6+'/hosts', 'w') as hostfile:
-          hostfile.write(hosts[ihost]+'\n')
       print('ensres_calc_anl', namelist)
       ensres_anl_job = subprocess.Popen(ExecCMDMPILevs_nohost+' '+CalcAnlDir6+'/calc_anl.x', shell=True, cwd=CalcAnlDir6)
       print(ExecCMDMPILevs_nohost+' '+CalcAnlDir6+'/calc_anl.x submitted')

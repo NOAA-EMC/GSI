@@ -14,7 +14,7 @@ contains
     !! read in namelist parameters from
     !! calc_analysis.nml file in same directory
     !! as executable
-    use vars_calc_analysis, only: anal_file, fcst_file, incr_file, use_nemsio_anl, fhr, mype
+    use vars_calc_analysis, only: anal_file, fcst_file, incr_file, use_nemsio_anl, fhr, mype, npes
     implicit none
     ! local variables to this subroutine
     character(len=500) :: datapath = './'
@@ -51,6 +51,7 @@ contains
       write(6,*) 'First Guess File = ', trim(fcst_file)
       write(6,*) 'Increment File   = ', trim(incr_file) 
       write(6,*) 'Forecast Hour    = ', fhr
+      write(6,*) 'Number of PEs    = ', npes
       write(6,*) 'input guess file and increment file should be in netCDF format'
       if (use_nemsio_anl) then
         write(6,*) 'writing analysis in NEMSIO format'

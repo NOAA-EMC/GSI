@@ -208,6 +208,9 @@ subroutine read_gfs_ozone_for_regional
           nfhour=nfhour,nfminute=nfminute,nfsecondn=nfsecondn,nfsecondd=nfsecondd, &
           idate=idate,dimx=lonb,dimy=latb,dimz=levs,jcap=njcap,idvc=idvc,idsl=idsl)
 
+     ! FV3GFS write component does not include JCAP, infer from DIMY-2
+     if (njcap<0) njcap=latb-2
+ 
      if (nframe /= 0) call error_msg(trim(my_name),trim(filename),'nframe', &
                                      'getfilehead',istop,nframe)
 

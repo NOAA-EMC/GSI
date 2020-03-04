@@ -101,6 +101,13 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !   2019-05-24  Su      -  remove current VQC part and add subroutine call and
 !                          add new variational QC option 
 !  
+!                          duplicate obs in twodvar_regional applications  
+!   2020-01-27  Winterbottom - moved the linear regression derived
+!                              coefficients for the dynamic observation
+!                              error (DOE) calculation to the namelist
+!                              level; they are now loaded by
+!                              aircraftinfo.
+!
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -129,7 +136,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   use obsmod, only: rmiss_single,perturb_obs,oberror_tune,&
        lobsdiagsave,nobskeep,lobsdiag_allocated,&
-       time_offset,lobsdiag_forenkf
+       time_offset,lobsdiag_forenkf,aircraft_recon
   use m_obsNode, only: obsNode
   use m_qNode, only: qNode
   use m_qNode, only: qNode_appendto
@@ -162,6 +169,15 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use sparsearr, only: sparr2, new, size, writearray, fullarray
   use state_vectors, only: svars3d, levels, nsdim
+
+  ! The following variables are the coefficients that describe the
+  ! linear regression fits that are used to define the dynamic
+  ! observation error (DOE) specifications for all reconnissance
+  ! observations collected within hurricanes/tropical cyclones; these
+  ! apply only to the regional forecast models (e.g., HWRF); Henry
+  ! R. Winterbottom (henry.winterbottom@noaa.gov).
+  
+  use obsmod, only: q_doe_a_136,q_doe_a_137,q_doe_b_136,q_doe_b_137
 
   implicit none
 
@@ -223,7 +239,6 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   integer(i_kind) ibb,ikk
   real(r_kind) :: delz
   type(sparr2) :: dhx_dx
-  real(r_single), dimension(nsdim) :: dhx_dx_array
   integer(i_kind) :: iz, q_ind, nind, nnz
 
   character(8) station_id
@@ -491,6 +506,29 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      rmaxerr=rmaxerr*qsges
      rmaxerr=max(small2,rmaxerr)
      errorx =(data(ier,i)+dprpx)*qsges
+
+! Interpolate guess moisture to observation location and time
+     call tintrp31(ges_q,qges,dlat,dlon,dpres,dtime, &
+        hrdifsig,mype,nfldsig)
+    
+     ddiff=qob-qges 
+  
+!    Setup dynamic ob error specification for aircraft recon in hurricanes 
+
+     if (aircraft_recon) then
+       if (itype == 136 ) then
+
+         errorx = q_doe_a_136*abs(ddiff)+q_doe_b_136
+         
+       endif
+
+       if (itype == 137 ) then
+
+         errorx = q_doe_a_137*abs(ddiff)+q_doe_b_137
+         
+       endif
+     endif
+
      errorx =max(small1,errorx)
     
 
@@ -519,11 +557,6 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !    Check to see if observations is above the top of the model (regional mode)
      if (dpres > rsig) ratio_errors=zero
      error=one/(error*qsges)
-
-
-! Interpolate guess moisture to observation location and time
-     call tintrp31(ges_q,qges,dlat,dlon,dpres,dtime, &
-        hrdifsig,mype,nfldsig)
 
      iz = max(1, min( int(dpres), nsig))
      delz = max(zero, min(dpres - float(iz), one))
@@ -567,12 +600,10 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            write(6,*) 'Invalid i_use_2mq4b number=',i_use_2mq4b
            call stop2(100)
         endif
+        ddiff=qob-qges
      endif
 
-! Compute innovations
 
-     ddiff=qob-qges
-!
 !    If requested, setup for single obs test.
      if (oneobtest) then
         ddiff=maginnov*1.e-3_r_kind
@@ -1020,7 +1051,10 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
      if (.not. append_diag) then ! don't write headers on append - the module will break?
         call nc_diag_header("date_time",ianldate )
-        call nc_diag_header("Number_of_state_vars", nsdim          )
+        if (save_jacobian) then
+          call nc_diag_header("jac_nnz", nnz)
+          call nc_diag_header("jac_nind", nind)
+        endif
      endif
   end subroutine init_netcdf_diag_
   subroutine contents_binary_diag_(odiag)
@@ -1199,8 +1233,9 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               call nc_diag_metadata("Subprovider_Name",  c_sprvstg                    )
            endif
            if (save_jacobian) then
-              call fullarray(dhx_dx, dhx_dx_array)
-              call nc_diag_data2d("Observation_Operator_Jacobian", dhx_dx_array)
+             call nc_diag_data2d("Observation_Operator_Jacobian_stind", dhx_dx%st_ind)
+             call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind)
+             call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val,r_single))
            endif
 
   end subroutine contents_netcdf_diag_
@@ -1238,8 +1273,9 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata("Forecast_Saturation_Spec_Hum",  sngl(qsges)       )
 
            if (save_jacobian) then
-              call fullarray(dhx_dx, dhx_dx_array)
-              call nc_diag_data2d("Observation_Operator_Jacobian", dhx_dx_array)
+             call nc_diag_data2d("Observation_Operator_Jacobian_stind", dhx_dx%st_ind)
+             call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind)
+             call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val,r_single))
            endif
   end subroutine contents_netcdf_diagp_
 
