@@ -52,7 +52,7 @@ use gridinfo,  only: getgridinfo, gridinfo_cleanup,                    &
 use params,    only: nlevs, nbackgrounds, fgfileprefixes, reducedgrid, &
                      nanals, pseudo_rh, use_qsatensmean, nlons, nlats,&
                      nanals_per_iotask, ntasks_io, nanal1, nanal2, &
-                     fgsfcfileprefixes, paranc, task_ianal
+                     fgsfcfileprefixes
 use kinds,     only: r_kind, i_kind, r_double, r_single
 use mpeu_util, only: gettablesize, gettable, getindex
 use constants, only: max_varname_length
@@ -210,7 +210,7 @@ end if
 
 ! read in whole control vector on i/o procs - keep in memory 
 ! (needed in write_ensemble)
-if (task_ianal(nproc) > 0) then
+if (nproc <= ntasks_io-1) then
    allocate(grdin(npts,ncdim,nbackgrounds,nanals_per_iotask))
    allocate(qsat(npts,nlevs,nbackgrounds,nanals_per_iotask))
    if (nproc == 0) t1 = mpi_wtime()
@@ -285,7 +285,7 @@ integer(i_kind) :: nb, nvar, ne
 integer(i_kind) :: q_ind, ierr
 real(r_single), allocatable, dimension(:,:) :: grdin_mean, grdin_mean_tmp
 
-if (task_ianal(nproc) > 0) then
+if (nproc <= ntasks_io-1) then
 
    allocate(grdin_mean_tmp(npts,ncdim))
    if (nproc == 0) then

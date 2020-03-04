@@ -46,7 +46,7 @@ use gridinfo, only: getgridinfo, gridinfo_cleanup,               &
                     npts, vars3d_supported, vars2d_supported
 use params, only: nlevs,nstatefields,nanals,statefileprefixes,&
                   ntasks_io,nanals_per_iotask,nanal1,nanal2, &
-                  statesfcfileprefixes, paranc, task_ianal
+                  statesfcfileprefixes, paranc
 use kinds, only: r_kind, i_kind, r_double, r_single
 use mpeu_util, only: gettablesize, gettable, getindex
 use constants, only : max_varname_length
@@ -185,13 +185,19 @@ if (npts < numproc) then
 end if
 
 ! read in whole state vector on i/o procs - keep in memory 
-if (task_ianal(nproc) > 0) then
-   allocate(state_d(npts,nsdim,nstatefields,nanals_per_iotask))
-   allocate(qsat(npts,nlevs,nstatefields,nanals_per_iotask))
-   nanal = nproc + 1
+allocate(state_d(npts,nsdim,nstatefields,nanals_per_iotask))
+allocate(qsat(npts,nlevs,nstatefields,nanals_per_iotask))
+if (paranc) then
+   call readgriddata_pnc(svars3d,svars2d,ns3d,ns2d,slevels,nsdim,nstatefields, &
+                         statefileprefixes,statesfcfileprefixes,.false.,state_d,qsat)
+end if
 
-   call readgriddata(nanal1(nproc),nanal2(nproc),svars3d,svars2d,ns3d,ns2d,slevels,nsdim,nstatefields, &
+if (nproc <= ntasks_io-1) then
+   nanal = nproc + 1
+   if ( .not. paranc) then
+      call readgriddata(nanal1(nproc),nanal2(nproc),svars3d,svars2d,ns3d,ns2d,slevels,nsdim,nstatefields, &
                      statefileprefixes,statesfcfileprefixes,.false.,state_d,qsat)
+   end if
 
    ! subtract the mean
    allocate(state_mean(npts)) 
@@ -207,7 +213,8 @@ if (task_ianal(nproc) > 0) then
    enddo
    deallocate(state_mean)
    deallocate(qsat)
-
+else
+   deallocate(state_d)
 endif
 
 end subroutine read_state

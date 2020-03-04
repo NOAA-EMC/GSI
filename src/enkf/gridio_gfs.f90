@@ -42,18 +42,242 @@
 !$$$
  use constants, only: zero,one,cp,fv,rd,tiny_r_kind,max_varname_length,t0c,r0_05
  use params, only: nlons,nlats,nlevs,use_gfs_nemsio,pseudo_rh, &
-                   cliptracers,datapath,imp_physics,use_gfs_ncio,cnvw_option
+                   cliptracers,datapath,imp_physics,use_gfs_ncio,cnvw_option, &
+                   nanals
  use kinds, only: i_kind,r_double,r_kind,r_single
  use gridinfo, only: ntrunc,npts  ! gridinfo must be called first!
  use specmod, only: sptezv_s, sptez_s, init_spec_vars, ndimspec => nc, &
                     isinitialized
  use reducedgrid_mod, only: regtoreduced, reducedtoreg
- use mpisetup, only: nproc
+ use mpisetup, only: nproc, numproc
+ use mpimod, only: mpi_comm_world
  use mpeu_util, only: getindex
  implicit none
  private
  public :: readgriddata, writegriddata
  contains
+
+ subroutine readgriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,ntimes, &
+                             fileprefixes,filesfcprefixes,reducedgrid,grdin,qsat)
+  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                 quantize_data,read_attribute, close_dataset, get_dim, read_vardata
+  implicit none
+
+  character(len=max_varname_length), dimension(n2d), intent(in) :: vars2d
+  character(len=max_varname_length), dimension(n3d), intent(in) :: vars3d
+  integer, intent(in) :: n2d, n3d
+  integer, dimension(0:n3d), intent(in) :: levels
+  integer, intent(in) :: ndim, ntimes
+  character(len=120), dimension(7), intent(in)  :: fileprefixes
+  character(len=120), dimension(7), intent(in)  :: filesfcprefixes
+  logical, intent(in) :: reducedgrid
+  real(r_single), dimension(npts,ndim,ntimes,nanal2-nanal1+1), intent(out) :: grdin
+  real(r_double), dimension(npts,nlevs,ntimes,nanal2-nanal1+1), intent(out) :: qsat
+
+  character(len=500) :: filename
+  character(len=500) :: filenamesfc
+  character(len=7) charnanal
+
+  real(r_kind) :: kap,kapr,kap1,clip,qi_coef
+
+  real(r_kind), allocatable, dimension(:,:)     :: vmassdiv
+  real(r_single), allocatable, dimension(:,:)   :: pressi,pslg,values_2d
+  real(r_kind), dimension(nlons*nlats)          :: ug,vg
+  real(r_single), dimension(npts,nlevs)         :: tv, q, cw
+  real(r_single), dimension(npts,nlevs)         :: ql, qi, qr, qs, qg 
+  real(r_kind), dimension(ndimspec)             :: vrtspec,divspec
+  real(r_kind), allocatable, dimension(:)       :: psg,pstend,ak,bk
+  real(r_single),allocatable,dimension(:,:,:)   :: ug3d,vg3d
+  type(Dataset) :: dset
+  type(Dimension) :: londim,latdim,levdim
+
+  integer(i_kind) :: u_ind, v_ind, tv_ind, q_ind, oz_ind, cw_ind
+  integer(i_kind) :: qr_ind, qs_ind, qg_ind   
+  integer(i_kind) :: tsen_ind, ql_ind, qi_ind, prse_ind
+  integer(i_kind) :: ps_ind, pst_ind, sst_ind
+
+  integer(i_kind) :: k,iunitsig,iret,nb,i,imem,idvc,nlonsin,nlatsin,nlevsin,ne,nanal
+  integer(i_kind) :: nlonsin_sfc,nlatsin_sfc
+  logical ice
+  logical use_full_hydro   
+  integer(i_kind), allocatable, dimension(:) :: mem_pe, lev_pe, iocomms
+  integer(i_kind) :: iope, ionumproc
+
+  ! figure out what member to read and do MPI sub-communicator things
+  allocate(mem_pe(0:numproc-1))
+  allocate(iocomms(nanals))
+  imem = 1
+  do i=0,numproc-1
+    mem_pe(i) = imem
+    imem = imem + 1
+    if (imem > nanals) imem = 1
+  end do  
+
+  call mpi_comm_split(mpi_comm_world, mem_pe(nproc), nproc, iocomms(mem_pe(nproc)), iret)
+  call mpi_comm_rank(iocomms(mem_pe(nproc)), iope, iret)
+  call mpi_comm_size(iocomms(mem_pe(nproc)), ionumproc, iret)
+  
+  ! figure out what levels to read on this sub-communicator's PE
+  allocate(lev_pe(nlevs))
+  imem = 0
+  do i=1, nlevs
+    lev_pe(i) = imem
+    imem = imem + 1
+    if (imem > ionumproc-1) imem = 0
+  end do
+ 
+  ! loop through times and do the read
+  ne = 1
+  backgroundloop: do nb=1,ntimes
+
+  write(charnanal,'(a3, i3.3)') 'mem', mem_pe(nproc)
+  filename = trim(adjustl(datapath))//trim(adjustl(fileprefixes(nb)))//trim(charnanal)
+  filenamesfc = trim(adjustl(datapath))//trim(adjustl(filesfcprefixes(nb)))//trim(charnanal)
+  if (use_gfs_ncio) then
+     dset = open_dataset(filename)
+     londim = get_dim(dset,'grid_xt'); nlonsin = londim%len
+     latdim = get_dim(dset,'grid_yt'); nlatsin = latdim%len
+     levdim = get_dim(dset,'pfull');   nlevsin = levdim%len
+     idvc=2
+  else
+     print *, 'parallel read only supported for netCDF, stopping with error'
+     call stop2(23)
+  end if
+  ice = .false. ! calculate qsat w/resp to ice?
+  kap = rd/cp
+  kapr = cp/rd
+  kap1 = kap+one
+
+  u_ind   = getindex(vars3d, 'u')   !< indices in the state or control var arrays
+  v_ind   = getindex(vars3d, 'v')   ! U and V (3D)
+  tv_ind  = getindex(vars3d, 'tv')  ! Tv (3D)
+  q_ind   = getindex(vars3d, 'q')   ! Q (3D)
+  oz_ind  = getindex(vars3d, 'oz')  ! Oz (3D)
+  cw_ind  = getindex(vars3d, 'cw')  ! CW (3D)
+  tsen_ind = getindex(vars3d, 'tsen') !sensible T (3D)
+  ql_ind  = getindex(vars3d, 'ql')  ! QL (3D)
+  qi_ind  = getindex(vars3d, 'qi')  ! QI (3D)
+  prse_ind = getindex(vars3d, 'prse')
+  qr_ind  = getindex(vars3d, 'qr')  ! QR (3D)
+  qs_ind  = getindex(vars3d, 'qs')  ! QS (3D)
+  qg_ind  = getindex(vars3d, 'qg')  ! QG (3D)
+  ps_ind  = getindex(vars2d, 'ps')  ! Ps (2D)
+  pst_ind = getindex(vars2d, 'pst') ! Ps tendency (2D)   // equivalent of
+                                     ! old logical massbal_adjust, if non-zero
+  sst_ind = getindex(vars2d, 'sst')
+  use_full_hydro = ( ql_ind > 0 .and. qi_ind > 0  .and. &
+                     qr_ind > 0 .and. qs_ind > 0 .and. qg_ind > 0 )
+
+  if (.not. isinitialized) call init_spec_vars(nlons,nlats,ntrunc,4)
+
+  allocate(pressi(nlons*nlats,nlevs+1))
+  allocate(pslg(npts,nlevs))
+  allocate(psg(nlons*nlats))
+  if (pst_ind > 0) allocate(vmassdiv(nlons*nlats,nlevs),pstend(nlons*nlats))
+
+  call read_vardata(dset, 'pressfc', values_2d,errcode=iret)
+  if (iret /= 0) then
+     print *,'error reading ps'
+     call stop2(31)
+  endif
+  psg = 0.01_r_kind*reshape(values_2d,(/nlons*nlats/))
+  call read_attribute(dset, 'ak', ak)
+  call read_attribute(dset, 'bk', bk)
+  if (nanal .eq. 1) then
+     print *,'time level ',nb
+     print *,'---------------'
+  endif
+  ! pressure at interfaces
+  do k=1,nlevs+1
+     pressi(:,k) = 0.01_r_kind*ak(nlevs-k+2)+bk(nlevs-k+2)*psg
+     if (nanal .eq. 1) print *,'netcdf, min/max pressi',k,minval(pressi(:,k)),maxval(pressi(:,k))
+  enddo
+  deallocate(ak,bk,values_2d)
+
+  do k=1,nlevs
+     if (levpe(k) == iope) then
+        call read_vardata(dset, 'ugrd', ug3d, nslice=nlevs-k+1, slicedim=3, errcode=iret)
+        if (iret /= 0) then
+           print *,'error reading ugrd'
+           call stop2(22)
+        endif
+        call read_vardata(dset, 'vgrd', vg3d, nslice=nlevs-k+1, slicedim=3, errcode=iret)
+        if (iret /= 0) then
+           print *,'error reading vgrd'
+           call stop2(23)
+        endif
+        ug = reshape(ug3d(:,:,1),(/nlons*nlats/))
+        vg = reshape(vg3d(:,:,1),(/nlons*nlats/))
+        if (u_ind > 0) call copytogrdin(ug,grdin(:,levels(u_ind-1) + k,nb,ne))
+        if (v_ind > 0) call copytogrdin(vg,grdin(:,levels(v_ind-1) + k,nb,ne))
+        ! calculate vertical integral of mass flux div (ps tendency)
+        ! this variable is analyzed in order to enforce mass balance in the analysis
+        if (pst_ind > 0) then
+           ug = ug*(pressi(:,k)-pressi(:,k+1))
+           vg = vg*(pressi(:,k)-pressi(:,k+1))
+           call sptezv_s(divspec,vrtspec,ug,vg,-1) ! u,v to div,vrt
+           call sptez_s(divspec,vmassdiv(:,k),1) ! divspec to divgrd
+        endif
+     end if
+  enddo
+  call read_vardata(dset,'tmp', ug3d,errcode=iret)
+  if (iret /= 0) then
+     print *,'error reading tmp'
+     call stop2(24)
+  endif
+  call read_vardata(dset,'spfh', vg3d,errcode=iret)
+  if (iret /= 0) then
+     print *,'error reading spfh'
+     call stop2(25)
+  endif
+  do k=1,nlevs
+     ug = reshape(ug3d(:,:,nlevs-k+1),(/nlons*nlats/))
+     vg = reshape(vg3d(:,:,nlevs-k+1),(/nlons*nlats/))
+     if (tsen_ind > 0) call copytogrdin(ug,grdin(:,levels(tsen_ind-1)+k,nb,ne))
+     call copytogrdin(vg, q(:,k))
+     ug = ug * ( 1.0 + fv*vg ) ! convert T to Tv
+     call copytogrdin(ug,tv(:,k))
+     if (tv_ind > 0)   grdin(:,levels(tv_ind-1)+k,nb,ne) = tv(:,k)
+     if (q_ind > 0)    grdin(:,levels( q_ind-1)+k,nb,ne) =  q(:,k)
+  enddo
+  if (oz_ind > 0) then
+     call read_vardata(dset, 'o3mr', ug3d,errcode=iret)
+     if (iret /= 0) then
+        print *,'error reading o3mr'
+        call stop2(26)
+     endif
+     if (cliptracers)  where (ug3d < clip) ug3d = clip
+     do k=1,nlevs
+        ug = reshape(ug3d(:,:,nlevs-k+1),(/nlons*nlats/))
+        call copytogrdin(ug,grdin(:,levels(oz_ind-1)+k,nb,ne))
+     enddo
+  endif
+  if (cw_ind > 0 .or. ql_ind > 0 .or. qi_ind > 0) then
+     call read_vardata(dset, 'clwmr', ug3d,errcode=iret)
+     if (iret /= 0) then
+        print *,'error reading clwmr'
+        call stop2(27)
+     endif
+     if (imp_physics == 11) then
+        call read_vardata(dset, 'icmr', vg3d,errcode=iret)
+        if (iret /= 0) then
+           print *,'error reading icmr'
+           call stop2(28)
+        endif
+        ug3d = ug3d + vg3d
+     endif
+     if (cliptracers)  where (ug3d < clip) ug3d = clip
+     do k=1,nlevs
+        ug = reshape(ug3d(:,:,nlevs-k+1),(/nlons*nlats/))
+        call copytogrdin(ug,cw(:,k))
+        if (cw_ind > 0) grdin(:,levels(cw_ind-1)+k,nb,ne) = cw(:,k)
+     enddo
+  endif
+  deallocate(ug3d,vg3d)
+!$omp parallel do private(k,ug,vg,divspec,vrtspec)  shared(sigdata,pressi,vmassdiv,grdin,tv,q,cw,u_ind,v_ind,pst_ind,q_ind,tsen_ind,cw_ind,qi_ind,ql_ind)
+     do k=1,nlevs
+   
+        vrtspec = sigdata%z(:,k); divspec = sigdata%d(:,k)
 
  subroutine readgriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,ntimes, & 
                          fileprefixes,filesfcprefixes,reducedgrid,grdin,qsat)
@@ -159,7 +383,6 @@
         endif
      endif
   else if (use_gfs_ncio) then
-     print *, 'mype is=',nproc, 'filename=',trim(filename)
      dset = open_dataset(filename)
      londim = get_dim(dset,'grid_xt'); nlonsin = londim%len
      latdim = get_dim(dset,'grid_yt'); nlatsin = latdim%len
