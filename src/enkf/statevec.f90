@@ -39,7 +39,7 @@ module statevec
 !
 !$$$
 
-use gridio, only: readgriddata
+use gridio, only: readgriddata, readgriddata_pnc
 use mpisetup, only: mpi_real4,mpi_sum,mpi_comm_io,mpi_in_place,numproc,nproc
 use mpimod, only: mpi_comm_world
 use gridinfo, only: getgridinfo, gridinfo_cleanup,               &
