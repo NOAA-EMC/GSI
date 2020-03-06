@@ -46,7 +46,7 @@ use mpimod, only: mpi_comm_world
 use mpisetup, only: mpi_real4,mpi_sum,mpi_comm_io,mpi_in_place,numproc,nproc,&
                 mpi_integer,mpi_wtime,mpi_status,mpi_real8
 
-use gridio,    only: readgriddata, readgriddata_pnc, writegriddata
+use gridio,    only: readgriddata, readgriddata_pnc, writegriddata, writegriddata_pnc
 use gridinfo,  only: getgridinfo, gridinfo_cleanup,                    &
                      npts, vars3d_supported, vars2d_supported
 use params,    only: nlevs, nbackgrounds, fgfileprefixes, reducedgrid, &
