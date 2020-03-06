@@ -1804,7 +1804,7 @@ subroutine read_obs(ndata,mype)
 !         Process satellite lightning observations (e.g. GOES/GLM)                     
           else if(ditype(i) == 'light')then
                if (obstype == 'goes_glm' ) then
-             call read_goesglm(nread,ndata,nodata,infile,obstype,lunout,sis)
+             call read_goesglm(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
              string='READ_GOESGLM'
                endif
 

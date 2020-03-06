@@ -658,7 +658,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     if( fv3sar_bg_opt == 0) then 
        call gsi_fv3ncdf_read(dynvars,'T','t',ges_tsen(1,1,1,it),mype_t)
     else
-       call gsi_fv3ncdf_read_v1(dynvars,'','T',ges_tsen(1,1,1,it),mype_t)
+       call gsi_fv3ncdf_read_v1(dynvars,'t','T',ges_tsen(1,1,1,it),mype_t)
     endif
 
     if( fv3sar_bg_opt == 0) then 

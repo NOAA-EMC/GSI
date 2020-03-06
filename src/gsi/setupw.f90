@@ -31,7 +31,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   use obsmod, only: rmiss_single,perturb_obs,oberror_tune,lobsdiag_forenkf,&
        lobsdiagsave,nobskeep,lobsdiag_allocated,&
-       time_offset,bmiss,ianldate
+       time_offset,bmiss,ianldate,aircraft_recon
   use m_obsNode, only: obsNode
   use m_wNode, only: wNode
   use m_wNode, only: wNode_appendto
@@ -70,6 +70,15 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use sparsearr, only: sparr2, new, size, writearray, fullarray
 
+  ! The following variables are the coefficients that describe the
+  ! linear regression fits that are used to define the dynamic
+  ! observation error (DOE) specifications for all reconnissance
+  ! observations collected within hurricanes/tropical cyclones; these
+  ! apply only to the regional forecast models (e.g., HWRF); Henry
+  ! R. Winterbottom (henry.winterbottom@noaa.gov).
+  
+  use obsmod, only: uv_doe_a_236,uv_doe_a_237,uv_doe_b_236,uv_doe_b_237
+  
   implicit none
   
   type(obsLList ),target,dimension(:),intent(in):: obsLL
@@ -189,7 +198,11 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !                       . Remove my_node with corrected typecast().
 !   2018-04-09  pondeca -  introduce duplogic to correctly handle the characterization of
 !                          duplicate obs in twodvar_regional applications
-!
+!   2020-01-27  Winterbottom - moved the linear regression derived
+!                              coefficients for the dynamic observation
+!                              error (DOE) calculation to the namelist
+!                              level; they are now loaded by
+!                              aircraftinfo.
 !
 ! REMARKS:
 !   language: f90
@@ -290,6 +303,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   type(obs_diags),pointer :: my_diagLL
   real(r_kind) :: thisPBL_height,ratio_PBL_height,prest,prestsfc,dudiffsfc,dvdiffsfc
   real(r_kind) :: hr_offset
+  real(r_kind) :: magomb
 
   equivalence(rstation_id,station_id)
   equivalence(r_prvstg,c_prvstg)
@@ -788,22 +802,6 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      end if
      ratio_errors=error/(data(ier,i)+drpx+1.0e6_r_kind*rhgh+four*rlow)
 
-!    Invert observation error
-     error=one/error
-
-!    Check to see if observation below model surface or above model top.
-!    If so, don't use observation
-     if (dpres > rsig )then
-        if( regional .and. presw > pt_ll )then
-           dpres=rsig
-        else
-           ratio_errors=zero
-        endif
-     endif
-
-     if ( (itype>=221 .and. itype<=229).and. (dpres<zero) ) ratio_errors=zero
- 
-
 !    Compute innovations
      lowlevelsat=itype==242.or.itype==243.or.itype==245.or.itype==246.or. &
                  itype==247.or.itype==250.or.itype==251.or.itype==252.or. &
@@ -819,6 +817,34 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      dudiff=uob-ugesin
      dvdiff=vob-vgesin
      spdb=sqrt(uob**2+vob**2)-sqrt(ugesin**2+vgesin**2)
+    
+!    Setup dynamic ob error specification for aircraft recon in hurricanes 
+     if (aircraft_recon) then
+       if (itype==236) then
+         magomb=sqrt(dudiff*dudiff+dvdiff*dvdiff)
+         ratio_errors=error/((uv_doe_a_236*magomb+uv_doe_b_236)+drpx+1.0e6_r_kind*rhgh+four*rlow)
+       endif
+       if (itype==237) then
+         magomb=sqrt(dudiff*dudiff+dvdiff*dvdiff)
+         ratio_errors=error/((uv_doe_a_237*magomb+uv_doe_b_237)+drpx+1.0e6_r_kind*rhgh+four*rlow)
+       endif
+     endif
+
+!    Invert observation error
+     error=one/error
+
+!    Check to see if observation below model surface or above model top.
+!    If so, don't use observation
+     if (dpres > rsig )then
+        if( regional .and. presw > pt_ll )then
+           dpres=rsig
+        else
+           ratio_errors=zero
+        endif
+     endif
+
+     if ( (itype>=221 .and. itype<=229).and. (dpres<zero) ) ratio_errors=zero
+ 
 
 ! QC PBL profiler  227 and 223, 224
      if(itype==227 .or. itype==223 .or. itype==224 .or. itype==228 .or. itype==229) then

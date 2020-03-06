@@ -17,13 +17,14 @@ mode=${1:-}
 top_level=${PWD}
 echo "top_level = ${top_level}"
 
-module purge
+#module purge
 
 if [[ -d /dcom && -d /hwrf ]] ; then
     . /usrx/local/Modules/3.2.10/init/sh
     target=wcoss
     . $MODULESHOME/init/sh
 elif [[ -d /cm ]] ; then
+#    MODULESHOME=/opt/modules/3.2.10.3
     . $MODULESHOME/init/sh
     target=wcoss_c
 elif [[ -d /ioddev_dell ]]; then
@@ -75,6 +76,7 @@ if [[ ${target} = "hera"     || ${target} = "wcoss" \
       source $dir_modules/modulefile.ProdGSI.$target
    elif [ $target = wcoss_c ]; then
       module purge
+      module use -a $dir_modules
       module load $dir_modules/modulefile.ProdGSI.$target
    fi
 

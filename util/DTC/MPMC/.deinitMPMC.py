@@ -28,7 +28,7 @@ def add_python_location(filename):
   os.system("rm -f "+filename+";mv "+tmpfile+" "+filename+"; chmod +x "+filename)
 
 #-----------------------------------------------------------------------------------------
-add_python_location("generate.py")
 add_python_location("run.py")
+#add_python_location("run.py")
 add_python_location("report.py")
 add_python_location("stopcronMPMC.py")

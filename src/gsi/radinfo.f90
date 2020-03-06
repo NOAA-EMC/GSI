@@ -1295,13 +1295,56 @@ contains
 !   Deallocate data arrays for bias correction and those which hold
 !   information from satinfo file.
 
-    deallocate (predx,cbias,tlapmean,nuchan,nusis,iuse_rad,air_rad,ang_rad,ifactq,inew_rad)
-    deallocate (iextra_det,icld_det,icloud4crtm,iaerosol4crtm, iland_det,isnow_det,&
-                iice_det,iwater_det,imix_det,itopo_det,isst_det,iwndspeed_det,iomg_det)
-    deallocate (varch,varch_cld,varch_sea,varch_land,varch_ice,varch_snow,varch_mixed)
-    if (adp_anglebc) deallocate(count_tlapmean,update_tlapmean,tsum_tlapmean)
-    if (newpc4pred) deallocate(ostats,rstats,varA)
-    deallocate (radstart,radstep,radnstep,radedge1,radedge2)
+    if(allocated(predx)) deallocate(predx)
+    if(allocated(cbias)) deallocate(cbias)
+    if(allocated(tlapmean)) deallocate(tlapmean)
+    if(allocated(nuchan)) deallocate(nuchan)
+    if(allocated(nusis)) deallocate(nusis)
+    if(allocated(iuse_rad)) deallocate(iuse_rad)
+    if(allocated(air_rad)) deallocate(air_rad)
+    if(allocated(ang_rad)) deallocate(ang_rad)
+    if(allocated(ifactq)) deallocate(ifactq)
+    if(allocated(inew_rad)) deallocate(inew_rad)
+
+    if(allocated(iextra_det)) deallocate(iextra_det)
+    if(allocated(icld_det)) deallocate(icld_det)
+    if(allocated(icloud4crtm)) deallocate(icloud4crtm)
+    if(allocated(iaerosol4crtm)) deallocate(iaerosol4crtm)
+    if(allocated(iland_det)) deallocate(iland_det)
+    if(allocated(isnow_det)) deallocate(isnow_det)
+    if(allocated(iice_det)) deallocate(iice_det)
+    if(allocated(iwater_det)) deallocate(iwater_det)
+    if(allocated(imix_det)) deallocate(imix_det)
+    if(allocated(itopo_det)) deallocate(itopo_det)
+    if(allocated(isst_det)) deallocate(isst_det)
+    if(allocated(iwndspeed_det)) deallocate(iwndspeed_det)
+    if(allocated(iomg_det)) deallocate(iomg_det)
+
+    if(allocated(varch)) deallocate(varch)
+    if(allocated(varch_cld)) deallocate(varch_cld)
+    if(allocated(varch_sea)) deallocate(varch_sea)
+    if(allocated(varch_land)) deallocate(varch_land)
+    if(allocated(varch_ice)) deallocate(varch_ice)
+    if(allocated(varch_snow)) deallocate(varch_snow)
+    if(allocated(varch_mixed)) deallocate(varch_mixed)
+    if (adp_anglebc) then
+       if(allocated(count_tlapmean)) deallocate(count_tlapmean)
+       if(allocated(update_tlapmean)) deallocate(update_tlapmean)
+       if(allocated(tsum_tlapmean)) deallocate(tsum_tlapmean)
+    end if
+
+    if (newpc4pred) then
+       if(allocated(ostats)) deallocate(ostats)
+       if(allocated(rstats)) deallocate(rstats)
+       if(allocated(varA)) deallocate(varA)
+    end if
+
+    if(allocated(radstart)) deallocate(radstart)
+    if(allocated(radstep))  deallocate(radstep)
+    if(allocated(radnstep)) deallocate(radnstep)
+    if(allocated(radedge1)) deallocate(radedge1)
+    if(allocated(radedge2)) deallocate(radedge2)
+
     return
   end subroutine radinfo_write
 

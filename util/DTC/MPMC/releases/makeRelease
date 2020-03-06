@@ -71,13 +71,13 @@ mv tmp.txt CMakeLists.txt
 
 # make a tarball
 cd ..
-echo "making a release tarball"
+echo "making a release tarball based on ${GSI}"
 tar hcvfz ${release}.tar.gz $release >/dev/null
 echo "Done!"
 set -x
 mv ${release}.tar.gz /glade/work/geguo/misc
 cd /glade/work/geguo/misc;
-scp ${release}.tar.gz  geguo@mandan.rap.ucar.edu://d2/www/dtcenter/com-GSI/users/downloads/GSI_releases
+scp ${release}.tar.gz  geguo@mohawk.rap.ucar.edu://d2/www/dtcenter/com-GSI/users/downloads/GSI_releases
 
 exit
 
