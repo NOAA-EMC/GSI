@@ -353,13 +353,23 @@ if (nproc <= ntasks_io-1) then
          enddo
       endif
    end if
-   call writegriddata(nanal1(nproc),nanal2(nproc),cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
+   if (.not. paranc) then
+      call writegriddata(nanal1(nproc),nanal2(nproc),cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
+      if (nproc == 0) then
+        t2 = mpi_wtime()
+        print *,'time in write_control on root',t2-t1,'secs'
+      endif 
+   end if
+
+end if ! io task
+
+if (paranc) then
+   call writegriddata_pnc(cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
    if (nproc == 0) then
      t2 = mpi_wtime()
      print *,'time in write_control on root',t2-t1,'secs'
    endif 
-
-end if ! io task
+end if
 
 end subroutine write_control
 
