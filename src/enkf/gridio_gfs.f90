@@ -50,11 +50,13 @@
                     isinitialized
  use reducedgrid_mod, only: regtoreduced, reducedtoreg
  use mpisetup, only: nproc, numproc
- use mpimod, only: mpi_comm_world, mpi_sum, mpi_real4, mpi_real8
+ use mpimod, only: mpi_comm_world, mpi_sum, mpi_real4, mpi_real8, mpi_rtype
  use mpeu_util, only: getindex
  implicit none
  private
- public :: readgriddata, readgriddata_pnc, writegriddata
+ public :: readgriddata, readgriddata_pnc, writegriddata, writegriddata_pnc
+ public :: writeincrement_pnc
+
  contains
 
  subroutine readgriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,ntimes, &
@@ -193,14 +195,14 @@
   psg = 0.01_r_kind*reshape(values_2d,(/nlons*nlats/))
   call read_attribute(dset, 'ak', ak)
   call read_attribute(dset, 'bk', bk)
-  if (nanal .eq. 1) then
+  if (nanal .eq. 1 .and. iope==0) then
      print *,'time level ',nb
      print *,'---------------'
   endif
   ! pressure at interfaces
   do k=1,nlevs+1
      pressi(:,k) = 0.01_r_kind*ak(nlevs-k+2)+bk(nlevs-k+2)*psg
-     if (nanal .eq. 1) print *,'netcdf, min/max pressi',k,minval(pressi(:,k)),maxval(pressi(:,k))
+     if (nanal .eq. 1 .and. iope==0) print *,'netcdf, min/max pressi',k,minval(pressi(:,k)),maxval(pressi(:,k))
   enddo
   deallocate(ak,bk,values_2d)
 
@@ -299,7 +301,7 @@
   ! surface pressure tendency
   if (pst_ind > 0) then
      pstend = sum(vmassdiv,2)
-     if (nanal .eq. 1) &
+     if (nanal .eq. 1 .and. iope==0) &
      print *,nanal,'min/max first-guess ps tend',minval(pstend),maxval(pstend)
      call copytogrdin(pstend,grdin(:,levels(n3d) + pst_ind,nb,ne))
   endif
@@ -1014,7 +1016,7 @@
                           create_dataset, get_idate_from_time_units, &
                           get_time_units_from_idate, write_vardata, &
                           write_attribute, quantize_data, has_var, has_attr
-  use constants, only: grav
+  use constants, only: grav, zero
   use params, only: nbackgrounds,anlfileprefixes,fgfileprefixes,reducedgrid
   implicit none
 
@@ -1022,13 +1024,13 @@
   character(len=max_varname_length), dimension(n3d), intent(in) :: vars3d
   integer, intent(in) :: n2d,n3d,ndim
   integer, dimension(0:n3d), intent(in) :: levels
-  real(r_single), dimension(npts,ndim,nbackgrounds,nanal2-nanal1+1), intent(inout) :: grdin
+  real(r_single), dimension(npts,ndim,nbackgrounds,1), intent(inout) :: grdin
   logical, intent(in) :: no_inflate_flag
   logical:: use_full_hydro  
   character(len=500):: filenamein, filenameout
   real(r_kind), allocatable, dimension(:,:) :: vmassdiv,dpanl,dpfg,pressi
   real(r_kind), allocatable, dimension(:,:) :: vmassdivinc
-  real(r_kind), allocatable, dimension(:,:) :: ugtmp,vgtmp
+  real(r_kind), allocatable, dimension(:,:) :: ugtmp,vgtmp,ugtmp2,vgtmp2
   real(r_kind), allocatable,dimension(:) :: pstend1,pstend2,pstendfg,vmass
   real(r_kind), dimension(nlons*nlats) :: ug,vg,uginc,vginc,psfg,psg
   real(r_kind), allocatable, dimension(:) :: delzb,work,values_1d
@@ -1054,7 +1056,7 @@
   integer :: ps_ind, pst_ind, nbits
   integer :: ql_ind, qi_ind, qr_ind, qs_ind, qg_ind     
 
-  integer k,nt,ierr,iunitsig,nb,i,ne,nanal
+  integer k,nt,ierr,iunitsig,nb,i,ne,nanal,imem
 
   integer(i_kind), allocatable, dimension(:) :: mem_pe, lev_pe1, lev_pe2, iocomms
   integer(i_kind) :: iope, ionumproc, iolevs, krev, ki
@@ -1096,7 +1098,7 @@
  
   ! loop through times and do the read
   ne = 1
-  backgroundloop: do nb=1,ntimes
+  backgroundloop: do nb=1,nbackgrounds
   write(charnanal,'(i3.3)') nanal
 
   if(no_inflate_flag) then
@@ -1104,9 +1106,10 @@
   else
     filenameout = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//"mem"//charnanal
   end if
+  filenamein = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"mem"//charnanal
 
   clip = tiny(vg(1))
-  dsfg = open_dataset(filenamein)
+  dsfg = open_dataset(filenamein, paropen=.true., mpicomm=iocomms(mem_pe(nproc)))
   jdat = get_idate_from_time_units(dsfg)
   idat(4) = jdat(1) ! yr
   idat(2) = jdat(2) ! mon
@@ -1118,7 +1121,6 @@
      call stop2(29)
   endif
   nfhour = int(values_1d(1))
-  nems_idvc=2
   call read_attribute(dsfg, 'ak', values_1d,errcode=iret)
   if (iret /= 0) then
      print *,'error reading ak'
@@ -1153,8 +1155,660 @@
   use_full_hydro = ( ql_ind > 0 .and. qi_ind > 0 .and. &
                      qr_ind > 0 .and. qs_ind > 0 .and. qg_ind > 0 )
 
+  if (pst_ind > 0) then
+     allocate(vmassdiv(nlons*nlats,nlevs))
+     allocate(vmassdivinc(nlons*nlats,nlevs))
+     allocate(dpfg(nlons*nlats,nlevs))
+     allocate(dpanl(nlons*nlats,nlevs))
+     allocate(pressi(nlons*nlats,nlevs+1))
+     allocate(pstendfg(nlons*nlats))
+     allocate(pstend1(nlons*nlats))
+     allocate(pstend2(nlons*nlats),vmass(nlons*nlats))
+     allocate(ugtmp(nlons*nlats,nlevs),vgtmp(nlons*nlats,nlevs))
+     allocate(ugtmp2(nlons*nlats,nlevs),vgtmp2(nlons*nlats,nlevs))
+  endif
+
+  if (imp_physics == 11 .and. (.not. use_full_hydro) ) allocate(work(nlons*nlats))
+
+  idate(3)=idat(3)  !day 
+  idate(2)=idat(2)  !mon
+  idate(4)=idat(4)  !yr
+  idate(1)=idat(1)  !hr 
+  fhour = nfhour
+
+  fha=zero; ida=0; jda=0
+  fha(2)=fhour    ! relative time interval in hours
+  ida(1)=idate(4) ! year
+  ida(2)=idate(2) ! month
+  ida(3)=idate(3) ! day
+  ida(4)=0                ! time zone
+  ida(5)=idate(1) ! hour
+  call w3movdat(fha,ida,jda)
+!
+!   INPUT VARIABLES:
+!     RINC       REAL (5) NCEP RELATIVE TIME INTERVAL
+!                (DAYS, HOURS, MINUTES, SECONDS, MILLISECONDS)
+!     IDAT       INTEGER (8) NCEP ABSOLUTE DATE AND TIME
+!                (YEAR, MONTH, DAY, TIME ZONE,
+!                 HOUR, MINUTE, SECOND, MILLISECOND)
+!
+!   OUTPUT VARIABLES:
+!     JDAT       INTEGER (8) NCEP ABSOLUTE DATE AND TIME
+!                (YEAR, MONTH, DAY, TIME ZONE,
+!                 HOUR, MINUTE, SECOND, MILLISECOND)
+!                (JDAT IS LATER THAN IDAT IF TIME INTERVAL IS POSITIVE.)
+  iadate(1)=jda(5) ! hour
+  iadate(2)=jda(2) ! mon
+  iadate(3)=jda(3) ! day
+  iadate(4)=jda(1) ! year
+  if (nproc .eq. 0) then
+     print *,'idate = ',idate
+     print *,'iadate = ',iadate
+  end if
+
+  dsanl = create_dataset(filenameout, dsfg, copy_vardata=.true., paropen=.true., mpicomm=iocomms(mem_pe(nproc)), errcode=iret)
+  if (iret /= 0) then
+     print *,'error creating netcdf file'
+     call stop2(29)
+  endif
+  deallocate(values_1d)
+  allocate(values_1d(1))
+  values_1d(1)=zero
+  call write_vardata(dsanl,'time',values_1d,errcode=iret)
+  if (iret /= 0) then
+     print *,'error writing time'
+     call stop2(29)
+  endif
+  jdat(1) = iadate(4)
+  jdat(2) = iadate(2)
+  jdat(3) = iadate(3)
+  jdat(4) = iadate(1)
+  jdat(5) = jda(6); jdat(6) = jda(7)
+  time_units = get_time_units_from_idate(jdat)
+  call write_attribute(dsanl,'units',time_units,'time',errcode=iret)
+  if (iret /= 0) then
+     print *,'error writing time units attribute'
+     call stop2(29)
+  endif
+  call read_vardata(dsfg,'pressfc',values_2d,errcode=iret)
+  if (iret /= 0) then
+     print *,'error reading pressfc'
+     call stop2(29)
+  endif
+  psfg = 0.01*reshape(values_2d,(/nlons*nlats/))
+  ug = 0_r_kind
+  if (ps_ind > 0) then
+    call copyfromgrdin(grdin(:,levels(n3d) + ps_ind,nb,ne),ug)
+  endif
+  print *, 'CRM, nproc, iope, nanal, add incr to background', nproc, iope, nanal 
+  ! add increment to background.
+  psg = psfg + ug ! analysis pressure in mb.
+  values_2d = 100.*reshape(psg,(/nlons,nlats/))
+  print *, 'b4 write psfc', nproc, iope, nanal 
+  call write_vardata(dsanl,'pressfc',values_2d,errcode=iret) 
+  print *, 'after write psfc', nproc, iope, nanal 
+  if (iret /= 0) then
+     print *,'error writing pressfc'
+     call stop2(29)
+  endif
+  if (has_var(dsfg,'dpres')) then
+     call read_vardata(dsfg,'dpres',ug3d, ncstart=ncstart, nccount=nccount)
+  print *, 'after read delp', nproc, iope, nanal 
+     allocate(vg3d(nlons,nlats,nccount(3)))
+     do k=lev_pe1(iope), lev_pe2(iope)
+        krev = nlevs-k+1
+        ki = k - lev_pe1(iope) + 1
+        vg = ug*(bk(krev)-bk(krev+1)) ! ug is ps increment
+        vg3d(:,:,ki) = ug3d(:,:,ki) +&
+           100_r_kind*reshape(vg,(/nlons,nlats/))
+     end do
+     if (has_attr(dsfg, 'nbits', 'dpres')) then
+       call read_attribute(dsfg, 'nbits', nbits, 'dpres')
+       ug3d = vg3d
+       call quantize_data(ug3d, vg3d, nbits, compress_err)
+       ! below is not technically correct but I'm not worried about
+       ! the exact value of this attribute right now
+       if (iope==0) then 
+          call write_attribute(dsanl,&
+          'max_abs_compression_error',compress_err,'dpres',errcode=iret)
+          if (iret /= 0) then
+             print *,'error writing dpres attribute'
+             call stop2(29)
+          end if
+       endif
+     endif
+     call write_vardata(dsanl,'dpres',vg3d, ncstart=ncstart, nccount=nccount, errcode=iret)
+  print *, 'after write delp', nproc, iope, nanal 
+     if (iret /= 0) then
+        print *,'error writing dpres'
+        call stop2(29)
+     endif
+  end if
+  if (pst_ind > 0) then
+     !==> first guess pressure at interfaces.
+     do k=1,nlevs+1
+        pressi(:,k)=ak(k)+bk(k)*psfg ! psfg in mb, ak has been scaled by 0.01
+     enddo
+     do k=1,nlevs
+        dpfg(:,k) = pressi(:,k)-pressi(:,k+1)
+     enddo
+     !==> analysis pressure at interfaces.
+     do k=1,nlevs+1
+        pressi(:,k)=ak(k)+bk(k)*psg ! psg in mb, ak has been scaled by 0.01
+     enddo
+     do k=1,nlevs
+        dpanl(:,k) = pressi(:,k)-pressi(:,k+1)
+     end do
+     ! have to read in the full arrays here because of vertical integral...
+     call read_vardata(dsfg, 'ugrd', ug3d, errcode=iret) 
+     if (iret /= 0) then
+        print *,'error reading ugrd'
+        call stop2(29)
+     endif
+     call read_vardata(dsfg, 'vgrd', vg3d, errcode=iret) 
+     if (iret /= 0) then
+        print *,'error reading vgrd'
+        call stop2(29)
+     endif
+     do k=1,nlevs
+        krev = nlevs-k+1
+        ug = reshape(ug3d(:,:,krev),(/nlons*nlats/))
+        vg = reshape(vg3d(:,:,krev),(/nlons*nlats/))
+        ug = ug*dpfg(:,k)
+        vg = vg*dpfg(:,k)
+        call sptezv_s(divspec,vrtspec,ug,vg,-1) ! u,v to div,vrt
+        call sptez_s(divspec,vmassdiv(:,k),1) ! divspec to divgrd
+     enddo
+     
+     ! analyzed ps tend increment
+     call copyfromgrdin(grdin(:,levels(n3d) + pst_ind,nb,ne),pstend2)
+     pstendfg = sum(vmassdiv,2)
+     vmassdivinc = vmassdiv
+     if (nanal .eq. 1 .and. iope==0) then
+     print *,'time level ',nb
+     print *,'--------------------'
+     print *,nanal,'min/max pstendfg',minval(pstendfg),maxval(pstendfg)
+     print *,nanal,'min/max pstend inc',minval(pstend2),maxval(pstend2)
+     endif
+     pstend2 = pstend2 + pstendfg ! add to background ps tend
+
+  endif ! if pst_ind > 0
+
+  print *, 'CRM - did we make it this far'
+
+  ! now do parallel read and apply increments
+  ugtmp(:,:) = zero
+  vgtmp(:,:) = zero
+  call read_vardata(dsfg, 'ugrd', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret) 
+  if (iret /= 0) then
+     print *,'error reading ugrd'
+     call stop2(29)
+  endif
+  do k=lev_pe1(iope), lev_pe2(iope)
+     krev = nlevs-k+1
+     ki = k - lev_pe1(iope) + 1
+     ug = 0_r_kind
+     if (u_ind > 0) then
+       call copyfromgrdin(grdin(:,levels(u_ind-1) + krev,nb,ne),ug)
+     endif
+     values_2d = reshape(ug,(/nlons,nlats/))
+     ug3d(:,:,ki) = ug3d(:,:,ki) + values_2d
+     if (pst_ind > 0) then
+        ugtmp2(:,krev) = reshape(ug3d(:,:,k),(/nlons*nlats/))
+     endif
+  enddo
+  if (has_attr(dsfg, 'nbits', 'ugrd')) then
+    call read_attribute(dsfg, 'nbits', nbits, 'ugrd')
+    if (.not. allocated(vg3d)) allocate(vg3d(nlons,nlats,nccount(3)))
+    vg3d = ug3d
+    call quantize_data(vg3d, ug3d, nbits, compress_err)
+    ! same as before, below is not ideal
+    if (iope==0) then
+       call write_attribute(dsanl,&
+       'max_abs_compression_error',compress_err,'ugrd',errcode=iret)
+       if (iret /= 0) then
+         print *,'error writing ugrd attribute'
+         call stop2(29)
+       end if
+    endif
+  endif
+  call write_vardata(dsanl, 'ugrd', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret) 
+  call read_vardata(dsfg, 'vgrd', vg3d, ncstart=ncstart, nccount=nccount, errcode=iret) 
+  if (iret /= 0) then
+     print *,'error reading vgrd'
+     call stop2(29)
+  endif
+  do k=lev_pe1(iope), lev_pe2(iope)
+     krev = nlevs-k+1
+     ki = k - lev_pe1(iope) + 1
+     vg = 0_r_kind
+     if (v_ind > 0) then
+       call copyfromgrdin(grdin(:,levels(v_ind-1) + krev,nb,ne),vg)
+     endif
+     values_2d = reshape(vg,(/nlons,nlats/))
+     vg3d(:,:,ki) = vg3d(:,:,ki) + values_2d
+     if (pst_ind > 0) then
+        vgtmp2(:,krev) = reshape(vg3d(:,:,k),(/nlons*nlats/))
+     endif
+  enddo
+  if (has_attr(dsfg, 'nbits', 'vgrd')) then
+    call read_attribute(dsfg, 'nbits', nbits, 'vgrd')
+    if (.not. allocated(ug3d)) allocate(ug3d(nlons,nlats,nccount(3)))
+    ug3d = vg3d
+    call quantize_data(ug3d, vg3d, nbits, compress_err)
+    ! same as before, below is not ideal
+    if (iope==0) then
+       call write_attribute(dsanl,&
+       'max_abs_compression_error',compress_err,'vgrd',errcode=iret)
+       if (iret /= 0) then
+         print *,'error writing ugrd attribute'
+         call stop2(29)
+       end if
+    endif
+  endif
+  call write_vardata(dsanl, 'vgrd', vg3d, ncstart=ncstart, nccount=nccount, errcode=iret) 
+  call mpi_barrier(iocomms(mem_pe(nproc)), iret)
+  do k=1,nlevs
+     call mpi_allreduce(ugtmp2(:,k), ugtmp(:,k), nlons*nlats, mpi_rtype, &
+                        mpi_sum, iocomms(mem_pe(nproc)),iret)
+     call mpi_allreduce(vgtmp2(:,k), vgtmp(:,k), nlons*nlats, mpi_rtype, &
+                        mpi_sum, iocomms(mem_pe(nproc)),iret)
+  end do
+  if (pst_ind > 0) then
+     do k=1,nlevs
+        ug = ugtmp(:,k)*dpanl(:,k)
+        vg = vgtmp(:,k)*dpanl(:,k)
+        call sptezv_s(divspec,vrtspec,ug,vg,-1) ! u,v to div,vrt
+        call sptez_s(divspec,vmassdiv(:,k),1) ! divspec to divgrd
+     enddo
+  end if
+  ! read sensible temperature and specific humidity
+  call read_vardata(dsfg, 'tmp', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret) 
+  if (iret /= 0) then
+     print *,'error reading tmp'
+     call stop2(29)
+  endif
+  call read_vardata(dsfg, 'spfh', vg3d, ncstart=ncstart, nccount=nccount, errcode=iret) 
+  if (iret /= 0) then
+     print *,'error reading spfh'
+     call stop2(29)
+  endif
+  allocate(tv_bg(nlons,nlats,nccount(3)),tv_anal(nlons,nlats,nccount(3)))
+  tv_bg = ug3d * ( 1.0 + fv*vg3d ) !Convert T to Tv
+  call read_vardata(dsfg,'pressfc',values_2d,errcode=iret)
+  if (iret /= 0) then
+     print *,'error reading pressfc'
+     call stop2(29)
+  endif
+  if (allocated(values_1d)) deallocate(values_1d)
+  allocate(values_1d(nlons*nlats))
+  values_1d = reshape(values_2d,(/nlons*nlats/))
+  ! add Tv,q increment to background
+  do k=lev_pe1(iope), lev_pe2(iope)
+     krev = nlevs-k+1
+     ki = k - lev_pe1(iope) + 1
+     ug = 0_r_kind
+     if (tv_ind > 0) then
+       call copyfromgrdin(grdin(:,levels(tv_ind-1)+krev,nb,ne),ug)
+     endif
+     vg = 0_r_kind
+     if (q_ind > 0) then
+       call copyfromgrdin(grdin(:,levels(q_ind-1)+krev,nb,ne),vg)
+     endif
+     values_2d = reshape(ug,(/nlons,nlats/))
+     tv_anal(:,:,ki) = tv_bg(:,:,ki) + values_2d
+     values_2d = reshape(vg,(/nlons,nlats/))
+     vg3d(:,:,ki) = vg3d(:,:,ki) + values_2d
+  enddo
+  ! now tv_anal is analysis Tv, vg3d is analysis spfh
+  if (cliptracers)  where (vg3d < clip) vg3d = clip
+
+  ! write analysis T
+  allocate(values_3d(nlons,nlats,nccount(3)))
+  allocate(tmp_anal(nlons,nlats,nccount(3)))
+  tmp_anal = tv_anal/(1. + fv*vg3d) ! convert Tv back to T, save q as vg3d
+  if (has_attr(dsfg, 'nbits', 'tmp')) then
+    call read_attribute(dsfg, 'nbits', nbits, 'tmp')
+    call quantize_data(tmp_anal, values_3d, nbits, compress_err)
+    ! yet again, below not technically correct...
+    if (iope==0) then
+       call write_attribute(dsanl,&
+       'max_abs_compression_error',compress_err,'tmp',errcode=iret)
+       if (iret /= 0) then
+         print *,'error writing tmp attribute'
+         call stop2(29)
+       end if
+    endif
+  endif
+  call write_vardata(dsanl,'tmp',values_3d,ncstart=ncstart,nccount=nccount,errcode=iret) ! write T
+  if (iret /= 0) then
+     print *,'error writing tmp'
+     call stop2(29)
+  endif
+
+  ! write analysis delz
+  if (has_var(dsfg,'delz')) then
+     allocate(delzb(nlons*nlats))
+     call read_vardata(dsfg, 'delz', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret) 
+     vg = 0_r_kind
+     if (ps_ind > 0) then
+        call copyfromgrdin(grdin(:,levels(n3d) + ps_ind,nb,ne),vg)
+     endif
+     vg = values_1d + vg ! analysis ps (values_1d is background ps)
+     do k=lev_pe1(iope), lev_pe2(iope)
+        krev = nlevs-k+1
+        ki = k - lev_pe1(iope) + 1
+        ug=(rd/grav)*reshape(tv_anal(:,:,ki),(/nlons*nlats/)) 
+        ! ps in Pa here, need to multiply ak by 100.
+        ug=ug*log((100_r_kind*ak(krev)+bk(krev)*vg)/(100_r_kind*ak(krev+1)+bk(krev+1)*vg))
+        ! ug is hydrostatic analysis delz inferred from analysis ps,Tv
+        ! delzb is hydrostatic background delz inferred from background ps,Tv
+        delzb=(rd/grav)*reshape(tv_bg(:,:,ki),(/nlons*nlats/)) 
+        delzb=delzb*log((100_r_kind*ak(krev)+bk(krev)*values_1d)/(100_r_kind*ak(krev+1)+bk(krev+1)*values_1d))
+        ug3d(:,:,ki)=values_3d(:,:,ki) +&
+        reshape(delzb-ug,(/nlons,nlats/))
+     end do
+     if (has_attr(dsfg, 'nbits', 'delz')) then
+       call read_attribute(dsfg, 'nbits', nbits, 'delz')
+       values_3d = ug3d
+       call quantize_data(values_3d, ug3d, nbits, compress_err)
+       ! again, only the first PE's error is being accounted for in this attribute
+       if (iope==0) then
+          call write_attribute(dsanl,&
+          'max_abs_compression_error',compress_err,'delz',errcode=iret)
+          if (iret /= 0) then
+            print *,'error writing delz attribute'
+            call stop2(29)
+          endif
+        end if
+     endif
+     call write_vardata(dsanl,'delz',ug3d,ncstart=ncstart,nccount=nccount,errcode=iret) ! write delz
+     if (iret /= 0) then
+        print *,'error writing delz'
+        call stop2(29)
+     endif
+  endif
+  deallocate(tv_anal,tv_bg) ! keep tmp_anal
+
+  ! write analysis q (still stored in vg3d)
+  if (has_attr(dsfg, 'nbits', 'spfh')) then
+    call read_attribute(dsfg, 'nbits', nbits, 'spfh')
+    values_3d = vg3d
+    call quantize_data(values_3d, vg3d, nbits, compress_err)
+    if (iope==0) then
+       call write_attribute(dsanl,&
+       'max_abs_compression_error',compress_err,'spfh',errcode=iret)
+       if (iret /= 0) then
+         print *,'error writing spfh attribute'
+         call stop2(29)
+       end if
+    endif
+  endif
+  call write_vardata(dsanl,'spfh',vg3d,ncstart=ncstart,nccount=nccount,errcode=iret) ! write q
+  if (iret /= 0) then
+     print *,'error writing spfh'
+     call stop2(29)
+  endif
+  ! write clwmr, icmr
+  call read_vardata(dsfg,'clwmr',ug3d,ncstart=ncstart,nccount=nccount,errcode=iret)
+  if (iret /= 0) then
+     print *,'error reading clwmr'
+     call stop2(29)
+  endif
+  if (imp_physics == 11) then
+     call read_vardata(dsfg,'icmr',vg3d,ncstart=ncstart,nccount=nccount,errcode=iret)
+     if (iret /= 0) then
+        print *,'error reading icmr'
+        call stop2(29)
+     endif
+  endif
+  do k=lev_pe1(iope), lev_pe2(iope)
+     krev = nlevs-k+1
+     ki = k - lev_pe1(iope) + 1
+     ug = 0_r_kind
+     if (cw_ind > 0) then
+        call copyfromgrdin(grdin(:,levels(cw_ind-1)+krev,nb,ne),ug)
+     endif
+     if (imp_physics == 11) then
+        work = -r0_05 * (reshape(tmp_anal(:,:,ki),(/nlons*nlats/)) - t0c)
+        do i=1,nlons*nlats
+           work(i) = max(zero,work(i))
+           work(i) = min(one,work(i))
+        enddo
+        vg = ug * work          ! cloud ice
+        ug = ug * (one - work)  ! cloud water
+        vg3d(:,:,ki) = vg3d(:,:,ki) + reshape(vg,(/nlons,nlats/))
+     endif
+     ug3d(:,:,ki) = ug3d(:,:,ki) + reshape(ug,(/nlons,nlats/))
+  enddo
+  deallocate(tmp_anal)
+  if (cw_ind > 0) then
+     if (has_attr(dsfg, 'nbits', 'clwmr')) then
+       call read_attribute(dsfg, 'nbits', nbits, 'clwmr')
+       values_3d = ug3d
+       call quantize_data(values_3d, ug3d, nbits, compress_err)
+       if (cliptracers)  where (ug3d < clip) ug3d = clip
+       if (iope==0) then
+          call write_attribute(dsanl,&
+          'max_abs_compression_error',compress_err,'clwmr',errcode=iret)
+          if (iret /= 0) then
+             print *,'error writing clwmr attribute'
+             call stop2(29)
+          end if
+       endif
+     endif
+     if (cliptracers)  where (ug3d < clip) ug3d = clip
+  endif
+  call write_vardata(dsanl,'clwmr',ug3d,ncstart=ncstart,nccount=nccount,errcode=iret)
+  if (iret /= 0) then
+     print *,'error writing clwmr'
+     call stop2(29)
+  endif
+  if (imp_physics == 11) then
+     if (cw_ind > 0) then
+        if (has_attr(dsfg, 'nbits', 'clwmr')) then
+          call read_attribute(dsfg, 'nbits', nbits, 'clwmr')
+          values_3d = vg3d
+          call quantize_data(values_3d, vg3d, nbits, compress_err)
+          if (cliptracers)  where (vg3d < clip) vg3d = clip
+          if (iope==0) then
+             call write_attribute(dsanl,&
+             'max_abs_compression_error',compress_err,'icmr',errcode=iret)
+             if (iret /= 0) then
+                print *,'error writing icmr attribute'
+                call stop2(29)
+             end if
+          endif
+        endif
+        if (cliptracers)  where (vg3d < clip) vg3d = clip
+     endif
+     call write_vardata(dsanl,'icmr',vg3d,ncstart=ncstart,nccount=nccount,errcode=iret) ! write icmr
+     if (iret /= 0) then
+        print *,'error writing icmr'
+        call stop2(29)
+     endif
+  endif
+
+  ! write analysis ozone
+  call read_vardata(dsfg,'o3mr',vg3d,ncstart=ncstart,nccount=nccount,errcode=iret)
+  if (iret /= 0) then
+     print *,'error reading o3mr'
+     call stop2(29)
+  endif
+  do k=lev_pe1(iope), lev_pe2(iope)
+     krev = nlevs-k+1
+     ki = k - lev_pe1(iope) + 1
+     ug = 0_r_kind
+     if (oz_ind > 0) then
+        call copyfromgrdin(grdin(:,levels(oz_ind-1)+krev,nb,ne),ug)
+     endif
+     vg3d(:,:,ki) = vg3d(:,:,ki) + reshape(ug,(/nlons,nlats/))
+  enddo
+  if (oz_ind > 0) then
+     if (has_attr(dsfg, 'nbits', 'o3mr')) then
+       call read_attribute(dsfg, 'nbits', nbits, 'o3mr')
+       values_3d = vg3d
+       call quantize_data(values_3d, vg3d, nbits, compress_err)
+       if (cliptracers)  where (vg3d < clip) vg3d = clip
+       ! again, below is lazy/not ideal/bad
+       if (iope==0) then
+          call write_attribute(dsanl,&
+          'max_abs_compression_error',compress_err,'o3mr',errcode=iret)
+          if (iret /= 0) then
+             print *,'error writing o3mr attribute'
+             call stop2(29)
+          end if
+       endif
+     endif
+     if (cliptracers)  where (vg3d < clip) vg3d = clip
+  endif
+  call write_vardata(dsanl,'o3mr',vg3d,ncstart=ncstart,nccount=nccount,errcode=iret) ! write o3mr
+  if (iret /= 0) then
+     print *,'error writing o3mr'
+     call stop2(29)
+  end if
+
+  if (allocated(delzb)) deallocate(delzb)
+  if (imp_physics == 11 .and. (.not. use_full_hydro)) deallocate(work) 
+
+  if (pst_ind > 0) then
+
+     vmassdivinc = vmassdiv - vmassdivinc ! analyis - first guess VIMFD
+     ! (VIMFD = vertically integrated mass flux divergence)
+     pstend1 = sum(vmassdiv,2)
+     if (nanal .eq. 1 .and. iope==0) then
+     print *,nanal,'min/max analysis ps tend',minval(pstend1),maxval(pstend1)
+     print *,nanal,'min/max analyzed ps tend',minval(pstend2),maxval(pstend2)
+     endif
+     ! vmass is vertical integral of dp**2
+     do k=1,nlevs
+        ! case 2 (4.3.1.2) in GEOS DAS document.
+        ! (adjustment proportional to mass in layer)
+        vmass = vmass + dpanl(:,k)**2
+        ! case 3 (4.3.1.3) in GEOS DAS document.
+        ! (adjustment propotional to mass-flux div increment)
+        !vmass = vmass + vmassdivinc(:,k)**2
+     enddo
+     ! adjust wind field in analysis so pstend is consistent with pstend2
+     ! (analyzed pstend)
+!$omp parallel do private(k,nt,ug,vg,uginc,vginc,vrtspec,divspec)  shared(vmassdiv,vmassdivinc,dpanl)
+     do k=1,nlevs
+        ! case 2 
+        ug = (pstend2 - pstend1)*dpanl(:,k)**2/vmass
+        ! case 3 
+        !ug = (pstend2 - pstend1)*vmassdivinc(:,k)**2/vmass
+        call sptez_s(divspec,ug,-1) ! divgrd to divspec
+        vrtspec = 0_r_kind
+        call sptezv_s(divspec,vrtspec,uginc,vginc,1) ! div,vrt to u,v
+        if (nanal .eq. 1 .and. iope==0) then
+          print *,k,'min/max u inc (member 1)',&
+          minval(uginc/dpanl(:,k)),maxval(uginc/dpanl(:,k))
+        endif
+        ugtmp(:,k) = (ugtmp(:,k)*dpanl(:,k) + uginc)/dpanl(:,k)
+        vgtmp(:,k) = (vgtmp(:,k)*dpanl(:,k) + vginc)/dpanl(:,k)
+        ug = ugtmp(:,k); vg = vgtmp(:,k)
+        ug = ug*dpanl(:,k); vg = vg*dpanl(:,k)
+        call sptezv_s(divspec,vrtspec,ug,vg,-1) ! u,v to div,vrt
+        call sptez_s(divspec,vmassdiv(:,k),1) ! divspec to divgrd
+     enddo
+!$omp end parallel do
+     ! should be same as analyzed ps tend 
+     psfg = sum(vmassdiv,2)
+     if (nanal .eq. 1 .and. iope==0) then
+     print *,nanal,'min/max adjusted ps tend',minval(psfg),maxval(psfg)
+     print *,nanal,'min/max diff between adjusted and analyzed ps tend',&
+             minval(pstend2-psfg),maxval(pstend2-psfg)
+     endif
+
+     do k=lev_pe1(iope), lev_pe2(iope)
+        krev = nlevs-k+1
+        ki = k - lev_pe1(iope) + 1
+        ug3d(:,:,ki) = reshape(ugtmp(:,krev),(/nlons,nlats/))
+        vg3d(:,:,ki) = reshape(vgtmp(:,krev),(/nlons,nlats/))
+     enddo
+     if (has_attr(dsfg, 'nbits', 'ugrd')) then
+       call read_attribute(dsfg, 'nbits', nbits, 'ugrd')
+       values_3d = ug3d
+       call quantize_data(values_3d, ug3d, nbits, compress_err)
+       if (iope==0) then
+          call write_attribute(dsanl,&
+          'max_abs_compression_error',compress_err,'ugrd',errcode=iret)
+          if (iret /= 0) then
+             print *,'error writing ugrd attribute'
+             call stop2(29)
+          end if
+       endif
+     endif
+     call write_vardata(dsanl,'ugrd',ug3d,ncstart=ncstart,nccount=nccount,errcode=iret) ! write u
+     if (iret /= 0) then
+        print *,'error writing ugrd'
+        call stop2(29)
+     endif
+     if (has_attr(dsfg, 'nbits', 'vgrd')) then
+       call read_attribute(dsfg, 'nbits', nbits, 'vgrd')
+       values_3d = vg3d
+       call quantize_data(values_3d, vg3d, nbits, compress_err)
+       if (iope==0) then
+          call write_attribute(dsanl,&
+          'max_abs_compression_error',compress_err,'vgrd',errcode=iret)
+          if (iret /= 0) then
+             print *,'error writing vgrd attribute'
+             call stop2(29)
+          end if
+       endif
+     endif
+     call write_vardata(dsanl,'vgrd',vg3d,ncstart=ncstart,nccount=nccount,errcode=iret) ! write v
+     if (iret /= 0) then
+        print *,'error writing vgrd'
+        call stop2(29)
+     endif
+     deallocate(ugtmp,vgtmp) 
+  endif
+
+  if (allocated(ug3d)) deallocate(ug3d)
+  if (allocated(vg3d)) deallocate(vg3d)
+  if (allocated(values_3d)) deallocate(values_3d)
+  if (allocated(values_2d)) deallocate(values_2d)
+  if (allocated(values_1d)) deallocate(values_1d)
+
+  if (pst_ind > 0) then
+     deallocate(pressi,dpanl,dpfg)
+     deallocate(pstend1,pstend2,pstendfg,vmass)
+     deallocate(vmassdiv)
+     deallocate(vmassdivinc)
+  endif
+  call close_dataset(dsfg,errcode=iret)
+  if (iret/=0) then
+     write(6,*)'gridio/writegriddata: gfs model: problem closing netcdf fg dataset, iret=',iret
+     call stop2(23)
+  endif
+  call close_dataset(dsanl,errcode=iret)
+  if (iret/=0) then
+     write(6,*)'gridio/writegriddata: gfs model: problem closing netcdf anal dataset, iret=',iret
+     call stop2(23)
+  endif
+
+  end do backgroundloop ! loop over backgrounds to write out
+
+ contains 
+! copying to grdin (calling regtoreduced if reduced grid)
+ subroutine copyfromgrdin(grdin, field)
+ implicit none
+ 
+ real(r_single), dimension(:), intent(in)      :: grdin
+ real(r_kind), dimension(:), intent(inout) :: field
+ 
+ if (reducedgrid) then
+   call reducedtoreg(grdin, field)
+ else
+   field = grdin
+ endif
+ 
+ end subroutine copyfromgrdin
 
  end subroutine writegriddata_pnc
+
+
 
  subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,grdin,no_inflate_flag)
   use netcdf
@@ -2606,6 +3260,188 @@
 
  end subroutine writegriddata
 
+ subroutine writeincrement_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,grdin,no_inflate_flag)
+  use netcdf
+  use params, only: nbackgrounds,incfileprefixes,fgfileprefixes,reducedgrid
+  use constants, only: grav, rad2deg
+  use gridinfo, only: lonsgrd, latsgrd
+  use mpi
+  implicit none
+
+  character(len=max_varname_length), dimension(n2d), intent(in) :: vars2d
+  character(len=max_varname_length), dimension(n3d), intent(in) :: vars3d
+  integer, intent(in) :: n2d,n3d,ndim
+  integer, dimension(0:n3d), intent(in) :: levels
+  real(r_single), dimension(npts,ndim,nbackgrounds,1), intent(inout) :: grdin
+  logical, intent(in) :: no_inflate_flag
+  logical:: use_full_hydro  
+  character(len=500):: filenamein, filenameout
+  integer(i_kind) :: i,j,k, nb, ne, ierr, nanal, imem
+  character(len=3) charnanal
+
+  integer(i_kind), allocatable, dimension(:) :: mem_pe, lev_pe1, lev_pe2, iocomms
+  integer(i_kind) :: iope, ionumproc, iolevs, krev, ki, iret
+
+  ! netcdf things
+  integer(i_kind) :: dimids3(3),nccount(3),ncstart(3), cnksize(3)
+  integer(i_kind) :: ncid_out, lon_dimid, lat_dimid, lev_dimid, ilev_dimid
+  integer(i_kind) :: lonvarid, latvarid, levvarid, pfullvarid, ilevvarid, &
+                     hyaivarid, hybivarid, uvarid, vvarid, delpvarid, delzvarid, &
+                     tvarid, sphumvarid, liqwatvarid, o3varid, icvarid
+
+  ! fixed fields such as lat, lon, levs
+  real(r_kind),dimension(nlons) :: deglons
+  real(r_kind),dimension(nlats) :: deglats
+  real(r_kind),dimension(nlevs) :: levsout
+  real(r_kind),dimension(nlevs+1) :: ilevsout
+  real(r_kind),dimension(nlons,nlats) :: radianstmp
+
+  ! figure out what member to write and do MPI sub-communicator things
+  allocate(mem_pe(0:numproc-1))
+  allocate(iocomms(nanals))
+  imem = 1
+  do i=0,numproc-1
+    mem_pe(i) = imem
+    imem = imem + 1
+    if (imem > nanals) imem = 1
+  end do  
+  nanal = mem_pe(nproc)
+
+  call mpi_comm_split(mpi_comm_world, mem_pe(nproc), nproc, iocomms(mem_pe(nproc)), iret)
+  call mpi_comm_rank(iocomms(mem_pe(nproc)), iope, iret)
+  call mpi_comm_size(iocomms(mem_pe(nproc)), ionumproc, iret)
+  
+  ! figure out what levels to write on this sub-communicator's PE
+  allocate(lev_pe1(0:ionumproc-1))
+  allocate(lev_pe2(0:ionumproc-1))
+  iolevs = nlevs/ionumproc
+  do i=0,ionumproc-1
+     lev_pe1(i) = (iope * iolevs) + 1
+     lev_pe2(i) = ((iope + 1) * iolevs)
+     if (i == ionumproc-1) lev_pe2(i) = lev_pe2(i) + modulo(nlevs, ionumproc)
+  end do
+  ncstart = (/1, 1, lev_pe1(iope)/)
+  nccount = (/nlons, nlats, lev_pe2(iope) - lev_pe1(iope)+1/) 
+ 
+  ! loop through times and do the read
+  ne = 1
+  backgroundloop: do nb=1,nbackgrounds
+  write(charnanal,'(i3.3)') nanal
+
+  if(no_inflate_flag) then
+    filenameout = trim(adjustl(datapath))//trim(adjustl(incfileprefixes(nb)))//"nimem"//charnanal
+  else
+    filenameout = trim(adjustl(datapath))//trim(adjustl(incfileprefixes(nb)))//"mem"//charnanal
+  end if
+
+  ! create the output netCDF increment file
+  call nccheck_incr(nf90_create(path=trim(filenameout), cmode=ior(nf90_netcdf4, nf90_mpiio), ncid=ncid_out, &
+                    comm = iocomms(mem_pe(nproc)), info = mpi_info_null))
+
+  ! create dimensions based on analysis resolution, not guess
+  call nccheck_incr(nf90_def_dim(ncid_out, "lon", nlons, lon_dimid))
+  call nccheck_incr(nf90_def_dim(ncid_out, "lat", nlats, lat_dimid))
+  call nccheck_incr(nf90_def_dim(ncid_out, "lev", nlevs, lev_dimid))
+  call nccheck_incr(nf90_def_dim(ncid_out, "ilev", nlevs+1, ilev_dimid))
+  dimids3 = (/ lon_dimid, lat_dimid, lev_dimid /)
+  cnksize = (/ nlons, nlats, iolevs /)
+  ! create variables
+  call nccheck_incr(nf90_def_var(ncid_out, "lon", nf90_real, (/lon_dimid/), lonvarid))
+  call nccheck_incr(nf90_def_var(ncid_out, "lat", nf90_real, (/lat_dimid/), latvarid))
+  call nccheck_incr(nf90_def_var(ncid_out, "lev", nf90_real, (/lev_dimid/), levvarid))
+  call nccheck_incr(nf90_def_var(ncid_out, "pfull", nf90_real, (/lev_dimid/), pfullvarid))
+  call nccheck_incr(nf90_def_var(ncid_out, "ilev", nf90_real, (/ilev_dimid/), ilevvarid))
+  call nccheck_incr(nf90_def_var(ncid_out, "hyai", nf90_real, (/ilev_dimid/), hyaivarid))
+  call nccheck_incr(nf90_def_var(ncid_out, "hybi", nf90_real, (/ilev_dimid/), hybivarid))
+  call nccheck_incr(nf90_def_var(ncid_out, "u_inc", nf90_real, dimids3, uvarid)) 
+  call nccheck_incr(nf90_var_par_access(ncid_out, uvarid, nf90_collective))
+  call nccheck_incr(nf90_def_var(ncid_out, "v_inc", nf90_real, dimids3, vvarid)) 
+  call nccheck_incr(nf90_var_par_access(ncid_out, vvarid, nf90_collective))
+  call nccheck_incr(nf90_def_var(ncid_out, "delp_inc", nf90_real, dimids3, delpvarid))
+  call nccheck_incr(nf90_var_par_access(ncid_out, delpvarid, nf90_collective))
+  call nccheck_incr(nf90_def_var(ncid_out, "delz_inc", nf90_real, dimids3, delzvarid))
+  call nccheck_incr(nf90_var_par_access(ncid_out, delzvarid, nf90_collective))
+  call nccheck_incr(nf90_def_var(ncid_out, "T_inc", nf90_real, dimids3, tvarid))
+  call nccheck_incr(nf90_var_par_access(ncid_out, tvarid, nf90_collective))
+  call nccheck_incr(nf90_def_var(ncid_out, "sphum_inc", nf90_real, dimids3, sphumvarid))
+  call nccheck_incr(nf90_var_par_access(ncid_out, sphumvarid, nf90_collective))
+  call nccheck_incr(nf90_def_var(ncid_out, "liq_wat_inc", nf90_real, dimids3, liqwatvarid))
+  call nccheck_incr(nf90_var_par_access(ncid_out, liqwatvarid, nf90_collective))
+  call nccheck_incr(nf90_def_var(ncid_out, "o3mr_inc", nf90_real, dimids3, o3varid))
+  call nccheck_incr(nf90_var_par_access(ncid_out, o3varid, nf90_collective))
+  call nccheck_incr(nf90_def_var(ncid_out, "icmr_inc", nf90_real, dimids3, icvarid))
+  call nccheck_incr(nf90_var_par_access(ncid_out, icvarid, nf90_collective))
+  ! place global attributes to parallel calc_increment output
+  call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "source", "GSI EnKF"))
+  call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "comment", &
+                    "global analysis increment from writeincrement_pnc"))
+  ! add units to lat/lon because that's what the calc_increment utility has
+  call nccheck_incr(nf90_put_att(ncid_out, lonvarid, "units", "degrees_east"))
+  call nccheck_incr(nf90_put_att(ncid_out, latvarid, "units", "degrees_north"))
+  ! end the netCDF file definition
+  call nccheck_incr(nf90_enddef(ncid_out))
+
+  if (iope==0) then
+    ! levels
+    do k=1,nlevs
+      levsout(k) = float(k)
+      ilevsout(k) = float(k)
+    end do
+    ilevsout(nlevs+1) = float(nlevs+1)
+  
+    ! longitudes
+    radianstmp = reshape(lonsgrd,(/nlons,nlats/))
+    do i=1,nlons
+      deglons(i) = radianstmp(i,nlats/2) * rad2deg 
+    end do
+     
+    ! latitudes
+    radianstmp = reshape(latsgrd,(/nlons,nlats/))
+    do j=1,nlats
+      deglats(j) = radianstmp(nlons/2,j) * rad2deg
+    end do
+
+    ! write to file
+    call nccheck_incr(nf90_put_var(ncid_out, levvarid, sngl(levsout), &
+                      start = (/1/), count = (/nlevs/)))
+    ! pfull
+    call nccheck_incr(nf90_put_var(ncid_out, pfullvarid, sngl(levsout), &
+                      start = (/1/), count = (/nlevs/)))
+    ! ilev
+    call nccheck_incr(nf90_put_var(ncid_out, ilevvarid, sngl(ilevsout), &
+                      start = (/1/), count = (/nlevs+1/)))
+    ! hyai
+    call nccheck_incr(nf90_put_var(ncid_out, hyaivarid, sngl(ilevsout), &
+                      start = (/1/), count = (/nlevs+1/)))
+    ! hybi
+    call nccheck_incr(nf90_put_var(ncid_out, hybivarid, sngl(ilevsout), &
+                      start = (/1/), count = (/nlevs+1/)))
+
+  end if
+
+  ! u increment
+
+  ! v increment
+
+  ! delp increment
+
+  ! delz increment
+
+  ! t increment
+
+  ! o3mr increment
+
+  ! sphum increment
+
+  ! liq wat increment
+
+  ! icmr increment
+
+  end do backgroundloop ! loop over backgrounds to write out
+
+
+ end subroutine writeincrement_pnc
+
  logical function checkfield(field,fields,nrec) result(hasfield)
    use nemsio_module, only: nemsio_charkind
    integer, intent(in) :: nrec
@@ -2616,5 +3452,14 @@
       if (field == fields(n)) hasfield=.true.
    enddo
  end function checkfield
+
+  subroutine nccheck_incr(status)
+    use netcdf
+    integer, intent (in   ) :: status
+    if (status /= nf90_noerr) then
+      print *, "fv3_increment netCDF error ", trim(nf90_strerror(status))
+      call stop2(999)
+    end if
+  end subroutine nccheck_incr
 
 end module gridio
