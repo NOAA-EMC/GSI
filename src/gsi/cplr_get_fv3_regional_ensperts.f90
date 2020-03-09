@@ -1,6 +1,5 @@
 module get_fv3_regional_ensperts_mod
-!,grd_ens%ns,grd_ens%nsigigclt started from cplr_get_fv3_regional_ensperts.f90
-use abstract_get_fv3_regional_ensperts_mod
+use abstract_get_fv3_regional_ensperts_mod,only: abstract_get_fv3_regional_ensperts_class
   use kinds, only : i_kind
   type, extends(abstract_get_fv3_regional_ensperts_class) :: get_fv3_regional_ensperts_class
   contains
@@ -13,7 +12,7 @@ contains
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    get_fv3_regional_ensperts  read arw model ensemble members
-  !   prgmmr: Ting            org: ncar/mmm            date: 2018-12-13
+  !   prgmmr: Ting            org: EMC/NCEP            date: 2018-12-13
   !
   ! abstract: read ensemble members from the fv3 regional (fv3_SAR)
   ! model,following Wanshu's programs to read those background files 
@@ -28,7 +27,7 @@ contains
   !
   ! attributes:
   !   language: f90
-  !   machine:  ibm RS/6000 SP
+  !   machine: 
   !
   !$$$ end documentation block
   
@@ -56,7 +55,7 @@ contains
       integer(i_kind), intent(in   ):: nelen
       real(r_single),dimension(:,:,:),allocatable,intent(inout):: ps_bar
   
-      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: u,v,tv,cwmr,oz,rh
+      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: u,v,tv,oz,rh
       real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2):: ps
   
       real(r_single),pointer,dimension(:,:,:):: w3
@@ -269,6 +268,7 @@ contains
             end if
          end do
   
+         call mpi_barrier(mpi_comm_world,ierror)
   !
   ! CALCULATE ENSEMBLE SPREAD
          call this%ens_spread_dualres_regional(mype,en_perts,nelen,en_bar(m))
@@ -372,6 +372,7 @@ contains
       real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2),intent(out):: g_ps
       real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig) ::g_tsen, g_q,g_prsl 
       real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig+1) ::g_prsi 
+      integer(i_kind),intent(in)::mype
   !
   ! Declare local parameters
       real(r_kind),parameter:: r0_01 = 0.01_r_kind
@@ -379,25 +380,11 @@ contains
       real(r_kind),parameter:: r100  = 100.0_r_kind
   !
   !   Declare local variables
-      real(r_single),allocatable,dimension(:):: temp_1d
-      real(r_single),allocatable,dimension(:,:):: temp_2d,temp_2d2
-      real(r_single),allocatable,dimension(:,:,:):: temp_3d
-      real(r_kind),allocatable,dimension(:):: p_top
-      real(r_kind),allocatable,dimension(:,:):: q_integral,gg_ps,q_integralc4h
-      real(r_kind),allocatable,dimension(:,:,:):: tsn,qst,prsl,&
-       gg_u,gg_v,gg_tv,gg_rh
-      real(r_kind),allocatable,dimension(:):: wrk_fill_2d
-      integer(i_kind),allocatable,dimension(:):: dim,dim_id
-  
-      integer(i_kind):: nx,ny,nz,i,j,k,d_max,file_id,var_id,ndim,mype,kp
-      integer(i_kind):: Time_id,s_n_id,w_e_id,b_t_id,s_n_stag_id,w_e_stag_id,b_t_stag_id
-      integer(i_kind):: Time_len,s_n_len,w_e_len,b_t_len,s_n_stag_len,w_e_stag_len,b_t_stag_len
+      
+      integer(i_kind):: i,j,k,kp
       integer(i_kind) iderivative
   
-      real(r_kind):: deltasigma
-      real(r_kind) psfc_this_dry,psfc_this
-      real(r_kind) work_prslk,work_prsl
-  
+      
       logical ice
 
       character(len=24),parameter :: myname_ = 'general_read_fv3_regional'
@@ -409,6 +396,10 @@ contains
       character(len=:),allocatable :: sfcdata   !='fv3_sfcdata'
       character(len=:),allocatable :: couplerres!='coupler.res'
       
+      associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+      end associate
+
+
     grid_spec=fv3_filenameginput%grid_spec
     ak_bk=fv3_filenameginput%ak_bk
     dynvars=fv3_filenameginput%dynvars
@@ -420,41 +411,40 @@ contains
 
 !cltthinktobe  should be contained in variable like grd_ens
 
-!   do it=1,nfldsig
-    if(fv3sar_ensemble_opt.eq.0 ) then  
-    call gsi_fv3ncdf_readuv(dynvars,g_u,g_v)
+
+    if(fv3sar_ensemble_opt == 0 ) then  
+      call gsi_fv3ncdf_readuv(dynvars,g_u,g_v)
     else
-    call gsi_fv3ncdf_readuv_v1(dynvars,g_u,g_v)
+      call gsi_fv3ncdf_readuv_v1(dynvars,g_u,g_v)
     endif
-    if(fv3sar_ensemble_opt.eq.0) then
-    call gsi_fv3ncdf_read(dynvars,'T','t',g_tsen,mype_t)
+    if(fv3sar_ensemble_opt == 0) then
+      call gsi_fv3ncdf_read(dynvars,'T','t',g_tsen,mype_t)
     else
-    call gsi_fv3ncdf_read_v1(dynvars,'t','T',g_tsen,mype_t)
+      call gsi_fv3ncdf_read_v1(dynvars,'t','T',g_tsen,mype_t)
     endif
-    if (fv3sar_ensemble_opt.eq.0) then 
-    call gsi_fv3ncdf_read(dynvars,'DELP','delp',g_prsi,mype_p)
-    g_prsi(:,:,grd_ens%nsig+1)=eta1_ll(grd_ens%nsig+1) !thinkto be done , should use eta1_ll from ensemble grid
-    do i=grd_ens%nsig,1,-1
-       g_prsi(:,:,i)=g_prsi(:,:,i)*0.001_r_kind+g_prsi(:,:,i+1)
-    enddo
+    if (fv3sar_ensemble_opt == 0) then 
+      call gsi_fv3ncdf_read(dynvars,'DELP','delp',g_prsi,mype_p)
+      g_prsi(:,:,grd_ens%nsig+1)=eta1_ll(grd_ens%nsig+1) !thinkto be done , should use eta1_ll from ensemble grid
+      do i=grd_ens%nsig,1,-1
+         g_prsi(:,:,i)=g_prsi(:,:,i)*0.001_r_kind+g_prsi(:,:,i+1)
+      enddo
     g_ps(:,:)=g_prsi(:,:,1)
     else  ! for the ensemble processed frm CHGRES
-    call gsi_fv3ncdf2d_read_v1(dynvars,'ps','PS',g_ps,mype_p)
-    g_ps=g_ps*0.001_r_kind
-    do k=1,grd_ens%nsig+1
-    g_prsi(:,:,k)=eta1_ll(k)+eta2_ll(k)*g_ps
-    enddo
+      call gsi_fv3ncdf2d_read_v1(dynvars,'ps','PS',g_ps,mype_p)
+      g_ps=g_ps*0.001_r_kind
+      do k=1,grd_ens%nsig+1
+        g_prsi(:,:,k)=eta1_ll(k)+eta2_ll(k)*g_ps
+      enddo
     
 
     endif
      
-    if(fv3sar_ensemble_opt.eq.0) then
-    call gsi_fv3ncdf_read(tracers,'SPHUM','sphum',g_q,mype_q)
-!   call gsi_fv3ncdf_read(tracers,'LIQ_WAT','liq_wat',ges_ql,mype_ql)
-    call gsi_fv3ncdf_read(tracers,'O3MR','o3mr',g_oz,mype_oz)
+    if(fv3sar_ensemble_opt == 0) then
+      call gsi_fv3ncdf_read(tracers,'SPHUM','sphum',g_q,mype_q)
+      call gsi_fv3ncdf_read(tracers,'O3MR','o3mr',g_oz,mype_oz)
     else
-    call gsi_fv3ncdf_read_v1(tracers,'sphum','SPHUM',g_q,mype_q)
-    call gsi_fv3ncdf_read_v1(tracers,'o3mr','O3MR',g_oz,mype_oz)
+      call gsi_fv3ncdf_read_v1(tracers,'sphum','SPHUM',g_q,mype_q)
+      call gsi_fv3ncdf_read_v1(tracers,'o3mr','O3MR',g_oz,mype_oz)
     endif
 
 !!  tsen2tv  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -466,39 +456,37 @@ contains
        enddo
     enddo
          if (.not.q_hyb_ens) then
-         ice=.true.
-         iderivative=0
-                    do k=1,grd_ens%nsig
-                 kp=k+1
-                do j=1,grd_ens%lon2
-                   do i=1,grd_ens%lat2
-                      g_prsl(i,j,k)=(g_prsi(i,j,k)+g_prsi(i,j,kp))*half
-
-                   end do
+           ice=.true.
+           iderivative=0
+           do k=1,grd_ens%nsig
+             kp=k+1
+             do j=1,grd_ens%lon2
+               do i=1,grd_ens%lat2
+                 g_prsl(i,j,k)=(g_prsi(i,j,k)+g_prsi(i,j,kp))*half
                 end do
              end do
-
-         call genqsat(g_rh,g_tsen(1,1,1),g_prsl(1,1,1),grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,ice,iderivative)
-         do k=1,grd_ens%nsig
-            do j=1,grd_ens%lon2
+           end do
+           call genqsat(g_rh,g_tsen(1,1,1),g_prsl(1,1,1),grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,ice,iderivative)
+           do k=1,grd_ens%nsig
+             do j=1,grd_ens%lon2
                do i=1,grd_ens%lat2
-                  g_rh(i,j,k) = g_q(i,j,k)/g_rh(i,j,k)
+                 g_rh(i,j,k) = g_q(i,j,k)/g_rh(i,j,k)
                end do
-            end do
-         end do
-       else
-         do k=1,grd_ens%nsig
-            do j=1,grd_ens%lon2
-               do i=1,grd_ens%lat2
-                  g_rh(i,j,k) = g_q(i,j,k)
-               end do
-            end do
-         end do
-      end if
+             end do
+           end do
+         else
+             do k=1,grd_ens%nsig
+               do j=1,grd_ens%lon2
+                 do i=1,grd_ens%lat2
+                   g_rh(i,j,k) = g_q(i,j,k)
+                 end do
+                end do
+              end do
+         end if
 
 
 
-!clt not needed     call gsi_fv3ncdf2d_read(it,ges_z)
+
 
   return       
   end subroutine general_read_fv3_regional

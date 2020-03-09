@@ -58,8 +58,8 @@ subroutine obs_para(ndata,mype)
   use constants, only: zero
   use jfunc, only: factqmin,factqmax
   use mpimod, only: npe,mpi_itype,mpi_comm_world,ierror
-  use obsmod, only: obs_setup,dtype,mype_diaghdr,ndat,nsat1, &
-              obsfile_all,dplat,nobs_sub,obs_sub_comm 
+  use obsmod, only: obs_setup,dtype,mype_diaghdr,ndat,nsat1
+  use obsmod, only: obsfile_all,dplat,nobs_sub,obs_sub_comm 
   use gridmod, only: twodvar_regional 
   use qcmod, only: buddycheck_t,buddydiag_save 
   use gsi_io, only: verbose, print_obs_para

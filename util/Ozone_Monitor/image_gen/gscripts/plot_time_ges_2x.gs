@@ -24,8 +24,8 @@ ysize=subwrd(args,7)
 
 say 'process 'field' from 'plotfile1
 say 'process 'field' from 'plotfile2
-* 'open 'plotfile1'.ctl'
-* 'open 'plotfile2'.ctl'
+* 'open 'plotfile1'.ges.ctl'
+* 'open 'plotfile2'.ges.ctl'
 
 debug=0
 
@@ -71,7 +71,7 @@ while (region<=nregion)
 *say 'top of region loop with region='region
 
 '!rm -f area.txt'
-'!cat 'plotfile1'.ctl |grep "region= 'region' " > area.txt'
+'!cat 'plotfile1'.ges.ctl |grep "region= 'region' " > area.txt'
 result=read(area.txt)
 rc=sublin(result,1)
 area="uknown"
@@ -218,7 +218,7 @@ while (levn<=nlev)
    endif
 
    '!rm -f info.txt'
-   '!cat 'plotfile1'.ctl |grep "'levn', level" > info.txt'
+   '!cat 'plotfile1'.ges.ctl |grep "'levn', level" > info.txt'
    result=read(info.txt)
    rc=sublin(result,1)
    iuse=0
@@ -359,7 +359,7 @@ while (levn<=nlev)
       'draw string 0.2 10.30 region  :  'area
       'draw string 0.2 10.05 variable :  'type
       'draw string 0.2  9.80 valid   :  'date1' to 'date2
-      outfile=plotfile1'.'field'_region'region'_fr'fr'.png'
+      outfile=plotfile1'.ges.'field'_region'region'_fr'fr'.png'
       'printim 'outfile' 'xsize' 'ysize' white'
 
 *      say 'output to file 'outfile

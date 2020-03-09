@@ -30,11 +30,13 @@ use abstract_regional_io_mod
       procedure, pass(this) :: convert_regional_guess => convert_regional_guess_dummy
   end type regional_io_class
 
+logical,parameter:: VERBOSE=.false.
+!logical,parameter:: VERBOSE=.true.
 contains
   subroutine init_regional_io_dummy(this)
     implicit none
     class(regional_io_class), intent(inout) :: this
-    write(6,*) 'DUMMY CALL to init_regional_io'
+    if(VERBOSE) write(6,*) 'DUMMY CALL to init_regional_io'
     return
   end subroutine init_regional_io_dummy
 
@@ -43,7 +45,7 @@ contains
     implicit none
     class(regional_io_class), intent(inout) :: this
     integer(i_kind),intent(in):: mype
-    write(6,*) 'DUMMY CALL to write_regional_analysis'
+    if(VERBOSE) write(6,*) 'DUMMY CALL to write_regional_analysis'
     return
   end subroutine write_regional_analysis_dummy
 
@@ -56,7 +58,7 @@ contains
     ctph0 = 0.0_r_kind
     stph0 = 0.0_r_kind
     tlm0 = 0.0_r_kind
-    write(6,*) 'DUMMY CALL to convert_regional_guess'
+    if(VERBOSE) write(6,*) 'DUMMY CALL to convert_regional_guess'
     return
   end subroutine convert_regional_guess_dummy
 

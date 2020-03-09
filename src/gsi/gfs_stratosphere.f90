@@ -1105,6 +1105,9 @@ subroutine add_gfs_stratosphere
               nfhour=nfhour,nfminute=nfminute,nfsecondn=nfsecondn,nfsecondd=nfsecondd, &
               idate=idate,dimx=lonb,dimy=latb,dimz=levs,jcap=njcap)
 
+         ! FV3GFS write component does not include JCAP, infer from DIMY-2
+         if (njcap<0) njcap=latb-2
+
          if (  nframe /= 0 ) call error_msg(trim(my_name),trim(filename),'nframe', &
                                             'getfilehead',istop,nframe)
 
@@ -1114,7 +1117,7 @@ subroutine add_gfs_stratosphere
             write(6,*) ' input filename=',filename
             write(6,*) ' nemsio head: fhour,idate=',fhour,idate
             write(6,*) ' iadate(y,m,d,hr,min)=',iadate
-            write(6,*) ' nemsio head: latb, lonb=', latb, lonb
+            write(6,*) ' nemsio head: latb, lonb=', latb, lonb,njcap
          end if
    
          call nemsio_close(gfile,iret=iret)

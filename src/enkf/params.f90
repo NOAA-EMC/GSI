@@ -189,6 +189,13 @@ logical,public :: lobsdiag_forenkf = .false.
 ! if true, use netcdf diag files, otherwise use binary diags
 logical,public :: netcdf_diag = .false.
 
+! use fv3 cubed-sphere tiled restart files
+logical,public :: fv3_native = .false.
+character(len=500),public :: fv3fixpath = ' '
+integer(i_kind),public :: ntiles=6
+integer(i_kind),public :: nx_res=0,ny_res=0
+logical,public ::l_pres_add_saved 
+
 namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    covinflatemax,covinflatemin,deterministic,sortinc,&
                    corrlengthnh,corrlengthtr,corrlengthsh,&
@@ -210,11 +217,11 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs,npefiles,&
                    getkf,getkf_inflation,denkf,modelspace_vloc,dfs_sort,write_spread_diag,&
                    covinflatenh,covinflatesh,covinflatetr,lnsigcovinfcutoff,&
-                   fso_cycling,fso_calculate,imp_physics,lupp
+                   fso_cycling,fso_calculate,imp_physics,lupp,fv3_native
 namelist /nam_wrf/arw,nmm,nmm_restart
+namelist /nam_fv3/fv3fixpath,nx_res,ny_res,ntiles,l_pres_add_saved
 namelist /satobs_enkf/sattypes_rad,dsis
 namelist /ozobs_enkf/sattypes_oz
-
 
 contains
 
@@ -353,7 +360,7 @@ dsis=' '
 ! Initialize first-guess and analysis file name prefixes.
 ! (blank means use default names)
 fgfileprefixes = ''; anlfileprefixes=''; statefileprefixes=''
-
+l_pres_add_saved=.true.
 ! read from namelist file, doesn't seem to work from stdin with mpich
 open(912,file='enkf.nml',form="formatted")
 read(912,nam_enkf)
@@ -361,6 +368,10 @@ read(912,satobs_enkf)
 read(912,ozobs_enkf)
 if (regional) then
   read(912,nam_wrf)
+endif
+if (fv3_native) then
+  read(912,nam_fv3)
+  nlons = nx_res; nlats = ny_res ! (total number of pts = ntiles*res*res)
 endif
 close(912)
 
@@ -494,6 +505,7 @@ if (nproc == 0) then
    print *,'namelist parameters:'
    print *,'--------------------'
    write(6,nam_enkf)
+   write(6,nam_fv3)
    print *,'--------------------'
 
 ! check for mandatory namelist variables
@@ -513,12 +525,16 @@ if (nproc == 0) then
    !do np=0,ntasks_io-1
    !   print *,'task,nanal1,nanal2',np+1,nanal1(np),nanal2(np)
    !enddo
-   if (datapath == ' ') then
+   if (trim(datapath) == '') then
       print *,'need to specify datapath in namelist!'
       call stop2(19)
    end if
    if(regional .and. .not. arw .and. .not. nmm .and. .not. nmmb) then
       print *, 'must select either arw, nmm or nmmb regional dynamical core'
+      call stop2(19)
+   endif
+   if (fv3_native .and. (trim(fv3fixpath) == '' .or. nx_res == 0 .or. ny_res == 0 )) then
+      print *, 'must specify nx_res,ny_res and fv3fixpath when fv3_native is true'
       call stop2(19)
    endif
    if (letkf_flag .and. univaroz) then
@@ -529,6 +545,7 @@ if (nproc == 0) then
        letkf_flag) then
      print *,'warning: no time localization in LETKF!'
    endif
+
 
    print *, trim(adjustl(datapath))
    if (datestring .ne. '0000000000') print *, 'analysis time ',datestring

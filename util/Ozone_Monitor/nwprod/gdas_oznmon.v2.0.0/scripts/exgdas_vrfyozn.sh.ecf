@@ -73,6 +73,7 @@ export DO_DATA_RPT=${DO_DATA_RPT:-1}
 export NCP=${NCP:-/bin/cp}
 export NDATE=${NDATE:-/nwprod/util/exec/ndate}
 
+
 ##################################################################
 # ensure work and TANK dirs exist, verify oznstat is available
 if [[ ! -d ${OZN_WORK_DIR} ]]; then
@@ -105,15 +106,17 @@ if [[ -s ${oznstat} ]]; then
    tar -xvf oznstat.$PDATE
    rm oznstat.$PDATE
 
-   netcdf_diag=".false."
+   netcdf=0
    count=`ls diag* | grep ".nc4" | wc -l`
    if [ $count -gt 0 ] ; then
-      netcdf_diag=".true."
+      netcdf=1
       for filenc4 in `ls diag*nc4.gz`; do
          file=`echo $filenc4 | cut -d'.' -f1-2`.gz
          mv $filenc4 $file
       done
    fi
+   
+   export OZNMON_NETCDF=${netcdf}
 
    ${HOMEoznmon}/ush/ozn_xtrct.sh
    err=$?

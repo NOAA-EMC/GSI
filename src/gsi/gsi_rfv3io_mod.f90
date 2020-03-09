@@ -11,7 +11,7 @@ module gsi_rfv3io_mod
 !                           gsi_nemsio_mod as a pattern.
 !   2017-10-10  wu      - setup A grid and interpolation coeff in generate_anl_grid
 !   2018-02-22  wu      - add subroutines for read/write fv3_ncdf
-!
+!   2019        ting    - modifications for use for ensemble IO and cold start files 
 ! subroutines included:
 !   sub gsi_rfv3io_get_grid_specs
 !   sub read_fv3_files 
@@ -54,7 +54,7 @@ module gsi_rfv3io_mod
       procedure , pass(this):: init=>fv3regfilename_init
   end type type_fv3regfilenameg
 
-  integer:: fv3sar_bg_opt=0
+  integer(i_kind):: fv3sar_bg_opt=0
   type(type_fv3regfilenameg):: bg_fv3regfilenameg
   integer(i_kind) nx,ny,nz
   real(r_kind),allocatable:: grid_lon(:,:),grid_lont(:,:),grid_lat(:,:),grid_latt(:,:)
@@ -101,46 +101,45 @@ module gsi_rfv3io_mod
 contains
   subroutine fv3regfilename_init(this,grid_spec_input,ak_bk_input,dynvars_input, &
                       tracers_input,sfcdata_input,couplerres_input)
-  class(type_fv3regfilenameg):: this
+  implicit None
+  class(type_fv3regfilenameg),intent(inout):: this
   character(*),optional :: grid_spec_input,ak_bk_input,dynvars_input, &
                       tracers_input,sfcdata_input,couplerres_input
   if(present(grid_spec_input))then
 
-  this%grid_spec=grid_spec_input
+    this%grid_spec=grid_spec_input
   else
-  this%grid_spec='fv3_grid_spec'
+    this%grid_spec='fv3_grid_spec'
   endif
   if(present(ak_bk_input))then
-
-  this%ak_bk=ak_bk_input
+    this%ak_bk=ak_bk_input
   else
-  this%ak_bk='fv3_ak_bk'
+    this%ak_bk='fv3_ak_bk'
   endif
   if(present(dynvars_input))then
 
-  this%dynvars=dynvars_input
+    this%dynvars=dynvars_input
   else
-  this%dynvars='fv3_dynvars'
+    this%dynvars='fv3_dynvars'
   endif
   if(present(tracers_input))then
 
-  this%tracers=tracers_input
+    this%tracers=tracers_input
   else
-  this%tracers='fv3_tracer'
+    this%tracers='fv3_tracer'
   endif
   if(present(sfcdata_input))then
 
-  this%sfcdata=sfcdata_input
+    this%sfcdata=sfcdata_input
   else
-  this%sfcdata='fv3_sfcdata'
+    this%sfcdata='fv3_sfcdata'
   endif
 
   if(present(couplerres_input))then
 
-  this%couplerres=couplerres_input
+    this%couplerres=couplerres_input
   else
-!clt   this%couplerres='fv3_coupler.res'
-  this%couplerres='coupler.res'
+    this%couplerres='coupler.res'
   endif
 
   end subroutine fv3regfilename_init
@@ -193,11 +192,7 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
 
   implicit none
 
-  integer(i_kind) gfile_grid_spec,gfile_ak_bk,gfile_dynvars
-  integer(i_kind) gfile_tracers,gfile_sfcdata
-!  integer(i_kind) :: gfile
-!  save gfile
-
+  integer(i_kind) gfile_grid_spec
   type (type_fv3regfilenameg) :: fv3filenamegin
   character(:),allocatable    :: grid_spec
   character(:),allocatable    :: ak_bk
@@ -215,7 +210,6 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
       ak_bk=fv3filenamegin%ak_bk
 
 !!!!! set regional_time
-!cltorg    open(24,file='coupler.res',form='formatted')
     open(24,file=trim(coupler_res_filenam),form='formatted')
     read(24,*)
     read(24,*)
@@ -235,7 +229,7 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
     ierr=0
     iret=nf90_open(trim(grid_spec),nf90_nowrite,gfile_grid_spec)
     if(iret/=nf90_noerr) then
-       write(6,*)' problem opening1 ',trim(grid_spec),', Status = ',iret
+       write(6,*)' gsi_rfv3io_get_grid_specs: problem opening ',trim(grid_spec),', Status = ',iret
        ierr=1
        return
     endif
@@ -278,7 +272,7 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
 
     iret=nf90_open(ak_bk,nf90_nowrite,gfile_loc)
     if(iret/=nf90_noerr) then
-       write(6,*)' problem opening2 ',trim(ak_bk),', Status = ',iret
+       write(6,*)'gsi_rfv3io_get_grid_specs: problem opening ',trim(ak_bk),', Status = ',iret
        ierr=1
        return
     endif
@@ -723,7 +717,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
 
     implicit none
 
-    type (type_fv3regfilenameg) :: fv3filenamegin
+    type (type_fv3regfilenameg),intent (in) :: fv3filenamegin
     character(len=24),parameter :: myname = 'read_fv3_netcdf_guess'
     integer(i_kind) k,i,j
     integer(i_kind) it,ier,istatus
@@ -735,13 +729,10 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
 !   real(r_kind),dimension(:,:,:),pointer::ges_ql=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_oz=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_tv=>NULL()
-
-      character(len=:),allocatable :: grid_spec !='fv3_grid_spec'            
-      character(len=:),allocatable :: ak_bk     !='fv3_akbk'
+            
       character(len=:),allocatable :: dynvars   !='fv3_dynvars'
       character(len=:),allocatable :: tracers   !='fv3_tracer'
-      character(len=:),allocatable :: sfcdata   !='fv3_sfcdata'
-      character(len=:),allocatable :: couplerres!='coupler.res'
+   
 
 !    setup list for 2D surface fields
 !    k_f10m =1   !fact10
@@ -803,19 +794,19 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'oz'  ,ges_oz ,istatus );ier=ier+istatus
     if (ier/=0) call die(trim(myname),'cannot get pointers for fv3 met-fields, ier =',ier)
      
-    if( fv3sar_bg_opt.eq.0) then 
+    if( fv3sar_bg_opt == 0) then 
     call gsi_fv3ncdf_readuv(dynvars,ges_u,ges_v)
     else
     call gsi_fv3ncdf_readuv_v1(dynvars,ges_u,ges_v)
     endif
-    if( fv3sar_bg_opt.eq.0) then 
+    if( fv3sar_bg_opt == 0) then 
     call gsi_fv3ncdf_read(dynvars,'T','t',ges_tsen(1,1,1,it),mype_t)
     else
     write(6,*)'thindkeb250 read t'
     call gsi_fv3ncdf_read_v1(dynvars,'t','T',ges_tsen(1,1,1,it),mype_t)
     endif
 
-    if( fv3sar_bg_opt.eq.0) then 
+    if( fv3sar_bg_opt == 0) then 
     call gsi_fv3ncdf_read(dynvars,'DELP','delp',ges_prsi,mype_p)
     ges_prsi(:,:,nsig+1,it)=eta1_ll(nsig+1)
     do i=nsig,1,-1
@@ -835,7 +826,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
 
 
 
-    if( fv3sar_bg_opt.eq.0) then 
+    if( fv3sar_bg_opt == 0) then 
     call gsi_fv3ncdf_read(tracers,'SPHUM','sphum',ges_q,mype_q)
 !   call gsi_fv3ncdf_read(tracers,'LIQ_WAT','liq_wat',ges_ql,mype_ql)
     call gsi_fv3ncdf_read(tracers,'O3MR','o3mr',ges_oz,mype_oz)
@@ -858,7 +849,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
 end subroutine read_fv3_netcdf_guess
 
 subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z)
-!$$$  subprogra_fv3ncdf2d_readm documentation block
+!$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    gsi_fv3ncdf2d_read       
 !   prgmmr: wu w             org: np22                date: 2017-10-17
@@ -1104,8 +1095,8 @@ subroutine gsi_fv3ncdf2d_read_v1(filenamein,varname,varname2,work_sub,mype_io)
     if(mype==mype_io ) then
        iret=nf90_open(trim(filenamein),nf90_nowrite,gfile_loc)
        if(iret/=nf90_noerr) then
-          write(6,*)' problem opening5 ',trim(filenamein),gfile_loc,', Status = ',iret
-          write(6,*)' problem opening5 with varnam ',trim(varname)
+          write(6,*)' gsi_fv3ncdf2d_read_v1: problem opening ',trim(filenamein),gfile_loc,', Status = ',iret
+          write(6,*)' gsi_fv3ncdf2d_read_v1: problem opening with varnam ',trim(varname)
           return
        endif
 
@@ -1205,8 +1196,8 @@ subroutine gsi_fv3ncdf_read(filenamein,varname,varname2,work_sub,mype_io)
     if(mype==mype_io ) then
        iret=nf90_open(trim(filenamein),nf90_nowrite,gfile_loc)
        if(iret/=nf90_noerr) then
-          write(6,*)' problem opening5 ',trim(filenamein),gfile_loc,', Status = ',iret
-          write(6,*)' problem opening5 with varnam ',trim(varname)
+          write(6,*)' gsi_fv3ncdf_read: problem opening ',trim(filenamein),gfile_loc,', Status = ',iret
+          write(6,*)' gsi_fv3ncdf_read:problem opening5 with varnam ',trim(varname)
           return
        endif
 
@@ -1570,7 +1561,7 @@ subroutine gsi_fv3ncdf_readuv_v1(dynvarsfile,ges_u,ges_v)
     if(mype==mype_u .or. mype==mype_v) then
        iret=nf90_open(dynvarsfile,nf90_nowrite,gfile_loc)
        if(iret/=nf90_noerr) then
-          write(6,*)' problem opening6 ',trim(dynvarsfile),', Status = ',iret
+          write(6,*)' gsi_fv3ncdf_readuv_v1: problem opening ',trim(dynvarsfile),', Status = ',iret
           return
        endif
 
@@ -1590,27 +1581,6 @@ subroutine gsi_fv3ncdf_readuv_v1(dynvarsfile,ges_u,ges_v)
        allocate(uu(nx+1,ny,nsig))
        endif
 
-!cltorg begin       do k=ndimensions+1,nvariables
-!clt          iret=nf90_inquire_variable(gfile_loc,k,name,len)
-!clt          if(trim(name)=='u'.or.trim(name)=='U' .or.  &
-!clt             trim(name)=='v'.or.trim(name)=='V' ) then 
-!clt             iret=nf90_inquire_variable(gfile_loc,k,ndims=ndim)
-!clt             if(allocated(dim_id    )) deallocate(dim_id    )
-!clt             allocate(dim_id(ndim))
-!clt             iret=nf90_inquire_variable(gfile_loc,k,dimids=dim_id)
-!    NOTE:   dimension of variables on native fv3 grid.  
-!            u and v have an extra row in one of the dimensions
-!!             if(allocated(uu)) deallocate(uu)
-!             allocate(uu(dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))))
-!             iret=nf90_get_var(gfile_loc,k,uu)
-!             if(trim(name)=='u'.or.trim(name)=='U') then
-!                allocate(temp1(dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))))
-!                temp1=uu
-!             else if(trim(name)=='v'.or.trim(name)=='V') then
-!                exit
-!             endif
-!          endif
-!       enddo     !   k
 ! transfor to earth u/v, interpolate to analysis grid, reverse vertical order
        if(mype.eq.mype_u) then 
        iret=nf90_inq_varid(gfile_loc,trim(adjustl("u_s")),var_id)
@@ -1640,7 +1610,6 @@ subroutine gsi_fv3ncdf_readuv_v1(dynvarsfile,ges_u,ges_v)
              
              call fv3_h_to_ll_regular_grids(uorv(:,:),a,nx,ny,nxa,nya,p_fv3sar2anlgrid)
           else
-!cltthinkorg             call fv3_h_to_ll(v,a,nx,ny,nxa,nya)
              do j=1,nx
              uorv(j,:)=half*(uu(j,:,i)+uu(j+1,:,i))
              enddo
@@ -1726,13 +1695,12 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     add_saved=.true.
 
 !   write out
-    if( fv3sar_bg_opt.eq.0) then
+    if( fv3sar_bg_opt == 0) then
     call gsi_fv3ncdf_write(dynvars,'T',ges_tsen(1,1,1,it),mype_t,add_saved)
     call gsi_fv3ncdf_write(tracers,'sphum',ges_q   ,mype_q,add_saved)
     call gsi_fv3ncdf_writeuv(dynvars,ges_u,ges_v,mype_v,add_saved)
     call gsi_fv3ncdf_writeps(dynvars,'delp',ges_ps,mype_p,add_saved)
     else
-    write(6,*)'thinkdeb250 before gsi_fv3ncdf_write_v1'
     call gsi_fv3ncdf_write_v1(dynvars,'t',ges_tsen(1,1,1,it),mype_t,add_saved)
     call gsi_fv3ncdf_write_v1(tracers,'sphum',ges_q   ,mype_q,add_saved)
     call gsi_fv3ncdf_writeuv_v1(dynvars,ges_u,ges_v,mype_v,add_saved)
@@ -1996,9 +1964,6 @@ subroutine gsi_fv3ncdf_writeps(filename,varname,var,mype_io,add_saved)
           work_b(:,:,k)=(work_bi(:,:,kp)-work_bi(:,:,k))*1000._r_kind
        enddo
   
-!       do k=1,nsig+1
-!          write(6,*)' is ',k,' ',eta1_ll(k),eta2_ll(k)
-!       enddo
 
        call check( nf90_put_var(gfile_loc,VarId,work_b) )
        call check( nf90_close(gfile_loc) )

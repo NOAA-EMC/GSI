@@ -31,6 +31,7 @@ use m_obsNode, only: obsNode
 use m_wNode, only: wNode
 use m_wNode, only: wNode_typecast
 use m_wNode, only: wNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -155,12 +156,16 @@ subroutine intw_(whead,rval,sval)
         if (lsaveobsens) then
            gradu = valu*wptr%raterr2*wptr%err2
            gradv = valv*wptr%raterr2*wptr%err2
-           wptr%diagu%obssen(jiter) = gradu
-           wptr%diagv%obssen(jiter) = gradv
+           !-- wptr%diagu%obssen(jiter) = gradu
+           !-- wptr%diagv%obssen(jiter) = gradv
+           call obsdiagNode_set(wptr%diagu,jiter=jiter,obssen=gradu)
+           call obsdiagNode_set(wptr%diagv,jiter=jiter,obssen=gradv)
         else
            if (wptr%luse) then
-              wptr%diagu%tldepart(jiter)=valu
-              wptr%diagv%tldepart(jiter)=valv
+              !-- wptr%diagu%tldepart(jiter)=valu
+              !-- wptr%diagv%tldepart(jiter)=valv
+              call obsdiagNode_set(wptr%diagu,jiter=jiter,tldepart=valu)
+              call obsdiagNode_set(wptr%diagv,jiter=jiter,tldepart=valv)
            endif
         endif
      endif

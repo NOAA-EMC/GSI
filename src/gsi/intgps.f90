@@ -29,6 +29,7 @@ use m_obsNode, only: obsNode
 use m_gpsNode, only: gpsNode
 use m_gpsNode, only: gpsNode_typecast
 use m_gpsNode, only: gpsNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -168,9 +169,11 @@ subroutine intgps_(gpshead,rval,sval)
      if (luse_obsdiag)then
         if (lsaveobsens) then
            grad = val*gpsptr%raterr2*gpsptr%err2
-           gpsptr%diags%obssen(jiter) = grad
+           !-- gpsptr%diags%obssen(jiter) = grad
+           call obsdiagNode_set(gpsptr%diags,jiter=jiter,obssen=grad)
         else
-           if (gpsptr%luse) gpsptr%diags%tldepart(jiter)=val
+           !-- if (gpsptr%luse) gpsptr%diags%tldepart(jiter)=val
+           if (gpsptr%luse) call obsdiagNode_set(gpsptr%diags,jiter=jiter,tldepart=val)
         endif
      endif
 

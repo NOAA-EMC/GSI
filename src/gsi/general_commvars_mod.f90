@@ -88,6 +88,9 @@ contains
 ! program history log:
 !   2012-06-25  parrish
 !   2013-10-28  todling - rename p3d to prse
+!   2018-05-09  mtong - use derivative vector to structure variable s2g_d
+!   2018-05-09  eliu - construct variable s2g_d for derivatives when derivative variables
+!                      are set (drv_set_ = .true.)   
 !
 !   input argument list:
 !
@@ -104,6 +107,7 @@ contains
                          ijn_s,irc_s,ijn,displs_g,isc_g,isd_g,vlevs
       use mpimod, only: npe,levs_id,nvar_id,nvar_pe
       use control_vectors, only: cvars2d,cvars3d,mvars,cvarsmd,nrf_var
+      use derivsmod, only: dvars2d, dvars3d, drv_set_ 
       use general_sub2grid_mod, only: general_sub2grid_create_info
       use mpeu_util, only: getindex
 
@@ -204,29 +208,33 @@ contains
 
 !  create general_sub2grid structure variable s2g_d, which is used in get_derivatives.f90
 
-      inner_vars=1
-      num_fields=size(cvars2d)+nsig*size(cvars3d)
+      if (drv_set_) then 
+
+         inner_vars=1
+         num_fields=size(dvars2d)+nsig*size(dvars3d)
 
 !  obtain pointer to each variable in bundle, then populate corresponding names in names_s2g_d for
-!     general_sub2grid_create_info.  this is needed for replacing nvar_id.
-      allocate(names_s2g_d(inner_vars,num_fields),vector_s2g_d(num_fields))
-!             bundlemod stores 3d fields first, followed by 2d fields, followed by 1d fields
-      i=0
-      do k=1,size(cvars3d)
-         do j=1,nsig
-            i=i+1
-            names_s2g_d(1,i)=cvars3d(k)
-            vector_s2g_d(i)=names_s2g_d(1,i) == 'sf'.or.names_s2g_d(1,i) == 'vp'
+!        general_sub2grid_create_info.  this is needed for replacing nvar_id.
+         allocate(names_s2g_d(inner_vars,num_fields),vector_s2g_d(num_fields))
+!                 bundlemod stores 3d fields first, followed by 2d fields, followed by 1d fields
+         i=0
+         do k=1,size(dvars3d)
+            do j=1,nsig
+               i=i+1
+               names_s2g_d(1,i)=dvars3d(k)
+               vector_s2g_d(i)=names_s2g_d(1,i) == 'u'.or.names_s2g_d(1,i) == 'v'
+            end do
          end do
-      end do
-      do k=1,size(cvars2d)
-         i=i+1
-         names_s2g_d(1,i)=cvars2d(k)
-         vector_s2g_d(i)=names_s2g_d(1,i) == 'sf'.or.names_s2g_d(1,i) == 'vp'
-      end do
-      call general_sub2grid_create_info(s2g_d,inner_vars,nlat,nlon,nsig,num_fields,regional, &
+         do k=1,size(dvars2d)
+            i=i+1
+            names_s2g_d(1,i)=dvars2d(k)
+            vector_s2g_d(i)=names_s2g_d(1,i) == 'u'.or.names_s2g_d(1,i) == 'v'
+         end do
+         call general_sub2grid_create_info(s2g_d,inner_vars,nlat,nlon,nsig,num_fields,regional, &
                                         vector=vector_s2g_d,names=names_s2g_d,s_ref=s2g_raf)
-      deallocate(names_s2g_d,vector_s2g_d)
+         deallocate(names_s2g_d,vector_s2g_d)
+
+      endif
 
 !  create general_sub2grid structure variable g1, which is used in get_derivatives.f90
 

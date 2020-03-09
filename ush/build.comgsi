@@ -6,18 +6,27 @@
 #
 #  build commands:
 #    cmake -DENKF_MODE=WRF -DBUILD_CORELIBS=ON -DBUILD_GSDCLOUD_ARW=ON path_to_ProdGSI
+#    cmake -DENKF_MODE=WRF -DBUILD_CORELIBS=ON -DBUILD_GSDCLOUD_ARW=ON -DBUILD_UTIL_COM=ON -DBUILD_ENKF_PREPROCESS_ARW=ON"
 #    make -j8
 #
 
 dir_root=$(pwd)
 
-source /etc/profile.d/modules.sh
-if [[ -d /scratch3 ]] ; then ### theia
+if [[ "`grep -i "theia" /etc/hosts | head -n1`" != "" ]] ; then ###theia
+    source /etc/profile.d/modules.sh
     modulefile="/home/rtrr/PARM_EXEC/modulefiles/modulefile.theia.GSI_UPP_WRF"
+elif [[ "`grep -i "hera" /etc/hosts | head -n1`" != "" ]] ; then ###hera
+    source /etc/profile.d/modules.sh
+    modulefile="/home/rtrr/PARM_EXEC/modulefiles/modulefile.hera.GSI_UPP_WRF"
 elif [[ -d /jetmon ]] ; then ### jet
+    source /etc/profile.d/modules.sh
     modulefile="/home/rtrr/PARM_EXEC/modulefiles/modulefile.jet.GSI_UPP_WRF"
 elif [[ -d /glade ]] ; then  ### cheyenne
+    source /etc/profile.d/modules.sh
     modulefile="/glade/p/ral/jntp/gge/modulefiles/modulefile.cheyenne.GSI_UPP_WRF"
+elif [[ -d /work/noaa ]] ; then  ### orion
+    modulefile="/work/noaa/comgsi/modulefiles/modulefile.orion.GSI_UPP_WRF"
+    #modulefile="/work/noaa/comgsi/modulefiles/modulefile.intel20"
 else
     echo "unknown machine"
     exit 9
@@ -28,6 +37,11 @@ if [ ! -f $modulefile ]; then
     exit 10
 fi
 source $modulefile
+
+## if NETCDF4 is set to 0 or 1, unset it
+if [[ "$NETCDF4" == "1" ]] || [[ "$NETCDF4" == "0" ]]; then
+  unset NETCDF4
+fi
 
 set -x
 rm -rf $dir_root/build
@@ -59,9 +73,9 @@ commitID=`git log -1 | head -n1 |cut -c8-15`
 repoName=`git config --get remote.origin.url | cut -d: -f2`
 datestamp=`date +%Y%m%d`
 cd bin
-ln -sf gsi.x gsi.x_${repoName}_${commitID}_${datestamp}
-ln -sf enkf_wrf.x enkf_wrf.x_${repoName}_${commitID}_${datestamp}
-ln -sf enspreproc.x enspreproc.x_${repoName}_${commitID}_${datestamp}
+ln -sf gsi.x gsi.x_${repoName}_${datestamp}_${commitID}
+ln -sf enkf_wrf.x enkf_wrf.x_${repoName}_${datestamp}_${commitID}
+ln -sf enspreproc.x enspreproc.x_${repoName}_${datestamp}_${commitID}
 ###mv $dir_root/build $dir_root/build_$commitID
 
 echo -e "\n\nAll build results are at ./build/ \n\n"

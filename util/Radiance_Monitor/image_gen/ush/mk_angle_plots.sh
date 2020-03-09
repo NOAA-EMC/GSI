@@ -58,9 +58,15 @@ for type in ${SATYPE}; do
       echo "testing with pdy = $pdy"
 
       if [[ $TANK_USE_RUN -eq 1 ]]; then
-         ieee_src=${TANKverf}/${RUN}.${PDY}/${MONITOR}
+         ieee_src=${TANKverf}/${RUN}.${PDY}/${CYC}/${MONITOR}
+         if [[ ! -d ${ieee_src} ]]; then
+            ieee_src=${TANKverf}/${RUN}.${PDY}/${MONITOR}
+         fi
       else
          ieee_src=${TANKverf}/${MONITOR}.${PDY}
+         if [[ ! -d ${ieee_src} ]]; then
+            ieee_src=${TANKverf}/${RUN}.${PDY}
+         fi
       fi
 
       if [[ -s ${ieee_src}/angle.${type}.ctl.${Z} ]]; then
@@ -157,7 +163,7 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw cos 
      # to the cmdfile
      ctr=0
      for type in ${SATLIST}; do
-       if [[ ${MY_MACHINE} = "theia" ]]; then
+       if [[ ${MY_MACHINE} = "hera" ]]; then
           echo "${ctr} $IG_SCRIPTS/plot_angle.sh $type $suffix '$list'" >> $cmdfile
 
        else
@@ -177,11 +183,15 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw cos 
         wall_tm="1:45"
      fi
 
-     if [[ ${MY_MACHINE} = "wcoss" || ${MY_MACHINE} = "wcoss_d" ]]; then
+     if [[ ${MY_MACHINE} = "wcoss" ]]; then
         $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 20000 -W ${wall_tm} \
              -R affinity[core] -J ${jobname} -cwd ${PWD} $cmdfile
 
-     elif [[ ${MY_MACHINE} = "theia" ]]; then
+     elif [[ ${MY_MACHINE} = "wcoss_d" ]]; then
+        $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 20000 -W ${wall_tm} \
+             -R "affinity[core]" -J ${jobname} -cwd ${PWD} $cmdfile
+
+     elif [[ ${MY_MACHINE} = "hera" ]]; then
         $SUB --account ${ACCOUNT} -n $ctr  -o ${logfile} -D . -J ${jobname} --time=2:00:00 \
         --wrap "srun -l --multi-prog ${cmdfile}"
 
@@ -210,7 +220,7 @@ for sat in ${bigSATLIST}; do
    #
    if [[ $MY_MACHINE = "wcoss" || ${MY_MACHINE} = "wcoss_d" || $MY_MACHINE = "cray" ]]; then 	
       batch=1
-
+      
       suffix="${sat}_${batch}"
       cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
       rm -f $cmdfile
@@ -220,8 +230,7 @@ for sat in ${bigSATLIST}; do
       ii=0
       while [[ $ii -le ${#list[@]}-1 ]]; do
 
-         echo "new line in cmdfile = $line"
-         echo $line >> $cmdfile
+         echo "$IG_SCRIPTS/plot_angle.sh $sat $suffix ${list[$ii]}" >> $cmdfile
          chmod 755 $cmdfile
 
          ntasks=`cat $cmdfile|wc -l `
@@ -233,12 +242,16 @@ for sat in ${bigSATLIST}; do
             wall_tm="1:00"
          fi
 
-        
-
          if [[ $MY_MACHINE = "wcoss" ]]; then
             mem="24000"
             $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M ${mem} -W ${wall_tm} \
                  -R affinity[core] -J ${jobname} -cwd ${PWD} $cmdfile
+
+         elif [[ $MY_MACHINE = "wcoss_d" ]]; then
+            mem="24000"
+            $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M ${mem} -W ${wall_tm} \
+                 -R "affinity[core]" -J ${jobname} -cwd ${PWD} $cmdfile
+
          else
             $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 600 -W ${wall_tm} \
                  -J ${jobname} -cwd ${PWD} $cmdfile
@@ -256,7 +269,7 @@ for sat in ${bigSATLIST}; do
       done
 
 
-   elif [[ $MY_MACHINE = "theia" ]]; then		# theia, submit 1 job for each sat/list item
+   elif [[ $MY_MACHINE = "hera" ]]; then		# hera, submit 1 job for each sat/list item
 
       ii=0
       suffix="${sat}"
@@ -272,7 +285,7 @@ for sat in ${bigSATLIST}; do
          (( ii=ii+1 ))
       done
 
-      $SUB --account ${ACCOUNT} -n $ii  -o ${logfile} -D . -J ${jobname} --time=2:00:00 \
+      $SUB --account ${ACCOUNT} -n $ii  -o ${logfile} -D . -J ${jobname} --time=4:00:00 \
            --wrap "srun -l --multi-prog ${cmdfile}"
 
    fi

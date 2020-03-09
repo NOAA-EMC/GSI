@@ -276,6 +276,19 @@ $ncp $btable_uv           ./btable_uv
 $ncp $bufrtable ./prepobs_prep.bufrtable
 $ncp $bftab_sst ./bftab_sstphr
 
+#if using correlated error, link to the covariance files
+#if grep -q "Rcov" $anavinfo ;
+#then
+#  if ls ${fixgsi}/Rcov* 1> /dev/null 2>&1;
+#  then
+#    $ncp ${fixgsi}/Rcov* .
+#  else
+#    echo "Warning: Satellite error covariance files are missing."
+#    echo "Check for the required Rcov files in " $anavinfo
+#    exit 1
+#  fi
+#fi
+
 # Copy CRTM coefficient files based on entries in satinfo file
 for file in `awk '{if($1!~"!"){print $1}}' ./satinfo | sort | uniq` ;do
    $ncp $fixcrtm/${file}.SpcCoeff.bin ./

@@ -279,6 +279,9 @@ write(6,*)'The actual number to be used of the first ensembles is ',n_ens_gfs
           nfhour=nfhour,nfminute=nfminute,nfsecondn=nfsecondn,nfsecondd=nfsecondd, &
           idate=idate,dimx=lonb,dimy=latb,dimz=levs,jcap=njcap,idvc=idvc,idsl=idsl)
 
+     ! FV3GFS write component does not include JCAP, infer from DIMY-2
+     if (njcap<0) njcap=latb-2
+
      if (nframe /= 0) call error_msg(trim(my_name),trim(filename),'nframe', &
                                      'getfilehead',istop,nframe)
 

@@ -1,4 +1,11 @@
-subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+module tcp_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setuptcp; end interface
+
+contains
+subroutine setuptcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setuptcp                     setup tcpel data
@@ -21,6 +28,8 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
 !                       . removed (%dlat,%dlon) debris.
 !   2016-11-29  shlyaeva - save linearized H(x) for EnKF
+!   2017-02-09  guo     - Remove m_alloc, n_alloc.
+!                       . Remove my_node with corrected typecast().
 !
 !   input argument list:
 !
@@ -35,8 +44,14 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use state_vectors, only: ns3d, svars2d, levels, nsdim
   use sparsearr, only: sparr2, new, size, writearray, fullarray
   use kinds, only: r_kind,i_kind,r_single,r_double
-  use m_obsdiags, only: tcphead
-  use obsmod, only: obsdiags,i_tcp_ob_type, &
+  use m_obsdiagNode, only: obs_diag
+  use m_obsdiagNode, only: obs_diags
+  use m_obsdiagNode, only: obsdiagLList_nextNode
+  use m_obsdiagNode, only: obsdiagNode_set
+  use m_obsdiagNode, only: obsdiagNode_get
+  use m_obsdiagNode, only: obsdiagNode_assert
+
+  use obsmod, only:  &
              nobskeep,lobsdiag_allocated,oberror_tune,perturb_obs, &
              time_offset,rmiss_single,lobsdiagsave,lobsdiag_forenkf,ianldate
   use obsmod, only: netcdf_diag, binary_diag, dirname
@@ -45,8 +60,9 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
   use m_obsNode, only: obsNode
   use m_tcpNode, only: tcpNode
-  use m_obsLList, only: obsLList_appendNode
-  use obsmod, only: obs_diag,luse_obsdiag
+  use m_tcpNode, only: tcpNode_appendto
+  use m_obsLList, only: obsLList
+  use obsmod, only: luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use qcmod, only: npres_print
   use guess_grids, only: ges_lnprsl,nfldsig,hrdifsig, &
@@ -57,10 +73,13 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype,&
           icsubtype
   use jfunc, only: jiter,last,jiterstart,miter
-  use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use m_dtime, only: dtime_setup, dtime_check
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   implicit none
+
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
 
   integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
   integer(i_kind)                                  ,intent(in   ) :: is ! ndat index
@@ -104,15 +123,14 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   integer(i_kind) i,jj
   integer(i_kind) mm1,idia,idia0
-  integer(i_kind) ikxx,nn,istat,iuse,ibin,iptrb,id
+  integer(i_kind) ikxx,nn,iuse,ibin,iptrb,id
   integer(i_kind) ier,ilon,ilat,ipres,itime,ikx,ilate,ilone
 
   logical:: in_curbin, in_anybin, save_jacobian
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
-  class(obsNode),pointer:: my_node
   type(tcpNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
+  type(obs_diags),pointer:: my_diagLL
+
   character(len=*),parameter:: myname='setuptcp'
 
   character(8),allocatable,dimension(:):: cdiagbuf
@@ -123,10 +141,10 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
 
-  save_jacobian = conv_diagsave .and. jiter==jiterstart .and. lobsdiag_forenkf
+  type(obsLList),pointer,dimension(:):: tcphead
+  tcphead => obsLL(:)
 
-  n_alloc(:)=0
-  m_alloc(:)=0
+  save_jacobian = conv_diagsave .and. jiter==jiterstart .and. lobsdiag_forenkf
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
@@ -204,61 +222,23 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         ibin = 1
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
+
+     if ( luse_obsdiag ) my_diagLL => odiagLL(ibin)
+
 !    Link obs to diagnostics structure
      if ( luse_obsdiag ) then
-        if (.not.lobsdiag_allocated) then
-           if (.not.associated(obsdiags(i_tcp_ob_type,ibin)%head)) then
-              obsdiags(i_tcp_ob_type,ibin)%n_alloc = 0
-              allocate(obsdiags(i_tcp_ob_type,ibin)%head,stat=istat)
-              if (istat/=0) then
-                 write(6,*)'setuptcp: failure to allocate obsdiags',istat
-                 call stop2(301)
-              end if
-              obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%head
-           else
-              allocate(obsdiags(i_tcp_ob_type,ibin)%tail%next,stat=istat)
-              if (istat/=0) then
-                 write(6,*)'setuptcp: failure to allocate obsdiags',istat
-                 call stop2(302)
-              end if
-              obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%tail%next
-           end if
-           obsdiags(i_tcp_ob_type,ibin)%n_alloc = obsdiags(i_tcp_ob_type,ibin)%n_alloc +1
-    
-           allocate(obsdiags(i_tcp_ob_type,ibin)%tail%muse(miter+1))
-           allocate(obsdiags(i_tcp_ob_type,ibin)%tail%nldepart(miter+1))
-           allocate(obsdiags(i_tcp_ob_type,ibin)%tail%tldepart(miter))
-           allocate(obsdiags(i_tcp_ob_type,ibin)%tail%obssen(miter))
-           obsdiags(i_tcp_ob_type,ibin)%tail%indxglb=ioid(i)
-           obsdiags(i_tcp_ob_type,ibin)%tail%nchnperobs=-99999
-           obsdiags(i_tcp_ob_type,ibin)%tail%luse=luse(i)
-           obsdiags(i_tcp_ob_type,ibin)%tail%muse(:)=.false.
-           obsdiags(i_tcp_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-           obsdiags(i_tcp_ob_type,ibin)%tail%tldepart(:)=zero
-           obsdiags(i_tcp_ob_type,ibin)%tail%wgtjo=-huge(zero)
-           obsdiags(i_tcp_ob_type,ibin)%tail%obssen(:)=zero
-    
-           n_alloc(ibin) = n_alloc(ibin) +1
-           my_diag => obsdiags(i_tcp_ob_type,ibin)%tail
-           my_diag%idv = is
-           my_diag%iob = ioid(i)
-           my_diag%ich = 1
-           my_diag%elat= data(ilate,i)
-           my_diag%elon= data(ilone,i)
-        else
-           if (.not.associated(obsdiags(i_tcp_ob_type,ibin)%tail)) then
-              obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%head
-           else
-              obsdiags(i_tcp_ob_type,ibin)%tail => obsdiags(i_tcp_ob_type,ibin)%tail%next
-           end if
-           if (.not.associated(obsdiags(i_tcp_ob_type,ibin)%tail)) then
-              call die(myname,'.not.associated(obsdiags(i_tcp_ob_type,ibin)%tail)')
-           end if
-           if (obsdiags(i_tcp_ob_type,ibin)%tail%indxglb/=ioid(i)) then
-              write(6,*)'setuptcp: index error'
-              call stop2(303)
-           end if
-        endif
+        my_diag => obsdiagLList_nextNode(my_diagLL      ,&
+                create = .not.lobsdiag_allocated        ,&
+                   idv = is             ,&
+                   iob = ioid(i)        ,&
+                   ich = 1              ,&
+                  elat = data(ilate,i)  ,&
+                  elon = data(ilone,i)  ,&
+                  luse = luse(i)        ,&
+                 miter = miter          )
+
+        if(.not.associated(my_diag)) call die(myname, &
+                'obsdiagLList_nextNode(), create =',.not.lobsdiag_allocated)
      endif
 
      if(.not.in_curbin) cycle
@@ -357,7 +337,7 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
      if (ratio_errors*error <= tiny_r_kind) muse(i)=.false.
 
-     if (nobskeep>0.and.luse_obsdiag) muse(i)=obsdiags(i_tcp_ob_type,ibin)%tail%muse(nobskeep)
+     if (nobskeep>0.and.luse_obsdiag) call obsdiagNode_get(my_diag, jiter=nobskeep, muse=muse(i))
 
      val      = error*ddiff
      if(luse(i))then
@@ -411,18 +391,14 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end if
 
      if (luse_obsdiag) then
-        obsdiags(i_tcp_ob_type,ibin)%tail%muse(jiter)=muse(i)
-        obsdiags(i_tcp_ob_type,ibin)%tail%nldepart(jiter)=ddiff
-        obsdiags(i_tcp_ob_type,ibin)%tail%wgtjo= (error*ratio_errors)**2
+        call obsdiagNode_set(my_diag, wgtjo=(error*ratio_errors)**2, &
+           jiter=jiter, muse=muse(i), nldepart=ddiff)
      endif
 
      if (.not. last .and. muse(i)) then
 
         allocate(my_head)
-        m_alloc(ibin) = m_alloc(ibin) +1
-        my_node => my_head        ! this is a workaround
-        call obsLList_appendNode(tcphead(ibin),my_node)
-        my_node => null()
+        call tcpNode_appendto(my_head,tcphead(ibin))
 
         my_head%idv = is
         my_head%iob = ioid(i)
@@ -444,17 +420,8 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         endif
 
         if (luse_obsdiag) then
-           my_head%diags => obsdiags(i_tcp_ob_type,ibin)%tail
-
-           my_diag => my_head%diags
-           if(my_head%idv /= my_diag%idv .or. &
-              my_head%iob /= my_diag%iob ) then
-              call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
-                        (/is,ioid(i),ibin/))
-              call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
-              call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
-              call die(myname)
-           endif
+           call obsdiagNode_assert(my_diag, my_head%idv,my_head%iob,1, myname,'my_diag:my_head')
+           my_head%diags => my_diag
         endif
 
         my_head => null()
@@ -483,8 +450,8 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if (err_adjst>tiny_single) errinv_adjst = one/err_adjst
         if (err_final>tiny_single) errinv_final = one/err_final
 
-        if(binary_diag) call contents_binary_diag_
-        if(netcdf_diag) call contents_netcdf_diag_
+        if(binary_diag) call contents_binary_diag_(my_diag)
+        if(netcdf_diag) call contents_netcdf_diag_(my_diag)
 
     end if ! conv_diagsave .true. and luse .true.
 
@@ -498,7 +465,6 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   if(conv_diagsave)then
      if(netcdf_diag) call nc_diag_write
      if(binary_diag .and. ii>0)then
-        call dtime_show(myname,'diagsave:tcp',i_tcp_ob_type)
         write(7)'tcp',nchar,nreal,ii,mype,idia0
         write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
         deallocate(cdiagbuf,rdiagbuf)
@@ -623,7 +589,8 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         call nc_diag_header("Number_of_state_vars", nsdim          )
      endif
   end subroutine init_netcdf_diag_
-  subroutine contents_binary_diag_
+  subroutine contents_binary_diag_(odiag)
+  type(obs_diag),pointer,intent(in):: odiag
         cdiagbuf(ii)    = station_id         ! station id
         rdiagbuf(1,ii)  = ictype(ikx)        ! observation type
         rdiagbuf(2,ii)  = icsubtype(ikx)     ! observation subtype
@@ -657,7 +624,7 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if (lobsdiagsave) then
            do jj=1,miter
               idia=idia+1
-              if (obsdiags(i_tcp_ob_type,ibin)%tail%muse(jj)) then
+              if (odiag%muse(jj)) then
                  rdiagbuf(idia,ii) = one
               else
                  rdiagbuf(idia,ii) = -one
@@ -665,15 +632,15 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            enddo
            do jj=1,miter+1
               idia=idia+1
-              rdiagbuf(idia,ii) = obsdiags(i_tcp_ob_type,ibin)%tail%nldepart(jj)
+              rdiagbuf(idia,ii) = odiag%nldepart(jj)
            enddo
            do jj=1,miter
               idia=idia+1
-              rdiagbuf(idia,ii) = obsdiags(i_tcp_ob_type,ibin)%tail%tldepart(jj)
+              rdiagbuf(idia,ii) = odiag%tldepart(jj)
            enddo
            do jj=1,miter
               idia=idia+1
-              rdiagbuf(idia,ii) = obsdiags(i_tcp_ob_type,ibin)%tail%obssen(jj)
+              rdiagbuf(idia,ii) = odiag%obssen(jj)
            enddo
         endif
         if (save_jacobian) then
@@ -682,7 +649,8 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         endif
 
   end subroutine contents_binary_diag_
-  subroutine contents_netcdf_diag_
+  subroutine contents_netcdf_diag_(odiag)
+  type(obs_diag),pointer,intent(in):: odiag
 ! Observation class
   character(7),parameter     :: obsclass = '    tcp'
   real(r_kind),dimension(miter) :: obsdiag_iuse
@@ -716,7 +684,7 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
            if (lobsdiagsave) then
               do jj=1,miter
-                 if (obsdiags(i_tcp_ob_type,ibin)%tail%muse(jj)) then
+                 if (odiag%muse(jj)) then
                        obsdiag_iuse(jj) =  one
                  else
                        obsdiag_iuse(jj) = -one
@@ -724,9 +692,9 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
               enddo
    
               call nc_diag_data2d("ObsDiagSave_iuse",     obsdiag_iuse                             )
-              call nc_diag_data2d("ObsDiagSave_nldepart", obsdiags(i_tcp_ob_type,ibin)%tail%nldepart )
-              call nc_diag_data2d("ObsDiagSave_tldepart", obsdiags(i_tcp_ob_type,ibin)%tail%tldepart )
-              call nc_diag_data2d("ObsDiagSave_obssen",   obsdiags(i_tcp_ob_type,ibin)%tail%obssen   )             
+              call nc_diag_data2d("ObsDiagSave_nldepart", odiag%nldepart )
+              call nc_diag_data2d("ObsDiagSave_tldepart", odiag%tldepart )
+              call nc_diag_data2d("ObsDiagSave_obssen",   odiag%obssen   )             
            endif
 
           if (save_jacobian) then
@@ -743,3 +711,4 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end subroutine final_vars_
 
 end subroutine setuptcp
+end module tcp_setup

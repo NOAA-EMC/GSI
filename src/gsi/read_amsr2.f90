@@ -1,4 +1,4 @@
-subroutine read_amsr2(mype,val_amsr2,ithin,rmesh,gstime,&
+subroutine read_amsr2(mype,val_amsr2,ithin,rmesh,jsatid,gstime,&
      infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
      mype_root,mype_sub,npe_sub,mpi_comm_sub,nobs)
 
@@ -24,6 +24,7 @@ subroutine read_amsr2(mype,val_amsr2,ithin,rmesh,gstime,&
 !   2016-07-25  ejones   - made most allocatable arrays static
 !   2016-09-20  j. guo   - Refixed dlxx_earth_deg, for the new dlxx_earth_save(:).
 !   2017-01-03  todling  - treat save arrays as allocatable
+!   2018-05-21  j.jin    - added time-thinning. Moved the checking of thin4d into satthin.F90.
 ! 
 !
 ! input argument list:
@@ -56,11 +57,13 @@ subroutine read_amsr2(mype,val_amsr2,ithin,rmesh,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       checkob,finalcheck,score_crit
+  use satthin, only: radthin_time_info,tdiff2crit
+  use obsmod,  only: time_window_max
   use radinfo, only: iuse_rad,nusis,jpch_rad,amsr2_method 
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,rlats,rlons,&
       tll2xy
   use constants, only: deg2rad,zero,one,three,r60inv,two
-  use gsi_4dvar, only: l4dvar, iwinbgn, winlen, l4densvar, thin4d
+  use gsi_4dvar, only: l4dvar, iwinbgn, winlen, l4densvar
   use calc_fov_conical, only: instrument_init
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
@@ -74,7 +77,7 @@ subroutine read_amsr2(mype,val_amsr2,ithin,rmesh,gstime,&
 
 ! Input variables
   character(len=*) ,intent(in   ) :: infile
-  character(len=*) ,intent(in   ) :: obstype
+  character(len=*) ,intent(in   ) :: obstype,jsatid
   integer(i_kind)  ,intent(in   ) :: mype
   integer(i_kind)  ,intent(in   ) :: ithin
   integer(i_kind)  ,intent(in   ) :: lunout
@@ -122,7 +125,7 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
   integer(i_kind),dimension(n_amsrch) :: kchamsr2
   real(r_kind)     :: sfcr
   real(r_kind)     :: dlon, dlat
-  real(r_kind)     :: timedif, dist1   
+  real(r_kind)     :: dist1   
   real(r_kind),allocatable,dimension(:,:):: data_all
   integer(i_kind),allocatable,dimension(:)::nrec
   integer(i_kind):: irec,next
@@ -152,6 +155,7 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
   integer(i_kind),target,allocatable,dimension(:) :: iscan_save
   integer(i_kind),target,allocatable,dimension(:) :: iorbn_save
   integer(i_kind),target,allocatable,dimension(:) :: inode_save
+  integer(i_kind),target,allocatable,dimension(:) :: it_mesh_save
   real(r_kind),target,allocatable,dimension(:) :: dlon_earth_save
   real(r_kind),target,allocatable,dimension(:) :: dlat_earth_save
   real(r_kind),target,allocatable,dimension(:) :: sat_zen_ang_save,sat_az_ang_save
@@ -185,6 +189,9 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
   real(r_kind),parameter:: one_minute=0.01666667_r_kind
   real(r_kind),parameter:: minus_one_minute=-0.01666667_r_kind
 
+  real(r_kind)    :: ptime,timeinflat,crit0
+  integer(i_kind) :: ithin_time,n_tbin
+  integer(i_kind),pointer:: it_mesh => null()
 ! ----------------------------------------------------------------------
 ! Initialize variables
 
@@ -231,8 +238,14 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
   end do search
   if (.not.assim) val_amsr2=zero
 
+  call radthin_time_info(obstype, jsatid, sis, ptime, ithin_time)
+  if( ptime > 0.0_r_kind) then
+     n_tbin=nint(2*time_window_max/ptime)
+  else
+     n_tbin=1
+  endif
 ! Make thinning grids
-  call makegrids(rmesh,ithin)
+  call makegrids(rmesh,ithin,n_tbin=n_tbin)
 
   inode_save = 0
 
@@ -256,6 +269,7 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
         dlon_earth  => dlon_earth_save(iobs)
         dlat_earth  => dlat_earth_save(iobs)
         crit1       => crit1_save(iobs)
+        it_mesh     => it_mesh_save(iobs)
         ifov        => ifov_save(iobs)
         iscan       => iscan_save(iobs)
         iorbn       => iorbn_save(iobs)
@@ -315,12 +329,10 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
         else
            if (abs(tdiff)>twind) cycle read_loop  
         endif
-        if (thin4d) then
-           timedif = zero
-        else
-           timedif = 6.0_r_kind*abs(tdiff) ! range:  0 to 18 
-        endif
 
+        crit0 = 0.01_r_kind
+        timeinflat=6.0_r_kind
+        call tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
 
 !     --- Check observing position -----
         clath= amsrspot_d(08)
@@ -344,8 +356,6 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
 !    If regional, map obs lat,lon to rotated grid.
         dlat_earth = clath !* deg2rad
         dlon_earth = clonh !* deg2rad
-
-        crit1 = 0.01_r_kind+timedif
 
 !!       Retrieve bufr 3/4 : get amsrchan 
         call ufbrep(lnbufr,amsrchan_d,3,14,iret,'SCCF ACQF TMBR')   
@@ -437,6 +447,7 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
      dlon_earth_save(1:num_obs)          = dlon_earth_save(sorted_index)
      dlat_earth_save(1:num_obs)          = dlat_earth_save(sorted_index)
      crit1_save(1:num_obs)               = crit1_save(sorted_index)
+     it_mesh_save(1:num_obs)             = it_mesh_save(sorted_index)
      ifov_save(1:num_obs)                = ifov_save(sorted_index)
      iscan_save(1:num_obs)               = iscan_save(sorted_index)
      iorbn_save(1:num_obs)               = iorbn_save(sorted_index)
@@ -484,6 +495,7 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
      dlon_earth  => dlon_earth_save(iobs)
      dlat_earth  => dlat_earth_save(iobs)
      crit1       => crit1_save(iobs)
+     it_mesh     => it_mesh_save(iobs)
      ifov        => ifov_save(iobs)
      iscan       => iscan_save(iobs)
      iorbn       => iorbn_save(iobs)
@@ -519,15 +531,15 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
      endif
 
 !   Check time
+    tdiff=t4dv+(iwinbgn-gstime)*r60inv
     if (l4dvar) then
         if (t4dv<zero .OR. t4dv>winlen) cycle obsloop
     else
-        tdiff=t4dv+(iwinbgn-gstime)*r60inv
         if(abs(tdiff) > twind) cycle obsloop
     endif
 
 !   Map obs to thinning grid
-    call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+    call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,it_mesh=it_mesh)
     if(.not. iuse) then
       cycle obsloop
     endif
@@ -697,6 +709,7 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
   allocate(sun_zen_ang_save(maxobs),sun_az_ang_save(maxobs))
   allocate(t4dv_save(maxobs))
   allocate(crit1_save(maxobs))
+  allocate(it_mesh_save(maxobs))
   allocate(tbob_save(kchanl,maxobs))
 
   end subroutine init_
@@ -705,6 +718,7 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
 
   deallocate(tbob_save)
   deallocate(crit1_save)
+  deallocate(it_mesh_save)
   deallocate(t4dv_save)
   deallocate(sun_zen_ang_save,sun_az_ang_save)
   deallocate(sat_zen_ang_save,sat_az_ang_save)

@@ -145,7 +145,6 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
   real(r_kind) cx,cy
   real(r_kind) uval,ewval,nsval
   real(r_kind) diff,sq180
-
   real(r_kind) d(4),ds
   integer(i_kind) kk,k
 

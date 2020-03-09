@@ -37,24 +37,17 @@ export m_job=${m_job:-${MINMON_SUFFIX}_mmDE}
 export HOMEgfs=${HOMEgfs:-${NWROOT}/gfs.${gfs_ver}}
 export SCRgfs=${SCRgfs:-$HOMEgfs/scripts}
 
-export PARMmon=${PARMmon:-$HOMEgfs/parm/mon}
-export M_FIXgdas=${M_FIXgfs:-$HOMEgfs/fix/gdas}
+export M_FIXgdas=${M_FIXgdas:-$HOMEgfs/fix/gdas}
 
 export HOMEminmon=${HOMEminmon:-${HOMEgfs}}
 export EXECminmon=${EXECminmon:-$HOMEminmon/exec}
 export USHminmon=${USHminmon:-$HOMEminmon/ush}
 
 
-###################################
-# source the parm file
-###################################
-.  ${PARMmon}/da_mon.parm
-
-
 #############################################
 # Run setpdy and initialize PDY variables
 #############################################
-if [[ $MY_MACHINE != "theia" ]]; then
+if [[ $MY_MACHINE != "hera" ]]; then
    export cycle=t${cyc}z
    setpdy.sh
    . ./PDY
@@ -94,17 +87,12 @@ export CYCLE_INTERVAL=6
 export gsistat=${gsistat:-${COMIN}/gdas.t${cyc}z.gsistat}
 
 
-msg="JOB HAS STARTED"
-postmsg "$jlogfile" "$msg"
-
 ########################################################
 # Execute the script.
 ${GMONSH:-$SCRgfs/exgdas_vrfminmon.sh.ecf} ${PDY} ${cyc}
 err=$?
 [[ $err -ne 0 ]] && exit $err
 
-msg="JOB COMPLETED NORMALLY"
-postmsg "$jlogfile" "$msg"
 
 ################################
 # Remove the Working Directory

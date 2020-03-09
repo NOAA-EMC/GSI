@@ -18,7 +18,7 @@ elif [[ -d /cm ]] ; then
 elif [[ -d /ioddev_dell ]]; then
     . $MODULESHOME/init/sh
     target=wcoss_d
-elif [[ -d /scratch1 || -d /scratch2 ]] ; then
+elif [[ -d /scratch1 ]] ; then
     . /apps/lmod/lmod/init/sh
     target=hera
 elif [[ -d /carddata ]] ; then

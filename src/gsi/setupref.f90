@@ -1,4 +1,11 @@
-subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pass,conv_diagsave)
+module gpsref_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setupref; end interface
+
+contains
+subroutine setupref(obsLL,odiagLL,lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pass,conv_diagsave)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setupref    compute rhs of oi for gps refractivity
@@ -102,6 +109,8 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 !  2016-05-18 guo     - replaced ob_type with polymorphic obsNode through type casting
 !  2016-06-24 guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
 !                     . removed (%dlat,%dlon) debris.
+!  2017-02-09 guo     - Remove m_alloc, n_alloc.
+!                     . Remove my_node with corrected typecast().
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -120,14 +129,21 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   use mpeu_util, only: die,perr,getindex
   use kinds, only: r_kind,i_kind
   use m_gpsStats, only: gps_allhead,gps_alltail
-  use m_obsdiags, only: gpshead
+  use m_obsdiagNode, only: obs_diag
+  use m_obsdiagNode, only: obs_diags
+  use m_obsdiagNode, only: obsdiagLList_nextNode
+  use m_obsdiagNode, only: obsdiagNode_set
+  use m_obsdiagNode, only: obsdiagNode_get
+  use m_obsdiagNode, only: obsdiagNode_assert
+
   use obsmod, only: nprof_gps,&
-       i_gps_ob_type,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated,&
+       lobsdiagsave,nobskeep,lobsdiag_allocated,&
        time_offset,lobsdiag_forenkf
   use m_obsNode, only: obsNode
   use m_gpsNode, only: gpsNode
-  use m_obsLList, only: obsLList_appendNode
-  use obsmod, only: obs_diag,luse_obsdiag
+  use m_gpsNode, only: gpsNode_appendto
+  use m_obsLList, only: obsLList
+  use obsmod, only: luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use guess_grids, only: ges_lnprsi,hrdifsig,geop_hgti,geop_hgtl,nfldsig,&
        gpstop
@@ -139,7 +155,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
        three,four,five,half,r0_01
   use jfunc, only: jiter,miter,jiterstart
   use convinfo, only: cermin,cermax,cgross,cvar_b,cvar_pg,ictype
-  use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use m_dtime, only: dtime_setup, dtime_check
   use m_gpsrhs, only: muse
   use m_gpsrhs, only: termq
   use m_gpsrhs, only: termpk,termpl1,termpl2
@@ -178,6 +194,9 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   real(r_kind),parameter:: crit_grad = 157.0_r_kind
 
 ! Declare passed variables
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
+
   integer(i_kind)                            ,intent(in   ) :: lunin,mype,nele,nobs
   real(r_kind),dimension(100+7*nsig)  ,intent(inout) :: awork
   real(r_kind),dimension(max(1,nprof_gps)),intent(inout) :: toss_gps_sub
@@ -222,20 +241,19 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   logical proceed, save_jacobian
 
   logical:: in_curbin, in_anybin
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
-  class(obsNode),pointer:: my_node
   type(gpsNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
+  type(obs_diags),pointer:: my_diagLL
 
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
 
+  type(obsLList),pointer,dimension(:):: gpshead
+  gpshead => obsLL(:)
+
   save_jacobian = conv_diagsave .and. jiter==jiterstart .and. lobsdiag_forenkf
 
-  n_alloc(:)=0
-  m_alloc(:)=0
 !*******************************************************************************
 ! List of GPS RO satellites and corresponding BUFR id
 !740 => COSMIC FM1
@@ -801,66 +819,26 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
+     if (luse_obsdiag) my_diagLL => odiagLL(ibin)
+
 !    Link obs to diagnostics structure
      if (luse_obsdiag) then
-        if (.not.lobsdiag_allocated) then
-           if (.not.associated(obsdiags(i_gps_ob_type,ibin)%head)) then
-              obsdiags(i_gps_ob_type,ibin)%n_alloc = 0
-              allocate(obsdiags(i_gps_ob_type,ibin)%head,stat=istat)
-              if (istat/=0) then
-                 write(6,*)'setupref: failure to allocate obsdiags',istat
-                 call stop2(282)
-              end if
-              obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%head
-           else
-              allocate(obsdiags(i_gps_ob_type,ibin)%tail%next,stat=istat)
-              if (istat/=0) then
-                 write(6,*)'setupref: failure to allocate obsdiags',istat
-                 call stop2(283)
-              end if
-              obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%tail%next
-           end if
-           obsdiags(i_gps_ob_type,ibin)%n_alloc = obsdiags(i_gps_ob_type,ibin)%n_alloc +1
-    
-           allocate(obsdiags(i_gps_ob_type,ibin)%tail%muse(miter+1))
-           allocate(obsdiags(i_gps_ob_type,ibin)%tail%nldepart(miter+1))
-           allocate(obsdiags(i_gps_ob_type,ibin)%tail%tldepart(miter))
-           allocate(obsdiags(i_gps_ob_type,ibin)%tail%obssen(miter))
-           obsdiags(i_gps_ob_type,ibin)%tail%indxglb=ioid(i)
-           obsdiags(i_gps_ob_type,ibin)%tail%nchnperobs=-99999
-           obsdiags(i_gps_ob_type,ibin)%tail%luse=luse(i)
-           obsdiags(i_gps_ob_type,ibin)%tail%muse(:)=.false.
-           obsdiags(i_gps_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-           obsdiags(i_gps_ob_type,ibin)%tail%tldepart(:)=zero
-           obsdiags(i_gps_ob_type,ibin)%tail%wgtjo=-huge(zero)
-           obsdiags(i_gps_ob_type,ibin)%tail%obssen(:)=zero
-    
-           n_alloc(ibin) = n_alloc(ibin) +1
-           my_diag => obsdiags(i_gps_ob_type,ibin)%tail
-           my_diag%idv = is
-           my_diag%iob = ioid(i)
-           my_diag%ich = 1
-           my_diag%elat= data(ilate,i)
-           my_diag%elon= data(ilone,i)
-    
-        else 
-           if (.not.associated(obsdiags(i_gps_ob_type,ibin)%tail)) then
-              obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%head
-           else
-              obsdiags(i_gps_ob_type,ibin)%tail => obsdiags(i_gps_ob_type,ibin)%tail%next
-           end if
-           if (.not.associated(obsdiags(i_gps_ob_type,ibin)%tail)) then
-              call die(myname,'.not.associated(obsdiags(i_gps_ob_type,ibin)%tail)')
-           end if
-           if (obsdiags(i_gps_ob_type,ibin)%tail%indxglb/=ioid(i)) then
-              write(6,*)'setupref: index error'
-              call stop2(284)
-           end if
-        endif
+        my_diag => obsdiagLList_nextNode(my_diagLL      ,&
+                create = .not.lobsdiag_allocated        ,&
+                   idv = is             ,&
+                   iob = ioid(i)        ,&
+                   ich = 1              ,&
+                  elat = data(ilate,i)  ,&
+                  elon = data(ilone,i)  ,&
+                  luse = luse(i)        ,&
+                 miter = miter          )
+
+        if(.not.associated(my_diag)) call die(myname, &
+                'obsdiagLList_nextNode(), create =', .not.lobsdiag_allocated)
      endif
 
      if(last_pass) then
-        if (nobskeep>0.and.luse_obsdiag) muse(i)=obsdiags(i_gps_ob_type,ibin)%tail%muse(nobskeep)
+        if (nobskeep>0.and.luse_obsdiag) call obsdiagNode_get(my_diag, jiter=nobskeep, muse=muse(i))
 
 !       Save values needed for generation of statistics for all observations
         if(.not. associated(gps_allhead(ibin)%head))then
@@ -898,17 +876,17 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 
 !       Fill obs diagnostics structure
         if (luse_obsdiag) then
-           obsdiags(i_gps_ob_type,ibin)%tail%muse(jiter)=muse(i)
-           obsdiags(i_gps_ob_type,ibin)%tail%nldepart(jiter)=data(igps,i)
-           obsdiags(i_gps_ob_type,ibin)%tail%wgtjo=(data(ier,i)*ratio_errors(i))**2
+           call obsdiagNode_set(my_diag, wgtjo=(data(ier,i)*ratio_errors(i))**2, &
+              jiter=jiter, muse=muse(i), nldepart=data(igps,i))
         endif
 
 !       Load additional obs diagnostic structure
         ioff=mreal
         if (lobsdiagsave) then
+          associate(odiag => my_diag)
            do jj=1,miter
               ioff=ioff+1
-              if (obsdiags(i_gps_ob_type,ibin)%tail%muse(jj)) then
+              if (odiag%muse(jj)) then
                  rdiagbuf(ioff,i) = one
               else
                  rdiagbuf(ioff,i) = -one
@@ -916,16 +894,17 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
            enddo
            do jj=1,miter+1
               ioff=ioff+1
-              rdiagbuf(ioff,i) = obsdiags(i_gps_ob_type,ibin)%tail%nldepart(jj)
+              rdiagbuf(ioff,i) = odiag%nldepart(jj)
            enddo
            do jj=1,miter
               ioff=ioff+1
-              rdiagbuf(ioff,i) = obsdiags(i_gps_ob_type,ibin)%tail%tldepart(jj)
+              rdiagbuf(ioff,i) = odiag%tldepart(jj)
            enddo
            do jj=1,miter
               ioff=ioff+1
-              rdiagbuf(ioff,i) = obsdiags(i_gps_ob_type,ibin)%tail%obssen(jj)
+              rdiagbuf(ioff,i) = odiag%obssen(jj)
            enddo
+          end associate ! (odiag => my_diag)
         endif
 
         do j=1,nreal
@@ -938,10 +917,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
         if ( in_curbin .and. muse(i) ) then
  
            allocate(my_head)
-           m_alloc(ibin) = m_alloc(ibin) +1
-           my_node => my_head        ! this is a workaround
-           call obsLList_appendNode(gpshead(ibin),my_node)
-           my_node => null()
+           call gpsNode_appendto(my_head,gpshead(ibin))
 
            my_head%idv = is
            my_head%iob = ioid(i)
@@ -1041,17 +1017,8 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
            endif
 
            if (luse_obsdiag) then
-              my_head%diags => obsdiags(i_gps_ob_type,ibin)%tail
-
-              my_diag => my_head%diags
-              if(my_head%idv /= my_diag%idv .or. &
-                 my_head%iob /= my_diag%iob ) then
-                 call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
-                        (/is,ioid(i),ibin/))
-                 call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
-                 call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
-                 call die(myname)
-              endif
+              call obsdiagNode_assert(my_diag, my_head%idv,my_head%iob,1, myname,'my_diag:my_head')
+              my_head%diags => my_diag
            endif
 
            my_head => null()
@@ -1067,7 +1034,6 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   data_ihgt(:)=data(ihgt,:)
   data_igps(:)=data(igps,:)
 
-  call dtime_show(myname,'diagsave:ref',i_gps_ob_type)
   call gpsrhs_unaliases(is)
   if(last_pass) call gpsrhs_dealloc(is)
 
@@ -1165,3 +1131,4 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   end subroutine final_vars_
 
 end subroutine setupref
+end module gpsref_setup

@@ -50,9 +50,15 @@ for type in ${SATYPE}; do
       fi
 
       if [[ $TANK_USE_RUN -eq 1 ]]; then
-         ieee_src=${TANKverf}/${RUN}.${PDY}/${MONITOR}
+         ieee_src=${TANKverf}/${RUN}.${PDY}/${CYC}/${MONITOR}
+         if [[ ! -d ${ieee_src} ]]; then
+            ieee_src=${TANKverf}/${RUN}.${PDY}/${MONITOR}
+         fi
       else
          ieee_src=${TANKverf}/${MONITOR}.${PDY}
+         if [[ ! -d ${ieee_src} ]]; then
+            ieee_src=${TANKverf}/${RUN}.${PDY}
+         fi
       fi
 
       if [[ -s ${ieee_src}/bcoef.${type}.ctl.${Z} ]]; then
@@ -116,11 +122,15 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 80 -W 1:15 \
         -R affinity[core] -J ${jobname} -cwd ${PWD} $IG_SCRIPTS/plot_bcoef.sh
 
+elif [[ $MY_MACHINE = "wcoss_d" ]]; then
+   $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 80 -W 1:15 \
+        -R "affinity[core]" -J ${jobname} -cwd ${PWD} $IG_SCRIPTS/plot_bcoef.sh
+
 elif [[ $MY_MACHINE = "cray" ]]; then
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 80 -W 1:15 \
         -J ${jobname} -cwd ${PWD} $IG_SCRIPTS/plot_bcoef.sh
 
-elif [[ $MY_MACHINE = "theia" ]]; then
+elif [[ $MY_MACHINE = "hera" ]]; then
    $SUB --account $ACCOUNT --ntasks=1 --mem=5g --time=1:00:00 -J ${jobname} \
         -o ${logfile} -D . $IG_SCRIPTS/plot_bcoef.sh 
 fi

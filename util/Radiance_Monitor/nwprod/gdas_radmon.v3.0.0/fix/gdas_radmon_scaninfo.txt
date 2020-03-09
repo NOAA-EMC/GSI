@@ -41,8 +41,10 @@
  hirs4_metop-b          -49.50      1.80        56
  amsua_metop-a          -48.333     3.333       30
  amsua_metop-b          -48.333     3.333       30
+ amsua_metop-c          -48.333     3.333       30
  mhs_metop-a            -49.444     1.111       90 
  mhs_metop-b            -49.444     1.111       90
+ mhs_metop-c            -49.444     1.111       90
  iasi_metop-a           -48.330     3.334       60
  iasi_metop-b           -48.330     3.334       60
  cris_npp               -48.330     3.333       30 
@@ -55,4 +57,6 @@
  seviri_m10               0.00      1.00        90
  seviri_m11               0.00      1.00        90
  saphir_meghat          -42.960     0.666      130
+ abi_g16                  0.00      1.00        90
+ ahi_himawari8            0.00      1.00        90
 !sat_sis                  start      step       nstep

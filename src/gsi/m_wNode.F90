@@ -23,8 +23,8 @@ module m_wNode
 !$$$  end subprogram documentation block
 
 ! module interface:
-  use obsmod, only: obs_diag
-  use obsmod, only: obs_diags
+  use m_obsdiagNode, only: obs_diag
+  use m_obsdiagNode, only: obs_diags
   use kinds , only: i_kind,r_kind
   use mpeu_util, only: assert_,die,perr,warn,tell
   use m_obsNode, only: obsNode
@@ -59,6 +59,9 @@ module m_wNode
      !real   (r_kind) :: dlat, dlon      ! earth lat-lon for redistribution
      real   (r_kind) :: dlev            ! reference to the vertical grid
      real   (r_kind) :: factw           ! factor of 10m wind
+
+     integer(i_kind) :: ich0=0  ! ich code to mark derived data.  See
+                                ! wNode_ich0 and wNode_ich0_PBL_Pseudo below
   contains
     procedure,nopass::  mytype
     procedure::  setHop => obsNode_setHop_
@@ -78,6 +81,18 @@ module m_wNode
         interface wNode_typecast; module procedure typecast_ ; end interface
         interface wNode_nextcast; module procedure nextcast_ ; end interface
 
+  public:: wNode_appendto
+        interface wNode_appendto; module procedure appendto_ ; end interface
+
+  ! Because there are two components in wNode for an ordinary wind obs,
+  ! ich values are set to (1,2).  Therefore, ich values for PBL_pseudo_surfobsUV
+  ! are set to (3,4), and wNode_ich0_pbl_pseudo is set to 2.
+
+  public:: wNode_ich0
+  public:: wNode_ich0_PBL_pseudo
+        integer(i_kind),parameter :: wNode_ich0            = 0            ! (1,2)
+        integer(i_kind),parameter :: wNode_ich0_PBL_pseudo = wNode_ich0+2 ! (3,4)
+
   character(len=*),parameter:: MYNAME="m_wNode"
 
 #include "myassert.H"
@@ -87,16 +102,14 @@ function typecast_(aNode) result(ptr_)
 !-- cast a class(obsNode) to a type(wNode)
   use m_obsNode, only: obsNode
   implicit none
-  type(wNode),pointer:: ptr_
+  type(wNode   ),pointer:: ptr_
   class(obsNode),pointer,intent(in):: aNode
-  character(len=*),parameter:: myname_=MYNAME//"::typecast_"
   ptr_ => null()
   if(.not.associated(aNode)) return
+        ! logically, typecast of a null-reference is a null pointer.
   select type(aNode)
   type is(wNode)
     ptr_ => aNode
-  class default
-    call die(myname_,'unexpected type, aNode%mytype() =',aNode%mytype())
   end select
 return
 end function typecast_
@@ -105,14 +118,28 @@ function nextcast_(aNode) result(ptr_)
 !-- cast an obsNode_next(obsNode) to a type(wNode)
   use m_obsNode, only: obsNode,obsNode_next
   implicit none
-  type(wNode),pointer:: ptr_
-  class(obsNode),target,intent(in):: aNode
+  type(wNode   ),pointer:: ptr_
+  class(obsNode),target ,intent(in):: aNode
 
-  class(obsNode),pointer:: anode_
-  anode_ => obsNode_next(aNode)
-  ptr_ => typecast_(anode_)
+  class(obsNode),pointer:: inode_
+  inode_ => obsNode_next(aNode)
+  ptr_ => typecast_(inode_)
 return
 end function nextcast_
+
+subroutine appendto_(aNode,oll)
+!-- append aNode to linked-list oLL
+  use m_obsNode , only: obsNode
+  use m_obsLList, only: obsLList,obsLList_appendNode
+  implicit none
+  type(wNode),pointer,intent(in):: aNode
+  type(obsLList),intent(inout):: oLL
+
+  class(obsNode),pointer:: inode_
+  inode_ => aNode
+  call obsLList_appendNode(oLL,inode_)
+  inode_ => null()
+end subroutine appendto_
 
 ! obsNode implementations
 
@@ -160,6 +187,7 @@ _ENTRY_(myname_)
                                 aNode%kx     , &
                                 aNode%dlev   , &
                                 aNode%factw  , &
+                                aNode%ich0   , &
                                 aNode%wij    , &
                                 aNode%ij
                 if (istat/=0) then
@@ -168,17 +196,18 @@ _ENTRY_(myname_)
                   return
                 end if
 
-    aNode%diagu => obsdiagLookup_locate(diagLookup,aNode%idv,aNode%iob,1_i_kind)
-    aNode%diagv => obsdiagLookup_locate(diagLookup,aNode%idv,aNode%iob,2_i_kind)
+    aNode%diagu => obsdiagLookup_locate(diagLookup,aNode%idv,aNode%iob,aNode%ich0+1_i_kind)
+    aNode%diagv => obsdiagLookup_locate(diagLookup,aNode%idv,aNode%iob,aNode%ich0+2_i_kind)
 
                 if(.not. (associated(aNode%diagu) .and. &
                           associated(aNode%diagv) )     ) then
                   call perr(myname_,'obsdiagLookup_locate(u,v), %idv =',aNode%idv)
                   call perr(myname_,'                           %iob =',aNode%iob)
+                  call perr(myname_,'                          %ich0 =',aNode%ich0)
                   if(.not.associated(aNode%diagu)) &
-                  call perr(myname_,'     can not locate %diagu, ich =',1_i_kind)
+                  call perr(myname_,'   .not.associated(%diagu), ich =',aNode%ich0+1_i_kind)
                   if(.not.associated(aNode%diagv)) &
-                  call perr(myname_,'     can not locate %diagv, ich =',2_i_kind)
+                  call perr(myname_,'   .not.associated(%diagv), ich =',aNode%ich0+2_i_kind)
                   call  die(myname_)
                 endif
   endif
@@ -209,6 +238,7 @@ _ENTRY_(myname_)
                                 aNode%kx     , &
                                 aNode%dlev   , &
                                 aNode%factw  , &
+                                aNode%ich0   , &
                                 aNode%wij    , &
                                 aNode%ij
                 if (jstat/=0) then

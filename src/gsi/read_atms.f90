@@ -35,6 +35,8 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !                         channels are missing.
 !  2016-10-25  zhu - add changes for assimilating radiances affected by non-precipitating clouds
 !  2018-02-05  collard - get orbit height from BUFR file
+!  2018-04-19  eliu - allow data selection for precipitation-affected data 
+!  2018-05-21  j.jin  - added time-thinning, to replace thin4d
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -73,6 +75,8 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,destroygrids,checkob, &
       finalcheck,map2tgrid,score_crit
+  use satthin, only: radthin_time_info,tdiff2crit
+  use obsmod,  only: time_window_max
   use radinfo, only: iuse_rad,newchn,cbias,nusis,jpch_rad,air_rad,ang_rad, &
       use_edges,radedge1,radedge2,nusis,radstart,radstep,newpc4pred,maxscan
   use radinfo, only: adp_anglebc
@@ -80,7 +84,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   use constants, only: deg2rad,zero,one,two,three,rad2deg,r60inv,r100,rearth_equator
   use crtm_module, only : max_sensor_zenith_angle
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
-  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
   use atms_spatial_average_mod, only : atms_spatial_average
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
@@ -166,6 +170,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   real(r_kind), POINTER :: bt_in(:), crit1,rsat, t4dv, solzen, solazi
   real(r_kind), POINTER :: dlon_earth,dlat_earth,satazi, lza
 
+  integer(i_kind), ALLOCATABLE, TARGET :: it_mesh_save(:)
   real(r_kind), ALLOCATABLE, TARGET :: rsat_save(:)
   real(r_kind), ALLOCATABLE, TARGET :: t4dv_save(:)
   real(r_kind), ALLOCATABLE, TARGET :: dlon_earth_save(:)
@@ -185,6 +190,9 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   real(r_kind) cdist,disterr,disterrmax,dlon00,dlat00
 
   logical :: critical_channels_missing
+  real(r_kind)    :: ptime,timeinflat,crit0
+  integer(i_kind) :: ithin_time,n_tbin
+  integer(i_kind),pointer :: it_mesh => null()
 
 !**************************************************************************
 ! Initialize variables
@@ -204,8 +212,14 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      call gsi_nstcoupler_skindepth(obstype,zob)
   endif
 
+  call radthin_time_info(obstype, jsatid, sis, ptime, ithin_time)
+  if( ptime > 0.0_r_kind) then
+     n_tbin=nint(2*time_window_max/ptime)
+  else
+     n_tbin=1
+  endif
 ! Make thinning grids
-  call makegrids(rmesh,ithin)
+  call makegrids(rmesh,ithin,n_tbin=n_tbin)
 
 ! Set nadir position based on value of maxscan
   if (maxscan < 96) then
@@ -336,6 +350,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   ALLOCATE(dlon_earth_save(maxobs))
   ALLOCATE(dlat_earth_save(maxobs))
   ALLOCATE(crit1_save(maxobs))
+  ALLOCATE(it_mesh_save(maxobs))
   ALLOCATE(lza_save(maxobs))
   ALLOCATE(satazi_save(maxobs))
   ALLOCATE(solzen_save(maxobs)) 
@@ -378,6 +393,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
            dlon_earth => dlon_earth_save(iob)
            dlat_earth => dlat_earth_save(iob)
            crit1      => crit1_save(iob)
+           it_mesh    => it_mesh_save(iob)
            ifov       => ifov_save(iob)
            lza        => lza_save(iob)
            satazi     => satazi_save(iob)
@@ -385,8 +401,9 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
            solazi     => solazi_save(iob)
 
 !          inflate selection value for ears_db data
-           crit1 = zero
-           if ( llll > 1 ) crit1 = r100 * float(llll)
+           crit0 = 0.01_r_kind
+           crit0 = zero ! shouldn't it = 0.01_r_kind?
+           if ( llll > 1 ) crit0 = crit0 + r100 * float(llll)
 
            call ufbint(lnbufr,bfr1bhdr,n1bhdr,1,iret,hdr1b)
 
@@ -425,11 +442,9 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
            else
               if(abs(tdiff) > twind+one_minute) cycle read_loop
            endif
-           if (thin4d) then
-              crit1 = crit1 + zero
-           else
-              crit1 = crit1 + two*abs(tdiff)        ! range:  0 to 6
-           endif
+
+           timeinflat=two
+           call tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
  
            call ufbint(lnbufr,bfr2bhdr,n2bhdr,1,iret,hdr2b)
 
@@ -513,6 +528,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      dlon_earth => dlon_earth_save(iob)
      dlat_earth => dlat_earth_save(iob)
      crit1      => crit1_save(iob)
+     it_mesh    => it_mesh_save(iob)
      ifov       => ifov_save(iob)
      lza        => lza_save(iob)
      satazi     => satazi_save(iob)
@@ -563,7 +579,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      endif
  
 !    Map obs to thinning grid
-     call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+     call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,it_mesh=it_mesh)
      if(.not. iuse)cycle ObsLoop
 
 !
@@ -664,6 +680,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
                     else
                        qval  = zero
                     end if
+                    if (radmod%lprecip) qval=zero 
                  else 
                     d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
                     qval  = cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
@@ -770,6 +787,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   DEALLOCATE(dlon_earth_save)
   DEALLOCATE(dlat_earth_save)
   DEALLOCATE(crit1_save)
+  DEALLOCATE(it_mesh_save)
   DEALLOCATE(lza_save)
   DEALLOCATE(satazi_save)
   DEALLOCATE(solzen_save) 
