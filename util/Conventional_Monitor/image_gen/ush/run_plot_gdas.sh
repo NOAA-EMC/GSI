@@ -23,9 +23,6 @@ fi
 
 package=ProdGSI
 
-#scripts=/gpfs/${idev}d2/emc/da/noscrub/${USER}/${package}/util/Conventional_Monitor/image_gen/ush
-#scripts=/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/ProdGSI/util/Conventional_Monitor/image_gen/ush
-#scripts=/scratch1/NCEPDEV/da/Edward.Safford/noscrub/ProdGSI/util/Conventional_Monitor/image_gen/ush/${CONMON_SUFFIX}
 scripts=${this_dir}
 if [[ $scripts == "." ]]; then
    scripts=`pwd`
@@ -56,13 +53,7 @@ echo "imgdate, idate, prodate = $imgdate, $idate, $prodate"
 
 if [[ $idate -le $prodate ]]; then
 
-   if [[ $MY_MACHINE = "wcoss_d" ]]; then
-      logdir=/gpfs/dell2/ptmp/${USER}/logs/${CONMON_SUFFIX}/${RUN}/conmon
-   elif [[ $MY_MACHINE = "wcoss_c" ]]; then
-      echo "logdir needs to be set for wcoss_c"
-   elif [[ $MY_MACHINE = "hera" ]]; then
-      logdir=/scratch2/NCEPDEV/stmp3/Edward.Safford/logs/${CONMON_SUFFIX}/${RUN}/conmon
-   fi
+   logdir=${C_LOGDIR}/${RUN}/conmon
 
    echo "logdir = $logdir"
    if [[ ! -d ${logdir} ]]; then
