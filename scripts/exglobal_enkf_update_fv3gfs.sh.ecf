@@ -102,6 +102,7 @@ if [ $SUFFIX = ".nc" ]; then
    LEVS_ENKF=${LEVS_ENKF:-$($NCLEN $ATMGES_ENSMEAN pfull)} # get LEVS_ENFK
    use_gfs_ncio=".true."
    use_gfs_nemsio=".false."
+   paranc=${paranc:-".true."}
 else
    LEVS_ENKF=${LEVS_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimz | awk '{print $2}')}
    LATB_ENKF=${LATB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimy | awk '{print $2}')}
@@ -263,7 +264,7 @@ cat > enkf.nml << EOFnml
    modelspace_vloc=$modelspace_vloc,
    use_correlated_oberrs=${use_correlated_oberrs},
    netcdf_diag=$netcdf_diag,cnvw_option=$cnvw_option,
-   paranc=.true.,
+   paranc=$paranc,
    $NAM_ENKF
 /
 &satobs_enkf

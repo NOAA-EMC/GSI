@@ -1060,7 +1060,7 @@
 
   integer(i_kind), allocatable, dimension(:) :: mem_pe, lev_pe1, lev_pe2, iocomms
   integer(i_kind) :: iope, ionumproc, iolevs, krev, ki
-  integer(i_kind) :: ncstart(3), nccount(3)
+  integer(i_kind) :: ncstart(4), nccount(4)
 
   use_full_hydro = .false.  
   iunitsig = 78
@@ -1093,8 +1093,9 @@
      lev_pe2(i) = ((iope + 1) * iolevs)
      if (i == ionumproc-1) lev_pe2(i) = lev_pe2(i) + modulo(nlevs, ionumproc)
   end do
-  ncstart = (/1, 1, lev_pe1(iope)/)
-  nccount = (/nlons, nlats, lev_pe2(iope) - lev_pe1(iope)+1/) 
+  ncstart = (/1, 1, lev_pe1(iope),1/)
+  nccount = (/nlons, nlats, lev_pe2(iope) - lev_pe1(iope)+1,1/) 
+  !print *,'iope,nproc,nanal,ncstart,nccount,',iope,nproc,nanal,ncstart(3),nccount(3)
  
   ! loop through times and do the read
   ne = 1
@@ -1206,7 +1207,11 @@
      print *,'iadate = ',iadate
   end if
 
-  dsanl = create_dataset(filenameout, dsfg, copy_vardata=.true., paropen=.true., mpicomm=iocomms(mem_pe(nproc)), errcode=iret)
+  dsanl = create_dataset(filenameout, dsfg, copy_vardata=.true., &
+          nocompress=.true., paropen=.true., mpicomm=iocomms(mem_pe(nproc)), errcode=iret)
+  print *, 'Member #', nanal, 'opened for write on ',iope,nproc
+  call mpi_barrier(iocomms(mem_pe(nproc)), iret)
+  !call mpi_barrier(mpi_comm_world, iret)
   if (iret /= 0) then
      print *,'error creating netcdf file'
      call stop2(29)
@@ -1240,20 +1245,17 @@
   if (ps_ind > 0) then
     call copyfromgrdin(grdin(:,levels(n3d) + ps_ind,nb,ne),ug)
   endif
-  print *, 'CRM, nproc, iope, nanal, add incr to background', nproc, iope, nanal 
   ! add increment to background.
   psg = psfg + ug ! analysis pressure in mb.
   values_2d = 100.*reshape(psg,(/nlons,nlats/))
-  print *, 'b4 write psfc', nproc, iope, nanal 
-  call write_vardata(dsanl,'pressfc',values_2d,errcode=iret) 
-  print *, 'after write psfc', nproc, iope, nanal 
+  call write_vardata(dsanl,'pressfc',values_2d, ncstart=(/1,1,1/), nccount=(/nlons,nlats,1/), errcode=iret) 
+  call mpi_barrier(iocomms(mem_pe(nproc)), iret)
   if (iret /= 0) then
      print *,'error writing pressfc'
      call stop2(29)
   endif
   if (has_var(dsfg,'dpres')) then
      call read_vardata(dsfg,'dpres',ug3d, ncstart=ncstart, nccount=nccount)
-  print *, 'after read delp', nproc, iope, nanal 
      allocate(vg3d(nlons,nlats,nccount(3)))
      do k=lev_pe1(iope), lev_pe2(iope)
         krev = nlevs-k+1
@@ -1268,17 +1270,15 @@
        call quantize_data(ug3d, vg3d, nbits, compress_err)
        ! below is not technically correct but I'm not worried about
        ! the exact value of this attribute right now
-       if (iope==0) then 
-          call write_attribute(dsanl,&
-          'max_abs_compression_error',compress_err,'dpres',errcode=iret)
-          if (iret /= 0) then
-             print *,'error writing dpres attribute'
-             call stop2(29)
-          end if
-       endif
+       call write_attribute(dsanl,&
+       'max_abs_compression_error',compress_err,'dpres',errcode=iret)
+       if (iret /= 0) then
+          print *,'error writing dpres attribute'
+          call stop2(29)
+       end if
      endif
      call write_vardata(dsanl,'dpres',vg3d, ncstart=ncstart, nccount=nccount, errcode=iret)
-  print *, 'after write delp', nproc, iope, nanal 
+  !call mpi_barrier(iocomms(mem_pe(nproc)), iret)
      if (iret /= 0) then
         print *,'error writing dpres'
         call stop2(29)
@@ -1332,13 +1332,15 @@
      endif
      pstend2 = pstend2 + pstendfg ! add to background ps tend
 
+     ugtmp(:,:) = zero
+     ugtmp2(:,:) = zero
+     vgtmp(:,:) = zero
+     vgtmp2(:,:) = zero
   endif ! if pst_ind > 0
 
-  print *, 'CRM - did we make it this far'
+  !call mpi_barrier(mpi_comm_world, iret)
 
   ! now do parallel read and apply increments
-  ugtmp(:,:) = zero
-  vgtmp(:,:) = zero
   call read_vardata(dsfg, 'ugrd', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret) 
   if (iret /= 0) then
      print *,'error reading ugrd'
@@ -1363,21 +1365,22 @@
     vg3d = ug3d
     call quantize_data(vg3d, ug3d, nbits, compress_err)
     ! same as before, below is not ideal
-    if (iope==0) then
-       call write_attribute(dsanl,&
-       'max_abs_compression_error',compress_err,'ugrd',errcode=iret)
-       if (iret /= 0) then
-         print *,'error writing ugrd attribute'
-         call stop2(29)
-       end if
-    endif
+    call write_attribute(dsanl,&
+    'max_abs_compression_error',compress_err,'ugrd',errcode=iret)
+    if (iret /= 0) then
+      print *,'error writing ugrd attribute'
+      call stop2(29)
+    end if
   endif
   call write_vardata(dsanl, 'ugrd', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret) 
+  !call mpi_barrier(iocomms(mem_pe(nproc)), iret)
   call read_vardata(dsfg, 'vgrd', vg3d, ncstart=ncstart, nccount=nccount, errcode=iret) 
   if (iret /= 0) then
      print *,'error reading vgrd'
      call stop2(29)
   endif
+  !call mpi_barrier(iocomms(mem_pe(nproc)), iret)
+  !call mpi_barrier(mpi_comm_world, iret)
   do k=lev_pe1(iope), lev_pe2(iope)
      krev = nlevs-k+1
      ki = k - lev_pe1(iope) + 1
@@ -1397,23 +1400,24 @@
     ug3d = vg3d
     call quantize_data(ug3d, vg3d, nbits, compress_err)
     ! same as before, below is not ideal
-    if (iope==0) then
-       call write_attribute(dsanl,&
-       'max_abs_compression_error',compress_err,'vgrd',errcode=iret)
-       if (iret /= 0) then
-         print *,'error writing ugrd attribute'
-         call stop2(29)
-       end if
-    endif
+    call write_attribute(dsanl,&
+    'max_abs_compression_error',compress_err,'vgrd',errcode=iret)
+    if (iret /= 0) then
+      print *,'error writing ugrd attribute'
+      call stop2(29)
+    end if
   endif
   call write_vardata(dsanl, 'vgrd', vg3d, ncstart=ncstart, nccount=nccount, errcode=iret) 
-  call mpi_barrier(iocomms(mem_pe(nproc)), iret)
-  do k=1,nlevs
-     call mpi_allreduce(ugtmp2(:,k), ugtmp(:,k), nlons*nlats, mpi_rtype, &
-                        mpi_sum, iocomms(mem_pe(nproc)),iret)
-     call mpi_allreduce(vgtmp2(:,k), vgtmp(:,k), nlons*nlats, mpi_rtype, &
-                        mpi_sum, iocomms(mem_pe(nproc)),iret)
-  end do
+  !call mpi_barrier(iocomms(mem_pe(nproc)), iret)
+  !call mpi_barrier(mpi_comm_world, iret)
+  if (pst_ind > 0) then
+     do k=1,nlevs
+        call mpi_allreduce(ugtmp2(:,k), ugtmp(:,k), nlons*nlats, mpi_rtype, &
+                           mpi_sum, iocomms(mem_pe(nproc)),iret)
+        call mpi_allreduce(vgtmp2(:,k), vgtmp(:,k), nlons*nlats, mpi_rtype, &
+                           mpi_sum, iocomms(mem_pe(nproc)),iret)
+     end do
+  end if
   if (pst_ind > 0) then
      do k=1,nlevs
         ug = ugtmp(:,k)*dpanl(:,k)
@@ -1471,20 +1475,19 @@
     call read_attribute(dsfg, 'nbits', nbits, 'tmp')
     call quantize_data(tmp_anal, values_3d, nbits, compress_err)
     ! yet again, below not technically correct...
-    if (iope==0) then
-       call write_attribute(dsanl,&
-       'max_abs_compression_error',compress_err,'tmp',errcode=iret)
-       if (iret /= 0) then
-         print *,'error writing tmp attribute'
-         call stop2(29)
-       end if
-    endif
+    call write_attribute(dsanl,&
+    'max_abs_compression_error',compress_err,'tmp',errcode=iret)
+    if (iret /= 0) then
+      print *,'error writing tmp attribute'
+      call stop2(29)
+    end if
   endif
   call write_vardata(dsanl,'tmp',values_3d,ncstart=ncstart,nccount=nccount,errcode=iret) ! write T
   if (iret /= 0) then
      print *,'error writing tmp'
      call stop2(29)
   endif
+  !call mpi_barrier(iocomms(mem_pe(nproc)), iret)
 
   ! write analysis delz
   if (has_var(dsfg,'delz')) then
@@ -1513,14 +1516,12 @@
        values_3d = ug3d
        call quantize_data(values_3d, ug3d, nbits, compress_err)
        ! again, only the first PE's error is being accounted for in this attribute
-       if (iope==0) then
-          call write_attribute(dsanl,&
-          'max_abs_compression_error',compress_err,'delz',errcode=iret)
-          if (iret /= 0) then
-            print *,'error writing delz attribute'
-            call stop2(29)
-          endif
-        end if
+       call write_attribute(dsanl,&
+       'max_abs_compression_error',compress_err,'delz',errcode=iret)
+       if (iret /= 0) then
+         print *,'error writing delz attribute'
+         call stop2(29)
+       endif
      endif
      call write_vardata(dsanl,'delz',ug3d,ncstart=ncstart,nccount=nccount,errcode=iret) ! write delz
      if (iret /= 0) then
@@ -1528,6 +1529,7 @@
         call stop2(29)
      endif
   endif
+  !call mpi_barrier(iocomms(mem_pe(nproc)), iret)
   deallocate(tv_anal,tv_bg) ! keep tmp_anal
 
   ! write analysis q (still stored in vg3d)
@@ -1535,20 +1537,19 @@
     call read_attribute(dsfg, 'nbits', nbits, 'spfh')
     values_3d = vg3d
     call quantize_data(values_3d, vg3d, nbits, compress_err)
-    if (iope==0) then
-       call write_attribute(dsanl,&
-       'max_abs_compression_error',compress_err,'spfh',errcode=iret)
-       if (iret /= 0) then
-         print *,'error writing spfh attribute'
-         call stop2(29)
-       end if
-    endif
+    call write_attribute(dsanl,&
+    'max_abs_compression_error',compress_err,'spfh',errcode=iret)
+    if (iret /= 0) then
+      print *,'error writing spfh attribute'
+      call stop2(29)
+    end if
   endif
   call write_vardata(dsanl,'spfh',vg3d,ncstart=ncstart,nccount=nccount,errcode=iret) ! write q
   if (iret /= 0) then
      print *,'error writing spfh'
      call stop2(29)
   endif
+  !call mpi_barrier(iocomms(mem_pe(nproc)), iret)
   ! write clwmr, icmr
   call read_vardata(dsfg,'clwmr',ug3d,ncstart=ncstart,nccount=nccount,errcode=iret)
   if (iret /= 0) then
@@ -1588,14 +1589,12 @@
        values_3d = ug3d
        call quantize_data(values_3d, ug3d, nbits, compress_err)
        if (cliptracers)  where (ug3d < clip) ug3d = clip
-       if (iope==0) then
-          call write_attribute(dsanl,&
-          'max_abs_compression_error',compress_err,'clwmr',errcode=iret)
-          if (iret /= 0) then
-             print *,'error writing clwmr attribute'
-             call stop2(29)
-          end if
-       endif
+       call write_attribute(dsanl,&
+       'max_abs_compression_error',compress_err,'clwmr',errcode=iret)
+       if (iret /= 0) then
+          print *,'error writing clwmr attribute'
+          call stop2(29)
+       end if
      endif
      if (cliptracers)  where (ug3d < clip) ug3d = clip
   endif
@@ -1611,14 +1610,12 @@
           values_3d = vg3d
           call quantize_data(values_3d, vg3d, nbits, compress_err)
           if (cliptracers)  where (vg3d < clip) vg3d = clip
-          if (iope==0) then
-             call write_attribute(dsanl,&
-             'max_abs_compression_error',compress_err,'icmr',errcode=iret)
-             if (iret /= 0) then
-                print *,'error writing icmr attribute'
-                call stop2(29)
-             end if
-          endif
+          call write_attribute(dsanl,&
+          'max_abs_compression_error',compress_err,'icmr',errcode=iret)
+          if (iret /= 0) then
+             print *,'error writing icmr attribute'
+             call stop2(29)
+          end if
         endif
         if (cliptracers)  where (vg3d < clip) vg3d = clip
      endif
@@ -1651,14 +1648,12 @@
        call quantize_data(values_3d, vg3d, nbits, compress_err)
        if (cliptracers)  where (vg3d < clip) vg3d = clip
        ! again, below is lazy/not ideal/bad
-       if (iope==0) then
-          call write_attribute(dsanl,&
-          'max_abs_compression_error',compress_err,'o3mr',errcode=iret)
-          if (iret /= 0) then
-             print *,'error writing o3mr attribute'
-             call stop2(29)
-          end if
-       endif
+       call write_attribute(dsanl,&
+       'max_abs_compression_error',compress_err,'o3mr',errcode=iret)
+       if (iret /= 0) then
+          print *,'error writing o3mr attribute'
+          call stop2(29)
+       end if
      endif
      if (cliptracers)  where (vg3d < clip) vg3d = clip
   endif
@@ -1730,13 +1725,11 @@
        call read_attribute(dsfg, 'nbits', nbits, 'ugrd')
        values_3d = ug3d
        call quantize_data(values_3d, ug3d, nbits, compress_err)
-       if (iope==0) then
-          call write_attribute(dsanl,&
-          'max_abs_compression_error',compress_err,'ugrd',errcode=iret)
-          if (iret /= 0) then
-             print *,'error writing ugrd attribute'
-             call stop2(29)
-          end if
+       call write_attribute(dsanl,&
+       'max_abs_compression_error',compress_err,'ugrd',errcode=iret)
+       if (iret /= 0) then
+          print *,'error writing ugrd attribute'
+          call stop2(29)
        endif
      endif
      call write_vardata(dsanl,'ugrd',ug3d,ncstart=ncstart,nccount=nccount,errcode=iret) ! write u
@@ -1748,13 +1741,11 @@
        call read_attribute(dsfg, 'nbits', nbits, 'vgrd')
        values_3d = vg3d
        call quantize_data(values_3d, vg3d, nbits, compress_err)
-       if (iope==0) then
-          call write_attribute(dsanl,&
-          'max_abs_compression_error',compress_err,'vgrd',errcode=iret)
-          if (iret /= 0) then
-             print *,'error writing vgrd attribute'
-             call stop2(29)
-          end if
+       call write_attribute(dsanl,&
+       'max_abs_compression_error',compress_err,'vgrd',errcode=iret)
+       if (iret /= 0) then
+          print *,'error writing vgrd attribute'
+          call stop2(29)
        endif
      endif
      call write_vardata(dsanl,'vgrd',vg3d,ncstart=ncstart,nccount=nccount,errcode=iret) ! write v
@@ -1763,6 +1754,7 @@
         call stop2(29)
      endif
      deallocate(ugtmp,vgtmp) 
+     deallocate(ugtmp2,vgtmp2) 
   endif
 
   if (allocated(ug3d)) deallocate(ug3d)
@@ -1788,7 +1780,14 @@
      call stop2(23)
   endif
 
+  call mpi_barrier(iocomms(mem_pe(nproc)), iret)
   end do backgroundloop ! loop over backgrounds to write out
+  ! remove the sub communicators
+  call mpi_barrier(iocomms(mem_pe(nproc)), iret)
+  call mpi_comm_free(iocomms(mem_pe(nproc)), iret)
+  call mpi_barrier(mpi_comm_world, iret)
+
+  return
 
  contains 
 ! copying to grdin (calling regtoreduced if reduced grid)
