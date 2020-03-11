@@ -294,12 +294,12 @@
   deallocate(ug3d,vg3d)
 
   ! surface pressure
-  if (ps_ind > 0) then
+  if (ps_ind > 0 .and. iope==0) then
     call copytogrdin(psg,grdin(:,levels(n3d) + ps_ind,nb,ne))
   endif
 
   ! surface pressure tendency
-  if (pst_ind > 0) then
+  if (pst_ind > 0 .and. iope==0) then
      pstend = sum(vmassdiv,2)
      if (nanal .eq. 1 .and. iope==0) &
      print *,nanal,'min/max first-guess ps tend',minval(pstend),maxval(pstend)
@@ -353,7 +353,7 @@
   endif
   endif  
 
-  if (sst_ind > 0) then
+  if (sst_ind > 0 .and. iope==0) then
     grdin(:,levels(n3d)+sst_ind, nb,ne) = zero
   endif
 
@@ -1061,6 +1061,9 @@
   integer(i_kind), allocatable, dimension(:) :: mem_pe, lev_pe1, lev_pe2, iocomms
   integer(i_kind) :: iope, ionumproc, iolevs, krev, ki
   integer(i_kind) :: ncstart(4), nccount(4)
+  logical :: nocompress
+
+  nocompress = .true.
 
   use_full_hydro = .false.  
   iunitsig = 78
@@ -1096,7 +1099,12 @@
   ncstart = (/1, 1, lev_pe1(iope),1/)
   nccount = (/nlons, nlats, lev_pe2(iope) - lev_pe1(iope)+1,1/) 
   !print *,'iope,nproc,nanal,ncstart,nccount,',iope,nproc,nanal,ncstart(3),nccount(3)
- 
+
+  ! need to distribute grdin to all PEs in this subcommunicator
+  ! bring all the subdomains back to the main PE
+  call mpi_barrier(iocomms(mem_pe(nproc)), iret)
+  call mpi_bcast(grdin,npts*ndim*nbackgrounds, mpi_real4, 0, iocomms(mem_pe(nproc)), iret)
+
   ! loop through times and do the read
   ne = 1
   backgroundloop: do nb=1,nbackgrounds
@@ -1208,8 +1216,8 @@
   end if
 
   dsanl = create_dataset(filenameout, dsfg, copy_vardata=.true., &
-          nocompress=.true., paropen=.true., mpicomm=iocomms(mem_pe(nproc)), errcode=iret)
-  print *, 'Member #', nanal, 'opened for write on ',iope,nproc
+          nocompress=nocompress, paropen=.true., mpicomm=iocomms(mem_pe(nproc)), errcode=iret)
+  !print *, 'Member #', nanal, 'opened for write on ',iope,nproc
   call mpi_barrier(iocomms(mem_pe(nproc)), iret)
   !call mpi_barrier(mpi_comm_world, iret)
   if (iret /= 0) then
@@ -1264,7 +1272,7 @@
         vg3d(:,:,ki) = ug3d(:,:,ki) +&
            100_r_kind*reshape(vg,(/nlons,nlats/))
      end do
-     if (has_attr(dsfg, 'nbits', 'dpres')) then
+     if (has_attr(dsfg, 'nbits', 'dpres') .and. .not. nocompress) then
        call read_attribute(dsfg, 'nbits', nbits, 'dpres')
        ug3d = vg3d
        call quantize_data(ug3d, vg3d, nbits, compress_err)
@@ -1359,7 +1367,7 @@
         ugtmp2(:,krev) = reshape(ug3d(:,:,k),(/nlons*nlats/))
      endif
   enddo
-  if (has_attr(dsfg, 'nbits', 'ugrd')) then
+  if (has_attr(dsfg, 'nbits', 'ugrd') .and. .not. nocompress) then
     call read_attribute(dsfg, 'nbits', nbits, 'ugrd')
     if (.not. allocated(vg3d)) allocate(vg3d(nlons,nlats,nccount(3)))
     vg3d = ug3d
@@ -1394,7 +1402,7 @@
         vgtmp2(:,krev) = reshape(vg3d(:,:,k),(/nlons*nlats/))
      endif
   enddo
-  if (has_attr(dsfg, 'nbits', 'vgrd')) then
+  if (has_attr(dsfg, 'nbits', 'vgrd')  .and. .not. nocompress) then
     call read_attribute(dsfg, 'nbits', nbits, 'vgrd')
     if (.not. allocated(ug3d)) allocate(ug3d(nlons,nlats,nccount(3)))
     ug3d = vg3d
@@ -1471,7 +1479,8 @@
   allocate(values_3d(nlons,nlats,nccount(3)))
   allocate(tmp_anal(nlons,nlats,nccount(3)))
   tmp_anal = tv_anal/(1. + fv*vg3d) ! convert Tv back to T, save q as vg3d
-  if (has_attr(dsfg, 'nbits', 'tmp')) then
+  values_3d = tmp_anal
+  if (has_attr(dsfg, 'nbits', 'tmp') .and. .not. nocompress) then
     call read_attribute(dsfg, 'nbits', nbits, 'tmp')
     call quantize_data(tmp_anal, values_3d, nbits, compress_err)
     ! yet again, below not technically correct...
@@ -1487,12 +1496,12 @@
      print *,'error writing tmp'
      call stop2(29)
   endif
-  !call mpi_barrier(iocomms(mem_pe(nproc)), iret)
+  call mpi_barrier(iocomms(mem_pe(nproc)), iret)
 
   ! write analysis delz
   if (has_var(dsfg,'delz')) then
      allocate(delzb(nlons*nlats))
-     call read_vardata(dsfg, 'delz', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret) 
+     call read_vardata(dsfg, 'delz', values_3d, ncstart=ncstart, nccount=nccount, errcode=iret) 
      vg = 0_r_kind
      if (ps_ind > 0) then
         call copyfromgrdin(grdin(:,levels(n3d) + ps_ind,nb,ne),vg)
@@ -1508,10 +1517,9 @@
         ! delzb is hydrostatic background delz inferred from background ps,Tv
         delzb=(rd/grav)*reshape(tv_bg(:,:,ki),(/nlons*nlats/)) 
         delzb=delzb*log((100_r_kind*ak(krev)+bk(krev)*values_1d)/(100_r_kind*ak(krev+1)+bk(krev+1)*values_1d))
-        ug3d(:,:,ki)=values_3d(:,:,ki) +&
-        reshape(delzb-ug,(/nlons,nlats/))
+        ug3d(:,:,ki)=values_3d(:,:,ki) + reshape(delzb-ug,(/nlons,nlats/))
      end do
-     if (has_attr(dsfg, 'nbits', 'delz')) then
+     if (has_attr(dsfg, 'nbits', 'delz') .and. .not. nocompress) then
        call read_attribute(dsfg, 'nbits', nbits, 'delz')
        values_3d = ug3d
        call quantize_data(values_3d, ug3d, nbits, compress_err)
@@ -1533,7 +1541,7 @@
   deallocate(tv_anal,tv_bg) ! keep tmp_anal
 
   ! write analysis q (still stored in vg3d)
-  if (has_attr(dsfg, 'nbits', 'spfh')) then
+  if (has_attr(dsfg, 'nbits', 'spfh') .and. .not. nocompress) then
     call read_attribute(dsfg, 'nbits', nbits, 'spfh')
     values_3d = vg3d
     call quantize_data(values_3d, vg3d, nbits, compress_err)
@@ -1584,7 +1592,7 @@
   enddo
   deallocate(tmp_anal)
   if (cw_ind > 0) then
-     if (has_attr(dsfg, 'nbits', 'clwmr')) then
+     if (has_attr(dsfg, 'nbits', 'clwmr') .and. .not. nocompress) then
        call read_attribute(dsfg, 'nbits', nbits, 'clwmr')
        values_3d = ug3d
        call quantize_data(values_3d, ug3d, nbits, compress_err)
@@ -1605,7 +1613,7 @@
   endif
   if (imp_physics == 11) then
      if (cw_ind > 0) then
-        if (has_attr(dsfg, 'nbits', 'clwmr')) then
+        if (has_attr(dsfg, 'nbits', 'clwmr') .and. .not. nocompress) then
           call read_attribute(dsfg, 'nbits', nbits, 'clwmr')
           values_3d = vg3d
           call quantize_data(values_3d, vg3d, nbits, compress_err)
@@ -1642,7 +1650,7 @@
      vg3d(:,:,ki) = vg3d(:,:,ki) + reshape(ug,(/nlons,nlats/))
   enddo
   if (oz_ind > 0) then
-     if (has_attr(dsfg, 'nbits', 'o3mr')) then
+     if (has_attr(dsfg, 'nbits', 'o3mr') .and. .not. nocompress) then
        call read_attribute(dsfg, 'nbits', nbits, 'o3mr')
        values_3d = vg3d
        call quantize_data(values_3d, vg3d, nbits, compress_err)
@@ -1721,7 +1729,7 @@
         ug3d(:,:,ki) = reshape(ugtmp(:,krev),(/nlons,nlats/))
         vg3d(:,:,ki) = reshape(vgtmp(:,krev),(/nlons,nlats/))
      enddo
-     if (has_attr(dsfg, 'nbits', 'ugrd')) then
+     if (has_attr(dsfg, 'nbits', 'ugrd') .and. .not. nocompress) then
        call read_attribute(dsfg, 'nbits', nbits, 'ugrd')
        values_3d = ug3d
        call quantize_data(values_3d, ug3d, nbits, compress_err)
@@ -1737,7 +1745,7 @@
         print *,'error writing ugrd'
         call stop2(29)
      endif
-     if (has_attr(dsfg, 'nbits', 'vgrd')) then
+     if (has_attr(dsfg, 'nbits', 'vgrd') .and. .not. nocompress) then
        call read_attribute(dsfg, 'nbits', nbits, 'vgrd')
        values_3d = vg3d
        call quantize_data(values_3d, vg3d, nbits, compress_err)
@@ -1875,6 +1883,9 @@
 
   integer k,nt,ierr,iunitsig,nb,i,ne,nanal
 
+  logical :: nocompress
+
+  nocompress = .true.
   use_full_hydro = .false.  
   iunitsig = 78
   kapr = cp/rd
@@ -2212,7 +2223,7 @@
         call stop2(23)
      endif
   else if (use_gfs_ncio) then
-     dsanl = create_dataset(filenameout, dsfg, copy_vardata=.true., nocompress=.true., errcode=iret)
+     dsanl = create_dataset(filenameout, dsfg, copy_vardata=.true., nocompress=nocompress, errcode=iret)
      if (iret /= 0) then
         print *,'error creating netcdf file'
         call stop2(29)
@@ -2264,7 +2275,7 @@
            vg3d(:,:,nlevs-k+1) = ug3d(:,:,nlevs-k+1) +&
            100_r_kind*reshape(vg,(/nlons,nlats/))
         enddo 
-        if (has_attr(dsfg, 'nbits', 'dpres')) then
+        if (has_attr(dsfg, 'nbits', 'dpres') .and. .not. nocompress) then
           call read_attribute(dsfg, 'nbits', nbits, 'dpres')
           ug3d = vg3d
           call quantize_data(ug3d, vg3d, nbits, compress_err)
@@ -2736,7 +2747,7 @@
            ugtmp(:,k) = reshape(ug3d(:,:,nlevs-k+1),(/nlons*nlats/))
         endif
      enddo
-     if (has_attr(dsfg, 'nbits', 'ugrd')) then
+     if (has_attr(dsfg, 'nbits', 'ugrd') .and. .not. nocompress) then
        call read_attribute(dsfg, 'nbits', nbits, 'ugrd')
        if (.not. allocated(vg3d)) allocate(vg3d(nlons,nlats,nlevs))
        vg3d = ug3d
@@ -2769,7 +2780,7 @@
            vgtmp(:,k) = reshape(vg3d(:,:,nlevs-k+1),(/nlons*nlats/))
         endif
      enddo  
-     if (has_attr(dsfg, 'nbits', 'vgrd')) then
+     if (has_attr(dsfg, 'nbits', 'vgrd') .and. .not. nocompress) then
        call read_attribute(dsfg, 'nbits', nbits, 'vgrd')
        ug3d = vg3d
        call quantize_data(ug3d, vg3d, nbits, compress_err)
@@ -2837,7 +2848,8 @@
      allocate(values_3d(nlons,nlats,nlevs))
      allocate(tmp_anal(nlons,nlats,nlevs))
      tmp_anal = tv_anal/(1. + fv*vg3d) ! convert Tv back to T, save q as vg3d
-     if (has_attr(dsfg, 'nbits', 'tmp')) then
+     values_3d = tmp_anal
+     if (has_attr(dsfg, 'nbits', 'tmp') .and. .not. nocompress) then
        call read_attribute(dsfg, 'nbits', nbits, 'tmp')
        call quantize_data(tmp_anal, values_3d, nbits, compress_err)
        call write_attribute(dsanl,&
@@ -2875,7 +2887,7 @@
         enddo
         !print *,'min/max delz',minval(values_3d),maxval(values_3d),&
         !  minval(ug3d),maxval(ug3d)
-        if (has_attr(dsfg, 'nbits', 'delz')) then
+        if (has_attr(dsfg, 'nbits', 'delz') .and. .not. nocompress) then
           call read_attribute(dsfg, 'nbits', nbits, 'delz')
           values_3d = ug3d
           call quantize_data(values_3d, ug3d, nbits, compress_err)
@@ -2895,7 +2907,7 @@
      deallocate(tv_anal,tv_bg) ! keep tmp_anal
 
      ! write analysis q (still stored in vg3d)
-     if (has_attr(dsfg, 'nbits', 'spfh')) then
+     if (has_attr(dsfg, 'nbits', 'spfh') .and. .not. nocompress) then
        call read_attribute(dsfg, 'nbits', nbits, 'spfh')
        values_3d = vg3d
        call quantize_data(values_3d, vg3d, nbits, compress_err)
@@ -2946,7 +2958,7 @@
      enddo
      deallocate(tmp_anal)
      if (cw_ind > 0) then
-        if (has_attr(dsfg, 'nbits', 'clwmr')) then
+        if (has_attr(dsfg, 'nbits', 'clwmr') .and. .not. nocompress) then
           call read_attribute(dsfg, 'nbits', nbits, 'clwmr')
           values_3d = ug3d
           call quantize_data(values_3d, ug3d, nbits, compress_err)
@@ -2967,7 +2979,7 @@
      endif
      if (imp_physics == 11) then
         if (cw_ind > 0) then
-           if (has_attr(dsfg, 'nbits', 'clwmr')) then
+           if (has_attr(dsfg, 'nbits', 'clwmr') .and. .not. nocompress) then
              call read_attribute(dsfg, 'nbits', nbits, 'clwmr')
              values_3d = vg3d
              call quantize_data(values_3d, vg3d, nbits, compress_err)
@@ -3003,7 +3015,7 @@
         reshape(ug,(/nlons,nlats/))
      enddo
      if (oz_ind > 0) then
-        if (has_attr(dsfg, 'nbits', 'o3mr')) then
+        if (has_attr(dsfg, 'nbits', 'o3mr') .and. .not. nocompress) then
           call read_attribute(dsfg, 'nbits', nbits, 'o3mr')
           values_3d = vg3d
           call quantize_data(values_3d, vg3d, nbits, compress_err)
@@ -3146,7 +3158,7 @@
            ug3d(:,:,nlevs-k+1) = reshape(ugtmp(:,k),(/nlons,nlats/))
            vg3d(:,:,nlevs-k+1) = reshape(vgtmp(:,k),(/nlons,nlats/))
         enddo
-        if (has_attr(dsfg, 'nbits', 'ugrd')) then
+        if (has_attr(dsfg, 'nbits', 'ugrd') .and. .not. nocompress) then
           call read_attribute(dsfg, 'nbits', nbits, 'ugrd')
           values_3d = ug3d
           call quantize_data(values_3d, ug3d, nbits, compress_err)
@@ -3162,7 +3174,7 @@
            print *,'error writing ugrd'
            call stop2(29)
         endif
-        if (has_attr(dsfg, 'nbits', 'vgrd')) then
+        if (has_attr(dsfg, 'nbits', 'vgrd') .and. .not. nocompress) then
           call read_attribute(dsfg, 'nbits', nbits, 'vgrd')
           values_3d = vg3d
           call quantize_data(values_3d, vg3d, nbits, compress_err)

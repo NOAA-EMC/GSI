@@ -109,6 +109,7 @@ else
    LONB_ENKF=${LONB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimx | awk '{print $2}')}
    use_gfs_ncio=".false."
    use_gfs_nemsio=".true."
+   paranc=${paranc:-".false."}
 fi
 LATA_ENKF=${LATA_ENKF:-$LATB_ENKF}
 LONA_ENKF=${LONA_ENKF:-$LONB_ENKF}
