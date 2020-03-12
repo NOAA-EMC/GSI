@@ -238,6 +238,8 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) izz,iprvd,isprvd
   integer(i_kind) idomsfc,isfcr,iskint,iff10
 
+  integer(i_kind) iswcm,isaza, isccf
+
   integer(i_kind) num_bad_ikx
   integer(i_kind) msges
 
@@ -320,8 +322,13 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   isprvd=23   ! index of observation subprovider
   icat=24     ! index of data level category
   ijb=25      ! index of non linear qc parameter
-  iptrbu=26   ! index of u perturbation
-  iptrbv=27   ! index of v perturbation
+
+  iswcm=26    ! spectral type
+  isaza=27    ! saza 
+  isccf=28    ! spec ch wavenumber
+
+  iptrbu=29   ! index of u perturbation
+  iptrbv=30   ! index of v perturbation
 
   mm1=mype+1
   scale=one
@@ -1734,6 +1741,11 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            call nc_diag_metadata("Errinv_Final",            sngl(errinv_final)     )
 
            call nc_diag_metadata("Wind_Reduction_Factor_at_10m", sngl(factw)       )
+
+! Write out in nc diag the extra vars from cdata_all (see read_satwnd.f90)
+           call nc_diag_metadata("SWCM_spec_type",          sngl(data(iswcm,i))    )
+           call nc_diag_metadata("SAZA_sat_zen_angle",      sngl(data(isaza,i))    )
+           call nc_diag_metadata("SCCF_chan_wavenum",       sngl(data(isccf,i))    )
 
            if (.not. regional) then
               call nc_diag_metadata("u_Observation",                              sngl(data(iuob,i))    )
