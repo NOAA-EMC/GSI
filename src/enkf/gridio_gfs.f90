@@ -1098,7 +1098,6 @@
   end do
   ncstart = (/1, 1, lev_pe1(iope),1/)
   nccount = (/nlons, nlats, lev_pe2(iope) - lev_pe1(iope)+1,1/) 
-  !print *,'iope,nproc,nanal,ncstart,nccount,',iope,nproc,nanal,ncstart(3),nccount(3)
 
   ! need to distribute grdin to all PEs in this subcommunicator
   ! bring all the subdomains back to the main PE
@@ -3430,11 +3429,46 @@
 
   end if
 
+  allocate(inc3d(nlons,nlats,nccount(3)))
   ! u increment
+  inc(:) = 0
+  do k=lev_pe1(iope), lev_pe2(iope)
+     krev = nlevs-k+1
+     ki = k - lev_pe1(iope) + 1
+     if (u_ind > 0) then
+       call copyfromgrdin(grdin(:,levels(u_ind-1) + krev,nb,ne),inc)
+     endif
+     inc3d(:,:,ki) = reshape(inc,(/nlons,nlats/))
+  end do
+  call nccheck_incr(nf90_put_var(ncid_out, uvarid, sngl(inc3d), &
+                      start = ncstart, count = nccount))
 
   ! v increment
+  inc(:) = 0
+  do k=lev_pe1(iope), lev_pe2(iope)
+     krev = nlevs-k+1
+     ki = k - lev_pe1(iope) + 1
+     if (u_ind > 0) then
+       call copyfromgrdin(grdin(:,levels(v_ind-1) + krev,nb,ne),inc)
+     endif
+     inc3d(:,:,ki) = reshape(inc,(/nlons,nlats/))
+  end do
+  call nccheck_incr(nf90_put_var(ncid_out, vvarid, sngl(inc3d), &
+                      start = ncstart, count = nccount))
 
   ! delp increment
+  inc(:) = 0
+  if (ps_ind > 0) then
+    call copyfromgrdin(grdin(:,levels(n3d) + ps_ind,nb,ne),inc)
+  endif
+  do k=lev_pe1(iope), lev_pe2(iope)
+     krev = nlevs-k+1
+     ki = k - lev_pe1(iope) + 1
+     inc = inc*(bk(krev)-bk(krev+1)*100_r_kind) 
+     inc3d(:,:,ki) = reshape(inc,(/nlons,nlats/))
+  end do
+  call nccheck_incr(nf90_put_var(ncid_out, delpvarid, sngl(inc3d), &
+                      start = ncstart, count = nccount))
 
   ! delz increment
 
