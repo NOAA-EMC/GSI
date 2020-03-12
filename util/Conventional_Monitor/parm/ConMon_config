@@ -104,7 +104,7 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
       export SUB="bsub"
       export COMPRESS=/usr/bin/gzip
       export UNCOMPRESS="/usr/bin/gunzip -f"
-      export PROJECT=${PROJECT:-GDAS-DEV}
+      export PROJECT=${PROJECT:-GFS-DEV}
       export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
  
    elif [[ $MY_MACHINE = "hera" ]]; then

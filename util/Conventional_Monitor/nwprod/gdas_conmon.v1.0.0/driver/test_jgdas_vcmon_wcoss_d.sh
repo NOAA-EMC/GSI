@@ -8,7 +8,7 @@
 #BSUB -R affinity[core]
 #BSUB -M 160
 #BSUB -W 00:30
-#BSUB -P GFS-DEV
+#BSUB -P GFS-T2O
 
 set -x
 
