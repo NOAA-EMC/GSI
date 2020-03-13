@@ -308,7 +308,6 @@
      enddo
      call mpi_gatherv(var3d1_sub, recvcounts(iope), mpi_rtype, var3d1, recvcounts, displs,&
                       mpi_rtype, 0, iocomms(mem_pe(nproc)),iret)
-     print *, 'after o3mr gatherv'
      if (iope==0) then
         do k=1,nlevs
            krev = nlevs-k+1
