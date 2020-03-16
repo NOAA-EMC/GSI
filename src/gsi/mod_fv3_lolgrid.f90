@@ -176,6 +176,7 @@ subroutine generate_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,p_
 
   real(r_kind) d(4),ds
   integer(i_kind) kk,k
+  real(r_kind),allocatable:: rtem1(:,:)
 
 
   nord_e2a=4
@@ -284,6 +285,7 @@ subroutine generate_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,p_
   allocate(region_dxi_out(nlatout,nlonout),region_dyi_out(nlatout,nlonout))
   if (present(coeffx_out))  allocate(coeffx_out(nlatout,nlonout))
   if (present(coeffy_out))  allocate(coeffy_out(nlatout,nlonout))
+  allocate(rtem1(nlatout,nlonout))
   dyy=rearth*adlat*deg2rad
   dyyi=one/dyy
   dyyh=half/dyy
@@ -291,9 +293,10 @@ subroutine generate_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,p_
      do i=1,nlatout
         region_dy_out(i,j)=dyy
         region_dyi_out(i,j)=dyyi
+        rtem1(i,j)=dyyh
      enddo
   enddo
-  if (present(coeffy_out))  coeffy_out=dyyh
+  if (present(coeffy_out))  coeffy_out=rtem1
 
   do i=1,nlatout
      dxx=rearth*cos(rlat_in(i,1)*deg2rad)*adlon*deg2rad
@@ -302,9 +305,10 @@ subroutine generate_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,p_
      do j=1,nlonout
         region_dx_out(i,j)=dxx
         region_dxi_out(i,j)=dxxi
+        rtem1(i,j)=dxxh
      enddo
   enddo
-  if (present(coeffx_out))  coeffx_out=dxxh
+  if (present(coeffx_out))  coeffx_out=rtem1
   
 
 !

@@ -330,6 +330,7 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
                              region_dxi,region_dyi, &
                              coeffx,coeffy)
 
+
     deallocate (grid_lon,grid_lat,grid_lont,grid_latt)
     deallocate (ak,bk,abk_fv3)
 
@@ -2487,11 +2488,6 @@ subroutine gsi_fv3ncdf_write_v1(filename,varname,var,mype_io,add_saved)
              end do
           enddo
        enddo
-       if(trim(varname).eq.'t') then
-          do ii=1,nsig
-          write(6,*)'thinkdeb work_a for t ',work_a(2:3,2:3,ii)
-          enddo
-       endif
 
        allocate( work_b(nlon_regional,nlat_regional,nsig+1))
 
@@ -2499,7 +2495,6 @@ subroutine gsi_fv3ncdf_write_v1(filename,varname,var,mype_io,add_saved)
        call check( nf90_inq_varid(gfile_loc,trim(varname),VarId) )
        call check( nf90_get_var(gfile_loc,VarId,work_b) )
        ilev0=1
-       write(6,*)'thinkdeb251 add_saved is ',add_saved
 
        if(add_saved)then
           allocate( workb2(nlon_regional,nlat_regional))
