@@ -102,13 +102,14 @@
   logical ice
   logical use_full_hydro   
   integer(i_kind), allocatable, dimension(:) :: mem_pe, lev_pe1, lev_pe2, iocomms
-  integer(i_kind) :: iope, ionumproc, iolevs, krev, ki
+  integer(i_kind) :: iope, ionumproc, iolevs, krev
   integer(i_kind) :: ncstart(3), nccount(3)
 
   ! mpi gatherv things
   integer(i_kind), allocatable, dimension(:) :: recvcounts, displs
-  real(r_kind), dimension(nlons*nlats, nlevs) :: var3d1, var3d2, var3d3
-  real(r_kind), allocatable, dimension(:,:) :: var3d1_sub, var3d2_sub, var3d3_sub
+  real(r_single), dimension(nlons,nlats,nlevs) :: ug3d_0, vg3d_0
+  !real(r_single), dimension(nlons*nlats, nlevs) :: var3d1, var3d2, var3d3
+  !real(r_single), allocatable, dimension(:,:) :: var3d1_sub, var3d2_sub, var3d3_sub
 
   ! figure out what member to read and do MPI sub-communicator things
   allocate(mem_pe(0:numproc-1))
@@ -130,22 +131,19 @@
   allocate(lev_pe2(0:ionumproc-1))
   iolevs = nlevs/ionumproc
   do i=0,ionumproc-1
-     lev_pe1(i) = (iope * iolevs) + 1
-     lev_pe2(i) = ((iope + 1) * iolevs)
+     lev_pe1(i) = (i * iolevs) + 1
+     lev_pe2(i) = ((i + 1) * iolevs)
      if (i == ionumproc-1) lev_pe2(i) = lev_pe2(i) + modulo(nlevs, ionumproc)
   end do
   ncstart = (/1, 1, lev_pe1(iope)/)
   nccount = (/nlons, nlats, lev_pe2(iope) - lev_pe1(iope)+1/) 
  
   ! some mpi gatherv calculations
-  allocate(recvcounts(0:ionumproc-1))
-  allocate(displs(0:ionumproc-1))
-  allocate(var3d1_sub(nlons*nlats,nccount(3)))
-  allocate(var3d2_sub(nlons*nlats,nccount(3)))
-  allocate(var3d3_sub(nlons*nlats,nccount(3)))
+  allocate(recvcounts(ionumproc))
+  allocate(displs(ionumproc))
   do i=0, ionumproc-1
-     recvcounts(i) = (lev_pe2(i) - lev_pe1(i)+1)*nlons*nlats
-     displs(i) = 1 + ((lev_pe1(i)-1)*nlons*nlats)
+     recvcounts(i+1) = (lev_pe2(i) - lev_pe1(i)+1)*nlons*nlats
+     displs(i+1) = ((lev_pe1(i)-1)*nlons*nlats)
   end do
   
 
@@ -226,36 +224,28 @@
      print *,'error reading vgrd'
      call stop2(23)
   endif
-  do k=lev_pe1(iope), lev_pe2(iope)
-     krev = nlevs-k+1
-     ki = k - lev_pe1(iope) + 1
-     ug = reshape(ug3d(:,:,ki),(/nlons*nlats/))
-     vg = reshape(vg3d(:,:,ki),(/nlons*nlats/))
-     var3d1_sub(:,ki) = ug
-     var3d2_sub(:,ki) = vg 
-  enddo
-  call mpi_gatherv(var3d1_sub, recvcounts(iope), mpi_rtype, var3d1, recvcounts, displs,&
-                   mpi_rtype, 0, iocomms(mem_pe(nproc)),iret)
-  call mpi_gatherv(var3d2_sub, recvcounts(iope), mpi_rtype, var3d2, recvcounts, displs,&
-                   mpi_rtype, 0, iocomms(mem_pe(nproc)),iret)
+  call mpi_gatherv(ug3d, recvcounts(iope+1), mpi_real4, ug3d_0, recvcounts, displs,&
+                   mpi_real4, 0, iocomms(mem_pe(nproc)),iret)
+  call mpi_gatherv(vg3d, recvcounts(iope+1), mpi_real4, vg3d_0, recvcounts, displs,&
+                   mpi_real4, 0, iocomms(mem_pe(nproc)),iret)
   if (iope==0) then
      do k=1,nlevs
         krev = nlevs-k+1
-        if (u_ind > 0) call copytogrdin(var3d1(:,krev),grdin(:,levels(u_ind-1) + k,nb,ne))
-        if (v_ind > 0) call copytogrdin(var3d2(:,krev),grdin(:,levels(v_ind-1) + k,nb,ne))
+        ug = reshape(ug3d_0(:,:,krev),(/nlons*nlats/))
+        vg = reshape(vg3d_0(:,:,krev),(/nlons*nlats/))
+        if (u_ind > 0) call copytogrdin(ug,grdin(:,levels(u_ind-1) + k,nb,ne))
+        if (v_ind > 0) call copytogrdin(vg,grdin(:,levels(v_ind-1) + k,nb,ne))
+        ! calculate vertical integral of mass flux div (ps tendency)
+        ! this variable is analyzed in order to enforce mass balance in the analysis
+        if (pst_ind > 0) then
+           krev = nlevs-k+1
+           ug = ug*(pressi(:,krev)-pressi(:,krev+1))
+           vg = vg*(pressi(:,krev)-pressi(:,krev+1))
+           call sptezv_s(divspec,vrtspec,ug,vg,-1) ! u,v to div,vrt
+           call sptez_s(divspec,vmassdiv(:,krev),1) ! divspec to divgrd
+        endif
      enddo
   end if
-  do k=lev_pe1(iope), lev_pe2(iope)
-     ! calculate vertical integral of mass flux div (ps tendency)
-     ! this variable is analyzed in order to enforce mass balance in the analysis
-     if (pst_ind > 0) then
-        krev = nlevs-k+1
-        ug = ug*(pressi(:,krev)-pressi(:,krev+1))
-        vg = vg*(pressi(:,krev)-pressi(:,krev+1))
-        call sptezv_s(divspec,vrtspec,ug,vg,-1) ! u,v to div,vrt
-        call sptez_s(divspec,vmassdiv(:,krev),1) ! divspec to divgrd
-     endif
-  enddo
   call read_vardata(dset,'tmp', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
   if (iret /= 0) then
      print *,'error reading tmp'
@@ -266,28 +256,19 @@
      print *,'error reading spfh'
      call stop2(25)
   endif
-  do k=lev_pe1(iope), lev_pe2(iope)
-     krev = nlevs-k+1
-     ki = k - lev_pe1(iope) + 1
-     ug = reshape(ug3d(:,:,ki),(/nlons*nlats/))
-     vg = reshape(vg3d(:,:,ki),(/nlons*nlats/))
-     var3d3_sub(:,ki) = ug
-     var3d2_sub(:,ki) = vg
-     ug = ug * ( 1.0 + fv*vg ) ! convert T to Tv
-     var3d1_sub(:,ki) = ug
-  enddo
-  call mpi_gatherv(var3d1_sub, recvcounts(iope), mpi_rtype, var3d1, recvcounts, displs,&
-                   mpi_rtype, 0, iocomms(mem_pe(nproc)),iret)
-  call mpi_gatherv(var3d2_sub, recvcounts(iope), mpi_rtype, var3d2, recvcounts, displs,&
-                   mpi_rtype, 0, iocomms(mem_pe(nproc)),iret)
-  call mpi_gatherv(var3d3_sub, recvcounts(iope), mpi_rtype, var3d3, recvcounts, displs,&
-                   mpi_rtype, 0, iocomms(mem_pe(nproc)),iret)
+  call mpi_gatherv(ug3d, recvcounts(iope+1), mpi_real4, ug3d_0, recvcounts, displs,&
+                   mpi_real4, 0, iocomms(mem_pe(nproc)),iret)
+  call mpi_gatherv(vg3d, recvcounts(iope+1), mpi_real4, vg3d_0, recvcounts, displs,&
+                   mpi_real4, 0, iocomms(mem_pe(nproc)),iret)
   if (iope==0) then
      do k=1,nlevs
         krev = nlevs-k+1
-        call copytogrdin(var3d1(:,krev),tv(:,k))
-        if (tsen_ind > 0) call copytogrdin(var3d3(:,krev),grdin(:,levels(tsen_ind-1)+k,nb,ne))
-        call copytogrdin(var3d2(:,krev), q(:,k))
+        ug = reshape(ug3d_0(:,:,krev),(/nlons*nlats/))
+        vg = reshape(vg3d_0(:,:,krev),(/nlons*nlats/))
+        if (tsen_ind > 0) call copytogrdin(ug,grdin(:,levels(tsen_ind-1)+k,nb,ne))
+        call copytogrdin(vg, q(:,k))
+        ug = ug * ( 1.0 + fv*vg ) ! convert T to Tv
+        call copytogrdin(ug,tv(:,k))
         if (tv_ind > 0)   grdin(:,levels(tv_ind-1)+k,nb,ne) = tv(:,k)
         if (q_ind > 0)    grdin(:,levels( q_ind-1)+k,nb,ne) =  q(:,k)
      end do
@@ -300,18 +281,13 @@
         call stop2(26)
      endif
      if (cliptracers)  where (ug3d < clip) ug3d = clip
-     do k=lev_pe1(iope), lev_pe2(iope)
-        krev = nlevs-k+1
-        ki = k - lev_pe1(iope) + 1
-        ug = reshape(ug3d(:,:,ki),(/nlons*nlats/))
-        var3d1_sub(:,ki) = ug 
-     enddo
-     call mpi_gatherv(var3d1_sub, recvcounts(iope), mpi_rtype, var3d1, recvcounts, displs,&
-                      mpi_rtype, 0, iocomms(mem_pe(nproc)),iret)
+     call mpi_gatherv(ug3d, recvcounts(iope+1), mpi_real4, ug3d_0, recvcounts, displs,&
+                      mpi_real4, 0, iocomms(mem_pe(nproc)),iret)
      if (iope==0) then
         do k=1,nlevs
            krev = nlevs-k+1
-           call copytogrdin(var3d1(:,krev),grdin(:,levels(oz_ind-1)+k,nb,ne))
+           ug = reshape(ug3d_0(:,:,krev),(/nlons*nlats/))
+           call copytogrdin(ug,grdin(:,levels(oz_ind-1)+k,nb,ne))
         end do
      end if
   endif
@@ -330,18 +306,13 @@
         ug3d = ug3d + vg3d
      endif
      if (cliptracers)  where (ug3d < clip) ug3d = clip
-     do k=lev_pe1(iope), lev_pe2(iope)
-        krev = nlevs-k+1
-        ki = k - lev_pe1(iope) + 1
-        ug = reshape(ug3d(:,:,ki),(/nlons*nlats/))
-        var3d1_sub(:,ki) = ug
-     enddo
-     call mpi_gatherv(var3d1_sub, recvcounts(iope), mpi_rtype, var3d1, recvcounts, displs,&
-                      mpi_rtype, 0, iocomms(mem_pe(nproc)),iret)
+     call mpi_gatherv(ug3d, recvcounts(iope+1), mpi_real4, ug3d_0, recvcounts, displs,&
+                      mpi_real4, 0, iocomms(mem_pe(nproc)),iret)
      if (iope==0) then
         do k=1,nlevs
            krev = nlevs-k+1
-           call copytogrdin(var3d1(:,krev),cw(:,k))
+           ug = reshape(ug3d_0(:,:,krev),(/nlons*nlats/))
+           call copytogrdin(ug,cw(:,k))
            if (cw_ind > 0) grdin(:,levels(cw_ind-1)+k,nb,ne) = cw(:,k)
         end do
      end if
@@ -361,28 +332,17 @@
      call copytogrdin(pstend,grdin(:,levels(n3d) + pst_ind,nb,ne))
   endif
 
-  ! compute saturation q.
-  do k=lev_pe1(iope), lev_pe2(iope)
-     krev = nlevs-k+1
-     ! layer pressure from phillips vertical interolation
-     ug(:) = ((pressi(:,krev)**kap1-pressi(:,krev+1)**kap1)/&
-             (kap1*(pressi(:,krev)-pressi(:,krev+1))))**kapr
-     var3d1_sub(:,ki) = ug
-  end do
-  call mpi_gatherv(var3d1_sub, recvcounts(iope), mpi_rtype, var3d1, recvcounts, displs,&
-                   mpi_rtype, 0, iocomms(mem_pe(nproc)),iret)
   if (iope==0) then
      do k=1,nlevs
         krev = nlevs-k+1
-        call copytogrdin(var3d1(:,krev),pslg(:,k))
+        ! layer pressure from phillips vertical interolation
+        ug(:) = ((pressi(:,k)**kap1-pressi(:,k+1)**kap1)/&
+                (kap1*(pressi(:,k)-pressi(:,k+1))))**kapr
+        call copytogrdin(ug,pslg(:,k))
         ! Jacobian for gps in pressure is saved in different units in GSI; need to
         ! multiply pressure by 0.1
         if (prse_ind > 0)     grdin(:,levels(prse_ind-1)+k,nb,ne) = 0.1*pslg(:,k)
      end do
-  end if
-
-
-  if (iope==0) then
      if (pseudo_rh) then
         call genqsat1(q,qsat(:,:,nb,ne),pslg,tv,ice,npts,nlevs)
      else
@@ -393,7 +353,7 @@
   ! cloud derivatives
   if (.not. use_full_hydro .and. iope==0) then  
   if (ql_ind > 0 .or. qi_ind > 0) then
-     do k=lev_pe1(iope), lev_pe2(iope)
+     do k=1,nlevs
         do i = 1, npts
            qi_coef        = -r0_05*(tv(i,k)/(one+fv*q(i,k))-t0c)
            qi_coef        = max(zero,qi_coef)
@@ -1069,7 +1029,8 @@
                           get_time_units_from_idate, write_vardata, &
                           write_attribute, quantize_data, has_var, has_attr
   use constants, only: grav, zero
-  use params, only: nbackgrounds,anlfileprefixes,fgfileprefixes,reducedgrid
+  use params, only: nbackgrounds,anlfileprefixes,fgfileprefixes,reducedgrid,&
+                    nccompress
   implicit none
 
   character(len=max_varname_length), dimension(n2d), intent(in) :: vars2d
@@ -1116,6 +1077,8 @@
   logical :: nocompress
 
   nocompress = .true.
+
+  if (nccompress) nocompress = .false.
 
   use_full_hydro = .false.  
   iunitsig = 78
@@ -1872,7 +1835,8 @@
                           get_time_units_from_idate, write_vardata, &
                           write_attribute, quantize_data, has_var, has_attr
   use constants, only: grav
-  use params, only: nbackgrounds,anlfileprefixes,fgfileprefixes,reducedgrid
+  use params, only: nbackgrounds,anlfileprefixes,fgfileprefixes,reducedgrid,&
+                    nccompress
   implicit none
 
   integer, intent(in) :: nanal1,nanal2
@@ -1926,6 +1890,7 @@
   logical :: nocompress
 
   nocompress = .true.
+  if (nccompress) nocompress = .false.
   use_full_hydro = .false.  
   iunitsig = 78
   kapr = cp/rd

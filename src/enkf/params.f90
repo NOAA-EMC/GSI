@@ -210,6 +210,7 @@ logical,public ::l_pres_add_saved
 
 ! for parallel netCDF
 logical, public :: paranc = .false.
+logical, public :: nccompress = .false.
 
 namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    covinflatemax,covinflatemin,deterministic,sortinc,&
@@ -235,7 +236,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    getkf,getkf_inflation,denkf,modelspace_vloc,dfs_sort,write_spread_diag,&
                    covinflatenh,covinflatesh,covinflatetr,lnsigcovinfcutoff,letkf_bruteforce_search,&
                    fso_cycling,fso_calculate,imp_physics,lupp,cnvw_option,use_correlated_oberrs,&
-                   fv3_native, paranc
+                   fv3_native, paranc, nccompress
 namelist /nam_wrf/arw,nmm,nmm_restart
 namelist /nam_fv3/fv3fixpath,nx_res,ny_res,ntiles,l_pres_add_saved
 namelist /satobs_enkf/sattypes_rad,dsis
