@@ -340,9 +340,8 @@ module read_diag
     integer(i_kind),dimension(:),allocatable :: iouse
     real(r_double),dimension(:),allocatable  :: pobs,gross,tnoise
    
-    integer(i_kind)                          :: nsdim,k,idate
+    integer(i_kind)                          :: nsdim,k,idate,idx
     integer(i_kind),dimension(:),allocatable :: iuse_flag
-    integer(i_kind)                          :: analysis_use_flag,idx
 
  
     istatus = 0
@@ -406,10 +405,9 @@ module read_diag
     !-------------------------------------------------------------------
     !  The Anaysis_Use_Flag in the netcdf file resides in the 
     !  obs data rather than global (equivalent of binary file header 
-    !  location.  So we need read that in a different way.  Also, iuse 
-    !  assignment by level is not possible, so the first value is good 
-    !  for all (or so I've been told).
-
+    !  location. Assign the first nlevs number of those values to
+    !  the iuse_flag array.
+    !
     idx = find_ncdiag_id(ftin)
 
     if( verify_var_name_nc( "Analysis_Use_Flag" ) ) then
@@ -417,11 +415,12 @@ module read_diag
           allocate( iuse_flag( ncdiag_open_status(idx)%num_records ))
 
           call nc_diag_read_get_var( ftin, 'Analysis_Use_Flag', iuse_flag )
-          analysis_use_flag = iuse_flag(1)
 
-          deallocate( iuse_flag )
        else
-          analysis_use_flag = -1
+          do k=1,ncdiag_open_status(idx)%num_records
+             iuse_flag(k) = -1
+          end do
+
        end if 
     else
        write(6,*) 'WARNING:  unable to read global var Analysis_Use_Flag from file '
@@ -453,10 +452,10 @@ module read_diag
        header_nlev(k)%pob = pobs(k)
        header_nlev(k)%grs = gross(k)
        header_nlev(k)%err = tnoise(k)
-       header_nlev(k)%iouse = analysis_use_flag
-
+       header_nlev(k)%iouse = iuse_flag(k)
     end do
-    deallocate( pobs,gross,tnoise )
+
+    deallocate( pobs,gross,tnoise,iuse_flag )
 
 
   end subroutine read_ozndiag_header_nc

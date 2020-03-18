@@ -235,37 +235,40 @@ program main
 
             do j = 1, n_levs
 
-               !------------------------------------------------------------------
-               ! Accumulate sums in appropriate regions.
-               ! This is done for all obs, assimilated or not.  
-               ! Earlier versions of this code included a commented out line
-               ! which contained a check for assimlated status:
-               !
-               !    if (data_nlev(j,iobs)%varinv > 1.e-6) then
-               !
-               ! around the code (below) encompassing everything with this 
-               ! do loop (above).  Adding this check back into the code 
-               ! results in all non-assimilates sources producing
-               ! zeroed out plots, which isn't desireable.  I've preserved the
-               ! check in this comment just in case it's needed some day.
-               !
+               if (data_nlev(1,iobs)%varinv > 1.e-6) then
 
-               write(6,*) 'data_nlev(j,iobs)%varinv = ', j, iobs, data_nlev(j,iobs)%varinv
-               pen         =  data_nlev(j,iobs)%varinv*(data_nlev(j,iobs)%ozone_inv)**2
-               cor_omg(1)  =  data_nlev(j,iobs)%ozone_inv
-               cor_omg(2)  =  (cor_omg(1))**2
+                  !------------------------------------------------------------------
+                  ! Accumulate sums in appropriate regions.
+                  ! This is done for all obs, assimilated or not.  
+                  ! Earlier versions of this code included a commented out line
+                  ! which contained a check for assimlated status:
+                  !
+                  !    if (data_nlev(j,iobs)%varinv > 1.e-6) then
+                  !
+                  ! around the code (below) encompassing everything with this 
+                  ! do loop (above).  Adding this check back into the code 
+                  ! results in all non-assimilated sources producing
+                  ! zeroed out plots, which isn't desireable.  I've preserved the
+                  ! check in this comment just in case it's needed some day.
+                  !
 
-               do i=1,nreg
-                  k=jsub(i)
-                  cnt(j,k) = cnt(j,k) +1.0 
-                  penalty(j,k) = penalty(j,k) + pen
+                  write(6,*) 'data_nlev(j,iobs)%varinv = ', j, iobs, data_nlev(j,iobs)%varinv
+                  pen         =  data_nlev(j,iobs)%varinv*(data_nlev(j,iobs)%ozone_inv)**2
+                  cor_omg(1)  =  data_nlev(j,iobs)%ozone_inv
+                  cor_omg(2)  =  (cor_omg(1))**2
 
-                  do ii=1,2
-                     omg_cor(j,k,ii)  = omg_cor(j,k,ii)  + cor_omg(ii)
+                  do i=1,nreg
+                     k=jsub(i)
+                     cnt(j,k) = cnt(j,k) +1.0 
+                     penalty(j,k) = penalty(j,k) + pen
+
+                     do ii=1,2
+                        omg_cor(j,k,ii)  = omg_cor(j,k,ii)  + cor_omg(ii)
+                     end do
+   
                   end do
 
-               end do
-
+               end if
             enddo 
 
          else           !  mls data sources
@@ -330,6 +333,7 @@ program main
    if( validate == .TRUE. ) then
       call load_base( satname, ier )
 
+      write(6,*) 'ier from load_base = ', ier
       open(lupen,file=bad_pen_file,form='formatted')
       open(lucnt,file=bad_cnt_file,form='formatted')
 
@@ -341,7 +345,7 @@ program main
    do j=1,n_levs
       if ( use(j,k) > 0.0 ) then
 
-         if( validate == .TRUE. ) then
+         if( validate == .TRUE. .AND. ier >= 0 ) then
 
             pbound = 0.00
             call validate_penalty( j, k, penalty(j,k), valid_penalty, pbound, iret )
