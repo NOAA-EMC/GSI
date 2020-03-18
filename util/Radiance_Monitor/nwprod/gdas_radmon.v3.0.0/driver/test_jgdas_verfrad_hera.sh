@@ -10,8 +10,8 @@
 
 set -x
 
-#export PDATE=${PDATE:-2018091712}	#binary
-export PDATE=${PDATE:-2018110206}	#NetCDF
+export PDATE=${PDATE:-2018091712}	#binary
+#export PDATE=${PDATE:-2018110206}	#NetCDF
 #############################################################
 # Specify whether the run is production or development
 #############################################################
@@ -47,7 +47,7 @@ export radmon_shared_ver=v3.0.0
 #############################################################
 
 export RADMON_SUFFIX=${RADMON_SUFFIX:-testrad}
-export NWTEST=${NWTEST:-/scratch1/NCEPDEV/da/noscrub/Edward.Safford/ProdGSI/util/Radiance_Monitor/nwprod}
+export NWTEST=${NWTEST:-/scratch1/NCEPDEV/da/Edward.Safford/noscrub/ProdGSI/util/Radiance_Monitor/nwprod}
 
 export HOMEgdas=${HOMEgdas:-${NWTEST}/gdas_radmon.${gdas_radmon_ver}}
 export HOMEgfs=$HOMEgdas
