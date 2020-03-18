@@ -20,12 +20,15 @@ elif [[ -d /ioddev_dell ]]; then
     . $MODULESHOME/init/sh
     conf_target=nco
     target=wcoss_d
-elif [[ -d /scratch3 ]] ; then
-    . /apps/lmod/lmod/init/sh
-    target=theia
+#elif [[ -d /scratch3 ]] ; then
+#    . /apps/lmod/lmod/init/sh
+#    target=theia
 elif [[ -d /jetmon ]] ; then
     . $MODULESHOME/init/sh
     target=jet
+elif [[ -d /scratch1 ]] ; then
+    . /apps/lmod/lmod/init/sh
+    target=hera
 elif [[ -d /sw/gaea ]] ; then
     . /opt/cray/pe/modules/3.2.10.5/init/sh
     target=gaea
@@ -33,6 +36,7 @@ else
     echo "unknown target = $target"
     exit 9
 fi
+    echo "target = $target"
 
 dir_modules=$dir_root/modulefiles
 if [ ! -d $dir_modules ]; then
@@ -48,7 +52,7 @@ cd $dir_root/build
 if [ $target = wcoss -o $target = cray -o $target = gaea ]; then
     module purge
     module load $dir_modules/modulefile.ProdGSI.$target
-elif [ $target = theia ]; then
+elif [ $target = hera ]; then
     module purge
     source $dir_modules/modulefile.ProdGSI.$target
 else 
