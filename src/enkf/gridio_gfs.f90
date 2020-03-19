@@ -3326,10 +3326,10 @@
   real(r_kind),dimension(nlons,nlats) :: radianstmp
 
   ! increment
-  real(r_single), dimension(nlons*nlats) :: psinc, inc, ug, vg, work
-  real(r_single), allocatable, dimension(:,:,:) :: inc3d, inc3d2, tv, tvanl, tmp, tmpanl, q
-  real(r_single), allocatable, dimension(:,:) :: values_2d
-  real(r_single), allocatable, dimension(:) :: psges, delzb, values_1d
+  real(r_kind), dimension(nlons*nlats) :: psinc, inc, ug, vg, work
+  real(r_kind), allocatable, dimension(:,:,:) :: inc3d, inc3d2, tv, tvanl, tmp, tmpanl, q
+  real(r_kind), allocatable, dimension(:,:) :: values_2d
+  real(r_kind), allocatable, dimension(:) :: psges, delzb, values_1d
 
   use_full_hydro = .false.
   clip = tiny_r_kind
