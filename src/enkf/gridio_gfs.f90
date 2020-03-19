@@ -3327,9 +3327,9 @@
 
   ! increment
   real(r_single), dimension(nlons*nlats) :: psinc, inc, ug, vg, work
-  real(r_single), allocatable, dimension(:,:,:) :: inc3d, inc3d2, tv, tmp, tmpanl, q
-  real(r_single), allocatable, dimension(:,:) :: values_2d, delzb
-  real(r_single), allocatable, dimension(:) :: psges
+  real(r_single), allocatable, dimension(:,:,:) :: inc3d, inc3d2, tv, tvanl, tmp, tmpanl, q
+  real(r_single), allocatable, dimension(:,:) :: values_2d
+  real(r_single), allocatable, dimension(:) :: psges, delzb
 
   use_full_hydro = .false.
   clip = tiny_r_kind
@@ -3519,7 +3519,7 @@
 
   ! sphum increment
   allocate(tmp(nlons,nlats,nccount(3)),tv(nlons,nlats,nccount(3)),q(nlons,nlats,nccount(3)))
-  allocate(tmpanl(nlons,nlats,nccount(3)))
+  allocate(tvanl(nlons,nlats,nccount(3)),tmpanl(nlons,nlats,nccount(3)))
   call read_vardata(dsfg, 'spfh', q, ncstart=ncstart, nccount=nccount, errcode=iret)
   if (iret /= 0) then
      print *,'error reading spfh'
@@ -3554,8 +3554,8 @@
        call copyfromgrdin(grdin(:,levels(tv_ind-1) + krev,nb,ne),inc)
      endif
      inc3d(:,:,ki) = reshape(inc,(/nlons,nlats/))
-     tv(:,:,ki) = tv(:,:,ki) + inc3d(:,:,ki)
-     tmpanl(:,:,ki) = tv(:,:,ki)/(1. + fv*q(:,:,ki))
+     tvanl(:,:,ki) = tv(:,:,ki) + inc3d(:,:,ki)
+     tmpanl(:,:,ki) = tvanl(:,:,ki)/(1. + fv*q(:,:,ki))
   end do
   inc3d = tmpanl - tmp
   call nccheck_incr(nf90_put_var(ncid_out, tvarid, sngl(inc3d), &
@@ -3566,7 +3566,6 @@
   dsfg = open_dataset(filenamein, paropen=.true., mpicomm=iocomms(mem_pe(nproc)))
   if (has_var(dsfg,'delz')) then
      allocate(delzb(nlons*nlats))
-     call read_vardata(dsfg, 'tmp', values_3d, ncstart=ncstart, nccount=nccount, errcode=iret)
      call read_vardata(dsfg,'pressfc',values_2d,errcode=iret)
      if (allocated(psges)) deallocate(psges)
      allocate(psges(nlons*nlats))
@@ -3580,7 +3579,7 @@
         ug=ug*log((100_r_kind*ak(krev)+bk(krev)*psges)/(100_r_kind*ak(krev+1)+bk(krev+1)*psges))
         ! ug is hydrostatic analysis delz inferred from analysis ps,Tv
         ! delzb is hydrostatic background delz inferred from background ps,Tv
-        delzb=(rd/grav)*reshape(tv_bg(:,:,ki),(/nlons*nlats/))
+        delzb=(rd/grav)*reshape(tv(:,:,ki),(/nlons*nlats/))
         delzb=delzb*log((100_r_kind*ak(krev)+bk(krev)*values_1d)/(100_r_kind*ak(krev+1)+bk(krev+1)*values_1d))
         inc3d(:,:,ki)=reshape(delzb-inc,(/nlons,nlats/))
      end do
@@ -3631,7 +3630,7 @@
 
   ! deallocate things
   deallocate(inc3d,inc3d2)
-  deallocate(tmp,tv,q,tmpanl)
+  deallocate(tmp,tv,q,tmpanl,tvanl)
   deallocate(delzb,psges)
 
 
