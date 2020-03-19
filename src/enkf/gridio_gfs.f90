@@ -3312,6 +3312,12 @@
   real(r_kind),dimension(nlevs+1) :: ilevsout
   real(r_kind),dimension(nlons,nlats) :: radianstmp
 
+  ! increment
+  real(r_single), dimension(nlons*nlats) :: psinc, inc, ug, delzb
+  real(r_single), allocatable, dimension(:,:,:) :: inc3d, tv, tmp, q
+  real(r_single), allocatable, dimension(:,:) :: values_2d
+  real(r_single), allocatable, dimension(:) :: psges 
+
   ! figure out what member to write and do MPI sub-communicator things
   allocate(mem_pe(0:numproc-1))
   allocate(iocomms(nanals))
@@ -3437,10 +3443,10 @@
 
   allocate(inc3d(nlons,nlats,nccount(3)))
   ! u increment
-  inc(:) = 0
   do k=lev_pe1(iope), lev_pe2(iope)
      krev = nlevs-k+1
      ki = k - lev_pe1(iope) + 1
+     inc(:) = zero 
      if (u_ind > 0) then
        call copyfromgrdin(grdin(:,levels(u_ind-1) + krev,nb,ne),inc)
      endif
@@ -3450,10 +3456,10 @@
                       start = ncstart, count = nccount))
 
   ! v increment
-  inc(:) = 0
   do k=lev_pe1(iope), lev_pe2(iope)
      krev = nlevs-k+1
      ki = k - lev_pe1(iope) + 1
+     inc(:) = zero
      if (u_ind > 0) then
        call copyfromgrdin(grdin(:,levels(v_ind-1) + krev,nb,ne),inc)
      endif
@@ -3463,26 +3469,52 @@
                       start = ncstart, count = nccount))
 
   ! delp increment
-  inc(:) = 0
+  psinc(:) = zero
   if (ps_ind > 0) then
-    call copyfromgrdin(grdin(:,levels(n3d) + ps_ind,nb,ne),inc)
+    call copyfromgrdin(grdin(:,levels(n3d) + ps_ind,nb,ne),psinc)
   endif
   do k=lev_pe1(iope), lev_pe2(iope)
      krev = nlevs-k+1
      ki = k - lev_pe1(iope) + 1
-     inc = inc*(bk(krev)-bk(krev+1)*100_r_kind) 
+     inc(:) = zero
+     inc = psinc*(bk(krev)-bk(krev+1)*100_r_kind) 
      inc3d(:,:,ki) = reshape(inc,(/nlons,nlats/))
   end do
   call nccheck_incr(nf90_put_var(ncid_out, delpvarid, sngl(inc3d), &
                       start = ncstart, count = nccount))
 
-  ! delz increment
+  ! sphum increment
+  allocate(tmp(nlons,nlats,nccount(3)),tv(nlons,nlats,nccount(3)),q(nlons,nlats,nccount(3)))
 
   ! t increment
 
-  ! o3mr increment
 
-  ! sphum increment
+  ! delz increment
+  inc(:) = zero
+  dsfg = open_dataset(filenamein, paropen=.true., mpicomm=iocomms(mem_pe(nproc)))
+  if (has_var(dsfg,'delz')) then
+     allocate(delzb(nlons*nlats))
+     call read_vardata(dsfg, 'tmp', values_3d, ncstart=ncstart, nccount=nccount, errcode=iret) 
+     call read_vardata(dsfg,'pressfc',values_2d,errcode=iret)
+     if (allocated(psges)) deallocate(psges)
+     allocate(psges(nlons*nlats))
+     psges = reshape(values_2d,(/nlons*nlats/))
+     psges = psges + psinc
+     do k=lev_pe1(iope), lev_pe2(iope)
+        krev = nlevs-k+1
+        ki = k - lev_pe1(iope) + 1
+        ug=(rd/grav)*reshape(tv_anal(:,:,ki),(/nlons*nlats/)) 
+        ! ps in Pa here, need to multiply ak by 100.
+        ug=ug*log((100_r_kind*ak(krev)+bk(krev)*vg)/(100_r_kind*ak(krev+1)+bk(krev+1)*vg))
+        ! ug is hydrostatic analysis delz inferred from analysis ps,Tv
+        ! delzb is hydrostatic background delz inferred from background ps,Tv
+        delzb=(rd/grav)*reshape(tv_bg(:,:,ki),(/nlons*nlats/)) 
+        delzb=delzb*log((100_r_kind*ak(krev)+bk(krev)*values_1d)/(100_r_kind*ak(krev+1)+bk(krev+1)*values_1d))
+        inc3d(:,:,ki)=reshape(delzb-inc,(/nlons,nlats/))
+     end do
+     if (has_attr(dsfg, 'nbits', 'delz') .and. .not. nocompress) then
+     
+  ! o3mr increment
 
   ! liq wat increment
 
