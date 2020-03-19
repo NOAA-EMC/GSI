@@ -364,7 +364,11 @@ if (nproc <= ntasks_io-1) then
 end if ! io task
 
 if (paranc) then
-   call writegriddata_pnc(cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
+   if (write_fv3_incr) then
+      call writeincrement_pnc(cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
+   else
+      call writegriddata_pnc(cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
+   end if
    if (nproc == 0) then
      t2 = mpi_wtime()
      print *,'time in write_control on root',t2-t1,'secs'
