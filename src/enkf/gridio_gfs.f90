@@ -3282,6 +3282,11 @@
   use constants, only: grav, rad2deg
   use gridinfo, only: lonsgrd, latsgrd
   use mpi
+  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                          read_attribute, close_dataset, get_dim, read_vardata,&
+                          create_dataset, get_idate_from_time_units, &
+                          get_time_units_from_idate, write_vardata, &
+                          write_attribute, quantize_data, has_var, has_attr
   implicit none
 
   character(len=max_varname_length), dimension(n2d), intent(in) :: vars2d
