@@ -3329,7 +3329,7 @@
   real(r_single), dimension(nlons*nlats) :: psinc, inc, ug, vg, work
   real(r_single), allocatable, dimension(:,:,:) :: inc3d, inc3d2, tv, tvanl, tmp, tmpanl, q
   real(r_single), allocatable, dimension(:,:) :: values_2d
-  real(r_single), allocatable, dimension(:) :: psges, delzb
+  real(r_single), allocatable, dimension(:) :: psges, delzb, values_1d
 
   use_full_hydro = .false.
   clip = tiny_r_kind
@@ -3435,6 +3435,24 @@
                                     ! old logical massbal_adjust, if non-zero
   use_full_hydro = ( ql_ind > 0 .and. qi_ind > 0 .and. &
                      qr_ind > 0 .and. qs_ind > 0 .and. qg_ind > 0 )
+
+  dsfg = open_dataset(filenamein, paropen=.true., mpicomm=iocomms(mem_pe(nproc)))
+  call read_attribute(dsfg, 'ak', values_1d,errcode=iret)
+  if (iret /= 0) then
+     print *,'error reading ak'
+     call stop2(29)
+  endif
+  do k=1,nlevs+1
+     ak(nlevs-k+2) = 0.01_r_kind*values_1d(k)
+  enddo
+  call read_attribute(dsfg, 'bk', values_1d,errcode=iret)
+  if (iret /= 0) then
+     print *,'error reading bk'
+     call stop2(29)
+  endif
+  do k=1,nlevs+1
+     bk(nlevs-k+2) = values_1d(k)
+  enddo
 
   if (iope==0) then
     ! levels
@@ -3563,7 +3581,6 @@
 
   ! delz increment
   inc3d(:,:,:) = zero
-  dsfg = open_dataset(filenamein, paropen=.true., mpicomm=iocomms(mem_pe(nproc)))
   if (has_var(dsfg,'delz')) then
      allocate(delzb(nlons*nlats))
      call read_vardata(dsfg,'pressfc',values_2d,errcode=iret)
@@ -3580,7 +3597,7 @@
         ! ug is hydrostatic analysis delz inferred from analysis ps,Tv
         ! delzb is hydrostatic background delz inferred from background ps,Tv
         delzb=(rd/grav)*reshape(tv(:,:,ki),(/nlons*nlats/))
-        delzb=delzb*log((100_r_kind*ak(krev)+bk(krev)*values_1d)/(100_r_kind*ak(krev+1)+bk(krev+1)*values_1d))
+        delzb=delzb*log((100_r_kind*ak(krev)+bk(krev)*psges)/(100_r_kind*ak(krev+1)+bk(krev+1)*psges))
         inc3d(:,:,ki)=reshape(delzb-inc,(/nlons,nlats/))
      end do
   end if
