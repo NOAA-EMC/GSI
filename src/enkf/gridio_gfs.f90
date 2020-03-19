@@ -3659,6 +3659,22 @@
 
   return
 
+ contains
+! copying to grdin (calling regtoreduced if reduced grid)
+ subroutine copyfromgrdin(grdin, field)
+ implicit none
+
+ real(r_single), dimension(:), intent(in)      :: grdin
+ real(r_kind), dimension(:), intent(inout) :: field
+
+ if (reducedgrid) then
+   call reducedtoreg(grdin, field)
+ else
+   field = grdin
+ endif
+
+ end subroutine copyfromgrdin
+
  end subroutine writeincrement_pnc
 
  logical function checkfield(field,fields,nrec) result(hasfield)
