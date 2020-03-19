@@ -3469,11 +3469,17 @@
       deglons(i) = radianstmp(i,nlats/2) * rad2deg
     end do
 
+    call nccheck_incr(nf90_put_var(ncid_out, lonvarid, deglons, &
+                         start = (/1/), count = (/nlons/)))
+
     ! latitudes
     radianstmp = reshape(latsgrd,(/nlons,nlats/))
     do j=1,nlats
       deglats(j) = radianstmp(nlons/2,j) * rad2deg
     end do
+
+    call nccheck_incr(nf90_put_var(ncid_out, latvarid, deglats, &
+                         start = (/1/), count = (/nlats/)))
 
     ! write to file
     call nccheck_incr(nf90_put_var(ncid_out, levvarid, sngl(levsout), &
