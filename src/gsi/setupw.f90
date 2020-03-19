@@ -189,7 +189,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),parameter:: r200=200.0_r_kind
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: r0_1_bmiss=0.1_r_kind*bmiss
-
   character(len=*),parameter:: myname='setupw'
 
 ! Declare external calls for code analysis
@@ -239,6 +238,9 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) idomsfc,isfcr,iskint,iff10
 
   integer(i_kind) iswcm,isaza, isccf
+  real(r_kind)    sccf_wavelen
+  real(r_kind),parameter:: rsol=300000000.0_r_kind !speed of light
+  real(r_kind),parameter:: rtomic=1000000.0_r_kind !conv to micron
 
   integer(i_kind) num_bad_ikx
   integer(i_kind) msges
@@ -323,9 +325,9 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   icat=24     ! index of data level category
   ijb=25      ! index of non linear qc parameter
 
-  iswcm=26    ! spectral type
-  isaza=27    ! saza 
-  isccf=28    ! spec ch wavenumber
+  iswcm=26    ! spectral type of wind
+  isaza=27    ! saza satellite zen angle
+  isccf=28    ! spec chan freq (hertz)
 
   iptrbu=29   ! index of u perturbation
   iptrbv=30   ! index of v perturbation
@@ -1745,7 +1747,8 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! Write out in nc diag the extra vars from cdata_all (see read_satwnd.f90)
            call nc_diag_metadata("SWCM_spec_type",          sngl(data(iswcm,i))    )
            call nc_diag_metadata("SAZA_sat_zen_angle",      sngl(data(isaza,i))    )
-           call nc_diag_metadata("SCCF_chan_wavenum",       sngl(data(isccf,i))    )
+           sccf_wavelen=(rsol/data(isccf,i))*rtomic  !spec chan wavelen (microns)
+           call nc_diag_metadata("SCCF_chan_wavelen",       sngl(sccf_wavelen)    )           
 
            if (.not. regional) then
               call nc_diag_metadata("u_Observation",                              sngl(data(iuob,i))    )
