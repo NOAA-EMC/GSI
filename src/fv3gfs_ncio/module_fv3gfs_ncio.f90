@@ -612,6 +612,12 @@ module module_fv3gfs_ncio
           else
              call nccheck(ncerr)
           endif
+          if (.not. compress) then
+             if (trim(attname) == 'max_abs_compression_error' &
+                .or. trim(attname) == 'nbits') then
+                cycle
+             end if
+          end if
           ncerr = nf90_copy_att(dsetin%ncid, dsetin%variables(nvar)%varid, attname, dset%ncid, dset%variables(nvar)%varid)
           if (return_errcode) then
              errcode=ncerr
