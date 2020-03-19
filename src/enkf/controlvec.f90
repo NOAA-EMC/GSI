@@ -52,7 +52,7 @@ use gridinfo,  only: getgridinfo, gridinfo_cleanup,                    &
 use params,    only: nlevs, nbackgrounds, fgfileprefixes, reducedgrid, &
                      nanals, pseudo_rh, use_qsatensmean, nlons, nlats,&
                      nanals_per_iotask, ntasks_io, nanal1, nanal2, &
-                     fgsfcfileprefixes, paranc
+                     fgsfcfileprefixes, paranc, write_fv3_incr
 use kinds,     only: r_kind, i_kind, r_double, r_single
 use mpeu_util, only: gettablesize, gettable, getindex
 use constants, only: max_varname_length
