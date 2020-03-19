@@ -3294,9 +3294,17 @@
   character(len=500):: filenamein, filenameout
   integer(i_kind) :: i,j,k, nb, ne, ierr, nanal, imem
   character(len=3) charnanal
+  type(Dataset) :: dsfg
+  logical :: hasfield
 
   integer(i_kind), allocatable, dimension(:) :: mem_pe, lev_pe1, lev_pe2, iocomms
   integer(i_kind) :: iope, ionumproc, iolevs, krev, ki, iret
+  real(r_kind), dimension(nlevs+1) :: ak,bk
+  real(r_kind) clip
+
+  integer :: u_ind, v_ind, tv_ind, q_ind, oz_ind, cw_ind
+  integer :: ps_ind, pst_ind, nbits
+  integer :: ql_ind, qi_ind, qr_ind, qs_ind, qg_ind
 
   ! netcdf things
   integer(i_kind) :: dimids3(3),nccount(3),ncstart(3), cnksize(3)
@@ -3313,10 +3321,13 @@
   real(r_kind),dimension(nlons,nlats) :: radianstmp
 
   ! increment
-  real(r_single), dimension(nlons*nlats) :: psinc, inc, ug, delzb, vg, work
+  real(r_single), dimension(nlons*nlats) :: psinc, inc, ug, vg, work
   real(r_single), allocatable, dimension(:,:,:) :: inc3d, inc3d2, tv, tmp, tmpanl, q
-  real(r_single), allocatable, dimension(:,:) :: values_2d
+  real(r_single), allocatable, dimension(:,:) :: values_2d, delzb
   real(r_single), allocatable, dimension(:) :: psges
+
+  use_full_hydro = .false.
+  clip = tiny_r_kind
 
   ! figure out what member to write and do MPI sub-communicator things
   allocate(mem_pe(0:numproc-1))
@@ -3402,6 +3413,23 @@
   call nccheck_incr(nf90_put_att(ncid_out, latvarid, "units", "degrees_north"))
   ! end the netCDF file definition
   call nccheck_incr(nf90_enddef(ncid_out))
+
+  u_ind   = getindex(vars3d, 'u')   !< indices in the control var arrays
+  v_ind   = getindex(vars3d, 'v')   ! U and V (3D)
+  tv_ind  = getindex(vars3d, 'tv')  ! Tv (3D)
+  q_ind   = getindex(vars3d, 'q')   ! Q (3D)
+  ps_ind  = getindex(vars2d, 'ps')  ! Ps (2D)
+  oz_ind  = getindex(vars3d, 'oz')  ! Oz (3D)
+  cw_ind  = getindex(vars3d, 'cw')  ! CW (3D)
+  ql_ind  = getindex(vars3d, 'ql')  ! QL (3D)
+  qi_ind  = getindex(vars3d, 'qi')  ! QI (3D)
+  qr_ind  = getindex(vars3d, 'qr')  ! QR (3D)
+  qs_ind  = getindex(vars3d, 'qs')  ! QS (3D)
+  qg_ind  = getindex(vars3d, 'qg')  ! QG (3D)
+  pst_ind = getindex(vars2d, 'pst') ! Ps tendency (2D)   // equivalent of
+                                    ! old logical massbal_adjust, if non-zero
+  use_full_hydro = ( ql_ind > 0 .and. qi_ind > 0 .and. &
+                     qr_ind > 0 .and. qs_ind > 0 .and. qg_ind > 0 )
 
   if (iope==0) then
     ! levels
@@ -3502,7 +3530,7 @@
      inc3d(:,:,ki) = reshape(inc,(/nlons,nlats/))
      q(:,:,ki) = q(:,:,ki) + inc3d(:,:,ki)
   end do
-  call nccheck_incr(nf90_put_var(ncid_out, qvarid, sngl(inc3d), &
+  call nccheck_incr(nf90_put_var(ncid_out, sphumvarid, sngl(inc3d), &
                       start = ncstart, count = nccount))
   if (cliptracers)  where (q < clip) q = clip
 
