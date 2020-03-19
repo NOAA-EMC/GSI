@@ -44,6 +44,7 @@ subroutine convert_binary_2d
   use gsi_io, only: lendian_out,verbose
   use mpeu_util, only: die
   use qcmod, only: vis_thres,cldch_thres
+  use obsmod, only: use_similarity_2dvar
   implicit none
 
 ! Declare local parameters
@@ -303,6 +304,13 @@ subroutine convert_binary_2d
         write(6,*)' convert_binary_2d: mid TSK=',field2(nlon_regional/2,nlat_regional/2)
      end if
      write(lendian_out)field2
+
+     read(in_unit)field2             !  SFCR
+     if(print_verbose)then
+        write(6,*)' convert_binary_2d: max,min SFCR=',maxval(field2),minval(field2)
+        write(6,*)' convert_binary_2d: mid SFCR=',field2(nlon_regional/2,nlat_regional/2)
+     end if
+     write(lendian_out)field2
  
      read(in_unit)field2             !  GUST
      if(print_verbose)then
@@ -421,6 +429,61 @@ subroutine convert_binary_2d
         write(6,*)' convert_binary_2d: mid VWND10M=',field2(nlon_regional/2,nlat_regional/2)
      end if
      write(lendian_out)field2
+    
+     !  variables for assimilating VIIRS Similarity
+     if(use_similarity_2dvar) then
+       read(in_unit)field2             ! PRESGRID1
+       write(6,*)' convert_binary_2d: max,min PRESGRID1=',maxval(field2),minval(field2)
+       write(6,*)' convert_binary_2d: mid PRESGRID1=',field2(nlon_regional/2,nlat_regional/2)
+       write(lendian_out)field2
+
+       read(in_unit)field2             ! PRESGRID2
+       write(6,*)' convert_binary_2d: max,min PRESGRID2=',maxval(field2),minval(field2)
+       write(6,*)' convert_binary_2d: mid PRESGRID2=',field2(nlon_regional/2,nlat_regional/2)
+       write(lendian_out)field2
+
+       read(in_unit)field2             ! TMPGRID1
+       write(6,*)' convert_binary_2d: max,min TMPGRID1=',maxval(field2),minval(field2)
+       write(6,*)' convert_binary_2d: mid TMPGRID1=',field2(nlon_regional/2,nlat_regional/2)
+       write(lendian_out)field2
+
+       read(in_unit)field2             ! TMPGRID2
+       write(6,*)' convert_binary_2d: max,min TMPGRID2=',maxval(field2),minval(field2)
+       write(6,*)' convert_binary_2d: mid TMPGRID2=',field2(nlon_regional/2,nlat_regional/2)
+       write(lendian_out)field2
+
+       read(in_unit)field2             ! QGRID1
+       write(6,*)' convert_binary_2d: max,min QGRID1=',maxval(field2),minval(field2)
+       write(6,*)' convert_binary_2d: mid QGRID1=',field2(nlon_regional/2,nlat_regional/2)
+       write(lendian_out)field2
+
+       read(in_unit)field2             ! QGRID2
+       write(6,*)' convert_binary_2d: max,min QGRID2=',maxval(field2),minval(field2)
+       write(6,*)' convert_binary_2d: mid QGRID2=',field2(nlon_regional/2,nlat_regional/2)
+       write(lendian_out)field2
+
+
+       read(in_unit)field2             ! UGRID1
+       write(6,*)' convert_binary_2d: max,min UGRID1=',maxval(field2),minval(field2)
+       write(6,*)' convert_binary_2d: mid UGRID1=',field2(nlon_regional/2,nlat_regional/2)
+       write(lendian_out)field2
+
+       read(in_unit)field2             ! VGRID1
+       write(6,*)' convert_binary_2d: max,min VGRID1=',maxval(field2),minval(field2)
+       write(6,*)' convert_binary_2d: mid VGRID1=',field2(nlon_regional/2,nlat_regional/2)
+       write(lendian_out)field2
+
+       read(in_unit)field2             !HGTGRID1
+       write(6,*)' convert_binary_2d: max,min HGTGRID1=',maxval(field2),minval(field2)
+       write(6,*)' convert_binary_2d: mid HGTGRID1=',field2(nlon_regional/2,nlat_regional/2)
+       write(lendian_out)field2
+
+       read(in_unit)field2             !PRESGSFC
+       write(6,*)' convert_binary_2d: max,min PRESGSFC=',maxval(field2),minval(field2)
+       write(6,*)' convert_binary_2d: mid PRESGSFC=',field2(nlon_regional/2,nlat_regional/2)
+       write(lendian_out)field2
+     end if
+
 
      close(in_unit)
      close(lendian_out)
@@ -643,6 +706,8 @@ subroutine read_2d_guess(mype)
 !   2015-07-10  pondeca - add cloud ceiling height
 !   2016-05-03  pondeca - add uwnd10m, vwnd10m
 !   2018-01-xx  yang    - test the method of nonlinear transform
+!   2018-06-10  zhang   - add 10 extra model variables for similarity theory application
+!   2019-07-26  pondeca - read in surface roughness length from GSI-2DVAR input file
 !
 !   input argument list:
 !     mype     - pe number
@@ -657,9 +722,10 @@ subroutine read_2d_guess(mype)
   use kinds, only: r_kind,i_kind,r_single
   use mpimod, only: mpi_sum,mpi_integer,mpi_real4,mpi_comm_world,npe,ierror
   use guess_grids, only: fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
-       isli,nfldsig,ifilesig,ges_tsen
+       isli,nfldsig,ifilesig,ges_tsen,sfc_rough
   use gridmod, only: lon1,lat1,nlat_regional,nlon_regional,&
        nsig,ijn_s,displs_s,itotsub
+  use obsmod, only: use_similarity_2dvar
   use constants, only: zero,one,grav,fv,zero_single,one_tenth
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -667,6 +733,7 @@ subroutine read_2d_guess(mype)
   use gsi_io, only: verbose
   use qcmod, only: pvis,pcldch,scale_cv
   use nltransf, only: nltransf_forward
+  use aux2dvarflds, only: init_aux2dvarflds
   
   implicit none
 
@@ -700,12 +767,20 @@ subroutine read_2d_guess(mype)
   integer(i_kind) i_sm,i_xice,i_sst,i_tsk,i_ivgtyp,i_isltyp,i_vegfrac,i_gust,i_vis,i_pblh
   integer(i_kind) i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv,i_tcamt,i_lcbas,i_cldch
   integer(i_kind) i_uwnd10m,i_vwnd10m
+  integer(i_kind) i_sfcr
+  !Similarity
+  integer(i_kind) i_presgrid1,i_presgrid2,i_tmpgrid1,i_tmpgrid2,i_qgrid1,i_qgrid2
+  integer(i_kind) i_ugrid1,i_vgrid1,i_hgtgrid1,i_presgsfc
+
   integer(i_kind) isli_this
   real(r_kind) psfc_this,sm_this,xice_this
   integer(i_kind) icwmr,ier,istatus
   logical ihave_gust,ihave_pblh,ihave_vis,ihave_tcamt,ihave_lcbas
   logical ihave_wspd10m,ihave_td2m,ihave_mxtm,ihave_mitm,ihave_pmsl,ihave_howv
   logical ihave_cldch,ihave_uwnd10m,ihave_vwnd10m
+  !Similarity
+  logical ihave_presgrid1,ihave_presgrid2,ihave_tmpgrid1,ihave_tmpgrid2,ihave_qgrid1,ihave_qgrid2
+  logical ihave_ugrid1,ihave_vgrid1,ihave_hgtgrid1,ihave_presgsfc
 
   real(r_kind),pointer,dimension(:,:  )::ges_gust   =>NULL()
   real(r_kind),pointer,dimension(:,:  )::ges_vis    =>NULL()
@@ -730,8 +805,19 @@ subroutine read_2d_guess(mype)
   real(r_kind),pointer,dimension(:,:,:)::ges_tv_it  =>NULL()
   real(r_kind),pointer,dimension(:,:,:)::ges_q_it   =>NULL()
   real(r_kind),pointer,dimension(:,:,:)::ges_cwmr_it=>NULL()
-  logical print_verbose
 
+  !Similarity
+  real(r_kind),pointer,dimension(:,:  )::ges_presgrid1=>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_presgrid2=>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_tmpgrid1=>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_tmpgrid2=>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_qgrid1=>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_qgrid2=>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_ugrid1=>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_vgrid1=>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_hgtgrid1=>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_presgsfc=>NULL()
+  logical print_verbose
 
 !  RESTART FILE input grid dimensions in module gridmod
 !      These are the following:
@@ -756,7 +842,11 @@ subroutine read_2d_guess(mype)
   lm=nsig
 
 ! Following is for convenient 2D input
-  num_2d_fields=30! Adjust according to content of RTMA restart file ---- should this number be in a namelist or anavinfo file at some point?
+  if (use_similarity_2dvar) then !Similarity
+     num_2d_fields=41
+  else
+     num_2d_fields=31! Adjust according to content of RTMA restart file ---- should this number be in a namelist or anavinfo file at some point?
+  end if
   num_all_fields=num_2d_fields*nfldsig
   num_loc_groups=num_all_fields/npe
   if(print_verbose .and. mype == 0)then
@@ -866,6 +956,10 @@ subroutine read_2d_guess(mype)
   write(identity(i),'("record ",i3,"--sst")')i
   jsig_skip(i)=0 ; igtype(i)=1
 
+  i=i+1 ; i_sfcr=i                                            ! sfcr
+  write(identity(i),'("record ",i3,"--sfcr")')i
+  jsig_skip(i)=0 ; igtype(i)=1
+
   i=i+1 ; i_gust=i                                            ! gust
   write(identity(i),'("record ",i3,"--gust")')i
   jsig_skip(i)=0 ; igtype(i)=1
@@ -921,6 +1015,49 @@ subroutine read_2d_guess(mype)
   i=i+1 ; i_vwnd10m=i                                         ! vwnd10m
   write(identity(i),'("record ",i3,"--vwnd10m")')i
   jsig_skip(i)=0 ; igtype(i)=1
+
+  !x Similarity
+  if (use_similarity_2dvar) then
+     i=i+1 ; i_presgrid1=i                                       ! presgrid1
+     write(identity(i),'("record ",i3,"--presgrid1")')i
+     jsig_skip(i)=0 ; igtype(i)=1
+
+     i=i+1 ; i_presgrid2=i                                       ! presgrid2
+     write(identity(i),'("record ",i3,"--presgrid2")')i
+     jsig_skip(i)=0 ; igtype(i)=1
+
+     i=i+1 ; i_tmpgrid1=i                                        ! tmpgrid1
+     write(identity(i),'("record ",i3,"--tmpgrid1")')i
+     jsig_skip(i)=0 ; igtype(i)=1
+
+     i=i+1 ; i_tmpgrid2=i                                        ! tmpgrid2
+     write(identity(i),'("record ",i3,"--tmpgrid2")')i
+     jsig_skip(i)=0 ; igtype(i)=1
+
+     i=i+1 ; i_qgrid1=i                                          ! qgrid1
+     write(identity(i),'("record ",i3,"--qgrid1")')i
+     jsig_skip(i)=0 ; igtype(i)=1
+
+     i=i+1 ; i_qgrid2=i                                          ! qgrid2
+     write(identity(i),'("record ",i3,"--qgrid2")')i
+     jsig_skip(i)=0 ; igtype(i)=1
+
+     i=i+1 ; i_ugrid1=i                                          ! ugrid1
+     write(identity(i),'("record ",i3,"--ugrid1")')i
+     jsig_skip(i)=0 ; igtype(i)=1
+
+     i=i+1 ; i_vgrid1=i                                          ! vgrid1
+     write(identity(i),'("record ",i3,"--vgrid1")')i
+     jsig_skip(i)=0 ; igtype(i)=1
+
+     i=i+1 ; i_hgtgrid1=i                                        ! hgtgrid1
+     write(identity(i),'("record ",i3,"--hgtgrid1")')i
+     jsig_skip(i)=0 ; igtype(i)=1
+
+     i=i+1 ; i_presgsfc=i                                        ! presgsfc
+     write(identity(i),'("record ",i3,"--presgsfc")')i
+     jsig_skip(i)=0 ; igtype(i)=1
+  end if
 
   if (print_verbose .and. mype==0) then
      print*
@@ -1111,6 +1248,39 @@ subroutine read_2d_guess(mype)
 
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vwnd10m',ges_vwnd10m,ier)
         ihave_vwnd10m=ier==0
+     
+         !x Similarity
+        if (use_similarity_2dvar) then
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'presgrid1',ges_presgrid1,ier)
+           ihave_presgrid1=ier==0
+
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'presgrid2',ges_presgrid2,ier)
+           ihave_presgrid2=ier==0
+
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tmpgrid1',ges_tmpgrid1,ier)
+           ihave_tmpgrid1=ier==0
+
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tmpgrid2',ges_tmpgrid2,ier)
+           ihave_tmpgrid2=ier==0
+
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qgrid1',ges_qgrid1,ier)
+           ihave_qgrid1=ier==0
+
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qgrid2',ges_qgrid2,ier)
+           ihave_qgrid2=ier==0
+
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ugrid1',ges_ugrid1,ier)
+           ihave_ugrid1=ier==0
+
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vgrid1',ges_vgrid1,ier)
+           ihave_vgrid1=ier==0
+
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'hgtgrid1',ges_hgtgrid1,ier)
+           ihave_hgtgrid1=ier==0
+
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'presgsfc',ges_presgsfc,ier)
+           ihave_presgsfc=ier==0
+        end if
 
         i_0=(it-1)*num_2d_fields
         do i=1,lon1+2
@@ -1131,6 +1301,8 @@ subroutine read_2d_guess(mype)
 
               sfct(j,i,it)=real(all_loc(j,i,i_0+i_sst),r_kind)
               if(isli(j,i,it) /= 0) sfct(j,i,it)=real(all_loc(j,i,i_0+i_tsk),r_kind)
+
+              sfc_rough(j,i,it)=real(all_loc(j,i,i_0+i_sfcr),r_kind)
 
               if(ihave_gust) &
                  ges_gust(j,i)=real(all_loc(j,i,i_0+i_gust),r_kind)
@@ -1188,9 +1360,47 @@ subroutine read_2d_guess(mype)
               if (ihave_vwnd10m) & 
                  ges_vwnd10m(j,i)=real(all_loc(j,i,i_0+i_vwnd10m),r_kind)
 
+               !x Similarity
+              if (use_similarity_2dvar) then
+                 if (ihave_presgrid1) &
+                    ges_presgrid1(j,i)=real(all_loc(j,i,i_0+i_presgrid1),r_kind)
+
+                 if (ihave_presgrid2) &
+                    ges_presgrid2(j,i)=real(all_loc(j,i,i_0+i_presgrid2),r_kind)
+
+                 if (ihave_tmpgrid1) &
+                    ges_tmpgrid1(j,i)=real(all_loc(j,i,i_0+i_tmpgrid1),r_kind)
+
+                 if (ihave_tmpgrid2) &
+                    ges_tmpgrid2(j,i)=real(all_loc(j,i,i_0+i_tmpgrid2),r_kind)
+
+                 if (ihave_qgrid1) &
+                    ges_qgrid1(j,i)=real(all_loc(j,i,i_0+i_qgrid1),r_kind)
+
+                 if (ihave_qgrid2) &
+                    ges_qgrid2(j,i)=real(all_loc(j,i,i_0+i_qgrid2),r_kind)
+
+                 if (ihave_ugrid1) &
+                    ges_ugrid1(j,i)=real(all_loc(j,i,i_0+i_ugrid1),r_kind)
+
+                 if (ihave_vgrid1) &
+                    ges_vgrid1(j,i)=real(all_loc(j,i,i_0+i_vgrid1),r_kind)
+
+                 if (ihave_hgtgrid1) &
+                    ges_hgtgrid1(j,i)=real(all_loc(j,i,i_0+i_hgtgrid1),r_kind)
+
+                 if (ihave_presgsfc) &
+                    ges_presgsfc(j,i)=real(all_loc(j,i,i_0+i_presgsfc),r_kind)
+              end if
+
            end do
         end do
      end do
+
+     call mpi_barrier(mpi_comm_world,ierror)
+     if(use_similarity_2dvar) then
+       call init_aux2dvarflds(mype)
+     endif
 
      deallocate(all_loc,jsig_skip,igtype,identity,temp1)
      return
@@ -1247,6 +1457,7 @@ subroutine wr2d_binary(mype)
   use mpimod, only: mpi_comm_world,ierror,mpi_real4
   use gridmod, only: lat2,iglobal,itotsub,strip,&
        lon2,nsig,lon1,lat1,nlon_regional,nlat_regional,ijn,displs_g
+  use obsmod, only: use_similarity_2dvar
   use mpeu_util, only: getindex
   use constants, only: zero_single,r10,r100
   use derivsmod, only: qsatg
@@ -1257,6 +1468,7 @@ subroutine wr2d_binary(mype)
   use nltransf, only: nltransf_inverse 
   use mpeu_util, only: die
   use gsi_io, only: verbose
+  use aux2dvarflds, only: destroy_aux2dvarflds
   implicit none
 
 ! Declare passed variables
@@ -1278,6 +1490,10 @@ subroutine wr2d_binary(mype)
   integer(i_kind) iog,ioan,i,j,k,kt,kq,ku,kv,it,i_psfc,i_t,i_q,i_u,i_v
   integer(i_kind) i_sst,i_skt,i_gust,i_vis,i_pblh,ier,istatus,i_tcamt,i_lcbas,i_cldch
   integer(i_kind) i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv,i_uwnd10m,i_vwnd10m
+  !x Similarity
+  integer(i_kind) i_presgrid1,i_presgrid2,i_tmpgrid1,i_tmpgrid2,i_qgrid1,i_qgrid2,&
+                  i_ugrid1,i_vgrid1,i_hgtgrid1,i_presgsfc
+
   integer(i_kind) num_2d_fields,num_all_fields,num_all_pad
   integer(i_kind) regional_time0(6),nlon_regional0,nlat_regional0,nsig0
   real(r_kind) psfc_this
@@ -1323,9 +1539,26 @@ subroutine wr2d_binary(mype)
   i_lcbas=i_tcamt+1
   i_uwnd10m=i_lcbas+1
   i_vwnd10m=i_uwnd10m+1
-
-  num_2d_fields=i_vwnd10m      ! - should always equal the last integer from the
+  
+  !x Similarity
+  if (use_similarity_2dvar) then
+     i_presgrid1=i_vwnd10m+1
+     i_presgrid2=i_presgrid1+1
+     i_tmpgrid1=i_presgrid2+1
+     i_tmpgrid2=i_tmpgrid1+1
+     i_qgrid1=i_tmpgrid2+1
+     i_qgrid2=i_qgrid1+1
+     i_ugrid1=i_qgrid2+1
+     i_vgrid1=i_ugrid1+1
+     i_hgtgrid1=i_vgrid1+1
+     i_presgsfc=i_hgtgrid1+1
+     num_2d_fields=i_presgsfc     ! - should always equal the last integer from the
+                                ! -   preceding list
+  else
+     num_2d_fields=i_vwnd10m      ! - should always equal the last integer from the
                                ! -   preceding list
+  end if
+
   num_all_fields=num_2d_fields
   num_all_pad=num_all_fields
 
@@ -1529,7 +1762,7 @@ subroutine wr2d_binary(mype)
   endif
 
   if (mype == 0) then
-     do k=7,16 ! SM,SICE,SST,IVGTYP,ISLTYP,VEGFRA,SNOW,SMOIS,TSLB,TSK
+     do k=7,17 ! SM,SICE,SST,IVGTYP,ISLTYP,VEGFRA,SNOW,SMOIS,TSLB,TSK,SFCR
         if (k==10 .or. k==11) then
            read(iog)itemp1
            write(ioan)itemp1
@@ -1555,7 +1788,21 @@ subroutine wr2d_binary(mype)
   caux(13)='uwnd10m'; iaux(13)=i_uwnd10m
   caux(14)='vwnd10m'; iaux(14)=i_vwnd10m
 
-  kaux=14  !Adjust as you add variables
+  if (use_similarity_2dvar) then
+     caux(15)='presgrid1'  ; iaux(15)=i_presgrid1
+     caux(16)='presgrid2'  ; iaux(16)=i_presgrid2
+     caux(17)='tmpgrid1'   ; iaux(17)=i_tmpgrid1
+     caux(18)='tmpgrid2'   ; iaux(18)=i_tmpgrid2
+     caux(19)='qgrid1'     ; iaux(19)=i_qgrid1
+     caux(20)='qgrid2'     ; iaux(20)=i_qgrid2
+     caux(21)='ugrid1'     ; iaux(21)=i_ugrid1
+     caux(22)='vgrid1'     ; iaux(22)=i_vgrid1
+     caux(23)='hgtgrid1'   ; iaux(23)=i_hgtgrid1
+     caux(24)='presgsfc'   ; iaux(24)=i_presgsfc
+     kaux=24
+  else
+     kaux=14  !Adjust as you add variables
+  end if
 
   do k=1,kaux
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),trim(caux(k)),ptr2d, ier)
@@ -1826,7 +2073,9 @@ subroutine ndfdgrid_info
 !
 !$$$ end documentation block
   implicit none
-       
+
+  namelist/navigationinfo/nx,ny,da8,alat18,elon18,elonv8,alatan8
+
   if (trim(cgrid) == 'conus') then
      nx=1073
      ny=689
@@ -1859,13 +2108,14 @@ subroutine ndfdgrid_info
      alatan8=20.000000_r_kind
 
   elseif (trim(cgrid) == 'prico') then 
-     nx=177
-     ny=129
-     alat18=16.828685_r_kind
-     elon18=291.804687_r_kind
-     da8=2500.000_r_kind
-     elonv8=9999._r_kind
-     alatan8=20.000000_r_kind
+     nx=353                            !1p25 grid
+     ny=257                            !1p25 grid
+     alat18=16.828700_r_kind           !1p25 grid
+     elon18=291.804700_r_kind          !1p25 grid
+     da8=1250.000_r_kind               !1p25 grid
+     elonv8=9999._r_kind               !1p25 grid
+     alatan8=20.000000_r_kind          !1p25 grid
+
 
   elseif (trim(cgrid) == 'guam') then 
      nx=193
@@ -1933,6 +2183,13 @@ subroutine ndfdgrid_info
   else
      print*,'in ndfdgrid_info: unknown grid ',cgrid,'...aborting'
      call abort
+  endif
+
+  inquire(file='navigationinfo_input',exist=fexist)
+  if (fexist) then
+     open(55,file='navigationinfo_input',form='formatted')
+     read(55,navigationinfo)
+     close(55)
   endif
 
 end subroutine ndfdgrid_info
@@ -2700,6 +2957,8 @@ module hilbertcurve
   integer(i_kind) ngrps_uwnd10mob
   integer(i_kind) ngrps_vwnd10mob
 
+  integer(i_kind) ngrpsfact0
+
   logical random_cvgrp
   real(r_kind) usagecv,usage_dup
 
@@ -2744,7 +3003,8 @@ subroutine init_hilbertcurve(maxobs)
                     ngrps_td2mob, ngrps_mxtmob,ngrps_mitmob, &
                     ngrps_pmslob, ngrps_howvob, &
                     ngrps_tcamtob,ngrps_lcbasob,ngrps_cldchob, & 
-                    ngrps_uwnd10mob,ngrps_vwnd10mob
+                    ngrps_uwnd10mob,ngrps_vwnd10mob, &
+                    ngrpsfact0
 
   random_cvgrp=.false.
   usagecv=3._r_kind
@@ -2766,6 +3026,7 @@ subroutine init_hilbertcurve(maxobs)
   ngrps_tcamtob=8
   ngrps_lcbasob=8
   ngrps_cldchob=8
+  ngrpsfact0=10
   print_verbose = .false.
   if(verbose)print_verbose=.true.
 
@@ -2807,6 +3068,7 @@ subroutine init_hilbertcurve(maxobs)
     print*,'in init_hilbertcurve: ngrps_cldchob=',ngrps_cldchob
     print*,'in init_hilbertcurve: ngrps_uwnd10mob=',ngrps_uwnd10mob
     print*,'in init_hilbertcurve: ngrps_vwnd10mob=',ngrps_vwnd10mob
+    print*,'in init_hilbertcurve: ngrpsfact0=',ngrpsfact0
   end if
 
 
@@ -2980,7 +3242,7 @@ subroutine apply_hilbertcurve(maxobs,obstype,cdata_usage)
          !--deal with duplicate obs. use only the ob that is nearest
          !  to the valid assimilation time
 
-         if(print_verbose)print*,'in apply_hilbertcurve: before duplicate removal: ncross=',nt
+         if(print_verbose)print*,'in apply_hilbertcurve: before duplicate removal: obstype, ncross=',trim(obstype),nt
 
          hilflag=+1
          do j=1,nt
@@ -3017,7 +3279,7 @@ subroutine apply_hilbertcurve(maxobs,obstype,cdata_usage)
             endif
          enddo
 
-         if(print_verbose)print*,'in apply_hilbertcurve: after duplicate removal: ncross=',ncross
+         if(print_verbose)print*,'in apply_hilbertcurve: after duplicate removal: obstype,ncross=',trim(obstype),ncross
 
         !--evoke the main code for the hilbert curve
 
@@ -3054,7 +3316,15 @@ subroutine apply_hilbertcurve(maxobs,obstype,cdata_usage)
         hildlon=hildlon/nlon
         hildlat=hildlat/nlat
 
-        call hilbert(ncnumgrp0,ncross,hildlon(1:ncross),hildlat(1:ncross),test_set)
+        if (ncross > ngrpsfact0*ncnumgrp0) then
+           call hilbert(ncnumgrp0,ncross,hildlon(1:ncross),hildlat(1:ncross),test_set)
+         else
+           print*,' ------- in apply_hilbertcurve ----------:'
+           print*,'not enough obs for cross validation.  obstype,ncross=',trim(obstype),ncross
+           print*,'resetting ncross to 0'
+           ncross=0
+           print*,' ----------------------------------------:'
+        endif
 
         if (random_cvgrp) call shuffle(ncnumgrp0,ncgroup0)
 
