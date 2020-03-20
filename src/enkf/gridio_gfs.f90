@@ -1511,7 +1511,7 @@
      if (ps_ind > 0) then
         call copyfromgrdin(grdin(:,levels(n3d) + ps_ind,nb,ne),vg)
      endif
-     vg = values_1d + vg ! analysis ps (values_1d is background ps)
+     vg = values_1d + (vg*100_r_kind) ! analysis ps (values_1d is background ps)
      do k=lev_pe1(iope), lev_pe2(iope)
         krev = nlevs-k+1
         ki = k - lev_pe1(iope) + 1
@@ -3328,7 +3328,7 @@
   ! increment
   real(r_kind), dimension(nlons*nlats) :: psinc, inc, ug, vg, work
   real(r_kind), allocatable, dimension(:,:,:) :: inc3d, inc3d2, inc3dout, &
-                                                 tv, tvanl, tmp, tmpanl, q
+                                                 tv, tvanl, tmp, tmpanl, q, qanl
   real(r_kind), allocatable, dimension(:,:) :: values_2d
   real(r_kind), allocatable, dimension(:) :: psges, delzb, values_1d
 
@@ -3361,6 +3361,11 @@
   end do
   ncstart = (/1, 1, lev_pe1(iope)/)
   nccount = (/nlons, nlats, lev_pe2(iope) - lev_pe1(iope)+1/)
+
+  ! need to distribute grdin to all PEs in this subcommunicator
+  ! bring all the subdomains back to the main PE
+  call mpi_barrier(iocomms(mem_pe(nproc)), iret)
+  call mpi_bcast(grdin,npts*ndim*nbackgrounds, mpi_real4, 0, iocomms(mem_pe(nproc)), iret)
 
   ! loop through times and do the read
   ne = 1
@@ -3473,7 +3478,7 @@
     call read_vardata(dsfg, 'grid_yt', values_1d, errcode=iret)
     ! latitudes
     do j=1,nlats
-      deglats(j-1) = values_1d(j)
+      deglats(nlats-j+1) = values_1d(j)
     end do
 
     call nccheck_incr(nf90_put_var(ncid_out, latvarid, deglats, &
@@ -3541,7 +3546,7 @@
      krev = nlevs-k+1
      ki = k - lev_pe1(iope) + 1
      inc(:) = zero
-     inc = psinc*(bk(krev)-bk(krev+1)*100_r_kind)
+     inc = psinc*(bk(krev)-bk(krev+1))*100_r_kind
      inc3d(:,:,ki) = reshape(inc,(/nlons,nlats/))
   end do
   do j=1,nlats
@@ -3552,7 +3557,7 @@
 
   ! sphum increment
   allocate(tmp(nlons,nlats,nccount(3)),tv(nlons,nlats,nccount(3)),q(nlons,nlats,nccount(3)))
-  allocate(tvanl(nlons,nlats,nccount(3)),tmpanl(nlons,nlats,nccount(3)))
+  allocate(tvanl(nlons,nlats,nccount(3)),tmpanl(nlons,nlats,nccount(3)),qanl(nlons,nlats,nccount(3)))
   call read_vardata(dsfg, 'spfh', q, ncstart=ncstart, nccount=nccount, errcode=iret)
   if (iret /= 0) then
      print *,'error reading spfh'
@@ -3566,14 +3571,15 @@
        call copyfromgrdin(grdin(:,levels(q_ind-1) + krev,nb,ne),inc)
      endif
      inc3d(:,:,ki) = reshape(inc,(/nlons,nlats/))
-     q(:,:,ki) = q(:,:,ki) + inc3d(:,:,ki)
+     qanl(:,:,ki) = q(:,:,ki) + inc3d(:,:,ki)
   end do
+  if (cliptracers)  where (qanl < clip) qanl = clip
+  inc3d = qanl - q
   do j=1,nlats
     inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
   end do
   call nccheck_incr(nf90_put_var(ncid_out, sphumvarid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
-  if (cliptracers)  where (q < clip) q = clip
 
   ! t increment
   call read_vardata(dsfg, 'tmp', tmp, ncstart=ncstart, nccount=nccount, errcode=iret)
@@ -3591,7 +3597,7 @@
      endif
      inc3d(:,:,ki) = reshape(inc,(/nlons,nlats/))
      tvanl(:,:,ki) = tv(:,:,ki) + inc3d(:,:,ki)
-     tmpanl(:,:,ki) = tvanl(:,:,ki)/(1. + fv*q(:,:,ki))
+     tmpanl(:,:,ki) = tvanl(:,:,ki)/(1. + fv*qanl(:,:,ki))
   end do
   inc3d = tmpanl - tmp
   do j=1,nlats
@@ -3612,14 +3618,14 @@
      do k=lev_pe1(iope), lev_pe2(iope)
         krev = nlevs-k+1
         ki = k - lev_pe1(iope) + 1
-        ug=(rd/grav)*reshape(tv(:,:,ki),(/nlons*nlats/))
+        ug=(rd/grav)*reshape(tvanl(:,:,ki),(/nlons*nlats/))
         ! ps in Pa here, need to multiply ak by 100.
         ug=ug*log((100_r_kind*ak(krev)+bk(krev)*psges)/(100_r_kind*ak(krev+1)+bk(krev+1)*psges))
         ! ug is hydrostatic analysis delz inferred from analysis ps,Tv
         ! delzb is hydrostatic background delz inferred from background ps,Tv
         delzb=(rd/grav)*reshape(tv(:,:,ki),(/nlons*nlats/))
         delzb=delzb*log((100_r_kind*ak(krev)+bk(krev)*psges)/(100_r_kind*ak(krev+1)+bk(krev+1)*psges))
-        inc3d(:,:,ki)=reshape(delzb-inc,(/nlons,nlats/))
+        inc3d(:,:,ki)=reshape(delzb-ug,(/nlons,nlats/))
      end do
   end if
   do j=1,nlats
@@ -3680,7 +3686,7 @@
 
   ! deallocate things
   deallocate(inc3d,inc3d2,inc3dout)
-  deallocate(tmp,tv,q,tmpanl,tvanl)
+  deallocate(tmp,tv,q,tmpanl,tvanl,qanl)
   deallocate(delzb,psges)
 
 
