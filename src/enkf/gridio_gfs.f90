@@ -3327,8 +3327,8 @@
 
   ! increment
   real(r_kind), dimension(nlons*nlats) :: psinc, inc, ug, vg, work
-  real(r_kind), allocatable, dimension(:,:,:) :: inc3d, inc3d2, inc3dout, &
-                                                 tv, tvanl, tmp, tmpanl, q, qanl
+  real(r_kind), allocatable, dimension(:,:,:) :: inc3d, inc3d2, inc3dout
+  real(r_single), allocatable, dimension(:,:,:) :: tv, tvanl, tmp, tmpanl, q, qanl
   real(r_kind), allocatable, dimension(:,:) :: values_2d
   real(r_kind), allocatable, dimension(:) :: psges, delzb, values_1d
 
