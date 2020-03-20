@@ -3682,7 +3682,7 @@
   call mpi_barrier(iocomms(mem_pe(nproc)), iret)
 
   ! deallocate things
-  deallocate(inc3d,inc3d2)
+  deallocate(inc3d,inc3d2,inc3dout)
   deallocate(tmp,tv,q,tmpanl,tvanl)
   deallocate(delzb,psges)
 
