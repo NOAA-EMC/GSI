@@ -3465,18 +3465,15 @@
     ilevsout(nlevs+1) = float(nlevs+1)
 
     ! longitudes
-    radianstmp = reshape(lonsgrd,(/nlons,nlats/))
-    do i=1,nlons
-      deglons(i) = radianstmp(i,nlats/2) * rad2deg
-    end do
-
+    call read_vardata(dsfg, 'grid_xt', values_1d, errcode=iret)
+    deglons(:) = values_1d
     call nccheck_incr(nf90_put_var(ncid_out, lonvarid, deglons, &
                          start = (/1/), count = (/nlons/)))
 
+    call read_vardata(dsfg, 'grid_yt', values_1d, errcode=iret)
     ! latitudes
-    radianstmp = reshape(latsgrd,(/nlons,nlats/))
     do j=1,nlats
-      deglats(j-1) = radianstmp(nlons/2,j) * rad2deg
+      deglats(j-1) = values_1d(j)
     end do
 
     call nccheck_incr(nf90_put_var(ncid_out, latvarid, deglats, &
