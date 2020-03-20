@@ -3614,13 +3614,13 @@
      if (allocated(psges)) deallocate(psges)
      allocate(psges(nlons*nlats))
      psges = reshape(values_2d,(/nlons*nlats/))
-     psges = psges + (psinc*100_r_kind)
+     vg = psges + (psinc*100_r_kind)
      do k=lev_pe1(iope), lev_pe2(iope)
         krev = nlevs-k+1
         ki = k - lev_pe1(iope) + 1
         ug=(rd/grav)*reshape(tvanl(:,:,ki),(/nlons*nlats/))
         ! ps in Pa here, need to multiply ak by 100.
-        ug=ug*log((100_r_kind*ak(krev)+bk(krev)*psges)/(100_r_kind*ak(krev+1)+bk(krev+1)*psges))
+        ug=ug*log((100_r_kind*ak(krev)+bk(krev)*vg)/(100_r_kind*ak(krev+1)+bk(krev+1)*vg))
         ! ug is hydrostatic analysis delz inferred from analysis ps,Tv
         ! delzb is hydrostatic background delz inferred from background ps,Tv
         delzb=(rd/grav)*reshape(tv(:,:,ki),(/nlons*nlats/))
