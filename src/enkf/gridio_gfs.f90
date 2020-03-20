@@ -3327,7 +3327,8 @@
 
   ! increment
   real(r_kind), dimension(nlons*nlats) :: psinc, inc, ug, vg, work
-  real(r_kind), allocatable, dimension(:,:,:) :: inc3d, inc3d2, tv, tvanl, tmp, tmpanl, q
+  real(r_kind), allocatable, dimension(:,:,:) :: inc3d, inc3d2, inc3dout, &
+                                                 tv, tvanl, tmp, tmpanl, q
   real(r_kind), allocatable, dimension(:,:) :: values_2d
   real(r_kind), allocatable, dimension(:) :: psges, delzb, values_1d
 
@@ -3475,7 +3476,7 @@
     ! latitudes
     radianstmp = reshape(latsgrd,(/nlons,nlats/))
     do j=1,nlats
-      deglats(j) = radianstmp(nlons/2,j) * rad2deg
+      deglats(j-1) = radianstmp(nlons/2,j) * rad2deg
     end do
 
     call nccheck_incr(nf90_put_var(ncid_out, latvarid, deglats, &
@@ -3501,6 +3502,7 @@
 
   allocate(inc3d(nlons,nlats,nccount(3)))
   allocate(inc3d2(nlons,nlats,nccount(3)))
+  allocate(inc3dout(nlons,nlats,nccount(3)))
   ! u increment
   do k=lev_pe1(iope), lev_pe2(iope)
      krev = nlevs-k+1
@@ -3511,7 +3513,10 @@
      endif
      inc3d(:,:,ki) = reshape(inc,(/nlons,nlats/))
   end do
-  call nccheck_incr(nf90_put_var(ncid_out, uvarid, sngl(inc3d), &
+  do j=1,nlats
+    inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
+  end do
+  call nccheck_incr(nf90_put_var(ncid_out, uvarid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
 
   ! v increment
@@ -3524,7 +3529,10 @@
      endif
      inc3d(:,:,ki) = reshape(inc,(/nlons,nlats/))
   end do
-  call nccheck_incr(nf90_put_var(ncid_out, vvarid, sngl(inc3d), &
+  do j=1,nlats
+    inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
+  end do
+  call nccheck_incr(nf90_put_var(ncid_out, vvarid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
 
   ! delp increment
@@ -3539,7 +3547,10 @@
      inc = psinc*(bk(krev)-bk(krev+1)*100_r_kind)
      inc3d(:,:,ki) = reshape(inc,(/nlons,nlats/))
   end do
-  call nccheck_incr(nf90_put_var(ncid_out, delpvarid, sngl(inc3d), &
+  do j=1,nlats
+    inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
+  end do
+  call nccheck_incr(nf90_put_var(ncid_out, delpvarid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
 
   ! sphum increment
@@ -3560,7 +3571,10 @@
      inc3d(:,:,ki) = reshape(inc,(/nlons,nlats/))
      q(:,:,ki) = q(:,:,ki) + inc3d(:,:,ki)
   end do
-  call nccheck_incr(nf90_put_var(ncid_out, sphumvarid, sngl(inc3d), &
+  do j=1,nlats
+    inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
+  end do
+  call nccheck_incr(nf90_put_var(ncid_out, sphumvarid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
   if (cliptracers)  where (q < clip) q = clip
 
@@ -3583,7 +3597,10 @@
      tmpanl(:,:,ki) = tvanl(:,:,ki)/(1. + fv*q(:,:,ki))
   end do
   inc3d = tmpanl - tmp
-  call nccheck_incr(nf90_put_var(ncid_out, tvarid, sngl(inc3d), &
+  do j=1,nlats
+    inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
+  end do
+  call nccheck_incr(nf90_put_var(ncid_out, tvarid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
 
   ! delz increment
@@ -3608,7 +3625,10 @@
         inc3d(:,:,ki)=reshape(delzb-inc,(/nlons,nlats/))
      end do
   end if
-  call nccheck_incr(nf90_put_var(ncid_out, delzvarid, sngl(inc3d), &
+  do j=1,nlats
+    inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
+  end do
+  call nccheck_incr(nf90_put_var(ncid_out, delzvarid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
 
   ! o3mr increment
@@ -3621,7 +3641,10 @@
      endif
      inc3d(:,:,ki) = reshape(inc,(/nlons,nlats/))
   end do
-  call nccheck_incr(nf90_put_var(ncid_out, o3varid, sngl(inc3d), &
+  do j=1,nlats
+    inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
+  end do
+  call nccheck_incr(nf90_put_var(ncid_out, o3varid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
 
   ! liq wat increment
@@ -3645,9 +3668,15 @@
      endif
      inc3d(:,:,ki) = reshape(ug,(/nlons,nlats/))
   enddo
-  call nccheck_incr(nf90_put_var(ncid_out, liqwatvarid, sngl(inc3d), &
+  do j=1,nlats
+    inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
+  end do
+  call nccheck_incr(nf90_put_var(ncid_out, liqwatvarid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
-  call nccheck_incr(nf90_put_var(ncid_out, icvarid, sngl(inc3d2), &
+  do j=1,nlats
+    inc3dout(:,nlats-j+1,:) = inc3d2(:,j,:)
+  end do
+  call nccheck_incr(nf90_put_var(ncid_out, icvarid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
 
   call mpi_barrier(iocomms(mem_pe(nproc)), iret)
