@@ -3614,7 +3614,7 @@
      if (allocated(psges)) deallocate(psges)
      allocate(psges(nlons*nlats))
      psges = reshape(values_2d,(/nlons*nlats/))
-     psges = psges + psinc
+     psges = psges + (psinc*100_r_kind)
      do k=lev_pe1(iope), lev_pe2(iope)
         krev = nlevs-k+1
         ki = k - lev_pe1(iope) + 1
