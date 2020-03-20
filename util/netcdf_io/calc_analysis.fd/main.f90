@@ -14,7 +14,7 @@ program calc_analysis_main
   use init_calc_analysis, only: read_nml
   use init_io, only: init_read_bg, init_write_anl
   use inc2anl, only: gen_anl, close_files 
-  use vars_calc_analysis, only: nhrs_assim, mype, npes
+  use vars_calc_analysis, only: mype, npes
   implicit none
   integer :: ierr
   call mpi_init(ierr)
