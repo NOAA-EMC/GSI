@@ -93,6 +93,7 @@ cnvw_option=${cnvw_option:-".false."}
 netcdf_diag=${netcdf_diag:-".true."}
 modelspace_vloc=${modelspace_vloc:-".false."} # if true, 'vlocal_eig.dat' is needed
 IAUFHRS_ENKF=${IAUFHRS_ENKF:-6}
+DO_CALC_INCREMENT=${DO_CALC_INCREMENT:-"NO"}
 
 ################################################################################
 ATMGES_ENSMEAN=$COMIN_GES_ENS/${GPREFIX}atmf006.ensmean${GSUFFIX}
@@ -103,7 +104,11 @@ if [ $SUFFIX = ".nc" ]; then
    use_gfs_ncio=".true."
    use_gfs_nemsio=".false."
    paranc=${paranc:-".true."}
-   write_fv3_incr=${write_fv3_incr:-".true."}
+   if [ $DO_CALC_INCREMENT = "YES" ]; then 
+      write_fv3_incr=".false."
+   else
+      write_fv3_incr=".true."
+   fi
 else
    LEVS_ENKF=${LEVS_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimz | awk '{print $2}')}
    LATB_ENKF=${LATB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimy | awk '{print $2}')}
@@ -211,16 +216,16 @@ for imem in $(seq 1 $NMEM_ENKF); do
          $NLN $COMIN_GES_ENS/$memchar/${GPREFIX}sfcf00${FHR}${GSUFFIX} sfgsfc_${CDATE}_fhr0${FHR}_${memchar}
       fi
       if [ $FHR -eq 6 ]; then
-         if [ $write_fv3_incr -eq ".true." ]; then
-            $NLN $COMOUT_ANL_ENS/$memchar/${APREFIX}atminc${ASUFFIX}             incr_${CDATE}_fhr0${FHR}_${memchar}
-         else
+         if [ $DO_CALC_INCREMENT = "YES" ]; then
             $NLN $COMOUT_ANL_ENS/$memchar/${APREFIX}atmanl${ASUFFIX}             sanl_${CDATE}_fhr0${FHR}_${memchar}
+         else
+            $NLN $COMOUT_ANL_ENS/$memchar/${APREFIX}atminc${ASUFFIX}             incr_${CDATE}_fhr0${FHR}_${memchar}
          fi
       else
-         if [ $write_fv3_incr -eq ".true." ]; then
-            $NLN $COMOUT_ANL_ENS/$memchar/${APREFIX}atmi00${FHR}${ASUFFIX}             incr_${CDATE}_fhr0${FHR}_${memchar}
-         else
+         if [ $DO_CALC_INCREMENT = "YES" ]; then
             $NLN $COMOUT_ANL_ENS/$memchar/${APREFIX}atma00${FHR}${ASUFFIX}             sanl_${CDATE}_fhr0${FHR}_${memchar}
+         else
+            $NLN $COMOUT_ANL_ENS/$memchar/${APREFIX}atmi00${FHR}${ASUFFIX}             incr_${CDATE}_fhr0${FHR}_${memchar}
          fi
       fi
    done
