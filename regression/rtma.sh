@@ -39,8 +39,8 @@ ncp=/bin/cp
 # for guess and observation data files
 gdate=`$ndate -12 $rtma_adate`
 cya=`echo $rtma_adate | cut -c9-10`
-cyg=`echo $gdate | cut -c9-10`
-cymd=`echo $gdate | cut -c1-8`
+cyg=`echo $rtma_adate | cut -c9-10`
+cymd=`echo $rtma_adate | cut -c1-8`
 echo " cymd $cymd "
 echo " cyg $cyg"
 cyc_mxtm=08
@@ -141,6 +141,7 @@ t_day_rejectlist=$fixgsi/rtma_t_day_rejectlist
 t_night_rejectlist=$fixgsi/rtma_t_night_rejectlist
 q_day_rejectlist=$fixgsi/rtma_q_day_rejectlist
 q_night_rejectlist=$fixgsi/rtma_q_night_rejectlist
+provider_windheight=$fixgsi/urma2p5_provider_windheight
 
 if [[ "$endianness" = "Little_Endian" ]]; then
    random_flips=/scratch2/portfolios/NCEPDEV/meso/save/Manuel.Pondeca/folks/for_patrick/15Aug2012/hresext_rtma/fix.rtma/fixgsi_200609/normalization/random_flips_le
@@ -221,6 +222,8 @@ $ncp $t_night_rejectlist ./t_night_rejectlist
 $ncp $q_day_rejectlist   ./q_day_rejectlist
 $ncp $q_night_rejectlist ./q_night_rejectlist
 
+$ncp $provider_windheight ./provider_windheight
+
 $ncp $random_flips        ./random_flips
 
 $ncp $flt_psi            ./fltnorm.dat_psi
@@ -275,10 +278,10 @@ $ncp ${rtma_obs}/urma.t${cya}z.goessky.bufr_d  ./goessky
 echo "NEW MAX/MIN DATA $rtma_obs/rtma.maxt/mintobs.dat "
 ls -lt  $rtma_obs/*tobs.dat
 echo "$rtma_obs/urma*tobs.dat"
-$ncp ${rtma_obs}/urma.20170312.mintobs.dat ./mitmdat
-$ncp ${rtma_obs}/urma.20170312.maxtobs.dat ./mxtmdat 
+$ncp ${rtma_obs}/urma.${cymd}.mintobs.dat ./mitmdat
+$ncp ${rtma_obs}/urma.${cymd}.maxtobs.dat ./mxtmdat 
 echo "observation data: satmar for howv "
-$ncp ${rtma_obs}/satmar ./satmar
+$ncp ${rtma_obs}/urma.t${cya}z.satmar.tm00.bufr_d ./satmar
 
 
 

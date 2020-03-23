@@ -94,6 +94,8 @@ subroutine glbsoi
 !                            lcbas analysis variable
 !   2015-10-01  guo     - omb at full res; support via obsdiags 
 !   2015-12-08  el akkraoui - Y. Zhu sat-bias-corr now works with BiCG option
+!   2020-03-09  pondeca - deallocate arrays used in similarity theory-based 10-wind
+!                         adjustment for twodvar_regional
 !
 !   input argument list:
 !
@@ -123,7 +125,7 @@ subroutine glbsoi
   use compact_diffs, only: create_cdiff_coefs,inisph
   use gridmod, only: regional,twodvar_regional
   use guess_grids, only: nfldsig
-  use obsmod, only: write_diag,perturb_obs,ditype,iadate
+  use obsmod, only: write_diag,perturb_obs,ditype,iadate,use_similarity_2dvar
   use qcmod,only: njqc
   use turblmod, only: create_turblvars,destroy_turblvars
   use obs_sensitivity, only: lobsensfc, iobsconv, lsensrecompute, &
@@ -154,6 +156,7 @@ subroutine glbsoi
   use gfs_stratosphere, only: destroy_nmmb_vcoords,use_gfs_stratosphere
   use aircraftinfo, only: aircraftinfo_write,aircraft_t_bc_pof,aircraft_t_bc,mype_airobst
   use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
+  use aux2dvarflds, only: destroy_aux2dvarflds
 
   use m_prad, only: prad_updatePredx    ! was -- prad_bias()
   use m_obsdiags, only: obsdiags_write
@@ -444,6 +447,10 @@ subroutine glbsoi
   endif
 
   if (l_hyb_ens) call destroy_hybens_localization_parameters
+
+  if (twodvar_regional) then
+     if (use_similarity_2dvar .and. jiter == miter) call destroy_aux2dvarflds
+  endif
 
 ! Write updated bias correction coefficients
   if (.not.twodvar_regional) then

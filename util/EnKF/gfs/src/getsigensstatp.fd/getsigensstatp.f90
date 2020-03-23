@@ -61,7 +61,7 @@ program getsigensstatp
     real(4), allocatable, dimension(:,:,:) :: values_3d
     real(4), allocatable, dimension(:,:) :: values_2d
     logical :: sigio,nemsio,ncio
-    logical :: do_icmr = .false.
+!   logical :: do_icmr = .false.
     logical :: do_hydro = .false.
 
     type(sigio_head)   :: sigheadi
