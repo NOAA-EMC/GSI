@@ -129,6 +129,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   real(r_kind),parameter:: r360 = 360.0_r_kind
   real(r_kind),parameter:: rmiss = -9999.9_r_kind
   real(r_kind),parameter:: badoz = 10000.0_r_kind
+  real(r_kind),parameter:: montoz = 100.0_r_kind  !monitored ozone
 
 ! Declare local variables
   logical outside,version6,version8,iuse
@@ -878,7 +879,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
         do k=1,nloz
            if (iuse_oz(ipos(k)) < 0) then
-              usage1(k) = 100._r_kind
+              usage1(k) = montoz
            else
               usage1(k) = zero
            endif
@@ -976,7 +977,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
            mlsozpc(k)=hdrmlsl(3,k)                   ! ozone mixing ratio precision in ppmv
 !       there is possibility that mlsoz in bufr is 0 or negative or larger than 100 which are not reasonable values.
            if(mlsoz(k)<1.0e-8_r_kind .or. mlsoz(k)>100.0_r_kind ) then 
-             usage1(k)=1000._r_kind
+             usage1(k)=badoz
 !         for v2.2 data, if this unreasonable value happens between 215mb (lev5) and 0.02mb (lev27), throw the whole profile
 !         for v2 NRT data, if this unreasonable value happens between 68mb (lev8) and 0.2mb (lev23), throw the whole profile
 !         for v3 NRT data, if this unreasonable value happens between 261mb (lev8) and 0.1mb (lev43), throw the whole profile
@@ -989,14 +990,14 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         do k=1,nloz
 !          pressure range
            if(mlsv==22) then
-             if(hdrmlsl(1,k)>21700._r_kind .or. hdrmlsl(1,k)<1._r_kind) usage1(k)=1000._r_kind
+             if(hdrmlsl(1,k)>21700._r_kind .or. hdrmlsl(1,k)<1._r_kind) usage1(k)=badoz
            else if(mlsv==20) then
-             if(hdrmlsl(1,k)>6900._r_kind .or. hdrmlsl(1,k)<10._r_kind) usage1(k)=1000._r_kind
+             if(hdrmlsl(1,k)>6900._r_kind .or. hdrmlsl(1,k)<10._r_kind) usage1(k)=badoz
            else if(mlsv==30) then
-             if(hdrmlsl(1,k)>26500._r_kind .or. hdrmlsl(1,k)<10._r_kind) usage1(k)=1000._r_kind
+             if(hdrmlsl(1,k)>26500._r_kind .or. hdrmlsl(1,k)<10._r_kind) usage1(k)=badoz
            end if
 !          only positive precision accepted
-           if(hdrmlsl(3,k)<=0._r_kind) usage1(k)=1000._r_kind
+           if(hdrmlsl(3,k)<=0._r_kind) usage1(k)=badoz
         end do
 
 !      status screening
@@ -1005,28 +1006,28 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
            if (abs(slats0)<30._r_kind) then
               do k=1,nloz
                  if(hdrmlsl(1,k)>10100._r_kind .and. hdrmlsl(1,k)<21700._r_kind) then
-                    if(hdrmls13 <= 1.2_r_kind) usage1(k)=1000._r_kind
+                    if(hdrmls13 <= 1.2_r_kind) usage1(k)=badoz
                  else
-                    if(hdrmls13 <= 0.4_r_kind) usage1(k)=1000._r_kind
+                    if(hdrmls13 <= 0.4_r_kind) usage1(k)=badoz
                  endif
               end do
            else
               if(hdrmls13 <= 0.4_r_kind) then
                  do k=1,nloz
-                    usage1(k)=1000._r_kind
+                    usage1(k)=badoz
                  end do
               end if
            end if
         else if(mlsv==20) then
            if(hdrmls13 <= 1.2_r_kind .or. hdrmls13 >= 3.0_r_kind) then
               do k=1,nloz
-                 usage1(k)=1000._r_kind
+                 usage1(k)=badoz
               end do
            end if
         else if(mlsv==30) then
            if(hdrmls13 <= 0.4_r_kind) then
               do k=1,nloz
-                 usage1(k)=1000._r_kind
+                 usage1(k)=badoz
               end do
            end if
         end if
@@ -1120,13 +1121,13 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
           cycle read_loop5
         endif        
 
-       do k=1,nloz
+        do k=1,nloz
            if (iuse_oz(ipos(k)) < 0) then
-              usage1(k) = 1000._r_kind
+              usage1(k) = montoz
            else
               usage1(k) = zero
            endif
-        enddo
+        end do
 
        call ufbint(lunin,said,1,1,iret,"SAID")
 
@@ -1187,7 +1188,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
          omrstd(k) = lpsdvals(3,k) !omr std
          j = j + 1
          if(omr(k) < 0._r_double .or. omr(k) > 100._r_double) then
-            usage1(k) = 1000._r_kind
+            usage1(k) = badoz
             j = j - 1
          endif
        enddo
