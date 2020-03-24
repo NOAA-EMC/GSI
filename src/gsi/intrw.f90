@@ -29,6 +29,7 @@ use m_obsNode, only: obsNode
 use m_rwNode, only: rwNode
 use m_rwNode, only: rwNode_typecast
 use m_rwNode, only: rwNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -179,9 +180,11 @@ subroutine intrw_(rwhead,rval,sval)
      if(luse_obsdiag)then
         if (lsaveobsens) then
            grad = val*rwptr%raterr2*rwptr%err2
-           rwptr%diags%obssen(jiter) = grad
+           !-- rwptr%diags%obssen(jiter) = grad
+           call obsdiagNode_set(rwptr%diags,jiter=jiter,obssen=grad)
         else
-           if (rwptr%luse) rwptr%diags%tldepart(jiter)=val
+           !-- if (rwptr%luse) rwptr%diags%tldepart(jiter)=val
+           if (rwptr%luse) call obsdiagNode_set(rwptr%diags,jiter=jiter,tldepart=val)
         endif
      endif
 

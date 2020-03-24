@@ -114,9 +114,10 @@ log_file=${LOGdir}/Transfer_${RADMON_SUFFIX}.log
 err_file=${LOGdir}/Transfer_${RADMON_SUFFIX}.err
 
 if [[ ${IMGNDIR} != "/" ]]; then
-   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "cray" ]]; then
+   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "wcoss_d" || \
+	 $MY_MACHINE = "cray" ]]; then
       /usr/bin/rsync -ave ssh --exclude *.ctl.${Z} \
-         --exclude 'horiz' ${IMGNDIR}/ \
+         --exclude 'horiz' --exclude *.png ${IMGNDIR}/ \
          ${WEB_USER}@${WEB_SVR}.ncep.noaa.gov:${WEBDIR}/
    fi
 fi

@@ -28,9 +28,6 @@ fi
 
 export scr=exgfs_vrfyminmon.sh.ecf
 
-msg="${scr} HAS STARTED"
-postmsg "$jlogfile" "$msg"
-
 export RUN_ENVIR=${RUN_ENVIR:-nco}
 export NET=${NET:-gfs}
 export RUN=${RUN:-gfs}
@@ -83,7 +80,9 @@ if [[ -s ${gsistat} ]]; then
    #  Copy the $MINMON_SUFFIX.gnorm_data.txt file to the working directory
    #  It's ok if it doesn't exist; we'll create a new one if needed.
    #------------------------------------------------------------------
-   if [[ -s ${M_TANKverfM1}/gnorm_data.txt ]]; then
+   if [[ -s ${M_TANKverf}/gnorm_data.txt ]]; then
+      $NCP ${M_TANKverf}/gnorm_data.txt gnorm_data.txt
+   elif [[ -s ${M_TANKverfM1}/gnorm_data.txt ]]; then
       $NCP ${M_TANKverfM1}/gnorm_data.txt gnorm_data.txt
    fi
 
@@ -123,8 +122,6 @@ if [[ "$VERBOSE" = "YES" ]]; then
    echo "end exgfs_vrfminmon.sh.ecf, exit value = ${err}"
 fi
 
-msg="${scr} HAS ENDED"
-postmsg "$jlogfile" "$msg"
 
 set +x
 exit ${err}

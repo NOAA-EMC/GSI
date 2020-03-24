@@ -12,6 +12,7 @@ subroutine ensctl2state_ad(eval,mval,grad)
 !   2013-11-22  kleist - add option for q perturbations
 !   2014-12-03  derber   - introduce parallel regions for optimization
 !   2017-05-12  Y. Wang and X. Wang - add w as state variable for rw DA, POC: xuguang.wang@ou.edu
+!   2019-07-11  Todling - there should be no need to check on the existence of w and dw
 !
 !   input argument list:
 !     eval - Ensemble state variable variable
@@ -44,7 +45,6 @@ use mod_strong, only: tlnmc_option
 use cwhydromod, only: cw2hydro_ad
 use cwhydromod, only: cw2hydro_ad_hwrf
 use timermod, only: timer_ini,timer_fnl
-use control_vectors, only : w_exist
 use gridmod, only: nems_nmmb_regional
 implicit none
 
@@ -58,22 +58,24 @@ character(len=*),parameter::myname='ensctl2state_ad'
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
 integer(i_kind) :: jj,ic,id,istatus,nclouds
 
-integer(i_kind), parameter :: ncvars = 6 
+integer(i_kind), parameter :: ncvars = 8 
 integer(i_kind) :: icps(ncvars)
 type(gsi_bundle):: wbundle_c ! work bundle
 character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed here
                                'sf ', 'vp ', 'ps ', 't  ',    &
-                               'q  ','cw '/)
+                               'q  ', 'cw ', 'w  ', 'dw '/)
 logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_cw
+logical :: lc_w,lc_dw
 real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_rh
 ! Declare required local state variables
-integer(i_kind), parameter :: nsvars = 11 
+integer(i_kind), parameter :: nsvars = 13
 integer(i_kind) :: isps(nsvars)
 character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed here
                                'u   ', 'v   ', 'prse', 'q   ', 'tsen','ql  ','qi  ', &
-                               'qr  ', 'qs  ', 'qg  ', 'qh  ' /)                                
+                               'qr  ', 'qs  ', 'qg  ', 'qh  ', 'w   ','dw  ' /)                                
 logical :: ls_u,ls_v,ls_prse,ls_q,ls_tsen,ls_ql,ls_qi
 logical :: ls_qr,ls_qs,ls_qg,ls_qh
+logical :: ls_w,ls_dw
 real(r_kind),pointer,dimension(:,:)   :: rv_ps,rv_sst
 real(r_kind),pointer,dimension(:,:,:) :: rv_u,rv_v,rv_prse,rv_q,rv_tsen,rv_tv,rv_oz
 real(r_kind),pointer,dimension(:,:,:) :: rv_rank3,rv_w,rv_dw
@@ -82,6 +84,7 @@ logical :: do_getuv,do_tv_to_tsen_ad,do_normal_rh_to_q_ad,do_getprs_ad,lstrong_b
 logical :: do_tlnmc,do_q_copy
 logical :: do_cw_to_hydro_ad
 logical :: do_cw_to_hydro_ad_hwrf
+logical :: wdw_exist
 
 !****************************************************************************
 
@@ -100,6 +103,7 @@ endif
 call gsi_bundlegetpointer (grad%step(1),mycvars,icps,istatus)
 lc_sf =icps(1)>0; lc_vp =icps(2)>0; lc_ps =icps(3)>0
 lc_t  =icps(4)>0; lc_rh =icps(5)>0; lc_cw =icps(6)>0
+lc_w  =icps(7)>0; lc_dw =icps(8)>0
 
 ! Since each internal vector of grad has the same structure, pointers are
 ! the same independent of the subwindow jj
@@ -108,6 +112,7 @@ ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_prse=isps(3)>0
 ls_q  =isps(4)>0; ls_tsen=isps(5)>0; ls_ql =isps(6)>0; ls_qi =isps(7)>0                                      
 ls_qr  =isps(8)>0; ls_qs  =isps(9)>0
 ls_qg  =isps(10)>0; ls_qh =isps(11)>0
+ls_w   =isps(12)>0; ls_dw =isps(13)>0
 
 ! Define what to do depending on what's in CV and SV
 lstrong_bk_vars     =lc_sf.and.lc_vp.and.lc_ps .and.lc_t
@@ -125,6 +130,8 @@ do_cw_to_hydro_ad=.false.
 do_cw_to_hydro_ad=lc_cw.and.ls_ql.and.ls_qi
 do_cw_to_hydro_ad_hwrf=.false.
 do_cw_to_hydro_ad_hwrf=lc_cw.and.ls_ql.and.ls_qi.and.ls_qr.and.ls_qs.and.ls_qg.and.ls_qh
+
+wdw_exist = lc_w.and.lc_dw.and.ls_w.and.ls_dw
 
 ! Initialize
 mval%values=zero
@@ -192,7 +199,7 @@ do jj=1,ntlevs_ens
    call gsi_bundlegetpointer (eval(jj),'sst' ,rv_sst, istatus)
    call gsi_bundleputvar ( wbundle_c, 'oz',  rv_oz,  istatus )
    call gsi_bundleputvar ( wbundle_c, 'sst', rv_sst, istatus )
-   if(w_exist)then
+   if(wdw_exist)then
      call gsi_bundlegetpointer (eval(jj),'w' ,rv_w, istatus)
      call gsi_bundleputvar ( wbundle_c, 'w', rv_w, istatus )
      if(nems_nmmb_regional)then

@@ -114,6 +114,7 @@ module hybrid_ensemble_parameters
 !                function of z, default = .false. 
 !      ensemble_path: path to ensemble members; default './'
 !      ens_fast_read: read ensemble in parallel; default '.false.'
+!      sst_staticB:   if .true. (default) uses only static part of B error covariance for SST
 !=====================================================================================================
 !
 !
@@ -146,6 +147,7 @@ module hybrid_ensemble_parameters
 !   2014-05-14  wu      - add logical variable vvlocal for vertically verying horizontal localization length in regional
 !   2015-01-22  Hu      - add flag i_en_perts_io to control reading ensemble perturbation.
 !   2015-02-11  Hu      - add flag l_ens_in_diff_time to force GSI hybrid use ensembles not available at analysis time
+!   2015-09-18  todling - add sst_staticB to control use of ensemble SST error covariance 
 !
 ! subroutines included:
 
@@ -274,6 +276,8 @@ module hybrid_ensemble_parameters
   public :: pseudo_hybens
   public :: merge_two_grid_ensperts
   public :: regional_ensemble_option
+  public :: fv3sar_ensemble_opt 
+  
   public :: write_ens_sprd
   public :: nval_lenz_en
   public :: ntlevs_ens
@@ -285,8 +289,9 @@ module hybrid_ensemble_parameters
   public :: region_lat_ens,region_lon_ens
   public :: region_dx_ens,region_dy_ens
   public :: ens_fast_read
+  public :: sst_staticB
 
-  logical l_hyb_ens,uv_hyb_ens,q_hyb_ens,oz_univ_static
+  logical l_hyb_ens,uv_hyb_ens,q_hyb_ens,oz_univ_static,sst_staticB
   logical aniso_a_en
   logical full_ensemble,pwgtflg
   logical generate_ens
@@ -321,6 +326,7 @@ module hybrid_ensemble_parameters
   integer(i_kind) nval_lenz_en
   integer(i_kind) ntlevs_ens
   integer(i_kind) regional_ensemble_option
+  integer(i_kind) fv3sar_ensemble_opt 
   character(len=512),save :: ensemble_path
 
 ! following is for storage of ensemble perturbations:
@@ -374,11 +380,13 @@ subroutine init_hybrid_ensemble_parameters
   uv_hyb_ens=.false.
   q_hyb_ens=.false.
   oz_univ_static=.false.
+  sst_staticB=.true.
   aniso_a_en=.false.
   generate_ens=.true.
   pseudo_hybens=.false.
   merge_two_grid_ensperts=.false.
   regional_ensemble_option=0
+  fv3sar_ensemble_opt=0
   write_ens_sprd=.false.
   readin_localization=.false.
   readin_beta=.false.

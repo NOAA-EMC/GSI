@@ -21,19 +21,10 @@ module stpjomod
 !                                 locally hard-wired index values (ll=1,2,3,..).
 !                                 This is a step moving toward using type-bound-
 !                                 procedures.
+!   2018-08-10  guo     - a new implementation replacing typs specific stpXYZ()
+!                         calls to polymorphic %stpjo() calls.
 
   use kinds , only: i_kind
-  use obsmod, only: nobs_type
-  use obsmod, only: &
-                  & i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
-                  & i_spd_ob_type, i_rw_ob_type, i_dw_ob_type, &
-                  & i_sst_ob_type, i_pw_ob_type, i_oz_ob_type, i_o3l_ob_type, i_colvk_ob_type, &
-                  & i_gps_ob_type, i_rad_ob_type, i_pcp_ob_type,i_tcp_ob_type, &
-                  & i_pm2_5_ob_type, i_gust_ob_type, i_vis_ob_type, i_pblh_ob_type, &
-                  & i_pm10_ob_type, &
-                  & i_wspd10m_ob_type,i_uwnd10m_ob_type,i_vwnd10m_ob_type,i_td2m_ob_type,i_mxtm_ob_type,i_mitm_ob_type, &
-                    i_pmsl_ob_type,i_howv_ob_type,i_tcamt_ob_type,i_lcbas_ob_type,  &
-                    i_aero_ob_type, i_cldch_ob_type, i_swcp_ob_type, i_lwcp_ob_type, i_light_ob_type, i_dbz_ob_type
 
   implicit none
 
@@ -62,15 +53,18 @@ module stpjomod
   integer(i_kind),save:: stpcnt                          ! count of stpjo threads
   integer(i_kind),save,allocatable,dimension(:):: ll_jo  ! enumerated iobtype of threads
   integer(i_kind),save,allocatable,dimension(:):: ib_jo  ! ob-bin index values of threads
+  logical:: omptasks_configured_ = .false.
 
+  character(len=*),parameter:: myname="stpjomod"
 contains
 
-subroutine init_(nobs_bins)
+subroutine init_(nobs_type,nobs_bins)
+!> initialize a task distribution list (stpcnt, ll_jo(:),ib_jo(:))
   implicit none
+  integer(i_kind),intent(in):: nobs_type
   integer(i_kind),intent(in):: nobs_bins
 
-  if(allocated(ll_jo)) deallocate(ll_jo)
-  if(allocated(ib_jo)) deallocate(ib_jo)
+  if(omptasks_configured_) call final_()
 
   allocate(ll_jo(nobs_bins*nobs_type), &
            ib_jo(nobs_bins*nobs_type)  )
@@ -79,14 +73,16 @@ subroutine init_(nobs_bins)
   ib_jo(:)=0
   stpcnt  =0
 end subroutine init_
+
 subroutine final_()
   implicit none
   if(allocated(ll_jo)) deallocate(ll_jo)
   if(allocated(ib_jo)) deallocate(ib_jo)
   stpcnt=0
+  omptasks_configured_=.false.
 end subroutine final_
 
-subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep,nobs_bins)
+subroutine stpjo(dval,dbias,xval,xbias,sges,pbcjo,nstep)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -263,254 +259,74 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep,nobs_bins)
 !
 !$$$
   use kinds, only: i_kind,r_kind,r_quad
-  use stptmod, only: stpt
-  use stpwmod, only: stpw
-  use stppsmod, only: stpps
-  use stppwmod, only: stppw
-  use stpqmod, only: stpq
-  use stpradmod, only: stprad
-  use stpgpsmod, only: stpgps
-  use stprwmod, only: stprw
-  use stpdbzmod, only: stpdbz
-  use stpspdmod, only: stpspd
-  use stpsstmod, only: stpsst
-  use stptcpmod, only: stptcp
-  use stpdwmod, only: stpdw
-  use stppcpmod, only: stppcp
-  use stpozmod, only: stpozlay => stpozlay_
-  use stpozmod, only: stpozlev => stpozlev_
-  use stpcomod, only: stpco
-  use stppm2_5mod, only: stppm2_5
-  use stppm10mod, only: stppm10
-  use stpaodmod, only: stpaod
-  use stpgustmod, only: stpgust
-  use stpvismod, only: stpvis
-  use stppblhmod, only: stppblh
-  use stpwspd10mmod, only: stpwspd10m
-  use stptd2mmod, only: stptd2m
-  use stpmxtmmod, only: stpmxtm
-  use stpmitmmod, only: stpmitm
-  use stppmslmod, only: stppmsl
-  use stphowvmod, only: stphowv
-  use stptcamtmod, only: stptcamt
-  use stplcbasmod, only: stplcbas
-  use stpcldchmod, only: stpcldch
-  use stpuwnd10mmod, only: stpuwnd10m
-  use stpvwnd10mmod, only: stpvwnd10m
-  use stpswcpmod, only: stpswcp
-  use stplwcpmod, only: stplwcp
-  use stplightmod, only: stplight
   use bias_predictors, only: predictors
-  use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc
   use gsi_bundlemod, only: gsi_bundle
-  use control_vectors, only: cvars2d
-  use mpeu_util, only: getindex
 
-  use m_obsHeadBundle, only: obsHeadBundle
+  use gsi_obOper, only: obOper
+  use m_obsdiags, only: obOper_create
+  use m_obsdiags, only: obOper_destroy
+  use gsi_obOperTypeManager, only: obOper_typeInfo
+
+  use intradmod, only: setrad
+
   use mpeu_util, only: perr,die
+  use mpeu_util, only: tell
+  use mpeu_mpif, only: MPI_comm_world
   implicit none
 
 ! Declare passed variables
-  type(obsHeadBundle),dimension(:),intent(in   ) :: yobs
-  type(gsi_bundle)   ,dimension(:),intent(in   ) :: dval
+  type(gsi_bundle)   ,dimension(:),intent(in   ) :: dval        ! (nobs_bins)
   type(predictors)                ,intent(in   ) :: dbias
-  type(gsi_bundle)   ,dimension(:),intent(in   ) :: xval
+  type(gsi_bundle)   ,dimension(:),intent(in   ) :: xval        ! (nobs_bins)
   type(predictors)                ,intent(in   ) :: xbias
-  integer(i_kind)                 ,intent(in   ) :: nstep,nobs_bins
+  integer(i_kind)                 ,intent(in   ) :: nstep
   real(r_kind),dimension(max(1,nstep)) ,intent(in   ) :: sges
-  real(r_quad),dimension(4,nobs_type,nobs_bins)  ,intent(inout) :: pbcjo
+  real(r_quad),dimension(:,:,:)  ,intent(inout) :: pbcjo        !  (:,obOper_count,nobs_bins)
 
 ! Declare local variables
+  character(len=*),parameter:: myname_=myname//"::stpjo"
 
   integer(i_kind) :: ll,mm,ib
+  class(obOper),pointer:: it_obOper
 !************************************************************************************  
 
-!$omp parallel do  schedule(dynamic,1) private(ll,mm,ib)
-    do mm=1,stpcnt
-       ll=ll_jo(mm)
-       ib=ib_jo(mm)
-       select case(ll)
-!   penalty, b, and c for radiances
-       case(i_rad_ob_type)
-          call stprad(yobs(ib)%rad,dval(ib),xval(ib),dbias%predr,xbias%predr,&
-                pbcjo(1,i_rad_ob_type,ib),sges,nstep)
+  call setrad(xval(1))
 
-!   penalty, b, and c for temperature
-       case(i_t_ob_type)
-          if (.not. (aircraft_t_bc_pof .or. aircraft_t_bc)) then
-             call stpt(yobs(ib)%t,dval(ib),xval(ib),pbcjo(1,i_t_ob_type,ib),sges,nstep) 
-          else
-             call stpt(yobs(ib)%t,dval(ib),xval(ib),pbcjo(1,i_t_ob_type,ib),sges,nstep, &
-                 dbias%predt,xbias%predt) 
-          end if
+!$omp parallel do  schedule(dynamic,1) private(ll,mm,ib,it_obOper)
+  do mm=1,stpcnt
+    ll=ll_jo(mm)
+    ib=ib_jo(mm)
 
-!   penalty, b, and c for winds
-       case(i_w_ob_type)
-          call stpw(yobs(ib)%w,dval(ib),xval(ib),pbcjo(1,i_w_ob_type,ib),sges,nstep)
+    it_obOper => obOper_create(ll)
 
-!   penalty, b, and c for precipitable water
-       case(i_pw_ob_type)
-          call stppw(yobs(ib)%pw,dval(ib),xval(ib),pbcjo(1,i_pw_ob_type,ib),sges,nstep)
+        if(.not.associated(it_obOper)) then
+          call perr(myname_,'unexpected obOper, associated(it_obOper) =',associated(it_obOper))
+          call perr(myname_,'                  obOper_typeInfo(ioper) =',obOper_typeInfo(ll))
+          call perr(myname_,'                                   iOper =',ll)
+          call perr(myname_,'                                    ibin =',ib)
+          call perr(myname_,'                                      mm =',mm)
+          call perr(myname_,'                                  stpcnt =',stpcnt)
+          call  die(myname_)
+        endif
 
-!   penalty, b, and c for ozone
-       case(i_colvk_ob_type)
-          call stpco(yobs(ib)%colvk,dval(ib),xval(ib),pbcjo(1,i_colvk_ob_type,ib),sges,nstep)
+        if(.not.associated(it_obOper%obsLL)) then
+          call perr(myname_,'unexpected components, associated(%obsLL) =',associated(it_obOper%obsLL))
+          call perr(myname_,'                   obOper_typeInfo(ioper) =',obOper_typeInfo(ll))
+          call perr(myname_,'                                    iOper =',ll)
+          call perr(myname_,'                                     ibin =',ib)
+          call perr(myname_,'                                       mm =',mm)
+          call perr(myname_,'                                   stpcnt =',stpcnt)
+          call  die(myname_)
+        endif
 
-!   penalty, b, and c for ozone
-       case(i_pm2_5_ob_type)
-          call stppm2_5(yobs(ib)%pm2_5,dval(ib),xval(ib),pbcjo(1,i_pm2_5_ob_type,ib),sges,nstep)
+    call it_obOper%stpjo(ib,dval(ib),xval(ib),pbcjo(:,ll,ib),sges,nstep,dbias,xbias) 
+    call obOper_destroy(it_obOper)
+  enddo
 
-!   penalty, b, and c for wind lidar
-       case(i_dw_ob_type)
-          call stpdw(yobs(ib)%dw,dval(ib),xval(ib),pbcjo(1,i_dw_ob_type,ib),sges,nstep) 
-
-!   penalty, b, and c for radar
-       case(i_rw_ob_type)
-          call stprw(yobs(ib)%rw,dval(ib),xval(ib),pbcjo(1,i_rw_ob_type,ib),sges,nstep) 
-
-!   penalty, b, and c for radar reflectivity
-       case(i_dbz_ob_type)
-          call stpdbz(yobs(ib)%dbz,dval(ib),xval(ib),pbcjo(1,i_dbz_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for moisture
-       case(i_q_ob_type)
-          call stpq(yobs(ib)%q,dval(ib),xval(ib),pbcjo(1,i_q_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for ozone:oz
-       case(i_oz_ob_type)
-          call stpozlay(yobs(ib)%oz ,dval(ib),xval(ib),pbcjo(1, i_oz_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for ozone:o3l
-       case(i_o3l_ob_type)
-          call stpozlev(yobs(ib)%o3l,dval(ib),xval(ib),pbcjo(1,i_o3l_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for lightning:light
-       case(i_light_ob_type)
-          call stplight(yobs(ib)%light,dval(ib),xval(ib),pbcjo(1,i_light_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for GPS local observation
-       case(i_gps_ob_type)
-          call stpgps(yobs(ib)%gps,dval(ib),xval(ib),pbcjo(1,i_gps_ob_type,ib),sges,nstep) 
-
-!   penalty, b, and c for conventional sst
-       case(i_sst_ob_type)
-          call stpsst(yobs(ib)%sst,dval(ib),xval(ib),pbcjo(1,i_sst_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for wind speed
-       case(i_spd_ob_type)
-          call stpspd(yobs(ib)%spd,dval(ib),xval(ib),pbcjo(1,i_spd_ob_type,ib),sges,nstep) 
-
-!   penalty, b, and c for precipitation
-       case(i_pcp_ob_type)
-          call stppcp(yobs(ib)%pcp,dval(ib),xval(ib),pbcjo(1,i_pcp_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for surface pressure
-       case(i_ps_ob_type)
-          call stpps(yobs(ib)%ps,dval(ib),xval(ib),pbcjo(1,i_ps_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for MSLP TC obs
-       case(i_tcp_ob_type)
-          call stptcp(yobs(ib)%tcp,dval(ib),xval(ib),pbcjo(1,i_tcp_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for conventional gust
-       case(i_gust_ob_type)
-          if (getindex(cvars2d,'gust')>0) &
-          call stpgust(yobs(ib)%gust,dval(ib),xval(ib),pbcjo(1,i_gust_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for conventional vis
-       case(i_vis_ob_type)
-          if (getindex(cvars2d,'vis')>0) &
-          call stpvis(yobs(ib)%vis,dval(ib),xval(ib),pbcjo(1,i_vis_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for conventional pblh
-       case(i_pblh_ob_type)
-          if (getindex(cvars2d,'pblh')>0) &
-          call stppblh(yobs(ib)%pblh,dval(ib),xval(ib),pbcjo(1,i_pblh_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for conventional wspd10m
-       case(i_wspd10m_ob_type)
-          if (getindex(cvars2d,'wspd10m')>0) &
-          call stpwspd10m(yobs(ib)%wspd10m,dval(ib),xval(ib),pbcjo(1,i_wspd10m_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for conventional td2m
-       case(i_td2m_ob_type)
-          if (getindex(cvars2d,'td2m')>0) &
-          call stptd2m(yobs(ib)%td2m,dval(ib),xval(ib),pbcjo(1,i_td2m_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for conventional mxtm
-       case(i_mxtm_ob_type)
-          if (getindex(cvars2d,'mxtm')>0) &
-          call stpmxtm(yobs(ib)%mxtm,dval(ib),xval(ib),pbcjo(1,i_mxtm_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for conventional mitm
-       case(i_mitm_ob_type)
-          if (getindex(cvars2d,'mitm')>0) &
-          call stpmitm(yobs(ib)%mitm,dval(ib),xval(ib),pbcjo(1,i_mitm_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for conventional pmsl
-       case(i_pmsl_ob_type)
-          if (getindex(cvars2d,'pmsl')>0) &
-          call stppmsl(yobs(ib)%pmsl,dval(ib),xval(ib),pbcjo(1,i_pmsl_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for conventional howv
-       case(i_howv_ob_type)
-          if (getindex(cvars2d,'howv')>0) &
-          call stphowv(yobs(ib)%howv,dval(ib),xval(ib),pbcjo(1,i_howv_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for total cloud amount
-       case(i_tcamt_ob_type)
-          if (getindex(cvars2d,'tcamt')>0) &
-          call stptcamt(yobs(ib)%tcamt,dval(ib),xval(ib),pbcjo(1,i_tcamt_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for cloud base of lowest cloud
-       case(i_lcbas_ob_type)
-          if (getindex(cvars2d,'lcbas')>0) &
-          call stplcbas(yobs(ib)%lcbas,dval(ib),xval(ib),pbcjo(1,i_lcbas_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for aod
-       case(i_aero_ob_type)
-          call stpaod(yobs(ib)%aero,dval(ib),xval(ib),pbcjo(1,i_aero_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for pm10
-       case(i_pm10_ob_type)
-          call stppm10(yobs(ib)%pm10,dval(ib),xval(ib),pbcjo(1,i_pm10_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for conventional cldch
-       case(i_cldch_ob_type)
-          if (getindex(cvars2d,'cldch')>0) &
-          call stpcldch(yobs(ib)%cldch,dval(ib),xval(ib),pbcjo(1,i_cldch_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for conventional uwnd10m
-       case(i_uwnd10m_ob_type)
-          if (getindex(cvars2d,'uwnd10m')>0) &
-          call stpuwnd10m(yobs(ib)%uwnd10m,dval(ib),xval(ib),pbcjo(1,i_uwnd10m_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for conventional vwnd10m
-       case(i_vwnd10m_ob_type)
-          if (getindex(cvars2d,'vwnd10m')>0) &
-          call stpvwnd10m(yobs(ib)%vwnd10m,dval(ib),xval(ib),pbcjo(1,i_vwnd10m_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for solid-water content path
-       case(i_swcp_ob_type)
-          call stpswcp(yobs(ib)%swcp,dval(ib),xval(ib),pbcjo(1,i_swcp_ob_type,ib),sges,nstep)
-
-!   penalty, b, and c for liquid-water content path
-       case(i_lwcp_ob_type)
-          call stplwcp(yobs(ib)%lwcp,dval(ib),xval(ib),pbcjo(1,i_lwcp_ob_type,ib),sges,nstep)
-
-       case default
-          call perr('stpjo','unexpected thread, ll_jo(mm) =',ll)
-          call perr('stpjo','                   ib_jo(mm) =',ib)
-          call perr('stpjo','                         mm  =',mm)
-          call perr('stpjo','                      stpcnt =',stpcnt)
-          call  die('stpjo')
-       end select
-    end do      ! mm=..
-
-  return
+return
 end subroutine stpjo
 
-subroutine stpjo_setup(yobs)
+subroutine stpjo_setup(nobs_bins)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -539,303 +355,64 @@ subroutine stpjo_setup(yobs)
 !$$$
   use kinds, only: i_kind,r_kind,r_quad
   use gsi_bundlemod, only: gsi_bundle
-  use m_obsHeadBundle, only: obsHeadBundle
+  use gsi_obOperTypeManager, only: obOper_count
+  use gsi_obOperTypeManager, only: obOper_typeInfo
+  use gsi_obOper, only: obOper
+  use m_obsdiags, only: obOper_create
+  use m_obsdiags, only: obOper_destroy
+  use m_obsNode , only: obsNode
+  use m_obsLList, only: obsLList_headNode
+  use mpeu_util , only: perr, die
+  use mpeu_util , only: tell
   implicit none
 
 ! Declare passed variables
-  type(obsHeadBundle),dimension(:),intent(in   ) :: yobs
+  integer(i_kind),intent(in):: nobs_bins
 
 ! Declare local variables
+  character(len=*),parameter:: myname_=myname//"::stpjo_setup"
 
   integer(i_kind) ll,ib
+  class(obsNode),pointer:: headNode
+  class(obOper ),pointer:: it_obOper
 !************************************************************************************
-  call init_(size(yobs))
+  call init_(obOper_count,nobs_bins)
+
     stpcnt = 0
-    do ll = 1, nobs_type
-     do ib = 1,size(yobs)
+    do ll = 1, obOper_count       ! Not nobs_type anymore
 
-       select case(ll)
-       case(i_rad_ob_type)
-!         penalty, b, and c for radiances
-          if(associated(yobs(ib)%rad)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_rad_ob_type
-             ib_jo(stpcnt) = ib
-          end if
+      it_obOper => obOper_create(ll)
 
-       case(i_t_ob_type)
-!         penalty, b, and c for temperature
-          if(associated(yobs(ib)%t)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_t_ob_type
-             ib_jo(stpcnt) = ib
-          end if
+        if(.not.associated(it_obOper)) then
+          call perr(myname_,'unexpected obOper, associated(it_obOper) =',associated(it_obOper))
+          call perr(myname_,'                  obOper_typeInfo(ioper) =',obOper_typeInfo(ll))
+          call perr(myname_,'                                   ioper =',ll)
+          call perr(myname_,'                            obOper_count =',obOper_count)
+          call  die(myname_)
+        endif
 
-       case(i_w_ob_type)
-!         penalty, b, and c for winds
-          if(associated(yobs(ib)%w)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_w_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-       case(i_pw_ob_type)
-!         penalty, b, and c for precipitable water
-          if(associated(yobs(ib)%pw)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_pw_ob_type
-             ib_jo(stpcnt) = ib
-          end if
+        if(.not.associated(it_obOper%obsLL)) then
+          call perr(myname_,'unexpected component, associated(%obsLL) =',associated(it_obOper%obsLL))
+          call perr(myname_,'                  obOper_typeInfo(ioper) =',obOper_typeInfo(ll))
+          call perr(myname_,'                                   ioper =',ll)
+          call perr(myname_,'                            obOper_count =',obOper_count)
+          call  die(myname_)
+        endif
 
-       case(i_colvk_ob_type)
-!         penalty, b, and c for ozone
-          if(associated(yobs(ib)%colvk)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_colvk_ob_type
-             ib_jo(stpcnt) = ib
-          end if
+      do ib = 1,size(it_obOper%obsLL)   ! for all bins
+        headNode => obsLList_headNode(it_obOper%obsLL(ib))
+        if(.not.associated(headNode)) cycle     ! there is no observation node in this bin
 
-       case(i_pm2_5_ob_type)
-!         penalty, b, and c for pm2_5
-          if(associated(yobs(ib)%pm2_5)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_pm2_5_ob_type
-             ib_jo(stpcnt) = ib
-          end if
+        stpcnt = stpcnt +1
+        ll_jo(stpcnt) = ll
+        ib_jo(stpcnt) = ib
 
-       case(i_dw_ob_type)
-!         penalty, b, and c for wind lidar
-          if(associated(yobs(ib)%dw)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_dw_ob_type
-             ib_jo(stpcnt) = ib
-          end if
+      enddo     ! ib
+      headNode => null()
+      call obOper_destroy(it_obOper)
+    enddo       ! ll, i.e. ioper of 1:obOper_ubound
 
-       case(i_rw_ob_type)
-!         penalty, b, and c for radar
-          if(associated(yobs(ib)%rw)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_rw_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-
-       case(i_dbz_ob_type)
-!         penalty, b, and c for radar reflectivity
-          if(associated(yobs(ib)%dbz)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_dbz_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-
-       case(i_q_ob_type)
-!         penalty, b, and c for moisture
-          if(associated(yobs(ib)%q)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_q_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-
-       case(i_oz_ob_type)
-!         penalty, b, and c for ozone
-          if(associated(yobs(ib)%oz)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_oz_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-
-       case(i_o3l_ob_type)
-!         penalty, b, and c for ozone
-          if(associated(yobs(ib)%o3l)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_o3l_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-
-       case(i_gps_ob_type)
-!         penalty, b, and c for GPS local observation
-          if(associated(yobs(ib)%gps)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_gps_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-
-       case(i_sst_ob_type)
-!         penalty, b, and c for conventional sst
-          if(associated(yobs(ib)%sst)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_sst_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-
-       case(i_spd_ob_type)
-!         penalty, b, and c for wind speed
-          if(associated(yobs(ib)%spd)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_spd_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-
-       case(i_pcp_ob_type)
-!         penalty, b, and c for precipitation
-          if(associated(yobs(ib)%pcp)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_pcp_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-
-       case(i_ps_ob_type)
-!         penalty, b, and c for surface pressure
-          if(associated(yobs(ib)%ps)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_ps_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-
-       case(i_tcp_ob_type)
-!         penalty, b, and c for MSLP TC obs
-          if(associated(yobs(ib)%tcp)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_tcp_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-
-       case(i_gust_ob_type)
-!         penalty, b, and c for conventional gust
-          if(associated(yobs(ib)%gust)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_gust_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-       case(i_vis_ob_type)
-!         penalty, b, and c for conventional vis
-          if(associated(yobs(ib)%vis)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_vis_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-       case(i_pblh_ob_type)
-!         penalty, b, and c for conventional pblh
-          if(associated(yobs(ib)%pblh)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_pblh_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-
-       case(i_wspd10m_ob_type)
-!         penalty, b, and c for conventional wspd10m
-          if(associated(yobs(ib)%wspd10m)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_wspd10m_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-       case(i_td2m_ob_type)
-!         penalty, b, and c for conventional td2m
-          if(associated(yobs(ib)%td2m)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_td2m_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-       case(i_mxtm_ob_type)
-!         penalty, b, and c for conventional mxtm
-          if(associated(yobs(ib)%mxtm)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_mxtm_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-       case(i_mitm_ob_type)
-!         penalty, b, and c for conventional mitm
-          if(associated(yobs(ib)%mitm)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_mitm_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-       case(i_pmsl_ob_type)
-!         penalty, b, and c for conventional pmsl
-          if(associated(yobs(ib)%pmsl)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_pmsl_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-       case(i_howv_ob_type)
-!         penalty, b, and c for conventional howv
-          if(associated(yobs(ib)%howv)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_howv_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-       case(i_tcamt_ob_type)
-!         penalty, b, and c for conventional tcamt
-          if(associated(yobs(ib)%tcamt)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_tcamt_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-       case(i_lcbas_ob_type)
-!         penalty, b, and c for conventional lcbas
-          if(associated(yobs(ib)%lcbas)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_lcbas_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-       case(i_aero_ob_type)
-!         penalty, b, and c for aod
-          if(associated(yobs(ib)%aero)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_aero_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-       case(i_pm10_ob_type)
-!         penalty, b, and c for pm10
-          if(associated(yobs(ib)%pm10)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_pm10_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-       case(i_cldch_ob_type)
-!         penalty, b, and c for conventional cldch
-          if(associated(yobs(ib)%cldch)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_cldch_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-       case(i_uwnd10m_ob_type)
-!         penalty, b, and c for conventional uwnd10m
-          if(associated(yobs(ib)%uwnd10m)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_uwnd10m_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-       case(i_vwnd10m_ob_type)
-!         penalty, b, and c for conventional vwnd10m
-          if(associated(yobs(ib)%vwnd10m)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_vwnd10m_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-       case(i_swcp_ob_type)
-!         penalty, b, and c for solid-water content path
-          if(associated(yobs(ib)%swcp)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_swcp_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-       case(i_lwcp_ob_type)
-!         penalty, b, and c for liquid-water content path
-          if(associated(yobs(ib)%lwcp)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_lwcp_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-       case(i_light_ob_type)
-!         penalty, b, and c for lightning
-          if(associated(yobs(ib)%light)) then
-             stpcnt = stpcnt +1
-             ll_jo(stpcnt) = i_light_ob_type
-             ib_jo(stpcnt) = ib
-          end if
-       end select
-     end do     ! ib
-    end do      ! ll (i.e. i_ob_type)
-!   write(6,*) 'stpjo - stpcnt = ',stpcnt,size(yobs)*nobs_type
+    omptasks_configured_ = .true.
 
   return
 end subroutine stpjo_setup

@@ -1,4 +1,11 @@
-subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+module vis_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setupvis; end interface
+
+contains
+subroutine setupvis(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setupvis    compute rhs for conventional surface vis
@@ -20,13 +27,15 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
 !   2014-12-30  derber - Modify for possibility of not using obsdiag
 !   2015-10-01  guo   - full res obvsr: index to allow redistribution of obsdiags
-!   2016-05-06  yang - add closest_obs to select only one obs. among the multi-reports.
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
 !                       . removed (%dlat,%dlon) debris.
 !   2016-10-07  pondeca - if(.not.proceed) advance through input file first
 !                          before retuning to setuprhsall.f90
 !   2017-02-06  todling - add netcdf_diag capability; hidden as contained code
+!   2017-02-09  guo     - Remove m_alloc, n_alloc.
+!                       . Remove my_node with corrected typecast().
+!
 !   2018-03-01  yang -  use module nltransf to convert vis 
 !   2018-03-21  pondeca/yang - for code consistency across all analyzed variables,replace
 !                      the  original "dup"-based implementation of the option to
@@ -52,8 +61,14 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use kinds, only: r_kind,r_single,r_double,i_kind
 
   use guess_grids, only: hrdifsig,nfldsig
-  use m_obsdiags, only: vishead
-  use obsmod, only: rmiss_single,i_vis_ob_type,obsdiags,&
+  use m_obsdiagNode, only: obs_diag
+  use m_obsdiagNode, only: obs_diags
+  use m_obsdiagNode, only: obsdiagLList_nextNode
+  use m_obsdiagNode, only: obsdiagNode_set
+  use m_obsdiagNode, only: obsdiagNode_get
+  use m_obsdiagNode, only: obsdiagNode_assert
+
+  use obsmod, only: rmiss_single,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,bmiss
   use obsmod, only: netcdf_diag, binary_diag, dirname,ianldate
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
@@ -61,8 +76,9 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
   use m_obsNode, only: obsNode
   use m_visNode, only: visNode
-  use m_obsLList, only: obsLList_appendNode
-  use obsmod, only: obs_diag,luse_obsdiag
+  use m_visNode, only: visNode_appendto
+  use m_obsLList, only: obsLList
+  use obsmod, only: luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin,min_offset
   use oneobmod, only: magoberr,maginnov,oneobtest
   use gridmod, only: nsig
@@ -74,7 +90,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use qcmod, only: pvis,scale_cv
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
-  use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use m_dtime, only: dtime_setup, dtime_check
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use nltransf, only: nltransf_inverse
@@ -83,6 +99,9 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   implicit none
 
 ! Declare passed variables
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
+
   logical                                          ,intent(in   ) :: conv_diagsave
   integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
   real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
@@ -120,7 +139,6 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) iuse,ilate,ilone,istnelv,iobshgt,izz,iprvd,isprvd
   integer(i_kind) i,nchar,nreal,k,ii,ikxx,nn,ibin,ioff,ioff0,jj
   integer(i_kind) l,mm1
-  integer(i_kind) istat
   integer(i_kind) idomsfc
   
   logical,dimension(nobs):: luse,muse
@@ -135,12 +153,9 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) :: hr_offset
 
   logical:: in_curbin, in_anybin
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
-  class(obsNode),pointer:: my_node
   type(visNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
-
+  type(obs_diags),pointer:: my_diagLL
 
   equivalence(rstation_id,station_id)
   equivalence(r_prvstg,c_prvstg)
@@ -149,6 +164,9 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),allocatable,dimension(:,:,:) :: ges_ps
   real(r_kind),allocatable,dimension(:,:,:) :: ges_vis
   real(r_kind),allocatable,dimension(:,:,:) :: ges_z
+
+  type(obsLList),pointer,dimension(:):: vishead
+  vishead => obsLL(:)
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
@@ -160,8 +178,6 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! If require guess vars available, extract from bundle ...
   call init_vars_
 
-  n_alloc(:)=0
-  m_alloc(:)=0
   vis_errmax=20.0_r_kind
 !*********************************************************************************
 ! Read and reformat observations in work arrays.
@@ -260,61 +276,22 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
+     if (luse_obsdiag) my_diagLL => odiagLL(ibin)
+
 !    Link obs to diagnostics structure
      if (luse_obsdiag) then
-        if (.not.lobsdiag_allocated) then
-           if (.not.associated(obsdiags(i_vis_ob_type,ibin)%head)) then
-              obsdiags(i_vis_ob_type,ibin)%n_alloc = 0
-              allocate(obsdiags(i_vis_ob_type,ibin)%head,stat=istat)
-              if (istat/=0) then
-                 write(6,*)'setupvis: failure to allocate obsdiags',istat
-                 call stop2(295)
-              end if
-              obsdiags(i_vis_ob_type,ibin)%tail => obsdiags(i_vis_ob_type,ibin)%head
-           else
-              allocate(obsdiags(i_vis_ob_type,ibin)%tail%next,stat=istat)
-              if (istat/=0) then
-                 write(6,*)'setupvis: failure to allocate obsdiags',istat
-                 call stop2(295)
-              end if
-              obsdiags(i_vis_ob_type,ibin)%tail => obsdiags(i_vis_ob_type,ibin)%tail%next
-           end if
-           obsdiags(i_vis_ob_type,ibin)%n_alloc = obsdiags(i_vis_ob_type,ibin)%n_alloc +1
-    
-           allocate(obsdiags(i_vis_ob_type,ibin)%tail%muse(miter+1))
-           allocate(obsdiags(i_vis_ob_type,ibin)%tail%nldepart(miter+1))
-           allocate(obsdiags(i_vis_ob_type,ibin)%tail%tldepart(miter))
-           allocate(obsdiags(i_vis_ob_type,ibin)%tail%obssen(miter))
-           obsdiags(i_vis_ob_type,ibin)%tail%indxglb=ioid(i)
-           obsdiags(i_vis_ob_type,ibin)%tail%nchnperobs=-99999
-           obsdiags(i_vis_ob_type,ibin)%tail%luse=luse(i)
-           obsdiags(i_vis_ob_type,ibin)%tail%muse(:)=.false.
-           obsdiags(i_vis_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-           obsdiags(i_vis_ob_type,ibin)%tail%tldepart(:)=zero
-           obsdiags(i_vis_ob_type,ibin)%tail%wgtjo=-huge(zero)
-           obsdiags(i_vis_ob_type,ibin)%tail%obssen(:)=zero
-    
-           n_alloc(ibin) = n_alloc(ibin) +1
-           my_diag => obsdiags(i_vis_ob_type,ibin)%tail
-           my_diag%idv = is
-           my_diag%iob = ioid(i)
-           my_diag%ich = 1
-           my_diag%elat= data(ilate,i)
-           my_diag%elon= data(ilone,i)
-        else
-           if (.not.associated(obsdiags(i_vis_ob_type,ibin)%tail)) then
-              obsdiags(i_vis_ob_type,ibin)%tail => obsdiags(i_vis_ob_type,ibin)%head
-           else
-              obsdiags(i_vis_ob_type,ibin)%tail => obsdiags(i_vis_ob_type,ibin)%tail%next
-           end if
-           if (.not.associated(obsdiags(i_vis_ob_type,ibin)%tail)) then
-              call die(myname,'.not.associated(obsdiags(i_vis_ob_type,ibin)%tail)')
-           end if
-           if (obsdiags(i_vis_ob_type,ibin)%tail%indxglb/=ioid(i)) then
-              write(6,*)'setupvis: index error'
-              call stop2(297)
-           end if
-        endif
+        my_diag => obsdiagLList_nextNode(my_diagLL      ,&
+             create = .not.lobsdiag_allocated           ,&
+                idv = is                ,&
+                iob = ioid(i)           ,&
+                ich = 1                 ,&
+               elat = data(ilate,i)     ,&
+               elon = data(ilone,i)     ,&
+               luse = luse(i)           ,&
+              miter = miter             )
+
+        if(.not.associated(my_diag)) call die(myname, &
+                'obsdiagLList_nextNode(), create =', .not.lobsdiag_allocated)
      endif
 
      if(.not.in_curbin) cycle
@@ -350,7 +327,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end if
 
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
-     if (nobskeep>0.and.luse_obsdiag) muse(i)=obsdiags(i_vis_ob_type,ibin)%tail%muse(nobskeep)
+     if (nobskeep>0.and.luse_obsdiag) call obsdiagNode_get(my_diag, jiter=nobskeep, muse=muse(i))
 
 !    Compute penalty terms (linear & nonlinear qc).
      val      = error*ddiff
@@ -410,9 +387,8 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      endif
 
      if (luse_obsdiag) then
-        obsdiags(i_vis_ob_type,ibin)%tail%muse(jiter)=muse(i)
-        obsdiags(i_vis_ob_type,ibin)%tail%nldepart(jiter)=ddiff
-        obsdiags(i_vis_ob_type,ibin)%tail%wgtjo= (error*ratio_errors)**2
+        call obsdiagNode_set(my_diag, wgtjo=(error*ratio_errors)**2, &
+                jiter=jiter, muse=muse(i), nldepart=ddiff )
      endif
 
 !    If obs is "acceptable", load array with obs info for use
@@ -420,10 +396,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if (.not. last .and. muse(i)) then
 
         allocate(my_head)
-	m_alloc(ibin) = m_alloc(ibin) + 1
-        my_node => my_head        ! this is a workaround
-        call obsLList_appendNode(vishead(ibin),my_node)
-        my_node => null()
+        call visNode_appendto(my_head,vishead(ibin))
 
         my_head%idv = is
         my_head%iob = ioid(i)
@@ -442,17 +415,8 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         my_head%luse    = luse(i)
 
         if (luse_obsdiag) then
-           my_head%diags => obsdiags(i_vis_ob_type,ibin)%tail
- 
-           my_diag => my_head%diags
-           if(my_head%idv /= my_diag%idv .or. &
-              my_head%iob /= my_diag%iob ) then
-              call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
-                        (/is,ioid(i),ibin/))
-              call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
-              call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
-              call die(myname)
-           endif
+           call obsdiagNode_assert(my_diag, my_head%idv,my_head%iob,1,myname,'my_diag:my_head')
+           my_head%diags => my_diag
         endif   ! (luse_obsdiag)
 
         my_head => null()
@@ -482,9 +446,10 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if (err_input>tiny_r_kind) errinv_input = one/err_input
         if (err_adjst>tiny_r_kind) errinv_adjst = one/err_adjst
         if (err_final>tiny_r_kind) errinv_final = one/err_final
-        if (binary_diag) call contents_binary_diag_
-        if (netcdf_diag) call contents_netcdf_diag_
 
+        if(binary_diag) call contents_binary_diag_(my_diag)
+        if(netcdf_diag) call contents_netcdf_diag_(my_diag)
+ 
      end if
   end do
 
@@ -495,7 +460,6 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   if(conv_diagsave) then
      if(netcdf_diag) call nc_diag_write
      if(binary_diag .and. ii>0)then
-        call dtime_show(myname,'diagsave:vis',i_vis_ob_type)
         write(7)'vis',nchar,nreal,ii,mype,ioff0
         write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
         deallocate(cdiagbuf,rdiagbuf)
@@ -622,7 +586,8 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         call nc_diag_header("date_time",ianldate )
      endif
   end subroutine init_netcdf_diag_
-  subroutine contents_binary_diag_
+  subroutine contents_binary_diag_(odiag)
+  type(obs_diag),pointer,intent(in):: odiag
         cdiagbuf(ii)    = station_id         ! station id
  
         rdiagbuf(1,ii)  = ictype(ikx)        ! observation type
@@ -662,7 +627,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if (lobsdiagsave) then
            do jj=1,miter 
               ioff=ioff+1 
-              if (obsdiags(i_vis_ob_type,ibin)%tail%muse(jj)) then
+              if (odiag%muse(jj)) then
                  rdiagbuf(ioff,ii) = one
               else
                  rdiagbuf(ioff,ii) = -one
@@ -670,19 +635,20 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            enddo
            do jj=1,miter+1
               ioff=ioff+1
-              rdiagbuf(ioff,ii) = obsdiags(i_vis_ob_type,ibin)%tail%nldepart(jj)
+              rdiagbuf(ioff,ii) = odiag%nldepart(jj)
            enddo
            do jj=1,miter
               ioff=ioff+1
-              rdiagbuf(ioff,ii) = obsdiags(i_vis_ob_type,ibin)%tail%tldepart(jj)
+              rdiagbuf(ioff,ii) = odiag%tldepart(jj)
            enddo
            do jj=1,miter
               ioff=ioff+1
-              rdiagbuf(ioff,ii) = obsdiags(i_vis_ob_type,ibin)%tail%obssen(jj)
+              rdiagbuf(ioff,ii) = odiag%obssen(jj)
            enddo
         endif
   end subroutine contents_binary_diag_
-  subroutine contents_netcdf_diag_
+  subroutine contents_netcdf_diag_(odiag)
+  type(obs_diag),pointer,intent(in):: odiag
 ! Observation class
   character(7),parameter     :: obsclass = '    vis'
   real(r_kind),parameter::     missing = -9.99e9_r_kind
@@ -724,7 +690,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
  
            if (lobsdiagsave) then
               do jj=1,miter
-                 if (obsdiags(i_vis_ob_type,ibin)%tail%muse(jj)) then
+                 if (odiag%muse(jj)) then
                        obsdiag_iuse(jj) =  one
                  else
                        obsdiag_iuse(jj) = -one
@@ -732,9 +698,9 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
               enddo
    
               call nc_diag_data2d("ObsDiagSave_iuse",     obsdiag_iuse                             )
-              call nc_diag_data2d("ObsDiagSave_nldepart", obsdiags(i_vis_ob_type,ibin)%tail%nldepart )
-              call nc_diag_data2d("ObsDiagSave_tldepart", obsdiags(i_vis_ob_type,ibin)%tail%tldepart )
-              call nc_diag_data2d("ObsDiagSave_obssen",   obsdiags(i_vis_ob_type,ibin)%tail%obssen   )             
+              call nc_diag_data2d("ObsDiagSave_nldepart", odiag%nldepart )
+              call nc_diag_data2d("ObsDiagSave_tldepart", odiag%tldepart )
+              call nc_diag_data2d("ObsDiagSave_obssen",   odiag%obssen   )             
            endif
    
   end subroutine contents_netcdf_diag_
@@ -746,4 +712,4 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end subroutine final_vars_
 
 end subroutine setupvis
-
+end module vis_setup

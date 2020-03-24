@@ -27,6 +27,7 @@
 
 
 set(NETCDF_DIR $ENV{NETCDF})
+message("Enviroment NETCDF is ${NetCDF}")
 
 if (NETCDF_INCLUDES AND NETCDF_LIBRARIES)
   # Already in cache, be silent
@@ -34,6 +35,7 @@ if (NETCDF_INCLUDES AND NETCDF_LIBRARIES)
 endif (NETCDF_INCLUDES AND NETCDF_LIBRARIES)
 
 if(DEFINED ENV{NETCDF4}) 
+  message("Enviroment NETCDF4 is ${NetCDF4}")
   set(NETCDF_DIR $ENV{NETCDF4})
 elseif(DEFINED ENV{NETCDF_DIR})
   set(NETCDF_DIR $ENV{NETCDF_DIR})

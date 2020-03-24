@@ -13,6 +13,7 @@ subroutine ensctl2state(xhat,mval,eval)
 !   2013-11-22  kleist - add option for q perturbations
 !   2014-12-03  derber   - introduce parallel regions for optimization
 !   2017-05-12  Y. Wang and X. Wang - add w as state variable for rw DA, POC: xuguang.wang@ou.edu
+!   2019-07-11  Todling - check on w and dw on the fly
 !
 !   input argument list:
 !     xhat - Control variable
@@ -45,7 +46,6 @@ use mod_strong, only: tlnmc_option
 use cwhydromod, only: cw2hydro_tl
 use cwhydromod, only: cw2hydro_tl_hwrf
 use timermod, only: timer_ini,timer_fnl
-use control_vectors, only : w_exist
 use gridmod, only: nems_nmmb_regional
 implicit none
 
@@ -59,22 +59,24 @@ character(len=*),parameter::myname='ensctl2state'
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
 integer(i_kind) :: jj,ic,id,istatus,nclouds
 
-integer(i_kind), parameter :: ncvars = 6
+integer(i_kind), parameter :: ncvars = 8
 integer(i_kind) :: icps(ncvars)
 type(gsi_bundle):: wbundle_c ! work bundle
 character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed here
                                'sf ', 'vp ', 'ps ', 't  ',    &
-                               'q  ', 'cw '/)
+                               'q  ', 'cw ', 'w  ', 'dw '/)
 logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_cw
+logical :: lc_w,lc_dw
 real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_rh
 ! Declare required local state variables
-integer(i_kind), parameter :: nsvars = 11
+integer(i_kind), parameter :: nsvars = 13
 integer(i_kind) :: isps(nsvars)
 character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed here
              'u   ', 'v   ', 'prse', 'q   ', 'tsen', 'ql  ','qi  ', &
-             'qr  ', 'qs  ', 'qg  ', 'qh  ' /)
+             'qr  ', 'qs  ', 'qg  ', 'qh  ', 'w   ', 'dw  ' /)
 logical :: ls_u,ls_v,ls_prse,ls_q,ls_tsen,ls_ql,ls_qi
 logical :: ls_qr,ls_qs,ls_qg,ls_qh
+logical :: ls_w,ls_dw
 real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst
 real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_prse,sv_q,sv_tsen,sv_tv,sv_oz
 real(r_kind),pointer,dimension(:,:,:) :: sv_rank3,sv_w,sv_dw
@@ -101,6 +103,7 @@ endif
 call gsi_bundlegetpointer (xhat%step(1),mycvars,icps,istatus)
 lc_sf =icps(1)>0; lc_vp =icps(2)>0; lc_ps =icps(3)>0
 lc_t  =icps(4)>0; lc_rh =icps(5)>0; lc_cw =icps(6)>0
+lc_w  =icps(7)>0; lc_dw =icps(8)>0
 
 ! Since each internal vector of xhat has the same structure, pointers are
 ! the same independent of the subwindow jj
@@ -109,6 +112,7 @@ ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_prse=isps(3)>0
 ls_q  =isps(4)>0; ls_tsen=isps(5)>0; ls_ql =isps(6)>0; ls_qi =isps(7)>0
 ls_qr  =isps(8)>0; ls_qs  =isps(9)>0
 ls_qg  =isps(10)>0; ls_qh =isps(11)>0
+ls_w   =isps(12)>0; ls_dw =isps(13)>0
 
 ! Define what to do depending on what's in CV and SV
 lstrong_bk_vars  =lc_ps.and.lc_sf.and.lc_vp.and.lc_t
@@ -227,18 +231,18 @@ do jj=1,ntlevs_ens
 !  Get pointers to required state variables
    call gsi_bundlegetpointer (eval(jj),'oz'  ,sv_oz , istatus)
    call gsi_bundlegetpointer (eval(jj),'sst' ,sv_sst, istatus)
-   if(w_exist)then
+   if(ls_w)then
      call gsi_bundlegetpointer (eval(jj),'w' ,sv_w, istatus)
-     if(nems_nmmb_regional)then
+     if(ls_dw.and.nems_nmmb_regional)then
         call gsi_bundlegetpointer (eval(jj),'dw' ,sv_dw, istatus)
      end if
    end if
 !  Copy variables
    call gsi_bundlegetvar ( wbundle_c, 'oz' , sv_oz,  istatus )
    call gsi_bundlegetvar ( wbundle_c, 'sst', sv_sst, istatus )
-   if(w_exist)then
+   if(lc_w)then
       call gsi_bundlegetvar ( wbundle_c, 'w' , sv_w,  istatus )
-      if(nems_nmmb_regional)then
+      if(lc_dw.and.nems_nmmb_regional)then
          call gsi_bundlegetvar ( wbundle_c, 'dw' , sv_dw,  istatus )
       end if
    end if

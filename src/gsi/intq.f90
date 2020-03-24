@@ -32,6 +32,7 @@ use m_obsNode, only: obsNode
 use m_qNode, only: qNode
 use m_qNode, only: qNode_typecast
 use m_qNode, only: qNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -149,9 +150,11 @@ subroutine intq_(qhead,rval,sval)
      if(luse_obsdiag)then
         if (lsaveobsens) then
            grad = val*qptr%raterr2*qptr%err2
-           qptr%diags%obssen(jiter) = grad
+           !-- qptr%diags%obssen(jiter) = grad
+           call obsdiagNode_set(qptr%diags,jiter=jiter,obssen=grad)
         else
-           if (qptr%luse) qptr%diags%tldepart(jiter)=val
+           !-- if (qptr%luse) qptr%diags%tldepart(jiter)=val
+           if (qptr%luse) call obsdiagNode_set(qptr%diags,jiter=jiter,tldepart=val)
         endif
      endif
 

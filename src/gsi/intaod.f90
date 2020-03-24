@@ -73,6 +73,7 @@ contains
     use gsi_bundlemod, only: gsi_bundleputvar
     use gsi_chemguess_mod, only: gsi_chemguess_get
     use mpeu_util, only: getindex
+    use m_obsdiagNode, only: obsdiagNode_set
     implicit none
 
 ! Declare passed variables
@@ -153,9 +154,11 @@ contains
           if(luse_obsdiag)then
              if (lsaveobsens) then
                 val = val*aeroptr%err2(nn)*aeroptr%raterr2(nn)
-                aeroptr%diags(nn)%ptr%obssen(jiter) = val
+                !-- aeroptr%diags(nn)%ptr%obssen(jiter) = val
+                call obsdiagNode_set(aeroptr%diags(nn)%ptr,jiter=jiter,obssen=val)
              else
-                if (aeroptr%luse) aeroptr%diags(nn)%ptr%tldepart(jiter) = val
+                !-- if (aeroptr%luse) aeroptr%diags(nn)%ptr%tldepart(jiter) = val
+                if (aeroptr%luse) call obsdiagNode_set(aeroptr%diags(nn)%ptr,jiter=jiter,tldepart=val)
              endif
           endif
 

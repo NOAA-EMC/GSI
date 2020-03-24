@@ -33,6 +33,7 @@ use m_obsNode, only: obsNode
 use m_psNode , only: psNode
 use m_psNode , only: psNode_typecast
 use m_psNode , only: psNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -143,9 +144,11 @@ subroutine intps_(pshead,rval,sval)
      if(luse_obsdiag)then
         if (lsaveobsens) then
            grad = val*psptr%raterr2*psptr%err2
-           psptr%diags%obssen(jiter) = grad
+           !-- psptr%diags%obssen(jiter) = grad
+           call obsdiagNode_set(psptr%diags,jiter=jiter,obssen=grad)
         else
-           if (psptr%luse) psptr%diags%tldepart(jiter)=val
+           !-- if (psptr%luse) psptr%diags%tldepart(jiter)=val
+           if (psptr%luse) call obsdiagNode_set(psptr%diags,jiter=jiter,tldepart=val)
         endif
      endif
   

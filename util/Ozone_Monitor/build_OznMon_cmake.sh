@@ -17,21 +17,22 @@ mode=${1:-}
 top_level=${PWD}
 echo "top_level = ${top_level}"
 
-module purge
+#module purge
 
 if [[ -d /dcom && -d /hwrf ]] ; then
     . /usrx/local/Modules/3.2.10/init/sh
     target=wcoss
     . $MODULESHOME/init/sh
 elif [[ -d /cm ]] ; then
+#    MODULESHOME=/opt/modules/3.2.10.3
     . $MODULESHOME/init/sh
     target=wcoss_c
 elif [[ -d /ioddev_dell ]]; then
     . $MODULESHOME/init/sh
     target=wcoss_d
-elif [[ -d /scratch3 ]] ; then
+elif [[ -d /scratch1 ]] ; then
     . /apps/lmod/lmod/init/sh
-    target=theia
+    target=hera
 else
     echo "unknown target = $target"
     exit 9
@@ -54,7 +55,7 @@ fi
 #  Verify this is a supported machine
 #---------------------------------------------------           
 
-if [[ ${target} = "theia"    || ${target} = "wcoss" \
+if [[ ${target} = "hera"     || ${target} = "wcoss" \
    || ${target} = "wcoss_c"  || ${target} = "wcoss_d" ]]; then
    echo Building nwprod executables on ${target}
    echo
@@ -70,11 +71,12 @@ if [[ ${target} = "theia"    || ${target} = "wcoss" \
    elif [ $target = wcoss -o $target = gaea ]; then
       module purge
       module load $dir_modules/modulefile.ProdGSI.$target
-   elif [ $target = theia -o $target = cheyenne ]; then
+   elif [ $target = hera -o $target = cheyenne ]; then
       module purge
       source $dir_modules/modulefile.ProdGSI.$target
    elif [ $target = wcoss_c ]; then
       module purge
+      module use -a $dir_modules
       module load $dir_modules/modulefile.ProdGSI.$target
    fi
 

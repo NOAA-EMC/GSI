@@ -16,11 +16,12 @@ module stpozmod
 !   2010-05-13  todling - uniform interface across stp routines
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !   2016-08-26  guo     - added interfaces for individual obs-types (oz and o3l).
+!   2018-07-27  guo     - A single stpozmod module is splitted to stpozmod and stpo3lmod
+!                       - Removed unused generic interfaces
 !
 ! subroutines included:
 !   sub stpoz
 !   sub stpozlay_
-!   sub stpozlev_
 !
 ! attributes:
 !   language: f90
@@ -31,78 +32,13 @@ module stpozmod
 implicit none
 
 PRIVATE
-PUBLIC stpoz
-public:: stpozlay_      ! Non-generic interfaces are needed for now, to allow
-public:: stpozlev_      ! passing-by-reference involkations, such as
-                        !   call stpoz(..,pbcjo(1,i_oz_ob_type,ib),..)
-
 public:: stpozlay       ! Generic interfaces are disirable, where full TKR
-public:: stpozlev       ! matching are required if they are involked, such as
-                        !   call stpoz(..,pbcjo(:,i_oz_ob_type,ib),..)
-
-        interface stpozlay; module procedure stpozlay_; end interface
-        interface stpozlev; module procedure stpozlev_; end interface
+                        ! matching are required if they are involked, such as
+                        !   call stpozlay(..,pbcjo(:,i_oz_ob_type,ib),..)
 
 contains
 
-subroutine stpoz(ozhead,o3lhead,rval,sval,out,sges,nstep)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    stpoz       call components to calculate contrib. to
-!                            penalty and stepsize for ozone
-!   prgmmr: sienkiewicz     org: GMAO                 date: 2009-01-22
-!
-! abstract: The routine calls individual components that calculate 
-!           contribution to the penalty and step size from layer 
-!           and level ozone measurements
-!
-! program history log:
-!   2009-01-22  Sienkiewicz - incorporation of level ozone routine
-!   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
-!   2010-05-13  todling - udpate interface; gsi_bundle use
-!
-!   input argument list:
-!     ozhead
-!     o3lhead
-!     roz  - search direction for ozone
-!     soz  - input ozone correction field
-!     sges - step size estimates (nstep)
-!     nstep- number of stepsize estimates (==0 means use outer iteration value)
-!
-!   output argument list:
-!     out(1:nstep) - contribution of ozone data to penalty sges(1:nstep)
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$  
-  use kinds, only: r_kind,r_quad,i_kind
-  use m_obsNode, only: obsNode
-  use constants, only: zero_quad,zero
-  use gsi_bundlemod, only: gsi_bundle
-  implicit none
-
-! Declare passed variables
-
-  class(obsNode), pointer             ,intent(in   ) :: ozhead
-  class(obsNode), pointer             ,intent(in   ) :: o3lhead
-  integer(i_kind)                     ,intent(in   ) :: nstep
-  type(gsi_bundle)                    ,intent(in   ) :: sval
-  type(gsi_bundle)                    ,intent(in   ) :: rval
-  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
-  real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
-
-  out=zero_quad
-
-  if(associated(ozhead))call stpozlay_(ozhead, rval,sval,out,sges,nstep)
-  if(associated(o3lhead))call stpozlev_(o3lhead,rval,sval,out,sges,nstep)
-
-  return
-
-end subroutine stpoz
-
-subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
+subroutine stpozlay(ozhead,rval,sval,out,sges,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stpoz       compute contribution to penalty and
@@ -349,9 +285,43 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
 
 ! End of routine.
   return
-end subroutine stpozlay_
+end subroutine stpozlay
+end module stpozmod
 
-subroutine stpozlev_(o3lhead,rval,sval,out,sges,nstep)
+module stpo3lmod
+
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   stpo3lmod    module for stpoz and its tangent linear stpoz_tl
+!  prgmmr:
+!
+! abstract: module for stpoz and its tangent linear stpoz_tl
+!
+! program history log:
+!   2018-07-13  J. Guo  - splitted from original module stpozmod into this stpo3lmod
+!                         with subroutine stpozlev().  See stpozmod for more
+!                         about earlier history logs.
+!
+! subroutines included:
+!   sub stpoz
+!   sub stpozlev
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+implicit none
+
+PRIVATE
+public:: stpozlev       ! Generic interfaces are disirable, where full TKR
+                        ! matching are required if they are involked, such as
+                        !   call stpozlev(..,pbcjo(:,i_oz_ob_type,ib),..)
+
+contains
+
+subroutine stpozlev(o3lhead,rval,sval,out,sges,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stpozlev    compute contribution to penalty and
@@ -469,6 +439,6 @@ subroutine stpozlev_(o3lhead,rval,sval,out,sges,nstep)
 
 ! End of routine.
   return
-end subroutine stpozlev_
+end subroutine stpozlev
 
-end module stpozmod
+end module stpo3lmod

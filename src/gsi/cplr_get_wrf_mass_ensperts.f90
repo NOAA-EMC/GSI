@@ -1045,7 +1045,7 @@ contains
       use hybrid_ensemble_parameters, only: grd_ens,q_hyb_ens
       use mpimod, only: mpi_comm_world,ierror,mpi_rtype
       use netcdf_mod, only: nc_check
-      use control_vectors, only : w_exist, dbz_exist
+      use wrf_vars_mod, only : w_exist, dbz_exist
       use obsmod,only: if_model_dbz
       use setupdbz_lib,only: hx_dart
 

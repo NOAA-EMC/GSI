@@ -28,6 +28,7 @@ subroutine convert_fv3_regional
 
   use kinds, only: r_single,r_kind,i_kind
   use gsi_rfv3io_mod, only: gsi_rfv3io_get_grid_specs
+  use gsi_rfv3io_mod, only: bg_fv3regfilenameg 
 
   implicit none
   integer(i_kind) ierr
@@ -37,7 +38,8 @@ subroutine convert_fv3_regional
 !!!!!!!!!!! get grid specs !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   grid_spec='fv3_grid_spec'            ! horizontal grid information
   ak_bk='fv3_akbk'                     ! vertical grid information
-  call gsi_rfv3io_get_grid_specs(grid_spec,ak_bk,ierr)
+  call bg_fv3regfilenameg%init(grid_spec_input='fv3_grid_spec',ak_bk_input='fv3_akbk')
+  call gsi_rfv3io_get_grid_specs(bg_fv3regfilenameg,ierr)
   if(ierr/=0)then
      write(6,*)' problem in convert_fv3_regional - get_grid_specs   Status = ',ierr
      call stop2 (555)

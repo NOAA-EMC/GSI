@@ -18,9 +18,9 @@ elif [[ -d /cm ]] ; then
 elif [[ -d /ioddev_dell ]]; then
     . $MODULESHOME/init/sh
     target=wcoss_d
-elif [[ -d /scratch3 ]] ; then
+elif [[ -d /scratch1 ]] ; then
     . /apps/lmod/lmod/init/sh
-    target=theia
+    target=hera
 elif [[ -d /carddata ]] ; then
     . /opt/apps/lmod/3.1.9/init/sh
     target=s4
@@ -63,7 +63,7 @@ if [ $target = wcoss_d ]; then
 elif [ $target = wcoss -o $target = gaea ]; then
     module purge
     module load $dir_modules/modulefile.ProdGSI.$target
-elif [ $target = theia -o $target = cheyenne ]; then
+elif [ $target = hera -o $target = cheyenne ]; then
     module purge
     source $dir_modules/modulefile.ProdGSI.$target
 elif [ $target = wcoss_c ]; then

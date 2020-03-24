@@ -27,95 +27,49 @@ module m_obsNodeTypeManager
 
 ! module interface:
 
-  use obsmod, only: nobs_type
+  use m_psNode   , only:    psNode
+  use m_tNode    , only:     tNode
+  use m_wNode    , only:     wNode
+  use m_qNode    , only:     qNode
+  use m_spdNode  , only:   spdNode
+  use m_rwNode   , only:    rwNode
+  use m_dwNode   , only:    dwNode
+  use m_sstNode  , only:   sstNode
+  use m_pwNode   , only:    pwNode
+  use m_pcpNode  , only:   pcpNode
+  use m_ozNode   , only:    ozNode
+  use m_o3lNode  , only:   o3lNode
+  use m_gpsNode  , only:   gpsNode
+  use m_radNode  , only:   radNode
+  use m_tcpNode  , only:   tcpNode
+  use m_lagNode  , only:   lagNode
+  use m_colvkNode, only: colvkNode
+  use m_aeroNode , only:  aeroNode
+  use m_aerolNode, only: aerolNode
+  use m_pm2_5Node, only: pm2_5Node
+  use m_gustNode , only:  gustNode
+  use m_visNode  , only:   visNode
+  use m_pblhNode , only:  pblhNode
 
-  use obsmod, only: iobsType_ps    =>    i_ps_ob_type
-  use obsmod, only: iobsType_t     =>     i_t_ob_type
-  use obsmod, only: iobsType_w     =>     i_w_ob_type
-  use obsmod, only: iobsType_q     =>     i_q_ob_type
-  use obsmod, only: iobsType_spd   =>   i_spd_ob_type
-  use obsmod, only: iobsType_rw    =>    i_rw_ob_type
-  use obsmod, only: iobsType_dw    =>    i_dw_ob_type
-  use obsmod, only: iobsType_sst   =>   i_sst_ob_type
-  use obsmod, only: iobsType_pw    =>    i_pw_ob_type
-  use obsmod, only: iobsType_pcp   =>   i_pcp_ob_type
-  use obsmod, only: iobsType_oz    =>    i_oz_ob_type
-  use obsmod, only: iobsType_o3l   =>   i_o3l_ob_type
-  use obsmod, only: iobsType_gps   =>   i_gps_ob_type
-  use obsmod, only: iobsType_rad   =>   i_rad_ob_type
-  use obsmod, only: iobsType_tcp   =>   i_tcp_ob_type
-  use obsmod, only: iobsType_lag   =>   i_lag_ob_type
-  use obsmod, only: iobsType_colvk => i_colvk_ob_type
-  use obsmod, only: iobsType_aero  =>  i_aero_ob_type
-  use obsmod, only: iobsType_aerol => i_aerol_ob_type
-  use obsmod, only: iobsType_pm2_5 => i_pm2_5_ob_type
-  use obsmod, only: iobsType_gust  =>  i_gust_ob_type
-  use obsmod, only: iobsType_vis   =>   i_vis_ob_type
-  use obsmod, only: iobsType_pblh  =>  i_pblh_ob_type
-
-  use obsmod, only: iobsType_wspd10m => i_wspd10m_ob_type
-  use obsmod, only: iobsType_uwnd10m => i_uwnd10m_ob_type
-  use obsmod, only: iobsType_vwnd10m => i_vwnd10m_ob_type
-
-  use obsmod, only: iobsType_td2m  =>  i_td2m_ob_type
-  use obsmod, only: iobsType_mxtm  =>  i_mxtm_ob_type
-  use obsmod, only: iobsType_mitm  =>  i_mitm_ob_type
-  use obsmod, only: iobsType_pmsl  =>  i_pmsl_ob_type
-  use obsmod, only: iobsType_howv  =>  i_howv_ob_type
-  use obsmod, only: iobsType_tcamt => i_tcamt_ob_type
-  use obsmod, only: iobsType_lcbas => i_lcbas_ob_type
-
-  use obsmod, only: iobsType_pm10  =>  i_pm10_ob_type
-  use obsmod, only: iobsType_cldch => i_cldch_ob_type
-
-  use obsmod, only: iobsType_swcp  => i_swcp_ob_type
-  use obsmod, only: iobsType_lwcp  => i_lwcp_ob_type
-  use obsmod, only: iobsType_dbz   => i_dbz_ob_type
-
-  use obsmod, only: iobsType_light => i_light_ob_type
-
-  use m_psNode   , only:    psNode !  1
-  use m_tNode    , only:     tNode !  2
-  use m_wNode    , only:     wNode !  3
-  use m_qNode    , only:     qNode !  4
-  use m_spdNode  , only:   spdNode !  5
-  use m_rwNode   , only:    rwNode !  6
-  use m_dwNode   , only:    dwNode !  7
-  use m_sstNode  , only:   sstNode !  8
-  use m_pwNode   , only:    pwNode !  9
-  use m_pcpNode  , only:   pcpNode ! 10
-  use m_ozNode   , only:    ozNode ! 11
-  use m_o3lNode  , only:   o3lNode ! 12
-  use m_gpsNode  , only:   gpsNode ! 13
-  use m_radNode  , only:   radNode ! 14
-  use m_tcpNode  , only:   tcpNode ! 15
-  use m_lagNode  , only:   lagNode ! 16
-  use m_colvkNode, only: colvkNode ! 17
-  use m_aeroNode , only:  aeroNode ! 18
-  use m_aerolNode, only: aerolNode ! 19
-  use m_pm2_5Node, only: pm2_5Node ! 20
-  use m_gustNode , only:  gustNode ! 21
-  use m_visNode  , only:   visNode ! 22
-  use m_pblhNode , only:  pblhNode ! 23
-  use m_wspd10mNode, only: wspd10mNode ! 24
+  use m_wspd10mNode, only: wspd10mNode
   use m_uwnd10mNode, only: uwnd10mNode
   use m_vwnd10mNode, only: vwnd10mNode
 
-  use m_td2mNode , only:  td2mNode ! 25
-  use m_mxtmNode , only:  mxtmNode ! 26
-  use m_mitmNode , only:  mitmNode ! 27
-  use m_pmslNode , only:  pmslNode ! 28
-  use m_howvNode , only:  howvNode ! 29
-  use m_tcamtNode, only: tcamtNode ! 30
-  use m_lcbasNode, only: lcbasNode ! 31
-  use m_pm10Node , only:  pm10Node ! 32
-  use m_cldchNode, only: cldchNode ! 33
+  use m_td2mNode , only:  td2mNode
+  use m_mxtmNode , only:  mxtmNode
+  use m_mitmNode , only:  mitmNode
+  use m_pmslNode , only:  pmslNode
+  use m_howvNode , only:  howvNode
+  use m_tcamtNode, only: tcamtNode
+  use m_lcbasNode, only: lcbasNode
+  use m_pm10Node , only:  pm10Node
+  use m_cldchNode, only: cldchNode
 
-  use m_swcpNode , only:  swcpNode ! 34
-  use m_lwcpNode , only:  lwcpNode ! 35
+  use m_swcpNode , only:  swcpNode
+  use m_lwcpNode , only:  lwcpNode
 
-  use m_lightNode, only: lightNode ! 36
-  use m_dbzNode,   only:  dbzNode  ! 37
+  use m_lightNode, only: lightNode
+  use m_dbzNode  , only:   dbzNode
 
   use kinds, only: i_kind
   use m_obsNode, only: obsNode
@@ -123,7 +77,54 @@ module m_obsNodeTypeManager
 
   implicit none
   private	! except
-  public :: nobs_type
+
+  public:: obsNodeType_undef
+  public:: obsNodeType_lbound
+  public:: obsNodeType_ubound
+  public:: obsNodeType_count
+
+  public:: iobsNode_kind
+  public:: iobsNode_ps
+  public:: iobsNode_t
+  public:: iobsNode_w
+  public:: iobsNode_q
+  public:: iobsNode_spd
+  public:: iobsNode_rw
+  public:: iobsNode_dw
+  public:: iobsNode_sst
+  public:: iobsNode_pw
+  public:: iobsNode_pcp
+  public:: iobsNode_oz
+  public:: iobsNode_o3l
+  public:: iobsNode_gps
+  public:: iobsNode_rad
+  public:: iobsNode_tcp
+  public:: iobsNode_lag
+  public:: iobsNode_colvk
+  public:: iobsNode_aero
+  public:: iobsNode_aerol
+  public:: iobsNode_pm2_5
+  public:: iobsNode_gust
+  public:: iobsNode_vis
+  public:: iobsNode_pblh
+  public:: iobsNode_wspd10m
+  public:: iobsNode_uwnd10m
+  public:: iobsNode_vwnd10m
+  public:: iobsNode_td2m
+  public:: iobsNode_mxtm
+  public:: iobsNode_mitm
+  public:: iobsNode_pmsl
+  public:: iobsNode_howv
+  public:: iobsNode_tcamt
+  public:: iobsNode_lcbas
+  public:: iobsNode_pm10
+  public:: iobsNode_cldch
+  public:: iobsNode_swcp
+  public:: iobsNode_lwcp
+
+  public:: iobsNode_light
+  public:: iobsNode_dbz
+
   public :: obsNode_typeMold
   public :: obsNode_typeIndex
 
@@ -136,48 +137,48 @@ module m_obsNodeTypeManager
                 vname2index_
         end interface
 
-  type(psNode   ), target, save::    ps_mold !  1
-  type(tNode    ), target, save::     t_mold !  2
-  type(wNode    ), target, save::     w_mold !  3
-  type(qNode    ), target, save::     q_mold !  4
-  type(spdNode  ), target, save::   spd_mold !  5
-  type(rwNode   ), target, save::    rw_mold !  6
-  type(dwNode   ), target, save::    dw_mold !  7
-  type(sstNode  ), target, save::   sst_mold !  8
-  type(pwNode   ), target, save::    pw_mold !  9
-  type(pcpNode  ), target, save::   pcp_mold ! 10
-  type(ozNode   ), target, save::    oz_mold ! 11
-  type(o3lNode  ), target, save::   o3l_mold ! 12
-  type(gpsNode  ), target, save::   gps_mold ! 13
-  type(radNode  ), target, save::   rad_mold ! 14
-  type(tcpNode  ), target, save::   tcp_mold ! 15
-  type(lagNode  ), target, save::   lag_mold ! 16
-  type(colvkNode), target, save:: colvk_mold ! 17
-  type(aeroNode ), target, save::  aero_mold ! 18
-  type(aerolNode), target, save:: aerol_mold ! 19
-  type(pm2_5Node), target, save:: pm2_5_mold ! 20
-  type(gustNode ), target, save::  gust_mold ! 21
-  type(visNode  ), target, save::   vis_mold ! 22
-  type(pblhNode ), target, save::  pblh_mold ! 23
+  type(psNode   ), target, save::    ps_mold
+  type(tNode    ), target, save::     t_mold
+  type(wNode    ), target, save::     w_mold
+  type(qNode    ), target, save::     q_mold
+  type(spdNode  ), target, save::   spd_mold
+  type(rwNode   ), target, save::    rw_mold
+  type(dwNode   ), target, save::    dw_mold
+  type(sstNode  ), target, save::   sst_mold
+  type(pwNode   ), target, save::    pw_mold
+  type(pcpNode  ), target, save::   pcp_mold
+  type(ozNode   ), target, save::    oz_mold
+  type(o3lNode  ), target, save::   o3l_mold
+  type(gpsNode  ), target, save::   gps_mold
+  type(radNode  ), target, save::   rad_mold
+  type(tcpNode  ), target, save::   tcp_mold
+  type(lagNode  ), target, save::   lag_mold
+  type(colvkNode), target, save:: colvk_mold
+  type(aeroNode ), target, save::  aero_mold
+  type(aerolNode), target, save:: aerol_mold
+  type(pm2_5Node), target, save:: pm2_5_mold
+  type(gustNode ), target, save::  gust_mold
+  type(visNode  ), target, save::   vis_mold
+  type(pblhNode ), target, save::  pblh_mold
 
-  type(wspd10mNode), target, save:: wspd10m_mold ! 24
+  type(wspd10mNode), target, save:: wspd10m_mold
   type(uwnd10mNode), target, save:: uwnd10m_mold
   type(vwnd10mNode), target, save:: vwnd10m_mold
 
-  type(   td2mNode), target, save::    td2m_mold ! 25
-  type(   mxtmNode), target, save::    mxtm_mold ! 26
-  type(   mitmNode), target, save::    mitm_mold ! 27
-  type(   pmslNode), target, save::    pmsl_mold ! 28
-  type(   howvNode), target, save::    howv_mold ! 29
-  type(  tcamtNode), target, save::   tcamt_mold ! 30
-  type(  lcbasNode), target, save::   lcbas_mold ! 31
-  type(   pm10Node), target, save::    pm10_mold ! 32
-  type(  cldchNode), target, save::   cldch_mold ! 33
+  type(   td2mNode), target, save::    td2m_mold
+  type(   mxtmNode), target, save::    mxtm_mold
+  type(   mitmNode), target, save::    mitm_mold
+  type(   pmslNode), target, save::    pmsl_mold
+  type(   howvNode), target, save::    howv_mold
+  type(  tcamtNode), target, save::   tcamt_mold
+  type(  lcbasNode), target, save::   lcbas_mold
+  type(   pm10Node), target, save::    pm10_mold
+  type(  cldchNode), target, save::   cldch_mold
 
-  type(   swcpNode), target, save::    swcp_mold ! 34
-  type(   lwcpNode), target, save::    lwcp_mold ! 35
-  type(  lightNode), target, save::   light_mold ! 36
-  type(  dbzNode),   target, save::   dbz_mold   ! 37
+  type(   swcpNode), target, save::    swcp_mold
+  type(   lwcpNode), target, save::    lwcp_mold
+  type(  lightNode), target, save::   light_mold
+  type(  dbzNode),   target, save::     dbz_mold
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   character(len=*),parameter :: myname='m_obsNodeTypeManager'
 
@@ -202,6 +203,59 @@ module m_obsNodeTypeManager
 !   enddo
 !
 
+  enum, bind(C)
+    enumerator:: iobsNode_zero_   = 0
+
+    enumerator:: iobsNode_ps
+    enumerator:: iobsNode_t
+    enumerator:: iobsNode_w
+    enumerator:: iobsNode_q
+    enumerator:: iobsNode_spd
+    enumerator:: iobsNode_rw
+    enumerator:: iobsNode_dw
+    enumerator:: iobsNode_sst
+    enumerator:: iobsNode_pw
+    enumerator:: iobsNode_pcp
+    enumerator:: iobsNode_oz
+    enumerator:: iobsNode_o3l
+    enumerator:: iobsNode_gps
+    enumerator:: iobsNode_rad
+    enumerator:: iobsNode_tcp
+    enumerator:: iobsNode_lag
+    enumerator:: iobsNode_colvk
+    enumerator:: iobsNode_aero
+    enumerator:: iobsNode_aerol
+    enumerator:: iobsNode_pm2_5
+    enumerator:: iobsNode_gust
+    enumerator:: iobsNode_vis
+    enumerator:: iobsNode_pblh
+    enumerator:: iobsNode_wspd10m
+    enumerator:: iobsNode_uwnd10m
+    enumerator:: iobsNode_vwnd10m
+    enumerator:: iobsNode_td2m
+    enumerator:: iobsNode_mxtm
+    enumerator:: iobsNode_mitm
+    enumerator:: iobsNode_pmsl
+    enumerator:: iobsNode_howv
+    enumerator:: iobsNode_tcamt
+    enumerator:: iobsNode_lcbas
+    enumerator:: iobsNode_pm10
+    enumerator:: iobsNode_cldch
+    enumerator:: iobsNode_swcp
+    enumerator:: iobsNode_lwcp
+    enumerator:: iobsNode_light
+    enumerator:: iobsNode_dbz
+
+    enumerator:: iobsNode_extra_
+  end enum
+  
+  integer(i_kind),parameter:: iobsNode_kind = kind(iobsNode_zero_)
+
+  integer(iobsNode_kind),parameter:: obsNodeType_undef  = -1_iobsNode_kind
+  integer(iobsNode_kind),parameter:: obsNodeType_lbound = iobsNode_zero_ +1
+  integer(iobsNode_kind),parameter:: obsNodeType_ubound = iobsNode_extra_-1
+  integer(iobsNode_kind),parameter:: obsNodeType_count  = obsNodeType_ubound-obsNodeType_lbound+1
+
 contains
 function vname2index_(vname) result(index_)
   use mpeu_util, only: lowercase
@@ -213,53 +267,53 @@ function vname2index_(vname) result(index_)
 
   index_=0      ! a default return value, if the given name is unknown.
   select case(vname_)
-  case("ps"   ,   "[psnode]"); index_ = iobsType_ps
-  case("t"    ,    "[tnode]"); index_ = iobsType_t
-  case("w"    ,    "[wnode]"); index_ = iobsType_w
-  case("q"    ,    "[qnode]"); index_ = iobsType_q
-  case("spd"  ,  "[spdnode]"); index_ = iobsType_spd
-  case("rw"   ,   "[rwnode]"); index_ = iobsType_rw
-  case("dw"   ,   "[dwnode]"); index_ = iobsType_dw
-  case("sst"  ,  "[sstnode]"); index_ = iobsType_sst
-  case("pw"   ,   "[pwnode]"); index_ = iobsType_pw
-  case("pcp"  ,  "[pcpnode]"); index_ = iobsType_pcp
-  case("oz"   ,   "[oznode]"); index_ = iobsType_oz
-  case("o3l"  ,  "[o3lnode]"); index_ = iobsType_o3l
-  case("gps"  ,  "[gpsnode]"); index_ = iobsType_gps
-  case("rad"  ,  "[radnode]"); index_ = iobsType_rad
-  case("tcp"  ,  "[tcpnode]"); index_ = iobsType_tcp
-  case("lag"  ,  "[lagnode]"); index_ = iobsType_lag
-  case("colvk","[colvknode]"); index_ = iobsType_colvk
-  case("aero" , "[aeronode]"); index_ = iobsType_aero
-  case("aerol","[aerolnode]"); index_ = iobsType_aerol
-  case("pm2_5","[pm2_5node]"); index_ = iobsType_pm2_5
-  case("gust" , "[gustnode]"); index_ = iobsType_gust
-  case("vis"  ,  "[visnode]"); index_ = iobsType_vis
-  case("pblh" , "[pblhnode]"); index_ = iobsType_pblh
+  case("ps"   ,   "[psnode]"); index_ = iobsNode_ps
+  case("t"    ,    "[tnode]"); index_ = iobsNode_t
+  case("w"    ,    "[wnode]"); index_ = iobsNode_w
+  case("q"    ,    "[qnode]"); index_ = iobsNode_q
+  case("spd"  ,  "[spdnode]"); index_ = iobsNode_spd
+  case("rw"   ,   "[rwnode]"); index_ = iobsNode_rw
+  case("dw"   ,   "[dwnode]"); index_ = iobsNode_dw
+  case("sst"  ,  "[sstnode]"); index_ = iobsNode_sst
+  case("pw"   ,   "[pwnode]"); index_ = iobsNode_pw
+  case("pcp"  ,  "[pcpnode]"); index_ = iobsNode_pcp
+  case("oz"   ,   "[oznode]"); index_ = iobsNode_oz
+  case("o3l"  ,  "[o3lnode]"); index_ = iobsNode_o3l
+  case("gps"  ,  "[gpsnode]"); index_ = iobsNode_gps
+  case("rad"  ,  "[radnode]"); index_ = iobsNode_rad
+  case("tcp"  ,  "[tcpnode]"); index_ = iobsNode_tcp
+  case("lag"  ,  "[lagnode]"); index_ = iobsNode_lag
+  case("colvk","[colvknode]"); index_ = iobsNode_colvk
+  case("aero" , "[aeronode]"); index_ = iobsNode_aero
+  case("aerol","[aerolnode]"); index_ = iobsNode_aerol
+  case("pm2_5","[pm2_5node]"); index_ = iobsNode_pm2_5
+  case("gust" , "[gustnode]"); index_ = iobsNode_gust
+  case("vis"  ,  "[visnode]"); index_ = iobsNode_vis
+  case("pblh" , "[pblhnode]"); index_ = iobsNode_pblh
 
   case("wspd10m", &
-             "[wspd10mnode]"); index_ = iobsType_wspd10m
+             "[wspd10mnode]"); index_ = iobsNode_wspd10m
   case("uwnd10m", &
-             "[uwnd10mnode]"); index_ = iobsType_uwnd10m
+             "[uwnd10mnode]"); index_ = iobsNode_uwnd10m
   case("vwnd10m", &
-             "[vwnd10mnode]"); index_ = iobsType_vwnd10m
+             "[vwnd10mnode]"); index_ = iobsNode_vwnd10m
 
-  case("td2m" , "[td2mnode]"); index_ = iobsType_td2m
-  case("mxtm" , "[mxtmnode]"); index_ = iobsType_mxtm
-  case("mitm" , "[mitmnode]"); index_ = iobsType_mitm
-  case("pmsl" , "[pmslnode]"); index_ = iobsType_pmsl
-  case("howv" , "[howvnode]"); index_ = iobsType_howv
-  case("tcamt","[tcamtnode]"); index_ = iobsType_tcamt
-  case("lcbas","[lcbasnode]"); index_ = iobsType_lcbas
+  case("td2m" , "[td2mnode]"); index_ = iobsNode_td2m
+  case("mxtm" , "[mxtmnode]"); index_ = iobsNode_mxtm
+  case("mitm" , "[mitmnode]"); index_ = iobsNode_mitm
+  case("pmsl" , "[pmslnode]"); index_ = iobsNode_pmsl
+  case("howv" , "[howvnode]"); index_ = iobsNode_howv
+  case("tcamt","[tcamtnode]"); index_ = iobsNode_tcamt
+  case("lcbas","[lcbasnode]"); index_ = iobsNode_lcbas
 
-  case("pm10" , "[pm10node]"); index_ = iobsType_pm10
-  case("cldch","[cldchnode]"); index_ = iobsType_cldch
+  case("pm10" , "[pm10node]"); index_ = iobsNode_pm10
+  case("cldch","[cldchnode]"); index_ = iobsNode_cldch
 
-  case("swcp" , "[swcpnode]"); index_ = iobsType_swcp
-  case("lwcp" , "[lwcpnode]"); index_ = iobsType_lwcp
+  case("swcp" , "[swcpnode]"); index_ = iobsNode_swcp
+  case("lwcp" , "[lwcpnode]"); index_ = iobsNode_lwcp
 
-  case("light","[lightnode]"); index_ = iobsType_light
-  case("dbz","[dbznode]");     index_ = iobsType_dbz
+  case("light","[lightnode]"); index_ = iobsNode_light
+  case("dbz"  ,  "[dbznode]"); index_ = iobsNode_dbz
 
   end select
 end function vname2index_
@@ -279,50 +333,50 @@ function vmold2index_select_(mold) result(index_)
 
   index_=0
   select type(mold)
-  type is(   psNode); index_ = iobsType_ps
-  type is(    tNode); index_ = iobsType_t
-  type is(    wNode); index_ = iobstype_w
-  type is(    qNode); index_ = iobstype_q
-  type is(  spdNode); index_ = iobstype_spd
-  type is(   rwNode); index_ = iobstype_rw
-  type is(   dwNode); index_ = iobstype_dw
-  type is(  sstNode); index_ = iobstype_sst
-  type is(   pwNode); index_ = iobstype_pw
-  type is(  pcpNode); index_ = iobstype_pcp
-  type is(   ozNode); index_ = iobstype_oz
-  type is(  o3lNode); index_ = iobstype_o3l
-  type is(  gpsNode); index_ = iobstype_gps
-  type is(  radNode); index_ = iobstype_rad
-  type is(  tcpNode); index_ = iobstype_tcp
-  type is(  lagNode); index_ = iobstype_lag
-  type is(colvkNode); index_ = iobstype_colvk
-  type is( aeroNode); index_ = iobstype_aero
-  type is(aerolNode); index_ = iobstype_aerol
-  type is(pm2_5Node); index_ = iobstype_pm2_5
-  type is( gustNode); index_ = iobstype_gust
-  type is(  visNode); index_ = iobstype_vis
-  type is( pblhNode); index_ = iobstype_pblh
+  type is(   psNode); index_ = iobsNode_ps
+  type is(    tNode); index_ = iobsNode_t
+  type is(    wNode); index_ = iobsNode_w
+  type is(    qNode); index_ = iobsNode_q
+  type is(  spdNode); index_ = iobsNode_spd
+  type is(   rwNode); index_ = iobsNode_rw
+  type is(   dwNode); index_ = iobsNode_dw
+  type is(  sstNode); index_ = iobsNode_sst
+  type is(   pwNode); index_ = iobsNode_pw
+  type is(  pcpNode); index_ = iobsNode_pcp
+  type is(   ozNode); index_ = iobsNode_oz
+  type is(  o3lNode); index_ = iobsNode_o3l
+  type is(  gpsNode); index_ = iobsNode_gps
+  type is(  radNode); index_ = iobsNode_rad
+  type is(  tcpNode); index_ = iobsNode_tcp
+  type is(  lagNode); index_ = iobsNode_lag
+  type is(colvkNode); index_ = iobsNode_colvk
+  type is( aeroNode); index_ = iobsNode_aero
+  type is(aerolNode); index_ = iobsNode_aerol
+  type is(pm2_5Node); index_ = iobsNode_pm2_5
+  type is( gustNode); index_ = iobsNode_gust
+  type is(  visNode); index_ = iobsNode_vis
+  type is( pblhNode); index_ = iobsNode_pblh
 
-  type is(wspd10mNode); index_ = iobsType_wspd10m
-  type is(uwnd10mNode); index_ = iobsType_uwnd10m
-  type is(vwnd10mNode); index_ = iobsType_vwnd10m
+  type is(wspd10mNode); index_ = iobsNode_wspd10m
+  type is(uwnd10mNode); index_ = iobsNode_uwnd10m
+  type is(vwnd10mNode); index_ = iobsNode_vwnd10m
 
-  type is( td2mNode); index_ = iobsType_td2m
-  type is( mxtmNode); index_ = iobsType_mxtm
-  type is( mitmNode); index_ = iobsType_mitm
-  type is( pmslNode); index_ = iobsType_pmsl
-  type is( howvNode); index_ = iobsType_howv
-  type is(tcamtNode); index_ = iobsType_tcamt
-  type is(lcbasNode); index_ = iobsType_lcbas
+  type is( td2mNode); index_ = iobsNode_td2m
+  type is( mxtmNode); index_ = iobsNode_mxtm
+  type is( mitmNode); index_ = iobsNode_mitm
+  type is( pmslNode); index_ = iobsNode_pmsl
+  type is( howvNode); index_ = iobsNode_howv
+  type is(tcamtNode); index_ = iobsNode_tcamt
+  type is(lcbasNode); index_ = iobsNode_lcbas
 
-  type is( pm10Node); index_ = iobsType_pm10
-  type is(cldchNode); index_ = iobsType_cldch
+  type is( pm10Node); index_ = iobsNode_pm10
+  type is(cldchNode); index_ = iobsNode_cldch
 
-  type is( swcpNode); index_ = iobsType_swcp
-  type is( lwcpNode); index_ = iobsType_lwcp
+  type is( swcpNode); index_ = iobsNode_swcp
+  type is( lwcpNode); index_ = iobsNode_lwcp
 
-  type is(lightNode); index_ = iobsType_light
-  type is(dbzNode); index_ = iobsType_dbz
+  type is(lightNode); index_ = iobsNode_light
+  type is(  dbzNode); index_ = iobsNode_dbz
 
   end select
 end function vmold2index_select_
@@ -336,50 +390,50 @@ function index2vmold_(i_obType) result(obsmold_)
 
   obsmold_ => null()
   select case(i_obType)
-  case(iobsType_ps   ); obsmold_ =>    ps_mold
-  case(iobsType_t    ); obsmold_ =>     t_mold
-  case(iobsType_w    ); obsmold_ =>     w_mold
-  case(iobsType_q    ); obsmold_ =>     q_mold
-  case(iobsType_spd  ); obsmold_ =>   spd_mold
-  case(iobsType_rw   ); obsmold_ =>    rw_mold
-  case(iobsType_dw   ); obsmold_ =>    dw_mold
-  case(iobsType_sst  ); obsmold_ =>   sst_mold
-  case(iobsType_pw   ); obsmold_ =>    pw_mold
-  case(iobsType_pcp  ); obsmold_ =>   pcp_mold
-  case(iobsType_oz   ); obsmold_ =>    oz_mold
-  case(iobsType_o3l  ); obsmold_ =>   o3l_mold
-  case(iobsType_gps  ); obsmold_ =>   gps_mold
-  case(iobsType_rad  ); obsmold_ =>   rad_mold
-  case(iobsType_tcp  ); obsmold_ =>   tcp_mold
-  case(iobsType_lag  ); obsmold_ =>   lag_mold
-  case(iobsType_colvk); obsmold_ => colvk_mold
-  case(iobsType_aero ); obsmold_ =>  aero_mold
-  case(iobsType_aerol); obsmold_ => aerol_mold
-  case(iobsType_pm2_5); obsmold_ => pm2_5_mold
-  case(iobsType_gust ); obsmold_ =>  gust_mold
-  case(iobsType_vis  ); obsmold_ =>   vis_mold
-  case(iobsType_pblh ); obsmold_ =>  pblh_mold
+  case(iobsNode_ps   ); obsmold_ =>    ps_mold
+  case(iobsNode_t    ); obsmold_ =>     t_mold
+  case(iobsNode_w    ); obsmold_ =>     w_mold
+  case(iobsNode_q    ); obsmold_ =>     q_mold
+  case(iobsNode_spd  ); obsmold_ =>   spd_mold
+  case(iobsNode_rw   ); obsmold_ =>    rw_mold
+  case(iobsNode_dw   ); obsmold_ =>    dw_mold
+  case(iobsNode_sst  ); obsmold_ =>   sst_mold
+  case(iobsNode_pw   ); obsmold_ =>    pw_mold
+  case(iobsNode_pcp  ); obsmold_ =>   pcp_mold
+  case(iobsNode_oz   ); obsmold_ =>    oz_mold
+  case(iobsNode_o3l  ); obsmold_ =>   o3l_mold
+  case(iobsNode_gps  ); obsmold_ =>   gps_mold
+  case(iobsNode_rad  ); obsmold_ =>   rad_mold
+  case(iobsNode_tcp  ); obsmold_ =>   tcp_mold
+  case(iobsNode_lag  ); obsmold_ =>   lag_mold
+  case(iobsNode_colvk); obsmold_ => colvk_mold
+  case(iobsNode_aero ); obsmold_ =>  aero_mold
+  case(iobsNode_aerol); obsmold_ => aerol_mold
+  case(iobsNode_pm2_5); obsmold_ => pm2_5_mold
+  case(iobsNode_gust ); obsmold_ =>  gust_mold
+  case(iobsNode_vis  ); obsmold_ =>   vis_mold
+  case(iobsNode_pblh ); obsmold_ =>  pblh_mold
 
-  case(iobsType_wspd10m); obsmold_ => wspd10m_mold
-  case(iobsType_uwnd10m); obsmold_ => uwnd10m_mold
-  case(iobsType_vwnd10m); obsmold_ => vwnd10m_mold
+  case(iobsNode_wspd10m); obsmold_ => wspd10m_mold
+  case(iobsNode_uwnd10m); obsmold_ => uwnd10m_mold
+  case(iobsNode_vwnd10m); obsmold_ => vwnd10m_mold
 
-  case(iobsType_td2m ); obsmold_ =>    td2m_mold
-  case(iobsType_mxtm ); obsmold_ =>    mxtm_mold
-  case(iobsType_mitm ); obsmold_ =>    mitm_mold
-  case(iobsType_pmsl ); obsmold_ =>    pmsl_mold
-  case(iobsType_howv ); obsmold_ =>    howv_mold
-  case(iobsType_tcamt); obsmold_ =>   tcamt_mold
-  case(iobsType_lcbas); obsmold_ =>   lcbas_mold
+  case(iobsNode_td2m ); obsmold_ =>    td2m_mold
+  case(iobsNode_mxtm ); obsmold_ =>    mxtm_mold
+  case(iobsNode_mitm ); obsmold_ =>    mitm_mold
+  case(iobsNode_pmsl ); obsmold_ =>    pmsl_mold
+  case(iobsNode_howv ); obsmold_ =>    howv_mold
+  case(iobsNode_tcamt); obsmold_ =>   tcamt_mold
+  case(iobsNode_lcbas); obsmold_ =>   lcbas_mold
 
-  case(iobsType_pm10 ); obsmold_ =>    pm10_mold
-  case(iobsType_cldch); obsmold_ =>   cldch_mold
+  case(iobsNode_pm10 ); obsmold_ =>    pm10_mold
+  case(iobsNode_cldch); obsmold_ =>   cldch_mold
 
-  case(iobsType_swcp ); obsmold_ =>    swcp_mold
-  case(iobsType_lwcp ); obsmold_ =>    lwcp_mold
+  case(iobsNode_swcp ); obsmold_ =>    swcp_mold
+  case(iobsNode_lwcp ); obsmold_ =>    lwcp_mold
 
-  case(iobsType_light); obsmold_ =>   light_mold
-  case(iobsType_dbz);   obsmold_ =>     dbz_mold
+  case(iobsNode_light); obsmold_ =>   light_mold
+  case(iobsNode_dbz);   obsmold_ =>     dbz_mold
 
   end select
 end function index2vmold_

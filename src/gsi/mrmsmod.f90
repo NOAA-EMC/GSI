@@ -1,8 +1,12 @@
 module mrmsmod 
+implicit none
+private
 public l_mrms_run
 public l_mrms_sparse_netcdf 
 public mrms_listfile
 public l_new_cldvar,l_ens_dbz_clip 
+public load_mrms_data_info
+
 logical l_mrms_run
 logical l_mrms_sparse_netcdf
 logical,save::l_ens_dbz_clip=.false.

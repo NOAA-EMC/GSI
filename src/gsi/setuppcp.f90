@@ -1,3 +1,10 @@
+module pcp_setup
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setuppcp; end interface
+
+contains
 !-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
 !-------------------------------------------------------------------------
@@ -7,7 +14,7 @@
 !
 ! !INTERFACE:
 !
-subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
+subroutine setuppcp(obsLL,odiagLL,lunin,mype,aivals,nele,nobs,&
      obstype,isis,is,pcp_diagsave,init_pass)
 
 ! !USES:
@@ -51,14 +58,21 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
        nc_diag_write, nc_diag_data2d
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
 
-  use m_obsdiags, only: pcphead
+  use m_obsdiagNode, only : obs_diag
+  use m_obsdiagNode, only : obs_diags
+  use m_obsdiagNode, only : obsdiagLList_nextNode
+  use m_obsdiagNode, only : obsdiagNode_set
+  use m_obsdiagNode, only : obsdiagNode_get
+  use m_obsdiagNode, only : obsdiagNode_assert
+
   use obsmod, only: time_offset
-  use obsmod, only: i_pcp_ob_type,obsdiags,lobsdiagsave,ianldate
+  use obsmod, only: lobsdiagsave,ianldate
   use obsmod, only: mype_diaghdr,nobskeep,lobsdiag_allocated,dirname
   use m_obsNode, only: obsNode
   use m_pcpNode, only: pcpNode
-  use m_obsLList, only: obsLList_appendNode
-  use obsmod, only: obs_diag,luse_obsdiag
+  use m_pcpNode, only: pcpNode_appendto
+  use m_obsLList,only: obsLList
+  use obsmod, only: luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar,l4densvar
 
   use gsi_metguess_mod, only: gsi_metguess_bundle
@@ -69,13 +83,15 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
 
   use jfunc, only: jiter,miter
 
-  use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use m_dtime, only: dtime_setup, dtime_check
 
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   implicit none    ! Turn off implicit typing
 
 ! !INPUT PARAMETERS:
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
 
   integer(i_kind)                , intent(in   ) :: lunin          ! unit from which to read 
                                                                    !   precpitation observations
@@ -164,6 +180,8 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(n)
 !                       . removed (%dlat,%dlon) debris.
+!   2017-02-09  guo     - Remove m_alloc, n_alloc.
+!                       . Remove my_node with corrected typecast().
 !
 !
 ! !REMARKS:  This routine is NOT correctly set up if running
@@ -193,6 +211,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   integer(i_kind) isatid,itime,ilon,ilat,isfcflg,ipcp,isdv
   integer(i_kind) icnt,ilone,ilate,icnv,itype,iclw,icli
   integer(i_kind) itim,itimp,istat
+  integer(i_kind) icw,iql,iqi       
 
   logical sea
   logical ssmi,amsu,tmi,stage3,muse
@@ -252,6 +271,8 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
        prsl0,del0,sl0,tsen_ten0,q_ten0,p_ten0
   real(r_kind),dimension(nsig+1):: prsi0
   real(r_kind),pointer,dimension(:,:,:)::ges_cwmr_im,ges_cwmr_ip
+  real(r_kind),pointer,dimension(:,:,:)::ges_qlmr_im,ges_qlmr_ip  
+  real(r_kind),pointer,dimension(:,:,:)::ges_qimr_im,ges_qimr_ip 
 
   real(r_kind),parameter::  zero_7  = 0.7_r_kind
   real(r_kind),parameter::  r1em6   = 0.000001_r_kind
@@ -265,11 +286,9 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
 
   logical:: in_curbin, in_anybin
   logical   proceed
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
-  class(obsNode),pointer:: my_node
   type(pcpNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
+  type(obs_diags),pointer:: my_diagLL
 
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_ps
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_u
@@ -285,6 +304,8 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   real(r_kind),allocatable,dimension(:,:,:) :: ges_ps_lat
 
   data  rmiss / -999._r_kind /
+  type(obsLList),pointer,dimension(:):: pcphead
+  pcphead => obsLL(:)
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
@@ -300,8 +321,6 @@ if(.not. (drv_initialized.and.tnd_initialized) ) then
   call die(myname)
 endif
 
-  n_alloc(:)=0
-  m_alloc(:)=0
 !*********************************************************************************
 ! ONE TIME, INITIAL SETUP PRIOR TO PROCESSING SATELLITE DATA
 !
@@ -526,61 +545,22 @@ endif
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
+     if (luse_obsdiag) my_diagLL => odiagLL(ibin)
+
 !    Link obs to diagnostics structure
      if (luse_obsdiag) then
-        if (.not.lobsdiag_allocated) then
-           if (.not.associated(obsdiags(i_pcp_ob_type,ibin)%head)) then
-              obsdiags(i_pcp_ob_type,ibin)%n_alloc = 0
-              allocate(obsdiags(i_pcp_ob_type,ibin)%head,stat=istat)
-              if (istat/=0) then
-                 write(6,*)'setuppcp: failure to allocate obsdiags',istat
-                 call stop2(263)
-              end if
-              obsdiags(i_pcp_ob_type,ibin)%tail => obsdiags(i_pcp_ob_type,ibin)%head
-           else
-              allocate(obsdiags(i_pcp_ob_type,ibin)%tail%next,stat=istat)
-              if (istat/=0) then
-                 write(6,*)'setuppcp: failure to allocate obsdiags',istat
-                 call stop2(264)
-              end if
-              obsdiags(i_pcp_ob_type,ibin)%tail => obsdiags(i_pcp_ob_type,ibin)%tail%next
-           end if
-           obsdiags(i_pcp_ob_type,ibin)%n_alloc = obsdiags(i_pcp_ob_type,ibin)%n_alloc +1
-    
-           allocate(obsdiags(i_pcp_ob_type,ibin)%tail%muse(miter+1))
-           allocate(obsdiags(i_pcp_ob_type,ibin)%tail%nldepart(miter+1))
-           allocate(obsdiags(i_pcp_ob_type,ibin)%tail%tldepart(miter))
-           allocate(obsdiags(i_pcp_ob_type,ibin)%tail%obssen(miter))
-           obsdiags(i_pcp_ob_type,ibin)%tail%indxglb=ioid(n)
-           obsdiags(i_pcp_ob_type,ibin)%tail%nchnperobs=-99999
-           obsdiags(i_pcp_ob_type,ibin)%tail%luse=luse(n)
-           obsdiags(i_pcp_ob_type,ibin)%tail%muse(:)=.false.
-           obsdiags(i_pcp_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-           obsdiags(i_pcp_ob_type,ibin)%tail%tldepart(:)=zero
-           obsdiags(i_pcp_ob_type,ibin)%tail%wgtjo=-huge(zero)
-           obsdiags(i_pcp_ob_type,ibin)%tail%obssen(:)=zero
-    
-           n_alloc(ibin) = n_alloc(ibin) +1
-           my_diag => obsdiags(i_pcp_ob_type,ibin)%tail
-           my_diag%idv = is
-           my_diag%iob = ioid(n)
-           my_diag%ich = 1
-           my_diag%elat= data_p(ilate,n)
-           my_diag%elon= data_p(ilone,n)
-        else
-           if (.not.associated(obsdiags(i_pcp_ob_type,ibin)%tail)) then
-              obsdiags(i_pcp_ob_type,ibin)%tail => obsdiags(i_pcp_ob_type,ibin)%head
-           else
-              obsdiags(i_pcp_ob_type,ibin)%tail => obsdiags(i_pcp_ob_type,ibin)%tail%next
-           end if
-           if (.not.associated(obsdiags(i_pcp_ob_type,ibin)%tail)) then
-              call die(myname,'.not.associated(obsdiags(i_pcp_ob_type,ibin)%tail)')
-           end if
-           if (obsdiags(i_pcp_ob_type,ibin)%tail%indxglb/=ioid(n)) then
-              write(6,*)'setuppcp: index error'
-              call stop2(265)
-           end if
-        endif
+        my_diag => obsdiagLList_nextNode(my_diagLL      ,&
+                create = .not.lobsdiag_allocated        ,&
+                   idv = is                     ,&
+                   iob = ioid(n)                ,&
+                   ich = 1                      ,&
+                  elat = data_p(ilate,n)        ,&
+                  elon = data_p(ilone,n)        ,&
+                  luse = luse(n)                ,&
+                 miter = miter                  )
+
+        if(.not.associated(my_diag)) call die(myname, &
+                'obsdiagLList_nextNode(), create =', .not.lobsdiag_allocated)
      endif
 
      if(.not.in_curbin) cycle
@@ -642,11 +622,24 @@ endif
      end if
      deltp=one-delt
 
-!    Get pointer to could water mixing ratio
-     call gsi_bundlegetpointer (gsi_metguess_bundle(itim), 'cw',ges_cwmr_im,istatus)
-     if (istatus/=0) call die('setuppcp','cannot get pointer to cwmr(itim), istatus =',istatus)
-     call gsi_bundlegetpointer (gsi_metguess_bundle(itimp),'cw',ges_cwmr_ip,istatus)
-     if (istatus/=0) call die('setuppcp','cannot get pointer to cwmr(itimp), istatus =',istatus)
+     call gsi_metguess_get ('var::ql', iql, istatus )
+     call gsi_metguess_get ('var::qi', iqi, istatus )
+     call gsi_metguess_get ('var::cw', icw, istatus )
+     if ( icw <= 0 .and. (iql > 0 .and. iqi > 0) ) then
+!       Get pointer to could water mixing ratio
+        call gsi_bundlegetpointer (gsi_metguess_bundle(itim), 'ql',ges_qlmr_im,istatus)
+        call gsi_bundlegetpointer (gsi_metguess_bundle(itimp),'ql',ges_qlmr_ip,istatus)
+        call gsi_bundlegetpointer (gsi_metguess_bundle(itim), 'qi',ges_qimr_im,istatus)
+        call gsi_bundlegetpointer (gsi_metguess_bundle(itimp),'qi',ges_qimr_ip,istatus)
+        ges_cwmr_im = ges_qlmr_im + ges_qimr_im
+        ges_cwmr_ip = ges_qlmr_ip + ges_qimr_ip
+     else
+!       Get pointer to could water mixing ratio
+        call gsi_bundlegetpointer (gsi_metguess_bundle(itim), 'cw',ges_cwmr_im,istatus)
+        if (istatus/=0) call die('setuppcp','cannot get pointer to cwmr(itim), istatus =',istatus)
+        call gsi_bundlegetpointer (gsi_metguess_bundle(itimp),'cw',ges_cwmr_ip,istatus)
+        if (istatus/=0) call die('setuppcp','cannot get pointer to cwmr(itimp), istatus =',istatus)
+     endif  
 
 !    Set and save spatial interpolation indices and weights.
      call get_ij(mm1,slats,slons,jgrd,wgrd,jjlat=ixx,jjlon=iyy)
@@ -966,12 +959,10 @@ endif
      endif
 
      muse= (varinv>r1em6.and.iusep(kx)>=1)
-     if (nobskeep>0.and.luse_obsdiag) muse=obsdiags(i_pcp_ob_type,ibin)%tail%muse(nobskeep)
 
      if (luse_obsdiag) then
-        obsdiags(i_pcp_ob_type,ibin)%tail%muse(jiter)=muse
-        obsdiags(i_pcp_ob_type,ibin)%tail%nldepart(jiter)= drad
-        obsdiags(i_pcp_ob_type,ibin)%tail%wgtjo= varinv
+        if (nobskeep>0) call obsdiagNode_get(my_diag, jiter=nobskeep, muse=muse)
+        call obsdiagNode_set(my_diag, wgtjo=varinv, jiter=jiter,muse=muse,nldepart=drad)
      endif
 
 
@@ -985,10 +976,7 @@ endif
         ncnt  = ncnt+1
 
         allocate(my_head)
-        m_alloc(ibin) = m_alloc(ibin) +1
-        my_node => my_head        ! this is a workaround
-        call obsLList_appendNode(pcphead(ibin),my_node)
-        my_node => null()
+        call pcpNode_appendto(my_head,pcphead(ibin))
 
         my_head%idv = is
         my_head%iob = ioid(n)
@@ -1024,17 +1012,8 @@ endif
         my_head%luse=luse(n)
 
         if (luse_obsdiag) then
-           my_head%diags => obsdiags(i_pcp_ob_type,ibin)%tail
-
-           my_diag => my_head%diags
-           if(my_head%idv /= my_diag%idv .or. &
-              my_head%iob /= my_diag%iob ) then
-              call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
-                        (/is,ioid(n),ibin/))
-              call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
-              call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
-              call die(myname)
-           endif
+           call obsdiagNode_assert(my_diag,my_head%idv,my_head%iob,1,myname,'my_diag:my_head')
+           my_head%diags => my_diag
         endif
         my_head => null()
      end if
@@ -1077,9 +1056,10 @@ endif
  
            ioff=ioff0
            if (lobsdiagsave) then
+             associate(odiag => my_diagLL%tail)
               do jj=1,miter
                  ioff=ioff+1
-                 if (obsdiags(i_pcp_ob_type,ibin)%tail%muse(jj)) then
+                 if (odiag%muse(jj)) then
                     diagbuf(ioff) = one
                  else
                     diagbuf(ioff) = -one
@@ -1087,16 +1067,17 @@ endif
               enddo
               do jj=1,miter+1
                  ioff=ioff+1
-                 diagbuf(ioff) = obsdiags(i_pcp_ob_type,ibin)%tail%nldepart(jj)
+                 diagbuf(ioff) = odiag%nldepart(jj)
               enddo
               do jj=1,miter
                  ioff=ioff+1
-                 diagbuf(ioff) = obsdiags(i_pcp_ob_type,ibin)%tail%tldepart(jj)
+                 diagbuf(ioff) = odiag%tldepart(jj)
               enddo
               do jj=1,miter
                  ioff=ioff+1
-                 diagbuf(ioff) = obsdiags(i_pcp_ob_type,ibin)%tail%obssen(jj)
+                 diagbuf(ioff) = odiag%obssen(jj)
               enddo
+             end associate ! (odiag => my_diagLL%tail)
            endif
 
 !          Write diagnostics to output file.
@@ -1162,7 +1143,6 @@ endif
   if (pcp_diagsave) then
      close(4)
      deallocate(diagbuf)
-     call dtime_show(myname,'diagsave:pcp',i_pcp_ob_type)
   endif
 
 ! End of routine
@@ -1380,3 +1360,4 @@ endif
   end subroutine final_vars_
 
 end subroutine setuppcp
+end module pcp_setup

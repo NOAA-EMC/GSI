@@ -9,7 +9,7 @@
 #BSUB -M 100
 #BSUB -W 00:05
 #BSUB -a poe
-#BSUB -P GFS-T2O
+#BSUB -P GFS-DEV
 
 ##------------------------------------------------------------
 ##  This is the test driver script for the wcoss/ibm systems

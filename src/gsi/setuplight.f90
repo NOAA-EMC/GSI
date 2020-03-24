@@ -1,4 +1,13 @@
-subroutine setuplight(lunin,mype,bwork,awork,nele,nobs,is,light_diagsave)
+module light_setup
+  use kinds, only: i_kind
+  implicit none
+  private
+  public:: setup
+        interface setup; module procedure setuplight; end interface
+
+  integer(kind=i_kind),save:: lu_diag=55        ! no longer a fixed 55
+contains
+subroutine setuplight(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,light_diagsave,init_pass)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setuplight     compute rhs of oi for lightning flash rate
@@ -33,6 +42,12 @@ subroutine setuplight(lunin,mype,bwork,awork,nele,nobs,is,light_diagsave)
 !   2018-08-13  k apodaca  -  add netcdf_diag capability
 !   2018-08-14  k apodaca  -  add lightning flash rate observation operator suitable
 !                             for non-hydrostatic cloud-resolving models
+!   2019-03-01  j guo      -  moved certain references to obsmod, to their new locations
+!                             in m_obsdiagNode and m_obsdiags.
+!                          .  changed obsLList_appendNode() to lightNode_appendto()
+!                          .  changed refereces to obsdiags(i_light_ob_type,ibin) to my_diagLL
+!                          .  changed refereces to obsdiags(i_light_ob_type,ibin)%tail to my_diag
+!                          .  made my_diag an argument of contents_xxxxx_diag_() routines.
 !
 !---
 !
@@ -64,17 +79,24 @@ subroutine setuplight(lunin,mype,bwork,awork,nele,nobs,is,light_diagsave)
   use gridmod, only: latlon11
 !--
   use gfs_stratosphere, only: nsig_save,deta1_save,aeta1_save
-  use m_obsdiags, only: lighthead
-  use obsmod, only: rmiss_single,i_light_ob_type,obsdiags,lobsdiagsave,&
+  use m_obsdiagNode, only: obs_diag
+  use m_obsdiagNode, only: obs_diags
+  use m_obsdiagNode, only: obsdiagLList_nextNode
+  use m_obsdiagNode, only: obsdiagNode_set
+  use m_obsdiagNode, only: obsdiagNode_get
+  use m_obsdiagNode, only: obsdiagNode_assert
+
+  use obsmod, only: rmiss_single,lobsdiagsave,&
                     nobskeep,lobsdiag_allocated
   use obsmod, only: netcdf_diag, binary_diag, dirname, ianldate
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
-  use obsmod, only: obs_diag,luse_obsdiag
+  use obsmod, only: luse_obsdiag
   use m_obsNode, only: obsNode
   use m_lightNode, only: lightNode
-  use m_obsLList, only: obsLList_appendNode
+  use m_lightNode, only: lightNode_appendto
+  use m_obsLList , only: obsLList
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use constants, only: zero,one,r1000, &
        tiny_r_kind,three,half,two,cg_term,huge_single,&
@@ -84,7 +106,7 @@ subroutine setuplight(lunin,mype,bwork,awork,nele,nobs,is,light_diagsave)
   use qcmod, only: dfact,dfact1,npres_print
   use lightinfo, only: nlighttype,gross_light,glermax,&
                        glermin,b_light,pg_light
-  use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use m_dtime, only: dtime_setup, dtime_check
 !--
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
@@ -96,11 +118,15 @@ subroutine setuplight(lunin,mype,bwork,awork,nele,nobs,is,light_diagsave)
   implicit none
 
 ! Declare passed variables
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
+
   logical                                           ,intent(in   ) :: light_diagsave
   integer(i_kind)                                   ,intent(in   ) :: lunin,mype,nele,nobs
   real(r_kind),dimension(100+7*nsig)                ,intent(inout) :: awork
   real(r_kind),dimension(npres_print,nlighttype,5,3),intent(inout) :: bwork
   integer(i_kind)                                   ,intent(in   ) :: is ! ndat index
+  logical                                           ,intent(in   ) :: init_pass
 
 ! Declare local parameter
   character(len=*),parameter:: myname="setuplight"
@@ -186,12 +212,10 @@ subroutine setuplight(lunin,mype,bwork,awork,nele,nobs,is,light_diagsave)
   character :: post_file*40
 
   logical:: in_curbin, in_anybin
-  integer(i_kind),dimension(nobs_bins) :: n_alloc
-  integer(i_kind),dimension(nobs_bins) :: m_alloc
   integer(i_kind) :: istat
-  class(obsNode),pointer:: my_node
   type(lightNode),pointer:: my_head
-  type(obs_diag),pointer:: my_diag
+  type(obs_diag ),pointer:: my_diag
+  type(obs_diags),pointer:: my_diagLL
 
 
 ! Guess fields
@@ -217,10 +241,9 @@ subroutine setuplight(lunin,mype,bwork,awork,nele,nobs,is,light_diagsave)
 
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_cwmr_it 
 
+  type(obsLList),pointer,dimension(:):: lighthead
+  lighthead => obsLL(:)
 !--
-
-  n_alloc(:)=0
-  m_alloc(:)=0
 
   grsmlt=three  ! multiplier factor for gross check, an appropriate magnitude
                 ! is yet to be determined.
@@ -422,7 +445,8 @@ subroutine setuplight(lunin,mype,bwork,awork,nele,nobs,is,light_diagsave)
      if (lobsdiagsave) nreal=nreal+4*miter+1
      allocate(diagbuf(nreal,nobs))
      ii=0
-     if(netcdf_diag) call init_netcdf_diag_
+     if(binary_diag) call init_binary_diag_(lu_diag,init_pass)
+     if(netcdf_diag) call init_netcdf_diag_()
   end if
 !--
 ! Save some lightning flash rate values (observed, guess, no. of obs.)
@@ -559,62 +583,22 @@ subroutine setuplight(lunin,mype,bwork,awork,nele,nobs,is,light_diagsave)
      endif
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,"Error nobs_bins,ibin= ",nobs_bins,ibin
 
+     if (luse_obsdiag) my_diagLL => odiagLL(ibin)
+
 !    Link obs to diagnostics structure
      if (luse_obsdiag) then
-        if (.not.lobsdiag_allocated) then
-           if (.not.associated(obsdiags(i_light_ob_type,ibin)%head)) then 
-              obsdiags(i_light_ob_type,ibin)%n_alloc = 0
-              allocate(obsdiags(i_light_ob_type,ibin)%head,stat=istat)
-              if (istat/=0) then
-                 write(6,*)"setuplight: failure to allocate obsdiags",istat
-                 call stop2(342)
-              end if
-              obsdiags(i_light_ob_type,ibin)%tail => obsdiags(i_light_ob_type,ibin)%head
-           else
-              allocate(obsdiags(i_light_ob_type,ibin)%tail%next,stat=istat)
-              if (istat/=0) then
-                 write(6,*)"setuplight: failure to allocate obsdiags",istat
-                 call stop2(343)
-              end if
-              obsdiags(i_light_ob_type,ibin)%tail => obsdiags(i_light_ob_type,ibin)%tail%next
-           end if
-           obsdiags(i_light_ob_type,ibin)%n_alloc = obsdiags(i_light_ob_type,ibin)%n_alloc +1
+        my_diag => obsdiagLList_nextNode(my_diagLL   ,&
+                  create = .not.lobsdiag_allocated   ,&
+                     idv = is                ,&
+                     iob = ioid(i)           ,&
+                     ich = 1                 ,&
+                    elat = data(ilate,i)     ,&
+                    elon = data(ilone,i)     ,&
+                    luse = luse(i)           ,&
+                   miter = miter             )
 
-           allocate(obsdiags(i_light_ob_type,ibin)%tail%muse(miter+1))
-           allocate(obsdiags(i_light_ob_type,ibin)%tail%nldepart(miter+1))
-           allocate(obsdiags(i_light_ob_type,ibin)%tail%tldepart(miter))
-           allocate(obsdiags(i_light_ob_type,ibin)%tail%obssen(miter))
-           obsdiags(i_light_ob_type,ibin)%tail%indxglb=ioid(i)
-           obsdiags(i_light_ob_type,ibin)%tail%nchnperobs=-99999
-           obsdiags(i_light_ob_type,ibin)%tail%luse=.false.
-           obsdiags(i_light_ob_type,ibin)%tail%muse(:)=.false.
-           obsdiags(i_light_ob_type,ibin)%tail%nldepart(:)=-huge(zero)
-           obsdiags(i_light_ob_type,ibin)%tail%tldepart(:)=zero
-           obsdiags(i_light_ob_type,ibin)%tail%wgtjo=-huge(zero)
-           obsdiags(i_light_ob_type,ibin)%tail%obssen(:)=zero
-
-           n_alloc(ibin) = n_alloc(ibin) +1
-           my_diag => obsdiags(i_light_ob_type,ibin)%tail
-           my_diag%idv = is
-           my_diag%iob = ioid(i)
-           my_diag%ich = 1
-           my_diag%elat= data(ilate,i)
-           my_diag%elon= data(ilone,i)
- 
-        else
-           if (.not.associated(obsdiags(i_light_ob_type,ibin)%tail)) then
-              obsdiags(i_light_ob_type,ibin)%tail => obsdiags(i_light_ob_type,ibin)%head
-           else
-              obsdiags(i_light_ob_type,ibin)%tail => obsdiags(i_light_ob_type,ibin)%tail%next
-           end if
-           if (.not.associated(obsdiags(i_light_ob_type,ibin)%tail)) then
-              call die(myname,'.not.associated(obsdiags(i_light_ob_type,ibin)%tail)')
-           end if
-           if (obsdiags(i_light_ob_type,ibin)%tail%indxglb/=ioid(i)) then
-              write(6,*)"SETUPLIGHT: index error"
-              call stop2(344)
-           end if
-        endif
+        if (.not.associated(my_diag)) call die(myname, &
+                'obsdiagLList_nextNode(), create =', .not.lobsdiag_allocated)
      endif
     
      if (.not.in_curbin) cycle
@@ -660,7 +644,8 @@ subroutine setuplight(lunin,mype,bwork,awork,nele,nobs,is,light_diagsave)
      end if
 ! 
      if (ratio_errors*error <= tiny_r_kind) muse(i)=.false. 
-     if (nobskeep>0.and.luse_obsdiag) muse(i)=obsdiags(i_light_ob_type,ibin)%tail%muse(nobskeep)
+     !-- if (nobskeep>0.and.luse_obsdiag) muse(i)=obsdiags(i_light_ob_type,ibin)%tail%muse(nobskeep)
+     if (nobskeep>0.and.luse_obsdiag) call obsdiagNode_get(my_diag, jiter=nobskeep, muse=muse(i))
 
          val = error*ddiff
 
@@ -713,9 +698,8 @@ subroutine setuplight(lunin,mype,bwork,awork,nele,nobs,is,light_diagsave)
 !    Fill obs diagnostics structure
 
      if (luse_obsdiag) then
-        obsdiags(i_light_ob_type,ibin)%tail%muse(jiter)=muse(i)
-        obsdiags(i_light_ob_type,ibin)%tail%nldepart(jiter)=ddiff
-        obsdiags(i_light_ob_type,ibin)%tail%wgtjo= (error*ratio_errors)**2
+        call obsdiagNode_set(my_diag, wgtjo=(error*ratio_errors)**2, &
+          jiter=jiter, muse=muse(i), nldepart=ddiff)
      endif
 
 !    If obs is "acceptable", load array with obs info for use
@@ -724,10 +708,7 @@ subroutine setuplight(lunin,mype,bwork,awork,nele,nobs,is,light_diagsave)
      if ( .not. last .and. muse(i)) then 
 
         allocate(my_head)
-        m_alloc(ibin) = m_alloc(ibin) +1
-        my_node => my_head
-        call obsLList_appendNode(lighthead(ibin),my_node)
-        my_node => null()
+        call lightNode_appendto(my_head,lighthead(ibin))
 
         my_head%idv = is
         my_head%iob = ioid(i)
@@ -809,7 +790,7 @@ subroutine setuplight(lunin,mype,bwork,awork,nele,nobs,is,light_diagsave)
 
 !       Set (i,j) indices of guess gridpoint that bound obs location
 
-        call get_ij(mm1,dlat,dlon,light_ij,my_head%wij(1))
+        call get_ij(mm1,dlat,dlon,light_ij,my_head%wij)
 
         do k=1,nsig
            my_head%ij(1,k)=light_ij(1)+(k-1)*latlon11
@@ -818,28 +799,28 @@ subroutine setuplight(lunin,mype,bwork,awork,nele,nobs,is,light_diagsave)
            my_head%ij(4,k)=light_ij(4)+(k-1)*latlon11
         enddo
 
-        call get_ij(mm1,dlat-one,dlon,light_ij,my_head%wij(1))
+        call get_ij(mm1,dlat-one,dlon,light_ij,my_head%wij)
 
         do k=1,nsig
            my_head%ij(5,k)=light_ij(1)+(k-1)*latlon11
            my_head%ij(7,k)=light_ij(3)+(k-1)*latlon11
         enddo
 
-        call get_ij(mm1,dlat+one,dlon,light_ij,my_head%wij(1))
+        call get_ij(mm1,dlat+one,dlon,light_ij,my_head%wij)
 
         do k=1,nsig
            my_head%ij(6,k)=light_ij(2)+(k-1)*latlon11
            my_head%ij(8,k)=light_ij(4)+(k-1)*latlon11
         enddo
 
-        call get_ij(mm1,dlat,dlon-one,light_ij,my_head%wij(1))
+        call get_ij(mm1,dlat,dlon-one,light_ij,my_head%wij)
 
         do k=1,nsig
            my_head%ij(9,k)=light_ij(1)+(k-1)*latlon11
            my_head%ij(10,k)=light_ij(2)+(k-1)*latlon11
         enddo
 
-        call get_ij(mm1,dlat,dlon+one,light_ij,my_head%wij(1))
+        call get_ij(mm1,dlat,dlon+one,light_ij,my_head%wij)
 
         do k=1,nsig
            my_head%ij(11,k)=light_ij(3)+(k-1)*latlon11
@@ -1096,17 +1077,8 @@ subroutine setuplight(lunin,mype,bwork,awork,nele,nobs,is,light_diagsave)
 ! End preparing observation information for intlight
 !                .      .    .                                       .
         if (luse_obsdiag) then
-           my_head%diags => obsdiags(i_light_ob_type,ibin)%tail
-
-           my_diag => my_head%diags
-           if (my_head%idv /= my_diag%idv .or. &
-               my_head%iob /= my_diag%iob ) then
-               call perr(myname,"mismatching %[head,diags]%(idv,iob,ibin) =", &
-                        (/is,i,ibin/))
-               call perr(myname,"my_head%(idv,iob) =",(/my_head%idv,my_head%iob/))
-               call perr(myname,"my_diag%(idv,iob) =",(/my_diag%idv,my_diag%iob/))
-               call die(myname)
-           endif
+           call obsdiagNode_assert(my_diag, my_head%idv,my_head%iob,1,myname,'my_diag:myhead')
+           my_head%diags => my_diag
         endif
 
         my_head => null()
@@ -1130,8 +1102,8 @@ subroutine setuplight(lunin,mype,bwork,awork,nele,nobs,is,light_diagsave)
         if (err_adjst>tiny_r_kind) errinv_adjst=one/err_adjst
         if (err_final>tiny_r_kind) errinv_final=one/err_final
 
-        if(binary_diag) call contents_binary_diag_
-        if(netcdf_diag) call contents_netcdf_diag_
+        if(binary_diag) call contents_binary_diag_(my_diag)
+        if(netcdf_diag) call contents_netcdf_diag_(my_diag)
 
      end if
 
@@ -1150,10 +1122,10 @@ subroutine setuplight(lunin,mype,bwork,awork,nele,nobs,is,light_diagsave)
   if(light_diagsave .and. ii>0)then
      if(netcdf_diag) call nc_diag_write
      if(binary_diag .and. ii>0)then
-        call dtime_show(myname,"diagsave:goes_glm",i_light_ob_type)
-        write(55)" light",nchar,nreal,ii,mype
-        write(55)diagbuf(:,1:ii)
+        write(lu_diag)" light",nchar,nreal,ii,mype
+        write(lu_diag)diagbuf(:,1:ii)
         deallocate(diagbuf)
+        close(lu_diag)
      end if
   end if
 
@@ -1523,6 +1495,31 @@ subroutine init_vars_
 
 end subroutine init_vars_
 
+subroutine init_binary_diag_(nunit,init_pass)
+  use obsmod, only: dirname
+  use obsmod, only: iadate
+  use jfunc , only: jiter
+  implicit none
+  integer(i_kind),intent(out):: nunit
+  logical        ,intent( in):: init_pass
+
+  character(len=80) string
+  character(len=128) diag_light_file
+  integer(i_kind):: idate
+
+! If requested, create lightning diagnostic files
+  write(string,500) jiter
+500 format('light_',i2.2)       ! shouldn't it be "glm_light", in consistency with init_netcdf_diag_()?
+  diag_light_file=trim(dirname) // trim(string)
+  if(init_pass) then
+    open(newunit=nunit,file=trim(diag_light_file),form='unformatted',status='unknown',position='rewind')
+  else
+    open(newunit=nunit,file=trim(diag_light_file),form='unformatted',status='old',position='append')
+  endif
+  idate=iadate(4)+iadate(3)*100+iadate(2)*10000+iadate(1)*1000000
+  if(init_pass .and. mype == 0)write(nunit)idate
+end subroutine init_binary_diag_
+
 !                .      .    .                                       .
 
 ! Capability to write diagnostic-related information in NetCDF 
@@ -1562,7 +1559,9 @@ end subroutine init_netcdf_diag_
 
 !                .      .    .                                       .
 
-subroutine contents_binary_diag_
+subroutine contents_binary_diag_(odiag)
+     type(obs_diag),pointer,intent(in):: odiag
+
      diagbuf(1,ii)  = data(ier,i)        ! observation error
      diagbuf(2,ii)  = data(ilate,i)      ! observation latitude (degrees)
      diagbuf(3,ii)  = data(ilone,i)      ! observation longitude (degrees)
@@ -1590,7 +1589,7 @@ subroutine contents_binary_diag_
      if (lobsdiagsave) then
         do jj=1,miter
            ioff=ioff+1
-           if (obsdiags(i_light_ob_type,ibin)%tail%muse(jj)) then
+           if (odiag%muse(jj)) then
               diagbuf(ioff,ii) = one
            else
               diagbuf(ioff,ii) = -one
@@ -1598,23 +1597,24 @@ subroutine contents_binary_diag_
         enddo
         do jj=1,miter+1
            ioff=ioff+1
-           diagbuf(ioff,ii) = obsdiags(i_light_ob_type,ibin)%tail%nldepart(jj)
+           diagbuf(ioff,ii) = odiag%nldepart(jj)
         enddo
         do jj=1,miter
            ioff=ioff+1
-           diagbuf(ioff,ii) = obsdiags(i_light_ob_type,ibin)%tail%tldepart(jj)
+           diagbuf(ioff,ii) = odiag%tldepart(jj)
         enddo
         do jj=1,miter
            ioff=ioff+1
-           diagbuf(ioff,ii) = obsdiags(i_light_ob_type,ibin)%tail%obssen(jj)
+           diagbuf(ioff,ii) = odiag%obssen(jj)
         enddo
      endif
 end subroutine contents_binary_diag_
 
 !                .      .    .                                       . 
 
-subroutine contents_netcdf_diag_
+subroutine contents_netcdf_diag_(odiag)
 ! Observation class
+  type(obs_diag),pointer,intent(in):: odiag
   character(7),parameter     :: obsclass = '     light'
   real(r_single),parameter::     missing = -9.99e9_r_single
   real(r_kind),dimension(miter) :: obsdiag_iuse
@@ -1640,7 +1640,7 @@ subroutine contents_netcdf_diag_
   call nc_diag_metadata("Obs_Minus_Forecast_NoVarBC",    sngl(dlight-lightges0)  )
   if (lobsdiagsave) then
      do jj=1,miter
-        if (obsdiags(i_light_ob_type,ibin)%tail%muse(jj)) then
+        if (odiag%muse(jj)) then
            obsdiag_iuse(jj) =  one
         else
            obsdiag_iuse(jj) = -one
@@ -1648,9 +1648,9 @@ subroutine contents_netcdf_diag_
      enddo
 
      call nc_diag_data2d("ObsDiagSave_iuse",     obsdiag_iuse                             )
-     call nc_diag_data2d("ObsDiagSave_nldepart", obsdiags(i_light_ob_type,ibin)%tail%nldepart )
-     call nc_diag_data2d("ObsDiagSave_tldepart", obsdiags(i_light_ob_type,ibin)%tail%tldepart )
-     call nc_diag_data2d("ObsDiagSave_obssen",   obsdiags(i_light_ob_type,ibin)%tail%obssen   )         
+     call nc_diag_data2d("ObsDiagSave_nldepart", odiag%nldepart )
+     call nc_diag_data2d("ObsDiagSave_tldepart", odiag%tldepart )
+     call nc_diag_data2d("ObsDiagSave_obssen",   odiag%obssen   )         
   endif
 
 end subroutine contents_netcdf_diag_
@@ -2155,4 +2155,4 @@ subroutine lightflashrate(imax,jmax,kmax_q,pt_ll,sigma,deltasigma, &
 
 
 end subroutine lightflashrate
-
+end module light_setup

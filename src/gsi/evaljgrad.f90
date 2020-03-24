@@ -27,6 +27,8 @@ subroutine evaljgrad(xhat,fjcost,gradx,lupdfgs,nprt,calledby)
 !   2015-09-03  guo     - obsmod::yobs has been replaced with m_obsHeadBundle,
 !                         where yobs is created and destroyed when and where it
 !                         is needed.
+!   2018-08-10  guo     - replace intjo() related implementations with a new
+!                         polymoprhic implementation of intjomod::intjo().
 !
 !   input argument list:
 !    xhat - current state estimate (in control space)
@@ -62,7 +64,6 @@ use state_vectors, only: allocate_state,deallocate_state,prt_state_norms
 use bias_predictors, only: predictors,allocate_preds,deallocate_preds,assignment(=)
 use bias_predictors, only: update_bias_preds
 use intjomod, only: intjo
-use intradmod, only: setrad
 use intjcmod, only: intjcdfi
 use gsi_4dcouplermod, only: gsi_4dcoupler_grtests
 use gsi_bundlemod, only: gsi_bundle
@@ -73,9 +74,6 @@ use xhat_vordivmod, only : xhat_vordiv_init, xhat_vordiv_calc, xhat_vordiv_clean
 use mpeu_util, only: die
 use mpl_allreducemod, only: mpl_allreduce
 
-use m_obsHeadBundle, only: obsHeadBundle
-use m_obsHeadBundle, only: obsHeadBundle_create
-use m_obsHeadBundle, only: obsHeadBundle_destroy
 implicit none
 
 ! Declare passed variables
@@ -101,7 +99,6 @@ logical,parameter:: pertmod_adtest=.true.
 character(len=255) :: seqcalls
 real(r_quad),dimension(max(1,nrclen)) :: qpred
 
-type(obsHeadBundle),pointer,dimension(:):: yobs
 
 !**********************************************************************
 
@@ -197,13 +194,11 @@ do ii=1,nsubwin
    mval(ii)=zero
 end do
 
-call setrad(sval(1))
 qpred=zero_quad
+
 ! Compare obs to solution and transpose back to grid (H^T R^{-1} H)
-call obsHeadBundle_create(yobs,nobs_bins)
-do ibin=1,size(yobs)    ! == nobs_bins
-   call intjo(yobs(ibin),rval(ibin),qpred,sval(ibin),sbias,ibin)
-end do
+call intjo(rval,qpred,sval,sbias)
+
 ! Take care of background error for bias correction terms
 
 call mpl_allreduce(nrclen,qpvals=qpred)
@@ -219,7 +214,6 @@ if (ntclen>0) then
       rbias%predt(i)=rbias%predt(i)+qpred(nsclen+npclen+i)
    end do
 end if
-call obsHeadBundle_destroy(yobs)
 
 ! Evaluate Jo
 call evaljo(zjo,iobs,nprt,llouter)

@@ -151,7 +151,7 @@ while (levn<=mxlev)
  endwhile
 
    '!rm -f info.txt'
-   '!cat 'plotfile'.ctl |grep " 'levn', level" > info.txt'
+   '!cat 'plotfile'.ges.ctl | grep " 'levn', level" > info.txt'
    result=read(info.txt)
    rc=sublin(result,1)
    iuse=0
@@ -191,7 +191,7 @@ while (levn<=mxlev)
     endif
 *    say 'iuse='iuse
 *	say plotfile'.'field'_'levn'.png'
-    'printim 'plotfile'.'field'_'levn'.png 'xsize' 'ysize' white'
+    'printim 'plotfile'.ges.'field'_'levn'.png 'xsize' 'ysize' white'
 *    'enable print 'plotfile'.'field'_'levn
 *    'print'
 *    'disable print'
@@ -210,7 +210,7 @@ while (levn<=mxlev)
     endif
     'set string 1 l 6'
     'draw string 0.2 8.1 variable:  level 'levn' 'type
-    'printim 'plotfile'.'field'_'levn'.png 'xsize' 'ysize
+    'printim 'plotfile'.ges.'field'_'levn'.png 'xsize' 'ysize
  endif
 
 
