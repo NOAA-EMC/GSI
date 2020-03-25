@@ -11,11 +11,10 @@ exp=$jobname
 #gsiexec=$gsipath/trunk/src/global_gsi.x
 
 # Set the JCAP resolution which you want.
-# All resolutions use LEVS=64
-export JCAP=62
-export LEVS=64
-export JCAP_B=126
-export JCAP_EN=62
+export JCAP=190
+export LEVS=127
+export JCAP_B=382
+export JCAP_EN=190
 
 # Set runtime and save directories
 tmpdir=$tmpdir/$tmpregdir/${exp}
@@ -51,6 +50,11 @@ elif [[ "$JCAP" = "382" ]]; then
    export LATA=384
    export DELTIM=180
    export resol=1
+elif [[ "$JCAP" = "190" ]]; then
+   export LONA=384
+   export LATA=192
+   export DELTIM=400
+   export resol=1
 elif [[ "$JCAP" = "126" ]]; then
    export LONA=384
    export LATA=190
@@ -75,9 +79,9 @@ ENSEND=20
 # Given the analysis date, compute the date from which the
 # first guess comes.  Extract cycle and set prefix and suffix
 # for guess and observation data files
-PDY=`echo $global_fv3_4denvar_T126_adate | cut -c1-8`
-cyc=`echo $global_fv3_4denvar_T126_adate | cut -c9-10`
-GDATE=`$ndate -06 $global_fv3_4denvar_T126_adate`
+PDY=`echo $global_fv3_4denvar_C192_adate | cut -c1-8`
+cyc=`echo $global_fv3_4denvar_C192_adate | cut -c9-10`
+GDATE=`$ndate -06 $global_fv3_4denvar_C192_adate`
 gPDY=`echo $GDATE | cut -c1-8`
 gcyc=`echo $GDATE | cut -c9-10`
 
@@ -87,10 +91,10 @@ prefix_ges=gdas.t${gcyc}z
 prefix_ens=gdas.t${gcyc}z
 suffix=tm00.bufr_d
 
-datobs=$global_fv3_4denvar_T126_datobs/gdas.$PDY/$cyc
-datanl=$global_fv3_4denvar_T126_datobs/gdas.$PDY/$cyc
-datges=$global_fv3_4denvar_T126_datges/gdas.$gPDY/$gcyc
-datens=$global_fv3_4denvar_T126_datges/enkfgdas.$gPDY/$gcyc
+datobs=$global_fv3_4denvar_C192_datobs/gdas.$PDY/$cyc
+datanl=$global_fv3_4denvar_C192_datobs/gdas.$PDY/$cyc
+datges=$global_fv3_4denvar_C192_datges/gdas.$gPDY/$gcyc
+datens=$global_fv3_4denvar_C192_datges/enkfgdas.$gPDY/$gcyc
 
 
 # Set up $tmpdir
@@ -104,7 +108,7 @@ ICO2=${ICO2:-0}
 if [ $ICO2 -gt 0 ] ; then
         # Copy co2 files to $tmpdir
         co2dir=${CO2DIR:-$fixgsi}
-        yyyy=$(echo ${CDATE:-$global_fv3_4denvar_T126_adate}|cut -c1-4)
+        yyyy=$(echo ${CDATE:-$global_fv3_4denvar_C192_adate}|cut -c1-4)
         rm ./global_co2_data.txt
         co2=$co2dir/global_co2.gcmscl_$yyyy.txt
         while [ ! -s $co2 ] ; do
@@ -124,7 +128,7 @@ ICH4=${ICH4:-0}
 if [ $ICH4 -gt 0 ] ; then
 #        # Copy ch4 files to $tmpdir
         ch4dir=${CH4DIR:-$fixgsi}
-        yyyy=$(echo ${CDATE:-$global_fv3_4denvar_T126_adate}|cut -c1-4)
+        yyyy=$(echo ${CDATE:-$global_fv3_4denvar_C192_adate}|cut -c1-4)
         rm ./ch4globaldata.txt
         ch4=$ch4dir/global_ch4_esrlctm_$yyyy.txt
         while [ ! -s $ch4 ] ; do
@@ -143,7 +147,7 @@ IN2O=${IN2O:-0}
 if [ $IN2O -gt 0 ] ; then
 #        # Copy ch4 files to $tmpdir
         n2odir=${N2ODIR:-$fixgsi}
-        yyyy=$(echo ${CDATE:-$global_fv3_4denvar_T126_adate}|cut -c1-4)
+        yyyy=$(echo ${CDATE:-$global_fv3_4denvar_C192_adate}|cut -c1-4)
         rm ./n2oglobaldata.txt
         n2o=$n2odir/global_n2o_esrlctm_$yyyy.txt
         while [ ! -s $n2o ] ; do
@@ -162,7 +166,7 @@ ICO=${ICO:-0}
 if [ $ICO -gt 0 ] ; then
 #        # Copy CO files to $tmpdir
         codir=${CODIR:-$fixgsi}
-        yyyy=$(echo ${CDATE:-$global_fv3_4denvar_T126_adate}|cut -c1-4)
+        yyyy=$(echo ${CDATE:-$global_fv3_4denvar_C192_adate}|cut -c1-4)
         rm ./coglobaldata.txt
         co=$codir/global_co_esrlctm_$yyyy.txt
         while [ ! -s $co ] ; do
@@ -194,9 +198,9 @@ SUPERRAD="$SUPERRAD_update"
 SINGLEOB="$SINGLEOB_update"
 
 if [ "$debug" = ".false." ]; then
-   . $scripts/regression_namelists.sh global_fv3_4denvar_T126
+   . $scripts/regression_namelists.sh global_fv3_4denvar_C192
 else
-   . $scripts/regression_namelists_db.sh global_fv3_4denvar_T126
+   . $scripts/regression_namelists_db.sh global_fv3_4denvar_C192
 fi
 
 cat << EOF > gsiparm.anl
@@ -272,41 +276,30 @@ elif [[ $exp == *"contrl"* ]]; then
    $ncp $gsiexec_contrl ./gsi.x
 fi
 
-$ncp $berror   ./berror_stats
-$ncp $emiscoef_IRwater ./Nalli.IRwater.EmisCoeff.bin
-$ncp $emiscoef_IRice ./NPOESS.IRice.EmisCoeff.bin
-$ncp $emiscoef_IRsnow ./NPOESS.IRsnow.EmisCoeff.bin
-$ncp $emiscoef_IRland ./NPOESS.IRland.EmisCoeff.bin
-$ncp $emiscoef_VISice ./NPOESS.VISice.EmisCoeff.bin
-$ncp $emiscoef_VISland ./NPOESS.VISland.EmisCoeff.bin
-$ncp $emiscoef_VISsnow ./NPOESS.VISsnow.EmisCoeff.bin
-$ncp $emiscoef_VISwater ./NPOESS.VISwater.EmisCoeff.bin
-$ncp $emiscoef_MWwater ./FASTEM6.MWwater.EmisCoeff.bin
-$ncp $aercoef  ./AerosolCoeff.bin
-$ncp $cldcoef  ./CloudCoeff.bin
-$ncp $satangl  ./satbias_angle
+$ncp $berror       ./berror_stats
+$ncp $satangl      ./satbias_angle
 $ncp $atmsbeamdat  ./atms_beamwidth.txt
-$ncp $scaninfo ./scaninfo
-$ncp $satinfo  ./satinfo
-$ncp $cloudyinfo  ./cloudy_radiance_info.txt
-$ncp $pcpinfo  ./pcpinfo
-$ncp $ozinfo   ./ozinfo
-$ncp $convinfo ./convinfo
-$ncp $vqcdat ./vqctp001.dat
-$ncp $insituinfo ./insituinfo
-$ncp $errtable ./errtable
-$ncp $anavinfo ./anavinfo
-$ncp $hybens_info ./hybens_info
-#add 9 tables for new varqc
-$ncp $errtable_pw           ./errtable_pw
-$ncp $errtable_ps           ./errtable_ps
-$ncp $errtable_t           ./errtable_t
-$ncp $errtable_q           ./errtable_q
-$ncp $errtable_uv           ./errtable_uv
-$ncp $btable_ps           ./btable_ps
-$ncp $btable_t           ./btable_t
-$ncp $btable_q           ./btable_q
-$ncp $btable_uv           ./btable_uv
+$ncp $scaninfo     ./scaninfo
+$ncp $satinfo      ./satinfo
+$ncp $cloudyinfo   ./cloudy_radiance_info.txt
+$ncp $pcpinfo      ./pcpinfo
+$ncp $ozinfo       ./ozinfo
+$ncp $convinfo     ./convinfo
+$ncp $vqcdat       ./vqctp001.dat
+$ncp $insituinfo   ./insituinfo
+$ncp $errtable     ./errtable
+$ncp $anavinfo     ./anavinfo
+$ncp $hybens_info  ./hybens_info
+#add 9 tables for new varqc (not used by global
+##$ncp $errtable_pw  ./errtable_pw
+##$ncp $errtable_ps  ./errtable_ps
+##$ncp $errtable_t   ./errtable_t
+##$ncp $errtable_q   ./errtable_q
+##$ncp $errtable_uv  ./errtable_uv
+##$ncp $btable_ps    ./btable_ps
+##$ncp $btable_t     ./btable_t
+##$ncp $btable_q     ./btable_q
+##$ncp $btable_uv    ./btable_uv
 
 
 $ncp $bufrtable ./prepobs_prep.bufrtable
@@ -332,10 +325,24 @@ then
 fi
 
 # Copy CRTM coefficient files based on entries in satinfo file
+mkdir -p crtm_coeffs
 for file in `awk '{if($1!~"!"){print $1}}' ./satinfo | sort | uniq` ;do
-    $ncp $fixcrtm/${file}.SpcCoeff.bin ./
-    $ncp $fixcrtm/${file}.TauCoeff.bin ./
+    $ncp $fixcrtm/${file}.SpcCoeff.bin ./crtm_coeffs/
+    $ncp $fixcrtm/${file}.TauCoeff.bin ./crtm_coeffs/
 done
+
+$ncp $emiscoef_IRwater  ./crtm_coeffs/Nalli.IRwater.EmisCoeff.bin
+$ncp $emiscoef_IRice    ./crtm_coeffs/NPOESS.IRice.EmisCoeff.bin
+$ncp $emiscoef_IRsnow   ./crtm_coeffs/NPOESS.IRsnow.EmisCoeff.bin
+$ncp $emiscoef_IRland   ./crtm_coeffs/NPOESS.IRland.EmisCoeff.bin
+$ncp $emiscoef_VISice   ./crtm_coeffs/NPOESS.VISice.EmisCoeff.bin
+$ncp $emiscoef_VISland  ./crtm_coeffs/NPOESS.VISland.EmisCoeff.bin
+$ncp $emiscoef_VISsnow  ./crtm_coeffs/NPOESS.VISsnow.EmisCoeff.bin
+$ncp $emiscoef_VISwater ./crtm_coeffs/NPOESS.VISwater.EmisCoeff.bin
+$ncp $emiscoef_MWwater  ./crtm_coeffs/FASTEM6.MWwater.EmisCoeff.bin
+$ncp $aercoef           ./crtm_coeffs/AerosolCoeff.bin
+$ncp $cldcoef           ./crtm_coeffs/CloudCoeff.bin
+
 
 # Copy observational data to $DATA
 $ncpl $datanl/${prefix_obs}.prepbufr                ./prepbufr
@@ -362,6 +369,8 @@ $ncpl $datobs/${prefix_obs}.ssmisu.${suffix}        ./ssmisbufr
 $ncpl $datobs/${prefix_obs}.gome.${suffix}          ./gomebufr
 $ncpl $datobs/${prefix_obs}.omi.${suffix}           ./omibufr
 $ncpl $datobs/${prefix_obs}.mls.${suffix}           ./mlsbufr
+$ncpl $datobs/${prefix_obs}.ompsn8.${suffix}        ./ompsnpbufr
+$ncpl $datobs/${prefix_obs}.ompst8.${suffix}        ./ompstcbufr
 $ncpl $datobs/${prefix_obs}.eshrs3.${suffix}        ./hirs3bufrears
 $ncpl $datobs/${prefix_obs}.esamua.${suffix}        ./amsuabufrears
 $ncpl $datobs/${prefix_obs}.esamub.${suffix}        ./amsubbufrears

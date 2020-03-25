@@ -254,6 +254,36 @@ case $regtest in
 
     ;;
 
+    global_fv3_4denvar_C192)
+
+        if [[ "$machine" = "Hera" ]]; then
+           topts[1]="0:35:00" ; popts[1]="6/8/" ; ropts[1]="/1"
+           topts[2]="0:35:00" ; popts[2]="6/10/" ; ropts[2]="/2"
+        elif [[ "$machine" = "WCOSS" ]]; then
+           topts[1]="1:59:00" ; popts[1]="6/8/" ; ropts[1]="/1"
+           topts[2]="0:35:00" ; popts[2]="6/10/" ; ropts[2]="/2"
+        elif [[ "$machine" = "Discover" ]]; then
+           topts[1]="0:30:00" ; popts[1]="48/2"  ; ropts[1]="/1"
+           topts[2]="0:30:00" ; popts[2]="60/3"  ; ropts[2]="/2"
+        elif [[ "$machine" = "Cheyenne" ]]; then
+           topts[1]="1:59:00" ; popts[1]="6/8/" ; ropts[1]="/1"
+           topts[2]="0:35:00" ; popts[2]="6/10/" ; ropts[2]="/2"
+        elif [[ "$machine" = "WCOSS_C" ]]; then
+           topts[1]="0:35:00" ; popts[1]="48/8/" ; ropts[1]="1024/1"  # sub_wcoss_c popts are "#tasks/#nodes/"
+           topts[2]="0:35:00" ; popts[2]="60/10/" ; ropts[2]="1024/2"
+        elif [[ "$machine" = "WCOSS_D" ]]; then
+           topts[1]="0:35:00" ; popts[1]="6/8/" ; ropts[1]="/1"
+           topts[2]="0:35:00" ; popts[2]="6/10/" ; ropts[2]="/2"
+        fi
+
+        if [ "$debug" = ".true." ] ; then
+           topts[1]="1:30:00"
+        fi
+
+        scaling[1]=10; scaling[2]=8; scaling[3]=4
+
+    ;;
+
     global_lanczos_T62)
 
         if [[ "$machine" = "Hera" ]]; then
