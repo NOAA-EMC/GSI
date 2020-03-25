@@ -29,7 +29,7 @@ program recentersigp
   use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_readrec,&
        nemsio_writerec,nemsio_readrecv,nemsio_writerecv,nemsio_getrechead
   use module_fv3gfs_ncio, only: open_dataset, create_dataset, read_attribute, &
-                           Dataset, Dimension, close_dataset, has_attr, &
+                           Dataset, Dimension, close_dataset, has_attr, has_var, &
                            read_vardata, write_attribute, write_vardata, &
                            get_dim, quantize_data
 
@@ -114,7 +114,7 @@ program recentersigp
 !       this is a netCDF file but now we need to determine
 !       if it is a netCDF analysis or increment
 !       going to assume all increment files will have temperature increments
-        if (has_var(dset,'T_inc')) then
+        if (has_var(dsetmi,'T_inc')) then
            increment = .true.
         else
            ncio = .true.
@@ -245,40 +245,40 @@ program recentersigp
         allocate(values_3d(lonb,latb,levs))
         do nvar=1,dseti%nvars
            ndims = dseti%variables(nvar)%ndims
-           if (ndims == 3) ! only 3D fields need to be processed
+           if (ndims == 3) then ! only 3D fields need to be processed
               call read_vardata(dseti,trim(dseti%variables(nvar)%name),values_3d_i)
               call read_vardata(dsetmi,trim(dseti%variables(nvar)%name),values_3d_mi)
               ! need to do select case since ges/anl and increment have different varnames
               select case (dseti%variables(nvar)%name)
               case ('u_inc')
-                 call read_vardata(dsetmg,'ugrd',values_3d_mg)
-                 call read_vardata(dsetmo,'ugrd',values_3d_mo)
+                 call read_vardata(dsetmg,'ugrd',values_3d_mb)
+                 call read_vardata(dsetmo,'ugrd',values_3d_anl)
               case ('v_inc')
-                 call read_vardata(dsetmg,'vgrd',values_3d_mg)
-                 call read_vardata(dsetmo,'vgrd',values_3d_mo)
+                 call read_vardata(dsetmg,'vgrd',values_3d_mb)
+                 call read_vardata(dsetmo,'vgrd',values_3d_anl)
               case ('delp_inc')
-                 call read_vardata(dsetmg,'dpres',values_3d_mg)
-                 call read_vardata(dsetmo,'dpres',values_3d_mo)
+                 call read_vardata(dsetmg,'dpres',values_3d_mb)
+                 call read_vardata(dsetmo,'dpres',values_3d_anl)
               case ('delz_inc')
-                 call read_vardata(dsetmg,'delz',values_3d_mg)
-                 call read_vardata(dsetmo,'delz',values_3d_mo)
+                 call read_vardata(dsetmg,'delz',values_3d_mb)
+                 call read_vardata(dsetmo,'delz',values_3d_anl)
               case ('T_inc')
-                 call read_vardata(dsetmg,'tmp',values_3d_mg)
-                 call read_vardata(dsetmo,'tmp',values_3d_mo)
+                 call read_vardata(dsetmg,'tmp',values_3d_mb)
+                 call read_vardata(dsetmo,'tmp',values_3d_anl)
               case ('sphum_inc')
-                 call read_vardata(dsetmg,'spfh',values_3d_mg)
-                 call read_vardata(dsetmo,'spfh',values_3d_mo)
+                 call read_vardata(dsetmg,'spfh',values_3d_mb)
+                 call read_vardata(dsetmo,'spfh',values_3d_anl)
               case ('liq_wat_inc')
-                 call read_vardata(dsetmg,'clwmr',values_3d_mg)
-                 call read_vardata(dsetmo,'clwmr',values_3d_mo)
+                 call read_vardata(dsetmg,'clwmr',values_3d_mb)
+                 call read_vardata(dsetmo,'clwmr',values_3d_anl)
               case ('o3mr_inc')
-                 call read_vardata(dsetmg,'o3mr',values_3d_mg)
-                 call read_vardata(dsetmo,'o3mr',values_3d_mo)
+                 call read_vardata(dsetmg,'o3mr',values_3d_mb)
+                 call read_vardata(dsetmo,'o3mr',values_3d_anl)
               case ('icmr_inc')
-                 call read_vardata(dsetmg,'icmr',values_3d_mg)
-                 call read_vardata(dsetmo,'icmr',values_3d_mo)
+                 call read_vardata(dsetmg,'icmr',values_3d_mb)
+                 call read_vardata(dsetmo,'icmr',values_3d_anl)
               end select
-              values_3d = values_3d_i - values_3d_mg - values_3d_mi + values_3d_mo
+              values_3d = values_3d_i - values_3d_mb - values_3d_mi + values_3d_anl
               call write_vardata(dseto,trim(dseti%variables(nvar)%name),values_3d)
            end if
         end do
