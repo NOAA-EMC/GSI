@@ -179,6 +179,9 @@ if [ $DO_CALC_INCREMENT = "YES" ]; then
    export err=$ERR
    $ERRSCRIPT || exit 2
 else
+   # Link ensemble mean guess
+   $NLN $COMIN_GES_ENS/${GPREFIX}atmf00${FHR}.ensmean$GSUFFIX ./atmges_ensmean
+
    # Link ensemble mean increment
    if [ $FHR -eq 6 ]; then
       $NLN $COMIN_ENS/${APREFIX_ENKF}atminc.ensmean$ASUFFIX ./atminc_ensmean
@@ -186,7 +189,7 @@ else
       $NLN $COMIN_ENS/${APREFIX_ENKF}atmi00${FHR}.ensmean$ASUFFIX ./atminc_ensmean
    fi
 
-   # Compute ensemble mean analysis
+   # Compute ensemble mean increment
    DATAPATH="./"
    ATMINCNAME="atminc"
    ATMINCMEANNAME="atminc_ensmean"
@@ -195,6 +198,21 @@ else
 
    $NCP $GETATMENSMEANEXEC $DATA
    $APRUN_ECEN ${DATA}/$(basename $GETATMENSMEANEXEC) $DATAPATH $ATMINCMEANNAME $ATMINCNAME $NMEM_ENKF
+   rc=$?
+
+   export ERR=$rc
+   export err=$ERR
+   $ERRSCRIPT || exit 2
+
+   # Compute ensemble mean guess
+   DATAPATH="./"
+   ATMGESNAME="atmges"
+   ATMGESMEANNAME="atmges_ensmean"
+
+   export OMP_NUM_THREADS=$NTHREADS_ECEN
+
+   $NCP $GETATMENSMEANEXEC $DATA
+   $APRUN_ECEN ${DATA}/$(basename $GETATMENSMEANEXEC) $DATAPATH $ATMGESMEANNAME $ATMGESNAME $NMEM_ENKF
    rc=$?
 
    export ERR=$rc
@@ -320,14 +338,15 @@ EOF
       # Recenter ensemble member atmospheric increments about hires analysis
 
       FILENAMEIN="atminc"
-      FILENAME_MEANIN="atminc_ensmean"     # EnKF ensemble mean analysis
+      FILENAME_INCMEANIN="atminc_ensmean"     # EnKF ensemble mean increment
+      FILENAME_GESMEANIN="atmges_ensmean"     # EnKF ensemble mean guess
       FILENAME_GSIDET="atmanl_gsi_ensres" # recenter around GSI analysis at ensemble resolution
       FILENAMEOUT="ratminc"
 
       export OMP_NUM_THREADS=$NTHREADS_ECEN
 
       $NCP $RECENATMEXEC $DATA
-      $APRUN_ECEN ${DATA}/$(basename $RECENATMEXEC) $FILENAMEIN $FILENAME_MEANIN $FILENAME_GSIDET $FILENAMEOUT $NMEM_ENKF
+      $APRUN_ECEN ${DATA}/$(basename $RECENATMEXEC) $FILENAMEIN $FILENAME_INCMEANIN $FILENAME_GSIDET $FILENAMEOUT $NMEM_ENKF $FILENAME_GESMEANIN
       rc=$?
 
       export ERR=$rc

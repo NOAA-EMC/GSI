@@ -41,8 +41,8 @@ program recentersigp
 
   TYPE(SIGIO_HEAD) :: SIGHEADI,SIGHEADO,SIGHEADMI,SIGHEADMO
   TYPE(SIGIO_DATA) :: SIGDATAI,SIGDATAO,SIGDATAMI,SIGDATAMO
-  logical:: nemsio, sigio, ncio, quantize
-  character*500 filename_meani,filename_meano,filenamein,filenameout
+  logical:: nemsio, sigio, ncio, increment, quantize
+  character*500 filename_meani,filename_meano,filenamein,filenameout,filename_meang
   character*3 charnanal
   character(len=4) charnin
   character(16),dimension(:),allocatable:: fieldname_di,fieldname_mi,fieldname_mo
@@ -55,11 +55,11 @@ program recentersigp
   real(4),allocatable, dimension(:,:) :: values_2d, values_2d_i, values_2d_mi,&
                                          values_2d_mo
   real(4),allocatable, dimension(:,:,:) :: values_3d, values_3d_i, values_3d_mi,&
-                                         values_3d_mo
+                                         values_3d_mo, values_3d_mb, values_3d_anl
   real(4) compress_err
 
   type(nemsio_gfile) :: gfilei, gfileo, gfilemi, gfilemo
-  type(Dataset) :: dseti,dseto,dsetmi,dsetmo
+  type(Dataset) :: dseti,dseto,dsetmi,dsetmo,dsetmg
   type(Dimension) :: londim,latdim,levdim
 
 ! Initialize mpi
@@ -90,6 +90,9 @@ program recentersigp
   call getarg(5,charnin)
   read(charnin,'(i4)') nanals
 
+! option for increment, read in ens mean guess
+  call getarg(6,filename_meang)
+
   if (mype==0) then
      write(6,*)'RECENTERSIGP:  PROCESS ',nanals,' ENSEMBLE MEMBERS'
      write(6,*)'filenamein=',trim(filenamein)
@@ -101,18 +104,24 @@ program recentersigp
   sigio=.false.
   nemsio=.false.
   ncio=.false.
+  increment=.false.
 
   mype1 = mype+1
   if (mype1 <= nanals) then
 
      dsetmi = open_dataset(filename_meani,errcode=iret)
      if (iret == 0) then
-        ncio = .true.
-     else
-        ncio = .false.
+!       this is a netCDF file but now we need to determine
+!       if it is a netCDF analysis or increment
+!       going to assume all increment files will have temperature increments
+        if (has_var(dset,'T_inc')) then
+           increment = .true.
+        else
+           ncio = .true.
+        end if
      endif
 
-     if (.not. ncio) then
+     if (.not. ncio .and. .not. increment) then
         call sigio_srohdc(nsigi,trim(filename_meani),  &
              sigheadmi,sigdatami,iret)
         if (iret == 0 ) then
@@ -132,9 +141,9 @@ program recentersigp
         endif
      endif
 
-     if (.not.nemsio .and. .not.sigio .and. .not.ncio) goto 100
+     if (.not.nemsio .and. .not.sigio .and. .not.ncio .and. .not. increment ) goto 100
 
-     if (mype==0) write(6,*)'processing files with nemsio=',nemsio,' sigio=',sigio,' ncio=',ncio
+     if (mype==0) write(6,*)'processing files with nemsio=',nemsio,' sigio=',sigio,' ncio=',ncio,' increment=',increment
 
 
      if (sigio) then
@@ -222,6 +231,65 @@ program recentersigp
         call nemsio_close(gfileo,iret=iret)
         write(6,*)'task mype=',mype,' process ',trim(filenameout)//"_mem"//charnanal,' iret=',iret
 
+     else if (increment) then
+
+        if (mype == 0) write(6,*) 'Read netcdf increment'
+        londim = get_dim(dsetmi,'lon'); lonb = londim%len
+        latdim = get_dim(dsetmi,'lat'); latb = latdim%len
+        levdim = get_dim(dsetmi,'lev');   levs = levdim%len
+        write(charnanal,'(i3.3)') mype1
+        dsetmo = open_dataset(filename_meano)
+        dsetmg = open_dataset(filename_meang)
+        dseti  = open_dataset(trim(filenamein)//"_mem"//charnanal)
+        dseto  = create_dataset(trim(filenameout)//"_mem"//charnanal, dseti, copy_vardata=.true.)
+        allocate(values_3d(lonb,latb,levs))
+        do nvar=1,dseti%nvars
+           ndims = dseti%variables(nvar)%ndims
+           if (ndims == 3) ! only 3D fields need to be processed
+              call read_vardata(dseti,trim(dseti%variables(nvar)%name),values_3d_i)
+              call read_vardata(dsetmi,trim(dseti%variables(nvar)%name),values_3d_mi)
+              ! need to do select case since ges/anl and increment have different varnames
+              select case (dseti%variables(nvar)%name)
+              case ('u_inc')
+                 call read_vardata(dsetmg,'ugrd',values_3d_mg)
+                 call read_vardata(dsetmo,'ugrd',values_3d_mo)
+              case ('v_inc')
+                 call read_vardata(dsetmg,'vgrd',values_3d_mg)
+                 call read_vardata(dsetmo,'vgrd',values_3d_mo)
+              case ('delp_inc')
+                 call read_vardata(dsetmg,'dpres',values_3d_mg)
+                 call read_vardata(dsetmo,'dpres',values_3d_mo)
+              case ('delz_inc')
+                 call read_vardata(dsetmg,'delz',values_3d_mg)
+                 call read_vardata(dsetmo,'delz',values_3d_mo)
+              case ('T_inc')
+                 call read_vardata(dsetmg,'tmp',values_3d_mg)
+                 call read_vardata(dsetmo,'tmp',values_3d_mo)
+              case ('sphum_inc')
+                 call read_vardata(dsetmg,'spfh',values_3d_mg)
+                 call read_vardata(dsetmo,'spfh',values_3d_mo)
+              case ('liq_wat_inc')
+                 call read_vardata(dsetmg,'clwmr',values_3d_mg)
+                 call read_vardata(dsetmo,'clwmr',values_3d_mo)
+              case ('o3mr_inc')
+                 call read_vardata(dsetmg,'o3mr',values_3d_mg)
+                 call read_vardata(dsetmo,'o3mr',values_3d_mo)
+              case ('icmr_inc')
+                 call read_vardata(dsetmg,'icmr',values_3d_mg)
+                 call read_vardata(dsetmo,'icmr',values_3d_mo)
+              end select
+              values_3d = values_3d_i - values_3d_mg - values_3d_mi + values_3d_mo
+              call write_vardata(dseto,trim(dseti%variables(nvar)%name),values_3d)
+           end if
+        end do
+        deallocate(values_2d,values_2d_i,values_2d_mi,values_2d_mo)
+        deallocate(values_3d,values_3d_i,values_3d_mi,values_3d_mo)
+        call close_dataset(dsetmi)
+        call close_dataset(dsetmo)
+        call close_dataset(dsetmg)
+        call close_dataset(dseti)
+        call close_dataset(dseto)
+
      else if (ncio) then
 
         if (mype == 0) write(6,*) 'Read netcdf'
@@ -240,12 +308,12 @@ program recentersigp
                   call read_vardata(dseti,trim(dseti%variables(nvar)%name),values_2d_i)
                   call read_vardata(dsetmi,trim(dseti%variables(nvar)%name),values_2d_mi)
                   call read_vardata(dsetmo,trim(dseti%variables(nvar)%name),values_2d_mo)
-                  values_2d = values_2d_i - values_2d_mi + values_2d_mo 
+                  values_2d = values_2d_i - values_2d_mi + values_2d_mo
                   if (has_attr(dseti, 'nbits', trim(dseti%variables(nvar)%name))) then
                       call read_attribute(dseti, 'nbits', nbits, &
                            trim(dseti%variables(nvar)%name))
                       quantize = .true.
-                      if (nbits < 1) quantize = .false. 
+                      if (nbits < 1) quantize = .false.
                   else
                       quantize = .false.
                   endif
@@ -260,12 +328,12 @@ program recentersigp
                   call read_vardata(dseti,trim(dseti%variables(nvar)%name),values_3d_i)
                   call read_vardata(dsetmi,trim(dseti%variables(nvar)%name),values_3d_mi)
                   call read_vardata(dsetmo,trim(dseti%variables(nvar)%name),values_3d_mo)
-                  values_3d = values_3d_i - values_3d_mi + values_3d_mo 
+                  values_3d = values_3d_i - values_3d_mi + values_3d_mo
                   if (has_attr(dseti, 'nbits', trim(dseti%variables(nvar)%name))) then
                       call read_attribute(dseti, 'nbits', nbits, &
                            trim(dseti%variables(nvar)%name))
                       quantize = .true.
-                      if (nbits < 1) quantize = .false. 
+                      if (nbits < 1) quantize = .false.
                   else
                       quantize = .false.
                   endif
@@ -297,7 +365,7 @@ program recentersigp
 100 continue
   call MPI_Barrier(MPI_COMM_WORLD,ierr)
 
-  if (mype1 <= nanals .and. .not.nemsio .and. .not.sigio .and. .not. ncio) then
+  if (mype1 <= nanals .and. .not.nemsio .and. .not.sigio .and. .not. ncio .and. .not. increment) then
      call MPI_Abort(MPI_COMM_WORLD,98,iret)
      stop
   endif
