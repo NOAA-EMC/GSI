@@ -282,8 +282,7 @@ program recentersigp
               call write_vardata(dseto,trim(dseti%variables(nvar)%name),values_3d)
            end if
         end do
-        deallocate(values_2d,values_2d_i,values_2d_mi,values_2d_mo)
-        deallocate(values_3d,values_3d_i,values_3d_mi,values_3d_mo)
+        deallocate(values_3d,values_3d_i,values_3d_mi,values_3d_mb,values_3d_anl)
         call close_dataset(dsetmi)
         call close_dataset(dsetmo)
         call close_dataset(dsetmg)

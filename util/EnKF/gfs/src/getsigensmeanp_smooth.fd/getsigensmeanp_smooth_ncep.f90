@@ -613,15 +613,13 @@ program getsigensmeanp_smooth
         if (dosmooth) then
            dseto_smooth = create_dataset(filenameouts, dset, copy_vardata=.true.)
         endif
-        allocate(values_2d_avg(lonb,latb))
-        allocate(values_2d_tmp(lonb,latb))
         if (dosmooth) then
            allocate(rwork_spc((ntrunc+1)*(ntrunc+2)),rwork_spc2((ntrunc+1)*(ntrunc+2)))
         endif
-        if (write_spread_ncio) allocate(values_2d_sprd(lonb,latb))
         do nvar=1,dset%nvars
            ! if smoothing is on, u&v done together.
            if (dosmooth .and. trim(dset%variables(nvar)%name) == 'vgrd') cycle
+           ndims = dset%variables(nvar)%ndims
            if (ndims == 3) then
               call read_vardata(dset,trim(dset%variables(nvar)%name),values_3d)
               if (allocated(values_3d_avg)) deallocate(values_3d_avg)
@@ -722,14 +720,14 @@ program getsigensmeanp_smooth
               end if
            end if ! end if 3D var
         end do ! end loop through variables
-        deallocate(values_2d, values_3d, values_2d_avg, values_3d_avg)
-        deallocate(values_2d_tmp, values_3d_tmp)
+        deallocate(values_3d, values_3d_avg)
+        deallocate(values_3d_tmp)
         if (dosmooth) then
            deallocate(rwork_spc)
            call close_dataset(dseto_smooth)
         endif
         if (write_spread_ncio) then
-           deallocate(values_2d_sprd, values_3d_sprd)
+           deallocate(values_3d_sprd)
         endif
         if (mype == 0) then
            call close_dataset(dseto)
