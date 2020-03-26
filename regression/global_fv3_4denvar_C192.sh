@@ -225,7 +225,21 @@ EOF
 #   bufrtable= text file ONLY needed for single obs test (oneobstest=.true.)
 #   bftab_sst= bufr table for sst ONLY needed for sst retrieval (retrieval=.true.)
 
+anavinfo=$fixgsi/global_anavinfo.l${LEVS}.txt
 berror=$fixgsi/Big_Endian/global_berror.l${LEVS}y${NLAT}.f77
+locinfo=$fixgsi/global_hybens_info.l${LEVS}.txt
+satinfo=$fixgsi/global_satinfo.txt
+scaninfo=$fixgsi/global_scaninfo.txt
+satangl=$fixgsi/global_satangbias.txt
+pcpinfo=$fixgsi/global_pcpinfo.txt
+ozinfo=$fixgsi/global_ozinfo.txt
+convinfo=$fixgsi/global_convinfo.txt
+vqcdat=$fixgsi/vqctp001.dat
+insituinfo=$fixgsi/global_insituinfo.txt
+errtable=$fixgsi/prepobs_errtable.global
+aeroinfo=$fixgsi/global_aeroinfo.txt
+atmsbeaminfo=$fixgsi/atms_beamwidth.txt
+cloudyinfo=$fixgsi/cloudy_radiance_info.txt
 
 emiscoef_IRwater=$fixcrtm/Nalli.IRwater.EmisCoeff.bin
 emiscoef_IRice=$fixcrtm/NPOESS.IRice.EmisCoeff.bin
@@ -238,30 +252,6 @@ emiscoef_VISwater=$fixcrtm/NPOESS.VISwater.EmisCoeff.bin
 emiscoef_MWwater=$fixcrtm/FASTEM6.MWwater.EmisCoeff.bin
 aercoef=$fixcrtm/AerosolCoeff.bin
 cldcoef=$fixcrtm/CloudCoeff.bin
-satangl=$fixgsi/global_satangbias.txt
-scaninfo=$fixgsi/global_scaninfo.txt
-satinfo=$fixgsi/global_satinfo.txt
-cloudyinfo=$fixgsi/cloudy_radiance_info.txt
-convinfo=$fixgsi/global_convinfo_reg_test.txt
-vqcdat=$fixgsi/vqctp001.dat
-insituinfo=$fixgsi/global_insituinfo.txt
-### add 9 tables
-errtable_pw=$fixgsi/prepobs_errtable_pw.global
-errtable_ps=$fixgsi/prepobs_errtable_ps.global_nqcf
-errtable_t=$fixgsi/prepobs_errtable_t.global_nqcf
-errtable_q=$fixgsi/prepobs_errtable_q.global_nqcf
-errtable_uv=$fixgsi/prepobs_errtable_uv.global_nqcf
-btable_ps=$fixgsi/nqc_b_ps.global_nqcf
-btable_t=$fixgsi/nqc_b_t.global_nqcf
-btable_q=$fixgsi/nqc_b_q.global_nqcf
-btable_uv=$fixgsi/nqc_b_uv.global_nqcf
-
-anavinfo=$fixgsi/global_anavinfo.l64.txt
-ozinfo=$fixgsi/global_ozinfo.txt
-pcpinfo=$fixgsi/global_pcpinfo.txt
-errtable=$fixgsi/prepobs_errtable.global
-hybens_info=$fixgsi/global_hybens_info.l64.txt
-atmsbeamdat=$fixgsi/atms_beamwidth.txt
 
 # Only need this file for single obs test
 bufrtable=$fixgsi/prepobs_prep.bufrtable
@@ -276,41 +266,30 @@ elif [[ $exp == *"contrl"* ]]; then
    $ncp $gsiexec_contrl ./gsi.x
 fi
 
-$ncp $berror       ./berror_stats
-$ncp $satangl      ./satbias_angle
-$ncp $atmsbeamdat  ./atms_beamwidth.txt
-$ncp $scaninfo     ./scaninfo
-$ncp $satinfo      ./satinfo
+$ncp $anavinfo ./anavinfo
+$ncp $berror   ./berror_stats
+$ncp $locinfo  ./hybens_info
+$ncp $satinfo  ./satinfo
+$ncp $scaninfo ./scaninfo
+$ncp $pcpinfo  ./pcpinfo
+$ncp $ozinfo   ./ozinfo
+$ncp $convinfo ./convinfo
+$ncp $vqcdat   ./vqctp001.dat
+$ncp $insituinfo ./insituinfo
+$ncp $errtable ./errtable
+$ncp $aeroinfo ./aeroinfo
+$ncp $atmsbeaminfo ./atms_beamwidth.txt
 $ncp $cloudyinfo   ./cloudy_radiance_info.txt
-$ncp $pcpinfo      ./pcpinfo
-$ncp $ozinfo       ./ozinfo
-$ncp $convinfo     ./convinfo
-$ncp $vqcdat       ./vqctp001.dat
-$ncp $insituinfo   ./insituinfo
-$ncp $errtable     ./errtable
-$ncp $anavinfo     ./anavinfo
-$ncp $hybens_info  ./hybens_info
-#add 9 tables for new varqc (not used by global
-##$ncp $errtable_pw  ./errtable_pw
-##$ncp $errtable_ps  ./errtable_ps
-##$ncp $errtable_t   ./errtable_t
-##$ncp $errtable_q   ./errtable_q
-##$ncp $errtable_uv  ./errtable_uv
-##$ncp $btable_ps    ./btable_ps
-##$ncp $btable_t     ./btable_t
-##$ncp $btable_q     ./btable_q
-##$ncp $btable_uv    ./btable_uv
-
 
 $ncp $bufrtable ./prepobs_prep.bufrtable
 $ncp $bftab_sst ./bftab_sstphr
 
-#if using correlated error, link to the covariance files
+#If using correlated error, get the covariance files
 if grep -q "Rcov" $anavinfo ;
-then 
+then
   if ls ${fixgsi}/Rcov* 1> /dev/null 2>&1;
   then
-    $ncp ${fixgsi}/Rcov* .
+    $ncp ${fixgsi}/Rcov* $tmpdir/
 
 #   Correlated error utlizes mkl lapack.  Found it necesary to fix the
 #   number of mkl threads to ensure reproducible results independent
@@ -401,17 +380,17 @@ $ncpl $datges/${prefix_ges}.abias_air               ./aircftbias_in
 
 flist="03 04 05 06 07 08 09"
 for fh in $flist; do
-    $ncpl $datges/${prefix_ges}.sfcf0$fh.nemsio     ./sfcf$fh
-    $ncpl $datges/${prefix_ges}.atmf0$fh.nemsio     ./sigf$fh
+    $ncpl $datges/${prefix_ges}.sfcf0$fh.nc     ./sfcf$fh
+    $ncpl $datges/${prefix_ges}.atmf0$fh.nc     ./sigf$fh
 done
 
 
 ensemble_path="./ensemble_data/"
 mkdir -p $ensemble_path
-enkf_suffix="s"
+enkf_suffix=""
 flist="03 04 05 06 07 08 09"
 for fh in $flist; do
-    sigens=${prefix_ens}.atmf0${fh}${enkf_suffix}.nemsio
+    sigens=${prefix_ens}.atmf0${fh}${enkf_suffix}.nc
 
     imem=$ENSBEG
     imemloc=1
@@ -424,7 +403,7 @@ for fh in $flist; do
     done
 done
 
-$ncpl $datens/${prefix_ens}.sfcf006.ensmean.nemsio ./sfcf06_anlgrid
+$ncpl $datens/${prefix_ens}.sfcf006.ensmean.nc ./sfcf06_anlgrid
 
 $ncpl $datges/${prefix_ges}.radstat ./radstat.gdas
 listdiag=`tar xvf radstat.gdas | cut -d' ' -f2 | grep _ges`

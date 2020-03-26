@@ -955,25 +955,28 @@ export gsi_namelist="
    niter_no_qc(1)=2,niter_no_qc(2)=0,
    write_diag(1)=.true.,write_diag(2)=.false.,write_diag(3)=.true.,
    qoption=2,
-   gencode=82,factqmin=0.5,factqmax=0.0002,deltim=1200,
+   gencode=82,factqmin=0.5,factqmax=0.0002,deltim=400
    iguess=-1,
    oneobtest=.false.,retrieval=.false.,l_foto=.false.,
-   use_pbl=.false.,use_compress=.true.,nsig_ext=55,gpstop=55.,
-   use_gfs_nemsio=.false.,use_gfs_ncio=.true.,lrun_subdirs=.true.,use_readin_anl_sfcmask=.true.,
+   use_pbl=.false.,use_compress=.true.,nsig_ext=56,gpstop=55.,
+   use_gfs_nemsio=.false.,lrun_subdirs=.true.,use_readin_anl_sfcmask=.true.,
    crtm_coeffs_path='./crtm_coeffs/',
    newpc4pred=.true.,adp_anglebc=.true.,angord=4,passive_bc=.true.,use_edges=.false.,
    diag_precon=.true.,step_start=1.e-3,emiss_bc=.true.,thin4d=.true.,cwoption=3,
-   verbose=.false.,imp_physics=11,lupp=.true.,binary_diag=.false.,netcdf_diag=.true.,
+   verbose=.false.,imp_physics=11,lupp=.true.,
+   binary_diag=.false.,netcdf_diag=.true.,
    lobsdiag_forenkf=.false.,
    nhr_anal=3,6,9,
-   l4densvar=.true.,ens_nstarthr=3,nhr_obsbin=1,nhr_assimilation=6,lwrite4danl=.true., tzr_qc=1,sfcnst_comb=.true.,
+   l4densvar=.true.,ens_nstarthr=3,nhr_obsbin=1,nhr_assimilation=6,lwrite4danl=.true.,
+   tzr_qc=1,sfcnst_comb=.true.,
    write_fv3_incr=.true.,incvars_to_zero= 'liq_wat_inc','icmr_inc',incvars_zero_strat='sphum_inc','liq_wat_inc','icmr_inc',
    incvars_efold=5,
+   use_gfs_ncio=.true.,
    $SETUP
  /
  &GRIDOPTS
    JCAP_B=$JCAP_B,JCAP=$JCAP,NLAT=$NLAT,NLON=$LONA,nsig=$LEVS,
-   regional=.false.,nlayers(63)=3,nlayers(64)=6,
+   regional=.false.,
    $GRIDOPTS
  /
  &BKGERR
@@ -991,11 +994,12 @@ export gsi_namelist="
    $ANBKGERR
  /
  &JCOPTS
-   ljcdfi=.false.,alphajc=0.0,ljcpdry=.true.,bamp_jcpdry=5.0e7,ljc4tlevs=.true.,
+   ljcdfi=.false.,alphajc=0.0,ljcpdry=.true.,bamp_jcpdry=5.0e7,
+   ljc4tlevs=.true.,
    $JCOPTS
  /
  &STRONGOPTS
-   tlnmc_option=2,nstrong=1,nvmodes_keep=8,period_max=6.,period_width=1.5,
+   tlnmc_option=3,nstrong=1,nvmodes_keep=8,period_max=6.,period_width=1.5,
    baldiag_full=.false.,baldiag_inc=.false.,
    $STRONGOPTS
  /
@@ -1119,8 +1123,8 @@ OBS_INPUT::
    $LAGDATA
  /
  &HYBRID_ENSEMBLE
-   l_hyb_ens=.true.,n_ens=20,beta_s0=0.125,readin_beta=.false.,s_ens_h=800,s_ens_v=-0.8,generate_ens=.false.,uv_hyb_ens=.true.,jcap_ens=62,
-   nlat_ens=96,nlon_ens=192,aniso_a_en=.false.,jcap_ens_test=62,oz_univ_static=.false.,readin_localization=.true.,ensemble_path='./ensemble_data/',
+   l_hyb_ens=.true.,n_ens=20,beta_s0=0.125,readin_beta=.false.,s_ens_h=800,s_ens_v=-0.8,generate_ens=.false.,uv_hyb_ens=.true.,jcap_ens=190,
+   nlat_ens=194,nlon_ens=384,aniso_a_en=.false.,jcap_ens_test=62,oz_univ_static=.false.,readin_localization=.true.,ensemble_path='./ensemble_data/',
    ens_fast_read=.true.,write_ens_sprd=.false.,
    $HYBRID_ENSEMBLE
  /
