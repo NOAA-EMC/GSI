@@ -49,7 +49,7 @@ program recentersigp
   character(16),dimension(:),allocatable:: fieldlevtyp_di,fieldlevtyp_mi,fieldlevtyp_mo
   integer,dimension(:),allocatable:: fieldlevel_di,fieldlevel_mi,fieldlevel_mo,orderdi,ordermi
   integer nsigi,nsigo,iret,mype,mype1,npe,nanals,ierr
-  integer:: nrec,latb,lonb,levs,npts,n,i,nbits,nvar,ndims
+  integer:: nrec,latb,lonb,levs,npts,n,i,nbits,nvar,ndims,j
   real,allocatable,dimension(:):: rwork1d
   real,allocatable,dimension(:,:)   :: rwork1di,rwork1do,rwork1dmi,rwork1dmo
   real(4),allocatable, dimension(:,:) :: values_2d, values_2d_i, values_2d_mi,&
@@ -278,11 +278,15 @@ program recentersigp
                  call read_vardata(dsetmg,'icmr',values_3d_mb)
                  call read_vardata(dsetmo,'icmr',values_3d_anl)
               end select
-              values_3d = values_3d_i - values_3d_mb - values_3d_mi + values_3d_anl
+              values_3d(:,:,:) = zero 
+              do j=1,latb
+                 values_3d(:,j,:) = values_3d_i(:,j,:) - values_3d_mb(:,latb-j+1,:) - values_3d_mi(:,j,:) + values_3d_anl(:,latb-j+1,:)
+              end do
               call write_vardata(dseto,trim(dseti%variables(nvar)%name),values_3d)
            end if
         end do
         deallocate(values_3d,values_3d_i,values_3d_mi,values_3d_mb,values_3d_anl)
+        call write_attribute(dseto,'comment','recentered analysis increment using recentersigp') 
         call close_dataset(dsetmi)
         call close_dataset(dsetmo)
         call close_dataset(dsetmg)
