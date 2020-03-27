@@ -62,8 +62,8 @@ program recentersigp
   type(Dataset) :: dseti,dseto,dsetmi,dsetmo,dsetmg
   type(Dimension) :: londim,latdim,levdim
 
-  namelist /recenter/ incvars_to_zero 
-  character(len=12),dimension(10) :: incvars_to_zero !just picking 10 arbitrarily
+  !namelist /recenter/ incvars_to_zero 
+  !character(len=12),dimension(10) :: incvars_to_zero !just picking 10 arbitrarily
 
 ! Initialize mpi
   call MPI_Init(ierr)
@@ -238,10 +238,10 @@ program recentersigp
      else if (increment) then
 
         ! read in namelist for incvars_to_zero
-        incvars_to_zero(:) = 'NONE'
-        open(912,file='recenter.nml',form="formatted")
-        read(912,recenter)
-        close(912)
+        !incvars_to_zero(:) = 'NONE'
+        !open(912,file='recenter.nml',form="formatted")
+        !read(912,recenter)
+        !close(912)
 
         if (mype == 0) write(6,*) 'Read netcdf increment'
         londim = get_dim(dsetmi,'lon'); lonb = londim%len
