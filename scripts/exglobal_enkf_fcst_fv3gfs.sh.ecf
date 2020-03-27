@@ -67,6 +67,10 @@ export CDUMP=${CDUMP:-"gdas"}
 # Re-run failed members, or entire group
 RERUN_EFCSGRP=${RERUN_EFCSGRP:-"YES"}
 
+# Recenter flag and increment file prefix
+RECENTER_ENKF=${RECENTER_ENKF:-"YES"}
+export PREFIX_ATMINC=${PREFIX_ATMINC:-""}
+
 # Ops related stuff
 SENDECF=${SENDECF:-"NO"}
 SENDDBN=${SENDDBN:-"NO"}
@@ -135,6 +139,11 @@ export dspheat=${dspheat_ENKF:-${dspheat:-".true."}}
 export shal_cnv=${shal_cnv_ENKF:-${shal_cnv:-".true."}}
 export FHZER=${FHZER_ENKF:-${FHZER:-6}}
 export FHCYC=${FHCYC_ENKF:-${FHCYC:-6}}
+
+# Set PREFIX_ATMINC to r when recentering on
+if [ $RECENTER_ENKF = "YES" ]; then
+   export PREFIX_ATMINC="r"
+fi
 
 # APRUN for different executables
 export APRUN_FV3=${APRUN_FV3:-${APRUN:-""}}
