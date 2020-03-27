@@ -62,6 +62,9 @@ program recentersigp
   type(Dataset) :: dseti,dseto,dsetmi,dsetmo,dsetmg
   type(Dimension) :: londim,latdim,levdim
 
+  namelist /recenter/ incvars_to_zero 
+  character(len=12),dimension(10) :: incvars_to_zero !just picking 10 arbitrarily
+
 ! Initialize mpi
   call MPI_Init(ierr)
 
@@ -92,6 +95,7 @@ program recentersigp
 
 ! option for increment, read in ens mean guess
   call getarg(6,filename_meang)
+
 
   if (mype==0) then
      write(6,*)'RECENTERSIGP:  PROCESS ',nanals,' ENSEMBLE MEMBERS'
@@ -232,6 +236,12 @@ program recentersigp
         write(6,*)'task mype=',mype,' process ',trim(filenameout)//"_mem"//charnanal,' iret=',iret
 
      else if (increment) then
+
+        ! read in namelist for incvars_to_zero
+        incvars_to_zero(:) = 'NONE'
+        open(912,file='recenter.nml',form="formatted")
+        read(912,recenter)
+        close(912)
 
         if (mype == 0) write(6,*) 'Read netcdf increment'
         londim = get_dim(dsetmi,'lon'); lonb = londim%len
@@ -379,6 +389,29 @@ program recentersigp
   if (mype .eq. 0 .and. ierr .ne. 0) then
      print *, 'MPI_Finalize error status = ',ierr
   end if
+
+  !! Is this variable in incvars_to_zero?
+  logical function should_zero_increments_for(check_var)
+    use params, only : incvars_to_zero
+
+    character(len=*), intent(in) :: check_var !! Variable to search for
+
+    ! Local variables
+
+    character(len=12) :: varname ! temporary string for storing variable names
+    integer :: i ! incvars_to_zero loop index
+
+    should_zero_increments_for=.false.
+
+    zeros_loop: do i=1,size(incvars_to_zero)
+       varname = incvars_to_zero(i)
+       if ( trim(varname) == check_var ) then
+          should_zero_increments_for=.true.
+          return
+       endif
+    end do zeros_loop
+
+  end function should_zero_increments_for
 
 END program recentersigp
 

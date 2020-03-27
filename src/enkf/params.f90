@@ -166,7 +166,6 @@ logical,public :: univaroz = .true.
 logical,public :: regional = .false.
 logical,public :: use_gfs_nemsio = .false.
 logical,public :: use_gfs_ncio = .false.
-logical,public :: write_fv3_incr = .false.
 logical,public :: arw = .false.
 logical,public :: nmm = .true.
 logical,public :: nmm_restart = .true.
@@ -213,6 +212,11 @@ logical,public ::l_pres_add_saved
 logical, public :: paranc = .false.
 logical, public :: nccompress = .false.
 
+! for writing increments
+logical,public :: write_fv3_incr = .false.
+character(len=12),dimension(10) :: incvars_to_zero !just picking 10 arbitrarily
+incvars_to_zero(:) = 'NONE'
+
 namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    covinflatemax,covinflatemin,deterministic,sortinc,&
                    corrlengthnh,corrlengthtr,corrlengthsh,&
@@ -237,7 +241,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    getkf,getkf_inflation,denkf,modelspace_vloc,dfs_sort,write_spread_diag,&
                    covinflatenh,covinflatesh,covinflatetr,lnsigcovinfcutoff,letkf_bruteforce_search,&
                    fso_cycling,fso_calculate,imp_physics,lupp,cnvw_option,use_correlated_oberrs,&
-                   fv3_native, paranc, nccompress, write_fv3_incr
+                   fv3_native, paranc, nccompress, write_fv3_incr,incvars_to_zero
 namelist /nam_wrf/arw,nmm,nmm_restart
 namelist /nam_fv3/fv3fixpath,nx_res,ny_res,ntiles,l_pres_add_saved
 namelist /satobs_enkf/sattypes_rad,dsis

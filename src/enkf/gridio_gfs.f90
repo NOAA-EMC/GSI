@@ -3518,6 +3518,7 @@
   do j=1,nlats
     inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
   end do
+  if (should_zero_increments_for('u_inc') inc3dout = zero
   call nccheck_incr(nf90_put_var(ncid_out, uvarid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
 
@@ -3534,6 +3535,7 @@
   do j=1,nlats
     inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
   end do
+  if (should_zero_increments_for('v_inc') inc3dout = zero
   call nccheck_incr(nf90_put_var(ncid_out, vvarid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
 
@@ -3552,6 +3554,7 @@
   do j=1,nlats
     inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
   end do
+  if (should_zero_increments_for('delp_inc') inc3dout = zero
   call nccheck_incr(nf90_put_var(ncid_out, delpvarid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
 
@@ -3578,6 +3581,7 @@
   do j=1,nlats
     inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
   end do
+  if (should_zero_increments_for('sphum_inc') inc3dout = zero
   call nccheck_incr(nf90_put_var(ncid_out, sphumvarid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
 
@@ -3603,6 +3607,7 @@
   do j=1,nlats
     inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
   end do
+  if (should_zero_increments_for('T_inc') inc3dout = zero
   call nccheck_incr(nf90_put_var(ncid_out, tvarid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
 
@@ -3631,6 +3636,7 @@
   do j=1,nlats
     inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
   end do
+  if (should_zero_increments_for('delz_inc') inc3dout = zero
   call nccheck_incr(nf90_put_var(ncid_out, delzvarid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
 
@@ -3647,6 +3653,7 @@
   do j=1,nlats
     inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
   end do
+  if (should_zero_increments_for('o3mr_inc') inc3dout = zero
   call nccheck_incr(nf90_put_var(ncid_out, o3varid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
 
@@ -3674,11 +3681,13 @@
   do j=1,nlats
     inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
   end do
+  if (should_zero_increments_for('liq_wat_inc') inc3dout = zero
   call nccheck_incr(nf90_put_var(ncid_out, liqwatvarid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
   do j=1,nlats
     inc3dout(:,nlats-j+1,:) = inc3d2(:,j,:)
   end do
+  if (should_zero_increments_for('icmr_inc') inc3dout = zero
   call nccheck_incr(nf90_put_var(ncid_out, icvarid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
 
@@ -3735,5 +3744,28 @@
       call stop2(999)
     end if
   end subroutine nccheck_incr
+
+  !! Is this variable in incvars_to_zero?
+  logical function should_zero_increments_for(check_var)
+    use params, only : incvars_to_zero
+
+    character(len=*), intent(in) :: check_var !! Variable to search for
+
+    ! Local variables
+
+    character(len=12) :: varname ! temporary string for storing variable names
+    integer :: i ! incvars_to_zero loop index
+
+    should_zero_increments_for=.false.
+
+    zeros_loop: do i=1,size(incvars_to_zero)
+       varname = incvars_to_zero(i)
+       if ( trim(varname) == check_var ) then
+          should_zero_increments_for=.true.
+          return
+       endif
+    end do zeros_loop
+
+  end function should_zero_increments_for
 
 end module gridio
