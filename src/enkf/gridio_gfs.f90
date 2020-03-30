@@ -85,7 +85,6 @@
   real(r_single), allocatable, dimension(:,:)   :: pressi,pslg,values_2d
   real(r_kind), dimension(nlons*nlats)          :: ug,vg
   real(r_single), dimension(npts,nlevs)         :: tv, q, cw
-  real(r_single), dimension(npts,nlevs)         :: ql, qi, qr, qs, qg
   real(r_kind), dimension(ndimspec)             :: vrtspec,divspec
   real(r_kind), allocatable, dimension(:)       :: psg,pstend,ak,bk
   real(r_single),allocatable,dimension(:,:,:)   :: ug3d,vg3d
@@ -97,8 +96,7 @@
   integer(i_kind) :: tsen_ind, ql_ind, qi_ind, prse_ind
   integer(i_kind) :: ps_ind, pst_ind, sst_ind
 
-  integer(i_kind) :: k,iunitsig,iret,nb,i,imem,idvc,nlonsin,nlatsin,nlevsin,ne,nanal
-  integer(i_kind) :: nlonsin_sfc,nlatsin_sfc
+  integer(i_kind) :: k,iret,nb,i,imem,idvc,nlonsin,nlatsin,nlevsin,ne,nanal
   logical ice
   logical use_full_hydro
   integer(i_kind), allocatable, dimension(:) :: mem_pe, lev_pe1, lev_pe2, iocomms
@@ -153,6 +151,7 @@
 
   write(charnanal,'(a3, i3.3)') 'mem', nanal
   filename = trim(adjustl(datapath))//trim(adjustl(fileprefixes(nb)))//trim(charnanal)
+  filenamesfc = trim(adjustl(datapath))//trim(adjustl(filesfcprefixes(nb)))//trim(charnanal)
   if (use_gfs_ncio) then
      dset = open_dataset(filename, paropen=.true., mpicomm=iocomms(mem_pe(nproc)))
      londim = get_dim(dset,'grid_xt'); nlonsin = londim%len
@@ -1051,15 +1050,13 @@
   real(r_single), allocatable, dimension(:,:,:) :: &
      ug3d,vg3d,values_3d,tmp_anal,tv_anal,tv_bg
   real(r_single), allocatable, dimension(:,:) :: values_2d
-  integer iadate(4),idate(4),nfhour,idat(7),iret,nrecs,jdate(7),jdat(6)
-  integer:: nfminute, nfsecondn, nfsecondd
+  integer iadate(4),idate(4),nfhour,idat(7),iret,jdat(6)
   integer,dimension(8):: ida,jda
   real(r_double),dimension(5):: fha
   real(r_kind) fhour
   type(Dataset) :: dsfg, dsanl
   character(len=3) charnanal
   character(len=nf90_max_name) :: time_units
-  logical :: hasfield
 
   real(r_kind) kap,kapr,kap1,clip
   real(r_single) compress_err
@@ -1069,7 +1066,7 @@
   integer :: ps_ind, pst_ind, nbits
   integer :: ql_ind, qi_ind, qr_ind, qs_ind, qg_ind
 
-  integer k,nt,ierr,iunitsig,nb,i,ne,nanal,imem
+  integer k,nt,iunitsig,nb,i,ne,nanal,imem
 
   integer(i_kind), allocatable, dimension(:) :: mem_pe, lev_pe1, lev_pe2, iocomms
   integer(i_kind) :: iope, ionumproc, iolevs, krev, ki
@@ -3279,8 +3276,7 @@
  subroutine writeincrement(vars3d,vars2d,n3d,n2d,levels,ndim,grdin,no_inflate_flag)
   use netcdf
   use params, only: nbackgrounds,incfileprefixes,fgfileprefixes,reducedgrid
-  use constants, only: grav, rad2deg
-  use gridinfo, only: lonsgrd, latsgrd
+  use constants, only: grav
   use mpi
   use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
                           read_attribute, close_dataset, get_dim, read_vardata,&
@@ -3300,7 +3296,6 @@
   integer(i_kind) :: i,j,k, nb, ne, ierr, nanal, imem
   character(len=3) charnanal
   type(Dataset) :: dsfg
-  logical :: hasfield
 
   integer(i_kind) :: krev, iret
   real(r_kind), dimension(nlevs+1) :: ak,bk
@@ -3322,7 +3317,6 @@
   real(r_kind),dimension(nlats) :: deglats
   real(r_kind),dimension(nlevs) :: levsout
   real(r_kind),dimension(nlevs+1) :: ilevsout
-  real(r_kind),dimension(nlons,nlats) :: radianstmp
 
   ! increment
   real(r_kind), dimension(nlons*nlats) :: psinc, inc, ug, vg, work
@@ -3670,8 +3664,7 @@
  subroutine writeincrement_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,grdin,no_inflate_flag)
   use netcdf
   use params, only: nbackgrounds,incfileprefixes,fgfileprefixes,reducedgrid
-  use constants, only: grav, rad2deg
-  use gridinfo, only: lonsgrd, latsgrd
+  use constants, only: grav
   use mpi
   use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
                           read_attribute, close_dataset, get_dim, read_vardata,&
@@ -3688,10 +3681,9 @@
   logical, intent(in) :: no_inflate_flag
   logical:: use_full_hydro
   character(len=500):: filenamein, filenameout
-  integer(i_kind) :: i,j,k, nb, ne, ierr, nanal, imem
+  integer(i_kind) :: i,j,k, nb, ne, nanal, imem
   character(len=3) charnanal
   type(Dataset) :: dsfg
-  logical :: hasfield
 
   integer(i_kind), allocatable, dimension(:) :: mem_pe, lev_pe1, lev_pe2, iocomms
   integer(i_kind) :: iope, ionumproc, iolevs, krev, ki, iret
@@ -3699,7 +3691,7 @@
   real(r_kind) clip
 
   integer :: u_ind, v_ind, tv_ind, q_ind, oz_ind, cw_ind
-  integer :: ps_ind, pst_ind, nbits
+  integer :: ps_ind, pst_ind
   integer :: ql_ind, qi_ind, qr_ind, qs_ind, qg_ind
 
   ! netcdf things
@@ -3714,7 +3706,6 @@
   real(r_kind),dimension(nlats) :: deglats
   real(r_kind),dimension(nlevs) :: levsout
   real(r_kind),dimension(nlevs+1) :: ilevsout
-  real(r_kind),dimension(nlons,nlats) :: radianstmp
 
   ! increment
   real(r_kind), dimension(nlons*nlats) :: psinc, inc, ug, vg, work
