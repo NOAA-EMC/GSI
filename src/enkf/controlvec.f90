@@ -356,7 +356,7 @@ if (nproc <= ntasks_io-1) then
    end if
    if (.not. paranc) then
       if (write_fv3_incr) then
-         call writeincrement(cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
+         call writeincrement(nanal1(nproc),nanal2(nproc),cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
       else
          call writegriddata(nanal1(nproc),nanal2(nproc),cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
       end if

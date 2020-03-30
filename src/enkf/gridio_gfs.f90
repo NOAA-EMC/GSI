@@ -76,7 +76,7 @@
   real(r_single), dimension(npts,ndim,ntimes,1), intent(out) :: grdin
   real(r_double), dimension(npts,nlevs,ntimes,1), intent(out) :: qsat
 
-  character(len=500) :: filename
+  character(len=500) :: filename,sfcfilename
   character(len=7) charnanal
 
   real(r_kind) :: kap,kapr,kap1,clip,qi_coef
@@ -151,7 +151,7 @@
 
   write(charnanal,'(a3, i3.3)') 'mem', nanal
   filename = trim(adjustl(datapath))//trim(adjustl(fileprefixes(nb)))//trim(charnanal)
-  filenamesfc = trim(adjustl(datapath))//trim(adjustl(filesfcprefixes(nb)))//trim(charnanal)
+  sfcfilename = trim(adjustl(datapath))//trim(adjustl(filesfcprefixes(nb)))//trim(charnanal)
   if (use_gfs_ncio) then
      dset = open_dataset(filename, paropen=.true., mpicomm=iocomms(mem_pe(nproc)))
      londim = get_dim(dset,'grid_xt'); nlonsin = londim%len
@@ -3273,7 +3273,7 @@
 
  end subroutine writegriddata
 
- subroutine writeincrement(vars3d,vars2d,n3d,n2d,levels,ndim,grdin,no_inflate_flag)
+ subroutine writeincrement(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,grdin,no_inflate_flag)
   use netcdf
   use params, only: nbackgrounds,incfileprefixes,fgfileprefixes,reducedgrid
   use constants, only: grav
@@ -3285,6 +3285,7 @@
                           write_attribute, quantize_data, has_var, has_attr
   implicit none
 
+  integer, intent(in) :: nanal1,nanal2
   character(len=max_varname_length), dimension(n2d), intent(in) :: vars2d
   character(len=max_varname_length), dimension(n3d), intent(in) :: vars3d
   integer, intent(in) :: n2d,n3d,ndim
@@ -3293,7 +3294,7 @@
   logical, intent(in) :: no_inflate_flag
   logical:: use_full_hydro
   character(len=500):: filenamein, filenameout
-  integer(i_kind) :: i,j,k, nb, ne, ierr, nanal, imem
+  integer(i_kind) :: i,j,k, nb, ne, nanal
   character(len=3) charnanal
   type(Dataset) :: dsfg
 
@@ -3302,7 +3303,7 @@
   real(r_kind) clip
 
   integer :: u_ind, v_ind, tv_ind, q_ind, oz_ind, cw_ind
-  integer :: ps_ind, pst_ind, nbits
+  integer :: ps_ind, pst_ind
   integer :: ql_ind, qi_ind, qr_ind, qs_ind, qg_ind
 
   ! netcdf things
