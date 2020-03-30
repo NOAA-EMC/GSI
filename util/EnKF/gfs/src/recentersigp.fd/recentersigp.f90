@@ -62,8 +62,8 @@ program recentersigp
   type(Dataset) :: dseti,dseto,dsetmi,dsetmo,dsetmg
   type(Dimension) :: londim,latdim,levdim
 
-  !namelist /recenter/ incvars_to_zero 
-  !character(len=12),dimension(10) :: incvars_to_zero !just picking 10 arbitrarily
+  namelist /recenter/ incvars_to_zero
+  character(len=12),dimension(10) :: incvars_to_zero !just picking 10 arbitrarily
 
 ! Initialize mpi
   call MPI_Init(ierr)
@@ -238,10 +238,10 @@ program recentersigp
      else if (increment) then
 
         ! read in namelist for incvars_to_zero
-        !incvars_to_zero(:) = 'NONE'
-        !open(912,file='recenter.nml',form="formatted")
-        !read(912,recenter)
-        !close(912)
+        incvars_to_zero(:) = 'NONE'
+        open(912,file='recenter.nml',form="formatted")
+        read(912,recenter)
+        close(912)
 
         if (mype == 0) write(6,*) 'Read netcdf increment'
         londim = get_dim(dsetmi,'lon'); lonb = londim%len
@@ -288,10 +288,11 @@ program recentersigp
                  call read_vardata(dsetmg,'icmr',values_3d_mb)
                  call read_vardata(dsetmo,'icmr',values_3d_anl)
               end select
-              values_3d(:,:,:) = zero 
+              values_3d(:,:,:) = zero
               do j=1,latb
                  values_3d(:,j,:) = values_3d_i(:,j,:) - values_3d_mb(:,latb-j+1,:) - values_3d_mi(:,j,:) + values_3d_anl(:,latb-j+1,:)
               end do
+              if (should_zero_increments_for(trim(dseti%variables(nvar)%name))) values_3d = zero
               call write_vardata(dseto,trim(dseti%variables(nvar)%name),values_3d)
            end if
         end do
@@ -392,7 +393,6 @@ program recentersigp
 
   !! Is this variable in incvars_to_zero?
   logical function should_zero_increments_for(check_var)
-    use params, only : incvars_to_zero
 
     character(len=*), intent(in) :: check_var !! Variable to search for
 
