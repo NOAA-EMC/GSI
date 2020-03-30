@@ -391,6 +391,8 @@ program recentersigp
      print *, 'MPI_Finalize error status = ',ierr
   end if
 
+contains
+
   !! Is this variable in incvars_to_zero?
   logical function should_zero_increments_for(check_var)
 

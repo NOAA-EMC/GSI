@@ -214,8 +214,7 @@ logical, public :: nccompress = .false.
 
 ! for writing increments
 logical,public :: write_fv3_incr = .false.
-character(len=12),dimension(10) :: incvars_to_zero !just picking 10 arbitrarily
-incvars_to_zero(:) = 'NONE'
+character(len=12),dimension(10),public :: incvars_to_zero='NONE' !just picking 10 arbitrarily
 
 namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    covinflatemax,covinflatemin,deterministic,sortinc,&
@@ -512,6 +511,9 @@ if (nanals <= numproc) then
       nanal2(np) = np+1
    enddo
 else
+   ! set paranc to false
+   if (nproc .eq. 0) print *,"nanals > numproc; forcing paranc=F"
+   paranc = .false.
    nanals_per_iotask = 1
    do
       ntasks_io = nanals/nanals_per_iotask
