@@ -47,7 +47,7 @@ use mpisetup, only: mpi_real4,mpi_sum,mpi_comm_io,mpi_in_place,numproc,nproc,&
                 mpi_integer,mpi_wtime,mpi_status,mpi_real8
 
 use gridio,    only: readgriddata, readgriddata_pnc, writegriddata, writegriddata_pnc, &
-                     writeincrement_pnc
+                     writeincrement, writeincrement_pnc
 use gridinfo,  only: getgridinfo, gridinfo_cleanup,                    &
                      npts, vars3d_supported, vars2d_supported
 use params,    only: nlevs, nbackgrounds, fgfileprefixes, reducedgrid, &
@@ -355,7 +355,11 @@ if (nproc <= ntasks_io-1) then
       endif
    end if
    if (.not. paranc) then
-      call writegriddata(nanal1(nproc),nanal2(nproc),cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
+      if (write_fv3_incr) then
+         call writeincrement(cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
+      else
+         call writegriddata(nanal1(nproc),nanal2(nproc),cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
+      end if
       if (nproc == 0) then
         t2 = mpi_wtime()
         print *,'time in write_control on root',t2-t1,'secs'
