@@ -2875,7 +2875,7 @@
         if (ps_ind > 0) then
            call copyfromgrdin(grdin(:,levels(n3d) + ps_ind,nb,ne),vg)
         endif
-        vg = values_1d + vg ! analysis ps (values_1d is background ps)
+        vg = values_1d + vg*100_r_kind ! analysis ps (values_1d is background ps)
         do k=1,nlevs
            ug=(rd/grav)*reshape(tv_anal(:,:,nlevs-k+1),(/nlons*nlats/))
            ! ps in Pa here, need to multiply ak by 100.
