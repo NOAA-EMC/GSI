@@ -83,6 +83,12 @@ PCPSTAT=${PCPSTAT:-${COMOUT}/${APREFIX}pcpstat}
 CNVSTAT=${CNVSTAT:-${COMOUT}/${APREFIX}cnvstat}
 OZNSTAT=${OZNSTAT:-${COMOUT}/${APREFIX}oznstat}
 
+# Remove stat file if file already exists
+if [ -s $RADSTAT ]; then rm -f $RADSTAT; fi
+if [ -s $PCPSTAT ]; then rm -f $PCPSTAT; fi
+if [ -s $CNVSTAT ]; then rm -f $CNVSTAT; fi
+if [ -s $OZNSTAT ]; then rm -f $OZNSTAT; fi
+
 # Obs diag
 GENDIAG=${GENDIAG:-"YES"}
 DIAG_SUFFIX=${DIAG_SUFFIX:-""}

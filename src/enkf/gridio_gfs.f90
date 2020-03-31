@@ -1348,7 +1348,7 @@
            if (ps_ind > 0) then
               call copyfromgrdin(grdin(:,levels(n3d) + ps_ind,nb,ne),vg)
            endif
-           vg = nems_wrk2 + vg           
+           vg = nems_wrk2 + (100_r_kind*vg) !convert ps incr to Pa
            ug=(rd/grav)*ug ! ug is analysis Tv
            ! ps in Pa here, need to multiply ak by 100.
            ug=ug*log((100_r_kind*ak(k)+bk(k)*vg)/(100_r_kind*ak(k+1)+bk(k+1)*vg))
@@ -1716,7 +1716,7 @@
         if (ps_ind > 0) then
            call copyfromgrdin(grdin(:,levels(n3d) + ps_ind,nb,ne),vg)
         endif
-        vg = values_1d + vg ! analysis ps (values_1d is background ps)
+        vg = values_1d + (100_r_kind*vg) ! analysis ps (values_1d is background ps)
         do k=1,nlevs
            ug=(rd/grav)*reshape(tv_anal(:,:,nlevs-k+1),(/nlons*nlats/)) 
            ! ps in Pa here, need to multiply ak by 100.
