@@ -3275,7 +3275,8 @@
 
  subroutine writeincrement(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,grdin,no_inflate_flag)
   use netcdf
-  use params, only: nbackgrounds,incfileprefixes,fgfileprefixes,reducedgrid
+  use params, only: nbackgrounds,incfileprefixes,fgfileprefixes,reducedgrid,&
+                    datestring,nhr_anal
   use constants, only: grav
   use mpi
   use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
@@ -3312,6 +3313,7 @@
   integer(i_kind) :: lonvarid, latvarid, levvarid, pfullvarid, ilevvarid, &
                      hyaivarid, hybivarid, uvarid, vvarid, delpvarid, delzvarid, &
                      tvarid, sphumvarid, liqwatvarid, o3varid, icvarid
+  integer(i_kind) :: iadateout
 
   ! fixed fields such as lat, lon, levs
   real(r_kind),dimension(nlons) :: deglons
@@ -3328,6 +3330,7 @@
 
   use_full_hydro = .false.
   clip = tiny_r_kind
+  read(datestring,*) iadateout
 
   ncstart = (/1, 1, 1/)
   nccount = (/nlons, nlats, nlevs/)
@@ -3375,6 +3378,8 @@
   call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "source", "GSI EnKF"))
   call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "comment", &
                     "global analysis increment from writeincrement"))
+  call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "analysis_time", iadateout))
+  call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "IAU_hour_from_guess", nhr_anal(nb)))
   ! add units to lat/lon because that's what the calc_increment utility has
   call nccheck_incr(nf90_put_att(ncid_out, lonvarid, "units", "degrees_east"))
   call nccheck_incr(nf90_put_att(ncid_out, latvarid, "units", "degrees_north"))
@@ -3664,7 +3669,8 @@
 
  subroutine writeincrement_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,grdin,no_inflate_flag)
   use netcdf
-  use params, only: nbackgrounds,incfileprefixes,fgfileprefixes,reducedgrid
+  use params, only: nbackgrounds,incfileprefixes,fgfileprefixes,reducedgrid,&
+                    datestring,nhr_anal
   use constants, only: grav
   use mpi
   use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
@@ -3701,6 +3707,7 @@
   integer(i_kind) :: lonvarid, latvarid, levvarid, pfullvarid, ilevvarid, &
                      hyaivarid, hybivarid, uvarid, vvarid, delpvarid, delzvarid, &
                      tvarid, sphumvarid, liqwatvarid, o3varid, icvarid
+  integer(i_kind) :: iadateout
 
   ! fixed fields such as lat, lon, levs
   real(r_kind),dimension(nlons) :: deglons
@@ -3717,6 +3724,7 @@
 
   use_full_hydro = .false.
   clip = tiny_r_kind
+  read(datestring,*) iadateout
 
   ! figure out what member to write and do MPI sub-communicator things
   allocate(mem_pe(0:numproc-1))
@@ -3802,6 +3810,8 @@
   call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "source", "GSI EnKF"))
   call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "comment", &
                     "global analysis increment from writeincrement_pnc"))
+  call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "analysis_time", iadateout))
+  call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "IAU_hour_from_guess", nhr_anal(nb)))
   ! add units to lat/lon because that's what the calc_increment utility has
   call nccheck_incr(nf90_put_att(ncid_out, lonvarid, "units", "degrees_east"))
   call nccheck_incr(nf90_put_att(ncid_out, latvarid, "units", "degrees_north"))

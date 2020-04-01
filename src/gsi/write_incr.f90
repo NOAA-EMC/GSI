@@ -84,7 +84,8 @@ contains
     use jfunc, only: xhatsave, iter
 
     use guess_grids, only: load_geop_hgt, geop_hgti, ges_geopi, ges_tsen, ges_tsen1,&
-                           ges_q1
+                           ges_q1, ifilesig
+    use obsmod, only: ianldate 
     use state_vectors, only: allocate_state, deallocate_state
 
     implicit none
@@ -245,6 +246,8 @@ contains
     call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "source", "GSI"))
     call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "comment", &
                                     "global analysis increment from write_fv3_increment"))
+    call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "analysis_time", ianldate))
+    call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "IAU_hour_from_guess", ifilesig(ibin))) 
     ! add units to lat/lon because that's what the calc_increment utility has
     call nccheck_incr(nf90_put_att(ncid_out, lonvarid, "units", "degrees_east"))
     call nccheck_incr(nf90_put_att(ncid_out, latvarid, "units", "degrees_north"))
