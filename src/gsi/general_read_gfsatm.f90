@@ -831,8 +831,8 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    ! Declare passed variables
    type(sub2grid_info)                   ,intent(in   ) :: grd
    type(spec_vars)                       ,intent(in   ) :: sp_a
-   character(24)                          ,intent(in   ) :: filename
-   character(24),optional                 ,intent(in   ) :: filenamesfc
+   character(*)                          ,intent(in   ) :: filename
+   character(*),optional                 ,intent(in   ) :: filenamesfc
    logical                               ,intent(in   ) :: uvflag,zflag,vordivflag,init_head
    integer(i_kind)                       ,intent(  out) :: iret_read
    type(gsi_bundle)                      ,intent(inout) :: gfs_bundle
@@ -1609,7 +1609,7 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    ! Print date/time stamp
    if ( mype == 0 ) then
       write(6,700) lonb,latb,nlevs,grd%nlon,nlatm2,&
-            fhour,odate,trim(filename)
+            fhour,odate,filename(1:120)
 700   format('GENERAL_READ_GFSATM_NEMS: read lonb,latb,levs=',&
             3i6,', scatter nlon,nlat=',2i6,', hour=',f6.1,', idate=',4i5,1x,a)
    endif
