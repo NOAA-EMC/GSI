@@ -260,7 +260,7 @@ contains
 
     ! Local variables
 
-    character(len=10) :: varname ! temporary string for storing variable names
+    character(len=12) :: varname ! temporary string for storing variable names
     integer :: i ! incvars_to_zero loop index
 
     should_zero_increments_for=.false.
