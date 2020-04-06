@@ -145,6 +145,12 @@ module obsmod
 !                       - moved obscounts(:) into obs_sensitivity.f90.
 !   2019-06-25  Hu       - add diag_radardbz for controling radar reflectivity
 !                               diag file
+!   2019-07-29  pondeca - add logical variable neutral_stability_windfact_2dvar
+!                         to turn on computation of 10m wind factor for near surface
+!                         winds using a simple, similarity theory-based approach
+!   2019-08-23  pondeca - add logical variable use_similarity_2dvar
+!                         to turn on computation of 10m wind factor for near surface
+!                         winds the mm5-based sfc model's similarity theory
 !  01-27-2020 Winterbottom Moved regression coeffcients for regional
 !                          model (e.g., HWRF) aircraft recon dynamic
 !                          observation error (DOE) specification to
@@ -389,6 +395,10 @@ module obsmod
 !   def netcdf_diag    - trigger netcdf diag-file output
 !   def l_wcp_cwm      - namelist logical whether to use operator that
 !                        includes cwm for both swcp and lwcp or not
+!   def neutral_stability_windfact_2dvar - logical, if .true., then use simple formula representing
+!                                          special case from similarity theory to compute the 10m-wind factor
+!   def use_similarity_2dvar - logical, if .true., then use similarity theory from mm5
+!                              sfc model to compute the 10m-wind factor
 !   def aircraft_recon - namelist logibal whether to use DOE for aircraft
 !
 ! attributes:
@@ -421,6 +431,8 @@ module obsmod
   public :: iout_oz,iout_co,dsis,ref_obs,obsfile_all,lobserver,perturb_obs,ditype,dsfcalc,dplat
   public :: time_window,dval,dtype,dfile,dirname,obs_setup,oberror_tune,offtime_data
   public :: lobsdiagsave,lobsdiag_forenkf,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel,ext_sonde
+  public :: neutral_stability_windfact_2dvar
+  public :: use_similarity_2dvar
   public :: time_window_rad
   public :: perturb_fact,dtbduv_on,nsat1,obs_sub_comm,mype_diaghdr
   public :: lobsdiag_allocated
@@ -617,6 +629,8 @@ module obsmod
   logical ext_sonde
   logical lrun_subdirs
   logical l_foreaft_thin
+  logical neutral_stability_windfact_2dvar
+  logical use_similarity_2dvar
 
   logical l_wcp_cwm
   logical aircraft_recon
@@ -862,6 +876,8 @@ contains
     nprof_gps = 0
 
     hilbert_curve=.false.
+    neutral_stability_windfact_2dvar=.false.
+    use_similarity_2dvar=.false.
 
     obs_input_common = 'obs_input.common'
     lread_obs_save   = .false.
