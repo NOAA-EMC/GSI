@@ -41,6 +41,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   use obsmod, only: luse_obsdiag
   use obsmod, only: netcdf_diag, binary_diag, dirname
+  use obsmod, only: neutral_stability_windfact_2dvar,use_similarity_2dvar
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
@@ -69,6 +70,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use sparsearr, only: sparr2, new, size, writearray, fullarray
+  use aux2dvarflds, only: rtma_comp_fact10
 
   ! The following variables are the coefficients that describe the
   ! linear regression fits that are used to define the dynamic
@@ -78,7 +80,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   ! R. Winterbottom (henry.winterbottom@noaa.gov).
   
   use obsmod, only: uv_doe_a_236,uv_doe_a_237,uv_doe_b_236,uv_doe_b_237
-  
+
   implicit none
   
   type(obsLList ),target,dimension(:),intent(in):: obsLL
@@ -198,11 +200,19 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !                       . Remove my_node with corrected typecast().
 !   2018-04-09  pondeca -  introduce duplogic to correctly handle the characterization of
 !                          duplicate obs in twodvar_regional applications
+!   2019-06-07  levine/pondeca - for twodvar_regional applications, switch from processing surface obs 
+!                                with reported pressure to surface obs with reported geometric height.
+!                                This is mainly to account for mesonets with sensor height < 10 m.
+!   2019-07-12  levine  -  introduce logic to read in mesonet wind sensor heights from prepbufr
+!                          rather than assuming sensor height is 10 m AGL.
+!   2019-08-12  zhang/levine/pondeca -  add option to adjust 10-m bckg wind with the help of similarity
+!                                       theory in twodvar_regional applications
 !   2020-01-27  Winterbottom - moved the linear regression derived
 !                              coefficients for the dynamic observation
 !                              error (DOE) calculation to the namelist
 !                              level; they are now loaded by
 !                              aircraftinfo.
+!
 !
 ! REMARKS:
 !   language: f90
@@ -290,6 +300,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   logical:: muse_u,muse_v
   integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
   logical lowlevelsat,duplogic
+  logical msonetob
   logical proceed
 
   logical:: l_pbl_pseudo_itype
@@ -544,7 +555,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !    geopotenital height.  Some type 221=pibal wind observations are
 !    also repoted using geopotential height.
 
-     sfc_data = (itype >=280 .and. itype < 300) .and. (.not.twodvar_regional)
+     sfc_data = (itype >=280 .and. itype < 300)
      if (z_height .or. sfc_data) then
 
         drpx = zero
@@ -573,7 +584,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !       For observation reported with geometric height above sea level,
 !       convert geopotential to geometric height.
 
-        if ((itype>=223 .and. itype<=228) .or. sfc_data) then
+        if (((itype>=223 .and. itype<=228) .or. sfc_data) .and. .not.twodvar_regional) then
 !          Convert geopotential height at layer midpoints to geometric 
 !          height using equations (17, 20, 23) in MJ Mahoney's note 
 !          "A discussion of various measures of altitude" (2001).  
@@ -595,7 +606,8 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            do k=1,nsig
               zges(k) = (termr*zges(k)) / (termrg-zges(k))  ! eq (23)
            end do
- 
+        else if (twodvar_regional) then
+           zges(1) = ten
         endif
 
 !       Given observation height, (1) adjust 10 meter wind factor if
@@ -647,6 +659,9 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            dhx_dx_v%val = dhx_dx_u%val
         endif
 
+        msonetob=itype==288.or.itype==295
+
+        if (zob <= zero .and. twodvar_regional) zob=ten !trap for stations with negative zob
 
         if (zob > zges(1)) then
            factw=one
@@ -660,14 +675,25 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
            if (zob <= ten) then
               if(zob < ten)then
-                 term = max(zob,zero)/ten
-                 factw = term*factw
+                 if (msonetob .and. twodvar_regional .and. use_similarity_2dvar) then
+                    if (neutral_stability_windfact_2dvar) then
+                       sfcr = data(isfcr,i)
+                       factw=log(max(sfcr,zob)/sfcr)/log(ten/sfcr)
+                    else
+                       sfcr = data(isfcr,i)
+                       skint = data(iskint,i)
+                       call rtma_comp_fact10(dlat,dlon,dtime,zob,skint,sfcr,isli,mype,factw)
+                    endif
+                 else
+                    term = max(zob,zero)/ten
+                    factw = term*factw
+                 endif
               end if
            else
               term = (zges(1)-zob)/(zges(1)-ten)
               factw = one-term+factw*term
            end if
- 
+
            ugesin=factw*ugesin
            vgesin=factw*vgesin
 
@@ -682,34 +708,36 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         end if
  
 !       Compute observation pressure (only used for diagnostics)
-
-!       Set indices of model levels below (k1) and above (k2) observation.
-        if (dpres<one) then
-           z1=zero;    p1=log(psges)
-           z2=zges(1); p2=prsltmp(1)
-        elseif (dpres>nsig) then
-           z1=zges(nsig-1); p1=prsltmp(nsig-1)
-           z2=zges(nsig);   p2=prsltmp(nsig)
-           drpx = 1.e6_r_kind
+        
+        if (twodvar_regional) then
+           presw = ten*exp(data(ipres,i))
         else
-           k=dpres
-           k1=min(max(1,k),nsig)
-           k2=max(1,min(k+1,nsig))
-           z1=zges(k1); p1=prsltmp(k1)
-           z2=zges(k2); p2=prsltmp(k2)
+!          Set indices of model levels below (k1) and above (k2) observation.
+           if (dpres<one) then
+              z1=zero;    p1=log(psges)
+              z2=zges(1); p2=prsltmp(1)
+           elseif (dpres>nsig) then
+              z1=zges(nsig-1); p1=prsltmp(nsig-1)
+              z2=zges(nsig);   p2=prsltmp(nsig)
+              drpx = 1.e6_r_kind
+           else
+              k=dpres
+              k1=min(max(1,k),nsig)
+              k2=max(1,min(k+1,nsig))
+              z1=zges(k1); p1=prsltmp(k1)
+              z2=zges(k2); p2=prsltmp(k2)
+           endif
+        
+           dz21     = z2-z1
+           dlnp21   = p2-p1
+           dz       = zob-z1
+           pobl     = p1 + (dlnp21/dz21)*dz
+           presw    = ten*exp(pobl)
         endif
-       
-        dz21     = z2-z1
-        dlnp21   = p2-p1
-        dz       = zob-z1
-        pobl     = p1 + (dlnp21/dz21)*dz
-        presw    = ten*exp(pobl)
-
-!       Determine location in terms of grid units for midpoint of
-!       first layer above surface
+!          Determine location in terms of grid units for midpoint of
+!          first layer above surface
         sfcchk=zero
 !       call grdcrd1(sfcchk,zges,nsig,1)
-
 
 !    Process observations with reported pressure
      else
@@ -844,7 +872,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      endif
 
      if ( (itype>=221 .and. itype<=229).and. (dpres<zero) ) ratio_errors=zero
- 
+
 
 ! QC PBL profiler  227 and 223, 224
      if(itype==227 .or. itype==223 .or. itype==224 .or. itype==228 .or. itype==229) then

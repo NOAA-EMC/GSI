@@ -140,6 +140,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2017-06-17  levine - add GLERL program code lookup
 !   2017-03-21  Su      - add option to thin conventional data in 4 dimension 
 !   2018-08-16  akella  - explicit KX definition for ships (formerly ID'd by subtype 522/523)
+!   2019-02-06  levine - Add lookup of sensor height for mesonet winds
+!   2019-06-17  mmorris - Update adjust_goescldobs to reject clear cloud obs over water at night
+!   2019-12-05  mmorris - Update adjust_goescldobs to reject ALL clear cloud obs at night
 
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -198,6 +201,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use blacklist, only : blkstns,blkkx,ibcnt
   use sfcobsqc,only: init_rjlists,get_usagerj,get_gustqm,destroy_rjlists
   use sfcobsqc,only: init_gsd_sfcuselist,apply_gsd_sfcuselist,destroy_gsd_sfcuselist                       
+  use windht,only: init_windht_lists,readin_windht_list,destroy_windht_lists,find_wind_height
   use hilbertcurve,only: init_hilbertcurve, accum_hilbertcurve, &
                          apply_hilbertcurve,destroy_hilbertcurve
   use ndfdgrids,only: init_ndfdgrid,destroy_ndfdgrid,relocsfcob,adjust_error
@@ -336,6 +340,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
   real(r_kind) :: tempvis,visout
   real(r_kind) :: tempcldch,cldchout
+  real(r_kind) :: windsensht
 
   real(r_double) rstation_id,qcmark_huge
   real(r_double) vtcd,glcd !virtual temp program code and GLERL program code
@@ -803,7 +808,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   if (lhilbert) call init_hilbertcurve(maxobs)
 
-  if (twodvar_regional) call init_ndfdgrid 
+  if (twodvar_regional) then
+     call init_ndfdgrid
+     call init_windht_lists !load wind sensor height provider lists
+  endif
 
 ! loop over convinfo file entries; operate on matches
   
@@ -1902,9 +1910,15 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                                             dlon_earth,dlat_earth,idate,t4dv-toff,      &
                                             obsdat(5,k),obsdat(6,k),usage)
                  endif
+                 !retrieve wind sensor height
+                 if (twodvar_regional)  then
+                    if ( kx==288.or.kx==295 .or. (gustob .and. (kx==188.or.kx==195)) )  then
+                       call find_wind_height(c_prvstg,c_sprvstg,windsensht)
+                    endif
+                 endif
               endif
               if (sfctype .and. i_gsdqc==2) then  ! filter bad 2-m dew point and  0 mesonet wind obs
-                 if (kx==288) then ! for mesonet wind
+                 if (kx==288.or.kx==295) then ! for mesonet wind
                     if(abs(obsdat(5,k))<0.01_r_kind .and. abs(obsdat(6,k))<0.01_r_kind) usage=115._r_kind
                  endif
                  if (qob .and. (kx >=180 .and. kx<=189) .and. obsdat(2,k) < 1.0e10_r_kind)  then ! for 2-m dew point
@@ -2083,7 +2097,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  selev=stnelev
                  oelev=obsdat(4,k)
                  if(kx >= 280 .and. kx < 300 )then
-                    oelev=r10+selev
+                    if (twodvar_regional.and.(kx==288.or.kx==295)) then
+                       oelev=windsensht+selev !windsensht: read in from prepbufr
+                    else
+                       oelev=r10+selev
+                    endif
                     if (kx == 280 )then
                        it29=nint(hdr(8))
                        if(it29 == 522 .or. it29 == 523 .or. it29 == 531)then
@@ -2198,7 +2216,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  woe=obserr(5,k)
                  if (inflate_error) woe=woe*r1_2
                  elev=r20
-                 oelev=obsdat(4,k)
+                 if (((kx==295).or.(kx==288)).and.twodvar_regional) then  !account for mesonet wind ht
+                    oelev=windsensht+selev
+                 else
+                    oelev=obsdat(4,k)
+                 endif
                  if(kx == 260 .or. kx == 261) elev = oelev ! Nacelle and tower wind speed
 
                  cdata_all(1,iout)=woe                     ! wind error
@@ -2399,6 +2421,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                    if ((kx==280).or.(kx==180)) oelev=r20+selev
                    if ((kx==299).or.(kx==199)) oelev=r20+selev
                    if ((kx==282).or.(kx==182)) oelev=r20+selev
+                   if (((kx==295).or.(kx==288).or.(kx==195).or.(kx==188)).and.twodvar_regional) then
+                      !account for mesonet wind sensor height
+                      oelev=windsensht+selev
+                   end if
                    if  (kx==198)               oelev=r20+selev
                    if ((kx==285).or.(kx==185)) then
                       oelev=selev
@@ -2935,7 +2961,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   call destroy_aircraft_rjlists
   if(i_gsdsfc_uselist==1) call destroy_gsd_sfcuselist
   if (lhilbert) call destroy_hilbertcurve
-  if (twodvar_regional) call destroy_ndfdgrid
+  if (twodvar_regional) then
+     call destroy_ndfdgrid
+     call destroy_windht_lists
+  endif
 
   if(diagnostic_reg .and. ntest>0) write(6,*)'READ_PREPBUFR:  ',&
      'ntest,disterrmax=',ntest,disterrmax
