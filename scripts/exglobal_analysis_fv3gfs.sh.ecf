@@ -478,8 +478,8 @@ $NLN $CRISBF           crisbufr
 $NLN $ESCRIS           crisbufrears
 $NLN $CRISDB           crisbufr_db
 $NLN $CRISFSBF         crisfsbufr
-#$NLN $ESCRISFS         crisfsbufrears
-#$NLN $CRISFSDB         crisfsbufr_db
+$NLN $ESCRISFS         crisfsbufrears
+$NLN $CRISFSDB         crisfsbufr_db
 $NLN $ATMSBF           atmsbufr
 $NLN $ESATMS           atmsbufrears
 $NLN $ATMSDB           atmsbufr_db
