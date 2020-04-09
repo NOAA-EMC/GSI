@@ -168,8 +168,8 @@ CRISBF=${CRISBF:-${COMIN_OBS}/${OPREFIX}cris.tm00.bufr_d${OSUFFIX}}
 ESCRIS=${ESCRIS:-${COMIN_OBS}/${OPREFIX}escris.tm00.bufr_d${OSUFFIX}}
 CRISDB=${CRISDB:-${COMIN_OBS}/${OPREFIX}crisdb.tm00.bufr_d${OSUFFIX}}
 CRISFSBF=${CRISFSBF:-${COMIN_OBS}/${OPREFIX}crisf4.tm00.bufr_d${OSUFFIX}}
-ESCRISFS=${ESCRISFS:-${COMIN_OBS}/${OPREFIX}escrisf4.tm00.bufr_d${OSUFFIX}}
-CRISFSDB=${CRISFSDB:-${COMIN_OBS}/${OPREFIX}crisf4db.tm00.bufr_d${OSUFFIX}}
+ESCRISFS=${ESCRISFS:-${COMIN_OBS}/${OPREFIX}escrsf.tm00.bufr_d${OSUFFIX}}
+CRISFSDB=${CRISFSDB:-${COMIN_OBS}/${OPREFIX}crsfdb.tm00.bufr_d${OSUFFIX}}
 ATMSBF=${ATMSBF:-${COMIN_OBS}/${OPREFIX}atms.tm00.bufr_d${OSUFFIX}}
 ESATMS=${ESATMS:-${COMIN_OBS}/${OPREFIX}esatms.tm00.bufr_d${OSUFFIX}}
 ATMSDB=${ATMSDB:-${COMIN_OBS}/${OPREFIX}atmsdb.tm00.bufr_d${OSUFFIX}}
@@ -564,8 +564,8 @@ $NLN $CRISBF           crisbufr
 $NLN $ESCRIS           crisbufrears
 $NLN $CRISDB           crisbufr_db
 $NLN $CRISFSBF         crisfsbufr
-#$NLN $ESCRISFS         crisfsbufrears
-#$NLN $CRISFSDB         crisfsbufr_db
+$NLN $ESCRISFS         crisfsbufrears
+$NLN $CRISFSDB         crisfsbufr_db
 $NLN $ATMSBF           atmsbufr
 $NLN $ESATMS           atmsbufrears
 $NLN $ATMSDB           atmsbufr_db
