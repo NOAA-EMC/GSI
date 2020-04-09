@@ -194,17 +194,6 @@ if [ $RECENTER_ENKF = "YES" ]; then
      ATMANL_GSI_ENSRES=$COMIN/${APREFIX}atma00${FHR}.ensres$ASUFFIX
    fi
 
-   if [ ${SUFFIX} = ".nc" ]; then
-      LONB=${LONB:-$($NCLEN $ATMANL_GSI grid_xt)} # get LONB
-      LATB=${LATB:-$($NCLEN $ATMANL_GSI grid_yt)} # get LATB
-      JCAP=${JCAP:--9999} # there is no jcap in these files
-   else
-      LONB=${LONB:-$($NEMSIOGET $ATMANL_GSI dimx | awk '{print $2}')}
-      LATB=${LATB:-$($NEMSIOGET $ATMANL_GSI dimy | awk '{print $2}')}
-      JCAP=${JCAP:-$($NEMSIOGET $ATMANL_GSI jcap | awk '{print $2}')}
-   fi
-   [ $JCAP -eq -9999 -a $LATB -ne -9999 ] && JCAP=$((LATB-2))
-
    # if we already have a ensemble resolution GSI analysis then just link to it
    if [ -f $ATMANL_GSI_ENSRES ]; then
 
