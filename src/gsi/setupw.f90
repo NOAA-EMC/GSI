@@ -237,7 +237,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) izz,iprvd,isprvd
   integer(i_kind) idomsfc,isfcr,iskint,iff10
 
-  integer(i_kind) iswcm,isaza, isccf
+  integer(i_kind) iswcm,isaza, isccf, qify, qifn
   real(r_kind)    sccf_wavelen
   real(r_kind),parameter:: rsol=300000000.0_r_kind !speed of light
   real(r_kind),parameter:: rtomic=1000000.0_r_kind !conv to micron
@@ -1744,11 +1744,25 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
            call nc_diag_metadata("Wind_Reduction_Factor_at_10m", sngl(factw)       )
 
-! Write out in nc diag the extra vars from cdata_all (see read_satwnd.f90)
-           call nc_diag_metadata("SWCM_spec_type",          sngl(data(iswcm,i))    )
-           call nc_diag_metadata("SAZA_sat_zen_angle",      sngl(data(isaza,i))    )
-           sccf_wavelen=(rsol/data(isccf,i))*rtomic  !spec chan wavelen (microns)
-           call nc_diag_metadata("SCCF_chan_wavelen",       sngl(sccf_wavelen)    )           
+
+           if(itype >=240 .and. itype <=260) then
+! Write out in nc diag the extra vars from cdata_all (see read_satwnd.f90)        
+             call nc_diag_metadata("SWCM_spec_type",          sngl(data(iswcm,i)))
+             call nc_diag_metadata("SAZA_sat_zen_angle",      sngl(data(isaza,i)))
+             sccf_wavelen=(rsol/data(isccf,i))*rtomic  !spec chan wavelen(microns)
+             call nc_diag_metadata("SCCF_chan_wavelen",       sngl(sccf_wavelen))
+             qify= int(data(ielev,i)/1000.0);
+             qifn= mod(data(ielev,i),1000.0);
+             call nc_diag_metadata("QI_with_FC",    sngl(qify))
+             call nc_diag_metadata("QI_without_FC", sngl(qifn))
+           else
+! Write out missing values)        
+             call nc_diag_metadata("SWCM_spec_type",          sngl(bmiss))
+             call nc_diag_metadata("SAZA_sat_zen_angle",      sngl(bmiss))
+             call nc_diag_metadata("SCCF_chan_wavelen",       sngl(bmiss))
+             call nc_diag_metadata("QI_with_FC",              sngl(bmiss))
+             call nc_diag_metadata("QI_without_FC",           sngl(bmiss)) 
+           endif
 
            if (.not. regional) then
               call nc_diag_metadata("u_Observation",                              sngl(data(iuob,i))    )
