@@ -48,7 +48,7 @@
           return
        else
           print *,'rank of data array != variable ndims (or ndims-1)'
-          stop "stopped"
+          stop 99
        endif
     endif
     if (allocated(values)) deallocate(values)

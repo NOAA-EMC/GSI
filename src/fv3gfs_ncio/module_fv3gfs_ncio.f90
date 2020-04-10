@@ -119,7 +119,7 @@ module module_fv3gfs_ncio
     endif  
     if (status /= nf90_noerr) then
       write(0,*) status, trim(nf90_strerror(status))
-      if (stopit) stop "stopped"
+      if (stopit) stop 99
     end if
   end subroutine nccheck
 

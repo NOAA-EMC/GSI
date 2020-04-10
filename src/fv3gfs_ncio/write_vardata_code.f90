@@ -63,7 +63,7 @@
               return
            else
               print *,'cannot write a slice to a 1d variable'
-              stop "stopped"
+              stop 99
            endif
         else if (dset%variables(nvar)%ndims > 4) then
            if (return_errcode) then
@@ -71,7 +71,7 @@
               return
            else
               print *,'only variables up to 4d supported'
-              stop "stopped"
+              stop 99
            endif
         endif
     else
