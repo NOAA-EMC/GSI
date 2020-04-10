@@ -16,7 +16,7 @@
           return
        else
           print *,'rank of data array != variable ndims (or ndims-1)'
-          stop "stopped"
+          stop 99
        endif
     endif
     n1 = dset%variables(nvar)%dimlens(1)
