@@ -163,8 +163,14 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
   elif launcher == 'srun':
     nodes = os.getenv('SLURM_JOB_NODELIST','')
     hosts_tmp = subprocess.check_output('scontrol show hostnames '+nodes, shell=True) 
-    hosts_tmp = str(hosts_tmp).split('\n')
-    hosts_tmp = [x.strip() for x in hosts_tmp]
+    if (sys.version_info > (3, 0)):
+        hosts_tmp = hosts_tmp.decode('utf-8')
+        hosts_tmp = str(hosts_tmp).splitlines()
+        hosts_tmp = [x.strip() for x in hosts_tmp]
+    else:
+        hosts_tmp = hosts_tmp.strip()
+        hosts_tmp = str(hosts_tmp).splitlines()
+        hosts_tmp = [x.strip() for x in hosts_tmp]
     hosts = []
     [hosts.append(x) for x in hosts_tmp if x not in hosts]
     nhosts = len(hosts)
@@ -251,7 +257,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
   gsi_utils.write_nml(namelist, CalcAnlDir6+'/calc_analysis.nml')
 
   # run the executable
-  if ihost >= nhosts:
+  if ihost >= nhosts-1:
     ihost = 0
   if launcher == 'srun':
     del os.environ['SLURM_HOSTFILE']
@@ -259,7 +265,6 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
   fullres_anl_job = subprocess.Popen(ExecCMDMPILevs_nohost+' '+CalcAnlDir6+'/calc_anl.x', shell=True, cwd=CalcAnlDir6)
   print(ExecCMDMPILevs_nohost+' '+CalcAnlDir6+'/calc_anl.x submitted')
 
-  ihost+=1
   sys.stdout.flush()
   exit_fullres = fullres_anl_job.wait()
   sys.stdout.flush()
@@ -289,7 +294,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
         gsi_utils.write_nml(namelist, CalcAnlDir+'/chgres_nc_gauss.nml')
     
         # run the executable
-        if ihost >= nhosts:
+        if ihost >= nhosts-1:
           ihost = 0
         with open(CalcAnlDir+'/hosts', 'w') as hostfile:
           hostfile.write(hosts[ihost]+'\n')
@@ -328,7 +333,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
       gsi_utils.write_nml(namelist, CalcAnlDir6+'/calc_analysis.nml')
 
       # run the executable
-      if ihost > nhosts:
+      if ihost > nhosts-1:
         ihost = 0
       print('ensres_calc_anl', namelist)
       ensres_anl_job = subprocess.Popen(ExecCMDMPILevs_nohost+' '+CalcAnlDir6+'/calc_anl.x', shell=True, cwd=CalcAnlDir6)

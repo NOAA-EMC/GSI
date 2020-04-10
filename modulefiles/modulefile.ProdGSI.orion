@@ -1,0 +1,49 @@
+#%Module######################################################################
+##                                                       Russ.Treadon@noaa.gov
+##                                                           NOAA/NWS/NCEP/EMC
+## GDAS_ENKF v6.2.3
+##_____________________________________________________
+#set ver v6.2.3
+
+set COMP ifort
+set COMP_MP mpfort
+set COMP_MPI mpiifort
+
+set C_COMP icc
+set C_COMP_MP mpcc
+
+# Known conflicts
+
+
+# Load compiler, mpi, cmake, and hdf5/netcdf
+module load intel/2018.4
+module load impi/2018.4
+
+module load cmake/3.15.4
+
+# Python
+module use /home/cmartin/opt/modulefiles
+module load anaconda/anaconda3-2020.04.02
+
+# Load libraries
+module load hdf5/1.10.5-parallel
+module load netcdf/4.7.2-parallel
+
+module use /apps/contrib/NCEPLIBS/orion/modulefiles
+module load bacio/2.0.3
+module load crtm/2.3.0
+module load ip/3.1.0
+module load nemsio/2.3.0
+module load prod_util/1.2.0
+module load sfcio/1.2.0
+module load sigio/2.2.0
+module load sp/2.1.0
+module load w3emc/2.5.0
+module load w3nco/2.1.0
+module load bufr/11.3.0
+
+
+# Fix MKL threads for reproducible global_gsi.x with correlated obs error
+#export MKL_NUM_THREADS=4
+#export MKL_CBWR=AUTO
+
