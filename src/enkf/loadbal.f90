@@ -310,7 +310,6 @@ if (.not. letkf_flag .or. lupd_obspace_serial) then
          anal_obchunk_modens_prior(1:nanals*neigv,nob1) = anal_ob_modens(1:nanals*neigv,nob2)
       end do
    endif
-   endif
    if(nproc == 0) print *,'... took ',mpi_wtime()-t1,' secs'
    ! these arrays only needed for serial filter
    ! nob1 is the index of the obs to be processed on this rank
