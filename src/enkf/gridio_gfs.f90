@@ -4078,7 +4078,8 @@
   ! deallocate things
   deallocate(inc3d,inc3d2,inc3dout)
   deallocate(tmp,tv,q,tmpanl,tvanl,qanl)
-  deallocate(delzb,psges)
+  if (allocated(delzb)) deallocate(delzb)
+  if (allocated(psges)) deallocate(psges)
 
 
   end do backgroundloop ! loop over backgrounds to write out
