@@ -86,6 +86,9 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
 !   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
 !                       . removed (%dlat,%dlon) debris.
+!   2019-08-21  Shao    - add COSMIC-2, metop-c and Paz 
+!   2020-03-18  Shao    - update observation error for COSMIC-2
+!   2020-04-13  Shao    - update the statistis QC for COSMIC-2
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -714,15 +717,27 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
             else   
 !               Statistics QC check if obs passed gross error check
                 cutoff=zero
-                cutoff1=(-4.725_r_kind+0.045_r_kind*alt+0.005_r_kind*alt**2)*two/three
+                if ((data(isatid,i) > 749).and.(data(isatid,i) < 756)) then
+                   cutoff1=(-4.725_r_kind+0.045_r_kind*alt+0.005_r_kind*alt**2)*one/two
+                else
+                   cutoff1=(-4.725_r_kind+0.045_r_kind*alt+0.005_r_kind*alt**2)*two/three
+                end if
                 cutoff2=1.5_r_kind+one*cos(data(ilate,i)*deg2rad)
                 if(trefges<=r240) then
                    cutoff3=two
                 else
                    cutoff3=0.005_r_kind*trefges**2-2.3_r_kind*trefges+266_r_kind
                 endif
-                cutoff3=cutoff3*two/three
-                cutoff4=(four+eight*cos(data(ilate,i)*deg2rad))*two/three
+                if ((data(isatid,i) > 749).and.(data(isatid,i) < 756)) then
+                   cutoff3=cutoff3*one/two
+                else
+                   cutoff3=cutoff3*two/three
+                end if
+                if ((data(isatid,i) > 749).and.(data(isatid,i) < 756)) then
+                   cutoff4=(four+eight*cos(data(ilate,i)*deg2rad))*one/two
+                else
+                   cutoff4=(four+eight*cos(data(ilate,i)*deg2rad))*two/three
+                end if
                 cutoff12=((36_r_kind-alt)/two)*cutoff2+&
                          ((alt-34_r_kind)/two)*cutoff1
                 cutoff23=((eleven-alt)/two)*cutoff3+&
@@ -737,7 +752,11 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
                 if((alt<=six).and.(alt>four)) cutoff=cutoff34
                 if(alt<=four) cutoff=cutoff4
 
-                cutoff=three*cutoff*r0_01
+                if ((data(isatid,i) > 749).and.(data(isatid,i) < 756)) then
+                   cutoff=two*cutoff*r0_01
+                else
+                   cutoff=three*cutoff*r0_01
+                end if
  
                 if(abs(rdiagbuf(5,i)) > cutoff) then
                    qcfail(i)=.true.
