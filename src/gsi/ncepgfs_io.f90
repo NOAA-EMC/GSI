@@ -1168,7 +1168,7 @@ end subroutine write_ghg_grid
     use constants, only: qcmin 
     use constants, only:zero
     use general_specmod, only: general_init_spec_vars,general_destroy_spec_vars,spec_vars
-    use gsi_4dvar, only: lwrite4danl,nhr_anal,nobs_bins
+    use gsi_4dvar, only: lwrite4danl,nhr_anal
     use ncepnems_io, only: write_nemsatm,write_nemssfc,write_nems_sfc_nst
     use netcdfgfs_io, only: write_gfsncsfc, write_gfsnc_sfc_nst, write_gfsncatm
     use write_incr, only: write_fv3_increment

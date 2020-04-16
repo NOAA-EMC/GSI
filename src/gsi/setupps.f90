@@ -98,7 +98,7 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
 !
 !$$$
   use mpeu_util, only: die,perr,getindex
-  use state_vectors, only: svars2d, levels, ns3d, nsdim
+  use state_vectors, only: svars2d, levels, ns3d
   use kinds, only: r_kind,r_single,r_double,i_kind
   use m_obsdiagNode, only: obs_diag
   use m_obsdiagNode, only: obs_diags
@@ -123,10 +123,10 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
   use gridmod, only: nsig,get_ij,twodvar_regional
   use constants, only: zero,one_tenth,one,half,pi,g_over_rd, &
-             huge_r_kind,tiny_r_kind,two,cg_term,huge_single, &
+             huge_r_kind,tiny_r_kind,two,huge_single, &
              r1000,wgtlim,tiny_single,r10,three
   use jfunc, only: jiter,last,jiterstart,miter
-  use qcmod, only: dfact,dfact1,npres_print,njqc,vqc,nvqc,hub_norm
+  use qcmod, only: dfact,dfact1,npres_print,vqc,nvqc
   use guess_grids, only: hrdifsig,ges_lnprsl,nfldsig,ntguessig
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype,icsubtype
   use convinfo, only: ibeta,ikapa 

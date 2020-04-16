@@ -516,23 +516,27 @@ subroutine gesinfo
   end if
   fha=zero; ida=0; jda=0
   fha(2)=ihourg    ! relative time interval in hours
-  if(regional) fha(3)=minuteg   ! relative time interval in minutes
+#ifdef RR_CLOUDANALYSIS
+  fha(3)=minuteg   ! relative time interval in minutes
+#endif
   ida(1)=iyr       ! year
   ida(2)=idate4(2) ! month
   ida(3)=idate4(3) ! day
   ida(4)=0         ! time zone
   ida(5)=idate4(1) ! hour
-  if(regional) ida(6)=idate4(5) ! minute
+#ifdef RR_CLOUDANALYSIS
+  ida(6)=idate4(5) ! minute
+#endif
   call w3movdat(fha,ida,jda)
   iadate(1)=jda(1) ! year
   iadate(2)=jda(2) ! mon
   iadate(3)=jda(3) ! day
   iadate(4)=jda(5) ! hour
-  if(regional) then 
-     iadate(5)=jda(6) !regional_time(5)      ! minute
-  else
-     iadate(5)=0   ! minute
-  end if
+#ifdef RR_CLOUDANALYSIS
+  iadate(5)=jda(6) !regional_time(5)      ! minute
+#else
+  iadate(5)=0      ! minute
+#endif
   ianldate =jda(1)*1000000+jda(2)*10000+jda(3)*100+jda(5)
 
 ! Determine date and time at start of assimilation window
@@ -569,11 +573,11 @@ subroutine gesinfo
 
 ! Get time offset
   call time_4dvar(ianldate,time_offset)
-  if (regional)then
-     fha(2)=float(int(min_offset/60))
-     fha(3)=(min_offset-fha(2)*r60)
-     time_offset=time_offset+fha(3)/r60
-  endif
+#ifdef RR_CLOUDANALYSIS
+  fha(2)=float(int(min_offset/60))
+  fha(3)=(min_offset-fha(2)*r60)
+  time_offset=time_offset+fha(3)/r60
+#endif
 
 ! Get information about date/time and number of guess files
   if (regional) then

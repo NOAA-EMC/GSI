@@ -14,8 +14,8 @@
 ! $$$
 
       use kinds, only: r_kind,i_kind
-      use constants, only: half,one,two,tiny_r_kind,cg_term
-      use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc,nvqc,hub_norm
+      use constants, only: half,one,two,tiny_r_kind
+      use qcmod, only: nlnqc_iter,njqc,vqc,nvqc,hub_norm
       use pvqc, only: vqch,vqcs
 
       implicit none

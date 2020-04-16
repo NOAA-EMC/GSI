@@ -339,7 +339,7 @@ subroutine vqch_iii(ia,ib,ik,x,g,w)!                                     [vqch]
 ! and peaks at g=0).
 !==============================================================================
 use pvqc_tables, only: x1t,x2t,xat,yat,da,db,dk,&
-                       npx,npa,npb,npk,na,npb2,linitvqc
+                       npk,na,npb2,linitvqc
 integer, intent(in ):: ia,ib,ik
 real(dp),intent(in ):: x
 real(dp),intent(out):: g,w
@@ -410,8 +410,7 @@ subroutine vqch_r(beta,x,g,w)!                                           [vqch]
 ! (symmetric, neutral convexity), with tail broadness specified by a real
 ! parameter, beta.
 !==============================================================================
-use pvqc_tables, only: x1t,x2t,yat,&
-                       npx,npa,npb,npk,nx,na,npb2,linitvqc
+use pvqc_tables, only: x1t,x2t,yat,linitvqc
 real(dp),intent(in ):: beta,x
 real(dp),intent(out):: g,w
 !------------------------------------------------------------------------------
@@ -457,7 +456,7 @@ subroutine vqcs_iii(ia,ib,ik,x,g,w)!                                     [vqcs]
 ! asymptotic form in the limit |x| --> infinity, and slightly adjusted to
 ! ensure continuity of g at the transition.
 !==============================================================================
-use pvqc_tables, only: sgt,swt,dx,da,db,dk,npx,npa,npb,npk,nx,na,npb2,linitvqc
+use pvqc_tables, only: sgt,swt,dx,db,dk,npb,npk,nx,na,npb2,linitvqc
 integer, intent(in ):: ia,ib,ik
 real(dp),intent(in ):: x
 real(dp),intent(out):: g,w
@@ -551,7 +550,7 @@ subroutine vqcs_r(beta,x,g,w)!                                           [vqcs]
 ! more compatible with the older version of VQC that uses these simpler forms
 ! of the superlogistic family.
 !==============================================================================
-use pvqc_tables, only: sgt,swt,dx,da,db,dk,npx,npa,npb,npk,nx,na,npb2,linitvqc
+use pvqc_tables, only: sgt,swt,dx,npb,nx,linitvqc
 real(dp),intent(in ):: beta,x
 real(dp),intent(out):: g,w
 !------------------------------------------------------------------------------

@@ -1076,7 +1076,7 @@ real(dp),            intent(out):: x,y
 !-----------------------------------------------------------------------------
 real(dp)              :: s
 logical,dimension(0:3):: xofd4,yofd4
-integer               :: igen,d,j
+integer               :: igen,d
 data xofd4/F,T,F,T/
 data yofd4/F,F,T,T/
 !=============================================================================
@@ -1096,7 +1096,7 @@ real(dp),            intent(out):: x,y,z
 !-----------------------------------------------------------------------------
 real(dp)              :: s
 logical,dimension(0:7):: xofd8,yofd8,zofd8
-integer               :: igen,d,j
+integer               :: igen,d
 data xofd8/F,T,F,T,F,T,F,T/
 data yofd8/F,F,T,T,F,F,T,T/
 data zofd8/F,F,F,F,T,T,T,T/
@@ -1117,7 +1117,7 @@ real(dp),            intent(out):: x,y,z,a
 !-----------------------------------------------------------------------------
 real(dp)               :: s
 logical,dimension(0:15):: xofd16,yofd16,zofd16,aofd16
-integer                :: igen,d,j
+integer                :: igen,d
 data xofd16/F,T,F,T,F,T,F,T,F,T,F,T,F,T,F,T/
 data yofd16/F,F,T,T,F,F,T,T,F,F,T,T,F,F,T,T/
 data zofd16/F,F,F,F,T,T,T,T,F,F,F,F,T,T,T,T/

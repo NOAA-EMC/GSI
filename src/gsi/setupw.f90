@@ -20,7 +20,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 ! !USES:
 
   use mpeu_util, only: die,perr,getindex
-  use state_vectors, only: svars3d, levels, nsdim
+  use state_vectors, only: svars3d, levels
   use kinds, only: r_kind,r_single,r_double,i_kind
   use m_obsdiagNode, only: obs_diag
   use m_obsdiagNode, only: obs_diags

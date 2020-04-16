@@ -337,7 +337,7 @@ contains
     use radinfo, only: nusis,jpch_rad,icloud4crtm,iaerosol4crtm
     use obsmod, only: ndat,dtype,dsis
     use gsi_io, only: verbose
-    use chemmod, only: laeroana_gocart, lread_ext_aerosol
+    use chemmod, only: laeroana_gocart
     implicit none
 
     logical :: first,diffistr,found

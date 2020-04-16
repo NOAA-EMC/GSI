@@ -115,7 +115,7 @@ subroutine setuppw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   use rapidrefresh_cldsurf_mod, only: l_pw_hgt_adjust, l_limit_pw_innov, max_innov_pct
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
-  use state_vectors, only: svars3d, levels, nsdim
+  use state_vectors, only: svars3d, levels
   use sparsearr, only: sparr2, new, size, writearray, fullarray
   implicit none
 

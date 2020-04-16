@@ -78,7 +78,7 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc,nvqc,hub_norm
+  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc,nvqc
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600,zero
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -86,7 +86,6 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
   use m_qNode  , only: qNode
   use m_qNode  , only: qNode_typecast
   use m_qNode  , only: qNode_nextcast
-  use mpimod, only: mype
   implicit none
 
 ! Declare passed variables

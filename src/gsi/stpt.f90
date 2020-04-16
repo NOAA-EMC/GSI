@@ -100,7 +100,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc,nvqc,hub_norm
+  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc,nvqc
   use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use aircraftinfo, only: npredt,ntail,aircraft_t_bc_pof,aircraft_t_bc
   use gsi_bundlemod, only: gsi_bundle
@@ -109,7 +109,6 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
   use m_tNode  , only: tNode
   use m_tNode  , only: tNode_typecast
   use m_tNode  , only: tNode_nextcast
-  use mpimod, only: mype
   implicit none
 
 ! Declare passed variables

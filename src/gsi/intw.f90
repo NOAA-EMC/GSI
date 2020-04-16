@@ -102,7 +102,6 @@ subroutine intw_(whead,rval,sval)
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_4dvar, only: ladtest_obs 
   use pvqc, only: vqch,vqcs
-  use mpimod, only: mype
   implicit none
 
 ! Declare passed variables

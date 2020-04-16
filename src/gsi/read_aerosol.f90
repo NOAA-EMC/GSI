@@ -164,7 +164,6 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   integer(i_kind),allocatable,dimension(:)  :: nrec
   real(r_double), dimension( 10) :: hdraerog
   real(r_double)                 :: aod_550
-  real(r_double), dimension(3)   :: aod_flags
   real(r_kind)    :: ptime,timeinflat,crit0
   integer(i_kind) :: ithin_time,n_tbin,it_mesh
 ! for VIIRS

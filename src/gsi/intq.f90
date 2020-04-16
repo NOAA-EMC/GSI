@@ -94,12 +94,11 @@ subroutine intq_(qhead,rval,sval)
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term,r3600,two,zero
   use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
-  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc,nvqc,hub_norm
+  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc,nvqc
   use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_4dvar, only: ladtest_obs
-  use mpimod, only: mype
   implicit none
 
 ! Declare passed variables
@@ -111,7 +110,7 @@ subroutine intq_(qhead,rval,sval)
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,ier,istatus
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,ibb,ikk
 ! real(r_kind) penalty
-  real(r_kind) cg_t,val,p0,grad,t_pg,var_jb,error2,rat_error2
+  real(r_kind) cg_t,val,grad,t_pg,var_jb,error2,rat_error2
   real(r_kind),pointer,dimension(:) :: sq
   real(r_kind),pointer,dimension(:) :: rq
   type(qNode), pointer :: qptr

@@ -119,14 +119,13 @@ subroutine intt_(thead,rval,sval,rpred,spred)
   use kinds, only: r_kind,i_kind,r_quad
   use constants, only: half,one,zero,tiny_r_kind,cg_term,r3600,two
   use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
-  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc,nvqc,hub_norm
+  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc,nvqc
   use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_bundlemod, only: gsi_bundleprint
   use gsi_4dvar, only: ladtest_obs 
   use aircraftinfo, only: npredt,ntail,aircraft_t_bc_pof,aircraft_t_bc
-  use mpimod, only: mype
   implicit none
   
 
@@ -286,12 +285,8 @@ subroutine intt_(thead,rval,sval,rpred,spred)
               ikk=0
            endif
 
-!          if (mype ==0 .and.  nlnqc_iter) print *,'INTT1:grad,t_pg,cg_t=',grad,t_pg,cg_t,tptr%raterr2,tptr%err2,val
-
            call vqc_int(error2,rat_err2,t_pg,cg_t,var_jb,ibb,ikk,val,grad)
  
-!           if (mype ==0 .and.  nlnqc_iter) print *,'INTT2:grad=',grad,nlnqc_iter,val
-
            if(ladtest_obs) then
               grad = val
            endif

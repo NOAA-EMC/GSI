@@ -299,11 +299,11 @@ real(dp),dimension(0:3,5) :: qset5
 real(dp),dimension(0:3,7) :: qset7
 real(dp),dimension(0:3,13):: qset13
 real(dp),dimension(3,3)   :: rot,rotnew,rotold
-real(dp)                  :: span,uv,uh,vh,vhq,vhp,v,vrand,zran,&
+real(dp)                  :: span,uv,uh,vh,vhq,vhp,v,vrand,&
                              rlat,clat,slat,rlon,clon,slon
 integer,dimension(nob)    :: rank
 integer,dimension(0:ngen) :: hilr
-integer                   :: i,irand,j,k,L,ngen4,ntri,skip,dentripc
+integer                   :: i,irand,j,k,L,ngen4,ntri,dentripc
 !=============================================================================
 uh=sqrt(pi/6)*re
 uv=(uh*vscale)/hscale
@@ -449,11 +449,11 @@ real(dp),dimension(0:3,5) :: qset5
 real(dp),dimension(0:3,8) :: qset8
 real(dp),dimension(0:3,13):: qset13
 real(dp),dimension(3,3)   :: rot,rotnew,rotold
-real(dp)                  :: span,uv,uh,vh,vhq,vhp,v,vrand,zran,&
+real(dp)                  :: span,uv,uh,vh,vhq,vhp,v,vrand,&
                              rlat,clat,slat,rlon,clon,slon
 integer,dimension(nob)    :: rank
 integer,dimension(0:ngen) :: hilr
-integer                   :: i,irand,j,L,ngen4,ntri,skip,dentripc
+integer                   :: i,irand,j,L,ngen4,ntri,dentripc
 !=============================================================================
 uh=sqrt(pi/6)*re
 uv=(uh*vscale)/hscale

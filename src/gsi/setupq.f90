@@ -153,8 +153,8 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use gridmod, only: lat2,lon2,nsig,get_ijk,twodvar_regional
   use constants, only: zero,one,r1000,r10,r100
   use constants, only: huge_single,wgtlim,three
-  use constants, only: tiny_r_kind,five,half,two,huge_r_kind,cg_term,r0_01
-  use qcmod, only: npres_print,ptopq,pbotq,dfact,dfact1,njqc,vqc,nvqc,hub_norm
+  use constants, only: tiny_r_kind,five,half,two,huge_r_kind,r0_01
+  use qcmod, only: npres_print,ptopq,pbotq,dfact,dfact1,njqc,vqc,nvqc
   use jfunc, only: jiter,last,jiterstart,miter
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: ibeta,ikapa
@@ -168,7 +168,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use sparsearr, only: sparr2, new, size, writearray, fullarray
-  use state_vectors, only: svars3d, levels, nsdim
+  use state_vectors, only: svars3d, levels
 
   ! The following variables are the coefficients that describe the
   ! linear regression fits that are used to define the dynamic
