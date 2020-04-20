@@ -145,17 +145,12 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
     ! segment (containing observation prior ensemble) on each task.
     call MPI_Win_shared_query(shm_win, 0, segment_size, disp_unit, anal_ob_cp, ierr)
     call c_f_pointer(anal_ob_cp, anal_ob, [nanals, nobs_tot])
-    ! initialize shared memory window, use lock to make sure different
-    ! tasks not writing at same time.
-    call MPI_Win_lock(MPI_LOCK_EXCLUSIVE,0,MPI_MODE_NOCHECK,shm_win,ierr)
+    ! initialize shared memory window.
     anal_ob=0
-    call MPI_Win_unlock(0, shm_win, ierr)
     if (neigv > 0) then
        call MPI_Win_shared_query(shm_win2, 0, segment_size, disp_unit, anal_ob_modens_cp, ierr)
        call c_f_pointer(anal_ob_modens_cp, anal_ob_modens, [nens, nobs_tot])
-       call MPI_Win_lock(MPI_LOCK_EXCLUSIVE,0,MPI_MODE_NOCHECK,shm_win2,ierr)
        anal_ob_modens=0
-       call MPI_Win_unlock(0, shm_win2, ierr)
     endif
 
 ! read ensemble mean and every ensemble member
@@ -234,8 +229,6 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
 
 !   populate obs prior ensemble shared array pointer on each io task.
     if (nproc <= ntasks_io-1) then
-       ! no lock needed here since different tasks write to different
-       ! segments of shared memory window.
        anal_ob(nmem+nproc*nanals_per_iotask,:) = mem_ob(:)
        if (neigv > 0) then
           na = nmem+nproc*nanals_per_iotask
