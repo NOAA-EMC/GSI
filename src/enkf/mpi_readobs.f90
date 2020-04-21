@@ -81,9 +81,8 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
             nens, nobs_conv, nobs_oz, nobs_sat, nobs_tot, nanal
     integer(i_kind) :: nobs_convdiag, nobs_ozdiag, nobs_satdiag, nobs_totdiag
     integer(i_kind), intent(in) :: nanals, neigv
-    integer disp_unit
     integer(MPI_ADDRESS_KIND) :: win_size, nsize, nsize2, win_size2
-    integer(MPI_ADDRESS_KIND) :: segment_size
+    integer(MPI_ADDRESS_KIND) :: segment_size, disp_unit
 
     iozproc=max(0,min(1,numproc-1))
     isatproc=max(0,min(2,numproc-2))
@@ -125,12 +124,17 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
 ! observation prior ensemble.
 ! shared window size will be zero except on root task of
 ! shared memory group on each node.
-    disp_unit = num_bytes_for_r_single ! anal_ob is r_single
-    nsize = nobs_tot*nanals
-    nsize2 = nobs_tot*nanals*neigv
+    disp_unit = int(num_bytes_for_r_single,kind=MPI_ADDRESS_KIND) ! anal_ob is r_single
+    nsize = int(nobs_tot,kind=MPI_ADDRESS_KIND)*int(nanals,kind=MPI_ADDRESS_KIND)
+    nsize2 = int(nobs_tot,kind=MPI_ADDRESS_KIND)*int(nanals,kind=MPI_ADDRESS_KIND)*int(neigv,kind=MPI_ADDRESS_KIND)
     if (nproc_shm == 0) then
        win_size = nsize*disp_unit
        win_size2 = nsize2*disp_unit
+       if (win_size2 < 0) then
+          print *,'win_size2 = ',win_size2
+          print *,'problem with shared window size, stopping!'
+          call stop2(11)
+       endif
     else
        win_size = 0
        win_size2 = 0
