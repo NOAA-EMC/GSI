@@ -381,56 +381,8 @@ PGM=$DATA/enkf.x
 $NCP $ENKFEXEC $PGM
 
 # Execute EnKF using same number of mpi tasks on all nodes
-#$APRUN_ENKF $PGM 1>stdout 2>stderr
-#rc=$?
-
-# Execute EnKF using only one mpi task on root node.
-# (root node has to hold two copies of full ob space ensemble for LETKF)
-mpi_launcher=`echo $APRUN_ENKF | cut -f1 -d " "`
-totproc=`expr $npe_enkf \* $OMP_NUM_THREADS`
-mpitaskspernode=`expr $npe_node_max \/ $OMP_NUM_THREADS`
-HOSTFILE=machinefile_enkf
-rm -f $HOSTFILE
-if [ "$mpi_launcher" = "mpirun" ]; then
-   # PBS with mpirun
-   /bin/cp -f $LSB_DJOB_HOSTFILE $HOSTFILE
-   if [ $mpitaskspernode -gt 1 ]; then
-      sed -i "2,${mpitaskspernode}d" $HOSTFILE
-      nprocs=`wc -l $HOSTFILE | cut -f1 -d" "`
-   fi
-   mpirun -np $nprocs -machinefile $HOSTFILE $PGM 1>stdout 2>stderr
-   rc=$?
-   rm -f $HOSTFILE
-elif [ "$mpi_launcher" = "srun" ]; then
-   # slurm with srun
-   nnode=0
-   for node in `scontrol show hostnames $SLURM_JOB_NODELIST`; do
-       let nnode+=1
-       if [ $nnode -eq 1 ]; then
-          echo $node > $HOSTFILE
-       else
-          count=0
-          while [ $count -lt "$mpitaskspernode" ]; do
-             echo $node >> $HOSTFILE
-             let count+=1
-          done
-       fi
-   done
-   nprocs=`wc -l $HOSTFILE | cut -f1 -d" "`
-   export SLURM_HOSTFILE=$HOSTFILE
-   srun --verbose --export=ALL -c ${OMP_NUM_THREADS} --distribution=arbitrary --cpu-bind=cores $PGM 1>stdout 2>stderr
-   rc=$?
-   rm -f $HOSTFILE
-elif [ "$mpi_launcher" = "aprun" ]; then
-   # aprun (independent of scheduler)
-   totproc2=`expr $totproc - $npe_node_max`
-   nprocs=`expr $totproc2 \/ $OMP_NUM_THREADS`
-   aprun -n 1 -N 1 -d ${OMP_NUM_THREADS} --cc depth $PGM : -n $nprocs -N $mpitaskspernode -d ${OMP_NUM_THREADS} --cc depth $PGM 1>stdout 2>stderr
-   rc=$?
-else
-   echo "unknown mpi launcher"
-   rc=99
-fi
+$APRUN_ENKF $PGM 1>stdout 2>stderr
+rc=$?
 
 export ERR=$rc
 export err=$ERR

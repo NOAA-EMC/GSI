@@ -180,9 +180,6 @@ if [ $DO_CALC_INCREMENT = "YES" ]; then
    export err=$ERR
    $ERRSCRIPT || exit 2
 else
-   # Link ensemble mean guess
-   $NLN $COMIN_GES_ENS/${GPREFIX}atmf00${FHR}.ensmean$GSUFFIX ./atmges_ensmean
-
    # Link ensemble mean increment
    if [ $FHR -eq 6 ]; then
       $NLN $COMIN_ENS/${APREFIX_ENKF}atminc.ensmean$ASUFFIX ./atminc_ensmean
@@ -205,20 +202,24 @@ else
    export err=$ERR
    $ERRSCRIPT || exit 2
 
-   # Compute ensemble mean guess
-   DATAPATH="./"
-   ATMGESNAME="atmges"
-   ATMGESMEANNAME="atmges_ensmean"
+   # If available, link to ensemble mean guess.  Otherwise, compute ensemble mean guess
+   if [ -s $COMIN_GES_ENS/${GPREFIX}atmf00${FHR}.ensmean$GSUFFIX ]; then
+       $NLN $COMIN_GES_ENS/${GPREFIX}atmf00${FHR}.ensmean$GSUFFIX ./atmges_ensmean
+   else
+       DATAPATH="./"
+       ATMGESNAME="atmges"
+       ATMGESMEANNAME="atmges_ensmean"
 
-   export OMP_NUM_THREADS=$NTHREADS_ECEN
+       export OMP_NUM_THREADS=$NTHREADS_ECEN
 
-   $NCP $GETATMENSMEANEXEC $DATA
-   $APRUN_ECEN ${DATA}/$(basename $GETATMENSMEANEXEC) $DATAPATH $ATMGESMEANNAME $ATMGESNAME $NMEM_ENKF
-   rc=$?
+       $NCP $GETATMENSMEANEXEC $DATA
+       $APRUN_ECEN ${DATA}/$(basename $GETATMENSMEANEXEC) $DATAPATH $ATMGESMEANNAME $ATMGESNAME $NMEM_ENKF
+       rc=$?
 
-   export ERR=$rc
-   export err=$ERR
-   $ERRSCRIPT || exit 2
+       export ERR=$rc
+       export err=$ERR
+       $ERRSCRIPT || exit 2
+   fi
 fi
 
 if [ ${SUFFIX} = ".nc" ]; then
