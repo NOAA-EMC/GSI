@@ -322,7 +322,7 @@ contains
     nccount = (/ grd%lon1, grd%lat1, grd%nsig /)
     if (istart(mype+1) == 1) then
       ncstart = (/ jstart(mype+1), 1, 1 /)
-      nccount = (/ grd%lon1, grd%lat1, grd%nsig /)
+      nccount = (/ grd%lon1, grd%lat1-1, grd%nsig /)
       j1 = 2
       j2 = grd%lat1-1
     else if (istart(mype+1)+grd%lat1 == grd%nlat+1) then
