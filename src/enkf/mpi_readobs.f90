@@ -241,6 +241,8 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
     endif
 
     enddo ! nanal loop (loop over ens members on each task)
+    ! need this to prevent race condition on shared memory window
+    call mpi_barrier(mpi_comm_world,ierr) 
    
 ! obs prior ensemble now defined on root task, bcast to other tasks.
     if (nproc == 0) print *,'broadcast ob prior ensemble'
