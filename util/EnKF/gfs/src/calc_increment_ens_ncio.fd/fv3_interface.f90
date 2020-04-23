@@ -102,7 +102,7 @@ module fv3_interface
   !! match to increments_to_zero.
   character(len=11), dimension(n_inc_vars) :: var_zero_synonyms=(/      &
        'u_inc      ', 'v_inc      ', 'delp_inc   ', 'delz_inc   ', &
-       'temp_inc   ', 'sphum_inc  ', 'clwmr_inc  ', 'o3mwr_inc  ', &
+       'temp_inc   ', 'sphum_inc  ', 'liq_wat_inc', 'o3mwr_inc  ', &
        'icmr_inc   ' /)
 
   !! The input name from ncio that matches each output filename from
@@ -220,7 +220,7 @@ contains
        endif
 
        ! Skip this var if it is to be zero.  No point in reading it...
-       zero_or_read: if(should_zero_increments_for(var_zero_synonyms(ivar))) then
+       zero_or_read: if(should_zero_increments_for(trim(var_zero_synonyms(ivar)))) then
           if (mype==0) print 100, trim(output_vars(ivar)), &
                'is in incvars_to_zero; setting increments to zero'
           an_grid%var3d = 0
@@ -260,7 +260,7 @@ contains
 
     ! Local variables
 
-    character(len=10) :: varname ! temporary string for storing variable names
+    character(len=12) :: varname ! temporary string for storing variable names
     integer :: i ! incvars_to_zero loop index
 
     should_zero_increments_for=.false.

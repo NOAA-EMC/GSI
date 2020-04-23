@@ -93,6 +93,8 @@ cnvw_option=${cnvw_option:-".false."}
 netcdf_diag=${netcdf_diag:-".true."}
 modelspace_vloc=${modelspace_vloc:-".false."} # if true, 'vlocal_eig.dat' is needed
 IAUFHRS_ENKF=${IAUFHRS_ENKF:-6}
+DO_CALC_INCREMENT=${DO_CALC_INCREMENT:-"NO"}
+INCREMENTS_TO_ZERO=${INCREMENTS_TO_ZERO:-"'NONE'"}
 
 ################################################################################
 ATMGES_ENSMEAN=$COMIN_GES_ENS/${GPREFIX}atmf006.ensmean${GSUFFIX}
@@ -102,12 +104,20 @@ if [ $SUFFIX = ".nc" ]; then
    LEVS_ENKF=${LEVS_ENKF:-$($NCLEN $ATMGES_ENSMEAN pfull)} # get LEVS_ENFK
    use_gfs_ncio=".true."
    use_gfs_nemsio=".false."
+   paranc=${paranc:-".true."}
+   if [ $DO_CALC_INCREMENT = "YES" ]; then
+      write_fv3_incr=".false."
+   else
+      write_fv3_incr=".true."
+      WRITE_INCR_ZERO="incvars_to_zero= $INCREMENTS_TO_ZERO,"
+   fi
 else
    LEVS_ENKF=${LEVS_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimz | awk '{print $2}')}
    LATB_ENKF=${LATB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimy | awk '{print $2}')}
    LONB_ENKF=${LONB_ENKF:-$($NEMSIOGET $ATMGES_ENSMEAN dimx | awk '{print $2}')}
    use_gfs_ncio=".false."
    use_gfs_nemsio=".true."
+   paranc=${paranc:-".false."}
 fi
 LATA_ENKF=${LATA_ENKF:-$LATB_ENKF}
 LONA_ENKF=${LONA_ENKF:-$LONB_ENKF}
@@ -177,7 +187,7 @@ EOFuntar
 fi
 
 ################################################################################
-# Ensemble guess, observational data and analysis
+# Ensemble guess, observational data and analyses/increments
 
 flist="$CNVSTAT $OZNSTAT $RADSTAT"
 if [ $USE_CFP = "YES" ]; then
@@ -202,23 +212,31 @@ for imem in $(seq 1 $NMEM_ENKF); do
       fi
    fi
    mkdir -p $COMOUT_ANL_ENS/$memchar
-   for FHR in $nfhrs; do 
+   for FHR in $nfhrs; do
       $NLN $COMIN_GES_ENS/$memchar/${GPREFIX}atmf00${FHR}${ENKF_SUFFIX}${GSUFFIX}  sfg_${CDATE}_fhr0${FHR}_${memchar}
       if [ $cnvw_option = ".true." ]; then
          $NLN $COMIN_GES_ENS/$memchar/${GPREFIX}sfcf00${FHR}${GSUFFIX} sfgsfc_${CDATE}_fhr0${FHR}_${memchar}
       fi
       if [ $FHR -eq 6 ]; then
-         $NLN $COMOUT_ANL_ENS/$memchar/${APREFIX}atmanl${ASUFFIX}             sanl_${CDATE}_fhr0${FHR}_${memchar}
+         if [ $DO_CALC_INCREMENT = "YES" ]; then
+            $NLN $COMOUT_ANL_ENS/$memchar/${APREFIX}atmanl${ASUFFIX}             sanl_${CDATE}_fhr0${FHR}_${memchar}
+         else
+            $NLN $COMOUT_ANL_ENS/$memchar/${APREFIX}atminc${ASUFFIX}             incr_${CDATE}_fhr0${FHR}_${memchar}
+         fi
       else
-         $NLN $COMOUT_ANL_ENS/$memchar/${APREFIX}atma00${FHR}${ASUFFIX}             sanl_${CDATE}_fhr0${FHR}_${memchar}
+         if [ $DO_CALC_INCREMENT = "YES" ]; then
+            $NLN $COMOUT_ANL_ENS/$memchar/${APREFIX}atma00${FHR}${ASUFFIX}             sanl_${CDATE}_fhr0${FHR}_${memchar}
+         else
+            $NLN $COMOUT_ANL_ENS/$memchar/${APREFIX}atmi00${FHR}${ASUFFIX}             incr_${CDATE}_fhr0${FHR}_${memchar}
+         fi
       fi
    done
 done
 
 # Ensemble mean guess
-for FHR in $nfhrs; do 
+for FHR in $nfhrs; do
    $NLN $COMIN_GES_ENS/${GPREFIX}atmf00${FHR}.ensmean${GSUFFIX} sfg_${CDATE}_fhr0${FHR}_ensmean
-   if [ $cnvw_option = ".true." ]; then 
+   if [ $cnvw_option = ".true." ]; then
       $NLN $COMIN_GES_ENS/${GPREFIX}sfcf00${FHR}.ensmean${GSUFFIX} sfgsfc_${CDATE}_fhr0${FHR}_ensmean
    fi
 done
@@ -263,6 +281,8 @@ cat > enkf.nml << EOFnml
    modelspace_vloc=$modelspace_vloc,
    use_correlated_oberrs=${use_correlated_oberrs},
    netcdf_diag=$netcdf_diag,cnvw_option=$cnvw_option,
+   paranc=$paranc,write_fv3_incr=$write_fv3_incr,
+   $WRITE_INCR_ZERO
    $NAM_ENKF
 /
 &satobs_enkf
@@ -361,56 +381,8 @@ PGM=$DATA/enkf.x
 $NCP $ENKFEXEC $PGM
 
 # Execute EnKF using same number of mpi tasks on all nodes
-#$APRUN_ENKF $PGM 1>stdout 2>stderr
-#rc=$?
-
-# Execute EnKF using only one mpi task on root node.
-# (root node has to hold two copies of full ob space ensemble for LETKF)
-mpi_launcher=`echo $APRUN_ENKF | cut -f1 -d " "`
-totproc=`expr $npe_enkf \* $OMP_NUM_THREADS`
-mpitaskspernode=`expr $npe_node_max \/ $OMP_NUM_THREADS`
-HOSTFILE=machinefile_enkf
-rm -f $HOSTFILE
-if [ "$mpi_launcher" = "mpirun" ]; then
-   # PBS with mpirun
-   /bin/cp -f $LSB_DJOB_HOSTFILE $HOSTFILE
-   if [ $mpitaskspernode -gt 1 ]; then
-      sed -i "2,${mpitaskspernode}d" $HOSTFILE
-      nprocs=`wc -l $HOSTFILE | cut -f1 -d" "`
-   fi
-   mpirun -np $nprocs -machinefile $HOSTFILE $PGM 1>stdout 2>stderr
-   rc=$?
-   rm -f $HOSTFILE
-elif [ "$mpi_launcher" = "srun" ]; then
-   # slurm with srun
-   nnode=0
-   for node in `scontrol show hostnames $SLURM_JOB_NODELIST`; do
-       let nnode+=1
-       if [ $nnode -eq 1 ]; then
-          echo $node > $HOSTFILE
-       else
-          count=0
-          while [ $count -lt "$mpitaskspernode" ]; do
-             echo $node >> $HOSTFILE
-             let count+=1
-          done
-       fi
-   done
-   nprocs=`wc -l $HOSTFILE | cut -f1 -d" "`
-   export SLURM_HOSTFILE=$HOSTFILE
-   srun --verbose --export=ALL -c ${OMP_NUM_THREADS} --distribution=arbitrary --cpu-bind=cores $PGM 1>stdout 2>stderr
-   rc=$?
-   rm -f $HOSTFILE
-elif [ "$mpi_launcher" = "aprun" ]; then
-   # aprun (independent of scheduler)
-   totproc2=`expr $totproc - $npe_node_max`
-   nprocs=`expr $totproc2 \/ $OMP_NUM_THREADS`
-   aprun -n 1 -N 1 -d ${OMP_NUM_THREADS} --cc depth $PGM : -n $nprocs -N $mpitaskspernode -d ${OMP_NUM_THREADS} --cc depth $PGM 1>stdout 2>stderr
-   rc=$?
-else
-   echo "unknown mpi launcher"
-   rc=99
-fi
+$APRUN_ENKF $PGM 1>stdout 2>stderr
+rc=$?
 
 export ERR=$rc
 export err=$ERR

@@ -23,7 +23,7 @@ module namelist_def
   integer            :: nens                = 1
   logical            :: debug               = .false.
   integer            :: imp_physics         = 99
-  character(len=10)  :: incvars_to_zero(max_vars) = 'NONE'
+  character(len=12)  :: incvars_to_zero(max_vars) = 'NONE'
 
   logical            :: do_icmr             = .false.
 
