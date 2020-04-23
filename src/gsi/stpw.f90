@@ -82,7 +82,7 @@ subroutine stpw(whead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc,nvqc,hub_norm
+  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc,nvqc
   use constants, only: one,half,two,tiny_r_kind,cg_term,zero_quad,r3600,zero
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -90,7 +90,6 @@ subroutine stpw(whead,rval,sval,out,sges,nstep)
   use m_wNode  , only: wNode
   use m_wNode  , only: wNode_typecast
   use m_wNode  , only: wNode_nextcast
-  use mpimod, only: mype
   implicit none
 
 ! Declare passed variables
@@ -104,7 +103,7 @@ subroutine stpw(whead,rval,sval,out,sges,nstep)
   integer(i_kind) ier,istatus,ibb,ikk
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk
   real(r_kind) valu,facu,valv,facv,w1,w2,w3,w4,w5,w6,w7,w8
-  real(r_kind) cg_t,val,val2,t_pg,var_jb 
+  real(r_kind) cg_t,t_pg,var_jb 
   real(r_kind) uu,vv
   real(r_kind),dimension(max(1,nstep))::pen
   real(r_kind),pointer,dimension(:):: ru,rv,su,sv

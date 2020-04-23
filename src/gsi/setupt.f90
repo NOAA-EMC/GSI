@@ -45,7 +45,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
 
   use qcmod, only: npres_print,dfact,dfact1,ptop,pbot,buddycheck_t
-  use qcmod, only: njqc,vqc,nvqc,hub_norm
+  use qcmod, only: njqc,vqc,nvqc
 
   use oneobmod, only: oneobtest
   use oneobmod, only: maginnov
@@ -57,10 +57,10 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   use guess_grids, only: nfldsig, hrdifsig,ges_lnprsl,&
        geop_hgtl,ges_tsen,pbl_height
-  use state_vectors, only: svars3d, levels, nsdim
+  use state_vectors, only: svars3d, levels
 
   use constants, only: zero, one, four,t0c,rd_over_cp,three,rd_over_cp_mass,ten
-  use constants, only: tiny_r_kind,half,two,cg_term
+  use constants, only: tiny_r_kind,half,two
   use constants, only: huge_single,r1000,wgtlim,r10,fv
   use constants, only: one_quad
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype,icsubtype

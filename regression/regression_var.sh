@@ -54,7 +54,7 @@ case $machine in
    WCOSS_D)
    export noscrub=/gpfs/dell2/emc/modeling/noscrub/$LOGNAME
    export group="dev"
-   export queue="dev"
+   export queue="devonprod"
 
    export ptmp="/gpfs/dell2/ptmp/$LOGNAME/$ptmpName"
 

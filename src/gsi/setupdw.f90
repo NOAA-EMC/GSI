@@ -53,7 +53,7 @@ subroutine setupdw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   use m_obsLList, only: obsLList
   use obsmod, only: luse_obsdiag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
-  use state_vectors, only: svars3d, levels, nsdim
+  use state_vectors, only: svars3d, levels
 
   use jfunc, only: last, jiter, miter, jiterstart
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype

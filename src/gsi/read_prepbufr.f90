@@ -199,7 +199,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use convthin_time, only: make3grids_tm,map3grids_tm,map3grids_m_tm,del3grids_tm,use_all_tm
   use qcmod, only: errormod,errormod_aircraft,noiqc,newvad,njqc
   use qcmod, only: pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres
-  use qcmod, only: troflg,lat_c,nrand
+  use qcmod, only: nrand
   use nltransf, only: nltransf_forward
   use blacklist, only : blacklist_read,blacklist_destroy
   use blacklist, only : blkstns,blkkx,ibcnt
@@ -372,7 +372,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! for hilbert curve
   integer(i_kind) ndata_hil,nor,ncc,nnrand
-  integer(i_kind) isubtype,indexx
+  integer(i_kind) indexx
   real(r_kind)  dentrip,dentrip_tmp,vmin,vmax,rmesh_tmp,pmesh_tmp,prest
   integer(i_kind)  ntime_max,ntime_tmp,itype,ikx
   integer(i_kind),dimension(24) :: ntype_arr

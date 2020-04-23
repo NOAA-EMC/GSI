@@ -358,6 +358,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
         nread=nread+nchanl
 
+        rcldfrc=zero
         if(clrsky) then       
           call ufbrep(lnbufr,datasev1,1,ncld,iret,'NCLDMNT')
           rclrsky=bmiss

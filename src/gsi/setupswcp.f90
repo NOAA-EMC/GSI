@@ -69,7 +69,7 @@ subroutine setupswcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header,nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d
   use nc_diag_read_mod, only: nc_diag_read_init,nc_diag_read_get_dim,nc_diag_read_close
-  use state_vectors, only: svars3d, levels, nsdim
+  use state_vectors, only: svars3d, levels
 
   use constants, only: zero,one,tpwcon,r1000,r10, &
        tiny_r_kind,three,half,two,cg_term,huge_single,&

@@ -139,7 +139,6 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use setupdbz_lib, only:hx_dart
   use sparsearr, only: sparr2, new, size, writearray, fullarray
-  use state_vectors, only: nsdim
   implicit none
 
 ! Declare passed variables

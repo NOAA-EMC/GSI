@@ -63,7 +63,7 @@ contains
     use mpimod, only: mpi_rtype
     use mpimod, only: mpi_comm_world, mpi_info_null
     use mpimod, only: ierror
-    use mpimod, only: mype,npe
+    use mpimod, only: mype
 
     use gridmod, only: strip, rlats, rlons, bk5
     use gridmod, only: istart, jstart
@@ -72,13 +72,12 @@ contains
     use general_sub2grid_mod, only: sub2grid_info
 
     use gsi_bundlemod, only: gsi_bundle, gsi_bundlegetpointer
-    use control_vectors, only: control_vector, incvars_to_zero, &
-                               incvars_zero_strat
+    use control_vectors, only: control_vector
 
-    use constants, only: one, fv, rad2deg, r1000
+    use constants, only: one, rad2deg, r1000
 
     use gsi_4dcouplermod, only : gsi_4dcoupler_grtests
-    use gsi_4dvar, only: nobs_bins, l4dvar, nsubwin, lwrite4danl, l4densvar
+    use gsi_4dvar, only: nobs_bins, l4dvar, nsubwin, l4densvar
     use hybrid_ensemble_parameters, only: l_hyb_ens, ntlevs_ens
     use bias_predictors, only: predictors, allocate_preds, deallocate_preds
     use jfunc, only: xhatsave, iter
@@ -101,8 +100,6 @@ contains
 
 !-------------------------------------------------------------------------
 
-    character(len=120) :: my_name = 'WRITE_FV3INCR'
-
     real(r_kind),pointer,dimension(:,:,:) :: sub_u,sub_v
     real(r_kind),pointer,dimension(:,:,:) :: sub_qanl,sub_oz
     real(r_kind),pointer,dimension(:,:,:) :: sub_ql, sub_qi
@@ -111,12 +108,10 @@ contains
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) :: sub_dzb,sub_dza, sub_tsen, sub_q
 
     real(r_kind),dimension(grd%lat1,grd%lon1)     :: pssm
-    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig):: sub_dp
-    real(r_kind),dimension(grd%lat1,grd%lon1,grd%nsig):: tsensm,tvsm, prslm, usm, vsm
-    real(r_kind),dimension(grd%lat1,grd%lon1,grd%nsig):: dpsm, qsm, ozsm
+    real(r_kind),dimension(grd%lat1,grd%lon1,grd%nsig):: tsensm, usm, vsm
+    real(r_kind),dimension(grd%lat1,grd%lon1,grd%nsig):: qsm, ozsm
     real(r_kind),dimension(grd%lat1,grd%lon1,grd%nsig):: qism, qlsm 
     real(r_kind),dimension(grd%lat1,grd%lon1,grd%nsig):: dzsm
-    real(r_kind),dimension(max(grd%iglobal,grd%itotsub)) :: work1,work2
     real(r_kind),dimension(grd%lat1,grd%lon1,grd%nsig):: delp
     real(r_kind),dimension(grd%nlon) :: deglons
     real(r_kind),dimension(grd%nlat-2) :: deglats
@@ -130,7 +125,7 @@ contains
     integer(i_kind) :: lonvarid, latvarid, levvarid, pfullvarid, ilevvarid, &
                        hyaivarid, hybivarid, uvarid, vvarid, delpvarid, delzvarid, &
                        tvarid, sphumvarid, liqwatvarid, o3varid, icvarid
-    integer(i_kind) :: dimids3(3),nccount(3),ncstart(3), cnksize(3), j1, j2, jj
+    integer(i_kind) :: dimids3(3),nccount(3),ncstart(3), cnksize(3), j1, j2
 
     type(gsi_bundle) :: svalinc(nobs_bins)
     type(gsi_bundle) :: evalinc(ntlevs_ens)
@@ -330,7 +325,7 @@ contains
     nccount = (/ grd%lon1, grd%lat1, grd%nsig /)
     if (istart(mype+1) == 1) then
       ncstart = (/ jstart(mype+1), 1, 1 /)
-      nccount = (/ grd%lon1, grd%lat1, grd%nsig /)
+      nccount = (/ grd%lon1, grd%lat1-1, grd%nsig /)
       j1 = 2
       j2 = grd%lat1-1
     else if (istart(mype+1)+grd%lat1 == grd%nlat+1) then

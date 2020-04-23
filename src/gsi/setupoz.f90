@@ -110,7 +110,7 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use mpeu_util, only: die,perr,getindex
   use kinds, only: r_kind,r_single,i_kind
 
-  use state_vectors, only: svars3d, levels, nsdim
+  use state_vectors, only: svars3d, levels
 
   use constants, only : zero,half,one,two,tiny_r_kind
   use constants, only : rozcon,cg_term,wgtlim,h300,r10

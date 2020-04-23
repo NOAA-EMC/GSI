@@ -41,7 +41,6 @@ subroutine write_all(increment)
 
   use mpeu_util, only: die
 
-  use gsi_4dvar, only: nobs_bins
   use control_vectors, only: control_vector
   
   implicit none

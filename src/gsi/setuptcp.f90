@@ -41,7 +41,7 @@ subroutine setuptcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
 !
 !$$$
   use mpeu_util, only: die,perr,getindex
-  use state_vectors, only: ns3d, svars2d, levels, nsdim
+  use state_vectors, only: ns3d, svars2d, levels
   use sparsearr, only: sparr2, new, size, writearray, fullarray
   use kinds, only: r_kind,i_kind,r_single,r_double
   use m_obsdiagNode, only: obs_diag

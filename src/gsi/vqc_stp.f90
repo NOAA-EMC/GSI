@@ -16,7 +16,7 @@
 
    use kinds, only: r_kind,r_single,r_double,i_kind
    use constants, only: tiny_r_kind,half,two,one
-   use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc,nvqc,hub_norm
+   use qcmod, only: nlnqc_iter,njqc,vqc,nvqc,hub_norm
    use pvqc, only: vqch,vqcs
 
    implicit none

@@ -410,14 +410,12 @@ contains
 
 !   Declare local variables
     character(len=120) :: my_name = 'READ_GFSNCATM'
-    character(len=1)   :: null = ' '
     integer(i_kind),dimension(6):: idate
     integer(i_kind),dimension(4):: odate
-    integer(i_kind) :: iret,nlatm2,nflds
+    integer(i_kind) :: nlatm2,nflds
     integer(i_kind) :: k,icount,icount_prev,mm1,i,j,kk,kr
     integer(i_kind) :: mype_hs, mype_ps,nord_int
-    integer(i_kind) :: latb, lonb, levs, nframe
-    integer(i_kind) :: istop = 101
+    integer(i_kind) :: latb, lonb, levs
     real(r_kind),allocatable,dimension(:,:) :: grid, grid_v, &
          grid_vor, grid_div, grid_b, grid_b2
     real(r_kind),allocatable,dimension(:,:,:) :: grid_c, grid2, grid_c2
@@ -884,11 +882,9 @@ contains
     real(r_single),  dimension(nlat_sfc,nlon_sfc,nfldsfc) :: xt
     character(len=24)  :: filename
     character(len=120) :: my_name = 'READ_SFCNST'
-    character(len=1)   :: null = ' '
     integer(i_kind) :: i,j,it,n,nsfc
-    integer(i_kind) :: iret, nframe, lonb, latb
+    integer(i_kind) :: lonb, latb
     real(r_single),allocatable, dimension(:)  :: fhour
-    integer(i_kind) :: istop = 102
     real(r_single), allocatable, dimension(:,:) :: work,outtmp
     type(Dataset) :: sfcges
     type(Dimension) :: ncdim
@@ -1216,11 +1212,9 @@ contains
 !   Declare local variables
     character(len=24)  :: filename
     character(len=120) :: my_name = 'READ_GFSNCSFC_ANL'
-    character(len=1)   :: null = ' '
     integer(i_kind) :: i,j
-    integer(i_kind) :: iret, nframe, lonb, latb
+    integer(i_kind) :: lonb, latb
     real(r_single),allocatable, dimension(:) :: fhour
-    integer(i_kind) :: istop = 102
     real(r_single), allocatable, dimension(:,:) :: work,outtmp
     type(Dataset) :: sfcges
     type(Dimension) :: ncdim
@@ -1377,10 +1371,7 @@ contains
 !   Declare local variables
     character(len=6)   :: filename
     character(len=120) :: my_name = 'READ_GFSNCNST'
-    character(len=1)   :: null = ' '
     integer(i_kind) :: i,j,it,latb,lonb
-    integer(i_kind) :: iret, nframe
-    integer(i_kind) :: istop = 103
     real(r_single),allocatable, dimension(:) :: fhour
     real(r_single), dimension(nlat_sfc,nlon_sfc,nfldnst) :: xt
     real(r_single), allocatable, dimension(:,:) :: work
@@ -1586,7 +1577,6 @@ contains
     use mpimod, only: mype
 
     use guess_grids, only: ifilesig
-    use guess_grids, only: ges_prsl,ges_prsi
     use guess_grids, only: load_geop_hgt,geop_hgti,ges_geopi
 
     use gridmod, only: ntracer
@@ -1632,7 +1622,7 @@ contains
     integer(i_kind),dimension(6):: idate,jdate
     integer(i_kind) :: k, mm1, nlatm2, nord_int, i, j, kk, kr, nbits
     integer(i_kind) :: iret, lonb, latb, levs, istatus
-    integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
+    integer(i_kind) :: nfhour
     integer(i_kind) :: istop = 104
     integer(i_kind),dimension(5):: mydate
     integer(i_kind),dimension(8) :: ida,jda
@@ -1662,7 +1652,7 @@ contains
     type(Dimension) :: ncdim
     character(len=nf90_max_name) :: time_units
 
-    logical diff_res,eqspace,quantize
+    logical diff_res,eqspace
     logical,dimension(1) :: vector
     type(egrid2agrid_parm) :: p_low,p_high
 
@@ -2335,12 +2325,10 @@ contains
     character( 6),parameter:: fname_ges='sfcf06'
 !   Declare local variables
     character(len=120) :: my_name = 'WRITE_GFSNCSFC'
-    character(len=1)   :: null = ' '
     integer(i_kind),dimension(6):: jdate
     integer(i_kind),dimension(4):: odate
     integer(i_kind) :: i, j, ip1, jp1, ilat, ilon, jj, mm1
-    integer(i_kind) :: nlatm2, n, nrec, lonb, latb, iret
-    integer(i_kind) :: istop = 105
+    integer(i_kind) :: nlatm2, lonb, latb
     real(r_kind),allocatable,dimension(:)    :: fhour
 
     real(r_kind),dimension(lat1,lon1):: sfcsub
@@ -2553,13 +2541,11 @@ contains
     integer(i_kind), parameter:: nprep=15
     real(r_kind),parameter :: houra = zero_single
     character(len=120) :: my_name = 'WRITE_SFC_NST'
-    character(len=1)   :: null = ' '
-    integer(i_kind),dimension(7):: idate, jdate
+    integer(i_kind),dimension(7):: jdate
     integer(i_kind),dimension(4):: odate
     integer(i_kind) :: i, j, ip1, jp1, ilat, ilon, mm1
-    integer(i_kind) :: lonb, latb, nlatm2, n, nrec_sfc, nrec_nst, iret
+    integer(i_kind) :: lonb, latb, nlatm2
     integer(i_kind) :: lonb_nst, latb_nst
-    integer(i_kind) :: istop = 106
     real(r_kind),allocatable,dimension(:)    :: fhour
     real(r_single)  :: r_zsea1,r_zsea2
 

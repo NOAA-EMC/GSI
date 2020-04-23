@@ -152,7 +152,7 @@ case $regtest in
               popts[1]="48/12/"
               topts[1]="3:00:00"
            elif [[ "$machine" = "WCOSS_D" ]]; then
-              popts[1]="56/14/"
+              popts[1]="28/4/"
               topts[1]="3:00:00"
            fi
         fi

@@ -877,7 +877,7 @@ export gsi_namelist="
    niter_no_qc(1)=1,niter_no_qc(2)=0,
    write_diag(1)=.true.,write_diag(2)=.false.,write_diag(3)=.true.,
    qoption=2,
-   gencode=82,factqmin=0.5,factqmax=0.0002,deltim=1200,
+   gencode=82,factqmin=0.5,factqmax=0.0002,deltim=400,
    iguess=-1,
    oneobtest=.false.,retrieval=.false.,l_foto=.false.,
    use_pbl=.false.,use_compress=.true.,nsig_ext=55,gpstop=55.,
@@ -891,11 +891,12 @@ export gsi_namelist="
    l4densvar=.true.,ens_nstarthr=3,nhr_obsbin=1,nhr_assimilation=6,lwrite4danl=.true., tzr_qc=1,sfcnst_comb=.true.,
    write_fv3_incr=.true.,incvars_to_zero= 'liq_wat_inc','icmr_inc',incvars_zero_strat='sphum_inc','liq_wat_inc','icmr_inc',
    incvars_efold=5,
+   use_gfs_ncio=.true.,
    $SETUP
  /
  &GRIDOPTS
    JCAP_B=$JCAP_B,JCAP=$JCAP,NLAT=$NLAT,NLON=$LONA,nsig=$LEVS,
-   regional=.false.,nlayers(63)=3,nlayers(64)=6,
+   regional=.false.,
    $GRIDOPTS
  /
  &BKGERR
@@ -950,19 +951,19 @@ OBS_INPUT::
    gpsrobufr      gps_bnd     null        gps                 0.0     0     0
    ssmirrbufr     pcp_ssmi    dmsp        pcp_ssmi            0.0    -1     0
    tmirrbufr      pcp_tmi     trmm        pcp_tmi             0.0    -1     0
-   sbuvbufr       sbuv2       n16         sbuv8_n16           0.0     0     0
-   sbuvbufr       sbuv2       n17         sbuv8_n17           0.0     0     0
-   sbuvbufr       sbuv2       n18         sbuv8_n18           0.0     0     0
-   hirs3bufr      hirs3       n17         hirs3_n17           0.0     1     0
+   sbuvbufr_      sbuv2       n16         sbuv8_n16           0.0     0     0
+   sbuvbufr_      sbuv2       n17         sbuv8_n17           0.0     0     0
+   sbuvbufr_      sbuv2       n18         sbuv8_n18           0.0     0     0
+   hirs3bufr_     hirs3       n17         hirs3_n17           0.0     1     0
    hirs4bufr_skip hirs4       metop-a     hirs4_metop-a       0.0     1     1
-   gimgrbufr      goes_img    g11         imgr_g11            0.0     1     0
-   gimgrbufr      goes_img    g12         imgr_g12            0.0     1     0
-   airsbufr       airs        aqua        airs_aqua           0.0     1     1
+   gimgrbufr_     goes_img    g11         imgr_g11            0.0     1     0
+   gimgrbufr_     goes_img    g12         imgr_g12            0.0     1     0
+   airsbufr_      airs        aqua        airs_aqua           0.0     1     1
    amsuabufr_skip amsua       n15         amsua_n15           0.0     1     1
    amsuabufr_skip amsua       n18         amsua_n18           0.0     1     1
    amsuabufr_skip amsua       metop-a     amsua_metop-a       0.0     1     1
    airsbufr_skip  amsua       aqua        amsua_aqua          0.0     1     1
-   amsubbufr      amsub       n17         amsub_n17           0.0     1     1
+   amsubbufr_     amsub       n17         amsub_n17           0.0     1     1
    mhsbufr_skip   mhs         n18         mhs_n18             0.0     1     1
    mhsbufr_skip   mhs         metop-a     mhs_metop-a         0.0     1     1
    ssmitbufr      ssmi        f15         ssmi_f15            0.0     1     0
@@ -1041,8 +1042,8 @@ OBS_INPUT::
    $LAGDATA
  /
  &HYBRID_ENSEMBLE
-   l_hyb_ens=.true.,n_ens=10,beta_s0=0.125,readin_beta=.false.,s_ens_h=800,s_ens_v=-0.8,generate_ens=.false.,uv_hyb_ens=.true.,jcap_ens=62,
-   nlat_ens=96,nlon_ens=192,aniso_a_en=.false.,jcap_ens_test=62,oz_univ_static=.false.,readin_localization=.true.,ensemble_path='./ensemble_data/',
+   l_hyb_ens=.true.,n_ens=10,beta_s0=0.125,readin_beta=.false.,s_ens_h=800,s_ens_v=-0.8,generate_ens=.false.,uv_hyb_ens=.true.,jcap_ens=190,
+   nlat_ens=194,nlon_ens=384,aniso_a_en=.false.,jcap_ens_test=62,oz_univ_static=.false.,readin_localization=.true.,ensemble_path='./ensemble_data/',
    ens_fast_read=.true.,write_ens_sprd=.false.,
    $HYBRID_ENSEMBLE
  /
