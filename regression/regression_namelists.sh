@@ -953,6 +953,8 @@ export gsi_namelist="
    oneobtest=.false.,retrieval=.false.,
    diag_rad=.false.,diag_pcp=.false.,diag_ozone=.false.,diag_aero=.false.,
    nhr_assimilation=6,min_offset=180,use_compress=.false.,lrun_subdirs=.true.,
+   use_similarity_2dvar=.true.,
+   neutral_stability_windfact_2dvar=.false.,
    use_prepb_satwnd=.false.,
    $SETUP
  /
@@ -1006,7 +1008,7 @@ OBS_INPUT::
    mxtmdat        mxtm      null      mxtm     1.0     0      0
    mitmdat        mitm      null      mitm     1.0     0      0
    prepbufr       mxtm      null      mxtm     1.0     0      0
-   prepbufr       mitm      null      mitm      1.0     0      0
+   prepbufr       mitm      null      mitm     1.0     0      0
    prepbufr       pmsl      null      pmsl     1.0     0      0
    prepbufr       howv      null      howv     1.0     0      0
    satmar         howv      null      howv     1.0     0      0
@@ -1022,6 +1024,7 @@ OBS_INPUT::
  /
  &RAPIDREFRESH_CLDSURF
    dfi_radar_latent_heat_time_period=30.0,
+   l_closeobs=.true.
  /
  &CHEM
  /

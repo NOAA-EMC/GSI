@@ -7,6 +7,13 @@ module adjust_cloudobs_mod
 ! abstract: Module contains routines which obtain the cloud amount, ceiling, etc. for
 !           cloud observations associated with conventional obs as well as GOES obs.
 !
+! program history log:
+!   2014-06-16  carley
+!   2019-06-17  mmorris - toss obs over water, at night, that suggest clear
+!                         conditions owing to erroneous clearing of low stratus
+!   2019-12-05  mmorris - also toss obs over land, at night, that suggest clear
+!                         conditions owing to erroneous clearing of low stratus
+!
 ! subroutines included:
 !   sub adjust_convcldobs    -     obtain cloud amount info from conventional prepbufr
 !   sub adjust_goescldobs    -     obtain cloud amount info from goes cloud obs
@@ -382,7 +389,6 @@ subroutine adjust_goescldobs(goescld,timeobs,dlat_earth,dlon_earth, &
 ! input variables
   real(r_kind),intent(in) :: timeobs,dlat_earth,dlon_earth
   real(r_kind),intent(in):: goescld
-
 ! output variables
   integer(i_kind),intent(inout) :: low_cldamt_qc,mid_cldamt_qc,hig_cldamt_qc
   integer(i_kind),intent(inout) :: tcamt_qc
@@ -457,10 +463,14 @@ subroutine adjust_goescldobs(goescld,timeobs,dlat_earth,dlon_earth, &
      ! - Increase tcamt_qc at night, and increase it moreso
      !     if at night and detecting sky cover <= 25% (J. Gerth recommendation)
      if (sza > zen_limit)  then
-        if (tcamt_qc==2) then
-           tcamt_qc=3
+        if (tcamt <= 30._r_kind) then
+           tcamt_qc=8 !toss obs at night that suggest clear conditions owing to erroneous clearing of low stratus
         else
-           tcamt_qc=2
+           if (tcamt_qc==2) then
+              tcamt_qc=3
+           else
+              tcamt_qc=2
+           end if
         end if
      end if
 

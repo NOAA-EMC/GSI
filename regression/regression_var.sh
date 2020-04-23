@@ -59,11 +59,7 @@ case $machine in
    export ptmp="/gpfs/dell2/ptmp/$LOGNAME/$ptmpName"
 
    export fixcrtm="/gpfs/dell2/emc/modeling/noscrub/Michael.Lueken/fix_update"
-   if [ -d /gpfs/td2 ]; then
-       export casesdir="/gpfs/td2/emc/da/noscrub/Michael.Lueken/CASES"
-   elif [ -d /gpfs/gd2 ]; then
-       export casesdir="/gpfs/gd2/emc/da/noscrub/Michael.Lueken/CASES"
-   fi
+   export casesdir="/gpfs/dell2/emc/modeling/noscrub/Michael.Lueken/CASES"
    export ndate=${NDATE:-"$builddir/bin/ndate.x"}
 
    export check_resource="yes"
@@ -232,7 +228,7 @@ export arw_binary_adate="2010072412"
 export arw_netcdf_adate="2008051112"
 export nmm_binary_adate="2010021600"
 export nmm_netcdf_adate="2007122000"
-export rtma_adate="2017031218"
+export rtma_adate="2020022420"
 export hwrf_nmm_adate="2012102812"
 export fv3_netcdf_adate="2017030100"
 export global_C96_fv3aero_adate="2019062200"
