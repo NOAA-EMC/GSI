@@ -9,24 +9,25 @@ program maingrads_sfctime
 
    use generic_list
    use data
+   use conmon_read_diag
 
    implicit none
 
 
    interface
 
-      subroutine read_conv2grads(ctype,stype,itype,nreal,nobs,&
-                                 isubtype,subtype,list)
-         use generic_list
-         character(3)           :: ctype
-         character(10)          :: stype
-         integer                :: itype
-         integer                :: nreal
-         integer                :: nobs
-         integer                :: isubtype
-         character(3)           :: subtype
-         type(list_node_t),pointer   :: list
-      end subroutine read_conv2grads
+!      subroutine read_conv2grads(ctype,stype,itype,nreal,nobs,&
+!                                 isubtype,subtype,list)
+!         use generic_list
+!         character(3)           :: ctype
+!         character(10)          :: stype
+!         integer                :: itype
+!         integer                :: nreal
+!         integer                :: nobs
+!         integer                :: isubtype
+!         character(3)           :: subtype
+!         type(list_node_t),pointer   :: list
+!      end subroutine read_conv2grads
 
 
       subroutine grads_sfctime(fileo,ifileo,nobs,nreal,&
@@ -58,7 +59,11 @@ program maingrads_sfctime
    integer nobs,lstype
    integer n_time7,n_time11,itype
 
-   namelist /input/intype,stype,itype,nreal,iscater,igrads,timecard,isubtype,subtype
+   !--- namelist with defaults
+   logical               :: netcdf              = .false.
+   character(100)        :: input_file          = "conv_diag" 
+   namelist /input/input_file,intype,stype,itype,nreal,iscater,igrads,timecard,isubtype,subtype,netcdf
+
 
    data n_time11 / 11 /
    data n_time7 / 7 /
@@ -71,7 +76,11 @@ program maingrads_sfctime
 
    lstype=len_trim(stype) 
 
-   call read_conv2grads(intype,stype,itype,nreal,nobs,isubtype,subtype,list)
+   write(6,*)'netcdf       =', netcdf
+   call set_netcdf_read( netcdf )
+   call conmon_read_diag_file( input_file,intype,stype,itype,nreal,nobs,isubtype,subtype,list )
+
+!   call read_conv2grads(intype,stype,itype,nreal,nobs,isubtype,subtype,list)
 
    if( nobs > 0 ) then
 

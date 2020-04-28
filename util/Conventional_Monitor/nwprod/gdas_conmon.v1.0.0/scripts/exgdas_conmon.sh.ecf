@@ -158,7 +158,21 @@ if [[ -s ${cnvstat} && -s ${pgrbf00} && -s ${pgrbf06} ]]; then
    $NCP $pgrbf06 ./pgbf06.$GDATE
 
    tar -xvf ./cnvstat.$PDATE
+   #rm cnvstat.$PDATE
+   
+   netcdf=0
+   count=`ls diag* | grep ".nc4" | wc -l`
+   if [ $count -gt 0 ] ; then
+      netcdf=1
+      for filenc4 in `ls diag*nc4.gz`; do
+         file=`echo $filenc4 | cut -d'.' -f1-2`.gz
+         mv $filenc4 $file
+      done
+   fi
+
+   export CONMON_NETCDF=${netcdf}
    $UNCOMPRESS ./*.${Z}
+
 
 
    #------------------------------------------------------------------
@@ -214,9 +228,9 @@ if [[ -s ${cnvstat} && -s ${pgrbf00} && -s ${pgrbf06} ]]; then
    #---------------------------------------
    #  run the time-vert extraction script
    #
-   ${USHconmon}/time_vert.sh 
-   rc_time_vert=$?
-   echo "rc_time_vert = $rc_time_vert"
+#   ${USHconmon}/time_vert.sh 
+#   rc_time_vert=$?
+#   echo "rc_time_vert = $rc_time_vert"
 
 fi
 

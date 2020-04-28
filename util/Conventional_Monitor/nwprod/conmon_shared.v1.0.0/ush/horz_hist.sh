@@ -11,7 +11,7 @@
    echo "--> horz_hist.sh"
    date
    rc=0
-  
+
    echo "CONMON_SUFFIX = $CONMON_SUFFIX"
    export hint=10    ##(mb) the plot pressure interval press+-hint
 
@@ -21,9 +21,10 @@
 #   ps_TYPE=" ps120_00 ps180_00 ps181_00 ps183_00 ps187_00 "
    ps_TYPE=`${USHconmon}/get_typelist.pl --file $convinfo --type ps --mon`
 
+
 #   q_TYPE=" q120_00 q130_00 q132_00 q133_00 q134_00 q135_00 q180_00 q181_00 q183_00 q187_00 "
    q_TYPE=`${USHconmon}/get_typelist.pl --file $convinfo --type q --mon`
-   
+      
 #   t_TYPE=" t120_00 t130_00 t131_00 t132_00 t133_00 t134_00 t135_00 t180_00 t181_00 t183_00 t187_00 "
    t_TYPE=`${USHconmon}/get_typelist.pl --file $convinfo --type t --mon`
 
@@ -44,7 +45,8 @@
    export nreal_uv=${nreal_uv:-23} 
 
 
-   for type in ps q t uv; do
+#   for type in ps q t uv; do
+   for type in ps q; do
 
       eval stype=\${${type}_TYPE}
       eval nreal=\${nreal_${type}}
@@ -64,16 +66,33 @@
             echo "mtype, subtype = $mtype, $subtype"
          fi
 
-         for cycle in ges anl; do
-            cp ./diag_conv_${cycle}.${PDATE} ./conv_diag   # this appears to be unneeded?
+         for run in ges anl; do
+            cp ./diag_conv_${run}.${PDATE} ./conv_diag
+
+            #-------------------------------------------------------------
+            #  Because few things in life are convenient or constent, the
+            #  cnvstat has different contents depending on file type.
+            #
+            #  Binary cnvstat files contain 2 diag files (ges and anl), 
+            #  while NetCDF cnvstat files contain a diag file for each 
+            #  data type (ps, q, t, etc) as well as run (ges, anl).
+            #-------------------------------------------------------------
+            if [[ $CONMON_NETCDF -eq 0 ]]; then 
+               export INPUT_FILE="diag_conv_${run}.${PDATE}"
+#               export INPUT_FILE="conv_diag"
+            else 
+               export INPUT_FILE="diag_conv_${type}_${run}.${PDATE}"
+            fi
+            echo "INPUT_FILE =  ${INPUT_FILE}"
+
 
             if [[ "$VERBOSE" = "YES" ]]; then
-               echo "cycle = $cycle"
+               echo "run = $run"
             fi 
 
             ${USHconmon}/diag2grad_${type}_case.sh
 
-         done    #### done with cycle
+         done    #### done with run
 
       done   ### done with dtype
 

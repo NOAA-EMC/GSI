@@ -15,32 +15,36 @@ echo "--> diag2grad_q_case.sh"
    echo "PDATE         = $PDATE"
    echo "EXECconmon      = $EXECconmon"
    echo "cycle         = $cycle"
+   echo "run           = $run  "
    echo "nreal         = $nreal"
    echo "mtype         = $mtype (type = $type)"
    echo "subtype       = $subtype"
    echo "hint          = $hint"
    echo "workdir       = $workdir"
+   echo "INPUT_FILE    = ${INPUT_FILE}"
 
   nreal_q=$nreal                 ### one less than the data items of diagnostic files
   nreal2_q=`expr $nreal - 2`     ### the data items in the grads files 
 
+  echo "CONMON_NETCDF = ${CONMON_NETCDF}"
 
-#  q130_card=alllev
-#  q132_card=alllev
-#  q133_card=alllev
-#  q134_card=alllev
-#  q135_card=alllev
+  netcdf=.false.
+  if [[ ${CONMON_NETCDF} -eq 1 ]]; then
+    netcdf=.true.
+  end if
 
   ctype=`echo ${mtype} | cut -c2-4`
 
   if [ "$mtype" = 'q130' -o "$mtype" = 'q131' -o "$mtype" = 'q132' -o "$mtype" = 'q133' -o "$mtype" = 'q134' -o "$mtype" = 'q135' ]; then
      rm -f diag2grads
      cp ${EXECconmon}/conmon_grads_lev.x ./diag2grads
-#     eval card=\${${mtype}_card}
   cat <<EOF >input
      &input
+     input_file=${INPUT_FILE},
      intype='  q',stype='${mtype}',itype=$ctype,nreal=$nreal_q,
-     iscater=1,igrads=1,levcard='alllev',intv=$hint,subtype='${subtype}',isubtype=${subtype},
+     iscater=1,igrads=1,levcard='alllev',
+     intv=$hint,subtype='${subtype}',isubtype=${subtype},
+     netcdf=${netcdf},
 /
 EOF
   elif [ "$mtype" = 'q120' ]; then
@@ -48,8 +52,10 @@ EOF
      cp ${EXECconmon}/conmon_grads_mandlev.x ./diag2grads
   cat <<EOF >input
      &input
+     input_file=${INPUT_FILE},
      intype='  q',stype='${mtype}',itype=$ctype,nreal=$nreal_q,
      iscater=1,igrads=1,subtype='${subtype}',isubtype=${subtype},
+     netcdf=${netcdf},
 /
 EOF
   elif [ "$mtype" = 'q180' -o "$mtype" = 'q181' -o "$mtype" = 'q182' -o "$mtype" = 'q183'  -o "$mtype" = 'q187' ]; then
@@ -57,8 +63,10 @@ EOF
      cp ${EXECconmon}/conmon_grads_sfctime.x ./diag2grads
   cat <<EOF >input
      &input
+     input_file=${INPUT_FILE},
      intype='  q',stype='${mtype}',itype=$ctype,nreal=$nreal_q,
      iscater=1,igrads=1,timecard='time11',subtype='${subtype}',isubtype=${subtype},
+     netcdf=${netcdf},
 /
 EOF
 
@@ -67,29 +75,17 @@ EOF
   ./diag2grads <input>stdout 2>&1 
 
 
-##############################################
-#  Create the nt file, rename stdout, move nt,
-#  grads, and scatter files to $TANDIR_conmon
-##############################################
-ntline=`tail -n1 stdout`
-nt=`echo ${ntline} | sed 's/^ *//g' | sed 's/ *$//g'`
-if [ ${#nt} = 1 ]; then
-   ntfile="nt_${mtype}_${subtype}.${PDATE}"
-   echo ${nt} > ${ntfile}
-   cp ${ntfile} ${TANKDIR_conmon}/horz_hist/${cycle}/.
-fi
-
   rm -f *tmp
-  mv stdout stdout_diag2grads_${mtype}_${subtype}.${cycle}
+  mv stdout stdout_diag2grads_${mtype}_${subtype}.${run}
 
-  dest_dir="${TANKDIR_conmon}/horz_hist/${cycle}"
+  dest_dir="${TANKDIR_conmon}/horz_hist/${run}"
 
   for file in q*grads; do
-     mv ${file} ${dest_dir}/${file}.${PDATE}
+     cp ${file} ${dest_dir}/${file}.${PDATE}
   done
 
   for file in q*scater; do
-     mv ${file} ${dest_dir}/${file}.${PDATE}
+     cp ${file} ${dest_dir}/${file}.${PDATE}
   done
 
 

@@ -4,7 +4,8 @@
 #SBATCH -J gdas_vconmon
 #SBATCH --time=00:15:00
 #SBATCH --ntasks=1 -p service --mem=4g
-#SBATCH -A fv3-cpu
+#SBATCH -A da-cpu
+
 
 set -x
 

@@ -46,6 +46,7 @@ subroutine grads_lev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
    plev2=plev-hint
 
    print *, '--> BEGIN grads_lev.x'  
+
    print *, 'nobs=',nobs
    print *, 'fileo=',fileo
    print *, 'nreal=', nreal
@@ -88,7 +89,7 @@ subroutine grads_lev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
 
       filegrad=trim(fileo)//'_'//trim(subtype)//'_grads'
    
-      print *, 'filegrad = ', filegrad
+!      print *, 'filegrad = ', filegrad
 
 
       if(iscater ==1) then
@@ -102,7 +103,6 @@ subroutine grads_lev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
 
          print *, 'end writing scatter data file'
       endif
-
 
       if (igrads ==1 .AND. nobs > 0)  then 
 
@@ -118,6 +118,7 @@ subroutine grads_lev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
 
          ctr=0
          do  i=1,nobs
+
             if(rdiag_m2(iweight,i) >0.0 ) then
                stid=cdiag(i)
                rlat=rdiag_m2(ilat,i)
@@ -136,13 +137,16 @@ subroutine grads_lev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
                   ! the station id info
                   write(31) plev2(k),(rdiag_m2(j,i),j=3,nreal_m2)
                   ctr = ctr + 1
-!              else
-!                 print *, 'rdiag_m2(ipres,i), no match: ', rdiag_m2(ipres,i)
+               else
+                  print *, 'rdiag_m2(ipres,i), no match: ', rdiag_m2(ipres,i)
                endif
+
             endif
+
          enddo
 
-100 format(6e13.3)
+
+! 100 format(6e13.3)
 
          !==============================
          ! write the end of file marker

@@ -20,6 +20,14 @@ echo "-->  diag2grad_ps_case.sh"
    echo "subtype         = $subtype"
    echo "hint            = $hint"
    echo "workdir         = $workdir"
+   echo "INPUT_FILE    = ${INPUT_FILE}"
+
+   echo "CONMON_NETCDF = ${CONMON_NETCDF}"
+
+   netcdf=.false.
+   if [[ ${CONMON_NETCDF} -eq 1 ]]; then
+     netcdf=.true.
+   end if
 
    ctype=`echo ${mtype} | cut -c3-5`
    nreal_ps=$nreal                 ### one less than the data items of diagnostic files
@@ -32,8 +40,8 @@ if [ "$mtype" = 'ps180' -o "$mtype" = 'ps181' -o  "$mtype" = 'ps183' -o  "$mtype
    rm -f input
 cat <<EOF >input
       &input
-       intype=' ps',stype='${mtype}',itype=$ctype,nreal=$nreal_ps,
-       iscater=1,igrads=1,timecard='time11',subtype='${subtype}',isubtype=${subtype},
+       input_file=${INPUT_FILE},intype=' ps',stype='${mtype}',itype=$ctype,nreal=$nreal_ps,
+       iscater=1,igrads=1,timecard='time11',subtype='${subtype}',isubtype=${subtype},netcdf=${netcdf},
 /
 EOF
 elif [ "$mtype" = 'ps120' ]; then
@@ -42,8 +50,8 @@ elif [ "$mtype" = 'ps120' ]; then
    rm -f input
 cat <<EOF >input
       &input
-       intype=' ps',stype='${mtype}',itype=$ctype,nreal=$nreal_ps,
-       iscater=1,igrads=1,subtype='${subtype}',isubtype=${subtype},
+       input_file=${INPUT_FILE},intype=' ps',stype='${mtype}',itype=$ctype,nreal=$nreal_ps,
+       iscater=1,igrads=1,subtype='${subtype}',isubtype=${subtype},netcdf=${netcdf},
 /
 EOF
 fi
