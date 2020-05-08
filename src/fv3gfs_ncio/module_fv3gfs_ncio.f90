@@ -106,19 +106,23 @@ module module_fv3gfs_ncio
 
   contains
 
-  subroutine nccheck(status,halt)
-    ! check return code, print error message 
+  subroutine nccheck(status,halt,fname)
+    ! check return code, print error message
     implicit none
     integer, intent (in) :: status
     logical, intent(in), optional :: halt
+    character(len=500), intent(in), optional :: fname
     logical stopit
     if (present(halt)) then
        stopit = halt
     else
        stopit = .true.
-    endif  
+    endif
     if (status /= nf90_noerr) then
       write(0,*) status, trim(nf90_strerror(status))
+      if (present(fname)) then
+         write(0,*) trim(fname)
+      end if
       if (stopit) stop 99
     end if
   end subroutine nccheck
@@ -282,19 +286,19 @@ module module_fv3gfs_ncio
       ncerr = nf90_open(trim(filename), NF90_NOWRITE, ncid=dset%ncid)
     end if
     if (return_errcode) then
-       call nccheck(ncerr,halt=.false.)
+       call nccheck(ncerr,halt=.false.,fname=filename)
        errcode=ncerr
        if (ncerr /= 0) return
     else
-       call nccheck(ncerr)
+       call nccheck(ncerr,fname=filename)
     endif
     ncerr = nf90_inquire(dset%ncid, dset%ndims, dset%nvars, dset%natts, nunlimdim, formatnum=formatnum)
     if (return_errcode) then
        errcode=ncerr
-       call nccheck(ncerr,halt=.false.)
+       call nccheck(ncerr,halt=.false.,fname=filename)
        if (ncerr /= 0) return
     else
-       call nccheck(ncerr)
+       call nccheck(ncerr,fname=filename)
     endif
     if (formatnum == nf90_format_netcdf4 .or. formatnum == nf90_format_netcdf4_classic) then
        dset%ishdf5 = .true.
@@ -310,10 +314,10 @@ module module_fv3gfs_ncio
                                       len=dset%dimensions(ndim)%len)
        if (return_errcode) then
           errcode=ncerr
-          call nccheck(ncerr,halt=.false.)
+          call nccheck(ncerr,halt=.false.,fname=filename)
           if (ncerr /= 0) return
        else
-          call nccheck(ncerr)
+          call nccheck(ncerr,fname=filename)
        endif
        if (ndim == nunlimdim) then
           dset%dimensions(ndim)%isunlimited = .true.
@@ -331,10 +335,10 @@ module module_fv3gfs_ncio
                                      ndims=dset%variables(nvar)%ndims)
        if (return_errcode) then
           errcode=ncerr
-          call nccheck(ncerr,halt=.false.)
+          call nccheck(ncerr,halt=.false.,fname=filename)
           if (ncerr /= 0) return
        else
-          call nccheck(ncerr)
+          call nccheck(ncerr,fname=filename)
        endif
        allocate(dset%variables(nvar)%dimids(dset%variables(nvar)%ndims))
        allocate(dset%variables(nvar)%dimindxs(dset%variables(nvar)%ndims))
@@ -353,10 +357,10 @@ module module_fv3gfs_ncio
        endif
        if (return_errcode) then
           errcode=ncerr
-          call nccheck(ncerr,halt=.false.)
+          call nccheck(ncerr,halt=.false.,fname=filename)
           if (ncerr /= 0) return
        else
-          call nccheck(ncerr)
+          call nccheck(ncerr,fname=filename)
        endif
        do ndim=1,dset%variables(nvar)%ndims
           do n=1,dset%ndims
@@ -457,10 +461,10 @@ module module_fv3gfs_ncio
     endif
     if (return_errcode) then
        errcode=ncerr
-       call nccheck(ncerr,halt=.false.)
+       call nccheck(ncerr,halt=.false.,fname=filename)
        if (ncerr /= 0) return
     else
-       call nccheck(ncerr)
+       call nccheck(ncerr,fname=filename)
     endif
     ! copy global attributes
     do natt=1,dsetin%natts
