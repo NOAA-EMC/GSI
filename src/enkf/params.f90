@@ -24,7 +24,7 @@ module params
 ! program history log:
 !   2009-02-23  Initial version.
 !   2016-05-02  shlyaeva - Modification for reading state vector from table
-!   2016-11-29  shlyaeva - added nhr_state (hours for state fields to 
+!   2016-11-29  shlyaeva - added nhr_state (hours for state fields to
 !                          calculate Hx; nhr_anal is for IAU)
 !   2018-05-31  whitaker - added modelspace_vloc (for model-space localization using
 !                          modulated ensembles), nobsl_max (for ob selection
@@ -75,6 +75,7 @@ character(len=120),dimension(7),public :: fgsfcfileprefixes
 character(len=120),dimension(7),public :: statefileprefixes
 character(len=120),dimension(7),public :: statesfcfileprefixes
 character(len=120),dimension(7),public :: anlfileprefixes
+character(len=120),dimension(7),public :: incfileprefixes
 ! analysis date string (YYYYMMDDHH)
 character(len=10), public ::  datestring
 ! filesystem path to input files (first-guess, GSI diagnostic files).
@@ -174,7 +175,7 @@ logical,public :: letkf_flag = .false.
 logical,public :: letkf_bruteforce_search=.false.
 
 ! next two are no longer used, instead they are inferred from anavinfo
-logical,public :: massbal_adjust = .false. 
+logical,public :: massbal_adjust = .false.
 integer(i_kind),public :: nvars = -1
 
 ! sort obs in LETKF in order of decreasing DFS
@@ -205,7 +206,15 @@ logical,public :: fv3_native = .false.
 character(len=500),public :: fv3fixpath = ' '
 integer(i_kind),public :: ntiles=6
 integer(i_kind),public :: nx_res=0,ny_res=0
-logical,public ::l_pres_add_saved 
+logical,public ::l_pres_add_saved
+
+! for parallel netCDF
+logical, public :: paranc = .false.
+logical, public :: nccompress = .false.
+
+! for writing increments
+logical,public :: write_fv3_incr = .false.
+character(len=12),dimension(10),public :: incvars_to_zero='NONE' !just picking 10 arbitrarily
 
 namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    covinflatemax,covinflatemin,deterministic,sortinc,&
@@ -217,6 +226,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh,&
                    lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh,&
                    fgfileprefixes,fgsfcfileprefixes,anlfileprefixes, &
+                   incfileprefixes, &
                    statefileprefixes,statesfcfileprefixes, &
                    covl_minfact,covl_efold,lupd_obspace_serial,letkf_novlocal,&
                    analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,&
@@ -230,7 +240,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    getkf,getkf_inflation,denkf,modelspace_vloc,dfs_sort,write_spread_diag,&
                    covinflatenh,covinflatesh,covinflatetr,lnsigcovinfcutoff,letkf_bruteforce_search,&
                    fso_cycling,fso_calculate,imp_physics,lupp,cnvw_option,use_correlated_oberrs,&
-                   fv3_native
+                   fv3_native, paranc, nccompress, write_fv3_incr,incvars_to_zero
 namelist /nam_wrf/arw,nmm,nmm_restart
 namelist /nam_fv3/fv3fixpath,nx_res,ny_res,ntiles,l_pres_add_saved
 namelist /satobs_enkf/sattypes_rad,dsis
@@ -250,7 +260,7 @@ datestring = "0000000000" ! if 0000000000 will not be used.
 ! corrlength (length for horizontal localization in km)
 ! this corresponding GSI parameter is s_ens_h.
 ! corrlength is the distance at which the Gaspari-Cohn
-! polynomial goes to zero.  s_ens_h is the scale of a 
+! polynomial goes to zero.  s_ens_h is the scale of a
 ! Gaussian exp(-0.5*(r/L)**2) so
 ! corrlength ~ sqrt(2/0.15)*s_ens_h
 corrlengthnh = 2800_r_single
@@ -265,7 +275,7 @@ covinflatemax = 1.e30_r_single
 ! **these are ignored if modelspace_vloc=.true.**
 ! this corresponding GSI parameter is -s_ens_v (if s_ens_v<0)
 ! lnsigcutoff is the distance at which the Gaspari-Cohn
-! polynomial goes to zero.  s_ens_v is the scale of a 
+! polynomial goes to zero.  s_ens_v is the scale of a
 ! Gaussian exp(-(r/L)**2) so
 ! lnsigcutoff ~ s_ens_v/sqrt(0.15)
 lnsigcutoffnh = 2._r_single
@@ -374,8 +384,9 @@ dsis=' '
 ! (blank means use default names)
 fgfileprefixes = ''; anlfileprefixes=''; statefileprefixes=''
 fgsfcfileprefixes = ''; statesfcfileprefixes=''
+incfileprefixes = ''
 
-! option for including convective clouds in the all-sky 
+! option for including convective clouds in the all-sky
 cnvw_option=.false.
 
 l_pres_add_saved=.true.
@@ -427,7 +438,7 @@ latboundmm=-latbound-p5delat
 delatinv=1.0_r_single/delat
 
 ! if modelspace_vloc, use modulated ensemble to compute Kalman gain (but use
-! this gain to update only original ensemble). 
+! this gain to update only original ensemble).
 if (modelspace_vloc) then
   ! read in eigenvalues/vectors of vertical localization matrix on all tasks
   ! (text file vlocal_eig.dat must exist)
@@ -500,6 +511,9 @@ if (nanals <= numproc) then
       nanal2(np) = np+1
    enddo
 else
+   ! set paranc to false
+   if (nproc .eq. 0) print *,"nanals > numproc; forcing paranc=F"
+   paranc = .false.
    nanals_per_iotask = 1
    do
       ntasks_io = nanals/nanals_per_iotask
@@ -508,7 +522,7 @@ else
       else
          nanals_per_iotask = nanals_per_iotask + 1
       end if
-   end do  
+   end do
    allocate(nanal1(0:ntasks_io-1),nanal2(0:ntasks_io-1))
    do np=0,ntasks_io-1
       nanal1(np) = 1 + np*nanals_per_iotask
@@ -601,7 +615,7 @@ if (nproc == 0) then
       print *,'WARNING: nvars and massbal_adjust are no longer used!'
       print *,'They are inferred from the anavinfo file instead.'
    endif
-   
+
 end if
 
 ! background forecast time for analysis
@@ -660,6 +674,7 @@ do nb=1,nbackgrounds
      else ! global
 !      if (nbackgrounds > 1) then
         anlfileprefixes(nb)="sanl_"//datestring//"_fhr"//charfhr_anal(nb)//"_"
+        incfileprefixes(nb)="incr_"//datestring//"_fhr"//charfhr_anal(nb)//"_"
 !      else
 !        anlfileprefixes(nb)="sanl_"//datestring//"_"
 !      endif

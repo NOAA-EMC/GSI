@@ -113,6 +113,7 @@ use params, only: &
 
 use state_vectors, only: init_anasv
 use mpi_readobs, only:  mpi_getobs
+use, intrinsic :: iso_c_binding
 
 implicit none
 private
@@ -136,11 +137,14 @@ character(len=20), public, allocatable, dimension(:) :: obtype
 integer(i_kind), public ::  nobs_sat, nobs_oz, nobs_conv, nobstot
 integer(i_kind) :: nobs_convdiag, nobs_ozdiag, nobs_satdiag, nobstotdiag
 
-! for serial enkf, anal_ob is only used here and in loadbal. It is deallocated in loadbal.
-! for letkf, anal_ob used on all tasks in letkf_update (bcast from root in loadbal), deallocated
-! in letkf_update.
-! same goes for anal_ob_modens when modelspace_vloc=T.
-real(r_single), public, allocatable, dimension(:,:) :: anal_ob, anal_ob_modens
+! ob-space prior ensemble
+! pointers used for MPI-3 shared memory manipulations.
+! allocated and filled in mpi_readobs
+real(r_single),public,pointer, dimension(:,:) :: anal_ob        ! Fortran pointer
+type(c_ptr)                             :: anal_ob_cp           ! C pointer
+real(r_single),public,pointer, dimension(:,:) :: anal_ob_modens ! Fortran pointer
+type(c_ptr)                             :: anal_ob_modens_cp    ! C pointer
+integer :: shm_win, shm_win2
 
 contains
 
@@ -185,7 +189,8 @@ call mpi_getobs(datapath, datestring, nobs_conv, nobs_oz, nobs_sat, nobstot,  &
                 obsprd_prior, ensmean_obnobc, ensmean_ob, ob,                 &
                 oberrvar, obloclon, obloclat, obpress,                        &
                 obtime, oberrvar_orig, stattype, obtype, biaspreds, diagused, &
-                anal_ob,anal_ob_modens,indxsat,nanals,neigv)
+                anal_ob,anal_ob_modens,anal_ob_cp,anal_ob_modens_cp,          &
+                shm_win,shm_win2, indxsat, nanals, neigv)
 
 tdiff = mpi_wtime()-t1
 call mpi_reduce(tdiff,tdiffmax,1,mpi_real4,mpi_max,0,mpi_comm_world,ierr)
@@ -422,6 +427,7 @@ enddo
 end subroutine channelstats
 
 subroutine obsmod_cleanup()
+integer ierr
 ! deallocate module-level allocatable arrays
 if (allocated(obsprd_prior)) deallocate(obsprd_prior)
 if (allocated(obfit_prior)) deallocate(obfit_prior)
@@ -446,9 +452,15 @@ if (allocated(indxsat)) deallocate(indxsat)
 if (allocated(obtype)) deallocate(obtype)
 if (allocated(probgrosserr)) deallocate(probgrosserr)
 if (allocated(prpgerr)) deallocate(prpgerr)
-if (allocated(anal_ob)) deallocate(anal_ob)
-if (allocated(anal_ob_modens)) deallocate(anal_ob_modens)
 if (allocated(diagused)) deallocate(diagused)
+! free shared memory segement, fortran pointer to that memory.
+nullify(anal_ob)
+call MPI_Barrier(mpi_comm_world,ierr)
+call MPI_Win_free(shm_win, ierr)
+if (neigv > 0) then
+   nullify(anal_ob_modens)
+   call MPI_Win_free(shm_win2, ierr)
+endif
 end subroutine obsmod_cleanup
 
 

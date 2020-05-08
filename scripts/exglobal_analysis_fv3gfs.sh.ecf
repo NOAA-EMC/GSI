@@ -658,6 +658,9 @@ fi
 # if requested, link GSI diagnostic file directories for use later
 if [ $GENDIAG = "YES" ] ; then
    if [ $lrun_subdirs = ".true." ] ; then
+      if [ -d $DIAG_DIR ]; then
+	  rm -rf $DIAG_DIR
+      fi
       npe_m1="$(($npe_gsi-1))"
       for pe in {0..$npe_m1}; do
         pedir="dir."$(printf %04i $pe)

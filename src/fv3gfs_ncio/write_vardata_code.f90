@@ -74,6 +74,9 @@
               stop 99
            endif
         endif
+    else if (present(ncstart) .and. present(nccount)) then
+       ncerr = nf90_put_var(dset%ncid, dset%variables(nvar)%varid,values, &
+               start=ncstart, count=nccount)
     else
         ncerr = nf90_put_var(dset%ncid, dset%variables(nvar)%varid, values)
     endif
