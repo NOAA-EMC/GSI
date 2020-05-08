@@ -1835,7 +1835,7 @@ contains
              call g_egrid2agrid(p_high,grid3,grid_c2,1,1,vector)
              do j=1,latb
                 do i=1,lonb
-                   values_3d(i,j,kr)=values_3d(i,j,kr)+r1000*(grid_c2(j,i,1))
+                   values_3d(i,j,kr)=values_3d(i,j,kr)+r1000*(grid_c2(latb-j+2,i,1))
                 enddo
              enddo
           enddo
