@@ -63,10 +63,11 @@
  real(8), allocatable :: latitude_in(:), longitude_in(:)
  real(8), allocatable :: latitude_out(:), longitude_out(:)
  real(8), allocatable :: slat(:), wlat(:)
- real(8), allocatable :: rlon(:), rlat(:)
- real(8), allocatable :: gi(:,:), go(:,:), go2(:,:)
+ real(8), allocatable :: rlon(:), rlat(:), crot(:), srot(:)
+ real(8), allocatable :: gi(:,:), gi2(:,:), go(:,:), go2(:,:), go3(:,:)
 
 
+ ! NOTE: u_inc,v_inc must be consecutive
  data records /'u_inc', 'v_inc', 'delp_inc', 'delz_inc', 'T_inc', &
                'sphum_inc', 'liq_wat_inc', 'o3mr_inc', 'icmr_inc' /
 
@@ -312,15 +313,21 @@ call mpi_comm_size(mpi_comm_world, npes, mpierr)
  allocate(ibi(lev))
  allocate(li(mi,lev))
  allocate(gi(mi,lev))
- allocate(rlat(mo))
- allocate(rlon(mo))
+ allocate(gi2(mi,lev))
+ allocate(rlat(mo),crot(mo))
+ crot = 0; srot = 0
+ allocate(rlon(mo),srot(mo))
  allocate(ibo(lev))
  allocate(lo(mo,lev))
  allocate(go(mo,lev))
  allocate(go2(mo,lev))
+ allocate(go3(mo,lev))
 
  call mpi_barrier(mpi_comm_world, mpierr)
  do rec = 1, num_recs
+
+   ! skip v_inc (done with u_inc, which comes first)
+   if (trim(records(rec)) .eq. 'v_inc') cycle
 
    if (mype == rec) then
      print*,'- PROCESS RECORD: ', trim(records(rec))
@@ -343,24 +350,46 @@ call mpi_comm_size(mpi_comm_world, npes, mpierr)
      go = 0.0_8
      gi = reshape (dummy_in, (/mi, lev/))
   
-     call ipolates(ip, ipopt, kgds_in, kgds_out, mi, mo, &
-                lev, ibi, li, gi, no, rlat, rlon, ibo, &
-                lo, go, iret)
-  
-     if (iret /= 0) then
-       print*,'FATAL ERROR in ipolates, iret: ',iret
-       stop 76
+     if (trim(records(rec)) .eq. 'u_inc') then
+        ! do u_inc,v_inc at the same time
+        error = nf90_inq_varid(ncid_in, 'v_inc', id_var)
+        call netcdf_err(error, 'inquiring v_inc id for file='//trim(infile) )
+        error = nf90_get_var(ncid_in, id_var, dummy_in)
+        call netcdf_err(error, 'reading v_inc for file='//trim(infile) )
+        gi2 = reshape (dummy_in, (/mi, lev/))
+        call ipolatev(ip, ipopt, kgds_in, kgds_out, mi, mo,&
+                      lev, ibi, li, gi, gi2,  &
+                      no, rlat, rlon, crot, srot, ibo, lo, &
+                      go, go3, iret)
+        if (iret /= 0) then
+          print*,'FATAL ERROR in ipolatev, iret: ',iret
+          stop 76
+        endif
+        if (no /= mo) then
+          print*,'FATAL ERROR: ipolatev returned wrong number of pts ',no
+          stop 77
+        endif
+        call mpi_send(go(1,1), size(go), mpi_double_precision, &
+                      0, 1000+rec, mpi_comm_world, mpierr)
+        call mpi_send(go3(1,1), size(go3), mpi_double_precision, &
+                      0, 2000+rec, mpi_comm_world, mpierr)
+     else
+        call ipolates(ip, ipopt, kgds_in, kgds_out, mi, mo, &
+                   lev, ibi, li, gi, no, rlat, rlon, ibo, &
+                   lo, go, iret)
+        if (iret /= 0) then
+          print*,'FATAL ERROR in ipolates, iret: ',iret
+          stop 76
+        endif
+        if (no /= mo) then
+          print*,'FATAL ERROR: ipolates returned wrong number of pts ',no
+          stop 77
+        endif
+        !dummy_out = reshape(go, (/lon_out,lat_out,lev/))
+        !print *, lon_out, lat_out, lev, 'send'
+        call mpi_send(go(1,1), size(go), mpi_double_precision, &
+                      0, 1000+rec, mpi_comm_world, mpierr)
      endif
-  
-     if (no /= mo) then
-       print*,'FATAL ERROR: ipolates returned wrong number of pts ',no
-       stop 77
-     endif
-  
-     !dummy_out = reshape(go, (/lon_out,lat_out,lev/))
-     !print *, lon_out, lat_out, lev, 'send'
-     call mpi_send(go(1,1), size(go), mpi_double_precision, &
-                   0, 1000+rec, mpi_comm_world, mpierr)
    else if (mype == 0) then
      !print *, lon_out, lat_out, lev, 'recv'
      call mpi_recv(go2(1,1), size(go2), mpi_double_precision, &
@@ -370,7 +399,17 @@ call mpi_comm_size(mpi_comm_world, npes, mpierr)
      call netcdf_err(error, 'inquiring ' // trim(records(rec)) // ' id for file='//trim(outfile) )
      error = nf90_put_var(ncid_out, id_var, dummy_out)
      call netcdf_err(error, 'writing ' // trim(records(rec)) // ' for file='//trim(outfile) )
-   end if 
+     if (trim(records(rec)) .eq. 'u_inc') then
+        ! process v_inc also.
+        call mpi_recv(go2(1,1), size(go2), mpi_double_precision, &
+                      rec, 2000+rec, mpi_comm_world, mpistat, mpierr)
+        dummy_out = reshape(go2, (/lon_out,lat_out,lev/))
+        error = nf90_inq_varid(ncid_out, 'v_inc', id_var)
+        call netcdf_err(error, 'inquiring v_inc id for file='//trim(outfile) )
+        error = nf90_put_var(ncid_out, id_var, dummy_out)
+        call netcdf_err(error, 'writing v_inc for file='//trim(outfile) )
+     endif
+   endif 
  enddo  ! records
 
  error = nf90_close(ncid_in)
@@ -380,8 +419,8 @@ call mpi_comm_size(mpi_comm_world, npes, mpierr)
  deallocate(dummy_in)
  deallocate(ibi)
  deallocate(li)
- deallocate(gi)
- deallocate(rlat, rlon, ibo, lo, go, go2)
+ deallocate(gi,gi2)
+ deallocate(rlat, rlon, ibo, lo, go, go2, go3, crot, srot)
 
 !------------------------------------------------------------------
 ! Update remaining output file records according to Cory's sample.
