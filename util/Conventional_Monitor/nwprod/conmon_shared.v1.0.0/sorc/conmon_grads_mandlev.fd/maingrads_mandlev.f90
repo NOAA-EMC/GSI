@@ -29,7 +29,7 @@ program maingrads_mandlev
 
 
       subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
-                isubtype,subtype,list)
+                isubtype,subtype,list,run)
 
          use generic_list
 
@@ -40,6 +40,7 @@ program maingrads_mandlev
          real(4),dimension(nlev)        :: plev
          character(3)                   :: subtype
          type(list_node_t), pointer     :: list
+         character(3)                   :: run
       end subroutine grads_mandlev
 
    end interface
@@ -59,7 +60,8 @@ program maingrads_mandlev
    !--- namelist with defaults
    logical               :: netcdf              = .false.
    character(100)        :: input_file          = "conv_diag"
-   namelist /input/input_file,intype,stype,itype,nreal,iscater,igrads,subtype,isubtype,netcdf
+   character(3)          :: run                 = "ges"
+   namelist /input/input_file,intype,stype,itype,nreal,iscater,igrads,subtype,isubtype,netcdf,run
 
    integer n_mand
    data n_mand / 13 /
@@ -93,7 +95,7 @@ program maingrads_mandlev
 
    if( nobs > 0 ) then 
       call grads_mandlev(stype,lstype,nobs,nreal,n_mand,pmand,iscater,igrads,&
-                isubtype,subtype,list) 
+                isubtype,subtype,list,run) 
    else
       print *, 'NOBS <= 0, NO OUTPUT GENERATED'
    end if

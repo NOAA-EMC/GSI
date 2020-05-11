@@ -7,7 +7,7 @@
 !-------------------------------------------------------------
 
 subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
-                isubtype,subtype,list)
+                isubtype,subtype,list,run)
 
    use generic_list
    use data
@@ -26,7 +26,7 @@ subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
    real(4),dimension(nlev) :: plev
 
    real(4) rlat,rlon,rp
-   character(3) subtype 
+   character(3) subtype,run
    character(8) stid
    character(ifileo) :: fileo 
    character(30)  :: files,filegrads 
@@ -83,7 +83,7 @@ subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
 
 
       if(iscater ==1) then
-         files=trim(fileo)//'_'//trim(subtype)//'.scater'
+         files=trim(fileo)//'_'//trim(subtype)//'.scater.'//trim(run)
          open(51,file=files,form='unformatted')
          write(51) nobs,nreal_m2
          write(51) rdiag_m2
@@ -91,7 +91,7 @@ subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
       endif
 
       if (igrads ==1) then 
-         filegrads=trim(fileo)//'_'//trim(subtype)//'_grads'
+         filegrads=trim(fileo)//'_'//trim(subtype)//'.grads.'//trim(run)
 
          open(21,file=filegrads,form='unformatted')
 

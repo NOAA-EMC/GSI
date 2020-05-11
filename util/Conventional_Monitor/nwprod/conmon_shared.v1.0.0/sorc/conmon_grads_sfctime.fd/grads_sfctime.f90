@@ -7,7 +7,7 @@
 !---------------------------------------------------------------------------------
 
 subroutine grads_sfctime(fileo,ifileo,nobs,nreal,nlev,plev,iscater,&
-                         igrads,isubtype,subtype,list)
+                         igrads,isubtype,subtype,list,run)
 
    use generic_list
    use data
@@ -17,10 +17,17 @@ subroutine grads_sfctime(fileo,ifileo,nobs,nreal,nlev,plev,iscater,&
    type(list_node_t), pointer   :: list
    type(list_node_t), pointer   :: next => null()
    type(data_ptr)               :: ptr
- 
-   real(4),allocatable,dimension(:,:)  :: rdiag_m2
+
+   integer, intent(in)          :: ifileo, nobs, nreal, nlev
+   integer, intent(in)          :: iscater, igrads
+   integer(4), intent(in)       :: isubtype
+   character(ifileo),intent(in) :: fileo
+   character(3), intent(in)     :: run, subtype
+
+
+   real(4),dimension(nlev),intent(in)    :: plev
+   real(4),allocatable,dimension(:,:)    :: rdiag_m2
    character(8),allocatable,dimension(:) :: cdiag
-   real(4),dimension(nlev) :: plev
    integer,dimension(nlev) :: ndata
 
    !-----------------------------------------------------------------------------
@@ -36,7 +43,7 @@ subroutine grads_sfctime(fileo,ifileo,nobs,nreal,nlev,plev,iscater,&
    !  not logically possible that the necessary dimension for these variables
    !  will exceed the input nobs value.  Indeed in my tests the resulting used
    !  portion of the dimension is 25%-35% of the nobs value, once duplicates and 
-   !  data that does not conform to the availble pressure levels are tossed out.  
+   !  data that does not conform to the available pressure levels are tossed out.  
    !  So it makes more sense to dynamically allocate these vars to the value of 
    !  nobs rather than arbitrarily select 10000 and find out the hard way that 
    !  that was insufficient.
@@ -46,15 +53,12 @@ subroutine grads_sfctime(fileo,ifileo,nobs,nreal,nlev,plev,iscater,&
    character(8),allocatable,dimension(:) :: stid
 
    character(8) :: stidend
-   character(ifileo) :: fileo
-   character(3) :: subtype 
    character(30) :: files,filein,filegrads
-   integer :: nobs,nreal,nlfag,nflag0,nlev,nlev0,getlev,iscater,igrads
+   integer :: nlfag,nflag0,nlev0,getlev
    real(4) :: rmiss,rtim,xlat0,xlon0,rtime
    integer      :: first, second
  
-   integer(4):: isubtype
-   integer nt,ifileo,k,i,ii,j,nflag,obs_ctr
+   integer nt,k,i,ii,j,nflag,obs_ctr
    integer ilat,ilon,ipres,itime,iweight,ndup
 
    data rmiss/-999.0/
@@ -106,7 +110,7 @@ subroutine grads_sfctime(fileo,ifileo,nobs,nreal,nlev,plev,iscater,&
       print *, 'begin scatter file generation'
 
       if(iscater ==1) then
-         files=trim(fileo)//'_'//trim(subtype)//'.scater'
+         files=trim(fileo)//'_'//trim(subtype)//'.scater.'//trim(run)
          print *, 'scatter files = ', files
          open(51,file=files,form='unformatted')
          write(51) nobs,nreal-2
@@ -119,7 +123,7 @@ subroutine grads_sfctime(fileo,ifileo,nobs,nreal,nlev,plev,iscater,&
 
       if( igrads == 1 )  then 
 
-         filegrads=trim(fileo)//'_'//trim(subtype)//'_grads'
+         filegrads=trim(fileo)//'_'//trim(subtype)//'.grads.'//trim(run)
          open(21,file=filegrads,form='unformatted',status='new')     !  open output file 
          print *, 'filegrads = ', filegrads
 

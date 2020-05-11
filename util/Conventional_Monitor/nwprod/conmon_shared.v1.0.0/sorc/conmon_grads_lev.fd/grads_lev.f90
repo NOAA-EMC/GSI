@@ -8,7 +8,7 @@
 
 
 subroutine grads_lev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
-                        levcard,hint,isubtype,subtype,list)
+                        levcard,hint,isubtype,subtype,list,run)
 
    use generic_list
    use data
@@ -26,6 +26,7 @@ subroutine grads_lev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
    character(8) :: stid
    character(3) ::  subtype
    character(ifileo) :: fileo 
+   character(3) ::  run             ! ges or anl
 
    character(30) :: files,filegrad
    character(10) :: levcard 
@@ -87,7 +88,7 @@ subroutine grads_lev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
 
 !      print *, 'obs_ctr (list) = ', obs_ctr
 
-      filegrad=trim(fileo)//'_'//trim(subtype)//'_grads'
+      filegrad=trim(fileo)//'_'//trim(subtype)//'.grads.'//trim(run)
    
 !      print *, 'filegrad = ', filegrad
 
@@ -95,7 +96,7 @@ subroutine grads_lev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
       if(iscater ==1) then
          print *, 'begin writing scatter data file'
 
-         files=trim(fileo)//'_'//trim(subtype)//'.scater'
+         files=trim(fileo)//'_'//trim(subtype)//'.scater.'//trim(run)
          open(51,file=files,form='unformatted')
          write(51) nobs,nreal_m2
          write(51) rdiag_m2

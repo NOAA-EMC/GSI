@@ -5,7 +5,7 @@
 !    scatter and horiz GrADS data files.
 !-----------------------------------------------------------
 
-subroutine grads_sig(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,subtype,list)
+subroutine grads_sig(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,subtype,list,run)
 
    use generic_list
    use data
@@ -22,7 +22,7 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,s
    real(4),dimension(nlev) :: plev
    real(4) :: rlat,rlon
 
-   character(3) subtype 
+   character(3) subtype, run
    character(8) :: stidend,stdid
    character(ifileo) :: fileo
    character(30) :: files,filegrads
@@ -96,7 +96,7 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,s
       print *, 'begin writing scatter data file'
 
       if(iscater == 1) then
-         files=trim(fileo)//'_'//trim(subtype)//'.scater'
+         files=trim(fileo)//'_'//trim(subtype)//'.scater.'//trim(run)
          open(51,file=files,form='unformatted')
          write(51) nobs,nreal_m2
          write(51) rdiag_m2
@@ -115,7 +115,7 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,s
       !  to write output if nobs == 0.  Seg faults are uncool.
       !
       if (igrads ==1 .AND. nobs > 0)  then 
-         filegrads=trim(fileo)//'_'//trim(subtype)//'_grads'
+         filegrads=trim(fileo)//'_'//trim(subtype)//'.grads.'//trim(run)
          open(21,file=filegrads,form='unformatted',status='new')    ! open output file
 
          ilat      = idx_obs_lat -2        ! modified position of lat

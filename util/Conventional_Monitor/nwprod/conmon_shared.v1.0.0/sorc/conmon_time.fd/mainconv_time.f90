@@ -1,7 +1,11 @@
 !   intype  : the observarion type like t for tem., uv for wind
 !   stype   : the observation sub type, like t120 uv220
 
+   use conmon_read_time_diag
+
+
    implicit none
+
 
    integer np,mregion,nobs
    integer ntype_ps,ntype_q,ntype_t,ntype_uv
@@ -15,7 +19,6 @@
    real(4),dimension(100,2) :: varqc_ps,varqc_q,varqc_uv,varqc_t
    character(len=7) dtype_ps,dtype_uv,dtype_t,dtype_q
 
-   character(20) :: filein
    character(40),dimension(mregion):: region
 
    real,dimension(mregion):: rlatmin,rlatmax,rlonmin,rlonmax
@@ -24,7 +27,10 @@
    data lunin / 11 /
    data lunot / 21 /
 
-   namelist /input/filein,nregion,region,rlatmin,rlatmax,rlonmin,rlonmax
+   character(100)        :: input_file          = "conv_diag"
+   logical               :: netcdf              = .false.
+   character(3)          :: run                 = "ges"
+   namelist /input/input_file,nregion,netcdf,run,region,rlatmin,rlatmax,rlonmin,rlonmax
 
    read(5,input)
    write(6,*)' User input below'
@@ -78,7 +84,7 @@
    print *,'finish to call convinfo'
 
    print *,'start to call read_conv'
-   call read_conv(filein,mregion,nregion,np,ptop,pbot,ptopq,pbotq,&
+   call read_conv(input_file,mregion,nregion,np,ptop,pbot,ptopq,pbotq,&
                  rlatmin,rlatmax,rlonmin,rlonmax,iotype_ps,iotype_q,&
                  iotype_t,iotype_uv,varqc_ps,varqc_q,varqc_t,varqc_uv,&
                  ntype_ps,ntype_q,ntype_t,ntype_uv,&

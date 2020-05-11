@@ -5,7 +5,7 @@
 !       horizontal GrADS data files.
 !------------------------------------------------------------------------
 
-subroutine grads_sfc(fileo,ifileo,nobs,nreal,iscater,igrads,isubtype,subtype,list)
+subroutine grads_sfc(fileo,ifileo,nobs,nreal,iscater,igrads,isubtype,subtype,list,run)
 
    use generic_list
    use data
@@ -22,7 +22,7 @@ subroutine grads_sfc(fileo,ifileo,nobs,nreal,iscater,igrads,isubtype,subtype,lis
    character(8) :: stid
    character(ifileo) :: fileo
    character(30) :: files,filein,filegrads
-   character(3) :: subtype
+   character(3) :: subtype,run
    integer nobs,nreal,nlfag,nflg0,nlev,nlev0,iscater,igrads
    real(4) rtim,xlat0,xlon0,rlat,rlon
  
@@ -78,7 +78,7 @@ subroutine grads_sfc(fileo,ifileo,nobs,nreal,iscater,igrads,isubtype,subtype,lis
    print *, 'begin writing scatter data file'
 
    if(iscater ==1) then 
-      files=trim(fileo)//'_'//trim(subtype)//'.scater'
+      files=trim(fileo)//'_'//trim(subtype)//'.scater.'//trim(run)
       open(51,file=files,form='unformatted')
 
       write(51) nobs,nreal_m2
@@ -94,7 +94,8 @@ subroutine grads_sfc(fileo,ifileo,nobs,nreal,iscater,igrads,isubtype,subtype,lis
    !  write the horiz data file
    !
    if (igrads ==1 .AND. nobs > 0) then 
-      filegrads=trim(fileo)//'_'//trim(subtype)//'_grads'
+      filegrads=trim(fileo)//'_'//trim(subtype)//'.grads.'//run
+      write(6,*) 'filegrads = ', filegrads
 
       open(21,file=filegrads,form='unformatted',status='new')    ! open output file
 

@@ -29,7 +29,7 @@ program maingrads_sfc
 
 
       subroutine grads_sfc(fileo,ifileo,nobs,nreal,iscater,igrads,&
-                           isubtype, subtype, list)
+                           isubtype, subtype, list, run)
          use generic_list
 
          integer ifileo
@@ -37,6 +37,7 @@ program maingrads_sfc
          integer                        :: nobs,nreal,iscater,igrads,isubtype
          character(3)                   :: subtype
          type(list_node_t), pointer     :: list
+         character(3)                   :: run
       end subroutine grads_sfc
 
    end interface
@@ -56,7 +57,8 @@ program maingrads_sfc
    !--- namelist with defaults
    logical               :: netcdf              = .false.
    character(100)        :: input_file          = "conv_diag"
-   namelist /input/input_file,intype,stype,itype,nreal,iscater,igrads,subtype,isubtype,netcdf
+   character(3)          :: run                 = "ges"
+   namelist /input/input_file,intype,stype,itype,nreal,iscater,igrads,subtype,isubtype,netcdf,run
 
    data n_mand / 21 /
    data pmand /1000.,925.,850.,700.,500.,400.,300.,250.,200.,150.,100.,&
@@ -77,7 +79,7 @@ program maingrads_sfc
 
  
    if( nobs > 0 ) then
-      call grads_sfc(stype,lstype,nobs,nreal,iscater,igrads,isubtype,subtype,list) 
+      call grads_sfc(stype,lstype,nobs,nreal,iscater,igrads,isubtype,subtype,list,run) 
    else
       print *, 'NOBS <= 0, NO OUTPUT GENERATED'
    end if

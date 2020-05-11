@@ -18,20 +18,11 @@
    #----------------------------------------------------------
    # The list of data type, based on convinfo.txt file
    #----------------------------------------------------------
-#   ps_TYPE=" ps120_00 ps180_00 ps181_00 ps183_00 ps187_00 "
    ps_TYPE=`${USHconmon}/get_typelist.pl --file $convinfo --type ps --mon`
-
-
-#   q_TYPE=" q120_00 q130_00 q132_00 q133_00 q134_00 q135_00 q180_00 q181_00 q183_00 q187_00 "
    q_TYPE=`${USHconmon}/get_typelist.pl --file $convinfo --type q --mon`
       
-#   t_TYPE=" t120_00 t130_00 t131_00 t132_00 t133_00 t134_00 t135_00 t180_00 t181_00 t183_00 t187_00 "
    t_TYPE=`${USHconmon}/get_typelist.pl --file $convinfo --type t --mon`
-
-#   uv_TYPE=" uv220_00 uv221_00 uv223_00 uv224_00 uv228_00 uv229_00 uv230_00 uv231_00 uv232_00 uv233_00 uv234_00 uv235_00 uv242_00 uv243_00 uv243_55 uv243_56 uv245_257 uv245_259 uv245_270 uv246_257 uv246_259 uv246_270 uv247_257 uv247_259 uv247_270 uv248_00 uv249_00 uv250_00 uv251_00 uv252_00 uv253_00 uv253_55 uv253_56 uv254_00 uv254_55 uv254_56 uv255_00 uv256_00 uv257_00 uv258_00 uv280_00 uv281_00 uv282_00 uv284_00 uv287_00"
-
    uv_TYPE=`${USHconmon}/get_typelist.pl --file $convinfo --type uv --mon`
-#   echo "uv_TYPE = $uv_TYPE"
 
 
    echo TANKDIR_conmon = $TANKDIR_conmon
@@ -45,8 +36,7 @@
    export nreal_uv=${nreal_uv:-23} 
 
 
-#   for type in ps q t uv; do
-   for type in ps q; do
+   for type in ps q t uv; do
 
       eval stype=\${${type}_TYPE}
       eval nreal=\${nreal_${type}}
@@ -67,11 +57,10 @@
          fi
 
          for run in ges anl; do
-            cp ./diag_conv_${run}.${PDATE} ./conv_diag
 
             #-------------------------------------------------------------
-            #  Because few things in life are convenient or constent, the
-            #  cnvstat has different contents depending on file type.
+            #  Because few things in life are convenient or consistent, 
+            #  the cnvstat has different contents depending on file type.
             #
             #  Binary cnvstat files contain 2 diag files (ges and anl), 
             #  while NetCDF cnvstat files contain a diag file for each 
@@ -79,7 +68,6 @@
             #-------------------------------------------------------------
             if [[ $CONMON_NETCDF -eq 0 ]]; then 
                export INPUT_FILE="diag_conv_${run}.${PDATE}"
-#               export INPUT_FILE="conv_diag"
             else 
                export INPUT_FILE="diag_conv_${type}_${run}.${PDATE}"
             fi
@@ -93,11 +81,25 @@
             ${USHconmon}/diag2grad_${type}_case.sh
 
          done    #### done with run
-
+         
       done   ### done with dtype
 
    done   ### done with type
 
+
+   #---------------------------------------
+   #  tar, compress, and move stdout files
+   #---------------------------------------
+   for run in ges anl; do
+      stdout_tar=stdout.${PDATE}.${run}.tar
+      tar -cvf ${stdout_tar} stdout*.${run}
+      ${COMPRESS} ${stdout_tar}
+            
+      dest_dir=${TANKDIR_conmon}/horz_hist/${run}
+      mv -f ${stdout_tar}.${Z} ${dest_dir}/.
+
+   done
+   
 
 echo "<-- horz_hist.sh"
 

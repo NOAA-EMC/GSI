@@ -18,7 +18,7 @@
    interface
 
       subroutine grads_lev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads, &
-                           levcard,hint,isubtype,subtype,list)
+                           levcard,hint,isubtype,subtype,list,run)
          use generic_list
 
          integer ifileo
@@ -29,6 +29,7 @@
          real*4                         :: hint
          character(3)                   :: subtype
          type(list_node_t), pointer     :: list
+         character(3)                   :: run
       end subroutine grads_lev
 
    end interface
@@ -52,7 +53,8 @@
    !--- namelist with defaults
    logical               :: netcdf              = .false.
    character(100)        :: input_file          = "conv_diag"
-   namelist /input/input_file,intype,stype,itype,nreal,iscater,igrads,levcard,intv,subtype,isubtype,netcdf
+   character(3)          :: run                 = "ges"
+   namelist /input/input_file,intype,stype,itype,nreal,iscater,igrads,levcard,intv,subtype,isubtype,netcdf,run
 
    data pacft /700.,600.,500.,400.,300.,100./
    data palllev /950.,850.,700.,600.,500.,400.,300.,250.,200.,100./
@@ -81,16 +83,16 @@
    if( nobs > 0 ) then
       if(trim(levcard) == 'alllev' ) then
          call grads_lev(stype,lstype,nobs,nreal,n_alllev,palllev,iscater, &
-                        igrads,levcard,hint,isubtype,subtype,list)
+                        igrads,levcard,hint,isubtype,subtype,list,run)
       else if (trim(levcard) == 'acft' ) then
          call grads_lev(stype,lstype,nobs,nreal,n_acft,pacft,iscater,igrads,&
-                        levcard,hint,isubtype,subtype,list)
+                        levcard,hint,isubtype,subtype,list,run)
       else if(trim(levcard) == 'lowlev' ) then
          call grads_lev(stype,lstype,nobs,nreal,n_lowlev,plowlev,iscater,&
-                        igrads,levcard,hint,isubtype,subtype,list)
+                        igrads,levcard,hint,isubtype,subtype,list,run)
       else if(trim(levcard) == 'upair' ) then
          call grads_lev(stype,lstype,nobs,nreal,n_upair,pupair,iscater,&
-                        igrads,levcard,hint,isubtype,subtype,list)
+                        igrads,levcard,hint,isubtype,subtype,list,run)
       end if
    else
       print *, 'NOBS <= 0, NO OUTPUT GENERATED' 

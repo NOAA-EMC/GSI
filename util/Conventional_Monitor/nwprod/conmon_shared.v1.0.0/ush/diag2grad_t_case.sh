@@ -20,17 +20,22 @@ echo "--> diag2grad_t_case.sh"
    echo "subtype       = $subtype"
    echo "hint          = $hint"
    echo "workdir       = $workdir"
+   echo "INPUT_FILE    = ${INPUT_FILE}"
+
+   echo "CONMON_NETCDF = ${CONMON_NETCDF}"
+   netcdf=".false."
+
+   if [ $CONMON_NETCDF -eq 1 ]; then
+      netcdf=".true."
+   fi
+   echo "netcdf = $netcdf"
+
 
    ctype=`echo ${mtype} | cut -c2-4`
    nreal2=`expr $nreal - 2`
    if [[ $VERBOSE = "YES" ]]; then
       echo ctype, nreal2 = $ctype, nreal2
    fi
-
-   #t130_card=alllev
-   #t131_card=alllev
-   #t132_card=alllev
-   #t133_card=alllev
 
    card=alllev
 
@@ -43,8 +48,10 @@ echo "--> diag2grad_t_case.sh"
 
       cat <<EOF >input
          &input
+         input_file=${INPUT_FILE},
          intype='  t',stype='${mtype}',itype=$ctype,nreal=$nreal,
          iscater=1,igrads=1,levcard='$card',intv=$hint,subtype='${subtype}',isubtype=${subtype},
+         netcdf=${netcdf}, run=${run},
          /
 EOF
   
@@ -53,8 +60,10 @@ EOF
 
       cat <<EOF >input
          &input
+         input_file=${INPUT_FILE},
          intype='  t',stype='${mtype}',itype=$ctype,nreal=$nreal,
          iscater=1,igrads=1,subtype='${subtype}',isubtype=${subtype},
+         netcdf=${netcdf}, run=${run},
          /
 EOF
 
@@ -62,26 +71,33 @@ EOF
       cp $EXECconmon/conmon_grads_sfc.x ./diag2grads
       cat <<EOF >input
          &input
+         input_file=${INPUT_FILE},
          intype='  t',stype='${mtype}',itype=$ctype,nreal=$nreal,
          iscater=1,igrads=1,subtype='${subtype}',isubtype=${subtype},
+         netcdf=${netcdf}, run=${run},
          /
 EOF
    fi
 
-./diag2grads <input>stdout 2>&1 
+   ./diag2grads <input>stdout 2>&1 
 
 
-rm -f *tmp
-mv stdout stdout_diag2grads_${mtype}_${subtype}.${cycle}
+   rm -f *tmp
+   mv stdout stdout_diag2grads_${mtype}_${subtype}.${run}
 
-dest_dir="${TANKDIR_conmon}/horz_hist/${cycle}"
+   dest_dir="${TANKDIR_conmon}/horz_hist/${run}"
 
-for file in t*grads; do
-   mv ${file} ${dest_dir}/${file}.${PDATE}
-done
-for file in t*scater; do
-   mv ${file} ${dest_dir}/${file}.${PDATE}
-done
+   grads_list=`ls t*grads.${run}`
+   for file in $grads_list; do
+      ${COMPRESS} ${file}
+      cp -f  ${file}.${Z} ${dest_dir}/${file}.${PDATE}.${Z}
+   done
+
+   scatter_list=`ls t*scater.${run}`
+   for file in $scater_list; do
+      ${COMPRESS} ${file}
+      cp -f ${file}.${Z} ${dest_dir}/${file}.${PDATE}.${Z}
+   done
 
 
 echo "<-- diag2grad_t_case.sh"

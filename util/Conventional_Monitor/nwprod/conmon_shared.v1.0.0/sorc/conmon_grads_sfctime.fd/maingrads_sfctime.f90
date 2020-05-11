@@ -16,22 +16,8 @@ program maingrads_sfctime
 
    interface
 
-!      subroutine read_conv2grads(ctype,stype,itype,nreal,nobs,&
-!                                 isubtype,subtype,list)
-!         use generic_list
-!         character(3)           :: ctype
-!         character(10)          :: stype
-!         integer                :: itype
-!         integer                :: nreal
-!         integer                :: nobs
-!         integer                :: isubtype
-!         character(3)           :: subtype
-!         type(list_node_t),pointer   :: list
-!      end subroutine read_conv2grads
-
-
       subroutine grads_sfctime(fileo,ifileo,nobs,nreal,&
-                    nlev,plev,iscater,igrads,isubtype,subtype,list)
+                    nlev,plev,iscater,igrads,isubtype,subtype,list,run)
 
          use generic_list
          character(ifileo)       :: fileo
@@ -40,6 +26,7 @@ program maingrads_sfctime
          integer                 :: iscater,igrdas,isubtype
          character(3)            :: subtype
          type(list_node_t),pointer   :: list
+         character(3)            :: run
          
       end subroutine grads_sfctime
 
@@ -62,7 +49,8 @@ program maingrads_sfctime
    !--- namelist with defaults
    logical               :: netcdf              = .false.
    character(100)        :: input_file          = "conv_diag" 
-   namelist /input/input_file,intype,stype,itype,nreal,iscater,igrads,timecard,isubtype,subtype,netcdf
+   character(3)          :: run                 = "ges" 
+   namelist /input/input_file,intype,stype,itype,nreal,iscater,igrads,timecard,isubtype,subtype,netcdf,run
 
 
    data n_time11 / 11 /
@@ -80,18 +68,15 @@ program maingrads_sfctime
    call set_netcdf_read( netcdf )
    call conmon_read_diag_file( input_file,intype,stype,itype,nreal,nobs,isubtype,subtype,list )
 
-!   call read_conv2grads(intype,stype,itype,nreal,nobs,isubtype,subtype,list)
 
    if( nobs > 0 ) then
 
       if( trim(timecard) == 'time11') then
-!         print *, 'time11'
          call grads_sfctime(stype,lstype,nobs,nreal,n_time11,&
-                            ptime11,iscater,igrads,isubtype,subtype, list) 
+                            ptime11,iscater,igrads,isubtype,subtype, list, run) 
       else if( trim(timecard) == 'time7') then 
-!         print *, 'time7'
          call grads_sfctime(stype,lstype,nobs,nreal,n_time7,&
-                            ptime7,iscater,igrads,isubtype,subtype,list) 
+                            ptime7,iscater,igrads,isubtype,subtype,list, run) 
       endif
    
    else
