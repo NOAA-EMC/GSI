@@ -51,8 +51,9 @@ end subroutine nst_init_
 subroutine nst_read_(mype_io)
 
      use kinds, only: i_kind
-     use gridmod, only: use_gfs_nemsio 
+     use gridmod, only: use_gfs_nemsio, use_gfs_ncio 
      use ncepgfs_io, only: read_gfsnst
+     use netcdfgfs_io, only: read_gfsncnst
      use ncepnems_io, only: read_nemsnst
      use gsi_nstcouplermod, only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,&
                                   c_0_full,c_d_full,w_0_full,w_d_full
@@ -61,6 +62,9 @@ subroutine nst_read_(mype_io)
 
      if ( use_gfs_nemsio ) then
         call read_nemsnst(mype_io,tref_full,dt_cool_full,z_c_full, &
+                          dt_warm_full,z_w_full,c_0_full,c_d_full,w_0_full,w_d_full)
+     else if ( use_gfs_ncio ) then
+        call read_gfsncnst(mype_io,tref_full,dt_cool_full,z_c_full, &
                           dt_warm_full,z_w_full,c_0_full,c_d_full,w_0_full,w_d_full)
      else
         call read_gfsnst(mype_io,tref_full,dt_cool_full,z_c_full, &

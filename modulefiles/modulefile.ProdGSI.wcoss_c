@@ -48,21 +48,25 @@ module load cmake/3.6.2
 module unuse /usrx/local/dev/modulefiles
 
 # Loading netcdf modules
-module use /usrx/local/prod/modulefiles
-module load HDF5-serial-intel-haswell/1.8.9
-module load NetCDF-intel-haswell/4.2
+module load cray-netcdf/4.3.2
+module load cray-hdf5/1.8.14
 
 # Loading nceplibs modules
 module use /gpfs/hps/nco/ops/nwprod/lib/modulefiles
 module load bufr-intel/11.0.1
+module load ip-intel/3.0.0
 module load nemsio-intel/2.2.2
 module load sfcio-intel/1.0.0
 module load sigio-intel/2.1.0
 module load sp-intel/2.0.2
 module load w3nco-intel/2.0.6
 module load w3emc-intel/2.2.0
-module load crtm-intel/2.2.6
 
 module use /usrx/local/nceplibs/modulefiles
 module load bacio-intel/2.0.2
 
+module use -a /usrx/local/nceplibs/NCEPLIBS/modulefiles
+module load crtm/2.3.0
+
+# Loading python
+module load python/3.6.3

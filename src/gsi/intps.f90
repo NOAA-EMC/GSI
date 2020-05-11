@@ -76,7 +76,7 @@ subroutine intps_(pshead,rval,sval)
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !   2014-12-03  derber  - modify so that use of obsdiags can be turned off
 !   2015-12-21  yang    - Parrish's correction to the previous code in new varqc.
-
+!   2019-09-20  Su      - remove current VQC part and add VQC subroutine call
 !
 !   input argument list:
 !     pshead  - obs type pointer to obs structure
@@ -92,9 +92,9 @@ subroutine intps_(pshead,rval,sval)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: half,one,tiny_r_kind,cg_term,r3600,two
+  use constants, only: half,one,tiny_r_kind,cg_term,r3600,two,zero
   use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
-  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
+  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc,nvqc
   use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -108,9 +108,9 @@ subroutine intps_(pshead,rval,sval)
 
 ! Declare local variables
   integer(i_kind) ier,istatus
-  integer(i_kind) j1,j2,j3,j4
+  integer(i_kind) j1,j2,j3,j4,ibb,ikk
 ! real(r_kind) penalty
-  real(r_kind) cg_ps,val,p0,grad,wnotgross,wgross,ps_pg
+  real(r_kind) cg_t,val,grad,t_pg,var_jb,error2,rat_error2
   real(r_kind) w1,w2,w3,w4
   real(r_kind),pointer,dimension(:) :: sp
   real(r_kind),pointer,dimension(:) :: rp
@@ -156,21 +156,31 @@ subroutine intps_(pshead,rval,sval)
         if (.not. lsaveobsens) then
            if( .not. ladtest_obs)   val=val-psptr%res
 !          gradient of nonlinear operator
+           rat_error2=psptr%raterr2
+           error2=psptr%err2
+         
            if (vqc .and. nlnqc_iter .and. psptr%pg > tiny_r_kind .and.  &
                                 psptr%b  > tiny_r_kind) then
-              ps_pg=psptr%pg*varqc_iter
-              cg_ps=cg_term/psptr%b                           ! b is d in Enderson
-              wnotgross= one-ps_pg                            ! pg is A in Enderson
-              wgross =ps_pg*cg_ps/wnotgross                   ! wgross is gama in Enderson
-              p0=wgross/(wgross+exp(-half*psptr%err2*val**2)) ! p0 is P in Enderson
-              val=val*(one-p0)                                ! term is Wqc in Enderson
+              t_pg=psptr%pg*varqc_iter
+              cg_t=cg_term/psptr%b                           ! b is d in Enderson
+           else
+              t_pg=zero
+              cg_t=zero
            endif
            if (njqc .and. psptr%jb  > tiny_r_kind .and. psptr%jb <10.0_r_kind) then
-              val=sqrt(two*psptr%jb)*tanh(sqrt(psptr%err2)*val/sqrt(two*psptr%jb))
-              grad = val*psptr%raterr2*sqrt(psptr%err2)
+              var_jb=psptr%jb
            else
-              grad = val*psptr%raterr2*psptr%err2
+              var_jb=zero 
            endif
+           if(nvqc .and. psptr%ib >0) then
+              ibb=psptr%ib
+              ikk=psptr%ik
+           else
+              ibb=0
+              ikk=0
+           endif
+           call vqc_int(error2,rat_error2,t_pg,cg_t,var_jb,ibb,ikk,val,grad) 
+
            if( ladtest_obs) then
               grad = val
            endif

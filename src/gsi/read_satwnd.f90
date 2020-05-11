@@ -69,7 +69,9 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !                       - Read WMO pre-approved new BUFR Goes-16 AMVs (Goes-R)
 !   2018-06-13  Genkova - Goes-16 AMVs use ECMWF QC till new HAM late 2018
 !                         and OE/2 
-!
+!   2019-9-25        Su - modified ithin value criteria to distinguash thinning
+!                         or hilber curve downweighting
+! 
 !   
 !
 !   input argument list:
@@ -262,7 +264,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! Set lower limits for observation errors
   werrmin=one
   nsattype=0
-  nreal=25
+  nreal=26
   if(perturb_obs ) nreal=nreal+2
   ntread=1
   ntmatch=0
@@ -274,7 +276,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
         ntmatch=ntmatch+1
         ntxall(ntmatch)=nc
         ithin=ithin_conv(nc)
-        if(ithin > 0)then
+        if(ithin > 0 .and. ithin <5)then
            ntread=ntread+1
            ntx(ntread)=nc
         end if
@@ -406,6 +408,20 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  itype=260
               endif
            endif
+        else if(trim(subset) == 'NC005091') then  ! VIIRS N-20 with new sequence
+! Commented out, because we need clarification for SWCM/hdrdat(9) from Yi Song
+! NOTE: Once it is confirmed that SWCM values are sensible, apply this logic and
+! replace lines 685-702
+        !       if(hdrdat(9) == one)  then                            ! VIIRS IR
+        !       winds
+        !          itype=260
+        !       endif
+!Temporary solution replacing the commented code above
+                 if(trim(subset) == 'NC005091')  then                 ! IR LW winds
+                    itype=260
+                 endif
+
+
         !GOES-R section of the 'if' statement over 'subsets' 
         else if(trim(subset) == 'NC005030' .or. trim(subset) == 'NC005031' .or. trim(subset) == 'NC005032' .or. &
                 trim(subset) == 'NC005034' .or. trim(subset) == 'NC005039') then
@@ -469,7 +485,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
         if(ncsave /= 0) then
            maxobs=maxobs+1
            nx=1
-           if(ithin_conv(ncsave) > 0)then
+           if(ithin_conv(ncsave) > 0 .and. ithin_conv(ncsave) <5)then
               do ii=2,ntread
                  if(ntx(ii) == ncsave)nx=ii
               end do
@@ -504,7 +520,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
      if(nx >1) then
         nc=ntx(nx)
         ithin=ithin_conv(nc)
-        if (ithin > 0 ) then
+        if (ithin > 0 .and. ithin <5) then
            rmesh=rmesh_conv(nc)
            pmesh=pmesh_conv(nc)
            pmot=pmot_conv(nc)
@@ -875,6 +891,55 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                     endif
                  enddo
                endif
+! Extra block for VIIRS NOAA-20: Start
+           else if(trim(subset) == 'NC005091') then
+              if(hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then  ! The range of satellite IDs
+                 c_prvstg='VIIRS'
+                 if(trim(subset) == 'NC005091')  then                 ! IR LW winds
+                    itype=260
+                    c_station_id='IR'//stationid
+                    c_sprvstg='IR'
+                    !write(6,*)'itype= ',itype
+                 endif
+
+!                 call ufbint(lunin,rep_array,1,1,iret, '{AMVAHA}')
+!                 irep_array = int(rep_array)
+!                 allocate( amvaha(4,irep_array))
+!                 call ufbint(lunin,amvaha,4,irep_array,iret, 'EHAM PRLC TMDBST
+!                 HOCT')
+!                 deallocate( amvaha )
+!
+!                 call ufbint(lunin,rep_array,1,1,iret, '{AMVIII}')
+!                 irep_array = int(rep_array)
+!                 allocate( amviii(12,irep_array))
+!                 call ufbrep(lunin,amviii,12,irep_array,iret, 'LTDS SCLF SAID
+!                 SIID CHNM SCCF ORBN SAZA BEARAZ EHAM PRLC TMDBST')
+!                 deallocate( amviii )
+
+                 call ufbint(lunin,rep_array,1,1,iret, '{AMVIVR}')
+                 irep_array = int(rep_array)
+                 allocate( amvivr(2,irep_array))
+                 call ufbrep(lunin,amvivr,2,irep_array,iret, 'TCOV CVWD')
+                 pct1 = amvivr(2,1)     ! use of pct1 (a new variable in the BUFR) is introduced by Nebuda/Genkova
+                 deallocate( amvivr )
+
+!                 call ufbrep(lunin,rep_array,1,1,iret, '{AMVCLD}')
+!                 irep_array = int(rep_array)
+!                 allocate( amvcld(12,irep_array))
+!                 ! MUCE --> MUNCEX within the new GOES16/17 and NOAA-20 VIIRS
+!                 sequence (I.Genkova, J.Whiting)
+!                 ! THIS CHANGE HAS NOT BEEN TESTED !!!
+!                 !call ufbrep(lunin,amvcld,12,irep_array,iret, 'FOST CDTP MUCE
+!                 VSAT TMDBST VSAT CDTP MUCE OECS CDTP HOCT COPT')
+!                 call ufbrep(lunin,amvcld,12,irep_array,iret, 'FOST CDTP MUNCEX
+!                 VSAT TMDBST VSAT CDTP MUNCEX OECS CDTP HOCT COPT')
+!                 deallocate( amvcld )
+
+                 call ufbseq(lunin,amvqic,2,4,iret, 'AMVQIC') ! AMVQIC:: GNAPS PCCF
+                 qifn = amvqic(2,2)  ! QI w/ fcst does not exist in this BUFR
+                 ee = amvqic(2,4) ! NOTE: GOES-R's ee is in [m/s]
+              endif
+! Extra block for VIIRS NOAA20: End
 ! Extra block for GOES-R winds: Start
            else if(trim(subset) == 'NC005030' .or. trim(subset) == 'NC005031' .or. trim(subset) == 'NC005032' .or. &  !IR(LW) / CS WV / VIS  GOES-R like winds        
                    trim(subset) == 'NC005034' .or. trim(subset) == 'NC005039' ) then                                  !CT WV  / IR(SW) GOES-R like winds        
@@ -1194,7 +1259,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !!    process the thining procedure
                 
            ithin=ithin_conv(nc)
-           ithinp = ithin > 0 .and. pflag /= 0
+           ithinp = ithin > 0  .and. ithin <5 .and. pflag /= 0
 !          if(ithinp  .and. iuse >=0 )then
            if(ithinp   )then
 !          Interpolate guess pressure profile to observation location
@@ -1218,7 +1283,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            dlnpob=log(one_tenth*ppb)  ! ln(pressure in cb)
            ppb=one_tenth*ppb         ! from mb to cb
  !         Special block for data thinning - if requested
-           if (ithin > 0 .and. iuse >=0 .and. qm <4) then
+           if (ithin > 0 .and. ithin <5 .and. iuse >=0 .and. qm <4) then
               ntmp=ndata  ! counting moved to map3gridS
  !         Set data quality index for thinning
               if (thin4d) then
@@ -1321,7 +1386,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            cdata_all(8,iout)=rstation_id          ! station id 
            cdata_all(9,iout)=t4dv                 ! time
            cdata_all(10,iout)=nc                  ! index of type in convinfo file
-           cdata_all(11,iout)=qifn +1000.0_r_kind*qify   ! quality indictator  
+           cdata_all(11,iout)=qifn +1000.0_r_kind*qify   ! quality indicator  
            cdata_all(12,iout)=qm                  ! quality mark
            cdata_all(13,iout)=obserr              ! original obs error
            cdata_all(14,iout)=usage               ! usage parameter
@@ -1335,10 +1400,11 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            cdata_all(22,iout)=r_prvstg(1,1)       ! provider name
            cdata_all(23,iout)=r_sprvstg(1,1)      ! subprovider name
            cdata_all(25,iout)=var_jb              ! non linear qc parameter
+           cdata_all(26,iout)=one                 ! hilbert curve weight 
 
            if(perturb_obs)then
-              cdata_all(26,iout)=ran01dom()*perturb_fact ! u perturbation
-              cdata_all(27,iout)=ran01dom()*perturb_fact ! v perturbation
+              cdata_all(27,iout)=ran01dom()*perturb_fact ! u perturbation
+              cdata_all(28,iout)=ran01dom()*perturb_fact ! v perturbation
            endif
 
         enddo  loop_readsb

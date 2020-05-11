@@ -106,7 +106,13 @@ module kinds
   integer, parameter, private :: default_real = 3  ! 3=quad
 #endif
   integer, parameter, public  :: r_kind = real_kinds( default_real )
+  integer, parameter, public  :: dp = real_kinds( default_real )
+  integer, parameter, public  :: sp = r_single
   integer, parameter, public  :: num_bytes_for_r_kind = &
        real_byte_sizes( default_real )
+  integer,parameter, public :: spc=kind((1.0,1.0))
+  integer,parameter, public :: dpc=kind((1.0d0,1.0d0))
+  private:: one_dpi; integer(8),parameter:: one_dpi=1
+  integer,parameter , public :: dpi=kind(one_dpi)
 
 end module kinds

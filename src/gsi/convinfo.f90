@@ -19,6 +19,7 @@ module convinfo
 !                           parameter for the option to keep thinned data as
 !                           monitored
 !   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
+!   2019-05-23     su - add ibeta and ikapa for new VQC parameters 
 
 !
 ! Subroutines Included:
@@ -46,6 +47,9 @@ module convinfo
 !   def pmesh_conv     - size of vertical thinning mesh 
 !   def pmot_conv      - option to keep thinned data out
 !   def ptime_conv     - option to add time dimension
+!   def ibeta          -new VQC parameter
+!   def ikapa          -new VQC parameter
+
 !
 !
 !                        count,max # of coefs
@@ -79,6 +83,8 @@ module convinfo
   public :: id_drifter
   public :: id_ship
   public :: ec_amv_qc
+  public :: ibeta,ikapa      ! for new variational QC 
+
 
   logical diag_conv
   logical :: ihave_pm2_5
@@ -90,7 +96,7 @@ module convinfo
   real(r_kind),allocatable,dimension(:)::ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
            rmesh_conv,pmesh_conv,pmot_conv,ptime_conv
   integer(i_kind),allocatable,dimension(:):: ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,&
-           ithin_conv,index_sub
+           ithin_conv,index_sub,ibeta,ikapa
   character(len=16),allocatable,dimension(:)::ioctype
 
   logical,save :: convinfo_initialized=.false.
@@ -166,7 +172,7 @@ contains
     
     character(len=1)cflg
     character(len=7) iotype
-    character(len=120) crecord
+    character(len=140) crecord
     integer(i_kind) lunin,i,nc,ier,istat
     integer(i_kind) nlines
     integer(i_kind) ictypet,icsubtypet,icuset
@@ -184,7 +190,7 @@ contains
        cflg=' '
        iotype='       '
        read(lunin,1030,iostat=istat,end=1130)cflg,iotype,crecord
-1030   format(a1,a7,2x,a120)
+1030   format(a1,a7,2x,a140)
        if (istat /= 0) exit
        nlines=nlines+1
        if(cflg == '!')cycle
@@ -214,7 +220,7 @@ contains
              ncnumgrp(nconvtype),icuse(nconvtype),ictype(nconvtype),icsubtype(nconvtype), &
              ioctype(nconvtype), index_sub(nconvtype),& 
              ithin_conv(nconvtype),rmesh_conv(nconvtype),pmesh_conv(nconvtype),&
-             pmot_conv(nconvtype),ptime_conv(nconvtype),  &
+             pmot_conv(nconvtype),ptime_conv(nconvtype),ibeta(nconvtype),ikapa(nconvtype),  &
              stat=ier )
     if ( ier /= 0 )  then
        write(6,*) 'CONVINFO_READ: allocate 1 failed' 
@@ -227,6 +233,8 @@ contains
        index_sub(i)=2
        pmot_conv(i)=zero
        ptime_conv(i)=zero
+       ibeta(i)=0
+       ikapa(i)=0
     enddo
     nc=0
 
@@ -256,9 +264,14 @@ contains
            !                     ctwind(nc),
            !                         ncnumgrp(nc),
 
-       read(crecord,*)ictype(nc),icsubtype(nc),icuse(nc),ctwind(nc),ncnumgrp(nc), &
+       read(crecord,*,iostat=istat)ictype(nc),icsubtype(nc),icuse(nc),ctwind(nc),ncnumgrp(nc), &
+          ncgroup(nc),ncmiter(nc),cgross(nc),cermax(nc),cermin(nc),cvar_b(nc),cvar_pg(nc), &
+          ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),idum,pmot_conv(nc),ptime_conv(nc),ibeta(nc),ikapa(nc)
+       if(istat /=0) then
+         read(crecord,*,iostat=istat)ictype(nc),icsubtype(nc),icuse(nc),ctwind(nc),ncnumgrp(nc), &
           ncgroup(nc),ncmiter(nc),cgross(nc),cermax(nc),cermin(nc),cvar_b(nc),cvar_pg(nc), &
           ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),idum,pmot_conv(nc),ptime_conv(nc)
+       endif
           if(nc >=2 )then
             if(trim(ioctype(nc))==trim(ioctype(nc-1)) .and. ictype(nc)==ictype(nc-1)) then
                index_sub(nc)=index_sub(nc-1)+1
@@ -266,8 +279,8 @@ contains
           endif
        if(print_verbose .and. mype == 0)write(6,1031)ioctype(nc),ictype(nc),icsubtype(nc),icuse(nc),ctwind(nc),ncnumgrp(nc), &
           ncgroup(nc),ncmiter(nc),cgross(nc),cermax(nc),cermin(nc),cvar_b(nc),cvar_pg(nc), &
-          ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),idum,pmot_conv(nc),ptime_conv(nc),index_sub(nc)
-1031   format('READ_CONVINFO: ',a7,1x,i3,1x,i4,1x,i2,1x,g13.6,1x,3(I3,1x),5g13.6,i5,2g13.6,i5,2g13.6,i5)
+          ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),idum,pmot_conv(nc),ptime_conv(nc),index_sub(nc),ibeta(nc),ikapa(nc)
+1031   format('READ_CONVINFO: ',a7,1x,i3,1x,i4,1x,i2,1x,g13.6,1x,3(I3,1x),5g13.6,i5,2g13.6,i5,2g13.6,3i5)
     enddo
 
     close(lunin)
@@ -309,7 +322,7 @@ contains
              ncnumgrp,icuse,ictype,icsubtype, &
              ioctype,index_sub, & 
              ithin_conv,rmesh_conv,pmesh_conv, &
-             pmot_conv,ptime_conv, &
+             pmot_conv,ptime_conv,ibeta,ikapa, &
              stat=ier )
     if ( ier /= 0 )  then
        write(6,*) 'CONVINFO_DESTROY: deallocate  failed' 

@@ -224,6 +224,7 @@ scaninfo=$fixgsi/global_scaninfo.txt
 satinfo=$fixgsi/global_satinfo.txt
 cloudyinfo=$fixgsi/cloudy_radiance_info.txt
 convinfo=$fixgsi/global_convinfo_reg_test.txt
+vqcdat=$fixgsi/vqctp001.dat
 insituinfo=$fixgsi/global_insituinfo.txt
 ### add 9 tables
 errtable_pw=$fixgsi/prepobs_errtable_pw.global
@@ -276,6 +277,7 @@ $ncp $cloudyinfo  ./cloudy_radiance_info.txt
 $ncp $pcpinfo  ./pcpinfo
 $ncp $ozinfo   ./ozinfo
 $ncp $convinfo ./convinfo
+$ncp $vqcdat ./vqctp001.dat
 $ncp $insituinfo ./insituinfo
 $ncp $errtable ./errtable
 $ncp $anavinfo ./anavinfo
@@ -352,6 +354,7 @@ $ncp $global_4denvar_T126_datobs/atms.gdas.$global_4denvar_T126_adate           
 $ncp $global_4denvar_T126_datobs/atmsdb.gdas.$global_4denvar_T126_adate                 ./atmsbufr_db
 $ncp $global_4denvar_T126_datobs/ssmisu.gdas.$global_4denvar_T126_adate                 ./ssmisbufr
 $ncp $global_4denvar_T126_datobs/abicsr.gdas.$global_4denvar_T126_adate                 ./abibufr
+$ncp $global_4denvar_T126_datobs/ahicsr.gdas.$global_4denvar_T126_adate                 ./ahibufr
 
 
 # Copy bias correction, atmospheric and surface files

@@ -30,6 +30,7 @@ module constants
 !   2012-03-07 todling   - define lower bound for trace-gases (arbitrary unit as long as small)
 !   2016-02-15 Johnson, Y. Wang, X. Wang - define additional constant values for
 !                                          radar DA, POC: xuguang.wang@ou.edu
+!   2019-09-25  X.Su     - put stndrd_atmos_ps constant values
 !
 ! Subroutines Included:
 !   sub init_constants_derived - compute derived constants
@@ -63,12 +64,12 @@ module constants
   public :: xai,xbi,psat,eps,omeps,wgtlim,one_quad,two_quad,epsq,climit,epsm1,hvap
   public :: hsub,cclimit,el2orc,elocp,h1000,cpr,pcpeff0,pcpeff2,delta,pcpeff1
   public :: factor1,c0,pcpeff3,factor2,dx_inv,dx_min,rhcbot,rhctop,hfus,ke2
-  public :: rrow,cmr,cws,r60,huge_i_kind,huge_r_kind,t0c,rd_over_cp_mass
+  public :: rrow,cmr,cws,r18,r60,r61,r63,huge_i_kind,huge_r_kind,t0c,rd_over_cp_mass
   public :: somigliana,grav_equator,grav_ratio,flattening,semi_major_axis
   public :: n_b,n_a,eccentricity,huge_single,constoz,g_over_rd,amsua_clw_d2
   public :: amsua_clw_d1,n_c,rd_over_g,zero_ilong
-  public :: r10,r100,sqrt_tiny_r_kind,r2000,r4000
-  public :: r0_01,r0_02,r0_03,r0_04,r0_05,r400,r2400
+  public :: r10,r100,sqrt_tiny_r_kind,r2000,r4000,r10000
+  public :: r0_01,r0_02,r0_03,r0_04,r0_05,r1_25,r400,r2400
   public :: cpf_a0, cpf_a1, cpf_a2, cpf_b0, cpf_b1, cpf_c0, cpf_c1, cpf_d, cpf_e
   public :: psv_a, psv_b, psv_c, psv_d
   public :: ef_alpha, ef_beta, ef_gamma
@@ -81,6 +82,7 @@ module constants
   public :: izero, qimin, qsmin, qgmin,qrmin
   public :: partialSnowThreshold
   public :: soilmoistmin
+  public :: stndrd_atmos_ps
 
 ! Declare derived constants
   integer(i_kind):: huge_i_kind
@@ -106,7 +108,7 @@ module constants
   real(r_kind),parameter::  t0c    = 2.7315e+2_r_kind            !  temperature at zero celsius     (K)
   real(r_kind),parameter::  ttp    = 2.7316e+2_r_kind            !  temperature at h2o triple point (K)
   real(r_kind),parameter::  jcal   = 4.1855e+0_r_kind            !  joules per calorie              ()
-! real(r_kind),parameter::  stndrd_atmos_ps = 1013.25e2_r_kind   ! 1976 US standard atmosphere ps   (Pa)
+  real(r_kind),parameter::  stndrd_atmos_ps = 1013.25e2_r_kind   ! 1976 US standard atmosphere ps   (Pa)
 
 ! Numeric constants
 
@@ -123,13 +125,17 @@ module constants
   real(r_kind),parameter::  one_tenth = 0.10_r_kind
   real(r_kind),parameter::  quarter   = 0.25_r_kind
   real(r_kind),parameter::  one       = 1.0_r_kind
+  real(r_kind),parameter::  r1_25     = 1.25_r_kind
   real(r_kind),parameter::  two       = 2.0_r_kind
   real(r_kind),parameter::  three     = 3.0_r_kind
   real(r_kind),parameter::  four      = 4.0_r_kind
   real(r_kind),parameter::  five      = 5.0_r_kind
   real(r_kind),parameter::  ten       = 10.0_r_kind
   real(r_kind),parameter::  r10       = 10.0_r_kind
+  real(r_kind),parameter::  r18       = 18.0_r_kind 
   real(r_kind),parameter::  r60       = 60._r_kind
+  real(r_kind),parameter::  r61       = 61._r_kind
+  real(r_kind),parameter::  r63       = 63._r_kind
   real(r_kind),parameter::  r100      = 100.0_r_kind
   real(r_kind),parameter::  r400      = 400.0_r_kind
   real(r_kind),parameter::  r1000     = 1000.0_r_kind
@@ -137,7 +143,7 @@ module constants
   real(r_kind),parameter::  r2400     = 2400.0_r_kind
   real(r_kind),parameter::  r4000     = 4000.0_r_kind
   real(r_kind),parameter::  r3600     = 3600.0_r_kind
-
+  real(r_kind),parameter::  r10000    = 10000.0_r_kind
   real(r_kind),parameter:: z_w_max    = 30.0_r_kind     ! maximum diurnal thermocline thickness
   real(r_kind),parameter:: tfrozen    = 271.2_r_kind    ! sea water frozen point temperature
 

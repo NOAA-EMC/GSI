@@ -68,7 +68,7 @@ subroutine init_aux2dvarflds(mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use guess_grids, only: nfldsig,hrdifsig
+  use guess_grids, only: nfldsig
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_bundle
   use mpeu_util, only: die

@@ -11,6 +11,7 @@ module m_wNode
 ! program history log:
 !   2016-05-18  j guo   - added this document block for the initial polymorphic
 !                         implementation.
+!   2019-09-20  X.Su    - add new variational QC parameters
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -41,11 +42,12 @@ module m_wNode
      real(r_kind)    :: vres          !  v component residual
      real(r_kind)    :: err2          !  surface pressure error squared
      real(r_kind)    :: raterr2       !  square of ratio of final obs error 
-                                      !  to original obs error
      !real(r_kind)    :: time          !  observation time in sec     
      real(r_kind)    :: b             !  variational quality control parameter
      real(r_kind)    :: pg            !  variational quality control parameter
      real(r_kind)    :: jb            !  variational quality control parameter
+     integer(i_kind) :: ib            !  new variational quality control parameter
+     integer(i_kind) :: ik            !  new variational quality control parameter
      real(r_kind)    :: wij(8)        !  horizontal interpolation weights
      real(r_kind)    :: upertb        !  random number adding to the obs
      real(r_kind)    :: vpertb        !  random number adding to the obs
@@ -181,6 +183,8 @@ _ENTRY_(myname_)
                                 aNode%b      , &
                                 aNode%pg     , &
                                 aNode%jb     , &
+                                aNode%ib     , &
+                                aNode%ik     , &
                                 aNode%upertb , &
                                 aNode%vpertb , &
                                 aNode%k1     , &
@@ -232,6 +236,8 @@ _ENTRY_(myname_)
                                 aNode%b      , &
                                 aNode%pg     , &
                                 aNode%jb     , &
+                                aNode%ib     , &
+                                aNode%ik     , &
                                 aNode%upertb , &
                                 aNode%vpertb , &
                                 aNode%k1     , &

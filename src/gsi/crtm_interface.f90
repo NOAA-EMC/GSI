@@ -116,7 +116,7 @@ public isfcr                ! = 28 index of surface roughness
 public iff10                ! = 29 index of ten meter wind factor
 public ilone                ! = 30 index of earth relative longitude (degrees)
 public ilate                ! = 31 index of earth relative latitude (degrees)
-public iclr_sky             ! = 7  index of clear sky amount (goes_img, seviri, abi)
+public iclr_sky             ! = 7  index of clear sky amount (goes_img, seviri,abi,ahi)
 public isst_navy            ! = 7  index of navy sst retrieval (K) (avhrr_navy)
 public idata_type           ! = 32 index of data type (151=day, 152=night, avhrr_navy)
 public iclavr               ! = 32 index of clavr cloud flag (avhrr)
@@ -528,7 +528,8 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
  itz_tr    = nreal    ! index of d(Tz)/d(Tr)
 
 
- if (obstype == 'goes_img' .or. obstype == 'abi') then
+ if (obstype == 'goes_img' .or. obstype == 'abi' &
+     .or. obstype == 'ahi' .or. obstype == 'seviri' ) then
     iclr_sky      =  7 ! index of clear sky amount
  elseif (obstype == 'avhrr_navy') then
     isst_navy     =  7 ! index of navy sst (K) retrieval
@@ -537,8 +538,6 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
  elseif (obstype == 'avhrr') then
     iclavr        = 32 ! index CLAVR cloud flag with AVHRR data
     isst_hires    = 33 ! index of interpolated hires sst (K)
- elseif (obstype == 'seviri') then
-    iclr_sky      =  7 ! index of clear sky amount
  endif
 
 
@@ -1570,8 +1569,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !       also, geometryinfo is not needed in crtm aod calculation
         if ( trim(obstype) /= 'modis_aod' .and. trim(obstype) /= 'viirs_aod' ) then
            panglr = data_s(iscan_ang)
-           if(obstype == 'goes_img' .or. obstype == 'seviri' .or. obstype == 'abi')panglr = zero
-
+           if(obstype == 'goes_img' .or. obstype == 'seviri' .or. obstype == 'abi' &
+              .or. obstype == 'ahi' )panglr = zero
            geometryinfo(1)%sensor_zenith_angle = abs(data_s(ilzen_ang)*rad2deg) ! local zenith angle
            geometryinfo(1)%source_zenith_angle = abs(data_s(iszen_ang))         ! solar zenith angle
 !          geometryinfo(1)%sensor_zenith_angle = data_s(ilzen_ang)*rad2deg      ! local zenith angle

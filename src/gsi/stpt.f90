@@ -16,6 +16,7 @@ module stptmod
 !   2014-04-12       su - add non linear qc from Purser's scheme
 !   2015-02-26       su - add njqc as an option to choos new non linear qc
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
+!   2019-09-20  Su      - remove current VQC part and add VQC subroutine call
 !
 ! subroutines included:
 !   sub stpt
@@ -99,7 +100,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
+  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc,nvqc
   use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use aircraftinfo, only: npredt,ntail,aircraft_t_bc_pof,aircraft_t_bc
   use gsi_bundlemod, only: gsi_bundle
@@ -123,7 +124,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
   integer(i_kind) ier,istatus,isst
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk,n,ix
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8
-  real(r_kind) cg_t,val,val2,wgross,wnotgross,t_pg
+  real(r_kind) cg_t,val,val2,t_pg,var_jb
   real(r_kind),dimension(max(1,nstep))::pen,tt
   real(r_kind) tg_prime,valq,valq2,valp,valp2,valu,valu2
   real(r_kind) ts_prime,valv,valv2,valsst,valsst2
@@ -131,6 +132,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
   real(r_kind) us_prime
   real(r_kind) vs_prime
   real(r_kind) psfc_prime
+  integer(i_kind) ibb,ikk
   type(tNode), pointer :: tptr
   real(r_kind),pointer,dimension(:) :: rt,st,rtv,stv,rq,sq,ru,su,rv,sv
   real(r_kind),pointer,dimension(:) :: rsst,ssst
@@ -254,35 +256,40 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
         end do
 
 !  Modify penalty term if nonlinear QC
-
-        if (vqc .and. nlnqc_iter .and. tptr%pg > tiny_r_kind .and. tptr%b >tiny_r_kind) then
+! EC VQc
+        if (vqc .and. nlnqc_iter .and. tptr%pg > tiny_r_kind &
+            .and. tptr%b >tiny_r_kind) then
            t_pg=tptr%pg*varqc_iter
            cg_t=cg_term/tptr%b
-           wnotgross= one-t_pg
-           wgross =t_pg*cg_t/wnotgross
-           do kk=1,max(1,nstep)
-              pen(kk) = -two*log((exp(-half*pen(kk))+wgross)/(one+wgross))
-           end do
+        else
+           t_pg=zero
+           cg_t=zero
         endif
 
-!       Note:  if wgross=0 (no gross error, then wnotgross=1 and this all 
-!              reduces to the linear case (no qc)
 
 !  Jim Purse's non linear QC scheme
         if(njqc .and. tptr%jb  > tiny_r_kind .and. tptr%jb <10.0_r_kind) then
-           do kk=1,max(1,nstep)
-              pen(kk) = two*two*tptr%jb*log(cosh(sqrt(pen(kk)/(two*tptr%jb))))
-           enddo
-           out(1) = out(1)+pen(1)*tptr%raterr2
-           do kk=2,nstep
-              out(kk) = out(kk)+(pen(kk)-pen(1))*tptr%raterr2
-           end do
+           var_jb =tptr%jb
         else
-           out(1) = out(1)+pen(1)*tptr%raterr2
-           do kk=2,nstep
-              out(kk) = out(kk)+(pen(kk)-pen(1))*tptr%raterr2
-           end do
+           var_jb=zero
         endif
+        
+!  mix model VQC
+       if(nvqc .and. tptr%ib >0) then
+          ibb=tptr%ib
+          ikk=tptr%ik
+       else
+          ibb=0
+          ikk=0
+       endif
+
+
+       call vqc_stp(pen,nstep,t_pg,cg_t,var_jb,ibb,ikk)
+
+       out(1) = out(1)+pen(1)*tptr%raterr2
+       do kk=2,nstep
+          out(kk) = out(kk)+(pen(kk)-pen(1))*tptr%raterr2
+       end do
 
      endif
      tptr => tNode_nextcast(tptr)

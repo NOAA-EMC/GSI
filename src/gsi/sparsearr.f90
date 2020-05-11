@@ -29,7 +29,7 @@ implicit none
 private
 
 public sparr, sparr2
-public new, delete, size
+public new, delete, size, raggedarr, init_raggedarr, destroy_raggedarr
 public writearray, readarray, fullarray
 public assignment(=)
 
@@ -40,6 +40,11 @@ type sparr
    real(r_kind), dimension(:), allocatable    :: val  ! values of non-zero elements
    integer(i_kind), dimension(:), allocatable :: ind  ! indices of non-zero elements
 end type sparr
+
+type raggedarr
+   integer(i_kind) :: nnz
+   real(r_kind), dimension(:), allocatable    :: val
+end type raggedarr
 
 ! sparse array with dense subarrays type
 ! saves all non-zero elements and start and end indices of the dense
@@ -130,6 +135,23 @@ subroutine init_sparr(this, nnz)
   allocate(this%ind(nnz), this%val(nnz))
 
 end subroutine init_sparr
+
+! constructor for raggedarr
+subroutine init_raggedarr(this, nnz)
+  implicit none
+  type(raggedarr), intent(inout)  :: this
+  integer(i_kind), intent(in) :: nnz
+  this%nnz  = nnz
+  if (allocated(this%val))   deallocate(this%val)
+  allocate(this%val(nnz))
+end subroutine init_raggedarr
+
+! destructor for raggedarr
+subroutine destroy_raggedarr(this)
+  implicit none
+  type(raggedarr), intent(inout)  :: this
+  if (allocated(this%val))   deallocate(this%val)
+end subroutine destroy_raggedarr
 
 ! copying constructor for sparr (from sparr2)
 subroutine sparr2_to_sparr(this, sp2)

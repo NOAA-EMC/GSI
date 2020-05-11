@@ -81,13 +81,12 @@ else
     CDUMP_ENKF=$CDUMP
 fi
 
-
 export OPREFIX="${CDUMP}.t${cyc}z."
 export APREFIX="${CDUMP}.t${cyc}z."
 export APREFIX_ENKF="${CDUMP_ENKF}.t${cyc}z."
-export ASUFFIX=".nemsio"
 export GPREFIX="${CDUMP}.t${gcyc}z."
-export GSUFFIX=".nemsio"
+export GSUFFIX=${GSUFFIX:-$SUFFIX}
+export ASUFFIX=${ASUFFIX:-$SUFFIX}
 
 if [ $RUN_ENVIR = "nco" -o ${ROTDIR_DUMP:-NO} = "YES" ]; then
     export COMIN_OBS=${COMIN_OBS:-$ROTDIR/$RUN.$PDY/$cyc}
