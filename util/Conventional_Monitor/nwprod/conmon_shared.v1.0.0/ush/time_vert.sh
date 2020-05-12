@@ -72,8 +72,9 @@ echo "--> time_vert.sh"
 EOF
 
 
-      ./execfile <input  >${run}_stdout  2>&1
-
+      stdout=stdout_${run}.${PDATE}
+      ./execfile <input  >${stdout}  2>&1
+       
       echo " execfile completed "
 
 
@@ -94,6 +95,8 @@ EOF
 
       done
 
+      ${COMPRESS} ${stdout}
+      cp ${stdout}.${Z} ${savedir}/. 
    done
 
 

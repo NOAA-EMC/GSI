@@ -38,6 +38,7 @@ echo "--> diag2grad_t_case.sh"
    fi
 
    card=alllev
+   run_exe=1
 
    if [[ -e ./diag2grads ]]; then 
       rm -f ./diag2grads
@@ -77,27 +78,36 @@ EOF
          netcdf=${netcdf}, run=${run},
          /
 EOF
+   else
+      run_exe=0
    fi
 
-   ./diag2grads <input>stdout 2>&1 
+   
+   if [ $run_exe -eq 1 ]; then
+
+      ./diag2grads <input>stdout 2>&1 
 
 
-   rm -f *tmp
-   mv stdout stdout_diag2grads_${mtype}_${subtype}.${run}
+      rm -f *tmp
+      mv stdout stdout_diag2grads_${mtype}_${subtype}.${run}
 
-   dest_dir="${TANKDIR_conmon}/horz_hist/${run}"
+      dest_dir="${TANKDIR_conmon}/horz_hist/${run}"
 
-   grads_list=`ls t*grads.${run}`
-   for file in $grads_list; do
-      ${COMPRESS} ${file}
-      cp -f  ${file}.${Z} ${dest_dir}/${file}.${PDATE}.${Z}
-   done
+      grads_list=`ls t*grads.${run}`
+      for file in $grads_list; do
+         ${COMPRESS} ${file}
+         cp -f  ${file}.${Z} ${dest_dir}/${file}.${PDATE}.${Z}
+      done
 
-   scatter_list=`ls t*scater.${run}`
-   for file in $scater_list; do
-      ${COMPRESS} ${file}
-      cp -f ${file}.${Z} ${dest_dir}/${file}.${PDATE}.${Z}
-   done
+      scatter_list=`ls t*scater.${run}`
+      for file in $scater_list; do
+         ${COMPRESS} ${file}
+         cp -f ${file}.${Z} ${dest_dir}/${file}.${PDATE}.${Z}
+      done
+
+   else
+      echo "aborting run, unmatched mtype ${mtype}"
+   fi
 
 
 echo "<-- diag2grad_t_case.sh"

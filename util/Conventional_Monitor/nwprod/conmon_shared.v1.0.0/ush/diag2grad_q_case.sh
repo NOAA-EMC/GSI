@@ -35,6 +35,7 @@ echo "--> diag2grad_q_case.sh"
    echo "netcdf = $netcdf"
 
 
+   run_exe=1
    ctype=`echo ${mtype} | cut -c2-4`
 
    if [ "$mtype" = 'q130' -o "$mtype" = 'q131' -o "$mtype" = 'q132' -o \
@@ -79,28 +80,36 @@ EOF
 /
 EOF
 
+   else
+      run_exe=0
    fi
 
-   ./diag2grads <input>stdout 2>&1 
+
+   if [ $run_exe -eq 1 ]; then
+
+      ./diag2grads <input>stdout 2>&1 
 
 
-   rm -f *tmp
-   mv stdout stdout_diag2grads_${mtype}_${subtype}.${run}
+      rm -f *tmp
+      mv stdout stdout_diag2grads_${mtype}_${subtype}.${run}
 
-   dest_dir="${TANKDIR_conmon}/horz_hist/${run}"
+      dest_dir="${TANKDIR_conmon}/horz_hist/${run}"
 
-   grads_list=`ls q*grads.${run}`
-   for file in $grads_list; do
-      ${COMPRESS} ${file}
-      cp -f ${file}.${Z} ${dest_dir}/${file}.${PDATE}.${Z}
-   done
+      grads_list=`ls q*grads.${run}`
+      for file in $grads_list; do
+         ${COMPRESS} ${file}
+         cp -f ${file}.${Z} ${dest_dir}/${file}.${PDATE}.${Z}
+      done
 
-   scater_list=`ls q*grads.${run}`
-   for file in $scater_list; do
-      ${COMPRESS} ${file}
-      cp -f ${file}.${Z} ${dest_dir}/${file}.${PDATE}.${Z}
-   done
+      scater_list=`ls q*grads.${run}`
+      for file in $scater_list; do
+         ${COMPRESS} ${file}
+         cp -f ${file}.${Z} ${dest_dir}/${file}.${PDATE}.${Z}
+      done
 
+   else
+      echo "aborting run, unmatched mtype ${mtype}"
+   fi
 
 echo "<-- diag2grad_q_case.sh"
 
