@@ -22,7 +22,6 @@ GSIBuildDir=$GSIDir/build
 gsiexec=$GSIBuildDir/bin/gsi.x
 nccat=$GSIBuildDir/bin/nc_diag_cat_serial.x
 fixgsi=$GSIDir/fix
-fixcrtm=/scratch1/NCEPDEV/da/Cory.R.Martin/CRTM/fix
 USHDir=$GSIDir/ush/
 
 dumpobs=gdas
@@ -41,11 +40,12 @@ module purge
 module use -a $GSIDir/modulefiles
 module load modulefile.ProdGSI.hera
 module list
+fixcrtm=$CRTM_FIX
 
 #####----- normal users need not change anything below this line -----##### 
 export crtm_coeffs=./crtm_coeffs/
 # TODO CRM - change NDATE to path on Hera not Theia
-NDATE=${NDATE:-/scratch4/NCEPDEV/global/save/glopara/nwpara/util/exec/ndate}
+NDATE=${NDATE:-/scratch1/NCEPDEV/global/glopara/git/NCEPLIBS-prod_util/v1.1.0/exec/ndate}
 ncpc=/bin/cp
 ncpl="ln -fs"
 
