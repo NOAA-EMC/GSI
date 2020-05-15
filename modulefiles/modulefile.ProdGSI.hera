@@ -14,25 +14,27 @@ set C_COMP_MP mpcc
 
 # Known conflicts
 
-# Load compiler, mpi, and hdf5/netcdf
+# Load compiler, mpi, cmake, and hdf5/netcdf
 module load intel/18.0.5.274
 module load impi/2018.0.4
 module load hdf5/1.10.4
 module load netcdf/4.6.1
+module load contrib
+module load cmake/3.9.0
 
 # Load libraries
-module use -a /contrib/da/spack/share/spack/modules/linux-centos7-x86_64
-module load bacio/v2.1.0-intel-18.0.5
-module load bufr/v11.2.0-intel-18.0.5
-module load cmake/3.9.0-intel-18.0.5
-module load nemsio/v2.2.3-intel-18.0.5-impi
-module load sfcio/v1.1.0-intel-18.0.5
-module load sigio/v2.1.0-intel-18.0.5-impi
-module load sp/v2.0.2-intel-18.0.5
-module load w3emc/v2.2.0-intel-18.0.5-impi
-module load w3nco/v2.0.6-intel-18.0.5-impi
-module load crtm/v2.2.3-intel-18.0.5
+module use /scratch2/NCEPDEV/nwprod/NCEPLIBS/modulefiles
+module load bacio/2.0.3
+module load bufr/11.3.0
+module load crtm/2.3.0
+module load nemsio/2.2.4
+module load prod_util/1.1.0
+module load sfcio/1.1.1
+module load sigio/2.1.1
+module load sp/2.0.3
+module load w3emc/2.3.1
+module load w3nco/2.0.7
 
-# Load ndate
-module use /scratch4/NCEPDEV/nems/noscrub/emc.nemspara/soft/modulefiles
-module load prod_util
+# Set environmental variables to allow correlated error to reproduce on Hera
+export MKL_NUM_THREADS=4
+export MKL_CBWR=AUTO
