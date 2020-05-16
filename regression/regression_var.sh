@@ -111,6 +111,8 @@ case $machine in
      export noscrub="/scratch1/NCEPDEV/global/$LOGNAME/noscrub"
     elif [ -d /scratch2/BMC/gsienkf/$LOGNAME ]; then
      export noscrub="/scratch2/BMC/gsienkf/$LOGNAME"
+   elif [ -d /scratch1/BMC/gsd-fv3-dev/$LOGNAME ]; then
+     export noscrub="/scratch1/BMC/gsd-fv3-dev/$LOGNAME/DTCVisitor/noscrub"
    fi
    export group="global"
    export queue="batch"
@@ -118,15 +120,18 @@ case $machine in
      export basedir="/scratch1/NCEPDEV/da/$LOGNAME/git/gsi"
    fi 
 
-   export ptmp="/scratch1/NCEPDEV/stmp2/$LOGNAME/$ptmpName"
+   #export ptmp="/scratch1/NCEPDEV/stmp2/$LOGNAME/$ptmpName"
+   export ptmp="/scratch1/BMC/gsd-fv3-dev/Shih-wei.Wei/DTCVisitor/$ptmpName"
 
    export fixcrtm="/scratch1/NCEPDEV/da/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update"
-   export casesdir="/scratch1/NCEPDEV/da/Michael.Lueken/noscrub/CASES"
-   export ndate=$NDATE
+   #export casesdir="/scratch1/NCEPDEV/da/Michael.Lueken/noscrub/CASES"
+   export casesdir="/scratch1/BMC/gsd-fv3-dev/Shih-wei.Wei/DTCVisitor/casedir"
+   export ndate=${NDATE:-/scratch2/NCEPDEV/nwprod/NCEPLIBS/utils/prod_util.v1.1.0/exec/ndate}
 
    export check_resource="no"
 
-   export accnt="da-cpu"
+   #export accnt="da-cpu"
+   export accnt="gsd-fv3-dev"
 
    #  On Hera, there are no scrubbers to remove old contents from stmp* directories.
    #  After completion of regression tests, will remove the regression test subdirecories
@@ -232,6 +237,7 @@ export rtma_adate="2020022420"
 export hwrf_nmm_adate="2012102812"
 export fv3_netcdf_adate="2017030100"
 export global_C96_fv3aero_adate="2019062200"
+export global_C96_fv3aerorad_adate="2019062200"
 
 # Paths for canned case data.
 export global_T62_obs="$casesdir/global/sigmap/$global_T62_adate"
@@ -268,6 +274,8 @@ export fv3_netcdf_obs="$casesdir/regional/fv3_netcdf/$fv3_netcdf_adate"
 export fv3_netcdf_ges="$casesdir/regional/fv3_netcdf/$fv3_netcdf_adate"
 export global_C96_fv3aero_obs="$casesdir/global/fv3/$global_C96_fv3aero_adate"
 export global_C96_fv3aero_ges="$casesdir/global/fv3/$global_C96_fv3aero_adate"
+export global_C96_fv3aerorad_obs="$casesdir/global/fv3/$global_C96_fv3aerorad_adate"
+export global_C96_fv3aerorad_ges="$casesdir/global/fv3/$global_C96_fv3aerorad_adate"
 
 # Define type of GPSRO data to be assimilated (refractivity or bending angle)
 export gps_dtype="gps_bnd"
@@ -276,6 +284,7 @@ export gps_dtype="gps_bnd"
 export regression_vfydir="$noscrub/regression"
 
 # Define debug variable - If you want to run the debug tests, set this variable to .true.  Default is .false.
+#export debug=".true."
 export debug=".false."
 
 # Define parameters for global_T62_3d4dvar and global_T62_4dvar
