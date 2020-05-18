@@ -272,7 +272,6 @@ contains
   !
   ! CALCULATE ENSEMBLE SPREAD
          call this%ens_spread_dualres_regional(mype,en_perts,nelen,en_bar(m))
-         call mpi_barrier(mpi_comm_world,ierror)
   !
   ! CONVERT ENSEMBLE MEMBERS TO ENSEMBLE PERTURBATIONS
          sig_norm=sqrt(one/max(one,n_ens_fv3sar-one))
@@ -518,7 +517,7 @@ contains
   !
     use kinds, only: r_single,r_kind,i_kind
     use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,p_e2a,uv_hyb_ens, &
-                                          regional_ensemble_option
+                                          regional_ensemble_option,write_ens_sprd
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sube2suba
     use constants, only:  zero,two,half,one
     use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
@@ -667,7 +666,7 @@ contains
        ps => dum2
     end if
   
-    call write_spread_dualres(st,vp,tv,rh,oz,cw,ps,mype)
+    if(write_ens_sprd) call write_spread_dualres(st,vp,tv,rh,oz,cw,ps,mype)
   
     return
   end subroutine ens_spread_dualres_regional_fv3_regional

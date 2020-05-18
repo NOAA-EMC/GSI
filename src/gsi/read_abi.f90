@@ -225,6 +225,7 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
   open(lnbufr,file=infile,form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   if(jsatid == 'gr' .or. jsatid == 'g16') kidsat = 270
+  if(jsatid == 'g17') kidsat = 271
 
 
   nrec=999999

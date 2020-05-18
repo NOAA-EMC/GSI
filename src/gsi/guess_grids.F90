@@ -724,7 +724,7 @@ contains
 !  the following will not be needed here
 !  ------------------------------------------
 !clt to think 
-!tothink   wrong
+!tothink 
    call gsi_chemguess_get('dim',ntgases,istatus)
    if(istatus/=0) then
       if(mype==0) write(6,*) myname_, ': trouble getting number of chem/gases'

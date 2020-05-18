@@ -618,6 +618,7 @@ contains
 ! Initialize structures for grid(s)
     inner_vars=1
     num_fields=n3d*nsig+n2d
+    write(6,*)'thinkdeb250 num_fiels ',n3d,nsig,n2d ,num_fields
     allocate(vector(num_fields))
     vector=.false.
 
@@ -651,6 +652,8 @@ contains
        endif
 
     endif
+    write(6,*)'thinkdeb250 ',inner_vars,nlat,nlon,nsig,num_fields
+    call flush(6)
     call general_sub2grid_create_info(grd_a,inner_vars,nlat,nlon,nsig,num_fields, &
          regional,vector)
     deallocate(vector)

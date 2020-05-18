@@ -3975,6 +3975,7 @@ subroutine hybens_grid_setup
                                nord_e2a,p_e2a,.true.,eqspace=use_sp_eqspace)
   else
      if(dual_res) then
+!cltthinktodo
         call get_region_dx_dy_ens(region_dx_ens,region_dy_ens)
         if(regional_ensemble_option) then
            fv3_spec_grid_filename="fv3_ens_grid_spec" 

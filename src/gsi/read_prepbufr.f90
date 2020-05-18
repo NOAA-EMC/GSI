@@ -140,6 +140,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2017-06-17  levine - add GLERL program code lookup
 !   2017-03-21  Su      - add option to thin conventional data in 4 dimension 
 !   2018-08-16  akella  - explicit KX definition for ships (formerly ID'd by subtype 522/523)
+!   2020-05-04  wu      - no rotate_wind for fv3_regional
 
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -167,7 +168,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
       r60inv,r10,r100,r2000
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
       tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
-      rlats,rlons,twodvar_regional
+      rlats,rlons,twodvar_regional,fv3_regional
   use convinfo, only: nconvtype,ctwind, &
       ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
       ithin_conv,rmesh_conv,pmesh_conv,pmot_conv,ptime_conv, &
@@ -2150,7 +2151,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                      if(sqrt(uob**2+vob**2)>60.0_r_kind)cycle LOOP_readsb
                  end if
 
-                 if(regional)then
+                 if(regional .and. .not. fv3_regional)then
                     u0=uob
                     v0=vob
                     call rotate_wind_ll2xy(u0,v0,uob,vob,dlon_earth,dlon,dlat)
