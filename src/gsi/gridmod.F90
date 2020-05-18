@@ -144,6 +144,7 @@ module gridmod
   public :: diagnostic_reg,nmmb_reference_grid,filled_grid
   public :: grid_ratio_nmmb,isd_g,isc_g,dx_gfs,lpl_gfs,nsig5,nmmb_verttype
   public :: grid_ratio_fv3_regional,fv3_regional
+  public :: grid_ratio_fv3_regional,fv3_regional
   public :: nsig3,nsig4,grid_ratio_wrfmass
   public :: use_gfs_ozone,check_gfs_ozone_date,regional_ozone,nvege_type
   public :: jcap,jcap_b,hires_b,sp_a,grd_a
@@ -202,6 +203,8 @@ module gridmod
                                !                old def: p = eta1*pdtop+eta2*(psfc-pdtop-ptop)+ptop
                                !   'NEW' for new vertical coordinate definition
                                !                new def: p = eta1*pdtop+eta2*(psfc-ptop)+ptop
+  logical fv3_regional_dd_reduce  ! used to reject obs near the lateral bounddary
+  integer(i_kind) nlon_fv3_regional_reduce,nlat_fv3_regional_reduce
 
   integer(i_kind) vlevs             ! no. of levels distributed on all processors
   integer(i_kind) nsig1o            ! max no. of levels distributed on each processor
@@ -1095,6 +1098,20 @@ contains
        rlat_max_dd=rlat_max_ll-r1_5/grid_ratio_fv3_regional
        rlon_min_dd=rlon_min_ll+r1_5/grid_ratio_fv3_regional
        rlon_max_dd=rlon_max_ll-r1_5/grid_ratio_fv3_regional
+!clt follow Hongli Wang's codes 
+       !print*,'original rlat_min_dd,rlat_max_dd,rlon_min_dd,rlon_max_dd=',&
+       !                 rlat_min_dd,rlat_max_dd,rlon_min_dd,rlon_max_dd
+     
+       if(fv3_regional_dd_reduce) then
+         rlat_min_dd=rlat_min_dd+nlat_fv3_regional_reduce
+         rlat_max_dd=rlat_max_dd-nlat_fv3_regional_reduce
+         rlon_min_dd=rlon_min_dd+nlon_fv3_regional_reduce
+         rlon_max_dd=rlon_max_ll-nlon_fv3_regional_reduce
+       !print*,'nlat_fv3_regional_reduce,nlon_fv3_regional_reduce=',nlat_fv3_regional_reduce,nlon_fv3_regional_reduce
+       !print*,'reduced rlat_min_dd,rlat_max_dd,rlon_min_dd,rlon_max_dd=',&
+       !                 rlat_min_dd,rlat_max_dd,rlon_min_dd,rlon_max_dd
+     
+       endif
     endif    !  fv3_regional
 
     if(wrf_nmm_regional) then     ! begin wrf_nmm section

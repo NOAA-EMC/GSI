@@ -632,6 +632,17 @@ subroutine generate_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,p_
         sangv(i,j)=(-xr*zr*xv-zr*yr*yv+(xr*xr+yr*yr)*zv) / nsval/vval
      enddo
   enddo
+!clt following Hongli Wang's treatment
+  if(fv3_regional_dd_reduce) then 
+     !write(*,*)'testing Hongli code'
+     if(nlon_fv3_regional_reduce.le.0.and.nlat_fv3_regional_reduce.le.0) then 
+        nlon_fv3_regional_reduce=nint((maxval(gcrlon)-maxval(gcrlon(:,ny/2)))/adlon)
+        j=nlon_fv3_regional_reduce
+        nlat_fv3_regional_reduce=nint((gcrlat(j,ny)-minval(gcrlat))/adlat)
+        if(nlon_fv3_regional_reduce.lt.0) nlon_fv3_regional_reduce=0
+        if(nlat_fv3_regional_reduce.lt.0) nlat_fv3_regional_reduce=0
+     endif
+   endif
   deallocate( xc,yc,zc,gclat,gclon,gcrlat,gcrlon)
   deallocate(rlat_in,rlon_in)
 end subroutine generate_regular_grids

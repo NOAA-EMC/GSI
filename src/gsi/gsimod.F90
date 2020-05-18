@@ -121,6 +121,7 @@
      use_gfs_nemsio,sfcnst_comb,use_readin_anl_sfcmask,use_sp_eqspace,final_grid_vars,&
      jcap_gfs,nlat_gfs,nlon_gfs,jcap_cut,wrf_mass_hybridcord,&
      use_fv3_aero
+  use gridmod,only: fv3_regional_dd_reduce,nlon_fv3_regional_reduce,nlat_fv3_regional_reduce
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop
   use gsi_io, only: init_io,lendian_in,verbose,print_obs_para
   use regional_io_mod, only: regional_io_class
@@ -704,7 +705,7 @@
        diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,nems_nmmb_regional,fv3_regional,&
        wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nvege_type,nlayers,cmaq_regional,&
        nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_fv3_regional,grid_ratio_wrfmass,jcap_gfs,jcap_cut,&
-       wrf_mass_hybridcord
+       wrf_mass_hybridcord,fv3_regional_dd_reduce,nlon_fv3_regional_reduce,nlat_fv3_regional_reduce
 
 ! BKGERR (background error related variables):
 !     vs       - scale factor for vertical correlation lengths for background error
