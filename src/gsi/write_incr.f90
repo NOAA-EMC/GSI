@@ -57,7 +57,11 @@ contains
 !$$$ end documentation block
 
 ! !USES:
-    use netcdf
+    use netcdf, only: &
+      nf90_netcdf4,nf90_mpiio,nf90_create,nf90_def_dim,nf90_real,nf90_def_var,&
+      nf90_collective,nf90_var_par_access,nf90_global,nf90_put_att,nf90_put_att,&
+      nf90_enddef,nf90_put_var,nf90_close,nf90_noerr,nf90_strerror
+ 
     use kinds, only: r_kind,i_kind
 
     use mpimod, only: mpi_rtype
@@ -501,7 +505,7 @@ contains
   !! Is this variable in incvars_to_zero?
   logical function should_zero_increments_for(check_var)
     use control_vectors, only : nvars, incvars_to_zero
-
+    implicit none
     character(len=*), intent(in) :: check_var !! Variable to search for
 
     ! Local variables
@@ -524,7 +528,7 @@ contains
   !! is this variable in incvars_zero_strat?
   logical function zero_increment_strat(check_var)
     use control_vectors, only: nvars, incvars_zero_strat
-
+    implicit none
     character(len=*), intent(in) :: check_var !! Variable to search for
 
     ! Local variables
@@ -546,7 +550,8 @@ contains
 
 
   subroutine nccheck_incr(status)
-    use netcdf
+    use netcdf, only: nf90_noerr,nf90_strerror
+    implicit none
     integer, intent (in   ) :: status
     if (status /= nf90_noerr) then
       print *, "fv3_increment netCDF error ", trim(nf90_strerror(status))

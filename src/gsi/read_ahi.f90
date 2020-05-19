@@ -259,7 +259,7 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
 
         allchnmiss=.true.
         do n=1,nchanl
-           if(dataahibt(1,n)<500.)  then
+           if(dataahibt(1,n)<500.0_r_kind)  then
               allchnmiss=.false.
            end if
         end do
@@ -348,11 +348,11 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
  
 !       toss data if SDTB>1.3 
         do i=1,nchanl
-          if(i==2 .or. i==3 .or. i==4) then   ! 3 water-vapor channels
-           if(dataahisd(1,i)>1.3_r_kind) then
-             cycle read_loop
+           if(i==2 .or. i==3 .or. i==4) then   ! 3 water-vapor channels
+              if(dataahisd(1,i)>1.3_r_kind) then
+                 cycle read_loop
+              end if
            end if
-          end if
         end do
 
 !       Locate the observation on the analysis grid.  Get sst and land/sea/ice
@@ -422,7 +422,7 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
 
 !       use NCLDMNT from chn7 (10.8 micron) as a QC predictor
 !       add SDTB from chn7 as QC predictor
-        pred=10-dataahi(1,7)/10.0_r_kind+dataahisd(1,7)*10.0_r_kind
+        pred=10.0_r_kind-dataahi(1,7)/10.0_r_kind+dataahisd(1,7)*10.0_r_kind
         
         crit1 = crit1 + pred
 !       Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"

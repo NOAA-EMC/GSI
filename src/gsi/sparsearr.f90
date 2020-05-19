@@ -138,6 +138,7 @@ end subroutine init_sparr
 
 ! constructor for raggedarr
 subroutine init_raggedarr(this, nnz)
+  implicit none
   type(raggedarr), intent(inout)  :: this
   integer(i_kind), intent(in) :: nnz
   this%nnz  = nnz
@@ -147,6 +148,7 @@ end subroutine init_raggedarr
 
 ! destructor for raggedarr
 subroutine destroy_raggedarr(this)
+  implicit none
   type(raggedarr), intent(inout)  :: this
   if (allocated(this%val))   deallocate(this%val)
 end subroutine destroy_raggedarr

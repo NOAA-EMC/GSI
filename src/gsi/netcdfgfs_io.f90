@@ -1596,7 +1596,7 @@ contains
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use cloud_efr_mod, only: cloud_calc_gfs
 
-    use netcdf
+    use netcdf, only: nf90_max_name
     use module_fv3gfs_ncio, only: open_dataset, close_dataset, Dimension, Dataset,&
          read_attribute, write_attribute,get_dim, create_dataset, write_vardata, read_vardata,&
          get_idate_from_time_units,quantize_data,get_time_units_from_idate,has_attr,has_var
@@ -2302,7 +2302,7 @@ contains
     use obsmod, only: iadate
 
     use constants, only: zero
-    use netcdf
+    use netcdf, only: nf90_max_name
     use module_fv3gfs_ncio, only: open_dataset, close_dataset, Dimension, Dataset,&
                            get_dim, create_dataset, write_vardata, read_vardata,&
                            get_time_units_from_idate, write_attribute  
@@ -2514,7 +2514,7 @@ contains
     use module_fv3gfs_ncio, only: open_dataset, close_dataset, Dimension, Dataset,&
                            get_dim, create_dataset, write_vardata, read_vardata,&
                            get_time_units_from_idate, write_attribute  
-    use netcdf
+    use netcdf, only: nf90_max_name
 
     implicit none
 

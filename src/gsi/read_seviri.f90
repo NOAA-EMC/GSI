@@ -390,11 +390,11 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
 !       toss data if SDTB>1.3
         do i=4,11
-          if(i==5 .or. i==6) then   ! 2 water-vapor channels
-           if(datasev3(1,i)>1.3_r_kind) then
-             cycle read_loop
+           if(i==5 .or. i==6) then   ! 2 water-vapor channels
+              if(datasev3(1,i)>1.3_r_kind) then
+                 cycle read_loop
+              end if
            end if
-          end if
         end do
 
 !       Locate the observation on the analysis grid.  Get sst and land/sea/ice
@@ -532,7 +532,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
     end do
     if(dval_use .and. assim)then
        do n=1,ndata
-          itt=nint(data_all(33,n))
+          itt=nint(data_all(maxinfo,n))
           super_val(itt)=super_val(itt)+val_sev
        end do
     end if

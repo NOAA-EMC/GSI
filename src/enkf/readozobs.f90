@@ -116,7 +116,7 @@ subroutine get_num_ozobs_bin(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
              nread=nread+ii
              num_obs_totdiag = num_obs_totdiag + ii
              if (iouse(k) < 0) cycle
-             if (.not. modelspace_vloc .and. (pob(k) <= 0.001 .or. &
+             if (.not. modelspace_vloc .and. (pob(k) <= 0.001_r_kind .or. &
                  pob(k) > 1200._r_kind)) cycle
              do n=1,ii
                if (rdiagbuf(3,k,n) <= errorlimit .or.  &

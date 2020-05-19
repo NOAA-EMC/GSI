@@ -69,10 +69,10 @@ module phil0
 ! gn_to_ea:     Cube face's gnomonic coordinates to equal-area coordinates
 ! ea_to_gn:     Inverse of gn_to_ea.
 !=============================================================================
-use kinds, only: sp,dp
+use kinds, only: sp,dp,i_kind
 use pietc, only: T,F,u0,u1,u2,o2,u4,o4,pi
 implicit none
-real(dp),parameter:: u8=8,o8=u1/8,u16=16,o16=u1/16,pio6=pi/6
+real(dp),parameter:: u8=8.0_dp,o8=u1/8.0_dp,u16=16.0_dp,o16=u1/16.0_dp,pio6=pi/6.0_dp
 private
 public  r_to_hil4,  r_to_hil8,   r_to_hil16,    r_to_hil48,                   &
         hil4_to_r,  hil8_to_r,   hil16_to_r,    hil48_to_r,                   &
@@ -161,25 +161,27 @@ subroutine r_to_hil4_s(lgen,ngen,r,hil4)!                          [r_to_hil4]
 ! by doing things this way, we can concatenate the similar operations 
 ! and even change bases from one link to the next.
 !=============================================================================
-integer,                     intent(IN   ):: lgen,ngen
+implicit none
+integer(i_kind),                     intent(IN   ):: lgen,ngen
 real(sp),                    intent(inout):: r
-integer,dimension(lgen:ngen),intent(  out):: hil4
+integer(i_kind),dimension(lgen:ngen),intent(  out):: hil4
 !-----------------------------------------------------------------------------
-integer:: i,j
+integer(i_kind):: i,j
 !=============================================================================
 do i=lgen,ngen
-   if(i>0)r=4*r
+   if(i>0)r=4.0_sp*r
    j=r; r=r-j; hil4(i)=j
 enddo
 end subroutine r_to_hil4_s
 !=============================================================================
 subroutine r_to_hil4_d(lgen,ngen,r,hil4)!                          [r_to_hil4]
 !=============================================================================
-integer,                     intent(IN   ):: lgen,ngen
+implicit none
+integer(i_kind),                     intent(IN   ):: lgen,ngen
 real(dp),                    intent(inout):: r
-integer,dimension(lgen:ngen),intent(  out):: hil4
+integer(i_kind),dimension(lgen:ngen),intent(  out):: hil4
 !-----------------------------------------------------------------------------
-integer:: i,j
+integer(i_kind):: i,j
 !=============================================================================
 do i=lgen,ngen
    if(i>0)r=u4*r
@@ -190,11 +192,12 @@ end subroutine r_to_hil4_d
 !=============================================================================
 subroutine r_to_hil8_d(lgen,ngen,r,hil8)!                          [r_to_hil8]
 !=============================================================================
-integer,                     intent(IN   ):: lgen,ngen
+implicit none
+integer(i_kind),                     intent(IN   ):: lgen,ngen
 real(dp),                    intent(inout):: r
-integer,dimension(lgen:ngen),intent(  out):: hil8
+integer(i_kind),dimension(lgen:ngen),intent(  out):: hil8
 !-----------------------------------------------------------------------------
-integer:: i,j
+integer(i_kind):: i,j
 !=============================================================================
 do i=lgen,ngen
    if(i>0)r=u8*r
@@ -205,11 +208,12 @@ end subroutine r_to_hil8_d
 !=============================================================================
 subroutine r_to_hil16_d(lgen,ngen,r,hil16)!                       [r_to_hil16]
 !=============================================================================
-integer,                     intent(IN   ):: lgen,ngen
+implicit none
+integer(i_kind),                     intent(IN   ):: lgen,ngen
 real(dp),                    intent(inout):: r
-integer,dimension(lgen:ngen),intent(  out):: hil16
+integer(i_kind),dimension(lgen:ngen),intent(  out):: hil16
 !-----------------------------------------------------------------------------
-integer:: i,j
+integer(i_kind):: i,j
 !=============================================================================
 do i=lgen,ngen
    if(i>0)r=u16*r
@@ -220,9 +224,10 @@ end subroutine r_to_hil16_d
 !=============================================================================
 subroutine r_to_hil48_d(lgen,ngen4,ngen48,r,hil)!                 [r_to_hil48]
 !=============================================================================
-integer,                       intent(in   ):: lgen,ngen4,ngen48
+implicit none
+integer(i_kind),                       intent(in   ):: lgen,ngen4,ngen48
 real(dp),                      intent(inout):: r
-integer,dimension(lgen:ngen48),intent(  out):: hil
+integer(i_kind),dimension(lgen:ngen48),intent(  out):: hil
 !-----------------------------------------------------------------------------
 call r_to_hil4(lgen,   ngen4, r,hil(lgen:ngen4))
 call r_to_hil8(ngen4+1,ngen48,r,hil(ngen4+1:ngen48))
@@ -233,11 +238,12 @@ subroutine hil4_to_r_d(lgen,ngen,hil,r)!                           [hil4_to_r]
 !=============================================================================
 ! Be sure to define r on input !
 !=============================================================================
-integer,                     intent(in   ):: lgen,ngen
-integer,dimension(lgen:ngen),intent(in   ):: hil
+implicit none
+integer(i_kind),                     intent(in   ):: lgen,ngen
+integer(i_kind),dimension(lgen:ngen),intent(in   ):: hil
 real(dp),                    intent(inout):: r
 !-----------------------------------------------------------------------------
-integer:: i
+integer(i_kind):: i
 !=============================================================================
 do i=ngen,lgen,-1
    r=r+hil(i)
@@ -251,11 +257,12 @@ subroutine hil8_to_r_d(lgen,ngen,hil,r)!                           [hil8_to_r]
 !=============================================================================
 ! Be sure to define r on input !
 !=============================================================================
-integer,                     intent(in   ):: lgen,ngen
-integer,dimension(lgen:ngen),intent(in   ):: hil
+implicit none
+integer(i_kind),                     intent(in   ):: lgen,ngen
+integer(i_kind),dimension(lgen:ngen),intent(in   ):: hil
 real(dp),                    intent(inout):: r
 !-----------------------------------------------------------------------------
-integer:: i
+integer(i_kind):: i
 !=============================================================================
 do i=ngen,lgen,-1
    r=r+hil(i)
@@ -269,11 +276,12 @@ subroutine hil16_to_r_d(lgen,ngen,hil,r)!                         [hil16_to_r]
 !=============================================================================
 ! Be sure to define r on input !
 !=============================================================================
-integer,                     intent(in   ):: lgen,ngen
-integer,dimension(lgen:ngen),intent(in   ):: hil
+implicit none
+integer(i_kind),                     intent(in   ):: lgen,ngen
+integer(i_kind),dimension(lgen:ngen),intent(in   ):: hil
 real(dp),                    intent(inout):: r
 !-----------------------------------------------------------------------------
-integer           :: i
+integer(i_kind)           :: i
 !=============================================================================
 do i=ngen,lgen,-1
    r=r+hil(i)
@@ -287,8 +295,9 @@ subroutine hil48_to_r_d(lgen,ngen4,ngen48,hil,r)!                 [hil48_to_r]
 !=============================================================================
 ! Be sure to define r on input !
 !=============================================================================
-integer,                       intent(in   ):: lgen,ngen4,ngen48
-integer,dimension(lgen:ngen48),intent(in   ):: hil
+implicit none
+integer(i_kind),                       intent(in   ):: lgen,ngen4,ngen48
+integer(i_kind),dimension(lgen:ngen48),intent(in   ):: hil
 real(dp),                      intent(inout):: r
 !=============================================================================
 call hil8_to_r(ngen4+1,ngen48,hil(ngen4+1:ngen48),r)
@@ -298,12 +307,13 @@ end subroutine hil48_to_r_d
 !=============================================================================
 subroutine hil4_to_xy_d(hil4,x,y)!                              [hil4_to_xy]
 !=============================================================================
-integer,dimension(:),intent(in ):: hil4
+implicit none
+integer(i_kind),dimension(:),intent(in ):: hil4
 real(dp),            intent(out):: x,y
 !-----------------------------------------------------------------------------
 real(dp)                     :: frac
-integer,dimension(size(hil4)):: dig4
-integer                      :: presor,ngen
+integer(i_kind),dimension(size(hil4)):: dig4
+integer(i_kind)                      :: presor,ngen
 !============================================================================
 dig4=hil4
 presor=0; call hil4_to_dig4(presor,dig4)
@@ -315,12 +325,13 @@ end subroutine hil4_to_xy_d
 !=============================================================================
 subroutine hil8_to_xyz_d(hil8,x,y,z)!                          [hil8_to_xyz]
 !=============================================================================
-integer,dimension(:),intent(in ):: hil8
+implicit none
+integer(i_kind),dimension(:),intent(in ):: hil8
 real(dp),            intent(out):: x,y,z
 !-----------------------------------------------------------------------------
 real(dp)                     :: frac
-integer,dimension(size(hil8)):: dig8
-integer                      :: presor,ngen
+integer(i_kind),dimension(size(hil8)):: dig8
+integer(i_kind)                      :: presor,ngen
 !============================================================================
 dig8=hil8
 presor=0; call hil8_to_dig8(presor,dig8)
@@ -332,12 +343,13 @@ end subroutine hil8_to_xyz_d
 !=============================================================================
 subroutine hil16_to_xyza_d(hil16,x,y,z,a)!                   [hil16_to_xyza]
 !=============================================================================
-integer,dimension(:),intent(in ):: hil16
+implicit none
+integer(i_kind),dimension(:),intent(in ):: hil16
 real(dp),            intent(out):: x,y,z,a
 !-----------------------------------------------------------------------------
 real(dp)                      :: frac
-integer,dimension(size(hil16)):: dig16
-integer                       :: presor,ngen
+integer(i_kind),dimension(size(hil16)):: dig16
+integer(i_kind)                       :: presor,ngen
 !============================================================================
 dig16=hil16
 presor=0; call hil16_to_dig16(presor,dig16)
@@ -357,15 +369,16 @@ subroutine hil48_to_xyz_d(ngen4,hil,x,y,z)!                     [hil48_to_xyz]
 ! unbiased, the raw output from the final stage, dig8_to_xyz, has all the
 ! coordinates incremented by half the final resolution.
 !=============================================================================
-integer,             intent(in ):: ngen4
-integer,dimension(:),intent(in ):: hil
+implicit none
+integer(i_kind),             intent(in ):: ngen4
+integer(i_kind),dimension(:),intent(in ):: hil
 real(dp),            intent(out):: x,y,z
 !-----------------------------------------------------------------------------
 real(dp)                          :: frac8,frac,x4,y4
-integer,dimension(ngen4)          :: dig4
-integer,dimension(size(hil)-ngen4):: dig8
-integer,dimension(0:7)            :: p4to8
-integer                           :: presor,ngen48
+integer(i_kind),dimension(ngen4)          :: dig4
+integer(i_kind),dimension(size(hil)-ngen4):: dig8
+integer(i_kind),dimension(0:7)            :: p4to8
+integer(i_kind)                           :: presor,ngen48
 data p4to8/0,4,9,7,1,6,10,3/ ! Convert h4 orientation code to h8 code
 !=============================================================================
 ngen48=size(hil)
@@ -375,7 +388,7 @@ if(ngen4>0)then      ! Treat the radix-4 part (if there is one)
    call hil4_to_dig4(presor,dig4)
    call dig4_to_xy(dig4,x4,y4)
 else
-   x4=0; y4=0
+   x4=0.0_dp; y4=0.0_dp
 endif
 if(ngen48>ngen4)then ! Treat the radix-8 part (if there is one)
    dig8=hil(ngen4+1:ngen48)
@@ -383,7 +396,7 @@ if(ngen48>ngen4)then ! Treat the radix-8 part (if there is one)
    call hil8_to_dig8(presor,dig8)
    call dig8_to_xyz(dig8,x,y,z)
 else   
-   x=0; y=0; z=0
+   x=0.0_dp; y=0.0_dp; z=0.0_dp
 endif
 frac8=o2**ngen4
 frac =o2**(ngen48+1)
@@ -397,11 +410,12 @@ subroutine xy_to_hil4_s(x,y,hil4)!                               [xy_to_hil4]
 ! unit square to an ngen-digit base-4 representation of the parameter of 
 ! a space-filling Hilbert curve.
 !=============================================================================
+implicit none
 real(sp),            intent(IN ):: x,y
-integer,dimension(:),intent(OUT):: hil4
+integer(i_kind),dimension(:),intent(OUT):: hil4
 !-----------------------------------------------------------------------------
 real(sp):: xr,yr
-integer :: presor
+integer(i_kind) :: presor
 !=============================================================================
 xr=x; yr=y
 call xy_to_dig4(xr,yr,hil4)
@@ -414,11 +428,12 @@ subroutine xy_to_hil4_d(x,y,hil4)!                               [xy_to_hil4]
 ! unit square to an ngen-digit base-4 representation of the parameter of 
 ! a space-filling Hilbert curve.
 !=============================================================================
+implicit none
 real(dp),            intent(IN ):: x,y
-integer,dimension(:),intent(OUT):: hil4
+integer(i_kind),dimension(:),intent(OUT):: hil4
 !-----------------------------------------------------------------------------
 real(dp):: xr,yr
-integer :: presor
+integer(i_kind) :: presor
 !=============================================================================
 xr=x; yr=y
 call xy_to_dig4(xr,yr,hil4)
@@ -428,11 +443,12 @@ end subroutine xy_to_hil4_d
 !=============================================================================
 subroutine xyz_to_hil8_d(x,y,z,hil8)!                            [xyz_to_hil8]
 !=============================================================================
+implicit none
 real(dp),            intent(IN ):: x,y,z
-integer,dimension(:),intent(OUT):: hil8
+integer(i_kind),dimension(:),intent(OUT):: hil8
 !-----------------------------------------------------------------------------
 real(dp):: xr,yr,zr
-integer :: presor
+integer(i_kind) :: presor
 !=============================================================================
 xr=x; yr=y; zr=z
 call xyz_to_dig8(xr,yr,zr,hil8)
@@ -442,11 +458,12 @@ end subroutine xyz_to_hil8_d
 !=============================================================================
 subroutine xyza_to_hil16_d(x,y,z,a,hil16)!                     [xyza_to_hil16]
 !=============================================================================
+implicit none
 real(dp),            intent(IN ):: x,y,z,a
-integer,dimension(:),intent(OUT):: hil16
+integer(i_kind),dimension(:),intent(OUT):: hil16
 !-----------------------------------------------------------------------------
 real(dp):: xr,yr,zr,ar
-integer :: presor
+integer(i_kind) :: presor
 !=============================================================================
 xr=x; yr=y; zr=z; ar=a
 call xyza_to_dig16(xr,yr,zr,ar,hil16)
@@ -456,13 +473,14 @@ end subroutine xyza_to_hil16_d
 !=============================================================================
 subroutine xyz_to_hil48_d(ngen4,x,y,z,hil)!                    [xyz_to_hil48]
 !=============================================================================
-integer,             intent(in ):: ngen4
+implicit none
+integer(i_kind),             intent(in ):: ngen4
 real(dp),            intent(in ):: x,y,z
-integer,dimension(:),intent(out):: hil
+integer(i_kind),dimension(:),intent(out):: hil
 !-----------------------------------------------------------------------------
 real(dp)              :: xr,yr,zr
-integer,dimension(0:7):: p4to8
-integer               :: presor,ngen48
+integer(i_kind),dimension(0:7):: p4to8
+integer(i_kind)               :: presor,ngen48
 data p4to8/0,4,9,7,1,6,10,3/ ! Convert h4 orientation code to h8 code
 !=============================================================================
 ngen48=size(hil)
@@ -482,45 +500,46 @@ end subroutine xyz_to_hil48_d
 !=============================================================================
 subroutine hil4_to_xs_d(ngen,hil,xs)!                             [hil4_to_xs]
 !=============================================================================
-integer,                  intent(IN ):: ngen
-integer,dimension(0:ngen),intent(IN ):: hil
+implicit none
+integer(i_kind),                  intent(IN ):: ngen
+integer(i_kind),dimension(0:ngen),intent(IN ):: hil
 real(dp),dimension(3),    intent(OUT):: xs
 !-----------------------------------------------------------------------------
-integer :: m,m6
+integer(i_kind) :: m,m6
 real(dp):: x,y,q,xx,yy
 !=============================================================================
 call hil4_to_xy(hil(1:ngen),x,y)
 m=hil(0)
 m6=mod(m,6)
 select case(m6)
-case(0); q=x;   x=y;   y=q
-case(1); q=x;   x=1-y; y=q
-case(2); x=1-x;        y=1-y
-case(3); x=x;          y=1-y
-case(4); q=x;   x=1-y; y=1-q
-case(5); q=x;   x=y;   y=1-q
+   case(0); q=x;          x=y;        y=q
+   case(1); q=x;          x=1.0_dp-y; y=q
+   case(2); x=1.0_dp-x;   y=1.0_dp-y
+   case(3); x=x;          y=1.0_dp-y
+   case(4); q=x;          x=1.0_dp-y; y=1.0_dp-q
+   case(5); q=x;          x=y;        y=1.0_dp-q
 end select
 call ea_to_gn(x,y,xx,yy) 
 x=xx; y=yy
 select case(m)
-case(1,2,9,10,13,14,21,22);    xs(1)= x
-case(3,4,7, 8,15,16,19,20);    xs(1)=-x
-case(0,11,12,23);              xs(1)= 1
-case(5, 6,17,18);              xs(1)=-1
+   case(1,2,9,10,13,14,21,22);    xs(1)= x
+   case(3,4,7, 8,15,16,19,20);    xs(1)=-x
+   case(0,11,12,23);              xs(1)= 1.0_dp
+   case(5, 6,17,18);              xs(1)=-1.0_dp
 end select
 select case(m)
-case(6,11,12,17);              xs(2)= x
-case(0,5,18,23);               xs(2)=-x
-case(7,10,13,16);              xs(2)= y
-case(1,4,19,22);               xs(2)=-y
-case(8,9,14,15);               xs(2)= 1
-case(2,3,20,21);               xs(2)=-1
+   case(6,11,12,17);              xs(2)= x
+   case(0,5,18,23);               xs(2)=-x
+   case(7,10,13,16);              xs(2)= y
+   case(1,4,19,22);               xs(2)=-y
+   case(8,9,14,15);               xs(2)= 1.0_dp
+   case(2,3,20,21);               xs(2)=-1.0_dp
 end select
 select case(m)
-case(0,2,3,5,6,8,9,11);        xs(3)= y
-case(12,14,15,17,18,20,21,23); xs(3)=-y
-case(1,4,7,10);                xs(3)= 1
-case(13,16,19,22);             xs(3)=-1
+   case(0,2,3,5,6,8,9,11);        xs(3)= y
+   case(12,14,15,17,18,20,21,23); xs(3)=-y
+   case(1,4,7,10);                xs(3)= 1.0_dp
+   case(13,16,19,22);             xs(3)=-1.0_dp
 end select
 q=sqrt( dot_product(xs,xs) ); xs=xs/q
 end subroutine hil4_to_xs_d
@@ -528,45 +547,46 @@ end subroutine hil4_to_xs_d
 !=============================================================================
 subroutine hil48_to_xs_d(ngen4,ngen48,hil,xs,r)!                 [hil48_to_xs]
 !=============================================================================
-integer,                    intent(IN ):: ngen4,ngen48
-integer,dimension(0:ngen48),intent(IN ):: hil
+implicit none
+integer(i_kind),                    intent(IN ):: ngen4,ngen48
+integer(i_kind),dimension(0:ngen48),intent(IN ):: hil
 real(dp),dimension(3),      intent(OUT):: xs
 real(dp),                   intent(out):: r
 !-----------------------------------------------------------------------------
-integer :: m,m6
+integer(i_kind) :: m,m6
 real(dp):: x,y,q,xx,yy
 !=============================================================================
 call hil48_to_xyz(ngen4,hil(1:ngen48),x,y,r)
 m=hil(0); m6=mod(m,6)
 select case(m6)
-case(0); q=x;   x=y;   y=q
-case(1); q=x;   x=1-y; y=q
-case(2);        x=1-x; y=1-y
-case(3);        x=x;   y=1-y
-case(4); q=x;   x=1-y; y=1-q
-case(5); q=x;   x=y;   y=1-q
+   case(0); q=x;   x=y;        y=q
+   case(1); q=x;   x=1.0_dp-y; y=q
+   case(2);        x=1.0_dp-x; y=1.0_dp-y
+   case(3);        x=x;        y=1.0_dp-y
+   case(4); q=x;   x=1.0_dp-y; y=1.0_dp-q
+   case(5); q=x;   x=y;        y=1.0_dp-q
 end select
 call ea_to_gn(x,y,xx,yy)
 x=xx; y=yy
 select case(m)
-case(1,2,9,10,13,14,21,22);    xs(1)= x
-case(3,4,7, 8,15,16,19,20);    xs(1)=-x
-case(0,11,12,23);              xs(1)= 1
-case(5, 6,17,18);              xs(1)=-1
+   case(1,2,9,10,13,14,21,22);    xs(1)= x
+   case(3,4,7, 8,15,16,19,20);    xs(1)=-x
+   case(0,11,12,23);              xs(1)= 1.0_dp
+   case(5, 6,17,18);              xs(1)=-1.0_dp
 end select
 select case(m)
-case(6,11,12,17);              xs(2)= x
-case(0,5,18,23);               xs(2)=-x
-case(7,10,13,16);              xs(2)= y
-case(1,4,19,22);               xs(2)=-y
-case(8,9,14,15);               xs(2)= 1
-case(2,3,20,21);               xs(2)=-1
+   case(6,11,12,17);              xs(2)= x
+   case(0,5,18,23);               xs(2)=-x
+   case(7,10,13,16);              xs(2)= y
+   case(1,4,19,22);               xs(2)=-y
+   case(8,9,14,15);               xs(2)= 1.0_dp
+   case(2,3,20,21);               xs(2)=-1.0_dp
 end select
 select case(m)
-case(0,2,3,5,6,8,9,11);        xs(3)= y
-case(12,14,15,17,18,20,21,23); xs(3)=-y
-case(1,4,7,10);                xs(3)= 1
-case(13,16,19,22);             xs(3)=-1
+   case(0,2,3,5,6,8,9,11);        xs(3)= y
+   case(12,14,15,17,18,20,21,23); xs(3)=-y
+   case(1,4,7,10);                xs(3)= 1.0_dp
+   case(13,16,19,22);             xs(3)=-1.0_dp
 end select
 q=sqrt( dot_product(xs,xs) ); xs=xs/q
 end subroutine hil48_to_xs_d
@@ -574,13 +594,14 @@ end subroutine hil48_to_xs_d
 !=============================================================================
 subroutine xs_to_hil4_d(ngen,xs,hil)!                             [xs_to_hil4]
 !=============================================================================
-integer,                   intent(IN ):: ngen
+implicit none
+integer(i_kind),                   intent(IN ):: ngen
 real(dp),dimension(3),     intent(IN ):: xs
-integer, dimension(0:ngen),intent(OUT):: hil
+integer(i_kind), dimension(0:ngen),intent(OUT):: hil
 !-----------------------------------------------------------------------------
 real(dp)                  :: x,y,z,ax,ay,az,q,xx,yy
-integer                   :: k,L,m,m6
-integer,dimension(0:7)    :: Ltab,ktab
+integer(i_kind)                   :: k,L,m,m6
+integer(i_kind),dimension(0:7)    :: Ltab,ktab
 data Ltab/1,0,2,0,1,1,2,1/
 data ktab/6,7,5,4,1,0,2,3/
 !=============================================================================
@@ -596,21 +617,21 @@ else;                m=k*3+2-L
 endif
 hil(0)=m
 select case(m)
-case(0,5,6,11,12,17,18,23); x=ay/ax; y=az/ax
-case(2,3,8,9,14,15,20,21);  x=ax/ay; y=az/ay
-case(1,4,7,10,13,16,19,22); x=ax/az; y=ay/az
+   case(0,5,6,11,12,17,18,23); x=ay/ax; y=az/ax
+   case(2,3,8,9,14,15,20,21);  x=ax/ay; y=az/ay
+   case(1,4,7,10,13,16,19,22); x=ax/az; y=ay/az
 end select
 
 m6=mod(m,6)
 call gn_to_ea(x,y,xx,yy); x=xx; y=yy
 
 select case(m6)
-case(0); q=x;   x=y;   y=q
-case(1); q=x;   x=y;   y=1-q
-case(2);        x=1-x; y=1-y
-case(3);        x=x;   y=1-y
-case(4); q=x;   x=1-y; y=1-q
-case(5); q=x;   x=1-y; y=q
+   case(0); q=x;   x=y;        y=q
+   case(1); q=x;   x=y;        y=1.0_dp-q
+   case(2);        x=1.0_dp-x; y=1.0_dp-y
+   case(3);        x=x;        y=1.0_dp-y
+   case(4); q=x;   x=1.0_dp-y; y=1.0_dp-q
+   case(5); q=x;   x=1.0_dp-y; y=q
 end select
 call xy_to_hil4(x,y,hil(1:ngen))
 end subroutine xs_to_hil4_d
@@ -618,14 +639,15 @@ end subroutine xs_to_hil4_d
 !=============================================================================
 subroutine xs_to_hil48_d(ngen4,ngen48,xs,r,hil)!                 [xs_to_hil48]
 !=============================================================================
-integer,                     intent(in ):: ngen4,ngen48
+implicit none
+integer(i_kind),                     intent(in ):: ngen4,ngen48
 real(dp),dimension(3),       intent(in ):: xs
 real(dp),                    intent(in ):: r
-integer, dimension(0:ngen48),intent(out):: hil
+integer(i_kind), dimension(0:ngen48),intent(out):: hil
 !-----------------------------------------------------------------------------
 real(dp)                  :: x,y,z,ax,ay,az,q,xx,yy
-integer                   :: k,L,m,m6
-integer,dimension(0:7)    :: Ltab,ktab
+integer(i_kind)                   :: k,L,m,m6
+integer(i_kind),dimension(0:7)    :: Ltab,ktab
 data Ltab/1,0,2,0,1,1,2,1/
 data ktab/6,7,5,4,1,0,2,3/
 !=============================================================================
@@ -641,9 +663,9 @@ else;                m=k*3+2-L
 endif
 hil(0)=m
 select case(m)
-case(0,5,6,11,12,17,18,23); x=ay/ax; y=az/ax
-case(2,3,8,9,14,15,20,21);  x=ax/ay; y=az/ay
-case(1,4,7,10,13,16,19,22); x=ax/az; y=ay/az
+   case(0,5,6,11,12,17,18,23); x=ay/ax; y=az/ax
+   case(2,3,8,9,14,15,20,21);  x=ax/ay; y=az/ay
+   case(1,4,7,10,13,16,19,22); x=ax/az; y=ay/az
 end select
 
 ! Insert equal-area transformation of (x,y) here
@@ -651,12 +673,12 @@ m6=mod(m,6)
 call gn_to_ea(x,y,xx,yy) ; x=xx; y=yy
 
 select case(m6)
-case(0); q=x;   x=y;   y=q
-case(1); q=x;   x=y;   y=1-q
-case(2);        x=1-x; y=1-y
-case(3);        x=x;   y=1-y
-case(4); q=x;   x=1-y; y=1-q
-case(5); q=x;   x=1-y; y=q
+   case(0); q=x;   x=y;        y=q
+   case(1); q=x;   x=y;        y=1.0_dp-q
+   case(2);        x=1.0_dp-x; y=1.0_dp-y
+   case(3);        x=x;        y=1.0_dp-y
+   case(4); q=x;   x=1.0_dp-y; y=1.0_dp-q
+   case(5); q=x;   x=1.0_dp-y; y=q
 end select
 call xyz_to_hil48(ngen4,x,y,r,hil(1:ngen48))
 end subroutine xs_to_hil48_d
@@ -666,11 +688,12 @@ end subroutine xs_to_hil48_d
 !=============================================================================
 subroutine hil4_to_dig4(presor,hil4)!                           [hil4_to_dig4]
 !=============================================================================
-integer,             intent(inout):: presor
-integer,dimension(:),intent(inout):: hil4
+implicit none
+integer(i_kind),             intent(inout):: presor
+integer(i_kind),dimension(:),intent(inout):: hil4
 !-----------------------------------------------------------------------------
-integer,dimension(0:3, 0:7):: dtable,ptable
-integer                    :: igen,h
+integer(i_kind),dimension(0:3, 0:7):: dtable,ptable
+integer(i_kind)                    :: igen,h
 data dtable/0,2,3,1, 1,0,2,3, 3,1,0,2, 2,3,1,0, &
             0,1,3,2, 2,0,1,3, 3,2,0,1, 1,3,2,0/
 data ptable/4,0,0,6, 7,1,1,5, 6,2,2,4, 5,3,3,7, &
@@ -686,11 +709,12 @@ end subroutine hil4_to_dig4
 !=============================================================================
 subroutine hil8_to_dig8(presor,hil8)!                           [hil8_to_dig8]
 !=============================================================================
-integer,             intent(inout):: presor
-integer,dimension(:),intent(inout):: hil8
+implicit none
+integer(i_kind),             intent(inout):: presor
+integer(i_kind),dimension(:),intent(inout):: hil8
 !-----------------------------------------------------------------------------
-integer,dimension(0:7,0:23):: dtable,ptable
-integer                    :: igen,h
+integer(i_kind),dimension(0:7,0:23):: dtable,ptable
+integer(i_kind)                    :: igen,h
 data dtable/                                       &
 0,2,6,4,5,7,3,1, 0,4,5,1,3,7,6,2, 0,1,3,2,6,7,5,4, &
 1,5,7,3,2,6,4,0, 1,0,4,5,7,6,2,3, 1,3,2,0,4,6,7,5, &
@@ -720,11 +744,12 @@ end subroutine hil8_to_dig8
 !=============================================================================
 subroutine hil16_to_dig16(presor,hil16)!                      [hil16_to_dig16]
 !=============================================================================
-integer,             intent(inout):: presor
-integer,dimension(:),intent(inout):: hil16
+implicit none
+integer(i_kind),             intent(inout):: presor
+integer(i_kind),dimension(:),intent(inout):: hil16
 !-----------------------------------------------------------------------------
-integer,dimension(0:15,0:63):: dtable,ptable
-integer                     :: igen,h
+integer(i_kind),dimension(0:15,0:63):: dtable,ptable
+integer(i_kind)                     :: igen,h
 data dtable/                                     &
  0, 8,12, 4, 6,14,10, 2, 3,11,15, 7, 5,13, 9, 1, &
  0, 8, 9, 1, 5,13,12, 4, 6,14,15, 7, 3,11,10, 2, &
@@ -883,11 +908,12 @@ subroutine dig4_to_hil4(presor,hil4)!                           [dig4_to_hil4]
 !          6        (1,1)-->(1,0)
 !          7        (1,0)-->(0,0) 
 !=============================================================================
-integer,             intent(inout):: presor
-integer,dimension(:),intent(inout):: hil4
+implicit none
+integer(i_kind),             intent(inout):: presor
+integer(i_kind),dimension(:),intent(inout):: hil4
 !-----------------------------------------------------------------------------
-integer,dimension(0:3, 0:7)        :: hil4table, presortable
-integer                            :: igen,j
+integer(i_kind),dimension(0:3, 0:7)        :: hil4table, presortable
+integer(i_kind)                            :: igen,j
 data hil4table  /0,3,1,2, 1,0,2,3, 2,1,3,0, 3,2,0,1, &
                  0,1,3,2, 1,2,0,3, 2,3,1,0, 3,0,2,1/
 data presortable/4,6,0,0, 1,7,1,5, 2,2,4,6, 7,3,5,3, &
@@ -914,11 +940,12 @@ subroutine dig8_to_hil8(presor,hil8)!                           [dig8_to_hil8]
 ! and the "7" in this path, one can locate the path start and endpoint, and
 ! hence interpret the orientation that p refers to.
 !=============================================================================
-integer,             intent(inout):: presor
-integer,dimension(:),intent(inout):: hil8
+implicit none
+integer(i_kind),             intent(inout):: presor
+integer(i_kind),dimension(:),intent(inout):: hil8
 !-----------------------------------------------------------------------------
-integer,dimension(0:7, 0:23)       :: hil8table, presortable
-integer                            :: igen,j
+integer(i_kind),dimension(0:7, 0:23)       :: hil8table, presortable
+integer(i_kind)                            :: igen,j
 data hil8table /                                              &
      0,7,1,6,3,4,2,5,    0,3,7,4,1,2,6,5,    0,1,3,2,7,6,4,5, &
      7,0,4,3,6,1,5,2,    1,0,6,7,2,3,5,4,    3,0,2,1,4,7,5,6, &
@@ -953,11 +980,12 @@ subroutine dig16_to_hil16(presor,hil16)!                      [dig16_to_hil16]
 !=============================================================================
 ! Like dig4_to_hil4, but for a 4D hypercube. 
 !=============================================================================
-integer,             intent(inout):: presor
-integer,dimension(:),intent(inout):: hil16
+implicit none
+integer(i_kind),             intent(inout):: presor
+integer(i_kind),dimension(:),intent(inout):: hil16
 !-----------------------------------------------------------------------------
-integer,dimension(0:15, 0:63) :: hil16table,presortable
-integer                       :: igen,j
+integer(i_kind),dimension(0:15, 0:63) :: hil16table,presortable
+integer(i_kind)                       :: igen,j
 data hil16table / &
 0,15,7,8,3,12,4,11,1,14,6,9,2,13,5,10,  0,3,15,12,7,4,8,11,1,2,14,13,6,5,9,10,&
 0,7,3,4,15,8,12,11,1,6,2,5,14,9,13,10,  0,1,3,2,7,6,4,5,15,14,12,13,8,9,11,10,&
@@ -1071,12 +1099,13 @@ end subroutine dig16_to_hil16
 !=============================================================================
 subroutine dig4_to_xy_d(dig,x,y)!                                [dig4_to_xy]
 !=============================================================================
-integer,dimension(:),intent(in ):: dig
+implicit none
+integer(i_kind),dimension(:),intent(in ):: dig
 real(dp),            intent(out):: x,y
 !-----------------------------------------------------------------------------
 real(dp)              :: s
 logical,dimension(0:3):: xofd4,yofd4
-integer               :: igen,d
+integer(i_kind)               :: igen,d
 data xofd4/F,T,F,T/
 data yofd4/F,F,T,T/
 !=============================================================================
@@ -1091,12 +1120,13 @@ end subroutine dig4_to_xy_d
 !=============================================================================
 subroutine dig8_to_xyz_d(dig,x,y,z)!                             [dig8_to_xyz]
 !=============================================================================
-integer,dimension(:),intent(in ):: dig
+implicit none
+integer(i_kind),dimension(:),intent(in ):: dig
 real(dp),            intent(out):: x,y,z
 !-----------------------------------------------------------------------------
 real(dp)              :: s
 logical,dimension(0:7):: xofd8,yofd8,zofd8
-integer               :: igen,d
+integer(i_kind)               :: igen,d
 data xofd8/F,T,F,T,F,T,F,T/
 data yofd8/F,F,T,T,F,F,T,T/
 data zofd8/F,F,F,F,T,T,T,T/
@@ -1112,12 +1142,13 @@ end subroutine dig8_to_xyz_d
 !=============================================================================
 subroutine dig16_to_xyza_d(dig,x,y,z,a)!                       [dig16_to_xyza]
 !=============================================================================
-integer,dimension(:),intent(in ):: dig
+implicit none
+integer(i_kind),dimension(:),intent(in ):: dig
 real(dp),            intent(out):: x,y,z,a
 !-----------------------------------------------------------------------------
 real(dp)               :: s
 logical,dimension(0:15):: xofd16,yofd16,zofd16,aofd16
-integer                :: igen,d
+integer(i_kind)                :: igen,d
 data xofd16/F,T,F,T,F,T,F,T,F,T,F,T,F,T,F,T/
 data yofd16/F,F,T,T,F,F,T,T,F,F,T,T,F,F,T,T/
 data zofd16/F,F,F,F,T,T,T,T,F,F,F,F,T,T,T,T/
@@ -1138,34 +1169,36 @@ subroutine xy_to_dig4_s(x,y,dig4)!                                [xy_to_dig4]
 ! Convert an (x,y)-representation of a point in the square, [0,1]*[0,1]
 ! to an ngen-digit base-4 number, dig4, where ngen is the size of array dig4.
 !=============================================================================
+implicit none
 real(sp),            intent(inout):: x,y
-integer,dimension(:),intent(  out):: dig4
+integer(i_kind),dimension(:),intent(  out):: dig4
 !-----------------------------------------------------------------------------
-integer:: igen
+integer(i_kind):: igen
 !=============================================================================
-if(x< 0)stop 'In xy_to_dig4; x< 0'
-if(x> 1)stop 'In xy_to_dig4; x> 1'
-if(y< 0)stop 'In xy_to_dig4; y< 0'
-if(y> 1)stop 'In xy_to_dig4; y> 1'
+if(x< 0.0_sp)stop 'In xy_to_dig4; x< 0.0_sp'
+if(x> 1.0_sp)stop 'In xy_to_dig4; x> 1.0_sp'
+if(y< 0.0_sp)stop 'In xy_to_dig4; y< 0.0_sp'
+if(y> 1.0_sp)stop 'In xy_to_dig4; y> 1.0_sp'
 dig4=0
 do igen=1,size(dig4)
-   x=x*2.; y=y*2.
-   if(x>=1.)then; dig4(igen)=dig4(igen)+1; x=x-1; endif
-   if(y>=1.)then; dig4(igen)=dig4(igen)+2; y=y-1; endif
+   x=x*2.0_sp; y=y*2.0_sp
+   if(x>=1.0_sp)then; dig4(igen)=dig4(igen)+1; x=x-1.0_sp; endif
+   if(y>=1.0_sp)then; dig4(igen)=dig4(igen)+2; y=y-1.0_sp; endif
 enddo
 end subroutine xy_to_dig4_s
 !=============================================================================
 subroutine xy_to_dig4_d(x,y,dig4)!                                [xy_to_dig4]
 !=============================================================================
+implicit none
 real(dp),            intent(inout):: x,y
-integer,dimension(:),intent(  out):: dig4
+integer(i_kind),dimension(:),intent(  out):: dig4
 !-----------------------------------------------------------------------------
-integer:: igen
+integer(i_kind):: igen
 !=============================================================================
-if(x< u0)stop 'In xy_to_dig4; x< 0'
-if(x> u1)stop 'In xy_to_dig4; x> 1'
-if(y< u0)stop 'In xy_to_dig4; y< 0'
-if(y> u1)stop 'In xy_to_dig4; y> 1'
+if(x< u0)stop 'In xy_to_dig4; x< 0.0_dp'
+if(x> u1)stop 'In xy_to_dig4; x> 1.0_dp'
+if(y< u0)stop 'In xy_to_dig4; y< 0.0_dp'
+if(y> u1)stop 'In xy_to_dig4; y> 1.0_dp'
 dig4=0
 do igen=1,size(dig4)
    x=x*u2; y=y*u2
@@ -1180,39 +1213,41 @@ subroutine xyz_to_dig8_s(x,y,z,dig8)!                            [xyz_to_dig8]
 ! Convert an (x,y,z)-representation of a point in the cube, [0,1]*[0,1]*[0,1]
 ! to an ngen-digit base-8 number, dig8.
 !=============================================================================
+implicit none
 real(sp),            intent(inout):: x,y,z
-integer,dimension(:),intent(  out):: dig8
+integer(i_kind),dimension(:),intent(  out):: dig8
 !-----------------------------------------------------------------------------
-integer:: igen
+integer(i_kind):: igen
 !=============================================================================
-if(x< 0)stop 'In xyz_to_dig8; x< 0'
-if(x> 1)stop 'In xyz_to_dig8; x> 1'
-if(y< 0)stop 'In xyz_to_dig8; y< 0'
-if(y> 1)stop 'In xyz_to_dig8; y> 1'
-if(z< 0)stop 'In xyz_to_dig8; z< 0'
-if(z> 1)stop 'In xyz_to_dig8; z> 1'
+if(x< 0.0_sp)stop 'In xyz_to_dig8; x< 0.0_sp'
+if(x> 1.0_sp)stop 'In xyz_to_dig8; x> 1.0_sp'
+if(y< 0.0_sp)stop 'In xyz_to_dig8; y< 0.0_sp'
+if(y> 1.0_sp)stop 'In xyz_to_dig8; y> 1.0_sp'
+if(z< 0.0_sp)stop 'In xyz_to_dig8; z< 0.0_sp'
+if(z> 1.0_sp)stop 'In xyz_to_dig8; z> 1.0_sp'
 dig8=0
 do igen=1,size(dig8)
-   x=x*2; y=y*2; z=z*2
-   if(x>=1.)then; dig8(igen)=dig8(igen)+1; x=x-1; endif
-   if(y>=1.)then; dig8(igen)=dig8(igen)+2; y=y-1; endif
-   if(z>=1.)then; dig8(igen)=dig8(igen)+4; z=z-1; endif
+   x=x*2.0_sp; y=y*2.0_sp; z=z*2.0_sp
+   if(x>=1.0_sp)then; dig8(igen)=dig8(igen)+1; x=x-1.0_sp; endif
+   if(y>=1.0_sp)then; dig8(igen)=dig8(igen)+2; y=y-1.0_sp; endif
+   if(z>=1.0_sp)then; dig8(igen)=dig8(igen)+4; z=z-1.0_sp; endif
 enddo
 end subroutine xyz_to_dig8_s
 !=============================================================================
 subroutine xyz_to_dig8_d(x,y,z,dig8)!                            [xyz_to_dig8]
 !=============================================================================
+implicit none
 real(dp),            intent(inout):: x,y,z
-integer,dimension(:),intent(  out):: dig8
+integer(i_kind),dimension(:),intent(  out):: dig8
 !-----------------------------------------------------------------------------
-integer:: igen
+integer(i_kind):: igen
 !=============================================================================
-if(x< u0)stop 'In xyz_to_dig8; x< 0'
-if(x> u1)stop 'In xyz_to_dig8; x> 1'
-if(y< u0)stop 'In xyz_to_dig8; y< 0'
-if(y> u1)stop 'In xyz_to_dig8; y> 1'
-if(z< u0)stop 'In xyz_to_dig8; z< 0'
-if(z> u1)stop 'In xyz_to_dig8; z> 1'
+if(x< u0)stop 'In xyz_to_dig8; x< 0.0_dp'
+if(x> u1)stop 'In xyz_to_dig8; x> 1_0_dp'
+if(y< u0)stop 'In xyz_to_dig8; y< 0_0_dp'
+if(y> u1)stop 'In xyz_to_dig8; y> 1_0_dp'
+if(z< u0)stop 'In xyz_to_dig8; z< 0_0_dp'
+if(z> u1)stop 'In xyz_to_dig8; z> 1_0_dp'
 dig8=0
 do igen=1,size(dig8)
    x=x*u2; y=y*u2; z=z*u2
@@ -1229,19 +1264,20 @@ subroutine xyza_to_dig16_d(x,y,z,a,dig16)!                     [xyza_to_dig16]
 ! [0,1]*[0,1]*[0,1]*[0,1]
 ! to an ngen-digit base-16 number, dig16.
 !=============================================================================
+implicit none
 real(dp),            intent(inout):: x,y,z,a
-integer,dimension(:),intent(  out):: dig16
+integer(i_kind),dimension(:),intent(  out):: dig16
 !-----------------------------------------------------------------------------
-integer:: igen
+integer(i_kind):: igen
 !=============================================================================
-if(x< u0)stop 'In xyza_to_dig16; x< 0'
-if(x> u1)stop 'In xyza_to_dig16; x> 1'
-if(y< u0)stop 'In xyza_to_dig16; y< 0'
-if(y> u1)stop 'In xyza_to_dig16; y> 1'
-if(z< u0)stop 'In xyza_to_dig16; z< 0'
-if(z> u1)stop 'In xyza_to_dig16; z> 1'
-if(a< u0)stop 'In xyza_to_dig16; a< 0'
-if(a> u1)stop 'In xyza_to_dig16; a> 1'
+if(x< u0)stop 'In xyza_to_dig16; x< 0_0_dp'
+if(x> u1)stop 'In xyza_to_dig16; x> 1_0_dp'
+if(y< u0)stop 'In xyza_to_dig16; y< 0_0_dp'
+if(y> u1)stop 'In xyza_to_dig16; y> 1_0_dp'
+if(z< u0)stop 'In xyza_to_dig16; z< 0_0_dp'
+if(z> u1)stop 'In xyza_to_dig16; z> 1_0_dp'
+if(a< u0)stop 'In xyza_to_dig16; a< 0_0_dp'
+if(a> u1)stop 'In xyza_to_dig16; a> 1_0_dp'
 dig16=0
 do igen=1,size(dig16)
    x=x*u2; y=y*u2; z=z*u2; a=a*u2
@@ -1257,29 +1293,30 @@ subroutine gn_to_ea_s(x1,y1, x2,y2)!                                [gn_to_ea]
 !=============================================================================
 ! Gnomonic to equal-area cubic
 !=============================================================================
+implicit none
 real(sp),intent(IN ):: x1,y1
 real(sp),intent(OUT):: x2,y2
 !-----------------------------------------------------------------------------
-integer  :: iquad
+integer(i_kind)  :: iquad
 real(sp) :: x,q,xx,xxp,rxxp,p
 !=============================================================================
 iquad=1
 if(y1 >  x1)iquad=iquad+1
 if(x1 < -y1)iquad=iquad+2
-if(x1==0 .and. y1==0)then; x2=0; y2=0; return; endif
+if(x1== 0.0_sp  .and. y1==0.0_sp )then; x2=0.0_sp; y2=0.0_sp; return; endif
 select case(iquad)
-case(1,4); x=abs(x1); q=y1/x
-case(2,3); x=abs(y1); q=x1/x
+   case(1,4); x=abs(x1); q=y1/x
+   case(2,3); x=abs(y1); q=x1/x
 end select
-xx=x*x; xxp=xx+1; rxxp=sqrt(xxp)
+xx=x*x; xxp=xx+1.0_sp; rxxp=sqrt(xxp)
 q=q*sqrt((xx+xxp)/(xxp+q*q*xx)) 
 p=sqrt(asin(xx/xxp)/pio6)
 
 select case(iquad)
-case(1); x2= p; y2=p*q
-case(2); y2= p; x2=p*q
-case(3); y2=-p; x2=p*q
-case(4); x2=-p; y2=p*q
+   case(1); x2= p; y2=p*q
+   case(2); y2= p; x2=p*q
+   case(3); y2=-p; x2=p*q
+   case(4); x2=-p; y2=p*q
 end select
 end subroutine gn_to_ea_s
 !=============================================================================
@@ -1287,29 +1324,30 @@ subroutine gn_to_ea_d(x1,y1, x2,y2)!                                [gn_to_ea]
 !=============================================================================
 ! Gnomonic to equal-area cubic
 !============================================================================
+implicit none
 real(dp),intent(IN ):: x1,y1
 real(dp),intent(OUT):: x2,y2
 !-----------------------------------------------------------------------------
-integer :: iquad
+integer(i_kind) :: iquad
 real(dp):: x,q,xx,xxp,rxxp,p
 !=============================================================================
 iquad=1
 if(y1 >  x1)iquad=iquad+1
 if(x1 < -y1)iquad=iquad+2
-if(x1==0 .and. y1==0)then; x2=0; y2=0; return; endif
+if(x1==0.0_dp .and. y1==0.0_dp)then; x2=0.0_dp; y2=0.0_dp; return; endif
 select case(iquad)
-case(1,4); x=abs(x1); q=y1/x
-case(2,3); x=abs(y1); q=x1/x
+   case(1,4); x=abs(x1); q=y1/x
+   case(2,3); x=abs(y1); q=x1/x
 end select
 xx=x*x; xxp=xx+1; rxxp=sqrt(xxp)
 q=q*sqrt((xx+xxp)/(xxp+q*q*xx)) 
 p=sqrt(asin(xx/xxp)/pio6)
 
 select case(iquad)
-case(1); x2= p; y2=p*q
-case(2); y2= p; x2=p*q
-case(3); y2=-p; x2=p*q
-case(4); x2=-p; y2=p*q
+   case(1); x2= p; y2=p*q
+   case(2); y2= p; x2=p*q
+   case(3); y2=-p; x2=p*q
+   case(4); x2=-p; y2=p*q
 end select
 end subroutine gn_to_ea_d
 
@@ -1319,36 +1357,37 @@ subroutine ea_to_gn_s(x2,y2, x1,y1)!                                [ea_to_gn]
 !=============================================================================
 ! Equal-area cubic to gnomonic
 !============================================================================
+implicit none
 real(sp),intent(IN ):: x2,y2
 real(sp),intent(OUT):: x1,y1
 !-----------------------------------------------------------------------------
-integer :: iquad
+integer(i_kind) :: iquad
 real(sp):: x,q,xx,xxp,p,pp,s
 !=============================================================================
 iquad=1
 if(y2 >  x2)iquad=iquad+1
 if(x2 < -y2)iquad=iquad+2
-if(x2==0 .and. y2==0)then; x1=0; y1=0; return; endif
+if(x2==0.0_sp .and. y2==0.0_sp)then; x1=0.0_sp; y1=0.0_sp; return; endif
 
 select case(iquad)
-case(1); p= x2; q=y2/p
-case(2); p= y2; q=x2/p
-case(3); p=-y2; q=x2/p
-case(4); p=-x2; q=y2/p
+   case(1); p= x2; q=y2/p
+   case(2); p= y2; q=x2/p
+   case(3); p=-y2; q=x2/p
+   case(4); p=-x2; q=y2/p
 end select
 pp=p*p
 s=sin(pio6*pp)
-xx=max(0._sp,s/(1-s))
-xxp=xx+1
+xx=max(0._sp,s/(1.0_sp-s))
+xxp=xx+1.0_sp
 x=sqrt(xx)
 
-q=q * sqrt(  xxp/(xxp+xx*(1-q*q)) )
+q=q * sqrt(  xxp/(xxp+xx*(1.0_sp-q*q)) )
 
 select case(iquad)
-case(1); x1= x; y1=x*q
-case(2); y1= x; x1=x*q
-case(3); y1=-x; x1=x*q
-case(4); x1=-x; y1=x*q
+   case(1); x1= x; y1=x*q
+   case(2); y1= x; x1=x*q
+   case(3); y1=-x; x1=x*q
+   case(4); x1=-x; y1=x*q
 end select
 end subroutine ea_to_gn_s
 !=============================================================================
@@ -1356,36 +1395,37 @@ subroutine ea_to_gn_d(x2,y2, x1,y1)!                                [ea_to_gn]
 !=============================================================================
 ! equal-area cubic to gnomonic
 !=============================================================================
+implicit none
 real(dp),intent(IN ):: x2,y2
 real(dp),intent(OUT):: x1,y1
 !-----------------------------------------------------------------------------
-integer :: iquad
+integer(i_kind) :: iquad
 real(dp):: x,q,xx,xxp,p,pp,s
 !=============================================================================
 iquad=1
 if(y2 >  x2)iquad=iquad+1
 if(x2 < -y2)iquad=iquad+2
-if(x2==0 .and. y2==0)then; x1=0; y1=0; return; endif
+if(x2==0.0_dp .and. y2==0.0_dp)then; x1=0.0_dp; y1=0.0_dp; return; endif
 
 select case(iquad)
-case(1); p= x2; q=y2/p
-case(2); p= y2; q=x2/p
-case(3); p=-y2; q=x2/p
-case(4); p=-x2; q=y2/p
+   case(1); p= x2; q=y2/p
+   case(2); p= y2; q=x2/p
+   case(3); p=-y2; q=x2/p
+   case(4); p=-x2; q=y2/p
 end select
 pp=p*p
 s=sin(pio6*pp)
-xx=max(u0,s/(1-s))
+xx=max(u0,s/(1.0_dp-s))
 xxp=xx+u1
 x=sqrt(xx)
 
-q=q * sqrt(  xxp/(xxp+xx*(1-q*q)) )
+q=q * sqrt(  xxp/(xxp+xx*(1.0_dp-q*q)) )
 
 select case(iquad)
-case(1); x1= x; y1=x*q
-case(2); y1= x; x1=x*q
-case(3); y1=-x; x1=x*q
-case(4); x1=-x; y1=x*q
+   case(1); x1= x; y1=x*q
+   case(2); y1= x; x1=x*q
+   case(3); y1=-x; x1=x*q
+   case(4); x1=-x; y1=x*q
 end select
 end subroutine ea_to_gn_d
 
@@ -1397,15 +1437,16 @@ end subroutine ea_to_gn_d
 subroutine hil4_to_rz_s(lgen,ngen,hil4,r)!                        [hil4_to_rz]
 !=============================================================================
 ! Deprecated; replace by hil4_to_r with r also predefined
-integer,                     intent(IN ):: lgen,ngen
-integer,dimension(lgen:ngen),intent(IN ):: hil4
+implicit none
+integer(i_kind),                     intent(IN ):: lgen,ngen
+integer(i_kind),dimension(lgen:ngen),intent(IN ):: hil4
 real(sp),                    intent(OUT):: r
 !-----------------------------------------------------------------------------
-real(sp),parameter:: o4=1./4
+real(sp),parameter:: o4=1._sp/4_sp
 real(sp)          :: p
-integer           :: i
+integer(i_kind)           :: i
 !=============================================================================
-r=0; if(lgen==0)r=hil4(lgen)
+r=0.0_sp; if(lgen==0)r=hil4(lgen)
 p=o4
 do i=1,ngen
    r=r+p*hil4(i)
@@ -1416,14 +1457,15 @@ end subroutine hil4_to_rz_s
 subroutine hil4_to_rz_d(lgen,ngen,hil4,r)!                        [hil4_to_rz]
 !=============================================================================
 ! Deprecated; replace by hil4_to_r with r also predefined
-integer,                     intent(IN ):: lgen,ngen
-integer,dimension(lgen:ngen),intent(IN ):: hil4
+implicit none
+integer(i_kind),                     intent(IN ):: lgen,ngen
+integer(i_kind),dimension(lgen:ngen),intent(IN ):: hil4
 real(dp),                    intent(OUT):: r
 !-----------------------------------------------------------------------------
 real(dp):: p
-integer :: i
+integer(i_kind) :: i
 !=============================================================================
-r=0; if(lgen==0)r=hil4(lgen)
+r=0.0_dp; if(lgen==0)r=hil4(lgen)
 p=o4
 do i=1,ngen
    r=r+p*hil4(i)
@@ -1435,14 +1477,15 @@ end subroutine hil4_to_rz_d
 subroutine hil8_to_rz_d(lgen,ngen,hil8,r)!                        [hil8_to_rz]
 !=============================================================================
 ! Deprecated; replace by hil8_to_r with r also predefined
-integer,                     intent(IN ):: lgen,ngen
-integer,dimension(lgen:ngen),intent(IN ):: hil8
+implicit none
+integer(i_kind),                     intent(IN ):: lgen,ngen
+integer(i_kind),dimension(lgen:ngen),intent(IN ):: hil8
 real(dp),                    intent(OUT):: r
 !-----------------------------------------------------------------------------
 real(dp):: p
-integer :: i
+integer(i_kind) :: i
 !=============================================================================
-r=0; if(lgen==0)r=hil8(lgen)
+r=0.0_dp; if(lgen==0)r=hil8(lgen)
 p=o8
 do i=1,ngen
    r=r+p*hil8(i)
@@ -1454,14 +1497,15 @@ end subroutine hil8_to_rz_d
 subroutine hil16_to_rz_d(lgen,ngen,hil16,r)!                     [hil16_to_rz]
 !=============================================================================
 ! Deprecated; replace by hil16_to_r with r also predefined
-integer,                     intent(IN ):: lgen,ngen
-integer,dimension(lgen:ngen),intent(IN ):: hil16
+implicit none
+integer(i_kind),                     intent(IN ):: lgen,ngen
+integer(i_kind),dimension(lgen:ngen),intent(IN ):: hil16
 real(dp),                    intent(OUT):: r
 !-----------------------------------------------------------------------------
 real(dp):: p
-integer :: i
+integer(i_kind) :: i
 !=============================================================================
-r=0; if(lgen==0)r=hil16(lgen)
+r=0.0_dp; if(lgen==0)r=hil16(lgen)
 p=o16
 do i=1,ngen
    r=r+p*hil16(i)
@@ -1477,12 +1521,13 @@ subroutine xy_to_hil4z_s(ngen,x,y,hil4)!                          [xy_to_hil4]
 ! unit square to an ngen-digit base-4 representation of the parameter of 
 ! a space-filling Hilbert curve.
 !=============================================================================
-integer,                intent(IN ):: ngen
+implicit none
+integer(i_kind),                intent(IN ):: ngen
 real(sp),               intent(IN ):: x,y
-integer,dimension(ngen),intent(OUT):: hil4
+integer(i_kind),dimension(ngen),intent(OUT):: hil4
 !-----------------------------------------------------------------------------
 real(sp):: xr,yr
-integer :: presor
+integer(i_kind) :: presor
 !=============================================================================
 xr=x; yr=y
 call xy_to_dig4(xr,yr,hil4)
@@ -1494,12 +1539,13 @@ end subroutine xy_to_hil4z_s
 subroutine xy_to_hil4z_d(ngen,x,y,hil4)!                          [xy_to_hil4]
 !=============================================================================
 ! DEPRECATED (since ngen is a redundant variable)
-integer,                intent(IN ):: ngen
+implicit none
+integer(i_kind),                intent(IN ):: ngen
 real(dp),               intent(IN ):: x,y
-integer,dimension(ngen),intent(OUT):: hil4
+integer(i_kind),dimension(ngen),intent(OUT):: hil4
 !-----------------------------------------------------------------------------
 real(dp):: xr,yr
-integer :: presor
+integer(i_kind) :: presor
 !=============================================================================
 xr=x; yr=y
 call xy_to_dig4(xr,yr,hil4)
@@ -1510,12 +1556,13 @@ end subroutine xy_to_hil4z_d
 subroutine xyz_to_hil8z_d(ngen,x,y,z,hil8)!                      [xyz_to_hil8]
 !=============================================================================
 ! DEPRECATED (since ngen is a redundant variable)
-integer,                intent(IN ):: ngen
+implicit none
+integer(i_kind),                intent(IN ):: ngen
 real(dp),               intent(IN ):: x,y,z
-integer,dimension(ngen),intent(OUT):: hil8
+integer(i_kind),dimension(ngen),intent(OUT):: hil8
 !-----------------------------------------------------------------------------
 real(dp):: xr,yr,zr
-integer :: presor
+integer(i_kind) :: presor
 !=============================================================================
 xr=x; yr=y; zr=z
 call xyz_to_dig8(xr,yr,zr,hil8)
@@ -1527,12 +1574,13 @@ end subroutine xyz_to_hil8z_d
 subroutine xyza_to_hil16z_d(ngen,x,y,z,a,hil16)!               [xyza_to_hil16]
 !=============================================================================
 ! DEPRECATED (since ngen is a redundant variable)
-integer,                intent(IN ):: ngen
+implicit none
+integer(i_kind),                intent(IN ):: ngen
 real(dp),               intent(IN ):: x,y,z,a
-integer,dimension(ngen),intent(OUT):: hil16
+integer(i_kind),dimension(ngen),intent(OUT):: hil16
 !-----------------------------------------------------------------------------
 real(dp):: xr,yr,zr,ar
-integer :: presor
+integer(i_kind) :: presor
 !=============================================================================
 xr=x; yr=y; zr=z; ar=a
 call xyza_to_dig16(xr,yr,zr,ar,hil16)

@@ -179,11 +179,12 @@ for imem in $(seq $ENSBEG $ENSEND); do
       $FORECASTSH
       ra=$?
 
-      # Notify a member forecast failed, freeze epos, but continue on to next member
+      # Notify a member forecast failed and abort
       if [ $ra -ne 0 ]; then
-         msg="forecast of member $cmem FAILED"
+         msg="FATAL ERROR:  forecast of member $cmem FAILED.  Aborting job"
          print $msg
-         [[ $SENDECF = "YES" ]] && ecflow_client --abort=$msg
+         export err=$ra
+         $ERRSCRIPT || exit 2
       fi
 
       ((rc+=ra))

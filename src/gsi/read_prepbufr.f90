@@ -3033,7 +3033,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      enddo
 
      write(6,*),'READ_PREPBUFR:dentrip,pmesh,rmesh,ndata=',dentrip,pmesh,rmesh,ntime_max,ndata
-     if(dentrip >=1 .and. pmesh >zero .and. rmesh >zero) then
+     if(dentrip >= one .and. pmesh >zero .and. rmesh >zero) then
         allocate(data_hilb(3,ndata,6),index_arr(ndata,ntime_max))
 
         ndata_hil=0

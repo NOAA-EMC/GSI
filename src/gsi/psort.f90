@@ -12,7 +12,7 @@
 !=============================================================================
 module psort
 !=============================================================================
-use kinds, only: sp, dp
+use kinds, only: sp, dp,i_kind
 implicit none
 private
 public:: sort,bsort,mergeab,invertperm
@@ -33,11 +33,12 @@ subroutine sort_s(v)!                                                   [sort]
 ! Wrapper routine to take care of binary sorting details involved with
 ! bsort and its linked lists.
 !=============================================================================
+implicit none
 real(sp),dimension(:),intent(inout):: v
 !----------------------------------------------------------------------------
-integer                          :: i,j,n
-real(sp),allocatable,dimension(:):: vv
-integer ,allocatable,dimension(:):: next
+integer(i_kind)                          :: i,j,n
+real(sp),        allocatable,dimension(:):: vv
+integer(i_kind) ,allocatable,dimension(:):: next
 !=============================================================================
 n=size(v)
 allocate(vv(n),next(n))
@@ -57,11 +58,12 @@ subroutine sort_d(v)!                                                   [sort]
 ! Wrapper routine to take care of binary sorting details involved with
 ! bsort and its linked lists.
 !=============================================================================
+implicit none
 real(dp),dimension(:),intent(inout):: v
 !----------------------------------------------------------------------------
-integer                          :: i,j,n
-real(dp),allocatable,dimension(:):: vv
-integer ,allocatable,dimension(:):: next
+integer(i_kind)                          :: i,j,n
+real(dp),        allocatable,dimension(:):: vv
+integer(i_kind) ,allocatable,dimension(:):: next
 !=============================================================================
 n=size(v)
 allocate(vv(n),next(n))
@@ -80,11 +82,12 @@ subroutine sort_si(v)!                                                   [sort]
 ! Wrapper routine to take care of binary sorting details involved with
 ! bsort and its linked lists.
 !=============================================================================
-integer,dimension(:),intent(inout):: v
+implicit none
+integer(i_kind),dimension(:),intent(inout):: v
 !----------------------------------------------------------------------------
-integer                          :: i,j,n
-integer, allocatable,dimension(:):: vv
-integer ,allocatable,dimension(:):: next
+integer(i_kind)                           :: i,j,n
+integer(i_kind), allocatable,dimension(:) :: vv
+integer(i_kind) ,allocatable,dimension(:) :: next
 !=============================================================================
 n=size(v)
 allocate(vv(n),next(n))
@@ -104,11 +107,12 @@ subroutine sort_di(v)!                                                   [sort]
 ! bsort and its linked lists.
 !=============================================================================
 use kinds, only: dpi
+implicit none
 integer(dpi),dimension(:),intent(inout):: v
 !----------------------------------------------------------------------------
-integer                              :: i,j,n
-integer(dpi),allocatable,dimension(:):: vv
-integer,     allocatable,dimension(:):: next
+integer(i_kind)                           :: i,j,n
+integer(dpi),   allocatable,  dimension(:):: vv
+integer(i_kind),allocatable,  dimension(:):: next
 !=============================================================================
 n=size(v)
 allocate(vv(n),next(n))
@@ -133,11 +137,12 @@ subroutine rsort_s(v,rank)!                                             [sort]
 ! larger items of v can be located, then invoking invertperm(rank) will do it.
 !=============================================================================
 use kinds, only: sp
-real(sp ),   dimension(:),intent(in   ):: v
-integer,     dimension(:),intent(  out):: rank
+implicit none
+real(sp ),           dimension(:),intent(in   ):: v
+integer(i_kind),     dimension(:),intent(  out):: rank
 !----------------------------------------------------------------------------
-integer                              :: i,j,n
-integer,     allocatable,dimension(:):: next
+integer(i_kind)                              :: i,j,n
+integer(i_kind),     allocatable,dimension(:):: next
 !=============================================================================
 n=size(v)
 allocate(next(n))
@@ -156,11 +161,12 @@ subroutine rsort_d(v,rank)!                                             [sort]
 ! bsort and its linked lists.
 !=============================================================================
 use kinds, only: dp
-real(dp ),   dimension(:),intent(in   ):: v
-integer,     dimension(:),intent(  out):: rank
+implicit none
+real(dp ),           dimension(:),intent(in   ):: v
+integer(i_kind),     dimension(:),intent(  out):: rank
 !----------------------------------------------------------------------------
-integer                              :: i,j,n
-integer,     allocatable,dimension(:):: next
+integer(i_kind)                              :: i,j,n
+integer(i_kind),     allocatable,dimension(:):: next
 !=============================================================================
 n=size(v)
 allocate(next(n))
@@ -178,11 +184,12 @@ subroutine rsort_si(v,rank)!                                            [sort]
 ! Wrapper routine to take care of binary sorting details involved with
 ! bsort and its linked lists.
 !=============================================================================
-integer     ,dimension(:),intent(in   ):: v
-integer,     dimension(:),intent(  out):: rank
+implicit none
+integer(i_kind),     dimension(:),intent(in   ):: v
+integer(i_kind),     dimension(:),intent(  out):: rank
 !----------------------------------------------------------------------------
-integer                              :: i,j,n
-integer,     allocatable,dimension(:):: next
+integer(i_kind)                              :: i,j,n
+integer(i_kind),     allocatable,dimension(:):: next
 !=============================================================================
 n=size(v)
 allocate(next(n))
@@ -201,11 +208,12 @@ subroutine rsort_di(v,rank)!                                            [sort]
 ! bsort and its linked lists.
 !=============================================================================
 use kinds, only: dpi
-integer(dpi),dimension(:),intent(in   ):: v
-integer,     dimension(:),intent(  out):: rank
+implicit none
+integer(dpi),   dimension(:),intent(in   ):: v
+integer(i_kind),dimension(:),intent(  out):: rank
 !----------------------------------------------------------------------------
-integer                              :: i,j,n
-integer,     allocatable,dimension(:):: next
+integer(i_kind)                           :: i,j,n
+integer(i_kind),  allocatable,dimension(:):: next
 !=============================================================================
 n=size(v)
 allocate(next(n))
@@ -227,14 +235,15 @@ recursive subroutine bsort_s(n1,n2,v,next,first)!                      [bsort]
 ! sensitive to the L). The values, v, of items in the string are real.
 ! An integer representation of all the linked-list pointers is used.
 !=============================================================================
-integer,                  intent(IN   ):: n1,n2
-real(sp),dimension(n1:n2),intent(IN   ):: v
-integer, dimension(n1:n2),intent(  OUT):: next
-integer,                  intent(  OUT):: first
+implicit none
+integer(i_kind),                  intent(IN   ):: n1,n2
+real(sp),        dimension(n1:n2),intent(IN   ):: v
+integer(i_kind), dimension(n1:n2),intent(  OUT):: next
+integer(i_kind),                  intent(  OUT):: first
 !-----------------------------------------------------------------------------
-integer,parameter:: L=6
-integer          :: n,na1,na2,nb1,nb2,i,j,k, maxk,maxl,left, firsta,firstb
-real(sp)         :: maxv
+integer(i_kind),parameter:: L=6
+integer(i_kind)          :: n,na1,na2,nb1,nb2,i,j,k, maxk,maxl,left, firsta,firstb
+real(sp)                 :: maxv
 !=============================================================================
 n=n2+1-n1
 if(n<=L)then
@@ -281,14 +290,15 @@ end subroutine bsort_s
 !=============================================================================
 recursive subroutine bsort_d(n1,n2,v,next,first)!                      [bsort]
 !=============================================================================
-integer,                  intent(IN   ):: n1,n2
-real(dp),dimension(n1:n2),intent(IN   ):: v
-integer, dimension(n1:n2),intent(  OUT):: next
-integer,                  intent(  OUT):: first
+implicit none
+integer(i_kind),                  intent(IN   ):: n1,n2
+real(dp),        dimension(n1:n2),intent(IN   ):: v
+integer(i_kind), dimension(n1:n2),intent(  OUT):: next
+integer(i_kind),                  intent(  OUT):: first
 !-----------------------------------------------------------------------------
-integer,parameter:: L=6
-integer          :: n,na1,na2,nb1,nb2,i,j,k, maxk,maxl,left, firsta,firstb
-real(dp)         :: maxv
+integer(i_kind),parameter:: L=6
+integer(i_kind)          :: n,na1,na2,nb1,nb2,i,j,k, maxk,maxl,left, firsta,firstb
+real(dp)                 :: maxv
 !=============================================================================
 n=n2+1-n1
 if(n<=L)then
@@ -334,14 +344,15 @@ end subroutine bsort_d
 !=============================================================================
 recursive subroutine bsort_si(n1,n2,v,next,first)!                     [bsort]
 !=============================================================================
-integer,                  intent(IN   ):: n1,n2
-integer,dimension(n1:n2), intent(IN   ):: v
-integer, dimension(n1:n2),intent(  OUT):: next
-integer,                  intent(  OUT):: first
+implicit none
+integer(i_kind),                  intent(IN   ):: n1,n2
+integer(i_kind),dimension(n1:n2), intent(IN   ):: v
+integer(i_kind), dimension(n1:n2),intent(  OUT):: next
+integer(i_kind),                  intent(  OUT):: first
 !-----------------------------------------------------------------------------
-integer,parameter:: L=6
-integer          :: n,na1,na2,nb1,nb2,i,j,k, maxk,maxl,left, firsta,firstb
-integer          :: maxv
+integer(i_kind),parameter:: L=6
+integer(i_kind)          :: n,na1,na2,nb1,nb2,i,j,k, maxk,maxl,left, firsta,firstb
+integer(i_kind)          :: maxv
 !=============================================================================
 n=n2+1-n1
 if(n<=L)then
@@ -388,14 +399,15 @@ end subroutine bsort_si
 recursive subroutine bsort_di(n1,n2,v,next,first)!                     [bsort]
 !=============================================================================
 use kinds, only: dpi
-integer,                      intent(IN   ):: n1,n2
-integer(dpi),dimension(n1:n2),intent(IN   ):: v
-integer,     dimension(n1:n2),intent(  OUT):: next
-integer,                      intent(  OUT):: first
+implicit none
+integer(i_kind),                 intent(IN   ):: n1,n2
+integer(dpi),   dimension(n1:n2),intent(IN   ):: v
+integer(i_kind),dimension(n1:n2),intent(  OUT):: next
+integer(i_kind),                 intent(  OUT):: first
 !-----------------------------------------------------------------------------
-integer,parameter:: L=6
-integer          :: n,na1,na2,nb1,nb2,i,j,k, maxk,maxl,left, firsta,firstb
-integer(dpi)     :: maxv
+integer(i_kind),parameter:: L=6
+integer(i_kind)          :: n,na1,na2,nb1,nb2,i,j,k,maxk,maxl,left,firsta,firstb
+integer(dpi)             :: maxv
 !=============================================================================
 n=n2+1-n1
 if(n<=L)then
@@ -446,15 +458,15 @@ subroutine mergeab_s(na1,nb2,firsta,firstb, v,next,first)!           [mergeab]
 ! connected as respective linked-lists, into a unified string with ALL the
 ! items returned in ascending order of values v.
 !=============================================================================
-integer,                    intent(IN   ):: na1,nb2, &
-                                            firsta,firstb
-real(sp),dimension(na1:nb2),intent(IN   ):: v
-integer, dimension(na1:nb2),intent(INOUT):: next
-integer,                    intent(  OUT):: first
+implicit none
+integer(i_kind),                    intent(IN   ):: na1,nb2,firsta,firstb
+real(sp),dimension(na1:nb2),        intent(IN   ):: v
+integer(i_kind), dimension(na1:nb2),intent(INOUT):: next
+integer(i_kind),                    intent(  OUT):: first
 !-----------------------------------------------------------------------------
-integer,parameter                        :: hugeint= 10000000
-integer                                  :: idum,ia,ib,ic
-!=============================================================================
+integer(i_kind),parameter                        :: hugeint= 10000000
+integer(i_kind)                                  :: idum,ia,ib,ic
+!============================================================================
 ia=firsta
 ib=firstb
 if(ia==0)then
@@ -500,14 +512,14 @@ end subroutine mergeab_s
 !=============================================================================
 subroutine mergeab_d(na1,nb2,firsta,firstb,v,next,first)!            [mergeab]
 !=============================================================================
-integer,                    intent(IN   ):: na1,nb2, &
-                                            firsta,firstb
-real(dp),dimension(na1:nb2),intent(IN   ):: v
-integer, dimension(na1:nb2),intent(INOUT):: next
-integer,                    intent(  OUT):: first
+implicit none
+integer(i_kind),                    intent(IN   ):: na1,nb2,firsta,firstb
+real(dp),        dimension(na1:nb2),intent(IN   ):: v
+integer(i_kind), dimension(na1:nb2),intent(INOUT):: next
+integer(i_kind),                    intent(  OUT):: first
 !-----------------------------------------------------------------------------
-integer,parameter                        :: hugeint= 10000000
-integer                                  :: idum,ia,ib,ic
+integer(i_kind),parameter                        :: hugeint= 10000000
+integer(i_kind)                                  :: idum,ia,ib,ic
 !=============================================================================
 ia=firsta
 ib=firstb
@@ -554,18 +566,18 @@ end subroutine mergeab_d
 !=============================================================================
 subroutine mergeab_si(na1,nb2,firsta,firstb, v,next,first)!          [mergeab]
 !=============================================================================
-! Merge a pair (a and b) of individually pre-sorted strings of integer values,
+! Merge a pair (a and b) of individually pre-sorted strings of integer(i_kind) values,
 ! connected as respective linked-lists, into a unified string with ALL the
 ! items returned in ascending order of values v.
 !=============================================================================
-integer,                    intent(IN   ):: na1,nb2, &
-                                            firsta,firstb
-integer,dimension(na1:nb2), intent(IN   ):: v
-integer, dimension(na1:nb2),intent(INOUT):: next
-integer,                    intent(  OUT):: first
+implicit none
+integer(i_kind),                    intent(IN   ):: na1,nb2,firsta,firstb
+integer(i_kind),dimension(na1:nb2), intent(IN   ):: v
+integer(i_kind), dimension(na1:nb2),intent(INOUT):: next
+integer(i_kind),                    intent(  OUT):: first
 !-----------------------------------------------------------------------------
-integer,parameter                        :: hugeint= 10000000
-integer                                  :: idum,ia,ib,ic
+integer(i_kind),parameter                        :: hugeint= 10000000
+integer(i_kind)                                  :: idum,ia,ib,ic
 !=============================================================================
 ia=firsta
 ib=firstb
@@ -611,19 +623,19 @@ end subroutine mergeab_si
 !=============================================================================
 subroutine mergeab_di(na1,nb2,firsta,firstb, v,next,first)!          [mergeab]
 !=============================================================================
-! Merge a pair (a and b) of individually pre-sorted strings of integer values,
+! Merge a pair (a and b) of individually pre-sorted strings of integer(i_kind) values,
 ! connected as respective linked-lists, into a unified string with ALL the
 ! items returned in ascending order of values v.
 !=============================================================================
 use kinds, only: dpi
-integer,                    intent(IN   ):: na1,nb2, &
-                                            firsta,firstb
-integer(dpi),dimension(na1:nb2), intent(IN   ):: v
-integer, dimension(na1:nb2),intent(INOUT):: next
-integer,                    intent(  OUT):: first
+implicit none
+integer(i_kind),                         intent(IN   ):: na1,nb2,firsta,firstb
+integer(dpi),    dimension(na1:nb2),     intent(IN   ):: v
+integer(i_kind), dimension(na1:nb2),     intent(INOUT):: next
+integer(i_kind),                         intent(  OUT):: first
 !-----------------------------------------------------------------------------
-integer,parameter                        :: hugeint= 10000000
-integer                                  :: idum,ia,ib,ic
+integer(i_kind),parameter                        :: hugeint= 10000000
+integer(i_kind)                                  :: idum,ia,ib,ic
 !=============================================================================
 ia=firsta
 ib=firstb
@@ -670,10 +682,11 @@ end subroutine mergeab_di
 !=============================================================================
 subroutine invertperm(perm)!                                      [invertperm]
 !=============================================================================
-integer,dimension(:),intent(inout):: perm
+implicit none
+integer(i_kind),dimension(:),intent(inout):: perm
 !-----------------------------------------------------------------------------
-integer,allocatable,dimension(:):: perma
-integer                         :: i,j,n
+integer(i_kind),allocatable,dimension(:)  :: perma
+integer(i_kind)                           :: i,j,n
 !=============================================================================
 n=size(perm)
 allocate(perma(n))

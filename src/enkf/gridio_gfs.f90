@@ -106,8 +106,6 @@
   ! mpi gatherv things
   integer(i_kind), allocatable, dimension(:) :: recvcounts, displs
   real(r_single), dimension(nlons,nlats,nlevs) :: ug3d_0, vg3d_0
-  !real(r_single), dimension(nlons*nlats, nlevs) :: var3d1, var3d2, var3d3
-  !real(r_single), allocatable, dimension(:,:) :: var3d1_sub, var3d2_sub, var3d3_sub
 
   ! figure out what member to read and do MPI sub-communicator things
   allocate(mem_pe(0:numproc-1))

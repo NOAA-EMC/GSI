@@ -27,13 +27,13 @@ module pvqc_tables
 ! na: size [0:na] of one-sided table in alpha
 ! linitvqc: logical flag, true only when tables are initialized
 !=============================================================================
-use kinds, only: dp
+use kinds, only: dp,i_kind
 implicit none
 public
 real(dp),allocatable,dimension(:,:,:):: sgt,swt
 real(dp),allocatable,dimension(:,:)  :: x1t,x2t,xat,yat
 real(dp)                             :: dx,da,db,dk
-integer                              :: npx,npa,npb,npk,nx,na,npb2
+integer(i_kind)                              :: npx,npa,npb,npk,nx,na,npb2
 logical                              :: linitvqc
 data linitvqc/.false./
 end module pvqc_tables

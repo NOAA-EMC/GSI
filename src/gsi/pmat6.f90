@@ -13,7 +13,7 @@
 !=============================================================================
 module pmat6
 !=============================================================================
-use kinds, only: dp
+use kinds, only: dp,i_kind
 implicit none
 
 interface getrot24; module procedure getrot24;          end interface
@@ -28,10 +28,11 @@ subroutine getrot24(rot24)!                                         [getrot24]
 ! representation of the octahedral (or cubic) group.
 !=============================================================================
 use peuc,  only: qtorot
+implicit none
 real(dp),dimension(3,3,0:23),intent(out):: rot24
 !-----------------------------------------------------------------------------
 real(dp),dimension(0:3,0:47):: qq48
-integer                     :: i,i2
+integer(i_kind)                     :: i,i2
 !=============================================================================
 call getqq48(qq48)
 do i=0,23
@@ -48,9 +49,10 @@ subroutine getqq48(qq48)!                                            [getqq48]
 ! Hurwitz units and constitute the binary tetrahedral group.
 !=============================================================================
 use pietc, only: o2,or2
+implicit none
 real(dp),dimension(0:3,0:47),intent(out):: qq48
 !-----------------------------------------------------------------------------
-integer,dimension(0:3,0:7):: h1,h2,h3,h4,h5,h6
+integer(i_kind),dimension(0:3,0:7):: h1,h2,h3,h4,h5,h6
 data h1/ 2,0,0,0,    -2,0,0,0,     0,2,0,0,     0,-2,0,0, &
          0,0,2,0,     0,0,-2,0,    0,0,0,2,     0,0,0,-2/
 data h2/ 1,1,1,1,    -1,-1,-1,-1,  1,1,-1,-1,  -1,-1,1,1, &
@@ -79,8 +81,8 @@ implicit none
 real(dp),dimension(0:3,0:47),intent(out):: qq48
 real(dp),dimension(0:3,0:14),intent(out):: qcage
 !-----------------------------------------------------------------------------
-integer,dimension(0:14):: cage
-integer                :: i
+integer(i_kind),dimension(0:14):: cage
+integer(i_kind)                :: i
 data cage/0, 24,26,32,34,40,42,  8,10,12,14,16,19,21,23/
 !=============================================================================
 call getqq48(qq48)

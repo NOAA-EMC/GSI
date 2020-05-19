@@ -14,8 +14,8 @@ use kinds, only: dp,dpc
 implicit none
 logical ,parameter:: T=.true.,F=.false. !<- for pain-relief in logical ops
 real(dp),parameter:: &
-     u0=0,u1=1,mu1=-u1,u2=2,mu2=-u2,u3=3,mu3=-u3,u4=4,mu4=-u4,u5=5,mu5=-u5, &
-     u6=6,mu6=-u6,o2=u1/2,o3=u1/3,o4=u1/4,o5=u1/5,o6=u1/6,                  &
+     u0=0,u1=1.0_dp,mu1=-u1,u2=2.0_dp,mu2=-u2,u3=3.0_dp,mu3=-u3,u4=4.0_dp,mu4=-u4,u5=5.0_dp,mu5=-u5, &
+     u6=6.0_dp,mu6=-u6,o2=u1/2.0_dp,o3=u1/3.0_dp,o4=u1/4.0_dp,o5=u1/5.0_dp,o6=u1/6.0_dp,                  &
      pi =3.1415926535897932384626433832795028841971693993751058209749e0_dp, &
      pi2=6.2831853071795864769252867665590057683943387987502116419498e0_dp, &
      pih=1.5707963267948966192313216916397514420985846996875529104874e0_dp, &
@@ -30,7 +30,7 @@ real(dp),parameter:: &
 ! Euler-Mascheroni constant:
      euler=0.57721566490153286060651209008240243104215933593992359880e0_dp, &
 ! Degree to radians; radians to degrees:
-     dtor=pi/180,rtod=180/pi,                                               & 
+     dtor=pi/180.0_dp,rtod=180.0_dp/pi,                                               & 
 ! Sines of all main fractions of 90 degrees (down to ninths):
      s10=.173648177666930348851716626769314796000375677184069387236241e0_dp,&
      s11=.195090322016128267848284868477022240927691617751954807754502e0_dp,&

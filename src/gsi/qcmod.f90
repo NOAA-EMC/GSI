@@ -4339,7 +4339,7 @@ subroutine qc_geocsr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 !       reject channels with iuse_rad(j)=-1 when they are peaking below the cloud
         j=ich(i)
         if (passive_bc .and. iuse_rad(j)==-1) then
-           if (lcloud .ge. kmax(i)) then
+           if (lcloud >= kmax(i)) then
               if(luse)aivals(11,is)   = aivals(11,is) + one
               varinv(i) = zero
               varinv_use(i) = zero
@@ -4412,10 +4412,10 @@ subroutine qc_geocsr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
        end if
 !      QC_o-g: If abs(o-g) > 2.0 do not use
        if ( i/=2 .and. abs(tbc(i)) > two ) then
-        varinv(i) = zero
-        if(id_qc(i) == igood_qc ) id_qc(i)=ifail_gross_routine_qc   !hliu check
-!       QC1 in statsrad
-        if(luse)aivals(8,is)= aivals(8,is) + one  !hliu check
+          varinv(i) = zero
+          if(id_qc(i) == igood_qc ) id_qc(i)=ifail_gross_routine_qc
+!         QC1 in statsrad
+          if(luse)aivals(8,is)= aivals(8,is) + one  !hliu check
        end if
      end if
 

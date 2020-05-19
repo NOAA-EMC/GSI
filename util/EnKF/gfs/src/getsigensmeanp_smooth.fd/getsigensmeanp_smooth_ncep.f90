@@ -119,7 +119,7 @@ program getsigensmeanp_smooth
   endif
 
   if ( npe < nanals ) then
-     write(6,'(2(a,i4))')'***ERROR***  npe too small.  npe = ',npe,' < nanals = ',nanals
+     write(6,'(2(a,i4))')'***FATAL ERROR***  npe too small.  npe = ',npe,' < nanals = ',nanals
      call mpi_abort(mpi_comm_world,99,iret)
      stop
   end if
@@ -135,7 +135,7 @@ program getsigensmeanp_smooth
   call mpi_group_incl(orig_group,nanals,new_group_members,new_group,iret)
   call mpi_comm_create(mpi_comm_world,new_group,new_comm,iret)
   if ( iret /= 0 ) then
-     write(6,'(a,i5)')'***ERROR*** after mpi_comm_create with iret = ',iret
+     write(6,'(a,i5)')'***FATAL ERROR*** after mpi_comm_create with iret = ',iret
      call mpi_abort(mpi_comm_world,101,iret)
   endif
 
@@ -248,6 +248,13 @@ program getsigensmeanp_smooth
         dosmooth = .false.
      endif
      if ( mype == 0 ) write(6,'(a,l1)')'dosmooth = ',dosmooth
+
+!    Abort if smoothing requested with increment option
+     if (dosmooth .and. increment) then
+        write(6,'(a,l7,a,l7)')'***FATAL ERROR***  can not run dosmooth ',dosmooth,' and increment ',increment
+        call mpi_abort(mpi_comm_world,100,iret)
+        stop
+     endif
 
      if ( dosmooth ) then
 !       Set up smoother
@@ -610,15 +617,7 @@ program getsigensmeanp_smooth
               dseto_sprd = create_dataset(filenameoutsprd, dset, copy_vardata=.true.)
            endif
         endif
-        if (dosmooth) then
-           dseto_smooth = create_dataset(filenameouts, dset, copy_vardata=.true.)
-        endif
-        if (dosmooth) then
-           allocate(rwork_spc((ntrunc+1)*(ntrunc+2)),rwork_spc2((ntrunc+1)*(ntrunc+2)))
-        endif
         do nvar=1,dset%nvars
-           ! if smoothing is on, u&v done together.
-           if (dosmooth .and. trim(dset%variables(nvar)%name) == 'vgrd') cycle
            ndims = dset%variables(nvar)%ndims
            if (ndims == 3) then
               call read_vardata(dset,trim(dset%variables(nvar)%name),values_3d)
@@ -641,91 +640,16 @@ program getsigensmeanp_smooth
                  values_3d_sprd= sqrt(values_3d_sprd*rnanalsm1)
                  if (mype == 0) print *,trim(dset%variables(nvar)%name),' min/max spread',minval(values_3d_sprd),maxval(values_3d_sprd)
               endif
-              ! if smoothing on, read u and v together
-              if (dosmooth .and. trim(dset%variables(nvar)%name) == 'ugrd') then
-                 call read_vardata(dset,'vgrd',values_3dv)
-                 if (allocated(values_3dv_avg)) deallocate(values_3dv_avg)
-                 allocate(values_3dv_avg, mold=values_3dv)
-                 if (allocated(values_3dv_tmp)) deallocate(values_3dv_tmp)
-                 allocate(values_3dv_tmp, mold=values_3dv)
-                 if (allocated(values_3dv_sprd)) deallocate(values_3dv_sprd)
-                 allocate(values_3dv_sprd, mold=values_3dv)
-                 if (mype == 0) print *,'processing vgrd'
-                 call mpi_allreduce(values_3dv,values_3dv_avg,lonb*latb*nlevs,mpi_real4,mpi_sum,new_comm,iret)
-                 values_3dv_avg = values_3dv_avg*rnanals
-                 if (write_spread_ncio) then
-                    ! ens spread
-                    values_3dv_tmp = values_3dv - values_3dv_avg ! ens pert
-                    values_3dv_tmp = values_3dv_tmp**2
-                    call mpi_reduce(values_3d_tmp,values_3dv_sprd,lonb*latb*nlevs,mpi_real4,mpi_sum,0,new_comm,iret)
-                    values_3dv_sprd= sqrt(values_3dv_sprd*rnanalsm1)
-                    if (mype == 0) print *,'vgrd min/max spread',minval(values_3d_sprd),maxval(values_3d_sprd)
-                 endif
-              endif
-              ! smooth ens pert and write out?
-              if (dosmooth) then
-                 if (trim(dset%variables(nvar)%name) == 'ugrd') then
-                    ! do u,v together
-!$omp parallel do schedule(dynamic,1) private(k,rwork_spc,rwork_spc2)
-                    do k=1,nlevs
-                      if ( smoothparm(nlevs-k+1) > 0 ) then
-                       values_3d(:,:,k) = values_3d(:,:,k) - values_3d_avg(:,:,k) ! ens pert
-                       values_3dv(:,:,k) = values_3dv(:,:,k) - values_3dv_avg(:,:,k) ! ens pert
-                       call sptezv(0,ntrunc,idrt,lonb,latb,rwork_spc,rwork_spc2,&
-                                   values_3d(:,:,k),values_3dv(:,:,k),-1)
-                       call smooth(rwork_spc, ntrunc,smoothfact(:,:,nlevs-k+1))
-                       call smooth(rwork_spc2,ntrunc,smoothfact(:,:,nlevs-k+1))
-                       call sptezv(0,ntrunc,idrt,lonb,latb,rwork_spc,rwork_spc2,&
-                                   values_3d(:,:,k),values_3dv(:,:,k),1)
-                       values_3d(:,:,k) = values_3d(:,:,k) + values_3d_avg(:,:,k) ! add mean back
-                       values_3dv(:,:,k) = values_3dv(:,:,k) + values_3dv_avg(:,:,k) ! add mean back
-                      endif
-                    enddo
-                    call write_vardata(dseto_smooth,'ugrd',values_3d)
-                    call write_vardata(dseto_smooth,'vgrd',values_3dv)
-                 else
-                    ! do scalars.
-                    if (trim(dset%variables(nvar)%name) /= 'ugrd' .and. &
-                        trim(dset%variables(nvar)%name) /= 'dzdt' .and. &
-                        trim(dset%variables(nvar)%name) /= 'delz' .and. &
-                        trim(dset%variables(nvar)%name) /= 'dpres' .and. &
-                        trim(dset%variables(nvar)%name) /= 'vgrd') then
-!$omp parallel do schedule(dynamic,1) private(k,rwork_spc)
-                       do k=1,nlevs
-                         if ( smoothparm(nlevs-k+1) > 0 ) then
-                          values_3d(:,:,k) = values_3d(:,:,k) - values_3d_avg(:,:,k) ! ens pert
-                          call sptez(0,ntrunc,idrt,lonb,latb,rwork_spc,values_3d(:,:,k),-1)
-                          call smooth(rwork_spc,ntrunc,smoothfact(:,:,nlevs-k+1))
-                          call sptez(0,ntrunc,idrt,lonb,latb,rwork_spc,values_3d(:,:,k),1)
-                          values_3d(:,:,k) = values_3d(:,:,k) + values_3d_avg(:,:,k) ! add mean back
-                         endif
-                       enddo
-                    endif
-                    call write_vardata(dseto_smooth,trim(dset%variables(nvar)%name),values_3d)
-                 end if
-              end if
               if (mype == 0) then
                  call write_vardata(dseto,trim(dset%variables(nvar)%name),values_3d_avg)
-                 ! if smoothing on, write u and v together
-                 if (dosmooth .and. trim(dset%variables(nvar)%name) == 'ugrd') then
-                    call write_vardata(dseto,'vgrd',values_3dv_avg)
-                 endif
                  if (write_spread_ncio) then
                     call write_vardata(dseto_sprd,trim(dset%variables(nvar)%name),values_3d_sprd)
-                    ! if smoothing on, write u and v together
-                    if (dosmooth .and. trim(dset%variables(nvar)%name) == 'ugrd') then
-                       call write_vardata(dseto_sprd,'vgrd',values_3dv_sprd)
-                    end if
                  end if
               end if
            end if ! end if 3D var
         end do ! end loop through variables
         deallocate(values_3d, values_3d_avg)
         deallocate(values_3d_tmp)
-        if (dosmooth) then
-           deallocate(rwork_spc)
-           call close_dataset(dseto_smooth)
-        endif
         if (write_spread_ncio) then
            deallocate(values_3d_sprd)
         endif
@@ -872,7 +796,7 @@ program getsigensmeanp_smooth
   call mpi_barrier(mpi_comm_world,iret)
 
   if ( mype1 <= nanals .and. .not. nemsio .and. .not. sigio .and. .not. ncio .and. .not. increment) then
-     write(6,'(a)')'***ERROR***  invalid atmospheric file format'
+     write(6,'(a)')'***FATAL ERROR***  invalid atmospheric file format'
      call mpi_abort(mpi_comm_world,98,iret)
      stop
   endif

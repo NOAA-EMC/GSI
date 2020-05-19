@@ -393,9 +393,9 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
         if(clrsky) then
 !         use NCLDMNT from chn7 (10.8 micron) as a QC predictor
 !         add SDTB from chn7 as QC predictor
-          pred=10-dataabi1(1,7)/10.0_r_kind+dataabi3(1,7)*10.0_r_kind
+          pred=10.0_r_kind-dataabi1(1,7)/10.0_r_kind+dataabi3(1,7)*10.0_r_kind
         else
-          pred=0.
+          pred=zero
         end if
 !            
 !       Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"

@@ -1166,12 +1166,6 @@ contains
               end do
            end if
 
-!          if (iuse_rad(mm)==4) then
-!             do j = 1,npred
-!                pred(j,i)=zero
-!             end do
-!          end if
-
            do j = 1,npred
               predbias(j,i) = predchan(j,i)*pred(j,i)
            end do

@@ -20,7 +20,7 @@
 !==============================================================================
 module pvqc
 !==============================================================================
-use kinds, only: dp
+use kinds, only: dp,i_kind
 use pietc, only: T,F,u0,u1,u2,o2,pi,pih
 implicit none
 private
@@ -46,17 +46,18 @@ subroutine atote(alpha,beta,kappa,x,y)!                                [atote]
 ! For shape parameters alpha, beta, kappa, and standardardized residual
 ! x, reurn the value, y,  of the standard asymptote at x of the superlogistic.
 !=============================================================================
+implicit none
 real(dp),intent(in ):: alpha,beta,kappa,x
 real(dp),intent(out):: y
 !-----------------------------------------------------------------------------
-real(dp),parameter:: pio4=pi/4
+real(dp),parameter:: pio4=pi/4_dp
 real(dp)          :: b,c,bap,bac
 !=============================================================================
-c=kappa+1
+c=kappa+1_dp
 b=tan(pio4*(u2-beta))/c
 bap=b*(u1+alpha)
 bac=b*(u1-alpha)
-if(x<0)then; y=-bap*(-x)**c
+if(x<0_dp)then; y=-bap*(-x)**c
 else;        y=-bac*( x)**c
 endif
 end subroutine atote
@@ -65,17 +66,18 @@ subroutine atoted(alpha,beta,kappa,x,y,yd)!                            [atote]
 !=============================================================================
 ! Like atote, but also return the 1st derivative, yd=dy/dx, at x.
 !=============================================================================
+implicit none
 real(dp),intent(in ):: alpha,beta,kappa,x
 real(dp),intent(out):: y,yd
 !-----------------------------------------------------------------------------
-real(dp),parameter:: pio4=pi/4
+real(dp),parameter:: pio4=pi/4_dp
 real(dp)          :: b,c,bap,bac
 !=============================================================================
-c=kappa+1
+c=kappa+1_dp
 b=tan(pio4*(u2-beta))/c
 bap=b*(u1+alpha)
 bac=b*(u1-alpha)
-if(x<0)then; y=-bap*(-x)**c; yd=c*y/x
+if(x<0_dp)then; y=-bap*(-x)**c; yd=c*y/x
 else;        y=-bac*( x)**c; yd=c*y/x
 endif
 end subroutine atoted
@@ -84,18 +86,19 @@ subroutine atotedd(alpha,beta,kappa,x,y,yd,ydd)!                       [atote]
 !=============================================================================
 ! Like atoted, but also return the 2nd derivative, ydd, at x.
 !=============================================================================
+implicit none
 real(dp),intent(in ):: alpha,beta,kappa,x
 real(dp),intent(out):: y,yd,ydd
 !-----------------------------------------------------------------------------
-real(dp),parameter:: pio4=pi/4
+real(dp),parameter:: pio4=pi/4_dp
 real(dp)          :: b,c,bap,bac
 !=============================================================================
-c=kappa+1
+c=kappa+1_dp
 b=tan(pio4*(u2-beta))/c
 bap=b*(u1+alpha)
 bac=b*(u1-alpha)
-if(x<0)then; y=-bap*(-x)**c; yd=c*y/x; ydd=(c-1)*yd/x
-else;        y=-bac*( x)**c; yd=c*y/x; ydd=(c-1)*yd/x
+if(x<0_dp)then; y=-bap*(-x)**c; yd=c*y/x; ydd=(c-1_dp)*yd/x
+else;           y=-bac*( x)**c; yd=c*y/x; ydd=(c-1_dp)*yd/x
 endif
 end subroutine atotedd
 
@@ -103,6 +106,7 @@ end subroutine atotedd
 subroutine wipevqctables!                                      [wipevqctables]
 !=============================================================================
 use pvqc_tables, only: sgt,swt,x1t,x2t,xat,yat,linitvqc
+implicit none
 if(allocated(sgt))deallocate(sgt)
 if(allocated(swt))deallocate(swt)
 if(allocated(x1t))deallocate(x1t)
@@ -124,13 +128,15 @@ subroutine writevqcascfile(vqcascfile,&!                      [writevqcascfile]
 ! match those listed in the rest of the argument list.
 !==============================================================================
 use pvqc_tables, only: sgt,swt,x1t,x2t,xat,yat, &
-     npx,npa,npb,npk,nx,na, linitvqc
+                       npx,npa,npb,npk,nx,na, linitvqc
+
+implicit none
 character(len=12),intent(in ):: vqcascfile
-integer,          intent(in ):: npx_a,npa_a,npb_a,npk_a,nx_a,na_a
+integer(i_kind),  intent(in ):: npx_a,npa_a,npb_a,npk_a,nx_a,na_a
 !------------------------------------------------------------------------------
-integer,parameter:: lunit=11,nunit=99
-integer          :: iunit
-logical          :: ex,op
+integer(i_kind),parameter:: lunit=11,nunit=99
+integer(i_kind)          :: iunit
+logical                  :: ex,op
 !==============================================================================
 if(.not.linitvqc)&
      stop'In writevqcascfile; VQC parameters and tables are not yet initialized'
@@ -176,13 +182,14 @@ subroutine readvqcascfile(vqcascfile,&!                        [readvqcascfile]
 ! flag, linitvqc, to .true.
 !==============================================================================
 use pvqc_tables, only: sgt,swt,x1t,x2t,xat,yat, dx,da,db,dk, &
-     npx,npa,npb,npk,nx,na,npb2, linitvqc
+                       npx,npa,npb,npk,nx,na,npb2, linitvqc
+implicit none
 character(len=12),intent(in ):: vqcascfile
-integer,          intent(in ):: npx_a,npa_a,npb_a,npk_a,nx_a,na_a
+integer(i_kind),  intent(in ):: npx_a,npa_a,npb_a,npk_a,nx_a,na_a
 !------------------------------------------------------------------------------
-integer,parameter:: lunit=11,nunit=99
-integer          :: iunit,nkm
-logical          :: ex,op
+integer(i_kind),parameter:: lunit=11,nunit=99
+integer(i_kind)          :: iunit,nkm
+logical                  :: ex,op
 !==============================================================================
 if(linitvqc)call wipevqctables
 do iunit=lunit,nunit
@@ -233,12 +240,13 @@ subroutine writevqcdatfile(vqcdatfile,&!                      [writevqcdatfile]
 ! match those listed in the rest of the argument list.
 !==============================================================================
 use pvqc_tables, only: sgt,swt,x1t,x2t,xat,yat, &
-     npx,npa,npb,npk,nx,na, linitvqc
+                       npx,npa,npb,npk,nx,na, linitvqc
+implicit none
 character(len=12),intent(in ):: vqcdatfile
-integer,          intent(in ):: npx_a,npa_a,npb_a,npk_a,nx_a,na_a
+integer(i_kind),  intent(in ):: npx_a,npa_a,npb_a,npk_a,nx_a,na_a
 !------------------------------------------------------------------------------
-integer,parameter:: lunit=11,nunit=99
-integer          :: iunit
+integer(i_kind),parameter:: lunit=11,nunit=99
+integer(i_kind)          :: iunit
 logical          :: ex,op
 !==============================================================================
 if(.not.linitvqc)&
@@ -270,7 +278,7 @@ end subroutine writevqcdatfile
 
 !==============================================================================
 subroutine readvqcdatfile(vqcdatfile,&!                        [readvqcdatfile]
-     npx_a,npa_a,npb_a,npk_a,nx_a,na_a)
+           npx_a,npa_a,npb_a,npk_a,nx_a,na_a)
 !==============================================================================
 ! If VQC parameters already exist in the module, pvqc_tables.mod, wipe them
 ! clean with a call to witevqctables; then read in the integer records from
@@ -283,13 +291,13 @@ subroutine readvqcdatfile(vqcdatfile,&!                        [readvqcdatfile]
 ! flag, linitvqc, to .true.
 !==============================================================================
 use pvqc_tables, only: sgt,swt,x1t,x2t,xat,yat, dx,da,db,dk, &
-     npx,npa,npb,npk,nx,na,npb2, linitvqc
+                       npx,npa,npb,npk,nx,na,npb2, linitvqc
 character(len=12),intent(in ):: vqcdatfile
-integer,          intent(in ):: npx_a,npa_a,npb_a,npk_a,nx_a,na_a
+integer(i_kind),  intent(in ):: npx_a,npa_a,npb_a,npk_a,nx_a,na_a
 !------------------------------------------------------------------------------
-integer,parameter:: lunit=11,nunit=99
-integer          :: iunit,nkm
-logical          :: ex,op
+integer(i_kind),parameter:: lunit=11,nunit=99
+integer(i_kind)          :: iunit,nkm
+logical                  :: ex,op
 !==============================================================================
 if(linitvqc)call wipevqctables
 do iunit=lunit,nunit
@@ -340,14 +348,15 @@ subroutine vqch_iii(ia,ib,ik,x,g,w)!                                     [vqch]
 !==============================================================================
 use pvqc_tables, only: x1t,x2t,xat,yat,da,db,dk,&
                        npk,na,npb2,linitvqc
-integer, intent(in ):: ia,ib,ik
-real(dp),intent(in ):: x
-real(dp),intent(out):: g,w
+implicit none
+integer(i_kind), intent(in ):: ia,ib,ik
+real(dp),        intent(in ):: x
+real(dp),        intent(out):: g,w
 !------------------------------------------------------------------------------
-real(dp),parameter:: pio4=pi/4
+real(dp),parameter:: pio4=pi/4_dp
 real(dp)          :: bc,p,q,qx,sx,alpha,beta,kappa, &
                      x1,x2,xa,ya,xx
-integer           :: ja
+integer(i_kind)           :: ja
 !==============================================================================
 if(.not.linitvqc)stop'In vqch; VQC tables are not initialized'
 if(ia<0)then; sx=-x; ja=-ia
@@ -384,9 +393,10 @@ subroutine vqch_ii(ib,ik,x,g,w)!                                         [vqch]
 ! Wrapper for the symmetric restriction (no alpha index) of the Huber-like
 ! analogs of the superlogistic family.
 !==============================================================================
-integer, intent(in ):: ib,ik
-real(dp),intent(in ):: x
-real(dp),intent(out):: g,w
+implicit none
+integer(i_kind), intent(in ):: ib,ik
+real(dp),        intent(in ):: x
+real(dp),        intent(out):: g,w
 !------------------------------------------------------------------------------
 call vqch(0,ib,ik,x,g,w)
 end subroutine vqch_ii
@@ -397,9 +407,9 @@ subroutine vqch_i(ib,x,g,w)!                                             [vqch]
 ! (no kappa index) restriction of the Huber-like analogs of the 
 ! superlogistic family.
 !==============================================================================
-integer, intent(in ):: ib
-real(dp),intent(in ):: x
-real(dp),intent(out):: g,w
+integer(i_kind), intent(in ):: ib
+real(dp),        intent(in ):: x
+real(dp),        intent(out):: g,w
 !------------------------------------------------------------------------------
 call vqch(0,ib,0,x,g,w)
 end subroutine vqch_i
@@ -411,10 +421,11 @@ subroutine vqch_r(beta,x,g,w)!                                           [vqch]
 ! parameter, beta.
 !==============================================================================
 use pvqc_tables, only: x1t,x2t,yat,linitvqc
+implicit none
 real(dp),intent(in ):: beta,x
 real(dp),intent(out):: g,w
 !------------------------------------------------------------------------------
-real(dp),parameter:: pio4=pi/4
+real(dp),parameter:: pio4=pi/4_dp
 real(dp)          :: bc,p,q,qx,x1,x2,ya,xx
 !==============================================================================
 if(.not.linitvqc)stop'In vqch; VQC tables are not initialized'
@@ -432,8 +443,8 @@ if(qx<x1.or.qx>x2)then
    g=g-ya
    w=-w/xx
 else
-   g=-qx**2/2
-   w=1
+   g=-qx**2/2_dp
+   w=1_dp
 endif
 g=p*g
 end subroutine vqch_r
@@ -457,14 +468,15 @@ subroutine vqcs_iii(ia,ib,ik,x,g,w)!                                     [vqcs]
 ! ensure continuity of g at the transition.
 !==============================================================================
 use pvqc_tables, only: sgt,swt,dx,db,dk,npb,npk,nx,na,npb2,linitvqc
-integer, intent(in ):: ia,ib,ik
-real(dp),intent(in ):: x
-real(dp),intent(out):: g,w
+implicit none
+integer(i_kind), intent(in ):: ia,ib,ik
+real(dp),        intent(in ):: x
+real(dp),        intent(out):: g,w
 !------------------------------------------------------------------------------
 real(dp),parameter:: pio4=pi/4
 real(dp)          :: bc,p,q,qx,sx,w1,w2,xodx,beta,kappa,xe,ge,we,&
                      ww,dfa,fl,dfl,f1,f2,df1,df2,g1,g2
-integer           :: ix1,ix2,ja
+integer(i_kind)   :: ix1,ix2,ja
 !==============================================================================
 if(.not.linitvqc)stop'In vqcs; VQC tables are not initialized'
 if(ia<0)then; sx=-x; ja=-ia
@@ -523,9 +535,10 @@ subroutine vqcs_ii(ib,ik,x,g,w)!                                         [vqcs]
 ! dispenses with the associated index parameter ia for the convenience of the
 ! user, but retains broadness and convexity indices, ib and ik.
 !==============================================================================
-integer, intent(in ):: ib,ik
-real(dp),intent(in ):: x
-real(dp),intent(out):: g,w
+implicit none
+integer(i_kind), intent(in ):: ib,ik
+real(dp),        intent(in ):: x
+real(dp),        intent(out):: g,w
 !------------------------------------------------------------------------------
 call vqcs(0,ib,ik,x,g,w)
 end subroutine vqcs_ii
@@ -536,9 +549,10 @@ subroutine vqcs_i(ib,x,g,w)!                                             [vqcs]
 ! this wrapper routine takes only the beta parameter index, ib, to define 
 ! the broadness.
 !==============================================================================
-integer, intent(in ):: ib
-real(dp),intent(in ):: x
-real(dp),intent(out):: g,w
+implicit none
+integer(i_kind), intent(in ):: ib
+real(dp),        intent(in ):: x
+real(dp),        intent(out):: g,w
 !------------------------------------------------------------------------------
 call vqcs(0,ib,0,x,g,w)
 end subroutine vqcs_i
@@ -551,13 +565,14 @@ subroutine vqcs_r(beta,x,g,w)!                                           [vqcs]
 ! of the superlogistic family.
 !==============================================================================
 use pvqc_tables, only: sgt,swt,dx,npb,nx,linitvqc
+implicit none
 real(dp),intent(in ):: beta,x
 real(dp),intent(out):: g,w
 !------------------------------------------------------------------------------
-real(dp),parameter:: pio4=pi/4
+real(dp),parameter:: pio4=pi/4_dp
 real(dp)          :: bc,p,q,qx,w1,w2,xodx,xe,ge,we,&
                      ww,dfa,fl,dfl,f1,f2,df1,df2,g1,g2
-integer           :: ix1,ix2
+integer(i_kind)   :: ix1,ix2
 !==============================================================================
 if(.not.linitvqc)stop'In vqcs; VQC tables are not initialized'
 bc=tan(pio4*(u2-beta))

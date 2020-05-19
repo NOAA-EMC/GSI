@@ -181,12 +181,12 @@ subroutine intq_(qhead,rval,sval)
               var_jb=zero
            endif
            if(nvqc .and. qptr%ib >0) then
-           ibb=qptr%ib
-           ikk=qptr%ik
-        else
-           ibb=0
-           ikk=0
-        endif
+              ibb=qptr%ib
+              ikk=qptr%ik
+           else
+              ibb=0
+              ikk=0
+           endif
 
            call  vqc_int(error2,rat_error2,t_pg,cg_t,var_jb,ibb,ikk,val,grad)
 

@@ -317,7 +317,7 @@ subroutine setupbend(obsLL,odiagLL, &
   nobs_out=0
   hob_s_top=one
   mm1=mype+1
-  ns=nsig/2
+  ns=nsig/two
   nsigstart=nint(ns)
   ns=(r61/r63)*nsig+r18
   grids_dim=nint(ns)  ! grid points for integration of GPS bend
