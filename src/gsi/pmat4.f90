@@ -55,6 +55,7 @@
 module peuc
 !============================================================================
 use kinds, only: sp,dp,dpc,i_kind
+implicit none
 private
 public:: absv,normalized,orthogonalized,                        &
          cross_product,outer_product,triple_product,det,axial,  &
@@ -253,7 +254,7 @@ if(n==3)then
    det=triple_product(a(:,1),a(:,2),a(:,3))
 else
    call gram(a,b,nrank,det)
-   if(nrank<n)det=0
+   if(nrank<n)det=0_sp
 endif
 end function det_s
 !=============================================================================
@@ -314,9 +315,10 @@ end function axial3_d
 !=============================================================================
 function axial33_s(b)result(a)!                                        [axial]
 !=============================================================================
+implicit none
 real(sp),dimension(3,3),intent(IN ):: b
 real(sp),dimension(3)              :: a
-a(1)=(b(3,2)-b(2,3))/2; a(2)=(b(1,3)-b(3,1))/2; a(3)=(b(2,1)-b(1,2))/2
+a(1)=(b(3,2)-b(2,3))/2_sp; a(2)=(b(1,3)-b(3,1))/2_sp; a(3)=(b(2,1)-b(1,2))/2_sp
 end function axial33_s
 !=============================================================================
 function axial33_d(b)result(a)!                                        [axial]
@@ -335,7 +337,7 @@ real(sp),dimension(:),intent(IN )  :: a
 real(sp),dimension(size(a),size(a)):: b
 integer(i_kind)                    :: n,i
 n=size(a)
-b=0_dp; do i=1,n; b(i,i)=a(i); enddo
+b=0_sp; do i=1,n; b(i,i)=a(i); enddo
 end function diagn_s
 !=============================================================================
 function diagn_d(a)result(b)!                                           [diag]
@@ -560,6 +562,7 @@ end subroutine normalize_s
 !=============================================================================
 subroutine normalize_d(v)!                                         [normalize]
 !=============================================================================
+implicit none
 real(dp),dimension(:),intent(inout):: v
 real(dp)                           :: s
 s=absv(v); if(s==0_dp)then; v=0_dp; v(1)=1_dp; else; v=v/s; endif
@@ -758,7 +761,7 @@ do k=1,n
    elseif(s>0_dp)then
       ldet=ldet+log(s)
    else
-      detsign=0_dp
+      detsign=0
    endif
       
 !   det=det*s
@@ -820,7 +823,7 @@ integer(i_kind)                          :: j,k,n
 !=============================================================================
 n=size(b,1); if(n/=size(b,2))stop 'In gram; matrix needs to be square'
 val=maxval(abs(b))
-nrank=0_dp
+nrank=0
 if(val==0_dp)then
    b=0_dp
    return
@@ -978,7 +981,7 @@ subroutine corral(m,n,mask,a,d,aa,e)!                                 [corral]
 ! together with the rescaled matrix aa such that a = d.aa.e when d and e are
 ! interpreted as diagonal matrices.
 !=============================================================================
-use pmat
+use pmat, only: inv
 implicit none
 
 integer(i_kind),        intent(in ):: m,n
@@ -995,9 +998,9 @@ integer(i_kind)                    :: i,j,k,nh
 nh=1+m+n
 aa=0_dp
 do j=1,n
-do i=1,m
-   if(mask(i,j))aa(i,j)=log(abs(a(i,j)))
-enddo
+   do i=1,m
+      if(mask(i,j))aa(i,j)=log(abs(a(i,j)))
+   enddo
 enddo
 
 h=0_dp
@@ -1048,9 +1051,9 @@ enddo
 
 ! Compute the rescaled matrix directly:
 do j=1,n
-do i=1,m
-   aa(i,j)=a(i,j)/(d(i)*e(j))
-enddo
+   do i=1,m
+      aa(i,j)=a(i,j)/(d(i)*e(j))
+   enddo
 enddo
 end subroutine corral
 
@@ -1078,7 +1081,7 @@ do i=1,3; z(i)=dot_product(plane(:,i),plane(:,i)); enddo
 ii=minloc(z)
 k=ii(1); i=1+mod(k,3); j=1+mod(i,3)
 ax3=cross_product(plane(:,i),plane(:,j))
-s=absv(ax3); if(s==0)return
+s=absv(ax3); if(s==0_dp)return
 ax3=ax3/s ! <- temporarily a unit vector pointing along rotation axis
 ! Construct a unit 2D basis, x,y, in the plane of rotation
 x=normalized(cross_product(ax3,plane(:,j)))
@@ -1151,7 +1154,7 @@ integer(i_kind),dimension(1)  :: ii
 ! of rot:
 t1=rot; do i=1,3; t1(i,i)=t1(i,i)-1_dp; u1(i)=dot_product(t1(i,:),t1(i,:)); enddo
 ii=maxloc(u1); j=ii(1); ss=u1(j)
-if(ss<1.d-16)then
+if(ss<1.e-16_dp)then
    q=0_dp; q(0)=1_dp; return
 endif
 t1(j,:)=t1(j,:)/sqrt(ss)
@@ -1170,7 +1173,7 @@ else
    j=2
 endif
 ss=u1(j)
-if(ss==0)stop 'In rotov; invalid rot'
+if(ss==0_dp)stop 'In rotov; invalid rot'
 if(j/=2)t1(2,:)=t1(3,:)
 t1(2,:)=t1(2,:)/sqrt(ss)
 
@@ -1295,10 +1298,10 @@ do i=2,L
    b=b+p
 enddo
 do i=1,m
-   b=b*2+matmul(b,b)
+   b=b*2_dp+matmul(b,b)
 enddo
 do i=1,n
-   b(i,i)=b(i,i)+1
+   b(i,i)=b(i,i)+1_dp
 enddo
 detb=0_dp; do i=1,n; detb=detb+a(i,i); enddo; detb=exp(detb)
 end subroutine expmat
@@ -1355,12 +1358,12 @@ do i=2,L
 enddo
 do i=1,m
    do k=1,n1
-      bd(:,:,k)=2*bd(:,:,k)+matmul(bd(:,:,k),b)+matmul(b,bd(:,:,k))
+      bd(:,:,k)=2_dp*bd(:,:,k)+matmul(bd(:,:,k),b)+matmul(b,bd(:,:,k))
    enddo
-   b=b*2+matmul(b,b)
+   b=b*2_dp+matmul(b,b)
 enddo
 do i=1,n
-   b(i,i)=b(i,i)+1
+   b(i,i)=b(i,i)+1_dp
 enddo
 detb=0_dp; do i=1,n; detb=detb+a(i,i); enddo; detb=exp(detb)
 detbd=0_dp; do k=1,n; detbd(k)=detb; enddo
@@ -1433,7 +1436,7 @@ enddo
 do i=1,m
    do ki=1,n1
       do kj=1,n1
-         bdd(:,:,ki,kj)=2*bdd(:,:,ki,kj)               &
+         bdd(:,:,ki,kj)=2_dp*bdd(:,:,ki,kj)               &
                         +matmul(bdd(:,:,ki,kj),b)      &
                         +matmul(bd(:,:,ki),bd(:,:,kj)) &
                         +matmul(bd(:,:,kj),bd(:,:,ki)) &
@@ -1446,7 +1449,7 @@ do i=1,m
    b=b*2_dp+matmul(b,b)
 enddo
 do i=1,n
-   b(i,i)=b(i,i)+1
+   b(i,i)=b(i,i)+1_dp
 enddo
 detb=0_dp;   do i=1,n; detb=detb+a(i,i); enddo; detb=exp(detb)
 detbd=0_dp;  do k=1,n; detbd(k)=detb; enddo
@@ -1558,7 +1561,7 @@ real(dp)          :: rr,zzpi
 !=============================================================================
 infz=.false.
 z=cmplx(v(1),v(2),dpc)
-if(v(3)>0)then
+if(v(3)>0_dp)then
    zzpi=one/(one+v(3))
 else
    rr=v(1)**2+v(2)**2
@@ -1583,8 +1586,8 @@ if(infz)then; v=(/zero,zero,-one/); return; endif
 r=real(z); q=aimag(z); rs=r*r+q*q
 rsc=one-rs
 rsbi=one/(one+rs)
-v(1)=2*rsbi*r
-v(2)=2*rsbi*q
+v(1)=2_dp*rsbi*r
+v(2)=2_dp*rsbi*q
 v(3)=rsc*rsbi
 end subroutine ztoc
 
@@ -1789,7 +1792,7 @@ logical,     intent(OUT):: infw
 real(dp),parameter:: zero=0_dp
 complex(dpc)      :: top,bot
 !=============================================================================
-w=0_dp
+w=0_dpc
 infw=.false.
 if(infz)then
    top=aa

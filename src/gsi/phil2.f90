@@ -164,10 +164,10 @@ ic=1
 sbold=0
 ! Initially, all the polynomial coefficients vanish:
 pa0=0.0_dp
-pa1=0.0_dp
-pb1=0.0_dp
+pa1=0
+pb1=0
 pc0=0.0_dp
-pc1=0.0_dp
+pc1=0
 do ib=1,nob
    jb=rank(ib)
    sb=sob(jb); sa=sb-span; sc=sb+span
@@ -185,10 +185,10 @@ do ib=1,nob
 ! there:
    La=ia; Lc=ic
    do ia=La,nob
-      soba=sob(rank(ia)); if(soba>sa)exit; pa0=pa0+sb-soba; pa1=pa1+1.0_dp
+      soba=sob(rank(ia)); if(soba>sa)exit; pa0=pa0+sb-soba; pa1=pa1+1
    enddo
    do ic=Lc,nob
-      sobc=sob(rank(ic)); if(sobc>sc)exit; pc0=pc0+sb-sobc; pc1=pc1+1.0_dp
+      sobc=sob(rank(ic)); if(sobc>sc)exit; pc0=pc0+sb-sobc; pc1=pc1+1
    enddo
 ! The formula, [p(sb-span) -2*p(sb) +p(sb+span)], simplies to: 
    dob(jb)=dob(jb)+(pa0+pc0+span*(pc1-pa1))*spansi
@@ -215,10 +215,10 @@ ic=1
 sbold=0.0_dp
 ! Initially, all the polynomial coefficients vanish:
 pa0=0.0_dp
-pa1=0.0_dp
-pb1=0.0_dp
+pa1=0
+pb1=0
 pc0=0.0_dp
-pc1=0.0_dp
+pc1=0
 do ib=1,nob
    sb=sob(ib); sa=sb-span; sc=sb+span
    ds=sb-sbold; sbold=sb
@@ -229,13 +229,13 @@ do ib=1,nob
    pa0=(pa0+ds*pa1)*shrink ! Shrink by imperceptible amount to stabilize
    pc0=(pc0+ds*pc1)*shrink ! huge computations against cumulative round-off
 !  New pb0 is always taken implicitly to be zero and new pb1 becomes simply:   
-   pb1=1.0_dp! < (new) rt-polynomial p(s) at B is trivially p=(s-sob(ib))
+   pb1=1! < (new) rt-polynomial p(s) at B is trivially p=(s-sob(ib))
 ! Update the new locations of A and C (straddling B by distance, span) and
 ! the corresponding polynomial coefficients, {pa0,pa1} and {pc0,pc1} valid 
 ! there:
    La=ia; Lc=ic
-   do ia=La,nob; if(sob(ia)>sa)exit; pa0=pa0+sb-sob(ia); pa1=pa1+1.0_dp; enddo
-   do ic=Lc,nob; if(sob(ic)>sc)exit; pc0=pc0+sb-sob(ic); pc1=pc1+1.0_dp; enddo
+   do ia=La,nob; if(sob(ia)>sa)exit; pa0=pa0+sb-sob(ia); pa1=pa1+1; enddo
+   do ic=Lc,nob; if(sob(ic)>sc)exit; pc0=pc0+sb-sob(ic); pc1=pc1+1; enddo
 ! The formula, [p(sb-span) -2*p(sb) +p(sb+span)], simplies to: 
    dob(ib)=dob(ib)+(pa0+pc0+span*(pc1-pa1))*spansi
 enddo
@@ -393,7 +393,7 @@ do irand=1,nrand
       rob(L) =rob(L)+vrand ! Randomize by new vertical displacement
    enddo
    do L=1,nob
-      sob(L)=0
+      sob(L)=0_dp
       call xs_to_hil48(ngen4,ngen,xob(:,L),rob(L), hilr)
       call hil8_to_r(ngen4+1,ngen,hilr(ngen4+1:ngen),sob(L))
       call hil4_to_r(1,ngen4,hilr(1:ngen4),sob(L))
@@ -507,7 +507,7 @@ endif
 ! Project the data onto nrand differently-oriented Hilbert curves and sum
 ! the different estimated density estimates at the ob points in array denob:
 rotnew=u0; do i=1,3; rotnew(i,i)=u1; enddo ! <- Identity matrix.
-denob=0
+denob=0_dp
 do irand=1,nrand
    rotold=rotnew
    select case(nrand)
@@ -535,7 +535,7 @@ do irand=1,nrand
       rob(L) =rob(L)+vrand ! Randomize by new vertical displacement
    enddo
    do L=1,nob
-      sob(L)=0
+      sob(L)=0_dp
       call xs_to_hil48(ngen4,ngen,xob(:,L),rob(L), hilr)
       call hil8_to_r(ngen4+1,ngen,hilr(ngen4+1:ngen),sob(L))
       call hil4_to_r(1,ngen4,hilr(1:ngen4),sob(L))
@@ -638,7 +638,7 @@ enddo
 wtob=0
 do irand=1,nrand
    do L=1,nob
-      sob(L)=0
+      sob(L)=0_dp
       call xy_to_hil4(hob(1,L),hob(2,L),hilr)
       call hil4_to_r(1,ngen,hilr,sob(L))
    enddo
@@ -708,7 +708,7 @@ enddo
 
 ! Project the data onto nrand differently-oriented Hilbert curves and sum
 ! the different estimated density estimates at the ob points in array denob:
-denob=0
+denob=0_dp
 do irand=1,nrand
    do L=1,nob
       sob(L)=0
@@ -767,11 +767,11 @@ select case(n); case default; stop'In getqset5; n is outside the valid range'
    case(4)
       term1=(4.0_dp+6.0_dp*r2)/14.0_dp
       term2=(4.0_dp-  r2)/14.0_dp
-      qset5(:,2)=(/term1,2*term2, -term2,  term2/)
-      qset5(:,3)=(/term1,  term2,2*term2, -term2/)
-      qset5(:,4)=(/term1, -term2,  term2,2*term2/)
+      qset5(:,2)=(/term1,2_dp*term2,    -term2,     term2/)
+      qset5(:,3)=(/term1,     term2,2_dp*term2,    -term2/)
+      qset5(:,4)=(/term1,    -term2,     term2,2_dp*term2/)
    case(5)
-      ce=u1/(2.0_dp*sig+chi-sqrt(4.0_dp*sig+2*chi-u3))
+      ce=u1/(2.0_dp*sig+chi-sqrt(4.0_dp*sig+2_dp*chi-u3))
       cf=chi*ce
       cg=-u1+(-u1+r2*phi)*ce
       ch=-phi+(u1+r2*sig)*ce
@@ -815,12 +815,12 @@ x=r2*w-k2/2.0_dp
 y=(k1-2.0_dp)*r2*w+k2/2.0_dp
 z=(2.0_dp+(1.0_dp-k1)*r2)*w-k2/2.0_dp
 qset7(:,1)=(/u1,   u0,          u0,             u0             /)
-qset7(:,2)=(/k1/2,-z/k1,       -x/k1,           y/k1           /)
-qset7(:,3)=(/w,   -(y+z)/r2,    (k2/2-x)/r2,    (y-z)/r2       /)
-qset7(:,4)=(/w,    k2*(x-y)/r2,-(k2*z-k3/2)/r2,-(k2*z+k3/2)/r2 /)
-qset7(:,5)=(/w,    k2*(x-y)/r2,-(k2*z+k3/2)/r2,-(k2*z-k3/2)/r2 /)
-qset7(:,6)=(/w,    (z-y)/r2,   -(k2/2-x)/r2,   -(y+z)/r2       /)
-qset7(:,7)=(/k1/2, z/k1,         x/k1,         -y/k1           /)
+qset7(:,2)=(/k1/2_dp,-z/k1,       -x/k1,           y/k1           /)
+qset7(:,3)=(/w,   -(y+z)/r2,    (k2/2_dp-x)/r2,    (y-z)/r2       /)
+qset7(:,4)=(/w,    k2*(x-y)/r2,-(k2*z-k3/2_dp)/r2,-(k2*z+k3/2_dp)/r2 /)
+qset7(:,5)=(/w,    k2*(x-y)/r2,-(k2*z+k3/2_dp)/r2,-(k2*z-k3/2_dp)/r2 /)
+qset7(:,6)=(/w,    (z-y)/r2,   -(k2/2_dp-x)/r2,   -(y+z)/r2       /)
+qset7(:,7)=(/k1/2_dp, z/k1,         x/k1,         -y/k1           /)
 end subroutine getqset7
 
 !==============================================================================
@@ -839,16 +839,16 @@ use pietc, only: u1,or2
 implicit none
 real(dp),dimension(0:3,8),intent(out):: qset8
 !------------------------------------------------------------------------------
-real(dp),parameter:: o14=u1/14,or98=or2/7
+real(dp),parameter:: o14=u1/14_dp,or98=or2/7_dp
 !==============================================================================
-qset8(:,1)=(/1,0,0,0/)
-qset8(:,2)=(/13,3,3,3/)  *o14
-qset8(:,3)=(/13,-5,1,-1/)*o14
-qset8(:,4)=(/13,-1,-5,1/)*o14
-qset8(:,5)=(/13,1,-1,-5/)*o14
-qset8(:,6)=(/9,3,-2,1/)*or98
-qset8(:,7)=(/9,2,3,-2/)*or98
-qset8(:,8)=(/9,-2,2,3/)*or98
+qset8(:,1)=(/1_dp,0_dp,0_dp,0_dp/)
+qset8(:,2)=(/13_dp,3_dp,3_dp,3_dp/)  *o14
+qset8(:,3)=(/13_dp,-5_dp,1_dp,-1_dp/)*o14
+qset8(:,4)=(/13_dp,-1_dp,-5_dp,1_dp/)*o14
+qset8(:,5)=(/13_dp,1_dp,-1_dp,-5_dp/)*o14
+qset8(:,6)=(/9_dp,3_dp,-2_dp,1_dp/)*or98
+qset8(:,7)=(/9_dp,2_dp,3_dp,-2_dp/)*or98
+qset8(:,8)=(/9_dp,-2_dp,2_dp,3_dp/)*or98
 end subroutine getqset8
 
 !=============================================================================
