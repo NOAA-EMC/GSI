@@ -128,6 +128,8 @@ subroutine generate_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,p_
   use gridmod,  only:grid_ratio_fv3_regional
   use mpimod, only: mype
   use gridmod,  only:init_general_transform 
+  use gridmod,  only: fv3_regional_dd_reduce,nlon_fv3_regional_reduce,nlat_fv3_regional_reduce
+
   implicit none
   type (fv3sar2grid_parm),intent(inout):: p_fv3sar2grid
   real(r_kind),allocatable,intent(out):: region_lat_out(:,:),region_lon_out(:,:)
