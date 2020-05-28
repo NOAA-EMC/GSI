@@ -63,6 +63,8 @@ subroutine grads_sfctime(fileo,ifileo,nobs,nreal,nlev,plev,iscater,&
 
    data rmiss/-999.0/
 
+
+   print *, '---> grads_sfctime'
    ndata=0
 
    if( nobs > 0 ) then 
@@ -257,6 +259,7 @@ subroutine grads_sfctime(fileo,ifileo,nobs,nreal,nlev,plev,iscater,&
       print *, 'NOBS <= 0, NO OUTPUT GENERATED'
    end if
 
+   print *, '<--- grads_sfctime'
    return 
 end
 

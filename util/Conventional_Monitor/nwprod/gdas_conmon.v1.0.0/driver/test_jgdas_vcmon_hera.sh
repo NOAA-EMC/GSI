@@ -9,7 +9,8 @@
 
 set -x
 
-export PDATE=${PDATE:-2020012018}
+#export PDATE=${PDATE:-2020012018}  # binary
+export PDATE=${PDATE:-2020040306}   # netcdf
 
 #############################################################
 # Specify versions

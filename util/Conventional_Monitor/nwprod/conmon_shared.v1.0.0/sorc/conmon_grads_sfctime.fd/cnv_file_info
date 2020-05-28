@@ -1,0 +1,209 @@
+From setupps.f90:
+
+ cdiagbuf(ii)    = station_id         ! station id
+
+        rdiagbuf(1,ii)  = ictype(ikx)        ! observation type
+        rdiagbuf(2,ii)  = icsubtype(ikx)     ! observation subtype
+        rdiagbuf(3,ii)  = data(ilate,i)      ! observation latitude (degrees)
+        rdiagbuf(4,ii)  = data(ilone,i)      ! observation longitude (degrees)
+        rdiagbuf(5,ii)  = data(istnelv,i)    ! station elevation (meters)
+        rdiagbuf(6,ii)  = data(ipres,i)*r10  ! observation pressure (hPa)
+        rdiagbuf(7,ii)  = dhgt               ! observation height (meters)
+        rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
+
+        rdiagbuf(9,ii)  = data(iqc,i)        ! input prepbufr qc or event mark
+        rdiagbuf(10,ii) = var_jb             ! non linear qc parameter
+        rdiagbuf(11,ii) = data(iuse,i)       ! read_prepbufr data usage flag
+        if(muse(i)) then
+           rdiagbuf(12,ii) = one             ! analysis usage flag (1=use, -1=not used)
+        else
+           rdiagbuf(12,ii) = -one
+        endif
+
+        rdiagbuf(13,ii) = rwgt               ! nonlinear qc relative weight
+        rdiagbuf(14,ii) = errinv_input       ! prepbufr inverse obs error (hPa**-1)
+        rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error (hPa**-1)
+        rdiagbuf(16,ii) = errinv_final       ! final inverse observation error (hPa**-1)
+
+        rdiagbuf(17,ii) = pob                ! surface pressure observation (hPa)
+        rdiagbuf(18,ii) = pob-pges           ! obs-ges used in analysis (coverted to hPa)
+        rdiagbuf(19,ii) = pob-pgesorig       ! obs-ges w/o adjustment to guess surface pressure (hPa)
+        rdiagbuf(20,ii) = 1.e+10_r_single    ! spread (filled in by EnKF)
+
+
+>ncdump -h diag_conv_ps_ges.2020051806.nc4
+netcdf diag_conv_ps_ges.2020051806 {
+dimensions:
+        nobs = UNLIMITED ; // (81624 currently)
+        Station_ID_maxstrlen = 8 ;
+        Observation_Class_maxstrlen = 7 ;
+variables:
+        char Station_ID(nobs, Station_ID_maxstrlen) ;
+        char Observation_Class(nobs, Observation_Class_maxstrlen) ;
+        int Observation_Type(nobs) ;
+        int Observation_Subtype(nobs) ;
+        float Latitude(nobs) ;
+        float Longitude(nobs) ;
+        float Station_Elevation(nobs) ;
+        float Pressure(nobs) ;
+        float Height(nobs) ;
+        float Time(nobs) ;
+        float Prep_QC_Mark(nobs) ;
+        float Prep_Use_Flag(nobs) ;
+        float Nonlinear_QC_Var_Jb(nobs) ;
+        float Nonlinear_QC_Rel_Wgt(nobs) ;
+        float Analysis_Use_Flag(nobs) ;
+        float Errinv_Input(nobs) ;
+        float Errinv_Adjust(nobs) ;
+        float Errinv_Final(nobs) ;
+        float Observation(nobs) ;
+        float Obs_Minus_Forecast_adjusted(nobs) ;
+        float Obs_Minus_Forecast_unadjusted(nobs) ;
+
+// global attributes:
+                :date_time = 2020051806 ;
+}
+
+
+netcdf diag_conv_q_ges.2020051806 {
+dimensions:
+        nobs = UNLIMITED ; // (50283 currently)
+        Station_ID_maxstrlen = 8 ;
+        Observation_Class_maxstrlen = 7 ;
+variables:
+        char Station_ID(nobs, Station_ID_maxstrlen) ;
+        char Observation_Class(nobs, Observation_Class_maxstrlen) ;
+        int Observation_Type(nobs) ;
+        int Observation_Subtype(nobs) ;
+        float Latitude(nobs) ;
+        float Longitude(nobs) ;
+        float Station_Elevation(nobs) ;
+        float Pressure(nobs) ;
+        float Height(nobs) ;
+        float Time(nobs) ;
+        float Prep_QC_Mark(nobs) ;
+        float Prep_Use_Flag(nobs) ;
+        float Nonlinear_QC_Var_Jb(nobs) ;
+        float Nonlinear_QC_Rel_Wgt(nobs) ;
+        float Analysis_Use_Flag(nobs) ;
+        float Errinv_Input(nobs) ;
+        float Errinv_Adjust(nobs) ;
+        float Errinv_Final(nobs) ;
+        float Observation(nobs) ;
+        float Obs_Minus_Forecast_adjusted(nobs) ;
+        float Obs_Minus_Forecast_unadjusted(nobs) ;
+        float Forecast_Saturation_Spec_Hum(nobs) ;
+
+// global attributes:
+                :date_time = 2020051806 ;
+}
+
+
+netcdf diag_conv_t_ges.2020051806 {
+dimensions:
+        nobs = UNLIMITED ; // (100806 currently)
+        Station_ID_maxstrlen = 8 ;
+        Observation_Class_maxstrlen = 7 ;
+        Bias_Correction_Terms_arr_dim = 3 ;
+variables:
+        char Station_ID(nobs, Station_ID_maxstrlen) ;
+        char Observation_Class(nobs, Observation_Class_maxstrlen) ;
+        int Observation_Type(nobs) ;
+        float Latitude(nobs) ;
+        float Longitude(nobs) ;
+        float Station_Elevation(nobs) ;
+        float Pressure(nobs) ;
+        float Height(nobs) ;
+        float Time(nobs) ;
+        float Prep_QC_Mark(nobs) ;
+        float Setup_QC_Mark(nobs) ;
+        float Prep_Use_Flag(nobs) ;
+        float Analysis_Use_Flag(nobs) ;
+        float Nonlinear_QC_Rel_Wgt(nobs) ;
+        float Errinv_Input(nobs) ;
+        float Errinv_Adjust(nobs) ;
+        float Errinv_Final(nobs) ;
+        float Observation(nobs) ;
+        float Obs_Minus_Forecast_adjusted(nobs) ;
+        float Obs_Minus_Forecast_unadjusted(nobs) ;
+        float Data_Pof(nobs) ;
+        float Bias_Correction_Terms(nobs, Bias_Correction_Terms_arr_dim) ;
+
+// global attributes:
+                :Number_of_Predictors = 3 ;
+                :date_time = 2020051806 ;
+}
+
+
+netcdf diag_conv_uv_ges.2020051806 {
+dimensions:
+        nobs = UNLIMITED ; // (1766025 currently)
+        Station_ID_maxstrlen = 8 ;
+        Observation_Class_maxstrlen = 7 ;
+variables:
+        char Station_ID(nobs, Station_ID_maxstrlen) ;
+        char Observation_Class(nobs, Observation_Class_maxstrlen) ;
+        int Observation_Type(nobs) ;
+        int Observation_Subtype(nobs) ;
+        float Latitude(nobs) ;
+        float Longitude(nobs) ;
+        float Station_Elevation(nobs) ;
+        float Pressure(nobs) ;
+        float Height(nobs) ;
+        float Time(nobs) ;
+        float Prep_QC_Mark(nobs) ;
+        float Setup_QC_Mark(nobs) ;
+        float Prep_Use_Flag(nobs) ;
+        float Analysis_Use_Flag(nobs) ;
+        float Nonlinear_QC_Rel_Wgt(nobs) ;
+        float Errinv_Input(nobs) ;
+        float Errinv_Adjust(nobs) ;
+        float Errinv_Final(nobs) ;
+        float Wind_Reduction_Factor_at_10m(nobs) ;
+        float u_Observation(nobs) ;
+        float u_Obs_Minus_Forecast_adjusted(nobs) ;
+        float u_Obs_Minus_Forecast_unadjusted(nobs) ;
+        float v_Observation(nobs) ;
+        float v_Obs_Minus_Forecast_adjusted(nobs) ;
+        float v_Obs_Minus_Forecast_unadjusted(nobs) ;
+
+// global attributes:
+                :date_time = 2020051806 ;
+}
+
+
+netcdf diag_conv_gps_anl.2020040506 {
+dimensions:
+        nobs = UNLIMITED ; // (353443 currently)
+        Station_ID_maxstrlen = 8 ;
+        Observation_Class_maxstrlen = 7 ;
+variables:
+        char Station_ID(nobs, Station_ID_maxstrlen) ;
+        char Observation_Class(nobs, Observation_Class_maxstrlen) ;
+        int Observation_Type(nobs) ;
+        int Observation_Subtype(nobs) ;
+        float Latitude(nobs) ;
+        float Longitude(nobs) ;
+        float Incremental_Bending_Angle(nobs) ;
+        float Pressure(nobs) ;
+        float Height(nobs) ;
+        float Time(nobs) ;
+        float Model_Elevation(nobs) ;
+        float Setup_QC_Mark(nobs) ;
+        float Prep_Use_Flag(nobs) ;
+        float Analysis_Use_Flag(nobs) ;
+        float Nonlinear_QC_Rel_Wgt(nobs) ;
+        float Errinv_Input(nobs) ;
+        float Errinv_Adjust(nobs) ;
+        float Errinv_Final(nobs) ;
+        float Observation(nobs) ;
+        float Obs_Minus_Forecast_adjusted(nobs) ;
+        float Obs_Minus_Forecast_unadjusted(nobs) ;
+        float GPS_Type(nobs) ;
+        float Temperature_at_Obs_Location(nobs) ;
+        float Specific_Humidity_at_Obs_Location(nobs) ;
+
+// global attributes:
+                :date_time = 2020040506 ;
+}
+
