@@ -167,13 +167,13 @@ module conmon_read_diag
 
          !--- read obs header
          read(lunin,IOSTAT=iflag) dtype,nchar,file_nreal,ii,mype,ioff02
-!         print *, 'iflag from header read = ', iflag
-!         print *, 'dtype      = ', dtype
-!         print *, 'nchar      = ', nchar
-!         print *, 'file_nreal = ', file_nreal
-!         print *, 'ii         = ', ii
-!         print *, 'mype       = ', mype
-!         print *, 'ioff02     = ', ioff02
+         print *, 'iflag from header read = ', iflag
+         print *, 'dtype      = ', dtype
+         print *, 'nchar      = ', nchar
+         print *, 'file_nreal = ', file_nreal
+         print *, 'ii         = ', ii
+         print *, 'mype       = ', mype
+         print *, 'ioff02     = ', ioff02
 
 
          if( iflag /= 0 ) exit loopd
@@ -220,7 +220,7 @@ module conmon_read_diag
                !---------------------------------------------
                ! Allocate a new data element and load
                !
-!               print *, 'Allocating new data element'
+               print *, 'Allocating new data element'
 
                allocate(ptr%p)
                ptr%p%stn_id = cdiag(i)
@@ -237,14 +237,14 @@ module conmon_read_diag
                   ! Initialize the list with the first data element
                   !
                   call list_init(list, transfer(ptr, list_data))
-!                  print *, 'Initializing list with data:', ptr%p
+                  print *, 'Initializing list with data:', ptr%p
                   next => list
 
                else
                   !-------------------------------------------------
                   ! Insert subsequent nodes into the list
                   !
-!                  print *, 'Inserting node with data:', ptr%p
+                  print *, 'Inserting node with data:', ptr%p
                   call list_insert(next, transfer(ptr, list_data))
                   next => list_next(next)
    

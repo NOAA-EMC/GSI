@@ -19,6 +19,16 @@ echo "--> diag2grad_uv_case.sh"
    run_exe=1
    ctype=`echo ${mtype} | cut -c3-5`
 
+   echo "CONMON_NETCDF = ${CONMON_NETCDF}"
+   netcdf=".false."
+   run_exe=1
+
+   if [ $CONMON_NETCDF -eq 1 ]; then
+      netcdf=".true."
+   fi
+   echo "netcdf = $netcdf"
+
+
    if [ "$mtype" = 'uv221' -o "$mtype" = 'uv224' -o "$mtype" = 'uv229' -o "$mtype" = 'uv230' -o "$mtype" = 'uv231' -o "$mtype" = 'uv232' -o "$mtype" = 'uv233' -o "$mtype" = 'uv234' -o "$mtype" = 'uv235' -o "$mtype" = 'uv240' -o "$mtype" = 'uv241' -o "$mtype" = 'uv242' -o "$mtype" = 'uv243'  -o "$mtype" = 'uv245' -o "$mtype" = 'uv246' -o "$mtype" = 'uv247' -o "$mtype" = 'uv248' -o "$mtype" = 'uv249' -o "$mtype" = 'uv250' -o "$mtype" = 'uv251' -o "$mtype" = 'uv252' -o "$mtype" = 'uv253' -o "$mtype" = 'uv254' -o "$mtype" = 'uv255' -o "$mtype" = 'uv256' -o "$mtype" = 'uv257' -o "$mtype" = 'uv258' -o "$mtype" = 'uv259' -o "$mtype" = 'uv260' ]; then
 
       rm -f diag2grads
@@ -30,7 +40,7 @@ echo "--> diag2grad_uv_case.sh"
           input_file=${INPUT_FILE},
           intype=' uv',stype='${mtype}',itype=$ctype,nreal=$nreal_uv,
           iscater=1,igrads=1,levcard='$card',intv=$hint,subtype='${subtype}',isubtype=${subtype},
-          run=${run},
+          netcdf=${netcdf}, run=${run},
 /
 EOF
 
@@ -45,7 +55,7 @@ EOF
           input_file=${INPUT_FILE},
           intype=' uv',stype='${mtype}',itype=$ctype,nreal=$nreal_uv,
           iscater=1,igrads=1,subtype='${subtype}',isubtype=${subtype},
-          run=${run},
+          netcdf=${netcdf}, run=${run},
 /
 EOF
 
@@ -59,7 +69,7 @@ EOF
           input_file=${INPUT_FILE},
           intype=' uv',stype='${mtype}',itype=$ctype,nreal=$nreal_uv,
           iscater=1,igrads=1,subtype='${subtype}',isubtype=${subtype},
-          run=${run},
+          netcdf=${netcdf}, run=${run},
 /
 EOF
 
@@ -73,7 +83,7 @@ EOF
           input_file=${INPUT_FILE},
           intype=' uv',stype='${mtype}',itype=$ctype,nreal=$nreal_uv,
           iscater=1,igrads=1,timecard='time11',subtype='${subtype}',isubtype=${subtype},
-          run=${run},
+          netcdf=${netcdf}, run=${run},
 /
 EOF
 
@@ -87,7 +97,7 @@ EOF
           input_file=${INPUT_FILE},
           intype=' uv',stype='${mtype}',itype=$ctype,nreal=$nreal_uv,
           iscater=1,igrads=1,timecard='time7',subtype='${subtype}',isubtype=${subtype},
-          run=${run},
+          netcdf=${netcdf}, run=${run},
 /
 EOF
 

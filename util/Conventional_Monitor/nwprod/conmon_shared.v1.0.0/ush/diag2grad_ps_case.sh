@@ -60,7 +60,7 @@ EOF
          &input
           input_file=${INPUT_FILE},intype=' ps',stype='${mtype}',itype=$ctype,nreal=$nreal_ps,
           iscater=1,igrads=1,subtype='${subtype}',isubtype=${subtype},netcdf=${netcdf},
-          run=${run},
+          netcdf=${netcdf}, run=${run},
 /
 EOF
    else
