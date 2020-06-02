@@ -84,7 +84,12 @@ cmake_minimum_required(VERSION 2.8)
 
 # Add the include paths
   message("MPI include PATH  ${MPI_Fortran_INCLUDE_PATH}")
-  include_directories( ${CORE_INCS} ${NETCDF_INCLUDES} ${MPI_Fortran_INCLUDE_PATH} ${FV3GFS_NCIO_INCS} "./" )
+  get_target_property(w3emc_inc w3emc_d INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(nemsio_inc nemsio INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(sfcio_inc4 sfcio_4 INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(sigio_inc4 sigio_4 INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(crtm_inc crtm INTERFACE_INCLUDE_DIRECTORIES)
+  include_directories( ${crtm_INC} ${w3emc_inc} ${nemsio_inc} ${sfcio_inc4} ${sigio_inc4} ${NetCDF_INCLUDE_DIRS} ${MPI_Fortran_INCLUDE_PATH} "./"  )
 
 #define the name used for GSI Shared lib and add it with properties and include dirs
   set(GSISHAREDLIB "gsilib_shrd${debug_suffix}" CACHE INTERNAL "")
@@ -103,51 +108,48 @@ cmake_minimum_required(VERSION 2.8)
     endif()
     set(GSISUFFIX ".x" CACHE INTERNAL "Executable suffix")
   endif()
+  message("NETCDFLIBS are ${NETCDF_LIBRARIES}")
 
 # Set names, libs, and properties depending on if we are building with WRF or not
   if(USE_WRF) 
+    message("using wrf")
     set(GSIEXEC "${GSIBASE}${debug_suffix}${GSISUFFIX}" CACHE INTERNAL "GSI Executable Name")
     add_executable(${GSIEXEC} ${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90 ${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90 )
     set(GSILIB "gsilib_wrf${debug_suffix}" CACHE INTERNAL "")
     add_library(${GSILIB} STATIC ${GSICORE_SRC} )
     set_target_properties(${GSILIB} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-    target_include_directories(${GSILIB} PUBLIC "${PROJECT_BINARY_DIR}/include")
+    target_include_directories(${GSILIB} PUBLIC "${PROJECT_BINARY_DIR}/include" ${crtm_inc} ${w3emc_inc})
     set_target_properties(${GSIEXEC} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-    target_link_libraries( ${GSILIB} ${GSISHAREDLIB} ${wrflib} )
+#   target_link_libraries( ${GSILIB} ${GSISHAREDLIB} ${wrflib} bufr_4 crtm nemsio sp_d sfcio_4 sigio_4 bacio_4 w3emc_d w3nco_d bufr_4 bacio_4 )
   endif()
+# Specify all the libraries to be linked into the executable
+  target_link_libraries(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} ${GSISHAREDLIB} 
+         bufr_4 crtm nemsio sp_d sfcio_4 sigio_4 bacio_4 w3emc_d w3nco_d bufr_4 bacio_4 
+         ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} 
+         ${BLAS_openblas_LIBRARY} ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} 
+         ${GSI_LDFLAGS} ${NCDIAG_LIBRARIES} ${GSDCLOUD_LIBRARY} ${ZLIB_LIBRARIES} ${wrflib} )
 
-  if(BUILD_GLOBAL)
-    set(GSIEXEC "${GSIBASE}${debug_suffix}${GSISUFFIX}" CACHE INTERNAL "GSI Executable Name")
-    add_executable( ${GSIEXEC} ${GSIMAIN_SRC} )
-    set(GSILIB "gsilib_global${debug_suffix}" CACHE INTERNAL "")
-    set(WRF_LIBRARIES "")
-    add_library(${GSILIB} STATIC ${GSICORE_SRC} )
-    target_link_libraries( ${GSILIB} ${GSISHAREDLIB} )
-    add_dependencies(${GSILIB} ${GSISHAREDLIB} )
-    target_link_libraries( ${GSISHAREDLIB} ${CORE_LIBRARIES})
-    set_target_properties( ${GSILIB} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-    target_include_directories( ${GSILIB} PUBLIC "${PROJECT_BINARY_DIR}/include")
-    set_target_properties(${GSIEXEC} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-  endif()
-
+# if(BUILD_GLOBAL)
+#   message("not using wrf")
+#   set(GSIEXEC "${GSIBASE}${debug_suffix}${GSISUFFIX}" CACHE INTERNAL "GSI Executable Name")
+#   add_executable( ${GSIEXEC} ${GSIMAIN_SRC} )
+#   set(GSILIB "gsilib_global${debug_suffix}" CACHE INTERNAL "")
+#   set(WRF_LIBRARIES "")
+#   add_library(${GSILIB} STATIC ${GSICORE_SRC} )
+#   target_link_libraries( ${GSILIB} ${GSISHAREDLIB} )
+#   add_dependencies(${GSILIB} ${GSISHAREDLIB} )
+#   target_link_libraries( ${GSIEXEC} ${GSISHAREDLIB} bufr_4 crtm nemsio sp_d sigio_4 sfcio_4 bacio_4 w3emc_d w3nco_d bufr_4 bacio_4 )
+#   set_target_properties( ${GSILIB} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
+#   target_include_directories( ${GSILIB} PUBLIC "${PROJECT_BINARY_DIR}/include")
+#   set_target_properties(${GSIEXEC} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
+# endif()
   if( BUILD_NCDIAG )
       add_dependencies(${GSILIB} ${NCDIAG_LIBRARIES} )
   endif( BUILD_NCDIAG )
-  add_dependencies(${GSILIB} ${GSISHAREDLIB} )
 
-# Add dependencies if we are building the core libs or are just using pre-built libs 
-  if(CORE_BUILT)
-    add_dependencies(${GSILIB} ${GSISHAREDLIB} ${CORE_BUILT} )
-    add_dependencies(${GSISHAREDLIB} ${bacio} ${CORE_BUILT} )
-    add_dependencies(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} ${CORE_BUILT} )
-  else()
-    add_dependencies(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} )
-  endif()
-# Specify all the libraries to be linked into the executable
-  target_link_libraries(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} ${GSISHAREDLIB} ${WRF_LIBRARIES} 
-         ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} 
-         ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${CORE_LIBRARIES} ${CORE_BUILT}
-         ${GSI_LDFLAGS} ${NCDIAG_LIBRARIES} ${GSDCLOUD_LIBRARY} ${ZLIB_LIBRARIES} ${wrflib} ${EXTRA_LINKER_FLAGS} ${FV3GFS_NCIO_LIBRARIES})
+  add_dependencies(${GSILIB} ${GSISHAREDLIB} )
+  add_dependencies(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} )
+
   install(TARGETS ${GSIEXEC}
         RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
         LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib

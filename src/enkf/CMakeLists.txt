@@ -35,7 +35,7 @@ if(BUILD_ENKF)
   add_library( MODS2 OBJECT ${ENKF_EXTRA_SRCS} )  
 
   set(ENKFMOD_SRCS 
-  netcdf_io_wrf.f90  params.f90 covlocal.f90 fftpack.f90 genqsat1.f90 mpisetup.f90 rnorm.f90
+  netcdf_io_wrf.f90  params.f90 covlocal.f90 fftpack.f90 genqsat1.f90 mpisetup.F90 rnorm.f90
   sorting.f90 specmod.f90 reducedgrid.f90 readozobs.f90 readsatobs.f90 readconvobs.f90
   write_logfile.f90 kdtree2.f90 mpi_readobs.f90 enkf_obsmod.f90 statevec.f90 controlvec.f90
   observer_${ENKF_SUFFIX}.f90 gridio_${ENKF_SUFFIX}.f90 gridinfo_${ENKF_SUFFIX}.f90 expand_ens.f90
@@ -47,7 +47,7 @@ if(BUILD_ENKF)
   read_locinfo.f90
   enkf_main.f90
   inflation.f90
-  letkf.f90
+  letkf.F90
   quicksort.f90
   radbias.f90
   loadbal.f90
@@ -61,8 +61,14 @@ if(BUILD_ENKF)
 # endif()
   
   add_definitions(${MPI_Fortran_FLAGS})
-  
-  include_directories(${CMAKE_CURRENT_BINARY_DIR} "${PROJECT_BINARY_DIR}/include/wrf" "${PROJECT_BINARY_DIR}/include/global"  ${CMAKE_CURRENT_BINARY_DIR}/.. ${MPI_Fortran_INCLUDE_DIRS} ${MPI_Fortran_INCLUDE_PATH} ${CORE_INCS} ${NETCDF_INCLUDES} ${NCDIAG_INCS} ${FV3GFS_NCIO_INCS})
+  get_target_property(w3emc_inc4 w3emc_4 INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(sfcio_inc4 sfcio_4 INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(sigio_inc4 sigio_4 INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(nemsio_inc nemsio INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(crtm_inc crtm INTERFACE_INCLUDE_DIRECTORIES)
+  set(CORE_INCS ${crtm_inc};${w3emc_inc4};${nemsio_inc};${sfcio_inc4};${sigio_inc4})
+  set(CORE_LIBRARIES bufr;bacio_4;crtm;nemsio;sp_d;sigio_4;sfcio_4;w3emc_d;w3nco_d;bufr)
+  include_directories(${CMAKE_CURRENT_BINARY_DIR} "${PROJECT_BINARY_DIR}/include/wrf" "${PROJECT_BINARY_DIR}/include/global"  ${CMAKE_CURRENT_BINARY_DIR}/.. ${MPI_Fortran_INCLUDE_DIRS} ${MPI_Fortran_INCLUDE_PATH} ${CORE_INCS} ${NetCDF_INCLUDE_DIRS} ${NCDIAG_INCS} )
   link_directories(${MPI_Fortran_LIBRARIES})
 
   set_source_files_properties( ${ENKF_SRCS} PROPERTIES COMPILE_FLAGS ${ENKF_Fortran_FLAGS} )
@@ -77,9 +83,9 @@ if(BUILD_ENKF)
   add_dependencies(enkflib enkfdeplib ${GSILIB} ${GSISHAREDLIB} )
   set(ENKFEXEC "${ENKF_BASE}${debug_suffix}${GSISUFFIX}" CACHE INTERNAL "ENKF Executable name")
   add_executable(${ENKFEXEC} enkf_main.f90)
-  target_link_libraries(${ENKFEXEC} enkflib enkfdeplib ${GSILIB} ${GSISHAREDLIB} ${CORE_LIBRARIES}
-  ${MPI_Fortran_LIBRARIES} ${LAPACK_LIBRARIES} ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES}  ${HDF5_Fortran_HL_LIBRARIES}
-  ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${GSI_LDFLAGS} ${CORE_BUILT} ${CORE_LIBRARIES} ${CORE_BUILT} ${NCDIAG_LIBRARIES} ${FV3GFS_NCIO_LIBRARIES})
+  target_link_libraries(${ENKFEXEC} enkflib enkfdeplib ${GSILIB} ${GSISHAREDLIB} bufr_4 crtm nemsio sp_d sigio_4 sfcio_4 w3emc_d w3nco_d bacio_4
+  ${MPI_Fortran_LIBRARIES} ${LAPACK_LIBRARIES} ${BLAS_openblas_LIBRARY} ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES}  ${HDF5_Fortran_HL_LIBRARIES}
+  ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${GSI_LDFLAGS} ${NCDIAG_LIBRARIES} ${EXTRA_LINKER_FLAGS})
   install(TARGETS ${ENKFEXEC} enkfdeplib enkflib 
         RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
         LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib

@@ -6,7 +6,7 @@ if(BUILD_NCDIAG)
   set(Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
 
   # NetCDF-4 library
-  include_directories( ${NETCDF_INCLUDES} ${NCDIAG_INCS} )
+  include_directories( ${NetCDF_INCLUDE_DIRS} ${NCDIAG_INCS} )
 
   # 32-bit reals, for now
   add_definitions(-D_REAL4_ -DUSE_MPI)

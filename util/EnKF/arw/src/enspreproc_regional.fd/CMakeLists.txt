@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.6)
   set(GSI_Fortran_FLAGS_LOCAL "${GSI_Fortran_FLAGS} -DWRF")
   file(GLOB LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.f90 ${CMAKE_CURRENT_SOURCE_DIR}/*.F90)
   set_source_files_properties( ${LOCAL_SRC} PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS_LOCAL} )
-  include_directories( ${PROJECT_BINARY_DIR}/include ${CORE_INCS} ${NETCDF_INCLUDES}  ${MPI_Fortran_INCLUDE_PATH} )
+  include_directories( ${PROJECT_BINARY_DIR}/include ${CORE_INCS} ${NetCDF_INCLUDE_DIRS}  ${MPI_Fortran_INCLUDE_PATH} )
 
   add_executable(enspreproc.x ${LOCAL_SRC} )
   set_target_properties( enspreproc.x PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS_LOCAL} )
