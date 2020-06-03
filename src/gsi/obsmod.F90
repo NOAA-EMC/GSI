@@ -971,7 +971,7 @@ contains
     if (lrun_subdirs) then
        write(pe_name,'(i4.4)') mype
        dirname = 'dir.'//trim(pe_name)//'/'
-       command = 'mkdir -m 755 ' // trim(dirname)
+       command = 'mkdir -p -m 755 ' // trim(dirname)
        call system(command)
     else
        write(pe_name,100) mype

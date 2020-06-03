@@ -19,7 +19,7 @@
 
 #  Set environment.
 export VERBOSE=${VERBOSE:-"YES"}
-if [ $VERBOSE = "YES" ]; then
+if [[ "$VERBOSE" = "YES" ]]; then
    echo $(date) EXECUTING $0 $* >&2
    set -x
 fi
@@ -99,6 +99,7 @@ DIAG_COMPRESS=${DIAG_COMPRESS:-"YES"}
 DIAG_TARBALL=${DIAG_TARBALL:-"YES"}
 USE_CFP=${USE_CFP:-"NO"}
 DIAG_DIR=${COMOUT}/${APREFIX}gsidiags/
+REMOVE_DIAG_DIR=${REMOVE_DIAG_DIR:-"NO"}
 
 # Set script / GSI control parameters
 lrun_subdirs=${lrun_subdirs:-".true."}
@@ -114,6 +115,8 @@ if [ $GENDIAG = "YES" ] ; then
       done
    else
       echo "lrun_subdirs must be true; exit with error"
+      export ERR=$?
+      export err=$ERR
       $ERRSCRIPT || exit 2
    fi
 
@@ -254,6 +257,9 @@ EOFdiag
              $APRUNCFP_DIAG -n $nm --multi-prog $DATA/mp_diag_srun.sh 
          else
              $APRUNCFP_DIAG $DATA/mp_diag.sh
+             export ERR=$?
+             export err=$ERR
+             $ERRSCRIPT || exit 3
          fi
       fi
    fi
@@ -269,6 +275,9 @@ EOFdiag
          fi
          if [ ${numfile[n]} -gt 0 ]; then
             tar $TAROPTS ${diagfile[n]} $(cat ${diaglist[n]})
+            export ERR=$?
+            export err=$ERR
+            $ERRSCRIPT || exit 4
          fi
       done
 
@@ -294,11 +303,16 @@ fi
 
 ################################################################################
 # Postprocessing
+# If no processing error, remove $DIAG_DIR
+if [[ "$REMOVE_DIAG_DIR" = "YES" && "$err" = "0" ]]; then
+    rm -rf $DIAG_DIR
+fi
+
 cd $pwd
 [[ $mkdata = "YES" ]] && rm -rf $DATA
 
 set +x
-if [ $VERBOSE = "YES" ]; then
+if [[ "$VERBOSE" = "YES" ]]; then
    echo $(date) EXITING $0 with return code $err >&2
 fi
 exit $err
