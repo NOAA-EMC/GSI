@@ -24,6 +24,7 @@ elif [[ -d /jetmon ]] ; then ### jet
 elif [[ -d /glade ]] ; then  ### cheyenne
     source /etc/profile.d/modules.sh
     modulefile="/glade/p/ral/jntp/gge/modulefiles/modulefile.cheyenne.GSI_UPP_WRF"
+    NCEPLIBS="/glade/p/ral/jntp/gge/precompiled/NCEPLIBS/b_intel18.0.5_impi2018.4.274/install"
 elif [[ -d /work/noaa ]] ; then  ### orion
     modulefile="/work/noaa/comgsi/modulefiles/modulefile.orion.GSI_UPP_WRF"
     #modulefile="/work/noaa/comgsi/modulefiles/modulefile.intel20"
@@ -43,6 +44,27 @@ if [[ "$NETCDF4" == "1" ]] || [[ "$NETCDF4" == "0" ]]; then
   unset NETCDF4
 fi
 
+export BACIO_LIB4=${NCEPLIBS}/lib/libbacio_4.a
+#export  BUFR_LIBd=${NCEPLIBS}/lib/libbufr_d.a #NCEPLIBS has problems in generateing libbufr
+export   CRTM_LIB=${NCEPLIBS}/lib/libcrtm.a
+export   CRTM_INC=${NCEPLIBS}/include
+export NEMSIO_LIB=${NCEPLIBS}/lib/libnemsio.a
+export NEMSIO_INC=${NCEPLIBS}/include
+export SFCIO_LIB4=${NCEPLIBS}/lib/libsfcio_4.a
+export SFCIO_INC4=${NCEPLIBS}/include_4
+export SIGIO_LIB4=${NCEPLIBS}/lib/libsigio_4.a
+export SIGIO_INC4=${NCEPLIBS}/include_4
+export    SP_LIBd=${NCEPLIBS}/lib/libsp_d.a
+export    SP_LIB4=${NCEPLIBS}/lib/libsp_4.a
+export W3EMC_LIBd=${NCEPLIBS}/lib/libw3emc_d.a
+export W3EMC_LIB4=${NCEPLIBS}/lib/libw3emc_4.a
+export W3EMC_INCd=${NCEPLIBS}/include_d
+export W3EMC_INC4=${NCEPLIBS}/include_4
+export W3NCO_LIBd=${NCEPLIBS}/lib/libw3nco_d.a
+export W3NCO_LIB4=${NCEPLIBS}/lib/libw3nco_4.a
+export    IP_LIBd=${NCEPLIBS}/lib/libip_d.a
+export    IP_LIB4=${NCEPLIBS}/lib/libip_4.a
+
 set -x
 rm -rf $dir_root/build
 mkdir -p $dir_root/build
@@ -60,17 +82,18 @@ git log -1 | head -n1 >> output.log
 echo -e "\ngit status:" >> output.log
 git status >> output.log
 echo -e "\nCompiling commands:" >> output.log
-echo "  cmake -DENKF_MODE=WRF -DBUILD_CORELIBS=ON -DBUILD_GSDCLOUD_ARW=ON -DBUILD_ENKF_PREPROCESS_ARW=ON -DBUILD_UTIL_COM=ON .." >> output.log
+echo "  cmake -DENKF_MODE=WRF -DBUILD_CORELIBS=ON -DBUILD_GSDCLOUD_ARW=ON -DBUILD_ENKF_PREPROCESS_ARW=ON -DBUILD_UTIL_COM=ON -Wno-dev .." >> output.log
 echo "  make -j8" >> output.log
 cat output.log
 
 
-cmake -DENKF_MODE=WRF -DBUILD_CORELIBS=ON -DBUILD_GSDCLOUD_ARW=ON -DBUILD_ENKF_PREPROCESS_ARW=ON -DBUILD_UTIL_COM=ON ..  2>&1  | tee output.cmake
+cmake -DENKF_MODE=WRF -DBUILD_CORELIBS=ON -DBUILD_GSDCLOUD_ARW=ON -DBUILD_ENKF_PREPROCESS_ARW=ON -DBUILD_UTIL_COM=ON -Wno-dev ..  2>&1  | tee output.cmake
 make -j 8 2>&1 | tee output.compile
 
 ###aftermath
 commitID=`git log -1 | head -n1 |cut -c8-15`
 repoName=`git config --get remote.origin.url | cut -d: -f2`
+repoName=${repoName//\//:}
 datestamp=`date +%Y%m%d`
 cd bin
 ln -sf gsi.x gsi.x_${repoName}_${datestamp}_${commitID}
