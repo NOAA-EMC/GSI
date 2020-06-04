@@ -340,9 +340,8 @@ module read_diag
     integer(i_kind),dimension(:),allocatable :: iouse
     real(r_double),dimension(:),allocatable  :: pobs,gross,tnoise
    
-    integer(i_kind)                          :: nsdim,k,idate
+    integer(i_kind)                          :: nsdim,k,idate,idx
     integer(i_kind),dimension(:),allocatable :: iuse_flag
-    integer(i_kind)                          :: analysis_use_flag,idx
 
  
     istatus = 0
@@ -406,10 +405,9 @@ module read_diag
     !-------------------------------------------------------------------
     !  The Anaysis_Use_Flag in the netcdf file resides in the 
     !  obs data rather than global (equivalent of binary file header 
-    !  location.  So we need read that in a different way.  Also, iuse 
-    !  assignment by level is not possible, so the first value is good 
-    !  for all (or so I've been told).
-
+    !  location. Assign the first nlevs number of those values to
+    !  the iuse_flag array.
+    !
     idx = find_ncdiag_id(ftin)
 
     if( verify_var_name_nc( "Analysis_Use_Flag" ) ) then
@@ -417,11 +415,12 @@ module read_diag
           allocate( iuse_flag( ncdiag_open_status(idx)%num_records ))
 
           call nc_diag_read_get_var( ftin, 'Analysis_Use_Flag', iuse_flag )
-          analysis_use_flag = iuse_flag(1)
 
-          deallocate( iuse_flag )
        else
-          analysis_use_flag = -1
+          do k=1,ncdiag_open_status(idx)%num_records
+             iuse_flag(k) = -1
+          end do
+
        end if 
     else
        write(6,*) 'WARNING:  unable to read global var Analysis_Use_Flag from file '
@@ -453,10 +452,10 @@ module read_diag
        header_nlev(k)%pob = pobs(k)
        header_nlev(k)%grs = gross(k)
        header_nlev(k)%err = tnoise(k)
-       header_nlev(k)%iouse = analysis_use_flag
-
+       header_nlev(k)%iouse = iuse_flag(k)
     end do
-    deallocate( pobs,gross,tnoise )
+
+    deallocate( pobs,gross,tnoise,iuse_flag )
 
 
   end subroutine read_ozndiag_header_nc
@@ -610,6 +609,10 @@ module read_diag
     integer(i_kind)            ,intent(out) :: ntobs
     integer(i_kind)                         :: id,ii,jj,cur_idx
     integer(i_kind),allocatable             :: Use_Flag(:)
+    integer(i_kind)                         :: nlevs             ! number of levels
+    integer(i_kind)                         :: nrecords          ! number of file records, which 
+                                                                 ! is number of levels * number of obs
+
 
     real(r_single),allocatable              :: lat(:)            ! latitude (deg)
     real(r_single),allocatable              :: lon(:)            ! longitude (deg)
@@ -621,7 +624,7 @@ module read_diag
     real(r_single),allocatable              :: sza(:)            ! solar zenith angle   
     real(r_single),allocatable              :: fovn(:)           ! scan position (fielf of view)
     real(r_single),allocatable              :: toqf(:)           ! row anomaly index
-    
+   
     logical                                 :: test
 
     cur_idx = ncdiag_open_id( nopen_ncdiag )
@@ -643,7 +646,8 @@ module read_diag
     !  It's not as clear or clean as it should be, so I'll 
     !  leave this comment in as a note-to-self to redesign this
     !  when able.
-   
+  
+    nlevs = header_fix%nlevs 
 
     if( ncdiag_open_status(cur_idx)%nc_read == .true. ) then 
        iflag = -1  
@@ -652,7 +656,14 @@ module read_diag
        ntobs = 0
 
        id = find_ncdiag_id(ftin)
-       ntobs = ncdiag_open_status(id)%num_records
+       nrecords = ncdiag_open_status(id)%num_records
+       if( header_fix%nlevs > 1 ) then
+          ntobs = nrecords / header_fix%nlevs
+       else
+          ntobs = nrecords
+       end if
+
+       write(6,*) 'header_fix%nlevs, ncdiag_open_status(id)%num_records, ntobs = ', header_fix%nlevs, ncdiag_open_status(id)%num_records, ntobs
 
        !------------------------------------
        !  allocate the returned structures
@@ -664,9 +675,9 @@ module read_diag
        !---------------------------------
        ! load data_fix structure
        !
-       allocate( lat(ntobs) ) 
-       allocate( lon(ntobs) )
-       allocate( obstime(ntobs) )
+       allocate( lat(nrecords) ) 
+       allocate( lon(nrecords) )
+       allocate( obstime(nrecords) )
 
        !--- get obs data
        !
@@ -694,10 +705,14 @@ module read_diag
           write(6,*) 'WARNING:  unable to read global var Time from file '
        end if
 
+       !-----------------------------------------------
+       ! lat, lon, obstime are dimensioned to nrecords
+       ! read those as nobs * nlevs
+       !
        do ii=1,ntobs
-          data_fix(ii)%lat     = lat(ii)
-          data_fix(ii)%lon     = lon(ii)
-          data_fix(ii)%obstime = obstime(ii)
+          data_fix(ii)%lat     =     lat(ii + ((ii-1)*nlevs) )
+          data_fix(ii)%lon     =     lon(ii + ((ii-1)*nlevs) )
+          data_fix(ii)%obstime = obstime(ii + ((ii-1)*nlevs) )
        end do
  
        deallocate( lat, lon, obstime )
@@ -705,13 +720,13 @@ module read_diag
        !---------------------------------
        ! load data_nlev structure
        !
-       allocate( data_nlev( header_fix%nlevs,ntobs ) )
-       allocate( ozobs(ntobs) ) 
-       allocate( ozone_inv(ntobs) ) 
-       allocate( varinv(ntobs) ) 
-       allocate( sza(ntobs) ) 
-       allocate( fovn(ntobs) )
-       allocate( toqf(ntobs) )
+       allocate( data_nlev( header_fix%nlevs,nrecords ) )
+       allocate( ozobs(nrecords) ) 
+       allocate( ozone_inv(nrecords) ) 
+       allocate( varinv(nrecords) ) 
+       allocate( sza(nrecords) ) 
+       allocate( fovn(nrecords) )
+       allocate( toqf(nrecords) )
 
        if( verify_var_name_nc( "Observation" ) ) then
           call nc_diag_read_get_var( ftin, 'Observation', ozobs )
@@ -749,14 +764,19 @@ module read_diag
           write(6,*) 'WARNING:  unable to read var Row_Anomaly_Index from file '
        end if
 
-       do jj=1,ntobs
+
+       !------------------------------------------------
+       ! All vars used to read the file are dimensioned
+       ! to nrecord, which is nobs * nlevs
+       !
+       do jj=0,ntobs-1
           do ii=1,header_fix%nlevs
-             data_nlev(ii,jj)%ozobs     =     ozobs( jj )
-             data_nlev(ii,jj)%ozone_inv = ozone_inv( jj )
-             data_nlev(ii,jj)%varinv    =    varinv( jj )
-             data_nlev(ii,jj)%sza       =       sza( jj )
-             data_nlev(ii,jj)%fovn      =      fovn( jj )
-             data_nlev(ii,jj)%toqf      =      toqf( jj )
+             data_nlev(ii,jj)%ozobs     =     ozobs( ii + (jj * nlevs) )
+             data_nlev(ii,jj)%ozone_inv = ozone_inv( ii + (jj * nlevs) )
+             data_nlev(ii,jj)%varinv    =    varinv( ii + (jj * nlevs) )
+             data_nlev(ii,jj)%sza       =       sza( ii + (jj * nlevs) )
+             data_nlev(ii,jj)%fovn      =      fovn( ii + (jj * nlevs) )
+             data_nlev(ii,jj)%toqf      =      toqf( ii + (jj * nlevs) )
           end do
        end do
 

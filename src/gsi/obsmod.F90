@@ -437,7 +437,7 @@ module obsmod
   public :: perturb_fact,dtbduv_on,nsat1,obs_sub_comm,mype_diaghdr
   public :: lobsdiag_allocated
   public :: nloz_v8,nloz_v6,nloz_omi,nlco,nobskeep
-  public :: grids_dim,rmiss_single,nchan_total,mype_sst,mype_gps
+  public :: rmiss_single,nchan_total,mype_sst,mype_gps
   public :: mype_uv,mype_dw,mype_rw,mype_q,mype_tcp,mype_lag,mype_ps,mype_t
   public :: mype_pw,iout_rw,iout_dw,iout_sst,iout_pw,iout_t,iout_q,iout_tcp
   public :: iout_lag,iout_uv,iout_gps,iout_ps,iout_light,mype_light
@@ -555,7 +555,7 @@ module obsmod
   real(r_kind) perturb_fact,time_window_max,time_offset,time_window_rad
   real(r_kind),dimension(50):: dmesh
 
-  integer(i_kind) grids_dim,nchan_total,ianldate
+  integer(i_kind) nchan_total,ianldate
   integer(i_kind) ndat,ndat_types,ndat_times,nprof_gps
   integer(i_kind) lunobs_obs,nloz_v6,nloz_v8,nobskeep,nloz_omi
   integer(i_kind) nlco,use_limit
@@ -870,8 +870,6 @@ contains
     lunobs_obs = 2             ! unit to which to write/read information
                                ! related to brightness temperature and 
                                ! precipitation rate observations
-
-    grids_dim= 80              ! grid points for integration of GPS bend
 
     nprof_gps = 0
 

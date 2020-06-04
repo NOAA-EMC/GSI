@@ -868,7 +868,7 @@ subroutine upd_varch_
       nsat=nsatype(isurf)
       if (nsat>0) then
 
-         do jj0=1,nsat
+         read_tab: do jj0=1,nsat
 
             itbl=tblidx(isurf,jj0) !a row number
             jc=0
@@ -894,9 +894,9 @@ subroutine upd_varch_
             nchanl1=jc
 
             if(nchanl1==0) call die(myname_,' improperly set GSI_BundleErrorCov')
-            if(.not.amiset_(GSI_BundleErrorCov(itbl))) then !KAB
+            if(.not.amiset_(GSI_BundleErrorCov(itbl))) then 
                if (iamroot_) write(6,*) 'WARNING: Error Covariance not set for ',trim(idnames(itbl))
-               return
+               cycle read_tab
             endif
 
             nch_active=GSI_BundleErrorCov(itbl)%nch_active
@@ -989,7 +989,7 @@ subroutine upd_varch_
                deallocate(ijac)
                deallocate(ircv)
             endif
-         enddo !jj=1,nsat
+         enddo read_tab !jj0=1,nsat
       endif !nsat >0
    enddo !isurf=1,5
 
@@ -997,7 +997,7 @@ subroutine upd_varch_
 
 end subroutine upd_varch_
 !EOC
-logical function adjust_jac_ (iinstr,nchanl,nsigradjac,ich,varinv,depart, &
+logical function adjust_jac_ (iinstr,nchanl,nsigradjac,ich,varinv,depart,obs, &
                   err2,raterr2,wgtjo,jacobian,method,nchasm,rsqrtinv,rinvdiag)
 !$$$  subprogram documentation block
 !                .      .    .
@@ -1032,7 +1032,7 @@ logical function adjust_jac_ (iinstr,nchanl,nsigradjac,ich,varinv,depart, &
    integer(i_kind), intent(in) :: ich(nchanl)
    integer(i_kind), intent(out) :: method
    real(r_kind), intent(in)    :: varinv(nchanl)
-   real(r_kind), intent(inout) :: depart(nchanl)
+   real(r_kind), intent(inout) :: depart(nchanl),obs(nchanl)
    real(r_kind), intent(inout) :: err2(nchanl)
    real(r_kind), intent(inout) :: raterr2(nchanl)
    real(r_kind), intent(inout) :: wgtjo(nchanl)
@@ -1052,7 +1052,7 @@ logical function adjust_jac_ (iinstr,nchanl,nsigradjac,ich,varinv,depart, &
 
    if( GSI_BundleErrorCov(iinstr)%nch_active < 0) return
 
-   adjust_jac_ = scale_jac_ (depart,err2,raterr2,jacobian,nchanl,varinv,wgtjo, &
+   adjust_jac_ = scale_jac_ (depart,obs,err2,raterr2,jacobian,nchanl,varinv,wgtjo, &
                              ich,nchasm,rsqrtinv,rinvdiag,GSI_BundleErrorCov(iinstr))
 
    method = GSI_BundleErrorCov(iinstr)%method
@@ -1066,7 +1066,7 @@ logical function adjust_jac_ (iinstr,nchanl,nsigradjac,ich,varinv,depart, &
 !
 ! !INTERFACE:
 !
-logical function scale_jac_(depart,err2,raterr2,jacobian,nchanl,varinv,wgtjo, &
+logical function scale_jac_(depart,obs,err2,raterr2,jacobian,nchanl,varinv,wgtjo, &
                             ich,nchasm,rsqrtinv,rinvdiag,ErrorCov)
 ! !USES:
    use constants, only: tiny_r_kind
@@ -1079,7 +1079,8 @@ logical function scale_jac_(depart,err2,raterr2,jacobian,nchanl,varinv,wgtjo, &
    integer(i_kind),intent(in) :: ich(:)   ! true channel numeber
    real(r_kind),   intent(in) :: varinv(:)    ! inverse of specified ob-error-variance 
 ! !INPUT/OUTPUT PARAMETERS:
-   real(r_kind),intent(inout) :: depart(:)    ! observation-minus-guess departure
+   real(r_kind),intent(inout) :: depart(:)    ! observation-minus-guess departures
+   real(r_kind),intent(inout) :: obs(:)       ! observations
    real(r_kind),intent(inout) :: err2(:)  ! input: square of inverse of original obs errors
    real(r_kind),intent(inout) :: raterr2(:)  ! input: square of original obs error/inflated obs errors
    real(r_kind),intent(inout) :: wgtjo(:)     ! weight in Jo-term
@@ -1123,7 +1124,7 @@ logical function scale_jac_(depart,err2,raterr2,jacobian,nchanl,varinv,wgtjo, &
    integer(i_kind),allocatable,dimension(:)   :: ijac
    integer(i_kind),allocatable,dimension(:)   :: IRsubset
    integer(i_kind),allocatable,dimension(:)   :: IJsubset
-   real(r_quad),   allocatable,dimension(:)   :: col
+   real(r_quad),   allocatable,dimension(:)   :: col,col2
    real(r_quad),   allocatable,dimension(:,:) :: row
    real(r_kind),   allocatable,dimension(:)   :: qcaj
    real(r_kind),   allocatable,dimension(:,:) :: UT
@@ -1240,9 +1241,10 @@ logical function scale_jac_(depart,err2,raterr2,jacobian,nchanl,varinv,wgtjo, &
 !                            structure holding the full covariance
        nsigjac=size(jacobian,1)
        allocate(row(nsigjac,ncp))
-       allocate(col(ncp))
+       allocate(col(ncp),col2(ncp))
        row=zero_quad
        col=zero_quad
+       col2=zero_quad
 
        allocate(qcaj(ncp))
        allocate(UT(ncp,ncp))
@@ -1288,6 +1290,7 @@ logical function scale_jac_(depart,err2,raterr2,jacobian,nchanl,varinv,wgtjo, &
          do jj=1,ii 
             nn=IJsubset(jj)
             col(ii)   = col(ii)   + UT(jj,ii) * depart(nn)
+            col2(ii)   = col2(ii)   + UT(jj,ii) * obs(nn)
             row(:,ii) = row(:,ii) + UT(jj,ii) * jacobian(:,nn)
          enddo
        enddo
@@ -1296,13 +1299,14 @@ logical function scale_jac_(depart,err2,raterr2,jacobian,nchanl,varinv,wgtjo, &
        do jj=1,ncp
          mm=IJsubset(jj)
          depart(mm)=col(jj)
+         obs(mm)=col2(jj)
          jacobian(:,mm)=row(:,jj)
          raterr2(mm) = one
          err2(mm) = one
          wgtjo(mm)    = one
        enddo
 
-       deallocate(col)
+       deallocate(col,col2)
        deallocate(row)
        deallocate(qcaj)
        deallocate(UT)
@@ -1313,7 +1317,7 @@ logical function scale_jac_(depart,err2,raterr2,jacobian,nchanl,varinv,wgtjo, &
           mm=IJsubset(jj)
           raterr2(mm) = raterr2(mm)/ErrorCov%Revals(IRsubset(jj))
           err2(mm) = err2(mm)
-          wgtjo(mm)    = varinv(mm)/ErrorCov%Revals(IRsubset(jj))
+          wgtjo(mm)   = varinv(mm)/ErrorCov%Revals(IRsubset(jj))
        enddo
        
        

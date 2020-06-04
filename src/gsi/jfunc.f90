@@ -137,10 +137,12 @@ module jfunc
   public :: factg,factv,factp,factl,R_option,factw10m,facthowv,factcldch,diag_precon,step_start
   public :: pseudo_q2
   public :: varq
+  public :: cnvw_option
 
   logical first,last,switch_on_derivatives,tendsflag,print_diag_pcg,tsensible,lgschmidt,diag_precon
   logical clip_supersaturation,R_option
   logical pseudo_q2
+  logical cnvw_option
   integer(i_kind) iout_iter,miter,iguess,nclen,qoption,cwoption
   integer(i_kind) jiter,jiterstart,jiterend,iter
   integer(i_kind) nvals_len,nvals_levs
@@ -244,6 +246,9 @@ contains
 ! iguess =  2  read only guess file
 
     iguess=1
+
+!   option for including convective clouds in the all-sky assimilation
+    cnvw_option=.false.
 
     return
   end subroutine init_jfunc

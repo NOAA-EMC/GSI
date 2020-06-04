@@ -277,6 +277,7 @@ subroutine setupref(obsLL,odiagLL,lunin,mype,awork,nele,nobs,toss_gps_sub,is,ini
 !44  => PAZ
 !750-755 => COSMIC-2 Equatorial
 !724-729 => COSMIC-2 Polar
+!5   => MetOpC
 
 ! Read and reformat observations in work arrays.
   read(lunin)data,luse,ioid
@@ -578,7 +579,9 @@ subroutine setupref(obsLL,odiagLL,lunin,mype,awork,nele,nobs,toss_gps_sub,is,ini
                     cutoff2=r1em3*trefges**2-r0_455*trefges+r52_075
                  endif
                  if((ictype(ikx)==41).or.(ictype(ikx)==722).or.(ictype(ikx)==723).or.&
-                    (ictype(ikx)==4).or.(ictype(ikx)==786).or.(ictype(ikx)==3)) then !CL
+                    (ictype(ikx)==4).or.(ictype(ikx)==42).or.(ictype(ikx)==3).or.&
+                    (ictype(ikx)==821).or.(ictype(ikx)==421).or.(ictype(ikx)==440).or.&
+                    (ictype(ikx)==43).or.(ictype(ikx)==786).or.(ictype(ikx)==5)) then !CL
                     cutoff3=(half+two*cos(data(ilate,i)*deg2rad))/three
                  else
                     cutoff3=(one+r2_5*cos(data(ilate,i)*deg2rad))/three
@@ -615,7 +618,8 @@ subroutine setupref(obsLL,odiagLL,lunin,mype,awork,nele,nobs,toss_gps_sub,is,ini
            endif
 
 !         Remove MetOP/GRAS data below 8 km
-          if ((alt <= eight) .and. ((data(isatid,i)==4) .or. (data(isatid,i)==3))) then
+          if ( (alt <= eight) .and. &
+              ((data(isatid,i)==4).or.(data(isatid,i)==3).or.(data(isatid,i)==5))) then
              data(ier,i) = zero
              ratio_errors(i) = zero
              qcfail(i)=.true.

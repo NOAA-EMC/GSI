@@ -43,8 +43,6 @@ contains
       use gsi_bundlemod, only: gsi_bundlegetpointer
       use gsi_bundlemod, only: gsi_bundledestroy
       use gsi_bundlemod, only: gsi_gridcreate
-      use guess_grids,   only: ntguessig,ifilesig
-      use gsi_4dvar,     only: nhr_assimilation
       use gsi_4dvar, only: ens_fhrlevs
       use gsi_rfv3io_mod, only: type_fv3regfilenameg
   
@@ -318,13 +316,12 @@ contains
       use netcdf, only: nf90_inq_dimid,nf90_inquire_dimension
       use netcdf, only: nf90_inq_varid,nf90_inquire_variable,nf90_get_var
       use kinds, only: r_kind,r_single,i_kind
-      use gridmod, only: nsig,eta1_ll,pt_ll,aeta1_ll,eta2_ll,aeta2_ll
-      use constants, only: zero,one,fv,zero_single,rd_over_cp_mass,one_tenth,h300
+      use gridmod, only: eta1_ll,eta2_ll
+      use constants, only: zero,one,fv,zero_single,one_tenth,h300
       use hybrid_ensemble_parameters, only: grd_ens,q_hyb_ens
       use hybrid_ensemble_parameters, only: fv3sar_ensemble_opt 
 
-      use mpimod, only: mpi_comm_world,ierror,mpi_rtype
-      use mpimod, only: npe
+      use mpimod, only: mpi_comm_world,mpi_rtype
       use netcdf_mod, only: nc_check
       use gsi_rfv3io_mod,only: type_fv3regfilenameg
       use gsi_rfv3io_mod,only:n2d 

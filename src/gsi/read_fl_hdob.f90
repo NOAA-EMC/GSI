@@ -241,7 +241,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
         iecol  =  2 
         errmin = half      ! set lower bound of ob error for T or Tv
      else if (luvob) then
-        nreal  = 25
+        nreal  = 26
         iecol  =  4  
         errmin = one       ! set lower bound of ob error for u,v winds
      else if (lspdob) then
@@ -1035,6 +1035,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               cdata_all(23,iout)=r_sprvstg(1,1)         ! subprovider name
               cdata_all(24,iout)=qcm                    ! cat
               cdata_all(25,iout)=var_jb                 ! non linear qc 
+              cdata_all(26,iout)=one
               if(perturb_obs)then
                  cdata_all(26,iout)=ran01dom()*perturb_fact ! u perturbation
                  cdata_all(27,iout)=ran01dom()*perturb_fact ! v perturbation

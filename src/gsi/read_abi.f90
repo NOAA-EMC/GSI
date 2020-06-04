@@ -47,11 +47,13 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       checkob,finalcheck,score_crit
+  use satthin, only: radthin_time_info,tdiff2crit
+  use obsmod,  only: time_window_max
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,txy2ll,tll2xy,rlats,rlons
   use constants, only: deg2rad,zero,one,rad2deg,r60inv
   use obsmod, only: bmiss
   use radinfo, only: iuse_rad,jpch_rad,nusis
-  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
@@ -94,7 +96,7 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
   integer(i_kind),allocatable,dimension(:)::nrec
 
   real(r_kind) dg2ew,sstime,tdiff,t4dv,sfcr
-  real(r_kind) dlon,dlat,timedif,crit1,dist1
+  real(r_kind) dlon,dlat,crit1,dist1
   real(r_kind) dlon_earth,dlat_earth
   real(r_kind) dlon_earth_deg,dlat_earth_deg
   real(r_kind) pred
@@ -111,6 +113,8 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
 
   real(r_kind) cdist,disterr,disterrmax,dlon00,dlat00
   integer(i_kind) ntest
+  real(r_kind)    :: ptime,timeinflat,crit0
+  integer(i_kind) :: ithin_time,n_tbin,it_mesh
 
   logical :: allchnmiss
 
@@ -190,8 +194,14 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
      return
   endif
 
+  call radthin_time_info(obstype, jsatid, sis, ptime, ithin_time)
+  if( ptime > 0.0_r_kind) then
+     n_tbin=nint(2*time_window_max/ptime)
+  else
+     n_tbin=1
+  endif
 ! Make thinning grids
-  call makegrids(rmesh,ithin)
+  call makegrids(rmesh,ithin,n_tbin=n_tbin)
 
 ! Set BUFR string based on abi data set
   hdrabi='SAID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA BEARAZ SOZA SOLAZI'
@@ -225,6 +235,7 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
   open(lnbufr,file=infile,form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   if(jsatid == 'gr' .or. jsatid == 'g16') kidsat = 270
+  if(jsatid == 'g17') kidsat = 271
 
 
   nrec=999999
@@ -303,14 +314,11 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
         else
            if (abs(tdiff)>twind) cycle read_loop
         endif
-        if (thin4d) then
-           crit1=0.01_r_kind
-        else
-           timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
-           crit1=0.01_r_kind+timedif
-        endif
 
-        call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+        crit0 = 0.01_r_kind
+        timeinflat=6.0_r_kind
+        call tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
+        call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,it_mesh=it_mesh)
         if(.not. iuse)cycle read_loop
 
         nread=nread+nchanl
@@ -327,7 +335,8 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
            end if
         else if(allsky) then
            call ufbrep(lnbufr,dataabi1,1,2,iret,'NCLDMNT')
-           rclrsky=dataabi1(1,2)  !clear-sky percentage over sea
+           rclrsky=dataabi1(1,1)  !clear-sky percentage
+!          rclrsky=dataabi1(1,2)  !clear-sky percentage over sea
            call ufbrep(lnbufr,dataabi,1,4,iret,'CLDMNT')
            rcldfrc=dataabi(1,1)   !total cloud 
         end if
@@ -336,11 +345,13 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
         call ufbrep(lnbufr,dataabi3,1,nbrst,iret,'SDTB')
  
 !       toss data if SDTB>1.3 
-        do i=1,nbrst
-          if(i==2 .or. i==3 .or. i==4) then   ! 3 water-vapor channels
-            if(dataabi3(1,i)>1.3_r_kind) cycle read_loop
-          end if
-        end do
+        if(clrsky) then
+          do i=1,nbrst
+            if(i==2 .or. i==3 .or. i==4) then   ! 3 water-vapor channels
+              if(dataabi3(1,i)>1.3_r_kind) cycle read_loop
+            end if
+          end do
+        end if
 
         allchnmiss=.true.
         do n=1,nchn
@@ -379,9 +390,13 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
 
 
 !       Set common predictor parameters
-!       use NCLDMNT from chn7 (10.8 micron) as a QC predictor
-!       add SDTB from chn7 as QC predictor
-        pred=10-dataabi1(1,7)/10.0_r_kind+dataabi3(1,7)*10.0_r_kind
+        if(clrsky) then
+!         use NCLDMNT from chn7 (10.8 micron) as a QC predictor
+!         add SDTB from chn7 as QC predictor
+          pred=10.0_r_kind-dataabi1(1,7)/10.0_r_kind+dataabi3(1,7)*10.0_r_kind
+        else
+          pred=zero
+        end if
 !            
 !       Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
 
@@ -444,7 +459,7 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
            if(clrsky) then
              data_all(32+k,itx) = dataabi3(1,k)       ! BT standard deviation from ABICSR
            else if(allsky) then
-             jj=k*6+1
+             jj=(k-1)*6+1
              data_all(32+k,itx) = dataabi3(1,jj)      ! BT standard deviation from ABIASR 
            end if
         end do
@@ -465,7 +480,7 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
            if (clrsky) then
               data_all(k+nreal,itx)=dataabi2(1,k)       ! for chn7,8,9,10,11,12,13,14,15,16
            else if (allsky) then
-              jj=k*6+1
+              jj=(k-1)*6+1
               data_all(k+nreal,itx)=dataabi2(1,jj)      ! all-sky radiance for chn 4,5,6,7,8,9,10,11
            end if
         end do

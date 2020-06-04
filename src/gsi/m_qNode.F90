@@ -11,6 +11,7 @@ module m_qNode
 ! program history log:
 !   2016-05-18  j guo   - added this document block for the initial polymorphic
 !                         implementation.
+!   2019-09-20  X.Su    - add new variational QC parameters
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -44,6 +45,8 @@ module m_qNode
      real(r_kind)    :: b             !  variational quality control parameter
      real(r_kind)    :: pg            !  variational quality control parameter
      real(r_kind)    :: jb            !  variational quality control parameter
+     integer(i_kind) :: ib            !  new variational quality control parameter
+     integer(i_kind) :: ik            !  new variational quality control parameter
      real(r_kind)    :: wij(8)        !  horizontal interpolation weights
      real(r_kind)    :: qpertb        !  random number adding to the obs
      integer(i_kind) :: ij(8)         !  horizontal locations
@@ -178,6 +181,8 @@ _ENTRY_(myname_)
                                 aNode%b      , &
                                 aNode%pg     , &
                                 aNode%jb     , &
+                                aNode%ib     , &
+                                aNode%ik     , &
                                 aNode%qpertb , &
                                 aNode%k1     , &
                                 aNode%kx     , &
@@ -219,6 +224,8 @@ _ENTRY_(myname_)
                                 aNode%b      , &
                                 aNode%pg     , &
                                 aNode%jb     , &
+                                aNode%ib     , &
+                                aNode%ik     , &
                                 aNode%qpertb , &
                                 aNode%k1     , &
                                 aNode%kx     , &

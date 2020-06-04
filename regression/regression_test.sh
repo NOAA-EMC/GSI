@@ -49,6 +49,7 @@ for exp in $list; do
    $ncp $savdir/$exp/siginc ./siginc.$exp
    $ncp $savdir/$exp/wrf_inout ./wrf_inout.$exp
    $ncp $savdir/$exp/wrf_inout06 ./wrf_inout06.$exp
+   $ncp $savdir/$exp/siginc.nc ./siginc.nc.$exp
 done
 
 # Grep out penalty/gradient information, run time, and maximum resident memory from stdout file
@@ -317,7 +318,7 @@ else
 fi
 
 } >> $output
-   else
+   elif [[ -f siganl.${exp1} ]]; then
 {
 
 if cmp -s siganl.${exp1} siganl.${exp2} 
@@ -332,6 +333,22 @@ else
    failed_test=1
 fi
 
+} >> $output
+   elif [[ -f siginc.nc.${exp1} ]] ; then
+{
+ncdump siginc.nc.${exp1} > siginc.nc.${exp1}.out
+ncdump siginc.nc.${exp2} > siginc.nc.${exp2}.out
+if diff -s siginc.nc.${exp1}.out siginc.nc.${exp2}.out
+then
+   echo 'The results between the two runs ('${exp1}' and '${exp2}') are reproducible'
+   echo 'since the corresponding results are identical.'
+   echo
+else
+   echo 'The results between the two runs ('${exp1}' and '${exp2}') are not reproducible'
+   echo 'Thus, the case has Failed siganl of the regression tests.'
+   echo
+   failed_test=1
+fi
 } >> $output
    fi
 fi
@@ -433,7 +450,7 @@ elif [[ `expr substr $exp1 1 6` = "global" ]]; then
       fi
 
 } >> $output
-   else
+   elif [[ -f siganl.${exp1} ]]; then
 
 {
 
@@ -450,6 +467,25 @@ elif [[ `expr substr $exp1 1 6` = "global" ]]; then
       fi
 
 } >> $output
+   elif [[ -f siginc.nc.${exp1} ]]; then
+
+{
+      ncdump siginc.nc.${exp1} > siginc.nc.${exp1}.out
+      ncdump siginc.nc.${exp3} > siginc.nc.${exp3}.out
+
+      if diff -s siginc.nc.${exp1}.out siginc.nc.${exp3}.out
+      then
+         echo 'The results between the two runs ('${exp1}' and '${exp3}') are reproducible'
+         echo 'since the corresponding results are identical.'
+         echo
+      else
+         echo 'The results between the two runs ('${exp1}' and '${exp3}') are not reproducible'
+         echo 'Thus, the case has Failed siganl of the regression tests.'
+         echo
+         failed_test=1
+      fi
+} >> $output
+
    fi
 fi
 

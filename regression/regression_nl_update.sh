@@ -28,11 +28,8 @@ export BKGVERR_update=""
 export ANBKGERR_update=""
 export JCOPTS_update=""
 if [[ `expr substr $exp 1 6` = "global" ]]; then
-   if [[ `expr substr $exp $((${#exp}-4)) ${#exp}` = "updat" ]]; then
-      export STRONGOPTS_update=""
-   else
-      export STRONGOPTS_update=""
-   fi
+   export STRONGOPTS_update=""
+   export OBSQC_update="vqc=.false.,nvqc=.true.,"
 fi
 export OBSINPUT_update=""
 export SUPERRAD_update=""

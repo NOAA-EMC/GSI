@@ -16,6 +16,7 @@ module stpqmod
 !   2014-04-12       su - add non linear qc from Purser's scheme
 !   2015-02-26       su - add njqc as an option to choose Purser's non-linear qc 
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
+!   2019-09-20  Su      - remove current VQC part and add VQC subroutine call with new vqc
 !
 ! subroutines included:
 !   sub stpq
@@ -77,8 +78,8 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
-  use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
+  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc,nvqc
+  use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600,zero
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use m_obsNode, only: obsNode
@@ -96,8 +97,8 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
 
 ! Declare local variables
   integer(i_kind) ier,istatus
-  integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk
-  real(r_kind) cg_q,val,val2,wgross,wnotgross,q_pg
+  integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk,ibb,ikk
+  real(r_kind) cg_t,val,val2,t_pg,var_jb
   real(r_kind),dimension(max(1,nstep))::pen
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,qq
   real(r_kind),pointer,dimension(:):: rq,sq
@@ -151,29 +152,33 @@ subroutine stpq(qhead,rval,sval,out,sges,nstep)
 
         if (vqc  .and. nlnqc_iter .and. qptr%pg > tiny_r_kind .and. &
                              qptr%b  > tiny_r_kind) then
-           q_pg=qptr%pg*varqc_iter
-           cg_q=cg_term/qptr%b
-           wnotgross= one-q_pg
-           wgross = q_pg*cg_q/wnotgross
-           do kk=1,max(1,nstep)
-              pen(kk)= -two*log((exp(-half*pen(kk))+wgross)/(one+wgross))
-           end do
-        endif
-     
-        if(njqc  .and. qptr%jb > tiny_r_kind .and. qptr%jb <10.0_r_kind) then
-           do kk=1,max(1,nstep)
-              pen(kk) = two*two*qptr%jb*log(cosh(sqrt(pen(kk)/(two*qptr%jb))))
-           enddo
-           out(1) = out(1)+pen(1)*qptr%raterr2
-           do kk=2,nstep
-              out(kk) = out(kk)+(pen(kk)-pen(1))*qptr%raterr2
-           end do
+           t_pg=qptr%pg*varqc_iter
+           cg_t=cg_term/qptr%b
         else
-           out(1) = out(1)+pen(1)*qptr%raterr2
-           do kk=2,nstep
-             out(kk) = out(kk)+(pen(kk)-pen(1))*qptr%raterr2
-           end do
+           t_pg=zero
+           cg_t=zero
         endif
+
+!   for Dr. Jim purser' non liear quality control
+        if(njqc  .and. qptr%jb > tiny_r_kind .and. qptr%jb <10.0_r_kind) then
+           var_jb =qptr%jb
+        else
+           var_jb=zero
+        endif
+!  mix model VQC
+        if(nvqc .and. qptr%ib >0) then
+           ibb=qptr%ib
+           ikk=qptr%ik
+        else
+           ibb=0
+           ikk=0
+        endif
+        call vqc_stp(pen,nstep,t_pg,cg_t,var_jb,ibb,ikk)
+
+        out(1) = out(1)+pen(1)*qptr%raterr2
+        do kk=2,nstep
+           out(kk) = out(kk)+(pen(kk)-pen(1))*qptr%raterr2
+        end do
 
      end if
 

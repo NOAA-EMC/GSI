@@ -87,18 +87,19 @@
   use qcmod, only: dfact,dfact1,create_qcvars,destroy_qcvars,&
       erradar_inflate,tdrerr_inflate,use_poq7,qc_satwnds,&
       init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3,qc_noirjaco3_pole,&
-      buddycheck_t,buddydiag_save,njqc,vqc,vadwnd_l2rw_qc, &
+      buddycheck_t,buddydiag_save,njqc,vqc,nvqc,hub_norm,vadwnd_l2rw_qc, &
       pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres,cao_check
+  use qcmod, only: troflg,lat_c,nrand
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax, &
      factql,factqi,factqr,factqs,factqg, &  
      factv,factl,factp,factg,factw10m,facthowv,factcldch,niter,niter_no_qc,biascor,&
      init_jfunc,qoption,cwoption,switch_on_derivatives,tendsflag,jiterstart,jiterend,R_option,&
      bcoption,diurnalbc,print_diag_pcg,tsensible,lgschmidt,diag_precon,step_start,pseudo_q2,&
-     clip_supersaturation
+     clip_supersaturation,cnvw_option
   use state_vectors, only: init_anasv,final_anasv
   use control_vectors, only: init_anacv,final_anacv,nrf,nvars,nrf_3d,cvars3d,cvars2d,&
-     nrf_var,lcalc_gfdl_cfrac 
+     nrf_var,lcalc_gfdl_cfrac,incvars_to_zero,incvars_zero_strat,incvars_efold 
   use derivsmod, only: init_anadv
   use berror, only: norh,ndeg,vs,bw,init_berror,hzscl,hswgt,pert_berr,pert_berr_fct,&
      bkgv_flowdep,bkgv_rewgtfct,bkgv_write,fpsproj,nhscrf,adjustozvar,fut2ps,cwcoveqqcov
@@ -120,7 +121,7 @@
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
      nlayers,use_gfs_ozone,check_gfs_ozone_date,regional_ozone,jcap,jcap_b,vlevs,&
      use_gfs_nemsio,sfcnst_comb,use_readin_anl_sfcmask,use_sp_eqspace,final_grid_vars,&
-     jcap_gfs,nlat_gfs,nlon_gfs,jcap_cut,wrf_mass_hybridcord,&
+     jcap_gfs,nlat_gfs,nlon_gfs,jcap_cut,wrf_mass_hybridcord,use_gfs_ncio,write_fv3_incr,&
      use_fv3_aero
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop
   use gsi_io, only: init_io,lendian_in,verbose,print_obs_para
@@ -426,7 +427,13 @@
 !  08-23-2019 pondeca   add logical variable "use_similarity_2dvar" that provides option to use
 !                       similarity theory from the mm5 sfc model to compute the 10-m wind factor for
 !                       near-surface observations
+!  09-04-2019 Martin    Add option write_fv3_incr to write netCDF increment rather than NEMSIO analysis
+!  09-13-2019 Martin    Add option incvars_to_zero(nvars) to zero out netCDF increment fields
+!  09-20-2019 Su        add new variational QC and hub norm option
+!  09-23-2019 Martin    Add option use_gfs_ncio to read in first-guess netCDF file
 !  10-15-2019 Wei/Martin   added option lread_ext_aerosol to read in aerfXX file for NEMS aerosols;
+!                          added option use_fv3_aero to choose between NGAC and FV3GFS-GSDChem 
+!  10-28-2019 Martin    Add option incvars_zero_strat(nvars) to zero out increments above tropopause
 !                          added option use_fv3_aero to choose between NGAC and FV3GFS-GSDChem
 !  01-27-2020 Winterbottom Moved regression coeffcients for regional
 !                          model (e.g., HWRF) aircraft recon dynamic
@@ -561,6 +568,7 @@
 !     nsig_ext - number of layers above the model top which are necessary to compute the bending angle for gpsro
 !     gpstop - maximum height for gpsro data assimilation. Reject anything above this height. 
 !     use_gfs_nemsio  - option to use nemsio to read global model NEMS/GFS first guess
+!     use_gfs_ncio - option to use netCDF to read global model FV3-GFS first guess
 !     use_fv3_aero - option to use FV3-Chem vs NGAC for global aerosol analysis
 !     sfcnst_comb   - option to use nemsio sfc history file by regriding FV3 grid
 !     use_readin_anl_sfcmask  - option to use readin surface mask
@@ -619,6 +627,15 @@
 !     cao_check - if T, turn on cold-air-outbreak screening for quality control
 !     binary_diag - trigger binary diag-file output (being phased out)
 !     netcdf_diag - trigger netcdf diag-file output
+!     write_fv3_incr - trigger writing out FV3 netCDF increment file
+!                      rather than NEMSIO analysis
+!     incvars_to_zero - list of strings of variable names in FV3 netCDF
+!                       increment file that should be forced to be zero
+!     incvars_zero_strat - list of strings of variable names in FV3 netcdf
+!                          increment file that will be reduced to zero
+!                          above the tropopause
+!     incvars_efold - scale factor x in which e^(-(k-ktrop)/x) for above fields 
+!
 !     diag_version - specifies desired version of diag files
 !     l_wcp_cwm - namelist logical whether to use swcp/lwcp operator that includes cwm
 !     aircraft_recon - namelist logical whether to apply DOE to aircraft data
@@ -657,7 +674,7 @@
        idmodel,iwrtinc,lwrite4danl,nhr_anal,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
        lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip, &
        use_gfs_ozone,check_gfs_ozone_date,regional_ozone,lwrite_predterms,&
-       lwrite_peakwt,use_gfs_nemsio,sfcnst_comb,liauon,use_prepb_satwnd,l4densvar,ens_nstarthr,&
+       lwrite_peakwt,use_gfs_nemsio,use_gfs_ncio,sfcnst_comb,liauon,use_prepb_satwnd,l4densvar,ens_nstarthr,&
        use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon,lrun_subdirs,&
        use_sp_eqspace,lnested_loops,lsingleradob,thin4d,use_readin_anl_sfcmask,&
        luse_obsdiag,id_drifter,id_ship,verbose,print_obs_para,lsingleradar,singleradar,lnobalance, &
@@ -668,7 +685,8 @@
        radar_no_thinning,ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,&
        minobrangevr, maxtiltdbz, mintiltvr,mintiltdbz,if_vterminal,if_vrobs_raw,&
        if_model_dbz,imp_physics,lupp,netcdf_diag,binary_diag,l_wcp_cwm,aircraft_recon,diag_version,&
-       cao_check,lcalc_gfdl_cfrac,tau_fcst,efsoi_order,lupdqc,lqcoef
+       write_fv3_incr,incvars_to_zero,incvars_zero_strat,incvars_efold,diag_version,&
+       cao_check,lcalc_gfdl_cfrac,tau_fcst,efsoi_order,lupdqc,lqcoef,cnvw_option
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -863,6 +881,9 @@
 !                      obs run through the buddy check
 !     njqc  -  When true, use Purser''s non linear QC
 !     vqc   -  when true, use ECMWF's non linear QC
+!     nvqc   -  when true, use Dr. Purser's variational QC 
+!     hub_norm - when true,use huber norm format distribution 
+!     closest_obs- when true, choose the timely closest surface observation from
 !     multiple observations at a station.  Currently only applied to Ceiling
 !     height and visibility.
 !     pvis   - power parameter in nonlinear transformation for vis 
@@ -920,7 +941,7 @@
   
   namelist/obsqc/dfact,dfact1,erradar_inflate,tdrerr_inflate,oberrflg,&
        vadfile,noiqc,c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,&
-       tcp_ermin,tcp_ermax,qc_noirjaco3,qc_noirjaco3_pole,qc_satwnds,njqc,vqc,&
+       tcp_ermin,tcp_ermax,qc_noirjaco3,qc_noirjaco3_pole,qc_satwnds,njqc,vqc,nvqc,hub_norm,troflg,lat_c,nrand,&
        aircraft_t_bc_pof,aircraft_t_bc,aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail,&
        hdist_aircraft,buddycheck_t,buddydiag_save,vadwnd_l2rw_qc,  &
        pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres,cld_det_dec2bin, &
@@ -1403,8 +1424,9 @@
      end if
   end if
   if(ltlint) then
-     if(vqc .or. njqc)then
+     if(vqc .or. njqc .or. nvqc)then
        vqc = .false.
+       nvqc = .false.
        njqc = .false.
        if(mype == 0) write(6,*) ' ltlint = true, so vqc and njqc must be false'
      end if
