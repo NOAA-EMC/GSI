@@ -12,12 +12,10 @@
 
 dir_root=$(pwd)
 
-if [[ "`grep -i "theia" /etc/hosts | head -n1`" != "" ]] ; then ###theia
-    source /etc/profile.d/modules.sh
-    modulefile="/home/rtrr/PARM_EXEC/modulefiles/modulefile.theia.GSI_UPP_WRF"
-elif [[ "`grep -i "hera" /etc/hosts | head -n1`" != "" ]] ; then ###hera
+if [[ "`grep -i "hera" /etc/hosts | head -n1`" != "" ]] ; then ###hera
     source /etc/profile.d/modules.sh
     modulefile="/home/rtrr/PARM_EXEC/modulefiles/modulefile.hera.GSI_UPP_WRF"
+    NCEPLIBS="/scratch1/BMC/comgsi/precompiled/NCEPLIBS/b_intel18.0.5.274_impi2018.0.4/install"
 elif [[ -d /jetmon ]] ; then ### jet
     source /etc/profile.d/modules.sh
     modulefile="/home/rtrr/PARM_EXEC/modulefiles/modulefile.jet.GSI_UPP_WRF"
