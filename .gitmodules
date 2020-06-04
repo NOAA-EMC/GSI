@@ -1,7 +1,9 @@
 [submodule "fix"]
 	path = fix
 	url = gerrit:GSI-fix
-
 [submodule "libsrc"]
 	path = libsrc
 	url = gerrit:GSI-libsrc
+[submodule "cmake"]
+	path = cmake
+	url = git@github.com:NOAA-EMC/CMakeModules
