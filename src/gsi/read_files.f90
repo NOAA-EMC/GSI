@@ -37,6 +37,7 @@ subroutine read_files(mype)
 !   2015-02-23  Rancic/Thomas - add l4densvar to time window logical
 !   2017-09-08  li      - add sfcnst_comb to get nfldnst and control when sfc & nst combined 
 !   2019-03-21  Wei/Martin - add capability to read in aerosol guess from NEMS
+!   2019-09-24  martin  - add support for use_gfs_ncio
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -82,7 +83,7 @@ subroutine read_files(mype)
   use guess_grids, only: nfldaer, ntguesaer, ifileaer, hrdifaer, hrdifaer_all !for aerosol
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,nhr_assimilation
   use hybrid_ensemble_parameters, only: ntlevs_ens
-  use gridmod, only: nlat_sfc,nlon_sfc,lpl_gfs,dx_gfs,use_gfs_nemsio,sfcnst_comb
+  use gridmod, only: nlat_sfc,nlon_sfc,lpl_gfs,dx_gfs,use_gfs_nemsio,sfcnst_comb,use_gfs_ncio
   use constants, only: zero,r60inv,r60,r3600,i_missing
   use obsmod, only: iadate
   use gsi_nstcouplermod, only: nst_gsi
@@ -96,6 +97,9 @@ subroutine read_files(mype)
   use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_getheadvar
   use read_obsmod, only: gsi_inquire
   use gsi_io, only: verbose
+  use module_fv3gfs_ncio, only: Dataset, Dimension, open_dataset, get_dim, &
+                                read_vardata, get_idate_from_time_units, &
+                                close_dataset
   use chemmod, only: lread_ext_aerosol
   
   implicit none
@@ -122,12 +126,14 @@ subroutine read_files(mype)
   integer(i_kind),dimension(2):: i_ges
   integer(i_kind),allocatable,dimension(:):: nst_ges
   integer(i_kind),dimension(5):: idate5
+  integer(i_kind),dimension(6):: idate6
   integer(i_kind),dimension(num_lpl):: lpl_dum
   integer(i_kind),dimension(7):: idate
   integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
   integer(i_kind),dimension(:,:),allocatable:: irec
   integer(i_llong) :: lenbytes
   real(r_single) hourg4
+  real(r_kind), allocatable, dimension(:) :: fhour
   real(r_kind) hourg,t4dv
   real(r_kind),allocatable,dimension(:,:):: time_atm
   real(r_kind),allocatable,dimension(:,:):: time_sfc
@@ -139,6 +145,8 @@ subroutine read_files(mype)
   type(nstio_head):: nst_head
   type(nemsio_gfile) :: gfile_atm,gfile_sfc,gfile_nst,gfile_aer
   logical :: print_verbose
+  type(Dataset) :: atmges, sfcges, nstges
+  type(Dimension) :: ncdim
 
 
   print_verbose=.false.
@@ -223,12 +231,22 @@ subroutine read_files(mype)
      do i=1,nfldsig
         write(filename,'(''sigf'',i2.2)')irec(i,1)
         if(print_verbose)write(6,*)'READ_FILES:  process ',trim(filename)
-        if ( .not. use_gfs_nemsio ) then
+        if ( (.not. use_gfs_nemsio) .and. (.not. use_gfs_ncio) ) then
            call sigio_sropen(lunatm,filename,iret)
            call sigio_srhead(lunatm,sigatm_head,iret)
            hourg4=sigatm_head%fhour
            idateg=sigatm_head%idate
            call sigio_sclose(lunatm,iret)
+        else if (use_gfs_ncio) then
+           atmges = open_dataset(filename)
+           idate6 = get_idate_from_time_units(atmges) 
+           call read_vardata(atmges, 'time', fhour)
+           hourg4 = float(nint(fhour(1))) ! going to make this nearest integer for now
+           idateg(1) = idate6(4)
+           idateg(2) = idate6(2)
+           idateg(3) = idate6(3)
+           idateg(4) = idate6(1)
+           call close_dataset(atmges)
         else
            call nemsio_init(iret=iret)
            call nemsio_open(gfile_atm,filename,'READ',iret=iret)
@@ -278,7 +296,7 @@ subroutine read_files(mype)
      do i=1,nfldsfc
         write(filename,'(''sfcf'',i2.2)')irec(i,2)
         if(print_verbose)write(6,*)'READ_FILES:  process ',trim(filename)        
-        if ( .not. use_gfs_nemsio ) then
+        if ( (.not. use_gfs_nemsio) .and. (.not. use_gfs_ncio) ) then
            call sfcio_sropen(lunsfc,filename,iret)
            call sfcio_srhead(lunsfc,sfc_head,iret)
            hourg4=sfc_head%fhour
@@ -293,6 +311,34 @@ subroutine read_files(mype)
            lpl_dum(1:sfc_head%latb/2)=sfc_head%lpl
            call sfcio_sclose(lunsfc,iret)
            if(i == 1 .and. print_verbose)write(6,*)' READ_FILES: in sfcio sfc_head%lpl = ', sfc_head%lpl
+        else if (use_gfs_ncio) then
+           sfcges = open_dataset(filename)
+           ncdim = get_dim(sfcges, 'grid_xt'); sfc_head%lonb = ncdim%len
+           ncdim = get_dim(sfcges, 'grid_yt'); sfc_head%latb = ncdim%len
+           idate6 = get_idate_from_time_units(sfcges) 
+           call read_vardata(sfcges, 'time', fhour)
+           hourg4 = float(nint(fhour(1))) ! going to make this nearest integer for now
+           idateg(1) = idate6(4)
+           idateg(2) = idate6(2)
+           idateg(3) = idate6(3)
+           idateg(4) = idate6(1)
+           i_ges(1)=sfc_head%lonb
+           i_ges(2)=sfc_head%latb+2
+           if((sfc_head%latb+1)/2>num_lpl)then
+              write(6,*)'READ_FILES: increase dimension of variable lpl_dum'
+              call stop2(80)
+           endif
+           if ( (sfc_head%latb+1)/2 /= sfc_head%latb/2 ) then
+              write(6,*) 'READ_FILES: ****WARNING**** (sfc_head%latb+1)/2 = ', &
+                 (sfc_head%latb+1)/2, 'sfc_head%latb/2 = ', sfc_head%latb/2
+           end if
+           if (allocated(sfc_head%lpl)) deallocate(sfc_head%lpl)
+           allocate(sfc_head%lpl((sfc_head%latb+1)/2))
+           sfc_head%lpl=sfc_head%lonb
+           call close_dataset(sfcges)
+           lpl_dum=0
+           lpl_dum(1:sfc_head%latb/2)=sfc_head%lpl
+           deallocate(sfc_head%lpl)
         else
            call nemsio_init(iret=iret)
            call nemsio_open(gfile_sfc,filename,'READ',iret=iret)
@@ -371,13 +417,24 @@ subroutine read_files(mype)
            do i=1,nfldnst
               write(filename,'(''nstf'',i2.2)')irec(i,3)
               write(6,*)'READ_FILES:  process ',trim(filename)
-              if ( .not. use_gfs_nemsio ) then
+              if ( (.not. use_gfs_nemsio) .and. (.not. use_gfs_ncio) ) then
                  call nstio_sropen(lunnst,filename,iret)
                  call nstio_srhead(lunnst,nst_head,iret)
                  hourg4=nst_head%fhour
                  idateg=nst_head%idate
                  nst_ges(1)=nst_head%lonb
                  nst_ges(2)=nst_head%latb+2
+              else if (use_gfs_ncio) then
+                 nstges = open_dataset(filename)
+                 ncdim = get_dim(nstges, 'grid_xt'); nst_head%lonb = ncdim%len
+                 ncdim = get_dim(nstges, 'grid_yt'); nst_head%latb = ncdim%len
+                 idate6 = get_idate_from_time_units(nstges) 
+                 call read_vardata(nstges, 'time', fhour)
+                 hourg4 = fhour(1)
+                 idateg(1) = idate6(4)
+                 idateg(2) = idate6(2)
+                 idateg(3) = idate6(3)
+                 idateg(4) = idate6(1)
               else
                  call nemsio_init(iret=iret)
                  call nemsio_open(gfile_nst,filename,'READ',iret=iret)

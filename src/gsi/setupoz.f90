@@ -110,7 +110,7 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use mpeu_util, only: die,perr,getindex
   use kinds, only: r_kind,r_single,i_kind
 
-  use state_vectors, only: svars3d, levels, nsdim
+  use state_vectors, only: svars3d, levels
 
   use constants, only : zero,half,one,two,tiny_r_kind
   use constants, only : rozcon,cg_term,wgtlim,h300,r10
@@ -191,10 +191,10 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
 ! Declare local variables  
   
-  real(r_kind) omg,rat_err2,dlat,dtime,dlon
+  real(r_kind) omg,rat_err2,dlat,dtime,dlon,rat_err4diag
   real(r_kind) cg_oz,wgross,wnotgross,wgt,arg,exp_arg,term
   real(r_kind) psi,errorinv
-  real(r_kind),dimension(nlevs):: ozges,varinv3,ozone_inv,ozobs
+  real(r_kind),dimension(nlevs):: ozges,varinv3,ozone_inv,ozobs,varinv4diag
   real(r_kind),dimension(nlevs):: ratio_errors,error
   real(r_kind),dimension(nlevs-1):: ozp
   real(r_kind),dimension(nloz_omi) :: ozp_omi
@@ -212,7 +212,6 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   real(r_kind),dimension(nsig,nloz_omi+1):: doz_dz1
   integer(i_kind) :: oz_ind, nind, nnz
   type(sparr2) :: dhx_dx
-  real(r_single), dimension(nsdim) :: dhx_dx_array
 
   integer(i_kind) i,nlev,ii,jj,iextra,ibin, kk, nperobs
   integer(i_kind) k,j,nz,jc,idia,irdim1,istatus,ioff0
@@ -514,6 +513,9 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
               end if
            endif
 
+           varinv4diag(k)=varinv3(k)
+           rat_err4diag=rat_err2
+
 !          If not assimilating this observation, reset inverse variance to zero
            if (iouse(k)<1) then
               varinv3(k)=zero
@@ -527,7 +529,7 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
            if (ozone_diagsave .and. luse(i)) then
               rdiagbuf(1,k,ii) = ozobs(k)
               rdiagbuf(2,k,ii) = ozone_inv(k)           ! obs-ges
-              errorinv = sqrt(varinv3(k)*rat_err2)
+              errorinv = sqrt(varinv4diag(k)*rat_err4diag)
               rdiagbuf(3,k,ii) = errorinv               ! inverse observation error
               if (obstype == 'gome' .or. obstype == 'omieff'  .or. &
                   obstype == 'omi'  .or. obstype == 'tomseff' .or. &
@@ -587,8 +589,9 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
                     call nc_diag_metadata("Row_Anomaly_Index",         sngl(rmiss)  )
                  endif
                  if (save_jacobian) then
-                    call fullarray(dhx_dx, dhx_dx_array)
-                    call nc_diag_data2d("Observation_Operator_Jacobian", dhx_dx_array)
+                   call nc_diag_data2d("Observation_Operator_Jacobian_stind", dhx_dx%st_ind)
+                   call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind)
+                   call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val,r_single))
                  endif
               endif
            endif
@@ -917,13 +920,16 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
      if (.not. append_diag) then ! don't write headers on append - the module will break?
         call nc_diag_header("date_time",ianldate )
-        call nc_diag_header("Number_of_state_vars", nsdim          )
         call nc_diag_header("Satellite_Sensor", isis)
         call nc_diag_header("Satellite", dplat(is))
         call nc_diag_header("Observation_type", obstype)
         call nc_diag_header("pobs", pobs)
         call nc_diag_header("gross",gross)
         call nc_diag_header("tnoise",tnoise)
+        if (save_jacobian) then
+          call nc_diag_header("jac_nnz", nnz)
+          call nc_diag_header("jac_nind", nind)
+        endif
      endif
 
   end subroutine init_netcdf_diag_
@@ -1091,12 +1097,12 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   
   real(r_kind) o3ges, o3ppmv
   real(r_kind) rlow,rhgh,sfcchk
-  real(r_kind) omg,rat_err2,dlat,dtime,dlon
+  real(r_kind) omg,rat_err2,dlat,dtime,dlon,rat_err4diag
   real(r_kind) cg_oz,wgross,wnotgross,wgt,arg,exp_arg,term
   real(r_kind) errorinv
   real(r_kind) psges,ozlv,airnd,uvnd,visnd
   
-  real(r_kind) varinv3,ratio_errors
+  real(r_kind) varinv3,ratio_errors,varinv4diag
   real(r_kind) dpres,obserror,ozone_inv,preso3l
   real(r_kind),dimension(nreal+nlevs,nobs):: data
   real(r_kind),dimension(nsig):: prsltmp
@@ -1329,7 +1335,7 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
      endif
 
 !    toss the obs not recommended by the data provider
-     if (nint(data(iuse,i)) == 1000 ) then
+     if (nint(data(iuse,i)) == 10000 ) then
         varinv3=zero
         ratio_errors=zero
      endif
@@ -1382,6 +1388,9 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
         end if
      endif
 
+     varinv4diag=varinv3
+     rat_err4diag=rat_err2
+
 !    If not assimilating this observation, reset inverse variance to zero
      if ( .not. muse(i)) then
         varinv3=zero
@@ -1432,7 +1441,7 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
 !    Optionally save data for diagnostics
      if (ozone_diagsave .and. luse(i)) then
-        errorinv = sqrt(varinv3*rat_err2)
+        errorinv = sqrt(varinv4diag*rat_err4diag)
 
         if (binary_diag) call contents_binary_diag_(my_diag)
         if (netcdf_diag) call contents_netcdf_diag_(my_diag)

@@ -146,6 +146,7 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
 !   2012-10-11  eliu -  modify to work for wrf_nmm_regional (HWRF) 
 !   2013-02-15  parrish - change dimension of eta1, eta2, eta1m, eta2m to correct value.
 !   2016-12-06  tong - add code to get gfs nemsio meta data, if use_gfs_nemsio=True
+!   2019-09-24  martin - add code to get fv3gfs netCDF info, if use_gfs_ncio=True
 !
 !   input argument list:
 !     deta1  - all of these are original nmmb vertical coordinate specifications.
@@ -176,10 +177,13 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
    use sigio_module, only: sigio_intkind,sigio_head,sigio_srhead
    use constants, only: zero,one_tenth,half,one,ten,r0_01,r60,r3600
    use blendmod, only: init_blend,blend_f,blend_df
-   use gridmod, only: use_gfs_nemsio
+   use gridmod, only: use_gfs_nemsio,use_gfs_ncio
    use nemsio_module, only: nemsio_init,nemsio_open,nemsio_close
    use ncepnems_io, only: error_msg
    use nemsio_module, only: nemsio_gfile,nemsio_getfilehead
+   use module_fv3gfs_ncio, only: Dataset, Dimension, get_dim, read_vardata,&
+                                 open_dataset, close_dataset, read_attribute,&
+                                 get_idate_from_time_units
 
    implicit none
 
@@ -196,7 +200,7 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
    real(r_kind) ak_r(nsigr+1),bk_r(nsigr+1),p_r(nsigr+1)
    real(r_kind),dimension(:),allocatable:: p_g,dp_g ! (nsigg+1)
    real(r_kind) psfc
-   integer(i_kind) k
+   integer(i_kind) k,kr
    real(r_kind) dp_r(nsigr+1)
    real(r_kind) pref0,pref1
    real(r_kind) delpmin,delp
@@ -222,19 +226,23 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
    integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
    integer(i_kind) :: istop = 101
    integer(i_kind),dimension(7):: idate
+   integer(i_kind),dimension(6):: idate6
    real(r_kind) :: fhour
    type(nemsio_gfile) :: gfile
    integer(i_kind) :: nvcoord
    real(r_single),allocatable:: nems_vcoord(:,:,:)
    real(r_single),allocatable:: vcoord(:,:)
    logical print_verbose
+   type(Dataset) :: atmges
+   type(Dimension) :: ncdim
+   real(r_kind), allocatable, dimension(:) :: fhour2,aknc,bknc
  
    print_verbose=.false.
    if(verbose)print_verbose=.true.
 
    ! First, obtain gfs vertical coordinate information:
    filename='gfs_sigf03'  
-   if (.not. use_gfs_nemsio)then
+   if ((.not. use_gfs_nemsio) .and. (.not. use_gfs_ncio))then
       open(lunges,file=trim(filename),form='unformatted')
       call sigio_srhead(lunges,sighead,iret)
       close(lunges)
@@ -252,6 +260,39 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
          write(6,*)' MIX_GFS_NMMB_VCOORDS: NOT READY YET FOR ak5,bk5,ck5 vert coordinate'
          call stop2(85)
       endif
+   else if (use_gfs_ncio) then
+      atmges = open_dataset(filename)
+      ! get dimension sizes
+      ncdim = get_dim(atmges, 'grid_xt'); lonb = ncdim%len
+      ncdim = get_dim(atmges, 'grid_yt'); latb = ncdim%len
+      ncdim = get_dim(atmges, 'pfull'); levs = ncdim%len
+
+      ! get time information
+      idate6 = get_idate_from_time_units(atmges)
+      call read_vardata(atmges, 'time', fhour2) ! might need to change this to attribute later
+                                               ! depends on model changes from Jeff Whitaker
+      fhour = fhour2(1)
+      write(6,*) ' input filename=',filename
+      write(6,*) ' netcdf info: fhour,idate=',fhour,idate6
+      write(6,*) ' netcdf info: levs=',levs
+
+      nvcoord=2 ! ak and bk
+      allocate(vcoord(levs+1,nvcoord))
+      call read_attribute(atmges, 'ak', aknc)
+      call read_attribute(atmges, 'bk', bknc)
+      do k=1,levs+1
+         kr = levs+2-k
+         vcoord(k,1) = aknc(kr)
+         vcoord(k,2) = bknc(kr)
+      end do
+      if(print_verbose)then
+         write(6,*) ' netcdf : nvcoord=', nvcoord
+         do k=1,levs+1
+            write(6,*)' k,vcoord=',k,vcoord(k,:)
+         enddo
+      end if
+      call close_dataset(atmges)
+
    else
       call nemsio_init(iret=iret)
       if (iret /= 0) call error_msg(trim(my_name),trim(filename),' ','init',istop,iret)
@@ -318,6 +359,8 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
    if (allocated(dpref_m))    deallocate(dpref_m)
    if (allocated(ak_m))       deallocate(ak_m)
    if (allocated(bk_m))       deallocate(bk_m)
+   if (allocated(aknc))       deallocate(aknc)
+   if (allocated(bknc))       deallocate(bknc)
    if (allocated(akm))        deallocate(akm)
    if (allocated(bkm))        deallocate(bkm)
    if (allocated(plotp))      deallocate(plotp)
@@ -332,7 +375,7 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
    if (allocated(ak5))        deallocate(ak5)
    if (allocated(bk5))        deallocate(bk5)
 
-   if(.not. use_gfs_nemsio)then
+   if((.not. use_gfs_nemsio).and.(.not. use_gfs_ncio))then
        nsigg=sighead%levs
    else
        nsigg=levs
@@ -346,7 +389,7 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
       ak5(k)=zero
       bk5(k)=zero
    end do
-   if (.not. use_gfs_nemsio)then
+   if ((.not. use_gfs_nemsio).and.(.not. use_gfs_ncio))then
       do k = 1,nsigg+1
          ak5(k) = sighead%vcoord(k,1)*zero_001
          ! for purpose of this routine, convert to mb
@@ -807,6 +850,7 @@ subroutine add_gfs_stratosphere
 !   2014-12-03  derber  - modify call to general_read_gfsatm to reduce reading
 !                         of unused variables
 !   2016-12-10  tong - add code to gfs nemsio meta data, if use_gfs_nemsio=True
+!   2019-09-24  martin - add support for when use_gfs_ncio is True
 !
 !   input argument list:
 !
@@ -818,7 +862,7 @@ subroutine add_gfs_stratosphere
 !
 !$$$ enddocumentation block
 
-   use gridmod, only: regional,wrf_nmm_regional,use_gfs_nemsio
+   use gridmod, only: regional,wrf_nmm_regional,use_gfs_nemsio,use_gfs_ncio
    use gridmod, only: region_lat,region_lon,aeta1_ll,aeta2_ll,pdtop_ll,pt_ll  
    use gridmod, only: nlon,nlat,lat2,lon2,nsig,rotate_wind_ll2xy
    use gridmod, only: use_gfs_ozone,jcap_gfs,nlat_gfs,nlon_gfs
@@ -855,6 +899,9 @@ subroutine add_gfs_stratosphere
    use nemsio_module, only: nemsio_init,nemsio_open,nemsio_close
    use ncepnems_io, only: error_msg
    use nemsio_module, only: nemsio_gfile,nemsio_getfilehead
+   use module_fv3gfs_ncio, only: Dataset,Dimension,open_dataset,close_dataset,&
+                                 read_attribute,get_dim,read_vardata,&
+                                 get_idate_from_time_units
 
    implicit none
   
@@ -938,6 +985,13 @@ subroutine add_gfs_stratosphere
    real(r_kind),pointer,dimension(:,:,:):: ges_qg
    real(r_kind),pointer,dimension(:,:,:):: ges_qh
    logical print_verbose
+
+   ! variables for netcdf io
+   type(Dataset) :: atmges
+   type(Dimension) :: ncdim
+   integer(i_kind),dimension(6):: idate6
+   real(r_kind),allocatable,dimension(:) :: fhour2
+   
 
    ! allocate space for saving original regional model guess and original blended regional-global guess:
 
@@ -1084,7 +1138,7 @@ subroutine add_gfs_stratosphere
      
       filename=infiles(it)    
       if (mype==0) write(6,*)'add_gfs_stratosphere: reading in gfs file: ',trim(filename)                       
-      if ( .not. use_gfs_nemsio ) then
+      if ( (.not. use_gfs_nemsio) .and. (.not. use_gfs_ncio) ) then
          open(lunges,file=trim(filename),form='unformatted')
          call sigio_srhead(lunges,sighead,iret)
          close(lunges)
@@ -1094,6 +1148,18 @@ subroutine add_gfs_stratosphere
             write(6,*) ' sighead%latf,sighead%lonf=',sighead%latf,sighead%lonf
          endif
          jcap_org=sighead%jcap
+      else if (use_gfs_ncio) then
+         atmges = open_dataset(filename)
+         ncdim = get_dim(atmges, 'grid_xt'); lonb = ncdim%len
+         ncdim = get_dim(atmges, 'grid_yt'); latb = ncdim%len
+         ncdim = get_dim(atmges, 'pfull'); levs = ncdim%len
+         njcap = -9999
+         jcap_org = njcap
+         idate6 = get_idate_from_time_units(atmges)
+         call read_vardata(atmges, 'time', fhour2)
+         fhour = fhour2(1)
+         call close_dataset(atmges)
+         
       else
          call nemsio_init(iret=iret)
          if (iret /= 0) call error_msg(trim(my_name),trim(filename),' ','init',istop,iret)
@@ -1127,12 +1193,18 @@ subroutine add_gfs_stratosphere
       end if 
    
       ! Extract header information
-      if(.not. use_gfs_nemsio)then
+      if((.not. use_gfs_nemsio) .and. (.not. use_gfs_ncio))then
          hourg    = sighead%fhour
          idate4(1)= sighead%idate(1)
          idate4(2)= sighead%idate(2)
          idate4(3)= sighead%idate(3)
          idate4(4)= sighead%idate(4)
+      else if (use_gfs_ncio) then
+         hourg = fhour
+         idate4(1) = idate6(4)  !hour
+         idate4(2) = idate6(2)  !month
+         idate4(3) = idate6(3)  !day
+         idate4(4) = idate6(1)  !year
       else 
          hourg = fhour
          idate4(1) = idate(4)  !hour
@@ -1189,7 +1261,7 @@ subroutine add_gfs_stratosphere
          hires=.true.
       else
          hires=.false.
-         if(.not. use_gfs_nemsio)then
+         if((.not. use_gfs_nemsio).and.(.not. use_gfs_ncio))then
             jcap_gfs=sighead%jcap
             nlat_gfs=sighead%latf+2
             nlon_gfs=sighead%lonf
@@ -1218,7 +1290,7 @@ subroutine add_gfs_stratosphere
                                       .not.regional,vector)
       jcap_gfs_test=jcap_gfs
       call general_init_spec_vars(sp_gfs,jcap_gfs,jcap_gfs_test,grd_gfs%nlat,grd_gfs%nlon)
-      if ( hires .and. .not. use_gfs_nemsio ) call general_init_spec_vars(sp_b,jcap_org,jcap_org,nlat_gfs,nlon_b)
+      if ( hires .and. .not. use_gfs_nemsio .and. .not. use_gfs_ncio) call general_init_spec_vars(sp_b,jcap_org,jcap_org,nlat_gfs,nlon_b)
 
       !  also want to set up regional grid structure variable grd_mix, which still has number of
       !   vertical levels set to nsig_gfs, but horizontal dimensions set to regional domain.
@@ -1237,6 +1309,9 @@ subroutine add_gfs_stratosphere
 
       if ( use_gfs_nemsio ) then
          call general_read_gfsatm_nems(grd_gfst,sp_gfs,filename,.true.,.false.,.true., &
+                                       atm_bundle,.true.,iret)
+      else if (use_gfs_ncio) then
+         call general_read_gfsatm_nc(grd_gfst,sp_gfs,filename,.true.,.false.,.true., &
                                        atm_bundle,.true.,iret)
       else
          if ( hires ) then
@@ -1837,7 +1912,7 @@ subroutine add_gfs_stratosphere
       endif
      
       call general_destroy_spec_vars(sp_gfs)
-      if ( hires .and. .not. use_gfs_nemsio ) call general_destroy_spec_vars(sp_b)
+      if ( hires .and. .not. use_gfs_nemsio .and. .not. use_gfs_ncio) call general_destroy_spec_vars(sp_b)
       deallocate(xspli_r,yspliu_r,yspliv_r,xsplo)
       deallocate(ysplou_r,ysplov_r,ysplou_g,ysplov_g)
       deallocate(xspli_g,yspliu_g,yspliv_g)

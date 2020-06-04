@@ -86,7 +86,7 @@ recursive subroutine bsort_s(n1,n2,v,next,first)
 implicit none
 
 integer(i_kind),                  intent(IN   ) :: n1,n2
-real(r_kind),dimension(n1:n2),    intent(IN   ) :: v
+real(r_kind),    dimension(n1:n2),intent(IN   ) :: v
 integer(i_kind), dimension(n1:n2),intent(  OUT) :: next
 integer(i_kind),                  intent(  OUT) :: first
 !-----------------------------------------------------------------------------

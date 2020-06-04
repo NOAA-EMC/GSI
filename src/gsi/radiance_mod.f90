@@ -337,7 +337,7 @@ contains
     use radinfo, only: nusis,jpch_rad,icloud4crtm,iaerosol4crtm
     use obsmod, only: ndat,dtype,dsis
     use gsi_io, only: verbose
-    use chemmod, only: laeroana_gocart, lread_ext_aerosol
+    use chemmod, only: laeroana_gocart
     implicit none
 
     logical :: first,diffistr,found
@@ -411,7 +411,7 @@ contains
           rtype(i) == 'avhrr'  .or. rtype(i) == 'amsre'    .or.  rtype(i) == 'ssmis'  .or. & 
           rtype(i) == 'ssmi'   .or. rtype(i) == 'atms'     .or.  rtype(i) == 'cris'   .or. & 
           rtype(i) == 'amsr2'  .or. rtype(i) == 'gmi'      .or.  rtype(i) == 'saphir' .or. &
-          rtype(i) == 'cris-fsr'  ) then
+          rtype(i) == 'cris-fsr' .or. rtype(i) == 'abi' ) then
           drtype(i)='rads'
        end if
     end do

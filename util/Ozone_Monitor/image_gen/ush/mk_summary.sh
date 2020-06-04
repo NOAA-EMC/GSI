@@ -52,7 +52,22 @@ for ptype in ${process_type}; do
    ctr=0
 >$cmdfile
    for type in ${SATYPE}; do
-      if [[ $type != "omi_aura" && $type != "gome_metop-a" && $type != "gome_metop-b" ]]; then
+
+      #--------------------------------------------------------------------
+      #  Note:  This if statement is a a bandaide.  The better solution is  
+      #         to poll the ctl file for the source, extract the number of
+      #         levels, and only include those instruments where nlev > 1.
+      #         Alternately that information could be added to the satype
+      #         table, or use the GFS obstype table maybe.  Either way I 
+      #         need to fix this fast and engineer a better solution after
+      #         some consideration, so it's bandaide now, and elegant
+      #         solution in the next release.
+      #
+      #         Summary plots are dimensioned on the x axis by number of 
+      #         levels, so when nlev = 1 the plot script doesn't work.
+      #
+      if [[ $type != "omi_aura" && $type != "gome_metop-a" && \
+	    $type != "gome_metop-b" && $type != "ompstc8_npp" ]]; then
          if [[ ${MY_MACHINE} = "hera" ]]; then
             echo "${ctr} ${OZN_IG_SCRIPTS}/plot_summary.sh $type $ptype" >> $cmdfile
          else
