@@ -6,4 +6,4 @@
 	url = gerrit:GSI-libsrc
 [submodule "cmake"]
 	path = cmake
-	url = git@github.com:NOAA-EMC/CMakeModules
+	url = git@github.com:mark-a-potts/CMakeModules

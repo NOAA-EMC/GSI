@@ -89,7 +89,7 @@ cmake_minimum_required(VERSION 2.8)
   get_target_property(sfcio_inc4 sfcio_4 INTERFACE_INCLUDE_DIRECTORIES)
   get_target_property(sigio_inc4 sigio_4 INTERFACE_INCLUDE_DIRECTORIES)
   get_target_property(crtm_inc crtm INTERFACE_INCLUDE_DIRECTORIES)
-  include_directories( ${crtm_INC} ${w3emc_inc} ${nemsio_inc} ${sfcio_inc4} ${sigio_inc4} ${NetCDF_INCLUDE_DIRS} ${MPI_Fortran_INCLUDE_PATH} "./"  )
+  include_directories( ${FV3GFS_NCIO_INCS} ${crtm_inc} ${w3emc_inc} ${nemsio_inc} ${sfcio_inc4} ${sigio_inc4} ${NetCDF_INCLUDE_DIRS} ${MPI_Fortran_INCLUDE_PATH} "./"  )
 
 #define the name used for GSI Shared lib and add it with properties and include dirs
   set(GSISHAREDLIB "gsilib_shrd${debug_suffix}" CACHE INTERNAL "")
@@ -127,7 +127,7 @@ cmake_minimum_required(VERSION 2.8)
          bufr_4 crtm nemsio sp_d sfcio_4 sigio_4 bacio_4 w3emc_d w3nco_d bufr_4 bacio_4 
          ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} 
          ${BLAS_openblas_LIBRARY} ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} 
-         ${GSI_LDFLAGS} ${NCDIAG_LIBRARIES} ${GSDCLOUD_LIBRARY} ${ZLIB_LIBRARIES} ${wrflib} )
+         ${GSI_LDFLAGS} ${NCDIAG_LIBRARIES} ${GSDCLOUD_LIBRARY} ${ZLIB_LIBRARIES} ${wrflib} ${FV3GFS_NCIO_LIBRARIES} )
 
 # if(BUILD_GLOBAL)
 #   message("not using wrf")
