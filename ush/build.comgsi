@@ -19,6 +19,7 @@ if [[ "`grep -i "hera" /etc/hosts | head -n1`" != "" ]] ; then ###hera
 elif [[ -d /jetmon ]] ; then ### jet
     source /etc/profile.d/modules.sh
     modulefile="/home/rtrr/PARM_EXEC/modulefiles/modulefile.jet.GSI_UPP_WRF"
+    NCEPLIBS="/lfs4/BMC/wrfruc/gge/precompiled/NCEPLIBS/b_intel18.0.5.274_impi2018.4.274/install"
 elif [[ -d /glade ]] ; then  ### cheyenne
     source /etc/profile.d/modules.sh
     modulefile="/glade/p/ral/jntp/gge/modulefiles/modulefile.cheyenne.GSI_UPP_WRF"
