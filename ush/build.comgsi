@@ -23,12 +23,12 @@ elif [[ -d /jetmon ]] ; then ### jet
     NCEPLIBS="/lfs4/BMC/wrfruc/gge/precompiled/NCEPLIBS/b_intel18.0.5.274_impi2018.4.274/install"
 elif [[ -d /glade ]] ; then  ### cheyenne
     source /etc/profile.d/modules.sh
-    modulefile="/glade/p/ral/jntp/gge/modulefiles/modulefile.cheyenne.GSI_UPP_WRF"
-    NCEPLIBS="/glade/p/ral/jntp/gge/precompiled/NCEPLIBS/b_intel18.0.5_impi2018.4.274/install"
-    GSILIBS="/glade/p/ral/jntp/gge/precompiled/GSILIBS/b_intel18.0.5_impi2018.4.274/"
-    #modulefile="/glade/p/ral/jntp/gge/precompiled/NCEPLIBS/modulefile.cheyenne.GSI_UPP_WRF.gnu"
-    #NCEPLIBS="/glade/p/ral/jntp/gge/precompiled/NCEPLIBS/b_gnu8.3.0_openmpi3.1.4/install"
-    #GSILIBS="/glade/p/ral/jntp/gge/precompiled/GSILIBS/b_gnu8.3.0_openmpi3.1.4/"
+    #modulefile="/glade/p/ral/jntp/gge/modulefiles/modulefile.cheyenne.GSI_UPP_WRF"
+    #NCEPLIBS="/glade/p/ral/jntp/gge/precompiled/NCEPLIBS/b_intel18.0.5_impi2018.4.274/install"
+    #GSILIBS="/glade/p/ral/jntp/gge/precompiled/GSILIBS/b_intel18.0.5_impi2018.4.274/"
+    modulefile="/glade/p/ral/jntp/gge/precompiled/NCEPLIBS/modulefile.cheyenne.GSI_UPP_WRF.gnu"
+    NCEPLIBS="/glade/p/ral/jntp/gge/precompiled/NCEPLIBS/b_gnu8.3.0_openmpi3.1.4/install"
+    GSILIBS="/glade/p/ral/jntp/gge/precompiled/GSILIBS/b_gnu8.3.0_openmpi3.1.4/"
 elif [[ -d /work/noaa ]] ; then  ### orion
     modulefile="/work/noaa/comgsi/modulefiles/modulefile.orion.GSI_UPP_WRF"
     #modulefile="/work/noaa/comgsi/modulefiles/modulefile.intel20"

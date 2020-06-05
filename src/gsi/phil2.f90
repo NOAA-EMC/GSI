@@ -741,7 +741,7 @@ end subroutine denest2dx
 !=============================================================================
 subroutine getqset5(n,qset5)!                                       [getqset5]
 !=============================================================================
-! Fill the first n rows of 5-row array, qset5, with the quaternions that
+! Fill the rows of the n-row array, qset5, with the quaternions that
 ! represent, for that n, the optimally diverse rotations of a cube in the
 ! sense that the minimum angular distance between members of the set is as
 ! large as possible. In each case, the first row contains the identity and
@@ -751,7 +751,7 @@ use kinds, only: dp,i_kind
 use pietc, only: u0,u1,u3,o2,r2,or2,phi
 implicit none
 integer(i_kind),          intent(in ):: n
-real(dp),dimension(0:3,5),intent(out):: qset5
+real(dp),dimension(0:3,n),intent(out):: qset5
 !-----------------------------------------------------------------------------
 real(dp),parameter:: u8=8.0_dp,or8=u1/sqrt(u8),sig=u1/phi,chi=r2-u1
 real(dp)          :: term1,term2,ce,cf,cg,ch,cj,ck,cl
