@@ -49,7 +49,7 @@ SUBROUTINE radar_ref2tten(mype,istat_radar,istat_lightning,nlon,nlat,nsig,ref_mo
 !_____________________________________________________________________
 !
   use constants, only: rd_over_cp, h1000
-  use kinds, only: r_kind,i_kind,r_single
+  use gsd_kinds, only: r_kind,i_kind,r_single
   implicit none
 
   INTEGER(i_kind),INTENT(IN) ::  mype

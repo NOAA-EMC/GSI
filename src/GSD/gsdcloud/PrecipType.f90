@@ -44,7 +44,7 @@ SUBROUTINE PrecipType(nlat,nlon,nsig,t_bk,p_bk,q_bk,radar_3d,   &
 !
 
   use constants, only: rd_over_cp, h1000
-  use kinds, only: r_single,i_kind,r_kind
+  use gsd_kinds, only: r_single,i_kind,r_kind
 
   implicit none
   integer(i_kind),INTENT(IN):: nlat,nlon,nsig

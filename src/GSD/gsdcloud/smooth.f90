@@ -38,7 +38,7 @@
 !C**********************************************************************
 
 
-      use kinds, only: r_kind,i_kind,r_single
+      use gsd_kinds, only: r_kind,i_kind,r_single
       implicit none                           
 !C**********************************************************************
       INTEGER(i_kind),INTENT(IN) :: IX,IY 

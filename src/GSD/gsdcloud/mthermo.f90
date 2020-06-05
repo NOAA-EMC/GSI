@@ -36,7 +36,7 @@
 !   tions of selected meteorlolgical parameters for cloud physics prob-
 !   lems," ecom-5475, atmospheric sciences laboratory, u.s. army
 !   electronics command, white sands missile range, new mexico 88002.
-  use kinds, only: r_single,i_kind,r_kind
+  use gsd_kinds, only: r_single,i_kind,r_kind
   implicit none
   real(r_kind),intent(in) :: t
   real(r_single) :: tk,p1,p2,c1
@@ -58,7 +58,7 @@
 !   for the computation of saturation vapor pressure, journal of applied
 !   meteorology, vol 16, no. 1 (january), pp. 100-103.
 !   the polynomial coefficients are a0 through a6.
-  use kinds, only: r_single,i_kind,r_kind
+  use gsd_kinds, only: r_single,i_kind,r_kind
   implicit none
 !
   real(r_kind), intent(in) :: t
@@ -83,7 +83,7 @@
 !   at pressure p (millibars). the dry adiabat is given by
 !   potential temperature o (celsius). the computation is based on
 !   poisson's equation.
-  use kinds, only: r_single,i_kind,r_kind
+  use gsd_kinds, only: r_single,i_kind,r_kind
   implicit none
   real(r_kind), intent(in) :: o,p
   real(r_kind) :: tda
@@ -99,7 +99,7 @@
 !   table 1 on page 7 of stipanuk (1973).
 !
 !   initialize constants
-  use kinds, only: r_single,i_kind,r_kind
+  use gsd_kinds, only: r_single,i_kind,r_kind
   implicit none
   real(r_kind), intent(in) :: w,p
   real(r_kind) :: tmr
@@ -127,7 +127,7 @@
 !   b is an empirical constant approximately equal to 0.001 of the latent
 !   heat of vaporization for water divided by the specific heat at constant
 !   pressure for dry air.
-  use kinds, only: r_single,i_kind,r_kind
+  use gsd_kinds, only: r_single,i_kind,r_kind
   implicit none
   real(r_kind), intent(in) :: os,p
   real(r_kind) :: tsa
@@ -168,7 +168,7 @@
 !
 !
 !   determine the mixing ratio line thru td and p.
-  use kinds, only: r_single,i_kind,r_kind
+  use gsd_kinds, only: r_single,i_kind,r_kind
   implicit none
   real(r_kind), intent(in) :: t,td,p
   real(r_kind) :: tw
@@ -217,7 +217,7 @@
 !  (millibars). if the temperture  is input instead of the
 !  dew point, then saturation mixing ratio (same units) is returned.
 !  the formula is found in most meteorological texts.
-  use kinds, only: r_single,i_kind,r_kind
+  use gsd_kinds, only: r_single,i_kind,r_kind
   implicit none
   real(r_kind), intent(in) :: t,p
   real(r_kind) :: w

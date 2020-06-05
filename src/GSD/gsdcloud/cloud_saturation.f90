@@ -53,7 +53,7 @@ SUBROUTINE cloud_saturation(mype,l_conserve_thetaV,i_conserve_thetaV_iternum, &
 !
 
   use constants, only: rd_over_cp, h1000,one,zero,fv
-  use kinds, only: r_single,i_kind, r_kind
+  use gsd_kinds, only: r_single,i_kind, r_kind
 
   implicit none
 
@@ -292,7 +292,7 @@ function ruc_saturation(Temp,pressure)
 !_____________________________________________________________________
 
   use constants, only: rd_over_cp, h1000,one,zero
-  use kinds, only: r_single,i_kind, r_kind
+  use gsd_kinds, only: r_single,i_kind, r_kind
 !
     implicit none
     real(r_single) :: ruc_saturation

@@ -51,7 +51,7 @@ SUBROUTINE read_Surface(mype,lunin,istart,jstart,nlon,nlat,&
 !$$$
 !
 
-  use kinds, only: r_single,i_kind,r_kind,r_double
+  use gsd_kinds, only: r_single,i_kind,r_kind,r_double
 
   implicit none
 

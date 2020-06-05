@@ -66,7 +66,7 @@ SUBROUTINE cloudCover_Surface(mype,nlat,nlon,nsig,r_radius,thunderRadius,&
 !_____________________________________________________________________
 !
 
-  use kinds, only: r_single,i_kind,r_kind
+  use gsd_kinds, only: r_single,i_kind,r_kind
 
   implicit none
 

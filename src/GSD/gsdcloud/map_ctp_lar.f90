@@ -81,7 +81,7 @@ subroutine map_ctp_lar(mype,ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_f
 !_____________________________________________________________________
 !
 
-      use kinds, only: r_kind,r_single,i_kind
+      use gsd_kinds, only: r_kind,r_single,i_kind
       use constants, only: zero,one_tenth,one,deg2rad
                          
       implicit none

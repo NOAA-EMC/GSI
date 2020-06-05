@@ -85,7 +85,7 @@
 !
 !-----------------------------------------------------------------------
 !
-  use kinds, only: r_single,i_kind,r_kind
+  use gsd_kinds, only: r_single,i_kind,r_kind
 
   IMPLICIT NONE
 
@@ -436,7 +436,7 @@ END FUNCTION f_qvsat
 
 SUBROUTINE getdays(nday,iyear,imonth,iday)
 
-  use kinds, only: i_kind
+  use gsd_kinds, only: i_kind
   implicit none
 !
   INTEGER(i_kind), intent(in)  :: iyear,imonth,iday

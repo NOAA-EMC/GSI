@@ -45,7 +45,7 @@ SUBROUTINE read_radar_ref(mype,lunin,istart,jstart,   &
 !
 !_____________________________________________________________________
 !
-  use kinds, only: r_kind,i_kind
+  use gsd_kinds, only: r_kind,i_kind
   implicit none
 
   INTEGER(i_kind),intent(in) :: mype

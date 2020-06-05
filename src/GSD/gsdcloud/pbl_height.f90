@@ -39,7 +39,7 @@ SUBROUTINE calc_pbl_height(mype,nlat,nlon,nsig,q_bk,t_bk,p_bk,pblh)
 !_____________________________________________________________________
 !
 
-  use kinds, only: r_single,i_kind, r_kind
+  use gsd_kinds, only: r_single,i_kind, r_kind
 
   implicit none
 

@@ -82,7 +82,7 @@ subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac,npts
 !_____________________________________________________________________
 !
 
-      use kinds, only: r_kind,r_single,i_kind
+      use gsd_kinds, only: r_kind,r_single,i_kind
       use constants, only: zero,one_tenth,one,deg2rad
                          
       implicit none
@@ -228,7 +228,7 @@ subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac,npts
 end subroutine map_ctp
  
 subroutine sorting(d,n,is) 
-      use kinds, only: r_kind,i_kind
+      use gsd_kinds, only: r_kind,i_kind
       implicit none
 
       integer(i_kind), intent(in) :: n
@@ -255,7 +255,7 @@ subroutine sorting(d,n,is)
 end subroutine  sorting
 
 subroutine sortmed(p,n,is,f) 
-      use kinds, only: r_kind,i_kind
+      use gsd_kinds, only: r_kind,i_kind
       implicit none
       real(r_kind),    intent(inout) :: p(n)
       integer(i_kind), intent(in)    :: n

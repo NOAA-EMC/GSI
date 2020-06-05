@@ -43,7 +43,7 @@ SUBROUTINE read_Lightning2cld(mype,lunin,istart,jstart,  &
 !_____________________________________________________________________
 !
 
-  use kinds, only: r_kind,i_kind, r_single
+  use gsd_kinds, only: r_kind,i_kind, r_single
   implicit none
 
   integer(i_kind),intent(in) :: lunin

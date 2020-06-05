@@ -51,7 +51,7 @@ SUBROUTINE TempAdjust(mype,nlat,nlon,nsig,cldptopt, t_bk, p_bk,w_bk,q_bk, &
 !
 
   use constants, only: cp,rd_over_cp, h1000, hvap
-  use kinds, only: r_single,i_kind
+  use gsd_kinds, only: r_single,i_kind
 
   implicit none
   integer(i_kind),intent(in):: nlat,nlon,nsig

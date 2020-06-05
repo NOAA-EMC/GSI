@@ -40,7 +40,7 @@ SUBROUTINE convert_lghtn2ref(mype,nlon,nlat,nsig,ref_mos_3d,lightning,h_bk)
 !
 !_____________________________________________________________________
 !
-  use kinds, only: r_kind,i_kind,r_single
+  use gsd_kinds, only: r_kind,i_kind,r_single
   implicit none
 
   INTEGER(i_kind),intent(in)   :: mype

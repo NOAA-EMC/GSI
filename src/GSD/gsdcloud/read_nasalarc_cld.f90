@@ -44,7 +44,7 @@ SUBROUTINE read_NASALaRC(mype,lunin,numLaRC,istart,jstart,  &
 !_____________________________________________________________________
 !
 
-  use kinds, only: r_kind,i_kind, r_single
+  use gsd_kinds, only: r_kind,i_kind, r_single
   implicit none
 
   integer(i_kind),intent(in) :: lunin
@@ -182,7 +182,7 @@ SUBROUTINE read_map_nasalarc(mype,lunin,numobs,istart,jstart,nlon,nlat,  &
 !_____________________________________________________________________
 !
 
-  use kinds, only: r_single,i_kind,r_kind
+  use gsd_kinds, only: r_single,i_kind,r_kind
 
   implicit none
 

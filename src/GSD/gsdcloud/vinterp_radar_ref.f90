@@ -43,7 +43,7 @@ SUBROUTINE vinterp_radar_ref(mype,nlon,nlat,nsig,Nmsclvl,ref_mos_3d,ref_mosaic31
 !
 !_____________________________________________________________________
 !
-  use kinds, only: r_kind,i_kind, r_single
+  use gsd_kinds, only: r_kind,i_kind, r_single
   implicit none
 
   INTEGER(i_kind), intent(in) ::  mype

@@ -36,7 +36,7 @@ module constants
 !
 !$$$ end documentation block
 
-  use kinds, only: r_single,r_kind,i_kind,r_quad,i_long
+  use gsd_kinds, only: r_single,r_kind,i_kind,r_quad,i_long
   implicit none
 
 ! set default as private

@@ -33,7 +33,7 @@ SUBROUTINE hydro_mxr_thompson (nx, ny, nz, t_3d, p_3d, ref_3d, qr_3d, qnr_3d, qs
 !
 !-----------------------------------------------------------------------
 !
-  use kinds, only: r_single, i_kind, r_kind
+  use gsd_kinds, only: r_single, i_kind, r_kind
   IMPLICIT NONE
 !
 !-----------------------------------------------------------------------

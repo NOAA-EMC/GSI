@@ -54,7 +54,7 @@ SUBROUTINE PrecipMxR_radar(mype,nlat,nlon,nsig,   &
 !
 
   use constants, only: rd_over_cp, h1000
-  use kinds, only: r_single,i_kind,r_kind
+  use gsd_kinds, only: r_single,i_kind,r_kind
 
   implicit none
   integer(i_kind),intent(in):: nlat,nlon,nsig

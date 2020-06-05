@@ -45,7 +45,7 @@ SUBROUTINE  BackgroundCldgfs(mype,lon2,lat2,nsig,tbk,pbk,psbk,q,hbk)
 !_____________________________________________________________________
 !
 
-  use kinds, only: r_single,i_kind,r_kind
+  use gsd_kinds, only: r_single,i_kind,r_kind
   use constants, only: rd_over_cp, h1000
   use constants, only: rd, grav, half, rad2deg
 
@@ -176,7 +176,7 @@ SUBROUTINE  BackgroundCld(mype,lon2,lat2,nsig,tbk,pbk,psbk,q,hbk, &
 !_____________________________________________________________________
 !
 
-  use kinds, only: r_single,i_kind,r_kind
+  use gsd_kinds, only: r_single,i_kind,r_kind
   use constants, only: rd_over_cp, h1000
   use constants, only: rd, grav, half, rad2deg
 

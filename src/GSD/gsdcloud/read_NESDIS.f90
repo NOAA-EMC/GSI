@@ -45,7 +45,7 @@ SUBROUTINE read_NESDIS(mype,lunin,numobs,istart,jstart,nlon,nlat,  &
 !_____________________________________________________________________
 !
 
-  use kinds, only: r_single,i_kind,r_kind
+  use gsd_kinds, only: r_single,i_kind,r_kind
 
   implicit none
 

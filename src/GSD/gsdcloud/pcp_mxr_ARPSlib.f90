@@ -90,7 +90,7 @@ SUBROUTINE pcp_mxr (nx,ny,nz,t_3d,p_3d ,ref_3d                          &
 !
 !-----------------------------------------------------------------------
 !
-  use kinds, only: r_single,i_kind, r_kind
+  use gsd_kinds, only: r_single,i_kind, r_kind
   IMPLICIT NONE
 !
 !-----------------------------------------------------------------------
@@ -314,7 +314,7 @@ SUBROUTINE pcp_mxr_ferrier (nx,ny,nz,t_3d,p_3d ,ref_3d                  &
 !
 !-----------------------------------------------------------------------
 !
-  use kinds, only: r_single,i_kind, r_kind
+  use gsd_kinds, only: r_single,i_kind, r_kind
   IMPLICIT NONE
 !
 !-----------------------------------------------------------------------

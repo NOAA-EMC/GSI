@@ -50,7 +50,7 @@ SUBROUTINE build_missing_REFcone(mype,nlon,nlat,nsig,krad_bot_in,ref_mos_3d,h_bk
 !_____________________________________________________________________
 !
 
-  use kinds, only: r_kind,i_kind,r_single
+  use gsd_kinds, only: r_kind,i_kind,r_single
   implicit none
 
   INTEGER(i_kind), intent(in)   :: mype

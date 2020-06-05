@@ -45,7 +45,7 @@ SUBROUTINE  BckgrndCC(nlon,nlat,nsig,tbk,pbk,q,hbk,zh,   &
 !
 !_____________________________________________________________________
 !
-  use kinds, only: r_single,i_kind,r_kind
+  use gsd_kinds, only: r_single,i_kind,r_kind
   use constants, only: h1000, rd_over_cp, g_over_rd
 
   implicit none

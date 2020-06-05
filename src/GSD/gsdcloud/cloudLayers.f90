@@ -43,7 +43,7 @@ SUBROUTINE cloudLayers(nlat,nlon,nsig,h_bk,zh,cld_cover_3d,cld_type_3d, &
 !_____________________________________________________________________
 !
 
-  use kinds, only: r_single,i_kind
+  use gsd_kinds, only: r_single,i_kind
 
   implicit none
 

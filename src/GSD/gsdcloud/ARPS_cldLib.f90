@@ -75,7 +75,7 @@ SUBROUTINE get_stability (nz,t_1d,zs_1d,p_mb_1d,kbtm,ktop               &
 !
 !-----------------------------------------------------------------------
 !
-  use kinds, only: r_single,i_kind,r_kind
+  use gsd_kinds, only: r_single,i_kind,r_kind
   IMPLICIT NONE
 !
 !-----------------------------------------------------------------------
@@ -181,7 +181,7 @@ END SUBROUTINE get_stability
 !
 !-----------------------------------------------------------------------
 !
-  use kinds, only: r_single,i_kind,r_kind
+  use gsd_kinds, only: r_single,i_kind,r_kind
   IMPLICIT NONE
 !
 !-----------------------------------------------------------------------
@@ -268,7 +268,7 @@ SUBROUTINE get_cloudtype(temp_k,dte_dz,cbase_m,ctop_m                   &
 !
 !-----------------------------------------------------------------------
 !
-  use kinds, only: r_single,i_kind,r_kind
+  use gsd_kinds, only: r_single,i_kind,r_kind
   IMPLICIT NONE
 !
 !-----------------------------------------------------------------------
@@ -416,7 +416,7 @@ SUBROUTINE get_sfm_1d (nz,zcb,zctop,zs_1d,p_mb_1d,t_1d,ql,qi,cldt,      &
 !
 !-----------------------------------------------------------------------
 !
-  use kinds, only: r_single,i_kind
+  use gsd_kinds, only: r_single,i_kind
   IMPLICIT NONE
 !
 !
@@ -749,7 +749,7 @@ SUBROUTINE pcp_type_3d (nx,ny,nz,temp_3d,rh_3d,p_pa_3d                  &
 !
 !-----------------------------------------------------------------------
 !
-  use kinds, only: r_single,i_kind, r_kind
+  use gsd_kinds, only: r_single,i_kind, r_kind
   IMPLICIT NONE
 !
 !-----------------------------------------------------------------------
@@ -1047,7 +1047,7 @@ SUBROUTINE get_slwc1d (nk,cbase_m,ctop_m,kbase,ktop                     &
 !
 !-----------------------------------------------------------------------
 !
-  use kinds, only: r_single,i_kind,r_kind
+  use gsd_kinds, only: r_single,i_kind,r_kind
   IMPLICIT NONE
 !
 !-----------------------------------------------------------------------
@@ -1220,7 +1220,7 @@ SUBROUTINE slwc_revb(cb_pa,cb_k,gt_pa,gt_k,ct_k,                        &
 !                           0 Otherwise
 !               I_STATUS2 - 1 when valid input data provided from main
 !
-  use kinds, only: r_single,i_kind,r_kind
+  use gsd_kinds, only: r_single,i_kind,r_kind
   IMPLICIT NONE
 
   real(r_single), intent(in) :: cb_pa,cb_k,gt_pa,gt_k,ct_k
@@ -1373,7 +1373,7 @@ END SUBROUTINE slwc_revb
 ! INPUT IS IN DEGREES C.  IF GT 0, ASSUMED TO BE DEW POINT.  IF
 ! LESS THAN 0, ASSUMED TO BE FROST POINT.
 ! ROUTINE CODES GOFF-GRATCH FORMULA
-  use kinds, only: i_kind,r_kind
+  use gsd_kinds, only: i_kind,r_kind
   IMPLICIT NONE
 
   real(r_kind), intent(in) :: tfp

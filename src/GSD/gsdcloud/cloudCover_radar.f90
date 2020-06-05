@@ -44,7 +44,7 @@ SUBROUTINE cloudCover_radar(mype,nlat,nlon,nsig,h_bk,grid_ref, &
 
   use constants, only: rd_over_cp, h1000
   use constants, only: deg2rad, rad2deg, pi
-  use kinds, only: r_single,i_kind,r_kind
+  use gsd_kinds, only: r_single,i_kind,r_kind
 
   implicit none
 
