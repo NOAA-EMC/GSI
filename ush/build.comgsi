@@ -13,15 +13,22 @@
 
 dir_root=$(pwd)
 
-if [[ "`grep -i "hera" /etc/hosts | head -n1`" != "" ]] ; then ###hera
+################# Hera ####################
+if [[ "`grep -i "hera" /etc/hosts | head -n1`" != "" ]] ; then
     source /etc/profile.d/modules.sh
     modulefile="/home/rtrr/PARM_EXEC/modulefiles/modulefile.hera.GSI_UPP_WRF"
     NCEPLIBS="/scratch1/BMC/comgsi/precompiled/NCEPLIBS/b_intel18.0.5.274_impi2018.0.4/install"
-elif [[ -d /jetmon ]] ; then ### jet
+    GSILIBS="/scratch1/BMC/comgsi/precompiled/GSILIBS/b_intel18.0.5.274_impi2018.0.4/"
+
+################# Jet ####################
+elif [[ -d /jetmon ]] ; then
     source /etc/profile.d/modules.sh
     modulefile="/home/rtrr/PARM_EXEC/modulefiles/modulefile.jet.GSI_UPP_WRF"
     NCEPLIBS="/lfs4/BMC/wrfruc/gge/precompiled/NCEPLIBS/b_intel18.0.5.274_impi2018.4.274/install"
-elif [[ -d /glade ]] ; then  ### cheyenne
+    GSILIBS="/lfs4/BMC/wrfruc/gge/precompiled/GSILIBS/b_intel18.0.5.274_impi2018.4.274"
+
+################# Cheyenne ####################
+elif [[ -d /glade ]] ; then
     source /etc/profile.d/modules.sh
     modulefile="/glade/p/ral/jntp/gge/modulefiles/modulefile.cheyenne.GSI_UPP_WRF"
     NCEPLIBS="/glade/p/ral/jntp/gge/precompiled/NCEPLIBS/b_intel18.0.5_impi2018.4.274/install"
@@ -29,9 +36,13 @@ elif [[ -d /glade ]] ; then  ### cheyenne
     #modulefile="/glade/p/ral/jntp/gge/precompiled/NCEPLIBS/modulefile.cheyenne.GSI_UPP_WRF.gnu"
     #NCEPLIBS="/glade/p/ral/jntp/gge/precompiled/NCEPLIBS/b_gnu8.3.0_openmpi3.1.4/install"
     #GSILIBS="/glade/p/ral/jntp/gge/precompiled/GSILIBS/b_gnu8.3.0_openmpi3.1.4/"
+
+################# Orion ####################
 elif [[ -d /work/noaa ]] ; then  ### orion
     modulefile="/work/noaa/comgsi/modulefiles/modulefile.orion.GSI_UPP_WRF"
     #modulefile="/work/noaa/comgsi/modulefiles/modulefile.intel20"
+
+################# Generic ####################
 else
     echo -e "\nunknown machine"
     echo "Please modify build.comgsi at this location"
