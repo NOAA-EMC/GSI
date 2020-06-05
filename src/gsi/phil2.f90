@@ -353,7 +353,7 @@ if(nrand<1 .or. nrand>273)stop 'nrand is invalid'
 if(nrand>5)then; call getqset7(      qset7); if(nrand>7)call getqset13(qset13)
 else;            call getqset5(nrand,qset5)
 endif
-if(nrand>91)     call getqset5(3,qset5)
+if(nrand>91)     call getqset5(3,qset3(:,:))
 
 
 ! Project the data onto nrand differently-oriented Hilbert curves and sum

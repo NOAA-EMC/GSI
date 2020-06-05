@@ -5,8 +5,9 @@
 #   Cheyenne: source /glade/p/ral/jntp/gge/modulefiles/modulefile.cheyenne.GSI_UPP_WRF
 #
 #  build commands:
-#    cmake -DENKF_MODE=WRF -DBUILD_CORELIBS=ON -DBUILD_GSDCLOUD_ARW=ON path_to_ProdGSI
-#    cmake -DENKF_MODE=WRF -DBUILD_CORELIBS=ON -DBUILD_GSDCLOUD_ARW=ON -DBUILD_UTIL_COM=ON -DBUILD_ENKF_PREPROCESS_ARW=ON"
+#    cmake -DENKF_MODE=WRF -DBUILD_CORELIBS=ON -DBUILD_GSDCLOUD_ARW=ON path_to_GSI
+#    cmake -DENKF_MODE=WRF -DBUILD_CORELIBS=ON -DBUILD_GSDCLOUD_ARW=ON -DBUILD_UTIL_COM=ON -DBUILD_ENKF_PREPROCESS_ARW=ON path_to_GSI"
+#    (for global: cmake -D-DENKF_MODE=GFS -DBUILD_CORELIBS=ON path_to_GSI)
 #    make -j8
 #
 
@@ -24,12 +25,23 @@ elif [[ -d /glade ]] ; then  ### cheyenne
     source /etc/profile.d/modules.sh
     modulefile="/glade/p/ral/jntp/gge/modulefiles/modulefile.cheyenne.GSI_UPP_WRF"
     NCEPLIBS="/glade/p/ral/jntp/gge/precompiled/NCEPLIBS/b_intel18.0.5_impi2018.4.274/install"
+    GSILIBS="/glade/p/ral/jntp/gge/precompiled/GSILIBS/b_intel18.0.5_impi2018.4.274/"
+    #modulefile="/glade/p/ral/jntp/gge/precompiled/NCEPLIBS/modulefile.cheyenne.GSI_UPP_WRF.gnu"
+    #NCEPLIBS="/glade/p/ral/jntp/gge/precompiled/NCEPLIBS/b_gnu8.3.0_openmpi3.1.4/install"
+    #GSILIBS="/glade/p/ral/jntp/gge/precompiled/GSILIBS/b_gnu8.3.0_openmpi3.1.4/"
 elif [[ -d /work/noaa ]] ; then  ### orion
     modulefile="/work/noaa/comgsi/modulefiles/modulefile.orion.GSI_UPP_WRF"
     #modulefile="/work/noaa/comgsi/modulefiles/modulefile.intel20"
 else
-    echo "unknown machine"
+    echo -e "\nunknown machine"
+    echo "Please modify build.comgsi at this location"
+    echo "to load required modules and setup NCEPLIBS and GSILIBS"
+    ##follow the above examples and delete the following "exit 9" to go forward
     exit 9
+    source /etc/profile.d/modules.sh
+    modulefile="/my/modulefile.me.GSI_UPP_WRF"
+    NCEPLIBS="/my/NCEPLIBS/b_intel18.0.5_impi2018.4.274/install"
+    GSILIBS="/my/GSILIBS/b_intel18.0.5_impi2018.4.274/"
 fi
 
 if [ ! -f $modulefile ]; then
@@ -44,7 +56,9 @@ if [[ "$NETCDF4" == "1" ]] || [[ "$NETCDF4" == "0" ]]; then
 fi
 
 export BACIO_LIB4=${NCEPLIBS}/lib/libbacio_4.a
-#export  BUFR_LIBd=${NCEPLIBS}/lib/libbufr_d.a #NCEPLIBS has problems in generateing libbufr
+#export  BUFR_LIBd=${NCEPLIBS}/lib/libbufr_d.a
+  export  BUFR_LIBd=${GSILIBS}/lib/libbufr_v.a
+  export GSIWRF_LIB=${GSILIBS}/lib/libWRFLIB.a
 export   CRTM_LIB=${NCEPLIBS}/lib/libcrtm.a
 export   CRTM_INC=${NCEPLIBS}/include
 export NEMSIO_LIB=${NCEPLIBS}/lib/libnemsio.a

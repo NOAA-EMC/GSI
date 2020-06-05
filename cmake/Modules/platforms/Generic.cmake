@@ -12,8 +12,7 @@ macro (setGeneric)
   set(ENKF_Platform_FLAGS "-O3 ${HOST_FLAG} -warn all -implicitnone -traceback -fp-model strict -convert big_endian -DGFS -D_REAL8_  ${OpenMP_Fortran_FLAGS}" CACHE INTERNAL "ENKF Fortran Flags")
 
   message("setting values for corelibs")
-  set(BUILD_BUFR "ON" CACHE INTERNAL "Build the BUFR library" )
-
+  set(BUILD_BUFR "OFF" CACHE INTERNAL "Build the BUFR library" )
   set(BUILD_BACIO "OFF" CACHE INTERNAL "Build the BACIO library" )
   set(BUILD_SFCIO "OFF" CACHE INTERNAL "Build the SFCIO library" )
   set(BUILD_SIGIO "OFF" CACHE INTERNAL "Build the SIGIO library" )
