@@ -349,11 +349,11 @@ do L=1,nob
    xob(:,L)=(/clat*clon,clat*slon,slon/)
    rob(L)=(altob(L)-vmin)/uv-vrand! <- altitudes in hilbert vertical units
 enddo
-if(nrand<1 .or. nrand>273)stop'nrand is invalid'
+if(nrand<1 .or. nrand>273)stop 'nrand is invalid'
 if(nrand>5)then; call getqset7(      qset7); if(nrand>7)call getqset13(qset13)
 else;            call getqset5(nrand,qset5)
 endif
-if(nrand>91)     call getqset5(3,qset3)
+if(nrand>91)     call getqset5(3,qset5)
 
 
 ! Project the data onto nrand differently-oriented Hilbert curves and sum
@@ -407,7 +407,7 @@ do irand=1,nrand
       case(1)
          call bsmoo1(nob,span,sob,rank,wtob)
       case default
-         stop'In denest; this value of B-spline order, nor, is not supported'
+         stop 'In denest; this value of B-spline order, nor, is not supported'
    end select
 enddo! irand
 ! Convert the sum of Hilbert-parameter-relative densities to an average,
@@ -499,7 +499,7 @@ do L=1,nob
    xob(:,L)=(/clat*clon,clat*slon,slon/)
    rob(L)=(altob(L)-vmin)/uv-vrand! <- altitudes in hilbert vertical units
 enddo
-if(nrand<1 .or. nrand>104)stop'nrand is invalid'
+if(nrand<1 .or. nrand>104)stop 'nrand is invalid'
 if(nrand>5)then; call getqset8(      qset8); if(nrand>8)call getqset13(qset13)
 else;            call getqset5(nrand,qset5)
 endif
@@ -549,7 +549,7 @@ do irand=1,nrand
       case(1)
          call bsmoo1(nob,span,sob,rank,denob)
       case default
-         stop'In denest; this value of B-spline order, nor, is not supported'
+         stop 'In denest; this value of B-spline order, nor, is not supported'
    end select
 enddo! irand
 ! Convert the sum of Hilbert-parameter-relative densities to an average,
@@ -650,7 +650,7 @@ do irand=1,nrand
       case(1)
          call bsmoo1(nob,span,sob,rank,wtob)
       case default
-         stop'In denest; this value of B-spline order, nor, is not supported'
+         stop 'In denest; this value of B-spline order, nor, is not supported'
    end select
 ! Rotate the Hilbert tile by a pi/(2*nrand) about its axis at (1/3,1/3):
    if(L<nob)then
@@ -723,7 +723,7 @@ do irand=1,nrand
       case(1)
          call bsmoo1(nob,span,sob,rank,denob)
       case default
-         stop'In denest; this value of B-spline order, nor, is not supported'
+         stop 'In denest; this value of B-spline order, nor, is not supported'
    end select
 ! Rotate the Hilbert tile by a pi/(2*nrand) about its axis at (1/3,1/3):
    if(L<nob)then
@@ -757,7 +757,7 @@ real(dp),parameter:: u8=8.0_dp,or8=u1/sqrt(u8),sig=u1/phi,chi=r2-u1
 real(dp)          :: term1,term2,ce,cf,cg,ch,cj,ck,cl
 !=============================================================================
 qset5(:,1)=(/u1,u0,u0,u0/)
-select case(n); case default; stop'In getqset5; n is outside the valid range'
+select case(n); case default; stop 'In getqset5; n is outside the valid range'
    case(1)
    case(2:3)
       term1=o2+or8
