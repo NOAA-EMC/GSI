@@ -130,7 +130,7 @@ case $machine in
 
    #  On Hera, there are no scrubbers to remove old contents from stmp* directories.
    #  After completion of regression tests, will remove the regression test subdirecories
-   export clean=".true."
+   export clean=".false"
    ;;
    WCOSS_C)
    if [ -d /gpfs/hps3/emc/global/noscrub/$LOGNAME ]; then
