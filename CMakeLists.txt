@@ -109,6 +109,7 @@ project(GSI)
 
   cmake_policy(SET CMP0009 NEW)
   find_package(OpenMP)
+# find_package(CURL)
   message("found openmp with flag ${OPENMP_Fortran_FLAGS}")
 
 # Set Host specific flags and options
