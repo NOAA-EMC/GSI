@@ -276,41 +276,41 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
         sys.exit(exit_fullres)
 
 
-  ######## run chgres to get background on ensemble resolution
-  if Cdump == "gdas":
-    chgres_jobs = []
-    for fh in IAUHH:
-      # first check to see if guess file exists
-      CalcAnlDir = RunDir+'/calcanl_ensres_'+format(fh, '02')
-      if (os.path.isfile(CalcAnlDir+'/ges.ensres.'+format(fh, '02'))):
-          ######## generate ensres analysis from interpolated background
-          if launcher == 'srun':
-              del os.environ['SLURM_HOSTFILE']
-          # set up the namelist
-          namelist = OrderedDict()
-          namelist["setup"] =  {"datapath": "'./'",
-                                "analysis_filename": "'anl.ensres'",
-                                "firstguess_filename": "'ges.ensres'",
-                                "increment_filename": "'siginc.nc'",
-                                "fhr": fh,
-                                }
+    ######## run chgres to get background on ensemble resolution
+    if Cdump == "gdas":
+        chgres_jobs = []
+        for fh in IAUHH:
+            # first check to see if guess file exists
+            CalcAnlDir = RunDir+'/calcanl_ensres_'+format(fh, '02')
+            if (os.path.isfile(CalcAnlDir+'/ges.ensres.'+format(fh, '02'))):
+                ######## generate ensres analysis from interpolated background
+                if launcher == 'srun':
+                    del os.environ['SLURM_HOSTFILE']
+                # set up the namelist
+                namelist = OrderedDict()
+                namelist["setup"] =  {"datapath": "'./'",
+                                    "analysis_filename": "'anl.ensres'",
+                                    "firstguess_filename": "'ges.ensres'",
+                                    "increment_filename": "'siginc.nc'",
+                                    "fhr": fh,
+                                    }
 
-          gsi_utils.write_nml(namelist, CalcAnlDir+'/calc_analysis.nml')
+                gsi_utils.write_nml(namelist, CalcAnlDir+'/calc_analysis.nml')
 
-          # run the executable
-          if ihost > nhosts-1:
-              ihost = 0
-          print('ensres_calc_anl', namelist)
-          ensres_anl_job = subprocess.Popen(ExecCMDMPILevs_nohost+' '+CalcAnlDir6+'/calc_anl.x', shell=True, cwd=CalcAnlDir6)
-          print(ExecCMDMPILevs_nohost+' '+CalcAnlDir6+'/calc_anl.x submitted')
+                # run the executable
+                if ihost > nhosts-1:
+                    ihost = 0
+                print('ensres_calc_anl', namelist)
+                ensres_anl_job = subprocess.Popen(ExecCMDMPILevs_nohost+' '+CalcAnlDir6+'/calc_anl.x', shell=True, cwd=CalcAnlDir6)
+                print(ExecCMDMPILevs_nohost+' '+CalcAnlDir6+'/calc_anl.x submitted')
 
-          sys.stdout.flush()
-          ####### check on analysis steps
-          exit_ensres = ensres_anl_job.wait()
-          if exit_ensres != 0:
-              print('Error with calc_analysis.x for ensemble resolution, exit code='+str(exit_ensres))
-              print(locals())
-          sys.exit(exit_ensres)
+                sys.stdout.flush()
+                ####### check on analysis steps
+                exit_ensres = ensres_anl_job.wait()
+                if exit_ensres != 0:
+                    print('Error with calc_analysis.x for ensemble resolution, exit code='+str(exit_ensres))
+                    print(locals())
+                    sys.exit(exit_ensres)
 
     print('calcanl_gfs successfully completed at: ',datetime.datetime.utcnow())
     print(locals())
