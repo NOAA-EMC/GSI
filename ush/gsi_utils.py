@@ -39,6 +39,7 @@ def copy_file(from_file, to_file):
     print("cp "+from_file+" "+to_file)
 
 def make_dir(directory):
+    import os
     os.makedirs(directory)
     print("mkdir -p "+directory)
 
