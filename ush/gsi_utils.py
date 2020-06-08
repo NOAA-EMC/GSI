@@ -82,7 +82,7 @@ def get_ncdims(ncfile):
     ncdims = {}
     for d in ncf.dimensions.keys():
         ncdims[d] = int(len(ncf.dimensions[d]))
-        ncf.close()
+    ncf.close()
 
     return ncdims
 
