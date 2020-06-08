@@ -1,6 +1,6 @@
 ### gsi_utils.py
 ###          a collection of functions, classes, etc.
-###          used for the GSI global analysis 
+###          used for the GSI global analysis
 
 def isTrue(str_in):
   """ isTrue(str_in)
@@ -27,6 +27,20 @@ def link_file(from_file, to_file):
   if not os.path.exists(to_file):
     if not os.path.islink(to_file):
       os.symlink(from_file, to_file)
+    else:
+      print(to_file+" exists, unlinking.")
+      os.unlink(to_file)
+      os.symlink(from_file, to_file)
+    print("link "+to_file+" ----> "+from_file)
+
+def copy_file(from_file, to_file):
+    import shutil
+    shutil.copy(from_file, to_file)
+    print("cp "+from_file+" "+to_file)
+
+def make_dir(directory):
+    os.makedirs(directory)
+    print("mkdir -p "+directory)
 
 def write_nml(nml_dict, nml_file):
   """ write_nml(nml_dict, nml_file)
@@ -43,7 +57,7 @@ def write_nml(nml_dict, nml_file):
     for var, val in nmlvars.items():
       nfile.write('  '+str(var)+' = '+str(val)+'\n')
     nfile.write('/\n\n')
-  nfile.close() 
+  nfile.close()
 
 
 def get_ncdims(ncfile):
@@ -61,14 +75,14 @@ def get_ncdims(ncfile):
     print("Python Error!")
     print("netCDF4 Python module not available. Do you have the proper Python available in your environment?")
     print("Hera: module use -a /contrib/modulefiles && module load anaconda/2.3.0")
-    print("Dell: module load python/3.6.3") 
+    print("Dell: module load python/3.6.3")
     print(" ")
   ncf = nc.Dataset(ncfile)
   ncdims = {}
   for d in ncf.dimensions.keys():
     ncdims[d] = int(len(ncf.dimensions[d]))
   ncf.close()
-  
+
   return ncdims
 
 def get_nemsdims(nemsfile,nemsexe):
@@ -85,7 +99,7 @@ def get_nemsdims(nemsfile,nemsexe):
             'dimx': 'grid_xt',
             'dimy': 'grid_yt',
             'dimz': 'pfull',
-           } 
+           }
   nemsdims = {}
   for dim in ['dimx','dimy','dimz']:
     out = subprocess.Popen([nemsexe,nemsfile,dim],stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
@@ -106,7 +120,7 @@ def get_timeinfo(ncfile):
     print("Python Error!")
     print("netCDF4 Python module not available. Do you have the proper Python available in your environment?")
     print("Hera: module use -a /contrib/modulefiles && module load anaconda/2.3.0")
-    print("Dell: module load python/3.6.3") 
+    print("Dell: module load python/3.6.3")
     print(" ")
   import datetime as dt
   import re
