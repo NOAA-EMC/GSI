@@ -10,8 +10,11 @@
 
 set -x
 
+export MY_MACHINE=hera
+
 #export PDATE=${PDATE:-2018091712}	#binary
 export PDATE=${PDATE:-2018110206}	#NetCDF
+
 #############################################################
 # Specify whether the run is production or development
 #############################################################
@@ -35,14 +38,6 @@ export radmon_shared_ver=v3.0.0
 
 
 #############################################################
-# Add nwpara tools to path
-#############################################################
-#NWPROD=${NWPROD:-/scratch4/NCEPDEV/global/save/glopara/nwpara/util}
-#NWPRODush=${NWPRODush:=${NWPROD}/ush}
-#NWPRODexec=${NWPRODexec:=${NWPROD}/exec}
-#export PATH=${PATH}:${NWPRODush}:${NWPRODexec}
-
-#############################################################
 # Set user specific variables
 #############################################################
 
@@ -63,24 +58,14 @@ export NDATE=${NDATE:-/home/Edward.Safford/bin/ndate}
 
 export parm_file=${HOMEgdas}/parm/gdas_radmon.parm
 
-#######################################################################
-#  theia specific hacks for no prod_utils module & no setpdy.sh script
-#######################################################################
-export MY_MACHINE=hera
 
 prevday=`$NDATE -24 $PDATE`
 export PDYm1=`echo $prevday | cut -c1-8`
-#ln -s ${NWPRODush}/startmsg.sh ${COMROOT}/startmsg
-#ln -s ${NWPRODush}/postmsg.sh ${COMROOT}/postmsg
-#ln -s ${NWPRODush}/prep_step.sh ${COMROOT}/prep_step
-#ln -s ${NWPRODush}/err_chk.sh ${COMROOT}/err_chk
-#export PATH=$PATH:${COMROOT}
-#export utilscript=${utilscript:-${NWPRODush}}		# err_chk calls postmsg.sh
-							#   directly so need to override
-							#   utilscript location for theia
+						
+	
 #############################################################
 # Execute job
-#############################################################
+#
 $JOBGLOBAL/JGDAS_VERFRAD
 
 exit
