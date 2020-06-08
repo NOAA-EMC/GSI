@@ -31,7 +31,7 @@ def link_file(from_file, to_file):
             print(to_file+" exists, unlinking.")
             os.unlink(to_file)
             os.symlink(from_file, to_file)
-        print("link "+to_file+" ----> "+from_file)
+        print("ln -s "+from_file+" "+to_file)
 
 def copy_file(from_file, to_file):
     import shutil
