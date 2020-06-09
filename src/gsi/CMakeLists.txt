@@ -146,7 +146,6 @@ cmake_minimum_required(VERSION 2.8)
   message(" wrf ${WRF_LIBRARIES} ")
   message("netcdf and mpi ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} ")
   message("lapack ${LAPACK_LIBRARIES}")
-# set(OTHERLIBS "/usr/lib64/libm.so;/usr/lib64/libz.so")
   message(" linker flags and curl ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES}||||${CURL_LIBRARIES} ")
   message("ldflags  ${GSI_LDFLAGS}")
   message("ncdiag +  ${NCDIAG_LIBRARIES} ${GSDCLOUD_LIBRARY} ${ZLIB_LIBRARIES} ${wrflib} ${EXTRA_LINKER_FLAGS} ${FV3GFS_NCIO_LIBRARIES}")
@@ -155,7 +154,6 @@ cmake_minimum_required(VERSION 2.8)
          ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} 
          ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} 
          bacio_4 bufr_d sigio_4 bacio_4 nemsio crtm sp_d sfcio_4 w3emc_d w3nco_d ip_d 
-#        bacio_4 bufr_d sigio_4 bacio_4 nemsio crtm sp_d sfcio_4 w3emc_d w3nco_d ip_d ${OTHERLIBS}
          ${GSI_LDFLAGS} ${NCDIAG_LIBRARIES} ${GSDCLOUD_LIBRARY} ${ZLIB_LIBRARIES} ${wrflib} ${EXTRA_LINKER_FLAGS} ${FV3GFS_NCIO_LIBRARIES})
 
   install(TARGETS ${GSIEXEC}
