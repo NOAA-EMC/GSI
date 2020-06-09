@@ -57,69 +57,48 @@ export NCP=${NCP:-"/bin/cp"}
 export NMV=${NMV:-"/bin/mv"}
 export NLN=${NLN:-"/bin/ln -sf"}
 export CHGRP_CMD=${CHGRP_CMD:-"chgrp ${group_name:-rstprod}"}
-export NEMSIOGET=${NEMSIOGET:-${NWPROD}/exec/nemsio_get}
 export NCLEN=${NCLEN:-$HOMEgfs/ush/getncdimlen}
-export CATEXEC=${CATEXEC:-$HOMEgsi/exec/nc_diag_cat_serial.x}
 export ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
-COMPRESS=${COMPRESS:-gzip}
-UNCOMPRESS=${UNCOMPRESS:-gunzip}
-APRUNCFP=${APRUNCFP:-""}
-
-# Diagnostic files options
-netcdf_diag=${netcdf_diag:-".true."}
-binary_diag=${binary_diag:-".false."}
 
 # IAU
 DOIAU=${DOIAU:-"NO"}
 export IAUFHRS=${IAUFHRS:-"6"}
 
 # Dependent Scripts and Executables
-export NTHREADS_CALCINC=${NTHREADS_CALCINC:-1}
-export APRUN_CALCINC=${APRUN_CALCINC:-${APRUN:-""}}
-export APRUN_CALCANL=${APRUN_CALCANL:-${APRUN:-""}}
 export APRUN_CHGRES=${APRUN_CALCANL:-${APRUN:-""}}
-
-export CALCANLEXEC=${CALCANLEXEC:-$HOMEgsi/exec/calc_analysis.x}
 export CHGRESNCEXEC=${CHGRESNCEXEC:-$HOMEgfs/exec/chgres_recenter_ncio.exe}
-export CHGRESINCEXEC=${CHGRESINCEXEC:-$HOMEgsi/exec/interp_inc.x}
 export NTHREADS_CHGRES=${NTHREADS_CHGRES:-1}
-CALCINCPY=${CALCINCPY:-$HOMEgsi/ush/calcinc_gfs.py}
-CALCANLPY=${CALCANLPY:-$HOMEgsi/ush/calcanl_gfs.py}
-
-DOGAUSFCANL=${DOGAUSFCANL-"NO"}
-GAUSFCANLSH=${GAUSFCANLSH:-$HOMEgfs/ush/gaussian_sfcanl.sh}
-export GAUSFCANLEXE=${GAUSFCANLEXE:-$HOMEgfs/exec/gaussian_sfcanl.exe}
-NTHREADS_GAUSFCANL=${NTHREADS_GAUSFCANL:-1}
-APRUN_GAUSFCANL=${APRUN_GAUSFCANL:-${APRUN:-""}}
 
 # OPS flags
 RUN=${RUN:-""}
 SENDECF=${SENDECF:-"NO"}
 SENDDBN=${SENDDBN:-"NO"}
 
-# Guess files
+# level info file
+SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS}.txt}
+
+# forecast files
 GPREFIX=${GPREFIX:-""}
 GSUFFIX=${GSUFFIX:-$SUFFIX}
-ATMG03=${ATMG03:-${COMIN_GES}/${GPREFIX}atmf003${GSUFFIX}}
-ATMG04=${ATMG04:-${COMIN_GES}/${GPREFIX}atmf004${GSUFFIX}}
-ATMG05=${ATMG05:-${COMIN_GES}/${GPREFIX}atmf005${GSUFFIX}}
-ATMGES=${ATMGES:-${COMIN_GES}/${GPREFIX}atmf006${GSUFFIX}}
-ATMG07=${ATMG07:-${COMIN_GES}/${GPREFIX}atmf007${GSUFFIX}}
-ATMG08=${ATMG08:-${COMIN_GES}/${GPREFIX}atmf008${GSUFFIX}}
-ATMG09=${ATMG09:-${COMIN_GES}/${GPREFIX}atmf009${GSUFFIX}}
-GBIAS=${GBIAS:-${COMIN_GES}/${GPREFIX}abias}
-GBIASPC=${GBIASPC:-${COMIN_GES}/${GPREFIX}abias_pc}
-GBIASAIR=${GBIASAIR:-${COMIN_GES}/${GPREFIX}abias_air}
-
-# Analysis files
-export APREFIX=${APREFIX:-""}
-export ASUFFIX=${ASUFFIX:-$SUFFIX}
-SFCANL=${SFCANL:-${COMOUT}/${APREFIX}sfcanl${ASUFFIX}}
-DTFANL=${DTFANL:-${COMOUT}/${APREFIX}dtfanl.nc}
-ATMANL=${ATMANL:-${COMOUT}/${APREFIX}atmanl${ASUFFIX}}
-
-# Increment files
-ATMINC=${ATMINC:-${COMOUT}/${APREFIX}atminc.nc}
+APREFIX=${APREFIX:-""}
+ASUFFIX=${ASUFFIX:-$SUFFIX}
+# at full resolution
+ATMF03=${ATMF03:-${COMOUT}/${APREFIX}atmf003${ASUFFIX}}
+ATMF04=${ATMF04:-${COMOUT}/${APREFIX}atmf004${ASUFFIX}}
+ATMF05=${ATMF05:-${COMOUT}/${APREFIX}atmf005${ASUFFIX}}
+ATMF06=${ATMF06:-${COMOUT}/${APREFIX}atmf006${ASUFFIX}}
+ATMF07=${ATMF07:-${COMOUT}/${APREFIX}atmf007${ASUFFIX}}
+ATMF08=${ATMF08:-${COMOUT}/${APREFIX}atmf008${ASUFFIX}}
+ATMF09=${ATMF09:-${COMOUT}/${APREFIX}atmf009${ASUFFIX}}
+# at ensemble resolution
+ATMF03ENS=${ATMF03ENS:-${COMOUT}/${APREFIX}atmf003.ensres${ASUFFIX}}
+ATMF04ENS=${ATMF04ENS:-${COMOUT}/${APREFIX}atmf004.ensres${ASUFFIX}}
+ATMF05ENS=${ATMF05ENS:-${COMOUT}/${APREFIX}atmf005.ensres${ASUFFIX}}
+ATMF06ENS=${ATMF06ENS:-${COMOUT}/${APREFIX}atmf006.ensres${ASUFFIX}}
+ATMF07ENS=${ATMF07ENS:-${COMOUT}/${APREFIX}atmf007.ensres${ASUFFIX}}
+ATMF08ENS=${ATMF08ENS:-${COMOUT}/${APREFIX}atmf008.ensres${ASUFFIX}}
+ATMF09ENS=${ATMF09ENS:-${COMOUT}/${APREFIX}atmf009.ensres${ASUFFIX}}
+ATMGES_ENSMEAN=${ATMGES_ENSMEAN:-${COMIN_GES_ENS}/${GPREFIX}atmf006.ensmean${GSUFFIX}}
 
 # Set script / GSI control parameters
 DOHYBVAR=${DOHYBVAR:-"NO"}
@@ -129,25 +108,8 @@ if [ $DOHYBVAR = "YES" ]; then
    export l4densvar=${l4densvar:-".false."}
    export lwrite4danl=${lwrite4danl:-".false."}
 else
-   l_hyb_ens=.false.
-   export l4densvar=.false.
-   export lwrite4danl=.false.
-fi
-
-# Set 4D-EnVar specific variables
-if [ $DOHYBVAR = "YES" -a $l4densvar = ".true." -a $lwrite4danl = ".true." ]; then
-   ATMA03=${ATMA03:-${COMOUT}/${APREFIX}atma003${ASUFFIX}}
-   ATMI03=${ATMI03:-${COMOUT}/${APREFIX}atmi003.nc}
-   ATMA04=${ATMA04:-${COMOUT}/${APREFIX}atma004${ASUFFIX}}
-   ATMI04=${ATMI04:-${COMOUT}/${APREFIX}atmi004.nc}
-   ATMA05=${ATMA05:-${COMOUT}/${APREFIX}atma005${ASUFFIX}}
-   ATMI05=${ATMI05:-${COMOUT}/${APREFIX}atmi005.nc}
-   ATMA07=${ATMA07:-${COMOUT}/${APREFIX}atma007${ASUFFIX}}
-   ATMI07=${ATMI07:-${COMOUT}/${APREFIX}atmi007.nc}
-   ATMA08=${ATMA08:-${COMOUT}/${APREFIX}atma008${ASUFFIX}}
-   ATMI08=${ATMI08:-${COMOUT}/${APREFIX}atmi008.nc}
-   ATMA09=${ATMA09:-${COMOUT}/${APREFIX}atma009${ASUFFIX}}
-   ATMI09=${ATMI09:-${COMOUT}/${APREFIX}atmi009.nc}
+   echo "DOHYBVAR != YES, this script will exit without regridding deterministic forecast"
+   exit 0
 fi
 
 ################################################################################
@@ -161,78 +123,57 @@ fi
 
 cd $DATA || exit 99
 
-################################################################################
-# Clean the run-directory
-rm -rf dir.*
+##############################################################
+# get resolution information
+LONB_ENKF=${LONB_ENKF:-$($NCLEN $ATMGES_ENSMEAN grid_xt)} # get LONB_ENKF
+LATB_ENKF=${LATB_ENKF:-$($NCLEN $ATMGES_ENSMEAN grid_yt)} # get LATB_ENFK
+LEVS_ENKF=${LEVS_ENKF:-$($NCLEN $ATMGES_ENSMEAN pfull)} # get LATB_ENFK
 
 ##############################################################
-# If analysis increment is written by GSI, produce an analysis file here
+# If analysis increment is written by GSI, regrid forecasts to increment resolution
 if [ $DO_CALC_ANALYSIS == "YES" ]; then
-   # link analysis and increment files
-   $NLN $ATMANL siganl
-   $NLN $ATMINC siginc.nc
+   $NLN $ATMF06 fcst.06
+   $NLN $ATMF06ENS fcst.ensres.06
+   $NLN $ATMGES_ENSMEAN atmges_ensmean
    if [ $DOHYBVAR = "YES" -a $l4densvar = ".true." -a $lwrite4danl = ".true." ]; then
-      $NLN $ATMA03   siga03
-      $NLN $ATMI03   sigi03.nc
-      $NLN $ATMA04   siga04
-      $NLN $ATMI04   sigi04.nc
-      $NLN $ATMA05   siga05
-      $NLN $ATMI05   sigi05.nc
-      $NLN $ATMA07   siga07
-      $NLN $ATMI07   sigi07.nc
-      $NLN $ATMA08   siga08
-      $NLN $ATMI08   sigi08.nc
-      $NLN $ATMA09   siga09
-      $NLN $ATMI09   sigi09.nc
+      $NLN $ATMF03     fcst.03
+      $NLN $ATMF03ENS  fcst.ensres.03
+      $NLN $ATMF04     fcst.04
+      $NLN $ATMF04ENS  fcst.ensres.04
+      $NLN $ATMF05     fcst.05
+      $NLN $ATMF05ENS  fcst.ensres.05
+      $NLN $ATMF07     fcst.07
+      $NLN $ATMF07ENS  fcst.ensres.07
+      $NLN $ATMF08     fcst.08
+      $NLN $ATMF08ENS  fcst.ensres.08
+      $NLN $ATMF09     fcst.09
+      $NLN $ATMF09ENS  fcst.ensres.09
    fi
-   # link guess files
-   $NLN $ATMG03 sigf03
-   $NLN $ATMGES sigf06
-   $NLN $ATMG09 sigf09
-
-   [[ -f $ATMG04 ]] && $NLN $ATMG04 sigf04
-   [[ -f $ATMG05 ]] && $NLN $ATMG05 sigf05
-   [[ -f $ATMG07 ]] && $NLN $ATMG07 sigf07
-   [[ -f $ATMG08 ]] && $NLN $ATMG08 sigf08
-
-   # Link hourly backgrounds (if present)
-   if [ -f $ATMG04 -a -f $ATMG05 -a -f $ATMG07 -a -f $ATMG08 ]; then
-      nhr_obsbin=1
-   fi
-
-   $CALCANLPY
-   rc=$?
-
-   export ERR=$rc
-   export err=$ERR
-   $ERRSCRIPT || exit 3
+   export OMP_NUM_THREADS=$NTHREADS_CHGRES
+   SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS_ENKF}.txt}
+   nfhrs=`echo $IAUFHRS_ENKF | sed 's/,/ /g'`
+   for FHR in $nfhrs; do
+     echo "Regridding deterministic forecast for forecast hour $FHR"
+     rm -f chgres_nc_gauss.nml
+cat > chgres_nc_gauss.nml << EOF
+&chgres_setup
+i_output=$LONB_ENKF
+j_output=$LATB_ENKF
+input_file="fcst.0$FHR"
+output_file="fcst.ensres.0$FHR"
+terrain_file="atmges_ensmean"
+vcoord_file="$SIGLEVEL"
+/
+EOF
+     $APRUN_CHGRES $CHGRESEXEC
+     rc=$?
+     export ERR=$rc
+     export err=$ERR
+     $ERRSCRIPT || exit 3
+   done
 else
-   echo "Neither increment nor analysis are generated by external utils"
+   echo "DO_CALC_ANALYSIS != YES, doing nothing"
 fi
-
-##############################################################
-# Create gaussian grid surface analysis file at middle of window
-if [ $DOGAUSFCANL = "YES" ]; then
-    export APRUNSFC=$APRUN_GAUSFCANL
-    export OMP_NUM_THREADS_SFC=$NTHREADS_GAUSFCANL
-
-    $GAUSFCANLSH
-    rc=$?
-    export ERR=$rc
-    export err=$ERR
-    $ERRSCRIPT || exit 12
-fi
-
-echo "$CDUMP $CDATE atmanl and sfcanl done at `date`" > $COMOUT/${APREFIX}loganl.txt
-
-################################################################################
-# Send alerts
-if [ $SENDDBN = "YES" ]; then
-    if [ $RUN = "gfs" ]; then
-       $DBNROOT/bin/dbn_alert MODEL GFS_abias $job $ABIAS
-    fi
-fi
-
 ################################################################################
 # Postprocessing
 cd $pwd
