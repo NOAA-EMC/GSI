@@ -97,6 +97,10 @@ subroutine setupbend(obsLL,odiagLL, &
 !   2016-11-29  shlyaeva - save linearized H(x) for EnKF
 !   2017-02-09  guo     - Remove m_alloc, n_alloc.
 !                       . Remove my_node with corrected typecast().
+!   2019-08-21  Shao    - add COSMIC-2, metop-c and Paz 
+!   2020-03-18  Shao    - update observation error for COSMIC-2
+!   2020-04-13  Shao    - update the statistis QC for COSMIC-2
+!   2020-05-21  Shao    - add comments to include commercial data ID information
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -281,6 +285,11 @@ subroutine setupbend(obsLL,odiagLL, &
 !724-729 => COSMIC-2 Polar
 !825 => KOMPSAT-5
 !5   => MetOpC
+!265 => GeoOptics CICERO OP1
+!266 => GeoOptics CICERO OP2
+!267 => PlanetiQ GNOMES-A
+!268 => PlanetiQ GNOMES-B
+!269 => Spire Lemur 3U CubeSat
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
@@ -630,19 +639,40 @@ subroutine setupbend(obsLL,odiagLL, &
            endif
          else 
 !        CDAAC-type processing
-           if((data(ilate,i)> r40).or.(data(ilate,i)< -r40)) then
-              if(alt>r12) then
-                 repe_gps=-0.685627_r_kind+0.377174_r_kind*alt-0.00421934_r_kind*alt**2
+           if ((data(isatid,i) > 749).and.(data(isatid,i) < 756)) then
+              if ((data(ilate,i)> r40).or.(data(ilate,i)< -r40)) then
+                if (alt.le.8.0_r_kind) then
+                  repe_gps=-1.0304261_r_kind+0.3203316_r_kind*alt+0.0141337_r_kind*alt**2
+                elseif (alt.gt.8.0_r_kind.and.alt.le.r12) then
+                  repe_gps=2.1750271_r_kind+0.0431177_r_kind*alt-0.0008567_r_kind*alt**2
+                else
+                  repe_gps=-0.3447429_r_kind+0.2829981_r_kind*alt-0.0028545_r_kind*alt**2
+                endif
               else
-                 repe_gps=-3.27737_r_kind+1.20003_r_kind*alt-0.0558024_r_kind*alt**2
+                if (alt.le.4.0_r_kind) then
+                  repe_gps=0.7285212_r_kind-1.1138755_r_kind*alt+0.2311123_r_kind*alt**2
+                elseif (alt.le.r18.and.alt.gt.4.0_r_kind) then
+                  repe_gps=-3.3878629_r_kind+0.8691249_r_kind*alt-0.0297196_r_kind*alt**2
+                else
+                  repe_gps=-2.3875749_r_kind+0.3667211_r_kind*alt-0.0037542_r_kind*alt**2
+                endif
               endif
            else
-              if(alt>r18) then
-                 repe_gps=-2.73867_r_kind+0.447663_r_kind*alt-0.00475603_r_kind*alt**2
+              if((data(ilate,i)> r40).or.(data(ilate,i)< -r40)) then
+                 if(alt>r12) then
+                    repe_gps=-0.685627_r_kind+0.377174_r_kind*alt-0.00421934_r_kind*alt**2
+                 else
+                    repe_gps=-3.27737_r_kind+1.20003_r_kind*alt-0.0558024_r_kind*alt**2
+                 endif
               else
-                 repe_gps=-3.45303_r_kind+0.908216_r_kind*alt-0.0293331_r_kind*alt**2
+                 if(alt>r18) then
+                    repe_gps=-2.73867_r_kind+0.447663_r_kind*alt-0.00475603_r_kind*alt**2
+                 else
+                    repe_gps=-3.45303_r_kind+0.908216_r_kind*alt-0.0293331_r_kind*alt**2
+                 endif
               endif
-            endif
+           endif
+
          endif
 
          repe_gps=exp(repe_gps) ! one/modified error in (rad-1*1E3)
@@ -763,15 +793,27 @@ subroutine setupbend(obsLL,odiagLL, &
             else   
 !               Statistics QC check if obs passed gross error check
                 cutoff=zero
-                cutoff1=(-4.725_r_kind+0.045_r_kind*alt+0.005_r_kind*alt**2)*two/three
+                if ((data(isatid,i) > 749).and.(data(isatid,i) < 756)) then
+                   cutoff1=(-4.725_r_kind+0.045_r_kind*alt+0.005_r_kind*alt**2)*one/two
+                else
+                   cutoff1=(-4.725_r_kind+0.045_r_kind*alt+0.005_r_kind*alt**2)*two/three
+                end if
                 cutoff2=1.5_r_kind+one*cos(data(ilate,i)*deg2rad)
                 if(trefges<=r240) then
                    cutoff3=two
                 else
                    cutoff3=0.005_r_kind*trefges**2-2.3_r_kind*trefges+266_r_kind
                 endif
-                cutoff3=cutoff3*two/three
-                cutoff4=(four+eight*cos(data(ilate,i)*deg2rad))*two/three
+                if ((data(isatid,i) > 749).and.(data(isatid,i) < 756)) then
+                   cutoff3=cutoff3*one/two
+                else
+                   cutoff3=cutoff3*two/three
+                end if
+                if ((data(isatid,i) > 749).and.(data(isatid,i) < 756)) then
+                   cutoff4=(four+eight*cos(data(ilate,i)*deg2rad))*one/two
+                else
+                   cutoff4=(four+eight*cos(data(ilate,i)*deg2rad))*two/three
+                end if
                 cutoff12=((36_r_kind-alt)/two)*cutoff2+&
                          ((alt-34_r_kind)/two)*cutoff1
                 cutoff23=((eleven-alt)/two)*cutoff3+&
@@ -786,7 +828,11 @@ subroutine setupbend(obsLL,odiagLL, &
                 if((alt<=six).and.(alt>four)) cutoff=cutoff34
                 if(alt<=four) cutoff=cutoff4
 
-                cutoff=three*cutoff*r0_01
+                if ((data(isatid,i) > 749).and.(data(isatid,i) < 756)) then
+                   cutoff=two*cutoff*r0_01
+                else
+                   cutoff=three*cutoff*r0_01
+                end if
  
                 if(abs(rdiagbuf(5,i)) > cutoff) then
                    qcfail(i)=.true.

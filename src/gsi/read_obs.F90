@@ -134,7 +134,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
 !   2017-11-16  dutta    - adding KOMPSAT5 bufr i.d for reading the data.
 !   2019-03-27  h. liu   - add abi
 !   2019-09-20  X.Su     -add read new variational qc table
-!                           
+!   2019-08-21  H. Shao  - add METOPC-C, COSMIC-2 and PAZ to the GPS check list                           
+!   2020-05-21  H. Shao  - add commercial GNSSRO (Spire, PlanetIQ, GeoOptics) and other existing missions to the check list                           
 !
 !   input argument list:
 !    lexist    - file status
@@ -379,12 +380,14 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
            end if 
  
            said=nint(satid) 
-           if(((said > 739) .and.(said < 746)).or.(said == 820).or. &
-               (said == 825).or. (said == 786).or.(said == 4)  .or. &
-               (said == 3)  .or. (said == 421).or.(said == 440).or. &
-               (said == 821).or. ((said > 749) .and.(said < 756)).or. &
-               (said == 44) .or. (said == 5) .or. &
-               ( GMAO_READ  .and. said == 5) ) then
+           if(((said > 739) .and.(said < 746)).or. (said == 820) .or. &
+               (said == 825).or. (said == 786).or. (said == 4)   .or. &
+               (said == 3)  .or. (said == 421).or. (said == 440) .or. &
+               (said == 821).or. ((said > 749).and.(said < 756)) .or. &
+               (said == 44) .or. (said == 5)  .or. (said == 41)  .or. &
+               (said == 42) .or. (said == 43) .or. (said == 722) .or. & 
+               (said == 723).or. (said == 265).or. (said == 266) .or. &
+               (said == 267).or. (said == 268).or. (said == 269)) then
              lexist=.true. 
              exit gpsloop 
            end if 
