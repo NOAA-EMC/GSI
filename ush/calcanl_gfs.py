@@ -15,6 +15,7 @@ import datetime
 
 # function to calculate analysis from a given increment file and background
 def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
+                ComIn_Ges, GPrefix, GSuffix,
                 FixDir, atmges_ens_mean, RunDir, NThreads, NEMSGet, IAUHrs,
                 ExecCMD, ExecCMDMPI, ExecAnl, ExecChgresGes, ExecChgresInc, Cdump):
     print('calcanl_gfs beginning at: ',datetime.datetime.utcnow())
@@ -46,7 +47,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
                     gsi_utils.copy_file(ExecAnl, CalcAnlDir+'/calc_anl.x')
                     gsi_utils.link_file(RunDir+'/siginc.nc', CalcAnlDir+'/siginc.nc.06')
                     gsi_utils.link_file(ComOut+'/'+APrefix+'atmanl.ensres'+ASuffix, CalcAnlDir+'/anl.ensres.06')
-                    gsi_utils.link_file(ComOut+'/'+APrefix+'atmf006.ensres'+ASuffix, CalcAnlDir+'/ges.ensres.06')
+                    gsi_utils.link_file(ComIn_Ges+'/'+GPrefix+'atmf006.ensres'+GSuffix, CalcAnlDir+'/ges.ensres.06')
                     gsi_utils.link_file(RunDir+'/sigf06', CalcAnlDir+'/ges.06')
             else:
                 if os.path.isfile('sigi'+format(fh, '02')+'.nc'):
@@ -67,6 +68,8 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
                                         CalcAnlDir+'/inc.fullres.'+format(fh, '02'))
                     gsi_utils.link_file(RunDir+'/sigf'+format(fh, '02'),
                                         CalcAnlDir6+'/ges.'+format(fh, '02'))
+                    gsi_utils.link_file(RunDir+'/sigf'+format(fh, '02'),
+                                        CalcAnlDir+'/ges.'+format(fh, '02'))
                     gsi_utils.copy_file(ExecChgresInc, CalcAnlDir+'/chgres_inc.x')
                     # for ensemble res analysis
                     CalcAnlDir = RunDir+'/calcanl_ensres_'+format(fh, '02')
@@ -79,10 +82,8 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
                                         CalcAnlDir6+'/anl.ensres.'+format(fh, '02'))
                     gsi_utils.link_file(RunDir+'/sigi'+format(fh, '02')+'.nc',
                                         CalcAnlDir6+'/siginc.nc.'+format(fh, '02'))
-                    gsi_utils.link_file(RunDir+'/sigf'+format(fh, '02'),
-                                        CalcAnlDir+'/ges.'+format(fh, '02'))
-                    gsi_utils.link_file(ComOut+'/'+APrefix+'atmf'+format(fh, '03')+'.ensres'+ASuffix,
-                                        CalcAnlDir+'/ges.ensres.'+format(fh, '02'))
+                    gsi_utils.link_file(ComIn_Ges+'/'+GPrefix+'atmf'+format(fh, '03')+'.ensres'+GSuffix,
+                                        CalcAnlDir6+'/ges.ensres.'+format(fh, '02'))
 
 
     else:
@@ -102,7 +103,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
         gsi_utils.copy(ExecAnl, CalcAnlDir+'/calc_anl.x')
         gsi_utils.link_file(RunDir+'/siginc.nc', CalcAnlDir+'/siginc.nc.06')
         gsi_utils.link_file(ComOut+'/'+APrefix+'atmanl.ensres'+ASuffix, CalcAnlDir+'/anl.ensres.06')
-        gsi_utils.link_file(ComOut+'/'+APrefix+'atmf006.ensres'+ASuffix, CalcAnlDir+'/ges.ensres.06')
+        gsi_utils.link_file(ComIn_Ges+'/'+GPrefix+'atmf006.ensres'+GSuffix, CalcAnlDir+'/ges.ensres.06')
 
     ######## get dimension information from background and increment files
     AnlDims = gsi_utils.get_ncdims('siginc.nc')
@@ -276,16 +277,15 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
         sys.exit(exit_fullres)
 
 
-    ######## run chgres to get background on ensemble resolution
+    ######## compute determinstic analysis on ensemble resolution
     if Cdump == "gdas":
         chgres_jobs = []
         for fh in IAUHH:
             # first check to see if guess file exists
-            CalcAnlDir = RunDir+'/calcanl_ensres_'+format(fh, '02')
-            if (os.path.isfile(CalcAnlDir+'/ges.ensres.'+format(fh, '02'))):
+            CalcAnlDir6 = RunDir+'/calcanl_ensres_06'
+            print(CalcAnlDir6+'/ges.ensres.'+format(fh, '02'))
+            if (os.path.isfile(CalcAnlDir6+'/ges.ensres.'+format(fh, '02'))):
                 ######## generate ensres analysis from interpolated background
-                if launcher == 'srun':
-                    del os.environ['SLURM_HOSTFILE']
                 # set up the namelist
                 namelist = OrderedDict()
                 namelist["setup"] =  {"datapath": "'./'",
@@ -295,7 +295,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
                                     "fhr": fh,
                                     }
 
-                gsi_utils.write_nml(namelist, CalcAnlDir+'/calc_analysis.nml')
+                gsi_utils.write_nml(namelist, CalcAnlDir6+'/calc_analysis.nml')
 
                 # run the executable
                 if ihost > nhosts-1:
@@ -320,6 +320,9 @@ if __name__ == '__main__':
     DoIAU = gsi_utils.isTrue(os.getenv('DOIAU', 'NO'))
     l4DEnsVar = gsi_utils.isTrue(os.getenv('l4densvar', 'NO'))
     Write4Danl = gsi_utils.isTrue(os.getenv('lwrite4danl', 'NO'))
+    ComIn_Ges = os.getenv('COMIN_GES', './')
+    GPrefix = os.getenv('GPREFIX', './')
+    GSuffix = os.getenv('GSUFFIX', './')
     ComOut = os.getenv('COMOUT', './')
     APrefix = os.getenv('APREFIX', '')
     ASuffix= os.getenv('ASUFFIX', '')
@@ -338,6 +341,7 @@ if __name__ == '__main__':
 
     print(locals())
     calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
+                ComIn_Ges, GPrefix, GSuffix,
                 FixDir, atmges_ens_mean, RunDir, NThreads, NEMSGet, IAUHrs,
                 ExecCMD, ExecCMDMPI, ExecAnl, ExecChgresGes, ExecChgresInc,
                 Cdump)

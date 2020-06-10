@@ -98,25 +98,6 @@ mkdir -m 775 -p $COMOUT
 export COMIN_GES="$ROTDIR/$GDUMP.$gPDY/$gcyc"
 export COMIN_GES_ENS="$ROTDIR/enkfgdas.$gPDY/$gcyc"
 
-
-export ATMGES="$COMIN_GES/${GPREFIX}atmf006${GSUFFIX}"
-if [ ! -f $ATMGES ]; then
-    echo "FATAL ERROR: FILE MISSING: ATMGES = $ATMGES"
-    exit 1
-fi
-
-
-# Get LEVS
-if [ ${GSUFFIX} = ".nc" ]; then
-    export LEVS=$($NCLEN $ATMGES pfull)
-    status=$?
-else
-    export LEVS=$($NEMSIOGET $ATMGES dimz | awk '{print $2}')
-    status=$?
-fi
-[[ $status -ne 0 ]] && exit $status
-
-
 ###############################################################
 # Run relevant exglobal script
 env

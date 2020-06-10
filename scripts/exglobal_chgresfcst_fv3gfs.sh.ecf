@@ -65,7 +65,7 @@ DOIAU=${DOIAU:-"NO"}
 export IAUFHRS=${IAUFHRS:-"6"}
 
 # Dependent Scripts and Executables
-export APRUN_CHGRES=${APRUN_CALCANL:-${APRUN:-""}}
+export APRUN_CHGRES=${APRUN_CHGRES:-${APRUN:-""}}
 export CHGRESNCEXEC=${CHGRESNCEXEC:-$HOMEgfs/exec/chgres_recenter_ncio.exe}
 export NTHREADS_CHGRES=${NTHREADS_CHGRES:-1}
 
@@ -123,16 +123,16 @@ cd $DATA || exit 99
 
 ##############################################################
 # get resolution information
-LONB_ENKF=${LONB_ENKF:-$($NCLEN $ATMGES_ENSMEAN grid_xt)} # get LONB_ENKF
-LATB_ENKF=${LATB_ENKF:-$($NCLEN $ATMGES_ENSMEAN grid_yt)} # get LATB_ENFK
-LEVS_ENKF=${LEVS_ENKF:-$($NCLEN $ATMGES_ENSMEAN pfull)} # get LATB_ENFK
+LONB_ENKF=${LONB_ENKF:-$($NCLEN $ATMFCST_ENSRES grid_xt)} # get LONB_ENKF
+LATB_ENKF=${LATB_ENKF:-$($NCLEN $ATMFCST_ENSRES grid_yt)} # get LATB_ENFK
+LEVS_ENKF=${LEVS_ENKF:-$($NCLEN $ATMFCST_ENSRES pfull)} # get LATB_ENFK
 
 ##############################################################
 # If analysis increment is written by GSI, regrid forecasts to increment resolution
 if [ $DO_CALC_ANALYSIS == "YES" ]; then
    $NLN $ATMF06 fcst.06
    $NLN $ATMF06ENS fcst.ensres.06
-   $NLN $ATMGES_ENSMEAN atmges_ensmean
+   $NLN $ATMFCST_ENSRES atmens_fcst
    if [ $DOHYBVAR = "YES" -a $l4densvar = ".true." -a $lwrite4danl = ".true." ]; then
       $NLN $ATMF03     fcst.03
       $NLN $ATMF03ENS  fcst.ensres.03
@@ -159,11 +159,11 @@ i_output=$LONB_ENKF
 j_output=$LATB_ENKF
 input_file="fcst.0$FHR"
 output_file="fcst.ensres.0$FHR"
-terrain_file="atmges_ensmean"
+terrain_file="atmens_fcst"
 vcoord_file="$SIGLEVEL"
 /
 EOF
-     $APRUN_CHGRES $CHGRESEXEC
+     $APRUN_CHGRES $CHGRESNCEXEC
      rc=$?
      export ERR=$rc
      export err=$ERR
