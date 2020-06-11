@@ -235,8 +235,8 @@ if [[ "$VERBOSE" = "YES" ]]; then
    echo "end exgdas_vrfyrad.sh.ecf, exit value = ${err}"
 fi
 
-msg="${scr} HAS ENDED"
-postmsg "$jlogfile" "$msg"
+echo "${scr} HAS ENDED"
+
 
 set +x
 exit ${err}
