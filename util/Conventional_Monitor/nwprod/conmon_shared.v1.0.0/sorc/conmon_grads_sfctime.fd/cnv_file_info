@@ -64,6 +64,38 @@ variables:
                 :date_time = 2020051806 ;
 }
 
+from setupq.f90:
+        rdiagbufp(1,iip)  = ictype(ikx)        ! observation type
+        rdiagbufp(2,iip)  = icsubtype(ikx)     ! observation subtype
+
+        rdiagbufp(3,iip)  = data(ilate,i)      ! observation latitude (degrees)
+        rdiagbufp(4,iip)  = data(ilone,i)      ! observation longitude (degrees)
+        rdiagbufp(5,iip)  = data(istnelv,i)    ! station elevation (meters)
+        rdiagbufp(6,iip)  = prest !presq              ! observation pressure (hPa)
+        rdiagbufp(7,iip)  = data(iobshgt,i)    ! observation height (meters)
+        rdiagbufp(8,iip)  = dtime-time_offset  ! obs time (hours relative to analysis time)
+
+        rdiagbufp(9,iip)  = data(iqc,i)        ! input prepbufr qc or event mark
+        rdiagbufp(10,iip) = var_jb             ! non linear qc b parameter
+        rdiagbufp(11,iip) = data(iuse,i)       ! read_prepbufr data usage flag
+        if(muse(i)) then
+           rdiagbufp(12,iip) = one             ! analysis usage flag (1=use, -1=not used)
+        else
+           rdiagbufp(12,iip) = -one
+        endif
+
+        rdiagbufp(13,iip) = rwgt               ! nonlinear qc relative weight
+        rdiagbufp(14,iip) = errinv_input       ! prepbufr inverse observation error
+        rdiagbufp(15,iip) = errinv_adjst       ! read_prepbufr inverse obs error
+        rdiagbufp(16,iip) = errinv_final       ! final inverse observation error
+
+        rdiagbufp(17,iip) = data(iqob,i)       ! observation
+        rdiagbufp(18,iip) = ddiff              ! obs-ges used in analysis
+        rdiagbufp(19,iip) = ddiff              !qob-qges           ! obs-ges w/o bias correction (future slot)
+
+        rdiagbufp(20,iip) = qsges              ! guess saturation specific humidity
+        rdiagbufp(21,iip) = 1e+10_r_single     ! spread (filled in by EnKF)
+
 
 netcdf diag_conv_q_ges.2020051806 {
 dimensions:
@@ -170,6 +202,40 @@ variables:
 // global attributes:
                 :date_time = 2020051806 ;
 }
+
+from setupw.f90:
+ rdiagbuf(1,ii)  = ictype(ikx)        ! observation type
+        rdiagbuf(2,ii)  = icsubtype(ikx)     ! observation subtype
+
+        rdiagbuf(3,ii)  = data(ilate,i)      ! observation latitude (degrees)
+        rdiagbuf(4,ii)  = data(ilone,i)      ! observation longitude (degrees)
+        rdiagbuf(5,ii)  = data(ielev,i)      ! station elevation (meters)
+        rdiagbuf(6,ii)  = presw              ! observation pressure (hPa)
+        rdiagbuf(7,ii)  = data(ihgt,i)       ! observation height (meters)
+        rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
+
+        rdiagbuf(9,ii)  = data(iqc,i)        ! input prepbufr qc or event mark
+        rdiagbuf(10,ii) = var_jb             ! non linear qc parameter
+        rdiagbuf(11,ii) = data(iuse,i)       ! read_prepbufr data usage flag
+        if(muse(i)) then
+           rdiagbuf(12,ii) = one             ! analysis usage flag (1=use, -1=not used)
+        else
+           rdiagbuf(12,ii) = -one
+        endif
+
+        rdiagbuf(13,ii) = rwgt               ! nonlinear qc relative weight
+        rdiagbuf(14,ii) = errinv_input       ! prepbufr inverse obs error (m/s)**-1
+        rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error (m/s)**-1
+        rdiagbuf(16,ii) = errinv_final       ! final inverse observation error (m/s)**-1
+
+        rdiagbuf(17,ii) = data(iuob,i)       ! u wind component observation (m/s)
+        rdiagbuf(18,ii) = dudiff             ! u obs-ges used in analysis (m/s)
+        rdiagbuf(19,ii) = uob-ugesin         ! u obs-ges w/o bias correction (m/s) (future slot)
+
+        rdiagbuf(20,ii) = data(ivob,i)       ! v wind component observation (m/s)
+        rdiagbuf(21,ii) = dvdiff             ! v obs-ges used in analysis (m/s)
+        rdiagbuf(22,ii) = vob-vgesin         ! v obs-ges w/o bias correction (m/s) (future slot)
+
 
 
 netcdf diag_conv_gps_anl.2020040506 {

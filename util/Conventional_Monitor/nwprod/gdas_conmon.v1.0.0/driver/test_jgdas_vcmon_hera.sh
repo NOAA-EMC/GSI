@@ -52,7 +52,7 @@ export COMROOT=${COMROOT:-/scratch2/NCEPDEV/stmp3/$LOGNAME/com}
 #############################################################
 export CONMON_SUFFIX=${CONMON_SUFFIX:-test_conmon}
 
-export NWTEST=${NWTEST:-/scratch1/NCEPDEV/da/${LOGNAME}/noscrub/ProdGSI/util/Conventional_Monitor/nwprod}
+export NWTEST=${NWTEST:-/scratch1/NCEPDEV/da/${LOGNAME}/noscrub/GSI/util/Conventional_Monitor/nwprod}
 export HOMEconmon=${HOMEconmon:-${NWTEST}/conmon_shared.${conmon_shared_ver}}
 
 export HOMEgdas_conmon=${HOMEgdas_conmon:-${NWTEST}/gdas_conmon.${gdas_conmon_ver}}
