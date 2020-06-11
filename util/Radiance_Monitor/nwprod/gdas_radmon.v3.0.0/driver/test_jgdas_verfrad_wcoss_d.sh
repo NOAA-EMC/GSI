@@ -25,9 +25,7 @@ export job=gdas_verfrad.${cyc}
 export pid=${pid:-$$}
 export jobid=${job}.${pid}
 export envir=prod
-#export DATAROOT=/gpfs/dell2/emc/modeling/noscrub/${LOGNAME}/test_data
-#export DATAROOT=/gpfs/dell3/ptmp/emc.glopara/ROTDIRS/v16rt0
-export DATAROOT=/gpfs/dell1/nco/ops/com/gfs/prod
+export DATAROOT=/gpfs/dell2/emc/modeling/noscrub/${LOGNAME}/test_data
 export COMROOT=/gpfs/dell2/ptmp/${LOGNAME}
 
 if [[ ! -d ${COMROOT}/logs/jlogfiles ]]; then
@@ -75,7 +73,7 @@ if [[ -d ${DATA} ]]; then
 fi
 export jlogfile=${COMROOT}/logs/jlogfiles/${RADMON_SUFFIX}_jlog
 
-export NWTEST=/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/ProdGSI/util/Radiance_Monitor/nwprod
+export NWTEST=/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/GSI/util/Radiance_Monitor/nwprod
 
 export HOMEgdas=${NWTEST}/gdas_radmon.${gdas_radmon_ver}
 export HOMEgfs=${HOMEgdas}
