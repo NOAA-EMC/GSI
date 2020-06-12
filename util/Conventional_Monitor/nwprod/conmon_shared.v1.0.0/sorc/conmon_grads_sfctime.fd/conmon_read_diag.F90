@@ -218,6 +218,9 @@ module conmon_read_diag
 
       select case ( trim( adjustl( ctype ) ) )
    
+         case ( 'gps' ) 
+            call read_diag_file_gps_nc( input_file, ftin, ctype,stype,intype,expected_nreal,nobs,in_subtype,subtype,list )
+
          case ( 'ps' ) 
             call read_diag_file_ps_nc( input_file, ftin, ctype,stype,intype,expected_nreal,nobs,in_subtype,subtype,list )
 
@@ -1187,45 +1190,35 @@ module conmon_read_diag
 
       !--- NetCDF file components                                                               dimension(s) 
       !
-      character(len=:), dimension(:), allocatable  :: Station_ID                      !  (nobs, Station_ID_maxstrlen)
-      character(len=:), dimension(:), allocatable  :: Observation_Class               !  (nobs, Station_Class_maxstrlen)
-      integer, dimension(:), allocatable           :: Observation_Type                !  (obs)
-      integer, dimension(:), allocatable           :: Observation_Subtype             !  (obs)
-      real(r_single), dimension(:), allocatable    :: Latitude                        !  (obs)
-      real(r_single), dimension(:), allocatable    :: Longitude                       !  (obs)
-      real(r_single), dimension(:), allocatable    :: Station_Elevation               !  (obs)
-      real(r_single), dimension(:), allocatable    :: Pressure                        !  (obs)
-      real(r_single), dimension(:), allocatable    :: Height                          !  (obs)
-      real(r_single), dimension(:), allocatable    :: Time                            !  (obs)
-      real(r_single), dimension(:), allocatable    :: Prep_QC_Mark                    !  (obs)
-      real(r_single), dimension(:), allocatable    :: Prep_Use_Flag                   !  (obs)
-      real(r_single), dimension(:), allocatable    :: Nonlinear_QC_Var_Jb             !  (obs)
-      real(r_single), dimension(:), allocatable    :: Nonlinear_QC_Rel_Wgt            !  (obs)
-      real(r_single), dimension(:), allocatable    :: Analysis_Use_Flag               !  (obs)
-      real(r_single), dimension(:), allocatable    :: Errinv_Input                    !  (obs)
-      real(r_single), dimension(:), allocatable    :: Errinv_Adjust                   !  (obs)
-      real(r_single), dimension(:), allocatable    :: Errinv_Final                    !  (obs)
-      real(r_single), dimension(:), allocatable    :: Observation                     !  (obs)
-      real(r_single), dimension(:), allocatable    :: Obs_Minus_Forecast_adjusted     !  (obs)
-      real(r_single), dimension(:), allocatable    :: Obs_Minus_Forecast_unadjusted   !  (obs)
+      character(len=:), dimension(:), allocatable  :: Station_ID                        !  (nobs, Station_ID_maxstrlen)
+      character(len=:), dimension(:), allocatable  :: Observation_Class                 !  (nobs, Station_Class_maxstrlen)
+      integer, dimension(:), allocatable           :: Observation_Type                  !  (obs)
+      integer, dimension(:), allocatable           :: Observation_Subtype               !  (obs)
+      real(r_single), dimension(:), allocatable    :: Latitude                          !  (obs)
+      real(r_single), dimension(:), allocatable    :: Longitude                         !  (obs)
+      real(r_single), dimension(:), allocatable    :: Incremental_Bending_Angle         !  (obs)
+      real(r_single), dimension(:), allocatable    :: Station_Elevation                 !  (obs)
+      real(r_single), dimension(:), allocatable    :: Pressure                          !  (obs)
+      real(r_single), dimension(:), allocatable    :: Height                            !  (obs)
+      real(r_single), dimension(:), allocatable    :: Time                              !  (obs)
+      real(r_single), dimension(:), allocatable    :: Model_Elevation                   !  (obs)
+      real(r_single), dimension(:), allocatable    :: Setup_QC_Mark                     !  (obs)
+      real(r_single), dimension(:), allocatable    :: Prep_Use_Flag                     !  (obs)
+      real(r_single), dimension(:), allocatable    :: Nonlinear_QC_Var_Jb               !  (obs)
+      real(r_single), dimension(:), allocatable    :: Nonlinear_QC_Rel_Wgt              !  (obs)
+      real(r_single), dimension(:), allocatable    :: Analysis_Use_Flag                 !  (obs)
+      real(r_single), dimension(:), allocatable    :: Errinv_Input                      !  (obs)
+      real(r_single), dimension(:), allocatable    :: Errinv_Adjust                     !  (obs)
+      real(r_single), dimension(:), allocatable    :: Errinv_Final                      !  (obs)
+      real(r_single), dimension(:), allocatable    :: Observation                       !  (obs)
+      real(r_single), dimension(:), allocatable    :: Obs_Minus_Forecast_adjusted       !  (obs)
+      real(r_single), dimension(:), allocatable    :: Obs_Minus_Forecast_unadjusted     !  (obs)
+      real(r_single), dimension(:), allocatable    :: GPS_Type                          !  (obs)
+      real(r_single), dimension(:), allocatable    :: Temperature_at_Obs_Location       !  (obs)
+      real(r_single), dimension(:), allocatable    :: Specific_Humidity_at_Obs_Location !  (obs)
+
       integer(i_kind)                              :: idate 
 
-      ! q type specific 
-      real(r_single), dimension(:), allocatable    :: Forecast_Saturation_Spec_Hum    !  (obs)
-
-      ! t type specific
-      real(r_single), dimension(:), allocatable    ::  Data_Pof                       !  (obs) 
-      real(r_single), dimension(:), allocatable    ::  Data_Vertical_Velocity         !  (obs)
-      real(r_single), dimension(:,:), allocatable  ::  Bias_Correction_Terms          !  (nobs, Bias_Correction_Terms_arr_dim)
-
-      ! uv type specific
-      real(r_single), dimension(:), allocatable    ::  Wind_Reduction_Factor_at_10m   !  (obs)
-      real(r_single), dimension(:), allocatable    ::  u_Observation                  !  (obs)
-      real(r_single), dimension(:), allocatable    ::  u_Obs_Minus_Forecast_adjusted  !  (obs)
-      real(r_single), dimension(:), allocatable    ::  u_Obs_Minus_Forecast_unadjusted!  (obs)
-      real(r_single), dimension(:), allocatable    ::  v_Observation                  !  (obs)
-      real(r_single), dimension(:), allocatable    ::  v_Obs_Minus_Forecast_adjusted  !  (obs)
-      real(r_single), dimension(:), allocatable    ::  v_Obs_Minus_Forecast_unadjusted!  (obs)
 
 
       print *, ' '
@@ -1273,9 +1266,6 @@ module conmon_read_diag
 
 !      call load_nc_var( 'Nonlinear_QC_Var_Jb',           ftin, Nonlinear_QC_Var_Jb,           13, ierr )
 
-        float GPS_Type(nobs) ;
-        float Temperature_at_Obs_Location(nobs) ;
-        float Specific_Humidity_at_Obs_Location(nobs) ;
  
 
       !---------------------------------------------------------------
@@ -1394,7 +1384,7 @@ module conmon_read_diag
       print *, ' '
       print *, '      <-- read_diag_file_gps_nc'
 
-   end subroutine read_diag_file_ps_nc
+   end subroutine read_diag_file_gps_nc
 
 
 
