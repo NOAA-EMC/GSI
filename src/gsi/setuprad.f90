@@ -214,6 +214,7 @@ contains
 !   2019-03-13  eliu    - add components to handle precipitation-affected radiances 
 !   2019-03-13  eliu    - add calculation of scattering index for MHS/ATMS 
 !   2019-03-27  h. liu  - add ABI assimilation
+!   2019-08-20  zhu     - add flexibility to allow radiances being assimilated without bias correction
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -283,9 +284,9 @@ contains
       ifrac_sea,ifrac_lnd,ifrac_ice,ifrac_sno,itsavg, &
       izz,idomsfc,isfcr,iff10,ilone,ilate, &
       isst_hires,isst_navy,idata_type,iclr_sky,itref,idtw,idtc,itz_tr
+  use qcmod, only: qc_ssmi,qc_geocsr,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms
   use crtm_interface, only: ilzen_ang2,iscan_ang2,iszen_ang2,isazi_ang2
   use clw_mod, only: calc_clw, ret_amsua, gmi_37pol_diff
-  use qcmod, only: qc_ssmi,qc_seviri,qc_abi,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms
   use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc,qc_noirjaco3,ifail_cloud_qc
   use qcmod, only: ifail_cao_qc,cao_check  
   use qcmod, only: ifail_iland_det, ifail_isnow_det, ifail_iice_det, ifail_iwater_det, ifail_imix_det, &
@@ -294,7 +295,7 @@ contains
   use radinfo, only: iland_det, isnow_det, iwater_det, imix_det, iice_det, &
                       iomg_det, itopo_det, isst_det,iwndspeed_det
   use qcmod, only: setup_tzr_qc,ifail_scanedge_qc,ifail_outside_range
-  use state_vectors, only: svars3d, levels, svars2d, ns3d, nsdim
+  use state_vectors, only: svars3d, levels, svars2d, ns3d
   use oneobmod, only: lsingleradob,obchan,oblat,oblon,oneob_type
   use correlated_obsmod, only: corr_adjust_jacobian, idnames
   use radiance_mod, only: rad_obs_type,radiance_obstype_search,radiance_ex_obserr,radiance_ex_biascor
@@ -360,7 +361,6 @@ contains
   logical cao_flag                       
   logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,ahi,mhs,abi
   type(sparr2) :: dhx_dx
-  real(r_single), dimension(nsdim) :: dhx_dx_array
   logical avhrr,avhrr_navy,lextra,ssu,iasi,cris,seviri,atms
   logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig,amsr2,gmi,saphir
   logical ssmis_las,ssmis_uas,ssmis_env,ssmis_img
@@ -380,7 +380,7 @@ contains
   real(r_kind),dimension(npred+2):: predterms
   real(r_kind),dimension(npred+2,nchanl):: predbias
   real(r_kind),dimension(npred,nchanl):: pred,predchan
-  real(r_kind),dimension(nchanl):: err2,tbc0,raterr2,wgtjo
+  real(r_kind),dimension(nchanl):: err2,tbc0,tb_obs0,raterr2,wgtjo
   real(r_kind),dimension(nchanl):: varinv0
   real(r_kind),dimension(nchanl):: varinv,varinv_use,error0,errf,errf0
   real(r_kind),dimension(nchanl):: tb_obs,tbc,tbcnob,tlapchn,tb_obs_sdv
@@ -548,6 +548,7 @@ contains
 
         ich(jc)=j
         do i=1,npred
+           if (iuse_rad(j)==4) predx(i,j)=zero
            predchan(i,jc)=predx(i,j)
         end do
 !
@@ -997,9 +998,11 @@ contains
                  pred(npred-j+1,i)=pred(npred,i)**j
               end do
               cbias(nadir,mm)=zero
-              do j=1,angord
-                 cbias(nadir,mm)=cbias(nadir,mm)+predchan(npred-j+1,i)*pred(npred-j+1,i)
-              end do
+              if (iuse_rad(mm)/=4) then
+                 do j=1,angord
+                    cbias(nadir,mm)=cbias(nadir,mm)+predchan(npred-j+1,i)*pred(npred-j+1,i)
+                 end do
+              end if
            end do
         end if
 
@@ -1172,6 +1175,7 @@ contains
            if (retrieval) then
               call spline_cub(fbias(:,mm),tsavg5,ys_bias_sst)
               predbias(npred+2,i) = ys_bias_sst
+              if (iuse_rad(mm)==4) predbias(npred+2,i) = zero 
            endif
 
 !          tbc    = obs - guess after bias correction
@@ -1222,7 +1226,7 @@ contains
               tsim_clr_bc(i)=tsim_clr_bc(i)+predbias(npred+2,i)
            end do
 
-           if(amsua) call ret_amsua(tsim_bc,nchanl,tsavg5,zasat,clw_guess_retrieval,ierrret)
+           if(amsua.or.atms) call ret_amsua(tsim_bc,nchanl,tsavg5,zasat,clw_guess_retrieval,ierrret)
            if(gmi) then
              call gmi_37pol_diff(tsim_bc(6),tsim_bc(7),tsim_clr_bc(6),tsim_clr_bc(7),clw_guess_retrieval,ierrret)
              call gmi_37pol_diff(tb_obs(6),tb_obs(7),tsim_clr_bc(6),tsim_clr_bc(7),clw_obs,ierrret)
@@ -1422,20 +1426,10 @@ contains
               aivals,errf,varinv)
            
 
-!  ---------- SEVIRI  -------------------
-!       SEVIRI Q C
+!  ---------- SEVIRI, AHI,ABI  -------------------
+!       SEVIRI, AHI,ABI Q C
 
-        else if (seviri) then
-
-           cld = 100-data_s(iclr_sky,n)
-
-           call qc_seviri(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n), &
-              zsges,tzbgr,tbc,tnoise,temp,wmix,emissivity_k,ts,id_qc,aivals,errf,varinv)
-!
-!  ---------- ABI  -------------------
-!       ABI Q C
-
-        else if (abi) then
+        else if (seviri .or. abi .or. ahi) then
            do i=1,nchanl
               m=ich(i)
               if (varinv(i) < tiny_r_kind) then
@@ -1453,18 +1447,21 @@ contains
               tb_obs_sdv(i) = data_s(i+32,n)
            end do
 
-           call qc_abi(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n), &
+           call qc_geocsr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n), &
               zsges,trop5,tzbgr,tsavg5,tb_obs_sdv,tbc,tb_obs,tnoise,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,   &
-              id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax)
+              id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,abi,ahi,seviri)
 
            cld = 100-data_s(iclr_sky,n)
 
 !          if rclrsky < 98%, toss data for lowest water-vapor and surface channels
            if(data_s(iclr_sky,n)<98.0_r_kind) then
               do i=1,nchanl
-                 if(i/=2 .and. i/=3) then
+                 if((abi .or. ahi) .and. i/=2 .and. i/=3) then
                     varinv(i)=zero
                     varinv_use(i)=zero
+                 end if
+                 if(seviri .and. i/=2) then
+                    varinv(i)=zero
                  end if
               end do
            end if
@@ -1472,7 +1469,7 @@ contains
 !
 !          additional qc for surface and  chn7.3: use split window chns to remove opaque clouds
            do i = 1,nchanl
-              if(i/=2 .and. i/=3) then
+              if( (abi .or. ahi ).and. i/=2 .and. i/=3 ) then
                 if( varinv(i) > tiny_r_kind .and. &
                    (tb_obs(7)-tb_obs(8))-(tsim(7)-tsim(8)) <= -0.75_r_kind) then
                     varinv(i)=zero
@@ -1734,6 +1731,7 @@ contains
         enddo
 
         tbc0=tbc
+        tb_obs0=tb_obs
         varinv0 = varinv
         raterr2 = zero
         err2 = one/error0**2
@@ -1755,7 +1753,7 @@ contains
             rsqrtinv=zero
             rinvdiag=zero
             account_for_corr_obs = corr_adjust_jacobian(iinstr,nchanl,nsigradjac,ich,varinv,&
-                                               tbc,err2,raterr2,wgtjo,jacobian,cor_opt,iii,rsqrtinv,rinvdiag)
+                                               tbc,tb_obs,err2,raterr2,wgtjo,jacobian,cor_opt,iii,rsqrtinv,rinvdiag)
             varinv = wgtjo
           endif
         endif
@@ -2206,9 +2204,10 @@ contains
            call nc_diag_header("New_pc4pred",          inewpc         )        ! indicator of newpc4pred (1 on, 0 off)
            call nc_diag_header("ioff0",                ioff0          )
            call nc_diag_header("ijacob",               ijacob         )
-!           call nc_diag_header("Number_of_state_vars", nsdim          )
-           call nc_diag_header("jac_nnz", nsigradjac)
-           call nc_diag_header("jac_nind", nvarjac)
+           if (save_jacobian) then
+             call nc_diag_header("jac_nnz", nnz)
+             call nc_diag_header("jac_nind", nind)
+           endif
 
 !           call nc_diag_header("Outer_Loop_Iteration", headfix%jiter)
 !           call nc_diag_header("Satellite_Sensor", headfix%isis)
@@ -2305,6 +2304,7 @@ contains
            if (.not.microwave) then
               diagbuf(25)  = cld                              ! cloud fraction (%)
               diagbuf(26)  = cldp                             ! cloud top pressure (hPa)
+              if (abi) diagbuf(26) = data_s(32,n)             ! cldfrc from bufr
            else
               if((radmod%lcloud_fwd .and. sea) .or. gmi .or. amsr2) then
                    diagbuf(25)  = clw_obs                     ! clw (kg/m**2) from retrievals
@@ -2344,7 +2344,7 @@ contains
            end if
 
            do i=1,nchanl_diag
-              diagbufchan(1,i)=tb_obs(ich_diag(i))       ! observed brightness temperature (K)
+              diagbufchan(1,i)=tb_obs0(ich_diag(i))      ! observed brightness temperature (K)
               diagbufchan(2,i)=tbc0(ich_diag(i))         ! observed - simulated Tb with bias corrrection (K)
               diagbufchan(3,i)=tbcnob(ich_diag(i))       ! observed - simulated Tb with no bias correction (K)
               errinv = sqrt(varinv0(ich_diag(i)))
@@ -2359,7 +2359,7 @@ contains
               else
                  diagbufchan(6,i)=emissivity(ich_diag(i))             ! surface emissivity
               endif
-              if(abi) diagbufchan(6,i)=data_s(32+i,n)                 ! temporarily store BT stdev
+              if(abi .or. ahi .or. seviri) diagbufchan(6,i)=data_s(32+i,n)  ! temporarily store BT stdev
               diagbufchan(7,i)=tlapchn(ich_diag(i))                   ! stability index
               if (radmod%lcloud_fwd) then
                  if (radmod%lcloud_fwd .and. gmi .and. cld_rbc_idx(ich_diag(i)) == zero) then
@@ -2509,6 +2509,7 @@ contains
                  call nc_diag_metadata("Sol_Zenith_Angle",      sngl(pangs)                         ) ! solar zenith angle (degrees)
                  call nc_diag_metadata("Sol_Azimuth_Angle",     sngl(data_s(isazi_ang,n))           ) ! solar azimuth angle (degrees)
                  call nc_diag_metadata("Sun_Glint_Angle",       sngl(sgagl)                         ) ! sun glint angle (degrees) (sgagl)
+                 call nc_diag_metadata("Scan_Angle",            sngl(data_s(iscan_ang,n)*rad2deg)   ) ! scan angle
 
                  call nc_diag_metadata("Water_Fraction",        sngl(surface(1)%water_coverage)     ) ! fractional coverage by water
                  call nc_diag_metadata("Land_Fraction",         sngl(surface(1)%land_coverage)      ) ! fractional coverage by land
@@ -2572,11 +2573,17 @@ contains
                  call nc_diag_metadata("SST_Cool_layer_tdrop",     sngl(data_s(idtc,n))              )       ! dt_cool at zob
                  call nc_diag_metadata("SST_dTz_dTfound",          sngl(data_s(itz_tr,n))            )       ! d(Tz)/d(Tr)
 
-                 call nc_diag_metadata("Observation",                           sngl(tb_obs(ich_diag(i)))  )     ! observed brightness temperature (K)
-                 call nc_diag_metadata("Obs_Minus_Forecast_adjusted",           sngl(tbc0(ich_diag(i)  ))  )     ! observed - simulated Tb with bias corrrection (K)
+                 call nc_diag_metadata("Observation",                           sngl(tb_obs0(ich_diag(i)))  )     ! observed brightness temperature (K)
                  call nc_diag_metadata("Obs_Minus_Forecast_unadjusted",         sngl(tbcnob(ich_diag(i)))  )     ! observed - simulated Tb with no bias correction (K)
+                 call nc_diag_metadata("Obs_Minus_Forecast_adjusted",           sngl(tbc0(ich_diag(i)  ))  )     ! observed - simulated Tb with bias corrrection (K)
                  errinv = sqrt(varinv0(ich_diag(i)))
                  call nc_diag_metadata("Inverse_Observation_Error",             sngl(errinv)          )
+                 if (save_jacobian .and. allocated(idnames)) then
+                 call nc_diag_metadata("Observation_scaled",                    sngl(tb_obs(ich_diag(i)))  )     ! observed brightness temperature (K) scaled by R^{-1/2}
+                 call nc_diag_metadata("Obs_Minus_Forecast_adjusted_scaled",    sngl(tbc(ich_diag(i)  ))  )     ! observed - simulated Tb with bias corrrection (K) scaled by R^{-1/2}
+                 errinv = sqrt(varinv(ich_diag(i)))
+                 call nc_diag_metadata("Inverse_Observation_Error_scaled",      sngl(errinv)          )
+                 endif
                  if (save_jacobian) then
                     j = 1
                     do ii = 1, nvarjac
@@ -2606,7 +2613,6 @@ contains
                        endif
                     enddo
 
-                    call fullarray(dhx_dx, dhx_dx_array)
                     call nc_diag_data2d("Observation_Operator_Jacobian_stind", dhx_dx%st_ind)
                     call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind)
                     call nc_diag_data2d("Observation_Operator_Jacobian_val",  real(dhx_dx%val,r_single))

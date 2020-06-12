@@ -34,6 +34,11 @@ program getsigensstatp
     use nemsio_module, only: nemsio_init,nemsio_open,nemsio_close, &
                              nemsio_gfile,nemsio_getfilehead,nemsio_charkind8, &
                              nemsio_readrec,nemsio_readrecv
+    use module_fv3gfs_ncio, only: open_dataset, create_dataset, read_attribute, &
+                             Dataset, Dimension, close_dataset, &
+                             read_vardata, write_attribute, write_vardata, &
+                             get_dim, quantize_data
+
 
     implicit none
 
@@ -53,13 +58,17 @@ program getsigensstatp
     integer,dimension(:),allocatable :: new_group_members,reclev
     real(r_single),allocatable,dimension(:,:) :: rwork_mem,rwork_avg
     real(r_single),allocatable,dimension(:) :: glats,gwts
-    logical :: sigio,nemsio
-    logical :: do_icmr = .false.
+    real(4), allocatable, dimension(:,:,:) :: values_3d
+    real(4), allocatable, dimension(:,:) :: values_2d
+    logical :: sigio,nemsio,ncio
+!   logical :: do_icmr = .false.
     logical :: do_hydro = .false.
 
     type(sigio_head)   :: sigheadi
     type(sigio_data)   :: sigdatai
     type(nemsio_gfile) :: gfile
+    type(Dataset) :: dset
+    type(Dimension) :: londim,latdim,levdim
 
     ! Initialize mpi, mype is process number, npe is total number of processes.
     call mpi_init(iret)
@@ -118,48 +127,77 @@ program getsigensstatp
 
     nemsio = .false.
     sigio  = .false.
+    ncio = .false.
 
 ! Process input files (one file per task)
     if ( mype1 <= nanals ) then
 
-        call nemsio_init(iret=iret)
-
         write(charnanal,'(i3.3)') mype1
         filenamein = trim(adjustl(datapath)) // trim(adjustl(filepref)) // '_mem' // charnanal
 
+        dset = open_dataset(filenamein,errcode=iret)
+        if (iret == 0) then
+           ncio = .true.
+        else
+           ncio = .false.
+        end if
+        if (.not. ncio) then
+            call nemsio_init(iret=iret)
+            call nemsio_open(gfile,trim(filenamein),'READ',iret=iret)
+            if (iret == 0) then
+               nemsio = .true.
+            else
+               nemsio = .false.
+            endif
+        endif
+        if (.not. ncio .and. .not. nemsio) then
+            call sigio_srohdc(iunit,trim(filenamein),sigheadi,sigdatai,iret)
+            if (iret == 0) then
+               sigio = .true.
+            else
+               sigio = .false.
+            endif
+        endif
+
+        if ( .not. ncio .and. .not. nemsio .and. .not. sigio ) then
+           write(6,'(3a)')'***ERROR*** ',trim(filenamein),' contains unrecognized file format. ABORT!'
+           call mpi_abort(mpi_comm_world,99,iret)
+           stop
+        end if
+
+!    Read each ensemble member
         ! Read each ensemble member
-        call sigio_srohdc(iunit,trim(adjustl(filenamein)),sigheadi,sigdatai,iret)
-        if ( iret == 0 ) then
-            sigio = .true.
+        if (ncio) then
+           if (mype == 0) write(6,*) 'Read netcdf ',trim(filenamein)
+           londim = get_dim(dset,'grid_xt'); lonb = londim%len
+           latdim = get_dim(dset,'grid_yt'); latb = latdim%len
+           levdim = get_dim(dset,'pfull');   nlevs = levdim%len
+           call read_attribute(dset, 'ncnsto', ntrac)
+           ntrunc = latb-2
+        end if
+        if (sigio) then
             write(6,'(3a,i5)')'Read sigio ',trim(filenamein),' iret = ',iret
             ntrunc  = sigheadi%jcap
             ntrac   = sigheadi%ntrac
             nlevs   = sigheadi%levs
             latb    = sigheadi%latf
             lonb    = sigheadi%lonf
-        else
-            call nemsio_open(gfile,trim(filenamein),'READ',iret=iret)
-            if ( iret == 0 ) then
-                nemsio = .true.
-                call nemsio_getfilehead(gfile, nrec=nrec, jcap=ntrunc, &
-                dimx=lonb, dimy=latb, dimz=nlevs, ntrac=ntrac, gdatatype=dtype, iret=iret)
-                write(6,'(5a,i5)')'Read nemsio ',trim(filenamein), ' dtype = ', trim(adjustl(dtype)),' iret = ',iret
-                if ( ntrunc < 0 ) ntrunc = latb - 2
-                allocate(reclev(nrec),recnam(nrec))
-                call nemsio_getfilehead(gfile,reclev=reclev,iret=iret)
-                call nemsio_getfilehead(gfile,recname=recnam,iret=iret)
-            else
-                write(6,'(3a)')'***ERROR*** ',trim(filenamein),' contains unrecognized file format. ABORT!'
-                call mpi_abort(mpi_comm_world,99,iret)
-                stop
-            endif
-          ! do_icmr = variable_exist('icmr')
-            do_hydro = .false.  ! set to false to keep the file size small
+        end if
+        if (nemsio) then
+           call nemsio_getfilehead(gfile, nrec=nrec, jcap=ntrunc, &
+              dimx=lonb, dimy=latb, dimz=nlevs, ntrac=ntrac, gdatatype=dtype, iret=iret)
+           write(6,'(5a,i5)')'Read nemsio ',trim(filenamein), ' dtype = ', trim(adjustl(dtype)),' iret = ',iret
+           if ( ntrunc < 0 ) ntrunc = latb - 2
+           allocate(reclev(nrec),recnam(nrec))
+           call nemsio_getfilehead(gfile,reclev=reclev,iret=iret)
+           call nemsio_getfilehead(gfile,recname=recnam,iret=iret)
+           !do_icmr = variable_exist('icmr')
+           do_hydro = .false.  ! set to false to keep the file size small
         endif
 
         if ( mype == 0 ) then
             write(6,'(a)')   ' '
-            write(6,'(2(a,l1))')'Computing ensemble mean and spread with nemsio = ',nemsio,' , sigio = ',sigio
+            write(6,'(2(a,l1))')'Computing ensemble mean and spread with nemsio = ',nemsio,' , sigio = ',sigio, ' , ncio = ',ncio
             write(6,'(a)')   ' '
         endif
 
@@ -247,6 +285,47 @@ program getsigensstatp
             enddo
             call nemsio_close(gfile,iret=iret)
 
+        elseif ( ncio ) then
+           call read_vardata(dset,'pressfc',values_2d) 
+           rwork_mem(:,1) = reshape(values_2d,(/npts/))
+           deallocate(values_2d)
+           call read_vardata(dset,'ugrd',values_3d)
+           do k = 1,nlevs
+              krecu    = 1 + 0*nlevs + k
+              rwork_mem(:,krecu) = reshape(values_3d(:,:,k),(/npts/))
+           end do
+           call read_vardata(dset,'vgrd',values_3d)
+           do k = 1,nlevs
+              krecv    = 1 + 1*nlevs + k
+              rwork_mem(:,krecv) = reshape(values_3d(:,:,k),(/npts/))
+           end do
+           call read_vardata(dset,'tmp',values_3d)
+           do k = 1,nlevs
+              krect    = 1 + 2*nlevs + k
+              rwork_mem(:,krect) = reshape(values_3d(:,:,k),(/npts/))
+           end do
+           call read_vardata(dset,'spfh',values_3d)
+           do k = 1,nlevs
+              krecq    = 1 + 3*nlevs + k
+              rwork_mem(:,krecq) = reshape(values_3d(:,:,k),(/npts/))
+           end do
+           call read_vardata(dset,'o3mr',values_3d)
+           do k = 1,nlevs
+              krecoz   = 1 + 4*nlevs + k
+              rwork_mem(:,krecoz) = reshape(values_3d(:,:,k),(/npts/))
+           end do
+           call read_vardata(dset,'clwmr',values_3d)
+           do k = 1,nlevs
+              kreccwmr = 1 + 5*nlevs + k
+              rwork_mem(:,kreccwmr) = reshape(values_3d(:,:,k),(/npts/))
+           end do
+           call read_vardata(dset,'icmr',values_3d)
+           do k = 1,nlevs
+              krecicmr = 1 + 6*nlevs + k
+              rwork_mem(:,krecicmr) = reshape(values_3d(:,:,k),(/npts/))
+           end do
+           call close_dataset(dset)
+           deallocate(values_3d)
         endif
 
         call mpi_allreduce(rwork_mem,rwork_avg,nsize,mpi_real4,mpi_sum,new_comm,iret)
@@ -263,7 +342,6 @@ program getsigensstatp
 
         if ( mype == 0 ) call write_to_disk('spread')
 
-        deallocate(rwork_mem,rwork_avg)
 
     ! Jump here if more mpi processors than files to process
     else
@@ -271,6 +349,7 @@ program getsigensstatp
     endif
 
     call mpi_barrier(mpi_comm_world,iret)
+    deallocate(rwork_mem,rwork_avg)
 
     deallocate(new_group_members)
     if ( mype == 0 ) deallocate(glats)

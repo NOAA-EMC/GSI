@@ -25,18 +25,26 @@ program getsfcensmeanp
   use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
   use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_readrec,&
        nemsio_writerec,nemsio_readrecv,nemsio_writerecv
+  use module_fv3gfs_ncio, only: open_dataset, create_dataset, read_attribute, &
+                           Dataset, Dimension, close_dataset, &
+                           read_vardata, write_attribute, write_vardata, &
+                           get_dim
 
   implicit none
 
   real(4),parameter:: zero=0.0_4
 
-  logical:: nemsio, sfcio
+  logical:: nemsio, sfcio, ncio
+
+  type(Dataset) :: dset,dseto
+  type(Dimension) :: londim,latdim
+  real(4), allocatable, dimension(:,:) :: values_2d, values_2d_avg
 
   character*500 filenamein,filenameout,datapath,fileprefix
   character*3 charnanal
   integer lunin,lunout,iret,nanals,k
   integer mype,mype1,npe,orig_group, new_group, new_comm
-  integer nrec, lonb, latb, n, npts
+  integer nrec, lonb, latb, n, npts, nvar
   integer,dimension(7):: idate
   integer,dimension(:),allocatable:: new_group_members
   real(8) rnanals
@@ -106,28 +114,39 @@ program getsfcensmeanp
 
   sfcio=.false.
   nemsio=.false.
+  ncio=.false.
 
 ! Process input files (one file per task)
   if (mype1 <= nanals) then
 
-     call nemsio_init(iret=iret)
-
      write(charnanal,'(i3.3)') mype1
      filenamein = trim(adjustl(datapath))// &
           trim(adjustl(fileprefix))//'_mem'//charnanal
-     call sfcio_srohdc(lunin,filenamein,sfcheadi,sfcdatai,iret)
-     if (iret == 0 ) then
-        sfcio = .true.
+
+     dset = open_dataset(filenamein,errcode=iret)
+     if (iret == 0) then
+        ncio = .true.
      else
-        call nemsio_open(gfile,trim(filenamein),'READ',iret=iret)
+        ncio = .false.
+     endif
+
+     if (.not. ncio) then
+        call nemsio_init(iret=iret)
+        call sfcio_srohdc(lunin,filenamein,sfcheadi,sfcdatai,iret)
         if (iret == 0 ) then
-           nemsio = .true.
+           sfcio = .true.
         else
-           write(6,*)'***ERROR*** ',trim(filenamein),' contains unrecognized format.  ABORT'
+           call nemsio_open(gfile,trim(filenamein),'READ',iret=iret)
+           if (iret == 0 ) then
+              nemsio = .true.
+           else
+              write(6,*)'***ERROR*** ',trim(filenamein),' contains unrecognized format.  ABORT'
+           endif
         endif
      endif
-     if (.not.nemsio .and. .not.sfcio) goto 100
-     if (mype==0) write(6,*)'computing mean with nemsio=',nemsio,' sfcio=',sfcio
+     if (.not. ncio .and. .not.nemsio .and. .not.sfcio) goto 100
+     if (mype==0) write(6,*)'computing mean with nemsio=',nemsio,&
+     ' sfcio=',sfcio,' ncio=',ncio
 
 
      if (sfcio) then
@@ -281,8 +300,40 @@ program getsfcensmeanp
            call nemsio_close(gfileo,iret=iret)
            write(6,*)'Write ensmemble mean ',trim(filenameout),' iret=',iret
         endif
+     elseif (ncio) then
+        londim = get_dim(dset,'grid_xt'); lonb = londim%len
+        latdim = get_dim(dset,'grid_yt'); latb = latdim%len
+        allocate(values_2d_avg(lonb,latb))
+        if (mype == 0) then
+           dseto = create_dataset(filenameout, dset, copy_vardata=.true.)
+           print *,'opened netcdf file ',trim(filenameout)
+        endif
+        do nvar=1,dset%nvars
+!          Following fields are not averaged
+!            land = land/sea mask
+!            vtype = veg type
+!            sltype = slope type
+!            sotype = soil type
+!            orog  = orography
+           if (dset%variables(nvar)%ndims < 3 .or. &
+               trim(dset%variables(nvar)%name) == 'land' .or. &
+               trim(dset%variables(nvar)%name) == 'vtype' .or. &
+               trim(dset%variables(nvar)%name) == 'sltype' .or. &
+               trim(dset%variables(nvar)%name) == 'sotyp' .or. &
+               trim(dset%variables(nvar)%name) == 'orog') then
+              cycle
+           endif
+           call read_vardata(dset,trim(dset%variables(nvar)%name),values_2d)
+           call mpi_allreduce(values_2d,values_2d_avg,lonb*latb,mpi_real4,mpi_sum,new_comm,iret)
+           values_2d_avg = values_2d_avg * rnanals
+           if (mype == 0) then
+             print *,'writing ens mean ',trim(dset%variables(nvar)%name)
+             call write_vardata(dseto,trim(dset%variables(nvar)%name),values_2d_avg)
+           endif
+        enddo
+        if (mype == 0) call close_dataset(dseto)
+        deallocate(values_2d,values_2d_avg)
      endif
-
 ! Jump here if more mpi processors than files to process
   else
      write(6,*) 'No files to process for mpi task = ',mype
@@ -291,7 +342,7 @@ program getsfcensmeanp
 100 continue
   call mpi_barrier(mpi_comm_world,iret)
 
-  if (mype1 <= nanals .and. .not.nemsio .and. .not.sfcio) then
+  if (mype1 <= nanals .and. .not. ncio .and. .not.nemsio .and. .not.sfcio) then
      write(6,*)'***ERROR***  invalid surface file format'
      call MPI_Abort(MPI_COMM_WORLD,98,iret)
      stop

@@ -344,7 +344,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
            if(abs(tdiff) > twind+one_minute) cycle read_loop
         endif
  
-        crit0 = 0.00_r_kind        ! forced to >= 0.01_r_kind in tdiff2crit()
+        crit0 = 0.01_r_kind
         timeinflat=two
         call tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
 

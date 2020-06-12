@@ -43,8 +43,9 @@ module gridinfo
 !
 !$$$
 
-use mpisetup, only: nproc, mpi_integer, mpi_real4, mpi_comm_world
-use params, only: datapath,nlevs,nlons,nlats,use_gfs_nemsio, fgfileprefixes
+use mpisetup, only: nproc, mpi_integer, mpi_real4
+use mpimod, only: mpi_comm_world
+use params, only: datapath,nlevs,nlons,nlats,use_gfs_nemsio,use_gfs_ncio,fgfileprefixes
 use kinds, only: r_kind, i_kind, r_double, r_single
 use constants, only: one,zero,pi,cp,rd,grav,rearth,max_varname_length
 use specmod, only: sptezv_s, sptez_s, init_spec_vars, isinitialized, asin_gaulats, &
@@ -77,8 +78,12 @@ use sigio_module, only: sigio_head, sigio_data, sigio_sclose, sigio_sropen, &
 use nemsio_module, only: nemsio_gfile,nemsio_open,nemsio_close,&
                          nemsio_getfilehead,nemsio_getheadvar,&
                          nemsio_readrecv,nemsio_init, nemsio_realkind
+use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                        read_attribute, close_dataset, get_dim, read_vardata 
 implicit none
 
+type(Dataset) :: dset
+type(Dimension) :: londim,latdim,levdim
 character(len=120), intent(in) :: fileprefix
 logical, intent(in)            :: reducedgrid
 
@@ -86,7 +91,7 @@ integer(i_kind) nlevsin, ierr, iunit, k, nn, idvc
 character(len=500) filename
 integer(i_kind) iret,i,j,nlonsin,nlatsin
 real(r_kind), allocatable, dimension(:) :: ak,bk,spressmn,tmpspec
-real(r_kind), allocatable, dimension(:,:) :: pressimn,presslmn
+real(r_kind), allocatable, dimension(:,:) :: pressimn,presslmn,values_2d
 real(r_single),allocatable,dimension(:,:,:) :: nems_vcoord
 real(r_kind) kap,kapr,kap1
 real(nemsio_realkind), dimension(nlons*nlats) :: nems_wrk
@@ -100,8 +105,8 @@ kapr = cp/rd
 kap1 = kap + one
 nlevs_pres=nlevs+1
 if (nproc .eq. 0) then
+filename = trim(adjustl(datapath))//trim(adjustl(fileprefix))//"ensmean"
 if (use_gfs_nemsio) then
-     filename = trim(adjustl(datapath))//trim(adjustl(fileprefix))//"ensmean"
      call nemsio_init(iret=iret)
      if(iret/=0) then
         write(6,*)'grdinfo: gfs model: problem with nemsio_init, iret=',iret, ', file: ', trim(filename)
@@ -129,8 +134,19 @@ if (use_gfs_nemsio) then
        print *,'got',nlonsin,nlatsin,nlevsin
        call stop2(23)
      end if
+else if (use_gfs_ncio) then
+     dset = open_dataset(filename)
+     londim = get_dim(dset,'grid_xt'); nlonsin = londim%len
+     latdim = get_dim(dset,'grid_yt'); nlatsin = latdim%len
+     levdim = get_dim(dset,'pfull');   nlevsin = levdim%len
+     idvc = 2; ntrunc = nlatsin-2
+     if (nlons /= nlonsin .or. nlats /= nlatsin .or. nlevs /= nlevsin) then
+       print *,'incorrect dims in netcdf file'
+       print *,'expected',nlons,nlats,nlevs
+       print *,'got',nlonsin,nlatsin,nlevsin
+       call stop2(23)
+     end if
 else
-     filename = trim(adjustl(datapath))//trim(adjustl(fileprefix))//"ensmean"
      ! define sighead on all tasks.
      call sigio_sropen(iunit,trim(filename),iret)
      if (iret /= 0) then
@@ -205,6 +221,23 @@ if (nproc .eq. 0) then
       call nemsio_close(gfile, iret=iret)
       ptop = ak(nlevs+1)
       deallocate(ak,bk)
+   else if (use_gfs_ncio) then
+      call read_vardata(dset, 'pressfc', values_2d,errcode=iret)
+      if (iret /= 0) then
+         print *,'error reading ps in gridinfo_gfs'
+         call stop2(11)
+      endif
+      ! convert to 1d array, units to millibars, flip so lats go N to S.
+      spressmn = 0.01_r_kind*reshape(values_2d,(/nlons*nlats/))
+      call read_attribute(dset, 'ak', ak)
+      call read_attribute(dset, 'bk', bk)
+      call close_dataset(dset)
+      ! pressure at interfaces
+      do k=1,nlevs+1
+         pressimn(:,k) = 0.01_r_kind*ak(nlevs-k+2)+bk(nlevs-k+2)*spressmn(:)
+      enddo
+      ptop = 0.01_r_kind*ak(1)
+      deallocate(ak,bk,values_2d)
    else
 ! get pressure from ensemble mean,
 ! distribute to all processors.

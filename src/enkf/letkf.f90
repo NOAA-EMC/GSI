@@ -30,8 +30,8 @@ module letkf
 !  operator calcuation, is performed by a separate program using the GSI
 !  forward operator code).  Although all the observation variable ensemble
 !  members sometimes cannot fit in memory, they are necessary before LETKF core
-!  process. So they are saved in all processors. If the code is compiled with
-!  -DMPI3, a single copy of the observation space ensemble is stored on each
+!  process. To reduce the overall memory footprint
+!  a single copy of the observation space ensemble is stored on each
 !  compute node and shared among processors.
 !
 !  The parameter nobsl_max controls
@@ -86,7 +86,12 @@ module letkf
 !
 !$$$
 
-use mpisetup
+use mpimod, only: mpi_comm_world
+use mpisetup, only: mpi_real4,mpi_sum,mpi_comm_io,mpi_in_place,numproc,nproc,&
+                mpi_integer,mpi_wtime,mpi_status,mpi_real8,mpi_max,mpi_realkind,&
+                mpi_min,numproc_shm,mpi_comm_shmem,mpi_info_null,nproc_shm,&
+                mpi_comm_shmemroot,mpi_mode_nocheck,mpi_lock_exclusive,&
+                mpi_address_kind
 use, intrinsic :: iso_c_binding
 use omp_lib, only: omp_get_num_threads,omp_get_thread_num
 use covlocal, only:  taper, latval
@@ -152,17 +157,6 @@ real(r_single),allocatable,dimension(:) :: dep
 ! kdtree stuff
 type(kdtree2_result),dimension(:),allocatable :: sresults
 integer(i_kind), dimension(:), allocatable :: indxassim, indxob
-#ifdef MPI3
-! pointers used for MPI-3 shared memory manipulations.
-real(r_single), pointer, dimension(:,:) :: anal_ob_fp ! Fortran pointer
-type(c_ptr)                             :: anal_ob_cp ! C pointer
-real(r_single), pointer, dimension(:,:) :: anal_ob_modens_fp ! Fortran pointer
-type(c_ptr)                             :: anal_ob_modens_cp ! C pointer
-integer disp_unit, shm_win, shm_win2
-integer(MPI_ADDRESS_KIND) :: win_size, nsize, nsize2, win_size2
-integer(MPI_ADDRESS_KIND) :: segment_size
-#endif
-real(r_single), allocatable, dimension(:) :: buffer
 real(r_kind) eps
 
 eps = epsilon(0.0_r_single) ! real(4) machine precision
@@ -182,105 +176,11 @@ if (.not. kdobs .and. nproc .eq. 0) then
   print *,'using brute-force search instead of kdtree in LETKF'
 endif
 
-t1 = mpi_wtime()
-
 if (neigv > 0) then
    nens = nanals*neigv ! modulated ensemble size
 else
    nens = nanals
 endif
-
-#ifdef MPI3
-! setup shared memory segment on each node that points to
-! observation prior ensemble.
-! shared window size will be zero except on root task of
-! shared memory group on each node.
-disp_unit = num_bytes_for_r_single ! anal_ob is r_single
-nsize = nobstot*nanals
-nsize2 = nobstot*nanals*neigv
-if (nproc_shm == 0) then
-   win_size = nsize*disp_unit
-   win_size2 = nsize2*disp_unit
-else
-   win_size = 0
-   win_size2 = 0
-endif
-call MPI_Win_allocate_shared(win_size, disp_unit, MPI_INFO_NULL,&
-                             mpi_comm_shmem, anal_ob_cp, shm_win, ierr)
-if (neigv > 0) then
-   call MPI_Win_allocate_shared(win_size2, disp_unit, MPI_INFO_NULL,&
-                                mpi_comm_shmem, anal_ob_modens_cp, shm_win2, ierr)
-endif
-if (nproc_shm == 0) then
-   ! create shared memory segment on each shared mem comm
-   call MPI_Win_lock(MPI_LOCK_EXCLUSIVE,0,MPI_MODE_NOCHECK,shm_win,ierr)
-   call c_f_pointer(anal_ob_cp, anal_ob_fp, [nanals, nobstot])
-   ! bcast entire obs prior ensemble from root task 
-   ! to a single task on each node, assign to shared memory window.
-   ! send one ensemble member at a time.
-   allocate(buffer(nobstot))
-   do nanal=1,nanals
-      if (nproc == 0) buffer(1:nobstot) = anal_ob(nanal,1:nobstot)
-      if (nproc_shm == 0) then
-         call mpi_bcast(buffer,nobstot,mpi_real4,0,mpi_comm_shmemroot,ierr)
-         anal_ob_fp(nanal,1:nobstot) = buffer(1:nobstot)
-      end if 
-   end do
-   if (neigv > 0) then
-      call MPI_Win_lock(MPI_LOCK_EXCLUSIVE,0,MPI_MODE_NOCHECK,shm_win2,ierr)
-      call c_f_pointer(anal_ob_modens_cp, anal_ob_modens_fp, [nens, nobstot])
-      do nanal=1,nens
-         if (nproc == 0) buffer(1:nobstot) = anal_ob_modens(nanal,1:nobstot)
-         if (nproc_shm == 0) then
-            call mpi_bcast(buffer,nobstot,mpi_real4,0,mpi_comm_shmemroot,ierr)
-            anal_ob_modens_fp(nanal,1:nobstot) = buffer(1:nobstot)
-         end if 
-      end do
-   endif
-   deallocate(buffer)
-   call MPI_Win_unlock(0, shm_win, ierr)
-   if (neigv > 0) call MPI_Win_unlock(0, shm_win2, ierr)
-   nullify(anal_ob_fp)
-   if (neigv > 0) nullify(anal_ob_modens_fp)
-   ! don't need anal_ob anymore
-   if (allocated(anal_ob)) deallocate(anal_ob)
-   if (allocated(anal_ob_modens)) deallocate(anal_ob_modens)
-endif
-! barrier here to make sure no tasks try to access shared
-! memory segment before it is created.
-call mpi_barrier(mpi_comm_world, ierr)
-! associate fortran pointer with c pointer to shared memory 
-! segment (containing observation prior ensemble) on each task.
-call MPI_Win_shared_query(shm_win, 0, segment_size, disp_unit, anal_ob_cp, ierr)
-call c_f_pointer(anal_ob_cp, anal_ob_fp, [nanals, nobstot])
-if (neigv > 0) then
-   call MPI_Win_shared_query(shm_win2, 0, segment_size, disp_unit, anal_ob_modens_cp, ierr)
-   call c_f_pointer(anal_ob_modens_cp, anal_ob_modens_fp, [nens, nobstot])
-endif
-#else
-! if MPI3 not available, need anal_ob on every MPI task
-! broadcast observation prior ensemble from root one ensemble member at a time.
-allocate(buffer(nobstot))
-! allocate anal_ob on non-root tasks
-if (nproc .ne. 0) allocate(anal_ob(nanals,nobstot))
-if (neigv > 0 .and. nproc .ne. 0) allocate(anal_ob_modens(nens,nobstot))
-! bcast anal_ob from root one member at a time.
-do nanal=1,nanals
-   buffer(1:nobstot) = anal_ob(nanal,1:nobstot)
-   call mpi_bcast(buffer,nobstot,mpi_real4,0,mpi_comm_world,ierr)
-   if (nproc .ne. 0) anal_ob(nanal,1:nobstot) = buffer(1:nobstot)
-end do
-if (neigv > 0) then
-   do nanal=1,nens
-      buffer(1:nobstot) = anal_ob_modens(nanal,1:nobstot)
-      call mpi_bcast(buffer,nobstot,mpi_real4,0,mpi_comm_world,ierr)
-      if (nproc .ne. 0) anal_ob_modens(nanal,1:nobstot) = buffer(1:nobstot)
-   end do
-endif
-deallocate(buffer)
-#endif
-t2 = mpi_wtime()
-if (nproc .eq. 0) print *,'time to broadcast ob prior ensemble = ',t2-t1
 
 if (nproc .eq. 0 .and. .not. deterministic) then
    print *,'perturbed obs LETKF'
@@ -300,10 +200,6 @@ endif
 if (nproc == 0 .and. .not. deterministic) then
    print *,'warning - perturbed obs not used in LETKF (deterministic=F ignored)'
 endif
-
-! apply bias correction with latest estimate of bias coeffs
-! (if bias correction update in ob space turned on).
-if (nobs_sat > 0 .and. lupd_satbiasc .and. lupd_obspace_serial) call apply_biascorr()
 
 nrej=0
 ! reset ob error to account for gross errors 
@@ -514,24 +410,12 @@ grdloop: do npt=1,numptsperproc(nproc+1)
       do nob=1,nobsl2
          nf=oindex(nob)
          if (neigv > 0) then
-#ifdef MPI3
-         hxens(1:nens,nob)=anal_ob_modens_fp(1:nens,nf) 
-#else
          hxens(1:nens,nob)=anal_ob_modens(1:nens,nf) 
-#endif
          else
-#ifdef MPI3
-         hxens(1:nens,nob)=anal_ob_fp(1:nens,nf) 
-#else
          hxens(1:nens,nob)=anal_ob(1:nens,nf) 
-#endif
          endif
          obens(1:nanals,nob) = &
-#ifdef MPI3
-         anal_ob_fp(1:nanals,nf) 
-#else
          anal_ob(1:nanals,nf) 
-#endif
          rdiag(nob)=one/oberrvaruse(nf)
          dep(nob)=ob(nf)-ensmean_ob(nf)
       end do
@@ -650,18 +534,6 @@ call mpi_reduce(nobslocal_min,nobslocal_minall,1,mpi_integer,mpi_max,0,mpi_comm_
 if (nproc == 0) print *,'min/max number of obs in local volume',nobslocal_minall,nobslocal_maxall
 if (nrej > 0 .and. nproc == 0) print *, nrej,' obs rejected by varqc'
   
-! free shared memory segement, fortran pointer to that memory.
-#ifdef MPI3
-nullify(anal_ob_fp)
-call MPI_Win_free(shm_win, ierr)
-if (neigv > 0) then
-   nullify(anal_ob_modens_fp)
-   call MPI_Win_free(shm_win2, ierr)
-endif
-#endif
-! deallocate anal_ob on non-root tasks.
-if (nproc .ne. 0 .and. allocated(anal_ob)) deallocate(anal_ob)
-if (nproc .ne. 0 .and. allocated(anal_ob_modens)) deallocate(anal_ob_modens)
 if (allocated(ens_tmp)) deallocate(ens_tmp)
 
 return
@@ -893,7 +765,7 @@ deallocate(swork1)
 ! For DEnKF factor is -0.5*C (Gamma + I)**-1 C^T (HZ)^ T R**-1/2 HXprime
 ! = -0.5 Pa (HZ)^ T R**-1/2 HXprime (Pa already computed)
 
-if (getkf .or. denkf) then ! use Gain formulation for LETKF weights
+if (getkf) then ! use Gain formulation for LETKF weights
 
 if (denkf) then
    ! use Pa = C (Gamma + I)**-1 C^T (already computed)

@@ -575,7 +575,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
 !$$$  end documentation block
     use kinds, only: r_kind,i_kind
     use mpimod, only: npe
-    use guess_grids, only: nfldsig,ges_tsen,ges_prsi
+    use guess_grids, only: ges_tsen,ges_prsi
     use gridmod, only: lat2,lon2,nsig,ijn,eta1_ll,eta2_ll,ijn_s
     use constants, only: one,fv
     use gsi_metguess_mod, only: gsi_metguess_bundle
@@ -920,7 +920,7 @@ subroutine gsi_fv3ncdf2d_read_v1(filenamein,varname,varname2,work_sub,mype_io)
 
     use kinds, only: r_kind,i_kind
     use mpimod, only: ierror,mpi_comm_world,npe,mpi_rtype,mype
-    use gridmod, only: lat2,lon2,nsig,nlat,nlon,itotsub,ijn_s,displs_s
+    use gridmod, only: lat2,lon2,nlat,nlon,itotsub,ijn_s,displs_s
     use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
     use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
     use netcdf, only: nf90_inq_varid
@@ -2072,9 +2072,9 @@ subroutine gsi_fv3ncdf_writeps_v1(filename,varname,var,mype_io,add_saved)
 !$$$ end documentation block
 
     use mpimod, only: mpi_rtype,mpi_comm_world,ierror,mype
-    use gridmod, only: lat2,lon2,nlon,nlat,lat1,lon1,nsig
+    use gridmod, only: lat2,lon2,nlon,nlat,lat1,lon1
     use gridmod, only: ijn,displs_g,itotsub,iglobal
-    use gridmod,  only: nlon_regional,nlat_regional,eta1_ll,eta2_ll
+    use gridmod,  only: nlon_regional,nlat_regional
     use mod_fv3_lola, only: fv3_ll_to_h,fv3_h_to_ll
     use general_commvars_mod, only: ltosi,ltosj
     use netcdf, only: nf90_open,nf90_close

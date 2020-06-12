@@ -41,10 +41,8 @@ contains
 subroutine mpi_initialize()
 use mpimod, only : mpi_comm_world,npe,mype
 integer ierr
-#ifdef MPI3
 integer nuse,new_group,old_group,nshmemroot,np
 integer, dimension(:), allocatable :: useprocs, itasks
-#endif
 call mpi_init(ierr)
 ! nproc is process number, numproc is total number of processes.
 call mpi_comm_rank(mpi_comm_world,nproc,ierr)
@@ -61,7 +59,6 @@ else
    call mpi_cleanup()
 endif
 
-#ifdef MPI3
 ! all the rest below only used for LETKF...
 
 ! split into shared memory sub communicators.
@@ -93,7 +90,6 @@ call MPI_GROUP_INCL(old_group,nuse,useprocs,new_group,ierr)
 deallocate(useprocs)
 call MPI_COMM_CREATE(MPI_COMM_WORLD,new_group,mpi_comm_shmemroot,ierr)
 !print *,'ierr from mpi_comm_create',ierr,mpi_comm_shmemroot
-#endif
 
 
 end subroutine mpi_initialize

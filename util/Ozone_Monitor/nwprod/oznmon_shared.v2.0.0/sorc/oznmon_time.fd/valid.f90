@@ -69,6 +69,8 @@ module valid
       logical fexist 
 
 
+      write(6,*) '--> load_base, satname = ', satname
+
       !--- initialization
       iret   = -1
       fname  = trim(satname) // '.base'
@@ -126,8 +128,12 @@ module valid
          iret = 0 
          base_loaded = .TRUE.
       else
-         write(*,*) 'WARNING:  unable to load fname for data error checking'
+         write(*,*) 'WARNING:  unable to load ', fname, ' for data error checking'
+         base_loaded = .FALSE.
       end if
+
+
+      write(6,*) '<-- load_base, base_loaded = ', base_loaded
 
 
     end subroutine load_base
@@ -235,10 +241,10 @@ module valid
       valid = .FALSE.
       bound = rmiss
 
-      if( base_loaded .eqv. .TRUE. .AND. nlevel > 1 ) then
+      if( base_loaded .eqv. .TRUE. .AND. nlevel >= 1 ) then
          if( level < 1 .OR. level > nlevel ) then
             iret = -1
-            write(*,*) 'Warning:  In validate_penalty attempt to validate level out of range', level
+            write(*,*) 'Warning:  In validate_penalty attempt to validate level out of range', level, nlevel
             valid = .TRUE.
          else if( region < 1 .OR. region > nregion ) then
             iret = -2

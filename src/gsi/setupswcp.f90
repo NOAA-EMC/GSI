@@ -69,7 +69,7 @@ subroutine setupswcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header,nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d
   use nc_diag_read_mod, only: nc_diag_read_init,nc_diag_read_get_dim,nc_diag_read_close
-  use state_vectors, only: svars3d, levels, nsdim
+  use state_vectors, only: svars3d, levels
 
   use constants, only: zero,one,tpwcon,r1000,r10, &
        tiny_r_kind,three,half,two,cg_term,huge_single,&
@@ -128,7 +128,6 @@ subroutine setupswcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
   logical proceed
   
   type(sparr2) :: dhx_dx
-  real(r_single), dimension(nsdim) :: dhx_dx_array
   integer(i_kind) :: qi_ind, nind, nnz
 
   character(8) station_id
@@ -809,7 +808,10 @@ subroutine setupswcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
 
      if (.not. append_diag) then ! don't write headers on append - the module will break?
         call nc_diag_header("date_time",ianldate )
-        call nc_diag_header("Number_of_state_vars", nsdim          )
+        if (save_jacobian) then
+          call nc_diag_header("jac_nnz", nnz)
+          call nc_diag_header("jac_nind", nind)
+        endif
      endif
 
   end subroutine init_netcdf_diag_
@@ -930,8 +932,9 @@ subroutine setupswcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
     endif
 
     if (save_jacobian) then
-       call fullarray(dhx_dx, dhx_dx_array)
-       call nc_diag_data2d("Observation_Operator_Jacobian", dhx_dx_array)
+       call nc_diag_data2d("Observation_Operator_Jacobian_stind", dhx_dx%st_ind)
+       call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind)
+       call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val,r_single))
     endif
 
   end subroutine contents_netcdf_diag_

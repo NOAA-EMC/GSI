@@ -32,13 +32,19 @@ module mpi_readobs
 !
 !$$$
   
-use kinds, only: r_kind, r_single, i_kind
+use kinds, only: r_double,i_kind,r_kind,r_single,num_bytes_for_r_single
 use params, only: ntasks_io, nanals_per_iotask, nanal1, nanal2
 use radinfo, only: npred
 use readconvobs
 use readsatobs
 use readozobs
-use mpisetup
+use mpimod, only: mpi_comm_world
+use mpisetup, only: mpi_real4,mpi_sum,mpi_comm_io,mpi_in_place,numproc,nproc,&
+                mpi_integer,mpi_wtime,mpi_status,mpi_real8,mpi_max,mpi_realkind,&
+                mpi_min,numproc_shm,mpi_comm_shmem,mpi_info_null,nproc_shm,&
+                mpi_comm_shmemroot,mpi_mode_nocheck,mpi_lock_exclusive,&
+                mpi_address_kind
+use, intrinsic :: iso_c_binding
 
 implicit none
 
@@ -52,7 +58,8 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
                       sprd_ob, ensmean_ob, ensmean_obbc, ob, &
                       oberr, oblon, oblat, obpress, &
                       obtime, oberrorig, obcode, obtype, &
-                      biaspreds, diagused,  anal_ob, anal_ob_modens, indxsat, nanals, neigv)
+                      biaspreds, diagused,  anal_ob, anal_ob_modens, anal_ob_cp, anal_ob_modens_cp, &
+                      shm_win, shm_win2, indxsat, nanals, neigv)
     character*500, intent(in) :: obspath
     character*10, intent(in) :: datestring
     character(len=10) :: id,id2
@@ -60,17 +67,23 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
     real(r_single), allocatable, dimension(:)   :: obpress,obtime,oberrorig,ensmean_obbc,sprd_ob
     integer(i_kind), allocatable, dimension(:)  :: obcode,indxsat
     integer(i_kind), allocatable, dimension(:)  :: diagused
+    ! pointers used for MPI-3 shared memory manipulations.
+    real(r_single), pointer, dimension(:,:)     :: anal_ob, anal_ob_modens
+    type(c_ptr) anal_ob_cp, anal_ob_modens_cp
+    integer shm_win, shm_win2
     real(r_single), allocatable, dimension(:,:) :: biaspreds
-    real(r_single), allocatable, dimension(:,:) :: anal_ob, anal_ob_modens
     real(r_single), allocatable, dimension(:)   :: mem_ob 
     real(r_single), allocatable, dimension(:,:) :: mem_ob_modens
     real(r_single) :: analsi,analsim1
     real(r_double) t1,t2
     character(len=20), allocatable,  dimension(:) ::  obtype
-    integer(i_kind) nob, ierr, iozproc, isatproc, neig, nens1, nens2, na, nmem,&
-            np, nobs_conv, nobs_oz, nobs_sat, nobs_tot, nanal, nanalo
+    integer(i_kind) nob, ierr, iozproc, isatproc, nens1, nens2, na, nmem,&
+            nens, nobs_conv, nobs_oz, nobs_sat, nobs_tot, nanal
     integer(i_kind) :: nobs_convdiag, nobs_ozdiag, nobs_satdiag, nobs_totdiag
     integer(i_kind), intent(in) :: nanals, neigv
+    integer(MPI_ADDRESS_KIND) :: win_size, nsize, nsize2, win_size2
+    integer(MPI_ADDRESS_KIND) :: segment_size, disp_unit
+
     iozproc=max(0,min(1,numproc-1))
     isatproc=max(0,min(2,numproc-2))
 ! get total number of conventional and sat obs for ensmean.
@@ -88,15 +101,13 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
     if(nproc == 0)print *,'total diag nobs_conv, nobs_oz, nobs_sat = ', nobs_convdiag, nobs_ozdiag, nobs_satdiag
     nobs_tot = nobs_conv + nobs_oz + nobs_sat
     nobs_totdiag = nobs_convdiag + nobs_ozdiag + nobs_satdiag
+    if (neigv > 0) then
+       nens = nanals*neigv ! modulated ensemble size
+    else
+       nens = nanals
+    endif
 ! if nobs_tot != 0 (there were some obs to read)
     if (nobs_tot > 0) then
-       if (nproc == 0) then
-          ! this array only needed on root.
-          allocate(anal_ob(nanals,nobs_tot))
-          ! note: if neigv=0 (ob space localization), this array is size zero.
-          allocate(anal_ob_modens(nanals*neigv,nobs_tot))
-       end if
-       ! these arrays needed on all processors.
        allocate(mem_ob(nobs_tot)) 
        allocate(mem_ob_modens(neigv,nobs_tot))  ! zero size if neigv=0
        allocate(sprd_ob(nobs_tot),ob(nobs_tot),oberr(nobs_tot),oblon(nobs_tot),&
@@ -108,6 +119,43 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
        print *,'no obs found!'
        call stop2(11)
     end if
+
+! setup shared memory segment on each node that points to
+! observation prior ensemble.
+! shared window size will be zero except on root task of
+! shared memory group on each node.
+    disp_unit = int(num_bytes_for_r_single,kind=MPI_ADDRESS_KIND) ! anal_ob is r_single
+    nsize = int(nobs_tot,kind=MPI_ADDRESS_KIND)*int(nanals,kind=MPI_ADDRESS_KIND)
+    nsize2 = int(nobs_tot,kind=MPI_ADDRESS_KIND)*int(nanals,kind=MPI_ADDRESS_KIND)*int(neigv,kind=MPI_ADDRESS_KIND)
+    if (nproc_shm == 0) then
+       win_size = nsize*disp_unit
+       win_size2 = nsize2*disp_unit
+       if (win_size2 < 0) then
+          print *,'win_size2 = ',win_size2
+          print *,'problem with shared window size, stopping!'
+          call stop2(11)
+       endif
+    else
+       win_size = 0
+       win_size2 = 0
+    endif
+    call MPI_Win_allocate_shared(win_size, disp_unit, MPI_INFO_NULL,&
+                                 mpi_comm_shmem, anal_ob_cp, shm_win, ierr)
+    if (neigv > 0) then
+       call MPI_Win_allocate_shared(win_size2, disp_unit, MPI_INFO_NULL,&
+                                    mpi_comm_shmem, anal_ob_modens_cp, shm_win2, ierr)
+    endif
+    ! associate fortran pointer with c pointer to shared memory 
+    ! segment (containing observation prior ensemble) on each task.
+    call MPI_Win_shared_query(shm_win, 0, segment_size, disp_unit, anal_ob_cp, ierr)
+    call c_f_pointer(anal_ob_cp, anal_ob, [nanals, nobs_tot])
+    ! initialize shared memory window.
+    anal_ob=0
+    if (neigv > 0) then
+       call MPI_Win_shared_query(shm_win2, 0, segment_size, disp_unit, anal_ob_modens_cp, ierr)
+       call c_f_pointer(anal_ob_modens_cp, anal_ob_modens, [nens, nobs_tot])
+       anal_ob_modens=0
+    endif
 
 ! read ensemble mean and every ensemble member
     if (nproc <= ntasks_io-1) then
@@ -121,6 +169,8 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
     nmem = nmem + 1 ! nmem only used if lobsdiag_forenkf=T
     id = 'ensmean'
     id2 = id
+    mem_ob=0
+    if (neigv > 0) mem_ob_modens=0
     ! if nanal>nanals, ens member data not read (only ens mean)
     if (nanal <= nanals) then
        write(id2,'(a3,(i3.3))') 'mem',nanal
@@ -181,86 +231,85 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
         id,nanal,nmem)
     end if ! read obs.
 
-!   call mpi_barrier(mpi_comm_world,ierr)  ! synch tasks.
-
-! use mpi_gather to gather ob prior ensemble on root.
-! requires allocation of nobs_tot x nanals temporory array.
-!    if (nproc == 0) then
-!       t1 = mpi_wtime()
-!       allocate(anal_obtmp(nobs_tot,nanals))
-!    endif
-!    if (nproc <= ntasks_io-1) then
-!       call mpi_gather(h_xnobc,nobs_tot,mpi_real4,&
-!       anal_obtmp,nobs_tot,mpi_real4,0,mpi_comm_io,ierr)
-!       if (nproc .eq. 0) then
-!          anal_ob = transpose(anal_obtmp); deallocate(anal_obtmp)
-!          t2 = mpi_wtime()
-!          print *,'time to create ob prior ensemble on root = ',t2-t1
-!       endif
-!    endif
-
-! use mpi_send/mpi_recv to gather ob prior ensemble on root.
-! a bit slower, but does not require large temporary array like mpi_gather.
+!   populate obs prior ensemble shared array pointer on each io task.
     if (nproc <= ntasks_io-1) then
-     if (nproc == 0) then
-        t1 = mpi_wtime()
-        anal_ob(nmem,:) = mem_ob(:)
-        ! if nproc <= ntasks_io-1, then 
-        ! nanal = nmem+nproc*nanals_per_iotask
-        do np=2,ntasks_io
-           call mpi_recv(mem_ob,nobs_tot,mpi_real4,np-1, &
-                         1,mpi_comm_io,mpi_status,ierr)
-           anal_ob(nmem+(np-1)*nanals_per_iotask,:) = mem_ob(:)
-        enddo
-        ! mem_ob_modens and anal_ob_modens not referenced unless neigv>0
-        if (neigv > 0) then
-           do neig=1,neigv
-              nanalo = neigv*(nmem-1) + neig
-              anal_ob_modens(nanalo,:) = mem_ob_modens(neig,:)
-           enddo
-           do np=2,ntasks_io
-              call mpi_recv(mem_ob_modens,neigv*nobs_tot,mpi_real4,np-1, &
-                            2,mpi_comm_io,mpi_status,ierr)
-              do neig=1,neigv
-                 na = nmem+(np-1)*nanals_per_iotask
-                 nanalo = neigv*(na-1) + neig
-                 anal_ob_modens(nanalo,:) = mem_ob_modens(neig,:)
-              enddo
-           enddo
-        endif
-        t2 = mpi_wtime()
-        print *,'time to gather ob prior ensemble on root = ',t2-t1
-
-     else ! nproc != 0
-        ! send to root.
-        call mpi_send(mem_ob,nobs_tot,mpi_real4,0,1,mpi_comm_io,ierr)
-        if (neigv > 0) then
-            call mpi_send(mem_ob_modens,neigv*nobs_tot,mpi_real4,0,2,mpi_comm_io,ierr)
-        endif
-     end if 
-    end if ! io task
+       anal_ob(nmem+nproc*nanals_per_iotask,:) = mem_ob(:)
+       if (neigv > 0) then
+          na = nmem+nproc*nanals_per_iotask
+          anal_ob_modens(neigv*(na-1)+1:neigv*na,:) = mem_ob_modens(:,:)
+       endif
+    endif
 
     enddo ! nanal loop (loop over ens members on each task)
+    ! need this to prevent race condition on shared memory window
+    call mpi_barrier(mpi_comm_world,ierr) 
+   
+! obs prior ensemble now defined on root task, bcast to other tasks.
+    if (nproc == 0) print *,'broadcast ob prior ensemble'
+    if (nproc == 0) t1 = mpi_wtime()
+! exchange obs prior ensemble members across all tasks to fully populate shared
+! memory array pointer on each node.
+    if (nproc_shm == 0) then
+       call mpi_allreduce(mpi_in_place,anal_ob,nanals*nobs_tot,mpi_real4,mpi_sum,mpi_comm_shmemroot,ierr)
+       !print *,nproc,'min/max anal_ob',minval(anal_ob),maxval(anal_ob)
+       if (neigv > 0) then
+          mem_ob_modens = 0.
+          do na=1,nanals
+             mem_ob_modens(:,:) = anal_ob_modens(neigv*(na-1)+1:neigv*na,:)
+             call mpi_allreduce(mpi_in_place,mem_ob_modens,neigv*nobs_tot,mpi_real4,mpi_sum,mpi_comm_shmemroot,ierr)
+             anal_ob_modens(neigv*(na-1)+1:neigv*na,:) = mem_ob_modens(:,:)
+          enddo
+       endif
+    endif
+    if (nproc == 0) then
+        t2 = mpi_wtime()
+        print *,'time to broadcast ob prior ensemble = ',t2-t1
+    endif
+    if (allocated(mem_ob)) deallocate(mem_ob)
+    if (allocated(mem_ob_modens)) deallocate(mem_ob_modens)
+    call mpi_barrier(mpi_comm_world,ierr)
+    !print *,nproc,'min/max anal_ob',minval(anal_ob),maxval(anal_ob)
 
 ! make anal_ob contain ob prior ensemble *perturbations*
-    if (nproc == 0) then
-        analsi=1._r_single/float(nanals)
-        analsim1=1._r_single/float(nanals-1)
+    analsi=1._r_single/float(nanals)
+    analsim1=1._r_single/float(nanals-1)
+!$omp parallel do private(nob)
+    do nob=1,nobs_tot
+       ensmean_obbc(nob)  = sum(anal_ob(:,nob))*analsi
+    enddo
+!$omp end parallel do
+    if (nproc_shm == 0) then
+!$omp parallel do private(nob)
+       do nob=1,nobs_tot
+! remove ensemble mean from each member.
+! ensmean_obbc is biascorrected ensemble mean (anal_ob is ens pert)
+          anal_ob(:,nob) = anal_ob(:,nob)-ensmean_obbc(nob)
+       enddo
+!$omp end parallel do
+       if (neigv > 0) then
+!$omp parallel do private(nob)
+          do nob=1,nobs_tot
+             anal_ob_modens(:,nob) = anal_ob_modens(:,nob)-ensmean_obbc(nob)
+          enddo
+!$omp end parallel do
+       endif
+    endif
+    call mpi_barrier(mpi_comm_world,ierr)
+!$omp parallel do private(nob)
+    do nob=1,nobs_tot
+! compute sprd
+       sprd_ob(nob) = sum(anal_ob(:,nob)**2)*analsim1
+    enddo    
+!$omp end parallel do
+! modulated ensemble.
+    if (neigv > 0) then
 !$omp parallel do private(nob)
         do nob=1,nobs_tot
-           ensmean_ob(nob)  = sum(anal_ob(:,nob))*analsi
-! remove ensemble mean from each member.
-! ensmean_ob is unbiascorrected ensemble mean (anal_ob is ens pert)
-           anal_ob(:,nob) = anal_ob(:,nob)-ensmean_ob(nob)
-! compute sprd
-           sprd_ob(nob) = sum(anal_ob(:,nob)**2)*analsim1
-! modulated ensemble.
-           if (neigv > 0) then
-              anal_ob_modens(:,nob) = anal_ob_modens(:,nob)-ensmean_ob(nob)
-              sprd_ob(nob) = sum(anal_ob_modens(:,nob)**2)*analsim1
-           endif
+          sprd_ob(nob) = sum(anal_ob_modens(:,nob)**2)*analsim1
         enddo
 !$omp end parallel do
+    endif
+    if (nproc == 0) then
        print *, 'prior spread conv: ', minval(sprd_ob(1:nobs_conv)), maxval(sprd_ob(1:nobs_conv))
        print *, 'prior spread oz: ', minval(sprd_ob(nobs_conv+1:nobs_conv+nobs_oz)), &
                                      maxval(sprd_ob(nobs_conv+1:nobs_conv+nobs_oz))
@@ -268,25 +317,11 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
                                      maxval(sprd_ob(nobs_conv+nobs_oz+1:nobs_tot))
        do nob =nobs_conv+nobs_oz+1 , nobs_tot
           if (sprd_ob(nob) > 1000.) then 
-             print *, nob, ' sat spread: ', sprd_ob(nob), ', ensmean_ob: ', ensmean_ob(nob), &
+             print *, nob, ' sat spread: ', sprd_ob(nob), ', ensmean_ob: ', ensmean_obbc(nob), &
                            ', anal_ob: ', anal_ob(:,nob), ', mem_ob: ', mem_ob(nob)
           endif
        enddo
     endif
-
-! broadcast ob prior ensemble mean and spread to every task.
-
-    if (allocated(mem_ob)) deallocate(mem_ob)
-    if (allocated(mem_ob_modens)) deallocate(mem_ob_modens)
-
-    if (nproc == 0) t1 = mpi_wtime()
-    call mpi_bcast(ensmean_ob,nobs_tot,mpi_real4,0,mpi_comm_world,ierr)
-    call mpi_bcast(sprd_ob,nobs_tot,mpi_real4,0,mpi_comm_world,ierr)
-    if (nproc == 0) then
-        t2 = mpi_wtime()
-        print *,'time to broadcast ob prior ensemble mean and spread = ',t2-t1
-    endif
-
 
  end subroutine mpi_getobs
 

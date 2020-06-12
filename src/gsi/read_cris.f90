@@ -650,7 +650,12 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !          CrIS data read radiance values and channel numbers
 !          Read CRIS channel number(CHNM) and radiance (SRAD)
-           call ufbint(lnbufr,allchan,2,bufr_nchan,iret,'SRAD CHNM')
+           if( char_mtyp == 'FSR') then
+              call ufbseq( lnbufr,allchan,2,bufr_nchan,iret,'CRCHNM')
+           else
+              call ufbseq( lnbufr,allchan,2,bufr_nchan,iret,'CRCHN')
+           endif
+
            if( iret /= bufr_nchan)then
               write(6,*)'READ_CRIS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
                 iret, ' CH DATA IS READ INSTEAD OF ',bufr_nchan
@@ -659,13 +664,13 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
  
 !          Coordinate bufr channels with satinfo file channels
 !          If this is the first time or a change in the bufr channels is detected, sync with satinfo file
-           if (ANY(int(allchan(2,:)) /= bufr_chan_test(:))) then
+           if (ANY(int(allchan(1,:)) /= bufr_chan_test(:))) then
               sfc_channel_index = 0                                         ! surface channel used for qc and thinning test
               bufr_index(:) = 0
               bufr_chans: do l=1,bufr_nchan
-                 bufr_chan_test(l) = int(allchan(2,l))                      ! Copy this bufr channel selection into array for comparison to next profile
+                 bufr_chan_test(l) = int(allchan(1,l))                      ! Copy this bufr channel selection into array for comparison to next profile
                  satinfo_chans: do i=1,satinfo_nchan                        ! Loop through sensor (cris) channels in the satinfo file
-                    if ( channel_number(i) == int(allchan(2,l)) ) then      ! Channel found in both bufr and satinfo file
+                    if ( channel_number(i) == int(allchan(1,l)) ) then      ! Channel found in both bufr and satinfo file
                        bufr_index(i) = l
                        if ( channel_number(i) == sfc_channel ) sfc_channel_index = l
                        exit satinfo_chans                                   ! go to next bufr channel
@@ -700,7 +705,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          If cloud_properties is missing from BUFR, use proxy of warmest fov. 
 !          the surface channel is fixed and set earlier in the code (501).
 
-             radiance = allchan(1,sfc_channel_index) * r1000    ! Conversion from W to mW
+             radiance = allchan(2,sfc_channel_index) * r1000    ! Conversion from W to mW
              call crtm_planck_temperature(sensorindex,sfc_channel,radiance,temperature(sfc_channel_index))  ! radiance to BT calculation
              if (temperature(sfc_channel_index) > tbmin .and. temperature(sfc_channel_index) < tbmax ) then
                 if ( tsavg*0.98_r_kind <= temperature(sfc_channel_index)) then   ! 0.98 is a crude estimate of the surface emissivity
@@ -733,8 +738,8 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !             Check that channel radiance is within reason and channel number is consistent with CRTM initialisation
 !             Negative radiance values are entirely possible for shortwave channels due to the high noise, but for
 !             now such spectra are rejected.  
-              if (( allchan(1,bufr_chan) > zero .and. allchan(1,bufr_chan) < 99999._r_kind)) then    ! radiance bounds
-                 radiance = allchan(1,bufr_chan) * r1000    ! Conversion from W to mW
+              if (( allchan(2,bufr_chan) > zero .and. allchan(2,bufr_chan) < 99999._r_kind)) then    ! radiance bounds
+                 radiance = allchan(2,bufr_chan) * r1000    ! Conversion from W to mW
                  call crtm_planck_temperature(sensorindex,sc_chan,radiance,temperature(bufr_chan))  ! radiance to BT calculation
               else           ! error with channel number or radiance
                  temperature(bufr_chan) = tbmin

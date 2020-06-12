@@ -139,11 +139,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2016-06-01  zhu    - use errormod_aircraft
 !   2017-06-17  levine - add GLERL program code lookup
 !   2017-03-21  Su      - add option to thin conventional data in 4 dimension 
+!   2019-09-27  Su      - add hilbert curve application to aircraft winds
 !   2018-08-16  akella  - explicit KX definition for ships (formerly ID'd by subtype 522/523)
 !   2019-02-06  levine - Add lookup of sensor height for mesonet winds
 !   2019-06-17  mmorris - Update adjust_goescldobs to reject clear cloud obs over water at night
+!   2019-09-27  Su      - add hilbert curve application to aircraft winds
 !   2019-12-05  mmorris - Update adjust_goescldobs to reject ALL clear cloud obs at night
-
+!
 !   input argument list:
 !     infile   - unit from which to read BUFR data
 !     obstype  - observation type to process
@@ -168,6 +170,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use constants, only: zero,one_tenth,one,deg2rad,fv,t0c,half,&
       three,four,rad2deg,tiny_r_kind,huge_r_kind,huge_i_kind,&
       r60inv,r10,r100,r2000
+  use constants,only: rearth,stndrd_atmos_ps,rd,grav
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
       tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
       rlats,rlons,twodvar_regional
@@ -178,7 +181,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use convinfo, only: id_drifter,id_ship
 
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
-  use obsmod, only: blacklst,offtime_data,bmiss,ext_sonde
+  use obsmod, only: blacklst,offtime_data,bmiss,ext_sonde,time_offset
   use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,ntail,taillist,idx_tail,npredt,predt, &
       aircraft_t_bc_ext,ntail_update,max_tail,nsort,itail_sort,idx_sort,timelist
   use converr,only: etabl
@@ -196,6 +199,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use convthin_time, only: make3grids_tm,map3grids_tm,map3grids_m_tm,del3grids_tm,use_all_tm
   use qcmod, only: errormod,errormod_aircraft,noiqc,newvad,njqc
   use qcmod, only: pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres
+  use qcmod, only: nrand
   use nltransf, only: nltransf_forward
   use blacklist, only : blacklist_read,blacklist_destroy
   use blacklist, only : blkstns,blkkx,ibcnt
@@ -215,6 +219,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use mpimod, only: npe
   use rapidrefresh_cldsurf_mod, only: i_gsdsfc_uselist,i_gsdqc,i_ens_mean
   use gsi_io, only: verbose
+  use phil2, only: denest       ! hilbert curve
 
   implicit none
 
@@ -365,6 +370,18 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_double),dimension(2,255,20):: tobaux
   real(r_double),dimension(2,255):: aircraftwk
 
+! for hilbert curve
+  integer(i_kind) ndata_hil,nor,ncc,nnrand
+  integer(i_kind) indexx
+  real(r_kind)  dentrip,dentrip_tmp,vmin,vmax,rmesh_tmp,pmesh_tmp,prest
+  integer(i_kind)  ntime_max,ntime_tmp,itype,ikx
+  integer(i_kind),dimension(24) :: ntype_arr
+  integer(i_kind),allocatable,dimension(:,:) :: index_arr
+  real(r_kind),allocatable,dimension(:,:,:) :: data_hilb
+  real(r_kind),allocatable,dimension(:) :: rlat_hil,rlon_hil,height,wtob,wght_hilb
+! end of block
+
+
 !  equivalence to handle character names
   equivalence(r_prvstg(1,1),c_prvstg) 
   equivalence(r_sprvstg(1,1),c_sprvstg) 
@@ -455,7 +472,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   if(tob)then
      nreal=25
   else if(uvob) then 
-     nreal=25
+     nreal=26
   else if(spdob) then
      nreal=24
   else if(psob) then
@@ -568,7 +585,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if (acft_profl_file .and. (.not. aircrafttype)) cycle  ! skip non-aircrafttype for prepbufr_profl
            end if
            ithin=ithin_conv(nc)
-           if(ithin > 0)then
+           if(ithin > 0 .and. ithin <5)then
               ntread=ntread+1
               ntx(ntread)=nc
            end if
@@ -762,7 +779,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            call ufbint(lunin,levdat,1,255,levs,levstr)
            maxobs=maxobs+max(1,levs)
            nx=1
-           if(ithin_conv(ncsave) > 0)then
+           if(ithin_conv(ncsave) > 0 .and. ithin_conv(ncsave) <5)then
               do ii=2,ntread
                  if(ntx(ii) == ncsave)nx=ii
               end do
@@ -837,7 +854,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      if(nx > 1) then
         nc=ntx(nx)
         ithin=ithin_conv(nc)
-        if (ithin > 0 ) then
+        if (ithin > 0  .and. ithin <5) then
            rmesh=rmesh_conv(nc)
            pmesh=pmesh_conv(nc)
            pmot=pmot_conv(nc)
@@ -1643,7 +1660,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
            stnelev=hdr(6)
            ithin=ithin_conv(nc)
-           ithinp = ithin > 0 .and. pflag /= 0
+           ithinp = ithin > 0 .and. ithin <5 .and. pflag /= 0
            if(.not. (driftl .or. (aircraft_t_bc .and. acft_profl_file)) .and. &
               (((tob .or. qob .or. uvob).and. levs > 1) .or. ithinp))then
 !             Interpolate guess pressure profile to observation location
@@ -1950,8 +1967,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 ! Get information from surface file necessary for conventional data here
 
 !             Special block for data thinning - if requested
-              if (ithin > 0 .and. usage <100.0_r_kind) then
-!              if (ithin > 0 ) then
+              if (ithin > 0 .and. ithin <5 .and. usage <100.0_r_kind) then
+!              if (ithin > 0 .and. ithin <5) then
                  ntmp=ndata  ! counting moved to map3gridS
            
 !                Set data quality index for thinning
@@ -2207,9 +2224,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(23,iout)=r_sprvstg(1,1)         ! subprovider name
                  cdata_all(24,iout)=obsdat(10,k)           ! cat
                  cdata_all(25,iout)=var_jb(5,k)            ! non linear qc parameter
+                 cdata_all(26,iout)=one                    ! hilbert curve weight, modified later 
                  if(perturb_obs)then
-                    cdata_all(26,iout)=ran01dom()*perturb_fact ! u perturbation
-                    cdata_all(27,iout)=ran01dom()*perturb_fact ! v perturbation
+                    cdata_all(27,iout)=ran01dom()*perturb_fact ! u perturbation
+                    cdata_all(28,iout)=ran01dom()*perturb_fact ! v perturbation
                  endif
  
               else if(spdob) then 
@@ -2934,6 +2952,165 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   end do
   deallocate(iloc,isort,cdata_all)
 
+! the following is gettin the types which will be applied hilbert curve to
+!  estimate the density
+
+  if(obstype == 'uv') then
+     vmin=-10.00_r_kind
+     vmax=18000.00_r_kind
+     nor=0
+     ithin=0
+     allocate(wght_hilb(ndata))
+     wght_hilb=one
+     pmesh=zero
+     rmesh=zero
+     dentrip=0
+     pmesh_tmp=zero
+     rmesh_tmp=zero
+     dentrip_tmp=0
+     ntime_max=0
+     ntime_tmp=0
+     ntime=0
+     nnrand=nrand
+     do ncc=1,nconvtype
+        if( trim(ioctype(ncc)) == 'uv') then
+           itype=ictype(ncc)
+           if( itype ==230 .or. itype ==231 .or. itype ==233 ) then
+              if(itype ==230 .and. ithin_conv(ncc) >5) then
+                 if(ptime_conv(ncc) >zero) then
+                    ntime_max= int(6.0_r_kind/ptime_conv(ncc))
+                  else
+                     ntime_max=1
+                  endif
+                 pmesh=pmesh_conv(ncc)
+                 rmesh=rmesh_conv(ncc)
+                 dentrip=ithin_conv(ncc)/10
+              else if(itype == 231 .and. ithin_conv(ncc) >5) then
+                 if(ptime_conv(ncc) >zero) then
+                    ntime_tmp=int(6.0_r_kind/ptime_conv(ncc))
+                  else
+                     ntime_tmp=1
+                  endif
+                 pmesh_tmp=pmesh_conv(ncc)
+                 rmesh_tmp=rmesh_conv(ncc)
+                 dentrip_tmp=ithin_conv(ncc)/10
+                 if(pmesh >zero .and. rmesh >zero) then
+                    if(ntime_tmp /= ntime_max .or. pmesh_tmp /= pmesh .or. &
+                       rmesh_tmp /= rmesh .or. dentrip_tmp /= dentrip) then
+                       write(6,*) 'READ_PREPBUFR:WARING  convinfo file settings are not right,use first one itype=',itype
+                       write(6,*) 'READ_PREPBUFR: ntime_max,pmesh,rmesh,ntime_tmp,pmesh_tmp,rmesh_tmp,rmesh_tmp=',&
+                              ntime_max,pmesh,rmesh,ntime_tmp,pmesh_tmp,rmesh_tmp,dentrip_tmp
+                    endif
+                 else if(pmesh_tmp >zero .and. rmesh_tmp >zero) then
+                    pmesh=pmesh_tmp
+                    rmesh=rmesh_tmp
+                    ntime_max=ntime_tmp
+                 endif
+              else if(itype == 233 .and. ithin_conv(ncc) >5) then
+                 if(ptime_conv(ncc) >zero) then
+                    ntime_tmp=int(6.0_r_kind/ptime_conv(ncc))
+                  else
+                     ntime_tmp=1
+                  endif
+                 pmesh_tmp=pmesh_conv(ncc)
+                 rmesh_tmp=rmesh_conv(ncc)
+                 dentrip_tmp=ithin_conv(ncc)/10
+                 if(pmesh >zero .and. rmesh >zero) then
+                    if(ntime_tmp /= ntime_max .or. pmesh_tmp /= pmesh .or. &
+                       rmesh_tmp /= rmesh .or. dentrip_tmp /= dentrip) then
+                       write(6,*) 'READ_PREPBUFR:WARING  convinfo file settings are not right,use first one itype=',itype
+                       write(6,*) 'READ_PREPBUFR: ntime_max,pmesh,rmesh,ntime_tmp,pmesh_tmp,rmesh_tmp,rmesh_tmp=',&
+                              ntime_max,pmesh,rmesh,ntime_tmp,pmesh_tmp,rmesh_tmp,dentrip_tmp
+                    endif
+                 else if(pmesh_tmp >zero .and. rmesh_tmp >zero) then
+                    pmesh=pmesh_tmp
+                    rmesh=rmesh_tmp
+                    ntime_max=ntime_tmp
+                 endif
+              endif
+           endif
+        endif
+     enddo
+
+     write(6,*),'READ_PREPBUFR:dentrip,pmesh,rmesh,ndata=',dentrip,pmesh,rmesh,ntime_max,ndata
+     if(dentrip >= one .and. pmesh >zero .and. rmesh >zero) then
+        allocate(data_hilb(3,ndata,6),index_arr(ndata,ntime_max))
+
+        ndata_hil=0
+        ntype_arr=0
+        ntime=1
+        index_arr=0
+ 
+        do k=1,ndata
+           ikx=nint(cdata_out(10,k))
+           itype=ictype(ikx)
+           if( itype ==230 .or. itype ==231 .or. itype ==233) then
+              prest=r10*exp(cdata_out(4,k))
+              if (prest <100.0_r_kind) cycle
+              if(ithin_conv(ikx) >=5) then
+                 if(ptime_conv(ikx) >zero) then
+                    ntime=int(((cdata_out(9,k)-time_offset)+three)/ptime_conv(ikx))+1
+                 endif
+                 if(ntime >ntime_max) ntime=ntime_max
+                 if(ntime <0) ntime=1
+                 ntype_arr(ntime)=ntype_arr(ntime)+1
+                 ndata_hil=ntype_arr(ntime)
+                 data_hilb(1,ndata_hil,ntime)=cdata_out(20,k)
+                 data_hilb(2,ndata_hil,ntime)=cdata_out(19,k)
+                 prest=prest*100.0_r_kind
+                 if(prest >stndrd_atmos_ps) then
+                    prest=zero
+                 else
+                    prest=rd*265.00_r_kind*log(stndrd_atmos_ps/prest)/grav
+                 endif
+                 data_hilb(3,ndata_hil,ntime)=prest
+                 index_arr(ndata_hil,ntime)=k
+                 if(data_hilb(1,ndata_hil,ntime) >90.0_r_kind  .or. &
+                    data_hilb(1,ndata_hil,ntime) <-90.0_r_kind .or. &
+                    data_hilb(2,ndata_hil,ntime) <zero         .or. &
+                    data_hilb(2,ndata_hil,ntime) >360.0_r_kind .or. &
+                    data_hilb(3,ndata_hil,ntime) <vmin         .or. &
+                    data_hilb(3,ndata_hil,ntime) >vmax ) then
+                    write(6,*),'READ_PREPBUFR :something is wrong,lat,lon,prest=',&
+                                data_hilb(1,ndata_hil,ntime),&
+                                data_hilb(2,ndata_hil,ntime),&
+                                cdata_out(4,k),data_hilb(3,ndata_hil,ntime)
+                 endif
+              endif                   
+           endif
+        enddo
+        rmesh=rmesh*1000.0_r_kind
+        do kk=1,ntime_max
+           ndata_hil=ntype_arr(kk)
+           if(ndata_hil >=2) then
+              allocate(rlat_hil(ndata_hil),rlon_hil(ndata_hil),height(ndata_hil),wtob(ndata_hil))
+              rlat_hil(1:ndata_hil)=data_hilb(1,1:ndata_hil,kk)
+              rlon_hil(1:ndata_hil)=data_hilb(2,1:ndata_hil,kk)
+              height(1:ndata_hil)=data_hilb(3,1:ndata_hil,kk)
+              call denest(ndata_hil,nnrand,nor,rearth,dentrip,rmesh,pmesh,&
+                          vmin,vmax,rlat_hil,rlon_hil,height,wtob)
+              do i=1,ndata_hil
+                 indexx=index_arr(i,kk)
+                 wght_hilb(indexx)=wtob(i)
+              enddo
+              ndata_hil=0
+              deallocate(rlat_hil,rlon_hil,height,wtob)
+           endif
+           enddo
+        deallocate(data_hilb,index_arr)
+     endif
+
+     do i=1,ndata
+        cdata_out(26,i)=wght_hilb(i)
+     enddo
+ 
+     deallocate(wght_hilb)
+  endif
+! end of hilbert curve
+               
+ 
+
+
 ! define a closest METAR cloud observation for each grid point
 
   if(metarcldobs .and. ndata > 0) then
@@ -2955,6 +3132,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   call count_obs(ndata,nreal,ilat,ilon,cdata_out,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
   write(lunout) cdata_out
+
+ 
 
   deallocate(cdata_out)
   call destroy_rjlists

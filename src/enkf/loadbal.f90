@@ -99,10 +99,13 @@ module loadbal
 !
 !$$$
 
-use mpisetup
+use mpimod, only: mpi_comm_world
+use mpisetup, only: mpi_real4,mpi_sum,mpi_comm_io,mpi_in_place,numproc,nproc,&
+                mpi_integer,mpi_wtime,mpi_status,mpi_real8,mpi_max
 use params, only: datapath, nanals, simple_partition, letkf_flag, nobsl_max,&
-                  neigv, corrlengthnh, corrlengthsh, corrlengthtr, lupd_obspace_serial
-use enkf_obsmod, only: nobstot, obloc, oblnp, ensmean_ob, obtime, anal_ob, anal_ob_modens, corrlengthsq
+                  neigv, corrlengthnh, corrlengthsh, corrlengthtr, lupd_obspace_serial,letkf_bruteforce_search
+use enkf_obsmod, only: nobstot, obloc, oblnp, ensmean_ob, obtime, &
+                       anal_ob, anal_ob_modens, corrlengthsq
 use kinds, only: r_kind, i_kind, r_double, r_single
 use kdtree2_module, only: kdtree2, kdtree2_create, kdtree2_destroy, &
                           kdtree2_result, kdtree2_r_nearest
@@ -150,7 +153,7 @@ logical test_loadbal
 if (letkf_flag) then
    ! used for finding nearest obs to grid point in LETKF.
    ! results are sorted by distance.
-   if (nobstot >= 3) then
+   if (nobstot >= 3 .and. .not. letkf_bruteforce_search) then
       kdtree_obs2  => kdtree2_create(obloc,sort=.true.,rearrange=.true.)
    endif
 endif
@@ -294,68 +297,19 @@ if (.not. letkf_flag .or. lupd_obspace_serial) then
        print *,'min/max number of obs per proc = ',nobs_min,nobs_max
        print *,'time to do ob space decomp = ',mpi_wtime()-t1
    end if
-   ! for serial enkf, send out observation priors to be updated on each processor.
+   ! for serial enkf, create observation priors to be updated on each processor.
    allocate(anal_obchunk_prior(nanals,nobs_max))
-   if(nproc == 0) then
-      print *,'sending out observation prior ensemble perts from root ...'
-      totsize = nobstot
-      totsize = totsize*nanals
-      print *,'nobstot*nanals',totsize
-      t1 = mpi_wtime()
-      ! send one big message to each task.
-      do np=1,numproc-1
-         do nob1=1,numobsperproc(np+1)
-            nob2 = indxproc_obs(np+1,nob1)
-            anal_obchunk_prior(1:nanals,nob1) = anal_ob(1:nanals,nob2)
-         end do
-         call mpi_send(anal_obchunk_prior,nobs_max*nanals,mpi_real4,np, &
-              1,mpi_comm_world,ierr)
-      end do
-      ! anal_obchunk_prior on root (no send necessary)
-      do nob1=1,numobsperproc(1)
-         nob2 = indxproc_obs(1,nob1)
-         anal_obchunk_prior(1:nanals,nob1) = anal_ob(1:nanals,nob2)
-      end do
-      ! now we don't need anal_ob anymore for serial EnKF.
-      if (.not. lupd_obspace_serial) deallocate(anal_ob)
-   else
-      ! recv one large message on each task.
-      call mpi_recv(anal_obchunk_prior,nobs_max*nanals,mpi_real4,0, &
-           1,mpi_comm_world,mpi_status,ierr)
-   end if
+   do nob1=1,numobsperproc(nproc+1)
+      nob2 = indxproc_obs(nproc+1,nob1)
+      anal_obchunk_prior(1:nanals,nob1) = anal_ob(1:nanals,nob2)
+   end do
    if (neigv > 0) then
-      ! if model space vertical localization is enabled, 
-      ! distribute ensemble perturbations in ob space for serial filter.
       allocate(anal_obchunk_modens_prior(nanals*neigv,nobs_max)) 
-      if(nproc == 0) then
-         print *,'sending out modens observation prior ensemble perts from root ...'
-         totsize = nobstot
-         totsize = totsize*nanals*neigv
-         print *,'nobstot*nanals*neigv',totsize
-         t1 = mpi_wtime()
-         ! send one big message to each task.
-         do np=1,numproc-1
-            do nob1=1,numobsperproc(np+1)
-               nob2 = indxproc_obs(np+1,nob1)
-               anal_obchunk_modens_prior(1:nanals*neigv,nob1) = anal_ob_modens(1:nanals*neigv,nob2)
-            end do
-            call mpi_send(anal_obchunk_modens_prior,nobs_max*nanals*neigv,mpi_real4,np, &
-                 1,mpi_comm_world,ierr)
-         end do
-         ! anal_obchunk_prior on root (no send necessary)
-         do nob1=1,numobsperproc(1)
-            nob2 = indxproc_obs(1,nob1)
-            anal_obchunk_modens_prior(1:nanals*neigv,nob1) = anal_ob_modens(1:nanals*neigv,nob2)
-         end do
-         ! now we don't need anal_ob_modens anymore for serial EnKF.
-         if (.not. lupd_obspace_serial) deallocate(anal_ob_modens)
-      else
-         ! recv one large message on each task.
-         call mpi_recv(anal_obchunk_modens_prior,nobs_max*nanals*neigv,mpi_real4,0, &
-              1,mpi_comm_world,mpi_status,ierr)
-      end if
+      do nob1=1,numobsperproc(nproc+1)
+         nob2 = indxproc_obs(nproc+1,nob1)
+         anal_obchunk_modens_prior(1:nanals*neigv,nob1) = anal_ob_modens(1:nanals*neigv,nob2)
+      end do
    endif
-   call mpi_barrier(mpi_comm_world, ierr)
    if(nproc == 0) print *,'... took ',mpi_wtime()-t1,' secs'
    ! these arrays only needed for serial filter
    ! nob1 is the index of the obs to be processed on this rank
