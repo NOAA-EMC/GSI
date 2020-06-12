@@ -71,10 +71,6 @@
 #  Command line arguments.
 export PDATE=${1:-${PDATE:?}}
 
-scr=radmon_verf_bcor.sh
-msg="${scr} HAS STARTED"
-postmsg "$jlogfile" "$msg"
-
 
 if [[ "$VERBOSE" = "YES" ]]; then
    set -ax
@@ -238,9 +234,6 @@ fi
 if [[ "$VERBOSE" = "YES" ]]; then
    echo $(date) EXITING $0 error code ${err} >&2
 fi
-
-msg="${scr} HAS ENDED"
-postmsg "$jlogfile" "$msg"
 
 exit ${err}
 

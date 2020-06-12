@@ -317,8 +317,8 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
                                      maxval(sprd_ob(nobs_conv+nobs_oz+1:nobs_tot))
        do nob =nobs_conv+nobs_oz+1 , nobs_tot
           if (sprd_ob(nob) > 1000.) then 
-             print *, nob, ' sat spread: ', sprd_ob(nob), ', ensmean_ob: ', ensmean_obbc(nob), &
-                           ', anal_ob: ', anal_ob(:,nob), ', mem_ob: ', mem_ob(nob)
+             print *, nob, trim(obtype(nob)),ob(nob),' sat spread: ', sprd_ob(nob), ', ensmean_ob: ', ensmean_obbc(nob), &
+                           ', anal_ob: ', anal_ob(:,nob)
           endif
        enddo
     endif
