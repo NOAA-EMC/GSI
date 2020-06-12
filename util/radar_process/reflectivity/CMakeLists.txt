@@ -4,6 +4,6 @@ cmake_minimum_required(VERSION 2.6)
   include_directories( ${NetCDF_INCLUDE_DIRS}  ${MPI_Fortran_INCLUDE_PATH} )
 
   add_executable(process_NSSL_mosaic.x ${LOCAL_SRC} )
-  add_dependencies(process_NSSL_mosaic.x ${GSILIB} ${GSISHAREDLIB} ${bufr_LIBRARY} )
+  add_dependencies(process_NSSL_mosaic.x ${GSILIB} ${GSISHAREDLIB} bufr_4 )
   set_target_properties( process_NSSL_mosaic.x PROPERTIES COMPILE_FLAGS ${UTIL_COM_Fortran_FLAGS} )
-  target_link_libraries( process_NSSL_mosaic.x ${GSISHAREDLIB} ${bufr_LIBRARY} ${NETCDF_C_LIBRARIES} ${MPI_Fortran_LIBRARIES} ) 
+  target_link_libraries( process_NSSL_mosaic.x ${GSISHAREDLIB} bufr_4 ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES} ${MPI_Fortran_LIBRARIES} ) 
