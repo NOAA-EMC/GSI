@@ -1,4 +1,3 @@
-#ifdef RR_CLOUDANALYSIS
 subroutine  gsdcloudanalysis4gfs(mype)
 !
 !$$$  subprogram documentation block
@@ -83,6 +82,7 @@ subroutine  gsdcloudanalysis4gfs(mype)
 
 ! Declare passed variables
   integer(i_kind),intent(in):: mype
+#ifdef RR_CLOUDANALYSIS
 !
 ! background
 !
@@ -931,53 +931,10 @@ endif
      write(6,*) 'gsdcloudanalysis: generalized cloud analysis finished:',mype
      write(6,*) '========================================'
   endif
-
-end subroutine gsdcloudanalysis4gfs
 #else /* Start no RR cloud analysis library block */
-subroutine  gsdcloudanalysis4gfs(mype)
-!
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:  gsdcloudanalysis      driver for generalized cloud/hydrometeor analysis
-!
-!   PRGMMR: Ming Hu          ORG: GSD/AMB        DATE: 2006-10-27
-!
-! ABSTRACT:
-!  This subroutine serves as a driver for generalized cloud/hydrometeor analysis
-!
-! PROGRAM HISTORY LOG:
-!    2008-12-20  Hu  Add NCO document block
-!
-!
-!   input argument list:
-!     mype     - processor ID that does this IO
-!
-!   output argument list:
-!
-! USAGE:
-!   INPUT FILES:
-!     mype - processor ID that does this IO
-!
-!   OUTPUT FILES:
-!
-! REMARKS:
-!
-! ATTRIBUTES:
-!   LANGUAGE: FORTRAN 90
-!   MACHINE:  Linux cluster (WJET) at NOAA/ESRL - Boulder, CO
-!
-!$$$
-!_____________________________________________________________________
-!
-
-  use kinds, only: i_kind
-  implicit none
-
-! Declare passed variables
-  integer(i_kind),intent(in):: mype
-!
 
   if( mype == 0) write(6,*)'gsdcloudanalysis:  dummy routine, does nothing!'
 
-end subroutine gsdcloudanalysis4gfs
 #endif /* End no RR cloud analysis library block */
+
+end subroutine gsdcloudanalysis4gfs
