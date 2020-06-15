@@ -576,7 +576,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
                  call nc_diag_metadata("Analysis_Use_Flag",      iouse(k)           )
                  call nc_diag_metadata("Observation",                  sngl(ozobs(k)))
                  call nc_diag_metadata("Inverse_Observation_Error",    sngl(errorinv))
-                 call nc_diag_metadata("Input_Observation_Error", sngl(error(k)))       !emily
+                 call nc_diag_metadata("Input_Observation_Error", sngl(error(k)))
                  call nc_diag_metadata("Obs_Minus_Forecast_adjusted",  sngl(ozone_inv(k)))
                  call nc_diag_metadata("Obs_Minus_Forecast_unadjusted",sngl(ozone_inv(k)))
                  call nc_diag_metadata("Forecast_unadjusted", sngl(ozges(k)))
