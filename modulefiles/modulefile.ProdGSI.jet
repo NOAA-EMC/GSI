@@ -11,35 +11,31 @@
 #module-whatis " GDAS_ENKF whatis description"
 #
 #
-set COMP ifort
-set COMP_MP mpfort
-set COMP_MPI mpiifort
 
-set C_COMP icc
-set C_COMP_MP mpcc
+module use -a /contrib/sutils/modulefiles 
+module load sutils
 
-# Known conflicts
-
-module load intel/18.0.5.274
+module load intel/18.0.5.274 
 module load impi/2018.4.274
-module load cmake/3.16.1
+module load hdf5/1.10.4
+module load netcdf/4.6.1
+ 
+export COREPATH=/mnt/lfs4/HFIP/hfv3gfs/gwv/l0530/lib
+export NCEPLIBS=$COREPATH
+module use $NCEPLIBS/modulefiles
 
-module use -a /mnt/lfs4/HFIP/hfv3gfs/nwprod/NCEPLIBS/modulefiles
+export FFLAGS="-qopenmp"
+export LDFLAGS="-qopenmp"
+module load bacio-intel-sandybridge/2.0.2
+module load crtm-intel-sandybridge/2.2.5
+module load bufr-intel-sandybridge/11.1.0
+module load nemsio-intel-sandybridge/2.2.2
+module load sp-intel-sandybridge/2.0.2
+module load ip-intel-sandybridge/3.0.0
+module load w3emc-intel-sandybridge/2.2.0
+module load w3nco-intel-sandybridge/2.0.6
+module load sigio-intel-sandybridge/2.0.1
+module load sfcio-intel-sandybridge/1.0.0
 
-module load bacio/2.0.3
-module load bufr/11.3.0
-module load crtm/2.3.0
-module load ip/3.0.2
-module load nemsio/2.2.4
-module load prod_util/v1.0.18
-module load sfcio/1.1.1
-module load sigio/v2.1.0
-module load sp/2.0.3
-module load w3emc/2.4.0
-module load w3nco/2.0.7
-module load hdf5_parallel/1.10.6
-module load netcdf_parallel/4.7.4
-
-# Set environmental variables to allow correlated error to reproduce on Hera
-export MKL_NUM_THREADS=4
-export MKL_CBWR=AUTO
+export NETCDF=${NETCDF}
+export NETCDF_DIR=${NETCDF}
