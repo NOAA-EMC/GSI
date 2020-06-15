@@ -802,6 +802,7 @@
                 trop5,tzbgr,dtsavg,sfc_speed, &
                 tsim,emissivity,ptau5,ts,emissivity_k, &
                 temp,wmix,jacobian,error_status)
+           tsim_clr = tsim !emily
         endif 
 ! If the CRTM returns an error flag, do not assimilate any channels for this ob 
 ! and set the QC flag to ifail_crtm_qc.
@@ -2323,6 +2324,9 @@
                  call nc_diag_metadata("Snow_Depth",            sngl(surface(1)%snow_depth)         )
                  call nc_diag_metadata("tpwc_amsua",            sngl(tpwc_amsua)                    )
                  call nc_diag_metadata("clw_guess_retrieval",   sngl(clw_guess_retrieval)           )
+                 call nc_diag_metadata("clwp_amsua",            sngl(clwp_amsua)                    ) !emily
+                 call nc_diag_metadata("scat_amsua",            sngl(scat)                          ) !emily
+
 
                  call nc_diag_metadata("Sfc_Wind_Speed",        sngl(surface(1)%wind_speed)         )
                  call nc_diag_metadata("Cloud_Frac",            sngl(cld)                           )
@@ -2344,14 +2348,19 @@
                  call nc_diag_metadata("SST_Cool_layer_tdrop",     sngl(data_s(idtc,n))              )       ! dt_cool at zob
                  call nc_diag_metadata("SST_dTz_dTfound",          sngl(data_s(itz_tr,n))            )       ! d(Tz)/d(Tr)
 
-                 call nc_diag_metadata("Observation",                           sngl(tb_obs(ich_diag(i)))  )     ! observed brightness temperature (K)
-                 call nc_diag_metadata("Obs_Minus_Forecast_adjusted",           sngl(tbc(ich_diag(i)   ))  )     ! observed - simulated Tb with bias corrrection (K)
-                 call nc_diag_metadata("Obs_Minus_Forecast_unadjusted",         sngl(tbcnob(ich_diag(i)))  )     ! observed - simulated Tb with no bias correction (K)
+                 call nc_diag_metadata("Observation",                           sngl(tb_obs(ich_diag(i)))  ) ! observed brightness temperature (K)
+                 call nc_diag_metadata("Obs_Minus_Forecast_adjusted",           sngl(tbc(ich_diag(i)   ))  ) ! observed - simulated Tb with bias corrrection (K)
+                 call nc_diag_metadata("Obs_Minus_Forecast_unadjusted",         sngl(tbcnob(ich_diag(i)))  ) ! observed - simulated Tb with no bias correction (K)
+                 call nc_diag_metadata("Forecast_unadjusted_clear", sngl(tsim_clr(ich_diag(i))))             ! simulated Tb under clear-sky condition !emily 
                  call nc_diag_metadata("Forecast_unadjusted", sngl(tb_obs(ich_diag(i))-tbcnob(ich_diag(i)))) ! simulated Tb with no bias correction
-                 call nc_diag_metadata("Forecast_adjusted", sngl(tb_obs(ich_diag(i))-tbc(ich_diag(i)))) ! simulated Tb with bias correction
-                 call nc_diag_metadata("Bias_Correction", sngl(tbc(ich_diag(i))-tbcnob(ich_diag(i)))) ! bias correction
+                 call nc_diag_metadata("Forecast_adjusted", sngl(tb_obs(ich_diag(i))-tbc(ich_diag(i)))     ) ! simulated Tb with bias correction
+           !     call nc_diag_metadata("Bias_Correction", sngl(tbc(ich_diag(i))-tbcnob(ich_diag(i)))       ) ! bias correction
+                 call nc_diag_metadata("Bias_Correction", sngl(tbcnob(ich_diag(i))-tbc(ich_diag(i)))       ) ! bias correction                      !emily
+                 call nc_diag_metadata("Bias_Correction_Constant", sngl(predbias(1,ich_diag(i)))           ) ! constant bias correction             !emily 
+                 call nc_diag_metadata("Bias_Correction_ScanAngle", sngl(predbias(npred+1,ich_diag(i)))    ) ! scan angle bias correction           !emily 
+                 call nc_diag_metadata("Input_Observation_Error", sngl(error0(ich_diag(i)))                ) ! observed brightness temperature (K)  !emily
                  errinv = sqrt(varinv(ich_diag(i)))
-                 call nc_diag_metadata("Inverse_Observation_Error",             sngl(errinv)          )
+                 call nc_diag_metadata("Inverse_Observation_Error", sngl(errinv)                           ) ! inverse of observaton error
                  if (save_jacobian) then
                     j = 1
                     do ii = 1, nvarjac

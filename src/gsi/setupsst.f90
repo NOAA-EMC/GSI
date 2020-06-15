@@ -638,6 +638,13 @@ contains
            call nc_diag_metadata("Observation",                   sngl(data(isst,i)) )
            call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)      )
            call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(data(isst,i)-sstges) )
+!>>emily
+           call nc_diag_metadata("Forecast_unadjusted", sngl(sstges))
+           call nc_diag_metadata("Forecast_adjusted", sngl(data(isst,i)-ddiff))
+
+           !GeoVaLs
+           call nc_diag_metadata("sea_surface_temperature", sngl(sstges) )
+!<<emily
  
            if (lobsdiagsave) then
               do jj=1,miter

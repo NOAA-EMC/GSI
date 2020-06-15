@@ -41,5 +41,5 @@ module load w3emc/2.3.1
 module load w3nco/2.0.7
 
 # Set environmental variables to allow correlated error to reproduce on Hera
-export MKL_NUM_THREADS=4
-export MKL_CBWR=AUTO
+#export MKL_NUM_THREADS=4
+#export MKL_CBWR=AUTO
