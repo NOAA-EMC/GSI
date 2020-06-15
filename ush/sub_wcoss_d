@@ -311,8 +311,11 @@ echo "" >>$cfile
 
 echo ". $MODULESHOME/init/bash"               >> $cfile
 echo "module purge"                           >> $cfile
-echo "module use -a $gsisrc/modulefiles"      >> $cfile
-echo "module load modulefile.ProdGSI.wcoss_d" >> $cfile
+echo "module load EnvVars/1.0.3 ips/19.0.5.281 mpi_third/ips/18.0.1/impi/18.0.1/NetCDF-HDF5-parallel/4.5.0 jasper/1.900.29 cmake/3.16.2
+ lsf/10.1 impi/19.0.5 mpi_third/ips/18.0.1/impi/18.0.1/ESMF/8.0.0 libpng/1.2.59 " >> $cfile
+#echo "module purge"                           >> $cfile
+#echo "module use -a $gsisrc/modulefiles"      >> $cfile
+#echo "module load modulefile.ProdGSI.wcoss_d" >> $cfile
 echo "module list"                            >> $cfile
 echo "" >>$cfile
 
@@ -340,6 +343,6 @@ if [[ -w $SUBLOG ]];then
   jobn=$(grep -i submitted $ofile|head -n1|cut -d\" -f2)
   date +"%Y%m%d%H%M%S : $subcmd : $jobn" >>$SUBLOG
 fi
-rm $cfile $ofile
+#rm $cfile $ofile
 [[ $MKDATA = YES ]] && rmdir $DATA
 exit $rc
