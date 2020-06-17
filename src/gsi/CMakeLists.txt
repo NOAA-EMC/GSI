@@ -1,68 +1,33 @@
 cmake_minimum_required(VERSION 2.8)
 # need to set CMP0046 when using add_dependencies with cmake version 3.6.2
+  include(${CMAKE_CURRENT_SOURCE_DIR}/GSISRC.cmake) #this is a macro that contains all the source files needed for GSI builds
   if(crayComp)
     cmake_policy(SET CMP0046 NEW)
   endif()
   set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
-# get a list of all the fortran source files
-  file(GLOB GSIFORT_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*90 )
-# get a list of all the c source files
-  file(GLOB GSI_C_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*c )
-# get a list of all cplr files
-  file(GLOB CLASS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/class*90 )
-# create a list of all corresponding stub files
-  string(REGEX REPLACE "class" "stub" STUB_SRC "${CLASS_SRC}") 
-# create a list of all corresponding class files
-  string(REGEX REPLACE "class" "cplr" CPLR_SRC "${CLASS_SRC}") 
-
-# GSIMAIN_SRC is a list of Fortram main(s), to be used to define GSIEXEC,
-# and to be excluded from GSI libraries.
-  set(GSIMAIN_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90
-    ${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90
-  )
-
-# GSIUTIL_SRC is a list of all Fortran modules as *base level* utilities.
-# This list can be extended to include any module, which depends (USEs)
-# only on module(s) already included in this list, in one of CORE_LIBRARIES,
-# or in one of system libraries.  Any module dynamically depending on external
-# libraries through configuration, such as WRF, NCDIAG, etc. should not be
-# included.
-
-  set(GSIUTIL_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpeu_util.F90
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpimod.F90
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpeu_mpif.F90
-    ${CMAKE_CURRENT_SOURCE_DIR}/kinds.F90
-  )
-
-# GSIFORT_SRC is a list of all Fortran modules for GSI core implementations,
-# after all configuration dependent code (some stub and cplr), base level
-# utilities, the main are removed from the rest of source files
-
-# Remove CLASS_SRC list related STUB_SRC and CPLR_SRC, as configurable
-# grid components
-  list( REMOVE_ITEM GSIFORT_SRC
-    ${STUB_SRC}
-    ${CPLR_SRC}
-    ${CMAKE_CURRENT_SOURCE_DIR}/gsi_fixture_REGIONAL.F90
-    ${CMAKE_CURRENT_SOURCE_DIR}/gsi_fixture_GFS.F90
-    ${CMAKE_CURRENT_SOURCE_DIR}/stub_nstmod.f90
-    ${GSIUTIL_SRC}
-    ${GSIMAIN_SRC}
-  )
+  setSRCFiles() # All source files are set in this macro to help with readability of this CMakeLists.txt file
+                # Variables set are as follows--
+                # GSIFORT_SRC contains the main fortran source files for GSI
+                # GSI_C_SRC contains the C source files for GSI
+                # CLASS_SRC contains the class files for WRF and nonWRF based builds
+                # CPLR_SRC contains the coupler files for WRF-based builds
+                # STUB_SRC contains the stub files for non-WRF builds 
+                # GSIMAIN_SRC contains the Fortran main(s) for gsi executable
+                # GSIUTIL_SRC list of all Fortran modules as *base level* utilities.
+                
 
 # remove NCDIAG, if it is a component built somewhere else.
   if( BUILD_NCDIAG )
-    list( REMOVE_ITEM GSIFORT_SRC "${CMAKE_CURRENT_SOURCE_DIR}/nc_diag_read_mod.f90" )
-    list( REMOVE_ITEM GSIFORT_SRC "${CMAKE_CURRENT_SOURCE_DIR}/nc_diag_write_mod.f90" )
+    list( REMOVE_ITEM GSIFORT_SRC nc_diag_read_mod.f90 )
+    list( REMOVE_ITEM GSIFORT_SRC nc_diag_write_mod.f90 )
   endif( BUILD_NCDIAG )
 
 # The specific regional/WRF source files
   if(USE_WRF)
     list( APPEND GSIFORT_SRC
 	${CPLR_SRC}
-	${CMAKE_CURRENT_SOURCE_DIR}/gsi_fixture_REGIONAL.F90
+	${CLASS_SRC}
+	gsi_fixture_REGIONAL.F90
     )
   endif()
 
@@ -70,6 +35,7 @@ cmake_minimum_required(VERSION 2.8)
   if(BUILD_GLOBAL)
     list( APPEND GSIFORT_SRC
 	${STUB_SRC}
+	${CLASS_SRC}
 	${CMAKE_CURRENT_SOURCE_DIR}/gsi_fixture_GFS.F90
     )
   endif(BUILD_GLOBAL)
@@ -82,20 +48,14 @@ cmake_minimum_required(VERSION 2.8)
 
   set( GSICORE_SRC ${GSIFORT_SRC} ${GSI_C_SRC} )
 
-# Add the include paths
-  message("MPI include PATH  ${MPI_Fortran_INCLUDE_PATH}")
-  get_target_property(w3emc_inc w3emc_d INTERFACE_INCLUDE_DIRECTORIES)
-  get_target_property(nemsio_inc nemsio INTERFACE_INCLUDE_DIRECTORIES)
-  get_target_property(sfcio_inc4 sfcio_4 INTERFACE_INCLUDE_DIRECTORIES)
-  get_target_property(sigio_inc4 sigio_4 INTERFACE_INCLUDE_DIRECTORIES)
-  get_target_property(crtm_inc crtm INTERFACE_INCLUDE_DIRECTORIES)
-  include_directories( ${sigio_inc4} ${nemsio_inc} ${crtm_inc} ${sfcio_inc4} ${w3emc_incd} ${NetCDF_INCLUDE_DIRS} ${MPI_Fortran_INCLUDE_PATH} ${FV3GFS_NCIO_INCS} "./"  )
-
 #define the name used for GSI Shared lib and add it with properties and include dirs
   set(GSISHAREDLIB "gsilib_shrd${debug_suffix}" CACHE INTERNAL "")
+  message("GSIUTIL src is ${GSIUTIL_SRC}")
   add_library(${GSISHAREDLIB} STATIC ${GSIUTIL_SRC} )
   set_target_properties(${GSISHAREDLIB} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-  target_include_directories(${GSISHAREDLIB} PUBLIC "${PROJECT_BINARY_DIR}/include")
+  target_include_directories(${GSISHAREDLIB} PUBLIC "${PROJECT_BINARY_DIR}/include"
+     ${sigio_inc4} ${nemsio_inc} ${crtm_inc} ${sfcio_inc4} ${w3emc_incd} ${NetCDF_INCLUDE_DIRS} 
+     ${MPI_Fortran_INCLUDE_PATH} ${FV3GFS_NCIO_INCS} "./"  )
 
 # Definte the base name of the executable 
   if(BUILD_PRODUCTION)
@@ -122,7 +82,6 @@ cmake_minimum_required(VERSION 2.8)
   endif()
 
   if(BUILD_GLOBAL)
-    message("not using wrf")
     set(GSIEXEC "${GSIBASE}${debug_suffix}${GSISUFFIX}" CACHE INTERNAL "GSI Executable Name")
     add_executable( ${GSIEXEC} ${GSIMAIN_SRC} )
     set(GSILIB "gsilib_global${debug_suffix}" CACHE INTERNAL "")
@@ -141,14 +100,13 @@ cmake_minimum_required(VERSION 2.8)
 
   add_dependencies(${GSILIB} ${GSISHAREDLIB} )
   add_dependencies(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} )
+  # Removing the -lm flag is required to get bitwise reproducibility with old ProdGSI. May not be necessary after full conversion to GSI
   string(REGEX REPLACE " -lm" "" NETCDF_C_LIBRARIES "${NETCDF_C_LIBRARIES}") 
   string(REGEX REPLACE " -lm" "" NETCDF_Fortran_LIBRARIES "${NETCDF_Fortran_LIBRARIES}") 
-  message(" wrf ${WRF_LIBRARIES} ")
   message("netcdf and mpi ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} ")
   message("lapack ${LAPACK_LIBRARIES}")
   message(" linker flags and curl ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES}||||${CURL_LIBRARIES} ")
   message("ldflags  ${GSI_LDFLAGS}")
-  message("ncdiag +  ${NCDIAG_LIBRARIES} ${GSDCLOUD_LIBRARY} ${ZLIB_LIBRARIES} ${wrflib} ${EXTRA_LINKER_FLAGS} ${FV3GFS_NCIO_LIBRARIES}")
 
   target_link_libraries(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} ${GSISHAREDLIB} ${WRF_LIBRARIES} 
          ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} 

@@ -3,6 +3,7 @@
 # internally generated random ensemble perturbations.  No script changes are required.
 #  To run with hybrid ensemble option on, change HYBENS_GLOBAL and/or HYBENS_REGIONAL from "false" to "true".
 #  These are located at the end of this script.
+set -x
 
 if [ "$#" = 8 ] ; then
   export machine=$1
@@ -162,9 +163,9 @@ case $machine in
    export group="dev"
    export queue="dev"
    export NWPROD="/usr/local/jcsda/nwprod_gdas_2014"
-   export ptmp="/scratch/short/$LOGNAME/$ptmpName"
+   export ptmp="/scratch/short/users/$LOGNAME/$ptmpName"
 
-   export fixcrtm="/home/mpotts/gsi/trunk/lib/CRTM_REL-2.2.3/fix_update"
+   export fixcrtm="/data/users/mpotts/crtm-2.3.0/fix_update"
    export casesdir="/data/users/mpotts/CASES"
    export ndate="$NWPROD/util/exec/ndate"
 
