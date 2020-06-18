@@ -1,0 +1,28 @@
+name: syncEMC
+on:
+  schedule:
+     # actually, ~5 minutes is the highest
+     # effective frequency you will get
+    - cron:  '0 18,22 * * *'
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Merge upstream
+        run: |
+          git config --global user.name 'Guoqing Ge'
+          git config --global user.email 'Guoqing.Ge@noaa.gov'
+          git config pull.ff only 
+          # "git checkout master" is unnecessary, already here by default
+          git pull --unshallow  # this option is very important, you would get
+                                # complains about unrelated histories without it.
+                                # (but actions/checkout@v2 can also be instructed
+                                # to fetch all git depth right from the start)
+                                
+          git checkout -b master origin/master
+          git branch
+          git remote add upstream https://github.com/NOAA-EMC/GSI.git
+          git fetch upstream
+          git merge --no-edit upstream/master
+          git push origin master
