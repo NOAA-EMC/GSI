@@ -109,9 +109,6 @@ project(GSI)
 # find_package(CURL)
   message("found openmp with flag ${OPENMP_Fortran_FLAGS}")
 
-# Set Host specific flags and options
-  setHOST()
-
   if(FIND_HDF5_HL)
     find_package(HDF5 COMPONENTS C HL Fortran_HL )
   elseif(FIND_HDF5)
@@ -157,6 +154,9 @@ project(GSI)
     message("Setting PGI flags")
   endif()
   setFlags()
+# Set Host specific flags and options
+  setHOST()
+
 
   find_package(MPI REQUIRED)
   message("MPI version is ${MPI_Fortran_VERSION}")
@@ -286,7 +286,7 @@ project(GSI)
   if(BUILD_REG_TESTING)
     if(USE_WRF)
       file(WRITE "${PROJECT_BINARY_DIR}/regression_var.out" "${CMAKE_SOURCE_DIR}/regression/regression_var.sh ${host} ${CMAKE_SOURCE_DIR}/.. ${PROJECT_BINARY_DIR} ${CMAKE_SOURCE_DIR} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GSIEXEC} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${ENKFEXEC} ${GSICONTROL} ${ENKFCONTROL} ")
-      set( REG_TEST_NAMES "global_T62;global_T62_ozonly;global_4dvar_T62;global_4denvar_T126;global_fv3_4denvar_T126;global_lanczos_T62;arw_netcdf;
+      set( REG_TEST_NAMES "global_T62;global_T62_ozonly;global_4dvar_T62;global_4denvar_T126;global_fv3_4denvar_T126;;global_fv3_4denvar_C192;global_lanczos_T62;arw_netcdf;
           arw_binary;nmm_binary;nmm_netcdf;nmmb_nems_4denvar;hwrf_nmm_d2;hwrf_nmm_d3;rtma;global_enkf_T62;netcdf_fv3_regional;global_C96_fv3aero")
     else()
       file(WRITE "${PROJECT_BINARY_DIR}/regression_var.out" "${CMAKE_SOURCE_DIR}/regression/regression_var.sh ${host} ${CMAKE_SOURCE_DIR}/.. ${PROJECT_BINARY_DIR} ${CMAKE_SOURCE_DIR} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${GSIEXEC} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${ENKFEXEC} ${GSICONTROL} ${ENKFCONTROL} ")

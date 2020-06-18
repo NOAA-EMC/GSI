@@ -39,7 +39,8 @@ cmake_minimum_required(VERSION 2.8)
 	${CMAKE_CURRENT_SOURCE_DIR}/gsi_fixture_GFS.F90
     )
   endif(BUILD_GLOBAL)
-
+  set(GSI_Fortran_FLAGS ${GSI_Platform_FLAGS})
+  message("GSI_Fortran flags are ${GSI_Fortran_FLAGS}")
 # set up the compiler flags
   set_source_files_properties( ${GSIMAIN_SRC}	PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS} )
   set_source_files_properties( ${GSIFORT_SRC}	PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS} )
@@ -76,9 +77,9 @@ cmake_minimum_required(VERSION 2.8)
     set(GSILIB "gsilib_wrf${debug_suffix}" CACHE INTERNAL "")
     add_library(${GSILIB} STATIC ${GSICORE_SRC} )
     set_target_properties(${GSILIB} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-    target_include_directories(${GSILIB} PUBLIC "${PROJECT_BINARY_DIR}/include" ${crtm_inc} ${w3emc_inc})
+    target_include_directories(${GSILIB} PUBLIC "${PROJECT_BINARY_DIR}/include" ${crtm_inc} ${w3emc_incd} ${sigio_inc4} ${sfcio_inc4} ${nemsio_inc} ${NETCDF_INCLUDE_DIRS})
     set_target_properties(${GSIEXEC} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-    target_link_libraries( ${GSILIB} ${GSISHAREDLIB} ${wrflib} bufr_d crtm nemsio sp_d sfcio_4 sigio_4 bacio_4 w3emc_d w3nco_d bufr_d bacio_4 )
+#   target_link_libraries( ${GSILIB} ${GSISHAREDLIB} ${wrflib} bufr_d crtm nemsio sp_d sfcio_4 sigio_4 bacio_4 w3emc_d w3nco_d bufr_d bacio_4 )
   endif()
 
   if(BUILD_GLOBAL)
@@ -91,7 +92,7 @@ cmake_minimum_required(VERSION 2.8)
     add_dependencies(${GSILIB} ${GSISHAREDLIB} )
     target_link_libraries( ${GSIEXEC} ${GSISHAREDLIB} bufr_d crtm nemsio sp_d sigio_4 sfcio_4 bacio_4 w3emc_d w3nco_d bufr_d bacio_4 )
     set_target_properties( ${GSILIB} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-    target_include_directories( ${GSILIB} PUBLIC "${PROJECT_BINARY_DIR}/include")
+    target_include_directories( ${GSILIB} PUBLIC "${PROJECT_BINARY_DIR}/include" ${crtm_inc} ${w3emc_inc} ${NETCDF_INCLUDE_DIRS})
     set_target_properties(${GSIEXEC} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
   endif()
   if( BUILD_NCDIAG )
@@ -109,7 +110,7 @@ cmake_minimum_required(VERSION 2.8)
   message("ldflags  ${GSI_LDFLAGS}")
 
   target_link_libraries(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} ${GSISHAREDLIB} ${WRF_LIBRARIES} 
-         ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} 
+         ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} 
          ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} 
          bacio_4 bufr_d sigio_4 bacio_4 nemsio crtm sp_d sfcio_4 w3emc_d w3nco_d ip_d 
          ${GSI_LDFLAGS} ${NCDIAG_LIBRARIES} ${GSDCLOUD_LIBRARY} ${ZLIB_LIBRARIES} ${wrflib} ${EXTRA_LINKER_FLAGS} ${FV3GFS_NCIO_LIBRARIES})
