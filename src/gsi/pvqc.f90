@@ -139,13 +139,13 @@ integer(i_kind)          :: iunit
 logical                  :: ex,op
 !==============================================================================
 if(.not.linitvqc)&
-     stop'In writevqcascfile; VQC parameters and tables are not yet initialized'
-if(npx_a/=npx)stop'In writevqcascfile; mismatched specified npx'
-if(npa_a/=npa)stop'In writevqcascfile; mismatched specified npa'
-if(npb_a/=npb)stop'In writevqcascfile; mismatched specified npb'
-if(npk_a/=npk)stop'In writevqcascfile; mismatched specified npk'
-if(nx_a /=nx )stop'In writevqcascfile; mismatched specified nx'
-if(na_a /=na )stop'In writevqcascfile; mismatched specified na'
+     stop 'In writevqcascfile; VQC parameters and tables are not yet initialized'
+if(npx_a/=npx)stop 'In writevqcascfile; mismatched specified npx'
+if(npa_a/=npa)stop 'In writevqcascfile; mismatched specified npa'
+if(npb_a/=npb)stop 'In writevqcascfile; mismatched specified npb'
+if(npk_a/=npk)stop 'In writevqcascfile; mismatched specified npk'
+if(nx_a /=nx )stop 'In writevqcascfile; mismatched specified nx'
+if(na_a /=na )stop 'In writevqcascfile; mismatched specified na'
 
 do iunit=lunit,nunit
    inquire(unit=iunit, exist=ex, opened=op)
@@ -153,7 +153,7 @@ do iunit=lunit,nunit
    if(.not.op)exit
 enddo
 if(.not.ex .or. iunit>nunit)&
-     stop'In writevqcascfile; No available unit number for writing'
+     stop 'In writevqcascfile; No available unit number for writing'
 open(unit=iunit,file=vqcascfile,access='sequential',form='formatted')
 write(iunit,600)npx,npa,npb,npk,nx,na
 write(iunit,601)sgt
@@ -198,15 +198,15 @@ do iunit=lunit,nunit
    if(.not.op)exit
 enddo
 if(.not.ex .or. iunit>nunit)&
-     stop'In readvqcascfile; No available unit number for reading'
+     stop 'In readvqcascfile; No available unit number for reading'
 open(unit=iunit,file=vqcascfile,access='sequential',form='formatted')
 read(iunit,600)npx,npa,npb,npk,nx,na
-if(npx_a/=npx)stop'In readvqcascfile; mismatched specified npx'
-if(npa_a/=npa)stop'In readvqcascfile; mismatched specified npa'
-if(npb_a/=npb)stop'In readvqcascfile; mismatched specified npb'
-if(npk_a/=npk)stop'In readvqcascfile; mismatched specified npk'
-if(nx_a /=nx )stop'In readvqcascfile; mismatched specified nx'
-if(na_a /=na )stop'In readvqcascfile; mismatched specified na'
+if(npx_a/=npx)stop 'In readvqcascfile; mismatched specified npx'
+if(npa_a/=npa)stop 'In readvqcascfile; mismatched specified npa'
+if(npb_a/=npb)stop 'In readvqcascfile; mismatched specified npb'
+if(npk_a/=npk)stop 'In readvqcascfile; mismatched specified npk'
+if(nx_a /=nx )stop 'In readvqcascfile; mismatched specified nx'
+if(na_a /=na )stop 'In readvqcascfile; mismatched specified na'
 nkm=npk-1
 npb2=npb*2
 allocate(sgt(-nx:nx,0:na,-nkm:nkm),swt(-nx:nx,0:na,-nkm:nkm),&
@@ -250,13 +250,13 @@ integer(i_kind)          :: iunit
 logical          :: ex,op
 !==============================================================================
 if(.not.linitvqc)&
-     stop'In writevqcdatfile; VQC parameters and tables are not yet initialized'
-if(npx_a/=npx)stop'In writevqcdatfile; mismatched specified npx'
-if(npa_a/=npa)stop'In writevqcdatfile; mismatched specified npa'
-if(npb_a/=npb)stop'In writevqcdatfile; mismatched specified npb'
-if(npk_a/=npk)stop'In writevqcdatfile; mismatched specified npk'
-if(nx_a /=nx )stop'In writevqcdatfile; mismatched specified nx'
-if(na_a /=na )stop'In writevqcdatfile; mismatched specified na'
+     stop 'In writevqcdatfile; VQC parameters and tables are not yet initialized'
+if(npx_a/=npx)stop 'In writevqcdatfile; mismatched specified npx'
+if(npa_a/=npa)stop 'In writevqcdatfile; mismatched specified npa'
+if(npb_a/=npb)stop 'In writevqcdatfile; mismatched specified npb'
+if(npk_a/=npk)stop 'In writevqcdatfile; mismatched specified npk'
+if(nx_a /=nx )stop 'In writevqcdatfile; mismatched specified nx'
+if(na_a /=na )stop 'In writevqcdatfile; mismatched specified na'
 
 do iunit=lunit,nunit
    inquire(unit=iunit, exist=ex, opened=op)
@@ -264,7 +264,7 @@ do iunit=lunit,nunit
    if(.not.op)exit
 enddo
 if(.not.ex .or. iunit>nunit)&
-     stop'In writevqcdatfile; No available unit number for writing'
+     stop 'In writevqcdatfile; No available unit number for writing'
 open(unit=iunit,file=vqcdatfile,access='sequential',form='unformatted')
 write(unit=iunit)npx,npa,npb,npk,nx,na
 write(iunit)sgt
@@ -306,15 +306,15 @@ do iunit=lunit,nunit
    if(.not.op)exit
 enddo
 if(.not.ex .or. iunit>nunit)&
-     stop'In readvqcdatfile; No available unit number for reading'
+     stop 'In readvqcdatfile; No available unit number for reading'
 open(unit=iunit,file=vqcdatfile,access='sequential',form='unformatted')
 read(iunit)npx,npa,npb,npk,nx,na
-if(npx_a/=npx)stop'In readvqcdatfile; mismatched specified npx'
-if(npa_a/=npa)stop'In readvqcdatfile; mismatched specified npa'
-if(npb_a/=npb)stop'In readvqcdatfile; mismatched specified npb'
-if(npk_a/=npk)stop'In readvqcdatfile; mismatched specified npk'
-if(nx_a /=nx )stop'In readvqcdatfile; mismatched specified nx'
-if(na_a /=na )stop'In readvqcdatfile; mismatched specified na'
+if(npx_a/=npx)stop 'In readvqcdatfile; mismatched specified npx'
+if(npa_a/=npa)stop 'In readvqcdatfile; mismatched specified npa'
+if(npb_a/=npb)stop 'In readvqcdatfile; mismatched specified npb'
+if(npk_a/=npk)stop 'In readvqcdatfile; mismatched specified npk'
+if(nx_a /=nx )stop 'In readvqcdatfile; mismatched specified nx'
+if(na_a /=na )stop 'In readvqcdatfile; mismatched specified na'
 nkm=npk-1
 npb2=npb*2
 allocate(sgt(-nx:nx,0:na,-nkm:nkm),swt(-nx:nx,0:na,-nkm:nkm),&
@@ -358,13 +358,13 @@ real(dp)          :: bc,p,q,qx,sx,alpha,beta,kappa, &
                      x1,x2,xa,ya,xx
 integer(i_kind)           :: ja
 !==============================================================================
-if(.not.linitvqc)stop'In vqch; VQC tables are not initialized'
+if(.not.linitvqc)stop 'In vqch; VQC tables are not initialized'
 if(ia<0)then; sx=-x; ja=-ia
 else;         sx= x; ja= ia
 endif
-if(ja>na              )stop'In vqch; ia out of bounds'
-if(ib<=0.or.ib>=npb2  )stop'In vqch; ib out of bounds'
-if(ik<=-npk.or.ik>=npk)stop'In vqch; ik out of bounds'
+if(ja>na              )stop 'In vqch; ia out of bounds'
+if(ib<=0.or.ib>=npb2  )stop 'In vqch; ib out of bounds'
+if(ik<=-npk.or.ik>=npk)stop 'In vqch; ik out of bounds'
 x1=x1t(ja,ik)
 x2=x2t(ja,ik)
 xa=xat(ja,ik)
@@ -428,8 +428,8 @@ real(dp),intent(out):: g,w
 real(dp),parameter:: pio4=pi/4_dp
 real(dp)          :: bc,p,q,qx,x1,x2,ya,xx
 !==============================================================================
-if(.not.linitvqc)stop'In vqch; VQC tables are not initialized'
-if(beta<=u0.or.beta>=u2)stop'In vqch; beta out of bounds'
+if(.not.linitvqc)stop 'In vqch; VQC tables are not initialized'
+if(beta<=u0.or.beta>=u2)stop 'In vqch; beta out of bounds'
 x1=x1t(0,0)
 x2=x2t(0,0)
 ya=yat(0,0)
@@ -478,13 +478,13 @@ real(dp)          :: bc,p,q,qx,sx,w1,w2,xodx,beta,kappa,xe,ge,we,&
                      ww,dfa,fl,dfl,f1,f2,df1,df2,g1,g2
 integer(i_kind)   :: ix1,ix2,ja
 !==============================================================================
-if(.not.linitvqc)stop'In vqcs; VQC tables are not initialized'
+if(.not.linitvqc)stop 'In vqcs; VQC tables are not initialized'
 if(ia<0)then; sx=-x; ja=-ia
 else;         sx= x; ja= ia
 endif
-if(ja>na              )stop'In vqcs; ia out of bounds'
-if(ib<=0.or.ib>=npb2  )stop'In vqcs; ib out of bounds'
-if(ik<=-npk.or.ik>=npk)stop'In vqcs; ik out of bounds'
+if(ja>na              )stop 'In vqcs; ia out of bounds'
+if(ib<=0.or.ib>=npb2  )stop 'In vqcs; ib out of bounds'
+if(ik<=-npk.or.ik>=npk)stop 'In vqcs; ik out of bounds'
 beta =ib*db
 kappa=ik*dk
 bc=tan(pio4*(u2-beta))
@@ -574,7 +574,7 @@ real(dp)          :: bc,p,q,qx,w1,w2,xodx,xe,ge,we,&
                      ww,dfa,fl,dfl,f1,f2,df1,df2,g1,g2
 integer(i_kind)   :: ix1,ix2
 !==============================================================================
-if(.not.linitvqc)stop'In vqcs; VQC tables are not initialized'
+if(.not.linitvqc)stop 'In vqcs; VQC tables are not initialized'
 bc=tan(pio4*(u2-beta))
 p=bc**2
 q=u1/bc

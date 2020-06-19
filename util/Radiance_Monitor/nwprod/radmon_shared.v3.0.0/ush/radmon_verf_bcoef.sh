@@ -72,10 +72,6 @@
 #  Command line arguments.
 export PDATE=${1:-${PDATE:?}}
 
-scr=radmon_verf_bcoef.sh
-msg="${scr} HAS STARTED"
-postmsg "$jlogfile" "$msg"
-
 netcdf_boolean=".false."
 if [[ $RADMON_NETCDF -eq 1 ]]; then
    netcdf_boolean=".true."
@@ -246,7 +242,5 @@ if [[ "$VERBOSE" = "YES" ]]; then
    echo $(date) EXITING $0 with error code ${err} >&2
 fi
 
-msg="${scr} HAS ENDED"
-postmsg "$jlogfile" "$msg"
 
 exit ${err}
