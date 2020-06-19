@@ -39,8 +39,6 @@ cmake_minimum_required(VERSION 2.8)
 	${CMAKE_CURRENT_SOURCE_DIR}/gsi_fixture_GFS.F90
     )
   endif(BUILD_GLOBAL)
-  set(GSI_Fortran_FLAGS ${GSI_Platform_FLAGS})
-  message("GSI_Fortran flags are ${GSI_Fortran_FLAGS}")
 # set up the compiler flags
   set_source_files_properties( ${GSIMAIN_SRC}	PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS} )
   set_source_files_properties( ${GSIFORT_SRC}	PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS} )
@@ -51,7 +49,6 @@ cmake_minimum_required(VERSION 2.8)
 
 #define the name used for GSI Shared lib and add it with properties and include dirs
   set(GSISHAREDLIB "gsilib_shrd${debug_suffix}" CACHE INTERNAL "")
-  message("GSIUTIL src is ${GSIUTIL_SRC}")
   add_library(${GSISHAREDLIB} STATIC ${GSIUTIL_SRC} )
   set_target_properties(${GSISHAREDLIB} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
   target_include_directories(${GSISHAREDLIB} PUBLIC "${PROJECT_BINARY_DIR}/include"
@@ -104,10 +101,6 @@ cmake_minimum_required(VERSION 2.8)
   # Removing the -lm flag is required to get bitwise reproducibility with old ProdGSI. May not be necessary after full conversion to GSI
   string(REGEX REPLACE " -lm" "" NETCDF_C_LIBRARIES "${NETCDF_C_LIBRARIES}") 
   string(REGEX REPLACE " -lm" "" NETCDF_Fortran_LIBRARIES "${NETCDF_Fortran_LIBRARIES}") 
-  message("netcdf and mpi ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} ")
-  message("lapack ${LAPACK_LIBRARIES}")
-  message(" linker flags and curl ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES}||||${CURL_LIBRARIES} ")
-  message("ldflags  ${GSI_LDFLAGS}")
 
   target_link_libraries(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} ${GSISHAREDLIB} ${WRF_LIBRARIES} 
          ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} 

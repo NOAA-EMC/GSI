@@ -13,12 +13,8 @@ include_directories(
       ${PFUNIT_DIR}/mod
 )
 set(UNIT_TEST_LIST "test_read_wrf_nmm;test_read_wrf_mass;test_adjoint")
-#foreach(_sample ${UNIT_TEST_LIST})
-#  message("HEY!!! tests are ${_sample}")
-#endforeach()
 #foreach(_test test_read_wrf_nmm test_read_wrf_mass test_adjoint)
 foreach(_test ${UNIT_TEST_LIST})
-    message("HEY!!! tests are ${_sample}")
     file(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/${_test}/generated)
     file(WRITE ${PROJECT_BINARY_DIR}/generated/${_test}/testSuites.inc "")
     message("working on test ${_test}")
@@ -42,7 +38,7 @@ foreach(_test ${UNIT_TEST_LIST})
     gsilib_global${debug_suffix} gsilib_shrd${debug_suffix} gsilib_global${debug_suffix} gsilib_shrd${debug_suffix} 
          gsilib_global${debug_suffix} ${FRAMEPACK} ${FRAMEMODULE}
          ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES}   
-         ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${CORE_LIBRARIES} 
+         ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${corelibs} 
          ${IOINT_LIB} ${WRFNETCDF_LIB} )
   target_include_directories( ${_test}.x PUBLIC ${PROJECT_BINARY_DIR}/generated/${_test})
   add_test(NAME ${_test} WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/unit-tests/data COMMAND 

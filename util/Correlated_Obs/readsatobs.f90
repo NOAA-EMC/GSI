@@ -72,10 +72,11 @@ subroutine get_chaninfo_bin(filename,chan_choice)
    type(diag_header_fix_list )         :: header_fix0
    type(diag_header_chan_list),allocatable :: header_chan0(:)
    type(diag_data_name_list)           :: data_name0
-
+   logical retrieval
+   retrieval = .false.
    iunit = 7
    call open_radiag(trim(filename),iunit,istatus)
-   call read_radiag_header(iunit,.false.,header_fix0,header_chan0,data_name0,iflag,.false.)
+   call read_radiag_header(iunit,retrieval,header_fix0,header_chan0,data_name0,iflag,.false.)
    nctot=header_fix0%nchan
    if (chan_choice==full_chan) then
       nch_active=nctot

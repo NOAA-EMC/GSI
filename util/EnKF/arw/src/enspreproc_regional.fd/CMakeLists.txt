@@ -8,6 +8,6 @@ cmake_minimum_required(VERSION 2.6)
   set_target_properties( enspreproc.x PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS_LOCAL} )
   target_link_libraries(enspreproc.x ${GSISHAREDLIB} ${GSILIB} ${GSISHAREDLIB} ${WRF_LIBRARIES} 
          ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} 
-         ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${CORE_LIBRARIES} ${CORE_BUILT}
+         ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${corelibs} 
          ${GSI_LDFLAGS} ${NCDIAG_LIBRARIES} ${ZLIB_LIBRARIES} ${wrflib} ${FV3GFS_NCIO_LIBRARIES} )
   add_dependencies(enspreproc.x ${GSILIB})

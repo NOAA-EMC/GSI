@@ -12,7 +12,6 @@ if(BUILD_NCDIAG)
     # 32-bit reals, for now
     add_definitions(-D_REAL4_)
 
-    message("HEY!!! ncdiag flags are ${NCDIAG_Fortran_FLAGS}")
     FILE(GLOB NCDIAG_SRC ${CMAKE_CURRENT_SOURCE_DIR}/../*90 )
     set_source_files_properties( ${NCDIAG_SRC} PROPERTIES COMPILE_FLAGS ${NCDIAG_Fortran_FLAGS} )
     LIST(REMOVE_ITEM NCDIAG_SRC ${CMAKE_CURRENT_SOURCE_DIR}/test_nc_unlimdims.F90 ) 

@@ -39,6 +39,9 @@ project(GSI)
   option(BUILD_ENKF "Build the Enkf executable " ON)
   SET(ENKF_MODE "GFS" CACHE STRING "EnKF build mode: GFS, WRF, NMMB")
   string(TOUPPER ${ENKF_MODE} ENKF_MODE)
+  if(BUILD_GLOBAL)
+    set(USE_WRF FALSE)
+  endif()
   if (ENKF_MODE MATCHES "^GFS$")
     message("Build the EnKF with GFS module")
     option(BUILD_GFS "Build the Enkf with GFS module " ON)
@@ -107,7 +110,6 @@ project(GSI)
   cmake_policy(SET CMP0009 NEW)
   find_package(OpenMP)
 # find_package(CURL)
-  message("found openmp with flag ${OPENMP_Fortran_FLAGS}")
 
   if(FIND_HDF5_HL)
     find_package(HDF5 COMPONENTS C HL Fortran_HL )
@@ -115,7 +117,6 @@ project(GSI)
     find_package(HDF5)
   endif()
 
-  MESSAGE(${CMAKE_CURRENT_SOURCE_DIR})
   # make sure that the default is a RELEASE
   if (NOT CMAKE_BUILD_TYPE)
     set (CMAKE_BUILD_TYPE RELEASE CACHE STRING
@@ -170,9 +171,7 @@ project(GSI)
   if( USE_BASELIBS )
     find_package(Baselibs REQUIRED)
   else()
-    message("looking for netcdf")
     find_package( NetCDF COMPONENTS C Fortran REQUIRED)
-    message("DONE looking for netcdf---${NetCDF_INCLUDE_DIRS}")
     if(NETCDF4)
       if(CMAKE_MAJOR_VERSION GREATER 2)
         find_package( ZLIB )
@@ -181,9 +180,7 @@ project(GSI)
     endif()
   endif()
   if(( NOT HOST-WCOSS_D ) AND ( NOT HOST-WCOSS_C ) AND ( NOT HOST-Gaea ) ) 
-    message(" trying to find lapack, ${host}")
     find_package( LAPACK REQUIRED )
-    message("lapack libs are , ${LAPACK95_LIBRARIES},${LAPACK_LINKER_FLAGS}")
   endif()
 # build the WRF I/O libraries
   if(DEFINED ENV{GSIWRF_LIB})
@@ -198,14 +195,12 @@ project(GSI)
 
   # default installation
   get_filename_component (default_prefix ".." ABSOLUTE)
-# set (CMAKE_INSTALL_PREFIX ${default_prefix} CACHE STRING "set prefix"
-#       FORCE)
 
 
   # FFLAGS depend on the compiler
   get_filename_component (Fortran_COMPILER_NAME ${CMAKE_Fortran_COMPILER} NAME)
   set(CFLAGS "-I. -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O3  -Dfunder")
-  set (CMAKE_Fortran_INC_FLAGS "-I ./ -I ${CORE_INCS} -I ${NetCDF_INCLUDE_DIRS} ")
+  set (CMAKE_Fortran_INC_FLAGS "-I ./ -I ${coreincs} -I ${NetCDF_INCLUDE_DIRS} ")
   set (CFLAGS_N "-I. -DFortranByte=char -DFortranInt=int -DFortranLlong='long long'  -O3  -Dfunder")
 
 
@@ -226,7 +221,9 @@ project(GSI)
   get_target_property(nemsio_inc nemsio INTERFACE_INCLUDE_DIRECTORIES)
   get_target_property(crtm_inc crtm INTERFACE_INCLUDE_DIRECTORIES)
 
+  
   set(corelibs bacio_4;bufr_d;sigio_4;nemsio;crtm;sp_d;sfcio_4;w3emc_d;w3nco_d)
+  set(coreincs ${sigio_inc4};${nemsio_inc};${crtm_inc};${sfcio_inc4};${w3emc_incd};${w3nco_incd})
   if(BUILD_NCDIAG)
     set(NCDIAG_INCS "${PROJECT_BINARY_DIR}/src/ncdiag/include")
     add_subdirectory(src/ncdiag)
