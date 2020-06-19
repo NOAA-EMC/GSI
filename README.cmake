@@ -1,33 +1,34 @@
 Quick start--
 
-load desired compilers (intel recommended), desired mpi libraries/compilers, netcdf library (and hdf5 library for netcdf4)
+Currently, the GSI build has module files for the following platforms--
 
-skip the following section unless you are compiling on a different machine or wish to link in special libraries
-----------------------------------
-If not on WCOSS, Theia, or S4, ensure that the environment flags CC, CXX, and FC all point to to the C, C++, and Fortran compilers respectively
+WCOSS_C (Cray), WCOSS_D (Dell), Hera, S4 (U. Wisc), Orion (MSU), Cheyenne (NCAR), Jet, Gaea, and Discover (NASA)
 
-If building on a machine other than WCOSS, Theia, or S4, several additional environment variables need to be set--
-  COREPATH should be set to the root path where the core libraries are located (i.e. /nwprod/lib )
-  WRFPATH should be set to the root path where WRF is install (i.e. /nwprod/sorc/wrf_shared.f )
-  If libraries are in these locations, they should all be found once these environment variables are set. Please note that this is all done 
-  automatically on WCOSS, Theia, and S4.
+If you are on one of these supported platforms, run the following command to build the GSI--
 
-  Alternatively, any (or every) core library can also be specified via environment variable. So, if a desired library is in an unusual location
-  such as a user's home directory, it can be found by specifying the location like--
-     export CRTM_LIB=/home/myname/MyCRTM/libcrtm.a (for csh and tcsh-- setenv CRTM_LIB /home/myname/MyCRTM/libcrtm.a )
-     other library environment variable names are BACIO_LIB, BUFR_LIB, NEMSIO_LIB, SIGIO_LIB, SFCIO_LIB, SP_LIB, W3NCO_LIB W3EMC_LIB
----------------------------------
+cd to GSI directory
+module use $PWD/modulefiles
+module load modulefile.ProdGSI.{platform_name}
+./ush/build_all_cmake.sh 0 $PWD
 
-  
-Create a build directory somewhere outside the source tree.
-cd to the build directory
-run--
+where {platform_name} is replace by the name of your platform (look in the GSI/modulefiles directory to see the exact syntax)
 
-	cmake (path-to-source-tree)
-	make -j 8
+The build_all_cmake.sh script will run cmake and build the GSI and EnKF executables along with several utilities which will
+all reside in GSI/build/bin upon completion.
 
-The above should find all the dependent libraries (tested on wcoss, theia and s4) and build the base gsi executable which will be 
-called gsi.x and located in the (build-dir)/bin directory.
+If you are on an unsupported platform, you will need to build (or load) a compiler (GNU or Intel), a version of MPI, NetCDF4,
+HDF5, cmake (version 3.16+), and the following NCEPLIBS-- bacio, bufr, crtm (technically a fork of official repo), nemsio,
+ip, sp, sigio, sfcio, w3emc, and w3nco. All of these libraries and components are now supplied by the NOAA-EMC repositories
+containting NCEPLIBS-external (https://github.com/NOAA-EMC/NCEPLIBS-external) and NCEPLIBS (https://github.com/NOAA-EMC/NCEPLIBS).
+There are detailed instructions for building both the external libraries and NCEPLIBS here--https://github.com/NOAA-EMC/NCEPLIBS-external/wiki
+
+Once the externals and NCEPLIBS have been built, the GSI can be built using the following commands--
+
+cd GSI
+mkdir build
+cd build
+cmake -DCMAKE_PREFIX_INSTALL="path-to-NCEPLIBS-external-install-directory;path-to-NCEPLIBS-install-directory" ..
+make -j N (where N is the number of cores dedicated to the build)
 
 ----
 
@@ -37,49 +38,12 @@ CMake allows for various options that can be specified on the command line or fr
 currently available is as follows--
 
 BUILD_ENKF -- will build the enkf executable (default is ON)
-BUILD_CORELIBS -- will attempt to find the source and build all the core libraries (nemsio, sigio, sfcio, sp, bacio, bufr, w3emc, w3nco crtm)
-BUILD_GLOBAL -- will build GSI without WRF dependencies (default is OFF)
-USE_WRF -- will build GSI with WRF dependencies (default is ON)
+BUILD_GLOBAL -- will build GSI without WRF dependencies (default is OFF) -- this will also force USE_WRF=OFF
+USE_WRF -- will build GSI with WRF dependencies (default is ON) 
 BUILD_REG_TESTING -- will build GSI with regression testing built in (default is ON)
 BUILD_GFS -- will build ENKF using GFS (default is ON)
 BUILD_WRF -- will build ENKF using WRF (default is OFF)
 BUILD_NMMB -- will build ENKF using NMMB (default is OFF)
-
-If CMake cannot find the source for a given library (should not be a problem on WCOSS, Theia, or S4), the location may be specified via
-environment variable. The names of those variables is as follows--
-   BACIO_SRC
-   CRTM_SRC
-   BUFR_SRC
-   NEMSIO_SRC
-   SIGIO_SRC
-   SFCIO_SRC
-   SP_SRC
-   W3NCO_SRC 
-   W3EMC_SRC
-If specified, these variables should point to the the actual directory containing the source (i.e. export BACIO_SRC=/nwprod2/lib/bacio/v2.0.2/src )
-If the modules for the libraries are loaded on WCOSS, they will automatically be detected by CMake
-
-If BUILD_CORELIBS is turned on, individual libraries can be turned off using 
-BUILD_CRTM
-BUILD_SIGIO
-BUILD_SFCIO
-BUILD_NEMSIO
-BUILD_SP
-BUILD_BUFR
-BUILD_BACIO
-BUILD_NCO
-BUILD_EMC
-
-An example of configuring the GSI model to compile along with all the core libraries and the ENKF executable using WRF would be as follows
-
-cmake -DBUILD_WRF=ON -DBUILD_CORELIBS=ON (path-to-source-tree)
-
-Building only the GSI, ENKF and CRTM executables/library can be done as follows--
-
-cmake -DBUILD_ENKF=ON -DBUILD_CORELIBS=ON -DBUILD_BACIO=OFF -DBUILD_SP=OFF -DBUILD_NEMSIO=OFF -DBUILD_NCO=OFF -DBUILD_EMC=OFF -DBUILD_SFCIO=OFF -DBUILD_SIGIO=OFF -DBUILD_BUFR=OFF  (path-to-source-tree)
-
-If the core libraries desired are not located in the traditional paths, a hint can be provided to cmake via the environment variable $COREPATH. Similarly, 
-the environment variable $WRFPATH can give cmake a hint to find the WRF libraries and associated files (pack_utils.o, module_machine.o)
 
 -------------
 
@@ -124,7 +88,7 @@ When run in this fashion, it will simply read the CMakeCache.txt file and allow 
 
 -----
 
-Regression Testing on WCOSS and Theia
+Regression Testing on WCOSS and Hera 
 
 CMake will attempt to locate a control executable (gsi.x or global_gsi) somewhere in your source code treee. It is currently designed to look in
 your source tree (up to two levels above the branch) as well as in Michael Lueken's directory. If it cannot find an executable, you can still
