@@ -1,15 +1,15 @@
-cmake_minimum_required(VERSION 2.6)
-if(BUILD_UTIL)
-  
-  file(GLOB LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.F90 ${CMAKE_CURRENT_SOURCE_DIR}/*.f90)
-  set(Util_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include/getsfcnstensupdp")
-  set_source_files_properties( ${LOCAL_SRC} PROPERTIES COMPILE_FLAGS ${UTIL_Fortran_FLAGS} )
-  add_executable(getsfcnstensupdp.x  ${LOCAL_SRC} )
-  set_target_properties( getsfcnstensupdp.x PROPERTIES COMPILE_FLAGS ${UTIL_Fortran_FLAGS} )
-  set_target_properties( getsfcnstensupdp.x PROPERTIES Fortran_MODULE_DIRECTORY ${Util_MODULE_DIRECTORY} )
-  SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_Fortran_FLAGS}" )
-  include_directories( ${UTIL_INC}/getsfcnstensupdp ${sfcio_inc4} ${nemsio_inc} ${MPI_Fortran_INCLUDE_PATH} ) 
-  target_link_libraries( getsfcnstensupdp.x sfcio_4 nemsio bacio_4 w3nco_4 sp_4 ${MPI_Fortran_LIBRARIES} )
-  target_link_libraries( getsfcnstensupdp.x ${GSILIB} ${GSISHAREDLIB} )
-  add_dependencies( getsfcnstensupdp.x ${GSISHAREDLIB} )
-endif()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

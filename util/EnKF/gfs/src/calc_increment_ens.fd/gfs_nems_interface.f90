@@ -75,7 +75,7 @@ module gfs_nems_interface
      character(16),                dimension(:),       allocatable :: aryr8name
      character(nemsio_charkind8)                                   :: gdatatype
      character(nemsio_charkind8)                                   :: modelname
-     real(nemsio_realkind),        dimension(:,:,:),   allocatable :: vcoord
+     real(r_kind),        dimension(:,:,:),   allocatable :: vcoord
      real(nemsio_realkind),        dimension(:),       allocatable :: lon
      real(nemsio_realkind),        dimension(:),       allocatable :: lat
      real(nemsio_realkind)                                         :: rlon_min

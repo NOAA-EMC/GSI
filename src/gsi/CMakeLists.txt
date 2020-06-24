@@ -22,7 +22,7 @@ cmake_minimum_required(VERSION 2.8)
     list( REMOVE_ITEM GSIFORT_SRC nc_diag_write_mod.f90 )
   endif( BUILD_NCDIAG )
 
-# The specific regional/WRF source files
+# The sp::specific regional/WRF source files
   if(USE_WRF)
     list( APPEND GSIFORT_SRC
 	${CPLR_SRC}
@@ -31,7 +31,7 @@ cmake_minimum_required(VERSION 2.8)
     )
   endif()
 
-# The specific global source files
+# The sp::specific global source files
   if(BUILD_GLOBAL)
     list( APPEND GSIFORT_SRC
 	${STUB_SRC}
@@ -74,9 +74,8 @@ cmake_minimum_required(VERSION 2.8)
     set(GSILIB "gsilib_wrf${debug_suffix}" CACHE INTERNAL "")
     add_library(${GSILIB} STATIC ${GSICORE_SRC} )
     set_target_properties(${GSILIB} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-    target_include_directories(${GSILIB} PUBLIC "${PROJECT_BINARY_DIR}/include" ${crtm_inc} ${w3emc_incd} ${sigio_inc4} ${sfcio_inc4} ${nemsio_inc} ${NETCDF_INCLUDE_DIRS})
+    target_include_directories(${GSILIB} PUBLIC "${PROJECT_BINARY_DIR}/include" ${sigio_inc4} ${nemsio_inc} ${crtm_inc} ${sfcio_inc4} ${w3emc_incd} ${NetCDF_INCLUDE_DIRS} )
     set_target_properties(${GSIEXEC} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-#   target_link_libraries( ${GSILIB} ${GSISHAREDLIB} ${wrflib} bufr_d crtm nemsio sp_d sfcio_4 sigio_4 bacio_4 w3emc_d w3nco_d bufr_d bacio_4 )
   endif()
 
   if(BUILD_GLOBAL)
@@ -87,9 +86,9 @@ cmake_minimum_required(VERSION 2.8)
     add_library(${GSILIB} STATIC ${GSICORE_SRC} )
     target_link_libraries( ${GSILIB} ${GSISHAREDLIB} )
     add_dependencies(${GSILIB} ${GSISHAREDLIB} )
-    target_link_libraries( ${GSIEXEC} ${GSISHAREDLIB} bufr_d crtm nemsio sp_d sigio_4 sfcio_4 bacio_4 w3emc_d w3nco_d bufr_d bacio_4 )
+    target_link_libraries( ${GSIEXEC} PUBLIC ${GSISHAREDLIB} bufr::bufr_d crtm::crtm nemsio::nemsio sp::sp_d sigio::sigio sfcio::sfcio bacio::bacio_4 w3emc::w3emc_d w3nco::w3nco_d bacio::bacio_4 )
     set_target_properties( ${GSILIB} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-    target_include_directories( ${GSILIB} PUBLIC "${PROJECT_BINARY_DIR}/include" ${crtm_inc} ${w3emc_inc} ${NETCDF_INCLUDE_DIRS})
+    target_include_directories( ${GSILIB} PUBLIC "${PROJECT_BINARY_DIR}/include" ${crtm::crtm_inc} ${w3emc::w3emc_inc} ${NETCDF_INCLUDE_DIRS})
     set_target_properties(${GSIEXEC} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
   endif()
   if( BUILD_NCDIAG )
@@ -100,12 +99,12 @@ cmake_minimum_required(VERSION 2.8)
   add_dependencies(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} )
   # Removing the -lm flag is required to get bitwise reproducibility with old ProdGSI. May not be necessary after full conversion to GSI
   string(REGEX REPLACE " -lm" "" NETCDF_C_LIBRARIES "${NETCDF_C_LIBRARIES}") 
-  string(REGEX REPLACE " -lm" "" NETCDF_Fortran_LIBRARIES "${NETCDF_Fortran_LIBRARIES}") 
+  string(REGEX REPLACE " -lm" "" NETCDF_LIBRARIES "${NETCDF_LIBRARIES}") 
 
-  target_link_libraries(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} ${GSISHAREDLIB} ${WRF_LIBRARIES} 
+  target_link_libraries(${GSIEXEC} PUBLIC ${GSISHAREDLIB} ${GSILIB} ${GSISHAREDLIB} ${WRF_LIBRARIES} 
          ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} 
          ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} 
-         bacio_4 bufr_d sigio_4 bacio_4 nemsio crtm sp_d sfcio_4 w3emc_d w3nco_d ip_d 
+         bacio::bacio_4 bufr::bufr_d sigio::sigio bacio::bacio_4 nemsio::nemsio crtm::crtm sp::sp_d sfcio::sfcio w3emc::w3emc_d w3nco::w3nco_d ip::ip_d 
          ${GSI_LDFLAGS} ${NCDIAG_LIBRARIES} ${GSDCLOUD_LIBRARY} ${ZLIB_LIBRARIES} ${wrflib} ${EXTRA_LINKER_FLAGS} ${FV3GFS_NCIO_LIBRARIES})
 
   install(TARGETS ${GSIEXEC}
