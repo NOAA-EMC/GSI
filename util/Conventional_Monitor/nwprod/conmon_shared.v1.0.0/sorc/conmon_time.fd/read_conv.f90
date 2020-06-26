@@ -74,6 +74,8 @@ module conmon_read_time_diag
       real(4),dimension(np,100,6,nregion,3)  :: twork,qwork,uwork,vwork,uvwork
       real(4),dimension(1,100,6,nregion,3)   :: pswork
 
+      write(6,*) 'input_file = ', input_file
+
       if( netcdf ) then
          write(6,*) ' call nc read subroutine'
       else

@@ -6,7 +6,7 @@ if(BUILD_NCDIAG)
   set(Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
 
   # NetCDF-4 library
-  include_directories( ${NETCDF_INCLUDES} ${NCDIAG_INCS} )
+  include_directories( ${NETCDF_INCLUDES} ${NCDIAG_INCS} ${MPI_Fortran_INCLUDE_PATH} )
 
   # 32-bit reals, for now
   add_definitions(-D_REAL4_ -DUSE_MPI)
@@ -19,8 +19,5 @@ if(BUILD_NCDIAG)
   add_executable(nc_diag_cat.x ${CMAKE_CURRENT_SOURCE_DIR}/nc_diag_cat.F90 )
   target_link_libraries(nc_diag_cat.x ncdiag ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${HDF5_LIBRARIES} ${ZLIB_LIBRARIES} ${MPI_Fortran_LIBRARIES})  
   target_link_libraries(test_nc_unlimdims.x ncdiag ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${HDF5_LIBRARIES} ${ZLIB_LIBRARIES} ${MPI_Fortran_LIBRARIES})  
-# set_target_properties(test_nc_unlimdims.x PROPERTIES Fortran_MODULE_DIRECTORY ${NCDIAG_INCS} )
-# set_target_properties(nc_diag_cat.x PROPERTIES Fortran_MODULE_DIRECTORY ${NCDIAG_INCS} ${MPI_Fortran_INCLUDE_PATH})
  
 endif(BUILD_NCDIAG)
-

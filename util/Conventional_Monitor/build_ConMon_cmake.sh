@@ -106,20 +106,16 @@ if [[ ${target} = "hera"     || ${target} = "wcoss" \
                 conmon_grads_mandlev.x  conmon_grads_sfctime.x"
 
 
-#	        conmon_read_q.x   conmon_read_pw.x   
-#               conmon_read_uv.x  conmon_grads_sfctime.x  conmon_read_ps.x  
-#               conmon_read_t.x   conmon_time.x"
-
    for file in $file_list1; do
       cp $file $HOMEconmon_shared/exec/.
    done
 
 
-   file_list_ig="conmon_read_uv_IG.x  conmon_read_q_IG.x  conmon_read_t_IG.x 
-	         conmon_read_ps_IG.x  conmon_read_pw_IG.x"
-   for file in $file_list_ig; do
-      cp $file $C_IG_EXEC/.
-   done
+#   file_list_ig="conmon_read_uv_IG.x  conmon_read_q_IG.x  conmon_read_t_IG.x 
+#	         conmon_read_ps_IG.x  conmon_read_pw_IG.x"
+#   for file in $file_list_ig; do
+#      cp $file $C_IG_EXEC/.
+#   done
 
 else
    echo ${machine} is not supported 

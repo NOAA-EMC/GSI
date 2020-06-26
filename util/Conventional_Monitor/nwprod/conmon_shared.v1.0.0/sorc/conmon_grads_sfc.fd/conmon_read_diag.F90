@@ -65,11 +65,10 @@ module conmon_read_diag
    contains
 
 
-   subroutine load_nc_var_int( var_name, ftin, var_storage, error_code, ierr )
+   subroutine load_nc_var_int( var_name, ftin, var_storage, ierr )
       character(len=*), intent(in)                    :: var_name
       integer, intent(in)                             :: ftin
       integer, dimension(:), allocatable, intent(out) :: var_storage
-      integer, intent(in)                             :: error_code
       integer, intent(out)                            :: ierr 
 
       if( nc_diag_read_check_var( var_name )) then
@@ -77,16 +76,15 @@ module conmon_read_diag
          ierr = 0
       else
          print *, 'ERROR:  unable to read ', trim( var_name )
-         ierr = error_code
+         ierr = 1
       end if
    end subroutine
 
 
-   subroutine load_nc_var_real( var_name, ftin, var_storage, error_code, ierr )
+   subroutine load_nc_var_real( var_name, ftin, var_storage, ierr )
       character(len=*), intent(in)                           :: var_name
       integer, intent(in)                                    :: ftin
       real(r_single), dimension(:), allocatable, intent(out) :: var_storage
-      integer, intent(in)                                    :: error_code
       integer, intent(out)                                   :: ierr
 
       if( nc_diag_read_check_var( var_name )) then
@@ -94,16 +92,15 @@ module conmon_read_diag
          ierr=0
       else
          print *, 'WARNING:  unable to read ', trim( var_name )
-         ierr=error_code
+         ierr=1
       end if
    end subroutine
 
 
-   subroutine load_nc_var_char( var_name, ftin, var_storage, error_code, ierr )
+   subroutine load_nc_var_char( var_name, ftin, var_storage, ierr )
       character(len=*), intent(in)                             :: var_name
       integer, intent(in)                                      :: ftin
       character(len=:), dimension(:), allocatable, intent(out) :: var_storage
-      integer, intent(in)                                      :: error_code
       integer, intent(out)                                     :: ierr
 
       if( nc_diag_read_check_var( var_name )) then
@@ -111,7 +108,7 @@ module conmon_read_diag
          ierr=0
       else
          print *, 'WARNING:  unable to read ', trim( var_name )
-         ierr=error_code
+         ierr=1
       end if
    end subroutine
 
@@ -227,6 +224,9 @@ module conmon_read_diag
          case ( 'q' ) 
             call read_diag_file_q_nc(  input_file, ftin, ctype,stype,intype,expected_nreal,nobs,in_subtype,subtype,list )
 
+         case ( 'sst' )
+            call read_diag_file_sst_nc(  input_file, ftin, ctype,stype,intype,expected_nreal,nobs,in_subtype,subtype,list )
+
          case ( 't' ) 
             call read_diag_file_t_nc(  input_file, ftin, ctype,stype,intype,expected_nreal,nobs,in_subtype,subtype,list )
 
@@ -306,24 +306,6 @@ module conmon_read_diag
       real(r_single), dimension(:), allocatable    :: Obs_Minus_Forecast_unadjusted   !  (obs)
       integer(i_kind)                              :: idate 
 
-      ! q type specific 
-      real(r_single), dimension(:), allocatable    :: Forecast_Saturation_Spec_Hum    !  (obs)
-
-      ! t type specific
-      real(r_single), dimension(:), allocatable    ::  Data_Pof                       !  (obs) 
-      real(r_single), dimension(:), allocatable    ::  Data_Vertical_Velocity         !  (obs)
-      real(r_single), dimension(:,:), allocatable  ::  Bias_Correction_Terms          !  (nobs, Bias_Correction_Terms_arr_dim)
-
-      ! uv type specific
-      real(r_single), dimension(:), allocatable    ::  Wind_Reduction_Factor_at_10m   !  (obs)
-      real(r_single), dimension(:), allocatable    ::  u_Observation                  !  (obs)
-      real(r_single), dimension(:), allocatable    ::  u_Obs_Minus_Forecast_adjusted  !  (obs)
-      real(r_single), dimension(:), allocatable    ::  u_Obs_Minus_Forecast_unadjusted!  (obs)
-      real(r_single), dimension(:), allocatable    ::  v_Observation                  !  (obs)
-      real(r_single), dimension(:), allocatable    ::  v_Obs_Minus_Forecast_adjusted  !  (obs)
-      real(r_single), dimension(:), allocatable    ::  v_Obs_Minus_Forecast_unadjusted!  (obs)
-
-
       print *, ' '
       print *, '      --> read_diag_file_ps_nc'
 
@@ -342,27 +324,27 @@ module conmon_read_diag
 
       !--- get vars
       
-      call load_nc_var( 'Station_ID',                    ftin, Station_ID,                     2, ierr )
-      call load_nc_var( 'Observation_Class',             ftin, Station_ID,                     3, ierr )
-      call load_nc_var( 'Observation_Type',              ftin, Observation_Type,               4, ierr )
-      call load_nc_var( 'Observation_Subtype',           ftin, Observation_Subtype,            5, ierr )
-      call load_nc_var( 'Latitude',                      ftin, Latitude,                       6, ierr )
-      call load_nc_var( 'Longitude',                     ftin, Longitude,                      7, ierr )
-      call load_nc_var( 'Station_Elevation',             ftin, Station_Elevation,              8, ierr )
-      call load_nc_var( 'Pressure',                      ftin, Pressure,                       9, ierr )
-      call load_nc_var( 'Height',                        ftin, Height,                        10, ierr )
-      call load_nc_var( 'Time',                          ftin, Time,                          11, ierr )
-      call load_nc_var( 'Prep_QC_Mark',                  ftin, Prep_QC_Mark,                  12, ierr )
-      call load_nc_var( 'Nonlinear_QC_Var_Jb',           ftin, Nonlinear_QC_Var_Jb,           13, ierr )
-      call load_nc_var( 'Nonlinear_QC_Rel_Wgt',          ftin, Nonlinear_QC_Rel_Wgt,          14, ierr )
-      call load_nc_var( 'Prep_Use_Flag',                 ftin, Prep_Use_Flag,                 15, ierr )
-      call load_nc_var( 'Analysis_Use_Flag',             ftin, Analysis_Use_Flag,             16, ierr )
-      call load_nc_var( 'Errinv_Input',                  ftin, Errinv_Input,                  17, ierr )
-      call load_nc_var( 'Errinv_Adjust',                 ftin, Errinv_Adjust,                 18, ierr )
-      call load_nc_var( 'Errinv_Final',                  ftin, Errinv_Final,                  19, ierr )
-      call load_nc_var( 'Observation',                   ftin, Observation,                   20, ierr )
-      call load_nc_var( 'Obs_Minus_Forecast_adjusted',   ftin, Obs_Minus_Forecast_adjusted,   21, ierr )
-      call load_nc_var( 'Obs_Minus_Forecast_unadjusted', ftin, Obs_Minus_Forecast_unadjusted, 22, ierr )
+      call load_nc_var( 'Station_ID',                    ftin, Station_ID,                    ierr )
+      call load_nc_var( 'Observation_Class',             ftin, Station_ID,                    ierr )
+      call load_nc_var( 'Observation_Type',              ftin, Observation_Type,              ierr )
+      call load_nc_var( 'Observation_Subtype',           ftin, Observation_Subtype,           ierr )
+      call load_nc_var( 'Latitude',                      ftin, Latitude,                      ierr )
+      call load_nc_var( 'Longitude',                     ftin, Longitude,                     ierr )
+      call load_nc_var( 'Station_Elevation',             ftin, Station_Elevation,             ierr )
+      call load_nc_var( 'Pressure',                      ftin, Pressure,                      ierr )
+      call load_nc_var( 'Height',                        ftin, Height,                        ierr )
+      call load_nc_var( 'Time',                          ftin, Time,                          ierr )
+      call load_nc_var( 'Prep_QC_Mark',                  ftin, Prep_QC_Mark,                  ierr )
+      call load_nc_var( 'Nonlinear_QC_Var_Jb',           ftin, Nonlinear_QC_Var_Jb,           ierr )
+      call load_nc_var( 'Nonlinear_QC_Rel_Wgt',          ftin, Nonlinear_QC_Rel_Wgt,          ierr )
+      call load_nc_var( 'Prep_Use_Flag',                 ftin, Prep_Use_Flag,                 ierr )
+      call load_nc_var( 'Analysis_Use_Flag',             ftin, Analysis_Use_Flag,             ierr )
+      call load_nc_var( 'Errinv_Input',                  ftin, Errinv_Input,                  ierr )
+      call load_nc_var( 'Errinv_Adjust',                 ftin, Errinv_Adjust,                 ierr )
+      call load_nc_var( 'Errinv_Final',                  ftin, Errinv_Final,                  ierr )
+      call load_nc_var( 'Observation',                   ftin, Observation,                   ierr )
+      call load_nc_var( 'Obs_Minus_Forecast_adjusted',   ftin, Obs_Minus_Forecast_adjusted,   ierr )
+      call load_nc_var( 'Obs_Minus_Forecast_unadjusted', ftin, Obs_Minus_Forecast_unadjusted, ierr )
 
         
 
@@ -411,47 +393,6 @@ module conmon_read_diag
             ptr%p%rdiag( 18 ) = Obs_Minus_Forecast_adjusted( ii )
             ptr%p%rdiag( 19 ) = Obs_Minus_Forecast_unadjusted( ii )
 
-!            select case ( trim( adjustl( ctype ) ) )
-!   
-!               case ( 'ps' ) 
-!               case ( 'q'  )
-!                  ptr%p%rdiag( 20 ) = Forecast_Saturation_Spec_Hum( ii )
-!
-!               case ( 't'  )
-!                  ptr%p%rdiag( 20 ) = Data_Pof( ii )
-!
-!!  MISSING data vertical velocity term in the diag file!                 
-! 
-!!       rdiagbuf(20,ii) = data(ipof,i)       ! data pof
-!!       rdiagbuf(21,ii) = data(ivvlc,i)      ! data vertical velocity
-!       do j=1,npredt
-!          rdiagbuf(21+j,ii) = predbias(j)
-!       end do
-
-!        float Bias_Correction_Terms(nobs, Bias_Correction_Terms_arr_dim) ;
-
-!               case ( 'uv'  )
-
-!        float Setup_QC_Mark(nobs) ;
-!        float Prep_Use_Flag(nobs) ;
-!        float Analysis_Use_Flag(nobs) ;
-!        float Nonlinear_QC_Rel_Wgt(nobs) ;
-!        float Errinv_Input(nobs) ;
-!        float Errinv_Adjust(nobs) ;
-!        float Errinv_Final(nobs) ;
-!        float Wind_Reduction_Factor_at_10m(nobs) ;
-!        float u_Observation(nobs) ;
-!        float u_Obs_Minus_Forecast_adjusted(nobs) ;
-!        float u_Obs_Minus_Forecast_unadjusted(nobs) ;
-!        float v_Observation(nobs) ;
-!        float v_Obs_Minus_Forecast_adjusted(nobs) ;
-!        float v_Obs_Minus_Forecast_unadjusted(nobs) ;
-
-!               case default
-!                  print *, 'ERROR:  unmatched ctype!'
-!            end select
-     
- 
             if( nobs == 1 ) then
                !-------------------------------------------------
                ! Initialize the list with the first data element
@@ -468,48 +409,6 @@ module conmon_read_diag
 
             end if
 
-
-!            print *, 'Station_ID(ii)           : ', Station_ID(ii)
-!            print *, 'Observation_Class(ii)    : ', Observation_Class(ii)
-!            print *, 'Latitude(ii)             : ', Latitude(ii)
-!            print *, 'Longitude(ii)            : ', Longitude(ii)
-!            print *, 'Station_Elevation(ii)    : ', Station_Elevation(ii)
-!            print *, 'Time(ii)                 : ', Time(ii)
-!            print *, 'Prep_QC_Mark(ii)         : ', Prep_QC_Mark(ii)
-!            print *, 'Prep_Use_Flag(ii)        : ', Prep_Use_Flag(ii)
-!            print *, 'Nonlinear_QC_Var_Jb      : ', Nonlinear_QC_Var_Jb(ii)
-!            print *, 'Nonlinear_QC_Rel_Wgt(ii) : ', Nonlinear_QC_Rel_Wgt(ii)
-!            print *, 'Analysis_Use_Flag(ii)    : ', Analysis_Use_Flag(ii)
-!            print *, 'Errinv_Input(ii)         : ', Errinv_Input(ii)
-!            print *, 'Errinv_Adjust(ii)        : ', Errinv_Adjust(ii)
-!            print *, 'Errinv_Final(ii)         : ', Errinv_Final(ii)
-!            print *, 'Observation(ii)          : ', Observation(ii)
-!            print *, 'Obs_Minus_Forecast_adjusted(ii)          : ', Obs_Minus_Forecast_adjusted(ii)
-!            print *, 'Obs_Minus_Forecast_unadjusted(ii)        : ', Obs_Minus_Forecast_unadjusted(ii)
-
-!            select case ( trim( adjustl( ctype ) ) )
-!   
-!               case ( 'ps' ) 
-!               case ( 'q'  )
-!                  print *, 'Forecast_Saturation_Spec_Hum(ii)        : ', Forecast_Saturation_Spec_Hum(ii)
-!
-!               case ( 't'  )
-!                  print *, 'Data_Pof( ii )                          : ', Data_Pof( ii )
-!!                 float Bias_Correction_Terms(nobs, Bias_Correction_Terms_arr_dim)
-!
-!               case ( 'uv'  )
-!                  print *, 'Wind_Reduction_Factor_at_10m(ii)        : ', Wind_Reduction_Factor_at_10m(ii)
-!                  print *, 'u_Observation(ii)                       : ', u_Observation(ii)
-!                  print *, 'u_Obs_Minus_Forecast_adjusted(ii)       : ', u_Obs_Minus_Forecast_adjusted(ii)
-!                  print *, 'u_Obs_Minus_Forecast_unadjusted(ii)     : ', u_Obs_Minus_Forecast_unadjusted(ii)
-!                  print *, 'v_Observation(ii)                       : ', v_Observation(ii) ;
-!                  print *, 'v_Obs_Minus_Forecast_adjusted(ii)       : ', v_Obs_Minus_Forecast_adjusted(ii)
-!                  print *, 'v_Obs_Minus_Forecast_unadjusted(ii)     : ', v_Obs_Minus_Forecast_unadjusted(ii)
-!
-!               case default
-!                  print *, 'ERROR:  unmatched ctype!'
-!
-!            end select
          end if
 
       end do
@@ -534,16 +433,6 @@ module conmon_read_diag
       if( allocated( Observation                     )) deallocate( Observation                     )
       if( allocated( Obs_Minus_Forecast_adjusted     )) deallocate( Obs_Minus_Forecast_adjusted     )
       if( allocated( Obs_Minus_Forecast_unadjusted   )) deallocate( Obs_Minus_Forecast_unadjusted   )
-!      if( allocated( Forecast_Saturation_Spec_Hum    )) deallocate( Forecast_Saturation_Spec_Hum    )
-!      if( allocated( Data_Pof                        )) deallocate( Data_Pof                        )
-!      if( allocated( Bias_Correction_Terms           )) deallocate( Bias_Correction_Terms           )
-!      if( allocated( Wind_Reduction_Factor_at_10m    )) deallocate( Wind_Reduction_Factor_at_10m    )
-!      if( allocated( u_Observation                   )) deallocate( u_Observation                   )
-!      if( allocated( u_Obs_Minus_Forecast_adjusted   )) deallocate( u_Obs_Minus_Forecast_adjusted   )
-!      if( allocated( u_Obs_Minus_Forecast_unadjusted )) deallocate( u_Obs_Minus_Forecast_unadjusted )
-!      if( allocated( v_Observation                   )) deallocate( v_Observation                   )
-!      if( allocated( v_Obs_Minus_Forecast_adjusted   )) deallocate( v_Obs_Minus_Forecast_adjusted   )
-!      if( allocated( v_Obs_Minus_Forecast_unadjusted )) deallocate( v_Obs_Minus_Forecast_unadjusted )
 
       print *, ' '
       print *, '      <-- read_diag_file_ps_nc'
@@ -615,28 +504,28 @@ module conmon_read_diag
 
       !--- get vars
       
-      call load_nc_var( 'Station_ID',                    ftin, Station_ID,                     2, ierr )
-      call load_nc_var( 'Observation_Class',             ftin, Station_ID,                     3, ierr )
-      call load_nc_var( 'Observation_Type',              ftin, Observation_Type,               4, ierr )
-      call load_nc_var( 'Observation_Subtype',           ftin, Observation_Subtype,            5, ierr )
-      call load_nc_var( 'Latitude',                      ftin, Latitude,                       6, ierr )
-      call load_nc_var( 'Longitude',                     ftin, Longitude,                      7, ierr )
-      call load_nc_var( 'Station_Elevation',             ftin, Station_Elevation,              8, ierr )
-      call load_nc_var( 'Pressure',                      ftin, Pressure,                       9, ierr )
-      call load_nc_var( 'Height',                        ftin, Height,                        10, ierr )
-      call load_nc_var( 'Time',                          ftin, Time,                          11, ierr )
-      call load_nc_var( 'Prep_QC_Mark',                  ftin, Prep_QC_Mark,                  12, ierr )
-      call load_nc_var( 'Nonlinear_QC_Var_Jb',           ftin, Nonlinear_QC_Var_Jb,           13, ierr )
-      call load_nc_var( 'Nonlinear_QC_Rel_Wgt',          ftin, Nonlinear_QC_Rel_Wgt,          14, ierr )
-      call load_nc_var( 'Prep_Use_Flag',                 ftin, Prep_Use_Flag,                 15, ierr )
-      call load_nc_var( 'Analysis_Use_Flag',             ftin, Analysis_Use_Flag,             16, ierr )
-      call load_nc_var( 'Errinv_Input',                  ftin, Errinv_Input,                  17, ierr )
-      call load_nc_var( 'Errinv_Adjust',                 ftin, Errinv_Adjust,                 18, ierr )
-      call load_nc_var( 'Errinv_Final',                  ftin, Errinv_Final,                  19, ierr )
-      call load_nc_var( 'Observation',                   ftin, Observation,                   20, ierr )
-      call load_nc_var( 'Obs_Minus_Forecast_adjusted',   ftin, Obs_Minus_Forecast_adjusted,   21, ierr )
-      call load_nc_var( 'Obs_Minus_Forecast_unadjusted', ftin, Obs_Minus_Forecast_unadjusted, 22, ierr )
-      call load_nc_var( 'Forecast_Saturation_Spec_Hum',  ftin, Forecast_Saturation_Spec_Hum,  23, ierr )
+      call load_nc_var( 'Station_ID',                    ftin, Station_ID,                    ierr )
+      call load_nc_var( 'Observation_Class',             ftin, Station_ID,                    ierr )
+      call load_nc_var( 'Observation_Type',              ftin, Observation_Type,              ierr )
+      call load_nc_var( 'Observation_Subtype',           ftin, Observation_Subtype,           ierr )
+      call load_nc_var( 'Latitude',                      ftin, Latitude,                      ierr )
+      call load_nc_var( 'Longitude',                     ftin, Longitude,                     ierr )
+      call load_nc_var( 'Station_Elevation',             ftin, Station_Elevation,             ierr )
+      call load_nc_var( 'Pressure',                      ftin, Pressure,                      ierr )
+      call load_nc_var( 'Height',                        ftin, Height,                        ierr )
+      call load_nc_var( 'Time',                          ftin, Time,                          ierr )
+      call load_nc_var( 'Prep_QC_Mark',                  ftin, Prep_QC_Mark,                  ierr )
+      call load_nc_var( 'Nonlinear_QC_Var_Jb',           ftin, Nonlinear_QC_Var_Jb,           ierr )
+      call load_nc_var( 'Nonlinear_QC_Rel_Wgt',          ftin, Nonlinear_QC_Rel_Wgt,          ierr )
+      call load_nc_var( 'Prep_Use_Flag',                 ftin, Prep_Use_Flag,                 ierr )
+      call load_nc_var( 'Analysis_Use_Flag',             ftin, Analysis_Use_Flag,             ierr )
+      call load_nc_var( 'Errinv_Input',                  ftin, Errinv_Input,                  ierr )
+      call load_nc_var( 'Errinv_Adjust',                 ftin, Errinv_Adjust,                 ierr )
+      call load_nc_var( 'Errinv_Final',                  ftin, Errinv_Final,                  ierr )
+      call load_nc_var( 'Observation',                   ftin, Observation,                   ierr )
+      call load_nc_var( 'Obs_Minus_Forecast_adjusted',   ftin, Obs_Minus_Forecast_adjusted,   ierr )
+      call load_nc_var( 'Obs_Minus_Forecast_unadjusted', ftin, Obs_Minus_Forecast_unadjusted, ierr )
+      call load_nc_var( 'Forecast_Saturation_Spec_Hum',  ftin, Forecast_Saturation_Spec_Hum,  ierr )
 
         
 
@@ -736,6 +625,206 @@ module conmon_read_diag
 
 
    !--------------------------------------------------------- 
+   !  netcdf read routine for ps data types in netcdf files
+   !
+   subroutine read_diag_file_sst_nc( input_file, ftin, ctype,stype,intype,expected_nreal,nobs,in_subtype,subtype,list )
+  
+      !--- interface 
+      character(100), intent(in) :: input_file
+      integer, intent(in)        :: ftin
+      character(3), intent(in)   :: ctype
+      character(10), intent(in)  :: stype                   !! appears not to be used
+      character(3), intent(in)   :: subtype                 !! appears not to be used
+      integer, intent(in)        :: intype, expected_nreal, in_subtype
+      integer, intent(out)       :: nobs
+      type(list_node_t), pointer :: list
+
+      !--- local vars
+      type(list_node_t), pointer :: next => null()
+      type(data_ptr)             :: ptr
+      integer                    :: ii, ierr, istatus, total_obs, idx
+
+      !--- NetCDF file components                                                               dimension(s) 
+      !
+      character(len=:), dimension(:), allocatable  :: Station_ID                      !  (nobs, Station_ID_maxstrlen)
+      character(len=:), dimension(:), allocatable  :: Observation_Class               !  (nobs, Station_Class_maxstrlen)
+      integer, dimension(:), allocatable           :: Observation_Type                !  (obs)
+      integer, dimension(:), allocatable           :: Observation_Subtype             !  (obs)
+      real(r_single), dimension(:), allocatable    :: Latitude                        !  (obs)
+      real(r_single), dimension(:), allocatable    :: Longitude                       !  (obs)
+      real(r_single), dimension(:), allocatable    :: Station_Elevation               !  (obs)
+      real(r_single), dimension(:), allocatable    :: Pressure                        !  (obs)
+      real(r_single), dimension(:), allocatable    :: Height                          !  (obs)
+      real(r_single), dimension(:), allocatable    :: Time                            !  (obs)
+      real(r_single), dimension(:), allocatable    :: Prep_QC_Mark                    !  (obs)
+      real(r_single), dimension(:), allocatable    :: Prep_Use_Flag                   !  (obs)
+      real(r_single), dimension(:), allocatable    :: Nonlinear_QC_Var_Jb             !  (obs)
+      real(r_single), dimension(:), allocatable    :: Nonlinear_QC_Rel_Wgt            !  (obs)
+      real(r_single), dimension(:), allocatable    :: Analysis_Use_Flag               !  (obs)
+      real(r_single), dimension(:), allocatable    :: Errinv_Input                    !  (obs)
+      real(r_single), dimension(:), allocatable    :: Errinv_Adjust                   !  (obs)
+      real(r_single), dimension(:), allocatable    :: Errinv_Final                    !  (obs)
+      real(r_single), dimension(:), allocatable    :: Observation                     !  (obs)
+      real(r_single), dimension(:), allocatable    :: Obs_Minus_Forecast_adjusted     !  (obs)
+      real(r_single), dimension(:), allocatable    :: Obs_Minus_Forecast_unadjusted   !  (obs)
+      real(r_single), dimension(:), allocatable    :: FoundationTempBG                !  (obs)
+      real(r_single), dimension(:), allocatable    :: DiurnalWarming_at_zob           !  (obs)
+      real(r_single), dimension(:), allocatable    :: SkinLayerCooling_at_zob         !  (obs)
+      real(r_single), dimension(:), allocatable    :: Sensitivity_Tzob_Tr             !  (obs)
+      integer(i_kind)                              :: idate 
+
+      print *, ' '
+      print *, '      --> read_diag_file_sst_nc'
+
+
+      !--- get NetCDF file dimensions
+      !
+      if( nc_diag_read_check_dim( 'nobs' )) then
+         total_obs = nc_diag_read_get_dim(ftin,'nobs')
+         ncdiag_open_status(ii)%num_records = total_obs
+         print *, '          total_obs = ', total_obs
+      else
+         print *, 'ERROR:  unable to read nobs'
+         ierr=1
+      end if
+
+
+      !--- get vars
+      
+      call load_nc_var( 'Station_ID',                    ftin, Station_ID,                    ierr )
+      call load_nc_var( 'Observation_Class',             ftin, Station_ID,                    ierr )
+      call load_nc_var( 'Observation_Type',              ftin, Observation_Type,              ierr )
+      call load_nc_var( 'Observation_Subtype',           ftin, Observation_Subtype,           ierr )
+      call load_nc_var( 'Latitude',                      ftin, Latitude,                      ierr )
+      call load_nc_var( 'Longitude',                     ftin, Longitude,                     ierr )
+      call load_nc_var( 'Station_Elevation',             ftin, Station_Elevation,             ierr )
+      call load_nc_var( 'Pressure',                      ftin, Pressure,                      ierr )
+      call load_nc_var( 'Height',                        ftin, Height,                        ierr )
+      call load_nc_var( 'Time',                          ftin, Time,                          ierr )
+      call load_nc_var( 'Prep_QC_Mark',                  ftin, Prep_QC_Mark,                  ierr )
+      call load_nc_var( 'Nonlinear_QC_Var_Jb',           ftin, Nonlinear_QC_Var_Jb,           ierr )
+      call load_nc_var( 'Nonlinear_QC_Rel_Wgt',          ftin, Nonlinear_QC_Rel_Wgt,          ierr )
+      call load_nc_var( 'Prep_Use_Flag',                 ftin, Prep_Use_Flag,                 ierr )
+      call load_nc_var( 'Analysis_Use_Flag',             ftin, Analysis_Use_Flag,             ierr )
+      call load_nc_var( 'Errinv_Input',                  ftin, Errinv_Input,                  ierr )
+      call load_nc_var( 'Errinv_Adjust',                 ftin, Errinv_Adjust,                 ierr )
+      call load_nc_var( 'Errinv_Final',                  ftin, Errinv_Final,                  ierr )
+      call load_nc_var( 'Observation',                   ftin, Observation,                   ierr )
+      call load_nc_var( 'Obs_Minus_Forecast_adjusted',   ftin, Obs_Minus_Forecast_adjusted,   ierr )
+      call load_nc_var( 'Obs_Minus_Forecast_unadjusted', ftin, Obs_Minus_Forecast_unadjusted, ierr )
+      call load_nc_var( 'FoundationTempBG',              ftin, FoundationTempBG,              ierr )
+      call load_nc_var( 'DiurnalWarming_at_zob',         ftin, DiurnalWarming_at_zob,         ierr )
+      call load_nc_var( 'SkinLayerCooling_at_zob',       ftin, SkinLayerCooling_at_zob,       ierr )
+      call load_nc_var( 'Sensitivity_Tzob_Tr',           ftin, Sensitivity_Tzob_Tr,           ierr )
+
+        
+
+      !---------------------------------------------------------------
+      !  Process all obs.  If type and subtype match the input values 
+      !  add this obs to the linked list (ptr%p).
+      !
+      nobs = 0 
+      do ii = 1, total_obs
+
+         if( Observation_Type(ii) == intype .AND. Observation_Subtype(ii) == in_subtype)  then 
+
+            nobs=nobs+1
+
+            !---------------------------------------------
+            ! Allocate a new data element and load
+            !
+!            print *, 'Allocating new data element'
+
+            allocate( ptr%p )
+            ptr%p%stn_id = Station_ID( ii )
+!            print *, 'ptr%p%stn_id = ', ptr%p%stn_id
+
+            do idx=1,max_rdiag_reals
+               ptr%p%rdiag( idx ) = 0.00
+            end do
+
+            ptr%p%rdiag(  1 ) = Observation_Type( ii )   
+            ptr%p%rdiag(  2 ) = Observation_Subtype( ii )   
+            ptr%p%rdiag(  3 ) = Latitude( ii )   
+            ptr%p%rdiag(  4 ) = Longitude( ii )   
+            ptr%p%rdiag(  5 ) = Station_Elevation( ii )   
+            ptr%p%rdiag(  6 ) = Pressure( ii )  ! identified as background open water temperature in setupsst.f90
+            ptr%p%rdiag(  7 ) = Height( ii )    ! identified as observation depth (meters) in setupsst.f90
+            ptr%p%rdiag(  8 ) = Time( ii )
+!            ptr%p%rdiag(  9 ) = Prep_QC_Mark( ii )  ! identified as open water percentage in setupsst.f90
+            ptr%p%rdiag( 10 ) = Prep_QC_Mark( ii )  
+            ptr%p%rdiag( 11 ) = Prep_Use_Flag( ii )
+            ptr%p%rdiag( 12 ) = Analysis_Use_Flag( ii )
+            ptr%p%rdiag( 13 ) = Nonlinear_QC_Rel_Wgt( ii )
+            ptr%p%rdiag( 14 ) = Errinv_Input( ii )
+            ptr%p%rdiag( 15 ) = Errinv_Adjust( ii )
+            ptr%p%rdiag( 16 ) = Errinv_Final( ii )
+
+            ptr%p%rdiag( 17 ) = Observation( ii )
+            ptr%p%rdiag( 18 ) = Obs_Minus_Forecast_adjusted( ii )
+            ptr%p%rdiag( 19 ) = Obs_Minus_Forecast_unadjusted( ii )
+
+!            ptr%p%rdiag( 20 ) = type of measurement?  per setupsst.f90
+
+            ptr%p%rdiag( 21 ) = FoundationTempBG( ii )
+            ptr%p%rdiag( 22 ) = DiurnalWarming_at_zob( ii )
+            ptr%p%rdiag( 23 ) = SkinLayerCooling_at_zob( ii ) 
+            ptr%p%rdiag( 24 ) = Sensitivity_Tzob_Tr( ii )
+
+
+            if( nobs == 1 ) then
+               !-------------------------------------------------
+               ! Initialize the list with the first data element
+               !
+               call list_init(list, transfer(ptr, list_data))
+               next => list
+
+            else
+               !-------------------------------------------------
+               ! Insert subsequent nodes into the list
+               !
+               call list_insert(next, transfer(ptr, list_data))
+               next => list_next(next)
+
+            end if
+
+         end if
+
+      end do
+
+
+      if( allocated( Station_ID                      )) deallocate( Station_ID                      )
+      if( allocated( Observation_Class               )) deallocate( Observation_Class               )
+      if( allocated( Observation_Type                )) deallocate( Observation_Type                )
+      if( allocated( Observation_Subtype             )) deallocate( Observation_Subtype             )
+      if( allocated( Latitude                        )) deallocate( Latitude                        )
+      if( allocated( Longitude                       )) deallocate( Longitude                       )
+      if( allocated( Station_Elevation               )) deallocate( Station_Elevation               )
+      if( allocated( Time                            )) deallocate( Time                            )
+      if( allocated( Prep_QC_Mark                    )) deallocate( Prep_QC_Mark                    )
+      if( allocated( Prep_Use_Flag                   )) deallocate( Prep_Use_Flag                   )
+      if( allocated( Nonlinear_QC_Var_Jb             )) deallocate( Nonlinear_QC_Var_Jb             )
+      if( allocated( Nonlinear_QC_Rel_Wgt            )) deallocate( Nonlinear_QC_Rel_Wgt            )
+      if( allocated( Analysis_Use_Flag               )) deallocate( Analysis_Use_Flag               )
+      if( allocated( Errinv_Input                    )) deallocate( Errinv_Input                    )
+      if( allocated( Errinv_Adjust                   )) deallocate( Errinv_Final                    )
+      if( allocated( Errinv_Final                    )) deallocate( Errinv_Final                    )
+      if( allocated( Observation                     )) deallocate( Observation                     )
+      if( allocated( Obs_Minus_Forecast_adjusted     )) deallocate( Obs_Minus_Forecast_adjusted     )
+      if( allocated( Obs_Minus_Forecast_unadjusted   )) deallocate( Obs_Minus_Forecast_unadjusted   )
+      if( allocated( FoundationTempBG                )) deallocate( FoundationTempBG                )
+      if( allocated( DiurnalWarming_at_zob           )) deallocate( DiurnalWarming_at_zob           )
+      if( allocated( SkinLayerCooling_at_zob         )) deallocate( SkinLayerCooling_at_zob         )
+      if( allocated( Sensitivity_Tzob_Tr             )) deallocate( Sensitivity_Tzob_Tr             )
+
+      print *, ' '
+      print *, '      <-- read_diag_file_sst_nc'
+
+   end subroutine read_diag_file_sst_nc
+
+
+
+   !--------------------------------------------------------- 
    !  netcdf read routine for t data types in netcdf files
    !
    subroutine read_diag_file_t_nc( input_file, ftin, ctype,stype,intype,expected_nreal,nobs,in_subtype,subtype,list )
@@ -801,7 +890,6 @@ module conmon_read_diag
 
       if( nc_diag_read_check_dim( 'Bias_Correction_Terms_arr_dim' )) then
          bcor_terms = nc_diag_read_get_dim(ftin,'Bias_Correction_Terms_arr_dim')
-!         ncdiag_open_status(ii)%num_records = total_obs
          print *, '          bcor_terms = ', bcor_terms
       else
          print *, 'ERROR:  unable to read bcor_terms'
@@ -812,29 +900,29 @@ module conmon_read_diag
 
       !--- get vars
       
-      call load_nc_var( 'Station_ID',                    ftin, Station_ID,                     2, ierr )
-      call load_nc_var( 'Observation_Class',             ftin, Station_ID,                     3, ierr )
-      call load_nc_var( 'Observation_Type',              ftin, Observation_Type,               4, ierr )
-      call load_nc_var( 'Observation_Subtype',           ftin, Observation_Subtype,            5, ierr )
-      call load_nc_var( 'Latitude',                      ftin, Latitude,                       6, ierr )
-      call load_nc_var( 'Longitude',                     ftin, Longitude,                      7, ierr )
-      call load_nc_var( 'Station_Elevation',             ftin, Station_Elevation,              8, ierr )
-      call load_nc_var( 'Pressure',                      ftin, Pressure,                       9, ierr )
-      call load_nc_var( 'Height',                        ftin, Height,                        10, ierr )
-      call load_nc_var( 'Time',                          ftin, Time,                          11, ierr )
-      call load_nc_var( 'Prep_QC_Mark',                  ftin, Prep_QC_Mark,                  12, ierr )
-      call load_nc_var( 'Nonlinear_QC_Var_Jb',           ftin, Nonlinear_QC_Var_Jb,           13, ierr )
-      call load_nc_var( 'Nonlinear_QC_Rel_Wgt',          ftin, Nonlinear_QC_Rel_Wgt,          14, ierr )
-      call load_nc_var( 'Prep_Use_Flag',                 ftin, Prep_Use_Flag,                 15, ierr )
-      call load_nc_var( 'Analysis_Use_Flag',             ftin, Analysis_Use_Flag,             16, ierr )
-      call load_nc_var( 'Errinv_Input',                  ftin, Errinv_Input,                  17, ierr )
-      call load_nc_var( 'Errinv_Adjust',                 ftin, Errinv_Adjust,                 18, ierr )
-      call load_nc_var( 'Errinv_Final',                  ftin, Errinv_Final,                  19, ierr )
-      call load_nc_var( 'Observation',                   ftin, Observation,                   20, ierr )
-      call load_nc_var( 'Obs_Minus_Forecast_adjusted',   ftin, Obs_Minus_Forecast_adjusted,   21, ierr )
-      call load_nc_var( 'Obs_Minus_Forecast_unadjusted', ftin, Obs_Minus_Forecast_unadjusted, 22, ierr )
-      call load_nc_var( 'Data_Pof',                      ftin, Data_Pof,                      23, ierr )
-      call load_nc_var( 'Data_Vertical_Velocity',        ftin, Data_Vertical_Velocity,        24, ierr )
+      call load_nc_var( 'Station_ID',                    ftin, Station_ID,                    ierr )
+      call load_nc_var( 'Observation_Class',             ftin, Station_ID,                    ierr )
+      call load_nc_var( 'Observation_Type',              ftin, Observation_Type,              ierr )
+      call load_nc_var( 'Observation_Subtype',           ftin, Observation_Subtype,           ierr )
+      call load_nc_var( 'Latitude',                      ftin, Latitude,                      ierr )
+      call load_nc_var( 'Longitude',                     ftin, Longitude,                     ierr )
+      call load_nc_var( 'Station_Elevation',             ftin, Station_Elevation,             ierr )
+      call load_nc_var( 'Pressure',                      ftin, Pressure,                      ierr )
+      call load_nc_var( 'Height',                        ftin, Height,                        ierr )
+      call load_nc_var( 'Time',                          ftin, Time,                          ierr )
+      call load_nc_var( 'Prep_QC_Mark',                  ftin, Prep_QC_Mark,                  ierr )
+      call load_nc_var( 'Nonlinear_QC_Var_Jb',           ftin, Nonlinear_QC_Var_Jb,           ierr )
+      call load_nc_var( 'Nonlinear_QC_Rel_Wgt',          ftin, Nonlinear_QC_Rel_Wgt,          ierr )
+      call load_nc_var( 'Prep_Use_Flag',                 ftin, Prep_Use_Flag,                 ierr )
+      call load_nc_var( 'Analysis_Use_Flag',             ftin, Analysis_Use_Flag,             ierr )
+      call load_nc_var( 'Errinv_Input',                  ftin, Errinv_Input,                  ierr )
+      call load_nc_var( 'Errinv_Adjust',                 ftin, Errinv_Adjust,                 ierr )
+      call load_nc_var( 'Errinv_Final',                  ftin, Errinv_Final,                  ierr )
+      call load_nc_var( 'Observation',                   ftin, Observation,                   ierr )
+      call load_nc_var( 'Obs_Minus_Forecast_adjusted',   ftin, Obs_Minus_Forecast_adjusted,   ierr )
+      call load_nc_var( 'Obs_Minus_Forecast_unadjusted', ftin, Obs_Minus_Forecast_unadjusted, ierr )
+      call load_nc_var( 'Data_Pof',                      ftin, Data_Pof,                      ierr )
+      call load_nc_var( 'Data_Vertical_Velocity',        ftin, Data_Vertical_Velocity,        ierr )
 
       if( nc_diag_read_check_var( 'Bias_Correction_Terms' )) then
          call nc_diag_read_get_var( ftin, 'Bias_Correction_Terms', Bias_Correction_Terms )
@@ -912,30 +1000,6 @@ module conmon_read_diag
                next => list_next(next)
 
             end if
-
-
-!            print *, 'Station_ID(ii)           : ', Station_ID(ii)
-!            print *, 'Observation_Class(ii)    : ', Observation_Class(ii)
-!            print *, 'Latitude(ii)             : ', Latitude(ii)
-!            print *, 'Longitude(ii)            : ', Longitude(ii)
-!            print *, 'Station_Elevation(ii)    : ', Station_Elevation(ii)
-!            print *, 'Time(ii)                 : ', Time(ii)
-!            print *, 'Prep_QC_Mark(ii)         : ', Prep_QC_Mark(ii)
-!            print *, 'Prep_Use_Flag(ii)        : ', Prep_Use_Flag(ii)
-!            print *, 'Nonlinear_QC_Var_Jb      : ', Nonlinear_QC_Var_Jb(ii)
-!            print *, 'Nonlinear_QC_Rel_Wgt(ii) : ', Nonlinear_QC_Rel_Wgt(ii)
-!            print *, 'Analysis_Use_Flag(ii)    : ', Analysis_Use_Flag(ii)
-!            print *, 'Errinv_Input(ii)         : ', Errinv_Input(ii)
-!            print *, 'Errinv_Adjust(ii)        : ', Errinv_Adjust(ii)
-!            print *, 'Errinv_Final(ii)         : ', Errinv_Final(ii)
-!            print *, 'Observation(ii)          : ', Observation(ii)
-!            print *, 'Obs_Minus_Forecast_adjusted(ii)          : ', Obs_Minus_Forecast_adjusted(ii)
-!            print *, 'Obs_Minus_Forecast_unadjusted(ii)        : ', Obs_Minus_Forecast_unadjusted(ii)
-
-             print *, 'Data_Pof( ii )                           : ', Data_Pof( ii )
-             do jj = 1, bcor_terms
-                print *, 'Bias_Correction_Terms( ii, jj )          : ', Bias_Correction_Terms( ii, jj )
-             end do
 
          end if
 
@@ -1037,32 +1101,32 @@ module conmon_read_diag
 
       !--- get vars
       
-      call load_nc_var( 'Station_ID',                      ftin, Station_ID,                       2, ierr )
-      call load_nc_var( 'Observation_Class',               ftin, Station_ID,                       3, ierr )
-      call load_nc_var( 'Observation_Type',                ftin, Observation_Type,                 4, ierr )
-      call load_nc_var( 'Observation_Subtype',             ftin, Observation_Subtype,              5, ierr )
-      call load_nc_var( 'Latitude',                        ftin, Latitude,                         6, ierr )
-      call load_nc_var( 'Longitude',                       ftin, Longitude,                        7, ierr )
-      call load_nc_var( 'Station_Elevation',               ftin, Station_Elevation,                8, ierr )
-      call load_nc_var( 'Pressure',                        ftin, Pressure,                         9, ierr )
-      call load_nc_var( 'Height',                          ftin, Height,                          10, ierr )
-      call load_nc_var( 'Time',                            ftin, Time,                            11, ierr )
-      call load_nc_var( 'Prep_QC_Mark',                    ftin, Prep_QC_Mark,                    12, ierr )
-      call load_nc_var( 'Setup_QC_Mark',                   ftin, Setup_QC_Mark,                   13, ierr )
-      call load_nc_var( 'Nonlinear_QC_Rel_Wgt',            ftin, Nonlinear_QC_Rel_Wgt,            14, ierr )
-      call load_nc_var( 'Prep_Use_Flag',                   ftin, Prep_Use_Flag,                   15, ierr )
-      call load_nc_var( 'Nonlinear_QC_Var_Jb',             ftin, Nonlinear_QC_Var_Jb,             15, ierr )
-      call load_nc_var( 'Analysis_Use_Flag',               ftin, Analysis_Use_Flag,               16, ierr )
-      call load_nc_var( 'Errinv_Input',                    ftin, Errinv_Input,                    17, ierr )
-      call load_nc_var( 'Errinv_Adjust',                   ftin, Errinv_Adjust,                   18, ierr )
-      call load_nc_var( 'Errinv_Final',                    ftin, Errinv_Final,                    19, ierr )
-      call load_nc_var( 'Wind_Reduction_Factor_at_10m',    ftin, Wind_Reduction_Factor_at_10m,    20, ierr )
-      call load_nc_var( 'u_Observation',                   ftin, u_Observation,                   21, ierr )
-      call load_nc_var( 'u_Obs_Minus_Forecast_adjusted',   ftin, u_Obs_Minus_Forecast_adjusted,   22, ierr )
-      call load_nc_var( 'u_Obs_Minus_Forecast_unadjusted', ftin, u_Obs_Minus_Forecast_unadjusted, 23, ierr )
-      call load_nc_var( 'v_Observation',                   ftin, v_Observation,                   24, ierr )
-      call load_nc_var( 'v_Obs_Minus_Forecast_adjusted',   ftin, v_Obs_Minus_Forecast_adjusted,   25, ierr )
-      call load_nc_var( 'v_Obs_Minus_Forecast_unadjusted', ftin, v_Obs_Minus_Forecast_unadjusted, 26, ierr )
+      call load_nc_var( 'Station_ID',                      ftin, Station_ID,                      ierr )
+      call load_nc_var( 'Observation_Class',               ftin, Station_ID,                      ierr )
+      call load_nc_var( 'Observation_Type',                ftin, Observation_Type,                ierr )
+      call load_nc_var( 'Observation_Subtype',             ftin, Observation_Subtype,             ierr )
+      call load_nc_var( 'Latitude',                        ftin, Latitude,                        ierr )
+      call load_nc_var( 'Longitude',                       ftin, Longitude,                       ierr )
+      call load_nc_var( 'Station_Elevation',               ftin, Station_Elevation,               ierr )
+      call load_nc_var( 'Pressure',                        ftin, Pressure,                        ierr )
+      call load_nc_var( 'Height',                          ftin, Height,                          ierr )
+      call load_nc_var( 'Time',                            ftin, Time,                            ierr )
+      call load_nc_var( 'Prep_QC_Mark',                    ftin, Prep_QC_Mark,                    ierr )
+      call load_nc_var( 'Setup_QC_Mark',                   ftin, Setup_QC_Mark,                   ierr )
+      call load_nc_var( 'Nonlinear_QC_Rel_Wgt',            ftin, Nonlinear_QC_Rel_Wgt,            ierr )
+      call load_nc_var( 'Prep_Use_Flag',                   ftin, Prep_Use_Flag,                   ierr )
+      call load_nc_var( 'Nonlinear_QC_Var_Jb',             ftin, Nonlinear_QC_Var_Jb,             ierr )
+      call load_nc_var( 'Analysis_Use_Flag',               ftin, Analysis_Use_Flag,               ierr )
+      call load_nc_var( 'Errinv_Input',                    ftin, Errinv_Input,                    ierr )
+      call load_nc_var( 'Errinv_Adjust',                   ftin, Errinv_Adjust,                   ierr )
+      call load_nc_var( 'Errinv_Final',                    ftin, Errinv_Final,                    ierr )
+      call load_nc_var( 'Wind_Reduction_Factor_at_10m',    ftin, Wind_Reduction_Factor_at_10m,    ierr )
+      call load_nc_var( 'u_Observation',                   ftin, u_Observation,                   ierr )
+      call load_nc_var( 'u_Obs_Minus_Forecast_adjusted',   ftin, u_Obs_Minus_Forecast_adjusted,   ierr )
+      call load_nc_var( 'u_Obs_Minus_Forecast_unadjusted', ftin, u_Obs_Minus_Forecast_unadjusted, ierr )
+      call load_nc_var( 'v_Observation',                   ftin, v_Observation,                   ierr )
+      call load_nc_var( 'v_Obs_Minus_Forecast_adjusted',   ftin, v_Obs_Minus_Forecast_adjusted,   ierr )
+      call load_nc_var( 'v_Obs_Minus_Forecast_unadjusted', ftin, v_Obs_Minus_Forecast_unadjusted, ierr )
 
 
       !---------------------------------------------------------------
@@ -1172,7 +1236,7 @@ module conmon_read_diag
    !  netcdf read routine for gps data types in netcdf files
    !
    subroutine read_diag_file_gps_nc( input_file, ftin, ctype,stype,intype,expected_nreal,nobs,in_subtype,subtype,list )
-  
+ 
       !--- interface 
       character(100), intent(in) :: input_file
       integer, intent(in)        :: ftin
@@ -1239,30 +1303,30 @@ module conmon_read_diag
 
       !--- get vars
       
-      call load_nc_var( 'Station_ID',                        ftin, Station_ID,                         2, ierr )
-      call load_nc_var( 'Observation_Class',                 ftin, Station_ID,                         3, ierr )
-      call load_nc_var( 'Observation_Type',                  ftin, Observation_Type,                   4, ierr )
-      call load_nc_var( 'Observation_Subtype',               ftin, Observation_Subtype,                5, ierr )
-      call load_nc_var( 'Latitude',                          ftin, Latitude,                           6, ierr )
-      call load_nc_var( 'Longitude',                         ftin, Longitude,                          7, ierr )
-      call load_nc_var( 'Incremental_Bending_Angle',         ftin, Incremental_Bending_Angle,          8, ierr )
-      call load_nc_var( 'Pressure',                          ftin, Pressure,                           9, ierr )
-      call load_nc_var( 'Height',                            ftin, Height,                            10, ierr )
-      call load_nc_var( 'Time',                              ftin, Time,                              11, ierr )
-      call load_nc_var( 'Model_Elevation',                   ftin, Model_Elevation,                   12, ierr )
-      call load_nc_var( 'Setup_QC_Mark',                     ftin, Setup_QC_Mark,                     13, ierr )
-      call load_nc_var( 'Prep_Use_Flag',                     ftin, Prep_Use_Flag,                     14, ierr )
-      call load_nc_var( 'Analysis_Use_Flag',                 ftin, Analysis_Use_Flag,                 15, ierr )
-      call load_nc_var( 'Nonlinear_QC_Rel_Wgt',              ftin, Nonlinear_QC_Rel_Wgt,              16, ierr )
-      call load_nc_var( 'Errinv_Input',                      ftin, Errinv_Input,                      17, ierr )
-      call load_nc_var( 'Errinv_Adjust',                     ftin, Errinv_Adjust,                     18, ierr )
-      call load_nc_var( 'Errinv_Final',                      ftin, Errinv_Final,                      19, ierr )
-      call load_nc_var( 'Observation',                       ftin, Observation,                       20, ierr )
-      call load_nc_var( 'Obs_Minus_Forecast_adjusted',       ftin, Obs_Minus_Forecast_adjusted,       21, ierr )
-      call load_nc_var( 'Obs_Minus_Forecast_unadjusted',     ftin, Obs_Minus_Forecast_unadjusted,     22, ierr )
-      call load_nc_var( 'GPS_Type',                          ftin, GPS_Type,                          23, ierr )
-      call load_nc_var( 'Temperature_at_Obs_Location',       ftin, Temperature_at_Obs_Location,       24, ierr )
-      call load_nc_var( 'Specific_Humidity_at_Obs_Location', ftin, Specific_Humidity_at_Obs_Location, 25, ierr )
+      call load_nc_var( 'Station_ID',                        ftin, Station_ID,                        ierr )
+      call load_nc_var( 'Observation_Class',                 ftin, Station_ID,                        ierr )
+      call load_nc_var( 'Observation_Type',                  ftin, Observation_Type,                  ierr )
+      call load_nc_var( 'Observation_Subtype',               ftin, Observation_Subtype,               ierr )
+      call load_nc_var( 'Latitude',                          ftin, Latitude,                          ierr )
+      call load_nc_var( 'Longitude',                         ftin, Longitude,                         ierr )
+      call load_nc_var( 'Incremental_Bending_Angle',         ftin, Incremental_Bending_Angle,         ierr )
+      call load_nc_var( 'Pressure',                          ftin, Pressure,                          ierr )
+      call load_nc_var( 'Height',                            ftin, Height,                            ierr )
+      call load_nc_var( 'Time',                              ftin, Time,                              ierr )
+      call load_nc_var( 'Model_Elevation',                   ftin, Model_Elevation,                   ierr )
+      call load_nc_var( 'Setup_QC_Mark',                     ftin, Setup_QC_Mark,                     ierr )
+      call load_nc_var( 'Prep_Use_Flag',                     ftin, Prep_Use_Flag,                     ierr )
+      call load_nc_var( 'Analysis_Use_Flag',                 ftin, Analysis_Use_Flag,                 ierr )
+      call load_nc_var( 'Nonlinear_QC_Rel_Wgt',              ftin, Nonlinear_QC_Rel_Wgt,              ierr )
+      call load_nc_var( 'Errinv_Input',                      ftin, Errinv_Input,                      ierr )
+      call load_nc_var( 'Errinv_Adjust',                     ftin, Errinv_Adjust,                     ierr )
+      call load_nc_var( 'Errinv_Final',                      ftin, Errinv_Final,                      ierr )
+      call load_nc_var( 'Observation',                       ftin, Observation,                       ierr )
+      call load_nc_var( 'Obs_Minus_Forecast_adjusted',       ftin, Obs_Minus_Forecast_adjusted,       ierr )
+      call load_nc_var( 'Obs_Minus_Forecast_unadjusted',     ftin, Obs_Minus_Forecast_unadjusted,     ierr )
+      call load_nc_var( 'GPS_Type',                          ftin, GPS_Type,                          ierr )
+      call load_nc_var( 'Temperature_at_Obs_Location',       ftin, Temperature_at_Obs_Location,       ierr )
+      call load_nc_var( 'Specific_Humidity_at_Obs_Location', ftin, Specific_Humidity_at_Obs_Location, ierr )
 
 !      call load_nc_var( 'Nonlinear_QC_Var_Jb',           ftin, Nonlinear_QC_Var_Jb,           13, ierr )
 

@@ -68,6 +68,7 @@
 
 
    write(6,*) '----> BEGIN maingrads_lev'
+   write(6,*) '        levcard = ', levcard
    read(5,input)
    write(6,*)' User input:'
    write(6,input)
@@ -79,7 +80,7 @@
    call set_netcdf_read( netcdf )
 
    call conmon_read_diag_file( input_file,intype,stype,itype,nreal,nobs,isubtype,subtype,list )
-
+   
    if( nobs > 0 ) then
       if(trim(levcard) == 'alllev' ) then
          call grads_lev(stype,lstype,nobs,nreal,n_alllev,palllev,iscater, &

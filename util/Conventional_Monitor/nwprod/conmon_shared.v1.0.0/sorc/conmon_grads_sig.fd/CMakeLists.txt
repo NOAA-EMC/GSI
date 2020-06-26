@@ -4,8 +4,11 @@ cmake_minimum_required(VERSION 2.6)
   set_source_files_properties( ${CONMON_GRADS_SIG_SRC} PROPERTIES COMPILE_FLAGS ${CONMON_GRADS_SIG_Fortran_FLAGS} )
   add_executable(conmon_grads_sig.x  ${CONMON_GRADS_SIG_SRC} )
   set_target_properties( conmon_grads_sig.x PROPERTIES COMPILE_FLAGS ${CONMON_GRADS_SIG_Fortran_FLAGS} )
-  include_directories( ${CORE_INCS} ${NCDIAG_INCS} ) 
-  target_link_libraries( conmon_grads_sig.x ${W3NCO_4_LIBRARY} ${NCDIAG_LIBRARIES} ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${HDF5_LIBRARIES} )
+
+  include_directories( ${UTIL_INC} ${CORE_INCS} ${NCDIAG_INCS} ${NETCDF_INCLUDES} ${MPI_Fortran_INCLUDE_PATH} ) 
+ 
+   target_link_libraries( conmon_grads_sig.x ${W3NCO_4_LIBRARY} ${NCDIAG_LIBRARIES} ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${HDF5_LIBRARIES} ${MPI_Fortran_LIBRARIES} ) 
+
   if(BUILD_W3NCO)
     add_dependencies( conmon_grads_sig.x ${W3NCO_4_LIBRARY} )
   endif()

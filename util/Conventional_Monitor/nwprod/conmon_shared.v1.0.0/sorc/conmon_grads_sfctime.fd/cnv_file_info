@@ -273,3 +273,78 @@ variables:
                 :date_time = 2020040506 ;
 }
 
+
+SST
+
+        rdiagbuf(1,ii)  = ictype(ikx)        ! observation type
+        rdiagbuf(2,ii)  = icsubtype(ikx)     ! observation subtype
+
+        rdiagbuf(3,ii)  = data(ilate,i)      ! observation latitude (degrees)
+        rdiagbuf(4,ii)  = data(ilone,i)      ! observation longitude (degrees)
+        rdiagbuf(5,ii)  = data(istnelv,i)    ! station elevation (meters)
+        rdiagbuf(6,ii)  = data(itemp,i)      ! background open water temperature (K)
+        rdiagbuf(7,ii)  = data(izob,i)       ! observation depth (meters)
+        rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
+
+        rdiagbuf(9,ii)  = data(ipct,i)       ! open water percentage (0 to 1)
+        rdiagbuf(10,ii) = id_qc              ! setup qc or event mark
+        rdiagbuf(11,ii) = data(iuse,i)       ! read_prepbufr data usage flag
+        if(muse(i)) then
+           rdiagbuf(12,ii) = one             ! analysis usage flag (1=use, -1=not used)
+        else
+           rdiagbuf(12,ii) = -one
+        endif
+
+
+        rdiagbuf(13,ii) = rwgt               ! nonlinear qc relative weight
+        rdiagbuf(14,ii) = errinv_input       ! prepbufr inverse obs error (K**-1)
+        rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error (K**-1)
+        rdiagbuf(16,ii) = errinv_final       ! final inverse observation error (K**-1)
+
+        rdiagbuf(17,ii) = data(isst,i)       ! SST observation (K)
+        rdiagbuf(18,ii) = ddiff              ! obs-ges used in analysis (K)
+        rdiagbuf(19,ii) = data(isst,i)-sstges! obs-ges w/o bias correction (K) (future slot)
+
+        rdiagbuf(20,ii) = data(iotype,i)     ! type of measurement
+        if (nst_gsi>0) then
+          rdiagbuf(maxinfo+1,ii) = data(itref,i)    ! Tr
+          rdiagbuf(maxinfo+2,ii) = data(idtw,i)     ! dt_warm at zob
+          rdiagbuf(maxinfo+3,ii) = data(idtc,i)     ! dt_cool at zob
+          rdiagbuf(maxinfo+4,ii) = data(itz_tr,i)   ! d(tz)/d(Tr) at zob
+        endif
+
+
+dimensions:
+        nobs = UNLIMITED ; // (20485 currently)
+        Station_ID_maxstrlen = 8 ;
+        Observation_Class_maxstrlen = 7 ;
+variables:
+        char Station_ID(nobs, Station_ID_maxstrlen) ;
+        char Observation_Class(nobs, Observation_Class_maxstrlen) ;
+        int Observation_Type(nobs) ;
+        int Observation_Subtype(nobs) ;
+        float Latitude(nobs) ;
+        float Longitude(nobs) ;
+        float Station_Elevation(nobs) ;
+        float Pressure(nobs) ;
+        float Height(nobs) ;
+        float Time(nobs) ;
+        float Prep_QC_Mark(nobs) ;
+        float Prep_Use_Flag(nobs) ;
+        float Nonlinear_QC_Rel_Wgt(nobs) ;
+        float Analysis_Use_Flag(nobs) ;
+        float Errinv_Input(nobs) ;
+        float Errinv_Adjust(nobs) ;
+        float Errinv_Final(nobs) ;
+        float Observation(nobs) ;
+        float Obs_Minus_Forecast_adjusted(nobs) ;
+        float Obs_Minus_Forecast_unadjusted(nobs) ;
+        float FoundationTempBG(nobs) ;
+        float DiurnalWarming_at_zob(nobs) ;
+        float SkinLayerCooling_at_zob(nobs) ;
+        float Sensitivity_Tzob_Tr(nobs) ;
+
+// global attributes:
+                :date_time = 2020040306 ;
+                :_NCProperties = "version=2,netcdf=4.7.4-development,hdf5=1.10.6," ;
+
