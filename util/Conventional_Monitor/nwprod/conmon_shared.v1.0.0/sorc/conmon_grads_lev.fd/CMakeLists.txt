@@ -1,9 +1,12 @@
 cmake_minimum_required(VERSION 2.6)
   file(GLOB CONMON_GRADS_LEV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*90 )
   set(CONMON_GRADS_LEV_Fortran_FLAGS "-fp-model strict -assume byterecl -convert big_endian -O3 -traceback -D_REAL8_ ")
+  set(Util_MODULE_DIR ${PROJECT_BINARY_DIR}/include/conmon_grads_lev )
+
   set_source_files_properties( ${CONMON_GRADS_LEV_SRC} PROPERTIES COMPILE_FLAGS ${CONMON_GRADS_LEV_Fortran_FLAGS} )
   add_executable(conmon_grads_lev.x  ${CONMON_GRADS_LEV_SRC} )
   set_target_properties( conmon_grads_lev.x PROPERTIES COMPILE_FLAGS ${CONMON_GRADS_LEV_Fortran_FLAGS} )
+  set_target_properties( conmon_grads_lev.x PROPERTIES Fortran_MODULE_DIRECTORY ${Util_MODULE_DIR} )
 
   include_directories( ${UTIL_INC} ${CORE_INCS} ${NCDIAG_INCS} ${NETCDF_INCLUDES} ${MPI_Fortran_INCLUDE_PATH} )
 
