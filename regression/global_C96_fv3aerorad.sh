@@ -36,16 +36,14 @@ hhg=`echo $gdate | cut -c9-10`
 prefix_obs=gfs.t${hha}z
 prefix_prep=$prefix_obs
 prefix_tbc=gdas1.t${hhg}z
-prefix_sfc=gfs.t${hhg}z
-prefix_atm=gfs.t${hhg}z
+prefix_sfc=gfsC96.t${hhg}z
+prefix_atm=gfsC96.t${hhg}z
 prefix_aer=gfsC96.t${hhg}z
-suffix_obs=gfs.${global_C96_fv3aerorad_adate}
-suffix_bias=gdas.${gdate}
-suffix=tm00.bufr_d
+suffix_obs=tm00.bufr_d
 
-datobs=$global_C96_fv3aerorad_datobs/gfs.$PDY/$cyc
-datanl=$global_C96_fv3aerorad_datobs/gfs.$PDY/$cyc
-datges=$global_C96_fv3aerorad_datges/gfs.$gPDY/$gcyc
+datobs=$global_C96_fv3aerorad_obs/gfs.$PDY/$cyc
+datanl=$global_C96_fv3aerorad_obs/gfs.$PDY/$cyc
+datges=$global_C96_fv3aerorad_ges/gfs.$gPDY/$gcyc
 
 # Set up $tmpdir
 rm -rf $tmpdir
@@ -196,7 +194,6 @@ satinfo=$fixgsi/fv3aerorad_satinfo.txt
 cloudyinfo=$fixgsi/cloudy_radiance_info.txt
 convinfo=$fixgsi/global_convinfo_reg_test.txt
 anavinfo=$fixgsi/anavinfo_fv3aerorad
-aeroinfo=$fixgsi/aeroinfo_fv3aerorad
 ozinfo=$fixgsi/global_ozinfo.txt
 pcpinfo=$fixgsi/global_pcpinfo.txt
 hybens_info=$fixgsi/global_hybens_info.l64.txt
@@ -246,56 +243,35 @@ done
 $ncpl $datobs/${prefix_obs}.prepbufr                ./prepbufr
 $ncpl $datobs/${prefix_obs}.prepbufr.acft_profiles  ./prepbufr_profl
 $ncpl $datobs/${prefix_obs}.nsstbufr                ./nsstbufr
-$ncpl $datobs/${prefix_obs}.gpsro.${suffix}         ./gpsrobufr
-$ncpl $datobs/${prefix_obs}.satwnd.${suffix}        ./satwndbufr
-$ncpl $datobs/${prefix_obs}.spssmi.${suffix}        ./ssmirrbufr
-$ncpl $datobs/${prefix_obs}.sptrmm.${suffix}        ./tmirrbufr
-$ncpl $datobs/${prefix_obs}.osbuv8.${suffix}        ./sbuvbufr
-$ncpl $datobs/${prefix_obs}.goesfv.${suffix}        ./gsnd1bufr
-$ncpl $datobs/${prefix_obs}.1bamua.${suffix}        ./amsuabufr
-$ncpl $datobs/${prefix_obs}.1bamub.${suffix}        ./amsubbufr
-$ncpl $datobs/${prefix_obs}.1bhrs2.${suffix}        ./hirs2bufr
-$ncpl $datobs/${prefix_obs}.1bhrs3.${suffix}        ./hirs3bufr
-$ncpl $datobs/${prefix_obs}.1bhrs4.${suffix}        ./hirs4bufr
-$ncpl $datobs/${prefix_obs}.1bmhs.${suffix}         ./mhsbufr
-$ncpl $datobs/${prefix_obs}.1bmsu.${suffix}         ./msubufr
-$ncpl $datobs/${prefix_obs}.airsev.${suffix}        ./airsbufr
-$ncpl $datobs/${prefix_obs}.sevcsr.${suffix}        ./seviribufr
-$ncpl $datobs/${prefix_obs}.mtiasi.${suffix}        ./iasibufr
-$ncpl $datobs/${prefix_obs}.ssmit.${suffix}         ./ssmitbufr
-$ncpl $datobs/${prefix_obs}.ssmisu.${suffix}        ./ssmisbufr
-$ncpl $datobs/${prefix_obs}.gome.${suffix}          ./gomebufr
-$ncpl $datobs/${prefix_obs}.omi.${suffix}           ./omibufr
-$ncpl $datobs/${prefix_obs}.mls.${suffix}           ./mlsbufr
-$ncpl $datobs/${prefix_obs}.eshrs3.${suffix}        ./hirs3bufrears
-$ncpl $datobs/${prefix_obs}.esamua.${suffix}        ./amsuabufrears
-$ncpl $datobs/${prefix_obs}.esamub.${suffix}        ./amsubbufrears
-$ncpl $datobs/${prefix_obs}.atms.${suffix}          ./atmsbufr
-$ncpl $datobs/${prefix_obs}.cris.${suffix}          ./crisbufr
-$ncpl $datobs/${prefix_obs}.crisf4.${suffix}        ./crisfsbufr
-$ncpl $datobs/${prefix_obs}.syndata.tcvitals.tm00   ./tcvitl
-$ncpl $datobs/${prefix_obs}.avcsam.${suffix}        ./avhambufr
-$ncpl $datobs/${prefix_obs}.avcspm.${suffix}        ./avhpmbufr
-$ncpl $datobs/${prefix_obs}.saphir.${suffix}        ./saphirbufr
-$ncpl $datobs/${prefix_obs}.gmi1cr.${suffix}        ./gmibufr
-if [ "$debug" = ".false." ]; then
-    $ncpl $datobs/${prefix_obs}.esiasi.${suffix}        ./iasibufrears
-fi
-$ncpl $datobs/${prefix_obs}.hrs3db.${suffix}        ./hirs3bufr_db
-$ncpl $datobs/${prefix_obs}.amuadb.${suffix}        ./amsuabufr_db
-$ncpl $datobs/${prefix_obs}.amubdb.${suffix}        ./amsubbufr_db
-$ncpl $datobs/${prefix_obs}.iasidb.${suffix}        ./iasibufr_db
-$ncpl $datobs/${prefix_obs}.crisdb.${suffix}        ./crisbufr_db
-$ncpl $datobs/${prefix_obs}.atmsdb.${suffix}        ./atmsbufr_db
-$ncpl $datobs/${prefix_obs}.escris.${suffix}        ./crisbufrears
-$ncpl $datobs/${prefix_obs}.esatms.${suffix}        ./atmsbufrears
-
+$ncpl $datobs/${prefix_obs}.airsev.${suffix_obs}        ./airsbufr
+$ncpl $datobs/${prefix_obs}.mtiasi.${suffix_obs}        ./iasibufr
+$ncpl $datobs/${prefix_obs}.cris.${suffix_obs}          ./crisbufr
 
 # Copy bias correction, atmospheric and surface files
 $ncpl $datges/gfs.t18z.abias           ./satbias_in
 $ncpl $datges/gfs.t18z.abias_pc        ./satbias_pc
-$ncpl $datges/gfs.t18z.abias_air               ./aircftbias_in
+$ncpl $datges/gfs.t18z.abias_air       ./aircftbias_in
 #$ncpl $datges/gfs.t18z.radstat         ./radstat.gdas
+
+if [[ "$endianness" = "Big_Endian" ]]; then
+   ln -s -f $datges/${prefix_sfc}.sfcf03            ./sfcf03
+   ln -s -f $datges/${prefix_sfc}.sfcf06            ./sfcf06
+   ln -s -f $datges/${prefix_sfc}.sfcf09            ./sfcf09
+elif [[ "$endianness" = "Little_Endian" ]]; then
+   ln -s -f $datges/${prefix_sfc}.sfcf03.le         ./sfcf03
+   ln -s -f $datges/${prefix_sfc}.sfcf06.le         ./sfcf06
+   ln -s -f $datges/${prefix_sfc}.sfcf09.le         ./sfcf09
+fi
+
+if [[ "$endianness" = "Big_Endian" ]]; then
+   ln -s -f $datges/${prefix_atm}.sigf03        ./sigf03
+   ln -s -f $datges/${prefix_atm}.sigf06        ./sigf06
+   ln -s -f $datges/${prefix_atm}.sigf09        ./sigf09
+elif [[ "$endianness" = "Little_Endian" ]]; then
+   ln -s -f $datges/${prefix_atm}.sigf03.le     ./sigf03
+   ln -s -f $datges/${prefix_atm}.sigf06.le     ./sigf06
+   ln -s -f $datges/${prefix_atm}.sigf09.le     ./sigf09
+fi
 
 if [[ "$endianness" = "Big_Endian" ]]; then
    $ncpl $datges/${prefix_aer}.sigf03            ./aerf03
@@ -305,26 +281,6 @@ elif [[ "$endianness" = "Little_Endian" ]]; then
    $ncpl $datges/${prefix_aer}.sigf03.le         ./aerf03
    $ncpl $datges/${prefix_aer}.sigf06.le         ./aerf06
    $ncpl $datges/${prefix_aer}.sigf09.le         ./aerf09
-fi
-
-if [[ "$endianness" = "Big_Endian" ]]; then
-   $ncpl $datges/${prefix_sfc}.sfcf003.${sfcsuffix}            ./sfcf03
-   $ncpl $datges/${prefix_sfc}.sfcf006.${sfcsuffix}            ./sfcf06
-   $ncpl $datges/${prefix_sfc}.sfcf009.${sfcsuffix}            ./sfcf09
-elif [[ "$endianness" = "Little_Endian" ]]; then
-   $ncpl $datges/${prefix_sfc}.sfcf03.le         ./sfcf03
-   $ncpl $datges/${prefix_sfc}.sfcf06.le         ./sfcf06
-   $ncpl $datges/${prefix_sfc}.sfcf09.le         ./sfcf09
-fi
-
-if [[ "$endianness" = "Big_Endian" ]]; then
-   $ncpl $datges/${prefix_atm}.atmf003.${atmsuffix}        ./sigf03
-   $ncpl $datges/${prefix_atm}.atmf006.${atmsuffix}        ./sigf06
-   $ncpl $datges/${prefix_atm}.atmf009.${atmsuffix}        ./sigf09
-elif [[ "$endianness" = "Little_Endian" ]]; then
-   $ncpl $datges/${prefix_atm}.sigf03.le     ./sigf03
-   $ncpl $datges/${prefix_atm}.sigf06.le     ./sigf06
-   $ncpl $datges/${prefix_atm}.sigf09.le     ./sigf09
 fi
 
 # Run GSI
