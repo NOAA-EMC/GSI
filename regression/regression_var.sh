@@ -111,17 +111,19 @@ case $machine in
      export noscrub="/scratch1/NCEPDEV/global/$LOGNAME/noscrub"
     elif [ -d /scratch2/BMC/gsienkf/$LOGNAME ]; then
      export noscrub="/scratch2/BMC/gsienkf/$LOGNAME"
-   elif [ -d /scratch1/BMC/gsd-fv3-dev/$LOGNAME ]; then
-     export noscrub="/scratch1/BMC/gsd-fv3-dev/$LOGNAME/DTCVisitor/noscrub"
    fi
+ 
+   export noscrub="/scratch1/BMC/gsd-fv3-dev/Shih-wei.Wei/DTCVisitor/rgtest_Jul1/noscrub"
+
    export group="global"
    export queue="batch"
    if [[ "$cmaketest" = "false" ]]; then
-     export basedir="/scratch1/NCEPDEV/da/$LOGNAME/git/gsi"
+     #export basedir="/scratch1/NCEPDEV/da/$LOGNAME/git/gsi"
+     export basedir="/scratch1/BMC/gsd-fv3-dev/Shih-wei.Wei/DTCVisitor/rgtest_Jul1/control"
    fi 
 
    #export ptmp="/scratch1/NCEPDEV/stmp2/$LOGNAME/$ptmpName"
-   export ptmp="/scratch1/BMC/gsd-fv3-dev/Shih-wei.Wei/DTCVisitor/$ptmpName"
+   export ptmp="/scratch1/BMC/gsd-fv3-dev/Shih-wei.Wei/DTCVisitor/rgtest_Jul1/ptmp"
 
    export fixcrtm="/scratch1/NCEPDEV/da/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update"
    #export casesdir="/scratch1/NCEPDEV/da/Michael.Lueken/noscrub/CASES"
