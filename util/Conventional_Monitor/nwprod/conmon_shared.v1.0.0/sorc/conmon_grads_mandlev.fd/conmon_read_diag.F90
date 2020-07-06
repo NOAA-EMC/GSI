@@ -28,6 +28,7 @@ module conmon_read_diag
    use ncdr_vars, only:    nc_diag_read_check_var
    use ncdr_dims, only:    nc_diag_read_check_dim
 
+
    !--- implicit ---!
    implicit none
  
@@ -132,13 +133,11 @@ module conmon_read_diag
    !
    ! Public routine to read a conventional diagnostic file
    !------------------------------------------------------------
-   subroutine conmon_read_diag_file( input_file,ctype,stype,intype,expected_nreal,nobs,in_subtype,subtype,list )
+   subroutine conmon_read_diag_file( input_file,ctype,intype,expected_nreal,nobs,in_subtype, list )
 
       !--- interface 
       character(100), intent(in) :: input_file
       character(3), intent(in)   :: ctype
-      character(10), intent(in)  :: stype                   !! appears not to be used
-      character(3), intent(in)   :: subtype                 !! appears not to be used
 
       !--- note expected_nreal has no meaning for netcdf files
       integer, intent(in)        :: intype, expected_nreal, in_subtype
@@ -150,9 +149,9 @@ module conmon_read_diag
 
       if ( netcdf ) then
          write(6,*) ' call nc read subroutine'
-         call read_diag_file_nc( input_file, ctype, stype, intype, expected_nreal, nobs, in_subtype, subtype, list )
+         call read_diag_file_nc( input_file, ctype, intype, expected_nreal, nobs, in_subtype, list )
       else
-         call read_diag_file_bin( input_file, ctype,stype,intype,expected_nreal,nobs,in_subtype,subtype,list )
+         call read_diag_file_bin( input_file, ctype, intype,expected_nreal,nobs,in_subtype, list )
       end if
 
       write(6,*)"<-- conmon_read_diag_file"
@@ -164,13 +163,11 @@ module conmon_read_diag
    !
    !  NetCDF read routine
    !-------------------------------
-   subroutine read_diag_file_nc( input_file, ctype,stype,intype,expected_nreal,nobs,in_subtype,subtype,list )
+   subroutine read_diag_file_nc( input_file, ctype, intype,expected_nreal,nobs,in_subtype, list )
 
       !--- interface 
       character(100), intent(in) :: input_file
       character(3), intent(in)   :: ctype
-      character(10), intent(in)  :: stype                   !! appears not to be used
-      character(3), intent(in)   :: subtype                 !! appears not to be used
       integer, intent(in)        :: intype, expected_nreal, in_subtype
       integer, intent(out)       :: nobs
       type(list_node_t), pointer :: list
@@ -214,22 +211,22 @@ module conmon_read_diag
       select case ( trim( adjustl( ctype ) ) )
    
          case ( 'gps' ) 
-            call read_diag_file_gps_nc( input_file, ftin, ctype,stype,intype,expected_nreal,nobs,in_subtype,subtype,list )
+            call read_diag_file_gps_nc( input_file, ftin, ctype, intype,expected_nreal,nobs,in_subtype, list )
 
          case ( 'ps' ) 
-            call read_diag_file_ps_nc( input_file, ftin, ctype,stype,intype,expected_nreal,nobs,in_subtype,subtype,list )
+            call read_diag_file_ps_nc( input_file, ftin, ctype, intype,expected_nreal,nobs,in_subtype, list )
 
          case ( 'q' ) 
-            call read_diag_file_q_nc(  input_file, ftin, ctype,stype,intype,expected_nreal,nobs,in_subtype,subtype,list )
+            call read_diag_file_q_nc(  input_file, ftin, ctype, intype,expected_nreal,nobs,in_subtype, list )
 
          case ( 'sst' )
-            call read_diag_file_sst_nc(  input_file, ftin, ctype,stype,intype,expected_nreal,nobs,in_subtype,subtype,list )
+            call read_diag_file_sst_nc(  input_file, ftin, ctype, intype,expected_nreal,nobs,in_subtype, list )
 
          case ( 't' ) 
-            call read_diag_file_t_nc(  input_file, ftin, ctype,stype,intype,expected_nreal,nobs,in_subtype,subtype,list )
+            call read_diag_file_t_nc(  input_file, ftin, ctype, intype,expected_nreal,nobs,in_subtype, list )
 
          case ( 'uv' ) 
-            call read_diag_file_uv_nc(  input_file, ftin, ctype,stype,intype,expected_nreal,nobs,in_subtype,subtype,list )
+            call read_diag_file_uv_nc(  input_file, ftin, ctype, intype,expected_nreal,nobs,in_subtype, list )
 
          case default
             print *, 'ERROR:  unmatched ctype :', ctype
@@ -262,14 +259,12 @@ module conmon_read_diag
    !--------------------------------------------------------- 
    !  netcdf read routine for ps data types in netcdf files
    !
-   subroutine read_diag_file_ps_nc( input_file, ftin, ctype,stype,intype,expected_nreal,nobs,in_subtype,subtype,list )
+   subroutine read_diag_file_ps_nc( input_file, ftin, ctype, intype,expected_nreal,nobs,in_subtype, list )
   
       !--- interface 
       character(100), intent(in) :: input_file
       integer, intent(in)        :: ftin
       character(3), intent(in)   :: ctype
-      character(10), intent(in)  :: stype                   !! appears not to be used
-      character(3), intent(in)   :: subtype                 !! appears not to be used
       integer, intent(in)        :: intype, expected_nreal, in_subtype
       integer, intent(out)       :: nobs
       type(list_node_t), pointer :: list
@@ -360,11 +355,11 @@ module conmon_read_diag
             !---------------------------------------------
             ! Allocate a new data element and load
             !
-!            print *, 'Allocating new data element'
+            print *, 'Allocating new data element'
 
             allocate( ptr%p )
             ptr%p%stn_id = Station_ID( ii )
-!            print *, 'ptr%p%stn_id = ', ptr%p%stn_id
+            print *, 'ptr%p%stn_id = ', ptr%p%stn_id
 
             do idx=1,max_rdiag_reals
                ptr%p%rdiag( idx ) = 0.00
@@ -391,6 +386,8 @@ module conmon_read_diag
             ptr%p%rdiag( idx_obsmg_adj_ps   ) = Obs_Minus_Forecast_adjusted( ii )
             ptr%p%rdiag( idx_obsmg_nadj_ps  ) = Obs_Minus_Forecast_unadjusted( ii )
 
+            print*, 'loaded ptr%p%rdiag'
+
             if( nobs == 1 ) then
                !-------------------------------------------------
                ! Initialize the list with the first data element
@@ -406,6 +403,7 @@ module conmon_read_diag
                next => list_next(next)
 
             end if
+            print*, 'list updated'
 
          end if
 
@@ -441,14 +439,12 @@ module conmon_read_diag
    !--------------------------------------------------------- 
    !  netcdf read routine for q data types in netcdf files
    !
-   subroutine read_diag_file_q_nc( input_file, ftin, ctype,stype,intype,expected_nreal,nobs,in_subtype,subtype,list )
+   subroutine read_diag_file_q_nc( input_file, ftin, ctype, intype,expected_nreal,nobs,in_subtype, list )
   
       !--- interface 
       character(100), intent(in) :: input_file
       integer, intent(in)        :: ftin
       character(3), intent(in)   :: ctype
-      character(10), intent(in)  :: stype                   !! appears not to be used
-      character(3), intent(in)   :: subtype                 !! appears not to be used
       integer, intent(in)        :: intype, expected_nreal, in_subtype
       integer, intent(out)       :: nobs
       type(list_node_t), pointer :: list
@@ -625,14 +621,12 @@ module conmon_read_diag
    !--------------------------------------------------------- 
    !  netcdf read routine for ps data types in netcdf files
    !
-   subroutine read_diag_file_sst_nc( input_file, ftin, ctype,stype,intype,expected_nreal,nobs,in_subtype,subtype,list )
+   subroutine read_diag_file_sst_nc( input_file, ftin, ctype, intype,expected_nreal,nobs,in_subtype, list )
   
       !--- interface 
       character(100), intent(in) :: input_file
       integer, intent(in)        :: ftin
       character(3), intent(in)   :: ctype
-      character(10), intent(in)  :: stype                   !! appears not to be used
-      character(3), intent(in)   :: subtype                 !! appears not to be used
       integer, intent(in)        :: intype, expected_nreal, in_subtype
       integer, intent(out)       :: nobs
       type(list_node_t), pointer :: list
@@ -829,14 +823,12 @@ module conmon_read_diag
    !--------------------------------------------------------- 
    !  netcdf read routine for t data types in netcdf files
    !
-   subroutine read_diag_file_t_nc( input_file, ftin, ctype,stype,intype,expected_nreal,nobs,in_subtype,subtype,list )
+   subroutine read_diag_file_t_nc( input_file, ftin, ctype, intype,expected_nreal,nobs,in_subtype, list )
   
       !--- interface 
       character(100), intent(in) :: input_file
       integer, intent(in)        :: ftin
       character(3), intent(in)   :: ctype
-      character(10), intent(in)  :: stype                   !! appears not to be used
-      character(3), intent(in)   :: subtype                 !! appears not to be used
       integer, intent(in)        :: intype, expected_nreal, in_subtype
       integer, intent(out)       :: nobs
       type(list_node_t), pointer :: list
@@ -1037,14 +1029,12 @@ module conmon_read_diag
    !--------------------------------------------------------- 
    !  netcdf read routine for uv data types in netcdf files
    !
-   subroutine read_diag_file_uv_nc( input_file, ftin, ctype,stype,intype,expected_nreal,nobs,in_subtype,subtype,list )
+   subroutine read_diag_file_uv_nc( input_file, ftin, ctype, intype,expected_nreal,nobs,in_subtype, list )
   
       !--- interface 
       character(100), intent(in) :: input_file
       integer, intent(in)        :: ftin
       character(3), intent(in)   :: ctype
-      character(10), intent(in)  :: stype                   !! appears not to be used
-      character(3), intent(in)   :: subtype                 !! appears not to be used
       integer, intent(in)        :: intype, expected_nreal, in_subtype
       integer, intent(out)       :: nobs
       type(list_node_t), pointer :: list
@@ -1236,14 +1226,12 @@ module conmon_read_diag
    !--------------------------------------------------------- 
    !  netcdf read routine for gps data types in netcdf files
    !
-   subroutine read_diag_file_gps_nc( input_file, ftin, ctype,stype,intype,expected_nreal,nobs,in_subtype,subtype,list )
+   subroutine read_diag_file_gps_nc( input_file, ftin, ctype, intype,expected_nreal,nobs,in_subtype, list )
  
       !--- interface 
       character(100), intent(in) :: input_file
       integer, intent(in)        :: ftin
       character(3), intent(in)   :: ctype
-      character(10), intent(in)  :: stype                   !! appears not to be used
-      character(3), intent(in)   :: subtype                 !! appears not to be used
       integer, intent(in)        :: intype, expected_nreal, in_subtype
       integer, intent(out)       :: nobs
       type(list_node_t), pointer :: list
@@ -1456,13 +1444,11 @@ module conmon_read_diag
  
    !---  binary read routine
    !
-   subroutine read_diag_file_bin( input_file, ctype,stype,intype,expected_nreal,nobs,in_subtype,subtype,list )
+   subroutine read_diag_file_bin( input_file, ctype, intype,expected_nreal,nobs,in_subtype, list )
 
       !--- interface 
       character(100), intent(in) :: input_file
       character(3), intent(in)   :: ctype
-      character(10), intent(in)  :: stype                   !! appears not to be used
-      character(3), intent(in)   :: subtype                 !! appears not to be used
       integer, intent(in)        :: intype, expected_nreal, in_subtype
       integer, intent(out)       :: nobs
       type(list_node_t), pointer :: list
@@ -1488,8 +1474,6 @@ module conmon_read_diag
       nobs=0
       print *, '      --> read_diag_file_bin'
       print *, '            ctype            = ', ctype
-      print *, '            stype            = ', stype
-      print *, '            subtype          = ', subtype
       print *, '            intype, in_subtype = ', intype, in_subtype
       print *, '            expected_nreal     = ', expected_nreal
 

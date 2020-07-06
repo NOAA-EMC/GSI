@@ -15,19 +15,6 @@ program maingrads_sfc
 
    interface
 
-!      subroutine read_conv2grads(ctype,stype,itype,nreal,nobs,isubtype,subtype,list)
-!         use generic_list
-!         character(3)           :: ctype
-!         character(10)          :: stype
-!         integer                :: itype
-!         integer                :: nreal
-!         integer                :: nobs
-!         integer                :: isubtype
-!         character(3)           :: subtype
-!         type(list_node_t),pointer   :: list
-!      end subroutine read_conv2grads
-
-
       subroutine grads_sfc(fileo,ifileo,nobs,nreal,iscater,igrads,&
                            isubtype, subtype, list, run)
          use generic_list
@@ -73,9 +60,7 @@ program maingrads_sfc
    write(6,*)'netcdf       =', netcdf
    call set_netcdf_read( netcdf )
 
-   call conmon_read_diag_file( input_file,intype,stype,itype,nreal,nobs,isubtype,subtype,list )
-
-!   call read_conv2grads( intype,stype,itype,nreal,nobs,isubtype,subtype,list )
+   call conmon_read_diag_file( input_file,intype,itype,nreal,nobs,isubtype,list )
 
  
    if( nobs > 0 ) then
