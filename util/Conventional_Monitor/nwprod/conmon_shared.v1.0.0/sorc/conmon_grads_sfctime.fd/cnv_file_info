@@ -130,6 +130,43 @@ variables:
                 :date_time = 2020051806 ;
 }
 
+from setupt.f90:
+
+    rdiagbufp(1,iip)  = ictype(ikx)        ! observation type
+    rdiagbufp(2,iip)  = icsubtype(ikx)     ! observation subtype
+    rdiagbuf(3,ii)  = data(ilate,i)      ! observation latitude (degrees)
+    rdiagbuf(4,ii)  = data(ilone,i)      ! observation longitude (degrees)
+    rdiagbuf(5,ii)  = data(istnelv,i)    ! station elevation (meters)
+    rdiagbuf(6,ii)  = prest              ! observation pressure (hPa)
+    rdiagbuf(7,ii)  = data(iobshgt,i)    ! observation height (meters)
+    rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
+
+    rdiagbuf(9,ii)  = data(iqc,i)        ! input prepbufr qc or event mark
+    rdiagbuf(10,ii) = data(iqt,i)        ! setup qc or event mark
+    rdiagbuf(11,ii) = data(iuse,i)       ! read_prepbufr data usage flag
+    if(muse(i)) then
+       rdiagbuf(12,ii) = one             ! analysis usage flag (1=use, -1=not used)
+    else
+       rdiagbuf(12,ii) = -one
+    endif
+
+!rdiagbuf(13,ii) is the combination of var_jb and non-linear qc relative weight
+! in the format of:  var_jb*1.0e+6 + rwgt
+    rdiagbuf(13,ii) = var_jb*1.0e+6_r_single + rwgt ! combination of var_jb and rwgt
+    rdiagbuf(14,ii) = errinv_input       ! prepbufr inverse obs error (K**-1)
+    rdiagbuf(15,ii) = errinv_adjst       ! read_prepbufr inverse obs error (K**-1)
+    rdiagbuf(16,ii) = errinv_final       ! final inverse observation error (K**-1)
+
+    rdiagbuf(17,ii) = data(itob,i)       ! temperature observation (K)
+    rdiagbuf(18,ii) = ddiff              ! obs-ges used in analysis (K)
+    rdiagbuf(19,ii) = tob-tges           ! obs-ges w/o bias correction (K) (future slot)
+    rdiagbuf(20,ii) = 1.e10_r_single     ! spread (filled in by EnKF)
+    if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) then
+       rdiagbuf(20,ii) = data(ipof,i)       ! data pof
+       rdiagbuf(21,ii) = data(ivvlc,i)      ! data vertical velocity
+       do j=1,npredt
+          rdiagbuf(21+j,ii) = predbias(j)
+
 
 netcdf diag_conv_t_ges.2020051806 {
 dimensions:
@@ -273,8 +310,37 @@ variables:
                 :date_time = 2020040506 ;
 }
 
+  from setupbend.f90:
 
-SST
+     rdiagbuf(1,i)         = ictype(ikx)        ! observation type
+     rdiagbuf(2,i)         = data(iprof,i)      ! profile identifier
+     rdiagbuf(3,i)         = data(ilate,i)      ! lat in degrees
+     rdiagbuf(4,i)         = data(ilone,i)      ! lon in degrees
+     rdiagbuf( 5,i)        = (data(igps,i)-dbend)/data(igps,i) ! incremental bending angle (x100 %)
+     rdiagbuf(6,i)         = ten*exp(dpressure) ! pressure at obs location (hPa) if monotone grid
+     rdiagbuf(7,i)         = tpdpres(i)-rocprof ! impact height in meters
+     rdiagbuf(8,i)         = dtime-time_offset  ! obs time (hours relative to analysis time)
+     rdiagbuf(9,i)         = zsges              ! model terrain (m)
+     rdiagbuf(10,ii)       = id_qc              ! setup qc or event mark
+     rdiagbuf(11,i)        = data(iuse,i)       ! data usage flag
+     rdiagbuf(12,ii)       = one                ! analysis usage flag (1=use, -1=not used)
+     rdiagbuf(13,i)        = zero               ! nonlinear qc relative weight - will be defined in genstats_gps
+     rdiagbuf(14,i)        = errinv_input       ! original inverse gps obs error (rad**-1)
+     rdiagbuf(15,i)        = errinv_adjst       ! original + represent error inverse gps
+                                                ! obs error (rad**-1)
+     rdiagbuf(16,i)        = errinv_final       ! final inverse observation error due to
+                                                ! superob factor (rad**-1) and qc
+                                                ! modified in genstats_gps
+     rdiagbuf(17,i)        = data(igps,i)       ! bending angle observation (radians)
+     rdiagbuf(18,i)        = trefges            ! temperature at obs location (Kelvin) if monotone grid
+     rdiagbuf(19,i)        = hob                ! model vertical grid (interface) if monotone grid
+     rdiagbuf(20,i)        = one                ! uses gps_ref (one = use of bending angle)
+     rdiagbuf(21,i)        = qrefges            ! specific humidity at obs location (kg/kg) if monotone grid
+     rdiagbuf(22,i)        = 1.e+10_r_kind      ! spread (filled in by EnKF)
+
+
+
+SST --- sea surface temperature
 
         rdiagbuf(1,ii)  = ictype(ikx)        ! observation type
         rdiagbuf(2,ii)  = icsubtype(ikx)     ! observation subtype

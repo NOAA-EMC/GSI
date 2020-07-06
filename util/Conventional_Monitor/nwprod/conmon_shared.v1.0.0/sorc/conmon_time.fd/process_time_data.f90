@@ -1,3 +1,20 @@
+!---------------------------------------------------------------------------------
+!  process_time_data.f90
+! 
+!  module conmon_process_time_data
+!
+!  This module reads and processes the conventional time series data,
+!  storing the results in files that are ready to be plotted in GrADS.
+!
+!  Both binary and NetCDF formatted conventional diagnostic files are supported. 
+!  The binary read is contained in this module.  Reading NetCDF formatted files
+!  is done using the conmon_read_diag.F90 module.  The conmon_read_diag module 
+!  supports reading binary cnvstat files as well, but since what is here works,
+!  and the binary format is being replaced by NetCDF, it didn't make sense to 
+!  spend the time to rebuild that which is not broken.
+!
+!---------------------------------------------------------------------------------
+
 !   intype  : the observarion type like t for tem., uv for wind
 !   stype   : the observation sub type, like t120 uv220
 !   twork   : the array to hold statistics for temperature: the first variable of 
@@ -9,7 +26,21 @@
 !             1, used, 2, rejected, 3, monited
 
 
-module conmon_read_time_diag
+!
+!  Notes: 
+!
+!  Binary files are read and processed element by element.  This won't work for
+!  NetCDF files.
+!
+!  The NetCDF processing will have to be by type
+!  and I guess subtype in order to use the conmon_read_diag.F90 module.  Check
+!  the read convinfo routine -- does that get me a list of all types/subtypes?
+!
+!  The conmon_read_diag.F90 module returns a linked list of elements so I'll
+!  have to add a routine here to translate that.
+!
+
+module conmon_process_time_data
 
 
    !--- use ---!
@@ -21,14 +52,17 @@ module conmon_read_time_diag
 
    use ncdr_vars, only:    nc_diag_read_check_var
 
+   use conmon_read_diag
+ 
+ 
    !--- implicit ---!
    implicit none
 
    !--- public & private ---!
    private 
 
-   public :: set_netcdf_read
-   public :: read_conv
+   public :: set_netcdf_flag
+   public :: process_conv_diag
 
    !--- common data structures ---!
    logical,save                           :: netcdf           = .false.
@@ -42,21 +76,27 @@ module conmon_read_time_diag
    ! set the use_netcdf flag to read either binary (default) or
    !    netcdf formatted diagnostic files.
    !------------------------------------------------------------
-   subroutine set_netcdf_read( use_netcdf )
+   subroutine set_netcdf_flag( use_netcdf )
       logical,intent(in)                     :: use_netcdf
 
 
       netcdf = use_netcdf
 
-   end subroutine set_netcdf_read
+      call set_netcdf_read( use_netcdf )
+
+   end subroutine set_netcdf_flag
 
 
    !------------------------------------------------------------
-   ! subroutine read_conv 
+   ! subroutine process_conv_diag 
    !
-   ! Call either the binary or NetCDF read routine.
+   ! Read and process conventional diagnostic files in either 
+   ! binary or NetCDF format.  Use the set_netcdf_read routine
+   ! to set the netcdf flag.
    !------------------------------------------------------------
-   subroutine read_conv(input_file,mregion,nregion,np,ptop,pbot,ptopq,pbotq,&
+   !
+   subroutine process_conv_diag(input_file,mregion,nregion,np, &
+           ptop,pbot,ptopq,pbotq, &
            rlatmin,rlatmax,rlonmin,rlonmax,iotype_ps,iotype_q,&
            iotype_t,iotype_uv,varqc_ps,varqc_q,varqc_t,varqc_uv,&
            ntype_ps,ntype_q,ntype_t,ntype_uv,&
@@ -78,25 +118,37 @@ module conmon_read_time_diag
 
       if( netcdf ) then
          write(6,*) ' call nc read subroutine'
-      else
-         write(6,*) ' call bin read subroutine'
-         call read_conv_bin( input_file,mregion,nregion,np,ptop,pbot,ptopq,pbotq,&
+         call process_conv_nc( input_file, mregion,nregion,np,ptop,pbot,ptopq,pbotq,&
                  rlatmin,rlatmax,rlonmin,rlonmax,iotype_ps,iotype_q,&
                  iotype_t,iotype_uv,varqc_ps,varqc_q,varqc_t,varqc_uv,&
                  ntype_ps,ntype_q,ntype_t,ntype_uv,&
                  iosubtype_ps,iosubtype_q,iosubtype_t,iosubtype_uv, &
                  twork,qwork,uwork,vwork,uvwork,pswork)
+      else
+         write(6,*) ' call bin read subroutine'
+         call process_conv_bin( input_file,mregion,nregion,np,ptop,pbot,ptopq,pbotq,&
+                 rlatmin,rlatmax,rlonmin,rlonmax,iotype_ps,iotype_q,&
+                 iotype_t,iotype_uv,varqc_ps,varqc_q,varqc_t,varqc_uv,&
+                 ntype_ps,ntype_q,ntype_t,ntype_uv,&
+                 iosubtype_ps,iosubtype_q,iosubtype_t,iosubtype_uv, &
+                 twork,qwork,uwork,vwork,uvwork,pswork)
+
+         call output_data( twork, qwork, uwork, vwork, uvwork, pswork, &
+                        ntype_ps, ntype_q, ntype_t, ntype_uv, nregion, np )
       end if 
 
-      call output_data( twork, qwork, uwork, vwork, uvwork, pswork, &
-                        ntype_ps, ntype_q, ntype_t, ntype_uv, nregion, np )
 
-   end subroutine read_conv
+   end subroutine process_conv_diag
 
 
 
-  
-   subroutine read_conv_bin(input_file,mregion,nregion,np,ptop,pbot,ptopq,pbotq,&
+   !-----------------------------------------------------------
+   !  subroutine process_conv_bin
+   ! 
+   !  This routine reads and processes binary formatted 
+   !  conventional diag files. 
+   !-----------------------------------------------------------
+   subroutine process_conv_bin(input_file,mregion,nregion,np,ptop,pbot,ptopq,pbotq,&
            rlatmin,rlatmax,rlonmin,rlonmax,iotype_ps,iotype_q,&
            iotype_t,iotype_uv,varqc_ps,varqc_q,varqc_t,varqc_uv,&
            ntype_ps,ntype_q,ntype_t,ntype_uv,&
@@ -191,11 +243,130 @@ module conmon_read_time_diag
     
       close(lunin)
 
-   end subroutine read_conv_bin
+   end subroutine process_conv_bin
 
 
 
+   !-----------------------------------------------------------
+   !  subroutine process_conv_nc
+   ! 
+   !  This routine reads and processes NetCDF formatted 
+   !  conventional diag files. 
+   !-----------------------------------------------------------
+   subroutine process_conv_nc(input_file,mregion,nregion,np,ptop,pbot,ptopq,pbotq,&
+           rlatmin,rlatmax,rlonmin,rlonmax,iotype_ps,iotype_q,&
+           iotype_t,iotype_uv,varqc_ps,varqc_q,varqc_t,varqc_uv,&
+           ntype_ps,ntype_q,ntype_t,ntype_uv,&
+           iosubtype_ps,iosubtype_q,iosubtype_t,iosubtype_uv, &
+           twork,qwork,uwork,vwork,uvwork,pswork)
 
+      use generic_list
+      use data
+
+      implicit none
+
+
+      character(100),intent(in)              :: input_file
+      integer, intent(in)                    :: mregion
+      integer, intent(in)                    :: nregion
+      integer, intent(in)                    :: np
+      real(4),dimension(np),intent(in)       :: ptop,pbot,ptopq,pbotq
+      real,dimension(mregion),intent(in)     :: rlatmin,rlatmax,rlonmin,rlonmax
+      integer,dimension(100),intent(in)      :: iotype_ps,iotype_q,iotype_t,iotype_uv
+      real(4),dimension(100,2),intent(in)    :: varqc_ps,varqc_q,varqc_t,varqc_uv
+      integer, intent(in)                    :: ntype_ps,ntype_q,ntype_t
+      integer,dimension(100),intent(in)      :: iosubtype_ps,iosubtype_q,iosubtype_uv,iosubtype_t
+
+      real(4),dimension(np,100,6,nregion,3), intent(out)  :: twork,qwork,uwork,vwork,uvwork
+      real(4),dimension(1,100,6,nregion,3), intent(out)   :: pswork
+
+
+      type(list_node_t), pointer   :: list => null()
+      type(list_node_t), pointer   :: next => null()
+      type(data_ptr)               :: ptr
+
+      real(4),allocatable,dimension(:,:)     :: rdiag 
+      character(8),allocatable,dimension(:)  :: cdiag 
+
+      character(3)             :: dtype
+
+      integer nchar,nreal,ii,mype,idate,iflag,itype
+      integer lunin,lunot,nreal1,nreal2,ldtype,intype
+      integer ilat,ilon,ipress,iqc,iuse,imuse,iwgt,ierr1
+      integer ierr2,ierr3,ipsobs,iqobs,ioff02
+      integer i,j,k,ltype,iregion,ntype_uv
+      integer iobg,iobgu,iobgv
+
+      data lunin / 11 /
+      data lunot / 21 /
+
+
+      twork=0.0;qwork=0.0;uwork=0.0;vwork=0.0;uvwork=0.0
+      pswork=0.0
+
+!      call conmon_read_diag_file( input_file,intype,stype,itype,nreal,nobs,isubtype,subtype,list )
+!  need intype, stype, itype, nreal, subtype 
+!  how is subtype use?
+
+!      itype=1;ilat=3;ilon=4;ipress=6;iqc=9;iuse=11;imuse=12
+!      iwgt=13;ierr1=14;ierr2=15;ierr3=16;iobg=18;iobgu=18;iobgv=21
+!   
+!      write(6,*) 'input_file = ', input_file
+!      open(lunin,file=input_file,form='unformatted')  
+!      rewind(lunin)
+!
+!      read(lunin) idate
+!
+!      print *, 'idate=',idate 
+!      print *,ptop(1),ptop(5)
+!      print *,pbot(1),pbot(5)
+!
+!      loopd: do  
+!         read(lunin,IOSTAT=iflag) dtype,nchar,nreal,ii,mype,ioff02
+!         if( iflag /= 0 ) exit loopd
+!
+!         allocate(cdiag(ii),rdiag(nreal,ii))
+!         read(lunin,IOSTAT=iflag) cdiag,rdiag
+!
+!         if( iflag /= 0 ) exit loopd
+!
+!
+!         if(trim(dtype) == ' ps') then
+!            call stascal(dtype,rdiag,nreal,ii,iotype_ps,varqc_ps,ntype_ps,&
+!                         pswork,uwork,vwork,1,ptop,pbot,nregion,mregion,&
+!                         rlatmin,rlatmax,rlonmin,rlonmax,iosubtype_ps)
+!
+!         else if(trim(dtype) == '  q') then
+!            call stascal(dtype,rdiag,nreal,ii,iotype_q,varqc_q,ntype_q,&
+!                         qwork,uwork,vwork,np,ptopq,pbotq,nregion,mregion,&
+!                         rlatmin,rlatmax,rlonmin,rlonmax,iosubtype_q)
+!
+!         else if(trim(dtype) == '  t') then
+!            call stascal(dtype,rdiag,nreal,ii,iotype_t,varqc_t,ntype_t,&
+!                         twork,uwork,vwork,np,ptop,pbot,nregion,mregion,&
+!                         rlatmin,rlatmax,rlonmin,rlonmax,iosubtype_t)
+!
+!         else if(trim(dtype) == ' uv') then
+!            call stascal(dtype,rdiag,nreal,ii,iotype_uv,varqc_uv,ntype_uv,&
+!                         uvwork,uwork,vwork,np,ptop,pbot,nregion,mregion,&
+!                         rlatmin,rlatmax,rlonmin,rlonmax,iosubtype_uv)
+!         endif
+!          
+!         deallocate(cdiag,rdiag)
+!
+!      enddo   loopd               !  ending read data do loop
+!    
+!      close(lunin)
+
+   end subroutine process_conv_nc
+
+
+
+   !-------------------------------------
+   !  May need to break this into types
+   !  for netcdf, because the files only
+   !  contain a single type of data.
+   !-------------------------------------
    subroutine output_data( twork, qwork, uwork, vwork, uvwork, pswork, &
                            ntype_ps, ntype_q, ntype_t, ntype_uv, nregion, np )
 
@@ -468,4 +639,4 @@ module conmon_read_time_diag
       write(6,*) '<-- output_data'
    end subroutine output_data
 
-end module conmon_read_time_diag
+end module conmon_process_time_data

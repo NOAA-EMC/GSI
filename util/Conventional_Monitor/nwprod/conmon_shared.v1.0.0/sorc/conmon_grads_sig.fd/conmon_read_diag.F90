@@ -2,16 +2,14 @@
 !  conmon_read_diag
 !
 !     This subroutine reads the conventional data assimilation 
-!     diagnostic files (contained in the cnvstat file) and writes it 
-!     to the [stype]_[subtype].tmp file.
+!     diagnostic files (contained in the cnvstat tar file) and returns
+!     the requested obs that match the input type and subtype in a 
+!     linked list.  The diagnostic files may be in either binary or 
+!     NetCDF format.
 !
-!     NOTE:  Next step in clean-up is to write directly to the 
-!               GrADS output file rather than to the .tmp file,
-!               which is then re-read and converted to the GrADS
-!               output file.  Unnecessary I/O.
 !     Note:
-!        intype  : the observarion type like t for temp, uv for wind
-!        stype   : the observation sub type, like t120 uv220
+!        There are problems/mismatches between the contents of binary
+!        and NetCDF files for types gps and sst.
 !----------------------------------------------------------------------
 
 module conmon_read_diag
@@ -372,26 +370,26 @@ module conmon_read_diag
                ptr%p%rdiag( idx ) = 0.00
             end do
 
-            ptr%p%rdiag(  1 ) = Observation_Type( ii )   
-            ptr%p%rdiag(  2 ) = Observation_Subtype( ii )   
-            ptr%p%rdiag(  3 ) = Latitude( ii )   
-            ptr%p%rdiag(  4 ) = Longitude( ii )   
-            ptr%p%rdiag(  5 ) = Station_Elevation( ii )   
-            ptr%p%rdiag(  6 ) = Pressure( ii )
-            ptr%p%rdiag(  7 ) = Height( ii )
-            ptr%p%rdiag(  8 ) = Time( ii )
-            ptr%p%rdiag(  9 ) = Prep_QC_Mark( ii )
-            ptr%p%rdiag( 10 ) = Nonlinear_QC_Var_Jb( ii )
-            ptr%p%rdiag( 11 ) = Prep_Use_Flag( ii )
-            ptr%p%rdiag( 12 ) = Analysis_Use_Flag( ii )
-            ptr%p%rdiag( 13 ) = Nonlinear_QC_Rel_Wgt( ii )
-            ptr%p%rdiag( 14 ) = Errinv_Input( ii )
-            ptr%p%rdiag( 15 ) = Errinv_Adjust( ii )
-            ptr%p%rdiag( 16 ) = Errinv_Final( ii )
+            ptr%p%rdiag( idx_obs_type_ps    ) = Observation_Type( ii )   
+            ptr%p%rdiag( idx_obs_subtype_ps ) = Observation_Subtype( ii )   
+            ptr%p%rdiag( idx_obs_lat_ps     ) = Latitude( ii )   
+            ptr%p%rdiag( idx_obs_lon_ps     ) = Longitude( ii )   
+            ptr%p%rdiag( idx_stn_elev_ps    ) = Station_Elevation( ii )   
+            ptr%p%rdiag( idx_pres_ps        ) = Pressure( ii )
+            ptr%p%rdiag( idx_hgt_ps         ) = Height( ii )
+            ptr%p%rdiag( idx_time_ps        ) = Time( ii )
+            ptr%p%rdiag( idx_iqc_ps         ) = Prep_QC_Mark( ii )
+            ptr%p%rdiag( idx_var_jb_ps      ) = Nonlinear_QC_Var_Jb( ii )
+            ptr%p%rdiag( idx_iuse_ps        ) = Prep_Use_Flag( ii )
+            ptr%p%rdiag( idx_anl_use_ps     ) = Analysis_Use_Flag( ii )
+            ptr%p%rdiag( idx_rwgt_ps        ) = Nonlinear_QC_Rel_Wgt( ii )
+            ptr%p%rdiag( idx_err_input_ps   ) = Errinv_Input( ii )
+            ptr%p%rdiag( idx_errinv_ps      ) = Errinv_Adjust( ii )
+            ptr%p%rdiag( idx_errinv_fnl_ps  ) = Errinv_Final( ii )
 
-            ptr%p%rdiag( 17 ) = Observation( ii )
-            ptr%p%rdiag( 18 ) = Obs_Minus_Forecast_adjusted( ii )
-            ptr%p%rdiag( 19 ) = Obs_Minus_Forecast_unadjusted( ii )
+            ptr%p%rdiag( idx_obs_ps         ) = Observation( ii )
+            ptr%p%rdiag( idx_obsmg_adj_ps   ) = Obs_Minus_Forecast_adjusted( ii )
+            ptr%p%rdiag( idx_obsmg_nadj_ps  ) = Obs_Minus_Forecast_unadjusted( ii )
 
             if( nobs == 1 ) then
                !-------------------------------------------------
@@ -553,26 +551,26 @@ module conmon_read_diag
                ptr%p%rdiag( idx ) = 0.00
             end do
 
-            ptr%p%rdiag(  1 ) = Observation_Type( ii )   
-            ptr%p%rdiag(  2 ) = Observation_Subtype( ii )   
-            ptr%p%rdiag(  3 ) = Latitude( ii )   
-            ptr%p%rdiag(  4 ) = Longitude( ii )   
-            ptr%p%rdiag(  5 ) = Station_Elevation( ii )   
-            ptr%p%rdiag(  6 ) = Pressure( ii )
-            ptr%p%rdiag(  7 ) = Height( ii )
-            ptr%p%rdiag(  8 ) = Time( ii )
-            ptr%p%rdiag(  9 ) = Prep_QC_Mark( ii )
-            ptr%p%rdiag( 10 ) = Nonlinear_QC_Var_Jb( ii )
-            ptr%p%rdiag( 11 ) = Prep_Use_Flag( ii )
-            ptr%p%rdiag( 12 ) = Analysis_Use_Flag( ii )
-            ptr%p%rdiag( 13 ) = Nonlinear_QC_Rel_Wgt( ii )
-            ptr%p%rdiag( 14 ) = Errinv_Input( ii )
-            ptr%p%rdiag( 15 ) = Errinv_Adjust( ii )
-            ptr%p%rdiag( 16 ) = Errinv_Final( ii )
-            ptr%p%rdiag( 17 ) = Observation( ii )
-            ptr%p%rdiag( 18 ) = Obs_Minus_Forecast_adjusted( ii )
-            ptr%p%rdiag( 19 ) = Obs_Minus_Forecast_unadjusted( ii )
-            ptr%p%rdiag( 20 ) = Forecast_Saturation_Spec_Hum( ii )
+            ptr%p%rdiag( idx_obs_type_q ) = Observation_Type( ii )   
+            ptr%p%rdiag( idx_obs_subtype_q ) = Observation_Subtype( ii )   
+            ptr%p%rdiag( idx_obs_lat_q  ) = Latitude( ii )   
+            ptr%p%rdiag( idx_obs_lon_q ) = Longitude( ii )   
+            ptr%p%rdiag( idx_stn_elev_q ) = Station_Elevation( ii )   
+            ptr%p%rdiag( idx_pres_q ) = Pressure( ii )
+            ptr%p%rdiag( idx_hgt_q ) = Height( ii )
+            ptr%p%rdiag( idx_time_q ) = Time( ii )
+            ptr%p%rdiag( idx_iqc_q ) = Prep_QC_Mark( ii )
+            ptr%p%rdiag( idx_var_jb_q ) = Nonlinear_QC_Var_Jb( ii )
+            ptr%p%rdiag( idx_iuse_q ) = Prep_Use_Flag( ii )
+            ptr%p%rdiag( idx_anl_use_q ) = Analysis_Use_Flag( ii )
+            ptr%p%rdiag( idx_rwgt_q ) = Nonlinear_QC_Rel_Wgt( ii )
+            ptr%p%rdiag( idx_err_input_q ) = Errinv_Input( ii )
+            ptr%p%rdiag( idx_errinv_q ) = Errinv_Adjust( ii )
+            ptr%p%rdiag( idx_errinv_fnl_q ) = Errinv_Final( ii )
+            ptr%p%rdiag( idx_obs_q ) = Observation( ii )
+            ptr%p%rdiag( idx_obsmg_adj_q ) = Obs_Minus_Forecast_adjusted( ii )
+            ptr%p%rdiag( idx_obsmg_nadj_q ) = Obs_Minus_Forecast_unadjusted( ii )
+            ptr%p%rdiag( idx_ges_sat_q ) = Forecast_Saturation_Spec_Hum( ii )
 
 
             if( nobs == 1 ) then
@@ -743,33 +741,37 @@ module conmon_read_diag
                ptr%p%rdiag( idx ) = 0.00
             end do
 
-            ptr%p%rdiag(  1 ) = Observation_Type( ii )   
-            ptr%p%rdiag(  2 ) = Observation_Subtype( ii )   
-            ptr%p%rdiag(  3 ) = Latitude( ii )   
-            ptr%p%rdiag(  4 ) = Longitude( ii )   
-            ptr%p%rdiag(  5 ) = Station_Elevation( ii )   
-            ptr%p%rdiag(  6 ) = Pressure( ii )  ! identified as background open water temperature in setupsst.f90
-            ptr%p%rdiag(  7 ) = Height( ii )    ! identified as observation depth (meters) in setupsst.f90
-            ptr%p%rdiag(  8 ) = Time( ii )
-!            ptr%p%rdiag(  9 ) = Prep_QC_Mark( ii )  ! identified as open water percentage in setupsst.f90
-            ptr%p%rdiag( 10 ) = Prep_QC_Mark( ii )  
-            ptr%p%rdiag( 11 ) = Prep_Use_Flag( ii )
-            ptr%p%rdiag( 12 ) = Analysis_Use_Flag( ii )
-            ptr%p%rdiag( 13 ) = Nonlinear_QC_Rel_Wgt( ii )
-            ptr%p%rdiag( 14 ) = Errinv_Input( ii )
-            ptr%p%rdiag( 15 ) = Errinv_Adjust( ii )
-            ptr%p%rdiag( 16 ) = Errinv_Final( ii )
+            ptr%p%rdiag( idx_obs_type_sst     ) = Observation_Type( ii )   
+            ptr%p%rdiag( idx_obs_subtype_sst  ) = Observation_Subtype( ii )   
+            ptr%p%rdiag( idx_obs_lat_sst      ) = Latitude( ii )   
+            ptr%p%rdiag( idx_obs_lon_sst      ) = Longitude( ii )   
+            ptr%p%rdiag( idx_stn_elev_sst     ) = Station_Elevation( ii )   
 
-            ptr%p%rdiag( 17 ) = Observation( ii )
-            ptr%p%rdiag( 18 ) = Obs_Minus_Forecast_adjusted( ii )
-            ptr%p%rdiag( 19 ) = Obs_Minus_Forecast_unadjusted( ii )
+            ptr%p%rdiag( idx_opn_wtr_tmp_sst  ) = Pressure( ii )  ! identified as background open water temperature in setupsst.f90
 
-!            ptr%p%rdiag( 20 ) = type of measurement?  per setupsst.f90
+            ptr%p%rdiag( idx_depth_sst        ) = Height( ii )    ! identified as observation depth (meters) in setupsst.f90
 
-            ptr%p%rdiag( 21 ) = FoundationTempBG( ii )
-            ptr%p%rdiag( 22 ) = DiurnalWarming_at_zob( ii )
-            ptr%p%rdiag( 23 ) = SkinLayerCooling_at_zob( ii ) 
-            ptr%p%rdiag( 24 ) = Sensitivity_Tzob_Tr( ii )
+            ptr%p%rdiag( idx_time_sst         ) = Time( ii )
+
+!            ptr%p%rdiag( idx_opn_wtr_pct_sst ) = Prep_QC_Mark( ii )  ! identified as open water percentage in setupsst.f90
+
+            ptr%p%rdiag( idx_setup_qc_sst     ) = Prep_QC_Mark( ii )  
+            ptr%p%rdiag( idx_iuse_sst         ) = Prep_Use_Flag( ii )
+            ptr%p%rdiag( idx_anl_use_sst      ) = Analysis_Use_Flag( ii )
+            ptr%p%rdiag( idx_rwgt_sst         ) = Nonlinear_QC_Rel_Wgt( ii )
+            ptr%p%rdiag( idx_err_input_sst    ) = Errinv_Input( ii )
+            ptr%p%rdiag( idx_errinv_sst       ) = Errinv_Adjust( ii )
+            ptr%p%rdiag( idx_errinv_fnl_sst   ) = Errinv_Final( ii )
+            ptr%p%rdiag( idx_obs_sst          ) = Observation( ii )
+            ptr%p%rdiag( idx_omgbc_sst        ) = Obs_Minus_Forecast_adjusted( ii )
+            ptr%p%rdiag( idx_omgnbc_sst       ) = Obs_Minus_Forecast_unadjusted( ii )
+
+!            ptr%p%rdiag( idx_type_sst        ) = type of measurement?  per setupsst.f90
+
+            ptr%p%rdiag( idx_tr_sst           ) = FoundationTempBG( ii )
+            ptr%p%rdiag( idx_dt_warm_sst      ) = DiurnalWarming_at_zob( ii )
+            ptr%p%rdiag( idx_dt_cool_sst      ) = SkinLayerCooling_at_zob( ii ) 
+            ptr%p%rdiag( idx_dtz_dtr_sst      ) = Sensitivity_Tzob_Tr( ii )
 
 
             if( nobs == 1 ) then
@@ -958,33 +960,32 @@ module conmon_read_diag
                ptr%p%rdiag( idx ) = 0.00
             end do
 
-            ptr%p%rdiag(  1 ) = Observation_Type( ii )   
-            ptr%p%rdiag(  2 ) = Observation_Subtype( ii )   
-            ptr%p%rdiag(  3 ) = Latitude( ii )   
-            ptr%p%rdiag(  4 ) = Longitude( ii )   
-            ptr%p%rdiag(  5 ) = Station_Elevation( ii )   
-            ptr%p%rdiag(  6 ) = Pressure( ii )
-            ptr%p%rdiag(  7 ) = Height( ii )
-            ptr%p%rdiag(  8 ) = Time( ii )
-            ptr%p%rdiag(  9 ) = Prep_QC_Mark( ii )
-            ptr%p%rdiag( 10 ) = Nonlinear_QC_Var_Jb( ii )
-            ptr%p%rdiag( 11 ) = Prep_Use_Flag( ii )
-            ptr%p%rdiag( 12 ) = Analysis_Use_Flag( ii )
-            ptr%p%rdiag( 13 ) = Nonlinear_QC_Rel_Wgt( ii )
-            ptr%p%rdiag( 14 ) = Errinv_Input( ii )
-            ptr%p%rdiag( 15 ) = Errinv_Adjust( ii )
-            ptr%p%rdiag( 16 ) = Errinv_Final( ii )
-            ptr%p%rdiag( 17 ) = Observation( ii )
-            ptr%p%rdiag( 18 ) = Obs_Minus_Forecast_adjusted( ii )
-            ptr%p%rdiag( 19 ) = Obs_Minus_Forecast_unadjusted( ii )
-            ptr%p%rdiag( 20 ) = Data_Pof( ii )
-            ptr%p%rdiag( 21 ) = Data_Vertical_Velocity( ii )
+            ptr%p%rdiag( idx_obs_type_t ) = Observation_Type( ii )   
+            ptr%p%rdiag( idx_obs_subtype_t ) = Observation_Subtype( ii )   
+            ptr%p%rdiag( idx_obs_lat_t ) = Latitude( ii )   
+            ptr%p%rdiag( idx_obs_lon_t ) = Longitude( ii )   
+            ptr%p%rdiag( idx_stn_elev_t ) = Station_Elevation( ii )   
+            ptr%p%rdiag( idx_pres_t ) = Pressure( ii )
+            ptr%p%rdiag( idx_hgt_t ) = Height( ii )
+            ptr%p%rdiag( idx_time_t ) = Time( ii )
+            ptr%p%rdiag( idx_iqc_t ) = Prep_QC_Mark( ii )
+            ptr%p%rdiag( idx_setup_qc_t ) = Nonlinear_QC_Var_Jb( ii )
+            ptr%p%rdiag( idx_iuse_t ) = Prep_Use_Flag( ii )
+            ptr%p%rdiag( idx_anl_use_t ) = Analysis_Use_Flag( ii )
+            ptr%p%rdiag( idx_rwgt_t ) = Nonlinear_QC_Rel_Wgt( ii )
+            ptr%p%rdiag( idx_err_input_t ) = Errinv_Input( ii )
+            ptr%p%rdiag( idx_errinv_t ) = Errinv_Adjust( ii )
+            ptr%p%rdiag( idx_errinv_fnl_t ) = Errinv_Final( ii )
+            ptr%p%rdiag( idx_obs_t ) = Observation( ii )
+            ptr%p%rdiag( idx_omgbc_t ) = Obs_Minus_Forecast_adjusted( ii )
+            ptr%p%rdiag( idx_omgnbc_t ) = Obs_Minus_Forecast_unadjusted( ii )
+            ptr%p%rdiag( idx_pof_t ) = Data_Pof( ii )
+            ptr%p%rdiag( idx_vv_t ) = Data_Vertical_Velocity( ii )
 
             do jj = 1, bcor_terms
-               ptr%p%rdiag( 21+jj ) = Bias_Correction_Terms( jj,ii )
+               ptr%p%rdiag( idx_vv_t+jj ) = Bias_Correction_Terms( jj,ii )
             end do
 
- 
             if( nobs == 1 ) then
                !-------------------------------------------------
                ! Initialize the list with the first data element
@@ -1153,31 +1154,31 @@ module conmon_read_diag
                ptr%p%rdiag( idx ) = 0.00
             end do
 
-            ptr%p%rdiag(  1 ) = Observation_Type( ii )   
-            ptr%p%rdiag(  2 ) = Observation_Subtype( ii )   
-            ptr%p%rdiag(  3 ) = Latitude( ii )   
-            ptr%p%rdiag(  4 ) = Longitude( ii )   
-            ptr%p%rdiag(  5 ) = Station_Elevation( ii )   
-            ptr%p%rdiag(  6 ) = Pressure( ii )
-            ptr%p%rdiag(  7 ) = Height( ii )
-            ptr%p%rdiag(  8 ) = Time( ii )
-            ptr%p%rdiag(  9 ) = Prep_QC_Mark( ii )
+            ptr%p%rdiag( idx_obs_type_uv     ) = Observation_Type( ii )   
+            ptr%p%rdiag( idx_obs_subtype_uv  ) = Observation_Subtype( ii )   
+            ptr%p%rdiag( idx_obs_lat_uv      ) = Latitude( ii )   
+            ptr%p%rdiag( idx_obs_lon_uv      ) = Longitude( ii )   
+            ptr%p%rdiag( idx_stn_elev_uv     ) = Station_Elevation( ii )   
+            ptr%p%rdiag( idx_pres_uv         ) = Pressure( ii )
+            ptr%p%rdiag( idx_hgt_uv          ) = Height( ii )
+            ptr%p%rdiag( idx_time_uv         ) = Time( ii )
+            ptr%p%rdiag( idx_iqc_uv          ) = Prep_QC_Mark( ii )
 
-!            ptr%p%rdiag( 10 ) = Nonlinear_QC_Var_Jb( ii )  ! missing from diagnostic file
+!            ptr%p%rdiag( idx_setup_qc_uv     ) = Nonlinear_QC_Var_Jb( ii )  ! missing from diagnostic file
 
-            ptr%p%rdiag( 11 ) = Prep_Use_Flag( ii )
-            ptr%p%rdiag( 12 ) = Analysis_Use_Flag( ii )
-            ptr%p%rdiag( 13 ) = Nonlinear_QC_Rel_Wgt( ii )
-            ptr%p%rdiag( 14 ) = Errinv_Input( ii )
-            ptr%p%rdiag( 15 ) = Errinv_Adjust( ii )
-            ptr%p%rdiag( 16 ) = Errinv_Final( ii )
+            ptr%p%rdiag( idx_iuse_uv         ) = Prep_Use_Flag( ii )
+            ptr%p%rdiag( idx_anl_use_uv      ) = Analysis_Use_Flag( ii )
+            ptr%p%rdiag( idx_rwgt_uv         ) = Nonlinear_QC_Rel_Wgt( ii )
+            ptr%p%rdiag( idx_err_input_uv    ) = Errinv_Input( ii )
+            ptr%p%rdiag( idx_errinv_uv       ) = Errinv_Adjust( ii )
+            ptr%p%rdiag( idx_errinv_fnl_uv   ) = Errinv_Final( ii )
 
-            ptr%p%rdiag( 17 ) = u_Observation( ii )
-            ptr%p%rdiag( 18 ) = u_Obs_Minus_Forecast_adjusted( ii )
-            ptr%p%rdiag( 19 ) = u_Obs_Minus_Forecast_unadjusted( ii )
-            ptr%p%rdiag( 20 ) = u_Observation( ii )
-            ptr%p%rdiag( 21 ) = u_Obs_Minus_Forecast_adjusted( ii )
-            ptr%p%rdiag( 22 ) = u_Obs_Minus_Forecast_unadjusted( ii )
+            ptr%p%rdiag( idx_u_obs_uv        ) = u_Observation( ii )
+            ptr%p%rdiag( idx_u_omgbc_uv      ) = u_Obs_Minus_Forecast_adjusted( ii )
+            ptr%p%rdiag( idx_u_omgnbc_uv     ) = u_Obs_Minus_Forecast_unadjusted( ii )
+            ptr%p%rdiag( idx_v_obs_uv        ) = v_Observation( ii )
+            ptr%p%rdiag( idx_v_omgbc_uv      ) = v_Obs_Minus_Forecast_adjusted( ii )
+            ptr%p%rdiag( idx_v_omgnbc_uv     ) = v_Obs_Minus_Forecast_unadjusted( ii )
 
 
             if( nobs == 1 ) then
@@ -1356,28 +1357,28 @@ module conmon_read_diag
                ptr%p%rdiag( idx ) = 0.00
             end do
 
-            ptr%p%rdiag(  1 ) = Observation_Type( ii )   
-            ptr%p%rdiag(  2 ) = Observation_Subtype( ii )   
-            ptr%p%rdiag(  3 ) = Latitude( ii )   
-            ptr%p%rdiag(  4 ) = Longitude( ii )   
-            ptr%p%rdiag(  5 ) = Incremental_Bending_Angle( ii )   
-            ptr%p%rdiag(  6 ) = Pressure( ii )
-            ptr%p%rdiag(  7 ) = Height( ii )
-            ptr%p%rdiag(  8 ) = Time( ii )
-            ptr%p%rdiag(  9 ) = Model_Elevation( ii )
-            ptr%p%rdiag( 10 ) = Setup_QC_Mark( ii )
-            ptr%p%rdiag( 11 ) = Prep_Use_Flag( ii )
-            ptr%p%rdiag( 12 ) = Analysis_Use_Flag( ii )
-            ptr%p%rdiag( 13 ) = Nonlinear_QC_Rel_Wgt( ii )
-            ptr%p%rdiag( 14 ) = Errinv_Input( ii )
-            ptr%p%rdiag( 15 ) = Errinv_Adjust( ii )
-            ptr%p%rdiag( 16 ) = Errinv_Final( ii )
+            ptr%p%rdiag( idx_obs_type_gps ) = Observation_Type( ii )   
+            ptr%p%rdiag( idx_obs_subtype_gps ) = Observation_Subtype( ii )   
+            ptr%p%rdiag( idx_obs_lat_gps ) = Latitude( ii )   
+            ptr%p%rdiag( idx_obs_lon_gps ) = Longitude( ii )   
+            ptr%p%rdiag( idx_bend_ang_gps ) = Incremental_Bending_Angle( ii )   
+            ptr%p%rdiag( idx_pres_gps ) = Pressure( ii )
+            ptr%p%rdiag( idx_height_gps ) = Height( ii )
+            ptr%p%rdiag( idx_time_gps ) = Time( ii )
+            ptr%p%rdiag( idx_zsges_gps ) = Model_Elevation( ii )
+            ptr%p%rdiag( idx_setup_qc_gps ) = Setup_QC_Mark( ii )
+            ptr%p%rdiag( idx_iuse_gps ) = Prep_Use_Flag( ii )
+            ptr%p%rdiag( idx_anl_use_gps ) = Analysis_Use_Flag( ii )
+            ptr%p%rdiag( idx_rwgt_gps ) = Nonlinear_QC_Rel_Wgt( ii )
+            ptr%p%rdiag( idx_err_input_gps ) = Errinv_Input( ii )
+            ptr%p%rdiag( idx_errinv_gps ) = Errinv_Adjust( ii )
+            ptr%p%rdiag( idx_errinv_fnl_gps ) = Errinv_Final( ii )
 
-            ptr%p%rdiag( 17 ) = Observation( ii )
-            ptr%p%rdiag( 18 ) = Temperature_at_Obs_Location( ii )
-!            ptr%p%rdiag( 19 ) = Obs_Minus_Forecast_unadjusted( ii )
-            ptr%p%rdiag( 20 ) = GPS_Type( ii )
-            ptr%p%rdiag( 21 ) = Specific_Humidity_at_Obs_Location( ii )
+            ptr%p%rdiag( idx_obs_gps ) = Observation( ii )
+            ptr%p%rdiag( idx_tref_gps ) = Temperature_at_Obs_Location( ii )
+!            ptr%p%rdiag( idx_hob_gps ) = Obs_Minus_Forecast_unadjusted( ii )  
+            ptr%p%rdiag( idx_uses_gps ) = GPS_Type( ii )
+            ptr%p%rdiag( idx_qref_gps ) = Specific_Humidity_at_Obs_Location( ii )
 
 
            !  This oddity is from genstats_gps.f90 which produces the NetCDF
