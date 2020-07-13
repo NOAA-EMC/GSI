@@ -60,6 +60,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 !                              to help fix a multiple data read bug (when l2rwbufr and radarbufr were both 
 !                              listed in the OBS_INPUT table) and for added flexibility for experimental setups.
 !   2018-02-15  wu      - add code for fv3_regional option
+!   2020-05-04  wu   - no rotate_wind for fv3_regional
 !
 !
 !   input argument list:
@@ -89,7 +90,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   use qcmod, only: erradar_inflate,vadfile,newvad
   use obsmod, only: iadate,ianldate,l_foreaft_thin
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,time_4dvar,thin4d
-  use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy,nsig
+  use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy,nsig,&
+      fv3_regional
   use gridmod, only: wrf_nmm_regional,nems_nmmb_regional,cmaq_regional,wrf_mass_regional
   use gridmod, only: fv3_regional
   use convinfo, only: nconvtype,ctwind, &
@@ -680,7 +682,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
         height= thishgt
         rwnd  = thisvr
         azm_earth = corrected_azimuth
-        if(regional) then
+        if(regional .and. .not. fv3_regional) then
            cosazm_earth=cos(azm_earth*deg2rad)
            sinazm_earth=sin(azm_earth*deg2rad)
            call rotate_wind_ll2xy(cosazm_earth,sinazm_earth,cosazm,sinazm,dlon_earth,dlon,dlat)
@@ -1088,7 +1090,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
                    height= radar_obs(4,k)
                    rwnd  = radar_obs(5,k)
                    azm_earth   = r90-radar_obs(6,k)
-                   if(regional) then
+                   if(regional .and. .not. fv3_regional) then
                       cosazm_earth=cos(azm_earth*deg2rad)
                       sinazm_earth=sin(azm_earth*deg2rad)
                       call rotate_wind_ll2xy(cosazm_earth,sinazm_earth,cosazm,sinazm,dlon_earth,dlon,dlat)
@@ -1522,7 +1524,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
            height= z(ii)
            rwnd  = thisvr
            azm_earth = glob_azimuth8(ii)
-           if(regional) then
+           if(regional .and. .not. fv3_regional) then
               cosazm_earth=cos(azm_earth*deg2rad)
               sinazm_earth=sin(azm_earth*deg2rad)
               call rotate_wind_ll2xy(cosazm_earth,sinazm_earth,cosazm,sinazm,dlon_earth,dlon,dlat)
@@ -2041,7 +2043,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
                  height= z(i)
                  rwnd  = dopbin(i)
                  azm_earth = glob_azimuth8(i)
-                 if(regional) then
+                 if(regional .and. .not. fv3_regional) then
                     cosazm_earth=cos(azm_earth*deg2rad)
                     sinazm_earth=sin(azm_earth*deg2rad)
                     call rotate_wind_ll2xy(cosazm_earth,sinazm_earth,cosazm,sinazm,dlon_earth,dlon,dlat)
@@ -2401,7 +2403,8 @@ subroutine read_radar_l2rw_novadqc(ndata,nodata,lunout,obstype,sis,nobs)
   use qcmod, only: erradar_inflate
   use oneobmod, only: oneobtest,learthrel_rw
   use gsi_4dvar, only: l4dvar,l4densvar,winlen,time_4dvar
-  use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy
+  use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy,&
+           fv3_regional
   use convinfo, only: nconvtype,ncmiter,ncgroup,ncnumgrp,icuse,ioctype
   use deter_sfc_mod, only: deter_sfc2
   use mpimod, only: npe
@@ -2630,7 +2633,7 @@ subroutine read_radar_l2rw_novadqc(ndata,nodata,lunout,obstype,sis,nobs)
      rwnd  = thisvr
      azm_earth = corrected_azimuth
 
-     if(regional) then
+     if(regional .and. .not. fv3_regional) then
         if(oneobtest .and. learthrel_rw) then ! for non rotated winds!!!
            cosazm=cos(azm_earth*deg2rad)
            sinazm=sin(azm_earth*deg2rad)

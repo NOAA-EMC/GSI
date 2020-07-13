@@ -72,6 +72,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !   2019-9-25        Su - modified ithin value criteria to distinguash thinning
 !                         or hilber curve downweighting
 ! 
+!   2020-05-04  wu   - no rotate_wind for fv3_regional
+!
 !   
 !
 !   input argument list:
@@ -98,7 +100,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   use kinds, only: r_kind,r_double,i_kind,r_single
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
        tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
-       rlats,rlons,twodvar_regional,wrf_nmm_regional
+       rlats,rlons,twodvar_regional,wrf_nmm_regional,fv3_regional
   use qcmod, only: errormod,njqc
   use convthin, only: make3grids,map3grids,map3grids_m,del3grids,use_all
   use convthin_time, only: make3grids_tm,map3grids_tm,map3grids_m_tm,del3grids_tm,use_all_tm
@@ -1399,7 +1401,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            if (qm==3 .or. qm==7) inflate_error=.true.
            woe=obserr
            if (inflate_error) woe=woe*r1_2
-           if(regional)then
+           if(regional .and. .not. fv3_regional)then
               u0=uob
               v0=vob
               call rotate_wind_ll2xy(u0,v0,uob,vob,dlon_earth,dlon,dlat)
