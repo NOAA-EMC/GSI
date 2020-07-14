@@ -100,7 +100,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
         CalcAnlDir = RunDir+'/calcanl_ensres_'+format(6, '02')
         if not os.path.exists(CalcAnlDir):
             gsi_utils.make_dir(CalcAnlDir)
-        gsi_utils.copy(ExecAnl, CalcAnlDir+'/calc_anl.x')
+        gsi_utils.copy_file(ExecAnl, CalcAnlDir+'/calc_anl.x')
         gsi_utils.link_file(RunDir+'/siginc.nc', CalcAnlDir+'/siginc.nc.06')
         gsi_utils.link_file(ComOut+'/'+APrefix+'atmanl.ensres'+ASuffix, CalcAnlDir+'/anl.ensres.06')
         gsi_utils.link_file(ComIn_Ges+'/'+GPrefix+'atmf006.ensres'+GSuffix, CalcAnlDir+'/ges.ensres.06')
