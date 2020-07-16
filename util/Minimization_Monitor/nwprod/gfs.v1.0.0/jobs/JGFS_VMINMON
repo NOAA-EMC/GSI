@@ -11,6 +11,7 @@ export PS4='$SECONDS + '
 ##############################
 export NET=${NET:-gfs}
 export RUN=${RUN:-gfs}
+export COMPONENT=${COMPONENT:-atmos}
 
 
 ###########################################################
@@ -76,11 +77,11 @@ TANK_USE_RUN=${TANK_USE_RUN:-1}
 export COM_IN=${COM_IN:-${COMROOT}/${NET}/${envir}}
 
 M_TANKverf=${M_TANKverf:-${COM_IN}}
-M_TANKverfM0=${M_TANKverfM0:-${M_TANKverf}/${RUN}.${PDY}/${cyc}/minmon}
-export M_TANKverfM1=${M_TANKverfM1:-${M_TANKverf}/${RUN}.${P_PDY}/${p_cyc}/minmon}
+M_TANKverfM0=${M_TANKverfM0:-${M_TANKverf}/${RUN}.${PDY}/${cyc}/$COMPONENT/minmon}
+export M_TANKverfM1=${M_TANKverfM1:-${M_TANKverf}/${RUN}.${P_PDY}/${p_cyc}/$COMPONENT/minmon}
 export M_TANKverf=$M_TANKverfM0
 
-export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}/${cyc}}
+export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}/${cyc}/$COMPONENT}
 
 mkdir -p -m 775 $M_TANKverf
  

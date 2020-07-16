@@ -34,6 +34,7 @@ export RUN_ENVIR=${RUN_ENVIR:-nco}
 export NET=${NET:-gfs}
 export RUN=${RUN:-gdas}
 export envir=${envir:-prod}
+export COMPONENT=${COMPONENT:-atmos}
 
 #  Command line arguments
 export PDY=${1:-${PDY:?}} 
@@ -42,7 +43,7 @@ export cyc=${2:-${cyc:?}}
 #  Directories
 export DATA=${DATA:-$(pwd)}
 export COM_IN=${COMROOT}/${NET}/${envir}
-export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}}
+export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}/${cyc}/$COMPONENT}
 
 
 #  Filenames
