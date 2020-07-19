@@ -52,12 +52,13 @@ echo "--> time_vert.sh"
 
          echo " cycle = $cycle "
    
-         rm -f ./conv_diag
-         ln -s ./diag_conv_${run}.${PDATE} 
-   
+!         rm -f ./conv_diag
+!         ln -s ./diag_conv_${run}.${PDATE} 
+         ${UNCOMPRESS} ./diag_conv_${run}.${PDATE}.${Z}
+ 
          cat << EOF > input
 &input
-         input_file='conv_diag',
+         input_file=diag_conv_${run}.${PDATE},
          nregion=${nregion},
          netcdf=${netcdf},
          run=${run},
@@ -116,7 +117,8 @@ EOF
 
             cat << EOF > input
 &input
-            input_file=diag_conv_${type}_${run}.${PDATE}.nc4,
+            input_file=diag_conv_${type}_${run}.${PDATE},
+            ctype=${type},
             nregion=${nregion},
             netcdf=${netcdf},
             run=${run},
@@ -136,6 +138,11 @@ EOF
             ./execfile <input  >${stdout}  2>&1
        
             echo " execfile completed "
+
+            for file in ${type}*stas; do
+               ${COMPRESS} ${file}
+               mv -f ${file}.${Z} ${savedir}/${run}_${file}.${PDATE}.${Z}
+            done
 
          done
 

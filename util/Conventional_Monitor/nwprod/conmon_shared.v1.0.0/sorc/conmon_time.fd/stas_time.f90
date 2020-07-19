@@ -121,11 +121,8 @@ subroutine stascal(dtype,rdiag,nreal,n,iotype,varqc,ntype,work,worku,&
                      endif
 
                      work(k,ltype,4,j,nn)=work(k,ltype,4,j,nn)+ress*ress
-                     if(ltype ==1) then
-!                       print *,rdiag(iobg,i),ress,work(k,ltype,4,j,nn),ltype,j,nn,work(k,ltype,1,j,nn) 
-                     endif
-                        work(k,ltype,5,j,nn)=work(k,ltype,5,j,nn)+val2*rat_err2
-                        work(k,ltype,6,j,nn)=work(k,ltype,6,j,nn)+valqc
+                     work(k,ltype,5,j,nn)=work(k,ltype,5,j,nn)+val2*rat_err2
+                     work(k,ltype,6,j,nn)=work(k,ltype,6,j,nn)+valqc
                   endif       !!! endif k
                enddo        !!! enddo k
             endif     !!! endif region

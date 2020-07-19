@@ -60,7 +60,7 @@ program maingrads_sfc
    write(6,*)'netcdf       =', netcdf
    call set_netcdf_read( netcdf )
 
-   call conmon_read_diag_file( input_file,intype,itype,nreal,nobs,isubtype,list )
+   call conmon_read_diag_file( input_file, intype, itype, nreal, nobs, isubtype, list )
 
  
    if( nobs > 0 ) then
