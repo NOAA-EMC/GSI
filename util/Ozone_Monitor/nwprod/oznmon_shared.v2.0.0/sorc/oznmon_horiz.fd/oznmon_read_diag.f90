@@ -1,27 +1,18 @@
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    read_diag                       read ozone diag file
-!   prgmmr: hliu           org: np20                date: 2009-04-15
+! subprogram:    oznmon_read_diag       read ozone diag file
 !
 ! abstract:  This module contains code to process ozone
 !            diagnostic files.  The module defines structures
 !            to contain information from the ozone
 !            diagnostic files and then provides two routines
-!            to access contents of the file.
+!            to access contents of the file.  Both binary 
+!            and NetCDF formats are supported.
 !
-! program history log:
-!
-! contains
-!   read_ozndiag_header - read ozone diagnostic file header
-!   read_ozndiag_data   - read ozone diagnostic file data
-!   set_netcdf_read     - call set_netcdf_read(.true.) to use nc4 hooks,
-!                       otherwise read file as binary format
-!   open_ozndiag        - open a diag file for reading
-!   close_ozndiag       - close an open diag file
 !------------------------------------------------------------
-!
 
-module read_diag
+
+module oznmon_read_diag
 
   !--- use ---!
 
@@ -299,19 +290,19 @@ module read_diag
        call read_ozndiag_header_bin( ftin, header_fix, header_nlev, new_hdr, istatus )
     endif
 
-    print*, 'ftin                = ',        ftin
-    print*, 'header_fix%isis     = ',        header_fix%isis
-    print*, 'header_fix%id       = ',        header_fix%id
-    print*, 'header_fix%obstype  = ',        header_fix%obstype
-    print*, 'header_fix%jiter    = ',        header_fix%jiter  
-    print*, 'header_fix%nlevs    = ',        header_fix%nlevs  
-    print*, 'header_fix%ianldate = ',        header_fix%ianldate
-    print*, 'header_fix%iint     = ',        header_fix%iint    
-    print*, 'header_fix%ireal    = ',        header_fix%ireal    
-    print*, 'header_fix%iextra   = ',        header_fix%iextra   
+    write(6,*) 'ftin                = ',        ftin
+    write(6,*) 'header_fix%isis     = ',        header_fix%isis
+    write(6,*) 'header_fix%id       = ',        header_fix%id
+    write(6,*) 'header_fix%obstype  = ',        header_fix%obstype
+    write(6,*) 'header_fix%jiter    = ',        header_fix%jiter  
+    write(6,*) 'header_fix%nlevs    = ',        header_fix%nlevs  
+    write(6,*) 'header_fix%ianldate = ',        header_fix%ianldate
+    write(6,*) 'header_fix%iint     = ',        header_fix%iint    
+    write(6,*) 'header_fix%ireal    = ',        header_fix%ireal    
+    write(6,*) 'header_fix%iextra   = ',        header_fix%iextra   
 
-    print*, 'istatus             = ',        istatus
-    print*, ''
+    write(6,*) 'istatus             = ',        istatus
+    write(6,*) ''
  
   end subroutine read_ozndiag_header
 
@@ -349,9 +340,9 @@ module read_diag
     !--- get global attr
     !
     !    This may look like overkill with a check on each variable
-    !    name, but due to the genius of the ncdiag library, a
-    !    failure on these read operations is fatal, because, reasons
-    !    I guess.  Thus, this abundance of caution.
+    !    name, but a failure on these nc library read operations 
+    !    is fatal.  Thus, this abundance of caution verifying the 
+    !    variable exists before attempting to retreive it.
     !
     if( verify_var_name_nc( "date_time" ) ) then
        call nc_diag_read_get_global_attr(ftin, "date_time", idate)    
@@ -377,12 +368,6 @@ module read_diag
        write(6,*) 'WARNING:  unable to read global var Observation_type from file '
     end if
 
-    if( verify_var_name_nc( "Number_of_state_vars" ) ) then
-       call nc_diag_read_get_global_attr(ftin, "Number_of_state_vars", nsdim )
-    else
-       write(6,*) 'WARNING:  unable to read global var Number_of_state_vars from file '
-    end if
-
     if( verify_var_name_nc( "pobs" ) ) then
        call nc_diag_read_get_global_attr(ftin, "pobs", pobs )
     else
@@ -400,7 +385,6 @@ module read_diag
     else
        write(6,*) 'WARNING:  unable to read global var tnoise from file '
     end if
-
 
     !-------------------------------------------------------------------
     !  The Anaysis_Use_Flag in the netcdf file resides in the 
@@ -438,6 +422,8 @@ module read_diag
 
     !--- allocate if necessary
 
+    write(6,*) 'header_fix%nlevs, nlevs_last = ', header_fix%nlevs, nlevs_last
+
     if( header_fix%nlevs /= nlevs_last )then
       if( nlevs_last > 0 )then
         deallocate( header_nlev )
@@ -455,8 +441,10 @@ module read_diag
        header_nlev(k)%iouse = iuse_flag(k)
     end do
 
-    deallocate( pobs,gross,tnoise,iuse_flag )
-
+    if( allocated( pobs )) deallocate( pobs )
+    if( allocated( gross )) deallocate( gross )
+    if( allocated( tnoise )) deallocate( tnoise )
+    if( allocated( iuse_flag )) deallocate( iuse_flag )
 
   end subroutine read_ozndiag_header_nc
 
@@ -511,8 +499,8 @@ module read_diag
     
     if( header_fix%ireal  /= IREAL_RESERVE  ) then
 
-      print *, '### ERROR: UNEXPECTED DATA RECORD FORMAT'
-      print *, 'ireal  =', header_fix%ireal  
+      write(6,*) '### ERROR: UNEXPECTED DATA RECORD FORMAT'
+      write(6,*) 'ireal  =', header_fix%ireal  
       stop 99
 
     endif
@@ -524,6 +512,7 @@ module read_diag
 
     !--- allocate if necessary
 
+    write(6,*) 'header_fix%nlevs, nlevs_last = ', header_fix%nlevs, nlevs_last
     if( header_fix%nlevs /= nlevs_last )then
       if( nlevs_last > 0 )then
         deallocate( header_nlev )
@@ -545,7 +534,11 @@ module read_diag
        header_nlev(k)%err = err(k)
        header_nlev(k)%iouse = iouse(k)
     end do
-    deallocate (pob,grs,err,iouse)
+
+    if( allocated( pob )) deallocate( pob )
+    if( allocated( grs )) deallocate( grs )
+    if( allocated( err )) deallocate( err )
+    if( allocated( iouse )) deallocate( iouse )
 
   end subroutine read_ozndiag_header_bin
 
@@ -628,7 +621,7 @@ module read_diag
     logical                                 :: test
 
     cur_idx = ncdiag_open_id( nopen_ncdiag )
-
+  
     !----------------------------------------------------------
     !  The binary file read (the original version of the file
     !  read) is designed to be called in a loop, as it reads
@@ -715,12 +708,13 @@ module read_diag
           data_fix(ii)%obstime = obstime(ii + ((ii-1)*nlevs) )
        end do
  
-       deallocate( lat, lon, obstime )
+       if( allocated( lat     )) deallocate( lat )
+       if( allocated( lon     )) deallocate( lon )
+       if( allocated( obstime )) deallocate( obstime )
 
        !---------------------------------
        ! load data_nlev structure
        !
-       allocate( data_nlev( header_fix%nlevs,nrecords ) )
        allocate( ozobs(nrecords) ) 
        allocate( ozone_inv(nrecords) ) 
        allocate( varinv(nrecords) ) 
@@ -769,23 +763,23 @@ module read_diag
        ! All vars used to read the file are dimensioned
        ! to nrecord, which is nobs * nlevs
        !
-       do jj=0,ntobs-1
+       do jj=1,ntobs-1
           do ii=1,header_fix%nlevs
-             data_nlev(ii,jj)%ozobs     =     ozobs( ii + (jj * nlevs) )
-             data_nlev(ii,jj)%ozone_inv = ozone_inv( ii + (jj * nlevs) )
-             data_nlev(ii,jj)%varinv    =    varinv( ii + (jj * nlevs) )
-             data_nlev(ii,jj)%sza       =       sza( ii + (jj * nlevs) )
-             data_nlev(ii,jj)%fovn      =      fovn( ii + (jj * nlevs) )
-             data_nlev(ii,jj)%toqf      =      toqf( ii + (jj * nlevs) )
+             data_nlev(ii,jj)%ozobs     =     ozobs( ii + ((jj-1) * nlevs) )
+             data_nlev(ii,jj)%ozone_inv = ozone_inv( ii + ((jj-1) * nlevs) )
+             data_nlev(ii,jj)%varinv    =    varinv( ii + ((jj-1) * nlevs) )
+             data_nlev(ii,jj)%sza       =       sza( ii + ((jj-1) * nlevs) )
+             data_nlev(ii,jj)%fovn      =      fovn( ii + ((jj-1) * nlevs) )
+             data_nlev(ii,jj)%toqf      =      toqf( ii + ((jj-1) * nlevs) )
           end do
        end do
 
-       deallocate( ozobs )
-       deallocate( ozone_inv )
-       deallocate( varinv )
-       deallocate( sza )
-       deallocate( fovn )
-       deallocate( toqf )
+       if( allocated( ozobs     )) deallocate( ozobs )
+       if( allocated( ozone_inv )) deallocate( ozone_inv )
+       if( allocated( varinv    )) deallocate( varinv )
+       if( allocated( sza       )) deallocate( sza )
+       if( allocated( fovn      )) deallocate( fovn )
+       if( allocated( toqf      )) deallocate( toqf )
 
        ncdiag_open_status(cur_idx)%nc_read = .true.
 
@@ -831,6 +825,7 @@ module read_diag
     read(ftin,IOSTAT=iflag) ntobs
     write(6,*) ' READ 1, ntobs, iflag = ', ntobs, iflag
 
+    write(6,*) 'header_fix%nlevs, nlevs_last = ', header_fix%nlevs, nlevs_last
     if( header_fix%nlevs /= nlevs_last )then
       if( nlevs_last > 0 )then
         write(6,*) ' DEALLOCATING data_nlev, data_fix, data_mpi'
@@ -845,8 +840,9 @@ module read_diag
       nlevs_last = header_fix%nlevs
     endif
 
+    write(6,*) 'iextra_last = ', iextra_last
     if (iextra_last > 0) then
-       deallocate (data_extra)
+       deallocate ( data_extra )
     endif
 
     allocate( data_extra(header_fix%iextra,ntobs) )
@@ -869,7 +865,7 @@ module read_diag
           end do
        end do
 
-       deallocate(tmp_extra)
+       if( allocated( tmp_extra )) deallocate( tmp_extra )
     endif
 
     do j=1,ntobs
@@ -877,7 +873,7 @@ module read_diag
        data_fix(j)%lon     = tmp_fix(2,j)
        data_fix(j)%obstime = tmp_fix(3,j)
     end do
-    deallocate(tmp_fix)
+    if( allocated( tmp_fix )) deallocate( tmp_fix )
 
     do j=1,ntobs
        do i=1,header_fix%nlevs
@@ -889,7 +885,7 @@ module read_diag
           data_nlev(i,j)%toqf      = tmp_nlev(6,i,j)
        end do
     end do
-    deallocate(tmp_nlev)
+    if( allocated( tmp_nlev )) deallocate( tmp_nlev )
 
     nlevs_last = -1
 
@@ -966,5 +962,5 @@ module read_diag
   end function verify_var_name_nc
 
 
-end module read_diag
+end module oznmon_read_diag
 
