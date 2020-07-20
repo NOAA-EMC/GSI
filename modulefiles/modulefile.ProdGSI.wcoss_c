@@ -40,16 +40,16 @@ module unload intel/15.0.3.187
 module load intel/18.1.163
 
 # Loading pe environment
-module load cray-mpich/7.2.0
 module load craype-haswell
+module load cray-mpich/7.2.0
 
 module use /usrx/local/dev/modulefiles
 module load cmake/3.6.2
 module unuse /usrx/local/dev/modulefiles
 
 # Loading netcdf modules
-module load cray-netcdf/4.3.2
-module load cray-hdf5/1.8.14
+setenv NCEPLIBS /u/George.Vandenberghe/cases3/l0701/lc/lib/
+
 
 # Loading nceplibs modules
 module use /gpfs/hps/nco/ops/nwprod/lib/modulefiles
