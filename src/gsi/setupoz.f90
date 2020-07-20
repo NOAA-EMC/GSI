@@ -566,8 +566,13 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
                    k1=nlevs-1
                    k2=1
                  endif
+              if (obstype == 'sbuv2' .or. obstype == 'ompsnp' ) then
                  call nc_diag_metadata("TopLevelPressure",sngl(pobs(k2)*r100))
                  call nc_diag_metadata("BottomLevelPressure",  sngl(pobs(k1)*r100))
+              else
+                 call nc_diag_metadata("TopLevelPressure",sngl(prsitmp(nsig+1)*r1000) )
+                 call nc_diag_metadata("BottomLevelPressure", sngl(prsitmp(1)*r1000) )
+              endif
                  call nc_diag_metadata("MPI_Task_Number", mype                      )
                  call nc_diag_metadata("Latitude",        sngl(data(ilate,i))       )
                  call nc_diag_metadata("Longitude",       sngl(data(ilone,i))       )
