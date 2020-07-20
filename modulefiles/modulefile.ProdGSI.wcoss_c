@@ -48,8 +48,9 @@ module load cmake/3.6.2
 module unuse /usrx/local/dev/modulefiles
 
 # Loading netcdf modules
-setenv NCEPLIBS /u/George.Vandenberghe/cases3/l0701/lc/lib/
-
+module use /usrx/local/dev/modulefiles
+module load NetCDF-intel-sandybridge/4.7.4
+module load HDF5-parallel-intel-sandybridge/1.10.6
 
 # Loading nceplibs modules
 module use /gpfs/hps/nco/ops/nwprod/lib/modulefiles
