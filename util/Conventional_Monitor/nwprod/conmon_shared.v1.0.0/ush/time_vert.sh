@@ -96,6 +96,7 @@ EOF
                mv -f ${file}.${Z} ${savedir}/${run}_${file}.${Z}
             done
 
+
          done
 
          ${COMPRESS} ${stdout}
@@ -108,13 +109,9 @@ EOF
       for run in ges anl; do
 
 #         for type in ps t q uv u v; do
-         for type in ps; do
+         for type in ps t q uv; do
 
-#            rm -f ./conv_diag
-#            ln -s ./diag_conv_${type}_${run}.${PDATE}.nc4 ./conv_diag
          
-#         diag_conv_t_anl.2020040306.nc4
-
             cat << EOF > input
 &input
             input_file=diag_conv_${type}_${run}.${PDATE},
@@ -134,7 +131,7 @@ EOF
             region(10)='AS',rlonmin(10)=65.0,rlonmax(10)=145.0,rlatmin(10)=5.0,rlatmax(10)=45.0,
 /
 EOF
-            stdout=stdout_${run}.${PDATE}
+            stdout=stdout_${run}_${type}.${PDATE}
             ./execfile <input  >${stdout}  2>&1
        
             echo " execfile completed "
@@ -143,6 +140,16 @@ EOF
                ${COMPRESS} ${file}
                mv -f ${file}.${Z} ${savedir}/${run}_${file}.${PDATE}.${Z}
             done
+
+            if [ $type == 'uv' ]; then
+               file=u_stas
+               ${COMPRESS} ${file}
+               mv -f ${file}.${Z} ${savedir}/${run}_${file}.${PDATE}.${Z}
+
+               file=v_stas
+               ${COMPRESS} ${file}
+               mv -f ${file}.${Z} ${savedir}/${run}_${file}.${PDATE}.${Z}
+            fi
 
          done
 

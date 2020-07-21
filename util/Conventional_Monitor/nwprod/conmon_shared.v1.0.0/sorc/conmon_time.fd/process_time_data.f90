@@ -110,7 +110,7 @@ module conmon_process_time_data
                  iotype_t,iotype_uv,varqc_ps,varqc_q,varqc_t,varqc_uv,&
                  ntype_ps,ntype_q,ntype_t,ntype_uv,&
                  iosubtype_ps,iosubtype_q,iosubtype_t,iosubtype_uv, &
-                 twork,qwork,uwork,vwork,uvwork,pswork)
+                 twork,uwork,vwork,uvwork )
       else
          write(6,*) ' call bin read subroutine'
          call process_conv_bin( input_file,mregion,nregion,np,ptop,pbot,ptopq,pbotq,&
@@ -118,7 +118,7 @@ module conmon_process_time_data
                  iotype_t,iotype_uv,varqc_ps,varqc_q,varqc_t,varqc_uv,&
                  ntype_ps,ntype_q,ntype_t,ntype_uv,&
                  iosubtype_ps,iosubtype_q,iosubtype_t,iosubtype_uv, &
-                 twork,qwork,uwork,vwork,uvwork,pswork)
+                 twork,qwork,uwork,vwork,uvwork, pswork )
 
          call output_data( twork, qwork, uwork, vwork, uvwork, pswork, &
                         ntype_ps, ntype_q, ntype_t, ntype_uv, nregion, np )
@@ -140,7 +140,7 @@ module conmon_process_time_data
            iotype_t,iotype_uv,varqc_ps,varqc_q,varqc_t,varqc_uv,&
            ntype_ps,ntype_q,ntype_t,ntype_uv,&
            iosubtype_ps,iosubtype_q,iosubtype_t,iosubtype_uv, &
-           twork,qwork,uwork,vwork,uvwork,pswork)
+           twork,qwork,uwork,vwork,uvwork,pswork )
 
       implicit none
 
@@ -254,7 +254,7 @@ module conmon_process_time_data
            iotype_ps, iotype_q, iotype_t, iotype_uv, varqc_ps, varqc_q, &
            varqc_t, varqc_uv, ntype_ps, ntype_q, ntype_t, ntype_uv, &
            iosubtype_ps, iosubtype_q, iosubtype_t, iosubtype_uv, &
-           twork, qwork, uwork, vwork, uvwork, pswork)
+           twork, uwork, vwork, uvwork )
 
       use generic_list
       use data
@@ -279,8 +279,9 @@ module conmon_process_time_data
       !  just used here and can then be deallocated w/o issue.
       !========================================================================
       !
-      real(4),dimension(np,100,6,nregion,3), intent(out)  :: twork,qwork,uwork,vwork,uvwork
-      real(4),dimension(1,100,6,nregion,3), intent(out)   :: pswork
+      real(4),dimension(np,100,6,nregion,3), intent(out)  :: twork,uwork,vwork,uvwork
+      real(4),dimension(np,100,6,nregion,3)  :: qwork
+      real(4),dimension(1,100,6,nregion,3)   :: pswork
 
 
       type(list_node_t), pointer             :: list => null()
@@ -304,6 +305,8 @@ module conmon_process_time_data
 
 
       print *, '--> process_conv_nc'
+      print *, '      input_file = ', input_file
+      print *, '      ctype      = ', ctype     
 
       twork=0.0; qwork=0.0; uwork=0.0; vwork=0.0; uvwork=0.0; pswork=0.0
 
@@ -328,17 +331,15 @@ module conmon_process_time_data
                ptr = transfer(list_get( next ), ptr)
                next => list_next( next )
 
-!               print *, 'node data:', ptr%p
                do jj = 1, max_rdiag_reals
                   rdiag(jj, obs_ctr) = ptr%p%rdiag( jj )
-!                  print *, 'rdiag( jj, obs_ctr) = ', jj, obs_ctr, rdiag( jj, obs_ctr )
                end do
 
-               call stascal( ctype, rdiag, max_rdiag_reals, nobs, iotype_ps, varqc_ps, ntype_ps, &
+            end do
+
+            call stascal( ctype, rdiag, max_rdiag_reals, nobs, iotype_ps, varqc_ps, ntype_ps, &
                           pswork, uwork, vwork, 1, ptop, pbot, nregion, mregion, &
                           rlatmin, rlatmax, rlonmin, rlonmax, iosubtype_ps )
-               print *, 'after stascal for ps'
-            end do
 
             call list_free( list )
 
@@ -346,14 +347,84 @@ module conmon_process_time_data
 
             call output_data_ps( pswork, ntype_ps, nregion, 1 )
 
-!            deallocate( pswork )
+         case ( 'q' )
+            print *, ' select, case q'
+
+            obs_ctr = 0
+            do while ( associated( next ) == .TRUE. )
+               obs_ctr = obs_ctr + 1
+               ptr = transfer(list_get( next ), ptr)
+               next => list_next( next )
+
+               do jj = 1, max_rdiag_reals
+                  rdiag(jj, obs_ctr) = ptr%p%rdiag( jj )
+               end do
+
+            end do
+
+            print *, 'found nobs in list = ', obs_ctr
+            call list_free( list )
+
+            call stascal(ctype, rdiag, max_rdiag_reals, nobs, iotype_q, varqc_q, ntype_q, &
+                         qwork, uwork, vwork, np, ptop, pbot, nregion, mregion, &
+                         rlatmin, rlatmax, rlonmin, rlonmax, iosubtype_q)
+
+            call output_data_q( qwork, ntype_q, nregion, np )
+
 
          case ( 't' )
             print *, ' select, case t'
 
+            obs_ctr = 0
+            do while ( associated( next ) == .TRUE. )
+               obs_ctr = obs_ctr + 1
+               ptr = transfer(list_get( next ), ptr)
+               next => list_next( next )
+
+               do jj = 1, max_rdiag_reals
+                  rdiag(jj, obs_ctr) = ptr%p%rdiag( jj )
+               end do
+
+            end do
+
+            print *, 'found nobs in list = ', obs_ctr
+            call list_free( list )
+
+            call stascal(ctype, rdiag, max_rdiag_reals, nobs, iotype_t, varqc_t, ntype_t, &
+                         twork, uwork, vwork, np, ptop, pbot, nregion, mregion, &
+                         rlatmin, rlatmax, rlonmin, rlonmax, iosubtype_t)
+
+            call output_data_t( twork, ntype_t, nregion, np )
+
+         case ( 'uv' )
+            print *, ' select, case uv'
+
+            obs_ctr = 0
+            do while ( associated( next ) == .TRUE. )
+               obs_ctr = obs_ctr + 1
+               ptr = transfer(list_get( next ), ptr)
+               next => list_next( next )
+
+               do jj = 1, max_rdiag_reals
+                  rdiag(jj, obs_ctr) = ptr%p%rdiag( jj )
+               end do
+
+            end do
+
+            print *, 'found nobs in list = ', obs_ctr
+            call list_free( list )
+
+            call stascal(ctype, rdiag, max_rdiag_reals, nobs, iotype_uv, varqc_uv, ntype_uv, &
+                         uvwork, uwork, vwork, np, ptop, pbot, nregion, mregion, &
+                         rlatmin, rlatmax, rlonmin, rlonmax, iosubtype_uv)
+
+            call output_data_uv( uvwork, uwork, vwork, ntype_uv, nregion, np )
+
       end select
 
+
       if( allocated( rdiag )) deallocate( rdiag )
+
 
 !      itype=1;ilat=3;ilon=4;ipress=6;iqc=9;iuse=11;imuse=12
 !      iwgt=13;ierr1=14;ierr2=15;ierr3=16;iobg=18;iobgu=18;iobgv=21
@@ -471,7 +542,7 @@ module conmon_process_time_data
       enddo
 
       !--------------------
-      !  write stas files
+      !  write stas file
       open( outfile, file='ps_stas', form='unformatted')    
       do jj=1,3
          do ii=1,6
@@ -483,6 +554,276 @@ module conmon_process_time_data
       write(6,*) '<-- output_data_ps'
 
    end subroutine output_data_ps
+
+
+   subroutine output_data_q( qwork, ntype_q, nregion, np )
+
+      real(4),dimension(np,100,6,nregion,3), intent(inout)  :: qwork
+      integer, intent(in)                                   :: ntype_q, nregion, np
+
+      integer                                               :: ii, jj, kk, ltype, iregion
+      integer, parameter                                    :: outfile = 31
+
+                                    
+      do iregion=1,nregion
+         do jj=1,3
+            do kk=1,np
+               do ltype=1,ntype_q
+                  qwork(kk,ntype_q+1,1,iregion,jj) = &
+                           qwork(kk,ntype_q+1,1,iregion,jj)+qwork(kk,ltype,1,iregion,jj)
+                  qwork(kk,ntype_q+1,2,iregion,jj) = &
+                           qwork(kk,ntype_q+1,2,iregion,jj)+qwork(kk,ltype,2,iregion,jj)
+                  qwork(kk,ntype_q+1,3,iregion,jj) = &
+                           qwork(kk,ntype_q+1,3,iregion,jj)+qwork(kk,ltype,3,iregion,jj)
+                  qwork(kk,ntype_q+1,4,iregion,jj) = &
+                           qwork(kk,ntype_q+1,4,iregion,jj)+qwork(kk,ltype,4,iregion,jj)
+                  qwork(kk,ntype_q+1,5,iregion,jj) = &
+                           qwork(kk,ntype_q+1,5,iregion,jj)+qwork(kk,ltype,5,iregion,jj)
+                  qwork(kk,ntype_q+1,6,iregion,jj) = &
+                           qwork(kk,ntype_q+1,6,iregion,jj)+qwork(kk,ltype,6,iregion,jj)
+
+                  if(qwork(kk,ltype,1,iregion,jj) >=1.0) then
+                     qwork(kk,ltype,3,iregion,jj) = &
+                           qwork(kk,ltype,3,iregion,jj)/qwork(kk,ltype,1,iregion,jj)
+                     qwork(kk,ltype,4,iregion,jj) = &
+                           sqrt(qwork(kk,ltype,4,iregion,jj)/qwork(kk,ltype,1,iregion,jj))
+                     qwork(kk,ltype,5,iregion,jj) = &
+                           qwork(kk,ltype,5,iregion,jj)/qwork(kk,ltype,1,iregion,jj)
+                     qwork(kk,ltype,6,iregion,jj) = &
+                           qwork(kk,ltype,6,iregion,jj)/qwork(kk,ltype,1,iregion,jj)
+                  endif
+               enddo
+
+               if(qwork(kk,ntype_q+1,1,iregion,jj) >=1.0) then
+                  qwork(kk,ntype_q+1,3,iregion,jj)=qwork(kk,ntype_q+1,3,iregion,jj)/&
+                                    qwork(kk,ntype_q+1,1,iregion,jj)
+                  qwork(kk,ntype_q+1,4,iregion,jj)=sqrt(qwork(kk,ntype_q+1,4,iregion,jj)/&
+                                    qwork(kk,ntype_q+1,1,iregion,jj))
+                  qwork(kk,ntype_q+1,5,iregion,jj)=qwork(kk,ntype_q+1,5,iregion,jj)/&
+                                    qwork(kk,ntype_q+1,1,iregion,jj)
+                  qwork(kk,ntype_q+1,6,iregion,jj)=qwork(kk,ntype_q+1,6,iregion,jj)/&
+                                    qwork(kk,ntype_q+1,1,iregion,jj)
+               endif
+            enddo
+         enddo
+      enddo
+
+
+      !--------------------
+      !  write stas file
+      !
+      open( outfile, file='q_stas', form='unformatted' )
+
+      do jj=1,3
+         do ii=1,6
+            do kk=1,np
+               write( outfile ) (( qwork( kk,ltype,ii,iregion,jj ), ltype=1, ntype_q+1 ), iregion=1, nregion )
+            enddo
+         enddo
+      enddo
+
+      close( outfile )
+
+      write(6,*) '--> output_data_q'
+
+   end subroutine output_data_q
+
+
+
+   subroutine output_data_t( twork, ntype_t, nregion, np )
+
+      real(4),dimension(np,100,6,nregion,3), intent(inout)  :: twork
+      integer, intent(in)                                   :: ntype_t, nregion, np
+
+      integer                                               :: ii, jj, kk, ltype, iregion
+      integer, parameter                                    :: outfile = 41
+
+
+      write(6,*) '--> output_data'
+      do iregion=1,nregion
+         do jj=1,3
+            do kk=1,np
+               do ltype=1,ntype_t
+                  twork(kk,ntype_t+1,1,iregion,jj) = &
+                           twork(kk,ntype_t+1,1,iregion,jj)+twork(kk,ltype,1,iregion,jj)
+                  twork(kk,ntype_t+1,2,iregion,jj) = &
+                           twork(kk,ntype_t+1,2,iregion,jj)+twork(kk,ltype,2,iregion,jj)
+                  twork(kk,ntype_t+1,3,iregion,jj) = &
+                           twork(kk,ntype_t+1,3,iregion,jj)+twork(kk,ltype,3,iregion,jj)
+                  twork(kk,ntype_t+1,4,iregion,jj) = &
+                           twork(kk,ntype_t+1,4,iregion,jj)+twork(kk,ltype,4,iregion,jj)
+                  twork(kk,ntype_t+1,5,iregion,jj) = &
+                           twork(kk,ntype_t+1,5,iregion,jj)+twork(kk,ltype,5,iregion,jj)
+                  twork(kk,ntype_t+1,6,iregion,jj) = &
+                           twork(kk,ntype_t+1,6,iregion,jj)+twork(kk,ltype,6,iregion,jj)
+   
+                  if(twork(kk,ltype,1,iregion,jj) >=1.0) then
+                     twork(kk,ltype,3,iregion,jj) = &
+                           twork(kk,ltype,3,iregion,jj)/twork(kk,ltype,1,iregion,jj)
+                     twork(kk,ltype,4,iregion,jj) = &
+                           sqrt(twork(kk,ltype,4,iregion,jj)/twork(kk,ltype,1,iregion,jj))
+                     twork(kk,ltype,5,iregion,jj) = &
+                           twork(kk,ltype,5,iregion,jj)/twork(kk,ltype,1,iregion,jj)
+                     twork(kk,ltype,6,iregion,jj) = &
+                           twork(kk,ltype,6,iregion,jj)/twork(kk,ltype,1,iregion,jj)
+                  endif
+               enddo
+
+               if(twork(kk,ntype_t+1,1,iregion,jj) >=1.0) then
+                  twork(kk,ntype_t+1,3,iregion,jj) = twork(kk,ntype_t+1,3,iregion,jj)/&
+                                    twork(kk,ntype_t+1,1,iregion,jj)
+                  twork(kk,ntype_t+1,4,iregion,jj)=sqrt(twork(kk,ntype_t+1,4,iregion,jj)/&
+                                    twork(kk,ntype_t+1,1,iregion,jj))
+                  twork(kk,ntype_t+1,5,iregion,jj)=twork(kk,ntype_t+1,5,iregion,jj)/&
+                                    twork(kk,ntype_t+1,1,iregion,jj)
+                  twork(kk,ntype_t+1,6,iregion,jj)=twork(kk,ntype_t+1,6,iregion,jj)/&
+                                    twork(kk,ntype_t+1,1,iregion,jj)
+               endif
+            enddo       ! kk
+         enddo          ! jj
+      enddo             ! nregion
+
+
+      !--------------------
+      !  write stas file
+      !
+      open( outfile, file='t_stas', form='unformatted' )
+
+      do jj=1,3
+         do ii=1,6
+            do kk=1,np
+               write( outfile ) (( twork( kk,ltype,ii,iregion,jj ), ltype=1, ntype_t+1 ), iregion=1, nregion )
+            enddo
+         enddo
+      enddo
+
+      close( outfile )
+
+
+   end subroutine output_data_t
+
+
+
+   subroutine output_data_uv( uvwork, uwork, vwork, ntype_uv, nregion, np )
+
+      real(4),dimension(np,100,6,nregion,3), intent(inout)  :: uvwork, uwork, vwork
+      integer, intent(in)                                   :: ntype_uv, nregion, np
+
+      integer                                               :: ii, jj, kk, ltype, iregion
+      integer, parameter                                    :: outfile = 51
+
+
+      write(6,*) '--> output_data_uv'
+      do iregion=1,nregion
+         do jj=1,3
+            do kk=1,np
+               do ltype=1,ntype_uv
+                  uvwork(kk,ntype_uv+1,1,iregion,jj) = &
+                           uvwork(kk,ntype_uv+1,1,iregion,jj)+uvwork(kk,ltype,1,iregion,jj)
+                  uvwork(kk,ntype_uv+1,2,iregion,jj) = &
+                           uvwork(kk,ntype_uv+1,2,iregion,jj)+uvwork(kk,ltype,2,iregion,jj)
+                  uvwork(kk,ntype_uv+1,3,iregion,jj) = &
+                           uvwork(kk,ntype_uv+1,3,iregion,jj)+uvwork(kk,ltype,3,iregion,jj)
+                  uvwork(kk,ntype_uv+1,4,iregion,jj) = &
+                           uvwork(kk,ntype_uv+1,4,iregion,jj)+uvwork(kk,ltype,4,iregion,jj)
+                  uvwork(kk,ntype_uv+1,5,iregion,jj) = &
+                           uvwork(kk,ntype_uv+1,5,iregion,jj)+uvwork(kk,ltype,5,iregion,jj)
+                  uvwork(kk,ntype_uv+1,6,iregion,jj) = &
+                           uvwork(kk,ntype_uv+1,6,iregion,jj)+uvwork(kk,ltype,6,iregion,jj)
+                  uwork(kk,ntype_uv+1,3,iregion,jj) = &
+                           uwork(kk,ntype_uv+1,3,iregion,jj)+uwork(kk,ltype,3,iregion,jj)
+                  uwork(kk,ntype_uv+1,4,iregion,jj) = &
+                           uwork(kk,ntype_uv+1,4,iregion,jj)+uwork(kk,ltype,4,iregion,jj)
+                  vwork(kk,ntype_uv+1,3,iregion,jj) = &
+                           vwork(kk,ntype_uv+1,3,iregion,jj)+vwork(kk,ltype,3,iregion,jj)
+                  vwork(kk,ntype_uv+1,4,iregion,jj) = &
+                           vwork(kk,ntype_uv+1,4,iregion,jj)+vwork(kk,ltype,4,iregion,jj)
+
+                  if(uvwork(kk,ltype,1,iregion,jj) >=1.0) then
+                     uvwork(kk,ltype,3,iregion,jj) = &
+                           uvwork(kk,ltype,3,iregion,jj)/uvwork(kk,ltype,1,iregion,jj)
+                     uvwork(kk,ltype,4,iregion,jj) = &
+                           sqrt(uvwork(kk,ltype,4,iregion,jj)/uvwork(kk,ltype,1,iregion,jj))
+                     uvwork(kk,ltype,5,iregion,jj) = &
+                           uvwork(kk,ltype,5,iregion,jj)/uvwork(kk,ltype,1,iregion,jj)
+                     uvwork(kk,ltype,6,iregion,jj) = &
+                           uvwork(kk,ltype,6,iregion,jj)/uvwork(kk,ltype,1,iregion,jj)
+                     uwork(kk,ltype,1,iregion,jj) = uvwork(kk,ltype,1,iregion,jj)
+                     vwork(kk,ltype,1,iregion,jj) = uvwork(kk,ltype,1,iregion,jj)
+                     uwork(kk,ltype,2,iregion,jj) = uvwork(kk,ltype,2,iregion,jj)
+                     vwork(kk,ltype,2,iregion,jj) = uvwork(kk,ltype,2,iregion,jj)
+                     uwork(kk,ltype,3,iregion,jj) = &
+                           uwork(kk,ltype,3,iregion,jj)/uvwork(kk,ltype,1,iregion,jj)
+                     uwork(kk,ltype,4,iregion,jj) = &
+                           sqrt(uwork(kk,ltype,4,iregion,jj)/uvwork(kk,ltype,1,iregion,jj))
+                     vwork(kk,ltype,3,iregion,jj) = &
+                           vwork(kk,ltype,3,iregion,jj)/uvwork(kk,ltype,1,iregion,jj)
+                     vwork(kk,ltype,4,iregion,jj) = &
+                           sqrt(vwork(kk,ltype,4,iregion,jj)/uvwork(kk,ltype,1,iregion,jj))
+                  endif
+               enddo
+
+               if(uvwork(kk,ntype_uv+1,1,iregion,jj) >=1.0) then
+                  uvwork(kk,ntype_uv+1,3,iregion,jj)=uvwork(kk,ntype_uv+1,3,iregion,jj)&
+                                  /uvwork(kk,ntype_uv+1,1,iregion,jj)
+                  uvwork(kk,ntype_uv+1,4,iregion,jj)=sqrt(uvwork(kk,ntype_uv+1,4,iregion,jj)&
+                                  /uvwork(kk,ntype_uv+1,1,iregion,jj))
+                  uvwork(kk,ntype_uv+1,5,iregion,jj)=uvwork(kk,ntype_uv+1,5,iregion,jj)&
+                                  /uvwork(kk,ntype_uv+1,1,iregion,jj)
+                  uvwork(kk,ntype_uv+1,6,iregion,jj)=uvwork(kk,ntype_uv+1,6,iregion,jj)&
+                                  /uvwork(kk,ntype_uv+1,1,iregion,jj)
+                  uwork(kk,ntype_uv+1,1,iregion,jj)=uvwork(kk,ntype_uv+1,1,iregion,jj)
+                  uwork(kk,ntype_uv+1,2,iregion,jj)=uvwork(kk,ntype_uv+1,2,iregion,jj)
+                  vwork(kk,ntype_uv+1,1,iregion,jj)=uvwork(kk,ntype_uv+1,1,iregion,jj)
+                  vwork(kk,ntype_uv+1,2,iregion,jj)=uvwork(kk,ntype_uv+1,2,iregion,jj)
+   
+                  uwork(kk,ntype_uv+1,3,iregion,jj)=uwork(kk,ntype_uv+1,3,iregion,jj)&
+                                  /uwork(kk,ntype_uv+1,1,iregion,jj)
+                  uwork(kk,ntype_uv+1,4,iregion,jj)=sqrt(uwork(kk,ntype_uv+1,4,iregion,jj)&
+                                  /uwork(kk,ntype_uv+1,1,iregion,jj))
+                  vwork(kk,ntype_uv+1,3,iregion,jj)=vwork(kk,ntype_uv+1,3,iregion,jj)&
+                                  /vwork(kk,ntype_uv+1,1,iregion,jj)
+                  vwork(kk,ntype_uv+1,4,iregion,jj)=sqrt(vwork(kk,ntype_uv+1,4,iregion,jj)&
+                                  /vwork(kk,ntype_uv+1,1,iregion,jj))
+               endif
+   
+            enddo    !!! enddo k height
+         enddo       !!! enddo j, j=1 assimilated, j=2 rejected, j=3 monitored 
+      enddo          !!! enddo iregion region 
+
+
+      open(51,file='u_stas',form='unformatted')
+      do jj=1,3
+         do ii=1,6
+            do kk=1,np
+               write(51) ((uwork(kk,ltype,ii,iregion,jj),ltype=1,ntype_uv+1),iregion=1,nregion)
+            enddo
+         enddo
+      enddo
+
+      open(61,file='v_stas',form='unformatted')
+      do jj=1,3
+         do ii=1,6
+            do kk=1,np
+               write(61) ((vwork(kk,ltype,ii,iregion,jj),ltype=1,ntype_uv+1),iregion=1,nregion)
+            enddo
+         enddo
+      enddo
+     
+      open(71,file='uv_stas',form='unformatted')
+      do jj=1,3
+         do ii=1,6
+            do kk=1,np
+               write(71) ((uvwork(kk,ltype,ii,iregion,jj),ltype=1,ntype_uv+1), &
+                                   iregion=1,nregion)
+            enddo
+         enddo
+      enddo
+
+
+      write(6,*) '<-- output_data_uv'
+
+   end subroutine output_data_uv
 
 
 

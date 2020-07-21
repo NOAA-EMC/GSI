@@ -270,22 +270,22 @@ module conmon_read_diag
       select case ( trim( adjustl( ctype ) ) )
    
          case ( 'gps' ) 
-            call read_diag_file_gps_nc( input_file, ftin, ctype, intype,expected_nreal,nobs,in_subtype, list )
+            call read_diag_file_gps_nc( input_file, return_all, ftin, ctype, intype, expected_nreal, nobs, in_subtype, list )
 
          case ( 'ps' ) 
-            call read_diag_file_ps_nc( input_file, ftin, ctype, intype, expected_nreal, nobs, in_subtype, list )
+            call read_diag_file_ps_nc(  input_file, return_all, ftin, ctype, intype, expected_nreal, nobs, in_subtype, list )
 
          case ( 'q' ) 
-            call read_diag_file_q_nc(  input_file, ftin, ctype, intype,expected_nreal,nobs,in_subtype, list )
+            call read_diag_file_q_nc(   input_file, return_all, ftin, ctype, intype, expected_nreal, nobs, in_subtype, list )
 
          case ( 'sst' )
-            call read_diag_file_sst_nc( input_file, ftin, ctype, intype, expected_nreal, nobs, in_subtype, list )
+            call read_diag_file_sst_nc( input_file, return_all, ftin, ctype, intype, expected_nreal, nobs, in_subtype, list )
 
          case ( 't' ) 
-            call read_diag_file_t_nc(  input_file, ftin, ctype, intype, expected_nreal, nobs, in_subtype, list )
+            call read_diag_file_t_nc(   input_file, return_all, ftin, ctype, intype, expected_nreal, nobs, in_subtype, list )
 
          case ( 'uv' ) 
-            call read_diag_file_uv_nc(  input_file, ftin, ctype, intype,expected_nreal,nobs,in_subtype, list )
+            call read_diag_file_uv_nc(  input_file, return_all, ftin, ctype, intype, expected_nreal, nobs, in_subtype, list )
 
          case default
             print *, 'ERROR:  unmatched ctype :', ctype
@@ -318,10 +318,11 @@ module conmon_read_diag
    !--------------------------------------------------------- 
    !  netcdf read routine for ps data types in netcdf files
    !
-   subroutine read_diag_file_ps_nc( input_file, ftin, ctype, intype,expected_nreal,nobs,in_subtype, list )
+   subroutine read_diag_file_ps_nc( input_file, return_all, ftin, ctype, intype,expected_nreal,nobs,in_subtype, list )
   
       !--- interface 
       character(100), intent(in) :: input_file
+      logical, intent(in)        :: return_all
       integer, intent(in)        :: ftin
       character(3), intent(in)   :: ctype
       integer, intent(in)        :: intype, expected_nreal, in_subtype
@@ -411,74 +412,79 @@ module conmon_read_diag
       !
       nobs = 0 
       do ii = 1, total_obs
-      
-!         if( Observation_Type(ii) == intype .AND. Observation_Subtype(ii) == in_subtype)  then 
-
+     
 
          add_obs = .false.
-         if( Observation_Type(ii) == intype ) then 
-            if( have_subtype == .false. .OR. &
-                ( have_subtype == .true. .AND. ( Observation_Subtype(ii) == in_subtype ))) then
+
+         !------------------------------------------------------------------------
+         ! Check on Observation_Class to ctype is a sanity check -- 
+         ! only a single class of obs are in any given NetCDF formatted diag file
+         ! but, if the ctype and input file don't match, things could get 
+         ! interesting (but not in a good way).
+         !
+         if( adjustl( trim( Observation_Class(ii) )) == adjustl( trim( ctype ))) then         
+
+            if( return_all == .true. ) then
                add_obs = .true.
+
+            else if( Observation_Type(ii) == intype ) then
+
+               if( have_subtype == .false. ) then
+                  add_obs = .true.
+               else if( Observation_Subtype(ii) == in_subtype ) then
+                  add_obs = .true.
+               end if
+
             end if
          end if
 
-         print *, ' add_obs = ', add_obs
-         print *, ' Observation_Class( ii ) = ', Observation_Class( ii )
-         print *, ' Observation_Type( ii ) = ', Observation_Type( ii )
+         if( add_obs == .true. )  then 
 
+            nobs=nobs+1
 
-         if( Observation_Type(ii) == intype )  then 
-            if( have_subtype == .false. .OR. &
-                ( have_subtype == .true. .AND. ( Observation_Subtype(ii) == in_subtype ))) then
+            !---------------------------------------------
+            ! Allocate a new data element and load
+            !
+            allocate( ptr%p )
+            ptr%p%stn_id = Station_ID( ii )
 
-               nobs=nobs+1
-
-               !---------------------------------------------
-               ! Allocate a new data element and load
-               !
-               allocate( ptr%p )
-               ptr%p%stn_id = Station_ID( ii )
-
-               do idx=1,max_rdiag_reals
-                  ptr%p%rdiag( idx ) = 0.00
-               end do
+            do idx=1,max_rdiag_reals
+               ptr%p%rdiag( idx ) = 0.00
+            end do
    
-               if( allocated( Observation_Type              )) ptr%p%rdiag( idx_obs_type_ps    ) = Observation_Type( ii )   
-               if( allocated( Observation_Subtype           )) ptr%p%rdiag( idx_obs_subtype_ps ) = Observation_Subtype( ii )   
-               if( allocated( Latitude                      )) ptr%p%rdiag( idx_obs_lat_ps     ) = Latitude( ii )   
-               if( allocated( Longitude                     )) ptr%p%rdiag( idx_obs_lon_ps     ) = Longitude( ii )   
-               if( allocated( Station_Elevation             )) ptr%p%rdiag( idx_stn_elev_ps    ) = Station_Elevation( ii )   
-               if( allocated( Pressure                      )) ptr%p%rdiag( idx_pres_ps        ) = Pressure( ii )
-               if( allocated( Height                        )) ptr%p%rdiag( idx_hgt_ps         ) = Height( ii )
-               if( allocated( Time                          )) ptr%p%rdiag( idx_time_ps        ) = Time( ii )
-               if( allocated( Prep_QC_Mark                  )) ptr%p%rdiag( idx_iqc_ps         ) = Prep_QC_Mark( ii )
-               if( allocated( Nonlinear_QC_Var_Jb           )) ptr%p%rdiag( idx_var_jb_ps      ) = Nonlinear_QC_Var_Jb( ii )
-               if( allocated( Prep_Use_Flag                 )) ptr%p%rdiag( idx_iuse_ps        ) = Prep_Use_Flag( ii )
-               if( allocated( Analysis_Use_Flag             )) ptr%p%rdiag( idx_anl_use_ps     ) = Analysis_Use_Flag( ii )
-               if( allocated( Nonlinear_QC_Rel_Wgt          )) ptr%p%rdiag( idx_rwgt_ps        ) = Nonlinear_QC_Rel_Wgt( ii )
-               if( allocated( Errinv_Input                  )) ptr%p%rdiag( idx_err_input_ps   ) = Errinv_Input( ii )
-               if( allocated( Errinv_Adjust                 )) ptr%p%rdiag( idx_errinv_ps      ) = Errinv_Adjust( ii )
-               if( allocated( Errinv_Final                  )) ptr%p%rdiag( idx_errinv_fnl_ps  ) = Errinv_Final( ii )
-               if( allocated( Observation                   )) ptr%p%rdiag( idx_obs_ps         ) = Observation( ii )
-               if( allocated( Obs_Minus_Forecast_adjusted   )) ptr%p%rdiag( idx_obsmg_adj_ps   ) = Obs_Minus_Forecast_adjusted( ii )
-               if( allocated( Obs_Minus_Forecast_unadjusted )) ptr%p%rdiag( idx_obsmg_nadj_ps  ) = Obs_Minus_Forecast_unadjusted( ii )
+            if( allocated( Observation_Type              )) ptr%p%rdiag( idx_obs_type_ps    ) = Observation_Type( ii )   
+            if( allocated( Observation_Subtype           )) ptr%p%rdiag( idx_obs_subtype_ps ) = Observation_Subtype( ii )   
+            if( allocated( Latitude                      )) ptr%p%rdiag( idx_obs_lat_ps     ) = Latitude( ii )   
+            if( allocated( Longitude                     )) ptr%p%rdiag( idx_obs_lon_ps     ) = Longitude( ii )   
+            if( allocated( Station_Elevation             )) ptr%p%rdiag( idx_stn_elev_ps    ) = Station_Elevation( ii )   
+            if( allocated( Pressure                      )) ptr%p%rdiag( idx_pres_ps        ) = Pressure( ii )
+            if( allocated( Height                        )) ptr%p%rdiag( idx_hgt_ps         ) = Height( ii )
+            if( allocated( Time                          )) ptr%p%rdiag( idx_time_ps        ) = Time( ii )
+            if( allocated( Prep_QC_Mark                  )) ptr%p%rdiag( idx_iqc_ps         ) = Prep_QC_Mark( ii )
+            if( allocated( Nonlinear_QC_Var_Jb           )) ptr%p%rdiag( idx_var_jb_ps      ) = Nonlinear_QC_Var_Jb( ii )
+            if( allocated( Prep_Use_Flag                 )) ptr%p%rdiag( idx_iuse_ps        ) = Prep_Use_Flag( ii )
+            if( allocated( Analysis_Use_Flag             )) ptr%p%rdiag( idx_anl_use_ps     ) = Analysis_Use_Flag( ii )
+            if( allocated( Nonlinear_QC_Rel_Wgt          )) ptr%p%rdiag( idx_rwgt_ps        ) = Nonlinear_QC_Rel_Wgt( ii )
+            if( allocated( Errinv_Input                  )) ptr%p%rdiag( idx_err_input_ps   ) = Errinv_Input( ii )
+            if( allocated( Errinv_Adjust                 )) ptr%p%rdiag( idx_errinv_ps      ) = Errinv_Adjust( ii )
+            if( allocated( Errinv_Final                  )) ptr%p%rdiag( idx_errinv_fnl_ps  ) = Errinv_Final( ii )
+            if( allocated( Observation                   )) ptr%p%rdiag( idx_obs_ps         ) = Observation( ii )
+            if( allocated( Obs_Minus_Forecast_adjusted   )) ptr%p%rdiag( idx_obsmg_adj_ps   ) = Obs_Minus_Forecast_adjusted( ii )
+            if( allocated( Obs_Minus_Forecast_unadjusted )) ptr%p%rdiag( idx_obsmg_nadj_ps  ) = Obs_Minus_Forecast_unadjusted( ii )
 
-               if( nobs == 1 ) then
-                  !-------------------------------------------------
-                  ! Initialize the list with the first data element
-                  !
-                  call list_init(list, transfer(ptr, list_data))
-                  next => list
+            if( nobs == 1 ) then
+               !-------------------------------------------------
+               ! Initialize the list with the first data element
+               !
+               call list_init(list, transfer(ptr, list_data))
+               next => list
 
-               else
-                  !-------------------------------------------------
-                     ! Insert subsequent nodes into the list
-                  !
-                  call list_insert(next, transfer(ptr, list_data))
-                  next => list_next(next)
-               end if
-
+            else
+               !-------------------------------------------------
+               ! Insert subsequent nodes into the list
+               !
+               call list_insert(next, transfer(ptr, list_data))
+               next => list_next(next)
             end if
 
          end if
@@ -515,10 +521,11 @@ module conmon_read_diag
    !--------------------------------------------------------- 
    !  netcdf read routine for q data types in netcdf files
    !
-   subroutine read_diag_file_q_nc( input_file, ftin, ctype, intype,expected_nreal,nobs,in_subtype, list )
+   subroutine read_diag_file_q_nc( input_file, return_all, ftin, ctype, intype,expected_nreal,nobs,in_subtype, list )
   
       !--- interface 
       character(100), intent(in) :: input_file
+      logical, intent(in)        :: return_all
       integer, intent(in)        :: ftin
       character(3), intent(in)   :: ctype
       integer, intent(in)        :: intype, expected_nreal, in_subtype
@@ -530,6 +537,7 @@ module conmon_read_diag
       type(data_ptr)             :: ptr
       integer                    :: ii, ierr, istatus, total_obs, idx
       logical                    :: have_subtype = .true.
+      logical                    :: add_obs
 
       !--- NetCDF file components                                                               dimension(s) 
       !
@@ -576,7 +584,7 @@ module conmon_read_diag
       !--- get vars
       
       call load_nc_var( 'Station_ID',                    ftin, Station_ID,                    ierr )
-      call load_nc_var( 'Observation_Class',             ftin, Station_ID,                    ierr )
+      call load_nc_var( 'Observation_Class',             ftin, Observation_Class,             ierr )
       call load_nc_var( 'Observation_Type',              ftin, Observation_Type,              ierr )
       call load_nc_var( 'Observation_Subtype',           ftin, Observation_Subtype,           ierr )
       if( ierr == 1 ) then
@@ -610,61 +618,80 @@ module conmon_read_diag
       nobs = 0 
       do ii = 1, total_obs
 
-!         if( Observation_Type(ii) == intype .AND. Observation_Subtype(ii) == in_subtype)  then 
+         add_obs = .false.
 
-         if( Observation_Type(ii) == intype )  then 
-            if( have_subtype == .false. .OR. &
-                ( have_subtype == .true. .AND. ( Observation_Subtype(ii) == in_subtype ))) then
+         !------------------------------------------------------------------------
+         ! Check on Observation_Class to ctype is a sanity check -- 
+         ! only a single class of obs are in any given NetCDF formatted diag file
+         ! but, if the ctype and input file don't match, things could get 
+         ! interesting (but not in a good way).
+         !
+         if( adjustl( trim( Observation_Class(ii) )) == adjustl( trim( ctype ))) then         
 
-               nobs=nobs+1
+            if( return_all == .true. ) then
+               add_obs = .true.
 
-               !---------------------------------------------
-               ! Allocate a new data element and load
-               !
-               allocate(ptr%p)
-               ptr%p%stn_id = Station_ID( ii )
+            else if( Observation_Type(ii) == intype ) then
 
-               do idx=1,max_rdiag_reals
-                  ptr%p%rdiag( idx ) = 0.00
-               end do
-
-               if( allocated( Observation_Type              )) ptr%p%rdiag( idx_obs_type_q    ) = Observation_Type( ii )   
-               if( allocated( Observation_Subtype           )) ptr%p%rdiag( idx_obs_subtype_q ) = Observation_Subtype( ii )   
-               if( allocated( Latitude                      )) ptr%p%rdiag( idx_obs_lat_q     ) = Latitude( ii )   
-               if( allocated( Longitude                     )) ptr%p%rdiag( idx_obs_lon_q     ) = Longitude( ii )   
-               if( allocated( Station_Elevation             )) ptr%p%rdiag( idx_stn_elev_q    ) = Station_Elevation( ii )   
-               if( allocated( Pressure                      )) ptr%p%rdiag( idx_pres_q        ) = Pressure( ii )
-               if( allocated( Height                        )) ptr%p%rdiag( idx_hgt_q         ) = Height( ii )
-               if( allocated( Time                          )) ptr%p%rdiag( idx_time_q        ) = Time( ii )
-               if( allocated( Prep_QC_Mark                  )) ptr%p%rdiag( idx_iqc_q         ) = Prep_QC_Mark( ii )
-               if( allocated( Nonlinear_QC_Var_Jb           )) ptr%p%rdiag( idx_var_jb_q      ) = Nonlinear_QC_Var_Jb( ii )
-               if( allocated( Prep_Use_Flag                 )) ptr%p%rdiag( idx_iuse_q        ) = Prep_Use_Flag( ii )
-               if( allocated( Analysis_Use_Flag             )) ptr%p%rdiag( idx_anl_use_q     ) = Analysis_Use_Flag( ii )
-               if( allocated( Nonlinear_QC_Rel_Wgt          )) ptr%p%rdiag( idx_rwgt_q        ) = Nonlinear_QC_Rel_Wgt( ii )
-               if( allocated( Errinv_Input                  )) ptr%p%rdiag( idx_err_input_q   ) = Errinv_Input( ii )
-               if( allocated( Errinv_Adjust                 )) ptr%p%rdiag( idx_errinv_q      ) = Errinv_Adjust( ii )
-               if( allocated( Errinv_Final                  )) ptr%p%rdiag( idx_errinv_fnl_q  ) = Errinv_Final( ii )
-               if( allocated( Observation                   )) ptr%p%rdiag( idx_obs_q         ) = Observation( ii )
-               if( allocated( Obs_Minus_Forecast_adjusted   )) ptr%p%rdiag( idx_obsmg_adj_q   ) = Obs_Minus_Forecast_adjusted( ii )
-               if( allocated( Obs_Minus_Forecast_unadjusted )) ptr%p%rdiag( idx_obsmg_nadj_q  ) = Obs_Minus_Forecast_unadjusted( ii )
-               if( allocated( Forecast_Saturation_Spec_Hum  )) ptr%p%rdiag( idx_ges_sat_q     ) = Forecast_Saturation_Spec_Hum( ii )
-
-
-               if( nobs == 1 ) then
-                  !-------------------------------------------------
-                  ! Initialize the list with the first data element
-                  !
-                  call list_init(list, transfer(ptr, list_data))
-                  next => list
-
-               else
-                  !-------------------------------------------------
-                  ! Insert subsequent nodes into the list
-                  !
-                  call list_insert(next, transfer(ptr, list_data))
-                  next => list_next(next)
+               if( have_subtype == .false. ) then
+                  add_obs = .true.
+               else if( Observation_Subtype(ii) == in_subtype ) then
+                  add_obs = .true.
                end if
 
+            end if
+         end if
+
+
+         if( add_obs == .true. )  then 
+
+            nobs=nobs+1
+
+            !---------------------------------------------
+            ! Allocate a new data element and load
+            !
+            allocate(ptr%p)
+            ptr%p%stn_id = Station_ID( ii )
+
+            do idx=1,max_rdiag_reals
+               ptr%p%rdiag( idx ) = 0.00
+            end do
+
+            if( allocated( Observation_Type              )) ptr%p%rdiag( idx_obs_type_q    ) = Observation_Type( ii )   
+            if( allocated( Observation_Subtype           )) ptr%p%rdiag( idx_obs_subtype_q ) = Observation_Subtype( ii )   
+            if( allocated( Latitude                      )) ptr%p%rdiag( idx_obs_lat_q     ) = Latitude( ii )   
+            if( allocated( Longitude                     )) ptr%p%rdiag( idx_obs_lon_q     ) = Longitude( ii )   
+            if( allocated( Station_Elevation             )) ptr%p%rdiag( idx_stn_elev_q    ) = Station_Elevation( ii )   
+            if( allocated( Pressure                      )) ptr%p%rdiag( idx_pres_q        ) = Pressure( ii )
+            if( allocated( Height                        )) ptr%p%rdiag( idx_hgt_q         ) = Height( ii )
+            if( allocated( Time                          )) ptr%p%rdiag( idx_time_q        ) = Time( ii )
+            if( allocated( Prep_QC_Mark                  )) ptr%p%rdiag( idx_iqc_q         ) = Prep_QC_Mark( ii )
+            if( allocated( Nonlinear_QC_Var_Jb           )) ptr%p%rdiag( idx_var_jb_q      ) = Nonlinear_QC_Var_Jb( ii )
+            if( allocated( Prep_Use_Flag                 )) ptr%p%rdiag( idx_iuse_q        ) = Prep_Use_Flag( ii )
+            if( allocated( Analysis_Use_Flag             )) ptr%p%rdiag( idx_anl_use_q     ) = Analysis_Use_Flag( ii )
+            if( allocated( Nonlinear_QC_Rel_Wgt          )) ptr%p%rdiag( idx_rwgt_q        ) = Nonlinear_QC_Rel_Wgt( ii )
+            if( allocated( Errinv_Input                  )) ptr%p%rdiag( idx_err_input_q   ) = Errinv_Input( ii )
+            if( allocated( Errinv_Adjust                 )) ptr%p%rdiag( idx_errinv_q      ) = Errinv_Adjust( ii )
+            if( allocated( Errinv_Final                  )) ptr%p%rdiag( idx_errinv_fnl_q  ) = Errinv_Final( ii )
+            if( allocated( Observation                   )) ptr%p%rdiag( idx_obs_q         ) = Observation( ii )
+            if( allocated( Obs_Minus_Forecast_adjusted   )) ptr%p%rdiag( idx_obsmg_adj_q   ) = Obs_Minus_Forecast_adjusted( ii )
+            if( allocated( Obs_Minus_Forecast_unadjusted )) ptr%p%rdiag( idx_obsmg_nadj_q  ) = Obs_Minus_Forecast_unadjusted( ii )
+            if( allocated( Forecast_Saturation_Spec_Hum  )) ptr%p%rdiag( idx_ges_sat_q     ) = Forecast_Saturation_Spec_Hum( ii )
+
+
+            if( nobs == 1 ) then
+               !-------------------------------------------------
+               ! Initialize the list with the first data element
+               !
+               call list_init(list, transfer(ptr, list_data))
+               next => list
+
+            else
+               !-------------------------------------------------
+               ! Insert subsequent nodes into the list
+               !
+               call list_insert(next, transfer(ptr, list_data))
+               next => list_next(next)
             end if
 
          end if
@@ -700,13 +727,20 @@ module conmon_read_diag
 
 
 
-   !--------------------------------------------------------- 
+   !------------------------------------------------------------- 
    !  netcdf read routine for ps data types in netcdf files
    !
-   subroutine read_diag_file_sst_nc( input_file, ftin, ctype, intype,expected_nreal,nobs,in_subtype, list )
+   !  NOTE1:  This routine is untested.  The ConMon does not 
+   !          currently process sst obs.
+   !
+   !  NOTE2:  There are known discrepencies between the contents
+   !          of sst obs in binary and NetCDF files. 
+   !
+   subroutine read_diag_file_sst_nc( input_file, return_all, ftin, ctype, intype,expected_nreal,nobs,in_subtype, list )
   
       !--- interface 
       character(100), intent(in) :: input_file
+      logical, intent(in)        :: return_all
       integer, intent(in)        :: ftin
       character(3), intent(in)   :: ctype
       integer, intent(in)        :: intype, expected_nreal, in_subtype
@@ -718,6 +752,7 @@ module conmon_read_diag
       type(data_ptr)             :: ptr
       integer                    :: ii, ierr, istatus, total_obs, idx
       logical                    :: have_subtype = .true.
+      logical                    :: add_obs
 
       !--- NetCDF file components                                                               dimension(s) 
       !
@@ -804,75 +839,95 @@ module conmon_read_diag
       nobs = 0 
       do ii = 1, total_obs
 
-!         if( Observation_Type(ii) == intype .AND. Observation_Subtype(ii) == in_subtype)  then 
+         add_obs = .false.
 
-         if( Observation_Type(ii) == intype )  then 
-            if( have_subtype == .false. .OR. &
-                ( have_subtype == .true. .AND. ( Observation_Subtype(ii) == in_subtype ))) then
+         !------------------------------------------------------------------------
+         ! Check on Observation_Class to ctype is a sanity check --
+         ! only a single class of obs are in any given NetCDF formatted diag
+         ! file
+         ! but, if the ctype and input file don't match, things could get
+         ! interesting (but not in a good way).
+         !
+         if( adjustl( trim( Observation_Class(ii) )) == adjustl( trim( ctype ))) then
 
-               nobs=nobs+1
+            if( return_all == .true. ) then
+               add_obs = .true.
 
-               !---------------------------------------------
-               ! Allocate a new data element and load
-               !
-               allocate( ptr%p )
-               ptr%p%stn_id = Station_ID( ii )
+            else if( Observation_Type(ii) == intype ) then
 
-               do idx=1,max_rdiag_reals
-                  ptr%p%rdiag( idx ) = 0.00
-               end do
-
-               if( allocated( Observation_Type              )) ptr%p%rdiag( idx_obs_type_sst    ) = Observation_Type( ii )   
-               if( allocated( Observation_Subtype           )) ptr%p%rdiag( idx_obs_subtype_sst ) = Observation_Subtype( ii )   
-               if( allocated( Latitude                      )) ptr%p%rdiag( idx_obs_lat_sst     ) = Latitude( ii )   
-               if( allocated( Longitude                     )) ptr%p%rdiag( idx_obs_lon_sst     ) = Longitude( ii )   
-               if( allocated( Station_Elevation             )) ptr%p%rdiag( idx_stn_elev_sst    ) = Station_Elevation( ii )   
-   
-               if( allocated( Pressure                      )) ptr%p%rdiag( idx_opn_wtr_tmp_sst ) = Pressure( ii )  ! identified as background open water temperature in setupsst.f90
-
-               if( allocated( Height                        )) ptr%p%rdiag( idx_depth_sst       ) = Height( ii )    ! identified as observation depth (meters) in setupsst.f90
-
-               if( allocated( Time                          )) ptr%p%rdiag( idx_time_sst        ) = Time( ii )
-
-!               if( allocated(  )) ptr%p%rdiag( idx_opn_wtr_pct_sst ) = Prep_QC_Mark( ii )  ! identified as open water percentage in setupsst.f90
-
-               if( allocated( Prep_QC_Mark                  )) ptr%p%rdiag( idx_setup_qc_sst    ) = Prep_QC_Mark( ii )  
-               if( allocated( Prep_Use_Flag                 )) ptr%p%rdiag( idx_iuse_sst        ) = Prep_Use_Flag( ii )
-               if( allocated( Analysis_Use_Flag             )) ptr%p%rdiag( idx_anl_use_sst     ) = Analysis_Use_Flag( ii )
-               if( allocated( Nonlinear_QC_Rel_Wgt          )) ptr%p%rdiag( idx_rwgt_sst        ) = Nonlinear_QC_Rel_Wgt( ii )
-               if( allocated( Errinv_Input                  )) ptr%p%rdiag( idx_err_input_sst   ) = Errinv_Input( ii )
-               if( allocated( Errinv_Adjust                 )) ptr%p%rdiag( idx_errinv_sst      ) = Errinv_Adjust( ii )
-               if( allocated( Errinv_Final                  )) ptr%p%rdiag( idx_errinv_fnl_sst  ) = Errinv_Final( ii )
-               if( allocated( Observation                   )) ptr%p%rdiag( idx_obs_sst         ) = Observation( ii )
-               if( allocated( Obs_Minus_Forecast_adjusted   )) ptr%p%rdiag( idx_omgbc_sst       ) = Obs_Minus_Forecast_adjusted( ii )
-               if( allocated( Obs_Minus_Forecast_unadjusted )) ptr%p%rdiag( idx_omgnbc_sst      ) = Obs_Minus_Forecast_unadjusted( ii )
-   
-!               if( allocated(  )) ptr%p%rdiag( idx_type_sst        ) = type of measurement?  per setupsst.f90
-   
-               if( allocated( FoundationTempBG              )) ptr%p%rdiag( idx_tr_sst          ) = FoundationTempBG( ii )
-               if( allocated( DiurnalWarming_at_Zob         )) ptr%p%rdiag( idx_dt_warm_sst     ) = DiurnalWarming_at_zob( ii )
-               if( allocated( SkinLayerCooling_at_zob       )) ptr%p%rdiag( idx_dt_cool_sst     ) = SkinLayerCooling_at_zob( ii ) 
-               if( allocated( Sensitivity_Tzob_Tr           )) ptr%p%rdiag( idx_dtz_dtr_sst     ) = Sensitivity_Tzob_Tr( ii )
-
-
-               if( nobs == 1 ) then
-                  !-------------------------------------------------
-                  ! Initialize the list with the first data element
-                  !
-                  call list_init(list, transfer(ptr, list_data))
-                  next => list
-   
-               else
-                  !-------------------------------------------------
-                  ! Insert subsequent nodes into the list
-                  !
-                  call list_insert(next, transfer(ptr, list_data))
-                  next => list_next(next)
+               if( have_subtype == .false. ) then
+                  add_obs = .true.
+               else if( Observation_Subtype(ii) == in_subtype ) then
+                  add_obs = .true.
                end if
 
             end if
+         end if
 
-         end if 
+
+         if( add_obs == .true. )  then
+
+            nobs=nobs+1
+
+            !---------------------------------------------
+            ! Allocate a new data element and load
+            !
+            allocate( ptr%p )
+            ptr%p%stn_id = Station_ID( ii )
+
+            do idx=1,max_rdiag_reals
+               ptr%p%rdiag( idx ) = 0.00
+            end do
+
+            if( allocated( Observation_Type              )) ptr%p%rdiag( idx_obs_type_sst    ) = Observation_Type( ii )   
+            if( allocated( Observation_Subtype           )) ptr%p%rdiag( idx_obs_subtype_sst ) = Observation_Subtype( ii )   
+            if( allocated( Latitude                      )) ptr%p%rdiag( idx_obs_lat_sst     ) = Latitude( ii )   
+            if( allocated( Longitude                     )) ptr%p%rdiag( idx_obs_lon_sst     ) = Longitude( ii )   
+            if( allocated( Station_Elevation             )) ptr%p%rdiag( idx_stn_elev_sst    ) = Station_Elevation( ii )   
+   
+            if( allocated( Pressure                      )) ptr%p%rdiag( idx_opn_wtr_tmp_sst ) = Pressure( ii )  ! identified as background open water temperature in setupsst.f90
+
+            if( allocated( Height                        )) ptr%p%rdiag( idx_depth_sst       ) = Height( ii )    ! identified as observation depth (meters) in setupsst.f90
+
+            if( allocated( Time                          )) ptr%p%rdiag( idx_time_sst        ) = Time( ii )
+
+!            if( allocated(  )) ptr%p%rdiag( idx_opn_wtr_pct_sst ) = Prep_QC_Mark( ii )  ! identified as open water percentage in setupsst.f90
+
+            if( allocated( Prep_QC_Mark                  )) ptr%p%rdiag( idx_setup_qc_sst    ) = Prep_QC_Mark( ii )  
+            if( allocated( Prep_Use_Flag                 )) ptr%p%rdiag( idx_iuse_sst        ) = Prep_Use_Flag( ii )
+            if( allocated( Analysis_Use_Flag             )) ptr%p%rdiag( idx_anl_use_sst     ) = Analysis_Use_Flag( ii )
+            if( allocated( Nonlinear_QC_Rel_Wgt          )) ptr%p%rdiag( idx_rwgt_sst        ) = Nonlinear_QC_Rel_Wgt( ii )
+            if( allocated( Errinv_Input                  )) ptr%p%rdiag( idx_err_input_sst   ) = Errinv_Input( ii )
+            if( allocated( Errinv_Adjust                 )) ptr%p%rdiag( idx_errinv_sst      ) = Errinv_Adjust( ii )
+            if( allocated( Errinv_Final                  )) ptr%p%rdiag( idx_errinv_fnl_sst  ) = Errinv_Final( ii )
+            if( allocated( Observation                   )) ptr%p%rdiag( idx_obs_sst         ) = Observation( ii )
+            if( allocated( Obs_Minus_Forecast_adjusted   )) ptr%p%rdiag( idx_omgbc_sst       ) = Obs_Minus_Forecast_adjusted( ii )
+            if( allocated( Obs_Minus_Forecast_unadjusted )) ptr%p%rdiag( idx_omgnbc_sst      ) = Obs_Minus_Forecast_unadjusted( ii )
+ 
+!            if( allocated(  )) ptr%p%rdiag( idx_type_sst        ) = type of measurement?  per setupsst.f90
+   
+            if( allocated( FoundationTempBG              )) ptr%p%rdiag( idx_tr_sst          ) = FoundationTempBG( ii )
+            if( allocated( DiurnalWarming_at_Zob         )) ptr%p%rdiag( idx_dt_warm_sst     ) = DiurnalWarming_at_zob( ii )
+            if( allocated( SkinLayerCooling_at_zob       )) ptr%p%rdiag( idx_dt_cool_sst     ) = SkinLayerCooling_at_zob( ii ) 
+            if( allocated( Sensitivity_Tzob_Tr           )) ptr%p%rdiag( idx_dtz_dtr_sst     ) = Sensitivity_Tzob_Tr( ii )
+
+
+            if( nobs == 1 ) then
+               !-------------------------------------------------
+               ! Initialize the list with the first data element
+               !
+               call list_init(list, transfer(ptr, list_data))
+               next => list
+  
+            else
+               !-------------------------------------------------
+               ! Insert subsequent nodes into the list
+               !
+               call list_insert(next, transfer(ptr, list_data))
+               next => list_next(next)
+            end if
+
+         end if
 
       end do
 
@@ -911,10 +966,11 @@ module conmon_read_diag
    !--------------------------------------------------------- 
    !  netcdf read routine for t data types in netcdf files
    !
-   subroutine read_diag_file_t_nc( input_file, ftin, ctype, intype, expected_nreal,nobs,in_subtype, list )
+   subroutine read_diag_file_t_nc( input_file, return_all, ftin, ctype, intype, expected_nreal, nobs, in_subtype, list )
   
       !--- interface 
       character(100), intent(in) :: input_file
+      logical, intent(in)        :: return_all
       integer, intent(in)        :: ftin
       character(3), intent(in)   :: ctype
       integer, intent(in)        :: intype, expected_nreal, in_subtype
@@ -973,7 +1029,6 @@ module conmon_read_diag
       if( nc_diag_read_check_dim( 'nobs' )) then
          total_obs = nc_diag_read_get_dim(ftin,'nobs')
          ncdiag_open_status(ii)%num_records = total_obs
-         print *, '          total_obs = ', total_obs
       else
          print *, 'ERROR:  unable to read nobs'
          ierr=1
@@ -981,7 +1036,6 @@ module conmon_read_diag
 
       if( nc_diag_read_check_dim( 'Bias_Correction_Terms_arr_dim' )) then
          bcor_terms = nc_diag_read_get_dim(ftin,'Bias_Correction_Terms_arr_dim')
-         print *, '          bcor_terms = ', bcor_terms
       else
          print *, 'ERROR:  unable to read bcor_terms'
          ierr=1
@@ -1036,76 +1090,83 @@ module conmon_read_diag
       nobs = 0 
       do ii = 1, total_obs
 
+         !------------------------------------------------------------------------
+         ! Check on Observation_Class to ctype is a sanity check -- 
+         ! only a single class of obs are in any given NetCDF formatted diag file
+         ! but, if the ctype and input file don't match, things could get 
+         ! interesting (but not in a good way).
+         !
          add_obs = .false.
 
-         if( Observation_Type(ii) == intype ) then 
-            if( have_subtype == .false. .OR. &
-                ( have_subtype == .true. .AND. ( Observation_Subtype(ii) == in_subtype ))) then
+         if( adjustl( trim( Observation_Class(ii) )) == adjustl( trim( ctype ))) then         
+
+            if( return_all == .true. ) then
                add_obs = .true.
+
+            else if( Observation_Type(ii) == intype ) then
+
+               if( have_subtype == .false. ) then
+                  add_obs = .true.
+               else if( Observation_Subtype(ii) == in_subtype ) then
+                  add_obs = .true.
+               end if
+
             end if
          end if
 
-         print *, ' Observation_Class( ii ), ctype = ', Observation_Class( ii ), ctype
-         print *, ' Observation_Type( ii ) = ', Observation_Type( ii )
-         print *, ' add_obs = ', add_obs
+         if( add_obs == .true. )  then 
 
+            nobs=nobs+1
 
-         if( Observation_Type(ii) == intype )  then 
-            if( have_subtype == .false. .OR. &
-                ( have_subtype == .true. .AND. ( Observation_Subtype(ii) == in_subtype ))) then
+            !---------------------------------------------
+            ! Allocate a new data element and load
+            !
+            allocate(ptr%p)
+            ptr%p%stn_id = Station_ID( ii )
 
-               nobs=nobs+1
+            do idx=1,max_rdiag_reals
+               ptr%p%rdiag( idx ) = 0.00
+            end do
 
-               !---------------------------------------------
-               ! Allocate a new data element and load
+            if( allocated( Observation_Type              )) ptr%p%rdiag( idx_obs_type_t )    = Observation_Type( ii )   
+            if( allocated( Observation_Subtype           )) ptr%p%rdiag( idx_obs_subtype_t ) = Observation_Subtype( ii )   
+            if( allocated( Latitude                      )) ptr%p%rdiag( idx_obs_lat_t )     = Latitude( ii )   
+            if( allocated( Longitude                     )) ptr%p%rdiag( idx_obs_lon_t )     = Longitude( ii )   
+            if( allocated( Station_Elevation             )) ptr%p%rdiag( idx_stn_elev_t )    = Station_Elevation( ii )   
+            if( allocated( Pressure                      )) ptr%p%rdiag( idx_pres_t )        = Pressure( ii )
+            if( allocated( Height                        )) ptr%p%rdiag( idx_hgt_t )         = Height( ii )
+            if( allocated( Time                          )) ptr%p%rdiag( idx_time_t )        = Time( ii )
+            if( allocated( Prep_QC_Mark                  )) ptr%p%rdiag( idx_iqc_t )         = Prep_QC_Mark( ii )
+            if( allocated( Nonlinear_QC_Var_Jb           )) ptr%p%rdiag( idx_setup_qc_t )    = Nonlinear_QC_Var_Jb( ii )
+            if( allocated( Prep_Use_Flag                 )) ptr%p%rdiag( idx_iuse_t )        = Prep_Use_Flag( ii )
+            if( allocated( Analysis_Use_Flag             )) ptr%p%rdiag( idx_anl_use_t )     = Analysis_Use_Flag( ii )
+            if( allocated( Nonlinear_QC_Rel_Wgt          )) ptr%p%rdiag( idx_rwgt_t )        = Nonlinear_QC_Rel_Wgt( ii )
+            if( allocated( Errinv_Input                  )) ptr%p%rdiag( idx_err_input_t )   = Errinv_Input( ii )
+            if( allocated( Errinv_Adjust                 )) ptr%p%rdiag( idx_errinv_t )      = Errinv_Adjust( ii )
+            if( allocated( Errinv_Final                  )) ptr%p%rdiag( idx_errinv_fnl_t )  = Errinv_Final( ii )
+            if( allocated( Observation                   )) ptr%p%rdiag( idx_obs_t )         = Observation( ii )
+            if( allocated( Obs_Minus_Forecast_adjusted   )) ptr%p%rdiag( idx_omgbc_t )       = Obs_Minus_Forecast_adjusted( ii )
+            if( allocated( Obs_Minus_Forecast_unadjusted )) ptr%p%rdiag( idx_omgnbc_t )      = Obs_Minus_Forecast_unadjusted( ii )
+            if( allocated( Data_Pof                      )) ptr%p%rdiag( idx_pof_t )         = Data_Pof( ii )
+            if( allocated( Data_Vertical_Velocity        )) ptr%p%rdiag( idx_vv_t )          = Data_Vertical_Velocity( ii )
+            do jj = 1, bcor_terms
+               if( allocated( Bias_Correction_Terms      )) ptr%p%rdiag( idx_vv_t+jj )       = Bias_Correction_Terms( jj,ii )
+            end do
+
+            if( nobs == 1 ) then
+               !-------------------------------------------------
+               ! Initialize the list with the first data element
                !
-               allocate(ptr%p)
-               ptr%p%stn_id = Station_ID( ii )
-
-               do idx=1,max_rdiag_reals
-                  ptr%p%rdiag( idx ) = 0.00
-               end do
-
-               if( allocated( Observation_Type              )) ptr%p%rdiag( idx_obs_type_t )    = Observation_Type( ii )   
-               if( allocated( Observation_Subtype           )) ptr%p%rdiag( idx_obs_subtype_t ) = Observation_Subtype( ii )   
-               if( allocated( Latitude                      )) ptr%p%rdiag( idx_obs_lat_t )     = Latitude( ii )   
-               if( allocated( Longitude                     )) ptr%p%rdiag( idx_obs_lon_t )     = Longitude( ii )   
-               if( allocated( Station_Elevation             )) ptr%p%rdiag( idx_stn_elev_t )    = Station_Elevation( ii )   
-               if( allocated( Pressure                      )) ptr%p%rdiag( idx_pres_t )        = Pressure( ii )
-               if( allocated( Height                        )) ptr%p%rdiag( idx_hgt_t )         = Height( ii )
-               if( allocated( Time                          )) ptr%p%rdiag( idx_time_t )        = Time( ii )
-               if( allocated( Prep_QC_Mark                  )) ptr%p%rdiag( idx_iqc_t )         = Prep_QC_Mark( ii )
-               if( allocated( Nonlinear_QC_Var_Jb           )) ptr%p%rdiag( idx_setup_qc_t )    = Nonlinear_QC_Var_Jb( ii )
-               if( allocated( Prep_Use_Flag                 )) ptr%p%rdiag( idx_iuse_t )        = Prep_Use_Flag( ii )
-               if( allocated( Analysis_Use_Flag             )) ptr%p%rdiag( idx_anl_use_t )     = Analysis_Use_Flag( ii )
-               if( allocated( Nonlinear_QC_Rel_Wgt          )) ptr%p%rdiag( idx_rwgt_t )        = Nonlinear_QC_Rel_Wgt( ii )
-               if( allocated( Errinv_Input                  )) ptr%p%rdiag( idx_err_input_t )   = Errinv_Input( ii )
-               if( allocated( Errinv_Adjust                 )) ptr%p%rdiag( idx_errinv_t )      = Errinv_Adjust( ii )
-               if( allocated( Errinv_Final                  )) ptr%p%rdiag( idx_errinv_fnl_t )  = Errinv_Final( ii )
-               if( allocated( Observation                   )) ptr%p%rdiag( idx_obs_t )         = Observation( ii )
-               if( allocated( Obs_Minus_Forecast_adjusted   )) ptr%p%rdiag( idx_omgbc_t )       = Obs_Minus_Forecast_adjusted( ii )
-               if( allocated( Obs_Minus_Forecast_unadjusted )) ptr%p%rdiag( idx_omgnbc_t )      = Obs_Minus_Forecast_unadjusted( ii )
-               if( allocated( Data_Pof                      )) ptr%p%rdiag( idx_pof_t )         = Data_Pof( ii )
-               if( allocated( Data_Vertical_Velocity        )) ptr%p%rdiag( idx_vv_t )          = Data_Vertical_Velocity( ii )
-               do jj = 1, bcor_terms
-                  if( allocated( Bias_Correction_Terms      )) ptr%p%rdiag( idx_vv_t+jj )       = Bias_Correction_Terms( jj,ii )
-               end do
-
-               if( nobs == 1 ) then
-                  !-------------------------------------------------
-                  ! Initialize the list with the first data element
-                  !
-                  call list_init(list, transfer(ptr, list_data))
-                  next => list
+               call list_init(list, transfer(ptr, list_data))
+               next => list
    
-               else
-                  !-------------------------------------------------
-                  ! Insert subsequent nodes into the list
-                  !
-                  call list_insert(next, transfer(ptr, list_data))
-                  next => list_next(next)
+            else
+               !-------------------------------------------------
+               ! Insert subsequent nodes into the list
+               !
+               call list_insert(next, transfer(ptr, list_data))
+               next => list_next(next)
 
-               end if
             end if
 
          end if
@@ -1143,10 +1204,11 @@ module conmon_read_diag
    !--------------------------------------------------------- 
    !  netcdf read routine for uv data types in netcdf files
    !
-   subroutine read_diag_file_uv_nc( input_file, ftin, ctype, intype,expected_nreal,nobs,in_subtype, list )
+   subroutine read_diag_file_uv_nc( input_file, return_all, ftin, ctype, intype, expected_nreal, nobs, in_subtype, list )
   
       !--- interface 
       character(100), intent(in) :: input_file
+      logical, intent(in)        :: return_all
       integer, intent(in)        :: ftin
       character(3), intent(in)   :: ctype
       integer, intent(in)        :: intype, expected_nreal, in_subtype
@@ -1158,6 +1220,7 @@ module conmon_read_diag
       type(data_ptr)             :: ptr
       integer                    :: ii, ierr, istatus, total_obs, idx
       logical                    :: have_subtype = .true.
+      logical                    :: add_obs
 
       !--- NetCDF file components                                                               dimension(s) 
       !
@@ -1245,66 +1308,84 @@ module conmon_read_diag
       nobs = 0 
       do ii = 1, total_obs
 
-!         if( Observation_Type(ii) == intype .AND. Observation_Subtype(ii) == in_subtype)  then 
+         !------------------------------------------------------------------------
+         ! Check on Observation_Class to ctype is a sanity check -- 
+         ! only a single class of obs are in any given NetCDF formatted diag file
+         ! but, if the ctype and input file don't match, things could get 
+         ! interesting (but not in a good way).
+         !
+         add_obs = .false.
 
-         if( Observation_Type(ii) == intype )  then 
-            if( have_subtype == .false. .OR. &
-                ( have_subtype == .true. .AND. ( Observation_Subtype(ii) == in_subtype ))) then
+         if( adjustl( trim( Observation_Class(ii) )) == adjustl( trim( ctype ))) then         
 
-               nobs=nobs+1
+            if( return_all == .true. ) then
+               add_obs = .true.
 
-               !---------------------------------------------
-               ! Allocate a new data element and load
-               !
-               allocate(ptr%p)
-               ptr%p%stn_id = Station_ID( ii )
+            else if( Observation_Type(ii) == intype ) then
 
-               do idx=1,max_rdiag_reals
-                  ptr%p%rdiag( idx ) = 0.00
-               end do
-
-               if( allocated( Observation_Type                )) ptr%p%rdiag( idx_obs_type_uv    ) = Observation_Type( ii )   
-               if( allocated( Observation_Subtype             )) ptr%p%rdiag( idx_obs_subtype_uv ) = Observation_Subtype( ii )   
-               if( allocated( Latitude                        )) ptr%p%rdiag( idx_obs_lat_uv     ) = Latitude( ii )   
-               if( allocated( Longitude                       )) ptr%p%rdiag( idx_obs_lon_uv     ) = Longitude( ii )   
-               if( allocated( Station_Elevation               )) ptr%p%rdiag( idx_stn_elev_uv    ) = Station_Elevation( ii )   
-               if( allocated( Pressure                        )) ptr%p%rdiag( idx_pres_uv        ) = Pressure( ii )
-               if( allocated( Height                          )) ptr%p%rdiag( idx_hgt_uv         ) = Height( ii )
-               if( allocated( Time                            )) ptr%p%rdiag( idx_time_uv        ) = Time( ii )
-               if( allocated( Prep_QC_Mark                    )) ptr%p%rdiag( idx_iqc_uv         ) = Prep_QC_Mark( ii )
-
-!               if( allocated( Nonlinear_QC_Var_JB             )) ptr%p%rdiag( idx_setup_qc_uv    ) = Nonlinear_QC_Var_Jb( ii )  ! missing from diagnostic file
-
-               if( allocated( Prep_Use_Flag                   )) ptr%p%rdiag( idx_iuse_uv        ) = Prep_Use_Flag( ii )
-               if( allocated( Analysis_Use_Flag               )) ptr%p%rdiag( idx_anl_use_uv     ) = Analysis_Use_Flag( ii )
-               if( allocated( Nonlinear_QC_Rel_Wgt            )) ptr%p%rdiag( idx_rwgt_uv        ) = Nonlinear_QC_Rel_Wgt( ii )
-               if( allocated( Errinv_Input                    )) ptr%p%rdiag( idx_err_input_uv   ) = Errinv_Input( ii )
-               if( allocated( Errinv_Adjust                   )) ptr%p%rdiag( idx_errinv_uv      ) = Errinv_Adjust( ii )
-               if( allocated( Errinv_Final                    )) ptr%p%rdiag( idx_errinv_fnl_uv  ) = Errinv_Final( ii )
-
-               if( allocated( u_Observation                   )) ptr%p%rdiag( idx_u_obs_uv       ) = u_Observation( ii )
-               if( allocated( u_Obs_Minus_Forecast_adjusted   )) ptr%p%rdiag( idx_u_omgbc_uv     ) = u_Obs_Minus_Forecast_adjusted( ii )
-               if( allocated( u_Obs_Minus_Forecast_unadjusted )) ptr%p%rdiag( idx_u_omgnbc_uv    ) = u_Obs_Minus_Forecast_unadjusted( ii )
-               if( allocated( v_Observation                   )) ptr%p%rdiag( idx_v_obs_uv       ) = v_Observation( ii )
-               if( allocated( v_Obs_Minus_Forecast_adjusted   )) ptr%p%rdiag( idx_v_omgbc_uv     ) = v_Obs_Minus_Forecast_adjusted( ii )
-               if( allocated( v_Obs_Minus_Forecast_unadjusted )) ptr%p%rdiag( idx_v_omgnbc_uv    ) = v_Obs_Minus_Forecast_unadjusted( ii )
-
-
-               if( nobs == 1 ) then
-                  !-------------------------------------------------
-                  ! Initialize the list with the first data element
-                  !
-                  call list_init(list, transfer(ptr, list_data))
-                  next => list
-   
-               else
-                  !-------------------------------------------------
-                  ! Insert subsequent nodes into the list
-                  !
-                  call list_insert(next, transfer(ptr, list_data))
-                  next => list_next(next)
+               if( have_subtype == .false. ) then
+                  add_obs = .true.
+               else if( Observation_Subtype(ii) == in_subtype ) then
+                  add_obs = .true.
                end if
 
+            end if
+         end if
+
+         if( add_obs == .true. )  then 
+
+            nobs=nobs+1
+
+            !---------------------------------------------
+            ! Allocate a new data element and load
+            !
+            allocate(ptr%p)
+            ptr%p%stn_id = Station_ID( ii )
+
+            do idx=1,max_rdiag_reals
+               ptr%p%rdiag( idx ) = 0.00
+            end do
+
+            if( allocated( Observation_Type                )) ptr%p%rdiag( idx_obs_type_uv    ) = Observation_Type( ii )   
+            if( allocated( Observation_Subtype             )) ptr%p%rdiag( idx_obs_subtype_uv ) = Observation_Subtype( ii )   
+            if( allocated( Latitude                        )) ptr%p%rdiag( idx_obs_lat_uv     ) = Latitude( ii )   
+            if( allocated( Longitude                       )) ptr%p%rdiag( idx_obs_lon_uv     ) = Longitude( ii )   
+            if( allocated( Station_Elevation               )) ptr%p%rdiag( idx_stn_elev_uv    ) = Station_Elevation( ii )   
+            if( allocated( Pressure                        )) ptr%p%rdiag( idx_pres_uv        ) = Pressure( ii )
+            if( allocated( Height                          )) ptr%p%rdiag( idx_hgt_uv         ) = Height( ii )
+            if( allocated( Time                            )) ptr%p%rdiag( idx_time_uv        ) = Time( ii )
+            if( allocated( Prep_QC_Mark                    )) ptr%p%rdiag( idx_iqc_uv         ) = Prep_QC_Mark( ii )
+
+!            if( allocated( Nonlinear_QC_Var_JB             )) ptr%p%rdiag( idx_setup_qc_uv    ) = Nonlinear_QC_Var_Jb( ii )  ! missing from diagnostic file
+
+            if( allocated( Prep_Use_Flag                   )) ptr%p%rdiag( idx_iuse_uv        ) = Prep_Use_Flag( ii )
+            if( allocated( Analysis_Use_Flag               )) ptr%p%rdiag( idx_anl_use_uv     ) = Analysis_Use_Flag( ii )
+            if( allocated( Nonlinear_QC_Rel_Wgt            )) ptr%p%rdiag( idx_rwgt_uv        ) = Nonlinear_QC_Rel_Wgt( ii )
+            if( allocated( Errinv_Input                    )) ptr%p%rdiag( idx_err_input_uv   ) = Errinv_Input( ii )
+            if( allocated( Errinv_Adjust                   )) ptr%p%rdiag( idx_errinv_uv      ) = Errinv_Adjust( ii )
+            if( allocated( Errinv_Final                    )) ptr%p%rdiag( idx_errinv_fnl_uv  ) = Errinv_Final( ii )
+
+            if( allocated( u_Observation                   )) ptr%p%rdiag( idx_u_obs_uv       ) = u_Observation( ii )
+            if( allocated( u_Obs_Minus_Forecast_adjusted   )) ptr%p%rdiag( idx_u_omgbc_uv     ) = u_Obs_Minus_Forecast_adjusted( ii )
+            if( allocated( u_Obs_Minus_Forecast_unadjusted )) ptr%p%rdiag( idx_u_omgnbc_uv    ) = u_Obs_Minus_Forecast_unadjusted( ii )
+            if( allocated( v_Observation                   )) ptr%p%rdiag( idx_v_obs_uv       ) = v_Observation( ii )
+            if( allocated( v_Obs_Minus_Forecast_adjusted   )) ptr%p%rdiag( idx_v_omgbc_uv     ) = v_Obs_Minus_Forecast_adjusted( ii )
+            if( allocated( v_Obs_Minus_Forecast_unadjusted )) ptr%p%rdiag( idx_v_omgnbc_uv    ) = v_Obs_Minus_Forecast_unadjusted( ii )
+
+
+            if( nobs == 1 ) then
+               !-------------------------------------------------
+               ! Initialize the list with the first data element
+               !
+               call list_init(list, transfer(ptr, list_data))
+               next => list
+   
+            else
+               !-------------------------------------------------
+               ! Insert subsequent nodes into the list
+               !
+               call list_insert(next, transfer(ptr, list_data))
+               next => list_next(next)
             end if
 
          end if
@@ -1342,13 +1423,22 @@ module conmon_read_diag
    end subroutine read_diag_file_uv_nc
 
 
-   !--------------------------------------------------------- 
+   !----------------------------------------------------------- 
    !  netcdf read routine for gps data types in netcdf files
    !
-   subroutine read_diag_file_gps_nc( input_file, ftin, ctype, intype,expected_nreal,nobs,in_subtype, list )
+   !  NOTE1:  This routine is untested.  At present the ConMon
+   !          does not process gps data.  There are plans to 
+   !          change that though.
+   !
+   !  NOTE2:  There are known descrepencies between gps obs 
+   !          in binary and NetCDF formatted diag files. See
+   !          comments below.
+   !
+   subroutine read_diag_file_gps_nc( input_file, return_all, ftin, ctype, intype,expected_nreal,nobs,in_subtype, list )
  
       !--- interface 
       character(100), intent(in) :: input_file
+      logical, intent(in)        :: return_all
       integer, intent(in)        :: ftin
       character(3), intent(in)   :: ctype
       integer, intent(in)        :: intype, expected_nreal, in_subtype
@@ -1360,6 +1450,7 @@ module conmon_read_diag
       type(data_ptr)             :: ptr
       integer                    :: ii, ierr, istatus, total_obs, idx
       logical                    :: have_subtype = .true.
+      logical                    :: add_obs
 
       !--- NetCDF file components                                                               dimension(s) 
       !
@@ -1451,82 +1542,101 @@ module conmon_read_diag
       nobs = 0 
       do ii = 1, total_obs
 
-!         if( Observation_Type(ii) == intype .AND. Observation_Subtype(ii) == in_subtype)  then 
+         !------------------------------------------------------------------------
+         ! Check on Observation_Class to ctype is a sanity check --
+         ! only a single class of obs are in any given NetCDF formatted diag
+         ! file
+         ! but, if the ctype and input file don't match, things could get
+         ! interesting (but not in a good way).
+         !
+         add_obs = .false.
 
-         if( Observation_Type(ii) == intype )  then 
-            if( have_subtype == .false. .OR. &
-                ( have_subtype == .true. .AND. ( Observation_Subtype(ii) == in_subtype ))) then
+         if( adjustl( trim( Observation_Class(ii) )) == adjustl( trim( ctype ))) then
 
-               nobs=nobs+1
+            if( return_all == .true. ) then
+               add_obs = .true.
 
-               !---------------------------------------------
-               ! Allocate a new data element and load
-               !
-               allocate(ptr%p)
-               ptr%p%stn_id = Station_ID( ii )
+            else if( Observation_Type(ii) == intype ) then
 
-               do idx=1,max_rdiag_reals
-                  ptr%p%rdiag( idx ) = 0.00
-               end do
-   
-               if( allocated ( Observation_Type                  )) ptr%p%rdiag( idx_obs_type_gps ) = Observation_Type( ii )   
-               if( allocated ( Observation_Subtype               )) ptr%p%rdiag( idx_obs_subtype_gps ) = Observation_Subtype( ii )   
-               if( allocated ( Latitude                          )) ptr%p%rdiag( idx_obs_lat_gps ) = Latitude( ii )   
-               if( allocated ( Longitude                         )) ptr%p%rdiag( idx_obs_lon_gps ) = Longitude( ii )   
-               if( allocated ( Incremental_Bending_Angle         )) ptr%p%rdiag( idx_bend_ang_gps ) = Incremental_Bending_Angle( ii )   
-               if( allocated ( Pressure                          )) ptr%p%rdiag( idx_pres_gps ) = Pressure( ii )
-               if( allocated ( Height                            )) ptr%p%rdiag( idx_height_gps ) = Height( ii )
-               if( allocated ( Time                              )) ptr%p%rdiag( idx_time_gps ) = Time( ii )
-               if( allocated ( Model_Elevation                   )) ptr%p%rdiag( idx_zsges_gps ) = Model_Elevation( ii )
-               if( allocated ( Setup_QC_Mark                     )) ptr%p%rdiag( idx_setup_qc_gps ) = Setup_QC_Mark( ii )
-               if( allocated ( Prep_Use_Flag                     )) ptr%p%rdiag( idx_iuse_gps ) = Prep_Use_Flag( ii )
-               if( allocated ( Analysis_Use_Flag                 )) ptr%p%rdiag( idx_anl_use_gps ) = Analysis_Use_Flag( ii )
-               if( allocated ( Nonlinear_QC_Rel_Wgt              )) ptr%p%rdiag( idx_rwgt_gps ) = Nonlinear_QC_Rel_Wgt( ii )
-               if( allocated ( Errinv_input                      )) ptr%p%rdiag( idx_err_input_gps ) = Errinv_Input( ii )
-               if( allocated ( Errinv_Adjust                     )) ptr%p%rdiag( idx_errinv_gps ) = Errinv_Adjust( ii )
-               if( allocated ( Errinv_Final                      )) ptr%p%rdiag( idx_errinv_fnl_gps ) = Errinv_Final( ii )
-   
-               if( allocated ( Observation                       )) ptr%p%rdiag( idx_obs_gps ) = Observation( ii )
-               if( allocated ( Temperature_at_Obs_Location       )) ptr%p%rdiag( idx_tref_gps ) = Temperature_at_Obs_Location( ii )
-!               if( allocated ( Obs_Minus_Forecast_unadjusted    )) ptr%p%rdiag( idx_hob_gps ) = Obs_Minus_Forecast_unadjusted( ii )  
-               if( allocated ( GPS_Type                          )) ptr%p%rdiag( idx_uses_gps ) = GPS_Type( ii )
-               if( allocated ( Specific_Humidity_at_Obs_Location )) ptr%p%rdiag( idx_qref_gps ) = Specific_Humidity_at_Obs_Location( ii )
-
-
-              !  This oddity is from genstats_gps.f90 which produces the NetCDF
-              !  formatted diag file:
-              !
-              !  call nc_diag_metadata("Obs_Minus_Forecast_adjusted", sngl(gps_allptr%rdiag(17))*sngl(gps_allptr%rdiag(5)) )
-              !  call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(gps_allptr%rdiag(17))*sngl(gps_allptr%rdiag(5)) )
-              !  call nc_diag_metadata("GPS_Type", sngl(gps_allptr%rdiag(20))   )
-              !  call nc_diag_metadata("Temperature_at_Obs_Location", sngl(gps_allptr%rdiag(18))   )
-              !
-              !  It would seem from this that rdiagbuf(19) is not used?
-              !  And also Obs_Minus_Forecast_[un|'']adjusted is derived and not stored.
-              !
-              !  This from setupbend.f90:
-              !    rdiagbuf(18,i)  = trefges   ! temperature at obs location (Kelvin) if monotone grid
-              !    rdiagbuf(19,i)  = hob       ! model vertical grid (interface) if monotone grid
-              !    rdiagbuf(20,i)  = one       ! uses gps_ref (one = use of bending angle)
-              !
-
- 
-               if( nobs == 1 ) then
-                  !-------------------------------------------------
-                  ! Initialize the list with the first data element
-                  !
-                  call list_init(list, transfer(ptr, list_data))
-                  next => list
-   
-               else
-                  !-------------------------------------------------
-                  ! Insert subsequent nodes into the list
-                  !
-                  call list_insert(next, transfer(ptr, list_data))
-                  next => list_next(next)
-   
+               if( have_subtype == .false. ) then
+                  add_obs = .true.
+               else if( Observation_Subtype(ii) == in_subtype ) then
+                  add_obs = .true.
                end if
 
+            end if
+         end if
+
+         if( add_obs == .true. )  then
+
+            nobs=nobs+1
+
+            !---------------------------------------------
+            ! Allocate a new data element and load
+            !
+            allocate(ptr%p)
+            ptr%p%stn_id = Station_ID( ii )
+
+            do idx=1,max_rdiag_reals
+               ptr%p%rdiag( idx ) = 0.00
+            end do
+   
+            if( allocated ( Observation_Type                  )) ptr%p%rdiag( idx_obs_type_gps ) = Observation_Type( ii )   
+            if( allocated ( Observation_Subtype               )) ptr%p%rdiag( idx_obs_subtype_gps ) = Observation_Subtype( ii )   
+            if( allocated ( Latitude                          )) ptr%p%rdiag( idx_obs_lat_gps ) = Latitude( ii )   
+            if( allocated ( Longitude                         )) ptr%p%rdiag( idx_obs_lon_gps ) = Longitude( ii )   
+            if( allocated ( Incremental_Bending_Angle         )) ptr%p%rdiag( idx_bend_ang_gps ) = Incremental_Bending_Angle( ii )   
+            if( allocated ( Pressure                          )) ptr%p%rdiag( idx_pres_gps ) = Pressure( ii )
+            if( allocated ( Height                            )) ptr%p%rdiag( idx_height_gps ) = Height( ii )
+            if( allocated ( Time                              )) ptr%p%rdiag( idx_time_gps ) = Time( ii )
+            if( allocated ( Model_Elevation                   )) ptr%p%rdiag( idx_zsges_gps ) = Model_Elevation( ii )
+            if( allocated ( Setup_QC_Mark                     )) ptr%p%rdiag( idx_setup_qc_gps ) = Setup_QC_Mark( ii )
+            if( allocated ( Prep_Use_Flag                     )) ptr%p%rdiag( idx_iuse_gps ) = Prep_Use_Flag( ii )
+            if( allocated ( Analysis_Use_Flag                 )) ptr%p%rdiag( idx_anl_use_gps ) = Analysis_Use_Flag( ii )
+            if( allocated ( Nonlinear_QC_Rel_Wgt              )) ptr%p%rdiag( idx_rwgt_gps ) = Nonlinear_QC_Rel_Wgt( ii )
+            if( allocated ( Errinv_input                      )) ptr%p%rdiag( idx_err_input_gps ) = Errinv_Input( ii )
+            if( allocated ( Errinv_Adjust                     )) ptr%p%rdiag( idx_errinv_gps ) = Errinv_Adjust( ii )
+            if( allocated ( Errinv_Final                      )) ptr%p%rdiag( idx_errinv_fnl_gps ) = Errinv_Final( ii )
+  
+            if( allocated ( Observation                       )) ptr%p%rdiag( idx_obs_gps ) = Observation( ii )
+            if( allocated ( Temperature_at_Obs_Location       )) ptr%p%rdiag( idx_tref_gps ) = Temperature_at_Obs_Location( ii )
+!            if( allocated ( Obs_Minus_Forecast_unadjusted    )) ptr%p%rdiag( idx_hob_gps ) = Obs_Minus_Forecast_unadjusted( ii )  
+            if( allocated ( GPS_Type                          )) ptr%p%rdiag( idx_uses_gps ) = GPS_Type( ii )
+            if( allocated ( Specific_Humidity_at_Obs_Location )) ptr%p%rdiag( idx_qref_gps ) = Specific_Humidity_at_Obs_Location( ii )
+
+
+           !  This oddity is from genstats_gps.f90 which produces the NetCDF
+           !  formatted diag file:
+           !
+           !  call nc_diag_metadata("Obs_Minus_Forecast_adjusted", sngl(gps_allptr%rdiag(17))*sngl(gps_allptr%rdiag(5)) )
+           !  call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(gps_allptr%rdiag(17))*sngl(gps_allptr%rdiag(5)) )
+           !  call nc_diag_metadata("GPS_Type", sngl(gps_allptr%rdiag(20))   )
+           !  call nc_diag_metadata("Temperature_at_Obs_Location", sngl(gps_allptr%rdiag(18))   )
+           !
+           !  It would seem from this that rdiagbuf(19) is not used?
+           !  And also Obs_Minus_Forecast_[un|'']adjusted is derived and not stored.
+           !
+           !  This from setupbend.f90:
+           !    rdiagbuf(18,i)  = trefges   ! temperature at obs location (Kelvin) if monotone grid
+           !    rdiagbuf(19,i)  = hob       ! model vertical grid (interface) if monotone grid
+           !    rdiagbuf(20,i)  = one       ! uses gps_ref (one = use of bending angle)
+           !
+
+ 
+            if( nobs == 1 ) then
+               !-------------------------------------------------
+               ! Initialize the list with the first data element
+               !
+               call list_init(list, transfer(ptr, list_data))
+               next => list
+   
+            else
+               !-------------------------------------------------
+               ! Insert subsequent nodes into the list
+               !
+               call list_insert(next, transfer(ptr, list_data))
+               next => list_next(next)
+  
             end if
 
          end if
