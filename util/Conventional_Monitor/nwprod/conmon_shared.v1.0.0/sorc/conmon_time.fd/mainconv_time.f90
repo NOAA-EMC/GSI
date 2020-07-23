@@ -38,8 +38,6 @@
    write(6,*)' User input below'
    write(6,input)
 
-   print *,nregion,np
-
    call set_netcdf_flag( netcdf )
 
    dtype_ps='ps'
@@ -78,40 +76,26 @@
    ptopq(13) =    0.0;   pbotq(13) =  299.9
 
 
-   print *,'start to call convinfo'
    call convinfo(iotype_ps,iotype_q,iotype_t,iotype_uv,ntype_ps,ntype_q,ntype_t,ntype_uv,&
                 varqc_ps,varqc_q,varqc_t,varqc_uv,&
                 ituse_ps,ituse_q,ituse_t,ituse_uv,&
                 iosubtype_ps,iosubtype_q,iosubtype_t,iosubtype_uv)
 
-   print *, 'ntype_ps, ntype_q, ntype_t, ntype_uv = ', ntype_ps,ntype_q,ntype_t,ntype_uv
-   print *, 'iotype_ps = ', iotype_ps
-   print *, 'iosubtype_ps = ', iosubtype_ps
-   print *, 'iosubtype_q  = ', iosubtype_q 
-   print *, 'iosubtype_t  = ', iosubtype_t 
-   print *, 'iosubtype_uv = ', iosubtype_uv
-   print *, ' '
-   print *,'after call convinfo'
-
-   print *,'call process_conv_diag'
    call process_conv_diag(input_file,ctype,mregion,nregion,np,ptop,pbot,ptopq,pbotq,&
                  rlatmin,rlatmax,rlonmin,rlonmax,iotype_ps,iotype_q,&
                  iotype_t,iotype_uv,varqc_ps,varqc_q,varqc_t,varqc_uv,&
                  ntype_ps,ntype_q,ntype_t,ntype_uv,&
                  iosubtype_ps,iosubtype_q,iosubtype_t,iosubtype_uv) 
    
-   print *,'finish to call read_conv'
 
-!   call creatstas_ctl(dtype_ps,iotype_ps,ituse_ps,100,ntype_ps,1,nregion,18,region,&
-!                     rlatmin,rlatmax,rlonmin,rlonmax,iosubtype_ps) 
-!   call creatstas_ctl(dtype_q,iotype_q,ituse_q,100,ntype_q,np,nregion,18,region,&
-!                     rlatmin,rlatmax,rlonmin,rlonmax,iosubtype_q) 
-!   call creatstas_ctl(dtype_t,iotype_t,ituse_t,100,ntype_t,np,nregion,18,&
-!                     region,rlatmin,rlatmax,rlonmin,rlonmax,iosubtype_t) 
-!!  call creatstas_ctl(dtype_u,iotype_uv,ituse_uv,100,ntype_uv,np,nregion,18) 
-!!  call creatstas_ctl(dtype_v,iotype_uv,ituse_uv,100,ntype_uv,np,nregion,18) 
-!   call creatstas_ctl(dtype_uv,iotype_uv,ituse_uv,100,ntype_uv,np,nregion,18,&
-!                     region,rlatmin,rlatmax,rlonmin,rlonmax,iosubtype_uv) 
+   call creatstas_ctl(dtype_ps,iotype_ps,ituse_ps,100,ntype_ps,1,nregion,18,region,&
+                     rlatmin,rlatmax,rlonmin,rlonmax,iosubtype_ps) 
+   call creatstas_ctl(dtype_q,iotype_q,ituse_q,100,ntype_q,np,nregion,18,region,&
+                     rlatmin,rlatmax,rlonmin,rlonmax,iosubtype_q) 
+   call creatstas_ctl(dtype_t,iotype_t,ituse_t,100,ntype_t,np,nregion,18,&
+                     region,rlatmin,rlatmax,rlonmin,rlonmax,iosubtype_t) 
+   call creatstas_ctl(dtype_uv,iotype_uv,ituse_uv,100,ntype_uv,np,nregion,18,&
+                     region,rlatmin,rlatmax,rlonmin,rlonmax,iosubtype_uv) 
 
    stop
 

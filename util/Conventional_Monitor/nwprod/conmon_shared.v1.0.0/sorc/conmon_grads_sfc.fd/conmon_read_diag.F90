@@ -1253,7 +1253,7 @@ module conmon_read_diag
       integer(i_kind)                              :: idate 
 
       print *, ' '
-      print *, '      --> read_diag_file_ps_nc'
+      print *, '      --> read_diag_file_uv_nc'
 
 
       !--- get NetCDF file dimensions
@@ -1307,6 +1307,7 @@ module conmon_read_diag
       !
       nobs = 0 
       do ii = 1, total_obs
+         
 
          !------------------------------------------------------------------------
          ! Check on Observation_Class to ctype is a sanity check -- 

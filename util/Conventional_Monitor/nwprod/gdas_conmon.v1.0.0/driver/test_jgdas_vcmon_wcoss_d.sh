@@ -6,13 +6,13 @@
 #BSUB -q dev_shared
 #BSUB -n 1
 #BSUB -R affinity[core]
-#BSUB -M 160
+#BSUB -M 900
 #BSUB -W 00:30
-#BSUB -P GFS-T2O
+#BSUB -P GFS-DEV
 
 set -x
 
-export PDATE=${PDATE:-2019111006}
+export PDATE=${PDATE:-2020072006}
 
 
 #############################################################
@@ -60,7 +60,7 @@ export POE=YES
 #############################################################
 export CONMON_SUFFIX=${CONMON_SUFFIX:-test_conmon}
 
-export NWTEST=${NWTEST:-/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/ProdGSI/util/Conventional_Monitor/nwprod}
+export NWTEST=${NWTEST:-/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/GSI/util/Conventional_Monitor/nwprod}
 export HOMEconmon=${HOMEconmon:-${NWTEST}/conmon_shared.${conmon_shared_ver}}
 
 export HOMEgdas_conmon=${HOMEgdas_conmon:-${NWTEST}/gdas_conmon.${gdas_conmon_ver}}

@@ -17,13 +17,14 @@
 #  usage
 #--------------------------------------------------------------------
 function usage {
-  echo "Usage:  ConMon_DE.sh suffix [-p|--pdate pdate -r|--run gdas|gfs]"
+  echo "Usage:  ConMon_DE.sh suffix [-p|--pdate pdate -r|--run gdas|gfs] -c|-cnv /path/to/cnvstat/dir"
   echo "            Suffix is the indentifier for this data source."
   echo "            -p | --pdate yyyymmddcc to specify the cycle to be processed"
   echo "              if unspecified the last available date will be processed"
   echo "            -r | --run   the gdas|gfs run to be processed"
   echo "              use only if data in TANKdir stores both runs, otherwise"
   echo "	      gdas is assumed."
+  echo "            -c | --cnv  location of the cnvstat and other essential files"
   echo " "
 }
 
@@ -35,7 +36,7 @@ set -ax
 echo "Begin ConMon_DE.sh"
 
 nargs=$#
-if [[ $nargs -lt 1 || $nargs -gt 5 ]]; then
+if [[ $nargs -lt 1 || $nargs -gt 7 ]]; then
    usage
    exit 1
 fi
@@ -59,6 +60,10 @@ do
       ;;
       -r|--run)
          export RUN="$2"
+         shift # past argument
+      ;;
+      -c|--cnv)
+         export CNVSTAT_LOCATION="$2"
          shift # past argument
       ;;
       *)
@@ -217,14 +222,9 @@ if [ -s $cnvstat  -a -s $pgrbf00 -a -s $pgrbf06 ]; then
          rm -f ${logfile}
       fi
 
-      if [[ $MY_MACHINE = "wcoss" ]]; then
-        $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/DE.${PDY}.${CYC}.log \
-		-M 500 -R affinity[core] -W 0:25 -J ${jobname} \
-		-cwd $PWD ${HOMEgdas_conmon}/jobs/JGDAS_CONMON
-
-      elif [[ $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "wcoss_c" ]]; then
-        $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 200 \
-		-R affinity[core] -W 0:25 -J ${jobname} \
+      if [[ $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "wcoss_c" ]]; then
+        $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 900 \
+		-R affinity[core] -W 0:35 -J ${jobname} \
 		-cwd $PWD ${HOMEgdas_conmon}/jobs/JGDAS_CONMON
 
       elif [[ $MY_MACHINE = "hera" ]]; then

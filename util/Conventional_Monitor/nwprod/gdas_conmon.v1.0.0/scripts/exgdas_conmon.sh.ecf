@@ -222,9 +222,9 @@
       #---------------------------------------
       #  run the horz-hist extraction script
       #
-#      ${USHconmon}/horz_hist.sh # ${PDATE}
-#      rc_horz_hist=$?
-#      echo "rc_horz_hist = $rc_horz_hist"
+      ${USHconmon}/horz_hist.sh
+      rc_horz_hist=$?
+      echo "rc_horz_hist = $rc_horz_hist"
 
       #---------------------------------------
       #  run the time-vert extraction script

@@ -141,19 +141,33 @@ EOF
                mv -f ${file}.${Z} ${savedir}/${run}_${file}.${PDATE}.${Z}
             done
 
+
             if [ $type == 'uv' ]; then
                file=u_stas
                ${COMPRESS} ${file}
                mv -f ${file}.${Z} ${savedir}/${run}_${file}.${PDATE}.${Z}
+               cp uv_stas.ctl u_stas.ctl
 
                file=v_stas
                ${COMPRESS} ${file}
                mv -f ${file}.${Z} ${savedir}/${run}_${file}.${PDATE}.${Z}
+               cp uv_stas.ctl v_stas.ctl
             fi
+
+            for file in *stas.ctl; do
+               ${COMPRESS} ${file}
+               mv -f ${file}.${Z} ${savedir}/${run}_${file}.${Z}
+            done
 
          done
 
       done
+
+      ${COMPRESS} stdout*
+      tar -cf stdout.tar stdout*
+      ${COMPRESS} stdout.tar
+      mv -f stdout.tar.${Z} ${savedir}/.
+
    fi         
 
 
