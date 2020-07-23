@@ -1175,7 +1175,7 @@ end subroutine normal_new_factorization_rf_y
     use get_wrf_mass_ensperts_mod, only: get_wrf_mass_ensperts_class
     use get_fv3_regional_ensperts_mod, only: get_fv3_regional_ensperts_class
     use get_wrf_nmm_ensperts_mod, only: get_wrf_nmm_ensperts_class
-  use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
+    use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
     use mpimod, only: mpi_comm_world
 
     implicit none
@@ -1187,7 +1187,7 @@ end subroutine normal_new_factorization_rf_y
     type(gsi_bundle),allocatable:: en_bar(:)
     type(gsi_bundle):: bundle_anl,bundle_ens
     type(gsi_grid)  :: grid_anl,grid_ens
-    integer(i_kind) i,j,n,ii,m
+    integer(i_kind) i,j,n,ii,m,m1,m2
     integer(i_kind) istatus
     real(r_kind),allocatable:: seed(:,:)
     real(r_kind),pointer,dimension(:,:)   :: cv_ps=>NULL()
@@ -1195,6 +1195,13 @@ end subroutine normal_new_factorization_rf_y
     character(len=*),parameter::myname_=trim(myname)//'*load_ensemble'
 
 !      create simple regular grid
+
+    m1=1; m2 = ntlevs_ens
+    if (write_generated_ens) then
+      ! only write out one sample
+      m1=ntlevs_ens/2 + 1 
+      m2=ntlevs_ens/2 + 1 
+    endif
 
     if(generate_ens) then
 
@@ -1204,7 +1211,7 @@ end subroutine normal_new_factorization_rf_y
 
        allocate(en_bar(ntlevs_ens))
 
-       do m=1,ntlevs_ens
+       do m=m1,m2
           call gsi_bundlecreate(en_bar(m),grid_ens,'ensemble',istatus, &
                                 names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
        enddo
@@ -1221,7 +1228,7 @@ end subroutine normal_new_factorization_rf_y
        allocate(seed(nval2f,nscl))
        seed=-one
  
-       do m=1,ntlevs_ens
+       do m=m1,m2
          en_bar(m)%values=zero
        enddo
 
@@ -1240,7 +1247,7 @@ end subroutine normal_new_factorization_rf_y
           call stop2(999)
        endif
 
-       do m=1,ntlevs_ens
+       do m=m1,m2
           do n=1,n_ens
              call generate_one_ensemble_perturbation(bundle_anl,bundle_ens,seed)
              do ii=1,nelen
@@ -1261,12 +1268,24 @@ end subroutine normal_new_factorization_rf_y
 !      remove mean, which is locally significantly non-zero, due to sample size.
 !      with real ensembles, the mean of the actual sample will be removed.
 
-       do m=1,ntlevs_ens
+       do m=m1,m2
           do n=1,n_ens
              do ii=1,nelen
                 en_perts(n,m)%valuesr4(ii)=(en_perts(n,m)%valuesr4(ii)-en_bar(m)%values(ii)*bar_norm)*sig_norm
              enddo
-             if (write_generated_ens) then
+          enddo
+          call gsi_bundledestroy(en_bar(m),istatus)
+          if(istatus/=0) then
+             write(6,*)trim(myname_),': trouble destroying en_bar bundle'
+             call stop2(999)
+          end if
+       enddo
+
+       if (write_generated_ens) then
+          !call rescale_ensemble_rh_perturbations
+          do m=m1,m2
+             do n=1,n_ens
+                if (mype == 0) print *,'write out ens perturbation',n
                 do ii=1,nelen
                    bundle_ens%values(ii) = en_perts(n,m)%valuesr4(ii)/sig_norm
                 enddo
@@ -1275,15 +1294,9 @@ end subroutine normal_new_factorization_rf_y
                     write(6,*)trim(myname_),': trouble writing perts'
                     call stop2(999)
                 endif
-             endif
+             enddo
           enddo
-
-          call gsi_bundledestroy(en_bar(m),istatus)
-          if(istatus/=0) then
-             write(6,*)trim(myname_),': trouble destroying en_bar bundle'
-             call stop2(999)
-          end if
-       enddo
+       end if
 
 ! do some cleanning
        call gsi_bundledestroy(bundle_anl,istatus)
@@ -1299,10 +1312,6 @@ end subroutine normal_new_factorization_rf_y
 
        deallocate(en_bar)
        deallocate(seed)
-       if (write_generated_ens) then
-          ! stop if here if generated ensemble written out
-          call mpi_finalize(0)
-       endif
 
     else
 

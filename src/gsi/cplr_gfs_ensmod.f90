@@ -1524,7 +1524,6 @@ subroutine put_gfs_ens(this,grd,member,ntindex,pert,iret)
     mype_atm = member
 
     write(filename,13) trim(adjustl(ensemble_path)),ens_fhrlevs(ntindex),member
-    print *,'writing ',trim(filename)
 13  format(a,'sigf',i2.2,'_ens_pert',i3.3)
 
     if ( use_gfs_nemsio ) then

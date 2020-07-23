@@ -2372,7 +2372,7 @@ contains
     type(Dimension) :: ncdim
     character(len=nf90_max_name) :: time_units
 
-    logical diff_res,eqspace
+    logical diff_res,eqspace,nocompress
     logical,dimension(1) :: vector
     type(egrid2agrid_parm) :: p_low,p_high
 
@@ -2381,6 +2381,7 @@ contains
     mm1=mype+1
     nlatm2=grd%nlat-2
     diff_res=.false.
+    nocompress = .false.
 
     istatus=0
     call gsi_bundlegetpointer(gfs_bundle,'ps', sub_ps,  iret); istatus=istatus+iret
@@ -2439,7 +2440,7 @@ contains
        nfhour = fhour(1)
 
        atmanl = create_dataset(filename, atmges, &
-                               copy_vardata=.false., errcode=iret)
+                               copy_vardata=.false., nocompress=nocompress, errcode=iret)
        if ( iret /= 0 ) call error_msg(trim(my_name),trim(filename),null,'open',istop,iret)
 
        ! Update time information (with ibdate) and write it to analysis file
@@ -2521,8 +2522,8 @@ contains
          mype_out,mpi_comm_world,ierror)
     if (mype==mype_out) then
        call load_grid(work1,grid)
-       values_2d = grid
-       if (has_attr(atmges, 'nbits', 'pressfc')) then
+       values_2d = grid*r1000
+       if (.not. nocompress .and. has_attr(atmges, 'nbits', 'pressfc')) then
          call read_attribute(atmges, 'nbits', nbits, 'pressfc')
          values_2d_tmp = values_2d
          call quantize_data(values_2d_tmp, values_2d, nbits, compress_err)
@@ -2552,7 +2553,7 @@ contains
     end do
     ! Zonal wind
     if (mype==mype_out) then
-       if (has_attr(atmges, 'nbits', 'ugrd')) then
+       if (.not. nocompress .and. has_attr(atmges, 'nbits', 'ugrd')) then
          call read_attribute(atmges, 'nbits', nbits, 'ugrd')
          values_3d_tmp = ug3d 
          call quantize_data(values_3d_tmp, ug3d, nbits, compress_err)
@@ -2563,7 +2564,7 @@ contains
        call write_vardata(atmanl,'ugrd',ug3d,errcode=iret)
        if (iret /= 0) call error_msg(trim(my_name),trim(filename),'ugrd','write',istop,iret)
        ! Meridional wind
-       if (has_attr(atmges, 'nbits', 'vgrd')) then
+       if (.not. nocompress .and. has_attr(atmges, 'nbits', 'vgrd')) then
          call read_attribute(atmges, 'nbits', nbits, 'vgrd')
          values_3d_tmp = vg3d 
          call quantize_data(values_3d_tmp, vg3d, nbits, compress_err)
@@ -2587,7 +2588,7 @@ contains
        endif
     end do
     if (mype==mype_out) then
-       if (has_attr(atmges, 'nbits', 'tmp')) then
+       if (.not. nocompress .and. has_attr(atmges, 'nbits', 'tmp')) then
          call read_attribute(atmges, 'nbits', nbits, 'tmp')
          values_3d_tmp = values_3d 
          call quantize_data(values_3d_tmp, values_3d, nbits, compress_err)
@@ -2611,7 +2612,7 @@ contains
        endif
     end do
     if (mype==mype_out) then
-       if (has_attr(atmges, 'nbits', 'spfh')) then
+       if (.not. nocompress .and. has_attr(atmges, 'nbits', 'spfh')) then
          call read_attribute(atmges, 'nbits', nbits, 'spfh')
          values_3d_tmp = values_3d 
          call quantize_data(values_3d_tmp, values_3d, nbits, compress_err)
@@ -2635,7 +2636,7 @@ contains
        endif
     end do
     if (mype==mype_out) then
-       if (has_attr(atmges, 'nbits', 'o3mr')) then
+       if (.not. nocompress .and. has_attr(atmges, 'nbits', 'o3mr')) then
          call read_attribute(atmges, 'nbits', nbits, 'o3mr')
          values_3d_tmp = values_3d 
          call quantize_data(values_3d_tmp, values_3d, nbits, compress_err)
@@ -2661,7 +2662,7 @@ contains
           endif !mype == mype_out
        end do
        if (mype==mype_out) then
-          if (has_attr(atmges, 'nbits', 'clwmr')) then
+          if (.not. nocompress .and. has_attr(atmges, 'nbits', 'clwmr')) then
             call read_attribute(atmges, 'nbits', nbits, 'clwmr')
             values_3d_tmp = values_3d 
             call quantize_data(values_3d_tmp, values_3d, nbits, compress_err)
