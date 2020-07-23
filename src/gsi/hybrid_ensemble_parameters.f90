@@ -387,7 +387,7 @@ subroutine init_hybrid_ensemble_parameters
   sst_staticB=.true.
   aniso_a_en=.false.
   generate_ens=.true.
-  write_generated_ens=.true.
+  write_generated_ens=.false.
   pseudo_hybens=.false.
   merge_two_grid_ensperts=.false.
   regional_ensemble_option=0
