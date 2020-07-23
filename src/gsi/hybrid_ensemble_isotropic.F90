@@ -1177,22 +1177,26 @@ end subroutine normal_new_factorization_rf_y
     use get_wrf_nmm_ensperts_mod, only: get_wrf_nmm_ensperts_class
     use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
     use mpimod, only: mpi_comm_world
+    use gsi_bundlemod, only: gsi_bundlegetpointer
 
     implicit none
 
-   type(get_pseudo_ensperts_class) :: pseudo_enspert
-   type(get_wrf_mass_ensperts_class) :: wrf_mass_enspert
-   type(get_wrf_nmm_ensperts_class) :: wrf_nmm_enspert
-   type(get_fv3_regional_ensperts_class) :: fv3_regional_enspert
+    type(get_pseudo_ensperts_class) :: pseudo_enspert
+    type(get_wrf_mass_ensperts_class) :: wrf_mass_enspert
+    type(get_wrf_nmm_ensperts_class) :: wrf_nmm_enspert
+    type(get_fv3_regional_ensperts_class) :: fv3_regional_enspert
     type(gsi_bundle),allocatable:: en_bar(:)
     type(gsi_bundle):: bundle_anl,bundle_ens
     type(gsi_grid)  :: grid_anl,grid_ens
-    integer(i_kind) i,j,n,ii,m,m1,m2
+    integer(i_kind) i,j,n,ii,m,m1,m2,k
     integer(i_kind) istatus
     real(r_kind),allocatable:: seed(:,:)
     real(r_kind),pointer,dimension(:,:)   :: cv_ps=>NULL()
+    real(r_kind),pointer,dimension(:,:,:)   :: cv_q=>NULL()
+    real(r_kind),pointer,dimension(:,:,:)   :: cv_t=>NULL()
     real(r_kind) sig_norm,bar_norm
     character(len=*),parameter::myname_=trim(myname)//'*load_ensemble'
+    real(r_kind),allocatable,dimension(:,:,:) :: work,work1
 
 !      create simple regular grid
 
@@ -1282,13 +1286,23 @@ end subroutine normal_new_factorization_rf_y
        enddo
 
        if (write_generated_ens) then
-          !call rescale_ensemble_rh_perturbations
+          allocate ( work(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig) )
+          allocate ( work1(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig+1) )
+
           do m=m1,m2
              do n=1,n_ens
                 if (mype == 0) print *,'write out ens perturbation',n
                 do ii=1,nelen
                    bundle_ens%values(ii) = en_perts(n,m)%valuesr4(ii)/sig_norm
                 enddo
+                call gsi_bundlegetpointer (bundle_ens,'q' ,cv_q ,istatus)
+                work(:,:,:) = cv_q(:,:,:) ! make a copy
+                call gsi_bundlegetpointer (bundle_ens,'t' ,cv_t ,istatus)
+                call gsi_bundlegetpointer (bundle_ens,'ps',cv_ps ,istatus)
+                !  Get 3d pressure
+                call getprs_tl(cv_ps,cv_t,work1)
+                !  Convert input normalized RH to q
+                call normal_rh_to_q(work,cv_t,work1,cv_q)
                 call gsi_enscoupler_put_gsi_ens(grd_ens,n,m,bundle_ens,istatus)
                 if(istatus/=0) then
                     write(6,*)trim(myname_),': trouble writing perts'
@@ -1296,6 +1310,7 @@ end subroutine normal_new_factorization_rf_y
                 endif
              enddo
           enddo
+          deallocate(work,work1)
        end if
 
 ! do some cleanning
