@@ -42,6 +42,11 @@ ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
 NEMSIOGET=${NEMSIOGET:-$NWPROD/utils/exec/nemsio_get}
 NCLEN=${NCLEN:-$HOMEgfs/ush/getncdimlen}
 USE_CFP=${USE_CFP:-"NO"}
+CFP_MP=${CFP_MP:-"NO"}
+nm=""
+if [ $CFP_MP = "YES" ]; then
+    nm=0
+fi
 APRUNCFP=${APRUNCFP:-""}
 APRUN_ENKF=${APRUN_ENKF:-${APRUN:-""}}
 NTHREADS_ENKF=${NTHREADS_ENKF:-${NTHREADS:-1}}
@@ -191,7 +196,10 @@ fi
 
 flist="$CNVSTAT $OZNSTAT $RADSTAT"
 if [ $USE_CFP = "YES" ]; then
-   echo "$DATA/untar.sh ensmean" | tee -a $DATA/mp_untar.sh
+   echo "$nm $DATA/untar.sh ensmean" | tee -a $DATA/mp_untar.sh
+   if [ ${CFP_MP:-"NO"} = "YES" ]; then
+       nm=$((nm+1))
+   fi
 else
    for ftype in $flist; do
       fname=$COMOUT_ANL_ENS/${ftype}.ensmean
@@ -203,7 +211,10 @@ for imem in $(seq 1 $NMEM_ENKF); do
    memchar="mem"$(printf %03i $imem)
    if [ $lobsdiag_forenkf = ".false." ]; then
       if [ $USE_CFP = "YES" ]; then
-         echo "$DATA/untar.sh $memchar" | tee -a $DATA/mp_untar.sh
+         echo "$nm $DATA/untar.sh $memchar" | tee -a $DATA/mp_untar.sh
+         if [ ${CFP_MP:-"NO"} = "YES" ]; then
+             nm=$((nm+1))
+         fi
       else
          for ftype in $flist; do
             fname=$COMOUT_ANL_ENS/$memchar/$ftype
@@ -248,10 +259,9 @@ if [ $USE_CFP = "YES" ]; then
       ncmd_max=$((ncmd < npe_node_max ? ncmd : npe_node_max))
       APRUNCFP=$(eval echo $APRUNCFP)
       $APRUNCFP $DATA/mp_untar.sh
-      rc=$?
-      export ERR=$rc
+      export ERR=$?
       export err=$ERR
-      $ERRSCRIPT || exit 2
+      $ERRSCRIPT || exit 3
    fi
 fi
 

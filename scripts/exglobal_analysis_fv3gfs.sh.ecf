@@ -243,6 +243,11 @@ fi
 DIAG_COMPRESS=${DIAG_COMPRESS:-"YES"}
 DIAG_TARBALL=${DIAG_TARBALL:-"YES"}
 USE_CFP=${USE_CFP:-"NO"}
+CFP_MP=${CFP_MP:-"NO"}
+nm=""
+if [ $CFP_MP = "YES" ]; then
+    nm=0
+fi
 DIAG_DIR=${COMOUT}/${APREFIX}gsidiags
 
 # Set script / GSI control parameters
@@ -739,7 +744,10 @@ EOFunzip
    for type in $listdiag; do
       diag_file=$(echo $type | cut -d',' -f1)
       if [ $USE_CFP = "YES" ] ; then
-         echo "$DATA/unzip.sh $diag_file $DIAG_SUFFIX" | tee -a $DATA/mp_unzip.sh
+         echo "$nm $DATA/unzip.sh $diag_file $DIAG_SUFFIX" | tee -a $DATA/mp_unzip.sh
+	 if [ ${CFP_MP:-"NO"} = "YES" ]; then
+             nm=$((nm+1))
+	 fi
       else
          fname=$(echo $diag_file | cut -d'.' -f1)
          date=$(echo $diag_file | cut -d'.' -f2)
@@ -756,6 +764,9 @@ EOFunzip
          ncmd_max=$((ncmd < npe_node_max ? ncmd : npe_node_max))
          APRUNCFP_UNZIP=$(eval echo $APRUNCFP)
          $APRUNCFP_UNZIP $DATA/mp_unzip.sh
+	 export ERR=$?
+         export err=$ERR
+         $ERRSCRIPT || exit 3
       fi
    fi
 fi # if [ $USE_RADSTAT = "YES" ]
@@ -990,7 +1001,7 @@ $APRUN_GSI ${DATA}/gsi.x 1>&1 2>&2
 
 export ERR=$?
 export err=$ERR
-$ERRSCRIPT || exit 2
+$ERRSCRIPT || exit 4
 
 
 ##############################################################
@@ -1002,7 +1013,7 @@ if [ $DO_CALC_INCREMENT = "YES" ]; then
 
   export ERR=$rc
   export err=$ERR
-  $ERRSCRIPT || exit 3
+  $ERRSCRIPT || exit 5
 fi
 
 ##############################################################
