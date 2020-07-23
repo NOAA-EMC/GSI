@@ -176,13 +176,16 @@ vcoord_file="$SIGLEVEL"
 /
 EOF
      if [ $USE_CFP = "YES" ]; then
-          echo "$APRUN_CHGRES $CHGRESNCEXEC chgres_nc_gauss0$FHR.nml" | tee -a $DATA/mp_chgres.sh
+          echo "$nm $APRUN_CHGRES $CHGRESNCEXEC chgres_nc_gauss0$FHR.nml" | tee -a $DATA/mp_chgres.sh
+          if [ ${CFP_MP:-"NO"} = "YES" ]; then
+              nm=$((nm+1))
+          fi
      else
 	 $APRUN_CHGRES $CHGRESNCEXEC chgres_nc_gauss0$FHR.nml
 	 rc=$?
 	 export ERR=$rc
 	 export err=$ERR
-	 $ERRSCRIPT || exit 3
+	 $ERRSCRIPT || exit 1
      fi
    done
 
@@ -192,21 +195,10 @@ EOF
       if [ $ncmd -gt 0 ]; then
          ncmd_max=$((ncmd < npe_node_max ? ncmd : npe_node_max))
          APRUNCFP_CHGRES=$(eval echo $APRUNCFP)
-         if [ ${CFP_MP:-"NO"} = "YES" ]; then
-            if [ -s $DATA/mp_chgres_srun.sh ]; then rm -f $DATA/mp_chgres_srun.sh; fi
-            touch $DATA/mp_chgres_srun.sh
-            nm=0
-            cat $DATA/mp_chgres.sh | while read line; do
-               echo "$nm  $line" >> $DATA/mp_chgres_srun.sh
-               nm=$((nm+1))
-            done
-            $APRUNCFP_CHGRES -n $nm --multi-prog $DATA/mp_chgres_srun.sh
-         else
-            $APRUNCFP_CHGRES $DATA/mp_chgres.sh
-            export ERR=$?
-            export err=$ERR
-            $ERRSCRIPT || exit 3
-         fi
+         $APRUNCFP_CHGRES $DATA/mp_chgres.sh
+         export ERR=$?
+         export err=$ERR
+         $ERRSCRIPT || exit 3
       fi      
    fi
 
