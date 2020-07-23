@@ -2381,7 +2381,7 @@ contains
     mm1=mype+1
     nlatm2=grd%nlat-2
     diff_res=.false.
-    nocompress = .false.
+    nocompress = .true.
 
     istatus=0
     call gsi_bundlegetpointer(gfs_bundle,'ps', sub_ps,  iret); istatus=istatus+iret
