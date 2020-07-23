@@ -59,7 +59,7 @@
                        l4dvar,nhr_obsbin,nhr_subwin,nwrvecs,iorthomax,&
                        lbicg,lsqrtb,lcongrad,lbfgsmin,ltlint,ladtest,ladtest_obs, lgrtest,&
                        idmodel,clean_4dvar,iwrtinc,lanczosave,jsiga,ltcost,liauon, &
-		       l4densvar,ens_nstarthr,lnested_loops,lwrite4danl,nhr_anal,thin4d,tau_fcst,efsoi_order
+		       l4densvar,lhourly_da,liau,lfg_only,ens_nstarthr,lnested_loops,lwrite4danl,nhr_anal,thin4d,tau_fcst,efsoi_order
   use gsi_4dvar, only: mPEs_observer
   use m_obsdiags, only: alwaysLocal => obsdiags_alwaysLocal
   use obs_ferrscale, only: lferrscale
@@ -140,7 +140,7 @@
   use hybrid_ensemble_parameters,only : l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,&
                          n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,oz_univ_static,&
                          regional_ensemble_option,fv3sar_ensemble_opt,merge_two_grid_ensperts, &
-                         full_ensemble,pseudo_hybens,pwgtflg,&
+                         full_ensemble,pseudo_hybens,pwgtflg,write_generated_ens,&
                          beta_s0,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
                          readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens,&
                          readin_beta,use_localization_grid,use_gfs_ens,q_hyb_ens,i_en_perts_io, &
@@ -590,6 +590,9 @@
 !                                   (NOTE: I have not actually verified this statement yet!)
 !     pblend0,pblend1 - see above comment for use_gfs_stratosphere
 !     l4densvar - logical to turn on ensemble 4dvar
+!     lhourly_da- logical to turn on hourly da with overlapping windows
+!     liau      - logical to turn on hourly da with overlapping windows - the IAU part
+!     lfg_only  - logical for no-IAU in overlapping windows to use f02 or f01
 !     ens_nstarthr - start hour for ensemble perturbations (generally should match min_offset)
 !     lwrite4danl - logical to write out 4d analysis states if 4dvar or 4denvar mode
 !     nhr_anal - forecast hours to write out if lwrite4danal=T
@@ -674,8 +677,8 @@
        idmodel,iwrtinc,lwrite4danl,nhr_anal,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
        lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip, &
        use_gfs_ozone,check_gfs_ozone_date,regional_ozone,lwrite_predterms,&
-       lwrite_peakwt,use_gfs_nemsio,use_gfs_ncio,sfcnst_comb,liauon,use_prepb_satwnd,l4densvar,ens_nstarthr,&
-       use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon,lrun_subdirs,&
+       lwrite_peakwt,use_gfs_nemsio,use_gfs_ncio,sfcnst_comb,liauon,use_prepb_satwnd,l4densvar,lhourly_da,liau,&
+       lfg_only,ens_nstarthr,use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon,lrun_subdirs,&
        use_sp_eqspace,lnested_loops,lsingleradob,thin4d,use_readin_anl_sfcmask,&
        luse_obsdiag,id_drifter,id_ship,verbose,print_obs_para,lsingleradar,singleradar,lnobalance, &
        missing_to_nopcp,minobrangedbz,minobrangedbz,maxobrangedbz,&
@@ -1011,6 +1014,7 @@
 !     oz_univ_static- if true, decouple ozone from other variables and defaults to static B (ozone only)
 !     aniso_a_en - if true, then use anisotropic localization of hybrid ensemble control variable a_en.
 !     generate_ens - if true, then generate internal ensemble based on existing background error
+!     write_generated_ens - if true, then writed generated internal ensemble based on existing background error
 !     n_ens        - number of ensemble members.
 !     nlon_ens     - number of longitudes on ensemble grid (may be different from analysis grid nlon)
 !     nlat_ens     - number of latitudes on ensemble grid (may be different from analysis grid nlat)
@@ -1069,7 +1073,7 @@
   namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
                 pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,fv3sar_bg_opt,fv3sar_ensemble_opt,full_ensemble,pwgtflg,&
                 jcap_ens_test,beta_s0,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,readin_beta,&
-                grid_ratio_ens, &
+                grid_ratio_ens,write_generated_ens, &
                 oz_univ_static,write_ens_sprd,use_localization_grid,use_gfs_ens, &
                 i_en_perts_io,l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB
 

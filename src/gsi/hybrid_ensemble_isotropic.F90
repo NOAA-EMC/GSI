@@ -1167,7 +1167,7 @@ end subroutine normal_new_factorization_rf_y
     use constants, only: zero,one
     use hybrid_ensemble_parameters, only: n_ens,generate_ens,grd_ens,grd_anl,ntlevs_ens, &
                                           pseudo_hybens,regional_ensemble_option,&
-                                          i_en_perts_io
+                                          i_en_perts_io,write_generated_ens
     use hybrid_ensemble_parameters, only: nelen,en_perts,ps_bar
     use gsi_enscouplermod, only: gsi_enscoupler_put_gsi_ens
     use mpimod, only: mype
@@ -1258,6 +1258,33 @@ end subroutine normal_new_factorization_rf_y
           enddo
        enddo
 
+!      remove mean, which is locally significantly non-zero, due to sample size.
+!      with real ensembles, the mean of the actual sample will be removed.
+
+       do m=1,ntlevs_ens
+          do n=1,n_ens
+             do ii=1,nelen
+                en_perts(n,m)%valuesr4(ii)=(en_perts(n,m)%valuesr4(ii)-en_bar(m)%values(ii)*bar_norm)*sig_norm
+             enddo
+             if (write_generated_ens) then
+                do ii=1,nelen
+                   bundle_ens%values(ii) = en_perts(n,m)%valuesr4(ii)/sig_norm
+                enddo
+                call gsi_enscoupler_put_gsi_ens(grd_ens,n,m,bundle_ens,istatus)
+                if(istatus/=0) then
+                    write(6,*)trim(myname_),': trouble writing perts'
+                    call stop2(999)
+                endif
+             endif
+          enddo
+
+          call gsi_bundledestroy(en_bar(m),istatus)
+          if(istatus/=0) then
+             write(6,*)trim(myname_),': trouble destroying en_bar bundle'
+             call stop2(999)
+          end if
+       enddo
+
 ! do some cleanning
        call gsi_bundledestroy(bundle_anl,istatus)
        if(istatus/=0) then
@@ -1269,30 +1296,13 @@ end subroutine normal_new_factorization_rf_y
           write(6,*)trim(myname_),': trouble destroying bundle_ens bundle'
           call stop2(999)
        endif
-!                          remove mean, which is locally significantly non-zero, due to sample size.
-!                           with real ensembles, the mean of the actual sample will be removed.
-
-       do m=1,ntlevs_ens
-          do n=1,n_ens
-             do ii=1,nelen
-                en_perts(n,m)%valuesr4(ii)=(en_perts(n,m)%valuesr4(ii)-en_bar(m)%values(ii)*bar_norm)*sig_norm
-             enddo
-             call gsi_enscoupler_put_gsi_ens(grd_ens,n,m,en_perts(n,m),istatus)
-             if(istatus/=0) then
-                 write(6,*)trim(myname_),': trouble writing perts'
-                 call stop2(999)
-             endif
-          enddo
-
-          call gsi_bundledestroy(en_bar(m),istatus)
-          if(istatus/=0) then
-          write(6,*)trim(myname_),': trouble destroying en_bar bundle'
-          call stop2(999)
-         end if
-       enddo
 
        deallocate(en_bar)
        deallocate(seed)
+       if (write_generated_ens) then
+          ! stop if here if generated ensemble written out
+          call mpi_finalize(0)
+       endif
 
     else
 
@@ -1499,7 +1509,7 @@ end subroutine normal_new_factorization_rf_y
 !     temporarily redefine nval_lenz
     nval_lenz_save=nval_lenz
     nval_lenz=nval2f*nnnn1o*nscl
-    call ckgcov(z,bundle_anl,nval_lenz)
+    call ckgcov(grd_anl,z,bundle_anl,nval_lenz)
 !     restore nval_lenz
     nval_lenz=nval_lenz_save
 
@@ -4024,7 +4034,7 @@ subroutine hybens_localization_setup
    if(verbose .and. mype == 0)print_verbose=.true.
 
    ! Allocate
-   call create_hybens_localization_parameters
+   !call create_hybens_localization_parameters
 
    if ( readin_localization .or. readin_beta ) then ! read info from file
 

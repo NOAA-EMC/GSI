@@ -1501,6 +1501,7 @@ subroutine put_gfs_ens(this,grd,member,ntindex,pert,iret)
     use hybrid_ensemble_parameters, only: ensemble_path
     use hybrid_ensemble_parameters, only: sp_ens
     use gridmod, only: use_gfs_nemsio, use_gfs_ncio
+    use netcdfgfs_io, only: write_gfsncatm_pert
 
     implicit none
 
@@ -1523,6 +1524,7 @@ subroutine put_gfs_ens(this,grd,member,ntindex,pert,iret)
     mype_atm = member
 
     write(filename,13) trim(adjustl(ensemble_path)),ens_fhrlevs(ntindex),member
+    print *,'writing ',trim(filename)
 13  format(a,'sigf',i2.2,'_ens_pert',i3.3)
 
     if ( use_gfs_nemsio ) then
@@ -1532,11 +1534,12 @@ subroutine put_gfs_ens(this,grd,member,ntindex,pert,iret)
        endif
        !call write_nemsatm(grd,...)
     else if ( use_gfs_ncio ) then
-       if ( mype == 0 ) then
-          write(6,*) 'write_gfsncatm is not adapted to write out perturbations yet'
-          iret = 999
-       endif
+       !if ( mype == 0 ) then
+       !   write(6,*) 'write_gfsncatm is not adapted to write out perturbations yet'
+       !   iret = 999
+       !endif
        !call write_gfsncatm(grd,...)
+       call write_gfsncatm_pert(grd,sp_ens,filename,mype_atm,pert,ntindex)
     else
        call general_write_gfsatm(grd,sp_ens,sp_ens,filename,mype_atm, &
             pert,ntindex,inithead,iret)

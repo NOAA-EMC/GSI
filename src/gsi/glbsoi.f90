@@ -150,7 +150,7 @@ subroutine glbsoi
   use zrnmi_mod, only: zrnmi_initialize
   use observermod, only: observer_init,observer_set,observer_finalize,ndata
   use timermod, only: timer_ini, timer_fnl
-  use hybrid_ensemble_parameters, only: l_hyb_ens,destroy_hybens_localization_parameters
+  use hybrid_ensemble_parameters, only: l_hyb_ens,destroy_hybens_localization_parameters,create_hybens_localization_parameters
   use hybrid_ensemble_isotropic, only: create_ensemble,load_ensemble,destroy_ensemble, &
        hybens_localization_setup,hybens_grid_setup
   use gfs_stratosphere, only: destroy_nmmb_vcoords,use_gfs_stratosphere
@@ -266,6 +266,7 @@ subroutine glbsoi
 
 ! If l_hyb_ens is true, then read in ensemble perturbations
   if(l_hyb_ens) then
+     call create_hybens_localization_parameters
      call load_ensemble
      call hybens_localization_setup
   end if

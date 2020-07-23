@@ -173,7 +173,7 @@ do jj=1,nsubwin
 !  Apply sqrt of variance, as well as vertical & horizontal parts of background
 !  error
 
-   call ckgcov(xhat%step(jj)%values(:),wbundle,size(xhat%step(jj)%values(:)))
+   call ckgcov(grid,xhat%step(jj)%values(:),wbundle,size(xhat%step(jj)%values(:)))
 
 !  Get pointers to required state variables
    call gsi_bundlegetpointer (sval(jj),'u'   ,sv_u,   istatus)

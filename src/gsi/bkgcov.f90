@@ -1,4 +1,4 @@
-subroutine bkgcov(cstate)
+subroutine bkgcov(grd,cstate)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    bkgcov    perform hor & vert of background error 
@@ -42,18 +42,19 @@ subroutine bkgcov(cstate)
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
-  use general_commvars_mod, only: s2g_raf
+  use general_sub2grid_mod, only: sub2grid_info
   implicit none
+  type(sub2grid_info), intent(in) :: grd
 
 ! Passed Variables
   type(gsi_bundle),intent(inout) :: cstate
 
 ! Local Variables
   integer(i_kind) n,n3d,istatus,nlevs
-  real(r_kind),dimension(nlat*nlon*s2g_raf%nlevs_alloc):: hwork
+  real(r_kind),dimension(nlat*nlon*grd%nlevs_alloc):: hwork
   real(r_kind),pointer,dimension(:,:,:):: ptr3d=>NULL()
 
-  nlevs=s2g_raf%nlevs_loc
+  nlevs=grd%nlevs_loc
   n3d=cstate%n3d
 
 ! Multiply by background error variances, and break up skin temp
@@ -68,13 +69,13 @@ subroutine bkgcov(cstate)
   end do
 
 ! Convert from subdomain to full horizontal field distributed among processors
-  call general_sub2grid(s2g_raf,cstate%values,hwork)
+  call general_sub2grid(grd,cstate%values,hwork)
 
 ! Apply horizontal smoother for number of horizontal scales
   call smoothrf(hwork,nlevs)
 
 ! Put back onto subdomains
-  call general_grid2sub(s2g_raf,hwork,cstate%values)
+  call general_grid2sub(grd,hwork,cstate%values)
 
 ! Apply vertical smoother
 !$omp parallel do  schedule(dynamic,1) private(n,ptr3d,istatus)
@@ -90,7 +91,7 @@ subroutine bkgcov(cstate)
   return
 end subroutine bkgcov
 ! -----------------------------------------------------------------------------
-subroutine ckgcov(z,cstate,nval_lenz)
+subroutine ckgcov(grd,z,cstate,nval_lenz)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    ckgcov   sqrt of bkgcov
@@ -132,29 +133,29 @@ subroutine ckgcov(z,cstate,nval_lenz)
   use gridmod, only: nlat,nlon
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use general_sub2grid_mod, only: general_grid2sub
-  use general_commvars_mod, only: s2g_raf
+  use general_sub2grid_mod, only: general_grid2sub, sub2grid_info
   use hybrid_ensemble_parameters, only: l_hyb_ens
   use hybrid_ensemble_isotropic, only: sqrt_beta_s_mult
   implicit none
 
 ! Passed Variables
   integer(i_kind)    ,intent(in   ) :: nval_lenz
+  type(sub2grid_info), intent(in) :: grd
   type(gsi_bundle),intent(inout) :: cstate
   real(r_kind),dimension(nval_lenz),intent(in   ) :: z
 
 ! Local Variables
   integer(i_kind) k,n3d,istatus,nlevs
-  real(r_kind),dimension(nlat*nlon*s2g_raf%nlevs_alloc):: hwork
+  real(r_kind),dimension(nlat*nlon*grd%nlevs_alloc):: hwork
   real(r_kind),dimension(:,:,:),pointer:: ptr3d=>NULL()
 
-  nlevs=s2g_raf%nlevs_loc
+  nlevs=grd%nlevs_loc
 
 ! Apply horizontal smoother for number of horizontal scales
   call sqrt_smoothrf(z,hwork,nlevs)
 
 ! Put back onto subdomains
-  call general_grid2sub(s2g_raf,hwork,cstate%values)
+  call general_grid2sub(grd,hwork,cstate%values)
 
 ! Apply vertical smoother
   n3d=cstate%n3d
@@ -174,7 +175,7 @@ subroutine ckgcov(z,cstate,nval_lenz)
   return
 end subroutine ckgcov
 ! -----------------------------------------------------------------------------
-subroutine ckgcov_ad(z,cstate,nval_lenz)
+subroutine ckgcov_ad(grd,z,cstate,nval_lenz)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    ckgcov_ad  adjoint of ckgcov
@@ -217,11 +218,11 @@ subroutine ckgcov_ad(z,cstate,nval_lenz)
   use gridmod, only: nlat,nlon
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use general_sub2grid_mod, only: general_sub2grid
-  use general_commvars_mod, only: s2g_raf
+  use general_sub2grid_mod, only: general_sub2grid,sub2grid_info
   use hybrid_ensemble_parameters, only: l_hyb_ens
   use hybrid_ensemble_isotropic, only: sqrt_beta_s_mult
   implicit none
+  type(sub2grid_info), intent(in) :: grd
 
 ! Passed Variables
   integer(i_kind)    ,intent(in   ) :: nval_lenz
@@ -230,10 +231,10 @@ subroutine ckgcov_ad(z,cstate,nval_lenz)
 
 ! Local Variables
   integer(i_kind) k,n3d,istatus,nlevs
-  real(r_kind),dimension(nlat*nlon*s2g_raf%nlevs_alloc):: hwork
+  real(r_kind),dimension(nlat*nlon*grd%nlevs_alloc):: hwork
   real(r_kind),dimension(:,:,:),pointer:: ptr3d=>NULL()
 
-  nlevs=s2g_raf%nlevs_loc
+  nlevs=grd%nlevs_loc
 
 ! Apply static betas
   if(l_hyb_ens) call sqrt_beta_s_mult(cstate)
@@ -251,7 +252,7 @@ subroutine ckgcov_ad(z,cstate,nval_lenz)
   end do
 
 ! Convert from subdomain to full horizontal field distributed among processors
-  call general_sub2grid(s2g_raf,cstate%values,hwork)
+  call general_sub2grid(grd,cstate%values,hwork)
 
 ! Apply horizontal smoother for number of horizontal scales
   call sqrt_smoothrf_ad(z,hwork,nlevs)
