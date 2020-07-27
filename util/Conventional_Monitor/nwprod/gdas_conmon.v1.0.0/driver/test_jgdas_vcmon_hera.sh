@@ -2,15 +2,15 @@
 
 #SBATCH -o %x.log
 #SBATCH -J gdas_vconmon
-#SBATCH --time=00:25:00
+#SBATCH --time=00:40:00
 #SBATCH --ntasks=1 -p service --mem=4g
 #SBATCH -A da-cpu
 
 
 set -x
 
-#export PDATE=${PDATE:-2020012018}  # binary
-export PDATE=${PDATE:-2020040306}   # netcdf
+export PDATE=${PDATE:-2020012018}  # binary
+#export PDATE=${PDATE:-2020040306}   # netcdf
 
 #############################################################
 # Specify versions
