@@ -99,7 +99,7 @@ EOF
          cp -f  ${file}.${Z} ${dest_dir}/${file}.${PDATE}.${Z}
       done
 
-      scatter_list=`ls t*scater.${run}`
+      scater_list=`ls t*scater.${run}`
       for file in $scater_list; do
          ${COMPRESS} ${file}
          cp -f ${file}.${Z} ${dest_dir}/${file}.${PDATE}.${Z}

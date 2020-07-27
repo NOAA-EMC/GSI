@@ -101,7 +101,7 @@ EOF
          cp -f ${file}.${Z} ${dest_dir}/${file}.${PDATE}.${Z}
       done
 
-      scater_list=`ls q*grads.${run}`
+      scater_list=`ls q*scater.${run}`
       for file in $scater_list; do
          ${COMPRESS} ${file}
          cp -f ${file}.${Z} ${dest_dir}/${file}.${PDATE}.${Z}
