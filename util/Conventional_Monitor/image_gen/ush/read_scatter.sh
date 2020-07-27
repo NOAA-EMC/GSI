@@ -62,7 +62,7 @@ echo "sorcdir set to $sorcdir"
 fixfile=global_convinfo.txt 
 cp ${fixdir}/${fixfile} ./convinfo
 
-fname=$datadir/${dtype}.scater.${rdate}
+fname=$datadir/${dtype}.scater.${cycle}.${rdate}
 
 
 #-----------------------------------------------------------

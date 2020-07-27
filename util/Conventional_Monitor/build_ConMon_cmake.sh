@@ -111,11 +111,11 @@ if [[ ${target} = "hera"     || ${target} = "wcoss" \
    done
 
 
-#   file_list_ig="conmon_read_uv_IG.x  conmon_read_q_IG.x  conmon_read_t_IG.x 
-#	         conmon_read_ps_IG.x  conmon_read_pw_IG.x"
-#   for file in $file_list_ig; do
-#      cp $file $C_IG_EXEC/.
-#   done
+   file_list_ig="conmon_read_uv_IG.x  conmon_read_q_IG.x  conmon_read_t_IG.x 
+	         conmon_read_ps_IG.x  conmon_read_pw_IG.x"
+   for file in $file_list_ig; do
+      cp $file $C_IG_EXEC/.
+   done
 
 else
    echo ${machine} is not supported 
