@@ -112,6 +112,7 @@ case $machine in
     elif [ -d /scratch2/BMC/gsienkf/$LOGNAME ]; then
      export noscrub="/scratch2/BMC/gsienkf/$LOGNAME"
    fi
+ 
    export group="global"
    export queue="batch"
    if [[ "$cmaketest" = "false" ]]; then
@@ -233,6 +234,7 @@ export rtma_adate="2020022420"
 export hwrf_nmm_adate="2012102812"
 export fv3_netcdf_adate="2017030100"
 export global_C96_fv3aero_adate="2019062200"
+export global_C96_fv3aerorad_adate="2019062200"
 
 # Paths for canned case data.
 export global_T62_obs="$casesdir/global/sigmap/$global_T62_adate"
@@ -271,6 +273,8 @@ export fv3_netcdf_obs="$casesdir/regional/fv3_netcdf/$fv3_netcdf_adate"
 export fv3_netcdf_ges="$casesdir/regional/fv3_netcdf/$fv3_netcdf_adate"
 export global_C96_fv3aero_obs="$casesdir/global/fv3/$global_C96_fv3aero_adate"
 export global_C96_fv3aero_ges="$casesdir/global/fv3/$global_C96_fv3aero_adate"
+export global_C96_fv3aerorad_obs="$casesdir/global/fv3/$global_C96_fv3aerorad_adate"
+export global_C96_fv3aerorad_ges="$casesdir/global/fv3/$global_C96_fv3aerorad_adate"
 
 # Define type of GPSRO data to be assimilated (refractivity or bending angle)
 export gps_dtype="gps_bnd"
