@@ -17,7 +17,8 @@ regtests_all="global_T62
               hwrf_nmm_d3
               rtma
               global_enkf_T62
-              global_C96_fv3aero"
+              global_C96_fv3aero
+              global_C96_fv3aerorad"
 
 regtests_debug="global_T62
                 global_4dvar_T62
@@ -33,7 +34,8 @@ regtests_debug="global_T62
                 netcdf_fv3_regional
                 hwrf_nmm_d2
                 hwrf_nmm_d3
-                global_C96_fv3aero"
+                global_C96_fv3aero
+                global_C96_fv3aerorad"
 
 # Choose which regression test to run; by default, run all
 regtests=${1:-$regtests_all}
