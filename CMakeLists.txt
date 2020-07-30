@@ -114,7 +114,7 @@ project(GSI)
   setHOST()
 
   if(FIND_HDF5_HL)
-    find_package(HDF5 COMPONENTS C HL Fortran_HL )
+    find_package(HDF5 COMPONENTS C HL)
   elseif(FIND_HDF5)
     find_package(HDF5)
   endif()
