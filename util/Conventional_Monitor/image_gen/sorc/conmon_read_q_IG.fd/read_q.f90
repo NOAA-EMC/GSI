@@ -8,46 +8,60 @@ subroutine read_q(nreal,dtype,fname,fileo,gtross,rlev)
 
    implicit none
 
+   integer, intent(in)                 :: nreal
+   character*200, intent(in)           :: fname
+   character*50, intent(in)            :: fileo
+   character*15, intent(in)            :: dtype 
+
    real(4),allocatable,dimension(:,:)  :: rdiag
-   real(4),dimension(3,3000000) :: rpress
-   integer,dimension(3) :: ncount,ncount_vqc,ncount_gros
+   real(4),dimension(3,3000000)        :: rpress
+   integer,dimension(3)                :: ncount,ncount_vqc,ncount_gros
 
-   character*200 fname
-   character*50 fileo
-   character*15 dtype 
+   real*4     tiny,real
+   real       rlev,rgtross,gtross,weight,ddf
+   integer    nobs,ntotal,ngross,nreal_in,nlev
+   integer    ilat,ilon,ipres,itime,iqc,iuse,imuse,iweight,ierr,ierr2,ierr3,iobs,iogs,iqsges
+   integer    i,ndup,ioges,igos
 
-   real*4 tiny,huge,real
-   real rlev,rgtross,gtross,weight,ddf
-   integer nobs,nreal,ntotal,ngross,nreal_in,nlev
-   integer ilat,ilon,ipres,itime,iqc,iuse,imuse,iweight,ierr,ierr2,ierr3,iobs,iogs,iqsges
-   integer i,ndup,ioges,igos
-   real(4) :: rmiss,vqclmt,vqclmte
+   real(4)    :: rmiss,vqclmt,vqclmte
+   real(4)    :: rlat, rlon, rtim
 
    data rmiss / -999.0 / 
-   data huge / 1.0e6 /
    data tiny / 1.0e-6 /
 
-   ncount=0
-   rpress=rmiss
-   ncount_vqc=0
-   ncount_gros=0
 
+   print *, '---> read_q'
+   print *, ' '
+   print *, '        nreal  = ', nreal
+   print *, '        dtype  = ', dtype
+   print *, '        fname  = ', fname
+   print *, '        fileo  = ', fileo
+   print *, '        gtross = ', gtross
+   print *, '        rlev   = ', rlev
 
+   ncount      = 0
+   rpress      = rmiss
+   ncount_vqc  = 0
+   ncount_gros = 0
+   ntotal      = 0
 
-   ntotal=0
    open(unit=11,file=fname,form='unformatted')
    rewind(11)
+   
+   read(11) nobs, nreal_in
+   print *, '    From file ', fname
+   print *, '          nobs       = ', nobs
+   print *, '          nreal_in   = ', nreal_in
 
-   read(11) nobs,nreal_in
-!  print *, 'nobs=',nobs
+   print *,'nreal_in, nreal = ',nreal_in, nreal
 
    if (nreal /= nreal_in) then
-      print *,'nreal_in,nreal ',nreal_in,nreal
       stop
    endif 
 
-   allocate(rdiag(nreal,nobs))
+   allocate( rdiag( nreal,nobs ))
    read(11) rdiag
+   print *, ' rdiag contents: ', rdiag
 
 
    ilat=1                          !  lat
@@ -132,5 +146,8 @@ subroutine read_q(nreal,dtype,fname,fileo,gtross,rlev)
     
     
    call hist(dtype,rpress,3,3000000,ncount,rgtross,gtross,rlev,fileo,ncount_vqc,ncount_gros)   
+
+!   print *, ' '
+!   print *, '<-- read_q'
    return 
 end

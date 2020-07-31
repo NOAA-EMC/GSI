@@ -98,7 +98,7 @@ subroutine grads_lev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
 
          files=trim(fileo)//'_'//trim(subtype)//'.scater.'//trim(run)
          open(51,file=files,form='unformatted')
-         write(51) nobs,nreal_m2
+         write(51) nobs,nreal-2
          write(51) rdiag_m2
          close(51)
 

@@ -17,21 +17,17 @@ subroutine read_ps(nreal,mtype,fname,fileo,gtross,rlev)
    character*50 fileo
    character*15 mtype 
 
-!   real*4 tiny,huge
-   real(4) :: tiny,huge
+   real(4) :: tiny
    integer nobs,nreal,ntotal,ngross,nreal_in,nlev
    real(4) :: rmiss,vqclmt,vqclmte
 
-   data rmiss/-999.0/ 
-   data tiny / 1.0e-6 /
-   data huge / 1.0e6 /
+   data rmiss / -999.0 / 
+   data tiny  / 1.0e-6 /
 
    ncount=0
    rpress=rmiss
    ncount_vqc=0
    ncount_gros=0
-!   tiny=1.0e-6
-!   huge=1.0e6
 
    ntotal=0
    open(unit=11,file=fname,form='unformatted')
@@ -88,31 +84,31 @@ subroutine read_ps(nreal,mtype,fname,fileo,gtross,rlev)
            endif
 
       else if(rdiag(iweight,i) >= 0.0 .and. rdiag(imuse,i) <0.0) then
-         write(6,*) 'check 1'
+!         write(6,*) 'check 1'
          if(rdiag(iqc,i) <=7.0) then
-            write(6,*) 'check 2'
+!            write(6,*) 'check 2'
             ncount_gros(1)=ncount_gros(1)+1
-            write(6,*) 'check 3'
+!            write(6,*) 'check 3'
 
             if(rdiag(iqc,i) >3.0 .and. rdiag(iqc,i) <=7.0) then
-               write(6,*) 'check 4'
+!               write(6,*) 'check 4'
                ncount_gros(2)=ncount_gros(2)+1
-               write(6,*) 'check 5'
+!               write(6,*) 'check 5'
             endif
 
          else if(rdiag(iqc,i) >=8.0 ) then  
-            write(6,*) 'check 6'
+!            write(6,*) 'check 6'
 
             if(rdiag(ierr,i) >tiny ) then
-               write(6,*) 'check 7'
+!               write(6,*) 'check 7'
                ddf=abs(rdiag(igos,i))*rdiag(ierr,i) 
-               write(6,*) 'check 8'
+!               write(6,*) 'check 8'
                if(ddf <gtross) then
-                  write(6,*) 'check 9'
+!                  write(6,*) 'check 9'
                   ncount(3)=ncount(3)+1
-                  write(6,*) 'check 10'
+!                  write(6,*) 'check 10'
                   rpress(3,ncount(3))=rdiag(iogs,i)*rdiag(ierr,i)
-                  write(6,*) 'check 11'
+!                  write(6,*) 'check 11'
                else
                   ncount_gros(3)=ncount_gros(3)+1
                endif
@@ -135,12 +131,13 @@ subroutine read_ps(nreal,mtype,fname,fileo,gtross,rlev)
    rgtross=-gtross
 
    nlev=nint((gtross-rgtross)/rlev) 
-!   nlev=nlev
+
    print *,nlev
    print *, 'rmax,rmin ',gtross,rgtross
    print *, 'ncount_gros,',ncount_gros(1),ncount_gros(2),ncount_gros(3) 
    print *, 'vqc-limit,vqc-limite ',vqclmt,vqclmte
     
    call hist(mtype,rpress,3,3000000,ncount,rgtross,gtross,rlev,fileo,ncount_vqc,ncount_gros)   
+
    return 
 end

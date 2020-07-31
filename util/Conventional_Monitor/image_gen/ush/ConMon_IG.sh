@@ -167,7 +167,7 @@ echo "start_date, prodate, pdate = $START_DATE $PRODATE  $PDATE"
 
 ${C_IG_SCRIPTS}/mk_horz_hist.sh
 
-${C_IG_SCRIPTS}/mk_time_vert.sh
+#${C_IG_SCRIPTS}/mk_time_vert.sh
 
 
 #------------------------------------------------------------------

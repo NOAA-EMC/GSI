@@ -14,7 +14,7 @@ subroutine read_t(nreal,dtype,fname,fileo,gtross,rlev)
    character*50 fileo
    character*4 dtype 
 
-   real*4 tiny,huge,real
+   real*4 tiny,real
    integer nobs,nreal,ntotal,ngross,nreal_in,nlev
    integer nint,igos,ioges,i,j,ndup
    integer ilat,ilon,ipres,itime,iqc,iuse,imuse,iweight,ierr,ierr2,ierr3,iobs,iogs
@@ -24,7 +24,6 @@ subroutine read_t(nreal,dtype,fname,fileo,gtross,rlev)
 
    data rmiss/-999.0/ 
    data tiny / 1.0e-6 /
-   data huge / 1.0e6 /
 
 !   print *,'nreal=',nreal
 

@@ -3,27 +3,37 @@
 !
 !----------------------------------------------------------
 
-subroutine read_q_mor(nreal,dtype,fname,fileo,gtross,rlev)
+subroutine read_q_mor( nreal, dtype, fname, fileo, gtross, rlev )
 
    implicit none
+
+   integer,       intent( in )         :: nreal
+   character*15,  intent( in )         :: dtype 
+   character*200, intent( in )         :: fname
+   character*50,  intent( in )         :: fileo
+   real,          intent( in )         :: gtross
 
    real(4),allocatable,dimension(:,:)  :: rdiag
    real(4),dimension(3,3000000) :: rpress
    integer,dimension(3) :: ncount,ncount_vqc,ncount_gros
 
-   character*200 fname
-   character*50 fileo
-   character*15 dtype 
+   real(4) :: rgtross
 
-   real rgtross,gtross
-
-   integer nobs,nreal,ntotal,ngross,nreal_in,nlev
+   integer nobs,ntotal,ngross,nreal_in,nlev
    integer i,nlat,nlon,npres,ntime,ndup
    integer ilat,ilon,ipres,itime,iqc,iuse,imuse,iweight,ierr,ierr2,ierr3,iobs,iogs,iqsges
    real(4) :: rmiss,vqclmt,vqclmte,rlev
 
    data rmiss/-999.0/ 
 
+   print *, '---> read_q_mor'
+   print *, ' '
+   print *, '          nreal  = ', nreal
+   print *, '          dtype  = ', dtype
+   print *, '          fname  = ', fname
+   print *, '          fileo  = ', fileo
+   print *, '          gtross = ', gtross
+   print *, '          rlev   = ', rlev
 
    ncount=0
    rpress=rmiss
@@ -33,16 +43,24 @@ subroutine read_q_mor(nreal,dtype,fname,fileo,gtross,rlev)
    ntotal=0
    open(unit=11,file=fname,form='unformatted')
    rewind(11)
+
    read(11) nobs,nreal_in
-!   print *, 'nobs=',nobs
+   print *, '    From file ', fname
+   print *, '          nobs    = ', nobs
+   print *, '          nreal   = ', nreal
+
+
+   print *,'nreal_in, nreal = ', nreal_in, nreal
 
    if (nreal /= nreal_in) then
-      print *,'nreal_in,nreal ',nreal_in,nreal
       stop
    endif 
 
-   allocate(rdiag(nreal,nobs))
+   allocate( rdiag( nreal, nobs ))
    read(11) rdiag
+
+   close( 11 )
+
 
    ilat=1                          !  lat
    ilon=2                          !  lon
@@ -75,8 +93,9 @@ subroutine read_q_mor(nreal,dtype,fname,fileo,gtross,rlev)
     
    rgtross=-gtross
    nlev=nint((gtross-rgtross)/rlev)
-   print *,nlev
-   print *,gtross, rgtross
+   print *, 'nlev    = ', nlev
+   print *, 'gtross  = ', gtross
+   print *, 'rgtross = ', rgtross
 
    do i=1,3
       if(ncount(i) ==0) ncount(i)=1
@@ -84,5 +103,8 @@ subroutine read_q_mor(nreal,dtype,fname,fileo,gtross,rlev)
 
    call hist(dtype,rpress,3,3000000,ncount,rgtross,gtross,rlev,fileo,ncount_vqc,ncount_gros)
 
-   return 
+!   print *, ' '
+!   print *, '<--- read_q_mor '
+
+  return 
 end
