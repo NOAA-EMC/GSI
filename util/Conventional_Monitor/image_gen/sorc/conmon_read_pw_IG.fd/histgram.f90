@@ -22,6 +22,7 @@ subroutine hist(mtype,rmodnbc,nchan,nxdata,ndata,rmin,rmax,rlev,fileo,ncount_vqc
 
    character*50 fileo
    character*15 mtype
+   character*20        :: grads_info_file = 'grads_info_file'
 
    sqr2=1.414213562
 
@@ -107,6 +108,30 @@ subroutine hist(mtype,rmodnbc,nchan,nxdata,ndata,rmin,rmax,rlev,fileo,ncount_vqc
 
 200 format(a12,'no. std mean ')
 210 format(3i10,2f10.3)
+
+   open( unit = 15, file = grads_info_file, form = 'formatted', status = 'new' )
+   write( 15, * ) 'nlev        = ', nlev
+
+   write( 15, * ) 'all_ncount  = ', nobs(1)
+   write( 15, * ) 'all_rejqc   = ', ncount_vqc(1)
+   write( 15, * ) 'all_gros    = ', ncount_gros(1)
+   write( 15, 220 ) 'all_std     = ', rstd(1)
+   write( 15, 220 ) 'all_mean    = ', rmean(1)
+
+   write( 15, * ) 'ioqc_ncount = ', nobs(2)
+   write( 15, * ) 'ioqc_rejqc  = ', ncount_vqc(2)
+   write( 15, * ) 'ioqc_gros   = ', ncount_gros(2)
+   write( 15, 220 ) 'ioqc_std    = ', rstd(2)
+   write( 15, 220 ) 'ioqc_mean   = ', rmean(2)
+
+   write( 15, * ) 'mon_ncount  = ', nobs(3)
+   write( 15, * ) 'mon_rejqc   = ', ncount_vqc(3)
+   write( 15, * ) 'mon_gros    = ', ncount_gros(3)
+   write( 15, 220 ) 'mon_std     = ', rstd(3)
+   write( 15, 220 ) 'mon_mean    = ', rmean(3)
+220 format( a14, f6.3 )
+
+   close( 15 )
 
 ! write(6,220) (xs(1,i),i=1,100)
 ! write(6,230) (ys(1,i),i=1,100)

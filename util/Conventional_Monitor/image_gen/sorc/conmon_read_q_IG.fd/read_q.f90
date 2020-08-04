@@ -62,6 +62,7 @@ subroutine read_q(nreal,dtype,fname,fileo,gtross,rlev)
    allocate( rdiag( nreal,nobs ))
    read(11) rdiag
    print *, ' rdiag contents: ', rdiag
+   close( 11 )
 
 
    ilat=1                          !  lat

@@ -71,6 +71,10 @@ cp $sorcdir/$exec ./$exec
 #rm -f $exec
 #rm -f input
 
+if [ -e ./grads_info_file ]; then
+   mv ./grads_info_file  ./grads_info_file_${dtype}_${cycle}.${rdate}
+fi
+
 
 if [ "${type}" = 'uv' ]; then
    mv out_u out_${dtype}_u_${cycle}.${rdate}
