@@ -5,7 +5,7 @@ subroutine readpairs(npe,mype,numcases)
       idpsfc5,idthrm5,cp5,ntrac5,idvc5,idvm5,lat1,lon1,&
       iglobal,ijn_s,displs_s,filunit1,filunit2,&
       ird_s,irc_s,displs_g, ijn,nlonin,nlatin
-  use variables, only: use_gfs_nemsio
+  use variables, only: use_gfs_nemsio, use_gfs_ncio
   use specgrid, only: sptez_s,nc,ncin,factvml,&
       factsml,enn1,ncd2,jcaptrans,jcap,jcapin,unload_grid,&
       sptezv_s,sptez_sin,sptezv_sin,init_spec_varsin
@@ -17,6 +17,9 @@ subroutine readpairs(npe,mype,numcases)
   use nemsio_module, only: nemsio_gfile,nemsio_open,nemsio_close,&
                            nemsio_getfilehead,nemsio_getheadvar,&
                            nemsio_readrecv,nemsio_init,nemsio_realkind
+  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                                get_idate_from_time_units,&
+                                read_attribute, close_dataset, get_dim, read_vardata 
 
   implicit none
   include 'mpif.h'
@@ -50,6 +53,11 @@ subroutine readpairs(npe,mype,numcases)
   type(nemsio_gfile) :: gfile1
   type(nemsio_gfile) :: gfile2
   real(nemsio_realkind),dimension((nlatin-2)*nlonin):: nems_wk
+  real(r_kind), allocatable, dimension(:) :: values_1d
+  real(r_kind), allocatable, dimension(:,:) :: values_2d
+  real(r_kind), allocatable, dimension(:,:,:) :: values_3d_1,values_3d_2,&
+                                                 values_3d_3, values_3d_4
+  type(Dataset) :: dset1,dset2
 
   logical ice
   if (db_prec) then
@@ -67,7 +75,7 @@ subroutine readpairs(npe,mype,numcases)
   z4all  = 0.0
   z4all2 = 0.0
   
-  if (use_gfs_nemsio) then
+  if (use_gfs_nemsio .or. use_gfs_ncio) then
      nfields = 1+5*nsig !ps, (u,v), t, q, oz, cw
      allocate(taskid(nfields))
      call create_task_info(nfields, npe, taskid)
@@ -76,7 +84,7 @@ subroutine readpairs(npe,mype,numcases)
   filunit1=(10000+(mype+1))
   filunit2=(20000+(mype+1))
 
-  if (use_gfs_nemsio) call init_spec_varsin(nlatin,nlonin,nsig)
+  if (use_gfs_nemsio .or. use_gfs_ncio) call init_spec_varsin(nlatin,nlonin,nsig)
 
 ! Each mpi task will carry two files, which contains all variables, for each of the time levels
   open(filunit1,form='unformatted',action='write')
@@ -258,7 +266,172 @@ subroutine readpairs(npe,mype,numcases)
      call nemsio_close(gfile1,iret=iret)
      call nemsio_close(gfile2,iret=iret)
    
-  else !if not use_gfs_nemsio
+  else if (use_gfs_ncio) then
+     if (mype==0)  write(6,*)'reading from', trim(filename(na(n)))
+     dset1 = open_dataset(trim(adjustl(filename(na(n)))),errcode=iret)
+     if (iret/=0) then
+        write(6,*)'readpairs_1: problem with ncio open_dataset, mype, iret=',mype,iret
+        stop
+     endif
+     if (mype==0)  write(6,*)'reading from', trim(filename(nb(n)))
+     dset2 = open_dataset(trim(adjustl(filename(nb(n)))),errcode=iret)
+     if (iret/=0) then
+        write(6,*)'readpairs_2: problem with ncio open_dataset, mype, iret=',mype,iret
+        stop
+     endif
+
+     ! convert from grid to wave
+     icount = 0
+     icount = icount + 1
+     !ps
+     if ( mype == taskid(icount) ) then
+        call read_vardata(dset1,'pressfc',values_2d,errcode=iret)
+        values_2d(:,:) = values_2d(:,:)*0.001 !Pa to cbar
+        grid1in = values_2d
+        call read_vardata(dset2,'pressfc',values_2d,errcode=iret)
+        values_2d(:,:) = values_2d(:,:)*0.001 !Pa to cbar
+        grid2in = values_2d
+        call sptez_sin(z4all (:,6*nsig+1),grid1in,-1)
+        call sptez_sin(z4all2(:,6*nsig+1),grid2in,-1)
+     end if
+     !t
+     call read_vardata(dset1, 'tmp', values_3d_1)
+     call read_vardata(dset2, 'tmp', values_3d_2)
+     do k=1,nsig
+        icount = icount + 1
+        if ( mype == taskid(icount) ) then
+           grid1in = values_3d_1(:,:,nsig-k+1)
+           grid2in = values_3d_2(:,:,nsig-k+1)
+           call sptez_sin(z4all (:,2*nsig+k),grid1in,-1)
+           call sptez_sin(z4all2(:,2*nsig+k),grid2in,-1)
+        end if
+     end do
+     !q
+     call read_vardata(dset1, 'spfh', values_3d_1)
+     call read_vardata(dset2, 'spfh', values_3d_2)
+     do k=1,nsig
+        icount = icount + 1
+        if ( mype == taskid(icount) ) then
+           grid1in = values_3d_1(:,:,nsig-k+1)
+           grid2in = values_3d_2(:,:,nsig-k+1)
+           call sptez_sin(z4all (:,3*nsig+k),grid1in,-1)
+           call sptez_sin(z4all2(:,3*nsig+k),grid2in,-1)
+        end if
+     end do
+     !oz
+     call read_vardata(dset1, 'o3mr', values_3d_1)
+     call read_vardata(dset2, 'o3mr', values_3d_2)
+     do k=1,nsig
+        icount = icount + 1
+        if ( mype == taskid(icount) ) then
+           grid1in = values_3d_1(:,:,nsig-k+1)
+           grid2in = values_3d_2(:,:,nsig-k+1)
+           call sptez_sin(z4all (:,4*nsig+k),grid1in,-1)
+           call sptez_sin(z4all2(:,4*nsig+k),grid2in,-1)
+        end if
+     end do
+
+    !cw
+     call read_vardata(dset1, 'clwmr', values_3d_1)
+     call read_vardata(dset2, 'clwmr', values_3d_2)
+     call read_vardata(dset1, 'icmr', values_3d_3,errcode=iret)
+     if ( iret == 0 ) then
+         call read_vardata(dset1, 'icmr', values_3d_4,errcode=iret)
+     endif
+     do k=1,nsig
+        icount = icount + 1
+        if ( mype == taskid(icount) ) then
+           grid1in = values_3d_1(:,:,nsig-k+1)
+           grid2in = values_3d_2(:,:,nsig-k+1)
+           if ( iret == 0 ) then
+              grid1in = grid1in + values_3d_3(:,:,nsig-k+1)
+              grid2in = grid2in + values_3d_4(:,:,nsig-k+1)
+           endif
+           call sptez_sin(z4all (:,5*nsig+k),grid1in,-1)
+           call sptez_sin(z4all2(:,5*nsig+k),grid2in,-1)
+        end if
+     end do
+     ! u,v to div,vor
+     call read_vardata(dset1, 'ugrd', values_3d_1)
+     call read_vardata(dset2, 'ugrd', values_3d_2)
+     call read_vardata(dset1, 'vgrd', values_3d_3)
+     call read_vardata(dset2, 'vgrd', values_3d_4)
+     do k=1,nsig
+        icount = icount + 1
+        if ( mype == taskid(icount) ) then
+           grid1in = values_3d_1(:,:,nsig-k+1)
+           grid2in = values_3d_3(:,:,nsig-k+1)
+           call sptezv_sin(z4all(:,nsig+k),z4all(:,k),grid1in,grid2in,-1)
+           grid1in = values_3d_2(:,:,nsig-k+1)
+           grid2in = values_3d_4(:,:,nsig-k+1)
+           call sptezv_sin(z4all2(:,nsig+k),z4all2(:,k),grid1in,grid2in,-1)
+        end if
+     end do
+     
+     ! need to improve in the future
+     ! broadcast the data on various processors to all processors
+     icount = 0
+     icount = icount + 1
+     !ps
+     call mpi_bcast(z4all(:,6*nsig+1),ncin,mpi_rtype,taskid(icount), &
+                & mpi_comm_world,ierror)
+     call mpi_bcast(z4all2(:,6*nsig+1),ncin,mpi_rtype,taskid(icount), &
+                & mpi_comm_world,ierror)
+     do k=1,nsig
+        icount = icount + 1
+        !t
+        call mpi_bcast(z4all(:,2*nsig+k),ncin,mpi_rtype,taskid(icount), &
+                      & mpi_comm_world,ierror)
+        call mpi_bcast(z4all2(:,2*nsig+k),ncin,mpi_rtype,taskid(icount), &
+                      & mpi_comm_world,ierror)
+     end do
+     do k=1,nsig
+        icount = icount + 1
+        !q
+        call mpi_bcast(z4all(:,3*nsig+k),ncin,mpi_rtype,taskid(icount), &
+                      & mpi_comm_world,ierror)
+        call mpi_bcast(z4all2(:,3*nsig+k),ncin,mpi_rtype,taskid(icount), &
+                      & mpi_comm_world,ierror)
+     end do
+     do k=1,nsig
+        icount = icount + 1
+        !oz
+        call mpi_bcast(z4all(:,4*nsig+k),ncin,mpi_rtype,taskid(icount), &
+                      & mpi_comm_world,ierror)
+        call mpi_bcast(z4all2(:,4*nsig+k),ncin,mpi_rtype,taskid(icount), &
+                      & mpi_comm_world,ierror)
+     end do
+     do k=1,nsig
+        icount = icount + 1
+        !cw
+        call mpi_bcast(z4all(:,5*nsig+k),ncin,mpi_rtype,taskid(icount), &
+                      & mpi_comm_world,ierror)
+        call mpi_bcast(z4all2(:,5*nsig+k),ncin,mpi_rtype,taskid(icount), &
+                      & mpi_comm_world,ierror)
+     end do
+     do k=1,nsig
+        icount = icount + 1
+        !z (vor)
+        call mpi_bcast(z4all(:,k),ncin,mpi_rtype,taskid(icount), &
+                      & mpi_comm_world,ierror)
+        call mpi_bcast(z4all2(:,k),ncin,mpi_rtype,taskid(icount), &
+                      & mpi_comm_world,ierror)
+        !d (div)
+        call mpi_bcast(z4all(:,nsig+k),ncin,mpi_rtype,taskid(icount), &
+                      & mpi_comm_world,ierror)
+        call mpi_bcast(z4all2(:,nsig+k),ncin,mpi_rtype,taskid(icount), &
+                      & mpi_comm_world,ierror)
+     end do
+     call mpi_scatterv(z4all,spec_send,disp_spec,mpi_rtype,&
+        z41,spec_send(mm1),mpi_rtype,0,mpi_comm_world,ierror)
+     call mpi_scatterv(z4all2,spec_send,disp_spec,mpi_rtype,&
+        z42,spec_send(mm1),mpi_rtype,0,mpi_comm_world,ierror)
+
+     call mpi_barrier(mpi_comm_world,iret2)
+     
+     call close_dataset(dset1)
+     call close_dataset(dset2)
+  else !if not use_gfs_nemsio and not use_gfs_ncio
      if (mype==0)  write(6,*)'opening=', inges,filename(na(n))
      if (mype==0)  write(6,*)'opening=', inge2,filename(nb(n))
 
@@ -296,6 +469,9 @@ subroutine readpairs(npe,mype,numcases)
   end if ! use_gfs_nemsio
 
   call mpi_barrier(mpi_comm_world,iret2)
+  if (use_gfs_ncio) then
+     deallocate(values_3d_1,values_3d_2,values_3d_3,values_3d_4,values_2d)
+  endif
 
   work1=zero ; work2=zero 
 
@@ -418,7 +594,7 @@ subroutine readpairs(npe,mype,numcases)
 !               idthrm5 = 2   = sensible (dry) temperature (T)
 !               idthrm5 = 3   = enthalpy (h=CpT)
 !            The GSI analysis variable is Tv
-      if ( .not. use_gfs_nemsio ) then
+      if ( .not. use_gfs_nemsio .and. .not. use_gfs_ncio) then
          do k=1,nsig
             do j=1,lon1
                do i=1,lat1
@@ -437,8 +613,8 @@ subroutine readpairs(npe,mype,numcases)
          call sigio_cnvtdv2(lat1*lon1,lat1*lon1,nsig,idvc5,&
             idvm5,ntrac5,iret,t2,trac2,cp5,1)
       end if ! not use_gfs_nemsio
-      if ( use_gfs_nemsio ) then
-         ! the nemsio t is t sensible
+      if ( use_gfs_nemsio  .or. use_gfs_ncio) then
+         ! the nemsio/ncio t is t sensible
          ts1 = t1
          ts2 = t2
       end if
@@ -504,7 +680,7 @@ subroutine readpairs(npe,mype,numcases)
   end do   ! END DO LOOP OVER CASES
   close(filunit1)
   close(filunit2)
-  if (use_gfs_nemsio) deallocate(taskid)
+  if (use_gfs_nemsio .or. use_gfs_ncio) deallocate(taskid)
 
   call mpi_barrier(mpi_comm_world,iret2)
 

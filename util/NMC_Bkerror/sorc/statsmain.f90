@@ -17,6 +17,7 @@ program statsmain
 !   2017-10-25  Razvan Stefanescu (Spire)
 !                        added the capability of reading nemsio files using
 !                        Gael Descombes code
+!   2020-08-02  Whitaker: add use_gfs_ncio
 !
 ! abstract:
 !   This code computes background error statistics to be used with the
@@ -47,7 +48,7 @@ program statsmain
       smoothdeg,init_defaults,create_grids,destroy_grids,&
       destroy_variables,rearth,rlats,wgtlats,mype,npe,&
       create_mapping,destroy_mapping,biasrm,destroy_biasrm,&
-      vertavg,use_enkf,use_gfs_nemsio,scaling
+      vertavg,use_enkf,use_gfs_nemsio,scaling,use_gfs_ncio
   use specgrid, only: jcap,jcapin,jcapsmooth,init_spec_vars,&
                       destroy_spec_vars,destroy_spec_varsin
   use postmod, only: writefiles
@@ -72,12 +73,13 @@ program statsmain
 !   hybrid    - logical for hybrid vertical coordinate
 !   smoothdeg - degree of horizontal smoothing to apply in latitudinal direction
 !   use_gfs_nemsio - if T, NEMS I/O file format is used
+!   use_gfs_ncio - if T, NetCDF I/O file format is used
 !   use_enkf - if T, use enkf perturbations.
 !   scaling   - if T, read in scaling.txt and apply to variances
 
   namelist/namstat/jcap,jcapin,jcapsmooth,nsig,nlat,nlon,maxcases, &
                    hybrid,smoothdeg,biasrm,vertavg,use_gfs_nemsio, &
-                   use_enkf,scaling
+                   use_gfs_ncio,use_enkf,scaling
 
 ! MPI initial setup
   call mpi_init(ierror)
@@ -152,7 +154,7 @@ program statsmain
   call destroy_grids
   call destroy_mapping
   call destroy_spec_vars
-  if (use_gfs_nemsio) call destroy_spec_varsin
+  if (use_gfs_nemsio .or. use_gfs_ncio) call destroy_spec_varsin
   call destroy_mpi_vars
   call destroy_variables
   if(biasrm) call destroy_biasrm

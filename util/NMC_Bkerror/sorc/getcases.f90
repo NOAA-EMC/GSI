@@ -5,17 +5,20 @@ subroutine getcases(numcases,mype)
   use kinds, only: r_kind,r_single
   use variables, only: ak5,bk5,ck5,maxcases,nsig,dimbig,hybrid,&
       filename,na,nb,zero,idpsfc5,idvm5,idthrm5,idvc5,ntrac5,cp5,&
-      use_enkf,use_gfs_nemsio,ncepgfs_head,nlonin,nlatin
+      nlon,nlat,use_gfs_ncio,use_enkf,use_gfs_nemsio,ncepgfs_head,nlonin,nlatin
   use sigio_module, only: sigio_head,sigio_srhead,sigio_sclose,&
        sigio_sropen
   use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
   use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead
+  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                                get_idate_from_time_units,&
+                                read_attribute, close_dataset, get_dim, read_vardata 
   implicit none
 
   integer,parameter:: i_missing=-9999 
   integer,dimension(4):: idate4
-  integer nmin24(dimbig),nmin48(dimbig),idate5(5)
-  integer nmina,nminb
+  integer nmin24(dimbig),nmin48(dimbig),idate5(5),idate6(6)
+  integer nmina,nminb,nsigin
 
   real*4 fhour4
 
@@ -31,10 +34,13 @@ subroutine getcases(numcases,mype)
   integer,dimension(7):: idate
   integer :: nfhour, nfminute, nfsecondn, nfsecondd, ncount24, ncount48
   real(r_single),allocatable,dimension(:,:,:) :: nems_vcoord
+  real(r_single), allocatable, dimension(:) :: values_1d,ak,bk
 
   type(sigio_head):: sighead
   type(ncepgfs_head):: gfshead
   type(nemsio_gfile) :: gfile
+  type(Dataset) :: dset
+  type(Dimension) :: londim,latdim,levdim
   logical :: isfile
 
   if (mype==0) write(6,*) 'BEGIN TESTCASES'
@@ -92,6 +98,38 @@ subroutine getcases(numcases,mype)
         nlonin=gfshead%lonb
         nlatin=gfshead%latb
 
+     else if (use_gfs_ncio) then
+        dset = open_dataset(filename(loop),errcode=iret2)
+        if ( iret2 /= 0 ) then
+           write(6,*)' getcases:  ***ERROR*** problem open_dataset file = ', &
+              trim(filename(loop)),', Status = ',iret2
+           stop
+        end if
+        idate6 = get_idate_from_time_units(dset)
+        idate5 = 0; idate5(1:4) = idate6(1:4)
+        call read_vardata(dset,'time',values_1d,errcode=iret2)
+        if (iret2 /= 0) then
+           print *,'error reading time from',trim(filename(loop))
+           stop
+        endif
+        fhour5 = values_1d(1)
+        deallocate(values_1d)
+        londim = get_dim(dset,'grid_xt'); nlonin = londim%len
+        latdim = get_dim(dset,'grid_yt'); nlatin = latdim%len
+        levdim = get_dim(dset,'pfull');   nsigin = levdim%len
+        if (nsig .ne. nsigin) then
+           print *,'number of vert levels in namelist does not match file'
+           stop
+        endif
+        if (nlat-2 .ne. nlatin-2) then
+           print *,'number of lats in namelist does not match file'
+           stop
+        endif
+        if (nlon .ne. nlonin) then
+           print *,'number of lons in namelist does not match file'
+           stop
+        endif
+        call close_dataset(dset)
      else ! not use_gfs_nemsio
 
        call sigio_sropen(inges,filename(loop),iret)
@@ -226,7 +264,20 @@ subroutine getcases(numcases,mype)
      vcoord5(:,1:nvcoord5)=nems_vcoord(:,1:nvcoord5,1)
 
      deallocate(nems_vcoord)
-
+  else if ( use_gfs_ncio ) then
+     ! hardwired for now
+     idpsfc5 = 2
+     idvc5   = 2
+     idthrm5 = 2
+     ntrac5  = 3
+     dset = open_dataset(filename(1),errcode=iret2)
+     call read_attribute(dset, 'ak', values_1d)
+     vcoord5(:,1) = values_1d
+     call read_attribute(dset, 'bk', values_1d)
+     vcoord5(:,2) = values_1d
+     nvcoord5 = 2; deallocate(values_1d)
+     call close_dataset(dset)
+ 
   else ! not use_gfs_nemsio
   
 ! DTK NEW  EXTRACT SOME STUFF FROM THE FIRST LISTED FILE
@@ -261,7 +312,7 @@ subroutine getcases(numcases,mype)
      end if
 
      call sigio_sclose(inges,iret)
-  endif !no use_gfs_nemsio
+  endif 
 
   do k=1,nsig+1
      ak5(k)=zero

@@ -12,7 +12,7 @@ module variables
   integer,allocatable,dimension(:):: na,nb
 
 ! from GSI gridmod:
-  logical hybrid,db_prec,biasrm,vertavg,use_gfs_nemsio,use_enkf
+  logical hybrid,db_prec,biasrm,vertavg,use_gfs_nemsio,use_enkf,use_gfs_ncio
   integer nlat,nlon,nsig,dimbig,option,noq,lat1,lon1
   integer nlatin,nlonin
   integer ntrac5,idvc5,idvm5,idpsfc5,idthrm5
@@ -157,6 +157,7 @@ contains
     dimbig=50000
     noq=5
     use_gfs_nemsio=.false.
+    use_gfs_ncio=.false.
     use_enkf=.false.
     scaling=.false.
 
@@ -255,7 +256,7 @@ contains
   subroutine destroy_variables
     deallocate(rlats,rlons)
     deallocate(ak5,bk5,ck5)
-    if (.not. use_gfs_nemsio) deallocate(cp5)
+    if (.not. use_gfs_nemsio .and. .not. use_gfs_ncio) deallocate(cp5)
     deallocate(coef)
     deallocate(coriolis)
     if (scaling) deallocate(varscale)
