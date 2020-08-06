@@ -121,8 +121,9 @@ subroutine getcases(numcases,mype)
            print *,'number of vert levels in namelist does not match file'
            stop
         endif
-        if (nlat-2 .ne. nlatin-2) then
-           print *,'number of lats in namelist does not match file'
+        if (nlat-2 .ne. nlatin) then
+           print *,'number of lats in namelist does not match file',&
+           nlat,nlatin
            stop
         endif
         if (nlon .ne. nlonin) then
@@ -272,10 +273,16 @@ subroutine getcases(numcases,mype)
      ntrac5  = 3
      dset = open_dataset(filename(1),errcode=iret2)
      call read_attribute(dset, 'ak', values_1d)
-     vcoord5(:,1) = values_1d
+     nvcoord5 = 2
+     allocate(vcoord5(nsig+1,nvcoord5))
+     do k=1,nsig+1
+        vcoord5(nsig-k+2,1) = values_1d(k)
+     enddo
      call read_attribute(dset, 'bk', values_1d)
-     vcoord5(:,2) = values_1d
-     nvcoord5 = 2; deallocate(values_1d)
+     do k=1,nsig+1
+        vcoord5(nsig-k+2,2) = values_1d(k)
+     enddo
+     deallocate(values_1d)
      call close_dataset(dset)
  
   else ! not use_gfs_nemsio

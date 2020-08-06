@@ -470,7 +470,11 @@ subroutine readpairs(npe,mype,numcases)
 
   call mpi_barrier(mpi_comm_world,iret2)
   if (use_gfs_ncio) then
-     deallocate(values_3d_1,values_3d_2,values_3d_3,values_3d_4,values_2d)
+     if (allocated(values_3d_1)) deallocate(values_3d_1)
+     if (allocated(values_3d_2)) deallocate(values_3d_2)
+     if (allocated(values_3d_3)) deallocate(values_3d_3)
+     if (allocated(values_3d_4)) deallocate(values_3d_4)
+     if (allocated(values_2d)) deallocate(values_2d)
   endif
 
   work1=zero ; work2=zero 
