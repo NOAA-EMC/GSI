@@ -1,5 +1,5 @@
-set date=2020070100
-while ($date <= 2020070100) 
+set date=2020070200
+while ($date <= 2020072600) 
 set YYYYMMDD=`echo $date | cut -c1-8`
 set HH=`echo $date | cut -c9-10`
 set nanal=1
