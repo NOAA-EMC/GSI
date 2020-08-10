@@ -1,15 +1,16 @@
 #!/bin/sh
 #SBATCH -J bkgnmc_test
-#SBATCH -t 0:30:00
-#SBATCH --nodes=80 --ntasks-per-node=1
-#SBATCH -q debug
+#SBATCH -t 08:00:00
+#SBATCH --nodes=80 --ntasks-per-node=2
+#SBATCH --partition=hera
+#SBATCH -q windfall
 #SBATCH -A gsienkf
 #SBATCH -o bkgnmc_test.out
 #SBATCH -e bkgnmc_test.err
 
 set -x
 
-exp=C384_berror_enkfens_smooth0p5
+exp=C384_berror_enkfensjuly_smooth0p5
 
 datdir=/scratch2/NCEPDEV/stmp1/Jeffrey.S.Whitaker/staticB
 calstats=/scratch2/BMC/gsienkf/whitaker/gsi/GSI-github-jswhit/util/NMC_Bkerror/sorc/calcstats.exe
@@ -22,13 +23,8 @@ rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
 
-export MPI_BUFS_PER_PROC=256
-export MPI_BUFS_PER_HOST=256
-export MPI_GROUP_MAX=256
-export OMP_NUM_THREADS=1
-export OMP_STACKSIZE=1024M
-export I_MPI_ADJUST_GATHERV=3
-export PSM2_MQ_RECVREQS_MAX=4000000
+export OMP_NUM_THREADS=8
+export OMP_STACKSIZE=256M
 
 module load intel
 module load impi
@@ -36,8 +32,10 @@ module load impi
 /bin/cp -f $calstats  ./stats.x
 /bin/cp -f $sststats  ./berror_sst
 
+#date1='2020010100'
+#date2='2020020100'
 date1='2020070100'
-date2='2020070100'
+date2='2020080100'
 date=$date1
 /bin/rm -f infiles
 touch infiles

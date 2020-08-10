@@ -130,6 +130,7 @@ subroutine getcases(numcases,mype)
            print *,'number of lons in namelist does not match file'
            stop
         endif
+        if (mype == 0) print *,'ncio idate5,fhour5',idate5,fhour5
         call close_dataset(dset)
      else ! not use_gfs_nemsio
 
@@ -270,7 +271,7 @@ subroutine getcases(numcases,mype)
      idpsfc5 = 2
      idvc5   = 2
      idthrm5 = 2
-     ntrac5  = 3
+     ntrac5  = 3 ! (spfh,o3mr,total condensate)
      dset = open_dataset(filename(1),errcode=iret2)
      call read_attribute(dset, 'ak', values_1d)
      nvcoord5 = 2
@@ -283,6 +284,11 @@ subroutine getcases(numcases,mype)
         vcoord5(nsig-k+2,2) = values_1d(k)
      enddo
      deallocate(values_1d)
+     if (mype == 0) then
+        print *,'ncio ak,bk:'
+        print *,vcoord5(:,1)
+        print *,vcoord5(:,2)
+     endif
      call close_dataset(dset)
  
   else ! not use_gfs_nemsio

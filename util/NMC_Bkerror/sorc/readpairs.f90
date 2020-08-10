@@ -1,5 +1,6 @@
 subroutine readpairs(npe,mype,numcases)
 !   2017-10-25  Gael Descombes (NCAR) - capability to read nemsio files
+!   2020-08-085  Jeff Whitaker (ESRL) - capability to read ncio files
   use variables, only: nlat,nlon,nsig,ak5,bk5,ck5,&
       na,nb,filename,hybrid,db_prec,zero,one,fv,&
       idpsfc5,idthrm5,cp5,ntrac5,idvc5,idvm5,lat1,lon1,&
@@ -53,10 +54,9 @@ subroutine readpairs(npe,mype,numcases)
   type(nemsio_gfile) :: gfile1
   type(nemsio_gfile) :: gfile2
   real(nemsio_realkind),dimension((nlatin-2)*nlonin):: nems_wk
-  real(r_kind), allocatable, dimension(:) :: values_1d
   real(r_kind), allocatable, dimension(:,:) :: values_2d
   real(r_kind), allocatable, dimension(:,:,:) :: values_3d_1,values_3d_2,&
-                                                 values_3d_3, values_3d_4
+                                                 values_3d_3,values_3d_4
   type(Dataset) :: dset1,dset2
 
   logical ice
@@ -295,78 +295,80 @@ subroutine readpairs(npe,mype,numcases)
         call sptez_sin(z4all2(:,6*nsig+1),grid2in,-1)
      end if
      !t
-     call read_vardata(dset1, 'tmp', values_3d_1)
-     call read_vardata(dset2, 'tmp', values_3d_2)
      do k=1,nsig
         icount = icount + 1
         if ( mype == taskid(icount) ) then
-           grid1in = values_3d_1(:,:,nsig-k+1)
-           grid2in = values_3d_2(:,:,nsig-k+1)
+           call read_vardata(dset1, 'tmp', values_3d_1, nslice=nsig-k+1, slicedim=3)
+           call read_vardata(dset2, 'tmp', values_3d_2, nslice=nsig-k+1, slicedim=3)
+           grid1in = values_3d_1(:,:,1)
+           grid2in = values_3d_2(:,:,1)
            call sptez_sin(z4all (:,2*nsig+k),grid1in,-1)
            call sptez_sin(z4all2(:,2*nsig+k),grid2in,-1)
         end if
      end do
      !q
-     call read_vardata(dset1, 'spfh', values_3d_1)
-     call read_vardata(dset2, 'spfh', values_3d_2)
      do k=1,nsig
         icount = icount + 1
         if ( mype == taskid(icount) ) then
-           grid1in = values_3d_1(:,:,nsig-k+1)
-           grid2in = values_3d_2(:,:,nsig-k+1)
+           call read_vardata(dset1, 'spfh', values_3d_1, nslice=nsig-k+1, slicedim=3)
+           call read_vardata(dset2, 'spfh', values_3d_2, nslice=nsig-k+1, slicedim=3)
+           grid1in = values_3d_1(:,:,1)
+           grid2in = values_3d_2(:,:,1)
            call sptez_sin(z4all (:,3*nsig+k),grid1in,-1)
            call sptez_sin(z4all2(:,3*nsig+k),grid2in,-1)
         end if
      end do
      !oz
-     call read_vardata(dset1, 'o3mr', values_3d_1)
-     call read_vardata(dset2, 'o3mr', values_3d_2)
      do k=1,nsig
         icount = icount + 1
         if ( mype == taskid(icount) ) then
-           grid1in = values_3d_1(:,:,nsig-k+1)
-           grid2in = values_3d_2(:,:,nsig-k+1)
+           call read_vardata(dset1, 'o3mr', values_3d_1, nslice=nsig-k+1, slicedim=3)
+           call read_vardata(dset2, 'o3mr', values_3d_2, nslice=nsig-k+1, slicedim=3)
+           grid1in = values_3d_1(:,:,1)
+           grid2in = values_3d_2(:,:,1)
            call sptez_sin(z4all (:,4*nsig+k),grid1in,-1)
            call sptez_sin(z4all2(:,4*nsig+k),grid2in,-1)
         end if
      end do
 
-    !cw
-     call read_vardata(dset1, 'clwmr', values_3d_1)
-     call read_vardata(dset2, 'clwmr', values_3d_2)
-     call read_vardata(dset1, 'icmr', values_3d_3,errcode=iret)
-     if ( iret == 0 ) then
-         call read_vardata(dset1, 'icmr', values_3d_4,errcode=iret)
-     endif
+     !cw
      do k=1,nsig
         icount = icount + 1
         if ( mype == taskid(icount) ) then
-           grid1in = values_3d_1(:,:,nsig-k+1)
-           grid2in = values_3d_2(:,:,nsig-k+1)
+           call read_vardata(dset1, 'clwmr', values_3d_1, nslice=nsig-k+1, slicedim=3)
+           call read_vardata(dset2, 'clwmr', values_3d_2, nslice=nsig-k+1, slicedim=3)
+           call read_vardata(dset1, 'icmr', values_3d_3, nslice=nsig-k+1, slicedim=3,errcode=iret)
            if ( iret == 0 ) then
-              grid1in = grid1in + values_3d_3(:,:,nsig-k+1)
-              grid2in = grid2in + values_3d_4(:,:,nsig-k+1)
+              call read_vardata(dset2, 'icmr', values_3d_4, nslice=nsig-k+1, slicedim=3)
+           endif
+           grid1in = values_3d_1(:,:,1)
+           grid2in = values_3d_2(:,:,1)
+           if ( iret == 0 ) then 
+              ! if icmr exists, add ice to cloud water to get total condensate
+              grid1in = grid1in + values_3d_3(:,:,1)
+              grid2in = grid2in + values_3d_4(:,:,1)
            endif
            call sptez_sin(z4all (:,5*nsig+k),grid1in,-1)
            call sptez_sin(z4all2(:,5*nsig+k),grid2in,-1)
         end if
      end do
      ! u,v to div,vor
-     call read_vardata(dset1, 'ugrd', values_3d_1)
-     call read_vardata(dset2, 'ugrd', values_3d_2)
-     call read_vardata(dset1, 'vgrd', values_3d_3)
-     call read_vardata(dset2, 'vgrd', values_3d_4)
      do k=1,nsig
         icount = icount + 1
         if ( mype == taskid(icount) ) then
-           grid1in = values_3d_1(:,:,nsig-k+1)
-           grid2in = values_3d_3(:,:,nsig-k+1)
+           call read_vardata(dset1, 'ugrd', values_3d_1, nslice=nsig-k+1, slicedim=3)
+           call read_vardata(dset2, 'ugrd', values_3d_2, nslice=nsig-k+1, slicedim=3)
+           call read_vardata(dset1, 'vgrd', values_3d_3, nslice=nsig-k+1, slicedim=3)
+           call read_vardata(dset2, 'vgrd', values_3d_4, nslice=nsig-k+1, slicedim=3)
+           grid1in = values_3d_1(:,:,1)
+           grid2in = values_3d_3(:,:,1)
            call sptezv_sin(z4all(:,nsig+k),z4all(:,k),grid1in,grid2in,-1)
-           grid1in = values_3d_2(:,:,nsig-k+1)
-           grid2in = values_3d_4(:,:,nsig-k+1)
+           grid1in = values_3d_2(:,:,1)
+           grid2in = values_3d_4(:,:,1)
            call sptezv_sin(z4all2(:,nsig+k),z4all2(:,k),grid1in,grid2in,-1)
         end if
      end do
+     call mpi_barrier(mpi_comm_world,ierror)
      
      ! need to improve in the future
      ! broadcast the data on various processors to all processors
@@ -470,11 +472,11 @@ subroutine readpairs(npe,mype,numcases)
 
   call mpi_barrier(mpi_comm_world,iret2)
   if (use_gfs_ncio) then
+     if (allocated(values_2d))   deallocate(values_2d)
      if (allocated(values_3d_1)) deallocate(values_3d_1)
      if (allocated(values_3d_2)) deallocate(values_3d_2)
      if (allocated(values_3d_3)) deallocate(values_3d_3)
      if (allocated(values_3d_4)) deallocate(values_3d_4)
-     if (allocated(values_2d)) deallocate(values_2d)
   endif
 
   work1=zero ; work2=zero 
