@@ -213,6 +213,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
         # first check to see if increment file exists
         CalcAnlDir = RunDir+'/calcanl_'+format(fh, '02')
         if (os.path.isfile(CalcAnlDir+'/siginc.nc.'+format(fh, '02'))):
+            print('Interpolating increment for f'+format(fh, '03'))
             # set up the namelist
             namelist = OrderedDict()
             namelist["setup"] = {"lon_out": LonB,
@@ -237,7 +238,8 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
             interp_jobs.append(job)
             print(ExecCMDMPI10_host+' '+CalcAnlDir+'/chgres_inc.x submitted on '+hosts[ihost])
             ihost+=1
-
+        else:
+            print('f'+format(fh, '03')+' is in $IAUFHRS but increment file is missing. Skipping.')
     sys.stdout.flush()
     exit_codes = [p.wait() for p in interp_jobs]
     for ec in exit_codes:
@@ -285,6 +287,7 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
             CalcAnlDir6 = RunDir+'/calcanl_ensres_06'
             print(CalcAnlDir6+'/ges.ensres.'+format(fh, '02'))
             if (os.path.isfile(CalcAnlDir6+'/ges.ensres.'+format(fh, '02'))):
+                print('Calculating analysis on ensemble resolution for f'+format(fh, '03'))
                 ######## generate ensres analysis from interpolated background
                 # set up the namelist
                 namelist = OrderedDict()
@@ -311,6 +314,8 @@ def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
                     print('Error with calc_analysis.x for ensemble resolution, exit code='+str(exit_ensres))
                     print(locals())
                     sys.exit(exit_ensres)
+            else:
+                print('f'+format(fh, '03')+' is in $IAUFHRS but ensemble resolution guess file is missing. Skipping.')
 
     print('calcanl_gfs successfully completed at: ',datetime.datetime.utcnow())
     print(locals())
