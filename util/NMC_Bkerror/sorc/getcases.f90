@@ -130,7 +130,7 @@ subroutine getcases(numcases,mype)
            print *,'number of lons in namelist does not match file'
            stop
         endif
-        if (mype == 0) print *,'ncio idate5,fhour5',idate5,fhour5
+        if (loop == 1 .and. mype == 0) print *,'ncio idate5,fhour5',idate5,fhour5
         call close_dataset(dset)
      else ! not use_gfs_nemsio
 
