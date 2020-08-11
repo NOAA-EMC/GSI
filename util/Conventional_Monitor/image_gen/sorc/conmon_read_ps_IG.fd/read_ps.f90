@@ -2,23 +2,31 @@
 ! subroutine read_ps             
 !
 !------------------------------------------------
-subroutine read_ps(nreal,mtype,fname,fileo,gtross,rlev)
+subroutine read_ps(nreal,mtype,fname,fileo,gtross,rlev, grads_info_file )
 
    implicit none
 
+   !-------------
+   !  interface
+   !
+   integer,       intent(in)   :: nreal
+   character*15,  intent(in)   :: mtype 
+   character*200, intent(in)   :: fname
+   character*50,  intent(in)   :: fileo
+   real,          intent(in)   :: gtross
+   real,          intent(in)   :: rlev
+   character*50,  intent(in)   :: grads_info_file
+
    real(4),allocatable,dimension(:,:)  :: rdiag
    real(4),dimension(3,3000000) :: rpress
-   real rlev,weight,rgtross,gtross,ddf
+   real weight,rgtross,ddf
    integer,dimension(3) :: ncount,ncount_vqc,ncount_gros
    integer ilat,ilon,ipres,itime,iqc,iuse,imuse,iweight,ierr,ierr2,ierr3,iobs,iogs
    integer i,ndup,igos,ioges
 
-   character*200 fname
-   character*50 fileo
-   character*15 mtype 
 
    real(4) :: tiny
-   integer nobs,nreal,ntotal,ngross,nreal_in,nlev
+   integer nobs,ntotal,ngross,nreal_in,nlev
    real(4) :: rmiss,vqclmt,vqclmte
 
    data rmiss / -999.0 / 
@@ -137,7 +145,7 @@ subroutine read_ps(nreal,mtype,fname,fileo,gtross,rlev)
    print *, 'ncount_gros,',ncount_gros(1),ncount_gros(2),ncount_gros(3) 
    print *, 'vqc-limit,vqc-limite ',vqclmt,vqclmte
     
-   call hist(mtype,rpress,3,3000000,ncount,rgtross,gtross,rlev,fileo,ncount_vqc,ncount_gros)   
+   call hist(mtype,rpress,3,3000000,ncount,rgtross,gtross,rlev,fileo,ncount_vqc,ncount_gros, grads_info_file )   
 
    return 
 end

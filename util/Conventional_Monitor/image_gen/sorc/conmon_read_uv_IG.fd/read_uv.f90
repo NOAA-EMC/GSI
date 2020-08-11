@@ -4,24 +4,29 @@
 !    read wind files 
 !=====================================
 
-subroutine read_uv(nreal,dtype,fname,fileo,gtross,rlev)
+subroutine read_uv(nreal,dtype,fname,fileo,gtross,rlev, grads_info_file )
 
    implicit none
+   
+   integer,       intent(in)    :: nreal
+   character*15,  intent(in)    :: dtype 
+   character*200, intent(in)    :: fname
+   character*50,  intent(in)    :: fileo
+   real,          intent(in)    :: gtross
+   real,          intent(in)    :: rlev
+   character*50,  intent(in)    :: grads_info_file
 
    real(4),allocatable,dimension(:,:)  :: rdiag
-   real(4),dimension(3,3000000) :: rpressu
-   real(4),dimension(3,3000000) :: rpressv
-   real(4),dimension(3,3000000) :: rpress
-   integer,dimension(3) :: ncount,ncount_vqc,ncount_gros
+   real(4),dimension(3,3000000)        :: rpressu
+   real(4),dimension(3,3000000)        :: rpressv
+   real(4),dimension(3,3000000)        :: rpress
+   integer,dimension(3)                :: ncount,ncount_vqc,ncount_gros
 
-   character*200 fname
-   character*50 fileo,fileu,filev,fileou2,fileov2
-   character*15 dtype 
+   character*50 fileu,filev,fileou2,fileov2
+   real*4 tiny
+   real weight,ddf,rgtross
 
-   real*4 tiny,huge,real
-   real weight,ddf,rlev,rgtross,gtross
-
-   integer nobs,nreal,ntotal,ngross,nreal_in,nlev
+   integer nobs,ntotal,ngross,nreal_in,nlev
    integer i,ndup
    integer ilat,ilon,ipres,itime,iqc,iuse,imuse,iweight,ierr,ierr2,ierr3,iobu,iogu,iobv,iogv
 
@@ -43,8 +48,6 @@ subroutine read_uv(nreal,dtype,fname,fileo,gtross,rlev)
    ncount_vqc=0
    ncount_gros=0
    tiny=1.0e-6
-   huge=1.0e6
-
 
    ntotal=0
    open(unit=11,file=fname,form='unformatted')
@@ -146,11 +149,12 @@ subroutine read_uv(nreal,dtype,fname,fileo,gtross,rlev)
    print *, 'rmax,rmin ',gtross,rgtross
    print *, 'ncount_gros,',ncount_gros(1),ncount_gros(2),ncount_gros(3) 
    print *, 'vqc-limit,vqc-limite ',vqclmt,vqclmte
-    
+   print *, 'fileu = ', fileu 
+   print *, 'filev = ', filev 
 
-   call hist(dtype,rpress,3,3000000,ncount,rgtross,gtross,rlev,fileo,ncount_vqc,ncount_gros)   
-   call histuv(dtype,rpressu,3,3000000,ncount,rgtross,gtross,rlev,fileu,ncount_vqc,ncount_gros,fileou2)   
-   call histuv(dtype,rpressv,3,3000000,ncount,rgtross,gtross,rlev,filev,ncount_vqc,ncount_gros,fileov2)   
+   call hist(dtype,rpress,3,3000000,ncount,rgtross,gtross,rlev,fileo,ncount_vqc,ncount_gros, grads_info_file )   
+   call histuv(dtype,rpressu,3,3000000,ncount,rgtross,gtross,rlev,fileu,ncount_vqc,ncount_gros,fileou2, 'u' )   
+   call histuv(dtype,rpressv,3,3000000,ncount,rgtross,gtross,rlev,filev,ncount_vqc,ncount_gros,fileov2, 'v' )   
 
 
    return 

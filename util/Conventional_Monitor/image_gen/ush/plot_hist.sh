@@ -52,8 +52,7 @@ echo "---> plot_hist.sh"
    $UNCOMPRESS ${hh_tankdir}/ges/*.scater.*${Z}
 
 
-#for type in ps q t uv; do  
-   for type in ps q t; do  
+   for type in ps q t uv; do  
   
       eval stype=\${${type}_TYPE} 
       eval nreal=\${nreal_${type}} 
@@ -91,14 +90,13 @@ echo "---> plot_hist.sh"
    		  $dtype $mtype $subtype $PDATE ${HOMEgdas_conmon}/fix \
   		  ${nreal} ${exec} ${type} ${cycle} \
   		  ${hh_tankdir}/${cycle} ${C_IG_EXEC} 
-
-
+              
 
                #------------------------------------------
                # build the control file for the data
                #
                cp ${C_IG_FIX}/hist_${type}.ctl ./hist_${dtype}.ctl
-  
+
                nlev_str=`cat grads_info_file_${dtype}_${cycle}.${PDATE} | grep nlev`
                nlev=`echo $nlev_str | gawk '{print $3}'`
                echo "DEBUG:  nlev = $nlev"
@@ -191,11 +189,10 @@ echo "---> plot_hist.sh"
 
 
 
-   #           if [ "${type}" = 'uv' ]; then
-#
-#                 for uvtype in u v; do
-#                    rm -f fileout
-#
+#               if [ "${type}" = 'uv' ]; then
+ 
+#                  for uvtype in u v; do
+
 #                    for cycle in ges anl ; do
 #
 #                       nlev_str=`cat stdout_${dtype}_${uvtype}_${cycle}.${PDATE} | grep nlev`
@@ -256,17 +253,10 @@ echo "---> plot_hist.sh"
 #
 #
 #                    echo 'quit' |grads -blc " run plothist_${dtype}_${uvtype}.gs"
-#
-#
-#                 done      ### uvtype loop
-#              fi
 
-#           fi
 
-   #        mkdir -p ${C_IMGNDIR}/pngs/hist/${CYC}
-#           mv -f *hist*.png ${C_IMGNDIR}/pngs/hist/${CYC}/.
-#            cp -f *hist*.png ${C_IMGNDIR}/pngs/hist/${CYC}/.
-
+#                  done      ### uvtype loop
+#               fi
             fi 		## -s $scater_file
          done         ## done with cycle
 

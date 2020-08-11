@@ -61,6 +61,7 @@ cat << EOF > input
   fileo='out_${dtype}_${cycle}.${rdate}',
   rlev=0.1,
   insubtype=${subtype},
+  grads_info_file='grads_info_file_${dtype}_${cycle}.${rdate}'
 /
 EOF
 
@@ -71,16 +72,16 @@ cp $sorcdir/$exec ./$exec
 #rm -f $exec
 #rm -f input
 
-if [ -e ./grads_info_file ]; then
-   mv ./grads_info_file  ./grads_info_file_${dtype}_${cycle}.${rdate}
-fi
-
 
 if [ "${type}" = 'uv' ]; then
    mv out_u out_${dtype}_u_${cycle}.${rdate}
    mv out_v out_${dtype}_v_${cycle}.${rdate}
+
    mv stdout_u stdout_${dtype}_u_${cycle}.${rdate}
    mv stdout_v stdout_${dtype}_v_${cycle}.${rdate}
+
+   mv grads_info_file_u grads_info_file_${dtype}_u_${cycle}.${rdate}
+   mv grads_info_file_v grads_info_file_${dtype}_v_${cycle}.${rdate}
 fi
 
 

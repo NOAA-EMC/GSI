@@ -3,7 +3,7 @@
 !
 !----------------------------------------------------------
 
-subroutine read_q_mor( nreal, dtype, fname, fileo, gtross, rlev )
+subroutine read_q_mor( nreal, dtype, fname, fileo, gtross, rlev, grads_info_file )
 
    implicit none
 
@@ -12,6 +12,8 @@ subroutine read_q_mor( nreal, dtype, fname, fileo, gtross, rlev )
    character*200, intent( in )         :: fname
    character*50,  intent( in )         :: fileo
    real,          intent( in )         :: gtross
+   character*50,  intent( in )         :: grads_info_file
+
 
    real(4),allocatable,dimension(:,:)  :: rdiag
    real(4),dimension(3,3000000) :: rpress
@@ -101,7 +103,7 @@ subroutine read_q_mor( nreal, dtype, fname, fileo, gtross, rlev )
       if(ncount(i) ==0) ncount(i)=1
    enddo
 
-   call hist(dtype,rpress,3,3000000,ncount,rgtross,gtross,rlev,fileo,ncount_vqc,ncount_gros)
+   call hist(dtype,rpress,3,3000000,ncount,rgtross,gtross,rlev,fileo,ncount_vqc,ncount_gros, grads_info_file )
 
 !   print *, ' '
 !   print *, '<--- read_q_mor '

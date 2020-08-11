@@ -3,26 +3,45 @@
 !
 !-----------------------------------------------------------------
 
-subroutine histuv(dtype,rmodnbc,nchan,nxdata,ndata,rmin,rmax,rlev,fileo,ncount_vqc,ncount_gros,fileo2)
+subroutine histuv(dtype,rmodnbc,nchan,nxdata,ndata,rmin,rmax,rlev,fileo,ncount_vqc,ncount_gros,fileo2, wind )
 
    implicit none
 
-   real,dimension(nchan,nxdata) :: rmodnbc
+   !-------------
+   ! inteface 
+   !
+   character*15,                 intent(in) :: dtype
+   real,dimension(nchan,nxdata), intent(in) :: rmodnbc
+   integer,                      intent(in) :: nchan
+   integer,                      intent(in) :: nxdata
+   real,                         intent(in) :: rmin, rmax, rlev
+   character*50,                 intent(in) :: fileo
+   integer,dimension(nchan),     intent(in) :: ncount_vqc,ncount_gros
+   character*50,                 intent(in) :: fileo2
+   character*1,                  intent(in) :: wind     ! u or v
+
+   !-------------
+   ! local vars
+   !
    real,dimension(nchan) :: rmean,rstd 
-   integer,dimension(nchan) :: nmean,nobs,ndata,ncount_vqc,ncount_gros
+   integer,dimension(nchan) :: nmean,nobs,ndata
+   integer i,j,k,nlev
 
    real,dimension(nchan,400) :: ys
    real,dimension(400) :: xs
    real,dimension(401) :: xs2
    real maxf,sqr2
-   real rmin, rmax,rlev
 
-   character*50 fileo
-   character*50 fileo2
-   character*15 dtype
+   character*20        :: grads_info_file 
 
-   integer i,j,k,nlev,nxdata,nchan
 
+
+   print *, '--> histuv'
+   print *, 'dtype = ', dtype
+   print *, 'fileo = ', fileo
+   print *, 'fileo2 = ', fileo2
+
+   grads_info_file='grads_info_file_' // wind
 
    sqr2=1.414213562
 
@@ -109,6 +128,31 @@ subroutine histuv(dtype,rmodnbc,nchan,nxdata,ndata,rmin,rmax,rlev,fileo,ncount_v
 200 format(a12,'no. std mean ')
 210 format(3i10,2f10.3)
 
+
+   open( unit = 15, file = grads_info_file, form = 'formatted', status = 'new' )
+   write( 15, * ) 'nlev        = ', nlev
+
+   write( 15, * ) 'all_ncount  = ', nobs(1)
+   write( 15, * ) 'all_rejqc   = ', ncount_vqc(1)
+   write( 15, * ) 'all_gros    = ', ncount_gros(1)
+   write( 15, 220 ) 'all_std     = ', rstd(1)
+   write( 15, 220 ) 'all_mean    = ', rmean(1)
+
+   write( 15, * ) 'ioqc_ncount = ', nobs(2)
+   write( 15, * ) 'ioqc_rejqc  = ', ncount_vqc(2)
+   write( 15, * ) 'ioqc_gros   = ', ncount_gros(2)
+   write( 15, 220 ) 'ioqc_std    = ', rstd(2)
+   write( 15, 220 ) 'ioqc_mean   = ', rmean(2)
+
+   write( 15, * ) 'mon_ncount  = ', nobs(3)
+   write( 15, * ) 'mon_rejqc   = ', ncount_vqc(3)
+   write( 15, * ) 'mon_gros    = ', ncount_gros(3)
+   write( 15, 220 ) 'mon_std     = ', rstd(3)
+   write( 15, 220 ) 'mon_mean    = ', rmean(3)
+220 format( a14, f6.3 )
+
+   close( 15 )
+
 !   write(6,220) (xs(1,i),i=1,100)
 !   write(6,230) (ys(1,i),i=1,100)
 !   write(6,230) (f(1,i),i=1,100)
@@ -138,6 +182,7 @@ subroutine histuv(dtype,rmodnbc,nchan,nxdata,ndata,rmin,rmax,rlev,fileo,ncount_v
    close(10)
    close(11)
 
+   print *, '<-- histuv'
    return 
 end
 

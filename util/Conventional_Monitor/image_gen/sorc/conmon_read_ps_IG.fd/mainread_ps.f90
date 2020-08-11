@@ -9,7 +9,7 @@
    implicit none
 
    character*200 fname
-   character*50 fileo
+   character*50 fileo, grads_info_file
    character*15 mtype,dtype 
 
 !   real*4 tiny,huge,real
@@ -25,7 +25,7 @@
 
    data rmiss/-999.0/ 
 
-   namelist /input/nreal,mtype,fname,fileo,rlev,insubtype
+   namelist /input/nreal,mtype,fname,fileo,rlev,insubtype, grads_info_file
  
 
    read (5,input)
@@ -44,8 +44,8 @@
 !   print *,'ituse=',ituse,gtross
    write(6, *) 'ituse, gtross = ', ituse, gtross
 
-   if (ituse >0) call read_ps(nreal,mtype,fname,fileo,gtross,rlev) 
-   if (ituse <0) call read_ps_mor(nreal,mtype,fname,fileo,gtross,rlev) 
+   if (ituse >0) call read_ps(nreal,mtype,fname,fileo,gtross,rlev, grads_info_file ) 
+   if (ituse <0) call read_ps_mor(nreal,mtype,fname,fileo,gtross,rlev, grads_info_file ) 
   
    stop
 end

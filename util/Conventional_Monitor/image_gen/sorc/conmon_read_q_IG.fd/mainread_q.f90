@@ -6,9 +6,9 @@
    implicit none
 
    character*200 fname
-   character*50 fileo
+   character*50 fileo, grads_info_file
    character*15 dtype,mtype 
-
+  
    real rlev,rpress
 
    integer nobs,nreal,ntotal,ngross,nreal_in,insubtype
@@ -20,16 +20,18 @@
 
    data rmiss/-999.0/ 
 
-   namelist /input/nreal,mtype,fname,fileo,rlev,insubtype
+   namelist /input/nreal,mtype,fname,fileo,rlev,insubtype, grads_info_file
  
    read (5,input)
-!   print *, 'input:'
-!   print *, '        nreal     = ', nreal
-!   print *, '        mtype     = ', mtype
-!   print *, '        fname     = ', fname
-!   print *, '        fileo     = ', fileo
-!   print *, '        rlev      = ', rlev 
-!   print *, '        insubtype = ', insubtype 
+
+   print *, 'input:'
+   print *, '        nreal           = ', nreal
+   print *, '        mtype           = ', mtype
+   print *, '        fname           = ', fname
+   print *, '        fileo           = ', fileo
+   print *, '        rlev            = ', rlev 
+   print *, '        insubtype       = ', insubtype 
+   print *, '        grads_info_file = ', grads_info_file
 
    ncount=0
    rpress=rmiss
@@ -44,8 +46,8 @@
 !   print *,'ituse  = ', ituse
 !   print *,'gtross = ', gtross
    
-   if (ituse >0) call read_q(nreal,mtype,fname,fileo,gtross,rlev) 
-   if (ituse <0) call read_q_mor(nreal,mtype,fname,fileo,gtross,rlev) 
+   if (ituse >0) call read_q(nreal,mtype,fname,fileo,gtross,rlev, grads_info_file ) 
+   if (ituse <0) call read_q_mor(nreal,mtype,fname,fileo,gtross,rlev, grads_info_file ) 
   
    stop
 end

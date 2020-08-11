@@ -4,7 +4,7 @@
 !   read humidity files
 !=====================================
 
-subroutine read_q(nreal,dtype,fname,fileo,gtross,rlev)
+subroutine read_q( nreal, dtype, fname, fileo, gtross, rlev, grads_info_file )
 
    implicit none
 
@@ -12,6 +12,7 @@ subroutine read_q(nreal,dtype,fname,fileo,gtross,rlev)
    character*200, intent(in)           :: fname
    character*50, intent(in)            :: fileo
    character*15, intent(in)            :: dtype 
+   character*50, intent(in)            :: grads_info_file
 
    real(4),allocatable,dimension(:,:)  :: rdiag
    real(4),dimension(3,3000000)        :: rpress
@@ -146,7 +147,7 @@ subroutine read_q(nreal,dtype,fname,fileo,gtross,rlev)
    print *, 'vqc-limit,vqc-limite ',vqclmt,vqclmte
     
     
-   call hist(dtype,rpress,3,3000000,ncount,rgtross,gtross,rlev,fileo,ncount_vqc,ncount_gros)   
+   call hist(dtype,rpress,3,3000000,ncount,rgtross,gtross,rlev,fileo,ncount_vqc,ncount_gros, grads_info_file )   
 
 !   print *, ' '
 !   print *, '<-- read_q'

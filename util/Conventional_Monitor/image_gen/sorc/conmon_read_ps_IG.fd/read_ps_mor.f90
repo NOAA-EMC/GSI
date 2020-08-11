@@ -2,25 +2,37 @@
 !  subroutine read_ps_mor
 !
 !------------------------------------------------------------
-subroutine read_ps_mor(nreal,mtype,fname,fileo,gtross,rlev)
+subroutine read_ps_mor(nreal,mtype,fname,fileo,gtross,rlev, grads_info_file)
 
    implicit none
 
+   !-------------
+   !  interface
+   !
+   integer,       intent(in)  :: nreal
+   character*15,  intent(in)  :: mtype 
+   character*200, intent(in)  :: fname
+   character*50,  intent(in)  :: fileo
+   real,          intent(in)  :: gtross
+   real(4),       intent(in)  :: rlev
+   character*50,  intent(in)  :: grads_info_file
+
+
+   !-------------
+   !  local vars
+   !
    real(4),allocatable,dimension(:,:)  :: rdiag
    real(4),dimension(3,3000000) :: rpress
    integer,dimension(3) :: ncount,ncount_vqc,ncount_gros
 
-   character*200 fname
-   character*50 fileo
-   character*15 mtype 
-
-   integer nobs,nreal,ntotal,ngross,nreal_in,nlev
+   integer nobs,ntotal,ngross,nreal_in,nlev
    integer i,ilat,ilon,ipres,itime,iqc,iuse,imuse,iweight,ierr,ierr2,ierr3,iobs,iogs
    integer nlat,nlon,npres,ntime,ndup
-   real(4) :: bmiss,vqclmt,vqclmte,rlev
-   real rgtross,gtross
+   real(4) :: bmiss,vqclmt,vqclmte
+   real rgtross
 
    data bmiss/-999.0/ 
+
 
    ncount=0
    rpress=bmiss
@@ -85,7 +97,7 @@ subroutine read_ps_mor(nreal,mtype,fname,fileo,gtross,rlev)
      if(ncount(i) ==0) ncount(i)=1
   enddo
 
-  call hist(mtype,rpress,3,3000000,ncount,rgtross,gtross,rlev,fileo,ncount_vqc,ncount_gros)
+  call hist(mtype,rpress,3,3000000,ncount,rgtross,gtross,rlev,fileo,ncount_vqc,ncount_gros, grads_info_file )
 
   return 
 end

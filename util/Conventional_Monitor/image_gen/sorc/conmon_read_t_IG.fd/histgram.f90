@@ -4,25 +4,37 @@
 !    This subroutine calculates the histogram of each data source.
 !----------------------------------------------------------------------------
 
-subroutine hist(mtype,rmodnbc,nchan,nxdata,ndata,rmin,rmax,rlev,fileo,ncount_vqc,ncount_gros)
+subroutine hist(mtype,rmodnbc,nchan,nxdata,ndata,rmin,rmax,rlev,fileo,ncount_vqc,ncount_gros, grads_info_file )
 
    implicit none
 
-   integer nxdata,nchan,nlev,i,j,k
-   real rlev,rmin,rmax,sqr2
+   !--------------
+   !  interface
+   !
+   character*15,                 intent(in) :: mtype
+   real,dimension(nchan,nxdata), intent(in) :: rmodnbc
+   integer,                      intent(in) :: nchan,nxdata
+   integer,dimension(nchan),     intent(in) :: ndata
+   real,                         intent(in) :: rmin,rmax,rlev
+   character*50,                 intent(in) :: fileo
+   integer,dimension(nchan),     intent(in) :: ncount_vqc,ncount_gros
+   character*50,                 intent(in) :: grads_info_file
+   
 
-   real,dimension(nchan,nxdata) :: rmodnbc
+   !--------------
+   !  local vars
+   !
+   integer nlev,i,j,k
+   real sqr2
+
    real,dimension(nchan) :: rmean,rstd 
-   integer,dimension(nchan) :: nmean,nobs,ndata,ncount_vqc,ncount_gros
+   integer,dimension(nchan) :: nmean,nobs
 
    real,dimension(nchan,400) :: ys
    real,dimension(400) :: xs
    real,dimension(401) :: xs2
    real maxf
 
-   character*50 fileo
-   character*15 mtype
-   character*20        :: grads_info_file = 'grads_info_file'
 
    sqr2=1.414213562
 

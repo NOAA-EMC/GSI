@@ -2,25 +2,37 @@
 ! subroutine read_uv_mor
 !
 !-------------------------------------------------------------
-subroutine read_uv_mor(nreal,dtype,fname,fileo,gtross,rlev)
+subroutine read_uv_mor(nreal,dtype,fname,fileo,gtross,rlev, grads_info_file )
 
    implicit none
 
+   !-------------
+   !  interface 
+   !
+   integer,  intent(in) :: nreal
+   character*15,  intent(in) :: dtype 
+   character*200, intent(in) :: fname
+   character*50,  intent(in) :: fileo
+   real,          intent(in) :: gtross
+   real(4),       intent(in) :: rlev
+   character*50,  intent(in) :: grads_info_file
+
+   !-------------
+   !  local vars 
+   !
    real(4),allocatable,dimension(:,:)  :: rdiag
    real(4),dimension(3,3000000) :: rpress
    real(4),dimension(3,3000000) :: rpressu
    real(4),dimension(3,3000000) :: rpressv
    integer,dimension(3) :: ncount,ncount_vqc,ncount_gros
 
-   character*200 fname
-   character*50 fileo,fileu,filev,fileou2,fileov2
-   character*15 dtype 
+   character*50 fileu,filev,fileou2,fileov2
 
-   real rgtross,gtross
-   integer nobs,nreal,ntotal,ngross,nreal_in,nlev
+   real rgtross
+   integer nobs,ntotal,ngross,nreal_in,nlev
    integer i,ndup,nlat,nlon,npres,ntime
    integer ilat,ilon,ipres,itime,iqc,iuse,imuse,iweight,ierr,ierr2,ierr3,iobu,iogu,iobv,iogv
-   real(4) :: rmiss,vqclmt,vqclmte,rlev
+   real(4) :: rmiss,vqclmt,vqclmte
 
    data rmiss/-999.0/ 
 
@@ -91,9 +103,11 @@ subroutine read_uv_mor(nreal,dtype,fname,fileo,gtross,rlev)
       if(ncount(i) ==0) ncount(i)=1
    enddo
 
-   call hist(dtype,rpress,3,3000000,ncount,rgtross,gtross,rlev,fileo,ncount_vqc,ncount_gros)
-   call histuv(dtype,rpressu,3,3000000,ncount,rgtross,gtross,rlev,fileu,ncount_vqc,ncount_gros,fileou2)
-   call histuv(dtype,rpressv,3,3000000,ncount,rgtross,gtross,rlev,filev,ncount_vqc,ncount_gros,fileov2)
+   print *, 'fileu, filev = ', fileu, filev
+
+   call hist(dtype,rpress,3,3000000,ncount,rgtross,gtross,rlev,fileo,ncount_vqc,ncount_gros, grads_info_file )
+   call histuv(dtype,rpressu,3,3000000,ncount,rgtross,gtross,rlev,fileu,ncount_vqc,ncount_gros,fileou2, 'u' )
+   call histuv(dtype,rpressv,3,3000000,ncount,rgtross,gtross,rlev,filev,ncount_vqc,ncount_gros,fileov2, 'v' )
 
    return 
 end
