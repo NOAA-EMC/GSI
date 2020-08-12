@@ -1,16 +1,15 @@
 #!/bin/sh
-#SBATCH -J bkgnmc_test
+#SBATCH -J NMC_bkerror
 #SBATCH -t 08:00:00
-#SBATCH --nodes=80 --ntasks-per-node=2
-#SBATCH --partition=hera
-#SBATCH -q windfall
+#SBATCH --nodes=20 --ntasks-per-node=4
+##SBATCH -q debug
 #SBATCH -A gsienkf
-#SBATCH -o bkgnmc_test.out
-#SBATCH -e bkgnmc_test.err
+#SBATCH -o NMC_bkerror.out
+#SBATCH -e NMC_bkerror.err
 
 set -x
 
-exp=C384_berror_enkfensjuly_smooth0p5
+exp=C384_berror_enkfensjanjuly_smooth0p5
 
 datdir=/scratch2/NCEPDEV/stmp1/Jeffrey.S.Whitaker/staticB
 calstats=/scratch2/BMC/gsienkf/whitaker/gsi/GSI-github-jswhit/util/NMC_Bkerror/sorc/calcstats.exe
@@ -26,23 +25,21 @@ cd $tmpdir
 export OMP_NUM_THREADS=8
 export OMP_STACKSIZE=256M
 
-module load intel
-module load impi
-
 /bin/cp -f $calstats  ./stats.x
 /bin/cp -f $sststats  ./berror_sst
 
-#date1='2020010100'
-#date2='2020020100'
-date1='2020070100'
-date2='2020080100'
+date1='2020010100'
+date2='2020020100'
+#date1='2020070100'
+#date2='2020080100'
+interval=72
 date=$date1
 /bin/rm -f infiles
 touch infiles
 # ens member files go first
 while [ $date -le $date2 ]; do
   ls $datdir/sfg*${date}*mem* >> infiles
-  date=`incdate $date 24`
+  date=`incdate $date $interval`
 done
 # then corresponding ens mean files
 date=$date1
@@ -50,7 +47,24 @@ while [ $date -le $date2 ]; do
   for filename in $datdir/sfg*${date}*mem*; do
      echo "$datdir/sfg_${date}_fhr06_ensmean" >> infiles
   done
-  date=`incdate $date 24`
+  date=`incdate $date $interval`
+done
+
+date1='2020070100'
+date2='2020080100'
+date=$date1
+# ens member files go first
+while [ $date -le $date2 ]; do
+  ls $datdir/sfg*${date}*mem* >> infiles
+  date=`incdate $date $interval`
+done
+# then corresponding ens mean files
+date=$date1
+while [ $date -le $date2 ]; do
+  for filename in $datdir/sfg*${date}*mem*; do
+     echo "$datdir/sfg_${date}_fhr06_ensmean" >> infiles
+  done
+  date=`incdate $date $interval`
 done
 
 maxcases=`wc -l infiles | cut -f1 -d " "`
@@ -67,12 +81,7 @@ ln -s -f infiles fort.10
 
 echo "I AM IN " $PWD
 
-source $MODULESHOME/init/sh
-module purge
-module load intel impi
-module load netcdf
-
-srun $tmpdir/stats.x 
+time srun $tmpdir/stats.x 
 
 rc=$?
 
