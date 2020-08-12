@@ -3,7 +3,8 @@
 !
 !-----------------------------------------------------------------
 
-subroutine histuv(dtype,rmodnbc,nchan,nxdata,ndata,rmin,rmax,rlev,fileo,ncount_vqc,ncount_gros,fileo2, wind )
+subroutine histuv( dtype, rmodnbc, nchan, nxdata, ndata, rmin, rmax, &
+                   rlev, fileo, ncount_vqc, ncount_gros, fileo2, wind )
 
    implicit none
 
@@ -41,7 +42,7 @@ subroutine histuv(dtype,rmodnbc,nchan,nxdata,ndata,rmin,rmax,rlev,fileo,ncount_v
    print *, 'fileo = ', fileo
    print *, 'fileo2 = ', fileo2
 
-   grads_info_file='grads_info_file_' // wind
+   grads_info_file='grads_info_' // wind
 
    sqr2=1.414213562
 
@@ -119,7 +120,6 @@ subroutine histuv(dtype,rmodnbc,nchan,nxdata,ndata,rmin,rmax,rlev,fileo,ncount_v
    enddo
 
 !  the frequency of real curve
-!   print *, 'data type  no. std, mean ,rarea ',dtype,ndata,rstd,rmean,rarea
    write(11,200) dtype
    do j=1,nchan
       write(11,210) nobs(j),ncount_vqc(j),ncount_gros(j),rstd(j),rmean(j)
@@ -153,14 +153,16 @@ subroutine histuv(dtype,rmodnbc,nchan,nxdata,ndata,rmin,rmax,rlev,fileo,ncount_v
 
    close( 15 )
 
-!   write(6,220) (xs(1,i),i=1,100)
-!   write(6,230) (ys(1,i),i=1,100)
-!   write(6,230) (f(1,i),i=1,100)
 
-!220 format(6e12.4)
-!230 format(6e12.5)
-
-!   trasform the frequecy so that gaussin distribution became a stright line
+!!--------------------------------------------------------
+!!  NOTE:  This section was commented out when
+!!         I took over maintenance of the ConMon.  I'm 
+!!         intentionally leaving this in place in case
+!!         transforming the frequency becomes desirable
+!!         at some point.  Knowing how to do that might
+!!         prove useful.
+!!--------------------------------------------------------
+!   transform the frequecy so that gaussin distribution became a stright line
 
 !   print *, 'maxf ',maxf
 !   do i=1,nlev

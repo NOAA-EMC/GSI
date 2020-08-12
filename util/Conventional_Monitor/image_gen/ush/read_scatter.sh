@@ -61,7 +61,7 @@ cat << EOF > input
   fileo='out_${dtype}_${cycle}.${rdate}',
   rlev=0.1,
   insubtype=${subtype},
-  grads_info_file='grads_info_file_${dtype}_${cycle}.${rdate}'
+  grads_info_file='grads_info_${dtype}_${cycle}.${rdate}'
 /
 EOF
 
@@ -80,8 +80,8 @@ if [ "${type}" = 'uv' ]; then
    mv stdout_u stdout_${dtype}_u_${cycle}.${rdate}
    mv stdout_v stdout_${dtype}_v_${cycle}.${rdate}
 
-   mv grads_info_file_u grads_info_file_${dtype}_u_${cycle}.${rdate}
-   mv grads_info_file_v grads_info_file_${dtype}_v_${cycle}.${rdate}
+   mv grads_info_u grads_info_${dtype}_u_${cycle}.${rdate}
+   mv grads_info_v grads_info_${dtype}_v_${cycle}.${rdate}
 fi
 
 

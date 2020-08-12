@@ -6,8 +6,8 @@
    implicit none
 
    character*200 fname
-   character*50 fileo, grads_info_file
-   character*15 mtype 
+   character*50  fileo, grads_info_file
+   character*15  mtype 
 
    real rpress,rlev
 
@@ -20,7 +20,7 @@
 
    data rmiss/-999.0/ 
 
-   namelist /input/nreal,mtype,fname,fileo,rlev,insubtype, grads_info_file
+   namelist /input/ nreal, mtype, fname, fileo, rlev, insubtype, grads_info_file
  
    read (5,input)
    write(6,input)
@@ -32,8 +32,8 @@
 
    print *,'mtype, nreal = ', mtype,nreal
 
-   call convinfo_read(mtype,15,insubtype,ituse,ntumgrp,ntgroup,ntmiter,isubtype,&
-                      ttwind,gtross,etrmax,etrmin,vtar_b,vtar_pg)
+   call convinfo_read( mtype, 15, insubtype, ituse, ntumgrp, ntgroup, ntmiter, isubtype,&
+                      ttwind, gtross, etrmax, etrmin, vtar_b, vtar_pg)
 
    print *, 'ituse, gtross    =',ituse,gtross
    print *, 'ntumgrp, ntgroup = ', ntumgrp, ntgroup
@@ -41,8 +41,8 @@
    print *, 'ttwind           = ', ttwind
    print *, 'isubtype         = ', isubtype
  
-   if (ituse >0) call read_uv(nreal,mtype,fname,fileo,gtross,rlev, grads_info_file ) 
-   if (ituse <0) call read_uv_mor(nreal,mtype,fname,fileo,gtross,rlev, grads_info_file ) 
+   if (ituse >0) call read_uv(     nreal, mtype, fname, fileo, gtross, rlev, grads_info_file ) 
+   if (ituse <0) call read_uv_mor( nreal, mtype, fname, fileo, gtross, rlev, grads_info_file ) 
   
    stop
 end

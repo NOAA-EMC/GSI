@@ -4,18 +4,23 @@
 !    read wind files 
 !=====================================
 
-subroutine read_uv(nreal,dtype,fname,fileo,gtross,rlev, grads_info_file )
+subroutine read_uv( nreal, dtype, fname, fileo, gtross, rlev, grads_info_file )
 
    implicit none
-   
+  
+   !--------------
+   !  interface 
+   !
    integer,       intent(in)    :: nreal
    character*15,  intent(in)    :: dtype 
    character*200, intent(in)    :: fname
    character*50,  intent(in)    :: fileo
-   real,          intent(in)    :: gtross
-   real,          intent(in)    :: rlev
+   real,          intent(in)    :: gtross, rlev
    character*50,  intent(in)    :: grads_info_file
 
+   !--------------
+   !  local vars 
+   !
    real(4),allocatable,dimension(:,:)  :: rdiag
    real(4),dimension(3,3000000)        :: rpressu
    real(4),dimension(3,3000000)        :: rpressv
@@ -35,14 +40,11 @@ subroutine read_uv(nreal,dtype,fname,fileo,gtross,rlev, grads_info_file )
    data bmiss/-999.0/ 
 
 
-   fileu=trim(fileo)//'_u'
-   filev=trim(fileo)//'_v'
-   fileou2='stdout_u'
-   fileov2='stdout_v'
+   fileu   = 'out_u'
+   filev   = 'out_v'
+   fileou2 = 'stdout_u'
+   fileov2 = 'stdout_v'
   
-
-!  print *,'nreal=',nreal
-
    ncount=0
    rpress=bmiss
    ncount_vqc=0
@@ -63,7 +65,7 @@ subroutine read_uv(nreal,dtype,fname,fileo,gtross,rlev, grads_info_file )
    read(11) rdiag
 
 
-   ilat=1                           !  lat
+   ilat=1                          !  lat
    ilon=2                          !  lon
    ipres=4                         !  pressure
    itime=6                         !  relative time
@@ -79,8 +81,9 @@ subroutine read_uv(nreal,dtype,fname,fileo,gtross,rlev, grads_info_file )
    iobv=18                         !  v obs
    iogv=19                         !  v obs-ges
 
-
-   call rm_dups( rdiag,nobs,nreal,ilat,ilon,ipres,itime,iweight,ndup )
+   
+   print *, 'nobs, nreal = ', nobs, nreal
+   call rm_dups( rdiag, nobs, nreal, ilat, ilon, ipres, itime, iweight, ndup )
 
    do  i=1,nobs
       if( rdiag(iweight,i) >= 0.0 .and. rdiag(imuse,i) >0.0 ) then
@@ -145,16 +148,14 @@ subroutine read_uv(nreal,dtype,fname,fileo,gtross,rlev, grads_info_file )
    nlev=nint((gtross-rgtross)/rlev) 
     
    nlev=nlev
-   print *,nlev
-   print *, 'rmax,rmin ',gtross,rgtross
-   print *, 'ncount_gros,',ncount_gros(1),ncount_gros(2),ncount_gros(3) 
-   print *, 'vqc-limit,vqc-limite ',vqclmt,vqclmte
-   print *, 'fileu = ', fileu 
-   print *, 'filev = ', filev 
+   print *, 'nlev = ', nlev
+   print *, 'gtross, rgtross = ', gtross, rgtross
+   print *, 'ncount_gros = ', ncount_gros(1), ncount_gros(2), ncount_gros(3) 
+   print *, 'vqclmt, vqclmte = ', vqclmt, vqclmte
 
-   call hist(dtype,rpress,3,3000000,ncount,rgtross,gtross,rlev,fileo,ncount_vqc,ncount_gros, grads_info_file )   
-   call histuv(dtype,rpressu,3,3000000,ncount,rgtross,gtross,rlev,fileu,ncount_vqc,ncount_gros,fileou2, 'u' )   
-   call histuv(dtype,rpressv,3,3000000,ncount,rgtross,gtross,rlev,filev,ncount_vqc,ncount_gros,fileov2, 'v' )   
+   call hist(   dtype, rpress,  3, 3000000, ncount, rgtross, gtross, rlev, fileo, ncount_vqc, ncount_gros, grads_info_file )   
+   call histuv( dtype, rpressu, 3, 3000000, ncount, rgtross, gtross, rlev, fileu, ncount_vqc, ncount_gros, fileou2, 'u' )   
+   call histuv( dtype, rpressv, 3, 3000000, ncount, rgtross, gtross, rlev, filev, ncount_vqc, ncount_gros, fileov2, 'v' )   
 
 
    return 

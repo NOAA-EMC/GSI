@@ -3,7 +3,7 @@ set -ax
 
 #------------------------------------------------------------
 #  Function getField returns the corresponding value for
-#  a specified field ($2) in the input ($1) grads_info_file.
+#  a specified field ($2) in the input ($1) grads_info file.
 #
 getField () {
    field='default'
@@ -16,11 +16,35 @@ getField () {
    return 
 }
 
+#------------------------------------------------------------
+#  Function getMonth returns the corresponding GrADS string
+#  value for the specified numeric month.
+#
+getMonth () {
+   mo=$1
+   out=''
+
+   case $mo in
+      01) out=jan;;
+      02) out=feb;;
+      03) out=mar;;
+      04) out=apr;;
+      05) out=may;;
+      06) out=jun;;
+      07) out=jul;;
+      08) out=aug;;
+      09) out=sep;;
+      10) out=oct;;
+      11) out=nov;;
+      12) out=dec;;
+       *) echo "month error $mo"
+             exit 1;;
+   esac
+ 
+   return 
+}
 
 
-date
-export list=$listvar
-echo "list = $list"
 #---------------------------------------------------
 #
 #  plot_hist.sh
@@ -97,7 +121,7 @@ echo "---> plot_hist.sh"
                #
                cp ${C_IG_FIX}/hist_${type}.ctl ./hist_${dtype}.ctl
 
-               nlev_str=`cat grads_info_file_${dtype}_${cycle}.${PDATE} | grep nlev`
+               nlev_str=`cat grads_info_${dtype}_${cycle}.${PDATE} | grep nlev`
                nlev=`echo $nlev_str | gawk '{print $3}'`
                echo "DEBUG:  nlev = $nlev"
   
@@ -112,22 +136,7 @@ echo "---> plot_hist.sh"
                da=`echo ${PDATE} | cut -c7-8`
                hr=`echo ${PDATE} | cut -c9-10`
  
-               case $mo in
-                  01) month=jan;;
-                  02) month=feb;;
-                  03) month=mar;;
-                  04) month=apr;;
-                  05) month=may;;
-                  06) month=jun;;
-                  07) month=jul;;
-                  08) month=aug;;
-                  09) month=sep;;
-                  10) month=oct;;
-                  11) month=nov;;
-                  12) month=dec;;
-                   *) echo "month error $mo"
-                      exit 1;;
-               esac
+               month='';  getMonth ${mo}; month=${out}
 
                tdef="tdef 1 linear ${hr}z${da}${month}${yr} 1hr"
                sed -e "s/^tdef.*/${tdef}/" tmp1.ctl >tmp2.ctl
@@ -141,7 +150,7 @@ echo "---> plot_hist.sh"
                #--------------------------------------------
                #  Build the fileout.${cycle}.${dtype} file.
                #
-               info_file="grads_info_file_${dtype}_${cycle}.${PDATE}"
+               info_file="grads_info_${dtype}_${cycle}.${PDATE}"
 
                out='';  getField ${info_file} 'all_ncount'; all_ncount=${out}
                out='';  getField ${info_file} 'all_rejqc'; all_rejqc=${out}
@@ -189,27 +198,26 @@ echo "---> plot_hist.sh"
 
 
 
-#               if [ "${type}" = 'uv' ]; then
+               if [ "${type}" = 'uv' ]; then
  
-#                  for uvtype in u v; do
+                  for uvtype in u v; do
 
-#                    for cycle in ges anl ; do
-#
-#                       nlev_str=`cat stdout_${dtype}_${uvtype}_${cycle}.${PDATE} | grep nlev`
-#                       nlev=`echo $nlev_str | gawk '{print $2}'`
-# 
-#                       sdir=" dset ^out_${dtype}_${uvtype}_${cycle}.${PDATE}"
-#                       title="title  ${dtype}_${uvtype}  ${cycle}"
-#                       xdef="xdef $nlev   linear 1 1 "
-#                       sed -e "s/^title.*/${title}/" hist_${dtype}.ctl >tmp.ctl
-#                       sed -e "s/^xdef.*/${xdef}/" tmp.ctl >tmp1.ctl
-#
-#                       yr=`echo ${PDATE} | cut -c1-4`
-#                       mo=`echo ${PDATE} | cut -c5-6`
-#                       da=`echo ${PDATE} | cut -c7-8`
-#                       hr=`echo ${PDATE} | cut -c9-10`
-#
-#                       case $mo in
+                     nlev_str=`cat stdout_${dtype}_${uvtype}_${cycle}.${PDATE} | grep nlev`
+                     nlev=`echo $nlev_str | gawk '{print $2}'`
+
+                     sdir=" dset ^out_${dtype}_${uvtype}_${cycle}.${PDATE}"
+                     title="title  ${dtype}_${uvtype}  ${cycle}"
+                     xdef="xdef $nlev   linear 1 1 "
+                     sed -e "s/^title.*/${title}/" hist_${dtype}.ctl >tmp.ctl
+                     sed -e "s/^xdef.*/${xdef}/" tmp.ctl >tmp1.ctl
+
+                     yr=`echo ${PDATE} | cut -c1-4`
+                     mo=`echo ${PDATE} | cut -c5-6`
+                     da=`echo ${PDATE} | cut -c7-8`
+                     hr=`echo ${PDATE} | cut -c9-10`
+
+                    month='';  getMonth ${mo}; month=${out}
+#                     case $mo in
 #                          01) month=jan;;
 #                          02) month=feb;;
 #                          03) month=mar;;
@@ -224,39 +232,77 @@ echo "---> plot_hist.sh"
 #                          12) month=dec;;
 #                           *) echo "month error $mo"
 #                            exit 1;;
-#                       esac
-#
-#
-#                       tdef="tdef 1 linear ${hr}z${da}${month}${yr} 1hr"
-#                       sed -e "s/^tdef.*/${tdef}/" tmp1.ctl >tmp2.ctl
-#
-#                       echo $sdir >${cycle}_${dtype}_${uvtype}.ctl
-#                       cat tmp2.ctl >>${cycle}_${dtype}_${uvtype}.ctl
-#
-#                       rm -f tmp.ctl
-#                       rm -f tmp1.ctl
-#                       rm -f tmp2.ctl
-#
-#                       tail -3 stdout_${dtype}_${uvtype}_${cycle}.${PDATE} >>fileout
-#
-#                    done
-
-                     #--------------------------
-                     ##  set up plot variables
-     #               cp $C_IM_GSCRIPTS/plot_hist.gs ./plot_hist.gs
-#
-#                    sed -e "s/XSIZE/$xsize/" \
-#                        -e "s/YSIZE/$ysize/" \
-#                        -e "s/PLOTFILE/${dtype}_${uvtype}/" \
-#                        -e "s/SDATE/$PDATE/" \
-#                    plot_hist.gs >plothist_${dtype}_${uvtype}.gs
-#
-#
-#                    echo 'quit' |grads -blc " run plothist_${dtype}_${uvtype}.gs"
+#                     esac
 
 
-#                  done      ### uvtype loop
-#               fi
+                     tdef="tdef 1 linear ${hr}z${da}${month}${yr} 1hr"
+                     sed -e "s/^tdef.*/${tdef}/" tmp1.ctl >tmp2.ctl
+
+                     echo $sdir >${cycle}_${dtype}_${uvtype}.ctl
+                     cat tmp2.ctl >>${cycle}_${dtype}_${uvtype}.ctl
+
+                     rm -f tmp.ctl
+                     rm -f tmp1.ctl
+                     rm -f tmp2.ctl
+
+                     #--------------------------------------------
+                     #  Build the fileout.${cycle}.${dtype} file.
+                     #
+                     info_file="grads_info_${dtype}_${uvtype}_${cycle}.${PDATE}"
+      
+                     out='';  getField ${info_file} 'all_ncount'; all_ncount=${out}
+                     out='';  getField ${info_file} 'all_rejqc'; all_rejqc=${out}
+                     out='';  getField ${info_file} 'all_gros'; all_gros=${out}
+                     out='';  getField ${info_file} 'all_std'; all_std=${out}
+                     out='';  getField ${info_file} 'all_mean'; all_mean=${out}
+      
+                     out='';  getField ${info_file} 'ioqc_ncount'; ioqc_ncount=${out}
+                     out='';  getField ${info_file} 'ioqc_rejqc'; ioqc_rejqc=${out}
+                     out='';  getField ${info_file} 'ioqc_gros'; ioqc_gros=${out}
+                     out='';  getField ${info_file} 'ioqc_std'; ioqc_std=${out}
+                     out='';  getField ${info_file} 'ioqc_mean'; ioqc_mean=${out}
+
+                     out='';  getField ${info_file} 'mon_ncount'; mon_ncount=${out}
+                     out='';  getField ${info_file} 'mon_rejqc'; mon_rejqc=${out}
+                     out='';  getField ${info_file} 'mon_gros'; mon_gros=${out}
+                     out='';  getField ${info_file} 'mon_std'; mon_std=${out}
+                     out='';  getField ${info_file} 'mon_mean'; mon_mean=${out}
+ 
+                     outfile=fileout.${cycle}.${dtype}_${uvtype} 
+                     echo ${all_ncount} ${all_rejqc} ${all_gros} ${all_std} ${all_mean}       > ${outfile}
+                     echo ${ioqc_ncount} ${ioqc_rejqc} ${ioqc_gros} ${ioqc_std} ${ioqc_mean} >> ${outfile}
+                     echo ${mon_ncount} ${mon_rejqc} ${mon_gros} ${mon_std} ${mon_mean}      >> ${outfile}
+  
+                     #-----------------------------
+                     # set up plot variables
+                     #
+                     if [[ ! -e ./plot_hist.gs ]]; then
+                        cp ${C_IG_GSCRIPTS}/plot_hist.gs ./plot_hist.gs 
+                     fi
+                     if [[ ! -e ./setvpage.gs ]]; then 
+                        cp ${C_IG_GSCRIPTS}/setvpage.gs ./setvpage.gs
+                     fi
+
+                     cat fileout.ges.${dtype}_${uvtype} >  fileout
+                     cat fileout.anl.${dtype}_${uvtype} >> fileout
+                     cp fileout fileout_all.${dtype}_${uvtype}
+ 
+                     sed -e "s/XSIZE/$xsize/" \
+                         -e "s/YSIZE/$ysize/" \
+                         -e "s/PLOTFILE/${dtype}_${uvtype}/" \
+                         -e "s/SDATE/$PDATE/" \
+                     plot_hist.gs > plothist_${dtype}_${uvtype}.gs
+
+
+                     #-------------------------------------
+                     #  run the GrADS plot script
+                     #
+                     echo 'quit' | grads -blc " run plothist_${dtype}_${uvtype}.gs"
+
+
+                  done      ### uvtype loop
+               fi
+
             fi 		## -s $scater_file
          done         ## done with cycle
 

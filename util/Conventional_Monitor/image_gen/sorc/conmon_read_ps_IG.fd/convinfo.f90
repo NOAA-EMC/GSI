@@ -4,23 +4,33 @@
 !     This subroutine reads the conventional data (cnvstat) file.
 !------------------------------------------------------------------
 
-subroutine convinfo_read(dtype,idtype,insubtype,ituse,ntumgrp,ntgroup,ntmiter,isubtype,&
-                             ttwind2,gtross2,etrmax2,etrmin2,vtar_b2,vtar_pg2)
+subroutine convinfo_read( dtype, idtype, insubtype, ituse, ntumgrp, ntgroup, ntmiter, isubtype,&
+                             ttwind2, gtross2, etrmax2, etrmin2, vtar_b2, vtar_pg2)
 
    implicit none
 
-   character(120):: crecord
-   character(7) :: obstype1
-   character(15) :: obstype
-   character(1) :: cflg
-   character(7):: iotype
-   integer idtype,insubtype
-   character(idtype) :: dtype
+   !--------------
+   !  interface
+   !
+   character(idtype), intent(in)  :: dtype
+   integer,           intent(in)  :: idtype, insubtype
+   integer(4),        intent(out) :: ituse, ntumgrp, ntgroup, ntmiter, isubtype
+   real(4),           intent(out) :: ttwind2, gtross2, etrmax2, etrmin2, vtar_b2, vtar_pg2
+   
 
-   integer(4):: ittype,ituse,ntumgrp,ntgroup,ntmiter,isubtype
+   !--------------
+   !  local vars
+   !
+   character(120):: crecord
+   character(7)  :: obstype1
+   character(15) :: obstype
+   character(1)  :: cflg
+   character(7)  :: iotype
+
+   integer(4) :: ittype
    integer(4) :: lunin,ithin,npred,iflag
-   real(8) :: ttwind,gtross,etrmax,etrmin,vtar_b,vtar_pg,rmesh,pmesh
-   real(4) :: ttwind2,gtross2,etrmax2,etrmin2,vtar_b2,vtar_pg2
+   real(8)    :: ttwind,gtross,etrmax,etrmin,vtar_b,vtar_pg,rmesh,pmesh
+
 
    lunin=11
 
@@ -38,7 +48,6 @@ subroutine convinfo_read(dtype,idtype,insubtype,ituse,ntumgrp,ntgroup,ntmiter,is
       write(obstype1,'(i3)') ittype
 
       obstype=trim(iotype)//trim(obstype1)
-!      print *,'obstype,dtype ',obstype,dtype
 
       if( trim(obstype) == trim(dtype)  .and. isubtype == insubtype) then
          ttwind2=ttwind

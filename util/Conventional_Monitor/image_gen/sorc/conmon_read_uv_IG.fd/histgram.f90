@@ -4,7 +4,8 @@
 !    This subroutine calculates the histogram of each data source.
 !----------------------------------------------------------------------------
 
-subroutine hist(mtype,rmodnbc,nchan,nxdata,ndata,rmin,rmax,rlev,fileo,ncount_vqc,ncount_gros, grads_info_file )
+subroutine hist( mtype, rmodnbc, nchan, nxdata, ndata, rmin, rmax, rlev, &
+                 fileo, ncount_vqc, ncount_gros, grads_info_file )
 
    implicit none
 
@@ -20,7 +21,6 @@ subroutine hist(mtype,rmodnbc,nchan,nxdata,ndata,rmin,rmax,rlev,fileo,ncount_vqc
    integer,dimension(nchan),     intent(in) :: ncount_vqc,ncount_gros
    character*50,                 intent(in) :: grads_info_file
    
-
    !--------------
    !  local vars
    !
@@ -144,26 +144,6 @@ subroutine hist(mtype,rmodnbc,nchan,nxdata,ndata,rmin,rmax,rlev,fileo,ncount_vqc
 220 format( a14, f6.3 )
 
    close( 15 )
-
-! write(6,220) (xs(1,i),i=1,100)
-! write(6,230) (ys(1,i),i=1,100)
-! write(6,230) (f(1,i),i=1,100)
-
-!220 format(6e12.4)
-!230 format(6e12.5)
-
-!  trasform the frequecy so that gaussin distribution became a stright line
-  
-!   print *, 'maxf ',maxf
-
-!   do i=1,nlev
-!    if(ys(i) >0.0) then
-!      ys(i)=sqrt(-2.0*log(ys(i)/maxf))
-!    else
-!      ys(i)=0.0
-!    endif
-!     f(i)=abs((xs(i)-rmean)/rstd)
-!   enddo
 
    open (10,file=fileo,form='unformatted',access='direct',recl=nlev*4)
     

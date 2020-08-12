@@ -2,7 +2,7 @@
 ! subroutine read_uv_mor
 !
 !-------------------------------------------------------------
-subroutine read_uv_mor(nreal,dtype,fname,fileo,gtross,rlev, grads_info_file )
+subroutine read_uv_mor( nreal, dtype, fname, fileo, gtross, rlev, grads_info_file )
 
    implicit none
 
@@ -40,17 +40,17 @@ subroutine read_uv_mor(nreal,dtype,fname,fileo,gtross,rlev, grads_info_file )
    rpress=rmiss
    ncount_vqc=0
    ncount_gros=0
-   fileu=trim(fileo)//'_u'
-   filev=trim(fileo)//'_v'
-   fileou2='stdout_u'
-   fileov2='stdout_v'
+
+   fileu   = 'out_u'
+   filev   = 'out_v'
+   fileou2 = 'stdout_u'
+   fileov2 = 'stdout_v'
 
 
    ntotal=0
    open(unit=11,file=fname,form='unformatted')
    rewind(11)
    read(11) nobs,nreal_in
-!   print *, 'nobs=',nobs
 
    if (nreal /= nreal_in) then
       print *,'nreal_in,nreal ',nreal_in,nreal
