@@ -26,8 +26,8 @@ function uvsatwind (args)
 
    'open anal.ctl'
    'open guess.ctl'
-   'open 'plotfile2'_grads_anl.ctl'
-   'open 'plotfile2'_grads_ges.ctl'
+   'open 'plotfile2'.grads.anl.ctl'
+   'open 'plotfile2'.grads.ges.ctl'
    say  'open the file:' plotfile2'_grads_anl.ctl'
 
    if(plotfile = uv242 | plotfile = uv252);nhe=3;endif

@@ -30,6 +30,27 @@ cd $tmpdir_plothorz
 #----------------------------------------------------------------------
 #  Link in the analysis and guess data files
 #----------------------------------------------------------------------
+#anl_file=${hh_tankdir}/anl/anal.${PDATE}
+#ges_file=${hh_tankdir}/ges/guess.${PDATE}
+
+#if [[ -e ${anl_file}.${Z} ]]; then
+#  cp ${anl_file}.${Z} ./anal.${PDATE}.${Z}
+#  ${UNCOMPRESS} ./anal.${PDATE}.${Z}
+#elif [[ -e ${anl_file} ]]; then
+#  cp ${anl_file} ./anal.${PDATE}
+#else
+#  echo "PROBLEM:  unable to locate ${anl_file}"
+#fi
+ 
+#if [[ -e ${ges_file}.${Z} ]]; then
+#  cp ${ges_file}.${Z} ./guess.${PDATE}.${Z}
+#  ${UNCOMPRESS} ./guess.${PDATE}.${Z}
+#elif [[ -e ${ges_file} ]]; then
+#  cp ${ges_file} ./guess.${PDATE}
+#else
+#  echo "PROBLEM:  unable to locate ${ges_file}"
+#fi
+ 
 ${UNCOMPRESS} ${hh_tankdir}/anl/anal.${PDATE}.${Z}
 ${UNCOMPRESS} ${hh_tankdir}/ges/guess.${PDATE}.${Z}
 
@@ -66,7 +87,8 @@ ln -s ${C_IG_GSCRIPTS}/setvpage.gs ./setvpage.gs
 ln -s ${C_IG_GSCRIPRT}/colorbar.gs ./colorbar.gs
 
 
-for type in ps q t; do
+#for type in ps q t; do
+for type in ps; do
 
    eval stype=\${${type}_TYPE} 
    eval nreal=\${nreal_${type}} 
@@ -138,11 +160,11 @@ for type in ps q t; do
          fi
 
 
-         sdir=" dset ${dtype}_grads_${cycle}.${PDATE}"
+         sdir=" dset ${dtype}.grads.${cycle}.${PDATE}"
          title="title  ${dtype}  ${cycle}"
          sed -e "s/^title.*/${title}/" ${dtype}.ctl >tmp.ctl
-         echo $sdir >${dtype}_grads_${cycle}.ctl
-         cat tmp.ctl >>${dtype}_grads_${cycle}.ctl
+         echo $sdir >${dtype}.grads.${cycle}.ctl
+         cat tmp.ctl >>${dtype}.grads.${cycle}.ctl
          rm -f tmp.ctl
          rm -f ${dtype}.ctl
 
@@ -154,17 +176,17 @@ for type in ps q t; do
 
          if [ -s ${grads_file}.${Z} ]; then
             ${UNCOMPRESS} ${grads_file}
-            ln -s ${grads_file} ${dtype}_grads_${cycle}.${PDATE} 
+            ln -s ${grads_file} ${dtype}.grads.${cycle}.${PDATE} 
 
          elif [ -s ${grads_file} ]; then
-            ln -s ${grads_file} ${dtype}_grads_${cycle}.${PDATE} 
+            ln -s ${grads_file} ${dtype}.grads.${cycle}.${PDATE} 
 
          else
             echo "WARNING:  unable to locate ${grads_file}"
             continue
          fi
 
-         stnmap -1 -i ${dtype}_grads_${cycle}.ctl 
+         stnmap -1 -i ${dtype}.grads.${cycle}.ctl 
 
       done         ## done with cycle
 

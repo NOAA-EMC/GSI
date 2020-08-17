@@ -21,8 +21,8 @@ function plot_uvsfc (args)
 
    'open anal.ctl'
    'open guess.ctl'
-   'open 'plotfile2'_grads_anl.ctl'
-   'open 'plotfile2'_grads_ges.ctl'
+   'open 'plotfile2'.grads.anl.ctl'
+   'open 'plotfile2'.grads.ges.ctl'
 
    if( plotfile = uv282 | plotfile = uv229); nhe=1; endif
    if( plotfile = uv280) ; nhe=10; endif

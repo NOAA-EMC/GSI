@@ -25,8 +25,8 @@ nt=NT
 ** and the rawinsonde whose height same as defined, hint=0 
 'open anal.ctl'
 'open guess.ctl'
-'open 'plotfile2'_grads_anl.ctl'
-'open 'plotfile2'_grads_ges.ctl'
+'open 'plotfile2'.grads.anl.ctl'
+'open 'plotfile2'.grads.ges.ctl'
 say  'open the file'
 
 if (plotfile = q180 | plotfile = q183); nhe=5;endif

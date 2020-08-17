@@ -27,8 +27,8 @@ hint=HINT
 ** the data plotted is 2*hint interval  915-935
 'open anal.ctl'
 'open guess.ctl'
-'open 'plotfile2'_grads_anl.ctl'
-'open 'plotfile2'_grads_ges.ctl'
+'open 'plotfile2'.grads.anl.ctl'
+'open 'plotfile2'.grads.ges.ctl'
 say  'open the file'
 
 he=1

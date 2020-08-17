@@ -21,8 +21,8 @@ nt=NT
 
 'open anal.ctl'
 'open guess.ctl'
-'open 'plotfile2'_grads_anl.ctl'
-'open 'plotfile2'_grads_ges.ctl'
+'open 'plotfile2'.grads.anl.ctl'
+'open 'plotfile2'.grads.ges.ctl'
 
 if(plotfile = t181 | plotfile = t182 | plotfile = t183 | plotfile = t187);nhe=5;endif
 if(plotfile = t180);nhe=10;endif

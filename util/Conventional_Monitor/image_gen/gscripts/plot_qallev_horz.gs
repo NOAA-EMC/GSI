@@ -29,8 +29,8 @@ function qallev (args)
 
    'open anal.ctl'
    'open guess.ctl'
-   'open 'plotfile2'_grads_anl.ctl'
-   'open 'plotfile2'_grads_ges.ctl'
+   'open 'plotfile2'.grads.anl.ctl'
+   'open 'plotfile2'.grads.ges.ctl'
    say  'open the file'
    
    if(plotfile = q120); hint=0; nhe=9;endif

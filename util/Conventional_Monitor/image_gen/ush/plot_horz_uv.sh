@@ -26,10 +26,37 @@ export NCP="cp -f"
 #export hint=0
 
 #----------------------------------------------------------------------
-#  Link to required data and control files
+#  Copy in the analysis and guess data files
 #----------------------------------------------------------------------
-ln -s ${hh_tankdir}/anl/anal.${PDATE}  anal.${PDATE}
-ln -s ${hh_tankdir}/ges/guess.${PDATE} guess.${PDATE}
+anl_file=${hh_tankdir}/anl/anal.${PDATE}
+ges_file=${hh_tankdir}/ges/guess.${PDATE}
+
+if [[ -e ${anl_file}.${Z} ]]; then
+  cp ${anl_file}.${Z} ./anal.${PDATE}.${Z}
+  ${UNCOMPRESS} ./anal.${PDATE}.${Z}
+elif [[ -e ${anl_file} ]]; then
+  cp ${anl_file} ./anal.${PDATE}
+else
+  echo "PROBLEM:  unable to locate ${anl_file}"
+fi
+
+if [[ -e ${ges_file}.${Z} ]]; then
+  cp ${ges_file}.${Z} ./guess.${PDATE}.${Z}
+  ${UNCOMPRESS} ./guess.${PDATE}.${Z}
+elif [[ -e ${ges_file} ]]; then
+  cp ${ges_file} ./guess.${PDATE}
+else
+  echo "PROBLEM:  unable to locate ${ges_file}"
+fi
+
+#----------------------------------------------------------------------
+#  Link in the analysis and guess data files
+#----------------------------------------------------------------------
+#${UNCOMPRESS} ${hh_tankdir}/anl/anal.${PDATE}.${Z}
+#${UNCOMPRESS} ${hh_tankdir}/ges/guess.${PDATE}.${Z}
+
+#ln -s ${hh_tankdir}/anl/anal.${PDATE}  anal.${PDATE}
+#ln -s ${hh_tankdir}/ges/guess.${PDATE} guess.${PDATE}
 
 
 #----------------------------------------------------------------------
@@ -122,12 +149,12 @@ for type in uv; do
             fi
          fi
 
-         if [  ! -s $savedir/${cycle}/${dtype}_grads.${PDATE} ]; then
-            echo "BREAKing for want of ${dtype}_grads.${PDATE}"
-            break
-         fi 
+#         if [  ! -s $savedir/${cycle}/${dtype}_grads.${PDATE} ]; then
+#           echo "BREAKing for want of ${dtype}_grads.${PDATE}"
+#           break
+#        fi 
 
-         sdir=" dset $savedir/${cycle}/${dtype}_grads.${PDATE}"
+         sdir=" dset ${dtype}.grads.${cycle}.${PDATE}"
          title="title  ${dtype}  ${cycle}"
          sed -e "s/^title.*/${title}/" ${dtype}.ctl >tmp.ctl
          echo $sdir >${dtype}_grads_${cycle}.ctl
@@ -135,13 +162,33 @@ for type in uv; do
          rm -f tmp.ctl
          rm -f ${dtype}.ctl
 
+
+         #--------------------------------------------------------------
+         #  link in the ${dtype}_grads.${PDATE} data file from TANKDIR
+         #--------------------------------------------------------------
+         grads_file=${hh_tankdir}/${cycle}/${dtype}.grads.${cycle}.${PDATE}
+
+         if [ -s ${grads_file}.${Z} ]; then
+            ${UNCOMPRESS} ${grads_file}
+            ln -s ${grads_file} ${dtype}.grads.${cycle}.${PDATE}
+
+         elif [ -s ${grads_file} ]; then
+            ln -s ${grads_file} ${dtype}.grads.${cycle}.${PDATE}
+
+         else
+            echo "WARNING:  unable to locate ${grads_file}"
+            continue
+         fi
+
+         stnmap -1 -i ${dtype}_grads_${cycle}.ctl
+
       done         ## done with cycle
 
       if [  ! -s $savedir/$cycle/${dtype}_grads.${PDATE} ]; then
          continue
       fi
 
-      stnmap -1 -i ${dtype}_grads_ges.ctl 
+#      stnmap -1 -i ${dtype}_grads_ges.ctl 
 
       ### set up plot variables
 
@@ -165,6 +212,9 @@ for type in uv; do
 
    done      ### dtype loop 
 done      ### type loop
+
+${COMPRESS} ${hh_tankdir}/ges/*
+${COMPRESS} ${hh_tankdir}/anl/*
 
 #cd $tmpdir_plothorz
 #rm -rf $PDATE

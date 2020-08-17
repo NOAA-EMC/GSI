@@ -23,8 +23,8 @@ nt=NT
 
 'open anal.ctl'
 'open guess.ctl'
-'open 'plotfile2'_grads_anl.ctl'
-'open 'plotfile2'_grads_ges.ctl'
+'open 'plotfile2'.grads.anl.ctl'
+'open 'plotfile2'.grads.ges.ctl'
 
 *if (plotfile = ps180 ); nhe=11;endif
 *if (plotfile = ps183 ); nhe=9;endif
