@@ -87,8 +87,10 @@ ln -s ${C_IG_GSCRIPTS}/setvpage.gs ./setvpage.gs
 ln -s ${C_IG_GSCRIPRT}/colorbar.gs ./colorbar.gs
 
 
-#for type in ps q t; do
-for type in ps; do
+#----------------------------------------------------------------------
+#  NOTE:  issue with q -- anal and guess files are missing RH2m term
+#----------------------------------------------------------------------
+for type in ps q t; do
 
    eval stype=\${${type}_TYPE} 
    eval nreal=\${nreal_${type}} 

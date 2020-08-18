@@ -216,24 +216,7 @@ echo "---> plot_hist.sh"
                      da=`echo ${PDATE} | cut -c7-8`
                      hr=`echo ${PDATE} | cut -c9-10`
 
-                    month='';  getMonth ${mo}; month=${out}
-#                     case $mo in
-#                          01) month=jan;;
-#                          02) month=feb;;
-#                          03) month=mar;;
-#                          04) month=apr;;
-#                          05) month=may;;
-#                          06) month=jun;;
-#                          07) month=jul;;
-#                          08) month=aug;;
-#                          09) month=sep;;
-#                          10) month=oct;;
-#                          11) month=nov;;
-#                          12) month=dec;;
-#                           *) echo "month error $mo"
-#                            exit 1;;
-#                     esac
-
+                     month='';  getMonth ${mo}; month=${out}
 
                      tdef="tdef 1 linear ${hr}z${da}${month}${yr} 1hr"
                      sed -e "s/^tdef.*/${tdef}/" tmp1.ctl >tmp2.ctl
@@ -321,9 +304,6 @@ echo "---> plot_hist.sh"
          cp -f *hist*.png ${C_IMGNDIR}/pngs/hist/${CYC}/.
 
       done      ### dtype loop 
-
-
-#     #rm -f *hist*.png
 
    done      ### type loop
 

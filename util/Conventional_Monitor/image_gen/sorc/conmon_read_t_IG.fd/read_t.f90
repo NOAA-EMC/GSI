@@ -35,8 +35,6 @@ subroutine read_t(nreal,dtype,fname,fileo,gtross,rlev, grads_info_file )
    data rmiss/-999.0/ 
    data tiny / 1.0e-6 /
 
-!   print *,'nreal=',nreal
-
    ncount=0
    rpress=rmiss
    ncount_vqc=0

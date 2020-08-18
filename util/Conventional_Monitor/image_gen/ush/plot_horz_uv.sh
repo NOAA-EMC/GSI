@@ -31,32 +31,32 @@ export NCP="cp -f"
 anl_file=${hh_tankdir}/anl/anal.${PDATE}
 ges_file=${hh_tankdir}/ges/guess.${PDATE}
 
-if [[ -e ${anl_file}.${Z} ]]; then
-  cp ${anl_file}.${Z} ./anal.${PDATE}.${Z}
-  ${UNCOMPRESS} ./anal.${PDATE}.${Z}
-elif [[ -e ${anl_file} ]]; then
-  cp ${anl_file} ./anal.${PDATE}
-else
-  echo "PROBLEM:  unable to locate ${anl_file}"
-fi
-
-if [[ -e ${ges_file}.${Z} ]]; then
-  cp ${ges_file}.${Z} ./guess.${PDATE}.${Z}
-  ${UNCOMPRESS} ./guess.${PDATE}.${Z}
-elif [[ -e ${ges_file} ]]; then
-  cp ${ges_file} ./guess.${PDATE}
-else
-  echo "PROBLEM:  unable to locate ${ges_file}"
-fi
+#if [[ -e ${anl_file}.${Z} ]]; then
+#  cp ${anl_file}.${Z} ./anal.${PDATE}.${Z}
+#  ${UNCOMPRESS} ./anal.${PDATE}.${Z}
+#elif [[ -e ${anl_file} ]]; then
+#  cp ${anl_file} ./anal.${PDATE}
+#else
+#  echo "PROBLEM:  unable to locate ${anl_file}"
+#fi
+#
+#if [[ -e ${ges_file}.${Z} ]]; then
+#  cp ${ges_file}.${Z} ./guess.${PDATE}.${Z}
+#  ${UNCOMPRESS} ./guess.${PDATE}.${Z}
+#elif [[ -e ${ges_file} ]]; then
+#  cp ${ges_file} ./guess.${PDATE}
+#else
+#  echo "PROBLEM:  unable to locate ${ges_file}"
+#fi
 
 #----------------------------------------------------------------------
 #  Link in the analysis and guess data files
 #----------------------------------------------------------------------
-#${UNCOMPRESS} ${hh_tankdir}/anl/anal.${PDATE}.${Z}
-#${UNCOMPRESS} ${hh_tankdir}/ges/guess.${PDATE}.${Z}
+${UNCOMPRESS} ${hh_tankdir}/anl/anal.${PDATE}.${Z}
+${UNCOMPRESS} ${hh_tankdir}/ges/guess.${PDATE}.${Z}
 
-#ln -s ${hh_tankdir}/anl/anal.${PDATE}  anal.${PDATE}
-#ln -s ${hh_tankdir}/ges/guess.${PDATE} guess.${PDATE}
+ln -s ${hh_tankdir}/anl/anal.${PDATE}  anal.${PDATE}
+ln -s ${hh_tankdir}/ges/guess.${PDATE} guess.${PDATE}
 
 
 #----------------------------------------------------------------------
@@ -169,7 +169,7 @@ for type in uv; do
          grads_file=${hh_tankdir}/${cycle}/${dtype}.grads.${cycle}.${PDATE}
 
          if [ -s ${grads_file}.${Z} ]; then
-            ${UNCOMPRESS} ${grads_file}
+            ${UNCOMPRESS} ${grads_file}.${Z}
             ln -s ${grads_file} ${dtype}.grads.${cycle}.${PDATE}
 
          elif [ -s ${grads_file} ]; then
@@ -184,7 +184,7 @@ for type in uv; do
 
       done         ## done with cycle
 
-      if [  ! -s $savedir/$cycle/${dtype}_grads.${PDATE} ]; then
+      if [  ! -s $savedir/$cycle/${dtype}.grads.${cycle}.${PDATE} ]; then
          continue
       fi
 

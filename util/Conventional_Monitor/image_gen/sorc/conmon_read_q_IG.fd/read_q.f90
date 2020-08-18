@@ -62,7 +62,6 @@ subroutine read_q( nreal, dtype, fname, fileo, gtross, rlev, grads_info_file )
 
    allocate( rdiag( nreal,nobs ))
    read(11) rdiag
-   print *, ' rdiag contents: ', rdiag
    close( 11 )
 
 

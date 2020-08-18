@@ -156,7 +156,8 @@ EOF
 
             for file in *stas.ctl; do
                ${COMPRESS} ${file}
-               mv -f ${file}.${Z} ${savedir}/${run}_${file}.${Z}
+               cp -f ${file}.${Z} ${savedir}/${run}_${file}.${Z}
+#               mv -f ${file}.${Z} ${savedir}/${run}_${file}.${Z}
             done
 
          done
