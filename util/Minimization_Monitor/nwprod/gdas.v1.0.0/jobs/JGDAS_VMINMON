@@ -7,11 +7,11 @@ echo `date` $0 `date -u` begin
 export PS4='$SECONDS + '
 
 ###############################
-# Specify NET and RUN name
+# Specify NET, RUN, and COMPONENT name
 ##############################
 export NET=${NET:-gfs}
 export RUN=${RUN:-gdas}
-
+export COMPONENT=${COMPONENT:-atmos}
 
 ###########################################################
 # obtain unique process id (pid) and make temp directories
@@ -70,11 +70,11 @@ export p_cyc=`echo ${cdate} | cut -c9-10`
 export COM_IN=${COM_IN:-${COMROOT}/${NET}/${envir}}
 
 M_TANKverf=${M_TANKverf:-${COM_IN}}
-M_TANKverfM0=${M_TANKverfM0:-${M_TANKverf}/${RUN}.${PDY}/${cyc}/minmon}
-export M_TANKverfM1=${M_TANKverfM1:-${M_TANKverf}/${RUN}.${P_PDY}/${p_cyc}/minmon}
+M_TANKverfM0=${M_TANKverfM0:-${M_TANKverf}/${RUN}.${PDY}/${cyc}/$COMPONENT/minmon}
+export M_TANKverfM1=${M_TANKverfM1:-${M_TANKverf}/${RUN}.${P_PDY}/${p_cyc}/$COMPONENT/minmon}
 export M_TANKverf=$M_TANKverfM0
 
-export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}/${cyc}}
+export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}/${cyc}/$COMPONENT}
 
 mkdir -p -m 775 $M_TANKverf
 

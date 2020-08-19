@@ -57,6 +57,7 @@ export pgmerr=errfile
 ##############################################
 export CDATE=${CDATE:-${PDY}${cyc}}
 export CDUMP=${CDUMP:-${RUN:-"gdas"}}
+export COMPONENT=${COMPONENT:-atmos}
 if [ $RUN_ENVIR = "nco" ]; then
     export ROTDIR=${COMROOT:?}/$NET/$envir
 fi
@@ -81,11 +82,10 @@ export ASUFFIX="${ASUFFIX:-$SUFFIX}"
 
 
 # COMIN_GES, COMIN_GES_ENS and COMOUT are used in exglobal script
-# TO DO: Map NCO's directory into these variables
-COMIN_GES_CTL="$ROTDIR/gdas.$gPDY/$gcyc"
-export COMIN_GES_ENS="$ROTDIR/enkfgdas.$gPDY/$gcyc"
+COMIN_GES_CTL="$ROTDIR/gdas.$gPDY/$gcyc/$COMPONENT"
+export COMIN_GES_ENS="$ROTDIR/enkfgdas.$gPDY/$gcyc/$COMPONENT"
 export COMIN_GES=$COMIN_GES_ENS
-export COMOUT="$ROTDIR/enkf$CDUMP.$PDY/$cyc"
+export COMOUT="$ROTDIR/enkf$CDUMP.$PDY/$cyc/$COMPONENT"
 
 
 export ATMGES_ENSMEAN="$COMIN_GES_ENS/${GPREFIX}atmf006.ensmean$GSUFFIX"
@@ -132,7 +132,7 @@ status=$?
 
 
 # Double check the status of members in ENSGRP
-EOMGGRP=$ROTDIR/enkf${CDUMP}.$PDY/$cyc/eomg.grp${ENSGRP}
+EOMGGRP=$ROTDIR/enkf${CDUMP}.$PDY/$cyc/$COMPONENT/eomg.grp${ENSGRP}
 npass=0
 if [ -f $EOMGGRP ]; then
     npass=$(grep "PASS" $EOMGGRP | wc -l)
