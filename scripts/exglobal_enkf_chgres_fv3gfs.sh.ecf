@@ -172,7 +172,7 @@ j_output=$LATB_ENKF
 input_file="fcst.0$FHR"
 output_file="fcst.ensres.0$FHR"
 terrain_file="atmens_fcst"
-vcoord_file="$SIGLEVEL"
+ref_file="atmens_fcst"
 /
 EOF
      if [ $USE_CFP = "YES" ]; then
@@ -199,7 +199,7 @@ EOF
          export ERR=$?
          export err=$ERR
          $ERRSCRIPT || exit 3
-      fi      
+      fi
    fi
 
 else
