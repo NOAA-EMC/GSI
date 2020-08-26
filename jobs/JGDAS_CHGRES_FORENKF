@@ -106,7 +106,7 @@ postmsg "$jlogfile" "$msg"
 $LOGSCRIPT
 
 
-${CHGRESFCSTSH:-$HOMEgsi/scripts/exglobal_enkf_chgres_fv3gfs.sh.ecf}
+${CHGRESFCSTSH:-$HOMEgsi/scripts/exglobal_chgres_forenkf_fv3gfs.sh.ecf}
 status=$?
 [[ $status -ne 0 ]] && exit $status
 
