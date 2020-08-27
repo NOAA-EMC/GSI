@@ -103,7 +103,7 @@ nm=""
 if [ $CFP_MP = "YES" ]; then
     nm=0
 fi
-DIAG_DIR=${COMOUT}/${APREFIX}gsidiags/
+DIAG_DIR=${COMOUT}/gsidiags
 REMOVE_DIAG_DIR=${REMOVE_DIAG_DIR:-"NO"}
 
 # Set script / GSI control parameters
