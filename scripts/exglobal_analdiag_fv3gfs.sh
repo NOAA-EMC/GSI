@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exglobal_analdiag_fv3gfs.sh.ecf.sh
+# Script name:         exglobal_analdiag_fv3gfs.sh
 # Script description:  Creates diagnostic files after GSI analysis is performed
 #
 # Author: Cory Martin      Org: NCEP/EMC     Date: 2020-03-03

@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exglobal_enkf_innovate_obs_fv3gfs.sh.ecf
+# Script name:         exglobal_enkf_innovate_obs_fv3gfs.sh
 # Script description:  Compute ensemble innovations
 #
 # Author:        Rahul Mahajan      Org: NCEP/EMC     Date: 2017-03-02
@@ -40,8 +40,8 @@ export NLN=${NLN:-"/bin/ln -sf"}
 export ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
 
 # Scripts.
-INVOBSSH=${INVOBSSH:-$HOMEgsi/scripts/exglobal_innovate_obs_fv3gfs.sh.ecf}
-export ANALYSISSH=${ANALYSISSH:-$HOMEgsi/scripts/exglobal_analysis_fv3gfs.sh.ecf}
+INVOBSSH=${INVOBSSH:-$HOMEgsi/scripts/exglobal_innovate_obs_fv3gfs.sh}
+export ANALYSISSH=${ANALYSISSH:-$HOMEgsi/scripts/exglobal_analysis_fv3gfs.sh}
 
 # Enemble group, begin and end
 ENSGRP=${ENSGRP:-1}

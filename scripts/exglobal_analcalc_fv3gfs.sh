@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exglobal_anlcalc_fv3gfs.sh.ecf.sh
+# Script name:         exglobal_anlcalc_fv3gfs.sh
 # Script description:  Runs non-diagnostic file tasks after GSI analysis is performed
 #
 # Author: Cory Martin      Org: NCEP/EMC     Date: 2020-03-03

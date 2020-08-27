@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exglobal_enkffcs.sh.sms
+# Script name:         exglobal_enkffcs.sh
 # Script description:  Run global_enkf ensemble forecasts
 #
 # Author:        Russ Treadon       Org: NP23         Date: 2011-12-16
@@ -158,7 +158,7 @@ export COMOUT=${COMOUT:-$(pwd)}
 
 #  Filenames.
 #------------
-export FORECASTSH=${FORECASTSH:-$SCRgsm/exglobal_fcst.sh.sms}
+export FORECASTSH=${FORECASTSH:-$SCRgsm/exglobal_fcst.sh}
 [[ -n ${AMEXECTMP:-""} ]]&&eval export AM_EXEC=$AMEXECTMP
 export FCSTEXEC=${FCSTEXEC:-$AM_EXEC}
 export JCAP=${JCAP_ENKF:-254}

@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exglobal_enkf_recenter_fv3gfs.sh.ecf
+# Script name:         exglobal_enkf_recenter_fv3gfs.sh
 # Script description:  recenter ensemble around hi-res deterministic analysis
 #
 # Author:        Rahul Mahajan      Org: NCEP/EMC     Date: 2017-03-02

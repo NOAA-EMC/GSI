@@ -13,7 +13,7 @@
 # 2011-12-16  Russ Treadon   based on GCWMB parallel script eomg.sh
 # 2014-02-16  Xu Li  add NSST related variables
 #
-# Usage:  exglobal_enkfomg.sh.sms SFCGESMEAN SIGGESMEAN
+# Usage:  exglobal_enkfomg.sh SFCGESMEAN SIGGESMEAN
 #
 #   Input script positional parameters:
 #     1             Input surface guess
@@ -320,7 +320,7 @@ export COMOUT=${COMOUT:-$(pwd)}
 export use_gfs_nemsio=${use_gfs_nemsio:-".false."}   # run GSI with NEMSIO input/output
 
 # Scripts.
-export ANALYSISSH=${ANALYSISSH:-$SCRGSI/exglobal_analysis.sh.sms}
+export ANALYSISSH=${ANALYSISSH:-$SCRGSI/exglobal_analysis.sh}
 
 #  Variables.
 export XC=${XC}

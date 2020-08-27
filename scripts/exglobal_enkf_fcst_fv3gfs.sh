@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exglobal_enkf_fcst_fv3gfs.sh.ecf
+# Script name:         exglobal_enkf_fcst_fv3gfs.sh
 # Script description:  Run ensemble forecasts
 #
 # Author:        Rahul Mahajan      Org: NCEP/EMC     Date: 2017-03-02
@@ -45,7 +45,7 @@ export ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
 export NDATE=${NDATE:-/$NWPROD/util/exec/ndate}
 
 # Scripts.
-FORECASTSH=${FORECASTSH:-$HOMEgfs/scripts/exglobal_fcst_nemsfv3gfs.sh.ecf}
+FORECASTSH=${FORECASTSH:-$HOMEgfs/scripts/exglobal_fcst_nemsfv3gfs.sh}
 
 # Enemble group, begin and end
 ENSGRP=${ENSGRP:-1}

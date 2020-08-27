@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exglobal_enkf_update_fv3gfs.sh.ecf
+# Script name:         exglobal_enkf_update_fv3gfs.sh
 # Script description:  Make global_enkf update
 #
 # Author:        Rahul Mahajan      Org: NCEP/EMC     Date: 2017-03-02

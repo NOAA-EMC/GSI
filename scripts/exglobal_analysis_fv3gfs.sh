@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exglobal_analysis_fv3gfs.sh.ecf.sh
+# Script name:         exglobal_analysis_fv3gfs.sh
 # Script description:  Makes a global model upper air analysis with GSI
 #
 # Author: Rahul Mahajan      Org: NCEP/EMC     Date: 2017-03-02

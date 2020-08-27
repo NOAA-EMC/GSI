@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exglobal_enkfupdat.sh.sms
+# Script name:         exglobal_enkfupdat.sh
 # Script description:  Make global_enkf update
 #
 # Author:        Daryl Kleist       Org: NP23         Date: 2011-03-24
@@ -12,7 +12,7 @@
 # Script history log:
 # 2011-03-24  Russ Treadon   copy from enkf/trunk/scripts_ncep
 #
-# Usage:  exglobal_enkfupdat.sh.sms SFCGES SIGGES GBIAS GBIASE
+# Usage:  exglobal_enkfupdat.sh SFCGES SIGGES GBIAS GBIASE
 #
 #   Input script positional parameters:
 #     1             Input surface guess

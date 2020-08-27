@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exglobal_enkf_surface_fv3gfs.sh.ecf
+# Script name:         exglobal_enkf_surface_fv3gfs.sh
 # Script description:  generate ensemble surface analyses on tiles
 #
 # Author:        Rahul Mahajan      Org: NCEP/EMC     Date: 2017-03-02
