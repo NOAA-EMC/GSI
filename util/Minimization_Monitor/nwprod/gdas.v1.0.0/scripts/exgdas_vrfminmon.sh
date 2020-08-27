@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exgdas_vrfminmon.sh.ecf
+# Script name:         exgdas_vrfminmon.sh
 # Script description:  Runs data extract/validation for GSI normalization diag data
 #
 # Author:        Ed Safford       Org: NP23         Date: 2015-04-10
@@ -26,7 +26,7 @@ then
    set -x
 fi
 
-export scr=exgdas_vrfyminmon.sh.ecf
+export scr=exgdas_vrfyminmon.sh
 
 
 export RUN_ENVIR=${RUN_ENVIR:-nco}
@@ -60,7 +60,7 @@ export MINMON_SUFFIX=${MINMON_SUFFIX:-GDAS}
 export PDATE=${PDY}${cyc}
 export NCP=${NCP:-/bin/cp}
 export NDATE=${NDATE:-/nwprod/util/exec/ndate}
-export pgm=exgdas_vrfminmon.sh.ecf
+export pgm=exgdas_vrfminmon.sh
 
 if [[ ! -d ${DATA} ]]; then
    mkdir $DATA
@@ -118,7 +118,7 @@ elif [[ $rc_reduct -ne 0 ]]; then
 fi
 
 if [[ "$VERBOSE" = "YES" ]]; then
-   echo "end exgdas_vrfminmon.sh.ecf, exit value = ${err}"
+   echo "end exgdas_vrfminmon.sh, exit value = ${err}"
 fi
 
 

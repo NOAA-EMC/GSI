@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exgdas_vrfyrad.sh.ecf
+# Script name:         exgdas_vrfyrad.sh
 # Script description:  Runs data extract/validation for global radiance diag data
 #
 # Author:        Ed Safford       Org: NP23         Date: 2012-01-18
@@ -15,7 +15,7 @@
 #      >0 - some problem encountered
 #
 ################################################################################
-export scr=exgdas_vrfyrad.sh.ecf
+export scr=exgdas_vrfyrad.sh
 
 msg="${scr} HAS STARTED"
 postmsg "$jlogfile" "$msg"
@@ -233,7 +233,7 @@ elif [[ $rc_time -ne 0 ]]; then
 fi
 
 if [[ "$VERBOSE" = "YES" ]]; then
-   echo "end exgdas_vrfyrad.sh.ecf, exit value = ${err}"
+   echo "end exgdas_vrfyrad.sh, exit value = ${err}"
 fi
 
 echo "${scr} HAS ENDED"

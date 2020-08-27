@@ -5,7 +5,7 @@ set -ax
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exgdas_vrfyozn.sh.ecf
+# Script name:         exgdas_vrfyozn.sh
 # Script description:  Runs data extract/validation for global ozone diag data
 #
 # Author:        Ed Safford       Org: NP23         Date: 2012-01-18
@@ -32,7 +32,7 @@ set -ax
 #      >0 - some problem encountered
 #
 ################################################################################
-export scr=exgdas_vrfyozn.sh.ecf
+export scr=exgdas_vrfyozn.sh
 
 err=0
 
@@ -129,7 +129,7 @@ fi
 
 
 if [[ "$VERBOSE" = "YES" ]]; then
-   echo "end exgdas_vrfyozn.sh.ecf, exit value = ${err}"
+   echo "end exgdas_vrfyozn.sh, exit value = ${err}"
 fi
 
 

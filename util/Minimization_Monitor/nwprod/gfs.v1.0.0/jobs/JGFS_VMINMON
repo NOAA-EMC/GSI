@@ -95,7 +95,7 @@ export gsistat=${gsistat:-${COMIN}/gfs.t${cyc}z.gsistat}
 
 ########################################################
 # Execute the script.
-${GMONSH:-$SCRgfs/exgfs_vrfminmon.sh.ecf} ${PDY} ${cyc}
+${GMONSH:-$SCRgfs/exgfs_vrfminmon.sh} ${PDY} ${cyc}
 err=$?
 [[ $err -ne 0 ]] && exit $err
 
