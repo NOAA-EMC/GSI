@@ -161,7 +161,7 @@ postmsg "$jlogfile" "$msg"
 $LOGSCRIPT
 
 
-${ANALDIAGSH:-$SCRgsi/exglobal_analdiag_fv3gfs.sh.ecf}
+${ANALDIAGSH:-$SCRgsi/exglobal_analdiag_fv3gfs.sh}
 status=$?
 [[ $status -ne 0 ]] && exit $status
 

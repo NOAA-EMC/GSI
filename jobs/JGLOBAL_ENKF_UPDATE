@@ -89,7 +89,7 @@ msg="HAS BEGUN on `hostname`"
 postmsg "$jlogfile" "$msg"
 $LOGSCRIPT
 
-${ENKFUPDSH:-$SCRgsi/exglobal_enkf_update_fv3gfs.sh.ecf}
+${ENKFUPDSH:-$SCRgsi/exglobal_enkf_update_fv3gfs.sh}
 status=$?
 [[ $status -ne 0 ]] && exit $status
 

@@ -141,7 +141,7 @@ postmsg "$jlogfile" "$msg"
 $LOGSCRIPT
 
 
-${ANALCALCSH:-$HOMEgsi/scripts/exglobal_analcalc_fv3gfs.sh.ecf}
+${ANALCALCSH:-$HOMEgsi/scripts/exglobal_analcalc_fv3gfs.sh}
 status=$?
 [[ $status -ne 0 ]] && exit $status
 
