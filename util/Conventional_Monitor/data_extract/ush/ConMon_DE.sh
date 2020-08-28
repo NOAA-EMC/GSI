@@ -156,8 +156,10 @@ else
    export CNVSTAT_LOCATION=${CNVSTAT_LOCATION:-${COMROOTp3}/gfs/${RUN_ENVIR}}
 fi
 
-export C_DATDIR=${C_DATDIR:-${CNVSTAT_LOCATION}/${RUN}.${PDY}}
-export C_GDATDIR=${C_GDATDIR:-${CNVSTAT_LOCATION}/${RUN}.${PDYm6h}}
+export COMPONENT=${COMPONENT:-atmos}
+
+export C_DATDIR=${C_DATDIR:-${CNVSTAT_LOCATION}/${RUN}.${PDY}/${CYC}/${COMPONENT}}
+export C_GDATDIR=${C_GDATDIR:-${CNVSTAT_LOCATION}/${RUN}.${PDYm6h}/${GCYC}/${COMPONENT}}
 
 export C_COMIN=${C_DATDIR}
 export C_COMINm6h=${C_GDATDIR}
@@ -191,17 +193,17 @@ fi
 #---------------
 # analysis file
 #
-export pgrbf00="${C_DATDIR}/${CYC}/gdas.t${CYC}z.pgrb2.1p00.anl"
+export pgrbf00="${C_DATDIR}/gdas.t${CYC}z.pgrb2.0p25.f000"
 if [[ ! -s ${pgrbf00} ]]; then
-   export pgrbf00="${C_DATDIR}/gdas.t${CYC}z.pgrbf00"
+   export pgrbf00="${C_DATDIR}/gdas.t${CYC}z.pgrb2.1p00.anl"
 fi
 
 #---------------
 # guess file
 #
-export pgrbf06="${C_GDATDIR}/${GCYC}/gdas.t${GCYC}z.pgrb2.1p00.f006"
+export pgrbf06="${C_GDATDIR}/gdas.t${GCYC}z.pgrb2.0p25.f006"
 if [[ ! -s ${pgrbf06} ]]; then
-   export pgrbf06="${C_GDATDIR}/gdas.t${GCYC}z.pgrbf06"
+   export pgrbf06="${C_GDATDIR}/gdas.t${GCYC}z.pgrb2.1p00.f006"
 fi
 
 exit_value=0

@@ -44,8 +44,9 @@ export MAIL_CC="edward.c.safford@gmail.com"
 
 data_map=${scripts}/data_map.xml
 
-imgdate=`${scripts}/query_data_map.pl ${data_map} ${CONMON_SUFFIX}_${RUN} imgdate`
-idate=`$NDATE +${cycle_interval} $imgdate`
+#imgdate=`${scripts}/query_data_map.pl ${data_map} ${CONMON_SUFFIX}_${RUN} imgdate`
+#idate=`$NDATE +${cycle_interval} $imgdate`
+idate=2020082518
 
 prodate=`${scripts}/find_cycle.pl --cyc 1 --dir ${C_TANKDIR} --run ${RUN}`
 echo "imgdate, idate, prodate = $imgdate, $idate, $prodate"

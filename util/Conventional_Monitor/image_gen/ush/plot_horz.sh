@@ -77,6 +77,7 @@ else					# grib2
    gribmap -i guess.ctl
 fi
 
+
 #----------------------------------------------------------------------
 #  Link to required grads tools
 #----------------------------------------------------------------------
@@ -84,13 +85,15 @@ ln -s ${C_IG_GSCRIPTS}/rgbset2.gs ./rgbset2.gs
 ln -s ${C_IG_GSCRIPTS}/page.gs ./page.gs 
 ln -s ${C_IG_GSCRIPTS}/defint.gs ./defint.gs 
 ln -s ${C_IG_GSCRIPTS}/setvpage.gs ./setvpage.gs
-ln -s ${C_IG_GSCRIPRT}/colorbar.gs ./colorbar.gs
+ln -s ${C_IG_GSCRIPTS}/colorbar.gs ./colorbar.gs
+ln -s ${C_IG_GSCRIPTS}/cbarnew.gs ./cbarnew.gs
 
 
 #----------------------------------------------------------------------
 #  NOTE:  issue with q -- anal and guess files are missing RH2m term
 #----------------------------------------------------------------------
-for type in ps q t; do
+#for type in ps q t; do
+for type in q; do
 
    eval stype=\${${type}_TYPE} 
    eval nreal=\${nreal_${type}} 
@@ -136,11 +139,11 @@ for type in ps q t; do
             cp ${C_IG_FIX}/qmandlev.ctl ./${dtype}.ctl
             cp ${C_IG_GSCRIPTS}/plot_qallev_horz.gs ./plot_${dtype}.gs
 
-         elif [ "$mtype" = 'q180' -o "$mtype" = 'q181' -o  "$mtype" = 'q183' -o "$mtype" = 'q187'  ];then
+         elif [ "$mtype" = 'q180' -o "$mtype" = 'q181' -o  "$mtype" = 'q182' -o "$mtype" = 'q183' -o "$mtype" = 'q187'  ];then
             cp ${C_IG_FIX}/qsfc.ctl ./${dtype}.ctl
             cp ${C_IG_GSCRIPTS}/plot_qsfc_horz.gs ./plot_${dtype}.gs
 
-         elif [ "$mtype" = 'q130' -o "$mtype" = 'q131' -o "$mtype" = 'q132' -o "$mtype" = 'q133' -o "$mtype" = 't134' ]; then
+         elif [ "$mtype" = 'q130' -o "$mtype" = 'q131' -o "$mtype" = 'q132' -o "$mtype" = 'q133' -o "$mtype" = 'q134' -o "$mtype" = 'q135' ]; then
             cp ${C_IG_FIX}/qallev.ctl ./${dtype}.ctl
             cp ${C_IG_GSCRIPTS}/plot_qallev_horz.gs ./plot_${dtype}.gs
 

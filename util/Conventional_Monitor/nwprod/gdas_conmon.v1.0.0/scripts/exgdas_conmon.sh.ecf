@@ -65,7 +65,8 @@
    #----------------
    # analysis file:
    #
-   pgrbf00=${pgrbf00:-${C_COMIN}/${CYC}/gdas.t${CYC}z.pgrb2.1p00.anl}
+#   pgrbf00=${pgrbf00:-${C_COMIN}/${CYC}/gdas.t${CYC}z.pgrb2.1p00.anl}
+   pgrbf00=${pgrbf00:-${C_COMIN}/${CYC}/gdas.t${CYC}z.pgrb2.0p25.f000}
    if [[ ! -e ${pgrbf00} ]]; then
       pgrbf00=${C_COMIN}/gdas.t${CYC}z.pgrb2b.1p00.anl}
    fi
@@ -74,7 +75,8 @@
    #--------------
    # guess file:
    #
-   pgrbf06=${pgrbf06:-${C_COMINm6h}/${GCYC}/gdas.t${GCYC}z.pgrb2.1p00.f006}  
+#   pgrbf06=${pgrbf06:-${C_COMINm6h}/${GCYC}/gdas.t${GCYC}z.pgrb2.1p00.f006}  
+   pgrbf06=${pgrbf06:-${C_COMINm6h}/${GCYC}/gdas.t${GCYC}z.pgrb2.0p25.f006}  
    if [[ ! -e ${pgrbf06} ]]; then
       pgrbf06=${C_COMINm6h}/gdas.t${GCYC}z.pgrb2b.1p00.anl}
    fi
@@ -191,8 +193,6 @@
       #         need an index (.idx) and control (.ctl) file.  These can
       #         be created in the plot process and don't need to be 
       #         stored.
-      #
-      #  NOTE:  The use of $WGRIB2 has not been tested (no data available).
       #------------------------------------------------------------------
       echo "grib2 = $grib2"
       if [[ $grib2 -eq 0 ]]; then
@@ -204,9 +204,9 @@
 
       else
       
-         ${WGRIB2} pgbanl.${PDATE} | awk '(/:RH:/ && /mb:/) || (/:PRES:surface:/) || (/:UGRD:/ && /mb:/) || (/:VGRD:/ && /mb:/) || (/:TMP:/ && /mb:/)' | ${WGRIB2} pgbanl.${PDATE} -i -grib  ./pared_anal.${PDATE}
+         ${WGRIB2} pgbanl.${PDATE} | awk '(/:RH:/ && /mb:/) || (/:RH:/ && /:2 m a/) || (/:PRES:surface:/) || (/:UGRD:/ && /mb:/) || (/:UGRD:/ && /:10 m a/) || (/:VGRD:/ && /mb:/) || (/:VGRD:/ && /:10 m a/) || (/:TMP:/ && /mb:/) || (/:TMP:/ && /:surface:/)' | ${WGRIB2} pgbanl.${PDATE} -i -grib  ./pared_anal.${PDATE}
 
-         ${WGRIB2} pgbf06.${GDATE} | awk '(/:RH:/ && /mb:/) || (/:PRES:surface:/) || (/:UGRD:/ && /mb:/) || (/:VGRD:/ && /mb:/) || (/:TMP:/ && /mb:/)' | ${WGRIB2} pgbf06.${GDATE} -i -grib ./pared_guess.${PDATE}
+         ${WGRIB2} pgbf06.${GDATE} | awk '(/:RH:/ && /mb:/) || (/:RH:/ && /:2 m a/) || (/:PRES:surface:/) || (/:UGRD:/ && /mb:/) || (/:UGRD:/ && /:10 m a/) || (/:VGRD:/ && /mb:/) || (/:VGRD:/ && /:10 m a/) || (/:TMP:/ && /mb:/) || (/:TMP:/ && /:surface:/)' | ${WGRIB2} pgbf06.${GDATE} -i -grib ./pared_guess.${PDATE}
 
       fi
 
