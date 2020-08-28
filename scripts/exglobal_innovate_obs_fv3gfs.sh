@@ -27,7 +27,7 @@ fi
 # Directories.
 pwd=$(pwd)
 export NWPROD=${NWPROD:-$pwd}
-export HOMEgsi=${HOMEgsi:-$NWPROD}
+export HOMEgfs=${HOMEgfs:-$NWPROD}
 export DATA=${DATA:-$pwd/innovate_obs.$$}
 export COMIN=${COMIN:-$pwd}
 export COMIN_GES=${COMIN_GES:-$COMIN}
@@ -38,7 +38,7 @@ export NLN=${NLN:-"/bin/ln -sf"}
 export ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
 
 # Scripts.
-ANALYSISSH=${ANALYSISSH:-$HOMEgsi/scripts/exglobal_analysis_fv3gfs.sh}
+ANALYSISSH=${ANALYSISSH:-$HOMEgfs/scripts/exglobal_analysis_fv3gfs.sh}
 
 # Prefix and Suffix Variables.
 export APREFIX=${APREFIX:-""}

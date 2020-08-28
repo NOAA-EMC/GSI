@@ -28,9 +28,8 @@ fi
 pwd=$(pwd)
 export NWPROD=${NWPROD:-$pwd}
 export HOMEgfs=${HOMEgfs:-$NWPROD}
-export HOMEgsi=${HOMEgsi:-$NWPROD}
-FIXgsi=${FIXgsi:-$HOMEgsi/fix}
-GSIEXEC=${GSIEXEC:-$HOMEgsi/exec/global_gsi.x}
+FIXgsi=${FIXgsi:-$HOMEgfs/fix}
+GSIEXEC=${GSIEXEC:-$HOMEgfs/exec/global_gsi.x}
 export DATA=${DATA:-$pwd/analysis.$$}
 export COMIN=${COMIN:-$pwd}
 export COMIN_OBS=${COMIN_OBS:-$COMIN}
@@ -59,7 +58,7 @@ export NLN=${NLN:-"/bin/ln -sf"}
 export CHGRP_CMD=${CHGRP_CMD:-"chgrp ${group_name:-rstprod}"}
 export NEMSIOGET=${NEMSIOGET:-${NWPROD}/exec/nemsio_get}
 export NCLEN=${NCLEN:-$HOMEgfs/ush/getncdimlen}
-export CATEXEC=${CATEXEC:-$HOMEgsi/exec/nc_diag_cat_serial.x}
+export CATEXEC=${CATEXEC:-$HOMEgfs/exec/nc_diag_cat_serial.x}
 export ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
 COMPRESS=${COMPRESS:-gzip}
 UNCOMPRESS=${UNCOMPRESS:-gunzip}
@@ -109,15 +108,15 @@ export NTHREADS_CALCINC=${NTHREADS_CALCINC:-1}
 export APRUN_CALCINC=${APRUN_CALCINC:-${APRUN:-""}}
 export APRUN_CALCANL=${APRUN_CALCANL:-${APRUN:-""}}
 export APRUN_CHGRES=${APRUN_CALCANL:-${APRUN:-""}}
-export CALCINCEXEC=${CALCINCEXEC:-$HOMEgsi/exec/calc_increment_ens.x}
-export CALCINCNCEXEC=${CALCINCNCEXEC:-$HOMEgsi/exec/calc_increment_ens_ncio.x}
-export CALCANLEXEC=${CALCANLEXEC:-$HOMEgsi/exec/calc_analysis.x}
+export CALCINCEXEC=${CALCINCEXEC:-$HOMEgfs/exec/calc_increment_ens.x}
+export CALCINCNCEXEC=${CALCINCNCEXEC:-$HOMEgfs/exec/calc_increment_ens_ncio.x}
+export CALCANLEXEC=${CALCANLEXEC:-$HOMEgfs/exec/calc_analysis.x}
 export CHGRESNCEXEC=${CHGRESNCEXEC:-$HOMEgfs/exec/chgres_recenter_ncio.exe}
-export CHGRESINCEXEC=${CHGRESINCEXEC:-$HOMEgsi/exec/interp_inc.x}
+export CHGRESINCEXEC=${CHGRESINCEXEC:-$HOMEgfs/exec/interp_inc.x}
 CHGRESEXEC=${CHGRESEXEC:-$HOMEgfs/exec/chgres_recenter.exe}
 export NTHREADS_CHGRES=${NTHREADS_CHGRES:-24}
-CALCINCPY=${CALCINCPY:-$HOMEgsi/ush/calcinc_gfs.py}
-CALCANLPY=${CALCANLPY:-$HOMEgsi/ush/calcanl_gfs.py}
+CALCINCPY=${CALCINCPY:-$HOMEgfs/ush/calcinc_gfs.py}
+CALCANLPY=${CALCANLPY:-$HOMEgfs/ush/calcanl_gfs.py}
 
 # OPS flags
 RUN=${RUN:-""}
@@ -248,7 +247,7 @@ nm=""
 if [ $CFP_MP = "YES" ]; then
     nm=0
 fi
-DIAG_DIR=${COMOUT}/gsidiags
+DIAG_DIR=${DIAG_DIR:-${COMOUT}/gsidiags}
 
 # Set script / GSI control parameters
 DOHYBVAR=${DOHYBVAR:-"NO"}

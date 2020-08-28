@@ -160,7 +160,7 @@ postmsg "$jlogfile" "$msg"
 $LOGSCRIPT
 
 
-${INVOBSSH:-$SCRgsi/exglobal_innovate_obs_fv3gfs.sh}
+${INVOBSSH:-$SCRgfs/exglobal_innovate_obs_fv3gfs.sh}
 status=$?
 [[ $status -ne 0 ]] && exit $status
 

@@ -29,7 +29,6 @@ fi
 pwd=$(pwd)
 export NWPROD=${NWPROD:-$pwd}
 export HOMEgfs=${HOMEgfs:-$NWPROD}
-export HOMEgsi=${HOMEgsi:-$NWPROD}
 export FIXgsm=${FIXgsm:-$HOMEgfs/fix/fix_am}
 export DATA=${DATA:-$pwd/chgresfcst.$$}
 export COMIN=${COMIN:-$pwd}

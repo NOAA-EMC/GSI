@@ -27,8 +27,8 @@ fi
 # Directories.
 pwd=$(pwd)
 NWPROD=${NWPROD:-$pwd}
-HOMEgsi=${HOMEgsi:-$NWPROD}
-FIXgsi=${FIXgsi:-$HOMEgsi/fix}
+HOMEgfs=${HOMEgfs:-$NWPROD}
+FIXgsi=${FIXgsi:-$HOMEgfs/fix}
 DATA=${DATA:-$pwd/enkf_update.$$}
 COMIN=${COMIN:-$pwd}
 COMIN_GES_ENS=${COMIN_GES_ENS:-$COMIN}
@@ -52,7 +52,7 @@ APRUN_ENKF=${APRUN_ENKF:-${APRUN:-""}}
 NTHREADS_ENKF=${NTHREADS_ENKF:-${NTHREADS:-1}}
 
 # Executables
-ENKFEXEC=${ENKFEXEC:-$HOMEgsi/exec/global_enkf.x}
+ENKFEXEC=${ENKFEXEC:-$HOMEgfs/exec/global_enkf.x}
 
 # Cycling and forecast hour specific parameters
 CDATE=${CDATE:-"2001010100"}

@@ -27,8 +27,8 @@ fi
 # Directories.
 pwd=$(pwd)
 NWPROD=${NWPROD:-$pwd}
-HOMEgsi=${HOMEgsi:-$NWPROD}
-FIXgsi=${FIXgsi:-$HOMEgsi/fix}
+HOMEgfs=${HOMEgfs:-$NWPROD}
+FIXgsi=${FIXgsi:-$HOMEgfs/fix}
 DATA=${DATA:-$pwd}
 COMIN=${COMIN:-$pwd}
 COMOUT=${COMOUT:-$COMIN}
@@ -49,8 +49,8 @@ LEVS=${LEVS:-64}
 HYBENSMOOTH=${HYBENSMOOTH:-$FIXgsi/global_hybens_smoothinfo.l${LEVS}.txt}
 
 # Executables.
-GETATMENSMEANEXEC=${GETATMENSMEANEXEC:-$HOMEgsi/exec/getsigensmeanp_smooth.x}
-GETSFCENSMEANEXEC=${GETSFCENSMEANEXEC:-$HOMEgsi/exec/getsfcensmeanp.x}
+GETATMENSMEANEXEC=${GETATMENSMEANEXEC:-$HOMEgfs/exec/getsigensmeanp_smooth.x}
+GETSFCENSMEANEXEC=${GETSFCENSMEANEXEC:-$HOMEgfs/exec/getsfcensmeanp.x}
 
 # Other variables.
 PREFIX=${PREFIX:-""}

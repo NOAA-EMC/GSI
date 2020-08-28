@@ -27,7 +27,7 @@ fi
 # Directories.
 pwd=$(pwd)
 export NWPROD=${NWPROD:-$pwd}
-export HOMEgsi=${HOMEgsi:-$NWPROD}
+export HOMEgfs=${HOMEgfs:-$NWPROD}
 export COMIN=${COMIN:-$pwd}
 export COMIN_GES_ENS=${COMIN_GES_ENS:-$COMIN}
 export COMOUT=${COMOUT:-$COMIN}
@@ -40,8 +40,8 @@ export NLN=${NLN:-"/bin/ln -sf"}
 export ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
 
 # Scripts.
-INVOBSSH=${INVOBSSH:-$HOMEgsi/scripts/exglobal_innovate_obs_fv3gfs.sh}
-export ANALYSISSH=${ANALYSISSH:-$HOMEgsi/scripts/exglobal_analysis_fv3gfs.sh}
+INVOBSSH=${INVOBSSH:-$HOMEgfs/scripts/exglobal_innovate_obs_fv3gfs.sh}
+export ANALYSISSH=${ANALYSISSH:-$HOMEgfs/scripts/exglobal_analysis_fv3gfs.sh}
 
 # Enemble group, begin and end
 ENSGRP=${ENSGRP:-1}

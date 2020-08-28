@@ -28,7 +28,6 @@ fi
 pwd=$(pwd)
 export NWPROD=${NWPROD:-$pwd}
 export HOMEgfs=${HOMEgfs:-$NWPROD}
-HOMEgsi=${HOMEgsi:-$NWPROD}
 export DATA=${DATA:-$pwd}
 COMIN=${COMIN:-$pwd}
 COMIN_ENS=${COMIN_ENS:-$COMIN}

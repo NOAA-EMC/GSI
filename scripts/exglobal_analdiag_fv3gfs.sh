@@ -28,7 +28,6 @@ fi
 pwd=$(pwd)
 export NWPROD=${NWPROD:-$pwd}
 export HOMEgfs=${HOMEgfs:-$NWPROD}
-export HOMEgsi=${HOMEgsi:-$NWPROD}
 export FIXgsm=${FIXgsm:-$HOMEgfs/fix/fix_am}
 export DATA=${DATA:-$pwd/analdiag.$$}
 export COMIN=${COMIN:-$pwd}
@@ -58,7 +57,7 @@ export NLN=${NLN:-"/bin/ln -sf"}
 export CHGRP_CMD=${CHGRP_CMD:-"chgrp ${group_name:-rstprod}"}
 export NEMSIOGET=${NEMSIOGET:-${NWPROD}/exec/nemsio_get}
 export NCLEN=${NCLEN:-$HOMEgfs/ush/getncdimlen}
-export CATEXEC=${CATEXEC:-$HOMEgsi/exec/nc_diag_cat_serial.x}
+export CATEXEC=${CATEXEC:-$HOMEgfs/exec/nc_diag_cat_serial.x}
 export ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
 COMPRESS=${COMPRESS:-gzip}
 UNCOMPRESS=${UNCOMPRESS:-gunzip}
@@ -103,7 +102,7 @@ nm=""
 if [ $CFP_MP = "YES" ]; then
     nm=0
 fi
-DIAG_DIR=${COMOUT}/gsidiags
+DIAG_DIR=${DIAG_DIR:-${COMOUT}/gsidiags}
 REMOVE_DIAG_DIR=${REMOVE_DIAG_DIR:-"NO"}
 
 # Set script / GSI control parameters

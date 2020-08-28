@@ -126,7 +126,7 @@ postmsg "$jlogfile" "$msg"
 $LOGSCRIPT
 
 
-${ENKFINVOBSSH:-$SCRgsi/exglobal_enkf_innovate_obs_fv3gfs.sh}
+${ENKFINVOBSSH:-$SCRgfs/exglobal_enkf_innovate_obs_fv3gfs.sh}
 status=$?
 [[ $status -ne 0 ]] && exit $status
 

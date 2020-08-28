@@ -28,7 +28,7 @@ fi
 pwd=$(pwd)
 export NWPROD=${NWPROD:-$pwd}
 export HOMEgfs=${HOMEgfs:-$NWPROD}
-HOMEgsi=${HOMEgsi:-$NWPROD}
+HOMEgfs=${HOMEgfs:-$NWPROD}
 export DATA=${DATA:-$pwd}
 COMIN=${COMIN:-$pwd}
 COMIN_ENS=${COMIN_ENS:-$COMIN}
@@ -55,11 +55,11 @@ NCLEN=${NCLEN:-$HOMEgfs/ush/getncdimlen}
 # Scripts
 
 # Executables.
-GETATMENSMEANEXEC=${GETATMENSMEANEXEC:-$HOMEgsi/exec/getsigensmeanp_smooth.x}
-GETSFCENSMEANEXEC=${GETSFCENSMEANEXEC:-$HOMEgsi/exec/getsfcensmeanp.x}
-RECENATMEXEC=${RECENATMEXEC:-$HOMEgsi/exec/recentersigp.x}
-CALCINCNEMSEXEC=${CALCINCNEMSEXEC:-$HOMEgsi/exec/calc_increment_ens.x}
-CALCINCNCEXEC=${CALCINCEXEC:-$HOMEgsi/exec/calc_increment_ens_ncio.x}
+GETATMENSMEANEXEC=${GETATMENSMEANEXEC:-$HOMEgfs/exec/getsigensmeanp_smooth.x}
+GETSFCENSMEANEXEC=${GETSFCENSMEANEXEC:-$HOMEgfs/exec/getsfcensmeanp.x}
+RECENATMEXEC=${RECENATMEXEC:-$HOMEgfs/exec/recentersigp.x}
+CALCINCNEMSEXEC=${CALCINCNEMSEXEC:-$HOMEgfs/exec/calc_increment_ens.x}
+CALCINCNCEXEC=${CALCINCEXEC:-$HOMEgfs/exec/calc_increment_ens_ncio.x}
 
 # Files.
 OPREFIX=${OPREFIX:-""}
