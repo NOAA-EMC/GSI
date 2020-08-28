@@ -138,6 +138,8 @@ case $machine in
       export noscrub="/gpfs/hps3/emc/global/noscrub/$LOGNAME"
    elif [ -d /gpfs/hps3/emc/da/noscrub/$LOGNAME ]; then
       export noscrub="/gpfs/hps3/emc/da/noscrub/$LOGNAME"
+   elif [ -d /gpfs/hps3/emc/hwrf/noscrub/$LOGNAME ]; then
+       export noscrub="/gpfs/hps3/emc/hwrf/noscrub/$LOGNAME"
    fi
    if [[ "$cmaketest" = "false" ]]; then
      export basedir="/gpfs/hps3/emc/global/noscrub/$LOGNAME/svn/gsi"
