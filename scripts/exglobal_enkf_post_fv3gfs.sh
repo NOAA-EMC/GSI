@@ -26,12 +26,6 @@ fi
 
 # Directories.
 pwd=$(pwd)
-NWPROD=${NWPROD:-$pwd}
-HOMEgfs=${HOMEgfs:-$NWPROD}
-FIXgsi=${FIXgsi:-$HOMEgfs/fix}
-DATA=${DATA:-$pwd}
-COMIN=${COMIN:-$pwd}
-COMOUT=${COMOUT:-$COMIN}
 
 # Utilities
 ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}

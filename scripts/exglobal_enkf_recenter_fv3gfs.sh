@@ -26,22 +26,10 @@ fi
 
 # Directories.
 pwd=$(pwd)
-export NWPROD=${NWPROD:-$pwd}
-export HOMEgfs=${HOMEgfs:-$NWPROD}
-HOMEgfs=${HOMEgfs:-$NWPROD}
-export DATA=${DATA:-$pwd}
-COMIN=${COMIN:-$pwd}
-COMIN_ENS=${COMIN_ENS:-$COMIN}
-COMIN_OBS=${COMIN_OBS:-$COMIN}
-COMIN_GES=${COMIN_GES:-$COMIN}
-COMIN_GES_ENS=${COMIN_GES_ENS:-$COMIN_ENS}
-COMIN_GES_OBS=${COMIN_GES_OBS:-$COMIN_GES}
-COMOUT=${COMOUT:-$COMIN}
-COMOUT_ENS=${COMOUT_ENS:-$COMIN_ENS}
 
+# Base variables
 CDATE=${CDATE:-"2010010100"}
 DONST=${DONST:-"NO"}
-
 export CASE=${CASE:-384}
 ntiles=${ntiles:-6}
 
@@ -83,8 +71,8 @@ DO_CALC_INCREMENT=${DO_CALC_INCREMENT:-"NO"}
 
 
 # global_chgres stuff
-CHGRESNEMS=${CHGRESNEMS:-$HOMEgfs/exec/chgres_recenter.exe}
-CHGRESNC=${CHGRESNC:-$HOMEgfs/exec/chgres_recenter_ncio.exe}
+CHGRESNEMS=${CHGRESNEMS:-$HOMEgfs/exec/enkf_chgres_recenter.x}
+CHGRESNC=${CHGRESNC:-$HOMEgfs/exec/enkf_chgres_recenter_nc.x}
 NTHREADS_CHGRES=${NTHREADS_CHGRES:-24}
 APRUN_CHGRES=${APRUN_CHGRES:-""}
 

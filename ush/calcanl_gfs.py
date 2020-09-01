@@ -17,7 +17,7 @@ import datetime
 def calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
                 ComIn_Ges, GPrefix, GSuffix,
                 FixDir, atmges_ens_mean, RunDir, NThreads, NEMSGet, IAUHrs,
-                ExecCMD, ExecCMDMPI, ExecAnl, ExecChgresGes, ExecChgresInc, Cdump):
+                ExecCMD, ExecCMDMPI, ExecAnl, ExecChgresInc, Cdump):
     print('calcanl_gfs beginning at: ',datetime.datetime.utcnow())
 
     IAUHH = IAUHrs
@@ -338,8 +338,7 @@ if __name__ == '__main__':
     ExecCMD = os.getenv('APRUN_CALCANL', '')
     ExecCMDMPI = os.getenv('APRUN_CALCINC', '')
     ExecAnl = os.getenv('CALCANLEXEC', './calc_analysis.x')
-    ExecChgresGes = os.getenv('CHGRESNCEXEC', './chgres_nc_gauss.exe')
-    ExecChgresInc = os.getenv('CHGRESINCEXEC', './chgres_increment.exe')
+    ExecChgresInc = os.getenv('CHGRESINCEXEC', './interp_inc.x')
     NEMSGet = os.getenv('NEMSIOGET','nemsio_get')
     IAUHrs = list(map(int,os.getenv('IAUFHRS','6').split(',')))
     Cdump = os.getenv('CDUMP', 'gdas')
@@ -348,5 +347,5 @@ if __name__ == '__main__':
     calcanl_gfs(DoIAU, l4DEnsVar, Write4Danl, ComOut, APrefix, ASuffix,
                 ComIn_Ges, GPrefix, GSuffix,
                 FixDir, atmges_ens_mean, RunDir, NThreads, NEMSGet, IAUHrs,
-                ExecCMD, ExecCMDMPI, ExecAnl, ExecChgresGes, ExecChgresInc,
+                ExecCMD, ExecCMDMPI, ExecAnl, ExecChgresInc,
                 Cdump)

@@ -26,17 +26,6 @@ fi
 
 #  Directories.
 pwd=$(pwd)
-export NWPROD=${NWPROD:-$pwd}
-export HOMEgfs=${HOMEgfs:-$NWPROD}
-FIXgsi=${FIXgsi:-$HOMEgfs/fix}
-GSIEXEC=${GSIEXEC:-$HOMEgfs/exec/global_gsi.x}
-export DATA=${DATA:-$pwd/analysis.$$}
-export COMIN=${COMIN:-$pwd}
-export COMIN_OBS=${COMIN_OBS:-$COMIN}
-export COMIN_GES=${COMIN_GES:-$COMIN}
-export COMIN_GES_ENS=${COMIN_GES_ENS:-$COMIN_GES}
-export COMIN_GES_OBS=${COMIN_GES_OBS:-$COMIN_GES}
-export COMOUT=${COMOUT:-$COMIN}
 
 # Base variables
 CDATE=${CDATE:-"2001010100"}
@@ -104,6 +93,7 @@ DOIAU=${DOIAU:-"NO"}
 export IAUFHRS=${IAUFHRS:-"6"}
 
 # Dependent Scripts and Executables
+GSIEXEC=${GSIEXEC:-$HOMEgfs/exec/global_gsi.x}
 export NTHREADS_CALCINC=${NTHREADS_CALCINC:-1}
 export APRUN_CALCINC=${APRUN_CALCINC:-${APRUN:-""}}
 export APRUN_CALCANL=${APRUN_CALCANL:-${APRUN:-""}}
@@ -111,9 +101,9 @@ export APRUN_CHGRES=${APRUN_CALCANL:-${APRUN:-""}}
 export CALCINCEXEC=${CALCINCEXEC:-$HOMEgfs/exec/calc_increment_ens.x}
 export CALCINCNCEXEC=${CALCINCNCEXEC:-$HOMEgfs/exec/calc_increment_ens_ncio.x}
 export CALCANLEXEC=${CALCANLEXEC:-$HOMEgfs/exec/calc_analysis.x}
-export CHGRESNCEXEC=${CHGRESNCEXEC:-$HOMEgfs/exec/chgres_recenter_ncio.exe}
+export CHGRESNCEXEC=${CHGRESNCEXEC:-$HOMEgfs/exec/enkf_chgres_recenter_nc.x}
 export CHGRESINCEXEC=${CHGRESINCEXEC:-$HOMEgfs/exec/interp_inc.x}
-CHGRESEXEC=${CHGRESEXEC:-$HOMEgfs/exec/chgres_recenter.exe}
+CHGRESEXEC=${CHGRESEXEC:-$HOMEgfs/exec/enkf_chgres_recenter.x}
 export NTHREADS_CHGRES=${NTHREADS_CHGRES:-24}
 CALCINCPY=${CALCINCPY:-$HOMEgfs/ush/calcinc_gfs.py}
 CALCANLPY=${CALCANLPY:-$HOMEgfs/ush/calcanl_gfs.py}
@@ -485,12 +475,12 @@ if [ $USE_CORRELATED_OBERRS == "YES" ];  then
        $NLN ${FIXgsi}/Rcov* $DATA
        echo "using correlated obs error"
      else
-       echo "Error: Satellite error covariance files are missing."
+       echo "FATAL ERROR: Satellite error covariance files (Rcov) are missing."
        echo "Check for the required Rcov files in " $ANAVINFO
        exit 1
      fi
   else
-     echo "Error: Satellite error covariance info missing in " $ANAVINFO
+     echo "FATAL ERROR: Satellite error covariance info missing in " $ANAVINFO
      exit 1
   fi
 
@@ -672,7 +662,7 @@ if [ $GENDIAG = "YES" ] ; then
         $NLN $DIAG_DIR/$pedir $pedir
       done
    else
-      echo "lrun_subdirs must be true; exit with error"
+      echo "FATAL ERROR: lrun_subdirs must be true. lrun_subdirs=$lrun_subdirs"
       $ERRSCRIPT || exit 2
    fi
 fi

@@ -27,16 +27,7 @@ fi
 
 #  Directories.
 pwd=$(pwd)
-export NWPROD=${NWPROD:-$pwd}
-export HOMEgfs=${HOMEgfs:-$NWPROD}
 export FIXgsm=${FIXgsm:-$HOMEgfs/fix/fix_am}
-export DATA=${DATA:-$pwd/chgresfcst.$$}
-export COMIN=${COMIN:-$pwd}
-export COMIN_OBS=${COMIN_OBS:-$COMIN}
-export COMIN_GES=${COMIN_GES:-$COMIN}
-export COMIN_GES_ENS=${COMIN_GES_ENS:-$COMIN_GES}
-export COMIN_GES_OBS=${COMIN_GES_OBS:-$COMIN_GES}
-export COMOUT=${COMOUT:-$COMIN}
 
 # Base variables
 CDATE=${CDATE:-"2001010100"}
@@ -65,7 +56,7 @@ export IAUFHRS=${IAUFHRS:-"6"}
 
 # Dependent Scripts and Executables
 export APRUN_CHGRES=${APRUN_CHGRES:-${APRUN:-""}}
-export CHGRESNCEXEC=${CHGRESNCEXEC:-$HOMEgfs/exec/chgres_recenter_ncio.exe}
+export CHGRESNCEXEC=${CHGRESNCEXEC:-$HOMEgfs/exec/enkf_chgres_recenter_nc.x}
 export NTHREADS_CHGRES=${NTHREADS_CHGRES:-1}
 APRUNCFP=${APRUNCFP:-""}
 

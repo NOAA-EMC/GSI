@@ -26,12 +26,6 @@ fi
 
 # Directories.
 pwd=$(pwd)
-export NWPROD=${NWPROD:-$pwd}
-export HOMEgfs=${HOMEgfs:-$NWPROD}
-export DATA=${DATA:-$pwd/innovate_obs.$$}
-export COMIN=${COMIN:-$pwd}
-export COMIN_GES=${COMIN_GES:-$COMIN}
-export COMOUT=${COMOUT:-$COMIN}
 
 # Utilities
 export NLN=${NLN:-"/bin/ln -sf"}

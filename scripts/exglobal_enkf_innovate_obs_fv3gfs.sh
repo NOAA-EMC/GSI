@@ -26,12 +26,6 @@ fi
 
 # Directories.
 pwd=$(pwd)
-export NWPROD=${NWPROD:-$pwd}
-export HOMEgfs=${HOMEgfs:-$NWPROD}
-export COMIN=${COMIN:-$pwd}
-export COMIN_GES_ENS=${COMIN_GES_ENS:-$COMIN}
-export COMOUT=${COMOUT:-$COMIN}
-DATA=${DATA:-$pwd/enkf_innovate_obs.$$}
 
 # Utilities
 export NCP=${NCP:-"/bin/cp -p"}

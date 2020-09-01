@@ -27,15 +27,8 @@ fi
 
 # Directories.
 pwd=$(pwd)
-export NWPROD=${NWPROD:-$pwd}
-export HOMEgfs=${HOMEgfs:-$NWPROD}
 export FIX_DIR=${FIX_DIR:-$HOMEgfs/fix}
 export FIX_AM=${FIX_AM:-$FIX_DIR/fix_am}
-export DATA=${DATA:-$pwd/enkf_fcst.$$}
-export COMIN=${COMIN:-$pwd}
-export COMOUT=${COMOUT:-$COMIN}
-
-GSUFFIX=${GSUFFIX:-$SUFFIX}
 
 # Utilities
 export NCP=${NCP:-"/bin/cp -p"}
@@ -74,6 +67,7 @@ export PREFIX_ATMINC=${PREFIX_ATMINC:-""}
 # Ops related stuff
 SENDECF=${SENDECF:-"NO"}
 SENDDBN=${SENDDBN:-"NO"}
+GSUFFIX=${GSUFFIX:-$SUFFIX}
 
 ################################################################################
 # Preprocessing

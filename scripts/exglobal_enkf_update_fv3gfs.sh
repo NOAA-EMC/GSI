@@ -26,14 +26,6 @@ fi
 
 # Directories.
 pwd=$(pwd)
-NWPROD=${NWPROD:-$pwd}
-HOMEgfs=${HOMEgfs:-$NWPROD}
-FIXgsi=${FIXgsi:-$HOMEgfs/fix}
-DATA=${DATA:-$pwd/enkf_update.$$}
-COMIN=${COMIN:-$pwd}
-COMIN_GES_ENS=${COMIN_GES_ENS:-$COMIN}
-COMOUT=${COMOUT:-$COMIN}
-COMOUT_ANL_ENS=${COMOUT_ANL_ENS:-$COMOUT}
 
 # Utilities
 NCP=${NCP:-"/bin/cp -p"}
