@@ -160,22 +160,13 @@ export START_DATE=`$NDATE ${hrs} $PDATE`
 echo "start_date, prodate, pdate = $START_DATE $PRODATE  $PDATE"
 
 
-
 #------------------------------------------------------------------
 #   Start image plotting jobs.
 #------------------------------------------------------------------
 
-${C_IG_SCRIPTS}/mk_horz_hist.sh
+#${C_IG_SCRIPTS}/mk_horz_hist.sh
 
-#${C_IG_SCRIPTS}/mk_time_vert.sh
-
-
-#------------------------------------------------------------------
-#  Run the make_archive.sh script if $DO_ARCHIVE is switched on.
-#------------------------------------------------------------------
-#if [[ $DO_ARCHIVE = 1 ]]; then
-#   ${IG_SCRIPTS}/make_archive.sh
-#fi
+${C_IG_SCRIPTS}/mk_time_vert.sh
 
 
 #--------------------------------------------------------------------

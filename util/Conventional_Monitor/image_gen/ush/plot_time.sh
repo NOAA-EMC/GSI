@@ -1,30 +1,29 @@
 #!/bin/sh
+set -ax
 
 #----------------------------------------------------------
 #
 #  plot_time.sh
 #
 #----------------------------------------------------------
-set -ax
 
-type=${TYPE}
+   type=${TYPE}
 
-echo "--> plot_time.sh, type=${type}"
+   echo "--> plot_time.sh, type=${type}"
 
-plotdir=${C_PLOT_WORKDIR}/plottime_${type}
-rm -rf $plotdir
-mkdir -p $plotdir
-cd $plotdir
+   plotdir=${C_PLOT_WORKDIR}/plottime_${type}
+   rm -rf $plotdir
+   mkdir -p $plotdir
+   cd $plotdir
 
-rc=0
-pdy=`echo $PDATE|cut -c1-8`
-cyc=`echo $PDATE|cut -c9-10`
-#tv_tankdir=${C_TANKDIR}/cmon.${pdy}/time_vert
-tv_tankdir=${C_TANKDIR}/${RUN}.${pdy}/${cyc}/conmon/time_vert
+   rc=0
+   pdy=`echo $PDATE|cut -c1-8`
+   cyc=`echo $PDATE|cut -c9-10`
+   tv_tankdir=${C_TANKDIR}/${RUN}.${pdy}/${cyc}/conmon/time_vert
 
 
-export xsize=x800
-export ysize=y600
+   export xsize=x800
+   export ysize=y600
 
 
    #---------------------------------------------------
@@ -39,15 +38,19 @@ export ysize=y600
       dcyc=`echo $cdate |cut -c9-10`
 
       if [[ -d ${C_TANKDIR}/${RUN}.${day}/${dcyc}/conmon ]]; then
-         for cycle in ges anl; do
 
-            if [[ -s ${C_TANKDIR}/${RUN}.${day}/${dcyc}/conmon/time_vert/${cycle}_${type}_stas.${cdate} ]]
-            then
-               ln -s ${C_TANKDIR}/${RUN}.${day}/${dcyc}/conmon/time_vert/${cycle}_${type}_stas.${cdate} .
+         for cycle in ges anl; do
+            data_file=${cycle}_${type}_stas.${cdate}
+            data_fp=${C_TANKDIR}/${RUN}.${day}/${dcyc}/conmon/time_vert/${data_file}
+            if [[ -e ${data_fp}.${Z} ]]; then
+               cp -f ${data_fp}.${Z} ./${data_file}.${Z}
+               $UNCOMPRESS ${data_file}.${Z}
+            elif [[ -e ./${data_file} ]]; then
+               cp -f ${data_fp} ./${data_file}
             fi
 
          done
-         echo " ${C_TANKDIR}/${RUN}.${day}/${dcyc}/conmon exists"
+
       fi
 
       adate=`${NDATE} +6 ${cdate}`
@@ -59,7 +62,14 @@ export ysize=y600
    #---------------------------------------------------
    for cycle in ges anl; do
 
-      cp -f ${tv_tankdir}/${cycle}_${type}_stas.ctl      tmp.ctl
+      ctl_file=${tv_tankdir}/${cycle}_${type}_stas.ctl
+      if [[ -e ${ctl_file}.${Z} ]]; then
+        cp -f ${ctl_file}.${Z} tmp.ctl.${Z}
+        ${UNCOMPRESS} tmp.ctl.${Z}
+      else
+        cp -f ${ctl_file} tmp.ctl
+      fi
+
       new_dset="dset ${cycle}_${type}_stas.%y4%m2%d2%h2"
 
       tdef=`${C_IG_SCRIPTS}/make_tdef.sh ${START_DATE} ${NUM_CYCLES} 06`
@@ -112,7 +122,7 @@ export ysize=y600
       num_pngs=`ls -1 *.png | wc -l`
       echo "num_pngs = ${num_pngs}"
 
-      rm -f ./*.png
+#      rm -f ./*.png
 
    done
 

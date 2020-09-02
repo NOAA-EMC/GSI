@@ -51,7 +51,6 @@ setmap(plotfile,he)
 'defint.gs  0.5 0'
 'd 10*(RH2m.1-RH2m.2)/RHprs.1'
 'colorbar.gs'
-*'set ccolor 98'
 'set ccolor 6'
 'set digsiz 0.12'
 'd maskout(10*obg.4(t='nt')/obs.4(t='nt'),muse.4(t='nt'))'

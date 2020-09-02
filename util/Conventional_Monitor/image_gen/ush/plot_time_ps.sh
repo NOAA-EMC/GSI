@@ -5,29 +5,29 @@ set -ax
 #  plot_time_ps.sh
 #----------------------------------------------------------------------
 
-echo "---> plot_time_ps.sh"
+   echo "---> plot_time_ps.sh"
 
-echo "START_DATE  = $START_DATE"
-echo "NUM_CYCLES  = $NUM_CYCLES"
-echo "PDATE       = $PDATE"
-echo "NDATE       = $NDATE"
+   echo "START_DATE  = $START_DATE"
+   echo "NUM_CYCLES  = $NUM_CYCLES"
+   echo "PDATE       = $PDATE"
+   echo "NDATE       = $NDATE"
 
-plotdir=${C_PLOT_WORKDIR}/plottime_ps
-rm -rf $plotdir
-mkdir -p $plotdir
-cd $plotdir
+   plotdir=${C_PLOT_WORKDIR}/plottime_ps
+   rm -rf $plotdir
+   mkdir -p $plotdir
+   cd $plotdir
 
-rc=0
-pdy=`echo $PDATE|cut -c1-8`
-cyc=`echo $PDATE|cut -c9-10`
-tv_tankdir=${C_TANKDIR}/${RUN}.${pdy}/${cyc}/conmon/time_vert
+   rc=0
+   pdy=`echo $PDATE|cut -c1-8`
+   cyc=`echo $PDATE|cut -c9-10`
+   tv_tankdir=${C_TANKDIR}/${RUN}.${pdy}/${cyc}/conmon/time_vert
 
-export xsize=x800
-export ysize=y600
+   export xsize=x800
+   export ysize=y600
 
-#---------------------------------------------------
-#  plot surface pressure time series counts
-#---------------------------------------------------
+   #---------------------------------------------------
+   #  plot surface pressure time series counts
+   #---------------------------------------------------
 
    cp -f ${C_IG_GSCRIPTS}/plotstas_time_count_ps.gs . 
    cp -f ${C_IG_GSCRIPTS}/plotstas_time_bias_ps.gs  . 
@@ -45,13 +45,17 @@ export ysize=y600
       dcyc=`echo $cdate | cut -c9-10 `
       
       if [[ -d ${C_TANKDIR}/${RUN}.${day}/${dcyc}/conmon ]]; then
+
          for cycle in ges anl; do
-            if [[ -s ${C_TANKDIR}/${RUN}.${day}/${dcyc}/conmon/time_vert/${cycle}_ps_stas.${cdate} ]]
-	    then 
-               ln -s ${C_TANKDIR}/${RUN}.${day}/${dcyc}/conmon/time_vert/${cycle}_ps_stas.${cdate} .
+            stas_file=${C_TANKDIR}/${RUN}.${day}/${dcyc}/conmon/time_vert/${cycle}_ps_stas.${cdate}
+            if [[ -e ${stas_file}.${Z} ]]; then
+               ${UNCOMPRESS} ${stas_file}.${Z}
+            fi
+            if [[ -s ${stas_file} ]]; then
+               ln -s ${stas_file} .
             fi
          done
-         echo " ${C_TANKDIR}/${RUN}.${day}/${dcyc}/conmon exists"
+
       fi
 
       adate=`${NDATE} +6 ${cdate}`
@@ -63,9 +67,15 @@ export ysize=y600
    #---------------------------------------------------
    for cycle in ges anl; do
 
-      cp -f ${tv_tankdir}/${cycle}_ps_stas.ctl      tmp.ctl 
-      new_dset=" dset ${cycle}_ps_stas.%y4%m2%d2%h2"
+      ctl_file=${tv_tankdir}/${cycle}_ps_stas.ctl
+      if [[ -e ${ctl_file}.${Z} ]]; then
+         cp -f ${ctl_file}.${Z} tmp.ctl.${Z}
+         ${UNCOMPRESS} tmp.ctl.${Z}
+      else
+         cp -f ${ctl_file} tmp.ctl 
+      fi
 
+      new_dset=" dset ${cycle}_ps_stas.%y4%m2%d2%h2"
       tdef=`${C_IG_SCRIPTS}/make_tdef.sh ${START_DATE} ${NUM_CYCLES} 06`
       echo "tdef = $tdef"
 
@@ -88,15 +98,15 @@ export ysize=y600
    #-------------------------
    grads -bpc "run ./plotstas_time_count_ps.gs"
    cp -f *.png ${outdir}/.
-   rm -f ./*.png
+#   rm -f ./*.png
  
    grads -bpc "run ./plotstas_time_bias_ps.gs"
    cp -f *.png ${outdir}/.
-   rm -f ./*.png
+#   rm -f ./*.png
 
    grads -bpc "run ./plotstas_time_bias2_ps.gs"
    cp -f *.png ${outdir}/.
-   rm -f ./*.png
+#   rm -f ./*.png
 
    echo "<--- plot_time_ps.sh"
 exit

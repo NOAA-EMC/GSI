@@ -1,48 +1,51 @@
 #!/bin/sh
 set -ax
 
-#------------------------------------------------------------
-#  Function getField returns the corresponding value for
-#  a specified field ($2) in the input ($1) grads_info file.
-#
-getField () {
-   field='default'
-   echo "getField $1 $2"
-   file=$1
-   field=$2
+   #------------------------------------------------------------
+   #  Function getField returns the corresponding value for
+   #  a specified field ($2) in the input ($1) grads_info file.
+   #------------------------------------------------------------
   
-   search_string=`cat ./${file} | grep $field`
-   out=`echo $search_string | gawk '{print $3}'`
-   return 
-}
+   getField () {
+      field='default'
+      echo "getField $1 $2"
+      file=$1
+      field=$2
+  
+      search_string=`cat ./${file} | grep $field`
+      out=`echo $search_string | gawk '{print $3}'`
+      return 
+   }
 
-#------------------------------------------------------------
-#  Function getMonth returns the corresponding GrADS string
-#  value for the specified numeric month.
-#
-getMonth () {
-   mo=$1
-   out=''
+   #------------------------------------------------------------
+   #  Function getMonth returns the corresponding GrADS string
+   #  value for the specified numeric month.
+   #------------------------------------------------------------
 
-   case $mo in
-      01) out=jan;;
-      02) out=feb;;
-      03) out=mar;;
-      04) out=apr;;
-      05) out=may;;
-      06) out=jun;;
-      07) out=jul;;
-      08) out=aug;;
-      09) out=sep;;
-      10) out=oct;;
-      11) out=nov;;
-      12) out=dec;;
-       *) echo "month error $mo"
-             exit 1;;
-   esac
+   getMonth () {
+      mo=$1
+      out=''
+
+      case $mo in
+         01) out=jan;;
+         02) out=feb;;
+         03) out=mar;;
+         04) out=apr;;
+         05) out=may;;
+         06) out=jun;;
+         07) out=jul;;
+         08) out=aug;;
+         09) out=sep;;
+         10) out=oct;;
+         11) out=nov;;
+         12) out=dec;;
+          *) echo "month error $mo"
+                exit 1;;
+      esac
  
-   return 
-}
+      return 
+   }
+
 
 
 #---------------------------------------------------
@@ -53,7 +56,7 @@ getMonth () {
 #
 #---------------------------------------------------
 
-echo "---> plot_hist.sh"
+   echo "---> plot_hist.sh"
 
    export workdir=${C_PLOT_WORKDIR}/plothist
 
@@ -117,7 +120,7 @@ echo "---> plot_hist.sh"
               
 
                #------------------------------------------
-               # build the control file for the data
+               # build the GrADS control file 
                #
                cp ${C_IG_FIX}/hist_${type}.ctl ./hist_${dtype}.ctl
 
@@ -317,6 +320,7 @@ echo "---> plot_hist.sh"
    ##cd ..
    ##rm -rf $workdir
 
-echo "<--- plot_hist.sh"
+   echo "<--- plot_hist.sh"
+
 exit
 

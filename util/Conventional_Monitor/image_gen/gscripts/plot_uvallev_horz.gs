@@ -83,8 +83,7 @@ function plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,levx,levx1,hint,var)
    'defint.gs  1.0 0'
    if(var=u); 'd UGRDprs.1-UGRDprs.2';endif
    if(var=v); 'd VGRDprs.1-VGRDprs.2';endif
-*   'cbarb'
-*   'set ccolor 98'
+   'colorbar.gs'
    'set ccolor 6'
    'set digsiz 0.12'
    levy=levx-hint
@@ -132,7 +131,7 @@ function plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,levx,levx1,hint,var)
    'defint.gs  1.0 0'
    if(var=u); 'd UGRDprs.1-UGRDprs.2';endif
    if(var=v); 'd VGRDprs.1-VGRDprs.2';endif
-*   'cbarb'
+   'colorbar.gs'
    'set digsiz 0.12'
    levy=levx-hint
    ley1=levx+hint+1
@@ -176,7 +175,7 @@ function plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,levx,levx1,hint,var)
    'defint.gs  1.0 0'
    if(var=u); 'd UGRDprs.1-UGRDprs.2';endif
    if(var=v); 'd VGRDprs.1-VGRDprs.2';endif
-*   'cbarb'
+   'colorbar.gs'
    'set ccolor 98'
    if(var=u)
       'draw title  Wind(u) INCT(m/s) 'levx'mb at 'rdate'z'
@@ -198,7 +197,6 @@ function plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,levx,levx1,hint,var)
    if(var=v)
       'd VGRDprs.1'
    endif
-*   'cbarb'
    'set digsiz 0.12'
    'set gxout contour'
    'set clevs'
@@ -210,7 +208,7 @@ function plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,levx,levx1,hint,var)
    if(var=v)
       'd VGRDprs.1'
    endif
-*   'cbarb'
+   'colorbar.gs'
    'set ccolor 98'
    if(var=u)
       'draw title  Wind(u) analysis at 'rdate'z'
