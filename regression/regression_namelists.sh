@@ -2928,6 +2928,123 @@ OBS_INPUT::
  /"
 ;;
 
+    global_C96_fv3aerorad)
+
+# Define namelist for global run (aerosol analysis)
+
+export gsi_namelist="
+ &SETUP
+  niter(1)=100,niter(2)=100
+  niter_no_qc(1)=50,niter_no_qc(2)=0,
+  write_diag(1)=.true.,write_diag(2)=.false.,write_diag(3)=.true.,
+  qoption=2,
+  gencode=82,factqmin=0.5,factqmax=0.005,deltim=1200,
+  iguess=-1,
+  tzr_qc=1,
+  oneobtest=.false.,retrieval=.false.,l_foto=.false.,
+  use_pbl=.false.,use_compress=.true.,nsig_ext=12,gpstop=50.,
+  use_gfs_nemsio=.true.,sfcnst_comb=.true.,
+  use_readin_anl_sfcmask=.false.,
+  lrun_subdirs=.true.,
+  crtm_coeffs_path='./crtm_coeffs/',
+  newpc4pred=.true.,adp_anglebc=.true.,angord=4,passive_bc=.true.,use_edges=.false.,
+  diag_precon=.true.,step_start=1.e-3,emiss_bc=.true.,nhr_obsbin=3,
+  cwoption=3,imp_physics=11,lupp=.true.,
+  netcdf_diag=.true.,binary_diag=.false.,
+  lobsdiag_forenkf=.false.,
+  diag_aero=.false., use_fv3_aero=.true.,offtime_data=.true.,
+  diag_rad=.true.,diag_pcp=.false.,diag_conv=.true.,diag_ozone=.false.,
+ /
+
+ &GRIDOPTS
+  JCAP_B=190,JCAP=190,NLAT=194,NLON=384,nsig=64,
+  regional=.false.,nlayers(63)=3,nlayers(64)=6,
+ /
+
+ &BKGERR
+  vs=0.7,
+  hzscl=1.7,0.8,0.5,
+  hswgt=0.45,0.3,0.25,
+  bw=0.0,norsp=4,
+  bkgv_flowdep=.true.,bkgv_rewgtfct=1.5,
+  bkgv_write=.false.,
+  cwcoveqqcov=.false.,
+ /
+
+ &ANBKGERR
+  anisotropic=.false.,
+ /
+
+ &JCOPTS
+  ljcdfi=.false.,alphajc=0.0,ljcpdry=.true.,bamp_jcpdry=5.0e7,
+ /
+
+ &STRONGOPTS
+  tlnmc_option=2,nstrong=1,nvmodes_keep=8,period_max=6.,period_width=1.5,
+ /
+
+ &OBSQC
+  dfact=0.75,dfact1=3.0,noiqc=.true.,oberrflg=.false.,c_varqc=0.02,
+  use_poq7=.true.,qc_noirjaco3_pole=.true.,vqc=.true.,
+  aircraft_t_bc=.false.,biaspredt=1000.0,upd_aircraft=.true.,cleanup_tail=.true.,
+ /
+
+ &OBS_INPUT
+  dmesh(1)=145.0,dmesh(2)=150.0,dmesh(3)=100.0,time_window_max=3.0,
+ /
+
+OBS_INPUT::
+!  dfile          dtype       dplat       dsis                dval    dthin dsfcalc
+   prepbufr       ps          null      ps                   0.0     0     0
+   prepbufr       t           null      t                    0.0     0     0
+   prepbufr       q           null      q                    0.0     0     0
+   prepbufr       pw          null      pw                   0.0     0     0
+   prepbufr       uv          null      uv                   0.0     0     0
+   prepbufr       spd         null      spd                  0.0     0     0
+   prepbufr       dw          null      dw                   0.0     0     0
+   airsbufr       airs        aqua      airs_aqua            0.0     1     1
+   iasibufr       iasi        metop-a   iasi_metop-a         0.0     1     1
+   iasibufr       iasi        metop-b   iasi_metop-b         0.0     1     0
+   crisbufr       cris        npp       cris_npp             0.0     1     0
+   nsstbufr       sst         nsst        sst                0.0     0     0
+::
+
+ &SUPEROB_RADAR
+ /
+
+ &LAG_DATA
+ /
+
+ &HYBRID_ENSEMBLE
+  l_hyb_ens=.false.,
+  generate_ens=.false.,
+  beta_s0=0.125,readin_beta=.false.,
+  s_ens_h=800.,s_ens_v=-0.8,readin_localization=.true.,
+  aniso_a_en=.false.,oz_univ_static=.false.,uv_hyb_ens=.true.,
+  ensemble_path='./ensemble_data/',
+  ens_fast_read=.true.,
+ /
+
+ &RAPIDREFRESH_CLDSURF
+  dfi_radar_latent_heat_time_period=30.0,
+ /
+
+ &CHEM
+  lread_ext_aerosol=.true.,
+ /
+
+ &SINGLEOB_TEST
+  maginnov=0.1,magoberr=0.1,oneob_type='t',
+  oblat=45.,oblon=180.,obpres=1000.,obdattim=2019061718,
+  obhourset=0.,
+ /
+
+ &NST
+  nst_gsi=3,
+  nstinfo=4,fac_dtl=1,fac_tsl=1,zsea1=0,zsea2=0,
+ /"
+;;
+
     *)
 
 # EXIT out for unresolved regression test

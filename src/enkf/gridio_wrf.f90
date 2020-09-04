@@ -46,7 +46,8 @@ module gridio
   ! Define all public subroutines within this module
   private
   public :: readgriddata, readgriddata_pnc
-  public :: writegriddata, writegriddata_pnc, WRITEINCREMENT, WRITEINCREMENT_PNC
+  public :: writegriddata, writegriddata_pnc
+  public :: writeincrement, writeincrement_pnc
 
   !-------------------------------------------------------------------------
 
@@ -73,6 +74,7 @@ contains
    endif
 
   end subroutine readgriddata
+
 
   !========================================================================
   ! readgriddata_arw.f90: read WRF-ARW state or control vector
@@ -1035,6 +1037,7 @@ contains
     !======================================================================
 
   end subroutine writegriddata
+
 
   !======================================================================
   ! readwrfvar.f90: This subroutine reads a varname variable from WRF
