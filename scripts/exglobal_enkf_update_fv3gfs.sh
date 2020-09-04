@@ -141,13 +141,6 @@ fi
 cd $DATA || exit 99
 
 ################################################################################
-# Clean up the run directory
-rm convinfo satinfo ozinfo hybens_info anavinfo
-rm satbias_angle satbias_in
-rm enkf.nml
-rm sanl*
-
-################################################################################
 # Fixed files
 $NLN $SATANGL    satbias_angle
 $NLN $SATINFO    satinfo
@@ -164,7 +157,8 @@ $NLN $COMOUT_ANL_ENS/$GBIASe satbias_in
 ################################################################################
 
 if [ $USE_CFP = "YES" ]; then
-   rm $DATA/untar.sh $DATA/mp_untar.sh
+   [[ -f $DATA/untar.sh ]] && rm $DATA/untar.sh
+   [[ -f $DATA/mp_untar.sh ]] && rm $DATA/mp_untar.sh
    set +x
    cat > $DATA/untar.sh << EOFuntar
 #!/bin/sh
@@ -377,13 +371,13 @@ EOFnml
 
 ################################################################################
 # Run enkf update
+
 export OMP_NUM_THREADS=$NTHREADS_ENKF
+export pgm=$ENKFEXEC
+. prep_step
 
-PGM=$DATA/enkf.x
-$NCP $ENKFEXEC $PGM
-
-# Execute EnKF using same number of mpi tasks on all nodes
-$APRUN_ENKF $PGM 1>stdout 2>stderr
+$NCP $ENKFEXEC $DATA
+$APRUN_ENKF ${DATA}/$(basename $ENKFEXEC) 1>stdout 2>stderr
 rc=$?
 
 export ERR=$rc

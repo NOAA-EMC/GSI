@@ -198,14 +198,21 @@ for imem in $(seq $ENSBEG $ENSEND); do
 
    cd $DATATOP
 
-   $NCP $EFCSGRP log_old
-   rm log log_new
+   if [ -s $EFCSGRP ]; then
+       $NCP $EFCSGRP log_old
+   fi
+   [[ -f log ]] && rm log
+   [[ -f log_new ]] && rm log_new
    if [ $ra -ne 0 ]; then
       echo "MEMBER $cmem : FAIL" > log
    else
       echo "MEMBER $cmem : PASS" > log
    fi
-   cat log_old log > log_new
+   if [ -s log_old ] ; then
+       cat log_old log > log_new
+   else
+       cat log > log_new
+   fi
    $NCP log_new $EFCSGRP
 
 done
@@ -215,7 +222,7 @@ done
 cd $DATATOP
 echo "Status of ensemble members in group $ENSGRP:"
 cat $EFCSGRP
-rm ${EFCSGRP}.fail
+[[ -f ${EFCSGRP}.fail ]] && rm ${EFCSGRP}.fail
 
 ################################################################################
 # If any members failed, error out

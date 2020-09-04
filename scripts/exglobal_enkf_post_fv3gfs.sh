@@ -103,15 +103,22 @@ done
 ################################################################################
 # Generate ensemble mean surface and atmospheric files
 
-rm ./hybens_smoothinfo
 [[ $SMOOTH_ENKF = "YES" ]] && $NCP $HYBENSMOOTH ./hybens_smoothinfo
 
 rc=0
 for fhr in $(seq $FHMIN $FHOUT $FHMAX); do
    fhrchar=$(printf %03i $fhr)
+
+   export pgm=$GETSFCENSMEANEXEC
+   . prep_step
+
    $APRUN_EPOS ${DATA}/$(basename $GETSFCENSMEANEXEC) ./ sfcf${fhrchar}.ensmean sfcf${fhrchar} $NMEM_ENKF
    ra=$?
    ((rc+=ra))
+
+   export_pgm=$GETATMENSMEANEXEC
+   . prep_step
+
    if [ $ENKF_SPREAD = "YES" ]; then
       $APRUN_EPOS ${DATA}/$(basename $GETATMENSMEANEXEC) ./ atmf${fhrchar}.ensmean atmf${fhrchar} $NMEM_ENKF atmf${fhrchar}.ensspread
    else

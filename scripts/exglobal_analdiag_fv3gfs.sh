@@ -73,10 +73,10 @@ CNVSTAT=${CNVSTAT:-${COMOUT}/${APREFIX}cnvstat}
 OZNSTAT=${OZNSTAT:-${COMOUT}/${APREFIX}oznstat}
 
 # Remove stat file if file already exists
-if [ -s $RADSTAT ]; then rm -f $RADSTAT; fi
-if [ -s $PCPSTAT ]; then rm -f $PCPSTAT; fi
-if [ -s $CNVSTAT ]; then rm -f $CNVSTAT; fi
-if [ -s $OZNSTAT ]; then rm -f $OZNSTAT; fi
+[[ -s $RADSTAT ]] && rm -f $RADSTAT
+[[ -s $PCPSTAT ]] && rm -f $PCPSTAT
+[[ -s $CNVSTAT ]] && rm -f $CNVSTAT
+[[ -s $OZNSTAT ]] && rm -f $OZNSTAT
 
 # Obs diag
 GENDIAG=${GENDIAG:-"YES"}
@@ -145,7 +145,8 @@ if [ $GENDIAG = "YES" ] ; then
    fi
 
    if [ $USE_CFP = "YES" ]; then
-      rm $DATA/diag.sh $DATA/mp_diag.sh
+      [[ -f $DATA/diag.sh ]] && rm $DATA/diag.sh
+      [[ -f $DATA/mp_diag.sh ]] && rm $DATA/mp_diag.sh
       cat > $DATA/diag.sh << EOFdiag
 #!/bin/sh
 lrun_subdirs=\$1
@@ -196,7 +197,7 @@ EOFdiag
       n=-1
       while [ $((n+=1)) -le $ntype ] ;do
          for type in $(echo ${diagtype[n]}); do
-            count=$(ls ${prefix}${type}_${loop}* | wc -l)
+            count=$(ls ${prefix}${type}_${loop}* 2>/dev/null | wc -l)
             if [ $count -gt 1 ]; then
                if [ $USE_CFP = "YES" ]; then
                   echo "$nm $DATA/diag.sh $lrun_subdirs $binary_diag $type $loop $string $CDATE $DIAG_COMPRESS $DIAG_SUFFIX" | tee -a $DATA/mp_diag.sh

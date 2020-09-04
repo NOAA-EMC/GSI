@@ -148,7 +148,7 @@ if [ $DO_CALC_ANALYSIS == "YES" ]; then
    SIGLEVEL=${SIGLEVEL:-${FIXgsm}/global_hyblev.l${LEVS_ENKF}.txt}
 
    if [ $USE_CFP = "YES" ]; then
-      rm $DATA/mp_chgres.sh
+      [[ -f $DATA/mp_chgres.sh ]] && rm $DATA/mp_chgres.sh
    fi
 
    nfhrs=`echo $IAUFHRS_ENKF | sed 's/,/ /g'`
@@ -171,6 +171,10 @@ EOF
               nm=$((nm+1))
           fi
      else
+
+         export pgm=$CHGRESNCEXEC
+         . prep_step
+
 	 $APRUN_CHGRES $CHGRESNCEXEC chgres_nc_gauss0$FHR.nml
 	 rc=$?
 	 export ERR=$rc
@@ -185,6 +189,10 @@ EOF
       if [ $ncmd -gt 0 ]; then
          ncmd_max=$((ncmd < npe_node_max ? ncmd : npe_node_max))
          APRUNCFP_CHGRES=$(eval echo $APRUNCFP)
+
+         export pgm=$CHGRESNCEXEC
+         . prep_step
+
          $APRUNCFP_CHGRES $DATA/mp_chgres.sh
          export ERR=$?
          export err=$ERR
