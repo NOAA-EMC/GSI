@@ -22,6 +22,7 @@ subroutine get_gefs_for_regional
 !   2016-05-19  Carley/s.liu   - prevent the GSI from printing out erroneous error  
 !                               when using ensembles from different time
 !   2016-12-12  tong    - add code to get nemsio meta data, if use_gfs_nemsio=True
+!   2020-07-01  Bi   - add code to get netCDF data, if use_gfs_ncio=.true.
 !
 !   input argument list:
 !
@@ -33,7 +34,8 @@ subroutine get_gefs_for_regional
 !
 !$$$ end documentation block
 
-  use gridmod, only: idsl5,regional,use_gfs_nemsio
+  use gridmod, only: idsl5,regional,use_gfs_nemsio,use_gfs_ncio,&
+                     ncepgfs_head,ncepgfs_headv
   use gridmod, only: nlon,nlat,lat2,lon2,nsig,rotate_wind_ll2xy
   use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
   use hybrid_ensemble_parameters, only: en_perts,ps_bar,nelen
@@ -74,6 +76,9 @@ subroutine get_gefs_for_regional
   use nemsio_module, only: nemsio_init,nemsio_open,nemsio_close
   use ncepnems_io, only: error_msg
   use nemsio_module, only: nemsio_gfile,nemsio_getfilehead
+  use module_fv3gfs_ncio, only: Dimension, Dataset, open_dataset, get_dim, &
+                                read_vardata, get_idate_from_time_units,&
+                                read_attribute, close_dataset
   use get_wrf_mass_ensperts_mod, only: get_wrf_mass_ensperts_class
   use gsi_io, only: verbose
   use obsmod, only: l_wcp_cwm
@@ -109,9 +114,12 @@ subroutine get_gefs_for_regional
   character(len=*),parameter::myname='get_gefs_for_regional'
   real(r_kind) bar_norm,sig_norm,kapr,kap1,trk
   integer(i_kind) iret,i,j,k,k2,n,mm1,iderivative
+  integer(i_kind) mype_out
   integer(i_kind) ic2,ic3,it
   integer(i_kind) ku,kv,kt,kq,koz,kcw,kz,kps
   character(255) filename,filelists(ntlevs_ens)
+  character(6) sfilename
+
   logical ice
   integer(sigio_intkind):: lunges = 11
   type(sigio_head):: sighead
@@ -121,10 +129,11 @@ subroutine get_gefs_for_regional
   logical,allocatable :: vector(:)
   real(r_kind),parameter::  zero_001=0.001_r_kind
   real(r_kind),allocatable,dimension(:) :: xspli,yspli,xsplo,ysplo
-  integer(i_kind) iyr,ihourg
+  integer(i_kind) iyr,ihourg,kr
   integer(i_kind),dimension(4):: idate4
   integer(i_kind),dimension(8) :: ida,jda 
   integer(i_kind),dimension(5) :: iadate_gfs
+  integer(i_kind),dimension(6):: idate6
   real(r_kind) hourg
   real(r_kind),dimension(5):: fha
   integer(i_kind) istatus
@@ -136,6 +145,13 @@ subroutine get_gefs_for_regional
   integer(i_kind),dimension(7):: idate
   real(r_kind) :: fhour
   type(nemsio_gfile) :: gfile
+  type(Dataset) :: atmges      
+  type(ncepgfs_head):: gfshead
+  type(ncepgfs_headv):: gfsheadv
+  real(r_single),allocatable,dimension(:) :: aknc, bknc, fhour1
+
+
+  type(Dimension) :: ncdim
   integer(i_kind) :: nvcoord
   real(r_single),allocatable:: nems_vcoord(:,:,:)
   real(r_single),allocatable:: vcoord(:,:)
@@ -223,7 +239,7 @@ subroutine get_gefs_for_regional
 
   rewind (10) 
   read(10,'(a)',err=20,end=20)filename 
-  if(.not. use_gfs_nemsio)then
+  if ((.not. use_gfs_nemsio) .and. (.not. use_gfs_ncio))then
      open(lunges,file=trim(filename),form='unformatted')
      call sigio_srhead(lunges,sighead,iret)
      close(lunges)
@@ -264,7 +280,7 @@ subroutine get_gefs_for_regional
      idate4(2)= sighead%idate(2)
      idate4(3)= sighead%idate(3)
      idate4(4)= sighead%idate(4)
-  else
+  else if ( use_gfs_nemsio ) then
      call nemsio_init(iret=iret)
      if (iret /= 0) call error_msg(trim(my_name),trim(filename),' ','init',istop,iret)
 
@@ -336,11 +352,76 @@ subroutine get_gefs_for_regional
      if(mype == 0) then
         write(6,*) ' nemsio: fhour,idate=',fhour,idate
         write(6,*) ' iadate(y,m,d,hr,min)=',iadate
-        write(6,*) ' nemsio: jcap,levs=',njcap,levs
+        write(6,*) ' nemsio: jcap,levs=',levs
         write(6,*) ' nemsio: latb,lonb=',latb,lonb
         write(6,*) ' nemsio: idvc,nvcoord=',idvc,nvcoord
         write(6,*) ' nemsio: idsl=',idsl
      end if
+
+!  add netCDF header information: 
+     else ! use_gfs_ncio and get this information
+        write(sfilename,'("sfcf",i2.2)')nhr_assimilation
+        ! open the netCDF file
+        atmges = open_dataset(filename)
+        ! get dimension sizes
+        ncdim = get_dim(atmges, 'grid_xt'); gfshead%lonb = ncdim%len
+        ncdim = get_dim(atmges, 'grid_yt'); gfshead%latb = ncdim%len
+        ncdim = get_dim(atmges, 'pfull') ; gfshead%levs = ncdim%len
+        nsig_gfs = gfshead%levs
+        ! hard code jcap,idsl,idvc
+        gfshead%jcap = -9999
+        gfshead%idsl= 1
+        gfshead%idvc = 2
+
+        ! FV3GFS write component does not include JCAP, infer from DIMY-2
+        njcap=latb-2
+
+        nlat_gfs=gfshead%latb+2
+        nlon_gfs=gfshead%lonb
+        nsig_gfs=gfshead%levs
+
+        jcap_gfs=gfshead%latb-2
+
+        if (mype==mype_out) write(6,*)'GESINFO:  Read NCEP FV3GFS netCDF ', &
+           'format file, ',trim(filename)
+        ! hard code nvcoord to be 2
+        gfshead%nvcoord=2 ! ak and bk
+        if (allocated(gfsheadv%vcoord)) deallocate(gfsheadv%vcoord)
+        allocate(gfsheadv%vcoord(gfshead%levs+1,gfshead%nvcoord))
+        call read_attribute(atmges, 'ak', aknc)
+        call read_attribute(atmges, 'bk', bknc)
+        do k=1,gfshead%levs+1
+           kr = gfshead%levs+2-k
+           gfsheadv%vcoord(k,1) = aknc(kr)
+           gfsheadv%vcoord(k,2) = bknc(kr)
+        end do
+        deallocate(aknc,bknc) 
+        ! get time information
+        idate6 = get_idate_from_time_units(atmges)
+        gfshead%idate(1) = idate6(4)  !hour
+        gfshead%idate(2) = idate6(2)  !month
+        gfshead%idate(3) = idate6(3)  !day
+        gfshead%idate(4) = idate6(1)  !year
+        call read_vardata(atmges, 'time', fhour1) ! might need to change this to attribute later
+                                               ! depends on model changes from Jeff Whitaker
+        gfshead%fhour = fhour1(1)
+
+        call close_dataset(atmges)
+
+        if(mype == 0) then
+          write(6,*) ' netCDF:fhour,idate=',fhour1,idate6
+          write(6,*) ' netCDF:iadate(y,m,d,hr,min)=',iadate
+          write(6,*) ' netCDF: jcap,levs=',gfshead%levs
+          write(6,*) ' netCDF: latb,lonb=',gfshead%latb,gfshead%lonb
+          write(6,*) ' netCDF: nvcoord=',gfshead%nvcoord
+          write(6,*) ' netCDF: idvc,idsl=',gfshead%idvc,gfshead%idsl
+        endif
+
+        hourg = fhour1(1)
+        idate4(1) = idate6(4)
+        idate4(2) = idate6(2)
+        idate4(3) = idate6(3)
+        idate4(4) = idate6(1)
 
   end if
 
@@ -354,6 +435,7 @@ subroutine get_gefs_for_regional
         iyr=iyr+2000
      end if
   end if
+
   fha=zero ; ida=0; jda=0
   fha(2)=ihourg    ! relative time interval in hours
   ida(1)=iyr       ! year
@@ -371,30 +453,36 @@ subroutine get_gefs_for_regional
      iadate_gfs(4)=jda(5) ! hour
   endif
   iadate_gfs(5)=0      ! minute
+
+
   if(mype == 0) then
      write(6,*)' in get_gefs_for_regional, iadate_gefs=',iadate_gfs
      write(6,*)' in get_gefs_for_regional, iadate    =',iadate
   end if
-           call w3fs21(iadate,nming1)
-           call w3fs21(iadate_gfs,nming2)
+
+     call w3fs21(iadate,nming1)
+     call w3fs21(iadate_gfs,nming2)
+
   if( (nming1/=nming2) .and. (.not.l_ens_in_diff_time) ) then
      if(mype == 0) write(6,*)' GEFS ENSEMBLE MEMBER DATE NOT EQUAL TO ANALYSIS DATE, PROGRAM STOPS'
      call stop2(85)
   end if
      
-
 !         set up ak5,bk5,ck5 for use in computing 3d pressure field (needed for vertical interp to regional)
 !                            following is code segment from gesinfo.F90
   allocate(ak5(nsig_gfs+1))
   allocate(bk5(nsig_gfs+1))
   allocate(ck5(nsig_gfs+1))
   allocate(tref5(nsig_gfs))
+  
+  idvc=gfshead%idvc
+  idsl=gfshead%idsl
   do k=1,nsig_gfs+1
      ak5(k)=zero
      bk5(k)=zero
      ck5(k)=zero
   end do
-  if (.not. use_gfs_nemsio) then
+  if ((.not. use_gfs_nemsio) .and. (.not. use_gfs_ncio))then
      if (sighead%nvcoord == 1) then
         do k=1,sighead%levs+1
            bk5(k) = sighead%vcoord(k,1)
@@ -412,6 +500,26 @@ subroutine get_gefs_for_regional
         end do
      else
         write(6,*)'GET_GEFS_FOR_REGIONAL:  ***ERROR*** INVALID value for nvcoord=',sighead%nvcoord
+        call stop2(85)
+     endif
+  else if ( use_gfs_ncio ) then 
+     if (gfshead%nvcoord == 1) then
+        do k=1,nsig_gfs+1
+           bk5(k) = gfsheadv%vcoord(k,1)
+        end do
+     elseif (gfshead%nvcoord == 2) then
+        do k = 1,nsig_gfs+1
+           ak5(k) = gfsheadv%vcoord(k,1)*zero_001
+           bk5(k) = gfsheadv%vcoord(k,2)
+        end do
+     elseif (gfshead%nvcoord == 3) then
+        do k = 1,nsig_gfs+1
+           ak5(k) = gfsheadv%vcoord(k,1)*zero_001
+           bk5(k) = gfsheadv%vcoord(k,2)
+           ck5(k) = gfsheadv%vcoord(k,3)*zero_001
+        end do
+     else
+        write(6,*)'GET_GEFS_FOR_REGIONAL netCDF:  ***ERROR*** INVALID value for nvcoord=',gfshead%nvcoord
         call stop2(85)
      endif
   else
@@ -435,6 +543,7 @@ subroutine get_gefs_for_regional
         call stop2(85)
      endif
   end if
+
 
   if(mype == 0 .and. print_verbose)then
      do k=1,nsig_gfs+1
@@ -509,6 +618,9 @@ subroutine get_gefs_for_regional
      if(use_gfs_nemsio)then
         call general_read_gfsatm_nems(grd_gfst,sp_gfs,filename,uv_hyb_ens,.false.,.true., &
                atm_bundle,.true.,iret)
+     else if (use_gfs_ncio) then
+        call general_read_gfsatm_nc(grd_gfst,sp_gfs,filename,uv_hyb_ens,.false.,.true., &
+               atm_bundle,.true.,iret)
      else
         call general_read_gfsatm(grd_gfst,sp_gfs,sp_gfs,filename,uv_hyb_ens,.false.,.true., &
                atm_bundle,inithead,iret)
@@ -543,6 +655,8 @@ subroutine get_gefs_for_regional
            end do
         end do
      end do
+
+     
      kz=num_fields ; kps=kz-1
      do j=1,grd_gfs%lon2
         do i=1,grd_gfs%lat2
@@ -804,6 +918,7 @@ subroutine get_gefs_for_regional
 !                   if(mype==0) write(6,*)' with halo, n,min,max ges_ps - matt ps =',n,pdiffmin0,pdiffmax0
 
   end do   !  end loop over ensemble members.
+
 
 !   next, compute mean of ensembles.
 
