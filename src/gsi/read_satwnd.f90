@@ -409,6 +409,15 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  write(6,*) 'READ_SATWND: wrong derived method value'
               endif
            endif
+        else if( trim(subset) == 'NC005081') then
+           if( hdrdat(1) <10.0_r_kind .or. (hdrdat(1) >= 200.0_r_kind .and. &
+               hdrdat(1) <=223.0_r_kind) ) then      ! the range of EUMETSAT and NOAA polar orbit satellite IDs  
+              if(hdrdat(9) == one)  then                            ! IR winds
+                 itype=244
+              else
+                 write(6,*) 'READ_SATWND: wrong derived method value'
+              endif
+           endif
         else if( trim(subset) == 'NC005019') then                   ! GOES shortwave winds
            if(hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then   ! The range of NESDIS satellite IDS
               if(hdrdat(9) == one)  then                            ! short wave IR winds
@@ -947,6 +956,32 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                       endif
               endif
 ! Extra block for new EUMETSAT BUFR: End
+! Extra block for new Metop/AVHRR BUFR: Start
+           else if(trim(subset) == 'NC005081') then         ! Metop/AVHRR from NESDIS
+              if( hdrdat(1) <10.0_r_kind .or. (hdrdat(1) >= 200.0_r_kind .and. &
+                   hdrdat(1) <=223.0_r_kind)  ) then  ! The range of satellite IDs
+                 c_prvstg='AVHRR'
+                 if(hdrdat(9) == one)  then                            ! IRwinds
+                    itype=244
+                    c_station_id='IR'//stationid
+                    c_sprvstg='IR'
+                 else
+                    write(6,*) 'READ_SATWND: wrong derived method value'
+                 endif
+
+                 call ufbint(lunin,rep_array,1,1,iret, '{AMVIVR}')
+                 irep_array = int(rep_array)
+                 allocate( amvivr(2,irep_array))
+                 call ufbrep(lunin,amvivr,2,irep_array,iret, 'TCOV CVWD')
+                 pct1 = amvivr(2,1)     ! use of pct1 is limited to GOES-16/17) as introduced by Nebuda/Genkova
+                 deallocate( amvivr )
+
+                 call ufbseq(lunin,amvqic,2,4,iret, 'AMVQIC') ! AMVQIC:: GNAPS PCCF
+                 qifn = amvqic(2,2)  ! QI w/ fcst does not exist in this BUFR
+                 ee = amvqic(2,4) ! NOTE: GOES-R's ee is in [m/s]
+              endif
+! Extra block for new Metop/AVHRR BUFR: End
+
 ! Extra block for VIIRS NOAA-20: Start
            else if(trim(subset) == 'NC005091') then
               if(hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then  ! The range of satellite IDs
