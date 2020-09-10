@@ -345,6 +345,19 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                 itype=254
               endif
            endif
+        else if(trim(subset) == 'NC005067' .or. trim(subset) == 'NC005068' .or.&
+                trim(subset) == 'NC005069') then               ! read new EUM BURF
+             if( hdrdat(1) <r80 .and. hdrdat(1) >= r50) then   !the range of EUMETSAT satellite IDS
+                if(hdrdat(9) == one)  then                  ! IR winds
+                   itype=253
+                else if(hdrdat(9) == two) then              ! visible winds
+                   itype=243
+                else if(hdrdat(9) == three) then            ! WV cloud top
+                   itype=254
+                else if(hdrdat(9) >= four) then             ! WV deep layer, monitored 
+                   itype=254
+                endif
+             endif   
         else if(trim(subset) == 'NC005044' .or. trim(subset) == 'NC005045' .or. &
            trim(subset) == 'NC005046') then
            if( hdrdat(1) >=r100 .and. hdrdat(1) <=r199 ) then   ! the range of JMA satellite IDS
@@ -418,8 +431,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  if(trim(subset) == 'NC005091')  then                 ! IR LW winds
                     itype=260
                  endif
-
-
         !GOES-R section of the 'if' statement over 'subsets' 
         else if(trim(subset) == 'NC005030' .or. trim(subset) == 'NC005031' .or. trim(subset) == 'NC005032' .or. &
                 trim(subset) == 'NC005034' .or. trim(subset) == 'NC005039') then
@@ -451,8 +462,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  else if(trim(subset) == 'NC005031')  then            ! WV clear sky/deep layer
                     itype=247
                  endif
-
-         endif
+        endif ! end of if-then-endif over NC* subsets
 
 !  Match ob to proper convinfo type
         ncsave=0
@@ -713,7 +723,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                        endif   
                     endif
                  enddo 
-
                  if(qifn <85.0_r_kind )  then     ! qifn: QI value without forecast 
                     qm=15
                  endif 
@@ -867,7 +876,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  endif
               endif
            else if( trim(subset) == 'NC005090') then                   ! VIIRS IR winds 
-               if(hdrdat(1) >=r200 .and. hdrdat(1) <=r250 ) then   ! The range of satellite IDS
+              if(hdrdat(1) >=r200 .and. hdrdat(1) <=r250 ) then   ! The range of satellite IDS
                  c_prvstg='VIIRS'
                  if(hdrdat(9) == one)  then                            ! VIIRS IR winds
                     itype=260
@@ -888,7 +897,50 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                        endif
                     endif
                  enddo
-               endif
+              endif
+! Extra block for new EUMETSAT BUFR: Start
+                 if(qifn <85.0_r_kind )  then    !  qifn, QI without forecast
+                    qm=15
+                 endif
+           else if(trim(subset) == 'NC005067' .or. trim(subset) == 'NC005068' .or. &
+                   trim(subset) == 'NC005069') then              ! read new EUM BURF
+              if( hdrdat(1) <r80 .and. hdrdat(1) >= r50 ) then  ! The range of satellite IDs
+                      c_prvstg='EUMETSAT'
+                      if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
+                      if(hdrdat(9) == one)  then                  ! IR winds
+                         itype=253
+                         c_station_id='IR'//stationid
+                         c_sprvstg='IR'
+                      else if(hdrdat(9) == two) then              ! visible winds
+                         itype=243
+                         c_station_id='VI'//stationid
+                         c_sprvstg='VI'
+                      else if(hdrdat(9) == three) then            ! WV cloud top, try to assimilate
+                         itype=254
+                         c_station_id='WV'//stationid
+                         c_sprvstg='WV'
+                      else if(hdrdat(9) >= four) then             ! WV deep layer,monitoring
+                         itype=254
+                         qm=9                                     !  quality mark as 9, means the observation error needed to be set
+                         c_station_id='WV'//stationid
+                         c_sprvstg='WV'
+                      endif
+!  get quality information THIS SECTION NEEDS TO BE TESTED!!!
+                      call ufbint(lunin,rep_array,1,1,iret, '{AMVIVR}')
+                      irep_array = int(rep_array)
+                      allocate( amvivr(2,irep_array))
+                      call ufbrep(lunin,amvivr,2,irep_array,iret, 'TCOV CVWD')
+                      pct1 = amvivr(2,1)     ! use of pct1 (a new variable in the BUFR) is introduced by Nebuda/Genkova
+                      deallocate( amvivr )
+
+                      call ufbseq(lunin,amvqic,2,4,iret, 'AMVQIC') ! AMVQIC:: GNAPS PCCF
+                      qifn = amvqic(2,2)  ! QI w/ fcst does not exist in this BUFR
+                      ee = amvqic(2,4) ! NOTE: GOES-R's ee is in [m/s]
+                      if(qifn <85.0_r_kind )  then    !  qifn, QI without forecast
+                         qm=15
+                      endif
+              endif
+! Extra block for new EUMETSAT BUFR: End
 ! Extra block for VIIRS NOAA-20: Start
            else if(trim(subset) == 'NC005091') then
               if(hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then  ! The range of satellite IDs
@@ -1054,9 +1106,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                 if(itype==251 )  then;  c_prvstg='GOESR' ; c_sprvstg='VIS'  ; endif
               endif
 ! Extra block for GOES-R winds: End
+           endif  ! assign types and get quality info : end
 
-           endif
-           ! assign types and get quality info : end
 
            if ( qify == zero) qify=r110
            if ( qifn == zero) qifn=r110
