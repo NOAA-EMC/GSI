@@ -136,6 +136,8 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
    export LOGS_conmon=${LOGS_conmon:-${C_LOGDIR}}
    export WORK_conmon=${WORK_conmon:-${C_STMP_USER}/${CONMON_SUFFIX}/${NET}/ConMon}
 
+   export CLEAN_TANKDIR=${CLEAN_TANKDIR:-1}
+
 
    #
    #  Web server resources include the sever name (WEB_SVR), the user name

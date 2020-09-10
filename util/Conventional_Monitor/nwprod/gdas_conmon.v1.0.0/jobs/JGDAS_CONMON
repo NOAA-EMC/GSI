@@ -60,7 +60,7 @@ export COMPRESS=${COMPRESS:-gzip}
 export UNCOMPRESS=${UNCOMPRESS:-gunzip}
 export Z=${Z:-gz}
 
-
+export CLEAN_TANKDIR=${CLEAN_TANKDIR:-0}
 
 ###################################
 # Set up the UTILITIES
@@ -113,7 +113,7 @@ export CONMON_AREA=${CONMON_AREA:-glb}
 
 ########################################################
 # Execute the script.
-${CONMONSH:-$HOMEgdas_conmon/scripts/exgdas_conmon.sh.ecf} ${PDY} ${CYC}
+${CONMONSH:-$HOMEgdas_conmon/scripts/exgdas_conmon.sh} ${PDY} ${CYC}
 ########################################################
 
 
