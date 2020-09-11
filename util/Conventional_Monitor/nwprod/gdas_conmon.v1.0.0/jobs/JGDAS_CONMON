@@ -19,9 +19,10 @@ export PS4='$SECONDS + '
 ###########################################################
 #export pid=$$
 export CONMON_WORK_DIR=${CONMON_WORK_DIR:-/tmpnwprd}
-export DATA=${DATA:-${CONMON_WORK_DIR}/${jobid}}
-mkdir -p $DATA
-cd $DATA
+export C_DATAROOT=${C_DATAROOT:-${CONMON_WORK_DIR}}
+export C_DATA=${C_DATA:-${C_DATAROOT}/${jobid}}
+mkdir -p $C_DATA
+cd $C_DATA
 
 
 ####################################
@@ -35,6 +36,7 @@ export cycle=t${CYC}z
 ##############################
 export NET=${NET:-gfs}
 export RUN=${RUN:-gdas}
+export component-${component:-atmos}
 
 ##################################################
 # SENDCOM  - Copy Files From TMPDIR to $COMOUT
@@ -77,7 +79,7 @@ export NDATE=${NDATE:-$utilexec/ndate}
 # TANKDIR_cmon - WHERE OUTPUT DATA WILL RESIDE
 ##############################################################
 export C_TANKDIR=${C_TANKDIR:-/com/verf/${envir}}
-export C_COM_IN=${C_COM_IN:-/com/${NET}/${envir}}
+export C_COM_IN=${C_COM_IN:-${COMROOTp3}/${NET}/${envir}}
 export C_COMIN=${C_COMIN:-$C_COM_IN/${RUN}.${PDY}}
 export CONMON_SUFFIX=${CMON_SUFFIX:-gdas}
 
@@ -89,30 +91,12 @@ export C_COMIN_m6h=${C_COMIN_m6h:-$C_COM_IN/${RUN}.${PDY_m6h}}
 
 env
 
-#############################################################################
-#############################################################################
-# Set necessary environment variables
-#  
-# Note:  The CMon used to use the pgrbanl grib file.  But at some point that
-#        file was changed and no longer includes the RHm2 field.  So at Su's  
-#        suggestion I modified the package to use the pgrbf00 grib file
-#        instead of pgrbanl.
-#############################################################################
-#############################################################################
 export CONMON_AREA=${CONMON_AREA:-glb}
-
-#export cnvstat=${cnvstat:-${C_COMIN}/gdas.t${CYC}z.cnvstat}
-#export pgrbf00=${pgrbf00:-${C_COMIN}/gdas.t${CYC}z.pgrbf00}
-#export pgrbf06=${pgrbf06:-${C_COMIN_m6h}/gdas.t${CYC_m6h}z.pgrbf06}
-
-
-#echo "cnvstat = $cnvstat"
-#echo "pgrbf00 = $pgrbf00"
-#echo "pgrbf06 = $pgrbf06"
 
 
 ########################################################
 # Execute the script.
+#
 ${CONMONSH:-$HOMEgdas_conmon/scripts/exgdas_conmon.sh.ecf} ${PDY} ${CYC}
 ########################################################
 
@@ -120,11 +104,11 @@ ${CONMONSH:-$HOMEgdas_conmon/scripts/exgdas_conmon.sh.ecf} ${PDY} ${CYC}
 ################################
 # Remove the Working Directory
 ################################
-#RM_TMPDIR=NO
-#cd $DATA_IN
-#if [ ${RM_TMPDIR:-YES} = YES ] ; then 
-#  rm -rf $DATA 
-#fi
+KEEPDATA=${KEEPDATA:-YES}
+cd $C_DATAROOT
+if [ ${KEEPDATA} = NO ] ; then
+  rm -rf $C_DATA
+fi
 
 date
 
