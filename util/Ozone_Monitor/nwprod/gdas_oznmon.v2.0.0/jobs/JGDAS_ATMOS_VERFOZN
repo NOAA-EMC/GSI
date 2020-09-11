@@ -103,7 +103,7 @@ export oznstat=${oznstat:-$COMIN/gdas.t${cyc}z.oznstat}
 #-------------------------------------------------------
 # Execute the script.
 #
-${OZNMONSH:-${SCRgdas_ozn}/exgdas_vrfyozn.sh} ${PDY} ${cyc}
+${OZNMONSH:-${SCRgdas_ozn}/exgdas_atmos_verfozn.sh} ${PDY} ${cyc}
 err=$?
 [[ $err -ne 0 ]] && exit $err
 

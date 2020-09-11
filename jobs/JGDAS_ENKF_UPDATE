@@ -53,7 +53,7 @@ export pgmerr=errfile
 
 
 ##############################################
-# Set variables used in the exglobal script
+# Set variables used in the script
 ##############################################
 export CDATE=${CDATE:-${PDY}${cyc}}
 export CDUMP=${CDUMP:-${RUN:-"gdas"}}
@@ -77,19 +77,19 @@ export ASUFFIX=${ASUFFIX:-$SUFFIX}
 export GSUFFIX=${GSUFFIX:-$SUFFIX}
 
 
-# COMIN_GES_ENS and COMOUT_ANL_ENS are used in exglobal script
+# COMIN_GES_ENS and COMOUT_ANL_ENS are used in script
 export COMIN_GES_ENS="$ROTDIR/enkfgdas.$gPDY/$gcyc/$COMPONENT"
 export COMOUT_ANL_ENS="$ROTDIR/enkf$CDUMP.$PDY/$cyc/$COMPONENT"
 
 
 ###############################################################
-# Run relevant exglobal script
+# Run relevant script
 env
 msg="HAS BEGUN on `hostname`"
 postmsg "$jlogfile" "$msg"
 $LOGSCRIPT
 
-${ENKFUPDSH:-$SCRgfs/exglobal_enkf_update_fv3gfs.sh}
+${ENKFUPDSH:-$SCRgfs/exgdas_enkf_update.sh}
 status=$?
 [[ $status -ne 0 ]] && exit $status
 
