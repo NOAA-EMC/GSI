@@ -17,7 +17,6 @@ export PS4='$SECONDS + '
 ########################################################### 
 # set up working directory space
 ###########################################################
-#export pid=$$
 export CONMON_WORK_DIR=${CONMON_WORK_DIR:-/tmpnwprd}
 export C_DATAROOT=${C_DATAROOT:-${CONMON_WORK_DIR}}
 export C_DATA=${C_DATA:-${C_DATAROOT}/${jobid}}
@@ -62,7 +61,7 @@ export COMPRESS=${COMPRESS:-gzip}
 export UNCOMPRESS=${UNCOMPRESS:-gunzip}
 export Z=${Z:-gz}
 
-
+export CLEAN_TANKDIR=${CLEAN_TANKDIR:-0}
 
 ###################################
 # Set up the UTILITIES
@@ -96,8 +95,7 @@ export CONMON_AREA=${CONMON_AREA:-glb}
 
 ########################################################
 # Execute the script.
-#
-${CONMONSH:-$HOMEgdas_conmon/scripts/exgdas_conmon.sh.ecf} ${PDY} ${CYC}
+${CONMONSH:-$HOMEgdas_conmon/scripts/exgdas_conmon.sh} ${PDY} ${CYC}
 ########################################################
 
 

@@ -234,6 +234,14 @@
       rc_time_vert=$?
       echo "rc_time_vert = $rc_time_vert"
 
+      #--------------------------------------
+      #  optionally run clean_tankdir script
+      #   
+      if [[ ${CLEAN_TANKDIR} -eq 1 ]]; then
+         ${USHconmon}/clean_tankdir.sh
+         rc_clean_tankdir=$?
+         echo "rc_clean_tankdir = $rc_clean_tankdir"
+      fi
    fi
 
    #####################################################################
