@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exglobal_enkf_post_fv3gfs.sh
+# Script name:         exgdas_enkf_post.sh
 # Script description:  Global ensemble forecast post processing
 #
 # Author:        Rahul Mahajan      Org: NCEP/EMC     Date: 2017-03-02

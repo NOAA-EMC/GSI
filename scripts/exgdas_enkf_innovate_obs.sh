@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exglobal_enkf_innovate_obs_fv3gfs.sh
+# Script name:         exgdas_enkf_innovate_obs.sh
 # Script description:  Compute ensemble innovations
 #
 # Author:        Rahul Mahajan      Org: NCEP/EMC     Date: 2017-03-02
@@ -34,8 +34,8 @@ export NLN=${NLN:-"/bin/ln -sf"}
 export ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
 
 # Scripts.
-INVOBSSH=${INVOBSSH:-$HOMEgfs/scripts/exglobal_innovate_obs_fv3gfs.sh}
-export ANALYSISSH=${ANALYSISSH:-$HOMEgfs/scripts/exglobal_analysis_fv3gfs.sh}
+INVOBSSH=${INVOBSSH:-$HOMEgfs/scripts/exgdas_enkf_innovate_obs.sh}
+export ANALYSISSH=${ANALYSISSH:-$HOMEgfs/scripts/exglobal_atmos_analysis.sh}
 
 # Enemble group, begin and end
 ENSGRP=${ENSGRP:-1}

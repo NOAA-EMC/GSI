@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         global_enkfomg.sh
+# Script name:         exglobal_enkf_innovate_obs.sh
 # Script description:  Compute global_enkf innovations
 #
 # Author:        Russ Treadonl      Org: NP23         Date: 2011-12-16
@@ -13,7 +13,7 @@
 # 2011-12-16  Russ Treadon   based on GCWMB parallel script eomg.sh
 # 2014-02-16  Xu Li  add NSST related variables
 #
-# Usage:  exglobal_enkfomg.sh SFCGESMEAN SIGGESMEAN
+# Usage:  exglobal_enkf_innovate_obs.sh SFCGESMEAN SIGGESMEAN
 #
 #   Input script positional parameters:
 #     1             Input surface guess

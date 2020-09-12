@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exglobal_chgres_forenkf_fv3gfs.sh
+# Script name:         exgdas_atmos_chgres_forenkf.sh
 # Script description:  Runs chgres on full-resolution forecast for EnKF recentering
 #
 # Author: Cory Martin      Org: NCEP/EMC     Date: 2020-06-08

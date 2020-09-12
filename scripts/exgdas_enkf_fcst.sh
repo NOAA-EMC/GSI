@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exglobal_enkf_fcst_fv3gfs.sh
+# Script name:         exgdas_enkf_fcst.sh
 # Script description:  Run ensemble forecasts
 #
 # Author:        Rahul Mahajan      Org: NCEP/EMC     Date: 2017-03-02

@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exglobal_enkffcs.sh
+# Script name:         exglobal_enkf_fcst_nems.sh
 # Script description:  Run global_enkf ensemble forecasts
 #
 # Author:        Russ Treadon       Org: NP23         Date: 2011-12-16
