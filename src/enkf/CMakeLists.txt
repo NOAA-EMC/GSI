@@ -72,7 +72,7 @@ if(BUILD_ENKF)
   set(ENKFEXEC "${ENKF_BASE}${debug_suffix}${GSISUFFIX}" CACHE INTERNAL "ENKF Executable name")
   add_executable(${ENKFEXEC} enkf_main.f90)
   target_link_libraries(${ENKFEXEC} enkflib enkfdeplib ${GSILIB} ${GSISHAREDLIB} bufr::bufr_d crtm::crtm nemsio::nemsio sp::sp_d sigio::sigio sfcio::sfcio w3emc::w3emc_d w3nco::w3nco_d bacio::bacio_4
-  ${MPI_Fortran_LIBRARIES} ${LAPACK_LIBRARIES} ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES} 
+  ${MPI_Fortran_LIBRARIES} ${LAPACK_LIBRARIES} ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES} 
   ${FV3GFS_NCIO_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES}
   ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${GSI_LDFLAGS} ${NCDIAG_LIBRARIES} ${EXTRA_LINKER_FLAGS})
   install(TARGETS ${ENKFEXEC} enkfdeplib enkflib 

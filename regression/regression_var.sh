@@ -156,22 +156,22 @@ case $machine in
    export accnt=""
    ;;
    s4)
-   export noscrub="/data/users/$LOGNAME"
+   export noscrub="/work/noaa/da/$LOGNAME"
    if [[ "$cmaketest" = "false" ]]; then
      export basedir="/home/$LOGNAME/gsi"
    fi
-   export group="dev"
-   export queue="dev"
+   export group="da-cpu"
+   export queue="batch"
    export NWPROD="/usr/local/jcsda/nwprod_gdas_2014"
-   export ptmp="/scratch/short/users/$LOGNAME/$ptmpName"
+   export ptmp="/work/noaa/da/$LOGNAME/$ptmpName"
 
-   export fixcrtm="/data/users/mpotts/crtm-2.3.0/fix_update"
-   export casesdir="/data/users/mpotts/CASES"
-   export ndate="$NWPROD/util/exec/ndate"
+   export fixcrtm="work/noaa/da/mpotts/crtm-2.3.0/fix_update"
+   export casesdir="/work/noaa/da/mpotts/CASES"
+   export ndate="/apps/contrib/NCEPLIBS/l.0110.2020/lib/NCEPLIBS-prod_util/v1.1.0/exec/ndate"
 
    export check_resource="no"
 
-   export accnt="star"
+   export accnt="da-cpu"
    ;;
    Discover)
    if [[ "$cmaketest" = "false" ]]; then

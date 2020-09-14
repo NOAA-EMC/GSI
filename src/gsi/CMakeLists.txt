@@ -102,7 +102,7 @@ cmake_minimum_required(VERSION 2.8)
   string(REGEX REPLACE " -lm" "" NETCDF_LIBRARIES "${NETCDF_LIBRARIES}") 
 
   target_link_libraries(${GSIEXEC} PUBLIC ${GSISHAREDLIB} ${GSILIB} ${GSISHAREDLIB} ${WRF_LIBRARIES} 
-         ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} 
+         ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} 
          ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} 
          bacio::bacio_4 bufr::bufr_d sigio::sigio bacio::bacio_4 nemsio::nemsio crtm::crtm sp::sp_d sfcio::sfcio w3emc::w3emc_d w3nco::w3nco_d ip::ip_d 
          ${GSI_LDFLAGS} ${NCDIAG_LIBRARIES} ${GSDCLOUD_LIBRARY} ${ZLIB_LIBRARIES} ${wrflib} ${EXTRA_LINKER_FLAGS} ${FV3GFS_NCIO_LIBRARIES})
