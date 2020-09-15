@@ -99,7 +99,7 @@ cmake_minimum_required(VERSION 2.8)
   add_dependencies(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} )
   # Removing the -lm flag is required to get bitwise reproducibility with old ProdGSI. May not be necessary after full conversion to GSI
   string(REGEX REPLACE " -lm" "" NETCDF_C_LIBRARIES "${NETCDF_C_LIBRARIES}") 
-  string(REGEX REPLACE " -lm" "" NETCDF_LIBRARIES "${NETCDF_LIBRARIES}") 
+  string(REGEX REPLACE " -lm" "" NETCDF_C_LIBRARIES "${NETCDF_C_LIBRARIES}") 
 
   target_link_libraries(${GSIEXEC} PUBLIC ${GSISHAREDLIB} ${GSILIB} ${GSISHAREDLIB} ${WRF_LIBRARIES} 
          ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} 
