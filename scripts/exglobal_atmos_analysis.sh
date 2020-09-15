@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exglobal_analysis_fv3gfs.sh
+# Script name:         exglobal_atmos_analysis.sh
 # Script description:  Makes a global model upper air analysis with GSI
 #
 # Author: Rahul Mahajan      Org: NCEP/EMC     Date: 2017-03-02
@@ -411,45 +411,6 @@ fi
 
 cd $DATA || exit 99
 
-################################################################################
-# Clean the run-directory
-rm berror_stats hybens_info
-rm scaninfo satbias_angle satinfo
-rm anavinfo convinfo ozinfo pcpinfo aeroinfo vqctp001.dat
-rm errtable atms_beamwidth.txt
-rm cloudy_radiance_info.txt
-
-rm prepbufr prepbufr_profl
-rm gpsrobufr
-rm tcvitl
-rm gsndrbufr gsnd1bufr
-rm ssmisbufr ssmitbufr ssmirrbufr tmirrbufr
-rm sbuvbufr gomebufr omibufr mlsbufr msubufr ompsnpbufr ompstcbufr
-rm airsbufr
-rm iasibufr iasibufrears iasibufr_db
-rm amsrebufr amsr2bufr
-rm gmibufr saphirbufr
-rm hirs2bufr hirs3bufr hirs4bufr hirs3bufr_db hirs3bufrears
-rm amsuabufr amsuabufr_db amsuabufrears
-rm amsubbufr amsubbufr_db amsubbufrears
-rm mhsbufr mhsbufr_db mhsbufrears
-rm seviribufr ahibufr abibufr
-rm crisbufr crisbufrears crisbufr_db crisfsbufr crisfsbufrears crisfsbufr_db
-rm atmsbufr atmsbufr_db atmsbufrears
-
-rm satbias_in satbias_ang.in satbias_out satbias_pc satbias_pc.out satbias_out.int
-rm aircftbias_in aircftbias_out
-
-rm sfcf* sigf* nstf*
-rm sfca* siga* nsta*
-rm sigi*
-
-rm gsiparm.anl
-
-rm -rf dir*
-rm -rf crtm_coeffs
-rm -rf ensemble_data
-
 ##############################################################
 # Fixed files
 $NLN $BERROR       berror_stats
@@ -715,7 +676,8 @@ fi
 # If requested, copy and de-tar guess radstat file
 if [ $USE_RADSTAT = "YES" ]; then
    if [ $USE_CFP = "YES" ]; then
-     rm $DATA/unzip.sh $DATA/mp_unzip.sh
+     [[ -f $DATA/unzip.sh ]] && rm $DATA/unzip.sh
+     [[ -f $DATA/mp_unzip.sh ]] && rm $DATA/mp_unzip.sh
      cat > $DATA/unzip.sh << EOFunzip
 #!/bin/sh
    diag_file=\$1
@@ -983,12 +945,17 @@ EOF
 cat gsiparm.anl
 
 ##############################################################
-#  Make atmospheric analysis
-$NCP $GSIEXEC $DATA/gsi.x
-export OMP_NUM_THREADS=$NTHREADS_GSI
-$APRUN_GSI ${DATA}/gsi.x 1>&1 2>&2
+#  Run gsi analysis
 
-export ERR=$?
+export OMP_NUM_THREADS=$NTHREADS_GSI
+export pgm=$GSIEXEC
+. prep_step
+
+$NCP $GSIEXEC $DATA
+$APRUN_GSI ${DATA}/$(basename $GSIEXEC) 1>&1 2>&2
+rc=$?
+
+export ERR=$rc
 export err=$ERR
 $ERRSCRIPT || exit 4
 
@@ -1098,7 +1065,7 @@ cat fort.2* > $GSISTAT
 # If requested, create obsinput tarball from obs_input.* files
 if [ $RUN_SELECT = "YES" ]; then
   echo $(date) START tar obs_input >&2
-  rm obsinput.tar
+  [[ -s obsinput.tar ]] && rm obsinput.tar
   $NLN $SELECT_OBS obsinput.tar
   tar -cvf obsinput.tar obs_input.*
   chmod 750 $SELECT_OBS

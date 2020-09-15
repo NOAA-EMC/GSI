@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exglobal_enkf_recenter_fv3gfs.sh
+# Script name:         exgdas_enkf_ecen.sh
 # Script description:  recenter ensemble around hi-res deterministic analysis
 #
 # Author:        Rahul Mahajan      Org: NCEP/EMC     Date: 2017-03-02
@@ -159,6 +159,8 @@ if [ $DO_CALC_INCREMENT = "YES" ]; then
    ATMANLMEANNAME="atmanl_ensmean"
 
    export OMP_NUM_THREADS=$NTHREADS_ECEN
+   export pgm=$GETATMENSMEANEXEC
+   . prep_step
 
    $NCP $GETATMENSMEANEXEC $DATA
    $APRUN_ECEN ${DATA}/$(basename $GETATMENSMEANEXEC) $DATAPATH $ATMANLMEANNAME $ATMANLNAME $NMEM_ENKF
@@ -181,6 +183,8 @@ else
    ATMINCMEANNAME="atminc_ensmean"
 
    export OMP_NUM_THREADS=$NTHREADS_ECEN
+   export pgm=$GETATMENSMEANEXEC
+   . prep_step
 
    $NCP $GETATMENSMEANEXEC $DATA
    $APRUN_ECEN ${DATA}/$(basename $GETATMENSMEANEXEC) $DATAPATH $ATMINCMEANNAME $ATMINCNAME $NMEM_ENKF
@@ -199,6 +203,8 @@ else
        ATMGESMEANNAME="atmges_ensmean"
 
        export OMP_NUM_THREADS=$NTHREADS_ECEN
+       export pgm=$GETATMENSMEANEXEC
+       . prep_step
 
        $NCP $GETATMENSMEANEXEC $DATA
        $APRUN_ECEN ${DATA}/$(basename $GETATMENSMEANEXEC) $DATAPATH $ATMGESMEANNAME $ATMGESNAME $NMEM_ENKF
@@ -265,7 +271,7 @@ if [ $RECENTER_ENKF = "YES" ]; then
 
       export OMP_NUM_THREADS=$NTHREADS_CHGRES
 
-      rm -f $chgresnml
+      [[ -f $chgresnml ]] && rm -f $chgresnml
       cat > $chgresnml << EOF
 &${nmltitle}_setup
   i_output=$LONB_ENKF
@@ -296,6 +302,8 @@ EOF
       FILENAMEOUT="ratmanl"
 
       export OMP_NUM_THREADS=$NTHREADS_ECEN
+      export pgm=$RECENATMEXEC
+      . prep_step
 
       $NCP $RECENATMEXEC $DATA
       $APRUN_ECEN ${DATA}/$(basename $RECENATMEXEC) $FILENAMEIN $FILENAME_MEANIN $FILENAME_MEANOUT $FILENAMEOUT $NMEM_ENKF
@@ -326,13 +334,16 @@ EOF
 
       # make the small namelist file for incvars_to_zero
 
-      rm recenter.nml
+      [[ -f recenter.nml ]] && rm recenter.nml
       cat > recenter.nml << EOF
 &recenter
   incvars_to_zero = $INCREMENTS_TO_ZERO
 /
 EOF
 cat recenter.nml
+
+      export pgm=$RECENATMEXEC
+      . prep_step
 
       $NCP $RECENATMEXEC $DATA
       $APRUN_ECEN ${DATA}/$(basename $RECENATMEXEC) $FILENAMEIN $FILENAME_INCMEANIN $FILENAME_GSIDET $FILENAMEOUT $NMEM_ENKF $FILENAME_GESMEANIN
@@ -363,11 +374,14 @@ if [ $DO_CALC_INCREMENT = "YES" ]; then
 
    export OMP_NUM_THREADS=$NTHREADS_CALCINC
    if [ ${SUFFIX} = ".nc" ]; then
-
       CALCINCEXEC=$CALCINCNCEXEC
    else
       CALCINCEXEC=$CALCINCNEMSEXEC
    fi
+
+   export pgm=$CALCINCEXEC
+   . prep_step
+
    $NCP $CALCINCEXEC $DATA
 
    rm calc_increment.nml

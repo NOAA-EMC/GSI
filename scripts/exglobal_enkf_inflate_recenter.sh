@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exglobal_enkfcen.sh
+# Script name:         exglobal_enkf_inflate_recenter.sh
 # Script description:  Make global_enkf additive error and recenter
 #
 # Author:        Russ Treadon       Org: NP23         Date: 2011-12-16
@@ -13,7 +13,7 @@
 # 2011-12-16  Russ Treadon   based on GCWMB parallel script ecen.sh
 # 2014-05-16  Xu Li  Add NSST
 #
-# Usage:  exglobal_enkfcen.sh
+# Usage:  exglobal_enkf_inflate_recenter.sh
 #
 #   Input script positional parameters:
 #

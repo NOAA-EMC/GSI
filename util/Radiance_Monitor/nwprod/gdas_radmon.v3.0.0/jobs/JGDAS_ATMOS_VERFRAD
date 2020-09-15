@@ -102,7 +102,7 @@ echo " "
 
 ########################################################
 # Execute the script.
-${RADMONSH:-${SCRgfs}/exgdas_vrfyrad.sh} ${PDY} ${cyc}
+${RADMONSH:-${SCRgfs}/exgdas_atmos_verfrad.sh} ${PDY} ${cyc}
 err=$?
 
 if [[ $err -ne 0 ]] ; then

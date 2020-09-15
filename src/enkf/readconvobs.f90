@@ -334,7 +334,9 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
 
            errorlimit2=errorlimit2_obs
 
-           if (obtype == 'gps' .and. GPS_Type(i)==1) errorlimit2=errorlimit2_bnd
+           if (obtype == 'gps' ) then
+              if (GPS_Type(i)==1) errorlimit2=errorlimit2_bnd
+           endif
 
            ! for q, normalize by qsatges
            if (obtype == '  q') then
@@ -661,7 +663,9 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
         do i = 1, nobs
            nobdiag = nobdiag + 1
            ! special handling for error limits for GPS bend angle
-           if (obtype == 'gps' .and. GPS_Type(i)==1) errorlimit2=errorlimit2_bnd
+           if (obtype == 'gps' ) then
+              if (GPS_Type(i)==1) errorlimit2=errorlimit2_bnd
+           endif
 
            ! for q, normalize by qsatges
            if (obtype == '  q') then

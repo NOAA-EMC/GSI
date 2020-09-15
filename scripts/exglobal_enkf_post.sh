@@ -2,7 +2,7 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exglobal_enkfpos.sh
+# Script name:         exglobal_enkf_post.sh
 # Script description:  global_enkf forecast post processing
 #
 # Author:        Russ Treadon       Org: NP23         Date: 2011-12-16
@@ -13,7 +13,7 @@
 # 2011-12-16  Russ Treadon   based on GCWMB parallel script epos.sh
 # 2014-05-16  Xu Li   Add NSST
 #
-# Usage:  exglobal_enkfpos.sh
+# Usage:  exglobal_enkf_post.sh
 #
 #   Input script positional parameters:
 #                   defaults to $IGEN, then to 0
