@@ -124,7 +124,7 @@ case $machine in
 
    export fixcrtm="/scratch1/NCEPDEV/da/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update"
    export casesdir="/scratch1/NCEPDEV/da/Michael.Lueken/noscrub/CASES"
-   export ndate=$NDATE
+   export ndate=$NDATE/ndate
 
    export check_resource="no"
 
