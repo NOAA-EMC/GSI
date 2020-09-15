@@ -1180,7 +1180,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                 if(itype==251 )  then;  c_prvstg='GOESR' ; c_sprvstg='VIS'  ; endif
               endif
 ! Extra block for GOES-R winds: End
-
+           else ! wind is not recognised and itype is not assigned
+              cycle loop_readsb             
            endif
            ! assign types and get quality info : end
 
