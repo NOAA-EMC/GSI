@@ -45,7 +45,7 @@ set -ax
             if [[ -e ${data_fp}.${Z} ]]; then
                cp -f ${data_fp}.${Z} ./${data_file}.${Z}
                $UNCOMPRESS ${data_file}.${Z}
-            elif [[ -e ./${data_file} ]]; then
+            elif [[ -e ./${data_file_fp} ]]; then
                cp -f ${data_fp} ./${data_file}
             fi
 

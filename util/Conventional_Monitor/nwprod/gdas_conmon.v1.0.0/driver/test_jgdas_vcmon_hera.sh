@@ -85,7 +85,7 @@ export PDYm1=`echo $prevday | cut -c1-8`
 #############################################################
 # Execute job
 #############################################################
-$JOBGLOBAL/JGDAS_CONMON
+$JOBGLOBAL/JGDAS_ATMOS_CONMON
 
 exit
 

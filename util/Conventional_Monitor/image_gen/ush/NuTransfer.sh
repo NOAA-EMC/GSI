@@ -14,7 +14,7 @@ function usage {
 
 
 set -ax
-echo start Transfer.sh
+echo start NuTransfer.sh
 
 nargs=$#
 if [[ $nargs -lt 1 || $nargs -gt 3 ]]; then
@@ -63,25 +63,29 @@ else
 fi
 
 
-#--------------------------------------------------------------------
-#
-log_file=${LOGdir}/Transfer_${CMON_SUFFIX}.log
-err_file=${LOGdir}/Transfer_${CMON_SUFFIX}.err
+logfile=${C_LOGDIR}/NuTransfer_${CMON_SUFFIX}.log
 
+export JOB_QUEUE=dev_transfer
 WEBDIR=${WEBDIR}/${CMON_SUFFIX}/${RUN}
 
-if [[ ${C_IMGNDIR} != "/" ]]; then
-   echo "C_IMGNDIR   = $C_IMGNDIR"
-   echo "MY_MACHINE  = $MY_MACHINE"
-   echo "WEBUSER     = $WEBUSER"
-   echo "WEBSVR      = $WEBSVR"
-   echo "WEBDIR      = $WEBDIR"
-   
-   if [[ $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "cray" ]]; then
-      /usr/bin/rsync -ave ssh --exclude *.ctl.${Z} ${C_IMGNDIR}/ \
-         ${WEBUSER}@${WEBSVR}.ncep.noaa.gov:${WEBDIR}/
-   fi
+export jobname=transfer_${CMON_SUFFIX}_conmon
+
+#--------------------------------------------------------
+#  Note that transfers from hera are not straightforward,
+#  and must go through a system that is allowed to access
+#  emcrzdm.  This script will just report that situation
+#  and leave it to the user to manually transfer files to
+#  the server.
+#
+if [[ $MY_MACHINE == "wcoss_d" || $MY_MACHINE == "wcoss_c" ]]; then
+   $SUB -P $PROJECT -q $JOB_QUEUE -o ${logfile} -M 80 -W 1:30 \
+        -R affinity[core] -J ${jobname} -cwd ${PWD} \
+        ${C_IG_SCRIPTS}/transfer.sh
+else
+   echo "Unable to transfer files from $MY_MACHINE to $WEBSVR."
+   echo "Manual intervention is required."
 fi
 
-echo end Transfer.sh
+
+echo end NuTransfer.sh
 exit

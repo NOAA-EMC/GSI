@@ -27,7 +27,7 @@
 
 
    #----------------------------------------------------------------------
-   #  Link in the analysis and guess data files
+   #  link in the analysis and guess data files
    #----------------------------------------------------------------------
    ${UNCOMPRESS} ${hh_tankdir}/anl/anal.${PDATE}.${Z}
    ${UNCOMPRESS} ${hh_tankdir}/ges/guess.${PDATE}.${Z}
