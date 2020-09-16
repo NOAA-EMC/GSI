@@ -101,6 +101,7 @@ subroutine setupbend(obsLL,odiagLL, &
 !   2020-03-18  Shao    - update observation error for COSMIC-2
 !   2020-04-13  Shao    - update the statistis QC for COSMIC-2
 !   2020-05-21  Shao    - add comments to include commercial data ID information
+!   2020-08-26  Shao/Bathmann - add Jacobian QC
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -160,7 +161,7 @@ subroutine setupbend(obsLL,odiagLL, &
   use m_gpsrhs, only: ratio_errors
   use m_gpsrhs, only: rdiagbuf,cdiagbuf
   use m_gpsrhs, only: qcfail
-  use m_gpsrhs, only: qcfail_loc,qcfail_high,qcfail_gross
+  use m_gpsrhs, only: qcfail_loc,qcfail_high,qcfail_gross,qcfail_jac
   use m_gpsrhs, only: data_ier,data_igps,data_ihgt
   use m_gpsrhs, only: gpsrhs_alloc
   use m_gpsrhs, only: gpsrhs_dealloc
@@ -388,6 +389,7 @@ subroutine setupbend(obsLL,odiagLL, &
      qcfail=.false.
      qcfail_loc=zero;qcfail_gross=zero
      qcfail_high=zero
+     qcfail_jac=zero
      toss_gps_sub=zero 
      dbend_loc=zero
 
@@ -1178,9 +1180,28 @@ subroutine setupbend(obsLL,odiagLL, &
                  my_head%jac_p(k)=my_head%jac_p(k)+dbenddxi(j)*dxidp(j,k)+ &
                                                    dbenddn(j) * dndp(j,k)
               end do
-           end do
+
+              if ((abs(my_head%jac_t(k)) > 0.0016_r_kind).or.(abs(my_head%jac_q(k)) > 7.5_r_kind).or. &
+                  (abs(my_head%jac_p(k)) > 0.004_r_kind)) then
+                 qcfail_jac(i) = one
+              end if
+           end do 
 
            my_head%jac_p(nsig+1) = zero
+   
+           if (qcfail_jac(i) == one) then
+              do k=1,nsig
+                my_head%jac_t(k) = zero
+                my_head%jac_q(k) = zero
+                my_head%jac_p(k) = zero
+              end do
+              ratio_errors(i) = zero
+              data(ier,i) = zero
+              muse(i) = .false.
+              rdiagbuf(12,i) = -one
+              rdiagbuf(10,i) = six
+           end if 
+              
 
            if (save_jacobian) then
               ! fill in the jacobian
@@ -1213,7 +1234,11 @@ subroutine setupbend(obsLL,odiagLL, &
         do j=1,nreal
            gps_alltail(ibin)%head%rdiag(j)= rdiagbuf(j,i)
         end do
-     endif ! (last_pass)
+        gps_alltail(ibin)%head%ratio_err= ratio_errors(i)
+        gps_alltail(ibin)%head%obserr   = data(ier,i)
+        gps_alltail(ibin)%head%dataerr  = data(ier,i)*data(igps,i)
+        gps_alltail(ibin)%head%muse     = muse(i) ! logical
+  endif ! (last_pass)
   end do ! i=1,nobs
   deallocate(ddnj,grid_s,ref_rad_s)
   ! Release memory of local guess arrays
