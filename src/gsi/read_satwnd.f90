@@ -1017,7 +1017,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 ! Extra block for VIIRS NOAA-20: Start
            else if(trim(subset) == 'NC005091') then
-              if(hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then  ! The range of satellite IDs
+              if( hdrdat(1) >=r200 .and. hdrdat(1) <=r250  ) then  ! The range of satellite IDs
                  c_prvstg='VIIRS'
                  if(trim(subset) == 'NC005091')  then                 ! IR LW winds
                     itype=260
@@ -1181,6 +1181,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               endif
 ! Extra block for GOES-R winds: End
            else ! wind is not recognised and itype is not assigned
+              write(6,*) 'READ_SATWND:SUBSET,itype, satID: ',trim(subset),itype,hdrdat(1)
               cycle loop_readsb             
            endif
            ! assign types and get quality info : end
