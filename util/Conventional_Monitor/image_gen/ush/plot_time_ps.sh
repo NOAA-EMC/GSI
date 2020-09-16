@@ -12,10 +12,10 @@ set -ax
    echo "PDATE       = $PDATE"
    echo "NDATE       = $NDATE"
 
-   plotdir=${C_PLOT_WORKDIR}/plottime_ps
-   rm -rf $plotdir
-   mkdir -p $plotdir
-   cd $plotdir
+   workdir=${C_PLOT_WORKDIR}/plottime_ps
+   rm -rf $workdir
+   mkdir -p $workdir
+   cd $workdir
 
    rc=0
    pdy=`echo $PDATE|cut -c1-8`
@@ -96,17 +96,25 @@ set -ax
    #-------------------------
    #  run the plot scripts
    #-------------------------
+
+#NOTE TO SELF:  make these cp mv instead before delivery
+
    grads -bpc "run ./plotstas_time_count_ps.gs"
    cp -f *.png ${outdir}/.
-#   rm -f ./*.png
  
    grads -bpc "run ./plotstas_time_bias_ps.gs"
    cp -f *.png ${outdir}/.
-#   rm -f ./*.png
 
    grads -bpc "run ./plotstas_time_bias2_ps.gs"
    cp -f *.png ${outdir}/.
-#   rm -f ./*.png
+
+
+
+   if [[ ${C_IG_SAVE_WORK} -eq 0 ]]; then
+      cd $workdir
+      cd ..
+      rm -rf $workdir
+   fi
 
    echo "<--- plot_time_ps.sh"
 exit

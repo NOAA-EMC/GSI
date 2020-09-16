@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 #--------------------------------------------------------------------
 #
@@ -13,13 +13,19 @@
 #  usage
 #--------------------------------------------------------------------
 function usage {
+  echo " "
+  echo " "
   echo "Usage:  ConMon_IG.sh suffix [-p|--pdate pdate -r|--run gdas|gfs]"
   echo "            Suffix is the indentifier for this data source."
-  echo "            -p | --pdate yyyymmddcc to specify the cycle to be processed"
-  echo "              if unspecified the last available date will be processed"
-  echo "            -r | --run   the gdas|gfs run to be processed"
-  echo "              use only if data in TANKdir stores both runs, otherwise"
-  echo "              gdas is assumed."
+  echo " "
+  echo "            -p | --pdate yyyymmddcc to specify the cycle to be plotted."
+  echo "                 If unspecified pdate will be set using the "
+  echo "                 C_IMGNDIR/last_plot_time file, and if that doesn't"
+  echo "                 exist, then the last available date will be plotted."
+  echo " "             
+  echo "            -r | --run   the gdas|gfs run to be processed."
+  echo "                 Use only if data in TANKdir stores both runs, gdas"
+  echo "                 gdas is the default value."
   echo " "
 }
 
@@ -30,7 +36,6 @@ function usage {
 
 echo "Begin ConMon_IG.sh"
 
-set -ax
 
 nargs=$#
 if [[ $nargs -lt 1 || $nargs -gt 5 ]]; then
@@ -38,6 +43,7 @@ if [[ $nargs -lt 1 || $nargs -gt 5 ]]; then
    exit 1
 fi
 
+set -ax
 
 #-----------------------------------------------
 #  Process command line arguments
@@ -117,35 +123,43 @@ fi
 
 #--------------------------------------------------------------------
 # Get date of cycle to process.  Exit if available data has already
-# been plotted ($PDATE -gt $PRODATE).
+# been plotted ($PDATE -gt $last_cycle).
 #
-# If plot_time has been specified via command line argument, then
-# set PDATE to it.  Otherwise, determine the last cycle processed
-# (into *.ieee_d files) and use that as the PDATE.
+# PDATE can be set one of 3 ways.  This is the order of priority:
+#
+#   1.  Specified via command line argument
+#   2.  Read from ${C_IMGNDIR}/last_plot_time file and advanced
+#        one cycle.
+#   3.  Using the last available cycle for which there is
+#        data in ${C_TANKDIR}.
+#
+# If option 2 has been used the ${C_IMGNDIR}/last_plot_time file
+# will be updated with ${PDATE} if the plot is able to run.
 #--------------------------------------------------------------------
 
 echo "C_IG_SCRIPTS = ${C_IG_SCRIPTS}"
 echo "C_TANKDIR = ${C_TANKDIR}"
 
-export PRODATE=`${C_IG_SCRIPTS}/find_cycle.pl \
+last_cycle=`${C_IG_SCRIPTS}/find_cycle.pl \
 		--cyc 1 --dir ${C_TANKDIR} --run ${RUN}`
 
-if [[ $plot_time != "" ]]; then
-   export PDATE=$plot_time
-else
-   export PDATE=$PRODATE
+#if [[ $plot_time != "" ]]; then
+#   export PDATE=$plot_time
+#else
+#   export PDATE=$last_cycle
+#fi
+
+if [[ ${PDATE} = "" ]]; then
+
+   if [[ -e ${C_IMGNDIR}/last_plot_time ]]; then
+      echo " USING last_plot_time"
+      last_plot=`cat ${C_IMGNDIR}/last_plot_time`
+      export PDATE=`$NDATE +6 ${last_plot}`
+#      export PDATE=`cat ${C_IMGNDIR}/last_plot_time`
+   else
+      export PDATE=$last_cycle
+   fi
 fi
-
-echo "PRODATE, PDATE = $PRODATE, $PDATE"
-
-
-#--------------------------------------------------------------------
-#  Create workdir and cd to it
-#--------------------------------------------------------------------
-export C_PLOT_WORKDIR=${C_PLOT_WORKDIR:-${C_STMP_USER}/${CONMON_SUFFIX}/${RUN}/conmon}
-rm -rf $C_PLOT_WORKDIR
-mkdir -p $C_PLOT_WORKDIR
-cd $C_PLOT_WORKDIR
 
 
 #--------------------------------------------------------------------
@@ -157,23 +171,45 @@ hrs=`expr $ncycles \\* -6`
 echo "hrs = $hrs"
 
 export START_DATE=`$NDATE ${hrs} $PDATE`
-echo "start_date, prodate, pdate = $START_DATE $PRODATE  $PDATE"
+echo "START_DATE, last_cycle, PDATE = $START_DATE $last_cycle  $PDATE"
+
 
 
 #------------------------------------------------------------------
 #   Start image plotting jobs.
 #------------------------------------------------------------------
+if [[ $PDATE -le ${last_cycle} ]]; then
 
-#${C_IG_SCRIPTS}/mk_horz_hist.sh
+   echo "ABLE to plot ${PDATE}, last processed date is ${last_cycle}"
 
-${C_IG_SCRIPTS}/mk_time_vert.sh
+   #--------------------------------------------------------------------
+   #  Create workdir and cd to it
+   #--------------------------------------------------------------------
+   export C_PLOT_WORKDIR=${C_PLOT_WORKDIR:-${C_STMP_USER}/${CONMON_SUFFIX}/${RUN}/conmon}
+   rm -rf $C_PLOT_WORKDIR
+   mkdir -p $C_PLOT_WORKDIR
+   cd $C_PLOT_WORKDIR
 
+   #--------------------------------------------------------------------
+   #  Run the two setup scripts
+   #--------------------------------------------------------------------
+#   ${C_IG_SCRIPTS}/mk_horz_hist.sh
 
-#--------------------------------------------------------------------
-# Clean up and exit
-#cd $C_PLOT_WORKDIR
-#cd ../
-#rm -rf $C_PLOT_WORKDIR
+#   ${C_IG_SCRIPTS}/mk_time_vert.sh
+
+   #--------------------------------------------------------------------
+   #  Update the last_plot_time file if found
+   #--------------------------------------------------------------------
+   if [[ -e ${C_IMGNDIR}/last_plot_time ]]; then
+      echo "update last_plot_time file"  
+      echo ${PDATE} > ${C_IMGNDIR}/last_plot_time
+   fi
+
+else
+   echo "UNABLE to plot ${PDATE}, last processed date is ${last_cycle}"
+   exit 4
+fi
+
 
 echo "End ConMon_IG.sh"
 exit

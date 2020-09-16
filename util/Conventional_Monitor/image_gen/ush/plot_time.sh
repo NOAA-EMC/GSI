@@ -11,10 +11,10 @@ set -ax
 
    echo "--> plot_time.sh, type=${type}"
 
-   plotdir=${C_PLOT_WORKDIR}/plottime_${type}
-   rm -rf $plotdir
-   mkdir -p $plotdir
-   cd $plotdir
+   workdir=${C_PLOT_WORKDIR}/plottime_${type}
+   rm -rf $workdir
+   mkdir -p $workdir
+   cd $workdir
 
    rc=0
    pdy=`echo $PDATE|cut -c1-8`
@@ -117,17 +117,20 @@ set -ax
       #  run the plot scripts
       #-------------------------
       grads -bpc "run ./${local_plot_script}"
+# NOTE TO SELF:  make this cp mv w/ delivery
       cp -f *.png ${outdir}/.
 
       num_pngs=`ls -1 *.png | wc -l`
       echo "num_pngs = ${num_pngs}"
 
-#      rm -f ./*.png
-
    done
 
-   #cd ..
-   #rm -rf $plotdir
+   if [[ ${C_IG_SAVE_WORK} -eq 0 ]]; then
+      cd $workdir
+      cd ..
+      rm -rf $workdir
+   fi
+
 
    echo "<-- plot_time.sh, type=${type}"
 exit

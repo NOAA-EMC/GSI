@@ -303,6 +303,7 @@ set -ax
          echo 'quit' | grads -blc " run plothist_${dtype}.gs" 
          rm fileout
 
+# NOTE TO SELF, use the mv w/ delivery
 #         mv -f *hist*.png ${C_IMGNDIR}/pngs/hist/${CYC}/.
          cp -f *hist*.png ${C_IMGNDIR}/pngs/hist/${CYC}/.
 
@@ -315,10 +316,11 @@ set -ax
    $COMPRESS ${hh_tankdir}/ges/*.scater.*
 
 
-   ##cd $workdir
-   ##rm -rf *
-   ##cd ..
-   ##rm -rf $workdir
+   if [[ ${C_IG_SAVE_WORK} -eq 0 ]]; then
+      cd $workdir
+      cd ..
+      rm -rf $workdir
+   fi
 
    echo "<--- plot_hist.sh"
 
