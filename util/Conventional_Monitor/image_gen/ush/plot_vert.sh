@@ -11,10 +11,10 @@ set -ax
 
    type=${TYPE}
 
-   plotdir=${C_PLOT_WORKDIR}/plotvert_${type}
-   rm -rf $plotdir
-   mkdir -p $plotdir
-   cd $plotdir
+   workdir=${C_PLOT_WORKDIR}/plotvert_${type}
+   rm -rf $workdir
+   mkdir -p $workdir
+   cd $workdir
 
    rc=0
    pdy=`echo ${PDATE}|cut -c1-8`
@@ -130,8 +130,14 @@ set -ax
 
    done
 
+#  NOTE TO SELF:  make this cp a mv before delivery
    cp -f *.png ${outdir}/.
-#   rm -f *.png
+  
+   if [[ ${C_IG_SAVE_WORK} -eq 0 ]]; then
+      cd $workdir
+      cd ..
+      rm -rf $workdir
+   fi
 
 
    echo "<-- plot_vert.sh "

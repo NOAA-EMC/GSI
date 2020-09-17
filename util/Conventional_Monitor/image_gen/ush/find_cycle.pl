@@ -18,15 +18,6 @@
 #    pick up the returned cycle string.  If debug statements are left 
 #    in this perl script then the calling shell script will have 
 #    problems.
-#
-#    Note further:  this utility is designed to replace find_cycle.pl,
-#    which has been intentionally retained.  There are older TANKdir 
-#    directory structures in use, which the find_cycle.pl utility can
-#    support.  But integrating support for all types of TANKdir 
-#    structures within a single script was
-#    more complicated than simply adding a new version of the utility.
-#    So if TANK_USE_RUN is 1, then this is the script to use because
-#    it knows to look in $TANKdir/$NET/$run.$pdy/$cyc/conmon.
 #-----------------------------------------------------------------------
 
    use strict;

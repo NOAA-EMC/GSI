@@ -2,16 +2,13 @@
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
-# Script name:         exgdas_conmon.sh.sms
+# Script name:         exgdas_atmo_conmon.sh
 # Script description:  Runs data extract/validation for global conventional diag data
 #
 # Author:        Ed Safford       Org: NP23         Date: 2015-09
 #
 # Abstract: This script runs the data extract/validation portion of the 
 #           ConMon package.  
-#
-# Script history log:
-# 2015-09     Ed Safford
 #
 #   Input script positional parameters:
 #     1             Current analysis date in yyyymmddhh format

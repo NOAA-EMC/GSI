@@ -15,10 +15,10 @@ set -ax
    hh_tankdir=${C_TANKDIR}/${RUN}.${PDY}/${CYC}/conmon/horz_hist
    export savedir=${hh_tankdir}
 
-   export tmpdir_plothorz=${C_PLOT_WORKDIR}/plothorz_uv
-   rm -rf $tmpdir_plothorz
-   mkdir -p $tmpdir_plothorz
-   cd $tmpdir_plothorz
+   export workdir=${C_PLOT_WORKDIR}/plothorz_uv
+   rm -rf $workdir
+   mkdir -p $workdir
+   cd $workdir
 
    export xsize=x800
    export ysize=y600
@@ -124,10 +124,6 @@ set -ax
                fi
             fi
 
-#            if [  ! -s $savedir/${cycle}/${dtype}_grads.${PDATE} ]; then
-#              echo "BREAKing for want of ${dtype}_grads.${PDATE}"
-#              break
-#           fi 
 
             sdir=" dset ${dtype}.grads.${cycle}.${PDATE}"
             title="title  ${dtype}  ${cycle}"
@@ -163,8 +159,6 @@ set -ax
             continue
          fi
 
-#         stnmap -1 -i ${dtype}_grads_ges.ctl 
-
          #----------------------------------------
          # set plot variables in GrADS script
          #----------------------------------------
@@ -182,8 +176,8 @@ set -ax
 
 
          mkdir -p ${C_IMGNDIR}/pngs/horz/${CYC}
+# NOTE TO SELF, make this cp a mv w/ delivery
          ${NCP} *.png ${C_IMGNDIR}/pngs/horz/${CYC}/.
-#         rm *.png
 
       done      ### dtype loop 
    done      ### type loop
@@ -191,10 +185,11 @@ set -ax
    ${COMPRESS} ${hh_tankdir}/ges/*
    ${COMPRESS} ${hh_tankdir}/anl/*
 
-#   cd $tmpdir_plothorz
-#   rm -rf $PDATE
-#   cd ..
-#   rm -rf $tmpdir_plothorz 
+   if [[ ${C_IG_SAVE_WORK} -eq 0 ]]; then
+      cd $workdir
+      cd ..
+      rm -rf $workdir
+   fi
 
    echo "<-- plot_horz_uv.sh"
 

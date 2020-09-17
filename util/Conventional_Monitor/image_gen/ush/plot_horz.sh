@@ -27,7 +27,7 @@
 
 
    #----------------------------------------------------------------------
-   #  Link in the analysis and guess data files
+   #  link in the analysis and guess data files
    #----------------------------------------------------------------------
    ${UNCOMPRESS} ${hh_tankdir}/anl/anal.${PDATE}.${Z}
    ${UNCOMPRESS} ${hh_tankdir}/ges/guess.${PDATE}.${Z}
@@ -185,9 +185,9 @@
          $GRADS -blc "run plothorz_${dtype}.gs" 
 
          mkdir -p ${C_IMGNDIR}/pngs/horz/${CYC}
-         cp -f *.png ${C_IMGNDIR}/pngs/horz/${CYC}/.
 
-#         rm -f *png
+# NOTE TO SELF:  make this mv w/ delivery
+         cp -f *.png ${C_IMGNDIR}/pngs/horz/${CYC}/.
 
       done      ### dtype loop 
 
@@ -197,10 +197,11 @@
    ${COMPRESS} ${hh_tankdir}/anl/*
 
 
-   #cd $tmpdir_plothorz
-   #rm -rf  $PDATE
-   #cd ..
-   #rm -rf $tmpdir_plothorz
+   if [[ ${C_IG_SAVE_WORK} -eq 0 ]]; then
+      cd $workdir
+      cd ..
+      rm -rf $workdir
+   fi
 
 
    echo "<-- plot_horz.sh"
