@@ -58,8 +58,8 @@ fi
 #  Verify this is a supported machine
 #---------------------------------------------------           
 
-if [[ ${target} = "hera"     || ${target} = "wcoss" \
-   || ${target} = "wcoss_c"  || ${target} = "wcoss_d" ]]; then
+if [[ ${target} = "hera"  || ${target} = "wcoss_c"  \
+      || ${target} = "wcoss_d" ]]; then
    echo Building nwprod executables on ${target}
    echo
 
