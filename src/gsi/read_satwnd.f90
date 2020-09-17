@@ -481,8 +481,12 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  else if(trim(subset) == 'NC005031')  then            ! WV clear sky/deep layer
                     itype=247
                  endif
-
+         else ! wind is not recognised and itype is not assigned
+              write(6,*) 'READ_SATWND WARNING loop_report:Unmatched subset, itype, satID:',trim(subset),itype,hdrdat(1)
+              cycle loop_report
          endif
+
+         if ( itype == -1 ) cycle loop_report ! unassigned itype
 
 !  Match ob to proper convinfo type
         ncsave=0
@@ -1181,9 +1185,12 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               endif
 ! Extra block for GOES-R winds: End
            else ! wind is not recognised and itype is not assigned
-              write(6,*) 'READ_SATWND:SUBSET,itype, satID: ',trim(subset),itype,hdrdat(1)
+              write(6,*) 'READ_SATWND WARNING loop_readsb:Unmatched subset, itype, satID:',trim(subset),itype,hdrdat(1)
               cycle loop_readsb             
            endif
+
+           if ( itype == -1 ) cycle loop_readsb ! unassigned itype
+
            ! assign types and get quality info : end
 
            if ( qify == zero) qify=r110
@@ -1273,7 +1280,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                        endif
                     enddo
                     if (ncount ==1) then
-                       write(6,*) 'READ_SATWND,WARNING cannot find subtyep in the error table,&
+                       write(6,*) 'READ_SATWND,WARNING cannot find subtype in the error table,&
                                    itype,iobsub=',itypey,icsubtype(nc)
                        write(6,*) 'read error table at colomn subtype as 0,error table column=',ierr
                     endif
