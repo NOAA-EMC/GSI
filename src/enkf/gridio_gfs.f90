@@ -1112,7 +1112,9 @@
   ! need to distribute grdin to all PEs in this subcommunicator
   ! bring all the subdomains back to the main PE
   call mpi_barrier(iocomms(mem_pe(nproc)), iret)
-  call mpi_bcast(grdin,npts*ndim*nbackgrounds, mpi_real4, 0, iocomms(mem_pe(nproc)), iret)
+  do nb=1,nbackgrounds
+     call mpi_bcast(grdin(1,1,nb,1),npts*ndim, mpi_real4, 0, iocomms(mem_pe(nproc)), iret)
+  enddo
 
   ! loop through times and do the read
   ne = 1
@@ -3754,7 +3756,9 @@
   ! need to distribute grdin to all PEs in this subcommunicator
   ! bring all the subdomains back to the main PE
   call mpi_barrier(iocomms(mem_pe(nproc)), iret)
-  call mpi_bcast(grdin,npts*ndim*nbackgrounds, mpi_real4, 0, iocomms(mem_pe(nproc)), iret)
+  do nb=1,nbackgrounds
+     call mpi_bcast(grdin(1,1,nb,1),npts*ndim, mpi_real4, 0, iocomms(mem_pe(nproc)), iret)
+  enddo
 
   ! loop through times and do the read
   ne = 1
