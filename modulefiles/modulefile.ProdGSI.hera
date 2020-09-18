@@ -18,12 +18,12 @@ set C_COMP_MP mpcc
 # Load compiler, mpi, cmake, and hdf5/netcdf
 module load intel/18.0.5.274
 # python
-module use -a /contrib/modulefiles
+module use -a /contrib/anaconda/modulefiles
 module load anaconda/2.3.0 
 
 module load impi/2018.0.4
 
-module load contrib
+module use -a /contrib/cmake/modulefiles
 module load cmake/3.9.0
 
 # Load libraries

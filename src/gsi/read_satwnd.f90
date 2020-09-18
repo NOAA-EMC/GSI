@@ -402,6 +402,12 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  itype=240
               endif
            endif
+        else if( trim(subset) == 'NC005072') then                   ! LEOGEO (LeoGeo) winds
+           if(hdrdat(1) == 854 ) then                               ! LeoGeo satellite ID
+              if(hdrdat(9) == one)  then                            ! LEOGEO IRwinds
+                 itype=255
+              endif
+           endif
         else if( trim(subset) == 'NC005090') then                   ! VIIRS winds 
            if(hdrdat(1) >=r200 .and. hdrdat(1) <=r250 ) then   ! The range of satellite IDS
               if(hdrdat(9) == one)  then                            ! VIIRS IR winds
@@ -868,6 +874,33 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                     if(itype == 240 .and. ppb < 700.0_r_kind) qm=15
                  endif
               endif
+           else if( trim(subset) == 'NC005072') then ! LEOGEO (LeoGeo)  winds
+              if(hdrdat(1) ==854 ) then              ! LEOGEO satellite ID
+                 c_prvstg='LEOGEO'
+                 if(hdrdat(9) == one)  then          !LEOGEO IR winds
+                    itype=255
+                    c_station_id='IR'//stationid
+                    c_sprvstg='IR'
+                 endif
+! get quality information
+                 call ufbrep(lunin,qcdat,3,8,iret,qcstr)
+                 !!! Rethink this strategy!!!
+                 qifn=qcdat(3,1)
+                 qify=qcdat(3,2)
+                 ee  =qcdat(3,3)
+                 !do j=1,6
+                    !if( qify <=r105 .and. qifn <r105 .and. ee <r105) exit
+                    !if(qcdat(2,j) <= r10000 .and. qcdat(3,j) <r10000 ) then
+                    !   if(qcdat(2,j) ==  one  .and. qifn >r105) then
+                    !      qifn=qcdat(3,j)
+                    !   else if(qcdat(2,j) ==  three .and. qify >r105) then
+                    !      qify=qcdat(3,j)
+                    !   else if( qcdat(2,j) == four .and. ee >r105) then
+                    !      ee=qcdat(3,j)
+                    !   endif
+                    !endif
+                    !enddo
+              endif
            else if( trim(subset) == 'NC005090') then                   ! VIIRS IR winds 
                if(hdrdat(1) >=r200 .and. hdrdat(1) <=r250 ) then   ! The range of satellite IDS
                  c_prvstg='VIIRS'
@@ -1247,10 +1280,11 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !           if(itype==252) then;  c_prvstg='JMA'      ;  c_sprvstg='IR'       ; endif
 !           if(itype==253) then;  c_prvstg='EUMETSAT' ;  c_sprvstg='IR'       ; endif
 !           if(itype==254) then;  c_prvstg='EUMETSAT' ;  c_sprvstg='WV'       ; endif
+!           if(itype==255) then;  c_prvstg='LEOGEO'   ;  c_sprvstg='IR'       ; endif
 !           if(itype==257) then;  c_prvstg='MODIS'    ;  c_sprvstg='IR'       ; endif
 !           if(itype==258) then;  c_prvstg='MODIS'    ;  c_sprvstg='WVCTOP'   ; endif
 !           if(itype==259) then;  c_prvstg='MODIS'    ;  c_sprvstg='WVDLAYER' ; endif
-!
+!           if(itype==260) then;  c_prvstg='VIIRS'    ;  c_sprvstg='IR'       ; endif
 !           c_station_id='SATWND'
 
 ! Get information from surface file necessary for conventional data here

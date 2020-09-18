@@ -10,7 +10,7 @@ module pietc
 ! Zero and the first few units are u0,u1,u2, etc., their reciprocals being,
 ! o2,o3 etc and their square roots, r2,r3. Reciprocal roots are or2,or3 etc.
 !=============================================================================
-use kinds, only: dp,dpc
+use kinds, only: r_kind, dp, dpc
 implicit none
 logical ,parameter:: T=.true.,F=.false. !<- for pain-relief in logical ops
 real(dp),parameter:: &

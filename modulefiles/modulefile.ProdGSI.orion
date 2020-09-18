@@ -34,7 +34,7 @@ module load prod_util/1.2.0
 module load sfcio/1.2.0
 module load sigio/2.2.0
 module load sp/2.1.0
-module load w3emc/2.5.0
+module load w3emc/2.4.0
 module load w3nco/2.1.0
 module load bufr/11.3.0
 module load netcdf_parallel/4.7.4
