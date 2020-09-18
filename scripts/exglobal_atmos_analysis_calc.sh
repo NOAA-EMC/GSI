@@ -96,9 +96,6 @@ ATMGES=${ATMGES:-${COMIN_GES}/${GPREFIX}atmf006${GSUFFIX}}
 ATMG07=${ATMG07:-${COMIN_GES}/${GPREFIX}atmf007${GSUFFIX}}
 ATMG08=${ATMG08:-${COMIN_GES}/${GPREFIX}atmf008${GSUFFIX}}
 ATMG09=${ATMG09:-${COMIN_GES}/${GPREFIX}atmf009${GSUFFIX}}
-GBIAS=${GBIAS:-${COMIN_GES}/${GPREFIX}abias}
-GBIASPC=${GBIASPC:-${COMIN_GES}/${GPREFIX}abias_pc}
-GBIASAIR=${GBIASAIR:-${COMIN_GES}/${GPREFIX}abias_air}
 
 # Analysis files
 export APREFIX=${APREFIX:-""}
@@ -213,14 +210,6 @@ if [ $DOGAUSFCANL = "YES" ]; then
 fi
 
 echo "$CDUMP $CDATE atmanl and sfcanl done at `date`" > $COMOUT/${APREFIX}loganl.txt
-
-################################################################################
-# Send alerts
-if [ $SENDDBN = "YES" ]; then
-    if [ $RUN = "gfs" ]; then
-       $DBNROOT/bin/dbn_alert MODEL GFS_abias $job $ABIAS
-    fi
-fi
 
 ################################################################################
 # Postprocessing

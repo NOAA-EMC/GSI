@@ -1075,6 +1075,14 @@ if [ $RUN_SELECT = "YES" ]; then
 fi
 
 ################################################################################
+# Send alerts
+if [ $SENDDBN = "YES" ]; then
+    if [ $RUN = "gfs" ]; then
+       $DBNROOT/bin/dbn_alert MODEL GFS_abias $job $ABIAS
+    fi
+fi
+
+################################################################################
 # Postprocessing
 cd $pwd
 [[ $mkdata = "YES" ]] && rm -rf $DATA
