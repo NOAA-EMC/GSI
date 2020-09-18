@@ -482,7 +482,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                     itype=247
                  endif
          else ! wind is not recognised and itype is not assigned
-              write(6,*) 'READ_SATWND WARNING loop_report:Unmatched subset, itype, satID:',trim(subset),itype,hdrdat(1)
+              !write(6,*) 'READ_SATWND WARNING loop_report:Unmatched subset, itype, satID:',trim(subset),itype,hdrdat(1)
               cycle loop_report
          endif
 
@@ -1185,7 +1185,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               endif
 ! Extra block for GOES-R winds: End
            else ! wind is not recognised and itype is not assigned
-              write(6,*) 'READ_SATWND WARNING loop_readsb:Unmatched subset, itype, satID:',trim(subset),itype,hdrdat(1)
+              !write(6,*) 'READ_SATWND WARNING loop_readsb:Unmatched subset, itype, satID:',trim(subset),itype,hdrdat(1)
               cycle loop_readsb             
            endif
 
