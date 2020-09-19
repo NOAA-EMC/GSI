@@ -1,12 +1,13 @@
-program recenterncio_hybgain
+program recenterncio_hybgain2
 !$$$  main program documentation block
 !
-! program:  recenterncio_hybgain               recenter
+! program:  recenterncio_hybgain2               recenter
 !
 ! prgmmr: whitaker         org: esrl/psd               date: 2009-02-23
 !
 ! abstract:  Recenter ensemble analysis files about new
-!            mean, computed from blended 3DVar and EnKF increments.
+!            mean, computed from blended 3DVar and EnKF increments 
+!            (optionally applying RTPS inflation).
 !
 ! program history log:
 !   2019-02-10  Initial version.
@@ -32,19 +33,20 @@ program recenterncio_hybgain
   include "mpif.h"
 
   character*500 filename_fg,filename_varanal,filename_enkfanal,filenamein,&
-                filenameout,filename_anal,filename
+                filenameout,filename_anal,filename,filename_fsprd,filename_asprd
   character*3 charnanal
   character(len=4) charnin
-  integer mype,mype1,npe,nanals,iret,ialpha,ibeta
+  integer mype,mype1,npe,nanals,iret,ialpha,ibeta,irtps,i,j,k
   integer:: nlats,nlons,nlevs,nvar,ndims,nbits
-  real alpha,beta
+  real alpha,beta,rtps,infmin,infmax,clip
   real(4),allocatable,dimension(:,:) :: values_2d_varanal,values_2d_enkfanal,values_2d_fg,values_2d_anal,&
-                                        values_2d_tmp, values_2d
+                                        values_2d,asprd_2d,fsprd_2d,inf_2d,values_2d_tmp 
   real(4),allocatable,dimension(:,:,:) :: values_3d_varanal,values_3d_enkfanal,values_3d_fg,values_3d_anal,&
-                                          values_3d_tmp, values_3d
+                                        values_3d,asprd_3d,fsprd_3d,inf_3d,values_3d_tmp
   real(4) compress_err
-  type(Dataset) :: dseti,dseto,dset_anal,dset_fg,dset_varanal,dset_enkfanal
+  type(Dataset) :: dseti,dseto,dset_anal,dset_fg,dset_varanal,dset_enkfanal,dset_asprd,dset_fsprd
   type(Dimension) :: londim,latdim,levdim
+  logical cliptracers,tracer
 
 ! Initialize mpi
   call MPI_Init(iret)
@@ -68,11 +70,20 @@ program recenterncio_hybgain
   call getarg(8,charnin)
   read(charnin,'(i4)') ibeta ! wt for enkfanal (enkf)
   beta = ibeta/1000.
-! new_anal = fg + alpha*(varanal-fg) + beta(enkfanal-fg)
-!          = (1.-alpha-beta)*fg + alpha*varanal + beta*enkfanal
-! how many ensemble members to process
   call getarg(9,charnin)
+  read(charnin,'(i4)') irtps ! rtps relaxation coeff
+  rtps = irtps/1000.
+! new_anal = fg + alpha*(varanal-fg) + beta*(enkfanal-fg)
+! how many ensemble members to process
+  call getarg(10,charnin)
   read(charnin,'(i4)') nanals
+  if (rtps > 0) then
+     call getarg(11,filename_fsprd) ! first guess ensemble spread
+     call getarg(12,filename_asprd) ! analysis ensemble spread
+  endif
+
+  infmin=1.0; infmax=10.
+  clip = tiny(rtps)
 
   if (mype==0) then
      write(6,*)'RECENTERNCIO_HYBGAIN:  PROCESS ',nanals,' ENSEMBLE MEMBERS'
@@ -82,7 +93,11 @@ program recenterncio_hybgain
      write(6,*)'Blended mean analysis to be written to ',trim(filename_anal)
      write(6,*)'Prefix for member input files ',trim(filenamein)
      write(6,*)'Prefix for member output files ',trim(filenameout)
-     write(6,*)'3dvar weight, EnKF weight =',alpha,beta
+     write(6,*)'3dvar weight, EnKF weight, RTPS relaxation =',alpha,beta,rtps
+     if (rtps > 0) then
+        write(6,*)'ens spread background in ',trim(filename_fsprd)
+        write(6,*)'ens spread posterior in ',trim(filename_asprd)
+     endif
   endif
 
   mype1 = mype+1
@@ -100,12 +115,14 @@ program recenterncio_hybgain
         stop
      endif
 
-     ! readin in 3dvar, enkf analyses, plus ens mean background, blend
+     ! read in 3dvar, enkf analyses, plus ens mean background, blend
+     if (alpha > 0) then
      dset_varanal = open_dataset(filename_varanal,errcode=iret)
      if (iret /= 0) then
        print *,'error opening ',trim(filename_varanal)
        call MPI_Abort(MPI_COMM_WORLD,98,iret)
        stop
+     endif
      endif
      dset_enkfanal = open_dataset(filename_enkfanal,errcode=iret)
      if (iret /= 0) then
@@ -113,7 +130,21 @@ program recenterncio_hybgain
        call MPI_Abort(MPI_COMM_WORLD,98,iret)
        stop
      endif
-     if (mype == 0) then
+     if (rtps > 0) then
+        dset_fsprd = open_dataset(filename_fsprd,errcode=iret)
+        if (iret /= 0) then
+          print *,'error opening ',trim(filename_fsprd)
+          call MPI_Abort(MPI_COMM_WORLD,98,iret)
+          stop
+        endif
+        dset_asprd = open_dataset(filename_asprd,errcode=iret)
+        if (iret /= 0) then
+          print *,'error opening ',trim(filename_asprd)
+          call MPI_Abort(MPI_COMM_WORLD,98,iret)
+          stop
+        endif
+     endif
+     if (mype == 0 .and. alpha > 0) then
         dset_anal = create_dataset(filename_anal, dset_enkfanal, &
                     copy_vardata=.true.,  errcode=iret)
         if (iret /= 0) then
@@ -138,29 +169,56 @@ program recenterncio_hybgain
        call MPI_Abort(MPI_COMM_WORLD,98,iret)
        stop
      endif
+     allocate(inf_2d(nlons,nlats),fsprd_2d(nlons,nlats),asprd_2d(nlons,nlats))
+     allocate(inf_3d(nlons,nlats,nlevs),fsprd_3d(nlons,nlats,nlevs),asprd_3d(nlons,nlats,nlevs))
 
      do nvar=1,dset_fg%nvars
         ndims = dset_fg%variables(nvar)%ndims
+        if (trim(dset_fg%variables(nvar)%name) == 'spfh' .or. &
+            trim(dset_fg%variables(nvar)%name) == 'o3mr' .or. &
+            trim(dset_fg%variables(nvar)%name) == 'clwmr' .or. &
+            trim(dset_fg%variables(nvar)%name) == 'icmr') then
+              tracer = .true.
+        else
+              tracer = .false.
+        endif
         if (ndims > 2) then
             if (ndims == 3 .and. trim(dset_fg%variables(nvar)%name) /= 'hgtsfc') then
                ! pressfc
                call read_vardata(dset_fg,trim(dset_fg%variables(nvar)%name),values_2d_fg)
-               call read_vardata(dset_varanal,trim(dset_fg%variables(nvar)%name),values_2d_varanal)
+               if (alpha>0) call read_vardata(dset_varanal,trim(dset_fg%variables(nvar)%name),values_2d_varanal)
                call read_vardata(dset_enkfanal,trim(dset_fg%variables(nvar)%name),values_2d_enkfanal)
                call read_vardata(dseti,trim(dset_fg%variables(nvar)%name),values_2d)
                ! blended analysis
-               values_2d_anal = (1.-alpha-beta)*values_2d_fg + &
-                            alpha*values_2d_varanal + &
-                            beta*values_2d_enkfanal
+               values_2d_anal = values_2d_fg + beta*(values_2d_enkfanal-values_2d_fg)
+               if (alpha > 0) &
+               values_2d_anal = values_2d_anal + alpha*(values_2d_varanal-values_2d_fg) 
                ! recentered ensemble member
-               values_2d = values_2d - values_2d_enkfanal + values_2d_anal
+               if (rtps > 0) then ! RTPS inflation
+                  call read_vardata(dset_fsprd,trim(dset_fg%variables(nvar)%name),fsprd_2d)
+                  call read_vardata(dset_asprd,trim(dset_fg%variables(nvar)%name),asprd_2d)
+                  fsprd_2d = max(fsprd_2d,tiny(fsprd_2d))
+                  asprd_2d = max(asprd_2d,tiny(asprd_2d))
+                  inf_2d = rtps*((fsprd_2d-asprd_2d)/asprd_2d) + 1.0
+                  do j=1,nlats
+                  do i=1,nlons
+                      inf_2d(i,j) = max(infmin,min(inf_2d(i,j),infmax))
+                  enddo
+                  enddo
+                  values_2d = inf_2d*(values_2d - values_2d_enkfanal) + values_2d_anal
+                  if (mype == 0) &
+                  print *,'min/max ',trim(dset_fg%variables(nvar)%name),&
+                  ' inflation = ',minval(inf_2d),maxval(inf_2d)
+               else
+                  values_2d = values_2d - values_2d_enkfanal + values_2d_anal
+               endif
                if (has_attr(dset_fg, 'nbits', trim(dset_fg%variables(nvar)%name))) then
                    call read_attribute(dset_fg, 'nbits', nbits, &
                         trim(dset_fg%variables(nvar)%name),errcode=iret)
                else
                    iret = 1
                endif
-               if (mype == 0) then ! write out blended analysis on root task
+               if (mype == 0 .and. alpha > 0) then ! write out blended analysis on root task
                   if (iret == 0 .and. nbits > 0) then
                     values_2d_tmp = values_2d_anal
                     call quantize_data(values_2d_tmp, values_2d_anal, nbits, compress_err)
@@ -175,25 +233,49 @@ program recenterncio_hybgain
                  call write_attribute(dseto,&
                  'max_abs_compression_error',compress_err,trim(dset_fg%variables(nvar)%name))
                endif
+               if (tracer) then
+                 if (cliptracers)  where (values_2d < clip) values_2d = clip
+                 if (mype == 0) &
+                 print *,'clipping ',trim(dset_fg%variables(nvar)%name)
+               endif
                call write_vardata(dseto,trim(dset_fg%variables(nvar)%name),values_2d)
             else if (ndims == 4) then
                call read_vardata(dset_fg,trim(dset_fg%variables(nvar)%name),values_3d_fg)
-               call read_vardata(dset_varanal,trim(dset_fg%variables(nvar)%name),values_3d_varanal)
+               if (alpha>0) call read_vardata(dset_varanal,trim(dset_fg%variables(nvar)%name),values_3d_varanal)
                call read_vardata(dset_enkfanal,trim(dset_fg%variables(nvar)%name),values_3d_enkfanal)
                call read_vardata(dseti,trim(dset_fg%variables(nvar)%name),values_3d)
                ! blended analysis
-               values_3d_anal = (1.-alpha-beta)*values_3d_fg + &
-                            alpha*values_3d_varanal + &
-                            beta*values_3d_enkfanal
+               values_3d_anal = values_3d_fg + beta*(values_3d_enkfanal-values_3d_fg) 
+               if (alpha > 0)  &
+               values_3d_anal = values_3d_anal + alpha*(values_3d_varanal-values_3d_fg) 
                ! recentered ensemble member
-               values_3d = values_3d - values_3d_enkfanal + values_3d_anal
+               if (rtps > 0) then ! RTPS inflation
+                  call read_vardata(dset_fsprd,trim(dset_fg%variables(nvar)%name),fsprd_3d)
+                  call read_vardata(dset_asprd,trim(dset_fg%variables(nvar)%name),asprd_3d)
+                  fsprd_3d = max(fsprd_3d,tiny(fsprd_3d))
+                  asprd_3d = max(asprd_3d,tiny(asprd_3d))
+                  inf_3d = rtps*((fsprd_3d-asprd_3d)/asprd_3d) + 1.0
+                  do k=1,nlevs
+                  do j=1,nlats
+                  do i=1,nlons
+                      inf_3d(i,j,k) = max(infmin,min(inf_3d(i,j,k),infmax))
+                  enddo
+                  enddo
+                  enddo
+                  values_3d = inf_3d*(values_3d - values_3d_enkfanal) + values_3d_anal
+                  if (mype == 0) &
+                  print *,'min/max ',trim(dset_fg%variables(nvar)%name),&
+                  ' inflation = ',minval(inf_3d),maxval(inf_3d)
+               else
+                  values_3d = values_3d - values_3d_enkfanal + values_3d_anal
+               endif
                if (has_attr(dset_fg, 'nbits', trim(dset_fg%variables(nvar)%name))) then
                    call read_attribute(dset_fg, 'nbits', nbits, &
                         trim(dset_fg%variables(nvar)%name),errcode=iret)
                else
                    iret = 1
                endif
-               if (mype == 0) then ! write out blended analysis on root task
+               if (mype == 0 .and. alpha > 0) then ! write out blended analysis on root task
                   if (iret == 0 .and. nbits > 0) then
                     values_3d_tmp = values_3d_anal
                     call quantize_data(values_3d_tmp, values_3d_anal, nbits, compress_err)
@@ -208,18 +290,27 @@ program recenterncio_hybgain
                  call write_attribute(dseto,&
                  'max_abs_compression_error',compress_err,trim(dset_fg%variables(nvar)%name))
                endif
+               if (tracer) then
+                 if (cliptracers)  where (values_3d < clip) values_3d = clip
+                 if (mype == 0) &
+                 print *,'clipping ',trim(dset_fg%variables(nvar)%name)
+               endif
                call write_vardata(dseto,trim(dset_fg%variables(nvar)%name),values_3d)
             endif
         endif ! ndims > 2
      enddo  ! nvars
 
 
-     if (mype == 0) call close_dataset(dset_anal)
+     if (mype == 0 .and. alpha > 0) call close_dataset(dset_anal)
      call close_dataset(dseti)
      call close_dataset(dseto)
      call close_dataset(dset_fg)
-     call close_dataset(dset_varanal)
+     if (alpha > 0) call close_dataset(dset_varanal)
      call close_dataset(dset_enkfanal)
+     if (rtps > 0) then
+        call close_dataset(dset_fsprd)
+        call close_dataset(dset_asprd)
+     endif
      write(6,*)'task mype=',mype,' process ',trim(filenameout)//"_mem"//charnanal,' iret=',iret
 
 ! Jump here if more mpi processors than files to process
@@ -228,13 +319,16 @@ program recenterncio_hybgain
   end if  ! end if mype
 
 100 continue
+  deallocate(asprd_2d,asprd_3d)
+  deallocate(fsprd_2d,fsprd_3d)
+  deallocate(inf_2d,inf_3d)
   call MPI_Barrier(MPI_COMM_WORLD,iret)
 
-  if (mype==0) call w3tage('RECENTERSIGP_HYBGAIN')
+  if (mype==0) call w3tage('RECENTERSIGP_HYBGAIN2')
 
   call MPI_Finalize(iret)
   if (mype == 0 .and. iret /= 0) then
      print *, 'MPI_Finalize error status = ',iret
   end if
 
-END program recenterncio_hybgain
+END program recenterncio_hybgain2
