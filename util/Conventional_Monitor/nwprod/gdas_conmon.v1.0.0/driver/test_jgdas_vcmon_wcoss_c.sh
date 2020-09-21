@@ -5,14 +5,15 @@
 #BSUB -J gdas_vconmon
 #BSUB -q dev
 #BSUB -n 1
-#BSUB -M 160
-#BSUB -W 00:50
+#BSUB -M 900
+#BSUB -W 00:30
 #BSUB -P GFS-DEV
-#BSUB -R "select[mem>160] rusage[mem=160]"
+#BSUB -R "select[mem>900] rusage[mem=900]"
+##BSUB -R affinity[core]
 
 set -x
 
-export PDATE=${PDATE:-2020030606}
+export PDATE=${PDATE:-2020091318}
 
 
 #############################################################
@@ -43,7 +44,7 @@ export conmon_job=${conmon_job:-gdas_conmon.${CYC}}
 export pid=${pid:-$$}
 export jobid=${conmon_job}.${pid}
 export DATAROOT=/gpfs/hps3/emc/da/noscrub/$LOGNAME/test_data
-export COMROOT=/gpfs/hps/ptmp/$LOGNAME/com
+export COMROOT=/gpfs/hps2/ptmp/$LOGNAME/com
 
 
 #############################################################
@@ -56,7 +57,7 @@ export POE=YES
 # Set user specific variables
 #############################################################
 export CONMON_SUFFIX=${CONMON_SUFFIX:-test_conmon}
-export NWTEST=${NWTEST:-/gpfs/hps3/emc/da/noscrub/${LOGNAME}/ProdGSI/util/Conventional_Monitor/nwprod}
+export NWTEST=${NWTEST:-/gpfs/hps3/emc/da/noscrub/${LOGNAME}/GSI/util/Conventional_Monitor/nwprod}
 export HOMEconmon=${HOMEconmon:-${NWTEST}/conmon_shared.${conmon_shared_ver}}
 export HOMEgdas_conmon=${HOMEgdas_conmon:-${NWTEST}/gdas_conmon.${gdas_conmon_ver}}
 export HOMEgfs_conmon=${HOMEgdas_conmon}

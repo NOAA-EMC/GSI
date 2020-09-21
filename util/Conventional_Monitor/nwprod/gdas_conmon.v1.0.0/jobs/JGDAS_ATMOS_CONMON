@@ -35,7 +35,7 @@ export cycle=t${CYC}z
 ##############################
 export NET=${NET:-gfs}
 export RUN=${RUN:-gdas}
-export component-${component:-atmos}
+export component=${component:-atmos}
 
 ##################################################
 # SENDCOM  - Copy Files From TMPDIR to $COMOUT
