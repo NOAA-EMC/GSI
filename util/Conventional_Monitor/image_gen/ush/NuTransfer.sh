@@ -63,7 +63,7 @@ else
 fi
 
 
-logfile=${C_LOGDIR}/NuTransfer_${CMON_SUFFIX}.log
+logfile=${C_LOGDIR}/transfer_${CMON_SUFFIX}.log
 
 export JOB_QUEUE=dev_transfer
 WEBDIR=${WEBDIR}/${CMON_SUFFIX}/${RUN}

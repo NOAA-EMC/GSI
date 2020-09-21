@@ -9,7 +9,7 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
 
    export CONMON_CONFIG=1
 
-export MY_MACHINE=hera
+   export MY_MACHINE=wcoss_d
 
 
    #-----------------------------------------------------
@@ -22,7 +22,7 @@ export MY_MACHINE=hera
    # MY_CONMON should point to your working directory which contains the
    # top level directory to the ConMon package. 
    #
-export MY_CONMON=/scratch1/NCEPDEV/da/Edward.Safford/noscrub/GSI/util/Conventional_Monitor
+   export MY_CONMON=/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/GSI/util/Conventional_Monitor
 
    #---------------------------------------------------------------------------
    #  The CONMON_TANKDIR will be the location for the extracted data files and
@@ -31,39 +31,14 @@ export MY_CONMON=/scratch1/NCEPDEV/da/Edward.Safford/noscrub/GSI/util/Convention
    #  this location.
    #
 
-export CONMON_TANKDIR=/scratch1/NCEPDEV/da/Edward.Safford/save/nbns
+   export CONMON_TANKDIR=/u/Edward.Safford/nbns
    export C_TANKverf=${C_TANKverf:-${CONMON_TANKDIR}}
 
    export C_TANKDIR=${CONMON_TANKDIR}/stats/${CONMON_SUFFIX}
    export C_IMGNDIR=${CONMON_TANKDIR}/imgn/${CONMON_SUFFIX}/${RUN}/conmon
 
 
-   if [[ $MY_MACHINE = "wcoss" ]]; then
-      shell=sh
-      . /usrx/local/Modules/default/init/${shell}
-      module load lsf
-      module unload GrADS		# version 2.0.1 is loaded automatically, but it's out of
-      module load GrADS			# date -- curent default is 2.0.2
-      module load grib_util
-      module load prod_util
-      module load util_shared
-
-      export GRADS=grads
-
-      export NDATE=${NWPROD}/util/exec/ndate
-      export UTILS_BIN=
-      export LLQ=
-      export SUB="bsub"
-      export NCP=/bin/cp
-      export NWPROD=/nwprod
-      export FIXDIR=/nwprod/fix
-      export COMPRESS=gzip
-      export UNCOMPRESS="gunzip -f"
-      export TIMEX=
-      export PROJECT=${PROJECT:-GDAS-DEV}
-      export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
-
-   elif [[ $MY_MACHINE = "wcoss_c" ]]; then
+   if [[ $MY_MACHINE = "wcoss_c" ]]; then
       module load prod_util        # defines $NDATE among other things
       module load prod_envir
       module load grib_util/1.0.5  #  note 1.1.0 and 1.1.1 report runtime errors
@@ -125,16 +100,15 @@ export CONMON_TANKDIR=/scratch1/NCEPDEV/da/Edward.Safford/save/nbns
 
    export Z="gz"
 
-export ACCOUNT=${ACCOUNT:-fv3-cpu}
+   export ACCOUNT=${ACCOUNT:-}
  
-export C_STMP=${C_STMP:-/scratch2/NCEPDEV/stmp1}
+   export C_STMP=${C_STMP:-/gpfs/dell2/stmp}
    export C_STMP_USER=${C_STMP_USER:-${C_STMP}/${LOGNAME}}
-export C_PTMP=${C_PTMP:-/scratch2/NCEPDEV/stmp3}
+   export C_PTMP=${C_PTMP:-/gpfs/dell2/ptmp}
    export C_PTMP_USER=${C_PTMP_USER:-${C_PTMP}/${LOGNAME}}
 
-   export C_LOGDIR=${C_PTMP_USER}/logs/${CONMON_SUFFIX}
-   export LOGS_conmon=${LOGS_conmon:-${C_LOGDIR}}
-   export WORK_conmon=${WORK_conmon:-${C_STMP_USER}/${CONMON_SUFFIX}/${NET}/ConMon}
+   export C_LOGDIR=${C_PTMP_USER}/logs/${CONMON_SUFFIX}/${RUN}/conmon
+   export WORK_conmon=${WORK_conmon:-${C_STMP_USER}/${CONMON_SUFFIX}/${RUN}/ConMon}
 
    export CLEAN_TANKDIR=${CLEAN_TANKDIR:-1}
 
@@ -144,9 +118,9 @@ export C_PTMP=${C_PTMP:-/scratch2/NCEPDEV/stmp3}
    #  on the web server (WEB_USER), and location of the top level directory
    #  for the html on the web server (WEBDIR).
    #
-export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/es_conv
-export WEBUSER=esafford
-export WEBSVR=emcrzdm
+   export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/es_conv
+   export WEBUSER=esafford
+   export WEBSVR=emcrzdm
 
 
    #

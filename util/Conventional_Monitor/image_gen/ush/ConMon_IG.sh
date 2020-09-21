@@ -115,15 +115,14 @@ fi
 #--------------------------------------------------------------------
 #  Create LOGdir as needed
 #--------------------------------------------------------------------
-export C_LOGDIR=${C_LOGDIR}/${RUN}/conmon
 if [[ ! -d ${C_LOGDIR} ]]; then
    mkdir -p $C_LOGDIR
 fi
 
 
 #--------------------------------------------------------------------
-# Get date of cycle to process.  Exit if available data has already
-# been plotted ($PDATE -gt $last_cycle).
+# Determine cycle to plot.  Exit if cycle is > last available
+# data ($PDATE -gt $last_cycle).
 #
 # PDATE can be set one of 3 ways.  This is the order of priority:
 #
@@ -143,11 +142,6 @@ echo "C_TANKDIR = ${C_TANKDIR}"
 last_cycle=`${C_IG_SCRIPTS}/find_cycle.pl \
 		--cyc 1 --dir ${C_TANKDIR} --run ${RUN}`
 
-#if [[ $plot_time != "" ]]; then
-#   export PDATE=$plot_time
-#else
-#   export PDATE=$last_cycle
-#fi
 
 if [[ ${PDATE} = "" ]]; then
 
@@ -155,7 +149,6 @@ if [[ ${PDATE} = "" ]]; then
       echo " USING last_plot_time"
       last_plot=`cat ${C_IMGNDIR}/last_plot_time`
       export PDATE=`$NDATE +6 ${last_plot}`
-#      export PDATE=`cat ${C_IMGNDIR}/last_plot_time`
    else
       export PDATE=$last_cycle
    fi
@@ -193,9 +186,9 @@ if [[ $PDATE -le ${last_cycle} ]]; then
    #--------------------------------------------------------------------
    #  Run the two setup scripts
    #--------------------------------------------------------------------
-#   ${C_IG_SCRIPTS}/mk_horz_hist.sh
+   ${C_IG_SCRIPTS}/mk_horz_hist.sh
 
-#   ${C_IG_SCRIPTS}/mk_time_vert.sh
+   ${C_IG_SCRIPTS}/mk_time_vert.sh
 
    #--------------------------------------------------------------------
    #  Update the last_plot_time file if found

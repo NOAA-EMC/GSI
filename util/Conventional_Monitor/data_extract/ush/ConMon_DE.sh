@@ -214,7 +214,7 @@ if [ -s $cnvstat  -a -s $pgrbf00 -a -s $pgrbf06 ]; then
    if [ -s $pgrbf06 ]; then
 
       echo "Ok to proceed with DE"
-      logdir=${C_LOGDIR}/${RUN}/conmon
+      logdir=${C_LOGDIR}
       if [[ ! -d ${logdir} ]]; then
          mkdir -p ${logdir}
       fi

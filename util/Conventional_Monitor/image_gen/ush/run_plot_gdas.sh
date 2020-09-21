@@ -53,7 +53,7 @@ echo "imgdate, idate, prodate = $imgdate, $idate, $prodate"
 
 if [[ $idate -le $prodate ]]; then
 
-   logdir=${C_LOGDIR}/${RUN}/conmon
+   logdir=${C_LOGDIR}
 
    echo "logdir = $logdir"
    if [[ ! -d ${logdir} ]]; then
