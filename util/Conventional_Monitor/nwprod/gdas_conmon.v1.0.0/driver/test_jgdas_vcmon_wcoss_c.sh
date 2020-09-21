@@ -9,11 +9,10 @@
 #BSUB -W 00:30
 #BSUB -P GFS-DEV
 #BSUB -R "select[mem>900] rusage[mem=900]"
-##BSUB -R affinity[core]
 
 set -x
 
-export PDATE=${PDATE:-2020091318}
+export PDATE=${PDATE:-2020091312}
 
 
 #############################################################
