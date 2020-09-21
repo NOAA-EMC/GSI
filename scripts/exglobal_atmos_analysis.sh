@@ -412,49 +412,6 @@ fi
 
 cd $DATA || exit 99
 
-<<<<<<< HEAD:scripts/exglobal_analysis_fv3gfs.sh.ecf
-################################################################################
-# Clean the run-directory
-rm berror_stats hybens_info
-rm scaninfo satbias_angle satinfo
-rm anavinfo convinfo ozinfo pcpinfo aeroinfo vqctp001.dat
-rm errtable atms_beamwidth.txt
-rm cloudy_radiance_info.txt
-
-rm prepbufr prepbufr_profl
-rm gpsrobufr
-rm tcvitl
-rm gsndrbufr gsnd1bufr
-rm ssmisbufr ssmitbufr ssmirrbufr tmirrbufr
-rm sbuvbufr gomebufr omibufr mlsbufr msubufr ompsnpbufr ompstcbufr
-rm airsbufr
-rm iasibufr iasibufrears iasibufr_db
-rm amsrebufr amsr2bufr
-rm gmibufr saphirbufr
-rm hirs2bufr hirs3bufr hirs4bufr hirs3bufr_db hirs3bufrears
-rm amsuabufr amsuabufr_db amsuabufrears
-rm amsubbufr amsubbufr_db amsubbufrears
-rm mhsbufr mhsbufr_db mhsbufrears
-rm seviribufr ahibufr abibufr
-rm crisbufr crisbufrears crisbufr_db crisfsbufr crisfsbufrears crisfsbufr_db
-rm atmsbufr atmsbufr_db atmsbufrears
-rm hdobbufr
-
-rm satbias_in satbias_ang.in satbias_out satbias_pc satbias_pc.out satbias_out.int
-rm aircftbias_in aircftbias_out
-
-rm sfcf* sigf* nstf*
-rm sfca* siga* nsta*
-rm sigi*
-
-rm gsiparm.anl
-
-rm -rf dir*
-rm -rf crtm_coeffs
-rm -rf ensemble_data
-
-=======
->>>>>>> upstream/release/gfsda.v16.0.0:scripts/exglobal_atmos_analysis.sh
 ##############################################################
 # Fixed files
 $NLN $BERROR       berror_stats
@@ -1121,6 +1078,14 @@ if [ $RUN_SELECT = "YES" ]; then
   ${CHGRP_CMD} $SELECT_OBS
   rm obsinput.tar
   echo $(date) END tar obs_input >&2
+fi
+
+################################################################################
+# Send alerts
+if [ $SENDDBN = "YES" ]; then
+    if [ $RUN = "gfs" ]; then
+       $DBNROOT/bin/dbn_alert MODEL GFS_abias $job $ABIAS
+    fi
 fi
 
 ################################################################################

@@ -313,13 +313,6 @@ EOF
       export err=$ERR
       $ERRSCRIPT || exit 2
 
-      # Optionally alert recentered files
-      if [ ${SENDDBN:-"NO"} = "YES" ]; then
-         for imem in $(seq 1 $NMEM_ENKF); do
-            memchar="mem"$(printf %03i $imem)
-            $DBNROOT/bin/dbn_alert MODEL GFS_ENKF $job $COMOUT_ENS/$memchar/${APREFIX}ratmanl$ASUFFIX
-         done
-      fi
    else
       ################################################################################
       # Recenter ensemble member atmospheric increments about hires analysis
@@ -353,13 +346,6 @@ cat recenter.nml
       export err=$ERR
       $ERRSCRIPT || exit 2
 
-      # Optionally alert recentered files
-      if [ ${SENDDBN:-"NO"} = "YES" ]; then
-         for imem in $(seq 1 $NMEM_ENKF); do
-            memchar="mem"$(printf %03i $imem)
-            $DBNROOT/bin/dbn_alert MODEL GFS_ENKF $job $COMOUT_ENS/$memchar/${APREFIX}ratminc$ASUFFIX
-         done
-      fi
    fi
 fi
 
