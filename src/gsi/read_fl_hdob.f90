@@ -535,9 +535,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
            endif
 !          Convert degree West to degree East for the HDOBs data location for
 !          the global model
-           if (.not.regional) then
-               if (obsloc(2,1) < 0.0_r_kind) obsloc(2,1) = obsloc(2,1) + 360.0_r_kind
-           endif
+           if (obsloc(2,1) < 0.0_r_kind) obsloc(2,1) = obsloc(2,1) + 360.0_r_kind
            dlon_earth_deg = obsloc(2,1)
            dlat_earth_deg = obsloc(1,1)
            dlon_earth = obsloc(2,1)*deg2rad ! degree to radian
