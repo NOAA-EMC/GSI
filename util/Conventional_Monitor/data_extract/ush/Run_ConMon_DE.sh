@@ -64,15 +64,6 @@ echo END_DATE    = $END_DATE
 #--------------------------------------------------------------------
 top_parm=${this_dir}/../../parm
 
-cmon_version_file=${cmon_version:-${top_parm}/CMon.ver}
-if [[ -s ${cmon_version_file} ]]; then
-   . ${cmon_version_file}
-   echo "able to source ${cmon_version_file}"
-else
-   echo "Unable to source ${cmon_version_file} file"
-   exit 2
-fi
-
 cmon_config=${cmon_config:-${top_parm}/CMon_config}
 if [[ -s ${cmon_config} ]]; then
    . ${cmon_config}

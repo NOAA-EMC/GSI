@@ -9,7 +9,7 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
 
    export CONMON_CONFIG=1
 
-   export MY_MACHINE=wcoss_d
+export MY_MACHINE=hera
 
 
    #-----------------------------------------------------
@@ -22,7 +22,7 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
    # MY_CONMON should point to your working directory which contains the
    # top level directory to the ConMon package. 
    #
-   export MY_CONMON=/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/GSI/util/Conventional_Monitor
+export MY_CONMON=/scratch1/NCEPDEV/da/Edward.Safford/noscrub/GSI/util/Conventional_Monitor
 
    #---------------------------------------------------------------------------
    #  The CONMON_TANKDIR will be the location for the extracted data files and
@@ -31,7 +31,7 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
    #  this location.
    #
 
-   export CONMON_TANKDIR=/u/Edward.Safford/nbns
+export CONMON_TANKDIR=/scratch1/NCEPDEV/da/Edward.Safford/save/nbns
    export C_TANKverf=${C_TANKverf:-${CONMON_TANKDIR}}
 
    export C_TANKDIR=${CONMON_TANKDIR}/stats/${CONMON_SUFFIX}
@@ -100,11 +100,11 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
 
    export Z="gz"
 
-   export ACCOUNT=${ACCOUNT:-}
+export ACCOUNT=${ACCOUNT:-fv3-cpu}
  
-   export C_STMP=${C_STMP:-/gpfs/dell2/stmp}
+export C_STMP=${C_STMP:-/scratch2/NCEPDEV/stmp1}
    export C_STMP_USER=${C_STMP_USER:-${C_STMP}/${LOGNAME}}
-   export C_PTMP=${C_PTMP:-/gpfs/dell2/ptmp}
+export C_PTMP=${C_PTMP:-/scratch2/NCEPDEV/stmp3}
    export C_PTMP_USER=${C_PTMP_USER:-${C_PTMP}/${LOGNAME}}
 
    export C_LOGDIR=${C_PTMP_USER}/logs/${CONMON_SUFFIX}/${RUN}/conmon
@@ -118,9 +118,9 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
    #  on the web server (WEB_USER), and location of the top level directory
    #  for the html on the web server (WEBDIR).
    #
-   export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/es_conv
-   export WEBUSER=esafford
-   export WEBSVR=emcrzdm
+export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/es_conv
+export WEBUSER=esafford
+export WEBSVR=emcrzdm
 
 
    #
@@ -141,10 +141,9 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
    export C_IG_SAVE_WORK=${C_IG_SAVE_WORK:-1}		# switch to save plot work directories
 
    export CONMON_PARM=${CONMON_PARM:-${MY_CONMON}/parm}
-   . $CONMON_PARM/ConMon.ver
 
-   export HOMEconmon_shared=${HOMEconmon_shared:-${MY_CONMON}/nwprod/conmon_shared.v${conmon_shared_ver}}
-   export HOMEgdas_conmon=${HOMEgdas_conmon:-${MY_CONMON}/nwprod/gdas_conmon.v${gdas_conmon_ver}}
+   export HOMEconmon_shared=${HOMEconmon_shared:-${MY_CONMON}/nwprod/conmon_shared}
+   export HOMEgdas_conmon=${HOMEgdas_conmon:-${MY_CONMON}/nwprod/gdas_conmon}}
    export HOMEgfs_conmon=$HOMEgdas_conmon
 
    export USHconmon=${USHconmon:-${HOMEconmon_shared}/ush}

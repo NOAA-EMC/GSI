@@ -92,15 +92,6 @@ export NET=${CONMON_SUFFIX}
 
 top_parm=${this_dir}/../../parm
 
-conmon_version_file=${conmon_version:-${top_parm}/ConMon.ver}
-if [[ -s ${conmon_version_file} ]]; then
-   . ${conmon_version_file}
-   echo "able to source ${conmon_version_file}"
-else
-   echo "Unable to source ${conmon_version_file} file"
-   exit 2
-fi
-
 conmon_config=${conmon_config:-${top_parm}/ConMon_config}
 if [[ -s ${conmon_config} ]]; then
    . ${conmon_config}

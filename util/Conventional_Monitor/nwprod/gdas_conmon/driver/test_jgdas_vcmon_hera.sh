@@ -9,16 +9,16 @@
 
 set -x
 
-export PDATE=${PDATE:-2020012018}  # binary
-#export PDATE=${PDATE:-2020040306}   # netcdf
+#export PDATE=${PDATE:-2020012018}  # binary
+export PDATE=${PDATE:-2020040306}   # netcdf
 
 #############################################################
 # Specify versions
 #############################################################
 export gdas_ver=v15.0.0
 export global_shared_ver=v15.0.0
-export gdas_conmon_ver=v1.0.0
-export conmon_shared_ver=v1.0.0
+#export gdas_conmon_ver=v1.0.0
+#export conmon_shared_ver=v1.0.0
 
 module use -a /apps/modules/modulefamilies/intel
 module load wgrib2/2.0.8
@@ -53,9 +53,9 @@ export COMROOT=${COMROOT:-/scratch2/NCEPDEV/stmp3/$LOGNAME/com}
 export CONMON_SUFFIX=${CONMON_SUFFIX:-test_conmon}
 
 export NWTEST=${NWTEST:-/scratch1/NCEPDEV/da/${LOGNAME}/noscrub/GSI/util/Conventional_Monitor/nwprod}
-export HOMEconmon=${HOMEconmon:-${NWTEST}/conmon_shared.${conmon_shared_ver}}
+export HOMEconmon=${HOMEconmon:-${NWTEST}/conmon_shared}
 
-export HOMEgdas_conmon=${HOMEgdas_conmon:-${NWTEST}/gdas_conmon.${gdas_conmon_ver}}
+export HOMEgdas_conmon=${HOMEgdas_conmon:-${NWTEST}/gdas_conmon}
 export HOMEgfs_conmon=${HOMEgdas_conmon}
 
 export JOBGLOBAL=${JOBGLOBAL:-${HOMEgdas_conmon}/jobs}

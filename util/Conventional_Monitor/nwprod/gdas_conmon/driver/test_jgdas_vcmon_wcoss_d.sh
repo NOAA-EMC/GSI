@@ -20,8 +20,8 @@ export PDATE=${PDATE:-2020072006}
 #############################################################
 export gdas_ver=v15.0.0
 export global_shared_ver=v15.0.0
-export gdas_conmon_ver=v1.0.0
-export conmon_shared_ver=v1.0.0
+#export gdas_conmon_ver=v1.0.0
+#export conmon_shared_ver=v1.0.0
 
 #############################################################
 # Load modules
@@ -61,9 +61,9 @@ export POE=YES
 export CONMON_SUFFIX=${CONMON_SUFFIX:-test_conmon}
 
 export NWTEST=${NWTEST:-/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/GSI/util/Conventional_Monitor/nwprod}
-export HOMEconmon=${HOMEconmon:-${NWTEST}/conmon_shared.${conmon_shared_ver}}
+export HOMEconmon=${HOMEconmon:-${NWTEST}/conmon_shared}
 
-export HOMEgdas_conmon=${HOMEgdas_conmon:-${NWTEST}/gdas_conmon.${gdas_conmon_ver}}
+export HOMEgdas_conmon=${HOMEgdas_conmon:-${NWTEST}/gdas_conmon}
 export HOMEgfs_conmon=${HOMEgdas_conmon}
 
 export JOBGLOBAL=${HOMEgdas_conmon}/jobs
