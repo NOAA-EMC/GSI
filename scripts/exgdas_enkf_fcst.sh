@@ -38,7 +38,7 @@ export ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
 export NDATE=${NDATE:-/$NWPROD/util/exec/ndate}
 
 # Scripts.
-FORECASTSH=${FORECASTSH:-$HOMEgfs/scripts/exglobal_fcst_nemsfv3gfs.sh}
+FORECASTSH=${FORECASTSH:-$HOMEgfs/scripts/exglobal_forecast.sh}
 
 # Enemble group, begin and end
 ENSGRP=${ENSGRP:-1}
