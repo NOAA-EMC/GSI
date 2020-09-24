@@ -64,9 +64,9 @@ echo "--> mk_time_vert.sh"
 
       elif [[ $MY_MACHINE == "hera" ]]; then
          if [[ ${type} == "uv" || ${type} == "u" || ${type} == "v" ]]; then
-            walltime="00:22:00"
+            walltime="02:30:00"
          else
-            walltime="00:10:00"
+            walltime="00:40:00"
          fi
  
          ${SUB} -A ${ACCOUNT} --ntasks=1 --time=${walltime} \
@@ -95,9 +95,9 @@ echo "--> mk_time_vert.sh"
 
       elif [[ $MY_MACHINE == "hera" ]]; then
          if [[ ${type} == "uv" || ${type} == "u" || ${type} == "v" ]]; then
-            walltime="00:22:00"
+            walltime="00:50:00"
          else
-            walltime="00:10:00"
+            walltime="00:30:00"
          fi
  
          ${SUB} -A ${ACCOUNT} --ntasks=1 --time=${walltime} \
