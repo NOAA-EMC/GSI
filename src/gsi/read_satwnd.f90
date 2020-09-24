@@ -1021,7 +1021,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 ! Extra block for VIIRS NOAA-20: Start
            else if(trim(subset) == 'NC005091') then
-              !if( hdrdat(1) >=r200 .and. hdrdat(1) <=r250  ) then  ! Use this range in v16.* 
+              if( hdrdat(1) >=r200 .and. hdrdat(1) <=r250  ) then  ! Use this range in v16.* 
                  c_prvstg='VIIRS'
                  if(trim(subset) == 'NC005091')  then                 ! IR LW winds
                     itype=260
