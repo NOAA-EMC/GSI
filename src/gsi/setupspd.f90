@@ -141,7 +141,7 @@ subroutine setupspd(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
   ! apply only to the regional forecast models (e.g., HWRF); Henry
   ! R. Winterbottom (henry.winterbottom@noaa.gov).
   
-  use obsmod, only: uv_doe_a_292,uv_doe_b_292
+  use obsmod, only: uv_doe_a_213,uv_doe_b_213
   
   implicit none
 
@@ -529,7 +529,7 @@ subroutine setupspd(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
      
      if (aircraft_recon) then
        if ( nty == 213 ) then 
-         ratio_errors=error/(uv_doe_a_292*abs(ddiff)+uv_doe_b_292)
+         ratio_errors=error/(uv_doe_a_213*abs(ddiff)+uv_doe_b_213)
          if (spdob < 10._r_kind) ratio_errors=zero
        endif 
      endif
