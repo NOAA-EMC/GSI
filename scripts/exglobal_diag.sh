@@ -281,14 +281,6 @@ EOFdiag
 fi # End diagnostic file generation block - if [ $GENDIAG = "YES" ]
 
 ################################################################################
-# Send alerts
-if [ $SENDDBN = "YES" ]; then
-    if [ $RUN = "gdas" ]; then
-       $DBNROOT/bin/dbn_alert MODEL GDASRADSTAT $job $RADSTAT
-    fi
-fi
-
-################################################################################
 # Postprocessing
 # If no processing error, remove $DIAG_DIR
 if [[ "$REMOVE_DIAG_DIR" = "YES" && "$err" = "0" ]]; then
