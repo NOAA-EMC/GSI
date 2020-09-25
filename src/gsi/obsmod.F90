@@ -496,7 +496,7 @@ module obsmod
 
   ! 1/237: Dropsonde observations.
 
-  ! 292: SFMR observations.
+  ! 213: SFMR observations.
   
   ! The following correspond to the specific humidity (q)
   ! observations:
@@ -650,7 +650,7 @@ module obsmod
 
   ! 1/237: Dropsonde observations.
 
-  ! 292: SFMR observations.
+  ! 213: SFMR observations.
 
   ! The following correspond to the specific humidity (q)
   ! observations:
@@ -907,7 +907,7 @@ contains
     
     ! 1/237: Dropsonde observations.
     
-    ! 292: SFMR observations.
+    ! 213: SFMR observations.
     
     ! The following correspond to the specific humidity (q)
     ! observations:

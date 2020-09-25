@@ -302,7 +302,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      do nc = 1, nconvtype
         if (trim(ioctype(nc)) == trim(obstype))then
            if (trim(ioctype(nc)) == 'uv'  .and. ictype(nc) == 236 .or. &
-               trim(ioctype(nc)) == 'spd' .and. ictype(nc) == 292 .or. &
+               trim(ioctype(nc)) == 'spd' .and. ictype(nc) == 213 .or. &
                trim(ioctype(nc)) == 't'   .and. ictype(nc) == 136 .or. &
                trim(ioctype(nc)) == 'q'   .and. ictype(nc) == 136 .or. & 
                trim(ioctype(nc)) == 'ps'  .and. ictype(nc) == 136 ) then
