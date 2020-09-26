@@ -56,6 +56,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
          ithin_conv,rmesh_conv,pmesh_conv
      use obsmod, only: perturb_obs,perturb_fact,ran01dom
      use obsmod, only: bmiss
+     use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,aircraft_t_bc_ext
      use converr,only: etabl
      use converr_ps,only: etabl_ps,isuble_ps,maxsub_ps
      use converr_q,only: etabl_q,isuble_q,maxsub_q
@@ -238,6 +239,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      iecol=0
      if (ltob) then
         nreal  = 25
+        if (aircraft_t_bc_pof .or. aircraft_t_bc .or.aircraft_t_bc_ext) nreal=nreal+3
         iecol  =  2 
         errmin = half      ! set lower bound of ob error for T or Tv
      else if (luvob) then
