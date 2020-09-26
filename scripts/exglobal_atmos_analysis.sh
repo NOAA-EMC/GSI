@@ -177,6 +177,7 @@ GPSROBF=${GPSROBF:-${COMIN_OBS}/${OPREFIX}gpsro.tm00.bufr_d${OSUFFIX}}
 TCVITL=${TCVITL:-${COMIN_OBS}/${OPREFIX}syndata.tcvitals.tm00}
 B1AVHAM=${B1AVHAM:-${COMIN_OBS}/${OPREFIX}avcsam.tm00.bufr_d${OSUFFIX}}
 B1AVHPM=${B1AVHPM:-${COMIN_OBS}/${OPREFIX}avcspm.tm00.bufr_d${OSUFFIX}}
+HDOB=${HDOB:-${COMIN_OBS}/${OPREFIX}hdob.tm00.bufr_d${OSUFFIX}}
 
 # Guess files
 GPREFIX=${GPREFIX:-""}
@@ -532,6 +533,7 @@ $NLN $B1AVHAM          avhambufr
 $NLN $B1AVHPM          avhpmbufr
 $NLN $AHIBF            ahibufr
 $NLN $ABIBF            abibufr
+$NLN $HDOB             hdobbufr
 
 [[ $DONST = "YES" ]] && $NLN $NSSTBF nsstbufr
 
@@ -812,13 +814,17 @@ OBS_INPUT::
    prepbufr       ps          null        ps                  0.0     0     0
    prepbufr       t           null        t                   0.0     0     0
    prepbufr_profl t           null        t                   0.0     0     0
+   hdobbufr       t           null        t                   0.0     0     0
    prepbufr       q           null        q                   0.0     0     0
    prepbufr_profl q           null        q                   0.0     0     0
+   hdobbufr       q           null        q                   0.0     0     0
    prepbufr       pw          null        pw                  0.0     0     0
    prepbufr       uv          null        uv                  0.0     0     0
    prepbufr_profl uv          null        uv                  0.0     0     0
    satwndbufr     uv          null        uv                  0.0     0     0
+   hdobbufr       uv          null        uv                  0.0     0     0
    prepbufr       spd         null        spd                 0.0     0     0
+   hdobbufr       spd         null        spd                 0.0     0     0
    prepbufr       dw          null        dw                  0.0     0     0
    radarbufr      rw          null        rw                  0.0     0     0
    nsstbufr       sst         nsst        sst                 0.0     0     0

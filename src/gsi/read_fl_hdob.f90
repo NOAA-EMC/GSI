@@ -56,6 +56,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
          ithin_conv,rmesh_conv,pmesh_conv
      use obsmod, only: perturb_obs,perturb_fact,ran01dom
      use obsmod, only: bmiss
+     use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,aircraft_t_bc_ext
      use converr,only: etabl
      use converr_ps,only: etabl_ps,isuble_ps,maxsub_ps
      use converr_q,only: etabl_q,isuble_q,maxsub_q
@@ -238,6 +239,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      iecol=0
      if (ltob) then
         nreal  = 25
+        if (aircraft_t_bc_pof .or. aircraft_t_bc .or.aircraft_t_bc_ext) nreal=nreal+3
         iecol  =  2 
         errmin = half      ! set lower bound of ob error for T or Tv
      else if (luvob) then
@@ -302,7 +304,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      do nc = 1, nconvtype
         if (trim(ioctype(nc)) == trim(obstype))then
            if (trim(ioctype(nc)) == 'uv'  .and. ictype(nc) == 236 .or. &
-               trim(ioctype(nc)) == 'spd' .and. ictype(nc) == 292 .or. &
+               trim(ioctype(nc)) == 'spd' .and. ictype(nc) == 213 .or. &
                trim(ioctype(nc)) == 't'   .and. ictype(nc) == 136 .or. &
                trim(ioctype(nc)) == 'q'   .and. ictype(nc) == 136 .or. & 
                trim(ioctype(nc)) == 'ps'  .and. ictype(nc) == 136 ) then
@@ -533,6 +535,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
                write(6,*) 'READ_FL_HDOB: bad lat/lon values: ', obsloc(1,1),obsloc(2,1)              
                cycle loop_readsb2     
            endif
+           if (obsloc(2,1) < 0.0_r_kind) obsloc(2,1) = obsloc(2,1) + 360.0_r_kind
            dlon_earth_deg = obsloc(2,1)
            dlat_earth_deg = obsloc(1,1)
            dlon_earth = obsloc(2,1)*deg2rad ! degree to radian
