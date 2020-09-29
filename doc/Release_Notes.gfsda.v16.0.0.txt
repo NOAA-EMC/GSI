@@ -30,25 +30,36 @@ CODE CHANGES
       * Assimilate AMSU-A channel 14 and ATMS channel 15 without bias correction. 
       * Assimilate CSR data from ABI_G16, AHI_Himawari8, and SEVIRI_M08.
       * Assimilate AVHRR from NOAA-19 and Metop-B for near sea-surface temperature (NSST).
-      *Upgrade to Community Radiative Transfer Model (CRTM) v2.3.0.
+      * Assimilate high-density flight-level wind, temperature, and moisture observations in tropical storm environment 
+      * Upgrade to Community Radiative Transfer Model (CRTM) v2.3.0.
    * New GFS DA v16 codes
       * calc_analysis.fd - compute analysis by combining guess and increment
       * calc_increment_ens_ncio.fd - compute ensemble increment using netcdf io
       * interp_inc.fd - horizontally interpolate analysis increment to specified output grid
-      * ncdiag.fd - concatenate netcdf diagnostic files created by GSI
+      * ncdiag_cat.fd - concatenate netcdf diagnostic files created by GSI
 
 
 
 
 JOB CHANGES
    * Update jobs to run within GFS workflow
-   * Remove JGDAS_ENKF_INNOVATE_OBS as this job is no longer needed
+   * Rename the following jobs
+      * JGDAS_ENKF_RECENTER - rename as JGDAS_ENKF_ECEN
+      * JGDAS_VERFOZN - rename as JGDAS_ATMOS_VERFOZN
+      * JGDAS_VERFRAD - rename as JGDAS_ATMOS_VERFRAD
+      * JGDAS_VMINMON - rename as JGDAS_ATMOS_VMINMON
+      * JGFS_VMINMON - rename as JGFS_ATMOS_VMINMON
+      * JGLOBAL_ANALYSIS - rename as JGLOBAL_ATMOS_ANALYSIS
+      * JGLOBAL_ENKF_SELECT_OBS - rename as JGDAS_ENKF_SELECT_OBS
+      * JGLOBAL_ENKF_UPDATE - rename as JGDAS_ENKF_UPDATE
+   * Remove the following job
+      * JGDAS_ENKF_INNOVATE_OBS - this job is no longer used
    * Add the following new jobs
-      * JGDAS_CHGRES_FORENKF - chgres deterministic forecast to EnKF resolution
-      * JGDAS_ENKF_SURFACE - create surface analysis files for EnKF members
-      * JGLOBAL_ANALCALC - create gaussian grid atmospheric and surface analysis files
-      * JGLOBAL_ANALDIAG - create GSI diagnostic files for deterministic analysis
-      * JGLOBAL_ENKF_ANALDIAG - create GSI diagnosic files for EnKF members
+      * JGDAS_ATMOS_ANALYSIS_DIAG - create GSI diagnostic files for deterministic analysis
+      * JGDAS_ATMOS_CHGRES_FORENKF - chgres deterministic forecast to EnKF resolution
+      * JGDAS_ENKF_DIAG - create GSI diagnosic files for EnKF members
+      * JGDAS_ENKF_SFC - create surface analysis files for EnKF members
+      * JGLOBAL_ATMOS_ANALYSIS_CALC - create gaussian grid atmospheric and surface analysis files
 
 
 
@@ -56,31 +67,44 @@ JOB CHANGES
 SCRIPT CHANGES
    * Update scripts to run within GFS workflow.
    * Remove ".ecf" suffix from script names
+   * Rename the following scripts
+      * exgdas_vrfminmon.sh.ecf - rename as exgdas_atmos_vminmon.sh
+      * exgdas_vrfyozn.sh.ecf - rename as exgdas_atmos_verfozn.sh
+      * exgdas_vrfyrad.sh.ecf - rename as exgdas_atmos_verfrad.sh
+      * exgfs_vrfminmon.sh.ecf - rename as exgfs_atmos_vminmon.sh
+      * exglobal_analysis_fv3gfs.sh.ecf - rename as exglobal_atmos_analysis.sh
+      * exglobal_enkf_fcst_fv3gfs.sh.ecf - rename as exgdas_enkf_fcst.sh
+      * exglobal_enkf_post_fv3gfs.sh.ecf - rename as exgdas_enkf_post.sh
+      * exglobal_enkf_recenter_fv3gfs.sh.ecf - rename as exgdas_enkf_ecen.sh
+      * exglobal_enkf_update_fv3gfs.sh.ecf  - rename as exgdas_enkf_update.sh
+   * Remove the following job
+      * exglobal_enkf_innovate_obs_fv3gfs.sh.ecf - this script is no longer used
    * Add the following new scripts
-      * exglobal_chgres_forenkf_fv3gfs.sh - chgres deterministic forecast to EnKF resolution
-      * exglobal_enkf_surface_fv3gfs.sh - create surface analysis files for EnKF members
-      * exglobal_analcalc_fv3gfs.sh - create gaussian grid atmospheric and surface analysis files
-      * exglobal_analdiag_fv3gfs.sh - create GSI diagnostic files
+      * exgdas_atmos_chgres_forenkf.sh - chgres deterministic forecast to EnKF resolution
+      * exgdas_enkf_sfc.sh - create surface analysis files for EnKF members
+      * exglobal_atmos_analysis_calc.sh - create gaussian grid atmospheric and surface analysis files
+      * exglobal_diag.sh - create GSI diagnostic files
 
 
 
 
 PARM CHANGES
    * Update to run within GFS workflow.  Parm or configuration files for GFS components reside in 
-     parm/config.  Below are the parm (config) files used by each GFS DA v16 job
-      * JGDAS_CHGRES_FORENKF - config.base, config.anal, config.echgres
-      * JGDAS_ENKF_FCST - config.base, config.fcst, config.efcs
-      * JGDAS_ENKF_POST - config.base, config.epos
-      * JGDAS_ENKF_RECENTER - config.base, config.ecen
-      * JGDAS_ENKF_SURFACE - config.base, config.esfc
-      * JGLOBAL_ANALCALC - config.base, config.anal, config.analcalc
-      * JGLOBAL_ANALDIAG - config.base, config.anal, config.analdiag
-      * JGLOBAL_ANALYSIS - config.base, config.anal
-      * JGLOBAL_ENKF_ANALDIAG - config.base, config.anal, config.eobs, config.analdiag, config.ediag
-      * JGLOBAL_ENKF_SELECT_OBS - config.base, config.anal, config.eobs
-      * JGLOBAL_ENKF_UPDATE - config.base, config.anal, config.eupd
+     parm/config.  Below are the parm (config) files used by each GFS DA v16 job.  Note:  the 
+     config file prefix "config." is omitted below for the sake of readability.
+      * JGDAS_ATMOS_ANALYSIS_DIAG - base, anal, analdiag
+      * JGDAS_ATMOS_CHGRES_FORENKF - base, anal, echgres
+      * JGDAS_ENKF_DIAG - base, anal, eobs, analdiag, ediag
+      * JGDAS_ENKF_ECEN - base, ecen
+      * JGDAS_ENKF_FCST - base, fcst, efcs
+      * JGDAS_ENKF_POST - base, epos
+      * JGDAS_ENKF_SELECT_OBS - base, anal, eobs
+      * JGDAS_ENKF_SFC - base, esfc
+      * JGDAS_ENKF_UPDATE - base, anal, eupd
+      * JGLOBAL_ATMOS_ANALYSIS - base, anal
+      * JGLOBAL_ATMOS_ANALYSIS_CALC - base, anal, analcalc
    Parameters common to all jobs are in config.base.  Analysis jobs share config.anal.
-   This avoid duplication of identical parameters across multiple parameter files.
+   This avoids duplication of identical parameters across multiple parameter files.
 
 
 
@@ -88,23 +112,31 @@ PARM CHANGES
 FIX CHANGES
    * Updates to run GFS DA v16
       * New files and directory
+         * Big_Endian
+            * global_berror.l127y*.f77 - L127 static background error files for various resolutions
+            * global_berror.l64y194.f77, global_berror.l64y98.f77 - L64 static background error files
+                 for additional resolutions
          * global_anavinfo.l127.txt - change vertical resolution to 127, add correlated error section
          * global_hybens_info.l127.txt - GSI localization parameters for L127
          * global_hybens_smoothinfo.l127.txt - smoothing parameters for L127
+         * global_lightinfo.txt - lightning data info file
          * Rcov_* - correlated observation error for CrIS and IASI
-         * vlocal_eig_l127.dat - LETKF model space localization parameters for L127
+         * vlocal_eig_l*.dat - LETKF model space localization parameters for L127
          * vqctp001.dat - variational quality control parameters
          * Big_Endian/global_berror.l127y770.f77 - L127 static background error file for C768
          * gfsv16_historical/ - contain historical fix files
       * Modify existing files
          * global_convinfo.txt - updates for new variational quality control; adjust gross checks
-                                 limits for ps and sst; assimilate additional gps_bnd data
+                                 limits for ps and sst; adjust gps error limits; assimilate 
+                                 additional gps data; assimilate t 136, q 136, and uv 236; 
+                                 remove sst 200, 201 and 202; assmilate sst 198; add uv 255 
+                                 (monitor); assimilate uv 260_225
          * global_ozinfo.txt - add ompslp_npp (monitor mode)
          * global_satinfo.txt - assimilate the following:  amsua channel 14 and atms channel 15 
                                 (without bias correction), avhrr3_n19 channels 3-5, seviri_m08 
                                 channels 5-6, ahi_himawari8 channels 8-10, abi_g16 channel 8
          * prepobs_errtable.global - update observation errors for ps types 120, 180, 181, 187;
-                                     uv 245, 246, 247, 290
+                                     type 136 t, q, and ps; uv 236, 245, 246, 247, 260, 290
 
 
 
@@ -126,46 +158,46 @@ RESOURCE INFORMATION
 
 
    * Computational resources and run times
-      * JGLOBAL_ANALYSIS (GFS)
+      * JGLOBAL_ATMOS_ANALYSIS (GFS)
          * 250 nodes, 1000 tasks, ptile=4, 7 threads/task
          * Runtime:  28.1 - 29.4 minutes
 
-      * JGLOBAL_ANALCALC (GFS)
+      * JGLOBAL_ATMOS_ANALYSIS_CALC (GFS)
          * 5 nodes, 140 tasks, ptile=28, 1 thread/task
          * Runtime:  2.4 - 2.7 minutes
 
-      * JGLOBAL_ANALYSIS (GDAS)
+      * JGLOBAL_ATMOS_ANALYSIS (GDAS)
          * 250 nodes, 1000 tasks, ptile=4, 7 threads/task
          * Runtime:  38.2 - 39.3 minutes
 
-      * JGLOBAL_ANALCALC (GDAS)
+      * JGLOBAL_ATMOS_ANALYSIS_CALC (GDAS)
          * 5 nodes, 140 tasks, ptile=28, 1 thread/task
-         * Runtime:  11.6 - 12.5 minutes
+         * Runtime:  3.5 - 4.5 minutes
 
-      * JGLOBAL_ANALDIAG (GDAS)
+      * JGDAS_ATMOS_ANALYSIS_DIAG (GDAS)
          * 4 nodes, 112 tasks, ptile=28, 1 thread/task
-         * Runtime:  4.4 - 5.1 minutes
+         * Runtime:  3.0 - 3.3 minutes
 
-      * JGLOBAL_ENKF_SELECT_OBS
+      * JGDAS_ENKF_SELECT_OBS
          * 120 nodes, 480 tasks, ptile=4, 7 threads/task
          * Runtime:  4.1 - 4.8 minutes
 
-      * JGLOBAL_ENKF_ANALDIAG
+      * JGDAS_ENKF_DIAG
          * 2 nodes, 56 tasks, ptile=28, 1 thread/task
-         * Runtime:  3.6 - 4.0 minutes
+         * Runtime:  2.9 - 3.2 minutes
 
-      * JGLOBAL_ENKF_UPDATE
+      * JGDAS_ENKF_UPDATE
          * 240 nodes, 960 tasks, ptile=4, 7 threads/task
          * Runtime:  25.6 - 26.7 minutes
 
-      * JGDAS_ENKF_RECENTER (3x)
-         * 120 nodes, 240 tasks, ptile=2, 14 threads/task
+      * JGDAS_ENKF_ECEN (3x)
+         * 60 nodes, 240 tasks, ptile=4, 7 threads/task
             * Concurrently run 3 realizations of JGDAS_ENKF_RECENTER.  Each job
-              processes an IAU analysis time.  Each job uses 40 nodes, 80 tasks,
-              ptile=2, 14 threads/task.
-         * Runtime:  3.8 - 4.9 minutes
+              processes an IAU analysis time.  Each job uses 20 nodes, 80 tasks,
+              ptile=4, 7 threads/task.
+         * Runtime:  4.1 - 4.8 minutes
 
-     * JGDAS_ENKF_SURFACE
+     * JGDAS_ENKF_SFC
          * 3 nodes, 84 tasks, ptile=28, 1 thread/task
          * Runtime:  2.2 - 2.6 minutes
 
@@ -325,13 +357,22 @@ IMPLEMENTATION INSTRUCTIONS
 
 
 JOB DEPENDENCIES & FLOW DIAGRAM
-   * GFS DA v16 adds several DA jobs to the GFS.  It also alters dependencies for some
-     existing jobs.  Job dependencies are provided below
-      * JGLOBAL_ANALCALC - trigger upon completion of JGLOBAL_ANALYSIS
-      * JGLOBAL_ANALDIAG - trigger upon completion of JGLOBAL_ANALYSIS
-      * JGDAS_VERFOZN - trigger upon completion of JGLOBAL_ANALDIAG
-      * JGDAS_VERFRAD - trigger upon completion of JGLOBAL_ANALDIAG
-      * JGLOBAL_ENKF_ANALDIAG - trigger upon completion of JGLOBAL_ENKF_SELECT_OBS
-      * JGLOBAL_ENKF_UPDATE - trigger upon completion of JGLOBAL_ENKF_ANALDIAG
-      * JGDAS_ENKF_SURFACE - trigger upon completion of JGLOBAL_ENKF_UPDATE
-      * JGDAS_CHGRES_FORENKF -trigger upon completion of GDAS JGLOBAL_FORECAST and all JGDAS_ENKF_FCST
+   * GFS DA v16 adds several DA jobs to the GFS.  Below are dependencies for 
+     new jobs
+      * JGDAS_ATMOS_ANALYSIS_DIAG - trigger upon completion of JGLOBAL_ATMOS_ANALYSIS
+      * JGDAS_ATMOS_CHGRES_FORENKF - trigger upon completion of GDAS JGLOBAL_FORECAST and all JGDAS_ENKF_FCST
+      * JGDAS_ENKF_DIAG - trigger upon completion of JGDAS_ENKF_SELECT_OBS
+      * JGDAS_ENKF_SFC - trigger upon completion of JGDAS_ENKF_UPDATE
+      * JGLOBAL_ATMOS_ANALYSIS_CALC - trigger upon completion of JGLOBAL_ATMOS_ANALYSIS
+   * Dependencenies also change due to the renaming of existing jobs.  These 
+     dependencies are given below
+      * JGDAS_ENKF_ECEN - trigger upon completion of JGDAS_ENKF_UPDATE and JGLOBAL_ATMOS_ANALYSIS
+      * JGDAS_ATMOS_VERFOZN - trigger upon completion of JGDAS_ATMOS_ANALYSIS_DIAG
+      * JGDAS_ATMOS_VERFRAD - trigger upon completion of JGDAS_ATMOS_ANALYSIS_DIAG
+      * JGDAS_ATMOS_VMINMON - trigger upon completion of JGLOBAL_ATMOS_ANALYSIS
+      * JGFS_ATMOS_VMINMON - trigger upon completion of JGLOBAL_ATMOS_ANALYSIS
+      * JGLOBAL_ATMOS_ANALYSIS - trigger upcon completion of JGLOBAL_PREP
+      * JGDAS_ENKF_SELECT_OBS - trigger upon completion of JGLOBAL_PREP
+      * JGDAS_ENKF_UPDATE - tigger upon completion of JGDAS_ENKF_DIAG
+
+
