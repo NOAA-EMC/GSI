@@ -50,7 +50,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use qcmod, only: nvqc
   use oneobmod, only: oneobtest,oneob_type,magoberr,maginnov 
   use gridmod, only: get_ijk,nsig,twodvar_regional,regional,wrf_nmm_regional,&
-      rotate_wind_xy2ll,pt_ll
+      rotate_wind_xy2ll,pt_ll,fv3_regional
   use guess_grids, only: nfldsig,hrdifsig,geop_hgtl,sfcmod_gfs
   use guess_grids, only: tropprs,sfcmod_mm5
   use guess_grids, only: ges_lnprsl,comp_fact10,pbl_height
@@ -215,7 +215,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !                              error (DOE) calculation to the namelist
 !                              level; they are now loaded by
 !                              aircraftinfo.
-!
+!   2020-05-04  wu   - no rotate_wind for fv3_regional
 !
 ! REMARKS:
 !   language: f90
@@ -1656,7 +1656,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         rdiagbuf(21,ii) = dvdiff             ! v obs-ges used in analysis (m/s)
         rdiagbuf(22,ii) = vob-vgesin         ! v obs-ges w/o bias correction (m/s) (future slot)
 
-        if(regional) then
+        if(regional .and. .not. fv3_regional) then
 
 !           replace positions 17-22 with earth relative wind component information
 
@@ -1766,7 +1766,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
            call nc_diag_metadata("Wind_Reduction_Factor_at_10m", sngl(factw)       )
 
-           if (.not. regional) then
+           if (.not. regional .or. fv3_regional) then
               call nc_diag_metadata("u_Observation",                              sngl(data(iuob,i))    )
               call nc_diag_metadata("u_Obs_Minus_Forecast_adjusted",              sngl(dudiff)          )
               call nc_diag_metadata("u_Obs_Minus_Forecast_unadjusted",            sngl(uob-ugesin)      )
