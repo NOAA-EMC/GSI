@@ -1,9 +1,6 @@
 #%Module######################################################################
-##                                                       Russ.Treadon@noaa.gov
-##                                                           NOAA/NWS/NCEP/EMC
-## GDAS_ENKF v6.2.3
+## NOAA-EMC/GSI
 ##_____________________________________________________
-#set ver v6.2.3
 
 set COMP ifort
 set COMP_MP mpfort
@@ -37,10 +34,12 @@ module load prod_util/1.1.0
 module load sfcio/1.1.1
 module load sigio/2.1.1
 module load sp/2.0.3
-module load w3emc/2.3.1
-module load w3nco/2.0.7
-module load hdf5_parallel/1.10.6
-module load netcdf_parallel/4.7.4
+module load w3emc/2.4.0
+module load w3nco/2.2.0
+
+module use /scratch1/NCEPDEV/nems/emc.nemspara/soft/modulefiles/
+module load hdf5_parallel/1.10.6.release
+module load netcdf_parallel/4.7.4.release
 
 # Set environmental variables to allow correlated error to reproduce on Hera
 export MKL_NUM_THREADS=4
