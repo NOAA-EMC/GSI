@@ -1,16 +1,12 @@
 #%Module######################################################################
-##                                                       Russ.Treadon@noaa.gov
-##                                                           NOAA/NWS/NCEP/EMC
-## GDAS_ENKF v6.2.3
+## NOAA-EMC/GSI
 ##_____________________________________________________
 proc ModulesHelp { } {
-puts stderr "Set environment veriables for GDAS_ENKF"
+puts stderr "Set environment variables for NOAA-EMC/GSI"
 puts stderr "This module initializes the environment "
 puts stderr "for the Intel Compiler Suite $version\n"
 }
-module-whatis " GDAS_ENKF whatis description"
-
-set ver v6.2.3
+module-whatis " NOAA-EMC/GSI whatis description"
 
 setenv COMP ifort
 setenv COMP_MP mpfort

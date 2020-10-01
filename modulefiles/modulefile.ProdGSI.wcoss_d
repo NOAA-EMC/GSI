@@ -2,7 +2,7 @@
 # NOAA-EMC/GSI
 #_____________________________________________________
 #proc ModulesHelp { } {
-#puts stderr "Set environment veriables for NOAA-EMC/GSI"
+#puts stderr "Set environment variables for NOAA-EMC/GSI"
 #puts stderr "This module initializes the environment "
 #puts stderr "for the Intel Compiler Suite $version\n"
 ##}
@@ -25,7 +25,7 @@ module load ips/18.0.1.163
 module load impi/18.0.1
 
 # Load production utilities
-module load prod_util/1.1.0
+module load prod_util/1.1.5
 
 # Load nceplibs modules
 module load bufr/11.3.0

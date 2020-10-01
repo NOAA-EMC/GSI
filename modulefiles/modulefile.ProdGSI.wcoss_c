@@ -2,13 +2,11 @@
 ## NOAA-EMC/GSI
 ##_____________________________________________________
 proc ModulesHelp { } {
-puts stderr "Set environment veriables for NOAA-EMC/GSI"
+puts stderr "Set environment variables for NOAA-EMC/GSI"
 puts stderr "This module initializes the environment "
 puts stderr "for the Intel Compiler Suite $version\n"
 }
 module-whatis " NOAA-EMC/GSI whatis description"
-
-set ver v6.2.3
 
 setenv COMP ftn
 setenv COMP_MP ftn
