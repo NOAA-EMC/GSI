@@ -851,6 +851,7 @@ subroutine add_gfs_stratosphere
 !                         of unused variables
 !   2016-12-10  tong - add code to gfs nemsio meta data, if use_gfs_nemsio=True
 !   2019-09-24  martin - add support for when use_gfs_ncio is True
+!   2020-05-04  wu   - no rotate_wind for fv3_regional
 !
 !   input argument list:
 !
@@ -864,7 +865,7 @@ subroutine add_gfs_stratosphere
 
    use gridmod, only: regional,wrf_nmm_regional,use_gfs_nemsio,use_gfs_ncio
    use gridmod, only: region_lat,region_lon,aeta1_ll,aeta2_ll,pdtop_ll,pt_ll  
-   use gridmod, only: nlon,nlat,lat2,lon2,nsig,rotate_wind_ll2xy
+   use gridmod, only: nlon,nlat,lat2,lon2,nsig,rotate_wind_ll2xy,fv3_regional
    use gridmod, only: use_gfs_ozone,jcap_gfs,nlat_gfs,nlon_gfs
    use constants,only: zero,one_tenth,half,one,ten,fv,t0c,r0_05,r60,r3600
    use mpimod, only: mype
@@ -1586,13 +1587,20 @@ subroutine add_gfs_stratosphere
                if (xsplo(k) > xspli_g(1)) ysplov_g(k)=yspliv_g(1)
             enddo
             ! blend contributions from regional and global:
-            do k=1,nsig
-               ! rotate gfs wind to nmmb coordinate:
-               call rotate_wind_ll2xy(ysplou_g(k),ysplov_g(k), &
-                                      uob,vob,region_lon(ii,jj),dlon,dlat)
-               ut(i,j,k)=blend_rm(k)*ysplou_r(k)+blend_gm(k)*uob
-               vt(i,j,k)=blend_rm(k)*ysplov_r(k)+blend_gm(k)*vob
-            enddo
+            if(fv3_regional)then
+               do k=1,nsig
+                  ut(i,j,k)=blend_rm(k)*ysplou_r(k)+blend_gm(k)*ysplou_g(k)
+                  vt(i,j,k)=blend_rm(k)*ysplov_r(k)+blend_gm(k)*ysplov_g(k)
+               enddo
+            else
+               do k=1,nsig
+                  ! rotate gfs wind to nmmb coordinate:
+                  call rotate_wind_ll2xy(ysplou_g(k),ysplov_g(k), &
+                                         uob,vob,region_lon(ii,jj),dlon,dlat)
+                  ut(i,j,k)=blend_rm(k)*ysplou_r(k)+blend_gm(k)*uob
+                  vt(i,j,k)=blend_rm(k)*ysplov_r(k)+blend_gm(k)*vob
+               enddo
+            endif
 
             ! t -- regional contribution
             do k=1,nsig_save

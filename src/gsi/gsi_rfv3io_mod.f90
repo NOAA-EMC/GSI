@@ -23,6 +23,7 @@ module gsi_rfv3io_mod
 !   sub gsi_fv3ncdf_writeuv
 !   sub gsi_fv3ncdf_writeps
 !   sub gsi_fv3ncdf_write
+!   sub gsi_fv3ncdf_write_v1
 !   sub check
 !
 ! variable definitions:
@@ -178,7 +179,7 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
   use netcdf, only: nf90_inquire_variable
   use mpimod, only: mype
   use mod_fv3_lola, only: generate_anl_grid
-  use gridmod,  only:nsig,regional_time,regional_fhr,aeta1_ll,aeta2_ll
+  use gridmod,  only:nsig,regional_time,regional_fhr,regional_fmin,aeta1_ll,aeta2_ll
   use gridmod,  only:nlon_regional,nlat_regional,eta1_ll,eta2_ll
   use kinds, only: i_kind,r_kind
   use constants, only: half,zero
@@ -215,6 +216,7 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
     regional_time(5)=mminute
     regional_time(6)=msecond
     regional_fhr=zero          ! forecast hour set zero for now
+    regional_fmin=zero          ! forecast min set zero for now
 
 !!!!!!!!!!    grid_spec  !!!!!!!!!!!!!!!
     ierr=0
@@ -671,6 +673,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     else  
        call  gsi_fv3ncdf2d_read_v1(dynvars,'ps','PS',ges_ps,mype_p)
        ges_prsi(:,:,nsig+1,it)=eta1_ll(nsig+1)
+       ges_ps=ges_ps*0.001_r_kind
        do k=1,nsig
          ges_prsi(:,:,k,it)=eta1_ll(k)+eta2_ll(k)*ges_ps  
        enddo
@@ -1548,8 +1551,8 @@ subroutine wrfv3_netcdf(fv3filenamegin)
       call gsi_fv3ncdf_writeuv(dynvars,ges_u,ges_v,mype_v,add_saved)
       call gsi_fv3ncdf_writeps(dynvars,'delp',ges_ps,mype_p,add_saved)
     else
-      call gsi_fv3ncdf_write(dynvars,'t',ges_tsen(1,1,1,it),mype_t,add_saved)
-      call gsi_fv3ncdf_write(tracers,'sphum',ges_q   ,mype_q,add_saved)
+      call gsi_fv3ncdf_write_v1(dynvars,'t',ges_tsen(1,1,1,it),mype_t,add_saved)
+      call gsi_fv3ncdf_write_v1(tracers,'sphum',ges_q   ,mype_q,add_saved)
       call gsi_fv3ncdf_writeuv_v1(dynvars,ges_u,ges_v,mype_v,add_saved)
       call gsi_fv3ncdf_writeps_v1(dynvars,'ps',ges_ps,mype_p,add_saved)
     
@@ -1778,9 +1781,9 @@ subroutine gsi_fv3ncdf_writeps(filename,varname,var,mype_io,add_saved)
        allocate( work_b(nlon_regional,nlat_regional,nsig))
        call check( nf90_open(trim(filename),nf90_write,gfile_loc) )
        call check( nf90_inq_varid(gfile_loc,trim(varname),VarId) )
+       allocate( workb2(nlon_regional,nlat_regional))
 
        if(add_saved)then
-          allocate( workb2(nlon_regional,nlat_regional))
           allocate( worka2(nlat,nlon))
 !!!!!!!! read in guess delp  !!!!!!!!!!!!!!
           call check( nf90_get_var(gfile_loc,VarId,work_b) )
@@ -1813,7 +1816,9 @@ subroutine gsi_fv3ncdf_writeps(filename,varname,var,mype_io,add_saved)
   
        call check( nf90_put_var(gfile_loc,VarId,work_b) )
        call check( nf90_close(gfile_loc) )
-       deallocate(worka2,workb2)
+       if (allocated(worka2)) deallocate(worka2)
+       if (allocated(workb2)) deallocate(workb2)
+
        deallocate(work_b,work_a,work_bi)
 
     end if !mype_io
@@ -1832,6 +1837,7 @@ subroutine gsi_fv3ncdf_writeuv_v1(dynvars,varu,varv,mype_io,add_saved)
 ! program history log:
 ! 2019-04-22  lei   modified from gsi_nemsio_writeuv_v1 for update
 ! u_w,v_w,u_s,v_s in the cold start files!
+! 2020-03-06  lei   added ilev0 fix
 !   input argument list:
 !    varu,varv
 !    add_saved - true: add analysis increments to readin guess then write out
@@ -1870,6 +1876,7 @@ subroutine gsi_fv3ncdf_writeuv_v1(dynvars,varu,varv,mype_io,add_saved)
     integer(i_kind) :: u_wgrd_VarId,v_wgrd_VarId
     integer(i_kind) :: u_sgrd_VarId,v_sgrd_VarId
     integer(i_kind) i,j,mm1,n,k,ns,kr,m
+    integer(i_kind) ilev0
     real(r_kind),allocatable,dimension(:):: work
     real(r_kind),allocatable,dimension(:,:,:):: work_sub,work_au,work_av
     real(r_kind),allocatable,dimension(:,:,:):: work_bu_s,work_bv_s
@@ -1879,6 +1886,7 @@ subroutine gsi_fv3ncdf_writeuv_v1(dynvars,varu,varv,mype_io,add_saved)
     real(r_kind),allocatable,dimension(:,:):: workbu_w2,workbv_w2
 
     mm1=mype+1
+    ilev0=1
 
     allocate(    work(max(iglobal,itotsub)*nsig),work_sub(lat1,lon1,nsig))
 !!!!!! gather analysis u !! revers k !!!!!!!!!!!
@@ -1929,18 +1937,18 @@ subroutine gsi_fv3ncdf_writeuv_v1(dynvars,varu,varv,mype_io,add_saved)
           enddo
        enddo
        deallocate(work,work_sub)
-!clt u and v would contain winds at either D-grid or A-grid
-!clt do not diretly use them in between fv3uv2eath and fv3_h_to_ll unless paying
+! u and v would contain winds at either D-grid or A-grid
+! do not diretly use them in between fv3uv2eath and fv3_h_to_ll unless paying
 !attention to the actual storage layout
        call check( nf90_open(trim(dynvars ),nf90_write,gfile_loc) )
 
        allocate( u(nlon_regional,nlat_regional)) 
        allocate( v(nlon_regional,nlat_regional))
 
-       allocate( work_bu_s(nlon_regional,nlat_regional+1,nsig))
-       allocate( work_bv_s(nlon_regional,nlat_regional+1,nsig))
-       allocate( work_bu_w(nlon_regional+1,nlat_regional,nsig))
-       allocate( work_bv_w(nlon_regional+1,nlat_regional,nsig))
+       allocate( work_bu_s(nlon_regional,nlat_regional+1,nsig+1))
+       allocate( work_bv_s(nlon_regional,nlat_regional+1,nsig+1))
+       allocate( work_bu_w(nlon_regional+1,nlat_regional,nsig+1))
+       allocate( work_bv_w(nlon_regional+1,nlat_regional,nsig+1))
 
 
 
@@ -1949,8 +1957,6 @@ subroutine gsi_fv3ncdf_writeuv_v1(dynvars,varu,varv,mype_io,add_saved)
        call check( nf90_inq_varid(gfile_loc,'v_s',v_sgrd_VarId) )
        call check( nf90_inq_varid(gfile_loc,'v_w',v_wgrd_VarId) )
 
-       if(add_saved)then
-          allocate( workau2(nlat,nlon),workav2(nlat,nlon))
           allocate( workbu_w2(nlon_regional+1,nlat_regional))
           allocate( workbv_w2(nlon_regional+1,nlat_regional))
           allocate( workbu_s2(nlon_regional,nlat_regional+1))
@@ -1960,12 +1966,15 @@ subroutine gsi_fv3ncdf_writeuv_v1(dynvars,varu,varv,mype_io,add_saved)
           call check( nf90_get_var(gfile_loc,u_wgrd_VarId,work_bu_w) )
           call check( nf90_get_var(gfile_loc,v_sgrd_VarId,work_bv_s) )
           call check( nf90_get_var(gfile_loc,v_wgrd_VarId,work_bv_w) )
+
+       if(add_saved)then
+          allocate( workau2(nlat,nlon),workav2(nlat,nlon))
           do k=1,nsig
              do j=1,nlat_regional
-                u(:,j)=half * (work_bu_s(:,j,k)+ work_bu_s(:,j+1,k))
+                u(:,j)=half * (work_bu_s(:,j,ilev0+k)+ work_bu_s(:,j+1,ilev0+k))
              enddo
              do i=1,nlon_regional
-                v(i,:)=half*(work_bv_w(i,:,k)+work_bv_w(i+1,:,k))
+                v(i,:)=half*(work_bv_w(i,:,ilev0+k)+work_bv_w(i+1,:,ilev0+k))
              enddo
              call fv3_h_to_ll(u,workau2,nlon_regional,nlat_regional,nlon,nlat)
              call fv3_h_to_ll(v,workav2,nlon_regional,nlat_regional,nlon,nlat)
@@ -1975,18 +1984,18 @@ subroutine gsi_fv3ncdf_writeuv_v1(dynvars,varu,varv,mype_io,add_saved)
              call fv3_ll_to_h(work_au(:,:,k),u,nlon,nlat,nlon_regional,nlat_regional,.true.)
              call fv3_ll_to_h(work_av(:,:,k),v,nlon,nlat,nlon_regional,nlat_regional,.true.)
 !!!!!!!!  add analysis_inc to readin work_b !!!!!!!!!!!!!!!!
-             do i=2,nlon_regional-1
-               workbu_w2(i,:)=half*(u(i,:)+u(i+1,:))
-               workbv_w2(i,:)=half*(v(i,:)+v(i+1,:))
+             do i=2,nlon_regional
+               workbu_w2(i,:)=half*(u(i-1,:)+u(i,:))
+               workbv_w2(i,:)=half*(v(i-1,:)+v(i,:))
              enddo
              workbu_w2(1,:)=u(1,:)
              workbv_w2(1,:)=v(1,:)
              workbu_w2(nlon_regional+1,:)=u(nlon_regional,:)
              workbv_w2(nlon_regional+1,:)=v(nlon_regional,:)
 
-             do j=2,nlat_regional-1
-               workbu_s2(:,j)=half*(u(:,j)+u(:,j+1))
-               workbv_s2(:,j)=half*(v(:,j)+v(:,j+1))
+             do j=2,nlat_regional
+               workbu_s2(:,j)=half*(u(:,j-1)+u(:,j))
+               workbv_s2(:,j)=half*(v(:,j-1)+v(:,j))
              enddo
              workbu_s2(:,1)=u(:,1)
              workbv_s2(:,1)=v(:,1)
@@ -1995,10 +2004,10 @@ subroutine gsi_fv3ncdf_writeuv_v1(dynvars,varu,varv,mype_io,add_saved)
 
 
 
-             work_bu_w(:,:,k)=work_bu_w(:,:,k)+workbu_w2(:,:)
-             work_bu_s(:,:,k)=work_bu_s(:,:,k)+workbu_s2(:,:)
-             work_bv_w(:,:,k)=work_bv_w(:,:,k)+workbv_w2(:,:)
-             work_bv_s(:,:,k)=work_bv_s(:,:,k)+workbv_s2(:,:)
+             work_bu_w(:,:,ilev0+k)=work_bu_w(:,:,ilev0+k)+workbu_w2(:,:)
+             work_bu_s(:,:,ilev0+k)=work_bu_s(:,:,ilev0+k)+workbu_s2(:,:)
+             work_bv_w(:,:,ilev0+k)=work_bv_w(:,:,ilev0+k)+workbv_w2(:,:)
+             work_bv_s(:,:,ilev0+k)=work_bv_s(:,:,ilev0+k)+workbv_s2(:,:)
           enddo
           deallocate(workau2,workav2)
           deallocate(workbu_w2,workbv_w2)
@@ -2008,23 +2017,23 @@ subroutine gsi_fv3ncdf_writeuv_v1(dynvars,varu,varv,mype_io,add_saved)
              call fv3_ll_to_h(work_au(:,:,k),u,nlon,nlat,nlon_regional,nlat_regional,.true.)
              call fv3_ll_to_h(work_av(:,:,k),v,nlon,nlat,nlon_regional,nlat_regional,.true.)
 
-             do i=2,nlon_regional-1
-               work_bu_w(i,:,k)=half*(u(i,:)+u(i+1,:))
-               work_bv_w(i,:,k)=half*(v(i,:)+v(i+1,:))
+             do i=2,nlon_regional
+               work_bu_w(i,:,k)=half*(u(i-1,:)+u(i,:))
+               work_bv_w(i,:,k)=half*(v(i-1,:)+v(i,:))
              enddo
-             work_bu_w(1,:,k)=u(1,:)
-             work_bv_w(1,:,k)=v(1,:)
-             work_bu_w(nlon_regional+1,:,k)=u(nlon_regional,:)
-             work_bv_w(nlon_regional+1,:,k)=v(nlon_regional,:)
+             work_bu_w(1,:,ilev0+k)=u(1,:)
+             work_bv_w(1,:,ilev0+k)=v(1,:)
+             work_bu_w(nlon_regional+1,:,ilev0+k)=u(nlon_regional,:)
+             work_bv_w(nlon_regional+1,:,ilev0+k)=v(nlon_regional,:)
 
-             do j=2,nlat_regional-1
-               work_bu_s(:,j,k)=half*(u(:,j)+u(:,j+1))
-               work_bv_s(:,j,k)=half*(v(:,j)+v(:,j+1))
+             do j=2,nlat_regional
+               work_bu_s(:,j,ilev0+k)=half*(u(:,j-1)+u(:,j))
+               work_bv_s(:,j,ilev0+k)=half*(v(:,j-1)+v(:,j))
              enddo
-             work_bu_s(:,1,k)=u(:,1)
-             work_bv_s(:,1,k)=v(:,1)
-             work_bu_s(:,nlat_regional+1,k)=u(:,nlat_regional)
-             work_bv_s(:,nlat_regional+1,k)=v(:,nlat_regional)
+             work_bu_s(:,1,ilev0+k)=u(:,1)
+             work_bv_s(:,1,ilev0+k)=v(:,1)
+             work_bu_s(:,nlat_regional+1,ilev0+k)=u(:,nlat_regional)
+             work_bv_s(:,nlat_regional+1,ilev0+k)=v(:,nlat_regional)
 
 
           enddo
@@ -2132,7 +2141,8 @@ subroutine gsi_fv3ncdf_writeps_v1(filename,varname,var,mype_io,add_saved)
 
        call check( nf90_put_var(gfile_loc,VarId,work_b) )
        call check( nf90_close(gfile_loc) )
-       deallocate(worka2,workb2)
+       if (allocated(worka2)) deallocate(worka2)
+       if ( allocated(workb2)) deallocate(workb2)
        deallocate(work_b,work_a,work_bi)
 
     end if !mype_io
@@ -2259,6 +2269,117 @@ subroutine check(status)
        stop  
     end if
 end subroutine check
+subroutine gsi_fv3ncdf_write_v1(filename,varname,var,mype_io,add_saved)
+!$$$  subprogram documentation block
+!                .      .    .                                        .
+! subprogram:    gsi_nemsio_write
+!   pgrmmr: wu
+!
+! abstract:
+!
+! program history log:
+! 2020-03-05  lei  modified from gsi_fv3ncdf_write to gsi_fv3ncdf_write_v1  
+!   input argument list:
+!    varu,varv
+!    add_saved
+!    mype     - mpi task id
+!    mype_io
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+    use mpimod, only: mpi_rtype,mpi_comm_world,ierror,npe,mype
+    use gridmod, only: lat2,lon2,nlon,nlat,lat1,lon1,nsig
+    use gridmod, only: ijn,displs_g,itotsub,iglobal
+    use mod_fv3_lola, only: fv3_ll_to_h
+    use mod_fv3_lola, only: fv3_h_to_ll
+    use general_commvars_mod, only: ltosi,ltosj
+    use netcdf, only: nf90_open,nf90_close
+    use netcdf, only: nf90_write,nf90_inq_varid
+    use netcdf, only: nf90_put_var,nf90_get_var
+    implicit none
+
+    real(r_kind)   ,intent(in   ) :: var(lat2,lon2,nsig)
+    integer(i_kind),intent(in   ) :: mype_io
+    logical        ,intent(in   ) :: add_saved
+    character(*)   ,intent(in   ) :: varname,filename
+
+    integer(i_kind) :: VarId,gfile_loc
+    integer(i_kind) :: ilev0
+    integer(i_kind) i,j,mm1,k,kr,ns,n,m
+    real(r_kind),allocatable,dimension(:):: work
+    real(r_kind),allocatable,dimension(:,:,:):: work_sub,work_a
+    real(r_kind),allocatable,dimension(:,:,:):: work_b
+    real(r_kind),allocatable,dimension(:,:):: workb2,worka2
+
+
+    mm1=mype+1
+
+    allocate(    work(max(iglobal,itotsub)*nsig),work_sub(lat1,lon1,nsig))
+!!!!!!!! reverse z !!!!!!!!!!!!!!
+    do k=1,nsig
+       kr=nsig+1-k
+       do i=1,lon1
+          do j=1,lat1
+             work_sub(j,i,kr)=var(j+1,i+1,k)
+          end do
+       end do
+    enddo
+    call mpi_gatherv(work_sub,ijnz(mm1),mpi_rtype, &
+          work,ijnz,displsz_g,mpi_rtype,mype_io,mpi_comm_world,ierror)
+
+    if(mype==mype_io) then
+       allocate( work_a(nlat,nlon,nsig))
+       ns=0
+       do m=1,npe
+          do k=1,nsig
+             do n=displs_g(m)+1,displs_g(m)+ijn(m) 
+                ns=ns+1
+                work_a(ltosi(n),ltosj(n),k)=work(ns)
+             end do
+          enddo
+       enddo
+
+       allocate( work_b(nlon_regional,nlat_regional,nsig+1))
+
+       call check( nf90_open(trim(filename),nf90_write,gfile_loc) )
+       call check( nf90_inq_varid(gfile_loc,trim(varname),VarId) )
+       call check( nf90_get_var(gfile_loc,VarId,work_b) )
+       ilev0=1
+
+       if(add_saved)then
+          allocate( workb2(nlon_regional,nlat_regional))
+          allocate( worka2(nlat,nlon))
+!  for being now only lev between (including )  2 and nsig+1 of work_b (:,:,lev) 
+!  are updated
+          do k=1,nsig
+             call fv3_h_to_ll(work_b(:,:,ilev0+k),worka2,nlon_regional,nlat_regional,nlon,nlat)
+!!!!!!!! analysis_inc:  work_a !!!!!!!!!!!!!!!!
+             work_a(:,:,k)=work_a(:,:,k)-worka2(:,:)
+             call fv3_ll_to_h(work_a(1,1,k),workb2,nlon,nlat,nlon_regional,nlat_regional,.true.)
+             work_b(:,:,ilev0+k)=work_b(:,:,ilev0+k)+workb2(:,:)
+          enddo
+          deallocate(worka2,workb2)
+       else
+          do k=1,nsig
+             call fv3_ll_to_h(work_a(1,1,k),work_b(1,1,ilev0+k),nlon,nlat,nlon_regional,nlat_regional,.true.)
+          enddo
+       endif
+
+       print *,'write out ',trim(varname),' to ',trim(filename)
+       call check( nf90_put_var(gfile_loc,VarId,work_b) )
+       call check( nf90_close(gfile_loc) )
+       deallocate(work_b,work_a)
+    end if !mype_io
+
+    deallocate(work,work_sub)
+
+end subroutine gsi_fv3ncdf_write_v1
 
 
 end module gsi_rfv3io_mod
