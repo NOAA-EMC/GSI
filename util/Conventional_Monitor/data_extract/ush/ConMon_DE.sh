@@ -4,13 +4,12 @@
 #
 #  ConMon_DE.sh 
 #
-#  This is the top level data extractionscript for the Conventional 
+#  This is the top level data extraction script for the Conventional 
 #  Data Monitor (ConMon) package.  
 #
 #  C_DATDIR and C_GDATDIR (source directories for the cnvstat files) 
 #  point to the operational data (GDAS).  They can be overriden 
-#  either in your interactive shell or in a script in order to point 
-#  to another source.
+#  to process data from another source. 
 #--------------------------------------------------------------------
 
 #--------------------------------------------------------------------
@@ -159,22 +158,10 @@ export CONMON_WORK_DIR=${CONMON_WORK_DIR:-${C_STMP_USER}/${CONMON_SUFFIX}}/${RUN
 pid=$$
 export jobid=DE_${PDATE}.${pid}
 
-#--------------------------------------------------------------------
-# If data is available, export variables, and submit driver for
-# plot jobs.
-#
-# Modification here is for prhw14 and prhs13 parallels which only
-# generate grib2 files for the analysis and forecast files.  The 
-# operational GDAS creates grib and grib2 files.  The Cmon package
-# was originally designed to use grib files, but it's clear that
-# grib2 will be the only standard with the next major release of 
-# GSI. 
 
-export grib2=${grib2:-1}
 
-#----------------------------------------------------
-#  Note to self:
-# investigate swapping C_DATDIR for $COMROOTp3
+#---------------
+#  cnvstat file
 #
 export cnvstat="${C_DATDIR}/${CYC}/gdas.t${CYC}z.cnvstat"
 if [[ ! -s ${cnvstat} ]]; then
@@ -196,6 +183,7 @@ export pgrbf06="${C_GDATDIR}/gdas.t${GCYC}z.pgrb2.0p25.f006"
 if [[ ! -s ${pgrbf06} ]]; then
    export pgrbf06="${C_GDATDIR}/gdas.t${GCYC}z.pgrb2.1p00.f006"
 fi
+
 
 exit_value=0
 if [ -s $cnvstat  -a -s $pgrbf00 -a -s $pgrbf06 ]; then
