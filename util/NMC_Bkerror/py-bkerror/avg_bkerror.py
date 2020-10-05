@@ -3,11 +3,12 @@ import numpy as np
 
 nmon = 0
 for mon in ['jan','feb','mar','apr','may','june','july','aug','sept','oct','nov','dec']:
-    filename = '../../../../../staticB/24h/global_berror.l127y386.f77_%ssmooth0p5' % (mon,)
-    print filename
+    filename = '../../../../../staticB/24h/global_berror.l127y770.f77_%ssmooth0p5' % (mon,)
+    print nmon,filename
     nsig,nlat,nlon = bkerror.get_header(filename)
     ivar,agvin,bgvin,wgvin,corzin,hscalesin,vscalesin,corq2in,corsstin,hsstin,corpin,hscalespin = bkerror.get_bkerror(filename,nsig,nlat,nlon)
     if not nmon:
+        print 'initalize arrays'
         agvout = np.zeros(agvin.shape, agvin.dtype)
         bgvout = np.zeros(bgvin.shape, bgvin.dtype)
         wgvout = np.zeros(wgvin.shape, wgvin.dtype)
@@ -30,8 +31,9 @@ for mon in ['jan','feb','mar','apr','may','june','july','aug','sept','oct','nov'
     hsstout += hsstin/12.
     corpout += corpin/12.
     hscalespout += hscalespin/12.
+    nmon += 1
 
-filename = '../../../../../staticB/24h/global_berror.l127y386.f77_annmeansmooth0p5'
+filename = '../../../../../staticB/24h/global_berror.l127y770.f77_annmeansmooth0p5'
 print filename
 bkerror.put_bkerror(filename,ivar,\
         agvout,bgvout,wgvout,\
