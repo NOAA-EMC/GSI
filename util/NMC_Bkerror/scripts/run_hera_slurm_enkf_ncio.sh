@@ -1,15 +1,15 @@
 #!/bin/sh
 #SBATCH -J NMC_bkerror
-#SBATCH -t 08:00:00
-#SBATCH --nodes=20 --ntasks-per-node=4
-##SBATCH -q debug
+#SBATCH -t 30:00:00
+#SBATCH --nodes=20 --ntasks-per-node=5
+#SBATCH -q long
 #SBATCH -A gsienkf
 #SBATCH -o NMC_bkerror.out
 #SBATCH -e NMC_bkerror.err
 
 set -x
 
-exp=C384_berror_enkfensjanjuly_smooth0p5
+exp=C384_berror_enkfensdec_smooth0p5_24h
 
 datdir=/scratch2/NCEPDEV/stmp1/Jeffrey.S.Whitaker/staticB
 calstats=/scratch2/BMC/gsienkf/whitaker/gsi/GSI-github-jswhit/util/NMC_Bkerror/sorc/calcstats.exe
@@ -22,17 +22,15 @@ rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
 
-export OMP_NUM_THREADS=8
+export OMP_NUM_THREADS=4
 export OMP_STACKSIZE=256M
 
 /bin/cp -f $calstats  ./stats.x
 /bin/cp -f $sststats  ./berror_sst
 
-date1='2020010100'
-date2='2020020100'
-#date1='2020070100'
-#date2='2020080100'
-interval=72
+date1='2020120100'
+date2='2021010100'
+interval=24
 date=$date1
 /bin/rm -f infiles
 touch infiles
@@ -50,22 +48,22 @@ while [ $date -le $date2 ]; do
   date=`incdate $date $interval`
 done
 
-date1='2020070100'
-date2='2020080100'
-date=$date1
-# ens member files go first
-while [ $date -le $date2 ]; do
-  ls $datdir/sfg*${date}*mem* >> infiles
-  date=`incdate $date $interval`
-done
-# then corresponding ens mean files
-date=$date1
-while [ $date -le $date2 ]; do
-  for filename in $datdir/sfg*${date}*mem*; do
-     echo "$datdir/sfg_${date}_fhr06_ensmean" >> infiles
-  done
-  date=`incdate $date $interval`
-done
+#date1='2020070100'
+#date2='2020080100'
+#date=$date1
+## ens member files go first
+#while [ $date -le $date2 ]; do
+#  ls $datdir/sfg*${date}*mem* >> infiles
+#  date=`incdate $date $interval`
+#done
+## then corresponding ens mean files
+#date=$date1
+#while [ $date -le $date2 ]; do
+#  for filename in $datdir/sfg*${date}*mem*; do
+#     echo "$datdir/sfg_${date}_fhr06_ensmean" >> infiles
+#  done
+#  date=`incdate $date $interval`
+#done
 
 maxcases=`wc -l infiles | cut -f1 -d " "`
 
