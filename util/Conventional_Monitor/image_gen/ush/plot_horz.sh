@@ -186,8 +186,7 @@
 
          mkdir -p ${C_IMGNDIR}/pngs/horz/${CYC}
 
-# NOTE TO SELF:  make this mv w/ delivery
-         cp -f *.png ${C_IMGNDIR}/pngs/horz/${CYC}/.
+         mv -f *.png ${C_IMGNDIR}/pngs/horz/${CYC}/.
 
       done      ### dtype loop 
 

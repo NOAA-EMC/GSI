@@ -303,9 +303,7 @@ set -ax
          echo 'quit' | grads -blc " run plothist_${dtype}.gs" 
          rm fileout
 
-# NOTE TO SELF, use the mv w/ delivery
-#         mv -f *hist*.png ${C_IMGNDIR}/pngs/hist/${CYC}/.
-         cp -f *hist*.png ${C_IMGNDIR}/pngs/hist/${CYC}/.
+         mv -f *hist*.png ${C_IMGNDIR}/pngs/hist/${CYC}/.
 
       done      ### dtype loop 
 

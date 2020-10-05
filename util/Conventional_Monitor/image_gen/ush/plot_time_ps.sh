@@ -97,16 +97,14 @@ set -ax
    #  run the plot scripts
    #-------------------------
 
-#NOTE TO SELF:  make these cp mv instead before delivery
-
    grads -bpc "run ./plotstas_time_count_ps.gs"
-   cp -f *.png ${outdir}/.
+   mv -f *.png ${outdir}/.
  
    grads -bpc "run ./plotstas_time_bias_ps.gs"
-   cp -f *.png ${outdir}/.
+   mv -f *.png ${outdir}/.
 
    grads -bpc "run ./plotstas_time_bias2_ps.gs"
-   cp -f *.png ${outdir}/.
+   mv -f *.png ${outdir}/.
 
 
 

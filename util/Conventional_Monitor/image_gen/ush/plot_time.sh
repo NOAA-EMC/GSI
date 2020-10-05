@@ -117,8 +117,8 @@ set -ax
       #  run the plot scripts
       #-------------------------
       grads -bpc "run ./${local_plot_script}"
-# NOTE TO SELF:  make this cp mv w/ delivery
-      cp -f *.png ${outdir}/.
+
+      mv -f *.png ${outdir}/.
 
       num_pngs=`ls -1 *.png | wc -l`
       echo "num_pngs = ${num_pngs}"

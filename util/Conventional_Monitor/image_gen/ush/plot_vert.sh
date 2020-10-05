@@ -130,8 +130,7 @@ set -ax
 
    done
 
-#  NOTE TO SELF:  make this cp a mv before delivery
-   cp -f *.png ${outdir}/.
+   mv -f *.png ${outdir}/.
   
    if [[ ${C_IG_SAVE_WORK} -eq 0 ]]; then
       cd $workdir

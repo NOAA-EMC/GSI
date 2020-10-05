@@ -176,8 +176,7 @@ set -ax
 
 
          mkdir -p ${C_IMGNDIR}/pngs/horz/${CYC}
-# NOTE TO SELF, make this cp a mv w/ delivery
-         ${NCP} *.png ${C_IMGNDIR}/pngs/horz/${CYC}/.
+         mv -f  *.png ${C_IMGNDIR}/pngs/horz/${CYC}/.
 
       done      ### dtype loop 
    done      ### type loop

@@ -63,8 +63,7 @@
    #----------------
    # analysis file:
    #
-   pgrbf00=${pgrbf00:-${C_COMIN}/${CYC}/${component}/gdas.t${CYC}z.pgrb2.1p00.anl}		# testing hera only
-#   pgrbf00=${pgrbf00:-${C_COMIN}/${CYC}/${component}/gdas.t${CYC}z.pgrb2.0p25.f000}
+   pgrbf00=${pgrbf00:-${C_COMIN}/${CYC}/${component}/gdas.t${CYC}z.pgrb2.0p25.f000}
    if [[ ! -e ${pgrbf00} ]]; then
       pgrbf00=${C_COMIN}/gdas.t${CYC}z.pgrb2b.1p00.anl}
    fi
@@ -73,8 +72,7 @@
    #--------------
    # guess file:
    #
-   pgrbf06=${pgrbf06:-${C_COMINm6h}/${GCYC}/${component}/gdas.t${GCYC}z.pgrb2.1p00.f006}  		# testing hera only
-#   pgrbf06=${pgrbf06:-${C_COMINm6h}/${GCYC}/${component}/gdas.t${GCYC}z.pgrb2.0p25.f006}  
+   pgrbf06=${pgrbf06:-${C_COMINm6h}/${GCYC}/${component}/gdas.t${GCYC}z.pgrb2.0p25.f006}  
    if [[ ! -e ${pgrbf06} ]]; then
       pgrbf06=${C_COMINm6h}/gdas.t${GCYC}z.pgrb2b.1p00.anl}
    fi
