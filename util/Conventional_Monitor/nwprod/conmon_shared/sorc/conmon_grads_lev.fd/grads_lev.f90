@@ -28,7 +28,7 @@ subroutine grads_lev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
    character(ifileo) :: fileo 
    character(3) ::  run             ! ges or anl
 
-   character(30) :: files,filegrad
+   character(30) :: files, filegrad, file_nobs
    character(10) :: levcard 
 
    integer(4):: isubtype
@@ -48,9 +48,10 @@ subroutine grads_lev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
 
    print *, '--> BEGIN grads_lev.x'  
 
-   print *, 'nobs=',nobs
-   print *, 'fileo=',fileo
-   print *, 'nreal=', nreal
+   print *, 'nobs    = ',nobs
+   print *, 'fileo   = ',fileo
+   print *, 'nreal   = ', nreal
+   print *, 'subtype = ', subtype
 
    do i=1,nlev
       print *, 'i, plev2(i) = ', i, plev2(i)
@@ -69,13 +70,11 @@ subroutine grads_lev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
       ! Retrieve data from the linked list and load
       !   into the cdiag and rdiag_m2 arrays
       !
-!      print *, 'Associated(list)   = ', associated( list )
       obs_ctr = 0
       next => list
 
       do while ( associated( next ) == .TRUE. )
          ptr = transfer(list_get( next ), ptr)
-!         print *, 'node data:', ptr%p
          next => list_next( next )
 
          obs_ctr = obs_ctr + 1
@@ -86,11 +85,9 @@ subroutine grads_lev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
          end do
       end do
 
-!      print *, 'obs_ctr (list) = ', obs_ctr
 
       filegrad=trim(fileo)//'_'//trim(subtype)//'.grads.'//trim(run)
    
-!      print *, 'filegrad = ', filegrad
 
 
       if(iscater ==1) then
@@ -157,6 +154,12 @@ subroutine grads_lev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
 
          print *, 'obs written to file = ', ctr
 
+
+         file_nobs=trim(fileo)//'_'//trim(subtype)//'.nobs.'//trim(run)
+         open( 32, file=file_nobs, form='formatted', status='new' )
+         write(32,*) trim(fileo), ',', trim(subtype), ',', ctr
+         close( 32 )
+
       else
          write(6,*) "No output file generated, nobs, igrads = ", nobs, igrads
       endif
@@ -187,10 +190,9 @@ function getpres(p1,plev,nlevs)
   
    real*4 p1
    real*4,dimension(nlevs) :: plev
-   integer getpres,ip,ii,nlevs
+   integer getpres,ii,nlevs
 
    getpres = 0
-!   ip = int(p1)
 
    do ii=1,nlevs
       if( p1 >=plev(ii) ) then 

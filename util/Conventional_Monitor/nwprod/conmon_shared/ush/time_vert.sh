@@ -52,8 +52,6 @@ echo "--> time_vert.sh"
 
          echo " cycle = $cycle "
    
-!         rm -f ./conv_diag
-!         ln -s ./diag_conv_${run}.${PDATE} 
          ${UNCOMPRESS} ./diag_conv_${run}.${PDATE}.${Z}
  
          cat << EOF > input
@@ -108,7 +106,6 @@ EOF
 
       for run in ges anl; do
 
-#         for type in ps t q uv u v; do
          for type in ps t q uv; do
 
          
@@ -156,8 +153,7 @@ EOF
 
             for file in *stas.ctl; do
                ${COMPRESS} ${file}
-               cp -f ${file}.${Z} ${savedir}/${run}_${file}.${Z}
-#               mv -f ${file}.${Z} ${savedir}/${run}_${file}.${Z}
+               mv -f ${file}.${Z} ${savedir}/${run}_${file}.${Z}
             done
 
          done

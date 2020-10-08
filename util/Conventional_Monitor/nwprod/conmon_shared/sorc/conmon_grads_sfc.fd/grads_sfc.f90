@@ -20,7 +20,7 @@ subroutine grads_sfc(fileo,ifileo,nobs,nreal,iscater,igrads,isubtype,subtype,lis
    real(4),allocatable,dimension(:,:)  :: rdiag_m2
    character(8),allocatable,dimension(:) :: cdiag
    character(8) :: stid
-   character(ifileo) :: fileo
+   character(ifileo) :: fileo, file_nobs
    character(30) :: files,filein,filegrads
    character(3) :: subtype,run
    integer nobs,nreal,nlfag,nflg0,nlev,nlev0,iscater,igrads
@@ -53,13 +53,11 @@ subroutine grads_sfc(fileo,ifileo,nobs,nreal,iscater,igrads,isubtype,subtype,lis
    ! Retrieve data from the linked list and load
    !   into the cdiag and rdiag arrays
    !
-!   print *, 'Associated(list)   = ', associated( list )
    obs_ctr = 0
    next => list
 
    do while ( associated( next ) == .TRUE. )
       ptr = transfer(list_get( next ), ptr)
-!      print *, 'node data:', ptr%p
       next => list_next( next )
 
       obs_ctr = obs_ctr + 1
@@ -133,9 +131,14 @@ subroutine grads_sfc(fileo,ifileo,nobs,nreal,iscater,igrads,isubtype,subtype,lis
       !
       stid='        '
       write(21) stid,xlat0,xlon0,rtim,nlev0,nflg0 
+      close(21)
       
       print *, 'num recs written to GrADS file = ', ctr 
-      close(21)
+
+      file_nobs=trim(fileo)//'_'//trim(subtype)//'.nobs.'//trim(run)
+      open( 32, file=file_nobs, form='formatted', status='new' )
+      write(32,*) trim(fileo), ',', trim(subtype), ',', ctr
+      close( 32 )
    else
       write(6,*) "No output file generated, nobs, igrads = ", nobs, igrads
    endif

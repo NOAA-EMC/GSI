@@ -149,7 +149,14 @@ fi
 export COMPONENT=${COMPONENT:-atmos}
 
 export C_DATDIR=${C_DATDIR:-${CNVSTAT_LOCATION}/${RUN}.${PDY}/${CYC}/${COMPONENT}}
+if [[ ! -d ${C_DATDIR} ]]; then
+   export C_DATDIR=${CNVSTAT_LOCATION}/${RUN}.${PDY}/${CYC}
+fi
+
 export C_GDATDIR=${C_GDATDIR:-${CNVSTAT_LOCATION}/${RUN}.${PDYm6h}/${GCYC}/${COMPONENT}}
+if [[ ! -d ${C_GDATDIR} ]]; then
+   export C_GDATDIR=${CNVSTAT_LOCATION}/${RUN}.${PDYm6h}/${GCYC}
+fi
 
 export C_COMIN=${C_DATDIR}
 export C_COMINm6h=${C_GDATDIR}

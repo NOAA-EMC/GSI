@@ -98,6 +98,8 @@
       dest_dir=${TANKDIR_conmon}/horz_hist/${run}
       mv -f ${stdout_tar}.${Z} ${dest_dir}/.
 
+      cat *nobs.${run} > nobs.${run}.${PDATE}
+      cp nobs.${run}.${PDATE} ${dest_dir}/.
    done
    
 

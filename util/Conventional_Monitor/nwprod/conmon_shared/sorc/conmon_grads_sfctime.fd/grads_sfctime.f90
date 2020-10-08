@@ -53,7 +53,7 @@ subroutine grads_sfctime(fileo,ifileo,nobs,nreal,nlev,plev,iscater,&
    character(8),allocatable,dimension(:) :: stid
 
    character(8) :: stidend
-   character(30) :: files,filein,filegrads
+   character(30) :: files,filein,filegrads, file_nobs
    integer :: nlfag,nflag0,nlev0,getlev
    real(4) :: rmiss,rtim,xlat0,xlon0,rtime
    integer      :: first, second
@@ -88,13 +88,11 @@ subroutine grads_sfctime(fileo,ifileo,nobs,nreal,nlev,plev,iscater,&
       ! Retrieve data from the linked list and load
       !   into the cdiag and rdiag arrays
       !
-      print *, 'Associated(list)   = ', associated( list )
       obs_ctr = 0
       next => list
 
       do while ( associated( next ) == .TRUE. )
          ptr = transfer(list_get( next ), ptr)
-!         print *, 'node data:', ptr%p
          next => list_next( next )
 
          obs_ctr = obs_ctr + 1
@@ -103,8 +101,6 @@ subroutine grads_sfctime(fileo,ifileo,nobs,nreal,nlev,plev,iscater,&
             rdiag_m2(i-2, obs_ctr) = ptr%p%rdiag( i )
          end do
       end do
-
-      print *, 'obs_ctr (list) = ', obs_ctr
 
       !----------------------------------------------------
       !  generate scatter file
@@ -221,16 +217,11 @@ subroutine grads_sfctime(fileo,ifileo,nobs,nreal,nlev,plev,iscater,&
          k=nt          
 
          print *, 'using ndata max value of nt = ', nt
-!         do i=1,nlev
-!            print *, 'ndata(i) = ', i, ndata(i)
-!         end do
       
          nflag=1
          rtim=0.0
          nlev0=1
          do i=1,ii
-!            print *,' writing stid(i), rlat(i),rlon(i),rtim,nlev0,nflag = ', &
-!                           i, stid(i),rlat(i),rlon(i)
             write(21) stid(i),rlat(i),rlon(i),rtim,nlev0,nflag
             write(21) (tobs(j,i,k),j=1,nreal-4)
          enddo
@@ -249,6 +240,11 @@ subroutine grads_sfctime(fileo,ifileo,nobs,nreal,nlev,plev,iscater,&
         
          close(21)
          print *, 'wrote ii tobs to file ', ii
+
+         file_nobs=trim(fileo)//'_'//trim(subtype)//'.nobs.'//trim(run)
+         open( 32, file=file_nobs, form='formatted', status='new' )
+         write(32,*) trim(fileo), ',', trim(subtype), ',', ii
+         close( 32 )
 
       endif
 

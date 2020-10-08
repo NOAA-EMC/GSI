@@ -25,7 +25,7 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,s
    character(3) subtype, run
    character(8) :: stidend,stdid
    character(ifileo) :: fileo
-   character(30) :: files,filegrads
+   character(30) :: files,filegrads, file_nobs
 
    integer :: nobs,nreal,nlfag,nflag0,nlev,nlev0,getpro,iscater,igrads,obs_ctr
    real(4) :: rtim,xlat0,xlon0
@@ -67,13 +67,11 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,s
       ! Retrieve data from the linked list and load
       !   into the cdiag and rdiag arrays
       !
-!      print *, 'Associated(list)   = ', associated( list )
       obs_ctr = 0
       next => list
 
       do while ( associated( next ) == .TRUE. ) 
          ptr = transfer(list_get( next ), ptr)
-!         print *, 'node data:', ptr%p
          next => list_next( next )
 
          obs_ctr = obs_ctr + 1
@@ -101,9 +99,6 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,s
          write(51) nobs,nreal_m2
          write(51) rdiag_m2
 
-!         print *, 'writing nobs, nreal =', nobs, nreal
-!         print *, 'writing rdiag_m2 =', rdiag_m2
-      
          close(51)
       endif
 
@@ -148,8 +143,6 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,s
                   write(21) plev(k),rdiag_m2(3:nreal_m2,i) 
 
                   ctr = ctr + 1
-!               else
-!                  print *, 'rdiag_m2(ipres,i), no match: ', rdiag_m2(ipres,i)
                endif 
             endif
          enddo
@@ -161,6 +154,11 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,s
         
          close(21)
          print *, 'num recs written to GrADS file = ', ctr
+
+         file_nobs=trim(fileo)//'_'//trim(subtype)//'.nobs.'//trim(run)
+         open( 32, file=file_nobs, form='formatted', status='new' )
+         write(32,*) trim(fileo), ',', trim(subtype), ',', ctr
+         close( 32 )
 
       else
          write(6,*) "No output file generated, nobs, igrads = ", nobs, igrads

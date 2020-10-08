@@ -33,7 +33,7 @@ subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
    character(8)  :: stidend
    integer nobs,nreal,nlfag,nflag0,nlev,nlev0,getlev,iscater,igrads,nflg0
    real*4               :: rtim,xlat0,xlon0
-   character(30)        :: filein
+   character(30)        :: filein, file_nobs
 
    integer              :: ifileo,i,j,ii,k,nreal_m2,ctr,obs_ctr
    integer              :: ilat,ilon,ipres,itime,iweight,ndup
@@ -63,13 +63,11 @@ subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
       ! Retrieve data from the linked list and load
       !   into the cdiag and rdiag_m2 arrays
       !
-!      print *, 'Associated(list)   = ', associated( list )
       obs_ctr = 0
       next => list
 
       do while ( associated( next ) == .TRUE. )
          ptr = transfer(list_get( next ), ptr)
-!         print *, 'node data:', ptr%p
          next => list_next( next )
 
          obs_ctr = obs_ctr + 1
@@ -124,7 +122,6 @@ subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
                   write(21) stid,rlat,rlon,rtim,1,0
 
                   write(21) plev(k),(rdiag_m2(j,i),j=3,nreal_m2)
-!                  print *, 'added obs to level plev(k) ', plev(k)
                   ctr = ctr + 1
                endif   
 
@@ -136,6 +133,11 @@ subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
          close(21)
 
          print *, 'num recs written to GrADS file = ', ctr
+
+         file_nobs=trim(fileo)//'_'//trim(subtype)//'.nobs.'//trim(run)
+         open( 32, file=file_nobs, form='formatted', status='new' )
+         write(32,*) trim(fileo), ',', trim(subtype), ',', ctr
+         close( 32 )
 
       endif
 
