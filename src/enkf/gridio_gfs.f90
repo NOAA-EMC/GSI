@@ -1833,7 +1833,7 @@
                           write_attribute, quantize_data, has_var, has_attr
   use constants, only: grav
   use params, only: nbackgrounds,anlfileprefixes,fgfileprefixes,reducedgrid,&
-                    nccompress
+                    nccompress,write_ensmean
   implicit none
 
   integer, intent(in) :: nanal1,nanal2
@@ -1901,12 +1901,17 @@
   write(charnanal,'(i3.3)') nanal
   backgroundloop: do nb=1,nbackgrounds
 
-  if(no_inflate_flag) then
-    filenameout = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//"nimem"//charnanal
+  if (nanal == 0 .and. write_ensmean) then
+     filenamein = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"ensmean"
+     filenameout = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//"ensmean"
   else
-    filenameout = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//"mem"//charnanal
-  end if
-  filenamein = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"mem"//charnanal
+     if(no_inflate_flag) then
+       filenameout = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//"nimem"//charnanal
+     else
+       filenameout = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//"mem"//charnanal
+     end if
+     filenamein = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"mem"//charnanal
+  endif
 
   if (use_gfs_nemsio) then
      clip = tiny(vg(1))
