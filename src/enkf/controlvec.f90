@@ -352,9 +352,7 @@ if (nproc <= ntasks_io-1) then
          enddo
       endif
       if (nproc == 0 .and. write_ensmean) then
-         if (.not. use_qsatensmean) then
-           print *,'WARNING: write_ensmean should be used with use_qsatensmean, if pseudo_rh=T'
-         endif
+         ! write_ensmean implies use_qsatensmean
          do nb=1,nbackgrounds
             ! re-scale normalized spfh with sat. sphf of ensmean first guess
             grdin_mean(:,(q_ind-1)*nlevs+1:q_ind*nlevs,nb) = &
@@ -370,6 +368,7 @@ if (nproc <= ntasks_io-1) then
       end if
       if (nproc == 0) then
         if (write_ensmean) then
+           ! also write out ens mean on root task.
            if (write_fv3_incr) then
               call writeincrement(0,0,cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin_mean,no_inflate_flag)
            else
@@ -391,6 +390,7 @@ if (paranc) then
       call writegriddata_pnc(cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
    end if
    if (nproc == 0) then
+     ! also write out ens mean on root task
      if (write_ensmean) then ! FIXME use parallel IO to write ensmean
         if (write_fv3_incr) then
            call writeincrement(0,0,cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin_mean,no_inflate_flag)

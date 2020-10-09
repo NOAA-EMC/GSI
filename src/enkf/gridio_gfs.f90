@@ -3281,7 +3281,7 @@
  subroutine writeincrement(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,grdin,no_inflate_flag)
   use netcdf
   use params, only: nbackgrounds,incfileprefixes,fgfileprefixes,reducedgrid,&
-                    datestring,nhr_anal
+                    datestring,nhr_anal,write_ensmean
   use constants, only: grav
   use mpi
   use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
@@ -3346,12 +3346,17 @@
   write(charnanal,'(i3.3)') nanal
   backgroundloop: do nb=1,nbackgrounds
 
-  if(no_inflate_flag) then
-    filenameout = trim(adjustl(datapath))//trim(adjustl(incfileprefixes(nb)))//"nimem"//charnanal
+  if (nanal == 0 .and. write_ensmean) then
+     filenameout = trim(adjustl(datapath))//trim(adjustl(incfileprefixes(nb)))//"ensmean"
+     filenamein = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"ensmean"
   else
-    filenameout = trim(adjustl(datapath))//trim(adjustl(incfileprefixes(nb)))//"mem"//charnanal
-  end if
-  filenamein = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"mem"//charnanal
+     if(no_inflate_flag) then
+       filenameout = trim(adjustl(datapath))//trim(adjustl(incfileprefixes(nb)))//"nimem"//charnanal
+     else
+       filenameout = trim(adjustl(datapath))//trim(adjustl(incfileprefixes(nb)))//"mem"//charnanal
+     end if
+     filenamein = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"mem"//charnanal
+  endif
 
   ! create the output netCDF increment file
   call nccheck_incr(nf90_create(path=trim(filenameout), cmode=nf90_netcdf4, ncid=ncid_out))
