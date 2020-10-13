@@ -219,15 +219,13 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   call makegrids(rmesh,ithin,n_tbin=n_tbin)
 
 ! Set BUFR string based on seviri data set
+  hdrsevi='SAID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA SOZA'
+  nhdr=11
   if (clrsky) then
-     hdrsevi='SAID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA SOZA'
-     nhdr=11
      nchn=12
      ncld=nchn
      nbrst=nchn
   else if (allsky) then
-     hdrsevi='SAID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH'
-     nhdr=9
      nchn=11
      ncld=2
      nbrst=nchn*6                ! channel dependent: all, clear, cloudy, low, middle and high clouds
@@ -286,10 +284,10 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 !       Read through each record
         call ufbint(lnbufr,hdr,nhdr,1,iret,hdrsevi)
         if(nint(hdr(1)) /= kidsat) cycle read_loop
-        if (clrsky) then     ! asr bufr has no sza
+!       if (clrsky) then     ! asr bufr has no sza, asr bufr has sza since 2017.07
 !          remove the obs whose satellite zenith angles larger than 65 degree
            if ( hdr(ilzah) > r65 ) cycle read_loop
-        end if
+!       end if
 
  
 !       Convert obs location from degrees to radians
@@ -358,7 +356,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
         nread=nread+nchanl
 
-        rcldfrc=zero
+        rcldfrc=bmiss
         if(clrsky) then       
           call ufbrep(lnbufr,datasev1,1,ncld,iret,'NCLDMNT')
           rclrsky=bmiss
@@ -380,22 +378,35 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         call ufbrep(lnbufr,datasev2,1,nbrst,iret,'TMBRST')
         call ufbrep(lnbufr,datasev3,1,nbrst,iret,'SDTB')
 
-        allchnmiss=.true.
-        do n=4,11
-           if(datasev2(1,n)<500.)  then
-              allchnmiss=.false.
-           end if
-        end do
-        if(allchnmiss) cycle read_loop
+        if(clrsky) then       
+          allchnmiss=.true.
+          do n=4,11
+             if( datasev2(1,n)>zero .and. datasev2(1,n)<500.0_r_kind)  then
+                allchnmiss=.false.
+             end if
+          end do
+          if(allchnmiss) cycle read_loop
 
-!       toss data if SDTB>1.3
-        do i=4,11
-           if(i==5 .or. i==6) then   ! 2 water-vapor channels
-              if(datasev3(1,i)>1.3_r_kind) then
-                 cycle read_loop
+!         toss data if SDTB>1.3
+          do i=4,11
+             if(i==5 .or. i==6) then   ! 2 water-vapor channels
+                if(datasev3(1,i)>1.3_r_kind) then
+                   cycle read_loop
+             end if
+            end if
+          end do
+        end if
+
+        if(allsky) then       
+          allchnmiss=.true.
+          do k=1,nchanl
+             jj=(k+2)*6+1
+              if( datasev2(1,jj)>0. .and. datasev2(1,jj)<500.)  then
+                allchnmiss=.false.
               end if
-           end if
-        end do
+          end do
+          if(allchnmiss) cycle read_loop
+        end if
 
 !       Locate the observation on the analysis grid.  Get sst and land/sea/ice
 !       mask.  
