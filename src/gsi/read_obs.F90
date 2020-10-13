@@ -1840,12 +1840,9 @@ subroutine read_obs(ndata,mype)
                call warn('read_obs','                string =',trim(string))
              endif
 
-             write(6,8000) adjustl(string),infile,obstype,sis,nread,ithin,&
-                  rmesh,isfcalc,nouse,npe_sub(i)
-8000         format(1x,a22,': file=',a15,&
-                  ' type=',a10,  ' sis=',a20,  ' nread=',i10,&
-                  ' ithin=',i2, ' rmesh=',f11.6,' isfcalc=',i2,&
-                  ' nkeep=',i10,' ntask=',i3)
+             write(6, '(a,'': file='',a,'' type='',a,'' sis='',a,'' nread='',i10,&
+                  '' ithin='',i2,'' rmesh='',f11.6,'' isfcalc='',i2,'' nkeep='',i10,&
+                  '' ntask='',i3)')
 
           endif
        endif task_belongs
