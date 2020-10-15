@@ -365,7 +365,7 @@ module ncdw_data2d
                             diag_data2d_store%max_lens(diag_data2d_store%total) = tmp_var_dim_sizes(1)
                         end if
                         
-                        print *, trim(tmp_var_name), "rel index", rel_index
+!                       print *, trim(tmp_var_name), "rel index", rel_index
                         
                         ! Now add a relative position... based on the next position!
                         
