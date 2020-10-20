@@ -164,6 +164,7 @@
   kap = rd/cp
   kapr = cp/rd
   kap1 = kap+one
+  clip = tiny(vg(1))
 
   u_ind   = getindex(vars3d, 'u')   !< indices in the state or control var arrays
   v_ind   = getindex(vars3d, 'v')   ! U and V (3D)

@@ -35,7 +35,7 @@ export NET=$RUN
 # SENDCOM  - Copy Files From TMPDIR to $DATOUT
 # SENDDBN  - Issue DBNet Client Calls
 # RERUN    - Rerun fcst from beginning (default no)
-# VERBOSE  - Specify Verbose Output in exglobal_fcst.sh.sms
+# VERBOSE  - Specify Verbose Output in exglobal_fcst.sh
 ####################################
 export SENDSMS=YES
 export SENDCOM=YES
