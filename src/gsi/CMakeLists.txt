@@ -163,6 +163,7 @@ if(USE_GSDCLOUD)
   if(TARGET gsdcloud)
     add_dependencies(gsi_fortran_obj gsdcloud)
   endif()
+
   target_link_libraries(gsi_fortran_obj PUBLIC gsdcloud::gsdcloud)
 endif()
 if(OpenMP_Fortran_FOUND)
@@ -228,3 +229,6 @@ install(EXPORT ${PROJECT_NAME}Exports
         NAMESPACE ${PROJECT_NAME}::
         FILE ${PROJECT_NAME}-targets.cmake
         DESTINATION ${CONFIG_INSTALL_DESTINATION})
+
+# set up the preprocessor flag for FCA codes
+add_compile_definitions(-DFCA_REF_MOD -DDM_PARALLEL)

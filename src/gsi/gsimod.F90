@@ -188,6 +188,7 @@
        radiance_obstype_destroy
   use gsi_nstcouplermod, only: gsi_nstcoupler_init_nml
   use gsi_nstcouplermod, only: nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl
+  use fca_gsi_inter_m, only: fca_switch, uv_zlevel_par, initi_fca_from_gsi
   use ncepnems_io, only: init_nems,imp_physics,lupp
   use wrf_vars_mod, only: init_wrf_vars
   use gsi_rfv3io_mod,only : fv3sar_bg_opt
@@ -707,6 +708,10 @@
 !                     (.TRUE.: on; .FALSE.: off) / Inputfile: dbzbufr (bufr format)
 !     l_obsprvdiag - trigger (if true) writing out observation provider and sub-provider
 !                    information into obsdiags files (used for AutoObsQC)
+!     fca_switch - if .true., activate displacement algorithm
+!                  Only supported for ARW-WRF and fv3SAR regional applications for now
+!     uv_zlevel_par  - for displacement algorithm: fraction of vertical column where to place uv_zlevel: 
+!                      0 - lowest, 1 - highest
 !
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
@@ -752,7 +757,8 @@
        write_fv3_incr,incvars_to_zero,incvars_zero_strat,incvars_efold,diag_version,&
        cao_check,lcalc_gfdl_cfrac,tau_fcst,efsoi_order,lupdqc,lqcoef,cnvw_option,l2rwthin,hurricane_radar,&
        l_reg_update_hydro_delz, l_obsprvdiag,&
-       l_use_dbz_directDA, l_use_rw_columntilt, ta2tb
+       l_use_dbz_directDA, l_use_rw_columntilt, ta2tb, &
+       fca_switch, uv_zlevel_par
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -2162,7 +2168,7 @@
      end if
    end if
 
-
+  if (fca_switch) call initi_fca_from_gsi
 
   end subroutine gsimain_initialize
 

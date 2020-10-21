@@ -157,6 +157,9 @@ subroutine pcgsoi()
   use gsi_io, only: verbose
   use berror, only: vprecond
   use stpjomod, only: stpjo_setup
+  use fca_gsi_inter_m, only: fca_switch, idebug
+  use fca_xtofca_mod, only: xtofca
+  use fca_xtofca_adj_mod, only: xtofca_adj
   
 
   implicit none
@@ -198,6 +201,11 @@ subroutine pcgsoi()
 ! Initialize timer
   call timer_ini('pcgsoi')
 
+  if (fca_switch) then
+     write(6,*)' unsupported fca_switch option in pcgsoi, program stops'
+     write(6,*)' Either turn off fca_switch, or choose a different minimizer'
+     stop
+  endif
 ! Initialize print_verbose to control amount of print-out.
   print_verbose=.false.
   if(verbose)print_verbose=.true.

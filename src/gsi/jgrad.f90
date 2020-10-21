@@ -58,6 +58,9 @@ use xhat_vordivmod, only : xhat_vordiv_init, xhat_vordiv_calc, xhat_vordiv_clean
 use hybrid_ensemble_parameters,only : l_hyb_ens,ntlevs_ens
 use mpl_allreducemod, only: mpl_allreduce
 use obs_sensitivity, only: efsoi_o2_update
+use fca_gsi_inter_m, only: fca_switch, idebug
+use fca_xtofca_mod, only: xtofca
+use fca_xtofca_adj_mod, only: xtofca_adj
 
 implicit none
 
@@ -114,6 +117,14 @@ zjl=zero_quad  ! Moisture constraint???
 
 ! Convert from control variable to state space
 call control2state(xhat,mval,sbias)
+
+if (fca_switch) then
+   call xtofca(mval,.not. lupdfgs)     ! use linear (TLM) for initial call, NLM for final call
+   if (idebug .ge. 3) then
+      write (*,*) 'mval after xtofca with flag_linear:',.not.lupdfgs
+      call prt_state_norms(mval(1),'mval')
+   end if
+end if
 
 if (l4dvar) then
   if (l_hyb_ens) then
@@ -250,6 +261,14 @@ if (l_do_adjoint) then
           enddo
        end if
     end if
+  end if
+  if (fca_switch) then
+     call xtofca_adj(mval,.TRUE.)
+  end if
+
+  if (idebug .ge. 3) then
+     write (*,*) 'mval after xtofca_adj:'
+     call prt_state_norms(mval(1),'mval')
   end if
 
 ! Adjoint of convert control var to state space

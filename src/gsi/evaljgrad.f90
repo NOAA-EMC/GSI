@@ -73,6 +73,9 @@ use gsi_bundlemod, only: self_add,assignment(=)
 use xhat_vordivmod, only : xhat_vordiv_init, xhat_vordiv_calc, xhat_vordiv_clean
 use mpeu_util, only: die
 use mpl_allreducemod, only: mpl_allreduce
+use fca_gsi_inter_m, only: fca_switch, idebug
+use fca_xtofca_mod, only: xtofca
+use fca_xtofca_adj_mod, only: xtofca_adj
 
 implicit none
 
@@ -141,6 +144,14 @@ zjb=dot_product(gradx,gradx,r_quad)
 
 ! Convert from control space to model space
 call control2model(xhat,mval,sbias)
+
+if (fca_switch) then
+   call xtofca(mval,.not. lupdfgs)     ! use linear (TLM) for initial call, NLM for final call
+   if (idebug .ge. 3) then
+      write (*,*) 'mval after xtofca with flag_linear:',.not.lupdfgs
+      call prt_state_norms(mval(1),'mval')
+   end if
+end if
 
 if (nprt>=2) then
    do ii=1,nsubwin
@@ -275,12 +286,20 @@ if (l_do_adjoint) then
          enddo
       end if
    end if
-
+   
    if (nprt>=2) then
       do ii=1,nsubwin
          call prt_state_norms(mval(ii),'mval')
       enddo
    endif
+
+   if (fca_switch) then
+      call xtofca_adj(mval,.TRUE.)
+      if (idebug .ge. 3) then
+         write (*,*) 'mval after xtofca_adj:'
+         call prt_state_norms(mval(1),'mval')
+      end if
+   end if
 
 !  Adjoint of convert control var to physical space
    call control2model_ad(mval,rbias,gradx)
