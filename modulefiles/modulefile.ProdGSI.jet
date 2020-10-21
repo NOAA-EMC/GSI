@@ -12,15 +12,13 @@
 #
 #
 
-module use -a /contrib/sutils/modulefiles 
-module load sutils
+module load intel/18.0.5.274
+module load impi
+#
+module load szip/2.1
+module load hdf5/1.8.9
 
-module load intel/18.0.5.274 
-module load impi/2018.4.274
-module load hdf5/1.10.4
-module load netcdf/4.6.1
- 
-export COREPATH=/mnt/lfs4/HFIP/hfv3gfs/gwv/l0530/lib
+export COREPATH=/lfs4/HFIP/hfv3gfs/gwv/l0530/lib
 export NCEPLIBS=$COREPATH
 module use $NCEPLIBS/modulefiles
 
@@ -31,11 +29,11 @@ module load crtm-intel-sandybridge/2.2.5
 module load bufr-intel-sandybridge/11.1.0
 module load nemsio-intel-sandybridge/2.2.2
 module load sp-intel-sandybridge/2.0.2
-module load ip-intel-sandybridge/3.0.0
 module load w3emc-intel-sandybridge/2.2.0
 module load w3nco-intel-sandybridge/2.0.6
 module load sigio-intel-sandybridge/2.0.1
 module load sfcio-intel-sandybridge/1.0.0
+module load ip-intel-sandybridge/3.0.0
 
-export NETCDF=${NETCDF}
-export NETCDF_DIR=${NETCDF}
+
+module load netcdfp/4.7.4

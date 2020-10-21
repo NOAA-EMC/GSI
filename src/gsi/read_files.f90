@@ -38,6 +38,7 @@ subroutine read_files(mype)
 !   2017-09-08  li      - add sfcnst_comb to get nfldnst and control when sfc & nst combined 
 !   2019-03-21  Wei/Martin - add capability to read in aerosol guess from NEMS
 !   2019-09-24  martin  - add support for use_gfs_ncio
+!   2020-07-08  Wei     - fix the capability to count external aerosol files
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -161,6 +162,7 @@ subroutine read_files(mype)
   nfldsig=0
   nfldsfc=0
   nfldnst=0
+  nfldaer=0
   iamana=0
 
 ! Check for non-zero length atm, sfc, aer, and nst files on single task
@@ -218,6 +220,24 @@ subroutine read_files(mype)
         end if
 
         allocate(time_nst(nfldnst,2))
+     end if
+
+     if(lread_ext_aerosol) then
+!    Check for aer files with non-zero length
+        do i=0,max_file-1
+           write(filename,'(''aerf'',i2.2)')i
+           call gsi_inquire(lenbytes,fexist,filename,mype)
+           if(fexist .and. lenbytes>0) then
+              nfldaer=nfldaer+1
+              irec(nfldaer,4) = i
+           end if
+        enddo
+        if(nfldaer==0) then
+           write(6,*)'READ_FILES: ***ERROR*** NO aer fields; aborting'
+           call stop2(170)
+        end if
+
+        allocate(time_aer(nfldaer,2))
      end if
 
 ! Let a single task query the guess files.
@@ -491,6 +511,7 @@ subroutine read_files(mype)
 !    for external aerosol files only
 !    Check for consistency of times from aer guess files.
      if ( lread_ext_aerosol ) then
+        write(6,*) 'READ_FILES: nfldaer ', nfldaer
         iwan=0
         do i=1,nfldaer
            write(filename,'(''aerf'',i2.2)')irec(i,4)
@@ -525,7 +546,7 @@ subroutine read_files(mype)
            idate5(3)=idateg(3); idate5(4)=idateg(1); idate5(5)=0
            call w3fs21(idate5,nmings)
            nming2=nmings+60*hourg
-           write(6,*)'READ_FILES:  aer guess file, hourg, idateg, nming2 ',hourg,idateg,nming2
+           write(6,*)'READ_FILES:  aer guess file',filename,hourg,idateg,nming2
            t4dv=real((nming2-iwinbgn),r_kind)*r60inv
            if (l4dvar.or.l4densvar) then
               if (t4dv<zero .OR. t4dv>winlen) cycle
