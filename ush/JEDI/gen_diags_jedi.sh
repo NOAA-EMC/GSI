@@ -19,7 +19,7 @@ OutDir=/scratch2/NCEPDEV/stmp1/$LOGNAME/JEDI/$NOWTIME/output/$adate
 
 GSIDir=/scratch1/NCEPDEV/da/Cory.R.Martin/GSI/files_for_jedi_v15/
 gsiexec=$GSIDir/exec/global_gsi.x
-nccat=$GSIdDir/exec/nc_diag_cat_serial.x
+nccat=$GSIDir/exec/nc_diag_cat_serial.x
 fixgsi=$GSIDir/fix
 USHDir=$GSIDir/ush/
 
