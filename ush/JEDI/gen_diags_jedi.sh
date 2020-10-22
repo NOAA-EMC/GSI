@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -J gen_diags_jedi 
 #SBATCH -A da-cpu
-#SBATCH --nodes=4
-#SBATCH --ntasks-per-node=20
+#SBATCH --nodes=8
+#SBATCH --ntasks-per-node=10
 #SBATCH -t 30:00
 #SBATCH -o SLURM_%x.o%j
 #SBATCH -e SLURM_%x.e%j
@@ -17,10 +17,9 @@ GuessDir=/scratch1/NCEPDEV/da/Cory.R.Martin/JEDI/ICs_for_test/
 WorkDir=/scratch2/NCEPDEV/stmp1/$LOGNAME/JEDI/$NOWTIME/GSI_work/$adate
 OutDir=/scratch2/NCEPDEV/stmp1/$LOGNAME/JEDI/$NOWTIME/output/$adate
 
-GSIDir=/scratch1/NCEPDEV/da/Cory.R.Martin/GSI/ProdGSI_forJEDI
-GSIBuildDir=$GSIDir/build
-gsiexec=$GSIBuildDir/bin/gsi.x
-nccat=$GSIBuildDir/bin/nc_diag_cat_serial.x
+GSIDir=/scratch1/NCEPDEV/da/Cory.R.Martin/GSI/files_for_jedi_v15/
+gsiexec=$GSIDir/exec/global_gsi.x
+nccat=$GSIdDir/exec/nc_diag_cat_serial.x
 fixgsi=$GSIDir/fix
 USHDir=$GSIDir/ush/
 
