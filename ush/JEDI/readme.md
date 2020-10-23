@@ -25,6 +25,11 @@ Things to change in submit_run_gsi.sh include:
 - guessroot: path to $ROTDIR
 - jcap, jcap_b, levs: hopefully self explanatory, set to match your background files
 - dump: gdas or gfs
+
+Things specific to the IODA-converters portion
+- iodaconvbuild: path to the build directory of the ioda-converters
+- JEDImodule: path to a modulefile to source to get the JEDI environment
+
 Other things one can change
 - RootWork: defaults to stmp2 but can be anywhere
 - obsdir: default is glopara global dump
