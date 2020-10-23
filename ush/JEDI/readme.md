@@ -26,10 +26,6 @@ Things to change in submit_run_gsi.sh include:
 - jcap, jcap_b, levs: hopefully self explanatory, set to match your background files
 - dump: gdas or gfs
 
-Things specific to the IODA-converters portion
-- iodaconvbuild: path to the build directory of the ioda-converters
-- JEDImodule: path to a modulefile to source to get the JEDI environment
-
 Other things one can change
 - RootWork: defaults to stmp2 but can be anywhere
 - obsdir: default is glopara global dump
@@ -40,6 +36,19 @@ After making your changes, submit the script:
 sbatch submit_run_gsi.sh
 
 ### To convert these GSI netCDF diag files to JEDI UFO GeoVaLs files and IODA observation files
+
+At the end of submit_run_gsi.sh, by default, the script will then submit submit_run_iodaconv.sh.
+This is to save resources, as the IODA-converters script does not require more than one node.
+
+Things specific to the IODA-converters portion
+- iodaconvbuild: path to the build directory of the ioda-converters
+- JEDImodule: path to a modulefile to source to get the JEDI environment
+Other things you will still need to change
+- adate: YYYYMMDDHH analysis date (or it gets this from $1)
+- rootwork: if you changed this before, need to be consistent!
+
+To run this again, without running GSI, just submit the file to slurm.
+sbatch submit_run_iodaconv.sh YYYYMMDDHH
 
 ### Summary of changes made between NOAA-EMC/GSI/release/gfsda.v16.0.0 and this branch feature/jedi_gfsv16
 

@@ -33,7 +33,24 @@ mkdir -p $IODA_data_iodaoutdir
 
 #
 # run script
-$IODA_iodaconv_iodaconvbin -n 20 -o $IODA_data_iodaoutdir $IODA_data_gsiindir
+python $IODA_iodaconv_iodaconvbin -n 20 -o $IODA_data_iodaoutdir -g $IODA_data_geovaloutdir $IODA_data_gsiindir
+
+# subset obs
+python $IODA_iodaconv_subsetbin -n 24 -m $IODA_data_iodaoutdir -g $IODA_data_geovaloutdir
+python $IODA_iodaconv_subsetbin -n 24 -s $IODA_data_iodaoutdir -g $IODA_data_geovaloutdir
+
+# combine conventional obs
+python $IODA_iodaconv_combineconvbin -i $IODA_data_iodaoutdir/sfc_*m.nc4 -o $IODA_data_iodaoutdir/sfc_obs_"$adate"_m.nc4 -g $IODA_data_geovaloutdir/
+python $IODA_iodaconv_combineconvbin -i $IODA_data_iodaoutdir/sfcship_*m.nc4 -o $IODA_data_iodaoutdir/sfcship_obs_"$adate"_m.nc4 -g $IODA_data_geovaloutdir/
+python $IODA_iodaconv_combineconvbin -i $IODA_data_iodaoutdir/aircraft_*m.nc4 -o $IODA_data_iodaoutdir/aircraft_obs_"$adate"_m.nc4 -g $IODA_data_geovaloutdir/
+python $IODA_iodaconv_combineconvbin -i $IODA_data_iodaoutdir/sondes_ps*m.nc4 $IODA_data_iodaoutdir/sondes_q*m.nc4 $IODA_data_iodaoutdir/sondes_tsen*m.nc4 $IODA_data_iodaoutdir/sondes_uv*m.nc4 -o $IODA_data_iodaoutdir/sondes_obs_"$adate"_m.nc4 -g $IODA_data_geovaloutdir/
+python $IODA_iodaconv_combineconvbin -i $IODA_data_iodaoutdir/sondes_ps*m.nc4 $IODA_data_iodaoutdir/sondes_q*m.nc4 $IODA_data_iodaoutdir/sondes_tv*m.nc4 $IODA_data_iodaoutdir/sondes_uv*m.nc4 -o $IODA_data_iodaoutdir/sondes_tvirt_obs_"$adate"_m.nc4 -g $IODA_data_geovaloutdir/
+python $IODA_iodaconv_combineconvbin -i $IODA_data_iodaoutdir/sfc_*s.nc4 -o $IODA_data_iodaoutdir/sfc_obs_"$adate"_s.nc4 -g $IODA_data_geovaloutdir/
+python $IODA_iodaconv_combineconvbin -i $IODA_data_iodaoutdir/sfcship_*s.nc4 -o $IODA_data_iodaoutdir/sfcship_obs_"$adate"_s.nc4 -g $IODA_data_geovaloutdir/
+python $IODA_iodaconv_combineconvbin -i $IODA_data_iodaoutdir/aircraft_*s.nc4 -o $IODA_data_iodaoutdir/aircraft_obs_"$adate"_s.nc4 -g $IODA_data_geovaloutdir/
+python $IODA_iodaconv_combineconvbin -i $IODA_data_iodaoutdir/sondes_ps*s.nc4 $IODA_data_iodaoutdir/sondes_q*s.nc4 $IODA_data_iodaoutdir/sondes_tsen*s.nc4 $IODA_data_iodaoutdir/sondes_uv*s.nc4 -o $IODA_data_iodaoutdir/sondes_obs_"$adate"_s.nc4 -g $IODA_data_geovaloutdir/
+python $IODA_iodaconv_combineconvbin -i $IODA_data_iodaoutdir/sondes_ps*s.nc4 $IODA_data_iodaoutdir/sondes_q*s.nc4 $IODA_data_iodaoutdir/sondes_tv*s.nc4 $IODA_data_iodaoutdir/sondes_uv*s.nc4 -o $IODA_data_iodaoutdir/sondes_tvirt_obs_"$adate"_s.nc4 -g $IODA_data_geovaloutdir/
+
 
 if [[ "$IODA_iodaconv_cleanup" = "true" ]]; then
   cd $IODA_data_iodaoutdir

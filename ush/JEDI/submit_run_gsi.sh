@@ -16,8 +16,6 @@ jcap=766
 jcap_b=1534
 levs=64
 dump='gdas'
-iodaconvbuild=/scratch1/NCEPDEV/da/Cory.R.Martin/JEDI/ioda-converters/build
-JEDImodule=/scratch1/NCEPDEV/da/Cory.R.Martin/JEDI/env_jedi_rh
 ##### things it is not necessary to change but you can
 RootWork=/scratch1/NCEPDEV/stmp2/$LOGNAME/GSI_forJEDI/
 obsdir=/scratch1/NCEPDEV/global/glopara/dump/
@@ -65,25 +63,5 @@ EOF
 # run GSI observer
 $MyDir/run_gsi_observer.sh $RootWork/GSI_observer_$adate.yaml || exit 1
 
-# create YAML for IODA converters
-rm -rf $RootWork/GSI_iodaconv_$adate.yaml
-cat > $RootWork/GSI_iodaconv_$adate.yaml << EOF
-data:
-  gsiindir: $RootWork/${adate}/GSI_out
-  iodaoutdir: $RootWork/${adate}/output
-  iodaworkdir: $RootWork/${adate}/iodaconv_work
-env:
-  launcher: srun --export=ALL
-  modulefile: $JEDImodule
-  nthreads: 1
-iodaconv:
-  iodaconvbin: $iodaconvbuild/bin/proc_gsi_ncdiag.py
-time:
-  cycle: '$Ha'
-  day: '$Da'
-  month: '$Ma'
-  year: '$Ya'
-EOF
-
-# run IODA converters
-$MyDir/run_gsi_iodaconv.sh $RootWork/GSI_iodaconv_$adate.yaml || exit 1
+# submit the IODA-converters script, comment out if you do not want to run this
+sbatch $MyDir/submit_run_iodaconv.sh $adate
