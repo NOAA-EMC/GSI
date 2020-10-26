@@ -191,6 +191,24 @@ if [[ ! -s ${pgrbf06} ]]; then
    export pgrbf06="${C_GDATDIR}/gdas.t${GCYC}z.pgrb2.1p00.f006"
 fi
 
+#---------------------------------------------
+# override the default convinfo definition
+# if there's a copy in C_TANKDIR/info
+#
+if [[ -e ${C_TANKDIR}/info/global_convinfo.txt ]]; then
+   echo " overriding convinfo definition"
+   export convinfo=${C_TANKDIR}/info/global_convinfo.txt
+fi
+
+#---------------------------------------------
+# override the default conmon_base definition
+# if there's a copy in C_TANKDIR/info
+#
+if [[ -e ${C_TANKDIR}/info/gdas_conmon_base.txt ]]; then
+   echo " overriding conmon_base definition"
+   export conmon_base=${C_TANKDIR}/info/gdas_conmon_base.txt
+fi
+
 
 exit_value=0
 if [ -s $cnvstat  -a -s $pgrbf00 -a -s $pgrbf06 ]; then

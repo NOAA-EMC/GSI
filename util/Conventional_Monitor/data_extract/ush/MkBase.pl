@@ -72,10 +72,8 @@
             # insert into hash %sums using $type_$subtype as the key
             #
             my $key = $type . "_" . $subtype;
-            print "key = $key\n";
 
             if( exists( $sums{$key} )){
-               print "add to existing\n";
                push @{ $sums{$key} }, $count;
             } 
             else {
@@ -221,8 +219,6 @@
 
    do {
       $idx = $idx -1;
-#      print " idx = $idx \n";
- 
       my $hr_ctr = $#hrs + 1;
 
       my @spl = split /\./, ${sortrun[$idx]};
@@ -238,7 +234,6 @@
          $hr_ctr = $hr_ctr - 1;
 
          my $cycle = $date . ${hrs[$hr_ctr]};
-#         print "cycle = $cycle\n";
  
          my $obs_file = "${dirpath}/${sortrun[$idx]}/${hrs[$hr_ctr]}/conmon/horz_hist/anl/nobs.anl.$cycle";
          my $comp_obs_file = $obs_file . '.gz';
@@ -248,10 +243,7 @@
          }
 
          if( -e $obs_file ) {
-#            print " EXISTS:  $obs_file\n";
-
             process_nobs_file( $obs_file );
-
             system( "gzip", $obs_file );
          }
 
@@ -259,18 +251,8 @@
 
       $cycle_ctr = $cycle_ctr + 1;
 
-#      print "cycle_ctr = $cycle_ctr\n";
-
    } while $idx > 0 && $cycle_ctr < 120;
 
    calc_avgs( $dir, $net, $run );
 
-#   my $key;
-#   foreach $key (sort keys %sums) {
-#      print "$key ==>\n";
-#      for my $count (@{ $sums{ $key } }) {
-#         if( looks_like_number( $count )) {
-#            print "    $count\n";
-#         }
-#      }
-#   }
+   exit 0

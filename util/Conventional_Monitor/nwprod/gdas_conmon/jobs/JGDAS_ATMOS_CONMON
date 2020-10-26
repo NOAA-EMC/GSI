@@ -80,7 +80,7 @@ export NDATE=${NDATE:-$utilexec/ndate}
 export C_TANKDIR=${C_TANKDIR:-/com/verf/${envir}}
 export C_COM_IN=${C_COM_IN:-${COMROOTp3}/${NET}/${envir}}
 export C_COMIN=${C_COMIN:-$C_COM_IN/${RUN}.${PDY}}
-export CONMON_SUFFIX=${CMON_SUFFIX:-gdas}
+export CONMON_SUFFIX=${CONMON_SUFFIX:-gdas}
 
 m6h_date=`$NDATE -06 $PDATE`
 export CYC_m6h=`echo $m6h_date|cut -c9-10`

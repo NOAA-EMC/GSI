@@ -79,7 +79,8 @@
    export pgrbf06=${pgrbf06}
 
    export convinfo=${convinfo:-${FIXgdas}/global_convinfo.txt}	
-						
+   export conmon_base=${conmon_base:-${HOMEgdas_conmon}/fix/gdas_conmon_base.txt}
+
    echo "cnvstat = $cnvstat"
    echo "pgrbf00 = $pgrbf00"
    echo "pgrbf06 = $pgrbf06"

@@ -9,8 +9,15 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
 
    export CONMON_CONFIG=1
 
-export MY_MACHINE=hera
+   export MY_MACHINE=wcoss_d
 
+
+   #-----------------------------------------------------
+   #  DO_DATA_RPT controls the generation of automated
+   #  warning messages to detect and report potential 
+   #  low counts by data type_subtype.
+   #
+   export DO_DATA_RPT=${DO_DATA_RPT:-1}
 
    #-----------------------------------------------------
    #   The grib2 flag indicates if the data files are in
@@ -22,7 +29,7 @@ export MY_MACHINE=hera
    # MY_CONMON should point to your working directory which contains the
    # top level directory to the ConMon package. 
    #
-export MY_CONMON=/scratch1/NCEPDEV/da/Edward.Safford/noscrub/GSI/util/Conventional_Monitor
+export MY_CONMON=/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/GSI/util/Conventional_Monitor
 
    #---------------------------------------------------------------------------
    #  The CONMON_TANKDIR will be the location for the extracted data files and
@@ -31,7 +38,7 @@ export MY_CONMON=/scratch1/NCEPDEV/da/Edward.Safford/noscrub/GSI/util/Convention
    #  this location.
    #
 
-export CONMON_TANKDIR=/scratch1/NCEPDEV/da/Edward.Safford/save/nbns
+export CONMON_TANKDIR=/u/Edward.Safford/nbns
    export C_TANKverf=${C_TANKverf:-${CONMON_TANKDIR}}
 
    export C_TANKDIR=${CONMON_TANKDIR}/stats/${CONMON_SUFFIX}
@@ -100,11 +107,11 @@ export CONMON_TANKDIR=/scratch1/NCEPDEV/da/Edward.Safford/save/nbns
 
    export Z="gz"
 
-export ACCOUNT=${ACCOUNT:-fv3-cpu}
+export ACCOUNT=${ACCOUNT:-}
  
-export C_STMP=${C_STMP:-/scratch2/NCEPDEV/stmp1}
+export C_STMP=${C_STMP:-/gpfs/dell2/stmp}
    export C_STMP_USER=${C_STMP_USER:-${C_STMP}/${LOGNAME}}
-export C_PTMP=${C_PTMP:-/scratch2/NCEPDEV/stmp3}
+export C_PTMP=${C_PTMP:-/gpfs/dell2/ptmp}
    export C_PTMP_USER=${C_PTMP_USER:-${C_PTMP}/${LOGNAME}}
 
    export C_LOGDIR=${C_PTMP_USER}/logs/${CONMON_SUFFIX}/${RUN}/conmon

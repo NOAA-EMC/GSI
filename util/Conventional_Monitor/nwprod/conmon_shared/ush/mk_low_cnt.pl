@@ -43,42 +43,45 @@
    ##------------------------------------------------------------------
    ##------------------------------------------------------------------
 
-   my $net  = 'GFS';
-   my $run  = 'gdas';
-   my $cyc  = '';
-   my $dir  = '';
+   my $net   = 'GFS';
+   my $run   = 'gdas';
+   my $cyc   = '';
+   my $nobsf = '';
+   my $lcntf = '';
+   my $basef = '';
 
-   GetOptions( 'net:s' => \$net,
-               'run:s' => \$run,
-               'cyc:s' => \$cyc,
-               'dir:s' => \$dir);
+   GetOptions( 'net:s'   => \$net,
+               'run:s'   => \$run,
+               'cyc:s'   => \$cyc,
+               'nobsf:s' => \$nobsf,
+               'lcntf:s' => \$lcntf,
+               'basef:s' => \$basef );
 
-   print " net = $net\n";
-   print " run = $run\n";
-   print " cyc = $cyc\n";
-   print " dir = $dir\n";
-              
- 
-   #------------------------------ 
-   #  locate nobs.ges.$pdate file
-   #
-   my $pdy = substr $cyc, 0, 8;
-   my $hr  = substr $cyc, 8, 2;
-   print " pdy = $pdy \n";
-   print " hr  = $hr \n";
+   print " net   = $net\n";
+   print " run   = $run\n";
+   print " cyc   = $cyc\n";
+   print " nobsf = $nobsf\n";
+   print " lcntf = $lcntf\n";
+   print " basef = $basef\n";
 
-   my $nobs_ges = "${dir}/${net}/${run}.${pdy}/${hr}/conmon/horz_hist/ges/nobs.ges.${cyc}";
-   print "nobs_ges = $nobs_ges\n";
-
-   my $comp_nobs = "${nobs_ges}.gz";
-   if( -e $comp_nobs ){
-      system( "gunzip ${comp_nobs}" );
+   if( length( $cyc ) != 10 ){
+      print "Error:  cyc value of $cyc is missing or invalid\n";              
+      exit 1
    }
+   
+   #----------------------------- 
+   #  uncompress the nobs file
+   #
+   my $compressed_nobs = "${nobsf}.gz";
+   if( -e $compressed_nobs ){
+      system( "gunzip ${compressed_nobs}" );
+   }
+
 
    #-----------------------
    #  read in nobs file
    #
-   open( FILE, "${nobs_ges}" ) or die( "Unable to open ${nobs_ges}" );
+   open( FILE, "${nobsf}" ) or die( "Unable to open ${nobsf}" );
    my @nobs_data = <FILE>;
    close( FILE );
 
@@ -97,15 +100,15 @@
    #-----------------------------------------------
    #  locate gdas_conmon_base.txt, load into hash   
    #
-   my $home = "HOME" . ${run} . "_conmon";
-   my $base_file = $ENV{ "$home" };
-   $base_file=${base_file} . "/fix/" . ${run} . "_conmon_base.txt";
-   print "base_file = ${base_file} \n";
+#   my $home = "HOME" . ${run} . "_conmon";
+#   my $base_file = $ENV{ "$home" };
+#   $base_file=${base_file} . "/fix/" . ${run} . "_conmon_base.txt";
+#   print "base_file = ${base_file} \n";
 
    #------------------------------------------------
    #  read in gdas_conmon_base.txt, load into hash
    #
-   open( FILE, "${base_file}" ) or die( "Unable to open ${base_file}" );
+   open( FILE, "${basef}" ) or die( "Unable to open ${basef}" );
    my @base_data = <FILE>;
    close( FILE );
 
@@ -116,10 +119,9 @@
       my $value = trim( $words[1] );
       $base_hash{ $key } = $value;
    }
-   foreach my $key (keys %base_hash)
-   {
+
+   foreach my $key (keys %base_hash) {
      my $value = $base_hash{$key};
- #    print "  $key , $value\n";
    } 
 
 
@@ -128,19 +130,22 @@
    #  Create entry in low_cnt.txt file. 
    #  If count is low write to low_cnt.
    #
-   my $low_cnt = "${dir}/${net}/${run}.${pdy}/${hr}/conmon/horz_hist/ges/low_cnt.ges.${cyc}";
-   open( FILE, '>', "${low_cnt}" ) or die( "Unable to open ${low_cnt}" );
+#   my $low_cnt = "${dir}/${run}.${pdy}/${hr}/conmon/horz_hist/ges/low_cnt.ges.${cyc}";
+   open( FILE, '>', "${lcntf}" ) or die( "Unable to open ${lcntf}" );
 
    foreach my $key (keys %nobs_hash)
    {
      my $nobs  = $nobs_hash{ $key };
      my $bound = $base_hash{ $key }; 
+     my $avg   = $bound;
+
+     #--------------------------------------------
+     #  start with a gross check of 75% of average
+     #
      $bound = $bound * 0.75;
 
-     print "key, nobs, bound = $key, $nobs, $bound \n";
      if( $nobs < $bound ) {
-        print "RED LIGHT!\n";
-        print FILE, "$key, $nobs, $bound\n";
+        print FILE "$key, $nobs, $bound, $avg\n";
      }
    } 
    close( FILE );

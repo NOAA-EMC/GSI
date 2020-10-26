@@ -189,6 +189,16 @@ if [[ $PDATE -le ${last_cycle} ]]; then
       echo ${PDATE} > ${C_IMGNDIR}/last_plot_time
    fi
 
+   #--------------------------------------------------------------------
+   #  Mail warning reports 
+   #--------------------------------------------------------------------
+#   if (( $DO_DATA_RPT = 1 )); then
+#     warn_file=${C_TANKDIR}/${RUN}.${PDY}/${CYC}/conmon/horz_hist/ges/err_rpt.ges.${PDATE}
+#     if [[ -e ${warn_file} ]]; then
+#          
+#     fi
+#   fi
+
 else
    echo "UNABLE to plot ${PDATE}, last processed date is ${last_cycle}"
    exit 4

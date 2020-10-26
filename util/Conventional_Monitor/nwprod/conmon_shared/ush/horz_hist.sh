@@ -100,8 +100,35 @@
 
       cat *nobs.${run} > nobs.${run}.${PDATE}
       cp nobs.${run}.${PDATE} ${dest_dir}/.
+  
+      #--------------------------------- 
+      #  run the mk_low_cnt.pl script 
+      #--------------------------------- 
+      ${USHconmon}/mk_low_cnt.pl --net ${CONMON_SUFFIX} \
+             --run ${RUN}  --cyc ${PDATE}  --dir ${C_TANKDIR} \
+             --nobsf ${TANKDIR_conmon}/horz_hist/${run}/nobs.${run}.${PDATE} \
+             --lcntf ${TANKDIR_conmon}/horz_hist/${run}/low_cnt.${run}.${PDATE} \
+             --basef ${HOMEgdas_conmon}/fix/gdas_conmon_base.txt
+
+
+      #--------------------------------
+      #  run the mk_err_rpt.pl script
+      #--------------------------------
+      low_cnt_file=${TANKDIR_conmon}/horz_hist/${run}/low_cnt.${run}.${PDATE}
+      if [[ -e ${low_cnt_file}.gz ]]; then
+         $UNCOMPRESS ${low_cnt_file}.gz
+      fi
+
+      prev_low_cnt_file=${TANKDIR_prev_conmon}/horz_hist/${run}/low_cnt.${run}.${GDATE}
+      if [[ -e ${prev_low_cnt_file}.gz ]]; then
+         $UNCOMPRESS ${prev_low_cnt_file}.gz
+      fi
+
+      ${USHconmon}/mk_err_rpt.pl --net ${CONMON_SUFFIX} --run ${RUN} \
+             --lcf ${low_cnt_file} --plcf ${prev_low_cnt_file} \
+             --cyc0 ${PDATE} --cyc1 ${GDATE} \
+             --errf ${TANKDIR_conmon}/horz_hist/${run}/err_rpt.${run}.${PDATE}
    done
-   
 
 echo "<-- horz_hist.sh"
 
