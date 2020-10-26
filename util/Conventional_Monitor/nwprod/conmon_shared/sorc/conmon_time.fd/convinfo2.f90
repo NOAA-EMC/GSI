@@ -7,14 +7,17 @@
 
    implicit none
 
-   integer,dimension(100) :: iotype_ps,iotype_q,iotype_t,iotype_uv 
-   integer,dimension(100) :: iosubtype_ps,iosubtype_q,iosubtype_t,iosubtype_uv 
-   integer,dimension(100) :: ituse_ps,ituse_q,ituse_t,ituse_uv 
-   real(4),dimension(100,2) :: varqc_ps,varqc_q,varqc_t,varqc_uv
+   integer,dimension(200) :: iotype_ps,iotype_q,iotype_t,iotype_uv 
+   integer,dimension(200) :: iosubtype_ps,iosubtype_q,iosubtype_t,iosubtype_uv 
+   integer,dimension(200) :: ituse_ps,ituse_q,ituse_t,ituse_uv 
+   real(4),dimension(200,2) :: varqc_ps,varqc_q,varqc_t,varqc_uv
 
    integer ittype,ituse,ntumgrp,ntgroup,ntmiter,isubtype
    integer  lunin,ntype_ps,ntype_q,ntype_t,ntype_uv,iflag
    real(8) :: ttwind,gtross,etrmax,etrmin,vtar_b,vtar_pg
+
+   real(8) :: rmesh, pmesh, pmot, ptime
+   integer    ithin, npred
 
    character(120):: crecord
    character(7) :: ctype 
@@ -38,8 +41,6 @@
    varqc_t=0.0
    varqc_uv=0.0
   
-  
-
    print *, 'start coninfo subroutine'
    open(lunin,file='convinfo',form='formatted')
    rewind(lunin)
@@ -51,8 +52,10 @@
       if( iflag /= 0 ) exit loopd
 
       read(crecord,*)ittype,isubtype,ituse,ttwind,ntumgrp,ntgroup,ntmiter,&
-                      gtross,etrmax,etrmin,vtar_b,vtar_pg
-
+                      gtross,etrmax,etrmin,vtar_b,vtar_pg, &
+                      ithin, rmesh, pmesh, npred, pmot, ptime 
+                       
+      
       if(trim(ctype) == 'ps' ) then
          ntype_ps=ntype_ps+1
          iotype_ps(ntype_ps)=ittype
@@ -74,7 +77,6 @@
          ntype_t=ntype_t+1
          iotype_t(ntype_t)=ittype
          iosubtype_t(ntype_t)=isubtype
-
          varqc_t(ntype_t,1)=vtar_b
          varqc_t(ntype_t,2)=vtar_pg
          ituse_t(ntype_t)=ituse
@@ -93,6 +95,7 @@
    enddo  loopd
 
 1030 format(a1,a7,2x,a120)
+   print *, 'end coninfo subroutine'
 
    return
 

@@ -13,10 +13,10 @@
    parameter(np=13)
    parameter(mregion=10)
    real(4),dimension(np) :: ptop,pbot,ptopq,pbotq
-   integer,dimension(100) :: iotype_ps,iotype_q,iotype_uv,iotype_t
-   integer,dimension(100) :: iosubtype_ps,iosubtype_q,iosubtype_uv,iosubtype_t
-   integer,dimension(100) :: ituse_ps,ituse_q,ituse_uv,ituse_t
-   real(4),dimension(100,2) :: varqc_ps,varqc_q,varqc_uv,varqc_t
+   integer,dimension(200) :: iotype_ps,iotype_q,iotype_uv,iotype_t
+   integer,dimension(200) :: iosubtype_ps,iosubtype_q,iosubtype_uv,iosubtype_t
+   integer,dimension(200) :: ituse_ps,ituse_q,ituse_uv,ituse_t
+   real(4),dimension(200,2) :: varqc_ps,varqc_q,varqc_uv,varqc_t
    character(len=7) dtype_ps,dtype_uv,dtype_t,dtype_q
 
    character(40),dimension(mregion):: region
