@@ -113,7 +113,7 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use state_vectors, only: svars3d, levels
 
   use constants, only : zero,half,one,two,tiny_r_kind
-  use constants, only : rozcon,cg_term,wgtlim,h300,r10
+  use constants, only : rozcon,cg_term,wgtlim,h300,r10,r1000,constoz 
 
   use m_obsdiagNode, only : obs_diag
   use m_obsdiagNode, only : obs_diags
@@ -201,6 +201,7 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   real(r_kind),dimension(nlevs):: pobs,gross,tnoise
   real(r_kind),dimension(nreal+nlevs,nobs):: data
   real(r_kind),dimension(nsig+1)::prsitmp
+  real(r_kind),dimension(nsig)::ozgestmp   ! GeoVaLs for JEDI/UFO
   real(r_single),dimension(nlevs):: pob4,grs4,err4
   real(r_single),dimension(ireal,nobs):: diagbuf
   real(r_single),allocatable,dimension(:,:,:)::rdiagbuf
@@ -409,7 +410,13 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
            ozp_omi(nloz_omi) = prsitmp(1)
            call grdcrd1(ozp_omi(nloz_omi),prsitmp,nsig+1,-1)
         end if
-        
+
+       ! GeoVaLs for JEDI/UFO
+       call tintrp2a1(ges_oz,ozgestmp,dlat,dlon,dtime,hrdifsig,&
+                      nsig,mype,nfldsig)
+       call tintrp2a1(ges_prsi, prsitmp,dlat,dlon,dtime,hrdifsig,&
+                      nsig+1,mype,nfldsig)
+
         if (obstype /= 'omieff' .and. obstype /= 'tomseff') then
            call intrp3oz1(ges_oz,ozges,dlat,dlon,ozp,dtime,&
                 nlevs,mype,doz_dz)
@@ -593,6 +600,9 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
                    call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind)
                    call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val,r_single))
                  endif
+                 ! GeoVaLs for JEDI/UFO
+                 call nc_diag_data2d("mole_fraction_of_ozone_in_air", sngl(ozgestmp*constoz)) !emily 
+                 call nc_diag_data2d("air_pressure_levels",sngl(prsitmp*r1000))
               endif
            endif
 

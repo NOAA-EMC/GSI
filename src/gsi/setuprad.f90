@@ -280,9 +280,9 @@ contains
       finish_sst_retrieval,spline_cub
   use m_dtime, only: dtime_setup, dtime_check
   use crtm_interface, only: init_crtm,call_crtm,destroy_crtm,sensorindex,surface, &
-      itime,ilon,ilat,ilzen_ang,ilazi_ang,iscan_ang,iscan_pos,iszen_ang,isazi_ang, &
+      atmosphere,itime,ilon,ilat,ilzen_ang,ilazi_ang,iscan_ang,iscan_pos,iszen_ang,isazi_ang, &
       ifrac_sea,ifrac_lnd,ifrac_ice,ifrac_sno,itsavg, &
-      izz,idomsfc,isfcr,iff10,ilone,ilate, &
+      izz,idomsfc,isfcr,iff10,ilone,ilate, n_clouds_fwd_wk, n_absorbers, &
       isst_hires,isst_navy,idata_type,iclr_sky,itref,idtw,idtc,itz_tr
   use qcmod, only: qc_ssmi,qc_geocsr,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms
   use crtm_interface, only: ilzen_ang2,iscan_ang2,iszen_ang2,isazi_ang2
@@ -2487,6 +2487,8 @@ contains
   real(r_single),parameter::  missing = -9.99e9_r_single
   integer(i_kind),parameter:: imissing = -999999
   real(r_kind),dimension(:),allocatable :: predbias_angord
+  character(128) :: fieldname
+  integer(i_kind) :: iabsorb, icloud
 
   if (adp_anglebc) then
     allocate(predbias_angord(angord) )
@@ -2662,7 +2664,32 @@ contains
                        call nc_diag_data2d("BCPred_angord",   sngl(predbias_angord)                                )
                     endif
                  end if
+                 ! GeoVaLs for JEDI/UFO
+                 ! Get GeoVaLs for surface 
+                 call nc_diag_metadata("Vegetation_Type",    sngl(surface(1)%vegetation_type)                   )
+                 call nc_diag_metadata("Lai",                sngl(surface(1)%lai)                               )
+                 call nc_diag_metadata("Soil_Type",          sngl(surface(1)%soil_type)                         )
 
+                 call nc_diag_metadata("Sfc_Wind_Direction", sngl(surface(1)%wind_direction)                    )
+                 call nc_diag_metadata("Sfc_Height",         sngl(zsges    )                                    )   ! do we need this for geoval? I think we do not
+
+                 ! Get GeoVaLs for atmosphere
+                 call nc_diag_data2d("air_temperature",      sngl(atmosphere(1)%temperature)                    )   ! K 
+                 call nc_diag_data2d("air_pressure",         sngl(atmosphere(1)%pressure*r100)                  )
+                 call nc_diag_data2d("air_pressure_levels",  sngl(atmosphere(1)%level_pressure*r100)            )
+
+                 ! Get GeoVaLs for atmospheric absorbers
+                 do iabsorb = 1, n_absorbers
+                   write (fieldname, "(A,I0.2)") "atmosphere_absorber_", atmosphere(1)%absorber_id(iabsorb)
+                   call nc_diag_data2d(trim(fieldname),      sngl(atmosphere(1)%absorber(:,iabsorb))            )   ! check %absorber_units
+                 enddo
+                 ! Get GeoVaLs for hydrometeors 
+                 do icloud = 1, n_clouds_fwd_wk
+                   write (fieldname, "(A,I0.2)") "atmosphere_mass_content_of_cloud_", atmosphere(1)%Cloud(icloud)%Type
+                   call nc_diag_data2d(trim(fieldname),      sngl(atmosphere(1)%Cloud(icloud)%Water_Content)    )
+                   write (fieldname, "(A,I0.2)") "effective_radius_of_cloud_particle_", atmosphere(1)%Cloud(icloud)%Type
+                   call nc_diag_data2d(trim(fieldname),      sngl(atmosphere(1)%Cloud(icloud)%Effective_Radius) )
+                 enddo
               enddo
 !  if (adp_anglebc) then
   if (.true.) then
