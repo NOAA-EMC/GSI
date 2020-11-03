@@ -98,12 +98,20 @@ set -ax
    #-------------------------
 
    grads -bpc "run ./plotstas_time_count_ps.gs"
-   mv -f *.png ${outdir}/.
+#   mv -f *.png ${outdir}/.
  
    grads -bpc "run ./plotstas_time_bias_ps.gs"
-   mv -f *.png ${outdir}/.
+#   mv -f *.png ${outdir}/.
 
    grads -bpc "run ./plotstas_time_bias2_ps.gs"
+
+   img_files=`ls *.png`
+   for imgf in $img_files; do
+      newf=`echo $imgf | sed -e "s/\./.${PDATE}./g"`
+      cp $imgf $newf
+      mv $newf ${C_IMGNDIR}/pngs/time/.
+   done
+
    mv -f *.png ${outdir}/.
 
 

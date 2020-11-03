@@ -130,6 +130,13 @@ set -ax
 
    done
 
+   img_files=`ls *vert*.png`
+   for imgf in $img_files; do
+      newf=`echo $imgf | sed -e "s/\./.${PDATE}./g"`
+      cp $imgf $newf
+      mv $newf ${C_IMGNDIR}/pngs/vert/.
+   done
+
    mv -f *.png ${outdir}/.
   
    if [[ ${C_IG_SAVE_WORK} -eq 0 ]]; then

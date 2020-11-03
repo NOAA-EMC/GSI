@@ -186,6 +186,13 @@
 
          mkdir -p ${C_IMGNDIR}/pngs/horz/${CYC}
 
+         img_files=`ls *.png`
+         for imgf in $img_files; do
+            newf=`echo $imgf | sed -e "s/\./.${PDATE}./g"`
+            cp $imgf $newf
+            mv $newf ${C_IMGNDIR}/pngs/horz/.
+         done
+
          mv -f *.png ${C_IMGNDIR}/pngs/horz/${CYC}/.
 
       done      ### dtype loop 

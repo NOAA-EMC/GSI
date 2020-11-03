@@ -118,6 +118,13 @@ set -ax
       #-------------------------
       grads -bpc "run ./${local_plot_script}"
 
+      img_files=`ls *.png`
+      for imgf in $img_files; do
+         newf=`echo $imgf | sed -e "s/\./.${PDATE}./g"`
+         cp $imgf $newf
+         mv $newf ${C_IMGNDIR}/pngs/time/.
+      done
+
       mv -f *.png ${outdir}/.
 
       num_pngs=`ls -1 *.png | wc -l`

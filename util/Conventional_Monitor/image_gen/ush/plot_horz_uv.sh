@@ -175,8 +175,17 @@ set -ax
          ${GRADS} -blc "run plothorz_${dtype}.gs"
 
 
-         mkdir -p ${C_IMGNDIR}/pngs/horz/${CYC}
-         mv -f  *.png ${C_IMGNDIR}/pngs/horz/${CYC}/.
+         outdir=${C_IMGNDIR}/pngs/horz/${CYC}
+         mkdir -p ${outdir}
+        
+         img_files=`ls *.png`
+         for imgf in $img_files; do
+            newf=`echo $imgf | sed -e "s/\./.${PDATE}./g"`
+            cp $imgf $newf
+            mv $newf ${C_IMGNDIR}/pngs/horz/.
+         done
+
+         mv -f  *.png ${outdir}/.
 
       done      ### dtype loop 
    done      ### type loop

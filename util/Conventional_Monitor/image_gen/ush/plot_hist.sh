@@ -302,6 +302,14 @@ set -ax
  
          echo 'quit' | grads -blc " run plothist_${dtype}.gs" 
          rm fileout
+    
+         img_files=`ls *hist*.png`
+         for imgf in $img_files; do
+            newf=`echo $imgf | sed -e "s/\./.${PDATE}./g"`
+            echo $newf
+            cp $imgf $newf
+            mv $newf ${C_IMGNDIR}/pngs/hist/. 
+         done
 
          mv -f *hist*.png ${C_IMGNDIR}/pngs/hist/${CYC}/.
 
