@@ -105,12 +105,21 @@ case $machine in
    export accnt="p48503002"
    ;;
    Hera)
+<<<<<<< HEAD
+   if [ -d /scratch4/NCEPDEV/da/noscrub/$LOGNAME ]; then 
+     export noscrub="/scratch4/NCEPDEV/da/noscrub/$LOGNAME"
+   elif [ -d /scratch4/NCEPDEV/global/noscrub/$LOGNAME ]; then 
+     export noscrub="/scratch4/NCEPDEV/global/noscrub/$LOGNAME"
+    elif [ -d /scratch3/BMC/gsienkf/$LOGNAME ]; then
+     export noscrub="/scratch3/BMC/gsienkf/$LOGNAME"
+=======
    if [ -d /scratch1/NCEPDEV/da/$LOGNAME ]; then 
      export noscrub="/scratch1/NCEPDEV/da/$LOGNAME/noscrub"
    elif [ -d /scratch1/NCEPDEV/global/$LOGNAME ]; then 
      export noscrub="/scratch1/NCEPDEV/global/$LOGNAME/noscrub"
     elif [ -d /scratch2/BMC/gsienkf/$LOGNAME ]; then
      export noscrub="/scratch2/BMC/gsienkf/$LOGNAME"
+>>>>>>> master
    fi
  
    export group="global"
@@ -131,7 +140,7 @@ case $machine in
 
    #  On Hera, there are no scrubbers to remove old contents from stmp* directories.
    #  After completion of regression tests, will remove the regression test subdirecories
-   export clean=".true."
+#  export clean=".true."
    ;;
    WCOSS_C)
    if [ -d /gpfs/hps3/emc/global/noscrub/$LOGNAME ]; then

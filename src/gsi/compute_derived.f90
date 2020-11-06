@@ -322,9 +322,15 @@ subroutine compute_derived(mype,init_pass)
 ! NOTE:  tropopause pressure is not needed for 2dvar option
 
        if(regional)then
+          call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q',ges_q,ier)
+          if(ier == 0) then  !clt for being now
           call tpause(mype,'temp')
+          endif 
        else     ! (regional)
+          call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q',ges_q,ier)!clt for being now just to get ier
+          if(ier == 0) then  !clt for being now
           call tpause(mype,'pvoz')
+          endif 
        end if   ! (regional)
   
      endif       ! (init_pass)

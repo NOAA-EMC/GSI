@@ -35,6 +35,7 @@ contains
       use constants, only: zero,one,half,zero_single,rd_over_cp,one_tenth
       use mpimod, only: mpi_comm_world,ierror,mype
       use hybrid_ensemble_parameters, only: n_ens,grd_ens
+      use hybrid_ensemble_parameters, only: l_both_fv3sar_gfs_ens, n_ens_gfs,n_ens_fv3sar
       use hybrid_ensemble_parameters, only: ntlevs_ens,ensemble_path
       use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
       use gsi_bundlemod, only: gsi_bundlecreate
@@ -67,19 +68,30 @@ contains
       integer(i_kind):: ic2,ic3
       integer(i_kind):: m
 
-      
+      character(255) filelists(ntlevs_ens)
       character(255) ensfilenam_str
       type(type_fv3regfilenameg)::fv3_filename 
+      integer(i_kind):: imem_start,n_fv3sar
+      if(n_ens.ne.(n_ens_gfs+n_ens_fv3sar)) then
+        write(6,*)'wrong, the sum of  n_ens_gfs and n_ens_fv3sar not equal n_ens, stop'
+        call stop2(222)
+      endif
+      if(l_both_fv3sar_gfs_ens) then
+        imem_start=n_ens_gfs+1
+      else
+        imem_start=1
+        
+      endif
   
       call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
       ! Allocate bundle to hold mean of ensemble members
       allocate(en_bar(ntlevs_ens))
       do m=1,ntlevs_ens
-        call gsi_bundlecreate(en_bar(m),grid_ens,'ensemble',istatus,names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
-        if(istatus/=0) then
-           write(6,*)' get_fv3_regional_ensperts_netcdf: trouble creating en_bar bundle'
-           call stop2(9991)
-        endif
+      call gsi_bundlecreate(en_bar(m),grid_ens,'ensemble',istatus,names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
+      if(istatus/=0) then
+         write(6,*)' get_fv3_regional_ensperts_netcdf: trouble creating en_bar bundle'
+         call stop2(9991)
+      endif
       enddo ! for m 
   
 
@@ -91,7 +103,7 @@ contains
   ! INITIALIZE ENSEMBLE MEAN ACCUMULATORS
          en_bar(m)%values=zero
   
-         do n=1,n_ens
+         do n=imem_start,n_ens
             en_perts(n,m)%valuesr4 = zero
          enddo
   
@@ -100,8 +112,9 @@ contains
          kapr=one/rd_over_cp
   !
   ! LOOP OVER ENSEMBLE MEMBERS 
-         do n=1,n_ens
-          write(ensfilenam_str,22) trim(adjustl(ensemble_path)),ens_fhrlevs(m),n
+         do n_fv3sar=1,n_ens_fv3sar
+            n=n_ens_gfs+n_fv3sar
+          write(ensfilenam_str,22) trim(adjustl(ensemble_path)),ens_fhrlevs(m),n_fv3sar
 22  format(a,'fv3SAR',i2.2,'_ens_mem',i3.3)
   ! DEFINE INPUT FILE NAME
              fv3_filename%grid_spec=trim(ensfilenam_str)//'-fv3_grid_spec' !exmaple thinktobe
@@ -113,7 +126,7 @@ contains
   ! 
   ! READ ENEMBLE MEMBERS DATA
             if (mype == 0) write(6,'(a,a)') 'CALL READ_FV3_REGIONAL_ENSPERTS FOR ENS DATA with the filename str : ',trim(ensfilenam_str)
-            call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz) 
+            call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,mype) 
   
   ! SAVE ENSEMBLE MEMBER DATA IN COLUMN VECTOR
             do ic3=1,nc3d
@@ -229,7 +242,7 @@ contains
          enddo 
   !
   ! CALCULATE ENSEMBLE MEAN
-         bar_norm = one/float(n_ens)
+         bar_norm = one/float(n_ens_fv3sar)
          en_bar(m)%values=en_bar(m)%values*bar_norm
   
   ! Copy pbar to module array.  ps_bar may be needed for vertical localization
@@ -257,12 +270,11 @@ contains
   !
   ! CALCULATE ENSEMBLE SPREAD
          call this%ens_spread_dualres_regional(mype,en_perts,nelen,en_bar(m))
-         call mpi_barrier(mpi_comm_world,ierror)
   !
   ! CONVERT ENSEMBLE MEMBERS TO ENSEMBLE PERTURBATIONS
-         sig_norm=sqrt(one/max(one,n_ens-one))
+         sig_norm=sqrt(one/max(one,n_ens_fv3sar-one))
   
-         do n=1,n_ens
+         do n=imem_start,n_ens
             do i=1,nelen
                en_perts(n,m)%valuesr4(i)=(en_perts(n,m)%valuesr4(i)-en_bar(m)%values(i))*sig_norm
             end do
@@ -289,17 +301,31 @@ contains
 
   end subroutine get_fv3_regional_ensperts_run
   
-  subroutine general_read_fv3_regional(this,fv3_filenameginput,g_ps,g_u,g_v,g_tv,g_rh,g_oz)
+  subroutine general_read_fv3_regional(this,fv3_filenameginput,g_ps,g_u,g_v,g_tv,g_rh,g_oz,mype)
+!clt modified from rad_fv3_netcdf_guess
   !$$$  subprogram documentation block
-  !     first compied from general_read_arw_regional           .      .    .                                       .
-  ! subprogram:    general_read_fv3_regional  read fv3sar model ensemble members
-  !   prgmmr: Ting             org: emc/ncep            date: 2018
+  !                .      .    .                                       .
+  ! subprogram:    general_read_fv3_regional  read arw model ensemble members
+  !   prgmmr: mizzi            org: ncar/mmm            date: 2010-08-11
   !
-  ! abstract: read ensemble members from the fv3sar model in "restart" or "cold start"  netcdf format
+  ! abstract: read ensemble members from the arw model in "wrfout" netcdf format
   !           for use with hybrid ensemble option. 
   !
   ! program history log:
-  !   2018-  Ting      - intial versions  
+  !   2010-08-11  parrish, initial documentation
+  !   2010-09-10  parrish, modify so ensemble variables are read in the same way as in
+  !               subroutines convert_netcdf_mass and read_fv3_regional_binary_guess.
+  !               There were substantial differences due to different opinion about what
+  !               to use for surface pressure.  This issue should be resolved by coordinating
+  !               with Ming Hu (ming.hu@noaa.gov).  At the moment, these changes result in
+  !               agreement to single precision between this input method and the guess input
+  !               procedure when the same file is read by both methods.
+  !   2012-03-12  whitaker:  read data on root, distribute with scatterv.
+  !                          remove call to general_reload.
+  !                          simplify, fix memory leaks, reduce memory footprint.
+  !                          use genqsat, remove genqsat2_regional.
+  !                          replace bare 'stop' statements with call stop2(999).
+  !   2017-03-23  Hu      - add code to use hybrid vertical coodinate in WRF MASS core
   !
   !   input argument list:
   !
@@ -342,6 +368,7 @@ contains
       real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2),intent(out):: g_ps
       real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig) ::g_tsen, g_q,g_prsl 
       real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig+1) ::g_prsi 
+      integer(i_kind),intent(in)::mype
   !
   ! Declare local parameters
       real(r_kind),parameter:: r0_01 = 0.01_r_kind
@@ -367,7 +394,6 @@ contains
       
       associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
       end associate
-
 
 
     grid_spec=fv3_filenameginput%grid_spec
@@ -488,7 +514,7 @@ contains
   !
     use kinds, only: r_single,r_kind,i_kind
     use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,p_e2a,uv_hyb_ens, &
-                                          regional_ensemble_option
+                                          regional_ensemble_option,write_ens_sprd
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sube2suba
     use constants, only:  zero,two,half,one
     use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
@@ -637,7 +663,7 @@ contains
        ps => dum2
     end if
   
-    call write_spread_dualres(st,vp,tv,rh,oz,cw,ps,mype)
+    if(write_ens_sprd) call write_spread_dualres(st,vp,tv,rh,oz,cw,ps,mype)
   
     return
   end subroutine ens_spread_dualres_regional_fv3_regional

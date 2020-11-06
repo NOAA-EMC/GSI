@@ -123,6 +123,7 @@
      use_gfs_nemsio,sfcnst_comb,use_readin_anl_sfcmask,use_sp_eqspace,final_grid_vars,&
      jcap_gfs,nlat_gfs,nlon_gfs,jcap_cut,wrf_mass_hybridcord,use_gfs_ncio,write_fv3_incr,&
      use_fv3_aero
+  use gridmod,only: fv3_regional_dd_reduce,nlon_fv3_regional_reduce,nlat_fv3_regional_reduce
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop
   use gsi_io, only: init_io,lendian_in,verbose,print_obs_para
   use regional_io_mod, only: regional_io_class
@@ -145,6 +146,7 @@
                          readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens,&
                          readin_beta,use_localization_grid,use_gfs_ens,q_hyb_ens,i_en_perts_io, &
                          l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB
+  use hybrid_ensemble_parameters,only : l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar
   use rapidrefresh_cldsurf_mod, only: init_rapidrefresh_cldsurf, &
                             dfi_radar_latent_heat_time_period,metar_impact_radius,&
                             metar_impact_radius_lowcloud,l_gsd_terrain_match_surftobs, &
@@ -417,6 +419,9 @@
 !  05-09-2019 mtong     move initializing derivative vector here
 !  06-19-2019 Hu        Add option reset_bad_radbc for reseting radiance bias correction when it is bad
 !  06-25-2019 Hu        Add option print_obs_para to turn on OBS_PARA list
+!  08-23-2019 lei       add integer parameter fv3sar_ensemble_opt to select the format of the FV3SAR ensembles 
+!                                 =0;  restart files
+!                                 =1;  cold start IC files from CHGRES
 !  07-09-2019 Todling   Introduce cld_det_dec2bin and diag_version
 !  07-11-2019 Todling   move vars imp_physics,lupp from CV to init_nems
 !  07-29-2019 pondeca   add logical variable "neutral_stability_windfact_2dvar" that provides option to use a simple,
@@ -730,7 +735,7 @@
        diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,nems_nmmb_regional,fv3_regional,&
        wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nvege_type,nlayers,cmaq_regional,&
        nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_fv3_regional,grid_ratio_wrfmass,jcap_gfs,jcap_cut,&
-       wrf_mass_hybridcord
+       wrf_mass_hybridcord,fv3_regional_dd_reduce,nlon_fv3_regional_reduce,nlat_fv3_regional_reduce
 
 ! BKGERR (background error related variables):
 !     vs       - scale factor for vertical correlation lengths for background error
@@ -1066,7 +1071,7 @@
 !     sst_staticB - use only static background error covariance for SST statistic
 !              
 !                         
-  namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
+  namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar,nlon_ens,nlat_ens,jcap_ens,&
                 pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,fv3sar_bg_opt,fv3sar_ensemble_opt,full_ensemble,pwgtflg,&
                 jcap_ens_test,beta_s0,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,readin_beta,&
                 grid_ratio_ens, &
@@ -1423,6 +1428,17 @@
         c_varqc=c_varqc_new
      end if
   end if
+  if(.not. l_both_fv3sar_gfs_ens) then
+    if (regional_ensemble_option==5) then 
+     n_ens_gfs=0
+     n_ens_fv3sar=n_ens
+    elseif (regional_ensemble_option==1) then 
+     n_ens_gfs=n_ens
+    else 
+     write(6,*)'n_ens_gfs and n_ens_fv3sar won"t be used if not regional_ensemble_option==5' 
+    endif
+    
+  endif
   if(ltlint) then
      if(vqc .or. njqc .or. nvqc)then
        vqc = .false.

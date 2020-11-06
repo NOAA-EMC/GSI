@@ -29,7 +29,6 @@ subroutine convert_fv3_regional
   use kinds, only: r_single,r_kind,i_kind
   use gsi_rfv3io_mod, only: gsi_rfv3io_get_grid_specs
   use gsi_rfv3io_mod, only: bg_fv3regfilenameg 
-
   implicit none
   integer(i_kind) ierr
   character(128) grid_spec,ak_bk

@@ -36,6 +36,8 @@ module gsi_rfv3io_mod
 
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlon_regional,nlat_regional
+  use mod_fv3_lolgrid, only: p_fv3sar2anlgrid 
+  use mod_fv3_lolgrid, only: p_fv3sar2ensgrid 
   implicit none
   public type_fv3regfilenameg
   public bg_fv3regfilenameg
@@ -65,6 +67,7 @@ module gsi_rfv3io_mod
   private
 ! set subroutines to public
   public :: gsi_rfv3io_get_grid_specs
+  public :: gsi_rfv3io_get_ens_grid_specs
   public :: gsi_fv3ncdf_read
   public :: gsi_fv3ncdf_read_v1
   public :: gsi_fv3ncdf_readuv
@@ -178,9 +181,12 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
   use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
   use netcdf, only: nf90_inquire_variable
   use mpimod, only: mype
-  use mod_fv3_lola, only: generate_anl_grid
+!cltorg  use mod_fv3_lola, only: generate_anl_grid
+  use mod_fv3_lolgrid, only: generate_regular_grids
   use gridmod,  only:nsig,regional_time,regional_fhr,regional_fmin,aeta1_ll,aeta2_ll
   use gridmod,  only:nlon_regional,nlat_regional,eta1_ll,eta2_ll
+  use gridmod,  only:region_lat,region_lon,nlat,nlon
+  use gridmod,  only: region_dy,region_dx,region_dyi,region_dxi,coeffy,coeffx
   use kinds, only: i_kind,r_kind
   use constants, only: half,zero
   use mpimod, only: mpi_comm_world,mpi_itype,mpi_rtype
@@ -317,13 +323,136 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
     endif
 
 !!!!!!! setup A grid and interpolation/rotation coeff.
-    call generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
+    call generate_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,p_fv3sar2anlgrid, &
+                              nlat,nlon,region_lat,region_lon, &
+                             region_dx,region_dy, &
+                             region_dxi,region_dyi, &
+                             coeffx,coeffy)
 
     deallocate (grid_lon,grid_lat,grid_lont,grid_latt)
     deallocate (ak,bk,abk_fv3)
 
     return
 end subroutine gsi_rfv3io_get_grid_specs
+subroutine gsi_rfv3io_get_ens_grid_specs(grid_spec,ierr)
+!$$$  subprogram documentation block
+!                .      .    .                                        .
+! subprogram:    gsi_rfv3io_get_ens_grid_specs
+! modified from     gsi_rfv3io_get_grid_specs
+!   pgrmmr: parrish     org: np22                date: 2017-04-03
+!
+! abstract:  obtain grid dimensions nx,ny and grid definitions
+!                grid_x,grid_xt,grid_y,grid_yt,grid_lon,grid_lont,grid_lat,grid_latt
+!                nz,ak(nz),bk(nz)
+!
+! program history log:
+!   2017-04-03  parrish - initial documentation
+!   2017-10-10  wu - setup A grid and interpolation coeff with generate_anl_grid
+!   2018-02-16  wu - read in time info from file coupler.res
+!                    read in lat, lon at the center and corner of the grid cell
+!                    from file fv3_grid_spec, and vertical grid infor from file fv3_akbk
+!                    setup A grid and interpolation/rotation coeff
+!   input argument list:
+!    grid_spec
+!    ak_bk
+!    lendian_out
+!
+!   output argument list:
+!    ierr
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+  use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
+  use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
+  use netcdf, only: nf90_inquire_variable
+  use hybrid_ensemble_parameters, only: nlon_ens,nlat_ens
+  use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
+  use mpimod, only: mype
+!cltorg  use mod_fv3_lola, only: generate_anl_grid
+  use mod_fv3_lolgrid, only: definecoef_regular_grids 
+  use gridmod,  only:region_lat,region_lon,nlat,nlon
+  use gridmod,  only: region_dy,region_dx,region_dyi,region_dxi,coeffy,coeffx
+  use kinds, only: i_kind,r_kind
+  use constants, only: half,zero
+  use mpimod, only: mpi_comm_world,ierror,mpi_itype,mpi_rtype
+
+  implicit none
+
+  character(:),allocatable,intent(in) :: grid_spec
+  integer(i_kind) gfile_grid_spec,gfile_ak_bk,gfile_dynvars
+  integer(i_kind) gfile_tracers,gfile_sfcdata
+!  integer(i_kind) :: gfile
+!  save gfile
+
+  type (type_fv3regfilenameg) :: fv3filenamegin
+  integer(i_kind),intent(  out) :: ierr
+  integer(i_kind) i,k,ndimensions,iret,nvariables,nattributes,unlimiteddimid
+  integer(i_kind) len,gfile_loc
+  character(len=128) :: name
+  
+
+
+!!!!! set regional_time
+!cltorg    open(24,file='coupler.res',form='formatted')
+
+!!!!!!!!!!    grid_spec  !!!!!!!!!!!!!!!
+    iret=nf90_open(trim(grid_spec),nf90_nowrite,gfile_grid_spec)
+    if(iret/=nf90_noerr) then
+       write(6,*)' problem opening1 ',trim(grid_spec),', Status = ',iret
+       ierr=1
+       return
+    endif
+
+    iret=nf90_inquire(gfile_grid_spec,ndimensions,nvariables,nattributes,unlimiteddimid)
+    gfile_loc=gfile_grid_spec
+    do k=1,ndimensions
+       iret=nf90_inquire_dimension(gfile_loc,k,name,len)
+       if(trim(name)=='grid_xt') nx=len
+       if(trim(name)=='grid_yt') ny=len
+    enddo
+    if(mype==0)write(6,*),'nx,ny=',nx,ny
+
+!!!    get nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,nz,ak,bk
+
+    allocate(grid_lat(nx+1,ny+1))
+    allocate(grid_lon(nx+1,ny+1))
+    allocate(grid_latt(nx,ny))
+    allocate(grid_lont(nx,ny))
+
+    do k=ndimensions+1,nvariables
+       iret=nf90_inquire_variable(gfile_loc,k,name,len)
+       if(trim(name)=='grid_lat') then
+          iret=nf90_get_var(gfile_loc,k,grid_lat)
+       endif
+       if(trim(name)=='grid_lon') then
+          iret=nf90_get_var(gfile_loc,k,grid_lon)
+       endif
+       if(trim(name)=='grid_latt') then
+          iret=nf90_get_var(gfile_loc,k,grid_latt)
+       endif
+       if(trim(name)=='grid_lont') then
+          iret=nf90_get_var(gfile_loc,k,grid_lont)
+       endif
+    enddo
+
+    iret=nf90_close(gfile_loc)
+
+!!!    get ak,bk
+
+
+
+!!!!!!! setup A grid and interpolation/rotation coeff.
+    call definecoef_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,p_fv3sar2ensgrid, &
+                              nlat_ens,nlon_ens,region_lat_ens,region_lon_ens)
+
+    deallocate (grid_lon,grid_lat,grid_lont,grid_latt)
+
+    return
+end subroutine gsi_rfv3io_get_ens_grid_specs
 
 subroutine read_fv3_files(mype)
 !$$$  subprogram documentation block
@@ -675,13 +804,9 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
        ges_prsi(:,:,nsig+1,it)=eta1_ll(nsig+1)
        ges_ps=ges_ps*0.001_r_kind
        do k=1,nsig
-         ges_prsi(:,:,k,it)=eta1_ll(k)+eta2_ll(k)*ges_ps  
+          ges_prsi(:,:,k,it)=eta1_ll(k)+eta2_ll(k)*ges_ps  
        enddo
     endif
-    
-
-
-
 
     if( fv3sar_bg_opt == 0) then 
       call gsi_fv3ncdf_read(tracers,'SPHUM','sphum',ges_q,mype_q)
@@ -734,7 +859,7 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z)
     use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
     use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
     use netcdf, only: nf90_inquire_variable
-    use mod_fv3_lola, only: fv3_h_to_ll,nxa,nya
+    use mod_fv3_lolgrid, only: fv3_h_to_ll_regular_grids,nxa,nya
     use constants, only: grav
 
     implicit none
@@ -808,7 +933,7 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z)
        if(allocated(sfc       )) deallocate(sfc       )
        allocate(sfc(dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))))
        iret=nf90_get_var(gfile_loc,i,sfc)
-       call fv3_h_to_ll(sfc(:,:,1),a,nx,ny,nxa,nya)
+       call fv3_h_to_ll_regular_grids(sfc(:,:,1),a,nx,ny,nxa,nya,p_fv3sar2anlgrid)
 
        kk=0
        do n=1,npe
@@ -856,7 +981,7 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z)
     iret=nf90_close(gfile_loc)
 
     k=k_orog
-    call fv3_h_to_ll(sfc1,a,nx,ny,nxa,nya)
+    call fv3_h_to_ll_regular_grids(sfc1,a,nx,ny,nxa,nya,p_fv3sar2anlgrid)
 
     kk=0
     do n=1,npe
@@ -928,7 +1053,7 @@ subroutine gsi_fv3ncdf2d_read_v1(filenamein,varname,varname2,work_sub,mype_io)
     use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
     use netcdf, only: nf90_inq_varid
     use netcdf, only: nf90_inquire_variable
-    use mod_fv3_lola, only: fv3_h_to_ll
+    use mod_fv3_lolgrid, only: fv3_h_to_ll_regular_grids
     use general_commvars_mod, only: ltosi_s,ltosj_s
 
     implicit none
@@ -941,9 +1066,9 @@ subroutine gsi_fv3ncdf2d_read_v1(filenamein,varname,varname2,work_sub,mype_io)
     real(r_kind),allocatable,dimension(:,:):: a
 
 
-    integer(i_kind) n,ndim
+    integer(i_kind) n,ns,k,len,ndim
     integer(i_kind) gfile_loc,var_id,iret
-    integer(i_kind) kk,j,mm1,ii,jj
+    integer(i_kind) nz,nzp1,kk,j,mm1,i,ir,ii,jj
     integer(i_kind) ndimensions,nvariables,nattributes,unlimiteddimid
 
     mm1=mype+1
@@ -976,7 +1101,7 @@ subroutine gsi_fv3ncdf2d_read_v1(filenamein,varname,varname2,work_sub,mype_io)
        if(allocated(uu       )) deallocate(uu       )
        allocate(uu(nx,ny,1))
        iret=nf90_get_var(gfile_loc,var_id,uu)
-          call fv3_h_to_ll(uu(:,:,1),a,nx,ny,nlon,nlat)
+          call fv3_h_to_ll_regular_grids(uu(:,:,1),a,nx,ny,nlon,nlat,p_fv3sar2anlgrid)
           kk=0
           do n=1,npe
              do j=1,ijn_s(n)
@@ -1031,7 +1156,7 @@ subroutine gsi_fv3ncdf_read(filenamein,varname,varname2,work_sub,mype_io)
     use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
     use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
     use netcdf, only: nf90_inquire_variable
-    use mod_fv3_lola, only: fv3_h_to_ll
+    use mod_fv3_lolgrid, only: fv3_h_to_ll_regular_grids
     use general_commvars_mod, only: ltosi_s,ltosj_s
 
     implicit none
@@ -1071,7 +1196,8 @@ subroutine gsi_fv3ncdf_read(filenamein,varname,varname2,work_sub,mype_io)
        enddo
 
 
-       do k=ndimensions+1,nvariables
+!cltorg       do k=ndimensions+1,nvariables
+       do k=1,nvariables
           iret=nf90_inquire_variable(gfile_loc,k,name,len)
           if(trim(name)==varname .or. trim(name)==varname2) then
              iret=nf90_inquire_variable(gfile_loc,k,ndims=ndim)
@@ -1088,7 +1214,7 @@ subroutine gsi_fv3ncdf_read(filenamein,varname,varname2,work_sub,mype_io)
        nzp1=nz+1
        do i=1,nz
           ir=nzp1-i
-          call fv3_h_to_ll(uu(:,:,i),a,dim(dim_id(1)),dim(dim_id(2)),nlon,nlat)
+          call fv3_h_to_ll_regular_grids(uu(:,:,i),a,dim(dim_id(1)),dim(dim_id(2)),nlon,nlat,p_fv3sar2anlgrid)
           kk=0
           do n=1,npe
              ns=displss(n)+(ir-1)*ijn_s(n)
@@ -1149,7 +1275,7 @@ subroutine gsi_fv3ncdf_read_v1(filenamein,varname,varname2,work_sub,mype_io)
     use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
     use netcdf, only: nf90_inquire_variable
     use netcdf, only: nf90_inq_varid
-    use mod_fv3_lola, only: fv3_h_to_ll
+    use mod_fv3_lolgrid, only: fv3_h_to_ll_regular_grids
     use general_commvars_mod, only: ltosi_s,ltosj_s
 
     implicit none
@@ -1159,12 +1285,12 @@ subroutine gsi_fv3ncdf_read_v1(filenamein,varname,varname2,work_sub,mype_io)
     character(len=128) :: name
     real(r_kind),allocatable,dimension(:,:,:):: uu
     real(r_kind),allocatable,dimension(:,:,:):: temp0 
-    integer(i_kind),allocatable,dimension(:):: dim
+    integer(i_kind),allocatable,dimension(:):: dim_id,dim
     real(r_kind),allocatable,dimension(:):: work
     real(r_kind),allocatable,dimension(:,:):: a
 
 
-    integer(i_kind) n,ns,k,len,var_id
+    integer(i_kind) n,ns,k,len,ndim,var_id
     integer(i_kind) gfile_loc,iret
     integer(i_kind) nztmp,nzp1,kk,j,mm1,i,ir,ii,jj
     integer(i_kind) ndimensions,nvariables,nattributes,unlimiteddimid
@@ -1207,7 +1333,7 @@ subroutine gsi_fv3ncdf_read_v1(filenamein,varname,varname2,work_sub,mype_io)
        nzp1=nztmp+1
        do i=1,nztmp
           ir=nzp1-i
-          call fv3_h_to_ll(uu(:,:,i),a,nx,ny,nlon,nlat)
+          call fv3_h_to_ll_regular_grids(uu(:,:,i),a,nx,ny,nlon,nlat,p_fv3sar2anlgrid)
           kk=0
           do n=1,npe
              ns=displss(n)+(ir-1)*ijn_s(n)
@@ -1262,7 +1388,7 @@ subroutine gsi_fv3ncdf_readuv(dynvarsfile,ges_u,ges_v)
     use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
     use netcdf, only: nf90_inquire_variable
     use netcdf, only: nf90_inq_varid
-    use mod_fv3_lola, only: fv3_h_to_ll,nya,nxa,fv3uv2earth
+    use mod_fv3_lolgrid, only: fv3_h_to_ll_regular_grids,nya,nxa,fv3uv2earth_regular_grids
     use general_commvars_mod, only: ltosi_s,ltosj_s
 
     implicit none
@@ -1331,11 +1457,11 @@ subroutine gsi_fv3ncdf_readuv(dynvarsfile,ges_u,ges_v)
        nzp1=nz+1
        do i=1,nz
           ir=nzp1-i 
-          call fv3uv2earth(temp1(:,:,i),uu(:,:,i),nx,ny,u,v)
+          call fv3uv2earth_regular_grids(temp1(:,:,i),uu(:,:,i),nx,ny,u,v,p_fv3sar2anlgrid)
           if(mype==mype_u)then
-             call fv3_h_to_ll(u,a,nx,ny,nxa,nya)
+             call fv3_h_to_ll_regular_grids(u,a,nx,ny,nxa,nya,p_fv3sar2anlgrid)
           else
-             call fv3_h_to_ll(v,a,nx,ny,nxa,nya)
+             call fv3_h_to_ll_regular_grids(v,a,nx,ny,nxa,nya,p_fv3sar2anlgrid)
           endif
           kk=0
           do n=1,npe
@@ -1391,7 +1517,7 @@ subroutine gsi_fv3ncdf_readuv_v1(dynvarsfile,ges_u,ges_v)
     use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
     use netcdf, only: nf90_inquire_variable
     use netcdf, only: nf90_inq_varid
-    use mod_fv3_lola, only: fv3_h_to_ll,nya,nxa,fv3uv2earth
+    use mod_fv3_lolgrid, only: fv3_h_to_ll_regular_grids,nya,nxa,fv3uv2earth_regular_grids
     use general_commvars_mod, only: ltosi_s,ltosj_s
 
     implicit none
@@ -1400,7 +1526,7 @@ subroutine gsi_fv3ncdf_readuv_v1(dynvarsfile,ges_u,ges_v)
     real(r_kind)   ,intent(out  ) :: ges_v(lat2,lon2,nsig) 
     character(len=128) :: name
     real(r_kind),allocatable,dimension(:,:,:):: uu,temp0
-    integer(i_kind),allocatable,dimension(:):: dim
+    integer(i_kind),allocatable,dimension(:):: dim_id,dim
     real(r_kind),allocatable,dimension(:):: work
     real(r_kind),allocatable,dimension(:,:):: a
     real(r_kind),allocatable,dimension(:,:):: uorv
@@ -1462,12 +1588,12 @@ subroutine gsi_fv3ncdf_readuv_v1(dynvarsfile,ges_u,ges_v)
               uorv(:,j)=half*(uu(:,j,i)+uu(:,j+1,i))
              enddo
              
-             call fv3_h_to_ll(uorv(:,:),a,nx,ny,nxa,nya)
+             call fv3_h_to_ll_regular_grids(uorv(:,:),a,nx,ny,nxa,nya,p_fv3sar2anlgrid)
           else
              do j=1,nx
               uorv(j,:)=half*(uu(j,:,i)+uu(j+1,:,i))
              enddo
-             call fv3_h_to_ll(uorv(:,:),a,nx,ny,nxa,nya)
+             call fv3_h_to_ll_regular_grids(uorv(:,:),a,nx,ny,nxa,nya,p_fv3sar2anlgrid)
           endif
           kk=0
           do n=1,npe
@@ -1523,9 +1649,13 @@ subroutine wrfv3_netcdf(fv3filenamegin)
 
 ! Declare local constants
     logical add_saved
+      character(len=:),allocatable :: grid_spec !='fv3_grid_spec'            
+      character(len=:),allocatable :: ak_bk     !='fv3_akbk'
       character(len=:),allocatable :: dynvars   !='fv3_dynvars'
       character(len=:),allocatable :: tracers   !='fv3_tracer'
- ! variables for cloud info
+      character(len=:),allocatable :: sfcdata   !='fv3_sfcdata'
+      character(len=:),allocatable :: couplerres!='coupler.res'
+! variables for cloud info
     integer(i_kind) ier,istatus,it
     real(r_kind),pointer,dimension(:,:  ):: ges_ps  =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_u   =>NULL()
@@ -1589,8 +1719,8 @@ subroutine gsi_fv3ncdf_writeuv(dynvars,varu,varv,mype_io,add_saved)
     use gridmod, only: lat2,lon2,nlon,nlat,lat1,lon1,nsig, &
                        ijn,displs_g,itotsub,iglobal, &
                        nlon_regional,nlat_regional
-    use mod_fv3_lola, only: fv3_ll_to_h,fv3_h_to_ll, &
-                            fv3uv2earth,earthuv2fv3
+    use mod_fv3_lolgrid, only: fv3_ll_to_h_regular_grids,fv3_h_to_ll_regular_grids, &
+                            fv3uv2earth_regular_grids,earthuv2fv3_regular_grids
     use general_commvars_mod, only: ltosi,ltosj
     use netcdf, only: nf90_open,nf90_close,nf90_noerr
     use netcdf, only: nf90_write,nf90_inq_varid
@@ -1679,15 +1809,15 @@ subroutine gsi_fv3ncdf_writeuv(dynvars,varu,varv,mype_io,add_saved)
           call check( nf90_get_var(gfile_loc,ugrd_VarId,work_bu) )
           call check( nf90_get_var(gfile_loc,vgrd_VarId,work_bv) )
           do k=1,nsig
-             call fv3uv2earth(work_bu(1,1,k),work_bv(1,1,k),nlon_regional,nlat_regional,u,v)
-             call fv3_h_to_ll(u,workau2,nlon_regional,nlat_regional,nlon,nlat)
-             call fv3_h_to_ll(v,workav2,nlon_regional,nlat_regional,nlon,nlat)
+             call fv3uv2earth_regular_grids(work_bu(1,1,k),work_bv(1,1,k),nlon_regional,nlat_regional,u,v,p_fv3sar2anlgrid)
+             call fv3_h_to_ll_regular_grids(u,workau2,nlon_regional,nlat_regional,nlon,nlat,p_fv3sar2anlgrid)
+             call fv3_h_to_ll_regular_grids(v,workav2,nlon_regional,nlat_regional,nlon,nlat,p_fv3sar2anlgrid)
 !!!!!!!! find analysis_inc:  work_a !!!!!!!!!!!!!!!!
              work_au(:,:,k)=work_au(:,:,k)-workau2(:,:)
              work_av(:,:,k)=work_av(:,:,k)-workav2(:,:)
-             call fv3_ll_to_h(work_au(:,:,k),u,nlon,nlat,nlon_regional,nlat_regional,.true.)
-             call fv3_ll_to_h(work_av(:,:,k),v,nlon,nlat,nlon_regional,nlat_regional,.true.)
-             call earthuv2fv3(u,v,nlon_regional,nlat_regional,workbu2,workbv2)
+             call fv3_ll_to_h_regular_grids(work_au(:,:,k),u,nlon,nlat,nlon_regional,nlat_regional,.true.,p_fv3sar2anlgrid)
+             call fv3_ll_to_h_regular_grids(work_av(:,:,k),v,nlon,nlat,nlon_regional,nlat_regional,.true.,p_fv3sar2anlgrid)
+             call earthuv2fv3_regular_grids(u,v,nlon_regional,nlat_regional,workbu2,workbv2,p_fv3sar2anlgrid)
 !!!!!!!!  add analysis_inc to readin work_b !!!!!!!!!!!!!!!!
              work_bu(:,:,k)=work_bu(:,:,k)+workbu2(:,:)
              work_bv(:,:,k)=work_bv(:,:,k)+workbv2(:,:)
@@ -1695,9 +1825,9 @@ subroutine gsi_fv3ncdf_writeuv(dynvars,varu,varv,mype_io,add_saved)
           deallocate(workau2,workbu2,workav2,workbv2)
        else
           do k=1,nsig
-             call fv3_ll_to_h(work_au(:,:,k),u,nlon,nlat,nlon_regional,nlat_regional,.true.)
-             call fv3_ll_to_h(work_av(:,:,k),v,nlon,nlat,nlon_regional,nlat_regional,.true.)
-             call earthuv2fv3(u,v,nlon_regional,nlat_regional,work_bu(:,:,k),work_bv(:,:,k))
+             call fv3_ll_to_h_regular_grids(work_au(:,:,k),u,nlon,nlat,nlon_regional,nlat_regional,.true.,p_fv3sar2anlgrid)
+             call fv3_ll_to_h_regular_grids(work_av(:,:,k),v,nlon,nlat,nlon_regional,nlat_regional,.true.,p_fv3sar2anlgrid)
+             call earthuv2fv3_regular_grids(u,v,nlon_regional,nlat_regional,work_bu(:,:,k),work_bv(:,:,k),p_fv3sar2anlgrid)
           enddo
        endif
 
@@ -1742,7 +1872,7 @@ subroutine gsi_fv3ncdf_writeps(filename,varname,var,mype_io,add_saved)
     use gridmod, only: lat2,lon2,nlon,nlat,lat1,lon1,nsig
     use gridmod, only: ijn,displs_g,itotsub,iglobal
     use gridmod,  only: nlon_regional,nlat_regional,eta1_ll,eta2_ll
-    use mod_fv3_lola, only: fv3_ll_to_h,fv3_h_to_ll
+    use mod_fv3_lolgrid, only: fv3_ll_to_h_regular_grids,fv3_h_to_ll_regular_grids
     use general_commvars_mod, only: ltosi,ltosj
     use netcdf, only: nf90_open,nf90_close
     use netcdf, only: nf90_write,nf90_inq_varid
@@ -1791,17 +1921,17 @@ subroutine gsi_fv3ncdf_writeps(filename,varname,var,mype_io,add_saved)
           do i=2,nsig+1
              work_bi(:,:,i)=work_b(:,:,i-1)*0.001_r_kind+work_bi(:,:,i-1)
           enddo
-          call fv3_h_to_ll(work_bi(:,:,nsig+1),worka2,nlon_regional,nlat_regional,nlon,nlat)
+          call fv3_h_to_ll_regular_grids(work_bi(:,:,nsig+1),worka2,nlon_regional,nlat_regional,nlon,nlat,p_fv3sar2anlgrid)
 !!!!!!! analysis_inc Psfc: work_a
           work_a(:,:)=work_a(:,:)-worka2(:,:)
-          call fv3_ll_to_h(work_a,workb2,nlon,nlat,nlon_regional,nlat_regional,.true.)
+          call fv3_ll_to_h_regular_grids(work_a,workb2,nlon,nlat,nlon_regional,nlat_regional,.true.,p_fv3sar2anlgrid)
           do k=1,nsig+1
              kr=nsig+2-k
 !!!!!!! ges_prsi+hydrostatic analysis_inc !!!!!!!!!!!!!!!!
              work_bi(:,:,k)=work_bi(:,:,k)+eta2_ll(kr)*workb2(:,:)
           enddo
        else
-          call fv3_ll_to_h(work_a,workb2,nlon,nlat,nlon_regional,nlat_regional,.true.)
+          call fv3_ll_to_h_regular_grids(work_a,workb2,nlon,nlat,nlon_regional,nlat_regional,.true.,p_fv3sar2anlgrid)
           do k=1,nsig+1
              kr=nsig+2-k
 !!!!!!! Psfc_ges+hydrostatic analysis_inc !!!!!!!!!!!!!!!!
@@ -1857,8 +1987,8 @@ subroutine gsi_fv3ncdf_writeuv_v1(dynvars,varu,varv,mype_io,add_saved)
     use gridmod, only: lat2,lon2,nlon,nlat,lat1,lon1,nsig, &
                        ijn,displs_g,itotsub,iglobal, &
                        nlon_regional,nlat_regional
-    use mod_fv3_lola, only: fv3_ll_to_h,fv3_h_to_ll, &
-                            fv3uv2earth,earthuv2fv3
+    use mod_fv3_lolgrid, only: fv3_ll_to_h_regular_grids,fv3_h_to_ll_regular_grids, &
+                            fv3uv2earth_regular_grids,earthuv2fv3_regular_grids
     use general_commvars_mod, only: ltosi,ltosj
     use netcdf, only: nf90_open,nf90_close,nf90_noerr
     use netcdf, only: nf90_write,nf90_inq_varid
@@ -1976,13 +2106,13 @@ subroutine gsi_fv3ncdf_writeuv_v1(dynvars,varu,varv,mype_io,add_saved)
              do i=1,nlon_regional
                 v(i,:)=half*(work_bv_w(i,:,ilev0+k)+work_bv_w(i+1,:,ilev0+k))
              enddo
-             call fv3_h_to_ll(u,workau2,nlon_regional,nlat_regional,nlon,nlat)
-             call fv3_h_to_ll(v,workav2,nlon_regional,nlat_regional,nlon,nlat)
+             call fv3_h_to_ll_regular_grids(u,workau2,nlon_regional,nlat_regional,nlon,nlat,p_fv3sar2anlgrid)
+             call fv3_h_to_ll_regular_grids(v,workav2,nlon_regional,nlat_regional,nlon,nlat,p_fv3sar2anlgrid)
 !!!!!!!! find analysis_inc:  work_a !!!!!!!!!!!!!!!!
              work_au(:,:,k)=work_au(:,:,k)-workau2(:,:)
              work_av(:,:,k)=work_av(:,:,k)-workav2(:,:)
-             call fv3_ll_to_h(work_au(:,:,k),u,nlon,nlat,nlon_regional,nlat_regional,.true.)
-             call fv3_ll_to_h(work_av(:,:,k),v,nlon,nlat,nlon_regional,nlat_regional,.true.)
+             call fv3_ll_to_h_regular_grids(work_au(:,:,k),u,nlon,nlat,nlon_regional,nlat_regional,.true.,p_fv3sar2anlgrid)
+             call fv3_ll_to_h_regular_grids(work_av(:,:,k),v,nlon,nlat,nlon_regional,nlat_regional,.true.,p_fv3sar2anlgrid)
 !!!!!!!!  add analysis_inc to readin work_b !!!!!!!!!!!!!!!!
              do i=2,nlon_regional
                workbu_w2(i,:)=half*(u(i-1,:)+u(i,:))
@@ -2014,8 +2144,8 @@ subroutine gsi_fv3ncdf_writeuv_v1(dynvars,varu,varv,mype_io,add_saved)
           deallocate(workbu_s2,workbv_s2)
        else
           do k=1,nsig
-             call fv3_ll_to_h(work_au(:,:,k),u,nlon,nlat,nlon_regional,nlat_regional,.true.)
-             call fv3_ll_to_h(work_av(:,:,k),v,nlon,nlat,nlon_regional,nlat_regional,.true.)
+             call fv3_ll_to_h_regular_grids(work_au(:,:,k),u,nlon,nlat,nlon_regional,nlat_regional,.true.,p_fv3sar2anlgrid)
+             call fv3_ll_to_h_regular_grids(work_av(:,:,k),v,nlon,nlat,nlon_regional,nlat_regional,.true.,p_fv3sar2anlgrid)
 
              do i=2,nlon_regional
                work_bu_w(i,:,k)=half*(u(i-1,:)+u(i,:))
@@ -2083,8 +2213,8 @@ subroutine gsi_fv3ncdf_writeps_v1(filename,varname,var,mype_io,add_saved)
     use mpimod, only: mpi_rtype,mpi_comm_world,ierror,mype
     use gridmod, only: lat2,lon2,nlon,nlat,lat1,lon1
     use gridmod, only: ijn,displs_g,itotsub,iglobal
-    use gridmod,  only: nlon_regional,nlat_regional
-    use mod_fv3_lola, only: fv3_ll_to_h,fv3_h_to_ll
+    use gridmod,  only: nlon_regional,nlat_regional,eta1_ll,eta2_ll
+    use mod_fv3_lolgrid, only: fv3_ll_to_h_regular_grids,fv3_h_to_ll_regular_grids
     use general_commvars_mod, only: ltosi,ltosj
     use netcdf, only: nf90_open,nf90_close
     use netcdf, only: nf90_write,nf90_inq_varid
@@ -2097,7 +2227,7 @@ subroutine gsi_fv3ncdf_writeps_v1(filename,varname,var,mype_io,add_saved)
     character(*)   ,intent(in   ) :: varname,filename
 
     integer(i_kind) :: VarId,gfile_loc
-    integer(i_kind) i,j,mm1
+    integer(i_kind) i,j,mm1,k,kr,kp
     real(r_kind),allocatable,dimension(:):: work
     real(r_kind),allocatable,dimension(:,:):: work_sub,work_a
     real(r_kind),allocatable,dimension(:,:):: work_b,work_bi
@@ -2129,13 +2259,13 @@ subroutine gsi_fv3ncdf_writeps_v1(filename,varname,var,mype_io,add_saved)
           allocate( worka2(nlat,nlon))
 !!!!!!!! read in guess delp  !!!!!!!!!!!!!!
           call check( nf90_get_var(gfile_loc,VarId,work_b) )
-          call fv3_h_to_ll(work_b,worka2,nlon_regional,nlat_regional,nlon,nlat)
+          call fv3_h_to_ll_regular_grids(work_b,worka2,nlon_regional,nlat_regional,nlon,nlat,p_fv3sar2anlgrid)
 !!!!!!! analysis_inc Psfc: work_a
           work_a(:,:)=work_a(:,:)-worka2(:,:)
-          call fv3_ll_to_h(work_a,workb2,nlon,nlat,nlon_regional,nlat_regional,.true.)
+          call fv3_ll_to_h_regular_grids(work_a,workb2,nlon,nlat,nlon_regional,nlat_regional,.true.,p_fv3sar2anlgrid)
              work_b(:,:)=work_b(:,:)+workb2(:,:)
        else
-          call fv3_ll_to_h(work_a,work_b,nlon,nlat,nlon_regional,nlat_regional,.true.)
+          call fv3_ll_to_h_regular_grids(work_a,work_b,nlon,nlat,nlon_regional,nlat_regional,.true.,p_fv3sar2anlgrid)
   
        endif
 
@@ -2177,8 +2307,8 @@ subroutine gsi_fv3ncdf_write(filename,varname,var,mype_io,add_saved)
     use mpimod, only: mpi_rtype,mpi_comm_world,ierror,npe,mype
     use gridmod, only: lat2,lon2,nlon,nlat,lat1,lon1,nsig
     use gridmod, only: ijn,displs_g,itotsub,iglobal
-    use mod_fv3_lola, only: fv3_ll_to_h
-    use mod_fv3_lola, only: fv3_h_to_ll
+    use mod_fv3_lolgrid, only: fv3_ll_to_h_regular_grids
+    use mod_fv3_lolgrid, only: fv3_h_to_ll_regular_grids
     use general_commvars_mod, only: ltosi,ltosj
     use netcdf, only: nf90_open,nf90_close
     use netcdf, only: nf90_write,nf90_inq_varid
@@ -2237,16 +2367,16 @@ subroutine gsi_fv3ncdf_write(filename,varname,var,mype_io,add_saved)
           call check( nf90_get_var(gfile_loc,VarId,work_b) )
 
           do k=1,nsig
-             call fv3_h_to_ll(work_b(:,:,k),worka2,nlon_regional,nlat_regional,nlon,nlat)
+             call fv3_h_to_ll_regular_grids(work_b(:,:,k),worka2,nlon_regional,nlat_regional,nlon,nlat,p_fv3sar2anlgrid)
 !!!!!!!! analysis_inc:  work_a !!!!!!!!!!!!!!!!
              work_a(:,:,k)=work_a(:,:,k)-worka2(:,:)
-             call fv3_ll_to_h(work_a(1,1,k),workb2,nlon,nlat,nlon_regional,nlat_regional,.true.)
+             call fv3_ll_to_h_regular_grids(work_a(1,1,k),workb2,nlon,nlat,nlon_regional,nlat_regional,.true.,p_fv3sar2anlgrid)
              work_b(:,:,k)=work_b(:,:,k)+workb2(:,:)
           enddo
           deallocate(worka2,workb2)
        else
           do k=1,nsig
-             call fv3_ll_to_h(work_a(1,1,k),work_b(1,1,k),nlon,nlat,nlon_regional,nlat_regional,.true.)
+             call fv3_ll_to_h_regular_grids(work_a(1,1,k),work_b(1,1,k),nlon,nlat,nlon_regional,nlat_regional,.true.,p_fv3sar2anlgrid)
           enddo
        endif
 

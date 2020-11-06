@@ -146,6 +146,7 @@ module gridmod
   public :: diagnostic_reg,nmmb_reference_grid,filled_grid
   public :: grid_ratio_nmmb,isd_g,isc_g,dx_gfs,lpl_gfs,nsig5,nmmb_verttype
   public :: grid_ratio_fv3_regional,fv3_regional
+  public :: fv3_regional_dd_reduce,nlon_fv3_regional_reduce,nlat_fv3_regional_reduce
   public :: nsig3,nsig4,grid_ratio_wrfmass
   public :: use_gfs_ozone,check_gfs_ozone_date,regional_ozone,nvege_type
   public :: jcap,jcap_b,hires_b,sp_a,grd_a
@@ -208,6 +209,8 @@ module gridmod
                                !                old def: p = eta1*pdtop+eta2*(psfc-pdtop-ptop)+ptop
                                !   'NEW' for new vertical coordinate definition
                                !                new def: p = eta1*pdtop+eta2*(psfc-ptop)+ptop
+  logical fv3_regional_dd_reduce  ! used to reject obs near the lateral bounddary
+  integer(i_kind) nlon_fv3_regional_reduce,nlat_fv3_regional_reduce
 
   integer(i_kind) vlevs             ! no. of levels distributed on all processors
   integer(i_kind) nsig1o            ! max no. of levels distributed on each processor
@@ -626,6 +629,7 @@ contains
 ! Initialize structures for grid(s)
     inner_vars=1
     num_fields=n3d*nsig+n2d
+    write(6,*)'thinkdeb250 num_fiels ',n3d,nsig,n2d ,num_fields
     allocate(vector(num_fields))
     vector=.false.
 
@@ -659,6 +663,8 @@ contains
        endif
 
     endif
+    write(6,*)'thinkdeb250 ',inner_vars,nlat,nlon,nsig,num_fields
+    call flush(6)
     call general_sub2grid_create_info(grd_a,inner_vars,nlat,nlon,nsig,num_fields, &
          regional,vector)
     deallocate(vector)
@@ -1101,6 +1107,20 @@ contains
        rlon_min_dd=rlon_min_ll+r1_5/grid_ratio_fv3_regional
        rlon_max_dd=rlon_max_ll-r1_5/grid_ratio_fv3_regional
        pt_ll=zero
+!clt follow Hongli Wang's codes 
+       !print*,'original rlat_min_dd,rlat_max_dd,rlon_min_dd,rlon_max_dd=',&
+       !                 rlat_min_dd,rlat_max_dd,rlon_min_dd,rlon_max_dd
+     
+       if(fv3_regional_dd_reduce) then
+         rlat_min_dd=rlat_min_dd+nlat_fv3_regional_reduce
+         rlat_max_dd=rlat_max_dd-nlat_fv3_regional_reduce
+         rlon_min_dd=rlon_min_dd+nlon_fv3_regional_reduce
+         rlon_max_dd=rlon_max_ll-nlon_fv3_regional_reduce
+       !print*,'nlat_fv3_regional_reduce,nlon_fv3_regional_reduce=',nlat_fv3_regional_reduce,nlon_fv3_regional_reduce
+       !print*,'reduced rlat_min_dd,rlat_max_dd,rlon_min_dd,rlon_max_dd=',&
+       !                 rlat_min_dd,rlat_max_dd,rlon_min_dd,rlon_max_dd
+     
+       endif
     endif    !  fv3_regional
 
     if(wrf_nmm_regional) then     ! begin wrf_nmm section
@@ -1136,6 +1156,7 @@ contains
               (regional_time (i),i=1,6)       
        
        regional_fhr=zero  !  with wrf nmm fcst hr is not currently available.
+       regional_fmin=zero  !  for being now
 
        if(diagnostic_reg.and.mype==0) then
            write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') &
@@ -1315,6 +1336,7 @@ contains
        rewind lendian_in
        read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig,pt,nsig_soil 
        regional_fhr=zero  !  with wrf mass core fcst hr is not currently available.
+       regional_fmin=zero  !  with wrf mass core fcst mn is not currently available.
 
        if(diagnostic_reg.and.mype==0) then
           write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') regional_time
@@ -1650,6 +1672,7 @@ contains
           dy_mc(nlon_regional,nlat_regional))
     
        regional_fhr=zero !that is not available/nor seems currently necessary 
+       regional_fmin=zero !that is not available/nor seems currently necessary 
      
        read(lendian_in) aeta1,aeta2 ! 2 to skip
        read(lendian_in) eta1,eta2  ! 3 to skip
@@ -1755,6 +1778,7 @@ contains
        rewind lendian_in
        read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig
        regional_fhr=zero  !  with twodvar analysis fcst hr is not currently available.
+       regional_fmin=zero  !  with twodvar analysis fcst hr is not currently available.
  
        if(diagnostic_reg.and.mype==0) then
            write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)')regional_time
