@@ -56,7 +56,7 @@ export pgmerr=$logdir/errfile
 # SENDSMS  - Flag Events on SMS
 # SENDCOM  - Copy Files From TMPDIR to $COMOUT
 # SENDDBN  - Issue DBNet Client Calls
-# VERBOSE  - Specify Verbose Output in exglobal_fcst.sh.sms
+# VERBOSE  - Specify Verbose Output in exglobal_fcst.sh
 ####################################
 export SENDSMS=YES
 export SENDCOM=YES
@@ -325,7 +325,7 @@ sh ${homedir}/run_gsi
 #poe rm /tmp/mplog*
 
 ##########
-# NOTES: 1) script exglobal_analysis.sh.sms compresses the contents of
+# NOTES: 1) script exglobal_analysis.sh compresses the contents of
 #           RADSTAT, PCPSTAT, OZNSTAT, and CNVSTAT.  These stat files
 #           files are tarballs of compressed files.
 #        2) SFCANL, SIGANL are input to the GFS forecast following the analysis  

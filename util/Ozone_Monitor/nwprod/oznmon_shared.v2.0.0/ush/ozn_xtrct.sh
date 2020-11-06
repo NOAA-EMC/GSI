@@ -75,7 +75,7 @@ fi
 #
 validate=".FALSE."
 if [[ $VALIDATE_DATA -eq 1 ]]; then
-   if [[ ! -e $ozn_val_file ]]; then
+   if [[ ! -e $ozn_val_file && ! -h $ozn_val_file ]]; then
       echo "WARNING:  VALIDATE_DATA set to 1, but unable to locate $ozn_val_file"
       echo "          Setting VALIDATE_DATA to 0/OFF"
       VALIDATE_DATA=0
@@ -153,8 +153,7 @@ else
 
 
    #---------------------------------------------------------------------------
-   #  NOTE:  If ges && anl are to be processed then add an outer for loop on 
-   #  $ozn_ptype
+   #  Outer loop over $ozn_ptype (default values 'ges', 'anl')
    #
    echo "ozn_ptype = $ozn_ptype"
    for ptype in ${ozn_ptype}; do
