@@ -253,7 +253,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   if(jsatid == 'm11') kidsat = 70
   if( ithin_time == 5) then
      call read_subset_nnsb
-  endif 
+  endif
   open(lnbufr,file=infile,form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
 
@@ -285,8 +285,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         call ufbint(lnbufr,hdr,nhdr,1,iret,hdrsevi)
         if(nint(hdr(1)) /= kidsat) cycle read_loop
 !       if (clrsky) then     ! asr bufr has no sza, asr bufr has sza since 2017.07
-!          remove the obs whose satellite zenith angles larger than 65 degree
-           if ( hdr(ilzah) > r65 ) cycle read_loop
+        if ( hdr(ilzah) > r65 ) cycle read_loop
 !       end if
 
  
@@ -358,8 +357,8 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
         rcldfrc=bmiss
         if(clrsky) then       
-          call ufbrep(lnbufr,datasev1,1,ncld,iret,'NCLDMNT')
-          rclrsky=bmiss
+           call ufbrep(lnbufr,datasev1,1,ncld,iret,'NCLDMNT')
+           rclrsky=bmiss
 !          datasev1(1,5) is high-peaking water vapor channel
 !          for SEVIRI CSR, clear-sky percentage are different between the high-peaking WV channel and other channels
            if(datasev1(1,5)>= zero .and. datasev1(1,5) <= 100.0_r_kind ) then
@@ -379,33 +378,33 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         call ufbrep(lnbufr,datasev3,1,nbrst,iret,'SDTB')
 
         if(clrsky) then       
-          allchnmiss=.true.
-          do n=4,11
-             if( datasev2(1,n)>zero .and. datasev2(1,n)<500.0_r_kind)  then
-                allchnmiss=.false.
-             end if
-          end do
-          if(allchnmiss) cycle read_loop
+           allchnmiss=.true.
+           do n=4,11
+              if( datasev2(1,n)>zero .and. datasev2(1,n)<500.0_r_kind)  then
+                 allchnmiss=.false.
+              end if
+           end do
+           if(allchnmiss) cycle read_loop
 
 !         toss data if SDTB>1.3
-          do i=4,11
-             if(i==5 .or. i==6) then   ! 2 water-vapor channels
-                if(datasev3(1,i)>1.3_r_kind) then
-                   cycle read_loop
-             end if
-            end if
-          end do
-        end if
-
-        if(allsky) then       
-          allchnmiss=.true.
-          do k=1,nchanl
-             jj=(k+2)*6+1
-              if( datasev2(1,jj)>0. .and. datasev2(1,jj)<500.)  then
-                allchnmiss=.false.
+           do i=4,11
+              if(i==5 .or. i==6) then   ! 2 water-vapor channels
+                 if(datasev3(1,i)>1.3_r_kind) then
+                    cycle read_loop
+                 end if
               end if
-          end do
-          if(allchnmiss) cycle read_loop
+           end do
+        end if
+        
+        if(allsky) then       
+           allchnmiss=.true.
+           do k=1,nchanl
+              jj=(k+2)*6+1
+              if( datasev2(1,jj)>zero .and. datasev2(1,jj)<500._r_kind)  then
+                 allchnmiss=.false.
+              end if
+           end do
+           if(allchnmiss) cycle read_loop
         end if
 
 !       Locate the observation on the analysis grid.  Get sst and land/sea/ice
@@ -431,9 +430,9 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         if(clrsky) then
 !         use NCLDMNT from chn9 (10.8 micron) as a QC predictor
 !         add SDTB from chn9 as QC predictor
-          pred=10-datasev1(1,9)/10.0_r_kind+datasev3(1,9)*10.0_r_kind
+           pred=10-datasev1(1,9)/10.0_r_kind+datasev3(1,9)*10.0_r_kind
         else
-          pred=zero
+           pred=zero
         end if
 !       Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
 
@@ -493,10 +492,10 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         data_all(32,itx) = rcldfrc                    ! total cloud fraction from SEVASR
         do k=1,nchanl
            if(clrsky) then
-             data_all(32+k,itx) = datasev3(1,k+3)     ! BT standard deviation from SEVCSR
+              data_all(32+k,itx) = datasev3(1,k+3)     ! BT standard deviation from SEVCSR
            else if(allsky) then
-             jj=(k+2)*6+1
-             data_all(32+k,itx) = datasev3(1,jj)      ! BT standard deviation from SEVASR 
+              jj=(k+2)*6+1
+              data_all(32+k,itx) = datasev3(1,jj)      ! BT standard deviation from SEVASR 
            end if
         end do
 
@@ -535,24 +534,24 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 ! and write out data to scratch file for further processing.
   if (mype_sub==mype_root.and.ndata>0) then
 
-    do n=1,ndata
-       do k=1,nchanl
-          if(data_all(k+nreal,n) > tbmin .and. &
-             data_all(k+nreal,n) < tbmax)nodata=nodata+1
-       end do
-    end do
-    if(dval_use .and. assim)then
-       do n=1,ndata
-          itt=nint(data_all(maxinfo,n))
-          super_val(itt)=super_val(itt)+val_sev
-       end do
-    end if
-
-!   Write retained data to local file
-    call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
-    write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-    write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
-
+     do n=1,ndata
+        do k=1,nchanl
+           if(data_all(k+nreal,n) > tbmin .and. &
+                data_all(k+nreal,n) < tbmax)nodata=nodata+1
+        end do
+     end do
+     if(dval_use .and. assim)then
+        do n=1,ndata
+           itt=nint(data_all(maxinfo,n))
+           super_val(itt)=super_val(itt)+val_sev
+        end do
+     end if
+     
+!    Write retained data to local file
+     call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
+     write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+     write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
+     
   endif
 
 ! Deallocate local arrays

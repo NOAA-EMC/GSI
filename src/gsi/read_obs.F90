@@ -701,7 +701,7 @@ subroutine read_obs(ndata,mype)
     use obsmod, only: iadate,ndat,time_window,dplat,dsfcalc,dfile,dthin, &
            dtype,dval,dmesh,obsfile_all,ref_obs,nprof_gps,dsis,ditype,&
            perturb_obs,lobserver,lread_obs_save,obs_input_common, &
-           reduce_diag,nobs_sub,dval_use
+           reduce_diag,nobs_sub,dval_use,hurricane_radar,l2rwthin 
     use gsi_nstcouplermod, only: nst_gsi
 !   use gsi_nstcouplermod, only: gsi_nstcoupler_set
     use qcmod, only: njqc,vadwnd_l2rw_qc,nvqc
@@ -1530,20 +1530,35 @@ subroutine read_obs(ndata,mype)
                 if( trim(infile) == 'vr_vol' )then
                   call read_radar_wind_ascii(nread,npuse,nouse,infile,lunout,obstype,sis,&
                                   hgtl_full,nobs_sub1(1,i))
+                  string='READ_RADAR_WIND'
+                else if (hurricane_radar) then
+                   if (sis == 'rw' ) then
+                      write(6,*)'READ_OBS: radial wind,read_radar,dfile=',infile,',dsis=',sis
+                      call read_radar(nread,npuse,nouse,infile,lunout,obstype,twind,sis,&
+                                   hgtl_full,nobs_sub1(1,i))
+                      string='READ_RADAR'
+                   else if (sis == 'l2rw') then
+                      if (l2rwthin)then 
+                         call read_radar_l2rw(npuse,nouse,lunout,obstype,sis,nobs_sub1(1,i),hgtl_full) 
+                         string='READ_RADAR_L2RW_NOVADQC'
+                      else
+                         write(6,*)'READ_OBS: radial wind,read_radar_l2rw_novadqc,dfile=',infile,',dsis=',sis
+                         call read_radar_l2rw_novadqc(npuse,nouse,lunout,obstype,sis,nobs_sub1(1,i))
+                         string='READ_RADAR_L2RW_NOVADQC'
+                      end if
+                   end if                  
                 else
-                 if (vadwnd_l2rw_qc) then
+                   if (vadwnd_l2rw_qc) then
                       write(6,*)'READ_OBS: radial wind,read_radar,dfile=',infile,',dsis=',sis 
                      call read_radar(nread,npuse,nouse,infile,lunout,obstype,twind,sis,&
                                      hgtl_full,nobs_sub1(1,i))
                      string='READ_RADAR'
-                  else if (sis == 'l2rw') then
+                   else if (sis == 'l2rw') then
                       write(6,*)'READ_OBS: radial wind,read_radar_l2rw_novadqc,dfile=',infile,',dsis=',sis
                      call read_radar_l2rw_novadqc(npuse,nouse,lunout,obstype,sis,nobs_sub1(1,i))
                      string='READ_RADAR_L2RW_NOVADQC'
-                  end if
+                   end if
                 end if
-                string='READ_RADAR_WIND'
-
 !            Process radar reflectivity from MRMS
              else if (obstype == 'dbz' ) then
                 print *, "calling read_dbz"

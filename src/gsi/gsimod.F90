@@ -27,7 +27,7 @@
      rmesh_vr,zmesh_dbz,zmesh_vr,if_vterminal, if_model_dbz,if_vrobs_raw,&
      minobrangedbz,maxobrangedbz,maxobrangevr,maxtiltvr,missing_to_nopcp,&
      ntilt_radarfiles,whichradar,&
-     minobrangevr,maxtiltdbz,mintiltvr,mintiltdbz
+     minobrangevr,maxtiltdbz,mintiltvr,mintiltdbz,l2rwthin,hurricane_radar 
 
   use obsmod, only: lwrite_predterms, &
      lwrite_peakwt,use_limit,lrun_subdirs,l_foreaft_thin,lobsdiag_forenkf,&
@@ -131,7 +131,7 @@
   use fgrid2agrid_mod, only: nord_f2a,init_fgrid2agrid,final_fgrid2agrid,set_fgrid2agrid
   use smooth_polcarf, only: norsp,init_smooth_polcas
   use read_l2bufr_mod, only: minnum,del_azimuth,del_elev,del_range,del_time,&
-     range_max,elev_angle_max,initialize_superob_radar,l2superob_only
+     range_max,elev_angle_max,initialize_superob_radar,l2superob_only,radar_sites,radar_box,radar_rmesh,radar_zmesh
   use m_berror_stats,only : berror_stats ! filename if other than "berror_stats"
   use lag_fields,only : infile_lag,lag_nmax_bal,&
                         &lag_vorcore_stderr_a,lag_vorcore_stderr_b,lag_modini
@@ -686,7 +686,7 @@
        minobrangevr, maxtiltdbz, mintiltvr,mintiltdbz,if_vterminal,if_vrobs_raw,&
        if_model_dbz,imp_physics,lupp,netcdf_diag,binary_diag,l_wcp_cwm,aircraft_recon,diag_version,&
        write_fv3_incr,incvars_to_zero,incvars_zero_strat,incvars_efold,diag_version,&
-       cao_check,lcalc_gfdl_cfrac,tau_fcst,efsoi_order,lupdqc,lqcoef,cnvw_option
+       cao_check,lcalc_gfdl_cfrac,tau_fcst,efsoi_order,lupdqc,lqcoef,cnvw_option,l2rwthin,hurricane_radar
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -990,7 +990,7 @@
 !                             files are very large and hard to work with)
 
   namelist/superob_radar/del_azimuth,del_elev,del_range,del_time,&
-       elev_angle_max,minnum,range_max,l2superob_only
+       elev_angle_max,minnum,range_max,l2superob_only,radar_sites,radar_box,radar_rmesh,radar_zmesh
 
 ! LAG_DATA (lagrangian data assimilation related variables):
 !     lag_accur - Accuracy used to decide whether or not a balloon is on the grid
