@@ -362,19 +362,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  itype=254
               endif
            endif
-        else if(trim(subset) == 'NC005067' .or. trim(subset) == 'NC005068' .or.&
-                trim(subset) == 'NC005069') then               ! read new EUM BURF
-             if( hdrdat(1) <r80 .and. hdrdat(1) >= r50) then   !the range of EUMETSAT satellite IDS
-                if(hdrdat(9) == one)  then                  ! IR winds
-                   itype=253
-                else if(hdrdat(9) == two) then              ! visible winds
-                   itype=243
-                else if(hdrdat(9) == three) then            ! WV cloud top
-                   itype=254
-                else if(hdrdat(9) >= four) then             ! WV deep layer, monitored 
-                   itype=254
-                endif
-             endif   
         else if(trim(subset) == 'NC005044' .or. trim(subset) == 'NC005045' .or. &
            trim(subset) == 'NC005046') then
            if( hdrdat(1) >=r100 .and. hdrdat(1) <=r199 ) then   ! the range of JMA satellite IDS
@@ -501,8 +488,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
         endif
 
         if ( itype == -1 ) cycle loop_report ! unassigned itype
-
-         if ( itype == -1 ) cycle loop_report ! unassigned itype
 
 !  Match ob to proper convinfo type
         ncsave=0
