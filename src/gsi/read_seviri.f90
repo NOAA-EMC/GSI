@@ -285,7 +285,6 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         call ufbint(lnbufr,hdr,nhdr,1,iret,hdrsevi)
         if(nint(hdr(1)) /= kidsat) cycle read_loop
 !       if (clrsky) then     ! asr bufr has no sza, asr bufr has sza since 2017.07
-!          remove the obs whose satellite zenith angles larger than 65 degree
            if ( hdr(ilzah) > r65 ) cycle read_loop
 !       end if
 
@@ -401,7 +400,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
           allchnmiss=.true.
           do k=1,nchanl
              jj=(k+2)*6+1
-              if( datasev2(1,jj)>0. .and. datasev2(1,jj)<500.)  then
+              if( datasev2(1,jj)>zero .and. datasev2(1,jj)<500._r_kind)  then
                 allchnmiss=.false.
               end if
           end do
