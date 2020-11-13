@@ -1,24 +1,21 @@
-cov_calc computes satellite IR observation error covariances. There are two methods available to compute inter-channel error covariances, namely Desroziers' method and the Hollingsworth-Lönnberg method.
+cov_calc computes satellite observation error covariances. This utility does not yet handle all-sky instruments entirely correctly. There are two methods available to compute inter-channel error covariances, namely Desroziers' method and the Hollingsworth-Lönnberg method.
 
 See
 Desroziers, Gérald, et al. "Diagnosis of observation, background and analysi-error statistics in observation space." Quarterly Journal of the Royal Meteorological Society 131.613 (2005): 3385-3396. 
 and
-Hollingsworth, A., and P. Lönnberg. "The statistical structure of shor-range forecast errors as determined from radiosonde data. Part I: The wind field." Tellus A 38.2 (1986): 111-136.
+Hollingsworth, A., and P. Lönnberg. "The statistical structure of short-range forecast errors as determined from radiosonde data. Part I: The wind field." Tellus A 38.2 (1986): 111-136.
 
 This program uses the radstat.gdas.$date files, and outputs up to four binary files.  The first binary file contains the covariance matrix (plus extra information about the matrix), which can readily be used in the GSI. Outputting the other files is optional. They contain the wavenumbers of the satellite instrument, the assigned (satinfo) obs error, and the error correlation matrix.
 
 To use the computed covariance matrix in the GSI:
-1.  Add a table to the anavinfo file, following the comments in src/correlated_obsmod.F90.  Note that, for method 1, the reconditioned correlation matrix has a condition number that is roughly twice what is specified in the anavinfo file.  
-2.  Copy the covariance matrix into the data directory.  For parallel GFS, this can be achieved by adding a line such as 'cp $ROTDIR/Rcov* $DATA' to exglobal_analysis.sh.ecf.  For single runs of the GSI, add this line to rungsi_globalprod.sh.
+1.  Add a table to the anavinfo file, following the comments in src/correlated_obsmod.F90, or the corr_obs regression test anavinfo, fix/global_anavinfo_corrobs.txt 
+2.  Copy the covariance matrix into the fix directory.  Make sure the run script will copy the covariance file from the fix directory to the run directory. It should contain something like  'cp $FIXgsi/Rcov* $DATA'
 
-Before running this program, compile it by typing 'make'.
-This utility compiles with gfortran.  To compile on Cray, first load the module PrgEnv-gnu.  It may be necessary to unload PrgEnv-intel first, and PrgEnv-gnu must be loaded when submitting jobs.
+This utility compiles with cmake. To compile, run ../../ush/build_all_cmake.sh. Thil will create the executable ../../exec/cov_calc
 
-It is possible to run this program in single or double precision.  In kinds.f90, set default_real to 1 for single precision, or 2 for double precision.  If the radstat files are double precision, change default_radstat in kinds.f90 to 2.
+There are two ways to run cov_calc. The bottleneck of this program is in dealing with the radstat files. The radstat files can be either binary or netcdf. Using parallel_run.sh will process the radstat files in parallel. To use this script, edit its first few lines, and then simply run it. Both run.sh and parallel_run.sh contain options to specify which computational method to use (Desroziers or Hollingsworth-Lönnberg), and a choice to use only actively assimialted channels (recommended for Desroziers) or all channels. 
 
-There are two ways to run cov_calc.  The bottleneck of this program is in dealing with the radstat files.  Using parallel_run.sh will process the radstat files in parallel.  To use this script, edit its first few lines, and then simply run it. Both run.sh and parallel_run.sh contain options to specify which computational method to use (Desroziers or Hollingsworth-Lönnberg), and a choice to use only actively assimialted channels (recommended for Desroziers) or all channels. 
-
-If the amount of radstat files is small, or they have already been processed (see below), then run.sh can be used.  Edit its first few lines and submit submit_job.sh as a job. 
+If the amount of radstat files is small, or they have already been processed (see below), then run.sh can be used.  Edit its first few lines and submit submit_theia.sh or submit_wcoss.sh as a job. 
 
 cov_calc requires the files diag_$instr_anl.$date and diag and diag_$instr_ges.$date from the radstat files.  The first analysis diag file must be renamed danl_0001, the second renamed danl_0002, etc, while the first background file must be renamed dges_0001 and so on.  Even if a diag file is missing, the danl and dges files count up by one each time.  The scripts parallel_run.sh and run.sh process the radstat files in this manner.  
 

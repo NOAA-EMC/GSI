@@ -13,8 +13,9 @@ module pcgsoimod
 !   2008-11-26  Todling - remove pcgsoi_tl
 !   2009-08-12  lueken  - update documentation
 !   2009-09-17  parrish - add bkerror_a_en and anbkerror_reg_a_en for hybrid ensemble control variable a_en
-!   2014-12-03  derber - thread dot products and modify so obsdiag can be turned
-!               off
+!   2014-12-03  derber - thread dot products and modify so obsdiag can be turned off
+!   2018-08-10  guo     - removed m_obsHeadBundle references
+!                       - replaced stpjo_setup() with a new stpjomod::stpjo_setup()
 !
 ! subroutines included:
 !   sub pcgsoi
@@ -131,7 +132,7 @@ subroutine pcgsoi()
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, iwrtinc, ladtest, &
                        iorthomax
   use gridmod, only: twodvar_regional
-  use constants, only: zero,one,five,tiny_r_kind
+  use constants, only: zero,one,tiny_r_kind
   use anberror, only: anisotropic
   use mpimod, only: mype
   use mpl_allreducemod, only: mpl_allreduce
@@ -160,9 +161,6 @@ subroutine pcgsoi()
   use berror, only: vprecond
 
   use stpjomod, only: stpjo_setup
-  use m_obsHeadBundle, only: obsHeadBundle
-  use m_obsHeadBundle, only: obsHeadBundle_create
-  use m_obsHeadBundle, only: obsHeadBundle_destroy
   implicit none
 
 ! Declare passed variables
@@ -191,7 +189,6 @@ subroutine pcgsoi()
   
   type(control_vector), allocatable, dimension(:) :: cglwork
   type(control_vector), allocatable, dimension(:) :: cglworkhat
-  type(obsHeadBundle),pointer,dimension(:):: yobs
   integer(i_kind) :: iortho
   logical :: print_verbose
   logical:: lanlerr
@@ -239,9 +236,7 @@ subroutine pcgsoi()
 
   if ( lanlerr .and. lgschmidt ) call init_mgram_schmidt
   nlnqc_iter=.false.
-  call obsHeadBundle_create(yobs,nobs_bins)
-  call stpjo_setup(yobs)
-  call obsHeadBundle_destroy(yobs)
+  call stpjo_setup(nobs_bins)
 
   if(iorthomax>0) then 
      allocate(cglwork(iorthomax+1))
@@ -465,7 +460,7 @@ subroutine pcgsoi()
      b=zero
      if (gsave>1.e-16_r_kind .and. iter>0) b=gnorm(2)/gsave
      if(mype == 0)write(iout_iter,*)'Minimization iteration',iter
-     if (b<zero .or. b>five) then
+     if (b<zero .or. b>7.0_r_kind) then
         if (mype==0) then
            if (iout_6) write(6,105) gnorm(2),gsave,b
            write(iout_iter,105) gnorm(2),gsave,b

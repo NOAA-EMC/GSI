@@ -189,7 +189,7 @@ export cyc=`echo $PDATE|cut -c9-10`
 #--------------------------------------------------------------------
 #  Create the WORKDIR and link the data files to it
 #--------------------------------------------------------------------
-export WORKDIR=${STMP_USER}/ozn.${OZNMON_SUFFIX}.IG.${PDY}.${cyc}
+export WORKDIR=${STMP_USER}/${OZNMON_SUFFIX}/${RUN}/oznmon/IG.${PDY}.${cyc}
 if [[ -d $WORKDIR ]]; then
   rm -rf $WORKDIR
 fi
@@ -212,8 +212,15 @@ cd $WORKDIR
 #  gdas.v2.0.0/fix/gdas_oznmon_satype.txt file.  Eventually DE will
 #  need to compare actual files vs this list (or an updated one in 
 #  TANKDIR/info like RadMon.
+#
+#  Update the search order to use the local copy in $TANKDIR/info
+#  if available.
 #--------------------------------------------------------------------
-export SATYPE=${SATYPE:-`cat ${HOMEgdas_ozn}/fix/gdas_oznmon_satype.txt`}
+if [[ -e ${TANKDIR}/info/gdas_oznmon_satype.txt ]]; then
+   export SATYPE=${SATYPE:-`cat ${TANKDIR}/info/${RUN}_oznmon_satype.txt`}
+else
+   export SATYPE=${SATYPE:-`cat ${HOMEgdas_ozn}/fix/${RUN}_oznmon_satype.txt`}
+fi
 
 
 ${OZN_IG_SCRIPTS}/mk_horiz.sh

@@ -21,6 +21,8 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
 !                          BUFR mnemonic sequence
 !   2016-03-11 j. guo    - Fixed {dlat,dlon}_earth_deg in the obs data stream
 !   2016-04-22 M. Pondeca  - Replace "if (goescld(3)==bmiss)" condition with "if (goescld(3) > r0_01_bmiss)"
+!   2019-06-17 M. Morris - Update adjust_goescldobs to reject clear cloud obs over water at night (tcamt_qc==8)
+!   2019-12-05 M. Morris - Update adjust_goescldobs to reject ALL clear cloud cover obs at night (tcamt_qc==8)
 !
 !   input argument list:
 !     ithin    - flag to thin data
@@ -341,12 +343,13 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
          call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr,zz)
 
          ! - Obtain the ob and tune the QC marks for ob error tuning a bit later
+         
          call adjust_goescldobs(goescld(3),tdiff,dlat_earth,dlon_earth, &
                                 low_cldamt,low_cldamt_qc,mid_cldamt,mid_cldamt_qc, &
                                 hig_cldamt,hig_cldamt_qc,tcamt,tcamt_qc)
 
 
-         if(tcamt_qc==15 .or. tcamt_qc==12 .or. tcamt_qc==9) usage=r100
+         if(tcamt_qc==15 .or. tcamt_qc==12 .or. tcamt_qc==9 .or. tcamt_qc==8) usage=r100
          tcamt_oe=20.0_r_kind
          if(tcamt_qc==1) tcamt_oe=tcamt_oe*1.25_r_kind 
          if(tcamt_qc==2) tcamt_oe=tcamt_oe*1.50_r_kind

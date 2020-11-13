@@ -88,7 +88,7 @@ integer(i_kind),                  intent(INOUT) :: firsta
 integer(i_kind), dimension(mskip),intent(  OUT) :: firstb
 !-----------------------------------------------------------------------------
 integer(i_kind)                                :: iskip,jskip,this_old_a,this_new_a &
-                                         ,icycle,itrial
+                                                  ,icycle,itrial
 integer(i_kind), dimension(mskip)              :: this_b  
 real(r_kind)                                   :: xhwait,xha
 real(r_kind),dimension(mskip)                  :: xhb

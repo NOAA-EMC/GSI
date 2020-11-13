@@ -1,6 +1,5 @@
 module get_fv3_regional_ensperts_mod
-!,grd_ens%ns,grd_ens%nsigigclt started from cplr_get_fv3_regional_ensperts.f90
-use abstract_get_fv3_regional_ensperts_mod
+use abstract_get_fv3_regional_ensperts_mod,only: abstract_get_fv3_regional_ensperts_class
   use kinds, only : i_kind
   type, extends(abstract_get_fv3_regional_ensperts_class) :: get_fv3_regional_ensperts_class
   contains
@@ -13,7 +12,7 @@ contains
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    get_fv3_regional_ensperts  read arw model ensemble members
-  !   prgmmr: Ting            org: ncar/mmm            date: 2018-12-13
+  !   prgmmr: Ting            org: EMC/NCEP            date: 2018-12-13
   !
   ! abstract: read ensemble members from the fv3 regional (fv3_SAR)
   ! model,following Wanshu's programs to read those background files 
@@ -28,7 +27,7 @@ contains
   !
   ! attributes:
   !   language: f90
-  !   machine:  ibm RS/6000 SP
+  !   machine: 
   !
   !$$$ end documentation block
   
@@ -44,8 +43,6 @@ contains
       use gsi_bundlemod, only: gsi_bundlegetpointer
       use gsi_bundlemod, only: gsi_bundledestroy
       use gsi_bundlemod, only: gsi_gridcreate
-      use guess_grids,   only: ntguessig,ifilesig
-      use gsi_4dvar,     only: nhr_assimilation
       use gsi_4dvar, only: ens_fhrlevs
       use gsi_rfv3io_mod, only: type_fv3regfilenameg
   
@@ -55,7 +52,7 @@ contains
       integer(i_kind), intent(in   ):: nelen
       real(r_single),dimension(:,:,:),allocatable,intent(inout):: ps_bar
   
-      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: u,v,tv,cwmr,oz,rh
+      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: u,v,tv,oz,rh
       real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2):: ps
   
       real(r_single),pointer,dimension(:,:,:):: w3
@@ -70,7 +67,11 @@ contains
       integer(i_kind):: ic2,ic3
       integer(i_kind):: m
 
+<<<<<<< HEAD
       character(255) filelists(ntlevs_ens)
+=======
+      
+>>>>>>> master
       character(255) ensfilenam_str
       type(type_fv3regfilenameg)::fv3_filename 
   
@@ -78,11 +79,19 @@ contains
       ! Allocate bundle to hold mean of ensemble members
       allocate(en_bar(ntlevs_ens))
       do m=1,ntlevs_ens
+<<<<<<< HEAD
       call gsi_bundlecreate(en_bar(m),grid_ens,'ensemble',istatus,names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
       if(istatus/=0) then
          write(6,*)' get_fv3_regional_ensperts_netcdf: trouble creating en_bar bundle'
          call stop2(9991)
       endif
+=======
+        call gsi_bundlecreate(en_bar(m),grid_ens,'ensemble',istatus,names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
+        if(istatus/=0) then
+           write(6,*)' get_fv3_regional_ensperts_netcdf: trouble creating en_bar bundle'
+           call stop2(9991)
+        endif
+>>>>>>> master
       enddo ! for m 
   
 
@@ -116,7 +125,11 @@ contains
   ! 
   ! READ ENEMBLE MEMBERS DATA
             if (mype == 0) write(6,'(a,a)') 'CALL READ_FV3_REGIONAL_ENSPERTS FOR ENS DATA with the filename str : ',trim(ensfilenam_str)
+<<<<<<< HEAD
             call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,mype) 
+=======
+            call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz) 
+>>>>>>> master
   
   ! SAVE ENSEMBLE MEMBER DATA IN COLUMN VECTOR
             do ic3=1,nc3d
@@ -292,6 +305,7 @@ contains
 
   end subroutine get_fv3_regional_ensperts_run
   
+<<<<<<< HEAD
   subroutine general_read_fv3_regional(this,fv3_filenameginput,g_ps,g_u,g_v,g_tv,g_rh,g_oz,mype)
 !clt modified from rad_fv3_netcdf_guess
   !$$$  subprogram documentation block
@@ -317,6 +331,19 @@ contains
   !                          use genqsat, remove genqsat2_regional.
   !                          replace bare 'stop' statements with call stop2(999).
   !   2017-03-23  Hu      - add code to use hybrid vertical coodinate in WRF MASS core
+=======
+  subroutine general_read_fv3_regional(this,fv3_filenameginput,g_ps,g_u,g_v,g_tv,g_rh,g_oz)
+  !$$$  subprogram documentation block
+  !     first compied from general_read_arw_regional           .      .    .                                       .
+  ! subprogram:    general_read_fv3_regional  read fv3sar model ensemble members
+  !   prgmmr: Ting             org: emc/ncep            date: 2018
+  !
+  ! abstract: read ensemble members from the fv3sar model in "restart" or "cold start"  netcdf format
+  !           for use with hybrid ensemble option. 
+  !
+  ! program history log:
+  !   2018-  Ting      - intial versions  
+>>>>>>> master
   !
   !   input argument list:
   !
@@ -333,6 +360,7 @@ contains
       use netcdf, only: nf90_inq_dimid,nf90_inquire_dimension
       use netcdf, only: nf90_inq_varid,nf90_inquire_variable,nf90_get_var
       use kinds, only: r_kind,r_single,i_kind
+<<<<<<< HEAD
       use gridmod, only: nsig,eta1_ll,pt_ll,aeta1_ll,eta2_ll,aeta2_ll
       use constants, only: zero,one,fv,zero_single,rd_over_cp_mass,one_tenth,h300
       use hybrid_ensemble_parameters, only: grd_ens,q_hyb_ens
@@ -340,6 +368,14 @@ contains
 
       use mpimod, only: mpi_comm_world,ierror,mpi_rtype
       use mpimod, only: npe
+=======
+      use gridmod, only: eta1_ll,eta2_ll
+      use constants, only: zero,one,fv,zero_single,one_tenth,h300
+      use hybrid_ensemble_parameters, only: grd_ens,q_hyb_ens
+      use hybrid_ensemble_parameters, only: fv3sar_ensemble_opt 
+
+      use mpimod, only: mpi_comm_world,mpi_rtype
+>>>>>>> master
       use netcdf_mod, only: nc_check
       use gsi_rfv3io_mod,only: type_fv3regfilenameg
       use gsi_rfv3io_mod,only:n2d 
@@ -367,6 +403,7 @@ contains
       real(r_kind),parameter:: r100  = 100.0_r_kind
   !
   !   Declare local variables
+<<<<<<< HEAD
       real(r_single),allocatable,dimension(:):: temp_1d
       real(r_single),allocatable,dimension(:,:):: temp_2d,temp_2d2
       real(r_single),allocatable,dimension(:,:,:):: temp_3d
@@ -386,6 +423,13 @@ contains
       real(r_kind) psfc_this_dry,psfc_this
       real(r_kind) work_prslk,work_prsl
   
+=======
+      
+      integer(i_kind):: i,j,k,kp
+      integer(i_kind) iderivative
+  
+      
+>>>>>>> master
       logical ice
 
       character(len=24),parameter :: myname_ = 'general_read_fv3_regional'
@@ -397,6 +441,14 @@ contains
       character(len=:),allocatable :: sfcdata   !='fv3_sfcdata'
       character(len=:),allocatable :: couplerres!='coupler.res'
       
+<<<<<<< HEAD
+=======
+      associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+      end associate
+
+
+
+>>>>>>> master
     grid_spec=fv3_filenameginput%grid_spec
     ak_bk=fv3_filenameginput%ak_bk
     dynvars=fv3_filenameginput%dynvars
@@ -408,6 +460,7 @@ contains
 
 !cltthinktobe  should be contained in variable like grd_ens
 
+<<<<<<< HEAD
 !   do it=1,nfldsig
     if(fv3sar_ensemble_opt.eq.0 ) then  
     call gsi_fv3ncdf_readuv(dynvars,g_u,g_v)
@@ -432,10 +485,37 @@ contains
     do k=1,grd_ens%nsig+1
     g_prsi(:,:,k)=eta1_ll(k)+eta2_ll(k)*g_ps
     enddo
+=======
+
+    if(fv3sar_ensemble_opt == 0 ) then  
+      call gsi_fv3ncdf_readuv(dynvars,g_u,g_v)
+    else
+      call gsi_fv3ncdf_readuv_v1(dynvars,g_u,g_v)
+    endif
+    if(fv3sar_ensemble_opt == 0) then
+      call gsi_fv3ncdf_read(dynvars,'T','t',g_tsen,mype_t)
+    else
+      call gsi_fv3ncdf_read_v1(dynvars,'t','T',g_tsen,mype_t)
+    endif
+    if (fv3sar_ensemble_opt == 0) then 
+      call gsi_fv3ncdf_read(dynvars,'DELP','delp',g_prsi,mype_p)
+      g_prsi(:,:,grd_ens%nsig+1)=eta1_ll(grd_ens%nsig+1) !thinkto be done , should use eta1_ll from ensemble grid
+      do i=grd_ens%nsig,1,-1
+         g_prsi(:,:,i)=g_prsi(:,:,i)*0.001_r_kind+g_prsi(:,:,i+1)
+      enddo
+    g_ps(:,:)=g_prsi(:,:,1)
+    else  ! for the ensemble processed frm CHGRES
+      call gsi_fv3ncdf2d_read_v1(dynvars,'ps','PS',g_ps,mype_p)
+      g_ps=g_ps*0.001_r_kind
+      do k=1,grd_ens%nsig+1
+        g_prsi(:,:,k)=eta1_ll(k)+eta2_ll(k)*g_ps
+      enddo
+>>>>>>> master
     
 
     endif
      
+<<<<<<< HEAD
     if(fv3sar_ensemble_opt.eq.0) then
     call gsi_fv3ncdf_read(tracers,'SPHUM','sphum',g_q,mype_q)
 !   call gsi_fv3ncdf_read(tracers,'LIQ_WAT','liq_wat',ges_ql,mype_ql)
@@ -443,6 +523,14 @@ contains
     else
     call gsi_fv3ncdf_read_v1(tracers,'sphum','SPHUM',g_q,mype_q)
     call gsi_fv3ncdf_read_v1(tracers,'o3mr','O3MR',g_oz,mype_oz)
+=======
+    if(fv3sar_ensemble_opt == 0) then
+      call gsi_fv3ncdf_read(tracers,'SPHUM','sphum',g_q,mype_q)
+      call gsi_fv3ncdf_read(tracers,'O3MR','o3mr',g_oz,mype_oz)
+    else
+      call gsi_fv3ncdf_read_v1(tracers,'sphum','SPHUM',g_q,mype_q)
+      call gsi_fv3ncdf_read_v1(tracers,'o3mr','O3MR',g_oz,mype_oz)
+>>>>>>> master
     endif
 
 !!  tsen2tv  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -454,6 +542,7 @@ contains
        enddo
     enddo
          if (.not.q_hyb_ens) then
+<<<<<<< HEAD
          ice=.true.
          iderivative=0
                     do k=1,grd_ens%nsig
@@ -487,6 +576,39 @@ contains
 
 
 !clt not needed     call gsi_fv3ncdf2d_read(it,ges_z)
+=======
+           ice=.true.
+           iderivative=0
+           do k=1,grd_ens%nsig
+             kp=k+1
+             do j=1,grd_ens%lon2
+               do i=1,grd_ens%lat2
+                 g_prsl(i,j,k)=(g_prsi(i,j,k)+g_prsi(i,j,kp))*half
+                end do
+             end do
+           end do
+           call genqsat(g_rh,g_tsen(1,1,1),g_prsl(1,1,1),grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,ice,iderivative)
+           do k=1,grd_ens%nsig
+             do j=1,grd_ens%lon2
+               do i=1,grd_ens%lat2
+                 g_rh(i,j,k) = g_q(i,j,k)/g_rh(i,j,k)
+               end do
+             end do
+           end do
+         else
+             do k=1,grd_ens%nsig
+               do j=1,grd_ens%lon2
+                 do i=1,grd_ens%lat2
+                   g_rh(i,j,k) = g_q(i,j,k)
+                 end do
+                end do
+              end do
+         end if
+
+
+
+
+>>>>>>> master
 
   return       
   end subroutine general_read_fv3_regional

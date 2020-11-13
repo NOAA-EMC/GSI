@@ -41,7 +41,7 @@ foreach(_test ${UNIT_TEST_LIST})
     ${PFUNIT_DIR}/lib/libpfunit.a 
     gsilib_global${debug_suffix} gsilib_shrd${debug_suffix} gsilib_global${debug_suffix} gsilib_shrd${debug_suffix} 
          gsilib_global${debug_suffix} ${FRAMEPACK} ${FRAMEMODULE}
-         ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES}   
+         ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES} ${HDF5_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES}   
          ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${CORE_LIBRARIES} 
          ${IOINT_LIB} ${WRFNETCDF_LIB} )
   target_include_directories( ${_test}.x PUBLIC ${PROJECT_BINARY_DIR}/generated/${_test})

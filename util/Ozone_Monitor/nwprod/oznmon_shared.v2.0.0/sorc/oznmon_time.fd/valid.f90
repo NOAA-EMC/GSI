@@ -69,13 +69,13 @@ module valid
       logical fexist 
 
 
+      write(6,*) '--> load_base, satname = ', satname
+
       !--- initialization
       iret   = -1
       fname  = trim(satname) // '.base'
       fexist = .FALSE.
  
-      write(*,*) '--> begin load_base'
-      write(*,*) '--> valid, satname, fname = ', satname, fname
 
       !--- verify file exists and open the file
       inquire( file = fname, exist = fexist )
@@ -90,18 +90,14 @@ module valid
          !--- read the file header
          read(funit,*) test_satname, nlevel, nregion
 
-         write(*,*) ' test_satname, nlevel, nregion = ', test_satname, nlevel, nregion
+         write(*,*) ' test_satname = ', test_satname
          !--- line 2 of header file
-!         read(funit,*) dum1,dum2,dum3,dum4,dum5,dum6,dum7,dum8,dum9,dum10,dum11
          read(funit,*) dum1,dum2,dum3,dum4,dum5,dum6,dum7,dum8,dum9,dum10,dum11
-         write(*,*) 'line 2, dum1,dum2,dum3,dum4,dum5,dum6,dum7,dum8 = ', &
-                       dum1,dum2,dum3,dum4,dum5,dum6,dum7,dum8,dum9,dum10,dum11
 
          allocate( avg_count(nlevel,nregion), sdv_count(nlevel,nregion), &
               avg_penalty(nlevel,nregion), sdv_penalty(nlevel,nregion), &
               min_count(nlevel,nregion), max_count(nlevel,nregion), &
               min_penalty(nlevel,nregion), max_penalty(nlevel,nregion) )
-         write(*,*) 'allocation complete'
 
          ! --- set all missing
          do k=1,nregion
@@ -126,35 +122,19 @@ module valid
                     min_count(j,k), max_count(j,k), &
                     avg_penalty(j,k), sdv_penalty(j,k), &
                     min_penalty(j,k), max_penalty(j,k)
-
-!               read(funit,*) region, level, &
-!                    avg_count(j,k), sdv_count(j,k), &
-!                    min_count(j,k), max_count(j,k), &
-!                    avg_penalty(j,k), sdv_penalty(j,k), &
-!                    min_penalty(j,k), max_penalty(j,k)
-
-               write(*,*) 'finished read, level, region :', j, k
-               write(*,*) '    avg_count,sdv_count, min_count, max_count = ', &
-                               avg_count(j,k),sdv_count(j,k), min_count(j,k), max_count(j,k)
-               write(*,*) '    avg_pen,sdv_pen, min_pen, max_pen = ', &
-                               avg_penalty(j,k),sdv_penalty(j,k), min_penalty(j,k), max_penalty(j,k)
-
             end do
-         end do
-
-         write(*,*) 'LOADED values:'
-         k=1
-         do j=1,nlevel
-            write(*,*) 'j, k,avg_count,avg_penalty = ', j, k,avg_count(j,k),avg_penalty(j,k)
          end do
 
          iret = 0 
          base_loaded = .TRUE.
       else
-         write(*,*) 'unable to load fname for data error checking'
+         write(*,*) 'WARNING:  unable to load ', fname, ' for data error checking'
+         base_loaded = .FALSE.
       end if
 
-      write(*,*) '<-- end load_base'
+
+      write(6,*) '<-- load_base, base_loaded = ', base_loaded
+
 
     end subroutine load_base
 
@@ -225,7 +205,7 @@ module valid
          if ( valid .eqv. .FALSE. ) then
             write(*,*) ' avg_count(level,region), sdv2, hi, lo = ', avg_count(level,region), sdv2, hi, lo
          end if
-         write (*,*) '<-- valid, iret=', valid, iret
+
       else 
          !--- base file was not loaded, so return a warning that validation isn't possible
          iret = 1 
@@ -255,17 +235,16 @@ module valid
       !--- vars
       real sdv2
 
-      write(*,*) '--> validate_penalty, level, region, penalty ', level, region, penalty
 
       !--- initialize vars
       iret = 0 
       valid = .FALSE.
       bound = rmiss
 
-      if( base_loaded .eqv. .TRUE. .AND. nlevel > 1 ) then
+      if( base_loaded .eqv. .TRUE. .AND. nlevel >= 1 ) then
          if( level < 1 .OR. level > nlevel ) then
             iret = -1
-            write(*,*) 'Warning:  In validate_penalty attempt to validate level out of range', level
+            write(*,*) 'Warning:  In validate_penalty attempt to validate level out of range', level, nlevel
             valid = .TRUE.
          else if( region < 1 .OR. region > nregion ) then
             iret = -2
@@ -276,12 +255,7 @@ module valid
             !  all unassimilated level in the base files will have an rmiss
             !  value and are considered valid for verification purposes
             !
-!            sdv2 = 2 * sdv_penalty( level, region )
-
-!            bound = avg_penalty(level,region) + sdv2
             bound = max_penalty(level,region) * 1.2
-
-!            write(6,*)'check pen vs bound = ', penalty, bound
 
             if( avg_penalty(level,region) < 0.0 ) then
                valid = .TRUE.
@@ -300,7 +274,7 @@ module valid
          if ( valid .eqv. .FALSE. ) then
             write(*,*) ' BAD:  penalty, max_penalty(level,region), bound = ', penalty, max_penalty(level,region), bound
          end if
-         write (*,*) '<-- valid, iret=', valid, iret
+
       else 
          !--- base file was not loaded, or nlevel was 0 so return 
          !--- a warning that validation isn't possible

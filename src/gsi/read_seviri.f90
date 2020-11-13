@@ -27,6 +27,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !   2015-10-01  guo     - consolidate use of ob location (in deg)
+!   2018-05-21  j.jin   - added time-thinning. Moved the checking of thin4d into satthin.F90.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -56,15 +57,18 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       checkob,finalcheck,score_crit
+  use satthin, only: radthin_time_info,tdiff2crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,txy2ll,tll2xy,rlats,rlons
   use constants, only: deg2rad,zero,one,rad2deg,r60inv
   use obsmod, only: bmiss
+  use obsmod, only: time_window_max
   use radinfo, only: iuse_rad,jpch_rad,nusis
-  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,thin4d
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use mpimod, only: npe
+  use mpimod, only: ierror,mpi_itype,mpi_sum
 ! use radiance_mod, only: rad_obs_type
   implicit none
 
@@ -104,7 +108,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   integer(i_kind),allocatable,dimension(:)::nrec
 
   real(r_kind) dg2ew,sstime,tdiff,t4dv,sfcr
-  real(r_kind) dlon,dlat,timedif,crit1,dist1
+  real(r_kind) dlon,dlat,crit1,dist1
   real(r_kind) dlon_earth,dlat_earth
   real(r_kind) dlon_earth_deg,dlat_earth_deg
   real(r_kind) pred
@@ -114,19 +118,25 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
   real(r_kind),allocatable,dimension(:,:):: data_all
 
-  real(r_kind),allocatable,dimension(:):: hdr                        !  seviri imager header
-  real(r_kind),allocatable,dimension(:,:):: datasev1,datasev2        !  seviri imager data
-  real(r_kind) rclrsky
+  real(r_kind),allocatable,dimension(:):: hdr                          !  seviri imager header
+  real(r_kind),allocatable,dimension(:,:):: datasev,datasev1,datasev2,datasev3 !  seviri imager data
+  real(r_kind) rclrsky,rcldfrc
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
 
   real(r_kind) cdist,disterr,disterrmax,dlon00,dlat00
   integer(i_kind) ntest
 
   logical :: allchnmiss
+  real(r_kind)    :: ptime,timeinflat,crit0
+  integer(i_kind) :: ithin_time,n_tbin,it_mesh
 
+  integer(i_kind),allocatable,dimension(:):: randsd
+  integer(i_kind),allocatable,dimension(:):: subset_num, subset_nnsb
+  real(r_kind),   allocatable,dimension(:):: rd_tdiffs
+  integer(i_kind) :: sdsize,jrec,nnmsg,nnsb
 !**************************************************************************
 ! Initialize variables
-  maxinfo=31
+  maxinfo=32
   lnbufr = 10
   disterrmax=zero
   ntest=0
@@ -172,6 +182,12 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   end do search
   if (.not.assim) val_sev=zero
 
+  call radthin_time_info(obstype, jsatid, sis, ptime, ithin_time)
+  if( ptime > 0.0_r_kind) then
+     n_tbin=nint(2*time_window_max/ptime)
+  else
+     n_tbin=1
+  endif
 
 ! Open bufr file.
   call closbf(lnbufr)
@@ -200,28 +216,29 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   endif
 
 ! Make thinning grids
-  call makegrids(rmesh,ithin)
+  call makegrids(rmesh,ithin,n_tbin=n_tbin)
 
 ! Set BUFR string based on seviri data set
+  hdrsevi='SAID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA SOZA'
+  nhdr=11
   if (clrsky) then
-     hdrsevi='SAID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA SOZA'
-     nhdr=11
      nchn=12
      ncld=nchn
      nbrst=nchn
   else if (allsky) then
-     hdrsevi='SAID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH'
-     nhdr=9
      nchn=11
      ncld=2
      nbrst=nchn*6                ! channel dependent: all, clear, cloudy, low, middle and high clouds
   endif
+  allocate(datasev(1,4))         ! CLDMNT for ASR: not channel dependent
   allocate(datasev1(1,ncld))     ! not channel dependent
   allocate(datasev2(1,nbrst))    ! channel dependent: all, clear, cloudy, low, middle and high clouds
+  allocate(datasev3(1,nbrst))    ! SDTB: channel dependent
   allocate(hdr(nhdr))
 
 
 ! Allocate arrays to hold all data for given satellite
+  maxinfo=maxinfo+nchanl
   if(dval_use) maxinfo = maxinfo + 2
   nreal = maxinfo + nstinfo
   nele  = nreal   + nchanl
@@ -230,33 +247,46 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
 !  Reopen unit to bufr file
   call closbf(lnbufr)
-  open(lnbufr,file=infile,form='unformatted')
-  call openbf(lnbufr,'IN',lnbufr)
   if(jsatid == 'm08') kidsat = 55
   if(jsatid == 'm09') kidsat = 56
   if(jsatid == 'm10') kidsat = 57
   if(jsatid == 'm11') kidsat = 70
+  if( ithin_time == 5) then
+     call read_subset_nnsb
+  endif
+  open(lnbufr,file=infile,form='unformatted')
+  call openbf(lnbufr,'IN',lnbufr)
 
   nrec=999999
   irec=0
   next=0
+  jrec=0
 ! Big loop over bufr file
   read_msg: do while (ireadmg(lnbufr,subset,idate) >= 0)
      irec=irec+1
      if(irec < nrec_start) cycle read_msg
+     if( ithin_time == 5) then
+        jrec=jrec+1
+        if (allocated(rd_tdiffs)) deallocate(rd_tdiffs)
+        allocate(rd_tdiffs(subset_nnsb(jrec)))
+        call random_number(harvest=rd_tdiffs) 
+     endif
      next=next+1
      if(next == npe_sub)next=0     
      if(next /= mype_sub)cycle
 
+     nnsb=0
      read_loop: do while (ireadsb(lnbufr) == 0)
+        if( ithin_time == 5) then
+           nnsb=nnsb+1
+        endif
 
 !       Read through each record
         call ufbint(lnbufr,hdr,nhdr,1,iret,hdrsevi)
         if(nint(hdr(1)) /= kidsat) cycle read_loop
-        if (clrsky) then     ! asr bufr has no sza
-!          remove the obs whose satellite zenith angles larger than 65 degree
-           if ( hdr(ilzah) > r65 ) cycle read_loop
-        end if
+!       if (clrsky) then     ! asr bufr has no sza, asr bufr has sza since 2017.07
+        if ( hdr(ilzah) > r65 ) cycle read_loop
+!       end if
 
  
 !       Convert obs location from degrees to radians
@@ -313,37 +343,69 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         else
            if (abs(tdiff)>twind) cycle read_loop
         endif
-        if (thin4d) then
-           crit1=0.01_r_kind
-        else
-           timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
-           crit1=0.01_r_kind+timedif
-        endif
 
-        call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+        crit0=0.01_r_kind
+        timeinflat=6.0_r_kind
+        if( ithin_time == 5) then
+           tdiff = rd_tdiffs(nnsb)
+        endif
+        call tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
+        call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,it_mesh=it_mesh)
         if(.not. iuse)cycle read_loop
 
         nread=nread+nchanl
 
-        call ufbrep(lnbufr,datasev1,1,ncld,iret,'NCLDMNT')
-        rclrsky=bmiss
-        do n=1,ncld
-           if(datasev1(1,n)>= zero .and. datasev1(1,n) <= 100.0_r_kind ) then
-              rclrsky=datasev1(1,n)
+        rcldfrc=bmiss
+        if(clrsky) then       
+           call ufbrep(lnbufr,datasev1,1,ncld,iret,'NCLDMNT')
+           rclrsky=bmiss
+!          datasev1(1,5) is high-peaking water vapor channel
+!          for SEVIRI CSR, clear-sky percentage are different between the high-peaking WV channel and other channels
+           if(datasev1(1,5)>= zero .and. datasev1(1,5) <= 100.0_r_kind ) then
+              rclrsky=datasev1(1,5)
 !             first QC filter out data with less clear sky fraction
               if ( rclrsky < r70 ) cycle read_loop
            end if
-        end do
+        else if(allsky) then
+           call ufbrep(lnbufr,datasev1,1,2,iret,'NCLDMNT')
+           rclrsky=datasev1(1,1)  !clear-sky percentage
+!          rclrsky=datasev1(1,2)  !clear-sky percentage over sea
+           call ufbrep(lnbufr,datasev,1,4,iret,'CLDMNT')
+           rcldfrc=datasev(1,1)   !total cloud 
+        end if
 
         call ufbrep(lnbufr,datasev2,1,nbrst,iret,'TMBRST')
+        call ufbrep(lnbufr,datasev3,1,nbrst,iret,'SDTB')
 
-        allchnmiss=.true.
-        do n=4,11
-           if(datasev2(1,n)<500.)  then
-              allchnmiss=.false.
-           end if
-        end do
-        if(allchnmiss) cycle read_loop
+        if(clrsky) then       
+           allchnmiss=.true.
+           do n=4,11
+              if( datasev2(1,n)>zero .and. datasev2(1,n)<500.0_r_kind)  then
+                 allchnmiss=.false.
+              end if
+           end do
+           if(allchnmiss) cycle read_loop
+
+!         toss data if SDTB>1.3
+           do i=4,11
+              if(i==5 .or. i==6) then   ! 2 water-vapor channels
+                 if(datasev3(1,i)>1.3_r_kind) then
+                    cycle read_loop
+                 end if
+              end if
+           end do
+        end if
+        
+        if(allsky) then       
+           allchnmiss=.true.
+           do k=1,nchanl
+              jj=(k+2)*6+1
+              if( datasev2(1,jj)>zero .and. datasev2(1,jj)<500._r_kind)  then
+                 allchnmiss=.false.
+              end if
+           end do
+           if(allchnmiss) cycle read_loop
+        end if
 
 !       Locate the observation on the analysis grid.  Get sst and land/sea/ice
 !       mask.  
@@ -360,16 +422,21 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
            ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
 
         crit1=crit1+rlndsea(isflg)
-!       call checkob(dist1,crit1,itx,iuse)
-!       if(.not. iuse)cycle read_loop
+        call checkob(dist1,crit1,itx,iuse)
+        if(.not. iuse)cycle read_loop
 
 
 !       Set common predictor parameters
-!test
-        pred=zero
-!test        
+        if(clrsky) then
+!         use NCLDMNT from chn9 (10.8 micron) as a QC predictor
+!         add SDTB from chn9 as QC predictor
+           pred=10-datasev1(1,9)/10.0_r_kind+datasev3(1,9)*10.0_r_kind
+        else
+           pred=zero
+        end if
 !       Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
 
+        pred=zero    !ignore the rclrsky and SDTB for thinning for now
         crit1 = crit1+pred  
         call finalcheck(dist1,crit1,itx,iuse)
 
@@ -422,10 +489,19 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         data_all(29,itx)= ff10                        ! ten meter wind factor
         data_all(30,itx) = dlon_earth_deg             ! earth relative longitude (degrees)
         data_all(31,itx) = dlat_earth_deg             ! earth relative latitude (degrees)
+        data_all(32,itx) = rcldfrc                    ! total cloud fraction from SEVASR
+        do k=1,nchanl
+           if(clrsky) then
+              data_all(32+k,itx) = datasev3(1,k+3)     ! BT standard deviation from SEVCSR
+           else if(allsky) then
+              jj=(k+2)*6+1
+              data_all(32+k,itx) = datasev3(1,jj)      ! BT standard deviation from SEVASR 
+           end if
+        end do
 
         if(dval_use)then
-           data_all(32,itx) = val_sev
-           data_all(33,itx) = itt
+           data_all(maxinfo-1,itx) = val_sev
+           data_all(maxinfo,itx) = itt
         end if
 
         if ( nst_gsi > 0 ) then
@@ -447,6 +523,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
 !    End of satellite read block
      enddo read_loop
+     if(allocated(rd_tdiffs)) deallocate(rd_tdiffs)
   enddo read_msg
   call closbf(lnbufr)
 
@@ -457,29 +534,31 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 ! and write out data to scratch file for further processing.
   if (mype_sub==mype_root.and.ndata>0) then
 
-    do n=1,ndata
-       do k=1,nchanl
-          if(data_all(k+nreal,n) > tbmin .and. &
-             data_all(k+nreal,n) < tbmax)nodata=nodata+1
-       end do
-    end do
-    if(dval_use .and. assim)then
-       do n=1,ndata
-          itt=nint(data_all(33,n))
-          super_val(itt)=super_val(itt)+val_sev
-       end do
-    end if
-
-!   Write retained data to local file
-    call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
-    write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-    write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
-
+     do n=1,ndata
+        do k=1,nchanl
+           if(data_all(k+nreal,n) > tbmin .and. &
+                data_all(k+nreal,n) < tbmax)nodata=nodata+1
+        end do
+     end do
+     if(dval_use .and. assim)then
+        do n=1,ndata
+           itt=nint(data_all(maxinfo,n))
+           super_val(itt)=super_val(itt)+val_sev
+        end do
+     end if
+     
+!    Write retained data to local file
+     call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
+     write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+     write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
+     
   endif
 
 ! Deallocate local arrays
   deallocate(data_all,nrec)
-  deallocate(hdr,datasev2,datasev1)
+  deallocate(hdr,datasev2,datasev1,datasev3,datasev)
+  if(allocated(subset_num)) deallocate(subset_num)
+  if(allocated(subset_nnsb)) deallocate(subset_nnsb)
 
 ! Deallocate satthin arrays
   call destroygrids
@@ -495,5 +574,57 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
      'mype,ntest,disterrmax=',mype,ntest,disterrmax
 
 ! End of routine
-  return
+!  return
+
+ contains
+   subroutine  read_subset_nnsb
+     implicit none
+     open(lnbufr,file=infile,form='unformatted')
+     call openbf(lnbufr,'IN',lnbufr)
+     call random_seed(size=sdsize)
+     allocate(randsd(sdsize))
+     do i=1,sdsize
+        randsd(i)=int(gstime,i_kind)+kidsat
+     end do
+     call random_seed(put=randsd)
+     deallocate(randsd)
+
+     nnmsg=0
+     irec=0
+     read_msg1: do while (ireadmg(lnbufr,subset,idate) >= 0)
+        irec=irec+1
+        if(irec < nrec_start) cycle read_msg1
+        nnmsg=nnmsg+1
+     enddo read_msg1
+     call closbf(lnbufr)
+
+     allocate(subset_num(nnmsg))
+     allocate(subset_nnsb(nnmsg))
+     subset_num=0
+     subset_nnsb=0
+     open(lnbufr,file=infile,form='unformatted')
+     call openbf(lnbufr,'IN',lnbufr)
+     nnmsg=0
+     irec=0
+     next=0
+     read_msg2: do while (ireadmg(lnbufr,subset,idate) >= 0)
+        irec=irec+1
+        if(irec < nrec_start) cycle read_msg2
+        nnmsg=nnmsg+1
+        next=next+1
+        if(next == npe_sub)next=0     
+        if(next /= mype_sub)cycle read_msg2
+        nnsb=0
+        read_loop2: do while (ireadsb(lnbufr) == 0)
+           nnsb=nnsb+1
+        enddo read_loop2
+        subset_num(nnmsg)=nnsb
+     enddo read_msg2
+     call closbf(lnbufr)
+     if (npe_sub > 1 ) then 
+        call mpi_allreduce(subset_num, subset_nnsb, nnmsg,mpi_itype,mpi_sum,mpi_comm_sub,ierror)
+     else
+        subset_nnsb = subset_num
+     endif
+   end subroutine  read_subset_nnsb
 end subroutine read_seviri

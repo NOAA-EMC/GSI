@@ -25,6 +25,7 @@ use m_obsNode , only: obsNode
 use m_mitmNode, only: mitmNode
 use m_mitmNode, only: mitmNode_typecast
 use m_mitmNode, only: mitmNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -111,9 +112,11 @@ subroutine intmitm(mitmhead,rval,sval)
      if(luse_obsdiag)then
         if (lsaveobsens) then
            grad = val*mitmptr%raterr2*mitmptr%err2
-           mitmptr%diags%obssen(jiter) = grad
+           !-- mitmptr%diags%obssen(jiter) = grad
+           call obsdiagNode_set(mitmptr%diags,jiter=jiter,obssen=grad)
         else
-           if (mitmptr%luse) mitmptr%diags%tldepart(jiter)=val
+           !-- if (mitmptr%luse) mitmptr%diags%tldepart(jiter)=val
+           if (mitmptr%luse) call obsdiagNode_set(mitmptr%diags,jiter=jiter,tldepart=val)
         endif
      endif
 

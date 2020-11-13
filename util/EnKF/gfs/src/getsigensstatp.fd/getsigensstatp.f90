@@ -15,6 +15,7 @@ program getsigensstatp
 !
 ! program history log:
 !   2014-08-23  Initial version.
+!   2018-07-21  Add hydrometeor (optional) 
 !
 ! usage:
 !   input files:
@@ -33,6 +34,11 @@ program getsigensstatp
     use nemsio_module, only: nemsio_init,nemsio_open,nemsio_close, &
                              nemsio_gfile,nemsio_getfilehead,nemsio_charkind8, &
                              nemsio_readrec,nemsio_readrecv
+    use module_fv3gfs_ncio, only: open_dataset, create_dataset, read_attribute, &
+                             Dataset, Dimension, close_dataset, &
+                             read_vardata, write_attribute, write_vardata, &
+                             get_dim, quantize_data
+
 
     implicit none
 
@@ -44,6 +50,7 @@ program getsigensstatp
     character(len=500) :: filenamein,datapath,filepref
     integer :: nanals,nlevs,ntrac,ntrunc,latb,lonb,iret
     integer :: k,krecu,krecv,krect,krecq,krecoz,kreccwmr,krecicmr
+    integer :: krecsnmr,krecrwmr,krecgrle
     integer :: nsize,npts,nrec,nflds
     real(r_double) :: rnanals,rnanalsm1
     character(len=16),allocatable,dimension(:) :: recnam
@@ -51,12 +58,17 @@ program getsigensstatp
     integer,dimension(:),allocatable :: new_group_members,reclev
     real(r_single),allocatable,dimension(:,:) :: rwork_mem,rwork_avg
     real(r_single),allocatable,dimension(:) :: glats,gwts
-    logical :: sigio,nemsio
-    logical :: do_icmr = .false.
+    real(4), allocatable, dimension(:,:,:) :: values_3d
+    real(4), allocatable, dimension(:,:) :: values_2d
+    logical :: sigio,nemsio,ncio
+!   logical :: do_icmr = .false.
+    logical :: do_hydro = .false.
 
     type(sigio_head)   :: sigheadi
     type(sigio_data)   :: sigdatai
     type(nemsio_gfile) :: gfile
+    type(Dataset) :: dset
+    type(Dimension) :: londim,latdim,levdim
 
     ! Initialize mpi, mype is process number, npe is total number of processes.
     call mpi_init(iret)
@@ -115,47 +127,77 @@ program getsigensstatp
 
     nemsio = .false.
     sigio  = .false.
+    ncio = .false.
 
 ! Process input files (one file per task)
     if ( mype1 <= nanals ) then
 
-        call nemsio_init(iret=iret)
-
         write(charnanal,'(i3.3)') mype1
         filenamein = trim(adjustl(datapath)) // trim(adjustl(filepref)) // '_mem' // charnanal
 
+        dset = open_dataset(filenamein,errcode=iret)
+        if (iret == 0) then
+           ncio = .true.
+        else
+           ncio = .false.
+        end if
+        if (.not. ncio) then
+            call nemsio_init(iret=iret)
+            call nemsio_open(gfile,trim(filenamein),'READ',iret=iret)
+            if (iret == 0) then
+               nemsio = .true.
+            else
+               nemsio = .false.
+            endif
+        endif
+        if (.not. ncio .and. .not. nemsio) then
+            call sigio_srohdc(iunit,trim(filenamein),sigheadi,sigdatai,iret)
+            if (iret == 0) then
+               sigio = .true.
+            else
+               sigio = .false.
+            endif
+        endif
+
+        if ( .not. ncio .and. .not. nemsio .and. .not. sigio ) then
+           write(6,'(3a)')'***ERROR*** ',trim(filenamein),' contains unrecognized file format. ABORT!'
+           call mpi_abort(mpi_comm_world,99,iret)
+           stop
+        end if
+
+!    Read each ensemble member
         ! Read each ensemble member
-        call sigio_srohdc(iunit,trim(adjustl(filenamein)),sigheadi,sigdatai,iret)
-        if ( iret == 0 ) then
-            sigio = .true.
+        if (ncio) then
+           if (mype == 0) write(6,*) 'Read netcdf ',trim(filenamein)
+           londim = get_dim(dset,'grid_xt'); lonb = londim%len
+           latdim = get_dim(dset,'grid_yt'); latb = latdim%len
+           levdim = get_dim(dset,'pfull');   nlevs = levdim%len
+           call read_attribute(dset, 'ncnsto', ntrac)
+           ntrunc = latb-2
+        end if
+        if (sigio) then
             write(6,'(3a,i5)')'Read sigio ',trim(filenamein),' iret = ',iret
             ntrunc  = sigheadi%jcap
             ntrac   = sigheadi%ntrac
             nlevs   = sigheadi%levs
             latb    = sigheadi%latf
             lonb    = sigheadi%lonf
-        else
-            call nemsio_open(gfile,trim(filenamein),'READ',iret=iret)
-            if ( iret == 0 ) then
-                nemsio = .true.
-                call nemsio_getfilehead(gfile, nrec=nrec, jcap=ntrunc, &
-                dimx=lonb, dimy=latb, dimz=nlevs, ntrac=ntrac, gdatatype=dtype, iret=iret)
-                write(6,'(5a,i5)')'Read nemsio ',trim(filenamein), ' dtype = ', trim(adjustl(dtype)),' iret = ',iret
-                if ( ntrunc < 0 ) ntrunc = latb - 2
-                allocate(reclev(nrec),recnam(nrec))
-                call nemsio_getfilehead(gfile,reclev=reclev,iret=iret)
-                call nemsio_getfilehead(gfile,recname=recnam,iret=iret)
-            else
-                write(6,'(3a)')'***ERROR*** ',trim(filenamein),' contains unrecognized file format. ABORT!'
-                call mpi_abort(mpi_comm_world,99,iret)
-                stop
-            endif
-            do_icmr = variable_exist('icmr')
+        end if
+        if (nemsio) then
+           call nemsio_getfilehead(gfile, nrec=nrec, jcap=ntrunc, &
+              dimx=lonb, dimy=latb, dimz=nlevs, ntrac=ntrac, gdatatype=dtype, iret=iret)
+           write(6,'(5a,i5)')'Read nemsio ',trim(filenamein), ' dtype = ', trim(adjustl(dtype)),' iret = ',iret
+           if ( ntrunc < 0 ) ntrunc = latb - 2
+           allocate(reclev(nrec),recnam(nrec))
+           call nemsio_getfilehead(gfile,reclev=reclev,iret=iret)
+           call nemsio_getfilehead(gfile,recname=recnam,iret=iret)
+           !do_icmr = variable_exist('icmr')
+           do_hydro = .false.  ! set to false to keep the file size small
         endif
 
         if ( mype == 0 ) then
             write(6,'(a)')   ' '
-            write(6,'(2(a,l1))')'Computing ensemble mean and spread with nemsio = ',nemsio,' , sigio = ',sigio
+            write(6,'(2(a,l1))')'Computing ensemble mean and spread with nemsio = ',nemsio,' , sigio = ',sigio, ' , ncio = ',ncio
             write(6,'(a)')   ' '
         endif
 
@@ -172,6 +214,7 @@ program getsigensstatp
 
         npts  = latb*lonb
         nflds = 1 + 6*nlevs
+        if (do_hydro) nflds = 1 + 10*nlevs
         nsize = npts*nflds
 
         if ( mype == 0 ) then
@@ -218,17 +261,71 @@ program getsigensstatp
                 krecq    = 1 + 3*nlevs + k
                 krecoz   = 1 + 4*nlevs + k
                 kreccwmr = 1 + 5*nlevs + k
-                if ( do_icmr ) krecicmr = 1 + 6*nlevs + k
+              ! if ( do_icmr ) krecicmr = 1 + 6*nlevs + k
+                if ( do_hydro ) then
+                   krecicmr = 1 + 6*nlevs + k
+                   krecrwmr = 1 + 7*nlevs + k
+                   krecsnmr = 1 + 8*nlevs + k
+                   krecgrle = 1 + 9*nlevs + k
+                endif
                 call nemsio_readrecv(gfile,'ugrd', 'mid layer',k,rwork_mem(:,krecu),   iret=iret)
                 call nemsio_readrecv(gfile,'vgrd', 'mid layer',k,rwork_mem(:,krecv),   iret=iret)
                 call nemsio_readrecv(gfile,'tmp',  'mid layer',k,rwork_mem(:,krect),   iret=iret)
                 call nemsio_readrecv(gfile,'spfh', 'mid layer',k,rwork_mem(:,krecq),   iret=iret)
                 call nemsio_readrecv(gfile,'o3mr', 'mid layer',k,rwork_mem(:,krecoz),  iret=iret)
                 call nemsio_readrecv(gfile,'clwmr','mid layer',k,rwork_mem(:,kreccwmr),iret=iret)
-                if ( do_icmr ) call nemsio_readrecv(gfile,'icwr', 'mid layer',k,rwork_mem(:,krecicmr),iret=iret)
+              ! if ( do_icmr ) call nemsio_readrecv(gfile,'icmr', 'mid layer',k,rwork_mem(:,krecicmr),iret=iret) 
+                if ( do_hydro ) then
+                   call nemsio_readrecv(gfile,'icmr', 'mid layer',k,rwork_mem(:,krecicmr),   iret=iret)
+                   call nemsio_readrecv(gfile,'rwmr', 'mid layer',k,rwork_mem(:,krecrwmr),   iret=iret)
+                   call nemsio_readrecv(gfile,'snmr', 'mid layer',k,rwork_mem(:,krecsnmr),   iret=iret)
+                   call nemsio_readrecv(gfile,'grle', 'mid layer',k,rwork_mem(:,krecgrle),   iret=iret)
+                endif
+
             enddo
             call nemsio_close(gfile,iret=iret)
 
+        elseif ( ncio ) then
+           call read_vardata(dset,'pressfc',values_2d) 
+           rwork_mem(:,1) = reshape(values_2d,(/npts/))
+           deallocate(values_2d)
+           call read_vardata(dset,'ugrd',values_3d)
+           do k = 1,nlevs
+              krecu    = 1 + 0*nlevs + k
+              rwork_mem(:,krecu) = reshape(values_3d(:,:,k),(/npts/))
+           end do
+           call read_vardata(dset,'vgrd',values_3d)
+           do k = 1,nlevs
+              krecv    = 1 + 1*nlevs + k
+              rwork_mem(:,krecv) = reshape(values_3d(:,:,k),(/npts/))
+           end do
+           call read_vardata(dset,'tmp',values_3d)
+           do k = 1,nlevs
+              krect    = 1 + 2*nlevs + k
+              rwork_mem(:,krect) = reshape(values_3d(:,:,k),(/npts/))
+           end do
+           call read_vardata(dset,'spfh',values_3d)
+           do k = 1,nlevs
+              krecq    = 1 + 3*nlevs + k
+              rwork_mem(:,krecq) = reshape(values_3d(:,:,k),(/npts/))
+           end do
+           call read_vardata(dset,'o3mr',values_3d)
+           do k = 1,nlevs
+              krecoz   = 1 + 4*nlevs + k
+              rwork_mem(:,krecoz) = reshape(values_3d(:,:,k),(/npts/))
+           end do
+           call read_vardata(dset,'clwmr',values_3d)
+           do k = 1,nlevs
+              kreccwmr = 1 + 5*nlevs + k
+              rwork_mem(:,kreccwmr) = reshape(values_3d(:,:,k),(/npts/))
+           end do
+           call read_vardata(dset,'icmr',values_3d)
+           do k = 1,nlevs
+              krecicmr = 1 + 6*nlevs + k
+              rwork_mem(:,krecicmr) = reshape(values_3d(:,:,k),(/npts/))
+           end do
+           call close_dataset(dset)
+           deallocate(values_3d)
         endif
 
         call mpi_allreduce(rwork_mem,rwork_avg,nsize,mpi_real4,mpi_sum,new_comm,iret)
@@ -245,7 +342,6 @@ program getsigensstatp
 
         if ( mype == 0 ) call write_to_disk('spread')
 
-        deallocate(rwork_mem,rwork_avg)
 
     ! Jump here if more mpi processors than files to process
     else
@@ -253,6 +349,7 @@ program getsigensstatp
     endif
 
     call mpi_barrier(mpi_comm_world,iret)
+    deallocate(rwork_mem,rwork_avg)
 
     deallocate(new_group_members)
     if ( mype == 0 ) deallocate(glats)
@@ -328,6 +425,20 @@ subroutine write_to_disk(statstr)
    call nc_check( nf90_def_var(ncid,'cw',nf90_float,vardim,varid),myname,'def_var cw '//trim(filenameout) )
    call nc_check( nf90_put_att(ncid, varid, 'long_name','cloud-water mixing ratio'),myname, 'put_att, long_name cw '//trim(filenameout) )
    call nc_check( nf90_put_att(ncid, varid, 'units','kg/kg'),myname, 'put_att, units cw '//trim(filenameout) )
+   if (do_hydro) then
+      call nc_check( nf90_def_var(ncid,'qi',nf90_float,vardim,varid),myname,'def_var qi '//trim(filenameout) )
+      call nc_check( nf90_put_att(ncid, varid, 'long_name','cloud-ice mixing ratio'),myname, 'put_att, long_name qi '//trim(filenameout) )
+      call nc_check( nf90_put_att(ncid, varid, 'units','kg/kg'),myname, 'put_att, units qi '//trim(filenameout) )
+      call nc_check( nf90_def_var(ncid,'qr',nf90_float,vardim,varid),myname,'def_var qr '//trim(filenameout) )
+      call nc_check( nf90_put_att(ncid, varid, 'long_name','rain water mixing ratio'),myname, 'put_att, long_name qr '//trim(filenameout) )
+      call nc_check( nf90_put_att(ncid, varid, 'units','kg/kg'),myname, 'put_att, units qr '//trim(filenameout) )
+      call nc_check( nf90_def_var(ncid,'qs',nf90_float,vardim,varid),myname,'def_var qs '//trim(filenameout) )
+      call nc_check( nf90_put_att(ncid, varid, 'long_name','snow water mixing ratio'),myname, 'put_att, long_name qs '//trim(filenameout) )
+      call nc_check( nf90_put_att(ncid, varid, 'units','kg/kg'),myname, 'put_att, units qs '//trim(filenameout) )
+      call nc_check( nf90_def_var(ncid,'qg',nf90_float,vardim,varid),myname,'def_var qg '//trim(filenameout) )
+      call nc_check( nf90_put_att(ncid, varid, 'long_name','graupel water mixing ratio'),myname, 'put_att, long_name qg '//trim(filenameout) )
+      call nc_check( nf90_put_att(ncid, varid, 'units','kg/kg'),myname, 'put_att, units qg '//trim(filenameout) )
+   endif
    call nc_check( nf90_enddef(ncid),myname,'enddef, '//trim(filenameout) )
    call nc_check( nf90_close(ncid),myname,'close, '//trim(filenameout) )
 
@@ -373,6 +484,28 @@ subroutine write_to_disk(statstr)
    var3d = var3d(:,latb:1:-1,:)
    call nc_check( nf90_inq_varid(ncid,'cw',varid),myname,'inq_varid, cw '// trim(filenameout) )
    call nc_check( nf90_put_var(ncid,varid,var3d,(/1,1,1/),(/lonb,latb,nlevs/)),myname, 'put_var, cw '//trim(filenameout) )
+   if (do_hydro) then
+      kbeg = kend + 1 ; kend = kend + nlevs
+      var3d = reshape(rwork_avg(:,kbeg:kend),(/lonb,latb,nlevs/))
+      var3d = var3d(:,latb:1:-1,:)
+      call nc_check( nf90_inq_varid(ncid,'qi',varid),myname,'inq_varid, qi '// trim(filenameout) )
+      call nc_check( nf90_put_var(ncid,varid,var3d,(/1,1,1/),(/lonb,latb,nlevs/)),myname, 'put_var, qi '//trim(filenameout) )
+      kbeg = kend + 1 ; kend = kend + nlevs
+      var3d = reshape(rwork_avg(:,kbeg:kend),(/lonb,latb,nlevs/))
+      var3d = var3d(:,latb:1:-1,:)
+      call nc_check( nf90_inq_varid(ncid,'qr',varid),myname,'inq_varid, qr '// trim(filenameout) )
+      call nc_check( nf90_put_var(ncid,varid,var3d,(/1,1,1/),(/lonb,latb,nlevs/)),myname, 'put_var, qr '//trim(filenameout) )
+      kbeg = kend + 1 ; kend = kend + nlevs
+      var3d = reshape(rwork_avg(:,kbeg:kend),(/lonb,latb,nlevs/))
+      var3d = var3d(:,latb:1:-1,:)
+      call nc_check( nf90_inq_varid(ncid,'qs',varid),myname,'inq_varid, qs '// trim(filenameout) )
+      call nc_check( nf90_put_var(ncid,varid,var3d,(/1,1,1/),(/lonb,latb,nlevs/)),myname, 'put_var, qs '//trim(filenameout) )
+      kbeg = kend + 1 ; kend = kend + nlevs
+      var3d = reshape(rwork_avg(:,kbeg:kend),(/lonb,latb,nlevs/))
+      var3d = var3d(:,latb:1:-1,:)
+      call nc_check( nf90_inq_varid(ncid,'qg',varid),myname,'inq_varid, qg '// trim(filenameout) )
+      call nc_check( nf90_put_var(ncid,varid,var3d,(/1,1,1/),(/lonb,latb,nlevs/)),myname, 'put_var, qg '//trim(filenameout) )
+   endif
    call nc_check( nf90_close(ncid),myname,'close, '//trim(filenameout) )
 
    write(6,'(3a,i5)')'Wrote netcdf4 ',trim(filenameout)

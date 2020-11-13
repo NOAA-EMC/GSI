@@ -25,6 +25,7 @@ use m_obsNode, only: obsNode
 use m_visNode, only: visNode
 use m_visNode, only: visNode_typecast
 use m_visNode, only: visNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -111,9 +112,11 @@ subroutine intvis(vishead,rval,sval)
      if(luse_obsdiag)then
         if (lsaveobsens) then
            grad = val*visptr%raterr2*visptr%err2
-           visptr%diags%obssen(jiter) = grad
+           !-- visptr%diags%obssen(jiter) = grad
+           call obsdiagNode_set(visptr%diags,jiter=jiter,obssen=grad)
         else
-           if (visptr%luse) visptr%diags%tldepart(jiter)=val
+           !-- if (visptr%luse) visptr%diags%tldepart(jiter)=val
+           if (visptr%luse) call obsdiagNode_set(visptr%diags,jiter=jiter,tldepart=val)
         endif
      endif
 

@@ -88,6 +88,9 @@ module gridmod
 !   2017-08-31  Li      - add sfcnst_comb to handle surface and nsst combined file
 !   2018-02-15  wu      - add fv3_regional & grid_ratio_fv3_regional
 !   2019-03-05  martin  - add wgtfactlats for factqmin/factqmax scaling
+!   2019-04-19  martin  - add use_fv3_aero option to distingiush between NGAC and FV3-Chem
+!   2019-09-04  martin  - add write_fv3_incr to write netCDF increment rather than analysis in NEMSIO format
+!   2019-09-23  martin  - add use_gfs_ncio to read global first guess from netCDF file
 !
 !                        
 !
@@ -148,11 +151,15 @@ module gridmod
   public :: jcap,jcap_b,hires_b,sp_a,grd_a
   public :: jtstart,jtstop,nthreads
   public :: use_gfs_nemsio
+  public :: use_gfs_ncio
+  public :: fv3_full_hydro  
+  public :: use_fv3_aero
   public :: sfcnst_comb
   public :: use_readin_anl_sfcmask
   public :: jcap_gfs,nlat_gfs,nlon_gfs
   public :: use_sp_eqspace,jcap_cut
   public :: wrf_mass_hybridcord
+  public :: write_fv3_incr
 
   interface strip
      module procedure strip_single_rank33_
@@ -184,8 +191,12 @@ module gridmod
   logical update_regsfc     !
   logical hires_b           ! .t. when jcap_b requires double FFT
   logical use_gfs_nemsio    ! .t. for using NEMSIO to real global first guess
+  logical use_gfs_ncio      ! .t. for using netCDF to real global first guess
+  logical fv3_full_hydro    ! .t. for using NEMSIO to real global first guess
+  logical use_fv3_aero      ! .t. for using FV3 Aerosols, .f. for NGAC
   logical sfcnst_comb       ! .t. for using combined sfc & nst file
   logical use_sp_eqspace    ! .t. use equally-space grid in spectral transforms
+  logical write_fv3_incr    ! .t. write netCDF increment rather than NEMSIO analysis
 
   logical use_readin_anl_sfcmask        ! .t. for using readin surface mask
   character(1) nmmb_reference_grid      ! ='H': use nmmb H grid as reference for analysis grid
@@ -399,6 +410,8 @@ contains
 !   2011-09-14  todling - add use_sp_eqspace to better control lat/lon grid case
 !   2016-08-28       li - tic591: add use_readin_anl_sfcmask for consistent sfcmask
 !                         between analysis grids and others
+!   2019-04-19  martin  - add use_fv3_aero option for NGAC vs FV3-Chem
+!   2019-09-23  martin  - add flag use_gfs_ncio to determine whether to use netCDF to read global first gues field
 !
 ! !REMARKS:
 !   language: f90
@@ -476,6 +489,9 @@ contains
     nthreads = 1  ! initialize the number of threads
 
     use_gfs_nemsio  = .false.
+    use_gfs_ncio = .false.
+    fv3_full_hydro  = .false. 
+    use_fv3_aero  = .false.
     sfcnst_comb = .false.
     use_readin_anl_sfcmask = .false.
 
@@ -504,6 +520,7 @@ contains
     use mpeu_util, only: getindex
     use general_specmod, only: spec_cut
     use gsi_io, only: verbose
+    use gsi_metguess_mod, only: gsi_metguess_get
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -544,6 +561,8 @@ contains
     integer(i_kind) i,k,inner_vars,num_fields
     integer(i_kind) n3d,n2d,nvars,tid,nth
     integer(i_kind) ipsf,ipvp,jpsf,jpvp,isfb,isfe,ivpb,ivpe
+    integer(i_kind) istatus,icw,iql,iqi
+    integer(i_kind) icw_cv,iql_cv,iqi_cv
     logical,allocatable,dimension(:):: vector
     logical print_verbose
 
@@ -563,6 +582,17 @@ contains
     n3d  =size(cvars3d)
     n2d  =size(cvars2d)
     nvars=size(cvars)
+
+    icw_cv = getindex(cvars3d(1:n3d),'cw')
+    iql_cv = getindex(cvars3d(1:n3d),'ql')
+    iqi_cv = getindex(cvars3d(1:n3d),'qi')
+    call gsi_metguess_get('var::cw', icw, istatus)
+    call gsi_metguess_get('var::ql', iql, istatus)
+    call gsi_metguess_get('var::qi', iqi, istatus)
+    fv3_full_hydro = ( iql>0    .and. iqi>0    .and. (.not. icw>0)   ) .and. &
+                     ( iql_cv>0 .and. iqi_cv>0 .and. (.not. icw_cv>0))
+
+    if (mype==0) write(6,*) myname, ' fv3_full_hydro ', fv3_full_hydro
 
 ! Allocate and initialize variables for mapping between global
 ! domain and subdomains
@@ -1070,6 +1100,7 @@ contains
        rlat_max_dd=rlat_max_ll-r1_5/grid_ratio_fv3_regional
        rlon_min_dd=rlon_min_ll+r1_5/grid_ratio_fv3_regional
        rlon_max_dd=rlon_max_ll-r1_5/grid_ratio_fv3_regional
+       pt_ll=zero
     endif    !  fv3_regional
 
     if(wrf_nmm_regional) then     ! begin wrf_nmm section

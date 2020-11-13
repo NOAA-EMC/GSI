@@ -31,6 +31,7 @@ use m_obsNode, only: obsNode
 use m_wNode, only: wNode
 use m_wNode, only: wNode_typecast
 use m_wNode, only: wNode_nextcast
+use m_obsdiagNode, only: obsdiagNode_set
 implicit none
 
 PRIVATE
@@ -74,6 +75,7 @@ subroutine intw_(whead,rval,sval)
 !   2014-04-12       su - add non linear qc from Purser's scheme
 !   2014-12-03  derber  - modify so that use of obsdiags can be turned off
 !   2015-12-21  yang    - Parrish's correction to the previous code in new varqc.
+!   2019-09-20  Su      - add new variational scheme
 !
 !   input argument list:
 !     whead    - obs type pointer to obs structure
@@ -94,11 +96,12 @@ subroutine intw_(whead,rval,sval)
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term,r3600,two
   use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
-  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc
+  use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc,nvqc,hub_norm
   use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_4dvar, only: ladtest_obs 
+  use pvqc, only: vqch,vqcs
   implicit none
 
 ! Declare passed variables
@@ -108,8 +111,10 @@ subroutine intw_(whead,rval,sval)
 
 ! Declare local variables
   integer(i_kind) i1,i2,i3,i4,i5,i6,i7,i8,ier,istatus
+  integer(i_kind) ib,ik
 ! real(r_kind) penalty
   real(r_kind) valu,valv,w1,w2,w3,w4,w5,w6,w7,w8
+  real(r_kind) gu,gv,wu,wv,ww
   real(r_kind) cg_w,p0,gradu,gradv,wnotgross,wgross,term,w_pg
   real(r_kind),pointer,dimension(:) :: su,sv
   real(r_kind),pointer,dimension(:) :: ru,rv
@@ -155,12 +160,16 @@ subroutine intw_(whead,rval,sval)
         if (lsaveobsens) then
            gradu = valu*wptr%raterr2*wptr%err2
            gradv = valv*wptr%raterr2*wptr%err2
-           wptr%diagu%obssen(jiter) = gradu
-           wptr%diagv%obssen(jiter) = gradv
+           !-- wptr%diagu%obssen(jiter) = gradu
+           !-- wptr%diagv%obssen(jiter) = gradv
+           call obsdiagNode_set(wptr%diagu,jiter=jiter,obssen=gradu)
+           call obsdiagNode_set(wptr%diagv,jiter=jiter,obssen=gradv)
         else
            if (wptr%luse) then
-              wptr%diagu%tldepart(jiter)=valu
-              wptr%diagv%tldepart(jiter)=valv
+              !-- wptr%diagu%tldepart(jiter)=valu
+              !-- wptr%diagv%tldepart(jiter)=valv
+              call obsdiagNode_set(wptr%diagu,jiter=jiter,tldepart=valu)
+              call obsdiagNode_set(wptr%diagv,jiter=jiter,tldepart=valv)
            endif
         endif
      endif
@@ -173,6 +182,7 @@ subroutine intw_(whead,rval,sval)
            end if
 
 !          gradient of nonlinear operator
+
  
            if (vqc .and. nlnqc_iter .and. wptr%pg > tiny_r_kind .and.  &
                                 wptr%b  > tiny_r_kind) then
@@ -185,16 +195,36 @@ subroutine intw_(whead,rval,sval)
               term=one-p0                                !  term is Wqc in Enderson
               valu = valu*term
               valv = valv*term
-           endif
-           if (njqc .and. wptr%jb  > tiny_r_kind .and. wptr%jb <10.0_r_kind) then
+              gradu = valu*wptr%raterr2*wptr%err2
+              gradv = valv*wptr%raterr2*wptr%err2
+            else if (njqc .and. wptr%jb  > tiny_r_kind .and. wptr%jb <10.0_r_kind) then
               valu=sqrt(two*wptr%jb)*tanh(sqrt(wptr%err2)*valu/sqrt(two*wptr%jb))
               valv=sqrt(two*wptr%jb)*tanh(sqrt(wptr%err2)*valv/sqrt(two*wptr%jb))
               gradu = valu*wptr%raterr2*sqrt(wptr%err2)
               gradv = valv*wptr%raterr2*sqrt(wptr%err2)
+           else if (nvqc .and. wptr%ib >0) then
+              ib=wptr%ib
+              ik=wptr%ik
+              ww=valu*sqrt(wptr%err2)
+              if(hub_norm) then
+                 call vqch(ib,ik,ww,gu,wu)
+              else
+                 call vqcs(ib,ik,ww,gu,wu)
+              endif
+              gradu =wu*ww*sqrt(wptr%err2)*wptr%raterr2
+              ww=valv*sqrt(wptr%err2)
+              if(hub_norm) then
+                 call vqch(ib,ik,ww,gv,wv)
+              else 
+                 call vqcs(ib,ik,ww,gv,wv)
+              endif
+              gradv =wv*ww*sqrt(wptr%err2)*wptr%raterr2
            else
               gradu = valu*wptr%raterr2*wptr%err2
               gradv = valv*wptr%raterr2*wptr%err2
            endif
+
+
            if( ladtest_obs) then
               gradu = valu
               gradv = valv

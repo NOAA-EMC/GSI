@@ -244,8 +244,10 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_single
+  use m_obsdiagNode, only: obs_diag
+  use m_obsdiagNode, only: obsdiagNode_set
   use obsmod, only: nprof_gps,lobsdiag_forenkf
-  use obsmod, only: obs_diag,lobsdiagsave,luse_obsdiag
+  use obsmod, only: lobsdiagsave,luse_obsdiag
   use obsmod, only: binary_diag,netcdf_diag,dirname,ianldate
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
                           nc_diag_write, nc_diag_data2d
@@ -257,7 +259,6 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   use jfunc, only: jiter,miter,jiterstart
   use gsi_4dvar, only: nobs_bins
   use convinfo, only: nconvtype
-  use state_vectors, only: nsdim
   implicit none
 
 ! Declare passed variables
@@ -289,8 +290,6 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   real(r_single),allocatable,dimension(:,:)::sdiag
   character(8),allocatable,dimension(:):: cdiag
 
-  real(r_single), dimension(nsdim) :: dhx_dx_array
-  
   type(obs_diag), pointer :: obsptr => NULL()
 
   integer(i_kind) :: nnz, nind
@@ -488,7 +487,8 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
            if (associated(gpsptr)) then
               gpsptr%raterr2 = ratio_errors **2
               if(associated(obsptr) .and. luse_obsdiag)then
-                 obsptr%wgtjo=(ratio_errors*data_ier)**2
+                 !-- obsptr%wgtjo=(ratio_errors*data_ier)**2
+                 call obsdiagNode_set(obsptr,wgtjo=(ratio_errors*data_ier)**2)
               end if
            endif
         endif
@@ -524,8 +524,9 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
              if (associated(gpsptr)) then
                 gpsptr%raterr2 = ratio_errors **2
                 if(associated(obsptr) .and. luse_obsdiag)then
-                   obsptr%wgtjo=zero
-                   obsptr%muse(jiter)=.false.
+                   !-- obsptr%wgtjo=zero
+                   !-- obsptr%muse(jiter)=.false.
+                   call obsdiagNode_set(obsptr,wgtjo=zero,jiter=jiter,muse=.false.)
                 end if
              endif
           endif
@@ -555,11 +556,13 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
               if (associated(gpsptr)) then
                  gpsptr%raterr2 = ratio_errors **2
                  if(associated(obsptr) .and. luse_obsdiag)then
-                    obsptr%wgtjo=zero
-                    obsptr%muse(jiter)=.false.
+                    !-- obsptr%wgtjo=zero
+                    !-- obsptr%muse(jiter)=.false.
+                    call obsdiagNode_set(obsptr,wgtjo=zero,jiter=jiter,muse=.false.)
                  end if
               endif
           endif
+          if (gps_allptr%rdiag(10) == six) muse =.false.
         endif
 
 
@@ -601,8 +604,9 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
               if (associated(gpsptr)) then
                  gpsptr%raterr2 = ratio_errors **2
                  if(associated(obsptr) .and. luse_obsdiag)then
-                    obsptr%wgtjo=zero
-                    obsptr%muse(jiter)=.false.
+                    !-- obsptr%wgtjo=zero
+                    !-- obsptr%muse(jiter)=.false.
+                    call obsdiagNode_set(obsptr,wgtjo=zero,jiter=jiter,muse=.false.)
                  end if
               endif
            endif
@@ -735,7 +739,12 @@ subroutine init_netcdf_diag_
 
      if (.not. append_diag) then ! don't write headers on append - the module will break?
         call nc_diag_header("date_time",ianldate )
-        call nc_diag_header("Number_of_state_vars", nsdim          )
+        if (save_jacobian) then
+          nnz   = 3*nsig
+          nind  = 3
+          call nc_diag_header("jac_nnz", nnz)
+          call nc_diag_header("jac_nind", nind)
+        endif
      endif
 end subroutine init_netcdf_diag_
 
@@ -781,8 +790,9 @@ subroutine contents_netcdf_diag_
 
            if (save_jacobian) then
               call readarray(dhx_dx, gps_allptr%rdiag(ioff+1:nreal))
-              call fullarray(dhx_dx, dhx_dx_array)
-              call nc_diag_data2d("Observation_Operator_Jacobian", dhx_dx_array)
+              call nc_diag_data2d("Observation_Operator_Jacobian_stind", dhx_dx%st_ind(1:dhx_dx%nind))
+              call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind(1:dhx_dx%nind))
+              call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val(1:dhx_dx%nnz),r_single))
            endif
 
 

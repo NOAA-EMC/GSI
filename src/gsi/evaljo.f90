@@ -25,14 +25,16 @@ subroutine evaljo(pjo,kobs,kprt,louter)
 !
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: nobs_type,cobstype,obscounts
-  use obsmod, only: obsdiags
-  use obsmod, only: obs_diag
+  use obs_sensitivity, only: obsensCounts_set
+  use gsi_obOperTypeManager, only: obOper_typeInfo
+  use m_obsdiags   , only: obsdiags
+  use m_obsdiagNode, only: obs_diag
   use gsi_4dvar, only: nobs_bins
   use constants, only: zero_quad
   use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_integer,mype
   use jfunc, only: jiter
   use mpl_allreducemod, only: mpl_allreduce
+  use mpeu_util, only: perr,die
 
   implicit none
 
@@ -43,26 +45,42 @@ subroutine evaljo(pjo,kobs,kprt,louter)
   logical        ,intent(in   ) :: louter
 
 ! Declare local variables
+  character(len=*), parameter :: myname='evaljo'
   integer(i_kind) :: ii,jj,ij,ilen
-  integer(i_kind) :: iobs(nobs_type)
+  integer(i_kind) ::    iobs(size(obsdiags,1))
   real(r_quad)    :: zjo,zz
   real(r_kind)    :: zdep
-  real(r_quad)    :: zjo2(nobs_type,nobs_bins)
-  real(r_quad)    :: zjo1(nobs_type)
-  real(r_quad)    :: zprods(nobs_type*nobs_bins)
-  integer(i_kind) :: iobsgrp(nobs_type,nobs_bins),iobsglb(nobs_type,nobs_bins)
+  real(r_quad)    ::    zjo1(size(obsdiags,1))
+  real(r_quad)    ::    zjo2(size(obsdiags,1),nobs_bins)
+  real(r_quad)    ::  zprods(size(obsdiags,1)*nobs_bins)
+  integer(i_kind) :: iobsgrp(size(obsdiags,1),nobs_bins)
+  integer(i_kind) :: iobsglb(size(obsdiags,1),nobs_bins)
   type(obs_diag),pointer:: obsptr
+  character(len=20):: cobstype_ii
+  integer(i_kind) :: nobs_type
 ! ----------------------------------------------------------
 
 zprods(:)=zero_quad
 iobsgrp(:,:)=0
 iobsglb(:,:)=0
+nobs_type = size(obsdiags,1)
+
+if(size(obsdiags,2)/=nobs_bins) then
+  call perr(myname,'size(obsdiags,2)/=nobs_bins, size(obsdiags,2) =',size(obsdiags,2))
+  call perr(myname,'                                    nobs_bins =',nobs_bins)
+  call  die(myname)
+endif
 
 ij=0
 do ii=1,nobs_bins
    do jj=1,nobs_type
       ij=ij+1
 
+      !++ if(louter) then
+      !++   zprods(ij) = obsLL(jj,ii)%NLDdotprod(jiter,nob=iobsgrp(jj,ii))
+      !++ else
+      !++   zprods(ij) = obsLL(jj,ii)%DELdotprod(jiter,nob=iobsgrp(jj,ii))
+      !++ endif
       obsptr => obsdiags(jj,ii)%head
       do while (associated(obsptr))
          if (obsptr%luse.and.obsptr%muse(jiter)) then
@@ -125,10 +143,11 @@ IF (kprt>=2.and.mype==0) THEN
    IF (kprt>=3.and.nobs_bins>1) THEN
       write(6,400)'Observation Type','Bin','Nobs','Jo','Jo/n'
       DO ii=1,nobs_type
+         cobstype_ii=obOper_typeInfo(ii)
          DO jj=1,nobs_bins
             IF (iobsglb(ii,jj)>0) THEN
                zz=zjo2(ii,jj)/iobsglb(ii,jj)
-               write(6,100)cobstype(ii),jj,iobsglb(ii,jj),real(zjo2(ii,jj),r_kind),real(zz,r_kind)
+               write(6,100)cobstype_ii,jj,iobsglb(ii,jj),real(zjo2(ii,jj),r_kind),real(zz,r_kind)
             ENDIF
          ENDDO
       ENDDO
@@ -136,9 +155,10 @@ IF (kprt>=2.and.mype==0) THEN
 
    write(6,400)'Observation Type',' ','Nobs','Jo','Jo/n'
    DO ii=1,nobs_type
+      cobstype_ii=obOper_typeInfo(ii)
       IF (iobs(ii)>0) THEN
          zz=zjo1(ii)/iobs(ii)
-         write(6,200)cobstype(ii),iobs(ii),real(zjo1(ii),r_kind),real(zz,r_kind)
+         write(6,200)cobstype_ii,iobs(ii),real(zjo1(ii),r_kind),real(zz,r_kind)
       ENDIF
    ENDDO
 
@@ -157,11 +177,7 @@ IF (kprt>=2.and.mype==0) THEN
    endif
 ENDIF
 
-if (.not.allocated(obscounts)) then
-   write(6,*)'evaljo: obscounts not allocated'
-   call stop2(125)
-end if
-obscounts(:,:)=iobsglb(:,:)
+call obsensCounts_set(iobsglb(:,:))
 
 100 format(a20,2x,i3,2x,i8,2x,es24.16,2x,f10.3)
 200 format(a20,2x,3x,2x,i8,2x,es24.16,2x,f10.3)

@@ -1,5 +1,5 @@
 module observer_enkf
-!clt a dummy module ,modified from observer_gfs.f90
+! a dummy module ,modified from observer_gfs.f90
 use statevec, only: nsdim, ns3d, ns2d, slevels
 use params, only: nlevs, neigv
 

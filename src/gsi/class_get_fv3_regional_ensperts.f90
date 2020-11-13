@@ -1,9 +1,26 @@
 module abstract_get_fv3_regional_ensperts_mod
-!clt first copied from class_get_wrf_nmm_ensperts.f90
+!$$$   module documentation block
+!             .      .    .                                       .
+! module:   abstract_get_fv3_regional_ensperts_mod 
+!           first copied from class_get_wrf_nmm_ensperts.f90
+!   prgmmr: Ting  , EMC/NCEP
+!
+! abstract: IO routines for regional FV3
+!
+! program history log:
+!
+! subroutines included:
+!
+! variable definitions:
+!
+! attributes:
+!   langauge: f90
+!    machine:
+!
+!$$$ end documentation block
   type, abstract :: abstract_get_fv3_regional_ensperts_class
   contains
     procedure(get_fv3_regional_ensperts), deferred, pass(this) :: get_fv3_regional_ensperts
-!cltthink    procedure(convert_binary_nmm_ens), deferred, pass(this) :: convert_binary_nmm_ens
   end type abstract_get_fv3_regional_ensperts_class
 
   abstract interface

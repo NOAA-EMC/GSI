@@ -213,6 +213,7 @@ atmsbeamdat=$fixgsi/atms_beamwidth.txt
 pcpinfo=$fixgsi/global_pcpinfo.txt
 ozinfo=$fixgsi/global_ozinfo.txt
 convinfo=$fixgsi/global_convinfo_reg_test.txt
+vqcdat=$fixgsi/vqctp001.dat
 ### add 9 tables
 errtable_pw=$fixgsi/prepobs_errtable_pw.global
 errtable_ps=$fixgsi/prepobs_errtable_ps.global_nqcf
@@ -260,6 +261,7 @@ $ncp $scaninfo ./scaninfo
 $ncp $pcpinfo  ./pcpinfo
 $ncp $ozinfo   ./ozinfo
 $ncp $convinfo ./convinfo
+$ncp $vqcdat ./vqctp001.dat
 $ncp $errtable ./errtable
 #add 9 tables for new varqc
 $ncp $errtable_pw           ./errtable_pw
@@ -275,6 +277,19 @@ $ncp $btable_uv           ./btable_uv
 
 $ncp $bufrtable ./prepobs_prep.bufrtable
 $ncp $bftab_sst ./bftab_sstphr
+
+#if using correlated error, link to the covariance files
+#if grep -q "Rcov" $anavinfo ;
+#then
+#  if ls ${fixgsi}/Rcov* 1> /dev/null 2>&1;
+#  then
+#    $ncp ${fixgsi}/Rcov* .
+#  else
+#    echo "Warning: Satellite error covariance files are missing."
+#    echo "Check for the required Rcov files in " $anavinfo
+#    exit 1
+#  fi
+#fi
 
 # Copy CRTM coefficient files based on entries in satinfo file
 for file in `awk '{if($1!~"!"){print $1}}' ./satinfo | sort | uniq` ;do

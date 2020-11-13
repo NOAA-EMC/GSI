@@ -16,6 +16,7 @@ module deter_sfc_mod
 !   sub deter_sfc2
 !   sub deter_sfc_fov
 !   sub deter_sfc_amsre_low
+!   sub deter_sfc_gmi
 !   sub deter_zsfc_model
 !   sub reduce2full
 !   sub init_sfc
@@ -48,6 +49,7 @@ module deter_sfc_mod
   public deter_sfc2
   public deter_sfc_fov
   public deter_sfc_amsre_low
+  public deter_sfc_gmi
   public deter_zsfc_model
 
 contains
@@ -1330,6 +1332,173 @@ subroutine deter_sfc_amsre_low(dlat_earth,dlon_earth,isflg,sfcpct)
      return
 
    end subroutine deter_sfc_amsre_low
+
+
+subroutine deter_sfc_gmi(dlat_earth,dlon_earth,isflg,sfcpct)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    deter_sfc_gmi           determine land surface type
+!   prgmmr: mkim1          org: np2                date: 2017-10-04
+!
+! abstract:  determines land surface type based on surrounding land
+!            surface types for GMI large FOV observation
+!
+! program history log:
+!   2017-10-04 mkim1 - refered from ( subroutine deter_sfc )
+!
+!   input argument list:
+!     dlat_earth   - latitude
+!     dlon_earth   - longitude
+!
+!   output argument list:
+!     isflg    - surface flag
+!                0 sea
+!                1 land
+!                2 sea ice
+!                3 snow
+!                4 mixed
+!      sfcpct(0:3)- percentage of 4 surface types
+!                 (0) - sea percentage
+!                 (1) - land percentage
+!                 (2) - sea ice percentage
+!                 (3) - snow percentage
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+
+   implicit none
+
+   real(r_kind)               ,intent(in   ) :: dlat_earth,dlon_earth
+   integer(i_kind)            ,intent(  out) :: isflg
+   real(r_kind),dimension(0:3),intent(  out) :: sfcpct
+
+   integer(i_kind) jsli,it
+   integer(i_kind):: klat1,klon1,klatp1,klonp1
+   real(r_kind):: dx,dy,dx1,dy1,w00,w10,w01,w11
+   real(r_kind) :: dlat,dlon
+   logical :: outside
+   integer(i_kind):: klat2,klon2,klatp2,klonp2
+
+!
+!  For interpolation, we usually use o points (4points for land sea decision)
+!  In case of lowfreq channel (Large FOV), add the check of x points(8 points)
+!                                          (klatp2,klon1),(klatp2,klonp1)
+!       ---#---x---x---#---  klatp2        (klatp1,klon2),(klatp1,klonp2)
+!          |   |   |   |                   (klat1,klon2),(klat1,klonp2)
+!       ---x---o---o---x---  klatp1        (klat2,klon1),(klat2,klonp1)
+!          |   | + |   |
+!       ---x---o---o---x---  klat1
+!          |   |   |   |
+!       ---#---x---x---#---  klat2
+!            klon1   klonp2
+!       klon2    klonp1
+!
+!  In total, 12 points are used to make mean sst and sfc percentage.
+!
+     it=ntguessfc
+
+     if(regional)then
+        call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
+     else
+        dlat=dlat_earth
+        dlon=dlon_earth
+        call grdcrd1(dlat,rlats_sfc,nlat_sfc,1)
+        call grdcrd1(dlon,rlons_sfc,nlon_sfc,1)
+     end if
+
+     klon1=int(dlon); klat1=int(dlat)
+     dx  =dlon-klon1; dy  =dlat-klat1
+     dx1 =one-dx;    dy1 =one-dy
+     w00=dx1*dy1; w10=dx1*dy; w01=dx*dy1; w11=dx*dy
+
+     klat1=min(max(1,klat1),nlat_sfc); klon1=min(max(0,klon1),nlon_sfc)
+     if(klon1==0) klon1=nlon_sfc
+     klatp1=min(nlat_sfc,klat1+1); klonp1=klon1+1
+     if(klonp1==nlon_sfc+1) klonp1=1
+     klonp2 = klonp1+1
+     if(klonp2==nlon_sfc+1) klonp2=1
+     klon2=klon1-1
+     if(klon2==0)klon2=nlon_sfc
+     klat2=max(1,klat1-1)
+     klatp2=min(nlat_sfc,klatp1+1)
+
+!    Set surface type flag.  Begin by assuming obs over ice-free water
+
+     sfcpct = zero
+
+     jsli = isli_full(klat1 ,klon1 )
+     if(sno_full(klat1 ,klon1 ,it) > one .and. jsli == 1)jsli=3
+     sfcpct(jsli)=sfcpct(jsli)+one
+
+     jsli = isli_full(klatp1,klon1 )
+     if(sno_full(klatp1 ,klon1 ,it) > one .and. jsli == 1)jsli=3
+     sfcpct(jsli)=sfcpct(jsli)+one
+
+     jsli = isli_full(klat1 ,klonp1)
+     if(sno_full(klat1 ,klonp1 ,it) > one .and. jsli == 1)jsli=3
+     sfcpct(jsli)=sfcpct(jsli)+one
+
+     jsli = isli_full(klatp1,klonp1)
+     if(sno_full(klatp1 ,klonp1 ,it) > one .and. jsli == 1)jsli=3
+     sfcpct(jsli)=sfcpct(jsli)+one
+
+     jsli = isli_full(klatp2,klon1)
+     if(sno_full(klatp2 ,klon1 ,it) > one .and. jsli == 1)jsli=3
+     sfcpct(jsli)=sfcpct(jsli)+one
+
+     jsli = isli_full(klatp2,klonp1)
+     if(sno_full(klatp2 ,klonp1 ,it) > one .and. jsli == 1)jsli=3
+     sfcpct(jsli)=sfcpct(jsli)+one
+
+     jsli = isli_full(klatp1,klon2)
+     if(sno_full(klatp1 ,klon2 ,it) > one .and. jsli == 1)jsli=3
+     sfcpct(jsli)=sfcpct(jsli)+one
+
+     jsli = isli_full(klatp1,klonp2)
+     if(sno_full(klatp1 ,klonp2 ,it) > one .and. jsli == 1)jsli=3
+     sfcpct(jsli)=sfcpct(jsli)+one
+
+     jsli = isli_full(klat1,klon2)
+     if(sno_full(klat1 ,klon2 ,it) > one .and. jsli == 1)jsli=3
+     sfcpct(jsli)=sfcpct(jsli)+one
+
+     jsli = isli_full(klat1,klonp2)
+     if(sno_full(klat1 ,klonp2 ,it) > one .and. jsli == 1)jsli=3
+     sfcpct(jsli)=sfcpct(jsli)+one
+
+     jsli = isli_full(klat2,klon1)
+     if(sno_full(klat2 ,klon1 ,it) > one .and. jsli == 1)jsli=3
+     sfcpct(jsli)=sfcpct(jsli)+one
+
+     jsli = isli_full(klat2,klonp1)
+     if(sno_full(klat2 ,klonp1 ,it) > one .and. jsli == 1)jsli=3
+     sfcpct(jsli)=sfcpct(jsli)+one
+
+     sfcpct=sfcpct/12.0_r_kind
+
+!     sfcpct(3)=min(sfcpct(3),sfcpct(1))
+!     sfcpct(1)=max(zero,sfcpct(1)-sfcpct(3))
+
+     isflg = 0
+     if(sfcpct(0) > 0.99_r_kind)then
+        isflg = 0
+     else if(sfcpct(1) > 0.99_r_kind)then
+        isflg = 1
+     else if(sfcpct(2) > 0.99_r_kind)then
+        isflg = 2
+     else if(sfcpct(3) > 0.99_r_kind)then
+        isflg = 3
+     else
+        isflg = 4
+     end if
+
+     return
+
+   end subroutine deter_sfc_gmi
+
 
 subroutine deter_zsfc_model(dlat,dlon,zsfc)
 !$$$  subprogram documentation block

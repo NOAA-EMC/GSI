@@ -860,7 +860,7 @@ subroutine read_radiag_data_nc_init(ftin, diag_status, header_fix, retrieval, if
                                               Snow_Fraction, Water_Temperature, Land_Temperature, Ice_Temperature,  &
                                               Snow_Temperature, Soil_Temperature, Soil_Moisture,  &
                                               tsavg5, sstcu, sstph, sstnv, dta, dqa, dtp_avh, Vegetation_Fraction,  &
-                                              Snow_Depth, tpwc_amsua, clw_guess_retrieval, Sfc_Wind_Speed,  &
+                                              Snow_Depth, clw_guess_retrieval, Sfc_Wind_Speed,  &
                                               Cloud_Frac, CTP, CLW, TPWC, clw_obs, clw_guess, Foundation_Temperature, SST_Warm_layer_dt,  &
                                               SST_Cool_layer_tdrop, SST_dTz_dTfound, Observation, Obs_Minus_Forecast_adjusted,  &
                                               Obs_Minus_Forecast_unadjusted, Inverse_Observation_Error, QC_Flag, Emissivity,  &
@@ -896,7 +896,7 @@ subroutine read_radiag_data_nc_init(ftin, diag_status, header_fix, retrieval, if
             Soil_Temperature(ndatum),         Soil_Moisture(ndatum),                    tsavg5(ndatum),                                &
             sstcu(ndatum),                    sstph(ndatum),                            sstnv(ndatum),                                 &
             dta(ndatum),                      dqa(ndatum),                              dtp_avh(ndatum),                               &
-            Vegetation_Fraction(ndatum),      Snow_Depth(ndatum),                       tpwc_amsua(ndatum),                            & 
+            Vegetation_Fraction(ndatum),      Snow_Depth(ndatum),                                                                      &
             clw_guess_retrieval(ndatum),      Sfc_Wind_Speed(ndatum),                   Cloud_Frac(ndatum),                            &
             CTP(ndatum),                      CLW(ndatum),                              TPWC(ndatum),                                  &
             clw_obs(ndatum),                  clw_guess(ndatum),                        Foundation_Temperature(ndatum),                &
@@ -956,7 +956,6 @@ subroutine read_radiag_data_nc_init(ftin, diag_status, header_fix, retrieval, if
   call nc_diag_read_get_var(ftin, 'dtp_avh', dtp_avh)
   call nc_diag_read_get_var(ftin, 'Vegetation_Fraction', Vegetation_Fraction)
   call nc_diag_read_get_var(ftin, 'Snow_Depth', Snow_Depth)
-  call nc_diag_read_get_var(ftin, 'tpwc_amsua', tpwc_amsua)
   call nc_diag_read_get_var(ftin, 'clw_guess_retrieval', clw_guess_retrieval)
   call nc_diag_read_get_var(ftin, 'Sfc_Wind_Speed', Sfc_Wind_Speed)
   call nc_diag_read_get_var(ftin, 'Cloud_Frac', Cloud_Frac)
@@ -1103,7 +1102,7 @@ subroutine read_radiag_data_nc_init(ftin, diag_status, header_fix, retrieval, if
              Sun_Glint_Angle, Water_Fraction, Land_Fraction, Ice_Fraction,              &
              Snow_Fraction, Water_Temperature, Land_Temperature, Ice_Temperature,       &
              Snow_Temperature, Soil_Temperature, Soil_Moisture, tsavg5, sstcu, sstph,   &
-             sstnv, dta, dqa, dtp_avh, Vegetation_Fraction, Snow_Depth, tpwc_amsua,     &
+             sstnv, dta, dqa, dtp_avh, Vegetation_Fraction, Snow_Depth,                 &
              clw_guess_retrieval, Sfc_Wind_Speed, Cloud_Frac, CTP, CLW, TPWC, clw_obs,  &
              clw_guess, Foundation_Temperature, SST_Warm_layer_dt, SST_Cool_layer_tdrop, &
              SST_dTz_dTfound, Observation, Obs_Minus_Forecast_adjusted,                 &

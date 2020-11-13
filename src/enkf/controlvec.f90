@@ -42,13 +42,18 @@ module controlvec
 !
 !$$$
 
-use mpisetup
-use gridio,    only: readgriddata, writegriddata
+use mpimod, only: mpi_comm_world
+use mpisetup, only: mpi_real4,mpi_sum,mpi_comm_io,mpi_in_place,numproc,nproc,&
+                mpi_integer,mpi_wtime,mpi_status,mpi_real8
+
+use gridio,    only: readgriddata, readgriddata_pnc, writegriddata, writegriddata_pnc, &
+                     writeincrement, writeincrement_pnc
 use gridinfo,  only: getgridinfo, gridinfo_cleanup,                    &
                      npts, vars3d_supported, vars2d_supported
 use params,    only: nlevs, nbackgrounds, fgfileprefixes, reducedgrid, &
                      nanals, pseudo_rh, use_qsatensmean, nlons, nlats,&
-                     nanals_per_iotask, ntasks_io, nanal1, nanal2
+                     nanals_per_iotask, ntasks_io, nanal1, nanal2, &
+                     fgsfcfileprefixes, paranc, write_fv3_incr
 use kinds,     only: r_kind, i_kind, r_double, r_single
 use mpeu_util, only: gettablesize, gettable, getindex
 use constants, only: max_varname_length
@@ -206,11 +211,19 @@ end if
 
 ! read in whole control vector on i/o procs - keep in memory 
 ! (needed in write_ensemble)
-if (nproc <= ntasks_io-1) then
-   allocate(grdin(npts,ncdim,nbackgrounds,nanals_per_iotask))
-   allocate(qsat(npts,nlevs,nbackgrounds,nanals_per_iotask))
+allocate(grdin(npts,ncdim,nbackgrounds,nanals_per_iotask))
+allocate(qsat(npts,nlevs,nbackgrounds,nanals_per_iotask))
+if (paranc) then
    if (nproc == 0) t1 = mpi_wtime()
-   call readgriddata(nanal1(nproc),nanal2(nproc),cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,nbackgrounds,fgfileprefixes,reducedgrid,grdin,qsat)
+   call readgriddata_pnc(cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,nbackgrounds, &
+           fgfileprefixes,fgsfcfileprefixes,reducedgrid,grdin,qsat)
+end if
+if (nproc <= ntasks_io-1) then
+   if (.not. paranc) then
+      if (nproc == 0) t1 = mpi_wtime()
+      call readgriddata(nanal1(nproc),nanal2(nproc),cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,nbackgrounds, &
+           fgfileprefixes,fgsfcfileprefixes,reducedgrid,grdin,qsat)
+   end if
    !print *,'min/max qsat',nanal,'=',minval(qsat),maxval(qsat)
    if (use_qsatensmean) then
        allocate(qsatmean(npts,nlevs,nbackgrounds))
@@ -341,13 +354,31 @@ if (nproc <= ntasks_io-1) then
          enddo
       endif
    end if
-   call writegriddata(nanal1(nproc),nanal2(nproc),cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
+   if (.not. paranc) then
+      if (write_fv3_incr) then
+         call writeincrement(nanal1(nproc),nanal2(nproc),cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
+      else
+         call writegriddata(nanal1(nproc),nanal2(nproc),cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
+      end if
+      if (nproc == 0) then
+        t2 = mpi_wtime()
+        print *,'time in write_control on root',t2-t1,'secs'
+      endif 
+   end if
+
+end if ! io task
+
+if (paranc) then
+   if (write_fv3_incr) then
+      call writeincrement_pnc(cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
+   else
+      call writegriddata_pnc(cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
+   end if
    if (nproc == 0) then
      t2 = mpi_wtime()
      print *,'time in write_control on root',t2-t1,'secs'
    endif 
-
-end if ! io task
+end if
 
 end subroutine write_control
 
@@ -357,9 +388,9 @@ if (allocated(cvars3d)) deallocate(cvars3d)
 if (allocated(cvars2d)) deallocate(cvars2d)
 if (allocated(clevels)) deallocate(clevels)
 if (allocated(index_pres)) deallocate(index_pres)
-if (nproc <= ntasks_io-1 .and. allocated(grdin)) deallocate(grdin)
-if (nproc <= ntasks_io-1 .and. allocated(qsat)) deallocate(qsat)
-if (nproc <= ntasks_io-1 .and. allocated(qsatmean)) deallocate(qsatmean)
+if (allocated(grdin)) deallocate(grdin)
+if (allocated(qsat)) deallocate(qsat)
+if (allocated(qsatmean)) deallocate(qsatmean)
 call gridinfo_cleanup()
 end subroutine controlvec_cleanup
 

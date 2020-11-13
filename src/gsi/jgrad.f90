@@ -17,17 +17,21 @@ subroutine jgrad(xhat,yhat,fjcost,gradx,lupdfgs,nprt,calledby)
 !   2014-09-17  todling - handle output of 4d-inc more carefully to allow for
 !                         update of state in non-convensional 4d (ie, 4densvar)
 !   2014-10-14  todling - write-all only called at last outer iteration
-!   2015-12-01  todling - add setrad to init pointers in intrad
 !   2015-09-03  guo     - obsmod::yobs has been replaced with m_obsHeadBundle,
 !                         where yobs is created and destroyed when and where it
 !                         is needed.
+!   2015-12-01  todling - add setrad to init pointers in intrad
 !   2016-05-09  todling - allow increment to be written out at end of outer iter
+!   2018-08-10  guo     - removed obsHeadBundle references.
+!                       - replaced intjo() related implementations to a new
+!                         polymorphic implementation of intjpmod::intjo().
 !
 !$$$
 
 use kinds, only: r_kind,i_kind,r_quad
 use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, ltlint, iwrtinc
 use gsi_4dvar, only: l4densvar
+use gsi_4dvar, only: efsoi_order
 use constants, only: zero,zero_quad
 use mpimod, only: mype
 use jfunc, only : xhatsave,yhatsave
@@ -49,15 +53,12 @@ use bias_predictors, only: predictors,allocate_preds,deallocate_preds,assignment
 use bias_predictors, only: update_bias_preds
 use intjomod, only: intjo
 use intjcmod, only: intjcdfi
-use intradmod, only: setrad
 use gsi_4dcouplermod, only: gsi_4dcoupler_grtests
 use xhat_vordivmod, only : xhat_vordiv_init, xhat_vordiv_calc, xhat_vordiv_clean
 use hybrid_ensemble_parameters,only : l_hyb_ens,ntlevs_ens
 use mpl_allreducemod, only: mpl_allreduce
+use obs_sensitivity, only: efsoi_o2_update
 
-use m_obsHeadBundle, only: obsHeadBundle
-use m_obsHeadBundle, only: obsHeadBundle_create
-use m_obsHeadBundle, only: obsHeadBundle_destroy
 implicit none
 
 ! Declare passed variables
@@ -83,7 +84,6 @@ character(len=255)   :: seqcalls
 character(len=8)     :: xincfile
 real(r_quad),dimension(max(1,nrclen)) :: qpred
 
-type(obsHeadBundle),pointer,dimension(:):: yobs
 
 !**********************************************************************
 
@@ -143,6 +143,12 @@ else
   endif
 end if
 
+if (.not.l_do_adjoint) then
+   if(lsaveobsens.and.l_hyb_ens.and.efsoi_order==2) then
+     call efsoi_o2_update(sval)
+   end if
+end if
+
 if (nprt>=2) then
    do ii=1,nobs_bins
       call prt_state_norms(sval(ii),'sval')
@@ -158,14 +164,10 @@ do ii=1,nsubwin
    mval(ii)=zero
 end do
 
-call setrad(sval(1))
 qpred=zero_quad
 ! Compare obs to solution and transpose back to grid (H^T R^{-1} H)
-call obsHeadBundle_create(yobs,nobs_bins)
+call intjo(rval,qpred,sval,sbias)
 
-do ibin=1,size(yobs)    ! == nobs_bins
-   call intjo(yobs(ibin),rval(ibin),qpred,sval(ibin),sbias,ibin)
-end do
 ! Take care of background error for bias correction terms
 
 call mpl_allreduce(nrclen,qpvals=qpred)
@@ -181,8 +183,6 @@ if (ntclen>0) then
       rbias%predt(i)=rbias%predt(i)+qpred(nsclen+npclen+i)
    end do
 end if
-
-call obsHeadBundle_destroy(yobs)
 
 ! Evaluate Jo
 call evaljo(zjo,iobs,nprt,llouter)

@@ -63,6 +63,7 @@ subroutine gsisub(init_pass,last_pass)
 !   2016-07-28  lippi   - add oneobmakerwsupob if 'rw' single ob test and skips radar_bufr_read_all.
 !   2018-02-15  wu      - add code for fv3_regional option
 !   2018-01-04  Apodaca - add lightinfo_read call for GOES/GLM lightning observations  
+!   2018-07-24  W. Gu   - move routine corr_ob_initialize/finalize from radinfo
 !
 !   input argument list:
 !
@@ -74,12 +75,13 @@ subroutine gsisub(init_pass,last_pass)
 !
 !$$$
   use kinds, only: i_kind
-  use obsmod, only: iadate,lobserver
+  use obsmod, only: iadate,lobserver,l2rwthin  
   use observermod, only: observer_init,observer_run,observer_finalize
   use gridmod, only: twodvar_regional,create_grid_vars,destroy_grid_vars,fv3_regional
   use gridmod, only: wrf_mass_regional,wrf_nmm_regional,nems_nmmb_regional,cmaq_regional
   use mpimod, only: mype,npe,mpi_comm_world,ierror
   use radinfo, only: radinfo_read
+  use correlated_obsmod, only: corr_ob_initialize,corr_ob_finalize
   use pcpinfo, only: pcpinfo_read,create_pcp_random,&
        destroy_pcp_random
   use aeroinfo, only: aeroinfo_read
@@ -93,7 +95,6 @@ subroutine gsisub(init_pass,last_pass)
      aircraft_t_bc_ext
   use radiance_mod, only: radiance_obstype_init,radiance_parameter_cloudy_init,radiance_parameter_aerosol_init
   use gsi_io, only: verbose
-  use jfunc, only: miter
 #ifndef HAVE_ESMF
   use guess_grids, only: destroy_gesfinfo
 #endif
@@ -144,14 +145,14 @@ subroutine gsisub(init_pass,last_pass)
 ! Process any level 2 bufr format land doppler radar winds and create radar wind superob file
   if(wrf_nmm_regional.or.wrf_mass_regional.or.nems_nmmb_regional .or. cmaq_regional &
           .or. fv3_regional) then
-     if(.not. oneobtest) call radar_bufr_read_all(npe,mype)
+     if(.not. oneobtest .and. (.not. l2rwthin)) call radar_bufr_read_all(npe,mype) 
   end if
-!at some point cmaq will become also an online met/chem model (?)
 
 ! Read info files for assimilation of various obs
   if (init_pass) then
      if (.not.twodvar_regional) then
-        call radinfo_read(miter)
+        call radinfo_read
+        call corr_ob_initialize
         call radiance_obstype_init
         call radiance_parameter_cloudy_init
         call ozinfo_read
@@ -202,6 +203,7 @@ subroutine gsisub(init_pass,last_pass)
   
   if(last_pass) then
 !    Deallocate arrays
+     call corr_ob_finalize
      call destroy_pcp_random
 #ifndef HAVE_ESMF
      call destroy_grid_vars
