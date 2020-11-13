@@ -20,6 +20,7 @@ module read_l2bufr_mod
 !   2009-11-24  parrish  change time variable from regional_time (passed from gridmod) to
 !                          iadate (passed from obsmod), to prevent all radar data being tossed.
 !   2011-07-04  todling  - fixes to run either single or double precision
+!   2020-10-23  S.Liu    - fix reading l2rw_bufr issue
 !   2020-10-14  xu/sippel - Add options to superob the GRO
 !
 ! subroutines included:
@@ -302,12 +303,6 @@ contains
 !   Open bufr file with openbf to initialize bufr table, etc in bufrlib
     inbufr=10
     open(inbufr,file=infile,form='unformatted')
-    read(inbufr,iostat=iret)subset
-    if(iret/=0) then
-       if(rite) write(6,*)'RADAR_BUFR_READ_ALL:  problem opening level 2 bufr file "l2rwbufr"'
-       close(inbufr)                                       
-       return
-    end if
     rewind inbufr
     lundx=inbufr
     call openbf(inbufr,'IN',lundx)
