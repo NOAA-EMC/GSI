@@ -127,18 +127,40 @@
    #  Traverse the keys to lcf_hash and determine if the same key is 
    #  found in the plcf_hash.  If so write to warning file.
    #
+   my $ctr = 0;
+
    foreach my $key ( keys %lcf_hash ){
       if( exists $plcf_hash{ $key }){
-
+          
+         $ctr++;
          my @lcf_vals  = @{ $lcf_hash{ $key }};
          my @plcf_vals = @{ $plcf_hash{ $key }};
 
          print FILE " $key \n";
          print FILE "            $cyc1  count:  $plcf_vals[0]   bound: $lcf_vals[1]\n";
-         print FILE "            $cyc0  count:  $lcf_vals[0]   \n\n";
-#         print "https://www.emc.ncep.noaa.gov/gmb/gdas/es_conv/v16rt2/index_time.html\n";
+         print FILE "            $cyc0  count:  $lcf_vals[0]   \n";
+         print FILE "   https://www.emc.ncep.noaa.gov/gmb/gdas/es_conv/index.html?net=$net&run=$run&src=$key&typ=cnt\n\n";
       }
    }
+
+   #-------------------
+   #  report footer
+   #  
+   print FILE  "\n\n\n"; 
+   print FILE  "*********************** WARNING ***************************\n";
+   print FILE  "This is an automated email.  Replies to sender will not be \n";
+   print FILE  'received.  Please direct replies to edward.safford@noaa.gov';
+   print FILE  " \n";
+   print FILE  "*********************** WARNING ***************************\n";
+
    close( FILE );
+
+
+   #--------------------------------------------
+   # if no keys overlapped then delete the errf
+   #
+   if( $ctr <= 0 ){
+     unlink $errf or warn "Could not unlink $errf: $!"; 
+   }
 
 exit 0 

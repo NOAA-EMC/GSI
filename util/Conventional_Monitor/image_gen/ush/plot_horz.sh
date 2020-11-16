@@ -193,7 +193,10 @@
             mv $newf ${C_IMGNDIR}/pngs/horz/.
          done
 
-         mv -f *.png ${C_IMGNDIR}/pngs/horz/${CYC}/.
+#         if [[ $CONMON_SUFFIX != "v16rt2" ]]; then
+#            mv -f *.png ${C_IMGNDIR}/pngs/horz/${CYC}/.
+#         fi
+
 
       done      ### dtype loop 
 

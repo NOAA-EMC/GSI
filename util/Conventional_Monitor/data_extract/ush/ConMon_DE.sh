@@ -230,11 +230,11 @@ if [ -s $cnvstat  -a -s $pgrbf00 -a -s $pgrbf06 ]; then
 
       if [[ $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "wcoss_c" ]]; then
         $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 900 \
-		-R affinity[core] -W 0:35 -J ${jobname} \
+		-R affinity[core] -W 0:50 -J ${jobname} \
 		-cwd $PWD ${HOMEgdas_conmon}/jobs/JGDAS_ATMOS_CONMON
 
       elif [[ $MY_MACHINE = "hera" ]]; then
-         $SUB -A $ACCOUNT --ntasks=1 --time=00:20:00 \
+         $SUB -A $ACCOUNT --ntasks=1 --time=00:30:00 \
 		-p service -J ${jobname} -o $C_LOGDIR/DE.${PDY}.${CYC}.log \
 		${HOMEgdas_conmon}/jobs/JGDAS_ATMOS_CONMON
       fi

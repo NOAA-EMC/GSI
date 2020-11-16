@@ -7,6 +7,25 @@ set -ax
 #
 #----------------------------------------------------------
 
+
+#----------------------------------------------------------
+#  function large_mv()
+#    
+#  There are a lot of image files generated for the uv
+#  types, so many that loading them into a single variable
+#  exceeds the argument limit on wcoss_d.  This function
+#  gets around that problem. 
+#----------------------------------------------------------
+function large_mv () {       
+   while read imgf; do
+      newf=`echo $imgf | sed -e "s/\./.${PDATE}./g"`
+#      cp $imgf $newf
+#      mv $newf ${C_IMGNDIR}/pngs/time/.
+      mv $imgf ${C_IMGNDIR}/pngs/time/$newf
+   done
+}
+
+
    type=${TYPE}
 
    echo "--> plot_time.sh, type=${type}"
@@ -119,17 +138,16 @@ set -ax
       grads -bpc "run ./${local_plot_script}"
 
       img_files=`ls *.png`
-      for imgf in $img_files; do
-         newf=`echo $imgf | sed -e "s/\./.${PDATE}./g"`
-         cp $imgf $newf
-         mv $newf ${C_IMGNDIR}/pngs/time/.
-      done
 
-      mv -f *.png ${outdir}/.
-
-      num_pngs=`ls -1 *.png | wc -l`
-      echo "num_pngs = ${num_pngs}"
-
+      #------------------------------------------
+      #  use large_mv function to avoid argument 
+      #  list overload
+      #------------------------------------------
+#      if [[ $CONMON_SUFFIX = "v16rt2" ]]; then
+         ls -1 *.png | large_mv
+#      else
+#         mv -f *.png ${outdir}/.
+#      fi
    done
 
    if [[ ${C_IG_SAVE_WORK} -eq 0 ]]; then

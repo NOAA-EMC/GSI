@@ -137,7 +137,10 @@ set -ax
       mv $newf ${C_IMGNDIR}/pngs/vert/.
    done
 
-   mv -f *.png ${outdir}/.
+   if [[ $CONMON_SUFFIX != "v16rt2" ]]; then
+      mv -f *.png ${outdir}/.
+   fi
+
   
    if [[ ${C_IG_SAVE_WORK} -eq 0 ]]; then
       cd $workdir

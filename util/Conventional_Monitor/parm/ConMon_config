@@ -17,7 +17,13 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
    #  warning messages to detect and report potential 
    #  low counts by data type_subtype.
    #
+   #  MAIL_TO and MAIL_CC specifies the default 
+   #  distribution for warning messages.
+   #
    export DO_DATA_RPT=${DO_DATA_RPT:-1}
+
+   export MAIL_TO=${MAIL_TO:-"edward.safford@noaa.gov"}
+   export MAIL_CC=${MAIL_CC:=""}
 
    #-----------------------------------------------------
    #   The grib2 flag indicates if the data files are in
@@ -29,7 +35,7 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
    # MY_CONMON should point to your working directory which contains the
    # top level directory to the ConMon package. 
    #
-export MY_CONMON=/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/GSI/util/Conventional_Monitor
+   export MY_CONMON=/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/GSI/util/Conventional_Monitor
 
    #---------------------------------------------------------------------------
    #  The CONMON_TANKDIR will be the location for the extracted data files and
@@ -38,7 +44,7 @@ export MY_CONMON=/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/GSI/util/Conven
    #  this location.
    #
 
-export CONMON_TANKDIR=/u/Edward.Safford/nbns
+   export CONMON_TANKDIR=/u/Edward.Safford/nbns
    export C_TANKverf=${C_TANKverf:-${CONMON_TANKDIR}}
 
    export C_TANKDIR=${CONMON_TANKDIR}/stats/${CONMON_SUFFIX}
@@ -107,27 +113,34 @@ export CONMON_TANKDIR=/u/Edward.Safford/nbns
 
    export Z="gz"
 
-export ACCOUNT=${ACCOUNT:-}
+   export ACCOUNT=${ACCOUNT:-}
  
-export C_STMP=${C_STMP:-/gpfs/dell2/stmp}
+   export C_STMP=${C_STMP:-/gpfs/dell2/stmp}
    export C_STMP_USER=${C_STMP_USER:-${C_STMP}/${LOGNAME}}
-export C_PTMP=${C_PTMP:-/gpfs/dell2/ptmp}
+   export C_PTMP=${C_PTMP:-/gpfs/dell2/ptmp}
    export C_PTMP_USER=${C_PTMP_USER:-${C_PTMP}/${LOGNAME}}
 
    export C_LOGDIR=${C_PTMP_USER}/logs/${CONMON_SUFFIX}/${RUN}/conmon
    export WORK_conmon=${WORK_conmon:-${C_STMP_USER}/${CONMON_SUFFIX}/${RUN}/ConMon}
 
+   #
+   #  Automatically remove old, extracted data files
+   #
    export CLEAN_TANKDIR=${CLEAN_TANKDIR:-1}
 
+   #
+   #  Number of cycles worth of image data to be retained in tankdir
+   #
+   export NUM_IMG_CYCLES=${NUM_IMG_CYCLES:-20}
 
    #
    #  Web server resources include the sever name (WEB_SVR), the user name
    #  on the web server (WEB_USER), and location of the top level directory
    #  for the html on the web server (WEBDIR).
    #
-export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/es_conv
-export WEBUSER=esafford
-export WEBSVR=emcrzdm
+   export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/es_conv
+   export WEBUSER=esafford
+   export WEBSVR=emcrzdm
 
 
    #

@@ -311,7 +311,9 @@ set -ax
             mv $newf ${C_IMGNDIR}/pngs/hist/. 
          done
 
-         mv -f *hist*.png ${C_IMGNDIR}/pngs/hist/${CYC}/.
+#         if [[ $CONMON_SUFFIX != "v16rt2" ]]; then
+#            mv -f *hist*.png ${C_IMGNDIR}/pngs/hist/${CYC}/.
+#         fi
 
       done      ### dtype loop 
 

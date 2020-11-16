@@ -112,7 +112,10 @@ set -ax
       mv $newf ${C_IMGNDIR}/pngs/time/.
    done
 
-   mv -f *.png ${outdir}/.
+   if [[ $CONMON_SUFFIX != "v16rt2" ]]; then
+      mv -f *.png ${outdir}/.
+   fi
+
 
 
 
