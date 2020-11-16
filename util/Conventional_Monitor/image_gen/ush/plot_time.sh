@@ -113,7 +113,8 @@ function large_mv () {
    #  copy plots scripts locally, modify, and run
    #---------------------------------------------------
 
-   for script in plotstas_time_count.gs plotstas_time_bias.gs plotstas_time_bias2.gs ;do
+#   for script in plotstas_time_count.gs plotstas_time_bias.gs plotstas_time_bias2.gs ;do
+   for script in plotstas_time_count.gs plotstas_time_bias.gs ;do
       plot_script=${C_IG_GSCRIPTS}/${script}
 
       if [[ -s  ${plot_script} ]]; then

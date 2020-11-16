@@ -105,7 +105,8 @@ set -ax
       fi
    done
 
-   for script in plotstas_vert_count.gs plotstas_vert_bias.gs plotstas_vert_bias2.gs ;do
+#   for script in plotstas_vert_count.gs plotstas_vert_bias.gs plotstas_vert_bias2.gs ;do
+   for script in plotstas_vert_count.gs plotstas_vert_bias.gs ;do
       plot_script=${C_IG_GSCRIPTS}/${script}
 
       if [[ -s  ${plot_script} ]]; then

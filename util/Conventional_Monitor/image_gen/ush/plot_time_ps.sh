@@ -31,7 +31,7 @@ set -ax
 
    cp -f ${C_IG_GSCRIPTS}/plotstas_time_count_ps.gs . 
    cp -f ${C_IG_GSCRIPTS}/plotstas_time_bias_ps.gs  . 
-   cp -f ${C_IG_GSCRIPTS}/plotstas_time_bias2_ps.gs . 
+#   cp -f ${C_IG_GSCRIPTS}/plotstas_time_bias2_ps.gs . 
 
    #---------------------------------------------------
    #  Link in the data files.
@@ -103,7 +103,7 @@ set -ax
    grads -bpc "run ./plotstas_time_bias_ps.gs"
 #   mv -f *.png ${outdir}/.
 
-   grads -bpc "run ./plotstas_time_bias2_ps.gs"
+#   grads -bpc "run ./plotstas_time_bias2_ps.gs"
 
    img_files=`ls *.png`
    for imgf in $img_files; do
