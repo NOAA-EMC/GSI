@@ -176,6 +176,9 @@ logical,public :: letkf_bruteforce_search=.false.
 
 ! next two are no longer used, instead they are inferred from anavinfo
 logical,public :: massbal_adjust = .false.
+integer (i_kind), public :: ldo_enscalc_option = 0
+! true, the program will be used to calculate ensemble mean (=1) or recenter(=2)
+
 integer(i_kind),public :: nvars = -1
 
 ! sort obs in LETKF in order of decreasing DFS
@@ -198,16 +201,15 @@ logical,public :: write_spread_diag = .false.
 ! if true, use jacobian from GSI stored in diag file to compute
 ! ensemble perturbations in observation space.
 logical,public :: lobsdiag_forenkf = .false.
-integer (i_kind), public :: ldo_enscalc_option = 0
-! true, the program will be used to calculate ensemble mean (=1) or recenter(=2)
-
 ! if true, use netcdf diag files, otherwise use binary diags
 logical,public :: netcdf_diag = .false.
 
 ! use fv3 cubed-sphere tiled restart files
+logical,public :: fv3_native = .true.
+character(len=500),public :: fv3fixpath = ' '
 integer(i_kind),public :: ntiles=6
 integer(i_kind),public :: nx_res=0,ny_res=0
-logical,public ::l_pres_add_saved
+logical,public ::l_pres_add_saved=.true.
 
 ! for parallel netCDF
 logical, public :: paranc = .false.
@@ -236,7 +238,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
                    lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
                    newpc4pred,nmmb,nhr_anal,nhr_state, fhr_assim,nbackgrounds,nstatefields, &
-                   save_inflation,nobsl_max,lobsdiag_forenkf, ldo_enscalc_option,netcdf_diag,&
+                   save_inflation,nobsl_max,lobsdiag_forenkf,ldo_enscalc_option,netcdf_diag,&
                    letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs,npefiles,&
                    getkf,getkf_inflation,denkf,modelspace_vloc,dfs_sort,write_spread_diag,&
                    covinflatenh,covinflatesh,covinflatetr,lnsigcovinfcutoff,letkf_bruteforce_search,&
@@ -244,7 +246,166 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    fv3_native, paranc, nccompress, write_fv3_incr,incvars_to_zero
 namelist /nam_wrf/arw,nmm,nmm_restart
 namelist /nam_fv3/fv3fixpath,nx_res,ny_res,ntiles,l_pres_add_saved
-namelist /
+namelist /satobs_enkf/sattypes_rad,dsis
+namelist /ozobs_enkf/sattypes_oz
+
+contains
+
+subroutine read_namelist()
+integer i,j,nb,np
+logical fexist
+real(r_single) modelspace_vloc_cutoff, modelspace_vloc_thresh
+! have all processes read namelist from file enkf.nml
+
+! defaults
+! time (analysis time YYYYMMDDHH)
+datestring = "0000000000" ! if 0000000000 will not be used.
+! corrlength (length for horizontal localization in km)
+! this corresponding GSI parameter is s_ens_h.
+! corrlength is the distance at which the Gaspari-Cohn
+! polynomial goes to zero.  s_ens_h is the scale of a
+! Gaussian exp(-0.5*(r/L)**2) so
+! corrlength ~ sqrt(2/0.15)*s_ens_h
+corrlengthnh = 2800_r_single
+corrlengthtr = 2800_r_single
+corrlengthsh = 2800_r_single
+! read in localization length scales from an external file.
+readin_localization = .false.
+! min and max inflation.
+covinflatemin = 1.0_r_single
+covinflatemax = 1.e30_r_single
+! lnsigcutoff (length for vertical localization in ln(p))
+! **these are ignored if modelspace_vloc=.true.**
+! this corresponding GSI parameter is -s_ens_v (if s_ens_v<0)
+! lnsigcutoff is the distance at which the Gaspari-Cohn
+! polynomial goes to zero.  s_ens_v is the scale of a
+! Gaussian exp(-(r/L)**2) so
+! lnsigcutoff ~ s_ens_v/sqrt(0.15)
+lnsigcutoffnh = 2._r_single
+lnsigcutofftr = 2._r_single
+lnsigcutoffsh = 2._r_single
+lnsigcutoffsatnh = -999._r_single ! value for satellite radiances
+lnsigcutoffsattr = -999._r_single ! value for satellite radiances
+lnsigcutoffsatsh = -999._r_single ! value for satellite radiances
+lnsigcutoffpsnh = -999._r_single  ! value for surface pressure
+lnsigcutoffpstr = -999._r_single  ! value for surface pressure
+lnsigcutoffpssh = -999._r_single  ! value for surface pressure
+! ob time localization
+obtimelnh = 1.e10_r_single
+obtimeltr = 1.e10_r_single
+obtimelsh = 1.e10_r_single
+! min localization reduction factor for adaptive localization
+! based on HPaHt/HPbHT. Default (1.0) means no adaptive localization.
+! 0.25 means minimum localization is 0.25*corrlength(nh,tr,sh).
+covl_minfact = 1.0_r_single
+! efolding distance for adapative localization.
+! Localization reduction factor is 1. - exp( -((1.-paoverpb)/covl_efold) )
+! When 1-pavoerpb=1-HPaHt/HPbHt=cov_efold localization scales reduced by
+! factor of 1-1/e ~ 0.632. When paoverpb==>1, localization scales go to zero.
+! When paoverpb==>1, localization scales not reduced.
+covl_efold = 1.e-10_r_single
+! path to data directory
+datapath = " " ! mandatory
+! tolerance for background check.
+! obs are not used if they are more than sqrt(S+R) from mean,
+! where S is ensemble variance and R is observation error variance.
+sprd_tol = 9.9e31_r_single
+! definition of tropics and mid-latitudes (for inflation).
+latbound = 25._r_single ! this is where the tropics start
+delat = 10._r_single    ! width of transition zone.
+! RTPS inflation coefficients.
+analpertwtnh = 0.0_r_single ! no inflation (1 means inflate all the way back to prior spread)
+analpertwtsh = 0.0_r_single
+analpertwttr = 0.0_r_single
+! RTPP inflation coefficients.
+analpertwtnh_rtpp = 0.0_r_single ! no inflation (1 means inflate all the way back to prior perturbation)
+analpertwtsh_rtpp = 0.0_r_single
+analpertwttr_rtpp = 0.0_r_single
+! lnsigcovinfcutoff (length for vertical taper in inflation in ln(sigma))
+lnsigcovinfcutoff = 1.0e30_r_single
+! if ob space posterior variance divided by prior variance
+! less than this value, ob is skipped during serial processing.
+paoverpb_thresh = 1.0_r_single! don't skip any obs
+! set to to 0 for the order they are read in, 1 for random order, or 2 for
+! order of predicted posterior variance reduction (based on prior)
+iassim_order = 0
+! use 'pseudo-rh' analysis variable, as in GSI.
+pseudo_rh = .false.
+! if deterministic is true, use LETKF/EnSRF w/o perturbed obs.
+! if false, use perturbed obs EnKF/LETKF.
+deterministic = .true.
+! if deterministic is false, re-order obs to minimize regression erros
+! as described in Anderson (2003) (only used for serial filter).
+sortinc = .true.
+! type of GFS microphyics.
+! 99: Zhao-Carr, 11: GFDL
+imp_physics = 99
+! lupp, if true output extra variables (deprecated, does not do anything)
+lupp = .false.
+! these are all mandatory.
+! nlons and nlats are # of lons and lats
+nlons = 0
+nlats = 0
+! total number of levels
+nlevs = 0
+! number of ensemble members
+nanals = 0
+! background error variance for rad bias coeffs  (used in radbias.f90)
+! default is (old) GSI value.
+! if negative, bias coeff error variace is set to -biasvar/N, where
+! N is number of obs per instrument/channel.
+! if newpc4pred is .true., biasvar is not used - the estimated
+! analysis error variance from the previous cycle is used instead
+! (same as in the GSI).
+biasvar = 0.1_r_single
+
+! factor to multiply sat radiance errors.
+saterrfact = 1._r_single
+! number of times to iterate state/bias correction update.
+! (numiter = 1 means no iteration, but update done in both observation and model
+! space)
+! (for LETKF, numiter = 0 shuts off update in observation space)
+numiter = 1
+
+! varqc parameters
+varqc = .false.
+huber = .false. ! use huber norm instead of "flat-tail"
+zhuberleft=1.e30_r_single
+zhuberright=1.e30_r_single
+! smoothing paramater for inflation (-1 for no smoothing)
+smoothparm = -1
+! if true, tracers are clipped to zero when read in, and just
+! before they are written out.
+cliptracers = .true.
+
+! Initialize satellite files to ' '
+sattypes_rad=' '
+sattypes_oz=' '
+dsis=' '
+
+! Initialize first-guess and analysis file name prefixes.
+! (blank means use default names)
+fgfileprefixes = ''; anlfileprefixes=''; statefileprefixes=''
+fgsfcfileprefixes = ''; statesfcfileprefixes=''
+incfileprefixes = ''
+
+! option for including convective clouds in the all-sky
+cnvw_option=.false.
+
+l_pres_add_saved=.true.
+
+! read from namelist file, doesn't seem to work from stdin with mpich
+open(912,file='enkf.nml',form="formatted")
+read(912,nam_enkf)
+read(912,satobs_enkf)
+read(912,ozobs_enkf)
+if (regional) then
+  read(912,nam_wrf)
+endif
+if (fv3_native) then
+  read(912,nam_fv3)
+  nlons = nx_res; nlats = ny_res ! (total number of pts = ntiles*res*res)
+endif
 close(912)
 
 ! find number of satellite files
@@ -408,13 +569,14 @@ if (nproc == 0) then
       print *, 'must select either arw, nmm or nmmb regional dynamical core'
       call stop2(19)
    endif
-   if (fv3_native .and. (trim(fv3fixpath) == '' .or.nx_res == 0.or.ny_res == 0)) then
-      print *, 'must specify nx_res,ny_res when fv3_native is true'
+   if (fv3_native .and. (trim(fv3fixpath) == '' .or. nx_res == 0 .or. ny_res == 0 )) then
+      print *, 'must specify nx_res,ny_res and fv3fixpath when fv3_native is true'
       call stop2(19)
    endif
-   if(ldo_enscalc_option .ne.0 ) then 
-    l_pres_add_saved=.false. 
+   if(ldo_enscalc_option .ne.0 ) then
+      l_pres_add_saved=.false.
    endif
+
    if (letkf_flag .and. univaroz) then
      print *,'univaroz is not supported in LETKF!'
      call stop2(19)
