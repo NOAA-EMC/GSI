@@ -1560,7 +1560,6 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     
 end subroutine wrfv3_netcdf
 
->>>>>>> master
 subroutine gsi_fv3ncdf_writeuv(dynvars,varu,varv,mype_io,add_saved)
 !$$$  subprogram documentation block
 !                .      .    .                                        .
