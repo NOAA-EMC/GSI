@@ -1284,7 +1284,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      varname='ps'
      call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
      if (istatus==0) then
-         if(allocated(ges_z))then
+         if(allocated(ges_ps))then
             write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
             call stop2(999)
          endif
@@ -1375,7 +1375,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         varname='th2m'
         call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
         if (istatus==0) then
-            if(allocated(ges_z))then
+            if(allocated(ges_th2m))then
                write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
                call stop2(999)
             endif
@@ -1393,7 +1393,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         varname='q2m'
         call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
         if (istatus==0) then
-            if(allocated(ges_z))then
+            if(allocated(ges_q2m))then
                write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
                call stop2(999)
             endif
