@@ -88,9 +88,6 @@
 #  Command line arguments.
 export PDATE=${1:-${PDATE:?}}
 
-scr=radmon_verf_time.sh
-msg="${scr} HAS STARTED"
-postmsg "$jlogfile" "$msg"
 
 if [[ "$VERBOSE" = "YES" ]]; then
    set -ax
@@ -102,23 +99,28 @@ EXECradmon=${EXECradmon:-$(pwd)}
 TANKverf_rad=${TANKverf_rad:-$(pwd)}
 
 # File names
-pgmout=${pgmout:-${jlogfile}}
-touch $pgmout
+#pgmout=${pgmout:-${jlogfile}}
+#touch $pgmout
 
 radmon_err_rpt=${radmon_err_rpt:-${USHradmon}/radmon_err_rpt.sh}
 base_file=${base_file:-$FIXgdas/gdas_radmon_base.tar}
 report=report.txt
 disclaimer=disclaimer.txt
 region=region.txt
+
 diag_report=diag_report.txt
 diag_hdr=diag_hdr.txt
 diag=diag.txt
+
 obs_err=obs_err.txt
 obs_hdr=obs_hdr.txt
 pen_err=pen_err.txt
 pen_hdr=pen_hdr.txt
+
 chan_err=chan_err.txt
 chan_hdr=chan_hdr.txt
+count_hdr=count_hdr.txt
+count_err=count_err.txt
 
 netcdf_boolean=".false."
 if [[ $RADMON_NETCDF -eq 1 ]]; then
@@ -139,7 +141,6 @@ MAIL_TO=${MAIL_TO:-}
 MAIL_CC=${MAIL_CC:-}
 VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
-USE_MAIL=${USE_MAIL:-0}
 
 time_exec=radmon_time.x
 USE_ANL=${USE_ANL:-0}
@@ -206,8 +207,6 @@ if [[ $err -eq 0 ]]; then
 
       for dtype in ${gesanl}; do
 
-         prep_step
-
          rm input
 
          if [[ $dtype == "anl" ]]; then
@@ -249,17 +248,9 @@ cat << EOF > input
   netcdf=${netcdf_boolean},
  /
 EOF
-	 startmsg
 
          ./${time_exec} < input >>   stdout.${type} 2>>errfile
-         export err=$?; err_chk
-
-         #
-         #  stdout.${type} is needed by radmon_ck_stdout.sh 
-         #  NCO requirement is executable output goes to jlogfile, so 
-         #  cat it there now:
-         cat stdout.${type} >> ${pgmout}
-
+         
          if [[ $err -ne 0 ]]; then
             fail=`expr $fail + 1`
          fi
@@ -267,7 +258,7 @@ EOF
 #-------------------------------------------------------------------
 #  move data, control, and stdout files to $TANKverf_rad and compress
 #-------------------------------------------------------------------
-
+         cat stdout.${type} >> stdout.time
 
          if [[ -s ${time_file} ]]; then
             ${COMPRESS} ${time_file}
@@ -349,12 +340,10 @@ EOF
 
       cat ${diag_hdr} >> ${diag_report}
       cat ${diag} >> ${diag_report}
-      if [[ $USE_MAIL -eq 1 ]]; then
-         cat ${disclaimer} >> ${diag_report}
-      else
-         echo End Problem Reading Diagnostic File >> ${diag_report}
-         echo >> ${diag_report}
-      fi
+
+      echo End Problem Reading Diagnostic File >> ${diag_report}
+      echo >> ${diag_report}
+
       rm ${diag} ${diag_hdr}
    fi 
 
@@ -363,18 +352,10 @@ EOF
 
    if [[ -s ${diag_report} ]]; then
       lines=`wc -l <${diag_report}`
-      if [[ $lines -gt 1 ]]; then
+      echo "lines in diag_report = $lines"   
 
-         if [[ $USE_MAIL -eq 1 ]]; then
-            if [[ $MAIL_CC == "" ]]; then
-               /bin/mail -v -s diagnostic_error_report ${MAIL_TO}< ${diag_report}
-            else
-               /bin/mail -v -s diagnostic_error_report -c "${MAIL_CC}" ${MAIL_TO}< ${diag_report}
-            fi
-         else
-            
-            cat ${diag_report}
-         fi
+      if [[ $lines -gt 1 ]]; then
+         cat ${diag_report}
       fi
    fi
 
@@ -392,25 +373,49 @@ if [[ $DO_DATA_RPT -eq 1 ]]; then
 
    bad_pen=bad_pen.${PDATE}
    bad_chan=bad_chan.${PDATE}
+   low_count=low_count.${PDATE}
 
    qdate=`$NDATE -${CYCLE_INTERVAL} $PDATE`
    pday=`echo $qdate | cut -c1-8`
    
    prev_bad_pen=bad_pen.${qdate}
    prev_bad_chan=bad_chan.${qdate}
+   prev_low_count=low_count.${qdate}
 
-#   if [[ $CYCLE == "00" ]]; then
-      prev_bad_pen=${TANKverf_radM1}/${prev_bad_pen}
-      prev_bad_chan=${TANKverf_radM1}/${prev_bad_chan}
-#   else
-#      prev_bad_pen=${TANKverf_rad}/${prev_bad_pen}
-#      prev_bad_chan=${TANKverf_rad}/${prev_bad_chan}
-#   fi
+   prev_bad_pen=${TANKverf_radM1}/${prev_bad_pen}
+   prev_bad_chan=${TANKverf_radM1}/${prev_bad_chan}
+   prev_low_count=${TANKverf_radM1}/${prev_low_count}
+
+   if [[ -s $bad_pen ]]; then
+      echo "pad_pen        = $bad_pen"
+   fi
+   if [[ -s $prev_bad_pen ]]; then
+      echo "prev_pad_pen   = $prev_bad_pen"
+   fi
+
+   if [[ -s $bad_chan ]]; then
+      echo "bad_chan       = $bad_chan"
+   fi
+   if [[ -s $prev_bad_chan ]]; then
+      echo "prev_bad_chan  = $prev_bad_chan"
+   fi
+   if [[ -s $low_count ]]; then
+      echo "low_count = $low_count"
+   fi 
+   if [[ -s $prev_low_count ]]; then
+      echo "prev_low_count = $prev_low_count"
+   fi 
 
    do_pen=0
    do_chan=0
+   do_cnt=0
+
    if [[ -s $bad_pen && -s $prev_bad_pen ]]; then
       do_pen=1
+   fi
+
+   if [[ -s $low_count && -s $prev_low_count ]]; then
+      do_cnt=1
    fi
 
    #--------------------------------------------------------------------  
@@ -421,52 +426,65 @@ if [[ $DO_DATA_RPT -eq 1 ]]; then
       do_chan=1
    fi
 
-#--------------------------------------------------------------------
-#  Remove extra spaces in new bad_pen file
-#
+   #--------------------------------------------------------------------
+   #  Remove extra spaces in new bad_pen & low_count files
+   #
    gawk '{$1=$1}1' $bad_pen > tmp.bad_pen
    mv -f tmp.bad_pen $bad_pen
 
+   gawk '{$1=$1}1' $low_count > tmp.low_count
+   mv -f tmp.low_count $low_count
 
-   if [[ $do_pen -eq 1 || $do_chan -eq 1 ]]; then
+   echo " do_pen, do_chan, do_cnt = $do_pen, $do_chan, $do_cnt"
+   echo " diag_report = $diag_report "
+   if [[ $do_pen -eq 1 || $do_chan -eq 1 || $do_cnt -eq 1 ]]; then
 
       if [[ $do_pen -eq 1 ]]; then   
 
-         $NCP ${TANKverf_radM1}/${prev_bad_pen} ./
+         echo "calling radmon_err_rpt for pen"
+#         $NCP ${TANKverf_radM1}/${prev_bad_pen} ./
          ${radmon_err_rpt} ${prev_bad_pen} ${bad_pen} pen ${qdate} \
 		${PDATE} ${diag_report} ${pen_err}
       fi
 
       if [[ $do_chan -eq 1 ]]; then   
 
-         $NCP ${TANKverf_radM1}/${prev_bad_chan} ./
+         echo "calling radmon_err_rpt for chan"
+#         $NCP ${TANKverf_radM1}/${prev_bad_chan} ./
          ${radmon_err_rpt} ${prev_bad_chan} ${bad_chan} chan ${qdate} \
 		${PDATE} ${diag_report} ${chan_err}
       fi
 
-#-------------------------------------------------------------------
-#  put together the unified error report with any obs, chan, and
-#  penalty problems and mail it
+      if [[ $do_cnt -eq 1 ]]; then   
 
-   if [[ -s ${obs_err} || -s ${pen_err} || -s ${chan_err} ]]; then
+         echo "calling radmon_err_rpt for cnt"
+         ${radmon_err_rpt} ${prev_low_count} ${low_count} cnt ${qdate} \
+		${PDATE} ${diag_report} ${count_err}
+      fi
 
-      echo DOING ERROR REPORTING
+      #-------------------------------------------------------------------
+      #  put together the unified error report with any obs, chan, and
+      #  penalty problems and mail it
 
-      echo "Begin Cycle Data Integrity Report" > $report
+      if [[ -s ${obs_err} || -s ${pen_err} || -s ${chan_err} || -s ${count_err} ]]; then
 
-      cat << EOF >> $report
+         echo DOING ERROR REPORTING
+
+         echo "Begin Cycle Data Integrity Report" > $report
+
+         cat << EOF >> $report
 Cycle Data Integrity Report 
   $PDATE
 
 EOF
 
-      cat ${region} >> $report
+         cat ${region} >> $report
 
-      if [[ -s ${chan_err} ]]; then
+         if [[ -s ${chan_err} ]]; then
 
-         echo OUTPUTING CHAN_ERR
+            echo OUTPUTING CHAN_ERR
 
-         cat << EOF > ${chan_hdr}
+            cat << EOF > ${chan_hdr}
          
   The following channels report 0 observational counts over the past two cycles:
    
@@ -475,14 +493,32 @@ EOF
 
 EOF
 
-         cat ${chan_hdr} >> $report
-         cat ${chan_err} >> $report
+            cat ${chan_hdr} >> $report
+            cat ${chan_err} >> $report
  
-      fi
+         fi
 
-      if [[ -s ${pen_err} ]]; then
+         if [[ -s ${count_err} ]]; then
 
-         cat << EOF > ${pen_hdr}
+            cat << EOF > ${count_hdr}
+
+
+         
+  The following channels report abnormally low observational counts in the latest 2 cycles:
+   
+Satellite/Instrument              Obs Count          Avg Count
+====================              =========          =========
+
+EOF
+              
+            cat ${count_hdr} >> $report
+            cat ${count_err} >> $report
+         fi
+
+
+         if [[ -s ${pen_err} ]]; then
+
+            cat << EOF > ${pen_hdr} 
 
 
   Penalty values outside of the established normal range were found
@@ -492,43 +528,32 @@ EOF
   ============ ======= ======      Cycle                 Penalty          Bound
                                    -----                 -------          -----
 EOF
-         cat ${pen_hdr} >> $report
-         cat ${pen_err} >> $report
-         rm -f ${pen_hdr} 
-         rm -f ${pen_err}
-      fi 
+            cat ${pen_hdr} >> $report
+            cat ${pen_err} >> $report
+            rm -f ${pen_hdr} 
+            rm -f ${pen_err}
+         fi 
 
-      if [[ $USE_MAIL -eq 1 ]]; then
-         cat ${disclaimer} >> $report
-      else
          echo End Cycle Data Integrity Report  >> $report
          echo  >> $report
       fi
-   fi
 
-#-------------------------------------------------------------------
-#  mail error notifications or dump to log file
-#
-   if [[ -s ${report} ]]; then
-      lines=`wc -l <${report}`
-      if [[ $lines -gt 2 ]]; then
-         if [[ $USE_MAIL -eq 1 ]]; then
-            if [[ $MAIL_CC == "" ]]; then
-               /bin/mail -v -s cycle_report ${MAIL_TO}< ${report}
-            else
-               /bin/mail -v -s cycle_report -c "${MAIL_CC}" ${MAIL_TO}< ${report}
-            fi 
-         else
+      #-------------------------------------------------------------------
+      #  dump report to log file
+      #
+      if [[ -s ${report} ]]; then
+         lines=`wc -l <${report}`
+         if [[ $lines -gt 2 ]]; then
             cat ${report}
          fi
       fi
-  fi
 
-  fi
 
-#-------------------------------------------------------------------
-#  copy new bad_pen and bad_chan files to $TANKverf_rad
-   
+   fi
+
+   #-------------------------------------------------------------------
+   #  copy new bad_pen, bad_chan, and low_count files to $TANKverf_rad
+   #   
    if [[ -s ${bad_chan} ]]; then
       $NCP ${bad_chan} ${TANKverf_rad}/.
    fi
@@ -537,25 +562,25 @@ EOF
       $NCP ${bad_pen} ${TANKverf_rad}/.
    fi
 
+   if [[ -s ${low_count} ]]; then
+      $NCP ${low_count} ${TANKverf_rad}/.
+   fi
 fi
 
-for type in ${SATYPE}; do
-   rm -f stdout.${type}
-done
+   for type in ${SATYPE}; do
+      rm -f stdout.${type}
+   done
 
-################################################################################
-#-------------------------------------------------------------------
-#  end error reporting section
-#-------------------------------------------------------------------
-################################################################################
+   ################################################################################
+   #-------------------------------------------------------------------
+   #  end error reporting section
+   #-------------------------------------------------------------------
+   ################################################################################
 
-################################################################################
-#  Post processing
-if [[ "$VERBOSE" = "YES" ]]; then
-   echo $(date) EXITING $0 error code ${err} >&2
-fi
-
-msg="${scr} HAS ENDED, err code = $err"
-postmsg "$jlogfile" "$msg"
+   ################################################################################
+   #  Post processing
+   if [[ "$VERBOSE" = "YES" ]]; then
+      echo $(date) EXITING $0 error code ${err} >&2
+   fi
 
 exit ${err}

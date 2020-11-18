@@ -20,7 +20,7 @@ export MONITOR=radmon
 # you checked out only the Radiance_Monitor portion of the branch then
 # MY_RADMON should point to that.
 #
-export MY_RADMON=${MY_RADMON:-/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/ProdGSI/util/Radiance_Monitor}
+export MY_RADMON=${MY_RADMON:-/scratch1/NCEPDEV/da/Edward.Safford/noscrub/ProdGSI/util/Radiance_Monitor}
 
 #
 #  The MY_TANKDIR will be the location for the extracted data files and
@@ -28,7 +28,7 @@ export MY_RADMON=${MY_RADMON:-/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/Pr
 #  and the succedding scripts will construct and use subdirectories under
 #  this location.
 #
-export MY_TANKDIR=${MY_TANKDIR:-/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/nbns}
+export MY_TANKDIR=${MY_TANKDIR:-/scratch1/NCEPDEV/da/Edward.Safford/nbns}
 
 export RUN=${RUN:-gdas}
 
@@ -67,16 +67,16 @@ export WEBDIR=${WEBDIR:-/home/people/emc/www/htdocs/gmb/gdas/radiance/esafford}
 ###############################################################################
 ###############################################################################
 
-export MY_MACHINE=wcoss_d
+export MY_MACHINE=hera
 export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 
 
 #
 #  Log and work space definitions
 #
-export MY_PTMP=${MY_PTMP:-/gpfs/dell2/ptmp}
+export MY_PTMP=${MY_PTMP:-/scratch2/NCEPDEV/stmp3}
 export PTMP_USER=${PTMP_USER:-${MY_PTMP}/${LOGNAME}}
-export MY_STMP=${MY_STMP:-/gpfs/dell2/stmp}
+export MY_STMP=${MY_STMP:-/scratch2/NCEPDEV/stmp1}
 export STMP_USER=${STMP_USER:-${MY_STMP}/${LOGNAME}}
 
 export LOGSverf_rad=${LOGSverf_rad:-${PTMP_USER}/logs}
@@ -184,39 +184,19 @@ elif [[ $MY_MACHINE = "cray" ]]; then
    export COMPRESS="gzip -f"
    export UNCOMPRESS="gunzip -f"
 
-elif [[ $MY_MACHINE = "theia" ]]; then
+elif [[ $MY_MACHINE = "hera" ]]; then
+
+   export GRADS=/apps/grads/2.0.2/bin/grads
+   export STNMAP=/apps/grads/2.0.2/bin/stnmap
 
    export SUB=/apps/slurm/default/bin/sbatch
-   NWPROD=${NWPROD:-/scratch4/NCEPDEV/global/save/glopara/nwpara/util}
-   NWPRODush=${NWPRODush:=${NWPROD}/ush}
-   NWPRODexec=${NWPRODexec:=${NWPROD}/exec}
-   export NDATE=${NDATE:-${NWPRODexec}/ndate}
-   export COMPRESS=gzip
-   export UNCOMPRESS="gunzip -f"
-   export LOADLQ="squeue -u $LOGNAME"
+   export NDATE=/home/Edward.Safford/bin/ndate
+   export COMPRESS=${COMPRESS:-gzip}
+   export UNCOMPRESS=${UNCOMPRESS:-"gunzip -f"}
 
-   #------------------------------------------------------------------------
-   #  The links below are a hack around the modules that are available
-   #  on the wcoss ibm & cray machines but not here on theia.  The alternative
-   #  was a bunch of contitional executions within the scripts to avoid the
-   #  nco mandated log and error requirements.
-   #------------------------------------------------------------------------
    prevday=`$NDATE -24 $PDATE`
    export PDYm1=`echo $prevday | cut -c1-8`
-   ln -s ${NWPRODush}/startmsg.sh ${STMP_USER}/startmsg
-   ln -s ${NWPRODush}/postmsg.sh ${STMP_USER}/postmsg
-   ln -s ${NWPRODush}/prep_step.sh ${STMP_USER}/prep_step
-   ln -s ${NWPRODush}/err_chk.sh ${STMP_USER}/err_chk
-   export PATH=$PATH:${STMP_USER}
 
-   #------------------------------------------------------------------------
-   # err_chk "helpfully" calls postmsg.sh directly so we need to override
-   # the utilscript location on theia to defeat err_chk's helpfulness and
-   # avoid a fatal error.
-   #------------------------------------------------------------------------
-   export utilscript=${utilscript:-${NWPRODush}}           
-                                                          
-                                                         
 fi
 
 

@@ -59,11 +59,7 @@ case $machine in
    export ptmp="/gpfs/dell2/ptmp/$LOGNAME/$ptmpName"
 
    export fixcrtm="/gpfs/dell2/emc/modeling/noscrub/Michael.Lueken/fix_update"
-   if [ -d /gpfs/td2 ]; then
-       export casesdir="/gpfs/td2/emc/da/noscrub/Michael.Lueken/CASES"
-   elif [ -d /gpfs/gd2 ]; then
-       export casesdir="/gpfs/gd2/emc/da/noscrub/Michael.Lueken/CASES"
-   fi
+   export casesdir="/gpfs/dell2/emc/modeling/noscrub/Michael.Lueken/CASES"
    export ndate=${NDATE:-"$builddir/bin/ndate.x"}
 
    export check_resource="yes"
@@ -125,6 +121,7 @@ case $machine in
      export noscrub="/scratch2/BMC/gsienkf/$LOGNAME"
 >>>>>>> master
    fi
+ 
    export group="global"
    export queue="batch"
    if [[ "$cmaketest" = "false" ]]; then
@@ -150,6 +147,8 @@ case $machine in
       export noscrub="/gpfs/hps3/emc/global/noscrub/$LOGNAME"
    elif [ -d /gpfs/hps3/emc/da/noscrub/$LOGNAME ]; then
       export noscrub="/gpfs/hps3/emc/da/noscrub/$LOGNAME"
+   elif [ -d /gpfs/hps3/emc/hwrf/noscrub/$LOGNAME ]; then
+       export noscrub="/gpfs/hps3/emc/hwrf/noscrub/$LOGNAME"
    fi
    if [[ "$cmaketest" = "false" ]]; then
      export basedir="/gpfs/hps3/emc/global/noscrub/$LOGNAME/svn/gsi"
@@ -233,6 +232,7 @@ export global_4dvar_T62_adate="2014080400"
 export global_hybrid_T126_adate="2014092912"
 export global_4denvar_T126_adate="2019041500"
 export global_fv3_4denvar_T126_adate="2018110500"
+export global_fv3_4denvar_C192_adate="2019061006"
 export global_enkf_T62_adate="2014092912"
 export global_lanczos_T62_adate="2014080400"
 export global_nemsio_T62_adate="2013011400"
@@ -241,10 +241,11 @@ export arw_binary_adate="2010072412"
 export arw_netcdf_adate="2008051112"
 export nmm_binary_adate="2010021600"
 export nmm_netcdf_adate="2007122000"
-export rtma_adate="2017031218"
+export rtma_adate="2020022420"
 export hwrf_nmm_adate="2012102812"
 export fv3_netcdf_adate="2017030100"
 export global_C96_fv3aero_adate="2019062200"
+export global_C96_fv3aerorad_adate="2019062200"
 
 # Paths for canned case data.
 export global_T62_obs="$casesdir/global/sigmap/$global_T62_adate"
@@ -256,6 +257,8 @@ export global_4denvar_T126_datges="$casesdir/global/sigmap/$global_4denvar_T126_
 export global_4denvar_T126_datobs="$casesdir/global/sigmap/$global_4denvar_T126_adate"
 export global_fv3_4denvar_T126_datges="$casesdir/global/fv3/$global_fv3_4denvar_T126_adate"
 export global_fv3_4denvar_T126_datobs=$global_fv3_4denvar_T126_datges
+export global_fv3_4denvar_C192_datges="$casesdir/global/fv3/$global_fv3_4denvar_C192_adate"
+export global_fv3_4denvar_C192_datobs=$global_fv3_4denvar_C192_datges
 export global_hybrid_T126_datges="$casesdir/global/sigmap/$global_hybrid_T126_adate/ges"
 export global_enkf_T62_datobs="$casesdir/global/sigmap/$global_enkf_T62_adate/new_obs"
 export global_enkf_T62_datges="$casesdir/global/sigmap/$global_enkf_T62_adate/ges"
@@ -281,6 +284,8 @@ export fv3_netcdf_obs="$casesdir/regional/fv3_netcdf/$fv3_netcdf_adate"
 export fv3_netcdf_ges="$casesdir/regional/fv3_netcdf/$fv3_netcdf_adate"
 export global_C96_fv3aero_obs="$casesdir/global/fv3/$global_C96_fv3aero_adate"
 export global_C96_fv3aero_ges="$casesdir/global/fv3/$global_C96_fv3aero_adate"
+export global_C96_fv3aerorad_obs="$casesdir/global/fv3/$global_C96_fv3aerorad_adate"
+export global_C96_fv3aerorad_ges="$casesdir/global/fv3/$global_C96_fv3aerorad_adate"
 
 # Define type of GPSRO data to be assimilated (refractivity or bending angle)
 export gps_dtype="gps_bnd"

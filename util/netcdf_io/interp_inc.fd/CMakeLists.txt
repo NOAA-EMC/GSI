@@ -1,0 +1,13 @@
+cmake_minimum_required(VERSION 2.6)
+if(BUILD_NCIO_UTIL)
+  file(GLOB LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.f90)
+
+  set(Util_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include/interp_inc")
+  set_source_files_properties( ${LOCAL_SRC} PROPERTIES COMPILE_FLAGS ${UTIL_Fortran_FLAGS} )
+  add_executable(interp_inc.x  ${LOCAL_SRC} )
+  set_target_properties( interp_inc.x PROPERTIES COMPILE_FLAGS ${UTIL_Fortran_FLAGS} )
+  set_target_properties( interp_inc.x PROPERTIES Fortran_MODULE_DIRECTORY ${Util_MODULE_DIRECTORY} )
+  SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_Fortran_FLAGS}" )
+  include_directories( ${UTIL_INC} ${NETCDF_INCLUDES} ${MPI_Fortran_INCLUDE_PATH}) 
+  target_link_libraries( interp_inc.x ${W3NCO_4_LIBRARY} ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES} ${MPI_Fortran_LIBRARIES} ${HDF5_HL_LIBRARIES} ${HDF5_LIBRARIES} ${ZLIB_LIBRARIES} ${CURL_LIBRARIES} ${IP_LIBRARY} ${SP_LIBRARY})
+endif()

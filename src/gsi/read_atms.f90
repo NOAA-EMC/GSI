@@ -402,7 +402,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
 !          inflate selection value for ears_db data
            crit0 = 0.01_r_kind
-           crit0 = zero ! shouldn't it = 0.01_r_kind?
            if ( llll > 1 ) crit0 = crit0 + r100 * float(llll)
 
            call ufbint(lnbufr,bfr1bhdr,n1bhdr,1,iret,hdr1b)

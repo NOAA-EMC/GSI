@@ -242,6 +242,7 @@ contains
 !                         ticket #239, comment 18)
 !   2018-05-19  eliu    - add components to read in hydrometeor related
 !                         variables 
+!   2019-07-10  Zhu     - Add convective clouds
 !
 !   input argument list:
 !
@@ -348,7 +349,7 @@ contains
                atm_bundle,.true.,istatus)
        else
           call general_read_gfsatm_nems(grd_t,sp_a,filename,.true.,.true.,.true.,&
-               atm_bundle,.true.,istatus)
+               atm_bundle,.true.,istatus,it)
        endif
 
        inithead=.false.
@@ -531,7 +532,6 @@ contains
     use gsi_chemguess_mod, only: gsi_chemguess_get
     use gsi_bundlemod, only: gsi_bundle,gsi_bundlecreate,gsi_bundledestroy
     use gsi_bundlemod, only: gsi_grid,gsi_gridcreate
-    use gridmod, only: regional,use_fv3_aero
     use radiance_mod, only: n_aerosols_fwd,aerosol_names_fwd 
     use gridmod, only: grd_a,sp_a,regional
     use guess_grids, only: ifilesig,ifileaer,nfldaer
@@ -2084,7 +2084,6 @@ contains
     use mpimod, only: mype
 
     use guess_grids, only: ifilesig
-    use guess_grids, only: ges_prsl,ges_prsi
     use guess_grids, only: load_geop_hgt,geop_hgti,ges_geopi
 
     use gridmod, only: ntracer
@@ -2141,10 +2140,10 @@ contains
     real(r_kind),pointer,dimension(:,:,:) :: sub_ql,sub_qi,sub_qr,sub_qs,sub_qg
 
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) :: sub_dzb,sub_dza
-
     real(r_kind),dimension(grd%lat1*grd%lon1)     :: psm
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig):: sub_dp
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: tvsm, usm, vsm
-    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: qsm, ozsm
+    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: dpsm, qsm, ozsm
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: dzsm
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: qlsm,qism,qrsm,qssm,qgsm
 
@@ -2327,6 +2326,7 @@ contains
     call strip(sub_tv  ,tvsm  ,grd%nsig)
     call strip(sub_q   ,qsm   ,grd%nsig)
     call strip(sub_oz  ,ozsm  ,grd%nsig)
+    call strip(sub_dp  ,dpsm  ,grd%nsig)
     call strip(sub_u   ,usm   ,grd%nsig)
     call strip(sub_v   ,vsm   ,grd%nsig)
     if (lql ) call strip(sub_ql  ,qlsm  ,grd%nsig)
@@ -2800,9 +2800,10 @@ contains
                work1,grd%ijn,grd%displs_g,mpi_rtype,&
                mype_out,mpi_comm_world,ierror)
           if (mype == mype_out) then
+             work1 = -one * work1  ! Flip sign, FV3 is top to bottom
              call nemsio_readrecv(gfile,'delz','mid layer',k,rwork1d,iret=iret)
              if (iret /= 0) call error_msg(trim(my_name),trim(filename),'delz','read',istop,iret)
-             if (sum(rwork1d) < zero) work1 = work1 * -1.0_r_kind  !Flip sign, FV3 is top to bottom 
+             if (sum(rwork1d) < zero) work1 = -one * work1  !Flip sign, FV3 is top to bottom 
              if(diff_res)then
                 grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
                 do kk=1,grd%iglobal
@@ -2895,7 +2896,7 @@ contains
     use mpimod, only: mype
 
     use guess_grids, only: ifilesig
-    use guess_grids, only: ges_prsl,ges_prsi
+    use guess_grids, only: ges_prsi
     use guess_grids, only: load_geop_hgt,geop_hgti,ges_geopi
 
     use gridmod, only: ntracer
@@ -2957,10 +2958,12 @@ contains
     real(r_kind),pointer,dimension(:,:,:) :: sub_oc1,sub_oc2,sub_bc1,sub_bc2
 
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) :: sub_dzb,sub_dza
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig+1) :: sub_prsi
 
     real(r_kind),dimension(grd%lat1*grd%lon1)     :: psm
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig):: sub_dp
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: tvsm, usm, vsm
-    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: qsm, ozsm
+    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: dpsm, qsm, ozsm
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: cwsm, dzsm
 !   Aerosol array
     real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: &
@@ -3137,6 +3140,12 @@ contains
        if (iret /= 0) call error_msg(trim(my_name),trim(filename),'hgt','write',istop,iret)
     endif ! if ( mype == mype_out )
 
+    sub_prsi = ges_prsi(:,:,:,ibin)
+
+    do k=1,grd%nsig
+       sub_dp(:,:,k) = sub_prsi(:,:,k) - sub_prsi(:,:,k+1)
+    end do
+
     ! Calculate delz increment for UPP
     if (lupp) then
        do k=1,grd%nsig
@@ -3157,6 +3166,7 @@ contains
     call strip(sub_q   ,qsm   ,grd%nsig)
     call strip(sub_oz  ,ozsm  ,grd%nsig)
     call strip(sub_cwmr,cwsm  ,grd%nsig)
+    call strip(sub_dp  ,dpsm  ,grd%nsig)
     call strip(sub_u   ,usm   ,grd%nsig)
     call strip(sub_v   ,vsm   ,grd%nsig)
     if (lupp) call strip(sub_dza ,dzsm  ,grd%nsig)
@@ -3521,9 +3531,10 @@ contains
                work1,grd%ijn,grd%displs_g,mpi_rtype,&
                mype_out,mpi_comm_world,ierror)
           if (mype == mype_out) then
+             work1 = -one * work1  ! Flip sign, FV3 is top to bottom
              call nemsio_readrecv(gfile,'delz','mid layer',k,rwork1d,iret=iret)
              if (iret /= 0) call error_msg(trim(my_name),trim(filename),'delz','read',istop,iret)
-             if (sum(rwork1d) < zero) work1 = work1 * -1.0_r_kind  ! Flip sign, FV3 is top to bottom
+             if (sum(rwork1d) < zero) work1 = -one * work1  ! Flip sign, FV3 is top to bottom
              if(diff_res)then
                 grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
                 do kk=1,grd%iglobal

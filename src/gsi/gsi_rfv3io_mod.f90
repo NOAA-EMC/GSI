@@ -23,6 +23,7 @@ module gsi_rfv3io_mod
 !   sub gsi_fv3ncdf_writeuv
 !   sub gsi_fv3ncdf_writeps
 !   sub gsi_fv3ncdf_write
+!   sub gsi_fv3ncdf_write_v1
 !   sub check
 !
 ! variable definitions:
@@ -708,7 +709,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
 !$$$  end documentation block
     use kinds, only: r_kind,i_kind
     use mpimod, only: npe
-    use guess_grids, only: nfldsig,ges_tsen,ges_prsi
+    use guess_grids, only: ges_tsen,ges_prsi
     use gridmod, only: lat2,lon2,nsig,ijn,eta1_ll,eta2_ll,ijn_s
     use constants, only: one,fv
     use gsi_metguess_mod, only: gsi_metguess_bundle
@@ -1067,7 +1068,7 @@ subroutine gsi_fv3ncdf2d_read_v1(filenamein,varname,varname2,work_sub,mype_io)
 
     use kinds, only: r_kind,i_kind
     use mpimod, only: ierror,mpi_comm_world,npe,mpi_rtype,mype
-    use gridmod, only: lat2,lon2,nsig,nlat,nlon,itotsub,ijn_s,displs_s
+    use gridmod, only: lat2,lon2,nlat,nlon,itotsub,ijn_s,displs_s
     use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
     use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
     use netcdf, only: nf90_inq_varid
@@ -1988,6 +1989,7 @@ subroutine gsi_fv3ncdf_writeuv_v1(dynvars,varu,varv,mype_io,add_saved)
 ! program history log:
 ! 2019-04-22  lei   modified from gsi_nemsio_writeuv_v1 for update
 ! u_w,v_w,u_s,v_s in the cold start files!
+! 2020-03-06  lei   added ilev0 fix
 !   input argument list:
 !    varu,varv
 !    add_saved - true: add analysis increments to readin guess then write out
@@ -2087,9 +2089,9 @@ subroutine gsi_fv3ncdf_writeuv_v1(dynvars,varu,varv,mype_io,add_saved)
           enddo
        enddo
        deallocate(work,work_sub)
-!clt u and v would contain winds at either D-grid or A-grid
-!clt do not diretly use them in between fv3uv2eath and fv3_h_to_ll unless paying
-!attent to the actual storage layout
+! u and v would contain winds at either D-grid or A-grid
+! do not diretly use them in between fv3uv2eath and fv3_h_to_ll unless paying
+!attention to the actual storage layout
        call check( nf90_open(trim(dynvars ),nf90_write,gfile_loc) )
 
        allocate( u(nlon_regional,nlat_regional)) 
@@ -2231,7 +2233,7 @@ subroutine gsi_fv3ncdf_writeps_v1(filename,varname,var,mype_io,add_saved)
 !$$$ end documentation block
 
     use mpimod, only: mpi_rtype,mpi_comm_world,ierror,mype
-    use gridmod, only: lat2,lon2,nlon,nlat,lat1,lon1,nsig
+    use gridmod, only: lat2,lon2,nlon,nlat,lat1,lon1
     use gridmod, only: ijn,displs_g,itotsub,iglobal
     use gridmod,  only: nlon_regional,nlat_regional,eta1_ll,eta2_ll
     use mod_fv3_lolgrid, only: fv3_ll_to_h_regular_grids,fv3_h_to_ll_regular_grids
@@ -2534,6 +2536,117 @@ subroutine check(status)
        stop  
     end if
 end subroutine check
+subroutine gsi_fv3ncdf_write_v1(filename,varname,var,mype_io,add_saved)
+!$$$  subprogram documentation block
+!                .      .    .                                        .
+! subprogram:    gsi_nemsio_write
+!   pgrmmr: wu
+!
+! abstract:
+!
+! program history log:
+! 2020-03-05  lei  modified from gsi_fv3ncdf_write to gsi_fv3ncdf_write_v1  
+!   input argument list:
+!    varu,varv
+!    add_saved
+!    mype     - mpi task id
+!    mype_io
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+    use mpimod, only: mpi_rtype,mpi_comm_world,ierror,npe,mype
+    use gridmod, only: lat2,lon2,nlon,nlat,lat1,lon1,nsig
+    use gridmod, only: ijn,displs_g,itotsub,iglobal
+    use mod_fv3_lola, only: fv3_ll_to_h
+    use mod_fv3_lola, only: fv3_h_to_ll
+    use general_commvars_mod, only: ltosi,ltosj
+    use netcdf, only: nf90_open,nf90_close
+    use netcdf, only: nf90_write,nf90_inq_varid
+    use netcdf, only: nf90_put_var,nf90_get_var
+    implicit none
+
+    real(r_kind)   ,intent(in   ) :: var(lat2,lon2,nsig)
+    integer(i_kind),intent(in   ) :: mype_io
+    logical        ,intent(in   ) :: add_saved
+    character(*)   ,intent(in   ) :: varname,filename
+
+    integer(i_kind) :: VarId,gfile_loc
+    integer(i_kind) :: ilev0
+    integer(i_kind) i,j,mm1,k,kr,ns,n,m
+    real(r_kind),allocatable,dimension(:):: work
+    real(r_kind),allocatable,dimension(:,:,:):: work_sub,work_a
+    real(r_kind),allocatable,dimension(:,:,:):: work_b
+    real(r_kind),allocatable,dimension(:,:):: workb2,worka2
+
+
+    mm1=mype+1
+
+    allocate(    work(max(iglobal,itotsub)*nsig),work_sub(lat1,lon1,nsig))
+!!!!!!!! reverse z !!!!!!!!!!!!!!
+    do k=1,nsig
+       kr=nsig+1-k
+       do i=1,lon1
+          do j=1,lat1
+             work_sub(j,i,kr)=var(j+1,i+1,k)
+          end do
+       end do
+    enddo
+    call mpi_gatherv(work_sub,ijnz(mm1),mpi_rtype, &
+          work,ijnz,displsz_g,mpi_rtype,mype_io,mpi_comm_world,ierror)
+
+    if(mype==mype_io) then
+       allocate( work_a(nlat,nlon,nsig))
+       ns=0
+       do m=1,npe
+          do k=1,nsig
+             do n=displs_g(m)+1,displs_g(m)+ijn(m) 
+                ns=ns+1
+                work_a(ltosi(n),ltosj(n),k)=work(ns)
+             end do
+          enddo
+       enddo
+
+       allocate( work_b(nlon_regional,nlat_regional,nsig+1))
+
+       call check( nf90_open(trim(filename),nf90_write,gfile_loc) )
+       call check( nf90_inq_varid(gfile_loc,trim(varname),VarId) )
+       call check( nf90_get_var(gfile_loc,VarId,work_b) )
+       ilev0=1
+
+       if(add_saved)then
+          allocate( workb2(nlon_regional,nlat_regional))
+          allocate( worka2(nlat,nlon))
+!  for being now only lev between (including )  2 and nsig+1 of work_b (:,:,lev) 
+!  are updated
+          do k=1,nsig
+             call fv3_h_to_ll(work_b(:,:,ilev0+k),worka2,nlon_regional,nlat_regional,nlon,nlat)
+!!!!!!!! analysis_inc:  work_a !!!!!!!!!!!!!!!!
+             work_a(:,:,k)=work_a(:,:,k)-worka2(:,:)
+             call fv3_ll_to_h(work_a(1,1,k),workb2,nlon,nlat,nlon_regional,nlat_regional,.true.)
+             work_b(:,:,ilev0+k)=work_b(:,:,ilev0+k)+workb2(:,:)
+          enddo
+          deallocate(worka2,workb2)
+       else
+          do k=1,nsig
+             call fv3_ll_to_h(work_a(1,1,k),work_b(1,1,ilev0+k),nlon,nlat,nlon_regional,nlat_regional,.true.)
+          enddo
+       endif
+
+       print *,'write out ',trim(varname),' to ',trim(filename)
+       call check( nf90_put_var(gfile_loc,VarId,work_b) )
+       call check( nf90_close(gfile_loc) )
+       deallocate(work_b,work_a)
+    end if !mype_io
+
+    deallocate(work,work_sub)
+
+end subroutine gsi_fv3ncdf_write_v1
 
 
 end module gsi_rfv3io_mod

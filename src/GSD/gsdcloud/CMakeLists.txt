@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 2.6)
+if(BUILD_GSDCLOUD_ARW)
+  file(GLOB GSDCLOUD_SRC ${GSDCLOUD_DIR}/*.f90)
+  set_source_files_properties( ${GSDCLOUD_SRC} COMPILE_FLAGS ${GSDCLOUD_Fortran_FLAGS})
+  add_library( ${gsdcloud} STATIC ${GSDCLOUD_SRC} )
+  set_target_properties( ${gsdcloud} PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_INCLUDE_OUTPUT_DIRECTORY} )
+endif()

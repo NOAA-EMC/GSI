@@ -60,6 +60,7 @@ subroutine setupsst(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
 !   2017-02-06  todling - add netcdf_diag capability; hidden as contained code
 !   2017-02-09  guo     - Remove m_alloc, n_alloc.
 !                       . Remove my_node with corrected typecast().
+!   2019-11-12  li      - add 4 nsst variables to netcdf sst diag file
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -605,6 +606,13 @@ contains
            call nc_diag_metadata("Observation",                   sngl(data(isst,i)) )
            call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)      )
            call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(data(isst,i)-sstges) )
+
+           if (nst_gsi>0) then
+              call nc_diag_metadata("FoundationTempBG",        sngl(data(itref,i)) )
+              call nc_diag_metadata("DiurnalWarming_at_zob",   sngl(data(idtw,i)) )
+              call nc_diag_metadata("SkinLayerCooling_at_zob", sngl(data(idtw,i)) )
+              call nc_diag_metadata("Sensitivity_Tzob_Tr",     sngl(data(itz_tr,i)) )
+           endif
  
            if (lobsdiagsave) then
               do jj=1,miter
