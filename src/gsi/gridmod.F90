@@ -1106,7 +1106,6 @@ contains
        rlat_max_dd=rlat_max_ll-r1_5/grid_ratio_fv3_regional
        rlon_min_dd=rlon_min_ll+r1_5/grid_ratio_fv3_regional
        rlon_max_dd=rlon_max_ll-r1_5/grid_ratio_fv3_regional
-       pt_ll=zero
 !clt follow Hongli Wang's codes 
        !print*,'original rlat_min_dd,rlat_max_dd,rlon_min_dd,rlon_max_dd=',&
        !                 rlat_min_dd,rlat_max_dd,rlon_min_dd,rlon_max_dd
@@ -1119,8 +1118,8 @@ contains
        !print*,'nlat_fv3_regional_reduce,nlon_fv3_regional_reduce=',nlat_fv3_regional_reduce,nlon_fv3_regional_reduce
        !print*,'reduced rlat_min_dd,rlat_max_dd,rlon_min_dd,rlon_max_dd=',&
        !                 rlat_min_dd,rlat_max_dd,rlon_min_dd,rlon_max_dd
-     
        endif
+       pt_ll=zero
     endif    !  fv3_regional
 
     if(wrf_nmm_regional) then     ! begin wrf_nmm section

@@ -801,8 +801,8 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
        ges_ps(:,:)=ges_prsi(:,:,1,it)
     else  
        call  gsi_fv3ncdf2d_read_v1(dynvars,'ps','PS',ges_ps,mype_p)
-       ges_prsi(:,:,nsig+1,it)=eta1_ll(nsig+1)
        ges_ps=ges_ps*0.001_r_kind
+       ges_prsi(:,:,nsig+1,it)=eta1_ll(nsig+1)
        do k=1,nsig
           ges_prsi(:,:,k,it)=eta1_ll(k)+eta2_ll(k)*ges_ps  
        enddo
@@ -1685,7 +1685,6 @@ subroutine wrfv3_netcdf(fv3filenamegin)
       call gsi_fv3ncdf_write_v1(tracers,'sphum',ges_q   ,mype_q,add_saved)
       call gsi_fv3ncdf_writeuv_v1(dynvars,ges_u,ges_v,mype_v,add_saved)
       call gsi_fv3ncdf_writeps_v1(dynvars,'ps',ges_ps,mype_p,add_saved)
-    
     endif
     
 end subroutine wrfv3_netcdf
@@ -1948,7 +1947,6 @@ subroutine gsi_fv3ncdf_writeps(filename,varname,var,mype_io,add_saved)
        call check( nf90_close(gfile_loc) )
        if (allocated(worka2)) deallocate(worka2)
        if (allocated(workb2)) deallocate(workb2)
-
        deallocate(work_b,work_a,work_bi)
 
     end if !mype_io

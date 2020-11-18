@@ -1177,7 +1177,7 @@ end subroutine normal_new_factorization_rf_y
     use get_wrf_nmm_ensperts_mod, only: get_wrf_nmm_ensperts_class
     use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
     use hybrid_ensemble_parameters, only: l_both_fv3sar_gfs_ens 
-    use mpimod, only: mpi_comm_world,ierror
+    use mpimod, only: mpi_comm_world
 
     implicit none
 
