@@ -148,7 +148,7 @@ contains
        iret = 0
        return
     else
-       write(6,*)'GET_STORMINFO:  ***ERROR*** num storms to be processed <= 0'
+       write(6,*)'GET_STORMINFO:  ***WARNING*** num storms to be processed <= 0'
        write(6,*)'GET_STORMINFO:     Check file assigned to unit lucard=',lucard
        iret = 99
        return
@@ -255,7 +255,7 @@ contains
        iret = 0
        return
     else
-       write(6,*)'READ_TCV_CARD:  ***ERROR*** num storms to be processed <=0 '
+       write(6,*)'READ_TCV_CARD:  ***WARNING*** num storms to be processed <=0 '
        write(6,*)'READ_TCV_CARD:     Check file assigned to unit lucard=',lucard
        iret = 99
        return
