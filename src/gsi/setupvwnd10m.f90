@@ -31,6 +31,7 @@ subroutine setupvwnd10m(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_d
 !   2017-09-28  todling - add netcdf_diag capability; hidden as contained code
 !   2018-01-08  pondeca - addd option l_closeobs to use closest obs to analysis
 !                                     time in analysis
+!   2020-05-04  wu   - no rotate_wind for fv3_regional
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -74,7 +75,8 @@ subroutine setupvwnd10m(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_d
   use oneobmod, only: magoberr,maginnov,oneobtest
 
   use gridmod, only: nsig
-  use gridmod, only: get_ij,twodvar_regional,regional,rotate_wind_xy2ll,pt_ll
+  use gridmod, only: get_ij,twodvar_regional,regional,rotate_wind_xy2ll,pt_ll,&
+            fv3_regional
   use constants, only: zero,tiny_r_kind,one,one_tenth,half,wgtlim,rd,grav,&
             two,cg_term,three,four,five,ten,huge_single,r1000,r3600,&
             grav_ratio,flattening,grav,deg2rad,grav_equator,somigliana, &
@@ -900,7 +902,7 @@ subroutine setupvwnd10m(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_d
         rdiagbuf(21,ii) = dudiff             ! uob-ges (ms**-1)
         rdiagbuf(22,ii) = data(iuob,i)-ugesin! uob-ges w/o bias correction (ms**-1) (future slot)
  
-        if(regional) then
+        if(regional .and. .not. fv3_regional) then
 
 !           replace positions 17-22 with earth relative wind component information
 
@@ -995,7 +997,7 @@ subroutine setupvwnd10m(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_d
         call nc_diag_metadata("v_Obs_Minus_Forecast_adjusted", dudiff           )
         call nc_diag_metadata("v_Obs_Minus_Forecast_unadjusted", data(iuob,i)-ugesin)
 
-        if(regional) then
+        if(regional .and. .not. fv3_regional) then
 
 !           replace positions 17-22 with earth relative wind component information
 

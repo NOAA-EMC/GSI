@@ -460,7 +460,7 @@ module obsmod
   ! ==== DBZ DA ===
   public :: ntilt_radarfiles
   public :: whichradar
-  public :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw
+  public :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw, l2rwthin 
 
   public :: doradaroneob,oneoblat,oneoblon
   public :: oneobddiff,oneobvalue,oneobheight,oneobradid
@@ -482,6 +482,7 @@ module obsmod
 
   public :: l_wcp_cwm
   public :: aircraft_recon
+  public :: hurricane_radar 
 
   ! The following public variables are the coefficients that describe
   ! the linear regression fits that are used to define the dynamic
@@ -496,7 +497,7 @@ module obsmod
 
   ! 1/237: Dropsonde observations.
 
-  ! 292: SFMR observations.
+  ! 213: SFMR observations.
   
   ! The following correspond to the specific humidity (q)
   ! observations:
@@ -517,10 +518,10 @@ module obsmod
   
   public :: uv_doe_a_236
   public :: uv_doe_a_237
-  public :: uv_doe_a_292
+  public :: uv_doe_a_213
   public :: uv_doe_b_236
   public :: uv_doe_b_237
-  public :: uv_doe_b_292
+  public :: uv_doe_b_213
   
 
   interface obsmod_init_instr_table
@@ -598,7 +599,7 @@ module obsmod
   integer(i_kind) ntilt_radarfiles
 
   logical ::  doradaroneob
-  logical :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw
+  logical :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw, l2rwthin
   character(4) :: whichradar,oneobradid
   real(r_kind) :: oneoblat,oneoblon,oneobddiff,oneobvalue,oneobheight
   logical :: radar_no_thinning
@@ -634,6 +635,7 @@ module obsmod
 
   logical l_wcp_cwm
   logical aircraft_recon
+  logical hurricane_radar 
 
   character(len=*),parameter:: myname='obsmod'
 
@@ -650,7 +652,7 @@ module obsmod
 
   ! 1/237: Dropsonde observations.
 
-  ! 292: SFMR observations.
+  ! 213: SFMR observations.
 
   ! The following correspond to the specific humidity (q)
   ! observations:
@@ -667,7 +669,7 @@ module obsmod
   
   real(r_kind) :: uv_doe_a_236, uv_doe_b_236
   real(r_kind) :: uv_doe_a_237, uv_doe_b_237
-  real(r_kind) :: uv_doe_a_292, uv_doe_b_292
+  real(r_kind) :: uv_doe_a_213, uv_doe_b_213
   
 contains
 
@@ -718,6 +720,7 @@ contains
     ntilt_radarfiles=1
     vr_dealisingopt=.false.
     if_vterminal=.false.
+    l2rwthin    =.false.  
     if_vrobs_raw=.false.
     if_model_dbz=.true.
     inflate_obserr=.false.
@@ -892,6 +895,7 @@ contains
 
     l_wcp_cwm          = .false.                 ! .true. = use operator that involves cwm
     aircraft_recon     = .false.                 ! .true. = use DOE for aircraft data
+    hurricane_radar    = .false.                 ! .true. = use radar data for hurricane application 
 
     ! The following variable initializations pertain to the
     ! coefficients that describe the linear regression fits that are
@@ -907,7 +911,7 @@ contains
     
     ! 1/237: Dropsonde observations.
     
-    ! 292: SFMR observations.
+    ! 213: SFMR observations.
     
     ! The following correspond to the specific humidity (q)
     ! observations:
@@ -930,8 +934,8 @@ contains
     uv_doe_b_236 = 0.0_r_kind
     uv_doe_a_237 = 1.0_r_kind
     uv_doe_b_237 = 0.0_r_kind      
-    uv_doe_a_292 = 1.0_r_kind
-    uv_doe_b_292 = 0.0_r_kind
+    uv_doe_a_213 = 1.0_r_kind
+    uv_doe_b_213 = 0.0_r_kind
     
     return
   end subroutine init_obsmod_dflts
@@ -971,7 +975,7 @@ contains
     if (lrun_subdirs) then
        write(pe_name,'(i4.4)') mype
        dirname = 'dir.'//trim(pe_name)//'/'
-       command = 'mkdir -m 755 ' // trim(dirname)
+       command = 'mkdir -p -m 755 ' // trim(dirname)
        call system(command)
     else
        write(pe_name,100) mype

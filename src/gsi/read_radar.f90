@@ -60,6 +60,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 !                              to help fix a multiple data read bug (when l2rwbufr and radarbufr were both 
 !                              listed in the OBS_INPUT table) and for added flexibility for experimental setups.
 !   2018-02-15  wu      - add code for fv3_regional option
+!   2020-05-04  wu   - no rotate_wind for fv3_regional
 !
 !
 !   input argument list:
@@ -89,7 +90,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   use qcmod, only: erradar_inflate,vadfile,newvad
   use obsmod, only: iadate,ianldate,l_foreaft_thin
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,time_4dvar,thin4d
-  use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy,nsig
+  use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy,nsig,&
+      fv3_regional
   use gridmod, only: wrf_nmm_regional,nems_nmmb_regional,cmaq_regional,wrf_mass_regional
   use gridmod, only: fv3_regional
   use convinfo, only: nconvtype,ctwind, &
@@ -260,7 +262,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   if (.not.lexist1 .and. .not.lexist2) return
 
   eradkm=rearth*0.001_r_kind
-  maxobs=2e6
+  maxobs=2e8
   nreal=maxdat
   nchanl=0
   ilon=2
@@ -680,7 +682,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
         height= thishgt
         rwnd  = thisvr
         azm_earth = corrected_azimuth
-        if(regional) then
+        if(regional .and. .not. fv3_regional) then
            cosazm_earth=cos(azm_earth*deg2rad)
            sinazm_earth=sin(azm_earth*deg2rad)
            call rotate_wind_ll2xy(cosazm_earth,sinazm_earth,cosazm,sinazm,dlon_earth,dlon,dlat)
@@ -1088,7 +1090,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
                    height= radar_obs(4,k)
                    rwnd  = radar_obs(5,k)
                    azm_earth   = r90-radar_obs(6,k)
-                   if(regional) then
+                   if(regional .and. .not. fv3_regional) then
                       cosazm_earth=cos(azm_earth*deg2rad)
                       sinazm_earth=sin(azm_earth*deg2rad)
                       call rotate_wind_ll2xy(cosazm_earth,sinazm_earth,cosazm,sinazm,dlon_earth,dlon,dlat)
@@ -1522,7 +1524,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
            height= z(ii)
            rwnd  = thisvr
            azm_earth = glob_azimuth8(ii)
-           if(regional) then
+           if(regional .and. .not. fv3_regional) then
               cosazm_earth=cos(azm_earth*deg2rad)
               sinazm_earth=sin(azm_earth*deg2rad)
               call rotate_wind_ll2xy(cosazm_earth,sinazm_earth,cosazm,sinazm,dlon_earth,dlon,dlat)
@@ -2041,7 +2043,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
                  height= z(i)
                  rwnd  = dopbin(i)
                  azm_earth = glob_azimuth8(i)
-                 if(regional) then
+                 if(regional .and. .not. fv3_regional) then
                     cosazm_earth=cos(azm_earth*deg2rad)
                     sinazm_earth=sin(azm_earth*deg2rad)
                     call rotate_wind_ll2xy(cosazm_earth,sinazm_earth,cosazm,sinazm,dlon_earth,dlon,dlat)
@@ -2401,7 +2403,8 @@ subroutine read_radar_l2rw_novadqc(ndata,nodata,lunout,obstype,sis,nobs)
   use qcmod, only: erradar_inflate
   use oneobmod, only: oneobtest,learthrel_rw
   use gsi_4dvar, only: l4dvar,l4densvar,winlen,time_4dvar
-  use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy
+  use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy,&
+           fv3_regional
   use convinfo, only: nconvtype,ncmiter,ncgroup,ncnumgrp,icuse,ioctype
   use deter_sfc_mod, only: deter_sfc2
   use mpimod, only: npe
@@ -2504,7 +2507,7 @@ subroutine read_radar_l2rw_novadqc(ndata,nodata,lunout,obstype,sis,nobs)
 ! Initialize variables
   xscale=1000._r_kind
   xscalei=one/xscale
-  max_rrr=nint(100000.0_r_kind*xscalei)
+  max_rrr=nint(200000.0_r_kind*xscalei)
   nboxmax=1
 
   kx0=22500
@@ -2630,7 +2633,7 @@ subroutine read_radar_l2rw_novadqc(ndata,nodata,lunout,obstype,sis,nobs)
      rwnd  = thisvr
      azm_earth = corrected_azimuth
 
-     if(regional) then
+     if(regional .and. .not. fv3_regional) then
         if(oneobtest .and. learthrel_rw) then ! for non rotated winds!!!
            cosazm=cos(azm_earth*deg2rad)
            sinazm=sin(azm_earth*deg2rad)
@@ -2766,4 +2769,609 @@ subroutine read_radar_l2rw_novadqc(ndata,nodata,lunout,obstype,sis,nobs)
   return
 
 end subroutine read_radar_l2rw_novadqc
+
+!!!!!!!!!!!!!!! Added for l2rw thinning !!!!!!!!!!!!!!!
+subroutine read_radar_l2rw(ndata,nodata,lunout,obstype,sis,nobs,hgtl_full)
+  use kinds, only: r_kind,r_single,r_double,i_kind,i_byte
+  use constants, only: zero,half,one,two,deg2rad,rearth,rad2deg,r1000,r100,r400
+  use qcmod, only: erradar_inflate
+  use oneobmod, only: oneobtest,learthrel_rw
+  use gsi_4dvar, only: l4dvar,l4densvar,winlen,time_4dvar
+  use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy,nsig 
+  use obsmod, only: doradaroneob,oneobradid,time_offset 
+  use mpeu_util, only: gettablesize,gettable 
+  use convinfo, only: nconvtype,icuse,ioctype
+  use deter_sfc_mod, only: deter_sfc2
+  use mpimod, only: npe
+  use read_l2bufr_mod, only: radar_sites,radar_rmesh,radar_zmesh,elev_angle_max,del_time,range_max  
+  use constants, only: eccentricity,somigliana,grav_ratio,grav,semi_major_axis,flattening,grav_equator 
+  use obsmod,only: radar_no_thinning,iadate 
+  use convthin, only: make3grids,map3grids 
+
+  implicit none
+
+! Declare passed variables
+  character(len=*),intent(in   ) :: obstype
+  character(len=20),intent(in  ) :: sis
+  integer(i_kind) ,intent(in   ) :: lunout
+  integer(i_kind) ,intent(inout) :: ndata,nodata
+  integer(i_kind),dimension(npe) ,intent(inout) :: nobs
+  real(r_kind),dimension(nlat,nlon,nsig),intent(in):: hgtl_full 
+
+! Declare local parameters
+  integer(i_kind),parameter:: maxlevs=1500
+  integer(i_kind),parameter:: maxdat=22
+  real(r_kind),parameter:: r4_r_kind = 4.0_r_kind
+
+
+  real(r_kind),parameter:: r6 = 6.0_r_kind
+  real(r_kind),parameter:: r8 = 8.0_r_kind
+  real(r_kind),parameter:: r90 = 90.0_r_kind
+  real(r_kind),parameter:: r200 = 200.0_r_kind
+  real(r_kind),parameter:: r150 = 150.0_r_kind
+  real(r_kind),parameter:: r360 = 360.0_r_kind
+  real(r_kind),parameter:: r50000 = 50000.0_r_kind
+  real(r_kind),parameter:: r89_5  = 89.5_r_kind
+  real(r_kind),parameter:: four_thirds = 4.0_r_kind / 3.0_r_kind
+  integer(i_kind),parameter:: n_gates_max=4000  
+  real(r_double),parameter:: r1e5_double = 1.0e5_r_double 
+  real(r_kind),parameter:: rinv60 = 1.0_r_kind/60.0_r_kind 
+  logical good,outside,good0
+
+  character(30) outmessage
+  integer(i_kind) lnbufr,i,k,maxobs
+  integer(i_kind) nmrecs,ibadazm,ibadwnd,ibaddist,ibadheight,kthin
+  integer(i_kind) ibadstaheight,ibaderror,notgood,iheightbelowsta,ibadfit
+  integer(i_kind) notgood0
+  integer(i_kind) iret,kx0
+  integer(i_kind) nreal,nchanl,ilat,ilon,ikx
+  integer(i_kind) idomsfc
+  real(r_kind) usage,ff10,sfcr,skint,t4dvo,toff
+  real(r_kind) eradkm,dlat_earth,dlon_earth
+  real(r_kind) dlat,dlon,staheight,tiltangle,clon,slon,clat,slat
+  real(r_kind) timeo,clonh,slonh,clath,slath,cdist,dist
+  real(r_kind) rwnd,azm,height,error
+  real(r_kind) azm_earth,cosazm_earth,sinazm_earth,cosazm,sinazm
+  real(r_kind):: zsges
+
+  real(r_kind),dimension(maxdat):: cdata
+  real(r_kind),allocatable,dimension(:,:):: cdata_all
+
+  real(r_double) rstation_id
+  character(8) cstaid
+  character(4) this_staid
+  equivalence (this_staid,cstaid)
+  equivalence (cstaid,rstation_id)
+
+
+  integer(i_kind) loop
+  real(r_kind) timemax,timemin,errmax,errmin
+  real(r_kind) dlatmax,dlonmax,dlatmin,dlonmin
+  real(r_kind) xscale,xscalei
+  integer(i_kind) max_rrr,nboxmax
+  integer(i_kind) irrr,iaaa,iaaamax,iaaamin
+  real(r_kind) this_stalat,this_stalon,this_stahgt,thistime,thislat,thislon
+  real(r_kind) thishgt,thisvr,corrected_azimuth,thiserr,corrected_tilt
+  integer(i_kind) nsuper2_in,nsuper2_kept
+  real(r_kind) errzmax
+  character(len=*),parameter:: tbname='SUPEROB_RADAR::' 
+  integer(i_kind) ntot,radar_true,radar_count,inbufr,lundx,idups,idate,n_gates,levs 
+  integer(i_kind) idate5(5) 
+  integer(i_kind) nminref,nminthis,nrange_max 
+  integer(i_kind) nobs_in,nradials_in,nradials_fail_angmax,nradials_fail_time,nradials_fail_elb,ireadmg,ireadsb
+
+  integer(i_kind) nobs_badvr,nobs_badsr,j 
+  real(r_kind) rlon0,clat0,slat0,this_stalatr,thisrange,thisazimuth,thistilt,thisvr2 
+  real(r_kind) rad_per_meter,erad,ddiffmin,distfact 
+  character(len=256),allocatable,dimension(:):: rtable 
+  character(4),allocatable,dimension(:):: rsite 
+  integer(i_kind),allocatable,dimension(:):: ruse
+  character(8) chdr2,subset 
+  real(r_double) rdisttest(n_gates_max),hdr(10),hdr2(12),rwnd0(3,n_gates_max) 
+  character(4) stn_id 
+  equivalence (chdr2,hdr2(1)) 
+  real(r_kind) stn_lat,stn_lon,stn_hgt,stn_az,stn_el,t,range,vrmax,vrmin,aactual,a43,b,c,selev0,celev0,thistiltr,epsh,h,ha,rlonloc,rlatloc
+
+  real(r_kind) celev,selev,gamma,thisazimuthr,rlonglob,rlatglob,clat1,caz0,saz0,cdlon,sdlon,caz1,saz1 
+  real(r_kind):: relm,srlm,crlm,sph,cph,cc,anum,denom 
+  real(r_kind) :: rmesh,xmesh,zmesh,dx,dy,dx1,dy1,w00,w01,w10,w11 
+  real(r_kind), allocatable, dimension(:) :: zl_thin 
+  integer(i_kind) :: ithin,zflag,nlevz,icntpnt,klon1,klat1,kk,klatp1,klonp1 
+  real(r_kind),dimension(nsig):: hges,zges 
+  real(r_kind) sin2,termg,termr,termrg,zobs 
+  integer(i_kind) ntmp,iout,iiout,ntdrvr_thin2 
+  real(r_kind) crit1,timedif 
+  integer(i_kind) maxout,maxdata 
+  logical :: luse 
+  integer(i_kind) iyref,imref,idref,ihref,nout 
+
+  integer(i_kind),allocatable,dimension(:):: isort
+
+! following variables are for fore/aft separation
+  integer(i_kind) irec
+
+  data lnbufr/10/
+  if (radar_sites) then
+     open(666,file=trim('gsiparm.anl'),form='formatted')
+     call gettablesize(tbname,666,ntot,radar_count)
+     allocate(rtable(radar_count),rsite(radar_count),ruse(radar_count))
+     call gettable(tbname,666,ntot,radar_count,rtable)
+     do i=1,radar_count
+       read(rtable(i),*) rsite(i),ruse(i)
+       write(*,'(A10,X,A4,X,I)'),"Radar Sites: ",rsite(i),ruse(i)
+     end do
+  end if
+  rad_per_meter= one/rearth
+  erad = rearth
+
+  eradkm=rearth*0.001_r_kind
+  maxobs=2e7
+  nreal=maxdat
+  nchanl=0
+  ilon=2
+  ilat=3
+  ikx=0
+  do j=1,nconvtype
+     if(trim(ioctype(j)) == trim(obstype))ikx = j 
+  end do
+  iaaamax=-huge(iaaamax)
+  iaaamin=huge(iaaamin)
+  dlatmax=-huge(dlatmax)
+  dlonmax=-huge(dlonmax)
+  dlatmin=huge(dlatmin)
+  dlonmin=huge(dlonmin)
+  allocate(cdata_all(maxdat,maxobs),isort(maxobs))
+
+  isort = 0
+  cdata_all=zero
+  xscale=1000._r_kind
+  xscalei=one/xscale
+  max_rrr=nint(1000000.0_r_kind*xscalei) 
+  nboxmax=1
+  kx0=22500
+  nmrecs=0
+  irec=0
+  errzmax=zero
+
+  timemax=-huge(timemax)
+  timemin=huge(timemin)
+  errmax=-huge(errmax)
+  errmin=huge(errmin)
+  loop=0
+
+  ibadazm=0
+  ibadwnd=0
+  ibaddist=0
+  ibadheight=0
+  ibadstaheight=0
+  iheightbelowsta=0
+  iheightbelowsta=0
+  ibaderror=0
+  ibadfit=0
+  kthin=0
+  notgood=0
+  notgood0=0
+  nsuper2_in=0
+  nsuper2_kept=0
+  ntdrvr_thin2=0
+  maxout=0
+  maxdata=0
+  isort=0
+  icntpnt=0
+  nout=0
+  if(loop==0) outmessage='level 2 superobs:'
+  rmesh=radar_rmesh
+  zmesh=radar_zmesh
+  nlevz=nint(16000._r_kind/zmesh)
+  xmesh=rmesh
+  call make3grids(xmesh,nlevz)
+  allocate(zl_thin(nlevz))
+  zflag=1
+  if (zflag == 1) then
+    do k=1,nlevz
+      zl_thin(k)=k*zmesh
+    enddo
+  endif
+  inbufr=10
+  open(inbufr,file="l2rwbufr",form='unformatted')
+  rewind inbufr
+  lundx=inbufr
+  call openbf(inbufr,'IN',lundx)
+  call datelen(10)
+  iyref=iadate(1)
+  imref=iadate(2)
+  idref=iadate(3)
+  ihref=iadate(4)
+  idate5(1)=iyref
+  idate5(2)=imref
+  idate5(3)=idref
+  idate5(4)=ihref
+  idate5(5)=0          ! minutes
+  call w3fs21(idate5,nminref)
+  idups=0
+  nobs_in=0
+  nradials_in=0
+  nradials_fail_angmax=0
+  nradials_fail_time=0
+  nradials_fail_elb=0
+  ddiffmin=huge(ddiffmin)
+  do while(ireadmg(inbufr,subset,idate)>=0)
+    do while (ireadsb(inbufr)==0)
+      call ufbint(inbufr,rdisttest,1,n_gates_max,n_gates,'DIST125M')
+      if(n_gates>1) then
+        do i=1,n_gates-1
+          if(nint(abs(rdisttest(i+1)-rdisttest(i)))==0) then
+            idups=idups+1
+          else
+            ddiffmin=min(abs(rdisttest(i+1)-rdisttest(i)),ddiffmin)
+          end if
+        end do
+      end if
+      distfact=zero
+      if(nint(ddiffmin)==1)     distfact=250._r_kind
+      if(nint(ddiffmin)==2)     distfact=125._r_kind
+      if(distfact==zero) then
+        write(6,*)'RADAR_BUFR_READ_ALL:  problem with level 2 bufr file, gate distance scale factor undetermined, going with 125'
+        distfact=125._r_kind
+      end if
+      call ufbint(inbufr,hdr2,12,1,levs,'SSTN CLAT CLON HSMSL HSALG ANEL YEAR MNTH DAYS HOUR MINU SECO')
+      if(hdr2(6)>elev_angle_max) then
+         nradials_fail_angmax=nradials_fail_angmax+1
+         cycle
+      end if
+      idate5(1)=nint(hdr2(7)) ; idate5(2)=nint(hdr2(8)) ; idate5(3)=nint(hdr2(9))
+      idate5(4)=nint(hdr2(10)) ; idate5(5)=nint(hdr2(11))
+      call w3fs21(idate5,nminthis)
+      t=(real(nminthis-nminref,r_kind)+real(nint(hdr2(12)),r_kind)*rinv60)*rinv60
+      timemax=max(t,timemax)
+      timemin=min(t,timemin)
+      if(abs(t)>del_time) then
+         nradials_fail_time=nradials_fail_time+1
+         cycle
+      end if
+      nobs_in=nobs_in+n_gates
+      stn_id=chdr2
+      radar_true=0 
+      if (radar_sites) then 
+         do i=1,radar_count 
+            if (trim(stn_id) .eq. trim(rsite(i)) .and. ruse(i) .eq. 1 ) radar_true=1 
+         end do 
+         if (radar_true .eq. 0) cycle 
+      end if 
+      stn_lat=hdr2(2)
+      stn_lon=hdr2(3)
+      stn_hgt=hdr2(4)+hdr2(5)
+      call ufbint(inbufr,hdr,10,1,levs, &
+           'SSTN YEAR MNTH DAYS HOUR MINU SECO ANAZ ANEL QCRW')
+      nradials_in=nradials_in+1
+      stn_az=r90-hdr(8)
+      stn_el=hdr(9)
+      call ufbint(inbufr,rwnd0,3,n_gates_max,n_gates,'DIST125M DMVR DVSW')
+      do i=1,n_gates
+        range=distfact*rwnd0(1,i)
+        if(range>range_max) then
+           nrange_max=nrange_max+1
+           cycle
+        end if
+        if(rwnd0(2,i)>r1e5_double) then
+           nobs_badvr=nobs_badvr+1
+           cycle
+        end if
+        if(rwnd0(3,i)>r1e5_double) then
+           nobs_badsr=nobs_badsr+1
+           cycle
+        end if
+        this_stalat=stn_lat
+        if(abs(this_stalat)>r89_5) cycle
+        this_stalon=stn_lon
+        rlon0=deg2rad*this_stalon
+        this_stalatr=this_stalat*deg2rad
+        clat0=cos(this_stalatr) ; slat0=sin(this_stalatr)
+        this_staid=stn_id
+        this_stahgt=stn_hgt
+        thisrange=  range
+        thisazimuth=stn_az
+        thistilt=stn_el
+        thisvr=rwnd0(2,i)
+        vrmax=max(vrmax,thisvr)
+        vrmin=min(vrmin,thisvr)
+        thisvr2=rwnd0(2,i)**2
+        thiserr=5.0_r_kind 
+        errmax=max(errmax,thiserr)
+        errmin=min(errmin,thiserr)
+        thistime=t
+        aactual=erad+this_stahgt
+        a43=four_thirds*aactual
+        thistiltr=thistilt*deg2rad
+        selev0=sin(thistiltr)
+        celev0=cos(thistiltr)
+        b=thisrange*(thisrange+two*aactual*selev0)
+        c=sqrt(aactual*aactual+b)
+        ha=b/(aactual+c)
+        epsh=(thisrange*thisrange-ha*ha)/(r8*aactual)
+        h=ha-epsh
+        thishgt=this_stahgt+h
+        celev=celev0
+        selev=selev0
+        if(thisrange>=one) then
+           celev=a43*celev0/(a43+h)
+           selev=(thisrange*thisrange+h*h+two*a43*h)/(two*thisrange*(a43+h))
+        end if
+        corrected_tilt=atan2(selev,celev)*rad2deg
+        gamma=half*thisrange*(celev0+celev)
+!       Get earth lat lon of superob
+        thisazimuthr=thisazimuth*deg2rad
+        rlonloc=rad_per_meter*gamma*cos(thisazimuthr)
+        rlatloc=rad_per_meter*gamma*sin(thisazimuthr)
+        RELM=rlonloc
+        SRLM=SIN(RELM)
+        CRLM=COS(RELM)
+        SPH=SIN(rlatloc)
+        CPH=COS(rlatloc)
+        CC=CPH*CRLM
+        ANUM=CPH*SRLM
+        DENOM=clat0*CC-slat0*SPH
+        rlonglob=rlon0+ATAN2(ANUM,DENOM)
+        rlatglob=ASIN(clat0*SPH+slat0*CC)
+        thislat=rlatglob*rad2deg
+        thislon=rlonglob*rad2deg
+        if(abs(thislat)>r89_5) cycle
+        clat1=cos(rlatglob)
+        caz0=cos(thisazimuthr)
+        saz0=sin(thisazimuthr)
+        cdlon=cos(rlonglob-rlon0)
+        sdlon=sin(rlonglob-rlon0)
+        caz1=clat0*caz0/clat1
+        saz1=saz0*cdlon-caz0*sdlon*slat0
+        corrected_azimuth=atan2(saz1,caz1)*rad2deg
+
+        if (doradaroneob .and. (oneobradid /= this_staid)) cycle 
+        if(iret/=0) exit
+        nsuper2_in=nsuper2_in+1
+        dlat_earth=this_stalat    !station lat (degrees)
+        dlon_earth=this_stalon    !station lon (degrees)
+        if (dlon_earth>=r360) dlon_earth=dlon_earth-r360
+        if (dlon_earth<zero ) dlon_earth=dlon_earth+r360
+        dlat_earth = dlat_earth * deg2rad
+        dlon_earth = dlon_earth * deg2rad
+        if(regional)then
+          call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
+          if (outside) cycle
+          dlatmax=max(dlat,dlatmax)
+          dlonmax=max(dlon,dlonmax)
+          dlatmin=min(dlat,dlatmin)
+          dlonmin=min(dlon,dlonmin)
+        else
+          dlat = dlat_earth
+          dlon = dlon_earth
+          call grdcrd1(dlat,rlats,nlat,1)
+          call grdcrd1(dlon,rlons,nlon,1)
+        endif
+        clon=cos(dlon_earth)
+        slon=sin(dlon_earth)
+        clat=cos(dlat_earth)
+        slat=sin(dlat_earth)
+        staheight=this_stahgt    !station elevation
+        tiltangle=corrected_tilt*deg2rad
+        t4dvo=toff+thistime
+        timemax=max(timemax,t4dvo)
+        timemin=min(timemin,t4dvo)
+!    Exclude data if it does not fall within time window
+        if (l4dvar.or.l4densvar) then
+          if (t4dvo<zero .OR. t4dvo>winlen) cycle
+        else
+          timeo=thistime
+          if(abs(timeo)>half ) cycle
+        endif
+!    Get observation (lon,lat).  Compute distance from radar.
+        dlat_earth=thislat
+        dlon_earth=thislon
+        if(dlon_earth>=r360) dlon_earth=dlon_earth-r360
+        if(dlon_earth<zero ) dlon_earth=dlon_earth+r360
+        dlat_earth = dlat_earth*deg2rad
+        dlon_earth = dlon_earth*deg2rad
+        if(regional) then
+          call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
+          if (outside) then
+            cycle
+          end if
+        else
+          dlat = dlat_earth
+          dlon = dlon_earth
+          call grdcrd1(dlat,rlats,nlat,1)
+          call grdcrd1(dlon,rlons,nlon,1)
+        endif
+        clonh=cos(dlon_earth)
+        slonh=sin(dlon_earth)
+        clath=cos(dlat_earth)
+        slath=sin(dlat_earth)
+        cdist=slat*slath+clat*clath*(slon*slonh+clon*clonh)
+        cdist=max(-one,min(cdist,one))
+        dist=eradkm*acos(cdist)
+        if(.not. oneobtest) then
+          irrr=nint(dist*1000._r_kind*xscalei)
+          if(irrr<=0 .or. irrr>max_rrr) cycle
+        end if
+!    Extract radial wind data
+        height= thishgt
+        rwnd  = thisvr
+        azm_earth = corrected_azimuth
+        if(regional) then
+          if(oneobtest .and. learthrel_rw) then ! for non rotated winds!!!
+            cosazm=cos(azm_earth*deg2rad)
+            sinazm=sin(azm_earth*deg2rad)
+            azm=atan2(sinazm,cosazm)*rad2deg
+          else
+            cosazm_earth=cos(azm_earth*deg2rad)
+            sinazm_earth=sin(azm_earth*deg2rad)
+            call rotate_wind_ll2xy(cosazm_earth,sinazm_earth,cosazm,sinazm,dlon_earth,dlon,dlat)
+            azm=atan2(sinazm,cosazm)*rad2deg
+          end if
+        else
+          azm=azm_earth
+        end if
+!####################       Data thinning       ###################
+        icntpnt=icntpnt+1
+        ithin=1 !number of obs to keep per grid box
+        if(radar_no_thinning) then
+          ithin=-1
+        endif
+        if(ithin > 0)then
+          if(zflag == 0)then
+            klon1= int(dlon);  klat1= int(dlat)
+            dx   = dlon-klon1; dy   = dlat-klat1
+            dx1  = one-dx;     dy1  = one-dy
+            w00=dx1*dy1; w10=dx1*dy; w01=dx*dy1; w11=dx*dy
+
+            klat1=min(max(1,klat1),nlat); klon1=min(max(0,klon1),nlon)
+            if (klon1==0) klon1=nlon
+            klatp1=min(nlat,klat1+1); klonp1=klon1+1
+            if (klonp1==nlon+1) klonp1=1
+            do kk=1,nsig
+               hges(kk)=w00*hgtl_full(klat1 ,klon1 ,kk) +  &
+                        w10*hgtl_full(klatp1,klon1 ,kk) + &
+                        w01*hgtl_full(klat1 ,klonp1,kk) + &
+                        w11*hgtl_full(klatp1,klonp1,kk)
+            end do
+            sin2  = sin(thislat)*sin(thislat)
+            termg = grav_equator * &
+               ((one+somigliana*sin2)/sqrt(one-eccentricity*eccentricity*sin2))
+            termr = semi_major_axis /(one + flattening + grav_ratio -  &
+               two*flattening*sin2)
+            termrg = (termg/grav)*termr
+            do kk=1,nsig
+               zges(kk) = (termr*hges(kk)) / (termrg-hges(kk))
+               zl_thin(kk)=zges(kk)
+            end do
+          endif
+          zobs = height
+          ntmp=ndata  ! counting moved to map3gridS
+          if (l4dvar) then
+            timedif = zero
+          else
+            timedif=abs(t4dvo-toff) 
+          endif
+          crit1 = timedif/r6+half
+          call map3grids(1,zflag,zl_thin,nlevz,dlat_earth,dlon_earth,&
+             zobs,crit1,ndata,iout,icntpnt,iiout,luse, .false., .false.)
+          maxout=max(maxout,iout)
+          maxdata=max(maxdata,ndata)
+          if (.not. luse) then
+             ntdrvr_thin2=ntdrvr_thin2+1
+             cycle
+          endif
+          if(iiout > 0) isort(iiout)=0
+          if (ndata > ntmp) then
+             nodata=nodata+1
+          endif
+          isort(icntpnt)=iout
+        else
+          ndata =ndata+1
+          nodata=nodata+1
+          iout=ndata
+          isort(icntpnt)=iout
+        endif
+!####################       Data thinning       ###################
+        if(.not. oneobtest) then
+          iaaa=azm/(r360/(r8*irrr))
+          iaaa=mod(iaaa,8*irrr)
+          if(iaaa<0) iaaa=iaaa+8*irrr
+          iaaa=iaaa+1
+          iaaamax=max(iaaamax,iaaa)
+          iaaamin=min(iaaamin,iaaa)
+        end if
+        error = erradar_inflate*thiserr
+        errmax=max(error,errmax)
+        if(thiserr>zero) errmin=min(error,errmin)
+!    Perform limited qc based on azimuth angle, radial wind
+!    speed, distance from radar site, elevation of radar,
+!    height of observation, and observation error
+        good0=.true.
+        if(abs(azm)>r400) then
+          ibadazm=ibadazm+1; good0=.false.
+        end if
+        if(abs(rwnd)>r200) then
+          ibadwnd=ibadwnd+1; good0=.false.
+        end if
+        if(dist>r400) then
+          ibaddist=ibaddist+1; good0=.false.
+        end if
+        if(staheight<-r1000.or.staheight>r50000) then
+          ibadstaheight=ibadstaheight+1; good0=.false.
+        end if
+        if(height<-r1000.or.height>r50000) then
+          ibadheight=ibadheight+1; good0=.false.
+        end if
+        if(height<staheight) then
+          iheightbelowsta=iheightbelowsta+1 ; good0=.false.
+        end if
+        if(thiserr>r6 .or. thiserr<=zero) then
+          ibaderror=ibaderror+1; good0=.false.
+        end if
+        good=.true.
+        if(.not.good0) then
+          notgood0=notgood0+1
+          cycle
+        end if
+
+!    If data is good, load into output array
+        if(good) then
+          
+          usage = zero
+          if(icuse(ikx) < 0)usage=r100
+
+          nsuper2_kept=nsuper2_kept+1
+          cdata(1) = error             ! wind obs error (m/s)
+          cdata(2) = dlon              ! grid relative longitude
+          cdata(3) = dlat              ! grid relative latitude
+          cdata(4) = height            ! obs absolute height (m)
+          cdata(5) = rwnd              ! wind obs (m/s)
+          cdata(6) = azm*deg2rad       ! azimuth angle (radians)
+          cdata(7) = t4dvo+time_offset ! obs time (hour)
+          cdata(8) = ikx               ! type
+          cdata(9) = tiltangle         ! tilt angle (radians)
+          cdata(10)= staheight         ! station elevation (m)
+          cdata(11)= rstation_id       ! station id
+          cdata(12)= usage             ! usage parameter
+          cdata(13)= idomsfc           ! dominate surface type
+          cdata(14)= skint             ! skin temperature
+          cdata(15)= ff10              ! 10 meter wind factor
+          cdata(16)= sfcr              ! surface roughness
+          cdata(17)=dlon_earth*rad2deg ! earth relative longitude (degrees)
+          cdata(18)=dlat_earth*rad2deg ! earth relative latitude (degrees)
+          cdata(19)=dist               ! range from radar in km (used to estimatebeam spread)
+          cdata(20)=zsges              ! model elevation at radar site
+          cdata(21)=thiserr
+          cdata(22)=two
+          do j=1,maxdat
+            cdata_all(j,iout)=cdata(j) 
+          end do
+        else
+          notgood = notgood + 1
+        end if
+      end do
+    end do
+  end do
+  close(lnbufr) ! A simple unformatted fortran file should not be mixed with bufr I/O
+  write(6,*)'READ_RADAR_L2RW_NOVADQC:  ',trim(outmessage),' reached eof on 2 superob radar file'
+  write(6,*)'READ_RADAR_L2RW_NOVADQC: nsuper2_in,nsuper2_kept=',nsuper2_in,nsuper2_kept
+  write(6,*)'READ_RADAR_L2RW_NOVADQC: # bad winds =',ibadwnd,nobs_badvr,nobs_badsr
+  write(6,*)'READ_RADAR_L2RW_NOVADQC: # num thinned =',kthin,ntdrvr_thin2
+  write(6,*)'READ_RADAR_L2RW_NOVADQC: timemin,max   =',timemin,timemax
+  write(6,*)'READ_RADAR_L2RW_NOVADQC: errmin,max    =',errmin,errmax
+  write(6,*)'READ_RADAR_L2RW_NOVADQC: dlatmin,max,dlonmin,max=',dlatmin,dlatmax,dlonmin,dlonmax
+
+! Write observation to scratch file
+  call count_obs(ndata,maxdat,ilat,ilon,cdata_all,nobs)
+  write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+  write(6,*) shape(cdata_all)
+  write(lunout) ((cdata_all(k,i),k=1,maxdat),i=1,ndata)
+  deallocate(cdata_all)
+  if (radar_sites) deallocate(rtable,rsite,ruse)  
+  deallocate(zl_thin)
+  deallocate(isort)
+  return
+
+end subroutine read_radar_l2rw
+!!!!!!!!!!!!!!! End added for l2rw thinning !!!!!!!!!!!!!!!
 

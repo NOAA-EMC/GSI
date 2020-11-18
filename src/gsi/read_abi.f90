@@ -323,6 +323,7 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
 
         nread=nread+nchanl
 
+        rcldfrc=bmiss
         if(clrsky) then 
            call ufbrep(lnbufr,dataabi1,1,ncld,iret,'NCLDMNT')
            rclrsky=bmiss
@@ -338,7 +339,9 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
            rclrsky=dataabi1(1,1)  !clear-sky percentage
 !          rclrsky=dataabi1(1,2)  !clear-sky percentage over sea
            call ufbrep(lnbufr,dataabi,1,4,iret,'CLDMNT')
-           rcldfrc=dataabi(1,1)   !total cloud 
+           if (dataabi(1,1)>= zero .and. dataabi(1,1) <= 100.0_r_kind ) then
+              rcldfrc=dataabi(1,1)   !total cloud 
+           end if
         end if
 
         call ufbrep(lnbufr,dataabi2,1,nbrst,iret,'TMBRST')
