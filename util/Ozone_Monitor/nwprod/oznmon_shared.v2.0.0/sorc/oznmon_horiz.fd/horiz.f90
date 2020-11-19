@@ -1,5 +1,5 @@
 program horiz
-  use read_diag
+  use oznmon_read_diag
 
   implicit none
   integer ntype, mls2_levs,mls3_levs

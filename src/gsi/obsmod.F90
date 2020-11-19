@@ -497,7 +497,7 @@ module obsmod
 
   ! 1/237: Dropsonde observations.
 
-  ! 292: SFMR observations.
+  ! 213: SFMR observations.
   
   ! The following correspond to the specific humidity (q)
   ! observations:
@@ -518,10 +518,10 @@ module obsmod
   
   public :: uv_doe_a_236
   public :: uv_doe_a_237
-  public :: uv_doe_a_292
+  public :: uv_doe_a_213
   public :: uv_doe_b_236
   public :: uv_doe_b_237
-  public :: uv_doe_b_292
+  public :: uv_doe_b_213
   
 
   interface obsmod_init_instr_table
@@ -652,7 +652,7 @@ module obsmod
 
   ! 1/237: Dropsonde observations.
 
-  ! 292: SFMR observations.
+  ! 213: SFMR observations.
 
   ! The following correspond to the specific humidity (q)
   ! observations:
@@ -669,7 +669,7 @@ module obsmod
   
   real(r_kind) :: uv_doe_a_236, uv_doe_b_236
   real(r_kind) :: uv_doe_a_237, uv_doe_b_237
-  real(r_kind) :: uv_doe_a_292, uv_doe_b_292
+  real(r_kind) :: uv_doe_a_213, uv_doe_b_213
   
 contains
 
@@ -911,7 +911,7 @@ contains
     
     ! 1/237: Dropsonde observations.
     
-    ! 292: SFMR observations.
+    ! 213: SFMR observations.
     
     ! The following correspond to the specific humidity (q)
     ! observations:
@@ -934,8 +934,8 @@ contains
     uv_doe_b_236 = 0.0_r_kind
     uv_doe_a_237 = 1.0_r_kind
     uv_doe_b_237 = 0.0_r_kind      
-    uv_doe_a_292 = 1.0_r_kind
-    uv_doe_b_292 = 0.0_r_kind
+    uv_doe_a_213 = 1.0_r_kind
+    uv_doe_b_213 = 0.0_r_kind
     
     return
   end subroutine init_obsmod_dflts
@@ -975,7 +975,7 @@ contains
     if (lrun_subdirs) then
        write(pe_name,'(i4.4)') mype
        dirname = 'dir.'//trim(pe_name)//'/'
-       command = 'mkdir -m 755 ' // trim(dirname)
+       command = 'mkdir -p -m 755 ' // trim(dirname)
        call system(command)
     else
        write(pe_name,100) mype

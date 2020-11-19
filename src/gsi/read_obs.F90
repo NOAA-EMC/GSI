@@ -134,7 +134,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
 !   2017-11-16  dutta    - adding KOMPSAT5 bufr i.d for reading the data.
 !   2019-03-27  h. liu   - add abi
 !   2019-09-20  X.Su     -add read new variational qc table
-!                           
+!   2019-08-21  H. Shao  - add METOPC-C, COSMIC-2 and PAZ to the GPS check list                           
+!   2020-05-21  H. Shao  - add commercial GNSSRO (Spire, PlanetIQ, GeoOptics) and other existing missions to the check list                           
 !
 !   input argument list:
 !    lexist    - file status
@@ -379,12 +380,14 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
            end if 
  
            said=nint(satid) 
-           if(((said > 739) .and.(said < 746)).or.(said == 820).or. &
-               (said == 825).or. (said == 786).or.(said == 4)  .or. &
-               (said == 3)  .or. (said == 421).or.(said == 440).or. &
-               (said == 821).or. ((said > 749) .and.(said < 756)).or. &
-               (said == 44) .or. (said == 5) .or. &
-               ( GMAO_READ  .and. said == 5) ) then
+           if(((said > 739) .and.(said < 746)).or. (said == 820) .or. &
+               (said == 825).or. (said == 786).or. (said == 4)   .or. &
+               (said == 3)  .or. (said == 421).or. (said == 440) .or. &
+               (said == 821).or. ((said > 749).and.(said < 756)) .or. &
+               (said == 44) .or. (said == 5)  .or. (said == 41)  .or. &
+               (said == 42) .or. (said == 43) .or. (said == 722) .or. & 
+               (said == 723).or. (said == 265).or. (said == 266) .or. &
+               (said == 267).or. (said == 268).or. (said == 269)) then
              lexist=.true. 
              exit gpsloop 
            end if 
@@ -435,6 +438,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
                trim(subset) == 'NC005032' .or. trim(subset) == 'NC005034' .or.&
                trim(subset) == 'NC005039' .or. &
                trim(subset) == 'NC005090' .or. trim(subset) == 'NC005091' .or.&
+               trim(subset) == 'NC005067' .or. trim(subset) == 'NC005068' .or. trim(subset) == 'NC005069' .or.&
+               trim(subset) == 'NC005081' .or. &
                trim(subset) == 'NC005072' ) then
                lexist = .true.
                exit loop
@@ -1850,12 +1855,9 @@ subroutine read_obs(ndata,mype)
                call warn('read_obs','                string =',trim(string))
              endif
 
-             write(6,8000) adjustl(string),infile,obstype,sis,nread,ithin,&
-                  rmesh,isfcalc,nouse,npe_sub(i)
-8000         format(1x,a22,': file=',a15,&
-                  ' type=',a10,  ' sis=',a20,  ' nread=',i10,&
-                  ' ithin=',i2, ' rmesh=',f11.6,' isfcalc=',i2,&
-                  ' nkeep=',i10,' ntask=',i3)
+             write(6, '(a,'': file='',a,'' type='',a,'' sis='',a,'' nread='',i10,&
+                  '' ithin='',i2,'' rmesh='',f11.6,'' isfcalc='',i2,'' nkeep='',i10,&
+                  '' ntask='',i3)')
 
           endif
        endif task_belongs

@@ -1,10 +1,10 @@
 #%Module######################################################################
 proc ModulesHelp { } {
-    puts stderr "Set environment veriables for GSI"
+    puts stderr "Set environment variables for NOAA-EMC/GSI"
     puts stderr "This module initializes the environment "
-    puts stderr "for building and testing GSI on NCCS Discover\n"
+    puts stderr "for building and testing NOAA-EMC/GSI on NCCS Discover\n"
 }
-module-whatis "Initialize GSI build/test environment"
+module-whatis "Initialize NOAA-EMC/GSI build/test environment"
 
 module load comp/intel-18.0.3.222
 module load lib/mkl-18.0.3.222

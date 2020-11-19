@@ -453,7 +453,7 @@ subroutine gesinfo
               ! FV3GFS write component does not write JCAP to the NEMSIO file
               if ( mype == mype_out ) then
                  write(6,*)'GESINFO:  ***WARNING*** guess jcap inconsistent with namelist'
-                 write(6,*)'GESINFO:  ***WARNING*** this is a FV3GFS NEMSIO file'
+                 write(6,*)'GESINFO:  ***WARNING*** this is a FV3GFS NEMSIO/NetCDF file'
               endif
               fatal = .false.
            else
@@ -481,7 +481,7 @@ subroutine gesinfo
         else
            write(6,200) gfshead%jcap,gfshead%levs,gfshead%latb,gfshead%lonb,&
                 gfshead%ntrac,gfshead%ncldt,idvc5,gfshead%nvcoord,idsl5
-200        format('GESINFO:  jcap_b=',i4,', levs=',i3,', latb=',i5,&
+200        format('GESINFO:  jcap_b=',i5,', levs=',i3,', latb=',i5,&
                 ', lonb=',i5,', ntrac=',i3,', ncldt=',i3,', idvc=',i3,&
                 ', nvcoord=',i3,', idsl=',i3)
         end if
