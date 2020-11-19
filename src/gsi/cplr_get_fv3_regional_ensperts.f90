@@ -126,7 +126,7 @@ contains
   ! 
   ! READ ENEMBLE MEMBERS DATA
             if (mype == 0) write(6,'(a,a)') 'CALL READ_FV3_REGIONAL_ENSPERTS FOR ENS DATA with the filename str : ',trim(ensfilenam_str)
-            call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,mype) 
+            call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz) 
   
   ! SAVE ENSEMBLE MEMBER DATA IN COLUMN VECTOR
             do ic3=1,nc3d
@@ -301,7 +301,7 @@ contains
 
   end subroutine get_fv3_regional_ensperts_run
   
-  subroutine general_read_fv3_regional(this,fv3_filenameginput,g_ps,g_u,g_v,g_tv,g_rh,g_oz,mype)
+  subroutine general_read_fv3_regional(this,fv3_filenameginput,g_ps,g_u,g_v,g_tv,g_rh,g_oz)
 !clt modified from rad_fv3_netcdf_guess
   !$$$  subprogram documentation block
   !                .      .    .                                       .
@@ -368,7 +368,6 @@ contains
       real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2),intent(out):: g_ps
       real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig) ::g_tsen, g_q,g_prsl 
       real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig+1) ::g_prsi 
-      integer(i_kind),intent(in)::mype
   !
   ! Declare local parameters
       real(r_kind),parameter:: r0_01 = 0.01_r_kind
