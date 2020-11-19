@@ -47,8 +47,8 @@
        
        q_doe_a_136,q_doe_a_137,q_doe_b_136,q_doe_b_137, &
        t_doe_a_136,t_doe_a_137,t_doe_b_136,t_doe_b_137, &
-       uv_doe_a_236,uv_doe_a_237,uv_doe_a_292,uv_doe_b_236,uv_doe_b_237,&
-       uv_doe_b_292
+       uv_doe_a_236,uv_doe_a_237,uv_doe_a_213,uv_doe_b_236,uv_doe_b_237,&
+       uv_doe_b_213
   
   use aircraftinfo, only: init_aircraft,hdist_aircraft,aircraft_t_bc_pof,aircraft_t_bc, &
                           aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail
@@ -908,7 +908,7 @@
        
 ! 1/237: Dropsonde observations.
 
-! 292: SFMR observations.
+! 213: SFMR observations.
 
 ! The following correspond to the specific humidity (q) observations:
 
@@ -928,12 +928,12 @@
 !                                'b' coefficients for temperature
 !                                observations.  
 
-!     uv_doe_a_236, uv_doe_a_237, uv_doe_a_292 - wind linear
+!     uv_doe_a_236, uv_doe_a_237, uv_doe_a_213 - wind linear
 !                                                regression derived
 !                                                'a' coefficients for
 !                                                wind observations.
 
-!     uv_doe_b_236, uv_doe_b_237, uv_doe_b_292 - wind linear
+!     uv_doe_b_236, uv_doe_b_237, uv_doe_b_213 - wind linear
 !                                                regression derived
 !                                                'b' coefficients for
 !                                                wind observations.
@@ -947,7 +947,7 @@
        pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres,cld_det_dec2bin, &
        q_doe_a_136,q_doe_a_137,q_doe_b_136,q_doe_b_137, &
        t_doe_a_136,t_doe_a_137,t_doe_b_136,t_doe_b_137, &
-       uv_doe_a_236,uv_doe_a_237,uv_doe_a_292,uv_doe_b_236,uv_doe_b_237,uv_doe_b_292       
+       uv_doe_a_236,uv_doe_a_237,uv_doe_a_213,uv_doe_b_236,uv_doe_b_237,uv_doe_b_213       
 
 ! OBS_INPUT (controls input data):
 !      dmesh(max(dthin))- thinning mesh for each group

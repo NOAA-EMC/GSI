@@ -1620,6 +1620,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(tob-tges)   )
     if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) then
        call nc_diag_metadata("Data_Pof",             sngl(data(ipof,i))     )
+       call nc_diag_metadata("Data_Vertical_Velocity", sngl(data(ivvlc,i))  )
        if (npredt .gt. one) then
           call nc_diag_data2d("Bias_Correction_Terms", sngl(predbias) )
        else if (npredt .eq. one) then
@@ -1627,6 +1628,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        endif
     else
        call nc_diag_metadata("Data_Pof",                 missing                )
+       call nc_diag_metadata("Data_Vertical_Velocity",   missing                )
        if (npredt .gt. one) then
           do j=1,npredt
              predbias(j) = missing
