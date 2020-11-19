@@ -7,7 +7,7 @@ module gridinfo
 !
 ! prgmmr: whitaker         org: esrl/psd               date: 2009-02-23
 !
-! abstract: This module reads gfg_YYYYMMDDHH_fhr06_ensmean, and
+! abstract: This module reads the ensemble mean background file and
 ! extracts information about the analysis grid, including the
 ! longitudes and latitudes of the analysis grid points and
 ! the pressure on each grid point/vertical level.

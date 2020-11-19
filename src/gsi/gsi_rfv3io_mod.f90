@@ -2264,7 +2264,6 @@ subroutine gsi_fv3ncdf_writeps_v1(filename,varname,var,mype_io,add_saved)
              work_b(:,:)=work_b(:,:)+workb2(:,:)
        else
           call fv3_ll_to_h_regular_grids(work_a,work_b,nlon,nlat,nlon_regional,nlat_regional,.true.,p_fv3sar2anlgrid)
-  
        endif
 
        call check( nf90_put_var(gfile_loc,VarId,work_b) )

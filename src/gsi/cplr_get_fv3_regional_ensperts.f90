@@ -68,7 +68,6 @@ contains
       integer(i_kind):: ic2,ic3
       integer(i_kind):: m
 
-      character(255) filelists(ntlevs_ens)
       character(255) ensfilenam_str
       type(type_fv3regfilenameg)::fv3_filename 
       integer(i_kind):: imem_start,n_fv3sar
@@ -87,11 +86,11 @@ contains
       ! Allocate bundle to hold mean of ensemble members
       allocate(en_bar(ntlevs_ens))
       do m=1,ntlevs_ens
-      call gsi_bundlecreate(en_bar(m),grid_ens,'ensemble',istatus,names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
-      if(istatus/=0) then
-         write(6,*)' get_fv3_regional_ensperts_netcdf: trouble creating en_bar bundle'
-         call stop2(9991)
-      endif
+        call gsi_bundlecreate(en_bar(m),grid_ens,'ensemble',istatus,names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
+        if(istatus/=0) then
+           write(6,*)' get_fv3_regional_ensperts_netcdf: trouble creating en_bar bundle'
+           call stop2(9991)
+        endif
       enddo ! for m 
   
 
@@ -302,30 +301,16 @@ contains
   end subroutine get_fv3_regional_ensperts_run
   
   subroutine general_read_fv3_regional(this,fv3_filenameginput,g_ps,g_u,g_v,g_tv,g_rh,g_oz)
-!clt modified from rad_fv3_netcdf_guess
   !$$$  subprogram documentation block
-  !                .      .    .                                       .
-  ! subprogram:    general_read_fv3_regional  read arw model ensemble members
-  !   prgmmr: mizzi            org: ncar/mmm            date: 2010-08-11
+  !     first compied from general_read_arw_regional           .      .    .                                       .
+  ! subprogram:    general_read_fv3_regional  read fv3sar model ensemble members
+  !   prgmmr: Ting             org: emc/ncep            date: 2018
   !
-  ! abstract: read ensemble members from the arw model in "wrfout" netcdf format
+  ! abstract: read ensemble members from the fv3sar model in "restart" or "cold start"  netcdf format
   !           for use with hybrid ensemble option. 
   !
   ! program history log:
-  !   2010-08-11  parrish, initial documentation
-  !   2010-09-10  parrish, modify so ensemble variables are read in the same way as in
-  !               subroutines convert_netcdf_mass and read_fv3_regional_binary_guess.
-  !               There were substantial differences due to different opinion about what
-  !               to use for surface pressure.  This issue should be resolved by coordinating
-  !               with Ming Hu (ming.hu@noaa.gov).  At the moment, these changes result in
-  !               agreement to single precision between this input method and the guess input
-  !               procedure when the same file is read by both methods.
-  !   2012-03-12  whitaker:  read data on root, distribute with scatterv.
-  !                          remove call to general_reload.
-  !                          simplify, fix memory leaks, reduce memory footprint.
-  !                          use genqsat, remove genqsat2_regional.
-  !                          replace bare 'stop' statements with call stop2(999).
-  !   2017-03-23  Hu      - add code to use hybrid vertical coodinate in WRF MASS core
+  !   2018-  Ting      - intial versions  
   !
   !   input argument list:
   !
@@ -393,6 +378,7 @@ contains
       
       associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
       end associate
+
 
 
     grid_spec=fv3_filenameginput%grid_spec
