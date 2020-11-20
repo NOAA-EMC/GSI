@@ -258,7 +258,6 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   itoss =1
   l_may_be_passive=.false.
   jc=0
-  print *,"obstype=",obstype
   do j=1,jpch_oz
      if (isis == nusis_oz(j)) then
         jc=jc+1
