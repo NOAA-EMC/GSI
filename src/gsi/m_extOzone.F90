@@ -154,11 +154,13 @@ function is_extOzone_(dfile,dtype,dplat,class)
       ifile_==iBUFR .and. dtype == 'o3lev'   .or. &
       ifile_==iNC   .and. dtype == 'mls55'   .or. &
       ifile_==iNC   .and. dtype == 'omieff'  .or. &
+      ifile_==iNC   .and. dtype == 'ompslp'  .or. &
       ifile_==iNC   .and. dtype == 'tomseff'
 
   case(iLEVEL)
     is_extOzone_= &
       ifile_==iBUFR .and. dtype == 'o3lev'   .or. &
+      ifile_==iNC   .and. dtype == 'ompslp'  .or. &
       ifile_==iNC   .and. dtype == 'mls55'
 
   case(iLAYER)
