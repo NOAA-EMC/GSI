@@ -886,6 +886,7 @@ subroutine read_obs(ndata,mype)
            .or. obstype == 'omi' &
            .or. obstype == 'ompstc8' &
            .or. obstype == 'ompsnp' &
+           .or. obstype == 'ompslp' &
            .or. obstype == 'gome' &
            .or. mls &
            ) then

@@ -140,7 +140,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
   integer(i_kind) maxobs,nozdat,nloz
   integer(i_kind) idate,jdate,ksatid,kk,iy,iret,im,ihh,idd,lunin
-  integer(i_kind) nmind,i
+  integer(i_kind) nmind,i,j
   integer(i_kind) nmrecs,k,ilat,ilon,nreal,nchanl
 ! integer(i_kind) ithin,kidsat
   integer(i_kind) kidsat
@@ -175,6 +175,12 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   real(r_double) totoz,hdrmls13
   integer(i_kind) :: k0
   logical :: first,read_success
+
+  real(r_double),allocatable,dimension(:,:):: olpdtsq,lpsdvals
+  real(r_double),allocatable,dimension(:):: press,omr,omrstd
+
+  real(r_double) said, lat, lon, year, month, day, hour, minu
+  real(r_double) soza
 
 ! MLS data version: mlsv=22 is version 2.2 standard data; 
 !                   mlsv=20 is v2 near-real-time data
@@ -1034,6 +1040,175 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 !    End of MLS bufr loop
 
+!Process OMPS LP data
+  elseif(index(obstype,'ompslp') /= 0 )then
+
+     nloz = 81
+     nreal=15
+     nchanl=1
+     nozdat=nreal+nchanl
+     read_success=.false.
+
+     open(lunin,file=trim(infile),form='unformatted')
+     call openbf(lunin,'IN',lunin)
+     call datelen(10)
+     call readmg(lunin,subset,idate,iret)
+     if (iret .eq. 0 .and. subset == 'NC008019') then
+        read_success=.true.
+     else
+        write(6,*)'READ_OZONE:  *** WARNING: unknown ozone data type, &
+            subset=',subset
+        write(6,*)' infile=',trim(infile), ', lunin=',lunin, ', &
+            obstype=',obstype,', jsatid=',jsatid
+        call closbf(lunin)
+        close(lunin)
+        return
+     endif
+
+     ! Allocate arrays
+     allocate(olpdtsq(12,81))
+     allocate(lpsdvals(3,81))
+     allocate(press(nloz))
+     allocate(omr(nloz))
+     allocate(omrstd(nloz))
+     allocate(usage1(nloz))
+     allocate(ipos(nloz))
+     allocate(ozout(nozdat,maxobs))
+
+     do k=1,maxobs
+       do i=1,nozdat
+          ozout(i,k)=rmiss
+       enddo
+     enddo
+
+     ikx=0
+     k0=0
+     ipos=999
+     first=.false.
+     do k=1,jpch_oz
+        if( (.not. first) .and. index(nusis_oz(k),sis)/=0 ) then
+           k0=k
+           first=.true.
+        end if
+        if(first .and. index(nusis_oz(k),sis)/=0 ) then
+          ikx=ikx+1
+          ipos(ikx)=k0+ikx-1
+        endif
+     enddo
+
+     read_loop5: do
+       if(.not. read_success) exit
+        call readsb(lunin,iret)
+        if (iret/=0) then
+          call readmg(lunin,subset,jdate,iret)
+          if (iret/=0) exit read_loop5
+          cycle read_loop5
+        endif
+
+        do k=1,nloz
+           if (iuse_oz(ipos(k)) < 0) then
+              usage1(k) = 1000._r_kind
+           else
+              usage1(k) = zero
+           endif
+        enddo
+
+       call ufbint(lunin,said,1,1,iret,"SAID")
+
+       !Convert observation location to radians
+       call ufbint(lunin,lat,1,1,iret,"CLATH")
+       call ufbint(lunin,lon,1,1,iret,"CLONH")
+       if(abs(lat)>90._r_kind .or. abs(lon)>r360) cycle read_loop5
+       if(lon< zero) lon=lon+r360
+       if(lon==r360) lon=zero
+       dlat_earth_deg = lat
+       dlon_earth_deg = lon
+       dlat_earth = lat * deg2rad
+       dlon_earth = lon * deg2rad
+
+       if(regional)then
+         call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
+         if(outside) cycle read_loop5
+       else
+         dlat = dlat_earth
+         dlon = dlon_earth
+         call grdcrd1(dlat,rlats,nlat,1)
+         call grdcrd1(dlon,rlons,nlon,1)
+       endif
+       !Convert observation time to relative time
+       call ufbint(lunin,year,1,1,iret,"YEAR")
+       call ufbint(lunin,month,1,1,iret,"MNTH")
+       call ufbint(lunin,day,1,1,iret,"DAYS")
+       call ufbint(lunin,hour,1,1,iret,"HOUR")
+       call ufbint(lunin,minu,1,1,iret,"MINU")
+       idate5(1) = year
+       idate5(2) = month
+       idate5(3) = day
+       idate5(4) = hour
+       idate5(5) = minu
+       call w3fs21(idate5,nmind)
+
+       t4dv=real((nmind-iwinbgn),r_kind)*r60inv
+       sstime=real(nmind,r_kind)
+       tdiff=(sstime-gstime)*r60inv
+       if (l4dvar.or.l4densvar) then
+         if (t4dv<zero .OR. t4dv>winlen) cycle read_loop5
+       else
+         if(abs(tdiff) > twind) cycle read_loop5
+       endif
+
+       !Read solar zenith angle
+       call ufbint(lunin,soza,1,1,iret,"SOZA")
+
+       !Read Pressure and Ozone Mixing Ratio
+       call ufbseq(lunin, olpdtsq, 12, 81, iret, "OLPDTSQ")
+       !Read Ozone Mixing Ratio Standard Deviation
+       call ufbseq(lunin, lpsdvals,3,81,iret,"LPSDVALS")
+       j = 0
+       do k = 1, nloz
+         press(k) = olpdtsq(2,k)*0.001 ! centibars
+         omr(k) = olpdtsq(11,k) ! ppmv
+         omrstd(k) = lpsdvals(3,k) !omr std
+         j = j + 1
+         if(omr(k) .lt. 0. .or. omr(k) .gt. 100.) then
+            usage1(k) = 1000._r_kind
+            j = j - 1
+         endif
+       enddo
+
+       do k=1,nloz
+
+         if(omr(k) .gt. 0. .and. omr(k) .lt. 100.)then
+         ndata=min(ndata+1,maxobs)
+         nodata=ndata
+         nmrecs= ndata
+
+         ozout(1,ndata)=said
+         ozout(2,ndata)=t4dv
+         ozout(3,ndata)=dlon               ! grid relative longitude
+         ozout(4,ndata)=dlat               ! grid relative latitude
+         ozout(5,ndata)=dlon_earth_deg     ! earth relative longitude (degrees)
+         ozout(6,ndata)=dlat_earth_deg     ! earth relative latitude (degrees)
+         ozout(7,ndata)=soza               ! solar zenith angle
+
+         ozout(8,ndata)=usage1(k)          ! 
+         ozout(9,ndata)=log(press(k))      ! ompslp pressure in log(cb)
+         ozout(10,ndata)=omrstd(k)*2._r_kind ! ozone mixing ratio precision in 
+                                             !  ppmv
+         ozout(11,ndata)=float(ipos(k))    ! pointer of obs level index in 
+                                           ! ozinfo.txt
+         ozout(12,ndata)=j !nloz              ! # of ompslp vertical levels
+         ozout(13,ndata)=omr(k)            ! ozone mixing ratio in ppmv
+         ozout(14,ndata)=olpdtsq(3,k)      ! log10 numberdensity of air
+         ozout(15,ndata)=olpdtsq(6,k)   !log10 number density of ozone from UV
+         ozout(16,ndata)=olpdtsq(8,k)   !log10 number density of ozone from VIS
+         endif
+       enddo
+
+    enddo read_loop5
+
+  ! end of OMPS LP bufr loop
+
   endif
 
   if(nmrecs > 0)then
@@ -1070,13 +1245,22 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      if(allocated(ipos))deallocate(ipos)
      if(allocated(usage1))deallocate(usage1)
   end if
+  if(index(obstype,'ompslp')/=0) then
+     if(allocated(olpdtsq))deallocate(olpdtsq)
+     if(allocated(lpsdvals))deallocate(lpsdvals)
+     if(allocated(press))deallocate(press)
+     if(allocated(omr))deallocate(omr)
+     if(allocated(omrstd))deallocate(omrstd)
+     if(allocated(ipos))deallocate(ipos)
+     if(allocated(usage1))deallocate(usage1)
+  endif
 
 ! Close unit to input data file
   call closbf(lunin)
   close(lunin)
 
 ! Deallocate satthin arrays
-  if (obstype == 'omi' .or. obstype == 'gome' .or. obstype == 'ompstc8')call destroygrids
+  if (obstype == 'omi' .or. obstype == 'gome' .or. obstype=='ompsnm' .or. obstype == 'ompstc8')call destroygrids
 
   return
   
