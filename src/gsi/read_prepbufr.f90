@@ -145,9 +145,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2019-06-17  mmorris - Update adjust_goescldobs to reject clear cloud obs over water at night
 !   2019-09-27  Su      - add hilbert curve application to aircraft winds
 !   2019-12-05  mmorris - Update adjust_goescldobs to reject ALL clear cloud obs at night
-!
 !   2020-05-04  wu      - no rotate_wind for fv3_regional
-
+!
 !   input argument list:
 !     infile   - unit from which to read BUFR data
 !     obstype  - observation type to process
@@ -211,7 +210,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use hilbertcurve,only: init_hilbertcurve, accum_hilbertcurve, &
                          apply_hilbertcurve,destroy_hilbertcurve
   use ndfdgrids,only: init_ndfdgrid,destroy_ndfdgrid,relocsfcob,adjust_error
-  use jfunc, only: tsensible
+  use jfunc, only: tsensible, do_global_2mDA
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_deter
@@ -1606,7 +1605,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !          If temperature ob, extract information regarding virtual
 !          versus sensible temperature
            if(tob) then
-              if (.not. twodvar_regional .or. .not.tsensible) then
+              ! use tvirtual if tsensible flag not set, and not in either 2Dregional or global_2m DA mode
+              if ( (.not. tsensible)  .and. .not. (twodvar_regional .or. do_global_2mDA) ) then 
+              
                  do k=1,levs
                     tvflg(k)=one                               ! initialize as sensible
                     do j=1,20

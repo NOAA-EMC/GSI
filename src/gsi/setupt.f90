@@ -1,4 +1,5 @@
 module t_setup
+    
   implicit none
   private
   public:: setup
@@ -53,7 +54,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   use gridmod, only: nsig,twodvar_regional,regional
   use gridmod, only: get_ijk,pt_ll
-  use jfunc, only: jiter,last,jiterstart,miter
+  use jfunc, only: jiter,last,jiterstart,miter, do_global_2mDA
 
   use guess_grids, only: nfldsig, hrdifsig,ges_lnprsl,&
        geop_hgtl,ges_tsen,pbl_height
@@ -328,12 +329,17 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_q2
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_t2
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_th2
 
   logical:: l_pbl_pseudo_itype
   integer(i_kind):: ich0
 
   type(obsLList),pointer,dimension(:):: thead
+
+  character(len=3) :: flag_char
+  integer :: idg, ist, itm 
+
   thead => obsLL(:)
 
   save_jacobian = conv_diagsave .and. jiter==jiterstart .and. lobsdiag_forenkf
@@ -341,6 +347,19 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
   if(.not.proceed) return  ! not all vars available, simply return
+
+  if (mype==7) then
+  write(6,*) 'CSD2m gsd_terrain_match', l_gsd_terrain_match_surftobs
+  write(6,*) 'CSD2m buddycheck_t', buddycheck_t
+  write(6,*) 'CSD2m sfcmodel', sfcmodel
+  write(6,*) 'CSD2m i_use_2tm4b', i_use_2mt4b
+  write(6,*) 'CSD2m i_sfct_gross, oberror_tune', i_sfct_gross, oberror_tune
+  write(6,*) 'CSD2m i_coastline', i_coastline
+  write(6,*) 'CSD2m do_global_2mDA', do_global_2mDA
+  write(6,*) 'CSD2m pseudo', l_pbl_pseudo_surfobst
+  endif
+
+
 
 ! If require guess vars available, extract from bundle ...
   call init_vars_
@@ -626,7 +645,9 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
 ! Implementation of forward model ----------
 
-     if(sfctype.and.sfcmodel) then
+     if(sfctype .and. sfcmodel) then
+! SCENARIO 1: If obs is sfctype, and sfcmodel is requested 
+! outdated (delete?)
         tgges=data(iskint,i)
         roges=data(isfcr,i)
 
@@ -655,8 +676,16 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
              prsltmp2(2), tvtmp(2), qtmp(2), hsges(1), roges, msges, &
              f10ges,u10ges,v10ges, t2ges, q2ges, regime, iqtflg)
         tges = t2ges
+     elseif (sfctype .and. do_global_2mDA) then 
+! SCENARIO 2: obs is sfctype, and do_global_2mDA scheme is on. 
+! 2m forecast has been read from the sfc guess files
+          call tintrp2a11(ges_t2,tges2m,dlat,dlon,dtime,hrdifsig,&
+            mype,nfldsig)
 
      else
+! SCENARIO 3: obs is sfctype, and neither sfcmodel nor do_global_2mDA is chosen
+!        .or. obs is not sfctype     
+!       ! SCENARIO 3a: obs is a virtual temp.
         if(iqtflg)then
 !          Interpolate guess tv to observation location and time
            call tintrp31(ges_tv,tges,dlat,dlon,dpres,dtime, &
@@ -678,6 +707,8 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               dhx_dx%val(1) = one - delz         ! weight for iz's level
               dhx_dx%val(2) = delz               ! weight for iz+1's level
            endif
+!       ! SCENARIO 3b: obs is a sensibl temp.
+!       ! this was the default for T2m
         else
 !          Interpolate guess tsen to observation location and time
            call tintrp31(ges_tsen,tges,dlat,dlon,dpres,dtime, &
@@ -701,8 +732,8 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            endif
         end if
 
+! SCENARIO 4: obs is sfctype, and i_use_2mt4b flag is on (turns on LAM sfc DA)
         if(i_use_2mt4b>0 .and. sfctype) then
-
            if(i_coastline==1 .or. i_coastline==3) then
 
 !          Interpolate guess th 2m to observation location and time
@@ -764,8 +795,11 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      ratio_errors=error/(data(ier,i)+drpx+1.0e6_r_kind*rhgh+r8*ramp)
 
 ! Compute innovation
-     if(i_use_2mt4b>0 .and. sfctype) then
+     !if(i_use_2mt4b>0 .and. sfctype) then
+     if(sfctype .and. (( i_use_2mt4b>0) .or. do_global_2mDA) ) then
         ddiff = tob-tges2m
+        tges = tges2m ! not necessary? 
+        if (mype==7) write(6,*) 'CSD2m - saving tges2m' 
      else
         ddiff = tob-tges
      endif
@@ -1284,7 +1318,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      varname='ps'
      call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
      if (istatus==0) then
-         if(allocated(ges_z))then
+         if(allocated(ges_ps))then
             write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
             call stop2(999)
          endif
@@ -1375,7 +1409,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         varname='th2m'
         call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
         if (istatus==0) then
-            if(allocated(ges_z))then
+            if(allocated(ges_th2))then
                write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
                call stop2(999)
             endif
@@ -1389,11 +1423,33 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
             write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
             call stop2(999)
         endif
+     endif
+     if( do_global_2mDA) then
+!    get q2m ...
+        varname='t2m'
+        call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+        if (istatus==0) then
+            if(allocated(ges_t2))then
+               write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+               call stop2(999)
+            endif
+            allocate(ges_t2(size(rank2,1),size(rank2,2),nfldsig))
+            ges_t2(:,:,1)=rank2
+            do ifld=2,nfldsig
+               call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+               ges_t2(:,:,ifld)=rank2
+            enddo
+        else
+            write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+            call stop2(999)
+        endif
+     endif
+     if(i_use_2mt4b>0 .or. do_global_2mDA) then
 !    get q2m ...
         varname='q2m'
         call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
         if (istatus==0) then
-            if(allocated(ges_z))then
+            if(allocated(ges_q2))then
                write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
                call stop2(999)
             endif
@@ -1603,7 +1659,19 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     call nc_diag_metadata("Height",                  sngl(data(iobshgt,i))  )
     call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
     call nc_diag_metadata("Prep_QC_Mark",            sngl(data(iqc,i))      )
-    call nc_diag_metadata("Setup_QC_Mark",           sngl(data(iqt,i))      )
+    if (do_global_2mDA == .true. )  then  
+         idg = 1  
+    else  
+         idg = 0  
+    endif 
+    if (sfctype == .true.  ) then
+          ist = 1
+     else 
+          ist = 0 
+    endif 
+    write(flag_char,"(3I1)") ist, int(data(iqt,i)), idg 
+    call nc_diag_metadata("Setup_Flags",             flag_char               )
+    !call nc_diag_metadata("Setup_Flag",           sngl(data(iqt,i))      )
     call nc_diag_metadata("Prep_Use_Flag",           sngl(data(iuse,i))     )
     if(muse(i)) then
        call nc_diag_metadata("Analysis_Use_Flag",    sngl(one)              )
@@ -1654,9 +1722,11 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        call nc_diag_data2d("ObsDiagSave_obssen",   odiag%obssen   )              
     endif
 
-    if (twodvar_regional) then
+    if (twodvar_regional .or. do_global_2mDA ) then
        call nc_diag_metadata("Dominant_Sfc_Type", data(idomsfc,i)              )
        call nc_diag_metadata("Model_Terrain",     data(izz,i)                  )
+    endif 
+    if (twodvar_regional) then
        r_prvstg            = data(iprvd,i)
        call nc_diag_metadata("Provider_Name",     c_prvstg                     )    
        r_sprvstg           = data(isprvd,i)

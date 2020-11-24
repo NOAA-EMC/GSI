@@ -138,10 +138,12 @@ module jfunc
   public :: pseudo_q2
   public :: varq
   public :: cnvw_option
+  public :: do_global_2mDA
 
   logical first,last,switch_on_derivatives,tendsflag,print_diag_pcg,tsensible,lgschmidt,diag_precon
   logical clip_supersaturation,R_option
   logical pseudo_q2
+  logical do_global_2mDA
   logical cnvw_option
   integer(i_kind) iout_iter,miter,iguess,nclen,qoption,cwoption
   integer(i_kind) jiter,jiterstart,jiterend,iter
@@ -249,6 +251,8 @@ contains
 
 !   option for including convective clouds in the all-sky assimilation
     cnvw_option=.false.
+
+    do_global_2mDA=.false.
 
     return
   end subroutine init_jfunc
