@@ -39,14 +39,14 @@ module statevec
 !
 !$$$
 
-use gridio, only: readgriddata, readgriddata_pnc
+use gridio, only: readgriddata, readgriddata_pnc, readgriddata_2mDA
 use mpisetup, only: mpi_real4,mpi_sum,mpi_comm_io,mpi_in_place,numproc,nproc
 use mpimod, only: mpi_comm_world
 use gridinfo, only: getgridinfo, gridinfo_cleanup,               &
                     npts, vars3d_supported, vars2d_supported
 use params, only: nlevs,nstatefields,nanals,statefileprefixes,&
                   ntasks_io,nanals_per_iotask,nanal1,nanal2, &
-                  statesfcfileprefixes, paranc
+                  statesfcfileprefixes, paranc, global_2mDA
 use kinds, only: r_kind, i_kind, r_double, r_single
 use mpeu_util, only: gettablesize, gettable, getindex
 use constants, only : max_varname_length
@@ -188,6 +188,11 @@ end if
 allocate(state_d(npts,nsdim,nstatefields,nanals_per_iotask))
 allocate(qsat(npts,nlevs,nstatefields,nanals_per_iotask))
 if (paranc) then
+   if (global_2mDA) then
+      print *,'paranc not supported for global_2mDA'
+      call mpi_barrier(mpi_comm_world,ierr)
+      call mpi_finalize(ierr)
+   endif
    call readgriddata_pnc(svars3d,svars2d,ns3d,ns2d,slevels,nsdim,nstatefields, &
                          statefileprefixes,statesfcfileprefixes,.false.,state_d,qsat)
 end if
@@ -195,8 +200,13 @@ end if
 if (nproc <= ntasks_io-1) then
    nanal = nproc + 1
    if ( .not. paranc) then
-      call readgriddata(nanal1(nproc),nanal2(nproc),svars3d,svars2d,ns3d,ns2d,slevels,nsdim,nstatefields, &
-                     statefileprefixes,statesfcfileprefixes,.false.,state_d,qsat)
+      if (global_2mDA) then
+         call readgriddata_2mDA(nanal1(nproc),nanal2(nproc),svars2d,ns2d,nsdim,nstatefields, &
+                           statesfcfileprefixes,.false.,state_d)
+      else
+         call readgriddata(nanal1(nproc),nanal2(nproc),svars3d,svars2d,ns3d,ns2d,slevels,nsdim,nstatefields, &
+                        statefileprefixes,statesfcfileprefixes,.false.,state_d,qsat)
+      endif
    end if
 
    ! subtract the mean

@@ -47,12 +47,12 @@ use mpisetup, only: mpi_real4,mpi_sum,mpi_comm_io,mpi_in_place,numproc,nproc,&
                 mpi_integer,mpi_wtime,mpi_status,mpi_real8
 
 use gridio,    only: readgriddata, readgriddata_pnc, writegriddata, writegriddata_pnc, &
-                     writeincrement, writeincrement_pnc
+                     writeincrement, writeincrement_pnc, readgriddata_2mDA
 use gridinfo,  only: getgridinfo, gridinfo_cleanup,                    &
                      npts, vars3d_supported, vars2d_supported
 use params,    only: nlevs, nbackgrounds, fgfileprefixes, reducedgrid, &
                      nanals, pseudo_rh, use_qsatensmean, nlons, nlats,&
-                     nanals_per_iotask, ntasks_io, nanal1, nanal2, &
+                     nanals_per_iotask, ntasks_io, nanal1, nanal2, global_2mDA, &
                      fgsfcfileprefixes, paranc, write_fv3_incr, write_ensmean
 use kinds,     only: r_kind, i_kind, r_double, r_single
 use mpeu_util, only: gettablesize, gettable, getindex
@@ -212,8 +212,13 @@ end if
 ! read in whole control vector on i/o procs - keep in memory 
 ! (needed in write_ensemble)
 allocate(grdin(npts,ncdim,nbackgrounds,nanals_per_iotask))
-allocate(qsat(npts,nlevs,nbackgrounds,nanals_per_iotask))
+if (.not. global_2mDA) allocate(qsat(npts,nlevs,nbackgrounds,nanals_per_iotask))
 if (paranc) then
+   if (global_2mDA) then
+      print *,'paranc not supported for global_2mDA'
+      call mpi_barrier(mpi_comm_world,ierr)
+      call mpi_finalize(ierr)
+   endif
    if (nproc == 0) t1 = mpi_wtime()
    call readgriddata_pnc(cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,nbackgrounds, &
            fgfileprefixes,fgsfcfileprefixes,reducedgrid,grdin,qsat)
@@ -221,11 +226,16 @@ end if
 if (nproc <= ntasks_io-1) then
    if (.not. paranc) then
       if (nproc == 0) t1 = mpi_wtime()
-      call readgriddata(nanal1(nproc),nanal2(nproc),cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,nbackgrounds, &
-           fgfileprefixes,fgsfcfileprefixes,reducedgrid,grdin,qsat)
+      if (global_2mDA) then
+         call readgriddata_2mDA(nanal1(nproc),nanal2(nproc),cvars2d,nc2d,ncdim,nbackgrounds, &
+              fgsfcfileprefixes,reducedgrid,grdin)
+      else
+         call readgriddata(nanal1(nproc),nanal2(nproc),cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,nbackgrounds, &
+              fgfileprefixes,fgsfcfileprefixes,reducedgrid,grdin,qsat)
+      endif
    end if
    !print *,'min/max qsat',nanal,'=',minval(qsat),maxval(qsat)
-   if (use_qsatensmean) then
+   if (use_qsatensmean .and. .not. global_2mDA) then
        allocate(qsatmean(npts,nlevs,nbackgrounds))
        allocate(qsat_tmp(npts))
        ! compute ensemble mean qsat
@@ -257,6 +267,7 @@ if (nproc <= ntasks_io-1) then
    !   print *,'min/max qsatmean proc',nproc,'=',&
    !            minval(qsatmean(:,:,nbackgrounds/2+1)),maxval(qsatmean(:,:,nbackgrounds/2+1))
    !endif
+   if (.not. global_2mDA) then
    q_ind = getindex(cvars3d, 'q')
    if (pseudo_rh .and. q_ind > 0) then
       if (use_qsatensmean) then
@@ -276,6 +287,7 @@ if (nproc <= ntasks_io-1) then
          enddo
          enddo
       endif
+   end if
    end if
 
 endif
@@ -332,6 +344,7 @@ if (nproc <= ntasks_io-1) then
 100 format('ens. mean anal. increment min/max  ',a,2x,g19.12,2x,g19.12)
    deallocate(grdin_mean_tmp)
 
+   if (.not. global_2mDA) then
    q_ind = getindex(cvars3d, 'q')
    if (pseudo_rh .and. q_ind > 0) then
       if (use_qsatensmean) then
@@ -359,6 +372,7 @@ if (nproc <= ntasks_io-1) then
             grdin_mean(:,(q_ind-1)*nlevs+1:q_ind*nlevs,nb)*qsatmean(:,:,nb)
          enddo
       endif
+   end if
    end if
    if (.not. paranc) then
       if (write_fv3_incr) then

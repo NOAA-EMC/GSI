@@ -55,7 +55,7 @@
  implicit none
  private
  public :: readgriddata, readgriddata_pnc, writegriddata, writegriddata_pnc
- public :: writeincrement, writeincrement_pnc
+ public :: readgriddata_2mDA,writeincrement, writeincrement_pnc
 
  contains
 
@@ -408,6 +408,186 @@
   end subroutine copytogrdin
 
  end subroutine readgriddata_pnc
+
+ subroutine readgriddata_2mDA(nanal1,nanal2,vars2d,n2d,ndim,ntimes, &
+                              fileprefixes,reducedgrid,grdin)
+  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+        quantize_data, read_attribute, close_dataset, get_dim, read_vardata
+  implicit none
+
+  integer, intent(in) :: nanal1,nanal2
+  character(len=max_varname_length), dimension(n2d), intent(in) :: vars2d
+  integer, intent(in) :: n2d
+  integer, intent(in) :: ndim, ntimes
+  character(len=120), dimension(7), intent(in)  :: fileprefixes
+  logical, intent(in) :: reducedgrid
+  real(r_single), dimension(npts,ndim,ntimes,nanal2-nanal1+1), intent(out) :: grdin
+
+  character(len=500) :: filename
+  character(len=7) charnanal
+
+  real(r_single), allocatable, dimension(:,:)   :: values_2d
+  real(r_kind), dimension(nlons*nlats)          :: ug
+  type(Dataset) :: dset
+  type(Dimension) :: londim,latdim
+
+  integer(i_kind) :: tmp2m_ind, spfh2m_ind, soilt1_ind, soilt2_ind, soilt3_ind, &
+                     soilt4_ind,soilw1_ind, soilw2_ind, soilw3_ind, soilw4_ind
+
+  integer(i_kind) :: iunitsig,iret,nb,nlonsin,nlatsin,ne,nanal
+
+  if (reducedgrid) then
+     print *,"reducedgrid=T not valid for global_2mDA=T"
+     call stop2(22)
+  endif
+
+  ne = 0
+  ensmemloop: do nanal=nanal1,nanal2
+  ne = ne + 1
+  backgroundloop: do nb=1,ntimes
+
+  if (nanal > 0) then
+    write(charnanal,'(a3, i3.3)') 'mem', nanal
+  else
+    charnanal = 'ensmean'
+  endif
+  iunitsig = 77
+  filename = trim(adjustl(datapath))//trim(adjustl(fileprefixes(nb)))//trim(charnanal)
+  dset = open_dataset(filename)
+  londim = get_dim(dset,'grid_xt'); nlonsin = londim%len
+  latdim = get_dim(dset,'grid_yt'); nlatsin = latdim%len
+
+  tmp2m_ind  = getindex(vars2d, 't2m')   !< indices in the state or control var arrays
+  spfh2m_ind = getindex(vars2d, 'q2m')   
+  soilt1_ind = getindex(vars2d, 'soilt1') 
+  soilw1_ind = getindex(vars2d, 'soilw1') 
+  soilt2_ind = getindex(vars2d, 'soilt2') 
+  soilw2_ind = getindex(vars2d, 'soilw2') 
+  soilt3_ind = getindex(vars2d, 'soilt2') 
+  soilw3_ind = getindex(vars2d, 'soilw3') 
+  soilt4_ind = getindex(vars2d, 'soilt4') 
+  soilw4_ind = getindex(vars2d, 'soilw4') 
+
+!  if (nproc == 0) then
+!    print *, 'indices: '
+!    print *, 't2m_ind: ', t2m_ind, ', q2m_ind: ', q2m_ind, ', soilt_ind: ', soilt_ind, ', soilm_ind: ',soilm_ind
+!  endif
+
+  if (tmp2m_ind > 0) then
+     call read_vardata(dset, 'tmp2m', values_2d, errcode=iret)
+     if (iret /= 0) then
+        print *,'error reading tmp2m'
+        call stop2(22)
+     endif
+     ug = reshape(values_2d,(/nlons*nlats/))
+     call copytogrdin(ug,grdin(:,tmp2m_ind,nb,ne))
+  endif
+  if (spfh2m_ind > 0) then
+     call read_vardata(dset, 'spfh2m', values_2d, errcode=iret)
+     if (iret /= 0) then
+        print *,'error reading spfh2m'
+        call stop2(22)
+     endif
+     ug = reshape(values_2d,(/nlons*nlats/))
+     call copytogrdin(ug,grdin(:,spfh2m_ind,nb,ne))
+  endif
+  if (soilt1_ind > 0) then
+     call read_vardata(dset, 'soilt1', values_2d, errcode=iret)
+     if (iret /= 0) then
+        print *,'error reading soilt1'
+        call stop2(22)
+     endif
+     ug = reshape(values_2d,(/nlons*nlats/))
+     call copytogrdin(ug,grdin(:,soilt1_ind,nb,ne))
+  endif
+  if (soilt2_ind > 0) then
+     call read_vardata(dset, 'soilt2', values_2d, errcode=iret)
+     if (iret /= 0) then
+        print *,'error reading soilt2'
+        call stop2(22)
+     endif
+     ug = reshape(values_2d,(/nlons*nlats/))
+     call copytogrdin(ug,grdin(:,soilt2_ind,nb,ne))
+  endif
+  if (soilt3_ind > 0) then
+     call read_vardata(dset, 'soilt3', values_2d, errcode=iret)
+     if (iret /= 0) then
+        print *,'error reading soilt3'
+        call stop2(22)
+     endif
+     ug = reshape(values_2d,(/nlons*nlats/))
+     call copytogrdin(ug,grdin(:,soilt3_ind,nb,ne))
+  endif
+  if (soilt4_ind > 0) then
+     call read_vardata(dset, 'soilt4', values_2d, errcode=iret)
+     if (iret /= 0) then
+        print *,'error reading soilt2'
+        call stop2(22)
+     endif
+     ug = reshape(values_2d,(/nlons*nlats/))
+     call copytogrdin(ug,grdin(:,soilt4_ind,nb,ne))
+  endif
+  if (soilw1_ind > 0) then
+     call read_vardata(dset, 'soilw1', values_2d, errcode=iret)
+     if (iret /= 0) then
+        print *,'error reading soilw1'
+        call stop2(22)
+     endif
+     ug = reshape(values_2d,(/nlons*nlats/))
+     call copytogrdin(ug,grdin(:,soilw1_ind,nb,ne))
+  endif
+  if (soilw2_ind > 0) then
+     call read_vardata(dset, 'soilw2', values_2d, errcode=iret)
+     if (iret /= 0) then
+        print *,'error reading soilw2'
+        call stop2(22)
+     endif
+     ug = reshape(values_2d,(/nlons*nlats/))
+     call copytogrdin(ug,grdin(:,soilw2_ind,nb,ne))
+  endif
+  if (soilw3_ind > 0) then
+     call read_vardata(dset, 'soilw3', values_2d, errcode=iret)
+     if (iret /= 0) then
+        print *,'error reading soilw3'
+        call stop2(22)
+     endif
+     ug = reshape(values_2d,(/nlons*nlats/))
+     call copytogrdin(ug,grdin(:,soilw3_ind,nb,ne))
+  endif
+  if (soilw4_ind > 0) then
+     call read_vardata(dset, 'soilw4', values_2d, errcode=iret)
+     if (iret /= 0) then
+        print *,'error reading soilw2'
+        call stop2(22)
+     endif
+     ug = reshape(values_2d,(/nlons*nlats/))
+     call copytogrdin(ug,grdin(:,soilw4_ind,nb,ne))
+  endif
+
+  call close_dataset(dset)
+
+  end do backgroundloop ! loop over backgrounds to read in
+  end do ensmemloop ! loop over ens members to read in
+
+  return
+
+  contains
+ ! copying to grdin (calling regtoreduced if reduced grid)
+  subroutine copytogrdin(field, grdin)
+  implicit none
+
+  real(r_kind), dimension(:), intent(in)      :: field
+  real(r_single), dimension(:), intent(inout) :: grdin
+
+  if (reducedgrid) then
+    call regtoreduced(field, grdin)
+  else
+    grdin = field
+  endif
+
+  end subroutine copytogrdin
+
+ end subroutine readgriddata_2mDA
 
 
  subroutine readgriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,ntimes, &

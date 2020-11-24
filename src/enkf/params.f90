@@ -129,6 +129,8 @@ integer,public :: nobsl_max = -1
 ! matrix are read from a file called 'vlocal_eig.dat'
 ! (created by an external python utility).
 logical,public :: modelspace_vloc=.false.
+! if global_2mDA true, update land states only using 2m obs in diag_t, diag_q
+logical, public :: global_2mDA=.false. 
 ! use correlated obs errors
 ! (implies letkf_flag=T, modelspace_vloc=T and lobsdiag_forenkf=T)
 ! if T, extra fields read from diag file and innovation stats
@@ -228,7 +230,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh,&
                    lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh,&
                    fgfileprefixes,fgsfcfileprefixes,anlfileprefixes, &
-                   incfileprefixes, &
+                   incfileprefixes, global_2mDA,&
                    statefileprefixes,statesfcfileprefixes, &
                    covl_minfact,covl_efold,lupd_obspace_serial,letkf_novlocal,&
                    analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,&
@@ -406,6 +408,9 @@ if (fv3_native) then
   nlons = nx_res; nlats = ny_res ! (total number of pts = ntiles*res*res)
 endif
 close(912)
+
+! all fields are 2d if global_2mDA
+if (global_2mDA) nlevs=1
 
 ! find number of satellite files
 nsats_rad=0
@@ -637,11 +642,15 @@ do while (nhr_anal(nbackgrounds+1) > 0)
         fgfileprefixes(nbackgrounds+1)="firstguess."
       endif
      else  ! global
+      if (global_2mDA) then
+      fgfileprefixes(nbackgrounds+1)="bfg_"//datestring//"_fhr"//charfhr_anal(nbackgrounds+1)//"_"
+      else
       fgfileprefixes(nbackgrounds+1)="sfg_"//datestring//"_fhr"//charfhr_anal(nbackgrounds+1)//"_"
+      endif
      endif
    endif
    if (trim(fgsfcfileprefixes(nbackgrounds+1)) .eq. "") then
-      fgsfcfileprefixes(nbackgrounds+1)="sfgsfc_"//datestring//"_fhr"//charfhr_anal(nbackgrounds+1)//"_"
+      fgsfcfileprefixes(nbackgrounds+1)="bfg_"//datestring//"_fhr"//charfhr_anal(nbackgrounds+1)//"_"
    end if
    nbackgrounds = nbackgrounds+1
 end do
@@ -659,11 +668,15 @@ do while (nhr_state(nstatefields+1) > 0)
         statefileprefixes(nstatefields+1)="firstguess."
       endif
      else  ! global
+      if (global_2mda) then
+      statefileprefixes(nstatefields+1)="bfg_"//datestring//"_fhr"//charfhr_state(nstatefields+1)//"_"
+      else
       statefileprefixes(nstatefields+1)="sfg_"//datestring//"_fhr"//charfhr_state(nstatefields+1)//"_"
+      endif
      endif
    endif
    if (trim(statesfcfileprefixes(nstatefields+1)) .eq. "") then
-      statesfcfileprefixes(nstatefields+1)="sfgsfc_"//datestring//"_fhr"//charfhr_state(nstatefields+1)//"_"
+      statesfcfileprefixes(nstatefields+1)="bfg_"//datestring//"_fhr"//charfhr_state(nstatefields+1)//"_"
    end if
    nstatefields = nstatefields+1
 end do
