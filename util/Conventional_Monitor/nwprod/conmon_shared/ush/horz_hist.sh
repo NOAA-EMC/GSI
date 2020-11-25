@@ -105,7 +105,7 @@
       #  run the mk_low_cnt.pl script 
       #--------------------------------- 
       ${USHconmon}/mk_low_cnt.pl --net ${CONMON_SUFFIX} \
-             --run ${RUN}  --cyc ${PDATE}  --dir ${C_TANKDIR} \
+             --run ${RUN}  --cyc ${PDATE} \
              --nobsf ${TANKDIR_conmon}/horz_hist/${run}/nobs.${run}.${PDATE} \
              --lcntf ${TANKDIR_conmon}/horz_hist/${run}/low_cnt.${run}.${PDATE} \
              --basef ${HOMEgdas_conmon}/fix/gdas_conmon_base.txt

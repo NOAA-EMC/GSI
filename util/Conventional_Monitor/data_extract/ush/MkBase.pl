@@ -16,7 +16,7 @@
    use Scalar::Util qw(looks_like_number);
 
    my %sums;
-
+   my %hr_sums;
 
    #---------------------------------------------------------
    #  subroutine trim
@@ -39,7 +39,7 @@
    #  into the %sums hash (a hash of arrays).
    #---------------------------------------------------------
    sub process_nobs_file {
-      print "--> process_nobs \n";
+
 
       #-----------------------------------
       # check number of arguments passed.
@@ -52,8 +52,7 @@
       else {
 
          my $nobs_file = shift;
-
-         print " nobs_file = $nobs_file \n";
+         my $hr = substr($nobs_file, -2);
 
          open(FH, '<', $nobs_file) or die $!;
 
@@ -63,10 +62,6 @@
             my $type    = trim( $line[0] );
             my $subtype = trim( $line[1] );
             my $count   = trim( $line[2] );
-
-            print "type    = $type \n";
-            print "subtype = $subtype \n";
-            print "count   = $count \n";
 
             #-------------------------------------------------------
             # insert into hash %sums using $type_$subtype as the key
@@ -80,11 +75,19 @@
                my @counts = [ $count ];
                $sums{$key} = \@counts;
             }
+
+            if( exists $hr_sums{$hr} && exists $hr_sums{$hr}{$key}) {
+               push @{ $hr_sums{$hr}{$key}}, $count;
+            }
+            else{ 
+               my @hr_counts = [ $count ];
+               $hr_sums{$hr}{$key} = \@hr_counts;
+            }
+
          }
          close(FH);
       }
 
-      print "<-- process_nobs \n";
    };
 
    #---------------------------------------------------------
@@ -101,37 +104,45 @@
       my $net = shift;
       my $run = shift;
 
-      print "   dir = $dir\n";
-      print "   net = $net\n";
-      print "   run = $run\n";
-
-      my $key;
-
+#      my $key;
+      
       my $filename = "${dir}/${net}/info/${run}_conmon_base.txt";
       print "filename = $filename\n";
       open(FH, '>', $filename) or die $!;
 
-      foreach $key (sort keys %sums) {
-#         print " $key ==>\n";
+      foreach my $hr (sort keys %hr_sums) {
 
-         my $total = 0;
-         my $nrecs = 0;
+         foreach my $key (sort keys %{ $hr_sums{$hr} }) {
 
-         for my $count (@{ $sums{ $key } }) {
-            if( looks_like_number( $count )) {
-               $nrecs = $nrecs + 1;
-               $total = $total + $count;
+            my $total = 0;
+            my $nrecs = 0;
+
+            for my $count (@{ $hr_sums{$hr}{$key}}) {
+               if( looks_like_number( $count )) {
+                  $nrecs = $nrecs + 1;
+                  $total = $total + $count;
+               }
             }
+
+            my $avg = 0;
+
+            if( $nrecs > 0 ) { 
+               $avg = $total/$nrecs;
+            }
+            else {
+               print " zero count $hr, $key, $nrecs \n";
+            }
+
+            my $rounded = sprintf("%.2f", $avg);
+            print FH "${hr}, ${key}, ${rounded}\n";
          }
-        
-         my $avg = $total/$nrecs;
-         my $rounded = sprintf("%.2f", $avg);
-         print FH "${key}, ${rounded}\n";
       }
 
       close( FH );
       print "<-- calc_avgs \n";
    }
+
+
 
    ###------------------------------------------------------------------
    ###------------------------------------------------------------------
@@ -210,7 +221,7 @@
 
    #----------------------------------------------------------------
    #  Start with the latest directory and attempt to locate the 
-   #  latest 120 (30 days worth of) monitor subdirectories
+   #  latest 240 (60 days worth of) monitor subdirectories
    #  containing an nobs.$run.$pdate file.
    #
    my $exit_flag   = 0;
@@ -251,7 +262,7 @@
 
       $cycle_ctr = $cycle_ctr + 1;
 
-   } while $idx > 0 && $cycle_ctr < 120;
+   } while $idx > 0 && $cycle_ctr < 240;
 
    calc_avgs( $dir, $net, $run );
 

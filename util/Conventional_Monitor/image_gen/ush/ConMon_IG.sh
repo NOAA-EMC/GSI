@@ -85,8 +85,6 @@ export JOBNAME=${JOBNAME:-ConMon_plt_${CONMON_SUFFIX}}
 export grib2=${grib2:-1}				# 1 = grib2 (true), 0 = grib
 							# should this move to config?
 
-plot_time=${PDATE}
-
 #--------------------------------------------------------------------
 # Run config files to load environment variables,
 # set default plot conditions
@@ -157,6 +155,8 @@ echo "hrs = $hrs"
 export START_DATE=`$NDATE ${hrs} $PDATE`
 echo "START_DATE, last_cycle, PDATE = $START_DATE $last_cycle  $PDATE"
 
+pdy=`echo ${PDATE}|cut -c1-8`
+cyc=`echo ${PDATE}|cut -c9-10`
 
 
 #------------------------------------------------------------------
@@ -193,7 +193,7 @@ if [[ $PDATE -le ${last_cycle} ]]; then
    #  Mail warning reports 
    #--------------------------------------------------------------------
    if [[ $DO_DATA_RPT = 1 ]]; then
-     warn_file=${C_TANKDIR}/${RUN}.${PDY}/${CYC}/conmon/horz_hist/ges/err_rpt.ges.${PDATE}
+     warn_file=${C_TANKDIR}/${RUN}.${pdy}/${cyc}/conmon/horz_hist/ges/err_rpt.ges.${PDATE}
      if [[ -e ${warn_file} ]]; then
        echo "mailing err_rpt"          
        /bin/mail -s "ConMon warning" -c "${MAIL_CC}" ${MAIL_TO} < ${warn_file} 

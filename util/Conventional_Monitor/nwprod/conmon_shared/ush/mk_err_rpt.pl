@@ -136,10 +136,28 @@
          my @lcf_vals  = @{ $lcf_hash{ $key }};
          my @plcf_vals = @{ $plcf_hash{ $key }};
 
+         #------------------------------------------------------------------
+         #  Note there's a mismatch between how the type and subtype values
+         #  are used in nbns and how they are used by GrADS to produce the
+         #  resulting image file names.  The net result is that the key is 
+         #  in formate $type_$subtype and we need to pass a value that 
+         #  matches the image file name, so it's $type-$subtype (note hyphen
+         #  not underscore) and subtype 00 needs to become 0.  This value is
+         #  then used in the hyperlink as the value for 'src'. 
+         #
+         my $type_str = $key;
+         $type_str =~ s/_00/-0/;
+         $type_str =~ s/_/-/;
+
          print FILE " $key \n";
-         print FILE "            $cyc1  count:  $plcf_vals[0]   bound: $lcf_vals[1]\n";
-         print FILE "            $cyc0  count:  $lcf_vals[0]   \n";
-         print FILE "   https://www.emc.ncep.noaa.gov/gmb/gdas/es_conv/index.html?net=$net&run=$run&src=$key&typ=cnt\n\n";
+         printf FILE "   cycle: % d", $cyc1;  
+         printf FILE "   count: %6s", $plcf_vals[0];
+         printf FILE "   bound: %10.1f\n", $plcf_vals[1];
+
+         printf FILE "   cycle: % d", $cyc0;
+         printf FILE "   count: %6s", $lcf_vals[0];
+         printf FILE "   bound: %10.1f \n", $lcf_vals[1];
+         print FILE  "      https://www.emc.ncep.noaa.gov/gmb/gdas/es_conv/index.html?net=$net&run=$run&src=$type_str&typ=count\n\n";
       }
    }
 

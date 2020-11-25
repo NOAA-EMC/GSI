@@ -12,7 +12,6 @@ if [[ ${C_IMGNDIR} != "/" ]]; then
    if [[ $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "cray" ]]; then
       /usr/bin/rsync -ave ssh --exclude *.ctl.${Z} --delete-during ${C_IMGNDIR}/ \
          ${WEBUSER}@${WEBSVR}.ncep.noaa.gov:${WEBDIR}/
-#       echo "rsync goes here"
    fi
 fi
 

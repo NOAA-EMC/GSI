@@ -14,7 +14,7 @@ function usage {
 
 
 set -ax
-echo start NuTransfer.sh
+echo start Transfer.sh
 
 nargs=$#
 if [[ $nargs -lt 1 || $nargs -gt 3 ]]; then
@@ -87,5 +87,5 @@ else
 fi
 
 
-echo end NuTransfer.sh
+echo end Transfer.sh
 exit

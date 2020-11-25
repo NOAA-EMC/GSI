@@ -5,8 +5,6 @@
 #  mk_low_cnt.pl
 #
 #    Arguments: 
-#       --dir     : Required string value containing path to $TANKdir
-#                     (including nbns/stats).  Required input.
 #       --cyc     : 10 digit cycle time.  Required input.
 #       --net     : data source idenifier.  Default is GFS.
 #       --run     : Run name, generally 'gdas' or 'gfs'. gdas is the  
@@ -85,6 +83,8 @@
    my @nobs_data = <FILE>;
    close( FILE );
 
+   my $hr = substr( $cyc, -2 );
+ 
    #--------------------------------------------
    # This is a simple csv file, so break on the 
    # comma and push to %nobs_hash.
@@ -92,18 +92,11 @@
    my %nobs_hash;
    foreach ( @nobs_data ) {
       my @words = split /,/, $_;
+      print " words = @words\n";
       my $key = trim( $words[0] ) . "_" . trim( $words[1] );
       my $value = trim( $words[2] );
       $nobs_hash{ $key } = $value;
    }
-
-   #-----------------------------------------------
-   #  locate gdas_conmon_base.txt, load into hash   
-   #
-#   my $home = "HOME" . ${run} . "_conmon";
-#   my $base_file = $ENV{ "$home" };
-#   $base_file=${base_file} . "/fix/" . ${run} . "_conmon_base.txt";
-#   print "base_file = ${base_file} \n";
 
    #------------------------------------------------
    #  read in gdas_conmon_base.txt, load into hash
@@ -115,10 +108,22 @@
    my %base_hash;
    foreach ( @base_data ) {
       my @words = split /,/, $_;
-      my $key = trim( $words[0] );
-      my $value = trim( $words[1] );
-      $base_hash{ $key } = $value;
+      print " words = @words\n";
+      my $base_hr = trim( $words[0] );
+      my $key = trim( $words[1] );
+      my $value = trim( $words[2] );
+
+      print "base_hr, hr = $base_hr, $hr \n" ;
+
+      if( $base_hr == $hr ) {
+         print " adding $value to hash with key $key\n";
+         $base_hash{ $key } = $value;
+      }
+      else {
+         print " not this hour\n";
+      }
    }
+
 
    foreach my $key (keys %base_hash) {
      my $value = $base_hash{$key};
@@ -130,7 +135,6 @@
    #  Create entry in low_cnt.txt file. 
    #  If count is low write to low_cnt.
    #
-#   my $low_cnt = "${dir}/${run}.${pdy}/${hr}/conmon/horz_hist/ges/low_cnt.ges.${cyc}";
    open( FILE, '>', "${lcntf}" ) or die( "Unable to open ${lcntf}" );
 
    foreach my $key (keys %nobs_hash)
