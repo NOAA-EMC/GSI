@@ -1716,6 +1716,8 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     if(allocated(ges_v )) deallocate(ges_v )
     if(allocated(ges_u )) deallocate(ges_u )
     if(allocated(ges_ps)) deallocate(ges_ps)
+    if(allocated(ges_q2)) deallocate(ges_q2)
+    if(allocated(ges_th2)) deallocate(ges_th2)
   end subroutine final_vars_
 
 end subroutine setupt
