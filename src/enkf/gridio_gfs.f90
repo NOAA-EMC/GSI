@@ -55,7 +55,8 @@
  implicit none
  private
  public :: readgriddata, readgriddata_pnc, writegriddata, writegriddata_pnc
- public :: readgriddata_2mDA,writeincrement, writeincrement_pnc
+ public :: readgriddata_2mDA,writeincrement, writeincrement_pnc, &
+           writegriddata_2mDA
 
  contains
 
@@ -1996,7 +1997,268 @@
 
  end subroutine writegriddata_pnc
 
+ subroutine writegriddata_2mDA(nanal1,nanal2,vars2d,n2d,ndim,grdin,no_inflate_flag)
+  use netcdf
+  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                          read_attribute, close_dataset, get_dim, read_vardata,&
+                          create_dataset, get_idate_from_time_units, &
+                          get_time_units_from_idate, write_vardata, &
+                          write_attribute, quantize_data, has_var, has_attr
+  use params, only: nbackgrounds,anlsfcfileprefixes,fgsfcfileprefixes,&
+                    nccompress,write_ensmean
+  implicit none
 
+  integer, intent(in) :: nanal1,nanal2
+  character(len=max_varname_length), dimension(n2d), intent(in) :: vars2d
+  integer, intent(in) :: n2d,ndim
+  real(r_single), dimension(npts,ndim,nbackgrounds,nanal2-nanal1+1), intent(inout) :: grdin
+  logical, intent(in) :: no_inflate_flag
+  character(len=500):: filenamein, filenameout
+  real(r_kind), dimension(nlons*nlats) :: ug,vg
+  real(r_kind), allocatable, dimension(:) :: values_1d
+  real(r_single), allocatable, dimension(:,:) :: values_2d, values_2d_tmp
+  integer iadate(4),idate(4),nfhour,idat(7),iret,jdat(6),nbits
+  integer,dimension(8):: ida,jda
+  real(r_double),dimension(5):: fha
+  real(r_kind) fhour
+  type(Dataset) :: dsfg, dsanl
+  character(len=3) charnanal
+  character(len=nf90_max_name) :: time_units
+
+  real(r_single) compress_err
+
+  integer(i_kind) :: tmp2m_ind, spfh2m_ind, soilt1_ind, soilt2_ind, soilt3_ind, &
+                     soilt4_ind,soilw1_ind, soilw2_ind, soilw3_ind, soilw4_ind
+
+
+  integer nb,ne,nanal
+
+  logical :: nocompress
+
+  nocompress = .true.
+  if (nccompress) nocompress = .false.
+
+  ne = 0
+  ensmemloop: do nanal=nanal1,nanal2
+  ne = ne + 1
+  write(charnanal,'(i3.3)') nanal
+  backgroundloop: do nb=1,nbackgrounds
+
+  if (nanal == 0 .and. write_ensmean) then
+     filenamein = trim(adjustl(datapath))//trim(adjustl(fgsfcfileprefixes(nb)))//"ensmean"
+     filenameout = trim(adjustl(datapath))//trim(adjustl(anlsfcfileprefixes(nb)))//"ensmean"
+  else
+     if(no_inflate_flag) then
+       filenameout = trim(adjustl(datapath))//trim(adjustl(anlsfcfileprefixes(nb)))//"nimem"//charnanal
+     else
+       filenameout = trim(adjustl(datapath))//trim(adjustl(anlsfcfileprefixes(nb)))//"mem"//charnanal
+     end if
+     filenamein = trim(adjustl(datapath))//trim(adjustl(fgsfcfileprefixes(nb)))//"mem"//charnanal
+  endif
+
+  dsfg = open_dataset(filenamein)
+  jdat = get_idate_from_time_units(dsfg)
+  idat(4) = jdat(1) ! yr
+  idat(2) = jdat(2) ! mon
+  idat(3) = jdat(3) ! day
+  idat(1) = jdat(4) ! hr
+  call read_vardata(dsfg,'time',values_1d,errcode=iret)
+  if (iret /= 0) then
+     print *,'error reading time'
+     call stop2(29)
+  endif
+  nfhour = int(values_1d(1))
+
+  tmp2m_ind  = getindex(vars2d, 't2m')   !< indices in the state or control var arrays
+  spfh2m_ind = getindex(vars2d, 'q2m')   
+  soilt1_ind = getindex(vars2d, 'soilt1') 
+  soilw1_ind = getindex(vars2d, 'soilw1') 
+  soilt2_ind = getindex(vars2d, 'soilt2') 
+  soilw2_ind = getindex(vars2d, 'soilw2') 
+  soilt3_ind = getindex(vars2d, 'soilt2') 
+  soilw3_ind = getindex(vars2d, 'soilw3') 
+  soilt4_ind = getindex(vars2d, 'soilt4') 
+  soilw4_ind = getindex(vars2d, 'soilw4') 
+
+  idate(3)=idat(3)  !day
+  idate(2)=idat(2)  !mon
+  idate(4)=idat(4)  !yr
+  idate(1)=idat(1)  !hr
+  fhour = nfhour
+  fha=zero; ida=0; jda=0
+  fha(2)=fhour    ! relative time interval in hours
+  ida(1)=idate(4) ! year
+  ida(2)=idate(2) ! month
+  ida(3)=idate(3) ! day
+  ida(4)=0                ! time zone
+  ida(5)=idate(1) ! hour
+  call w3movdat(fha,ida,jda)
+!
+!   INPUT VARIABLES:
+!     RINC       REAL (5) NCEP RELATIVE TIME INTERVAL
+!                (DAYS, HOURS, MINUTES, SECONDS, MILLISECONDS)
+!     IDAT       INTEGER (8) NCEP ABSOLUTE DATE AND TIME
+!                (YEAR, MONTH, DAY, TIME ZONE,
+!                 HOUR, MINUTE, SECOND, MILLISECOND)
+!
+!   OUTPUT VARIABLES:
+!     JDAT       INTEGER (8) NCEP ABSOLUTE DATE AND TIME
+!                (YEAR, MONTH, DAY, TIME ZONE,
+!                 HOUR, MINUTE, SECOND, MILLISECOND)
+!                (JDAT IS LATER THAN IDAT IF TIME INTERVAL IS POSITIVE.)
+  iadate(1)=jda(5) ! hour
+  iadate(2)=jda(2) ! mon
+  iadate(3)=jda(3) ! day
+  iadate(4)=jda(1) ! year
+  if (nproc .eq. 0) then
+     print *,'idate = ',idate
+     print *,'iadate = ',iadate
+  end if
+
+  dsanl = create_dataset(filenameout, dsfg, copy_vardata=.true., nocompress=nocompress, errcode=iret)
+  if (iret /= 0) then
+     print *,'error creating netcdf file'
+     call stop2(29)
+  endif
+  deallocate(values_1d)
+  allocate(values_1d(1))
+  values_1d(1)=zero
+  call write_vardata(dsanl,'time',values_1d,errcode=iret)
+  if (iret /= 0) then
+     print *,'error writing time'
+     call stop2(29)
+  endif
+  jdat(1) = iadate(4)
+  jdat(2) = iadate(2)
+  jdat(3) = iadate(3)
+  jdat(4) = iadate(1)
+  jdat(5) = jda(6); jdat(6) = jda(7)
+  time_units = get_time_units_from_idate(jdat)
+  call write_attribute(dsanl,'units',time_units,'time',errcode=iret)
+  if (iret /= 0) then
+     print *,'error writing time units attribute'
+     call stop2(29)
+  endif
+
+  if (tmp2m_ind > 0) then
+     call read_vardata(dsfg, 'tmp2m', values_2d, errcode=iret)
+     if (iret /= 0) then
+        print *,'error reading tmp2m'
+        call stop2(29)
+     endif
+     vg = reshape(values_2d,(/nlons*nlats/))
+     call copyfromgrdin(grdin(:,tmp2m_ind,nb,ne),ug)
+     ! add increment to background.
+     values_2d = reshape(ug+vg,(/nlons,nlats/))
+     ! quantize data if lossy compression desired.
+     if (has_attr(dsfg, 'nbits', 'tmp2m') .and. .not. nocompress) then
+       call read_attribute(dsfg, 'nbits', nbits, 'tmp2m')
+       if (.not. allocated(values_2d_tmp)) allocate(values_2d_tmp(nlons,nlats))
+       values_2d_tmp = values_2d
+       call quantize_data(values_2d_tmp, values_2d, nbits, compress_err)
+       call write_attribute(dsanl,&
+       'max_abs_compression_error',compress_err,'tmp2m',errcode=iret)
+       if (iret /= 0) then
+         print *,'error writing tmp2m attribute'
+         call stop2(29)
+       endif
+     endif
+     call write_vardata(dsanl,'tmp2m',values_2d,errcode=iret)
+     if (iret /= 0) then
+        print *,'error writing tmp2m'
+        call stop2(29)
+     endif
+  endif
+  if (spfh2m_ind > 0) then
+     call read_vardata(dsfg, 'spfh2m', values_2d, errcode=iret)
+     if (iret /= 0) then
+        print *,'error reading spfh2m'
+        call stop2(29)
+     endif
+     vg = reshape(values_2d,(/nlons*nlats/))
+     call copyfromgrdin(grdin(:,spfh2m_ind,nb,ne),ug)
+     ! add increment to background.
+     values_2d = reshape(ug+vg,(/nlons,nlats/))
+     ! quantize data if lossy compression desired.
+     if (has_attr(dsfg, 'nbits', 'spfh2m') .and. .not. nocompress) then
+       call read_attribute(dsfg, 'nbits', nbits, 'spfh2m')
+       if (.not. allocated(values_2d_tmp)) allocate(values_2d_tmp(nlons,nlats))
+       values_2d_tmp = values_2d
+       call quantize_data(values_2d_tmp, values_2d, nbits, compress_err)
+       call write_attribute(dsanl,&
+       'max_abs_compression_error',compress_err,'spfh2m',errcode=iret)
+       if (iret /= 0) then
+         print *,'error writing spfh2m attribute'
+         call stop2(29)
+       endif
+     endif
+     call write_vardata(dsanl,'spfh2m',values_2d,errcode=iret)
+     if (iret /= 0) then
+        print *,'error writing spfh2m'
+        call stop2(29)
+     endif
+  endif
+  if (soilt1_ind > 0) then
+     call read_vardata(dsfg, 'soilt1', values_2d, errcode=iret)
+     if (iret /= 0) then
+        print *,'error reading soilt1'
+        call stop2(29)
+     endif
+     vg = reshape(values_2d,(/nlons*nlats/))
+     call copyfromgrdin(grdin(:,soilt1_ind,nb,ne),ug)
+     ! add increment to background.
+     values_2d = reshape(ug+vg,(/nlons,nlats/))
+     ! quantize data if lossy compression desired.
+     if (has_attr(dsfg, 'nbits', 'soilt1') .and. .not. nocompress) then
+       call read_attribute(dsfg, 'nbits', nbits, 'soilt1')
+       if (.not. allocated(values_2d_tmp)) allocate(values_2d_tmp(nlons,nlats))
+       values_2d_tmp = values_2d
+       call quantize_data(values_2d_tmp, values_2d, nbits, compress_err)
+       call write_attribute(dsanl,&
+       'max_abs_compression_error',compress_err,'soilt1',errcode=iret)
+       if (iret /= 0) then
+         print *,'error writing soilt1 attribute'
+         call stop2(29)
+       endif
+     endif
+     call write_vardata(dsanl,'soilt1',values_2d,errcode=iret)
+     if (iret /= 0) then
+        print *,'error writing soilt1'
+        call stop2(29)
+     endif
+  endif
+
+  if (allocated(values_2d)) deallocate(values_2d)
+  if (allocated(values_2d_tmp)) deallocate(values_2d_tmp)
+  if (allocated(values_1d)) deallocate(values_1d)
+
+  call close_dataset(dsfg,errcode=iret)
+  if (iret/=0) then
+     write(6,*)'gridio/writegriddata: gfs model: problem closing netcdf fg dataset, iret=',iret
+     call stop2(23)
+  endif
+  call close_dataset(dsanl,errcode=iret)
+  if (iret/=0) then
+     write(6,*)'gridio/writegriddata: gfs model: problem closing netcdf anal dataset, iret=',iret
+     call stop2(23)
+  endif
+
+  end do backgroundloop ! loop over backgrounds to write out
+  end do ensmemloop ! loop over ens members to write out
+
+ contains
+! copying to grdin (calling regtoreduced if reduced grid)
+ subroutine copyfromgrdin(grdin, field)
+ implicit none
+
+ real(r_single), dimension(:), intent(in)      :: grdin
+ real(r_kind), dimension(:), intent(inout) :: field
+
+ field = grdin
+
+ end subroutine copyfromgrdin
+
+ end subroutine writegriddata_2mDA
 
  subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,grdin,no_inflate_flag)
   use netcdf

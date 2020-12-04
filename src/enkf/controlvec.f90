@@ -47,7 +47,8 @@ use mpisetup, only: mpi_real4,mpi_sum,mpi_comm_io,mpi_in_place,numproc,nproc,&
                 mpi_integer,mpi_wtime,mpi_status,mpi_real8
 
 use gridio,    only: readgriddata, readgriddata_pnc, writegriddata, writegriddata_pnc, &
-                     writeincrement, writeincrement_pnc, readgriddata_2mDA
+                     writeincrement, writeincrement_pnc, readgriddata_2mDA, &
+                     writegriddata_2mDA
 use gridinfo,  only: getgridinfo, gridinfo_cleanup,                    &
                      npts, vars3d_supported, vars2d_supported
 use params,    only: nlevs, nbackgrounds, fgfileprefixes, reducedgrid, &
@@ -378,7 +379,11 @@ if (nproc <= ntasks_io-1) then
       if (write_fv3_incr) then
          call writeincrement(nanal1(nproc),nanal2(nproc),cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
       else
-         call writegriddata(nanal1(nproc),nanal2(nproc),cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
+         if (global_2mDA) then
+             call writegriddata_2mDA(nanal1(nproc),nanal2(nproc),cvars2d,nc2d,ncdim,grdin,no_inflate_flag)
+         else
+             call writegriddata(nanal1(nproc),nanal2(nproc),cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
+         endif
       end if
       if (nproc == 0) then
         if (write_ensmean) then
@@ -398,6 +403,11 @@ if (nproc <= ntasks_io-1) then
 end if ! io task
 
 if (paranc) then
+   if (global_2mDA) then
+      print *,'paranc not supported for global_2mDA'
+      call mpi_barrier(mpi_comm_world,ierr)
+      call mpi_finalize(ierr)
+   endif
    if (write_fv3_incr) then
       call writeincrement_pnc(cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
    else

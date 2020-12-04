@@ -31,7 +31,7 @@ module readconvobs
 
 use kinds, only: r_kind,i_kind,r_single,r_double
 use constants, only: one,zero,deg2rad
-use params, only: npefiles, netcdf_diag, modelspace_vloc
+use params, only: npefiles, netcdf_diag, modelspace_vloc, global_2mDA
 implicit none
 
 private
@@ -255,16 +255,16 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
   character(len=500) :: obsfile
   character(len=4) :: pe_name
   character(len=3) :: obtype
-  integer(i_kind) :: iunit, itype, ipe, i, nobs_curr
+  integer(i_kind) :: iunit, itype, ipe, i, nobs_curr, ityp
   integer(i_kind),dimension(nobtype,2) :: nobs
   real(r_kind) :: errorlimit,errorlimit2,error,pres,obmax
   real(r_kind) :: errorlimit2_obs,errorlimit2_bnd
-  logical :: fexist
+  logical :: fexist, sfctype
 
   real(r_single), allocatable, dimension (:) :: Pressure
   real(r_single), allocatable, dimension (:) :: Analysis_Use_Flag
   real(r_single), allocatable, dimension (:) :: Errinv_Final, GPS_Type
-  real(r_single), allocatable, dimension (:) :: Observation, v_Observation
+  real(r_single), allocatable, dimension (:) :: Observation, Observation_Type, v_Observation
   real(r_single), allocatable, dimension (:) :: Forecast_Saturation_Spec_Hum
 
     ! If ob error > errorlimit or < errorlimit2, skip it.
@@ -278,6 +278,8 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
     obtypeloop: do itype=1, nobtype
 
      obtype = obtypes(itype)
+     ! only read t and q obs for global_2mDA
+     if (global_2mDA .and. obtype .ne. '  t' .or. obtype .ne. '  q') cycle obtypeloop
      peloop: do ipe=0,npefiles
 
         write(pe_name,'(i4.4)') ipe
@@ -305,10 +307,11 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
         endif
 
         allocate(Pressure(nobs_curr), Analysis_Use_Flag(nobs_curr),     &
-                 Errinv_Final(nobs_curr), Observation(nobs_curr))
+                 Observation_Type(nobs_curr),Errinv_Final(nobs_curr), Observation(nobs_curr))
         call nc_diag_read_get_var(iunit, 'Pressure', Pressure)
         call nc_diag_read_get_var(iunit, 'Analysis_Use_Flag', Analysis_Use_Flag)
         call nc_diag_read_get_var(iunit, 'Errinv_Final', Errinv_Final)
+        call nc_diag_read_get_var(iunit, 'Observation_Type', Observation_Type)
 
         if (obtype == ' uv') then
            call nc_diag_read_get_var(iunit, 'u_Observation', Observation)
@@ -332,6 +335,11 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
         num_obs_totdiag = num_obs_totdiag + nobs_curr
         do i = 1, nobs_curr
 
+           ! for global_2mDA skip if not 2m (surface) ob
+           ityp = Observation_Type(i)
+           sfctype=(ityp>179.and.ityp<190).or.(ityp>=192.and.ityp<=199)
+           if (global_2mDA .and. .not. sfctype) cycle
+
            errorlimit2=errorlimit2_obs
 
            if (obtype == 'gps') then
@@ -339,7 +347,7 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
            endif
 
            ! for q, normalize by qsatges
-           if (obtype == '  q') then
+           if (obtype == '  q' .and. .not. global_2mDA) then
               obmax     = abs(Observation(i) / Forecast_Saturation_Spec_Hum(i))
               error     = Errinv_Final(i) * Forecast_Saturation_Spec_Hum(i)
            else
@@ -480,6 +488,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
 
   character(len=10), intent(in) :: id
   integer, intent(in)           :: nanal, nmem
+  integer :: ityp
 
   real(r_double) t1,t2,tsum
   character(len=4) pe_name
@@ -497,7 +506,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
   real(r_kind) :: errorlimit,errorlimit2,error,errororig
   real(r_kind) :: obmax, pres
   real(r_kind) :: errorlimit2_obs,errorlimit2_bnd
-  logical fexist
+  logical fexist, sfctype
   logical twofiles, fexist2
   real(r_single), allocatable, dimension (:) :: Latitude, Longitude, Pressure, Time
   integer(i_kind), allocatable, dimension (:) :: Observation_Type
@@ -540,6 +549,8 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
   obtypeloop: do itype=1, nobtype
 
      obtype = obtypes(itype)
+     ! only read t and q obs for global_2mDA
+     if (global_2mDA .and. obtype .ne. '  t' .or. obtype .ne. '  q') cycle obtypeloop
      peloop: do ipe=0,npefiles
 
         write(pe_name,'(i4.4)') ipe
@@ -578,6 +589,11 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
         call nc_diag_read_get_var(iunit, 'Errinv_Input', Errinv_Input)
         call nc_diag_read_get_var(iunit, 'Errinv_Final', Errinv_Final)
         call nc_diag_read_get_var(iunit, 'Observation_Type', Observation_Type)
+
+        ! for global_2mDA skip if not 2m (surface) ob
+        ityp = Observation_Type(i)
+        sfctype=(ityp>179.and.ityp<190).or.(ityp>=192.and.ityp<=199)
+        if (global_2mDA .and. .not. sfctype) cycle
 
         if (obtype == ' uv') then
            call nc_diag_read_get_var(iunit, 'u_Observation', Observation)
@@ -668,7 +684,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
            endif
 
            ! for q, normalize by qsatges
-           if (obtype == '  q') then
+           if (.not. global_2mDA .and. obtype == '  q') then
               obmax     = abs(real(Observation(i),r_single) / real(Forecast_Saturation_Spec_Hum(i),r_single))
               errororig = real(Errinv_Input(i),r_single) * real(Forecast_Saturation_Spec_Hum(i),r_single)
               error     = real(Errinv_Final(i),r_single) * real(Forecast_Saturation_Spec_Hum(i),r_single)
