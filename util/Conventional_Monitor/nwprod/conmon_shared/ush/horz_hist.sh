@@ -108,7 +108,7 @@
              --run ${RUN}  --cyc ${PDATE} \
              --nobsf ${TANKDIR_conmon}/horz_hist/${run}/nobs.${run}.${PDATE} \
              --lcntf ${TANKDIR_conmon}/horz_hist/${run}/low_cnt.${run}.${PDATE} \
-             --basef ${HOMEgdas_conmon}/fix/gdas_conmon_base.txt
+             --basef ${conmon_base}
 
 
       #--------------------------------

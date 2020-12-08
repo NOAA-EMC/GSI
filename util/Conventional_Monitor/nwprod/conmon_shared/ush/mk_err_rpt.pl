@@ -147,7 +147,21 @@
          #
          my $type_str = $key;
          $type_str =~ s/_00/-0/;
+         $type_str =~ s/_03/-3/;
+         $type_str =~ s/_04/-4/;
+         $type_str =~ s/_05/-5/;
          $type_str =~ s/_/-/;
+
+         #-----------------------------------------------------
+         # All ps plots, and some of the q, t and uv types use
+         # surface time series plots instead of time series.
+         #
+         my $ptype = "time";
+         if( $type_str =~ m/ps/   || 
+             $type_str =~ m/q18/  || $type_str =~ m/t18/ ||
+             $type_str =~ m/uv28/ || $type_str =~ m/uv29/ ) {
+            $ptype = "surftime"; 
+         }
 
          print FILE " $key \n";
          printf FILE "   cycle: % d", $cyc1;  
@@ -157,7 +171,7 @@
          printf FILE "   cycle: % d", $cyc0;
          printf FILE "   count: %6s", $lcf_vals[0];
          printf FILE "   bound: %10.1f \n", $lcf_vals[1];
-         print FILE  "      https://www.emc.ncep.noaa.gov/gmb/gdas/es_conv/index.html?net=$net&run=$run&src=$type_str&typ=count\n\n";
+         print FILE  "      https://www.emc.ncep.noaa.gov/gmb/gdas/es_conv/index.html?net=$net&run=$run&src=$type_str&vtype=count&ptype=$ptype\n\n";
       }
    }
 
