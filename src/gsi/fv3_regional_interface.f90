@@ -18,7 +18,7 @@ subroutine convert_fv3_regional
 !   2017-04-08  parrish
 !   2018-02-16  wu   - read in grid and time infor from fv3 files
 !                      read directly from fv3 files and not writeout GSI internal file 
-!
+!   2020-11-19  Lu & Wang - add time label it for fgat. POC: xuguang.wang@ou.edu
 !
 ! attributes:
 !   language: f90
@@ -37,7 +37,7 @@ subroutine convert_fv3_regional
 !!!!!!!!!!! get grid specs !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   grid_spec='fv3_grid_spec'            ! horizontal grid information
   ak_bk='fv3_akbk'                     ! vertical grid information
-  call bg_fv3regfilenameg%init(grid_spec_input='fv3_grid_spec',ak_bk_input='fv3_akbk')
+  call bg_fv3regfilenameg%init(6,grid_spec_input='fv3_grid_spec',ak_bk_input='fv3_akbk')
   call gsi_rfv3io_get_grid_specs(bg_fv3regfilenameg,ierr)
   if(ierr/=0)then
      write(6,*)' problem in convert_fv3_regional - get_grid_specs   Status = ',ierr

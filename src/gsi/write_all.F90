@@ -22,7 +22,7 @@ subroutine write_all(increment)
 
   use gridmod, only: regional,fv3_regional
   
-  use guess_grids, only: ntguessig
+  use guess_grids, only: ntguessig,ifilesig
 
   use m_gsiBiases, only: gsi_bkgbias_bundle
   use m_gsibiases ,only: nbc
@@ -42,7 +42,6 @@ subroutine write_all(increment)
   use mpeu_util, only: die
 
   use control_vectors, only: control_vector
-  
   implicit none
 
 ! !INPUT PARAMETERS:
@@ -96,6 +95,7 @@ subroutine write_all(increment)
 !   2013-10-19  todling - metguess holds ges fields now
 !   2014-10-05  todling - background biases now held in bundle
 !   2017-10-10  Wu W    - add FV3 option for regional output
+!   2020-11-19  Lu & Wang - modify output filename option for fgat. POC:  xuguang.wang@ou.edu
 !
 ! !REMARKS:
 !
@@ -112,6 +112,7 @@ subroutine write_all(increment)
   integer(i_kind) mype_atm,mype_bias,mype_sfc,iret_bias,ier
   real(r_kind),dimension(:,:),pointer::ges_z=>NULL()
   type(regional_io_class) :: io 
+  logical :: file_exists
 
 #ifndef HAVE_ESMF
 !********************************************************************
@@ -120,7 +121,8 @@ subroutine write_all(increment)
 ! Regional output
   if (regional) then
      if (fv3_regional) then
-        call wrfv3_netcdf(bg_fv3regfilenameg)
+       call bg_fv3regfilenameg%init(ifilesig(ntguessig))
+       call wrfv3_netcdf(bg_fv3regfilenameg)
      else
         call io%write_regional_analysis(mype)
      endif
