@@ -16,6 +16,7 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
 !   2015-04-03 Ling Liu    
 !   2015-09-17 Thomas  - add l4densvar and thin4d to data selection procedure
 !   2016-03-11 j. guo  - Fixed {dlat,dlon}_earth_deg in the obs data stream
+!   2020-05-04  wu   - no rotate_wind for fv3_regional
 !
 !   input argument list:
 !     ithin    - flag to thin data
@@ -41,7 +42,7 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
   use kinds, only: r_kind,r_double,i_kind,r_single
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
        tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
-       rlats,rlons
+       rlats,rlons,fv3_regional
   use qcmod, only: errormod,noiqc
   use convthin, only: make3grids,map3grids,del3grids,use_all
   use constants, only: deg2rad,zero,rad2deg,one_tenth,&
@@ -620,7 +621,7 @@ loopd : do
            woe=obserr
            oelev=r10
 
-           if(regional)then
+           if(regional .and. .not. fv3_regional)then
               u0=uob
               v0=vob
               call rotate_wind_ll2xy(u0,v0,uob,vob,dlon_earth,dlon,dlat)

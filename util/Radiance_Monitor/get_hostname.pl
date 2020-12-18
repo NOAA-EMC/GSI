@@ -17,13 +17,12 @@
    my $my_os = "export MY_OS=$arch";
 
    #
-   #  Determine if installation is on WCOSS, Theia, or Zeus.
+   #  Determine if installation is on cray, wcoss_d, or hera
    #
    if( $arch ne "linux" && $arch ne "aix" ) {
       die( "only linux and aix are supported, $arch is not\n" );
    }
-#   print "\n";
-#   print "arch = $arch\n";
+
 
    my $machine = "";
   
@@ -32,7 +31,6 @@
    # while ccs and (perhaps) wcoss return [hostname].ncep.noaa.gov.  Keep only the
    # actual hostname and see if it matches the node names for zeus, tide, or gyre.
    #
-   my $host_zeus  = 0;
    my $host = "";
    $host = ` hostname `;
    chomp( $host );

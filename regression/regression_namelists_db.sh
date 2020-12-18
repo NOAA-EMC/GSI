@@ -288,8 +288,6 @@ OBS_INPUT::
    amsuabufr        amsua       n19       amsua_n19           0.0      1      1
    mhsbufr          mhs         n19       mhs_n19             0.0      1      1
    tcvitl           tcp         null      tcp                 0.0      0      0
-   modisbufr        modis       aqua      modis_aqua          0.0      1      0
-   modisbufr        modis       terra     modis_terra         0.0      1      0
    mlsbufr          mls30       aura      mls30_aura          1.0      0      0
    seviribufr       seviri      m08       seviri_m08          0.0      5      0
    seviribufr       seviri      m09       seviri_m09          0.0      5      0

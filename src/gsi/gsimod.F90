@@ -18,7 +18,7 @@
      time_window,perturb_obs,perturb_fact,sfcmodel,destroy_obsmod_vars,dsis,&
      dtbduv_on,time_window_max,offtime_data,init_directories,oberror_tune,ext_sonde, &
      blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver,hilbert_curve,&
-     lread_obs_save,lread_obs_skip,time_window_rad, &
+     lread_obs_save,lread_obs_skip,time_window_rad,tcp_posmatch,tcp_box, &
      neutral_stability_windfact_2dvar,use_similarity_2dvar
   use gsi_dbzOper, only: diag_radardbz
 
@@ -27,7 +27,7 @@
      rmesh_vr,zmesh_dbz,zmesh_vr,if_vterminal, if_model_dbz,if_vrobs_raw,&
      minobrangedbz,maxobrangedbz,maxobrangevr,maxtiltvr,missing_to_nopcp,&
      ntilt_radarfiles,whichradar,&
-     minobrangevr,maxtiltdbz,mintiltvr,mintiltdbz
+     minobrangevr,maxtiltdbz,mintiltvr,mintiltdbz,l2rwthin,hurricane_radar 
 
   use obsmod, only: lwrite_predterms, &
      lwrite_peakwt,use_limit,lrun_subdirs,l_foreaft_thin,lobsdiag_forenkf,&
@@ -47,8 +47,8 @@
        
        q_doe_a_136,q_doe_a_137,q_doe_b_136,q_doe_b_137, &
        t_doe_a_136,t_doe_a_137,t_doe_b_136,t_doe_b_137, &
-       uv_doe_a_236,uv_doe_a_237,uv_doe_a_292,uv_doe_b_236,uv_doe_b_237,&
-       uv_doe_b_292
+       uv_doe_a_236,uv_doe_a_237,uv_doe_a_213,uv_doe_b_236,uv_doe_b_237,&
+       uv_doe_b_213
   
   use aircraftinfo, only: init_aircraft,hdist_aircraft,aircraft_t_bc_pof,aircraft_t_bc, &
                           aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail
@@ -131,7 +131,7 @@
   use fgrid2agrid_mod, only: nord_f2a,init_fgrid2agrid,final_fgrid2agrid,set_fgrid2agrid
   use smooth_polcarf, only: norsp,init_smooth_polcas
   use read_l2bufr_mod, only: minnum,del_azimuth,del_elev,del_range,del_time,&
-     range_max,elev_angle_max,initialize_superob_radar,l2superob_only
+     range_max,elev_angle_max,initialize_superob_radar,l2superob_only,radar_sites,radar_box,radar_rmesh,radar_zmesh
   use m_berror_stats,only : berror_stats ! filename if other than "berror_stats"
   use lag_fields,only : infile_lag,lag_nmax_bal,&
                         &lag_vorcore_stderr_a,lag_vorcore_stderr_b,lag_modini
@@ -439,6 +439,7 @@
 !                          model (e.g., HWRF) aircraft recon dynamic
 !                          observation error (DOE) specification to
 !                          GSI namelist level (beneath obsmod.F90).
+!  09-15-2020 Wu        Add option tcp_posmatch to mitigate possibility of erroneous TC initialization
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -532,6 +533,10 @@
 !                        analysis fails if obs file ref time is different from analysis time.
 !
 !     perturb_obs - logical flag to perutrb observation (true=on)
+!     tcp_posmatch - integer =1 to move TC to guess position,
+!                            =2 set pges to the minimum Psfc 
+!     tcp_box      - integer to define the search box size in gridpoints, default =5 
+!                    used with option tcp_posmatch
 !     oberror_tune - logical flag to tune oberror table  (true=on)
 !     perturb_fact -  magnitude factor for observation perturbation
 !     crtm_coeffs_path - path of directory w/ CRTM coeffs files
@@ -661,7 +666,7 @@
        oneobtest,sfcmodel,dtbduv_on,ifact10,l_foto,offtime_data,&
        use_pbl,use_compress,nsig_ext,gpstop,&
        perturb_obs,perturb_fact,oberror_tune,preserve_restart_date, &
-       crtm_coeffs_path,berror_stats, &
+       crtm_coeffs_path,berror_stats,tcp_posmatch,tcp_box, &
        newpc4pred,adp_anglebc,angord,passive_bc,use_edges,emiss_bc,upd_pred,reset_bad_radbc,&
        ssmis_method, ssmis_precond, gmi_method, amsr2_method, bias_zero_start, &
        ec_amv_qc, lobsdiagsave, lobsdiag_forenkf, &
@@ -686,7 +691,7 @@
        minobrangevr, maxtiltdbz, mintiltvr,mintiltdbz,if_vterminal,if_vrobs_raw,&
        if_model_dbz,imp_physics,lupp,netcdf_diag,binary_diag,l_wcp_cwm,aircraft_recon,diag_version,&
        write_fv3_incr,incvars_to_zero,incvars_zero_strat,incvars_efold,diag_version,&
-       cao_check,lcalc_gfdl_cfrac,tau_fcst,efsoi_order,lupdqc,lqcoef,cnvw_option
+       cao_check,lcalc_gfdl_cfrac,tau_fcst,efsoi_order,lupdqc,lqcoef,cnvw_option,l2rwthin,hurricane_radar
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -908,7 +913,7 @@
        
 ! 1/237: Dropsonde observations.
 
-! 292: SFMR observations.
+! 213: SFMR observations.
 
 ! The following correspond to the specific humidity (q) observations:
 
@@ -928,12 +933,12 @@
 !                                'b' coefficients for temperature
 !                                observations.  
 
-!     uv_doe_a_236, uv_doe_a_237, uv_doe_a_292 - wind linear
+!     uv_doe_a_236, uv_doe_a_237, uv_doe_a_213 - wind linear
 !                                                regression derived
 !                                                'a' coefficients for
 !                                                wind observations.
 
-!     uv_doe_b_236, uv_doe_b_237, uv_doe_b_292 - wind linear
+!     uv_doe_b_236, uv_doe_b_237, uv_doe_b_213 - wind linear
 !                                                regression derived
 !                                                'b' coefficients for
 !                                                wind observations.
@@ -947,7 +952,7 @@
        pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres,cld_det_dec2bin, &
        q_doe_a_136,q_doe_a_137,q_doe_b_136,q_doe_b_137, &
        t_doe_a_136,t_doe_a_137,t_doe_b_136,t_doe_b_137, &
-       uv_doe_a_236,uv_doe_a_237,uv_doe_a_292,uv_doe_b_236,uv_doe_b_237,uv_doe_b_292       
+       uv_doe_a_236,uv_doe_a_237,uv_doe_a_213,uv_doe_b_236,uv_doe_b_237,uv_doe_b_213       
 
 ! OBS_INPUT (controls input data):
 !      dmesh(max(dthin))- thinning mesh for each group
@@ -990,7 +995,7 @@
 !                             files are very large and hard to work with)
 
   namelist/superob_radar/del_azimuth,del_elev,del_range,del_time,&
-       elev_angle_max,minnum,range_max,l2superob_only
+       elev_angle_max,minnum,range_max,l2superob_only,radar_sites,radar_box,radar_rmesh,radar_zmesh
 
 ! LAG_DATA (lagrangian data assimilation related variables):
 !     lag_accur - Accuracy used to decide whether or not a balloon is on the grid

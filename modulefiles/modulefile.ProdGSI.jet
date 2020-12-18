@@ -1,31 +1,27 @@
 #%Module######################################################################
-##                                                       Russ.Treadon@noaa.gov
-##                                                           NOAA/NWS/NCEP/EMC
-## GDAS_ENKF v6.2.3
+## NOAA-EMC/GSI
 ##_____________________________________________________
 #proc ModulesHelp { } {
-#puts stderr "Set environment veriables for GSI build with CMake"
+#puts stderr "Set environment variables for NOAA-EMC/GSI"
 #puts stderr "This module initializes the environment "
 #puts stderr "for the Intel Compiler Suite $version\n"
 #}
-#module-whatis " GDAS_ENKF whatis description"
+#module-whatis " NOAA-EMC/GSI whatis description"
 #
 #
-module load newdefaults
-module load intel/2016.2.181 
-module load impi/5.1.1.109
-#
-module load szip/2.1   
-module load hdf5/1.8.9
-module load netcdf4/4.2.1.1  
 
-export COREPATH=/lfs3/projects/hfv3gfs/nwprod/lib
-export COREPATH=/mnt/lfs3/projects/hfv3gfs/gwv/ljtjet/lib
+module load intel/18.0.5.274
+module load impi
+#
+module load szip/2.1
+module load hdf5/1.8.9
+
+export COREPATH=/lfs4/HFIP/hfv3gfs/gwv/l0530/lib
 export NCEPLIBS=$COREPATH
 module use $NCEPLIBS/modulefiles
 
-export FFLAGS="-openmp"
-export LDFLAGS="-openmp"
+export FFLAGS="-qopenmp"
+export LDFLAGS="-qopenmp"
 module load bacio-intel-sandybridge/2.0.2
 module load crtm-intel-sandybridge/2.2.5
 module load bufr-intel-sandybridge/11.1.0
@@ -35,10 +31,7 @@ module load w3emc-intel-sandybridge/2.2.0
 module load w3nco-intel-sandybridge/2.0.6
 module load sigio-intel-sandybridge/2.0.1
 module load sfcio-intel-sandybridge/1.0.0
+module load ip-intel-sandybridge/3.0.0
 
-module use /home/George.Vandenberghe/t1/l1025/lib/modulefiles
-module load hdf5
-module load netcdf
 
-export NETCDF=${NETCDF4}
-export NETCDF_DIR=${NETCDF4}
+module load netcdfp/4.7.4
