@@ -26,8 +26,8 @@ function uvsatwind (args)
 
    'open anal.ctl'
    'open guess.ctl'
-   'open 'plotfile2'_grads_anl.ctl'
-   'open 'plotfile2'_grads_ges.ctl'
+   'open 'plotfile2'.grads.anl.ctl'
+   'open 'plotfile2'.grads.ges.ctl'
    say  'open the file:' plotfile2'_grads_anl.ctl'
 
    if(plotfile = uv242 | plotfile = uv252);nhe=3;endif
@@ -131,7 +131,7 @@ function plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,levx,levx1,hint,var)
 
    if(var=u); 'd UGRDprs.1-UGRDprs.2';endif
    if(var=v); 'd VGRDprs.1-VGRDprs.2';endif
-*   'cbarb'
+   'colorbar.gs'
    'set digsiz 0.12'
    levy=levx-hint
    ley1=levx+hint+1
@@ -165,7 +165,7 @@ function plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,levx,levx1,hint,var)
    'defint.gs  1.0 0'
    if(var=u); 'd UGRDprs.1-UGRDprs.2';endif
    if(var=v); 'd VGRDprs.1-VGRDprs.2';endif
-*   'cbarb'
+   'colorbar.gs'
    'set ccolor 6'
    'set digsiz 0.12'
    levy=levx-hint
@@ -197,7 +197,7 @@ function plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,levx,levx1,hint,var)
    'defint.gs  1.0 0'
    if(var=u); 'd UGRDprs.1-UGRDprs.2';endif
    if(var=v); 'd VGRDprs.1-VGRDprs.2';endif
-*   'cbarb'
+   'colorbar.gs'
    'set ccolor 98'
    if(var=u)
       'draw title  Wind(u) INCT(m/s) 'levx'mb at 'rdate'z'
@@ -219,19 +219,19 @@ function plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,levx,levx1,hint,var)
    if(var=v)
       'd VGRDprs.1'
    endif
-*   'cbarb'
    'set digsiz 0.12'
    'set gxout contour'
    'set clevs'
    'set ccolor 98'
-*   'set cint 0'
+
    if(var=u)
       'd UGRDprs.1'
    endif
    if(var=v)
       'd VGRDprs.1'
    endif
-*   'cbarb'
+
+   'colorbar.gs'
    'set ccolor 98'
    if(var=u)
       'draw title  Wind(u) analysis at 'rdate'z'
