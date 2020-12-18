@@ -155,6 +155,7 @@ module obsmod
 !                          model (e.g., HWRF) aircraft recon dynamic
 !                          observation error (DOE) specification to
 !                          GSI namelist level.  
+!  2020-09-15  Wu        - add option tcp_posmatch to mitigate possibility of erroneous TC initialization
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -174,6 +175,9 @@ module obsmod
 ! Variable Definitions:
 !   def oberror_tune - namelist logical to tune (=true) oberror
 !   def perturb_obs  - namelist logical to perturb (=true) observations
+!   def tcp_posmatch - namelist integer =1 to move TC to guess position,
+!                                       =2 set pges to the minimum Psfc 
+!   def tcp_box      - namelist integer (=5) to define search box size in gridpoints
 !   def perturb_fact - namelist scaling factor for observation perturbations
 !   def write_diag   - namelist logical array to compute/write (=true) diag files
 !   def diag_radardbz- namelist logical to compute/write (=true) radar
@@ -427,8 +431,8 @@ module obsmod
   public :: diag_radardbz
   public :: lsaveobsens
   public ::                  iout_cldch, mype_cldch
-  public ::          nprof_gps,time_offset,ianldate
-  public :: iout_oz,iout_co,dsis,ref_obs,obsfile_all,lobserver,perturb_obs,ditype,dsfcalc,dplat
+  public ::          nprof_gps,time_offset,ianldate,tcp_box
+  public :: iout_oz,iout_co,dsis,ref_obs,obsfile_all,lobserver,tcp_posmatch,perturb_obs,ditype,dsfcalc,dplat
   public :: time_window,dval,dtype,dfile,dirname,obs_setup,oberror_tune,offtime_data
   public :: lobsdiagsave,lobsdiag_forenkf,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel,ext_sonde
   public :: neutral_stability_windfact_2dvar
@@ -596,7 +600,7 @@ module obsmod
   real(r_kind) ,allocatable,dimension(:):: dval
   real(r_kind) ,allocatable,dimension(:):: time_window
 
-  integer(i_kind) ntilt_radarfiles
+  integer(i_kind) ntilt_radarfiles,tcp_posmatch,tcp_box
 
   logical ::  doradaroneob
   logical :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw, l2rwthin
@@ -754,6 +758,8 @@ contains
 
 !   Set logical flag
     perturb_obs = .false.   ! .true. = perturb observations
+    tcp_posmatch = 0     
+    tcp_box = 5     
     oberror_tune = .false.   ! .true. = tune oberror
     perturb_fact = one 
     do i=0,50
