@@ -166,11 +166,13 @@
          print FILE " $key \n";
          printf FILE "   cycle: % d", $cyc1;  
          printf FILE "   count: %6s", $plcf_vals[0];
-         printf FILE "   bound: %10.1f\n", $plcf_vals[1];
+         printf FILE "   bound: %10.1f", $plcf_vals[1];
+         printf FILE "     avg: %10.1f \n", $plcf_vals[2];
 
          printf FILE "   cycle: % d", $cyc0;
          printf FILE "   count: %6s", $lcf_vals[0];
-         printf FILE "   bound: %10.1f \n", $lcf_vals[1];
+         printf FILE "   bound: %10.1f", $lcf_vals[1];
+         printf FILE "     avg: %10.1f \n", $lcf_vals[2];
          print FILE  "      https://www.emc.ncep.noaa.gov/gmb/gdas/es_conv/index.html?net=$net&run=$run&src=$type_str&vtype=count&ptype=$ptype\n\n";
       }
    }
