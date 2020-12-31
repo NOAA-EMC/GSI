@@ -264,7 +264,8 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
   real(r_single), allocatable, dimension (:) :: Pressure
   real(r_single), allocatable, dimension (:) :: Analysis_Use_Flag
   real(r_single), allocatable, dimension (:) :: Errinv_Final, GPS_Type
-  real(r_single), allocatable, dimension (:) :: Observation, Observation_Type, v_Observation
+  real(r_single), allocatable, dimension (:) :: Observation, v_Observation
+  integer(i_kind), allocatable, dimension (:) :: Observation_Type
   real(r_single), allocatable, dimension (:) :: Forecast_Saturation_Spec_Hum
 
     ! If ob error > errorlimit or < errorlimit2, skip it.
@@ -279,7 +280,7 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
 
      obtype = obtypes(itype)
      ! only read t and q obs for global_2mDA
-     if (global_2mDA .and. obtype .ne. '  t' .or. obtype .ne. '  q') cycle obtypeloop
+     if (global_2mDA .and. (obtype .ne. '  t' .or. obtype .ne. '  q')) cycle obtypeloop
      peloop: do ipe=0,npefiles
 
         write(pe_name,'(i4.4)') ipe
@@ -386,7 +387,7 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
            endif
         end do
 
-        deallocate(Pressure, Analysis_Use_Flag, Errinv_Final, Observation)
+        deallocate(Pressure, Analysis_Use_Flag, Errinv_Final, Observation_Type, Observation)
 
         if (obtype == ' uv') then
            deallocate(v_Observation)
@@ -550,7 +551,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
 
      obtype = obtypes(itype)
      ! only read t and q obs for global_2mDA
-     if (global_2mDA .and. obtype .ne. '  t' .or. obtype .ne. '  q') cycle obtypeloop
+     if (global_2mDA .and. (obtype .ne. '  t' .or. obtype .ne. '  q')) cycle obtypeloop
      peloop: do ipe=0,npefiles
 
         write(pe_name,'(i4.4)') ipe
@@ -589,11 +590,6 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
         call nc_diag_read_get_var(iunit, 'Errinv_Input', Errinv_Input)
         call nc_diag_read_get_var(iunit, 'Errinv_Final', Errinv_Final)
         call nc_diag_read_get_var(iunit, 'Observation_Type', Observation_Type)
-
-        ! for global_2mDA skip if not 2m (surface) ob
-        ityp = Observation_Type(i)
-        sfctype=(ityp>179.and.ityp<190).or.(ityp>=192.and.ityp<=199)
-        if (global_2mDA .and. .not. sfctype) cycle
 
         if (obtype == ' uv') then
            call nc_diag_read_get_var(iunit, 'u_Observation', Observation)
@@ -677,6 +673,10 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
         errorlimit2=errorlimit2_obs
 
         do i = 1, nobs
+           ! for global_2mDA skip if not 2m (surface) ob
+           ityp = Observation_Type(i)
+           sfctype=(ityp>179.and.ityp<190).or.(ityp>=192.and.ityp<=199)
+           if (global_2mDA .and. .not. sfctype) cycle
            nobdiag = nobdiag + 1
            ! special handling for error limits for GPS bend angle
            if (obtype == 'gps') then
