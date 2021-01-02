@@ -1930,6 +1930,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                                             dlon_earth,dlat_earth,idate,t4dv-toff,      &
                                             obsdat(5,k),obsdat(6,k),usage)
                  endif
+                 if (do_global_2mDA) usage=zero ! keep sfc obs 
                  !retrieve wind sensor height
                  if (twodvar_regional)  then
                     if ( kx==288.or.kx==295 .or. (gustob .and. (kx==188.or.kx==195)) )  then
@@ -2061,7 +2062,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (aircraftobs .and. aircraft_t_bc .and. acft_profl_file) then
                     call errormod_aircraft(pqm,tqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm,hdr3)
                  else
-                    call errormod(pqm,tqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
+                    if (.not. (sfctype .and. do_global_2mDA)) then
+                       call errormod(pqm,tqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
+                    endif
                  end if
                  toe=obserr(3,k)*errout
                  qtflg=tvflg(k) 
@@ -2316,7 +2319,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  end if
                  qobcon=obsdat(2,k)*convert
                  tdry=r999
-                 if (tqm(k)<lim_tqm) tdry=(obsdat(3,k)+t0c)/(one+fv*qobcon)
+                 if (sfctype .and. do_global_2mDA) then
+                    if (tqm(k) < 10) tdry=(obsdat(3,k)+t0c)/(one+fv*qobcon)
+                 else
+                    if (tqm(k)<lim_tqm) tdry=(obsdat(3,k)+t0c)/(one+fv*qobcon)
+                 endif
                  cdata_all(1,iout)=qoe                     ! q error   
                  cdata_all(2,iout)=dlon                    ! grid relative longitude
                  cdata_all(3,iout)=dlat                    ! grid relative latitude

@@ -391,7 +391,11 @@ if (nproc <= ntasks_io-1) then
            if (write_fv3_incr) then
               call writeincrement(0,0,cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin_mean,no_inflate_flag)
            else
-              call writegriddata(0,0,cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin_mean,no_inflate_flag)
+              if (global_2mDA) then
+                 call writegriddata_2mDA(0,0,cvars2d,nc2d,ncdim,grdin_mean,no_inflate_flag)
+              else
+                 call writegriddata(0,0,cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin_mean,no_inflate_flag)
+              endif
            end if
         endif
         deallocate(grdin_mean)

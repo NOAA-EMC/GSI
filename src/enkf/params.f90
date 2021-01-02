@@ -207,6 +207,7 @@ logical,public :: netcdf_diag = .false.
 ! use fv3 cubed-sphere tiled restart files
 logical,public :: fv3_native = .false.
 character(len=500),public :: fv3fixpath = ' '
+character(len=24),public :: diagprefix = 'diag'
 integer(i_kind),public :: ntiles=6
 integer(i_kind),public :: nx_res=0,ny_res=0
 logical,public ::l_pres_add_saved
@@ -240,7 +241,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
                    lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
                    newpc4pred,nmmb,nhr_anal,nhr_state, fhr_assim,nbackgrounds,nstatefields, &
-                   save_inflation,nobsl_max,lobsdiag_forenkf,netcdf_diag,&
+                   save_inflation,nobsl_max,lobsdiag_forenkf,netcdf_diag,diagprefix,&
                    letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs,npefiles,&
                    getkf,getkf_inflation,denkf,modelspace_vloc,dfs_sort,write_spread_diag,&
                    covinflatenh,covinflatesh,covinflatetr,lnsigcovinfcutoff,letkf_bruteforce_search,&

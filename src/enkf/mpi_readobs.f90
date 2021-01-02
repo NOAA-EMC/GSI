@@ -90,7 +90,8 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
     id = 'ensmean'
     if(nproc == 0)call get_num_convobs(obspath,datestring,nobs_conv,nobs_convdiag,id)
     if (global_2mDA) then
-       nobs_sat=0; nobs_conv=0; nobs_satdiag=0; nobs_ozdiag=0
+       if(nproc == iozproc) nobs_oz=0; nobs_ozdiag=0
+       if(nproc == isatproc) nobs_sat=0; nobs_satdiag=0
     else
        if(nproc == iozproc)call get_num_ozobs(obspath,datestring,nobs_oz,nobs_ozdiag,id)
        if(nproc == isatproc)call get_num_satobs(obspath,datestring,nobs_sat,nobs_satdiag,id)
@@ -101,6 +102,7 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
     call mpi_bcast(nobs_ozdiag,1,mpi_integer,iozproc,mpi_comm_world,ierr)
     call mpi_bcast(nobs_sat,1,mpi_integer,isatproc,mpi_comm_world,ierr)
     call mpi_bcast(nobs_satdiag,1,mpi_integer,isatproc,mpi_comm_world,ierr)
+    call mpi_barrier(mpi_comm_world,ierr)
     if(nproc == 0)print *,'nobs_conv, nobs_oz, nobs_sat = ',nobs_conv,nobs_oz,nobs_sat
     if(nproc == 0)print *,'total diag nobs_conv, nobs_oz, nobs_sat = ', nobs_convdiag, nobs_ozdiag, nobs_satdiag
     nobs_tot = nobs_conv + nobs_oz + nobs_sat
