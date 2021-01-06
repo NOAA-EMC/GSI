@@ -702,10 +702,10 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
            else
               pres = Pressure(i)
            endif
-           if (Analysis_Use_Flag(i) < zero .or.                  &
-               error < errorlimit .or. error > errorlimit2 .or.  &
+           if (Analysis_Use_Flag(i) < zero) cycle
+           if (error < errorlimit .or. error > errorlimit2 .or.  &
                abs(obmax) > 1.e9_r_kind) cycle
-           if (.not. modelspace_vloc .and. &
+           if (.not. modelspace_vloc .and.  &
               (pres < 0.001_r_kind .or. pres > 1200._r_kind)) cycle
            ! skipping sst obs since ENKF does not how how to handle them yet.
            if (obtype == 'sst') cycle
@@ -721,9 +721,8 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
            x_time(nob)  = Time(i)
 
            ! observation errors
-           if (errororig > 1.e-5_r_kind) then
-              x_errorig(nob) = (one/errororig)**2
-           else
+           x_errorig(nob) = (one/errororig)**2
+           if (x_errorig(nob) > 1.e10) then
               x_errorig(nob) = 1.e10_r_kind
            endif
            x_err(nob)   = (one/error)**2
@@ -795,13 +794,13 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
               endif
 
               ! normalize q by qsatges
-              if (obtype == '  q') then
+              if (obtype == '  q' .and. .not. global_2mDA) then
                  hx(nob) = hx(nob) / Forecast_Saturation_Spec_Hum(i)
               endif
            endif
 
            ! normalize q by qsatges
-           if (obtype == '  q') then
+           if (obtype == '  q' .and. .not. global_2mDA) then
               x_obs(nob)   = x_obs(nob) /Forecast_Saturation_Spec_Hum(i)
               hx_mean(nob)     = hx_mean(nob) /Forecast_Saturation_Spec_Hum(i)
               hx_mean_nobc(nob) = hx_mean_nobc(nob) /Forecast_Saturation_Spec_Hum(i)

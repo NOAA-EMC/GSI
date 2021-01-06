@@ -1930,7 +1930,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                                             dlon_earth,dlat_earth,idate,t4dv-toff,      &
                                             obsdat(5,k),obsdat(6,k),usage)
                  endif
-                 if (do_global_2mDA) usage=zero ! keep sfc obs 
+                 if (do_global_2mDA) usage=zero ! keep sfc obs for 2mDA
                  !retrieve wind sensor height
                  if (twodvar_regional)  then
                     if ( kx==288.or.kx==295 .or. (gustob .and. (kx==188.or.kx==195)) )  then
