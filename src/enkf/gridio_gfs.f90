@@ -56,7 +56,7 @@
  private
  public :: readgriddata, readgriddata_pnc, writegriddata, writegriddata_pnc
  public :: readgriddata_2mDA,writeincrement, writeincrement_pnc, &
-           writegriddata_2mDA
+           writegriddata_2mDA, writeincrement_2mDA
 
  contains
 
@@ -3720,6 +3720,275 @@
  end subroutine copyfromgrdin
 
  end subroutine writegriddata
+
+ subroutine writeincrement_2mDA(nanal1,nanal2,vars2d,n2d,ndim,grdin,no_inflate_flag)
+  use netcdf
+  use params, only: nbackgrounds,fgsfcfileprefixes,incsfcfileprefixes,&
+                    datestring,nhr_anal,write_ensmean,reducedgrid
+  use mpi
+  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                          read_attribute, close_dataset, get_dim, read_vardata,&
+                          create_dataset, get_idate_from_time_units, &
+                          get_time_units_from_idate, write_vardata, &
+                          write_attribute, quantize_data, has_var, has_attr
+  implicit none
+
+  integer, intent(in) :: nanal1,nanal2
+  character(len=max_varname_length), dimension(n2d), intent(in) :: vars2d
+  integer, intent(in) :: n2d,ndim
+  real(r_single), dimension(npts,ndim,nbackgrounds,1), intent(inout) :: grdin
+  logical, intent(in) :: no_inflate_flag
+  character(len=500):: filenamein, filenameout
+  integer(i_kind) :: j, nb, ne, nanal
+  character(len=3) charnanal
+  type(Dataset) :: dsfg
+
+  integer(i_kind) :: iret
+
+  integer(i_kind) :: tmp2m_ind, spfh2m_ind, soilt1_ind, soilt2_ind, soilt3_ind, &
+                     soilt4_ind,soilw1_ind, soilw2_ind, soilw3_ind, soilw4_ind
+
+  ! netcdf things
+  integer(i_kind) :: dimids(2), ncstart(2), nccount(2)
+  integer(i_kind) :: ncid_out, lon_dimid, lat_dimid
+  integer(i_kind) :: lonvarid, latvarid, &
+                     tmp2mvarid, spfh2mvarid, &
+                     soilt1varid, soilt2varid, soilt3varid, soilt4varid, &
+                     soilw1varid, soilw2varid, soilw3varid, soilw4varid
+  integer(i_kind) :: iadateout
+
+  ! fixed fields such as lat, lon, levs
+  real(r_kind),dimension(nlons) :: deglons
+  real(r_kind),dimension(nlats) :: deglats
+
+  ! increment
+  real(r_kind), dimension(nlons*nlats) :: inc
+  real(r_single), allocatable, dimension(:,:) :: inc2d, inc2dout
+  real(r_kind), allocatable, dimension(:) :: values_1d
+
+  read(datestring,*) iadateout
+
+  ncstart = (/1, 1/)
+  nccount = (/nlons, nlats/)
+
+  ne = 0
+  ensmemloop: do nanal=nanal1,nanal2
+  ne = ne + 1
+  write(charnanal,'(i3.3)') nanal
+  backgroundloop: do nb=1,nbackgrounds
+
+  if (nanal == 0 .and. write_ensmean) then
+     filenamein = trim(adjustl(datapath))//trim(adjustl(fgsfcfileprefixes(nb)))//"ensmean"
+     filenameout = trim(adjustl(datapath))//trim(adjustl(incsfcfileprefixes(nb)))//"ensmean"
+  else
+     if(no_inflate_flag) then
+       filenameout = trim(adjustl(datapath))//trim(adjustl(incsfcfileprefixes(nb)))//"nimem"//charnanal
+     else
+       filenameout = trim(adjustl(datapath))//trim(adjustl(incsfcfileprefixes(nb)))//"mem"//charnanal
+     end if
+     filenamein = trim(adjustl(datapath))//trim(adjustl(fgsfcfileprefixes(nb)))//"mem"//charnanal
+  endif
+
+  ! create the output netCDF increment file
+  call nccheck_incr(nf90_create(path=trim(filenameout), cmode=nf90_netcdf4, ncid=ncid_out))
+
+  ! create dimensions based on analysis resolution, not guess
+  call nccheck_incr(nf90_def_dim(ncid_out, "lon", nlons, lon_dimid))
+  call nccheck_incr(nf90_def_dim(ncid_out, "lat", nlats, lat_dimid))
+  dimids = (/ lon_dimid, lat_dimid /)
+  ! create variables
+  call nccheck_incr(nf90_def_var(ncid_out, "lon", nf90_real, (/lon_dimid/), lonvarid))
+  call nccheck_incr(nf90_def_var(ncid_out, "lat", nf90_real, (/lat_dimid/), latvarid))
+  call nccheck_incr(nf90_def_var(ncid_out, "tmp2m_inc", nf90_real, dimids, tmp2mvarid))
+  call nccheck_incr(nf90_def_var(ncid_out, "spfh2m_inc", nf90_real, dimids, spfh2mvarid))
+  call nccheck_incr(nf90_def_var(ncid_out, "soilt1_inc", nf90_real, dimids, soilt1varid))
+  call nccheck_incr(nf90_def_var(ncid_out, "soilt2_inc", nf90_real, dimids, soilt2varid))
+  call nccheck_incr(nf90_def_var(ncid_out, "soilt3_inc", nf90_real, dimids, soilt3varid))
+  call nccheck_incr(nf90_def_var(ncid_out, "soilt4_inc", nf90_real, dimids, soilt4varid))
+  call nccheck_incr(nf90_def_var(ncid_out, "soilw1_inc", nf90_real, dimids, soilw1varid))
+  call nccheck_incr(nf90_def_var(ncid_out, "soilw2_inc", nf90_real, dimids, soilw2varid))
+  call nccheck_incr(nf90_def_var(ncid_out, "soilw3_inc", nf90_real, dimids, soilw3varid))
+  call nccheck_incr(nf90_def_var(ncid_out, "soilw4_inc", nf90_real, dimids, soilw4varid))
+  ! place global attributes to serial calc_increment output
+  call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "source", "GSI EnKF"))
+  call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "comment", &
+                    "global landsfc anal increment from writeincrement_2mDA"))
+  call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "analysis_time", iadateout))
+  call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "IAU_hour_from_guess", nhr_anal(nb)))
+  ! add units to lat/lon because that's what the calc_increment utility has
+  call nccheck_incr(nf90_put_att(ncid_out, lonvarid, "units", "degrees_east"))
+  call nccheck_incr(nf90_put_att(ncid_out, latvarid, "units", "degrees_north"))
+  ! end the netCDF file definition
+  call nccheck_incr(nf90_enddef(ncid_out))
+
+  tmp2m_ind  = getindex(vars2d, 't2m')   !< indices in the state or control var arrays
+  spfh2m_ind = getindex(vars2d, 'q2m')   
+  soilt1_ind = getindex(vars2d, 'soilt1') 
+  soilw1_ind = getindex(vars2d, 'soilw1') 
+  soilt2_ind = getindex(vars2d, 'soilt2') 
+  soilw2_ind = getindex(vars2d, 'soilw2') 
+  soilt3_ind = getindex(vars2d, 'soilt3') 
+  soilw3_ind = getindex(vars2d, 'soilw3') 
+  soilt4_ind = getindex(vars2d, 'soilt4') 
+  soilw4_ind = getindex(vars2d, 'soilw4') 
+
+  dsfg = open_dataset(filenamein)
+
+  ! longitudes
+  call read_vardata(dsfg, 'grid_xt', values_1d, errcode=iret)
+  deglons(:) = values_1d
+  call nccheck_incr(nf90_put_var(ncid_out, lonvarid, deglons, &
+                       start = (/1/), count = (/nlons/)))
+
+  call read_vardata(dsfg, 'grid_yt', values_1d, errcode=iret)
+  ! latitudes
+  do j=1,nlats
+    deglats(nlats-j+1) = values_1d(j)
+  end do
+
+  call nccheck_incr(nf90_put_var(ncid_out, latvarid, deglats, &
+                       start = (/1/), count = (/nlats/)))
+
+  allocate(inc2d(nlons,nlats))
+  allocate(inc2dout(nlons,nlats))
+
+  ! tmp2m increment
+  inc(:) = zero
+  if (tmp2m_ind > 0) then
+    call copyfromgrdin(grdin(:,tmp2m_ind,nb,ne),inc)
+  endif
+  inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+  do j=1,nlats
+    inc2dout(:,nlats-j+1) = inc2d(:,j)
+  end do
+  call nccheck_incr(nf90_put_var(ncid_out, tmp2mvarid, sngl(inc2dout), &
+                      start = ncstart, count = nccount))
+  ! spfh2m increment
+  inc(:) = zero
+  if (tmp2m_ind > 0) then
+    call copyfromgrdin(grdin(:,spfh2m_ind,nb,ne),inc)
+  endif
+  inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+  do j=1,nlats
+    inc2dout(:,nlats-j+1) = inc2d(:,j)
+  end do
+  call nccheck_incr(nf90_put_var(ncid_out, spfh2mvarid, sngl(inc2dout), &
+                      start = ncstart, count = nccount))
+  ! soilt1 increment
+  inc(:) = zero
+  if (tmp2m_ind > 0) then
+    call copyfromgrdin(grdin(:,soilt1_ind,nb,ne),inc)
+  endif
+  inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+  do j=1,nlats
+    inc2dout(:,nlats-j+1) = inc2d(:,j)
+  end do
+  call nccheck_incr(nf90_put_var(ncid_out, soilt1varid, sngl(inc2dout), &
+                      start = ncstart, count = nccount))
+  ! soilt2 increment
+  inc(:) = zero
+  if (tmp2m_ind > 0) then
+    call copyfromgrdin(grdin(:,soilt2_ind,nb,ne),inc)
+  endif
+  inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+  do j=1,nlats
+    inc2dout(:,nlats-j+1) = inc2d(:,j)
+  end do
+  call nccheck_incr(nf90_put_var(ncid_out, soilt2varid, sngl(inc2dout), &
+                      start = ncstart, count = nccount))
+  ! soilt3 increment
+  inc(:) = zero
+  if (tmp2m_ind > 0) then
+    call copyfromgrdin(grdin(:,soilt3_ind,nb,ne),inc)
+  endif
+  inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+  do j=1,nlats
+    inc2dout(:,nlats-j+1) = inc2d(:,j)
+  end do
+  call nccheck_incr(nf90_put_var(ncid_out, soilt3varid, sngl(inc2dout), &
+                      start = ncstart, count = nccount))
+  ! soilt4 increment
+  inc(:) = zero
+  if (tmp2m_ind > 0) then
+    call copyfromgrdin(grdin(:,soilt4_ind,nb,ne),inc)
+  endif
+  inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+  do j=1,nlats
+    inc2dout(:,nlats-j+1) = inc2d(:,j)
+  end do
+  call nccheck_incr(nf90_put_var(ncid_out, soilt4varid, sngl(inc2dout), &
+                      start = ncstart, count = nccount))
+  ! soilw1 increment
+  inc(:) = zero
+  if (tmp2m_ind > 0) then
+    call copyfromgrdin(grdin(:,soilw1_ind,nb,ne),inc)
+  endif
+  inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+  do j=1,nlats
+    inc2dout(:,nlats-j+1) = inc2d(:,j)
+  end do
+  call nccheck_incr(nf90_put_var(ncid_out, soilw1varid, sngl(inc2dout), &
+                      start = ncstart, count = nccount))
+  ! soilw2 increment
+  inc(:) = zero
+  if (tmp2m_ind > 0) then
+    call copyfromgrdin(grdin(:,soilw2_ind,nb,ne),inc)
+  endif
+  inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+  do j=1,nlats
+    inc2dout(:,nlats-j+1) = inc2d(:,j)
+  end do
+  call nccheck_incr(nf90_put_var(ncid_out, soilw2varid, sngl(inc2dout), &
+                      start = ncstart, count = nccount))
+  ! soilw3 increment
+  inc(:) = zero
+  if (tmp2m_ind > 0) then
+    call copyfromgrdin(grdin(:,soilw3_ind,nb,ne),inc)
+  endif
+  inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+  do j=1,nlats
+    inc2dout(:,nlats-j+1) = inc2d(:,j)
+  end do
+  call nccheck_incr(nf90_put_var(ncid_out, soilw3varid, sngl(inc2dout), &
+                      start = ncstart, count = nccount))
+  ! soilw4 increment
+  inc(:) = zero
+  if (tmp2m_ind > 0) then
+    call copyfromgrdin(grdin(:,soilw4_ind,nb,ne),inc)
+  endif
+  inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+  do j=1,nlats
+    inc2dout(:,nlats-j+1) = inc2d(:,j)
+  end do
+  call nccheck_incr(nf90_put_var(ncid_out, soilw4varid, sngl(inc2dout), &
+                    start = ncstart, count = nccount))
+
+
+  ! deallocate things
+  deallocate(inc2d,inc2dout)
+
+  end do backgroundloop ! loop over backgrounds to read in
+  end do ensmemloop ! loop over ens members to read in
+
+  return
+
+ contains
+! copying to grdin (calling regtoreduced if reduced grid)
+ subroutine copyfromgrdin(grdin, field)
+ implicit none
+
+ real(r_single), dimension(:), intent(in)      :: grdin
+ real(r_kind), dimension(:), intent(inout) :: field
+
+ if (reducedgrid) then
+   call reducedtoreg(grdin, field)
+ else
+   field = grdin
+ endif
+
+ end subroutine copyfromgrdin
+
+ end subroutine writeincrement_2mDA
 
  subroutine writeincrement(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,grdin,no_inflate_flag)
   use netcdf

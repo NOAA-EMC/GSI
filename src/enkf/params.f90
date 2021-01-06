@@ -77,6 +77,7 @@ character(len=120),dimension(7),public :: statesfcfileprefixes
 character(len=120),dimension(7),public :: anlfileprefixes
 character(len=120),dimension(7),public :: anlsfcfileprefixes
 character(len=120),dimension(7),public :: incfileprefixes
+character(len=120),dimension(7),public :: incsfcfileprefixes
 ! analysis date string (YYYYMMDDHH)
 character(len=10), public ::  datestring
 ! filesystem path to input files (first-guess, GSI diagnostic files).
@@ -232,7 +233,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh,&
                    lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh,&
                    fgfileprefixes,fgsfcfileprefixes,anlfileprefixes, &
-                   anlsfcfileprefixes,incfileprefixes, global_2mDA,&
+                   anlsfcfileprefixes,incfileprefixes,incsfcfileprefixes,global_2mDA,&
                    statefileprefixes,statesfcfileprefixes, &
                    covl_minfact,covl_efold,lupd_obspace_serial,letkf_novlocal,&
                    analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,&
@@ -390,7 +391,7 @@ dsis=' '
 ! (blank means use default names)
 fgfileprefixes = ''; anlfileprefixes=''; statefileprefixes=''
 anlsfcfileprefixes=''; fgsfcfileprefixes = ''; statesfcfileprefixes=''
-incfileprefixes = ''
+incfileprefixes = ''; incsfcfileprefixes = ''
 
 ! option for including convective clouds in the all-sky
 cnvw_option=.false.
@@ -712,6 +713,7 @@ do nb=1,nbackgrounds
      else ! global
 !      if (nbackgrounds > 1) then
         anlsfcfileprefixes(nb)="bfanl_"//datestring//"_fhr"//charfhr_anal(nb)//"_"
+        incsfcfileprefixes(nb)="sfcincr_"//datestring//"_fhr"//charfhr_anal(nb)//"_"
 !      else
 !        anlfileprefixes(nb)="sanl_"//datestring//"_"
 !      endif
