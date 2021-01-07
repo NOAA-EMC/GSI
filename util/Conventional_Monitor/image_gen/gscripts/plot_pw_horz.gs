@@ -23,8 +23,8 @@ nt=NT
 
 'open anal.ctl'
 'open guess.ctl'
-'open 'plotfile2'_grads_anl.ctl'
-'open 'plotfile2'_grads_ges.ctl'
+'open 'plotfile2'.grads.anl.ctl'
+'open 'plotfile2'.grads.ges.ctl'
 
 *if (plotfile = ps180 ); nhe=11;endif
 *if (plotfile = ps183 ); nhe=9;endif
@@ -51,7 +51,7 @@ setmap(plotfile,he)
 'set gxout shaded'
 'defint.gs  0.5 0'
 'd (PRESsfc.1-PRESsfc.2)/100.0'
-'cbarb'
+'colorbar'
 *'set ccolor 98'
 'set ccolor 6'
 'set digsiz 0.12'
@@ -68,7 +68,7 @@ setmap(plotfile,he)
 'set gxout shaded'
 'defint.gs  0.5 0'
 'd (PRESsfc.1-PRESsfc.2)/100.0'
-'cbarb'
+'colorbar'
 'set ccolor 6'
 'set digsiz 0.12'
 'd maskout(obg.3(t='nt'),muse.3(t='nt'))'
@@ -82,7 +82,7 @@ setmap(plotfile,he)
 'set gxout shaded'
 'defint.gs  0.5 0'
 'd (PRESsfc.1-PRESsfc.2)/100.0'
-'cbarb'
+'colorbar'
 'set ccolor 98'
 'draw title Surface pressure  INCT(mb) at 'rdate'z'
 
@@ -94,7 +94,7 @@ setmap(plotfile,he)
 'set cterp off'
 'set  rbcols 49 48 47 46 45 44 43 42 41 81 21 22 23 24 25 26 27 28 29'
 'd PRESsfc.1/1000.0'
-'cbarb'
+'colorbar'
 'set digsiz 0.12'
 'set gxout contour'
 'set clevs'
@@ -102,7 +102,7 @@ setmap(plotfile,he)
 'set ccols 98'
 *'set cint 0'
 'd PRESsfc.1/1000.0'
-'cbarb'
+'colorbar'
 'set ccolor 98'
 'draw title Surface Pressure analysis(mb*10) at 'rdate'z'
 

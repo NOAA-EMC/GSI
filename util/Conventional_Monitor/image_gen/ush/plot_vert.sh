@@ -1,26 +1,27 @@
 #!/bin/sh
+set -ax
+
 #-------------------------------------------------------
 #
 #  plot_vert.sh
 #
 #-------------------------------------------------------
-set -ax
 
-echo "--> plot_vert.sh "
+   echo "--> plot_vert.sh "
 
    type=${TYPE}
 
-   plotdir=${C_PLOT_WORKDIR}/plotvert_${type}
-   rm -rf $plotdir
-   mkdir -p $plotdir
-   cd $plotdir
+   workdir=${C_PLOT_WORKDIR}/plotvert_${type}
+   rm -rf $workdir
+   mkdir -p $workdir
+   cd $workdir
 
    rc=0
    pdy=`echo ${PDATE}|cut -c1-8`
    dday=`echo $PDATE|cut -c7-8`
    cyc=`echo ${PDATE}|cut -c9-10`
 
-   tv_tankdir=${C_TANKDIR}/cmon.${pdy}/time_vert
+   tv_tankdir=${C_TANKDIR}/${RUN}.${pdy}/${cyc}/conmon/time_vert
 
 
    #---------------------------------------------------
@@ -32,15 +33,21 @@ echo "--> plot_vert.sh "
 
    while [[ $cdate -le $edate ]] ; do
       day=`echo $cdate | cut -c1-8 `
+      dcyc=`echo $cdate | cut -c9-10 `
 
-      if [[ -d ${C_TANKDIR}/cmon.${day} ]]; then
+      if [[ -d ${C_TANKDIR}/${RUN}.${day}/${dcyc}/conmon ]]; then
+         
          for cycle in ges anl; do
-            if [[ -s ${C_TANKDIR}/cmon.${day}/time_vert/${cycle}_${type}_stas.${cdate} ]]
-            then
-               ln -s ${C_TANKDIR}/cmon.${day}/time_vert/${cycle}_${type}_stas.${cdate} .
+            stas_file=${C_TANKDIR}/${RUN}.${day}/${dcyc}/conmon/time_vert/${cycle}_${type}_stas.${cdate}
+
+            if [[ -s ${stas_file}.${Z} ]]; then
+               ${UNCOMPRESS} ${stas_file}.${Z}
+            fi
+            if [[ -s ${stas_file} ]]; then
+               ln -s ${stas_file} .
             fi
          done
-         echo " ${C_TANKDIR}/cmon.${day} exists"
+
       fi
 
       adate=`${NDATE} +6 ${cdate}`
@@ -53,9 +60,16 @@ echo "--> plot_vert.sh "
    #---------------------------------------------------
    for cycle in ges anl; do
 
-      cp -f ${tv_tankdir}/${cycle}_${type}_stas.ctl      tmp.ctl
+      ctl_file=${tv_tankdir}/${cycle}_${type}_stas.ctl
+
+      if [[ -e ${ctl_file}.${Z} ]]; then 
+         cp -f ${ctl_file}.${Z} tmp.ctl.${Z}
+         ${UNCOMPRESS} tmp.ctl.${Z}
+      else
+         cp -f ${ctl_file} tmp.ctl
+      fi
+ 
       new_dset=" dset ${cycle}_${type}_stas.%y4%m2%d2%h2"
-#      num_cycles=`expr ${NUM_CYCLES} + 1`
       num_cycles=${NUM_CYCLES}
 
       tdef=`${C_IG_SCRIPTS}/make_tdef.sh ${START_DATE} ${num_cycles} 06`
@@ -91,7 +105,8 @@ echo "--> plot_vert.sh "
       fi
    done
 
-   for script in plotstas_vert_count.gs plotstas_vert_bias.gs plotstas_vert_bias2.gs ;do
+#   for script in plotstas_vert_count.gs plotstas_vert_bias.gs plotstas_vert_bias2.gs ;do
+   for script in plotstas_vert_count.gs plotstas_vert_bias.gs ;do
       plot_script=${C_IG_GSCRIPTS}/${script}
 
       if [[ -s  ${plot_script} ]]; then
@@ -116,10 +131,26 @@ echo "--> plot_vert.sh "
 
    done
 
-   cp -f *.png ${outdir}/.
-   rm -f *.png
+   img_files=`ls *vert*.png`
+   for imgf in $img_files; do
+      newf=`echo $imgf | sed -e "s/\./.${PDATE}./g"`
+      cp $imgf $newf
+      mv $newf ${C_IMGNDIR}/pngs/vert/.
+   done
+
+   if [[ $CONMON_SUFFIX != "v16rt2" ]]; then
+      mv -f *.png ${outdir}/.
+   fi
+
+  
+   if [[ ${C_IG_SAVE_WORK} -eq 0 ]]; then
+      cd $workdir
+      cd ..
+      rm -rf $workdir
+   fi
 
 
-echo "<-- plot_vert.sh "
+   echo "<-- plot_vert.sh "
+
 exit
 
