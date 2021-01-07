@@ -38,8 +38,8 @@ use POSIX;
 # ***** if wgrib is not on path, add it here
 # $wgrib='/u/wx51we/home/bin/wgrib';
 #$wgrib='wgrib';
-$wgrib=(system("wgrib --v > /dev/null 2>&1") == 0) ? 'wgrib' : '/usrx/local/grads/bin/wgrib' ;  # NCEP only
-
+$wgrib=(system("wgrib --v > /dev/null 2>&1") == 0) ? 'wgrib' : '/gpfs/dell1/nco/ops/nwprod/grib_util.v1.1.1/exec/wgrib' ;  # NCEP only
+print STDERR "*** wgrib = $wgrib \n\n";
 
 # **** directory of interpolation files
 $pdef_dir='/usr/local/lib/grads';
