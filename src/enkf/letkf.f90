@@ -584,9 +584,9 @@ else
    call mpi_reduce(nobslocal_mean,nobslocal_meanall,1,mpi_integer,mpi_sum,0,mpi_comm_world,ierr)
    if (nproc == 0) print *,'min/max/mean number of obs in local volume',nobslocal_minall,nobslocal_maxall,nint(nobslocal_meanall/float(numproc))
 endif
-!call mpi_reduce(nobslocal_max,nobslocal_maxall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
-!call mpi_reduce(nobslocal_min,nobslocal_minall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
-!if (nproc == 0) print *,'min/max number of obs in local volume',nobslocal_minall,nobslocal_maxall
+call mpi_reduce(nobslocal_max,nobslocal_maxall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
+call mpi_reduce(nobslocal_min,nobslocal_minall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
+if (nproc == 0) print *,'min/max number of obs in local volume',nobslocal_minall,nobslocal_maxall
 
 if (nrej > 0 .and. nproc == 0) print *, nrej,' obs rejected by varqc'
 deallocate(robs_local)
