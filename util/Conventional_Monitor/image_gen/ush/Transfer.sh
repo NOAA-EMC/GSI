@@ -14,7 +14,8 @@ function usage {
 
 
 set -ax
-echo start Transfer.sh
+mybin=`ls ~/bin`
+echo "test: $mybin"
 
 nargs=$#
 if [[ $nargs -lt 1 || $nargs -gt 3 ]]; then
@@ -80,7 +81,7 @@ export jobname=transfer_${CMON_SUFFIX}_conmon
 if [[ $MY_MACHINE == "wcoss_d" || $MY_MACHINE == "wcoss_c" ]]; then
    $SUB -P $PROJECT -q $JOB_QUEUE -o ${logfile} -M 80 -W 1:30 \
         -R affinity[core] -J ${jobname} -cwd ${PWD} \
-        ${C_IG_SCRIPTS}/transfer.sh
+        ${C_IG_SCRIPTS}/transfer_imgs.sh
 else
    echo "Unable to transfer files from $MY_MACHINE to $WEBSVR."
    echo "Manual intervention is required."
