@@ -1752,6 +1752,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata("Prep_QC_Mark",            sngl(data(iqc,i))      )
 !           call nc_diag_metadata("Setup_QC_Mark",           rmiss_single           )
            call nc_diag_metadata("Setup_QC_Mark",           sngl(bmiss)            )
+           call nc_diag_metadata("Nonlinear_QC_Var_Jb",     sngl(var_jb)           )
            call nc_diag_metadata("Prep_Use_Flag",           sngl(data(iuse,i))     )
            if(muse(i)) then
               call nc_diag_metadata("Analysis_Use_Flag",    sngl(one)              )
