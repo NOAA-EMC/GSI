@@ -181,9 +181,9 @@ echo "have_diag_rpt = $have_diag_rpt"
             echo "$line2" >> $outfile
          fi
 
-         !-----------------------------------------
-         ! add hyperlink to warning entry
-         !
+         #-----------------------------------------
+         # add hyperlink to warning entry
+         #
          line3="   http://www.emc.ncep.noaa.gov/gmb/gdas/radiance/es_rad/${RADMON_SUFFIX}/index.html?sat=${satname}&region=${region}&channel=${channel}&stat=${type}"
          if [[ $channel -gt 0 ]]; then
             echo "$line3" >> $outfile
