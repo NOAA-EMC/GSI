@@ -1,6 +1,6 @@
 #!/bin/sh
 
-echo begin transfer.sh
+echo begin transfer_imgs.sh
 
 if [[ ${C_IMGNDIR} != "/" ]]; then
    echo "C_IMGNDIR   = $C_IMGNDIR"
@@ -15,5 +15,5 @@ if [[ ${C_IMGNDIR} != "/" ]]; then
    fi
 fi
 
-echo end transfer.sh
+echo end transfer_imgs.sh
 exit
