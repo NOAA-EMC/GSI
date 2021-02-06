@@ -433,7 +433,7 @@
   type(Dimension) :: londim,latdim
 
   integer(i_kind) :: tmp2m_ind, spfh2m_ind, soilt1_ind, soilt2_ind, soilt3_ind, &
-                     soilt4_ind,soilw1_ind, soilw2_ind, soilw3_ind, soilw4_ind
+                     soilt4_ind,slc1_ind, slc2_ind, slc3_ind, slc4_ind
 
   integer(i_kind) :: iunitsig,iret,nb,nlonsin,nlatsin,ne,nanal
 
@@ -461,13 +461,13 @@
   tmp2m_ind  = getindex(vars2d, 't2m')   !< indices in the state or control var arrays
   spfh2m_ind = getindex(vars2d, 'q2m')   
   soilt1_ind = getindex(vars2d, 'soilt1') 
-  soilw1_ind = getindex(vars2d, 'soilw1') 
+  slc1_ind = getindex(vars2d, 'slc1') 
   soilt2_ind = getindex(vars2d, 'soilt2') 
-  soilw2_ind = getindex(vars2d, 'soilw2') 
+  slc2_ind = getindex(vars2d, 'slc2') 
   soilt3_ind = getindex(vars2d, 'soilt3') 
-  soilw3_ind = getindex(vars2d, 'soilw3') 
+  slc3_ind = getindex(vars2d, 'slc3') 
   soilt4_ind = getindex(vars2d, 'soilt4') 
-  soilw4_ind = getindex(vars2d, 'soilw4') 
+  slc4_ind = getindex(vars2d, 'slc4') 
 
 !  if (nproc == 0) then
 !    print *, 'indices: '
@@ -528,41 +528,41 @@
      ug = reshape(values_2d,(/nlons*nlats/))
      call copytogrdin(ug,grdin(:,soilt4_ind,nb,ne))
   endif
-  if (soilw1_ind > 0) then
-     call read_vardata(dset, 'soilw1', values_2d, errcode=iret)
+  if (slc1_ind > 0) then
+     call read_vardata(dset, 'slc1', values_2d, errcode=iret)
      if (iret /= 0) then
-        print *,'error reading soilw1'
+        print *,'error reading slc1'
         call stop2(22)
      endif
      ug = reshape(values_2d,(/nlons*nlats/))
-     call copytogrdin(ug,grdin(:,soilw1_ind,nb,ne))
+     call copytogrdin(ug,grdin(:,slc1_ind,nb,ne))
   endif
-  if (soilw2_ind > 0) then
-     call read_vardata(dset, 'soilw2', values_2d, errcode=iret)
+  if (slc2_ind > 0) then
+     call read_vardata(dset, 'slc2', values_2d, errcode=iret)
      if (iret /= 0) then
-        print *,'error reading soilw2'
+        print *,'error reading slc2'
         call stop2(22)
      endif
      ug = reshape(values_2d,(/nlons*nlats/))
-     call copytogrdin(ug,grdin(:,soilw2_ind,nb,ne))
+     call copytogrdin(ug,grdin(:,slc2_ind,nb,ne))
   endif
-  if (soilw3_ind > 0) then
-     call read_vardata(dset, 'soilw3', values_2d, errcode=iret)
+  if (slc3_ind > 0) then
+     call read_vardata(dset, 'slc3', values_2d, errcode=iret)
      if (iret /= 0) then
-        print *,'error reading soilw3'
+        print *,'error reading slc3'
         call stop2(22)
      endif
      ug = reshape(values_2d,(/nlons*nlats/))
-     call copytogrdin(ug,grdin(:,soilw3_ind,nb,ne))
+     call copytogrdin(ug,grdin(:,slc3_ind,nb,ne))
   endif
-  if (soilw4_ind > 0) then
-     call read_vardata(dset, 'soilw4', values_2d, errcode=iret)
+  if (slc4_ind > 0) then
+     call read_vardata(dset, 'slc4', values_2d, errcode=iret)
      if (iret /= 0) then
-        print *,'error reading soilw2'
+        print *,'error reading slc2'
         call stop2(22)
      endif
      ug = reshape(values_2d,(/nlons*nlats/))
-     call copytogrdin(ug,grdin(:,soilw4_ind,nb,ne))
+     call copytogrdin(ug,grdin(:,slc4_ind,nb,ne))
   endif
 
   call close_dataset(dset)
@@ -2028,7 +2028,7 @@
   real(r_single) compress_err
 
   integer(i_kind) :: tmp2m_ind, spfh2m_ind, soilt1_ind, soilt2_ind, soilt3_ind, &
-                     soilt4_ind,soilw1_ind, soilw2_ind, soilw3_ind, soilw4_ind
+                     soilt4_ind,slc1_ind, slc2_ind, slc3_ind, slc4_ind
 
 
   integer nb,ne,nanal
@@ -2072,13 +2072,13 @@
   tmp2m_ind  = getindex(vars2d, 't2m')   !< indices in the state or control var arrays
   spfh2m_ind = getindex(vars2d, 'q2m')   
   soilt1_ind = getindex(vars2d, 'soilt1') 
-  soilw1_ind = getindex(vars2d, 'soilw1') 
+  slc1_ind = getindex(vars2d, 'slc1') 
   soilt2_ind = getindex(vars2d, 'soilt2') 
-  soilw2_ind = getindex(vars2d, 'soilw2') 
+  slc2_ind = getindex(vars2d, 'slc2') 
   soilt3_ind = getindex(vars2d, 'soilt3') 
-  soilw3_ind = getindex(vars2d, 'soilw3') 
+  slc3_ind = getindex(vars2d, 'slc3') 
   soilt4_ind = getindex(vars2d, 'soilt4') 
-  soilw4_ind = getindex(vars2d, 'soilw4') 
+  slc4_ind = getindex(vars2d, 'slc4') 
 
   idate(3)=idat(3)  !day
   idate(2)=idat(2)  !mon
@@ -3739,14 +3739,14 @@
   real(r_single), dimension(npts,ndim,nbackgrounds,1), intent(inout) :: grdin
   logical, intent(in) :: no_inflate_flag
   character(len=500):: filenamein, filenameout
-  integer(i_kind) :: j, nb, ne, nanal
+  integer(i_kind) :: i, j, nb, ne, nanal
   character(len=3) charnanal
   type(Dataset) :: dsfg
 
   integer(i_kind) :: iret
 
   integer(i_kind) :: tmp2m_ind, spfh2m_ind, soilt1_ind, soilt2_ind, soilt3_ind, &
-                     soilt4_ind,soilw1_ind, soilw2_ind, soilw3_ind, soilw4_ind
+                     soilt4_ind,slc1_ind, slc2_ind, slc3_ind, slc4_ind
 
   ! netcdf things
   integer(i_kind) :: dimids(2), ncstart(2), nccount(2)
@@ -3754,17 +3754,22 @@
   integer(i_kind) :: lonvarid, latvarid, &
                      tmp2mvarid, spfh2mvarid, &
                      soilt1varid, soilt2varid, soilt3varid, soilt4varid, &
-                     soilw1varid, soilw2varid, soilw3varid, soilw4varid
+                     slc1varid, slc2varid, slc3varid, slc4varid, & 
+                     maskvarid
   integer(i_kind) :: iadateout
 
   ! fixed fields such as lat, lon, levs
   real(r_kind),dimension(nlons) :: deglons
   real(r_kind),dimension(nlats) :: deglats
 
+  ! soil / snow mask (not fixed)
+  integer(i_kind), dimension(nlons,nlats) :: mask
+
   ! increment
   real(r_kind), dimension(nlons*nlats) :: inc
   real(r_single), allocatable, dimension(:,:) :: inc2d, inc2dout
   real(r_kind), allocatable, dimension(:) :: values_1d
+  real(r_kind), allocatable, dimension(:,:) :: values_2d
 
   read(datestring,*) iadateout
 
@@ -3793,22 +3798,23 @@
   call nccheck_incr(nf90_create(path=trim(filenameout), cmode=nf90_netcdf4, ncid=ncid_out))
 
   ! create dimensions based on analysis resolution, not guess
-  call nccheck_incr(nf90_def_dim(ncid_out, "lon", nlons, lon_dimid))
-  call nccheck_incr(nf90_def_dim(ncid_out, "lat", nlats, lat_dimid))
+  call nccheck_incr(nf90_def_dim(ncid_out, "longitude", nlons, lon_dimid))
+  call nccheck_incr(nf90_def_dim(ncid_out, "latitude", nlats, lat_dimid))
   dimids = (/ lon_dimid, lat_dimid /)
   ! create variables
-  call nccheck_incr(nf90_def_var(ncid_out, "lon", nf90_real, (/lon_dimid/), lonvarid))
-  call nccheck_incr(nf90_def_var(ncid_out, "lat", nf90_real, (/lat_dimid/), latvarid))
+  call nccheck_incr(nf90_def_var(ncid_out, "longitude", nf90_real, (/lon_dimid/), lonvarid))
+  call nccheck_incr(nf90_def_var(ncid_out, "latitude", nf90_real, (/lat_dimid/), latvarid))
   call nccheck_incr(nf90_def_var(ncid_out, "tmp2m_inc", nf90_real, dimids, tmp2mvarid))
   call nccheck_incr(nf90_def_var(ncid_out, "spfh2m_inc", nf90_real, dimids, spfh2mvarid))
   call nccheck_incr(nf90_def_var(ncid_out, "soilt1_inc", nf90_real, dimids, soilt1varid))
   call nccheck_incr(nf90_def_var(ncid_out, "soilt2_inc", nf90_real, dimids, soilt2varid))
   call nccheck_incr(nf90_def_var(ncid_out, "soilt3_inc", nf90_real, dimids, soilt3varid))
   call nccheck_incr(nf90_def_var(ncid_out, "soilt4_inc", nf90_real, dimids, soilt4varid))
-  call nccheck_incr(nf90_def_var(ncid_out, "soilw1_inc", nf90_real, dimids, soilw1varid))
-  call nccheck_incr(nf90_def_var(ncid_out, "soilw2_inc", nf90_real, dimids, soilw2varid))
-  call nccheck_incr(nf90_def_var(ncid_out, "soilw3_inc", nf90_real, dimids, soilw3varid))
-  call nccheck_incr(nf90_def_var(ncid_out, "soilw4_inc", nf90_real, dimids, soilw4varid))
+  call nccheck_incr(nf90_def_var(ncid_out, "slc1_inc", nf90_real, dimids, slc1varid))
+  call nccheck_incr(nf90_def_var(ncid_out, "slc2_inc", nf90_real, dimids, slc2varid))
+  call nccheck_incr(nf90_def_var(ncid_out, "slc3_inc", nf90_real, dimids, slc3varid))
+  call nccheck_incr(nf90_def_var(ncid_out, "slc4_inc", nf90_real, dimids, slc4varid))
+  call nccheck_incr(nf90_def_var(ncid_out, "soilsnow_mask", nf90_int, dimids, maskvarid))
   ! place global attributes to serial calc_increment output
   call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "source", "GSI EnKF"))
   call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "comment", &
@@ -3824,13 +3830,13 @@
   tmp2m_ind  = getindex(vars2d, 't2m')   !< indices in the state or control var arrays
   spfh2m_ind = getindex(vars2d, 'q2m')   
   soilt1_ind = getindex(vars2d, 'soilt1') 
-  soilw1_ind = getindex(vars2d, 'soilw1') 
+  slc1_ind = getindex(vars2d, 'slc1') 
   soilt2_ind = getindex(vars2d, 'soilt2') 
-  soilw2_ind = getindex(vars2d, 'soilw2') 
+  slc2_ind = getindex(vars2d, 'slc2') 
   soilt3_ind = getindex(vars2d, 'soilt3') 
-  soilw3_ind = getindex(vars2d, 'soilw3') 
+  slc3_ind = getindex(vars2d, 'slc3') 
   soilt4_ind = getindex(vars2d, 'soilt4') 
-  soilw4_ind = getindex(vars2d, 'soilw4') 
+  slc4_ind = getindex(vars2d, 'slc4') 
 
   dsfg = open_dataset(filenamein)
 
@@ -3848,6 +3854,32 @@
 
   call nccheck_incr(nf90_put_var(ncid_out, latvarid, deglats, &
                        start = (/1/), count = (/nlats/)))
+ 
+  ! construct mask (1 - soil, 2 - snow, 0 - not snow)   
+  ! note: same logic/threshold used in global_cycle to produce 
+  ! mask on model grid.
+
+  call read_vardata(dsfg, 'slc1', values_2d, errcode=iret)
+ 
+  mask = 0
+  do j=1,nlats
+    do i = 1, nlons
+        if (values_2d(i,j) .LT. 1.0) then 
+        mask(i,nlats-j+1) = 1 
+        endif 
+    enddo
+  end do
+
+  call read_vardata(dsfg, 'weasd', values_2d, errcode=iret)
+  do j=1,nlats
+    do i = 1, nlons
+        if (values_2d(i,j) .GT. 0.001) then 
+        mask(i,nlats-j+1) = 2
+        endif 
+    enddo
+  end do
+  call nccheck_incr(nf90_put_var(ncid_out, maskvarid, mask, &
+                    start = ncstart, count = nccount))
 
   allocate(inc2d(nlons,nlats))
   allocate(inc2dout(nlons,nlats))
@@ -3918,54 +3950,53 @@
   end do
   call nccheck_incr(nf90_put_var(ncid_out, soilt4varid, sngl(inc2dout), &
                       start = ncstart, count = nccount))
-  ! soilw1 increment
+  ! slc1 increment
   inc(:) = zero
   if (tmp2m_ind > 0) then
-    call copyfromgrdin(grdin(:,soilw1_ind,nb,ne),inc)
+    call copyfromgrdin(grdin(:,slc1_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
   do j=1,nlats
     inc2dout(:,nlats-j+1) = inc2d(:,j)
   end do
-  call nccheck_incr(nf90_put_var(ncid_out, soilw1varid, sngl(inc2dout), &
+  call nccheck_incr(nf90_put_var(ncid_out, slc1varid, sngl(inc2dout), &
                       start = ncstart, count = nccount))
-  ! soilw2 increment
+  ! slc2 increment
   inc(:) = zero
   if (tmp2m_ind > 0) then
-    call copyfromgrdin(grdin(:,soilw2_ind,nb,ne),inc)
+    call copyfromgrdin(grdin(:,slc2_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
   do j=1,nlats
     inc2dout(:,nlats-j+1) = inc2d(:,j)
   end do
-  call nccheck_incr(nf90_put_var(ncid_out, soilw2varid, sngl(inc2dout), &
+  call nccheck_incr(nf90_put_var(ncid_out, slc2varid, sngl(inc2dout), &
                       start = ncstart, count = nccount))
-  ! soilw3 increment
+  ! slc3 increment
   inc(:) = zero
   if (tmp2m_ind > 0) then
-    call copyfromgrdin(grdin(:,soilw3_ind,nb,ne),inc)
+    call copyfromgrdin(grdin(:,slc3_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
   do j=1,nlats
     inc2dout(:,nlats-j+1) = inc2d(:,j)
   end do
-  call nccheck_incr(nf90_put_var(ncid_out, soilw3varid, sngl(inc2dout), &
+  call nccheck_incr(nf90_put_var(ncid_out, slc3varid, sngl(inc2dout), &
                       start = ncstart, count = nccount))
-  ! soilw4 increment
+  ! slc4 increment
   inc(:) = zero
   if (tmp2m_ind > 0) then
-    call copyfromgrdin(grdin(:,soilw4_ind,nb,ne),inc)
+    call copyfromgrdin(grdin(:,slc4_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
   do j=1,nlats
     inc2dout(:,nlats-j+1) = inc2d(:,j)
   end do
-  call nccheck_incr(nf90_put_var(ncid_out, soilw4varid, sngl(inc2dout), &
+  call nccheck_incr(nf90_put_var(ncid_out, slc4varid, sngl(inc2dout), &
                     start = ncstart, count = nccount))
 
-
   ! deallocate things
-  deallocate(inc2d,inc2dout)
+  deallocate(inc2d,inc2dout) 
 
   end do backgroundloop ! loop over backgrounds to read in
   end do ensmemloop ! loop over ens members to read in
