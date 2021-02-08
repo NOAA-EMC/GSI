@@ -665,6 +665,7 @@ subroutine definecoef_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,
 !                      2. compute/setup FV3 to A grid interpolation parameters
 !                      3. compute/setup A to FV3 grid interpolation parameters         
 !                      4. setup weightings for wind conversion from FV3 to earth
+!   2021-02-01 Lu & Wang - modify variable intent for HAFS dual ens. POC: xuguang.wang@ou.edu
 !
 !   input argument list:
 !    nx, ny               - number of cells = nx*ny 
@@ -686,8 +687,8 @@ subroutine definecoef_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,
   use gridmod,  only:init_general_transform 
   implicit none
   type (fv3sar2grid_parm),intent(inout):: p_fv3sar2grid
-  real(r_kind),allocatable,intent(out):: region_lat_in(:,:),region_lon_in(:,:)
-  integer(i_kind), intent(out):: nlatin,nlonin
+  real(r_kind),allocatable,intent(inout):: region_lat_in(:,:),region_lon_in(:,:)
+  integer(i_kind), intent(inout):: nlatin,nlonin
 
 
   real(r_kind) ,pointer,dimension(:,:):: fv3dx,fv3dx1,fv3dy,fv3dy1

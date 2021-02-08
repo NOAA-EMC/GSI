@@ -3853,6 +3853,7 @@ subroutine hybens_grid_setup
 !   2010-02-20  parrish, adapt for dual resolution
 !   2011-01-30  parrish, fix so regional application depends only on parameters regional
 !                  and dual_res.  Rename subroutine get_regional_gefs_grid to get_regional_dual_res_grid.
+!   2021-02-01  Lu & Wang - add vars for hafs dual ens.  POC: xuguang.wang@ou.edu
 !
 !   input argument list:
 !
@@ -3880,6 +3881,9 @@ subroutine hybens_grid_setup
   use gridmod, only: region_lat,region_lon,region_dx,region_dy
   use hybrid_ensemble_parameters, only:regional_ensemble_option 
   use gsi_rfv3io_mod,only:gsi_rfv3io_get_ens_grid_specs
+  use general_commvars_mod, only: ltosi_sens,ltosj_sens
+  use gridmod, only: itotsub,ijn_sens,ijnens,displs_sens
+  use mpimod, only: npe
 
   implicit none
 
@@ -3946,6 +3950,11 @@ subroutine hybens_grid_setup
   allocate(vector(num_fields))
   vector=.false.
   call general_sub2grid_create_info(grd_loc,inner_vars,nlat_ens,nlon_ens,nsig,num_fields,regional,vector)
+  ltosi_sens=grd_loc%ltosi_s
+  ltosj_sens=grd_loc%ltosj_s
+  ijn_sens=grd_loc%ijn_s
+  ijnens=grd_loc%ijn
+  displs_sens=grd_loc%displs_s
   num_fields=max(0,nc3d)*nsig+max(0,nc2d)
   deallocate(vector)
   allocate(vector(num_fields))
