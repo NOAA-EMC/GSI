@@ -1,154 +1,145 @@
-cmake_minimum_required(VERSION 2.8)
-# need to set CMP0046 when using add_dependencies with cmake version 3.6.2
-  if(crayComp)
-    cmake_policy(SET CMP0046 NEW)
-  endif()
-  set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
-# get a list of all the fortran source files
-  file(GLOB GSIFORT_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*90 )
-# get a list of all the c source files
-  file(GLOB GSI_C_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*c )
-# get a list of all cplr files
-  file(GLOB CLASS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/class*90 )
-# create a list of all corresponding stub files
-  string(REGEX REPLACE "class" "stub" STUB_SRC "${CLASS_SRC}") 
-# create a list of all corresponding class files
-  string(REGEX REPLACE "class" "cplr" CPLR_SRC "${CLASS_SRC}") 
+# Get the list of all source files
+include(gsi_files.cmake)
 
-# GSIMAIN_SRC is a list of Fortram main(s), to be used to define GSIEXEC,
-# and to be excluded from GSI libraries.
-  set(GSIMAIN_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90
-    ${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90
+# Include GSI ncdiag files if NetCDF Diagnostics is disabled
+if(NOT BUILD_NCDIAG)
+  list(APPEND GSI_SRC_Fortran
+    ${GSI_SRC_ncdiag}
   )
+endif()
 
-# GSIUTIL_SRC is a list of all Fortran modules as *base level* utilities.
-# This list can be extended to include any module, which depends (USEs)
-# only on module(s) already included in this list, in one of CORE_LIBRARIES,
-# or in one of system libraries.  Any module dynamically depending on external
-# libraries through configuration, such as WRF, NCDIAG, etc. should not be
-# included.
+# Collect files specific for each application
+# Global GSI application
+list(APPEND GSI_SRC_Fortran_global
+  ${GSI_SRC_Fortran}
+  ${GSI_SRC_class}
+  ${GSI_SRC_stub}
+  ${GSI_SRC_fixture_gfs}
+)
 
-  set(GSIUTIL_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpeu_util.F90
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpimod.F90
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpeu_mpif.F90
-    ${CMAKE_CURRENT_SOURCE_DIR}/kinds.F90
+# Regional GSI application
+list(APPEND GSI_SRC_Fortran_regional
+  ${GSI_SRC_Fortran}
+  ${GSI_SRC_class}
+  ${GSI_SRC_cplr}
+  ${GSI_SRC_fixture_regional}
+)
+
+# Compiler options and definitions
+list(APPEND GSI_C_DEFS
+  FortranByte=char
+  FortranInt=int
+  funder
+  "FortranLlong=long long"
+)
+
+# Create object libraries for various components
+# GSI_SRC_C files
+add_library(gsi_c_obj OBJECT ${GSI_SRC_C})
+target_compile_definitions(gsi_c_obj PUBLIC ${GSI_C_DEFS})
+
+# Create a library of GLOBAL GSI Fortran Objects
+set(module_dir "${CMAKE_CURRENT_BINARY_DIR}/include/global_gsi")
+add_library(global_gsi_fortran_obj OBJECT ${GSI_SRC_Fortran_global})
+set_target_properties(global_gsi_fortran_obj PROPERTIES Fortran_MODULE_DIRECTORY "${module_dir}")
+target_include_directories(global_gsi_fortran_obj INTERFACE
+  $<BUILD_INTERFACE:${module_dir}>
+  $<INSTALL_INTERFACE:include/global_gsi>)
+list(APPEND GSI_LIB_Fortran_Targets
+  global_gsi_fortran_obj
+)
+
+# Create a library of REGIONAL GSI Fortran objects
+if(BUILD_REGIONAL)
+  set(module_dir "${CMAKE_CURRENT_BINARY_DIR}/include/regional_gsi")
+  add_library(regional_gsi_fortran_obj OBJECT ${GSI_SRC_Fortran_regional})
+  set_target_properties(regional_gsi_fortran_obj PROPERTIES Fortran_MODULE_DIRECTORY "${module_dir}")
+  target_include_directories(regional_gsi_fortran_obj INTERFACE
+    $<BUILD_INTERFACE:${module_dir}>
+    $<INSTALL_INTERFACE:include/regional_gsi>)
+  list(APPEND GSI_LIB_Fortran_Targets
+    regional_gsi_fortran_obj
   )
+endif()
 
-# GSIFORT_SRC is a list of all Fortran modules for GSI core implementations,
-# after all configuration dependent code (some stub and cplr), base level
-# utilities, the main are removed from the rest of source files
+# Link the Fortran targets with dependencies
+foreach(lib ${GSI_LIB_Fortran_Targets})
+  target_compile_definitions(${lib} PUBLIC "_REAL8_")
+  target_link_libraries(${lib} PUBLIC sigio::sigio)
+  target_link_libraries(${lib} PUBLIC sfcio::sfcio)
+  target_link_libraries(${lib} PUBLIC nemsio::nemsio)
+  target_link_libraries(${lib} PUBLIC ncio::ncio)
+  target_link_libraries(${lib} PUBLIC w3emc::w3emc_d)
+  target_link_libraries(${lib} PUBLIC crtm::crtm)
+  target_link_libraries(${lib} PUBLIC NetCDF::NetCDF_Fortran)
+  target_link_libraries(${lib} PUBLIC MPI::MPI_Fortran)
+  if(OpenMP_Fortran_FOUND)
+    target_link_libraries(${lib} PUBLIC OpenMP::OpenMP_Fortran)
+  endif()
+  if(BUILD_NCDIAG)
+    add_dependencies(${lib} ncdiag)
+  endif()
+  target_link_libraries(${lib} PUBLIC ncdiag::ncdiag)
+endforeach()
 
-# Remove CLASS_SRC list related STUB_SRC and CPLR_SRC, as configurable
-# grid components
-  list( REMOVE_ITEM GSIFORT_SRC
-    ${STUB_SRC}
-    ${CPLR_SRC}
-    ${CMAKE_CURRENT_SOURCE_DIR}/gsi_fixture_REGIONAL.F90
-    ${CMAKE_CURRENT_SOURCE_DIR}/gsi_fixture_GFS.F90
-    ${CMAKE_CURRENT_SOURCE_DIR}/stub_nstmod.f90
-    ${GSIUTIL_SRC}
-    ${GSIMAIN_SRC}
+# Create a GLOBAL GSI library
+add_library(global_gsi STATIC $<TARGET_OBJECTS:gsi_c_obj>
+                              $<TARGET_OBJECTS:global_gsi_fortran_obj>)
+target_include_directories(global_gsi PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include/global_gsi>
+                                             $<INSTALL_INTERFACE:include/global_gsi>)
+
+# Create a REGIONAL GSI library
+if(BUILD_REGIONAL)
+  add_library(regional_gsi STATIC $<TARGET_OBJECTS:gsi_c_obj>
+                                  $<TARGET_OBJECTS:regional_gsi_fortran_obj>)
+  target_include_directories(regional_gsi PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include/regional_gsi>
+                                                 $<INSTALL_INTERFACE:include/regional_gsi>)
+endif()
+
+# Create a GLOBAL GSI executable
+set(module_dir "${CMAKE_CURRENT_BINARY_DIR}/include/global_gsi")
+add_executable(global_gsi.x ${GSI_SRC_main})
+add_dependencies(global_gsi.x global_gsi)
+set_target_properties(global_gsi.x PROPERTIES Fortran_MODULE_DIRECTORY "${module_dir}")
+target_link_libraries(global_gsi.x PRIVATE global_gsi)
+list(APPEND GSI_APP_Targets
+  global_gsi.x
+)
+
+# Create a REGIONAL GSI executable
+if(BUILD_REGIONAL)
+  set(module_dir "${CMAKE_CURRENT_BINARY_DIR}/include/regional_gsi")
+  add_executable(regional_gsi.x ${GSI_SRC_main})
+  add_dependencies(regional_gsi.x regional_gsi)
+  set_target_properties(regional_gsi.x PROPERTIES Fortran_MODULE_DIRECTORY "${module_dir}")
+  target_link_libraries(regional_gsi.x PRIVATE regional_gsi)
+  list(APPEND GSI_APP_Targets
+    regional_gsi.x
   )
+endif()
 
-# remove NCDIAG, if it is a component built somewhere else.
-  if( BUILD_NCDIAG )
-    list( REMOVE_ITEM GSIFORT_SRC "${CMAKE_CURRENT_SOURCE_DIR}/nc_diag_read_mod.f90" )
-    list( REMOVE_ITEM GSIFORT_SRC "${CMAKE_CURRENT_SOURCE_DIR}/nc_diag_write_mod.f90" )
-  endif( BUILD_NCDIAG )
-
-# The specific regional/WRF source files
-  if(USE_WRF)
-    list( APPEND GSIFORT_SRC
-	${CPLR_SRC}
-	${CMAKE_CURRENT_SOURCE_DIR}/gsi_fixture_REGIONAL.F90
-    )
+# Link the application targets with dependencies
+foreach(app ${GSI_APP_Targets})
+  target_link_libraries(${app} PUBLIC bacio::bacio_4)
+  target_link_libraries(${app} PUBLIC sigio::sigio)
+  target_link_libraries(${app} PUBLIC sfcio::sfcio)
+  target_link_libraries(${app} PUBLIC nemsio::nemsio)
+  target_link_libraries(${app} PUBLIC ncio::ncio)
+  target_link_libraries(${app} PUBLIC w3emc::w3emc_d)
+  target_link_libraries(${app} PUBLIC w3nco::w3nco_d)
+  target_link_libraries(${app} PUBLIC sp::sp_d)
+  target_link_libraries(${app} PUBLIC bufr::bufr_4_DA)
+  target_link_libraries(${app} PUBLIC crtm::crtm)
+  target_link_libraries(${app} PUBLIC ncdiag::ncdiag)
+  target_link_libraries(${app} PUBLIC NetCDF::NetCDF_Fortran)
+  target_link_libraries(${app} PUBLIC MPI::MPI_Fortran)
+  target_link_libraries(${app} PUBLIC ${LAPACK_LIBRARIES})
+  if(OpenMP_Fortran_FOUND)
+    target_link_libraries(${app} PUBLIC OpenMP::OpenMP_Fortran)
   endif()
+endforeach()
 
-# The specific global source files
-  if(BUILD_GLOBAL)
-    list( APPEND GSIFORT_SRC
-	${STUB_SRC}
-	${CMAKE_CURRENT_SOURCE_DIR}/gsi_fixture_GFS.F90
-    )
-  endif(BUILD_GLOBAL)
-
-# set up the compiler flags
-  set_source_files_properties( ${GSIMAIN_SRC}	PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS} )
-  set_source_files_properties( ${GSIFORT_SRC}	PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS} )
-  set_source_files_properties( ${GSIUTIL_SRC}	PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS} )
-  set_source_files_properties( ${GSI_C_SRC}	PROPERTIES COMPILE_FLAGS ${GSI_CFLAGS} )
-
-  set( GSICORE_SRC ${GSIFORT_SRC} ${GSI_C_SRC} )
-
-# Add the include paths
-  message("MPI include PATH  ${MPI_Fortran_INCLUDE_PATH}")
-  include_directories( ${CORE_INCS} ${NETCDF_INCLUDE_DIRS} ${MPI_Fortran_INCLUDE_PATH} ${FV3GFS_NCIO_INCS} "./" )
-
-#define the name used for GSI Shared lib and add it with properties and include dirs
-  set(GSISHAREDLIB "gsilib_shrd${debug_suffix}" CACHE INTERNAL "")
-  add_library(${GSISHAREDLIB} STATIC ${GSIUTIL_SRC} )
-  set_target_properties(${GSISHAREDLIB} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-  target_include_directories(${GSISHAREDLIB} PUBLIC "${PROJECT_BINARY_DIR}/include")
-
-# Definte the base name of the executable 
-  if(BUILD_PRODUCTION)
-    set(GSIBASE "global_gsi.x")
-  else()
-    if(BUILD_GLOBAL)
-      set(GSIBASE "gsi_global")
-    else()
-      set(GSIBASE "gsi")
-    endif()
-    set(GSISUFFIX ".x" CACHE INTERNAL "Executable suffix")
-  endif()
-
-# Set names, libs, and properties depending on if we are building with WRF or not
-  if(USE_WRF) 
-    set(GSIEXEC "${GSIBASE}${debug_suffix}${GSISUFFIX}" CACHE INTERNAL "GSI Executable Name")
-    add_executable(${GSIEXEC} ${CMAKE_CURRENT_SOURCE_DIR}/gsimain.f90 ${CMAKE_CURRENT_SOURCE_DIR}/gsimod.F90 )
-    set(GSILIB "gsilib_wrf${debug_suffix}" CACHE INTERNAL "")
-    add_library(${GSILIB} STATIC ${GSICORE_SRC} )
-    set_target_properties(${GSILIB} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-    target_include_directories(${GSILIB} PUBLIC "${PROJECT_BINARY_DIR}/include")
-    set_target_properties(${GSIEXEC} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-    target_link_libraries( ${GSILIB} ${GSISHAREDLIB} ${wrflib} )
-  endif()
-
-  if(BUILD_GLOBAL)
-    set(GSIEXEC "${GSIBASE}${debug_suffix}${GSISUFFIX}" CACHE INTERNAL "GSI Executable Name")
-    add_executable( ${GSIEXEC} ${GSIMAIN_SRC} )
-    set(GSILIB "gsilib_global${debug_suffix}" CACHE INTERNAL "")
-    set(WRF_LIBRARIES "")
-    add_library(${GSILIB} STATIC ${GSICORE_SRC} )
-    target_link_libraries( ${GSILIB} ${GSISHAREDLIB} )
-    add_dependencies(${GSILIB} ${GSISHAREDLIB} )
-    target_link_libraries( ${GSISHAREDLIB} ${CORE_LIBRARIES})
-    set_target_properties( ${GSILIB} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-    target_include_directories( ${GSILIB} PUBLIC "${PROJECT_BINARY_DIR}/include")
-    set_target_properties(${GSIEXEC} PROPERTIES Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
-  endif()
-
-  if( BUILD_NCDIAG )
-      add_dependencies(${GSILIB} ${NCDIAG_LIBRARIES} )
-  endif( BUILD_NCDIAG )
-  add_dependencies(${GSILIB} ${GSISHAREDLIB} )
-
-# Add dependencies if we are building the core libs or are just using pre-built libs 
-  if(CORE_BUILT)
-    add_dependencies(${GSILIB} ${GSISHAREDLIB} ${CORE_BUILT} )
-    add_dependencies(${GSISHAREDLIB} ${bacio} ${CORE_BUILT} )
-    add_dependencies(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} ${CORE_BUILT} )
-  else()
-    add_dependencies(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} )
-  endif()
-# Specify all the libraries to be linked into the executable
-  target_link_libraries(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} ${GSISHAREDLIB} ${WRF_LIBRARIES} 
-         ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} 
-         ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${CORE_LIBRARIES} ${CORE_BUILT}
-         ${GSI_LDFLAGS} ${NCDIAG_LIBRARIES} ${GSDCLOUD_LIBRARY} ${ZLIB_LIBRARIES} ${wrflib} ${EXTRA_LINKER_FLAGS} ${FV3GFS_NCIO_LIBRARIES})
-  install(TARGETS ${GSIEXEC}
-        RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
-        LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/static)
+# REGIONAL GSI Application specific library dependencies
+if(BUILD_REGIONAL)
+  target_link_libraries(regional_gsi.x PUBLIC wrf_io::wrf_io)
+endif()

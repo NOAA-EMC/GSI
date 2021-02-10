@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 
 project(GSI
         VERSION 1.0.0
-        LANGUAGES Fortran)
+        LANGUAGES C Fortran)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 set(CMAKE_DIRECTORY_LABELS ${PROJECT_NAME})
@@ -24,14 +24,25 @@ endif()
 
 # User options
 option(OPENMP "Enable OpenMP Threading" OFF)
-option(ENABLE_NCDIAG "Enable NetCDF diagnostic files" OFF)
+option(BUILD_NCDIAG "Build and use inline NetCDF diagnostics library" ON)
+option(BUILD_REGIONAL "Build Regional GSI" OFF)
+
+# Echo user options
+message(STATUS "OPENMP ................. ${OPENMP}")
+message(STATUS "BUILD_NCDIAG ........... ${BUILD_NCDIAG}")
+message(STATUS "BUILD_REGIONAL ......... ${BUILD_REGIONAL}")
 
 # Dependencies
 find_package(MPI REQUIRED)
 find_package(NetCDF REQUIRED Fortran)
-find_package(LAPACK QUIET)
+find_package(LAPACK REQUIRED)
 if(OPENMP)
   find_package(OpenMP REQUIRED)
+endif()
+
+# NetCDF Diagnostic IO library dependency
+if(NOT BUILD_NCDIAG)
+  find_package(ncdiag REQUIRED)
 endif()
 
 # NCEPLibs dependencies
@@ -39,7 +50,6 @@ find_package(bacio REQUIRED)
 find_package(sigio REQUIRED)
 find_package(sfcio REQUIRED)
 find_package(nemsio REQUIRED)
-find_package(wrf_io REQUIRED)
 find_package(ncio REQUIRED)
 find_package(sp REQUIRED)
 find_package(ip REQUIRED)
@@ -48,8 +58,12 @@ find_package(w3nco REQUIRED)
 find_package(bufr REQUIRED)
 find_package(crtm REQUIRED)
 
+if(BUILD_REGIONAL)
+  find_package(wrf_io REQUIRED)
+endif()
+
 # Build components
-#add_subdirectory(src)
+add_subdirectory(src)
 #add_subdirectory(util)
 #add_subdirectory(unit-tests)
 #add_subdirectory(regression)
