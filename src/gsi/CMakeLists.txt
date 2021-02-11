@@ -1,3 +1,8 @@
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+# Get compiler flags for the GSI application
+include(gsiapp_compiler_flags)
+
 # Get the list of all source files
 include(gsi_files.cmake)
 

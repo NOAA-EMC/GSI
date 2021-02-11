@@ -2,25 +2,25 @@
 # FLAGS COMMON TO ALL BUILD TYPES
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -g -fbacktrace -ffree-line-length-none")
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS}")
 
 ####################################################################
 # RELEASE FLAGS
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -funroll-all-loops -finline-functions")
+set(CMAKE_Fortran_FLAGS_RELEASE "")
 
 ####################################################################
 # DEBUG FLAGS
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -fcheck=bounds -ffpe-trap=invalid,zero,overflow")
+set(CMAKE_Fortran_FLAGS_DEBUG "")
 
 ####################################################################
 # PRODUCTION FLAGS
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS_PRODUCTION "-O2 -funroll-all-loops -finline-functions")
+set(CMAKE_Fortran_FLAGS_PRODUCTION "")
 
 ####################################################################
 # LINK FLAGS
@@ -32,7 +32,7 @@ set(CMAKE_Fortran_LINK_FLAGS "")
 # FLAGS FOR AUTOPROFILING
 ####################################################################
 
-set(Fortran_AUTOPROFILING_FLAGS "-finstrument-functions")
+set(Fortran_AUTOPROFILING_FLAGS "")
 
 ####################################################################
 

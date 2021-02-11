@@ -2,25 +2,25 @@
 # FLAGS COMMON TO ALL BUILD TYPES
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -g -fbacktrace -ffree-line-length-none")
+set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS} -g -traceback")
 
 ####################################################################
 # RELEASE FLAGS
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -funroll-all-loops -finline-functions")
+set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -ip -unroll -inline -no-heap-arrays")
 
 ####################################################################
 # DEBUG FLAGS
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -fcheck=bounds -ffpe-trap=invalid,zero,overflow")
+set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -check bounds -warn -heap-arrays -fpe-all=0 -fpe:0 -check all")
 
 ####################################################################
 # PRODUCTION FLAGS
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS_PRODUCTION "-O2 -funroll-all-loops -finline-functions")
+set(CMAKE_Fortran_FLAGS_PRODUCTION "-O2 -ip -ipo -unroll -inline -no-heap-arrays")
 
 ####################################################################
 # LINK FLAGS
@@ -38,6 +38,4 @@ set(Fortran_AUTOPROFILING_FLAGS "-finstrument-functions")
 
 # Meaning of flags
 # ----------------
-# -fstack-arrays     : Allocate automatic arrays on the stack (needs large stacksize!!!)
-# -funroll-all-loops : Unroll all loops
-# -fcheck=bounds     : Bounds checking
+# todo
