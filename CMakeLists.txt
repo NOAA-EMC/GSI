@@ -18,6 +18,10 @@ if(NOT CMAKE_BUILD_TYPE MATCHES "^(Debug|Release|RelWithDebInfo|MinSizeRel|Produ
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo" "Production")
 endif()
 
+if(NOT CMAKE_C_COMPILER_ID MATCHES "^(GNU|Intel|Clang|AppleClang)$")
+  message(WARNING "${CMAKE_C_COMPILER_ID} is not supported.")
+endif()
+
 if(NOT CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU|Intel)$")
   message(WARNING "${CMAKE_Fortran_COMPILER_ID} is not supported.")
 endif()

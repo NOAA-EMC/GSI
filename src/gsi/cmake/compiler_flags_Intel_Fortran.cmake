@@ -2,13 +2,13 @@
 # FLAGS COMMON TO ALL BUILD TYPES
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS} -g -traceback")
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -assume byterecl -convert big_endian -implicitnone")
 
 ####################################################################
 # RELEASE FLAGS
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -ip -unroll -inline -no-heap-arrays")
+set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -fp-model strict")
 
 ####################################################################
 # DEBUG FLAGS
@@ -20,7 +20,7 @@ set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -check bounds -warn -heap-arrays -fpe-all=0 -
 # PRODUCTION FLAGS
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS_PRODUCTION "-O2 -ip -ipo -unroll -inline -no-heap-arrays")
+set(CMAKE_Fortran_FLAGS_PRODUCTION "-O3 -fp-model strict")
 
 ####################################################################
 # LINK FLAGS
