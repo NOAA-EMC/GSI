@@ -8,13 +8,13 @@ set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -g -fbacktrace -ffree-line-lengt
 # RELEASE FLAGS
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -funroll-all-loops -finline-functions")
+set(CMAKE_Fortran_FLAGS_RELEASE "-O3")
 
 ####################################################################
 # DEBUG FLAGS
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -fcheck=bounds -ffpe-trap=invalid,zero,overflow")
+set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -ggdb -static -Wall -fcheck=bounds -ffpe-trap=invalid,zero,overflow")
 
 ####################################################################
 # PRODUCTION FLAGS

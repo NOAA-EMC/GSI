@@ -28,18 +28,27 @@ endif()
 
 # User options
 option(OPENMP "Enable OpenMP Threading" OFF)
+option(ENABLE_MKL "Use MKL for LAPACK implementation (if available)" ON)
 option(BUILD_NCDIAG "Build and use inline NetCDF diagnostics library" ON)
 option(BUILD_REGIONAL "Build Regional GSI" OFF)
 
 # Echo user options
 message(STATUS "OPENMP ................. ${OPENMP}")
+message(STATUS "ENABLE_MKL ............. ${ENABLE_MKL}")
 message(STATUS "BUILD_NCDIAG ........... ${BUILD_NCDIAG}")
 message(STATUS "BUILD_REGIONAL ......... ${BUILD_REGIONAL}")
 
 # Dependencies
+if(ENABLE_MKL)
+  find_package(MKL QUIET)
+endif()
+if(MKL_FOUND)
+  set(LAPACK_LIBRARIES ${MKL_LIBRARIES})
+else()
+  find_package(LAPACK REQUIRED)
+endif()
 find_package(MPI REQUIRED)
 find_package(NetCDF REQUIRED Fortran)
-find_package(LAPACK REQUIRED)
 if(OPENMP)
   find_package(OpenMP REQUIRED)
 endif()
