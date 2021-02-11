@@ -7,7 +7,7 @@ project(GSI
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 set(CMAKE_DIRECTORY_LABELS ${PROJECT_NAME})
 
-include(${PROJECT_NAME}_compiler_flags)
+include(gsi_compiler_flags)
 include(GNUInstallDirs)
 
 if(NOT CMAKE_BUILD_TYPE MATCHES "^(Debug|Release|RelWithDebInfo|MinSizeRel|Production)$")
@@ -61,6 +61,9 @@ find_package(crtm REQUIRED)
 if(BUILD_REGIONAL)
   find_package(wrf_io REQUIRED)
 endif()
+
+# See https://github.com/NOAA-EMC/NCEPLIBS-nemsio/pull/22
+target_link_libraries(nemsio::nemsio INTERFACE w3emc::w3emc_d bacio::bacio_4)
 
 # Build components
 add_subdirectory(src)

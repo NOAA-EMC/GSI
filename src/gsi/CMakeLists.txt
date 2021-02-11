@@ -65,6 +65,7 @@ endif()
 # Link the Fortran targets with dependencies
 foreach(lib ${GSI_LIB_Fortran_Targets})
   target_compile_definitions(${lib} PUBLIC "_REAL8_")
+  target_link_libraries(${lib} PUBLIC bacio::bacio_4)
   target_link_libraries(${lib} PUBLIC sigio::sigio)
   target_link_libraries(${lib} PUBLIC sfcio::sfcio)
   target_link_libraries(${lib} PUBLIC nemsio::nemsio)
