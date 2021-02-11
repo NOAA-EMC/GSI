@@ -301,6 +301,9 @@ module qcmod
   integer(i_kind),parameter:: ifail_satzen_qc=52
 !  Reject because of surface emissivity/temperature influence in subroutine qc_irsnd                                     
   integer(i_kind),parameter:: ifail_sfcir_qc=53
+!  Reject because of sun glint in subroutine qc_irsnd 
+  integer(i_kind),parameter:: ifail_glint_irqc=54
+
 
 ! QC_AMSUA          
 !  Reject because factch6 > limit in subroutine qc_amsua
@@ -1951,10 +1954,10 @@ subroutine qc_saphir(nchanl,sfchgt,luse,sea, &
   return
 end subroutine qc_saphir
 
-subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
-     cris, hirs, zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise,     &
-     wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,                    &
-     id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole)
+subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr, &
+     cris,hirs,zsges,cenlat,frac_sea,pangs,trop5,zasat,solazi,satazi,tzbgr,tsavg5, &
+     tbc,tb_obs,tbcnob,tnoise,wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts, &
+     id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole,cris_sw)
 !    id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole,radmod) ! all-sky
 
 !$$$ subprogram documentation block
@@ -1988,9 +1991,11 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 !     zsges        - elevation of guess
 !     cenlat       - latitude of observation
 !     frac_sea     - fraction of grid box covered with water
-!     pangs        - solar zenith angle
+!     pangs        - solar zenith angle (deg)
 !     trop5        - tropopause pressure
-!     zasat        - satellite zenith angle
+!     zasat        - satellite zenith angle (rad)
+!     solazi       - solar azimuth angle (deg)
+!     satazi       - satellite azimuth angle (deg)
 !     tzbgr        - Tz over water
 !     tsavg5       - surface skin temperature
 !     tbc          - simulated - observed BT with bias correction
@@ -2009,6 +2014,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 !     errf         - criteria of gross error
 !     varinv       - observation weight (modified obs var error inverse)
 !     varinv_use   - observation weight used(modified obs var error inverse)
+!     cris_sw      - logical for cris sw case
 !
 ! output argument list:
 !     id_qc        - qc index - see qcmod definition
@@ -2032,14 +2038,15 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 
 ! Declare passed variables
 
-  logical,                            intent(in   ) :: sea,land,ice,snow,luse,goessndr, cris, hirs
-  logical,                            intent(inout) :: zero_irjaco3_pole
+  logical,                            intent(in   ) :: sea,land,ice,snow,luse,goessndr,cris,hirs
+  logical,                            intent(inout) :: zero_irjaco3_pole,cris_sw
   integer(i_kind),                    intent(in   ) :: nsig,nchanl,ndat,is
   integer(i_kind),dimension(nchanl),  intent(in   ) :: ich
   integer(i_kind),dimension(nchanl),  intent(inout) :: id_qc
   integer(i_kind),dimension(nchanl),  intent(in   ) :: kmax
   real(r_kind),                       intent(in   ) :: zsges,cenlat,frac_sea,pangs,trop5
   real(r_kind),                       intent(in   ) :: tzbgr,tsavg5,zasat
+  real(r_kind),                       intent(in   ) :: solazi,satazi
   real(r_kind),                       intent(  out) :: cld,cldp
   real(r_kind),dimension(40,ndat),    intent(inout) :: aivals
   real(r_kind),dimension(nchanl),     intent(in   ) :: tbc,emissivity_k,ts,wavenumber,tb_obs,tbcnob
@@ -2054,6 +2061,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 
 
   real(r_kind) :: demisf,dtempf,efact,dtbf,term,cenlatx,sfchgtfact
+  real(r_kind) :: pangs_rad,solazi_rad,satazi_rad,relazi_rad,glint_rad,glint
   real(r_kind) :: sum,sum2,sum3,cloudp,tmp,dts,delta
   real(r_kind),dimension(nchanl) :: dtb
   integer(i_kind) :: i,j,k,kk,lcloud,m
@@ -2067,10 +2075,33 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 ! solar zenith angle tiny_r_kind
   irday = 1
   if (pangs <= 89.0_r_kind .and. frac_sea > zero) then
+     if(.not.cris_sw) then
 !    QC2 in statsrad
-     if(luse)aivals(9,is) = aivals(9,is) + one
+        if(luse)aivals(9,is) = aivals(9,is) + one
+     endif
      do i=1,nchanl
-        if(wavenumber(i) > r2000)then
+!    check for sun glint for CrIS at wavenumbers shortward of 2386.88     -EEJ
+        if(cris)then
+           if(wavenumber(i) > 2386.88)then
+              ! calculate sun glint
+              ! pangs, solazi, satazi need conversion
+              ! zasat passed from reader in radians, take abs avalue
+              pangs_rad=pangs*deg2rad
+              !solazi_rad=(90.0-solazi)*deg2rad
+              solazi_rad=solazi*deg2rad
+              satazi_rad=satazi*deg2rad
+              !relazi_rad=satazi_rad-solazi_rad
+              relazi_rad=(180.0+solazi-satazi)*deg2rad
+              !glint_rad=acos(cos(zasat)*cos(pangs_rad)-sin(zasat)*sin(pangs_rad)*cos(relazi_rad))
+              glint_rad=acos(cos(abs(zasat))*cos(pangs_rad)+sin(abs(zasat))*sin(pangs_rad)*cos(relazi_rad))
+              glint=glint_rad*rad2deg
+              if (glint <= 15.0) then
+                 varinv(i)=zero
+                 varinv_use(i)=zero
+                 if(id_qc(i) == igood_qc)id_qc(i)=ifail_glint_irqc
+              endif
+           endif
+        else if(wavenumber(i) > r2000)then
            if(wavenumber(i) > r2400)then
               varinv(i)=zero
               varinv_use(i)=zero
@@ -2109,7 +2140,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
   if (qc_noirjaco3_pole .and. (abs(cenlat)>r60)) zero_irjaco3_pole=.true.
 
 ! If GOES and lza > 60. do not use
-  if( goessndr .and. zasat*rad2deg > r60) then
+  if( goessndr .and. zasat*rad2deg > r60 .and. (.not.cris_sw)) then
 !    QC5 in statsrad
      if(luse)aivals(12,is) = aivals(12,is) + one
      do i=1,nchanl
@@ -2123,7 +2154,9 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
   sfchgtfact=one
   if (zsges > r2000) then
 !    QC1 in statsrad
-     if(luse)aivals(8,is) = aivals(8,is) + one
+     if (.not.cris_sw) then
+        if(luse)aivals(8,is) = aivals(8,is) + one
+     endif
      sfchgtfact    = (r2000/zsges)**4
   endif
 
@@ -2195,7 +2228,15 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
         j=ich(i)
         if (passive_bc .and. iuse_rad(j)==-1) then
            if (lcloud .ge. kmax(i)) then
-              if(luse)aivals(11,is)   = aivals(11,is) + one
+              if(.not.cris) then
+                 if(luse)aivals(11,is)   = aivals(11,is) + one
+              else if(cris) then
+                 if(.not.cris_sw .and. wavenumber(i) < 2000.0) then
+                    if(luse)aivals(11,is)   = aivals(11,is) + one
+                 else if(cris_sw .and. wavenumber(i) >= 2000.0) then
+                    if(luse)aivals(11,is)   = aivals(11,is) + one
+                 end if
+              end if
               varinv(i) = zero
               varinv_use(i) = zero
               if(id_qc(i) == igood_qc)id_qc(i)=ifail_cloud_qc
@@ -2209,7 +2250,15 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
         delta = 0.02_r_kind
         if ( ptau5(lcloud,i) > 0.02_r_kind) then
 !          QC4 in statsrad
-           if(luse)aivals(11,is)   = aivals(11,is) + one
+           if(.not.cris) then
+              if(luse)aivals(11,is)   = aivals(11,is) + one
+           else if(cris) then
+              if(.not.cris_sw .and. wavenumber(i) < 2000.0) then
+                 if(luse)aivals(11,is)   = aivals(11,is) + one
+              else if(cris_sw .and. wavenumber(i) >= 2000.0) then
+                 if(luse)aivals(11,is)   = aivals(11,is) + one
+              end if
+           end if
            varinv(i) = zero
            varinv_use(i) = zero
            if(id_qc(i) == igood_qc)id_qc(i)=ifail_cloud_qc
@@ -2237,8 +2286,18 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
            delta=max(r0_05*tnoise(i),r0_02)
            if(abs(dts*ts(i)) > delta)then
 !             QC3 in statsrad
-              if(luse .and. varinv(i) > zero) &
-                 aivals(10,is)   = aivals(10,is) + one
+              if(.not.cris) then
+                 if(luse .and. varinv(i) > zero) &
+                    aivals(10,is)   = aivals(10,is) + one
+              else if(cris) then
+                 if(.not.cris_sw .and. wavenumber(i) < 2000.0) then
+                    if(luse.and. varinv(i) > zero) &
+                       aivals(10,is)   = aivals(10,is) + one
+                 else if(cris_sw .and. wavenumber(i) >= 2000.0) then
+                    if(luse .and. varinv(i) > zero) & 
+                       aivals(10,is)   = aivals(10,is) + one
+                 end if
+              end if
               varinv(i) = zero
               if(id_qc(i) == igood_qc)id_qc(i)=ifail_sfcir_qc
            end if
@@ -2253,8 +2312,11 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
      do i=1,nchanl
         if (ts(i) > 0.2_r_kind) then
            !             QC3 in statsrad
-           if(luse .and. varinv(i) > zero) &
-                aivals(10,is)   = aivals(10,is) + one
+           if(.not.cris_sw .and. wavenumber(i) < 2000.0) then
+              if(luse.and. varinv(i) > zero) aivals(10,is) = aivals(10,is) + one
+           else if(cris_sw .and. wavenumber(i) >= 2000.0) then
+              if(luse.and. varinv(i) > zero) aivals(10,is) = aivals(10,is) + one
+           end if
            varinv(i) = zero
            if(id_qc(i) == igood_qc)id_qc(i)=ifail_sfcir_qc
         end if
@@ -2282,7 +2344,15 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
            if ( abs(dtz) > tzchks ) then
               varinv(i) = zero
               if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_tzr_qc
-              if(luse)aivals(13,is) = aivals(13,is) + one
+              if(.not.cris) then
+                 if(luse)aivals(13,is) = aivals(13,is) + one
+              else if(cris) then
+                 if(.not.cris_sw .and. wavenumber(i) < 2000.0) then
+                    if(luse) aivals(13,is)   = aivals(13,is) + one
+                 else if(cris_sw .and. wavenumber(i) >= 2000.0) then
+                    if(luse) aivals(13,is)   = aivals(13,is) + one
+                 end if
+              endif
            endif
          endif
        enddo
@@ -2291,7 +2361,9 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 
   cenlatx=abs(cenlat)*r0_04     
   if (cenlatx < one) then
-     if(luse)aivals(6,is) = aivals(6,is) + one
+     if(.not. cris_sw) then
+        if(luse)aivals(6,is) = aivals(6,is) + one
+     endif
      efact   = half*(cenlatx+one)
      do i=1,nchanl
         if(varinv(i) > tiny_r_kind) errf(i)=efact*errf(i)
