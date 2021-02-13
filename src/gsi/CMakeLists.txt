@@ -80,7 +80,7 @@ foreach(lib ${GSI_LIB_Fortran_Targets})
   target_link_libraries(${lib} PUBLIC NetCDF::NetCDF_Fortran)
   target_link_libraries(${lib} PUBLIC MPI::MPI_Fortran)
   if(OpenMP_Fortran_FOUND)
-    target_link_libraries(${lib} PUBLIC OpenMP::OpenMP_Fortran)
+    target_link_libraries(${lib} PRIVATE OpenMP::OpenMP_Fortran)
   endif()
   if(BUILD_NCDIAG)
     add_dependencies(${lib} ncdiag)
@@ -91,15 +91,21 @@ endforeach()
 # Create a GLOBAL GSI library
 add_library(global_gsi STATIC $<TARGET_OBJECTS:gsi_c_obj>
                               $<TARGET_OBJECTS:global_gsi_fortran_obj>)
+add_library(${PROJECT_NAME}::global_gsi ALIAS global_gsi)
 target_include_directories(global_gsi PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include/global_gsi>
                                              $<INSTALL_INTERFACE:include/global_gsi>)
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/global_gsi DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
+list(APPEND GSI_LIB_Targets global_gsi)
 
 # Create a REGIONAL GSI library
 if(BUILD_REGIONAL)
   add_library(regional_gsi STATIC $<TARGET_OBJECTS:gsi_c_obj>
                                   $<TARGET_OBJECTS:regional_gsi_fortran_obj>)
+  add_library(${PROJECT_NAME}::regional_gsi ALIAS regional_gsi)
   target_include_directories(regional_gsi PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include/regional_gsi>
                                                  $<INSTALL_INTERFACE:include/regional_gsi>)
+  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/regional_gsi DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
+  list(APPEND GSI_LIB_Targets regional_gsi)
 endif()
 
 # Create a GLOBAL GSI executable
@@ -141,7 +147,7 @@ foreach(app ${GSI_APP_Targets})
   target_link_libraries(${app} PUBLIC MPI::MPI_Fortran)
   target_link_libraries(${app} PUBLIC ${LAPACK_LIBRARIES})
   if(OpenMP_Fortran_FOUND)
-    target_link_libraries(${app} PUBLIC OpenMP::OpenMP_Fortran)
+    target_link_libraries(${app} PRIVATE OpenMP::OpenMP_Fortran)
   endif()
 endforeach()
 
@@ -149,3 +155,10 @@ endforeach()
 if(BUILD_REGIONAL)
   target_link_libraries(regional_gsi.x PUBLIC wrf_io::wrf_io)
 endif()
+
+install(
+  TARGETS ${GSI_LIB_Targets} ${GSI_APP_Targets}
+  EXPORT ${PROJECT_NAME}Exports
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
