@@ -98,7 +98,7 @@ subroutine read_files(mype)
   use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_getheadvar
   use read_obsmod, only: gsi_inquire
   use gsi_io, only: verbose
-  use module_fv3gfs_ncio, only: Dataset, Dimension, open_dataset, get_dim, &
+  use module_ncio, only: Dataset, Dimension, open_dataset, get_dim, &
                                 read_vardata, get_idate_from_time_units, &
                                 close_dataset
   use chemmod, only: lread_ext_aerosol

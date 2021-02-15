@@ -2,40 +2,39 @@
 # FLAGS COMMON TO ALL BUILD TYPES
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS} -assume byterecl -convert big_endian -implicitnone")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g")
 
 ####################################################################
 # RELEASE FLAGS
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -fp-model strict")
+set(CMAKE_C_FLAGS_RELEASE "")
 
 ####################################################################
 # DEBUG FLAGS
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -check bounds -warn -heap-arrays -fpe-all=0 -fpe:0 -check all")
+set(CMAKE_C_FLAGS_DEBUG "-Wall")
 
 ####################################################################
 # PRODUCTION FLAGS
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS_PRODUCTION "-O3 -fp-model strict")
+set(CMAKE_C_FLAGS_PRODUCTION "")
 
 ####################################################################
 # LINK FLAGS
 ####################################################################
 
-set(CMAKE_Fortran_LINK_FLAGS "")
+set(CMAKE_C_LINK_FLAGS "")
 
 ####################################################################
 # FLAGS FOR AUTOPROFILING
 ####################################################################
 
-set(Fortran_AUTOPROFILING_FLAGS "-finstrument-functions")
+set(C_AUTOPROFILING_FLAGS "")
 
 ####################################################################
 
 # Meaning of flags
 # ----------------
-# todo

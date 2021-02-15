@@ -78,7 +78,7 @@ subroutine get_gefs_for_regional
   use nemsio_module, only: nemsio_init,nemsio_open,nemsio_close
   use ncepnems_io, only: error_msg
   use nemsio_module, only: nemsio_gfile,nemsio_getfilehead
-  use module_fv3gfs_ncio, only: Dimension, Dataset, open_dataset, get_dim, &
+  use module_ncio, only: Dimension, Dataset, open_dataset, get_dim, &
                                 read_vardata, get_idate_from_time_units,&
                                 read_attribute, close_dataset
   use get_wrf_mass_ensperts_mod, only: get_wrf_mass_ensperts_class
