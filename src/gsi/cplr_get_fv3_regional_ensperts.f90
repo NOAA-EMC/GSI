@@ -362,7 +362,7 @@ contains
   !
   !   Declare local variables
       
-      integer(i_kind):: i,j,k,kp,lon2ens,lat2ens
+      integer(i_kind):: i,j,k,kp
       integer(i_kind) iderivative
   
       
@@ -392,36 +392,34 @@ contains
       
 
 !cltthinktobe  should be contained in variable like grd_ens
-    lon2ens=grd_ens%lon2
-    lat2ens=grd_ens%lat2
     if (dual_res) then
       if(fv3sar_ensemble_opt == 0 ) then
-        call gsi_fv3ncdf_readuv(dynvars,g_u,g_v,lat2ens,lon2ens,.true.)
+        call gsi_fv3ncdf_readuv(dynvars,g_u,g_v,grd_ens%lat2,grd_ens%lon2,.true.)
       else
-        call gsi_fv3ncdf_readuv_v1(dynvars,g_u,g_v,lat2ens,lon2ens,.true.)
+        call gsi_fv3ncdf_readuv_v1(dynvars,g_u,g_v,grd_ens%lat2,grd_ens%lon2,.true.)
       endif
       if(fv3sar_ensemble_opt == 0) then
-        call gsi_fv3ncdf_read(dynvars,'T','t',g_tsen,mype_t,lat2ens,lon2ens,.true.)
+        call gsi_fv3ncdf_read(dynvars,'T','t',g_tsen,mype_t,grd_ens%lat2,grd_ens%lon2,.true.)
       else
-        call gsi_fv3ncdf_read_v1(dynvars,'t','T',g_tsen,mype_t,lat2ens,lon2ens,.true.)
+        call gsi_fv3ncdf_read_v1(dynvars,'t','T',g_tsen,mype_t,grd_ens%lat2,grd_ens%lon2,.true.)
       endif
     else
       if(fv3sar_ensemble_opt == 0 ) then
-        call gsi_fv3ncdf_readuv(dynvars,g_u,g_v,lat2ens,lon2ens,.false.)
+        call gsi_fv3ncdf_readuv(dynvars,g_u,g_v,grd_ens%lat2,grd_ens%lon2,.false.)
       else
-        call gsi_fv3ncdf_readuv_v1(dynvars,g_u,g_v,lat2ens,lon2ens,.false.)
+        call gsi_fv3ncdf_readuv_v1(dynvars,g_u,g_v,grd_ens%lat2,grd_ens%lon2,.false.)
       endif
       if(fv3sar_ensemble_opt == 0) then
-        call gsi_fv3ncdf_read(dynvars,'T','t',g_tsen,mype_t,lat2ens,lon2ens,.false.)
+        call gsi_fv3ncdf_read(dynvars,'T','t',g_tsen,mype_t,grd_ens%lat2,grd_ens%lon2,.false.)
       else
-        call gsi_fv3ncdf_read_v1(dynvars,'t','T',g_tsen,mype_t,lat2ens,lon2ens,.false.)
+        call gsi_fv3ncdf_read_v1(dynvars,'t','T',g_tsen,mype_t,grd_ens%lat2,grd_ens%lon2,.false.)
       endif
     end if
     if (fv3sar_ensemble_opt == 0) then 
       if (dual_res) then
-        call gsi_fv3ncdf_read(dynvars,'DELP','delp',g_prsi,mype_p,lat2ens,lon2ens,.true.)
+        call gsi_fv3ncdf_read(dynvars,'DELP','delp',g_prsi,mype_p,grd_ens%lat2,grd_ens%lon2,.true.)
       else
-        call gsi_fv3ncdf_read(dynvars,'DELP','delp',g_prsi,mype_p,lat2ens,lon2ens,.false.)
+        call gsi_fv3ncdf_read(dynvars,'DELP','delp',g_prsi,mype_p,grd_ens%lat2,grd_ens%lon2,.false.)
       end if
       g_prsi(:,:,grd_ens%nsig+1)=eta1_ll(grd_ens%nsig+1) !thinkto be done , should use eta1_ll from ensemble grid
       do i=grd_ens%nsig,1,-1
@@ -430,9 +428,9 @@ contains
     g_ps(:,:)=g_prsi(:,:,1)
     else  ! for the ensemble processed frm CHGRES
       if (dual_res) then
-        call gsi_fv3ncdf2d_read_v1(dynvars,'ps','PS',g_ps,mype_p,lat2ens,lon2ens,.true.)
+        call gsi_fv3ncdf2d_read_v1(dynvars,'ps','PS',g_ps,mype_p,grd_ens%lat2,grd_ens%lon2,.true.)
       else
-        call gsi_fv3ncdf2d_read_v1(dynvars,'ps','PS',g_ps,mype_p,lat2ens,lon2ens,.false.)
+        call gsi_fv3ncdf2d_read_v1(dynvars,'ps','PS',g_ps,mype_p,grd_ens%lat2,grd_ens%lon2,.false.)
       end if
       g_ps=g_ps*0.001_r_kind
       do k=1,grd_ens%nsig+1
@@ -442,19 +440,19 @@ contains
      
     if (dual_res) then
       if(fv3sar_ensemble_opt == 0) then
-        call gsi_fv3ncdf_read(tracers,'SPHUM','sphum',g_q,mype_q,lat2ens,lon2ens,.true.)
-        call gsi_fv3ncdf_read(tracers,'O3MR','o3mr',g_oz,mype_oz,lat2ens,lon2ens,.true.)
+        call gsi_fv3ncdf_read(tracers,'SPHUM','sphum',g_q,mype_q,grd_ens%lat2,grd_ens%lon2,.true.)
+        call gsi_fv3ncdf_read(tracers,'O3MR','o3mr',g_oz,mype_oz,grd_ens%lat2,grd_ens%lon2,.true.)
       else
-        call gsi_fv3ncdf_read_v1(tracers,'sphum','SPHUM',g_q,mype_q,lat2ens,lon2ens,.true.)
-        call gsi_fv3ncdf_read_v1(tracers,'o3mr','O3MR',g_oz,mype_oz,lat2ens,lon2ens,.true.)
+        call gsi_fv3ncdf_read_v1(tracers,'sphum','SPHUM',g_q,mype_q,grd_ens%lat2,grd_ens%lon2,.true.)
+        call gsi_fv3ncdf_read_v1(tracers,'o3mr','O3MR',g_oz,mype_oz,grd_ens%lat2,grd_ens%lon2,.true.)
       endif
     else
       if(fv3sar_ensemble_opt == 0) then
-        call gsi_fv3ncdf_read(tracers,'SPHUM','sphum',g_q,mype_q,lat2ens,lon2ens,.false.)
-        call gsi_fv3ncdf_read(tracers,'O3MR','o3mr',g_oz,mype_oz,lat2ens,lon2ens,.false.)
+        call gsi_fv3ncdf_read(tracers,'SPHUM','sphum',g_q,mype_q,grd_ens%lat2,grd_ens%lon2,.false.)
+        call gsi_fv3ncdf_read(tracers,'O3MR','o3mr',g_oz,mype_oz,grd_ens%lat2,grd_ens%lon2,.false.)
       else
-        call gsi_fv3ncdf_read_v1(tracers,'sphum','SPHUM',g_q,mype_q,lat2ens,lon2ens,.false.)
-        call gsi_fv3ncdf_read_v1(tracers,'o3mr','O3MR',g_oz,mype_oz,lat2ens,lon2ens,.false.)
+        call gsi_fv3ncdf_read_v1(tracers,'sphum','SPHUM',g_q,mype_q,grd_ens%lat2,grd_ens%lon2,.false.)
+        call gsi_fv3ncdf_read_v1(tracers,'o3mr','O3MR',g_oz,mype_oz,grd_ens%lat2,grd_ens%lon2,.false.)
       endif
     end if
 
@@ -477,7 +475,7 @@ contains
                 end do
              end do
            end do
-           call genqsat(g_rh,g_tsen(1,1,1),g_prsl(1,1,1),lat2ens,lon2ens,grd_ens%nsig,ice,iderivative)
+           call genqsat(g_rh,g_tsen(1,1,1),g_prsl(1,1,1),grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,ice,iderivative)
            do k=1,grd_ens%nsig
              do j=1,grd_ens%lon2
                do i=1,grd_ens%lat2
