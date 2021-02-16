@@ -393,7 +393,7 @@ subroutine gsi_rfv3io_get_ens_grid_specs(grid_spec,ierr)
   use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
   use mpimod, only: mype
 !cltorg  use mod_fv3_lola, only: generate_anl_grid
-  use mod_fv3_lolgrid, only: definecoef_regular_grids 
+  use mod_fv3_lolgrid, only: definecoef_regular_grids,nxa_ens,nya_ens
   use gridmod,  only:region_lat,region_lon,nlat,nlon
   use gridmod,  only: region_dy,region_dx,region_dyi,region_dxi,coeffy,coeffx
   use kinds, only: i_kind,r_kind
@@ -466,7 +466,7 @@ subroutine gsi_rfv3io_get_ens_grid_specs(grid_spec,ierr)
 
 
 !!!!!!! setup A grid and interpolation/rotation coeff.
-    call definecoef_regular_grids(nxens,nyens,grid_lon,grid_lont,grid_lat,grid_latt,p_fv3sar2ensgrid, &
+    call definecoef_regular_grids(nxens,nyens,nxa_ens,nya_ens,grid_lon,grid_lont,grid_lat,grid_latt,p_fv3sar2ensgrid, &
                               nlat_ens,nlon_ens,region_lat_ens,region_lon_ens)
 
     deallocate (grid_lon,grid_lat,grid_lont,grid_latt)
@@ -930,7 +930,7 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z)
     use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
     use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
     use netcdf, only: nf90_inquire_variable
-    use mod_fv3_lolgrid, only: fv3_h_to_ll_regular_grids,nxa,nya
+    use mod_fv3_lolgrid, only: fv3_h_to_ll_regular_grids,nxa,nya,nxa_ens,nya_ens
     use constants, only: grav
 
     implicit none

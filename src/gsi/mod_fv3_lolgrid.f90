@@ -71,6 +71,7 @@ module mod_fv3_lolgrid
   public :: p_fv3sar2anlgrid
   public :: p_fv3sar2ensgrid
   public :: nxa,nya
+  public :: nxa_ens,nya_ens
   type fv3sar2grid_parm
   logical bilinear
   integer(i_kind) nxout,nyout,nx,ny
@@ -82,6 +83,7 @@ module mod_fv3_lolgrid
   end type
   type (fv3sar2grid_parm)::p_fv3sar2anlgrid,p_fv3sar2ensgrid
   integer(i_kind) nxa,nya
+  integer(i_kind) nxa_ens,nya_ens
   
 
 contains
@@ -648,7 +650,7 @@ subroutine generate_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,p_
   deallocate( xc,yc,zc,gclat,gclon,gcrlat,gcrlon)
   deallocate(rlat_in,rlon_in)
 end subroutine generate_regular_grids
-subroutine definecoef_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,p_fv3sar2grid,&
+subroutine definecoef_regular_grids(nx,ny,nxa_inout,nya_inout,grid_lon,grid_lont,grid_lat,grid_latt,p_fv3sar2grid,&
                              nlatin,nlonin,region_lat_in,region_lon_in)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -705,6 +707,7 @@ subroutine definecoef_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,
 
 
   integer(i_kind), intent(in   ) :: nx,ny                 ! fv3 tile x- and y-dimensions
+  integer(i_kind), intent(inout   ) :: nxa_inout,nya_inout 
   real(r_kind)   , intent(inout) :: grid_lon(nx+1,ny+1)   ! fv3 cell corner longitudes
   real(r_kind)   , intent(inout) :: grid_lont(nx,ny)      ! fv3 cell center longitudes
   real(r_kind)   , intent(inout) :: grid_lat(nx+1,ny+1)   ! fv3 cell corner latitudes
@@ -781,8 +784,8 @@ subroutine definecoef_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,
   p_fv3sar2grid%nxout=nxout
   nyout=nlatin
   p_fv3sar2grid%nyout=nyout
-  nxa=nxout
-  nya=nyout  ! for compatiability 
+  nxa_inout=nxout
+  nya_inout=nyout  ! for compatiability 
   if(mype==0) print *,'nlatin,nlonin = ',nlatin,nlonin
 
 !--------------------------obtain analysis grid spacing
@@ -854,10 +857,10 @@ subroutine definecoef_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,
 
   index0=1
 !cltthinkdeb should region_lon_in be in degree or not?
-  do j=1,nxa
+  do j=1,nxa_inout
      xa_a(j)= (rlon_in(index0,j)-clon)/dlon
   end do
-  do i=1,nya
+  do i=1,nya_inout
      ya_a(i)= (rlat_in(i,index0)-clat)/dlon
   end do
 
