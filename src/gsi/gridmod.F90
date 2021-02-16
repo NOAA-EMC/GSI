@@ -91,6 +91,7 @@ module gridmod
 !   2019-04-19  martin  - add use_fv3_aero option to distingiush between NGAC and FV3-Chem
 !   2019-09-04  martin  - add write_fv3_incr to write netCDF increment rather than analysis in NEMSIO format
 !   2019-09-23  martin  - add use_gfs_ncio to read global first guess from netCDF file
+!   2021-02-01  Lu & Wang - add vars for hafs dual ens. POC: xuguang.wang@ou.edu
 !
 !                        
 !
@@ -132,6 +133,7 @@ module gridmod
 ! set passed variables to public
   public :: nnnn1o,iglobal,itotsub,ijn,ijn_s,lat2,lon2,lat1,lon1,nsig,nsig_soil
   public :: ncloud,nlat,nlon,ntracer,displs_s,displs_g
+  public :: ijn_sens,ijnens,displs_sens
   public :: bk5,regional,latlon11,latlon1n,twodvar_regional
   public :: netcdf,nems_nmmb_regional,wrf_mass_regional,wrf_nmm_regional,cmaq_regional
   public :: aeta2_ll,pdtop_ll,pt_ll,eta1_ll,eta2_ll,aeta1_ll,idsl5,ck5,ak5
@@ -283,6 +285,9 @@ module gridmod
   integer(i_kind),allocatable,dimension(:):: isd_g     !   displacement for send to global
   integer(i_kind),allocatable,dimension(:):: displs_s  !   displacement for send from subdomain
   integer(i_kind),allocatable,dimension(:):: displs_g  !   displacement for receive on global grid
+  integer(i_kind),allocatable,dimension(:):: ijn_sens
+  integer(i_kind),allocatable,dimension(:):: ijnens
+  integer(i_kind),allocatable,dimension(:):: displs_sens
 
   integer(i_kind),dimension(200):: nlayers        ! number of RTM layers per model layer
                                                   ! (k=1 is near surface layer), default is 1
@@ -924,7 +929,8 @@ contains
     allocate(periodic_s(npe),jstart(npe),istart(npe),&
          ilat1(npe),jlon1(npe),&
        ijn_s(npe),irc_s(npe),ird_s(npe),displs_s(npe),&
-       ijn(npe),isc_g(npe),isd_g(npe),displs_g(npe))
+       ijn(npe),isc_g(npe),isd_g(npe),displs_g(npe), &
+       ijn_sens(npe),ijnens(npe),displs_sens(npe))
 
     do i=1,npe
        periodic_s(i)= .false.
@@ -940,6 +946,9 @@ contains
        isc_g(i)     = 0
        isd_g(i)     = 0
        displs_g(i)  = 0
+       ijn_sens(i)  = 0
+       displs_sens(i)= 0
+       ijnens(i)    = 0
     end do
 
     return
@@ -980,6 +989,7 @@ contains
     deallocate(periodic_s,jstart,istart,ilat1,jlon1,&
        ijn_s,irc_s,ird_s,displs_s,&
        ijn,isc_g,isd_g,displs_g)
+    deallocate(ijn_sens,ijnens,displs_sens)
 
     return
   end subroutine destroy_mapping
