@@ -66,7 +66,11 @@ if [ $target = wcoss_d ]; then
 elif [ $target = wcoss -o $target = gaea ]; then
     module purge
     module load $dir_modules/modulefile.ProdGSI.$target
-elif [ $target = hera -o $target = cheyenne -o $target = orion ]; then
+elif [ $target = hera ]; then
+    module purge
+    module use $dir_modules
+    module load modulefile.ProdGSI.$target
+elif [ $target = cheyenne -o $target = orion ]; then
     module purge
     source $dir_modules/modulefile.ProdGSI.$target
 elif [ $target = wcoss_c ]; then
@@ -80,7 +84,7 @@ else
 fi
 
 if [ $build_type = PRODUCTION -o $build_type = DEBUG ] ; then
-  cmake -DBUILD_UTIL=ON -DMPI3FLAG=-DMPI3 -DMPI3=ON -DBUILD_NCDIAG_SERIAL=ON -DCMAKE_BUILD_TYPE=$build_type -DBUILD_CORELIBS=OFF ..
+  cmake -DBUILD_UTIL=ON -DBUILD_NCDIAG_SERIAL=ON -DCMAKE_BUILD_TYPE=$build_type -DBUILD_CORELIBS=OFF ..
 else 
   cmake ..
 fi

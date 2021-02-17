@@ -4,19 +4,13 @@ set -xa
 #
 #  read_scatter.sh
 #
+#    Extract a subset of data from the scater file
+#    and generate an out_${mtype) data file and 
+#    control file for GrADS.
 #-----------------------------------------------------------------------------------
 
 echo "---> read_scatter.sh"
-echo " CMON_SUFFIX = $CMON_SUFFIX"
-
-##if  [ $# -ne 1 ] ; then
-## echo "usage: $0 date"
-## exit 8
-##fi
-
-
-## Set mydir.  Remove and make clean mydir.  cd mydir
-##????
+echo " CONMON_SUFFIX = $CONMON_SUFFIX"
 
 exp=$1
 echo "exp set to $exp"
@@ -43,26 +37,14 @@ echo "datadir set to $datadir"
 sorcdir=${12}
 echo "sorcdir set to $sorcdir"
 
-##exp=copr
-## dtype=uv220_00
-## mtype=uv220
-##subtype=00
-## rdate=2007071100
-## fixdir=/nwprod/fix
-## nreal=21
-## exec=read_uv.x
-## type=uv
-## cycle=ges
-## datadir=/u/wx20es/nbns/stats/convweb/copr/horz_hist/ges
-## sorcdir=/u/wx20es/home/convweb/exec
-
-
 ## set up the directory with excutable files
 
 fixfile=global_convinfo.txt 
-cp ${fixdir}/${fixfile} ./convinfo
+if [[ ! -e ./convinfo ]]; then
+   cp ${fixdir}/${fixfile} ./convinfo
+fi
 
-fname=$datadir/${dtype}.scater.${rdate}
+fname=$datadir/${dtype}.scater.${cycle}.${rdate}
 
 
 #-----------------------------------------------------------
@@ -73,28 +55,34 @@ fname=$datadir/${dtype}.scater.${rdate}
 rm -f input
 cat << EOF > input
   &input 
-  nreal=${nreal},mtype='${mtype}',fname='${fname}',fileo='out',rlev=0.1,insubtype=${subtype},
+  nreal=${nreal},
+  mtype='${mtype}',
+  fname='${fname}',
+  fileo='out_${dtype}_${cycle}.${rdate}',
+  rlev=0.1,
+  insubtype=${subtype},
+  grads_info_file='grads_info_${dtype}_${cycle}.${rdate}'
 /
 EOF
 
 cp $sorcdir/$exec ./$exec
-#cp $CONVINFO_FILE ./convinfo
 
-./$exec <input  > stdout  2>&1
+./$exec <input  > stdout_${dtype}_${cycle}.${rdate}  2>&1
 
 #rm -f $exec
-##rm -f convinfo
 #rm -f input
-#rm -f fname.out
-mv out out_${dtype}_${cycle}.${rdate}
-mv stdout stdout_${dtype}_${cycle}.${rdate}
 
-#if [ "${type}" = 'uv' ]; then
-#mv out_u out_${dtype}_u_${cycle}.${rdate}
-#mv out_v out_${dtype}_v_${cycle}.${rdate}
-#mv stdout_u stdout_${dtype}_u_${cycle}.${rdate}
-#mv stdout_v stdout_${dtype}_v_${cycle}.${rdate}
-#fi
+
+if [ "${type}" = 'uv' ]; then
+   mv out_u out_${dtype}_u_${cycle}.${rdate}
+   mv out_v out_${dtype}_v_${cycle}.${rdate}
+
+   mv stdout_u stdout_${dtype}_u_${cycle}.${rdate}
+   mv stdout_v stdout_${dtype}_v_${cycle}.${rdate}
+
+   mv grads_info_u grads_info_${dtype}_u_${cycle}.${rdate}
+   mv grads_info_v grads_info_${dtype}_v_${cycle}.${rdate}
+fi
 
 
 echo "<--- read_scatter.sh"

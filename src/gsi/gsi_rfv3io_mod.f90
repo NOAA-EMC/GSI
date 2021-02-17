@@ -23,6 +23,7 @@ module gsi_rfv3io_mod
 !   sub gsi_fv3ncdf_writeuv
 !   sub gsi_fv3ncdf_writeps
 !   sub gsi_fv3ncdf_write
+!   sub gsi_fv3ncdf_write_v1
 !   sub check
 !
 ! variable definitions:
@@ -94,6 +95,7 @@ module gsi_rfv3io_mod
     k_slmsk=10,                 &   !isli
     k_orog =11,                 & !terrain
     n2d=11                   )
+  logical :: grid_reverse_flag
 
 contains
   subroutine fv3regfilename_init(this,grid_spec_input,ak_bk_input,dynvars_input, &
@@ -178,8 +180,9 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
   use netcdf, only: nf90_inquire_variable
   use mpimod, only: mype
   use mod_fv3_lola, only: generate_anl_grid
-  use gridmod,  only:nsig,regional_time,regional_fhr,aeta1_ll,aeta2_ll
+  use gridmod,  only:nsig,regional_time,regional_fhr,regional_fmin,aeta1_ll,aeta2_ll
   use gridmod,  only:nlon_regional,nlat_regional,eta1_ll,eta2_ll
+  use gridmod,  only:grid_type_fv3_regional
   use kinds, only: i_kind,r_kind
   use constants, only: half,zero
   use mpimod, only: mpi_comm_world,mpi_itype,mpi_rtype
@@ -196,6 +199,7 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
   character(len=128) :: name
   integer(i_kind) myear,mmonth,mday,mhour,mminute,msecond
   real(r_kind),allocatable:: abk_fv3(:)
+  integer(i_kind) imiddle,jmiddle
 
       coupler_res_filenam=fv3filenamegin%couplerres
       grid_spec=fv3filenamegin%grid_spec
@@ -215,6 +219,7 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
     regional_time(5)=mminute
     regional_time(6)=msecond
     regional_fhr=zero          ! forecast hour set zero for now
+    regional_fmin=zero          ! forecast min set zero for now
 
 !!!!!!!!!!    grid_spec  !!!!!!!!!!!!!!!
     ierr=0
@@ -258,6 +263,42 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
           iret=nf90_get_var(gfile_loc,k,grid_lont)
        endif
     enddo
+!
+!  need to decide the grid orientation of the FV regional model    
+!
+!   grid_type_fv3_regional = 0 : decide grid orientation based on
+!                                grid_lat/grid_lon
+!                            1 : input is E-W N-S grid
+!                            2 : input is W-E S-N grid
+!
+    if(grid_type_fv3_regional == 0) then
+        imiddle=nx/2
+        jmiddle=ny/2
+        if( (grid_latt(imiddle,1) < grid_latt(imiddle,ny)) .and. &
+            (grid_lont(1,jmiddle) < grid_lont(nx,jmiddle)) ) then 
+            grid_type_fv3_regional = 2
+        else
+            grid_type_fv3_regional = 1
+        endif
+    endif
+! check the grid type
+    if( grid_type_fv3_regional == 1 ) then
+       if(mype==0) write(6,*) 'FV3 regional input grid is  E-W N-S grid'
+       grid_reverse_flag=.true.    ! grid is revered comparing to usual map view
+    elseif(grid_type_fv3_regional == 2) then
+       if(mype==0) write(6,*) 'FV3 regional input grid is  W-E S-N grid'
+       grid_reverse_flag=.false.   ! grid orientated just like we see on map view    
+    else
+       write(6,*) 'Error: FV3 regional input grid is unknown grid'
+       call stop2(678)
+    endif
+!
+    if(grid_type_fv3_regional == 2) then
+       call reverse_grid_r(grid_lont,nx,ny,1)
+       call reverse_grid_r(grid_latt,nx,ny,1)
+       call reverse_grid_r(grid_lon,nx+1,ny+1,1)
+       call reverse_grid_r(grid_lat,nx+1,ny+1,1)
+    endif
 
     iret=nf90_close(gfile_loc)
 
@@ -671,6 +712,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     else  
        call  gsi_fv3ncdf2d_read_v1(dynvars,'ps','PS',ges_ps,mype_p)
        ges_prsi(:,:,nsig+1,it)=eta1_ll(nsig+1)
+       ges_ps=ges_ps*0.001_r_kind
        do k=1,nsig
          ges_prsi(:,:,k,it)=eta1_ll(k)+eta2_ll(k)*ges_ps  
        enddo
@@ -805,7 +847,7 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z)
        if(allocated(sfc       )) deallocate(sfc       )
        allocate(sfc(dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))))
        iret=nf90_get_var(gfile_loc,i,sfc)
-       call fv3_h_to_ll(sfc(:,:,1),a,nx,ny,nxa,nya)
+       call fv3_h_to_ll(sfc(:,:,1),a,nx,ny,nxa,nya,grid_reverse_flag)
 
        kk=0
        do n=1,npe
@@ -853,7 +895,7 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z)
     iret=nf90_close(gfile_loc)
 
     k=k_orog
-    call fv3_h_to_ll(sfc1,a,nx,ny,nxa,nya)
+    call fv3_h_to_ll(sfc1,a,nx,ny,nxa,nya,grid_reverse_flag)
 
     kk=0
     do n=1,npe
@@ -973,7 +1015,7 @@ subroutine gsi_fv3ncdf2d_read_v1(filenamein,varname,varname2,work_sub,mype_io)
        if(allocated(uu       )) deallocate(uu       )
        allocate(uu(nx,ny,1))
        iret=nf90_get_var(gfile_loc,var_id,uu)
-          call fv3_h_to_ll(uu(:,:,1),a,nx,ny,nlon,nlat)
+          call fv3_h_to_ll(uu(:,:,1),a,nx,ny,nlon,nlat,grid_reverse_flag)
           kk=0
           do n=1,npe
              do j=1,ijn_s(n)
@@ -1085,7 +1127,7 @@ subroutine gsi_fv3ncdf_read(filenamein,varname,varname2,work_sub,mype_io)
        nzp1=nz+1
        do i=1,nz
           ir=nzp1-i
-          call fv3_h_to_ll(uu(:,:,i),a,dim(dim_id(1)),dim(dim_id(2)),nlon,nlat)
+          call fv3_h_to_ll(uu(:,:,i),a,dim(dim_id(1)),dim(dim_id(2)),nlon,nlat,grid_reverse_flag)
           kk=0
           do n=1,npe
              ns=displss(n)+(ir-1)*ijn_s(n)
@@ -1204,7 +1246,7 @@ subroutine gsi_fv3ncdf_read_v1(filenamein,varname,varname2,work_sub,mype_io)
        nzp1=nztmp+1
        do i=1,nztmp
           ir=nzp1-i
-          call fv3_h_to_ll(uu(:,:,i),a,nx,ny,nlon,nlat)
+          call fv3_h_to_ll(uu(:,:,i),a,nx,ny,nlon,nlat,grid_reverse_flag)
           kk=0
           do n=1,npe
              ns=displss(n)+(ir-1)*ijn_s(n)
@@ -1315,10 +1357,29 @@ subroutine gsi_fv3ncdf_readuv(dynvarsfile,ges_u,ges_v)
              if(allocated(uu)) deallocate(uu)
              allocate(uu(dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))))
              iret=nf90_get_var(gfile_loc,k,uu)
+!    NOTE on transfor to earth u/v:
+!       The u and v before transferring need to be in E-W/N-S grid, which is
+!       defined as reversed grid here because it is revered from map view.
+!
+!       Have set the following flag for grid orientation
+!         grid_reverse_flag=true:  E-W/N-S grid
+!         grid_reverse_flag=false: W-E/S-N grid 
+!
+!       So for preparing the wind transferring, need to reverse the grid from
+!       W-E/S-N grid to E-W/N-S grid when grid_reverse_flag=false:
+!
+!            if(.not.grid_reverse_flag) call reverse_grid_r_uv
+!
+!       and the last input parameter for fv3_h_to_ll is alway true:
+!
+!            call fv3_h_to_ll(u,a,nx,ny,nxa,nya,.true.)     
+!
              if(trim(name)=='u'.or.trim(name)=='U') then
                 allocate(temp1(dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3))))
+                if(.not.grid_reverse_flag) call reverse_grid_r_uv(uu,dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3)))
                 temp1=uu
              else if(trim(name)=='v'.or.trim(name)=='V') then
+                if(.not.grid_reverse_flag) call reverse_grid_r_uv(uu,dim(dim_id(1)),dim(dim_id(2)),dim(dim_id(3)))
                 exit
              endif
           endif
@@ -1330,9 +1391,9 @@ subroutine gsi_fv3ncdf_readuv(dynvarsfile,ges_u,ges_v)
           ir=nzp1-i 
           call fv3uv2earth(temp1(:,:,i),uu(:,:,i),nx,ny,u,v)
           if(mype==mype_u)then
-             call fv3_h_to_ll(u,a,nx,ny,nxa,nya)
+             call fv3_h_to_ll(u,a,nx,ny,nxa,nya,.true.)
           else
-             call fv3_h_to_ll(v,a,nx,ny,nxa,nya)
+             call fv3_h_to_ll(v,a,nx,ny,nxa,nya,.true.)
           endif
           kk=0
           do n=1,npe
@@ -1459,12 +1520,12 @@ subroutine gsi_fv3ncdf_readuv_v1(dynvarsfile,ges_u,ges_v)
               uorv(:,j)=half*(uu(:,j,i)+uu(:,j+1,i))
              enddo
              
-             call fv3_h_to_ll(uorv(:,:),a,nx,ny,nxa,nya)
+             call fv3_h_to_ll(uorv(:,:),a,nx,ny,nxa,nya,grid_reverse_flag)
           else
              do j=1,nx
               uorv(j,:)=half*(uu(j,:,i)+uu(j+1,:,i))
              enddo
-             call fv3_h_to_ll(uorv(:,:),a,nx,ny,nxa,nya)
+             call fv3_h_to_ll(uorv(:,:),a,nx,ny,nxa,nya,grid_reverse_flag)
           endif
           kk=0
           do n=1,npe
@@ -1548,8 +1609,8 @@ subroutine wrfv3_netcdf(fv3filenamegin)
       call gsi_fv3ncdf_writeuv(dynvars,ges_u,ges_v,mype_v,add_saved)
       call gsi_fv3ncdf_writeps(dynvars,'delp',ges_ps,mype_p,add_saved)
     else
-      call gsi_fv3ncdf_write(dynvars,'t',ges_tsen(1,1,1,it),mype_t,add_saved)
-      call gsi_fv3ncdf_write(tracers,'sphum',ges_q   ,mype_q,add_saved)
+      call gsi_fv3ncdf_write_v1(dynvars,'t',ges_tsen(1,1,1,it),mype_t,add_saved)
+      call gsi_fv3ncdf_write_v1(tracers,'sphum',ges_q   ,mype_q,add_saved)
       call gsi_fv3ncdf_writeuv_v1(dynvars,ges_u,ges_v,mype_v,add_saved)
       call gsi_fv3ncdf_writeps_v1(dynvars,'ps',ges_ps,mype_p,add_saved)
     
@@ -1675,10 +1736,14 @@ subroutine gsi_fv3ncdf_writeuv(dynvars,varu,varv,mype_io,add_saved)
 !!!!!!!!  readin work_b !!!!!!!!!!!!!!!!
           call check( nf90_get_var(gfile_loc,ugrd_VarId,work_bu) )
           call check( nf90_get_var(gfile_loc,vgrd_VarId,work_bv) )
+          if(.not.grid_reverse_flag) then
+             call reverse_grid_r_uv(work_bu,nlon_regional,nlat_regional+1,nsig)
+             call reverse_grid_r_uv(work_bv,nlon_regional+1,nlat_regional,nsig)
+          endif
           do k=1,nsig
              call fv3uv2earth(work_bu(1,1,k),work_bv(1,1,k),nlon_regional,nlat_regional,u,v)
-             call fv3_h_to_ll(u,workau2,nlon_regional,nlat_regional,nlon,nlat)
-             call fv3_h_to_ll(v,workav2,nlon_regional,nlat_regional,nlon,nlat)
+             call fv3_h_to_ll(u,workau2,nlon_regional,nlat_regional,nlon,nlat,.true.)
+             call fv3_h_to_ll(v,workav2,nlon_regional,nlat_regional,nlon,nlat,.true.)
 !!!!!!!! find analysis_inc:  work_a !!!!!!!!!!!!!!!!
              work_au(:,:,k)=work_au(:,:,k)-workau2(:,:)
              work_av(:,:,k)=work_av(:,:,k)-workav2(:,:)
@@ -1696,6 +1761,10 @@ subroutine gsi_fv3ncdf_writeuv(dynvars,varu,varv,mype_io,add_saved)
              call fv3_ll_to_h(work_av(:,:,k),v,nlon,nlat,nlon_regional,nlat_regional,.true.)
              call earthuv2fv3(u,v,nlon_regional,nlat_regional,work_bu(:,:,k),work_bv(:,:,k))
           enddo
+       endif
+       if(.not.grid_reverse_flag) then
+          call reverse_grid_r_uv(work_bu,nlon_regional,nlat_regional+1,nsig)
+          call reverse_grid_r_uv(work_bv,nlon_regional+1,nlat_regional,nsig)
        endif
 
        deallocate(work_au,work_av,u,v)
@@ -1778,9 +1847,9 @@ subroutine gsi_fv3ncdf_writeps(filename,varname,var,mype_io,add_saved)
        allocate( work_b(nlon_regional,nlat_regional,nsig))
        call check( nf90_open(trim(filename),nf90_write,gfile_loc) )
        call check( nf90_inq_varid(gfile_loc,trim(varname),VarId) )
+       allocate( workb2(nlon_regional,nlat_regional))
 
        if(add_saved)then
-          allocate( workb2(nlon_regional,nlat_regional))
           allocate( worka2(nlat,nlon))
 !!!!!!!! read in guess delp  !!!!!!!!!!!!!!
           call check( nf90_get_var(gfile_loc,VarId,work_b) )
@@ -1788,17 +1857,17 @@ subroutine gsi_fv3ncdf_writeps(filename,varname,var,mype_io,add_saved)
           do i=2,nsig+1
              work_bi(:,:,i)=work_b(:,:,i-1)*0.001_r_kind+work_bi(:,:,i-1)
           enddo
-          call fv3_h_to_ll(work_bi(:,:,nsig+1),worka2,nlon_regional,nlat_regional,nlon,nlat)
+          call fv3_h_to_ll(work_bi(:,:,nsig+1),worka2,nlon_regional,nlat_regional,nlon,nlat,grid_reverse_flag)
 !!!!!!! analysis_inc Psfc: work_a
           work_a(:,:)=work_a(:,:)-worka2(:,:)
-          call fv3_ll_to_h(work_a,workb2,nlon,nlat,nlon_regional,nlat_regional,.true.)
+          call fv3_ll_to_h(work_a,workb2,nlon,nlat,nlon_regional,nlat_regional,grid_reverse_flag)
           do k=1,nsig+1
              kr=nsig+2-k
 !!!!!!! ges_prsi+hydrostatic analysis_inc !!!!!!!!!!!!!!!!
              work_bi(:,:,k)=work_bi(:,:,k)+eta2_ll(kr)*workb2(:,:)
           enddo
        else
-          call fv3_ll_to_h(work_a,workb2,nlon,nlat,nlon_regional,nlat_regional,.true.)
+          call fv3_ll_to_h(work_a,workb2,nlon,nlat,nlon_regional,nlat_regional,grid_reverse_flag)
           do k=1,nsig+1
              kr=nsig+2-k
 !!!!!!! Psfc_ges+hydrostatic analysis_inc !!!!!!!!!!!!!!!!
@@ -1813,7 +1882,9 @@ subroutine gsi_fv3ncdf_writeps(filename,varname,var,mype_io,add_saved)
   
        call check( nf90_put_var(gfile_loc,VarId,work_b) )
        call check( nf90_close(gfile_loc) )
-       deallocate(worka2,workb2)
+       if (allocated(worka2)) deallocate(worka2)
+       if (allocated(workb2)) deallocate(workb2)
+
        deallocate(work_b,work_a,work_bi)
 
     end if !mype_io
@@ -1832,6 +1903,7 @@ subroutine gsi_fv3ncdf_writeuv_v1(dynvars,varu,varv,mype_io,add_saved)
 ! program history log:
 ! 2019-04-22  lei   modified from gsi_nemsio_writeuv_v1 for update
 ! u_w,v_w,u_s,v_s in the cold start files!
+! 2020-03-06  lei   added ilev0 fix
 !   input argument list:
 !    varu,varv
 !    add_saved - true: add analysis increments to readin guess then write out
@@ -1870,6 +1942,7 @@ subroutine gsi_fv3ncdf_writeuv_v1(dynvars,varu,varv,mype_io,add_saved)
     integer(i_kind) :: u_wgrd_VarId,v_wgrd_VarId
     integer(i_kind) :: u_sgrd_VarId,v_sgrd_VarId
     integer(i_kind) i,j,mm1,n,k,ns,kr,m
+    integer(i_kind) ilev0
     real(r_kind),allocatable,dimension(:):: work
     real(r_kind),allocatable,dimension(:,:,:):: work_sub,work_au,work_av
     real(r_kind),allocatable,dimension(:,:,:):: work_bu_s,work_bv_s
@@ -1879,6 +1952,7 @@ subroutine gsi_fv3ncdf_writeuv_v1(dynvars,varu,varv,mype_io,add_saved)
     real(r_kind),allocatable,dimension(:,:):: workbu_w2,workbv_w2
 
     mm1=mype+1
+    ilev0=1
 
     allocate(    work(max(iglobal,itotsub)*nsig),work_sub(lat1,lon1,nsig))
 !!!!!! gather analysis u !! revers k !!!!!!!!!!!
@@ -1929,18 +2003,18 @@ subroutine gsi_fv3ncdf_writeuv_v1(dynvars,varu,varv,mype_io,add_saved)
           enddo
        enddo
        deallocate(work,work_sub)
-!clt u and v would contain winds at either D-grid or A-grid
-!clt do not diretly use them in between fv3uv2eath and fv3_h_to_ll unless paying
+! u and v would contain winds at either D-grid or A-grid
+! do not diretly use them in between fv3uv2eath and fv3_h_to_ll unless paying
 !attention to the actual storage layout
        call check( nf90_open(trim(dynvars ),nf90_write,gfile_loc) )
 
        allocate( u(nlon_regional,nlat_regional)) 
        allocate( v(nlon_regional,nlat_regional))
 
-       allocate( work_bu_s(nlon_regional,nlat_regional+1,nsig))
-       allocate( work_bv_s(nlon_regional,nlat_regional+1,nsig))
-       allocate( work_bu_w(nlon_regional+1,nlat_regional,nsig))
-       allocate( work_bv_w(nlon_regional+1,nlat_regional,nsig))
+       allocate( work_bu_s(nlon_regional,nlat_regional+1,nsig+1))
+       allocate( work_bv_s(nlon_regional,nlat_regional+1,nsig+1))
+       allocate( work_bu_w(nlon_regional+1,nlat_regional,nsig+1))
+       allocate( work_bv_w(nlon_regional+1,nlat_regional,nsig+1))
 
 
 
@@ -1949,8 +2023,6 @@ subroutine gsi_fv3ncdf_writeuv_v1(dynvars,varu,varv,mype_io,add_saved)
        call check( nf90_inq_varid(gfile_loc,'v_s',v_sgrd_VarId) )
        call check( nf90_inq_varid(gfile_loc,'v_w',v_wgrd_VarId) )
 
-       if(add_saved)then
-          allocate( workau2(nlat,nlon),workav2(nlat,nlon))
           allocate( workbu_w2(nlon_regional+1,nlat_regional))
           allocate( workbv_w2(nlon_regional+1,nlat_regional))
           allocate( workbu_s2(nlon_regional,nlat_regional+1))
@@ -1960,33 +2032,36 @@ subroutine gsi_fv3ncdf_writeuv_v1(dynvars,varu,varv,mype_io,add_saved)
           call check( nf90_get_var(gfile_loc,u_wgrd_VarId,work_bu_w) )
           call check( nf90_get_var(gfile_loc,v_sgrd_VarId,work_bv_s) )
           call check( nf90_get_var(gfile_loc,v_wgrd_VarId,work_bv_w) )
+
+       if(add_saved)then
+          allocate( workau2(nlat,nlon),workav2(nlat,nlon))
           do k=1,nsig
              do j=1,nlat_regional
-                u(:,j)=half * (work_bu_s(:,j,k)+ work_bu_s(:,j+1,k))
+                u(:,j)=half * (work_bu_s(:,j,ilev0+k)+ work_bu_s(:,j+1,ilev0+k))
              enddo
              do i=1,nlon_regional
-                v(i,:)=half*(work_bv_w(i,:,k)+work_bv_w(i+1,:,k))
+                v(i,:)=half*(work_bv_w(i,:,ilev0+k)+work_bv_w(i+1,:,ilev0+k))
              enddo
-             call fv3_h_to_ll(u,workau2,nlon_regional,nlat_regional,nlon,nlat)
-             call fv3_h_to_ll(v,workav2,nlon_regional,nlat_regional,nlon,nlat)
+             call fv3_h_to_ll(u,workau2,nlon_regional,nlat_regional,nlon,nlat,grid_reverse_flag)
+             call fv3_h_to_ll(v,workav2,nlon_regional,nlat_regional,nlon,nlat,grid_reverse_flag)
 !!!!!!!! find analysis_inc:  work_a !!!!!!!!!!!!!!!!
              work_au(:,:,k)=work_au(:,:,k)-workau2(:,:)
              work_av(:,:,k)=work_av(:,:,k)-workav2(:,:)
-             call fv3_ll_to_h(work_au(:,:,k),u,nlon,nlat,nlon_regional,nlat_regional,.true.)
-             call fv3_ll_to_h(work_av(:,:,k),v,nlon,nlat,nlon_regional,nlat_regional,.true.)
+             call fv3_ll_to_h(work_au(:,:,k),u,nlon,nlat,nlon_regional,nlat_regional,grid_reverse_flag)
+             call fv3_ll_to_h(work_av(:,:,k),v,nlon,nlat,nlon_regional,nlat_regional,grid_reverse_flag)
 !!!!!!!!  add analysis_inc to readin work_b !!!!!!!!!!!!!!!!
-             do i=2,nlon_regional-1
-               workbu_w2(i,:)=half*(u(i,:)+u(i+1,:))
-               workbv_w2(i,:)=half*(v(i,:)+v(i+1,:))
+             do i=2,nlon_regional
+               workbu_w2(i,:)=half*(u(i-1,:)+u(i,:))
+               workbv_w2(i,:)=half*(v(i-1,:)+v(i,:))
              enddo
              workbu_w2(1,:)=u(1,:)
              workbv_w2(1,:)=v(1,:)
              workbu_w2(nlon_regional+1,:)=u(nlon_regional,:)
              workbv_w2(nlon_regional+1,:)=v(nlon_regional,:)
 
-             do j=2,nlat_regional-1
-               workbu_s2(:,j)=half*(u(:,j)+u(:,j+1))
-               workbv_s2(:,j)=half*(v(:,j)+v(:,j+1))
+             do j=2,nlat_regional
+               workbu_s2(:,j)=half*(u(:,j-1)+u(:,j))
+               workbv_s2(:,j)=half*(v(:,j-1)+v(:,j))
              enddo
              workbu_s2(:,1)=u(:,1)
              workbv_s2(:,1)=v(:,1)
@@ -1995,36 +2070,36 @@ subroutine gsi_fv3ncdf_writeuv_v1(dynvars,varu,varv,mype_io,add_saved)
 
 
 
-             work_bu_w(:,:,k)=work_bu_w(:,:,k)+workbu_w2(:,:)
-             work_bu_s(:,:,k)=work_bu_s(:,:,k)+workbu_s2(:,:)
-             work_bv_w(:,:,k)=work_bv_w(:,:,k)+workbv_w2(:,:)
-             work_bv_s(:,:,k)=work_bv_s(:,:,k)+workbv_s2(:,:)
+             work_bu_w(:,:,ilev0+k)=work_bu_w(:,:,ilev0+k)+workbu_w2(:,:)
+             work_bu_s(:,:,ilev0+k)=work_bu_s(:,:,ilev0+k)+workbu_s2(:,:)
+             work_bv_w(:,:,ilev0+k)=work_bv_w(:,:,ilev0+k)+workbv_w2(:,:)
+             work_bv_s(:,:,ilev0+k)=work_bv_s(:,:,ilev0+k)+workbv_s2(:,:)
           enddo
           deallocate(workau2,workav2)
           deallocate(workbu_w2,workbv_w2)
           deallocate(workbu_s2,workbv_s2)
        else
           do k=1,nsig
-             call fv3_ll_to_h(work_au(:,:,k),u,nlon,nlat,nlon_regional,nlat_regional,.true.)
-             call fv3_ll_to_h(work_av(:,:,k),v,nlon,nlat,nlon_regional,nlat_regional,.true.)
+             call fv3_ll_to_h(work_au(:,:,k),u,nlon,nlat,nlon_regional,nlat_regional,grid_reverse_flag)
+             call fv3_ll_to_h(work_av(:,:,k),v,nlon,nlat,nlon_regional,nlat_regional,grid_reverse_flag)
 
-             do i=2,nlon_regional-1
-               work_bu_w(i,:,k)=half*(u(i,:)+u(i+1,:))
-               work_bv_w(i,:,k)=half*(v(i,:)+v(i+1,:))
+             do i=2,nlon_regional
+               work_bu_w(i,:,k)=half*(u(i-1,:)+u(i,:))
+               work_bv_w(i,:,k)=half*(v(i-1,:)+v(i,:))
              enddo
-             work_bu_w(1,:,k)=u(1,:)
-             work_bv_w(1,:,k)=v(1,:)
-             work_bu_w(nlon_regional+1,:,k)=u(nlon_regional,:)
-             work_bv_w(nlon_regional+1,:,k)=v(nlon_regional,:)
+             work_bu_w(1,:,ilev0+k)=u(1,:)
+             work_bv_w(1,:,ilev0+k)=v(1,:)
+             work_bu_w(nlon_regional+1,:,ilev0+k)=u(nlon_regional,:)
+             work_bv_w(nlon_regional+1,:,ilev0+k)=v(nlon_regional,:)
 
-             do j=2,nlat_regional-1
-               work_bu_s(:,j,k)=half*(u(:,j)+u(:,j+1))
-               work_bv_s(:,j,k)=half*(v(:,j)+v(:,j+1))
+             do j=2,nlat_regional
+               work_bu_s(:,j,ilev0+k)=half*(u(:,j-1)+u(:,j))
+               work_bv_s(:,j,ilev0+k)=half*(v(:,j-1)+v(:,j))
              enddo
-             work_bu_s(:,1,k)=u(:,1)
-             work_bv_s(:,1,k)=v(:,1)
-             work_bu_s(:,nlat_regional+1,k)=u(:,nlat_regional)
-             work_bv_s(:,nlat_regional+1,k)=v(:,nlat_regional)
+             work_bu_s(:,1,ilev0+k)=u(:,1)
+             work_bv_s(:,1,ilev0+k)=v(:,1)
+             work_bu_s(:,nlat_regional+1,ilev0+k)=u(:,nlat_regional)
+             work_bv_s(:,nlat_regional+1,ilev0+k)=v(:,nlat_regional)
 
 
           enddo
@@ -2120,19 +2195,20 @@ subroutine gsi_fv3ncdf_writeps_v1(filename,varname,var,mype_io,add_saved)
           allocate( worka2(nlat,nlon))
 !!!!!!!! read in guess delp  !!!!!!!!!!!!!!
           call check( nf90_get_var(gfile_loc,VarId,work_b) )
-          call fv3_h_to_ll(work_b,worka2,nlon_regional,nlat_regional,nlon,nlat)
+          call fv3_h_to_ll(work_b,worka2,nlon_regional,nlat_regional,nlon,nlat,grid_reverse_flag)
 !!!!!!! analysis_inc Psfc: work_a
           work_a(:,:)=work_a(:,:)-worka2(:,:)
-          call fv3_ll_to_h(work_a,workb2,nlon,nlat,nlon_regional,nlat_regional,.true.)
+          call fv3_ll_to_h(work_a,workb2,nlon,nlat,nlon_regional,nlat_regional,grid_reverse_flag)
              work_b(:,:)=work_b(:,:)+workb2(:,:)
        else
-          call fv3_ll_to_h(work_a,work_b,nlon,nlat,nlon_regional,nlat_regional,.true.)
+          call fv3_ll_to_h(work_a,work_b,nlon,nlat,nlon_regional,nlat_regional,grid_reverse_flag)
   
        endif
 
        call check( nf90_put_var(gfile_loc,VarId,work_b) )
        call check( nf90_close(gfile_loc) )
-       deallocate(worka2,workb2)
+       if (allocated(worka2)) deallocate(worka2)
+       if ( allocated(workb2)) deallocate(workb2)
        deallocate(work_b,work_a,work_bi)
 
     end if !mype_io
@@ -2227,16 +2303,16 @@ subroutine gsi_fv3ncdf_write(filename,varname,var,mype_io,add_saved)
           call check( nf90_get_var(gfile_loc,VarId,work_b) )
 
           do k=1,nsig
-             call fv3_h_to_ll(work_b(:,:,k),worka2,nlon_regional,nlat_regional,nlon,nlat)
+             call fv3_h_to_ll(work_b(:,:,k),worka2,nlon_regional,nlat_regional,nlon,nlat,grid_reverse_flag)
 !!!!!!!! analysis_inc:  work_a !!!!!!!!!!!!!!!!
              work_a(:,:,k)=work_a(:,:,k)-worka2(:,:)
-             call fv3_ll_to_h(work_a(1,1,k),workb2,nlon,nlat,nlon_regional,nlat_regional,.true.)
+             call fv3_ll_to_h(work_a(1,1,k),workb2,nlon,nlat,nlon_regional,nlat_regional,grid_reverse_flag)
              work_b(:,:,k)=work_b(:,:,k)+workb2(:,:)
           enddo
           deallocate(worka2,workb2)
        else
           do k=1,nsig
-             call fv3_ll_to_h(work_a(1,1,k),work_b(1,1,k),nlon,nlat,nlon_regional,nlat_regional,.true.)
+             call fv3_ll_to_h(work_a(1,1,k),work_b(1,1,k),nlon,nlat,nlon_regional,nlat_regional,grid_reverse_flag)
           enddo
        endif
 
@@ -2259,6 +2335,163 @@ subroutine check(status)
        stop  
     end if
 end subroutine check
+subroutine gsi_fv3ncdf_write_v1(filename,varname,var,mype_io,add_saved)
+!$$$  subprogram documentation block
+!                .      .    .                                        .
+! subprogram:    gsi_nemsio_write
+!   pgrmmr: wu
+!
+! abstract:
+!
+! program history log:
+! 2020-03-05  lei  modified from gsi_fv3ncdf_write to gsi_fv3ncdf_write_v1  
+!   input argument list:
+!    varu,varv
+!    add_saved
+!    mype     - mpi task id
+!    mype_io
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+    use mpimod, only: mpi_rtype,mpi_comm_world,ierror,npe,mype
+    use gridmod, only: lat2,lon2,nlon,nlat,lat1,lon1,nsig
+    use gridmod, only: ijn,displs_g,itotsub,iglobal
+    use mod_fv3_lola, only: fv3_ll_to_h
+    use mod_fv3_lola, only: fv3_h_to_ll
+    use general_commvars_mod, only: ltosi,ltosj
+    use netcdf, only: nf90_open,nf90_close
+    use netcdf, only: nf90_write,nf90_inq_varid
+    use netcdf, only: nf90_put_var,nf90_get_var
+    implicit none
+
+    real(r_kind)   ,intent(in   ) :: var(lat2,lon2,nsig)
+    integer(i_kind),intent(in   ) :: mype_io
+    logical        ,intent(in   ) :: add_saved
+    character(*)   ,intent(in   ) :: varname,filename
+
+    integer(i_kind) :: VarId,gfile_loc
+    integer(i_kind) :: ilev0
+    integer(i_kind) i,j,mm1,k,kr,ns,n,m
+    real(r_kind),allocatable,dimension(:):: work
+    real(r_kind),allocatable,dimension(:,:,:):: work_sub,work_a
+    real(r_kind),allocatable,dimension(:,:,:):: work_b
+    real(r_kind),allocatable,dimension(:,:):: workb2,worka2
+
+
+    mm1=mype+1
+
+    allocate(    work(max(iglobal,itotsub)*nsig),work_sub(lat1,lon1,nsig))
+!!!!!!!! reverse z !!!!!!!!!!!!!!
+    do k=1,nsig
+       kr=nsig+1-k
+       do i=1,lon1
+          do j=1,lat1
+             work_sub(j,i,kr)=var(j+1,i+1,k)
+          end do
+       end do
+    enddo
+    call mpi_gatherv(work_sub,ijnz(mm1),mpi_rtype, &
+          work,ijnz,displsz_g,mpi_rtype,mype_io,mpi_comm_world,ierror)
+
+    if(mype==mype_io) then
+       allocate( work_a(nlat,nlon,nsig))
+       ns=0
+       do m=1,npe
+          do k=1,nsig
+             do n=displs_g(m)+1,displs_g(m)+ijn(m) 
+                ns=ns+1
+                work_a(ltosi(n),ltosj(n),k)=work(ns)
+             end do
+          enddo
+       enddo
+
+       allocate( work_b(nlon_regional,nlat_regional,nsig+1))
+
+       call check( nf90_open(trim(filename),nf90_write,gfile_loc) )
+       call check( nf90_inq_varid(gfile_loc,trim(varname),VarId) )
+       call check( nf90_get_var(gfile_loc,VarId,work_b) )
+       ilev0=1
+
+       if(add_saved)then
+          allocate( workb2(nlon_regional,nlat_regional))
+          allocate( worka2(nlat,nlon))
+!  for being now only lev between (including )  2 and nsig+1 of work_b (:,:,lev) 
+!  are updated
+          do k=1,nsig
+             call fv3_h_to_ll(work_b(:,:,ilev0+k),worka2,nlon_regional,nlat_regional,nlon,nlat,grid_reverse_flag)
+!!!!!!!! analysis_inc:  work_a !!!!!!!!!!!!!!!!
+             work_a(:,:,k)=work_a(:,:,k)-worka2(:,:)
+             call fv3_ll_to_h(work_a(1,1,k),workb2,nlon,nlat,nlon_regional,nlat_regional,grid_reverse_flag)
+             work_b(:,:,ilev0+k)=work_b(:,:,ilev0+k)+workb2(:,:)
+          enddo
+          deallocate(worka2,workb2)
+       else
+          do k=1,nsig
+             call fv3_ll_to_h(work_a(1,1,k),work_b(1,1,ilev0+k),nlon,nlat,nlon_regional,nlat_regional,grid_reverse_flag)
+          enddo
+       endif
+
+       print *,'write out ',trim(varname),' to ',trim(filename)
+       call check( nf90_put_var(gfile_loc,VarId,work_b) )
+       call check( nf90_close(gfile_loc) )
+       deallocate(work_b,work_a)
+    end if !mype_io
+
+    deallocate(work,work_sub)
+
+end subroutine gsi_fv3ncdf_write_v1
+
+subroutine reverse_grid_r(grid,nx,ny,nz)
+!
+!  reverse the first two dimension of the array grid
+!
+    use kinds, only: r_kind,i_kind
+
+    implicit none
+    integer(i_kind),  intent(in     ) :: nx,ny,nz
+    real(r_kind),     intent(inout  ) :: grid(nx,ny,nz)
+    real(r_kind)                      :: tmp_grid(nx,ny)
+    integer(i_kind)                   :: i,j,k
+!
+    do k=1,nz
+       tmp_grid(:,:)=grid(:,:,k)
+       do j=1,ny
+          do i=1,nx
+             grid(i,j,k)=tmp_grid(nx+1-i,ny+1-j)
+          enddo        
+       enddo
+    enddo
+
+end subroutine reverse_grid_r
+
+subroutine reverse_grid_r_uv(grid,nx,ny,nz)
+!
+!  reverse the first two dimension of the array grid
+!
+    use kinds, only: r_kind,i_kind
+
+    implicit none
+    integer(i_kind), intent(in     ) :: nx,ny,nz
+    real(r_kind),    intent(inout  ) :: grid(nx,ny,nz)
+    real(r_kind)                     :: tmp_grid(nx,ny)
+    integer(i_kind)                  :: i,j,k
+!
+    do k=1,nz
+       tmp_grid(:,:)=grid(:,:,k)
+       do j=1,ny
+          do i=1,nx
+             grid(i,j,k)=-tmp_grid(nx+1-i,ny+1-j)
+          enddo
+       enddo
+    enddo
+
+end subroutine reverse_grid_r_uv
 
 
 end module gsi_rfv3io_mod

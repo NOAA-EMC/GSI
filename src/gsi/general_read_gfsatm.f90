@@ -1659,10 +1659,9 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
 !
 !$$$
    use kinds, only: r_kind,r_single,i_kind
-   use mpimod, only: mype
    use general_sub2grid_mod, only: sub2grid_info
    use general_specmod, only: spec_vars
-   use mpimod, only: npe
+   use mpimod, only: npe,mype,mpi_comm_world,ierror,mpi_integer,mpi_max,setcomm
    use constants, only: zero,one,fv,r0_01
    use egrid2agrid_mod,only: g_egrid2agrid,g_create_egrid2agrid,egrid2agrid_parm,destroy_egrid2agrid
    use general_commvars_mod, only: fill2_ns,filluv2_ns
@@ -1704,6 +1703,8 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    integer(i_kind),dimension(npe)::ilev,iflag,mype_use
    integer(i_kind),dimension(6):: idate
    integer(i_kind),dimension(4):: odate
+   integer(i_kind) :: nread,iworld,iworld_group,mpi_comm_read
+   integer(i_kind),dimension(npe):: mype_read,mype_read_max,mype_read_rank
    real(r_kind),allocatable,dimension(:) :: fhour
 
    real(r_kind),allocatable,dimension(:):: spec_div,spec_vor
@@ -1745,13 +1746,31 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
       endif
    enddo
    icm=icount
+
+   mype_read=-1
+   if (procuse) mype_read(mype+1) = mype
+
+   mype_read_max = -1
+   call mpi_allreduce(mype_read,mype_read_max,npe,mpi_integer,mpi_max,mpi_comm_world,ierror)
+
+   nread=0
+   mype_read_rank=-1
+   do i=1,npe
+      if (mype_read_max(i)>=0) then
+         nread=nread+1
+         mype_read_rank(nread)=mype_read_max(i)
+      endif
+   end do
+
+   call setcomm(iworld,iworld_group,nread,mype_read_rank,mpi_comm_read,ierror)
+
    allocate( work(grd%itotsub),work_v(grd%itotsub) )
    work=zero
    work_v=zero
 
    if ( procuse ) then
 
-      atmges = open_dataset(filename, paropen=.true.)
+      atmges = open_dataset(filename, paropen=.true., mpicomm=mpi_comm_read)
 
       ! get dimension sizes
       ncdim = get_dim(atmges, 'grid_xt'); lonb = ncdim%len

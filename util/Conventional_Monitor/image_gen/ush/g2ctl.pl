@@ -1,4 +1,5 @@
 #!/usr/bin/perl -w
+#------------------------------------------------------------------------------
 #   makes a GrADS control file for grib2 files
 #
 #   requires wgrib2 and Perl5
@@ -36,12 +37,10 @@ $version="0.0.9";
 use POSIX;
 use Math::Trig qw(deg2rad rad2deg);
 
-
-# ***** if wgrib2 is not on path, add it here
-#$wgrib2='wgrib2';
-$wgrib2='/nwprod/util/exec/wgrib2';
-# $wgrib2='/export/cpc-lw-webisuzak/wd51we/bin.lnx64/wgrib2';
-# $wgrib2='/export/cpc-lw-webisuzak/wd51we/grib2/wgrib2/wgrib2';
+#------------------------------------------------
+# $WGRIB2 is defined in module grib_util/1.1.1
+#
+$wgrib2="$ENV{WGRIB2}";
 
 $wflag="";
 $tflag="-VT";

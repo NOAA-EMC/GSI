@@ -146,6 +146,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2019-09-27  Su      - add hilbert curve application to aircraft winds
 !   2019-12-05  mmorris - Update adjust_goescldobs to reject ALL clear cloud obs at night
 !
+!   2020-05-04  wu      - no rotate_wind for fv3_regional
+
 !   input argument list:
 !     infile   - unit from which to read BUFR data
 !     obstype  - observation type to process
@@ -173,7 +175,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use constants,only: rearth,stndrd_atmos_ps,rd,grav
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
       tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
-      rlats,rlons,twodvar_regional
+      rlats,rlons,twodvar_regional,fv3_regional
   use convinfo, only: nconvtype,ctwind, &
       ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
       ithin_conv,rmesh_conv,pmesh_conv,pmot_conv,ptime_conv, &
@@ -2185,7 +2187,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                      if(sqrt(uob**2+vob**2)>60.0_r_kind)cycle LOOP_readsb
                  end if
 
-                 if(regional)then
+                 if(regional .and. .not. fv3_regional)then
                     u0=uob
                     v0=vob
                     call rotate_wind_ll2xy(u0,v0,uob,vob,dlon_earth,dlon,dlat)

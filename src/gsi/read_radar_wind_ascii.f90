@@ -13,6 +13,7 @@ subroutine read_radar_wind_ascii(nread,ndata,nodata,infile,lunout,obstype,sis,hg
 !   2011-08-12  carley - fix ob error to 2 m/s
 !   2011-08-23  carley - use deter_sfc_mod
 !   2011-12-08  carley - add wind rotation (earth to grid)
+!   2020-05-04  wu   - no rotate_wind for fv3_regional
 !
 !   input argument list:
 !     infile   - file from which to read data
@@ -116,7 +117,8 @@ subroutine read_radar_wind_ascii(nread,ndata,nodata,infile,lunout,obstype,sis,hg
   use constants, only: zero,half,one,two,deg2rad,rearth,rad2deg, &
                        one_tenth,r1000,r60,r60inv,r100,r400,grav_equator, &
                         eccentricity,somigliana,grav_ratio,grav,semi_major_axis,flattening 
-  use gridmod, only: regional,tll2xy,rotate_wind_ll2xy,nsig,nlat,nlon
+  use gridmod, only: regional,tll2xy,rotate_wind_ll2xy,nsig,nlat,nlon,&
+                     fv3_regional
   use obsmod, only: iadate, &
     mintiltvr,maxtiltvr,minobrangevr,maxobrangevr, rmesh_vr,zmesh_vr,&
     doradaroneob,oneoblat,oneoblon,oneobheight,oneobradid
@@ -464,7 +466,7 @@ real(r_kind) :: mintilt,maxtilt,maxobrange,minobrange
 							! Domain could be rectangular, so ob may be out of
 						        ! range at one end, but not the other.
                 
-                   if(regional) then
+                   if(regional .and. .not. fv3_regional) then
                        cosazm_earth=cos(thisazimuthr)
                        sinazm_earth=sin(thisazimuthr)
                        call rotate_wind_ll2xy(cosazm_earth,sinazm_earth,cosazm,sinazm,thislon,dlon,dlat)

@@ -84,7 +84,7 @@ cmake_minimum_required(VERSION 2.8)
 
 # Add the include paths
   message("MPI include PATH  ${MPI_Fortran_INCLUDE_PATH}")
-  include_directories( ${CORE_INCS} ${NETCDF_INCLUDES} ${MPI_Fortran_INCLUDE_PATH} ${FV3GFS_NCIO_INCS} "./" )
+  include_directories( ${CORE_INCS} ${NETCDF_INCLUDE_DIRS} ${MPI_Fortran_INCLUDE_PATH} ${FV3GFS_NCIO_INCS} "./" )
 
 #define the name used for GSI Shared lib and add it with properties and include dirs
   set(GSISHAREDLIB "gsilib_shrd${debug_suffix}" CACHE INTERNAL "")
@@ -145,7 +145,7 @@ cmake_minimum_required(VERSION 2.8)
   endif()
 # Specify all the libraries to be linked into the executable
   target_link_libraries(${GSIEXEC} ${GSISHAREDLIB} ${GSILIB} ${GSISHAREDLIB} ${WRF_LIBRARIES} 
-         ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES} ${HDF5_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} 
+         ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${MPI_Fortran_LIBRARIES} 
          ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${CORE_LIBRARIES} ${CORE_BUILT}
          ${GSI_LDFLAGS} ${NCDIAG_LIBRARIES} ${GSDCLOUD_LIBRARY} ${ZLIB_LIBRARIES} ${wrflib} ${EXTRA_LINKER_FLAGS} ${FV3GFS_NCIO_LIBRARIES})
   install(TARGETS ${GSIEXEC}
