@@ -54,23 +54,23 @@
          #
          if [ $days -gt 40 ]; then
             echo "RM ${C_TANKDIR}/$dir/00/conmon"
-            rm -rf ${CTANKDIR}/$dir/00/conmon 
+            rm -rf ${C_TANKDIR}/$dir/00/conmon 
             echo "RM ${C_TANKDIR}/$dir/06/conmon"
-            rm -rf ${CTANKDIR}/$dir/06/conmon 
+            rm -rf ${C_TANKDIR}/$dir/06/conmon 
             echo "RM ${C_TANKDIR}/$dir/12/conmon"
-            rm -rf ${CTANKDIR}/$dir/12/conmon 
+            rm -rf ${C_TANKDIR}/$dir/12/conmon 
             echo "RM ${C_TANKDIR}/$dir/18/conmon"
-            rm -rf ${CTANKDIR}/$dir/18/conmon 
+            rm -rf ${C_TANKDIR}/$dir/18/conmon 
 
          elif [ $days -gt 7 ]; then
             echo "RM ${C_TANKDIR}/${dir}/00/conmon/horz_hist"
-            rm -rf ${CTANKDIR}/$dir/00/conmon/horz_hist
+            rm -rf ${C_TANKDIR}/$dir/00/conmon/horz_hist
             echo "RM ${C_TANKDIR}/${dir}/06/conmon/horz_hist"
-            rm -rf ${CTANKDIR}/$dir/06/conmon/horz_hist
+            rm -rf ${C_TANKDIR}/$dir/06/conmon/horz_hist
             echo "RM ${C_TANKDIR}/${dir}/12/conmon/horz_hist"
-            rm -rf ${CTANKDIR}/$dir/12/conmon/horz_hist
+            rm -rf ${C_TANKDIR}/$dir/12/conmon/horz_hist
             echo "RM ${C_TANKDIR}/${dir}/18/conmon/horz_hist"
-            rm -rf ${CTANKDIR}/$dir/18/conmon/horz_hist
+            rm -rf ${C_TANKDIR}/$dir/18/conmon/horz_hist
          fi
 
       fi
