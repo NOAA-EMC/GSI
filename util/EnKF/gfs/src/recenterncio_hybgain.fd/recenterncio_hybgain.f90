@@ -81,8 +81,8 @@ program recenterncio_hybgain
   call getarg(11,charnin)
   read(charnin,'(i4)') nanals
   if (rtps > 0) then
-     call getarg(11,filename_fsprd) ! first guess ensemble spread
-     call getarg(12,filename_asprd) ! analysis ensemble spread
+     call getarg(13,filename_fsprd) ! first guess ensemble spread
+     call getarg(14,filename_asprd) ! analysis ensemble spread
   endif
 
   infmin=1.0; infmax=10.
