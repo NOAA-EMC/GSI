@@ -258,6 +258,7 @@ PROGRAM calc_increment_ncio
   !has_dpres = .false.; has_delz = .false. ! for debugging only
   print *,'has_dpres ',has_dpres
   print *,'has_delz ',has_delz
+  print *,'taper_strat',taper_strat
 
   ! ps increment.
   allocate(values_2d_inc(nlons,nlats))
