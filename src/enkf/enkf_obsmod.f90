@@ -197,6 +197,7 @@ call mpi_reduce(tdiff,tdiffmax,1,mpi_real4,mpi_max,0,mpi_comm_world,ierr)
 if (nproc == 0) then
  print *,'max time in mpireadobs  = ',tdiffmax
  print *,'total number of obs ',nobstot
+ print *,'min/max obtime ',minval(obtime),maxval(obtime)
 endif
 allocate(obfit_prior(nobstot))
 ! screen out some obs by setting ob error to a very large number
