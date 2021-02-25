@@ -319,8 +319,9 @@ PROGRAM calc_increment_ncio
            call read_vardata(dset_fg,trim(dset_fg%variables(nvar)%name),values_3d_fg)
            call read_vardata(dset_anal,trim(dset_fg%variables(nvar)%name),values_3d_anal)
            ! increment (flip lats)
-           if (taper_strat .and. (ncvarname .eq. 'sphum_inc' .or. ncvarname .eq. 'liq_wat_inc' .or. &
-               ncvarname .eq. 'ice_wat_inc')) then
+           if (taper_strat .and. (trim(ncvarname) .eq. 'sphum_inc' .or. &
+                                  trim(ncvarname) .eq. 'liq_wat_inc' .or. &
+                                  trim(ncvarname) .eq. 'ice_wat_inc')) then
                values_3d_inc(:,nlats:1:-1,:) = taper_vert*(values_3d_anal - values_3d_fg)
            else
                values_3d_inc(:,nlats:1:-1,:) = values_3d_anal - values_3d_fg
