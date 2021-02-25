@@ -71,7 +71,7 @@ PROGRAM calc_increment_ncio
   read(bufchar,'(L)') no_mpinc  ! if T, no microphysics increments computed
   call getarg(5, bufchar)
   read(bufchar,'(L)') no_delzinc  ! if T, no delz increments computed
-  call getarg(5, bufchar)
+  call getarg(6, bufchar)
   read(bufchar,'(L)') taper_strat  ! if T, taper sphum,liq_wat,ice_wat in strat
 
   write(6,*)'CALC_INCREMENT_NCIO:'
@@ -80,6 +80,7 @@ PROGRAM calc_increment_ncio
   write(6,*)'filename_inc=',trim(filename_inc)
   write(6,*)'no_mpinc',no_mpinc
   write(6,*)'no_delzinc',no_delzinc
+  write(6,*)'taper_strat',taper_strat
 
   dset_fg = open_dataset(trim(filename_fg),errcode=iret)
   if (iret .ne. 0) then
@@ -258,7 +259,6 @@ PROGRAM calc_increment_ncio
   !has_dpres = .false.; has_delz = .false. ! for debugging only
   print *,'has_dpres ',has_dpres
   print *,'has_delz ',has_delz
-  print *,'taper_strat',taper_strat
 
   ! ps increment.
   allocate(values_2d_inc(nlons,nlats))
@@ -275,15 +275,16 @@ PROGRAM calc_increment_ncio
   enddo
   ! taper function for humidity, ice and liq water increments.
   taper_vert=1.
+  if (taper_strat) print *,'profile to taper strat humid inc (k,ak,bk,taper):'
   do k=1,nlevs
      if (k < nlevs/2 .and. (ak(k) <= ak_bot .and. ak(k) >= ak_top)) then
         taper_vert(:,:,k)= (ak(k) - ak_top)/(ak_bot - ak_top)
      else if (bk(k) .eq. 0. .and. ak(k) < ak_top) then
         taper_vert(:,:,k) = 0.
      endif
-     !values_2d_anal = 0.05*(ak(k) + bk(k)*values_2d_fg) +  &
-     !                 0.05*(ak(k+1) + bk(k+1)*values_2d_fg) 
-     !print *,k,ak(k),bk(k),minval(values_2d_anal),maxval(values_2d_anal),taper_vert(1,1,k)
+     if (taper_strat) then
+       print *,k,ak(k),bk(k),taper_vert(1,1,k)
+     endif
   enddo
 
   do nvar=1,dset_fg%nvars
