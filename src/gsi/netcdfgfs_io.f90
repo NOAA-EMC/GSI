@@ -1774,14 +1774,14 @@ contains
 
     endif ! if ( mype == mype_out )
 
-    ! Calculate delz increment for UPP
+    ! compute delz (so that delz < 0 as model expects)
     do k=1,grd%nsig
-       sub_dzb(:,:,k) = ges_geopi(:,:,k+1,ibin) - ges_geopi(:,:,k,ibin)
+       sub_dzb(:,:,k) = ges_geopi(:,:,k,ibin) - ges_geopi(:,:,k+1,ibin)
     enddo
 
     if ((.not. lwrite4danl) .or. ibin == 1) call load_geop_hgt
     do k=1,grd%nsig
-       sub_dza(:,:,k) = geop_hgti(:,:,k+1,ibin) - geop_hgti(:,:,k,ibin)
+       sub_dza(:,:,k) = geop_hgti(:,:,k,ibin) - geop_hgti(:,:,k+1,ibin)
     enddo
 
     sub_dza = sub_dza - sub_dzb !sub_dza is increment
@@ -2201,7 +2201,7 @@ contains
              values_3d(:,:,kr) = grid_b
           else
              call load_grid(work1,grid)
-             values_3d(:,:,kr) = values_3d(:,:,kr) - grid
+             values_3d(:,:,kr) = values_3d(:,:,kr) + grid
           end if
           end if
        endif
