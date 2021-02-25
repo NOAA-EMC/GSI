@@ -40,7 +40,7 @@
 !   language: f95
 !
 !$$$
- use constants, only: zero,one,cp,fv,rd,tiny_r_kind,max_varname_length,t0c,r0_05
+ use constants, only: zero,one,cp,fv,rd,tiny_r_kind,max_varname_length,t0c,r0_05,constants_initialized
  use params, only: nlons,nlats,nlevs,use_gfs_nemsio,pseudo_rh, &
                    cliptracers,datapath,imp_physics,use_gfs_ncio,cnvw_option, &
                    nanals

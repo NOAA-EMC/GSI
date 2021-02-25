@@ -129,8 +129,9 @@ use params, only: sprd_tol, paoverpb_thresh, datapath, nanals,&
                   iassim_order,sortinc,deterministic,numiter,nlevs,&
                   zhuberleft,zhuberright,varqc,lupd_satbiasc,huber,univaroz,&
                   covl_minfact,covl_efold,nbackgrounds,nhr_anal,fhr_assim,&
-                  iseed_perturbed_obs,lupd_obspace_serial,fso_cycling,&
+                  iseed_perturbed_obs,lupd_obspace_serial,efsoi_cycling,&
                   neigv,vlocal_evecs,denkf
+
 use radinfo, only: npred,nusis,nuchan,jpch_rad,predx
 use radbias, only: apply_biascorr, update_biascorr
 use gridinfo, only: nlevs_pres
@@ -825,7 +826,7 @@ deltapredx = 0.0
 
 ! Gathering analysis perturbations 
 ! in observation space for EFSO
-if(fso_cycling) then  
+if(efsoi_cycling) then  
    if(nproc /= 0) then   
       call mpi_send(anal_obchunk,numobsperproc(nproc+1)*nanals,mpi_real,0, &   
                     1,mpi_comm_world,ierr)   

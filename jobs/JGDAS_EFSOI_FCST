@@ -11,7 +11,7 @@ date
 #############################
 export EXPDIR=${EXPDIR:-$HOMEgfs/parm/config}
 config_path=${EXPDIR:-$NWROOT/gfs.${gfs_ver}/parm/config}
-configs="base fcst efcs"
+configs="base fcst efcsfsoi"
 for config in $configs; do
     . $config_path/config.$config
     status=$?
@@ -22,7 +22,7 @@ done
 ##########################################
 # Source machine runtime environment
 ##########################################
-. $HOMEgfs/env/${machine}.env efcs
+. $HOMEgfs/env/${machine}.env efcsfsoi
 status=$?
 [[ $status -ne 0 ]] && exit $status
 
@@ -70,14 +70,18 @@ fi
 export CASE=$CASE_ENKF
 
 # COMOUT is used in script
-export COMOUT="$ROTDIR/enkf$CDUMP.$PDY/$cyc/$COMPONENT"
+export COMOUT="$ROTDIR/efsoi$CDUMP.$PDY/$cyc/$COMPONENT"
 
 
 # Forecast length for EnKF forecast
+export FHMIN_ENKF=${FHMIN_EFSOI:-0}
+export FHOUT_ENKF=${FHOUT_EFSOI:-6}
+export FHMAX_ENKF=${FHMAX_EFSOI:-30}
 export FHMIN=$FHMIN_ENKF
 export FHOUT=$FHOUT_ENKF
 export FHMAX=$FHMAX_ENKF
 
+export FORECASTSH=$HOMEgfs/scripts/exglobal_efsoi_forecast.sh
 
 # Get ENSBEG/ENSEND from ENSGRP and NMEM_EFCSGRP
 export ENSEND=$((NMEM_EFCSGRP * ENSGRP))
@@ -109,6 +113,7 @@ if [ $npass -ne $NMEM_EFCSGRP ]; then
     cat $EFCSGRP
     exit 99
 fi
+
 
 ##############################################
 # Send Alerts

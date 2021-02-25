@@ -10,8 +10,8 @@ date
 # Source relevant config files
 #############################
 export EXPDIR=${EXPDIR:-$HOMEgfs/parm/config}
+configs="base eposfsoi"
 config_path=${EXPDIR:-$NWROOT/gfs.${gfs_ver}/parm/config}
-configs="base fcst efcs"
 for config in $configs; do
     . $config_path/config.$config
     status=$?
@@ -22,7 +22,7 @@ done
 ##########################################
 # Source machine runtime environment
 ##########################################
-. $HOMEgfs/env/${machine}.env efcs
+. $HOMEgfs/env/${machine}.env eposfsoi
 status=$?
 [[ $status -ne 0 ]] && exit $status
 
@@ -66,22 +66,20 @@ fi
 ##############################################
 # Begin JOB SPECIFIC work
 ##############################################
+export GFS_NCIO=${GFS_NCIO:-"YES"}
 
-export CASE=$CASE_ENKF
+export PREFIX="${CDUMP}.t${cyc}z."
 
-# COMOUT is used in script
-export COMOUT="$ROTDIR/enkf$CDUMP.$PDY/$cyc/$COMPONENT"
-
-
-# Forecast length for EnKF forecast
-export FHMIN=$FHMIN_ENKF
-export FHOUT=$FHOUT_ENKF
-export FHMAX=$FHMAX_ENKF
+# COMIN, COMOUT are used in script
+export COMIN="$ROTDIR/efsoi$CDUMP.$PDY/$cyc/$COMPONENT"
+export COMOUT="$ROTDIR/efsoi$CDUMP.$PDY/$cyc/$COMPONENT"
 
 
-# Get ENSBEG/ENSEND from ENSGRP and NMEM_EFCSGRP
-export ENSEND=$((NMEM_EFCSGRP * ENSGRP))
-export ENSBEG=$((ENSEND - NMEM_EFCSGRP + 1))
+export LEVS=$((LEVS-1))
+
+#export FHMIN_EPOS=6
+#export FHMAX_EPOS=30
+#export FHOUT_EPOS=6
 
 
 ###############################################################
@@ -92,30 +90,9 @@ postmsg "$jlogfile" "$msg"
 $LOGSCRIPT
 
 
-${ENKFFCSTSH:-$SCRgfs/exgdas_enkf_fcst.sh}
+${ENKFPOSTSH:-$SCRgfs/exgdas_enkf_post.sh}
 status=$?
 [[ $status -ne 0 ]] && exit $status
-
-
-# Double check the status of members in ENSGRP
-EFCSGRP=$COMOUT/efcs.grp${ENSGRP}
-npass=0
-if [ -f $EFCSGRP ]; then
-    npass=$(grep "PASS" $EFCSGRP | wc -l)
-fi
-echo "$npass/$NMEM_EFCSGRP members successfull in efcs.grp$ENSGRP"
-if [ $npass -ne $NMEM_EFCSGRP ]; then
-    echo "FATAL ERROR: Failed members in group $ENSGRP, ABORT!"
-    cat $EFCSGRP
-    exit 99
-fi
-
-##############################################
-# Send Alerts
-##############################################
-if [ $SENDDBN = YES ] ; then
-   $DBNROOT/bin/dbn_alert MODEL ENKF1_MSC_fcsstat $job $EFCSGRP
-fi
 
 
 ##############################################
