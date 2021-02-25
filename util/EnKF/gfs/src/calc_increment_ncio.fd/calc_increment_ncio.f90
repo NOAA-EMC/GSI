@@ -21,6 +21,14 @@ PROGRAM calc_increment_ncio
 
 !   4th command line arg is logical for controlling whether microphysics
 !   increment is computed. 
+!   5th command line arg is logical for controlling whether delz
+!   increment should be computed
+!   6th command line arg is logical for controlling whether humidity
+!   and microphysics vars should be tapered to zero in stratosphere.
+!   The vertical profile of the taper is controlled by ak_top and ak_bot.
+
+!   If delp and/or delz are not in the background history files, then
+!   their increments are inferred (from ps, T and humidity increments).
 !
 ! attributes:
 !   language: f95

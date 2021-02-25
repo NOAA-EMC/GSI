@@ -1522,7 +1522,7 @@
         ! delzb is hydrostatic background delz inferred from background ps,Tv
         delzb=(rd/grav)*reshape(tv_bg(:,:,ki),(/nlons*nlats/))
         delzb=delzb*log((100_r_kind*ak(krev+1)+bk(krev+1)*values_1d)/(100_r_kind*ak(krev)+bk(krev)*values_1d))
-        print *,'max delzb, delza = ',krev,maxval(delzb),maxval(ug)
+        !print *,'max delzb, delza = ',krev,maxval(delzb),maxval(ug)
         ug3d(:,:,ki)=values_3d(:,:,ki) + reshape(ug-delzb,(/nlons,nlats/))
      end do
      if (has_attr(dsfg, 'nbits', 'delz') .and. .not. nocompress) then
@@ -2898,7 +2898,7 @@
            ! delzb is hydrostatic background delz inferred from background ps,Tv
            delzb=(rd/grav)*reshape(tv_bg(:,:,nlevs-k+1),(/nlons*nlats/))
            delzb=delzb*log((100_r_kind*ak(k+1)+bk(k+1)*values_1d)/(100_r_kind*ak(k)+bk(k)*values_1d))
-           print *,'max delzb, delza = ',k,maxval(delzb),maxval(ug)
+           !print *,'max delzb, delza = ',k,maxval(delzb),maxval(ug)
            ug3d(:,:,nlevs-k+1)=values_3d(:,:,nlevs-k+1) +&
            reshape(ug-delzb,(/nlons,nlats/))
         enddo
@@ -3602,7 +3602,7 @@
         ! delzb is hydrostatic background delz inferred from background ps,Tv
         delzb=(rd/grav)*reshape(tv(:,:,k),(/nlons*nlats/))
         delzb=delzb*log((100_r_kind*ak(krev+1)+bk(krev+1)*psges)/(100_r_kind*ak(krev)+bk(krev)*psges))
-        print *,'max delzb, delza = ',krev,maxval(delzb),maxval(ug)
+        !print *,'max delzb, delza = ',krev,maxval(delzb),maxval(ug)
         inc3d(:,:,k)=reshape(ug-delzb,(/nlons,nlats/))
      end do
   end if
