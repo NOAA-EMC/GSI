@@ -1515,12 +1515,15 @@
         ki = k - lev_pe1(iope) + 1
         ug=(rd/grav)*reshape(tv_anal(:,:,ki),(/nlons*nlats/))
         ! ps in Pa here, need to multiply ak by 100.
-        ug=ug*log((100_r_kind*ak(krev)+bk(krev)*vg)/(100_r_kind*ak(krev+1)+bk(krev+1)*vg))
+        ! compute delz so that it is negative definite (always the case for
+        ! netcdf).
+        ug=ug*log((100_r_kind*ak(krev+1)+bk(krev+1)*vg)/(100_r_kind*ak(krev)+bk(krev)*vg))
         ! ug is hydrostatic analysis delz inferred from analysis ps,Tv
         ! delzb is hydrostatic background delz inferred from background ps,Tv
         delzb=(rd/grav)*reshape(tv_bg(:,:,ki),(/nlons*nlats/))
-        delzb=delzb*log((100_r_kind*ak(krev)+bk(krev)*values_1d)/(100_r_kind*ak(krev+1)+bk(krev+1)*values_1d))
-        ug3d(:,:,ki)=values_3d(:,:,ki) + reshape(delzb-ug,(/nlons,nlats/))
+        delzb=delzb*log((100_r_kind*ak(krev+1)+bk(krev+1)*values_1d)/(100_r_kind*ak(krev)+bk(krev)*values_1d))
+        print *,'max delzb, delza = ',krev,maxval(delzb),maxval(ug)
+        ug3d(:,:,ki)=values_3d(:,:,ki) + reshape(ug-delzb,(/nlons,nlats/))
      end do
      if (has_attr(dsfg, 'nbits', 'delz') .and. .not. nocompress) then
        call read_attribute(dsfg, 'nbits', nbits, 'delz')
@@ -2483,6 +2486,7 @@
            call nemsio_readrecv(gfilein,'pres','sfc',1,nems_wrk2,iret=iret)
            delzb=(rd/grav)*nems_wrk
            ! ps in Pa here, need to multiply ak by 100.
+           ! delz is positive definite here
            delzb=delzb*log((100_r_kind*ak(k)+bk(k)*nems_wrk2)/(100_r_kind*ak(k+1)+bk(k+1)*nems_wrk2))
         endif
         ! convert Tv back to T
@@ -2515,13 +2519,15 @@
            vg = nems_wrk2 + vg
            ug=(rd/grav)*ug ! ug is analysis Tv
            ! ps in Pa here, need to multiply ak by 100.
+           ! delz is positive definite here.
            ug=ug*log((100_r_kind*ak(k)+bk(k)*vg)/(100_r_kind*ak(k+1)+bk(k+1)*vg))
-           ug=ug-delzb
+           ug=ug-delzb ! increment (Anal-Fcst)
            call nemsio_readrecv(gfilein,'delz','mid layer',k,nems_wrk,iret=iret)
            if (iret/=0) then
               write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_readrecv(delz), iret=',iret
               call stop2(23)
            endif
+           ! flip sign of increment if background delz is negative
            if (sum(nems_wrk) < 0.0_r_kind) ug = ug * -1.0_r_kind
            nems_wrk = nems_wrk + ug
            call nemsio_writerecv(gfileout,'delz','mid layer',k,nems_wrk,iret=iret)
@@ -2885,13 +2891,16 @@
         do k=1,nlevs
            ug=(rd/grav)*reshape(tv_anal(:,:,nlevs-k+1),(/nlons*nlats/))
            ! ps in Pa here, need to multiply ak by 100.
-           ug=ug*log((100_r_kind*ak(k)+bk(k)*vg)/(100_r_kind*ak(k+1)+bk(k+1)*vg))
+           ! compute delz so that it is negative definite (always the case for
+           ! netcdf).
+           ug=ug*log((100_r_kind*ak(k+1)+bk(k+1)*vg)/(100_r_kind*ak(k)+bk(k)*vg))
            ! ug is hydrostatic analysis delz inferred from analysis ps,Tv
            ! delzb is hydrostatic background delz inferred from background ps,Tv
            delzb=(rd/grav)*reshape(tv_bg(:,:,nlevs-k+1),(/nlons*nlats/))
-           delzb=delzb*log((100_r_kind*ak(k)+bk(k)*values_1d)/(100_r_kind*ak(k+1)+bk(k+1)*values_1d))
+           delzb=delzb*log((100_r_kind*ak(k+1)+bk(k+1)*values_1d)/(100_r_kind*ak(k)+bk(k)*values_1d))
+           print *,'max delzb, delza = ',k,maxval(delzb),maxval(ug)
            ug3d(:,:,nlevs-k+1)=values_3d(:,:,nlevs-k+1) +&
-           reshape(delzb-ug,(/nlons,nlats/))
+           reshape(ug-delzb,(/nlons,nlats/))
         enddo
         !print *,'min/max delz',minval(values_3d),maxval(values_3d),&
         !  minval(ug3d),maxval(ug3d)
@@ -3586,12 +3595,15 @@
         krev = nlevs-k+1
         ug=(rd/grav)*reshape(tvanl(:,:,k),(/nlons*nlats/))
         ! ps in Pa here, need to multiply ak by 100.
-        ug=ug*log((100_r_kind*ak(krev)+bk(krev)*vg)/(100_r_kind*ak(krev+1)+bk(krev+1)*vg))
+        ! compute delz so that it is negative definite (always the case for
+        ! netcdf).
+        ug=ug*log((100_r_kind*ak(krev+1)+bk(krev+1)*vg)/(100_r_kind*ak(krev)+bk(krev)*vg))
         ! ug is hydrostatic analysis delz inferred from analysis ps,Tv
         ! delzb is hydrostatic background delz inferred from background ps,Tv
         delzb=(rd/grav)*reshape(tv(:,:,k),(/nlons*nlats/))
-        delzb=delzb*log((100_r_kind*ak(krev)+bk(krev)*psges)/(100_r_kind*ak(krev+1)+bk(krev+1)*psges))
-        inc3d(:,:,k)=reshape(delzb-ug,(/nlons,nlats/))
+        delzb=delzb*log((100_r_kind*ak(krev+1)+bk(krev+1)*psges)/(100_r_kind*ak(krev)+bk(krev)*psges))
+        print *,'max delzb, delza = ',krev,maxval(delzb),maxval(ug)
+        inc3d(:,:,k)=reshape(ug-delzb,(/nlons,nlats/))
      end do
   end if
   do j=1,nlats
@@ -4030,12 +4042,14 @@
         ki = k - lev_pe1(iope) + 1
         ug=(rd/grav)*reshape(tvanl(:,:,ki),(/nlons*nlats/))
         ! ps in Pa here, need to multiply ak by 100.
-        ug=ug*log((100_r_kind*ak(krev)+bk(krev)*vg)/(100_r_kind*ak(krev+1)+bk(krev+1)*vg))
+        ! compute delz so that it is negative definite (always the case for
+        ! netcdf).
+        ug=ug*log((100_r_kind*ak(krev+1)+bk(krev+1)*vg)/(100_r_kind*ak(krev)+bk(krev)*vg))
         ! ug is hydrostatic analysis delz inferred from analysis ps,Tv
         ! delzb is hydrostatic background delz inferred from background ps,Tv
         delzb=(rd/grav)*reshape(tv(:,:,ki),(/nlons*nlats/))
-        delzb=delzb*log((100_r_kind*ak(krev)+bk(krev)*psges)/(100_r_kind*ak(krev+1)+bk(krev+1)*psges))
-        inc3d(:,:,ki)=reshape(delzb-ug,(/nlons,nlats/))
+        delzb=delzb*log((100_r_kind*ak(krev+1)+bk(krev+1)*psges)/(100_r_kind*ak(krev)+bk(krev)*psges))
+        inc3d(:,:,ki)=reshape(ug-delzb,(/nlons,nlats/))
      end do
   end if
   do j=1,nlats
