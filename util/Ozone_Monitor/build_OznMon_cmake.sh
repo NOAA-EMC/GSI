@@ -14,8 +14,13 @@
 set -ax
 
 mode=${1:-}
+MY_OZNMON=${2:-}
+
 top_level=${PWD}
 echo "top_level = ${top_level}"
+
+export MY_OZNMON=${MY_OZNMON:-$top_level}
+echo "MY_OZNMON = ${MY_OZNMON}"
 
 #module purge
 
@@ -33,6 +38,9 @@ elif [[ -d /ioddev_dell ]]; then
 elif [[ -d /scratch1 ]] ; then
     . /apps/lmod/lmod/init/sh
     target=hera
+elif [[ -d /work ]]; then
+    . $MODULESHOME/init/sh
+    target=orion
 else
     echo "unknown target = $target"
     exit 9
@@ -56,7 +64,8 @@ fi
 #---------------------------------------------------           
 
 if [[ ${target} = "hera"     || ${target} = "wcoss" \
-   || ${target} = "wcoss_c"  || ${target} = "wcoss_d" ]]; then
+   || ${target} = "wcoss_c"  || ${target} = "wcoss_d" \
+   || ${target} = "orion" ]]; then
    echo Building nwprod executables on ${target}
    echo
 
@@ -71,7 +80,11 @@ if [[ ${target} = "hera"     || ${target} = "wcoss" \
    elif [ $target = wcoss -o $target = gaea ]; then
       module purge
       module load $dir_modules/modulefile.ProdGSI.$target
-   elif [ $target = hera -o $target = cheyenne ]; then
+   elif [ $target = hera -o $target = orion ]; then
+    module purge
+    module use $dir_modules
+    module load modulefile.ProdGSI.$target
+   elif [ $target = cheyenne ]; then
       module purge
       source $dir_modules/modulefile.ProdGSI.$target
    elif [ $target = wcoss_c ]; then
