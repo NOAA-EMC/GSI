@@ -1398,7 +1398,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                       endif
                    enddo
                 endif
-             else
+             else 
                 do k=1,levs
                    itypex=kx
                    ppb=obsdat(1,k)
@@ -1904,6 +1904,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             Missing Values ==>  Cycling! In this case for howv only.  #ww3 
               if (howvob  .and. owave(1,k) > r0_1_bmiss) cycle LOOP_K_LEVS
 
+! CSD - temporary hack ( move to prepbufr pre-processing)
+!             Over-ride QM=9 for sfc obs 
+              if (sfctype .and. do_global_2mDA ) then 
+                if (tob .and. qm == 9 ) qm = 2 ! 2=not checked
+                if (qob .and. qm == 9 ) qm = 2 ! 2=not checked
+              endif
 !             Set usage variable              
               usage = zero
               if(icuse(nc) <= 0)usage=100._r_kind
@@ -1930,7 +1936,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                                             dlon_earth,dlat_earth,idate,t4dv-toff,      &
                                             obsdat(5,k),obsdat(6,k),usage)
                  endif
-                 if (do_global_2mDA) usage=zero ! keep sfc obs for 2mDA
                  !retrieve wind sensor height
                  if (twodvar_regional)  then
                     if ( kx==288.or.kx==295 .or. (gustob .and. (kx==188.or.kx==195)) )  then
@@ -2059,6 +2064,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             Temperature
               if(tob) then
                  ppb=obsdat(1,k)
+                 errout = one
                  if (aircraftobs .and. aircraft_t_bc .and. acft_profl_file) then
                     call errormod_aircraft(pqm,tqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm,hdr3)
                  else

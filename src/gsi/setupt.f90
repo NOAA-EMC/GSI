@@ -30,7 +30,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use m_obsdiagNode, only: obsdiagNode_assert
 
   use obsmod, only: sfcmodel,perturb_obs,oberror_tune,lobsdiag_forenkf,ianldate,&
-       lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,aircraft_recon
+       lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,aircraft_recon 
   use m_obsNode, only: obsNode
   use m_tNode, only: tNode
   use m_tNode, only: tNode_appendto
@@ -109,10 +109,10 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
 
 ! !INPUT/OUTPUT PARAMETERS:
-
                                                             ! array containing information ...
   real(r_kind),dimension(npres_print,nconvtype,5,3), intent(inout) :: bwork !  about o-g stats
   real(r_kind),dimension(100+7*nsig)               , intent(inout) :: awork !  for data counts and gross checks
+
 
 ! !DESCRIPTION:  For temperature observations, this routine
 ! \begin{enumerate}
@@ -315,7 +315,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   type(obs_diags),pointer:: my_diagLL
 
   real(r_kind) :: thisPBL_height,ratio_PBL_height,prestsfc,diffsfc,dthetav
-  real(r_kind) :: tges2m,qges2m,tges2m_water,qges2m_water
+  real(r_kind) :: tges2m,qges2m,tges2m_water,qges2m_water, zges
   real(r_kind) :: hr_offset
 
   equivalence(rstation_id,station_id)
@@ -338,6 +338,14 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   character(len=3) :: flag_char
   integer :: idg, ist, itm 
+  
+  real(r_kind) :: delta_z,  lapse_error
+  real(r_kind), parameter :: T_lapse = -0.0045 ! standard lapse rate, K/m
+                                               ! should match value in buddy_check_t 
+  ! use 4.5 K/km, in place of more standard 6.5 K/km, following paper below.
+  ! 0.5 ~ 2K/km - chosen based on Fig 2d of https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2019EA000984
+  real(r_kind), parameter :: lapse_error_frac = 0.5 ! CSD - tune
+  real(r_kind), parameter :: max_delta_z = 300. ! CSD - probably OK
 
   thead => obsLL(:)
 
@@ -346,19 +354,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
   if(.not.proceed) return  ! not all vars available, simply return
-
-  if (mype==7) then
-  write(6,*) 'CSD2m gsd_terrain_match', l_gsd_terrain_match_surftobs
-  write(6,*) 'CSD2m buddycheck_t', buddycheck_t
-  write(6,*) 'CSD2m sfcmodel', sfcmodel
-  write(6,*) 'CSD2m i_use_2tm4b', i_use_2mt4b
-  write(6,*) 'CSD2m i_sfct_gross, oberror_tune', i_sfct_gross, oberror_tune
-  write(6,*) 'CSD2m i_coastline', i_coastline
-  write(6,*) 'CSD2m do_global_2mDA', do_global_2mDA
-  write(6,*) 'CSD2m pseudo', l_pbl_pseudo_surfobst
-  endif
-
-
 
 ! If require guess vars available, extract from bundle ...
   call init_vars_
@@ -369,7 +364,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
 !  call GSD terrain match for surface temperature observation
   if(l_gsd_terrain_match_surftobs) then
-     call gsd_terrain_match_surfTobs(mype,nele,nobs,data)
+     call gsd_terrain_match_surfTobs(mype,nele,nobs,data) 
   endif
 
 !    index information for data array (see reading routine)
@@ -416,8 +411,11 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   hr_offset=min_offset/60.0_r_kind
   dup=one
   do k=1,nobs
+     ikx=nint(data(ikxx,k))
+     itype=ictype(ikx)
+     sfctype=(itype>179.and.itype<190).or.(itype>=192.and.itype<=199)
      do l=k+1,nobs
-        if (twodvar_regional) then
+        if (twodvar_regional .or. (do_global_2mDA .and. sfctype) ) then
            duplogic=data(ilat,k) == data(ilat,l) .and.  &
            data(ilon,k) == data(ilon,l) .and.  &
            data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
@@ -448,9 +446,28 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      end do
   end do
 
-! Run a buddy-check
-  if (twodvar_regional .and. buddycheck_t) call buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
+! Run a buddy-check (does not work for do_global_2mDA, 
+! pre-existing routine crashes with an MPI problem )
+! Note: current params have buddy radius of 108 km, max diff of 8 K. 
+! gross error check removes O-F > 7., so this is probably removing 
+! most obs that fail the buddy check already 
+! GSD uses the buddy check to expand gross error check for obs that pass 
+! the buddy check. Not sure if we want to do this globally. Turn off for now.
+  if ( (twodvar_regional .or. do_global_2mDA)  .and. buddycheck_t) & 
+                call buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
 
+! for 2mDA, remove obs that failed  the buddcheck
+  if (do_global_2mDA) then
+      do i = 1,nobs
+         ikx=nint(data(ikxx,k))
+         itype=ictype(ikx)
+         sfctype=(itype>179.and.itype<190).or.(itype>=192.and.itype<=199)
+         if (sfctype) then 
+            if ( buddycheck_t .and. buddyuse(i) == -1) muse(i) = .false.
+         endif
+      enddo
+  endif
+          
 ! If requested, save select data for output to diagnostic file
   if(conv_diagsave)then
      ii=0
@@ -635,7 +652,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
           nsig,mype,nfldsig)
 
      drpx=zero
-     if(sfctype .and. .not.twodvar_regional) then
+     if(sfctype .and. .not.twodvar_regional .and. .not. do_global_2mDA) then
         drpx=abs(one-((one/exp(dpres-log(psges))))**rd_over_cp)*t0c
      end if
 
@@ -678,8 +695,26 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      elseif (sfctype .and. do_global_2mDA) then 
 ! SCENARIO 2: obs is sfctype, and do_global_2mDA scheme is on. 
 ! 2m forecast has been read from the sfc guess files
+! note: any changes to ges_t2 and tob in this block should also be made in buddy_check_t 
+
+    ! mask: 0 - sea, 1 - land, 2-ice (val + 3 = interpolated from at least one different land cover
+    ! for now, use only pure land (interpolation from mixed grid cells is pretty sketchy, but 
+    ! may result in lack of obs near coasts) 
+          if (int(data(idomsfc,i)) .NE. 1  ) muse(i) = .false. 
+
           call tintrp2a11(ges_t2,tges2m,dlat,dlon,dtime,hrdifsig,&
             mype,nfldsig)
+
+! correct obs to model terrain height - equivalent to gsd_terrain_match, which  uses lapse rate 
+! calculated from model levels. For now, use standard lapse rate, then look
+! at updating once the number of model levels has been finalised (and perhaps make dependent on the number of model 
+! levels)
+
+          delta_z = data(izz,i) -  data(istnelv,i)
+          tob = tob + delta_z*T_lapse
+          !update the station elevation
+          data(istnelv,i) = data(izz,i) 
+
 
      else
 ! SCENARIO 3: obs is sfctype, and neither sfcmodel nor do_global_2mDA is chosen
@@ -768,17 +803,22 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      call grdcrd1(sfcchk,prsltmp(1),nsig,-1)
 
 !    Check to see if observations is above the top of the model (regional mode)
-     if(sfctype)then
+     if(sfctype .and. .not. do_global_2mDA )then
         if(abs(dpres)>four) drpx=1.0e10_r_kind
         pres_diff=prest-r10*psges
         if (twodvar_regional .and. abs(pres_diff)>=r1000) drpx=1.0e10_r_kind
      end if
-     rlow=max(sfcchk-dpres,zero)
-! linear variation of observation ramp [between grid points 1(~3mb) and 15(~45mb) below the surface]
-     if(l_sfcobserror_ramp_t) then
-        ramp=min(max(((rlow-1.0_r_kind)/(15.0_r_kind-1.0_r_kind)),0.0_r_kind),1.0_r_kind)
+
+     if (.not. (do_global_2mDA .and. sfctype) ) then 
+         rlow=max(sfcchk-dpres,zero) ! sfcchk = k of sfc, dpres k of obs
+    ! linear variation of observation ramp [between grid points 1(~3mb) and 15(~45mb) below the surface]
+         if(l_sfcobserror_ramp_t) then
+            ramp=min(max(((rlow-1.0_r_kind)/(15.0_r_kind-1.0_r_kind)),0.0_r_kind),1.0_r_kind)
+         else
+            ramp=rlow
+         endif
      else
-        ramp=rlow
+        rlow  = zero
      endif
 
      rhgh=max(zero,dpres-rsigp-r0_001)
@@ -790,15 +830,30 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         if(rlow/=zero) awork(2) = awork(2) + one
         if(rhgh/=zero) awork(3) = awork(3) + one
      end if
-     
-     ratio_errors=error/(data(ier,i)+drpx+1.0e6_r_kind*rhgh+r8*ramp)
+   
+   ! inflate error for uncertainty in the terrain adjustment 
+    lapse_error = 0. 
+    if  ( do_global_2mDA .and. sfctype) then 
+        if (abs(delta_z)<max_delta_z) then  ! if height discrepency >300 m. do not assim.
+                ! inflate obs error to account for error in lapse_rate 
+                ! also include some representativity error here (assuming 
+                ! delta_z ~ heterogeneity) 
+                lapse_error = abs(lapse_error_frac*T_lapse*delta_z)
+        else 
+                muse(i)=.false.
+        endif
+    endif
+
+! note: for global_2mDA option, three middle terms in denominator will be zero
+!    (elevation mistmatch between obs and model dealt with elsewhere) 
+     ratio_errors=error/(data(ier,i)+drpx+1.0e6_r_kind*rhgh+r8*ramp + lapse_error) 
+
 
 ! Compute innovation
      !if(i_use_2mt4b>0 .and. sfctype) then
      if(sfctype .and. (( i_use_2mt4b>0) .or. do_global_2mDA) ) then
         ddiff = tob-tges2m
         tges = tges2m ! not necessary? 
-        if (mype==7) write(6,*) 'CSD2m - saving tges2m' 
      else
         ddiff = tob-tges
      endif
@@ -891,6 +946,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         end if  
      endif
 
+
      if (sfctype .and. i_sfct_gross==1) then
 ! extend the threshold for surface T
         if(i_use_2mt4b<=0) tges2m=tges
@@ -923,7 +979,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            ratio_errors = ratio_errors/sqrt(dup(i))
         end if
      endif
-     
+          
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
 
      if (nobskeep>0 .and. luse_obsdiag) call obsdiagNode_get(my_diag, jiter=nobskeep, muse=muse(i))
@@ -1424,7 +1480,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         endif
      endif
      if( do_global_2mDA) then
-!    get q2m ...
+!    get t2m ...
         varname='t2m'
         call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
         if (istatus==0) then
@@ -1653,9 +1709,9 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
     call nc_diag_metadata("Latitude",                sngl(data(ilate,i))    )
     call nc_diag_metadata("Longitude",               sngl(data(ilone,i))    )
-    call nc_diag_metadata("Station_Elevation",       sngl(data(istnelv,i))  )
+    call nc_diag_metadata("Station_Elevation", sngl(data(istnelv,i))  ) ! this is the obs elevation, after being interpolated to the model (=model height)
     call nc_diag_metadata("Pressure",                sngl(prest)            )
-    call nc_diag_metadata("Height",                  sngl(data(iobshgt,i))  )
+    call nc_diag_metadata("Height",                  sngl(data(iobshgt,i))  ) ! this is the obs height (= stn elevation,  before being corrected)
     call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
     call nc_diag_metadata("Prep_QC_Mark",            sngl(data(iqc,i))      )
     if (do_global_2mDA == .true. )  then  
@@ -1723,6 +1779,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
     if (twodvar_regional .or. do_global_2mDA ) then
        call nc_diag_metadata("Dominant_Sfc_Type", data(idomsfc,i)              )
+! this is the model height interpolated to the obs location in read_prepbufr
        call nc_diag_metadata("Model_Terrain",     data(izz,i)                  )
     endif 
     if (twodvar_regional) then
@@ -1788,6 +1845,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     if(allocated(ges_ps)) deallocate(ges_ps)
     if(allocated(ges_q2)) deallocate(ges_q2)
     if(allocated(ges_th2)) deallocate(ges_th2)
+    if(allocated(ges_t2)) deallocate(ges_t2)
   end subroutine final_vars_
 
 end subroutine setupt
