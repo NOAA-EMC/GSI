@@ -1882,7 +1882,7 @@
   integer :: ps_ind, pst_ind, nbits
   integer :: ql_ind, qi_ind, qr_ind, qs_ind, qg_ind
 
-  integer k,nt,ierr,iunitsig,nb,i,ne,nanal
+  integer k,krev,nt,ierr,iunitsig,nb,i,ne,nanal
 
   logical :: nocompress
 
