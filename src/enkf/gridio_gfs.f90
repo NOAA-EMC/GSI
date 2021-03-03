@@ -207,6 +207,7 @@
   endif
   ! pressure at interfaces
   do k=1,nlevs+1
+     ! k=1 in ak,bk is model top
      pressi(:,k) = 0.01_r_kind*ak(nlevs-k+2)+bk(nlevs-k+2)*psg
      if (nanal .eq. 1 .and. iope==0) print *,'netcdf, min/max pressi',k,minval(pressi(:,k)),maxval(pressi(:,k))
   enddo
@@ -624,6 +625,7 @@
      endif
      ! pressure at interfaces
      do k=1,nlevs+1
+        ! k=1 in ak,bk is model top
         pressi(:,k) = 0.01_r_kind*ak(nlevs-k+2)+bk(nlevs-k+2)*psg
         if (nanal .eq. 1) print *,'netcdf, min/max pressi',k,minval(pressi(:,k)),maxval(pressi(:,k))
      enddo
@@ -1156,6 +1158,7 @@
      call stop2(29)
   endif
   do k=1,nlevs+1
+     ! k=1 in values_1d is model top, flip so k=1 in ak is bottom
      bk(nlevs-k+2) = values_1d(k)
   enddo
 
@@ -1511,16 +1514,18 @@
      endif
      vg = values_1d + (vg*100_r_kind) ! analysis ps (values_1d is background ps)
      do k=lev_pe1(iope), lev_pe2(iope)
-        krev = nlevs-k+1 ! k is bottom to top, krev is top to bottom
+        krev = nlevs-k+1 ! k=1 is model top
         ki = k - lev_pe1(iope) + 1
         ug=(rd/grav)*reshape(tv_anal(:,:,ki),(/nlons*nlats/))
         ! ps in Pa here, need to multiply ak by 100.
         ! ug is hydrostatic analysis delz (should be negative)
-        ug=ug*log((100_r_kind*ak(krev)+bk(krev)*vg)/(100_r_kind*ak(krev+1)+bk(krev+1)*vg))
+        ! (note that ak,bk are already reversed to go from bottom to top)
+        ug=ug*log((100_r_kind*ak(krev+1)+bk(krev+1)*vg)/(100_r_kind*ak(krev)+bk(krev)*vg))
         ! ug is hydrostatic analysis delz inferred from analysis ps,Tv
         ! delzb is (negative) hydrostatic background delz inferred from background ps,Tv
         delzb=(rd/grav)*reshape(tv_bg(:,:,ki),(/nlons*nlats/))
-        delzb=delzb*log((100_r_kind*ak(krev)+bk(krev)*values_1d)/(100_r_kind*ak(krev+1)+bk(krev+1)*values_1d))
+        delzb=delzb*log((100_r_kind*ak(krev+1)+bk(krev+1)*values_1d)/(100_r_kind*ak(krev)+bk(krev)*values_1d))
+        !print *,'writegriddata_pnc: min/max delzb',k,minval(delzb),maxval(delzb)
         ug3d(:,:,ki)=values_3d(:,:,ki) + reshape(ug-delzb,(/nlons,nlats/)) 
      end do
      if (has_attr(dsfg, 'nbits', 'delz') .and. .not. nocompress) then
@@ -1977,6 +1982,7 @@
         call stop2(29)
      endif
      do k=1,nlevs+1
+        ! k=1 in values_1d is model top, flip so k=1 in ak is bottom
         ak(nlevs-k+2) = 0.01_r_kind*values_1d(k)
      enddo
      call read_attribute(dsfg, 'bk', values_1d,errcode=iret)
@@ -1985,6 +1991,7 @@
         call stop2(29)
      endif
      do k=1,nlevs+1
+        ! k=1 in values_1d is model top, flip so k=1 in ak is bottom
         bk(nlevs-k+2) = values_1d(k)
      enddo
   else
@@ -2486,6 +2493,7 @@
            ! ps in Pa here, need to multiply ak by 100. k is bottom to top,
            ! calculate delzb so it is negative.
            delzb=delzb*log((100_r_kind*ak(k+1)+bk(k+1)*nems_wrk2)/(100_r_kind*ak(k)+bk(k)*nems_wrk2))
+           !print *,'writegriddata nemsio: min/max delzb',k,minval(delzb),maxval(delzb)
         endif
         ! convert Tv back to T
         nems_wrk = ug/(1. + fv*vg)
@@ -2887,20 +2895,21 @@
         endif
         vg = values_1d + vg*100_r_kind ! analysis ps (values_1d is background ps)
         do k=1,nlevs
-           krev = nlevs-k+1 ! k is bottom to top, krev is top to bottom
+           krev = nlevs-k+1  ! k=1 is model top
            ug=(rd/grav)*reshape(tv_anal(:,:,k),(/nlons*nlats/))
            ! ps in Pa here, need to multiply ak by 100.
            ! ug is analysis delz, calculate so it is negative
-           ug=ug*log((100_r_kind*ak(krev)+bk(krev)*vg)/(100_r_kind*ak(krev+1)+bk(krev+1)*vg))
+           ! (note that ak,bk are already reversed to go from bottom to top)
+           ug=ug*log((100_r_kind*ak(krev+1)+bk(krev+1)*vg)/(100_r_kind*ak(krev)+bk(krev)*vg))
            ! ug is hydrostatic analysis delz inferred from analysis ps,Tv
            ! delzb is hydrostatic background delz inferred from background ps,Tv
            ! calculate so it is negative
            delzb=(rd/grav)*reshape(tv_bg(:,:,k),(/nlons*nlats/))
-           delzb=delzb*log((100_r_kind*ak(krev)+bk(krev)*values_1d)/(100_r_kind*ak(krev+1)+bk(krev+1)*values_1d))
+           delzb=delzb*log((100_r_kind*ak(krev+1)+bk(krev+1)*values_1d)/(100_r_kind*ak(krev)+bk(krev)*values_1d))
+           !print *,'writegriddata netcdf: min/max delzb',k,minval(delzb),maxval(delzb)
            ug3d(:,:,k)=values_3d(:,:,k) +&
            reshape(ug-delzb,(/nlons,nlats/))
         enddo
-        !print *,'min/max delz',minval(values_3d),maxval(values_3d),&
         !  minval(ug3d),maxval(ug3d)
         if (has_attr(dsfg, 'nbits', 'delz') .and. .not. nocompress) then
           call read_attribute(dsfg, 'nbits', nbits, 'delz')
@@ -3428,6 +3437,7 @@
      call stop2(29)
   endif
   do k=1,nlevs+1
+     ! k=1 in values_1d is model top, flip so k=1 in ak is bottom
      ak(nlevs-k+2) = 0.01_r_kind*values_1d(k)
   enddo
   call read_attribute(dsfg, 'bk', values_1d,errcode=iret)
@@ -3436,6 +3446,7 @@
      call stop2(29)
   endif
   do k=1,nlevs+1
+     ! k=1 in values_1d is model top, flip so k=1 in ak is bottom
      bk(nlevs-k+2) = values_1d(k)
   enddo
 
@@ -3590,15 +3601,17 @@
      psges = reshape(values_2d,(/nlons*nlats/))
      vg = psges + (psinc*100_r_kind)
      do k=1,nlevs
-        krev = nlevs-k+1 ! krev is top to bottom
+        krev = nlevs-k+1 ! k=1 is model top
         ug=(rd/grav)*reshape(tvanl(:,:,k),(/nlons*nlats/))
         ! ps in Pa here, need to multiply ak by 100.
         ! calculate ug (analysis delz) so it is negative. 
-        ug=ug*log((100_r_kind*ak(krev)+bk(krev)*vg)/(100_r_kind*ak(krev+1)+bk(krev+1)*vg))
+        ! (note that ak,bk are already reversed to go from bottom to top)
+        ug=ug*log((100_r_kind*ak(krev+1)+bk(krev+1)*vg)/(100_r_kind*ak(krev)+bk(krev)*vg))
         ! ug is hydrostatic analysis delz inferred from analysis ps,Tv
         ! delzb is hydrostatic background delz inferred from background ps,Tv
         delzb=(rd/grav)*reshape(tv(:,:,k),(/nlons*nlats/))
-        delzb=delzb*log((100_r_kind*ak(krev)+bk(krev)*psges)/(100_r_kind*ak(krev+1)+bk(krev+1)*psges))
+        delzb=delzb*log((100_r_kind*ak(krev+1)+bk(krev+1)*psges)/(100_r_kind*ak(krev)+bk(krev)*psges))
+        !print *,'writeincrement: min/max delzb',k,minval(delzb),maxval(delzb)
         inc3d(:,:,k)=reshape(ug-delzb,(/nlons,nlats/))
      end do
   end if
@@ -3863,6 +3876,7 @@
      call stop2(29)
   endif
   do k=1,nlevs+1
+     ! k=1 in values_1d is model top, flip so k=1 in ak is bottom
      ak(nlevs-k+2) = 0.01_r_kind*values_1d(k)
   enddo
   call read_attribute(dsfg, 'bk', values_1d,errcode=iret)
@@ -3871,6 +3885,7 @@
      call stop2(29)
   endif
   do k=1,nlevs+1
+     ! k=1 in values_1d is model top, flip so k=1 in ak is bottom
      bk(nlevs-k+2) = values_1d(k)
   enddo
 
@@ -4039,12 +4054,14 @@
         ug=(rd/grav)*reshape(tvanl(:,:,ki),(/nlons*nlats/))
         ! ps in Pa here, need to multiply ak by 100.
         ! calculate analysis delz so it is negative.
-        ug=ug*log((100_r_kind*ak(krev)+bk(krev)*vg)/(100_r_kind*ak(krev+1)+bk(krev+1)*vg))
+        ! (note that ak,bk are already reversed to go from bottom to top)
+        ug=ug*log((100_r_kind*ak(krev+1)+bk(krev+1)*vg)/(100_r_kind*ak(krev)+bk(krev)*vg))
         ! ug is hydrostatic analysis delz inferred from analysis ps,Tv
         ! delzb is hydrostatic background delz inferred from background ps,Tv
         ! calculate delzb so it is negative
         delzb=(rd/grav)*reshape(tv(:,:,ki),(/nlons*nlats/))
-        delzb=delzb*log((100_r_kind*ak(krev)+bk(krev)*psges)/(100_r_kind*ak(krev+1)+bk(krev+1)*psges))
+        delzb=delzb*log((100_r_kind*ak(krev+1)+bk(krev+1)*psges)/(100_r_kind*ak(krev)+bk(krev)*psges))
+        !print *,'writeincrement_pnc: min/max delzb',k,minval(delzb),maxval(delzb)
         inc3d(:,:,ki)=reshape(ug-delzb,(/nlons,nlats/))
      end do
   end if
