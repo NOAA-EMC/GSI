@@ -3599,7 +3599,7 @@
         ! ug is hydrostatic analysis delz inferred from analysis ps,Tv
         ! delzb is hydrostatic background delz inferred from background ps,Tv
         delzb=(rd/grav)*reshape(tv(:,:,k),(/nlons*nlats/))
-        delzb=delzb*log((100_r_kind*ak(krev+1)+bk(krev+1)*values_1d)/(100_r_kind*ak(krev)+bk(krev)*values_1d))
+        delzb=delzb*log((100_r_kind*ak(krev+1)+bk(krev+1)*psges)/(100_r_kind*ak(krev)+bk(krev)*psges))
         !print *,'writeincrement: min/max delzb',k,minval(delzb),maxval(delzb)
         inc3d(:,:,k)=reshape(ug-delzb,(/nlons,nlats/))
      end do
@@ -4047,7 +4047,7 @@
         ! delzb is hydrostatic background delz inferred from background ps,Tv
         ! calculate delzb so it is negative
         delzb=(rd/grav)*reshape(tv(:,:,ki),(/nlons*nlats/))
-        delzb=delzb*log((100_r_kind*ak(krev+1)+bk(krev+1)*values_1d)/(100_r_kind*ak(krev)+bk(krev)*values_1d))
+        delzb=delzb*log((100_r_kind*ak(krev+1)+bk(krev+1)*psges)/(100_r_kind*ak(krev)+bk(krev)*psges))
         !print *,'writeincrement_pnc: min/max delzb',k,minval(delzb),maxval(delzb)
         inc3d(:,:,ki)=reshape(ug-delzb,(/nlons,nlats/))
      end do
