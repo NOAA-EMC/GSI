@@ -79,7 +79,7 @@ module gsi_rfv3io_mod
   public :: k_snwdph,k_f10m,mype_2d,n2d,k_orog,k_psfc
   public :: ijns,ijns2d,displss,displss2d,ijnz,displsz_g
 
-  integer(i_kind) mype_u,mype_v,mype_t,mype_q,mype_p,mype_oz,mype_ql
+  integer(i_kind) mype_u,mype_v,mype_t,mype_q,mype_p,mype_delz,mype_oz,mype_ql
   integer(i_kind) k_slmsk,k_tsea,k_vfrac,k_vtype,k_stype,k_zorl,k_smc,k_stc
   integer(i_kind) k_snwdph,k_f10m,mype_2d,n2d,k_orog,k_psfc
   parameter(                   &  
@@ -357,6 +357,8 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
 
 !!!!!!! setup A grid and interpolation/rotation coeff.
     call generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
+
+
 
     deallocate (grid_lon,grid_lat,grid_lont,grid_latt)
     deallocate (ak,bk,abk_fv3)
@@ -658,6 +660,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     mype_ql=5
     mype_oz=6
     mype_2d=7 
+    mype_delz=8
       
     allocate(ijns(npe),ijns2d(npe),ijnz(npe) )
     allocate(displss(npe),displss2d(npe),displsz_g(npe) )
@@ -1561,6 +1564,7 @@ subroutine wrfv3_netcdf(fv3filenamegin)
 ! abstract:  write FV3 analysis  in netcdf format
 !
 ! program history log:
+! 2021-01-05  x.zhang/lei  - add code for updating delz analysis in regional da
 !
 !   input argument list:
 !
@@ -1576,6 +1580,11 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use mpeu_util, only: die
+
+    use gridmod,only: l_reg_update_hydro_delz
+    use gridmod, only: lat2,lon2,nsig
+    use guess_grids, only:geom_hgti,geom_hgti_bg
+
     implicit none
     type (type_fv3regfilenameg),intent(in) :: fv3filenamegin
 
@@ -1589,6 +1598,10 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     real(r_kind),pointer,dimension(:,:,:):: ges_u   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_v   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_q   =>NULL()
+   
+    real(r_kind),allocatable,dimension(:,:,:)::ges_delzinc
+    integer(i_kind) k
+
     dynvars=fv3filenamegin%dynvars
     tracers=fv3filenamegin%tracers
 
@@ -1603,16 +1616,25 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     add_saved=.true.
 
 !   write out
-    if( fv3sar_bg_opt == 0) then
-      call gsi_fv3ncdf_write(dynvars,'T',ges_tsen(1,1,1,it),mype_t,add_saved)
-      call gsi_fv3ncdf_write(tracers,'sphum',ges_q   ,mype_q,add_saved)
-      call gsi_fv3ncdf_writeuv(dynvars,ges_u,ges_v,mype_v,add_saved)
-      call gsi_fv3ncdf_writeps(dynvars,'delp',ges_ps,mype_p,add_saved)
+    if(fv3sar_bg_opt == 0) then
+       call gsi_fv3ncdf_write(dynvars,'T',ges_tsen(1,1,1,it),mype_t,add_saved)
+       call gsi_fv3ncdf_write(tracers,'sphum',ges_q   ,mype_q,add_saved)
+       call gsi_fv3ncdf_writeuv(dynvars,ges_u,ges_v,mype_v,add_saved)
+       call gsi_fv3ncdf_writeps(dynvars,'delp',ges_ps,mype_p,add_saved)
+       if(l_reg_update_hydro_delz) then
+          allocate(ges_delzinc(lat2,lon2,nsig))
+          do k=1,nsig
+             ges_delzinc(:,:,k)=geom_hgti(:,:,k+1,it)-geom_hgti_bg(:,:,k+1,it)-geom_hgti(:,:,k,it)+geom_hgti_bg(:,:,k,it)
+          enddo
+          call gsi_fv3ncdf_write_fv3_dz(dynvars,"DZ",ges_delzinc,mype_delz,add_saved)
+          deallocate(ges_delzinc)
+       endif
+
     else
-      call gsi_fv3ncdf_write_v1(dynvars,'t',ges_tsen(1,1,1,it),mype_t,add_saved)
-      call gsi_fv3ncdf_write_v1(tracers,'sphum',ges_q   ,mype_q,add_saved)
-      call gsi_fv3ncdf_writeuv_v1(dynvars,ges_u,ges_v,mype_v,add_saved)
-      call gsi_fv3ncdf_writeps_v1(dynvars,'ps',ges_ps,mype_p,add_saved)
+       call gsi_fv3ncdf_write_v1(dynvars,'t',ges_tsen(1,1,1,it),mype_t,add_saved)
+       call gsi_fv3ncdf_write_v1(tracers,'sphum',ges_q   ,mype_q,add_saved)
+       call gsi_fv3ncdf_writeuv_v1(dynvars,ges_u,ges_v,mype_v,add_saved)
+       call gsi_fv3ncdf_writeps_v1(dynvars,'ps',ges_ps,mype_p,add_saved)
     
     endif
     
@@ -1691,8 +1713,8 @@ subroutine gsi_fv3ncdf_writeuv(dynvars,varu,varv,mype_io,add_saved)
        do m=1,npe
           do k=1,nsig
              do n=displs_g(m)+1,displs_g(m)+ijn(m) 
-             ns=ns+1
-             work_au(ltosi(n),ltosj(n),k)=work(ns)
+                ns=ns+1
+                work_au(ltosi(n),ltosj(n),k)=work(ns)
              end do
           enddo
        enddo
@@ -1827,7 +1849,6 @@ subroutine gsi_fv3ncdf_writeps(filename,varname,var,mype_io,add_saved)
     real(r_kind),allocatable,dimension(:,:,:):: work_b,work_bi
     real(r_kind),allocatable,dimension(:,:):: workb2,worka2
 
-
     mm1=mype+1
     allocate(    work(max(iglobal,itotsub)),work_sub(lat1,lon1) )
     do i=1,lon1
@@ -1837,7 +1858,6 @@ subroutine gsi_fv3ncdf_writeps(filename,varname,var,mype_io,add_saved)
     end do
     call mpi_gatherv(work_sub,ijn(mm1),mpi_rtype, &
           work,ijn,displs_g,mpi_rtype,mype_io,mpi_comm_world,ierror)
-
     if(mype==mype_io) then
        allocate( work_a(nlat,nlon))
        do i=1,iglobal
@@ -1866,6 +1886,7 @@ subroutine gsi_fv3ncdf_writeps(filename,varname,var,mype_io,add_saved)
 !!!!!!! ges_prsi+hydrostatic analysis_inc !!!!!!!!!!!!!!!!
              work_bi(:,:,k)=work_bi(:,:,k)+eta2_ll(kr)*workb2(:,:)
           enddo
+
        else
           call fv3_ll_to_h(work_a,workb2,nlon,nlat,nlon_regional,nlat_regional,grid_reverse_flag)
           do k=1,nsig+1
@@ -2211,6 +2232,7 @@ subroutine gsi_fv3ncdf_writeps_v1(filename,varname,var,mype_io,add_saved)
        if ( allocated(workb2)) deallocate(workb2)
        deallocate(work_b,work_a,work_bi)
 
+
     end if !mype_io
 
     deallocate(work,work_sub)
@@ -2325,6 +2347,108 @@ subroutine gsi_fv3ncdf_write(filename,varname,var,mype_io,add_saved)
     deallocate(work,work_sub)
 
 end subroutine gsi_fv3ncdf_write
+subroutine gsi_fv3ncdf_write_fv3_dz(filename,varname,varinc,mype_io,add_saved)
+!$$$  subprogram documentation block
+!                .      .    .                                        .
+! subprogram:    gsi_nemsio_write_fv3_dz from gsi_nemsio_write
+!   pgrmmr: lei
+!
+! abstract:
+!
+! program history log:
+!
+!   input argument list:
+!    varin
+!    add_saved
+!    mype     - mpi task id
+!    mype_io
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+    use mpimod, only: mpi_rtype,mpi_comm_world,ierror,npe,mype
+    use gridmod, only: lat2,lon2,nlon,nlat,lat1,lon1,nsig
+    use gridmod, only: ijn,displs_g,itotsub,iglobal
+    use mod_fv3_lola, only: fv3_ll_to_h
+    use mod_fv3_lola, only: fv3_h_to_ll
+    use general_commvars_mod, only: ltosi,ltosj
+    use netcdf, only: nf90_open,nf90_close
+    use netcdf, only: nf90_write,nf90_inq_varid
+    use netcdf, only: nf90_put_var,nf90_get_var
+    implicit none
+
+    real(r_kind)   ,intent(in   ) :: varinc(lat2,lon2,nsig)
+    integer(i_kind),intent(in   ) :: mype_io
+    logical        ,intent(in   ) :: add_saved
+    character(*)   ,intent(in   ) :: varname,filename
+
+    integer(i_kind) :: VarId,gfile_loc
+    integer(i_kind) i,j,mm1,k,kr,ns,n,m
+    real(r_kind),allocatable,dimension(:):: work
+    real(r_kind),allocatable,dimension(:,:,:):: work_sub,work_ainc
+    real(r_kind),allocatable,dimension(:,:,:):: work_b
+    real(r_kind),allocatable,dimension(:,:):: workb2
+
+    mm1=mype+1
+
+    allocate(    work(max(iglobal,itotsub)*nsig),work_sub(lat1,lon1,nsig))
+!!!!!!!! reverse z !!!!!!!!!!!!!!
+    do k=1,nsig
+       kr=nsig+1-k
+       do i=1,lon1
+          do j=1,lat1
+             work_sub(j,i,kr)=varinc(j+1,i+1,k)
+          end do
+       end do
+    enddo
+    call mpi_gatherv(work_sub,ijnz(mm1),mpi_rtype, &
+         work,ijnz,displsz_g,mpi_rtype,mype_io,mpi_comm_world,ierror)
+
+    if(mype==mype_io) then
+       allocate( work_ainc(nlat,nlon,nsig))
+       ns=0
+       do m=1,npe
+          do k=1,nsig
+             do n=displs_g(m)+1,displs_g(m)+ijn(m)
+                ns=ns+1
+                work_ainc(ltosi(n),ltosj(n),k)=work(ns)
+             end do
+          enddo
+       enddo
+
+       allocate( work_b(nlon_regional,nlat_regional,nsig))
+
+       call check( nf90_open(trim(filename),nf90_write,gfile_loc) )
+       call check( nf90_inq_varid(gfile_loc,trim(varname),VarId) )
+
+       if(.not. add_saved)then
+          write(6,*)'here the input is increments to be added to the read-in background, &
+                     hence, add_saved has to be true'
+       endif
+       allocate( workb2(nlon_regional,nlat_regional))
+       call check( nf90_get_var(gfile_loc,VarId,work_b) )
+
+       do k=1,nsig
+          call fv3_ll_to_h(work_ainc(1,1,k),workb2(:,:),nlon,nlat,nlon_regional,nlat_regional,.true.)
+!!!!!!!! analysis_inc:  work_a !!!!!!!!!!!!!!!!
+          work_b(:,:,k)=workb2(:,:)+work_b(:,:,k)
+       enddo
+       deallocate(workb2)
+
+       print *,'write out ',trim(varname),' to ',trim(filename)
+       call check( nf90_put_var(gfile_loc,VarId,work_b) )
+       call check( nf90_close(gfile_loc) )
+       deallocate(work_b,work_ainc)
+    end if !mype_io
+
+    deallocate(work,work_sub)
+
+end subroutine gsi_fv3ncdf_write_fv3_dz
 subroutine check(status)
     use kinds, only: i_kind
     use netcdf, only: nf90_noerr,nf90_strerror
@@ -2421,8 +2545,8 @@ subroutine gsi_fv3ncdf_write_v1(filename,varname,var,mype_io,add_saved)
        if(add_saved)then
           allocate( workb2(nlon_regional,nlat_regional))
           allocate( worka2(nlat,nlon))
-!  for being now only lev between (including )  2 and nsig+1 of work_b (:,:,lev) 
-!  are updated
+! for being now only lev between (including )  2 and nsig+1 of work_b (:,:,lev) 
+! are updated
           do k=1,nsig
              call fv3_h_to_ll(work_b(:,:,ilev0+k),worka2,nlon_regional,nlat_regional,nlon,nlat,grid_reverse_flag)
 !!!!!!!! analysis_inc:  work_a !!!!!!!!!!!!!!!!
