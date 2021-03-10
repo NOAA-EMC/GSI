@@ -17,7 +17,7 @@
    my $my_os = "export MY_OS=$arch";
 
    #
-   #  Determine if installation is on cray, wcoss_d, or hera
+   #  Determine if installation is on wcoss_c, wcoss_d, or hera
    #
    if( $arch ne "linux" && $arch ne "aix" ) {
       die( "only linux and aix are supported, $arch is not\n" );
@@ -44,13 +44,10 @@
       $machine = "hera";
    } 
    elsif( $host =~ /login/ ) {
-      $machine = "cray";
+      $machine = "wcoss_c";
    }
    elsif( $host =~ /m/ || $host =~ /v/ ){
       $machine = "wcoss_d";			# dell machines are mXXaY/vXXaY
-   }
-   elsif( $host =~ /t/ || $host =~ /g/ ){	# wcoss nodes are tXXaY and gXXaY
-      $machine = "wcoss";
    }
 
    print "$machine";
