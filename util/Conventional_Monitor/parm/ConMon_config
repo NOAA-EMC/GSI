@@ -35,7 +35,7 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
    # MY_CONMON should point to your working directory which contains the
    # top level directory to the ConMon package. 
    #
-   export MY_CONMON=/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/GSI/util/Conventional_Monitor
+   export MY_CONMON=${MY_CONMON:-/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/GSI/util/Conventional_Monitor}
 
    #---------------------------------------------------------------------------
    #  The CONMON_TANKDIR will be the location for the extracted data files and
@@ -44,7 +44,8 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
    #  this location.
    #
 
-   export CONMON_TANKDIR=/u/Edward.Safford/nbns
+   export MY_TANKDIR=${MY_TANKDIR:-/u/Edward.Safford/nbns}
+   export CONMON_TANKDIR=$MY_TANKDIR
    export C_TANKverf=${C_TANKverf:-${CONMON_TANKDIR}}
 
    export C_TANKDIR=${CONMON_TANKDIR}/stats/${CONMON_SUFFIX}

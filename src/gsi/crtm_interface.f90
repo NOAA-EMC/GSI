@@ -2074,7 +2074,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      hwp_total = sum(hwp_guess(:))
      theta_700 = atmosphere(1)%temperature(idx700)*(r1000/atmosphere(1)%pressure(idx700))**rd_over_cp
      theta_sfc = data_s(itsavg)*(r100/ps)**rd_over_cp
-     stability = theta_700 - theta_sfc
+     if (present(stability)) stability = theta_700 - theta_sfc
   endif
 
 ! Set clouds for CRTM
