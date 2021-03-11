@@ -543,7 +543,7 @@ subroutine gesinfo
   ida(:)=0
   jda(:)=0
   fha(:)=zero
-  fha(2)=-float(int(min_offset/60))
+  fha(2)=-float(min_offset/60)
   fha(3)=-(min_offset+fha(2)*r60)
   ida(1:3)=iadate(1:3)
   ida(5:6)=iadate(4:5)
@@ -574,7 +574,7 @@ subroutine gesinfo
 ! Get time offset
   call time_4dvar(ianldate,time_offset)
 #ifdef RR_CLOUDANALYSIS
-  fha(2)=float(int(min_offset/60))
+  fha(2)=float(min_offset/60)
   fha(3)=(min_offset-fha(2)*r60)
   time_offset=time_offset+fha(3)/r60
 #endif
