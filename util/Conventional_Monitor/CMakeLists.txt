@@ -66,18 +66,14 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     endif()
 
     cmake_policy(SET CMP0009 NEW)
+    cmake_policy(SET CMP0054 NEW)
     find_package(OpenMP)
     message("found openmp with flag ${OPENMP_Fortran_FLAGS}")
 
 #   Set Host specific flags and options
     setHOST()
 
-    if(FIND_HDF5_HL)
-      find_package(HDF5 COMPONENTS C HL Fortran_HL )
-    elseif(FIND_HDF5)
-      find_package(HDF5)
-    endif()
-
+    find_package( NetCDF COMPONENTS C Fortran REQUIRED)
     find_package(MPI REQUIRED)
     message("MPI version is ${MPI_Fortran_VERSION}")
     message("MPI f90 version is ${MPI_Fortran_HAVE_F90_MODULE}")
@@ -86,16 +82,9 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     add_definitions(${MPI_Fortran_COMPILE_FLAGS})
     include_directories(${MPI_Fortran_INCLUDE_DIRS} ${MPI_INCLUDE_PATH} "./" ${CMAKE_INCLUDE_OUTPUT_DIRECTORY})
     link_directories(${MPI_Fortran_LIBRARIES} ${ARCHIVE_OUTPUT_PATH} )
-    find_package( NetCDF REQUIRED)
-    if(NETCDF4)
-      if(CMAKE_MAJOR_VERSION GREATER 2)
-        find_package( ZLIB )
-      endif()
-      find_package( CURL )
-    endif()
-
     find_package( W3NCO )
 
+    set (CMAKE_Fortran_INC_FLAGS "-I ./ -I ${CORE_INCS} -I ${NETCDF_INCLUDE_DIRS} ")
     set(BUILD_NCDIAG ON)
     set(NCDIAG_INCS "${PROJECT_BINARY_DIR}/libsrc/ncdiag")
     add_subdirectory(${PROJECT_SOURCE_DIR}/../../src/ncdiag ${PROJECT_BINARY_DIR}/libsrc/ncdiag)

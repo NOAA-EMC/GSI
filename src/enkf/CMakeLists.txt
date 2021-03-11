@@ -25,11 +25,6 @@ if(BUILD_ENKF)
     set(ENKF_SUFFIX "wrf")
     set(ENKF_BASE "enkf_wrf")
   endif()
-# if(USE_WRF)
-#   set(GSILIB "gsilib_${debug_suffix}")
-# else()
-#   set(GSILIB  "gsilib_global${debug_suffix}")
-# endif()
   set(ENKF_EXTRA_SRCS ${ENKF_extra_src1} gridio_${ENKF_SUFFIX}.f90 )
   add_library( MODS1 OBJECT gridinfo_${ENKF_SUFFIX}.f90 )  
   add_library( MODS2 OBJECT ${ENKF_EXTRA_SRCS} )  
@@ -61,8 +56,8 @@ if(BUILD_ENKF)
 # endif()
   
   add_definitions(${MPI_Fortran_FLAGS})
-  
-  include_directories(${CMAKE_CURRENT_BINARY_DIR} "${PROJECT_BINARY_DIR}/include/wrf" "${PROJECT_BINARY_DIR}/include/global"  ${CMAKE_CURRENT_BINARY_DIR}/.. ${MPI_Fortran_INCLUDE_DIRS} ${MPI_Fortran_INCLUDE_PATH} ${CORE_INCS} ${NETCDF_INCLUDES} ${NCDIAG_INCS} ${FV3GFS_NCIO_INCS})
+ 
+  include_directories(${CMAKE_CURRENT_BINARY_DIR} "${PROJECT_BINARY_DIR}/include/wrf" "${PROJECT_BINARY_DIR}/include/global"  ${CMAKE_CURRENT_BINARY_DIR}/.. ${MPI_Fortran_INCLUDE_DIRS} ${MPI_Fortran_INCLUDE_PATH} ${CORE_INCS} ${NETCDF_INCLUDE_DIRS} ${NCDIAG_INCS} ${FV3GFS_NCIO_INCS})
   link_directories(${MPI_Fortran_LIBRARIES})
 
   set_source_files_properties( ${ENKF_SRCS} PROPERTIES COMPILE_FLAGS ${ENKF_Fortran_FLAGS} )
@@ -78,8 +73,9 @@ if(BUILD_ENKF)
   set(ENKFEXEC "${ENKF_BASE}${debug_suffix}${GSISUFFIX}" CACHE INTERNAL "ENKF Executable name")
   add_executable(${ENKFEXEC} enkf_main.f90)
   target_link_libraries(${ENKFEXEC} enkflib enkfdeplib ${GSILIB} ${GSISHAREDLIB} ${CORE_LIBRARIES}
-  ${MPI_Fortran_LIBRARIES} ${LAPACK_LIBRARIES} ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES}  ${HDF5_HL_LIBRARIES}
-  ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${GSI_LDFLAGS} ${CORE_BUILT} ${CORE_LIBRARIES} ${CORE_BUILT} ${NCDIAG_LIBRARIES} ${FV3GFS_NCIO_LIBRARIES})
+  ${MPI_Fortran_LIBRARIES} ${LAPACK_LIBRARIES} ${CORE_LIBRARIES} ${CORE_BUILT}
+  ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES} ${FV3GFS_NCIO_LIBRARIES} 
+  ${EXTRA_LINKER_FLAGS} ${GSI_LDFLAGS} ${NCDIAG_LIBRARIES})
   install(TARGETS ${ENKFEXEC} enkfdeplib enkflib 
         RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
         LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
