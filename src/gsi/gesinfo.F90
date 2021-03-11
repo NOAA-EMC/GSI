@@ -543,7 +543,7 @@ subroutine gesinfo
   ida(:)=0
   jda(:)=0
   fha(:)=zero
-  fha(2)=-float(int(min_offset/60_)
+  fha(2)=-float(int(min_offset/60))
   fha(3)=-(min_offset+fha(2)*r60)
   ida(1:3)=iadate(1:3)
   ida(5:6)=iadate(4:5)
