@@ -245,6 +245,12 @@ EOFdiag
       fi
    fi
 
+   # Restrict diagnostic files containing rstprod data
+   rlist="conv_gps conv_ps conv_pw conv_q conv_sst conv_t conv_uv saphir"
+   for rtype in $rlist; do
+       ${CHGRP_CMD} *${rtype}*
+   done
+   
    # If requested, create diagnostic file tarballs
    if [ $DIAG_TARBALL = "YES" ]; then
       echo $(date) START tar diagnostic files >&2
