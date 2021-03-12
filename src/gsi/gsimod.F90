@@ -123,7 +123,7 @@
      use_gfs_nemsio,sfcnst_comb,use_readin_anl_sfcmask,use_sp_eqspace,final_grid_vars,&
      jcap_gfs,nlat_gfs,nlon_gfs,jcap_cut,wrf_mass_hybridcord,use_gfs_ncio,write_fv3_incr,&
      use_fv3_aero
-  use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop
+  use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop,commgpstop,commgpserrinf
   use gsi_io, only: init_io,lendian_in,verbose,print_obs_para
   use regional_io_mod, only: regional_io_class
   use wrf_params_mod, only: update_pint, preserve_restart_date
@@ -567,6 +567,8 @@
 !     use_compress - option to turn on the use of compressibility factors in geopotential heights
 !     nsig_ext - number of layers above the model top which are necessary to compute the bending angle for gpsro
 !     gpstop - maximum height for gpsro data assimilation. Reject anything above this height. 
+!     commgpstop -Reject commercial ro above this height. Logic in setupbend assumes commgpstop <= gpstop.
+!     commgpserrinf - optional error inflation factor for commercial gpsro data
 !     use_gfs_nemsio  - option to use nemsio to read global model NEMS/GFS first guess
 !     use_gfs_ncio - option to use netCDF to read global model FV3-GFS first guess
 !     use_fv3_aero - option to use FV3-Chem vs NGAC for global aerosol analysis
@@ -659,7 +661,7 @@
        diag_rad,diag_pcp,diag_conv,diag_ozone,diag_aero,diag_co,diag_light,diag_radardbz,iguess, &
        write_diag,reduce_diag, &
        oneobtest,sfcmodel,dtbduv_on,ifact10,l_foto,offtime_data,&
-       use_pbl,use_compress,nsig_ext,gpstop,&
+       use_pbl,use_compress,nsig_ext,gpstop,commgpstop, commgpserrinf, &
        perturb_obs,perturb_fact,oberror_tune,preserve_restart_date, &
        crtm_coeffs_path,berror_stats, &
        newpc4pred,adp_anglebc,angord,passive_bc,use_edges,emiss_bc,upd_pred,reset_bad_radbc,&

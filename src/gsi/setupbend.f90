@@ -140,7 +140,7 @@ subroutine setupbend(obsLL,odiagLL, &
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use guess_grids, only: ges_lnprsi,hrdifsig,geop_hgti,nfldsig
-  use guess_grids, only: nsig_ext,gpstop
+  use guess_grids, only: nsig_ext,gpstop,commgpstop,commgpserrinf
   use gridmod, only: nsig
   use gridmod, only: get_ij,latlon11
   use constants, only: fv,n_a,n_b,n_c,deg2rad,tiny_r_kind,r0_01,r18,r61,r63,r10000
@@ -257,6 +257,7 @@ subroutine setupbend(obsLL,odiagLL, &
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
 
   type(obsLList),pointer,dimension(:):: gpshead
+  logical:: commdat
   gpshead => obsLL(:)
 
   save_jacobian = conv_diagsave .and. jiter==jiterstart .and. lobsdiag_forenkf
@@ -679,6 +680,11 @@ subroutine setupbend(obsLL,odiagLL, &
 
          repe_gps=exp(repe_gps) ! one/modified error in (rad-1*1E3)
          repe_gps= r1em3*(one/abs(repe_gps)) ! modified error in rad
+         commdat=.false.
+         if (data(isatid,i)>=265 .and. data(isatid,i)<=269) then 
+             commdat=.true.
+             repe_gps=commgpserrinf*repe_gps ! Inflate error for commercial data
+         endif
          ratio_errors(i) = data(ier,i)/abs(repe_gps)
   
          error(i)=one/data(ier,i) ! one/original error
@@ -768,85 +774,94 @@ subroutine setupbend(obsLL,odiagLL, &
          rdiagbuf( 5,i)  = (data(igps,i)-dbend)/data(igps,i) ! incremental bending angle (x100 %)
 
          data(igps,i)=data(igps,i)-dbend !innovation vector
-
+         commdat=.false.
+         if (data(isatid,i)>=265 .and. data(isatid,i)<=269) commdat=.true.
          if (alt <= gpstop) then ! go into qc checks
-            cgrossuse=cgross(ikx)
-            cermaxuse=cermax(ikx)
-            cerminuse=cermin(ikx) 
-            if (alt > five) then
-               cgrossuse=cgrossuse*r400
-               cermaxuse=cermaxuse*r400
-               cerminuse=cerminuse*r100
-            endif
-!           Gross error check
-            obserror = one/max(ratio_errors(i)*data(ier,i),tiny_r_kind)
-            obserrlm = max(cerminuse,min(cermaxuse,obserror))
-            residual = abs(data(igps,i))
-            ratio    = residual/obserrlm
+            if ((alt <= commgpstop) .or. (.not.commdat)) then !KAB
+               cgrossuse=cgross(ikx)
+               cermaxuse=cermax(ikx)
+               cerminuse=cermin(ikx) 
+               if (alt > five) then
+                  cgrossuse=cgrossuse*r400
+                  cermaxuse=cermaxuse*r400
+                  cerminuse=cerminuse*r100
+               endif
+!              Gross error check
+               obserror = one/max(ratio_errors(i)*data(ier,i),tiny_r_kind)
+               obserrlm = max(cerminuse,min(cermaxuse,obserror))
+               residual = abs(data(igps,i))
+               ratio    = residual/obserrlm
 
-            if (ratio > cgrossuse) then
-                if (luse(i)) then
-                   awork(4) = awork(4)+one
-                endif
-                qcfail_gross(i)=one 
-                data(ier,i) = zero
-                ratio_errors(i) = zero
-                muse(i)=.false.
-            else   
-!               Statistics QC check if obs passed gross error check
-                cutoff=zero
-                if ((data(isatid,i) > 749).and.(data(isatid,i) < 756)) then
-                   cutoff1=(-4.725_r_kind+0.045_r_kind*alt+0.005_r_kind*alt**2)*one/two
-                else
-                   cutoff1=(-4.725_r_kind+0.045_r_kind*alt+0.005_r_kind*alt**2)*two/three
-                end if
-                cutoff2=1.5_r_kind+one*cos(data(ilate,i)*deg2rad)
-                if(trefges<=r240) then
-                   cutoff3=two
-                else
-                   cutoff3=0.005_r_kind*trefges**2-2.3_r_kind*trefges+266_r_kind
-                endif
-                if ((data(isatid,i) > 749).and.(data(isatid,i) < 756)) then
-                   cutoff3=cutoff3*one/two
-                else
-                   cutoff3=cutoff3*two/three
-                end if
-                if ((data(isatid,i) > 749).and.(data(isatid,i) < 756)) then
-                   cutoff4=(four+eight*cos(data(ilate,i)*deg2rad))*one/two
-                else
-                   cutoff4=(four+eight*cos(data(ilate,i)*deg2rad))*two/three
-                end if
-                cutoff12=((36_r_kind-alt)/two)*cutoff2+&
-                         ((alt-34_r_kind)/two)*cutoff1
-                cutoff23=((eleven-alt)/two)*cutoff3+&
-                         ((alt-nine)/two)*cutoff2
-                cutoff34=((six-alt)/two)*cutoff4+&
-                         ((alt-four)/two)*cutoff3
-                if(alt>36_r_kind) cutoff=cutoff1
-                if((alt<=36_r_kind).and.(alt>34_r_kind)) cutoff=cutoff12
-                if((alt<=34_r_kind).and.(alt>eleven)) cutoff=cutoff2
-                if((alt<=eleven).and.(alt>nine)) cutoff=cutoff23
-                if((alt<=nine).and.(alt>six)) cutoff=cutoff3
-                if((alt<=six).and.(alt>four)) cutoff=cutoff34
-                if(alt<=four) cutoff=cutoff4
-
-                if ((data(isatid,i) > 749).and.(data(isatid,i) < 756)) then
-                   cutoff=two*cutoff*r0_01
-                else
-                   cutoff=three*cutoff*r0_01
-                end if
- 
-                if(abs(rdiagbuf(5,i)) > cutoff) then
-                   qcfail(i)=.true.
+               if (ratio > cgrossuse) then
+                   if (luse(i)) then
+                      awork(4) = awork(4)+one
+                   endif
+                   qcfail_gross(i)=one 
                    data(ier,i) = zero
                    ratio_errors(i) = zero
-                   muse(i) = .false.
-                end if
-            end if ! gross qc check
-         end if ! qc checks (only below 50km)
+                   muse(i)=.false.
+               else   
+!                  Statistics QC check if obs passed gross error check
+                   cutoff=zero
+                   if ((data(isatid,i) > 749).and.(data(isatid,i) < 756)) then
+                      cutoff1=(-4.725_r_kind+0.045_r_kind*alt+0.005_r_kind*alt**2)*one/two
+                   else
+                      cutoff1=(-4.725_r_kind+0.045_r_kind*alt+0.005_r_kind*alt**2)*two/three
+                   end if
+                   cutoff2=1.5_r_kind+one*cos(data(ilate,i)*deg2rad)
+                   if(trefges<=r240) then
+                     cutoff3=two
+                   else
+                      cutoff3=0.005_r_kind*trefges**2-2.3_r_kind*trefges+266_r_kind
+                   endif
+                   if ((data(isatid,i) > 749).and.(data(isatid,i) < 756)) then
+                      cutoff3=cutoff3*one/two
+                   else
+                      cutoff3=cutoff3*two/three
+                   end if
+                   if ((data(isatid,i) > 749).and.(data(isatid,i) < 756)) then
+                      cutoff4=(four+eight*cos(data(ilate,i)*deg2rad))*one/two
+                   else
+                      cutoff4=(four+eight*cos(data(ilate,i)*deg2rad))*two/three
+                   end if
+                   cutoff12=((36_r_kind-alt)/two)*cutoff2+&
+                            ((alt-34_r_kind)/two)*cutoff1
+                   cutoff23=((eleven-alt)/two)*cutoff3+&
+                            ((alt-nine)/two)*cutoff2
+                   cutoff34=((six-alt)/two)*cutoff4+&
+                            ((alt-four)/two)*cutoff3
+                   if(alt>36_r_kind) cutoff=cutoff1
+                   if((alt<=36_r_kind).and.(alt>34_r_kind)) cutoff=cutoff12
+                   if((alt<=34_r_kind).and.(alt>eleven)) cutoff=cutoff2
+                   if((alt<=eleven).and.(alt>nine)) cutoff=cutoff23
+                   if((alt<=nine).and.(alt>six)) cutoff=cutoff3
+                   if((alt<=six).and.(alt>four)) cutoff=cutoff34
+                   if(alt<=four) cutoff=cutoff4
 
+                   if ((data(isatid,i) > 749).and.(data(isatid,i) < 756)) then
+                      cutoff=two*cutoff*r0_01
+                   else
+                      cutoff=three*cutoff*r0_01
+                   end if
+ 
+                   if(abs(rdiagbuf(5,i)) > cutoff) then
+                      qcfail(i)=.true.
+                      data(ier,i) = zero
+                      ratio_errors(i) = zero
+                      muse(i) = .false.
+                   end if
+               end if !gross qc check
+            end if ! commdat < 45 km
+         end if ! qc checks (only below 50km)
+         commdat=.false.
+         if (data(isatid,i)>=265 .and. data(isatid,i)<=269) commdat=.true.
 !        Remove obs above 50 km  
          if(alt > gpstop) then
+           data(ier,i) = zero
+           ratio_errors(i) = zero
+           qcfail_high(i)=one
+           muse(i)=.false.
+         elseif ((alt > commgpstop) .and. (commdat)) then
            data(ier,i) = zero
            ratio_errors(i) = zero
            qcfail_high(i)=one
