@@ -774,10 +774,8 @@ subroutine setupbend(obsLL,odiagLL, &
          rdiagbuf( 5,i)  = (data(igps,i)-dbend)/data(igps,i) ! incremental bending angle (x100 %)
 
          data(igps,i)=data(igps,i)-dbend !innovation vector
-         commdat=.false.
-         if (data(isatid,i)>=265 .and. data(isatid,i)<=269) commdat=.true.
          if (alt <= gpstop) then ! go into qc checks
-            if ((alt <= commgpstop) .or. (.not.commdat)) then !KAB
+            if ((alt <= commgpstop) .or. (.not.commdat)) then 
                cgrossuse=cgross(ikx)
                cermaxuse=cermax(ikx)
                cerminuse=cermin(ikx) 
@@ -851,17 +849,10 @@ subroutine setupbend(obsLL,odiagLL, &
                       muse(i) = .false.
                    end if
                end if !gross qc check
-            end if ! commdat < 45 km
+            end if ! commdat < commgpstop
          end if ! qc checks (only below 50km)
-         commdat=.false.
-         if (data(isatid,i)>=265 .and. data(isatid,i)<=269) commdat=.true.
 !        Remove obs above 50 km  
-         if(alt > gpstop) then
-           data(ier,i) = zero
-           ratio_errors(i) = zero
-           qcfail_high(i)=one
-           muse(i)=.false.
-         elseif ((alt > commgpstop) .and. (commdat)) then
+         if((alt > gpstop) .or. (commdat .and. (alt > commgpstop))) then
            data(ier,i) = zero
            ratio_errors(i) = zero
            qcfail_high(i)=one
