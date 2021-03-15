@@ -1053,6 +1053,7 @@ if [ $RUN_SELECT = "YES" ]; then
   echo $(date) START tar obs_input >&2
   [[ -s obsinput.tar ]] && rm obsinput.tar
   $NLN $SELECT_OBS obsinput.tar
+  ${CHGRP_CMD} obs_input.*
   tar -cvf obsinput.tar obs_input.*
   chmod 750 $SELECT_OBS
   ${CHGRP_CMD} $SELECT_OBS

@@ -232,6 +232,15 @@ elif [[ $rc_time -ne 0 ]]; then
    err=$rc_time
 fi
 
+#####################################################################
+# Restrict select sensors and satellites
+export CHGRP_CMD=${CHGRP_CMD:-"chgrp ${group_name:-rstprod}"}
+rlist="saphir"
+for rtype in $rlist; do
+    ${CHGRP_CMD} $TANKverf_rad/*${rtype}*
+done
+
+
 if [[ "$VERBOSE" = "YES" ]]; then
    echo "end exgdas_vrfyrad.sh, exit value = ${err}"
 fi
