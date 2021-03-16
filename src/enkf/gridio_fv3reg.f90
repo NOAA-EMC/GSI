@@ -49,7 +49,6 @@ module gridio
   !-------------------------------------------------------------------------
 
 contains
-  ! Generic WRF read routine, calls ARW-WRF or NMM-WRF
   subroutine readgriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,ntimes,fileprefixes,filesfcprefixes,reducedgrid,vargrid,qsat)
    use constants, only:zero,one,half,fv, max_varname_length
    use gridinfo,only: eta1_ll
@@ -362,12 +361,12 @@ contains
 end subroutine readgriddata
 
   !========================================================================
-  ! readgriddata_nmm.f90: read WRF-NMM state or control vector
+  ! readgriddata_nmm.f90: read FV3-Lam state or control vector
   !-------------------------------------------------------------------------
 
 
   !========================================================================
-  ! writegriddata.f90: write WRF-ARW or WRF-NMM analysis
+  ! writegriddata.f90: write FV3-LAM analysis
   !-------------------------------------------------------------------------
 
 subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflate_flag)
@@ -683,6 +682,9 @@ subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid
 
   end subroutine writegriddata
   subroutine writeincrement(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,grdin,no_inflate_flag)
+ !Dummy subroutine declaration in place of  the actual subroutine definition in
+ !the GFS EnKF
+ !to be implemented in the future
     use constants, only: max_varname_length
     use params, only: nbackgrounds
     implicit none
@@ -696,6 +698,9 @@ subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid
   end subroutine writeincrement
 
   subroutine writeincrement_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,grdin,no_inflate_flag)
+ !Dummy subroutine declaration in place of  the actual subroutine definition in
+ !the GFS EnKF
+ !to be implemented in the future
     use constants, only: max_varname_length
     use params, only: nbackgrounds
     implicit none
@@ -709,6 +714,9 @@ subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid
   
   subroutine readgriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,ntimes, &
                                fileprefixes,filesfcprefixes,reducedgrid,grdin,qsat)
+ !Dummy subroutine declaration in place of  the actual subroutine definition in
+ !the GFS EnKF
+ !to be implemented in the future
     use constants, only: max_varname_length
     implicit none
     character(len=max_varname_length), dimension(n2d), intent(in) :: vars2d
@@ -724,6 +732,9 @@ subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid
   end subroutine readgriddata_pnc
 
   subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,grdin,no_inflate_flag)
+ !Dummy subroutine declaration in place of  the actual subroutine definition in
+ !the GFS EnKF
+ !to be implemented in the future
     use constants, only: max_varname_length
     use params, only: nbackgrounds
     implicit none

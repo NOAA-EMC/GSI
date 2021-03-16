@@ -8,9 +8,10 @@ cmake_minimum_required(VERSION 2.6)
   set_target_properties( conmon_time.x PROPERTIES COMPILE_FLAGS ${CONMON_TIME_Fortran_FLAGS} )
   set_target_properties( conmon_time.x PROPERTIES Fortran_MODULE_DIRECTORY ${Util_MODULE_DIR} )
 
-  include_directories( ${UTIL_INC} ${CORE_INCS} ${NCDIAG_INCS} ${NETCDF_INCLUDES} ${MPI_Fortran_INCLUDE_PATH} ) 
+  include_directories( ${CORE_INCS} ${NCDIAG_INCS} ) 
  
-  target_link_libraries( conmon_time.x ${W3NCO_4_LIBRARY} ${NCDIAG_LIBRARIES} ${NETCDF_LIBRARIES_F90} ${NETCDF_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES} ${HDF5_LIBRARIES} ${MPI_Fortran_LIBRARIES} )
+  target_link_libraries( conmon_time.x ${W3NCO_4_LIBRARY} ${NCDIAG_LIBRARIES} ${NETCDF_Fortran_LIBRARIES} 
+     ${NETCDF_C_LIBRARIES} ${MPI_Fortran_LIBRARIES} )
 
   if(BUILD_W3NCO)
     add_dependencies( conmon_time.x ${W3NCO_4_LIBRARY} )

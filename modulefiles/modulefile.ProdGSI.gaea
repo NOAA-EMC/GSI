@@ -9,13 +9,6 @@ puts stderr "for the Intel Compiler Suite $version\n"
 }
 module-whatis " NOAA-EMC/GSI whatis description"
 
-setenv COMP ftn
-setenv COMP_MP ftn
-setenv COMP_MPI ftn
-
-setenv C_COMP cc
-setenv C_COMP_MP cc
-
 set COMPILER intel
 
 setenv FFLAGS_COM "-fp-model strict"
@@ -26,7 +19,6 @@ setenv LDFLAGS_COM " "
 #set WRF_SHARED_ROOT /lustre/f1/pdata/ncep_shared/NCEPLIBS/lib/EXTERNAL/wrf_shared
 #setenv WRF_SHARED_PATH ${WRF_SHARED_ROOT}.${WRF_SHARED_VER}
 
-# Known conflicts
 setenv NCEPLIBS /lustre/f1/pdata/ncep_shared/NCEPLIBS/lib
 
 # Loading ncep environment
