@@ -80,7 +80,7 @@ program efsoi_main
 
  ! 0. initialize MPI.
  call mpi_initialize()
- if (nproc==0) call w3tagb('EFSOI_CALC',2018,0319,0055,'NP25')
+ if (nproc==0) call w3tagb('EFSOI_CALC',2021,0319,0055,'NP25')
 
  call init_rad()
 

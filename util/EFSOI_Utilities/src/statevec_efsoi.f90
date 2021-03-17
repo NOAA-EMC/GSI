@@ -51,9 +51,11 @@ module statevec_efsoi
 !$$$
 
 use mpisetup
-use gridio_efsoi,    only: readgriddata_efsoi, get_weight
-use gridinfo_efsoi,  only: getgridinfo_efsoi, gridinfo_cleanup_efsoi,              &
-                     npts, vars3d_supported, vars2d_supported, ncdim
+use gridio_efsoi,    only: readgriddata_efsoi, get_weight, ncdim
+!use gridinfo_efsoi,  only: getgridinfo_efsoi, gridinfo_cleanup_efsoi,              &
+!                     npts, vars3d_supported, vars2d_supported, ncdim
+use gridinfo,  only: getgridinfo, gridinfo_cleanup,              &
+                     npts, vars3d_supported, vars2d_supported
 use params,    only: nlevs, fgfileprefixes, reducedgrid, &
                      nanals, nlons, nlats, read_member_forecasts, &
                      read_verification, read_ensmean_forecast, &
@@ -74,10 +76,13 @@ character(len=max_varname_length), allocatable, dimension(:), public :: cvars3d
 character(len=max_varname_length), allocatable, dimension(:), public :: cvars2d
 integer(i_kind), public, allocatable, dimension(:) :: index_pres
 integer(i_kind), public, allocatable, dimension(:) :: clevels
-
+integer(i_kind),public, allocatable, dimension(:) :: id_u, id_v, id_t, id_q
+integer(i_kind),public :: id_ps
+!integer(i_kind),public :: id_ps, ncdim
 contains
 
 subroutine init_statevec_efsoi()
+!use mpeu_util, only: getindex ! AFE new
 ! read table with state vector variables for efsoi
 ! (code adapted from GSI state_vectors.f90 init_anasv routine
 implicit none
@@ -87,6 +92,8 @@ character(len=256),allocatable,dimension(:):: utable
 character(len=20) var,source,funcof
 integer(i_kind) luin,ii,i,ntot, k, nvars
 integer(i_kind) ilev, itracer
+! AFE new
+integer(i_kind) u_ind,v_ind,tv_ind,q_ind,ps_ind
 
 ! load file
 luin=914
@@ -187,7 +194,31 @@ if (nproc == 0) then
 endif
 
 
-call getgridinfo_efsoi(fgfileprefixes(1), reducedgrid, clevels, nc3d)
+!call getgridinfo_efsoi(fgfileprefixes(1), reducedgrid, clevels, nc3d)
+call getgridinfo(fgfileprefixes(1), reducedgrid)
+
+
+! Identify EFSOI relevant state variable indices
+u_ind   = getindex(vars3d_supported, 'u')   !< indices in the state var arrays
+v_ind   = getindex(vars3d_supported, 'v')   ! U and V (3D)
+tv_ind  = getindex(vars3d_supported, 'tv')  ! Tv (3D)
+q_ind   = getindex(vars3d_supported, 'q')   ! Q (3D)
+ps_ind  = getindex(vars2d_supported, 'ps')  ! Ps (2D)
+
+! Index of each elements
+allocate(id_u(nlevs))
+allocate(id_v(nlevs))
+allocate(id_t(nlevs))
+allocate(id_q(nlevs))
+do k=1,nlevs
+   id_u(k) = clevels(u_ind-1) + k
+   id_v(k) = clevels(v_ind-1) + k
+   id_t(k) = clevels(tv_ind-1) + k
+   id_q(k) = clevels(q_ind-1) + k
+end do
+id_ps = clevels(nc3d) + ps_ind
+
+
 
 
 
@@ -290,7 +321,12 @@ if (nproc <= nanals-1 .and. allocated(grdin2)) deallocate(grdin2)
 if (nproc <= nanals-1 .and. allocated(grdin3)) deallocate(grdin3)
 if (nproc <= nanals-1 .and. allocated(grdin4)) deallocate(grdin4)
 if (nproc <= nanals-1 .and. allocated(grdin5)) deallocate(grdin5)
-call gridinfo_cleanup_efsoi()
+!call gridinfo_cleanup_efsoi()
+call gridinfo_cleanup()
+if (allocated(id_u)) deallocate(id_u)
+if (allocated(id_v)) deallocate(id_v)
+if (allocated(id_t)) deallocate(id_t)
+if (allocated(id_q)) deallocate(id_q)
 end subroutine statevec_cleanup_efsoi
 
 end module statevec_efsoi

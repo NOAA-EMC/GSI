@@ -50,7 +50,9 @@ use constants, only: constants_initialized, pi, zero, one
 use params, only: nanals, corrlengthnh, corrlengthtr, corrlengthsh, &
                   tar_minlon, tar_maxlon, tar_minlat, tar_maxlat, &
                   tar_minlev, tar_maxlev
-use gridinfo_efsoi, only: nlevs_pres, lonsgrd, latsgrd, id_u, id_v, id_t, id_q, id_ps
+!use gridinfo_efsoi, only: nlevs_pres, lonsgrd, latsgrd, id_u, id_v, id_t, id_q, id_ps
+use gridinfo, only: nlevs_pres, lonsgrd, latsgrd
+use statevec_efsoi, only: id_u, id_v, id_t, id_q, id_ps
 use enkf_obs_sensitivity, only: obsense_kin, obsense_dry, obsense_moist, adloc_chunk
 
 implicit none

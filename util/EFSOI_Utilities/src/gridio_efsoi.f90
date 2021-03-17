@@ -58,7 +58,9 @@
                    read_member_forecasts, read_verification, &
                    read_member_analyses
  use kinds, only: i_kind,r_double,r_kind,r_single
- use gridinfo_efsoi, only: ntrunc,npts,ncdim  ! getgridinfo_efsoi must be called first!
+ !use gridinfo_efsoi, only: ntrunc,npts,ncdim  ! getgridinfo_efsoi must be called first!
+ use gridinfo, only: ntrunc,npts ! getgridinfo_efsoi must be called first!
+! use statevec_efsoi only: ncdim  ! getgridinfo_efsoi must be called first!
 
  use specmod, only: sptezv_s, sptez_s, init_spec_vars, ndimspec => nc, &
                     isinitialized, &
@@ -85,6 +87,7 @@
  public :: get_weight, destroy_weight, divide_weight
  real(r_kind), allocatable, dimension(:,:), save :: weight
  real(r_kind), allocatable, dimension(:), save :: grweight
+ integer(i_kind),public :: ncdim
  contains
 
  ! =====================================================================

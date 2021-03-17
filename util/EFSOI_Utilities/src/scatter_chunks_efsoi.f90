@@ -18,8 +18,10 @@ contains
 subroutine scatter_chunks_ob_impact
 ! distribute chunks from grdin (read in controlvec) according to
 ! decomposition from load_balance
+!use statevec_efsoi, only: grdin,grdin3,grdin5, ncdim
 use statevec_efsoi, only: grdin,grdin3,grdin5
-use gridinfo_efsoi, only: ncdim
+use gridio_efsoi, only: ncdim
+!use gridinfo_efsoi, only: ncdim AFE
 implicit none
 
 integer(i_kind), allocatable, dimension(:) :: scounts, displs, rcounts

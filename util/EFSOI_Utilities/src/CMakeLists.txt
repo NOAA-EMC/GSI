@@ -3,24 +3,18 @@ if(BUILD_EFSOI)
 
   file(GLOB LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*90)
 
-  message(echo ${PROJECT_BINARY_DIR})
-  
   set_source_files_properties( ${LOCAL_SRC} PROPERTIES COMPILE_FLAGS ${ENKF_Fortran_FLAGS} )
   
   add_executable(global_efsoi.x  ${LOCAL_SRC} )
   
-  set_target_properties( global_efsoi.x PROPERTIES COMPILE_FLAGS ${ENKF_Fortran_FLAGS} )
-  
   SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${OMPFLAG}" )
   
-# copied from src/enkf/CMakeLists.txt   
-  include_directories(${CMAKE_CURRENT_BINARY_DIR} "${PROJECT_BINARY_DIR}/include/wrf" "${PROJECT_BINARY_DIR}/include/global"  ${CMAKE_CURRENT_BINARY_DIR}/.. ${MPI_Fortran_INCLUDE_DIRS} ${MPI_Fortran_INCLUDE_PATH} ${CORE_INCS} ${NETCDF_INCLUDE_DIRS} ${NCDIAG_INCS} ${FV3GFS_NCIO_INCS}) 
+  include_directories(${CMAKE_CURRENT_BINARY_DIR} "${PROJECT_BINARY_DIR}/include/global"  ${CMAKE_CURRENT_BINARY_DIR}/.. ${MPI_Fortran_INCLUDE_DIRS} ${MPI_Fortran_INCLUDE_PATH} ${CORE_INCS} ${NETCDF_INCLUDE_DIRS} ${NCDIAG_INCS} ${FV3GFS_NCIO_INCS}) 
 
-#mostly copied from  src/enkf/CMakeLists.txt   
   target_link_libraries( global_efsoi.x enkflib enkfdeplib ${GSILIB} ${GSISHAREDLIB} ${CORE_LIBRARIES}
   ${MPI_Fortran_LIBRARIES} ${LAPACK_LIBRARIES} ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES}
-  ${FV3GFS_NCIO_LIBRARIES} ${HDF5_Fortran_HL_LIBRARIES}
-  ${EXTRA_LINKER_FLAGS} ${HDF5_LIBRARIES} ${CURL_LIBRARIES} ${GSI_LDFLAGS} ${CORE_BUILT} ${CORE_LIBRARIES} ${CORE_BUILT} ${NCDIAG_LIBRARIES})  
+  ${FV3GFS_NCIO_LIBRARIES} 
+  ${EXTRA_LINKER_FLAGS} ${GSI_LDFLAGS} ${CORE_BUILT} ${CORE_LIBRARIES} ${CORE_BUILT} ${NCDIAG_LIBRARIES})  
 endif()
 
 

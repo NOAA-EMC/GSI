@@ -99,7 +99,8 @@ use enkf_obsmod, only: nobstot, obloc, oblnp, ensmean_ob, obtime, anal_ob, corrl
 use kinds, only: r_kind, i_kind, r_double, r_single
 use kdtree2_module, only: kdtree2, kdtree2_create, kdtree2_destroy, &
                           kdtree2_result, kdtree2_r_nearest
-use gridinfo_efsoi, only: gridloc, logp, latsgrd, nlevs_pres, npts
+!use gridinfo_efsoi, only: gridloc, logp, latsgrd, nlevs_pres, npts
+use gridinfo, only: gridloc, logp, latsgrd, nlevs_pres, npts
 use constants, only: zero, rad2deg, deg2rad
 
 implicit none

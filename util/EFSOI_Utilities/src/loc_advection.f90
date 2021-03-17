@@ -1,7 +1,9 @@
 module loc_advection
 
 use mpisetup
-use gridinfo_efsoi, only: latsgrd,lonsgrd,nlevs_pres,npts,id_u,id_v
+!use gridinfo_efsoi, only: latsgrd,lonsgrd,nlevs_pres,npts,id_u,id_v
+use gridinfo, only: latsgrd,lonsgrd,nlevs_pres,npts
+use statevec_efsoi, only: id_u,id_v
 use loadbal_efsoi, only: numptsperproc, indxproc, kdtree_grid
 use scatter_chunks_efsoi
 use kinds
