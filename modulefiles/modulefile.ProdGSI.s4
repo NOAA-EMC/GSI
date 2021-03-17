@@ -2,14 +2,7 @@
 ## NOAA-EMC/GSI
 ##_____________________________________________________
 
-set COMP ifort
-set COMP_MP mpfort
-set COMP_MPI mpiifort
 
-set C_COMP icc
-set C_COMP_MP mpcc
-
-# Known conflicts
 module use -a /home/mpotts/s4-cardinal/spack/share/spack/modules/linux-centos7-x86_64 
 module load license_intel/S4           
 module load intel/18.0.3              
