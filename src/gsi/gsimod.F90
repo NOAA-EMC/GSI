@@ -722,6 +722,7 @@
 !     grid_ratio_nmmb   - ratio of analysis grid to nmmb model grid in nmmb model grid units.
 !     grid_ratio_fv3_regional - ratio of analysis grid to fv3 grid in fv3 grid units.
 !     grid_ratio_wrfmass - ratio of analysis grid to wrf mass grid in wrf grid units.
+!     grid_type_fv3_regional - type of fv3 model grid (grid orientation).
 !     twodvar_regional  - logical for regional 2d-var analysis
 !     filled_grid       - logical to fill in puts on WRF-NMM E-grid
 !     half_grid         - logical to use every other row of WRF-NMM E-Grid
