@@ -169,6 +169,7 @@ for imem in $(seq $ENSBEG $ENSEND); do
       export MEMBER=$imem
       export DATA=$DATATOP/$memchar
       if [ -d $DATA ]; then rm -rf $DATA; fi
+      mkdir -p $DATA
       $FORECASTSH
       ra=$?
 
