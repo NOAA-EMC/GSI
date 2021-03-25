@@ -99,7 +99,6 @@ use enkf_obsmod, only: nobstot, obloc, oblnp, ensmean_ob, obtime, anal_ob, corrl
 use kinds, only: r_kind, i_kind, r_double, r_single
 use kdtree2_module, only: kdtree2, kdtree2_create, kdtree2_destroy, &
                           kdtree2_result, kdtree2_r_nearest
-!use gridinfo_efsoi, only: gridloc, logp, latsgrd, nlevs_pres, npts
 use gridinfo, only: gridloc, logp, latsgrd, nlevs_pres, npts
 use constants, only: zero, rad2deg, deg2rad
 
@@ -134,7 +133,6 @@ subroutine load_balance_efsoi()
 ! smallest load.
 implicit none
 integer(i_kind), allocatable, dimension(:) :: rtmp,numobs
-!real(r_single), allocatable, dimension(:) :: buffer
 integer(i_kind) np,i,n,nn,nob1,nob2,ierr
 real(r_double) t1
 logical test_loadbal

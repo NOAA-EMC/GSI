@@ -21,7 +21,6 @@ subroutine scatter_chunks_ob_impact
 !use statevec_efsoi, only: grdin,grdin3,grdin5, ncdim
 use statevec_efsoi, only: grdin,grdin3,grdin5
 use gridio_efsoi, only: ncdim
-!use gridinfo_efsoi, only: ncdim AFE
 implicit none
 
 integer(i_kind), allocatable, dimension(:) :: scounts, displs, rcounts

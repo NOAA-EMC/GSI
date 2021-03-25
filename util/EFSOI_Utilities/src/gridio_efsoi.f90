@@ -58,9 +58,7 @@
                    read_member_forecasts, read_verification, &
                    read_member_analyses
  use kinds, only: i_kind,r_double,r_kind,r_single
- !use gridinfo_efsoi, only: ntrunc,npts,ncdim  ! getgridinfo_efsoi must be called first!
- use gridinfo, only: ntrunc,npts ! getgridinfo_efsoi must be called first!
-! use statevec_efsoi only: ncdim  ! getgridinfo_efsoi must be called first!
+ use gridinfo, only: ntrunc,npts ! getgridinfo be called first!
 
  use specmod, only: sptezv_s, sptez_s, init_spec_vars, ndimspec => nc, &
                     isinitialized, &
@@ -69,13 +67,9 @@
  use reducedgrid_mod, only: regtoreduced, reducedtoreg, &
                             lonsperlat, nlonsfull
 
- ! === updated by LL on 2020.07.15 ======
  use mpisetup, only: nproc, numproc
- !use mpisetup, only: nproc, mpi_integer, mpi_real4
  	
  use mpimod, only: mpi_comm_world, mpi_sum, mpi_real4, mpi_real8, mpi_rtype 						
- !use mpimod, only: mpi_comm_world 
- ! ============================================
  
  use mpeu_util, only: getindex
  use nemsio_module
@@ -109,9 +103,7 @@
   character(len=500) :: filename 
  
   real(r_kind), dimension(npts,nlevs+1) :: pressi 
-!  real(r_kind), dimension(nlons*nlats) :: ug 
   real(r_single), dimension(npts) :: tmpgrd 
- ! type(sigio_data) sigdata 
   type(nemsio_gfile) :: gfile
   real(nemsio_realkind), dimension(nlons*nlats) :: nems_wrk
   real(r_kind), dimension(nlons*nlats) :: psfc
@@ -122,7 +114,7 @@
   integer(i_kind) :: nlevsin,nlonsin,nlatsin,idvc 
   integer(i_kind) :: i,j,k,iret!iunitsig,iret 
  
-  ! newly added on 2020.07.09
+  ! for netcdf handling 
   type(Dataset) :: dset 
   type(Dimension) :: londim,latdim,levdim 
   integer(i_kind) :: iunitsig

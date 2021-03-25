@@ -44,6 +44,7 @@ module statevec_efsoi
 !   2018-05-14  Groff: Adapted from enkf controlvec.f90 to provide
 !               io functionality necessary for efsoi calculations
 !   2021-03-04  Eichmann: updated to work with FV3 GFS
+!   2021-03-15  Eichmann: eliminated gridinfo_efsoi for src/enkf version 
 !
 ! attributes:
 !   language: f95
@@ -52,8 +53,6 @@ module statevec_efsoi
 
 use mpisetup
 use gridio_efsoi,    only: readgriddata_efsoi, get_weight, ncdim
-!use gridinfo_efsoi,  only: getgridinfo_efsoi, gridinfo_cleanup_efsoi,              &
-!                     npts, vars3d_supported, vars2d_supported, ncdim
 use gridinfo,  only: getgridinfo, gridinfo_cleanup,              &
                      npts, vars3d_supported, vars2d_supported
 use params,    only: nlevs, fgfileprefixes, reducedgrid, &
@@ -78,7 +77,6 @@ integer(i_kind), public, allocatable, dimension(:) :: index_pres
 integer(i_kind), public, allocatable, dimension(:) :: clevels
 integer(i_kind),public, allocatable, dimension(:) :: id_u, id_v, id_t, id_q
 integer(i_kind),public :: id_ps
-!integer(i_kind),public :: id_ps, ncdim
 contains
 
 subroutine init_statevec_efsoi()
@@ -92,7 +90,6 @@ character(len=256),allocatable,dimension(:):: utable
 character(len=20) var,source,funcof
 integer(i_kind) luin,ii,i,ntot, k, nvars
 integer(i_kind) ilev, itracer
-! AFE new
 integer(i_kind) u_ind,v_ind,tv_ind,q_ind,ps_ind
 
 ! load file
@@ -194,7 +191,6 @@ if (nproc == 0) then
 endif
 
 
-!call getgridinfo_efsoi(fgfileprefixes(1), reducedgrid, clevels, nc3d)
 call getgridinfo(fgfileprefixes(1), reducedgrid)
 
 
@@ -321,7 +317,6 @@ if (nproc <= nanals-1 .and. allocated(grdin2)) deallocate(grdin2)
 if (nproc <= nanals-1 .and. allocated(grdin3)) deallocate(grdin3)
 if (nproc <= nanals-1 .and. allocated(grdin4)) deallocate(grdin4)
 if (nproc <= nanals-1 .and. allocated(grdin5)) deallocate(grdin5)
-!call gridinfo_cleanup_efsoi()
 call gridinfo_cleanup()
 if (allocated(id_u)) deallocate(id_u)
 if (allocated(id_v)) deallocate(id_v)
