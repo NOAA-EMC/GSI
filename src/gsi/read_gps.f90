@@ -135,7 +135,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   real(r_kind) pcc,qfro,usage,dlat,dlat_earth,dlon,dlon_earth,freq_chk,freq
   real(r_kind) dlat_earth_deg,dlon_earth_deg
   real(r_kind) height,rlat,rlon,ref,bend,impact,roc,geoid,&
-               bend_error,ref_error,bend_pccf,ref_pccf
+               bend_error,ref_error,bend_pccf,ref_pccf, azim
 
   real(r_kind),allocatable,dimension(:,:):: cdata_all
  
@@ -362,6 +362,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
            nread=nread+1  ! count observations
            rlat=data1b(1,k)  ! earth relative latitude (degrees)
            rlon=data1b(2,k)  ! earth relative longitude (degrees)
+           azim=data1b(3,k)  ! LEO azimuth angle
            height=data2a(1,k)
            ref=data2a(2,k)
            ref_error=data2a(4,k)
@@ -391,7 +392,8 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
                  good=.false.
               endif
            else
-              if ((bend>=1.e+9_r_kind).or.(bend<=zero).or.(impact>=1.e+9_r_kind).or.(impact<roc)) then
+              if ((bend>=1.e+9_r_kind).or.(bend<=zero).or.(impact>=1.e+9_r_kind).or.(impact<roc)  &
+                  .or. (abs(azim)>360._r_kind)) then
                  good=.false.
               endif
            endif
