@@ -95,7 +95,7 @@
      factql,factqi,factqr,factqs,factqg, &  
      factv,factl,factp,factg,factw10m,facthowv,factcldch,niter,niter_no_qc,biascor,&
      init_jfunc,qoption,cwoption,switch_on_derivatives,tendsflag,jiterstart,jiterend,R_option,&
-     bcoption,diurnalbc,print_diag_pcg,tsensible,lgschmidt,diag_precon,step_start,pseudo_q2,&
+     bcoption,diurnalbc,print_diag_pcg,tsensible,diag_precon,step_start,pseudo_q2,&
      clip_supersaturation,cnvw_option
   use state_vectors, only: init_anasv,final_anasv
   use control_vectors, only: init_anacv,final_anacv,nrf,nvars,nrf_3d,cvars3d,cvars2d,&
@@ -546,8 +546,6 @@
 !     preserve_restart_date - if true, then do not update regional restart file date.
 !     tsensible - option to use sensible temperature as the analysis variable. works
 !                 only for twodvar_regional=.true.
-!     lgschmidt - option for re-biorthogonalization of the {gradx} and {grady} sets
-!                 from pcgsoi when twodvar_regional=.true.
 !     hilbert_curve - option for hilbert-curve based cross-validation. works only
 !                     with twodvar_regional=.true.
 !     neutral_stability_windfact_2dvar - option to use simple, similarity
@@ -679,7 +677,7 @@
        nwrvecs,iorthomax,ladtest,ladtest_obs, lgrtest,lobskeep,lsensrecompute,jsiga,ltcost, &
        lobsensfc,lobsensjb,lobsensincr,lobsensadj,lobsensmin,iobsconv, &
        idmodel,iwrtinc,lwrite4danl,nhr_anal,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
-       lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip, &
+       lferrscale,print_diag_pcg,tsensible,lread_obs_save,lread_obs_skip, &
        use_gfs_ozone,check_gfs_ozone_date,regional_ozone,lwrite_predterms,&
        lwrite_peakwt,use_gfs_nemsio,use_gfs_ncio,sfcnst_comb,liauon,use_prepb_satwnd,l4densvar,ens_nstarthr,&
        use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon,lrun_subdirs,&
@@ -1453,12 +1451,6 @@
      if(reduce_diag) &
      call die(myname_,'Options l4dvar and reduce_diag not allowed together',99)
   end if 
-
-! Diagonal preconditioning is necessary for new bias correction
-  if(newpc4pred .and. .not. diag_precon)then
-    diag_precon=.true.
-    step_start=8.e-4_r_kind
-  end if
 
   if( (.not.l4dvar) .and. (.not.l4densvar) ) ljcdfi=.false.
  
