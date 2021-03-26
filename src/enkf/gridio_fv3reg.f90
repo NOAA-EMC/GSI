@@ -86,7 +86,7 @@ contains
     ! Define counting variables
     integer :: nlevsp1
     integer :: i,j, k,nn,ntile,nn_tile0, nb,nanal,ne
-    integer :: u_ind, v_ind, tv_ind,tsen_ind, q_ind, oz_ind
+    integer :: u_ind, v_ind, tv_ind,tsen_ind, q_ind,delp_ind, oz_ind
     integer :: ps_ind, sst_ind
     integer :: tmp_ind
     logical :: ice
@@ -99,6 +99,7 @@ contains
     v_ind   = getindex(vars3d, 'v')   ! U and V (3D)
     tv_ind  = getindex(vars3d, 't')  ! Tv (3D)
     q_ind   = getindex(vars3d, 'q')   ! Q (3D)
+    delp_ind   = getindex(vars3d, 'delp')   ! delp (3D)
     oz_ind  = getindex(vars3d, 'oz')  ! Oz (3D)
     tsen_ind = getindex(vars3d, 'tsen') !sensible T (3D)
 !    prse_ind = getindex(vars3d, 'prse') ! pressure
@@ -187,6 +188,25 @@ contains
     deallocate(vworkvar3d)
 
     endif
+    if (delp_ind > 0) then
+        varstrname = 'delp'
+        call read_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+           do k=1,nlevs
+              nn = nn_tile0
+              do j=1,ny_res
+                 do i=1,nx_res
+                    nn=nn+1
+                    vargrid(nn,levels(delp_ind-1)+k,nb,ne)=workvar3d(i,j,k) 
+                  enddo
+               enddo
+            enddo
+            do k = levels(delp_ind-1)+1, levels(delp_ind)
+                 if (nproc .eq. 0)                                               &
+                    write(6,*) 'READFVregional : delp ',                           &
+                         & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
+             enddo
+
+    endif
     if (q_ind > 0) then
         varstrname = 'sphum'
         call read_fv3_restart_data3d(varstrname,fv3filename,file_id,qworkvar3d)
@@ -225,7 +245,7 @@ contains
            tvworkvar3d=workvar3d
         else! tsen_id >0
            workvar3d=tsenworkvar3d
-           tvworkvar3d=workvar3d*(one+fv*qworkvar3d(i,j,k))
+           tvworkvar3d=workvar3d*(one+fv*qworkvar3d)
         endif
            tmp_ind=max(tv_ind,tsen_ind) !then can't be both >0 
            do k=1,nlevs
@@ -394,7 +414,7 @@ subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid
     character(len=7)    :: charnanal
 
     !----------------------------------------------------------------------
-    integer(i_kind) :: u_ind, v_ind, tv_ind, tsen_ind,q_ind, ps_ind,oz_ind
+    integer(i_kind) :: u_ind, v_ind, tv_ind, tsen_ind,q_ind, delp_ind,ps_ind,oz_ind
     integer(i_kind) :: w_ind, cw_ind, ph_ind
 
     integer(i_kind) file_id
@@ -429,6 +449,7 @@ subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid
     tv_ind  = getindex(vars3d, 't')  ! Tv (3D)
     tsen_ind  = getindex(vars3d, 'tsen')  ! Tv (3D)
     q_ind   = getindex(vars3d, 'q')   ! Q (3D)
+    delp_ind   = getindex(vars3d, 'delp')   ! delp (3D)
     cw_ind  = getindex(vars3d, 'cw')  ! CWM for WRF-NMM
     w_ind   = getindex(vars3d, 'w')   ! W for WRF-ARW
     ph_ind  = getindex(vars3d, 'ph')  ! PH for WRF-ARW
@@ -515,6 +536,28 @@ subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid
 
        deallocate(vworkvar3d)
     endif
+    if(delp_ind>0) then
+    
+       varstrname='delp'
+       call read_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+         do k=1,nlevs
+             nn = nn_tile0
+         do j=1,ny_res
+            do i=1,nx_res
+               nn=nn+1
+               workinc3d(i,j,k)=vargrid(nn,levels(delp_ind-1)+k,nb,ne) 
+            enddo
+         enddo
+         enddo
+       workvar3d=workvar3d+workinc3d   
+     
+       call write_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+       do k=1,nlevs
+          if (nproc .eq. 0)                                               &
+             write(6,*) 'WRITEregional : delp ',                           &
+                 & k, minval(qworkvar3d(:,:,k)), maxval(workvar3d(:,:,k))
+       enddo
+    end if
 
     if(q_ind>0) then
     
