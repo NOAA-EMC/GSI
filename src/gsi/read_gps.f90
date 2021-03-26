@@ -61,7 +61,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 !   2017-11-16  dutta   - addition of profile quality flags for KOMPSAT5 GPSRO.
 !   2019-08-21  Shao    - add qc flags input for METOP-C, COSMIC-2 and PAZ
 !   2020-05-21  Shao    - add qc flags input for commercial GNSSRO data
-!
+!   2021-03-26  H.Zhang - add LEO instrument, gnss satellite classification, and data generating center
 !   input argument list:
 !     infile   - unit from which to read BUFR data
 !     lunout   - unit to which to write data for further processing
@@ -116,6 +116,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 
   
   integer(i_kind) lnbufr,i,k,m,maxobs,ireadmg,ireadsb,said,ptid
+  integer(i_kind) siid,sclf,ogce
   integer(i_kind) nmrecs
   integer(i_kind) notgood,idate
   integer(i_kind) iret,levs,levsr,nreps_ROSEQ1,mincy,minobs
@@ -138,14 +139,15 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 
   real(r_kind),allocatable,dimension(:,:):: cdata_all
  
-  integer(i_kind),parameter:: n1ahdr=10
+  integer(i_kind),parameter:: n1ahdr=13
   real(r_double),dimension(n1ahdr):: bfr1ahdr
   real(r_double),dimension(50,maxlevs):: data1b
   real(r_double),dimension(50,maxlevs):: data2a
   real(r_double),dimension(maxlevs):: nreps_this_ROSEQ2
  
   data lnbufr/10/
-  data hdr1a / 'YEAR MNTH DAYS HOUR MINU PCCF ELRC SAID PTID GEODU' / 
+! 
+  data hdr1a / 'YEAR MNTH DAYS HOUR MINU PCCF ELRC SAID SIID PTID GEODU SCLF OGCE'/ 
   data nemo /'QFRO'/
   
 !***********************************************************************************
@@ -222,8 +224,12 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
         pcc=bfr1ahdr(6)         ! profile per cent confidence
         roc=bfr1ahdr(7)         ! Earth local radius of curvature
         said=bfr1ahdr(8)        ! Satellite identifier
-        ptid=bfr1ahdr(9)        ! Platform transmitter ID number
-        geoid=bfr1ahdr(10)      ! Geoid undulation
+        siid = bfr1ahdr(9)        ! Satellite instrument
+        ptid = bfr1ahdr(10)       ! Platform transmitter ID number
+        geoid= bfr1ahdr(11)       ! Geoid undulation
+        sclf = bfr1ahdr(12)       ! GNSS satellite classification
+        ogce = bfr1ahdr(13)       ! Identification of originating/generating centre
+
         call w3fs21(idate5,minobs)
 
 ! Locate satellite id in convinfo file
