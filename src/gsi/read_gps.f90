@@ -61,7 +61,9 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 !   2017-11-16  dutta   - addition of profile quality flags for KOMPSAT5 GPSRO.
 !   2019-08-21  Shao    - add qc flags input for METOP-C, COSMIC-2 and PAZ
 !   2020-05-21  Shao    - add qc flags input for commercial GNSSRO data
-!   2021-03-26  H.Zhang - add LEO instrument, gnss satellite classification, and data generating center
+!   2021-03-26  H.Zhang - add new variables that are needed in JEDI, include:
+!                         LEO instrument, GNSS satellite classification,data generating center,
+!                         LEO azimuth angle, ascending flag     
 !   input argument list:
 !     infile   - unit from which to read BUFR data
 !     lunout   - unit to which to write data for further processing
@@ -275,8 +277,8 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
            endif
         endif
 
-        if ((said == 4).or.(said == 3).or.(said == 421).or.(said == 440).or.&
-            (said == 821).or.(said == 5)) then ! GRAS SAF processing
+        if ((said >= 3.and.said <= 5).or.(said == 421).or.(said == 440).or.&
+            (said == 821)) then ! GRAS SAF processing
            call upftbv(lnbufr,nemo,qfro,mxib,ibit,nib)
            lone = .false.
              if(nib > 0) then
