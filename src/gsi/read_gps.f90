@@ -102,7 +102,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 
 ! Declare local parameters  
   integer(i_kind),parameter:: maxlevs=500
-  integer(i_kind),parameter:: maxinfo=16
+  integer(i_kind),parameter:: maxinfo=21
   real(r_kind),parameter:: r10000=10000.0_r_kind
   real(r_kind),parameter:: r360=360.0_r_kind
 
@@ -459,7 +459,11 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
               cdata_all(14,ndata)= dlon_earth_deg  ! earth relative longitude (degrees)
               cdata_all(15,ndata)= dlat_earth_deg  ! earth relative latitude (degrees)
               cdata_all(16,ndata)= geoid           ! geoid undulation (m)
-
+              cdata_all(17,ndata)= sclf            ! GNSS satellite classification
+              cdata_all(18,ndata)= siid            ! LEO Satellite instrument
+              cdata_all(19,ndata)= ascd            ! ascending/descending flag
+              cdata_all(20,ndata)= ogce            ! Identification of originating/generating
+              cdata_all(21,ndata)= azim            ! LEO azimuth angle
            else
               notgood = notgood + 1
            end if
