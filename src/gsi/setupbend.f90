@@ -221,6 +221,7 @@ subroutine setupbend(obsLL,odiagLL, &
   
   integer(i_kind) ier,ilon,ilat,ihgt,igps,itime,ikx,iuse, &
                   iprof,ipctc,iroc,isatid,iptid,ilate,ilone,ioff,igeoid
+  integer(i_kind) isclf,iascd,iazim,isiid,iogce
   integer(i_kind) i,j,k,kk,mreal,nreal,jj,ikxx,ibin
   integer(i_kind) mm1,nsig_up,ihob,istatus,nsigstart
   integer(i_kind) kprof,istat,k1,k2,nobs_out,top_layer_SR,bot_layer_SR,count_SR
@@ -318,6 +319,11 @@ subroutine setupbend(obsLL,odiagLL, &
   ilone=14     ! index of earth relative longitude (degrees)
   ilate=15     ! index of earth relative latitude (degrees)
   igeoid=16    ! index of geoid undulation (a value per profile, m) 
+  isclf=17     ! index of GNSS satellite classification
+  isiid=18     ! index of LEO Satellite instrument
+  iascd=19     ! index of ascending/descending flag
+  iogce=20     ! index of identification of originating/generating
+  iazim=21     ! index of LEO azimuth angle
 
 ! Intialize variables
   nsig_up=nsig+nsig_ext ! extend nsig_ext levels above interface level nsig
