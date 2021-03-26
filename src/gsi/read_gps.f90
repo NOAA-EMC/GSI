@@ -116,7 +116,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 
   
   integer(i_kind) lnbufr,i,k,m,maxobs,ireadmg,ireadsb,said,ptid
-  integer(i_kind) siid,sclf,ogce
+  integer(i_kind) siid,sclf,ogce,ascd
   integer(i_kind) nmrecs
   integer(i_kind) notgood,idate
   integer(i_kind) iret,levs,levsr,nreps_ROSEQ1,mincy,minobs
@@ -302,6 +302,17 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
            endif
         endif
 
+! read profile ascending flag 1=ascending
+        ascd = 0
+        call upftbv(lnbufr,nemo,qfro,mxib,ibit,nib)
+        if(nib > 0) then
+           do i=1,nib
+              if(ibit(i)== 3) then
+                 ascd = 1
+                 exit
+              endif
+           enddo
+        endif
 
 ! Read bending angle information
 ! Get the number of occurences of sequence ROSEQ2 in this subset
