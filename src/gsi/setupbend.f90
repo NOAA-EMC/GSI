@@ -345,7 +345,7 @@ subroutine setupbend(obsLL,odiagLL, &
   allocate(ddnj(grids_dim),grid_s(grids_dim),ref_rad_s(grids_dim)) 
 
 ! Allocate arrays for output to diagnostic file
-  mreal=22
+  mreal=29
   nreal=mreal
   if (lobsdiagsave) nreal=nreal+4*miter+1
   if (save_jacobian) then
@@ -592,6 +592,7 @@ subroutine setupbend(obsLL,odiagLL, &
      rdiagbuf(2,i)         = data(iprof,i)      ! profile identifier
      rdiagbuf(3,i)         = data(ilate,i)      ! lat in degrees
      rdiagbuf(4,i)         = data(ilone,i)      ! lon in degrees
+     rdiagbuf(5,i)         = one ! see bending_angle@GsiHofX in genstat_gps for why
      rdiagbuf(7,i)         = tpdpres(i)-rocprof ! impact height in meters
 !    rdiagbuf(7,i)         = tpdpres(i)         ! impact parameter in meters
      rdiagbuf(8,i)         = dtime-time_offset  ! obs time (hours relative to analysis time)
@@ -601,6 +602,14 @@ subroutine setupbend(obsLL,odiagLL, &
      rdiagbuf(17,i)        = data(igps,i)       ! bending angle observation (radians)
      rdiagbuf(19,i)        = hob                ! model vertical grid (interface) if monotone grid
      rdiagbuf(22,i)        = 1.e+10_r_kind      ! spread (filled in by EnKF)
+!    extra metadata needed in JEDI
+     rdiagbuf(23,i)        = data(igeoid,i)
+     rdiagbuf(24,i)        = rocprof
+     rdiagbuf(25,i)        = data(iptid,i)
+     rdiagbuf(26,i)        = data(isclf,i)
+     rdiagbuf(27,i)        = data(iascd,i)
+     rdiagbuf(28,i)        = data(iogce,i)
+     rdiagbuf(29,i)        = data(iazim,i)
 
      if(ratio_errors(i) > tiny_r_kind)  then ! obs inside model grid
 
