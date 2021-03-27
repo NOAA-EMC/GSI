@@ -259,7 +259,6 @@ subroutine setupbend(obsLL,odiagLL, &
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q 
   real(r_kind),dimension(nsig,  nobs)         :: Tsen,Tvir,sphm,prslnl,hgtl
   real(r_kind),dimension(nsig+1,nobs)         :: prslni, hgti
-  real(r_kind),dimension(nobs)                :: hgtsfc
 
   type(obsLList),pointer,dimension(:):: gpshead
   gpshead => obsLL(:)
@@ -465,7 +464,6 @@ subroutine setupbend(obsLL,odiagLL, &
      prslni(1:nsig+1,i)  = prsltmp(1:nsig+1)       ! interface level log(pressure)
      hgtl(1:nsig,i)      = hgtl(1:nsig,i) + zsges  ! mid level geopotential height
      hgti(1:nsig+1,i)    = hges(1:nsig+1) + zsges  ! interface level geopotential height
-     hgtsfc(i)           = zsges                   ! surface geopotential height
      Tvir(1:nsig,i)      = tges(1:nsig)            ! virtual temperature
 
 ! Compute refractivity index-radius product at interface
@@ -588,7 +586,7 @@ subroutine setupbend(obsLL,odiagLL, &
      rdiagbuf(:,i)         = zero
 
      rdiagbuf(1,i)         = ictype(ikx)        ! observation type
-     rdiagbuf(20,i)        = one                ! uses gps_ref (one = use of bending angle)
+!    rdiagbuf(20,i)        = one                ! uses gps_ref (one = use of bending angle)
      rdiagbuf(2,i)         = data(iprof,i)      ! profile identifier
      rdiagbuf(3,i)         = data(ilate,i)      ! lat in degrees
      rdiagbuf(4,i)         = data(ilone,i)      ! lon in degrees
@@ -609,7 +607,8 @@ subroutine setupbend(obsLL,odiagLL, &
      rdiagbuf(26,i)        = data(isclf,i)
      rdiagbuf(27,i)        = data(iascd,i)
      rdiagbuf(28,i)        = data(iogce,i)
-     rdiagbuf(29,i)        = data(iazim,i)
+     rdiagbuf(29,i)        = data(isiid,i)
+     rdiagbuf(20,i)        = data(iazim,i)
 
      if(ratio_errors(i) > tiny_r_kind)  then ! obs inside model grid
 
@@ -1048,7 +1047,6 @@ subroutine setupbend(obsLL,odiagLL, &
           gps_alltail(ibin)%head%prsiges(j)  = 1000.0*exp(prslni(j,i))
           gps_alltail(ibin)%head%hgtiges(j)  = hgti(j,i)
         end do
-        gps_alltail(ibin)%head%hgtsfcges     = hgtsfc(i)
 
         allocate(gps_alltail(ibin)%head%rdiag(nreal),stat=istatus)
         if (istatus/=0) write(6,*)'SETUPBEND:  allocate error for gps_alldiag, istatus=',istatus
