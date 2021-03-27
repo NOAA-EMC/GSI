@@ -140,6 +140,7 @@ subroutine setupbend(obsLL,odiagLL, &
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use guess_grids, only: ges_lnprsi,hrdifsig,geop_hgti,nfldsig
+  use guess_grids, only: ges_lnprsl,geop_hgtl,ges_tsen
   use guess_grids, only: nsig_ext,gpstop
   use gridmod, only: nsig
   use gridmod, only: get_ij,latlon11
@@ -255,7 +256,10 @@ subroutine setupbend(obsLL,odiagLL, &
 
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
-  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q 
+  real(r_kind),dimension(nsig,  nobs)         :: Tsen,Tvir,sphm,prslnl,hgtl
+  real(r_kind),dimension(nsig+1,nobs)         :: prslni, hgti
+  real(r_kind),dimension(nobs)                :: hgtsfc
 
   type(obsLList),pointer,dimension(:):: gpshead
   gpshead => obsLL(:)
@@ -448,6 +452,21 @@ subroutine setupbend(obsLL,odiagLL, &
           mype,nfldsig)
 
      prsltmp_o(1:nsig,i)=prsltmp(1:nsig) ! needed in minimization
+
+!    Interpolate mid-level log(pres),mid-level geopotential height,
+!    and air temperature for JEDI
+     call tintrp2a1(ges_tsen,  Tsen(1:nsig,i),  dlat,dlon,dtime,hrdifsig, &
+                    nsig, mype,nfldsig)
+     call tintrp2a1(ges_lnprsl,prslnl(1:nsig,i),dlat,dlon,dtime,hrdifsig, &
+                    nsig, mype,nfldsig)
+     call tintrp2a1(geop_hgtl, hgtl(1:nsig,i),  dlat,dlon,dtime,hrdifsig, &
+                    nsig, mype,nfldsig)
+     sphm(1:nsig,i)      = qges(1:nsig)            ! specific humidity
+     prslni(1:nsig+1,i)  = prsltmp(1:nsig+1)       ! interface level log(pressure)
+     hgtl(1:nsig,i)      = hgtl(1:nsig,i) + zsges  ! mid level geopotential height
+     hgti(1:nsig+1,i)    = hges(1:nsig+1) + zsges  ! interface level geopotential height
+     hgtsfc(i)           = zsges                   ! surface geopotential height
+     Tvir(1:nsig,i)      = tges(1:sig)             ! virtual temperature
 
 ! Compute refractivity index-radius product at interface
 !
