@@ -466,7 +466,7 @@ subroutine setupbend(obsLL,odiagLL, &
      hgtl(1:nsig,i)      = hgtl(1:nsig,i) + zsges  ! mid level geopotential height
      hgti(1:nsig+1,i)    = hges(1:nsig+1) + zsges  ! interface level geopotential height
      hgtsfc(i)           = zsges                   ! surface geopotential height
-     Tvir(1:nsig,i)      = tges(1:sig)             ! virtual temperature
+     Tvir(1:nsig,i)      = tges(1:nsig)            ! virtual temperature
 
 ! Compute refractivity index-radius product at interface
 !
@@ -1018,6 +1018,28 @@ subroutine setupbend(obsLL,odiagLL, &
         gps_alltail(ibin)%head%iob=ioid(i)
         gps_alltail(ibin)%head%elat= data(ilate,i)
         gps_alltail(ibin)%head%elon= data(ilone,i)
+
+!       2 dimensional geovals for JEDI
+        allocate(gps_alltail(ibin)%head%tsenges(nsig),stat=istatus)
+        allocate(gps_alltail(ibin)%head%tvirges(nsig),stat=istatus)
+        allocate(gps_alltail(ibin)%head%sphmges(nsig),stat=istatus)
+        allocate(gps_alltail(ibin)%head%prsiges(nsig),stat=istatus)
+        allocate(gps_alltail(ibin)%head%prslges(nsig),stat=istatus)
+        allocate(gps_alltail(ibin)%head%hgtlges(nsig),stat=istatus)
+        allocate(gps_alltail(ibin)%head%hgtiges(nsig+1),stat=istatus)
+
+        do j= 1, nsig
+          gps_alltail(ibin)%head%tsenges(j)  = Tsen(j,i)
+          gps_alltail(ibin)%head%tvirges(j)  = Tvir(j,i)
+          gps_alltail(ibin)%head%sphmges(j)  = sphm(j,i)
+          gps_alltail(ibin)%head%prslges(j)  = 1000.0*exp(prslnl(j,i))
+          gps_alltail(ibin)%head%hgtlges(j)  = hgtl(j,i)
+        end do
+        do j= 1, nsig + 1
+          gps_alltail(ibin)%head%prsiges(j)  = 1000.0*exp(prslni(j,i))
+          gps_alltail(ibin)%head%hgtiges(j)  = hgti(j,i)
+        end do
+        gps_alltail(ibin)%head%hgtsfcges     = hgtsfc(i)
 
         allocate(gps_alltail(ibin)%head%rdiag(nreal),stat=istatus)
         if (istatus/=0) write(6,*)'SETUPBEND:  allocate error for gps_alldiag, istatus=',istatus
