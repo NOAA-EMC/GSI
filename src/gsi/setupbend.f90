@@ -259,6 +259,7 @@ subroutine setupbend(obsLL,odiagLL, &
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q 
   real(r_kind),dimension(nsig,  nobs)         :: Tsen,Tvir,sphm,prslnl,hgtl
   real(r_kind),dimension(nsig+1,nobs)         :: prslni, hgti
+  integer,     dimension(nobs)                :: qcfail_8km
 
   type(obsLList),pointer,dimension(:):: gpshead
   gpshead => obsLL(:)
@@ -400,6 +401,7 @@ subroutine setupbend(obsLL,odiagLL, &
      qcfail_high=zero
      qcfail_jac=zero
      toss_gps_sub=zero 
+     qcfail_8km=zero
      dbend_loc=zero
 
   else ! (init_pass)
@@ -782,7 +784,8 @@ subroutine setupbend(obsLL,odiagLL, &
            end do intloop
 
            if (obs_check) then      ! reject observation
-              qcfail(i)=.true.
+!             qcfail(i)=.true.
+              qcfail_loc(i)=one
               data(ier,i) = zero
               ratio_errors(i) = zero
               muse(i)=.false.
@@ -870,7 +873,8 @@ subroutine setupbend(obsLL,odiagLL, &
                  end if
                  
                  if(abs(rdiagbuf(5,i)) > cutoff) then
-                    qcfail(i)=.true.
+!                   qcfail(i)=.true.
+                    qcfail_gross(i)=one
                     data(ier,i) = zero
                     ratio_errors(i) = zero
                     muse(i) = .false.
@@ -889,7 +893,8 @@ subroutine setupbend(obsLL,odiagLL, &
 !          Remove MetOP/GRAS data below 8 km
            if( (alt <= eight) .and. & 
               ((data(isatid,i)==4).or.(data(isatid,i)==3).or.(data(isatid,i)==5))) then
-              qcfail(i)=.true.
+!             qcfail(i)=.true.
+              qcfail_8km(i)= one
               data(ier,i) = zero
               ratio_errors(i) = zero
               muse(i)=.false.
@@ -951,6 +956,7 @@ subroutine setupbend(obsLL,odiagLL, &
         if(qcfail(i))                rdiagbuf(10,i) = four !modified in genstats due to toss_gps_sub
         if(qcfail_loc(i) == one)     rdiagbuf(10,i) = one
         if(qcfail_high(i) == one)    rdiagbuf(10,i) = two
+        if(qcfail_8km(i)== one)      rdiagbuf(10,i) = five
 
         if(muse(i)) then                    ! modified in genstats_gps due to toss_gps_sub
            rdiagbuf(12,i) = one             ! minimization usage flag (1=use, -1=not used)
