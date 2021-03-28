@@ -102,6 +102,8 @@ subroutine setupbend(obsLL,odiagLL, &
 !   2020-04-13  Shao    - update the statistis QC for COSMIC-2
 !   2020-05-21  Shao    - add comments to include commercial data ID information
 !   2020-08-26  Shao/Bathmann - add Jacobian QC
+!   2021-03-26  H.Zhang - add model states at obs locations, and observation  metadata that are needed in JEDI;
+!                         add QC flags 4 and 5 to specify different QC checks
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -784,6 +786,7 @@ subroutine setupbend(obsLL,odiagLL, &
            end do intloop
 
            if (obs_check) then      ! reject observation
+!             use qcfail_loc for observations outside model grids
 !             qcfail(i)=.true.
               qcfail_loc(i)=one
               data(ier,i) = zero
@@ -873,6 +876,7 @@ subroutine setupbend(obsLL,odiagLL, &
                  end if
                  
                  if(abs(rdiagbuf(5,i)) > cutoff) then
+!                   use qcfail_gross for background departure check
 !                   qcfail(i)=.true.
                     qcfail_gross(i)=one
                     data(ier,i) = zero
@@ -893,6 +897,7 @@ subroutine setupbend(obsLL,odiagLL, &
 !          Remove MetOP/GRAS data below 8 km
            if( (alt <= eight) .and. & 
               ((data(isatid,i)==4).or.(data(isatid,i)==3).or.(data(isatid,i)==5))) then
+!             use qcfail_8km for the rejection of metop data below 8km
 !             qcfail(i)=.true.
               qcfail_8km(i)= one
               data(ier,i) = zero
