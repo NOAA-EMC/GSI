@@ -760,6 +760,8 @@ subroutine contents_binary_diag_
 end subroutine contents_binary_diag_
 
 subroutine contents_netcdf_diag_
+! 2021-03-26 H. Zhang  - output metadata 2d geovals for JEDI
+
   use sparsearr, only: sparr2, readarray, fullarray
   integer(i_kind),dimension(miter) :: obsdiag_iuse
   integer(i_kind)                  :: said,siid,profid,refid
@@ -771,7 +773,6 @@ subroutine contents_netcdf_diag_
 ! Observation class
   character(7),parameter     :: obsclass = '    gps'
 
-! Hailiing Zhang - output the metadata in the following section!!
   if (gps_allptr%rdiag(16) /= 0.0 )  obserr = 1.0/gps_allptr%rdiag(16)
 
            said     = gps_allptr%rdiag(1)
@@ -810,8 +811,6 @@ subroutine contents_netcdf_diag_
            call nc_diag_metadata("Specific_Humidity_at_Obs_Location",     sngl(gps_allptr%rdiag(21)) )
            call nc_diag_metadata("Prep_Use_Flag@MetaData",                sngl(gps_allptr%rdiag(11)) )
            call nc_diag_metadata("Nonlinear_QC_Rel_Wgt@MetaData",         sngl(gps_allptr%rdiag(13)) )
-           call nc_diag_metadata("Temperature_at_Obs_Location",           sngl(gps_allptr%rdiag(18)) )
-           call nc_diag_metadata("Specific_Humidity_at_Obs_Location",     sngl(gps_allptr%rdiag(21)) )
 
 !          geovals
            call nc_diag_metadata("surface_altitude",          sngl(gps_allptr%rdiag(9)) )
