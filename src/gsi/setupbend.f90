@@ -102,6 +102,8 @@ subroutine setupbend(obsLL,odiagLL, &
 !   2020-04-13  Shao    - update the statistis QC for COSMIC-2
 !   2020-05-21  Shao    - add comments to include commercial data ID information
 !   2020-08-26  Shao/Bathmann - add Jacobian QC
+!   2021-03-26  H.Zhang - add model states at obs locations, and observation  metadata that are needed in JEDI;
+!                         add QC flags 4 and 5 to specify different QC checks
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -140,6 +142,7 @@ subroutine setupbend(obsLL,odiagLL, &
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use guess_grids, only: ges_lnprsi,hrdifsig,geop_hgti,nfldsig
+  use guess_grids, only: ges_lnprsl,geop_hgtl,ges_tsen
   use guess_grids, only: nsig_ext,gpstop
   use gridmod, only: nsig
   use gridmod, only: get_ij,latlon11
@@ -221,6 +224,7 @@ subroutine setupbend(obsLL,odiagLL, &
   
   integer(i_kind) ier,ilon,ilat,ihgt,igps,itime,ikx,iuse, &
                   iprof,ipctc,iroc,isatid,iptid,ilate,ilone,ioff,igeoid
+  integer(i_kind) isclf,iascd,iazim,isiid,iogce
   integer(i_kind) i,j,k,kk,mreal,nreal,jj,ikxx,ibin
   integer(i_kind) mm1,nsig_up,ihob,istatus,nsigstart
   integer(i_kind) kprof,istat,k1,k2,nobs_out,top_layer_SR,bot_layer_SR,count_SR
@@ -254,7 +258,10 @@ subroutine setupbend(obsLL,odiagLL, &
 
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
-  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q 
+  real(r_kind),dimension(nsig,  nobs)         :: Tsen,Tvir,sphm,prslnl,hgtl
+  real(r_kind),dimension(nsig+1,nobs)         :: prslni, hgti
+  integer,     dimension(nobs)                :: qcfail_8km
 
   type(obsLList),pointer,dimension(:):: gpshead
   gpshead => obsLL(:)
@@ -318,6 +325,11 @@ subroutine setupbend(obsLL,odiagLL, &
   ilone=14     ! index of earth relative longitude (degrees)
   ilate=15     ! index of earth relative latitude (degrees)
   igeoid=16    ! index of geoid undulation (a value per profile, m) 
+  isclf=17     ! index of GNSS satellite classification
+  isiid=18     ! index of LEO Satellite instrument
+  iascd=19     ! index of ascending/descending flag
+  iogce=20     ! index of identification of originating/generating
+  iazim=21     ! index of LEO azimuth angle
 
 ! Intialize variables
   nsig_up=nsig+nsig_ext ! extend nsig_ext levels above interface level nsig
@@ -335,7 +347,7 @@ subroutine setupbend(obsLL,odiagLL, &
   allocate(ddnj(grids_dim),grid_s(grids_dim),ref_rad_s(grids_dim)) 
 
 ! Allocate arrays for output to diagnostic file
-  mreal=22
+  mreal=29
   nreal=mreal
   if (lobsdiagsave) nreal=nreal+4*miter+1
   if (save_jacobian) then
@@ -391,6 +403,7 @@ subroutine setupbend(obsLL,odiagLL, &
      qcfail_high=zero
      qcfail_jac=zero
      toss_gps_sub=zero 
+     qcfail_8km=zero
      dbend_loc=zero
 
   else ! (init_pass)
@@ -442,6 +455,20 @@ subroutine setupbend(obsLL,odiagLL, &
           mype,nfldsig)
 
      prsltmp_o(1:nsig,i)=prsltmp(1:nsig) ! needed in minimization
+
+!    Interpolate mid-level log(pres),mid-level geopotential height,
+!    and air temperature for JEDI
+     call tintrp2a1(ges_tsen,  Tsen(1:nsig,i),  dlat,dlon,dtime,hrdifsig, &
+                    nsig, mype,nfldsig)
+     call tintrp2a1(ges_lnprsl,prslnl(1:nsig,i),dlat,dlon,dtime,hrdifsig, &
+                    nsig, mype,nfldsig)
+     call tintrp2a1(geop_hgtl, hgtl(1:nsig,i),  dlat,dlon,dtime,hrdifsig, &
+                    nsig, mype,nfldsig)
+     sphm(1:nsig,i)      = qges(1:nsig)            ! specific humidity
+     prslni(1:nsig+1,i)  = prsltmp(1:nsig+1)       ! interface level log(pressure)
+     hgtl(1:nsig,i)      = hgtl(1:nsig,i) + zsges  ! mid level geopotential height
+     hgti(1:nsig+1,i)    = hges(1:nsig+1) + zsges  ! interface level geopotential height
+     Tvir(1:nsig,i)      = tges(1:nsig)            ! virtual temperature
 
 ! Compute refractivity index-radius product at interface
 !
@@ -563,10 +590,11 @@ subroutine setupbend(obsLL,odiagLL, &
      rdiagbuf(:,i)         = zero
 
      rdiagbuf(1,i)         = ictype(ikx)        ! observation type
-     rdiagbuf(20,i)        = one                ! uses gps_ref (one = use of bending angle)
+!    rdiagbuf(20,i)        = one                ! uses gps_ref (one = use of bending angle)
      rdiagbuf(2,i)         = data(iprof,i)      ! profile identifier
      rdiagbuf(3,i)         = data(ilate,i)      ! lat in degrees
      rdiagbuf(4,i)         = data(ilone,i)      ! lon in degrees
+     rdiagbuf(5,i)         = one ! see bending_angle@GsiHofX in genstat_gps for why
      rdiagbuf(7,i)         = tpdpres(i)-rocprof ! impact height in meters
 !    rdiagbuf(7,i)         = tpdpres(i)         ! impact parameter in meters
      rdiagbuf(8,i)         = dtime-time_offset  ! obs time (hours relative to analysis time)
@@ -576,6 +604,15 @@ subroutine setupbend(obsLL,odiagLL, &
      rdiagbuf(17,i)        = data(igps,i)       ! bending angle observation (radians)
      rdiagbuf(19,i)        = hob                ! model vertical grid (interface) if monotone grid
      rdiagbuf(22,i)        = 1.e+10_r_kind      ! spread (filled in by EnKF)
+!    extra metadata needed in JEDI
+     rdiagbuf(23,i)        = data(igeoid,i)
+     rdiagbuf(24,i)        = rocprof
+     rdiagbuf(25,i)        = data(iptid,i)
+     rdiagbuf(26,i)        = data(isclf,i)
+     rdiagbuf(27,i)        = data(iascd,i)
+     rdiagbuf(28,i)        = data(iogce,i)
+     rdiagbuf(29,i)        = data(isiid,i)
+     rdiagbuf(20,i)        = data(iazim,i)
 
      if(ratio_errors(i) > tiny_r_kind)  then ! obs inside model grid
 
@@ -749,7 +786,9 @@ subroutine setupbend(obsLL,odiagLL, &
            end do intloop
 
            if (obs_check) then      ! reject observation
-              qcfail(i)=.true.
+!             use qcfail_loc for observations outside model grids
+!             qcfail(i)=.true.
+              qcfail_loc(i)=one
               data(ier,i) = zero
               ratio_errors(i) = zero
               muse(i)=.false.
@@ -837,7 +876,9 @@ subroutine setupbend(obsLL,odiagLL, &
                  end if
                  
                  if(abs(rdiagbuf(5,i)) > cutoff) then
-                    qcfail(i)=.true.
+!                   use qcfail_gross for background departure check
+!                   qcfail(i)=.true.
+                    qcfail_gross(i)=one
                     data(ier,i) = zero
                     ratio_errors(i) = zero
                     muse(i) = .false.
@@ -856,7 +897,9 @@ subroutine setupbend(obsLL,odiagLL, &
 !          Remove MetOP/GRAS data below 8 km
            if( (alt <= eight) .and. & 
               ((data(isatid,i)==4).or.(data(isatid,i)==3).or.(data(isatid,i)==5))) then
-              qcfail(i)=.true.
+!             use qcfail_8km for the rejection of metop data below 8km
+!             qcfail(i)=.true.
+              qcfail_8km(i)= one
               data(ier,i) = zero
               ratio_errors(i) = zero
               muse(i)=.false.
@@ -918,6 +961,7 @@ subroutine setupbend(obsLL,odiagLL, &
         if(qcfail(i))                rdiagbuf(10,i) = four !modified in genstats due to toss_gps_sub
         if(qcfail_loc(i) == one)     rdiagbuf(10,i) = one
         if(qcfail_high(i) == one)    rdiagbuf(10,i) = two
+        if(qcfail_8km(i)== one)      rdiagbuf(10,i) = five
 
         if(muse(i)) then                    ! modified in genstats_gps due to toss_gps_sub
            rdiagbuf(12,i) = one             ! minimization usage flag (1=use, -1=not used)
@@ -993,6 +1037,27 @@ subroutine setupbend(obsLL,odiagLL, &
         gps_alltail(ibin)%head%iob=ioid(i)
         gps_alltail(ibin)%head%elat= data(ilate,i)
         gps_alltail(ibin)%head%elon= data(ilone,i)
+
+!       2 dimensional geovals for JEDI
+        allocate(gps_alltail(ibin)%head%tsenges(nsig),stat=istatus)
+        allocate(gps_alltail(ibin)%head%tvirges(nsig),stat=istatus)
+        allocate(gps_alltail(ibin)%head%sphmges(nsig),stat=istatus)
+        allocate(gps_alltail(ibin)%head%prsiges(nsig),stat=istatus)
+        allocate(gps_alltail(ibin)%head%prslges(nsig),stat=istatus)
+        allocate(gps_alltail(ibin)%head%hgtlges(nsig),stat=istatus)
+        allocate(gps_alltail(ibin)%head%hgtiges(nsig+1),stat=istatus)
+
+        do j= 1, nsig
+          gps_alltail(ibin)%head%tsenges(j)  = Tsen(j,i)
+          gps_alltail(ibin)%head%tvirges(j)  = Tvir(j,i)
+          gps_alltail(ibin)%head%sphmges(j)  = sphm(j,i)
+          gps_alltail(ibin)%head%prslges(j)  = 1000.0*exp(prslnl(j,i))
+          gps_alltail(ibin)%head%hgtlges(j)  = hgtl(j,i)
+        end do
+        do j= 1, nsig + 1
+          gps_alltail(ibin)%head%prsiges(j)  = 1000.0*exp(prslni(j,i))
+          gps_alltail(ibin)%head%hgtiges(j)  = hgti(j,i)
+        end do
 
         allocate(gps_alltail(ibin)%head%rdiag(nreal),stat=istatus)
         if (istatus/=0) write(6,*)'SETUPBEND:  allocate error for gps_alldiag, istatus=',istatus
