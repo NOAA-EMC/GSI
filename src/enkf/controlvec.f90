@@ -166,6 +166,7 @@ do i = 1, nc2d
     call stop2(5021)
   endif
 enddo
+
 do i = 1, nc3d
   if (getindex(vars3d_supported, cvars3d(i))<0) then
     if (nproc .eq. 0) then 

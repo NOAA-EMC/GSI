@@ -449,6 +449,7 @@ subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid
     tv_ind  = getindex(vars3d, 't')  ! Tv (3D)
     tsen_ind  = getindex(vars3d, 'tsen')  ! Tv (3D)
     q_ind   = getindex(vars3d, 'q')   ! Q (3D)
+    oz_ind  = getindex(vars3d, 'oz')  ! Oz (3D)
     delp_ind   = getindex(vars3d, 'delp')   ! delp (3D)
     cw_ind  = getindex(vars3d, 'cw')  ! CWM for WRF-NMM
     w_ind   = getindex(vars3d, 'w')   ! W for WRF-ARW
