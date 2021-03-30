@@ -49,22 +49,20 @@ class GSIbkgerr(object):
         Print a summary of the GSI background error file
         '''
 
-        print
-        print 'file = %s' % self.filename
-        print 'nsig = %d, nlat = %d, nlon = %d, nvar = %d' % (self.nsig,self.nlat,self.nlon,len(self.var))
-        print 'variables = %s' % ', '.join(self.var)
-        print 'agv.shape: ', self.agvin.shape
-        print 'bgv.shape: ', self.bgvin.shape
-        print 'wgv.shape: ', self.wgvin.shape
-        print 'corz.shape: ', self.corzin.shape
-        print 'hscales.shape: ', self.hscalesin.shape
-        print 'vscales.shape: ', self.vscalesin.shape
-        print 'corq2.shape: ', self.corq2in.shape
-        print 'corsst.shape: ', self.corsstin.shape
-        print 'hsst.shape: ', self.hsstin.shape
-        print 'corp.shape: ', self.corpin.shape
-        print 'hscalesp.shape: ', self.hscalespin.shape
-        print
+        print( 'file = %s' % self.filename)
+        print( 'nsig = %d, nlat = %d, nlon = %d, nvar = %d' % (self.nsig,self.nlat,self.nlon,len(self.var)))
+        print( 'variables = %s' % ', '.join(self.var))
+        print( 'agv.shape: ', self.agvin.shape)
+        print( 'bgv.shape: ', self.bgvin.shape)
+        print( 'wgv.shape: ', self.wgvin.shape)
+        print( 'corz.shape: ', self.corzin.shape)
+        print( 'hscales.shape: ', self.hscalesin.shape)
+        print( 'vscales.shape: ', self.vscalesin.shape)
+        print( 'corq2.shape: ', self.corq2in.shape)
+        print( 'corsst.shape: ', self.corsstin.shape)
+        print( 'hsst.shape: ', self.hsstin.shape)
+        print( 'corp.shape: ', self.corpin.shape)
+        print( 'hscalesp.shape: ', self.hscalespin.shape)
 
         return
 
@@ -107,7 +105,7 @@ glat_n,wlat_n = splat(idrt,gsi_n.nlat)
 slon_n = np.linspace(0.,360.,gsi_n.nlon,endpoint=False)
 slat_n = 180. / np.arccos(-1.) * np.arcsin(glat_n[::-1])
 
-print 'Interpolate from %d to %d' % (gsi.nlat, gsi_n.nlat)
+print('Interpolate from %d to %d' % (gsi.nlat, gsi_n.nlat))
 
 tmp = gsi.agvin.reshape(gsi.nlat,-1)
 f = interp2d(ssig2,slat,tmp,kind=interp_kind)
@@ -169,8 +167,8 @@ bkerror.put_bkerror(gsi_n.filename,gsi_n.ivar,\
 gsi_rn = GSIbkgerr(gsi_n.filename)
 gsi_rn.print_summary()
 
-print 'differences'
-print np.abs(gsi_n.agvin-gsi_rn.agvin).max()
-print np.abs(gsi_n.bgvin-gsi_rn.bgvin).max()
-print np.abs(gsi_n.wgvin-gsi_rn.wgvin).max()
-print np.abs(gsi_n.hscalesin-gsi_rn.hscalesin).max()
+print( 'differences')
+print( np.abs(gsi_n.agvin-gsi_rn.agvin).max())
+print( np.abs(gsi_n.bgvin-gsi_rn.bgvin).max())
+print( np.abs(gsi_n.wgvin-gsi_rn.wgvin).max())
+print( np.abs(gsi_n.hscalesin-gsi_rn.hscalesin).max())
