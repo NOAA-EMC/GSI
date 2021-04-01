@@ -1203,7 +1203,6 @@ subroutine setupbend(obsLL,odiagLL, &
               end do
               ratio_errors(i) = zero
               data(ier,i) = zero
-              muse(i) = .false.
               rdiagbuf(12,i) = -one
               rdiagbuf(10,i) = six
            end if 

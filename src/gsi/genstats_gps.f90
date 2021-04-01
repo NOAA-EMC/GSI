@@ -562,6 +562,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
                  end if
               endif
           endif
+          if (gps_allptr%rdiag(10) == six) muse =.false.
         endif
 
 
