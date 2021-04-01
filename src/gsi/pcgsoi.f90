@@ -161,6 +161,8 @@ subroutine pcgsoi()
   use berror, only: vprecond
 
   use stpjomod, only: stpjo_setup
+  
+
   implicit none
 
 ! Declare passed variables
@@ -803,6 +805,7 @@ subroutine pcgsoi()
        call gsdcloudanalysis4gfs(mype)
     endif
   endif
+
 
 ! Write output analysis files
   if(.not.l4dvar) call prt_guess('analysis')
