@@ -76,6 +76,8 @@ subroutine read_guess(iyear,month,idd,mype)
 !   2019-09-18  martin  - added new fields to save guess tsen, q, geop_hgt for writing increment
 !   2019-09-23  martin  - add code for FV3 GFS netcdf guess input
 !   2020-11-19  Lu & Wang - modify file read for fgat, POC: xuguang.wang@ou.edu
+!   2021-01-05  x.zhang/lei  - add code for updating delz analysis in regional da 
+!
 !   input argument list:
 !     mype     - mpi task id
 !
@@ -112,6 +114,10 @@ subroutine read_guess(iyear,month,idd,mype)
   use read_wrf_mass_guess_mod, only: read_wrf_mass_guess_class
   use read_wrf_nmm_guess_mod, only: read_wrf_nmm_guess_class
   use gsi_rfv3io_mod, only: read_fv3_netcdf_guess
+
+  use gridmod,only: l_reg_update_hydro_delz
+  use guess_grids, only:geom_hgti,geom_hgti_bg
+
   use gsi_rfv3io_mod, only: bg_fv3regfilenameg
   use mpimod, only: mpi_comm_world
 
@@ -278,6 +284,10 @@ subroutine read_guess(iyear,month,idd,mype)
 
 ! Compute 3d subdomain geopotential heights from the guess fields
   call load_geop_hgt
+
+   if(l_reg_update_hydro_delz) then
+     geom_hgti_bg=geom_hgti
+   endif
 
 ! save guess geopotential height at level interface for use in write_atm
   ges_geopi=geop_hgti

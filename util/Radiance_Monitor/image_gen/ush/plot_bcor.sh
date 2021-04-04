@@ -75,30 +75,41 @@ for type in ${SATYPE2}; do
       if [[ $REGIONAL_RR -eq 1 ]]; then
          tdate=`$NDATE +6 $cdate`
          day=`echo $tdate | cut -c1-8 `
-         hh=`echo $cdate | cut -c9-10`
-         . ${IG_SCRIPTS}/rr_set_tz.sh $hh
+         cyc=`echo $cdate | cut -c9-10`
+         . ${IG_SCRIPTS}/rr_set_tz.sh $cyc
       else
          day=`echo $cdate | cut -c1-8 `
+         cyc=`echo $cdate | cut -c9-10 `
       fi
 
-      source_dir=${IEEE_SRC}
+      ieee_src=${TANKverf}/${RUN}.${day}/${cyc}/${MONITOR}
 
-      nfile_src=`ls -l ${IEEE_SRC}/*${PDATE}*ieee_d* | egrep -c '^-'`
+      if [[ ! -d ${ieee_src} ]]; then
+         ieee_src=${TANKverf}/${RUN}.${day}/${MONITOR}
+      fi
+      if [[ ! -d ${ieee_src} ]]; then
+         ieee_src=${TANKverf}/${MONITOR}.${day}
+      fi
+      if [[ ! -d ${ieee_src} ]]; then
+         ieee_src=${TANKverf}/${RUN}.${day}
+      fi
+
+      nfile_src=`ls -l ${ieee_src}/*${cdate}*ieee_d* | egrep -c '^-'`
 
       echo "nfile_src = $nfile_src"
 
-      if [[ -d ${IEEE_SRC} ]]; then
+      if [[ -d ${ieee_src} ]]; then
          if [[ $REGIONAL_RR -eq 1 ]]; then
-            test_file=${IEEE_SRC}/${rgnHH}.bcor.${type}.${cdate}.ieee_d.${rgnTM}
+            test_file=${ieee_src}/${rgnHH}.bcor.${type}.${cdate}.ieee_d.${rgnTM}
          else 
-            test_file=${IEEE_SRC}/bcor.${type}.${cdate}.ieee_d
+            test_file=${ieee_src}/bcor.${type}.${cdate}.ieee_d
          fi
 
          if [[ $USE_ANL = 1 ]]; then
             if [[ $REGIONAL_RR -eq 1 ]]; then
-               test_file=${IEEE_SRC}/${rgnHH}.bcor.${type}_anl.${cdate}.ieee_d.${rgnTM}
+               test_file=${ieee_src}/${rgnHH}.bcor.${type}_anl.${cdate}.ieee_d.${rgnTM}
             else
-               test_file2=${IEEE_SRC}/bcor.${type}_anl.${cdate}.ieee_d
+               test_file2=${ieee_src}/bcor.${type}_anl.${cdate}.ieee_d
             fi
          else
             test_file2=

@@ -27,14 +27,9 @@ export TOP_ARCHIVE_DIR=${ARCHIVE_DIR}
 export ARCHIVE_DIR=${ARCHIVE_DIR}/${RADMON_SUFFIX}
 
 #
-# set IMGNDIR for old or new image file location based
-# on TANK_USE_RUN value
+# top of image directory tree for this source
 #
-IMGNDIR=${MY_TANKDIR}/imgn/${RADMON_SUFFIX}
-if [[ $TANK_USE_RUN -eq 1 ]]; then
-   IMGNDIR=${IMGNDIR}/${RUN}/radmon
-fi
-export IMGNDIR=${IMGNDIR}/pngs
+export IMGNDIR=${IMGNDIR:-${MY_TANKDIR}/imgn/${RADMON_SUFFIX}/${RUN}/radmon/pngs}
 
 
 #

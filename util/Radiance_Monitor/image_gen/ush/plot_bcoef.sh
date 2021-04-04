@@ -1,4 +1,4 @@
-#! /bin/ksh
+#! /bin/bash
 
 #------------------------------------------------------------------
 #
@@ -54,7 +54,7 @@ echo ctldir = $ctldir
 # of radmon.YYYYMMDD directories under $TANKDIR.
 
 
-$NCP ${IG_SCRIPTS}/nu_plot_bcoef.sh .
+$NCP ${IG_SCRIPTS}/mk_digital_bcoef.sh .
 
 for type in ${SATYPE}; do
 
@@ -73,29 +73,30 @@ for type in ${SATYPE}; do
          cyc=`echo $cdate | cut -c9-10`
       fi
 
-      if [[ $TANK_USE_RUN -eq 1 ]]; then
-         ieee_src=${TANKverf}/${RUN}.${day}/${cyc}/${MONITOR}
-         if [[ ! -d ${ieee_src} ]]; then
-            ieee_src=${TANKverf}/${RUN}.${day}/${MONITOR}
-         fi
-      else
+      ieee_src=${TANKverf}/${RUN}.${day}/${cyc}/${MONITOR}
+      if [[ ! -d ${ieee_src} ]]; then
+         ieee_src=${TANKverf}/${RUN}.${day}/${MONITOR}
+      fi
+      if [[ ! -d ${ieee_src} ]]; then
          ieee_src=${TANKverf}/${MONITOR}.${day}
-         if [[ ! -d ${ieee_src} ]]; then
-            ieee_src=${TANKverf}/${RUN}.${day}
-         fi
+      fi
+      if [[ ! -d ${ieee_src} ]]; then
+         ieee_src=${TANKverf}/${RUN}.${day}
       fi
 
       if [[ -d ${ieee_src} ]]; then
         
          if [[ $REGIONAL_RR -eq 1 ]]; then
-            test_file=${ieee_src}/${rgnHH}.bcoef.${type}.${cdate}.ieee_d.${rgnTM}
+#            test_file=${ieee_src}/${rgnHH}.bcoef.${type}.${cdate}.ieee_d.${rgnTM}
+            test_file=${ieee_src}/bcoef.${type}.${cdate}.ieee_d
          else
             test_file=${ieee_src}/bcoef.${type}.${cdate}.ieee_d
          fi
 
          if [[ $USE_ANL = 1 ]]; then
             if [[ $REGIONAL_RR -eq 1 ]]; then
-               test_file=${ieee_src}/${rgnHH}.bcoef.${type}_anl.${cdate}.ieee_d.${rgnTM}
+#               test_file=${ieee_src}/${rgnHH}.bcoef.${type}_anl.${cdate}.ieee_d.${rgnTM}
+               test_file=${ieee_src}/bcoef.${type}_anl.${cdate}.ieee_d
             else
                test_file2=${ieee_src}/bcoef.${type}_anl.${cdate}.ieee_d
             fi
@@ -144,9 +145,9 @@ EOF
 
 
    #--------------------------------------------------------------------------
-   #  nu_plot_bcoef.sh produces the data files needed by the js/html files to
-   #  generate the interactive charts
-   ./nu_plot_bcoef.sh ${type}
+   #  mk_digital_bcoef.sh produces the data files needed by the js/html files 
+   #  to generate the interactive charts.
+   ./mk_digital_bcoef.sh ${type}
 
 
 
