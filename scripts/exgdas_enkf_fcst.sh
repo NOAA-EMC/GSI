@@ -34,7 +34,6 @@ export FIX_AM=${FIX_AM:-$FIX_DIR/fix_am}
 export NCP=${NCP:-"/bin/cp -p"}
 export NMV=${NMV:-"/bin/mv"}
 export NLN=${NLN:-"/bin/ln -sf"}
-export NDATE=${NDATE:-/$NWPROD/util/exec/ndate}
 
 # Scripts.
 FORECASTSH=${FORECASTSH:-$HOMEgfs/scripts/exglobal_forecast.sh}

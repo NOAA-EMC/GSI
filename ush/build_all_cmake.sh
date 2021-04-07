@@ -3,11 +3,21 @@
 set -ex
 
 cd ..
-pwd=$(pwd)
+dir_root=$(pwd)
 
 build_type=${1:-'PRODUCTION'}
-dir_root=${2:-$pwd}
+dir_root=${2:-$dir_root}
+mode=${3:-'EMC'}
 
+
+# If NCO build, prune directories and files before build
+if [ $mode = NCO ]; then
+    cd $dir_root/ush
+    $dir_root/ush/prune_4nco_global.sh prune
+fi
+
+
+# Initialize and load modules
 if [[ -d /dcom && -d /hwrf ]] ; then
     . /usrx/local/Modules/3.2.10/init/sh
     target=wcoss
@@ -53,11 +63,6 @@ if [ ! -d $dir_modules ]; then
     echo "modulefiles does not exist in $dir_modules"
     exit 10
 fi
-[ -d $dir_root/exec ] || mkdir -p $dir_root/exec
-
-rm -rf $dir_root/build
-mkdir -p $dir_root/build
-cd $dir_root/build
 
 if [ $target = wcoss_d ]; then
     module purge
@@ -79,12 +84,34 @@ else
     source $dir_modules/modulefile.ProdGSI.$target
 fi
 
+
+# Create exec and build directories
+[ -d $dir_root/exec ] || mkdir -p $dir_root/exec
+rm -rf $dir_root/build
+mkdir -p $dir_root/build
+cd $dir_root/build
+
+
+# Execute cmake
 if [ $build_type = PRODUCTION -o $build_type = DEBUG ] ; then
   cmake -DBUILD_UTIL=ON -DBUILD_NCDIAG_SERIAL=ON -DCMAKE_BUILD_TYPE=$build_type -DBUILD_CORELIBS=OFF ..
 else 
   cmake ..
 fi
 
-make -j 8
+
+# Build apps.  Echo extra printout for NCO build
+if [ $mode = NCO ]; then
+    make VERBOSE=1 -j 8
+else
+    make -j 8
+fi
+rc=$?
+
+
+# If NCO build is successful, remove build directory
+if [ $mode = NCO -a $rc -eq 0 ]; then
+    rm -rf $dir_root/build
+fi
 
 exit
