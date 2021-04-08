@@ -16,7 +16,7 @@
    my $machine = `/usr/bin/perl get_hostname.pl`;
    my $my_machine="export MY_MACHINE=$machine";
 
-   if( $machine ne "cray" && $machine ne "hera" && $machine ne "wcoss" && $machine ne "wcoss_d" ) {
+   if( $machine ne "wcoss_c" && $machine ne "hera" && $machine ne "wcoss_d" ) {
       die( "ERROR --- Unrecognized machine hostname, $machine.  Exiting now...\n" );
    }
    else {
@@ -56,11 +56,8 @@
    if( $machine eq "hera" ){
       $tankdir = "/scratch1/NCEPDEV/da/$user_name/nbns";
    }
-   elsif( $machine eq "cray" ){
+   elsif( $machine eq "wcoss_c" ){
       $tankdir = "/gpfs/hps/emc/da/noscrub/$user_name/nbns";
-   }
-   elsif( $machine eq "wcoss" ){
-      $tankdir = "/global/save/$user_name/nbns";
    }
    elsif( $machine eq "wcoss_d" ){
       $tankdir = "/gpfs/dell2/emc/modeling/noscrub/$user_name/nbns";
@@ -149,61 +146,11 @@
    my $my_ptmp;
    my $my_stmp;
 
-   if( $machine eq "wcoss" ) {
-      $ptmp = "/ptmpd1";
-      print "Please specify PTMP location.  This is used for temporary work space.\n";
-      print "  Available options are: \n";
-      print "      /ptmpd1  (default)\n";
-      print "      /ptmpd2\n";
-      print "      /ptmpd3\n";
-      print "      /ptmpp1\n";
-      print "      /ptmpp2\n";
-   
-      print "  Return to accept default location or enter new location now.\n";
-      print "\n";
-      print "  Default PTMP:  $ptmp \n";
-      print "     ?\n";
-      my $new_ptmp = <>;
-      $new_ptmp =~ s/^\s+|\s+$//g;
-
-      if( length($new_ptmp ) > 0 ) {
-         $ptmp = $new_ptmp;
-      }
-      $my_ptmp="export MY_PTMP=\${MY_PTMP:-$ptmp}";
-      print "my_ptmp = $my_ptmp\n";
-      print "\n\n";
-      sleep( 1 );
-
-      $stmp = "/stmpd1";
-      print "Please specify STMP location.  This is used for temporary work space.\n";
-      print "  Available options are: \n";
-      print "      /stmpd1  (default)\n";
-      print "      /stmpd2\n";
-      print "      /stmpd3\n";
-      print "      /stmpp1\n";
-      print "      /stmpp2\n";
-
-      print "  Return to accept default location or enter new location now.\n";
-      print "\n";
-      print "  Default STMP:  $stmp \n";
-      print "     ?\n";
-      my $new_stmp = <>;
-      $new_stmp =~ s/^\s+|\s+$//g;
-
-      if( length($new_stmp ) > 0 ) {
-         $stmp = $new_stmp;
-      }
-      $my_stmp="export MY_STMP=\${MY_STMP:-$stmp}";
-      print "my_stmp = $my_stmp\n";
-      print "\n\n";
-      sleep( 1 );
-
-   }
-   elsif( $machine eq "wcoss_d" ){
+   if( $machine eq "wcoss_d" ){
       $my_ptmp="export MY_PTMP=\${MY_PTMP:-/gpfs/dell2/ptmp}";
       $my_stmp="export MY_STMP=\${MY_STMP:-/gpfs/dell2/stmp}";
    }
-   elsif( $machine eq "cray" ) {
+   elsif( $machine eq "wcoss_c" ) {
       $my_ptmp="export MY_PTMP=\${MY_PTMP:-/gpfs/hps/ptmp}";
       $my_stmp="export MY_STMP=\${MY_STMP:-/gpfs/hps/stmp}";
    }
@@ -268,14 +215,14 @@
    }
 
    my $project = "export PROJECT=\${PROJECT:-GDAS-T2O}";
-   if( $machine ne "wcoss" && $machine ne "cray" && $machine ne "wcoss_d" ) {
+   if( $machine ne "wcoss_c" && $machine ne "wcoss_d" ) {
       $project="export PROJECT=";
    } 
 
    my $job_queue="export JOB_QUEUE=";
-   if( $machine eq "cray" ) {
+   if( $machine eq "wcoss_c" ) {
       $job_queue="export JOB_QUEUE=\${JOB_QUEUE:-dev}";
-   } elsif( $machine eq "wcoss" || $machine eq "wcoss_d" ){
+   } elsif( $machine eq "wcoss_d" ){
       $job_queue = "export JOB_QUEUE=\${JOB_QUEUE:-dev_shared}";
    }
 

@@ -88,6 +88,7 @@ subroutine update_guess(sval,sbias)
 !   2016-06-23  lippi   - Add update for vertical velocity (w).
 !   2018-05-01  yang    - modify the constrains to C and V in g-space, or using NLTF transfermation to C/V
 !   2019-06-17  mmorris - Enforce consistency b/w ceiling and sky cover fields
+!   2021-01-05  x.zhang/lei  - add code for updating delz analysis in regional da
 !
 !   input argument list:
 !    sval
@@ -110,9 +111,11 @@ subroutine update_guess(sval,sbias)
                        r100,one_tenth,tiny_r_kind
   use jfunc, only: iout_iter,bcoption,tsensible,clip_supersaturation
   use gridmod, only: lat2,lon2,nsig,&
-       regional,twodvar_regional,regional_ozone
+       regional,twodvar_regional,regional_ozone,&
+       l_reg_update_hydro_delz
   use guess_grids, only: ges_tsen,ges_qsat,&
-       nfldsig,hrdifsig,hrdifsfc,nfldsfc,dsfct
+       nfldsig,hrdifsig,hrdifsfc,nfldsfc,dsfct,&
+       load_geop_hgt
   use state_vectors, only: svars3d,svars2d
   use xhat_vordivmod, only: xhat_vor,xhat_div
   use gsi_4dvar, only: nobs_bins, hr_obsbin
@@ -476,6 +479,10 @@ subroutine update_guess(sval,sbias)
            enddo
         enddo
      endif
+  endif
+
+  if(l_reg_update_hydro_delz) then
+     call load_geop_hgt
   endif
 
 ! If requested, update background bias correction
