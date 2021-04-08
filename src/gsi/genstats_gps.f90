@@ -54,14 +54,6 @@ module m_gpsStats
       real(r_kind)    :: loc                    
       real(r_kind)    :: type               
 
-      real(r_kind),dimension(:),pointer :: tsenges
-      real(r_kind),dimension(:),pointer :: tvirges
-      real(r_kind),dimension(:),pointer :: sphmges
-      real(r_kind),dimension(:),pointer :: prsiges
-      real(r_kind),dimension(:),pointer :: prslges
-      real(r_kind),dimension(:),pointer :: hgtiges
-      real(r_kind),dimension(:),pointer :: hgtlges
-
       real(r_kind),dimension(:),pointer :: rdiag => NULL()
       integer(i_kind) :: kprof
       logical         :: luse          !  flag indicating if ob is used in pen.
@@ -814,13 +806,6 @@ subroutine contents_netcdf_diag_
 
 !          geovals
            call nc_diag_metadata("surface_altitude",          sngl(gps_allptr%rdiag(9)) )
-           call nc_diag_data2d("air_temperature",             sngl(gps_allptr%tsenges) )
-           call nc_diag_data2d("virtual_temperature",         sngl(gps_allptr%tvirges) )
-           call nc_diag_data2d("specific_humidity",           sngl(gps_allptr%sphmges) )
-           call nc_diag_data2d("geopotential_height",         sngl(gps_allptr%hgtlges) )
-           call nc_diag_data2d("geopotential_height_levels",  sngl(gps_allptr%hgtiges) )
-           call nc_diag_data2d("air_pressure",                sngl(gps_allptr%prslges) )
-           call nc_diag_data2d("air_pressure_levels",         sngl(gps_allptr%prsiges) )
 
            if (save_jacobian) then
               call readarray(dhx_dx, gps_allptr%rdiag(ioff+1:nreal))
