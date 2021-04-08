@@ -383,6 +383,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind),allocatable,dimension(:) :: rlat_hil,rlon_hil,height,wtob,wght_hilb
 ! end of block
 
+! H. ZHANG 20210113
+  real(r_kind) time_launch
 
 !  equivalence to handle character names
   equivalence(r_prvstg(1,1),c_prvstg) 
@@ -472,15 +474,21 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
             tcamtob .or. lcbasob .or. cldchob
   aircraftobst=.false.
   if(tob)then
-     nreal=25
-  else if(uvob) then 
+! H. ZHANG 20210113
+!    nreal=25
      nreal=26
+  else if(uvob) then 
+!    nreal=26
+     nreal=27
   else if(spdob) then
      nreal=24
   else if(psob) then
-     nreal=20
+!    nreal=20
+     nreal=21
   else if(qob) then
-     nreal=26
+!    nreal=26
+     nreal=27
+! H. ZHANG 20210113
   else if(pwob) then
      nreal=20
   else if(sstob) then
@@ -1820,6 +1828,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  endif
               end if
 
+              time_launch=-99999.0_r_kind ! H. ZHANG 20210113
+
 !             If needed, extract drift information.   
               if(driftl)then
                  if(drfdat(1,k) >= r360)drfdat(1,k)=drfdat(1,k)-r360
@@ -1841,6 +1851,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  time_drift = timeobs + time_correction
                  if (abs(time_drift-time)>four) time_drift = time
  
+! H. ZHANG 20210113
+                 time_launch=real(real(drfdat(3,1),r_single),r_double) + time_correction
+! H. ZHANG 20210113
+
 !                Check to see if the time is outside range
                  if (l4dvar.or.l4densvar) then
                     t4dv=toff+time_drift
@@ -2094,11 +2108,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(23,iout)=r_sprvstg(1,1)         ! subprovider name
                  cdata_all(24,iout)=obsdat(10,k)           ! cat
                  cdata_all(25,iout)=var_jb(3,k)            ! non linear qc for T
+! H. ZHANG 20210113
+                 cdata_all(26,iout)=time_launch
                  if (aircraft_t_bc_pof .or. aircraft_t_bc .or.aircraft_t_bc_ext) then
-                    cdata_all(26,iout)=aircraftwk(1,k)     ! phase of flight
-                    cdata_all(27,iout)=aircraftwk(2,k)     ! vertical velocity
-                    cdata_all(28,iout)=idx                 ! index of temperature bias
+                    cdata_all(27,iout)=aircraftwk(1,k)     ! phase of flight
+                    cdata_all(28,iout)=aircraftwk(2,k)     ! vertical velocity
+                    cdata_all(29,iout)=idx                 ! index of temperature bias
                  end if
+! H. ZHANG 20210113
                  if(perturb_obs)cdata_all(nreal,iout)=ran01dom()*perturb_fact ! t perturbation
                  if (twodvar_regional) &
                     call adjust_error(cdata_all(17,iout),cdata_all(18,iout),cdata_all(11,iout),cdata_all(1,iout))
@@ -2227,10 +2244,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(24,iout)=obsdat(10,k)           ! cat
                  cdata_all(25,iout)=var_jb(5,k)            ! non linear qc parameter
                  cdata_all(26,iout)=one                    ! hilbert curve weight, modified later 
+! H. ZHANG 20210113
+                 cdata_all(27,iout)=time_launch
+
                  if(perturb_obs)then
-                    cdata_all(27,iout)=ran01dom()*perturb_fact ! u perturbation
-                    cdata_all(28,iout)=ran01dom()*perturb_fact ! v perturbation
+                    cdata_all(28,iout)=ran01dom()*perturb_fact ! u perturbation
+                    cdata_all(29,iout)=ran01dom()*perturb_fact ! v perturbation
                  endif
+! H. ZHANG 20210113
  
               else if(spdob) then 
                  woe=obserr(5,k)
@@ -2297,7 +2318,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(18,iout)=r_prvstg(1,1)          ! provider name
                  cdata_all(19,iout)=r_sprvstg(1,1)         ! subprovider name
                  cdata_all(20,iout)=var_jb(1,k)            ! non linear qc b parameter 
-                 if(perturb_obs)cdata_all(21,iout)=ran01dom()*perturb_fact ! ps perturbation
+! H. ZHANG 20210113
+                 cdata_all(21,iout)=time_launch            ! sonde type data baloon launch time 
+                 if(perturb_obs)cdata_all(22,iout)=ran01dom()*perturb_fact ! ps perturbation
+! H. ZHANG 20210113
                  if (twodvar_regional) &
                     call adjust_error(cdata_all(14,iout),cdata_all(15,iout),cdata_all(11,iout),cdata_all(1,iout))
 
@@ -2340,7 +2364,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(21,iout)=r_sprvstg(1,1)         ! subprovider name
                  cdata_all(22,iout)=obsdat(10,k)           ! cat
                  cdata_all(23,iout)=var_jb(2,k)            ! non linear qc b parameter
-                 if(perturb_obs)cdata_all(24,iout)=ran01dom()*perturb_fact ! q perturbation
+!  H. ZHANG 20210113
+                 cdata_all(24,iout)=time_launch
+
+                 if(perturb_obs)cdata_all(25,iout)=ran01dom()*perturb_fact ! q perturbation
+!  H. ZHANG 20210113
                  if (twodvar_regional) &
                     call adjust_error(cdata_all(15,iout),cdata_all(16,iout),cdata_all(12,iout),cdata_all(1,iout))
  

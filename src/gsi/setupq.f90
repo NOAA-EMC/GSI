@@ -263,6 +263,9 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   real(r_kind) :: thispbl_height,ratio_PBL_height,prestsfc,diffsfc
   real(r_kind) :: hr_offset
 
+! H. ZHANG 20210113
+  integer(i_kind) :: idft
+
   equivalence(rstation_id,station_id)
   equivalence(r_prvstg,c_prvstg)
   equivalence(r_sprvstg,c_sprvstg)
@@ -312,7 +315,10 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   isprvd=21   ! index of observation subprovider
   icat =22    ! index of data level category
   ijb  =23    ! index of non linear qc parameter
-  iptrb=24    ! index of q perturbation
+  ! H. ZHANG    20210113
+  idft=24     ! index of sonde profile launch time
+  iptrb=25    ! index of q perturbation
+  ! H. ZHANG    20210113
 
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
@@ -1192,6 +1198,9 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata("Pressure",                sngl(presq)            )
            call nc_diag_metadata("Height",                  sngl(data(iobshgt,i))  )
            call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
+! H. ZHANG 20210113
+           call nc_diag_metadata("LaunchTime",              sngl(data(idft,i)))
+! H. ZHANG 20210113
            call nc_diag_metadata("Prep_QC_Mark",            sngl(data(iqc,i))      )
            call nc_diag_metadata("Prep_Use_Flag",           sngl(data(iuse,i))     )
            call nc_diag_metadata("Nonlinear_QC_Var_Jb",     sngl(var_jb)           )

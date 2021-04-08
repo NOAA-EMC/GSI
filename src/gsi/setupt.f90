@@ -317,6 +317,9 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   real(r_kind) :: tges2m,qges2m,tges2m_water,qges2m_water
   real(r_kind) :: hr_offset
 
+! H. ZHANG 20210113
+  integer(i_kind) :: idft
+
   equivalence(rstation_id,station_id)
   equivalence(r_prvstg,c_prvstg)
   equivalence(r_sprvstg,c_sprvstg)
@@ -379,14 +382,18 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   isprvd=23   ! index of observation subprovider
   icat=24     ! index of data level category
   ijb=25      ! index of non linear qc parameter
+! H. ZHANG    20210113
+  idft=26     ! index of sonde profile launch time
+
   if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) then
-     ipof=26     ! index of data pof
-     ivvlc=27    ! index of data vertical velocity
-     idx=28      ! index of tail number
-     iptrb=29    ! index of t perturbation
+     ipof=27     ! index of data pof
+     ivvlc=28    ! index of data vertical velocity
+     idx=29      ! index of tail number
+     iptrb=30    ! index of t perturbation
   else
-     iptrb=26    ! index of t perturbation
+     iptrb=27    ! index of t perturbation
   end if
+! H. ZHANG    20210113
 
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
@@ -1601,6 +1608,9 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     call nc_diag_metadata("Pressure",                sngl(prest)            )
     call nc_diag_metadata("Height",                  sngl(data(iobshgt,i))  )
     call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
+! H. ZHANG 20210113
+    call nc_diag_metadata("LaunchTime",              sngl(data(idft,i))  )
+! H. ZHANG 20210113
     call nc_diag_metadata("Prep_QC_Mark",            sngl(data(iqc,i))      )
     call nc_diag_metadata("Setup_QC_Mark",           sngl(data(iqt,i))      )
     call nc_diag_metadata("Prep_Use_Flag",           sngl(data(iuse,i))     )

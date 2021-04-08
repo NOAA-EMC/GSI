@@ -319,6 +319,8 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   real(r_kind) :: hr_offset
   real(r_kind) :: magomb
 
+! H. ZHANG 20210113
+  integer(i_kind) :: idft
 
   equivalence(rstation_id,station_id)
   equivalence(r_prvstg,c_prvstg)
@@ -375,9 +377,13 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   isprvd=23   ! index of observation subprovider
   icat=24     ! index of data level category
   ijb=25      ! index of non linear qc parameter
-  ihil=26     ! index of  hilbert curve weight
-  iptrbu=27   ! index of u perturbation
-  iptrbv=28   ! index of v perturbation
+! H. ZHANG   20210113
+  idft=26     ! index of sonde profile launch time
+
+  ihil=27     ! index of  hilbert curve weight
+  iptrbu=28   ! index of u perturbation
+  iptrbv=29   ! index of v perturbation
+! H. ZHANG   20210113
 
   mm1=mype+1
   scale=one
@@ -1749,6 +1755,9 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata("Pressure",                sngl(presw)            )
            call nc_diag_metadata("Height",                  sngl(data(ihgt,i))     )
            call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
+! H. ZHANG 20210113
+           call nc_diag_metadata("LaunchTime",              sngl(data(idft,i)))
+! H. ZHANG 20210113
            call nc_diag_metadata("Prep_QC_Mark",            sngl(data(iqc,i))      )
 !           call nc_diag_metadata("Setup_QC_Mark",           rmiss_single           )
            call nc_diag_metadata("Setup_QC_Mark",           sngl(bmiss)            )

@@ -211,6 +211,9 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   type(sparr2) :: dhx_dx
   integer(i_kind) :: ps_ind, nnz, nind
 
+! H. ZHANG 20210113
+  integer(i_kind) ::idft
+
   type(obsLList),pointer,dimension(:):: pshead
   pshead => obsLL(:)
 
@@ -242,7 +245,10 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   iprvd=18    ! index of observation provider
   isprvd=19   ! index of observation subprovider
   ijb=20      ! index of non linear qc parameter
-  iptrb=21    ! index of ps perturbation
+! H. ZHANG   20210113
+  idft=21     ! index of sonde profile launch time
+  iptrb=22    ! index of ps perturbation
+! H. ZHANG   20210113
 
 ! Declare local constants
   halfpi = half*pi
@@ -867,6 +873,9 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
            call nc_diag_metadata("Pressure",                sngl(data(ipres,i)*r10))
            call nc_diag_metadata("Height",                  sngl(dhgt)             )
            call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
+! H. ZHANG 20210113
+           call nc_diag_metadata("LaunchTime",              sngl(data(idft,i)))
+! H. ZHANG 20210113
            call nc_diag_metadata("Prep_QC_Mark",            sngl(data(iqc,i))      )
            call nc_diag_metadata("Prep_Use_Flag",           sngl(data(iuse,i))     )
            call nc_diag_metadata("Nonlinear_QC_Var_Jb",     sngl(var_jb)           )
