@@ -1,4 +1,4 @@
-subroutine bkerror(gradx,grady)
+subroutine bkerror(grady)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -41,10 +41,10 @@ subroutine bkerror(gradx,grady)
 !                         this is a hybrid ensemble run.
 !
 !   input argument list:
-!     gradx    - input field  
+!     grady    - input field  
 !
 !   output
-!     grady    - background structure * gradx 
+!     grady    - background structure * grady 
 !
 ! attributes:
 !   language: f90
@@ -55,7 +55,6 @@ subroutine bkerror(gradx,grady)
   use berror, only: varprd,fpsproj,fut2ps
   use balmod, only: balance,tbalance
   use gsi_4dvar, only: nsubwin, lsqrtb
-  use gridmod, only: nlat,nlon,periodic
   use jfunc, only: nsclen,npclen,ntclen
   use jfunc, only: set_sqrt_2dsize
   use constants, only:  zero
@@ -63,15 +62,11 @@ subroutine bkerror(gradx,grady)
   use control_vectors, only: mvars,nrf,nrf_var,nrf_3d
   use timermod, only: timer_ini,timer_fnl
   use gsi_bundlemod, only: gsi_bundlegetpointer,gsi_bundlemerge,gsi_bundle,gsi_bundledup,gsi_bundledestroy
-  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
-! use general_commvars_mod, only: s2g_raf
-  use general_commvars_mod, only: s2g_cv
   use hybrid_ensemble_isotropic, only: sqrt_beta_s_mult
   use hybrid_ensemble_parameters, only: l_hyb_ens
   implicit none
 
 ! Declare passed variables
-  type(control_vector),intent(inout) :: gradx
   type(control_vector),intent(inout) :: grady
 
 ! Declare local variables
@@ -79,7 +74,6 @@ subroutine bkerror(gradx,grady)
   integer(i_kind) i_t,i_p,i_st,i_vp
   integer(i_kind) ipnts(4),istatus
 ! integer(i_kind) nval_lenz,ndim2d
-  real(r_kind),dimension(nlat*nlon*s2g_cv%nlevs_alloc)::workcv
   real(r_kind),pointer,dimension(:,:,:):: p_t  =>NULL()
   real(r_kind),pointer,dimension(:,:,:):: p_st =>NULL()
   real(r_kind),pointer,dimension(:,:,:):: p_vp =>NULL()
@@ -100,23 +94,6 @@ subroutine bkerror(gradx,grady)
 ! Initialize timer
   call timer_ini('bkerror')
 
-! If dealing with periodic (sub)domain, gather full domain grids,
-! account for periodicity, and redistribute to subdomains.  This
-! only needs to be done when running with a single mpi task and
-! then only for array gradx.
-  if (periodic) then
-     do ii=1,nsubwin
-        call general_sub2grid(s2g_cv,gradx%step(ii)%values,workcv)
-        call general_grid2sub(s2g_cv,workcv,gradx%step(ii)%values)
-     end do
-  endif
-
-! Put things in grady first since operations change input variables
-  grady=gradx
-
-!  if ensemble run, multiply by sqrt_beta_s
-   if(l_hyb_ens) call sqrt_beta_s_mult(grady)
-
 ! Only need to get pointer for ii=1 - all other are the same
   call gsi_bundlegetpointer ( grady%step(1), (/'t ','sf','vp','ps'/), &
                               ipnts, istatus )
@@ -125,6 +102,9 @@ subroutine bkerror(gradx,grady)
   i_vp = ipnts(3)
   i_p  = ipnts(4)
   dobal = i_t>0.and.i_p>0.and.i_st>0.and.i_vp>0
+
+! if ensemble run, multiply by sqrt_beta_s
+  if(l_hyb_ens) call sqrt_beta_s_mult(grady)
 
 ! Loop on control steps
   do ii=1,nsubwin
@@ -186,7 +166,12 @@ subroutine bkerror(gradx,grady)
      call stop2(999)
   endif
 
+! if ensemble run, multiply by sqrt_beta_s
+  if(l_hyb_ens) call sqrt_beta_s_mult(grady)
+
+
 ! Take care of background error for bias correction terms
+  
   do i=1,nsclen
      grady%predr(i)=grady%predr(i)*varprd(i)
   end do
@@ -198,9 +183,6 @@ subroutine bkerror(gradx,grady)
         grady%predt(i)=grady%predt(i)*varprd(nsclen+npclen+i)
      end do
   end if
-
-!  if ensemble run, multiply by sqrt_beta_s
-   if(l_hyb_ens) call sqrt_beta_s_mult(grady)
 
 ! Finalize timer
   call timer_fnl('bkerror')

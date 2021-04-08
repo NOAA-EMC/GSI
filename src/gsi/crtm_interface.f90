@@ -854,7 +854,7 @@ endif
   if (n_actual_aerosols_wk>0 .or. n_clouds_fwd_wk>0 .and. imp_physics==11) then
 
      if (mype==0) write(6,*)myname_,':initial and load GFDL saturation water vapor pressure tables'
-
+  
      allocate(table (length))
      allocate(table2(length))
      allocate(tablew(length))

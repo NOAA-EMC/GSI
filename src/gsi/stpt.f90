@@ -193,10 +193,10 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
               val2=w1*stv(j1)+w2*stv(j2)+w3*stv(j3)+w4*stv(j4)+ &
                    w5*stv(j5)+w6*stv(j6)+w7*stv(j7)+w8*stv(j8)
            else
-              val= w1*    rt(j1)+w2*    rt(j2)+w3*    rt(j3)+w4*    rt(j4)+ &
-                   w5*    rt(j5)+w6*    rt(j6)+w7*    rt(j7)+w8*    rt(j8)
-              val2=w1*    st(j1)+w2*    st(j2)+w3*    st(j3)+w4*    st(j4)+ &
-                   w5*    st(j5)+w6*    st(j6)+w7*    st(j7)+w8*    st(j8)
+              val= w1* rt(j1)+w2* rt(j2)+w3* rt(j3)+w4* rt(j4)+ &
+                   w5* rt(j5)+w6* rt(j6)+w7* rt(j7)+w8* rt(j8)
+              val2=w1* st(j1)+w2* st(j2)+w3* st(j3)+w4* st(j4)+ &
+                   w5* st(j5)+w6* st(j6)+w7* st(j7)+w8* st(j8)
            end if
 
 !          contribution from bias correction
@@ -233,9 +233,9 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
                  ts_prime=tt(kk)
                  tg_prime=valsst2+sges(kk)*valsst
                  qs_prime=valq2+sges(kk)*valq
-                 us_prime=valu2+sges(kk)*val
-                 vs_prime=valv2+sges(kk)*val
-                 psfc_prime=val2+sges(1)*val
+                 us_prime=valu2+sges(kk)*valu
+                 vs_prime=valv2+sges(kk)*valv
+                 psfc_prime=valp2+sges(1)*valp
 
                  tt(kk)=psfc_prime*tptr%tlm_tsfc(1) + tg_prime*tptr%tlm_tsfc(2) + &
                         ts_prime  *tptr%tlm_tsfc(3) + qs_prime*tptr%tlm_tsfc(4) + &

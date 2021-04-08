@@ -40,7 +40,7 @@ PUBLIC stpcalc
 
 contains
 
-subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
+subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
                    diry,penalty,penaltynew,pjcost,pjcostnew,end_iter)
 
 !$$$  subprogram documentation block
@@ -188,7 +188,6 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !   input argument list:
 !     stpinout - guess stepsize
 !     sval     - current solution
-!     xhat     - current solution
 !     dirx     - search direction for x
 !     diry     - search direction for y (B-1 dirx)
 !     end_iter - end iteration flag
@@ -196,7 +195,6 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !     sbias,dbias
 !
 !   output argument list:
-!     xhat
 !     stpinout    - final estimate of stepsize
 !     penalty     - penalty current solution
 !     penaltynew  - estimate of penalty for new solution
@@ -222,7 +220,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   use constants, only: zero,one_quad,zero_quad
   use gsi_4dvar, only: nobs_bins,ltlint,ibin_anl
   use jfunc, only: iout_iter,nclen,xhatsave,yhatsave,&
-       iter
+       iter,nrclen
   use jcmod, only: ljcpdry,ljc4tlevs,ljcdfi,ljclimqc 
   use gsi_obOperTypeManager, only: nobs_type => obOper_count
   use stpjcmod, only: stplimq,stplimg,stplimv,stplimp,stplimw10m,&
@@ -247,11 +245,11 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   real(r_kind)        ,intent(  out) :: penalty,penaltynew
   real(r_kind)        ,intent(  out) :: pjcost(4),pjcostnew(4)
 
-  type(control_vector),intent(inout) :: xhat
   type(control_vector),intent(in   ) :: dirx,diry
-  type(gsi_bundle)    ,intent(in   ) :: sval(nobs_bins)
+  type(gsi_bundle)    ,intent(inout) :: sval(nobs_bins)
   type(gsi_bundle)    ,intent(in   ) :: dval(nobs_bins)
-  type(predictors)    ,intent(in   ) :: sbias,dbias
+  type(predictors)    ,intent(inout) :: sbias
+  type(predictors)    ,intent(in   ) :: dbias
 
 
 ! Declare local parameters
@@ -923,9 +921,17 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   endif
 
 ! Update solution
+  do i=1,nrclen
+     sbias%values(i)=sbias%values(i)+stpinout*dbias%values(i)
+  end do
+!$omp parallel do schedule(dynamic,1) private(i,ii)
+  do ii=1,nobs_bins
+     do i=1,sval(ii)%ndim
+        sval(ii)%values(i)=sval(ii)%values(i)+stpinout*dval(ii)%values(i)
+     end do
+  end do
 !DIR$ IVDEP
   do i=1,nclen
-     xhat%values(i)=xhat%values(i)+stpinout*dirx%values(i)
      xhatsave%values(i)=xhatsave%values(i)+stpinout*dirx%values(i)
      yhatsave%values(i)=yhatsave%values(i)+stpinout*diry%values(i)
   end do
