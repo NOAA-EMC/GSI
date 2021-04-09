@@ -6,7 +6,7 @@
 #BSUB -q dev_shared
 #BSUB -n 1
 #BSUB -R affinity[core]
-#BSUB -M 500
+#BSUB -M 100
 #BSUB -W 00:05
 #BSUB -P GFS-DEV
 
@@ -25,8 +25,8 @@ export OZNMON_NEW_HDR=${OZN_NEW_HDR:-0}
 # References to netcdf and binary indicate available files in 
 # the test_data space.
 #
-#export PDATE=${PDATE:-2019083100}		# netcdf
-export PDATE=${PDATE:-2018091706}      	# binary
+export PDATE=${PDATE:-2021031106}		# netcdf
+#export PDATE=${PDATE:-2018091706}      	# binary
 export NET=${NET:-gfs}
 export RUN=${RUN:-gdas}
 
@@ -40,12 +40,6 @@ export envir=${envir:-test}
 export DATAROOT=${DATAROOT:-/gpfs/dell2/emc/modeling/noscrub/${LOGNAME}/test_data}
 export COMROOT=/gpfs/dell2/ptmp/${LOGNAME}/com
 export OZN_WORK_DIR=${OZN_WORK_DIR:-/gpfs/dell2/stmp/${LOGNAME}/oznmon.${pid}}
-
-#------------------------------------------------------------
-# Specify versions
-#
-export gdas_oznmon_ver=v2.0.0
-export oznmon_shared_ver=v2.0.0
 
 
 #------------------------------------------------------------
@@ -86,23 +80,20 @@ export POE=YES
 # Set user specific variables
 #
 export OZNMON_SUFFIX=${OZNMON_SUFFIX:-testozn}
-export NWTEST=${NWTEST:-/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/ProdGSI/util/Ozone_Monitor/nwprod}
-export HOMEgdas_ozn=${NWTEST}/gdas_oznmon.${gdas_oznmon_ver}
+export NWTEST=${NWTEST:-/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/update/util/Ozone_Monitor/nwprod}
+export HOMEgdas_ozn=${NWTEST}/gdas_oznmon
 export PARMgdas_ozn=${HOMEgdas_ozn}/parm
 export FIXgdas_ozn=${FIXgdas_ozn:-${HOMEgdas_ozn}/fix}
 
-
-export HOMEgfs_ozn=${HOMEgfs_ozn:-${HOMEgdas_ozn}}
+export HOMEgfs=${HOMEgfs:-${HOMEgdas_ozn}}
+export HOMEgfs_ozn=${HOMEgfs_ozn:-${HOMEgfs}}
 export PARMgfs_ozn=${PARMgfs_ozn:-${PARMgdas_ozn}}
 export FIXgfs_ozn=${FIXgfs_ozn:-${FIXgdas_ozn}}
 
 export JOBGLOBAL=${JOBGLOBAL:-${HOMEgdas_ozn}/jobs}
-export HOMEoznmon=${HOMEoznmon:-${NWTEST}/oznmon_shared.${shared_oznmon_ver}}
+export HOMEoznmon=${HOMEoznmon:-${NWTEST}/oznmon_shared}
 
-#export SCRgdas_ozn=${HOMEgdas_ozn}/scripts
-#JOBgdas_ozn=${HOMEgdas_ozn}/jobs
-
-export HOMEoznmon=${NWTEST}/oznmon_shared.${oznmon_shared_ver}
+export HOMEoznmon=${NWTEST}/oznmon_shared
 export COM_IN=${COM_IN:-$DATAROOT}
 export OZN_TANKDIR=${OZN_TANKDIR:-${COMROOT}/${OZNMON_SUFFIX}}
 
@@ -110,7 +101,7 @@ export OZN_TANKDIR=${OZN_TANKDIR:-${COMROOT}/${OZNMON_SUFFIX}}
 #------------------------------------------------------------
 # Execute job
 #
-${JOBGLOBAL}/JGDAS_VERFOZN
+${JOBGLOBAL}/JGDAS_ATMOS_VERFOZN
 
 exit
 
