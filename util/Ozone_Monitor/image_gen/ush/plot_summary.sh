@@ -35,7 +35,11 @@ cdate=$PDATE
 while [[ $ctr -le 120 ]]; do
    c_pdy=`echo $cdate|cut -c1-8`
    c_cyc=`echo $cdate|cut -c9-10`
-   tankdir_cdate=${TANKDIR}/${RUN}.${c_pdy}/${c_cyc}/oznmon/time
+
+   tankdir_cdate=${TANKDIR}/${RUN}.${c_pdy}/${c_cyc}/atmos/oznmon/time
+   if [[ ! -d ${tankdir_cdate} ]]; then
+      tankdir_cdate=${TANKDIR}/${RUN}.${c_pdy}/${c_cyc}/oznmon/time
+   fi
 
    if [[ ! -e ./${SATYPE}.${ptype}.ctl ]]; then
       $NCP ${tankdir_cdate}/${SATYPE}.${ptype}.ctl ./

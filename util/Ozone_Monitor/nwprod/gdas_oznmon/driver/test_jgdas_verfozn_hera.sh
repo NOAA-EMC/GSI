@@ -11,8 +11,8 @@ set -x
 
 export OZNMON_NEW_HDR=${OZN_NEW_HDR:-0}
 
-#export PDATE=${PDATE:-2020040306}	# netcdf
-export PDATE=${PDATE:-2020013000}	# bin
+export PDATE=${PDATE:-2020032106}	# netcdf
+#export PDATE=${PDATE:-2020013000}	# bin
 export NET=${NET:-gfs}
 export RUN=${RUN:-gdas}
 
@@ -26,37 +26,23 @@ export DATAROOT=${DATAROOT:-/scratch1/NCEPDEV/da/Edward.Safford/noscrub/test_dat
 export COMROOT=${COMROOT:-/scratch2/NCEPDEV/stmp3/${LOGNAME}/com}
 export OZN_WORK_DIR=${OZN_WORK_DIR:-/scratch2/NCEPDEV/stmp3/${LOGNAME}/oznmon.${pid}}
 
-#------------------------------------------------------------
-# Specify versions
-#
-export gdas_oznmon_ver=v2.0.0
-export shared_oznmon_ver=v2.0.0
-
 
 #------------------------------------------------------------
-# Add nwpara tools to path
+# Set package definitions. 
 #
-#NWPROD=${NWPROD:-/scratch4/NCEPDEV/global/save/glopara/nwpara/util}
-#NWPRODush=${NWPRODush:=${NWPROD}/ush}
-#NWPRODexec=${NWPRODexec:=${NWPROD}/exec}
-#export PATH=${PATH}:${NWPRODush}:${NWPRODexec}
-
-#------------------------------------------------------------
-# Set user specific variables
-#
-
 export OZNMON_SUFFIX=${OZNMON_SUFFIX:-testozn}
-export NWTEST=${NWTEST:-/scratch1/NCEPDEV/da/${LOGNAME}/noscrub/ProdGSI/util/Ozone_Monitor/nwprod}
-export HOMEgdas_ozn=${HOMEgdas_ozn:-${NWTEST}/gdas_oznmon.${gdas_oznmon_ver}}
+export NWTEST=${NWTEST:-/scratch1/NCEPDEV/da/Edward.Safford/noscrub/update/util/Ozone_Monitor/nwprod}
+export HOMEgdas_ozn=${HOMEgdas_ozn:-${NWTEST}/gdas_oznmon}
 export PARMgdas_ozn=${PARMgdas_ozn:-${HOMEgdas_ozn}/parm}
 export FIXgdas_ozn=${FIXgdas_ozn:-${HOMEgdas_ozn}/fix}
 
-export HOMEgfs_ozn=${HOMEgfs_ozn:-${HOMEgdas_ozn}}
+export HOMEgfs=${HOMEgfs:-${HOMEgdas_ozn}}
+export HOMEgfs_ozn=${HOMEgfs_ozn:-${HOMEgfs}}
 export PARMgfs_ozn=${PARMgfs_ozn:-${PARMgdas_ozn}}
 export FIXgfs_ozn=${FIXgfs_ozn:-${FIXgdas_ozn}}
 
 export JOBGLOBAL=${JOBGLOBAL:-${HOMEgdas_ozn}/jobs}
-export HOMEoznmon=${HOMEoznmon:-${NWTEST}/oznmon_shared.${shared_oznmon_ver}}
+export HOMEoznmon=${HOMEoznmon:-${NWTEST}/oznmon_shared}
 export COM_IN=${COM_IN:-${DATAROOT}}
 export OZN_TANKDIR=${OZN_TANKDIR:-${COMROOT}/${OZNMON_SUFFIX}}
 
@@ -66,23 +52,17 @@ export NDATE=${NDATE:-/home/Edward.Safford/bin/ndate}
 
 
 #------------------------------------------------------------
-#  theia specific hacks for no prod_utils module & no setpdy.sh script
+#  hera specific hack for no prod_utils module 
 #
 export MY_MACHINE=hera
 prevday=`$NDATE -24 $PDATE`
 export PDYm1=`echo $prevday | cut -c1-8`
-#ln -s ${NWPRODush}/startmsg.sh ${COMROOT}/startmsg
-#ln -s ${NWPRODush}/postmsg.sh ${COMROOT}/postmsg
-#ln -s ${NWPRODush}/prep_step.sh ${COMROOT}/prep_step
-#ln -s ${NWPRODush}/err_chk.sh ${COMROOT}/err_chk
 export PATH=$PATH:${COMROOT}
-#export utilscript=${utilscript:-${NWPRODush}}		# err_chk calls postmsg.sh
-							#   directly so need to override
-							#   utilscript location for theia
+
 #------------------------------------------------------------
 # Execute job
 #
-$JOBGLOBAL/JGDAS_VERFOZN
+$JOBGLOBAL/JGDAS_ATMOS_VERFOZN
 
 exit
 
