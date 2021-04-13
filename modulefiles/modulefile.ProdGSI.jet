@@ -1,4 +1,4 @@
- #%Module######################################################################
+#%Module######################################################################
 ## NOAA-EMC/GSI
 ##_____________________________________________________
 #proc ModulesHelp { } {
@@ -10,7 +10,7 @@
 #
 #
 
-set CRTM_FIX /lfs4/HFIP/hfv3gfs/gwv/l0530/lib/crtm/v2.3.0/fix
+setenv CRTM_FIX /lfs4/HFIP/hfv3gfs/gwv/l0530/lib/crtm/v2.3.0/fix
 
 # Load cmake
 module load cmake/3.16.1
