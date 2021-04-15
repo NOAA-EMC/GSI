@@ -66,7 +66,7 @@ if [ $target = wcoss_d ]; then
 elif [ $target = wcoss -o $target = gaea ]; then
     module purge
     module load $dir_modules/modulefile.ProdGSI.$target
-elif [ $target = hera -o $target = orion ]; then
+elif [ $target = hera -o $target = orion  -o $target = jet ]; then
     module purge
     module use $dir_modules
     module load modulefile.ProdGSI.$target
