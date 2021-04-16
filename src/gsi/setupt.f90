@@ -1007,6 +1007,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         endif
         my_head%luse    = luse(i)
         my_head%tv_ob   = iqtflg
+        my_head%idx = 0
 
         if (aircraft_t_bc_pof .or. aircraft_t_bc) then
            effective=upd_pred_t*pof_idx

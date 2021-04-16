@@ -361,47 +361,11 @@ program horiz
   write(6,*)'write output to lungrd=',lungrd,', file=',trim(grad_file)
 
 
-! Deallocate arrays
   deallocate(var,iuse,error)
-  goto 950
-
-
-!-------------------------------------------------------------------
-!   Jump to here if eof or error reading diagnostic file.
-900 continue
-  write(6,*)'***PROBLEM reading diagnostic file.  diag_oz=',diag_oz
-
-  if (m_levs<=0) then
-     write(6,*)'***ERROR*** invalid nlevs=',n_levs,'  STOP program'
-     call errexit(93)
-  endif
-     
-  call update_ctl_horiz(n_levs,iyy,imm,idd,ihh,idhh,incr,&
-       ctl_file,lunctl)
-
-  allocate(var(n_levs,ntype))
-  do j=1,ntype
-     do i=1,n_levs
-        var(i,j)=rmiss
-     end do
-  end do
-
-  open(lungrd,file=grad_file,form='unformatted')
-
-  stid='missing'
-  rlat=0.0
-  rlon=0.0
-
-  write(lungrd) stid,rlat,rlon,rtim,nlev,nflag
-  write(lungrd) ((var(i,j),i=1,n_levs),j=1,ntype)
-  irite=1
-
-  deallocate(var)
 
 
 !-----------------------------------
 !   Close unit to diagnostic file
-950 continue
   close(lndiag)
 
 !----------------------------------------------------------------------
