@@ -4,7 +4,7 @@
 #############################################################
 set -xa
 echo `date` $0 `date -u` begin
-export PS4='$SECONDS + '
+
 
 ###############################
 # Specify NET, RUN, and COMPONENT name
@@ -22,8 +22,8 @@ export DATA=${DATA:-${DATAROOT}/${jobid:?}}
 
 export OZNMON_SUFFIX=${OZNMON_SUFFIX:-${NET}}
 
-mkdir -p $DATA
-cd $DATA
+mkdir -p ${DATA}
+cd ${DATA}
 
 
 ####################################
@@ -34,26 +34,11 @@ export pgmerr=errfile
 export cycle=t${cyc}z
 
 
-##############################################
-# Run setpdy and initialize PDY variables
-##############################################
-if [[ $MY_MACHINE != "HERA" && $MY_MACHINE != "hera" ]]; then
-   setpdy.sh
-   . ./PDY
-fi
-
-#----------------------------------
-# Set up the UTILITIES
-#
-export utilscript=${utilscript:-${UTILROOT}/ush}
-export utilexec=${utilexec:-${UTILROOT}/exec}
-
-
 #---------------------------------------------
 # Specify Execution Areas
 #
-export HOMEgfs_ozn=${HOMEgfs:-${NWROOT}/gfs.$gfs_ver}
-export HOMEgdas_ozn=${HOMEgfs_ozn:-${NWROOT}/gfs.$gfs_ver}
+export HOMEgfs_ozn=${HOMEgfs:-${NWROOT}/gfs.${gfs_ver}}
+export HOMEgdas_ozn=${HOMEgfs_ozn:-${NWROOT}/gfs.${gfs_ver}}
 export PARMgdas_ozn=${PARMgfs_ozn:-$HOMEgfs_ozn/parm/mon}
 export SCRgdas_ozn=${SCRgfs_ozn:-$HOMEgfs_ozn/scripts}
 export FIXgdas_ozn=${FIXgfs_ozn:-$HOMEgfs_ozn/fix/gdas}
@@ -81,24 +66,22 @@ export P_PDY=`echo ${cdate} | cut -c1-8`
 export p_cyc=`echo ${cdate} | cut -c9-10`
 
 #---------------------------------------------
-# COMOUT - WHERE GSI OUTPUT RESIDES
 # OZN_TANKDIR - WHERE OUTPUT DATA WILL RESIDE
 #
-echo "pre-assignment, OZN_TANKDIR = $OZN_TANKDIR"
-export OZN_TANKDIR=${COMROOT}/$NET/$envir
-export TANKverf_ozn=${TANKverf_ozn:-${OZN_TANKDIR}/${RUN}.${PDY}/${cyc}/$COMPONENT/oznmon}
-export TANKverf_oznM1=${TANKverf_oznM1:-${OZN_TANKDIR}/${RUN}.${P_PDY}/${p_cyc}/$COMPONENT/oznmon}
-export COM_IN=${COM_IN:-${COMROOT}/${NET}/${envir}}
-export COMIN=${COMIN:-${COM_IN}/${RUN}.${PDY}/${cyc}/$COMPONENT}
+export OZN_TANKDIR=${OZN_TANKDIR:-${COMROOTp3}/$NET/$envir}
+export TANKverf_ozn=${TANKverf_ozn:-${OZN_TANKDIR}/${RUN}.${PDY}/${cyc}/${COMPONENT}/oznmon}
+export TANKverf_oznM1=${TANKverf_oznM1:-${OZN_TANKDIR}/${RUN}.${P_PDY}/${p_cyc}/${COMPONENT}/oznmon}
+export COM_IN=${COM_IN:-${COMROOTp3}/${NET}/${envir}}
+export COMIN=${COMIN:-${COM_IN}/${RUN}.${PDY}/${cyc}/${COMPONENT}}
 
 if [[ ! -d ${TANKverf_ozn} ]]; then
-   mkdir -p -m 775 $TANKverf_ozn
+   mkdir -p -m 775 ${TANKverf_ozn}
 fi
  
 #---------------------------------------
 #  set up validation file
 #
-if [[ $VALIDATE_DATA -eq 1 ]]; then
+if [[ ${VALIDATE_DATA} -eq 1 ]]; then
    export ozn_val_file=${ozn_val_file:-${FIXgdas_ozn}/gdas_oznmon_base.tar}
 fi
 
@@ -106,7 +89,6 @@ fi
 # Set necessary environment variables
 #
 export OZN_AREA=${OZN_AREA:-glb}
-
 export oznstat=${oznstat:-$COMIN/gdas.t${cyc}z.oznstat}
 
 

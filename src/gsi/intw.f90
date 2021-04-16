@@ -114,7 +114,7 @@ subroutine intw_(whead,rval,sval)
   integer(i_kind) ib,ik
 ! real(r_kind) penalty
   real(r_kind) valu,valv,w1,w2,w3,w4,w5,w6,w7,w8
-  real(r_kind) gu,gv,wu,wv,ww
+  real(r_kind) gu,gv,wu,wv,ww,con
   real(r_kind) cg_w,p0,gradu,gradv,wnotgross,wgross,term,w_pg
   real(r_kind),pointer,dimension(:) :: su,sv
   real(r_kind),pointer,dimension(:) :: ru,rv
@@ -198,27 +198,29 @@ subroutine intw_(whead,rval,sval)
               gradu = valu*wptr%raterr2*wptr%err2
               gradv = valv*wptr%raterr2*wptr%err2
             else if (njqc .and. wptr%jb  > tiny_r_kind .and. wptr%jb <10.0_r_kind) then
-              valu=sqrt(two*wptr%jb)*tanh(sqrt(wptr%err2)*valu/sqrt(two*wptr%jb))
-              valv=sqrt(two*wptr%jb)*tanh(sqrt(wptr%err2)*valv/sqrt(two*wptr%jb))
-              gradu = valu*wptr%raterr2*sqrt(wptr%err2)
-              gradv = valv*wptr%raterr2*sqrt(wptr%err2)
+              con=sqrt(wptr%err2)
+              valu=sqrt(two*wptr%jb)*tanh(con*valu/sqrt(two*wptr%jb))
+              valv=sqrt(two*wptr%jb)*tanh(con*valv/sqrt(two*wptr%jb))
+              gradu = valu*wptr%raterr2*con
+              gradv = valv*wptr%raterr2*con
            else if (nvqc .and. wptr%ib >0) then
               ib=wptr%ib
               ik=wptr%ik
-              ww=valu*sqrt(wptr%err2)
+              con=sqrt(wptr%err2)
+              ww=valu*con
               if(hub_norm) then
                  call vqch(ib,ik,ww,gu,wu)
               else
                  call vqcs(ib,ik,ww,gu,wu)
               endif
-              gradu =wu*ww*sqrt(wptr%err2)*wptr%raterr2
-              ww=valv*sqrt(wptr%err2)
+              gradu =wu*ww*con*wptr%raterr2
+              ww=valv*con
               if(hub_norm) then
                  call vqch(ib,ik,ww,gv,wv)
               else 
                  call vqcs(ib,ik,ww,gv,wv)
               endif
-              gradv =wv*ww*sqrt(wptr%err2)*wptr%raterr2
+              gradv =wv*ww*con*wptr%raterr2
            else
               gradu = valu*wptr%raterr2*wptr%err2
               gradv = valv*wptr%raterr2*wptr%err2

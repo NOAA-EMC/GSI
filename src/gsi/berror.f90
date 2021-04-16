@@ -249,7 +249,7 @@ contains
 !$$$
   use balmod, only: llmin,llmax
   use gridmod, only: nlat,nlon,lat2,lon2,nsig,nnnn1o
-  use jfunc, only: nrclen,nclen,diag_precon
+  use jfunc, only: nrclen,nclen
   use constants, only: zero,one
   implicit none
   
@@ -293,7 +293,7 @@ contains
      dssvs = zero
   endif
   allocate(varprd(nrclen))
-  if(diag_precon)allocate(vprecond(nclen))
+  allocate(vprecond(nclen))
   allocate(inaxs(nf,nlon/8),inxrs(nlon/8,mr:nr) )
 
   allocate(slw(ny*nx,nnnn1o),&
@@ -330,7 +330,6 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use jfunc, only: diag_precon
     implicit none
     if(allocated(table)) deallocate(table)
     deallocate(wtaxs)
@@ -342,7 +341,7 @@ contains
     if(allocated(alv))   deallocate(alv)
     if(allocated(dssv))  deallocate(dssv)
     if(allocated(dssvs)) deallocate(dssvs)
-    if(diag_precon)deallocate(vprecond)
+    deallocate(vprecond)
     deallocate(slw,slw1,slw2)
     deallocate(ii,jj,ii1,jj1,ii2,jj2)
 
@@ -566,7 +565,7 @@ contains
     use kinds, only: r_kind,i_kind
     use radinfo, only: ostats,rstats,varA,jpch_rad,npred,newpc4pred
     use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,ntail,npredt,ostats_t,rstats_t,varA_t
-    use jfunc, only: nclen,nrclen,diag_precon,step_start,ntclen
+    use jfunc, only: nclen,nrclen,step_start,ntclen,diag_precon
     use constants, only:  zero,one
     implicit none
 
@@ -580,10 +579,10 @@ contains
 !   Only diagonal elements are considered
 
 !   set a coeff. factor for variances of control variables
-    if(diag_precon)then
-      lfact=step_start
-      vprecond=lfact
+    lfact=step_start
+    vprecond=lfact
 
+    if(diag_precon)then
       if(newpc4pred)then
 !       for radiance bias predictor coeff.
         nclen1=nclen-nrclen
@@ -591,6 +590,7 @@ contains
         do i=1,jpch_rad
            do j=1,npred
               ii=ii+1
+!             if (ostats(i)>zero) vprecond(nclen1+ii)=vprecond(nclen1+ii)/(one+rstats(j,i)*varprd(ii))
               if (ostats(i)>zero) vprecond(nclen1+ii)=one/(one+rstats(j,i)*varprd(ii))
               if (ostats(i)>20.0_r_kind) then
                  if (rstats(j,i)>zero) then
@@ -615,6 +615,7 @@ contains
                 if (aircraft_t_bc_pof) obs_count = ostats_t(j,i)
                 if (aircraft_t_bc) obs_count = ostats_t(1,i)
 
+!               if (obs_count>zero) vprecond(nclen1+ii)=vprecond(nclen1+ii)/(one+rstats_t(j,i)*varprd(jj))
                 if (obs_count>zero) vprecond(nclen1+ii)=one/(one+rstats_t(j,i)*varprd(jj))
                 if (obs_count>3.0_r_kind) then
                    varA_t(j,i)=one/(one/varprd(jj)+rstats_t(j,i))
@@ -917,7 +918,7 @@ contains
     use constants, only: zero
     use balmod, only: llmin,llmax
     use gridmod, only: nlat,nlon,nsig,nnnn1o,lat2,lon2
-    use jfunc, only: nrclen,nclen,diag_precon
+    use jfunc, only: nrclen,nclen
     implicit none
     
     nx=nlon
@@ -940,7 +941,7 @@ contains
     endif
     
     allocate(varprd(max(1,nrclen) ) )     
-    if(diag_precon)allocate(vprecond(nclen))
+    allocate(vprecond(nclen))
 
     allocate(slw(ny*nx,nnnn1o) )
     allocate(ii(ny,nx,3,nnnn1o),jj(ny,nx,3,nnnn1o) )
@@ -973,7 +974,6 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use jfunc, only:diag_precon
     implicit none
 
     deallocate(be,qvar3d)
@@ -984,7 +984,7 @@ contains
     deallocate(ii,jj)
     deallocate(slw)
     deallocate(varprd)
-    if(diag_precon)deallocate(vprecond)
+    deallocate(vprecond)
 
     return
   end subroutine destroy_berror_vars_reg
