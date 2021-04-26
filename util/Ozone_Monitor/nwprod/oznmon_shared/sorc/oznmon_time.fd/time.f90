@@ -252,7 +252,6 @@ program main
                   ! check in this comment just in case it's needed some day.
                   !
 
-                  write(6,*) 'data_nlev(j,iobs)%varinv = ', j, iobs, data_nlev(j,iobs)%varinv
                   pen         =  data_nlev(j,iobs)%varinv*(data_nlev(j,iobs)%ozone_inv)**2
                   cor_omg(1)  =  data_nlev(j,iobs)%ozone_inv
                   cor_omg(2)  =  (cor_omg(1))**2
