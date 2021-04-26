@@ -390,7 +390,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Read in data from bufr into arrays first      
 ! Open unit to satellite bufr file
   iobs=1
-  call closbf(lnbufr)
   open(lnbufr,file=trim(infile),form='unformatted',status='old',err=500)  
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
@@ -516,6 +515,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      end do read_loop
   end do read_subset
   call closbf(lnbufr)
+  close(lnbufr)
 
   num_obs = iobs-1
 
