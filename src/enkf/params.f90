@@ -99,6 +99,9 @@ integer(i_kind),public :: iseed_perturbed_obs = 0
 real(r_single),public ::  covinflatemax,covinflatemin,smoothparm,biasvar
 real(r_single),public ::  corrlengthnh,corrlengthtr,corrlengthsh
 real(r_single),public ::  obtimelnh,obtimeltr,obtimelsh
+! factor for minimum allowed horiz cov length scale
+! to apply for LETKF when corrlengthnh,tr,sh < 0 and nobsl_max > 0
+real(r_single),public ::  mincorrlength_fact = 0.1
 real(r_single),public ::  zhuberleft,zhuberright
 real(r_single),public ::  lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh,&
                lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh,&
@@ -220,7 +223,7 @@ logical,public :: write_ensmean = .false.
 
 namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    covinflatemax,covinflatemin,deterministic,sortinc,&
-                   corrlengthnh,corrlengthtr,corrlengthsh,&
+                   mincorrlength_fact,corrlengthnh,corrlengthtr,corrlengthsh,&
                    varqc,huber,nlons,nlats,smoothparm,use_qsatensmean,&
                    readin_localization, zhuberleft,zhuberright,&
                    obtimelnh,obtimeltr,obtimelsh,reducedgrid,&
