@@ -229,7 +229,7 @@ if [ -s $cnvstat  -a -s $pgrbf00 -a -s $pgrbf06 ]; then
       fi
 
       if [[ $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "wcoss_c" ]]; then
-        $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 900 \
+        $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 1500 \
 		-R affinity[core] -W 0:50 -J ${jobname} \
 		-cwd $PWD ${HOMEgdas_conmon}/jobs/JGDAS_ATMOS_CONMON
 
