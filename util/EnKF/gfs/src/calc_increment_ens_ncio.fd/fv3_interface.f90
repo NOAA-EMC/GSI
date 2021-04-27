@@ -242,6 +242,23 @@ contains
           an_grid%var3d = an_grid%var3d - fg_grid%var3d
        endif zero_or_read
 
+       ! taper humidity, microphysics increments in stratosphere
+       if (taper_strat .and. (trim(input_vars(ivar)) == 'spfh' .or. &
+                              trim(input_vars(ivar)) == 'icmr' .or. &
+                              trim(input_vars(ivar)) == 'clwmr')) then
+          print *,'k,ak,bk,min/max increment for ',trim(input_vars(ivar))
+          do k=1,an_grid%nz
+             if (k < an_grid%nz/2 .and. (an_grid%ak(k) <= ak_bot .and. an_grid%ak(k) >= ak_top)) then
+                an_grid%var3d(:,:,k) = an_grid%var3d(:,:,k)*(an_grid%ak(k) - ak_top)/(ak_bot - ak_top)
+             else if (an_grid%bk(k) .eq. 0. .and. an_grid%ak(k) < ak_top) then
+                an_grid%var3d(:,:,k) = 0.
+             endif
+             if (taper_strat) then
+                print *,k,an_grid%ak(k),an_grid%bk(k),minval(an_grid%var3d(:,:,k)),maxval(an_grid%var3d(:,:,k))
+             endif
+          enddo
+        endif
+
        call fv3_netcdf_write_var3d(ncdat,output_vars(ivar),an_grid%var3d)
     enddo var_loop
 
