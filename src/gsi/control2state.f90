@@ -237,7 +237,7 @@ do jj=1,nsubwin
       call general_grid2sub(s2g_cv,hwork,wbundle%values)
    end if
 
-!$omp parallel sections private(istatus,ii,ic,id,sv_u,sv_v,sv_prse,sv_q,sv_tsen,uland,vland,uwter,vwter) 
+!$omp parallel sections private(istatus,ii,ic,id,uland,vland,uwter,vwter) 
 
 !$omp section
 
@@ -289,6 +289,8 @@ do jj=1,nsubwin
    call gsi_bundlegetpointer (wbundle,'t'  ,cv_t,  istatus)
    call gsi_bundlegetpointer (wbundle,'q'  ,cv_rh ,istatus)
 
+!  Copy other variables
+   call gsi_bundlegetvar ( wbundle, 't'  , sv_tv,  istatus )  
 !  Get 3d pressure
    if(do_getprs_tl) call getprs_tl(cv_ps,cv_t,sv_prse)
 
@@ -298,8 +300,6 @@ do jj=1,nsubwin
 !  Calculate sensible temperature
    if(do_tv_to_tsen) call tv_to_tsen(cv_t,sv_q,sv_tsen) 
 
-!  Copy other variables
-   call gsi_bundlegetvar ( wbundle, 't'  , sv_tv,  istatus )  
 
    if (do_cw_to_hydro .and. .not.do_cw_to_hydro_hwrf) then
 !     Case when cloud-vars do not map one-to-one (cv-to-sv)
@@ -323,10 +323,10 @@ do jj=1,nsubwin
          endif
       enddo
    end if
-
-!$omp section
    call gsi_bundlegetpointer (sval(jj),'ps'  ,sv_ps,  istatus)
    call gsi_bundlegetvar ( wbundle, 'ps' , sv_ps,  istatus )
+
+!$omp section
    call gsi_bundlegetpointer (sval(jj),'sst' ,sv_sst, istatus)
    call gsi_bundlegetvar ( wbundle, 'sst', sv_sst, istatus )
    call gsi_bundlegetpointer (sval(jj),'oz'  ,sv_oz , istatus_oz)  

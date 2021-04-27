@@ -78,20 +78,11 @@ hyperlink_base="http://www.emc.ncep.noaa.gov/gmb/gdas/es_ozn/index.html?"
 
 if [[ "$standalone" -eq 1 ]]; then
    #--------------------------------------------------
-   # source verison, config, and user_settings files
+   # source config and user_settings files
    #--------------------------------------------------
    this_dir=`dirname $0`
    top_parm=${this_dir}/../../parm
 
-
-   oznmon_version_file=${oznmon_version:-${top_parm}/OznMon.ver}
-   if [[ -s ${oznmon_version_file} ]]; then
-      . ${oznmon_version_file}
-      echo "able to source ${oznmon_version_file}"
-   else
-      echo "Unable to source ${oznmon_version_file} file"
-      exit 2
-   fi
 
    oznmon_user_settings=${oznmon_user_settings:-${top_parm}/OznMon_user_settings}
    if [[ -s ${oznmon_user_settings} ]]; then
@@ -233,7 +224,6 @@ if [[ -s $bad_cnt || -s $bad_diag || -s $bad_pen ]]; then
          link="${link}&stat=${stat}"
          link="${link}&src=${OZNMON_SUFFIX}/${RUN}"
 
-#         echo "link = $link"
 
          if [[ ${#test} -gt 0 ]]; then   
 
@@ -361,4 +351,3 @@ fi
 
 echo end mk_err_rpt.sh
 
-#exit( $err )

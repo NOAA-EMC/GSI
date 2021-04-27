@@ -4,6 +4,13 @@
 #
 #  mk_horiz_plots.sh
 #
+#  NOTE:  Horiz plots were turned off by default somewhere around 2014.
+#  This script has been retained in case horiz plots are someday deemed 
+#  worth the space and time, but note that the extraction executable which
+#  this script runs has not been updated to handle NetCDF formatted radstat 
+#  files.  I suspect that, if horiz plots are to be made in the future, 
+#  Python will be the means to that end.
+#      -- E. Safford, 2/8/2021
 #---------------------------------------------------------------------------
 echo start mk_horiz_plots.sh
 
@@ -119,7 +126,7 @@ fi
 
 for sat in ${SATYPE}; do
 
-   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "hera" || $MY_MACHINE = "theia" ]]; then
+   if [[ $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "hera" || $MY_MACHINE = "wcoss_c" ]]; then
       sed -e 's/cray_32bit_ieee/ /' ${sat}.ctl > tmp_${type}.ctl
       mv -f tmp_${type}.ctl ${sat}.ctl
    fi
@@ -153,7 +160,7 @@ done
 #  submit the plot jobs
 #
 
-if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "cray" ]]; then
+if [[ $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "wcoss_c" ]]; then
    cmdfile="./cmdfile_horiz_${RADMON_SUFFIX}_${PID}"
    logfile=${LOGdir}/horiz_${PID}.log
    rm -f $cmdfile
@@ -167,7 +174,7 @@ if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "cray" ]]; then
    ntasks=`cat $cmdfile|wc -l`
    jobname=plot_${RADMON_SUFFIX}_hrz_${PID}
 
-   if [[ $MY_MACHINE = "wcoss" ]]; then
+   if [[ $MY_MACHINE = "wcoss_d" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -M 500 -o ${logfile} \
            -W 0:45 -J ${jobname} -cwd ${PWD} $cmdfile
    else
@@ -175,7 +182,7 @@ if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "cray" ]]; then
            -J ${jobname} -cwd ${PWD} $cmdfile
    fi
 
-else							# zeus/linux
+else							# hera
    for sat in ${SATLIST}; do
       jobname=horiz_${sat}
       cmdfile="./cmdfile_horiz_${RADMON_SUFFIX}_${sat}"
@@ -210,10 +217,10 @@ for sat in ${bigSATLIST}; do
    ntasks=`cat $cmdfile|wc -l`
    jobname=plot_${RADMON_SUFFIX}_hrz_${PID}
    
-   if [[ $MY_MACHINE = "wcoss" ]]; then
+   if [[ $MY_MACHINE = "wcoss_d" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -M 500 -o ${logfile} \
            -W 2:45 -J ${jobname} -cwd ${PWD} $cmdfile
-   elif [[ $MY_MACHINE = "cray" ]]; then
+   elif [[ $MY_MACHINE = "wcoss_c" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -o ${logfile} -W 2:45 \
            -J ${jobname} -cwd ${PWD} $cmdfile
    else
@@ -221,7 +228,6 @@ for sat in ${bigSATLIST}; do
            -V -j oe -o $LOGdir/horiz_${PID}.log $cmdfile
    fi
 
-#  --------
    PID="${sat}_2"
    cmdfile="./cmdfile_horiz_${RADMON_SUFFIX}_${PID}"
    export PTYPE="obsges obsnbc"
@@ -234,10 +240,10 @@ for sat in ${bigSATLIST}; do
    ntasks=`cat $cmdfile|wc -l`
    jobname=plot_${RADMON_SUFFIX}_hrz_${PID}
    
-   if [[ $MY_MACHINE = "wcoss" ]]; then
+   if [[ $MY_MACHINE = "wcoss_d" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -M 500 -o ${logfile} \
            -W 2:45 -J ${jobname} -cwd ${PWD} $cmdfile
-   elif [[ $MY_MACHINE = "cray" ]]; then
+   elif [[ $MY_MACHINE = "wcoss_c" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -o ${logfile} -W 2:45 \
            -J ${jobname} -cwd ${PWD} $cmdfile
    else
