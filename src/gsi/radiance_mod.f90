@@ -337,7 +337,7 @@ contains
     use radinfo, only: nusis,jpch_rad,icloud4crtm,iaerosol4crtm
     use obsmod, only: ndat,dtype,dsis
     use gsi_io, only: verbose
-    use chemmod, only: laeroana_gocart
+    use chemmod, only: laeroana_gocart, laeroana_fv3cmaq
     implicit none
 
     logical :: first,diffistr,found
@@ -368,10 +368,11 @@ contains
        cloud_names_fwd=' '
        cloud_names_jac=' '
     end if
-
+    write(6,*)"radiance_mod.f90: iaerosol_fwd= ",iaerosol_fwd,all(iaerosol4crtm<0)
     if (iaerosol_fwd .and. all(iaerosol4crtm<0)) then
        iaerosol=.false.
-       if ( .not. laeroana_gocart ) then
+! Hongli
+       if ( .not. laeroana_gocart .and. .not. laeroana_fv3cmaq) then
           iaerosol_fwd=.false.
           n_aerosols_fwd=0
           n_aerosols_jac=0   

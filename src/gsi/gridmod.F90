@@ -145,7 +145,7 @@ module gridmod
   public :: nlat_regional,nlon_regional,update_regsfc,half_grid,gencode
   public :: diagnostic_reg,nmmb_reference_grid,filled_grid
   public :: grid_ratio_nmmb,isd_g,isc_g,dx_gfs,lpl_gfs,nsig5,nmmb_verttype
-  public :: grid_ratio_fv3_regional,fv3_regional
+  public :: grid_ratio_fv3_regional,fv3_regional,fv3_cmaq_regional !Hongli
   public :: nsig3,nsig4,grid_ratio_wrfmass
   public :: use_gfs_ozone,check_gfs_ozone_date,regional_ozone,nvege_type
   public :: jcap,jcap_b,hires_b,sp_a,grd_a
@@ -176,6 +176,8 @@ module gridmod
 
   logical wrf_nmm_regional  !
   logical fv3_regional      ! .t. to run with fv3 regional model
+!Hongli Wang 20201001
+  logical fv3_cmaq_regional ! .t. to run with fv3 regional model
   logical nems_nmmb_regional! .t. to run with NEMS NMMB model
   logical wrf_mass_regional !
   logical wrf_mass_hybridcord
@@ -448,6 +450,8 @@ contains
     wrf_mass_hybridcord = .false.
     cmaq_regional=.false.
     fv3_regional=.false.
+!Hongli
+    fv3_cmaq_regional=.false.
     nems_nmmb_regional = .false.
     twodvar_regional = .false. 
     use_gfs_ozone = .false.
@@ -1089,6 +1093,7 @@ contains
        dt_ll=zero
     end if
 
+!Hongli Wang
 
     if(fv3_regional) then     ! begin fv3 regional section
        if(diagnostic_reg.and.mype==0) write(6,*)' in init_reg_glob_ll for FV3 '

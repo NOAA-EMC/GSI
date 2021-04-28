@@ -15,23 +15,32 @@ module chemmod
 ! 2011-09-09 pagowski - add codes for PM2.5 for prepbufr and bufr dump files
 ! 2013-11-01 pagowski - add code for PM2.5 assimilation with wrf-chem
 ! 2019-03-21 Wei/Martin - logical if to read in aerosols from ext. file (default F) 
-
+! 2020-10-02 Hongli Wang - fv3_cmaq_regional is for fv3lam-cmaq, which is
+!                          one more option of model choice (different to cmaq_regional)
 
   use kinds, only : i_kind, r_kind, r_single
-  use gridmod, only: cmaq_regional,wrf_mass_regional,lat2,lon2,nsig
+!Hongli wang
+  use gridmod, only: fv3_cmaq_regional, cmaq_regional,wrf_mass_regional,lat2,lon2,nsig
   use constants, only : tiny_single,max_varname_length
 
   implicit none
 
   private
 
-  public :: obs2model_anowbufr_pm,cmaq_pm,wrf_chem_pm,&
+  public :: obs2model_anowbufr_pm,cmaq_pm,fv3_cmaq_pm,wrf_chem_pm,&
         cmaq_o3,wrf_chem_o3
   public :: iconc,ierror,ilat,ilon,itime,iid,ielev,isite,iikx,ilate,ilone
 
   public :: elev_tolerance,elev_missing,pm2_5_teom_max,pm10_teom_max
+
+!Hongli wrfcmaq
   public :: ngrid1d_cmaq,ngrid2d_cmaq,nmet2d_cmaq,nmet3d_cmaq,&
-        naero_cmaq,aeronames_cmaq,naero_gocart_wrf,aeronames_gocart_wrf
+        naero_cmaq,aeronames_cmaq
+
+!Hongli fv3cmaq
+  public :: naero_cmaq_fv3,aeronames_cmaq_fv3,imodes_cmaq_fv3,ssmoke_cmaq_fv3,sdust_cmaq_fv3
+
+  public :: naero_gocart_wrf,aeronames_gocart_wrf
 
   public :: pm2_5_guess,init_pm2_5_guess,&
        aerotot_guess,init_aerotot_guess
@@ -45,7 +54,11 @@ module chemmod
   public :: code_pm10_ncbufr,code_pm10_anowbufr
 
   public :: l_aoderr_table
-  public :: laeroana_gocart
+!Hongli Wang
+  public :: laeroana_gocart,laeroana_fv3cmaq,crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
+            laod_crtm_cmaq,iaod_crtm_cmaq,iaod_recs_cmaq,raod_radius_mean_scale,raod_radius_std_scale
+  public :: visindx_cmaq_fv3,visindx_large_cmaq_fv3,humfac,humfac_large,humfac_ss,aemolwt_cmaq_fv3
+  public :: visindx_recs_fv3,humfac_recs,humfac_recs_ss
   public :: ppmv_conv
   public :: aod_qa_limit
   public :: luse_deepblue
@@ -59,9 +72,13 @@ module chemmod
   public :: s_2_5,d_2_5,d_10,nh4_mfac,oc_mfac
 
   logical :: l_aoderr_table
-  logical :: laeroana_gocart
+  logical :: laeroana_gocart,laeroana_fv3cmaq,laod_crtm_cmaq
   logical :: luse_deepblue
+  character(len=max_varname_length) :: crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file
+  integer(i_kind) :: iaod_crtm_cmaq
   integer(i_kind) :: aod_qa_limit  ! qa >=  aod_qa_limit will be retained
+  integer(i_kind) :: iaod_recs_cmaq
+  real(r_kind)    :: raod_radius_mean_scale,raod_radius_std_scale
   real(r_kind)    :: ppmv_conv = 96.06_r_kind/28.964_r_kind*1.0e+3_r_kind
   logical :: wrf_pm2_5
 
@@ -109,7 +126,8 @@ module chemmod
 !conversion ratios between obs and model units
   real(r_kind),parameter :: kg2ug=1.e+9_r_kind,ppbv2ppmv=0.001_r_kind
   real(r_kind),parameter :: cmaq_pm=kg2ug,wrf_chem_pm=kg2ug,&
-        cmaq_o3=ppbv2ppmv,wrf_chem_o3=ppbv2ppmv
+        cmaq_o3=ppbv2ppmv,wrf_chem_o3=ppbv2ppmv, & 
+        fv3_cmaq_pm=kg2ug  !1.0_r_kind
 
 !position of obs parameters in obs output file record
   integer(i_kind), parameter :: &
@@ -130,13 +148,222 @@ module chemmod
         naero_gocart_wrf=15  !number of gocart aerosol species
 
   character(len=max_varname_length), dimension(naero_cmaq), parameter :: &
-        aeronames_cmaq=(/ character(len=max_varname_length) :: &
+        aeronames_cmaq=(/&
         'ASO4I',  'ANO3I',  'ANH4I',  'AORGPAI',  'AECI',   'ACLI', &
         'ASO4J',  'ANO3J',  'ANH4J',  'AORGPAJ',  'AECJ',   'ANAJ',&
         'ACLJ',   'A25J',   'AXYL1J', 'AXYL2J',   'AXYL3J', 'ATOL1J',&
         'ATOL2J', 'ATOL3J', 'ABNZ1J', 'ABNZ2J',   'ABNZ3J', 'AALKJ',&
         'AOLGAJ', 'AISO1J', 'AISO2J', 'AISO3J',   'ATRP1J', 'ATRP2J',&
         'ASQTJ',  'AOLGBJ', 'AORGCJ'/)
+
+!Hongli FV3CMAQ,
+  integer(i_kind), parameter :: &
+        naero_cmaq_fv3=45  !number of cmaq aerosol species aero6 (45) + amss1,2,3
+
+  character(len=max_varname_length), dimension(naero_cmaq_fv3), parameter :: &
+        aeronames_cmaq_fv3=(/&
+        'aso4i','aso4j','aso4k','ano3i','ano3j','ano3k', &
+        'acli', 'aclj', 'aclk', 'anh4i','anh4j','anh4k', &
+        'anai', 'anaj', 'amgj', 'akj',  'acaj', &
+        'aeci', 'aecj', 'afej', 'aalj', 'asij', 'atij', &
+        'amnj','aothri','aothrj','axyl1j','axyl2j','axyl3j', &
+        'atol1j','asoil','acors','aseacat','alvpo1i','alvpo1j', &
+        'asvpo1i','asvpo1j','asvpo2i','asvpo2j','asvpo3j', &
+        'aivpo1j','alvoo1i','alvoo2i','asvoo1i','asvoo2i'/) !, &
+        !'amassi','amassj','amassk'/)
+
+   integer(i_kind),dimension(naero_cmaq_fv3), parameter :: &
+        imodes_cmaq_fv3=(/&
+         1,2,3,1,2,3, & 
+         1,2,3,1,2,3, & 
+         1,2,2,2,2,   &
+         1,2,2,2,2,2, &
+         2,1,2,2,2,2, & 
+         2,3,3,3,1,2, &
+         1,2,1,2,2,   & 
+         2,1,1,1,1 /) 
+
+   real(r_kind),dimension(naero_cmaq_fv3), parameter :: &
+         ssmoke_cmaq_fv3 = (/&
+         1.0,1.0,1.0,1.0,1.0,1.0, &
+         1.0,0.0,0.0,1.0,1.0,0.0, &
+         0.0,0.0,0.0,0.0,0.0,   &
+         1.0,1.0,0.0,0.0,0.0,0.0, &
+         0.0,1.0,1.0,1.0,1.0,1.0, &
+         1.0,0.0,0.0,0.0,1.0,1.0, &
+         1.0,1.0,1.0,1.0,1.0,      &
+         1.0,1.0,1.0,1.0,1.0 /)
+   real(r_kind),dimension(naero_cmaq_fv3), parameter :: &
+         sdust_cmaq_fv3 = (/&
+         0.0,0.0,0.0,0.0,0.0,0.0, &
+         0.0,0.0,0.0,0.0,0.0,0.0, &
+         0.0,0.0,1.0,1.0,1.0,   &
+         0.0,0.0,1.0,1.0,1.0,1.0, &
+         1.0,0.0,0.0,0.0,0.0,0.0, &
+         0.0,1.0,1.0,0.0,0.0,0.0, &
+         0.0,0.0,0.0,0.0,0.0,      &
+         0.0,0.0,0.0,0.0,0.0 /)
+
+!!!!
+!AERO_DATA.F
+   real(r_kind),dimension(naero_cmaq_fv3), parameter :: &
+         visindx_cmaq_fv3 = (/&
+         2.20,2.20,2.20,2.40,2.40,2.40, &
+         1.70,1.70,1.70,0.00,0.00,0.00, &
+         1.70,1.70,1.00,1.00,1.00,   &
+         10.0,10.0,1.00,1.00,1.00,1.00, &
+         1.00,1.00,1.00,2.80,2.80,2.80, &
+         2.80,0.60,0.60,1.70,4.00,4.00, &
+         4.00,4.00,4.00,4.00,4.00,      &
+         4.00,4.00,4.00,4.00,4.00 /)
+   real(r_kind),dimension(naero_cmaq_fv3), parameter :: &
+         visindx_large_cmaq_fv3 = (/&
+         4.80,4.80,4.80,5.10,5.10,5.10, &
+         1.70,1.70,1.70,0.00,0.00,0.00, &
+         1.70,1.70,1.00,1.00,1.00,   &
+         10.0,10.0,1.00,1.00,1.00,1.00, &
+         1.00,1.00,1.00,2.80,2.80,2.80, &
+         6.10,0.60,0.60,1.70,6.10,6.10, &
+         6.10,6.10,6.10,6.10,6.10,      &
+         6.10,6.10,6.10,6.10,6.10 /)
+
+   real(r_kind),dimension(naero_cmaq_fv3), parameter :: &
+         aemolwt_cmaq_fv3 = (/&
+         96.0,96.0,96.0,62.0,62.0,62.0, &
+         35.5,35.5,35.5,18.0,18.0,18.0, &
+         23.0,23.0,24.3,39.1,40.1,   &
+         12.0,12.0,55.8,27.0,28.1,47.9, &
+         54.9,200.,200.,174.,185.,218., &
+         163.,100.,100.,23.75,218.,218., &
+         230.,230.,241.,241.,253., &
+         266.,136.,136.,135.,135. /)
+!/scratch2/BMC/wrfruc/hwang/wf1/cmaq/5.2/CCTM/src/aero/aero6/AOD_DEFN.F
+         real, parameter :: humfac( 99 ) = &
+         (/1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00, &
+           1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00, &
+           1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00, &
+           1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00, &
+           1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00, &
+           1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00, &
+           1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00, &
+           1.0000e+00,  1.3800e+00,  1.4000e+00,  1.4200e+00,  1.4400e+00, &
+           1.4600e+00,  1.4800e+00,  1.4900e+00,  1.5100e+00,  1.5300e+00, &
+           1.5500e+00,  1.5700e+00,  1.5900e+00,  1.6200e+00,  1.6400e+00, &
+           1.6600e+00,  1.6800e+00,  1.7100e+00,  1.7300e+00,  1.7600e+00, &
+           1.7800e+00,  1.8100e+00,  1.8300e+00,  1.8600e+00,  1.8900e+00, &
+           1.9200e+00,  1.9500e+00,  1.9900e+00,  2.0200e+00,  2.0600e+00, &
+           2.0900e+00,  2.1300e+00,  2.1700e+00,  2.2200e+00,  2.2600e+00, &
+           2.3100e+00,  2.3600e+00,  2.4100e+00,  2.4700e+00,  2.5400e+00, &
+           2.6000e+00,  2.6700e+00,  2.7500e+00,  2.8400e+00,  2.9300e+00, &
+           3.0300e+00,  3.1500e+00,  3.2700e+00,  3.4200e+00,  3.5800e+00, &
+           3.7600e+00,  3.9800e+00,  4.2300e+00,  4.5300e+00,  4.9000e+00, &
+           5.3500e+00,  5.9300e+00,  6.7100e+00,  7.7800e+00,  9.3400e+00, &
+           9.3400e+00,  9.3400e+00,  9.3400e+00,  9.3400e+00/)
+! air humidity scaling factors at 1% RH intervals for large mode
+         real, parameter :: humfac_large( 99 ) = & 
+         (/1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00, &
+           1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00, &
+           1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00, &
+           1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00, &
+           1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00, &
+           1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00, &
+           1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00, &
+           1.0000e+00,  1.3100e+00,  1.3200e+00,  1.3400e+00,  1.3500e+00, &
+           1.3600e+00,  1.3800e+00,  1.3900e+00,  1.4100e+00,  1.4200e+00, &
+           1.4400e+00,  1.4500e+00,  1.4700e+00,  1.4900e+00,  1.5000e+00, &
+           1.5200e+00,  1.5400e+00,  1.5500e+00,  1.5700e+00,  1.5900e+00, &
+           1.6100e+00,  1.6300e+00,  1.6500e+00,  1.6700e+00,  1.6900e+00, &
+           1.7100e+00,  1.7300e+00,  1.7500e+00,  1.7800e+00,  1.8000e+00, &
+           1.8300e+00,  1.8600e+00,  1.8900e+00,  1.9200e+00,  1.9500e+00, &
+           1.9800e+00,  2.0100e+00,  2.0500e+00,  2.0900e+00,  2.1300e+00, &
+           2.1800e+00,  2.2200e+00,  2.2700e+00,  2.3300e+00,  2.3900e+00, &
+           2.4500e+00,  2.5200e+00,  2.6000e+00,  2.6900e+00,  2.7900e+00, &
+           2.9000e+00,  3.0200e+00,  3.1600e+00,  3.3300e+00,  3.5300e+00, &
+           3.7700e+00,  4.0600e+00,  4.4300e+00,  4.9200e+00,  5.5700e+00, &
+           5.5700e+00,  5.5700e+00,  5.5700e+00,  5.5700e+00/)
+!C sea salt humidity scaling factors at 1% RH values
+
+         real, parameter :: humfac_ss( 99 ) = (/ &
+     &        1.00, 1.00, 1.00, 1.00, 1.00, &
+     &        1.00, 1.00, 1.00, 1.00, 1.00, &
+     &        1.00, 1.00, 1.00, 1.00, 1.00, &
+     &        1.00, 1.00, 1.00, 1.00, 1.00, &
+     &        1.00, 1.00, 1.00, 1.00, 1.00, &
+     &        1.00, 1.00, 1.00, 1.00, 1.00, &
+     &        1.00, 1.00, 1.00, 1.00, 1.00, &
+     &        1.00, 1.00, 1.00, 1.00, 1.00, &
+     &        1.00, 1.00, 1.00, 1.00, 1.00, &
+     &        1.00, 2.36, 2.38, 2.42, 2.45, &
+     &        2.48, 2.50, 2.51, 2.53, 2.56, &
+     &        2.58, 2.59, 2.62, 2.66, 2.69, &
+     &        2.73, 2.78, 2.83, 2.83, 2.86, &
+     &        2.89, 2.91, 2.95, 3.01, 3.05, &
+     &        3.13, 3.17, 3.21, 3.25, 3.27, &
+     &        3.35, 3.42, 3.52, 3.57, 3.63, &
+     &        3.69, 3.81, 3.95, 4.04, 4.11, &
+     &        4.28, 4.49, 4.61, 4.86, 5.12, &
+     &        5.38, 5.75, 6.17, 6.72, 7.35, &
+     &        7.35, 7.35, 7.35, 7.35/)
+
+! For simplified reconstruciton method
+!/scratch2/BMC/wrfruc/hwang/rk/comGSIv3.5_EnKFv1.1/src/main/cmaq_aod_calc.f90
+   !axy,atol are not available in RK code
+   real(r_kind),dimension(naero_cmaq_fv3), parameter :: &
+         visindx_recs_fv3 = (/&
+         3.00,3.00,3.00,3.00,3.00,3.00, &
+         1.37,1.37,1.37,3.00,3.00,3.00, &
+         1.37,1.37,1.00,1.00,1.00,   &
+         10.0,10.0,1.00,1.00,1.00,1.00, &
+         1.00,1.00,1.00,4.00,4.00,4.00, &
+         4.00,0.60,0.60,1.37,4.00,4.00, &
+         4.00,4.00,4.00,4.00,4.00,      &
+         4.00,4.00,4.00,4.00,4.00 /)
+!! RK's code
+! air humidity scaling factors at 1% RH intervals
+ real(r_kind), parameter :: humfac_recs( 99 ) =  &
+          (/1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00,  &
+            1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0000e+00,  &
+            1.0000e+00,  1.0000e+00,  1.0000e+00,  1.0001e+00,  1.0001e+00,  &
+            1.0004e+00,  1.0006e+00,  1.0024e+00,  1.0056e+00,  1.0089e+00,  &
+            1.0097e+00,  1.0105e+00,  1.0111e+00,  1.0115e+00,  1.0118e+00,  &
+            1.0122e+00,  1.0126e+00,  1.0130e+00,  1.0135e+00,  1.0139e+00,  &
+            1.0173e+00,  1.0206e+00,  1.0254e+00,  1.0315e+00,  1.0377e+00,  &
+            1.0486e+00,  1.0596e+00,  1.0751e+00,  1.0951e+00,  1.1151e+00,  &
+            1.1247e+00,  1.1343e+00,  1.1436e+00,  1.1525e+00,  1.1615e+00,  &
+            1.1724e+00,  1.1833e+00,  1.1955e+00,  1.2090e+00,  1.2224e+00,  &
+            1.2368e+00,  1.2512e+00,  1.2671e+00,  1.2844e+00,  1.3018e+00,  &
+            1.3234e+00,  1.3450e+00,  1.3695e+00,  1.3969e+00,  1.4246e+00,  &
+            1.4628e+00,  1.5014e+00,  1.5468e+00,  1.5992e+00,  1.6516e+00,  &
+            1.6991e+00,  1.7466e+00,  1.7985e+00,  1.8549e+00,  1.9113e+00,  &
+            1.9596e+00,  2.0080e+00,  2.0596e+00,  2.1146e+00,  2.1695e+00,  &
+            2.2630e+00,  2.3565e+00,  2.4692e+00,  2.6011e+00,  2.7330e+00,  &
+            2.8461e+00,  2.9592e+00,  3.0853e+00,  3.2245e+00,  3.3637e+00,  &
+            3.5743e+00,  3.7849e+00,  4.0466e+00,  4.3594e+00,  4.6721e+00,  &
+            5.3067e+00,  5.9412e+00,  6.9627e+00,  8.3710e+00,  9.7793e+00,  &
+            1.2429e+01,  1.5078e+01,  1.8059e+01,  2.1371e+01/)
+
+         real, parameter :: humfac_recs_ss( 99 ) =  &
+           (/1.00, 1.00, 1.00, 1.00, 1.00,     &
+             1.00, 1.00, 1.00, 1.00, 1.00,     &
+             1.00, 1.00, 1.00, 1.00, 1.00,     &
+             1.00, 1.00, 1.00, 1.00, 1.00,     &
+             1.00, 1.00, 1.00, 1.00, 1.00,     &
+             1.00, 1.00, 1.00, 1.00, 1.00,     &
+             1.00, 1.00, 1.00, 1.00, 1.00,     &
+             1.00, 1.00, 1.00, 1.00, 1.00,     &
+             1.00, 1.00, 1.00, 1.00, 1.00,     &
+             1.00, 2.36, 2.38, 2.42, 2.45,     &
+             2.48, 2.50, 2.51, 2.53, 2.56,     &
+             2.58, 2.59, 2.62, 2.66, 2.69,     &
+             2.73, 2.78, 2.83, 2.83, 2.86,     &
+             2.89, 2.91, 2.95, 3.01, 3.05,     &
+             3.13, 3.17, 3.21, 3.25, 3.27,     &
+             3.35, 3.42, 3.52, 3.57, 3.63,     &
+             3.69, 3.81, 3.95, 4.04, 4.11,     &
+             4.28, 4.49, 4.61, 4.86, 5.12,     &
+             5.38, 5.75, 6.17, 6.72, 7.35,     &
+             7.98, 8.61, 9.24, 9.87/)
+
 
   character(len=max_varname_length), dimension(naero_gocart_wrf), parameter :: &
         aeronames_gocart_wrf=(/&
@@ -164,8 +391,12 @@ contains
        obs2model_anowbufr_pm=cmaq_pm
     elseif (wrf_mass_regional) then
        obs2model_anowbufr_pm=wrf_chem_pm
+    elseif (fv3_cmaq_regional) then
+!Hongli 
+       obs2model_anowbufr_pm=fv3_cmaq_pm
+       write(6,*)'!!! Please check fv3_cmaq_pm chem model in chemmod.f90'
     else
-       write(6,*)'unknown chem model. stopping'
+       write(6,*)'unknown chem model. stopping in chemmod.f90'
        call stop2(414)
     endif
     
@@ -231,13 +462,23 @@ contains
     in_fname='cmaq_input.bin'
     out_fname='cmaq_output.bin'
     incr_fname='chem_increment.bin'
-
+!!! GOCART-GEOS5 GOCART CMAQ
+    crtm_aerosol_model = "GOCART"
+    crtm_aerosolcoeff_format = "Binary"
+    crtm_aerosolcoeff_file   = "AerosolCoeff.bin"
     laeroana_gocart = .false.
+    laeroana_fv3cmaq = .false.
+    laod_crtm_cmaq = .false.
     l_aoderr_table = .false.
+    iaod_crtm_cmaq = 0
+    iaod_recs_cmaq  = 0
+    raod_radius_mean_scale = 1.0
+    raod_radius_std_scale  = 1.0
     aod_qa_limit = 3
     luse_deepblue = .false.
 
     wrf_pm2_5=.false.
+
     aero_ratios=.false.
     lread_ext_aerosol = .false.
 

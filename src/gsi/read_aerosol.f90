@@ -89,7 +89,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !
 ! Declare local variables
 !
-  logical :: outside, iuse
+  logical :: outside, iuse, new_viirsTab
   
   character (len= 8) :: subset
   character (len=10) :: date
@@ -97,7 +97,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   integer(i_kind) :: naerodat
   integer(i_kind) :: idate, jdate, ksatid, iy, iret, im, ihh, idd
   integer(i_kind) :: lunin = 10
-  integer(i_kind) :: nmind, i, n
+  integer(i_kind) :: nmind, i, n, j
   integer(i_kind) :: k, ilat, ilon, nreal, nchanl
   integer(i_kind) :: kidsat
   integer(i_kind), dimension(5) :: idate5
@@ -145,7 +145,14 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   character (len= 9) :: vaodchstr  = 'CHWL AOTH'
   character (len=69) :: vaodgstr = &
       'SAID CLATH CLONH YEAR MNTH DAYS HOUR MINU SOZA SOLAZI RSST VAOTQ QPLR'
-  integer(i_kind), parameter :: mxib  = 20
+
+  ! new viirs table
+  character (len=69) :: vaodgstr1 = &
+      'SAID CLATH CLONH YEAR MNTH DAYS HOUR MINU SOZA SOLAZI RSST AOTQ RETRQ'
+  !character (len=75) :: vaodgstr1 = &
+  !    'SAID CLATH CLONH YEAR MNTH DAYS HOUR MINU SOZA SOLAZI RSST AOTQ RETRQ EVENT'
+
+  integer(i_kind), parameter :: mxib  = 20,imax=6
   integer(i_kind) :: nib
   integer(i_kind) :: ibit(mxib)
 
@@ -198,7 +205,8 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      n_tbin=1
   endif
 ! Make thinning grids
-  call makegrids(rmesh,ithin,n_tbin=n_tbin)
+  call makegrids(rmesh,ithin,n_tbin=n_tbin)   ! count itxmax
+  write(*,*) "read_aero_ptime ", obstype, jsatid, sis, ptime,ithin_time,rmesh,ithin,n_tbin,itxmax
 
   if ( obstype == 'modis_aod' ) then
 !
@@ -283,12 +291,15 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
               t4dv=real((nmind-iwinbgn),r_kind)*r60inv
               sstime=real(nmind,r_kind)
               tdiff=(sstime-gstime)*r60inv
+              !write(*,*) "good tdiff ", idate5, sstime, gstime, r60inv, tdiff, twind
+
               if (l4dvar.or.l4densvar) then
                  if(t4dv<zero .OR. t4dv>winlen) cycle read_modis
               else
                  if ( abs(tdiff) > twind ) cycle read_modis
               end if
 
+             
               nread = nread + 1   !nread = nread + nchanl
 
               if ( aod_550 > 1.0e+10_r_double ) cycle read_modis
@@ -375,6 +386,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      call closbf(lunin)
      close(lunin)
   else if ( obstype == 'viirs_aod' ) then
+     new_viirsTab=.false.
      open(lunin,file=trim(infile),form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
@@ -385,7 +397,8 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         if (subset == 'NC008043') then
            write(6,*)'READ_AEROSOL: VIIRS AOD data type, subset = ',subset
            !          Set dependent variables and allocate arrays
-           nreal=10
+           !Hongli
+           nreal=11 !10
            nchanl=11
            naerodat=nreal+nchanl
            allocate (aeroout(naerodat,itxmax),nrec(itxmax))
@@ -402,8 +415,9 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !          set qcall_limit
            if (idate >= 2018021300) then
               qcall_limit = aod_qa_limit + r0_01 ! for the viirs data after 2018/02/13
+              new_viirsTab=.true.                ! for the viirs data 2019/08-09 used in WF1 project
            else
-              qcall_limit = aod_qa_limit - r0_01
+              qcall_limit = aod_qa_limit - r0_01 ! aod_qa_limit=3, r0_01=0.01_r_kind 
            end if
 
 !          set valid range of AOD to ingest
@@ -421,12 +435,20 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
               endif
 
               !    extract header information
-              call ufbint(lunin,hdrvaodg,13,1,iret,vaodgstr)
+              if (.not. new_viirsTab) then
+                call ufbint(lunin,hdrvaodg,13,1,iret,vaodgstr)
+              else
+                call ufbint(lunin,hdrvaodg,13,1,iret,vaodgstr1)
+                write(*,'(a20,8f10.2,3f20.5,2f7.2)') "read_aero_hdrvaodg ",hdrvaodg 
+              endif
               rsat = hdrvaodg(1); ksatid=rsat
 
-              if ( jsatid == 'NPP' .or. jsatid == 'npp' ) kidsat = 225
+              !if ( jsatid == 'NPP' .or. jsatid == 'npp' ) kidsat = 225
+              if ( jsatid == 'NPP' .or. jsatid == 'npp' ) kidsat = 224
+              if ( jsatid == 'N20' .or. jsatid == 'n20' ) kidsat = 225
 
               if ( ksatid /= kidsat  ) cycle read_viirs
+              !write(*,*) " read_aero_kidsat ", kidsat, ksatid, new_viirsTab,itxmax  
 
               !    Convert observation location to radians
               slats0= hdrvaodg(2)
@@ -451,18 +473,42 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
               solzen  = hdrvaodg(9)
               azimuth = hdrvaodg(10)
 
-              smask = zero                          ! over water
-              if (nint(hdrvaodg(11)) > 0) then      ! over land
-                 smask = one                        ! dark surface
-                 call upftbv(lunin,"VAOTQ",hdrvaodg(12),mxib,ibit,nib)
-                 if (nib > 0) then
+              !write(*,*) " read_aero_outside ", outside
+              if (.not. new_viirsTab) then
+                ! SAID CLATH CLONH YEAR MNTH DAYS HOUR MINU SOZA SOLAZI RSST VAOTQ QPLR
+                smask = zero                          ! over water
+                if (nint(hdrvaodg(11)) > 0) then      ! over land: RSST
+                  smask = one                         ! dark surface
+                  call upftbv(lunin,"VAOTQ",hdrvaodg(12),mxib,ibit,nib) 
+                  if (nib > 0) then
                     if(any(ibit(1:nib) == 6)) then
                        smask = two                  !  bright surface
                     endif
-                 endif
+                  endif
+                endif
+
+              else
+              ! SAID CLATH CLONH YEAR MNTH DAYS HOUR MINU SOZA SOLAZI RSST AOTQ RETRQ
+
+                do j=0,imax-1
+                   ibit(j)=IBits(int(hdrvaodg(12)),j,1)   ! IBits: right justified
+                enddo
+
+                if ( ibit(0)==1 .or. ibit(2)==1 ) then
+                  smask=zero
+                else if ( ibit(3)==1 .or. ibit(4)==1 ) then
+                  smask=one
+                else if ( ibit(1)==1 .or. ibit(5)==1 ) then
+                  smask=two
+                else
+                  write(6,*)'VIIRS unknown surface type:  ',hdrvaodg(12)                   
+                endif
+
+                !write(*,'(a20,2f5.2,6i4)') 'read_aero_AOTQ bits ',hdrvaodg(12),smask, (ibit(j),j=imax-1,0,-1)
+                  
               endif
 
-              qcall   = hdrvaodg(13)
+              qcall   = hdrvaodg(13) 
 
               !    Convert observation time to relative time
               idate5(1) = hdrvaodg(4)  !year
@@ -476,11 +522,13 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
               sstime=real(nmind,r_kind)
               tdiff=(sstime-gstime)*r60inv
 
+
               if (l4dvar.or.l4densvar) then
                  if(t4dv<zero .OR. t4dv>winlen) cycle read_viirs
               else
                  if ( abs(tdiff) > twind ) cycle read_viirs
               end if
+              !write(*,'(a20,5i7,3f10.2)') 'read_aero_tdiff ',idate5(1:5),tdiff,twind,qcall
 
               nread = nread + 1   !nread = nread + nchanl
 
@@ -490,18 +538,23 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
                  if ( qcall < qcall_limit ) cycle read_viirs
               end if
 
-              !    extract VAODCH pairs 'CHWL AOPT' as defined in vaodchstr
+              !    extract VAODCH pairs 'CHWL AOTH' as defined in vaodchstr
               call ufbrep(lunin,vaodch,2,12,iret,vaodchstr)
               aod_550 = vaodch(2,12)
 
               if ( aod_550 < aod_lb .OR. aod_550 >= aod_ub ) cycle read_viirs
-
+              !write(*,'(a20,i10,1215.10)') 'read_aero_aod_chan ',nread,vaodch(1,1:12)
+              !write(*,'(a20,i10,1215.10)') 'read_aero_aod ',nread,vaodch(2,1:12),aod_550
+                              
 
               ! Map obs to thinning grid
               crit0 = 0.01_r_kind 
               timeinflat=two
               call tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
               call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+              !write(*,'(a20,i10,12f15.10,L1)') 'read_aero_aod_chan ',nread,vaodch(1,1:12),iuse
+              !write(*,'(a20,12f15.10,i10)') 'read_aero_aod ',vaodch(2,1:12),itx
+              !write(*,'(a20,a20,2f15.5,3i10,L1,f15.1)') 'read_aero_ithin ',sis,dist1,crit1,itx,ithin,itt,iuse,score_crit(itx)
 
               if ( .not. iuse ) cycle read_viirs
 
@@ -514,11 +567,13 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
               end if
               call checkob(dist1,crit1,itx,iuse)
 
+              !write(*,*) 'read_aero_crit1 ',iuse,score_crit(itx)
               if ( .not. iuse ) cycle read_viirs
 
               ! Compute "score" for observation.  All scores>=0.0.  Lowest score
               ! is "best"
               call finalcheck(dist1,crit1,itx,iuse)
+              !write(*,*) 'read_aero_finalcheck ',iuse,score_crit(itx)
 
               if ( .not. iuse ) cycle read_viirs
 
@@ -535,22 +590,29 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
               aeroout( 8,itx) = solzen             ! solar zenith angle
               aeroout( 9,itx) = azimuth            ! solar azimuth angle
               aeroout(10,itx) = smask              ! surface type mask
+!Hongli
+              aeroout(11,itx) = hdrvaodg(11) 
               do i = 1, nchanl
-                 aeroout(i+nreal,itx) = dataaod(i)
+                 aeroout(i+nreal,itx) = dataaod(i) ! RL: aeroout(14,itx) =aod_550
               enddo
               nrec(itx)=irec
-
+              !write(*,'(a20,i10,i4,14f15.7)') 'read_aero_out ',itx,jsatid,aeroout(1:14,itx)
+              !write(*,*) 'read_aero_out ',itx,jsatid,aeroout(1:14,itx),iuse
            end do read_viirs
 
+            !write(*,*) 'read_aero_nread ', nread,ndata,itx, itxmax
            call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
               naerodat,itxmax,nread,ndata,aeroout,score_crit,nrec)
 
+            !write(*,*) 'read_aero_nread1 ', nread,ndata
            if ( mype_sub == mype_root ) then
               do n = 1, ndata
                  do i = 1, nchanl
                     if ( aeroout(i+nreal,n) > rmiss_single ) nodata = nodata + 1
                  end do
               end do
+             !write(*,*) 'read_aero_nread2 ', nread,ndata,nodata
+           
               ! Write final set of "best" observations to output file
               call count_obs(ndata,naerodat,ilat,ilon,aeroout,nobs)
               write(lunout) obstype,sis,nreal,nchanl,ilat,ilon

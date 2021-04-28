@@ -74,12 +74,12 @@ module gsi_rfv3io_mod
   public :: wrfv3_netcdf
   public :: gsi_fv3ncdf2d_read_v1
 
-  public :: mype_u,mype_v,mype_t,mype_q,mype_p,mype_oz,mype_ql
+  public :: mype_u,mype_v,mype_t,mype_q,mype_p,mype_oz,mype_ql,mype_aero
   public :: k_slmsk,k_tsea,k_vfrac,k_vtype,k_stype,k_zorl,k_smc,k_stc
   public :: k_snwdph,k_f10m,mype_2d,n2d,k_orog,k_psfc
   public :: ijns,ijns2d,displss,displss2d,ijnz,displsz_g
 
-  integer(i_kind) mype_u,mype_v,mype_t,mype_q,mype_p,mype_oz,mype_ql
+  integer(i_kind) mype_u,mype_v,mype_t,mype_q,mype_p,mype_oz,mype_ql,mype_aero
   integer(i_kind) k_slmsk,k_tsea,k_vfrac,k_vtype,k_stype,k_zorl,k_smc,k_stc
   integer(i_kind) k_snwdph,k_f10m,mype_2d,n2d,k_orog,k_psfc
   parameter(                   &  
@@ -197,6 +197,7 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
   character(len=128) :: name
   integer(i_kind) myear,mmonth,mday,mhour,mminute,msecond
   real(r_kind),allocatable:: abk_fv3(:)
+  integer nlon0,nlat0
 
       coupler_res_filenam=fv3filenamegin%couplerres
       grid_spec=fv3filenamegin%grid_spec
@@ -209,6 +210,20 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
     read(24,*)myear,mmonth,mday,mhour,mminute,msecond
     close(24)
     if(mype==0)  write(6,*)' myear,mmonth,mday,mhour,mminute,msecond=', myear,mmonth,mday,mhour,mminute,msecond
+!Hongli Wang 20201001
+!    print*,"Change BG time to 201206031800"
+!    myear=2012
+!    mmonth=06
+!    mday=03
+!    mhour=18
+!2019080512
+!    myear=2019
+!    mmonth=08
+!    mday=05
+!    mhour=12
+!2019080618
+!    mday=06
+!    mhour=19
     regional_time(1)=myear
     regional_time(2)=mmonth
     regional_time(3)=mday
@@ -581,6 +596,8 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     use gridmod, only: lat2,lon2,nsig,ijn,eta1_ll,eta2_ll,ijn_s
     use constants, only: one,fv
     use gsi_metguess_mod, only: gsi_metguess_bundle
+!Hongli Wang 20200930
+    use gsi_chemguess_mod, only: gsi_chemguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use mpeu_util, only: die
     use guess_grids, only: ntguessig
@@ -599,12 +616,112 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
 !   real(r_kind),dimension(:,:,:),pointer::ges_ql=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_oz=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_tv=>NULL()
-            
-      character(len=:),allocatable :: dynvars   !='fv3_dynvars'
-      character(len=:),allocatable :: tracers   !='fv3_tracer'
+
+!Hongli Wang 20200930
+! aalj     64      1     chem_guess   aalj
+! acaj     64      1     chem_guess   acaj 
+! acli     64      1     chem_guess   acli
+! aclj     64      1     chem_guess   aclj
+! aclk     64      1     chem_guess   aclk
+! acors    64      1     chem_guess   acors
+! aeci     64      1     chem_guess   aeci
+! aecj     64      1     chem_guess   aecj
+! afej     64      1     chem_guess   afej
+! aivpo1j  64      1     chem_guess   aivpo1j
+! akj      64      1     chem_guess   akj
+! alvoo1i  64      1     chem_guess   alvoo1i
+! alvoo2i  64      1     chem_guess   alvoo2i
+! alvpo1i  64      1     chem_guess   alvpo1i
+! alvpo1j  64      1     chem_guess   alvpo1j
+! amgj     64      1     chem_guess   amgj
+! amnj     64      1     chem_guess   amnj
+! anai     64      1     chem_guess   anai
+! anaj     64      1     chem_guess   anaj
+! anh4i    64      1     chem_guess   anh4i
+! anh4j    64      1     chem_guess   anh4j
+! anh4k    64      1     chem_guess   anh4k
+! ano3i    64      1     chem_guess   ano3i
+! ano3j    64      1     chem_guess   ano3j
+! ano3k    64      1     chem_guess   ano3k
+! aothri   64      1     chem_guess   aothri
+! aothrj   64      1     chem_guess   aothrj
+! aseacat  64      1     chem_guess   aseacat
+! asij     64      1     chem_guess   asij
+! aso4i    64      1     chem_guess   aso4i
+! aso4j    64      1     chem_guess   aso4j
+! aso4k    64      1     chem_guess   aso4k
+! asoil    64      1     chem_guess   asoil
+! asvoo1i  64      1     chem_guess   asvoo1i
+! asvoo2i  64      1     chem_guess   asvoo2i
+! asvpo1i  64      1     chem_guess   asvpo1i
+! asvpo1j  64      1     chem_guess   asvpo1j
+! asvpo2i  64      1     chem_guess   asvpo2i
+! asvpo2j  64      1     chem_guess   asvpo2j
+! asvpo3j  64      1     chem_guess   asvpo3j
+! atij     64      1     chem_guess   atij
+! atol1j   64      1     chem_guess   atol1j
+! axyl1j   64      1     chem_guess   axyl1j
+! axyl2j   64      1     chem_guess   axyl2j
+! axyl3j   64      1     chem_guess   axyl3j
+
+    real(r_kind),dimension(:,:,:),pointer::ges_aalj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_acaj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_acli=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aclj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aclk=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_acors=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aeci=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aecj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_afej=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aivpo1j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_akj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_alvoo1i=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_alvoo2i=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_alvpo1i=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_alvpo1j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_amgj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_amnj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_anai=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_anaj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_anh4i=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_anh4j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_anh4k=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_ano3i=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_ano3j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_ano3k=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aothri=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aothrj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aseacat=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asij=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aso4i=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aso4j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aso4k=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asoil=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asvoo1i=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asvoo2i=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asvpo1i=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asvpo1j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asvpo2i=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asvpo2j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asvpo3j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_atij=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_atol1j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_axyl1j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_axyl2j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_axyl3j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_pm25at=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_pm25ac=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_pm25co=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_pm2_5=>NULL()
+! amassijk is not in chem_gues, caused : [005]read_fv3_netcdf_guess(): >>> ERROR <<< cannot get pointers for fv3 met-fields, ier = 3
+
+    real(r_kind),dimension(:,:,:),pointer::ges_amassi=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_amassj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_amassk=>NULL()
+
+     character(len=:),allocatable :: dynvars   !='fv3_dynvars'
+     character(len=:),allocatable :: tracers   !='fv3_tracer'
    
-
-
      dynvars= fv3filenamegin%dynvars
      tracers= fv3filenamegin%tracers
 
@@ -619,7 +736,8 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     mype_ql=5
     mype_oz=6
     mype_2d=7 
-      
+    mype_aero=7
+  
     allocate(ijns(npe),ijns2d(npe),ijnz(npe) )
     allocate(displss(npe),displss2d(npe),displsz_g(npe) )
 
@@ -648,9 +766,79 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'v' , ges_v ,istatus );ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tv' ,ges_tv ,istatus );ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q'  ,ges_q ,istatus );ier=ier+istatus
-!   call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql'  ,ges_ql ,istatus );ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'oz'  ,ges_oz ,istatus );ier=ier+istatus
-    if (ier/=0) call die(trim(myname),'cannot get pointers for fv3 met-fields, ier =',ier)
+
+    if (ier/=0) call die(trim(myname),'cannot get pointers for fv3 met-fields,ier =',ier)
+    ier=0
+!Hongli Wang 20201001
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aalj',ges_aalj,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'acaj',ges_acaj,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'acli',ges_acli,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aclj',ges_aclj,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aclk',ges_aclk,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'acors',ges_acors,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aeci',ges_aeci,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aecj',ges_aecj,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'afej',ges_afej,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aivpo1j',ges_aivpo1j,istatus );ier=ier+istatus
+    
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'akj',ges_akj,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'alvoo1i',ges_alvoo1i,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'alvoo2i',ges_alvoo2i,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'alvpo1i',ges_alvpo1i,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'alvpo1j',ges_alvpo1j,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'amgj',ges_amgj,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'amnj',ges_amnj,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'anai',ges_anai,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'anaj',ges_anaj,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'anh4i',ges_anh4i,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'anh4j',ges_anh4j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'anh4k',ges_anh4k,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'ano3i',ges_ano3i,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'ano3j',ges_ano3j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'ano3k',ges_ano3k,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aothri',ges_aothri,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aothrj',ges_aothrj,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aseacat',ges_aseacat,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asij',ges_asij,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aso4i',ges_aso4i,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aso4j',ges_aso4j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aso4k',ges_aso4k,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asoil',ges_asoil,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asvoo1i',ges_asvoo1i,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asvoo2i',ges_asvoo2i,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asvpo1i',ges_asvpo1i,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asvpo1j',ges_asvpo1j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asvpo2i',ges_asvpo2i,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asvpo2j',ges_asvpo2j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asvpo3j',ges_asvpo3j,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'atij',ges_atij,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'atol1j',ges_atol1j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'axyl1j',ges_axyl1j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'axyl2j',ges_axyl2j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'axyl3j',ges_axyl3j,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it),'pm25at',ges_pm25at,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it),'pm25ac',ges_pm25ac,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it),'pm25co',ges_pm25co,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it),'pm2_5',ges_pm2_5,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'amassi',ges_amassi,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'amassj',ges_amassj,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'amassk',ges_amassk,istatus );ier=ier+istatus
+
+
+    if (ier/=0) call die(trim(myname),'cannot get pointers for aero-fields, ier =',ier)
      
     if( fv3sar_bg_opt == 0) then 
        call gsi_fv3ncdf_readuv(dynvars,ges_u,ges_v)
@@ -678,19 +866,108 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
          ges_prsi(:,:,k,it)=eta1_ll(k)+eta2_ll(k)*ges_ps  
        enddo
     endif
-    
-
-
-
 
     if( fv3sar_bg_opt == 0) then 
       call gsi_fv3ncdf_read(tracers,'SPHUM','sphum',ges_q,mype_q)
 !     call gsi_fv3ncdf_read(tracers,'LIQ_WAT','liq_wat',ges_ql,mype_ql)
       call gsi_fv3ncdf_read(tracers,'O3MR','o3mr',ges_oz,mype_oz)
+
+!Hongli 20200930
+      call gsi_fv3ncdf_read(tracers,'AALJ','aalj',ges_aalj,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ACAJ','acaj',ges_acaj,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ACLI','acli',ges_acli,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ACLJ','aclj',ges_aclj,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ACLK','aclk',ges_aclk,mype_aero)
+      print*,"Finished reading G1 (5:5v)"
+      call gsi_fv3ncdf_read(tracers,'ACORS','acors',ges_acors,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'AECI','aeci',ges_aeci,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'AECJ','aecj',ges_aecj,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'AFEJ','afej',ges_afej,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'AIVPO1J','aivpo1j',ges_aivpo1j,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'AKJ','akj',ges_akj,mype_aero)
+      print*,"Finished reading G2 (11:6v"
+      call gsi_fv3ncdf_read(tracers,'ALVOO1I','alvoo1i',ges_alvoo1i,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ALVOO2I','alvoo2i',ges_alvoo2i,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ALVPO1I','alvpo1i',ges_alvpo1i,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ALVPO1J','alvpo1j',ges_alvpo1j,mype_aero)
+      print*,"Finished reading G3 (15:4v)"
+      call gsi_fv3ncdf_read(tracers,'AMGI','amgj',ges_amgj,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'AMNJ','amnj',ges_amnj,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ANAI','anai',ges_anai,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ANAJ','anaj',ges_anaj,mype_aero)
+      print*,"Finished reading G4 (19:4v)"
+      call gsi_fv3ncdf_read(tracers,'ANH4I','anh4i',ges_anh4i,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ANH4J','anh4j',ges_anh4j,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ANH4K','anh4k',ges_anh4k,mype_aero)
+      print*,"Finished reading G5 (22:3v)"
+
+      call gsi_fv3ncdf_read(tracers,'ANO3I','ano3i',ges_ano3i,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ANO3J','ano3j',ges_ano3j,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ANO3K','ano3k',ges_ano3k,mype_aero)
+      print*,"Finished reading G6 (25:3v)"
+      call gsi_fv3ncdf_read(tracers,'AOTHRI','aothri',ges_aothri,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'AOTHRJ','aothrj',ges_aothrj,mype_aero)
+
+      call gsi_fv3ncdf_read(tracers,'ASEACAT','aseacat',ges_aseacat,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ASIJ','asij',ges_asij,mype_aero)
+      print*,"Finished reading G7 (29:4v)"
+      call gsi_fv3ncdf_read(tracers,'ASO4I','aso4i',ges_aso4i,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ASO4J','aso4j',ges_aso4j,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ASO4K','aso4k',ges_aso4k,mype_aero)
+      print*,"Finished reading G8 (32:3v)"
+      call gsi_fv3ncdf_read(tracers,'ASOIL','asoil',ges_asoil,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ASVOO1I','asvoo1i',ges_asvoo1i,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ASVOO2I','asvoo2i',ges_asvoo2i,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ASVPO1I','asvpo1i',ges_asvpo1i,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ASVpO1J','asvpo1j',ges_asvpo1j,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ASVPO2I','asvpo2i',ges_asvpo2i,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ASVPO2J','asvpo2j',ges_asvpo2j,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ASVPO3J','asvpo3j',ges_asvpo3j,mype_aero)
+      print*,"Finished reading G09 (40:8v)"
+      call gsi_fv3ncdf_read(tracers,'ATIJ','atij',ges_atij,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ATOL1J','atol1j',ges_atol1j,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'AXYL1J','axyl1j',ges_axyl1j,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'AXYL2J','axyl2j',ges_axyl2j,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'AXYL3J','axyl3j',ges_axyl3j,mype_aero)
+
+      call gsi_fv3ncdf_read(tracers,'PM25AT','pm25at',ges_pm25at,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'PM25AC','pm25ac',ges_pm25ac,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'PM25CO','pm25co',ges_pm25co,mype_aero)
+      !call gsi_fv3ncdf_read(tracers,'ASO4I','aso4i',ges_pm2_5,mype_aero)
+      print*,"Finished reading G10 + pm25 weights (45:5v)"
     else
       call gsi_fv3ncdf_read_v1(tracers,'sphum','SPHUM',ges_q,mype_q)
       call gsi_fv3ncdf_read_v1(tracers,'o3mr','O3MR',ges_oz,mype_oz)
     endif
+!!   pm2_5   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    do k=1,nsig
+       do j=1,lon2
+          do i=1,lat2
+             ! imodes: 14v
+             ges_amassi(i,j,k)=ges_aso4i(i,j,k)+ges_ano3i(i,j,k)+ges_anh4i(i,j,k)+ &
+                               ges_anai(i,j,k) +ges_acli(i,j,k) +ges_aeci(i,j,k) + &
+                               ges_alvpo1i(i,j,k)+ges_asvpo1i(i,j,k)+ges_asvpo2i(i,j,k)+&
+                               ges_alvoo1i(i,j,k)+ges_alvoo2i(i,j,k)+ &
+                               ges_asvoo1i(i,j,k)+ges_asvoo2i(i,j,k)+ges_aothri(i,j,k)
+             ! jmodes: 24v 
+             ges_amassj(i,j,k)=ges_aso4j(i,j,k)+ges_ano3j(i,j,k)+ges_anh4j(i,j,k)+ &
+                               ges_anaj(i,j,k) +ges_aclj(i,j,k) +ges_aecj(i,j,k) + &
+                               ges_alvpo1j(i,j,k)+ges_asvpo1j(i,j,k)+ges_asvpo2j(i,j,k)+&
+                               ges_asvpo3j(i,j,k)+ges_aivpo1j(i,j,k)+ &
+                               ges_axyl1j(i,j,k) +ges_axyl2j(i,j,k)+ges_axyl3j(i,j,k)+ges_atol1j(i,j,k)+ges_aothrj(i,j,k)+&
+                               ges_afej(i,j,k)   +ges_asij(i,j,k)  +ges_atij(i,j,k)  +ges_acaj(i,j,k)+&
+                               ges_amgj(i,j,k)   +ges_amnj(i,j,k)  +ges_aalj(i,j,k)  +ges_akj(i,j,k)
+             ! kmodes: 7v
+             ges_amassk(i,j,k)=ges_aso4k(i,j,k)+ges_ano3k(i,j,k)+ges_anh4k(i,j,k)+ & 
+                               ges_asoil(i,j,k)+ges_acors(i,j,k)+ges_aseacat(i,j,k)+ges_aclk(i,j,k)
+
+             ges_pm2_5(i,j,k)=ges_pm25at(i,j,k)*ges_amassi(i,j,k) +  ges_pm25ac(i,j,k)*ges_amassj(i,j,k) + ges_pm25co(i,j,k)*ges_amassk(i,j,k)
+          enddo
+       enddo
+    enddo
+
+    print*,"ges_pm2_5(5,5,1)=",ges_pm2_5(5,5,1),ges_pm25at(5,5,1),ges_pm25ac(5,5,1),ges_pm25co(5,5,1)
+    print*,"ges_pm2_5(5,5,1)=",ges_pm2_5(5,5,1),ges_amassi(5,5,1),ges_amassj(5,5,1),ges_amassk(5,5,1)
 
 !!  tsen2tv  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     do k=1,nsig
@@ -1516,6 +1793,8 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     use kinds, only: r_kind,i_kind
     use guess_grids, only: ntguessig,ges_tsen
     use gsi_metguess_mod, only: gsi_metguess_bundle
+!Hongli 20201112
+    use gsi_chemguess_mod, only: gsi_chemguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use mpeu_util, only: die
     implicit none
@@ -1531,6 +1810,54 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     real(r_kind),pointer,dimension(:,:,:):: ges_u   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_v   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_q   =>NULL()
+! variables for fv3cmaq 
+    real(r_kind),dimension(:,:,:),pointer::ges_aalj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_acaj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_acli=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aclj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aclk=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_acors=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aeci=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aecj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_afej=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aivpo1j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_akj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_alvoo1i=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_alvoo2i=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_alvpo1i=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_alvpo1j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_amgj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_amnj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_anai=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_anaj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_anh4i=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_anh4j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_anh4k=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_ano3i=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_ano3j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_ano3k=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aothri=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aothrj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aseacat=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asij=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aso4i=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aso4j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aso4k=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asoil=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asvoo1i=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asvoo2i=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asvpo1i=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asvpo1j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asvpo2i=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asvpo2j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asvpo3j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_atij=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_atol1j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_axyl1j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_axyl2j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_axyl3j=>NULL()
+
+
     dynvars=fv3filenamegin%dynvars
     tracers=fv3filenamegin%tracers
 
@@ -1542,6 +1869,67 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q'  ,ges_q ,istatus);ier=ier+istatus
     if (ier/=0) call die('get ges','cannot get pointers for fv3 met-fields, ier =',ier)
 
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aalj',ges_aalj,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'acaj',ges_acaj,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'acli',ges_acli,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aclj',ges_aclj,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aclk',ges_aclk,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'acors',ges_acors,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aeci',ges_aeci,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aecj',ges_aecj,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'afej',ges_afej,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aivpo1j',ges_aivpo1j,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'akj',ges_akj,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'alvoo1i',ges_alvoo1i,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'alvoo2i',ges_alvoo2i,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'alvpo1i',ges_alvpo1i,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'alvpo1j',ges_alvpo1j,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'amgj',ges_amgj,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'amnj',ges_amnj,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'anai',ges_anai,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'anaj',ges_anaj,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'anh4i',ges_anh4i,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'anh4j',ges_anh4j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'anh4k',ges_anh4k,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'ano3i',ges_ano3i,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'ano3j',ges_ano3j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'ano3k',ges_ano3k,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aothri',ges_aothri,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aothrj',ges_aothrj,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aseacat',ges_aseacat,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asij',ges_asij,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aso4i',ges_aso4i,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aso4j',ges_aso4j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aso4k',ges_aso4k,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asoil',ges_asoil,istatus );ier=ier+istatus
+
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asvoo1i',ges_asvoo1i,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asvoo2i',ges_asvoo2i,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asvpo1i',ges_asvpo1i,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asvpo1j',ges_asvpo1j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asvpo2i',ges_asvpo2i,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asvpo2j',ges_asvpo2j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asvpo3j',ges_asvpo3j,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'atij',ges_atij,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'atol1j',ges_atol1j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'axyl1j',ges_axyl1j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'axyl2j',ges_axyl2j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'axyl3j',ges_axyl3j,istatus );ier=ier+istatus
+
+
+    if (ier/=0) call die('get ges','cannot get pointers for aero-fields, ier =',ier)
+
     add_saved=.true.
 
 !   write out
@@ -1550,6 +1938,63 @@ subroutine wrfv3_netcdf(fv3filenamegin)
       call gsi_fv3ncdf_write(tracers,'sphum',ges_q   ,mype_q,add_saved)
       call gsi_fv3ncdf_writeuv(dynvars,ges_u,ges_v,mype_v,add_saved)
       call gsi_fv3ncdf_writeps(dynvars,'delp',ges_ps,mype_p,add_saved)
+
+!   write out aero
+      call gsi_fv3ncdf_write(tracers,'aalj',ges_aalj,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'acaj',ges_acaj,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'acli',ges_acli,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aclj',ges_aclj,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aclk',ges_aclk,mype_aero,add_saved)
+
+      call gsi_fv3ncdf_write(tracers,'acors',ges_acors,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aeci',ges_aeci,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aecj',ges_aecj,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'afej',ges_afej,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aivpo1j',ges_aivpo1j,mype_aero,add_saved)
+
+      call gsi_fv3ncdf_write(tracers,'akj',ges_akj,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'alvoo1i',ges_alvoo1i,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'alvoo2i',ges_alvoo2i,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'alvpo1i',ges_alvpo1i,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'alvpo1j',ges_alvpo1j,mype_aero,add_saved)
+
+      call gsi_fv3ncdf_write(tracers,'amgj',ges_amgj,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'amnj',ges_amnj,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'anai',ges_anai,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'anaj',ges_anaj,mype_aero,add_saved)
+
+      call gsi_fv3ncdf_write(tracers,'anh4i',ges_anh4i,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'anh4j',ges_anh4j,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'anh4k',ges_anh4k,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'ano3i',ges_ano3i,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'ano3j',ges_ano3j,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'ano3k',ges_ano3k,mype_aero,add_saved)
+
+      call gsi_fv3ncdf_write(tracers,'aothri',ges_aothri,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aothrj',ges_aothrj,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aseacat',ges_aseacat,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'asij',ges_asij,mype_aero,add_saved)
+
+      call gsi_fv3ncdf_write(tracers,'aso4i',ges_aso4i   ,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aso4j',ges_aso4j   ,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aso4k',ges_aso4k   ,mype_aero,add_saved)
+
+      call gsi_fv3ncdf_write(tracers,'asoil',ges_asoil   ,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'asvoo1i',ges_asvoo1i,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'asvoo2i',ges_asvoo2i,mype_aero,add_saved)
+
+      call gsi_fv3ncdf_write(tracers,'asvpo1i',ges_asvpo1i,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'asvpo1j',ges_asvpo1j,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'asvpo2i',ges_asvpo2i,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'asvpo2j',ges_asvpo2j,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'asvpo3j',ges_asvpo3j,mype_aero,add_saved)
+
+      call gsi_fv3ncdf_write(tracers,'atij',ges_atij,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'atol1j',ges_atol1j,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'axyl1j',ges_axyl1j,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'axyl2j',ges_axyl2j,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'axyl3j',ges_axyl3j,mype_aero,add_saved)
+
     else
       call gsi_fv3ncdf_write_v1(dynvars,'t',ges_tsen(1,1,1,it),mype_t,add_saved)
       call gsi_fv3ncdf_write_v1(tracers,'sphum',ges_q   ,mype_q,add_saved)
@@ -1937,8 +2382,8 @@ subroutine gsi_fv3ncdf_writeuv_v1(dynvars,varu,varv,mype_io,add_saved)
           enddo
        enddo
        deallocate(work,work_sub)
-! u and v would contain winds at either D-grid or A-grid
-! do not diretly use them in between fv3uv2eath and fv3_h_to_ll unless paying
+!clt u and v would contain winds at either D-grid or A-grid
+!clt do not diretly use them in between fv3uv2eath and fv3_h_to_ll unless paying
 !attention to the actual storage layout
        call check( nf90_open(trim(dynvars ),nf90_write,gfile_loc) )
 
@@ -2316,6 +2761,7 @@ subroutine gsi_fv3ncdf_write_v1(filename,varname,var,mype_io,add_saved)
     real(r_kind),allocatable,dimension(:,:,:):: work_sub,work_a
     real(r_kind),allocatable,dimension(:,:,:):: work_b
     real(r_kind),allocatable,dimension(:,:):: workb2,worka2
+    integer ii
 
 
     mm1=mype+1
@@ -2355,8 +2801,8 @@ subroutine gsi_fv3ncdf_write_v1(filename,varname,var,mype_io,add_saved)
        if(add_saved)then
           allocate( workb2(nlon_regional,nlat_regional))
           allocate( worka2(nlat,nlon))
-!  for being now only lev between (including )  2 and nsig+1 of work_b (:,:,lev) 
-!  are updated
+!clt  for being now only lev between (including )  2 and nsig+1 of work_b (:,:,lev) 
+!clt  are updated
           do k=1,nsig
              call fv3_h_to_ll(work_b(:,:,ilev0+k),worka2,nlon_regional,nlat_regional,nlon,nlat)
 !!!!!!!! analysis_inc:  work_a !!!!!!!!!!!!!!!!

@@ -486,7 +486,10 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
           if(associated(is_obOper)) then
             call is_obOper%setup(lunin,mype, is, nsat1(is), init_pass,last_pass)
             call obOper_destroy(is_obOper)
-
+!Hongli
+            call warn(myname,'CALL obOper, is =',is)
+            call warn(myname,'                dtype =',trim(dtype(is)))
+            call warn(myname,'     obOper_typeIndex=',obOper_typeIndex(dtype(is)))
           else
                 ! Exception (2) (see above)
             call warn(myname,'unexpected obOper, is =',is)

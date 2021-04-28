@@ -69,6 +69,9 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
   use jfunc, only: jiter,miter
   use m_dtime, only: dtime_setup, dtime_check
   use chemmod, only: laeroana_gocart, l_aoderr_table
+  use chemmod, only: naero_cmaq_fv3,aeronames_cmaq_fv3,imodes_cmaq_fv3,laeroana_fv3cmaq
+  use gridmod, only: fv3_cmaq_regional !cmaq_regional,wrf_mass_regional,fv3_cmaq_regional
+
   use aeroinfo, only: jpch_aero, nusis_aero, nuchan_aero, iuse_aero, &
        error_aero, gross_aero
   use m_obsdiagNode, only: obs_diag
@@ -187,9 +190,11 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
   type(obsLList),pointer,dimension(:):: aerohead
   aerohead => obsLL(:)
 
-
-  if ( .not. laeroana_gocart ) then
-     return
+  write(6,*)'SETUP_AOD: obstype= ',obstype
+  write(6,*)'SETUP_AOD: laeroana_fv3cmaq= ',laeroana_fv3cmaq
+ 
+  if ( .not. laeroana_gocart .and. .not. laeroana_fv3cmaq) then
+  !   return
   endif
 
 !**************************************************************************************
@@ -209,6 +214,7 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
   istyp     = 10 ! index of surface type
   idbcf     = 11 ! index of deep blue confidence flag
 
+  print*,"Wang: obstype= ",obstype
   if ( obstype == 'viirs_aod' .or. obstype == 'modis_aod' ) then
      iqcall    = 7  ! index of overall quality flag for AOD
      ismask    = 10 ! index of surface type mask
@@ -216,7 +222,7 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
      write(6,*)'SETUP_AOD:  *** WARNING: unknown aerosol input type, obstype=',obstype
   end if
 
-
+  print*,"Wang: call radiance_obstype_search"
 ! Determine cloud & aerosol usages in radiance assimilation
   call radiance_obstype_search(obstype,radmod)
 
@@ -228,6 +234,7 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
   jc=0
   
   do j=1,jpch_aero
+  print*,"Wang: isis= ",j,nusis_aero(j)
      if(isis == nusis_aero(j))then 
         jc=jc+1
         if(jc > nchanl)then
@@ -275,6 +282,7 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
   endif
 
 ! Initialize radiative transfer
+  print*,"Wang: call init_crtm"
   call init_crtm(init_pass,mype_diaghdr(is),mype,nchanl,nreal,isis,obstype,radmod)
 
 ! If diagnostic file requested, allocate arrays and init output file 
@@ -373,6 +381,14 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
                  case( 23 )     ! over bright land surface, high quality
                     tnoise = 0.0550472_r_kind+ 0.299558_r_kind*aod_obs
                end select
+               if (fv3_cmaq_regional)then
+                  if(aod_obs(n_viirs_550nm) .lt. 0.4_r_kind)then
+                  tnoise = 0.0216_r_kind+ 0.1936_r_kind*aod_obs(n_viirs_550nm)
+                  else
+                  tnoise = -0.1081_r_kind+ 0.5005_r_kind*aod_obs(n_viirs_550nm)
+                  end if
+                  tnoise = max(0.0216_r_kind,tnoise)
+               end if
            else
               if (mype == 0) then
                  write(6,*),'unknown obstype = ',obstype
@@ -380,8 +396,24 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
               end if
            end if ! end if obstype
         end if ! end if not l_aoderr_table
+
+!  if viirs_aod and fv3_cmaq_regional, apply bias correction 
+        if (obstype == 'viirs_aod' .and. fv3_cmaq_regional)then
+           do i = 1, nchanl
+           if ( i /= n_viirs_550nm) cycle
+           if(aod_obs(i) .lt. 0.4_r_kind)then
+              aod_obs(i) = aod_obs(i) - ( 0.41_r_kind*aod_obs(i)-0.03_r_kind )
+           end if
+           if(aod_obs(i) .ge. 0.4_r_kind .and. aod_obs(i) .lt. 0.9_r_kind)then
+              aod_obs(i) = aod_obs(i) - ( -0.119_r_kind*aod_obs(i)+0.121_r_kind )
+           end if
+           aod_obs(i) = max(0.0_r_kind,aod_obs(i))
+           end do
+        end if
+!
  
 !       Interpolate model fields to observation location, call crtm and create jacobians
+        write(6,*)"Wang: setupaod.f90:  call_crtm"
         call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
              tvp,qvp,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
              trop5,tzbgr,dtsavg,sfc_speed, &
@@ -412,6 +444,7 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
 
         do i = 1, nchanl
            aod(i) = aod_obs(i) - total_aod(i)
+           if(iuse_aero(ich(i))==1)write(6,*)"setupaod_aod= ",i,aod_obs(i),total_aod(i),tnoise(i)
            error0(i)     = tnoise(i)
            if(aod_obs(i)>zero .and. tnoise(i) < 1.e4_r_kind .or. (iuse_aero(ich(i))==-1  &
               .and. aero_diagsave))then
@@ -433,6 +466,7 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
                   aodinv(icc) = aod(i)            ! obs-ges innovation
                   var(icc) = one/error0(i)**2     ! 1/(obs error)**2  (original uninflated error)
                   ratio_aoderr(icc)=error0(i)**2*varinv(i) ! (original error)/(inflated error)
+                  write(6,*)'aod_inv= ',m,aodinv(icc),var(icc),varinv(i),tiny_r_kind
                endif
            endif
         end do
@@ -485,6 +519,7 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
                  m=ich(ii)
                  if (varinv(ii)>tiny_r_kind .and. iuse_aero(m)>=1) then
                     iii=iii+1
+                    write(6,*)"aod_head= ",iii,ii,aodinv(iii),var(iii),ratio_aoderr(iii)
                     my_head%res(iii)=aodinv(iii)
                     my_head%err2(iii)=var(iii)
                     my_head%raterr2(iii)=ratio_aoderr(iii)

@@ -85,7 +85,7 @@ contains
 ! Read dimension of stats file
   inerr=default_unit_
   if(present(unit)) inerr = unit
-  open(inerr,file=berror_stats,form='unformatted',status='old')
+  open(inerr,file=berror_stats,form='unformatted',status='old',convert='big_endian')
   rewind inerr
   read(inerr) msig,mlat
   close(inerr)
@@ -163,6 +163,7 @@ end subroutine berror_set_reg
 
   real(r_kind),dimension(nsig) :: rlsig
   real(r_single),dimension(:),allocatable::  clat_avn,sigma_avn
+  real(8),dimension(:),allocatable::  clat_avn8,sigma_avn8
   real(r_single),dimension(:,:),allocatable::  bv_avn,wgv_avn
   real(r_single),dimension(:,:,:),allocatable:: agv_avn
   real(r_kind),dimension(:),allocatable::  rlsigo
@@ -170,7 +171,7 @@ end subroutine berror_set_reg
 !   Open background error statistics file
     inerr=default_unit_
     if(present(unit)) inerr=unit
-    open(inerr,file=berror_stats,form='unformatted',status='old')
+    open(inerr,file=berror_stats,form='unformatted',status='old',convert='big_endian')
 
 !   Read header. 
     rewind inerr
@@ -181,10 +182,13 @@ end subroutine berror_set_reg
          '"',trim(berror_stats),'".  ', &
          'mype,nsigstat,nlatstat =', &
           mype,nsigstat,nlatstat
+       print*,"mlat,msig= ",mlat,msig
     end if
 
     allocate ( clat_avn(mlat) )
     allocate ( sigma_avn(1:msig) )
+    allocate ( clat_avn8(mlat) )
+    allocate ( sigma_avn8(1:msig) )
     allocate ( rlsigo(1:msig) )
     allocate ( agv_avn(0:mlat+1,1:msig,1:msig) )
     allocate ( bv_avn(0:mlat+1,1:msig),wgv_avn(0:mlat+1,1:msig) )
@@ -193,12 +197,14 @@ end subroutine berror_set_reg
     read(inerr)clat_avn,(sigma_avn(k),k=1,msig)
     read(inerr)agv_avn,bv_avn,wgv_avn
     close(inerr)
-
+    if(mype.eq.0)print*,"clat_avn= ",clat_avn
 !   compute vertical(pressure) interpolation index and weight
     do k=1,nsig
+       if(mype.eq.0)print*,"model_level: ",k,ges_prslavg(k)/ges_psfcavg,ges_prslavg(k),ges_psfcavg
        rlsig(k)=log(ges_prslavg(k)/ges_psfcavg)
     enddo
     do k=1,msig
+       if(mype.eq.0)print*,"be_level: ",k,sigma_avn(k)
        rlsigo(k)=log(sigma_avn(k))
     enddo
 
@@ -351,8 +357,9 @@ end subroutine berror_read_bal_reg
   real(r_single),dimension(0:mlat+1,msig,nrf):: hwll_tmp
   real(r_single),dimension(msig,0:mlat+1,nrf):: vz_tmp
 
-
-  character*5 :: varshort
+!Hongli gen_be_nc2gsi.F (   character (len=10) :: variable, variable2)
+!  character*5 :: varshort
+  character*10 :: varshort
   character(len=max_varname_length) :: var
   logical,dimension(nrf):: nrf_err
 
@@ -387,7 +394,7 @@ end subroutine berror_read_bal_reg
 ! Open background error statistics file
   inerr=default_unit_
   if(present(unit)) inerr=unit
-  open(inerr,file=berror_stats,form='unformatted',status='old')
+  open(inerr,file=berror_stats,form='unformatted',status='old',convert='big_endian')
 
 ! Read header.
   rewind inerr
@@ -432,7 +439,7 @@ end subroutine berror_read_bal_reg
         read(inerr,iostat=istat) varshort, isig
         var=varshort
      endif
-
+     print*,"Read BEC var: ",varshort, isig
      if (istat /= 0) exit
      allocate ( corz_avn(1:mlat,1:isig) )
      allocate ( hwll_avn(0:mlat+1,1:isig) )
@@ -452,7 +459,9 @@ end subroutine berror_read_bal_reg
 
 !    load the variances
      do n=1,nrf
+     !print*,"Decide if Var in BEC file: ",n,nrf,var,cvars(n)
         if (var==cvars(n)) then
+           print*,"Found Var in BEC file: ",n,var,nrf_err(n)
            nrf_err(n)=.true.
            loc=n
            exit
@@ -514,8 +523,10 @@ end subroutine berror_read_bal_reg
   deallocate(agv_avn,bv_avn,wgv_avn)
 
 ! 3d variable
+!Hongli Wang 20200930
   do n=1,nc3d
      loc=nrf3_loc(n)
+     !print*,"nrf_err(loc)= ",n,loc,nrf_err(loc)
      if (nrf_err(loc)) then
         do k=1,nsig
            m=lsig(k)
@@ -541,7 +552,8 @@ end subroutine berror_read_bal_reg
            enddo
         enddo
         if(mype==0) then
-           write(6,*)'Assigned default statistics to variable ',cvars(loc)
+           write(6,*)'Assigned default statistics to variable #3d',n,nc3d,cvars(loc)
+           write(6,*)'Assigned default statistics corz, hwll and vz:',corz_default,hwll_default,vz_default
         endif
      end if
   enddo
@@ -980,6 +992,7 @@ subroutine read_howv_stats(nlat,nlon,npar,arrout)
    do i_npar = 1,npar
       inquire(file=trim(filename(i_npar)), exist=file_exists)
       if (file_exists)then
+         print*,"read_be",i_npar,trim(filename(i_npar)) 
          open (unit=lun34  ,file=trim(filename(i_npar))  ,status='old'  &
                ,form='unformatted'   ,access='direct' ,recl=reclength )
          do j = 1,nlon

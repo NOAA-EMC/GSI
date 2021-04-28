@@ -71,6 +71,7 @@ use crtm_module, only: crtm_atmosphere_type,crtm_surface_type,crtm_geometry_type
 use gridmod, only: lat2,lon2,nsig,msig,nvege_type,regional,wrf_mass_regional,netcdf,use_gfs_ozone
 use mpeu_util, only: die
 use crtm_aod_module, only: crtm_aod_k
+USE CRTM_SpcCoeff,            ONLY: SC
 use radiance_mod, only: n_actual_clouds,cloud_names,n_clouds_fwd,cloud_names_fwd, &
     n_clouds_jac,cloud_names_jac,n_actual_aerosols,aerosol_names,n_aerosols_fwd,aerosol_names_fwd, &
     n_aerosols_jac,aerosol_names_jac,rad_obs_type,cw_cv,ql_cv
@@ -160,6 +161,9 @@ public isazi_ang2           ! = 37 index of solar azimuth angle (degrees)
   real(r_kind)   , save ,allocatable,dimension(:,:) :: aero         ! aerosol (guess) profiles at obs location
   real(r_kind)   , save ,allocatable,dimension(:,:) :: aero_conc    ! aerosol (guess) concentrations at obs location
   real(r_kind)   , save ,allocatable,dimension(:)   :: auxrh        ! temporary array for rh profile as seen by CRTM
+!Hongli Wang
+  real(r_kind)   , save ,allocatable,dimension(:,:) :: aero_wc, aero_wc1     ! aerosol weights for AOD at  bs location
+  real(r_kind)   , save ,allocatable,dimension(:,:) :: aero_wk, aero_conc_wk      ! aerosolconcentration in ug/M^3
 
   character(len=20),save,allocatable,dimension(:)   :: ghg_names    ! names of green-house gases
 
@@ -328,6 +332,12 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
   use aeroinfo, only: aerojacindxs
   use guess_grids, only: ges_tsen,ges_prsl,nfldsig
   use gridmod, only: fv3_full_hydro
+  use gridmod, only: cmaq_regional,wrf_mass_regional,fv3_cmaq_regional
+  use chemmod, only: laod_crtm_cmaq,crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
+   iaod_crtm_cmaq,iaod_recs_cmaq
+!  use chemmod, only: laod_crtm_cmaq,iaod_crtm_cmaq,visindx_cmaq_fv3,visindx_large_cmaq_fv3,humfac,humfac_large,humfac_ss
+!  use chemmod, only: aemolwt_cmaq_fv3,raod_radius_mean_scale,raod_radius_std_scale
+!  use chemmod, only: iaod_recs_cmaq,visindx_recs_fv3,humfac_recs,humfac_recs_ss
   use mpeu_util, only: getindex
   use constants, only: zero,max_varname_length
   use obsmod, only: dval_use
@@ -350,6 +360,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
   integer(i_kind) :: ier,ii,error_status,iderivative
   integer(i_kind) :: k, subset_start, subset_end
   logical :: ice,Load_AerosolCoeff,Load_CloudCoeff
+  character(50) Aerosol_Model, AerosolCoeff_File,AerosolCoeff_Format
   character(len=20),dimension(1) :: sensorlist
   integer(i_kind) :: indx,iii,icloud4crtm
 ! ...all "additional absorber" variables
@@ -557,10 +568,33 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
  if (radmod%laerosol_fwd) then 
     if(.not.allocated(aero)) allocate(aero(nsig,n_actual_aerosols))
     if(.not.allocated(aero_conc)) allocate(aero_conc(msig,n_actual_aerosols),auxrh(msig))
+    if(.not.allocated(aero_wc)) allocate(aero_wc(msig,n_actual_aerosols))
+    if(.not.allocated(aero_wc1)) allocate(aero_wc1(nsig,n_actual_aerosols))
+    if(.not.allocated(aero_wk)) allocate(aero_wk(nsig,n_actual_aerosols))
+    if(.not.allocated(aero_conc_wk)) allocate(aero_conc_wk(msig,n_actual_aerosols))
     n_actual_aerosols_wk=n_actual_aerosols
     n_aerosols_fwd_wk=n_aerosols_fwd
     n_aerosols_jac_wk=n_aerosols_jac
     Load_AerosolCoeff=.true.
+! Hongli
+     if(fv3_cmaq_regional)then
+
+     Aerosol_Model = trim(crtm_aerosol_model)
+     AerosolCoeff_File = trim(crtm_aerosolcoeff_file)
+     AerosolCoeff_Format = trim(crtm_aerosolcoeff_format) 
+     write(6,*)"crtm_interface.f90: CRTM:",Aerosol_Model,AerosolCoeff_File,AerosolCoeff_Format
+     !if(laod_crtm_cmaq)then
+     !write(6,*),"in crtm_interface.f90: Setup Aerosol_Model = CMAQ"
+     !Aerosol_Model = "CMAQ"
+     !!AerosolCoeff_File is not long enought to use AerosolCoeff.CMAQ.bin
+     !AerosolCoeff_File = "AerosolCoeff.bin" !"AerosolCoeff.CMAQ.bin"
+     !else 
+     !write(6,*)"crtm_interface.f90,fv3cmaq, but use Aerosol_Model GOCART !!!" 
+     !Aerosol_Model = "GOCART-GEOS5"
+    ! AerosolCoeff_File = "AerosolCoeff.bin"
+    ! end if
+  
+     end if
  else
     n_actual_aerosols_wk=0
     n_aerosols_fwd_wk=0
@@ -569,19 +603,37 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
  endif
 
 ! Initialize radiative transfer
-
+!AerosolCoeff.CMAQ.bin
+!
  sensorlist(1)=isis
  quiet=.not. print_verbose
+ quiet=print_verbose
+ write(6,*)"crtm_coeffs_path= ",crtm_coeffs_path
+ write(6,*)"crtm_init: ",Aerosol_Model,AerosolCoeff_File,AerosolCoeff_Format
  if( crtm_coeffs_path /= "" ) then
     if(init_pass .and. mype==mype_diaghdr .and. print_verbose) &
         write(6,*)myname_,': crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
     error_status = crtm_init(sensorlist,channelinfo,&
        Process_ID=mype,Output_Process_ID=mype_diaghdr, &
+!Hongli
+       Aerosol_Model=Aerosol_Model,AerosolCoeff_File=AerosolCoeff_File, &
+!AerosolCoeff_Format
+       AerosolCoeff_Format=AerosolCoeff_Format, &
+!     Aerosol_Model = "GOCART-GEOS5", &
+!     AerosolCoeff_File = "AerosolCoeff.GOCART-GEOS5.bin", &
+!     AerosolCoeff_Format='Binary', &
        Load_CloudCoeff=Load_CloudCoeff,Load_AerosolCoeff=Load_AerosolCoeff, &
        File_Path = crtm_coeffs_path,quiet=quiet )
  else
     error_status = crtm_init(sensorlist,channelinfo,&
        Process_ID=mype,Output_Process_ID=mype_diaghdr, &
+!Hongli
+       Aerosol_Model=Aerosol_Model,AerosolCoeff_File=AerosolCoeff_File, &
+!AerosolCoeff_Format
+       AerosolCoeff_Format=AerosolCoeff_Format, &
+!     Aerosol_Model = "GOCART-GEOS5", &
+!     AerosolCoeff_File = "AerosolCoeff.GOCART-GEOS5.bin", &
+!     AerosolCoeff_Format='Binary', &
        Load_CloudCoeff=Load_CloudCoeff,Load_AerosolCoeff=Load_AerosolCoeff,&
        quiet=quiet)
  endif
@@ -855,11 +907,11 @@ endif
 
      if (mype==0) write(6,*)myname_,':initial and load GFDL saturation water vapor pressure tables'
 
-     allocate(table (length))
-     allocate(table2(length))
-     allocate(tablew(length))
-     allocate(des2  (length))
-     allocate(desw  (length))
+     if (.not. allocated(table) ) allocate(table (length))
+     if (.not. allocated(table2)) allocate(table2(length))
+     if (.not. allocated(tablew)) allocate(tablew(length))
+     if (.not. allocated(des2))   allocate(des2  (length))
+     if (.not. allocated(desw))   allocate(desw  (length))
 
      call qs_table (length)
      call qs_table2(length)
@@ -1068,7 +1120,11 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use obsmod, only: iadate
   use aeroinfo, only: nsigaerojac
   use chemmod, only: lread_ext_aerosol !for separate aerosol input file
-
+!  use chemmod, only: iaod_recs_cmaq
+  use chemmod, only: laod_crtm_cmaq,iaod_crtm_cmaq,visindx_cmaq_fv3,visindx_large_cmaq_fv3,humfac,humfac_large,humfac_ss
+  use chemmod, only: aemolwt_cmaq_fv3,raod_radius_mean_scale,raod_radius_std_scale
+  use chemmod, only: iaod_recs_cmaq,visindx_recs_fv3,humfac_recs,humfac_recs_ss
+  use chemmod, only: ssmoke_cmaq_fv3,sdust_cmaq_fv3
   implicit none
 
 ! Declare passed variables
@@ -1115,11 +1171,12 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   integer(i_kind):: i_minus, i_plus, j_minus, j_plus
   integer(i_kind):: itsig,itsigp,itsfc,itsfcp,itaer,itaerp
   integer(i_kind):: istyp00,istyp01,istyp10,istyp11
-  integer(i_kind):: iqs,iozs,icfs 
+  integer(i_kind):: iqs,iozs,icfs,irh
   integer(i_kind):: error_status_clr
   integer(i_kind):: idx700,dprs,dprs_min  
   integer(i_kind),dimension(8)::obs_time,anal_time
   integer(i_kind),dimension(msig) :: klevel
+  real(r_kind) :: raod_type
 
 ! ****************************** 
 ! Constrained indexing for lai
@@ -1147,7 +1204,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),dimension(0:3)   :: dtskin
   real(r_kind),dimension(msig)  :: c6
   real(r_kind),dimension(nsig)  :: c2,c3,c4,c5
-  real(r_kind),dimension(nsig) :: ugkg_kgm2,cwj
+  real(r_kind),dimension(nsig) :: ugkg_kgm2,cwj,ugkg_ugm3
   real(r_kind),dimension(nsig) :: rho_air   ! density of air (kg/m3)
   real(r_kind),dimension(nsig) :: cf_calc   ! GFDL cloud fraction calculation
   real(r_kind),dimension(nsig) :: qmix      ! water vapor mixing ratio
@@ -1946,9 +2003,55 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      do k = 1, nsig
 !       Convert mixing-ratio to concentration
         ugkg_kgm2(k)=1.0e-9_r_kind*(prsi(k)-prsi(k+1))*r1000/grav
+        ugkg_ugm3(k)=1.0_r_kind*(eps*(r1000*prsl(k))/(rd*h(k)*(q(k)+eps)))
+        aero_wk(k,:)=aero(k,:)
         aero(k,:)=aero(k,:)*ugkg_kgm2(k)
+        aero_wk(k,:)=aero_wk(k,:)*ugkg_ugm3(k)
+        write(6,*)"ugkg_kgm2_ugm3= ",k,ugkg_kgm2(k),ugkg_ugm3(k),prsi(k),prsl(k)
      enddo
   endif
+
+!Hongli
+! add vis and rh contribution
+
+  if (n_actual_aerosols_wk>0) then
+     do k = 1, nsig
+        do ii = 1, n_aerosols_jac_wk
+
+        aero_wc1(k,i) = 1.0
+
+        irh = int( 100.0 * rh(k)  ) ! truncate relative humidity to nearest
+        irh = max( 1, min( 99, irh ) ) ! set bounds
+
+        if(iaod_crtm_cmaq.eq.1)then
+            ! ke in CMAQ LUTs are 1.0
+            select case ( trim(aerosol_names(ii)) )
+            case ('aso4i','aso4j','aso4k','ano3i','ano3j','ano3k','anh4i','anh4j','anh4k')
+               aero_wc1(k,i) = 1000.0*visindx_recs_fv3(i)*humfac_recs(irh)
+            case ('acli','aclj','aclk','anai','anaj','aseacat')
+               aero_wc1(k,i) = 1000.0*visindx_recs_fv3(i)*humfac_recs_ss(irh)
+            case default
+               aero_wc1(k,i) = 1000.0*visindx_recs_fv3(i)
+             end select
+            elseif(iaod_crtm_cmaq.eq.2)then
+        end if
+
+        if(iaod_crtm_cmaq.eq.2)then
+            ! ke in CMAQ LUTs are 1000.0*visindx_recs_fv3
+            select case ( trim(aerosol_names(ii)) )
+            case ('aso4i','aso4j','aso4k','ano3i','ano3j','ano3k','anh4i','anh4j','anh4k')
+               aero_wc1(k,ii) = humfac_recs(irh)
+            case ('acli','aclj','aclk','anai','anaj','aseacat')
+               aero_wc1(k,ii) = humfac_recs_ss(irh)
+            case default
+               aero_wc1(k,ii)  = 1.0
+            end select
+        end if
+           write(6,*)"aero_wc1= ",k,ii,aerosol_names(ii),irh,aero_wc1(k,ii)
+        enddo
+     enddo
+  endif
+
 
   sea = min(max(zero,data_s(ifrac_sea)),one)  >= 0.99_r_kind
   icmask = (sea .and. cld_sea_only_wk) .or. (.not. cld_sea_only_wk)
@@ -1980,7 +2083,9 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      if (n_actual_aerosols_wk>0) then
         aero_conc(k,:)=aero(kk2,:)
         auxrh(k)      =rh(kk2)
-     endif
+        aero_wc(k,:)  = 0.0
+        aero_conc_wk(k,:)=aero_wk(kk2,:) 
+    endif
 
 ! Include cloud guess profiles in mw radiance computation
 
@@ -2086,13 +2191,25 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 ! Set aerosols for CRTM
   if(n_actual_aerosols_wk>0) then
+! Relative only works with CD's CRTM branch
+!     write(6,*)"CRTM_RH0: ",atmosphere(1)%Relative_Humidity
+     atmosphere(1)%Relative_Humidity = auxrh
+!     write(6,*)"CRTM_RH1: ",atmosphere(1)%Relative_Humidity
      call Set_CRTM_Aerosol ( msig, n_actual_aerosols_wk, n_aerosols_fwd_wk, aerosol_names, aero_conc, auxrh, &
-                             atmosphere(1)%aerosol )
+                             atmosphere(1)%aerosol, aero_conc_wk, aero_wc )
   endif
+
+!Hongli 
+! to model nsig levels
+!  do k=1,msig
+!     kk = klevel(msig-k+1)
+!     aero_wc1(kk,:) = aero_wc(k,:)
+!  end do
 
 ! Call CRTM K Matrix model
 
-
+  write(6,*)"Wang: Call CRTM_K_Matrix model"
+  write(6,*)"Wang: obstype= ",trim(obstype)
   error_status = 0
   if ( trim(obstype) /= 'modis_aod' .and. trim(obstype) /= 'viirs_aod' ) then
      error_status = crtm_k_matrix(atmosphere,surface,rtsolution_k,&
@@ -2110,6 +2227,11 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      do i=1,nchanl
         rtsolution_k(i,1)%layer_optical_depth(:) = jac_pert
      enddo
+    !write(6,*),"AOD_sensorindex= ",sensorindex,trim(obstype)
+    !DO i = 1, ChannelInfo(sensorindex)%n_Channels
+    !   write(6,*),"AOD_Channel= ",ChannelInfo(sensorindex)%Process_Channel(i),ChannelInfo(sensorindex)%Channel_Index(i)
+    !   write(6,*),"AOD_Frequency= ",i,SC(SensorIndex)%Wavenumber(ChannelInfo(sensorindex)%Channel_Index(i))
+    !end do
      error_status = crtm_aod_k(atmosphere,rtsolution_k,&
         channelinfo(sensorindex:sensorindex),rtsolution,atmosphere_k)
   end if
@@ -2322,7 +2444,12 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         do k=1,msig
            kk = klevel(msig-k+1)
            if(present(layer_od)) then
+              if(iaod_recs_cmaq .ge. 1)then
+              ! reconstruction method requires microgram/M^2: *1000.0 
+              layer_od(kk,i) = layer_od(kk,i) + 1000.0*sum(aero_conc(k,:)*aero_wc(k,:))
+              else
               layer_od(kk,i) = layer_od(kk,i) + rtsolution(i,1)%layer_optical_depth(k)
+              end if
            endif
            do ii=1,n_aerosols_jac_wk
               if ( n_aerosols_jac_wk > n_aerosols_fwd_wk .and. ii == indx_p25 ) then
@@ -2334,12 +2461,31 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
               endif
            enddo
         enddo
+
         if (present(jacobian_aero)) then
+           if(iaod_crtm_cmaq.ge.1)then
            do k=1,nsig
               do ii=1,n_aerosols_jac_wk
-                 jacobian_aero(iaero_jac(ii)+k,i) = jaero(k,i,ii)*ugkg_kgm2(k)
+                 jacobian_aero(iaero_jac(ii)+k,i) = jaero(k,i,ii)*aero_wc1(k,ii)*ugkg_kgm2(k)
               end do
            enddo
+           else
+           raod_type=data_s(11)
+           print*,"raod_type= ",raod_type
+           do k=1,nsig
+              do ii=1,n_aerosols_jac_wk
+                 if(raod_type.eq.101.0_r_kind)then
+                 jacobian_aero(iaero_jac(ii)+k,i) = jaero(k,i,ii)*ugkg_kgm2(k) &
+                                                   *ssmoke_cmaq_fv3(ii)
+                 elseif(raod_type.eq.102.0_r_kind)then
+                 jacobian_aero(iaero_jac(ii)+k,i) = jaero(k,i,ii)*ugkg_kgm2(k) &
+                                                   *sdust_cmaq_fv3(ii)
+                 else 
+                 jacobian_aero(iaero_jac(ii)+k,i) = jaero(k,i,ii)*ugkg_kgm2(k)
+                 end if
+              end do
+           enddo
+           end if
         endif
      enddo
   endif

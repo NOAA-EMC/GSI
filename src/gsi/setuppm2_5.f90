@@ -109,10 +109,9 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   use chemmod, only : s_2_5,d_2_5,nh4_mfac,oc_mfac
   use chemmod, only: naero_gocart_wrf,aeronames_gocart_wrf,&
       upper2lower,lower2upper,laeroana_gocart,wrf_pm2_5
-
-
-  use gridmod, only : cmaq_regional,wrf_mass_regional
-
+  use chemmod, only: naero_cmaq_fv3,aeronames_cmaq_fv3,imodes_cmaq_fv3,laeroana_fv3cmaq 
+!Hongli 
+  use gridmod, only : cmaq_regional,wrf_mass_regional,fv3_cmaq_regional 
   implicit none
   
 ! !input parameters:
@@ -178,6 +177,11 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   character(len=max_varname_length) :: aeroname
 
   integer(i_kind) :: ipm2_5,n_gocart_var
+
+  integer(i_kind) :: n_cmaq_var
+  real(r_kind),allocatable,dimension(:,:,:,:,:) :: pm25wc
+  real(r_kind) :: pm25wc_ges(3)
+
   type(obsLList),pointer,dimension(:):: pm2_5head
   pm2_5head => obsLL(:)
 
@@ -197,7 +201,8 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 !*********************************************************************************
 ! get pointer to pm2_5 guess state, if not present return 
 
-    if (cmaq_regional .or. (wrf_mass_regional .and. wrf_pm2_5) ) then
+  if ( (fv3_cmaq_regional .and. .not. laeroana_fv3cmaq) .or. cmaq_regional .or. (wrf_mass_regional .and. wrf_pm2_5) ) then
+!for fv3cmaq, ges_pm2_5 is calculated in read in fv3 aeros
 
      call gsi_chemguess_get ('var::pm2_5', ipm2_5, ier )
      if (ipm2_5 <= 0) then
@@ -227,6 +232,146 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
      
   endif
 
+! Hongli for fv3_cmaq 
+  if ( fv3_cmaq_regional .and. laeroana_fv3cmaq) then
+!check if pm25at, pm25ac and pm25co are in ges 
+     call gsi_chemguess_get ('var::pm25at', ipm2_5, ier )
+     if (ipm2_5 <= 0) then
+        write(6,*)'pm25at not in chem_guess - returning from setuppm2_5'
+        return
+     else 
+         write(6,*)'pm25at is in chem_guess'
+     endif
+
+     call gsi_chemguess_get ('var::pm25at', ipm2_5, ier )
+     if (ipm2_5 <= 0) then
+        write(6,*)'pm25ac not in chem_guess - returning from setuppm2_5'
+        return
+     else 
+        write(6,*)'pm25ac is in chem_guess'
+     endif
+
+     call gsi_chemguess_get ('var::pm25co', ipm2_5, ier )
+     if (ipm2_5 <= 0) then
+        write(6,*)'pm25co not in chem_guess - returning from setuppm2_5'
+        return
+     else
+        write(6,*)'pm25co is in chem_guess'
+     endif
+
+!check if aerosol species in control
+     call gsi_chemguess_get ( 'aerosols::3d', n_cmaq_var, ier )
+
+!n_cmaq_var ges vars in anainfo; naero_cmaq_fv3 in chemmod
+
+    if (n_cmaq_var /= naero_cmaq_fv3) then
+       ! write(6,*) 'setuppm2_5: Please check if cmaq aerosols in anavinfo',n_cmaq_var,naero_cmaq_fv3
+       if(n_cmaq_var < naero_cmaq_fv3) then       
+        write(6,*) 'setuppm2_5: not all cmaq aerosols in anavinfo',n_cmaq_var,naero_cmaq_fv3
+        call stop2(451)
+       endif
+    endif
+
+     do i=1,naero_cmaq_fv3
+        !aeroname=upper2lower(aeronames_cmaq_fv3(i))
+        aeroname=aeronames_cmaq_fv3(i)
+        call gsi_chemguess_get ('var::'//trim(aeroname), ipm2_5, ier )
+        if (ier > 0 .or. ipm2_5 <= 0) then
+           write(6,*) 'setuppm2_5: ',trim(aeroname),' missing in anavinfo'
+           call stop2(452)
+        endif
+     enddo
+
+    if (size(gsi_chemguess_bundle)==nfldsig) then
+
+        aeroname='pm25at'
+        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
+             rank3,ier)
+        if (ier==0) then
+           allocate(pm25wc(size(rank3,1),size(rank3,2),size(rank3,3),3,nfldsig))
+           pm25wc(:,:,:,1,1)=rank3
+              write(6,*) 'setuppm2_5:  pm25at ',1, nfldsig,size(rank3,1),size(rank3,2),size(rank3,3)
+
+           do ifld=2,nfldsig
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
+              pm25wc(:,:,:,1,ifld)=rank3
+              write(6,*) 'setuppm2_5:  pm25at ',ifld,nfldsig,size(rank3,1),size(rank3,2),size(rank3,3)
+           enddo
+        else
+           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle,ier= ',ier
+           call stop2(453)
+        endif
+
+        aeroname='pm25ac'
+        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
+             rank3,ier)
+        if (ier==0) then
+           !allocate(pm25wc(size(rank3,1),size(rank3,2),size(rank3,3),3,nfldsig))
+           pm25wc(:,:,:,2,1)=rank3
+           do ifld=2,nfldsig
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
+              pm25wc(:,:,:,2,ifld)=rank3
+              write(6,*) 'setuppm2_5:  pm25ac ',ifld,nfldsig,size(rank3,1),size(rank3,2),size(rank3,3)
+           enddo
+        else
+           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle,ier= ',ier
+           call stop2(453)
+        endif
+
+        aeroname='pm25co'
+        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
+             rank3,ier)
+        if (ier==0) then
+           !allocate(pm25wc(size(rank3,1),size(rank3,2),size(rank3,3),3,nfldsig))
+           pm25wc(:,:,:,3,1)=rank3
+           do ifld=2,nfldsig
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
+              pm25wc(:,:,:,3,ifld)=rank3
+              write(6,*) 'setuppm2_5:  pm25co ',ifld,nfldsig,size(rank3,1),size(rank3,2),size(rank3,3)
+           enddo
+        else
+           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle,ier= ',ier
+           call stop2(453)
+        endif
+
+        aeroname='aso4i'
+        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
+             rank3,ier)
+        if (ier==0) then
+           allocate(ges_pm2_5(size(rank3,1),size(rank3,2),size(rank3,3),&
+                nfldsig))
+           ges_pm2_5(:,:,:,1)=pm25wc(:,:,:,1,1)*rank3
+           do ifld=2,nfldsig
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
+              ges_pm2_5(:,:,:,ifld)=pm25wc(:,:,:,1,ifld)*rank3
+              write(6,*) 'setuppm2_5: contribution from (no weights yet!!!) ',trim(aeroname) 
+           enddo
+        else
+           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle,ier= ',ier
+           call stop2(453)
+        endif
+
+        do i=2,naero_cmaq_fv3
+        aeroname=trim(aeronames_cmaq_fv3(i))
+        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
+             rank3,ier)
+        if (ier==0) then
+           ges_pm2_5(:,:,:,1)=ges_pm2_5(:,:,:,1)+pm25wc(:,:,:,imodes_cmaq_fv3(i),1)*rank3
+           do ifld=2,nfldsig
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
+              ges_pm2_5(:,:,:,ifld)=ges_pm2_5(:,:,:,ifld)+pm25wc(:,:,:,imodes_cmaq_fv3(i),ifld)*rank3
+              write(6,*) 'setuppm2_5: contribution from (no weights yet!!!) ',trim(aeroname) 
+           enddo
+        else
+           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle,ier= ',ier
+           call stop2(453)
+        endif
+        end do
+    else 
+       write(6,*) 'setuppm2_5: size(gsi_chemguess_bundle)/=nfldsig ges_pm2_5 not setup !!!'
+       call stop2(454)
+    end if ! eq. nfldsig
+  end if
 
   if (wrf_mass_regional .and. laeroana_gocart) then
 
@@ -492,19 +637,20 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         call tintrp2a11(ges_z,elevges,dlat,dlon,dtime,hrdifsig,&
              mype,nfldsig)
         
-!obs are conc
+!obs are conc, kg/M3
 !wrf state vars are as mix ratio
-!cmaq pm2_5 is as conc
-!might convert for cmaq at some point as well
+!cmaq state vars are as mix ratio too,ug/Kg 
+!convert for cmaq as well
 
 
-        if (wrf_mass_regional) then
+        if (wrf_mass_regional .or. fv3_cmaq_regional) then
            call tintrp2a11(ges_ps,ps_ges,dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig)
 
            call tintrp2a11(ges_tv(:,:,1,nfldsig),tv_ges,dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig)
-
+!!! kg/(M**3*rho) = ug/Kg
+           write(6,*)"OBSPM_to_KG:",conc,ps_ges*r1000/(rd*tv_ges)
            conc=conc/(ps_ges*r1000/(rd*tv_ges))
         endif
 
@@ -536,7 +682,23 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
            call tintrp2a11(ges_pm2_5,pm2_5ges,dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig)
            innov = conc - pm2_5ges
+        print*,"setup PM2_5: ",i,conc,pm2_5ges,cgross(ikx),pm2_5_teom_max
         end if
+
+        if ( fv3_cmaq_regional .and. laeroana_fv3cmaq) then
+! interpoloate pm25ac 
+! Hongli 
+        call tintrp2a11(pm25wc(:,:,:,1,nfldsig),pm25wc_ges(1),dlat,dlon,dtime,hrdifsig,&
+                mype,nfldsig) 
+        call tintrp2a11(pm25wc(:,:,:,2,nfldsig),pm25wc_ges(2),dlat,dlon,dtime,hrdifsig,&
+                mype,nfldsig)
+        call tintrp2a11(pm25wc(:,:,:,3,nfldsig),pm25wc_ges(3),dlat,dlon,dtime,hrdifsig,&
+                mype,nfldsig)
+
+       print*,"pm25wc at obs: ",i,pm25wc_ges
+       else 
+       pm25wc_ges = 0.0
+       end if
 
         error=one/data(ierror,i)
         ratio_errors=one/sqrt(real(dup(i)))
@@ -547,7 +709,9 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
               elevdiff > elev_tolerance) then
            muse(i)=.false.
         endif
-
+        print*,"pm25_inv_err: ",innov,error,ratio_errors,innov_error
+!Hongli use all obs for test 
+        !muse(i)=.true.
         rat_err2 = ratio_errors**2
         
         if(luse(i))then
@@ -602,6 +766,7 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
            my_head%b       = cvar_b(ikx)
            my_head%pg      = cvar_pg(ikx)
            my_head%luse    = luse(i)
+           my_head%pm25wc  = pm25wc_ges
 
            if (luse_obsdiag) then
               call obsdiagNode_assert(my_diag, my_head%idv,my_head%iob,1,myname,'my_diag:my_head')
@@ -681,7 +846,7 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   call gsi_metguess_get ('var::z' , ivar, istatus )
   proceed=proceed.and.ivar>0
 !
-  if ( cmaq_regional .or. (wrf_mass_regional .and. wrf_pm2_5) ) then
+  if (  (fv3_cmaq_regional .and. .not.laeroana_fv3cmaq) .or. cmaq_regional .or. (wrf_mass_regional .and. wrf_pm2_5) ) then
      call gsi_chemguess_get ('var::pm2_5', ivar, istatus )
   else if (wrf_mass_regional .and. laeroana_gocart) then
 
