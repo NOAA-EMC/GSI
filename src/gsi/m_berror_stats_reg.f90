@@ -293,6 +293,8 @@ end subroutine berror_read_bal_reg
       use mpeu_util,only: getindex
       use radiance_mod, only: icloud_cv,n_clouds_fwd,cloud_names_fwd
 
+      use gridmod, only: fv3_cmaq_regional
+
       implicit none
 
       integer(i_kind)                    ,intent(in   ) :: qoption
@@ -358,8 +360,8 @@ end subroutine berror_read_bal_reg
   real(r_single),dimension(msig,0:mlat+1,nrf):: vz_tmp
 
 !Hongli gen_be_nc2gsi.F (   character (len=10) :: variable, variable2)
-!  character*5 :: varshort
-  character*10 :: varshort
+  character*5 :: varshort
+  character*10 :: varlong
   character(len=max_varname_length) :: var
   logical,dimension(nrf):: nrf_err
 
@@ -436,10 +438,15 @@ end subroutine berror_read_bal_reg
         var=upper2lower(varshort)
         if (var == 'pm25') var = 'pm2_5'
      else 
+        if(fv3_cmaq_regional)then
+        read(inerr,iostat=istat) varlong, isig   
+        var=varlong
+        else
         read(inerr,iostat=istat) varshort, isig
         var=varshort
+        end if
      endif
-     print*,"Read BEC var: ",varshort, isig
+     print*,"Read BEC var: ",var, isig
      if (istat /= 0) exit
      allocate ( corz_avn(1:mlat,1:isig) )
      allocate ( hwll_avn(0:mlat+1,1:isig) )
