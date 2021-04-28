@@ -249,27 +249,20 @@ contains
           irh = int( 100.0 * rh(k)  ) ! truncate relative humidity to nearest
           irh = max( 1, min( 99, irh ) ) ! set bounds
           if (laod_crtm_cmaq) then
-             !if (aerosol(i)%type.eq.SULFATE_AEROSOL .or. aerosol(i)%type.eq.WATER_SOLUBLE_AEROSOL)then
-             !   aerosol(i)%concentration(k) = max(tiny_r_kind,aero_conc(k,i)*visindx_recs_fv3(i)*humfac_recs(irh))
-             !elseif (aerosol(i)%type.eq.SEASALT_AEROSOL)then
-             !   aerosol(i)%concentration(k) = max(tiny_r_kind,aero_conc(k,i)*visindx_recs_fv3(i)*humfac_recs_ss(irh)) 
-             !else
-             !   aerosol(i)%concentration(k) =max(tiny_r_kind,aero_conc(k,i)*visindx_recs_fv3(i)*humfac_recs_ss(irh))
-             !end if
             if(iaod_crtm_cmaq.eq.1)then
             ! ke in CMAQ LUTs are 1.0
-            select case ( trim(aero_name(i)) )
-            case ('aso4i','aso4j','aso4k','ano3i','ano3j','ano3k','anh4i','anh4j','anh4k')
-               aerosol(i)%concentration(k) = max(tiny_r_kind,1000.0*aero_conc(k,i)*visindx_recs_fv3(i)*humfac_recs(irh))
-               aero_wc(k,i)=1000.0*visindx_recs_fv3(i)*humfac_recs(irh)
-            case ('acli','aclj','aclk','anai','anaj','aseacat')
-               aerosol(i)%concentration(k) = max(tiny_r_kind,1000.0*aero_conc(k,i)*visindx_recs_fv3(i)*humfac_recs_ss(irh)) 
-               aero_wc(k,i)=1000.0*visindx_recs_fv3(i)*humfac_recs_ss(irh)
-            case default
-               aerosol(i)%concentration(k) = max(tiny_r_kind,1000.0*aero_conc(k,i)*visindx_recs_fv3(i))
-               aero_wc(k,i)=1000.0*visindx_recs_fv3(i)
-             end select
-            elseif(iaod_crtm_cmaq.eq.2)then
+            !select case ( trim(aero_name(i)) )
+            !case ('aso4i','aso4j','aso4k','ano3i','ano3j','ano3k','anh4i','anh4j','anh4k')
+            !   aerosol(i)%concentration(k) = max(tiny_r_kind,1000.0*aero_conc(k,i)*visindx_recs_fv3(i)*humfac_recs(irh))
+            !   aero_wc(k,i)=1000.0*visindx_recs_fv3(i)*humfac_recs(irh)
+            !case ('acli','aclj','aclk','anai','anaj','aseacat')
+            !   aerosol(i)%concentration(k) = max(tiny_r_kind,1000.0*aero_conc(k,i)*visindx_recs_fv3(i)*humfac_recs_ss(irh)) 
+            !   aero_wc(k,i)=1000.0*visindx_recs_fv3(i)*humfac_recs_ss(irh)
+            !case default
+            !   aerosol(i)%concentration(k) = max(tiny_r_kind,1000.0*aero_conc(k,i)*visindx_recs_fv3(i))
+            !   aero_wc(k,i)=1000.0*visindx_recs_fv3(i)
+            ! end select
+            !elseif(iaod_crtm_cmaq.eq.2)then
             ! ke in CMAQ LUTs are 1000.0*visindx_recs_fv3 
             select case ( trim(aero_name(i)) )
             case ('aso4i','aso4j','aso4k','ano3i','ano3j','ano3k','anh4i','anh4j','anh4k')

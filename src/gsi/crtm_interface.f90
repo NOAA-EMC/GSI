@@ -2024,19 +2024,19 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         irh = max( 1, min( 99, irh ) ) ! set bounds
 
         if(iaod_crtm_cmaq.eq.1)then
-            ! ke in CMAQ LUTs are 1.0
-            select case ( trim(aerosol_names(ii)) )
-            case ('aso4i','aso4j','aso4k','ano3i','ano3j','ano3k','anh4i','anh4j','anh4k')
-               aero_wc1(k,i) = 1000.0*visindx_recs_fv3(i)*humfac_recs(irh)
-            case ('acli','aclj','aclk','anai','anaj','aseacat')
-               aero_wc1(k,i) = 1000.0*visindx_recs_fv3(i)*humfac_recs_ss(irh)
-            case default
-               aero_wc1(k,i) = 1000.0*visindx_recs_fv3(i)
-             end select
-            elseif(iaod_crtm_cmaq.eq.2)then
-        end if
+        !    ! ke in CMAQ LUTs are 1.0
+        !    select case ( trim(aerosol_names(ii)) )
+        !    case ('aso4i','aso4j','aso4k','ano3i','ano3j','ano3k','anh4i','anh4j','anh4k')
+        !       aero_wc1(k,i) = 1000.0*visindx_recs_fv3(i)*humfac_recs(irh)
+        !    case ('acli','aclj','aclk','anai','anaj','aseacat')
+        !       aero_wc1(k,i) = 1000.0*visindx_recs_fv3(i)*humfac_recs_ss(irh)
+        !    case default
+        !       aero_wc1(k,i) = 1000.0*visindx_recs_fv3(i)
+        !     end select
+        !    elseif(iaod_crtm_cmaq.eq.2)then
+        !end if
 
-        if(iaod_crtm_cmaq.eq.2)then
+        !if(iaod_crtm_cmaq.eq.2)then
             ! ke in CMAQ LUTs are 1000.0*visindx_recs_fv3
             select case ( trim(aerosol_names(ii)) )
             case ('aso4i','aso4j','aso4k','ano3i','ano3j','ano3k','anh4i','anh4j','anh4k')
@@ -2463,15 +2463,15 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         enddo
 
         if (present(jacobian_aero)) then
-           if(iaod_crtm_cmaq.ge.1)then
-           do k=1,nsig
-              do ii=1,n_aerosols_jac_wk
-                 jacobian_aero(iaero_jac(ii)+k,i) = jaero(k,i,ii)*aero_wc1(k,ii)*ugkg_kgm2(k)
-              end do
-           enddo
-           else
+           !if(iaod_crtm_cmaq.ge.1)then
+           !do k=1,nsig
+           !   do ii=1,n_aerosols_jac_wk
+           !      jacobian_aero(iaero_jac(ii)+k,i) = jaero(k,i,ii)*aero_wc1(k,ii)*ugkg_kgm2(k)
+           !   end do
+           !enddo
+           !else
            raod_type=data_s(11)
-           print*,"raod_type= ",raod_type
+           !print*,"raod_type= ",raod_type
            do k=1,nsig
               do ii=1,n_aerosols_jac_wk
                  if(raod_type.eq.101.0_r_kind)then
@@ -2485,7 +2485,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                  end if
               end do
            enddo
-           end if
+           !end if
         endif
      enddo
   endif
