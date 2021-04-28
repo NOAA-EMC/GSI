@@ -598,6 +598,8 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     use gsi_metguess_mod, only: gsi_metguess_bundle
 !Hongli Wang 20200930
     use gsi_chemguess_mod, only: gsi_chemguess_bundle
+    use gridmod, only: fv3_cmaq_regional
+
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use mpeu_util, only: die
     use guess_grids, only: ntguessig
@@ -771,6 +773,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     if (ier/=0) call die(trim(myname),'cannot get pointers for fv3 met-fields,ier =',ier)
     ier=0
 !Hongli Wang 20201001
+    if(fv3_cmaq_regional)then
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aalj',ges_aalj,istatus );ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'acaj',ges_acaj,istatus );ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'acli',ges_acli,istatus );ier=ier+istatus
@@ -839,7 +842,8 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
 
 
     if (ier/=0) call die(trim(myname),'cannot get pointers for aero-fields, ier =',ier)
-     
+    end if !fv3_cmaq_regional
+ 
     if( fv3sar_bg_opt == 0) then 
        call gsi_fv3ncdf_readuv(dynvars,ges_u,ges_v)
     else
@@ -873,48 +877,49 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
       call gsi_fv3ncdf_read(tracers,'O3MR','o3mr',ges_oz,mype_oz)
 
 !Hongli 20200930
+      if(fv3_cmaq_regional)then
       call gsi_fv3ncdf_read(tracers,'AALJ','aalj',ges_aalj,mype_aero)
       call gsi_fv3ncdf_read(tracers,'ACAJ','acaj',ges_acaj,mype_aero)
       call gsi_fv3ncdf_read(tracers,'ACLI','acli',ges_acli,mype_aero)
       call gsi_fv3ncdf_read(tracers,'ACLJ','aclj',ges_aclj,mype_aero)
       call gsi_fv3ncdf_read(tracers,'ACLK','aclk',ges_aclk,mype_aero)
-      print*,"Finished reading G1 (5:5v)"
+      !print*,"Finished reading G1 (5:5v)"
       call gsi_fv3ncdf_read(tracers,'ACORS','acors',ges_acors,mype_aero)
       call gsi_fv3ncdf_read(tracers,'AECI','aeci',ges_aeci,mype_aero)
       call gsi_fv3ncdf_read(tracers,'AECJ','aecj',ges_aecj,mype_aero)
       call gsi_fv3ncdf_read(tracers,'AFEJ','afej',ges_afej,mype_aero)
       call gsi_fv3ncdf_read(tracers,'AIVPO1J','aivpo1j',ges_aivpo1j,mype_aero)
       call gsi_fv3ncdf_read(tracers,'AKJ','akj',ges_akj,mype_aero)
-      print*,"Finished reading G2 (11:6v"
+      !print*,"Finished reading G2 (11:6v"
       call gsi_fv3ncdf_read(tracers,'ALVOO1I','alvoo1i',ges_alvoo1i,mype_aero)
       call gsi_fv3ncdf_read(tracers,'ALVOO2I','alvoo2i',ges_alvoo2i,mype_aero)
       call gsi_fv3ncdf_read(tracers,'ALVPO1I','alvpo1i',ges_alvpo1i,mype_aero)
       call gsi_fv3ncdf_read(tracers,'ALVPO1J','alvpo1j',ges_alvpo1j,mype_aero)
-      print*,"Finished reading G3 (15:4v)"
+      !print*,"Finished reading G3 (15:4v)"
       call gsi_fv3ncdf_read(tracers,'AMGI','amgj',ges_amgj,mype_aero)
       call gsi_fv3ncdf_read(tracers,'AMNJ','amnj',ges_amnj,mype_aero)
       call gsi_fv3ncdf_read(tracers,'ANAI','anai',ges_anai,mype_aero)
       call gsi_fv3ncdf_read(tracers,'ANAJ','anaj',ges_anaj,mype_aero)
-      print*,"Finished reading G4 (19:4v)"
+      !print*,"Finished reading G4 (19:4v)"
       call gsi_fv3ncdf_read(tracers,'ANH4I','anh4i',ges_anh4i,mype_aero)
       call gsi_fv3ncdf_read(tracers,'ANH4J','anh4j',ges_anh4j,mype_aero)
       call gsi_fv3ncdf_read(tracers,'ANH4K','anh4k',ges_anh4k,mype_aero)
-      print*,"Finished reading G5 (22:3v)"
+      !print*,"Finished reading G5 (22:3v)"
 
       call gsi_fv3ncdf_read(tracers,'ANO3I','ano3i',ges_ano3i,mype_aero)
       call gsi_fv3ncdf_read(tracers,'ANO3J','ano3j',ges_ano3j,mype_aero)
       call gsi_fv3ncdf_read(tracers,'ANO3K','ano3k',ges_ano3k,mype_aero)
-      print*,"Finished reading G6 (25:3v)"
+      !print*,"Finished reading G6 (25:3v)"
       call gsi_fv3ncdf_read(tracers,'AOTHRI','aothri',ges_aothri,mype_aero)
       call gsi_fv3ncdf_read(tracers,'AOTHRJ','aothrj',ges_aothrj,mype_aero)
 
       call gsi_fv3ncdf_read(tracers,'ASEACAT','aseacat',ges_aseacat,mype_aero)
       call gsi_fv3ncdf_read(tracers,'ASIJ','asij',ges_asij,mype_aero)
-      print*,"Finished reading G7 (29:4v)"
+      !print*,"Finished reading G7 (29:4v)"
       call gsi_fv3ncdf_read(tracers,'ASO4I','aso4i',ges_aso4i,mype_aero)
       call gsi_fv3ncdf_read(tracers,'ASO4J','aso4j',ges_aso4j,mype_aero)
       call gsi_fv3ncdf_read(tracers,'ASO4K','aso4k',ges_aso4k,mype_aero)
-      print*,"Finished reading G8 (32:3v)"
+      !print*,"Finished reading G8 (32:3v)"
       call gsi_fv3ncdf_read(tracers,'ASOIL','asoil',ges_asoil,mype_aero)
       call gsi_fv3ncdf_read(tracers,'ASVOO1I','asvoo1i',ges_asvoo1i,mype_aero)
       call gsi_fv3ncdf_read(tracers,'ASVOO2I','asvoo2i',ges_asvoo2i,mype_aero)
@@ -923,7 +928,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
       call gsi_fv3ncdf_read(tracers,'ASVPO2I','asvpo2i',ges_asvpo2i,mype_aero)
       call gsi_fv3ncdf_read(tracers,'ASVPO2J','asvpo2j',ges_asvpo2j,mype_aero)
       call gsi_fv3ncdf_read(tracers,'ASVPO3J','asvpo3j',ges_asvpo3j,mype_aero)
-      print*,"Finished reading G09 (40:8v)"
+      !print*,"Finished reading G09 (40:8v)"
       call gsi_fv3ncdf_read(tracers,'ATIJ','atij',ges_atij,mype_aero)
       call gsi_fv3ncdf_read(tracers,'ATOL1J','atol1j',ges_atol1j,mype_aero)
       call gsi_fv3ncdf_read(tracers,'AXYL1J','axyl1j',ges_axyl1j,mype_aero)
@@ -934,11 +939,14 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
       call gsi_fv3ncdf_read(tracers,'PM25AC','pm25ac',ges_pm25ac,mype_aero)
       call gsi_fv3ncdf_read(tracers,'PM25CO','pm25co',ges_pm25co,mype_aero)
       !call gsi_fv3ncdf_read(tracers,'ASO4I','aso4i',ges_pm2_5,mype_aero)
-      print*,"Finished reading G10 + pm25 weights (45:5v)"
+      !print*,"Finished reading G10 + pm25 weights (45:5v)"
+      write(*,*)"Finished reading FV3_regional_CMAQ background!"  
+    end if !fv3_cmaq_regional 
     else
       call gsi_fv3ncdf_read_v1(tracers,'sphum','SPHUM',ges_q,mype_q)
       call gsi_fv3ncdf_read_v1(tracers,'o3mr','O3MR',ges_oz,mype_oz)
     endif
+      if(fv3_cmaq_regional)then
 !!   pm2_5   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     do k=1,nsig
        do j=1,lon2
@@ -968,7 +976,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
 
     print*,"ges_pm2_5(5,5,1)=",ges_pm2_5(5,5,1),ges_pm25at(5,5,1),ges_pm25ac(5,5,1),ges_pm25co(5,5,1)
     print*,"ges_pm2_5(5,5,1)=",ges_pm2_5(5,5,1),ges_amassi(5,5,1),ges_amassj(5,5,1),ges_amassk(5,5,1)
-
+      end if !fv3_cmaq_regional
 !!  tsen2tv  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     do k=1,nsig
        do j=1,lon2
@@ -1795,6 +1803,8 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     use gsi_metguess_mod, only: gsi_metguess_bundle
 !Hongli 20201112
     use gsi_chemguess_mod, only: gsi_chemguess_bundle
+    use gridmod, only: fv3_cmaq_regional
+
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use mpeu_util, only: die
     implicit none
@@ -1868,7 +1878,7 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'v' , ges_v ,istatus);ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q'  ,ges_q ,istatus);ier=ier+istatus
     if (ier/=0) call die('get ges','cannot get pointers for fv3 met-fields, ier =',ier)
-
+    if(fv3_cmaq_regional)then
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aalj',ges_aalj,istatus );ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'acaj',ges_acaj,istatus );ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'acli',ges_acli,istatus );ier=ier+istatus
@@ -1929,6 +1939,7 @@ subroutine wrfv3_netcdf(fv3filenamegin)
 
 
     if (ier/=0) call die('get ges','cannot get pointers for aero-fields, ier =',ier)
+    end if !fv3_cmaq_regional
 
     add_saved=.true.
 
@@ -1938,7 +1949,7 @@ subroutine wrfv3_netcdf(fv3filenamegin)
       call gsi_fv3ncdf_write(tracers,'sphum',ges_q   ,mype_q,add_saved)
       call gsi_fv3ncdf_writeuv(dynvars,ges_u,ges_v,mype_v,add_saved)
       call gsi_fv3ncdf_writeps(dynvars,'delp',ges_ps,mype_p,add_saved)
-
+      if(fv3_cmaq_regional)then
 !   write out aero
       call gsi_fv3ncdf_write(tracers,'aalj',ges_aalj,mype_aero,add_saved)
       call gsi_fv3ncdf_write(tracers,'acaj',ges_acaj,mype_aero,add_saved)
@@ -1994,7 +2005,7 @@ subroutine wrfv3_netcdf(fv3filenamegin)
       call gsi_fv3ncdf_write(tracers,'axyl1j',ges_axyl1j,mype_aero,add_saved)
       call gsi_fv3ncdf_write(tracers,'axyl2j',ges_axyl2j,mype_aero,add_saved)
       call gsi_fv3ncdf_write(tracers,'axyl3j',ges_axyl3j,mype_aero,add_saved)
-
+      end if !fv3_cmaq_regional
     else
       call gsi_fv3ncdf_write_v1(dynvars,'t',ges_tsen(1,1,1,it),mype_t,add_saved)
       call gsi_fv3ncdf_write_v1(tracers,'sphum',ges_q   ,mype_q,add_saved)
