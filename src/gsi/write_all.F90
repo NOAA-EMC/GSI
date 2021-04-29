@@ -21,6 +21,7 @@ subroutine write_all(increment)
   use jfunc, only: bcoption
 
   use gridmod, only: regional,fv3_regional
+  use gridmod, only: fv3_cmaq_regional
   
   use guess_grids, only: ntguessig
 
@@ -31,7 +32,7 @@ subroutine write_all(increment)
 
 ! use regional_io, only: write_regional_analysis
   use regional_io_mod, only: regional_io_class
-  use gsi_rfv3io_mod, only: wrfv3_netcdf
+  use gsi_rfv3io_mod, only: wrfv3_netcdf,wrfv3_cmaq_regional_netcdf
   use gsi_rfv3io_mod, only: bg_fv3regfilenameg 
 
   use ncepgfs_io, only: write_gfs
@@ -121,6 +122,9 @@ subroutine write_all(increment)
   if (regional) then
      if (fv3_regional) then
         call wrfv3_netcdf(bg_fv3regfilenameg)
+        if (fv3_cmaq_regional) then
+           call wrfv3_cmaq_regional_netcdf(bg_fv3regfilenameg)
+        end if
      else
         call io%write_regional_analysis(mype)
      endif
