@@ -71,6 +71,7 @@ module gsi_rfv3io_mod
   public :: gsi_fv3ncdf_readuv_v1
   public :: read_fv3_files 
   public :: read_fv3_netcdf_guess
+  public :: read_fv3_cmaq_regional_netcdf_guess
   public :: wrfv3_netcdf
   public :: gsi_fv3ncdf2d_read_v1
 
@@ -577,19 +578,8 @@ subroutine read_fv3_files(mype)
     return
 end subroutine read_fv3_files
 
-subroutine read_fv3_netcdf_guess(fv3filenamegin)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    read_fv3_netcdf_guess            read fv3 interface file
-!   prgmmr: wu               org: np22                date: 2017-07-06
-!
-! abstract:  read guess for FV3 regional model
-! program history log:
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$  end documentation block
+subroutine read_fv3_cmaq_regional_netcdf_guess(fv3filenamegin)
+
     use kinds, only: r_kind,i_kind
     use mpimod, only: npe
     use guess_grids, only: ges_tsen,ges_prsi
@@ -607,64 +597,9 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     implicit none
 
     type (type_fv3regfilenameg),intent (in) :: fv3filenamegin
-    character(len=24),parameter :: myname = 'read_fv3_netcdf_guess'
+    character(len=24),parameter :: myname = 'read_fv3_cmaq_regional_netcdf_guess'
     integer(i_kind) k,i,j
     integer(i_kind) it,ier,istatus
-    real(r_kind),dimension(:,:),pointer::ges_ps=>NULL()
-    real(r_kind),dimension(:,:),pointer::ges_z=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_u=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_v=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_q=>NULL()
-!   real(r_kind),dimension(:,:,:),pointer::ges_ql=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_oz=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_tv=>NULL()
-
-!Hongli Wang 20200930
-! aalj     64      1     chem_guess   aalj
-! acaj     64      1     chem_guess   acaj 
-! acli     64      1     chem_guess   acli
-! aclj     64      1     chem_guess   aclj
-! aclk     64      1     chem_guess   aclk
-! acors    64      1     chem_guess   acors
-! aeci     64      1     chem_guess   aeci
-! aecj     64      1     chem_guess   aecj
-! afej     64      1     chem_guess   afej
-! aivpo1j  64      1     chem_guess   aivpo1j
-! akj      64      1     chem_guess   akj
-! alvoo1i  64      1     chem_guess   alvoo1i
-! alvoo2i  64      1     chem_guess   alvoo2i
-! alvpo1i  64      1     chem_guess   alvpo1i
-! alvpo1j  64      1     chem_guess   alvpo1j
-! amgj     64      1     chem_guess   amgj
-! amnj     64      1     chem_guess   amnj
-! anai     64      1     chem_guess   anai
-! anaj     64      1     chem_guess   anaj
-! anh4i    64      1     chem_guess   anh4i
-! anh4j    64      1     chem_guess   anh4j
-! anh4k    64      1     chem_guess   anh4k
-! ano3i    64      1     chem_guess   ano3i
-! ano3j    64      1     chem_guess   ano3j
-! ano3k    64      1     chem_guess   ano3k
-! aothri   64      1     chem_guess   aothri
-! aothrj   64      1     chem_guess   aothrj
-! aseacat  64      1     chem_guess   aseacat
-! asij     64      1     chem_guess   asij
-! aso4i    64      1     chem_guess   aso4i
-! aso4j    64      1     chem_guess   aso4j
-! aso4k    64      1     chem_guess   aso4k
-! asoil    64      1     chem_guess   asoil
-! asvoo1i  64      1     chem_guess   asvoo1i
-! asvoo2i  64      1     chem_guess   asvoo2i
-! asvpo1i  64      1     chem_guess   asvpo1i
-! asvpo1j  64      1     chem_guess   asvpo1j
-! asvpo2i  64      1     chem_guess   asvpo2i
-! asvpo2j  64      1     chem_guess   asvpo2j
-! asvpo3j  64      1     chem_guess   asvpo3j
-! atij     64      1     chem_guess   atij
-! atol1j   64      1     chem_guess   atol1j
-! axyl1j   64      1     chem_guess   axyl1j
-! axyl2j   64      1     chem_guess   axyl2j
-! axyl3j   64      1     chem_guess   axyl3j
 
     real(r_kind),dimension(:,:,:),pointer::ges_aalj=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_acaj=>NULL()
@@ -715,7 +650,6 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     real(r_kind),dimension(:,:,:),pointer::ges_pm25ac=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_pm25co=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_pm2_5=>NULL()
-! amassijk is not in chem_gues, caused : [005]read_fv3_netcdf_guess(): >>> ERROR <<< cannot get pointers for fv3 met-fields, ier = 3
 
     real(r_kind),dimension(:,:,:),pointer::ges_amassi=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_amassj=>NULL()
@@ -723,57 +657,33 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
 
      character(len=:),allocatable :: dynvars   !='fv3_dynvars'
      character(len=:),allocatable :: tracers   !='fv3_tracer'
-   
+
      dynvars= fv3filenamegin%dynvars
      tracers= fv3filenamegin%tracers
 
-    if(npe< 8) then
-       call die('read_fv3_netcdf_guess','not enough PEs to read in fv3 fields' )
-    endif
-    mype_u=0           
-    mype_v=1
-    mype_t=2
-    mype_p=3
-    mype_q=4
-    mype_ql=5
-    mype_oz=6
-    mype_2d=7 
     mype_aero=7
-  
-    allocate(ijns(npe),ijns2d(npe),ijnz(npe) )
-    allocate(displss(npe),displss2d(npe),displsz_g(npe) )
 
-    do i=1,npe
-       ijns(i)=ijn_s(i)*nsig
-       ijnz(i)=ijn(i)*nsig
-       ijns2d(i)=ijn_s(i)*n2d 
-    enddo
-    displss(1)=0
-    displsz_g(1)=0
-    displss2d(1)=0
-    do i=2,npe
-       displss(i)=displss(i-1)+ ijns(i-1)
-       displsz_g(i)=displsz_g(i-1)+ ijnz(i-1)
-       displss2d(i)=displss2d(i-1)+ ijns2d(i-1)
-    enddo
+    !allocate(ijns(npe),ijns2d(npe),ijnz(npe) )
+    !allocate(displss(npe),displss2d(npe),displsz_g(npe) )
+
+    !do i=1,npe
+    !   ijns(i)=ijn_s(i)*nsig
+    !   ijnz(i)=ijn(i)*nsig
+    !   ijns2d(i)=ijn_s(i)*n2d
+    !enddo
+    !displss(1)=0
+    !displsz_g(1)=0
+    !displss2d(1)=0
+    !do i=2,npe
+    !   displss(i)=displss(i-1)+ ijns(i-1)
+    !   displsz_g(i)=displsz_g(i-1)+ ijnz(i-1)
+    !   displss2d(i)=displss2d(i-1)+ ijns2d(i-1)
+    !enddo
 
 !   do it=1,nfldsig
     it=ntguessig
-
-
-    ier=0
-    call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ps' ,ges_ps ,istatus );ier=ier+istatus
-    call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'z' , ges_z ,istatus );ier=ier+istatus
-    call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'u' , ges_u ,istatus );ier=ier+istatus
-    call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'v' , ges_v ,istatus );ier=ier+istatus
-    call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tv' ,ges_tv ,istatus );ier=ier+istatus
-    call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q'  ,ges_q ,istatus );ier=ier+istatus
-    call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'oz'  ,ges_oz ,istatus );ier=ier+istatus
-
-    if (ier/=0) call die(trim(myname),'cannot get pointers for fv3 met-fields,ier =',ier)
     ier=0
 !Hongli Wang 20201001
-    if(fv3_cmaq_regional)then
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aalj',ges_aalj,istatus );ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'acaj',ges_acaj,istatus );ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'acli',ges_acli,istatus );ier=ier+istatus
@@ -785,7 +695,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aecj',ges_aecj,istatus );ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'afej',ges_afej,istatus );ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aivpo1j',ges_aivpo1j,istatus );ier=ier+istatus
-    
+
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'akj',ges_akj,istatus );ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'alvoo1i',ges_alvoo1i,istatus );ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'alvoo2i',ges_alvoo2i,istatus );ier=ier+istatus
@@ -842,42 +752,10 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
 
 
     if (ier/=0) call die(trim(myname),'cannot get pointers for aero-fields, ier =',ier)
-    end if !fv3_cmaq_regional
- 
-    if( fv3sar_bg_opt == 0) then 
-       call gsi_fv3ncdf_readuv(dynvars,ges_u,ges_v)
-    else
-       call gsi_fv3ncdf_readuv_v1(dynvars,ges_u,ges_v)
-    endif
-    if( fv3sar_bg_opt == 0) then 
-       call gsi_fv3ncdf_read(dynvars,'T','t',ges_tsen(1,1,1,it),mype_t)
-    else
-       call gsi_fv3ncdf_read_v1(dynvars,'t','T',ges_tsen(1,1,1,it),mype_t)
-    endif
 
-    if( fv3sar_bg_opt == 0) then 
-       call gsi_fv3ncdf_read(dynvars,'DELP','delp',ges_prsi,mype_p)
-       ges_prsi(:,:,nsig+1,it)=eta1_ll(nsig+1)
-       do i=nsig,1,-1
-          ges_prsi(:,:,i,it)=ges_prsi(:,:,i,it)*0.001_r_kind+ges_prsi(:,:,i+1,it)
-       enddo
-       ges_ps(:,:)=ges_prsi(:,:,1,it)
-    else  
-       call  gsi_fv3ncdf2d_read_v1(dynvars,'ps','PS',ges_ps,mype_p)
-       ges_prsi(:,:,nsig+1,it)=eta1_ll(nsig+1)
-       ges_ps=ges_ps*0.001_r_kind
-       do k=1,nsig
-         ges_prsi(:,:,k,it)=eta1_ll(k)+eta2_ll(k)*ges_ps  
-       enddo
-    endif
-
-    if( fv3sar_bg_opt == 0) then 
-      call gsi_fv3ncdf_read(tracers,'SPHUM','sphum',ges_q,mype_q)
-!     call gsi_fv3ncdf_read(tracers,'LIQ_WAT','liq_wat',ges_ql,mype_ql)
-      call gsi_fv3ncdf_read(tracers,'O3MR','o3mr',ges_oz,mype_oz)
+    if( fv3sar_bg_opt == 0) then
 
 !Hongli 20200930
-      if(fv3_cmaq_regional)then
       call gsi_fv3ncdf_read(tracers,'AALJ','aalj',ges_aalj,mype_aero)
       call gsi_fv3ncdf_read(tracers,'ACAJ','acaj',ges_acaj,mype_aero)
       call gsi_fv3ncdf_read(tracers,'ACLI','acli',ges_acli,mype_aero)
@@ -940,13 +818,12 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
       call gsi_fv3ncdf_read(tracers,'PM25CO','pm25co',ges_pm25co,mype_aero)
       !call gsi_fv3ncdf_read(tracers,'ASO4I','aso4i',ges_pm2_5,mype_aero)
       !print*,"Finished reading G10 + pm25 weights (45:5v)"
-      write(*,*)"Finished reading FV3_regional_CMAQ background!"  
-    end if !fv3_cmaq_regional 
-    else
-      call gsi_fv3ncdf_read_v1(tracers,'sphum','SPHUM',ges_q,mype_q)
-      call gsi_fv3ncdf_read_v1(tracers,'o3mr','O3MR',ges_oz,mype_oz)
-    endif
-      if(fv3_cmaq_regional)then
+      write(*,*)"Finished reading FV3_regional_CMAQ background!"
+     else
+     write(*,*)"cold start background doesn't work for fv3_cmaq_regional !!!STOP !!!"
+     stop
+     end if 
+
 !!   pm2_5   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     do k=1,nsig
        do j=1,lon2
@@ -957,7 +834,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
                                ges_alvpo1i(i,j,k)+ges_asvpo1i(i,j,k)+ges_asvpo2i(i,j,k)+&
                                ges_alvoo1i(i,j,k)+ges_alvoo2i(i,j,k)+ &
                                ges_asvoo1i(i,j,k)+ges_asvoo2i(i,j,k)+ges_aothri(i,j,k)
-             ! jmodes: 24v 
+             ! jmodes: 24v
              ges_amassj(i,j,k)=ges_aso4j(i,j,k)+ges_ano3j(i,j,k)+ges_anh4j(i,j,k)+ &
                                ges_anaj(i,j,k) +ges_aclj(i,j,k) +ges_aecj(i,j,k) + &
                                ges_alvpo1j(i,j,k)+ges_asvpo1j(i,j,k)+ges_asvpo2j(i,j,k)+&
@@ -966,7 +843,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
                                ges_afej(i,j,k)   +ges_asij(i,j,k)  +ges_atij(i,j,k)  +ges_acaj(i,j,k)+&
                                ges_amgj(i,j,k)   +ges_amnj(i,j,k)  +ges_aalj(i,j,k)  +ges_akj(i,j,k)
              ! kmodes: 7v
-             ges_amassk(i,j,k)=ges_aso4k(i,j,k)+ges_ano3k(i,j,k)+ges_anh4k(i,j,k)+ & 
+             ges_amassk(i,j,k)=ges_aso4k(i,j,k)+ges_ano3k(i,j,k)+ges_anh4k(i,j,k)+ &
                                ges_asoil(i,j,k)+ges_acors(i,j,k)+ges_aseacat(i,j,k)+ges_aclk(i,j,k)
 
              ges_pm2_5(i,j,k)=ges_pm25at(i,j,k)*ges_amassi(i,j,k) +  ges_pm25ac(i,j,k)*ges_amassj(i,j,k) + ges_pm25co(i,j,k)*ges_amassk(i,j,k)
@@ -976,7 +853,142 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
 
     print*,"ges_pm2_5(5,5,1)=",ges_pm2_5(5,5,1),ges_pm25at(5,5,1),ges_pm25ac(5,5,1),ges_pm25co(5,5,1)
     print*,"ges_pm2_5(5,5,1)=",ges_pm2_5(5,5,1),ges_amassi(5,5,1),ges_amassj(5,5,1),ges_amassk(5,5,1)
-      end if !fv3_cmaq_regional
+
+end subroutine read_fv3_cmaq_regional_netcdf_guess
+
+
+
+
+
+
+subroutine read_fv3_netcdf_guess(fv3filenamegin)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_fv3_netcdf_guess            read fv3 interface file
+!   prgmmr: wu               org: np22                date: 2017-07-06
+!
+! abstract:  read guess for FV3 regional model
+! program history log:
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$  end documentation block
+    use kinds, only: r_kind,i_kind
+    use mpimod, only: npe
+    use guess_grids, only: ges_tsen,ges_prsi
+    use gridmod, only: lat2,lon2,nsig,ijn,eta1_ll,eta2_ll,ijn_s
+    use constants, only: one,fv
+    use gsi_metguess_mod, only: gsi_metguess_bundle
+!Hongli Wang 20200930
+    use gsi_chemguess_mod, only: gsi_chemguess_bundle
+    use gridmod, only: fv3_cmaq_regional
+
+    use gsi_bundlemod, only: gsi_bundlegetpointer
+    use mpeu_util, only: die
+    use guess_grids, only: ntguessig
+
+    implicit none
+
+    type (type_fv3regfilenameg),intent (in) :: fv3filenamegin
+    character(len=24),parameter :: myname = 'read_fv3_netcdf_guess'
+    integer(i_kind) k,i,j
+    integer(i_kind) it,ier,istatus
+    real(r_kind),dimension(:,:),pointer::ges_ps=>NULL()
+    real(r_kind),dimension(:,:),pointer::ges_z=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_u=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_v=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_q=>NULL()
+!   real(r_kind),dimension(:,:,:),pointer::ges_ql=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_oz=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_tv=>NULL()
+
+     character(len=:),allocatable :: dynvars   !='fv3_dynvars'
+     character(len=:),allocatable :: tracers   !='fv3_tracer'
+   
+     dynvars= fv3filenamegin%dynvars
+     tracers= fv3filenamegin%tracers
+
+    if(npe< 8) then
+       call die('read_fv3_netcdf_guess','not enough PEs to read in fv3 fields' )
+    endif
+    mype_u=0           
+    mype_v=1
+    mype_t=2
+    mype_p=3
+    mype_q=4
+    mype_ql=5
+    mype_oz=6
+    mype_2d=7 
+    mype_aero=7
+  
+    allocate(ijns(npe),ijns2d(npe),ijnz(npe) )
+    allocate(displss(npe),displss2d(npe),displsz_g(npe) )
+
+    do i=1,npe
+       ijns(i)=ijn_s(i)*nsig
+       ijnz(i)=ijn(i)*nsig
+       ijns2d(i)=ijn_s(i)*n2d 
+    enddo
+    displss(1)=0
+    displsz_g(1)=0
+    displss2d(1)=0
+    do i=2,npe
+       displss(i)=displss(i-1)+ ijns(i-1)
+       displsz_g(i)=displsz_g(i-1)+ ijnz(i-1)
+       displss2d(i)=displss2d(i-1)+ ijns2d(i-1)
+    enddo
+
+!   do it=1,nfldsig
+    it=ntguessig
+
+
+    ier=0
+    call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ps' ,ges_ps ,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'z' , ges_z ,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'u' , ges_u ,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'v' , ges_v ,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tv' ,ges_tv ,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q'  ,ges_q ,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'oz'  ,ges_oz ,istatus );ier=ier+istatus
+
+    if (ier/=0) call die(trim(myname),'cannot get pointers for fv3 met-fields,ier =',ier)
+ 
+    if( fv3sar_bg_opt == 0) then 
+       call gsi_fv3ncdf_readuv(dynvars,ges_u,ges_v)
+    else
+       call gsi_fv3ncdf_readuv_v1(dynvars,ges_u,ges_v)
+    endif
+    if( fv3sar_bg_opt == 0) then 
+       call gsi_fv3ncdf_read(dynvars,'T','t',ges_tsen(1,1,1,it),mype_t)
+    else
+       call gsi_fv3ncdf_read_v1(dynvars,'t','T',ges_tsen(1,1,1,it),mype_t)
+    endif
+
+    if( fv3sar_bg_opt == 0) then 
+       call gsi_fv3ncdf_read(dynvars,'DELP','delp',ges_prsi,mype_p)
+       ges_prsi(:,:,nsig+1,it)=eta1_ll(nsig+1)
+       do i=nsig,1,-1
+          ges_prsi(:,:,i,it)=ges_prsi(:,:,i,it)*0.001_r_kind+ges_prsi(:,:,i+1,it)
+       enddo
+       ges_ps(:,:)=ges_prsi(:,:,1,it)
+    else  
+       call  gsi_fv3ncdf2d_read_v1(dynvars,'ps','PS',ges_ps,mype_p)
+       ges_prsi(:,:,nsig+1,it)=eta1_ll(nsig+1)
+       ges_ps=ges_ps*0.001_r_kind
+       do k=1,nsig
+         ges_prsi(:,:,k,it)=eta1_ll(k)+eta2_ll(k)*ges_ps  
+       enddo
+    endif
+
+    if( fv3sar_bg_opt == 0) then 
+      call gsi_fv3ncdf_read(tracers,'SPHUM','sphum',ges_q,mype_q)
+!     call gsi_fv3ncdf_read(tracers,'LIQ_WAT','liq_wat',ges_ql,mype_ql)
+      call gsi_fv3ncdf_read(tracers,'O3MR','o3mr',ges_oz,mype_oz)
+    else
+      call gsi_fv3ncdf_read_v1(tracers,'sphum','SPHUM',ges_q,mype_q)
+      call gsi_fv3ncdf_read_v1(tracers,'o3mr','O3MR',ges_oz,mype_oz)
+    endif
 !!  tsen2tv  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     do k=1,nsig
        do j=1,lon2

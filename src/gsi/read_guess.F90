@@ -100,6 +100,7 @@ subroutine read_guess(iyear,month,idd,mype)
        fv3_regional,&
        twodvar_regional,netcdf,regional,nems_nmmb_regional,use_gfs_ozone
   use gridmod, only: use_gfs_nemsio, use_gfs_ncio, write_fv3_incr
+  use gridmod, only: fv3_cmaq_regional
   use gfs_stratosphere, only: use_gfs_stratosphere
 
   use constants, only: zero,one,fv,qmin
@@ -111,7 +112,7 @@ subroutine read_guess(iyear,month,idd,mype)
   use gsd_update_mod, only: gsd_gen_coast_prox 
   use read_wrf_mass_guess_mod, only: read_wrf_mass_guess_class
   use read_wrf_nmm_guess_mod, only: read_wrf_nmm_guess_class
-  use gsi_rfv3io_mod, only: read_fv3_netcdf_guess
+  use gsi_rfv3io_mod, only: read_fv3_netcdf_guess,read_fv3_cmaq_regional_netcdf_guess
   use gsi_rfv3io_mod, only: bg_fv3regfilenameg
   use mpimod, only: mpi_comm_world
 
@@ -166,6 +167,9 @@ subroutine read_guess(iyear,month,idd,mype)
         else if (fv3_regional      ) then
            call bg_fv3regfilenameg%init
            call  read_fv3_netcdf_guess(bg_fv3regfilenameg)
+           if (fv3_cmaq_regional)then
+              call read_fv3_cmaq_regional_netcdf_guess(bg_fv3regfilenameg)
+           end if
         else if (cmaq_regional) then
            call read_cmaq_guess(mype)
         end if
