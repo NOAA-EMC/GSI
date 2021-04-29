@@ -2007,7 +2007,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         aero_wk(k,:)=aero(k,:)
         aero(k,:)=aero(k,:)*ugkg_kgm2(k)
         aero_wk(k,:)=aero_wk(k,:)*ugkg_ugm3(k)
-        write(6,*)"ugkg_kgm2_ugm3= ",k,ugkg_kgm2(k),ugkg_ugm3(k),prsi(k),prsl(k)
+        !write(6,*)"ugkg_kgm2_ugm3= ",k,ugkg_kgm2(k),ugkg_ugm3(k),prsi(k),prsl(k)
      enddo
   endif
 
@@ -2047,7 +2047,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                aero_wc1(k,ii)  = 1.0
             end select
         end if
-           write(6,*)"aero_wc1= ",k,ii,aerosol_names(ii),irh,aero_wc1(k,ii)
+        !   write(6,*)"aero_wc1= ",k,ii,aerosol_names(ii),irh,aero_wc1(k,ii)
         enddo
      enddo
   endif
@@ -2196,15 +2196,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      atmosphere(1)%Relative_Humidity = auxrh
 !     write(6,*)"CRTM_RH1: ",atmosphere(1)%Relative_Humidity
      call Set_CRTM_Aerosol ( msig, n_actual_aerosols_wk, n_aerosols_fwd_wk, aerosol_names, aero_conc, auxrh, &
-                             atmosphere(1)%aerosol, aero_conc_wk, aero_wc )
+                             atmosphere(1)%aerosol, aero_wc )
   endif
-
-!Hongli 
-! to model nsig levels
-!  do k=1,msig
-!     kk = klevel(msig-k+1)
-!     aero_wc1(kk,:) = aero_wc(k,:)
-!  end do
 
 ! Call CRTM K Matrix model
 

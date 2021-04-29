@@ -29,7 +29,8 @@ private
 public Set_CRTM_Aerosol
 
 contains
-  subroutine Set_CRTM_Aerosol ( km, na, na_crtm, aero_name, aero_conc, rh, aerosol, aero_conc_wk, aero_wc)
+    subroutine Set_CRTM_Aerosol ( km, na, na_crtm, aero_name, aero_conc, rh, aerosol,  aero_wc)
+!  subroutine Set_CRTM_Aerosol ( km, na, na_crtm, aero_name, aero_conc, rh, aerosol, aero_conc_wk, aero_wc)
 ! USES:
 
     use kinds, only: i_kind,r_kind
@@ -77,7 +78,7 @@ contains
     real(r_kind),     intent(inout) :: aero_conc(km,na)  ! [km,na] aerosol concentration (Kg/m2)
     real(r_kind),     intent(in)    :: rh(km)            ! [km]    relative humidity [0,1]
 !Hongli Wang
-    real(r_kind),     intent(in)    :: aero_conc_wk(km,na)
+!    real(r_kind),     intent(in)    :: aero_conc_wk(km,na)
     real(r_kind),     intent(inout) :: aero_wc(km,na) 
 !    real(r_kind)                     ::  aero_wc(km,na) 
     type(CRTM_Aerosol_type), intent(inout) :: aerosol(na_crtm)! [na]   CRTM Aerosol object
@@ -101,8 +102,9 @@ contains
     Real,    Parameter :: def_sigma_g( 3 ) = (/ 1.70, 2.0, 2.2 /)
     Real,    Parameter :: crtm_cmaq_max_wc(8) = (/3750,6000,5600,4400,4400,6000,4800,3750/)
  
-    Real(r_kind)       :: total_mass_so4(km), total_mass_no3(km), total_mass_om(km) 
-    integer(i_kind) :: anh4_idx,aso4_idx,ano3_idx
+!    Real(r_kind)       :: total_mass_so4(km), total_mass_no3(km), total_mass_om(km) 
+!    integer(i_kind) :: anh4_idx,aso4_idx,ano3_idx
+
     integer(i_kind) :: i, k, irh
 
     integer(i_kind) :: indx_dust1, indx_dust2, indx_dust3, indx_dust4,indx_dust5
@@ -111,35 +113,14 @@ contains
     indx_bc1=-1; indx_oc1=-1; indx_dust1=-1; indx_dust2=-1
     indx_dust3=-1; indx_dust4=-1; indx_dust5=-1;
     
-   total_mass_so4 = 0.0_r_kind
-   total_mass_no3 = 0.0_r_kind
-   total_mass_om  = 0.0_r_kind
+!   total_mass_so4 = 0.0_r_kind
+!   total_mass_no3 = 0.0_r_kind
+!   total_mass_om  = 0.0_r_kind
 
-    aso4_idx=1; anh4_idx=10 ; ano3_idx = 4
+!    aso4_idx=1; anh4_idx=10 ; ano3_idx = 4
 
     write(6,*)"Set_CRTM_Aerosol: na and km= ",na,na_crtm,km
     write(6,*)"Set_CRTM_Aerosol: rh(1:km)= ",rh(1),rh(km)
-    if (laod_crtm_cmaq) then
-    do k = 1, km
-    do i = 1, na_crtm
-      select case ( trim(aero_name(i)) )
-          case ('aso4i','aso4j','aso4k') 
-          total_mass_so4(k) = total_mass_so4(k) + aero_conc_wk(k,i)       
-          case ('ano3i','ano3j','ano3k') 
-          total_mass_no3(k) = total_mass_no3(k) + aero_conc_wk(k,i) 
-          case ('alvoo1i','alvoo2i','asvoo1i','asvoo2i','aivpo1j','alvpo1i','alvpo1j','aothri','aothrj','asvpo1i','asvpo1j','asvpo2i','asvpo2j','asvpo3j','atol1j','axyl1j','axyl2j','axyl3j')
-          total_mass_om(k)  = total_mass_om(k)  + aero_conc_wk(k,i)
-       end select
-    end do
-    write(6,*)"total_mass_so4_no3_om= ",k,total_mass_so4(k),total_mass_no3(k),total_mass_om(k)
-    end do 
-
-!  convert mass of sulfate and nitrate to ammonium sulfate and ammounium nitrate
-         total_mass_so4 = total_mass_so4 * (aemolwt_cmaq_fv3(anh4_idx)*2+aemolwt_cmaq_fv3(aso4_idx))/aemolwt_cmaq_fv3(aso4_idx)
-         total_mass_no3 = total_mass_no3 * (aemolwt_cmaq_fv3(anh4_idx)  +aemolwt_cmaq_fv3(ano3_idx))/aemolwt_cmaq_fv3(ano3_idx)
-    write(6,*)"convert_total_mass_so4_no4= ",(aemolwt_cmaq_fv3(anh4_idx)*2+aemolwt_cmaq_fv3(aso4_idx))/aemolwt_cmaq_fv3(aso4_idx),(aemolwt_cmaq_fv3(anh4_idx)+aemolwt_cmaq_fv3(ano3_idx))/aemolwt_cmaq_fv3(ano3_idx)
-
-    end if 
 
     do i = 1, na_crtm
        write(6,*)"set_crtm_aerosolmod_conc= ",trim(aero_name(i))," ",sum(aero_conc(:,i))
@@ -309,76 +290,76 @@ contains
 
           !irh = int( 100.0 * rh(k)  ) ! truncate relative humidity to nearest integer
           !irh = max( 1, min( 99, irh ) ) ! set bounds
-          write(6,*)"setup_crtm= ",trim(aero_name(i))
-       if (iaod_recs_cmaq .eq. 1) then
-       select case ( trim(aero_name(i)) )
-          case ('aso4i','aso4j','aso4k','ano3i','ano3j','ano3k','anh4i','anh4j','anh4k')
-              aero_wc(k,i)=visindx_recs_fv3(i)*humfac_recs(irh)
-          case ('acli','aclj','aclk','anai','anaj','aseacat')
-              aero_wc(k,i)=visindx_recs_fv3(i)*humfac_recs_ss(irh)
-          case default
-              aero_wc(k,i) = visindx_recs_fv3(i) 
-       end select
-       end if 
+!          write(6,*)"setup_crtm= ",trim(aero_name(i))
+!       if (iaod_recs_cmaq .eq. 1) then
+!       select case ( trim(aero_name(i)) )
+!          case ('aso4i','aso4j','aso4k','ano3i','ano3j','ano3k','anh4i','anh4j','anh4k')
+!              aero_wc(k,i)=visindx_recs_fv3(i)*humfac_recs(irh)
+!          case ('acli','aclj','aclk','anai','anaj','aseacat')
+!              aero_wc(k,i)=visindx_recs_fv3(i)*humfac_recs_ss(irh)
+!          case default
+!              aero_wc(k,i) = visindx_recs_fv3(i) 
+!       end select
+!       end if 
           !v2 
-       if (iaod_recs_cmaq .eq. 2) then
-       select case ( trim(aero_name(i)) )
-          case ('aso4i','aso4j','aso4k')
-               if (total_mass_so4(k) .lt. 20.0)  then  ! if total mass less than 20ug/m3, split to 2 modes
-                  aero_wc(k,i)=(humfac(irh)*visindx_cmaq_fv3(i)*19.0 + humfac_large(irh)*visindx_large_cmaq_fv3(i))/20.0 
-               else                               ! else  all mass goes to
-                  aero_wc(k,i)= humfac_large(irh)*visindx_large_cmaq_fv3(i)  
-               end if
-               aero_wc(k,i)= aero_wc(k,i)*(aemolwt_cmaq_fv3(anh4_idx)*2+aemolwt_cmaq_fv3(aso4_idx))/aemolwt_cmaq_fv3(aso4_idx)
-               write(6,*)"total_mass_so4= ",k,total_mass_so4(k),aero_wc(k,i)
-
-          case ('ano3i','ano3j','ano3k')
-               if (total_mass_no3(k) .lt. 20.0)  then  
-                  aero_wc(k,i)=(humfac(irh)*visindx_cmaq_fv3(i)*19.0 + humfac_large(irh)*visindx_large_cmaq_fv3(i))/20.0
-               else                               ! else  all mass goes to
-                  aero_wc(k,i)= humfac_large(irh)*visindx_large_cmaq_fv3(i)
-               end if
-               aero_wc(k,i)=aero_wc(k,i)*(aemolwt_cmaq_fv3(anh4_idx)+aemolwt_cmaq_fv3(aso4_idx))/aemolwt_cmaq_fv3(aso4_idx)
-               write(6,*)"total_mass_no3= ",k,total_mass_no3(k),aero_wc(k,i)
-          case ('aivpo1j','alvpo1i','alvpo1j','aothri','aothrj','asvpo1i','asvpo1j','asvpo2i','asvpo2j','asvpo3j','atol1j','axyl1j','axyl2j','axyl3j')
-               if (total_mass_om(k) .lt. 20.0)  then
-                  aero_wc(k,i)=(visindx_cmaq_fv3(i)*19.0 +visindx_large_cmaq_fv3(i))/20.0
-               else                              
-                  aero_wc(k,i)= visindx_large_cmaq_fv3(i)
-               end if
-               write(6,*)"total_mass_om= ",k,total_mass_om(k),aero_wc(k,i)
-          case ('acli','aclj','aclk','anai','anaj','aseacat')
-              aero_wc(k,i)=visindx_cmaq_fv3(i)*humfac_ss(irh)
-              write(6,*)"seasalt= ",k,aero_wc(k,i)
-          case default
-              aero_wc(k,i) = visindx_cmaq_fv3(i) 
-              write(6,*)"default= ",k,aero_wc(k,i)
-       end select
-       end if ! iaod_recs_cmaq =2
-       if (iaod_recs_cmaq .eq. 3) then 
-       select case ( trim(aero_name(i)) )
-          !10
-          case ('aalj','acaj','afej','akj','amgj','amnj','asij','asoil','atij','acors')
-             aero_wc(k,i) = crtm_cmaq_max_wc(1)*0.001
-          !2
-          case ('aeci','aecj')
-             aero_wc(k,i) = crtm_cmaq_max_wc(2)*0.001
-          !9
-          case ('alvoo1i','alvoo2i','anh4i','anh4j','ano3i','ano3j','aso4k','asvoo1i','asvoo2i')
-             aero_wc(k,i) = crtm_cmaq_max_wc(3)*0.001
-          !5
-          case ('aso4i','aso4j','acli','anh4k','ano3k')
-             aero_wc(k,i) = crtm_cmaq_max_wc(4)*0.001
-          !5
-          case ('aclj','aclk','anai','anaj','aseacat')
-            aero_wc(k,i) = crtm_cmaq_max_wc(5)*0.001
-          !14
-          case ('aivpo1j','alvpo1i','alvpo1j','aothri','aothrj','asvpo1i','asvpo1j','asvpo2i','asvpo2j','asvpo3j','atol1j','axyl1j','axyl2j','axyl3j')
-            aero_wc(k,i) = crtm_cmaq_max_wc(7)*0.001
-          case default
-            aero_wc(k,i) = 0.0
-       end select
-       end if !iaod_recs_cmaq =3
+!       if (iaod_recs_cmaq .eq. 2) then
+!       select case ( trim(aero_name(i)) )
+!          case ('aso4i','aso4j','aso4k')
+!               if (total_mass_so4(k) .lt. 20.0)  then  ! if total mass less than 20ug/m3, split to 2 modes
+!                  aero_wc(k,i)=(humfac(irh)*visindx_cmaq_fv3(i)*19.0 + humfac_large(irh)*visindx_large_cmaq_fv3(i))/20.0 
+!               else                               ! else  all mass goes to
+!                  aero_wc(k,i)= humfac_large(irh)*visindx_large_cmaq_fv3(i)  
+!               end if
+!               aero_wc(k,i)= aero_wc(k,i)*(aemolwt_cmaq_fv3(anh4_idx)*2+aemolwt_cmaq_fv3(aso4_idx))/aemolwt_cmaq_fv3(aso4_idx)
+!               write(6,*)"total_mass_so4= ",k,total_mass_so4(k),aero_wc(k,i)
+!
+!          case ('ano3i','ano3j','ano3k')
+!               if (total_mass_no3(k) .lt. 20.0)  then  
+!                  aero_wc(k,i)=(humfac(irh)*visindx_cmaq_fv3(i)*19.0 + humfac_large(irh)*visindx_large_cmaq_fv3(i))/20.0
+!               else                               ! else  all mass goes to
+!                  aero_wc(k,i)= humfac_large(irh)*visindx_large_cmaq_fv3(i)
+!               end if
+!               aero_wc(k,i)=aero_wc(k,i)*(aemolwt_cmaq_fv3(anh4_idx)+aemolwt_cmaq_fv3(aso4_idx))/aemolwt_cmaq_fv3(aso4_idx)
+!               write(6,*)"total_mass_no3= ",k,total_mass_no3(k),aero_wc(k,i)
+!          case ('aivpo1j','alvpo1i','alvpo1j','aothri','aothrj','asvpo1i','asvpo1j','asvpo2i','asvpo2j','asvpo3j','atol1j','axyl1j','axyl2j','axyl3j')
+!               if (total_mass_om(k) .lt. 20.0)  then
+!                  aero_wc(k,i)=(visindx_cmaq_fv3(i)*19.0 +visindx_large_cmaq_fv3(i))/20.0
+!               else                              
+!                  aero_wc(k,i)= visindx_large_cmaq_fv3(i)
+!               end if
+!               write(6,*)"total_mass_om= ",k,total_mass_om(k),aero_wc(k,i)
+!          case ('acli','aclj','aclk','anai','anaj','aseacat')
+!              aero_wc(k,i)=visindx_cmaq_fv3(i)*humfac_ss(irh)
+!              write(6,*)"seasalt= ",k,aero_wc(k,i)
+!          case default
+!              aero_wc(k,i) = visindx_cmaq_fv3(i) 
+!              write(6,*)"default= ",k,aero_wc(k,i)
+!       end select
+!       end if ! iaod_recs_cmaq =2
+!       if (iaod_recs_cmaq .eq. 3) then 
+!       select case ( trim(aero_name(i)) )
+!          !10
+!          case ('aalj','acaj','afej','akj','amgj','amnj','asij','asoil','atij','acors')
+!             aero_wc(k,i) = crtm_cmaq_max_wc(1)*0.001
+!          !2
+!          case ('aeci','aecj')
+!             aero_wc(k,i) = crtm_cmaq_max_wc(2)*0.001
+!          !9
+!          case ('alvoo1i','alvoo2i','anh4i','anh4j','ano3i','ano3j','aso4k','asvoo1i','asvoo2i')
+!             aero_wc(k,i) = crtm_cmaq_max_wc(3)*0.001
+!          !5
+!          case ('aso4i','aso4j','acli','anh4k','ano3k')
+!             aero_wc(k,i) = crtm_cmaq_max_wc(4)*0.001
+!          !5
+!          case ('aclj','aclk','anai','anaj','aseacat')
+!            aero_wc(k,i) = crtm_cmaq_max_wc(5)*0.001
+!          !14
+!          case ('aivpo1j','alvpo1i','alvpo1j','aothri','aothrj','asvpo1i','asvpo1j','asvpo2i','asvpo2j','asvpo3j','atol1j','axyl1j','axyl2j','axyl3j')
+!            aero_wc(k,i) = crtm_cmaq_max_wc(7)*0.001
+!          case default
+!            aero_wc(k,i) = 0.0
+!       end select
+!       end if !iaod_recs_cmaq =3
 
        enddo
 
