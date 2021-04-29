@@ -185,6 +185,9 @@ contains
        an_grid%ilev(k) = real(k)
        an_grid%hyai(k) = real(k)
        an_grid%hybi(k) = real(k)
+       an_grid%ak(k) = meta_ncio%vcoord(k,1)
+       an_grid%bk(k) = meta_ncio%vcoord(k,2) 
+       an_grid%ck(k) = 0
     end do nzp1_init
 
     ! Deallocate entire grid.
@@ -253,9 +256,7 @@ contains
              else if (an_grid%bk(k) .eq. 0. .and. an_grid%ak(k) < ak_top) then
                 an_grid%var3d(:,:,k) = 0.
              endif
-             if (taper_strat) then
-                print *,k,an_grid%ak(k),an_grid%bk(k),minval(an_grid%var3d(:,:,k)),maxval(an_grid%var3d(:,:,k))
-             endif
+             if (mype == 0) print *,k,an_grid%ak(k),an_grid%bk(k),minval(an_grid%var3d(:,:,k)),maxval(an_grid%var3d(:,:,k))
           enddo
         endif
 
