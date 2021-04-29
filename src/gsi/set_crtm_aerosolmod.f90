@@ -26,10 +26,10 @@ implicit none
 
 private
 
-public Set_CRTM_Aerosol
+public Set_CRTM_Aerosol,set_crtm_aerosol_fv3_cmaq_regional
 
 contains
-    subroutine Set_CRTM_Aerosol ( km, na, na_crtm, aero_name, aero_conc, rh, aerosol,  aero_wc)
+    subroutine set_crtm_aerosol_fv3_cmaq_regional ( km, na, na_crtm, aero_name, aero_conc, rh, aerosol,  aero_wc)
 !  subroutine Set_CRTM_Aerosol ( km, na, na_crtm, aero_name, aero_conc, rh, aerosol, aero_conc_wk, aero_wc)
 ! USES:
 
@@ -430,9 +430,9 @@ contains
     end function GOCART_Aerosol_size
 
 
-  end subroutine Set_CRTM_Aerosol
+  end subroutine set_crtm_aerosol_fv3_cmaq_regional
 
-  subroutine Set_CRTM_GOCART_Aerosol ( km, na, na_crtm, aero_name, aero_conc, rh, aerosol)
+  subroutine Set_CRTM_Aerosol ( km, na, na_crtm, aero_name, aero_conc, rh, aerosol)
   
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -615,6 +615,6 @@ contains
     return
     end function GOCART_Aerosol_size
   
-  end subroutine Set_CRTM_GOCART_Aerosol
+  end subroutine Set_CRTM_Aerosol
 
 end module set_crtm_aerosolmod

@@ -1114,7 +1114,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use constants, only: zero,half,one,one_tenth,fv,r0_05,r10,r100,r1000,constoz,grav,rad2deg, &
       sqrt_tiny_r_kind,constoz,two,three,four,five,t0c,rd,eps,rd_over_cp,rearth
   use constants, only: max_varname_length,pi  
-  use set_crtm_aerosolmod, only: set_crtm_aerosol
+  use set_crtm_aerosolmod, only: set_crtm_aerosol,set_crtm_aerosol_fv3_cmaq_regional
   use set_crtm_cloudmod, only: set_crtm_cloud
   use crtm_module, only: limit_exp,o3_id,toa_pressure
   use obsmod, only: iadate
@@ -1125,6 +1125,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use chemmod, only: aemolwt_cmaq_fv3,raod_radius_mean_scale,raod_radius_std_scale
   use chemmod, only: iaod_recs_cmaq,visindx_recs_fv3,humfac_recs,humfac_recs_ss
   use chemmod, only: ssmoke_cmaq_fv3,sdust_cmaq_fv3
+  use gridmod, only: fv3_cmaq_regional
+
   implicit none
 
 ! Declare passed variables
@@ -2191,12 +2193,17 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 ! Set aerosols for CRTM
   if(n_actual_aerosols_wk>0) then
+    if(fv3_cmaq_regional)then
 ! Relative only works with CD's CRTM branch
 !     write(6,*)"CRTM_RH0: ",atmosphere(1)%Relative_Humidity
      atmosphere(1)%Relative_Humidity = auxrh
 !     write(6,*)"CRTM_RH1: ",atmosphere(1)%Relative_Humidity
-     call Set_CRTM_Aerosol ( msig, n_actual_aerosols_wk, n_aerosols_fwd_wk, aerosol_names, aero_conc, auxrh, &
+     call set_crtm_aerosol_fv3_cmaq_regional ( msig, n_actual_aerosols_wk, n_aerosols_fwd_wk, aerosol_names, aero_conc, auxrh, &
                              atmosphere(1)%aerosol, aero_wc )
+     else
+     call Set_CRTM_Aerosol ( msig, n_actual_aerosols_wk, n_aerosols_fwd_wk,aerosol_names, aero_conc, auxrh, &
+                             atmosphere(1)%aerosol )
+     end if
   endif
 
 ! Call CRTM K Matrix model
