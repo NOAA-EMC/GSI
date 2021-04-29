@@ -444,7 +444,7 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
 
         do i = 1, nchanl
            aod(i) = aod_obs(i) - total_aod(i)
-           if(iuse_aero(ich(i))==1)write(6,*)"setupaod_aod= ",i,aod_obs(i),total_aod(i),tnoise(i)
+           !if(iuse_aero(ich(i))==1)write(6,*)"setupaod_aod= ",i,aod_obs(i),total_aod(i),tnoise(i)
            error0(i)     = tnoise(i)
            if(aod_obs(i)>zero .and. tnoise(i) < 1.e4_r_kind .or. (iuse_aero(ich(i))==-1  &
               .and. aero_diagsave))then
@@ -519,7 +519,7 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
                  m=ich(ii)
                  if (varinv(ii)>tiny_r_kind .and. iuse_aero(m)>=1) then
                     iii=iii+1
-                    write(6,*)"aod_head= ",iii,ii,aodinv(iii),var(iii),ratio_aoderr(iii)
+                    !write(6,*)"aod_head= ",iii,ii,aodinv(iii),var(iii),ratio_aoderr(iii)
                     my_head%res(iii)=aodinv(iii)
                     my_head%err2(iii)=var(iii)
                     my_head%raterr2(iii)=ratio_aoderr(iii)

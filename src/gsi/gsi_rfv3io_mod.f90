@@ -586,7 +586,6 @@ subroutine read_fv3_cmaq_regional_netcdf_guess(fv3filenamegin)
     use guess_grids, only: ges_tsen,ges_prsi
     use gridmod, only: lat2,lon2,nsig,ijn,eta1_ll,eta2_ll,ijn_s
     use constants, only: one,fv
-    use gsi_metguess_mod, only: gsi_metguess_bundle
 !Hongli Wang 20200930
     use gsi_chemguess_mod, only: gsi_chemguess_bundle
     use gridmod, only: fv3_cmaq_regional
@@ -856,11 +855,6 @@ subroutine read_fv3_cmaq_regional_netcdf_guess(fv3filenamegin)
     print*,"ges_pm2_5(5,5,1)=",ges_pm2_5(5,5,1),ges_amassi(5,5,1),ges_amassj(5,5,1),ges_amassk(5,5,1)
 
 end subroutine read_fv3_cmaq_regional_netcdf_guess
-
-
-
-
-
 
 subroutine read_fv3_netcdf_guess(fv3filenamegin)
 !$$$  subprogram documentation block
@@ -1813,7 +1807,6 @@ subroutine wrfv3_cmaq_regional_netcdf(fv3filenamegin)
 !$$$
     use kinds, only: r_kind,i_kind
     use guess_grids, only: ntguessig,ges_tsen
-    use gsi_metguess_mod, only: gsi_metguess_bundle
 !Hongli 20201112
     use gsi_chemguess_mod, only: gsi_chemguess_bundle
     use gridmod, only: fv3_cmaq_regional
@@ -2031,9 +2024,6 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     use kinds, only: r_kind,i_kind
     use guess_grids, only: ntguessig,ges_tsen
     use gsi_metguess_mod, only: gsi_metguess_bundle
-!Hongli 20201112
-!    use gsi_chemguess_mod, only: gsi_chemguess_bundle
-    use gridmod, only: fv3_cmaq_regional
 
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use mpeu_util, only: die
@@ -2050,53 +2040,6 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     real(r_kind),pointer,dimension(:,:,:):: ges_u   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_v   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_q   =>NULL()
-! variables for fv3cmaq 
-    real(r_kind),dimension(:,:,:),pointer::ges_aalj=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_acaj=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_acli=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_aclj=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_aclk=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_acors=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_aeci=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_aecj=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_afej=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_aivpo1j=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_akj=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_alvoo1i=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_alvoo2i=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_alvpo1i=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_alvpo1j=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_amgj=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_amnj=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_anai=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_anaj=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_anh4i=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_anh4j=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_anh4k=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_ano3i=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_ano3j=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_ano3k=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_aothri=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_aothrj=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_aseacat=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_asij=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_aso4i=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_aso4j=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_aso4k=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_asoil=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_asvoo1i=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_asvoo2i=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_asvpo1i=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_asvpo1j=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_asvpo2i=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_asvpo2j=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_asvpo3j=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_atij=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_atol1j=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_axyl1j=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_axyl2j=>NULL()
-    real(r_kind),dimension(:,:,:),pointer::ges_axyl3j=>NULL()
-
 
     dynvars=fv3filenamegin%dynvars
     tracers=fv3filenamegin%tracers
