@@ -72,7 +72,6 @@ export satype_file=${satype_file:-$FIXgdas_ozn/gdas_oznmon_satype.txt}
 export PDATE=${PDY}${cyc}
 export DO_DATA_RPT=${DO_DATA_RPT:-1}
 export NCP=${NCP:-/bin/cp}
-export NDATE=${NDATE:-/nwprod/util/exec/ndate}
 
 
 ##################################################################

@@ -63,7 +63,6 @@ export USE_MAIL=${USE_MAIL:-0}
 export MAIL_TO=${MAIL_TO:-" "}
 export MAIL_CC=${MAIL_CC:-" "}
 export NCP=${NCP:-/bin/cp}
-export NDATE=${NDATE:-/nwprod/util/exec/ndate}
 
 ###########################################################################
 # ensure work and TANK dirs exist, verify radstat and biascr are available

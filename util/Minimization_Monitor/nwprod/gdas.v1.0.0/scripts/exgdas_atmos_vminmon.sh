@@ -59,7 +59,6 @@ export mm_costfile=${costfile:-${M_FIXgdas}/gdas_minmon_cost.txt}
 export MINMON_SUFFIX=${MINMON_SUFFIX:-GDAS}
 export PDATE=${PDY}${cyc}
 export NCP=${NCP:-/bin/cp}
-export NDATE=${NDATE:-/nwprod/util/exec/ndate}
 export pgm=exgdas_vrfminmon.sh
 
 if [[ ! -d ${DATA} ]]; then
