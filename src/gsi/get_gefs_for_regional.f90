@@ -958,8 +958,6 @@ write(6,*)'The actual number to be used of the first ensembles is ',n_ens_gfs
   end do   !  end loop over ensemble members.
   deallocate(ges_z_ens)
 
-  deallocate(ges_z_ens)
-
 !   next, compute mean of ensembles.
 
   allocate(stbar(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
