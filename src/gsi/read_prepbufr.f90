@@ -475,7 +475,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   if(tob)then
      nreal=26
   else if(uvob) then 
-     nreal=27
+!    nreal=27
+     nreal=30
   else if(spdob) then
      nreal=24
   else if(psob) then
@@ -2236,8 +2237,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(27,iout)=time_launch
 
                  if(perturb_obs)then
-                    cdata_all(28,iout)=ran01dom()*perturb_fact ! u perturbation
-                    cdata_all(29,iout)=ran01dom()*perturb_fact ! v perturbation
+                    cdata_all(31,iout)=ran01dom()*perturb_fact ! u perturbation
+                    cdata_all(32,iout)=ran01dom()*perturb_fact ! v perturbation
                  endif
  
               else if(spdob) then 

@@ -266,7 +266,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! Set lower limits for observation errors
   werrmin=one
   nsattype=0
-  nreal=26
+! nreal=26
+! nreal=30
   if(perturb_obs ) nreal=nreal+2
   ntread=1
   ntmatch=0
@@ -1535,12 +1536,13 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            cdata_all(23,iout)=r_sprvstg(1,1)      ! subprovider name
            cdata_all(25,iout)=var_jb              ! non linear qc parameter
            cdata_all(26,iout)=one                 ! hilbert curve weight 
-
+           cdata_all(28,iout)=hdrdat(9)           ! SWCM,spectral type=1-5
+           cdata_all(29,iout)=hdrdat(10)          ! SAZA
+           cdata_all(30,iout)=hdrdat(12)          ! SCCF,spec wavenumber
            if(perturb_obs)then
-              cdata_all(27,iout)=ran01dom()*perturb_fact ! u perturbation
-              cdata_all(28,iout)=ran01dom()*perturb_fact ! v perturbation
+              cdata_all(31,iout)=ran01dom()*perturb_fact ! u perturbation
+              cdata_all(32,iout)=ran01dom()*perturb_fact ! v perturbation
            endif
-
         enddo  loop_readsb
  !   End of bufr read loop
      enddo loop_msg
