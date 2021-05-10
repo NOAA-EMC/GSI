@@ -141,7 +141,7 @@ subroutine setupbend(obsLL,odiagLL, &
 
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
-  use guess_grids, only: ges_lnprsi,hrdifsig,geop_hgti,nfldsig
+  use guess_grids, only: ges_lnprsi,ges_tsen,hrdifsig,geop_hgti,nfldsig
   use guess_grids, only: nsig_ext,gpstop
   use gridmod, only: nsig
   use gridmod, only: get_ij,latlon11
@@ -259,6 +259,7 @@ subroutine setupbend(obsLL,odiagLL, &
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q 
   integer,     dimension(nobs)                :: qcfail_8km
+  real(r_kind),dimension(nsig,  nobs)         :: Tsen
 
   type(obsLList),pointer,dimension(:):: gpshead
   gpshead => obsLL(:)
@@ -452,6 +453,11 @@ subroutine setupbend(obsLL,odiagLL, &
           mype,nfldsig)
 
      prsltmp_o(1:nsig,i)=prsltmp(1:nsig) ! needed in minimization
+
+ !    Interpolate mid-level log(pres),mid-level geopotential height,
+ !    and air temperature for JEDI
+      call tintrp2a1(ges_tsen,  Tsen(1:nsig,i),  dlat,dlon,dtime,hrdifsig, &
+                     nsig, mype,nfldsig)
 
 ! Compute refractivity index-radius product at interface
 !
