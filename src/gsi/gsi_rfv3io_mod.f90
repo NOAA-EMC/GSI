@@ -2691,8 +2691,7 @@ subroutine gsi_fv3ncdf_write_fv3_dz(filename,varname,varinc,mype_io,add_saved)
     use mpimod, only: mpi_rtype,mpi_comm_world,ierror,npe,mype
     use gridmod, only: lat2,lon2,nlon,nlat,lat1,lon1,nsig
     use gridmod, only: ijn,displs_g,itotsub,iglobal
-    use mod_fv3_lola, only: fv3_ll_to_h
-    use mod_fv3_lola, only: fv3_h_to_ll
+    use mod_fv3_lolgrid, only: fv3_ll_to_h_regular_grids,fv3_h_to_ll_regular_grids
     use general_commvars_mod, only: ltosi,ltosj
     use netcdf, only: nf90_open,nf90_close
     use netcdf, only: nf90_write,nf90_inq_varid
@@ -2751,7 +2750,7 @@ subroutine gsi_fv3ncdf_write_fv3_dz(filename,varname,varinc,mype_io,add_saved)
        call check( nf90_get_var(gfile_loc,VarId,work_b) )
 
        do k=1,nsig
-          call fv3_ll_to_h(work_ainc(1,1,k),workb2(:,:),nlon,nlat,nlon_regional,nlat_regional,.true.)
+          call fv3_ll_to_h_regular_grids(work_ainc(1,1,k),workb2(:,:),nlon,nlat,nlon_regional,nlat_regional,.true.,p_fv3sar2anlgrid)
 !!!!!!!! analysis_inc:  work_a !!!!!!!!!!!!!!!!
           work_b(:,:,k)=workb2(:,:)+work_b(:,:,k)
        enddo
@@ -2803,8 +2802,7 @@ subroutine gsi_fv3ncdf_write_v1(filename,varname,var,mype_io,add_saved)
     use mpimod, only: mpi_rtype,mpi_comm_world,ierror,npe,mype
     use gridmod, only: lat2,lon2,nlon,nlat,lat1,lon1,nsig
     use gridmod, only: ijn,displs_g,itotsub,iglobal
-    use mod_fv3_lola, only: fv3_ll_to_h
-    use mod_fv3_lola, only: fv3_h_to_ll
+    use mod_fv3_lolgrid, only: fv3_ll_to_h_regular_grids,fv3_h_to_ll_regular_grids
     use general_commvars_mod, only: ltosi,ltosj
     use netcdf, only: nf90_open,nf90_close
     use netcdf, only: nf90_write,nf90_inq_varid
@@ -2865,16 +2863,16 @@ subroutine gsi_fv3ncdf_write_v1(filename,varname,var,mype_io,add_saved)
 ! for being now only lev between (including )  2 and nsig+1 of work_b (:,:,lev) 
 ! are updated
           do k=1,nsig
-             call fv3_h_to_ll(work_b(:,:,ilev0+k),worka2,nlon_regional,nlat_regional,nlon,nlat)
+             call fv3_h_to_ll_regular_grids(work_b(:,:,ilev0+k),worka2,nlon_regional,nlat_regional,nlon,nlat,p_fv3sar2anlgrid)
 !!!!!!!! analysis_inc:  work_a !!!!!!!!!!!!!!!!
              work_a(:,:,k)=work_a(:,:,k)-worka2(:,:)
-             call fv3_ll_to_h(work_a(1,1,k),workb2,nlon,nlat,nlon_regional,nlat_regional,.true.)
+             call fv3_ll_to_h_regular_grids(work_a(1,1,k),workb2,nlon,nlat,nlon_regional,nlat_regional,.true.,p_fv3sar2anlgrid)
              work_b(:,:,ilev0+k)=work_b(:,:,ilev0+k)+workb2(:,:)
           enddo
           deallocate(worka2,workb2)
        else
           do k=1,nsig
-             call fv3_ll_to_h(work_a(1,1,k),work_b(1,1,ilev0+k),nlon,nlat,nlon_regional,nlat_regional,.true.)
+             call fv3_ll_to_h_regular_grids(work_a(1,1,k),work_b(1,1,ilev0+k),nlon,nlat,nlon_regional,nlat_regional,.true.,p_fv3sar2anlgrid)
           enddo
        endif
 

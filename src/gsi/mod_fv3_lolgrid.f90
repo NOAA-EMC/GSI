@@ -1396,3 +1396,130 @@ end subroutine fv3_ll_to_h_regular_grids
   
   
 end module mod_fv3_lolgrid
+subroutine rotate2deg(rlon_in,rlat_in,rlon_out,rlat_out,rlon0,rlat0,nx,ny)
+!$$$  subprogram documentation block
+!                .      .    .                                        .
+! subprogram:    rotate2deg
+!
+!   prgmmr: parrish
+!
+!   Rotate right-handed spherical coordinate to new right-handed spherical
+!   coordinate.  The coordinates are latitude (-90 to 90) and longitude.
+!   Output for longitude is principle range of atan2d function ( -180 < rlon_out <= 180 )
+!
+! program history log:
+!   2017-05-02  parrish
+!
+!  Method is as follows:
+!  1.  define x,y,z coordinate system with origin at center of sphere,
+!      x intersecting sphere at 0 deg N,  0 deg E,
+!      y intersecting sphere at 0 deg N, 90 deg E,
+!      z intersecting sphere at 90 deg N  (north pole).
+
+!   4 steps:
+
+!   1.  compute x,y,z from rlon_in, rlat_in
+
+!   2.  rotate (x,y,z) about z axis by amount rlon0 -- (x,y,z) --> (xt,yt,zt)
+
+!   3.  rotate (xt,yt,zt) about yt axis by amount rlat0 --- (xt,yt,zt) --> (xtt,ytt,ztt)
+
+!   4.  compute rlon_out, rlat_out from xtt,ytt,ztt
+
+!   This is the desired new orientation, where (0N, 0E) maps to point
+!         (rlon0,rlat0) in original coordinate and the new equator is tangent to
+!          the original latitude circle rlat0 at original longitude rlon0.
+! attributes:
+!   langauge: f90
+!   machine:
+!
+!$$$ end documentation block
+
+
+  use kinds, only: r_kind,i_kind
+  use constants, only: deg2rad,rad2deg
+  implicit none
+
+  integer(i_kind), intent(in   ) :: nx,ny                 ! fv3 tile x- and y-dimensions
+  real(r_kind),intent(in   ) :: rlon_in(nx,ny),rlat_in(nx,ny),rlon0,rlat0
+  real(r_kind),intent(  out) :: rlon_out(nx,ny),rlat_out(nx,ny)
+
+  real(r_kind) x,y,z, xt,yt,zt, xtt,ytt,ztt
+  integer(i_kind) i,j
+
+  do j=1,ny
+     do i=1,nx
+!   1.  compute x,y,z from rlon_in, rlat_in
+
+        x=cos(rlat_in(i,j)*deg2rad)*cos(rlon_in(i,j)*deg2rad)
+        y=cos(rlat_in(i,j)*deg2rad)*sin(rlon_in(i,j)*deg2rad)
+        z=sin(rlat_in(i,j)*deg2rad)
+
+!   2.  rotate (x,y,z) about z axis by amount rlon0 -- (x,y,z) --> (xt,yt,zt)
+
+        xt= x*cos(rlon0*deg2rad)+y*sin(rlon0*deg2rad)
+        yt=-x*sin(rlon0*deg2rad)+y*cos(rlon0*deg2rad)
+        zt=z
+
+!   3.  rotate (xt,yt,zt) about yt axis by amount rlat0 --- (xt,yt,zt) --> (xtt,ytt,ztt)
+
+        xtt= xt*cos(rlat0*deg2rad)+zt*sin(rlat0*deg2rad)
+        ytt= yt
+        ztt=-xt*sin(rlat0*deg2rad)+zt*cos(rlat0*deg2rad)
+
+!   4.  compute rlon_out, rlat_out from xtt,ytt,ztt
+
+        rlat_out(i,j)=asin(ztt)*rad2deg
+        rlon_out(i,j)=atan2(ytt,xtt)*rad2deg
+     enddo
+  enddo
+end subroutine rotate2deg
+
+subroutine unrotate2deg(rlon_in,rlat_in,rlon_out,rlat_out,rlon0,rlat0,nx,ny)
+!$$$  subprogram documentation block
+!                .      .    .                                        .
+! subprogram:    unrotate2deg
+!
+!   prgmmr: parrish
+!
+! abstract:  inverse of rotate2deg.
+!
+! program history log:
+!   2017-05-02  parrish
+
+! attributes:
+!   langauge: f90
+!   machine:
+!
+!$$$ end documentation block
+
+  use kinds, only: r_kind,i_kind
+  use constants, only: deg2rad,rad2deg
+  implicit none
+
+  real(r_kind),intent(in   ) :: rlon_out(nx,ny),rlat_out(nx,ny),rlon0,rlat0
+  integer(i_kind),intent(in   ) :: nx,ny
+  real(r_kind),intent(  out) :: rlon_in(nx,ny),rlat_in(nx,ny)
+
+  real(r_kind) x,y,z, xt,yt,zt, xtt,ytt,ztt
+  integer(i_kind) i,j
+  do j=1,ny
+     do i=1,nx
+        xtt=cos(rlat_out(i,j)*deg2rad)*cos(rlon_out(i,j)*deg2rad)
+        ytt=cos(rlat_out(i,j)*deg2rad)*sin(rlon_out(i,j)*deg2rad)
+        ztt=sin(rlat_out(i,j)*deg2rad)
+
+        xt= xtt*cos(rlat0*deg2rad)-ztt*sin(rlat0*deg2rad)
+        yt= ytt
+        zt= xtt*sin(rlat0*deg2rad)+ztt*cos(rlat0*deg2rad)
+
+        x= xt*cos(rlon0*deg2rad)-yt*sin(rlon0*deg2rad)
+        y= xt*sin(rlon0*deg2rad)+yt*cos(rlon0*deg2rad)
+        z= zt
+
+        rlat_in(i,j)=asin(z)*rad2deg
+        rlon_in(i,j)=atan2(y,x)*rad2deg
+     enddo
+  enddo
+
+end subroutine unrotate2deg

@@ -381,7 +381,7 @@ write(6,*)'The actual number to be used of the first ensembles is ',n_ens_gfs
         gfshead%idvc = 2
 
         ! FV3GFS write component does not include JCAP, infer from DIMY-2
-        njcap=latb-2
+!clt        njcap=latb-2
 
         nlat_gfs=gfshead%latb+2
         nlon_gfs=gfshead%lonb
@@ -389,7 +389,8 @@ write(6,*)'The actual number to be used of the first ensembles is ',n_ens_gfs
 
         jcap_gfs=gfshead%latb-2
 
-        if (mype==mype_out) write(6,*)'GESINFO:  Read NCEP FV3GFS netCDF ', &
+!clt        if (mype==mype_out) write(6,*)'GESINFO:  Read NCEP FV3GFS netCDF ', &
+        if (mype==0) write(6,*)'GESINFO:  Read NCEP FV3GFS netCDF ', &
            'format file, ',trim(filename)
         ! hard code nvcoord to be 2
         gfshead%nvcoord=2 ! ak and bk
