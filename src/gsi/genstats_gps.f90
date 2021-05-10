@@ -53,6 +53,7 @@ module m_gpsStats
       real(r_kind)    :: b                      
       real(r_kind)    :: loc                    
       real(r_kind)    :: type               
+      real(r_kind),dimension(:),pointer :: tsenges
 
       real(r_kind),dimension(:),pointer :: rdiag => NULL()
       integer(i_kind) :: kprof
@@ -806,6 +807,7 @@ subroutine contents_netcdf_diag_
 
 !          geovals
            call nc_diag_metadata("surface_altitude",          sngl(gps_allptr%rdiag(9)) )
+           call nc_diag_data2d("air_temperature",             sngl(gps_allptr%tsenges) )
 
            if (save_jacobian) then
               call readarray(dhx_dx, gps_allptr%rdiag(ioff+1:nreal))

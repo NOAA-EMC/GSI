@@ -1027,6 +1027,13 @@ subroutine setupbend(obsLL,odiagLL, &
         gps_alltail(ibin)%head%elat= data(ilate,i)
         gps_alltail(ibin)%head%elon= data(ilone,i)
 
+!       2 dimensional geovals for JEDI
+        allocate(gps_alltail(ibin)%head%tsenges(nsig),stat=istatus)
+
+        do j= 1, nsig
+          gps_alltail(ibin)%head%tsenges(j)  = Tsen(j,i)
+        end do
+
         allocate(gps_alltail(ibin)%head%rdiag(nreal),stat=istatus)
         if (istatus/=0) write(6,*)'SETUPBEND:  allocate error for gps_alldiag, istatus=',istatus
 
