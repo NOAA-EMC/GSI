@@ -260,7 +260,7 @@ subroutine setupbend(obsLL,odiagLL, &
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q 
   integer,     dimension(nobs)                :: qcfail_8km
-  real(r_kind),dimension(nsig,  nobs)         :: Tsen, sphm, hgtl, prslnl
+  real(r_kind),dimension(nsig,  nobs)         :: Tsen,Tvir, sphm, hgtl, prslnl
   real(r_kind),dimension(nsig+1,nobs)         :: hgti, prslni
 
   type(obsLList),pointer,dimension(:):: gpshead
@@ -465,6 +465,7 @@ subroutine setupbend(obsLL,odiagLL, &
       call tintrp2a1(ges_lnprsl,prslnl(1:nsig,i),dlat,dlon,dtime,hrdifsig, &
                      nsig, mype,nfldsig)
 
+      Tvir(1:nsig,i)      = tges(1:nsig)            ! virtual temperature
       sphm(1:nsig,i)      = qges(1:nsig)            ! specific humidity
       hgtl(1:nsig,i)      = hgtl(1:nsig,i) + zsges  ! mid level geopotential height
       hgti(1:nsig+1,i)    = hges(1:nsig+1) + zsges  ! interface level geopotential height
@@ -1039,6 +1040,7 @@ subroutine setupbend(obsLL,odiagLL, &
         gps_alltail(ibin)%head%elon= data(ilone,i)
 
 !       2 dimensional geovals for JEDI
+        allocate(gps_alltail(ibin)%head%tvirges(nsig),stat=istatus)
         allocate(gps_alltail(ibin)%head%tsenges(nsig),stat=istatus)
         allocate(gps_alltail(ibin)%head%sphmges(nsig),stat=istatus)
         allocate(gps_alltail(ibin)%head%hgtlges(nsig),stat=istatus)
@@ -1047,6 +1049,7 @@ subroutine setupbend(obsLL,odiagLL, &
         allocate(gps_alltail(ibin)%head%prslges(nsig),stat=istatus)
 
         do j= 1, nsig
+          gps_alltail(ibin)%head%tvirges(j)  = Tvir(j,i)
           gps_alltail(ibin)%head%tsenges(j)  = Tsen(j,i)
           gps_alltail(ibin)%head%sphmges(j)  = sphm(j,i)
           gps_alltail(ibin)%head%hgtlges(j)  = hgtl(j,i)
