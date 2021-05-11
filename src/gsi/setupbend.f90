@@ -260,8 +260,8 @@ subroutine setupbend(obsLL,odiagLL, &
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q 
   integer,     dimension(nobs)                :: qcfail_8km
-  real(r_kind),dimension(nsig,  nobs)         :: Tsen,Tvir, sphm, hgtl, prslnl
-  real(r_kind),dimension(nsig+1,nobs)         :: hgti, prslni
+  real(r_kind),dimension(nsig,  nobs)         :: Tsen,Tvir,sphm,hgtl,prslnl
+  real(r_kind),dimension(nsig+1,nobs)         :: hgti,prslni
 
   type(obsLList),pointer,dimension(:):: gpshead
   gpshead => obsLL(:)
@@ -1060,7 +1060,6 @@ subroutine setupbend(obsLL,odiagLL, &
           gps_alltail(ibin)%head%hgtiges(j)  = hgti(j,i)
           gps_alltail(ibin)%head%prsiges(j)  = 1000.0*exp(prslni(j,i))
         end do
-
 
         allocate(gps_alltail(ibin)%head%rdiag(nreal),stat=istatus)
         if (istatus/=0) write(6,*)'SETUPBEND:  allocate error for gps_alldiag, istatus=',istatus
