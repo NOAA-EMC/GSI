@@ -141,7 +141,7 @@ subroutine setupbend(obsLL,odiagLL, &
 
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
-  use guess_grids, only: ges_lnprsi,ges_tsen,hrdifsig,geop_hgti,nfldsig
+  use guess_grids, only: ges_lnprsi,ges_tsen,geop_hgtl,hrdifsig,geop_hgti,nfldsig
   use guess_grids, only: nsig_ext,gpstop
   use gridmod, only: nsig
   use gridmod, only: get_ij,latlon11
@@ -259,7 +259,7 @@ subroutine setupbend(obsLL,odiagLL, &
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q 
   integer,     dimension(nobs)                :: qcfail_8km
-  real(r_kind),dimension(nsig,  nobs)         :: Tsen, sphm
+  real(r_kind),dimension(nsig,  nobs)         :: Tsen, sphm, hgtl
 
   type(obsLList),pointer,dimension(:):: gpshead
   gpshead => obsLL(:)
@@ -458,8 +458,12 @@ subroutine setupbend(obsLL,odiagLL, &
  !    and air temperature for JEDI
       call tintrp2a1(ges_tsen,  Tsen(1:nsig,i),  dlat,dlon,dtime,hrdifsig, &
                      nsig, mype,nfldsig)
+      call tintrp2a1(geop_hgtl, hgtl(1:nsig,i),  dlat,dlon,dtime,hrdifsig, &
+                     nsig, mype,nfldsig)
+
 
       sphm(1:nsig,i)      = qges(1:nsig)            ! specific humidity
+      hgtl(1:nsig,i)      = hgtl(1:nsig,i) + zsges  ! mid level geopotential height
 
 ! Compute refractivity index-radius product at interface
 !
@@ -1032,10 +1036,13 @@ subroutine setupbend(obsLL,odiagLL, &
 !       2 dimensional geovals for JEDI
         allocate(gps_alltail(ibin)%head%tsenges(nsig),stat=istatus)
         allocate(gps_alltail(ibin)%head%sphmges(nsig),stat=istatus)
+        allocate(gps_alltail(ibin)%head%hgtlges(nsig),stat=istatus)
 
         do j= 1, nsig
           gps_alltail(ibin)%head%tsenges(j)  = Tsen(j,i)
           gps_alltail(ibin)%head%sphmges(j)  = sphm(j,i)
+          gps_alltail(ibin)%head%hgtlges(j)  = hgtl(j,i)
+
         end do
 
         allocate(gps_alltail(ibin)%head%rdiag(nreal),stat=istatus)
