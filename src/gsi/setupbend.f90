@@ -141,7 +141,8 @@ subroutine setupbend(obsLL,odiagLL, &
 
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
-  use guess_grids, only: ges_lnprsi,ges_tsen,geop_hgtl,hrdifsig,geop_hgti,nfldsig
+  use guess_grids, only: ges_lnprsi,hrdifsig,geop_hgti,nfldsig
+  use guess_grids, only: ges_tsen,geop_hgtl
   use guess_grids, only: nsig_ext,gpstop
   use gridmod, only: nsig
   use gridmod, only: get_ij,latlon11
@@ -260,6 +261,7 @@ subroutine setupbend(obsLL,odiagLL, &
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q 
   integer,     dimension(nobs)                :: qcfail_8km
   real(r_kind),dimension(nsig,  nobs)         :: Tsen, sphm, hgtl
+  real(r_kind),dimension(nsig+1,nobs)         :: hgti
 
   type(obsLList),pointer,dimension(:):: gpshead
   gpshead => obsLL(:)
@@ -464,6 +466,7 @@ subroutine setupbend(obsLL,odiagLL, &
 
       sphm(1:nsig,i)      = qges(1:nsig)            ! specific humidity
       hgtl(1:nsig,i)      = hgtl(1:nsig,i) + zsges  ! mid level geopotential height
+      hgti(1:nsig+1,i)    = hges(1:nsig+1) + zsges  ! interface level geopotential height
 
 ! Compute refractivity index-radius product at interface
 !
@@ -1037,13 +1040,18 @@ subroutine setupbend(obsLL,odiagLL, &
         allocate(gps_alltail(ibin)%head%tsenges(nsig),stat=istatus)
         allocate(gps_alltail(ibin)%head%sphmges(nsig),stat=istatus)
         allocate(gps_alltail(ibin)%head%hgtlges(nsig),stat=istatus)
+        allocate(gps_alltail(ibin)%head%hgtiges(nsig+1),stat=istatus)
 
         do j= 1, nsig
           gps_alltail(ibin)%head%tsenges(j)  = Tsen(j,i)
           gps_alltail(ibin)%head%sphmges(j)  = sphm(j,i)
           gps_alltail(ibin)%head%hgtlges(j)  = hgtl(j,i)
-
         end do
+
+        do j= 1, nsig + 1
+          gps_alltail(ibin)%head%hgtiges(j)  = hgti(j,i)
+        end do
+
 
         allocate(gps_alltail(ibin)%head%rdiag(nreal),stat=istatus)
         if (istatus/=0) write(6,*)'SETUPBEND:  allocate error for gps_alldiag, istatus=',istatus
