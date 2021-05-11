@@ -259,7 +259,7 @@ subroutine setupbend(obsLL,odiagLL, &
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q 
   integer,     dimension(nobs)                :: qcfail_8km
-  real(r_kind),dimension(nsig,  nobs)         :: Tsen
+  real(r_kind),dimension(nsig,  nobs)         :: Tsen, sphm
 
   type(obsLList),pointer,dimension(:):: gpshead
   gpshead => obsLL(:)
@@ -458,6 +458,8 @@ subroutine setupbend(obsLL,odiagLL, &
  !    and air temperature for JEDI
       call tintrp2a1(ges_tsen,  Tsen(1:nsig,i),  dlat,dlon,dtime,hrdifsig, &
                      nsig, mype,nfldsig)
+
+      sphm(1:nsig,i)      = qges(1:nsig)            ! specific humidity
 
 ! Compute refractivity index-radius product at interface
 !
@@ -1029,9 +1031,11 @@ subroutine setupbend(obsLL,odiagLL, &
 
 !       2 dimensional geovals for JEDI
         allocate(gps_alltail(ibin)%head%tsenges(nsig),stat=istatus)
+        allocate(gps_alltail(ibin)%head%sphmges(nsig),stat=istatus)
 
         do j= 1, nsig
           gps_alltail(ibin)%head%tsenges(j)  = Tsen(j,i)
+          gps_alltail(ibin)%head%sphmges(j)  = sphm(j,i)
         end do
 
         allocate(gps_alltail(ibin)%head%rdiag(nreal),stat=istatus)

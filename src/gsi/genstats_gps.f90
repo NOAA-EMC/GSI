@@ -808,6 +808,7 @@ subroutine contents_netcdf_diag_
 !          geovals
            call nc_diag_metadata("surface_altitude",          sngl(gps_allptr%rdiag(9)) )
            call nc_diag_data2d("air_temperature",             sngl(gps_allptr%tsenges) )
+           call nc_diag_data2d("specific_humidity",           sngl(gps_allptr%sphmges) )
 
            if (save_jacobian) then
               call readarray(dhx_dx, gps_allptr%rdiag(ioff+1:nreal))
