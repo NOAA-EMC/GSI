@@ -261,7 +261,7 @@ subroutine setupbend(obsLL,odiagLL, &
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q 
   integer,     dimension(nobs)                :: qcfail_8km
   real(r_kind),dimension(nsig,  nobs)         :: Tsen, sphm, hgtl
-  real(r_kind),dimension(nsig+1,nobs)         :: hgti
+  real(r_kind),dimension(nsig+1,nobs)         :: hgti, prslni
 
   type(obsLList),pointer,dimension(:):: gpshead
   gpshead => obsLL(:)
@@ -467,6 +467,7 @@ subroutine setupbend(obsLL,odiagLL, &
       sphm(1:nsig,i)      = qges(1:nsig)            ! specific humidity
       hgtl(1:nsig,i)      = hgtl(1:nsig,i) + zsges  ! mid level geopotential height
       hgti(1:nsig+1,i)    = hges(1:nsig+1) + zsges  ! interface level geopotential height
+      prslni(1:nsig+1,i)  = prsltmp(1:nsig+1)       ! interface level log(pressure)
 
 ! Compute refractivity index-radius product at interface
 !
@@ -1041,6 +1042,7 @@ subroutine setupbend(obsLL,odiagLL, &
         allocate(gps_alltail(ibin)%head%sphmges(nsig),stat=istatus)
         allocate(gps_alltail(ibin)%head%hgtlges(nsig),stat=istatus)
         allocate(gps_alltail(ibin)%head%hgtiges(nsig+1),stat=istatus)
+        allocate(gps_alltail(ibin)%head%prsiges(nsig+1),stat=istatus)
 
         do j= 1, nsig
           gps_alltail(ibin)%head%tsenges(j)  = Tsen(j,i)
@@ -1050,6 +1052,8 @@ subroutine setupbend(obsLL,odiagLL, &
 
         do j= 1, nsig + 1
           gps_alltail(ibin)%head%hgtiges(j)  = hgti(j,i)
+          gps_alltail(ibin)%head%prsiges(j)  = 1000.0*exp(prslni(j,i))
+
         end do
 
 

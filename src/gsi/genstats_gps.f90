@@ -57,6 +57,7 @@ module m_gpsStats
       real(r_kind),dimension(:),pointer :: sphmges
       real(r_kind),dimension(:),pointer :: hgtlges
       real(r_kind),dimension(:),pointer :: hgtiges
+      real(r_kind),dimension(:),pointer :: prsiges
 
 
       real(r_kind),dimension(:),pointer :: rdiag => NULL()
@@ -815,6 +816,8 @@ subroutine contents_netcdf_diag_
            call nc_diag_data2d("specific_humidity",           sngl(gps_allptr%sphmges) )
            call nc_diag_data2d("geopotential_height",         sngl(gps_allptr%hgtlges) )
            call nc_diag_data2d("geopotential_height_levels",  sngl(gps_allptr%hgtiges) )
+           call nc_diag_data2d("air_pressure_levels",         sngl(gps_allptr%prsiges) )
+
 
            if (save_jacobian) then
               call readarray(dhx_dx, gps_allptr%rdiag(ioff+1:nreal))
