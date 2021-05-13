@@ -629,12 +629,12 @@ module oznmon_read_diag
     !
     !  The newer netcdf read processes each field for all obs 
     !  so it can grab all the obs data in a single call.  The
-    !  calling routine in time.f90 uses the iflag value to 
-    !  process the results, and non-zero value to indicate 
-    !  everything has been read.  In order to use this same
-    !  iflag mechanism we'll use the ncdiag_open_status%nc_read
-    !  field, setting it to true and iflag to 0 after reading,
-    !  and if nc_read is already true then set iflag to -1.
+    !  calling routine uses the iflag value to process the,
+    !  and non-zero value to indicate everything has been read.  
+    !  In order to use this same iflag mechanism we'll use the 
+    !  ncdiag_open_status%nc_read field, setting it to true and 
+    !  iflag to 0 after reading, and if nc_read is already true 
+    !  then set iflag to -1.
     !
     !  It's not as clear or clean as it should be, so I'll 
     !  leave this comment in as a note-to-self to redesign this
@@ -698,14 +698,28 @@ module oznmon_read_diag
           write(6,*) 'WARNING:  unable to read global var Time from file '
        end if
 
-       !-----------------------------------------------
+       !-------------------------------------------------------
        ! lat, lon, obstime are dimensioned to nrecords
-       ! read those as nobs * nlevs
+       ! read those as nobs * nlevs with all lat/lon values 
+       ! for a given obs being the same.  So a source with 22
+       ! levels has that value repeated 22 times for each 
+       ! obs.  The data_fix structure is dimentioned to nobs,
+       ! not nrecords to match the binary file structure.
+       !
+       ! Note that only sbuv2_n19 and ompsnp_npp (at present)
+       ! have nlevs > 1.
        !
        do ii=1,ntobs
-          data_fix(ii)%lat     =     lat(ii + ((ii-1)*nlevs) )
-          data_fix(ii)%lon     =     lon(ii + ((ii-1)*nlevs) )
-          data_fix(ii)%obstime = obstime(ii + ((ii-1)*nlevs) )
+          if( nlevs > 1 ) then
+             data_fix(ii)%lat     =     lat(1 + ((ii-1)*nlevs) )
+             data_fix(ii)%lon     =     lon(1 + ((ii-1)*nlevs) )
+             data_fix(ii)%obstime = obstime(1 + ((ii-1)*nlevs) )
+          else
+             data_fix(ii)%lat     =     lat(ii)
+             data_fix(ii)%lon     =     lon(ii)
+             data_fix(ii)%obstime = obstime(ii)
+          end if
+          
        end do
  
        if( allocated( lat     )) deallocate( lat )
@@ -716,6 +730,7 @@ module oznmon_read_diag
        ! load data_nlev structure
        !
        allocate( ozobs(nrecords) ) 
+
        allocate( ozone_inv(nrecords) ) 
        allocate( varinv(nrecords) ) 
        allocate( sza(nrecords) ) 
@@ -763,7 +778,7 @@ module oznmon_read_diag
        ! All vars used to read the file are dimensioned
        ! to nrecord, which is nobs * nlevs
        !
-       do jj=1,ntobs-1
+       do jj=1,ntobs
           do ii=1,header_fix%nlevs
              data_nlev(ii,jj)%ozobs     =     ozobs( ii + ((jj-1) * nlevs) )
              data_nlev(ii,jj)%ozone_inv = ozone_inv( ii + ((jj-1) * nlevs) )
