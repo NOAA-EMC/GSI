@@ -102,8 +102,8 @@ else()
     set( w3nco "w3nco${libsuffix}")
 endif()
 if(NOT  BUILD_BUFR  )
-  if(DEFINED ENV{BUFR_LIBd} )
-    set(BUFR_LIBRARY $ENV{BUFR_LIBd} )
+  if(DEFINED ENV{BUFR_LIBd_DA} )
+    set(BUFR_LIBRARY $ENV{BUFR_LIBd_DA} )
   else()
   find_library( BUFR_LIBRARY 
     NAMES libbufr.a libbufr_d_64.a libbufr_i4r8.a libbufr_v${BUFR_VER}_d_64.a

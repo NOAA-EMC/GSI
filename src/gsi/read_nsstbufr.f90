@@ -604,6 +604,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 1020 continue
   if (oberrflg) deallocate(etabl)
   call closbf(lunin)
+  close(lunin)
 
   if(diagnostic_reg.and.ntest > 0) write(6,*)'READ_NSSTBUFR:  ',&
      'ntest,disterrmax=',ntest,disterrmax

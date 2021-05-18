@@ -169,7 +169,6 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
   if (.not.assim) val_abi=zero
 
 ! Open bufr file.
-  call closbf(lnbufr)
   open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
@@ -232,6 +231,7 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
 
 !  Reopen unit to bufr file
   call closbf(lnbufr)
+  close(lnbufr)
   open(lnbufr,file=infile,form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   if(jsatid == 'gr' .or. jsatid == 'g16') kidsat = 270
@@ -494,6 +494,7 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
   enddo read_msg
 
   call closbf(lnbufr)
+  close(lnbufr)
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
      nele,itxmax,nread,ndata,data_all,score_crit,nrec)
