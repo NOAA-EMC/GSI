@@ -162,8 +162,8 @@ public isazi_ang2           ! = 37 index of solar azimuth angle (degrees)
   real(r_kind)   , save ,allocatable,dimension(:,:) :: aero_conc    ! aerosol (guess) concentrations at obs location
   real(r_kind)   , save ,allocatable,dimension(:)   :: auxrh        ! temporary array for rh profile as seen by CRTM
 !Hongli Wang
-  real(r_kind)   , save ,allocatable,dimension(:,:) :: aero_wc, aero_wc1     ! aerosol weights for AOD at  bs location
-  real(r_kind)   , save ,allocatable,dimension(:,:) :: aero_wk, aero_conc_wk      ! aerosolconcentration in ug/M^3
+  real(r_kind)   , save ,allocatable,dimension(:,:) :: aero_wc1     ! aerosol weights for AOD at  bs location
+  !real(r_kind)   , save ,allocatable,dimension(:,:) :: aero_wk , aero_conc_wk      ! aerosolconcentration in ug/M^3
 
   character(len=20),save,allocatable,dimension(:)   :: ghg_names    ! names of green-house gases
 
@@ -568,10 +568,10 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
  if (radmod%laerosol_fwd) then 
     if(.not.allocated(aero)) allocate(aero(nsig,n_actual_aerosols))
     if(.not.allocated(aero_conc)) allocate(aero_conc(msig,n_actual_aerosols),auxrh(msig))
-    if(.not.allocated(aero_wc)) allocate(aero_wc(msig,n_actual_aerosols))
+    !if(.not.allocated(aero_wc)) allocate(aero_wc(msig,n_actual_aerosols))
     if(.not.allocated(aero_wc1)) allocate(aero_wc1(nsig,n_actual_aerosols))
-    if(.not.allocated(aero_wk)) allocate(aero_wk(nsig,n_actual_aerosols))
-    if(.not.allocated(aero_conc_wk)) allocate(aero_conc_wk(msig,n_actual_aerosols))
+    !if(.not.allocated(aero_wk)) allocate(aero_wk(nsig,n_actual_aerosols))
+    !if(.not.allocated(aero_conc_wk)) allocate(aero_conc_wk(msig,n_actual_aerosols))
     n_actual_aerosols_wk=n_actual_aerosols
     n_aerosols_fwd_wk=n_aerosols_fwd
     n_aerosols_jac_wk=n_aerosols_jac
@@ -2006,9 +2006,9 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !       Convert mixing-ratio to concentration
         ugkg_kgm2(k)=1.0e-9_r_kind*(prsi(k)-prsi(k+1))*r1000/grav
         ugkg_ugm3(k)=1.0_r_kind*(eps*(r1000*prsl(k))/(rd*h(k)*(q(k)+eps)))
-        aero_wk(k,:)=aero(k,:)
+        !aero_wk(k,:)=aero(k,:)
         aero(k,:)=aero(k,:)*ugkg_kgm2(k)
-        aero_wk(k,:)=aero_wk(k,:)*ugkg_ugm3(k)
+        !aero_wk(k,:)=aero_wk(k,:)*ugkg_ugm3(k)
         !write(6,*)"ugkg_kgm2_ugm3= ",k,ugkg_kgm2(k),ugkg_ugm3(k),prsi(k),prsl(k)
      enddo
   endif
@@ -2020,26 +2020,11 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      do k = 1, nsig
         do ii = 1, n_aerosols_jac_wk
 
-        aero_wc1(k,i) = 1.0
-
         irh = int( 100.0 * rh(k)  ) ! truncate relative humidity to nearest
         irh = max( 1, min( 99, irh ) ) ! set bounds
 
         if(iaod_crtm_cmaq.eq.1)then
-        !    ! ke in CMAQ LUTs are 1.0
-        !    select case ( trim(aerosol_names(ii)) )
-        !    case ('aso4i','aso4j','aso4k','ano3i','ano3j','ano3k','anh4i','anh4j','anh4k')
-        !       aero_wc1(k,i) = 1000.0*visindx_recs_fv3(i)*humfac_recs(irh)
-        !    case ('acli','aclj','aclk','anai','anaj','aseacat')
-        !       aero_wc1(k,i) = 1000.0*visindx_recs_fv3(i)*humfac_recs_ss(irh)
-        !    case default
-        !       aero_wc1(k,i) = 1000.0*visindx_recs_fv3(i)
-        !     end select
-        !    elseif(iaod_crtm_cmaq.eq.2)then
-        !end if
-
-        !if(iaod_crtm_cmaq.eq.2)then
-            ! ke in CMAQ LUTs are 1000.0*visindx_recs_fv3
+        !    ! ke in CMAQ LUTs are 1000.0*visindx_recs_fv3
             select case ( trim(aerosol_names(ii)) )
             case ('aso4i','aso4j','aso4k','ano3i','ano3j','ano3k','anh4i','anh4j','anh4k')
                aero_wc1(k,ii) = humfac_recs(irh)
@@ -2085,8 +2070,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      if (n_actual_aerosols_wk>0) then
         aero_conc(k,:)=aero(kk2,:)
         auxrh(k)      =rh(kk2)
-        aero_wc(k,:)  = 0.0
-        aero_conc_wk(k,:)=aero_wk(kk2,:) 
     endif
 
 ! Include cloud guess profiles in mw radiance computation
@@ -2199,7 +2182,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      atmosphere(1)%Relative_Humidity = auxrh
 !     write(6,*)"CRTM_RH1: ",atmosphere(1)%Relative_Humidity
      call set_crtm_aerosol_fv3_cmaq_regional ( msig, n_actual_aerosols_wk, n_aerosols_fwd_wk, aerosol_names, aero_conc, auxrh, &
-                             atmosphere(1)%aerosol, aero_wc )
+                             atmosphere(1)%aerosol )
      else
      call Set_CRTM_Aerosol ( msig, n_actual_aerosols_wk, n_aerosols_fwd_wk,aerosol_names, aero_conc, auxrh, &
                              atmosphere(1)%aerosol )
@@ -2444,12 +2427,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         do k=1,msig
            kk = klevel(msig-k+1)
            if(present(layer_od)) then
-              if(iaod_recs_cmaq .ge. 1)then
-              ! reconstruction method requires microgram/M^2: *1000.0 
-              layer_od(kk,i) = layer_od(kk,i) + 1000.0*sum(aero_conc(k,:)*aero_wc(k,:))
-              else
               layer_od(kk,i) = layer_od(kk,i) + rtsolution(i,1)%layer_optical_depth(k)
-              end if
            endif
            do ii=1,n_aerosols_jac_wk
               if ( n_aerosols_jac_wk > n_aerosols_fwd_wk .and. ii == indx_p25 ) then
@@ -2463,29 +2441,29 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         enddo
 
         if (present(jacobian_aero)) then
-           !if(iaod_crtm_cmaq.ge.1)then
-           !do k=1,nsig
-           !   do ii=1,n_aerosols_jac_wk
-           !      jacobian_aero(iaero_jac(ii)+k,i) = jaero(k,i,ii)*aero_wc1(k,ii)*ugkg_kgm2(k)
-           !   end do
-           !enddo
-           !else
+           if(iaod_crtm_cmaq.ge.1)then
+           do k=1,nsig
+              do ii=1,n_aerosols_jac_wk
+                 jacobian_aero(iaero_jac(ii)+k,i) = jaero(k,i,ii)*aero_wc1(k,ii)*ugkg_kgm2(k)
+              end do
+           enddo
+           else
            raod_type=data_s(11)
            !print*,"raod_type= ",raod_type
            do k=1,nsig
               do ii=1,n_aerosols_jac_wk
-                 if(raod_type.eq.101.0_r_kind)then
-                 jacobian_aero(iaero_jac(ii)+k,i) = jaero(k,i,ii)*ugkg_kgm2(k) &
-                                                   *ssmoke_cmaq_fv3(ii)
-                 elseif(raod_type.eq.102.0_r_kind)then
-                 jacobian_aero(iaero_jac(ii)+k,i) = jaero(k,i,ii)*ugkg_kgm2(k) &
-                                                   *sdust_cmaq_fv3(ii)
-                 else 
+                 !if(raod_type.eq.101.0_r_kind)then
+                 !jacobian_aero(iaero_jac(ii)+k,i) = jaero(k,i,ii)*ugkg_kgm2(k) &
+                 !                                  *ssmoke_cmaq_fv3(ii)
+                 !elseif(raod_type.eq.102.0_r_kind)then
+                 !jacobian_aero(iaero_jac(ii)+k,i) = jaero(k,i,ii)*ugkg_kgm2(k) &
+                 !                                  *sdust_cmaq_fv3(ii)
+                 !else 
                  jacobian_aero(iaero_jac(ii)+k,i) = jaero(k,i,ii)*ugkg_kgm2(k)
-                 end if
+                 !end if
               end do
            enddo
-           !end if
+           end if
         endif
      enddo
   endif

@@ -195,7 +195,8 @@ contains
                 val=zero
 
                 !aeroname='aso4i'
-          do iaero=1,naero_cmaq_fv3
+          !!! remove apcsoj
+          do iaero=1,naero_cmaq_fv3-1
           aeroname=aeronames_cmaq_fv3(iaero)
 
                 call gsi_bundlegetpointer(sval,trim(aeroname),spm2_5,istatus)

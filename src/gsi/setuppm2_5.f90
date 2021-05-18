@@ -308,6 +308,7 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         if (ier==0) then
            !allocate(pm25wc(size(rank3,1),size(rank3,2),size(rank3,3),3,nfldsig))
            pm25wc(:,:,:,2,1)=rank3
+              write(6,*) 'setuppm2_5:  pm25ac ',1, nfldsig,size(rank3,1),size(rank3,2),size(rank3,3)
            do ifld=2,nfldsig
               call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
               pm25wc(:,:,:,2,ifld)=rank3
@@ -324,6 +325,7 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         if (ier==0) then
            !allocate(pm25wc(size(rank3,1),size(rank3,2),size(rank3,3),3,nfldsig))
            pm25wc(:,:,:,3,1)=rank3
+              write(6,*) 'setuppm2_5:  pm25co ',1, nfldsig,size(rank3,1),size(rank3,2),size(rank3,3)
            do ifld=2,nfldsig
               call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
               pm25wc(:,:,:,3,ifld)=rank3
@@ -341,26 +343,28 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
            allocate(ges_pm2_5(size(rank3,1),size(rank3,2),size(rank3,3),&
                 nfldsig))
            ges_pm2_5(:,:,:,1)=pm25wc(:,:,:,1,1)*rank3
+              write(6,*) 'setuppm2_5: contribution from ',trim(aeroname)
            do ifld=2,nfldsig
               call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
               ges_pm2_5(:,:,:,ifld)=pm25wc(:,:,:,1,ifld)*rank3
-              write(6,*) 'setuppm2_5: contribution from (no weights yet!!!) ',trim(aeroname) 
+              write(6,*) 'setuppm2_5: contribution from ',ifld,trim(aeroname) 
            enddo
         else
            write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle,ier= ',ier
            call stop2(453)
         endif
-
-        do i=2,naero_cmaq_fv3
+        !!! apcsoj
+        do i=2,naero_cmaq_fv3-1
         aeroname=trim(aeronames_cmaq_fv3(i))
         call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
              rank3,ier)
         if (ier==0) then
            ges_pm2_5(:,:,:,1)=ges_pm2_5(:,:,:,1)+pm25wc(:,:,:,imodes_cmaq_fv3(i),1)*rank3
+             write(6,*) 'setuppm2_5: contribution from ',trim(aeroname)
            do ifld=2,nfldsig
               call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
               ges_pm2_5(:,:,:,ifld)=ges_pm2_5(:,:,:,ifld)+pm25wc(:,:,:,imodes_cmaq_fv3(i),ifld)*rank3
-              write(6,*) 'setuppm2_5: contribution from (no weights yet!!!) ',trim(aeroname) 
+              write(6,*) 'setuppm2_5: contribution from ',ifld,trim(aeroname) 
            enddo
         else
            write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle,ier= ',ier

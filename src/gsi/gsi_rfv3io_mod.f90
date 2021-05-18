@@ -77,11 +77,15 @@ module gsi_rfv3io_mod
   public :: gsi_fv3ncdf2d_read_v1
 
   public :: mype_u,mype_v,mype_t,mype_q,mype_p,mype_oz,mype_ql,mype_aero
+  public :: mype_aero0,mype_aero1,mype_aero2,mype_aero3,mype_aero4,mype_aero5,mype_aero6
+
   public :: k_slmsk,k_tsea,k_vfrac,k_vtype,k_stype,k_zorl,k_smc,k_stc
   public :: k_snwdph,k_f10m,mype_2d,n2d,k_orog,k_psfc
   public :: ijns,ijns2d,displss,displss2d,ijnz,displsz_g
 
   integer(i_kind) mype_u,mype_v,mype_t,mype_q,mype_p,mype_oz,mype_ql,mype_aero
+  integer(i_kind) mype_aero0,mype_aero1,mype_aero2,mype_aero3,mype_aero4,mype_aero5,mype_aero6
+
   integer(i_kind) k_slmsk,k_tsea,k_vfrac,k_vtype,k_stype,k_zorl,k_smc,k_stc
   integer(i_kind) k_snwdph,k_f10m,mype_2d,n2d,k_orog,k_psfc
   parameter(                   &  
@@ -643,9 +647,47 @@ subroutine read_fv3_cmaq_regional_netcdf_guess(fv3filenamegin)
     real(r_kind),dimension(:,:,:),pointer::ges_asvpo3j=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_atij=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_atol1j=>NULL()
+
+    real(r_kind),dimension(:,:,:),pointer::ges_atol2j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_atol3j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_abnz1j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_abnz2j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_abnz3j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aiso1j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aiso2j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aiso3j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_atrp1j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_atrp2j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asqtj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aalk1j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aalk2j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_apah1j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_apah2j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_apah3j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aorgcj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aolgbj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aolgaj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_alvoo1j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_alvoo2j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asvoo1j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asvoo2j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asvoo3j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_apcsoj=>NULL()
+
+
     real(r_kind),dimension(:,:,:),pointer::ges_axyl1j=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_axyl2j=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_axyl3j=>NULL()
+!        'atol2j','atol3j',          &
+!        'abnz1j','abnz2j','abnz3j', &
+!        'aiso1j','aiso2j','aiso3j', &
+!        'atrp1j','atrp2j','asqtj',  & 
+!        'aalk1j','aalk2j',          &
+!        'apah1j','apah2j','apah3j', &
+!        'aorgcj','aolgbj','aolgaj', & 
+!        'alvoo1j','alvoo2j',        &
+!        'asvoo1j','asvoo2j','asvoo3j', &
+
     real(r_kind),dimension(:,:,:),pointer::ges_pm25at=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_pm25ac=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_pm25co=>NULL()
@@ -737,6 +779,52 @@ subroutine read_fv3_cmaq_regional_netcdf_guess(fv3filenamegin)
 
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'atij',ges_atij,istatus );ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'atol1j',ges_atol1j,istatus );ier=ier+istatus
+
+!        'atol2j','atol3j',          &
+!        'abnz1j','abnz2j','abnz3j', &
+!        'aiso1j','aiso2j','aiso3j', &
+!        'atrp1j','atrp2j','asqtj',  & 
+!        'aalk1j','aalk2j',          &
+!        'apah1j','apah2j','apah3j', &
+!        'aorgcj','aolgbj','aolgaj', & 
+!        'alvoo1j','alvoo2j',        &
+!        'asvoo1j','asvoo2j','asvoo3j', &
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it),'atol2j',ges_atol2j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it),'atol3j',ges_atol3j,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'abnz1j',ges_abnz1j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'abnz2j',ges_abnz2j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'abnz3j',ges_abnz3j,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aiso1j',ges_aiso1j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aiso2j',ges_aiso2j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aiso3j',ges_aiso3j,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'atrp1j',ges_atrp1j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'atrp2j',ges_atrp2j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asqtj' ,ges_asqtj,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aalk1j',ges_aalk1j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aalk2j',ges_aalk2j,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'apah1j',ges_apah1j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'apah2j',ges_apah2j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'apah3j',ges_apah3j,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aorgcj',ges_aorgcj,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aolgbj',ges_aolgbj,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aolgaj',ges_aolgaj,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'alvoo1j',ges_alvoo1j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'alvoo2j',ges_alvoo2j,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asvoo1j',ges_asvoo1j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asvoo2j',ges_asvoo2j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asvoo3j',ges_asvoo3j,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'apcsoj',ges_apcsoj,istatus );ier=ier+istatus
+
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'axyl1j',ges_axyl1j,istatus );ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'axyl2j',ges_axyl2j,istatus );ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'axyl3j',ges_axyl3j,istatus );ier=ier+istatus
@@ -756,59 +844,102 @@ subroutine read_fv3_cmaq_regional_netcdf_guess(fv3filenamegin)
     if( fv3sar_bg_opt == 0) then
 
 !Hongli 20200930
-      call gsi_fv3ncdf_read(tracers,'AALJ','aalj',ges_aalj,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'ACAJ','acaj',ges_acaj,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'ACLI','acli',ges_acli,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'ACLJ','aclj',ges_aclj,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'ACLK','aclk',ges_aclk,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'AALJ','aalj',ges_aalj,mype_aero0)
+      call gsi_fv3ncdf_read(tracers,'ACAJ','acaj',ges_acaj,mype_aero0)
+      call gsi_fv3ncdf_read(tracers,'ACLI','acli',ges_acli,mype_aero0)
+      call gsi_fv3ncdf_read(tracers,'ACLJ','aclj',ges_aclj,mype_aero0)
+      call gsi_fv3ncdf_read(tracers,'ACLK','aclk',ges_aclk,mype_aero0)
       !print*,"Finished reading G1 (5:5v)"
-      call gsi_fv3ncdf_read(tracers,'ACORS','acors',ges_acors,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'AECI','aeci',ges_aeci,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'AECJ','aecj',ges_aecj,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'AFEJ','afej',ges_afej,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'AIVPO1J','aivpo1j',ges_aivpo1j,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'AKJ','akj',ges_akj,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ACORS','acors',ges_acors,mype_aero0)
+      call gsi_fv3ncdf_read(tracers,'AECI','aeci',ges_aeci,mype_aero0)
+      call gsi_fv3ncdf_read(tracers,'AECJ','aecj',ges_aecj,mype_aero0)
+      call gsi_fv3ncdf_read(tracers,'AFEJ','afej',ges_afej,mype_aero0)
+      call gsi_fv3ncdf_read(tracers,'AIVPO1J','aivpo1j',ges_aivpo1j,mype_aero0)
+      call gsi_fv3ncdf_read(tracers,'AKJ','akj',ges_akj,mype_aero0)
       !print*,"Finished reading G2 (11:6v"
-      call gsi_fv3ncdf_read(tracers,'ALVOO1I','alvoo1i',ges_alvoo1i,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'ALVOO2I','alvoo2i',ges_alvoo2i,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'ALVPO1I','alvpo1i',ges_alvpo1i,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'ALVPO1J','alvpo1j',ges_alvpo1j,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ALVOO1I','alvoo1i',ges_alvoo1i,mype_aero1)
+      call gsi_fv3ncdf_read(tracers,'ALVOO2I','alvoo2i',ges_alvoo2i,mype_aero1)
+      call gsi_fv3ncdf_read(tracers,'ALVPO1I','alvpo1i',ges_alvpo1i,mype_aero1)
+      call gsi_fv3ncdf_read(tracers,'ALVPO1J','alvpo1j',ges_alvpo1j,mype_aero1)
       !print*,"Finished reading G3 (15:4v)"
-      call gsi_fv3ncdf_read(tracers,'AMGI','amgj',ges_amgj,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'AMNJ','amnj',ges_amnj,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'ANAI','anai',ges_anai,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'ANAJ','anaj',ges_anaj,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'AMGI','amgj',ges_amgj,mype_aero1)
+      call gsi_fv3ncdf_read(tracers,'AMNJ','amnj',ges_amnj,mype_aero1)
+      call gsi_fv3ncdf_read(tracers,'ANAI','anai',ges_anai,mype_aero1)
+      call gsi_fv3ncdf_read(tracers,'ANAJ','anaj',ges_anaj,mype_aero1)
       !print*,"Finished reading G4 (19:4v)"
-      call gsi_fv3ncdf_read(tracers,'ANH4I','anh4i',ges_anh4i,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'ANH4J','anh4j',ges_anh4j,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'ANH4K','anh4k',ges_anh4k,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ANH4I','anh4i',ges_anh4i,mype_aero2)
+      call gsi_fv3ncdf_read(tracers,'ANH4J','anh4j',ges_anh4j,mype_aero2)
+      call gsi_fv3ncdf_read(tracers,'ANH4K','anh4k',ges_anh4k,mype_aero2)
       !print*,"Finished reading G5 (22:3v)"
 
-      call gsi_fv3ncdf_read(tracers,'ANO3I','ano3i',ges_ano3i,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'ANO3J','ano3j',ges_ano3j,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'ANO3K','ano3k',ges_ano3k,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ANO3I','ano3i',ges_ano3i,mype_aero2)
+      call gsi_fv3ncdf_read(tracers,'ANO3J','ano3j',ges_ano3j,mype_aero2)
+      call gsi_fv3ncdf_read(tracers,'ANO3K','ano3k',ges_ano3k,mype_aero2)
       !print*,"Finished reading G6 (25:3v)"
-      call gsi_fv3ncdf_read(tracers,'AOTHRI','aothri',ges_aothri,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'AOTHRJ','aothrj',ges_aothrj,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'AOTHRI','aothri',ges_aothri,mype_aero2)
+      call gsi_fv3ncdf_read(tracers,'AOTHRJ','aothrj',ges_aothrj,mype_aero2)
 
-      call gsi_fv3ncdf_read(tracers,'ASEACAT','aseacat',ges_aseacat,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'ASIJ','asij',ges_asij,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ASEACAT','aseacat',ges_aseacat,mype_aero3)
+      call gsi_fv3ncdf_read(tracers,'ASIJ','asij',ges_asij,mype_aero3)
       !print*,"Finished reading G7 (29:4v)"
-      call gsi_fv3ncdf_read(tracers,'ASO4I','aso4i',ges_aso4i,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'ASO4J','aso4j',ges_aso4j,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'ASO4K','aso4k',ges_aso4k,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ASO4I','aso4i',ges_aso4i,mype_aero3)
+      call gsi_fv3ncdf_read(tracers,'ASO4J','aso4j',ges_aso4j,mype_aero3)
+      call gsi_fv3ncdf_read(tracers,'ASO4K','aso4k',ges_aso4k,mype_aero3)
       !print*,"Finished reading G8 (32:3v)"
-      call gsi_fv3ncdf_read(tracers,'ASOIL','asoil',ges_asoil,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'ASVOO1I','asvoo1i',ges_asvoo1i,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'ASVOO2I','asvoo2i',ges_asvoo2i,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'ASVPO1I','asvpo1i',ges_asvpo1i,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'ASVpO1J','asvpo1j',ges_asvpo1j,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'ASVPO2I','asvpo2i',ges_asvpo2i,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'ASVPO2J','asvpo2j',ges_asvpo2j,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'ASVPO3J','asvpo3j',ges_asvpo3j,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ASOIL','asoil',ges_asoil,mype_aero3)
+      call gsi_fv3ncdf_read(tracers,'ASVOO1I','asvoo1i',ges_asvoo1i,mype_aero3)
+      call gsi_fv3ncdf_read(tracers,'ASVOO2I','asvoo2i',ges_asvoo2i,mype_aero3)
+      call gsi_fv3ncdf_read(tracers,'ASVPO1I','asvpo1i',ges_asvpo1i,mype_aero4)
+      call gsi_fv3ncdf_read(tracers,'ASVpO1J','asvpo1j',ges_asvpo1j,mype_aero4)
+      call gsi_fv3ncdf_read(tracers,'ASVPO2I','asvpo2i',ges_asvpo2i,mype_aero4)
+      call gsi_fv3ncdf_read(tracers,'ASVPO2J','asvpo2j',ges_asvpo2j,mype_aero4)
+      call gsi_fv3ncdf_read(tracers,'ASVPO3J','asvpo3j',ges_asvpo3j,mype_aero4)
       !print*,"Finished reading G09 (40:8v)"
-      call gsi_fv3ncdf_read(tracers,'ATIJ','atij',ges_atij,mype_aero)
-      call gsi_fv3ncdf_read(tracers,'ATOL1J','atol1j',ges_atol1j,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ATIJ','atij',ges_atij,mype_aero4)
+      call gsi_fv3ncdf_read(tracers,'ATOL1J','atol1j',ges_atol1j,mype_aero4)
+      call gsi_fv3ncdf_read(tracers,'ATOL2J','atol2j',ges_atol2j,mype_aero4)
+      call gsi_fv3ncdf_read(tracers,'ATOL3J','atol3j',ges_atol3j,mype_aero4)
+!        'atol2j','atol3j',          &
+!        'abnz1j','abnz2j','abnz3j', &
+!        'aiso1j','aiso2j','aiso3j', &
+!        'atrp1j','atrp2j','asqtj',  &
+!        'aalk1j','aalk2j',          &
+!        'apah1j','apah2j','apah3j', &
+!        'aorgcj','aolgbj','aolgaj', &
+!        'alvoo1j','alvoo2j',        &
+!        'asvoo1j','asvoo2j','asvoo3j', &
+      call gsi_fv3ncdf_read(tracers,'ABNZ1J','abnz1j',ges_abnz1j,mype_aero5)
+      call gsi_fv3ncdf_read(tracers,'ABNZ2J','abnz2j',ges_abnz2j,mype_aero5)
+      call gsi_fv3ncdf_read(tracers,'ABNZ3J','abnz3j',ges_abnz3j,mype_aero5)
+
+      call gsi_fv3ncdf_read(tracers,'AISO1J','aiso1j',ges_aiso1j,mype_aero5)
+      call gsi_fv3ncdf_read(tracers,'AISO2J','aiso2j',ges_aiso2j,mype_aero5)
+      call gsi_fv3ncdf_read(tracers,'AISO3J','aiso3j',ges_aiso3j,mype_aero5)
+
+      call gsi_fv3ncdf_read(tracers,'ATRP1J','atrp1j',ges_atrp1j,mype_aero5)
+      call gsi_fv3ncdf_read(tracers,'ATRP2J','atrp2j',ges_atrp2j,mype_aero5)
+      call gsi_fv3ncdf_read(tracers,'ASQTJ' ,'asqtj' ,ges_asqtj,mype_aero5)
+
+      call gsi_fv3ncdf_read(tracers,'AALK1J','aalk1j',ges_aalk1j,mype_aero6)
+      call gsi_fv3ncdf_read(tracers,'AALK2J','aalk2j',ges_aalk2j,mype_aero6)
+
+      call gsi_fv3ncdf_read(tracers,'APAH1J','apah1j',ges_apah1j,mype_aero6)
+      call gsi_fv3ncdf_read(tracers,'APAH2J','apah2j',ges_apah2j,mype_aero6)
+      call gsi_fv3ncdf_read(tracers,'APAH3J','apah3j',ges_apah3j,mype_aero6)
+
+      call gsi_fv3ncdf_read(tracers,'AORGCJ','aorgcj',ges_aorgcj,mype_aero6)
+      call gsi_fv3ncdf_read(tracers,'AOLGBJ','aolgbj',ges_aolgbj,mype_aero6)
+      call gsi_fv3ncdf_read(tracers,'AOLGAJ','aolgaj',ges_aolgaj,mype_aero6)
+
+      call gsi_fv3ncdf_read(tracers,'ALVOO1J','alvoo1j',ges_alvoo1j,mype_aero6)
+      call gsi_fv3ncdf_read(tracers,'ALVOO2J','alvoo2j',ges_alvoo2j,mype_aero6)
+
+      call gsi_fv3ncdf_read(tracers,'ASVOO1J','asvoo1j',ges_asvoo1j,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ASVOO2J','asvoo2j',ges_asvoo2j,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'ASVOO3J','asvoo3j',ges_asvoo3j,mype_aero)
+      call gsi_fv3ncdf_read(tracers,'APCSOJ' ,'apcsoj' ,ges_apcsoj,mype_aero)
+
+
       call gsi_fv3ncdf_read(tracers,'AXYL1J','axyl1j',ges_axyl1j,mype_aero)
       call gsi_fv3ncdf_read(tracers,'AXYL2J','axyl2j',ges_axyl2j,mype_aero)
       call gsi_fv3ncdf_read(tracers,'AXYL3J','axyl3j',ges_axyl3j,mype_aero)
@@ -846,7 +977,7 @@ subroutine read_fv3_cmaq_regional_netcdf_guess(fv3filenamegin)
              ges_amassk(i,j,k)=ges_aso4k(i,j,k)+ges_ano3k(i,j,k)+ges_anh4k(i,j,k)+ &
                                ges_asoil(i,j,k)+ges_acors(i,j,k)+ges_aseacat(i,j,k)+ges_aclk(i,j,k)
 
-             ges_pm2_5(i,j,k)=ges_pm25at(i,j,k)*ges_amassi(i,j,k) +  ges_pm25ac(i,j,k)*ges_amassj(i,j,k) + ges_pm25co(i,j,k)*ges_amassk(i,j,k)
+             !ges_pm2_5(i,j,k)=ges_pm25at(i,j,k)*ges_amassi(i,j,k) +  ges_pm25ac(i,j,k)*ges_amassj(i,j,k) + ges_pm25co(i,j,k)*ges_amassk(i,j,k)
           enddo
        enddo
     enddo
@@ -915,6 +1046,13 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     mype_ql=5
     mype_oz=6
     mype_2d=7 
+    mype_aero0=0
+    mype_aero1=1
+    mype_aero2=2
+    mype_aero3=3
+    mype_aero4=4
+    mype_aero5=5
+    mype_aero6=6
     mype_aero=7
   
     allocate(ijns(npe),ijns2d(npe),ijnz(npe) )
@@ -1865,10 +2003,47 @@ subroutine wrfv3_cmaq_regional_netcdf(fv3filenamegin)
     real(r_kind),dimension(:,:,:),pointer::ges_asvpo3j=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_atij=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_atol1j=>NULL()
+
+    real(r_kind),dimension(:,:,:),pointer::ges_atol2j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_atol3j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_abnz1j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_abnz2j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_abnz3j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aiso1j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aiso2j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aiso3j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_atrp1j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_atrp2j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asqtj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aalk1j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aalk2j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_apah1j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_apah2j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_apah3j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aorgcj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aolgbj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_aolgaj=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_alvoo1j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_alvoo2j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asvoo1j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asvoo2j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_asvoo3j=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_apcsoj=>NULL()
+
     real(r_kind),dimension(:,:,:),pointer::ges_axyl1j=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_axyl2j=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_axyl3j=>NULL()
 
+
+!        'atol2j','atol3j',          &
+!        'abnz1j','abnz2j','abnz3j', &
+!        'aiso1j','aiso2j','aiso3j', &
+!        'atrp1j','atrp2j','asqtj',  & 
+!        'aalk1j','aalk2j',          &
+!        'apah1j','apah2j','apah3j', &
+!        'aorgcj','aolgbj','aolgaj', & 
+!        'alvoo1j','alvoo2j',        &
+!        'asvoo1j','asvoo2j','asvoo3j', &
     dynvars=fv3filenamegin%dynvars
     tracers=fv3filenamegin%tracers
 
@@ -1929,6 +2104,43 @@ subroutine wrfv3_cmaq_regional_netcdf(fv3filenamegin)
 
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'atij',ges_atij,istatus );ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'atol1j',ges_atol1j,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it),'atol2j',ges_atol2j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it),'atol3j',ges_atol3j,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'abnz1j',ges_abnz1j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'abnz2j',ges_abnz2j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'abnz3j',ges_abnz3j,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aiso1j',ges_aiso1j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aiso2j',ges_aiso2j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aiso3j',ges_aiso3j,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'atrp1j',ges_atrp1j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'atrp2j',ges_atrp2j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asqtj' ,ges_asqtj,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aalk1j',ges_aalk1j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aalk2j',ges_aalk2j,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'apah1j',ges_apah1j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'apah2j',ges_apah2j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'apah3j',ges_apah3j,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aorgcj',ges_aorgcj,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aolgbj',ges_aolgbj,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'aolgaj',ges_aolgaj,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'alvoo1j',ges_alvoo1j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'alvoo2j',ges_alvoo2j,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asvoo1j',ges_asvoo1j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asvoo2j',ges_asvoo2j,istatus );ier=ier+istatus
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'asvoo3j',ges_asvoo3j,istatus );ier=ier+istatus
+
+    call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'apcsoj',ges_apcsoj,istatus );ier=ier+istatus
+
+
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'axyl1j',ges_axyl1j,istatus );ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'axyl2j',ges_axyl2j,istatus );ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'axyl3j',ges_axyl3j,istatus );ier=ier+istatus
@@ -1940,57 +2152,94 @@ subroutine wrfv3_cmaq_regional_netcdf(fv3filenamegin)
 
     if( fv3sar_bg_opt == 0) then
 !   write out aero
-      call gsi_fv3ncdf_write(tracers,'aalj',ges_aalj,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'acaj',ges_acaj,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'acli',ges_acli,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'aclj',ges_aclj,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'aclk',ges_aclk,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aalj',ges_aalj,mype_aero0,add_saved)
+      call gsi_fv3ncdf_write(tracers,'acaj',ges_acaj,mype_aero0,add_saved)
+      call gsi_fv3ncdf_write(tracers,'acli',ges_acli,mype_aero0,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aclj',ges_aclj,mype_aero0,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aclk',ges_aclk,mype_aero0,add_saved)
 
-      call gsi_fv3ncdf_write(tracers,'acors',ges_acors,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'aeci',ges_aeci,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'aecj',ges_aecj,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'afej',ges_afej,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'aivpo1j',ges_aivpo1j,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'acors',ges_acors,mype_aero0,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aeci',ges_aeci,mype_aero0,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aecj',ges_aecj,mype_aero0,add_saved)
+      call gsi_fv3ncdf_write(tracers,'afej',ges_afej,mype_aero0,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aivpo1j',ges_aivpo1j,mype_aero0,add_saved)
 
-      call gsi_fv3ncdf_write(tracers,'akj',ges_akj,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'alvoo1i',ges_alvoo1i,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'alvoo2i',ges_alvoo2i,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'alvpo1i',ges_alvpo1i,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'alvpo1j',ges_alvpo1j,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'akj',ges_akj,mype_aero0,add_saved)
 
-      call gsi_fv3ncdf_write(tracers,'amgj',ges_amgj,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'amnj',ges_amnj,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'anai',ges_anai,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'anaj',ges_anaj,mype_aero,add_saved)
 
-      call gsi_fv3ncdf_write(tracers,'anh4i',ges_anh4i,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'anh4j',ges_anh4j,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'anh4k',ges_anh4k,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'ano3i',ges_ano3i,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'ano3j',ges_ano3j,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'ano3k',ges_ano3k,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'alvoo1i',ges_alvoo1i,mype_aero1,add_saved)
+      call gsi_fv3ncdf_write(tracers,'alvoo2i',ges_alvoo2i,mype_aero1,add_saved)
+      call gsi_fv3ncdf_write(tracers,'alvpo1i',ges_alvpo1i,mype_aero1,add_saved)
+      call gsi_fv3ncdf_write(tracers,'alvpo1j',ges_alvpo1j,mype_aero1,add_saved)
 
-      call gsi_fv3ncdf_write(tracers,'aothri',ges_aothri,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'aothrj',ges_aothrj,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'aseacat',ges_aseacat,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'asij',ges_asij,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'amgj',ges_amgj,mype_aero1,add_saved)
+      call gsi_fv3ncdf_write(tracers,'amnj',ges_amnj,mype_aero1,add_saved)
+      call gsi_fv3ncdf_write(tracers,'anai',ges_anai,mype_aero1,add_saved)
+      call gsi_fv3ncdf_write(tracers,'anaj',ges_anaj,mype_aero1,add_saved)
 
-      call gsi_fv3ncdf_write(tracers,'aso4i',ges_aso4i   ,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'aso4j',ges_aso4j   ,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'aso4k',ges_aso4k   ,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'anh4i',ges_anh4i,mype_aero2,add_saved)
+      call gsi_fv3ncdf_write(tracers,'anh4j',ges_anh4j,mype_aero2,add_saved)
+      call gsi_fv3ncdf_write(tracers,'anh4k',ges_anh4k,mype_aero2,add_saved)
+      call gsi_fv3ncdf_write(tracers,'ano3i',ges_ano3i,mype_aero2,add_saved)
+      call gsi_fv3ncdf_write(tracers,'ano3j',ges_ano3j,mype_aero2,add_saved)
+      call gsi_fv3ncdf_write(tracers,'ano3k',ges_ano3k,mype_aero2,add_saved)
 
-      call gsi_fv3ncdf_write(tracers,'asoil',ges_asoil   ,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'asvoo1i',ges_asvoo1i,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'asvoo2i',ges_asvoo2i,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aothri',ges_aothri,mype_aero2,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aothrj',ges_aothrj,mype_aero2,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aseacat',ges_aseacat,mype_aero3,add_saved)
+      call gsi_fv3ncdf_write(tracers,'asij',ges_asij,mype_aero3,add_saved)
 
-      call gsi_fv3ncdf_write(tracers,'asvpo1i',ges_asvpo1i,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'asvpo1j',ges_asvpo1j,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'asvpo2i',ges_asvpo2i,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'asvpo2j',ges_asvpo2j,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'asvpo3j',ges_asvpo3j,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aso4i',ges_aso4i   ,mype_aero3,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aso4j',ges_aso4j   ,mype_aero3,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aso4k',ges_aso4k   ,mype_aero3,add_saved)
 
-      call gsi_fv3ncdf_write(tracers,'atij',ges_atij,mype_aero,add_saved)
-      call gsi_fv3ncdf_write(tracers,'atol1j',ges_atol1j,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'asoil',ges_asoil   ,mype_aero3,add_saved)
+      call gsi_fv3ncdf_write(tracers,'asvoo1i',ges_asvoo1i,mype_aero3,add_saved)
+      call gsi_fv3ncdf_write(tracers,'asvoo2i',ges_asvoo2i,mype_aero3,add_saved)
+
+      call gsi_fv3ncdf_write(tracers,'asvpo1i',ges_asvpo1i,mype_aero4,add_saved)
+      call gsi_fv3ncdf_write(tracers,'asvpo1j',ges_asvpo1j,mype_aero4,add_saved)
+      call gsi_fv3ncdf_write(tracers,'asvpo2i',ges_asvpo2i,mype_aero4,add_saved)
+      call gsi_fv3ncdf_write(tracers,'asvpo2j',ges_asvpo2j,mype_aero4,add_saved)
+      call gsi_fv3ncdf_write(tracers,'asvpo3j',ges_asvpo3j,mype_aero4,add_saved)
+
+      call gsi_fv3ncdf_write(tracers,'atij',ges_atij,mype_aero4,add_saved)
+      call gsi_fv3ncdf_write(tracers,'atol1j',ges_atol1j,mype_aero4,add_saved)
+      call gsi_fv3ncdf_write(tracers,'atol2j',ges_atol2j,mype_aero4,add_saved)
+      call gsi_fv3ncdf_write(tracers,'atol3j',ges_atol3j,mype_aero4,add_saved)
+      call gsi_fv3ncdf_write(tracers,'abnz1j',ges_abnz1j,mype_aero5,add_saved)
+      call gsi_fv3ncdf_write(tracers,'abnz2j',ges_abnz2j,mype_aero5,add_saved)
+      call gsi_fv3ncdf_write(tracers,'abnz3j',ges_abnz3j,mype_aero5,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aiso1j',ges_aiso1j,mype_aero5,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aiso2j',ges_aiso2j,mype_aero5,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aiso3j',ges_aiso3j,mype_aero5,add_saved)
+      call gsi_fv3ncdf_write(tracers,'atrp1j',ges_atrp1j,mype_aero5,add_saved)
+      call gsi_fv3ncdf_write(tracers,'atrp2j',ges_atrp2j,mype_aero5,add_saved)
+      call gsi_fv3ncdf_write(tracers,'asqtj' ,ges_asqtj,mype_aero5,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aalk1j',ges_aalk1j,mype_aero6,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aalk2j',ges_aalk2j,mype_aero6,add_saved)
+      call gsi_fv3ncdf_write(tracers,'apah1j',ges_apah1j,mype_aero6,add_saved)
+      call gsi_fv3ncdf_write(tracers,'apah2j',ges_apah2j,mype_aero6,add_saved)
+      call gsi_fv3ncdf_write(tracers,'apah3j',ges_apah3j,mype_aero6,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aorgcj',ges_aorgcj,mype_aero6,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aolgbj',ges_aolgbj,mype_aero6,add_saved)
+      call gsi_fv3ncdf_write(tracers,'aolgaj',ges_aolgaj,mype_aero6,add_saved)
+      call gsi_fv3ncdf_write(tracers,'alvoo1j',ges_alvoo1j,mype_aero6,add_saved)
+      call gsi_fv3ncdf_write(tracers,'alvoo2j',ges_alvoo2j,mype_aero6,add_saved)
+      call gsi_fv3ncdf_write(tracers,'asvoo1j',ges_asvoo1j,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'asvoo2j',ges_asvoo2j,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'asvoo3j',ges_asvoo3j,mype_aero,add_saved)
+
+!        'atol2j','atol3j',          &
+!        'abnz1j','abnz2j','abnz3j', &
+!        'aiso1j','aiso2j','aiso3j', &
+!        'atrp1j','atrp2j','asqtj',  &
+!        'aalk1j','aalk2j',          &
+!        'apah1j','apah2j','apah3j', &
+!        'aorgcj','aolgbj','aolgaj', &
+!        'alvoo1j','alvoo2j',        &
+!        'asvoo1j','asvoo2j','asvoo3j', &
+
       call gsi_fv3ncdf_write(tracers,'axyl1j',ges_axyl1j,mype_aero,add_saved)
       call gsi_fv3ncdf_write(tracers,'axyl2j',ges_axyl2j,mype_aero,add_saved)
       call gsi_fv3ncdf_write(tracers,'axyl3j',ges_axyl3j,mype_aero,add_saved)

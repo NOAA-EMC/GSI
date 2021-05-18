@@ -233,8 +233,8 @@ contains
                w7* spm2_5(j7)+w8* spm2_5(j8)
           val=val *pm2_5ptr%pm25wc(imodes_cmaq_fv3(iaero))
           nullify(spm2_5)
-
-          do iaero=2, naero_cmaq_fv3
+!remove apcsoj
+          do iaero=2, naero_cmaq_fv3-1
           aeroname=aeronames_cmaq_fv3(iaero) 
           call gsi_bundlegetpointer(sval,trim(aeroname),spm2_5,istatus)
           if(istatus /= 0) then
@@ -293,7 +293,7 @@ contains
 
 !       adjoint
              !aeroname='aso4i'
-          do iaero=1,naero_cmaq_fv3
+          do iaero=1,naero_cmaq_fv3-1
              aeroname = aeronames_cmaq_fv3(iaero)
           !print*,"intpm2_5 adj contribution: ",aeroname,imodes_cmaq_fv3(iaero),pm2_5ptr%pm25wc(imodes_cmaq_fv3(iaero))
              call gsi_bundlegetpointer(rval,trim(aeroname),rpm2_5,istatus)

@@ -30,7 +30,7 @@ public Set_CRTM_Aerosol,set_crtm_aerosol_fv3_cmaq_regional
 
 contains
 
-    subroutine set_crtm_aerosol_fv3_cmaq_regional ( km, na, na_crtm, aero_name, aero_conc, rh, aerosol,  aero_wc)
+    subroutine set_crtm_aerosol_fv3_cmaq_regional ( km, na, na_crtm, aero_name, aero_conc, rh, aerosol)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -96,7 +96,7 @@ contains
     character(len=*), intent(in)    :: aero_name(na)     ! [na]    GOCART aerosol names
     real(r_kind),     intent(inout) :: aero_conc(km,na)  ! [km,na] aerosol concentration (Kg/m2)
     real(r_kind),     intent(in)    :: rh(km)            ! [km]    relative humidity [0,1]
-    real(r_kind),     intent(inout) :: aero_wc(km,na) 
+    !real(r_kind),     intent(inout) :: aero_wc(km,na) 
     type(CRTM_Aerosol_type), intent(inout) :: aerosol(na_crtm)! [na]   CRTM Aerosol object
 
     Real,    Parameter :: def_diam( 3 )   = (/ 15.0E-3, 80.0E-3, 600.0E-3 /) !um for CRTM 
@@ -141,7 +141,7 @@ contains
           case ('aivpo1j','alvpo1i','alvpo1j','aothri','aothrj','asvpo1i','asvpo1j','asvpo2i','asvpo2j','asvpo3j','atol1j','axyl1j','axyl2j','axyl3j')
              aerosol(i)%type  = INSOLUBLE_AEROSOL 
           case default
-             aerosol(i)%type  = INVALID_AEROSOL 
+             aerosol(i)%type  = INSOLUBLE_AEROSOL ! INVALID_AEROSOL 
        end select
        end if
        else
@@ -174,7 +174,7 @@ contains
           case ('alvoo1i','alvoo2i','asvoo1i','asvoo2i','aivpo1j','alvpo1i','alvpo1j','aothri','aothrj','asvpo1i','asvpo1j','asvpo2i','asvpo2j','asvpo3j','atol1j','axyl1j','axyl2j','axyl3j')
              aerosol(i)%type  = ORGANIC_CARBON_AEROSOL 
           case default
-             aerosol(i)%type  = INVALID_AEROSOL
+             aerosol(i)%type  = ORGANIC_CARBON_AEROSOL !INVALID_AEROSOL
          end select
        end if
 
@@ -211,9 +211,9 @@ contains
           case ('aivpo1j','alvpo1i','alvpo1j','aothri','aothrj','asvpo1i','asvpo1j','asvpo2i','asvpo2j','asvpo3j','atol1j','axyl1j','axyl2j','axyl3j')
              aerosol(i)%type  = 3
           case default
-          print*,"GOCART-GEOS5: AERO TYPE NOT DEFINED !!! ",trim(aero_name(i))
-             aerosol(i)%type  = INVALID_AEROSOL
-             stop
+          print*,"GOCART-GEOS5: AERO TYPE DEFAULT (NOT DEFINED) =3 !!! ",trim(aero_name(i))
+             aerosol(i)%type  = 3 ! INVALID_AEROSOL
+             !stop
           end select
           !print*,"GOCART-GEOS5: ",aerosol(i)%type, trim(aero_name(i))
        end if ! GOCART-GEOS5
@@ -226,27 +226,8 @@ contains
        do k = 1, km
           irh = int( 100.0 * rh(k)  ) ! truncate relative humidity to nearest
           irh = max( 1, min( 99, irh ) ) ! set bounds
-          if (laod_crtm_cmaq) then
-            if(iaod_crtm_cmaq.eq.1)then
-            ! ke in CMAQ LUTs are 1000.0*visindx_recs_fv3 
-            select case ( trim(aero_name(i)) )
-            case ('aso4i','aso4j','aso4k','ano3i','ano3j','ano3k','anh4i','anh4j','anh4k')
-               aerosol(i)%concentration(k) = max(tiny_r_kind,aero_conc(k,i)*humfac_recs(irh))
-               aero_wc(k,i)=humfac_recs(irh)
-            case ('acli','aclj','aclk','anai','anaj','aseacat')
-               aerosol(i)%concentration(k) = max(tiny_r_kind,aero_conc(k,i)*humfac_recs_ss(irh))
-               aero_wc(k,i)=humfac_recs_ss(irh)
-            case default
-               aerosol(i)%concentration(k) = max(tiny_r_kind,aero_conc(k,i))
-               aero_wc(k,i)=1.0
-             end select
-            else 
-            aerosol(i)%concentration(k) = max(tiny_r_kind, aero_conc(k,i))
-            aero_wc(k,i)=1.0
-            end if
-          else
+
           aerosol(i)%concentration(k) = max(tiny_r_kind, aero_conc(k,i))
-          end if
 
           ! calculate effective radius; diam to radius (0.5)
           ! raod_radius_mean_scale,raod_radius_std_scale

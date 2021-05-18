@@ -439,7 +439,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
                 call ufbint(lunin,hdrvaodg,13,1,iret,vaodgstr)
               else
                 call ufbint(lunin,hdrvaodg,13,1,iret,vaodgstr1)
-                write(*,'(a20,8f10.2,3f20.5,2f7.2)') "read_aero_hdrvaodg ",hdrvaodg 
+               ! write(*,'(a20,8f10.2,3f20.5,2f7.2)') "read_aero_hdrvaodg ",hdrvaodg 
               endif
               rsat = hdrvaodg(1); ksatid=rsat
 
