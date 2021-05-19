@@ -283,7 +283,6 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
 
 ! Reopen unit to satellite bufr file
   iob=1
-  call closbf(lnbufr)
   open(lnbufr,file=trim(infile),form='unformatted',status = 'old',err = 500)
 
   call openbf(lnbufr,'IN',lnbufr)
@@ -388,6 +387,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
      end do read_loop
   end do read_subset
   call closbf(lnbufr)
+  close(lnbufr)
   deallocate(data1b8)
   
   num_obs = iob-1

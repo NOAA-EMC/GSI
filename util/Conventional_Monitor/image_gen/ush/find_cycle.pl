@@ -3,18 +3,28 @@
 #-----------------------------------------------------------------------
 #  find_cycle.pl
 #
-#    Given a directory containing cmon.YYYYMMDDHH subdirectories,
-#      determine the first or last cycle for which ieee_d data files 
-#      exist. 
+#    Arguments: 
+#       --dir     : Required string value containing  $TANKdir/$SUFFIX.
+#       --cyc     : Optional integer value:
+#       		1 = last cycle  (default)
+#       		0 = first cycle
+#       --run     : Run name, generally 'gdas' or 'gfs'.  
+#		    If not specified 'gdas' will be used.
 #
 #    Return that first/last cycle as a text string in YYYYMMDDHH format,
 #      or return nothing if none of the expected data files are found.
+#
+#    Note that this is designed to be used by a shell script which will
+#    pick up the returned cycle string.  If debug statements are left 
+#    in this perl script then the calling shell script will have 
+#    problems.
 #-----------------------------------------------------------------------
 
-    use strict;
-    use warnings;
+   use strict;
+   use warnings;
+   use Getopt::Long;
+   use Scalar::Util qw(looks_like_number);
 
-    use Scalar::Util qw(looks_like_number);
 
    #-------------------------------------------------------------------
    #
@@ -37,17 +47,21 @@
    ##------------------------------------------------------------------
    ##------------------------------------------------------------------
 
-   if ($#ARGV != 1 ) {
-	print "usage: find_cycle.pl  0/1 /path_to_directory/containing/cmon.YYYYMMDDHH subdirectories. \n";
-        print "                           0 = first, 1 = last \n";
-	exit;
-   }
-   my $target = $ARGV[0];
-   my $dirpath = $ARGV[1];
-   my @alldirs;
+   my $run  = 'gdas';
+   my $dir  = '';
+   my $lcm  = 'conmon';
+   my $cyc  = '1';
 
-   
-   #  Get list of cmon.* sub-directories 
+   GetOptions( 'cyc:i' => \$cyc,
+               'run:s' => \$run,
+               'dir=s' => \$dir,
+               'lcm:s' => \$lcm );  
+ 
+   my @alldirs;
+   my $dirpath = $dir;
+
+   #-------------------------------------------------------------------- 
+   #  Get list of $run.* directories which contain conmon subdirectories
    #
    opendir(DIR, $dirpath) or die "Cannot open directory $!";
    while (my $file = readdir(DIR)) {
@@ -55,120 +69,140 @@
         push( @alldirs, $file );
    }
    closedir DIR;
-   
-   my @cmondirs = grep { /cmon/ } @alldirs;
 
-   
-   #  If there are no cmon.* subdirectories, then exit without 
+   my $search_string;
+
+   if( length($run) == 0 ){
+      $search_string = $lcm;
+   } else {
+      $search_string = $run;
+   }
+
+   my @mmdirs = grep { /$search_string/ } @alldirs;
+   #-----------------------------------------------------------------------   
+   #  If there are no $run.yyyymmdd subdirectories, then exit without 
    #    returning any date string.
    #
-   if( $#cmondirs < 0 ) {
-      print "exiting with 0 cmondirs\n";
+   if( $#mmdirs < 0 ) {
+      print "exiting with 0 mmdirs\n";
       exit;
-   }
-  
-   
-   #  Sort the cmondirs array and loop through it from end to beginning
+   } 
+
+
+   #-----------------------------------------------------------------------
+   #  Sort the mmdirs array and loop through it from end to beginning
    #
-   if( $target == 1 ){			# search is for latest date/time
 
-      my @sortrad = sort( @cmondirs );
-      my $ctr = $#sortrad + 1;
+   my @sortmm = sort( @mmdirs );
 
-      my $found_cycle = 0;
+   my $ctr;
+   my $incr;
+   my $end_ctr;
+   my @hrs;
 
-      do {
-      
-         $ctr--;
+   #-----------------------------------------------------------------------
+   #  Arrange the logic here for accessing either the first or last
+   #  cycle.  If we're after the first cycle the directories will be 
+   #  processed from 0 to max.  Note below the cycle hours are processed
+   #  from max to 0, so the cycle order is reversed (18..00) when looking
+   #  for the first cycle.
+   # 
+   if( $cyc == 0 ){  
+      $ctr = -1;
+      $incr = 1;
+      $end_ctr = $#sortmm;
+      @hrs = qw( 18 12 06 00 );
+   } else { 
+      $ctr = $#sortmm + 1;
+      $incr = -1;
+      @hrs = qw( 00 06 12 18 );
+      $end_ctr = 0;
+   }
 
-      
-         #  In each subdirectory build a list of time.*ieee_d* files
-         #  and parse out all unique date values.  The oldest is the answer
-         #  we're looking for. 
-         #
-         #  If there are no time.*ieee_d* files, step to the next iteration.
-         #
-         my $newdir = "${dirpath}/${sortrad[$ctr]}/time_vert";
-         opendir DIR, $newdir or die "Cannot open the current directory: $!";
 
-         my @timefiles = grep { /anl_ps_stas/ } readdir DIR;
-#         my @timefiles = grep { /ieee_d/ } @tfiles;
+   my $found_cycle = 0;
 
-         if( $#timefiles >= 0 ) {
-            my @sorttime = sort( @timefiles );
-            my @times;
-            my $idx = 0;
+   #  Start with the latest directory and attempt to locate monitor 
+   #  subdirectories.
+   #
 
-            #  Find the first string of 10 digits; that's the date.  Use that $idx
-            #  number to process all files.
-            #
-            my @vals = split( '\.', $timefiles[0] ); 
-            for ( my $ii=$#vals; $ii >= 0; $ii-- ) {
-               if( looks_like_number( $vals[$ii] )  && length($vals[$ii] ) == 10 ){
-                     $idx = $ii;
-               }
-            }
+   my $exit_flag = 0;
+
+   do {
+      $ctr = $ctr + $incr;
  
-            for ( my $ii=$#sorttime; $ii >= 0; $ii-- ) {
-               my $teststr = $sorttime[$ii];
+      #  In each subdirectory attempt to locate all *stas* files
+      #  and parse out all unique date values.  The latest is the answer
+      #  we're looking for. 
+      #
+      #  If there are no *stas* files, step to the next iteration.
+      #
 
-               my @values = split( '\.', $teststr );
-               if( $values[$idx] ne "ctl" ){ 
-                  push( @times, $values[$idx] );
+      my $newdir; 
+      my $hr_ctr = $#hrs + 1;
+
+      do {
+ 
+         $hr_ctr = $hr_ctr - 1;
+         
+         $newdir = "${dirpath}/${sortmm[$ctr]}/${hrs[$hr_ctr]}/${lcm}/time_vert";
+
+
+         if( -d $newdir ) {
+            opendir DIR, $newdir or die "Cannot open the current directory: $!";
+
+            my @timefiles = grep { /stas/ && !/ctl/ } readdir DIR;
+
+            if( $#timefiles >= 0 ) {
+               my @sorttime = sort( @timefiles );
+               my @times;
+               my $idx = 0;
+
+               #  Find the first string of 10 digits; that's the date.  Use that 
+               #  $idx number to process all files.
+               #
+               my @vals = split( '\.', $timefiles[0] ); 
+               for ( my $ii=$#vals; $ii >= 0; $ii-- ) {
+                  if( looks_like_number( $vals[$ii] ) && length($vals[$ii] ) == 10 ){
+                     $idx = $ii;
+                  }
+               }
+
+               for ( my $ii=$#sorttime; $ii >= 0; $ii-- ) {
+                  my $teststr = $sorttime[$ii];
+
+                  my @values = split( '\.', $teststr );
+                  if( length($values[$idx] ) == 10 ){   
+                     push( @times, $values[$idx] );
+                  }
+               }
+
+               if ( $#times >= 0 ) {
+                  my @utimes = sort( uniq( @times ) );
+                  if( $cyc == 1 ) {
+                     print "$utimes[$#utimes]";
+                     $found_cycle = 1;
+                  } elsif( $cyc == 2 && $#utimes >= 1 ) {
+                     print "$utimes[$#utimes-1]";
+                     $found_cycle = 1;
+                  } else {
+                     print "$utimes[0]";
+                     $found_cycle = 1;
+                  }
                }
             }
 
-            if ( $#times >= 0 ) {
-               $found_cycle = 1;
-               my @utimes = sort( uniq( @times ) );
-              print "$utimes[$#utimes]";
-            }
-         }
+         } 
+          
+      } while $hr_ctr > 0 && $found_cycle == 0;
 
-      } while $found_cycle == 0 && $ctr > 0;
-   }
-   else {				# search is for earliest date/time
 
-      my @sortrad = sort( @cmondirs );
-      my $ctr = -1;
-
-      my $found_cycle = 0;
-      do {
-      
-         $ctr++;
-
-      
-         #  In each subdirectory build a list of time.*ieee_d* files
-         #  and parse out all unique date values.  The oldest is the answer
-         #  we're looking for. 
-         #
-         #  If there are no time.*ieee_d* files, step to the next iteration.
-         #
-         my $newdir = "${dirpath}/${sortrad[$ctr]}";
-         opendir DIR, $newdir or die "Cannot open the current directory: $!";
-
-         my @tfiles = grep { /time/ } readdir DIR;
-         my @timefiles = grep { /ieee_d/ } @tfiles;
-
-         if( $#timefiles >= 0 ) {
-            my @sorttime = sort( @timefiles );
-            my @times;
+      if( $cyc == 0 && $ctr >= $end_ctr ){  
+         $exit_flag = 1;
+      } elsif( $cyc == 1 && $ctr <= $end_ctr ){
+         $exit_flag = 1;
+      }
    
-            for ( my $ii=0; $ii <= $#sorttime; $ii++ ) {
-               my $teststr = $sorttime[$ii];
 
-               my @values = split( '\.', $sorttime[$ii] );
-               push( @times, $values[2] );
-            }
+   } while $found_cycle == 0 && $exit_flag == 0;
 
-            if ( $#times >= 0 ) {
-               $found_cycle = 1;
-               my @utimes = sort( uniq( @times ) );
-              print "$utimes[0]";
-            }
-         }
-
-      } while $found_cycle == 0 && $ctr < $#sortrad ;
-   }
-
-   exit;

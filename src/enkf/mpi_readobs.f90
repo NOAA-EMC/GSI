@@ -273,41 +273,31 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
 ! make anal_ob contain ob prior ensemble *perturbations*
     analsi=1._r_single/float(nanals)
     analsim1=1._r_single/float(nanals-1)
-!$omp parallel do private(nob)
     do nob=1,nobs_tot
        ensmean_obbc(nob)  = sum(anal_ob(:,nob))*analsi
     enddo
-!$omp end parallel do
     if (nproc_shm == 0) then
-!$omp parallel do private(nob)
        do nob=1,nobs_tot
 ! remove ensemble mean from each member.
 ! ensmean_obbc is biascorrected ensemble mean (anal_ob is ens pert)
           anal_ob(:,nob) = anal_ob(:,nob)-ensmean_obbc(nob)
        enddo
-!$omp end parallel do
        if (neigv > 0) then
-!$omp parallel do private(nob)
           do nob=1,nobs_tot
              anal_ob_modens(:,nob) = anal_ob_modens(:,nob)-ensmean_obbc(nob)
           enddo
-!$omp end parallel do
        endif
     endif
     call mpi_barrier(mpi_comm_world,ierr)
-!$omp parallel do private(nob)
     do nob=1,nobs_tot
 ! compute sprd
        sprd_ob(nob) = sum(anal_ob(:,nob)**2)*analsim1
     enddo    
-!$omp end parallel do
 ! modulated ensemble.
     if (neigv > 0) then
-!$omp parallel do private(nob)
         do nob=1,nobs_tot
           sprd_ob(nob) = sum(anal_ob_modens(:,nob)**2)*analsim1
         enddo
-!$omp end parallel do
     endif
     if (nproc == 0) then
        print *, 'prior spread conv: ', minval(sprd_ob(1:nobs_conv)), maxval(sprd_ob(1:nobs_conv))
@@ -317,8 +307,8 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
                                      maxval(sprd_ob(nobs_conv+nobs_oz+1:nobs_tot))
        do nob =nobs_conv+nobs_oz+1 , nobs_tot
           if (sprd_ob(nob) > 1000.) then 
-             print *, nob, ' sat spread: ', sprd_ob(nob), ', ensmean_ob: ', ensmean_obbc(nob), &
-                           ', anal_ob: ', anal_ob(:,nob), ', mem_ob: ', mem_ob(nob)
+             print *, nob, trim(obtype(nob)),ob(nob),' sat spread: ', sprd_ob(nob), ', ensmean_ob: ', ensmean_obbc(nob), &
+                           ', anal_ob: ', anal_ob(:,nob)
           endif
        enddo
     endif

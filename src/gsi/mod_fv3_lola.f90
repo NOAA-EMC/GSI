@@ -671,7 +671,7 @@ subroutine fv3uv2earth(u,v,nx,ny,u_out,v_out)
   return
 end subroutine fv3uv2earth
 
-subroutine fv3_h_to_ll(b_in,a,nb,mb,na,ma)
+subroutine fv3_h_to_ll(b_in,a,nb,mb,na,ma,rev_flg)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    fv3_h_to_ll
@@ -706,21 +706,26 @@ subroutine fv3_h_to_ll(b_in,a,nb,mb,na,ma)
 
   integer(i_kind),intent(in   ) :: mb,nb,ma,na
   real(r_kind)   ,intent(in   ) :: b_in(nb,mb)
+  logical        ,intent(in   ) :: rev_flg
   real(r_kind)   ,intent(  out) :: a(ma,na)
 
   integer(i_kind) i,j,ir,jr,mbp,nbp
   real(r_kind)    b(nb,mb)
 
-!!!!!!!!! reverse E-W and N-S
   mbp=mb+1
   nbp=nb+1
-  do j=1,mb
-     jr=mbp-j
-     do i=1,nb
-        ir=nbp-i
-        b(ir,jr)=b_in(i,j)
+  if(rev_flg) then
+!!!!!!!!! reverse E-W and N-S
+     do j=1,mb
+        jr=mbp-j
+        do i=1,nb
+           ir=nbp-i
+           b(ir,jr)=b_in(i,j)
+        end do
      end do
-  end do
+  else
+     b(:,:)=b_in(:,:)
+  endif
 !!!!!!!!! interpolate to A grid & reverse ij for array a(lat,lon)
   if(bilinear)then ! bilinear interpolation
      do j=1,ma
@@ -794,10 +799,10 @@ subroutine fv3_ll_to_h(a,b,nxa,nya,nxb,nyb,rev_flg)
      end do
   else
 !!!!!!!!!! output order as input W-E S-N and (i:lat,j:lon) !!!!!!!!!!!
-     do j=1,nxb
-        ijr=(j-1)*nyb
-        do i=1,nyb
-           b(i+ijr)=a3dy1(i,j)*(a3dx1(i,j)*a(a3jy (i,j),a3ix(i,j))+a3dx(i,j)*a(a3jy (i,j),a3ixp(i,j))) &
+     do i=1,nyb
+        ijr=(i-1)*nxb
+        do j=1,nxb
+           b(j+ijr)=a3dy1(i,j)*(a3dx1(i,j)*a(a3jy (i,j),a3ix(i,j))+a3dx(i,j)*a(a3jy (i,j),a3ixp(i,j))) &
              +a3dy (i,j)*(a3dx1(i,j)*a(a3jyp(i,j),a3ix(i,j))+a3dx(i,j)*a(a3jyp(i,j),a3ixp(i,j)))
         end do
      end do

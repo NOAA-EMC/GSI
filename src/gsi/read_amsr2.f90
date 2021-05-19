@@ -428,6 +428,7 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
      enddo read_loop
   enddo
   call closbf(lnbufr)
+  close(lnbufr)
 
   num_obs=iobs-1
 

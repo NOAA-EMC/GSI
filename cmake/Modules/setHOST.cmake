@@ -17,8 +17,14 @@ macro( setHOST )
     string(REGEX MATCH "t[0-9][0-9]a" HOST-WCOSS ${HOSTNAME}  )
   endif()
   string(REGEX MATCH "v[0-9][0-9]a" HOST-WCOSS_D ${HOSTNAME}  )
-  if( NOT HOST-WCOSS_D )# don't overwrite if we are on venus
+  if( NOT HOST-WCOSS_D )# don't overwrite if we are on venus Phase 3
+    string(REGEX MATCH "v[0-9][0-9][0-9]a" HOST-WCOSS_D ${HOSTNAME}  )
+  endif()
+  if( NOT HOST-WCOSS_D )# don't overwrite if we are on venus/Phase 3.5
     string(REGEX MATCH "m[0-9][0-9]a" HOST-WCOSS_D ${HOSTNAME}  )
+    if( NOT HOST-WCOSS_D )# don't overwrite if we are on mars Phase 3
+       string(REGEX MATCH "m[0-9][0-9][0-9]a" HOST-WCOSS_D ${HOSTNAME}  )
+    endif()
   endif()
   string(REGEX MATCH "llogin" HOST-WCOSS_C ${HOSTNAME}  )
   if( NOT HOST-WCOSS_C )# don't overwrite if we are on luna 
@@ -27,8 +33,7 @@ macro( setHOST )
   string(REGEX MATCH "discover" HOST-Discover ${HOSTNAME} )
   string(REGEX MATCH "cheyenne" HOST-Cheyenne ${HOSTNAME}  )
   message("done figuring out host--${HOSTNAME}")
-  if ( BUILD_CORELIBS )
-    MESSAGE(STATUS "BUILD_CORELIBS manually-specified as ON")
+  if ( COMGSI )
     set( host "GENERIC"  )
     set( HOST-Generic "TRUE"  )
     setGeneric()

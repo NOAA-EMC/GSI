@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 #--------------------------------------------------------------------
 #
@@ -14,13 +14,19 @@
 #--------------------------------------------------------------------
 function usage {
   echo " "
-  echo "Usage:  ConMon_IG.sh suffix [plot_date]"
-  echo "            Suffix is data source identifier that matches data in "
-  echo "              the $C_TANKDIR/stats directory."
-  echo "            Plot_date, format YYYYMMDDHH is optional.  If included the plot"
-  echo "              will be for the specified cycle, provided data files are available."
-  echo "              If not included, the plot cycle will be for the latest cycle found"
-  echo "              for this suffix."
+  echo " "
+  echo "Usage:  ConMon_IG.sh suffix [-p|--pdate pdate -r|--run gdas|gfs]"
+  echo "            Suffix is the indentifier for this data source."
+  echo " "
+  echo "            -p | --pdate yyyymmddcc to specify the cycle to be plotted."
+  echo "                 If unspecified pdate will be set using the "
+  echo "                 C_IMGNDIR/last_plot_time file, and if that doesn't"
+  echo "                 exist, then the last available date will be plotted."
+  echo " "             
+  echo "            -r | --run   the gdas|gfs run to be processed."
+  echo "                 Use only if data in TANKdir stores both runs, gdas"
+  echo "                 gdas is the default value."
+  echo " "
 }
 
 
@@ -30,35 +36,54 @@ function usage {
 
 echo "Begin ConMon_IG.sh"
 
+
 nargs=$#
-if [[ $nargs -lt 1 || $nargs -gt 2 ]]; then
+if [[ $nargs -lt 1 || $nargs -gt 5 ]]; then
    usage
    exit 1
 fi
 
-
 set -ax
+
+#-----------------------------------------------
+#  Process command line arguments
+#
+export RUN=gdas
+
+while [[ $# -ge 1 ]]
+do
+   key="$1"
+   echo $key
+
+   case $key in
+      -p|--pdate)
+         export PDATE="$2"
+         shift # past argument
+      ;;
+      -r|--run)
+         export RUN="$2"
+         shift # past argument
+      ;;
+      *)
+         #any unspecified key is CONMON_SUFFIX
+         export CONMON_SUFFIX=$key
+      ;;
+   esac
+
+   shift
+done
 
 this_file=`basename $0`
 this_dir=`dirname $0`
 
-export CMON_SUFFIX=$1
-echo "CMON_SUFFIX = $CMON_SUFFIX"
+echo "CONMON_SUFFIX = $CONMON_SUFFIX"
+echo "PDATE         = $PDATE"
+echo "RUN           = $RUN"
 
-export NUM_CYCLES=${NUM_CYCLES:-121}	# number of cycles in plot
-export JOBNAME=${JOBNAME:-CMon_plt_${CMON_SUFFIX}}
-export grib2=${grib2:-0}		# 1 = grib2 (true), 0 = grib
-
-export GRADS=/apps/grads/2.0.1a/bin/grads
-#--------------------------------------------------------------------
-#  Set plot_time if it's included as an argument
-#--------------------------------------------------------------------
-plot_time=
-if [[ $nargs -eq 2 ]]; then
-   export plot_time=$2;
-   echo "use plot_time = $plot_time"
-fi
-
+export NUM_CYCLES=${NUM_CYCLES:-121}			# number of cycles in plot
+export JOBNAME=${JOBNAME:-ConMon_plt_${CONMON_SUFFIX}}
+export grib2=${grib2:-1}				# 1 = grib2 (true), 0 = grib
+							# should this move to config?
 
 #--------------------------------------------------------------------
 # Run config files to load environment variables,
@@ -66,36 +91,14 @@ fi
 #--------------------------------------------------------------------
 top_parm=${this_dir}/../../parm
 
-cmon_version_file=${cmon_version:-${top_parm}/ConMon.ver}
-if [[ -s ${cmon_version_file} ]]; then
-   . ${cmon_version_file}
-   echo "able to source ${cmon_version_file}"
+conmon_config=${conmon_config:-${top_parm}/ConMon_config}
+if [[ -s ${conmon_config} ]]; then
+   . ${conmon_config}
+   echo "able to source ${conmon_config}"
 else
-   echo "Unable to source ${cmon_version_file} file"
-   exit 2
-fi
-
-cmon_config=${cmon_config:-${top_parm}/ConMon_config}
-if [[ -s ${cmon_config} ]]; then
-   . ${cmon_config}
-   echo "able to source ${cmon_config}"
-else
-   echo "Unable to source ${cmon_config} file"
+   echo "Unable to source ${conmon_config} file"
    exit 3
 fi
-
-#--------------------------------------------------------------------
-#  Check for my monitoring use.  Abort if running on prod machine.
-#--------------------------------------------------------------------
-
-if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
-   is_prod=`${C_IG_SCRIPTS}/onprod.sh`
-   if [[ $is_prod = 1 ]]; then
-      exit 10
-   fi
-fi
-
-jobname=CMon_ig_${CMON_SUFFIX}
 
 
 #--------------------------------------------------------------------
@@ -107,49 +110,38 @@ fi
 
 
 #--------------------------------------------------------------------
-# Get date of cycle to process.  Exit if available data has already
-# been plotted ($PDATE -gt $PRODATE).
+# Determine cycle to plot.  Exit if cycle is > last available
+# data ($PDATE -gt $last_cycle).
 #
-# If plot_time has been specified via command line argument, then
-# set PDATE to it.  Otherwise, determine the last cycle processed
-# (into *.ieee_d files) and use that as the PDATE.
+# PDATE can be set one of 3 ways.  This is the order of priority:
+#
+#   1.  Specified via command line argument
+#   2.  Read from ${C_IMGNDIR}/last_plot_time file and advanced
+#        one cycle.
+#   3.  Using the last available cycle for which there is
+#        data in ${C_TANKDIR}.
+#
+# If option 2 has been used the ${C_IMGNDIR}/last_plot_time file
+# will be updated with ${PDATE} if the plot is able to run.
 #--------------------------------------------------------------------
-export PRODATE=`${C_IG_SCRIPTS}/find_cycle.pl 1 ${C_TANKDIR}`
 
-if [[ $plot_time != "" ]]; then
-   export PDATE=$plot_time
-else
-   export PDATE=$PRODATE
+echo "C_IG_SCRIPTS = ${C_IG_SCRIPTS}"
+echo "C_TANKDIR = ${C_TANKDIR}"
+
+last_cycle=`${C_IG_SCRIPTS}/find_cycle.pl \
+		--cyc 1 --dir ${C_TANKDIR} --run ${RUN}`
+
+
+if [[ ${PDATE} = "" ]]; then
+
+   if [[ -e ${C_IMGNDIR}/last_plot_time ]]; then
+      echo " USING last_plot_time"
+      last_plot=`cat ${C_IMGNDIR}/last_plot_time`
+      export PDATE=`$NDATE +6 ${last_plot}`
+   else
+      export PDATE=$last_cycle
+   fi
 fi
-
-echo "PRODATE, PDATE = $PRODATE, $PDATE"
-
-
-#--------------------------------------------------------------------
-# Check for running plot jobs and abort if found
-#--------------------------------------------------------------------
-
-if [[ $MY_MACHINE = "wcoss" ]]; then
-   running=`bjobs -l | grep ${jobname} | wc -l`
-else
-   running=`showq -n -u ${LOGNAME} | grep ${jobname} | wc -l`
-fi
-
-echo "running = $running"
-if [[ $running -ne 0 ]]; then
-   echo "Plot jobs still running for $CMON_SUFFIX, must exit"
-   exit 9 
-fi
-
-
-#--------------------------------------------------------------------
-#  Create workdir and cd to it
-#--------------------------------------------------------------------
-
-export C_PLOT_WORKDIR=${C_PLOT_WORKDIR:-${C_STMP_USER}/plot_cmon_${CMON_SUFFIX}}
-rm -rf $C_PLOT_WORKDIR
-mkdir -p $C_PLOT_WORKDIR
-cd $C_PLOT_WORKDIR
 
 
 #--------------------------------------------------------------------
@@ -157,37 +149,64 @@ cd $C_PLOT_WORKDIR
 #--------------------------------------------------------------------
 ncycles=`expr $NUM_CYCLES - 1`
 
-#hrs=`expr $NUM_CYCLES \\* -6`
 hrs=`expr $ncycles \\* -6`
 echo "hrs = $hrs"
 
 export START_DATE=`$NDATE ${hrs} $PDATE`
-echo "start_date, prodate, pdate = $START_DATE $PRODATE  $PDATE"
+echo "START_DATE, last_cycle, PDATE = $START_DATE $last_cycle  $PDATE"
 
+pdy=`echo ${PDATE}|cut -c1-8`
+cyc=`echo ${PDATE}|cut -c9-10`
 
 
 #------------------------------------------------------------------
 #   Start image plotting jobs.
 #------------------------------------------------------------------
+if [[ $PDATE -le ${last_cycle} ]]; then
 
-${C_IG_SCRIPTS}/mk_horz_hist.sh
+   echo "ABLE to plot ${PDATE}, last processed date is ${last_cycle}"
 
-${C_IG_SCRIPTS}/mk_time_vert.sh
+   #--------------------------------------------------------------------
+   #  Create workdir and cd to it
+   #--------------------------------------------------------------------
+   export C_PLOT_WORKDIR=${C_PLOT_WORKDIR:-${C_STMP_USER}/${CONMON_SUFFIX}/${RUN}/conmon}
+   rm -rf $C_PLOT_WORKDIR
+   mkdir -p $C_PLOT_WORKDIR
+   cd $C_PLOT_WORKDIR
 
+   #--------------------------------------------------------------------
+   #  Run the two setup scripts
+   #--------------------------------------------------------------------
+   ${C_IG_SCRIPTS}/mk_horz_hist.sh
 
-#------------------------------------------------------------------
-#  Run the make_archive.sh script if $DO_ARCHIVE is switched on.
-#------------------------------------------------------------------
-#if [[ $DO_ARCHIVE = 1 ]]; then
-#   ${IG_SCRIPTS}/make_archive.sh
-#fi
+   ${C_IG_SCRIPTS}/mk_time_vert.sh
 
+   #--------------------------------------------------------------------
+   #  Update the last_plot_time file if found
+   #--------------------------------------------------------------------
+   if [[ -e ${C_IMGNDIR}/last_plot_time ]]; then
+      echo "update last_plot_time file"  
+      echo ${PDATE} > ${C_IMGNDIR}/last_plot_time
+   fi
 
-#--------------------------------------------------------------------
-# Clean up and exit
-#cd $tmpdir
-#cd ../
-#rm -rf $tmpdir
+   #--------------------------------------------------------------------
+   #  Mail warning reports 
+   #--------------------------------------------------------------------
+   if [[ $DO_DATA_RPT = 1 ]]; then
+     warn_file=${C_TANKDIR}/${RUN}.${pdy}/${cyc}/conmon/horz_hist/ges/err_rpt.ges.${PDATE}
+     if [[ -e ${warn_file} ]]; then
+       echo "mailing err_rpt"          
+       /bin/mail -s "ConMon warning" -c "${MAIL_CC}" ${MAIL_TO} < ${warn_file} 
+     fi
+   fi
+
+   ${C_IG_SCRIPTS}/rm_img_files.pl --dir ${C_IMGNDIR}/pngs --nfl ${NUM_IMG_CYCLES}
+
+else
+   echo "UNABLE to plot ${PDATE}, last processed date is ${last_cycle}"
+   exit 4
+fi
+
 
 echo "End ConMon_IG.sh"
 exit
