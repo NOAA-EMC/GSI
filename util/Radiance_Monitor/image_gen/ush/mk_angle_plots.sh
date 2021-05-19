@@ -59,6 +59,9 @@ for type in ${SATYPE}; do
          if [[ ! -d ${ieee_src} ]]; then
             ieee_src=${TANKverf}/${RUN}.${pdy}/${MONITOR}
          fi
+         if [[ ! -d ${ieee_src} ]]; then
+            ieee_src=${TANKverf}/${RUN}.${pdy}
+         fi
       fi
 
       echo "ieee_src =  with pdy = $pdy"

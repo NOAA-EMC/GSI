@@ -169,7 +169,7 @@ subroutine glbsoi
 ! Declare local variables
   logical laltmin
 
-  integer(i_kind) jiterlast
+  integer(i_kind) jiterlast,lunix,lunit
   real(r_kind) :: zgg,zxy
   character(len=12) :: clfile
   logical print_verbose
@@ -210,8 +210,17 @@ subroutine glbsoi
 ! Set cost function
   call create_jfunc
 
+  lunit=0
+  lunix=0
+  call isetprm('MXMSGL',400000)
+  call isetprm('MAXSS',250000)
+!  Initialize bufr read on all processors (so that exitbufr works, lunit and
+!  lunix are dummys)
+  call openbf(lunit,'FIRST',lunix)
 ! Read observations and scatter
   call observer_set
+!  release bufr memory
+  call exitbufr
 
 ! cloud analysis
   if(i_gsdcldanal_type==6 .or. i_gsdcldanal_type==3) then

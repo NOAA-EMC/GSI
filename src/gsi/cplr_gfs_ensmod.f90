@@ -822,6 +822,7 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
    if (k3u==0.or.k3v==0.or.k3t==0.or.k3q==0.or.k3oz==0) &  
       write(6,'(" WARNING, problem with one of k3-")')
 
+
 !   convert T to Tv:    postpone this calculation
 !  temp3(:,:,:,k3t)=temp3(:,:,:,k3t)*(one+fv*temp3(:,:,:,k3q))
 

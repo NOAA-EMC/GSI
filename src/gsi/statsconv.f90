@@ -1462,8 +1462,8 @@ subroutine statsconv(mype,&
 
 ! Format statements used above
 111 format('obs lev   num     rms         bias        sumges       sumobs        cpen')
-240 format(' num(',A1,') = ',i6,' at lev ',i4,' pen,qcpen,cpen,cqcpen = ',6(g12.5,1x))
-241 format(' num(',A1,') = ',i6,' at lev ',i4,' upen,vpen,cupen,cvpen = ',6(g12.5,1x))
+240 format(' num(',A1,') = ',i7,' at lev ',i4,' pen,qcpen,cpen,cqcpen = ',6(g12.5,1x))
+241 format(' num(',A1,') = ',i7,' at lev ',i4,' upen,vpen,cupen,cvpen = ',6(g12.5,1x))
 900 format(' number of ',a5,' obs extrapolated above',&
          ' top sigma layer=',i8,/,10x,' number extrapolated below',&
          ' bottom sigma layer=',i8)
@@ -1472,7 +1472,7 @@ subroutine statsconv(mype,&
 920 format(a44,i7)
 924 format(a50)
 925 format(' number of ',a5,' obs that failed gross test = ',I5,' nonlin qc test = ',I5)
-949 format(' number of ',a5,' obs = ',i6,' pen= ',e25.18,' cpen= ',g13.6)
+949 format(' number of ',a5,' obs = ',i7,' pen= ',e25.18,' cpen= ',g13.6)
 950 format(' type ',a7,' jiter ',i3,' nread ',i9,' nkeep ',i7,' num ',i7)
 951 format(' type ',a7,' pen= ',e25.18,' qcpen= ',e25.18,' r= ',g13.6,' qcr= ',g13.6)
 952 format(t5,'it',t13,'sat',t21,'# read',t32,'# keep',t42,'# assim',&

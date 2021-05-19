@@ -208,7 +208,6 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   irec = 0
 
 ! Open, then read date from bufr data
-  call closbf(lunin)
   open(lunin,file=trim(infile),form='unformatted')
   call openbf(lunin,'IN',lunin)
   call datelen(10)
@@ -342,6 +341,7 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
        
 
      call closbf(lunin)
+     close(lunin)
      open(lunin,file=infile,form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
@@ -664,8 +664,6 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
         end do loop_readsb   !   End of bufr read loop
      enddo loop_msg
 
-!    Close unit to bufr file
-     call closbf(lunin)
 
 !    Deallocate arrays used for thinning data
      if (.not.use_all) then
@@ -676,6 +674,9 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 ! Normal exit
 
   enddo loop_convinfo! loops over convinfo entry matches
+! Close unit to bufr file
+  call closbf(lunin)
+  close(lunin)
   deallocate(lmsg,tab,nrep)
 
 ! Write header record and data to output file for further processing
@@ -713,8 +714,7 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      'nvtest,vdisterrmax=',ntest,vdisterrmax
 
   if (ndata == 0) then 
-     call closbf(lunin)
-     write(6,*)'READ_WCPBUFR:  closbf(',lunin,')'
+     write(6,*)'READ_WCPBUFR:  closbf(',lunin,') no data'
   endif
 
   close(lunin)
