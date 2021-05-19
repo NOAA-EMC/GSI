@@ -404,7 +404,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
      end if
 
 !    Open BUFR file
-     call closbf(lnbufr)
      open(lnbufr,file=trim(infile2),form='unformatted',status='old',iostat=ierr)
      if(ierr /= 0) cycle ears_db_loop
 
@@ -843,6 +842,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
      enddo read_subset
 
      call closbf(lnbufr)
+     close(lnbufr)
 
   end do ears_db_loop
 

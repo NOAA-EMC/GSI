@@ -358,7 +358,6 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !    Go through the bufr file to find out how mant subsets to process
      nmsg   = 0
      maxobs = 0
-     call closbf(lunin) 
      open(lunin,file=trim(infile),form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
@@ -371,6 +370,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
         end do loop_readsb1
      end do loop_msg1
      call closbf(lunin)
+     close(lunin)
      write(6,*) 'READ_FL_HDOB: total number of data found in the bufr file ',maxobs,obstype      
      write(6,*) 'READ_FL_HDOB: time offset is ',toff,' hours'
 
@@ -391,7 +391,6 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      ilat      = 3 
 
 !    Open bufr file again for reading
-     call closbf(lunin)
      open(lunin,file=trim(infile),form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
@@ -1158,6 +1157,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 
 !    Close unit to bufr file
      call closbf(lunin)
+     close(lunin)
 !    Deallocate arrays used for thinning data
      if (.not.use_all) then
         deallocate(presl_thin)
@@ -1185,13 +1185,11 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
         'nvtest,vdisterrmax=',ntest,vdisterrmax
 
      if (ndata == 0) then
-        call closbf(lunin)
         write(6,*)'READ_FL_HDOB: no data to process'
      endif
      write(6,*)'READ_FL_HDOB: nreal=',nreal
      write(6,*)'READ_FL_HDOB: ntb,nread,ndata,nodata=',ntb,nread,ndata,nodata
 
-     close(lunin)
 
 !    End of routine
      return
