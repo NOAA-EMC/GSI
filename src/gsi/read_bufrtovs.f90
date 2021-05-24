@@ -501,7 +501,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      end if
 
 !    Reopen unit to satellite bufr file
-     call closbf(lnbufr)
      open(lnbufr,file=trim(infile2),form='unformatted',status = 'old',iostat=ierr)
      if(ierr /= 0) cycle ears_db_loop
 
@@ -946,6 +945,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
         enddo read_loop
      enddo read_subset
      call closbf(lnbufr)
+     close(lnbufr)
 
      if(llll > 1 .and. (amsua .or. amsub .or. mhs))then
         deallocate(data1b8x)

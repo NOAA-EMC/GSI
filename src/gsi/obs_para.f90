@@ -104,7 +104,7 @@ subroutine obs_para(ndata,mype)
         if (dtype(is)=='lag') then    ! lagrangian data
            call dislag(ndata(is,1),mm1,lunout,obsfile_all(is),dtype(is),&
                 nobs_s) 
-        nsat1(is)= nobs_sub(mm1,is)
+           nsat1(is)= nobs_sub(mm1,is)
         else 
            obproc:do ii=1,npe
              if(nobs_sub(ii,is) > 0)then

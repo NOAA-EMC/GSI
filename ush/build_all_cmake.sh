@@ -89,6 +89,6 @@ else
   cmake ..
 fi
 
-make -j 8
+make -j 8 
 
 exit
