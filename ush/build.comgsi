@@ -18,6 +18,10 @@ if [[ "`grep -i "hera" /etc/hosts | head -n1`" != "" ]] ; then
     source /etc/profile.d/modules.sh
     module purge
     module load cmake/3.20.1
+    module load intel/18.0.5.274
+    module load impi/2018.0.4
+    module load netcdf/4.7.0
+
     module use /scratch2/NCEPDEV/nwprod/hpc-stack/libs/hpc-stack/modulefiles/stack
     module load hpc/1.1.0
     module load hpc-intel/18.0.5.274
@@ -32,9 +36,7 @@ if [[ "`grep -i "hera" /etc/hosts | head -n1`" != "" ]] ; then
     module load w3emc/2.7.3
     module load bacio/2.4.1
     module load crtm/2.3.0
-    module load netcdf/4.7.0
-    module use /scratch1/BMC/comgsi/hpc-stacks/modulefiles/gsiwrfio
-    module load gsiwrfio/1.0.0
+    module load wrf_io/1.2.0
 
 ################# Jet ####################
 elif [[ -d /jetmon ]] ; then
@@ -43,13 +45,12 @@ elif [[ -d /jetmon ]] ; then
     module load cmake/3.16.1
     module load intel/18.0.5.274
     module load impi/2018.4.274
+    module load netcdf/4.7.0 #don't load netcdf/4.7.4 from hpc-stack, GSI does not compile with it.
 
     module use /lfs4/HFIP/hfv3gfs/nwprod/hpc-stack/libs/modulefiles/stack
     module load hpc/1.1.0
     module load hpc-intel/18.0.5.274
     module load hpc-impi/2018.4.274
-
-    module load netcdf/4.7.0 #don't load netcdf/4.7.4 from hpc-stack, GSI does not compile with it.
     module load bufr/11.4.0
     module load bacio/2.4.1
     module load crtm/2.3.0
@@ -60,23 +61,22 @@ elif [[ -d /jetmon ]] ; then
     module load w3nco/2.4.1
     module load sfcio/1.4.1
     module load sigio/2.3.2
-
-    module use /mnt/lfs4/BMC/wrfruc/gge/hpc-stacks/modulefiles/gsiwrfio
-    module load gsiwrfio/1.0.0
+    module load wrf_io/1.2.0
 
 ################# Cheyenne ####################
 elif [[ -d /glade ]] ; then
     source /etc/profile.d/modules.sh
     module purge
-    module use /glade/p/ral/jntp/gge/hpc-stacks/modulefiles/stack
     module load intel/18.0.5 ncarenv ncarcompilers
     module load impi/2018.4.274
     module load mkl/2018.0.5
     module load netcdf/4.7.4
+
+    module use /glade/p/ral/jntp/gge/hpc-stacks/modulefiles/stack
     module load hpc/1.1.0
     module load hpc-intel/18.0.5
     module load hpc-impi/2018.4.274
-    module load bufr/11.4.0
+    module load bufr/11.5.0
     module load ip/3.3.3
     module load nemsio/2.5.2
     module load sfcio/1.4.1
@@ -86,16 +86,17 @@ elif [[ -d /glade ]] ; then
     module load w3emc/2.7.3
     module load bacio/2.4.1
     module load crtm/2.3.0
-    module load gsiwrfio/1.0.0
+    module load wrf_io/1.2.0
     module load cmake/3.18.2
 
 ################# Orion ####################
 elif [[ -d /work/noaa ]] ; then  ### orion
     module purge
-    module use /work/noaa/wrfruc/gge/hpc-stacks/modulefiles/stack
     module load intel/2018.4
     module load impi/2018.4
     module load netcdf/4.7.2
+
+    module use /apps/contrib/NCEP/libs/hpc-stack/modulefiles/stack 
     module load hpc/1.1.0
     module load hpc-intel/2018.4
     module load hpc-impi/2018.4
@@ -109,8 +110,8 @@ elif [[ -d /work/noaa ]] ; then  ### orion
     module load w3emc/2.7.3
     module load bacio/2.4.1
     module load crtm/2.3.0
-    module load gsiwrfio/1.0.0
-    module load cmake #any version as long as it is later than v3.16
+    module load wrf_io/1.2.0
+    module load cmake
 
 ################# Generic ####################
 else
