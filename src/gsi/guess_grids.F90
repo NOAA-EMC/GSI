@@ -144,7 +144,7 @@ module guess_grids
   public :: geom_hgti,geom_hgti_bg
   public :: wgt_lcbas
   public :: ges_qsat
-  public :: use_compress,nsig_ext,gpstop
+  public :: use_compress,nsig_ext,gpstop,commgpstop,commgpserrinf
   public :: ges_tsen1,ges_q1
   public :: ntguesaer,ifileaer,nfldaer,hrdifaer ! variables for external aerosol files
 
@@ -230,7 +230,8 @@ module guess_grids
 
   real(r_kind):: gpstop=30.0_r_kind   ! maximum gpsro height used in km 
                                       ! geometric height for ref, impact height for bnd
-
+  real(r_kind):: commgpstop=30.0_r_kind
+  real(r_kind):: commgpserrinf=1.0_r_kind ! error inflation factor for commercial gnssro
   real(r_kind):: ges_psfcavg                            ! average guess surface pressure 
   real(r_kind),allocatable,dimension(:):: ges_prslavg   ! average guess pressure profile
 
