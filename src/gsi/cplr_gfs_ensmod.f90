@@ -914,7 +914,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
    character(len=*), intent(in   ) :: filename
 
    ! Declare local variables
-   integer(i_kind) i,ii,j,jj,k,lonb,latb,levs,kr
+   integer(i_kind) i,ii,j,jj,k,lonb,latb,levs,kr,ierror
    integer(i_kind) k2,k3,k3u,k3v,k3t,k3q,k3cw,k3oz,kf
    character(len=120) :: myname_ = 'parallel_read_gfsnc_state_'
    real(r_single),allocatable,dimension(:,:,:) :: rwork3d1, rwork3d2
@@ -927,7 +927,11 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
    type(Dimension) :: ncdim
 
 
-   atmges = open_dataset(filename)
+   atmges = open_dataset(filename,errcode=ierror)
+   if (ierror /=0) then
+      write(6,*)' PARALLEL_READ_GFSNC_STATE:  ***ERROR*** ',trim(filename),' NOT AVAILABLE: PROGRAM STOPS'
+      call stop2(999)
+   endif
    ! get dimension sizes
    ncdim = get_dim(atmges, 'grid_xt'); lonb = ncdim%len
    ncdim = get_dim(atmges, 'grid_yt'); latb = ncdim%len
