@@ -882,7 +882,7 @@ contains
     real(r_single),  dimension(nlat_sfc,nlon_sfc,nfldsfc) :: xt
     character(len=24)  :: filename
     character(len=120) :: my_name = 'READ_SFCNST'
-    integer(i_kind) :: i,j,it,n,nsfc
+    integer(i_kind) :: i,j,it,n,nsfc,iret
     integer(i_kind) :: lonb, latb
     real(r_single),allocatable, dimension(:)  :: fhour
     real(r_single), allocatable, dimension(:,:) :: work,outtmp
@@ -896,7 +896,11 @@ contains
 200    format('sfcf',i2.2)
 
        ! open the netCDF file
-       sfcges = open_dataset(filename)
+       sfcges = open_dataset(filename,errcode=iret)
+       if (iret/=0) then
+          write(6,*) trim(my_name),':  ***ERROR*** ',trim(filename),' NOT AVAILABLE:  PROGRAM STOPS, later'
+       endif
+
        ! get dimension sizes
        ncdim = get_dim(sfcges, 'grid_xt'); lonb = ncdim%len
        ncdim = get_dim(sfcges, 'grid_yt'); latb = ncdim%len
@@ -1212,7 +1216,7 @@ contains
 !   Declare local variables
     character(len=24)  :: filename
     character(len=120) :: my_name = 'READ_GFSNCSFC_ANL'
-    integer(i_kind) :: i,j
+    integer(i_kind) :: i,j,iret
     integer(i_kind) :: lonb, latb
     real(r_single),allocatable, dimension(:) :: fhour
     real(r_single), allocatable, dimension(:,:) :: work,outtmp
@@ -1223,7 +1227,12 @@ contains
 
     filename='sfcf06_anlgrid'
     ! open the netCDF file
-    sfcges = open_dataset(filename)
+    sfcges = open_dataset(filename,errcode=iret)
+    if (iret/=0) then
+       write(6,*) trim(my_name),':  ***ERROR*** ',trim(filename),' NOT AVAILABLE: PROGRAM STOPS'
+       call stop2(999)
+    endif
+
     ! get dimension sizes
     ncdim = get_dim(sfcges, 'grid_xt'); lonb = ncdim%len
     ncdim = get_dim(sfcges, 'grid_yt'); latb = ncdim%len
@@ -2378,6 +2387,7 @@ contains
 !      Read surface guess file
        ! open the netCDF file
        sfcges = open_dataset(fname_ges)
+
        ! get dimension sizes
        ncdim = get_dim(sfcges, 'grid_xt'); lonb = ncdim%len
        ncdim = get_dim(sfcges, 'grid_yt'); latb = ncdim%len

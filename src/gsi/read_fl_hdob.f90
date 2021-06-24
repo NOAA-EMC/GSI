@@ -769,8 +769,6 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
                  tdob_calc = tob*(one-tob*log(rhob/100))   ! for comparison
                  qob       = rhob*qsat
               endif 
-!             write(4000,1004) nread,pob_mb,tob,tdob,qob,qsat,rhob,q_qm,usage 
-!1004         format(i6,6(1x,e20.12),1x,i5,1x,f5.0)
 !             Get observation error from error table
               if (njqc) then
                  ppb = max(zero,min(pob_mb,r2000))
@@ -1043,8 +1041,6 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
                  cdata_all(26,iout)=ran01dom()*perturb_fact ! u perturbation
                  cdata_all(27,iout)=ran01dom()*perturb_fact ! v perturbation
               endif
-             write(3000,1003) nread,pob_mb,uob,vob,qcm,usage    
-1003         format(i12,3e25.18,f5.0,f5.0)
            endif 
 
 !          Temperature
@@ -1080,8 +1076,6 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               cdata_all(25,iout)=var_jb                 ! non linear qc
               if(perturb_obs) &
                  cdata_all(26,iout)=ran01dom()*perturb_fact  ! t perturbation             
-              write(1000,1001) nread,tdiff,tvflg,pob_mb,qob,rhob,obstmp(2,1),tob,qcm,usage
-1001          format(i12,f8.3,f5.0,5e25.18,f5.0,f5.0)
            endif 
 !          Specific humidity 
            if(lqob) then
@@ -1117,9 +1111,6 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               cdata_all(26,iout)=var_jb                 ! non linear qc
               if(perturb_obs) &
                  cdata_all(27,iout)=ran01dom()*perturb_fact ! q perturbation         
-!             write(2000,1002)nread,tdiff,tvflg,pob_mb,tob,qob,rhob,qoe,obserr*one_tenth,qcm,usage 
-1002          format(i12,f8.3,f5.0,6e20.12,i5,1x,f5.0)
-
            endif 
 
 !          Winds --- surface wind speed 
