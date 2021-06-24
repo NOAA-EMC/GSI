@@ -57,7 +57,6 @@ export USE_MAIL=${USE_MAIL:-0}
 export MAIL_TO=${MAIL_TO:-" "}
 export MAIL_CC=${MAIL_CC:-" "}
 export NCP=${NCP:-/bin/cp}
-export NDATE=${NDATE:-/nwprod/util/exec/ndate}
 
 ###########################################################################
 # ensure TANK dir exists, verify radstat and biascr are available
@@ -207,6 +206,15 @@ elif [[ $rc_bcor -ne 0 ]]; then
 elif [[ $rc_time -ne 0 ]]; then
    err=$rc_time
 fi
+
+#####################################################################
+# Restrict select sensors and satellites
+export CHGRP_CMD=${CHGRP_CMD:-"chgrp ${group_name:-rstprod}"}
+rlist="saphir"
+for rtype in $rlist; do
+    ${CHGRP_CMD} $TANKverf_rad/*${rtype}*
+done
+
 
 if [[ "$VERBOSE" = "YES" ]]; then
    echo "end exgdas_vrfyrad.sh, exit value = ${err}"

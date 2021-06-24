@@ -111,7 +111,7 @@ module module_fv3gfs_ncio
     implicit none
     integer, intent (in) :: status
     logical, intent(in), optional :: halt
-    character(len=500), intent(in), optional :: fname
+    character(len=*), intent(in), optional :: fname
     logical stopit
     if (present(halt)) then
        stopit = halt
