@@ -166,8 +166,9 @@ elif [[ $MY_MACHINE = "wcoss_c" ]]; then
 
 elif [[ $MY_MACHINE = "hera" ]]; then
 
-   export GRADS=/apps/grads/2.0.2/bin/grads
-   export STNMAP=/apps/grads/2.0.2/bin/stnmap
+   module load grads/2.2.1
+   export GRADS=`which grads`
+   export STNMAP=`which stnmap`
 
    export SUB=/apps/slurm/default/bin/sbatch
    export NDATE=/home/Edward.Safford/bin/ndate
