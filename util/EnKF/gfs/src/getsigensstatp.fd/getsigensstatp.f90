@@ -45,6 +45,8 @@ program getsigensstatp
     integer,parameter :: r_single=4,r_double=8
     integer,parameter :: iunit=21
     integer,parameter :: idrt=4
+! Declare externals
+    external :: w3tagb, splat, sptez, sptezv, mpi_allreduce, w3tage
     character(nemsio_charkind8) :: dtype
     character(len=3)   :: charnanal
     character(len=500) :: filenamein,datapath,filepref
