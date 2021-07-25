@@ -350,7 +350,6 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
                              coeffx,coeffy)
 
 
-
     deallocate (grid_lon,grid_lat,grid_lont,grid_latt)
     deallocate (ak,bk,abk_fv3)
 
@@ -428,7 +427,6 @@ subroutine gsi_rfv3io_get_ens_grid_specs(grid_spec,ierr)
        ierr=1
        return
     endif
-
     iret=nf90_inquire(gfile_grid_spec,ndimensions,nvariables,nattributes,unlimiteddimid)
     gfile_loc=gfile_grid_spec
     do k=1,ndimensions
@@ -464,7 +462,6 @@ subroutine gsi_rfv3io_get_ens_grid_specs(grid_spec,ierr)
     iret=nf90_close(gfile_loc)
 
 !!!    get ak,bk
-
 
 
 !!!!!!! setup A grid and interpolation/rotation coeff.
@@ -753,7 +750,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin,it)
 !
 !$$$  end documentation block
     use kinds, only: r_kind,i_kind
-    use mpimod, only: npe
+    use mpimod, only: npe,mype
     use guess_grids, only: ges_tsen,ges_prsi
     use gridmod, only: lat2,lon2,nsig,ijn,eta1_ll,eta2_ll,ijn_s
     use gridmod, only: ijnens,ijn_sens
@@ -1129,7 +1126,7 @@ subroutine gsi_fv3ncdf2d_read_v1(filenamein,varname,varname2,work_sub,mype_io,la
     use netcdf, only: nf90_inquire_variable
     use mod_fv3_lolgrid, only: fv3_h_to_ll_regular_grids
     use general_commvars_mod, only: ltosi_s,ltosj_s
-    use gridmod, only: ijn_sens,ijnens,displs_sens
+    use gridmod, only: ijn_sens,ijnens,displs_sens,itotsubens
     use general_commvars_mod, only: ltosi_sens,ltosj_sens
     use hybrid_ensemble_parameters, only: nlon_ens,nlat_ens
 
@@ -1151,7 +1148,11 @@ subroutine gsi_fv3ncdf2d_read_v1(filenamein,varname,varname2,work_sub,mype_io,la
     integer(i_kind) ndimensions,nvariables,nattributes,unlimiteddimid
 
     mm1=mype+1
-    allocate (work(itotsub))
+    if (ensgrid) then
+     allocate (work(itotsubens))
+    else
+     allocate (work(itotsub))
+    endif
 
     if(mype==mype_io ) then
        iret=nf90_open(trim(filenamein),nf90_nowrite,gfile_loc)
@@ -1260,7 +1261,7 @@ subroutine gsi_fv3ncdf_read(filenamein,varname,varname2,work_sub,mype_io,lat2in,
     use netcdf, only: nf90_inquire_variable
     use mod_fv3_lolgrid, only: fv3_h_to_ll_regular_grids
     use general_commvars_mod, only: ltosi_s,ltosj_s
-    use gridmod, only: ijn_sens,ijnens
+    use gridmod, only: ijn_sens,ijnens,itotsubens
     use general_commvars_mod, only: ltosi_sens,ltosj_sens
     use hybrid_ensemble_parameters, only: nlon_ens,nlat_ens
 
@@ -1283,7 +1284,11 @@ subroutine gsi_fv3ncdf_read(filenamein,varname,varname2,work_sub,mype_io,lat2in,
     integer(i_kind) ndimensions,nvariables,nattributes,unlimiteddimid
 
     mm1=mype+1
-    allocate (work(itotsub*nsig))
+    if (ensgrid) then
+     allocate (work(itotsubens*nsig))
+    else
+     allocate (work(itotsub*nsig))
+    endif
 
     if(mype==mype_io ) then
        iret=nf90_open(trim(filenamein),nf90_nowrite,gfile_loc)
@@ -1407,7 +1412,7 @@ subroutine gsi_fv3ncdf_read_v1(filenamein,varname,varname2,work_sub,mype_io,lat2
     use netcdf, only: nf90_inq_varid
     use mod_fv3_lolgrid, only: fv3_h_to_ll_regular_grids
     use general_commvars_mod, only: ltosi_s,ltosj_s
-    use gridmod, only: lat2,lon2,nsig,nlat,nlon,itotsub,ijn_s,ijn_sens
+    use gridmod, only: lat2,lon2,nsig,nlat,nlon,itotsub,ijn_s,ijn_sens,itotsubens
     use general_commvars_mod, only: ltosi_sens,ltosj_sens
     use hybrid_ensemble_parameters, only: nlon_ens,nlat_ens
     implicit none
@@ -1430,7 +1435,11 @@ subroutine gsi_fv3ncdf_read_v1(filenamein,varname,varname2,work_sub,mype_io,lat2
     integer(i_kind) ndimensions,nvariables,nattributes,unlimiteddimid
 
     mm1=mype+1
-    allocate (work(itotsub*nsig))
+    if (ensgrid) then
+     allocate (work(itotsubens*nsig))
+    else
+     allocate (work(itotsub*nsig))
+    endif
 
     if(mype==mype_io ) then
        iret=nf90_open(trim(filenamein),nf90_nowrite,gfile_loc)
@@ -1552,7 +1561,7 @@ subroutine gsi_fv3ncdf_readuv(dynvarsfile,ges_u,ges_v,lat2in,lon2in,ensgrid)
     use netcdf, only: nf90_inq_varid
     use mod_fv3_lolgrid, only: fv3_h_to_ll_regular_grids,nya,nxa,fv3uv2earth_regular_grids
     use general_commvars_mod, only: ltosi_s,ltosj_s
-    use gridmod, only: ijn_sens,ijnens
+    use gridmod, only: ijn_sens,ijnens,itotsubens
     use general_commvars_mod, only: ltosi_sens,ltosj_sens
     use hybrid_ensemble_parameters, only: nlon_ens,nlat_ens
 
@@ -1574,7 +1583,11 @@ subroutine gsi_fv3ncdf_readuv(dynvarsfile,ges_u,ges_v,lat2in,lon2in,ensgrid)
     integer(i_kind) nz,nzp1,kk,j,mm1,i,ir,ii,jj
     integer(i_kind) ndimensions,nvariables,nattributes,unlimiteddimid
 
-    allocate (work(itotsub*nsig))
+    if (ensgrid) then
+     allocate (work(itotsubens*nsig))
+    else
+     allocate (work(itotsub*nsig))
+    endif
     mm1=mype+1
     if(mype==mype_u .or. mype==mype_v) then
        iret=nf90_open(dynvarsfile,nf90_nowrite,gfile_loc)
@@ -1717,7 +1730,7 @@ subroutine gsi_fv3ncdf_readuv_v1(dynvarsfile,ges_u,ges_v,lat2in,lon2in,ensgrid)
     use netcdf, only: nf90_inq_varid
     use mod_fv3_lolgrid, only: fv3_h_to_ll_regular_grids,nya,nxa,fv3uv2earth_regular_grids
     use general_commvars_mod, only: ltosi_s,ltosj_s
-    use gridmod, only: ijn_sens,ijnens
+    use gridmod, only: ijn_sens,ijnens,itotsubens
     use general_commvars_mod, only: ltosi_sens,ltosj_sens
     use hybrid_ensemble_parameters, only: nlon_ens,nlat_ens
     implicit none
@@ -1738,7 +1751,11 @@ subroutine gsi_fv3ncdf_readuv_v1(dynvarsfile,ges_u,ges_v,lat2in,lon2in,ensgrid)
     integer(i_kind) nztmp,nzp1,kk,j,mm1,i,ir,ii,jj
     integer(i_kind) ndimensions,nvariables,nattributes,unlimiteddimid
 
-    allocate (work(itotsub*nsig))
+    if (ensgrid) then
+     allocate (work(itotsubens*nsig))
+    else
+     allocate (work(itotsub*nsig))
+    endif
     mm1=mype+1
     if(mype==mype_u .or. mype==mype_v) then
        iret=nf90_open(dynvarsfile,nf90_nowrite,gfile_loc)
