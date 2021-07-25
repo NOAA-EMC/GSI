@@ -72,6 +72,9 @@
 !OUTPUT:
  real   (r_kind), dimension(nlat_b,nlon_b), intent(  out) :: b
 
+!Declare externals
+ external :: grdcrd1
+
 !Declare local variables
  integer(i_kind) :: i,j,ix,iy,ii,jj,ixa,iya,sfctyp_b
  integer(i_kind) :: nwsum,nfinal
@@ -249,6 +252,9 @@
 
 !OUTPUT:
  real   (r_kind), intent(  out) :: x
+
+!Declare externals
+ external :: grdcrd1
 
 !Declare local variables
  integer(i_kind) :: ix,iy,ii,jj,ixa,iya
