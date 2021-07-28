@@ -47,11 +47,24 @@ module valid
  
   contains
 
-    !-------------------------------------------------------------
+    !--------------------------------------------------------------------------
     !  load the base file for the given satellite
-    !-------------------------------------------------------------
+    !
+    !  Note a change in validation for iasi and cris sources.
+    !  Per Kristen (2/20/20):
+    !   With correlated error, the contribution to penalty calculation in the
+    !   radmon is no longer mathematically correct. The calculated penalty is
+    !   expected to be larger than what it actually is. Both IASI instruments 
+    !   will use correlated error over land and sea, and both CrIS instruments 
+    !   will use correlated error over sea in V16. You should therefore 
+    !   suppress/modify the warnings for IASI and CrIS. 
+    !
+    !  The agreed upon solution is to multiply the historical max penalty
+    !  values, making iasi 5x and cris 6x.
+    !---------------------------------------------------------------------------
 
     subroutine load_base( satname, iret )
+     
 
       !--- interface
       character(20), intent( in )	:: satname
@@ -62,7 +75,7 @@ module valid
       character(20) test_satname
       character(10) base_date
 
-      integer fios
+      integer fios, multiply_by
       integer chan, region
 
       logical fexist 
@@ -115,8 +128,26 @@ module valid
             end do
          end do
 
-!        write(*,*) 'chan 18, region 2, avg_count(18,1), sdv_count(18,1), avg_penalty(18,1), sdv_penalty(18,1) = ', &
-!                                avg_count(18,1), sdv_count(18,1), avg_penalty(18,1), sdv_penalty(18,1)
+         !---------------------------------------------------
+         !  adjust max_penalty values for iasi and cris
+         !  sources -- see explanation above
+         !  
+        
+!         multiply_by = 1
+ 
+!         if ( satname(1:4) == 'iasi' ) then
+!            multiply_by = 5
+!         else if ( satname(1:4) == 'cris' ) then
+!            multiply_by = 6
+!         end if
+
+!         if ( multiply_by > 1 ) then
+!            do k=1,nregion
+!               do j=1,nchan
+!                  max_penalty(j,k) = max_penalty(j,k) * multiply_by
+!               end do
+!            end do
+!         end if 
 
          iret = 0 
          base_loaded = .TRUE.
@@ -137,13 +168,14 @@ module valid
     !                 -2 = invalid region
     !                  1 = base file wasn't loaded, unable to validate
     !---------------------------------------------------------------
-    subroutine validate_count( channel, region, count, valid, iret )
+    subroutine validate_count( channel, region, count, valid, avg_cnt, iret )
 
       !--- interface
       integer, intent( in )		:: channel
       integer, intent( in )		:: region
       real, intent( in )                :: count
       logical, intent( out )            :: valid
+      real, intent( out )               :: avg_cnt
       integer, intent( out )		:: iret
 
       !--- vars
@@ -151,55 +183,62 @@ module valid
 
       write(*,*) '--> validate_count, channel, region, count ', channel, region, count
       !--- initialize vars
-      iret = 0 
+      iret = 0
       cnt = count
       valid = .FALSE.
+      avg_cnt = 0.00 
 
       if( base_loaded .eqv. .TRUE. ) then
+
          if( channel < 1 .OR. channel > nchan ) then
             iret = -1
-            write(*,*) 'attempt to validate channel out of range', channel
+            write(*,*) 'Warning:  In validate_count attempt to validate channel out of range', channel
+            valid = .TRUE.
          else if( region < 1 .OR. region > nregion ) then
             iret = -2
-            write(*,*) 'attempt to validate region out of range', region
+            write(*,*) 'Warnig:  In validate_count attempt to validate region out of range', region
+            valid = .TRUE.
          else
-            ! 
+            !---------------------------------------------------------------------
             !  all unassimilated channels in the base files will have an rmiss
             !  value and are considered valid for verification purposes
             !
+            avg_cnt = avg_count( channel, region )
+         
             if( avg_count(channel,region) < 0.0 ) then
                valid = .TRUE.
             else
-               sdv2 = 2 * sdv_count( channel, region )
-               hi = avg_count(channel,region) + sdv2
-               lo = avg_count(channel,region) - sdv2
-
-               !
+               !------------------------------------------------------------------
                !  Consider any count valid if:
-               !    cnt is 2 sdvs from avg or
-               !    cnt is within the established min/max range for chan,region
-               !
-               if( cnt > 0.0 ) then
+               !    cnt is within 2 sdvs from avg 
+               !    Now trying cnt is < 67% of average.
+               sdv2 = 2 * sdv_count( channel, region )
+!               lo = avg_count(channel,region) - sdv2
+               lo = avg_count(channel,region) * 0.67
+
+               if( cnt >= lo ) then
                   valid = .TRUE.
-               end if 
-               !if( cnt <= hi .AND. cnt >= lo ) then
-               !   valid = .TRUE.
-               !else if( (cnt > 0) .AND. (cnt >= min_count( channel,region )) .AND. &
-               !    (cnt <= max_count( channel,region ))  ) then
-               !    valid = .TRUE.
-               !end if
+               end if
+
+ 	       if( valid .eqv. .FALSE. ) then
+                  write(*,*) 'LOW COUNT:  cnt, lo, min_count, avg_cnt = ', & 
+			 cnt, lo, min_count(channel,region), avg_cnt
+               end if
+
             end if
 
          end if
 
-         if ( valid .eqv. .FALSE. ) then
-            write(*,*) ' avg_count(channel,region), sdv2, hi, lo = ', avg_count(channel,region), sdv2, hi, lo
-         end if
-         write (*,*) '<-- valid, iret=', valid, iret
+
       else 
-         !--- base file was not loaded, so return a warning that validation isn't possible
+         !---------------------------------------------------------
+         !  base file wasn't loaded, so validation wasn't possible 
+         !
+         write(*,*) 'base file not loaded, unable to validate count'
          iret = 1 
       end if 
+
+      write (*,*) '<-- valid, iret=', valid, iret
     end subroutine validate_count
 
 
@@ -232,13 +271,15 @@ module valid
       valid = .FALSE.
       bound = rmiss
 
-      if( base_loaded .eqv. .TRUE. ) then
+      if( base_loaded .eqv. .TRUE. .AND. nchan > 1 ) then
          if( channel < 1 .OR. channel > nchan ) then
             iret = -1
-            write(*,*) 'attempt to validate channel out of range', channel
+            write(*,*) 'Warning:  In validate_penalty attempt to validate channel out of range', channel
+            valid = .TRUE.
          else if( region < 1 .OR. region > nregion ) then
             iret = -2
-            write(*,*) 'attempt to validate region out of range', region
+            write(*,*) 'Warning:  In validate_penalty attempt to validate region out of range', region
+            valid = .TRUE.
          else
             !
             !  all unassimilated channels in the base files will have an rmiss
@@ -267,8 +308,6 @@ module valid
                else if( (penalty > 0.0) .AND. &
                    (penalty <= (max_penalty( channel,region )*1.2) )  ) then
                   valid = .TRUE.
-               !else if( penalty > hi ) then
-               !   bound = max_penalty( channel,region )
                end if
   
             end if
@@ -279,7 +318,9 @@ module valid
          end if
          write (*,*) '<-- valid, iret=', valid, iret
       else 
-         !--- base file was not loaded, so return a warning that validation isn't possible
+         !--- base file was not loaded, or nchan was 0 so return 
+         !--- a warning that validation isn't possible
+         write (*,*) 'Warning:  base file not loaded or nchan < 1, nchan= ', nchan
          iret = 1 
       end if 
     end subroutine validate_penalty

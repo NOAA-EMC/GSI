@@ -907,7 +907,7 @@ contains
     real(r_single),  dimension(nlat_sfc,nlon_sfc,nfldsfc) :: xt
     character(len=24)  :: filename
     character(len=120) :: my_name = 'READ_SFCNST'
-    integer(i_kind) :: i,j,it,n,nsfc
+    integer(i_kind) :: i,j,it,n,nsfc,iret
     integer(i_kind) :: lonb, latb
     real(r_single),allocatable, dimension(:)  :: fhour
     real(r_single), allocatable, dimension(:,:) :: work,outtmp
@@ -921,7 +921,11 @@ contains
 200    format('sfcf',i2.2)
 
        ! open the netCDF file
-       sfcges = open_dataset(filename)
+       sfcges = open_dataset(filename,errcode=iret)
+       if (iret/=0) then
+          write(6,*) trim(my_name),':  ***ERROR*** ',trim(filename),' NOT AVAILABLE:  PROGRAM STOPS, later'
+       endif
+
        ! get dimension sizes
        ncdim = get_dim(sfcges, 'grid_xt'); lonb = ncdim%len
        ncdim = get_dim(sfcges, 'grid_yt'); latb = ncdim%len
@@ -1235,7 +1239,7 @@ contains
 !   Declare local variables
     character(len=24)  :: filename
     character(len=120) :: my_name = 'READ_GFSNCSFC_ANL'
-    integer(i_kind) :: i,j
+    integer(i_kind) :: i,j,iret
     integer(i_kind) :: lonb, latb
     real(r_single),allocatable, dimension(:) :: fhour
     real(r_single), allocatable, dimension(:,:) :: work,outtmp
@@ -1246,7 +1250,12 @@ contains
 
     filename='sfcf06_anlgrid'
     ! open the netCDF file
-    sfcges = open_dataset(filename)
+    sfcges = open_dataset(filename,errcode=iret)
+    if (iret/=0) then
+       write(6,*) trim(my_name),':  ***ERROR*** ',trim(filename),' NOT AVAILABLE: PROGRAM STOPS'
+       call stop2(999)
+    endif
+
     ! get dimension sizes
     ncdim = get_dim(sfcges, 'grid_xt'); lonb = ncdim%len
     ncdim = get_dim(sfcges, 'grid_yt'); latb = ncdim%len
@@ -1797,14 +1806,14 @@ contains
 
     endif ! if ( mype == mype_out )
 
-    ! Calculate delz increment for UPP
+    ! compute delz (so that delz < 0 as model expects)
     do k=1,grd%nsig
-       sub_dzb(:,:,k) = ges_geopi(:,:,k+1,ibin) - ges_geopi(:,:,k,ibin)
+       sub_dzb(:,:,k) = ges_geopi(:,:,k,ibin) - ges_geopi(:,:,k+1,ibin)
     enddo
 
     if ((.not. lwrite4danl) .or. ibin == 1) call load_geop_hgt
     do k=1,grd%nsig
-       sub_dza(:,:,k) = geop_hgti(:,:,k+1,ibin) - geop_hgti(:,:,k,ibin)
+       sub_dza(:,:,k) = geop_hgti(:,:,k,ibin) - geop_hgti(:,:,k+1,ibin)
     enddo
 
     sub_dza = sub_dza - sub_dzb !sub_dza is increment
@@ -2224,7 +2233,7 @@ contains
              values_3d(:,:,kr) = grid_b
           else
              call load_grid(work1,grid)
-             values_3d(:,:,kr) = values_3d(:,:,kr) - grid
+             values_3d(:,:,kr) = values_3d(:,:,kr) + grid
           end if
           end if
        endif
@@ -2401,6 +2410,7 @@ contains
 !      Read surface guess file
        ! open the netCDF file
        sfcges = open_dataset(fname_ges)
+
        ! get dimension sizes
        ncdim = get_dim(sfcges, 'grid_xt'); lonb = ncdim%len
        ncdim = get_dim(sfcges, 'grid_yt'); latb = ncdim%len

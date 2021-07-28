@@ -53,7 +53,7 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: xai,tmix,xb,omeps,eps,xbi,one,zero,&
-       xa,psat,ttp,half,one_tenth
+       xa,psat,ttp,half,one_tenth,qmin
   use derivsmod, only:  qgues,dqdt,dqdrh,dqdp
   use jfunc, only:  pseudo_q2
   use gridmod, only:  wrf_nmm_regional,wrf_mass_regional,nems_nmmb_regional,aeta2_ll,regional,cmaq_regional
@@ -161,6 +161,7 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
            end if
            es2=min(es,esmax)
            qsat(i,j,k) = eps * es2 / (pw - omeps * es2)
+           qsat(i,j,k) = max(qmin,qsat(i,j,k))
 
            if(iderivative > 0)then
             if(es <= esmax .and. iderivative == 2)then

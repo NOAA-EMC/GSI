@@ -21,8 +21,8 @@ function plot_uvsfc (args)
 
    'open anal.ctl'
    'open guess.ctl'
-   'open 'plotfile2'_grads_anl.ctl'
-   'open 'plotfile2'_grads_ges.ctl'
+   'open 'plotfile2'.grads.anl.ctl'
+   'open 'plotfile2'.grads.ges.ctl'
 
    if( plotfile = uv282 | plotfile = uv229); nhe=1; endif
    if( plotfile = uv280) ; nhe=10; endif
@@ -54,7 +54,7 @@ function plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,nt,var)
    'defint.gs  1.0 0'
    if(var=u); 'd UGRDprs.1-UGRDprs.2';endif
    if(var=v); 'd VGRDprs.1-VGRDprs.2';endif
-*   'cbarb'
+   'colorbar.gs'
    'set digsiz 0.12'
    if(var=u)
       'set ccolor 6'
@@ -79,7 +79,7 @@ function plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,nt,var)
    'defint.gs  1.0 0'
    if(var=u); 'd UGRDprs.1-UGRDprs.2';endif
    if(var=v); 'd VGRDprs.1-VGRDprs.2';endif
-*   'cbarb'
+   'colorbar.gs'
 *   'set ccolor 98'
    'set digsiz 0.12'
    if(var=u)
@@ -105,7 +105,7 @@ function plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,nt,var)
    'defint.gs  1.0 0'
    if(var=u); 'd UGRDprs.1-UGRDprs.2';endif
    if(var=v); 'd VGRDprs.1-VGRDprs.2';endif
-*   'cbarb'
+   'colorbar.gs'
    'set ccolor 98'
    if(var=u)
       'draw title  Surface wind(u) INCT(m/s) at 'rdate'z' 
@@ -126,12 +126,12 @@ function plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,nt,var)
    if(var=v)
       'd VGRDprs.1'
    endif
-*   'cbarb'
+
    'set digsiz 0.12'
    'set gxout contour'
    'set clevs'
    'set ccolor 98'
-*   'set cint 0'
+
    if(var=u)
       'd UGRDprs.1'
    endif
@@ -139,7 +139,7 @@ function plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,nt,var)
       'd VGRDprs.1'
    endif
 
-*   'cbarb'
+   'colorbar.gs'
    'set ccolor 98'
    if(var=u)
       'draw title  Surface wind(u) analysis at 'rdate'z'

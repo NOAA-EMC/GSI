@@ -32,6 +32,10 @@ program recenterncio_hybgain2
 
   include "mpif.h"
 
+! Declare externals
+  external :: MPI_Init, MPI_Comm_rank, MPI_Comm_size, w3tagb, MPI_Abort,&
+     MPI_Barrier, w3tage, MPI_Finalize
+
   character*500 filename_fg,filename_varanal,filename_enkfanal,filenamein,&
                 filenameout,filename_anal,filename,filename_fsprd,filename_asprd
   character*3 charnanal
