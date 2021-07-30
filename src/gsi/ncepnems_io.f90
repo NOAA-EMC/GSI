@@ -2310,12 +2310,13 @@ contains
     ! Calculate delz increment for UPP
     if (lupp) then
        do k=1,grd%nsig
-          sub_dzb(:,:,k) = ges_geopi(:,:,k+1,ibin) - ges_geopi(:,:,k,ibin)
+          ! k goes from bottom to top, so k - k+1 is negative delz
+          sub_dzb(:,:,k) = ges_geopi(:,:,k,ibin) - ges_geopi(:,:,k+1,ibin)
        enddo
 
        if ((.not. lwrite4danl) .or. ibin == 1) call load_geop_hgt
        do k=1,grd%nsig
-          sub_dza(:,:,k) = geop_hgti(:,:,k+1,ibin) - geop_hgti(:,:,k,ibin)
+          sub_dza(:,:,k) = geop_hgti(:,:,k,ibin) - geop_hgti(:,:,k+1,ibin)
        enddo
 
        sub_dza = sub_dza - sub_dzb !sub_dza is increment
@@ -2800,10 +2801,10 @@ contains
                work1,grd%ijn,grd%displs_g,mpi_rtype,&
                mype_out,mpi_comm_world,ierror)
           if (mype == mype_out) then
-             work1 = -one * work1  ! Flip sign, FV3 is top to bottom
              call nemsio_readrecv(gfile,'delz','mid layer',k,rwork1d,iret=iret)
              if (iret /= 0) call error_msg(trim(my_name),trim(filename),'delz','read',istop,iret)
-             if (sum(rwork1d) < zero) work1 = -one * work1  !Flip sign, FV3 is top to bottom 
+             ! if delz in background is positive, flip sign of increment
+             if (sum(rwork1d) > zero) work1 = -one * work1  
              if(diff_res)then
                 grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
                 do kk=1,grd%iglobal
@@ -3149,12 +3150,13 @@ contains
     ! Calculate delz increment for UPP
     if (lupp) then
        do k=1,grd%nsig
-          sub_dzb(:,:,k) = ges_geopi(:,:,k+1,ibin) - ges_geopi(:,:,k,ibin)
+          ! k goes from bottom to top, so k - k+1 is negative delz
+          sub_dzb(:,:,k) = ges_geopi(:,:,k,ibin) - ges_geopi(:,:,k+1,ibin)
        enddo
 
        if ((.not. lwrite4danl) .or. ibin == 1) call load_geop_hgt
        do k=1,grd%nsig
-          sub_dza(:,:,k) = geop_hgti(:,:,k+1,ibin) - geop_hgti(:,:,k,ibin)
+          sub_dza(:,:,k) = geop_hgti(:,:,k,ibin) - geop_hgti(:,:,k+1,ibin)
        enddo
 
        sub_dza = sub_dza - sub_dzb !sub_dza is increment
@@ -3531,10 +3533,10 @@ contains
                work1,grd%ijn,grd%displs_g,mpi_rtype,&
                mype_out,mpi_comm_world,ierror)
           if (mype == mype_out) then
-             work1 = -one * work1  ! Flip sign, FV3 is top to bottom
              call nemsio_readrecv(gfile,'delz','mid layer',k,rwork1d,iret=iret)
              if (iret /= 0) call error_msg(trim(my_name),trim(filename),'delz','read',istop,iret)
-             if (sum(rwork1d) < zero) work1 = -one * work1  ! Flip sign, FV3 is top to bottom
+             ! if delz in background is positive, flip sign of increment
+             if (sum(rwork1d) > zero) work1 = -one * work1  ! Flip sign, FV3 is top to bottom
              if(diff_res)then
                 grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
                 do kk=1,grd%iglobal

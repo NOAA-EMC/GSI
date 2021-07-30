@@ -374,7 +374,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      end if
 
 !    Reopen unit to satellite bufr file
-     call closbf(lnbufr)
      open(lnbufr,file=trim(infile2),form='unformatted',status = 'old', &
          iostat = ierr)
      if(ierr /= 0) cycle ears_db_loop
@@ -492,6 +491,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
         end do read_loop
      end do read_subset
      call closbf(lnbufr)
+     close(lnbufr)
   end do ears_db_loop
   deallocate(data1b8)
 

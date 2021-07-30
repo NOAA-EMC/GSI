@@ -55,6 +55,9 @@ for type in ${SATYPE}; do
          ieee_src=${TANKverf}/${RUN}.${PDY}/${MONITOR}
       fi
       if [[ ! -d ${ieee_src} ]]; then
+         ieee_src=${TANKverf}/${RUN}.${PDY}
+      fi
+      if [[ ! -d ${ieee_src} ]]; then
          ieee_src=${TANKverf}/${MONITOR}.${PDY}
       fi
 

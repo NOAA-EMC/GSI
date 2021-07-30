@@ -501,6 +501,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   end do read_subset
 690 continue
   call closbf(lnbufr)
+  close(lnbufr)
   
   num_obs=iobs-1
   if( mype_sub==mype_root) write(6,*) 'READ_GMI: do_noise_reduction=', do_noise_reduction

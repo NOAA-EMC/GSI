@@ -175,8 +175,8 @@ if [[ $exit_value == 0 ]]; then
          echo "satype_file is good to go:  ${satype_file}"
       fi
 
-      if [[ ! -e ${radstat_file} ]]; then
-         echo "MISSING radstat_file: ${radstat_file}"
+      if [[ ! -e ${radstat} ]]; then
+         echo "MISSING radstat_file: ${radstat}"
       else
          echo "radstat is good to go: ${radstat}"
       fi

@@ -1421,6 +1421,8 @@ subroutine ozlev_bufrread_(dfile,dtype,dsis, ozout,nmrecs,ndata,nodata, &
         call warn(myname_,'                     actual retained =',nodata)
         call warn(myname_,'                       size(ozout,2) =',maxobs)
      endif
+     call closbf(lunin)
+     close(lunin)
 
 !     write(stdout,'(3a,3i8,f8.2)') mprefix('read_ozone'), &
 !        ' obstype,nmrecs,ndata,nodata,no/ndata = ',dtype,nmrecs,ndata,nodata,real(nodata)/ndata

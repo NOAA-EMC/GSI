@@ -337,8 +337,16 @@ subroutine gesinfo
      else ! use_gfs_ncio and get this information
         write(sfilename,'("sfcf",i2.2)')nhr_assimilation
         ! open the netCDF file
-        atmges = open_dataset(filename)
-        sfcges = open_dataset(sfilename)
+        atmges = open_dataset(filename,errcode=iret)
+        if (iret /=0) then
+           write(6,*)'GESINFO:  ***ERROR*** ',trim(filename),' NOT AVAILABLE: PROGRAM STOPS'
+           call stop2(99)
+        endif
+        sfcges = open_dataset(sfilename,errcode=iret)
+        if (iret /=0) then
+           write(6,*)'GESINFO:  ***ERROR*** ',trim(sfilename),' NOT AVAILABLE: PROGRAM STOPS'
+           call stop2(99)
+        endif
         ! get dimension sizes
         ncdim = get_dim(atmges, 'grid_xt'); gfshead%lonb = ncdim%len
         ncdim = get_dim(atmges, 'grid_yt'); gfshead%latb = ncdim%len
