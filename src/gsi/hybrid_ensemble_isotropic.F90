@@ -3875,7 +3875,7 @@ subroutine hybens_grid_setup
   use hybrid_ensemble_parameters, only:regional_ensemble_option 
   use gsi_rfv3io_mod,only:gsi_rfv3io_get_ens_grid_specs
   use general_commvars_mod, only: ltosi_sens,ltosj_sens
-  use gridmod, only: itotsub,ijn_sens,ijnens,displs_sens
+  use gridmod, only: itotsub,ijn_sens,ijnens,displs_sens,itotsubens
   use mpimod, only: npe
 
   implicit none
@@ -3943,11 +3943,6 @@ subroutine hybens_grid_setup
   allocate(vector(num_fields))
   vector=.false.
   call general_sub2grid_create_info(grd_loc,inner_vars,nlat_ens,nlon_ens,nsig,num_fields,regional,vector)
-  ltosi_sens=grd_loc%ltosi_s
-  ltosj_sens=grd_loc%ltosj_s
-  ijn_sens=grd_loc%ijn_s
-  ijnens=grd_loc%ijn
-  displs_sens=grd_loc%displs_s
   num_fields=max(0,nc3d)*nsig+max(0,nc2d)
   deallocate(vector)
   allocate(vector(num_fields))
@@ -3977,6 +3972,12 @@ subroutine hybens_grid_setup
                                nord_e2a,p_e2a,.true.,eqspace=use_sp_eqspace)
   else
      if(dual_res) then
+        ltosi_sens=grd_ens%ltosi_s
+        ltosj_sens=grd_ens%ltosj_s
+        ijn_sens=grd_ens%ijn_s
+        ijnens=grd_ens%ijn
+        itotsubens=grd_ens%itotsub
+        displs_sens=grd_ens%displs_s
 !cltthinktodo
         call get_region_dx_dy_ens(region_dx_ens,region_dy_ens)
         if(regional_ensemble_option) then

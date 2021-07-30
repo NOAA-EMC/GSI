@@ -131,7 +131,7 @@ module gridmod
   public :: strip_periodic
 
 ! set passed variables to public
-  public :: nnnn1o,iglobal,itotsub,ijn,ijn_s,lat2,lon2,lat1,lon1,nsig,nsig_soil
+  public :: nnnn1o,iglobal,itotsub,ijn,ijn_s,lat2,lon2,lat1,lon1,nsig,nsig_soil,itotsubens
   public :: ncloud,nlat,nlon,ntracer,displs_s,displs_g
   public :: ijn_sens,ijnens,displs_sens
   public :: bk5,regional,latlon11,latlon1n,twodvar_regional
@@ -262,6 +262,7 @@ module gridmod
   integer(i_kind) latlon1n1         ! no. of points in subdomain for 3d prs (with buffer)
   integer(i_kind) iglobal           ! number of horizontal points on global grid
   integer(i_kind) itotsub           ! number of horizontal points of all subdomains combined
+  integer(i_kind) itotsubens           ! number of horizontal points of all subdomains combined
   integer(i_kind) msig              ! number of profile layers to use when calling RTM
 
   integer(i_kind) jcap_cut          ! spectral triangular truncation beyond which you recalculate pln and plntop - default 600 - used to save memory

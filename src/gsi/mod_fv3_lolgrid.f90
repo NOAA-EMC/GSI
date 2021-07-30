@@ -814,8 +814,10 @@ subroutine definecoef_regular_grids(nx,ny,nxa_inout,nya_inout,grid_lon,grid_lont
      cy=one
   endif
   allocate(rlat_in(nlatin,nlonin),rlon_in(nlatin,nlonin))
+  region_lon_in=region_lon_in*rad2deg
+  region_lat_in=region_lat_in*rad2deg
   call rotate2deg(region_lon_in,region_lat_in,rlon_in,rlat_in, &
-                    clon,clat,nlatin,nlonin)
+                    centlon,centlat,nlatin,nlonin)
 
 !
 !-----setup analysis A-grid from center of the domain
