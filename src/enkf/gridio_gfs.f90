@@ -3912,8 +3912,11 @@
     call copyfromgrdin(grdin(:,soilt1_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+  inc2dout=0.
   do j=1,nlats
-    inc2dout(:,nlats-j+1) = inc2d(:,j)
+    do i = 1, nlons
+        if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
+    enddo
   end do
   call nccheck_incr(nf90_put_var(ncid_out, soilt1varid, sngl(inc2dout), &
                       start = ncstart, count = nccount))
@@ -3923,8 +3926,11 @@
     call copyfromgrdin(grdin(:,soilt2_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+  inc2dout=0.
   do j=1,nlats
-    inc2dout(:,nlats-j+1) = inc2d(:,j)
+    do i = 1, nlons
+        if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
+    enddo
   end do
   call nccheck_incr(nf90_put_var(ncid_out, soilt2varid, sngl(inc2dout), &
                       start = ncstart, count = nccount))
@@ -3934,8 +3940,11 @@
     call copyfromgrdin(grdin(:,soilt3_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+  inc2dout=0.
   do j=1,nlats
-    inc2dout(:,nlats-j+1) = inc2d(:,j)
+    do i = 1, nlons
+        if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
+    enddo
   end do
   call nccheck_incr(nf90_put_var(ncid_out, soilt3varid, sngl(inc2dout), &
                       start = ncstart, count = nccount))
@@ -3945,8 +3954,11 @@
     call copyfromgrdin(grdin(:,soilt4_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+  inc2dout=0.
   do j=1,nlats
-    inc2dout(:,nlats-j+1) = inc2d(:,j)
+    do i = 1, nlons
+        if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
+    enddo
   end do
   call nccheck_incr(nf90_put_var(ncid_out, soilt4varid, sngl(inc2dout), &
                       start = ncstart, count = nccount))

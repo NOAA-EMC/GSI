@@ -712,7 +712,7 @@ do nb=1,nbackgrounds
       endif
      else ! global
 !      if (nbackgrounds > 1) then
-        anlsfcfileprefixes(nb)="bfanl_"//datestring//"_fhr"//charfhr_anal(nb)//"_"
+        anlsfcfileprefixes(nb)="banl_"//datestring//"_fhr"//charfhr_anal(nb)//"_"
         incsfcfileprefixes(nb)="sfcincr_"//datestring//"_fhr"//charfhr_anal(nb)//"_"
 !      else
 !        anlfileprefixes(nb)="sanl_"//datestring//"_"
