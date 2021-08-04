@@ -29,7 +29,6 @@ pwd=$(pwd)
 
 # Utilities
 export NLN=${NLN:-"/bin/ln -sf"}
-export ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
 
 # Scripts.
 ANALYSISSH=${ANALYSISSH:-$HOMEgfs/scripts/exglobal_atmos_analysis.sh}
@@ -73,7 +72,8 @@ cd $DATA || exit 8
 ################################################################################
 # ObsInput file from ensemble mean
 rm -f obs_input*
-$NLN $SELECT_OBS obs_input.tar
+rm -f obsinput.tar
+$NLN $SELECT_OBS obsinput.tar
 
 # Whether to save or skip obs
 if [ $RUN_SELECT = "YES" -a $USE_SELECT = "NO" ]; then
@@ -115,10 +115,7 @@ export CHEM="$CHEM_INVOBS"
 # Execute GSI as a forward operator
 
 $ANALYSISSH
-
-export ERR=$?
-export err=$ERR
-$ERRSCRIPT || exit 2
+export err=$?; err_chk
 
 ################################################################################
 # Postprocessing

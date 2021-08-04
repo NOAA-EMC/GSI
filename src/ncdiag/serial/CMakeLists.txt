@@ -7,7 +7,7 @@ if(BUILD_NCDIAG)
     # NetCDF-4 library
     set(NCDIAG_SERIAL_INCS "${PROJECT_BINARY_DIR}/include/ncdiag_serial")
 
-    include_directories( ${NETCDF_INCLUDES} ${NCDIAG_SERIAL_INCS} )
+    include_directories( ${NETCDF_INCLUDE_DIRS} ${NCDIAG_SERIAL_INCS} )
 
     # 32-bit reals, for now
     add_definitions(-D_REAL4_)
@@ -22,7 +22,7 @@ if(BUILD_NCDIAG)
     add_executable(ncdiag_cat.x ${CMAKE_CURRENT_SOURCE_DIR}/../nc_diag_cat.F90 )
     set_target_properties( ncdiag_cat.x PROPERTIES COMPILE_FLAGS ${NCDIAG_Fortran_FLAGS} )
     set_target_properties( ncdiag_cat.x PROPERTIES Fortran_MODULE_DIRECTORY ${NCDIAG_SERIAL_MODULE_DIR} )
-    target_link_libraries(ncdiag_cat.x ncdiag_serial ${NETCDF_LIBRARIES} ${HDF5_HL_LIBRARIES} ${HDF5_LIBRARIES} ${ZLIB_LIBRARIES} ${MPI_Fortran_LIBRARIES} )  
+    target_link_libraries(ncdiag_cat.x ncdiag_serial ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES} ${MPI_Fortran_LIBRARIES})  
   endif(BUILD_NCDIAG_SERIAL)
   endif( NOT USE_BASELIBS )
 endif(BUILD_NCDIAG)

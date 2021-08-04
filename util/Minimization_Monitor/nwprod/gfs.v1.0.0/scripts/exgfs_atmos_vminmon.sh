@@ -58,7 +58,6 @@ export mm_costfile=${costfile:-${M_FIXgfs}/gfs_minmon_cost.txt}
 export MINMON_SUFFIX=${MINMON_SUFFIX:-GFS}
 export PDATE=${PDY}${cyc}
 export NCP=${NCP:-/bin/cp}
-export NDATE=${NDATE:-/nwprod/util/exec/ndate}
 export pgm=exgfs_vrfminmon.sh
 
 

@@ -1,4 +1,4 @@
-#!/bin/ksh
+#!/bin/bash
 
 #------------------------------------------------------------------
 #
@@ -12,8 +12,9 @@ set -ax
 date
 echo "begin mk_bcoef_plots.sh"
 
-export NUM_CYCLES=${NUM_CYCLES:-121}
-export CYCLE_INTERVAL=${CYCLE_INTERVAL:-6}
+#export NUM_CYCLES=${NUM_CYCLES:-121}
+#export CYCLE_INTERVAL=${CYCLE_INTERVAL:-6}
+echo "NUM_CYCLES, CYCLE_INTERVAL = ${NUM_CYCLES}, ${CYCLE_INTERVAL}"
 
 imgndir="${IMGNDIR}/bcoef"
 tankdir="${TANKDIR}/bcoef"
@@ -49,17 +50,17 @@ for type in ${SATYPE}; do
          pdy=`echo $test_day|cut -c1-8`
       fi
 
-      if [[ $TANK_USE_RUN -eq 1 ]]; then
-         ieee_src=${TANKverf}/${RUN}.${PDY}/${CYC}/${MONITOR}
-         if [[ ! -d ${ieee_src} ]]; then
-            ieee_src=${TANKverf}/${RUN}.${PDY}/${MONITOR}
-         fi
-      else
-         ieee_src=${TANKverf}/${MONITOR}.${PDY}
-         if [[ ! -d ${ieee_src} ]]; then
-            ieee_src=${TANKverf}/${RUN}.${PDY}
-         fi
+      ieee_src=${TANKverf}/${RUN}.${PDY}/${CYC}/${MONITOR}
+      if [[ ! -d ${ieee_src} ]]; then
+         ieee_src=${TANKverf}/${RUN}.${PDY}/${MONITOR}
       fi
+      if [[ ! -d ${ieee_src} ]]; then
+         ieee_src=${TANKverf}/${RUN}.${PDY}
+      fi
+      if [[ ! -d ${ieee_src} ]]; then
+         ieee_src=${TANKverf}/${MONITOR}.${PDY}
+      fi
+
 
       if [[ -s ${ieee_src}/bcoef.${type}.ctl.${Z} ]]; then
          $NCP ${ieee_src}/bcoef.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
@@ -93,9 +94,8 @@ for type in ${SATYPE}; do
 done
 
 if [[ $allmissing = 1 ]]; then
-   echo ERROR:  Unable to plot.  All bcoef control files are missing from ${TANKDIR} for requested
- date range.
-   exit
+   echo "ERROR:  Unable to plot.  All bcoef control files are missing from ${TANKDIR} for requested date range."
+   exit 2
 fi
 
 
@@ -118,15 +118,11 @@ jobname="plot_${RADMON_SUFFIX}_bcoef"
 logfile="$LOGdir/plot_bcoef.log"
 rm ${logfile}
 
-if [[ $MY_MACHINE = "wcoss" ]]; then
-   $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 80 -W 1:15 \
-        -R affinity[core] -J ${jobname} -cwd ${PWD} $IG_SCRIPTS/plot_bcoef.sh
-
-elif [[ $MY_MACHINE = "wcoss_d" ]]; then
+if [[ $MY_MACHINE = "wcoss_d" ]]; then
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 80 -W 1:15 \
         -R "affinity[core]" -J ${jobname} -cwd ${PWD} $IG_SCRIPTS/plot_bcoef.sh
 
-elif [[ $MY_MACHINE = "cray" ]]; then
+elif [[ $MY_MACHINE = "wcoss_c" ]]; then
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 80 -W 1:15 \
         -J ${jobname} -cwd ${PWD} $IG_SCRIPTS/plot_bcoef.sh
 

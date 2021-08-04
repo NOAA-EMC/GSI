@@ -1,4 +1,4 @@
-#! /bin/ksh
+#! /bin/bash
 
 #------------------------------------------------------------------
 #
@@ -15,35 +15,39 @@ PTYPE=$3
 
 echo "Starting plot_time.sh"
 
-#------------------------------------------------------------------
-# Set environment variables.
+#-----------------------------------------------
+# Make sure IMGNDIR/time directory exists and
+# set necessary environment variables.
+#
+if [[ ! -d ${IMGNDIR}/time ]]; then
+   mkdir -p ${IMGNDIR}/time
+fi
 tmpdir=${PLOT_WORK_DIR}/plot_time_${RADMON_SUFFIX}_${SATYPE2}.$PDATE.${PVAR}
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
 
 plot_time_count=plot_time_count.${RAD_AREA}.gs
-echo plot_time_count = $plot_time_count
+echo plot_time_count = ${plot_time_count}
 
 plot_time_sep=plot_time_sep.${RAD_AREA}.gs
-echo plot_time_sep = $plot_time_sep
+echo plot_time_sep = ${plot_time_sep}
 
 
-echo PLOT_WORK_DIR = $PLOT_WORK_DIR
-echo tmpdir        = $tmpdir
+echo PLOT_WORK_DIR = ${PLOT_WORK_DIR}
+echo tmpdir        = ${tmpdir}
 
 #------------------------------------------------------------------
 #   Set dates
-
+#
 bdate=${START_DATE}
-rdate=`$NDATE -72 $PDATE`
 edate=$PDATE
 bdate0=`echo $bdate|cut -c1-8`
 edate0=`echo $edate|cut -c1-8`
 
 #--------------------------------------------------------------------
 # Set ctldir to point to correct control file source
-
+#
 imgdef=`echo ${#IMGNDIR}`
 if [[ $imgdef -gt 0 ]]; then
   ctldir=$IMGNDIR/time
@@ -61,7 +65,7 @@ echo ctldir = $ctldir
 # Data file location may either be in angle, bcoef, bcor, and time
 # subdirectories under $TANKDIR, or in the Operational organization
 # of radmon.YYYYMMDD directories under $TANKDIR.
-
+#
 for type in ${SATYPE2}; do
    
    $NCP $ctldir/${type}.ctl* ./
@@ -87,31 +91,23 @@ for type in ${SATYPE2}; do
          cyc=`echo $cdate | cut -c9-10`
       fi
 
-      if [[ $TANK_USE_RUN -eq 1 ]]; then
-         ieee_src=${TANKverf}/${RUN}.${day}/${cyc}//${MONITOR}
-         if [[ ! -d ${ieee_src} ]]; then
-            ieee_src=${TANKverf}/${RUN}.${day}/${MONITOR}
-         fi
-      else
+      ieee_src=${TANKverf}/${RUN}.${day}/${cyc}/${MONITOR}
+      if [[ ! -d ${ieee_src} ]]; then
+         ieee_src=${TANKverf}/${RUN}.${day}/${MONITOR}
+      fi
+      if [[ ! -d ${ieee_src} ]]; then
          ieee_src=${TANKverf}/${MONITOR}.${day}
-         if [[ ! -d ${ieee_src} ]]; then
-            ieee_src=${TANKverf}/${RUN}.${day}
-         fi
+      fi
+      if [[ ! -d ${ieee_src} ]]; then
+         ieee_src=${TANKverf}/${RUN}.${day}
       fi
 
+
       if [[ -d ${ieee_src} ]]; then
-         if [[ $REGIONAL_RR -eq 1 ]]; then
-            test_file=${ieee_src}/${rgnHH}.time.${type}.${cdate}.ieee_d.${rgnTM}
-         else
-            test_file=${ieee_src}/time.${type}.${cdate}.ieee_d
-         fi
+         test_file=${ieee_src}/time.${type}.${cdate}.ieee_d
 
          if [[ $USE_ANL = 1 ]]; then
-            if [[ $REGIONAL_RR -eq 1 ]]; then
-               test_file2=${ieee_src}/${rgnHH}.time.${type}_anl.${cdate}.ieee_d.${rgnTM}
-            else
-               test_file2=${ieee_src}/time.${type}_anl.${cdate}.ieee_d
-            fi
+            test_file2=${ieee_src}/time.${type}_anl.${cdate}.ieee_d
          else
             test_file2=
          fi
@@ -164,23 +160,19 @@ EOF
       done 
    fi
 
-   #------------------------------------------
-   #  nu_plot_time.sh creates the data files used by the html/js files
-   #    for interactive chart generation.
+   #----------------------------------------------------------
+   #  mk_digital_time.sh  creates the data files used by the 
+   #    html/js web files for interactive chart generation.
    #
-   $NCP ${IG_SCRIPTS}/nu_plot_time.sh .
-   ./nu_plot_time.sh ${type}
-   rm -f nu_plot_time.sh
+   $NCP ${IG_SCRIPTS}/mk_digital_time.sh  .
+   ./mk_digital_time.sh  ${type}
+   rm -f mk_digital_time.sh 
 
 done
 
 #--------------------------------------------------------------------
-# Copy image files to $IMGNDIR to set up for mirror to web server.
-# Delete images and data files.
-
-if [[ ! -d ${IMGNDIR}/time ]]; then
-   mkdir -p ${IMGNDIR}/time
-fi
+# Copy image files to $IMGNDIR.
+#
 if [[ $PLOT_STATIC_IMGS -eq 1 ]]; then
    cp -f *.png  ${IMGNDIR}/time
 fi

@@ -855,6 +855,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   enddo read_subset
   deallocate(allchan, chan_map, bufr_chan_test)
   call closbf(lnbufr)  ! Close bufr file
+  close(lnbufr)
 
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together

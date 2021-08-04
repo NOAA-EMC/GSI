@@ -38,6 +38,9 @@ PROGRAM calc_increment_ncio
 
   implicit none
 
+! Declare externals
+  external :: write_ncdata3d
+
   character*500 filename_anal,filename_inc,filename_fg
   character(len=nf90_max_name) :: ncvarname
   integer k,nvar,ndims,nlats,nlons,nlevs,iret,nlons2,nlats2,nlevs2

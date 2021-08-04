@@ -1,127 +1,175 @@
-#
+#-------------------------------------------------------
 #  Conventional Monitor package configuration file
 #
+#-------------------------------------------------------
 
-echo "begin CMon_config"
+if [[ $CONMON_CONFIG -ne 1 ]]; then
 
-export MY_MACHINE=theia
+   echo "begin ConMon_config"
 
-#
-# MY_CMON should point to your working directory which contains the
-# top level directory to the CMon package.  If you checked out the package
-# as part of the GSI point to the GSI's util/Conventional_Monitor directory.
-# if you checked out only the Radiance_Monitor portion of the branch then
-# MY_CMON should point to that.
-#
+   export CONMON_CONFIG=1
 
-export MY_CMON=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/ProdGSI/util/Conventional_Monitor
-
-#
-#  The CMON_TANKDIR will be the location for the extracted data files and
-#  the control files used for image plotting.  This is the base definition
-#  and the succedding scripts will construct and use subdirectories under
-#  this location.
-#
-
-export CMON_TANKDIR=/scratch4/NCEPDEV/da/save/Edward.Safford/nbns
-export C_TANKverf=${C_TANKverf:-${CMON_TANKDIR}}
-
-export C_TANKDIR=${CMON_TANKDIR}/stats/${CMON_SUFFIX}
-export C_IMGNDIR=${CMON_TANKDIR}/imgn/${CMON_SUFFIX}
+   export MY_MACHINE=wcoss_d
 
 
-if [[ $MY_MACHINE = "wcoss" ]]; then
-   shell=sh
-   . /usrx/local/Modules/default/init/${shell}
-   module load lsf
-   module unload GrADS		# version 2.0.1 is loaded automatically, but it's out of
-   module load GrADS		# date -- curent default is 2.0.2
-   module load grib_util
-   module load prod_util
-   module load util_shared
+   #-----------------------------------------------------
+   #  DO_DATA_RPT controls the generation of automated
+   #  warning messages to detect and report potential 
+   #  low counts by data type_subtype.
+   #
+   #  MAIL_TO and MAIL_CC specifies the default 
+   #  distribution for warning messages.
+   #
+   export DO_DATA_RPT=${DO_DATA_RPT:-1}
 
-   export GRADS=grads
+   export MAIL_TO=${MAIL_TO:-"edward.safford@noaa.gov"}
+   export MAIL_CC=${MAIL_CC:=""}
 
-   export UTILS_BIN=
-   export LLQ=
-   export SUB="bsub"
-   export NCP=/bin/cp
-   export NWPROD=/nwprod
-   export FIXDIR=/nwprod/fix
-   export COMPRESS=gzip
-   export UNCOMPRESS="gunzip -f"
-   export Z="gz"
-   export TIMEX=
-   export PROJECT=${PROJECT:-GDAS-T2O}
-   export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
+   #-----------------------------------------------------
+   #   The grib2 flag indicates if the data files are in
+   #     grib2 format (1) or grib (0)
+   #
+   export grib2=${grib2:-1}
 
-elif [[ $MY_MACHINE = "cray" ]]; then
-   module load prod_util        # defines $NDATE among other things
-   module load prod_envir
-   module load grib_util
-   module load util_shared
+   #---------------------------------------------------------------------
+   # MY_CONMON should point to your working directory which contains the
+   # top level directory to the ConMon package. 
+   #
+   export MY_CONMON=${MY_CONMON:-/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/GSI/util/Conventional_Monitor}
 
-   export SUB="bsub"
-   export NWPROD=${COMROOTp1}
-   export COMPRESS=gzip
-   export UNCOMPRESS="gunzip -f"
-   export PROJECT=${PROJECT:-GDAS-T2O}
-   export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
-   export Z="gz"
-   
-elif [[ $MY_MACHINE = "theia" ]]; then
-   export SUB=sbatch
-   export NWPROD=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod
-   export COMPRESS=gzip
-   export UNCOMPRESS="gunzip -f"
-   export Z="gz"
-fi
+   #---------------------------------------------------------------------------
+   #  The CONMON_TANKDIR will be the location for the extracted data files and
+   #  the control files used for image plotting.  This is the base definition
+   #  and the succedding scripts will construct and use subdirectories under
+   #  this location.
+   #
 
-export NDATE=${NWPROD}/util/exec/ndate
+   export MY_TANKDIR=${MY_TANKDIR:-/u/Edward.Safford/nbns}
+   export CONMON_TANKDIR=$MY_TANKDIR
+   export C_TANKverf=${C_TANKverf:-${CONMON_TANKDIR}}
 
-export ACCOUNT=${ACCOUNT:-fv3-cpu}
+   export C_TANKDIR=${CONMON_TANKDIR}/stats/${CONMON_SUFFIX}
+   export C_IMGNDIR=${CONMON_TANKDIR}/imgn/${CONMON_SUFFIX}/${RUN}/conmon
+
+
+   if [[ $MY_MACHINE = "wcoss_c" ]]; then
+      module load prod_util        # defines $NDATE among other things
+      module load prod_envir
+      module load grib_util/1.0.5  #  note 1.1.0 and 1.1.1 report runtime errors
+      module load util_shared
+
+      export SUB="bsub"
+      export COMPRESS=gzip
+      export UNCOMPRESS="gunzip -f"
+      export PROJECT=${PROJECT:-GDAS-DEV}
+      export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
+
+   elif [[ $MY_MACHINE = "wcoss_d" ]]; then
+      shell=sh
+      source /usrx/local/prod/lmod/lmod/init/${shell}
+
+      MODULEPATH=/usrx/local/prod/lmod/lmod/modulefiles/Core
+      MODULEPATH=${MODULEPATH}:/usrx/local/prod/modulefiles/core_third
+      MODULEPATH=${MODULEPATH}:/usrx/local/prod/modulefiles/defs
+      MODULEPATH=${MODULEPATH}:/gpfs/dell1/nco/ops/nwprod/modulefiles/core_prod
+      export MODULEPATH=${MODULEPATH}:/usrx/local/dev/modulefiles
+
+      module load ips/18.0.1.163
+      module load metplus/2.1
+      module load lsf/10.1
+      module load prod_util/1.1.2
+      module load GrADS/2.2.0
+      module load grib_util/1.1.1
+      module load prod_envir/1.0.3
+
+#     module prod_envir won't load at the moment.  Maybe
+#     that's file system problems, maybe it's worse.
+#     Either way I need COMROOTp3 defined, so I'll do it
+#     manually for the moment.
+#      module load prod_envir/1.0.3
+      export COMROOTp3="/gpfs/dell1/nco/ops/com"
+
+      export GRADS=`which grads`
+      export SUB="bsub"
+      export COMPRESS=/usr/bin/gzip
+      export UNCOMPRESS="/usr/bin/gunzip -f"
+      export PROJECT=${PROJECT:-GFS-DEV}
+      export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
  
-export C_STMP=${C_STMP:-/scratch4/NCEPDEV/stmp3}
-export C_STMP_USER=${C_STMP_USER:-${C_STMP}/${LOGNAME}}
-export C_PTMP=${C_PTMP:-/scratch4/NCEPDEV/stmp4}
-export C_PTMP_USER=${C_PTMP_USER:-${C_PTMP}/${LOGNAME}}
+   elif [[ $MY_MACHINE = "hera" ]]; then
+      module use -a /apps/modules/modulefamilies/intel
+      module load wgrib2/2.0.8
+      module load grads/2.2.1
 
-export C_LOGDIR=${C_PTMP_USER}/logs/${CMON_SUFFIX}/ConMon
-export LOGSverf_cmon=${LOGSverf_cmon:-${C_LOGDIR}}
-export WORKverf_cmon=${WORKverf_cmon:-${C_STMP_USER}}
+      export WGRIB2=`which wgrib2`
+   
+      export GRADS=`which grads`
+      export STNMAP=`which stnmap` #/apps/grads/2.0.2/bin/stnmap
 
-export CONVINFO_FILE=${FIXDIR}/global_convinfo.txt  # does this belong in this config file? IMG/parm?
+      export SUB=/apps/slurm/default/bin/sbatch
+      export NDATE=/home/Edward.Safford/bin/ndate
+      export COMPRESS=${COMPRESS:-gzip}
+      export UNCOMPRESS=${UNCOMPRESS:-"gunzip -f"}
+   fi
+
+   export Z="gz"
+
+   export ACCOUNT=${ACCOUNT:-}
+ 
+   export C_STMP=${C_STMP:-/gpfs/dell2/stmp}
+   export C_STMP_USER=${C_STMP_USER:-${C_STMP}/${LOGNAME}}
+   export C_PTMP=${C_PTMP:-/gpfs/dell2/ptmp}
+   export C_PTMP_USER=${C_PTMP_USER:-${C_PTMP}/${LOGNAME}}
+
+   export C_LOGDIR=${C_PTMP_USER}/logs/${CONMON_SUFFIX}/${RUN}/conmon
+   export WORK_conmon=${WORK_conmon:-${C_STMP_USER}/${CONMON_SUFFIX}/${RUN}/ConMon}
+
+   #
+   #  Automatically remove old, extracted data files
+   #
+   export CLEAN_TANKDIR=${CLEAN_TANKDIR:-1}
+
+   #
+   #  Number of cycles worth of image data to be retained in tankdir
+   #
+   export NUM_IMG_CYCLES=${NUM_IMG_CYCLES:-20}
+
+   #
+   #  Web server resources include the sever name (WEB_SVR), the user name
+   #  on the web server (WEB_USER), and location of the top level directory
+   #  for the html on the web server (WEBDIR).
+   #
+   export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/es_conv
+   export WEBUSER=esafford
+   export WEBSVR=emcrzdm
 
 
-#
-#  Web server resources include the sever name (WEB_SVR), the user name
-#  on the web server (WEB_USER), and location of the top level directory
-#  for the html on the web server (WEBDIR).
-#
-export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas
-export WEBUSER=esafford
-export WEBSVR=emcrzdm
+   #
+   #  Definitions for internal reference
+   #
+   export CONMON_DATA_EXTRACT=${CONMON_DATA_EXTRACT:-${MY_CONMON}/data_extract}
+   export C_DE_EXEC=${C_DE_EXEC:-${CONMON_DATA_EXTRACT}/exec}
+   export C_DE_PARM=${C_DE_PARM:-${CONMON_DATA_EXTRACT}/parm}
+   export C_DE_SCRIPTS=${C_DE_SCRIPTS:-${CONMON_DATA_EXTRACT}/ush}
 
+   export CONMON_IMAGE_GEN=${CONMON_IMAGE_GEN:-${MY_CONMON}/image_gen}
+   export C_IG_EXEC=${C_IG_EXEC:-${CONMON_IMAGE_GEN}/exec}
+   export C_IG_GSCRIPTS=${C_IG_GSCRIPTS:-${CONMON_IMAGE_GEN}/gscripts}
+   export C_IG_PARM=${C_IG_PARM:-${CONMON_IMAGE_GEN}/parm}
+   export C_IG_SCRIPTS=${C_IG_SCRIPTS:-${CONMON_IMAGE_GEN}/ush}
+   export C_IG_FIX=${C_IG_FIX:-${CONMON_IMAGE_GEN}/fix}
+   export C_IG_HTML=${C_IG_HTML:-${CONMON_IMAGE_GEN}/html}
+   export C_IG_SAVE_WORK=${C_IG_SAVE_WORK:-1}		# switch to save plot work directories
 
-#
-#  Definitions for internal reference
-#
-export CMON_DATA_EXTRACT=${CMON_DATA_EXTRACT:-${MY_CMON}/data_extract}
-export C_DE_EXEC=${C_DE_EXEC:-${CMON_DATA_EXTRACT}/exec}
-export C_DE_PARM=${C_DE_PARM:-${CMON_DATA_EXTRACT}/parm}
-export C_DE_SCRIPTS=${C_DE_SCRIPTS:-${CMON_DATA_EXTRACT}/ush}
+   export CONMON_PARM=${CONMON_PARM:-${MY_CONMON}/parm}
 
-export CMON_IMAGE_GEN=${CMON_IMAGE_GEN:-${MY_CMON}/image_gen}
-export C_IG_EXEC=${C_IG_EXEC:-${CMON_IMAGE_GEN}/exec}
-export C_IG_GSCRIPTS=${C_IG_GSCRIPTS:-${CMON_IMAGE_GEN}/gscripts}
-export C_IG_PARM=${C_IG_PARM:-${CMON_IMAGE_GEN}/parm}
-export C_IG_SCRIPTS=${C_IG_SCRIPTS:-${CMON_IMAGE_GEN}/ush}
-export C_IG_FIX=${C_IG_FIX:-${CMON_IMAGE_GEN}/fix}
-export C_IG_HTML=${C_IG_HTML:-${CMON_IMAGE_GEN}/html}
+   export HOMEconmon_shared=${HOMEconmon_shared:-${MY_CONMON}/nwprod/conmon_shared}
+   export HOMEgdas_conmon=${HOMEgdas_conmon:-${MY_CONMON}/nwprod/gdas_conmon}
+   export HOMEgfs_conmon=$HOMEgdas_conmon
 
-export CMON_PARM=${CMON_PARM:-${MY_CMON}/parm}
-. $CMON_PARM/ConMon.ver
+   export USHconmon=${USHconmon:-${HOMEconmon_shared}/ush}
+   export EXECconmon=${EXECconmon:-${HOMEconmon_shared}/exec}
 
-export HOMEgdascmon=${HOMEgdascmon:-${MY_CMON}/nwprod/gdas_cmon.v${gdas_cmon_ver}}
-export HOMEcmon=${HOMEcmon:-${MY_CMON}/nwprod/cmon_shared.v${cmon_shared_ver}}
-
+else
+   echo "ConMon_config is already loaded"
+fi

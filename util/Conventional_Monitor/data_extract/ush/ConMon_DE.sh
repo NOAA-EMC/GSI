@@ -1,93 +1,107 @@
-#!/bin/sh
+#!/bin/sh -l
 
 #--------------------------------------------------------------------
 #
 #  ConMon_DE.sh 
 #
-#  This is the top level data extractionscript for the Conventional 
+#  This is the top level data extraction script for the Conventional 
 #  Data Monitor (ConMon) package.  
 #
 #  C_DATDIR and C_GDATDIR (source directories for the cnvstat files) 
 #  point to the operational data (GDAS).  They can be overriden 
-#  either in your interactive shell or in a script in order to point 
-#  to another source.
+#  to process data from another source. 
 #--------------------------------------------------------------------
 
 #--------------------------------------------------------------------
 #  usage
 #--------------------------------------------------------------------
 function usage {
-  echo "Usage:  ConMon_DE.sh suffix [pdate]"
+  echo "Usage:  ConMon_DE.sh suffix [-p|--pdate pdate -r|--run gdas|gfs] -c|-cnv /path/to/cnvstat/dir"
   echo "            Suffix is the indentifier for this data source."
-  echo "            Pdate is the full YYYYMMDDHH cycle to run.  This 
-		    param is optional"
+  echo "            -p | --pdate yyyymmddcc to specify the cycle to be processed"
+  echo "              if unspecified the last available date will be processed"
+  echo "            -r | --run   the gdas|gfs run to be processed"
+  echo "              use only if data in TANKdir stores both runs, otherwise"
+  echo "	      gdas is assumed."
+  echo "            -c | --cnv  location of the cnvstat and other essential files"
+  echo " "
 }
 
+
 #--------------------------------------------------------------------
-#  CMon_DE.sh begins here
+#  ConMon_DE.sh begins here
 #--------------------------------------------------------------------
+set -ax
+echo "Begin ConMon_DE.sh"
 
 nargs=$#
-if [[ $nargs -lt 1 || $nargs -gt 2 ]]; then
+if [[ $nargs -lt 1 || $nargs -gt 7 ]]; then
    usage
    exit 1
 fi
 
-set -ax
-echo "Begin ConMon_DE.sh"
+
+#-----------------------------------------------
+#  Process command line arguments
+#
+
+export RUN=gdas
+
+while [[ $# -ge 1 ]]
+do
+   key="$1"
+   echo $key
+
+   case $key in
+      -p|--pdate)
+         export PDATE="$2"
+         shift # past argument
+      ;;
+      -r|--run)
+         export RUN="$2"
+         shift # past argument
+      ;;
+      -c|--cnv)
+         export CNVSTAT_LOCATION="$2"
+         shift # past argument
+      ;;
+      *)
+         #any unspecified key is CONMON_SUFFIX
+         export CONMON_SUFFIX=$key
+      ;;
+   esac
+
+   shift
+done
+
 
 this_file=`basename $0`
 this_dir=`dirname $0`
 
 
-export CMON_SUFFIX=$1
-
 #--------------------------------------------------------------------
-#  RUN_ENVIR:  can be either "dev" or "para".
+#  RUN_ENVIR:  can be "dev", "para", or "prod".
 #--------------------------------------------------------------------
-#export RUN_ENVIR=$2		
-export RUN_ENVIR=${RUN_ENVIR:-"dev"}
-
-#--------------------------------------------------------------------
-#  load modules
-#--------------------------------------------------------------------
-#. /usrx/local/Modules/3.2.9/init/ksh
-#module use /nwprod2/modulefiles
-#module load grib_util
-#module load prod_util
-#module load util_shared
+export RUN_ENVIR=${RUN_ENVIR:-"prod"}
 
 
-if [[ $nargs -ge 1 ]]; then
-   export PDATE=$2;
-   echo "PDATE set to $PDATE"
-fi
-
-echo CMON_SUFFIX = $CMON_SUFFIX
+echo CONMON_SUFFIX = $CONMON_SUFFIX
 echo RUN_ENVIR = $RUN_ENVIR
+export NET=${CONMON_SUFFIX}
 
 top_parm=${this_dir}/../../parm
 
-cmon_version_file=${cmon_version:-${top_parm}/ConMon.ver}
-if [[ -s ${cmon_version_file} ]]; then
-   . ${cmon_version_file}
-   echo "able to source ${cmon_version_file}"
+conmon_config=${conmon_config:-${top_parm}/ConMon_config}
+if [[ -s ${conmon_config} ]]; then
+   . ${conmon_config}
+   echo "able to source ${conmon_config}"
 else
-   echo "Unable to source ${cmon_version_file} file"
-   exit 2
-fi
-
-cmon_config=${cmon_config:-${top_parm}/ConMon_config}
-if [[ -s ${cmon_config} ]]; then
-   . ${cmon_config}
-   echo "able to source ${cmon_config}"
-else
-   echo "Unable to source ${cmon_config} file"
+   echo "Unable to source ${conmon_config} file"
    exit 3
 fi
 
 
-jobname=ConMon_de_${CMON_SUFFIX}
+jobname=ConMon_DE_${CONMON_SUFFIX}
 
 #--------------------------------------------------------------------
 # Create any missing directories
@@ -106,28 +120,11 @@ if [[ ! -d ${C_IMGNDIR} ]]; then
 fi
 
 
-tmpdir=${WORKverf_cmon}/de_cmon_${CMON_SUFFIX}
-rm -rf $tmpdir
-mkdir -p $tmpdir
-cd $tmpdir
-
-#--------------------------------------------------------------------
-# Check status of monitoring job.  Is it already running?  If so, exit
-# this script and wait for job to finish.
-
-if [[ $MY_MACHINE = "wcoss" ]]; then
-   count=`bjobs -u ${LOGNAME} -p -r -J "${jobname}" | wc -l`
-   if [[ $count -ne 0 ]] ; then
-      echo "Previous cmon jobs are still running for ${CMON_SUFFIX}" 
-      exit 5
-   fi
-fi
-
 #--------------------------------------------------------------------
 # Get date of cycle to process and/or previous cycle processed.
 #
 if [[ $PDATE = "" ]]; then
-   GDATE=`${C_DE_SCRIPTS}/find_cycle.pl 1 ${C_TANKDIR}`
+   GDATE=`${C_DE_SCRIPTS}/find_cycle.pl --cyc 1 --dir ${C_TANKDIR} --run $RUN `
    PDATE=`$NDATE +06 $GDATE`
 else
    GDATE=`$NDATE -06 $PDATE`
@@ -143,44 +140,75 @@ export PDYm6h=`echo $GDATE|cut -c1-8`
 echo PDYm6h = $PDYm6h
 
 
-export CNVSTAT_LOCATION=${CNVSTAT_LOCATION:-/gpfs/hps/nco/ops/com/gfs/prod}
-export C_DATDIR=${C_DATDIR:-${CNVSTAT_LOCATION}/gdas.$PDY}
-export C_GDATDIR=${C_GDATDIR:-${CNVSTAT_LOCATION}/gdas.$PDYm6h}
+if [[ $MY_MACHINE == "hera" ]]; then
+   export CNVSTAT_LOCATION=${CNVSTAT_LOCATION:-/scratch1/NCEPDEV/da/Edward.Safford/noscrub/test_data}
+else
+   export CNVSTAT_LOCATION=${CNVSTAT_LOCATION:-${COMROOTp3}/gfs/${RUN_ENVIR}}
+fi
+
+export COMPONENT=${COMPONENT:-atmos}
+
+export C_DATDIR=${C_DATDIR:-${CNVSTAT_LOCATION}/${RUN}.${PDY}/${CYC}/${COMPONENT}}
+if [[ ! -d ${C_DATDIR} ]]; then
+   export C_DATDIR=${CNVSTAT_LOCATION}/${RUN}.${PDY}/${CYC}
+fi
+
+export C_GDATDIR=${C_GDATDIR:-${CNVSTAT_LOCATION}/${RUN}.${PDYm6h}/${GCYC}/${COMPONENT}}
+if [[ ! -d ${C_GDATDIR} ]]; then
+   export C_GDATDIR=${CNVSTAT_LOCATION}/${RUN}.${PDYm6h}/${GCYC}
+fi
 
 export C_COMIN=${C_DATDIR}
 export C_COMINm6h=${C_GDATDIR}
 
-export DATA_IN=${WORKverf_cmon}
-export CMON_WORK_DIR=${CMON_WORK_DIR:-${C_STMP_USER}/cmon_${CMON_SUFFIX}}
+export CONMON_WORK_DIR=${CONMON_WORK_DIR:-${C_STMP_USER}/${CONMON_SUFFIX}}/${RUN}/conmon
 pid=$$
-export jobid=cmon_DE_${CMON_SUFFIX}.${pid}
+export jobid=DE_${PDATE}.${pid}
 
-#--------------------------------------------------------------------
-# If data is available, export variables, and submit driver for
-# plot jobs.
+
+
+#---------------
+#  cnvstat file
 #
-# Modification here is for prhw14 and prhs13 parallels which only
-# generate grib2 files for the analysis and forecast files.  The 
-# operational GDAS creates grib and grib2 files.  The Cmon package
-# was originally designed to use grib files, but it's clear that
-# grib2 will be the only standard with the next major release of 
-# GSI. 
-
-export grib2=${grib2:-0}
-export cnvstat="${C_DATDIR}/gdas.t${CYC}z.cnvstat"
+export cnvstat="${C_DATDIR}/${CYC}/gdas.t${CYC}z.cnvstat"
 if [[ ! -s ${cnvstat} ]]; then
-   export cnvstat=${C_DATDIR}/cnvstat.gdas.${PDATE}
+   export cnvstat="${C_DATDIR}/gdas.t${CYC}z.cnvstat"
 fi
 
-export pgrbf00="${C_DATDIR}/gdas.t${CYC}z.pgrbf00"
+#---------------
+# analysis file
+#
+export pgrbf00="${C_DATDIR}/gdas.t${CYC}z.pgrb2.0p25.f000"
 if [[ ! -s ${pgrbf00} ]]; then
-   export pgrbf00=${C_DATDIR}/pgbanl.gdas.${PDATE}
+   export pgrbf00="${C_DATDIR}/gdas.t${CYC}z.pgrb2.1p00.anl"
 fi
 
-export pgrbf06="${C_GDATDIR}/gdas.t${GCYC}z.pgrbf06"
+#---------------
+# guess file
+#
+export pgrbf06="${C_GDATDIR}/gdas.t${GCYC}z.pgrb2.0p25.f006"
 if [[ ! -s ${pgrbf06} ]]; then
-   export pgrbf06=${C_DATDIR}/pgbf06.gdas.${GDATE}
+   export pgrbf06="${C_GDATDIR}/gdas.t${GCYC}z.pgrb2.1p00.f006"
 fi
+
+#---------------------------------------------
+# override the default convinfo definition
+# if there's a copy in C_TANKDIR/info
+#
+if [[ -e ${C_TANKDIR}/info/global_convinfo.txt ]]; then
+   echo " overriding convinfo definition"
+   export convinfo=${C_TANKDIR}/info/global_convinfo.txt
+fi
+
+#---------------------------------------------
+# override the default conmon_base definition
+# if there's a copy in C_TANKDIR/info
+#
+if [[ -e ${C_TANKDIR}/info/gdas_conmon_base.txt ]]; then
+   echo " overriding conmon_base definition"
+   export conmon_base=${C_TANKDIR}/info/gdas_conmon_base.txt
+fi
+
 
 exit_value=0
 if [ -s $cnvstat  -a -s $pgrbf00 -a -s $pgrbf06 ]; then
@@ -189,13 +217,26 @@ if [ -s $cnvstat  -a -s $pgrbf00 -a -s $pgrbf06 ]; then
    #------------------------------------------------------------------
    if [ -s $pgrbf06 ]; then
 
-      if [[ $MY_MACHINE = "wcoss" ]]; then
-        $SUB -q $JOB_QUEUE -P $PROJECT -o $C_LOGDIR/DE.${PDY}.${CYC}.log -M 500 -R affinity[core] -W 0:25 -J ${jobname} -cwd $PWD ${HOMEgdascmon}/jobs/JGDAS_VCMON
+      echo "Ok to proceed with DE"
+      logdir=${C_LOGDIR}
+      if [[ ! -d ${logdir} ]]; then
+         mkdir -p ${logdir}
+      fi
 
-      elif [[ $MY_MACHINE = "theia" ]]; then
-         $SUB -A $ACCOUNT --ntasks=1 --time=00:20:00 \
+      logfile=${logdir}/DE.${PDY}.${CYC}.log
+      if [[ -e ${logfile} ]]; then
+         rm -f ${logfile}
+      fi
+
+      if [[ $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "wcoss_c" ]]; then
+        $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 1500 \
+		-R affinity[core] -W 0:50 -J ${jobname} \
+		-cwd $PWD ${HOMEgdas_conmon}/jobs/JGDAS_ATMOS_CONMON
+
+      elif [[ $MY_MACHINE = "hera" ]]; then
+         $SUB -A $ACCOUNT --ntasks=1 --time=00:30:00 \
 		-p service -J ${jobname} -o $C_LOGDIR/DE.${PDY}.${CYC}.log \
-		$HOMEgdascmon/jobs/JGDAS_VCMON
+		${HOMEgdas_conmon}/jobs/JGDAS_ATMOS_CONMON
       fi
 
    else
@@ -208,11 +249,6 @@ else
 fi
 
 
-#--------------------------------------------------------------------
-# Clean up and exit
-#cd $tmpdir
-#cd ../
-#rm -rf $tmpdir
 
 echo "End ConMon_DE.sh"
 exit ${exit_value}

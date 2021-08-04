@@ -305,6 +305,7 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
 ! Close unit to bufr file
   deallocate(cdata_all)
   call closbf(lunin)
+  close(lunin)
 
 ! End of routine
   return

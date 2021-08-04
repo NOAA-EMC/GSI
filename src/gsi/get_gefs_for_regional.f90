@@ -116,7 +116,6 @@ subroutine get_gefs_for_regional
   character(len=*),parameter::myname='get_gefs_for_regional'
   real(r_kind) bar_norm,sig_norm,kapr,kap1,trk
   integer(i_kind) iret,i,j,k,k2,n,mm1,iderivative
-  integer(i_kind) mype_out
   integer(i_kind) ic2,ic3,it
   integer(i_kind) ku,kv,kt,kq,koz,kcw,kz,kps
   character(255) filename,filelists(ntlevs_ens)
@@ -188,6 +187,7 @@ subroutine get_gefs_for_regional
   real(r_kind), pointer :: ges_tv(:,:,:)=>NULL()
   real(r_kind), pointer :: ges_q (:,:,:)=>NULL()
   logical :: print_verbose
+  real(r_kind), allocatable :: ges_z_ens(:,:)
 
   print_verbose=.false.
   if(verbose)print_verbose=.true.
@@ -375,8 +375,6 @@ subroutine get_gefs_for_regional
         gfshead%idsl= 1
         gfshead%idvc = 2
 
-        ! FV3GFS write component does not include JCAP, infer from DIMY-2
-        njcap=latb-2
 
         nlat_gfs=gfshead%latb+2
         nlon_gfs=gfshead%lonb
@@ -384,7 +382,7 @@ subroutine get_gefs_for_regional
 
         jcap_gfs=gfshead%latb-2
 
-        if (mype==mype_out) write(6,*)'GESINFO:  Read NCEP FV3GFS netCDF ', &
+        if (mype==0) write(6,*)'GESINFO:  Read NCEP FV3GFS netCDF ', &
            'format file, ',trim(filename)
         ! hard code nvcoord to be 2
         gfshead%nvcoord=2 ! ak and bk
@@ -597,6 +595,23 @@ subroutine get_gefs_for_regional
   st_eg=zero ; vp_eg=zero ; t_eg=zero ; rh_eg=zero ; oz_eg=zero ; cw_eg=zero 
   p_eg_nmmb=zero
 
+!
+! prepare terrain height
+!
+  allocate(ges_z_ens(grd_mix%lat2,grd_mix%lon2))
+  if (dual_res) then
+     allocate ( tmp_ens(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,1) )
+     allocate ( tmp_anl(lat2,lon2,nsig,1) )
+     tmp_anl=0.0_r_kind
+     tmp_anl(:,:,1,1)=ges_z(:,:)
+     call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens,regional)
+     ges_z_ens(:,:)=tmp_ens(:,:,1,1)
+     deallocate(tmp_ens)
+     deallocate(tmp_anl)
+  else
+     ges_z_ens(:,:)=ges_z(:,:)
+  endif
+
 !                begin loop over ensemble members
 
   rewind(10)
@@ -782,7 +797,7 @@ subroutine get_gefs_for_regional
      ilook=-1 ; jlook=-1
      allocate(prsl1000(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
      prsl1000=1000._r_kind*prsl
-     call compute_nmm_surfacep ( ges_z(:,:), zbarl,prsl1000, &
+     call compute_nmm_surfacep ( ges_z_ens(:,:), zbarl,prsl1000, &
                                  psfc_out,grd_mix%nsig,grd_mix%lat2,grd_mix%lon2, &
                                  ilook,jlook)
      deallocate(tt,zbarl,prsl1000)
@@ -936,6 +951,7 @@ subroutine get_gefs_for_regional
 
   end do   !  end loop over ensemble members.
 
+  deallocate(ges_z_ens)
 
 !   next, compute mean of ensembles.
 

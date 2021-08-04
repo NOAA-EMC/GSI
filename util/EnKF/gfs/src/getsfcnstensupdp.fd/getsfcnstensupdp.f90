@@ -43,6 +43,9 @@ program getsfcnstensupdp
                                 lun_sfcgcy=23,lun_nstanl=61,lun_sfcanl=62
   integer(i_kind), parameter :: idrt=4
 
+! Declare externals
+  external :: w3tagb, splat, int2_msk_glb_prep, int22_msk_glb, dtzm_2d, w3tage
+
   character(len=80) :: fname_dtfanl,fname_nstges,fname_sfcgcy,fname_nstanl,fname_sfcanl
   character(len=3)  :: charnanal
   character(len=8)  :: charbuf
