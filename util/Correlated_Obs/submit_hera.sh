@@ -11,7 +11,7 @@
 #SBATCH --ntasks-per-node=16
 
 export OMP_NUM_THREADS=$SLURM_NTASKS
-corrdir=/scratch4/NCEPDEV/da/save/${USER}/GSI/ProdGSI/util/Correlated_Obs
+corrdir=$PWD
 cd ${corrdir}
 ./run.sh 
 

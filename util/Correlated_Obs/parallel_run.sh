@@ -1,16 +1,17 @@
 #!/bin/sh
 #date of first radstat file
-bdate=2014040700
+bdate=2020100100
 #date of last radstat file
-edate=2014041718
+edate=2020101418
 #instrument name, as it would appear in the title of a diag file
 #instr=airs_aqua
-instr=iasi_metop-a
+#instr=cris-fsr_n20
+instr=iasi_metop-b
 #location of radstat file
-exp=prCtl
-diagdir=/scratch4/NCEPDEV/da/noscrub/${USER}/archive/${exp}
+exp=v16rt2
+diagdir=/scratch1/NCEPDEV/da/${USER}/archive/${exp}
 #working directory
-wrkdir=/scratch4/NCEPDEV/stmp4/${USER}/corr_obs
+wrkdir=/scratch1/NCEPDEV/stmp4/${USER}/corr_obs_${instr}
 #location the covariance matrix is saved to
 savdir=$diagdir
 #FOV type- 0 for all, 1 for sea, 2 for land, 3 for snow, 
@@ -23,12 +24,18 @@ cloud=2
 angle=30
 #option to output the channel wavenumbers
 wave_out=.false.
-#option to output the assigned observation errors
+#option to output the observation errors
 err_out=.false.
 #option to output the correlation matrix
 corr_out=.false.
 #condition number to recondition Rcov.  Set <0 to not recondition
-kreq=-150
+kreq=-200
+#inflation factors, for regular channels, surface channels and water vapor channels
+#infl is applied to all channels if using binary files or a MW instrument
+#set factors equal to 1 to not inflate, or if this channel group is not assimilated
+infl=1.0
+inflsurf=1.0
+inflwv=1.0
 #method to recondition:  1 for trace method, 2 for Weston's second method
 method=1
 #method to compute covariances: 1 for Hollingsworth-Lonnberg, 2 for Desroziers
@@ -45,24 +52,24 @@ chan_set=0
 num_proc=11
 #number of processors to run cov_calc on
 NP=16
-#wall time to unpack radstat files format hh:mm:ss for theia, hh:mm for wcoss
+#wall time to unpack radstat files format hh:mm:ss for hera, hh:mm for wcoss
 unpack_walltime=02:30:00
-#wall time to run cov_calc hh:mm:ss for theia, hh:mm for wcoss
+#wall time to run cov_calc hh:mm:ss for hera, hh:mm for wcoss
 wall_time=01:00:00
 #requested memory in MB to unpack radstats, on WCOSS/Cray.  Increases with decreasing $num_proc
 #should be at least 15
 Umem=50
 #requested memory in MB for cov_calc, on WCOSS/Cray
 Mem=50
-#job account name (needed on theia only)
+#job account name (needed on hera only)
 account=da-cpu
 #job project code (needed on wcoss only)
 project_code=GFS-T2O
-#machine-theia or wcoss, all lower case
-machine=theia
+#machine-hera or wcoss, all lower case
+machine=hera
 #netcdf or binary diag files-0 for binary, 1 for netcdf
-netcdf=0
-ndate=/scratch4/NCEPDEV/da/save/Michael.Lueken/nwprod/util/exec/ndate
+netcdf=1
+ndate=/scratch1/NCEPDEV/da/Kristen.Bathmann/Analysis_util/ndate
 #ndate=/gpfs/dell2/emc/modeling/noscrub/Kristen.Bathmann/ndate
 
 ####################################################################
@@ -148,7 +155,7 @@ njobs=$jobs_per_proc
 EOF
 chmod +rwx jobchoice.sh
 
-if [ $machine = theia ] ; then
+if [ $machine = hera ] ; then
 cat << EOF > jobarray.sh
 #!/bin/sh
 #SBATCH -A $account
@@ -181,11 +188,11 @@ echo ${LSB_JOBINDEX}
 EOF
 bsub < jobarray.sh
 else
-   echo cannot submit job, not on theia or wcoss
+   echo cannot submit job, not on hera or wcoss
    exit 1
 fi
 #check if shifts are needed
-if [ $machine = theia ] ; then
+if [ $machine = hera ] ; then
 cat << EOF > params.sh
 #!/bin/sh
 #SBATCH -A $account
@@ -228,7 +235,7 @@ else
    exit 1
 fi
 #run cov_calc
-if [ $machine = theia ] ; then
+if [ $machine = hera ] ; then
 cat << EOF > params.sh
 #!/bin/sh
 #SBATCH -A $account
@@ -253,6 +260,9 @@ wave_out=$wave_out
 err_out=$err_out
 corr_out=$corr_out
 kreq=$kreq
+infl=$infl
+inflsurf=$inflsurf
+inflwv=$inflwv
 method=$method
 cov_method=$cov_method
 time_sep=$time_sep
@@ -293,6 +303,9 @@ wave_out=$wave_out
 err_out=$err_out
 corr_out=$corr_out
 kreq=$kreq
+infl=$infl
+inflsurf=$inflsurf
+inflwv=$inflwv
 method=$method
 cov_method=$cov_method
 time_sep=$time_sep
