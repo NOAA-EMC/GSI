@@ -717,7 +717,6 @@ subroutine definecoef_regular_grids(nx,ny,nxa_inout,nya_inout,grid_lon,grid_lont
   real(r_kind),allocatable,dimension(:,:) :: xc,yc,zc,gclat,gclon,gcrlat,gcrlon,rlon_in,rlat_in
   real(r_kind),allocatable,dimension(:,:) :: glon_an,glat_an
   real(r_kind) xcent,ycent,zcent,rnorm,centlat,centlon
-  real(r_kind) adlon,adlat,alon,clat,clon
   integer(i_kind) nxout,nyout
   integer(i_kind) nlonh,nlath,nxh,nyh
   integer(i_kind) ib1,ib2,jb1,jb2,jj
@@ -788,36 +787,21 @@ subroutine definecoef_regular_grids(nx,ny,nxa_inout,nya_inout,grid_lon,grid_lont
   nya_inout=nyout  ! for compatiability 
   if(mype==0) print *,'nlatin,nlonin = ',nlatin,nlonin
 
-!--------------------------obtain analysis grid spacing
-  dlat=(maxval(gcrlat)-minval(gcrlat))/(ny-1)
-  dlon=(maxval(gcrlon)-minval(gcrlon))/(nx-1)
-  adlat=dlat*grid_ratio_fv3_regional
-  adlon=dlon*grid_ratio_fv3_regional
-
-!-------setup analysis A-grid; find center of the domain
-  nlonh=nlonin/2
-  nlath=nlatin/2
-
-  if(nlonh*2==nlonin)then
-     clon=adlon/two
-     cx=half
-  else
-     clon=adlon
-     cx=one
-  endif
-
-  if(nlath*2==nlatin)then
-     clat=adlat/two
-     cy=half
-  else
-     clat=adlat
-     cy=one
-  endif
   allocate(rlat_in(nlatin,nlonin),rlon_in(nlatin,nlonin))
   region_lon_in=region_lon_in*rad2deg
   region_lat_in=region_lat_in*rad2deg
   call rotate2deg(region_lon_in,region_lat_in,rlon_in,rlat_in, &
                     centlon,centlat,nlatin,nlonin)
+
+
+
+
+!--------------------------obtain analysis grid spacing
+  dlat=(maxval(gcrlat)-minval(gcrlat))/(ny-1)
+  dlon=(maxval(gcrlon)-minval(gcrlon))/(nx-1)
+ 
+
+
 
 !
 !-----setup analysis A-grid from center of the domain
@@ -848,22 +832,12 @@ subroutine definecoef_regular_grids(nx,ny,nxa_inout,nya_inout,grid_lon,grid_lont
 
 !!!!  define analysis A grid  !!!!!!!!!!!!!
 
-
-
-  do j=1,nxout
-     xa_a(j)=(float(j-nlonh)-cx)*grid_ratio_fv3_regional
-  end do
-  do i=1,nyout
-     ya_a(i)=(float(i-nlath)-cy)*grid_ratio_fv3_regional
-  end do
-
   index0=1
-!cltthinkdeb should region_lon_in be in degree or not?
   do j=1,nxa_inout
-     xa_a(j)= (rlon_in(index0,j)-clon)/dlon
+     xa_a(j)= rlon_in(index0,j)/dlon
   end do
   do i=1,nya_inout
-     ya_a(i)= (rlat_in(i,index0)-clat)/dlon
+     ya_a(i)= rlat_in(i,index0)/dlon
   end do
 
 !!!!!compute fv3 to A grid interpolation parameters !!!!!!!!!
