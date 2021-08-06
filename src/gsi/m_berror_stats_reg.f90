@@ -468,7 +468,7 @@ end subroutine berror_read_bal_reg
      do n=1,nrf
      !print*,"Decide if Var in BEC file: ",n,nrf,var,cvars(n)
         if (var==cvars(n)) then
-           print*,"Found Var in BEC file: ",n,var,nrf_err(n)
+           print*,"Found Var in BEC file: ",n,var
            nrf_err(n)=.true.
            loc=n
            exit

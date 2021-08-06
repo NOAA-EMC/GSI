@@ -172,7 +172,7 @@
        in_fname,out_fname,incr_fname, &
 !Hongli
        laeroana_gocart,laeroana_fv3cmaq,laod_crtm_cmaq,crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
-       iaod_crtm_cmaq,iaod_recs_cmaq, raod_radius_mean_scale,raod_radius_std_scale, &
+       iaod_crtm_cmaq,iaod_recs_cmaq, icvt_cmaq_fv3, raod_radius_mean_scale,raod_radius_std_scale, &
        l_aoderr_table, aod_qa_limit, luse_deepblue, lread_ext_aerosol
   use chemmod, only : wrf_pm2_5,aero_ratios
   use gfs_stratosphere, only: init_gfs_stratosphere,use_gfs_stratosphere,pblend0,pblend1
@@ -1232,7 +1232,7 @@
        in_fname,out_fname,incr_fname,&
        laeroana_gocart, laeroana_fv3cmaq,l_aoderr_table, aod_qa_limit, & 
        laod_crtm_cmaq, crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
-       iaod_crtm_cmaq,iaod_recs_cmaq, &
+       iaod_crtm_cmaq,iaod_recs_cmaq,icvt_cmaq_fv3, &
        raod_radius_mean_scale,raod_radius_std_scale, luse_deepblue,&
        aero_ratios,wrf_pm2_5, lread_ext_aerosol
 

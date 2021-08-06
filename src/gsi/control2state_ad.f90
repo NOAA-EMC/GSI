@@ -58,6 +58,7 @@ use gsi_4dvar, only: nsubwin, lsqrtb
 use gridmod, only: regional,lat2,lon2,nsig,twodvar_regional
 use jfunc, only: nsclen,npclen,ntclen
 use cwhydromod, only: cw2hydro_ad
+use amassaeromod, only: amass2aero_ad 
 use cwhydromod, only: cw2hydro_ad_hwrf
 use gsi_bundlemod, only: gsi_bundlecreate
 use gsi_bundlemod, only: gsi_bundle
@@ -70,6 +71,7 @@ use gsi_metguess_mod, only: gsi_metguess_get
 use mpeu_util, only: getindex
 use constants, only: max_varname_length,zero
 use gridmod, only: nems_nmmb_regional
+use chemmod, only: naero_cmaq_fv3,aeronames_cmaq_fv3,imodes_cmaq_fv3,icvt_cmaq_fv3
 
 implicit none
 
@@ -130,6 +132,7 @@ real(r_kind),allocatable,dimension(:,:,:):: uland,vland,uwter,vwter
 
 logical :: do_getuv,do_tv_to_tsen_ad,do_normal_rh_to_q_ad,do_getprs_ad,do_cw_to_hydro_ad
 logical :: do_cw_to_hydro_ad_hwrf
+
 
 !******************************************************************************
 
@@ -322,19 +325,27 @@ do jj=1,nsubwin
    end if
 
 !  Same one-to-one map for chemistry-vars; take care of them together
+      print*,"control2state_ad: ngases and aeronames_cmaq_fv3= ",ngases,naero_cmaq_fv3
+      print*,"control2state_ad: cvars3d= ",cvars3d,icvt_cmaq_fv3 
+   if(icvt_cmaq_fv3.eq.2)then
+      call amass2aero_ad(rval(jj),wbundle,aeronames_cmaq_fv3,naero_cmaq_fv3)
+   else
    do ic=1,ngases
       id=getindex(cvars3d,gases(ic))
+      print*,"control2sate_ad: gases= ",ic, id, gases(ic)
       if (id>0) then
           call gsi_bundlegetpointer (rval(jj),gases(ic),rv_rank3,istatus)
           call gsi_bundleputvar     (wbundle, gases(ic),rv_rank3,istatus)
+          print*,"control2sate_ad: gases_sum= ",gases(ic),sum(rv_rank3)
       endif
+ 
       id=getindex(cvars2d,gases(ic))
       if (id>0) then
           call gsi_bundlegetpointer (rval(jj),gases(ic),rv_rank2,istatus)
           call gsi_bundleputvar     (wbundle, gases(ic),rv_rank2,istatus)
       endif
    enddo
-
+   end if
    if (icgust>0) then
       call gsi_bundlegetpointer (rval(jj),'gust' ,rv_gust, istatus)
       call gsi_bundleputvar ( wbundle, 'gust', rv_gust, istatus )

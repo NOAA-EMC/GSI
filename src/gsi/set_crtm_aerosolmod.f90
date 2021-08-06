@@ -39,7 +39,7 @@ contains
 !   
 !   Updated based on set_crtm_aerosol
 !
-! abstract: Set CMAQ aerosal for CRTM Aerosol object 
+! abstract: Set CMAQ aerosol for CRTM Aerosol object 
 !
 !
 !   input argument list:
@@ -116,7 +116,7 @@ contains
 
     do i = 1, na_crtm
        !write(6,*)"set_crtm_aerosolmod_conc= ",trim(aero_name(i))," ",sum(aero_conc(:,i))
-       if (laod_crtm_cmaq) then
+       !if (laod_crtm_cmaq) then
        ! assign aerosol type
        if (crtm_aerosol_model .eq."CMAQ")then
        select case ( trim(aero_name(i)) )
@@ -144,9 +144,9 @@ contains
              aerosol(i)%type  = INSOLUBLE_AEROSOL ! INVALID_AEROSOL 
        end select
        end if
-       else
+       !else
        if (crtm_aerosol_model .eq."GOCART" .or. crtm_aerosol_model .eq."CRTM")then
-       !!! assign cmaq aerosal to crtm_gocart 
+       !!! assign cmaq aerosol to crtm_gocart 
        !!! GOCCART is renamed to CRTM in an udpated CRTM2.4 repo. 
 !Tang, Y., Pagowski, M., Chai, T., Pan, L., Lee, P., Baker, B., Kumar, R., Delle
 !Monache, L., Tong, D., and Kim, H.-C.: A case study of aerosol data
@@ -209,16 +209,16 @@ contains
           case ('alvoo1i','alvoo2i','asvoo1i','asvoo2i')
              aerosol(i)%type  = 4
           case ('aivpo1j','alvpo1i','alvpo1j','aothri','aothrj','asvpo1i','asvpo1j','asvpo2i','asvpo2j','asvpo3j','atol1j','axyl1j','axyl2j','axyl3j')
-             aerosol(i)%type  = 3
+             aerosol(i)%type  = 4 !3
           case default
-          print*,"GOCART-GEOS5: AERO TYPE DEFAULT (NOT DEFINED) =3 !!! ",trim(aero_name(i))
-             aerosol(i)%type  = 3 ! INVALID_AEROSOL
+          print*,"GOCART-GEOS5: AERO TYPE DEFAULT (NOT DEFINED) =4 !!! ",trim(aero_name(i))
+             aerosol(i)%type  = 4 !3 ! INVALID_AEROSOL
              !stop
           end select
           !print*,"GOCART-GEOS5: ",aerosol(i)%type, trim(aero_name(i))
        end if ! GOCART-GEOS5
 
-       end if ! laod_crtm_cmaq
+       !end if ! laod_crtm_cmaq
        !write(6,*)"set_crtm_aerosolmod: ",crtm_aerosol_model,aerosol(i)%type, trim(aero_name(i))
        !write(6,*)"set_crtm_aerosolmod_i= ",i,aero_name(i)," ",def_diam(imodes_cmaq_fv3(i)),exp(2.5*(log(def_sigma_g(imodes_cmaq_fv3(i))))**2)
 
@@ -228,14 +228,16 @@ contains
           irh = max( 1, min( 99, irh ) ) ! set bounds
 
           aerosol(i)%concentration(k) = max(tiny_r_kind, aero_conc(k,i))
-
+          !ensure sensitivity at lowest model level
+          if(k.eq.km) aerosol(i)%concentration(k) = max(1.0e-8_r_kind,aero_conc(k,i))
           ! calculate effective radius; diam to radius (0.5)
           ! raod_radius_mean_scale,raod_radius_std_scale
-          aerosol(i)%effective_radius(k) = raod_radius_mean_scale*0.5*def_diam(i)*exp(2.5*(log(def_sigma_g(imodes_cmaq_fv3(i))))**2) 
+          aerosol(i)%effective_radius(k) = raod_radius_mean_scale*0.5*def_diam(imodes_cmaq_fv3(i))*exp(2.5*(log(def_sigma_g(imodes_cmaq_fv3(i))))**2) 
           aerosol(i)%effective_variance(k) = raod_radius_std_scale*def_sigma_g(imodes_cmaq_fv3(i)) 
 
        enddo
-
+       
+       !write(6,*)"crtm_aero_kgm2= ",i,aero_name(i), sum( aerosol(i)%concentration(:))
     enddo  ! na
 end    subroutine set_crtm_aerosol_fv3_cmaq_regional
 

@@ -56,7 +56,7 @@ module chemmod
   public :: l_aoderr_table
 !Hongli Wang
   public :: laeroana_gocart,laeroana_fv3cmaq,crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
-            laod_crtm_cmaq,iaod_crtm_cmaq,iaod_recs_cmaq,raod_radius_mean_scale,raod_radius_std_scale
+            laod_crtm_cmaq,iaod_crtm_cmaq,iaod_recs_cmaq,icvt_cmaq_fv3, raod_radius_mean_scale,raod_radius_std_scale
   public :: visindx_cmaq_fv3,visindx_large_cmaq_fv3,humfac,humfac_large,humfac_ss,aemolwt_cmaq_fv3
   public :: visindx_recs_fv3,humfac_recs,humfac_recs_ss
   public :: ppmv_conv
@@ -78,6 +78,7 @@ module chemmod
   integer(i_kind) :: iaod_crtm_cmaq
   integer(i_kind) :: aod_qa_limit  ! qa >=  aod_qa_limit will be retained
   integer(i_kind) :: iaod_recs_cmaq
+  integer(i_kind) :: icvt_cmaq_fv3
   real(r_kind)    :: raod_radius_mean_scale,raod_radius_std_scale
   real(r_kind)    :: ppmv_conv = 96.06_r_kind/28.964_r_kind*1.0e+3_r_kind
   logical :: wrf_pm2_5
@@ -516,6 +517,7 @@ contains
     l_aoderr_table = .false.
     iaod_crtm_cmaq = 0
     iaod_recs_cmaq  = 0
+    icvt_cmaq_fv3   = 1
     raod_radius_mean_scale = 1.0
     raod_radius_std_scale  = 1.0
     aod_qa_limit = 3

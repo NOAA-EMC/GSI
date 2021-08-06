@@ -63,6 +63,7 @@ use gsi_4dvar, only: nsubwin, l4dvar, lsqrtb, ladtest_obs
 use gridmod, only: regional,lat2,lon2,nsig, nlat, nlon, twodvar_regional            
 use jfunc, only: nsclen,npclen,ntclen
 use cwhydromod, only: cw2hydro_tl
+use amassaeromod, only: amass2aero_tl
 use cwhydromod, only: cw2hydro_tl_hwrf
 use gsi_bundlemod, only: gsi_bundlecreate
 use gsi_bundlemod, only: gsi_bundle
@@ -78,6 +79,7 @@ use constants, only : max_varname_length, zero
 use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
 use general_commvars_mod, only: s2g_cv
 use gridmod, only: nems_nmmb_regional
+use chemmod, only: naero_cmaq_fv3,aeronames_cmaq_fv3,imodes_cmaq_fv3,icvt_cmaq_fv3
 implicit none
   
 ! Declare passed variables  
@@ -141,7 +143,9 @@ real(r_kind),allocatable,dimension(:,:,:):: uland,vland,uwter,vwter
 
 logical :: do_getprs_tl,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,do_cw_to_hydro
 logical :: do_cw_to_hydro_hwrf
+!logical :: do_amass_to_aero_fv3cmaq
 
+!do_amass_to_aero_fv3cmaq=.true.
 !******************************************************************************
 
 if (lsqrtb) then
@@ -152,6 +156,13 @@ if (nsubwin/=1 .and. .not.l4dvar) then
    write(6,*)trim(myname),': error 3dvar',nsubwin,l4dvar
    call stop2(107)
 end if
+
+! Decide CVT of PM2.5/AOD DA for FV3LAM CMAQ
+!if (icvt_cmaq.eq.1) then 
+!do_amass_to_aero_fv3cmaq=.false
+!elseif(icvt_cmaq.eq.2)then
+!do_amass_to_aero_fv3cmaq=.true.
+!end if
 
 ! Inquire about cloud-vars 
 call gsi_metguess_get('clouds::3d',nclouds,istatus)
@@ -403,11 +414,28 @@ do jj=1,nsubwin
    end if
 
 !  Same one-to-one map for chemistry-vars; take care of them together 
+!naero_cmaq_fv3,aeronames_cmaq_fv3,imodes_cmaq_fv3
+      print*,"control2state: ngases and aeronames_cmaq_fv3= ",ngases,naero_cmaq_fv3
+      print*,"control2state: cvars3d= ",cvars3d,icvt_cmaq_fv3
+!   if (do_amass_to_aero_fv3cmaq) then
+   if(icvt_cmaq_fv3.eq.2)then
+      call amass2aero_tl(sval(jj),wbundle,aeronames_cmaq_fv3,naero_cmaq_fv3)
+   else
    do ic=1,ngases
+      print*,"control2state: ",ic,gases(ic),aeronames_cmaq_fv3(ic) 
       id=getindex(cvars3d,gases(ic))
       if (id>0) then
           call gsi_bundlegetpointer (sval(jj),gases(ic),sv_rank3,istatus)
           call gsi_bundlegetvar     (wbundle, gases(ic),sv_rank3,istatus)
+      !else
+      !    call gsi_bundlegetpointer (sval(jj),gases(ic),sv_rank3,istatus) 
+      !    if(imodes_cmaq_fv3(ic).eq.1)then
+      !    call gsi_bundlegetvar     (wbundle, "amassi",sv_rank3,istatus)
+      !    elseif(imodes_cmaq_fv3(ic).eq.2)then
+      !    call gsi_bundlegetvar     (wbundle, "amassj",sv_rank3,istatus)
+      !    else 
+      !    call gsi_bundlegetvar     (wbundle, "amassk",sv_rank3,istatus)
+      !    end if
       endif
       id=getindex(cvars2d,gases(ic))
       if (id>0) then
@@ -415,6 +443,7 @@ do jj=1,nsubwin
           call gsi_bundlegetvar     (wbundle, gases(ic),sv_rank2,istatus)
       endif
    enddo
+   end if ! do_amass_to_aero_fv3cmaq
 
 !$omp end parallel sections
 
