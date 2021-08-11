@@ -85,14 +85,6 @@ echo $area
 #-------------------------------------------------------------------
 top_parm=${this_dir}/../../parm
 
-export RADMON_VERSION=${RADMON_VERSION:-${top_parm}/radmon.ver}
-if [[ -s ${RADMON_VERSION} ]]; then
-   . ${RADMON_VERSION}
-else
-   echo "Unable to source ${RADMON_VERSION} file"
-   exit 2
-fi
-
 export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 if [[ -s ${RADMON_CONFIG} ]]; then
    . ${RADMON_CONFIG}
@@ -108,8 +100,6 @@ else
    exit 2
 fi
 
-. ${DE_PARM}/data_extract_config
-
 
 
 REGIONAL_RR=${REGIONAL_RR:-0}
@@ -122,7 +112,7 @@ echo "CYCLE_INTERVAL = $CYCLE_INTERVAL"
 #    EDATE is ending date for 30/60 day range (always use 00 cycle) 
 #-------------------------------------------------------------------
 echo "TANKverf = $TANKverf"
-EDATE=`${DE_SCRIPTS}/find_cycle.pl --cyc 1 --dir ${TANKverf} --run $RUN`
+EDATE=`${DE_SCRIPTS}/nu_find_cycle.pl --cyc 1 --dir ${TANKverf} --run $RUN`
 echo $EDATE
 
 sdate=`echo $EDATE|cut -c1-8`
@@ -147,9 +137,10 @@ if [[ $SINGLE_SAT -eq 0 ]]; then
       SATYPE=`cat ${TANKverf}/info/SATYPE.txt`
    else
       PDY=`echo $EDATE|cut -c1-8`
+      CYC=`echo $EDATE|cut -c9-10`
 
       if [[ $TANK_USE_RUN -eq 1 ]]; then
-         testdir=${TANKverf}/${RUN}.${PDY}/radmon
+         testdir=${TANKverf}/${RUN}.${PDY}/${CYC}/radmon
       else
          testdir=${TANKverf}/radmon.${PDY}
       fi
@@ -219,9 +210,10 @@ for type in ${SATYPE}; do
       fi
 
       day=`echo $cdate | cut -c1-8 `
-
+      cyc=`echo $cdate | cut -c9-10 `
+     
       if [[ $TANK_USE_RUN -eq 1 ]]; then
-         testday=${TANKverf}/${RUN}.${day}/radmon
+         testday=${TANKverf}/${RUN}.${day}/${cyc}/radmon
       else
          testday=${TANKverf}/radmon.${day}
       fi
@@ -274,7 +266,7 @@ for type in ${SATYPE}; do
    #  Copy the executable and run it 
    #------------------------------------------------------------------
    out_file=${type}.base
-   $NCP ${DE_EXEC}/radmon_make_base.x ./make_base
+   $NCP ${DE_EXEC}/radmon_mk_base.x ./make_base
 
 cat << EOF > input
  &INPUT
@@ -326,7 +318,6 @@ else
          $UNCOMPRESS ${basefile}.${Z}
       fi
       tar -xvf ${basefile}
-#      rm ${basefile}
    fi
 
    #  copy new *.base file from $tmpdir and build new $basefile (tar file)
@@ -334,8 +325,6 @@ else
    tar -cvf ${basefile} *.base
    mv -f ${basefile} $tmpdir/.
    cd $tmpdir
-# keep for testing
-#   rm -rf $newbase
 
 fi
 
