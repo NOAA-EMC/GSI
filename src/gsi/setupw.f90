@@ -215,6 +215,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !                              error (DOE) calculation to the namelist
 !                              level; they are now loaded by
 !                              aircraftinfo.
+!   2021-07-25 Genkova  - write AMVQ in diagnostic files
 !
 !
 ! REMARKS:
@@ -285,7 +286,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   integer(i_kind) ihgt,ier2,iuse,ilate,ilone
   integer(i_kind) izz,iprvd,isprvd
   integer(i_kind) idomsfc,isfcr,iskint,iff10
-  integer(i_kind) ibb,ikk,ihil
+  integer(i_kind) ibb,ikk,ihil,iamvq
 
   integer(i_kind) num_bad_ikx
 
@@ -376,8 +377,9 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   icat=24     ! index of data level category
   ijb=25      ! index of non linear qc parameter
   ihil=26     ! index of  hilbert curve weight
-  iptrbu=27   ! index of u perturbation
-  iptrbv=28   ! index of v perturbation
+  iamvq=27    ! index of AMVQ
+  iptrbu=28   ! index of u perturbation
+  iptrbv=29   ! index of v perturbation
 
   mm1=mype+1
   scale=one
@@ -393,7 +395,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   if(conv_diagsave)then
      ii=0
      nchar=1
-     ioff0=25
+     ioff0=26
      nreal=ioff0
      if (lobsdiagsave) nreal=nreal+7*miter+2
      if (twodvar_regional) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
@@ -1678,6 +1680,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         rdiagbuf(23,ii) = factw            ! 10m wind reduction factor
         rdiagbuf(24,ii) = 1.e+10_r_single  ! u spread (filled in by EnKF)
         rdiagbuf(25,ii) = 1.e+10_r_single  ! v spread (filled in by EnKF)
+        rdiagbuf(26,ii) = data(iamvq,i)    ! AMVQ flag, for diagnostics
 
         ioff=ioff0
         if (lobsdiagsave) then
@@ -1764,6 +1767,8 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata("Errinv_Adjust",           sngl(errinv_adjst)     )
            call nc_diag_metadata("Errinv_Final",            sngl(errinv_final)     )
 
+           ! AMVQ Mitigated winds 
+           call nc_diag_metadata("Mitigation_flag_AMVQ",    sngl(data(iamvq,i))    )            
            call nc_diag_metadata("Wind_Reduction_Factor_at_10m", sngl(factw)       )
 
            if (.not. regional) then
