@@ -224,9 +224,9 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
   integer(i_kind) myear,mmonth,mday,mhour,mminute,msecond
   real(r_kind),allocatable:: abk_fv3(:)
 
-      coupler_res_filenam=fv3filenamegin%couplerres
-      grid_spec=fv3filenamegin%grid_spec
-      ak_bk=fv3filenamegin%ak_bk
+    coupler_res_filenam=fv3filenamegin%couplerres
+    grid_spec=fv3filenamegin%grid_spec
+    ak_bk=fv3filenamegin%ak_bk
 
 !!!!! set regional_time
     open(24,file=trim(coupler_res_filenam),form='formatted')
@@ -400,6 +400,9 @@ subroutine gsi_rfv3io_get_ens_grid_specs(grid_spec,ierr)
   use kinds, only: i_kind,r_kind
   use constants, only: half,zero
   use mpimod, only: mpi_comm_world,ierror,mpi_itype,mpi_rtype
+  use hybrid_ensemble_parameters, only: grd_ens
+  use gridmod, only: ijn_sens,ijnens,displs_sens,itotsubens
+  use general_commvars_mod, only: ltosi_sens,ltosj_sens
 
   implicit none
 
@@ -465,6 +468,12 @@ subroutine gsi_rfv3io_get_ens_grid_specs(grid_spec,ierr)
 
 
 !!!!!!! setup A grid and interpolation/rotation coeff.
+    ltosi_sens=grd_ens%ltosi_s
+    ltosj_sens=grd_ens%ltosj_s
+    ijn_sens=grd_ens%ijn_s
+    ijnens=grd_ens%ijn
+    itotsubens=grd_ens%itotsub
+    displs_sens=grd_ens%displs_s
     call definecoef_regular_grids(nxens,nyens,nxa_ens,nya_ens,grid_lon,grid_lont,grid_lat,grid_latt,p_fv3sar2ensgrid, &
                               nlat_ens,nlon_ens,region_lat_ens,region_lon_ens)
 

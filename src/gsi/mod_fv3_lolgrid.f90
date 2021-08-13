@@ -837,7 +837,7 @@ subroutine definecoef_regular_grids(nx,ny,nxa_inout,nya_inout,grid_lon,grid_lont
      xa_a(j)= rlon_in(index0,j)/dlon
   end do
   do i=1,nya_inout
-     ya_a(i)= rlat_in(i,index0)/dlon
+     ya_a(i)= rlat_in(i,index0)/dlat
   end do
 
 !!!!!compute fv3 to A grid interpolation parameters !!!!!!!!!
