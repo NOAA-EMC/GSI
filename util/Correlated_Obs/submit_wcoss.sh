@@ -12,7 +12,7 @@
 #BSUB -R span[ptile=16]
 #BSUB -P GFS-T2O
 export OMP_NUM_THREADS=$LSB_DJOB_NUMPROC
-corrdir=/gpfs/dell2/emc/modeling/noscrub/${USER}/GSI/ProdGSI/util/Correlated_Obs
+corrdir=$PWD
 cd ${corrdir}
 ./run.sh 
 

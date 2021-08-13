@@ -495,8 +495,6 @@ deallocate(sendbuf, recvbuf)
 
 end subroutine scatter_chunks
 
-
-
 subroutine gather_chunks
 ! gather chunks into grdin to write out the ensemble members
 use controlvec, only: ncdim, grdin

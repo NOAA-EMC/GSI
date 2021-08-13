@@ -30,6 +30,8 @@ module params
 !                          modulated ensembles), nobsl_max (for ob selection
 !                          in LETKF and dfs_sort
 !                          (for using DFS in LETKF ob selection).
+!   2018-11-15  groff - Added ancillary parameters
+!                       for EFSOI calculations
 !
 ! attributes:
 !   language: f95
@@ -55,6 +57,13 @@ integer(i_kind), public, parameter :: nsatmax_rad = 200
 integer(i_kind), public, parameter :: nsatmax_oz = 100
 character(len=20), public, dimension(nsatmax_rad) ::sattypes_rad, dsis
 character(len=20), public, dimension(nsatmax_oz) ::sattypes_oz
+! EFSOI file type identifiers
+integer(i_kind), public, parameter :: read_ensmean_forecast = 0
+integer(i_kind), public, parameter :: read_analysis_mean = 1
+integer(i_kind), public, parameter :: read_member_forecasts = 2
+integer(i_kind), public, parameter :: read_verification = 3
+! Analysis impact specific file type identifier
+integer(i_kind), public, parameter :: read_member_analyses = 2
 ! forecast times for first-guess forecasts to be updated (in hours)
 integer,dimension(7),public ::  nhr_anal  = (/6,-1,-1,-1,-1,-1,-1/)
 integer,dimension(7),public ::  nhr_state = (/6,-1,-1,-1,-1,-1,-1/)
@@ -78,6 +87,10 @@ character(len=120),dimension(7),public :: anlfileprefixes
 character(len=120),dimension(7),public :: incfileprefixes
 ! analysis date string (YYYYMMDDHH)
 character(len=10), public ::  datestring
+! Hour for datestring
+integer(i_kind), public :: datehr, gdatehr
+! analysis filename, needed for EFSOI calcs
+character(len=100), public ::  andataname
 ! filesystem path to input files (first-guess, GSI diagnostic files).
 character(len=500),public :: datapath
 ! if deterministic=.true., the deterministic square-root filter
@@ -92,6 +105,8 @@ integer(i_kind),public ::  iassim_order,nlevs,nanals,numiter,&
                            nanals_per_iotask, ntasks_io
 integer(i_kind),public, allocatable, dimension(:) ::  nanal1,nanal2
 integer(i_kind),public :: nsats_rad,nsats_oz,imp_physics
+integer(i_kind),public :: eft
+integer(i_kind),public :: tar_minlev,tar_maxlev
 ! random seed for perturbed obs (deterministic=.false.)
 ! if zero, system clock is used.  Also used when
 ! iassim_order=1 (random shuffling of obs for serial assimilation).
@@ -107,6 +122,8 @@ real(r_single),public :: analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,saterrf
 real(r_single),public :: analpertwtnh_rtpp,analpertwtsh_rtpp,analpertwttr_rtpp
 real(r_single),public ::  paoverpb_thresh,latbound,delat,p5delat,delatinv
 real(r_single),public ::  latboundpp,latboundpm,latboundmp,latboundmm
+real(r_single),public :: wmoist,adrate
+real(r_single),public :: tar_minlat,tar_maxlat,tar_minlon,tar_maxlon
 real(r_single),public :: covl_minfact, covl_efold
 
 real(r_single),public :: covinflatenh,covinflatesh,covinflatetr,lnsigcovinfcutoff
@@ -171,6 +188,11 @@ logical,public :: nmm = .true.
 logical,public :: nmm_restart = .true.
 logical,public :: nmmb = .false.
 logical,public :: letkf_flag = .false.
+
+! EFSOI ancillary flag to determine
+! type of impact estimate/calculation
+logical,public :: forecast_impact = .true.
+
 ! use brute force search in LETKF instead of kdtree
 logical,public :: letkf_bruteforce_search=.false.
 
@@ -185,11 +207,12 @@ integer(i_kind),public :: nvars = -1
 logical,public :: dfs_sort = .false.
 
 ! if true generate additional input files
-! required for EFSO calculations
-logical,public :: fso_cycling = .false.
+! required for EFSOI calculations
+logical,public :: efsoi_cycling = .false.
 
-! if true perform efso calculations
-logical,public :: fso_calculate = .false.
+! Ancillary flag, applied only for
+! EFSOI calculation applications
+logical,public :: efsoi_flag = .false.
 
 ! if true, use ensemble mean qsat in definition of
 ! normalized humidity analysis variable (instead of
@@ -238,11 +261,14 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
                    lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
                    newpc4pred,nmmb,nhr_anal,nhr_state, fhr_assim,nbackgrounds,nstatefields, &
-                   save_inflation,nobsl_max,lobsdiag_forenkf,ldo_enscalc_option,netcdf_diag,&
+                   save_inflation,nobsl_max,lobsdiag_forenkf,ldo_enscalc_option,netcdf_diag,forecast_impact,&
                    letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs,npefiles,&
                    getkf,getkf_inflation,denkf,modelspace_vloc,dfs_sort,write_spread_diag,&
                    covinflatenh,covinflatesh,covinflatetr,lnsigcovinfcutoff,letkf_bruteforce_search,&
-                   fso_cycling,fso_calculate,imp_physics,lupp,cnvw_option,use_correlated_oberrs,&
+                   efsoi_cycling,efsoi_flag,imp_physics,lupp,cnvw_option,use_correlated_oberrs,&
+                   eft,wmoist,adrate,andataname,&
+                   gdatehr,datehr,&
+                   tar_minlat,tar_maxlat,tar_minlon,tar_maxlon,tar_minlev,tar_maxlev,&
                    fv3_native, paranc, nccompress, write_fv3_incr,incvars_to_zero
 namelist /nam_wrf/arw,nmm,nmm_restart
 namelist /nam_fv3/fv3fixpath,nx_res,ny_res,ntiles,l_pres_add_saved
@@ -260,6 +286,10 @@ real(r_single) modelspace_vloc_cutoff, modelspace_vloc_thresh
 ! defaults
 ! time (analysis time YYYYMMDDHH)
 datestring = "0000000000" ! if 0000000000 will not be used.
+! default analysis hour
+datehr = 00
+! Initial hour for background forecasts
+gdatehr = 00
 ! corrlength (length for horizontal localization in km)
 ! this corresponding GSI parameter is s_ens_h.
 ! corrlength is the distance at which the Gaspari-Cohn
@@ -350,6 +380,9 @@ nlats = 0
 nlevs = 0
 ! number of ensemble members
 nanals = 0
+! nvars is numer of 3d variables to update.
+! for hydrostatic models, typically 5 (u,v,T,q,ozone).
+nvars = 5
 ! background error variance for rad bias coeffs  (used in radbias.f90)
 ! default is (old) GSI value.
 ! if negative, bias coeff error variace is set to -biasvar/N, where
@@ -358,6 +391,22 @@ nanals = 0
 ! analysis error variance from the previous cycle is used instead
 ! (same as in the GSI).
 biasvar = 0.1_r_single
+! Evaluation FT for EFSOI
+eft = 24
+! Weigt for moist total energy norm (0 when dry total energy)
+! applied in EFSOI calculation
+wmoist = 0.0_r_single
+! Advection coefficient for localization function
+adrate = 0.0_r_single
+! Name of analysis file at EFSOI evaluation time
+andataname=''
+! Target area for observation impact computation
+tar_minlat = -90.0_r_single
+tar_maxlat = 90.0_r_single
+tar_minlon = 0.0_r_single
+tar_maxlon = 360.0_r_single
+tar_minlev = 0
+tar_maxlev = 0
 
 ! factor to multiply sat radiance errors.
 saterrfact = 1._r_single
@@ -718,6 +767,19 @@ end if
 corrlengthnh = corrlengthnh * 1.e3_r_single/rearth
 corrlengthtr = corrlengthtr * 1.e3_r_single/rearth
 corrlengthsh = corrlengthsh * 1.e3_r_single/rearth
+
+! convert targe area boundary into radians
+tar_minlat = tar_minlat * deg2rad
+tar_maxlat = tar_maxlat * deg2rad
+tar_minlon = tar_minlon * deg2rad
+tar_maxlon = tar_maxlon * deg2rad
+
+! use default vertical levels
+tar_maxlev = min(nlevs,tar_maxlev)
+if(tar_minlev < 1 .or. tar_maxlev < 1 .or. tar_maxlev < tar_minlev) then
+   tar_minlev = 1
+   tar_maxlev = nlevs
+end if
 
 ! this var is .false. until this routine is called.
 params_initialized = .true.
