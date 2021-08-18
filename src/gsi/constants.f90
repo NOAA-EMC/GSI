@@ -84,6 +84,10 @@ module constants
   public :: soilmoistmin
   public :: stndrd_atmos_ps
 
+! ------ EFSOI relevant parameters -------- !
+  public :: tref, pref
+  public :: constants_initialized
+
 ! Declare derived constants
   integer(i_kind):: huge_i_kind
   integer(i_kind), parameter :: max_varname_length=32
@@ -109,6 +113,8 @@ module constants
   real(r_kind),parameter::  ttp    = 2.7316e+2_r_kind            !  temperature at h2o triple point (K)
   real(r_kind),parameter::  jcal   = 4.1855e+0_r_kind            !  joules per calorie              ()
   real(r_kind),parameter::  stndrd_atmos_ps = 1013.25e2_r_kind   ! 1976 US standard atmosphere ps   (Pa)
+  real(r_kind),parameter::  tref   = 2.8000e+2_r_kind            ! reference T for total energy
+  real(r_kind),parameter::  pref   = 1.0000e+5_r_kind            ! reference P for total energy
 
 ! Numeric constants
 
@@ -282,6 +288,9 @@ module constants
 ! Constant used to detect missing input value
   integer(i_kind),parameter:: i_missing=-9999
   integer(r_kind),parameter:: r_missing=-9999._r_kind
+
+! Constants initialized
+  logical :: constants_initialized = .true.
 
 contains
 
