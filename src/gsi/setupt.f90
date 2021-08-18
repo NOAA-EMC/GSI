@@ -480,20 +480,21 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 ! most obs that fail the buddy check already 
 ! GSD uses the buddy check to expand gross error check for obs that pass 
 ! the buddy check. Not sure if we want to do this globally. Turn off for now.
-  if ( (twodvar_regional .or. do_global_2mDA)  .and. buddycheck_t) & 
+  !if ( (twodvar_regional .or. do_global_2mDA)  .and. buddycheck_t) & 
+  if ( (twodvar_regional)  .and. buddycheck_t) & 
                 call buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
 
 ! for 2mDA, remove obs that failed  the buddcheck
-  if (do_global_2mDA) then
-      do i = 1,nobs
-         ikx=nint(data(ikxx,k))
-         itype=ictype(ikx)
-         sfctype=(itype>179.and.itype<190).or.(itype>=192.and.itype<=199)
-         if (sfctype) then 
-            if ( buddycheck_t .and. buddyuse(i) == -1) muse(i) = .false.
-         endif
-      enddo
-  endif
+ ! if (do_global_2mDA) then
+ !     do i = 1,nobs
+ !        ikx=nint(data(ikxx,k))
+ !        itype=ictype(ikx)
+ !        sfctype=(itype>179.and.itype<190).or.(itype>=192.and.itype<=199)
+ !        if (sfctype) then 
+ !           if ( buddycheck_t .and. buddyuse(i) == -1) muse(i) = .false.
+ !        endif
+ !     enddo
+ ! endif
           
 ! If requested, save select data for output to diagnostic file
   if(conv_diagsave)then
@@ -673,18 +674,27 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      end if
 
 ! Interpolate log(ps) & log(pres) at mid-layers to obs locations/times
-     call tintrp2a11(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
-          mype,nfldsig)
-     call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
-          nsig,mype,nfldsig)
+     ! for global_2mDA case,  skipping reading the pressure levels into the met guess (to speed up the observer) 
+     ! these are not currently used here, so skip for now.
 
-     drpx=zero
-     if(sfctype .and. .not.twodvar_regional .and. .not. do_global_2mDA) then
-        drpx=abs(one-((one/exp(dpres-log(psges))))**rd_over_cp)*t0c
-     end if
+     if (.not. do_global_2mDA) then  
+         call tintrp2a11(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
+              mype,nfldsig)
+         call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
+              nsig,mype,nfldsig)
 
-!    Put obs pressure in correct units to get grid coord. number
-     call grdcrd1(dpres,prsltmp(1),nsig,-1)
+         drpx=zero
+         !if(sfctype .and. .not.twodvar_regional .and. .not. do_global_2mDA) then
+         if(sfctype .and. .not.twodvar_regional ) then
+            drpx=abs(one-((one/exp(dpres-log(psges))))**rd_over_cp)*t0c
+         end if
+
+    !    Put obs pressure in correct units to get grid coord. number
+         call grdcrd1(dpres,prsltmp(1),nsig,-1)
+     else 
+        drpx = zero 
+        dpres = one  ! put obs at surface
+     endif 
 
 ! Implementation of forward model ----------
 
@@ -874,6 +884,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 ! note: for global_2mDA option, three middle terms in denominator will be zero
 !    (elevation mistmatch between obs and model dealt with elsewhere) 
      ratio_errors=error/(data(ier,i)+drpx+1.0e6_r_kind*rhgh+r8*ramp + lapse_error) 
+
 
 
 ! Compute innovation
@@ -1766,7 +1777,12 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     call nc_diag_metadata("Errinv_Input",            sngl(errinv_input)     )
     call nc_diag_metadata("Errinv_Adjust",           sngl(errinv_adjst)     )
     call nc_diag_metadata("Errinv_Final",            sngl(errinv_final)     )
+    if (do_global_2mDA) then 
+    call nc_diag_metadata("Observation",             sngl(tob)    )
+    call nc_diag_metadata("Observation_Before_Elev_Correction",     sngl(data(itob,i))  )
+    else
     call nc_diag_metadata("Observation",             sngl(data(itob,i))     )
+    endif
     call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)      )
     call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(tob-tges)   )
     if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) then

@@ -190,7 +190,7 @@ subroutine general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr,
 end subroutine general_reload
 
 ! 2m reload
-subroutine general_2m_reload(grd,g_t2m, g_q2m,icount,iflag,work)
+subroutine general_2m_reload(grd,g_t2m, g_q2m,g_ps,icount,iflag,work)
 ! !USES:
   use kinds, only: r_kind,i_kind
   use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype
@@ -206,7 +206,7 @@ subroutine general_2m_reload(grd,g_t2m, g_q2m,icount,iflag,work)
 
 ! !OUTPUT PARAMETERS:
 
-  real(r_kind),dimension(grd%lat2,grd%lon2),         intent(  out) :: g_t2m, g_q2m
+  real(r_kind),dimension(grd%lat2,grd%lon2),         intent(  out) :: g_t2m, g_q2m, g_ps
 
 ! !DESCRIPTION: 2m version og general_reload.
 !-------------------------------------------------------------------------
@@ -234,6 +234,14 @@ subroutine general_2m_reload(grd,g_t2m, g_q2m,icount,iflag,work)
             do i=1,grd%lat2
                ij=ij+1
                g_q2m(i,j)=sub(ij,k)
+            enddo
+         enddo
+      elseif ( iflag(k) == 3 ) then
+         ij=0
+         do j=1,grd%lon2
+            do i=1,grd%lat2
+               ij=ij+1
+               g_ps(i,j)=sub(ij,k)
             enddo
          enddo
       endif
@@ -1679,7 +1687,7 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
 
 end subroutine general_read_gfsatm_nems
 
-subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
+subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag,do_global_2mDA, &
            gfs_bundle,init_head,iret_read)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1739,7 +1747,8 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    type(sub2grid_info)                   ,intent(in   ) :: grd
    type(spec_vars)                       ,intent(in   ) :: sp_a
    character(*)                          ,intent(in   ) :: filename
-   logical                               ,intent(in   ) :: uvflag,zflag,vordivflag,init_head
+   logical                               ,intent(in   ) :: uvflag,zflag,vordivflag,init_head 
+   logical                               ,intent(in   ) :: do_global_2mDA
    integer(i_kind)                       ,intent(  out) :: iret_read
    type(gsi_bundle)                      ,intent(inout) :: gfs_bundle
 
@@ -1781,9 +1790,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    logical,dimension(1) :: vector
    type(Dataset) :: atmges
    type(Dimension) :: ncdim
-   logical :: read_2m 
-
-
+   logical :: read_2m, read_z
 
    !******************************************************************************
    ! Initialize variables used below
@@ -1800,13 +1807,26 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
 
    if (filename(1:3) == 'sfc') then 
         read_2m = .true. 
+        read_z = .false. 
         if ( mype == 0 ) write(6,* ) & 
             trim(my_name), ': reading 2m variables from ', trim(filename) 
-   else 
-        read_2m = .false. 
-        if ( mype == 0 ) write(6,* ) & 
-            trim(my_name), ': reading atmos variables from ', trim(filename) 
-   endif     
+        if (.not. do_global_2mDA) then 
+               write(6,*) 'error, requesting sfc file read, but not do_global_2mDA. Check options' 
+               call stop2(101)
+        endif
+   else  
+       read_2m = .false. 
+       if (do_global_2mDA) then 
+           read_z =.true.  ! over-ride, as this is the only var we want.
+           if ( mype == 0 ) write(6,* ) & 
+                trim(my_name), ': reading z only from ', trim(filename) 
+       else
+           read_z = zflag
+           if ( mype == 0 ) write(6,* ) & 
+                trim(my_name), ': reading atmos variables from ', trim(filename) 
+        endif 
+   endif
+
    
    if ( mype == 0 ) procuse = .true.
    do i=1,npe
@@ -1889,7 +1909,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
          call stop2(101)
       endif
       endif
-! CSD vv
+
       allocate( spec_vor(sp_a%nc), spec_div(sp_a%nc) )
       allocate( grid(grd%nlon,nlatm2), grid_v(grd%nlon,nlatm2) )
       if ( diff_res ) then
@@ -1898,7 +1918,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
       endif
       allocate(rwork3d0(lonb,latb,1))
       allocate(rwork3d1(lonb,latb,1))
-!CSD ^^
+
       allocate(rwork2d(lonb,latb))
       allocate(rlats(latb+2),rlons(lonb),clons(lonb),slons(lonb))
       call read_vardata(atmges, 'grid_xt', rlons_tmp)
@@ -1928,65 +1948,68 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
 
    ! Get pointer to relevant variables (this should be made flexible and general)
    if (.not. read_2m) then
-   iredundant=0
-   call gsi_bundlegetpointer(gfs_bundle,'sf',g_div ,ier)
-   if ( ier == 0 ) iredundant = iredundant + 1
-   call gsi_bundlegetpointer(gfs_bundle,'div',g_div ,ier)
-   if ( ier == 0 ) iredundant = iredundant + 1
-   if ( iredundant==2 ) then
-      if ( mype == 0 ) then
-         write(6,*) 'general_read_gfsatm_nems: ERROR'
-         write(6,*) 'cannot handle having both sf and div'
-         write(6,*) 'Aborting ... '
-      endif
-      call stop2(999)
-   endif
-   iredundant=0
-   call gsi_bundlegetpointer(gfs_bundle,'vp',g_vor ,ier)
-   if ( ier == 0 ) iredundant = iredundant + 1
-   call gsi_bundlegetpointer(gfs_bundle,'vor',g_vor ,ier)
-   if ( ier == 0 ) iredundant = iredundant + 1
-   if ( iredundant==2 ) then
-      if ( mype == 0 ) then
-         write(6,*) 'general_read_gfsatm_nems: ERROR'
-         write(6,*) 'cannot handle having both vp and vor'
-         write(6,*) 'Aborting ... '
-      endif
-      call stop2(999)
-   endif
-   iredundant=0
-   call gsi_bundlegetpointer(gfs_bundle,'t' ,g_tv  ,ier)
-   if ( ier == 0 ) iredundant = iredundant + 1
-   call gsi_bundlegetpointer(gfs_bundle,'tv',g_tv  ,ier)
-   if ( ier == 0 ) iredundant = iredundant + 1
-   if ( iredundant==2 ) then
-      if ( mype == 0 ) then
-         write(6,*) 'general_read_gfsatm_nems: ERROR'
-         write(6,*) 'cannot handle having both t and tv'
-         write(6,*) 'Aborting ... '
-      endif
-      call stop2(999)
-   endif
+       iredundant=0
+       call gsi_bundlegetpointer(gfs_bundle,'sf',g_div ,ier)
+       if ( ier == 0 ) iredundant = iredundant + 1
+       call gsi_bundlegetpointer(gfs_bundle,'div',g_div ,ier)
+       if ( ier == 0 ) iredundant = iredundant + 1
+       if ( iredundant==2 ) then
+          if ( mype == 0 ) then
+             write(6,*) 'general_read_gfsatm_nems: ERROR'
+             write(6,*) 'cannot handle having both sf and div'
+             write(6,*) 'Aborting ... '
+          endif
+          call stop2(999)
+       endif
+       iredundant=0
+       call gsi_bundlegetpointer(gfs_bundle,'vp',g_vor ,ier)
+       if ( ier == 0 ) iredundant = iredundant + 1
+       call gsi_bundlegetpointer(gfs_bundle,'vor',g_vor ,ier)
+       if ( ier == 0 ) iredundant = iredundant + 1
+       if ( iredundant==2 ) then
+          if ( mype == 0 ) then
+             write(6,*) 'general_read_gfsatm_nems: ERROR'
+             write(6,*) 'cannot handle having both vp and vor'
+             write(6,*) 'Aborting ... '
+          endif
+          call stop2(999)
+       endif
+       iredundant=0
+       call gsi_bundlegetpointer(gfs_bundle,'t' ,g_tv  ,ier)
+       if ( ier == 0 ) iredundant = iredundant + 1
+       call gsi_bundlegetpointer(gfs_bundle,'tv',g_tv  ,ier)
+       if ( ier == 0 ) iredundant = iredundant + 1
+       if ( iredundant==2 ) then
+          if ( mype == 0 ) then
+             write(6,*) 'general_read_gfsatm_nems: ERROR'
+             write(6,*) 'cannot handle having both t and tv'
+             write(6,*) 'Aborting ... '
+          endif
+          call stop2(999)
+       endif
 
-   istatus=0
-   call gsi_bundlegetpointer(gfs_bundle,'ps',g_ps  ,ier);istatus=istatus+ier
-   call gsi_bundlegetpointer(gfs_bundle,'q' ,g_q   ,ier);istatus=istatus+ier
-   call gsi_bundlegetpointer(gfs_bundle,'oz',g_oz  ,ier);istatus=istatus+ier
-   call gsi_bundlegetpointer(gfs_bundle,'cw',g_cwmr,ier);istatus=istatus+ier
-   if ( istatus /= 0 ) then
-      if ( mype == 0 ) then
-         write(6,*) 'general_read_gfsatm_nems: ERROR'
-         write(6,*) 'Missing some of the required fields'
-         write(6,*) 'Aborting ... '
-      endif
-      call stop2(999)
-   endif
-   allocate(g_u(grd%lat2,grd%lon2,grd%nsig),g_v(grd%lat2,grd%lon2,grd%nsig))
-   allocate(g_z(grd%lat2,grd%lon2))
+       istatus=0
+       call gsi_bundlegetpointer(gfs_bundle,'ps',g_ps  ,ier);istatus=istatus+ier
+       call gsi_bundlegetpointer(gfs_bundle,'q' ,g_q   ,ier);istatus=istatus+ier
+       call gsi_bundlegetpointer(gfs_bundle,'oz',g_oz  ,ier);istatus=istatus+ier
+       call gsi_bundlegetpointer(gfs_bundle,'cw',g_cwmr,ier);istatus=istatus+ier
+       if ( istatus /= 0 ) then
+          if ( mype == 0 ) then
+             write(6,*) 'general_read_gfsatm_nems: ERROR'
+             write(6,*) 'Missing some of the required fields'
+             write(6,*) 'Aborting ... '
+          endif
+          call stop2(999)
+       endif
+       allocate(g_u(grd%lat2,grd%lon2,grd%nsig),g_v(grd%lat2,grd%lon2,grd%nsig))
+
+       if (read_z) allocate(g_z(grd%lat2,grd%lon2))
+
    else ! read 2m vars
        istatus=0
        call gsi_bundlegetpointer(gfs_bundle,'t2m',g_t2m  ,ier);istatus=istatus+ier
        call gsi_bundlegetpointer(gfs_bundle,'q2m',g_q2m  ,ier);istatus=istatus+ier
+       call gsi_bundlegetpointer(gfs_bundle,'ps',g_ps  ,ier);istatus=istatus+ier
        if ( istatus /= 0 ) then
           if ( mype == 0 ) then
              write(6,*) 'general_read_gfsatm_nems: ERROR'
@@ -2002,10 +2025,9 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    !   Once on the grid, fields need to be scattered from the full domain to
    !   sub-domains.
 
-   if (.not. read_2m) then
-       icount=0
-   !  Only read Terrain when zflag is true.
-   if ( zflag ) then
+   icount=0
+   !  Only read Terrain when read_z is true.
+   if ( read_z ) then
 
       icount=icount+1
       iflag(icount)=1
@@ -2030,11 +2052,14 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
             call general_fill_ns(grd,grid,work)
          endif
       endif
-      if ( icount == icm ) then
+      ! CSD for 2 m case, icm = 2. this doesn't get triggered.
+       if ( do_global_2mDA .or. ( (.not. do_global_2mDA ) .and. ( icount == icm))  ) then
          call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
               icount,iflag,ilev,work,uvflag,vordivflag)
       endif
    endif
+
+   if ((.not. read_2m) .and. (.not. do_global_2mDA)) then
 
    icount=icount+1
    iflag(icount)=2
@@ -2377,7 +2402,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
          endif
 
    enddo ! do k=1,nlevs
-   else ! read_2m
+   elseif (read_2m) then  ! read_2m
        icount=1
        iflag(icount)=1
 
@@ -2427,9 +2452,29 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
              call general_fill_ns(grd,grid,work)
           endif
        endif
+       if (mype==mype_use(icount)) then
+          ! read ps
+          call read_vardata(atmges, 'pressfc', rwork2d)
+          rwork2d = r0_001*rwork2d ! convert Pa to cb
+          if ( diff_res ) then
+             vector(1)=.false.
+             grid_b=rwork2d
+             call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+             call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
+             do kk=1,grd%itotsub
+                i=grd%ltosi_s(kk)
+                j=grd%ltosj_s(kk)
+                work(kk)=grid2(i,j,1)
+             enddo
+          else
+             grid=rwork2d
+             call general_fill_ns(grd,grid,work)
+          endif
+       endif
+
        ! not using all procs. doesn't trigger. todo: fix task allocation
        !if ( icount == icm ) then
-          call general_2m_reload(grd,g_t2m, g_q2m, icount,iflag,work)
+          call general_2m_reload(grd,g_t2m, g_q2m, g_ps, icount,iflag,work)
        !endif
 
    endif ! read_2m
@@ -2455,36 +2500,39 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    !enddo
 
    ! Load u->div and v->vor slot when uv are used instead
-   if (.not. read_2m) then 
-   if ( uvflag ) then
-      call gsi_bundlegetpointer(gfs_bundle,'u' ,ptr3d,ier)
-      if ( ier == 0 ) then
-         ptr3d=g_u
-         call gsi_bundlegetpointer(gfs_bundle,'v' ,ptr3d,ier)
-         if ( ier == 0 ) ptr3d=g_v
-      else ! in this case, overload: return u/v in sf/vp slot
-         call gsi_bundlegetpointer(gfs_bundle,'sf' ,ptr3d,ier)
-         if ( ier == 0 ) then
-            ptr3d=g_u
-            call gsi_bundlegetpointer(gfs_bundle,'vp' ,ptr3d,ier)
-            if ( ier == 0 ) ptr3d=g_v
-         endif
-      endif
-   else ! in this case, overload: return u/v in sf/vp slot
-      call gsi_bundlegetpointer(gfs_bundle,'sf' ,ptr3d,ier)
-      if ( ier == 0 ) ptr3d=g_u
-      call gsi_bundlegetpointer(gfs_bundle,'vp' ,ptr3d,ier)
-      if ( ier == 0 ) ptr3d=g_v
-   endif
-   if (zflag) then
+   if ( (.not. read_2m) .and. (.not. do_global_2mDA)) then 
+       if ( uvflag ) then
+          call gsi_bundlegetpointer(gfs_bundle,'u' ,ptr3d,ier)
+          if ( ier == 0 ) then
+             ptr3d=g_u
+             call gsi_bundlegetpointer(gfs_bundle,'v' ,ptr3d,ier)
+             if ( ier == 0 ) ptr3d=g_v
+          else ! in this case, overload: return u/v in sf/vp slot
+             call gsi_bundlegetpointer(gfs_bundle,'sf' ,ptr3d,ier)
+             if ( ier == 0 ) then
+                ptr3d=g_u
+                call gsi_bundlegetpointer(gfs_bundle,'vp' ,ptr3d,ier)
+                if ( ier == 0 ) ptr3d=g_v
+             endif
+          endif
+       else ! in this case, overload: return u/v in sf/vp slot
+          call gsi_bundlegetpointer(gfs_bundle,'sf' ,ptr3d,ier)
+          if ( ier == 0 ) ptr3d=g_u
+          call gsi_bundlegetpointer(gfs_bundle,'vp' ,ptr3d,ier)
+          if ( ier == 0 ) ptr3d=g_v
+       endif
+
+       ! Clean up
+       deallocate(g_u)
+       deallocate(g_v)
+ 
+   endif ! read_2m 
+
+   if (read_z) then
       call gsi_bundlegetpointer(gfs_bundle,'z' ,ptr2d,ier)
       if ( ier == 0 ) ptr2d=g_z
+      deallocate(g_z)
    endif
-
-   ! Clean up
-   deallocate(g_z)
-   deallocate(g_u,g_v)
-   endif ! read_2m 
 
    ! Print date/time stamp
    if ( mype == 0 ) then

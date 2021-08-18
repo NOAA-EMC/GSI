@@ -181,7 +181,7 @@ contains
     if (do_global_2mDA) then 
         call gsi_bundlecreate(atm_bundle,atm_grid,'aux-atm-read',istatus,names2d=vars2d_with2m,names3d=vars3d)
     else 
-    call gsi_bundlecreate(atm_bundle,atm_grid,'aux-atm-read',istatus,names2d=vars2d,names3d=vars3d)
+        call gsi_bundlecreate(atm_bundle,atm_grid,'aux-atm-read',istatus,names2d=vars2d,names3d=vars3d)
     endif 
     if(istatus/=0) then
       write(6,*) myname_,': trouble creating atm_bundle'
@@ -190,18 +190,23 @@ contains
 
     do it=1,nfldsig
 
-       write(filename,'(''sigf'',i2.2)') ifilesig(it)
-
 !      Read background fields into bundle
-       call general_read_gfsatm_nc(grd_t,sp_a,filename,.true.,.true.,.true.,&
-            atm_bundle,.true.,istatus)
        if (do_global_2mDA) then  ! current read_sfc routines called from differebt part of 
                                  ! of the code, can't easily read into the met-bundle 
                                  ! wrote a new routine here
           write(filename,'(''sfcf'',i2.2)') ifilesig(it)
           call general_read_gfsatm_nc(grd_t,sp_a,filename,.true.,.true.,.true.,&
-              atm_bundle,.true.,istatus)
-       endif 
+              do_global_2mDA,atm_bundle,.true.,istatus)
+
+          write(filename,'(''sigf'',i2.2)') ifilesig(it)
+          call general_read_gfsatm_nc(grd_t,sp_a,filename,.true.,.true.,.true.,&
+              do_global_2mDA,atm_bundle,.true.,istatus)
+       else 
+          write(filename,'(''sigf'',i2.2)') ifilesig(it)
+          call general_read_gfsatm_nc(grd_t,sp_a,filename,.true.,.true.,.true.,&
+              do_global_2mDA,atm_bundle,.true.,istatus)
+       endif
+
        inithead=.false.
        zflag=.false.
 
