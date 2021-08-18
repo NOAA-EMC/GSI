@@ -305,13 +305,13 @@ real(r_double)  :: t1,t2
 integer(i_kind) :: nb, nvar, ne
 integer(i_kind) :: q_ind, ierr
 real(r_single), allocatable, dimension(:,:) :: grdin_mean_tmp
-real(r_single), allocatable, dimension(:,:,:) :: grdin_mean
+real(r_single), allocatable, dimension(:,:,:,:) :: grdin_mean
 
 if (nproc <= ntasks_io-1) then
 
    allocate(grdin_mean_tmp(npts,ncdim))
    if (nproc == 0) then
-     allocate(grdin_mean(npts,ncdim,nbackgrounds))
+     allocate(grdin_mean(npts,ncdim,nbackgrounds,1))
      grdin_mean = 0_r_single
      t1 = mpi_wtime()
    endif
@@ -325,20 +325,20 @@ if (nproc <= ntasks_io-1) then
       do ne=1,nanals_per_iotask
          call mpi_reduce(grdin(:,:,nb,ne), grdin_mean_tmp, npts*ncdim, mpi_real4,&
                          mpi_sum,0,mpi_comm_io,ierr)
-         if (nproc == 0) grdin_mean(:,:,nb) = grdin_mean(:,:,nb) + grdin_mean_tmp
+         if (nproc == 0) grdin_mean(:,:,nb,1) = grdin_mean(:,:,nb,1) + grdin_mean_tmp
       enddo
       ! print out ens mean increment info
       if (nproc == 0) then
-         grdin_mean = grdin_mean/real(nanals)
+         grdin_mean(:,:,nb,1) = grdin_mean(:,:,nb,1)/real(nanals)
          do nvar=1,nc3d
             write(6,100) trim(cvars3d(nvar)),   &
-                minval(grdin_mean(:,clevels(nvar-1)+1:clevels(nvar),nb)),     &
-                maxval(grdin_mean(:,clevels(nvar-1)+1:clevels(nvar),nb))
+                minval(grdin_mean(:,clevels(nvar-1)+1:clevels(nvar),nb,1)),     &
+                maxval(grdin_mean(:,clevels(nvar-1)+1:clevels(nvar),nb,1))
          enddo
          do nvar=1,nc2d
             write(6,100) trim(cvars2d(nvar)),   &
-                minval(grdin_mean(:,clevels(nc3d) + nvar,nb)),                &
-                maxval(grdin_mean(:,clevels(nc3d) + nvar,nb))
+                minval(grdin_mean(:,clevels(nc3d) + nvar,nb,1)),                &
+                maxval(grdin_mean(:,clevels(nc3d) + nvar,nb,1))
          enddo
       endif
    enddo
@@ -369,8 +369,8 @@ if (nproc <= ntasks_io-1) then
          ! write_ensmean implies use_qsatensmean
          do nb=1,nbackgrounds
             ! re-scale normalized spfh with sat. sphf of ensmean first guess
-            grdin_mean(:,(q_ind-1)*nlevs+1:q_ind*nlevs,nb) = &
-            grdin_mean(:,(q_ind-1)*nlevs+1:q_ind*nlevs,nb)*qsatmean(:,:,nb)
+            grdin_mean(:,(q_ind-1)*nlevs+1:q_ind*nlevs,nb,1) = &
+            grdin_mean(:,(q_ind-1)*nlevs+1:q_ind*nlevs,nb,1)*qsatmean(:,:,nb)
          enddo
       endif
    end if

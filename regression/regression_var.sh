@@ -42,8 +42,6 @@ if [ -z ${machine+x} ]; then
    export machine="WCOSS_C"
   elif [ -d /gpfs/dell1/ptmp ]; then # venus or mars
    export machine="WCOSS_D"
-  elif [ -d /data/users ]; then # S4
-   export machine="s4"
 elif [ -d /discover/nobackup ]; then # NCCS Discover
    export machine="Discover"
   fi
@@ -156,24 +154,6 @@ case $machine in
    export check_resource="no"
 
    export accnt=""
-   ;;
-   s4)
-   export noscrub="/data/users/$LOGNAME"
-   if [[ "$cmaketest" = "false" ]]; then
-     export basedir="/home/$LOGNAME/gsi"
-   fi
-   export group="dev"
-   export queue="dev"
-   export NWPROD="/usr/local/jcsda/nwprod_gdas_2014"
-   export ptmp="/scratch/short/$LOGNAME/$ptmpName"
-
-   export fixcrtm="/home/mpotts/gsi/trunk/lib/CRTM_REL-2.2.3/fix_update"
-   export casesdir="/data/users/mpotts/CASES"
-   export ndate="$NWPROD/util/exec/ndate"
-
-   export check_resource="no"
-
-   export accnt="star"
    ;;
    Discover)
    if [[ "$cmaketest" = "false" ]]; then

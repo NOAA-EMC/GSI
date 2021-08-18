@@ -113,7 +113,7 @@ use params, only: sprd_tol, datapath, nanals, iseed_perturbed_obs,&
                   zhuberleft,zhuberright,varqc,lupd_satbiasc,huber,letkf_novlocal,&
                   lupd_obspace_serial,corrlengthnh,corrlengthtr,corrlengthsh,&
                   getkf,getkf_inflation,denkf,nbackgrounds,nobsl_max,&
-                  neigv,vlocal_evecs,dfs_sort
+                  neigv,vlocal_evecs,dfs_sort,mincorrlength_fact
 use gridinfo, only: nlevs_pres,lonsgrd,latsgrd,logp,npts,gridloc
 use kdtree2_module, only: kdtree2, kdtree2_create, kdtree2_destroy, &
                           kdtree2_result, kdtree2_n_nearest, kdtree2_r_nearest
@@ -144,7 +144,7 @@ integer(i_kind),allocatable,dimension(:) :: oindex
 real(r_single) :: deglat, dist, corrsq, trpa, trpa_raw, maxdfs
 real(r_double) :: t1,t2,t3,t4,t5,tbegin,tend,tmin,tmax,tmean
 real(r_kind) r_nanals,r_nanalsm1
-real(r_kind) normdepart, pnge, width
+real(r_kind) normdepart, pnge, width, mincorrlength_factsq
 real(r_kind),dimension(nobstot):: oberrvaruse
 real(r_kind) vdist
 real(r_kind) corrlength
@@ -174,6 +174,7 @@ if (nproc == 0) print *,'using',nthreads,' openmp threads'
 ! define a few frequently used parameters
 r_nanals=one/float(nanals)
 r_nanalsm1=one/float(nanals-1)
+mincorrlength_factsq = mincorrlength_fact**2
 
 kdobs=associated(kdtree_obs2)
 if (.not. kdobs .and. nproc .eq. 0) then
@@ -287,7 +288,7 @@ endif
 !$omp                  vlocal_evecs,vlocal,oblnp,lnp_chunk,lnsigl,corrlengthsq,&
 !$omp                  getkf,denkf,getkf_inflation,ensmean_chunk,ob,ensmean_ob, &
 !$omp                  nproc,numptsperproc,nnmax,r_nanalsm1,kdtree_obs2,kdobs, &
-!$omp                  robs_local,coslats_local, &
+!$omp                  mincorrlength_factsq,robs_local,coslats_local, &
 !$omp                  lupd_obspace_serial,eps,dfs_sort,nanals,index_pres,&
 !$omp  neigv,nlevs,lonsgrd,latsgrd,nobstot,nens,ncdim,nbackgrounds,indxproc,rad2deg) &
 !$omp  reduction(+:t1,t2,t3,t4,t5) &
@@ -415,8 +416,15 @@ grdloop: do npt=1,numptsperproc(nproc+1)
             vdist = zero
          endif
          if (nobsl_max > 0 .and. corrlength < 0) then
-             ! set R localization scale to be max distance to find nobsl_max obs
-             dist = sqrt(sresults(nob)%dis/sresults(nobsl)%dis+vdist*vdist)
+             ! if corrlength<0, set R localization scale to be max distance to find nobsl_max obs
+             ! (unless max distance is > abs(corrlength) or < abs(corrlength)/10)
+             if (sresults(nobsl)%dis > corrsq) then
+                dist = sqrt(sresults(nob)%dis/corrsq+vdist*vdist)
+             else if (sresults(nobsl)%dis < corrsq*mincorrlength_factsq) then
+                dist = sqrt(sresults(nob)%dis/(corrsq/mincorrlength_factsq)+vdist*vdist)
+             else
+                dist = sqrt(sresults(nob)%dis/sresults(nobsl)%dis+vdist*vdist)
+             endif
          else
              ! set R localization scale to specificed distance
              dist = sqrt(sresults(nob)%dis/corrsq+vdist*vdist)
@@ -584,9 +592,9 @@ else
    call mpi_reduce(nobslocal_mean,nobslocal_meanall,1,mpi_integer,mpi_sum,0,mpi_comm_world,ierr)
    if (nproc == 0) print *,'min/max/mean number of obs in local volume',nobslocal_minall,nobslocal_maxall,nint(nobslocal_meanall/float(numproc))
 endif
-!call mpi_reduce(nobslocal_max,nobslocal_maxall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
-!call mpi_reduce(nobslocal_min,nobslocal_minall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
-!if (nproc == 0) print *,'min/max number of obs in local volume',nobslocal_minall,nobslocal_maxall
+call mpi_reduce(nobslocal_max,nobslocal_maxall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
+call mpi_reduce(nobslocal_min,nobslocal_minall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
+if (nproc == 0) print *,'min/max number of obs in local volume',nobslocal_minall,nobslocal_maxall
 
 if (nrej > 0 .and. nproc == 0) print *, nrej,' obs rejected by varqc'
 deallocate(robs_local)
