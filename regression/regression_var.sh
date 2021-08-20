@@ -42,8 +42,6 @@ if [ -z ${machine+x} ]; then
    export machine="WCOSS_C"
   elif [ -d /gpfs/dell1/ptmp ]; then # venus or mars
    export machine="WCOSS_D"
-  elif [ -d /data/users ]; then # S4
-   export machine="s4"
 elif [ -d /discover/nobackup ]; then # NCCS Discover
    export machine="Discover"
   fi
@@ -112,6 +110,7 @@ case $machine in
     elif [ -d /scratch2/BMC/gsienkf/$LOGNAME ]; then
      export noscrub="/scratch2/BMC/gsienkf/$LOGNAME"
    fi
+ 
    export group="global"
    export queue="batch"
    if [[ "$cmaketest" = "false" ]]; then
@@ -137,6 +136,8 @@ case $machine in
       export noscrub="/gpfs/hps3/emc/global/noscrub/$LOGNAME"
    elif [ -d /gpfs/hps3/emc/da/noscrub/$LOGNAME ]; then
       export noscrub="/gpfs/hps3/emc/da/noscrub/$LOGNAME"
+   elif [ -d /gpfs/hps3/emc/hwrf/noscrub/$LOGNAME ]; then
+       export noscrub="/gpfs/hps3/emc/hwrf/noscrub/$LOGNAME"
    fi
    if [[ "$cmaketest" = "false" ]]; then
      export basedir="/gpfs/hps3/emc/global/noscrub/$LOGNAME/svn/gsi"
@@ -153,24 +154,6 @@ case $machine in
    export check_resource="no"
 
    export accnt=""
-   ;;
-   s4)
-   export noscrub="/data/users/$LOGNAME"
-   if [[ "$cmaketest" = "false" ]]; then
-     export basedir="/home/$LOGNAME/gsi"
-   fi
-   export group="dev"
-   export queue="dev"
-   export NWPROD="/usr/local/jcsda/nwprod_gdas_2014"
-   export ptmp="/scratch/short/$LOGNAME/$ptmpName"
-
-   export fixcrtm="/home/mpotts/gsi/trunk/lib/CRTM_REL-2.2.3/fix_update"
-   export casesdir="/data/users/mpotts/CASES"
-   export ndate="$NWPROD/util/exec/ndate"
-
-   export check_resource="no"
-
-   export accnt="star"
    ;;
    Discover)
    if [[ "$cmaketest" = "false" ]]; then
@@ -233,6 +216,7 @@ export rtma_adate="2020022420"
 export hwrf_nmm_adate="2012102812"
 export fv3_netcdf_adate="2017030100"
 export global_C96_fv3aero_adate="2019062200"
+export global_C96_fv3aerorad_adate="2019062200"
 
 # Paths for canned case data.
 export global_T62_obs="$casesdir/global/sigmap/$global_T62_adate"
@@ -271,6 +255,8 @@ export fv3_netcdf_obs="$casesdir/regional/fv3_netcdf/$fv3_netcdf_adate"
 export fv3_netcdf_ges="$casesdir/regional/fv3_netcdf/$fv3_netcdf_adate"
 export global_C96_fv3aero_obs="$casesdir/global/fv3/$global_C96_fv3aero_adate"
 export global_C96_fv3aero_ges="$casesdir/global/fv3/$global_C96_fv3aero_adate"
+export global_C96_fv3aerorad_obs="$casesdir/global/fv3/$global_C96_fv3aerorad_adate"
+export global_C96_fv3aerorad_ges="$casesdir/global/fv3/$global_C96_fv3aerorad_adate"
 
 # Define type of GPSRO data to be assimilated (refractivity or bending angle)
 export gps_dtype="gps_bnd"

@@ -146,6 +146,9 @@ real(r_single),public,pointer, dimension(:,:) :: anal_ob_modens ! Fortran pointe
 type(c_ptr)                             :: anal_ob_modens_cp    ! C pointer
 integer :: shm_win, shm_win2
 
+! ob-space posterior ensemble, needed for EFSOI
+real(r_single),public,allocatable, dimension(:,:) :: anal_ob_post   ! Fortran pointer
+
 contains
 
 subroutine readobs()
@@ -453,6 +456,7 @@ if (allocated(obtype)) deallocate(obtype)
 if (allocated(probgrosserr)) deallocate(probgrosserr)
 if (allocated(prpgerr)) deallocate(prpgerr)
 if (allocated(diagused)) deallocate(diagused)
+if (allocated(anal_ob_post)) deallocate(anal_ob_post)
 ! free shared memory segement, fortran pointer to that memory.
 nullify(anal_ob)
 call MPI_Barrier(mpi_comm_world,ierr)

@@ -99,12 +99,14 @@ data_found=0
 while [[ data_found -eq 0 && $PDATE -ge $limit ]]; do
    PDY=`echo $PDATE|cut -c1-8`
 
-   if [[ ${TANK_USE_RUN} -eq 1 ]]; then
-      test_dir=${TANKverf}/${RUN}.${PDY}/${MONITOR}
-   else
+   test_dir=${TANKverf}/${RUN}.${PDY}/${MONITOR}
+   if [[ ! -d ${test_dir} ]]; then
+      test_dir=${TANKverf}/${RUN}.${PDY}
+   fi
+   if [[ ! -d ${test_dir} ]]; then
       test_dir=${TANKverf}/${MONITOR}.${PDY}
    fi
-
+   
    echo "test_dir = ${test_dir}"
 
    if [[ -d ${test_dir} ]]; then

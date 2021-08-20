@@ -243,8 +243,6 @@ contains
 
 !   get work pe:
 
-    print_verbose=.false.
-    if(verbose .and. g1%mype==workpe) print_verbose=.true.
     allocate(numlevs(0:g1%npe-1))
     numlevs(0:g1%npe-1)=g1%kend(0:g1%npe-1)-g1%kbegin(0:g1%npe-1)+1
     if(g1%mype==0) then
@@ -257,6 +255,10 @@ contains
     end if
     call mpi_bcast(workpe,1,mpi_integer,0,mpi_comm_world,ierror)
    !write(6,*)' mype,workpe=',mype,workpe
+
+    print_verbose=.false.
+    if(verbose .and. g1%mype==workpe) print_verbose=.true.
+
 
 !    obtain vertical coordinate constants ahat,bhat,chat
     if(mype==workpe) call getabc(ahat,bhat,chat)

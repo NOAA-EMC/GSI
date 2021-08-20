@@ -41,6 +41,11 @@ program adderrspec_nmcmeth
   implicit none
 
   real,parameter :: zero=0.0_4
+
+! Declare externals
+  external :: mpi_init, mpi_comm_rank, mpi_comm_size, w3tagb, mpi_abort, mpi_comm_group, &
+      mpi_group_incl, mpi_comm_create, mpi_barrier, copy_sigdata, mpi_allreduce, &
+      sppad, smooth, w3tage, mpi_finalize
   
   logical :: meanonly,lexist,nemsio,sigio
   

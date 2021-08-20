@@ -39,6 +39,10 @@ program recentersigp
 
   real,parameter:: zero=0.0_4
 
+! Declare externals
+  external :: MPI_Init, MPI_Comm_rank, MPI_Comm_size, w3tagb, getorder,&
+     MPI_Barrier, MPI_Abort, w3tage, MPI_Finalize
+
   TYPE(SIGIO_HEAD) :: SIGHEADI,SIGHEADO,SIGHEADMI,SIGHEADMO
   TYPE(SIGIO_DATA) :: SIGDATAI,SIGDATAO,SIGDATAMI,SIGDATAMO
   logical:: nemsio, sigio, ncio, increment, quantize

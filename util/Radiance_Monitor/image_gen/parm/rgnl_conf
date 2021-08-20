@@ -18,7 +18,7 @@ export WEBDIR=${WEBDIR}/regional/${RADMON_SUFFIX}/pngs
 # internal package reference   
 #
 export TOP_IMGNDIR=${MY_TANKDIR}/imgn/regional/${RADMON_SUFFIX}
-export IMGNDIR=${MY_TANKDIR}/imgn/regional/${RADMON_SUFFIX}/pngs
+export IMGNDIR=${MY_TANKDIR}/imgn/regional/${RADMON_SUFFIX}/radmon/pngs
 export TANKDIR=${MY_TANKDIR}/stats/regional/${RADMON_SUFFIX}
 export TOP_ARCHIVE_DIR=${ARCHIVE_DIR}
 export ARCHIVE_DIR=${ARCHIVE_DIR}/regional/${RADMON_SUFFIX}

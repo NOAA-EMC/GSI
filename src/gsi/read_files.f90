@@ -38,6 +38,7 @@ subroutine read_files(mype)
 !   2017-09-08  li      - add sfcnst_comb to get nfldnst and control when sfc & nst combined 
 !   2019-03-21  Wei/Martin - add capability to read in aerosol guess from NEMS
 !   2019-09-24  martin  - add support for use_gfs_ncio
+!   2020-07-08  Wei     - fix the capability to count external aerosol files
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -81,7 +82,7 @@ subroutine read_files(mype)
        ifilesig,ifilesfc,ifilenst,hrdifsig,hrdifsfc,hrdifnst,create_gesfinfo
   use guess_grids, only: hrdifsig_all,hrdifsfc_all,hrdifnst_all
   use guess_grids, only: nfldaer, ntguesaer, ifileaer, hrdifaer, hrdifaer_all !for aerosol
-  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,nhr_assimilation
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,nhr_assimilation,nhr_obsbin
   use hybrid_ensemble_parameters, only: ntlevs_ens
   use gridmod, only: nlat_sfc,nlon_sfc,lpl_gfs,dx_gfs,use_gfs_nemsio,sfcnst_comb,use_gfs_ncio
   use constants, only: zero,r60inv,r60,r3600,i_missing
@@ -117,9 +118,10 @@ subroutine read_files(mype)
 
 ! Declare local variables
   logical(4) fexist
+  logical:: present
   character(6) filename
   integer(i_kind) i,j,iwan,npem1,iret
-  integer(i_kind) nhr_half
+  integer(i_kind) nhr_half,ihr
   integer(i_kind) iamana(4) ! changed to 4 from 3 for aer files
   integer(i_kind) nminanl,nmings,nming2,ndiff
   integer(i_kind),dimension(4):: idateg
@@ -161,6 +163,7 @@ subroutine read_files(mype)
   nfldsig=0
   nfldsfc=0
   nfldnst=0
+  nfldaer=0
   iamana=0
 
 ! Check for non-zero length atm, sfc, aer, and nst files on single task
@@ -220,6 +223,24 @@ subroutine read_files(mype)
         allocate(time_nst(nfldnst,2))
      end if
 
+     if(lread_ext_aerosol) then
+!    Check for aer files with non-zero length
+        do i=0,max_file-1
+           write(filename,'(''aerf'',i2.2)')i
+           call gsi_inquire(lenbytes,fexist,filename,mype)
+           if(fexist .and. lenbytes>0) then
+              nfldaer=nfldaer+1
+              irec(nfldaer,4) = i
+           end if
+        enddo
+        if(nfldaer==0) then
+           write(6,*)'READ_FILES: ***ERROR*** NO aer fields; aborting'
+           call stop2(170)
+        end if
+
+        allocate(time_aer(nfldaer,2))
+     end if
+
 ! Let a single task query the guess files.
 
 !    Convert analysis time to minutes relative to fixed date
@@ -238,7 +259,9 @@ subroutine read_files(mype)
            idateg=sigatm_head%idate
            call sigio_sclose(lunatm,iret)
         else if (use_gfs_ncio) then
-           atmges = open_dataset(filename)
+           atmges = open_dataset(filename,errcode=iret)
+           if (iret /=0 .and. mype==0) &
+                write(6,*)'READ_FILES: ***WARNING*** problem reading atm file ',trim(filename),iret 
            idate6 = get_idate_from_time_units(atmges) 
            call read_vardata(atmges, 'time', fhour)
            hourg4 = float(nint(fhour(1))) ! going to make this nearest integer for now
@@ -312,7 +335,9 @@ subroutine read_files(mype)
            call sfcio_sclose(lunsfc,iret)
            if(i == 1 .and. print_verbose)write(6,*)' READ_FILES: in sfcio sfc_head%lpl = ', sfc_head%lpl
         else if (use_gfs_ncio) then
-           sfcges = open_dataset(filename)
+           sfcges = open_dataset(filename,errcode=iret)
+           if (iret /=0 .and. mype==0) &
+                write(6,*)'READ_FILES: ***WARNING*** problem reading sfc file ',trim(filename),iret
            ncdim = get_dim(sfcges, 'grid_xt'); sfc_head%lonb = ncdim%len
            ncdim = get_dim(sfcges, 'grid_yt'); sfc_head%latb = ncdim%len
            idate6 = get_idate_from_time_units(sfcges) 
@@ -491,6 +516,7 @@ subroutine read_files(mype)
 !    for external aerosol files only
 !    Check for consistency of times from aer guess files.
      if ( lread_ext_aerosol ) then
+        write(6,*) 'READ_FILES: nfldaer ', nfldaer
         iwan=0
         do i=1,nfldaer
            write(filename,'(''aerf'',i2.2)')irec(i,4)
@@ -525,7 +551,7 @@ subroutine read_files(mype)
            idate5(3)=idateg(3); idate5(4)=idateg(1); idate5(5)=0
            call w3fs21(idate5,nmings)
            nming2=nmings+60*hourg
-           write(6,*)'READ_FILES:  aer guess file, hourg, idateg, nming2 ',hourg,idateg,nming2
+           write(6,*)'READ_FILES:  aer guess file',filename,hourg,idateg,nming2
            t4dv=real((nming2-iwinbgn),r_kind)*r60inv
            if (l4dvar.or.l4densvar) then
               if (t4dv<zero .OR. t4dv>winlen) cycle
@@ -593,7 +619,21 @@ subroutine read_files(mype)
      call stop2(99)
   endif
   if (l4densvar .and. nfldsig/=ntlevs_ens) then
-     write(6,*)'READ_FILES: ***ERROR*** insufficient atm fcst for 4densvar:  PROGRAM STOPS'
+     if (mype==0) then
+        write(6,*)'READ_FILES: ***ERROR*** insufficient atm fcst for 4densvar:  PROGRAM STOPS'
+        do i=1,ntlevs_ens
+           ihr=nhr_obsbin*(i-1)+nhr_half
+           present=.false.
+           do j=1,nfldsig
+              if (ihr == ifilesig(j)) present=.true.
+           end do
+           if (.not.present) then
+              write(filename,'(''sigf'',i2.2)')ihr
+              write(6,*)'READ_FILES: ***ERROR*** file ',trim(filename),' missing:  PROGRAM STOPS'
+           endif
+        end do
+     endif
+     call mpi_barrier(mpi_comm_world,ierror)
      call stop2(99)
   endif
 
@@ -611,7 +651,21 @@ subroutine read_files(mype)
      call stop2(99)
   endif
   if (l4densvar .and. nfldsfc/=ntlevs_ens) then
-     write(6,*)'READ_FILES: ***ERROR*** insufficient sfc fcst for 4densvar:  PROGRAM STOPS'
+     if (mype==0) then
+        write(6,*)'READ_FILES: ***ERROR*** insufficient sfc fcst for 4densvar:  PROGRAM STOPS'
+        do i=1,ntlevs_ens
+           ihr=nhr_obsbin*(i-1)+nhr_half
+           present=.false.
+           do j=1,nfldsfc
+              if (ihr == ifilesfc(j)) present=.true.
+           end do
+           if (.not.present) then
+              write(filename,'(''sfcf'',i2.2)')ihr
+              write(6,*)'READ_FILES: ***ERROR*** file ',trim(filename),' missing:  PROGRAM STOPS'
+           endif
+        end do
+     endif
+     call mpi_barrier(mpi_comm_world,ierror)
      call stop2(99)
   endif
   

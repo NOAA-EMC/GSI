@@ -573,6 +573,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 1020 continue
   if (oberrflg) deallocate(etabl)
   call closbf(lunin)
+  close(lunin)
 
   if(regional)then
     if(diagnostic_reg.and.ntest > 0) write(6,*)'READ_MODSBUFR:  ',&

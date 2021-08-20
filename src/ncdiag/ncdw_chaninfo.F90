@@ -706,7 +706,7 @@ module ncdw_chaninfo
                             call nclayer_error("NetCDF4 type invalid!")
                         end if
                         
-                        print *, trim(tmp_var_name), "rel index", rel_index
+!                       print *, trim(tmp_var_name), "rel index", rel_index
                         
                         ! Now add a relative position... based on the next position!
                         
