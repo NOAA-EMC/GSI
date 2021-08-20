@@ -410,7 +410,6 @@ fi
 
 cd $DATA || exit 99
 
-<<<<<<< HEAD:scripts/exglobal_analysis_fv3gfs.sh.ecf
 ################################################################################
 # Clean the run-directory
 rm berror_stats hybens_info
