@@ -31,8 +31,8 @@ elif [[ -d /ioddev_dell ]]; then
 elif [[ -d /scratch1 ]] ; then
     . /apps/lmod/lmod/init/sh
     target=hera
-elif [[ -d /carddata ]] ; then
-    . /opt/apps/lmod/3.1.9/init/sh
+elif [[ -d /data/prod ]] ; then
+    . /usr/share/lmod/lmod/init/sh
     target=s4
 elif [[ -d /jetmon ]] ; then
     . $MODULESHOME/init/sh
@@ -53,6 +53,8 @@ elif [[ -d /discover ]] ; then
 elif [[ -d /work ]]; then
     . $MODULESHOME/init/sh
     target=orion
+elif [[ -d /lfs/h1 ]] ; then
+    target=acorn
 else
     echo "unknown target = $target"
     exit 9
@@ -76,7 +78,7 @@ if [ $target = wcoss_d ]; then
 elif [ $target = wcoss -o $target = gaea ]; then
     module purge
     module load $dir_modules/modulefile.ProdGSI.$target
-elif [ $target = hera -o $target = orion ]; then
+elif [ $target = hera -o $target = orion -o $target = s4 ]; then
     module purge
     module use $dir_modules
     module load modulefile.ProdGSI.$target
@@ -88,6 +90,10 @@ elif [ $target = wcoss_c ]; then
     module load $dir_modules/modulefile.ProdGSI.$target
 elif [ $target = discover ]; then
     module load $dir_modules/modulefile.ProdGSI.$target
+elif [ $target = acorn ]; then
+    source /apps/prod/lmodules/startLmod
+    module use $dir_modules
+    module load modulefile.ProdGSI.$target
 else 
     module purge
     source $dir_modules/modulefile.ProdGSI.$target
