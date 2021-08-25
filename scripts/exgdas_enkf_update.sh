@@ -363,6 +363,7 @@ cat > enkf.nml << EOFnml
    sattypes_oz(9) = 'ompsnp_npp',
    sattypes_oz(10) = 'ompstc8_npp',
    sattypes_oz(11) = 'ompstc8_n20',
+   sattypes_oz(12) = 'ompsnp_n20',
    $OZOBS_ENKF
 /
 EOFnml
