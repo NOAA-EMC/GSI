@@ -21,6 +21,7 @@ contains
   ! program history log:
   !   2011-08-31  todling - revisit en_perts (single-prec) in light of extended bundle
   !
+  !   2021-08-10  lei     - modify for fv3-lam ensemble spread output
   !   input argument list:
   !
   !   output argument list:
@@ -45,6 +46,7 @@ contains
       use gsi_bundlemod, only: gsi_gridcreate
       use gsi_4dvar, only: ens_fhrlevs
       use gsi_rfv3io_mod, only: type_fv3regfilenameg
+      use hybrid_ensemble_parameters, only: write_ens_sprd
   
       implicit none
       class(get_fv3_regional_ensperts_class), intent(inout) :: this
@@ -255,9 +257,6 @@ contains
   
          call mpi_barrier(mpi_comm_world,ierror)
   !
-  ! CALCULATE ENSEMBLE SPREAD
-         call this%ens_spread_dualres_regional(mype,en_perts,nelen,en_bar(m))
-         call mpi_barrier(mpi_comm_world,ierror)
   !
   ! CONVERT ENSEMBLE MEMBERS TO ENSEMBLE PERTURBATIONS
          sig_norm=sqrt(one/max(one,n_ens-one))
@@ -269,6 +268,12 @@ contains
          end do
 
      enddo ! it 4d loop
+  ! CALCULATE ENSEMBLE SPREAD
+     write_ens_sprd=.true.
+     if(write_ens_sprd ) then
+         call this%ens_spread_dualres_regional(mype,en_perts,nelen)
+         call mpi_barrier(mpi_comm_world,ierror) ! do we need this mpi_barrier here? 
+     endif
       do m=1,ntlevs_ens
       call gsi_bundledestroy(en_bar(m),istatus)
       if(istatus/=0) then
@@ -460,7 +465,8 @@ contains
 
   return       
   end subroutine general_read_fv3_regional
-  subroutine ens_spread_dualres_regional_fv3_regional(this,mype,en_perts,nelen,en_bar)
+  
+  subroutine ens_spread_dualres_regional_fv3_regional(this,mype,en_perts,nelen)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
   ! subprogram:    ens_spread_dualres_regional
@@ -473,9 +479,8 @@ contains
   !   2010-08-11  parrish, initial documentation
   !   2011-04-05  parrish - add pseudo-bundle capability
   !   2011-08-31  todling - revisit en_perts (single-prec) in light of extended bundle
-  !
+  !   2021-08-10  lei     - modify for fv3-lam ensemble option
   !   input argument list:
-  !     en_bar - ensemble mean
   !      mype  - current processor number
   !
   !   output argument list:
@@ -487,43 +492,39 @@ contains
   !$$$ end documentation block
   !
     use kinds, only: r_single,r_kind,i_kind
-    use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,p_e2a,uv_hyb_ens, &
-                                          regional_ensemble_option
+    use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sube2suba
     use constants, only:  zero,two,half,one
-    use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
+    use control_vectors, only: cvars2d,cvars3d
     use gsi_bundlemod, only: gsi_bundlecreate
     use gsi_bundlemod, only: gsi_grid
     use gsi_bundlemod, only: gsi_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use gsi_bundlemod, only: gsi_bundledestroy
     use gsi_bundlemod, only: gsi_gridcreate
+    use write_fv3_enspread_mod, only: write_fv3_enspread
     implicit none
 
     class(get_fv3_regional_ensperts_class), intent(inout) :: this
-    type(gsi_bundle),OPTIONAL,intent(in):: en_bar
     integer(i_kind),intent(in):: mype
     type(gsi_bundle),allocatable, intent(in   ) :: en_perts(:,:)
     integer(i_kind), intent(in   ):: nelen
   
     type(gsi_bundle):: sube,suba
     type(gsi_grid):: grid_ens,grid_anl
-    real(r_kind) sp_norm,sig_norm_sq_inv
-    type(sub2grid_info)::se,sa
-    integer(i_kind) k
+    real(r_kind) sp_norm
+
+
+
   
-    integer(i_kind) i,n,ic3
-    logical regional
-    integer(i_kind) num_fields,inner_vars,istat,istatus
-    logical,allocatable::vector(:)
-    real(r_kind),pointer,dimension(:,:,:):: st,vp,tv,rh,oz,cw
-    real(r_kind),pointer,dimension(:,:):: ps
-    real(r_kind),dimension(grd_anl%lat2,grd_anl%lon2,grd_anl%nsig),target::dum3
-    real(r_kind),dimension(grd_anl%lat2,grd_anl%lon2),target::dum2
+    integer(i_kind) i,n
+    integer(i_kind) istatus
+    character(255) enspreadfilename 
 
     associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
     end associate
- 
+          if(mype==0) write(6,*) "Enter ens_spread_dualres_regional_fv3_regional"  
+          enspreadfilename="fv3_enspread_regll"
   !      create simple regular grid
           call gsi_gridcreate(grid_anl,grd_anl%lat2,grd_anl%lon2,grd_anl%nsig)
           call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
@@ -543,103 +544,24 @@ contains
             call stop2(9999)
          endif
   
-    sp_norm=(one/float(n_ens))
+         sp_norm=(one/float(n_ens))
   
-    sube%values=zero
+         sube%values=zero
   !
   
-    if(regional_ensemble_option == 1)then
-       print *,'global ensemble'
-       sig_norm_sq_inv=n_ens-one
+         do n=1,n_ens
+            do i=1,nelen
+               sube%values(i)=sube%values(i) &
+                 +(en_perts(n,1)%valuesr4(i))*(en_perts(n,1)%valuesr4(i))
+            end do
+         end do
+     
+         do i=1,nelen
+           sube%values(i) = sqrt(sube%values(i))
+         end do
   
-       do n=1,n_ens
-          do i=1,nelen
-             sube%values(i)=sube%values(i) &
-               +en_perts(n,1)%valuesr4(i)*en_perts(n,1)%valuesr4(i)
-          end do
-       end do
-  
-       do i=1,nelen
-         sube%values(i) = sqrt(sp_norm*sig_norm_sq_inv*sube%values(i))
-       end do
-    else
-       do n=1,n_ens
-          do i=1,nelen
-             sube%values(i)=sube%values(i) &
-               +(en_perts(n,1)%valuesr4(i)-en_bar%values(i))*(en_perts(n,1)%valuesr4(i)-en_bar%values(i))
-          end do
-       end do
-   
-       do i=1,nelen
-         sube%values(i) = sqrt(sp_norm*sube%values(i))
-       end do
-    end if
-  
-    if(grd_ens%latlon1n == grd_anl%latlon1n) then
-       do i=1,nelen
-          suba%values(i)=sube%values(i)
-       end do
-    else
-       inner_vars=1
-       num_fields=max(0,nc3d)*grd_ens%nsig+max(0,nc2d)
-       allocate(vector(num_fields))
-       vector=.false.
-       do ic3=1,nc3d
-          if(trim(cvars3d(ic3))=='sf'.or.trim(cvars3d(ic3))=='vp') then
-             do k=1,grd_ens%nsig
-                vector((ic3-1)*grd_ens%nsig+k)=uv_hyb_ens
-             end do
-          end if
-       end do
-       call general_sub2grid_create_info(se,inner_vars,grd_ens%nlat,grd_ens%nlon,grd_ens%nsig,num_fields, &
-                                         regional,vector)
-       call general_sub2grid_create_info(sa,inner_vars,grd_anl%nlat,grd_anl%nlon,grd_anl%nsig,num_fields, &
-                                         regional,vector)
-       deallocate(vector)
-       call general_sube2suba(se,sa,p_e2a,sube%values,suba%values,regional)
-    end if
-  
-    dum2=zero
-    dum3=zero
-    call gsi_bundlegetpointer(suba,'sf',st,istat)
-    if(istat/=0) then
-       write(6,*)' no sf pointer in ens_spread_dualres, point st at dum3 array'
-       st => dum3
-    end if
-    call gsi_bundlegetpointer(suba,'vp',vp,istat)
-    if(istat/=0) then
-       write(6,*)' no vp pointer in ens_spread_dualres, point vp at dum3 array'
-       vp => dum3
-    end if
-    call gsi_bundlegetpointer(suba,'t',tv,istat)
-    if(istat/=0) then
-       write(6,*)' no t pointer in ens_spread_dualres, point tv at dum3 array'
-       tv => dum3
-    end if
-    call gsi_bundlegetpointer(suba,'q',rh,istat)
-    if(istat/=0) then
-       write(6,*)' no q pointer in ens_spread_dualres, point rh at dum3 array'
-       rh => dum3
-    end if
-    call gsi_bundlegetpointer(suba,'oz',oz,istat)
-    if(istat/=0) then
-       write(6,*)' no oz pointer in ens_spread_dualres, point oz at dum3 array'
-       oz => dum3
-    end if
-    call gsi_bundlegetpointer(suba,'cw',cw,istat)
-    if(istat/=0) then
-       write(6,*)' no cw pointer in ens_spread_dualres, point cw at dum3 array'
-       cw => dum3
-    end if
-    call gsi_bundlegetpointer(suba,'ps',ps,istat)
-    if(istat/=0) then
-       write(6,*)' no ps pointer in ens_spread_dualres, point ps at dum2 array'
-       ps => dum2
-    end if
-  
-    call write_spread_dualres(st,vp,tv,rh,oz,cw,ps,mype)
+         call write_fv3_enspread(grd_ens,enspreadfilename,sube,1)  !"1" as a placeholder
   
     return
   end subroutine ens_spread_dualres_regional_fv3_regional
-  
 end module get_fv3_regional_ensperts_mod
