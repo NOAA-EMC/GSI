@@ -653,14 +653,14 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
        call die('read_fv3_netcdf_guess','not enough PEs to read in fv3 fields' )
     endif
     mype_u=0           
-    mype_v=1
-    mype_t=2
-    mype_p=3
-    mype_q=4
-    mype_ql=5
-    mype_oz=6
-    mype_2d=7 
-    mype_delz=8
+    mype_v=mod(1,npe)
+    mype_t=mod(2,npe)
+    mype_p=mod(3,npe)
+    mype_q=mod(4,npe)
+    mype_ql=mod(5,npe)
+    mype_oz=mod(6,npe)
+    mype_2d=mod(7,npe)
+    mype_delz=mod(8,npe)
       
     allocate(ijns(npe),ijns2d(npe),ijnz(npe) )
     allocate(displss(npe),displss2d(npe),displsz_g(npe) )
@@ -978,7 +978,6 @@ subroutine gsi_fv3ncdf2d_read_v1(filenamein,varname,varname2,work_sub,mype_io)
     real(r_kind)   ,intent(out  ) :: work_sub(lat2,lon2) 
     integer(i_kind)   ,intent(in   ) :: mype_io
     real(r_kind),allocatable,dimension(:,:,:):: uu
-    integer(i_kind),allocatable,dimension(:):: dim_id,dim
     real(r_kind),allocatable,dimension(:):: work
     real(r_kind),allocatable,dimension(:,:):: a
 
@@ -1000,7 +999,6 @@ subroutine gsi_fv3ncdf2d_read_v1(filenamein,varname,varname2,work_sub,mype_io)
        endif
 
        iret=nf90_inquire(gfile_loc,ndimensions,nvariables,nattributes,unlimiteddimid)
-       allocate(dim(ndimensions))
        allocate(a(nlat,nlon))
 
        iret=nf90_inq_varid(gfile_loc,trim(adjustl(varname)),var_id)
@@ -1012,9 +1010,6 @@ subroutine gsi_fv3ncdf2d_read_v1(filenamein,varname,varname2,work_sub,mype_io)
        endif
 
        iret=nf90_inquire_variable(gfile_loc,var_id,ndims=ndim)
-       if(allocated(dim_id    )) deallocate(dim_id    )
-       allocate(dim_id(ndim))
-       iret=nf90_inquire_variable(gfile_loc,var_id,dimids=dim_id)
        if(allocated(uu       )) deallocate(uu       )
        allocate(uu(nx,ny,1))
        iret=nf90_get_var(gfile_loc,var_id,uu)
@@ -1030,7 +1025,7 @@ subroutine gsi_fv3ncdf2d_read_v1(filenamein,varname,varname2,work_sub,mype_io)
           end do
 
        iret=nf90_close(gfile_loc)
-       deallocate (uu,a,dim,dim_id)
+       deallocate (uu,a)
 
     endif !mype
 

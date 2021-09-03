@@ -117,7 +117,7 @@ subroutine prewgt_reg(mype)
 
   real(r_kind) samp2,dl1,dl2,d
   real(r_kind) samp,hwl,cc
-  real(r_kind),dimension(nsig):: rate,dlsig,rlsig
+  real(r_kind),dimension(nsig):: rate,rlsig
   real(r_kind),dimension(nsig,nsig):: turn
   real(r_kind),dimension(ny,nx)::sl
   real(r_kind) fact,psfc015
@@ -161,7 +161,7 @@ subroutine prewgt_reg(mype)
 
 ! Allocate arrays in stats file
   allocate ( corz(1:mlat,1:nsig,1:nc3d) )
-  allocate ( corp(1:mlat,nc2d) )
+  allocate ( corp(1:mlat,nvars-nc3d) )
   allocate ( hwll(0:mlat+1,1:nsig,1:nc3d),hwllp(0:mlat+1,nvars-nc3d) )
   allocate ( vz(1:nsig,0:mlat+1,1:nc3d) )
 
@@ -223,20 +223,6 @@ subroutine prewgt_reg(mype)
         enddo
      enddo
   endif ! regional_ozone
-! Normalize vz with del sigmma and convert to vertical grid units!
-  dlsig(1)=rlsig(1)-rlsig(2)
-  do k=2,nsig-1
-     dlsig(k)=half*(rlsig(k-1)-rlsig(k+1))
-  enddo
-  dlsig(nsig)=rlsig(nsig-1)-rlsig(nsig)
-
-  do n=1,nc3d
-     do j=0,mlat+1
-        do k=1,nsig
-           vz(k,j,n)=vz(k,j,n)*dlsig(k)
-        end do
-     end do
-  end do
 
 ! As used in the code, the horizontal length scale
 ! parameters are used in an inverted form.  Invert
