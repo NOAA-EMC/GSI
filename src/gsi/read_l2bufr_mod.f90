@@ -257,7 +257,7 @@ contains
        call gettable(tbname,666,ntot,radar_count,rtable) 
        do i=1,radar_count 
          read(rtable(i),*) rsite(i),ruse(i) 
-         if (mype==0) write(*,'(A10,X,A4,X,I)'),"Radar sites usage: ",rsite(i),ruse(i)
+         if (mype==0) write(*,'(A20,X,A4,X,I3)'),"Radar sites usage: ",rsite(i),ruse(i)
        end do 
     end if 
     ! define infile if using either option for radial winds.
