@@ -59,7 +59,7 @@
                        l4dvar,nhr_obsbin,nhr_subwin,nwrvecs,iorthomax,&
                        lbicg,lsqrtb,lcongrad,lbfgsmin,ltlint,ladtest,ladtest_obs, lgrtest,&
                        idmodel,clean_4dvar,iwrtinc,lanczosave,jsiga,ltcost,liauon, &
-		       l4densvar,ens_nstarthr,lnested_loops,lwrite4danl,nhr_anal,thin4d,tau_fcst,efsoi_order
+                       l4densvar,ens_nstarthr,lnested_loops,lwrite4danl,nhr_anal,thin4d,tau_fcst,efsoi_order
   use gsi_4dvar, only: mPEs_observer
   use m_obsdiags, only: alwaysLocal => obsdiags_alwaysLocal
   use obs_ferrscale, only: lferrscale
@@ -103,6 +103,7 @@
   use derivsmod, only: init_anadv
   use berror, only: norh,ndeg,vs,bw,init_berror,hzscl,hswgt,pert_berr,pert_berr_fct,&
      bkgv_flowdep,bkgv_rewgtfct,bkgv_write,fpsproj,nhscrf,adjustozvar,fut2ps,cwcoveqqcov
+  use m_berror_stats, only: usenewgfsberror
   use anberror, only: anisotropic,ancovmdl,init_anberror,npass,ifilt_ord,triad4, &
      binom,normal,ngauss,rgauss,anhswgt,an_vs,&
      grid_ratio,grid_ratio_p,an_flen_u,an_flen_t,an_flen_z, &
@@ -768,7 +769,7 @@
 !     cwcoveqqcov  - sets cw Bcov to be the same as B-cov(q) (presently glb default)
 
   namelist/bkgerr/vs,nhscrf,hzscl,hswgt,norh,ndeg,noq,bw,norsp,fstat,pert_berr,pert_berr_fct, &
-	bkgv_flowdep,bkgv_rewgtfct,bkgv_write,fpsproj,adjustozvar,fut2ps,cwcoveqqcov
+      bkgv_flowdep,bkgv_rewgtfct,bkgv_write,fpsproj,adjustozvar,fut2ps,cwcoveqqcov,usenewgfsberror
 
 ! ANBKGERR (anisotropic background error related variables):
 !     anisotropic - if true, then use anisotropic background error
