@@ -43,9 +43,13 @@ module m_berror_stats
 
    private    ! except
 
-   ! reconfigurable parameters, via NAMELIST/setup/
-   public :: berror_stats    ! reconfigurable filename
+!   def usenewgfsberror - use modified gfs berror stats for global and regional.
+!                        for global skips extra record
+!                        for regional properly defines array sizes, etc.
+!   def berror_stats  - reconfigurable filename via NAMELIST/setup/
 
+   public :: usenewgfsberror
+   public :: berror_stats,inquire_berror
    ! interfaces to file berror_stats.
    public :: berror_get_dims ! get dimensions, jfunc::createj_func()
    public :: berror_read_bal ! get cross-cov.stats., balmod::prebal()
@@ -77,8 +81,10 @@ module m_berror_stats
    integer(i_kind),parameter :: default_unit_ = 22
    integer(i_kind),parameter :: default_rc_   = 2
 
-   character(len=256),save :: berror_stats = "berror_stats"      ! filename
    logical,save :: cwcoveqqcov_
+   logical usenewgfsberror
+
+   character(len=256),save :: berror_stats = "berror_stats"      ! filename
 
 contains
 
@@ -124,6 +130,52 @@ subroutine get_dims(msig,mlat,mlon,lunit)
 
    return
 end subroutine get_dims
+
+subroutine inquire_berror(lunit,mype)
+
+   use kinds,    only: r_single
+
+   implicit none
+
+   integer(i_kind),intent(in   ) :: lunit ! logical unit [22]
+   integer(i_kind),intent(in   ) :: mype
+
+   character(len=*),parameter :: myname_=myname//'::inquire_berror'
+   integer(i_kind) :: inerr,msig,mlat,mlon_,ier,errtot,i
+   real(r_single),dimension(:),allocatable::  clat_avn,sigma_avn
+
+   ! Read dimension of stats file
+   inerr = lunit
+   open(inerr,file=berror_stats,form='unformatted',status='old',iostat=ier)
+   call check_iostat(ier,myname_,'open('//trim(berror_stats)//')')
+   rewind inerr
+   read(inerr,iostat=ier) msig,mlat,mlon_
+   call check_iostat(ier,myname_,'read header')
+   errtot=ier
+
+   errtot=0
+   allocate ( clat_avn(mlat) )
+   allocate ( sigma_avn(1:msig) )
+   read(inerr,iostat=ier)clat_avn,sigma_avn
+!  Checking to see if sigma_avn fits required format if so newgfsberror file.
+   do i=1,msig-1
+     if(sigma_avn(i) < sigma_avn(i+1) .or. sigma_avn(i) < zero .or. sigma_avn(i) > one)then
+         errtot=1
+     end if
+   end do
+   deallocate(clat_avn,sigma_avn)
+   if(errtot /= 0)then
+     usenewgfsberror=.false.
+     if(mype == 0)write(6,*) 'usenewgfsberror = .false. old format file '
+   else
+     usenewgfsberror=.true.
+     if(mype == 0)write(6,*) 'usenewgfsberror = .true. new format file '
+   end if
+   close(inerr,iostat=ier)
+   call check_iostat(ier,myname_,'close('//trim(berror_stats)//')')
+
+   return
+end subroutine inquire_berror
 
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ! NASA/GSFC, Global Modeling and Assimilation Office, 900.3, GEOS/DAS  !
@@ -215,6 +267,8 @@ subroutine read_bal(agvin,bvin,wgvin,pputin,fut2ps,mype,lunit)
    read(inerr,iostat=ier) nsigstat,nlatstat
    call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (nsigstat,nlatstat)')
 
+!  dummy read to skip lats,sigma
+   if(usenewgfsberror)read(inerr)
    if ( mype==0 ) then
       if ( nsig/=nsigstat .or. nlat/=nlatstat ) then
          write(6,*) myname_,'(PREBAL):  ***ERROR*** resolution of ', &
@@ -261,7 +315,7 @@ subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwopt
 
    use kinds,only : r_single,r_kind
    use gridmod,only : nlat,nlon,nsig
-      use radiance_mod, only: n_clouds_fwd,cloud_names_fwd
+   use radiance_mod, only: n_clouds_fwd,cloud_names_fwd
 
    implicit none
 
@@ -309,13 +363,14 @@ subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwopt
 
    integer(i_kind) :: i,n,k,iq,icw,ivar,ic
    integer(i_kind) :: inerr,istat,ier
-   integer(i_kind) :: nsigstat,nlatstat
+   integer(i_kind) :: nsigstat,nlatstat,mlon_
    integer(i_kind) :: isig
    real(r_kind) :: corq2x
    character(len=5) :: var
    logical,allocatable,dimension(:) :: found3d
    logical,allocatable,dimension(:) :: found2d
 
+!  real(r_single),allocatable,dimension(:)  :: clat,sigma
    real(r_single),allocatable,dimension(:,:):: hwllin
    real(r_single),allocatable,dimension(:,:):: corzin
    real(r_single),allocatable,dimension(:,:):: corq2
@@ -331,8 +386,9 @@ subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwopt
    ! with that specified via the user namelist
 
    rewind inerr
-   read(inerr,iostat=ier)nsigstat,nlatstat
+   read(inerr,iostat=ier)nsigstat,nlatstat,mlon_
    call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (nsigstat,nlatstat)')
+   if(usenewgfsberror)read(inerr,iostat=ier)
 
    if ( mype==0 ) then
       if ( nsigstat/=nsig .or. nlatstat/=nlat ) then

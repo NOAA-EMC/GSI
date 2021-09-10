@@ -797,14 +797,14 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin,it)
        call die('read_fv3_netcdf_guess','not enough PEs to read in fv3 fields' )
     endif
     mype_u=0           
-    mype_v=1
-    mype_t=2
-    mype_p=3
-    mype_q=4
-    mype_ql=5
-    mype_oz=6
-    mype_2d=7 
-    mype_delz=8
+    mype_v=mod(1,npe)
+    mype_t=mod(2,npe)
+    mype_p=mod(3,npe)
+    mype_q=mod(4,npe)
+    mype_ql=mod(5,npe)
+    mype_oz=mod(6,npe)
+    mype_2d=mod(7,npe)
+    mype_delz=mod(8,npe)
       
 !   allocate(ijns(npe),ijns2d(npe),ijnz(npe) )
 !   allocate(displss(npe),displss2d(npe),displsz_g(npe) )
@@ -1146,7 +1146,6 @@ subroutine gsi_fv3ncdf2d_read_v1(filenamein,varname,varname2,work_sub,mype_io,la
     integer(i_kind)   ,intent(in   ) :: mype_io
     logical, intent(in ) :: ensgrid
     real(r_kind),allocatable,dimension(:,:,:):: uu
-    integer(i_kind),allocatable,dimension(:):: dim_id,dim
     real(r_kind),allocatable,dimension(:):: work
     real(r_kind),allocatable,dimension(:,:):: a
 
@@ -1172,7 +1171,6 @@ subroutine gsi_fv3ncdf2d_read_v1(filenamein,varname,varname2,work_sub,mype_io,la
        endif
 
        iret=nf90_inquire(gfile_loc,ndimensions,nvariables,nattributes,unlimiteddimid)
-       allocate(dim(ndimensions))
        if (ensgrid) then
          allocate(a(nlat_ens,nlon_ens))
        else
@@ -1187,10 +1185,6 @@ subroutine gsi_fv3ncdf2d_read_v1(filenamein,varname,varname2,work_sub,mype_io,la
          endif
        endif
 
-       iret=nf90_inquire_variable(gfile_loc,var_id,ndims=ndim)
-       if(allocated(dim_id    )) deallocate(dim_id    )
-       allocate(dim_id(ndim))
-       iret=nf90_inquire_variable(gfile_loc,var_id,dimids=dim_id)
        if(allocated(uu       )) deallocate(uu       )
        if (ensgrid) then
           allocate(uu(nxens,nyens,1))
@@ -1220,7 +1214,7 @@ subroutine gsi_fv3ncdf2d_read_v1(filenamein,varname,varname2,work_sub,mype_io,la
           end do
        end if
        iret=nf90_close(gfile_loc)
-       deallocate (uu,a,dim,dim_id)
+       deallocate (uu,a)
 
     endif !mype
 

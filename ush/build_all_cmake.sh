@@ -31,8 +31,8 @@ elif [[ -d /ioddev_dell ]]; then
 elif [[ -d /scratch1 ]] ; then
     . /apps/lmod/lmod/init/sh
     target=hera
-elif [[ -d /carddata ]] ; then
-    . /opt/apps/lmod/3.1.9/init/sh
+elif [[ -d /data/prod ]] ; then
+    . /usr/share/lmod/lmod/init/sh
     target=s4
 elif [[ -d /jetmon ]] ; then
     . $MODULESHOME/init/sh
@@ -78,7 +78,7 @@ if [ $target = wcoss_d ]; then
 elif [ $target = wcoss -o $target = gaea ]; then
     module purge
     module load $dir_modules/modulefile.ProdGSI.$target
-elif [ $target = hera -o $target = orion  -o $target = jet ]; then
+elif [ $target = hera -o $target = orion -o $target = jet -o $target = s4 ]; then
     module purge
     module use $dir_modules
     module load modulefile.ProdGSI.$target
