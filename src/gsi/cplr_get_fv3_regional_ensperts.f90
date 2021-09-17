@@ -6,6 +6,7 @@ use abstract_get_fv3_regional_ensperts_mod,only: abstract_get_fv3_regional_enspe
     procedure, pass(this) :: get_fv3_regional_ensperts => get_fv3_regional_ensperts_run
     procedure, pass(this) :: ens_spread_dualres_regional => ens_spread_dualres_regional_fv3_regional
     procedure, pass(this) :: general_read_fv3_regional
+    procedure, pass(this) :: general_read_fv3_regional_dirZDA
   end type get_fv3_regional_ensperts_class
 contains
   subroutine get_fv3_regional_ensperts_run(this,en_perts,nelen,ps_bar)
@@ -20,6 +21,7 @@ contains
   !
   ! program history log:
   !   2011-08-31  todling - revisit en_perts (single-prec) in light of extended bundle
+  !   2019-04-22  CAPS(C. Tong) - add direct reflectivity DA option
   !
   !   2021-08-10  lei     - modify for fv3-lam ensemble spread output
   !   input argument list:
@@ -47,7 +49,10 @@ contains
       use gsi_4dvar, only: ens_fhrlevs
       use gsi_rfv3io_mod, only: type_fv3regfilenameg
       use hybrid_ensemble_parameters, only: write_ens_sprd
-  
+      use directDA_radaruse_mod, only: l_use_cvpqx, cvpqx_pval, cld_nt_updt
+      use directDA_radaruse_mod, only: l_use_dbz_directDA
+      use directDA_radaruse_mod, only: l_cvpnr
+
       implicit none
       class(get_fv3_regional_ensperts_class), intent(inout) :: this
       type(gsi_bundle),allocatable, intent(inout) :: en_perts(:,:)
@@ -56,6 +61,7 @@ contains
   
       real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: u,v,tv,oz,rh
       real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2):: ps
+      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)::w,ql,qi,qr,qg,qs,qnr
   
       real(r_single),pointer,dimension(:,:,:):: w3
       real(r_single),pointer,dimension(:,:):: w2
@@ -72,7 +78,7 @@ contains
       
       character(255) ensfilenam_str
       type(type_fv3regfilenameg)::fv3_filename 
-  
+
       call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
       ! Allocate bundle to hold mean of ensemble members
       allocate(en_bar(ntlevs_ens))
@@ -83,7 +89,25 @@ contains
            call stop2(9991)
         endif
       enddo ! for m 
-  
+ 
+      ! print info message for dirZDA
+      if(mype==0)then
+        if (l_use_cvpqx) then
+          if ( cvpqx_pval == 0._r_kind ) then        ! CVlogq
+              write(6,*) 'general_read_fv3_regional_dirZDA: convert qr/qs/qg to log transform.'
+          else if ( cvpqx_pval > 0._r_kind ) then   ! CVpq
+              write(6,*) 'general_read_fv3_regional_dirZDA: ',     &
+                         'reset minimum of qr/qs/qg to specified values before power transform.' 
+              write(6,*) 'general_read_fv3_regional_dirZDA: convert qr/qs/qg with power transform.'
+          end if
+        end if
+        if ( cld_nt_updt > 0 .and. l_cvpnr) then
+          write(6,*) 'general_read_fv3_regional_dirZDA: ',     &
+                     'reset minimum of qnr to a specified value before power transform'
+          write(6,*) 'general_read_fv3_regional_dirZDA: convert qnr with power transform .'
+        end if
+      end if
+ 
 
       do m=1,ntlevs_ens
 
@@ -116,6 +140,10 @@ contains
   ! READ ENEMBLE MEMBERS DATA
             if (mype == 0) write(6,'(a,a)') 'CALL READ_FV3_REGIONAL_ENSPERTS FOR ENS DATA with the filename str : ',trim(ensfilenam_str)
             call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz) 
+
+            if ( l_use_dbz_directDA ) then ! Read additional hydrometers and w for dirZDA
+               call this%general_read_fv3_regional_dirZDA(fv3_filename,ql,qi,qr,qs,qg,qnr,w)
+            end if
   
   ! SAVE ENSEMBLE MEMBER DATA IN COLUMN VECTOR
             do ic3=1,nc3d
@@ -130,7 +158,7 @@ contains
                   write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' for en_bar'
                   call stop2(9993)
                end if
-  
+
                select case (trim(cvars3d(ic3)))
   
                   case('sf','SF')
@@ -188,8 +216,94 @@ contains
                         end do
                      end do
   
-  
+! save additional ensemble varaible data for direct reflectivity DA
+
+                  case('ql','QL')
+
+                     do k=1,grd_ens%nsig
+                        do i=1,grd_ens%lon2
+                           do j=1,grd_ens%lat2
+                              w3(j,i,k) = ql(j,i,k)
+                              x3(j,i,k)=x3(j,i,k)+ql(j,i,k)
+                           end do
+                        end do
+                     end do
+
+                  case('qi','QI')
+
+                     do k=1,grd_ens%nsig
+                        do i=1,grd_ens%lon2
+                           do j=1,grd_ens%lat2
+                              w3(j,i,k) = qi(j,i,k)
+                              x3(j,i,k)=x3(j,i,k)+qi(j,i,k)
+                           end do
+                        end do
+                     end do
+
+                  case('qr','QR')
+
+                     do k=1,grd_ens%nsig
+                        do i=1,grd_ens%lon2
+                           do j=1,grd_ens%lat2
+                              w3(j,i,k) = qr(j,i,k)
+                              x3(j,i,k)=x3(j,i,k)+qr(j,i,k)
+                           end do
+                        end do
+                     end do
+
+                  case('qs','QS')
+
+                     do k=1,grd_ens%nsig
+                        do i=1,grd_ens%lon2
+                           do j=1,grd_ens%lat2
+                              w3(j,i,k) = qs(j,i,k)
+                              x3(j,i,k)=x3(j,i,k)+qs(j,i,k)
+                           end do
+                        end do
+                     end do
+
+                  case('qg','QG')
+
+                     do k=1,grd_ens%nsig
+                        do i=1,grd_ens%lon2
+                           do j=1,grd_ens%lat2
+                              w3(j,i,k) = qg(j,i,k)
+                              x3(j,i,k)=x3(j,i,k)+qg(j,i,k)
+                           end do
+                        end do
+                     end do
+
+                  case('qnr','QNR')
+
+                       do k=1,grd_ens%nsig
+                          do i=1,grd_ens%lon2
+                             do j=1,grd_ens%lat2
+                                if ( l_use_dbz_directDA ) then ! direct reflectivity DA
+                                   if ( cld_nt_updt > 0 ) then ! Update Nc 
+                                      w3(j,i,k) = qnr(j,i,k)
+                                      x3(j,i,k)=x3(j,i,k)+qnr(j,i,k)
+                                   end if
+                                else     ! .not. l_use_dbz_directDA
+                                   w3(j,i,k) = qnr(j,i,k)
+                                   x3(j,i,k)=x3(j,i,k)+qnr(j,i,k)
+                                end if
+                             end do
+                          end do
+                       end do
+
+                  case('w','W')
+                     do k=1,grd_ens%nsig
+                        do i=1,grd_ens%lon2
+                           do j=1,grd_ens%lat2
+                              w3(j,i,k) = w(j,i,k)
+                              x3(j,i,k)=x3(j,i,k)+w(j,i,k)
+                           end do
+                        end do
+                     end do
                end select
+
+        
+
             end do
   
             do ic2=1,nc2d
@@ -465,7 +579,149 @@ contains
 
   return       
   end subroutine general_read_fv3_regional
+
+  subroutine general_read_fv3_regional_dirZDA(this,fv3_filenameginput,g_ql,g_qi,g_qr,g_qs,g_qg,g_qnr,g_w)
+  !$$$  subprogram documentation block
+  !     firstly copied from general_read_arw_regional           .      .    .                                       .
+  ! subprogram:    general_read_fv3_regional_dirZda  read fv3sar model ensemble members
+  !   prgmmr: Ting             org: emc/ncep            date: 2018
+  !
+  ! abstract: read ensemble members from the fv3 model netcdf format (dynamic and tracer)
+  !           for use with hybrid ensemble option.
+  !
+  ! program history log:
+  !   2018-  Ting      - intial versions  
+  !   2019-03-13  CAPS(C. Tong)   - Port direct radar DA capabilities
+  !   2021-05-05  CAPS(J. Park)   - Modified to read hydrometeors and w only
+  !                                 
+  !   input argument list:
+  !
+  !   output argument list:
+  !
+  ! attributes:
+  !   language: f90
+  !   machine:  ibm RS/6000 SP
+  !
+  !$$$ end documentation block
   
+      use netcdf, only: nf90_nowrite
+      use netcdf, only: nf90_open,nf90_close
+      use netcdf, only: nf90_inq_dimid,nf90_inquire_dimension
+      use netcdf, only: nf90_inq_varid,nf90_inquire_variable,nf90_get_var
+      use kinds, only: r_kind,r_single,i_kind
+      use constants, only: one
+      use hybrid_ensemble_parameters, only: grd_ens
+      use hybrid_ensemble_parameters, only: fv3sar_ensemble_opt 
+
+      use mpimod, only: mpi_comm_world,mpi_rtype
+      use netcdf_mod, only: nc_check
+      use gsi_rfv3io_mod,only: type_fv3regfilenameg
+      use gsi_rfv3io_mod,only:n2d 
+      use gsi_rfv3io_mod,only:mype_qr,mype_qs,mype_qg,mype_qnr,mype_w
+      use gsi_rfv3io_mod,only:mype_ql,mype_qi
+      use gsi_rfv3io_mod, only: gsi_fv3ncdf_read 
+      use gsi_rfv3io_mod, only: gsi_fv3ncdf_read_v1
+      use directDA_radaruse_mod, only: l_use_cvpqx, cvpqx_pval, cld_nt_updt
+      use directDA_radaruse_mod, only: l_cvpnr, cvpnr_pval
+  
+      implicit none
+  !
+  ! Declare passed variables
+      class(get_fv3_regional_ensperts_class), intent(inout) :: this
+      type (type_fv3regfilenameg)                  , intent (in)   :: fv3_filenameginput
+      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),intent(out)::g_ql,g_qi,g_qr
+      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),intent(out)::g_qs,g_qg,g_qnr,g_w
+  !
+  ! Declare local parameters
+      real(r_kind),parameter:: r0_01 = 0.01_r_kind
+      real(r_kind),parameter:: r10   = 10.0_r_kind
+      real(r_kind),parameter:: r100  = 100.0_r_kind
+  !
+  !   Declare local variables
+      
+      integer(i_kind):: i,j,k
+
+      character(len=24),parameter :: myname_ = 'general_read_fv3_regional_dirZDA'
+
+      character(len=:),allocatable :: grid_spec !='fv3_grid_spec'            
+      character(len=:),allocatable :: ak_bk     !='fv3_akbk'
+      character(len=:),allocatable :: dynvars   !='fv3_dynvars'
+      character(len=:),allocatable :: tracers   !='fv3_tracer'
+      character(len=:),allocatable :: sfcdata   !='fv3_sfcdata'
+      character(len=:),allocatable :: couplerres!='coupler.res'
+      
+      associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+      end associate
+
+    grid_spec=fv3_filenameginput%grid_spec
+    ak_bk=fv3_filenameginput%ak_bk
+    dynvars=fv3_filenameginput%dynvars
+    tracers=fv3_filenameginput%tracers
+    sfcdata=fv3_filenameginput%sfcdata
+    couplerres=fv3_filenameginput%couplerres
+
+    if(fv3sar_ensemble_opt == 0) then
+!  variables for direct reflectivity DA
+      call gsi_fv3ncdf_read(dynvars,'W','w',g_w,mype_w)
+      call gsi_fv3ncdf_read(tracers,'LIQ_WAT','liq_wat',g_ql,mype_ql)
+      call gsi_fv3ncdf_read(tracers,'ICE_WAT','ice_wat',g_qi,mype_qi)
+      call gsi_fv3ncdf_read(tracers,'RAINWAT','rainwat',g_qr,mype_qr)
+      call gsi_fv3ncdf_read(tracers,'SNOWWAT','snowwat',g_qs,mype_qs)
+      call gsi_fv3ncdf_read(tracers,'GRAUPEL','graupel',g_qg,mype_qg)
+      call gsi_fv3ncdf_read(tracers,'RAIN_NC','rain_nc',g_qnr,mype_qnr)
+    else
+       write(6,*) "get_fv3_regional_ensperts for 'fv3sar_bg_opt == 0 is only available &
+                   for now in direct relfectivity DA"
+       stop
+    end if
+! CV transform
+    do k=1,grd_ens%nsig
+       do i=1,grd_ens%lon2
+          do j=1,grd_ens%lat2
+             if (l_use_cvpqx) then
+                ! Qr/qr
+                if (g_qr(j,i,k) <= 1.0E-5_r_kind) then
+                    g_qr(j,i,k) = 1.0E-5_r_kind
+                end if
+                if (cvpqx_pval > 0.0_r_kind ) then !CVpq
+                    g_qr(j,i,k)=((g_qr(j,i,k)**cvpqx_pval)-1)/cvpqx_pval
+                else  ! CVlogq
+                    g_qr(j,i,k) = log(g_qr(j,i,k))
+                end if
+                ! Qs/qs
+                if (g_qs(j,i,k) <= 1.0E-5_r_kind) then
+                    g_qs(j,i,k) = 1.0E-5_r_kind
+                end if
+                if (cvpqx_pval > 0.0_r_kind ) then !CVpq
+                    g_qs(j,i,k)=((g_qs(j,i,k)**cvpqx_pval)-1)/cvpqx_pval
+                else  ! CVlogq
+                    g_qs(j,i,k) = log(g_qs(j,i,k))
+                end if
+                ! Qg/qg
+                if (g_qg(j,i,k) <= 1.0E-5_r_kind) then
+                   g_qg(j,i,k) = 1.0E-5_r_kind
+                end if
+                if (cvpqx_pval > 0.0_r_kind ) then !CVpq
+                   g_qg(j,i,k)=((g_qg(j,i,k)**cvpqx_pval)-1)/cvpqx_pval
+                else  ! CVlogq
+                   g_qg(j,i,k) = log(g_qg(j,i,k))
+                end if
+             end if
+             if ( cld_nt_updt > 0 .and. l_cvpnr) then ! CVpnr
+                ! Qnr/qnr
+                if (g_qnr(j,i,k) < one) then
+                   g_qnr(j,i,k) = one
+                end if
+                g_qnr(j,i,k)=((g_qnr(j,i,k)**cvpnr_pval)-1)/cvpnr_pval
+             end if
+          enddo
+       enddo
+    enddo
+
+
+  return       
+  end subroutine general_read_fv3_regional_dirZDA
+
   subroutine ens_spread_dualres_regional_fv3_regional(this,mype,en_perts,nelen)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
@@ -514,9 +770,6 @@ contains
     type(gsi_grid):: grid_ens,grid_anl
     real(r_kind) sp_norm
 
-
-
-  
     integer(i_kind) i,n
     integer(i_kind) istatus
     character(255) enspreadfilename 

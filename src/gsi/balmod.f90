@@ -356,6 +356,10 @@ contains
 !                   - change the structure of covariance error file
 !                   - move horizontal interpolation into this subroutine
 !   2014-10-08  zhu - add cwcoveqqco in the interface 
+!   2017-10-26  CAPS(G. Zhao)
+!                   - add option to clear balance coefficients when
+!                   - assimilating radar radial wind to avoid impact of 
+!                   - wind observations on mass fields
 !
 !   input argument list:
 !
@@ -374,6 +378,8 @@ contains
     use mpimod, only: mype
     use m_berror_stats_reg, only: berror_set_reg,berror_get_dims_reg,berror_read_bal_reg
     use constants, only: zero,half,one
+    use directDA_radaruse_mod, only: l_decouple_sf_tps, l_decouple_sf_vp
+
     implicit none
 
 !   Declare passed variables
@@ -479,6 +485,23 @@ contains
        end do
     endif
     deallocate (agvi,bvi,wgvi)
+
+!   zero out balance for using radar radial wind observation
+    if (l_decouple_sf_vp) then
+       if (mype==0) then
+          write(6,'(1x,A20,A60)')'PREBAL_REG:    ',  &
+               '  zero out balance correlation matrices for vp.'
+       end if
+       bvk(:,:,:)   = zero                ! sf and vp
+    endif
+    if (l_decouple_sf_tps) then
+       if (mype==0) then
+          write(6,'(1x,A20,A60)')'PREBAL_REG:    ',  &
+               '  zero out balance correlation matrices for t, ps.'
+       end if
+       agvk(:,:,:,:)= zero                ! sf and t
+       wgvk(:,:,:)  = zero                ! sf and ps
+    endif
     
     
     return
