@@ -415,7 +415,16 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
                 nlevs,mype,doz_dz)
         endif
 
-        
+!       Check scan position errors in ompstc8
+        if(obstype == "ompstc8") then
+          if(data(ifovn,i) .eq. 1 .or. data(ifovn,i) .eq. 2 .or. &
+             data(ifovn,i) .eq. 3 .or. data(ifovn,i) .eq. 4 .or. &
+             data(ifovn,i) .eq. 35) then
+            if(abs(data(ilate,i)) > 50.)then
+              luse(i) = .false.
+            endif
+          endif
+        endif
 
         if(ozone_diagsave .and. luse(i))then
            ii=ii+1
