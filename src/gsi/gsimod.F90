@@ -34,7 +34,7 @@
      obsmod_init_instr_table,obsmod_final_instr_table
   use obsmod, only: luse_obsdiag
   use obsmod, only: netcdf_diag, binary_diag
-  use obsmod, only: l_wcp_cwm
+  use obsmod, only: l_wcp_cwm,ompslp_mult_fact
   use obsmod, only: aircraft_recon, &
        
        ! The following variables are the coefficients that describe
@@ -896,6 +896,7 @@
 !     vis_thres  - threshold value for both vis observation and input first guess
 !     cldch_thres  - threshold value for both cldch observation and input first guess
 !     cld_det_dec2bin - re-interprets cld_det in satinfo as binary entries
+!     ompslp_mult_fact - multiplication factor for OMPS LP obserror read in
 
 ! The following variables are the coefficients that describe the
 ! linear regression fits that are used to define the dynamic
@@ -945,7 +946,7 @@
        vadfile,noiqc,c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,&
        tcp_ermin,tcp_ermax,qc_noirjaco3,qc_noirjaco3_pole,qc_satwnds,njqc,vqc,nvqc,hub_norm,troflg,lat_c,nrand,&
        aircraft_t_bc_pof,aircraft_t_bc,aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail,&
-       hdist_aircraft,buddycheck_t,buddydiag_save,vadwnd_l2rw_qc,  &
+       hdist_aircraft,buddycheck_t,buddydiag_save,vadwnd_l2rw_qc,ompslp_mult_fact,  &
        pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres,cld_det_dec2bin, &
        q_doe_a_136,q_doe_a_137,q_doe_b_136,q_doe_b_137, &
        t_doe_a_136,t_doe_a_137,t_doe_b_136,t_doe_b_137, &
