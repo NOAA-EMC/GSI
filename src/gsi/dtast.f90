@@ -65,7 +65,7 @@ subroutine dtast(work1,nlev,pbot,ptop,mesage,jiter,iout,pflag)
   ! First, print message and level information
 
   imsg=max(1,index(mesage,'$')-1)
-  ilin=max(imsg,min(nlev*9+34,240))
+  ilin=max(imsg,min(nlev*11+34,240))
   write(iout,'(a)') mesage(1:imsg)
   if (nlev > 1) then
      write(iout,800) '',  '',   '',   '',   '',    'ptop',(ptop(k),k=1,nlev)
@@ -206,16 +206,16 @@ subroutine dtast(work1,nlev,pbot,ptop,mesage,jiter,iout,pflag)
   endif ! if ( nlev == 1 )
 
 600  format(1x,'pressure levels (hPa)=',f6.1,1x,f6.1)
-700  format(1x,'o-g',1x,a2,  1x,a7,1x,a3,1x,a3,  1x,a4,  1x,a9, 1x,4(a9,  1x))
-701  format(1x,'o-g',1x,i2.2,1x,a7,1x,a3,1x,i3.3,1x,i4.4,1x,i9,1x, 4(f9.4,1x))
-702  format(1x,'o-g',1x,i2.2,1x,a7,1x,a3,1x,a3,  1x,a4,  1x,i9,1x, 4(f9.4,1x))
-800  format(1x,'o-g',1x,a2,  1x,a7,1x,a3,1x,a3,  1x,a4,  1x,a5,1x,12(f8.1,1x))
-801  format(1x,'o-g',1x,i2.2,1x,a7,1x,a3,1x,i3.3,1x,i4.4,1x,a5,1x,12(i8,  1x))
-802  format(1x,'o-g',1x,i2.2,1x,a7,1x,a3,1x,i3.3,1x,i4.4,1x,a5,1x,12(f8.2,1x))
-803  format(1x,'o-g',1x,i2.2,1x,a7,1x,a3,1x,a3,  1x,a4,  1x,a5,1x,12(i8,  1x))
-804  format(1x,'o-g',1x,i2.2,1x,a7,1x,a3,1x,a3,  1x,a4,  1x,a5,1x,12(f8.2,1x))
-901  format(1x,'o-g',1x,i2.2,1x,a7,1x,a3,1x,i3.3,1x,i4.4,1x,i9,1x, 2(f12.4,1x),2(f9.4,1x))
-902  format(1x,'o-g',1x,i2.2,1x,a7,1x,a3,1x,a3,  1x,a4,  1x,i9,1x, 2(f12.4,1x),2(f9.4,1x))
+700  format(1x,'o-g',1x,a2,  1x,a7,1x,a3,1x,a3,  1x,a4,  1x,a9,1x, 4(a10,  1x))
+701  format(1x,'o-g',1x,i2.2,1x,a7,1x,a3,1x,i3.3,1x,i4.4,1x,i9,1x, 4(e10.3,1x))
+702  format(1x,'o-g',1x,i2.2,1x,a7,1x,a3,1x,a3,  1x,a4,  1x,i9,1x, 4(e10.3,1x))
+800  format(1x,'o-g',1x,a2,  1x,a7,1x,a3,1x,a3,  1x,a4,  1x,a5,1x,12(e10.3,1x))
+801  format(1x,'o-g',1x,i2.2,1x,a7,1x,a3,1x,i3.3,1x,i4.4,1x,a5,1x,12(i10,  1x))
+802  format(1x,'o-g',1x,i2.2,1x,a7,1x,a3,1x,i3.3,1x,i4.4,1x,a5,1x,12(e10.3,1x))
+803  format(1x,'o-g',1x,i2.2,1x,a7,1x,a3,1x,a3,  1x,a4,  1x,a5,1x,12(i10,  1x))
+804  format(1x,'o-g',1x,i2.2,1x,a7,1x,a3,1x,a3,  1x,a4,  1x,a5,1x,12(e10.3,1x))
+901  format(1x,'o-g',1x,i2.2,1x,a7,1x,a3,1x,i3.3,1x,i4.4,1x,i9,1x, 2(e10.3,1x),2(e10.3,1x))
+902  format(1x,'o-g',1x,i2.2,1x,a7,1x,a3,1x,a3,  1x,a4,  1x,i9,1x, 2(e10.3,1x),2(e10.3,1x))
 
   return
 end subroutine dtast

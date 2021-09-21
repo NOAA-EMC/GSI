@@ -25,11 +25,11 @@ nt=NT
 ** and the rawinsonde whose height same as defined, hint=0 
 'open anal.ctl'
 'open guess.ctl'
-'open 'plotfile2'_grads_anl.ctl'
-'open 'plotfile2'_grads_ges.ctl'
+'open 'plotfile2'.grads.anl.ctl'
+'open 'plotfile2'.grads.ges.ctl'
 say  'open the file'
 
-if (plotfile = q180 | plotfile = q183); nhe=5;endif
+if (plotfile = q180 | plotfile = q182 | plotfile = q183); nhe=5;endif
 if (plotfile = q181 | plotfile = q187); nhe=23;endif
 he=1
 while (he <=nhe)
@@ -50,36 +50,35 @@ setmap(plotfile,he)
 'set gxout shaded'
 'defint.gs  0.5 0'
 'd 10*(RH2m.1-RH2m.2)/RHprs.1'
-'cbarb'
-*'set ccolor 98'
+'colorbar.gs'
 'set ccolor 6'
 'set digsiz 0.12'
 'd maskout(10*obg.4(t='nt')/obs.4(t='nt'),muse.4(t='nt'))'
 'set ccolor 4'
 'd maskout(10*obg.4(t='nt')/obs.4(t='nt'),-muse.4(t='nt'))'
 'set ccolor 98'
-'draw title 'plotfile2' INCT*10/Anal and 10*(OBS-GUESS)/OBS(red-used,blue-rej) '
+'draw title 'plotfile2' INCT*10/Anal & 10*(OBS-GES)/OBS(red-used,blue-rej) '
 
 'run setvpage 2 2 2 2 0.9'
 setmap(plotfile,he)
 'set gxout shaded'
 'defint.gs  0.5 0'
 'd 10*(RH2m.1-RH2m.2)/RHprs.1'
-'cbarb'
+'colorbar.gs'
 'set ccolor 6'
 'set digsiz 0.12'
 'd maskout(10*obg.3(t='nt')/obs.3(t='nt'),muse.3(t='nt'))'
 'set ccolor 4'
 'd maskout(10*obg.3(t='nt')/obs.3(t='nt'),0-muse.3(t='nt'))'
 'set ccolor 98'
-'draw title 'plotfile2' INCT*10/Anal and 10*(OBS-ANAL)/OBS(red-used,blue-rej) '
+'draw title 'plotfile2' INCT*10/Anal & 10*(OBS-ANAL)/OBS(red-used,blue-rej) '
 
 'run setvpage 1 1 2 2 0.9'
 setmap(plotfile,he)
 'set gxout shaded'
 'defint.gs  0.5 0'
 'd 10*(RH2m.1-RH2m.2)/RHprs.1'
-'cbarb'
+'colorbar.gs'
 'set ccolor 98'
 'draw title Humidity INCT*10/Anal at 'rdate'z' 
 
@@ -88,7 +87,7 @@ setmap(plotfile,he)
 'set gxout shaded'
 'defint 10 50'
 'd RH2m.1'
-'cbarb'
+'colorbar.gs'
 'draw title Surface Humidity Analysis(RH,%) at 'rdate'z'
 if(dbug=1)
  say 'hit enter to continue'
@@ -111,19 +110,19 @@ if(he=1)
 'set lat -90 90';'set lon 0 360'
 endif
 if(he = 2)
-if(plotfile = q180 | plotfile = q183); 'set lat 0 90'; 'set lon 0 180';endif
+if(plotfile = q180 | plotfile = q182 | plotfile = q183); 'set lat 0 90'; 'set lon 0 180';endif
 if(plotfile = q181 | plotfile = q187); 'set lat 0 35'; 'set lon 0 60' ;endif 
 endif
 if(he = 3)
-if(plotfile = q180 | plotfile = q183); 'set lat 0 90'; 'set lon 180 360';endif
+if(plotfile = q180 | plotfile = q182 | plotfile = q183); 'set lat 0 90'; 'set lon 180 360';endif
 if(plotfile = q181 | plotfile = q187); 'set lat 35 50'; 'set lon 0 30' ;endif 
 endif
 if(he = 4)
-if( plotfile = q180 | plotfile = q183); 'set lat -90 0'; 'set lon 0 180';endif
+if(plotfile = q180 | plotfile = q182 | plotfile = q183); 'set lat -90 0'; 'set lon 0 180';endif
 if(plotfile = q181 | plotfile = q187); 'set lat 50 80'; 'set lon 0 60' ;endif 
 endif
 if(he = 5)
-if(plotfile = q180 | plotfile = q183);'set lat -90 0'; 'set lon 180 360';endif
+if(plotfile = q180 | plotfile = q182 | plotfile = q183);'set lat -90 0'; 'set lon 180 360';endif
 if(plotfile = q181 | plotfile = q187); 'set lat 35 50 '; 'set lon 30 60' ;endif 
 endif
 if(he = 6)

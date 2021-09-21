@@ -532,6 +532,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
      enddo read_loop
   enddo read_msg
   call closbf(lnbufr)
+  close(lnbufr)
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
      nele,itxmax,nread,ndata,data_all,score_crit,nrec)

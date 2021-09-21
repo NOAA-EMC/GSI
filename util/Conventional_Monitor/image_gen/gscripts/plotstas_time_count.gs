@@ -8,7 +8,6 @@ function time_cnt_ps (args)
    dtype=DTYPE
    'open ges_'dtype'_stas.ctl'
    'open anl_'dtype'_stas.ctl'
-*   'open 'dtype'_stas_int.ctl'
    'set grads off'
    debug=0
 

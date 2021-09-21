@@ -253,14 +253,14 @@ contains
     ! end the netCDF file definition
     call nccheck_incr(nf90_enddef(ncid_out))
 
-    ! compute delz
+    ! compute delz (so that delz < 0 as model expects)
     do k=1,grd%nsig
-       sub_dzb(:,:,k) = ges_geopi(:,:,k+1,ibin) - ges_geopi(:,:,k,ibin)
+       sub_dzb(:,:,k) = ges_geopi(:,:,k,ibin) - ges_geopi(:,:,k+1,ibin)
     enddo
 
     call load_geop_hgt
     do k=1,grd%nsig
-       sub_dza(:,:,k) = geop_hgti(:,:,k+1,ibin) - geop_hgti(:,:,k,ibin)
+       sub_dza(:,:,k) = geop_hgti(:,:,k,ibin) - geop_hgti(:,:,k+1,ibin)
     enddo
 
     sub_dza = sub_dza - sub_dzb !sub_dza is increment

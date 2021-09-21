@@ -20,7 +20,7 @@ export MONITOR=radmon
 # you checked out only the Radiance_Monitor portion of the branch then
 # MY_RADMON should point to that.
 #
-export MY_RADMON=${MY_RADMON:-/scratch1/NCEPDEV/da/Edward.Safford/noscrub/ProdGSI/util/Radiance_Monitor}
+export MY_RADMON=${MY_RADMON:-/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/GSI/util/Radiance_Monitor}
 
 #
 #  The MY_TANKDIR will be the location for the extracted data files and
@@ -28,7 +28,7 @@ export MY_RADMON=${MY_RADMON:-/scratch1/NCEPDEV/da/Edward.Safford/noscrub/ProdGS
 #  and the succedding scripts will construct and use subdirectories under
 #  this location.
 #
-export MY_TANKDIR=${MY_TANKDIR:-/scratch1/NCEPDEV/da/Edward.Safford/nbns}
+export MY_TANKDIR=${MY_TANKDIR:-/u/Edward.Safford/nbns}
 
 export RUN=${RUN:-gdas}
 
@@ -67,20 +67,17 @@ export WEBDIR=${WEBDIR:-/home/people/emc/www/htdocs/gmb/gdas/radiance/esafford}
 ###############################################################################
 ###############################################################################
 
-export MY_MACHINE=hera
+export MY_MACHINE=wcoss_d
 export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 
 
 #
 #  Log and work space definitions
 #
-export MY_PTMP=${MY_PTMP:-/scratch2/NCEPDEV/stmp3}
+export MY_PTMP=${MY_PTMP:-/gpfs/dell2/ptmp}
 export PTMP_USER=${PTMP_USER:-${MY_PTMP}/${LOGNAME}}
-export MY_STMP=${MY_STMP:-/scratch2/NCEPDEV/stmp1}
+export MY_STMP=${MY_STMP:-/gpfs/dell2/stmp}
 export STMP_USER=${STMP_USER:-${MY_STMP}/${LOGNAME}}
-
-export LOGSverf_rad=${LOGSverf_rad:-${PTMP_USER}/logs}
-export LOGSverf=${LOGSverf_rad:-${PTMP_USER}/logs/rad${RADMON_SUFFIX}}
 
 LOGdir=${LOGdir:-${PTMP_USER}/logs/${RADMON_SUFFIX}}
 if [[ $TANK_USE_RUN -eq 1 ]]; then
@@ -88,19 +85,9 @@ if [[ $TANK_USE_RUN -eq 1 ]]; then
 fi 
 export LOGdir=${LOGdir}/radmon
 
-export PLOT_WORK_DIR=${PLOT_WORK_DIR:-${STMP_USER}/plotjobs_${RADMON_SUFFIX}}
+export PLOT_WORK_DIR=${PLOT_WORK_DIR:-${STMP_USER}/${RADMON_SUFFIX}/${RUN}/radmon/plot}
 export WORKverf_rad=${WORKverf_rad:-${STMP_USER}}
   
-
-#
-#  Job queue check definition
-#
-if [[ $MY_MACHINE = "wcoss" ]]; then
-  export CHECKQ=${CHECKQ:-"bjobs"}
-else
-  export CHECKQ=${CHECKQ:-"showq -u $LOGNAME"}
-fi
-
 
 #
 #  Definitions for internal reference
@@ -118,18 +105,16 @@ export IG_SCRIPTS=${IG_SCRIPTS:-${RADMON_IMAGE_GEN}/ush}
 
 export RADMON_PARM=${RADMON_PARM:-${MY_RADMON}/parm}
 
-. $RADMON_PARM/radmon.ver
-
-export HOMEgdas=${HOMEgdas:-${MY_RADMON}/nwprod/gdas_radmon.${gdas_radmon_ver}}
+export HOMEgdas=${HOMEgdas:-${MY_RADMON}/nwprod/gdas_radmon}
 export HOMEgfs=${HOMEgfs:-${HOMEgdas}}
-export HOMEnam=${HOMEnam:-${MY_RADMON}/nwprod/nam_radmon.${nam_radmon_ver}}
-export HOMEradmon=${HOMEradmon:-${MY_RADMON}/nwprod/radmon_shared.${radmon_shared_ver}}
+export HOMEnam=${HOMEnam:-${MY_RADMON}/nwprod/nam_radmon}
+export HOMEradmon=${HOMEradmon:-${MY_RADMON}/nwprod/radmon_shared}
 
 export FIXgdas=${FIXgdas:-${HOMEgdas}/fix}
 export PARMgdas=${PARMgdas:-${HOMEgdas}/parm}
 export parm_file=${parm_file:-${PARMgdas}/gdas_radmon.parm}
  
-export DATAROOT=${DATAROOT:-${STMP_USER}}
+export DATAROOT=${DATAROOT:-${STMP_USER}/${RADMON_SUFFIX}/${RUN}/radmon}
 
 #
 #  Definitions for parm files.  This allows users to swap in 
@@ -146,27 +131,22 @@ export RADMON_USER_SETTINGS=${RADMON_USER_SETTINGS:-${RADMON_PARM}/RadMon_user_s
 export NCP=${NCP:-"/bin/cp -f"}
 export Z=${Z:-"gz"}
 
-if [[ $MY_MACHINE = "wcoss" ]]; then
-   shell=sh
-   . /usrx/local/Modules/default/init/${shell}
-   module load lsf
-   module load prod_util
-
-   export SUB="bsub"
-   export NWPROD=/nwprod
-   export NDATE=${NWPROD}/util/exec/ndate
-   export COMPRESS=/usrx/local/bin/pigz
-   export UNCOMPRESS="/usrx/local/bin/unpigz -f"
-
-elif [[ $MY_MACHINE = "wcoss_d" ]]; then
+if [[ $MY_MACHINE = "wcoss_d" ]]; then
    shell=sh
    source /usrx/local/prod/lmod/lmod/init/${shell}
 
    export MODULEPATH=/usrx/local/prod/lmod/lmod/modulefiles/Core:/usrx/local/prod/modulefiles/core_third:/usrx/local/prod/modulefiles/defs:/gpfs/dell1/nco/ops/nwprod/modulefiles/core_prod:/usrx/local/dev/modulefiles
+
+   module purge
+
    module load ips/18.0.1.163
+   module load impi/18.0.1
+   module load NetCDF-parallel/4.7.4
+
+   module load HDF5-parallel/1.10.6
    module load metplus/2.1
    module load lsf/10.1
-   module load prod_util/1.1.2
+   module load prod_util/1.1.5
    module load GrADS/2.2.0
 
    export GRADS=`which grads`
@@ -174,7 +154,7 @@ elif [[ $MY_MACHINE = "wcoss_d" ]]; then
    export COMPRESS=/usr/bin/gzip
    export UNCOMPRESS="/usr/bin/gunzip -f"
 
-elif [[ $MY_MACHINE = "cray" ]]; then
+elif [[ $MY_MACHINE = "wcoss_c" ]]; then
    . /opt/modules/3.2.6.7/init/sh
    module use -a /gpfs/hps/nco/ops/nwprod/modulefiles
    module load prod_util        # defines $NDATE among other things
@@ -186,8 +166,9 @@ elif [[ $MY_MACHINE = "cray" ]]; then
 
 elif [[ $MY_MACHINE = "hera" ]]; then
 
-   export GRADS=/apps/grads/2.0.2/bin/grads
-   export STNMAP=/apps/grads/2.0.2/bin/stnmap
+   module load grads/2.2.1
+   export GRADS=`which grads`
+   export STNMAP=`which stnmap`
 
    export SUB=/apps/slurm/default/bin/sbatch
    export NDATE=/home/Edward.Safford/bin/ndate

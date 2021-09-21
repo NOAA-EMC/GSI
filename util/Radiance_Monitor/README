@@ -6,11 +6,11 @@ javascript or optionally GrADS.  The package also may optionally perform data
 validation and error checking and report problems using email.  The package is 
 supported on wcoss, theia, and the cray systems.
 
-The package is organized in two main pieces, the data_extract and image_gen.  There
-is also an nwprod directory, which contains the major components of the 
-data_extract portion.  Part of the data extraction has been incorporated into the 
-operational GFS and NAM.  Those components are located within the package's nwprod 
-directory.
+The package is organized in two main pieces, the data_extract and image_gen 
+(image generation).  There is also an nwprod directory, which contains the major 
+components of the data_extract portion.  Part of the data extraction has been 
+incorporated into the operational GFS.  Those components are located within the 
+package's nwprod directory.
 
 The parm directory contains configuration files used by the entire package.
 The data_extract and image_gen directories also have parm diretories,
@@ -33,34 +33,32 @@ the package.
 
 2.  Run the data extraction to create the binary data files.  This can be done any time 
 after the diagnostic file (radstat) is created.  There are two ways to run the data 
-extraction.  In RadMon/data_extract/ush/ there are two scripts named VrfyRad_glbl.sh and 
-VrfyRad_rgnl.sh.  These can be run from a cron or command line.  They function by 
-setting up the environment variables to run RadMon/nwprod/jobs/JGDAS_VRFYRAD.sms.prod. 
+extraction.  In RadMon/data_extract/ush/ there are two scripts named RadMon_DE_glb.sh and 
+RadMon_DE_rgn.sh.  These can be run from a cron or command line.  They function by 
+setting up the environment variables to run RadMon/nwprod/gdas_radmon/jobs/JGDAS_ATMOS_VERFRAD.
 
-Alternately the JGDAS_VRFYRAD.sms.prod job can be included in the vrfy.sh step in your 
+Alternately the JGDAS_ATMOS_VRFYRAD job can be included in the vrfy.sh step in your 
 parallel.  Instructions for this are included on the GSI trac page's wiki.
 
 3.  Go to the RadMon/image_gen/html directory and run Install_html.sh.  This will build
-the web site using the web settings specified in step 2, and the available 
-satellite/instrument sources from step 3.  
+the web site using the web settings specified in step 1, and the available 
+satellite/instrument sources from step 2.  
 
 4.  Run the image generation.  In RadMon/image_gen/ush there are two scripts, 
-CkPlt_glbl.sh and CkPlt_rgnl.sh.  These can be run from the command line or as a cron.  
+RadMon_IG_glb.sh and RadMon_IG_rgn.sh.  These can be run from the command line or as a cron.  
 They create .txt files which are used to create interactive plots using javascript in 
 the several .html files.  If desired static plots may be created too using GrADS (see 
 RadMon/parm/RadMon_user_settings for the static plot switch).  All resulting .txt and
 .png files are moved to the $TANKDIR/imgn directory when the plotting scripts finish.  
 
-A third script, Plot.sh, is also available.  It takes as input a specific start and 
-stop date/cycle so it can be used to plot a specific interval.
-
 5.  If moving files from wcoss to the web server the image_gen/ush/Transfer.sh script 
 may be used.  It uses rsync to mirror the $TANKDIR/imgn/$suffix directory to the target 
-directory on the web server.
+directory on the web server.  This may be run automatically by the RadMon_IG script if
+the RUN_TRANSFER switch in parm/RadMon_user_settings is set to 1.
 
-If moving files from theia to emcrzdm, you need to manually move them first to wcoss and 
-then to the web server.  Theia only allows file pulls, and emcrzdm is configured to 
-allow pushes only, and does not permit allow logins to other systems.
+If moving files from hera to emcrzdm, you will need to manually move them first to wcoss 
+and then to the web server.  Hera only allows file pulls, and emcrzdm is configured to 
+only permit pushes, and does not permit allow logins to other systems.
 
 6.  If you encounter problems please send me email and I'll be glad to help:
       edward.safford@noaa.gov

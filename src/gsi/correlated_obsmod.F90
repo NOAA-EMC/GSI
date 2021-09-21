@@ -432,7 +432,7 @@ logical :: corr_obs
 !     Done reading file
       close(lu)
    else
-      write(6,*) 'No Rcov files found.  Turning off Correlated Error'
+      if (iamroot_) write(6,*) 'No Rcov files found.  Turning off Correlated Error'
       return
    end if
 

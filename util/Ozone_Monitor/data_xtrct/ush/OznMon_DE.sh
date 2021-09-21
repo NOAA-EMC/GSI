@@ -1,4 +1,4 @@
-#!/bin/ksh
+#!/bin/bash
 
 #--------------------------------------------------------------------
 #  usage
@@ -6,10 +6,11 @@
 function usage {
   echo "Usage:  OznMon_DE.sh suffix [pdate]"
   echo "            Suffix is the indentifier for this data source."
-  echo "            -p | -pdate yyyymmddcc to specify the cycle to be processed"
+  echo "            -p | --pdate yyyymmddcc to specify the cycle to be processed"
   echo "              if unspecified the last available date will be processed"
-  echo "            -r | -run   the gdas|gfs run to be processed"
+  echo "            -r | --run   the gdas|gfs run to be processed"
   echo "              use only if data in TANKdir stores both runs"
+  echo "            -s | --ostat location of directory to oznstat files"
   echo " "
 }
 
@@ -19,7 +20,7 @@ function usage {
 set -ax
 
 nargs=$#
-if [[ $nargs -lt 1 || $nargs -gt 5 ]]; then
+if [[ $nargs -lt 1 || $nargs -gt 7 ]]; then
    usage
    exit 1
 fi
@@ -34,11 +35,15 @@ do
 
    case $key in
       -p|--pdate)
-         export PDATE="$2"
+         pdate="$2"
          shift # past argument
       ;;
       -r|--run)
          export RUN="$2"
+         shift # past argument
+      ;;
+      -o|--ostat)
+         oznstat_dir="$2"
          shift # past argument
       ;;
       *)
@@ -55,18 +60,9 @@ this_dir=`dirname $0`
 
 echo "OZNMON_SUFFIX = $OZNMON_SUFFIX"
 echo "RUN           = $RUN"
-echo "PDATE         = $PDATE"
+echo "pdate         = $pdate"
 
 top_parm=${this_dir}/../../parm
-
-oznmon_version_file=${oznmon_version:-${top_parm}/OznMon.ver}
-if [[ -s ${oznmon_version_file} ]]; then
-   . ${oznmon_version_file}
-   echo "able to source ${oznmon_version_file}"
-else
-   echo "Unable to source ${oznmon_version_file} file"
-   exit 2
-fi
 
 oznmon_user_settings=${oznmon_user_settings:-${top_parm}/OznMon_user_settings}
 if [[ -s ${oznmon_user_settings} ]]; then
@@ -100,12 +96,12 @@ fi
 
 #--------------------------------------------------------------
 #  Determine next cycle
-#    If PDATE wasn't an argument then call find_cycle.pl
-#    to determine the last processed cycle, and set PDATE to
+#    If pdate wasn't an argument then call find_cycle.pl
+#    to determine the last processed cycle, and set pdate to
 #    the next cycle
 #--------------------------------------------------------------
-if [[ ${#PDATE} -le 0 ]]; then  
-   echo "PDATE not specified:  setting PDATE using last cycle"
+if [[ ${#pdate} -le 0 ]]; then  
+   echo "pdate not specified:  setting pdate using last cycle"
    if [[ -d ${OZN_DE_SCRIPTS} ]]; then
       echo "good:  $OZN_DE_SCRIPTS"
    else
@@ -117,17 +113,22 @@ if [[ ${#PDATE} -le 0 ]]; then
    date=`${OZN_DE_SCRIPTS}/find_cycle.pl -run gdas -cyc 1 -dir ${OZN_STATS_TANKDIR}`
 
    echo "date = $date"
-   export PDATE=`$NDATE +6 $date`
+   pdate=`$NDATE +6 $date`
 else
-   echo "PDATE was specified:  $PDATE"
+   echo "pdate was specified:  $pdate"
 fi
 
+export PDATE=${pdate}
 export PDY=`echo $PDATE|cut -c1-8`
 export cyc=`echo $PDATE|cut -c9-10`
 
 mdate=`$NDATE -24 $PDATE`
-PDYm1=`echo $mdate|cut -c1-8`
-echo "PDY, cyc, PDYm1 = $PDY, $cyc $PDYm1"
+PDYm1=`echo ${mdate}|cut -c1-8`
+cycm1=`echo ${mdate}|cut -c9-10`
+echo "PDY, cyc, PDYm1 = ${PDY}, ${cyc} ${PDYm1}"
+
+export TANKverf_ozn=${OZN_TANKDIR}/${RUN}.${PDY}/${cyc}/oznmon
+export TANKverf_oznM1=${OZN_TANKDIR}/${RUN}.${PDYm1}/${cycm1}/oznmon
 
 pid=${pid:-$$}
 
@@ -150,11 +151,15 @@ export jobid=${jobid:-${job}.${cyc}.${pid}}
 export COMROOT=${PTMP_USER}
 
 #-------------------------------------------------------------
-#  This is default for wcoss/cray machines.  Need to reset 
-#  COM_IN in parm files for hera.
+#  Set COM_IN to default or input value.
 #
-export COM_IN=${COM_IN:-/gpfs/hps/nco/ops/com/gfs/prod}
+if [ ${#oznstat_dir} -gt 0 ]; then
+   com_in=${oznstat_dir}
+else
+   com_in=${COM_IN:-/gpfs/dell1/nco/ops/com/gfs/prod}
+fi
 
+export COM_IN=${com_in}
 export COMROOT=${COMROOT:-/${PTMP_USER}}
 
 
@@ -176,7 +181,7 @@ echo "gdas_oznmon_ver   = $gdas_oznmon_ver"
 echo "shared_oznmon_ver = $shared_oznmon_ver"
 echo "ACCOUNT    = $ACCOUNT"
 
-jobfile=${jobfile:-${HOMEgdas_ozn}/jobs/JGDAS_VERFOZN}
+jobfile=${jobfile:-${HOMEgdas_ozn}/jobs/JGDAS_ATMOS_VERFOZN}
 echo "jobfile = $jobfile"
 
 #-------------------------------------------------------------
@@ -185,8 +190,8 @@ echo "jobfile = $jobfile"
 #if [[ $GLB_AREA -eq 0 ]]; then
 #   jobfile=${jobfile:-${HOMEnam}/jobs/JNAM_VERFOZN}
 #else
-   jobfile=${jobfile:-${HOMEgdas_ozn}/jobs/JGDAS_VERFOZN}
-   echo "jobfile = $jobfile"
+#   jobfile=${jobfile:-${HOMEgdas_ozn}/jobs/JGDAS_ATMOS_VERFOZN}
+#   echo "jobfile = $jobfile"
 #fi
 
 
@@ -210,13 +215,6 @@ if [[ $MY_MACHINE = "hera" ]]; then
 	--ntasks=1 --mem=5g \
 	${jobfile}
 	
-elif [[ $MY_MACHINE = "wcoss" ]]; then
-
-   $SUB -q $JOB_QUEUE -P $PROJECT -M 50 -R affinity[core] \
-        -o ${OZN_LOGdir}/DE.${PDY}.${cyc}.log \
-        -e ${OZN_LOGdir}/DE.${PDY}.${cyc}.err \
-        -W 0:05 -J ${job} -cwd ${PWD} $jobfile
-
 elif [[ $MY_MACHINE = "wcoss_d" ]]; then
 
    $SUB -q $JOB_QUEUE -P $PROJECT -M 400 -R affinity[core] \
@@ -224,7 +222,7 @@ elif [[ $MY_MACHINE = "wcoss_d" ]]; then
         -e ${OZN_LOGdir}/DE.${PDY}.${cyc}.err \
         -W 0:05 -J ${job} -cwd ${PWD} $jobfile
 
-elif [[ $MY_MACHINE = "cray" ]]; then
+elif [[ $MY_MACHINE = "wcoss_c" ]]; then
 
   $SUB -q $JOB_QUEUE -P $PROJECT -o ${OZN_LOGdir}/DE.${PDY}.${cyc}.log \
         -e ${OZN_LOGdir}/DE.${PDY}.${cyc}.err \

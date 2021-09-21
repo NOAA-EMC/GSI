@@ -78,11 +78,11 @@ done
 
 # Create and populate gdas scripts
 $svnmkdirp $target_gdas/scripts
-flist="exglobal_enkf_innovate_obs.sh.ecf"
+flist="exglobal_enkf_innovate_obs.sh"
 for file in $flist; do
    $svncopy $source_path/scripts/$file $target_gdas/scripts/
 done
-flist="exglobal_enkf_fcst.sh.ecf exglobal_enkf_inflate_recenter.sh.ecf exglobal_enkf_post.sh.ecf exglobal_enkf_update.sh.ecf"
+flist="exglobal_enkf_fcst.sh exglobal_enkf_inflate_recenter.sh exglobal_enkf_post.sh exglobal_enkf_update.sh"
 for file in $flist; do
    $svncopy $source_path/scripts/EnKF/scripts_ncep/$file $target_gdas/scripts/
 done
@@ -138,7 +138,7 @@ done
 
 # Create and populate global_shared scripts
 $svnmkdirp $target_shared/scripts
-flist="exglobal_analysis.sh.ecf"
+flist="exglobal_analysis.sh"
 for file in $flist; do
    $svncopy $source_path/scripts/$file $target_shared/scripts/
 done
