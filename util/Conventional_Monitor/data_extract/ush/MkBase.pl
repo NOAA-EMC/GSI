@@ -50,7 +50,7 @@
          print "error:  wrong number of args passed \n"; 
       }
       else {
-
+         
          my $nobs_file = shift;
          my $hr = substr($nobs_file, -2);
 
@@ -235,7 +235,6 @@
       my @spl = split /\./, ${sortrun[$idx]};
       my $date = ${spl[1]};
 
-
       #---------------------------------------------
       #  use this loop over the hrs array to build
       #  the $obs_file names
@@ -246,7 +245,7 @@
 
          my $cycle = $date . ${hrs[$hr_ctr]};
  
-         my $obs_file = "${dirpath}/${sortrun[$idx]}/${hrs[$hr_ctr]}/conmon/horz_hist/anl/nobs.anl.$cycle";
+         my $obs_file = "${dirpath}/${sortrun[$idx]}/${hrs[$hr_ctr]}/conmon/horz_hist/ges/nobs.ges.$cycle";
          my $comp_obs_file = $obs_file . '.gz';
 
          if( -e $comp_obs_file ) {

@@ -27,6 +27,12 @@ function time_cnt_ps (args)
    say ixc
    say 'iyc=' iyc
 
+   '!echo $CONMON_RESTRICT_PLOT_AREAS > rest.txt'
+   rest=read(rest.txt)
+   restrict=subwrd(rest,2)
+   say 'restrict=' restrict
+     
+
    ix=1
    while(ix <=ixc)
       '!rm -f info.txt'
@@ -42,13 +48,21 @@ function time_cnt_ps (args)
          iuse=subwrd(info,10)
       endif
       result=close(info.txt)
-
+ 
       iy=1
-
       while(iy <=iyc)
+
+*        In order to save space skip certain redundant regions.
+         if ( restrict = 1 )
+            if ( iy = 2 | iy = 3 | iy = 5 | iy = 6 )
+               iy=iy+1
+               continue
+            endif
+         endif
 
          say 'iy=' iy
          '!rm -f area.txt'
+
          if ( iy <10)
             '!cat ges_'dtype'_stas.ctl |grep "region=  'iy' " > area.txt'
          else
@@ -63,7 +77,7 @@ function time_cnt_ps (args)
             area=substr(info,14,25)
          endif
          result=close(area.txt)
-*         say 'area = 'area
+         say 'area = 'area
          iz=1
 
          while(iz <=izc)
@@ -82,7 +96,25 @@ function time_cnt_ps (args)
                if(iz =11);levz='499-400mb';endif
                if(iz =12);levz='399-300mb';endif
                if(iz =13);levz='299-0mb';endif
-            else
+            endif
+    
+            if (dtype='gps')
+               if(iz =1);levz='60 - 0km';endif
+               if(iz =2);levz='55 - 60km';endif
+               if(iz =3);levz='50 - 55km';endif
+               if(iz =4);levz='45 - 50km';endif
+               if(iz =5);levz='40 - 45km';endif
+               if(iz =6);levz='35 - 40km';endif
+               if(iz =7);levz='30 - 35km';endif
+               if(iz =8);levz='25 - 30km';endif
+               if(iz =9);levz='20 - 25km';endif
+               if(iz =10);levz='15 - 20km';endif
+               if(iz =11);levz='10 - 15km';endif
+               if(iz =12);levz='5 - 10km';endif
+               if(iz =13);levz='0 - 5km';endif
+            endif
+            
+            if (dtype != 'gps' & dtype != 'q')
                if(iz =1);levz='2000-0mb';endif
                if(iz =2);levz='>=1000mb';endif
                if(iz =3);levz='999-900mb';endif
