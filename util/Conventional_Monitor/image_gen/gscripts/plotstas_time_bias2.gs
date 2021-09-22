@@ -60,9 +60,21 @@ function plot_bias2 (args)
          if(iz =13);levz='49-0mb';endif
       endif
 
-      iy=1
+      '!echo $CONMON_RESTRICT_PLOT_AREAS > rest.txt'
+      rest=read(rest.txt)
+      restrict=subwrd(rest,2)
+      say 'restrict=' restrict
 
+      iy=1
       while(iy <=iyc)
+
+*        In order to save space skip certain redundant regions.
+         if ( restrict = 1 )
+            if ( iy = 2 | iy = 3 | iy = 5 | iy = 6 )
+               iy=iy+1
+               continue
+            endif
+         endif
 
          say 'iy=' iy
          '!rm -f area.txt'
@@ -75,7 +87,7 @@ function plot_bias2 (args)
             area=substr(info,14,25)
          endif
          result=close(area.txt)
-*         say 'area = 'area
+         say 'area = 'area
          ix=1
 
          while(ix <=ixc)
@@ -92,7 +104,6 @@ function plot_bias2 (args)
                iuse=subwrd(info,10)
             endif
             result=close(info.txt)
-*            if( iuse = -1);ix=ix+1;continue;endif
 
             plottime(ix,iy,iz,dtype,hh,dd,area,stype,subtype,iuse,levz,debug)
 

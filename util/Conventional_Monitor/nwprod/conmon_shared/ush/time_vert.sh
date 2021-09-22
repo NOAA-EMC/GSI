@@ -106,7 +106,7 @@ EOF
 
       for run in ges anl; do
 
-         for type in ps t q uv; do
+         for type in gps ps t q uv; do
 
          
             cat << EOF > input
