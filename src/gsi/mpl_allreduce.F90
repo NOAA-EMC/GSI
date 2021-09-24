@@ -84,8 +84,6 @@ subroutine rmpl_allreduce(klen,rpvals)
   if (npe>1 .and. klen>0) then
 
 !    Gather contributions
-     call mpi_barrier(mpi_comm_world,ierror)
-     call mpi_barrier(mpi_comm_world,ierror)
      call mpi_allgather(rpvals,klen,mpi_rtype, &
                         zwork,klen,mpi_rtype, mpi_comm_world,ierror)
 
@@ -157,13 +155,9 @@ subroutine qmpl_allreduce1d(klen,qpvals)
      qpval2=qpval2r
 #else
      if(r_double==r_quad) then
-        call mpi_barrier(mpi_comm_world,ierror)
-        call mpi_barrier(mpi_comm_world,ierror)
         call mpi_allgather(qpvals,klen,mpi_real8 , &
                            qpval2,klen,mpi_real8 , mpi_comm_world,ierror)
      else
-        call mpi_barrier(mpi_comm_world,ierror)
-        call mpi_barrier(mpi_comm_world,ierror)
         call mpi_allgather(qpvals,klen,mpi_real16, &
                            qpval2,klen,mpi_real16, mpi_comm_world,ierror)
      endif
@@ -237,13 +231,9 @@ subroutine qmpl_allreduce2d(ilen,klen,pvals,pvnew)
   pval2=pval2r
 #else
   if(r_double==r_quad) then
-     call mpi_barrier(mpi_comm_world,ierror)
-     call mpi_barrier(mpi_comm_world,ierror)
      call mpi_allgather(pvals,ilen*klen,mpi_real8 , &
                         pval2,ilen*klen,mpi_real8 , mpi_comm_world,ierror)
   else
-     call mpi_barrier(mpi_comm_world,ierror)
-     call mpi_barrier(mpi_comm_world,ierror)
      call mpi_allgather(pvals,ilen*klen,mpi_real16, &
                         pval2,ilen*klen,mpi_real16, mpi_comm_world,ierror)
   endif
@@ -334,13 +324,9 @@ subroutine mpl_allgatherq(idim,jdim,zloc,zall)
   zall=zallr
 #else
   if(r_double==r_quad) then
-     call mpi_barrier(mpi_comm_world,ierror)
-     call mpi_barrier(mpi_comm_world,ierror)
      call mpi_allgather(zloc,idim,mpi_real8 , &
                         zall,idim,mpi_real8 , mpi_comm_world,ierror)
   else
-     call mpi_barrier(mpi_comm_world,ierror)
-     call mpi_barrier(mpi_comm_world,ierror)
      call mpi_allgather(zloc,idim,mpi_real16, &
                         zall,idim,mpi_real16, mpi_comm_world,ierror)
   endif
