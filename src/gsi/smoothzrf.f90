@@ -505,3 +505,73 @@ subroutine rfhvo(p1,nc,n,al)
   endif
   return
 end subroutine rfhvo
+
+subroutine smoothzo1(vx,samp,rate,dsv)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    smoothzo    initializes and renormalizes vertical smoothing
+! coefs.
+!   prgmmr: derber           org: np22                date: 2004-05-13
+!
+! abstract: initializes and renormalizes vertical smoothing coefficients
+!           initializes dssv  (no alv)
+!
+! program history log:
+!   2004-05-13  derber, document
+!   2004-11-30  treadon - add longitude dimension to variance array dssv
+!   2010-03-01  zhu     - decide the location in alv and dsv based on anavinfo
+!                       - add dsv in the interface, rm dssv in berror
+!   2010-10-08  derber - optimize and clean up
+!
+!   2017-02-09  CAPS(G. Zhao) - remove initialization of alv (it is defined on
+!                               llmin:llmax for regional, might cause problem.)
+!
+!   input argument list:
+!     vx       - vertical smoothing scales
+!     samp     - parameter for smoothing
+!     rate     - parameter for smoothing
+!     iv       - location in alv and dssv for smoothing coefficients
+!     jx       - latitude index
+!
+!   output argument list
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use kinds, only: r_kind,i_kind
+  use constants, only:  zero
+  use gridmod, only: nsig,lon2
+  use berror, only: ndeg
+  implicit none
+
+  real(r_kind),dimension(nsig),intent(in   ) :: vx
+  real(r_kind)                ,intent(in   ) :: samp
+  real(r_kind),dimension(ndeg),intent(in   ) :: rate
+  real(r_kind),dimension(lon2,nsig),intent(out):: dsv
+
+  integer(i_kind) i,k
+  real(r_kind),dimension(nsig):: dss
+  real(r_kind),dimension(nsig,nsig):: p1
+  real(r_kind),dimension(nsig,ndeg):: al
+
+  call rfdparv(vx,rate,al,nsig,ndeg)
+  p1=zero
+  do k=1,nsig
+     dss(k)=sqrt(samp*vx(k))
+     p1(k,k)=dss(k)
+  end do
+
+  call rfhvo(p1,nsig,nsig,al)
+
+  call rfhvo(p1,nsig,nsig,al)
+
+  do k=1,nsig
+     do i=1,lon2
+        dsv(i,k)=sqrt(dss(k)/p1(k,k))
+     end do
+  end do
+
+  return
+end subroutine smoothzo1
