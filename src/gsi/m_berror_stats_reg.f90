@@ -200,11 +200,11 @@ end subroutine berror_set_reg
     if(mype.eq.0)print*,"clat_avn= ",clat_avn
 !   compute vertical(pressure) interpolation index and weight
     do k=1,nsig
-       if(mype.eq.0)print*,"model_level: ",k,ges_prslavg(k)/ges_psfcavg,ges_prslavg(k),ges_psfcavg
+       !if(mype.eq.0)print*,"model_level: ",k,ges_prslavg(k)/ges_psfcavg,ges_prslavg(k),ges_psfcavg
        rlsig(k)=log(ges_prslavg(k)/ges_psfcavg)
     enddo
     do k=1,msig
-       if(mype.eq.0)print*,"be_level: ",k,sigma_avn(k)
+       !if(mype.eq.0)print*,"be_level: ",k,sigma_avn(k)
        rlsigo(k)=log(sigma_avn(k))
     enddo
 
@@ -446,7 +446,7 @@ end subroutine berror_read_bal_reg
         var=varshort
         end if
      endif
-     print*,"Read BEC var: ",var, isig
+     !print*,"Read BEC var: ",var, isig
      if (istat /= 0) exit
      allocate ( corz_avn(1:mlat,1:isig) )
      allocate ( hwll_avn(0:mlat+1,1:isig) )
@@ -468,7 +468,7 @@ end subroutine berror_read_bal_reg
      do n=1,nrf
      !print*,"Decide if Var in BEC file: ",n,nrf,var,cvars(n)
         if (var==cvars(n)) then
-           print*,"Found Var in BEC file: ",n,var
+           print*,"Found Var in BEC file: ",n,var,nrf_err(n)
            nrf_err(n)=.true.
            loc=n
            exit

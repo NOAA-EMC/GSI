@@ -360,7 +360,7 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
              rank3,ier)
         if (ier==0) then
            ges_pm2_5(:,:,:,1)=ges_pm2_5(:,:,:,1)+pm25wc(:,:,:,imodes_cmaq_fv3(i),1)*rank3
-             write(6,*) 'setuppm2_5: contribution from ',trim(aeroname)
+             write(6,*) 'setuppm2_5: contribution from ',trim(aeroname),imodes_cmaq_fv3(i)
            do ifld=2,nfldsig
               call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
               ges_pm2_5(:,:,:,ifld)=ges_pm2_5(:,:,:,ifld)+pm25wc(:,:,:,imodes_cmaq_fv3(i),ifld)*rank3

@@ -214,7 +214,7 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
   istyp     = 10 ! index of surface type
   idbcf     = 11 ! index of deep blue confidence flag
 
-  print*,"Wang: obstype= ",obstype
+  !print*,"setupaod.f90: obstype= ",obstype
   if ( obstype == 'viirs_aod' .or. obstype == 'modis_aod' ) then
      iqcall    = 7  ! index of overall quality flag for AOD
      ismask    = 10 ! index of surface type mask
@@ -222,7 +222,7 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
      write(6,*)'SETUP_AOD:  *** WARNING: unknown aerosol input type, obstype=',obstype
   end if
 
-  print*,"Wang: call radiance_obstype_search"
+  !print*,"setupaod.f90: call radiance_obstype_search"
 ! Determine cloud & aerosol usages in radiance assimilation
   call radiance_obstype_search(obstype,radmod)
 
@@ -234,7 +234,7 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
   jc=0
   
   do j=1,jpch_aero
-  print*,"Wang: isis= ",j,nusis_aero(j)
+  !print*,"setupaod.f90: isis= ",j,nusis_aero(j)
      if(isis == nusis_aero(j))then 
         jc=jc+1
         if(jc > nchanl)then
@@ -282,7 +282,7 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
   endif
 
 ! Initialize radiative transfer
-  print*,"Wang: call init_crtm"
+  if (mype == 0)print*,"setupaod.f90: call init_crtm"
   call init_crtm(init_pass,mype_diaghdr(is),mype,nchanl,nreal,isis,obstype,radmod)
 
 ! If diagnostic file requested, allocate arrays and init output file 
@@ -413,7 +413,7 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
 !
  
 !       Interpolate model fields to observation location, call crtm and create jacobians
-        write(6,*)"Wang: setupaod.f90:  call_crtm"
+        if (mype == 0) write(6,*)"setupaod.f90:  call_crtm"
         call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
              tvp,qvp,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
              trop5,tzbgr,dtsavg,sfc_speed, &

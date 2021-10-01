@@ -229,7 +229,7 @@ contains
 
           aerosol(i)%concentration(k) = max(tiny_r_kind, aero_conc(k,i))
           !ensure sensitivity at lowest model level
-          if(k.eq.km) aerosol(i)%concentration(k) = max(1.0e-8_r_kind,aero_conc(k,i))
+          !if(k.eq.km) aerosol(i)%concentration(k) = max(1.0e-8_r_kind,aero_conc(k,i))
           ! calculate effective radius; diam to radius (0.5)
           ! raod_radius_mean_scale,raod_radius_std_scale
           aerosol(i)%effective_radius(k) = raod_radius_mean_scale*0.5*def_diam(imodes_cmaq_fv3(i))*exp(2.5*(log(def_sigma_g(imodes_cmaq_fv3(i))))**2) 

@@ -439,7 +439,7 @@ contains
     elseif (fv3_cmaq_regional) then
 !Hongli 
        obs2model_anowbufr_pm=fv3_cmaq_pm
-       write(6,*)'!!! Please check fv3_cmaq_pm chem model in chemmod.f90'
+!       write(6,*)'!!! Please check fv3_cmaq_pm chem model in chemmod.f90'
     else
        write(6,*)'unknown chem model. stopping in chemmod.f90'
        call stop2(414)

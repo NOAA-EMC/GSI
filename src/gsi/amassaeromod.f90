@@ -83,6 +83,9 @@ do ic=1,naerosols-1
       do j=1,lon2
          do i=1,lat2
             sv_rank3(i,j,k)=cv_amassj(i,j,k)*ges_aero(i,j,k)/ges_amassj(i,j,k)
+         if(ges_aero(i,j,k)/ges_amassj(i,j,k).ge.1.0)then
+  print*,"amas2aero_tl:wg.ge.1 ",trim(aerosols(ic)),ges_aero(i,j,k),ges_amassj(i,j,k)
+         end if
          end do
       end do
    end do
