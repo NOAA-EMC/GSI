@@ -138,7 +138,7 @@ do_cw_to_hydro_hwrf = .false.
 do_cw_to_hydro_hwrf = lc_cw.and.ls_ql.and.ls_qi.and.ls_qr.and.ls_qs.and.ls_qg.and.ls_qh
 
 ! Initialize ensemble contribution to zero
-!!!!$omp parallel do schedule(dynamic,1) private(jj)
+!$omp parallel do schedule(dynamic,1) private(jj)
 do jj=1,ntlevs_ens 
    eval(jj)%values=zero
 end do
@@ -168,9 +168,9 @@ do jj=1,ntlevs_ens
    call gsi_bundlegetpointer (eval(jj),'u'   ,sv_u,   istatus)
    call gsi_bundlegetpointer (eval(jj),'v'   ,sv_v,   istatus)
    call gsi_bundlegetpointer (eval(jj),'tsen',sv_tsen,istatus)
-!!!!$omp parallel sections private(ic,id,istatus)
+!$omp parallel sections private(ic,id,istatus)
 
-!!!!$omp section
+!$omp section
 
 !  Get pointers to required state variables
 !  Convert streamfunction and velocity potential to u,v
@@ -185,7 +185,7 @@ do jj=1,ntlevs_ens
       end if
    end if
 
-!!!!$omp section
+!$omp section
 
 !  Copy variables
    call gsi_bundlegetvar ( wbundle_c, 't'  , sv_tv,  istatus )
@@ -226,7 +226,7 @@ do jj=1,ntlevs_ens
    endif
 
 
-!!!!$omp section
+!$omp section
 
 !  Get pointers to required state variables
    call gsi_bundlegetpointer (eval(jj),'oz'  ,sv_oz , istatus)
@@ -247,7 +247,7 @@ do jj=1,ntlevs_ens
       end if
    end if
 
-!!!!$omp end parallel sections
+!$omp end parallel sections
 
 ! Add contribution from static B, if necessary
    call self_add(eval(jj),mval)
