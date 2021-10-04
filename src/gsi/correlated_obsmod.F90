@@ -444,7 +444,7 @@ logical :: corr_obs
       endif
       coun=0
       ErrorCov%R=zero
-      do ii=1,nctot !this should not be nctot, but something from satinfo KAB
+      do ii=1,nctot 
          if (iuse_rad(ii+istart)>0) then
             coun=coun+1
             ErrorCov%indxR(coun)=ii
