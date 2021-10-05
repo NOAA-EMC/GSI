@@ -15,10 +15,49 @@ dir_root=$(pwd)
 
 ################# Hera ####################
 if [[ "`grep -i "hera" /etc/hosts | head -n1`" != "" ]] ; then
-    source /etc/profile.d/modules.sh
-    modulefile="/home/rtrr/PARM_EXEC/modulefiles/modulefile.hera.GSI_UPP_WRF"
-    NCEPLIBS="/scratch1/BMC/comgsi/precompiled/NCEPLIBS/b_intel18.0.5.274_impi2018.0.4/install"
-    GSILIBS="/scratch1/BMC/comgsi/precompiled/GSILIBS/b_intel18.0.5.274_impi2018.0.4"
+
+source /etc/profile.d/modules.sh
+module purge
+module use -a /contrib/sutils/modulefiles
+module load sutils
+
+module load intel/18.0.5.274
+module load impi/2018.0.4
+
+module use -a /scratch2/NCEPDEV/nwprod/NCEPLIBS/modulefiles
+module load bacio/2.0.3
+module load ip/3.0.2
+module load nemsio/2.2.4
+module load sp/2.0.3
+module load w3emc/2.3.1
+module load w3nco/2.0.7
+module load g2/3.1.1
+module load g2tmpl/1.6.0
+
+module load jasper/1.900.1
+module load png/1.2.44
+module load z/1.2.11
+
+module load post/8.0.6
+
+## for gsi
+module load sfcio/1.1.1
+module load sigio/2.1.1
+
+module use -a /scratch1/NCEPDEV/nems/emc.nemspara/soft/modulefiles
+module load hdf5_parallel/1.10.6
+module load netcdf_parallel/4.7.4
+module load esmf/8.0.0_ParallelNetCDF
+
+module load cmake/3.16.1
+export CMAKE_C_COMPILER=mpiicc
+export CMAKE_CXX_COMPILER=mpiicpc
+export CMAKE_Fortran_COMPILER=mpiifort
+export CMAKE_Platform=hera.intel
+
+export CRTM_INC=/scratch2/BMC/wrfruc/hwang/wf1/crtm/crtm.git.2021may/crtm/src/Build/crtm_v2.4.1-alpha/include
+export CRTM_LIB=/scratch2/BMC/wrfruc/hwang/wf1/crtm/crtm.git.2021may/crtm/src/Build/crtm_v2.4.1-alpha/lib/libcrtm.a
+
 
 ################# Jet ####################
 elif [[ -d /jetmon ]] ; then
@@ -56,40 +95,39 @@ else
     GSILIBS="/my/GSILIBS/b_intel18.0.5_impi2018.4.274/"
 fi
 
-if [ ! -f $modulefile ]; then
-    echo "modulefiles $modulefile does not exist"
-    exit 10
-fi
-source $modulefile
-
+#if [ ! -f $modulefile ]; then
+#    echo "modulefiles $modulefile does not exist"
+#    exit 10
+#fi
+#source $modulefile
+#
 ## if NETCDF4 is set to 0 or 1, unset it
-if [[ "$NETCDF4" == "1" ]] || [[ "$NETCDF4" == "0" ]]; then
-  unset NETCDF4
-fi
+#if [[ "$NETCDF4" == "1" ]] || [[ "$NETCDF4" == "0" ]]; then
+#  unset NETCDF4
+#fi
 
-export BACIO_LIB4=${NCEPLIBS}/lib/libbacio_4.a
-#export  BUFR_LIBd=${NCEPLIBS}/lib/libbufr_d.a
-  export  BUFR_LIBd=${GSILIBS}/lib/libbufr_v.a
-  export GSIWRF_LIB=${GSILIBS}/lib/libWRFLIB.a
-export   CRTM_LIB=${NCEPLIBS}/lib/libcrtm.a
-export   CRTM_INC=${NCEPLIBS}/include
-export NEMSIO_LIB=${NCEPLIBS}/lib/libnemsio.a
-export NEMSIO_INC=${NCEPLIBS}/include
-export SFCIO_LIB4=${NCEPLIBS}/lib/libsfcio_4.a
-export SFCIO_INC4=${NCEPLIBS}/include_4
-export SIGIO_LIB4=${NCEPLIBS}/lib/libsigio_4.a
-export SIGIO_INC4=${NCEPLIBS}/include_4
-export    SP_LIBd=${NCEPLIBS}/lib/libsp_d.a
-export    SP_LIB4=${NCEPLIBS}/lib/libsp_4.a
-export W3EMC_LIBd=${NCEPLIBS}/lib/libw3emc_d.a
-export W3EMC_LIB4=${NCEPLIBS}/lib/libw3emc_4.a
-export W3EMC_INCd=${NCEPLIBS}/include_d
-export W3EMC_INC4=${NCEPLIBS}/include_4
-export W3NCO_LIBd=${NCEPLIBS}/lib/libw3nco_d.a
-export W3NCO_LIB4=${NCEPLIBS}/lib/libw3nco_4.a
-export    IP_LIBd=${NCEPLIBS}/lib/libip_d.a
-export    IP_LIB4=${NCEPLIBS}/lib/libip_4.a
-
+#export BACIO_LIB4=${NCEPLIBS}/lib/libbacio_4.a
+#  export  BUFR_LIBd=${GSILIBS}/lib/libbufr_v.a
+#  export GSIWRF_LIB=${GSILIBS}/lib/libWRFLIB.a
+#export   CRTM_LIB=${NCEPLIBS}/lib/libcrtm.a
+#export   CRTM_INC=${NCEPLIBS}/include
+#export NEMSIO_LIB=${NCEPLIBS}/lib/libnemsio.a
+#export NEMSIO_INC=${NCEPLIBS}/include
+#export SFCIO_LIB4=${NCEPLIBS}/lib/libsfcio_4.a
+#export SFCIO_INC4=${NCEPLIBS}/include_4
+#export SIGIO_LIB4=${NCEPLIBS}/lib/libsigio_4.a
+#export SIGIO_INC4=${NCEPLIBS}/include_4
+#export    SP_LIBd=${NCEPLIBS}/lib/libsp_d.a
+#export    SP_LIB4=${NCEPLIBS}/lib/libsp_4.a
+#export W3EMC_LIBd=${NCEPLIBS}/lib/libw3emc_d.a
+##export W3EMC_LIB4=${NCEPLIBS}/lib/libw3emc_4.a
+#export W3EMC_INCd=${NCEPLIBS}/include_d
+##export W3EMC_INC4=${NCEPLIBS}/include_4
+#export W3NCO_LIBd=${NCEPLIBS}/lib/libw3nco_d.a
+#export W3NCO_LIB4=${NCEPLIBS}/lib/libw3nco_4.a
+#export    IP_LIBd=${NCEPLIBS}/lib/libip_d.a
+#export    IP_LIB4=${NCEPLIBS}/lib/libip_4.a
+#
 set -x
 rm -rf $dir_root/build
 mkdir -p $dir_root/build
