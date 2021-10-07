@@ -521,7 +521,11 @@ module obsmod
   public :: uv_doe_b_236
   public :: uv_doe_b_237
   public :: uv_doe_b_213
-  
+
+  ! The following correspond to OMPS LP observations:
+
+  public :: ompslp_mult_fact
+
 
   interface obsmod_init_instr_table
           module procedure init_instr_table_
@@ -669,6 +673,10 @@ module obsmod
   real(r_kind) :: uv_doe_a_237, uv_doe_b_237
   real(r_kind) :: uv_doe_a_213, uv_doe_b_213
   
+ ! The following correspond to OMPS LP observations:
+
+  real(r_kind) :: ompslp_mult_fact
+
 contains
 
   subroutine init_obsmod_dflts
@@ -933,6 +941,11 @@ contains
     uv_doe_a_213 = 1.0_r_kind
     uv_doe_b_213 = 0.0_r_kind
     
+    ! The following correspond to OMPS LP  observations:
+
+    ompslp_mult_fact = 2.0_r_kind
+
+
     return
   end subroutine init_obsmod_dflts
   
