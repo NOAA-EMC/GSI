@@ -19,8 +19,6 @@ set -ax
 function large_mv () {       
    while read imgf; do
       newf=`echo $imgf | sed -e "s/\./.${PDATE}./g"`
-#      cp $imgf $newf
-#      mv $newf ${C_IMGNDIR}/pngs/time/.
       mv $imgf ${C_IMGNDIR}/pngs/time/$newf
    done
 }
@@ -113,8 +111,11 @@ function large_mv () {
    #  copy plots scripts locally, modify, and run
    #---------------------------------------------------
 
-#   for script in plotstas_time_count.gs plotstas_time_bias.gs plotstas_time_bias2.gs ;do
    for script in plotstas_time_count.gs plotstas_time_bias.gs ;do
+      if [[ ${type} = 'gps' && ${script} = 'plotstas_time_bias.gs' ]]; then
+         continue
+      fi
+
       plot_script=${C_IG_GSCRIPTS}/${script}
 
       if [[ -s  ${plot_script} ]]; then
@@ -144,12 +145,10 @@ function large_mv () {
       #  use large_mv function to avoid argument 
       #  list overload
       #------------------------------------------
-#      if [[ $CONMON_SUFFIX = "v16rt2" ]]; then
-         ls -1 *.png | large_mv
-#      else
-#         mv -f *.png ${outdir}/.
-#      fi
+      ls -1 *.png | large_mv
+
    done
+
 
    if [[ ${C_IG_SAVE_WORK} -eq 0 ]]; then
       cd $workdir

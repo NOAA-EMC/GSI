@@ -32,6 +32,7 @@ module params
 !                          (for using DFS in LETKF ob selection).
 !   2018-11-15  groff - Added ancillary parameters
 !                       for EFSOI calculations
+!   2019-03-20  CAPS(C. Tong) - added variables direct reflectivity DA capability
 !
 ! attributes:
 !   language: f95
@@ -118,6 +119,8 @@ real(r_single),public ::  zhuberleft,zhuberright
 real(r_single),public ::  lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh,&
                lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh,&
                lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh
+real(r_single),public ::  corrlengthrdrnh,corrlengthrdrtr,corrlengthrdrsh, &
+               lnsigcutoffrdrnh,lnsigcutoffrdrtr,lnsigcutoffrdrsh
 real(r_single),public :: analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,saterrfact
 real(r_single),public :: analpertwtnh_rtpp,analpertwtsh_rtpp,analpertwttr_rtpp
 real(r_single),public ::  paoverpb_thresh,latbound,delat,p5delat,delatinv
@@ -195,6 +198,10 @@ logical,public :: forecast_impact = .true.
 
 ! use brute force search in LETKF instead of kdtree
 logical,public :: letkf_bruteforce_search=.false.
+! additional flag for EnKF when using diagnostics from direct reflectivity DA capability
+! this flag was set not to affect the other applications.
+! this flag mainly affects in reading obs diagnostics and writing anlysis file
+logical,public :: l_use_enkf_directZDA = .false.
 
 ! next two are no longer used, instead they are inferred from anavinfo
 logical,public :: massbal_adjust = .false.
@@ -266,7 +273,10 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    eft,wmoist,adrate,andataname,&
                    gdatehr,datehr,&
                    tar_minlat,tar_maxlat,tar_minlon,tar_maxlon,tar_minlev,tar_maxlev,&
-                   fv3_native, paranc, nccompress, write_fv3_incr,incvars_to_zero
+                   fv3_native, paranc, nccompress, write_fv3_incr,incvars_to_zero, &
+                   corrlengthrdrnh,corrlengthrdrsh,corrlengthrdrtr,&
+                   lnsigcutoffrdrnh,lnsigcutoffrdrsh,lnsigcutoffrdrtr,&
+                   l_use_enkf_directZDA
 namelist /nam_wrf/arw,nmm,nmm_restart
 namelist /nam_fv3/fv3fixpath,nx_res,ny_res,ntiles,l_pres_add_saved
 namelist /satobs_enkf/sattypes_rad,dsis
@@ -296,6 +306,10 @@ gdatehr = 00
 corrlengthnh = 2800_r_single
 corrlengthtr = 2800_r_single
 corrlengthsh = 2800_r_single
+! corrlength for radar (length for horizontal localization in km)
+corrlengthrdrnh = 10
+corrlengthrdrtr = 10
+corrlengthrdrsh = 10
 ! read in localization length scales from an external file.
 readin_localization = .false.
 ! min and max inflation.
@@ -317,6 +331,9 @@ lnsigcutoffsatsh = -999._r_single ! value for satellite radiances
 lnsigcutoffpsnh = -999._r_single  ! value for surface pressure
 lnsigcutoffpstr = -999._r_single  ! value for surface pressure
 lnsigcutoffpssh = -999._r_single  ! value for surface pressure
+lnsigcutoffrdrnh = 0.2_r_single  ! value for radar
+lnsigcutoffrdrtr = 0.2_r_single  ! value for radar
+lnsigcutoffrdrsh = 0.2_r_single  ! value for radar
 ! ob time localization
 obtimelnh = 1.e10_r_single
 obtimeltr = 1.e10_r_single
@@ -760,6 +777,14 @@ end if
 corrlengthnh = corrlengthnh * 1.e3_r_single/rearth
 corrlengthtr = corrlengthtr * 1.e3_r_single/rearth
 corrlengthsh = corrlengthsh * 1.e3_r_single/rearth
+! rescale covariance localization length for radar observations
+! note:(1) in namelist, the length is in unit of kilometer;
+!      (2) here it is converted to be in unit of meter,
+!      (3) then, it is re-scaled by radius of earth
+!          (actually it is non-dimensionalized).
+corrlengthrdrnh = corrlengthrdrnh * 1.e3_r_single/rearth
+corrlengthrdrtr = corrlengthrdrtr * 1.e3_r_single/rearth
+corrlengthrdrsh = corrlengthrdrsh * 1.e3_r_single/rearth
 
 ! convert targe area boundary into radians
 tar_minlat = tar_minlat * deg2rad

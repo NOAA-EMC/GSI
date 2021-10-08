@@ -339,6 +339,11 @@ end subroutine berror_read_bal_reg
 !                     variances/correlations for all-sky radiance assimilation
 !       05May16 pondeca - add uwnd10m, vuwn10m
 !       29Aug16 stelios -  Update the constants for howv #ww3
+!       2016-09-xx CAPS(G. Zhao) 
+!                       - add same error stats as q for hydrometeor variables,
+!                       - which can be tuned in sub prewgt_reg.f90.
+!                       - extra caution required for using logarithmic transformation
+!       2018-10-22 CAPS(C.Liu) - add w
 !
 !EOP ___________________________________________________________________
 
@@ -367,6 +372,7 @@ end subroutine berror_read_bal_reg
   integer(i_kind) :: nrf2_uwnd10m,nrf2_vwnd10m
   integer(i_kind) :: nrf3_sfwter,nrf3_vpwter
   integer(i_kind) :: nrf3_dbz
+  integer(i_kind) :: nrf3_ql,nrf3_qi,nrf3_qr,nrf3_qs,nrf3_qg,nrf3_qnr,nrf3_w
   integer(i_kind) :: inerr,istat
   integer(i_kind) :: nsigstat,nlatstat,isig
   integer(i_kind) :: loc,m1,m,i,n,j,k,ivar,ic
@@ -599,6 +605,15 @@ end subroutine berror_read_bal_reg
   nrf2_uwnd10m=getindex(cvars2d,'uwnd10m')
   nrf2_vwnd10m=getindex(cvars2d,'vwnd10m')
 
+! W, Cloud and hydrometeor fields
+  nrf3_ql  =getindex(cvars3d,'ql')
+  nrf3_qi  =getindex(cvars3d,'qi')
+  nrf3_qr  =getindex(cvars3d,'qr')
+  nrf3_qs  =getindex(cvars3d,'qs')
+  nrf3_qg  =getindex(cvars3d,'qg')
+  nrf3_qnr =getindex(cvars3d,'qnr')
+  nrf3_w   =getindex(cvars3d,'w')
+
   if(nrf3_q>0 .and. qoption==2)then
      do k=1,nsig
         do j=1,mlat
@@ -686,6 +701,64 @@ end subroutine berror_read_bal_reg
       corz(1:mlat,1:nsig,nrf3_vpwter)=corz(1:mlat,1:nsig,nrf3_vp)
       hwll(0:mlat+1,1:nsig,nrf3_vpwter)=hwll(0:mlat+1,1:nsig,nrf3_vp)
   endif
+
+! W and Cloud/hydrometeor variables share same error structure with humidity q by default
+!  (not with log transformed cloud variables)
+  if (nrf3_ql>0) then
+      if(mype==0) &
+          write(6,*)myname_,"@pe=",mype," set b_error stats of ql = qv(moisture) and nrf3_ql=",nrf3_ql
+      corz(:,:,nrf3_ql) = corz(:,:,nrf3_q)
+      hwll(:,:,nrf3_ql) = hwll(:,:,nrf3_q)
+      vz(:,:,  nrf3_ql) = vz(:,:,  nrf3_q)
+  end if
+
+  if (nrf3_qi>0) then
+      if(mype==0) &
+          write(6,*)myname_,"@pe=",mype," set b_error stats of qi = qv(moisture) and nrf3_qi=",nrf3_qi
+      corz(:,:,nrf3_qi) = corz(:,:,nrf3_q)
+      hwll(:,:,nrf3_qi) = hwll(:,:,nrf3_q)
+      vz(:,:,  nrf3_qi) = vz(:,:,  nrf3_q)
+  end if
+
+  if (nrf3_qr>0) then
+      if(mype==0) &
+          write(6,*)myname_,"@pe=",mype," set b_error stats of qr = qv(moisture) and nrf3_qr=",nrf3_qr
+      corz(:,:,nrf3_qr) = corz(:,:,nrf3_q)
+      hwll(:,:,nrf3_qr) = hwll(:,:,nrf3_q)
+      vz(:,:,  nrf3_qr) = vz(:,:,  nrf3_q)
+  end if
+
+  if (nrf3_qs>0) then
+      if(mype==0) &
+          write(6,*)myname_,"@pe=",mype," set b_error stats of qs = qv(moisture) and nrf3_qs=",nrf3_qs
+      corz(:,:,nrf3_qs) = corz(:,:,nrf3_q)
+      hwll(:,:,nrf3_qs) = hwll(:,:,nrf3_q)
+      vz(:,:,  nrf3_qs) = vz(:,:,  nrf3_q)
+  end if
+
+  if (nrf3_qg>0) then
+      if(mype==0) &
+          write(6,*)myname_,"@pe=",mype," set b_error stats of qg = qv(moisture) and nrf3_qg=",nrf3_qg
+      corz(:,:,nrf3_qg) = corz(:,:,nrf3_q)
+      hwll(:,:,nrf3_qg) = hwll(:,:,nrf3_q)
+      vz(:,:,  nrf3_qg) = vz(:,:,  nrf3_q)
+  end if
+
+  if (nrf3_qnr>0) then
+      if(mype==0) &
+          write(6,*)myname_,"@pe=",mype," set b_error stats of qnr = qv(moisture) and nrf3_nr=",nrf3_qnr
+      corz(:,:,nrf3_qnr) = corz(:,:,nrf3_q)
+      hwll(:,:,nrf3_qnr) = hwll(:,:,nrf3_q)
+      vz(:,:,  nrf3_qnr) = vz(:,:,  nrf3_q)
+  end if
+
+  if (nrf3_w>0) then
+      if(mype==0) &
+          write(6,*)myname_,"@pe=",mype," set b_error stats of w = qv(moisture) and nrf3_w=",nrf3_w
+      corz(:,:,nrf3_w) = corz(:,:,nrf3_q)
+      hwll(:,:,nrf3_w) = hwll(:,:,nrf3_q)
+      vz(:,:,  nrf3_w) = vz(:,:,  nrf3_q)
+  end if
 
 ! 2d variable
   do n=1,nc2d
