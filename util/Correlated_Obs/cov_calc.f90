@@ -336,8 +336,8 @@ end if
 reclen=kind(Rcov(1,1))
 open(26,file=trim(cov_file),form='unformatted')
 write(26) nch_active, nctot, reclen
-write(26) indRf(1:nch_active)
-write(26) Rcov(1:nch_active,1:nch_active)
+write(26) indRf
+write(26) Rcov
 close(26)
 
 if (out_wave) then
