@@ -11,11 +11,11 @@ use read_diag
 implicit none
 
 public :: get_satobs_data, get_chaninfo
-public :: indR, chaninfo, errout
+public :: indR, indRf,chaninfo, errout
 public :: nch_active,nctot
 public :: RadData
 
-integer(i_kind),dimension(:),allocatable:: indR  !indices of the assimlated channels
+integer(i_kind),dimension(:),allocatable:: indR,indRf  !indices of the assimlated channels
 real(r_kind),dimension(:),allocatable:: chaninfo !wavenumbers of assimilated channels
 real(r_kind),dimension(:),allocatable:: errout   !satinfo obs errors of assimilated channels
 integer(i_kind):: nch_active                     !number of actively assimilated channels
@@ -86,7 +86,7 @@ subroutine get_chaninfo_bin(filename,chan_choice)
          nch_active=nch_active+1
       end do 
    endif
-   allocate(indR(nch_active),chaninfo(nch_active),errout(nch_active))
+   allocate(indRf(nch_active),indR(nch_active),chaninfo(nch_active),errout(nch_active))
    i=0
    do n=1,header_fix0%nchan
       if (chan_choice==full_chan) then
@@ -96,6 +96,7 @@ subroutine get_chaninfo_bin(filename,chan_choice)
          indR(i)=n
       endif
    end do
+   indRf=indR
    do n=1,nch_active
       chaninfo(n)=header_chan0(indR(n))%wave
       errout(n)=header_chan0(indR(n))%varch
@@ -112,7 +113,7 @@ subroutine get_chaninfo_nc(filename,chan_choice)
    character(len=9), intent(in)  :: filename
    integer(i_kind), intent(in):: chan_choice
    integer(i_kind) iunit, nobs, i,j
-   integer(i_kind), dimension(:), allocatable ::Use_Flag,chind
+   integer(i_kind), dimension(:), allocatable ::Use_Flag,chind,shind
    real(r_double), dimension(:), allocatable:: Waves,Inv_Errors
    real(r_kind), dimension(:), allocatable:: Wave,Inv_Error
 
@@ -121,12 +122,13 @@ subroutine get_chaninfo_nc(filename,chan_choice)
    nobs = nc_diag_read_get_dim(iunit,'nobs')
    if (nobs <= 0) call nc_diag_read_close(filename)
    nctot = nc_diag_read_get_dim(iunit,'nchans')
-   allocate(Use_Flag(nctot),chind(nobs),Wave(nctot),Inv_Error(nctot))
+   allocate(Use_Flag(nctot),chind(nobs),shind(nctot),Wave(nctot),Inv_Error(nctot))
    allocate(Waves(nctot),Inv_Errors(nctot))
    call nc_diag_read_get_var(iunit, 'use_flag', Use_Flag)
    call nc_diag_read_get_var(iunit, 'Channel_Index', chind)
    call nc_diag_read_get_var(iunit, 'wavenumber', Waves)
    call nc_diag_read_get_var(iunit, 'error_variance', Inv_Errors)
+   call nc_diag_read_get_var(iunit, 'sensor_chan', shind)
    Wave=real(Waves,r_kind)
    Inv_Error=real(Inv_Errors,r_kind)
    call nc_diag_read_close(filename)
@@ -139,13 +141,16 @@ subroutine get_chaninfo_nc(filename,chan_choice)
          nch_active=nch_active+1
       enddo
    endif
-   allocate(indR(nch_active),chaninfo(nch_active),errout(nch_active))
+   allocate(indRf(nch_active),indR(nch_active),chaninfo(nch_active),errout(nch_active))
    i=0
    do j=1,nctot
+print *, 'chan ', shind(j)
       if (chan_choice==full_chan) then
+         indRf(j)=shind(j)!j
          indR(j)=j
       else if (Use_Flag(chind(j))>0) then
          i=i+1
+         indRf(i)=shind(j)!j
          indR(i)=j
       end if
    end do
