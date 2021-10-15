@@ -21,6 +21,7 @@ find_file( CONTROL_EXE
         /gpfs/hps3/emc/da/noscrub/Michael.Lueken/svn1/build/bin
         /gpfs/hps3/emc/da/noscrub/Michael.Lueken/svn1/src
         /scratch1/NCEPDEV/da/Michael.Lueken/svn1/build/bin
+        /lfs1/NESDIS/nesdis-rdo2/David.Huber/save/gsi_control/exec
    
     ${NO_DEFAULT_PATH})
 
@@ -45,6 +46,7 @@ find_file( ENKF_CONTROL_EXE
         /gpfs/hps3/emc/da/noscrub/Michael.Lueken/svn1/build/bin
         /gpfs/hps3/emc/da/noscrub/Michael.Lueken/svn1/src/enkf
         /scratch1/NCEPDEV/da/Michael.Lueken/svn1/build/bin
+        /lfs1/NESDIS/nesdis-rdo2/David.Huber/save/gsi_control/exec
    
     ${NO_DEFAULT_PATH})
 

@@ -55,7 +55,7 @@ for dsrc in ${data_source}; do
          list="obs anl obsanl"
       fi
 
-      if [[ ${MY_MACHINE} = "hera" ]]; then
+      if [[ ${MY_MACHINE} = "hera" || ${MY_MACHINE} = "jet" || ${MY_MACHINE} = "s4" ]]; then
          echo "$ctr ${OZN_IG_SCRIPTS}/plot_horiz.sh $type $suffix '$list' $dsrc" >> $cmdfile
       else
          echo "${OZN_IG_SCRIPTS}/plot_horiz.sh $type $suffix '$list' $dsrc" >> $cmdfile
@@ -79,10 +79,15 @@ for dsrc in ${data_source}; do
    fi
 
 
-   if [[ ${MY_MACHINE} = "hera" ]]; then
+   if [[ ${MY_MACHINE} = "hera" || ${MY_MACHINE} = "s4" ]]; then
 
       $SUB --account ${ACCOUNT} -n $ctr  -o ${logf} -D . -J ${job} \
            --time=10 --wrap "srun -l --multi-prog ${cmdfile}"
+
+   elif [[ ${MY_MACHINE} = "jet" ]]; then
+
+      $SUB --account ${ACCOUNT} -n $ctr  -o ${logf} -D . -J ${job} \
+           --time=10 --partition=$PARTITION_OZNMON --wrap "srun -l --multi-prog ${cmdfile}"
 
    elif [[ ${MY_MACHINE} = "wcoss_c" ]]; then
 

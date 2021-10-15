@@ -39,6 +39,9 @@ while [[ $ctr -le 120 ]]; do
    tankdir_cdate=${TANKDIR}/${RUN}.${c_pdy}/${c_cyc}/atmos/oznmon/time
    if [[ ! -d ${tankdir_cdate} ]]; then
       tankdir_cdate=${TANKDIR}/${RUN}.${c_pdy}/${c_cyc}/oznmon/time
+      if [[ ! -d ${tankdir_cdate} ]]; then
+         tankdir_cdate=${TANKDIR}/${RUN}.${c_pdy}/time
+      fi
    fi
 
    if [[ ! -e ./${SATYPE}.${ptype}.ctl ]]; then
