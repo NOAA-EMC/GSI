@@ -113,7 +113,7 @@ subroutine get_chaninfo_nc(filename,chan_choice)
    character(len=9), intent(in)  :: filename
    integer(i_kind), intent(in):: chan_choice
    integer(i_kind) iunit, nobs, i,j
-   integer(i_kind), dimension(:), allocatable ::Use_Flag,chind,shind
+   integer(i_kind), dimension(:), allocatable ::Use_Flag,chind,schind
    real(r_double), dimension(:), allocatable:: Waves,Inv_Errors
    real(r_kind), dimension(:), allocatable:: Wave,Inv_Error
 
@@ -122,13 +122,13 @@ subroutine get_chaninfo_nc(filename,chan_choice)
    nobs = nc_diag_read_get_dim(iunit,'nobs')
    if (nobs <= 0) call nc_diag_read_close(filename)
    nctot = nc_diag_read_get_dim(iunit,'nchans')
-   allocate(Use_Flag(nctot),chind(nobs),shind(nctot),Wave(nctot),Inv_Error(nctot))
+   allocate(Use_Flag(nctot),chind(nobs),schind(nctot),Wave(nctot),Inv_Error(nctot))
    allocate(Waves(nctot),Inv_Errors(nctot))
    call nc_diag_read_get_var(iunit, 'use_flag', Use_Flag)
    call nc_diag_read_get_var(iunit, 'Channel_Index', chind)
    call nc_diag_read_get_var(iunit, 'wavenumber', Waves)
    call nc_diag_read_get_var(iunit, 'error_variance', Inv_Errors)
-   call nc_diag_read_get_var(iunit, 'sensor_chan', shind)
+   call nc_diag_read_get_var(iunit, 'sensor_chan', schind)
    Wave=real(Waves,r_kind)
    Inv_Error=real(Inv_Errors,r_kind)
    call nc_diag_read_close(filename)
@@ -144,13 +144,12 @@ subroutine get_chaninfo_nc(filename,chan_choice)
    allocate(indRf(nch_active),indR(nch_active),chaninfo(nch_active),errout(nch_active))
    i=0
    do j=1,nctot
-print *, 'chan ', shind(j)
       if (chan_choice==full_chan) then
-         indRf(j)=shind(j)!j
+         indRf(j)=schind(j)
          indR(j)=j
       else if (Use_Flag(chind(j))>0) then
          i=i+1
-         indRf(i)=shind(j)!j
+         indRf(i)=schind(j)
          indR(i)=j
       end if
    end do
@@ -158,7 +157,7 @@ print *, 'chan ', shind(j)
       chaninfo(j)=Wave(chind(indR(j)))
       errout(j)=Inv_Error(chind(indR(j)))
    end do
-   deallocate(Use_flag,chind,Wave,Inv_Error,Waves,Inv_Errors)
+   deallocate(Use_flag,chind,schind,Wave,Inv_Error,Waves,Inv_Errors)
 end subroutine get_chaninfo_nc
 
 ! read radiance data

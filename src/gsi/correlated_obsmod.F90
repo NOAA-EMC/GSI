@@ -410,8 +410,8 @@ logical :: corr_obs
            if (iuse_rad(ii)>0) then
               coun=coun+1
            endif
+           nctotf=nctotf+1
         endif
-        nctotf=nctotf+1
       enddo
 !     if no data available, turn off Correlated Error
       if (coun==0) then
@@ -462,7 +462,6 @@ logical :: corr_obs
         do ii=1,ErrorCov%nch_active
            indR=0
            do jj=couns,nch_active 
-!              if (indxR(jj)==ErrorCov%indxR(ii)) then
               if (indxR(jj)==indxRf(ii)) then
                  indR=jj
                  couns=jj+1
@@ -484,7 +483,6 @@ logical :: corr_obs
          do ii=1,nch_active
            indR=0
            do jj=couns,ErrorCov%nch_active
-!           if (ErrorCov%indxR(jj)==indxR(ii)) then
               if (indxRf(jj)==indxR(ii)) then
                  indR=jj
                  couns=jj+1

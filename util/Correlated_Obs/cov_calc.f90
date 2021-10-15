@@ -332,18 +332,12 @@ else if (cov_method==hl_method) then
    deallocate(Rcovbig,divbig,ges_avebig1,ges_avebig2)
    deallocate(n_pair_hl, obs_pairs_hl)
 end if
-reclen=kind(Rcov(1,1))
-open(22,file='Rcov_iasicland',form='unformatted')
-read(22) nch_active, nctot, reclen
-read(22) indR
-read(22) Rcov
-close(22)
 !output
 reclen=kind(Rcov(1,1))
 open(26,file=trim(cov_file),form='unformatted')
 write(26) nch_active, nctot, reclen
-write(26) indRf
-write(26) Rcov
+write(26) indRf(1:nch_active)
+write(26) Rcov(1:nch_active,1:nch_active)
 close(26)
 
 if (out_wave) then
@@ -361,8 +355,6 @@ if (out_corr) then
    write(25,rec=1) Rcorr
    close(25)
 end if
-!KAB
-print *, indRf
 deallocate(Rcov,chaninfo,errout)
 deallocate(indR,indRf)
 deallocate(divider)
