@@ -36,9 +36,15 @@ elif [[ -d /ioddev_dell ]]; then
 elif [[ -d /scratch1 ]] ; then
     . /apps/lmod/lmod/init/sh
     target=hera
+elif [[ -d /data ]] ; then
+    . /opt/apps/lmod/lmod/init/sh
+    target=s4
 elif [[ -d /work ]]; then
     . $MODULESHOME/init/sh
     target=orion
+elif [[ -d /jetmon ]] ; then
+    . /apps/lmod/lmod/init/sh
+    target=jet
 else
     echo "unknown target = $target"
     exit 9
@@ -68,7 +74,8 @@ fi
 
 if [[ ${target} = "hera"     || ${target} = "wcoss" \
    || ${target} = "wcoss_c"  || ${target} = "wcoss_d" \
-   || ${target} = "orion" ]]; then
+   || ${target} = "orion" || ${target} = "jet" \
+   || ${target} = "s4" ]]; then
    echo Building nwprod executables on ${target}
    echo
 
@@ -83,7 +90,7 @@ if [[ ${target} = "hera"     || ${target} = "wcoss" \
    elif [ $target = wcoss -o $target = gaea ]; then
       module purge
       module load $dir_modules/modulefile.ProdGSI.$target
-   elif [ $target = hera -o $target = orion ]; then
+   elif [ $target = hera -o $target = orion -o $target = jet -o $target = s4 ]; then
     module purge
     module use $dir_modules
     module load modulefile.ProdGSI.$target

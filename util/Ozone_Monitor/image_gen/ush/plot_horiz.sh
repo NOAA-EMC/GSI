@@ -43,7 +43,7 @@ while [[ $ctr -le 3 ]]; do
 
    tankdir_cdate=${TANKDIR}/${RUN}.${c_pdy}/${c_cyc}/atmos/oznmon/horiz
    if [[ ! -d ${tankdir_cdate} ]]; then
-      tankdir_cdate=${TANKDIR}/${RUN}.${c_pdy}/${c_cyc}/oznmon/horiz 
+      tankdir_cdate=${TANKDIR}/${RUN}.${c_pdy}/${c_cyc}/oznmon/horiz
       if [[ ! -d ${tankdir_cdate} ]]; then
          tankdir_cdate=${TANKDIR}/${RUN}.${c_pdy}/horiz
       fi
