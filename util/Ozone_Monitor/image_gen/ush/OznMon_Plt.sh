@@ -44,7 +44,6 @@ nargs=$#
 echo nargs = $nargs
 
 
-
 while [[ $# -ge 1 ]]
 do
    key="$1"
@@ -160,6 +159,15 @@ fi
 if [[ ! -d ${OZN_IMGN_TANKDIR} ]]; then
    mkdir -p ${OZN_IMGN_TANKDIR}
 fi
+
+#---------------------------------------------------------------
+# Create any missing directories.
+#---------------------------------------------------------------
+if [[ ! -d $OZN_LOGdir ]]; then
+   mkdir -p $OZN_LOGdir
+fi
+
+
 
 
 #--------------------------------------------------------------------

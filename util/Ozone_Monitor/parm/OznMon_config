@@ -179,6 +179,40 @@ if [[ $OZNMON_CONFIG -ne 1 ]]; then
       export COMPRESS=${COMPRESS:-gzip}
       export UNCOMPRESS=${UNCOMPRESS:-"gunzip -f"}
 
+   elif [[ $MY_MACHINE = "s4" ]]; then
+
+      module load grads/2.2.1
+      module load license_intel/S4
+      module use /data/prod/hpc-stack/modulefiles/stack
+      module load hpc/1.1.0
+      module load hpc-intel/18.0.4
+      module load hpc-impi/18.0.4
+      module load prod_util/1.2.2
+      module load netcdf/4.7.4
+
+      export GRADS=`which grads`
+      export STNMAP=`which stnmap`
+
+      export SUB=/usr/bin/sbatch
+      export COMPRESS=${COMPRESS:-gzip}
+      export UNCOMPRESS=${UNCOMPRESS:-"gunzip -f"}
+
+      #rstprod data is not allowed on S4
+      CHGRP_CMD=echo
+   elif [[ $MY_MACHINE = "jet" ]]; then
+
+      module load grads/2.2.1
+      export GRADS=`which grads`
+      export STNMAP=`which stnmap`
+      module use /lfs4/HFIP/hfv3gfs/nwprod/hpc-stack/libs/modulefiles/stack
+      module load hpc/1.1.0 hpc-intel/18.0.5.274 prod_util/1.2.2
+
+      export SUB=/apps/slurm/default/bin/sbatch
+      export COMPRESS=${COMPRESS:-gzip}
+      export UNCOMPRESS=${UNCOMPRESS:-"gunzip -f"}
+
+      export PARTITION_OZNMON=${PARTITION_OZNMON:-vjet}
+
    fi
   
 else
