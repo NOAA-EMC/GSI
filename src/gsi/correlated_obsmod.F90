@@ -333,7 +333,7 @@ end subroutine ini_
 ! !INTERFACE:
 !
 subroutine set_(instrument,fname,mask,method,kreq,kmut,ErrorCov)
-use radinfo, only: nusis,iuse_rad,jpch_rad,varch
+use radinfo, only: nusis,iuse_rad,jpch_rad,varch,nuchan
 use constants, only: zero
 implicit none
 
@@ -371,8 +371,8 @@ type(ObsErrorCov),intent(inout) :: ErrorCov ! cov(R) for this instrument
 character(len=*),parameter :: myname_=myname//'*set'
 integer(i_kind) nch_active   !number of channels accounted for in the covariance file
 integer(i_kind) nctot        !the total number of channels (active+passive), according to the covariance file
-integer(i_kind) lu,ii,jj,ioflag,iprec,coun,couns,istart,indR
-integer(i_kind),dimension(:),allocatable:: indxR !channel indices read in from the covariance file
+integer(i_kind) lu,ii,jj,ioflag,iprec,coun,couns,istart,indR,nctotf
+integer(i_kind),dimension(:),allocatable:: indxR,indxRf !channel indices read in from the covariance file
 real(r_kind),dimension(:,:),allocatable:: Rcov   !covariance matrix read in from the covariance file
 real(r_single),allocatable, dimension(:,:) :: readR4  ! nch_active x nch_active 
 real(r_double),allocatable, dimension(:,:) :: readR8  ! nch_active x nch_active 
@@ -400,6 +400,7 @@ logical :: corr_obs
       coun=0
       couns=0
       istart=0 
+      nctotf=0
       do ii=1,jpch_rad
         if (nusis(ii)==ErrorCov%instrument) then
            if (couns==0) then 
@@ -409,6 +410,7 @@ logical :: corr_obs
            if (iuse_rad(ii)>0) then
               coun=coun+1
            endif
+           nctotf=nctotf+1
         endif
       enddo
 !     if no data available, turn off Correlated Error
@@ -420,7 +422,7 @@ logical :: corr_obs
       ErrorCov%nch_active = coun
       if (.not.GMAO_ObsErrorCov) ErrorCov%nctot = nctot
       call create_(coun,ErrorCov)
-      allocate(indxR(nch_active),Rcov(nctot,nctot))
+      allocate(indxRf(nch_active),indxR(nch_active),Rcov(nctot,nctot))
 
 !     Read GSI-like channel numbers used in estimating R for this instrument
       read(lu,IOSTAT=ioflag) indxR
@@ -442,54 +444,60 @@ logical :: corr_obs
         Rcov(1:nch_active,1:nch_active)=readR8
         deallocate(readR8)
       endif
-      coun=0
-      ErrorCov%R=zero
-      do ii=1,nctot 
-         if (iuse_rad(ii+istart)>0) then
-            coun=coun+1
-            ErrorCov%indxR(coun)=ii
-         endif
-      enddo
+      if (GMAO_ObsErrorCov) then
+         ErrorCov%indxR(1:nch_active)=indxR(1:nch_active)
+         ErrorCov%nch_active=nch_active
+      else
+         coun=0
+         ErrorCov%R=zero
+         do ii=1,nctotf 
+            if (iuse_rad(ii+istart)>0) then
+               coun=coun+1
+               ErrorCov%indxR(coun)=ii
+               indxRf(coun)=nuchan(ii+istart)
+            endif
+         enddo
 !Add rows and columns for active channels in the satinfo that are not in the covariance file
-     couns=1
-     do ii=1,ErrorCov%nch_active
-        indR=0
-        do jj=couns,nch_active 
-           if (indxR(jj)==ErrorCov%indxR(ii)) then
-              indR=jj
-              couns=jj+1
-              exit
+        couns=1
+        do ii=1,ErrorCov%nch_active
+           indR=0
+           do jj=couns,nch_active 
+              if (indxR(jj)==indxRf(ii)) then
+                 indR=jj
+                 couns=jj+1
+                 exit
+              endif
+           enddo
+           if (indR==0) then
+              do jj=nctot-1,ii,-1
+                 Rcov(jj+1,:)=Rcov(jj,:)
+                 Rcov(:,jj+1)=Rcov(:,jj)
+              enddo
+              Rcov(ii,:)=zero
+              Rcov(:,ii)=zero
+              Rcov(ii,ii)=varch(istart+ErrorCov%indxR(ii))*varch(istart+ErrorCov%indxR(ii))
            endif
         enddo
-        if (indR==0) then
-           do jj=nctot-1,ii,-1
-              Rcov(jj+1,:)=Rcov(jj,:)
-              Rcov(:,jj+1)=Rcov(:,jj)
-           enddo
-           Rcov(ii,:)=zero
-           Rcov(:,ii)=zero
-           Rcov(ii,ii)=varch(istart+ErrorCov%indxR(ii))*varch(istart+ErrorCov%indxR(ii))
-        endif
-     enddo
 !Remove rows and columns that are in the covariance file, but not in the satinfo
-      couns=1
-      do ii=1,nch_active
-        indR=0
-        do jj=couns,ErrorCov%nch_active
-           if (ErrorCov%indxR(jj)==indxR(ii)) then
-              indR=jj
-              couns=jj+1
-              exit
-            endif
-        enddo
-        if (indR==0) then
-           do jj=ii,nctot-1
-              Rcov(jj,:)=Rcov(jj+1,:)
-              Rcov(:,jj)=Rcov(:,jj+1) 
+         couns=1
+         do ii=1,nch_active
+           indR=0
+           do jj=couns,ErrorCov%nch_active
+              if (indxRf(jj)==indxR(ii)) then
+                 indR=jj
+                 couns=jj+1
+                 exit
+               endif
            enddo
-         endif
-      enddo
-      ErrorCov%R(1:ErrorCov%nch_active,1:ErrorCov%nch_active)=Rcov(1:ErrorCov%nch_active,1:ErrorCov%nch_active)
+           if (indR==0) then
+              do jj=ii,nctot-1
+                 Rcov(jj,:)=Rcov(jj+1,:)
+                 Rcov(:,jj)=Rcov(:,jj+1) 
+              enddo
+            endif
+         enddo
+      endif
+        ErrorCov%R(1:ErrorCov%nch_active,1:ErrorCov%nch_active)=Rcov(1:ErrorCov%nch_active,1:ErrorCov%nch_active)
 !     Done reading file
       close(lu)
    else
@@ -531,7 +539,7 @@ logical :: corr_obs
        endif
        deallocate(diag)
    endif
-   deallocate(indxR,Rcov)
+   deallocate(indxR,Rcov,indxRf)
    initialized_=.true.
 end subroutine set_
 !EOC
