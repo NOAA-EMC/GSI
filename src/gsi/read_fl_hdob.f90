@@ -23,6 +23,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !                         linear qc error table and b table
 
 !   2015-10-01  guo      - calc ob location once in deg
+!   2020-05-04  wu       - no rotate_wind for fv3_regional
 !
 !   input argument list:
 !     infile    - unit from which to read BUFR data
@@ -50,7 +51,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
          r60inv,r10,r100,r2000,hvap,eps,omeps,rv,grav
      use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
          tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
-         rlats,rlons,twodvar_regional
+         rlats,rlons,twodvar_regional,fv3_regional
      use convinfo, only: nconvtype, &
          icuse,ictype,icsubtype,ioctype, &
          ithin_conv,rmesh_conv,pmesh_conv
@@ -357,7 +358,6 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !    Go through the bufr file to find out how mant subsets to process
      nmsg   = 0
      maxobs = 0
-     call closbf(lunin) 
      open(lunin,file=trim(infile),form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
@@ -370,6 +370,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
         end do loop_readsb1
      end do loop_msg1
      call closbf(lunin)
+     close(lunin)
      write(6,*) 'READ_FL_HDOB: total number of data found in the bufr file ',maxobs,obstype      
      write(6,*) 'READ_FL_HDOB: time offset is ',toff,' hours'
 
@@ -390,7 +391,6 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      ilat      = 3 
 
 !    Open bufr file again for reading
-     call closbf(lunin)
      open(lunin,file=trim(infile),form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
@@ -1000,7 +1000,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               if (pob_mb < r50)  woe = woe*r1_2
               if (inflate_error) woe = woe*r1_2
               if (qcm > lim_qm ) woe = woe*1.0e6_r_kind
-              if(regional)then
+              if(regional .and. .not. fv3_regional)then
                  u0 = uob
                  v0 = vob
                  call rotate_wind_ll2xy(u0,v0,uob,vob,dlon_earth,dlon,dlat)
@@ -1148,6 +1148,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 
 !    Close unit to bufr file
      call closbf(lunin)
+     close(lunin)
 !    Deallocate arrays used for thinning data
      if (.not.use_all) then
         deallocate(presl_thin)
@@ -1175,13 +1176,11 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
         'nvtest,vdisterrmax=',ntest,vdisterrmax
 
      if (ndata == 0) then
-        call closbf(lunin)
         write(6,*)'READ_FL_HDOB: no data to process'
      endif
      write(6,*)'READ_FL_HDOB: nreal=',nreal
      write(6,*)'READ_FL_HDOB: ntb,nread,ndata,nodata=',ntb,nread,ndata,nodata
 
-     close(lunin)
 
 !    End of routine
      return

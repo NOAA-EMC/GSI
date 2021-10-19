@@ -21,6 +21,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !   2015-10-01  guo     - consolidate use of ob location (in deg)
 !   2016-03-15  Su      - modified the code so that the program won't stop when
 !                         no subtype is found in non linear qc error table and b table
+!   2020-05-04  wu   - no rotate_wind for fv3_regional
 !
 !   input argument list:
 !     ithin    - flag to thin data
@@ -46,7 +47,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   use kinds, only: r_kind,r_double,i_kind,r_single
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
        tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
-       rlats,rlons
+       rlats,rlons,fv3_regional
   use qcmod, only: errormod,noiqc,njqc
 
   use convthin, only: make3grids,map3grids,del3grids,use_all
@@ -230,7 +231,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !!  go through the satedump to find out how many subset to process
 !** Open and read data from bufr data file
 
-  call closbf(lunin)
   open(lunin,file=trim(infile),form='unformatted')
   call openbf(lunin,'IN',lunin)
   call datelen(10)
@@ -378,6 +378,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
      endif
 
      call closbf(lunin)
+     close(lunin)
      open(lunin,file=trim(infile),form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
@@ -678,7 +679,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            woe=obserr
            oelev=r10
 
-           if(regional)then
+           if(regional .and. .not. fv3_regional)then
               u0=uob
               v0=vob
               call rotate_wind_ll2xy(u0,v0,uob,vob,dlon_earth,dlon,dlat)
@@ -723,7 +724,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
      enddo loop_msg
 
 !    Close unit to bufr file
-     call closbf(lunin)
 !    Deallocate arrays used for thinning data
      if (.not.use_all) then
         deallocate(presl_thin)
@@ -732,6 +732,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! Normal exit
 
   enddo loop_convinfo! loops over convinfo entry matches
+  call closbf(lunin)
   deallocate(lmsg,nrep,tab)
  
 
@@ -771,8 +772,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
        'nvtest,vdisterrmax=',ntest,vdisterrmax
 
   if (ndata == 0) then
-     call closbf(lunin)
-     write(6,*)'READ_SFCWND:  closbf(',lunin,')'
+     write(6,*)'READ_SFCWND:  closbf(',lunin,') no data'
   endif
   
   write(6,*) 'READ_SFCWND,nread,ndata,nreal,nodata=',nread,ndata,nreal,nodata

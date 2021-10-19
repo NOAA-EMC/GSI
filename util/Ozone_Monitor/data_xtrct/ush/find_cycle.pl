@@ -4,12 +4,12 @@
 #  find_cycle.pl
 #
 #    Arguments: 
-#       --dir     : Required string value containing  $TANKdir/$SUFFIX.
-#       --cyc     : Optional integer value:
+#       -dir     : Required string value containing  $TANKdir/$SUFFIX.
+#       -cyc     : Optional integer value:
 #       		1 = last cycle  (default)
 #       		2 = 2nd to last cycle 
 #       		0 = first cycle
-#       --run     : Run name, generally 'gdas' or 'gfs'.  
+#       -run     : Run name, generally 'gdas' or 'gfs'.  
 #		    If not specified 'gdas' will be used.
 #
 #    Return that first/last cycle as a text string in YYYYMMDDHH format,
@@ -135,7 +135,10 @@
  
          $hr_ctr = $hr_ctr - 1;
          
-         $newdir = "${dirpath}/${sortmm[$ctr]}/${hrs[$hr_ctr]}/oznmon/time";
+         $newdir = "${dirpath}/${sortmm[$ctr]}/${hrs[$hr_ctr]}/atmos/oznmon/time";
+         if( ! -d $newdir ) {
+            $newdir = "${dirpath}/${sortmm[$ctr]}/${hrs[$hr_ctr]}/oznmon/time";
+         }
 
          if( -d $newdir ) {
             opendir DIR, $newdir or die "Cannot open the current directory: $!";
@@ -179,7 +182,7 @@
                }
             }
 
-         } 
+         }
           
       } while $hr_ctr > 0 && $found_cycle == 0;
 

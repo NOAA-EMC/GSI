@@ -424,6 +424,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !       Loop back to read next profile
      end do read_loop1
 
+     call closbf(lunin)
+     close(lunin)
 !    End of bufr ozone block
 
 ! Process GOME-2 data
@@ -583,6 +585,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
        
      end do obsloop
 
+     call closbf(lunin)
+     close(lunin)
 !    End of GOME bufr block
 
 
@@ -753,6 +757,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 !       End of loop over observations
      end do read_loop2
+     call closbf(lunin)
+     close(lunin)
 
 ! End of OMI/OMPS-NM(or TC8) block
 
@@ -862,6 +868,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 !       Reopen unit to bufr file
         call closbf(lunin)
+        close(lunin)
         open(lunin,file=trim(infile),form='unformatted')
         call openbf(lunin,'IN',lunin)
         call datelen(10)
@@ -1056,6 +1063,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
      end do read_loop4
 
+     call closbf(lunin)
+     close(lunin)
 !    End of MLS bufr loop
 
 !Process OMPS LP data
@@ -1222,6 +1231,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
        enddo
 
     enddo read_loop5
+    call closbf(lunin)
+    close(lunin)
 
   ! end of OMPS LP bufr loop
   endif
@@ -1269,10 +1280,6 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      if(allocated(ipos))deallocate(ipos)
      if(allocated(usage1))deallocate(usage1)
   endif
-
-! Close unit to input data file
-  call closbf(lunin)
-  close(lunin)
 
 ! Deallocate satthin arrays
   if (obstype == 'omi' .or. obstype == 'gome' .or. obstype=='ompsnm' .or. obstype == 'ompstc8' )call destroygrids

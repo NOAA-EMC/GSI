@@ -1069,7 +1069,7 @@ subroutine setupbend(obsLL,odiagLL, &
 
            allocate(my_head)
            call gpsNode_appendto(my_head,gpshead(ibin))
-
+           
            my_head%idv = is
            my_head%iob = ioid(i)
            my_head%elat= data(ilate,i)

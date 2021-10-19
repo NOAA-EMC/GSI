@@ -187,24 +187,3 @@ for type in $rlist; do
         fi
     fi
 done
-
-
-# Process util/Radiance_Monitor/nwprod
-cd $topdir/util/Radiance_Monitor/nwprod
-rlist="gdas_radmon.v2.0.2 nam_radmon.v2.0.0 radmon_shared.v2.0.0 radmon_shared.v2.0.1 radmon_shared.v2.0.2 radmon_shared.v2.0.3 radmon_shared.v2.0.4"
-for type in $rlist; do
-    git $string ${type}*
-    rc=$?
-    if [[ $rc -ne 0 ]]; then
-        echo "***ERROR* git $string ${type}"
-        exit
-    fi
-    if [[ "$mode" = "restore" ]]; then
-        git checkout ${type}*
-        rc=$?
-        if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git checkout ${type}"
-            exit
-        fi
-    fi
-done

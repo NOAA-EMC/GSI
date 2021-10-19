@@ -234,7 +234,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 ! Set various variables depending on type of data to be read
 
   if (obstype /= 'atms') then
-     write(*,*) 'READ_ATMS called for obstype '//obstype//': RETURNING'
+     write(6,*) 'READ_ATMS called for obstype '//obstype//': RETURNING'
      return
   end if
 
@@ -266,7 +266,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   elseif (jsatid == 'n21') then
      kidsat = 226
   else 
-     write(*,*) 'READ_ATMS: Unrecognized value for jsatid '//jsatid//': RETURNING'
+     write(6,*) 'READ_ATMS: Unrecognized value for jsatid '//jsatid//': RETURNING'
      return
   end if
 
@@ -374,7 +374,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      end if
 
 !    Reopen unit to satellite bufr file
-     call closbf(lnbufr)
      open(lnbufr,file=trim(infile2),form='unformatted',status = 'old', &
          iostat = ierr)
      if(ierr /= 0) cycle ears_db_loop
@@ -492,13 +491,14 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
         end do read_loop
      end do read_subset
      call closbf(lnbufr)
+     close(lnbufr)
   end do ears_db_loop
   deallocate(data1b8)
 
   num_obs = iob-1
 
   if (num_obs <= 0) then
-     write(*,*) 'READ_ATMS: No ATMS Data were read in'
+     write(6,*) 'READ_ATMS: No ATMS Data were read in'
      return
   end if
 
@@ -507,14 +507,14 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   ALLOCATE(Relative_Time_In_Seconds(Num_Obs))
   ALLOCATE(IScan(Num_Obs))
   Relative_Time_In_Seconds = 3600.0_r_kind*T4DV_Save(1:Num_Obs)
-  write(*,*) 'Calling ATMS_Spatial_Average'
+  write(6,*) 'Calling ATMS_Spatial_Average'
   CALL ATMS_Spatial_Average(Num_Obs, NChanl, IFOV_Save(1:Num_Obs), &
        Relative_Time_In_Seconds, BT_Save(1:nchanl,1:Num_Obs), IScan, IRet)
-  write(*,*) 'ATMS_Spatial_Average Called with IRet=',IRet
+  write(6,*) 'ATMS_Spatial_Average Called with IRet=',IRet
   DEALLOCATE(Relative_Time_In_Seconds)
   
   IF (IRet /= 0) THEN
-     write(*,*) 'Error Calling ATMS_Spatial_Average from READ_ATMS'
+     write(6,*) 'Error Calling ATMS_Spatial_Average from READ_ATMS'
      RETURN
   END IF
 

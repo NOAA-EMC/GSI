@@ -35,6 +35,7 @@ module gridinfo
 !   2009-02-23  Initial version.
 !   2016-05-02: shlyaeva: Modification for reading state vector from table
 !   2016-04-20  Modify to handle the updated nemsio sig file (P, DP & DPDT removed)
+!   2021-02-08  CAPS(J. Park) - Modified 'vars3d_supported' for direct reflectivity DA capability
 !
 ! attributes:
 !   language: f95
@@ -67,7 +68,8 @@ integer(i_kind),                                  public     :: nlevs_pres
 integer,public :: npts
 integer,public :: ntrunc
 ! supported variable names in anavinfo
-character(len=max_varname_length),public, dimension(8) :: vars3d_supported = (/'u   ', 'v   ', 't ', 'q   ', 'oz  ', 'cw  ', 'tsen', 'prse' /)
+character(len=max_varname_length),public, dimension(15) :: vars3d_supported = (/'u   ', 'v   ', 'w ', 't ', 'q   ', 'oz  ', 'cw  ', 'tsen', 'prse', &
+                                                                                'ql  ', 'qi  ', 'qr', 'qs', 'qg', 'qnr'/)
 character(len=max_varname_length),public, dimension(3)  :: vars2d_supported = (/'ps ', 'pst', 'sst' /)
 ! supported variable names in anavinfo
 real(r_single), allocatable, dimension(:) :: ak,bk,eta1_ll,eta2_ll

@@ -1524,7 +1524,6 @@
         ! delzb is (negative) hydrostatic background delz inferred from background ps,Tv
         delzb=(rd/grav)*reshape(tv_bg(:,:,ki),(/nlons*nlats/))
         delzb=delzb*log((100_r_kind*ak(krev+1)+bk(krev+1)*values_1d)/(100_r_kind*ak(krev)+bk(krev)*values_1d))
-        !print *,'writegriddata_pnc: min/max delzb',k,minval(delzb),maxval(delzb)
         ug3d(:,:,ki)=values_3d(:,:,ki) + reshape(ug-delzb,(/nlons,nlats/)) 
      end do
      if (has_attr(dsfg, 'nbits', 'delz') .and. .not. nocompress) then
@@ -2487,7 +2486,6 @@
            ! ps in Pa here, need to multiply ak by 100. k is bottom to top,
            ! calculate delzb so it is negative.
            delzb=delzb*log((100_r_kind*ak(k+1)+bk(k+1)*nems_wrk2)/(100_r_kind*ak(k)+bk(k)*nems_wrk2))
-           !print *,'writegriddata nemsio: min/max delzb',k,minval(delzb),maxval(delzb)
         endif
         ! convert Tv back to T
         nems_wrk = ug/(1. + fv*vg)
@@ -2900,7 +2898,6 @@
            ! calculate so it is negative
            delzb=(rd/grav)*reshape(tv_bg(:,:,k),(/nlons*nlats/))
            delzb=delzb*log((100_r_kind*ak(krev+1)+bk(krev+1)*values_1d)/(100_r_kind*ak(krev)+bk(krev)*values_1d))
-           !print *,'writegriddata netcdf: min/max delzb',k,minval(delzb),maxval(delzb)
            ug3d(:,:,k)=values_3d(:,:,k) +&
            reshape(ug-delzb,(/nlons,nlats/))
         enddo
@@ -3600,7 +3597,6 @@
         ! delzb is hydrostatic background delz inferred from background ps,Tv
         delzb=(rd/grav)*reshape(tv(:,:,k),(/nlons*nlats/))
         delzb=delzb*log((100_r_kind*ak(krev+1)+bk(krev+1)*psges)/(100_r_kind*ak(krev)+bk(krev)*psges))
-        !print *,'writeincrement: min/max delzb',k,minval(delzb),maxval(delzb)
         inc3d(:,:,k)=reshape(ug-delzb,(/nlons,nlats/))
      end do
   end if
@@ -4048,7 +4044,6 @@
         ! calculate delzb so it is negative
         delzb=(rd/grav)*reshape(tv(:,:,ki),(/nlons*nlats/))
         delzb=delzb*log((100_r_kind*ak(krev+1)+bk(krev+1)*psges)/(100_r_kind*ak(krev)+bk(krev)*psges))
-        !print *,'writeincrement_pnc: min/max delzb',k,minval(delzb),maxval(delzb)
         inc3d(:,:,ki)=reshape(ug-delzb,(/nlons,nlats/))
      end do
   end if

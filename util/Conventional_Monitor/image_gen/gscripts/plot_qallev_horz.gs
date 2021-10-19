@@ -29,13 +29,14 @@ function qallev (args)
 
    'open anal.ctl'
    'open guess.ctl'
-   'open 'plotfile2'_grads_anl.ctl'
-   'open 'plotfile2'_grads_ges.ctl'
+   'open 'plotfile2'.grads.anl.ctl'
+   'open 'plotfile2'.grads.ges.ctl'
    say  'open the file'
    
    if(plotfile = q120); hint=0; nhe=9;endif
    if(plotfile = q130 | plotfile = q132); nhe=1;endif
    if(plotfile = q133 | plotfile = q134 | plotfile = q135);  nhe=2;endif
+   if(plotfile = q187); nhe=1; endif
 
    he=1
    while(he <=nhe)
@@ -79,7 +80,7 @@ function plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,levx,levx1,hint)
    'defint.gs  0.5 0'
    endif
    'd 10*(RHprs.1-RHprs.2)/RHprs.1'
-*   'cbarb'
+   'colorbar'
    'set ccolor 6'
    'set digsiz 0.12'
    levy=levx-hint
@@ -103,7 +104,7 @@ function plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,levx,levx1,hint)
       'defint.gs  0.5 0'
    endif
    'd 10*(RHprs.1-RHprs.2)/RHprs.1'
-*   'cbarb'
+   'colorbar'
 *   'set ccolor 98'
    'set ccolor 6'
    'set digsiz 0.12'
@@ -127,7 +128,7 @@ function plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,levx,levx1,hint)
       'defint.gs  0.5 0'
    endif
    'd 10*(RHprs.1-RHprs.2)/RHprs.1'
-*   'cbarb'
+   'colorbar'
    'set ccolor 98'
    'draw title Humidity INCT*10/Anal 'levx'mb at 'rdate'z' 
 
@@ -138,7 +139,7 @@ function plot_horz(plotfile,plotfile2,xsize,ysize,he,rdate,levx,levx1,hint)
    'set gxout shaded'
    'defint 10 50'
    'd RHprs.1'
-*   'cbarb'
+   'colorbar'
    'draw title Humidity Analysis(RH,%) 'levx'mb at 'rdate'z'
 
    if(dbug=1)

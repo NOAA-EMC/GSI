@@ -76,7 +76,7 @@ program enkf_main
  ! reads namelist parameters.
  use params, only : read_namelist,cleanup_namelist,letkf_flag,readin_localization,lupd_satbiasc,&
                     numiter, nanals, lupd_obspace_serial, write_spread_diag,   &
-                    lobsdiag_forenkf, netcdf_diag, fso_cycling, ntasks_io
+                    lobsdiag_forenkf, netcdf_diag, efsoi_cycling, ntasks_io
  ! mpi functions and variables.
  use mpisetup, only:  mpi_initialize, mpi_initialize_io, mpi_cleanup, nproc, &
                        mpi_wtime
@@ -183,7 +183,7 @@ program enkf_main
 
  ! Initialization for writing
  ! observation sensitivity files
- if(fso_cycling) call init_ob_sens()
+ if(efsoi_cycling) call init_ob_sens()
 
  ! read in vertical profile of horizontal and vertical localization length
  ! scales, set values for each ob.
@@ -216,7 +216,7 @@ program enkf_main
 
  ! Output non-inflated
  ! analyses for FSO
- if(fso_cycling) then
+ if(efsoi_cycling) then
     no_inflate_flag=.true.
     t1 = mpi_wtime()
     call gather_chunks()
@@ -240,7 +240,7 @@ program enkf_main
   endif
 
  ! print EFSO sensitivity i/o on root task.
- if(fso_cycling) call print_ob_sens()
+ if(efsoi_cycling) call print_ob_sens()
 
  ! print innovation statistics for posterior on root task.
  if (nproc == 0 .and. numiter > 0) then
@@ -268,7 +268,7 @@ program enkf_main
 
  call controlvec_cleanup()
  call loadbal_cleanup()
- if(fso_cycling) call destroy_ob_sens()
+ if(efsoi_cycling) call destroy_ob_sens()
  call cleanup_namelist()
 
  ! write log file (which script can check to verify completion).
