@@ -266,6 +266,8 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
         elseif ( trim(subset) == 'NC001007' ) then            ! CSTGD
            msst = 16.0_r_kind                                 ! for CSTGD, assign to be 16
            call ufbint(lunin,sst,1,1,iret,'SST1')             ! read SST
+        else
+           cycle read_loop
         endif
 
           call ufbint(lunin,loc,4,1,iret,'CLAT CLATH CLON CLONH')

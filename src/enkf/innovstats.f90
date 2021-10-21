@@ -219,7 +219,7 @@ if (nobs_conv+nobs_oz > 0) then
    call printstats('  all  rw',sumrw_nh,biasq_nh,sumrw_spread_nh,sumrw_oberr_nh,nobsrw_nh,&
         sumrw_sh,biasrw_sh,sumrw_spread_sh,sumrw_oberr_sh,nobsrw_sh,&
         sumrw_tr,biasrw_tr,sumrw_spread_tr,sumrw_oberr_tr,nobsrw_tr)
-   call printstats(' sbuv2 oz',sumoz_nh,biasoz_nh,sumoz_spread_nh,sumoz_oberr_nh,nobsoz_nh,&
+   call printstats('  all  oz',sumoz_nh,biasoz_nh,sumoz_spread_nh,sumoz_oberr_nh,nobsoz_nh,&
         sumoz_sh,biasoz_sh,sumoz_spread_sh,sumoz_oberr_sh,nobsoz_sh,&
         sumoz_tr,biasoz_tr,sumoz_spread_tr,sumoz_oberr_tr,nobsoz_tr)
 end if ! nobs_conv+nobs_oz > 0

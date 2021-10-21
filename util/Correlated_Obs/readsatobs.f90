@@ -11,13 +11,13 @@ use read_diag
 implicit none
 
 public :: get_satobs_data, get_chaninfo
-public :: indR, indapR,indapR2,chaninfo, errout
+public :: indR,indRf,indapR,indapR2,chaninfo, errout
 public :: nch_active,nctot
 public :: RadData
 public:: inds1a,inds1b,inds2a,inds2b,indoza,indozb,indwva,indwvb,napd,napd2
 public:: apodize,isis
 
-integer(i_kind),dimension(:),allocatable:: indR  !indices of the assimlated channels
+integer(i_kind),dimension(:),allocatable:: indR,indRf  !indices of the assimlated channels
 integer(i_kind),dimension(:),allocatable:: indapR,indapR2!indices of apodized channels
 integer(i_kind):: inds1a,inds1b,inds2a,inds2b,indoza,indozb,indwva,indwvb,napd,napd2
 logical:: apodize
@@ -95,7 +95,7 @@ subroutine get_chaninfo_bin(filename,chan_choice)
          nch_active=nch_active+1
       end do 
    endif
-   allocate(indR(nch_active),chaninfo(nch_active),errout(nch_active))
+   allocate(indRf(nch_active),indR(nch_active),chaninfo(nch_active),errout(nch_active))
    i=0
    do n=1,header_fix0%nchan
       if (chan_choice==full_chan) then
@@ -105,6 +105,7 @@ subroutine get_chaninfo_bin(filename,chan_choice)
          indR(i)=n
       endif
    end do
+   indRf=indR
    do n=1,nch_active
       chaninfo(n)=header_chan0(indR(n))%wave
       errout(n)=header_chan0(indR(n))%varch
@@ -171,7 +172,7 @@ subroutine get_chaninfo_nc(filename,chan_choice)
    endif
    napd=napodize
    napd2=napodize2
-   allocate(indR(nch_active),chaninfo(nch_active),errout(nch_active))
+   allocate(indRf(nch_active),indR(nch_active),chaninfo(nch_active),errout(nch_active))
    if (apodize) then
       napodize=0
       napodize2=0
@@ -221,6 +222,7 @@ subroutine get_chaninfo_nc(filename,chan_choice)
       if (chan_choice==full_chan) then
          wvn=Wave(chind(j))
          indR(j)=j
+         indRf(j)=schind(j)
          if (j>1) then
            wvm1=Wave(chind(j-1))
            if ((wvn>=751.0_r_kind).and.(wvm1<751.0_r_kind)) inds1a=j
@@ -239,6 +241,7 @@ subroutine get_chaninfo_nc(filename,chan_choice)
       else if (Use_Flag(chind(j))>0) then
          i=i+1
          indR(i)=j
+         indRf(i)=schind(j)
          wvn=Wave(chind(indR(i)))
          if (i>1) then
             wvm1=Wave(chind(indR(i-1)))
