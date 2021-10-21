@@ -659,7 +659,7 @@ subroutine prt_guessfc2(sgrep,use_sfc)
      zavg             = -99999.9_r_kind          ! missing flag
      zall(1)          = sum   (fact10_full   )
      zall(2)          = sum   (sno_full      )
-     zall(4)          = sum   (sfc_rough_full)
+     zall(4)          =0.0 !cltthink  sum   (sfc_rough_full)
      zall(7)          = sum   (sst_full      )
      zall(9)          = sum   (isli_full     )
      zall(nvars+1)    = minval(fact10_full   )

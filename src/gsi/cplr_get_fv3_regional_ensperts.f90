@@ -1,14 +1,21 @@
 module get_fv3_regional_ensperts_mod
 use abstract_get_fv3_regional_ensperts_mod,only: abstract_get_fv3_regional_ensperts_class
   use kinds, only : i_kind
+  use general_sub2grid_mod, only: sub2grid_info
+  use constants, only:max_varname_length
   type, extends(abstract_get_fv3_regional_ensperts_class) :: get_fv3_regional_ensperts_class
   contains
     procedure, pass(this) :: get_fv3_regional_ensperts => get_fv3_regional_ensperts_run
     procedure, pass(this) :: ens_spread_dualres_regional => ens_spread_dualres_regional_fv3_regional
     procedure, pass(this) :: general_read_fv3_regional
-    procedure, pass(this) :: general_read_fv3_regional_dirZDA
-  end type get_fv3_regional_ensperts_class
+    end type get_fv3_regional_ensperts_class
+    type(sub2grid_info):: grd_fv3lam_ens_dynvar_io_nouv,grd_fv3lam_ens_tracer_io_nouv,grd_fv3lam_ens_uv
+    character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_ens_io_dynmetvars3d_nouv  ! copy of cvars3d excluding uv 3-d fields   CV
+    character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_ens_io_tracermetvars3d_nouv  ! copy of cvars3d excluding uv 3-d fields   CV
+    character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_ens_io_dynmetvars2d_nouv
+    character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_ens_io_tracermetvars2d_nouv
 contains
+  
   subroutine get_fv3_regional_ensperts_run(this,en_perts,nelen,ps_bar)
   !$$$  subprogram documentation block
   !                .      .    .                                       .
@@ -52,6 +59,12 @@ contains
       use directDA_radaruse_mod, only: l_use_cvpqx, cvpqx_pval, cld_nt_updt
       use directDA_radaruse_mod, only: l_use_dbz_directDA
       use directDA_radaruse_mod, only: l_cvpnr
+      use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
+      use hybrid_ensemble_parameters, only: fv3sar_ensemble_opt 
+      use gridmod,only: regional
+      use gsi_rfv3io_mod, only: fv3lam_io_dynmetvars3d_nouv,fv3lam_io_tracermetvars3d_nouv 
+      use gsi_rfv3io_mod, only: fv3lam_io_dynmetvars2d_nouv,fv3lam_io_tracermetvars2d_nouv 
+     
 
       implicit none
       class(get_fv3_regional_ensperts_class), intent(inout) :: this
@@ -70,9 +83,17 @@ contains
       type(gsi_bundle),allocatable,dimension(:):: en_bar
       type(gsi_grid):: grid_ens
       real(r_kind):: bar_norm,sig_norm,kapr,kap1
+
+      character(len=64),dimension(:,:),allocatable:: names
+      character(len=64),dimension(:,:),allocatable:: uvnames
+      integer(i_kind),dimension(:,:),allocatable:: lnames
+      integer(i_kind),dimension(:,:),allocatable:: uvlnames
   
       integer(i_kind):: i,j,k,n,mm1,istatus
-      integer(i_kind):: ic2,ic3
+    integer(i_kind):: ndynvario2d,ntracerio2d,jdynvar,jtracer
+    integer(r_kind):: iuv,ndynvario3d,ntracerio3d,n2dnops
+      integer(i_kind):: inner_vars,numfields
+      integer(i_kind):: ilev,ic2,ic3,nnames,iname
       integer(i_kind):: m
 
       
@@ -82,6 +103,96 @@ contains
       call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
       ! Allocate bundle to hold mean of ensemble members
       allocate(en_bar(ntlevs_ens))
+
+!clt setup varnames for IO
+     ndynvario2d=0
+     ntracerio2d=0
+     ndynvario3d=size(fv3lam_io_dynmetvars3d_nouv)
+     ntracerio3d=size(fv3lam_io_tracermetvars3d_nouv)
+     if (allocated(fv3lam_io_dynmetvars2d_nouv))then
+     ndynvario2d=size(fv3lam_io_dynmetvars2d_nouv)
+     endif
+     if (allocated(fv3lam_io_tracermetvars2d_nouv)) then
+     ntracerio2d=size(fv3lam_io_tracermetvars2d_nouv)
+     endif
+     allocate(fv3lam_ens_io_dynmetvars3d_nouv(ndynvario3d))
+     allocate(fv3lam_ens_io_tracermetvars3d_nouv(ndynvario3d))
+     fv3lam_ens_io_dynmetvars3d_nouv=fv3lam_io_dynmetvars3d_nouv
+     fv3lam_ens_io_tracermetvars3d_nouv=fv3lam_io_tracermetvars3d_nouv
+     if (ndynvario2d .gt.0 ) then
+     allocate(fv3lam_ens_io_dynmetvars2d_nouv(ndynvario2d))
+     fv3lam_ens_io_dynmetvars2d_nouv=fv3lam_io_dynmetvars2d_nouv
+     endif
+     if (ntracerio2d .gt.0 ) then
+     allocate(fv3lam_ens_io_tracermetvars2d_nouv(ntracerio2d))
+     fv3lam_ens_io_tracermetvars2d_nouv =fv3lam_io_tracermetvars3d_nouv 
+     endif
+
+
+     inner_vars=1
+     numfields=inner_vars*(ndynvario3d*grd_ens%nsig+ndynvario2d)  
+     allocate(lnames(1,numfields),names(1,numfields))
+     ilev=1
+     do i=1,ndynvario3d
+      do k=1,grd_ens%nsig
+     lnames(1,ilev)=k
+     names(1,ilev)=fv3lam_ens_io_dynmetvars3d_nouv(i)
+     ilev=ilev+1
+      enddo
+    enddo
+     do i=1,ndynvario2d
+     lnames(1,ilev)=1
+     names(1,ilev)=fv3lam_ens_io_dynmetvars2d_nouv(i)
+     ilev=ilev+1
+    enddo
+   
+
+     call general_sub2grid_create_info(grd_fv3lam_ens_dynvar_io_nouv,inner_vars,grd_ens%nlat,&
+          grd_ens%nlon,grd_ens%nsig,numfields,regional,names=names,lnames=lnames)
+
+     inner_vars=1
+     numfields=inner_vars*(ntracerio3d*grd_ens%nsig+ntracerio2d)  
+     deallocate(lnames,names)
+     allocate(lnames(1,numfields),names(1,numfields))
+     ilev=1
+     do i=1,ntracerio3d
+      do k=1,grd_ens%nsig
+     lnames(1,ilev)=k
+     names(1,ilev)=fv3lam_ens_io_tracermetvars3d_nouv(i)
+     ilev=ilev+1
+      enddo
+    enddo
+     do i=1,ntracerio2d
+     lnames(1,ilev)=1
+     names(1,ilev)=fv3lam_ens_io_tracermetvars2d_nouv(i)
+     ilev=ilev+1
+    enddo
+   
+
+     call general_sub2grid_create_info(grd_fv3lam_ens_tracer_io_nouv,inner_vars,grd_ens%nlat,&
+          grd_ens%nlon,grd_ens%nsig,numfields,regional,names=names,lnames=lnames)
+
+
+
+
+
+     numfields=grd_ens%nsig
+     inner_vars=2
+     allocate(uvlnames(inner_vars,numfields),uvnames(inner_vars,numfields))
+     ilev=1
+     do k=1,grd_ens%nsig
+     uvlnames(1,ilev)=k
+     uvlnames(2,ilev)=k
+     uvnames(1,ilev)='u'
+     uvnames(2,ilev)='v'
+     ilev=ilev+1
+     enddo
+     call general_sub2grid_create_info(grd_fv3lam_ens_uv,inner_vars,grd_ens%nlat,&
+           grd_ens%nlon,grd_ens%nsig,numfields,regional,names=uvnames,lnames=uvlnames)
+
+     deallocate(lnames,names,uvlnames,uvnames)
+
+
       do m=1,ntlevs_ens
         call gsi_bundlecreate(en_bar(m),grid_ens,'ensemble',istatus,names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
         if(istatus/=0) then
@@ -139,10 +250,11 @@ contains
   ! 
   ! READ ENEMBLE MEMBERS DATA
             if (mype == 0) write(6,'(a,a)') 'CALL READ_FV3_REGIONAL_ENSPERTS FOR ENS DATA with the filename str : ',trim(ensfilenam_str)
-            call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz) 
-
-            if ( l_use_dbz_directDA ) then ! Read additional hydrometers and w for dirZDA
-               call this%general_read_fv3_regional_dirZDA(fv3_filename,ql,qi,qr,qs,qg,qnr,w)
+            if (.not.l_use_dbz_directDA ) then ! Read additional hydrometers and w for dirZDA
+               call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz) 
+            else
+               call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
+                                                   g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w)
             end if
   
   ! SAVE ENSEMBLE MEMBER DATA IN COLUMN VECTOR
@@ -408,7 +520,8 @@ contains
 
   end subroutine get_fv3_regional_ensperts_run
   
-  subroutine general_read_fv3_regional(this,fv3_filenameginput,g_ps,g_u,g_v,g_tv,g_rh,g_oz)
+  subroutine general_read_fv3_regional(this,fv3_filenameginput,g_ps,g_u,g_v,g_tv,g_rh,g_oz, &
+                                        g_ql,g_qi,g_qr,g_qs,g_qg,g_qnr,g_w)
   !$$$  subprogram documentation block
   !     first compied from general_read_arw_regional           .      .    .                                       .
   ! subprogram:    general_read_fv3_regional  read fv3sar model ensemble members
@@ -451,6 +564,17 @@ contains
       use gsi_rfv3io_mod, only: gsi_fv3ncdf_readuv
       use gsi_rfv3io_mod, only: gsi_fv3ncdf_readuv_v1
       use gsi_rfv3io_mod, only: gsi_fv3ncdf2d_read_v1
+      use directDA_radaruse_mod, only: l_use_dbz_directDA
+      use gsi_bundlemod, only: gsi_gridcreate
+      use gsi_bundlemod, only: gsi_grid
+      use gsi_bundlemod, only: gsi_bundlecreate,gsi_bundledestroy
+      use gsi_bundlemod, only: gsi_bundlegetvar
+      use hybrid_ensemble_parameters, only: grd_ens
+      use gridmod, only: grd_a
+      use directDA_radaruse_mod, only: l_use_cvpqx, cvpqx_pval, cld_nt_updt
+      use directDA_radaruse_mod, only: l_cvpnr, cvpnr_pval
+
+
   
       implicit none
   !
@@ -458,24 +582,32 @@ contains
       class(get_fv3_regional_ensperts_class), intent(inout) :: this
       type (type_fv3regfilenameg)                  , intent (in)   :: fv3_filenameginput
       real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),intent(out)::g_u,g_v,g_tv,g_rh,g_oz
+      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),optional,intent(out)::g_ql,g_qi,g_qr
+      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),optional,intent(out)::g_qs,g_qg,g_qnr,g_w
+
       real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2),intent(out):: g_ps
-      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig) ::g_tsen, g_q,g_prsl 
       real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig+1) ::g_prsi 
+      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig) ::g_prsl ,g_tsen,g_q,g_delp
   !
   ! Declare local parameters
       real(r_kind),parameter:: r0_01 = 0.01_r_kind
       real(r_kind),parameter:: r10   = 10.0_r_kind
       real(r_kind),parameter:: r100  = 100.0_r_kind
-  !
+     !
   !   Declare local variables
+      integer(i_kind):: inner_vars,numfields
       
       integer(i_kind):: i,j,k,kp
+   
       integer(i_kind) iderivative
   
       
       logical ice
 
       character(len=24),parameter :: myname_ = 'general_read_fv3_regional'
+      type(gsi_bundle) :: gsibundle_fv3lam_ens_dynvar_nouv
+      type(gsi_bundle) :: gsibundle_fv3lam_ens_tracer_nouv
+      type(gsi_grid):: grid_ens
 
       character(len=:),allocatable :: grid_spec !='fv3_grid_spec'            
       character(len=:),allocatable :: ak_bk     !='fv3_akbk'
@@ -483,12 +615,15 @@ contains
       character(len=:),allocatable :: tracers   !='fv3_tracer'
       character(len=:),allocatable :: sfcdata   !='fv3_sfcdata'
       character(len=:),allocatable :: couplerres!='coupler.res'
+      integer (i_kind) ier,iname,nnames,istatus
+ 
       
       associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
       end associate
 
 
 
+    call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
     grid_spec=fv3_filenameginput%grid_spec
     ak_bk=fv3_filenameginput%ak_bk
     dynvars=fv3_filenameginput%dynvars
@@ -496,46 +631,74 @@ contains
     sfcdata=fv3_filenameginput%sfcdata
     couplerres=fv3_filenameginput%couplerres
 
-      
 
-!cltthinktobe  should be contained in variable like grd_ens
+     
+     
+     if (allocated(fv3lam_ens_io_dynmetvars2d_nouv) ) then   
+       call gsi_bundlecreate(gsibundle_fv3lam_ens_dynvar_nouv,grid_ens,'gsibundle_fv3lam_ens_dynvar_nouv', istatus,&
+                names2d=fv3lam_ens_io_dynmetvars2d_nouv,names3d=fv3lam_ens_io_dynmetvars3d_nouv)
+     else
+       call gsi_bundlecreate(gsibundle_fv3lam_ens_dynvar_nouv,grid_ens,'gsibundle_fv3lam_ens_dynvar_nouv',istatus, &
+                names3d=fv3lam_ens_io_dynmetvars3d_nouv)
+     endif
+
+     
+     if (allocated(fv3lam_ens_io_tracermetvars2d_nouv) ) then   
+       call gsi_bundlecreate(gsibundle_fv3lam_ens_tracer_nouv,grid_ens,'gsibundle_fv3lam_ens_tracer_nouv', istatus,&
+                names2d=fv3lam_ens_io_tracermetvars2d_nouv,names3d=fv3lam_ens_io_tracermetvars3d_nouv)
+     else
+       call gsi_bundlecreate(gsibundle_fv3lam_ens_tracer_nouv,grid_ens,'gsibundle_fv3lam_ens_tracer_nouv',istatus, &
+                names3d=fv3lam_ens_io_tracermetvars3d_nouv)
+     endif
+     
+  
 
 
+     
     if(fv3sar_ensemble_opt == 0 ) then  
-      call gsi_fv3ncdf_readuv(dynvars,g_u,g_v)
+      call gsi_fv3ncdf_readuv(grd_fv3lam_ens_uv,g_u,g_v,fv3_filenameginput)
     else
-      call gsi_fv3ncdf_readuv_v1(dynvars,g_u,g_v)
+      call gsi_fv3ncdf_readuv_v1(grd_fv3lam_ens_uv,g_u,g_v,fv3_filenameginput)
     endif
     if(fv3sar_ensemble_opt == 0) then
-      call gsi_fv3ncdf_read(dynvars,'T','t',g_tsen,mype_t)
+      call gsi_fv3ncdf_read(grd_fv3lam_ens_dynvar_io_nouv,gsibundle_fv3lam_ens_dynvar_nouv,fv3_filenameginput%dynvars,fv3_filenameginput)
+      call gsi_fv3ncdf_read(grd_fv3lam_ens_tracer_io_nouv,gsibundle_fv3lam_ens_tracer_nouv,fv3_filenameginput%tracers,fv3_filenameginput)
     else
-      call gsi_fv3ncdf_read_v1(dynvars,'t','T',g_tsen,mype_t)
+      call gsi_fv3ncdf_read_v1(grd_fv3lam_ens_dynvar_io_nouv,gsibundle_fv3lam_ens_dynvar_nouv,fv3_filenameginput%dynvars,fv3_filenameginput)
+      call gsi_fv3ncdf_read_v1(grd_fv3lam_ens_tracer_io_nouv,gsibundle_fv3lam_ens_tracer_nouv,fv3_filenameginput%tracers,fv3_filenameginput)
     endif
+    ier=0
+    call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_dynvar_nouv, 'tsen' ,g_tsen ,istatus );ier=ier+istatus
+    call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'q'  ,g_q ,istatus );ier=ier+istatus
+!   call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_nouv(it), 'ql'  ,ges_ql ,istatus );ier=ier+istatus
+    call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'oz'  ,g_oz ,istatus );ier=ier+istatus
+    if (l_use_dbz_directDA) then
+       call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'ql' ,g_ql ,istatus );ier=ier+istatus
+       call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'qi' ,g_qi ,istatus );ier=ier+istatus
+       call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'qr' ,g_qr ,istatus );ier=ier+istatus
+       call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'qs' ,g_qs ,istatus );ier=ier+istatus
+       call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'qg' ,g_qg ,istatus );ier=ier+istatus
+       call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'qnr',g_qnr ,istatus );ier=ier+istatus
+       call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_dynvar_nouv, 'w' , g_w ,istatus );ier=ier+istatus
+    end if
+    
+
     if (fv3sar_ensemble_opt == 0) then 
-      call gsi_fv3ncdf_read(dynvars,'DELP','delp',g_prsi,mype_p)
+      call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_dynvar_nouv, 'delp'  ,g_delp ,istatus );ier=ier+istatus
       g_prsi(:,:,grd_ens%nsig+1)=eta1_ll(grd_ens%nsig+1) !thinkto be done , should use eta1_ll from ensemble grid
       do i=grd_ens%nsig,1,-1
-         g_prsi(:,:,i)=g_prsi(:,:,i)*0.001_r_kind+g_prsi(:,:,i+1)
+         g_prsi(:,:,i)=g_delp(:,:,i)*0.001_r_kind+g_prsi(:,:,i+1)
       enddo
     g_ps(:,:)=g_prsi(:,:,1)
     else  ! for the ensemble processed frm CHGRES
-      call gsi_fv3ncdf2d_read_v1(dynvars,'ps','PS',g_ps,mype_p)
+      call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_dynvar_nouv, 'ps'  ,g_ps ,istatus );ier=ier+istatus
       g_ps=g_ps*0.001_r_kind
       do k=1,grd_ens%nsig+1
         g_prsi(:,:,k)=eta1_ll(k)+eta2_ll(k)*g_ps
       enddo
-    
 
     endif
      
-    if(fv3sar_ensemble_opt == 0) then
-      call gsi_fv3ncdf_read(tracers,'SPHUM','sphum',g_q,mype_q)
-      call gsi_fv3ncdf_read(tracers,'O3MR','o3mr',g_oz,mype_oz)
-    else
-      call gsi_fv3ncdf_read_v1(tracers,'sphum','SPHUM',g_q,mype_q)
-      call gsi_fv3ncdf_read_v1(tracers,'o3mr','O3MR',g_oz,mype_oz)
-    endif
-
 !!  tsen2tv  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     do k=1,grd_ens%nsig
        do j=1,grd_ens%lon2
@@ -574,106 +737,6 @@ contains
          end if
 
 
-
-
-
-  return       
-  end subroutine general_read_fv3_regional
-
-  subroutine general_read_fv3_regional_dirZDA(this,fv3_filenameginput,g_ql,g_qi,g_qr,g_qs,g_qg,g_qnr,g_w)
-  !$$$  subprogram documentation block
-  !     firstly copied from general_read_arw_regional           .      .    .                                       .
-  ! subprogram:    general_read_fv3_regional_dirZda  read fv3sar model ensemble members
-  !   prgmmr: Ting             org: emc/ncep            date: 2018
-  !
-  ! abstract: read ensemble members from the fv3 model netcdf format (dynamic and tracer)
-  !           for use with hybrid ensemble option.
-  !
-  ! program history log:
-  !   2018-  Ting      - intial versions  
-  !   2019-03-13  CAPS(C. Tong)   - Port direct radar DA capabilities
-  !   2021-05-05  CAPS(J. Park)   - Modified to read hydrometeors and w only
-  !                                 
-  !   input argument list:
-  !
-  !   output argument list:
-  !
-  ! attributes:
-  !   language: f90
-  !   machine:  ibm RS/6000 SP
-  !
-  !$$$ end documentation block
-  
-      use netcdf, only: nf90_nowrite
-      use netcdf, only: nf90_open,nf90_close
-      use netcdf, only: nf90_inq_dimid,nf90_inquire_dimension
-      use netcdf, only: nf90_inq_varid,nf90_inquire_variable,nf90_get_var
-      use kinds, only: r_kind,r_single,i_kind
-      use constants, only: one
-      use hybrid_ensemble_parameters, only: grd_ens
-      use hybrid_ensemble_parameters, only: fv3sar_ensemble_opt 
-
-      use mpimod, only: mpi_comm_world,mpi_rtype
-      use netcdf_mod, only: nc_check
-      use gsi_rfv3io_mod,only: type_fv3regfilenameg
-      use gsi_rfv3io_mod,only:n2d 
-      use gsi_rfv3io_mod,only:mype_qr,mype_qs,mype_qg,mype_qnr,mype_w
-      use gsi_rfv3io_mod,only:mype_ql,mype_qi
-      use gsi_rfv3io_mod, only: gsi_fv3ncdf_read 
-      use gsi_rfv3io_mod, only: gsi_fv3ncdf_read_v1
-      use directDA_radaruse_mod, only: l_use_cvpqx, cvpqx_pval, cld_nt_updt
-      use directDA_radaruse_mod, only: l_cvpnr, cvpnr_pval
-  
-      implicit none
-  !
-  ! Declare passed variables
-      class(get_fv3_regional_ensperts_class), intent(inout) :: this
-      type (type_fv3regfilenameg)                  , intent (in)   :: fv3_filenameginput
-      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),intent(out)::g_ql,g_qi,g_qr
-      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),intent(out)::g_qs,g_qg,g_qnr,g_w
-  !
-  ! Declare local parameters
-      real(r_kind),parameter:: r0_01 = 0.01_r_kind
-      real(r_kind),parameter:: r10   = 10.0_r_kind
-      real(r_kind),parameter:: r100  = 100.0_r_kind
-  !
-  !   Declare local variables
-      
-      integer(i_kind):: i,j,k
-
-      character(len=24),parameter :: myname_ = 'general_read_fv3_regional_dirZDA'
-
-      character(len=:),allocatable :: grid_spec !='fv3_grid_spec'            
-      character(len=:),allocatable :: ak_bk     !='fv3_akbk'
-      character(len=:),allocatable :: dynvars   !='fv3_dynvars'
-      character(len=:),allocatable :: tracers   !='fv3_tracer'
-      character(len=:),allocatable :: sfcdata   !='fv3_sfcdata'
-      character(len=:),allocatable :: couplerres!='coupler.res'
-      
-      associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
-      end associate
-
-    grid_spec=fv3_filenameginput%grid_spec
-    ak_bk=fv3_filenameginput%ak_bk
-    dynvars=fv3_filenameginput%dynvars
-    tracers=fv3_filenameginput%tracers
-    sfcdata=fv3_filenameginput%sfcdata
-    couplerres=fv3_filenameginput%couplerres
-
-    if(fv3sar_ensemble_opt == 0) then
-!  variables for direct reflectivity DA
-      call gsi_fv3ncdf_read(dynvars,'W','w',g_w,mype_w)
-      call gsi_fv3ncdf_read(tracers,'LIQ_WAT','liq_wat',g_ql,mype_ql)
-      call gsi_fv3ncdf_read(tracers,'ICE_WAT','ice_wat',g_qi,mype_qi)
-      call gsi_fv3ncdf_read(tracers,'RAINWAT','rainwat',g_qr,mype_qr)
-      call gsi_fv3ncdf_read(tracers,'SNOWWAT','snowwat',g_qs,mype_qs)
-      call gsi_fv3ncdf_read(tracers,'GRAUPEL','graupel',g_qg,mype_qg)
-      call gsi_fv3ncdf_read(tracers,'RAIN_NC','rain_nc',g_qnr,mype_qnr)
-    else
-       write(6,*) "get_fv3_regional_ensperts for 'fv3sar_bg_opt == 0 is only available &
-                   for now in direct relfectivity DA"
-       stop
-    end if
 ! CV transform
     do k=1,grd_ens%nsig
        do i=1,grd_ens%lon2
@@ -717,10 +780,12 @@ contains
           enddo
        enddo
     enddo
+    call gsi_bundledestroy(gsibundle_fv3lam_ens_dynvar_nouv)
+    call gsi_bundledestroy(gsibundle_fv3lam_ens_tracer_nouv)
 
 
   return       
-  end subroutine general_read_fv3_regional_dirZDA
+  end subroutine general_read_fv3_regional
 
   subroutine ens_spread_dualres_regional_fv3_regional(this,mype,en_perts,nelen)
   !$$$  subprogram documentation block
