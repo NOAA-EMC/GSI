@@ -43,6 +43,9 @@
    if( $host =~ /hfe/ ) { 
       $machine = "hera";
    } 
+   elsif( $host =~ /clogin0/ || $host =~ /dlogin0/ ){
+      $machine = "wcoss2"
+   }
    elsif( $host =~ /login/ ) {
       $machine = "cray";
    }

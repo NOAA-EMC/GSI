@@ -5,8 +5,8 @@
 #
 #  This script makes sets all necessary configuration definitions
 #  and calls the makeall.sh script to build all the necessary
-#  executables.  This script works for hera, wcoss, wcoss_c, and 
-#  wcoss_d machines.
+#  executables.  This script works for hera, wcoss, wcoss_c, 
+#  wcoss_d, and wcoss2 machines.
 #
 #-------------------------------------------------------------------
 
@@ -16,7 +16,8 @@
    my $machine = `/usr/bin/perl get_hostname.pl`;
    my $my_machine="export MY_MACHINE=$machine";
 
-   if( $machine ne "cray" && $machine ne "hera" && $machine ne "wcoss" && $machine ne "wcoss_d" ) {
+   if( $machine ne "cray" && $machine ne "hera" && $machine ne "wcoss" && 
+       $machine ne "wcoss_d" && $machine ne "wcoss2" ) {
       die( "ERROR --- Unrecognized machine hostname, $machine.  Exiting now...\n" );
    }
    else {
@@ -65,6 +66,10 @@
    elsif( $machine eq "wcoss_d" ){
       $tankdir = "/gpfs/dell2/emc/modeling/noscrub/$user_name/nbns";
    }
+   elsif( $machine eq "wcoss2" ){
+      $tankdir = "/lfs/h2/emc/da/noscrub/$user_name/nbns";
+   }
+
 
    print "Please specify TANKDIR location for storage of data and image files.\n";
    print "  Return to accept default location or enter new location now.\n";
@@ -211,6 +216,10 @@
       $my_ptmp="export MY_PTMP=\${MY_PTMP:-/scratch2/NCEPDEV/stmp3}";
       $my_stmp="export MY_STMP=\${MY_STMP:-/scratch2/NCEPDEV/stmp1}";
    } 
+   elsif( $machine eq "wcoss2" ){
+      $my_ptmp="export MY_PTMP=\${MY_PTMP:-/lfs/h2/emc/ptmp}";
+      $my_stmp="export MY_STMP=\${MY_STMP:-/lfs/h2/emc/stmp}";
+   }
 
    print "my_ptmp = $my_ptmp\n";
    print "my_stmp = $my_stmp\n";
@@ -262,18 +271,22 @@
    print "\n";
    print "Updating parm/RadMon_user_settings\n";
 
-   my $account = "export ACCOUNT=\${ACCOUNT:-fv3-cpu}";
-   if( $machine ne "hera" ) {
-      $account = "export ACCOUNT=\${ACCOUNT:-}";
+   my $account = "export ACCOUNT=\${ACCOUNT:-}";
+   if( $machine eq "hera" ) {
+      $account = "export ACCOUNT=\${ACCOUNT:-fv3-cpu}";
+   } elsif( $machine eq "wcoss2" ){
+      $account = "export ACCOUNT=\${ACCOUNT:-GFS-DEV}";
    }
 
    my $project = "export PROJECT=\${PROJECT:-GDAS-T2O}";
-   if( $machine ne "wcoss" && $machine ne "cray" && $machine ne "wcoss_d" ) {
+   if( $machine eq "wcoss2" ){
+      $project = "export PROJECT=\${PROJECT:-GDAS-DEV}";
+   } elsif( $machine ne "wcoss" && $machine ne "cray" && $machine ne "wcoss_d" ) {
       $project="export PROJECT=";
    } 
 
    my $job_queue="export JOB_QUEUE=";
-   if( $machine eq "cray" ) {
+   if( $machine eq "cray" || $machine eq "wcoss2" ) {
       $job_queue="export JOB_QUEUE=\${JOB_QUEUE:-dev}";
    } elsif( $machine eq "wcoss" || $machine eq "wcoss_d" ){
       $job_queue = "export JOB_QUEUE=\${JOB_QUEUE:-dev_shared}";
