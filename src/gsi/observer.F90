@@ -174,10 +174,10 @@ subroutine guess_init_
   endif
  
 ! Read output from previous min.
-  if (l4dvar.and.jiterstart>1) then
-  else
-  ! If requested and if available, read guess solution.
-  endif
+! if (l4dvar.and.jiterstart>1) then
+! else
+! ! If requested and if available, read guess solution.
+! endif
 
 ! Generate coefficients for compact differencing
   if(.not.regional)then

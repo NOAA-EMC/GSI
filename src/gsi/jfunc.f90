@@ -130,7 +130,7 @@ module jfunc
   public :: switch_on_derivatives,jiterend,jiterstart,jiter,iter,niter,miter
   public :: diurnalbc,bcoption,biascor,nval2d,xhatsave,first
   public :: factqmax,factqmin,clip_supersaturation,last,yhatsave,nvals_len,nval_levs,nval_levs_ens,iout_iter,nclen
-  public :: factql,factqi,factqr,factqs,factqg  
+  public :: factql,factqi,factqr,factqs,factqg,superfact,limitqobs
   public :: niter_no_qc,print_diag_pcg,penorig,gnormorig,iguess
   public :: factg,factv,factp,factl,R_option,factw10m,facthowv,factcldch,diag_precon,step_start
   public :: pseudo_q2
@@ -139,7 +139,7 @@ module jfunc
 
   logical first,last,switch_on_derivatives,tendsflag,print_diag_pcg,tsensible,diag_precon
   logical clip_supersaturation,R_option
-  logical pseudo_q2
+  logical pseudo_q2,limitqobs
   logical cnvw_option
   integer(i_kind) iout_iter,miter,iguess,nclen,qoption,cwoption
   integer(i_kind) jiter,jiterstart,jiterend,iter
@@ -150,7 +150,7 @@ module jfunc
 
   integer(i_kind),dimension(0:50):: niter,niter_no_qc
   real(r_kind) factqmax,factqmin,gnormorig,penorig,biascor(2),diurnalbc,factg,factv,factp,factl,&
-               factw10m,facthowv,factcldch,step_start
+               factw10m,facthowv,factcldch,step_start,superfact
   real(r_kind) factql,factqi,factqr,factqs,factqg  
   integer(i_kind) bcoption
   real(r_kind),allocatable,dimension(:,:):: varq
@@ -202,6 +202,8 @@ contains
 
     factqmin=zero
     factqmax=zero
+    superfact=1.00_r_kind
+    limitqobs=.false.
     factql=zero
     factqi=zero
     factqr=zero
