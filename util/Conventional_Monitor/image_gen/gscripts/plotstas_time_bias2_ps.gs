@@ -25,9 +25,21 @@ function time_bias2_ps (args)
    say ixc
    say 'iyc=' iyc
 
-   iy=1
+   '!echo $CONMON_RESTRICT_PLOT_AREAS > rest.txt'
+   rest=read(rest.txt)
+   restrict=subwrd(rest,2)
+   say 'restrict=' restrict
 
+   iy=1
    while(iy <=iyc)
+
+*     In order to save space skip certain redundant regions.
+      if ( restrict = 1 )
+         if ( iy = 2 | iy = 3 | iy = 5 | iy = 6 )
+            iy=iy+1
+            continue
+         endif
+      endif
 
       say 'iy=' iy
       '!rm -f area.txt'

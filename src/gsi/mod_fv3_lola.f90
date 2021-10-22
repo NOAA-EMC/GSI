@@ -18,7 +18,7 @@ module mod_fv3_lola
 !                        fv3_ll_to_h
 !   2019-11-01  wu   - add checks in generate_anl_grid to present the mean
 !                      longitude correctly to fix problem near lon=0
-!
+!   
 ! subroutines included:
 !   sub generate_anl_grid
 !   sub earthuv2fv3
@@ -95,6 +95,7 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
 !   2019-11-01  wu   - add checks to present the mean longitude correctly to fix
 !                       problem near lon=0
 !
+!   2021-08-11   lei - a fix for an upper bound of the dimnsion of  a3jyp 
 !   input argument list:
 !    nx, ny               - number of cells = nx*ny 
 !    grid_lon ,grid_lat   - longitudes and latitudes of fv3 grid cell corners
@@ -493,7 +494,7 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
         a3jy(j,i)=min(max(1,a3jy(j,i)),nya)
         a3dy(j,i)=max(zero,min(one,gya-a3jy(j,i)))
         a3dy1(j,i)=one-a3dy(j,i)
-        a3jyp(j,i)=min(ny,a3jy(j,i)+1)
+        a3jyp(j,i)=min(nya,a3jy(j,i)+1)
      end do
   end do
 

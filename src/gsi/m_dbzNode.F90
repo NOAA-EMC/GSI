@@ -13,6 +13,7 @@ module m_dbzNode
 !                         implementation.
 !   2017-05-12 Y. Wang and X. Wang - module for defining reflectivity observation, 
 !                                    POC: xuguang.wang@ou.edu
+!   2019-02-18 CAPS(C. Tong) - modified for direct reflectivity DA capability
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -30,6 +31,8 @@ module m_dbzNode
   use kinds , only: i_kind,r_kind
   use mpeu_util, only: assert_,die,perr,warn,tell
   use m_obsNode, only: obsNode
+  use directDA_radaruse_mod, only: l_use_dbz_directDA
+
   implicit none
   private
 
@@ -46,6 +49,7 @@ module m_dbzNode
      real(r_kind)    :: jqs           !  for TL and ADJ
      !real(r_kind)    :: jqi           !  for TL and ADJ
      real(r_kind)    :: jqg           !  for TL and ADJ
+     real(r_kind)    :: jqnr          !  for TL and ADJ
      !real(r_kind)    :: jnr           !  for TL and ADJ
      !real(r_kind)    :: jni           !  for TL and ADJ
      real(r_kind)    :: jqli          !  for TL and ADJ
@@ -57,6 +61,10 @@ module m_dbzNode
 !     logical         :: luse          !  flag indicating if ob is used in pen.
 
 !     integer(i_kind) :: idv,iob       ! device id and obs index for sorting
+
+     real(r_kind)    :: dbzpertb      !  random number adding to the obs
+     integer(i_kind) :: k1            !  level of errtable 1-33  
+     integer(i_kind) :: kx            !  ob type                 
 
      real   (r_kind) :: dlev            ! reference to the vertical grid
   contains
@@ -164,18 +172,33 @@ _ENTRY_(myname_)
                 endif
 
   else
-    read(iunit,iostat=istat)    aNode%res    , &
-                                aNode%err2   , &
-                                aNode%raterr2, &
-                                aNode%b      , &
-                                aNode%pg     , &
-                                aNode%jqr    , &
-                                aNode%jqs    , &
-                                aNode%jqg    , &
-                                aNode%jqli   , &
-                                aNode%dlev   , &
-                                aNode%wij    , &
-                                aNode%ij
+    if ( l_use_dbz_directDA ) then
+       read(iunit,iostat=istat)    aNode%res    , &
+                                   aNode%err2   , &
+                                   aNode%raterr2, &
+                                   aNode%b      , &
+                                   aNode%pg     , &
+                                   aNode%dbzpertb , &
+                                   aNode%k1     , &
+                                   aNode%kx     , &
+                                   aNode%dlev   , &
+                                   aNode%wij    , &
+                                   aNode%ij
+    else
+       read(iunit,iostat=istat)    aNode%res    , &
+                                   aNode%err2   , &
+                                   aNode%raterr2, &
+                                   aNode%b      , &
+                                   aNode%pg     , &
+                                   aNode%jqr    , &
+                                   aNode%jqs    , &
+                                   aNode%jqg    , &
+                                   aNode%jqli   , &
+                                   aNode%dlev   , &
+                                   aNode%wij    , &
+                                   aNode%ij
+    end if
+ 
                 if (istat/=0) then
                   call perr(myname_,'read(%(res,err2,...)), iostat =',istat)
                   _EXIT_(myname_)
@@ -203,18 +226,33 @@ subroutine obsNode_xwrite_(aNode,junit,jstat)
 _ENTRY_(myname_)
 
   jstat=0
-  write(junit,iostat=jstat)     aNode%res    , &
-                                aNode%err2   , &
-                                aNode%raterr2, &
-                                aNode%b      , &
-                                aNode%pg     , &
-                                aNode%jqr    , &
-                                aNode%jqs    , &
-                                aNode%jqg    , &
-                                aNode%jqli   , &
-                                aNode%dlev   , &
-                                aNode%wij    , &
-                                aNode%ij
+
+  if ( l_use_dbz_directDA ) then
+     write(junit,iostat=jstat)     aNode%res    , &
+                                   aNode%err2   , &
+                                   aNode%raterr2, &
+                                   aNode%b      , &
+                                   aNode%pg     , &
+                                   aNode%dbzpertb , &
+                                   aNode%k1     , &
+                                   aNode%kx     , &
+                                   aNode%dlev   , &
+                                   aNode%wij    , &
+                                   aNode%ij
+  else
+     write(junit,iostat=jstat)     aNode%res    , &
+                                   aNode%err2   , &
+                                   aNode%raterr2, &
+                                   aNode%b      , &
+                                   aNode%pg     , &
+                                   aNode%jqr    , &
+                                   aNode%jqs    , &
+                                   aNode%jqg    , &
+                                   aNode%jqli   , &
+                                   aNode%dlev   , &
+                                   aNode%wij    , &
+                                   aNode%ij
+  end if
                 if (jstat/=0) then
                   call perr(myname_,'write(%(res,err2,...)), iostat =',jstat)
                   _EXIT_(myname_)

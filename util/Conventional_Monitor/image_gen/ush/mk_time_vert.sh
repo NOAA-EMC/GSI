@@ -42,7 +42,7 @@ echo "--> mk_time_vert.sh"
    #--------------------------------------------
    #  submit time plots
    #--------------------------------------------
-   for type in q t uv; do
+   for type in gps q t uv; do
       jobname="${JOBNAME}_time_${type}"
       logfile="${C_LOGDIR}/plot_time_${type}_${CONMON_SUFFIX}.${PDY}.${CYC}.log"
       errfile="${C_LOGDIR}/plot_time_${type}_${CONMON_SUFFIX}.${PDY}.${CYC}.err"
@@ -99,7 +99,7 @@ echo "--> mk_time_vert.sh"
          else
             walltime="00:30:00"
          fi
- 
+
          ${SUB} -A ${ACCOUNT} --ntasks=1 --time=${walltime} \
                 -p service -J ${jobname} -o ${logfile} ${pltfile}
 

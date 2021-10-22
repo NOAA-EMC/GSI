@@ -1,6 +1,7 @@
 !  SUBSET=NC006001 -- level 3 superobs
 !  SUBSET=NC006002 -- level 2.5 superobs
 !  SUBSET=NC006070 -- RADIAL WIND FROM P3 RADAR
+!  SUBSET=NC0062XX -- RADIAL WIND FROM Level 2 radar obs on grid-tilt(column-tilt)
 subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_full,nobs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -56,6 +57,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 !   2013-05-22  tong   -  Modified the criteria of seperating fore and aft sweeps for TDR NOAA/FRENCH antenna
 !   2015-02-23  Rancic/Thomas - add thin4d to time window logical
 !   2015-10-01  guo     - consolidate use of ob location (in deg)
+!   2016-09-xx  CAPS(G. Zhao) -  add capability reading CAPS column-tilt radar radial wind data
 !   2016-12-21  lippi/carley - add logic to run l2rw loop (==0) or run loop for l3rw and l2_5rw (==1,2) 
 !                              to help fix a multiple data read bug (when l2rwbufr and radarbufr were both 
 !                              listed in the OBS_INPUT table) and for added flexibility for experimental setups.
@@ -100,6 +102,12 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   use deter_sfc_mod, only: deter_sfc2,deter_zsfc_model
   use mpimod, only: npe
   use gsi_io, only: verbose
+  use mpimod, only: mype
+  use directDA_radaruse_mod, only: oe_rw, lvldbg, refl_lowbnd_rw
+  use directDA_radaruse_mod, only: l_correct_azmu, l_correct_tilt, i_correct_tilt, &
+                               l_azm_east1st, l_plt_diag_rw
+  use directDA_radaruse_mod, only: l_use_rw_columntilt
+
   implicit none 
   
 ! Declare passed variables
@@ -138,6 +146,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 
 ! Declare local variables
   logical good,outside,good0,lexist1,lexist2
+  logical lexist3
   
   character(10) date
   character(80) hdrstr(2),datstr(2)
@@ -155,6 +164,16 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   integer(i_kind) nreal,nchanl,ilat,ilon,ikx
   integer(i_kind),dimension(5):: idate5
   integer(i_kind) ivad,ivadz,nvad,idomsfc
+
+  integer(i_kind) idbz_bad, idbz_clr, idbz_cld, ibadwnd_cld
+  integer(i_kind) ioutside_rdr, ioutside_obs, ioutside_tim, iazmoutrange
+  integer(i_kind) icld_goodwnd, icld_badwnd, idbz_bad2
+  integer(i_kind) itiltoutrange, iohgtoutrange, iorngoutrange
+  integer(i_kind) itiltoutrange2
+  integer(i_kind) nmsg,ntb
+  integer(i_kind) ireadmg, ireadsb
+  integer(i_kind)                :: igoodwnd
+  integer(i_kind), dimension(30) :: igoodwnd_dbz
   
   real(r_kind) timeb,rmesh,usage,ff10,sfcr,skint,t4dv,t4dvo,toff
   real(r_kind) eradkm,dlat_earth,dlon_earth
@@ -164,6 +183,43 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   real(r_kind) rwnd,azm,height,error,wqm
   real(r_kind) azm_earth,cosazm_earth,sinazm_earth,cosazm,sinazm
   real(r_kind):: zsges
+
+  real(r_kind) dhdr,dsdr,rdbz,range1
+  real(r_kind) sfcrng0, elvang0
+
+  real(r_double),dimension(12):: hdr2
+  real(r_double),dimension(12):: hdr3
+
+! ====================================================================!
+!       variables used for L2RWBUFR data (column-tilt RW)
+!
+! --- BUFR Key word variables for l2rwbufr_colmtilt by CAPS f88d2arps
+  character(80):: hdrstr2(3), obstr
+  real(r_kind) :: thiserr_rw
+  real(r_double),dimension(5,maxlevs):: radar_obs_columntilt   ! to read in column-tilt radar obs in l2rwbufr
+
+! L2 radar data number statistics
+  character(4),     dimension(1000) :: radartable_id
+  integer(i_kind),  dimension(1000) :: radartable_inside
+  integer(i_kind),  dimension(1000) :: radartable_ncolm
+  integer(i_kind),  dimension(1000) :: radartable_ncolm_ins
+  integer(i_kind),  dimension(1000) :: radartable_ncolm_out
+  integer(i_kind),  dimension(1000) :: radartable_ncolm_outtimw
+  integer(i_kind),  dimension(1000) :: radartable_ndata_use
+  integer(i_kind)   :: icnt_radar_read
+  integer(i_kind)   :: icnt_radar_inside
+  integer(i_kind)   :: icnt_radar_outside
+  integer(i_kind)   :: irdr, irdr_ptr, icnt
+  integer(i_kind)   :: ntot_col, ntot_col_o, ntot_col_i, ntot_dat_u, ntot_col_ot
+  integer(i_kind)   :: irpt
+
+! filename for level 2 radar obs data on column-tilt (produced by 88d2arps)
+  character(255) :: fname_l2rwbufr_columntilt
+! ====================================================================!
+
+  real(r_kind) thisazm, azm_east
+  integer(i_kind) ncolumntiltl2_in,ncolumntiltl2_kept
+
   
   real(r_kind),dimension(maxdat):: cdata
   real(r_kind),allocatable,dimension(:,:):: cdata_all
@@ -249,6 +305,12 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   data datstr(1) / 'STDM SUPLAT SUPLON HEIT RWND RWAZ RSTD' /
   data datstr(2) / 'DIST HREF DMVR DVSW' /
 
+! used for BUFR Radial Wind on column-tilt
+  data hdrstr2(1) /'SSTN CLAT CLON HSMSL HSALG ANAZ XOB YOB'/
+  data hdrstr2(2) /'YEAR MNTH DAYS HOUR MINU SECO'/
+  data hdrstr2(3) /'SCID HNQV VOCP VOID'/
+  data obstr      /'ANEL HEIT DISTL2RW DMVR HREF'/
+
   data ithin / -9 /
   data rmesh / -99.999_r_kind /
   logical print_verbose 
@@ -259,7 +321,24 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 ! Check to see if radar wind files exist.  If none exist, exit this routine.
   inquire(file='radar_supobs_from_level2',exist=lexist1)
   inquire(file=trim(infile),exist=lexist2)
-  if (.not.lexist1 .and. .not.lexist2) return
+
+  lexist3=.false.
+  if ( l_use_rw_columntilt) then
+! add level 2 bufr format RW data on column-tilt
+     fname_l2rwbufr_columntilt='l2rwbufr_cltl'
+     inquire(file=trim(fname_l2rwbufr_columntilt),exist=lexist3)
+     if ( .not. lexist3 )  then
+         write(6,'(1x,A70,A20,A10,I6)') &
+             ' level-2 column-tilt radar wind file is not found and to skip : ', &
+             trim(fname_l2rwbufr_columntilt), ' on pe:',mype
+     else
+         write(6,'(1x,A70,A20,A10,I6)') &
+             ' level-2 column-tilt radar wind file is found and to read : ', &
+             trim(fname_l2rwbufr_columntilt), ' on pe:',mype
+     end if
+  end if
+
+  if (.not.lexist1 .and. .not.lexist2 .and. .not.lexist3) return
 
   eradkm=rearth*0.001_r_kind
   maxobs=2e8
@@ -1279,6 +1358,742 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
    
         end do       !   end bigger loop over first level 2.5, then level 3 radar data
      END IF LEVEL_THREE_READ
+
+
+!!
+     if ( l_use_rw_columntilt) then
+!=========================================================================================!
+! ------------------------------------------------------- !
+!  Next process level 2 radar obs (rw+dbz) on column-tilt !
+!           produced by  88d2arps of CAPS                 !
+!  Note:                                                  !
+!        It is assumed that these data have been          !
+!        processed with good quality control,             !
+!        so no VAD match is required for these data.      !
+!        Horizontally they are on model grid,             !
+!        vertically on radar scan tilt,                   !
+!        so the thinning is different to level 2/2.5/3    !
+!        superobs radar data. (thinning is not ready for  !
+!        this version.                                    !
+! ------------------------------------------------------- !
+! =========================================================================================!
+
+!  Bigger loop over first level 2.5 data, and then level3 data
+
+        timemax=-huge(timemax)
+        timemin=huge(timemin)
+        errmax=-huge(errmax)
+        errmin=huge(errmin)
+        ncolumntiltl2_in=0
+        ncolumntiltl2_kept=0
+        loop=-1
+
+        thiserr_rw=oe_rw          ! user-defined obs error for radial wind in namelist
+        write(6,*)'READ_RADAR: L2RW radar radial wind obs error (user-definedin namelist)=', &
+                  thiserr_rw,'(m/s).'
+
+        numhits=0
+        ibadazm=0
+        ibadwnd=0
+        ibadwnd_cld=0
+        igoodwnd=0
+        igoodwnd_dbz(:)=0
+        ibaddist=0
+        ibadheight=0
+        ibadstaheight=0
+        iheightbelowsta=0
+        ibaderror=0
+        ibadvad=0
+        ibadfit=0
+        ioutofvadrange=0
+        idbz_bad=0
+        idbz_bad2=0
+        idbz_clr=0
+        idbz_cld=0
+        ioutside_rdr=0
+        ioutside_tim=0
+        ioutside_obs=0
+        iazmoutrange=0
+        itiltoutrange=0
+        itiltoutrange2=0
+        iohgtoutrange=0
+        iorngoutrange=0
+        icld_goodwnd=0
+        icld_badwnd=0
+        kthin=0
+        novadmatch=0
+        notgood=0
+        notgood0=0
+        radartable_id(:)=''
+        radartable_inside(:)=0             !  1: radar is inside
+                                           ! -1: outside
+                                           !  0: initial value
+        radartable_ncolm(:)=0
+        radartable_ncolm_ins(:)=0
+        radartable_ncolm_out(:)=0
+        radartable_ncolm_outtimw(:)=0
+        radartable_ndata_use(:)=0
+        icnt_radar_read=0
+        icnt_radar_inside=0
+        icnt_radar_outside=0
+   
+        if (l_azm_east1st) then
+            write(6,*)'READ_RADAR: change azimuth to east as 0 before correct it. :',l_azm_east1st
+        else
+            write(6,*)'READ_RADAR: change azimuth to east as 0 after  correct it. :',l_azm_east1st
+        end if
+        if (i_correct_tilt ==1) then
+            write(6,*)'READ_RADAR: use GSI  code to correct tilt angle. :',i_correct_tilt
+        else
+            write(6,*)'READ_RADAR: use ARPS code to correct tilt angle. :',i_correct_tilt
+        end if
+   
+        if(loop==-1)     outmessage='level 2 radar obs (column-tilt):'
+   
+!       Open, then read bufr data
+        open(lnbufr,file=trim(fname_l2rwbufr_columntilt),form='unformatted')
+   
+        call openbf(lnbufr,'IN',lnbufr)
+        call datelen(10)
+   
+        nmsg=0
+        ntb=0
+        nmrecs=0
+        msg_report: do while (ireadmg(lnbufr,subset,idate) == 0)
+            nmsg=nmsg+1
+            if(subset(1:6)/='NC0062') then
+                write(6,*)'mype=',mype,' subset check does not pass for L2 columntilt RW file. subset=',subset
+                cycle msg_report
+            end if
+            if (lvldbg > 1) &
+                write(6,'(1x,A6,I4,A30,A10,1x,A12,I10,1x,A10,I8)')'(mype:',mype,') READ_RADAR: subset:', &
+                     subset,' data_date:',idate,' nmsg:',nmsg
+   
+!           Big loop over bufr file
+   
+            sb_report: do while (ireadsb(lnbufr) == 0)
+                nmrecs = nmrecs+1
+!               Read header.  Extract station infomration
+                hdr(:)=zero
+                call ufbint(lnbufr,hdr,8,1,levs,hdrstr2(1))
+!               Read header.  Extract time infomration
+                hdr2(:)=zero
+                call ufbint(lnbufr,hdr2,6,1,levs,hdrstr2(2))
+!               Read header.  Extract other infomration (not used by GSI currently)
+                hdr3(:)=zero
+                call ufbint(lnbufr,hdr3,4,1,levs,hdrstr2(3))
+   
+                rstation_id=hdr(1)      !station id   SSTN
+                if(abs(hdr(2))>r90 .or. abs(hdr(3))>r360) cycle sb_report
+                dlat_earth=hdr(2)       !station lon (degrees) CLAT
+                dlon_earth=hdr(3)       !station lat (degrees) CLON
+                if (dlon_earth==r360) dlon_earth=dlon_earth-r360
+                if (dlon_earth<zero ) dlon_earth=dlon_earth+r360
+                this_stalon=dlon_earth  ! station earth longitude (Deg)
+                this_stalat=dlat_earth  ! station earth latitude  (Deg)
+   
+   
+!               deg to rad (tll2xy needs rad, not deg)
+                dlat_earth = dlat_earth * deg2rad
+                dlon_earth = dlon_earth * deg2rad
+   
+!               check up radar_table
+                irdr_ptr = -1
+                if ( icnt_radar_read == 0 ) then                             ! first radar in table
+                    icnt_radar_read = 1
+                    radartable_id(icnt_radar_read) = this_staid
+                    irdr_ptr=icnt_radar_read
+                else
+                    irdr_ptr=-1
+                    loop_rdrtbl: do irdr=1,icnt_radar_read
+                        if ( this_staid == radartable_id(irdr) ) then      ! found same radar in table
+                            irdr_ptr=irdr
+                            exit loop_rdrtbl
+                        end if
+                    end do loop_rdrtbl
+                    if (irdr_ptr <= 0) then                        !  found new radar and add it into table
+                        icnt_radar_read = icnt_radar_read + 1
+                        radartable_id(icnt_radar_read) = this_staid
+                        irdr_ptr=icnt_radar_read
+                    end if
+                end if
+   
+!               check up whether radar station is inside the domain
+                radartable_ncolm(irdr_ptr) = radartable_ncolm(irdr_ptr) + 1
+                if(regional)then
+                    outside=.false.
+                    call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
+                    if (outside) then
+                        if ( radartable_inside(irdr_ptr) > 0 ) then
+                            write(6,*)'*** WARNING --> READ_RADAR: (columntilt) radar:',this_staid, &
+                                      ' is found both inside and outside. Wrong! <-- WARNING ***'
+                            call stop2(999)
+                        end if
+                        radartable_inside(irdr_ptr)    = -1
+                        radartable_ncolm_out(irdr_ptr) = radartable_ncolm_out(irdr_ptr) + 1
+                        ioutside_obs=ioutside_obs+1
+                        cycle sb_report
+                    else
+                        if ( radartable_inside(irdr_ptr) < 0 ) then
+                            write(6,*)'*** WARNING --> READ_RADAR: (columntilt) radar:',this_staid, &
+                                      ' is found both inside and outside. Wrong! <-- WARNING ***'
+                            call stop2(999)
+                        end if
+                        radartable_inside(irdr_ptr)    =  1
+                    end if
+                    dlatmax=max(dlat,dlatmax)
+                    dlonmax=max(dlon,dlonmax)
+                    dlatmin=min(dlat,dlatmin)
+                    dlonmin=min(dlon,dlonmin)
+                else
+                    dlat = dlat_earth
+                    dlon = dlon_earth
+                    call grdcrd1(dlat,rlats,nlat,1)
+                    call grdcrd1(dlon,rlons,nlon,1)
+   
+                    radartable_inside(irdr_ptr) =  1                     ! global: radar is always inside
+   
+                endif
+   
+                clon=cos(dlon_earth)
+                slon=sin(dlon_earth)
+                clat=cos(dlat_earth)
+                slat=sin(dlat_earth)
+   
+                staheight=hdr(4)             ! station elevation  HSMSL 
+   
+!   ---------------------------------------------------------------------------------!
+!               Skipping finding vad wind match for column-tilt radar wind data
+!   ---------------------------------------------------------------------------------!
+   
+!               Get model terrain at radar station location: zsges
+                call deter_zsfc_model(dlat,dlon,zsges)
+   
+                iyr = hdr2(1)
+                imo = hdr2(2)
+                idy = hdr2(3)
+                ihr = hdr2(4)
+                imn = hdr2(5)
+                isc = hdr2(6)
+   
+                idate5(1) = iyr
+                idate5(2) = imo
+                idate5(3) = idy
+                idate5(4) = ihr
+                idate5(5) = imn
+                ikx=0
+                do i=1,nconvtype
+                    if(trim(ioctype(i)) == trim(obstype))ikx = i
+                end do
+                if(ikx==0) cycle sb_report
+   
+!               time window check     
+                call w3fs21(idate5,minobs)
+                call w3fs21(idate5,mincy)
+                t4dv=real(minobs-iwinbgn,r_kind)*r60inv
+                if (l4dvar.or.l4densvar) then
+                    if (t4dv<zero .OR. t4dv>winlen) cycle sb_report
+                else
+                    timeb = real(minobs-mincy,r_kind)*r60inv
+                    if (abs(timeb)>half .or. abs(timeb) > ctwind(ikx)) then
+                        ioutside_tim=ioutside_tim+1
+                        radartable_ncolm_outtimw(irdr_ptr) = radartable_ncolm_outtimw(irdr_ptr) + 1
+                        cycle sb_report
+                    endif
+                endif
+   
+!             Get observation (lon,lat).  Compute distance from radar.
+!                 adjusting XOB (longitude)  --> hdr(7)
+!                           YOB (lattitude)  --> hdr(8)
+                if(abs(hdr(8))>r90 .or. abs(hdr(7))>r360) cycle sb_report
+                thislon=hdr(7)            ! obs longitude (Deg)
+                thislat=hdr(8)            ! obs latitude  (Deg)
+                if(thislon==r360) thislon=thislon-r360
+                if(thislon<zero ) thislon=thislon+r360
+                dlon_earth = thislon*deg2rad
+                dlat_earth = thislat*deg2rad
+!   
+!             Get grid indices for lon/lat
+!               check up whether this radar obs (on this column grid) is inside
+                if(regional) then
+                    outside=.false.
+                    call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
+                    if (outside) then
+                        radartable_ncolm_out(irdr_ptr) = radartable_ncolm_out(irdr_ptr) + 1
+                        ioutside_obs=ioutside_obs+1
+                        cycle sb_report
+                    else
+                        radartable_ncolm_ins(irdr_ptr) = radartable_ncolm_ins(irdr_ptr) + 1
+                    end if
+                else
+                    dlat = dlat_earth
+                    dlon = dlon_earth
+                    call grdcrd1(dlat,rlats,nlat,1)
+                    call grdcrd1(dlon,rlons,nlon,1)
+                    radartable_ncolm_ins(irdr_ptr) = radartable_ncolm_ins(irdr_ptr) + 1
+                endif
+   
+                clonh=cos(dlon_earth)
+                slonh=sin(dlon_earth)
+                clath=cos(dlat_earth)
+                slath=sin(dlat_earth)
+                cdist=slat*slath+clat*clath*(slon*slonh+clon*clonh)
+                cdist=max(-one,min(cdist,one))
+!             dist -- surface great circle range in km
+                dist=eradkm*acos(cdist)
+   
+!             Set observation "type" to be function of distance from radar
+                kxadd=nint(dist*one_tenth)
+                kx=kx0+kxadd
+   
+!             Extract azimuth for each column of radial wind data
+   
+   
+!             0. convert azimuth from pointing to north defined as 0
+!                                  to pointing to east as 0 (GSI rule)
+!                                  this step needs to be done before next step of
+!                                  correction.
+!              For accuracy, keep away from poles, rather than properly deal with polar singularity
+                if(abs(thislat)>r89_5) cycle sb_report
+   
+!              Checking the azimuth angle and counting the bad data
+                if (hdr(6) < 0.0_r_kind .or. hdr(6) > 360.0_r_kind) then
+                    iazmoutrange=iazmoutrange+1
+                    write(6,'(1x,A100,F10.3,1x,I8)')'(mype:',mype, &
+                        ') READ_RADAR: azimuth in BUFR is not in 0~360 (skip) -- azm_hdr(6)  cnt:', &
+                        hdr(6),iazmoutrange
+                    cycle sb_report
+                end if
+   
+!               azm_east is only used for cdata(13) when diagnose and plotting
+                azm_east = r90 - hdr(6)  ! original azimuth (degree, but east as 0)
+                if ( azm_east < zero ) azm_east = azm_east + r360
+                if ( abs(azm_east - r360) <= 1.0E-3_r_kind ) azm_east = zero
+                if ( azm_east > r360 ) azm_east = azm_east - r360
+   
+!             Adjustment of Azimuth.
+!             Including:
+!               1) convert azimuth from north as zero (radar-based) to east as zero (model-based)
+!               2) correcting azimuth due to the differences between the earth-lat/lon
+!                  of radar station and radar observation
+!               3) rotation of azimuth from earth-lat/lon model grid to WRF Curvilinear grid
+   
+                if ( l_azm_east1st ) then
+   
+!                 1. First, convert azimuth from pointing to north defined as 0 to pointing to east as 0 (GSI rule)
+!                  (1) hdr(6)  -- radar azimuth, north as 0 (degree)
+!                  (2) thisazm -- model wind direction azimuth with east as 0 (degree)
+                    thisazm     = r90-hdr(6)  ! wind direction azimuth (deg)
+!                  (3) change the domain of thisazm back to [0,360].
+                    if ( thisazm < zero ) thisazm = thisazm + r360
+                    if ( abs(thisazm - r360) <= 1.0E-3_r_kind ) thisazm = zero
+                    if ( thisazm > r360 ) thisazm = thisazm - r360
+   
+!                 2. then azimuth is corrected due to lat/lon differences between radar stn and radar obs.
+!                    see subroutine radar_bufr_read_all (in read_l2bufr_mod.f90) for "corrected_azimuth".
+!                    azm_earth is the corrected azimuth (degree)
+                    if ( l_correct_azmu ) then
+                        call get_azimuth_corrected(this_stalon,this_stalat,    &
+                            thislon,    thislat,        &
+                            thisazm,    azm_earth)
+!                    Note: the corrected_azimuth is in [-pi,pi] (due to domain of Function ATAN2).
+!                          Convert it back to [0,2*pi], i.e. [0, 360]
+                        if ( azm_earth < zero) azm_earth = azm_earth + r360
+                        if ( abs(azm_earth - r360) <= 1.0E-3_r_kind ) azm_earth = zero
+                        if ( azm_earth > r360 ) azm_earth = azm_earth - r360
+                    else
+                        azm_earth = thisazm        ! if do not correct it.
+                    end if
+   
+                else
+   
+!                 1. First, azimuth is corrected due to lat/lon differences between radar stn and radar obs.
+                    thisazm = hdr(6)                    ! ANAZ  (degree and zero to north)
+!                    see subroutine radar_bufr_read_all (in read_l2bufr_mod.f90) for "corrected_azimuth".
+!                    azm_earth is the corrected azimuth (degree)
+                    if ( l_correct_azmu ) then
+                        call get_azimuth_corrected(this_stalon,this_stalat,    &
+                            thislon,    thislat,        &
+                            thisazm,    azm_earth)
+!                    Note: the corrected_azimuth is in [-pi,pi] (due to domain of Function ATAN2).
+!                          Convert it back to [0,2*pi], i.e. [0, 360]
+                        if ( azm_earth < zero) azm_earth = azm_earth + r360
+                        if ( abs(azm_earth - r360) <= 1.0E-3_r_kind ) azm_earth = zero
+                        if ( azm_earth > r360 ) azm_earth = azm_earth - r360
+                    else
+                        azm_earth = thisazm        ! if do not correct it.
+                    end if
+   
+!                 2. Then convert azimuth from pointing to north defined as 0 to pointing to east as 0 (GSI rule)
+                    azm_earth   = r90-azm_earth           ! east as zero, (degree)
+!                  (1) change the domain of azm_earth back to [0,360].
+                    if ( azm_earth < zero ) azm_earth = azm_earth + r360
+                    if ( abs(azm_earth - r360) <= 1.0E-3_r_kind ) azm_earth = zero
+                    if ( azm_earth > r360 ) azm_earth = azm_earth - r360
+   
+                end if
+   
+!             3. rotation adjustment due to lat/lon earth coordinate rotating to X/Y
+!                rotated coordinate. So rotaing azimuth_eaarth to azimuth_xy
+!                Note:
+!                     (1) for this calculation, azimuth must be changed to the angle
+!                     with 0 to the east, not to the north.  (r90-azm_earth)
+!                     (2) after rotation, azm (the rotated azimuth) is in unit of
+!                     degree. So when stored in cdata(6), it is converted to
+!                     radians.
+                if(regional .and. .not. fv3_regional) then
+                    cosazm_earth=cos(azm_earth*deg2rad)
+                    sinazm_earth=sin(azm_earth*deg2rad)
+                    call rotate_wind_ll2xy(cosazm_earth,sinazm_earth,cosazm,sinazm,dlon_earth,dlon,dlat)
+                    azm=atan2(sinazm,cosazm)*rad2deg
+!                 Note: ATAN2 is used to find the rotated_azimuth, the domain of
+!                       ATAN2 is [-pi,pi], or say [-180, 180]. For consistency,
+!                       convert it back to [0,2*pi],i.e., [0, 360].
+                    if (azm < zero) azm = azm + r360
+                    if ( abs(azm - r360) <= 1.0E-3_r_kind ) azm = zero
+                    if ( azm > r360 ) azm = azm - r360
+                else
+                    azm=azm_earth
+                end if
+   
+!             Go through the data levels
+                call ufbint(lnbufr,radar_obs_columntilt,5,maxlevs,levs,obstr)
+                if(levs>maxlevs) then
+                    write(6,*)'READ_RADAR:  ***ERROR*** increase read_radar bufr size since ',&
+                        'number of levs=',levs,' > maxlevs=',maxlevs
+                    call stop2(84)
+                endif
+   
+                numcut=0      ! l3 data toosed by l2.5 data
+   
+                loop_lvl : do k=1,levs
+                    ncolumntiltl2_in=ncolumntiltl2_in+1
+                    nread=nread+1
+                    ntb=ntb+1
+                    t4dvo=real(minobs-iwinbgn,r_kind)*r60inv
+                    timemax=max(timemax,t4dvo)
+                    timemin=min(timemin,t4dvo)
+   
+                    kxadd=nint(dist*one_tenth)
+                    kx=kx0+kxadd
+   
+!                 Extract radial wind data
+                    thistilt = radar_obs_columntilt(1,k)              ! radar scan/tilt angle (degree)
+                    height   = radar_obs_columntilt(2,k)              ! obs beam height (meter)
+                    range1   = radar_obs_columntilt(3,k)              ! obs beam range (meter)
+                    rwnd     = radar_obs_columntilt(4,k)              ! radial wind (m/s)
+                    rdbz     = radar_obs_columntilt(5,k)              ! reflectivity (dBZ)
+   
+                    sfcrng0  = dist*r1000                       ! surface range in unit of meters
+!                 check on the values from BUFR data
+!                 Should check dbz and rwnd also (first?)
+                    if (thistilt < 0.0_r_kind .OR. thistilt > 90.0_r_kind) then
+                        itiltoutrange=itiltoutrange+1
+                        if ( rdbz >= 0.0_r_kind .AND. rdbz < 100.0_r_kind ) then
+                            write(9997,'(1x,A80,F10.3,1x,I8,2F20.3)') &
+                                'READ_RADAR: tilt in BUFR is not in 0~90 (skip) -- tilt  cnt:', &
+                                thistilt,itiltoutrange,rdbz,rwnd
+                        end if
+!                        cycle loop_lvl
+                    end if
+                    if (height < -1.0_r_kind .OR. height > 100000.0_r_kind ) then
+                        iohgtoutrange=iohgtoutrange+1
+                        if ( rdbz >= 0.0_r_kind .AND. rdbz < 100.0_r_kind ) then
+                            write(9997,'(1x,A80,F20.3,1x,I8,2F20.3)') &
+                                'READ_RADAR: obs hgt in BUFR is not in 0~100km (skip) -- obshgt  cnt:', &
+                                height,iohgtoutrange,rdbz,rwnd
+                        end if
+!                        cycle loop_lvl
+                    end if
+                    if (range1 <  0.0_r_kind .OR. range1 > 510000.0_r_kind ) then
+                        iorngoutrange=iorngoutrange+1
+                        if ( rdbz >= 0.0_r_kind .AND. rdbz < 100.0_r_kind ) then
+                            write(9997,'(1x,A80,F20.3,1x,I8,2F20.3)') &
+                                'READ_RADAR: obs range in BUFR is not in 0~510km (skip) -- obsrange  cnt:', &
+                                range1,iorngoutrange,rdbz,rwnd
+                        end if
+!                        cycle loop_lvl
+                    end if
+   
+!                 Get corrected tilt(elevation) angle
+                    if ( l_correct_tilt ) then
+                        if ( i_correct_tilt == 1 ) then
+!                 Considering the curvature effect of beam and earth surface
+!                 Note: two schemes
+!                   1. algorithm used in radar_bufr_read_all (read_l2bufr_mod.f90) for superobs
+   
+                            call get_rdr_obshgttilt(thistilt,range1,staheight, &
+                                thishgt,corrected_tilt)
+                            write(9991,'(1x,A4,A4,A9,F7.3,A7,F12.1,A9,F7.1,A12,F7.1,A12,F7.1,A11,F7.3,A8,F12.1)') &
+                                'ID:',this_staid,' tilt(o):',thistilt,' range:',range1,    &
+                                ' sta_hgt:',staheight,' obs_hgt(c):',thishgt,' obs_hgt(o):',height, &
+                                ' tilt(crc):',corrected_tilt,' sfcrng:',sfcrng0
+                        else
+   
+!                   2. scheme used in arps pacakge (arpsenkf: dhdr and dsdr)
+!                      note: 
+!                           using beamelv and dhdrange in adas/radarlib3d.f90. Need
+!                           obs height (beam height) and surface range (from radar
+!                           to obs location on surface). Based on 88d2arps data,
+!                           when rdbz/rwnd are missing values, the obs height is
+!                           also missing values (-999.0), then it is not necessary
+!                           to correct the tilt, since this obs will be rejected.
+   
+                            call beamelv(height,sfcrng0,elvang0,range0)
+                            call dhdrange(elvang0,range0,dhdr)
+                            dsdr=sqrt(1._r_kind-dhdr*dhdr)
+                            corrected_tilt=atan2(dhdr,dsdr)*rad2deg
+                        end if
+!                     Warning Note: tiltangle which is stored in cdata(9), must be in unit of radians.
+                        tiltangle=corrected_tilt
+                    else
+                        tiltangle=thistilt
+                    end if
+                    if (tiltangle < 0.0_r_kind .OR. tiltangle > 90.0_r_kind) then
+                        itiltoutrange2=itiltoutrange2+1
+                        write(9997,'(1x,A100,2F10.3,1x,I8,4F20.3)') &
+                            'READ_RADAR: crc-tilt is not in 0~90deg. -- tilt (org crc) cnt dbz rw height range:', &
+                            thistilt, tiltangle, itiltoutrange2, rdbz, rwnd, height, range1
+!                        cycle lvl_loop
+                    end if
+   
+!                 obs error inflation with erradar_inflate (not really used for L2RWBUFR data)
+                    error = erradar_inflate*oe_rw
+   
+!                 Increase error for lev2.5 and lev3
+!                  (for specific domain: but commented off and not used for L2RWBUFR data)
+                    errmax=max(error,errmax)
+                    if(oe_rw >        zero) errmin=min(error,errmin)
+   
+!                 Perform limited qc based on azimuth angle, radial wind
+!                 speed, distance from radar site, elevation of radar,
+!                 height of observation, observation error.
+   
+                    good0=.true.
+                    if(abs(azm)>r400) then
+                        ibadazm=ibadazm+1; good0=.false.
+                    end if
+                    if(abs(rwnd)>r200) then
+                        ibadwnd=ibadwnd+1; good0=.false.
+                        if (rdbz >= 5.0_r_kind .and. rdbz < 120._r_kind) then
+                            ibadwnd_cld=ibadwnd_cld + 1
+                            write(9998,'(1x,A60,2F20.2,A8,2F10.3,2F10.2,I10)') &
+                                'bad wind with cloud --- rw dbz rdr_id azm scntlt xob yob cnt:',          &
+                                rwnd,rdbz,this_staid,azm,thistilt,dlon,dlat,ibadwnd_cld
+                        end if
+                    else
+                        igoodwnd=igoodwnd+1
+                        if (rdbz<-20.0_r_kind ) then
+                            igoodwnd_dbz(1) = igoodwnd_dbz(1)+1
+                        else if (rdbz>=-20.0_r_kind .AND. rdbz < -0.5_r_kind ) then
+                            igoodwnd_dbz(2) = igoodwnd_dbz(2)+1
+                        else if (rdbz>=-0.5_r_kind .AND. rdbz <  0.5_r_kind ) then
+                            igoodwnd_dbz(3) = igoodwnd_dbz(3)+1
+                        else if (rdbz>= 0.5_r_kind .AND. rdbz <  5.0_r_kind ) then
+                            igoodwnd_dbz(4) = igoodwnd_dbz(4)+1
+                        else if (rdbz>= 5.0_r_kind .AND. rdbz <  100.0_r_kind ) then
+                            igoodwnd_dbz(5) = igoodwnd_dbz(5)+1
+                        else
+                            igoodwnd_dbz(6) = igoodwnd_dbz(6)+1
+                        end if
+                    end if
+                    if(dist>r400) then
+                        ibaddist=ibaddist+1; good0=.false.
+                    end if
+                    if(staheight<-r1000 .or. staheight>r50000) then
+                        ibadstaheight=ibadstaheight+1; good0=.false.
+                    end if
+                    if(height<-r1000 .or. height>r50000) then
+                        ibadheight=ibadheight+1; good0=.false.
+                    end if
+                    if(height<staheight) then
+                        iheightbelowsta=iheightbelowsta+1 ; good0=.false.
+                    end if
+   
+                    if(oe_rw>r6 .or. oe_rw<=zero) then
+                        ibaderror=ibaderror+1; good0=.false.
+                    end if
+   
+                    if (rdbz < -20.0_r_kind ) then
+                        idbz_bad=idbz_bad+1; good0=.false.
+                    else if (rdbz >= -20.0_r_kind .AND. rdbz < refl_lowbnd_rw) then
+                        idbz_clr=idbz_clr+1; good0=.false.
+                    else if (rdbz >= refl_lowbnd_rw .and. rdbz < 100.0_r_kind) then
+                        idbz_cld=idbz_cld+1
+                        if (abs(rwnd)>r200) then
+                            icld_badwnd=icld_badwnd+1
+                            good0=.false.
+                        else
+                            icld_goodwnd=icld_goodwnd+1
+                        end if
+                    else
+                        idbz_bad2=idbz_bad2+1; good0=.false.
+                    end if
+   
+!                 good and notgood are used for further QC check with VAD match.
+!                 note:   No further QC check with VAD match for L2RWBUFR data
+!                         So good is actually same as good0
+                    good=.true.
+                    if(.not.good0) then
+                        notgood0=notgood0+1
+                        good=.false.
+                        cycle loop_lvl
+                    end if
+   
+!                 If data is good, load into output array
+                    if(good) then
+   
+!                     no vad and obs box counting for L2RWBUFR
+!                     (they are used for NCEP L2/2.5/3 radar obs, see code for those data)
+   
+                        radartable_ndata_use(irdr_ptr) = radartable_ndata_use(irdr_ptr) + 1
+                        ncolumntiltl2_kept=ncolumntiltl2_kept+1
+                        if ( ndata+1 > maxobs ) then
+                            do irpt=1,5
+                                write(6,'(1x,A128)')' *** *** WARNING --> READ_RADAR: ndata is more than maxobs(=2,000,000) &
+                                                     --> increase maxobs!!! <-- WARNING *** ***'
+                            end do
+                            write(6,'(1x,A128)')' *** *** WARNING --> INCREASE maxobs in READ_RADAR beyond 2,000,000, &
+                                                  re-compile GSI, re-run !!! <-- WARNING*** ***'
+                        end if
+                        ndata  = min(ndata+1,maxobs)
+                        nodata = min(nodata+1,maxobs)  !number of obs not used (no meaning here)
+                        usage  = zero
+                        if(icuse(ikx) < 0)usage=r100
+   
+                        call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,skint,ff10,sfcr)
+   
+                        cdata(1) = error             ! wind obs error (m/s)
+                        cdata(2) = dlon              ! grid relative longitude
+                        cdata(3) = dlat              ! grid relative latitude
+                        cdata(4) = height            ! obs absolute height (m)
+                        cdata(5) = rwnd              ! wind obs (m/s)
+                        cdata(6) = azm*deg2rad       ! azimuth angle (radians)
+                        cdata(7) = t4dvo             ! obs time (hour)
+                        cdata(8) = ikx               ! type               
+                        cdata(9) = tiltangle*deg2rad ! tilt angle (radians)
+                        cdata(10)= staheight         ! station elevation (m)
+                        cdata(11)= rstation_id       ! station id
+                        cdata(12)= usage             ! usage parameter
+                        cdata(13)= idomsfc           ! dominate surface type
+                        cdata(14)= skint             ! skin temperature
+                        cdata(15)= ff10              ! 10 meter wind factor
+                        cdata(16)= sfcr              ! surface roughness
+                        cdata(17)=dlon_earth*rad2deg ! earth relative longitude (degrees)
+                        cdata(18)=dlat_earth*rad2deg ! earth relative latitude (degrees)
+                        cdata(19)=dist               ! range from radar in km (used to estimate beam spread)
+                        cdata(20)=zsges              ! model elevation at radar site
+                        cdata(21)=thiserr_rw         ! original error (same as user-defined in namelist)
+                        cdata(22)=two                ! sub-type, rank of radar date (level 2/2.5/3. or higher for airborne)
+!                       put original azimuth, tilt and dbz into cdata for plotting diag file.
+                        if (l_plt_diag_rw) then
+                            cdata(13)= azm_east      ! original azimuth (degree, but east as 0)
+                            cdata(14)= thistilt      ! orignal scan tilt (degree)
+                            cdata(16)= rdbz          ! reflectivity at same point with rwnd
+                        end if
+   
+                        do i=1,maxdat
+                            cdata_all(i,ndata)=cdata(i)
+                        end do
+   
+                    else
+                        notgood = notgood + 1
+                    end if
+   
+!                 End of k loop over levs
+                end do loop_lvl
+   
+!             End of bufr read loop
+            end do sb_report
+   
+        end do msg_report
+   
+!       Close unit to bufr file
+        call closbf(lnbufr)
+   
+        write(6,*)'READ_RADAR:  ',trim(outmessage),' reached eof on level 2 radar file (grid-tilt; column-tilt).'
+   
+        if(loop==-1)    write(6,*)'READ_RADAR: ncolumntiltl2_in,ncolumntiltl2_kept=',ncolumntiltl2_in,ncolumntiltl2_kept
+        write(6,*)'READ_RADAR: # no vad match   =',novadmatch
+        write(6,*)'READ_RADAR: # out of vadrange=',ioutofvadrange
+        write(6,*)'READ_RADAR: # bad azimuths=',ibadazm
+        write(6,*)'READ_RADAR: # bad winds   =',ibadwnd
+        write(6,*)'READ_RADAR: # bad dists   =',ibaddist
+        write(6,*)'READ_RADAR: # bad stahgts =',ibadstaheight
+        write(6,*)'READ_RADAR: # bad obshgts =',ibadheight
+        write(6,*)'READ_RADAR: # bad errors  =',ibaderror
+        write(6,*)'READ_RADAR: # bad vadwnd  =',ibadvad
+        write(6,*)'READ_RADAR: # bad fit     =',ibadfit
+        write(6,*)'READ_RADAR: # num thinned =',kthin
+        write(6,*)'READ_RADAR: # hgt belowsta=',iheightbelowsta
+        write(6,*)'READ_RADAR: # bad dbz(<-20.0) =',idbz_bad
+        write(6,*)'READ_RADAR: # bad dbz(>100.0) =',idbz_bad2
+        write(6,*)'READ_RADAR: # clearsky dbz (-20.0~',refl_lowbnd_rw,') =',idbz_clr
+        write(6,*)'READ_RADAR: # cloud dbz (',refl_lowbnd_rw,'~100.0) =',idbz_cld
+        write(6,*)'READ_RADAR: # bad winds (cloud) =',ibadwnd_cld
+        write(6,*)'READ_RADAR: # cloud (bad winds) =',icld_badwnd
+        write(6,*)'READ_RADAR: # cloud (goodwinds) =',icld_goodwnd
+        write(6,*)'READ_RADAR: # azim out of range =',iazmoutrange
+        write(6,*)'READ_RADAR: # tilt(org) out of range =',itiltoutrange
+        write(6,*)'READ_RADAR: # tilt(crc) out of range =',itiltoutrange2
+        write(6,*)'READ_RADAR: # obshgt out  range =',iohgtoutrange
+        write(6,*)'READ_RADAR: # obsrng out  range =',iorngoutrange
+        write(6,*)'READ_RADAR: # notgood0    =',notgood0
+        write(6,*)'READ_RADAR: # notgood(VAD)=',notgood
+        write(6,*)'READ_RADAR: timemin,max   =',timemin,timemax
+        write(6,*)'READ_RADAR: errmin,max    =',errmin,errmax
+        write(6,*)'READ_RADAR: dlatmin,max,dlonmin,max=',dlatmin,dlatmax,dlonmin,dlonmax
+        write(6,*)'READ_RADAR: nmsg,nmrecs,ntb=',nmsg,nmrecs,ntb
+        write(6,*)'READ_RADAR: # good winds (abs(rwnd) <= 200m/s) =',igoodwnd
+        write(6,*)'READ_RADAR: # dbz distribution in good winds #'
+        write(6,'(1x,A60,F12.5,1x,F12.5)')'READ_RADAR:radar wind--> obs error(adjust) thiserr_rw(original)= ',error, thiserr_rw
+        write(6,*)'----------------------------------------------------------------'
+        write(6,'(1x,6A15)')'<-20.0dbz','-20.0 ~ -0.5','-0.5 ~ 0.5','0.5 ~ 5.0','5.0 ~ 100.0','>100.0dbz'
+        write(6,'(1x,6I15)')igoodwnd_dbz(1:6)
+        write(6,*)'----------------------------------------------------------------'
+   
+!       sum up radar table information
+        ntot_col   = 0; ntot_col_o = 0; ntot_col_i = 0; ntot_dat_u = 0;
+        ntot_col_ot= 0; icnt_radar_inside=0; icnt_radar_outside=0;
+        open(2018,file='radarlist_rw_used.txt',form='formatted')
+        write(2018,'(1x,7(1x,A15))')'       RADAR_ID', '   radar_inside', ' total_column',       &
+                                    '  column_inside', ' column_outside', ' OutTWindow',       &
+                                    '      ndata_use' 
+        write(6,*)'----------------------------------------------------------------'
+        write(6,   '(1x,7(1x,A15))')'       RADAR_ID', '   radar_inside', ' total_column',       &
+                                    '  column_inside', ' column_outside', 'colm_OutTWindow',       &
+                                    '      ndata_use'
+        do icnt=1, icnt_radar_read
+            if ( radartable_inside(icnt) > 0 ) then
+                icnt_radar_inside  = icnt_radar_inside  + 1
+            else
+                icnt_radar_outside = icnt_radar_outside + 1
+            end if
+            ntot_col   = ntot_col   + radartable_ncolm(icnt)
+            ntot_col_o = ntot_col_o + radartable_ncolm_out(icnt)
+            ntot_col_i = ntot_col_i + radartable_ncolm_ins(icnt)
+            ntot_dat_u = ntot_dat_u + radartable_ndata_use(icnt)
+            ntot_col_ot= ntot_col_ot+ radartable_ncolm_outtimw(icnt)
+            write(2018,'(1x,1x,A15,1x,I15,5(1x,I15))')radartable_id(icnt),radartable_inside(icnt), &
+                 radartable_ncolm(icnt),radartable_ncolm_ins(icnt),radartable_ncolm_out(icnt), &
+                 radartable_ncolm_outtimw(icnt),radartable_ndata_use(icnt)
+            write(6,'(1x,1x,A15,1x,I15,5(1x,I15))')radartable_id(icnt),radartable_inside(icnt), &
+                 radartable_ncolm(icnt),radartable_ncolm_ins(icnt),radartable_ncolm_out(icnt), &
+                 radartable_ncolm_outtimw(icnt),radartable_ndata_use(icnt)
+        end do
+        write(2018,*)'----------------------------------------------------------------'
+        write(6,*)'----------------------------------------------------------------'
+        write(2018,'(1x,1x,A15,1x,I6,3x,I6,5(1x,I15))')'     Total ',icnt_radar_inside,         &
+             icnt_radar_outside,ntot_col,ntot_col_i,ntot_col_o,ntot_col_ot,ntot_dat_u
+        write(6,   '(1x,1x,A15,1x,I6,3x,I6,5(1x,I15))')'     Total ',icnt_radar_inside,         &
+             icnt_radar_outside,ntot_col,ntot_col_i,ntot_col_o,ntot_col_ot,ntot_dat_u
+        write(2018,*)'----------------------------------------------------------------'
+        close(2018)
+        write(6,*)'----------------------------------------------------------------'
+   
+! end of read columntilt radar level 2 data
+!====================================================================================!
+     end if
 
 !    Write out vad statistics
      do ivad=1,nvad
@@ -2902,7 +3717,7 @@ subroutine read_radar_l2rw(ndata,nodata,lunout,obstype,sis,nobs,hgtl_full)
      call gettable(tbname,666,ntot,radar_count,rtable)
      do i=1,radar_count
        read(rtable(i),*) rsite(i),ruse(i)
-       write(*,'(A10,X,A4,X,I)'),"Radar Sites: ",rsite(i),ruse(i)
+       write(*,'(A14,X,A4,X,I3)'),"Radar Sites: ",rsite(i),ruse(i)
      end do
   end if
   rad_per_meter= one/rearth
@@ -3379,3 +4194,290 @@ subroutine read_radar_l2rw(ndata,nodata,lunout,obstype,sis,nobs,hgtl_full)
 end subroutine read_radar_l2rw
 !!!!!!!!!!!!!!! End added for l2rw thinning !!!!!!!!!!!!!!!
 
+subroutine get_azimuth_corrected(this_stalon,this_stalat,    &
+                                 thislon,    thislat,        &
+                                 thisazm,    corrected_azm)
+!=======================================================================!
+! Author: G. Zhao
+
+! Follow the alogrithm in subroutine radar_bufr_read_all (in
+! read_l2bufr_mod.f90) to get corrected azimuth
+!
+! Note: all input and output are in unit of degree, not radian.                            
+!=======================================================================!
+
+  use kinds, only: r_kind,r_single,i_kind
+  use constants, only: one,half,two,deg2rad,rad2deg,zero_single
+
+  implicit none
+
+  real(r_kind) ,  intent(in   ) :: this_stalon,this_stalat,thislon,thislat,thisazm
+  real(r_kind) ,  intent(out  ) :: corrected_azm
+
+! local variables
+  real(r_kind) rlon0,clat0,slat0,rlonglob,rlatglob,clat1,caz0,saz0,cdlon,sdlon,caz1,saz1
+  real(r_kind) this_stalatr,thisazimuthr
+
+  rlon0=this_stalon*deg2rad
+  this_stalatr=this_stalat*deg2rad
+  rlonglob=thislon*deg2rad
+  rlatglob=thislat*deg2rad
+  thisazimuthr=thisazm*deg2rad
+
+! Get corrected azimuth
+
+  clat0=cos(this_stalatr)
+  slat0=sin(this_stalatr)
+  clat1=cos(rlatglob)
+  caz0=cos(thisazimuthr)
+  saz0=sin(thisazimuthr)
+  cdlon=cos(rlonglob-rlon0)
+  sdlon=sin(rlonglob-rlon0)
+  caz1=clat0*caz0/clat1
+  saz1=saz0*cdlon-caz0*sdlon*slat0
+
+  corrected_azm=atan2(saz1,caz1)*rad2deg
+
+  return
+
+end subroutine get_azimuth_corrected
+!
+!
+!
+subroutine get_rdr_obshgttilt(thistilt,thisrange,this_stahgt,        &
+                              thishgt,corrected_tilt)
+!-------------------------------------------------------------------!
+! following the algorithm used in read_l2bufr_mod.f90 to calculate the
+! observation height (radar beam height).
+! 
+! 2017-10-19    CAPS(G. Zhao)
+! Input:
+!       thistilt        scan tilt of radar beam (elevation angle at radar station,
+!                       degree)
+!       thisrange       radar beam range at observation point (meter)
+!       this_stahgt     height of radar station (meter)
+!
+! Output:
+!       thishgt         radar beam height at observation point (meter)
+!       corrected_tilt  elevation angle of radar beam at observation point
+!                       (degree, sometimes called corrected tilt angle)
+!                       Due to curvature of radar beam and surface of earth
+!-------------------------------------------------------------------!
+!
+  use kinds, only: r_kind,r_single,i_kind
+  use constants, only: zero,half,one,two,rearth,deg2rad,rad2deg,zero_quad,one_quad
+
+  implicit none
+
+  real(r_kind)   ,intent(in   ) :: thistilt, thisrange, this_stahgt
+  real(r_kind)   ,intent(  out) :: thishgt
+  real(r_kind)   ,intent(  out) :: corrected_tilt
+
+! local parameters
+  real(r_kind),parameter:: four_thirds = 4.0_r_kind / 3.0_r_kind
+  real(r_kind),parameter:: r8          = 8.0_r_kind
+  real(r_kind),parameter:: r89_5       = 89.5_r_kind
+  real(r_kind),parameter:: r90         = 90.0_r_kind
+  real(r_kind),parameter:: missval     = -999.0_r_kind
+
+! local variables
+  real(r_kind) a43,aactual,b,c,selev0,celev0,epsh,erad,h,ha
+  real(r_kind) rad_per_meter
+  real(r_kind) thistiltr
+  real(r_kind) celev,selev
+
+
+  rad_per_meter= one/rearth
+  erad = rearth
+
+! use 4/3rds rule to get elevation of radar beam
+! (if local temperature available, then vertical position can be
+! estimated with greater accuracy)
+
+  aactual=erad+this_stahgt
+  a43=four_thirds*aactual
+  thistiltr=thistilt*deg2rad
+  selev0=sin(thistiltr)
+  celev0=cos(thistiltr)
+  b=thisrange*(thisrange+two*aactual*selev0)
+  c=sqrt(aactual*aactual+b)
+  ha=b/(aactual+c)
+  epsh=(thisrange*thisrange-ha*ha)/(r8*aactual)
+  h=ha-epsh
+  thishgt=this_stahgt+h
+
+  if(thishgt < zero)then ! don't use observation if it is likely to be below sealevel
+      thishgt=missval
+  end if
+
+! Get corrected tilt angle (i.e., elevation angle at obs location)
+  celev=celev0
+  selev=selev0
+  if(thisrange>=one) then
+      celev=a43*celev0/(a43+h)
+      selev=(thisrange*thisrange+h*h+two*a43*h)/(two*thisrange*(a43+h))
+  end if
+  corrected_tilt=atan2(selev,celev)*rad2deg
+
+  return
+
+end subroutine get_rdr_obshgttilt
+
+!===============================================================================!
+!      subroutines from CAPS ARPS package
+!      adas/radarlib3d.f90
+!      including: 
+!        subroutine beamelv dhdrange
+!===============================================================================!
+!
+subroutine beamelv(height,sfcrng,elvang,range)
+!
+!-----------------------------------------------------------------------
+!
+!  PURPOSE:
+!
+!  Calculate the elevation angle (elvang) and the along
+!  ray-path distance (range) of a radar beam
+!  crossing through the given height and along-ground
+!  distance.
+!
+!  This method assumes dn/dh is constant such that the
+!  beam curves with a radius of 4/3 of the earth's radius.
+!  This is dervied from Eq. 2.28 of Doviak and Zrnic',
+!  Doppler Radar and Weather Observations, 1st Ed.
+!
+!-----------------------------------------------------------------------
+!
+!  AUTHOR: Keith Brewster
+!  10/10/95
+!
+!  MODIFICATION HISTORY:
+!
+!-----------------------------------------------------------------------
+!
+!  INPUT:
+!    height   Height (meters) of beam above ground.
+!    sfcrng   Distance (meters) of point along ground from radar.
+!
+!  OUTPUT
+!    elvang   Elevation angle (degrees) of radar beam
+!    range    Distance (meters) along radar beam from radar
+!
+!-----------------------------------------------------------------------
+!
+
+!
+!-----------------------------------------------------------------------
+!
+!  Variable Declarations.
+!
+!-----------------------------------------------------------------------
+!
+  use kinds, only: r_kind,r_single,i_kind,r_double
+
+  implicit none
+  real(r_kind), intent(in   ) :: height
+  real(r_kind), intent(in   ) :: sfcrng
+  real(r_kind), intent(  out) :: elvang
+  real(r_kind), intent(  out) :: range
+!
+  real(r_double) :: eradius,frthrde,rad2deg
+  parameter (eradius=6371000._r_double,                                          &
+             frthrde=(4._r_double*eradius/3._r_double),                          &
+             rad2deg=(180._r_double/3.14592654_r_double))
+!
+  real(r_double):: elvrad,hgtdb,rngdb,drange
+!
+  if (sfcrng > 0._r_kind) then
+
+    hgtdb=frthrde+dble(height)
+    rngdb=dble(sfcrng)/frthrde
+
+    elvrad = atan((hgtdb*cos(rngdb) - frthrde)/(hgtdb * sin(rngdb)))
+    drange = (hgtdb*sin(rngdb))/cos(elvrad)
+    elvang=rad2deg*elvrad
+    range=drange
+
+  else
+
+    elvang=90._r_kind
+    range=height
+
+  end if
+  return
+end subroutine beamelv
+
+!
+
+subroutine dhdrange(elvang,range,dhdr)
+!
+!-----------------------------------------------------------------------
+!
+!  PURPOSE:
+!
+!  Calculate the local change in height of the radar
+!  beam with respect to a change in range.  Due to
+!  curvature of the beam and the earth's surface this is
+!  generally different what would be calculated from the
+!  elevation angle measured at the radar.  This derivative
+!  is needed for finding 3-d velocities from radial winds
+!  and accounting for terminal velocity of precipitation.
+!
+!  This formulation, consistent with subroutine beamhgt,
+!  assumes a 4/3 earth radius beam curvature.  This formula
+!  is obtained by differentiating Eq 2.28 of Doviak and
+!  Zrnic', Doppler Radar and Weather Observations, 1st Ed.
+!
+!-----------------------------------------------------------------------
+!
+!  AUTHOR: Keith Brewster
+!  06/22/95
+!
+!  MODIFICATION HISTORY:
+!
+!
+!-----------------------------------------------------------------------
+!
+!  INPUT:
+!
+!    elvang   Elevation angle (degrees) of radar beam
+!    range    Distance (meters) along radar beam from radar
+!
+!  OUTPUT:
+!    dhdr     Change in height per change in range (non-dimensional)
+!
+!
+!-----------------------------------------------------------------------
+!
+
+!
+!-----------------------------------------------------------------------
+!
+!  Variable Declarations.
+!
+!-----------------------------------------------------------------------
+!
+  use kinds, only: r_kind,r_single,i_kind,r_double
+
+  implicit none
+  real(r_kind), intent(in   ) :: range
+  real(r_kind), intent(in   ) :: elvang
+  real(r_kind), intent(  out) :: dhdr
+!
+  real(r_double) :: eradius,frthrde,eighthre,fthsq,deg2rad
+  parameter (eradius=6371000._r_double,                                 &
+             frthrde=(4._r_double*eradius/3._r_double),                 &
+             eighthre=(8._r_double*eradius/3._r_double),                &
+             fthsq=(frthrde*frthrde),                                   &
+             deg2rad=(3.14592654_r_double/180._r_double))
+!
+  real(r_double) :: sinelv,dhdrdb,drange
+!
+  drange=dble(range)
+  sinelv=sin(deg2rad*dble(elvang))
+  dhdrdb = (drange+frthrde*sinelv)/                                     &
+         sqrt(drange*drange + fthsq + eighthre*drange*sinelv)
+  dhdr = dhdrdb
+!
+ return 
+end subroutine dhdrange
