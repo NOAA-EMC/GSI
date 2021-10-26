@@ -197,6 +197,9 @@ elif [[ $MY_MACHINE = "hera" ]]; then
    prevday=`$NDATE -24 $PDATE`
    export PDYm1=`echo $prevday | cut -c1-8`
 
+elif [[ $MY_MACHINE = "wcoss2" ]]; then
+   export COMPRESS="gzip -f"
+   export UNCOMPRESS="gunzip -f"
 fi
 
 
