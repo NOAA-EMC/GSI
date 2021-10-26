@@ -68,7 +68,7 @@ if [[ ${target} = "hera"     || ${target} = "wcoss" \
    #-------------------------------------
    #  load modules 
    #-------------------------------------
-   if [ $target = wcoss_d -o $target = wcoss2]; then
+   if [ $target = wcoss_d -o $target = wcoss2 ]; then
       module purge
       module use -a $dir_modules
       module load modulefile.ProdGSI.$target

@@ -391,7 +391,7 @@
    print "\n";
    print "Making all executables\n";
 
-   #   `./build_OznMon_cmake.sh`;
+   `./build_OznMon_cmake.sh`;
 
  
    exit 0;
