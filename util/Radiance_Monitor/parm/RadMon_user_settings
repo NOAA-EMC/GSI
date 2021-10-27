@@ -10,13 +10,13 @@
 #  ACCOUNT is used on zeus only for use with the qsub -a flag.  It is
 #  empty on other platforms.
 #
-export ACCOUNT=${ACCOUNT:-}
+export ACCOUNT=${ACCOUNT:-GFS-DEV}
 
 #
 #  PROJECT is used on wcoss only with the bjob -P flag.  It is 
 #  empty on other platforms.
 #
-export PROJECT=${PROJECT:-GDAS-T2O}
+export PROJECT=${PROJECT:-GDAS-DEV}
 
 #
 #  JOB_QUEUE is used on wcoss only with the bjob -q flag.  It is 
@@ -101,14 +101,14 @@ export USE_STATIC_SATYPE=${USE_STATIC_SATYPE:-0}
 #    primarily intended for use with the operational data sets (GDAS,NDAS) where
 #    detection and reporting of a missing sat/instrument source in a given cycle run
 #    is desirable.  It is not normally necessary in parallels.  0 = off, 1 = on
-export DO_DIAG_RPT=${DO_DIAG_RPT:-0}
+export DO_DIAG_RPT=${DO_DIAG_RPT:-1}
 
 #  DO_DATA_RPT switches on/off error checking and reporting of the penalty values
 #    by channel for each sat/instrument source.  This is a check primarily intended
 #    for use iwth the operational data sets (GDAS,NDAS) where detection and 
 #    reporting of drifting channel(s) on specific sat/instrument sources is 
 #    desirable.  It is not normally necesary to apply this to parallels.  0 = off, 1 = on
-export DO_DATA_RPT=${DO_DATA_RPT:-0}
+export DO_DATA_RPT=${DO_DATA_RPT:-1}
 export MAIL_TO=${MAIL_TO:-' '}
 export MAIL_CC=${MAIL_CC:-' '}
 
