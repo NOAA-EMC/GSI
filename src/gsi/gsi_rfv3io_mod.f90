@@ -80,7 +80,7 @@ module gsi_rfv3io_mod
     character(len=max_varname_length), parameter :: varfv3name(15) =(/'u','v','W','T','delp','sphum','o3mr', &
                                   'liq_wat','ice_wat','rainwat','snowwat','graupel','rain_nc','ps','DZ'/)
     character(len=max_varname_length), parameter :: vgsiname(15) =(/'u','v','w','tsen','delp','q','oz', &
-                                  'ql','qi','qr','qs','gg','qnr','ps','delzinc'/)
+                                  'ql','qi','qr','qs','qg','qnr','ps','delzinc'/)
     character(len=max_varname_length),dimension(:),allocatable:: name_metvars2d
     character(len=max_varname_length),dimension(:),allocatable:: name_metvars3d
 
@@ -794,7 +794,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
       jtracer=0
       do i=1,size(name_metvars3d)
         vartem=trim(name_metvars3d(i))
-        if(.not.(trim(vartem)=='u'.or.trim(vartem)=='v')) then
+        if(.not.(trim(vartem)=='u'.or.trim(vartem)=='v'.or.trim(vartem)=='iqr')) then
          if(trim(vartem)=="tv" ) then
            jdynvar=jdynvar+1
            fv3lam_io_dynmetvars3d_nouv(jdynvar)="tsen"
@@ -969,7 +969,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql' ,ges_ql ,istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qi' ,ges_qi ,istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr' ,ges_qr ,istatus );ier=ier+istatus
-       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr' ,ges_iqr ,istatus );ier=ier+istatus
+       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'iqr' ,ges_iqr ,istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs' ,ges_qs ,istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg' ,ges_qg ,istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr ,istatus );ier=ier+istatus
@@ -982,6 +982,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     else
        call gsi_fv3ncdf_readuv_v1(grd_fv3lam_uv,ges_u,ges_v,fv3filenamegin)
     endif
+    write(6,*)'thinkdeb99uv min/maxuv ',minval(ges_u),maxval(ges_u),minval(ges_v),maxval(ges_v)
     if( fv3sar_bg_opt == 0) then 
        call gsi_fv3ncdf_read(grd_fv3lam_dynvar_ionouv,gsibundle_fv3lam_dynvar_nouv,fv3filenamegin%dynvars,fv3filenamegin)
        call gsi_fv3ncdf_read(grd_fv3lam_tracer_ionouv,gsibundle_fv3lam_tracer_nouv,fv3filenamegin%tracers,fv3filenamegin)
@@ -989,7 +990,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
        call gsi_fv3ncdf_read_v1(grd_fv3lam_dynvar_ionouv,gsibundle_fv3lam_dynvar_nouv,fv3filenamegin%dynvars,fv3filenamegin)
        call gsi_fv3ncdf_read_v1(grd_fv3lam_tracer_ionouv,gsibundle_fv3lam_tracer_nouv,fv3filenamegin%tracers,fv3filenamegin)
     endif
-
+    write(6,*)'thinkdebw min/max ges_w ',minval(ges_w),maxval(ges_w)
 
     if( fv3sar_bg_opt == 0) then 
      call GSI_BundleGetPointer ( gsibundle_fv3lam_dynvar_nouv, 'delp'  ,ges_delp ,istatus );ier=ier+istatus
