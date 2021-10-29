@@ -10,19 +10,19 @@
 #  ACCOUNT is used on zeus only for use with the qsub -a flag.  It is
 #  empty on other platforms.
 #
-export ACCOUNT=${ACCOUNT:-fv3-cpu}
+export ACCOUNT=${ACCOUNT:-GFS-DEV}
 
 #
 #  PROJECT is used on wcoss only with the bjob -P flag.  It is 
 #  empty on other platforms.
 #
-export PROJECT=
+export PROJECT=${PROJECT:-GDAS-DEV}
 
 #
 #  JOB_QUEUE is used on wcoss only with the bjob -q flag.  It is 
 #  empty on other platforms.
 #
-export JOB_QUEUE=
+export JOB_QUEUE=${JOB_QUEUE:-dev}
 
 #
 #  GLB_AREA is either 1 (global) or 0 (regional)
@@ -73,7 +73,7 @@ export OZN_USE_RUN=${OZN_USE_RUN:-1}
 #  desirable.  It is not normally necesary to apply this to parallels.  
 #  0 = off, 1 = on
 #
-export DO_DATA_RPT=${DO_DATA_RPT:-0}
+export DO_DATA_RPT=${DO_DATA_RPT:-1}
 
 #  MAIL_TO is the the primary recipient of generated email warning messages
 #  (if DO_DATA_RPT = 1).

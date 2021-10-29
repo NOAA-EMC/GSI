@@ -33,6 +33,9 @@ elif [[ -d /ioddev_dell ]]; then
 elif [[ -d /scratch1 ]] ; then
     . /apps/lmod/lmod/init/sh
     target=hera
+elif [[ -d /lfs && -d /dfs ]]; then
+    . $MODULESHOME/init/bash
+    target=wcoss2
 else
     echo "unknown target = $target"
     exit 9
@@ -56,7 +59,8 @@ fi
 #---------------------------------------------------           
 
 if [[ ${target} = "hera"     || ${target} = "wcoss" \
-   || ${target} = "wcoss_c"  || ${target} = "wcoss_d" ]]; then
+   || ${target} = "wcoss_c"  || ${target} = "wcoss_d" \
+   || ${target} = "wcoss2" ]]; then
    echo Building nwprod executables on ${target}
    echo
 
@@ -64,7 +68,7 @@ if [[ ${target} = "hera"     || ${target} = "wcoss" \
    #-------------------------------------
    #  load modules 
    #-------------------------------------
-   if [ $target = wcoss_d ]; then
+   if [ $target = wcoss_d -o $target = wcoss2 ]; then
       module purge
       module use -a $dir_modules
       module load modulefile.ProdGSI.$target

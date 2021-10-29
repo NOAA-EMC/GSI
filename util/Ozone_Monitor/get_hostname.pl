@@ -8,12 +8,6 @@
 #  one of those three.
 #-------------------------------------------------------------------
 
-
-#   my $arch;
-#   $arch = ` uname -s | tr '[:upper:]' '[:lower:]' `;
-#   $arch =~ s/^\s+|\s+$//g;
-#   my $my_os = "export MY_OS=$arch";
-
    my $machine = "";
   
    #
@@ -33,6 +27,9 @@
    if( $host =~ /hfe/ ) { 
       $machine = "hera";
    } 
+   elsif( $host =~ /clogin0/ || $host =~ /dlogin0/ ){
+      $machine = "wcoss2"
+   }
    elsif( $host =~ /login/ ) {
       $machine = "cray";
    }
