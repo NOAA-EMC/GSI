@@ -774,6 +774,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
              ntracerio3d=ntracerio3d+1
           else 
             write(6,*)'the metvarname1 ',trim(vartem),' has not been considered yet, stop'
+            call stop2(333)
           endif 
          endif ! iqr is the inital qr, need not to be in IO 
         endif
@@ -2570,7 +2571,6 @@ subroutine gsi_fv3ncdf_write_v1(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3f
        nz=nsig
        nzp1=nz+1
        inative=nzp1-ilev
-!reverse ? thinktodo
        startloc=(/1,1,inative+1/)
        countloc=(/nxcase,nycase,1/)
 
