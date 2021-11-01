@@ -990,7 +990,6 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
        call gsi_fv3ncdf_read_v1(grd_fv3lam_dynvar_ionouv,gsibundle_fv3lam_dynvar_nouv,fv3filenamegin%dynvars,fv3filenamegin)
        call gsi_fv3ncdf_read_v1(grd_fv3lam_tracer_ionouv,gsibundle_fv3lam_tracer_nouv,fv3filenamegin%tracers,fv3filenamegin)
     endif
-    write(6,*)'thinkdebw min/max ges_w ',minval(ges_w),maxval(ges_w)
 
     if( fv3sar_bg_opt == 0) then 
      call GSI_BundleGetPointer ( gsibundle_fv3lam_dynvar_nouv, 'delp'  ,ges_delp ,istatus );ier=ier+istatus
@@ -1661,8 +1660,8 @@ subroutine gsi_fv3ncdf_readuv(grd_uv,ges_u,ges_v,fv3filenamegin)
           call check( nf90_inq_varid(gfile_loc,'v',v_grd_VarId) ) 
           iret=nf90_get_var(gfile_loc,v_grd_VarId,v2d,start=v_startloc,count=v_countloc)
           if(.not.grid_reverse_flag) then 
-            call reverse_grid_r_uv (u2d,nxcase,nycase,1)
-            call reverse_grid_r_uv (v2d,nxcase,nycase,1)
+            call reverse_grid_r_uv (u2d,nxcase,nycase+1,1)
+            call reverse_grid_r_uv (v2d,nxcase+1,nycase,1)
           endif
         call fv3uv2earth(u2d(:,:),v2d(:,:),nxcase,nycase,uc2d,vc2d)
 
