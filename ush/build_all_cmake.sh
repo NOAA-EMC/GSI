@@ -82,6 +82,10 @@ elif [ $target = hera -o $target = orion -o $target = jet -o $target = s4 ]; the
     module purge
     module use $dir_modules
     module load modulefile.ProdGSI.$target
+elif [ $target = jet ]; then
+    module purge
+    module use $dir_modules
+    module load modulefile.ProdGSI.$target
 elif [ $target = cheyenne ]; then
     module purge
     source $dir_modules/modulefile.ProdGSI.$target

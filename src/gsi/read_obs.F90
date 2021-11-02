@@ -11,6 +11,8 @@ module read_obsmod
 !   2015-05-01  Liu Ling - Add call to read_rapidscat 
 !   2015-08-20  zhu  - add flexibility for enabling all-sky and using aerosol info in radiance 
 !                      assimilation. Use radiance_obstype_search from radiance_mod.  
+!   2016-09-xx  CAPS(G. Zhao) - Add read radar reflectivtiy dbz bufr 
+!                               (from MRMS grib2 in BUFR for direct reflectivity DA)
 !   2017-05-12  Y. Wang and X. Wang - add dbz to be read in, POC: xuguang.wang@ou.edu
 !
 ! subroutines included:
@@ -131,6 +133,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
 !   2013-07-01  todling/guo - allow user to bypass this check (old bufr support)
 !   2014-10-01  ejones   - add gmi and amsr2
 !   2015-01-16  ejones   - add saphir
+!   2016-09-xx  CAPS(G. Zhao) - skipping check BUFR dbz when using dbzbufr for direct reflectivity DA
 !   2016-09-19  guo      - properly initialized nread, in case of for quick-return cases.
 !   2017-11-16  dutta    - adding KOMPSAT5 bufr i.d for reading the data.
 !   2019-03-27  h. liu   - add abi
@@ -159,6 +162,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
   use convinfo, only: nconvtype,ictype,ioctype,icuse
   use chemmod, only : oneobtest_chem,oneob_type_chem,&
        code_pm25_ncbufr,code_pm25_anowbufr,code_pm10_ncbufr,code_pm10_anowbufr
+  use directDA_radaruse_mod, only: l_use_dbz_directDA
 
   implicit none
 
@@ -184,7 +188,9 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
   if(trim(dtype) == 'tcp' .or. trim(filename) == 'tldplrso')return
   if(trim(filename) == 'mitmdat' .or. trim(filename) == 'mxtmdat')return
   if(trim(filename) == 'satmar')return
-  if(trim(dtype) == 'dbz' )return
+  if ( .not. l_use_dbz_directDA) then
+     if(trim(dtype) == 'dbz' )return
+  end if
 
 ! Use routine as usual
 
@@ -668,6 +674,7 @@ subroutine read_obs(ndata,mype)
 !   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
 !   2016-04-28  J. Jung - added logic for RARS and direct broadcast data from NESDIS/UW.
 !   2016-05-05  pondeca - add 10-m u-wind and v-wind (uwnd10m, vwnd10m)
+!   2016-09-xx  CAPS(G. Zhao) - read mosaic dbz in BUFR (read_Radarref_directDA)
 !   2016-09-19  Guo     - replaced open(obs_input_common) with "call unformatted_open(obs_input_common)"
 !   2017-05-12  Y. Wang and X. Wang - add multi-interface to read in dBZ (nc) and radial velocity (ascii)
 !   2016-12-14  lippi   - Fixed bug of using observations twice when both
@@ -745,6 +752,7 @@ subroutine read_obs(ndata,mype)
     use gsi_unformatted, only: unformatted_open
 
     use mrmsmod,only: l_mrms_sparse_netcdf
+    use directDA_radaruse_mod, only: l_use_dbz_directDA
 
     implicit none
 
@@ -1593,9 +1601,14 @@ subroutine read_obs(ndata,mype)
 !            Process radar reflectivity from MRMS
              else if (obstype == 'dbz' ) then
                 print *, "calling read_dbz"
+
                 if(trim(infile)=='dbzobs.nc')then
                   call read_dbz_nc(nread,npuse,nouse,infile,lunout,obstype,sis,hgtl_full,nobs_sub1(1,i))
                   string='READ_dBZ'
+                else if ( l_use_dbz_directDA ) then
+                  call read_radarref_directDA(nread,npuse,nouse,infile,obstype,lunout,twind,sis, &
+                                           nobs_sub1(1,i))
+                  string='READ_RADARREF_DIRECTDA'
                 else
                   call read_dbz_mrms_detect_format(infile,l_mrms_sparse_netcdf)
                   if(l_mrms_sparse_netcdf) then

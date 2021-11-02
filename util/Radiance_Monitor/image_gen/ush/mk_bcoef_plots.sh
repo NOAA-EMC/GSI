@@ -126,9 +126,12 @@ elif [[ $MY_MACHINE = "wcoss_c" ]]; then
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 80 -W 1:15 \
         -J ${jobname} -cwd ${PWD} $IG_SCRIPTS/plot_bcoef.sh
 
-elif [[ $MY_MACHINE = "hera" ]]; then
+elif [[ $MY_MACHINE = "hera" || $MY_MACHINE = "s4" ]]; then
    $SUB --account $ACCOUNT --ntasks=1 --mem=5g --time=1:00:00 -J ${jobname} \
         -o ${logfile} -D . $IG_SCRIPTS/plot_bcoef.sh 
+elif [[ $MY_MACHINE = "jet" ]]; then
+   $SUB --account $ACCOUNT --ntasks=1 --mem=5g --time=1:00:00 -J ${jobname} \
+        -p ${RADMON_PARTITION} -o ${logfile} -D . $IG_SCRIPTS/plot_bcoef.sh
 fi
 
 echo "end mk_bcoef_plots.sh"
