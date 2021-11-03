@@ -31,6 +31,7 @@ contains
   !   2019-04-22  CAPS(C. Tong) - add direct reflectivity DA option
   !
   !   2021-08-10  lei     - modify for fv3-lam ensemble spread output
+  !   2021-11-01  lei     - modify for fv3-lam parallel IO
   !   input argument list:
   !
   !   output argument list:
@@ -60,7 +61,6 @@ contains
       use directDA_radaruse_mod, only: l_use_dbz_directDA
       use directDA_radaruse_mod, only: l_cvpnr
       use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
-      use hybrid_ensemble_parameters, only: fv3sar_ensemble_opt 
       use gridmod,only: regional
       use gsi_rfv3io_mod, only: fv3lam_io_dynmetvars3d_nouv,fv3lam_io_tracermetvars3d_nouv 
       use gsi_rfv3io_mod, only: fv3lam_io_dynmetvars2d_nouv,fv3lam_io_tracermetvars2d_nouv 
@@ -90,10 +90,10 @@ contains
       integer(i_kind),dimension(:,:),allocatable:: uvlnames
   
       integer(i_kind):: i,j,k,n,mm1,istatus
-    integer(i_kind):: ndynvario2d,ntracerio2d,jdynvar,jtracer
-    integer(r_kind):: iuv,ndynvario3d,ntracerio3d,n2dnops
+    integer(i_kind):: ndynvario2d,ntracerio2d
+    integer(r_kind):: ndynvario3d,ntracerio3d
       integer(i_kind):: inner_vars,numfields
-      integer(i_kind):: ilev,ic2,ic3,nnames,iname
+      integer(i_kind):: ilev,ic2,ic3
       integer(i_kind):: m
 
       
@@ -557,7 +557,6 @@ contains
       use netcdf_mod, only: nc_check
       use gsi_rfv3io_mod,only: type_fv3regfilenameg
       use gsi_rfv3io_mod,only:n2d 
-      use gsi_rfv3io_mod,only:mype_t,mype_p ,mype_q,mype_oz
       use constants, only: half,zero
       use gsi_rfv3io_mod, only: gsi_fv3ncdf_read 
       use gsi_rfv3io_mod, only: gsi_fv3ncdf_read_v1
@@ -570,7 +569,6 @@ contains
       use gsi_bundlemod, only: gsi_bundlecreate,gsi_bundledestroy
       use gsi_bundlemod, only: gsi_bundlegetvar
       use hybrid_ensemble_parameters, only: grd_ens
-      use gridmod, only: grd_a
       use directDA_radaruse_mod, only: l_use_cvpqx, cvpqx_pval, cld_nt_updt
       use directDA_radaruse_mod, only: l_cvpnr, cvpnr_pval
 
@@ -595,7 +593,6 @@ contains
       real(r_kind),parameter:: r100  = 100.0_r_kind
      !
   !   Declare local variables
-      integer(i_kind):: inner_vars,numfields
       
       integer(i_kind):: i,j,k,kp
    
@@ -615,7 +612,7 @@ contains
       character(len=:),allocatable :: tracers   !='fv3_tracer'
       character(len=:),allocatable :: sfcdata   !='fv3_sfcdata'
       character(len=:),allocatable :: couplerres!='coupler.res'
-      integer (i_kind) ier,iname,nnames,istatus
+      integer (i_kind) ier,istatus
  
       
       associate( this => this ) ! eliminates warning for unused dummy argument needed for binding

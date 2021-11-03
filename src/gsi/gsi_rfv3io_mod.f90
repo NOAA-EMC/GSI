@@ -13,6 +13,7 @@ module gsi_rfv3io_mod
 !   2018-02-22  wu      - add subroutines for read/write fv3_ncdf
 !   2019        ting    - modifications for use for ensemble IO and cold start files 
 !   2019-03-13  CAPS(C. Tong) - Port direct radar DA capabilities.
+!   2021-11-01  lei     - modify for fv3-lam parallel IO
 ! subroutines included:
 !   sub gsi_rfv3io_get_grid_specs
 !   sub read_fv3_files 
@@ -653,7 +654,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
 !$$$  end documentation block
     use kinds, only: r_kind,i_kind
     use mpimod, only: npe
-    use mpimod, only: ierror,mpi_comm_world
+    use mpimod, only: mpi_comm_world
     use guess_grids, only:ges_prsi
     use gridmod, only: lat2,lon2,nsig,ijn,eta1_ll,eta2_ll,ijn_s
     use constants, only: one,fv
@@ -707,11 +708,9 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     character(max_varname_length),allocatable,dimension(:) :: guessname
     integer(i_kind):: inner_vars,numfields
     integer(i_kind):: ndynvario2d,ntracerio2d,ilev,jdynvar,jtracer
-    integer(r_kind):: iuv,ndynvario3d,ntracerio3d,n2dnops
+    integer(r_kind):: iuv,ndynvario3d,ntracerio3d
     integer(i_kind):: nguess
 
-      character(len=:),allocatable :: dynvars   !='fv3_dynvars'
-      character(len=:),allocatable :: tracers   !='fv3_tracer'
 !clt this block is still maintained for they would be needed for a certain 2d fields IO 
     mype_2d=mod(1,npe)
     allocate(ijns(npe),ijns2d(npe),ijnz(npe) )
@@ -1368,9 +1367,8 @@ subroutine gsi_fv3ncdf_read(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin)
 
 
     use kinds, only: r_kind,i_kind
-    use mpimod, only: ierror,mpi_comm_world,npe,mpi_rtype,mype
-    use mpimod, only:  ierror,MPI_INFO_NULL
-    use gridmod, only: lat2,lon2,nsig,nlat,nlon,itotsub,ijn_s
+    use mpimod, only: mpi_comm_world,mpi_rtype,mype
+    use mpimod, only:  MPI_INFO_NULL
     use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
     use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
     use netcdf, only: nf90_inquire_variable
@@ -1385,19 +1383,17 @@ subroutine gsi_fv3ncdf_read(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin)
     character(len=max_varname_length),intent(in):: filenamein
     type (type_fv3regfilenameg),intent(in) ::fv3filenamegin
     real(r_kind),allocatable,dimension(:,:):: uu2d
-    integer(i_kind),allocatable,dimension(:):: dim_id,dim
     real(r_kind),dimension(1,grd_ionouv%nlat,grd_ionouv%nlon,grd_ionouv%kbegin_loc:grd_ionouv%kend_alloc):: hwork
-    character(len=max_varname_length) :: filenamein2
-    character(len=max_varname_length) :: varname,varname2,vgsiname
+    character(len=max_varname_length) :: varname,vgsiname
     character(len=max_varname_length) :: name
+    character(len=max_varname_length) :: filenamein2
 
 
-    integer(i_kind) nlatcase,nloncase,nsigcase,nxcase,nycase,nzcase,countloc(3),startloc(3)
-    integer(i_kind) n,ns,k,ndim,len,ilev,ilevtot,inative
+    integer(i_kind) nlatcase,nloncase,nxcase,nycase,countloc(3),startloc(3)
+    integer(i_kind) ilev,ilevtot,inative
     integer(i_kind) kbgn,kend
     integer(i_kind) gfile_loc,iret,var_id
-    integer(i_kind) nz,nzp1,kk,j,mm1,i,ir,ii,jj
-    integer(i_kind) ndimensions,nvariables,nattributes,unlimiteddimid
+    integer(i_kind) nz,nzp1,mm1
 
     mm1=mype+1
     nloncase=grd_ionouv%nlon
@@ -1424,7 +1420,7 @@ subroutine gsi_fv3ncdf_read(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin)
         call stop2(333)
        endif
        ilev=grd_ionouv%lnames(1,ilevtot)
-       nz=nsig
+       nz=grd_ionouv%nsig
        nzp1=nz+1
        inative=nzp1-ilev
 !       startloc=nxcase*nycase*(inative-1)+1
@@ -1476,15 +1472,13 @@ subroutine gsi_fv3ncdf_read_v1(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin)
 
 
     use kinds, only: r_kind,i_kind
-    use mpimod, only:  mpi_rtype,mpi_comm_world,ierror,npe,mype,MPI_INFO_NULL
-    use mpimod, only: ierror,mpi_comm_world,npe,mpi_rtype,mype
-    use gridmod, only: lat2,lon2,nsig,nlat,nlon,itotsub,ijn_s
+    use mpimod, only:  mpi_rtype,mpi_comm_world,mype,MPI_INFO_NULL
+    use mpimod, only: mpi_comm_world,mpi_rtype,mype
     use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
     use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
     use netcdf, only: nf90_inquire_variable
     use netcdf, only: nf90_inq_varid
     use mod_fv3_lola, only: fv3_h_to_ll
-    use general_commvars_mod, only: ltosi_s,ltosj_s
     use gsi_bundlemod, only: gsi_bundle
     use general_sub2grid_mod, only: sub2grid_info,general_grid2sub
 
@@ -1494,22 +1488,17 @@ subroutine gsi_fv3ncdf_read_v1(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin)
     type (type_fv3regfilenameg) :: fv3filenamegin
     type(gsi_bundle),intent(inout) :: cstate_nouv
     real(r_kind),allocatable,dimension(:,:):: uu2d
-    real(r_kind),allocatable,dimension(:,:):: temp0 
-    integer(i_kind),allocatable,dimension(:):: dim
     real(r_kind),dimension(1,grd_ionouv%nlat,grd_ionouv%nlon,grd_ionouv%kbegin_loc:grd_ionouv%kend_alloc):: hwork
-    real(r_kind),allocatable,dimension(:,:):: a
     character(len=max_varname_length) :: filenamein2
     character(len=max_varname_length) :: varname,vgsiname
-    character(len=max_varname_length) :: name
 
 
-    integer(i_kind) nlatcase,nloncase,nsigcase,nxcase,nycase,nzcase,countloc(3),startloc(3)
+    integer(i_kind) nlatcase,nloncase,nxcase,nycase,countloc(3),startloc(3)
     integer(i_kind) kbgn,kend
-    integer(i_kind) n,ns,k,len,var_id
+    integer(i_kind) var_id
     integer(i_kind) inative,ilev,ilevtot
     integer(i_kind) gfile_loc,iret
-    integer(i_kind) nztmp,nzp1,kk,j,mm1,i,ir,ii,jj
-    integer(i_kind) ndimensions,nvariables,nattributes,unlimiteddimid
+    integer(i_kind) nzp1,mm1,ir
 
     mm1=mype+1
 
@@ -1537,7 +1526,7 @@ subroutine gsi_fv3ncdf_read_v1(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin)
         call stop2(333)
        endif
        ilev=grd_ionouv%lnames(1,ilevtot)
-       nz=nsig
+       nz=grd_ionouv%nsig
        nzp1=nz+1
        inative=nzp1-ilev
        startloc=(/1,1,inative+1/)
@@ -1587,14 +1576,12 @@ subroutine gsi_fv3ncdf_readuv(grd_uv,ges_u,ges_v,fv3filenamegin)
 !
 !$$$  end documentation block
     use kinds, only: r_kind,i_kind
-    use mpimod, only: ierror,mpi_comm_world,npe,mpi_rtype,mype,mpi_info_null
-    use gridmod, only: lat2,lon2,nsig,itotsub,ijn_s
+    use mpimod, only: mpi_comm_world,mpi_rtype,mype,mpi_info_null
     use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
     use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
     use netcdf, only: nf90_inquire_variable
     use netcdf, only: nf90_inq_varid
-    use mod_fv3_lola, only: fv3_h_to_ll,nya,nxa,fv3uv2earth
-    use general_commvars_mod, only: ltosi_s,ltosj_s
+    use mod_fv3_lola, only: fv3_h_to_ll,fv3uv2earth
     use general_sub2grid_mod, only: sub2grid_info,general_grid2sub
 
     implicit none
@@ -1608,19 +1595,16 @@ subroutine gsi_fv3ncdf_readuv(grd_uv,ges_u,ges_v,fv3filenamegin)
     real(r_kind),allocatable,dimension(:,:):: uc2d,vc2d
     character(len=max_varname_length) :: filenamein2
     character(len=max_varname_length) :: varname,vgsiname
-    character(len=max_varname_length) :: name
     real(r_kind),allocatable,dimension(:,:,:,:):: worksub
     integer(i_kind) u_grd_VarId,v_grd_VarId
     integer(i_kind) nlatcase,nloncase
-    integer(i_kind) nxcase,nycase,nzcase
+    integer(i_kind) nxcase,nycase
     integer(i_kind) u_countloc(3),u_startloc(3),v_countloc(3),v_startloc(3)
     integer(i_kind) inative,ilev,ilevtot
     integer(i_kind) kbgn,kend
 
-    integer(i_kind) n,ns,k,len,ndim
     integer(i_kind) gfile_loc,iret
-    integer(i_kind) nz,nzp1,kk,j,mm1,i,ir,ii,jj
-    integer(i_kind) ndimensions,nvariables,nattributes,unlimiteddimid
+    integer(i_kind) nz,nzp1,mm1
 
     mm1=mype+1
     nloncase=grd_uv%nlon
@@ -1648,7 +1632,7 @@ subroutine gsi_fv3ncdf_readuv(grd_uv,ges_u,ges_v,fv3filenamegin)
         call stop2(333)
        endif
        ilev=grd_uv%lnames(1,ilevtot)
-       nz=nsig
+       nz=grd_uv%nsig
        nzp1=nz+1
        inative=nzp1-ilev
        u_countloc=(/nxcase,nycase+1,1/)
@@ -1718,41 +1702,36 @@ subroutine gsi_fv3ncdf_readuv_v1(grd_uv,ges_u,ges_v,fv3filenamegin)
 !$$$  end documentation block
     use constants, only:  half
     use kinds, only: r_kind,i_kind
-    use mpimod, only: ierror,mpi_comm_world,npe,mpi_rtype,mype,mpi_info_null
-    use gridmod, only: lat2,lon2,nsig,itotsub,ijn_s
+    use mpimod, only: mpi_comm_world,mpi_rtype,mype,mpi_info_null
     use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
     use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
     use netcdf, only: nf90_inquire_variable
     use netcdf, only: nf90_inq_varid
-    use mod_fv3_lola, only: fv3_h_to_ll,nya,nxa,fv3uv2earth
-    use general_commvars_mod, only: ltosi_s,ltosj_s
+    use mod_fv3_lola, only: fv3_h_to_ll,fv3uv2earth
     use general_sub2grid_mod, only: sub2grid_info,general_grid2sub
 
     implicit none
     type(sub2grid_info), intent(in):: grd_uv 
     real(r_kind),dimension(2,grd_uv%nlat,grd_uv%nlon,grd_uv%kbegin_loc:grd_uv%kend_alloc):: hwork
-    real(r_kind)   ,intent(out  ) :: ges_u(lat2,lon2,nsig) 
-    real(r_kind)   ,intent(out  ) :: ges_v(lat2,lon2,nsig) 
+    real(r_kind)   ,intent(out  ) :: ges_u(grd_uv%lat2,grd_uv%lon2,grd_uv%nsig) 
+    real(r_kind)   ,intent(out  ) :: ges_v(grd_uv%lat2,grd_uv%lon2,grd_uv%nsig) 
     character(len=max_varname_length):: filenamein
     type (type_fv3regfilenameg),intent (in) :: fv3filenamegin
-    character(len=max_varname_length) :: name
     real(r_kind),allocatable,dimension(:,:):: us2d,vw2d
     real(r_kind),allocatable,dimension(:,:):: uorv2d
-    integer(i_kind),allocatable,dimension(:):: dim
     real(r_kind),allocatable,dimension(:,:,:,:):: worksub
     character(len=max_varname_length) :: filenamein2 
-    character(len=max_varname_length) :: varname,vgsiname
+    character(len=max_varname_length) :: varname
     integer(i_kind) nlatcase,nloncase
     integer(i_kind) kbgn,kend
 
-    integer(i_kind) n,ns,k,len,ndim,var_id
+    integer(i_kind) var_id
     integer(i_kind) gfile_loc,iret
-    integer(i_kind) nztmp,nzp1,kk,j,mm1,i,ir,ii,jj
-    integer(i_kind) ndimensions,nvariables,nattributes,unlimiteddimid
+    integer(i_kind) j,nzp1,mm1
     integer(i_kind) ilev,ilevtot,inative
     integer(i_kind) nxcase,nycase
-    integer(i_kind) uw_countloc(3),us_countloc(3),uw_startloc(3),us_startloc(3)
-    integer(i_kind) vw_countloc(3),vs_countloc(3),vw_startloc(3),vs_startloc(3)
+    integer(i_kind) us_countloc(3),us_startloc(3)
+    integer(i_kind) vw_countloc(3),vw_startloc(3)
 
     allocate (worksub(2,grd_uv%lat2,grd_uv%lon2,grd_uv%nsig))
     mm1=mype+1
@@ -1800,11 +1779,11 @@ subroutine gsi_fv3ncdf_readuv_v1(grd_uv,ges_u,ges_v,fv3filenamegin)
               uorv2d(:,j)=half*(us2d(:,j)+us2d(:,j+1))
              enddo
              
-             call fv3_h_to_ll(uorv2d(:,:),hwork(1,:,:,ilevtot),nxcase,nycase,nxa,nya,grid_reverse_flag)
+             call fv3_h_to_ll(uorv2d(:,:),hwork(1,:,:,ilevtot),nxcase,nycase,nloncase,nlatcase,grid_reverse_flag)
              do j=1,nx
               uorv2d(j,:)=half*(vw2d(j,:)+vw2d(j+1,:))
              enddo
-             call fv3_h_to_ll(uorv2d(:,:),hwork(2,:,:,ilevtot),nxcase,nycase,nxa,nya,grid_reverse_flag)
+             call fv3_h_to_ll(uorv2d(:,:),hwork(2,:,:,ilevtot),nxcase,nycase,nloncase,nlatcase,grid_reverse_flag)
           
        enddo ! iilevtoto
        call general_grid2sub(grd_uv,hwork,worksub) 
@@ -1843,26 +1822,22 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer,gsi_bundleputvar
     use mpeu_util, only: die
+    use gridmod, only: lat2,lon2,nsig
 
     use gridmod,only: l_reg_update_hydro_delz
-    use gridmod, only: lat2,lon2,nsig
     use guess_grids, only:geom_hgti,geom_hgti_bg
 
     use directDA_radaruse_mod, only: l_use_cvpqx, cvpqx_pval, cld_nt_updt
     use directDA_radaruse_mod, only: l_use_dbz_directDA
     use directDA_radaruse_mod, only: l_cvpnr, cvpnr_pval
     use gridmod,  only: eta1_ll,eta2_ll
-    use mpimod, only: mype
 
 
     implicit none
-    character(len=max_varname_length):: filenamein
     type (type_fv3regfilenameg),intent(in) :: fv3filenamegin
 
 ! Declare local constants
     logical add_saved
-      character(len=:),allocatable :: dynvars   !='fv3_dynvars'
-      character(len=:),allocatable :: tracers   !='fv3_tracer'
  ! variables for cloud info
     integer(i_kind) ier,istatus,it
     real(r_kind),pointer,dimension(:,:  ):: ges_ps  =>NULL()
@@ -1870,8 +1845,7 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     real(r_kind),pointer,dimension(:,:,:):: ges_v   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_q   =>NULL()
    
-    real(r_kind),allocatable,dimension(:,:)::ges_psinc
-    integer(i_kind) i,j,k
+    integer(i_kind) i,k
 
     real(r_kind),pointer,dimension(:,:,:):: ges_ql  =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_qi  =>NULL()
@@ -2004,14 +1978,11 @@ subroutine gsi_fv3ncdf_writeuv(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
 !
 !$$$ end documentation block
 
-    use mpimod, only:  mpi_rtype,mpi_comm_world,ierror,npe,mype,mpi_info_null
+    use mpimod, only:  mpi_rtype,mpi_comm_world,mype,mpi_info_null
     use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
-    use gridmod, only: lat2,lon2,nlon,nlat,lat1,lon1,nsig, &
-                       ijn,displs_g,itotsub,iglobal, &
-                       nlon_regional,nlat_regional
+    use gridmod, only: nlon_regional,nlat_regional
     use mod_fv3_lola, only: fv3_ll_to_h,fv3_h_to_ll, &
                             fv3uv2earth,earthuv2fv3
-    use general_commvars_mod, only: ltosi,ltosj
     use netcdf, only: nf90_open,nf90_close,nf90_noerr
     use netcdf, only: nf90_write,nf90_inq_varid
     use netcdf, only: nf90_put_var,nf90_get_var
@@ -2027,7 +1998,7 @@ subroutine gsi_fv3ncdf_writeuv(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
     real(r_kind),dimension(grd_uv%lat2,grd_uv%lon2,grd_uv%nsig),intent(inout)::ges_v
 
     integer(i_kind) :: ugrd_VarId,gfile_loc,vgrd_VarId
-    integer(i_kind) i,j,mm1,n,k,ns,kr,m,nzp1,iret
+    integer(i_kind) i,j,mm1,k,nzp1
     integer(i_kind) kbgn,kend
     integer(i_kind) inative,ilev,ilevtot
     integer(i_kind) nlatcase,nloncase
@@ -2068,7 +2039,7 @@ subroutine gsi_fv3ncdf_writeuv(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
     do ilevtot=kbgn,kend
        varname=grd_uv%names(1,ilevtot)
        ilev=grd_uv%lnames(1,ilevtot)
-       nz=nsig
+       nz=grd_uv%nsig
        nzp1=nz+1
        inative=nzp1-ilev
        u_countloc=(/nxcase,nycase+1,1/)
@@ -2083,7 +2054,7 @@ subroutine gsi_fv3ncdf_writeuv(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
        call check( nf90_inq_varid(gfile_loc,'v',vgrd_VarId) )
 
        if(add_saved)then
-          allocate( workau2(nlat,nlon),workav2(nlat,nlon))
+          allocate( workau2(nlatcase,nloncase),workav2(nlatcase,nloncase))
           allocate( workbu2(nlon_regional,nlat_regional+1))
           allocate( workbv2(nlon_regional+1,nlat_regional))
 !!!!!!!!  readin work_b !!!!!!!!!!!!!!!!
@@ -2094,21 +2065,21 @@ subroutine gsi_fv3ncdf_writeuv(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
              call reverse_grid_r_uv(work_bv,nlon_regional+1,nlat_regional,1)
           endif
              call fv3uv2earth(work_bu,work_bv,nlon_regional,nlat_regional,u2d,v2d)
-             call fv3_h_to_ll(u2d,workau2,nlon_regional,nlat_regional,nlon,nlat,.true.)
-             call fv3_h_to_ll(v2d,workav2,nlon_regional,nlat_regional,nlon,nlat,.true.)
+             call fv3_h_to_ll(u2d,workau2,nlon_regional,nlat_regional,nloncase,nlatcase,.true.)
+             call fv3_h_to_ll(v2d,workav2,nlon_regional,nlat_regional,nloncase,nlatcase,.true.)
 !!!!!!!! find analysis_inc:  work_a !!!!!!!!!!!!!!!!
              work_au(:,:)=work_au(:,:)-workau2(:,:)
              work_av(:,:)=work_av(:,:)-workav2(:,:)
-             call fv3_ll_to_h(work_au(:,:),u2d,nlon,nlat,nlon_regional,nlat_regional,.true.)
-             call fv3_ll_to_h(work_av(:,:),v2d,nlon,nlat,nlon_regional,nlat_regional,.true.)
+             call fv3_ll_to_h(work_au(:,:),u2d,nloncase,nlatcase,nlon_regional,nlat_regional,.true.)
+             call fv3_ll_to_h(work_av(:,:),v2d,nloncase,nlatcase,nlon_regional,nlat_regional,.true.)
              call earthuv2fv3(u2d,v2d,nlon_regional,nlat_regional,workbu2,workbv2)
 !!!!!!!!  add analysis_inc to readin work_b !!!!!!!!!!!!!!!!
              work_bu(:,:)=work_bu(:,:)+workbu2(:,:)
              work_bv(:,:)=work_bv(:,:)+workbv2(:,:)
           deallocate(workau2,workbu2,workav2,workbv2)
        else
-             call fv3_ll_to_h(work_au(:,:),u2d,nlon,nlat,nlon_regional,nlat_regional,.true.)
-             call fv3_ll_to_h(work_av(:,:),v2d,nlon,nlat,nlon_regional,nlat_regional,.true.)
+             call fv3_ll_to_h(work_au(:,:),u2d,nloncase,nlatcase,nlon_regional,nlat_regional,.true.)
+             call fv3_ll_to_h(work_av(:,:),v2d,nloncase,nlatcase,nlon_regional,nlat_regional,.true.)
              call earthuv2fv3(u2d,v2d,nlon_regional,nlat_regional,work_bu(:,:),work_bv(:,:))
        endif
        if(.not.grid_reverse_flag) then
@@ -2154,13 +2125,10 @@ subroutine gsi_fv3ncdf_writeuv_v1(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
 !$$$ end documentation block
 
     use constants, only: half,zero
-    use mpimod, only:  mpi_rtype,mpi_comm_world,ierror,npe,mype,mpi_info_null
-    use gridmod, only: lat2,lon2,nlon,nlat,lat1,lon1,nsig, &
-                       ijn,displs_g,itotsub,iglobal, &
-                       nlon_regional,nlat_regional
+    use mpimod, only:  mpi_rtype,mpi_comm_world,mype,mpi_info_null
+    use gridmod, only: nlon_regional,nlat_regional
     use mod_fv3_lola, only: fv3_ll_to_h,fv3_h_to_ll, &
                             fv3uv2earth,earthuv2fv3
-    use general_commvars_mod, only: ltosi,ltosj
     use netcdf, only: nf90_open,nf90_close,nf90_noerr
     use netcdf, only: nf90_write,nf90_inq_varid
     use netcdf, only: nf90_put_var,nf90_get_var
@@ -2173,13 +2141,12 @@ subroutine gsi_fv3ncdf_writeuv_v1(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
     logical        ,intent(in   ) :: add_saved
     character(len=max_varname_length):: filenamein
     type (type_fv3regfilenameg),intent (in) :: fv3filenamegin
-    character(len=max_varname_length) :: filenamein2 
-    character(len=max_varname_length) :: varname,vgsiname
+    character(len=max_varname_length) :: varname
 
     integer(i_kind) :: gfile_loc
     integer(i_kind) :: u_wgrd_VarId,v_wgrd_VarId
     integer(i_kind) :: u_sgrd_VarId,v_sgrd_VarId
-    integer(i_kind) i,j,mm1,n,k,ns,kr,m,nzp1,iret
+    integer(i_kind) i,j,mm1,k,nzp1
     integer(i_kind) ilev0
     integer(i_kind) kbgn,kend
     integer(i_kind) inative,ilev,ilevtot
@@ -2221,7 +2188,7 @@ subroutine gsi_fv3ncdf_writeuv_v1(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
        allocate( work_bu_w(nlon_regional+1,nlat_regional))
        allocate( work_bv_w(nlon_regional+1,nlat_regional))
        allocate( work_au(nlatcase,nloncase),work_av(nlatcase,nloncase))
-       if(add_saved) allocate( workau2(nlat,nlon),workav2(nlat,nlon))
+       if(add_saved) allocate( workau2(nlatcase,nloncase),workav2(nlatcase,nloncase))
           allocate( workbu_w2(nlon_regional+1,nlat_regional))
           allocate( workbv_w2(nlon_regional+1,nlat_regional))
           allocate( workbu_s2(nlon_regional,nlat_regional+1))
@@ -2277,13 +2244,13 @@ subroutine gsi_fv3ncdf_writeuv_v1(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
              do i=1,nlon_regional
                 v2d(i,:)=half*(work_bv_w(i,:)+work_bv_w(i+1,:))
              enddo
-             call fv3_h_to_ll(u2d,workau2,nlon_regional,nlat_regional,nlon,nlat,grid_reverse_flag)
-             call fv3_h_to_ll(v2d,workav2,nlon_regional,nlat_regional,nlon,nlat,grid_reverse_flag)
+             call fv3_h_to_ll(u2d,workau2,nlon_regional,nlat_regional,nloncase,nlatcase,grid_reverse_flag)
+             call fv3_h_to_ll(v2d,workav2,nlon_regional,nlat_regional,nloncase,nlatcase,grid_reverse_flag)
 !!!!!!!! find analysis_inc:  work_a !!!!!!!!!!!!!!!!
              work_au(:,:)=work_au(:,:)-workau2(:,:)
              work_av(:,:)=work_av(:,:)-workav2(:,:)
-             call fv3_ll_to_h(work_au(:,:),u2d,nlon,nlat,nlon_regional,nlat_regional,grid_reverse_flag)
-             call fv3_ll_to_h(work_av(:,:),v2d,nlon,nlat,nlon_regional,nlat_regional,grid_reverse_flag)
+             call fv3_ll_to_h(work_au(:,:),u2d,nloncase,nlatcase,nlon_regional,nlat_regional,grid_reverse_flag)
+             call fv3_ll_to_h(work_av(:,:),v2d,nloncase,nlatcase,nlon_regional,nlat_regional,grid_reverse_flag)
 !!!!!!!!  add analysis_inc to readin work_b !!!!!!!!!!!!!!!!
              do i=2,nlon_regional
                workbu_w2(i,:)=half*(u2d(i-1,:)+u2d(i,:))
@@ -2310,8 +2277,8 @@ subroutine gsi_fv3ncdf_writeuv_v1(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
              work_bv_w(:,:)=work_bv_w(:,:)+workbv_w2(:,:)
              work_bv_s(:,:)=work_bv_s(:,:)+workbv_s2(:,:)
        else
-             call fv3_ll_to_h(work_au(:,:),u2d,nlon,nlat,nlon_regional,nlat_regional,grid_reverse_flag)
-             call fv3_ll_to_h(work_av(:,:),v2d,nlon,nlat,nlon_regional,nlat_regional,grid_reverse_flag)
+             call fv3_ll_to_h(work_au(:,:),u2d,nloncase,nlatcase,nlon_regional,nlat_regional,grid_reverse_flag)
+             call fv3_ll_to_h(work_av(:,:),v2d,nloncase,nlatcase,nlon_regional,nlat_regional,grid_reverse_flag)
 
              do i=2,nlon_regional
                work_bu_w(i,:)=half*(u2d(i-1,:)+u2d(i,:))
@@ -2380,12 +2347,9 @@ subroutine gsi_fv3ncdf_write(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3file
 !
 !$$$ end documentation block
 
-    use mpimod, only: mpi_rtype,mpi_comm_world,ierror,npe,mype,mpi_info_null
-    use gridmod, only: lat2,lon2,nlon,nlat,lat1,lon1,nsig
-    use gridmod, only: ijn,displs_g,itotsub,iglobal
+    use mpimod, only: mpi_rtype,mpi_comm_world,mype,mpi_info_null
     use mod_fv3_lola, only: fv3_ll_to_h
     use mod_fv3_lola, only: fv3_h_to_ll
-    use general_commvars_mod, only: ltosi,ltosj
     use netcdf, only: nf90_open,nf90_close
     use netcdf, only: nf90_write,nf90_inq_varid
     use netcdf, only: nf90_put_var,nf90_get_var
@@ -2401,13 +2365,12 @@ subroutine gsi_fv3ncdf_write(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3file
     real(r_kind),dimension(1,grd_ionouv%nlat,grd_ionouv%nlon,grd_ionouv%kbegin_loc:grd_ionouv%kend_alloc):: hwork
     character(len=max_varname_length) :: filenamein2 
     character(len=max_varname_length) :: varname,vgsiname
-    character(len=max_varname_length) :: name
 
     integer(i_kind) nlatcase,nloncase,nxcase,nycase,countloc(3),startloc(3)
     integer(i_kind) kbgn,kend
     integer(i_kind) inative,ilev,ilevtot
     integer(i_kind) :: VarId,gfile_loc
-    integer(i_kind) i,j,iret,mm1,k,kr,ns,n,m,nzp1
+    integer(i_kind) mm1,nzp1
     real(r_kind),allocatable,dimension(:,:):: work_a
     real(r_kind),allocatable,dimension(:,:):: work_b
     real(r_kind),allocatable,dimension(:,:):: workb2,worka2
@@ -2423,10 +2386,10 @@ subroutine gsi_fv3ncdf_write(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3file
     nycase=ny
     kbgn=grd_ionouv%kbegin_loc
     kend=grd_ionouv%kend_loc
-       allocate( work_a(nlat,nlon))
+       allocate( work_a(nlatcase,nloncase))
        allocate( work_b(nlon_regional,nlat_regional))
        allocate( workb2(nlon_regional,nlat_regional))
-       allocate( worka2(nlat,nlon))
+       allocate( worka2(nlatcase,nloncase))
     call check( nf90_open(filenamein,nf90_write,gfile_loc,comm=mpi_comm_world,info=MPI_INFO_NULL) )
     do ilevtot=kbgn,kend
        vgsiname=grd_ionouv%names(1,ilevtot)
@@ -2437,7 +2400,7 @@ subroutine gsi_fv3ncdf_write(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3file
         call stop2(333)
        endif
        ilev=grd_ionouv%lnames(1,ilevtot)
-       nz=nsig
+       nz=grd_ionouv%nsig
        nzp1=nz+1
        inative=nzp1-ilev
        countloc=(/nxcase,nycase,1/)
@@ -2452,20 +2415,20 @@ subroutine gsi_fv3ncdf_write(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3file
 
        if(index(vgsiname,"delzinc").gt.0) then
              call check( nf90_get_var(gfile_loc,VarId,work_b,start = startloc, count = countloc) )
-             call fv3_ll_to_h(work_a(:,:),workb2,nlon,nlat,nlon_regional,nlat_regional,grid_reverse_flag)
+             call fv3_ll_to_h(work_a(:,:),workb2,nloncase,nlatcase,nlon_regional,nlat_regional,grid_reverse_flag)
              work_b(:,:)=work_b(:,:)+workb2(:,:)
           else
           if(add_saved)then
              call check( nf90_get_var(gfile_loc,VarId,work_b,start = startloc, count = countloc) )
          
 
-             call fv3_h_to_ll(work_b(:,:),worka2,nlon_regional,nlat_regional,nlon,nlat,grid_reverse_flag)
+             call fv3_h_to_ll(work_b(:,:),worka2,nlon_regional,nlat_regional,nloncase,nlatcase,grid_reverse_flag)
 !!!!!!!! analysis_inc:  work_a !!!!!!!!!!!!!!!!
              work_a(:,:)=work_a(:,:)-worka2(:,:)
-             call fv3_ll_to_h(work_a(:,:),workb2,nlon,nlat,nlon_regional,nlat_regional,grid_reverse_flag)
+             call fv3_ll_to_h(work_a(:,:),workb2,nloncase,nlatcase,nlon_regional,nlat_regional,grid_reverse_flag)
              work_b(:,:)=work_b(:,:)+workb2(:,:)
           else  
-             call fv3_ll_to_h(work_a(:,:),work_b(:,:),nlon,nlat,nlon_regional,nlat_regional,grid_reverse_flag)
+             call fv3_ll_to_h(work_a(:,:),work_b(:,:),nloncase,nlatcase,nlon_regional,nlat_regional,grid_reverse_flag)
           endif
        endif
        write(6,*)'write varname out0 work_b,ilev ',trim(varname),' ',ilev,work_b(2,2)
@@ -2511,12 +2474,9 @@ subroutine gsi_fv3ncdf_write_v1(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3f
 !
 !$$$ end documentation block
 
-    use mpimod, only: mpi_rtype,mpi_comm_world,ierror,npe,mype,mpi_info_null
-    use gridmod, only: lat2,lon2,nlon,nlat,lat1,lon1,nsig
-    use gridmod, only: ijn,displs_g,itotsub,iglobal
+    use mpimod, only: mpi_rtype,mpi_comm_world,mype,mpi_info_null
     use mod_fv3_lola, only: fv3_ll_to_h
     use mod_fv3_lola, only: fv3_h_to_ll
-    use general_commvars_mod, only: ltosi,ltosj
     use netcdf, only: nf90_open,nf90_close
     use netcdf, only: nf90_write,nf90_inq_varid
     use netcdf, only: nf90_put_var,nf90_get_var
@@ -2536,12 +2496,11 @@ subroutine gsi_fv3ncdf_write_v1(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3f
     integer(i_kind) inative,ilev,ilevtot
     integer(i_kind) :: VarId,gfile_loc
     integer(i_kind) :: ilev0
-    integer(i_kind) i,j,mm1,k,kr,ns,n,m,nzp1
+    integer(i_kind) mm1,nzp1
     real(r_kind),allocatable,dimension(:,:):: work_a
     real(r_kind),allocatable,dimension(:,:):: work_b
     real(r_kind),allocatable,dimension(:,:):: workb2,worka2
     character(len=max_varname_length) :: varname,vgsiname
-    character(len=max_varname_length) :: name
     integer(i_kind) nlatcase,nloncase,nxcase,nycase,countloc(3),startloc(3)
 
 
@@ -2568,7 +2527,7 @@ subroutine gsi_fv3ncdf_write_v1(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3f
         call stop2(333)
        endif
        ilev=grd_ionouv%lnames(1,ilevtot)
-       nz=nsig
+       nz=grd_ionouv%nsig
        nzp1=nz+1
        inative=nzp1-ilev
        startloc=(/1,1,inative+1/)
@@ -2587,13 +2546,13 @@ subroutine gsi_fv3ncdf_write_v1(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3f
          if(add_saved)then
 ! for being now only lev between (including )  2 and nsig+1 of work_b (:,:,lev) 
 ! are updated
-             call fv3_h_to_ll(work_b(:,:),worka2,nlon_regional,nlat_regional,nlon,nlat,grid_reverse_flag)
+             call fv3_h_to_ll(work_b(:,:),worka2,nlon_regional,nlat_regional,nloncase,nlatcase,grid_reverse_flag)
 !!!!!!!! analysis_inc:  work_a !!!!!!!!!!!!!!!!
              work_a(:,:)=work_a(:,:)-worka2(:,:)
-             call fv3_ll_to_h(work_a(:,:),workb2,nloncase,nlat,nlon_regional,nlat_regional,grid_reverse_flag)
+             call fv3_ll_to_h(work_a(:,:),workb2,nloncase,nlatcase,nlon_regional,nlat_regional,grid_reverse_flag)
              work_b(:,:)=work_b(:,:)+workb2(:,:)
          else
-             call fv3_ll_to_h(work_a(:,:),work_b(:,:),nlon,nlat,nlon_regional,nlat_regional,grid_reverse_flag)
+             call fv3_ll_to_h(work_a(:,:),work_b(:,:),nloncase,nlatcase,nlon_regional,nlat_regional,grid_reverse_flag)
          endif
          call check( nf90_put_var(gfile_loc,VarId,work_b,start=startloc,count=countloc) )
    enddo  !ilevtot
