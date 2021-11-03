@@ -1,22 +1,23 @@
- #%Module######################################################################
-## NOAA-EMC/GSI
-##_____________________________________________________
+#%Module######################################################################
+# NOAA-EMC/GSI
+#_____________________________________________________
 #proc ModulesHelp { } {
 #puts stderr "Set environment variables for NOAA-EMC/GSI"
 #puts stderr "This module initializes the environment "
 #puts stderr "for the Intel Compiler Suite $version\n"
-#}
+##}
 #module-whatis " NOAA-EMC/GSI whatis description"
 #
 #
 
-set CRTM_FIX /lfs4/HFIP/hfv3gfs/gwv/l0530/lib/crtm/v2.3.0/fix
+setenv CRTM_FIX /lfs4/HFIP/hfv3gfs/glopara/crtm_v2.3.0
 
 # Load cmake
 module load cmake/3.16.1
 
 # Load python
-module load intelpython/3.6.5
+module use /contrib/anaconda/modulefiles
+module load anaconda/5.3.1
 
 # Load hpc-stack
 module use /lfs4/HFIP/hfv3gfs/nwprod/hpc-stack/libs/modulefiles/stack

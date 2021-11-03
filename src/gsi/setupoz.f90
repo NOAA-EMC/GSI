@@ -415,7 +415,16 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
                 nlevs,mype,doz_dz)
         endif
 
-        
+!       Check scan position errors in ompstc8
+        if(obstype == "ompstc8") then
+          if(data(ifovn,i) == 1 .or. data(ifovn,i) == 2 .or. &
+             data(ifovn,i) == 3 .or. data(ifovn,i) == 4 .or. &
+             data(ifovn,i) == 35) then
+            if(abs(data(ilate,i)) > 50._r_kind)then
+              luse(i) = .false.
+            endif
+          endif
+        endif
 
         if(ozone_diagsave .and. luse(i))then
            ii=ii+1
@@ -1045,7 +1054,7 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
   use gridmod, only : get_ijk,nsig
 
-  use ozinfo, only : gross_oz, jpch_oz, nusis_oz
+  use ozinfo, only : gross_oz, jpch_oz, nusis_oz,pob_oz,error_oz
   use ozinfo, only : b_oz,pg_oz
 
   use jfunc, only : jiter,last,miter,jiterstart
@@ -1115,7 +1124,7 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   integer(i_kind) mm1,itime,ilat,ilon,ilate,ilone,iozmr,ilev,ipres,iprcs,imls_levs
   integer(i_kind),dimension(iint,nobs):: idiagbuf
   integer(i_kind) iairnd,iuvnd,ivisnd
-  real(r_kind) gross
+  real(r_kind) gross,tnoise,pobs
 
   character(12) string
   character(10) filex
@@ -1153,6 +1162,17 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
 !
 !*********************************************************************************
 ! Initialize arrays
+
+! FOR OMPSLP data, all pobs, tnoise and gross in ozinfo are set to 999.99 or
+! 9.99. They will be replaced by the numbers read in from BUFR. They must be
+! initialized here for init_netcdf_diag_ to use
+  do j=1,jpch_oz
+     if (isis == nusis_oz(j)) then
+        pobs=pob_oz(j)
+        tnoise=error_oz(j)
+        gross=gross_oz(j)
+     endif
+  end do
 
   if(ozone_diagsave)then
      irdim1=10
@@ -1583,6 +1603,13 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
         call nc_diag_header("Satellite_Sensor", isis)
         call nc_diag_header("Satellite", dplat(is))
         call nc_diag_header("Observation_type", obstype)
+        call nc_diag_header("pobs", pobs)
+        call nc_diag_header("gross",gross)
+        call nc_diag_header("tnoise",tnoise)
+        if (save_jacobian) then
+          call nc_diag_header("jac_nnz", nnz)
+          call nc_diag_header("jac_nind", nind)
+        endif
      endif
 
   end subroutine init_netcdf_diag_
@@ -1648,6 +1675,17 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
              call nc_diag_metadata("Log10 Ozone Number Density UV", sngl(uvnd))
              call nc_diag_metadata("Log10 Ozone Number Density VIS",sngl(visnd))
            endif
+
+           if(luse(i)) then
+             call nc_diag_metadata("Analysis_Use_Flag",            1             )
+           else
+             call nc_diag_metadata("Analysis_Use_Flag",            -1             )
+           endif
+           if (save_jacobian) then
+              call nc_diag_data2d("Observation_Operator_Jacobian_stind", dhx_dx%st_ind)
+              call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind)
+              call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val,r_single))
+            endif
 
            if (lobsdiagsave) then
               do jj=1,miter

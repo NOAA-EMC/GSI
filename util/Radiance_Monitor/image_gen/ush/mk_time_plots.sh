@@ -143,9 +143,13 @@ elif [[ ${MY_MACHINE} = "wcoss_c" ]]; then
    ${SUB} -q ${JOB_QUEUE} -P ${PROJECT} -M 100 -o ${logfile} -W 1:00 \
           -J ${jobname} -cwd ${PWD} ${IG_SCRIPTS}/plot_summary.sh
 
-elif [[ ${MY_MACHINE} = "hera" ]]; then
+elif [[ ${MY_MACHINE} = "hera" || ${MY_MACHINE} = "s4" ]]; then
    ${SUB} --account ${ACCOUNT}  --ntasks=1 --mem=5g --time=1:00:00 -J ${jobname} \
           -o ${logfile} ${IG_SCRIPTS}/plot_summary.sh
+
+elif [[ ${MY_MACHINE} = "jet" ]]; then
+   ${SUB} --account ${ACCOUNT}  --ntasks=1 --mem=5g --time=1:00:00 -J ${jobname} \
+          --partition ${RADMON_PARTITION} -o ${logfile} ${IG_SCRIPTS}/plot_summary.sh
 fi
 
 
@@ -188,7 +192,7 @@ list="count penalty omgnbc total omgbc"
    ctr=0
 
    for sat in ${SATLIST}; do
-      if [[ ${MY_MACHINE} = "hera" ]]; then
+      if [[ ${MY_MACHINE} = "hera" || ${MY_MACHINE} = "jet" || ${MY_MACHINE} = "s4" ]]; then
          echo "${ctr} $IG_SCRIPTS/plot_time.sh $sat $suffix '$list'" >> $cmdfile
       else
          echo "$IG_SCRIPTS/plot_time.sh $sat $suffix '$list'" >> $cmdfile
@@ -208,10 +212,15 @@ list="count penalty omgnbc total omgbc"
       $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -R affinity[core] -o ${logfile} \
            -W ${wall_tm} -J ${jobname} -cwd ${PWD} ${cmdfile}
 
-   elif [[ $MY_MACHINE = "hera" ]]; then
+   elif [[ $MY_MACHINE = "hera" || $MY_MACHINE = "s4" ]]; then
       echo "using ctr = ${ctr}"
       $SUB --account ${ACCOUNT} -n ${ctr}  -o ${logfile} -D . -J ${jobname} --time=1:00:00 \
            --wrap "srun -l --multi-prog ${cmdfile}"
+
+   elif [[ $MY_MACHINE = "jet" ]]; then
+      echo "using ctr = ${ctr}"
+      $SUB --account ${ACCOUNT} -n ${ctr}  -o ${logfile} -D . -J ${jobname} --time=1:00:00 \
+           -p ${RADMON_PARTITION} --wrap "srun -l --multi-prog ${cmdfile}"
 
    elif [[ ${MY_MACHINE} = "wcoss_c" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -o ${logfile} -W ${wall_tm} \
@@ -238,7 +247,7 @@ list="count penalty omgnbc total omgbc"
 
       ctr=0 
       for var in $list; do
-         if [[ ${MY_MACHINE} = "hera" ]]; then
+         if [[ ${MY_MACHINE} = "hera" || ${MY_MACHINE} = "jet" || ${MY_MACHINE} = "s4" ]]; then
             echo "${ctr} $IG_SCRIPTS/plot_time.sh $sat $var $var" >> $cmdfile
          else
             echo "$IG_SCRIPTS/plot_time.sh $sat $var $var" >> $cmdfile
@@ -259,9 +268,12 @@ list="count penalty omgnbc total omgbc"
       elif [[ ${MY_MACHINE} = "wcoss_c" ]]; then
          $SUB -q $JOB_QUEUE -P $PROJECT -M 500  -o ${logfile} -W ${wall_tm} \
               -J ${jobname} -cwd ${PWD} ${cmdfile}
-      elif [[ $MY_MACHINE = "hera" ]]; then	
+      elif [[ $MY_MACHINE = "hera" || $MY_MACHINE = "s4" ]]; then
          $SUB --account ${ACCOUNT} -n ${ctr}  -o ${logfile} -D . -J ${jobname} --time=4:00:00 \
               --wrap "srun -l --multi-prog ${cmdfile}"
+      elif [[ $MY_MACHINE = "jet" ]]; then
+         $SUB --account ${ACCOUNT} -n ${ctr}  -o ${logfile} -D . -J ${jobname} --time=4:00:00 \
+              -p ${RADMON_PARTITION} --wrap "srun -l --multi-prog ${cmdfile}"
       fi
 
    done
