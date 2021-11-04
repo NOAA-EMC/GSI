@@ -121,7 +121,6 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
      end do
      do i=1,lat2
         tdry = mint(i)
-        if( abs(tdry) < 1.0e-8_r_kind ) tdry = 1.0e-8_r_kind
         tr = ttp/tdry
         if (tdry >= ttp .or. .not. ice) then
            estmax(i) = psat * (tr**xa) * exp(xb*(one-tr))
@@ -137,7 +136,6 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
      do k = 1,nsig
         do i = 1,lat2
            tdry = tsen(i,j,k)
-           if( abs(tdry) < 1.0e-8_r_kind ) tdry = 1.0e-8_r_kind
            tr = ttp/tdry
            if (tdry >= ttp .or. .not. ice) then
               es = psat * (tr**xa) * exp(xb*(one-tr))
@@ -164,6 +162,7 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
            qsat(i,j,k) = max(qmin,qsat(i,j,k))
 
            if(iderivative > 0)then
+!           if(es <= esmax .and. iderivative == 2 .and. qsat(i,j,k) > qmin )then
             if(es <= esmax .and. iderivative == 2)then
               idpupdate=.true.
               idtupdate=.true.
