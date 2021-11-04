@@ -1676,6 +1676,11 @@
      end if
   end if
   if (fv3sar_bg_opt /= 0) l_reg_update_hydro_delz=.false.
+  if(regional_ensemble_option===5.and.fv3sar_ensemble_opt==1.and.fv3sar_bg_opt==0) then
+    write(6,*)'this setup doesn"t work, stop'
+    call stop2(137)
+  endif 
+                pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,fv3sar_bg_opt,fv3sar_ensemble_opt,full_ensemble,pwgtflg,&
   if (anisotropic) then
       call init_fgrid2agrid(pf2aP1)
       call init_fgrid2agrid(pf2aP2)
