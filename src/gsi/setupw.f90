@@ -1244,7 +1244,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         call vqc_setup(vals,ratio_errors,error,cvar,&
                       cg_t,ibb,ikk,var_jb,rat_err2v,wgt,valqcv)
         rwgt = rwgt+0.5_r_kind*wgt/wgtlim
-        valqc=half*(valqcu+valqcv)
+        valqc=valqcu+valqcv
 
 !       Accumulate statistics for obs belonging to this task
         if (muse(i)) then
