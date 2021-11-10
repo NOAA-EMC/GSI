@@ -18,6 +18,8 @@ elif [[ -d /cm ]] ; then
 elif [[ -d /ioddev_dell ]]; then
     . $MODULESHOME/init/sh
     target=wcoss_d
+elif [[ -d /apps/prod ]]; then
+    target=wcoss2
 elif [[ -d /scratch1 ]] ; then
     . /apps/lmod/lmod/init/sh
     target=hera
@@ -74,6 +76,10 @@ elif [ $target = wcoss_c ]; then
     module load $dir_modules/modulefile.ProdGSI.$target
 elif [ $target = discover ]; then
     module load $dir_modules/modulefile.ProdGSI.$target
+elif [ $target = wcoss2 ]; then
+    module purge
+    source $dir_modules/modulefile.ProdGSI.$target
+    module list
 else 
     module purge
     source $dir_modules/modulefile.ProdGSI.$target
