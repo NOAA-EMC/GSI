@@ -18,6 +18,9 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !   2015-06-01  Li      - Modify to make it work when nst_gsi = 0 and nsstbufr data file exists
 !   2016-03-11  j. guo  - Fixed {dlat,dlon}_earth_deg in the obs data stream
 !   2019-01-15  Li      - modify to handle dbuoyb (NC001102) and mbuoyb (NC001103)
+!   2021-02-15  Li      - modify to handle bufr ships, restricted (nc001101,shipsb) and
+!                         unrestricted (NC001113, shipub), and bufr land based lcman (nc001104)
+!   2021-09-09  Li      - modify to handle bufr ships, restricted (nc001013,shipsu)
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -216,7 +219,11 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !
         if ( ( trim(subset) == 'NC001003' ) .or. &            ! MBUOY
              ( trim(subset) == 'NC001004' ) .or. &            ! LCMAN
-             ( trim(subset) == 'NC001001' ) ) then            ! SHIPS
+             ( trim(subset) == 'NC001104' ) .or. &            ! bufr land based LCMAN
+             ( trim(subset) == 'NC001001' ) .or. &            ! SHIPS
+             ( trim(subset) == 'NC001101' ) .or. &            ! bufr SHIPS, restricted
+             ( trim(subset) == 'NC001013' ) .or. &            ! bufr SHIPS, unrestricted
+             ( trim(subset) == 'NC001113' ) ) then            ! bufr SHIPS, unrestricted
            call ufbint(lunin,msst,1,1,iret,'MSST')            ! for ships, fixed buoy and lcman
            call ufbint(lunin,sst,1,1,iret,'SST1')             ! read SST
         elseif ( trim(subset) == 'NC001103' ) then            ! MBUOYB
@@ -259,6 +266,8 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
         elseif ( trim(subset) == 'NC001007' ) then            ! CSTGD
            msst = 16.0_r_kind                                 ! for CSTGD, assign to be 16
            call ufbint(lunin,sst,1,1,iret,'SST1')             ! read SST
+        else
+           cycle read_loop
         endif
 
           call ufbint(lunin,loc,4,1,iret,'CLAT CLATH CLON CLONH')
@@ -320,7 +329,8 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !      
 !          determine platform (ships, dbuoy, fbuoy or lcman and so on) dependent zob and obs. error
 !
-           if ( trim(subset) == 'NC001001' ) then                                            ! SHIPS
+           if ( trim(subset) == 'NC001001' .or. trim(subset) == 'NC001101' .or. &
+                trim(subset) == 'NC001013' .or. trim(subset) == 'NC001113' ) then            ! SHIPS
               ship_mod = 0
               do n = 1, n_ship
                  if ( crpid == trim(ship%id(n)) ) then
@@ -477,7 +487,8 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
                  sstoe = 0.75_r_kind
               endif
 
-           elseif ( trim(subset) == 'NC001004' .or. trim(subset) == 'NC031003' .or. &    ! LCMAN, TRKOB
+           elseif ( trim(subset) == 'NC001004' .or. trim(subset) == 'NC001104' .or. &    ! LCMAN
+                    trim(subset) == 'NC031003' .or. &                                    ! TRKOB
                     trim(subset) == 'NC001005' .or. trim(subset) == 'NC001007' ) then    ! TIDEG, CSTGD
               zob = one
               kx = 197

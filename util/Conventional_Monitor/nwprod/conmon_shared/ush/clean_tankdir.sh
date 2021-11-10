@@ -7,9 +7,12 @@
 #------------------------------------------------------------------
    set -ax
 
-   echo "--> clean_tankdir.sh"
    rc=0
+   hrs=(00 06 12 18)
 
+#   for hr in "${hrs[@]}"; do
+#      echo "$hr"
+#   done
    #---------------------------------------------------------------
    #  Algorithm
    #
@@ -47,37 +50,31 @@
          #
          days=$(( ($(date --date=${PDY} +%s) - $(date --date=${file_extension} +%s) )/(60*60*24) ))
 
-         #--------------------------------------
-         #  rm anything older than 40 days and
-         #  horz_hist subdirectories older than
-         #  7 days
+         #--------------------------------------------
+         #  Remove anything older than 40 days. 
+         #  Remove horz_hist files older than
+         #  7 days, keeping only the nobs.ges* files.
          #
          if [ $days -gt 40 ]; then
-            echo "RM ${C_TANKDIR}/$dir/00/conmon"
-            rm -rf ${C_TANKDIR}/$dir/00/conmon 
-            echo "RM ${C_TANKDIR}/$dir/06/conmon"
-            rm -rf ${C_TANKDIR}/$dir/06/conmon 
-            echo "RM ${C_TANKDIR}/$dir/12/conmon"
-            rm -rf ${C_TANKDIR}/$dir/12/conmon 
-            echo "RM ${C_TANKDIR}/$dir/18/conmon"
-            rm -rf ${C_TANKDIR}/$dir/18/conmon 
+            for hr in "${hrs[@]}"; do
+               echo "RM ${C_TANKDIR}/${dir}/${hr}/conmon"
+               rm -rf ${C_TANKDIR}/${dir}/${hr}/conmon 
+            done
 
          elif [ $days -gt 7 ]; then
-            echo "RM ${C_TANKDIR}/${dir}/00/conmon/horz_hist"
-            rm -rf ${C_TANKDIR}/$dir/00/conmon/horz_hist
-            echo "RM ${C_TANKDIR}/${dir}/06/conmon/horz_hist"
-            rm -rf ${C_TANKDIR}/$dir/06/conmon/horz_hist
-            echo "RM ${C_TANKDIR}/${dir}/12/conmon/horz_hist"
-            rm -rf ${C_TANKDIR}/$dir/12/conmon/horz_hist
-            echo "RM ${C_TANKDIR}/${dir}/18/conmon/horz_hist"
-            rm -rf ${C_TANKDIR}/$dir/18/conmon/horz_hist
+            for hr in "${hrs[@]}"; do
+               echo "RM ${C_TANKDIR}/${dir}/${hr}/conmon/horz_hist"
+               mv ${C_TANKDIR}/${dir}/${hr}/conmon/horz_hist/ges/nobs.ges* ${C_STMP_USER}/.
+               rm -rf ${C_TANKDIR}/$dir/${hr}/conmon/horz_hist
+               mkdir -p ${C_TANKDIR}/$dir/${hr}/conmon/horz_hist/ges
+               mv ${C_STMP_USER}/nobs.ges* ${C_TANKDIR}/$dir/${hr}/conmon/horz_hist/ges/.
+            done
          fi
 
       fi
 
    done
 
-   echo "<-- clean_tankdir.sh"
 
 exit ${rc}
 

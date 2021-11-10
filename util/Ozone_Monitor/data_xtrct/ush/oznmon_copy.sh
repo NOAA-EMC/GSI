@@ -134,7 +134,6 @@ if [[ ${exit_value} -eq 0 ]]; then
          fi
       done     
 
-
       if [[ ${#oznstat_list} -gt 0 ]]; then
 
          diag_rpt="diag_rpt.txt"
