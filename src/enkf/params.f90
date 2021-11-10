@@ -129,7 +129,10 @@ real(r_single),public :: wmoist,adrate
 real(r_single),public :: tar_minlat,tar_maxlat,tar_minlon,tar_maxlon
 real(r_single),public :: covl_minfact, covl_efold
 
-real(r_single),public :: covinflatenh,covinflatesh,covinflatetr,lnsigcovinfcutoff
+real(r_single),public :: covinflatenh=0
+real(r_single),public :: covinflatetr=0
+real(r_single),public :: covinflatesh=0
+real(r_single),public :: lnsigcovinfcutoff
 ! if npefiles=0, diag files are read (concatenated pe* files written by gsi)
 ! if npefiles>0, npefiles+1 pe* files read directly
 ! the pe* files are assumed to be located in <obspath>/gsitmp_mem###
