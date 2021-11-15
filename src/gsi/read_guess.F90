@@ -89,7 +89,7 @@ subroutine read_guess(iyear,month,idd,mype)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use jfunc, only: bcoption,clip_supersaturation
+  use jfunc, only: bcoption,clip_supersaturation,superfact
   use guess_grids, only: nfldsig,ges_tsen,load_prsges,load_geop_hgt,ges_prsl,&
                          ges_tsen1, geop_hgti, ges_geopi, ges_q1
   use m_gsiBiases,only : bkg_bias_correction,nbc
@@ -250,7 +250,7 @@ subroutine read_guess(iyear,month,idd,mype)
       do k=1,nsig
          do j=1,lon2
             do i=1,lat2
-               satval = min(ges_q(i,j,k),satq(i,j,k))
+               satval = min(ges_q(i,j,k),superfact*satq(i,j,k))
                satval = max(qmin,satval)
                ges_q(i,j,k) = satval
                ges_tsen(i,j,k,it)= ges_tv(i,j,k)/(one+fv*ges_q(i,j,k))

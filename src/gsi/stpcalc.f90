@@ -280,7 +280,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
   real(r_kind),dimension(4)::sges
   real(r_kind),dimension(ioutpen):: outpen,outstp
   logical :: cxterm,change_dels,ifound
-  logical :: print_verbose
+  logical :: print_verbose,pjcalc
 
 
 !************************************************************************************  
@@ -296,6 +296,8 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
   outpen = zero
   nsteptot=0
   istp_use=0
+  kprt=3
+  pjcalc=.false.
   pj=zero_quad
 
 !   Begin calculating contributions to penalty and stepsize for various terms
@@ -386,12 +388,13 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
 
   pstart=zero_quad
   pbc=zero_quad
+  if(iter == 0 .and. kprt >= 2)pjcalc=.true.
 
 
 ! penalty, b and c for background terms
 
   pstart(1,1) = qdot_prod_sub(xhatsave,yhatsave)
-  pj(1,1)=pstart(1,1)
+  if(pjcalc)pj(1,1)=pstart(1,1)
 
 !  two terms in next line should be the same, but roundoff makes average more accurate.
 
@@ -406,7 +409,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
 
   if (ljcdfi .and. nobs_bins>1) then
     call stpjcdfi(dval,sval,pstart(1,2),pstart(2,2),pstart(3,2))
-    pj(2,1)=pstart(1,2)
+    if(pjcalc)pj(2,1)=pstart(1,2)
   end if
 
 ! Penalty, b, c for dry pressure
@@ -416,13 +419,15 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
     else
        call stpjcpdry(dval,sval,pstart(1,3),pstart(2,3),pstart(3,3),nobs_bins)
     end if
-    pj(3,1)=pstart(1,3)
+    if(pjcalc)pj(3,1)=pstart(1,3)
   end if
 
 ! iterate over number of stepsize iterations (istp_iter - currently set to a maximum of 5)
   dels = one_tenth_quad
   stepsize: do ii=1,istp_iter
 
+     pjcalc=.false.
+     if(iter == 0 .and. kprt >= 2 .and. ii == 1)pjcalc=.true.
      iis=ii
 !    Delta stepsize
      change_dels=.true.
@@ -457,141 +462,9 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
 
 !    penalties for moisture constraint
      if(.not. ltlint)then
-        if (ljclimqc) then
-        if (getindex(cvars3d,'ql')>0) then
-           if(.not.ljc4tlevs) then
-              call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,13),nstep,ntguessig,'ql')
-              if(ii == 1) pj(13,1)=pbc(1,13)+pbc(ipenloc,13)
-           else
-              do ibin=1,nobs_bins
-                 if (nobs_bins /= nfldsig) then
-                    it=ntguessig
-                 else
-                    it=ibin
-                 end if
-                 call stplimqc(dval(ibin),sval(ibin),sges,pbcql(1,ibin),nstep,it,'ql')
-              end do
-              pbc(:,13)=zero_quad
-              do ibin=1,nobs_bins
-                 do j=1,nstep
-                    pbc(j,13) = pbc(j,13)+pbcql(j,ibin)
-                 end do
-              end do
-              if(ii == 1)then
-                 do ibin=1,nobs_bins
-                    pj(13,ibin)=pj(13,ibin)+pbcql(1,ibin)+pbcql(ipenloc,ibin)
-                 end do
-              end if
-           end if
-        end if
-        if (getindex(cvars3d,'qi')>0) then
-           if(.not.ljc4tlevs) then
-              call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,14),nstep,ntguessig,'qi')
-              if(ii == 1) pj(14,1)=pbc(1,14)+pbc(ipenloc,14)
-           else
-              do ibin=1,nobs_bins
-                 if (nobs_bins /= nfldsig) then
-                    it=ntguessig
-                 else
-                    it=ibin
-                 end if
-                 call stplimqc(dval(ibin),sval(ibin),sges,pbcqi(1,ibin),nstep,it,'qi')
-              end do
-              pbc(:,14)=zero_quad
-              do ibin=1,nobs_bins
-                 do j=1,nstep
-                    pbc(j,14) = pbc(j,14)+pbcqi(j,ibin)
-                 end do
-              end do
-              if(ii == 1)then
-                 do ibin=1,nobs_bins
-                    pj(14,ibin)=pj(14,ibin)+pbcqi(1,ibin)+pbcqi(ipenloc,ibin)
-                 end do
-              end if
-           end if
-        end if
-        if (getindex(cvars3d,'qr')>0) then
-           if(.not.ljc4tlevs) then
-              call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,15),nstep,ntguessig,'qr')
-              if(ii == 1) pj(15,1)=pbc(1,15)+pbc(ipenloc,15)
-           else
-              do ibin=1,nobs_bins
-                 if (nobs_bins /= nfldsig) then
-                    it=ntguessig
-                 else
-                    it=ibin
-                 end if
-                 call stplimqc(dval(ibin),sval(ibin),sges,pbcqr(1,ibin),nstep,it,'qr')
-              end do
-              pbc(:,15)=zero_quad
-              do ibin=1,nobs_bins
-                 do j=1,nstep
-                    pbc(j,15) = pbc(j,15)+pbcqr(j,ibin)
-                 end do
-              end do
-              if(ii == 1)then
-                 do ibin=1,nobs_bins
-                    pj(15,ibin)=pj(15,ibin)+pbcqr(1,ibin)+pbcqr(ipenloc,ibin)
-                 end do
-              end if
-           end if
-        end if
-        if (getindex(cvars3d,'qs')>0) then
-           if(.not.ljc4tlevs) then
-              call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,16),nstep,ntguessig,'qs')
-              if(ii == 1) pj(16,1)=pbc(1,16)+pbc(ipenloc,16)
-           else
-              do ibin=1,nobs_bins
-                 if (nobs_bins /= nfldsig) then
-                    it=ntguessig
-                 else
-                    it=ibin
-                 end if
-                 call stplimqc(dval(ibin),sval(ibin),sges,pbcqs(1,ibin),nstep,it,'qs')
-              end do
-              pbc(:,16)=zero_quad
-              do ibin=1,nobs_bins
-                 do j=1,nstep
-                    pbc(j,16) = pbc(j,16)+pbcqs(j,ibin)
-                 end do
-              end do
-              if(ii == 1)then
-                 do ibin=1,nobs_bins
-                    pj(16,ibin)=pj(16,ibin)+pbcqs(1,ibin)+pbcqs(ipenloc,ibin)
-                 end do
-              end if
-           end if
-        end if
-        if (getindex(cvars3d,'qg')>0) then
-           if(.not.ljc4tlevs) then
-              call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,17),nstep,ntguessig,'qg')
-              if(ii == 1) pj(17,1)=pbc(1,17)+pbc(ipenloc,17)
-           else
-              do ibin=1,nobs_bins
-                 if (nobs_bins /= nfldsig) then
-                    it=ntguessig
-                 else
-                    it=ibin
-                 end if
-                 call stplimqc(dval(ibin),sval(ibin),sges,pbcqg(1,ibin),nstep,it,'qg')
-              end do
-              pbc(:,17)=zero_quad
-              do ibin=1,nobs_bins
-                 do j=1,nstep
-                    pbc(j,17) = pbc(j,17)+pbcqg(j,ibin)
-                 end do
-              end do
-              if(ii == 1)then
-                 do ibin=1,nobs_bins
-                    pj(17,ibin)=pj(17,ibin)+pbcqg(1,ibin)+pbcqg(ipenloc,ibin)
-                 end do
-              end if
-           end if
-        end if
-        end if ! ljclimqc
         if(.not.ljc4tlevs) then
            call stplimq(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,4),pbc(1,5),nstep,ntguessig)
-           if(ii == 1)then
+           if(pjcalc)then
                pj(4,1)=pbc(1,4)+pbc(ipenloc,4)
                pj(5,1)=pbc(1,5)+pbc(ipenloc,5)
            end if
@@ -612,7 +485,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
                  pbc(j,5) = pbc(j,5)+pbcqmax(j,ibin)
               end do
            end do
-           if(ii == 1)then
+           if(pjcalc)then
               do ibin=1,nobs_bins
                  pj(4,ibin)=pj(4,ibin)+pbcqmin(1,ibin)+pbcqmin(ipenloc,ibin)
                  pj(5,ibin)=pj(5,ibin)+pbcqmax(1,ibin)+pbcqmax(ipenloc,ibin)
@@ -622,37 +495,170 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
 !       penalties for gust constraint
         if(getindex(cvars2d,'gust')>0) & 
         call stplimg(dval(1),sval(1),sges,pbc(1,6),nstep)
-        if(ii == 1)pj(6,1)=pbc(1,6)+pbc(ipenloc,6)
+        if(pjcalc)pj(6,1)=pbc(1,6)+pbc(ipenloc,6)
 
 !       penalties for vis constraint
         if(getindex(cvars2d,'vis')>0) &
         call stplimv(dval(1),sval(1),sges,pbc(1,7),nstep)
-        if(ii == 1)pj(7,1)=pbc(1,7)+pbc(ipenloc,7)
+        if(pjcalc)pj(7,1)=pbc(1,7)+pbc(ipenloc,7)
 
 !       penalties for pblh constraint
         if(getindex(cvars2d,'pblh')>0) &
         call stplimp(dval(1),sval(1),sges,pbc(1,8),nstep)
-        if(ii == 1)pj(8,1)=pbc(1,8)+pbc(ipenloc,8)
+        if(pjcalc)pj(8,1)=pbc(1,8)+pbc(ipenloc,8)
 
 !       penalties for wspd10m constraint
         if(getindex(cvars2d,'wspd10m')>0) & 
         call stplimw10m(dval(1),sval(1),sges,pbc(1,9),nstep)
-        if(ii == 1)pj(9,1)=pbc(1,9)+pbc(ipenloc,9)
+        if(pjcalc)pj(9,1)=pbc(1,9)+pbc(ipenloc,9)
 
 !       penalties for howv constraint
         if(getindex(cvars2d,'howv')>0) & 
         call stplimhowv(dval(1),sval(1),sges,pbc(1,10),nstep)
-        if(ii == 1)pj(10,1)=pbc(1,10)+pbc(ipenloc,10)
+        if(pjcalc)pj(10,1)=pbc(1,10)+pbc(ipenloc,10)
 
 !       penalties for lcbas constraint
         if(getindex(cvars2d,'lcbas')>0) &
         call stpliml(dval(1),sval(1),sges,pbc(1,11),nstep) 
-        if(ii == 1)pj(11,1)=pbc(1,11)+pbc(ipenloc,11)
+        if(pjcalc)pj(11,1)=pbc(1,11)+pbc(ipenloc,11)
 
 !       penalties for cldch constraint
         if(getindex(cvars2d,'cldch')>0) &
         call stplimcldch(dval(1),sval(1),sges,pbc(1,12),nstep)
-        if(ii == 1)pj(12,1)=pbc(1,12)+pbc(ipenloc,12)
+        if(pjcalc)pj(12,1)=pbc(1,12)+pbc(ipenloc,12)
+
+        if (ljclimqc) then
+         if (getindex(cvars3d,'ql')>0) then
+           if(.not.ljc4tlevs) then
+              call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,13),nstep,ntguessig,'ql')
+              if(pjcalc) pj(13,1)=pbc(1,13)+pbc(ipenloc,13)
+           else
+              do ibin=1,nobs_bins
+                 if (nobs_bins /= nfldsig) then
+                    it=ntguessig
+                 else
+                    it=ibin
+                 end if
+                 call stplimqc(dval(ibin),sval(ibin),sges,pbcql(1,ibin),nstep,it,'ql')
+              end do
+              pbc(:,13)=zero_quad
+              do ibin=1,nobs_bins
+                 do j=1,nstep
+                    pbc(j,13) = pbc(j,13)+pbcql(j,ibin)
+                 end do
+              end do
+              if(pjcalc)then
+                 do ibin=1,nobs_bins
+                    pj(13,ibin)=pj(13,ibin)+pbcql(1,ibin)+pbcql(ipenloc,ibin)
+                 end do
+              end if
+           end if
+         end if
+         if (getindex(cvars3d,'qi')>0) then
+           if(.not.ljc4tlevs) then
+              call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,14),nstep,ntguessig,'qi')
+              if(pjcalc) pj(14,1)=pbc(1,14)+pbc(ipenloc,14)
+           else
+              do ibin=1,nobs_bins
+                 if (nobs_bins /= nfldsig) then
+                    it=ntguessig
+                 else
+                    it=ibin
+                 end if
+                 call stplimqc(dval(ibin),sval(ibin),sges,pbcqi(1,ibin),nstep,it,'qi')
+              end do
+              pbc(:,14)=zero_quad
+              do ibin=1,nobs_bins
+                 do j=1,nstep
+                    pbc(j,14) = pbc(j,14)+pbcqi(j,ibin)
+                 end do
+              end do
+              if(pjcalc)then
+                 do ibin=1,nobs_bins
+                    pj(14,ibin)=pj(14,ibin)+pbcqi(1,ibin)+pbcqi(ipenloc,ibin)
+                 end do
+              end if
+           end if
+         end if
+         if (getindex(cvars3d,'qr')>0) then
+           if(.not.ljc4tlevs) then
+              call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,15),nstep,ntguessig,'qr')
+              if(pjcalc) pj(15,1)=pbc(1,15)+pbc(ipenloc,15)
+           else
+              do ibin=1,nobs_bins
+                 if (nobs_bins /= nfldsig) then
+                    it=ntguessig
+                 else
+                    it=ibin
+                 end if
+                 call stplimqc(dval(ibin),sval(ibin),sges,pbcqr(1,ibin),nstep,it,'qr')
+              end do
+              pbc(:,15)=zero_quad
+              do ibin=1,nobs_bins
+                 do j=1,nstep
+                    pbc(j,15) = pbc(j,15)+pbcqr(j,ibin)
+                 end do
+              end do
+              if(pjcalc)then
+                 do ibin=1,nobs_bins
+                    pj(15,ibin)=pj(15,ibin)+pbcqr(1,ibin)+pbcqr(ipenloc,ibin)
+                 end do
+              end if
+           end if
+         end if
+         if (getindex(cvars3d,'qs')>0) then
+           if(.not.ljc4tlevs) then
+              call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,16),nstep,ntguessig,'qs')
+              if(pjcalc) pj(16,1)=pbc(1,16)+pbc(ipenloc,16)
+           else
+              do ibin=1,nobs_bins
+                 if (nobs_bins /= nfldsig) then
+                    it=ntguessig
+                 else
+                    it=ibin
+                 end if
+                 call stplimqc(dval(ibin),sval(ibin),sges,pbcqs(1,ibin),nstep,it,'qs')
+              end do
+              pbc(:,16)=zero_quad
+              do ibin=1,nobs_bins
+                 do j=1,nstep
+                    pbc(j,16) = pbc(j,16)+pbcqs(j,ibin)
+                 end do
+              end do
+              if(pjcalc)then
+                 do ibin=1,nobs_bins
+                    pj(16,ibin)=pj(16,ibin)+pbcqs(1,ibin)+pbcqs(ipenloc,ibin)
+                 end do
+              end if
+           end if
+         end if
+         if (getindex(cvars3d,'qg')>0) then
+           if(.not.ljc4tlevs) then
+              call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,17),nstep,ntguessig,'qg')
+              if(pjcalc) pj(17,1)=pbc(1,17)+pbc(ipenloc,17)
+           else
+              do ibin=1,nobs_bins
+                 if (nobs_bins /= nfldsig) then
+                    it=ntguessig
+                 else
+                    it=ibin
+                 end if
+                 call stplimqc(dval(ibin),sval(ibin),sges,pbcqg(1,ibin),nstep,it,'qg')
+              end do
+              pbc(:,17)=zero_quad
+              do ibin=1,nobs_bins
+                 do j=1,nstep
+                    pbc(j,17) = pbc(j,17)+pbcqg(j,ibin)
+                 end do
+              end do
+              if(pjcalc)then
+                 do ibin=1,nobs_bins
+                    pj(17,ibin)=pj(17,ibin)+pbcqg(1,ibin)+pbcqg(ipenloc,ibin)
+                 end do
+              end if
+           end if
+         end if
+        end if ! ljclimqc
      end if
 
 !    penalties for Jo
@@ -667,7 +673,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
            end do 
         end do 
      enddo
-     if(ii == 1)then
+     if(pjcalc)then
         do ibin=1,size(pbcjoi,3)
            do j=1,size(pbcjoi,2)
               pj(n0+j,ibin)=pj(n0+j,ibin)+pbcjoi(ipenloc,j,ibin)+pbcjoi(1,j,ibin)
@@ -866,7 +872,6 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
         exit stepsize
      end if
   end do stepsize
-  kprt=3
   if(kprt >= 2 .and. iter == 0)then
      call mpl_allreduce(ipen,nobs_bins,pj)
      if(mype == 0)call prnt_j(pj,n0,ipen,kprt)
