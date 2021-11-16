@@ -324,7 +324,6 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
   use radinfo, only: crtm_coeffs_path
   use radinfo, only: radjacindxs,radjacnames,jpch_rad,nusis,nuchan
   use aeroinfo, only: aerojacindxs
-  use guess_grids, only: ges_tsen,ges_prsl,nfldsig
   use gridmod, only: fv3_full_hydro
   use mpeu_util, only: getindex
   use constants, only: zero,max_varname_length
@@ -345,9 +344,9 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
   integer(i_kind), parameter :: length = 2621  ! lenth of GFL qsat table
 
 ! local variables
-  integer(i_kind) :: ier,ii,error_status,iderivative
+  integer(i_kind) :: ier,ii,error_status
   integer(i_kind) :: k, subset_start, subset_end
-  logical :: ice,Load_AerosolCoeff,Load_CloudCoeff
+  logical :: Load_AerosolCoeff,Load_CloudCoeff
   character(len=20),dimension(1) :: sensorlist
   integer(i_kind) :: indx,iii,icloud4crtm
 ! ...all "additional absorber" variables

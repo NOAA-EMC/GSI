@@ -253,9 +253,9 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   real(r_double) rstation_id
   real(r_kind) qcu,qcv,trop5,tfact,fact
   real(r_kind) scale,ratio,obserror,obserrlm
-  real(r_kind) residual,ressw,ress,vals,val2,valqc2,dudiff,dvdiff,rat_err2u
+  real(r_kind) residual,ressw,ress,vals,val2,dudiff,dvdiff,rat_err2u
   real(r_kind) valqc,valu,valv,dx10,rlow,rhgh,drpx,prsfc,var_jb,rat_err2v
-  real(r_kind) cg_t,cvar,wgt,term,rat_err2,qcgross,valqcu,valqcv
+  real(r_kind) cg_t,cvar,wgt,term,qcgross,valqcu,valqcv
   real(r_kind) presw,factw,dpres,ugesin,vgesin,rwgt,dpressave
   real(r_kind) sfcchk,prsln2,error,dtime,dlon,dlat,r0_001,rsig,thirty,rsigp
   real(r_kind) ratio_errors,goverrd,spdges,spdob,ten,psges,zsges

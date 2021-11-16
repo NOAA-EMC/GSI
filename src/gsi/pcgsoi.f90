@@ -353,7 +353,7 @@ subroutine pcgsoi()
         if(mype == 0)then
            aindex=abs(dprod(3)/dprod(2))
            write(iout_iter,*) 'NL Index ',aindex
-           if(aindex > 0.5 .or. print_verbose) write(iout_iter,*) 'NL Values ', dprod(3),dprod(2)
+           if(aindex > 0.5_r_kind .or. print_verbose) write(iout_iter,*) 'NL Values ', dprod(3),dprod(2)
         end if
      else
 ! xdiff used as a temporary array

@@ -375,8 +375,8 @@ contains
 !
 !$$$
     use constants, only:  zero,one,two,one_tenth,r10
-    use radinfo, only: ostats,varA,jpch_rad,npred,inew_rad,newpc4pred,biaspredvar
-    use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,biaspredt,ntail,npredt,ostats_t,varA_t
+    use radinfo, only: varA,jpch_rad,npred,inew_rad,newpc4pred,biaspredvar
+    use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,biaspredt,ntail,npredt,varA_t
     use gridmod, only: twodvar_regional
     use jfunc, only: nrclen, ntclen
     implicit none
