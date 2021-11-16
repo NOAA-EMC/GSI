@@ -82,7 +82,7 @@ subroutine read_files(mype)
        ifilesig,ifilesfc,ifilenst,hrdifsig,hrdifsfc,hrdifnst,create_gesfinfo
   use guess_grids, only: hrdifsig_all,hrdifsfc_all,hrdifnst_all
   use guess_grids, only: nfldaer, ntguesaer, ifileaer, hrdifaer, hrdifaer_all !for aerosol
-  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,nhr_assimilation
+  use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,nhr_assimilation,nhr_obsbin
   use hybrid_ensemble_parameters, only: ntlevs_ens
   use gridmod, only: nlat_sfc,nlon_sfc,lpl_gfs,dx_gfs,use_gfs_nemsio,sfcnst_comb,use_gfs_ncio
   use constants, only: zero,r60inv,r60,r3600,i_missing
@@ -118,9 +118,10 @@ subroutine read_files(mype)
 
 ! Declare local variables
   logical(4) fexist
+  logical:: present
   character(6) filename
   integer(i_kind) i,j,iwan,npem1,iret
-  integer(i_kind) nhr_half
+  integer(i_kind) nhr_half,ihr
   integer(i_kind) iamana(4) ! changed to 4 from 3 for aer files
   integer(i_kind) nminanl,nmings,nming2,ndiff
   integer(i_kind),dimension(4):: idateg
@@ -258,7 +259,9 @@ subroutine read_files(mype)
            idateg=sigatm_head%idate
            call sigio_sclose(lunatm,iret)
         else if (use_gfs_ncio) then
-           atmges = open_dataset(filename)
+           atmges = open_dataset(filename,errcode=iret)
+           if (iret /=0 .and. mype==0) &
+                write(6,*)'READ_FILES: ***WARNING*** problem reading atm file ',trim(filename),iret 
            idate6 = get_idate_from_time_units(atmges) 
            call read_vardata(atmges, 'time', fhour)
            hourg4 = float(nint(fhour(1))) ! going to make this nearest integer for now
@@ -332,7 +335,9 @@ subroutine read_files(mype)
            call sfcio_sclose(lunsfc,iret)
            if(i == 1 .and. print_verbose)write(6,*)' READ_FILES: in sfcio sfc_head%lpl = ', sfc_head%lpl
         else if (use_gfs_ncio) then
-           sfcges = open_dataset(filename)
+           sfcges = open_dataset(filename,errcode=iret)
+           if (iret /=0 .and. mype==0) &
+                write(6,*)'READ_FILES: ***WARNING*** problem reading sfc file ',trim(filename),iret
            ncdim = get_dim(sfcges, 'grid_xt'); sfc_head%lonb = ncdim%len
            ncdim = get_dim(sfcges, 'grid_yt'); sfc_head%latb = ncdim%len
            idate6 = get_idate_from_time_units(sfcges) 
@@ -614,7 +619,21 @@ subroutine read_files(mype)
      call stop2(99)
   endif
   if (l4densvar .and. nfldsig/=ntlevs_ens) then
-     write(6,*)'READ_FILES: ***ERROR*** insufficient atm fcst for 4densvar:  PROGRAM STOPS'
+     if (mype==0) then
+        write(6,*)'READ_FILES: ***ERROR*** insufficient atm fcst for 4densvar:  PROGRAM STOPS'
+        do i=1,ntlevs_ens
+           ihr=nhr_obsbin*(i-1)+nhr_half
+           present=.false.
+           do j=1,nfldsig
+              if (ihr == ifilesig(j)) present=.true.
+           end do
+           if (.not.present) then
+              write(filename,'(''sigf'',i2.2)')ihr
+              write(6,*)'READ_FILES: ***ERROR*** file ',trim(filename),' missing:  PROGRAM STOPS'
+           endif
+        end do
+     endif
+     call mpi_barrier(mpi_comm_world,ierror)
      call stop2(99)
   endif
 
@@ -632,7 +651,21 @@ subroutine read_files(mype)
      call stop2(99)
   endif
   if (l4densvar .and. nfldsfc/=ntlevs_ens) then
-     write(6,*)'READ_FILES: ***ERROR*** insufficient sfc fcst for 4densvar:  PROGRAM STOPS'
+     if (mype==0) then
+        write(6,*)'READ_FILES: ***ERROR*** insufficient sfc fcst for 4densvar:  PROGRAM STOPS'
+        do i=1,ntlevs_ens
+           ihr=nhr_obsbin*(i-1)+nhr_half
+           present=.false.
+           do j=1,nfldsfc
+              if (ihr == ifilesfc(j)) present=.true.
+           end do
+           if (.not.present) then
+              write(filename,'(''sfcf'',i2.2)')ihr
+              write(6,*)'READ_FILES: ***ERROR*** file ',trim(filename),' missing:  PROGRAM STOPS'
+           endif
+        end do
+     endif
+     call mpi_barrier(mpi_comm_world,ierror)
      call stop2(99)
   endif
   

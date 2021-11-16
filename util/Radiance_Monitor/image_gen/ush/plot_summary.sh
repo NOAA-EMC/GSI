@@ -1,4 +1,4 @@
-#! /bin/ksh
+#! /bin/bash
 
 #------------------------------------------------------------------
 #
@@ -23,7 +23,7 @@ cd $tmpdir
 
 #------------------------------------------------------------------
 #   Set dates
-
+#
 bdate=${START_DATE}
 edate=$PDATE
 bdate0=`echo $bdate|cut -c1-8`
@@ -31,7 +31,7 @@ edate0=`echo $edate|cut -c1-8`
 
 #--------------------------------------------------------------------
 # Set ctldir to point to correct control file source
-
+#
 imgdef=`echo ${#IMGNDIR}`
 if [[ $imgdef -gt 0 ]]; then
   ctldir=$IMGNDIR/time
@@ -72,54 +72,46 @@ for type in ${SATYPE2}; do
          cyc=`echo $cdate | cut -c9-10`
       fi
 
-      if [[ $TANK_USE_RUN -eq 1 ]]; then
-         ieee_src=${TANKverf}/${RUN}.${day}/${cyc}/${MONITOR}
-         if [[ ! -d ${ieee_src} ]]; then
-            ieee_src=${TANKverf}/${RUN}.${day}/${MONITOR}
-         fi
-      else
+      #----------------------------------------------------
+      #  Attempt to locate the extracted ieee data files.
+      #
+      ieee_src=${TANKverf}/${RUN}.${day}/${cyc}/${MONITOR}
+      if [[ ! -d ${ieee_src} ]]; then
+         ieee_src=${TANKverf}/${RUN}.${day}/${MONITOR}
+      fi
+      if [[ ! -d ${ieee_src} ]]; then
          ieee_src=${TANKverf}/${MONITOR}.${day}
-         if [[ ! -d ${ieee_src} ]]; then
-            ieee_src=${TANKverf}/${RUN}.${day}
-         fi
+      fi
+      if [[ ! -d ${ieee_src} ]]; then
+         ieee_src=${TANKverf}/${RUN}.${day}
       fi
 
       echo "rgnHH, rgnTM = $rgnHH, $rgnTM"
 
+      test_file=${ieee_src}/time.${type}.${cdate}.ieee_d
 
-      if [[ -d ${ieee_src} ]]; then
-         if [[ $REGIONAL_RR -eq 1 ]]; then
-            test_file=${ieee_src}/${rgnHH}.time.${type}.${cdate}.ieee_d.${rgnTM}
-         else
-            test_file=${ieee_src}/time.${type}.${cdate}.ieee_d
-         fi
+      if [[ $USE_ANL = 1 ]]; then
+         test_file2=${ieee_src}/time.${type}_anl.${cdate}.ieee_d
+      else
+         test_file2=
+      fi
 
-         if [[ $USE_ANL = 1 ]]; then
-            if [[ $REGIONAL_RR -eq 1 ]]; then
-               test_file2=${ieee_src}/${rgnHH}.time.${type}_anl.${cdate}.ieee_d.${rgnTM}
-            else
-               test_file2=${ieee_src}/time.${type}_anl.${cdate}.ieee_d
-            fi
-         else
-            test_file2=
-         fi
+      if [[ -s $test_file ]]; then
+         $NCP ${test_file} ./${type}.${cdate}.ieee_d
+      elif [[ -s ${test_file}.${Z} ]]; then
+         $NCP ${test_file}.${Z} ./${type}.${cdate}.ieee_d.${Z}
+      fi
 
-         if [[ -s $test_file ]]; then
-            $NCP ${test_file} ./${type}.${cdate}.ieee_d
-         elif [[ -s ${test_file}.${Z} ]]; then
-            $NCP ${test_file}.${Z} ./${type}.${cdate}.ieee_d.${Z}
-         fi
-
-         if [[ -s $test_file2 ]]; then
-            $NCP ${test_file2} ./${type}_anl.${cdate}.ieee_d
-         elif [[ -s ${test_file2}.${Z} ]]; then
-            $NCP ${test_file2}.${Z} ./${type}_anl.${cdate}.ieee_d.${Z}
-         fi
+      if [[ -s $test_file2 ]]; then
+         $NCP ${test_file2} ./${type}_anl.${cdate}.ieee_d
+      elif [[ -s ${test_file2}.${Z} ]]; then
+         $NCP ${test_file2}.${Z} ./${type}_anl.${cdate}.ieee_d.${Z}
       fi
 
       adate=`$NDATE +${CYCLE_INTERVAL} ${cdate}`
       cdate=$adate
    done
+
    ${UNCOMPRESS} *.ieee_d.${Z}
 
    
@@ -148,21 +140,21 @@ EOF
    fi
 
 
-#--------------------------------------------------------------------
-#  Build new data file for server.
-#  This supports the javascript summary plot.
-#
-#  Algorithm:
-#    1. Copy summary.x locally
-#    2. For each entry in SATYTPE
-#       2) build the times.txt file from the data files
-#       3) build the use.txt file from the ctl file
-#       1) build the input file (namelist for summary.x)
-#       4) run the summary.x executable
-#       5) copy the [satype].sum.txt file to $TANKDIR/imgn/{suffix}/pngs/summary/.
-#       6) clean up
+   #--------------------------------------------------------------------
+   #  Build data files for server.
+   #  This supports the javascript summary plot.
+   #
+   #  Algorithm:
+   #    1. Copy summary.x locally
+   #    2. For each entry in SATYTPE
+   #       a) build the times.txt file from the data files
+   #       b) build the use.txt file from the ctl file
+   #       c) build the input file (namelist for summary.x)
+   #       d) run the summary.x executable
+   #       e) copy the [satype].sum.txt file to $TANKDIR/imgn/{suffix}/pngs/summary/.
+   #       f) clean up
 
-   echo "BEGIN javascript file generation:"
+   echo "BEGIN data file generation:"
    rm -f $timesf
    
    if [[ ! -s summary.x ]]; then
@@ -209,12 +201,12 @@ EOF
    rm -f input
    cp ${input} input
    ./summary.x < input > out.${type}
-   echo "END javascript file generation:"
-#   rm -f $timesf
+   echo "END data file generation:"
 
    rm -f ${input}
 
 done
+
 
 #--------------------------------------------------------------------
 # Copy image files to $IMGNDIR to set up for mirror to web server.

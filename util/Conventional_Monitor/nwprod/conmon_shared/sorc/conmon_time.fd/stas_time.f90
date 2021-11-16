@@ -33,13 +33,6 @@ subroutine stascal(dtype,rdiag,nreal,n,iotype,varqc,ntype,work,worku,&
    tiny=1.0e-10
 
  
-!   print *,'start to call stascal'
-!   print *,n,nreal,ntype
-!   print *,rdiag(itype,1),rdiag(ilat,1),rdiag(ilon,1),rdiag(ipress,1)
-!   print *,rdiag(iqc,1),rdiag(iuse,1),rdiag(imuse,1),rdiag(ierr1,1),rdiag(iobg,1)
-!   print *,rlatmin(1),rlatmax(1),rlonmin(1),rlonmax(1),np,nregion,ntype 
-!   print *,iotype(1),iotype(2),iotype(3),iotype(4),iotype(5),iotype(6)
-   
    do i=1,n
       if(trim(dtype) ==  ' uv') then
          valu=rdiag(iobgu,i)*rdiag(ierr1,i)
@@ -90,13 +83,10 @@ subroutine stascal(dtype,rdiag,nreal,n,iotype,varqc,ntype,work,worku,&
                term = exp_arg
             endif
             valqc = -2.0*rat_err2*term
-!           print *, cg_term,cg_t,cvar_pg,term,valqc
             do j=1,nregion
-!              print *,rdiag(ilon,i),rdiag(ilat,i),rlonmin(j),rlatmax(j)
                if(rdiag(ilon,i) >180.0) rdiag(ilon,i)=rdiag(ilon,i)-360.0
                if(rdiag(ilon,i)>=rlonmin(j) .and. rdiag(ilon,i)<=rlonmax(j) .and. &
                   rdiag(ilat,i)>=rlatmin(j) .and. rdiag(ilat,i)<=rlatmax(j) ) then
-!              print *,'j=',j
 
                do k=1,np
                   if(rdiag(ipress,i) >=ptop(k) .and. rdiag(ipress,i) <= pbot(k))then

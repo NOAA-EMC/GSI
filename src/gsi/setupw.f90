@@ -69,9 +69,11 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use m_dtime, only: dtime_setup, dtime_check
 
   use gsi_bundlemod, only : gsi_bundlegetpointer
+  use hdraobmod, only: nhduv,hduvlist
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use sparsearr, only: sparr2, new, size, writearray, fullarray
   use aux2dvarflds, only: rtma_comp_fact10
+
 
   ! The following variables are the coefficients that describe the
   ! linear regression fits that are used to define the dynamic
@@ -251,9 +253,9 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   real(r_double) rstation_id
   real(r_kind) qcu,qcv,trop5,tfact,fact
   real(r_kind) scale,ratio,obserror,obserrlm
-  real(r_kind) residual,ressw,ress,val,vals,val2,valqc2,dudiff,dvdiff
-  real(r_kind) valqc,valu,valv,dx10,rlow,rhgh,drpx,prsfc,var_jb
-  real(r_kind) cg_t,cvar,wgt,term,rat_err2,qcgross
+  real(r_kind) residual,ressw,ress,vals,val2,dudiff,dvdiff,rat_err2u
+  real(r_kind) valqc,valu,valv,dx10,rlow,rhgh,drpx,prsfc,var_jb,rat_err2v
+  real(r_kind) cg_t,cvar,wgt,term,qcgross,valqcu,valqcv
   real(r_kind) presw,factw,dpres,ugesin,vgesin,rwgt,dpressave
   real(r_kind) sfcchk,prsln2,error,dtime,dlon,dlat,r0_001,rsig,thirty,rsigp
   real(r_kind) ratio_errors,goverrd,spdges,spdob,ten,psges,zsges
@@ -285,9 +287,9 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   integer(i_kind) ihgt,ier2,iuse,ilate,ilone
   integer(i_kind) izz,iprvd,isprvd
   integer(i_kind) idomsfc,isfcr,iskint,iff10
-  integer(i_kind) ibb,ikk,ihil
+  integer(i_kind) ibb,ikk,ihil,idddd
 
-  integer(i_kind) num_bad_ikx
+  integer(i_kind) num_bad_ikx,iprev_station
 
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf
@@ -409,9 +411,41 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      if (netcdf_diag) call init_netcdf_diag_
   end if
 
+  num_bad_ikx=0
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
+     ikx=nint(data(ikxx,i))
+     if(ikx < 1 .or. ikx > nconvtype) then
+        num_bad_ikx=num_bad_ikx+1
+        if(num_bad_ikx<=10) write(6,*)' in setupw ',ikx,i,nconvtype,mype
+     end if
   end do
+!  If HD raobs available move prepbufr version to monitor
+  if(nhduv > 0)then
+     iprev_station=0
+     do i=1,nobs
+        ikx=nint(data(ikxx,i))
+        itype=ictype(ikx)
+        if(itype == 220 .or. itype == 221) then
+           rstation_id     = data(id,i)
+           read(station_id,'(i5,3x)',err=1200) idddd
+           if(idddd == iprev_station)then
+             data(iuse,i)=108._r_kind
+             muse(i) = .false.
+           else
+              stn_loop:do j=1,nhduv
+                if(idddd == hduvlist(j))then
+                   iprev_station=idddd
+                   data(iuse,i)=108._r_kind
+                   muse(i) = .false.
+                   exit stn_loop
+                end if
+              end do stn_loop
+           end if
+        end if
+1200    continue
+     end do
+  end if
 
 !  handle multiple-report observations at a station
   hr_offset=min_offset/60.0_r_kind
@@ -468,7 +502,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         var_jb=data(ijb,i)
         if(ikx < 1 .or. ikx > nconvtype) then
            num_bad_ikx=num_bad_ikx+1
-           if(num_bad_ikx<=10) write(6,*)' in setupw, bad ikx, ikx,i,nconvtype=',ikx,i,nconvtype
+           if(num_bad_ikx<=10) write(6,*)' in setupw, bad ikx, ikx,i,nconvtype=',ikx,i,nconvtype,mype
            cycle
         end if
         isli = data(idomsfc,i)
@@ -552,6 +586,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      z_height = .false.
      if ((itype>=221 .and. itype <= 229) .and. (data(ihgt,i)<r0_1_bmiss)) z_height = .true.
      if ((itype==261) .and. (data(ihgt,i)<r0_1_bmiss)) z_height = .true.
+     if (itype == 218) z_height = .true.
 
 
 !    Process observations reported with height differently than those
@@ -590,7 +625,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !       For observation reported with geometric height above sea level,
 !       convert geopotential to geometric height.
 
-        if (((itype>=223 .and. itype<=228) .or. sfc_data) .and. .not.twodvar_regional) then
+        if (((itype>=223 .and. itype<=228) .or. itype == 218 .or. sfc_data) .and. .not.twodvar_regional) then
 !          Convert geopotential height at layer midpoints to geometric 
 !          height using equations (17, 20, 23) in MJ Mahoney's note 
 !          "A discussion of various measures of altitude" (2001).  
@@ -1187,8 +1222,6 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      ratio_errors=ratio_errors*sqrt(data(ihil,i))       ! hilbert weight
 !    Compute penalty terms (linear & nonlinear qc).
      if(luse(i))then
-        val      = valu*valu+valv*valv
-        vals=sqrt(val)
         if(vqc) then
            cg_t=cvar_b(ikx)
            cvar=cvar_pg(ikx)
@@ -1203,17 +1236,23 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            ibb=0
            ikk=0
         endif
+        vals=valu
         call vqc_setup(vals,ratio_errors,error,cvar,&
-                      cg_t,ibb,ikk,var_jb,rat_err2,wgt,valqc)
-        rwgt = wgt/wgtlim
+                      cg_t,ibb,ikk,var_jb,rat_err2u,wgt,valqcu)
+        rwgt = 0.5_r_kind*wgt/wgtlim
+        vals=valv
+        call vqc_setup(vals,ratio_errors,error,cvar,&
+                      cg_t,ibb,ikk,var_jb,rat_err2v,wgt,valqcv)
+        rwgt = rwgt+0.5_r_kind*wgt/wgtlim
+        valqc=valqcu+valqcv
 
 !       Accumulate statistics for obs belonging to this task
         if (muse(i)) then
            if(rwgt < one) awork(21) = awork(21)+one
            jsig = dpres
            jsig=max(1,min(jsig,nsig))
-           awork(4*nsig+jsig+100)=awork(4*nsig+jsig+100)+valu*valu*rat_err2
-           awork(5*nsig+jsig+100)=awork(5*nsig+jsig+100)+valv*valv*rat_err2
+           awork(4*nsig+jsig+100)=awork(4*nsig+jsig+100)+valu*valu*rat_err2u
+           awork(5*nsig+jsig+100)=awork(5*nsig+jsig+100)+valv*valv*rat_err2v
            awork(6*nsig+jsig+100)=awork(6*nsig+jsig+100)+one
            awork(3*nsig+jsig+100)=awork(3*nsig+jsig+100)+valqc
         end if
@@ -1222,8 +1261,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !       as a function of observation type.
         ress  = scale*sqrt(dudiff**2+dvdiff**2)
         ressw = ress*ress
-        val2    = half*(valu*valu+valv*valv)
-        valqc2  = half*valqc
+        val2    = half*(valu*valu*rat_err2u+valv*valv*rat_err2v)
         nn=1
         if (.not. muse(i)) then
            nn=2
@@ -1234,8 +1272,8 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               bwork(k,ikx,1,nn) = bwork(k,ikx,1,nn)+one            ! count
               bwork(k,ikx,2,nn) = bwork(k,ikx,2,nn)+spdb           ! speed bias
               bwork(k,ikx,3,nn) = bwork(k,ikx,3,nn)+ressw          ! (o-g)**2
-              bwork(k,ikx,4,nn) = bwork(k,ikx,4,nn)+val2*rat_err2  ! penalty
-              bwork(k,ikx,5,nn) = bwork(k,ikx,5,nn)+valqc2         ! nonlin qc penalty
+              bwork(k,ikx,4,nn) = bwork(k,ikx,4,nn)+val2           ! penalty
+              bwork(k,ikx,5,nn) = bwork(k,ikx,5,nn)+valqc          ! nonlin qc penalty
  
            end if
         end do

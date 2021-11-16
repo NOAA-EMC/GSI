@@ -1324,6 +1324,32 @@ contains
   !   2016-02-14 Johnson, Y. Wang, X. Wang  - add code to read vertical velocity (W) and
   !                                           Reflectivity (REFL_10CM) for radar
   !                                           DA, POC: xuguang.wang@ou.edu
+  !   2016-09    CAPS(G. Zhao) - add checking and print-out for hydrometers reading-in
+  !                            - convert hydrometers variables(qr,qs and qg) to log variables
+  !                            - checking up for zero value of qr/qs/qg and reset to a tiny value
+  !                              since reflectivity algorithm requires non-zero
+  !                              hydrometer mixing ratio.
+  !   2017-03    CAPS(G. Zhao) - tuning different tiny non-zero values assigned to qr/qs/qg
+  !                              and considering the temperature effect on rain, snow and graupel
+  !                              if T > 274.15
+  !                                  qr_min=2.9E-6
+  !                                  qs_min=0.0E-6
+  !                                  qg_min=3.1E-7
+  !                              if T < 274.15  and  T > 272.15
+  !                                  qr_min=2.0E-6
+  !                                  qs_min=1.3E-7
+  !                                  qg_min=3.1E-7
+  !                              if T < 272.15
+  !                                  qr_min=0.0E-6
+  !                                  qs_min=6.3E-6
+  !                                  qg_min=3.1E-7
+  !   2018-02-xx CAPS(G. Zhao) - only reset the value for log transformed qx
+  !                              for regular qx, the non-zero tiny value is applied to
+  !                              qx on obs point in setupdbz
+  !   2020-09-13 CAPS(C. Liu, L. Chen, and H. Li) 
+  !                            - add code for hydrometer variables needed for
+  !                            direct reflectivity DA
+  !                            - add CV transform option on hydrometer variables
   !
   !   input argument list:
   !     mype     - pe number
@@ -1369,6 +1395,9 @@ contains
     use wrf_vars_mod, only : w_exist, dbz_exist
     use setupdbz_lib,only: hx_dart
     use obsmod,only: if_model_dbz
+    use directDA_radaruse_mod, only: l_use_cvpqx, cvpqx_pval, l_use_dbz_directDA
+    use directDA_radaruse_mod, only: l_cvpnr, cvpnr_pval                                          
+
     implicit none
     class(read_wrf_mass_guess_class),intent(inout) :: this
   
@@ -1418,7 +1447,7 @@ contains
                        indx_seas1, indx_seas2, indx_seas3, indx_seas4,indx_p25
     character(len=5),allocatable :: cvar(:)
     real(r_kind)   :: ges_rho, tsn
-  
+
     real(r_kind), pointer :: ges_ps_it (:,:  )=>NULL()
     real(r_kind), pointer :: ges_th2_it(:,:  )=>NULL()
     real(r_kind), pointer :: ges_q2_it (:,:  )=>NULL()
@@ -1436,6 +1465,7 @@ contains
     real(r_kind), pointer :: ges_qc (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qi (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qr (:,:,:)=>NULL()
+    real(r_kind), pointer :: ges_iqr (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qs (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qg (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qnr(:,:,:)=>NULL()
@@ -1486,11 +1516,14 @@ contains
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ier=ier+istatus
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qi', ges_qi, istatus );ier=ier+istatus
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ier=ier+istatus
+          if ( l_use_dbz_directDA ) call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'iqr', ges_iqr, istatus );ier=ier+istatus
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr,istatus );ier=ier+istatus
-          call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qni',ges_qni,istatus );ier=ier+istatus
-          call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnc',ges_qnc,istatus );ier=ier+istatus
+          if ( .not.l_use_dbz_directDA) then
+             call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qni',ges_qni,istatus );ier=ier+istatus
+             call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnc',ges_qnc,istatus );ier=ier+istatus
+          end if
           if (ier/=0) n_actual_clouds=0
        end if
        if( dbz_exist )then
@@ -1511,7 +1544,11 @@ contains
        num_mass_fields_base=14+4*lm
        num_mass_fields=num_mass_fields_base
 !    The 9 3D cloud analysis fields are: ql,qi,qr,qs,qg,qnr,qni,qnc,tt
-       if(l_hydrometeor_bkio .and.n_actual_clouds>0) num_mass_fields=num_mass_fields+9*lm+2
+       if ( l_use_dbz_directDA ) then ! direct reflectivity DA does not use qni and qnc
+          if(l_hydrometeor_bkio .and. n_actual_clouds>0) num_mass_fields=num_mass_fields+7*lm+2
+       else
+          if(l_hydrometeor_bkio .and.n_actual_clouds>0) num_mass_fields=num_mass_fields+9*lm+2
+       end if
        if(l_gsd_soilTQ_nudge) num_mass_fields=num_mass_fields+2*(nsig_soil-1)+1
        if(i_use_2mt4b > 0 ) num_mass_fields=num_mass_fields + 2
        if(i_use_2mq4b > 0 .and. i_use_2mt4b <=0 ) num_mass_fields=num_mass_fields + 1
@@ -1733,18 +1770,20 @@ contains
              write(identity(i),'("record ",i3,"--qnr(",i2,")")')i,k
              jsig_skip(i)=0 ; igtype(i)=1
           end do
-          i_qni=i+1
-          do k=1,lm
-             i=i+1                                                    !  qni(k)
-             write(identity(i),'("record ",i3,"--qni(",i2,")")')i,k
-             jsig_skip(i)=0 ; igtype(i)=1
-          end do
-          i_qnc=i+1
-          do k=1,lm
-             i=i+1                                                    !  qnc(k)
-             write(identity(i),'("record ",i3,"--qnc(",i2,")")')i,k
-             jsig_skip(i)=0 ; igtype(i)=1
-          end do
+          if ( .not. l_use_dbz_directDA) then ! direct reflectivity DA does not use qni and qnc
+             i_qni=i+1
+             do k=1,lm
+                i=i+1                                                    ! qni(k)
+                write(identity(i),'("record ",i3,"--qni(",i2,")")')i,k
+                jsig_skip(i)=0 ; igtype(i)=1
+             end do
+             i_qnc=i+1
+             do k=1,lm
+                i=i+1                                                    ! qnc(k)
+                write(identity(i),'("record ",i3,"--qnc(",i2,")")')i,k
+                jsig_skip(i)=0 ; igtype(i)=1
+             end do
+          end if
           if( dbz_exist.and.if_model_dbz )then
             i_dbz=i+1
             do k=1,lm
@@ -1909,19 +1948,24 @@ contains
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ier=ier+istatus
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qi', ges_qi, istatus );ier=ier+istatus
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ier=ier+istatus
+             if ( l_use_dbz_directDA) call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'iqr', ges_iqr, istatus );ier=ier+istatus
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr,istatus );ier=ier+istatus
-             call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qni',ges_qni,istatus );ier=ier+istatus
-             call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnc',ges_qnc,istatus );ier=ier+istatus
+             if ( .not.l_use_dbz_directDA ) then ! direct reflectivity DA  does not use qni and qnc
+                call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qni',ges_qni,istatus );ier=ier+istatus
+                call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnc',ges_qnc,istatus );ier=ier+istatus
+             end if
              kqc=i_0+i_qc-1
              kqr=i_0+i_qr-1
              kqs=i_0+i_qs-1
              kqi=i_0+i_qi-1
              kqg=i_0+i_qg-1
              kqnr=i_0+i_qnr-1
-             kqni=i_0+i_qni-1
-             kqnc=i_0+i_qnc-1
+             if ( .not.l_use_dbz_directDA ) then ! direct reflectivity DA does not use qni and qnc
+                kqni=i_0+i_qni-1
+                kqnc=i_0+i_qnc-1
+             end if
              ktt=i_0+i_tt-1
           endif
           if( dbz_exist ) then
@@ -2041,8 +2085,10 @@ contains
                 kqi=kqi+1
                 kqg=kqg+1
                 kqnr=kqnr+1
-                kqni=kqni+1
-                kqnc=kqnc+1
+                if ( .not.l_use_dbz_directDA ) then ! direct reflectivity DA does not use qni and qnc
+                   kqni=kqni+1
+                   kqnc=kqnc+1
+                end if
                 ktt=ktt+1
              endif
              if(dbz_exist.and.if_model_dbz) kdbz=kdbz+1
@@ -2078,15 +2124,19 @@ contains
                       ges_qc(j,i,k) = real(all_loc(j,i,kqc),r_kind)
                       ges_qi(j,i,k) = real(all_loc(j,i,kqi),r_kind)
                       ges_qr(j,i,k) = real(all_loc(j,i,kqr),r_kind)
+                      if ( l_use_dbz_directDA) ges_iqr(j,i,k) = real(all_loc(j,i,kqr),r_kind)
                       ges_qs(j,i,k) = real(all_loc(j,i,kqs),r_kind)
                       ges_qg(j,i,k) = real(all_loc(j,i,kqg),r_kind)
                       ges_qnr(j,i,k)= real(all_loc(j,i,kqnr),r_kind)
-                      ges_qni(j,i,k)= real(all_loc(j,i,kqni),r_kind)
-                      ges_qnc(j,i,k)= real(all_loc(j,i,kqnc),r_kind)
+                      if ( .not.l_use_dbz_directDA ) then ! direct reflectivity DA does not use qni and qnc
+                         ges_qni(j,i,k)= real(all_loc(j,i,kqni),r_kind)
+                         ges_qnc(j,i,k)= real(all_loc(j,i,kqnc),r_kind)
+                      end if
+
   !                    ges_tten(j,i,k,it) = real(all_loc(j,i,ktt),r_kind)
                       ges_tten(j,i,k,it) = -20.0_r_single
                       if(k==nsig) ges_tten(j,i,k,it) = -10.0_r_single
-  
+
                    endif
                    if(dbz_exist.and.if_model_dbz) ges_dbz(j,i,k) = real(all_loc(j,i,kdbz),r_kind)
                    if ( laeroana_gocart ) then
@@ -2133,6 +2183,7 @@ contains
                 end do
              end do
           end do
+
           if ( laeroana_gocart ) then
              deallocate(i_chem)
              deallocate(kchem)
@@ -2243,8 +2294,15 @@ contains
                 end do
              end do
           end do
-       end do
+
+! --- direct reflectivity DA --- CV transform on hydrometeors
+         if(l_hydrometeor_bkio .and. n_actual_clouds>0 .and. l_use_dbz_directDA) then
+           call convert_qx_to_cvpqx(ges_qr, ges_qs, ges_qg, l_use_cvpqx, cvpqx_pval, it) ! convert Qx
+           call convert_nx_to_cvpnx(ges_qnr, l_cvpnr, cvpnr_pval)                        ! convert Qnx
+         end if
   
+       end do  ! end of it loop
+ 
   !    Transfer surface fields
        do it=1,nfldsig
           i_0=(it-1)*num_mass_fields
@@ -2721,5 +2779,191 @@ contains
     end do
     
   end subroutine move_ibuf_ihg
-    
+
+subroutine convert_qx_to_cvpqx(qr_arr,qs_arr,qg_arr,use_cvpqx,cvpqx_pvalue,it_val)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    convert_qx_to_cvpqx
+!   prgmmr: J. Park(CAPS)                     date: 2021-05-05
+!
+! abstract: convert qx(mixing ratio) to cvpqx using power transform for qr, qs,
+! qg
+!
+! program history log:
+!   2021-05-05 - initial commit 
+!              - this is used when GSI reads qx data from a background file
+!                (subroutine read_fv3_netcdf_guess)
+!              - since minimum qr, qs, and qg are set for CVlogq,
+!                it reads three qx arrays and then processes.
+!
+!   input argument list:
+!     qr_arr         - array of qr 
+!     qs_arr         - array of qs 
+!     qg_arr         - array of qg 
+!     use_cvpqx      - flag to use power transform or not
+!     cvpqx_pvalue   - value to be used for power transform
+!     it_val         - value from it loop
+!
+!   output argument list:
+!     qr_arr           - updated array of qr after power transform
+!     qs_arr           - updated array of qs after
+!     qg_arr           - updated array of qg after power transfrom
+!
+! attributes:
+!   language: f90
+!
+    use kinds, only: r_kind,i_kind
+    use gridmod, only: lat2,lon2,nsig
+    use guess_grids, only: ges_tsen
+    use mpimod, only: mype
+    use constants, only: zero, one_tenth
+
+    implicit none
+    real(r_kind), intent(inout  ) :: qr_arr(lat2,lon2,nsig)
+    real(r_kind), intent(inout  ) :: qs_arr(lat2,lon2,nsig)
+    real(r_kind), intent(inout  ) :: qg_arr(lat2,lon2,nsig)
+    logical,      intent(in     ) :: use_cvpqx
+    real(r_kind), intent(in     ) :: cvpqx_pvalue
+    integer(i_kind), intent(in    ) :: it_val
+
+    integer(i_kind)                   :: i, j, k, it
+
+    real(r_kind) :: qr_min, qs_min, qg_min
+    real(r_kind) :: qr_thrshd, qs_thrshd, qg_thrshd
+!
+    it=it_val
+!
+
+!   print info message: CVq, CVlogq, and CVpq
+    if(mype==0)then
+       if (use_cvpqx) then
+          if ( cvpqx_pvalue == 0._r_kind ) then        ! CVlogq
+              write(6,*)'read_wrf_mass_netcdf_guess_wrf: ',     &
+                        ' reset zero of qr/qs/qg to specified values (~0dbz)', &
+                        'before log transformation. (for dbz assimilation)'
+              write(6,*)'read_wrf_mass_netcdf_guess_wrf: convert qr/qs/qg to log transform.'
+          else if ( cvpqx_pvalue > 0._r_kind ) then   ! CVpq
+              write(6,*)'read_wrf_mass_netcdf_guess_wrf: convert qr/qs/qg with power transform .'
+          end if
+       else                                         ! CVq
+          write(6,*)'read_wrf_mass_netcdf_guess_wrf: only reset (qr/qs/qg) to &
+                     0.0 for negative analysis value. (regular qx)'
+       end if
+    end if
+
+
+    do k=1,nsig
+      do i=1,lon2
+        do j=1,lat2
+!         Apply power transform if option is ON 
+          if (use_cvpqx) then
+             if ( cvpqx_pvalue == 0._r_kind ) then ! CVlogq
+                 if (ges_tsen(j,i,k,it) > 274.15_r_kind) then
+                      qr_min=2.9E-6_r_kind
+                      qr_thrshd=qr_min * one_tenth
+                      qs_min=0.1E-9_r_kind
+                      qs_thrshd=qs_min
+                      qg_min=3.1E-7_r_kind
+                      qg_thrshd=qg_min * one_tenth
+                 else if (ges_tsen(j,i,k,it) <= 274.15_r_kind .and. &
+                          ges_tsen(j,i,k,it) >= 272.15_r_kind) then
+                      qr_min=2.0E-6_r_kind
+                      qr_thrshd=qr_min * one_tenth
+                      qs_min=1.3E-7_r_kind
+                      qs_thrshd=qs_min * one_tenth
+                      qg_min=3.1E-7_r_kind
+                      qg_thrshd=qg_min * one_tenth
+                 else if (ges_tsen(j,i,k,it) < 272.15_r_kind) then
+                      qr_min=0.1E-9_r_kind
+                      qr_thrshd=qr_min
+                      qs_min=6.3E-6_r_kind
+                      qs_thrshd=qs_min * one_tenth
+                      qg_min=3.1E-7_r_kind
+                      qg_thrshd=qg_min * one_tenth
+                 end if
+
+                 if ( qr_arr(j,i,k) <= qr_thrshd )  qr_arr(j,i,k) = qr_min
+                 if ( qs_arr(j,i,k) <= qs_thrshd )  qs_arr(j,i,k) = qs_min
+                 if ( qg_arr(j,i,k) <= qg_thrshd )  qg_arr(j,i,k) = qg_min
+
+                 qr_arr(j,i,k) = log(qr_arr(j,i,k))
+                 qs_arr(j,i,k) = log(qs_arr(j,i,k))
+                 qg_arr(j,i,k) = log(qg_arr(j,i,k))
+
+             else if ( cvpqx_pvalue > 0._r_kind ) then   ! CVpq
+                 qr_arr(j,i,k)=((max(qr_arr(j,i,k),1.0E-6_r_kind))**cvpqx_pvalue-1)/cvpqx_pvalue
+                 qs_arr(j,i,k)=((max(qs_arr(j,i,k),1.0E-6_r_kind))**cvpqx_pvalue-1)/cvpqx_pvalue
+                 qg_arr(j,i,k)=((max(qg_arr(j,i,k),1.0E-6_r_kind))**cvpqx_pvalue-1)/cvpqx_pvalue
+             end if
+          else ! CVq
+              qr_min=zero
+              qs_min=zero
+              qg_min=zero
+              qr_arr(j,i,k) = max(qr_arr(j,i,k), qr_min)
+              qs_arr(j,i,k) = max(qs_arr(j,i,k), qs_min)
+              qg_arr(j,i,k) = max(qg_arr(j,i,k), qg_min)
+          end if
+        end do
+      end do
+    end do
+
+end subroutine convert_qx_to_cvpqx
+
+subroutine convert_nx_to_cvpnx(qnx_arr,cvpnr,cvpnr_pvalue)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    convert_nx_to_cvpnx
+!   prgmmr: J. Park(CAPS)                     date: 2021-05-05
+!
+! abstract: convert nx (number concentration) to cvpnx using power transform
+!
+! program history log:
+!   2021-05-05 - initial commit 
+!              - this is used when GSI reads nx data from a background file
+!                (subroutine read_fv3_netcdf_guess)
+!              - this can be used for other nx variables
+!
+!   input argument list:
+!     qnx_arr        - array of qnx
+!     cvpnr          - flag to use power transform or not
+!     cvpnr_pvalue   - value to be used for power transform
+!
+!   output argument list:
+!     qnx_arr           - updated array of qnx after power transform
+!
+! attributes:
+!   language: f90
+!
+    use kinds, only: r_kind,i_kind
+    use gridmod, only: lat2,lon2,nsig
+    use mpimod, only: mype
+    use constants, only: zero, one_tenth
+
+    implicit none
+    real(r_kind), intent(inout  ) :: qnx_arr(lat2,lon2,nsig)
+    logical,      intent(in     ) :: cvpnr
+    real(r_kind), intent(in     ) :: cvpnr_pvalue
+
+    integer(i_kind)                   :: i, j, k
+!
+
+!   print info message: CVpnr
+    if (mype==0 .and. cvpnr)then
+       write(6,*)'read_wrf_mass_netcdf_guess_wrf: convert qnx with power transform .'
+    end if
+
+    do k=1,nsig
+      do i=1,lon2
+        do j=1,lat2
+
+!       Treatment on qnx ; power transform
+        if (cvpnr) then
+           qnx_arr(j,i,k)=((max(qnx_arr(j,i,k),1.0E-2_r_kind)**cvpnr_pvalue)-1)/cvpnr_pvalue
+        endif
+
+        end do
+      end do
+    end do
+end subroutine convert_nx_to_cvpnx
+
 end module read_wrf_mass_guess_mod

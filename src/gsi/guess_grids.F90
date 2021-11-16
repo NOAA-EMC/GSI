@@ -141,9 +141,10 @@ module guess_grids
   public :: sno2,ifilesfc,ifilenst,sfc_rough,fact10,sno,isli,soil_temp,soil_moi,coast_prox 
   public :: nfldsfc,nfldnst,hrdifsig,ges_tsen,sfcmod_mm5,sfcmod_gfs,ifact10,hrdifsfc,hrdifnst
   public :: geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pbl_height,ges_geopi
+  public :: geom_hgti,geom_hgti_bg
   public :: wgt_lcbas
   public :: ges_qsat
-  public :: use_compress,nsig_ext,gpstop
+  public :: use_compress,nsig_ext,gpstop,commgpstop,commgpserrinf
   public :: ges_tsen1,ges_q1
   public :: ntguesaer,ifileaer,nfldaer,hrdifaer ! variables for external aerosol files
 
@@ -229,7 +230,8 @@ module guess_grids
 
   real(r_kind):: gpstop=30.0_r_kind   ! maximum gpsro height used in km 
                                       ! geometric height for ref, impact height for bnd
-
+  real(r_kind):: commgpstop=30.0_r_kind
+  real(r_kind):: commgpserrinf=1.0_r_kind ! error inflation factor for commercial gnssro
   real(r_kind):: ges_psfcavg                            ! average guess surface pressure 
   real(r_kind),allocatable,dimension(:):: ges_prslavg   ! average guess pressure profile
 
@@ -249,6 +251,10 @@ module guess_grids
 
   real(r_kind),allocatable,dimension(:,:,:,:):: geop_hgtl ! guess geopotential height at mid-layers
   real(r_kind),allocatable,dimension(:,:,:,:):: geop_hgti ! guess geopotential height at level interfaces
+
+  real(r_kind),allocatable,dimension(:,:,:,:):: geom_hgti ! guess geometricheight at level interfaces
+  real(r_kind),allocatable,dimension(:,:,:,:):: geom_hgti_bg ! guess geometricheight at level interface for the background
+
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_geopi ! input guess geopotential height at level interfaces
 
   real(r_kind),allocatable,dimension(:,:,:):: pbl_height  !  GSD PBL height in hPa
@@ -415,6 +421,7 @@ contains
     use wrf_vars_mod, only : w_exist
     use constants,only: zero,one
     use gridmod, only: lat2,lon2,nsig
+    use gridmod,only: l_reg_update_hydro_delz
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -445,6 +452,7 @@ contains
 !   2014-06-09  carley/zhu - add wgt_lcbas
 !   2019-03-21  Wei/Martin - add capability to read external aerosol file
 !   2019-09-10  martin  - added new fields to save guess tsen/geop_hgt for writing increment
+!   2021-01-05  x.zhang/lei  - add code for updating delz analysis in regional da
 !
 ! !REMARKS:
 !   language: f90
@@ -488,6 +496,11 @@ contains
             tropprs(lat2,lon2),fact_tv(lat2,lon2,nsig),&
             pbl_height(lat2,lon2,nfldsig),wgt_lcbas(lat2,lon2), &
             ges_qsat(lat2,lon2,nsig,nfldsig),stat=istatus)
+         
+      if(l_reg_update_hydro_delz) then
+         allocate( geom_hgti(lat2,lon2,nsig+1,nfldsig))
+         allocate( geom_hgti_bg(lat2,lon2,nsig+1,nfldsig))
+       endif
 
        if(w_exist)then
          allocate(ges_w_btlev(lat2,lon2,2,nfldsig),stat=istatus)
@@ -803,6 +816,7 @@ contains
 
 ! !USES:
     use wrf_vars_mod, only : w_exist
+    use gridmod,only: l_reg_update_hydro_delz
 
     implicit none
 
@@ -823,6 +837,7 @@ contains
 !   2007-03-15  todling - merged in da Silva/Cruz ESMF changes
 !   2012-05-14  todling - revist cw check to check also on some hyrometeors
 !   2019-09-10  martin  - added new fields to save guess tsen/geop_hgt for writing increment
+!   2021-01-05  x.zhang/lei  - add code for updating delz analysis in regional da
 !
 ! !REMARKS:
 !   language: f90
@@ -843,6 +858,7 @@ contains
          ges_tsen,ges_teta,geop_hgtl,geop_hgti,ges_geopi,ges_prslavg,ges_rho,&
          ges_tsen1,ges_q1,&
          tropprs,fact_tv,pbl_height,wgt_lcbas,ges_qsat,stat=istatus)
+    if(l_reg_update_hydro_delz) deallocate( geom_hgti,geom_hgti_bg)
     if(w_exist) deallocate(ges_w_btlev,stat=istatus)
     if (istatus/=0) &
          write(6,*)'DESTROY_GES_GRIDS(ges_prsi,..):  deallocate error, istatus=',&
@@ -1375,7 +1391,13 @@ contains
     use constants, only: cpf_a0, cpf_a1, cpf_a2, cpf_b0, cpf_b1, cpf_c0, cpf_c1, cpf_d, cpf_e
     use constants, only: psv_a, psv_b, psv_c, psv_d
     use constants, only: ef_alpha, ef_beta, ef_gamma
+    use constants, only: one,two,grav_equator,flattening,semi_major_axis,grav_ratio,somigliana,eccentricity
     use gridmod, only: lat2, lon2, nsig, twodvar_regional
+
+    use gridmod, only: region_lat,region_lon
+    use gridmod,only: istart,jstart
+    use gridmod,only: l_reg_update_hydro_delz,nlat,nlon
+    use mpimod, only: mype
 
     implicit none
 
@@ -1395,6 +1417,7 @@ contains
 !                         Cucurull's GPS work)
 !   2005-05-24  pondeca - add regional surface analysis option
 !   2010-08-27  cucurull - add option to compute and use compressibility factors in geopot heights
+!   2021-01-05  x.zhang/lei  - add code for updating delz analysis in regional da
 !
 ! !REMARKS:
 !   language: f90
@@ -1416,6 +1439,11 @@ contains
     real(r_kind),dimension(:,:,:),pointer::ges_tv=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_q=>NULL()
     real(r_kind),dimension(:,:  ),pointer::ges_z=>NULL()
+ 
+    real(r_kind) slat,slon
+    real(r_kind) sin2,termg,termr,termrg
+    integer (i_kind) iglob,jglob,mm1
+
 
     if (twodvar_regional) return
 
@@ -1610,8 +1638,41 @@ contains
        end do
 
     endif
+    if (l_reg_update_hydro_delz ) then
+!       Convert geopotential height at layer midpoints to geometric height using
+!       equations (17, 20, 23) in MJ Mahoney's note "A discussion of various
+!       measures of altitude" (2001).  Available on the web at
+!       http://mtp.jpl.nasa.gov/notes/altitude/altitude.html
+!
+!       termg  = equation 17
+!       termr  = equation 21
+!       termrg = first term in the denominator of equation 23
+!       zges   = equation 23
+        mm1=mype+1
+        do jj=1,nfldsig
+          do j=1,lon2
+            jglob=max(1,min(j+jstart(mm1)-2,nlon))
+            do i=1,lat2
+              iglob=max(1,min(i+istart(mm1)-2,nlat))
+              slat=region_lat(iglob,jglob)
+              slon=region_lon(iglob,jglob)
 
-    return
+              sin2  = sin(slat)*sin(slat)
+              termg = grav_equator * &
+                   ((one+somigliana*sin2)/sqrt(one-eccentricity*eccentricity*sin2))
+              termr = semi_major_axis /(one + flattening + grav_ratio -  &
+                   two*flattening*sin2)
+              termrg = (termg/grav)*termr
+              do k=1,nsig+1
+                 geom_hgti(i,j,k,jj) = (termr*geop_hgti(i,j,k,jj))/(termrg-geop_hgti(i,j,k,jj))  ! eq (23)
+              end do
+            enddo
+          enddo
+        enddo !jj
+
+    endif
+
+   return
   end subroutine load_geop_hgt
 
 !-------------------------------------------------------------------------

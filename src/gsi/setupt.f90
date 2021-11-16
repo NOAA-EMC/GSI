@@ -79,6 +79,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use buddycheck_mod, only: buddy_check_t
+  use hdraobmod, only: nhdt,hdtlist
 
   use sparsearr, only: sparr2, new, size, writearray, fullarray
 
@@ -285,13 +286,13 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   integer(i_kind) ier2,iuse,ilate,ilone,ikxx,istnelv,iobshgt,izz,iprvd,isprvd
   integer(i_kind) regime
   integer(i_kind) idomsfc,iskint,iff10,isfcr
-  integer(i_kind) ibb,ikk
+  integer(i_kind) ibb,ikk,idddd
 
   integer(i_kind),dimension(nobs):: buddyuse
 
   type(sparr2) :: dhx_dx
 
-  integer(i_kind) :: iz, t_ind, nind, nnz
+  integer(i_kind) :: iz, t_ind, nind, nnz, iprev_station
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf,cdiagbufp
   character(8),allocatable,dimension(:):: cprvstg,csprvstg
@@ -391,6 +392,32 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
   end do
+!  If HD raobs available move prepbufr version to monitor
+  if(nhdt > 0)then
+     iprev_station=0
+     do i=1,nobs
+        ikx=nint(data(ikxx,i))
+        itype=ictype(ikx)
+        if(itype == 120) then
+           rstation_id     = data(id,i)
+           read(station_id,'(i5,3x)',err=1200) idddd
+           if(idddd == iprev_station)then
+             data(iuse,i)=108._r_kind
+             muse(i) = .false.
+           else 
+              stn_loop:do j=1,nhdt
+                if(idddd == hdtlist(j))then
+                   iprev_station=idddd
+                   data(iuse,i)=108._r_kind
+                   muse(i) = .false.
+                   exit stn_loop
+                end if
+              end do stn_loop
+           end if
+        end if
+1200    continue
+     end do
+  end if
   var_jb=zero
 
 !  handle multiple reported data at a station
@@ -1007,6 +1034,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         endif
         my_head%luse    = luse(i)
         my_head%tv_ob   = iqtflg
+        my_head%idx = 0
 
         if (aircraft_t_bc_pof .or. aircraft_t_bc) then
            effective=upd_pred_t*pof_idx

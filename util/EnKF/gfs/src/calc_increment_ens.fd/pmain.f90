@@ -11,6 +11,9 @@ program calc_increment_pmain
 
   implicit none
 
+! Declare externals
+  external :: w3tagb, w3tage
+
   character(len=3) :: memchar
   integer :: mype, mype1, npes, ierr
   integer :: i

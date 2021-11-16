@@ -116,7 +116,6 @@ subroutine get_gefs_for_regional
   character(len=*),parameter::myname='get_gefs_for_regional'
   real(r_kind) bar_norm,sig_norm,kapr,kap1,trk
   integer(i_kind) iret,i,j,k,k2,n,mm1,iderivative
-  integer(i_kind) mype_out
   integer(i_kind) ic2,ic3,it
   integer(i_kind) ku,kv,kt,kq,koz,kcw,kz,kps
   character(255) filename,filelists(ntlevs_ens)
@@ -376,8 +375,6 @@ subroutine get_gefs_for_regional
         gfshead%idsl= 1
         gfshead%idvc = 2
 
-        ! FV3GFS write component does not include JCAP, infer from DIMY-2
-        njcap=latb-2
 
         nlat_gfs=gfshead%latb+2
         nlon_gfs=gfshead%lonb
@@ -385,7 +382,7 @@ subroutine get_gefs_for_regional
 
         jcap_gfs=gfshead%latb-2
 
-        if (mype==mype_out) write(6,*)'GESINFO:  Read NCEP FV3GFS netCDF ', &
+        if (mype==0) write(6,*)'GESINFO:  Read NCEP FV3GFS netCDF ', &
            'format file, ',trim(filename)
         ! hard code nvcoord to be 2
         gfshead%nvcoord=2 ! ak and bk

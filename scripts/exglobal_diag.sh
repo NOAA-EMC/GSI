@@ -48,7 +48,6 @@ export CHGRP_CMD=${CHGRP_CMD:-"chgrp ${group_name:-rstprod}"}
 export NEMSIOGET=${NEMSIOGET:-${NWPROD}/exec/nemsio_get}
 export NCLEN=${NCLEN:-$HOMEgfs/ush/getncdimlen}
 export CATEXEC=${CATEXEC:-$HOMEgfs/exec/ncdiag_cat.x}
-export ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
 COMPRESS=${COMPRESS:-gzip}
 UNCOMPRESS=${UNCOMPRESS:-gunzip}
 APRUNCFP=${APRUNCFP:-""}
@@ -108,10 +107,7 @@ if [ $GENDIAG = "YES" ] ; then
          $NLN $pe $DATA/$pedir
       done
    else
-      echo "lrun_subdirs must be true; exit with error"
-      export ERR=$?
-      export err=$ERR
-      $ERRSCRIPT || exit 2
+      err_exit "***FATAL ERROR*** lrun_subdirs must be true.  Abort job"
    fi
 
    # Set up lists and variables for various types of diagnostic files.
@@ -119,7 +115,7 @@ if [ $GENDIAG = "YES" ] ; then
 
    diagtype[0]="conv conv_gps conv_ps conv_pw conv_q conv_sst conv_t conv_tcp conv_uv conv_spd"
    diagtype[1]="pcp_ssmi_dmsp pcp_tmi_trmm"
-   diagtype[2]="sbuv2_n16 sbuv2_n17 sbuv2_n18 sbuv2_n19 gome_metop-a gome_metop-b omi_aura mls30_aura ompsnp_npp ompstc8_npp gome_metop-c"
+   diagtype[2]="sbuv2_n16 sbuv2_n17 sbuv2_n18 sbuv2_n19 gome_metop-a gome_metop-b omi_aura mls30_aura ompsnp_npp ompstc8_npp  ompstc8_n20 ompsnp_n20 ompslp_npp gome_metop-c"
    diagtype[3]="hirs2_n14 msu_n14 sndr_g08 sndr_g11 sndr_g12 sndr_g13 sndr_g08_prep sndr_g11_prep sndr_g12_prep sndr_g13_prep sndrd1_g11 sndrd2_g11 sndrd3_g11 sndrd4_g11 sndrd1_g12 sndrd2_g12 sndrd3_g12 sndrd4_g12 sndrd1_g13 sndrd2_g13 sndrd3_g13 sndrd4_g13 sndrd1_g14 sndrd2_g14 sndrd3_g14 sndrd4_g14 sndrd1_g15 sndrd2_g15 sndrd3_g15 sndrd4_g15 hirs3_n15 hirs3_n16 hirs3_n17 amsua_n15 amsua_n16 amsua_n17 amsub_n15 amsub_n16 amsub_n17 hsb_aqua airs_aqua amsua_aqua imgr_g08 imgr_g11 imgr_g12 imgr_g14 imgr_g15 ssmi_f13 ssmi_f15 hirs4_n18 hirs4_metop-a amsua_n18 amsua_metop-a mhs_n18 mhs_metop-a amsre_low_aqua amsre_mid_aqua amsre_hig_aqua ssmis_f16 ssmis_f17 ssmis_f18 ssmis_f19 ssmis_f20 iasi_metop-a hirs4_n19 amsua_n19 mhs_n19 seviri_m08 seviri_m09 seviri_m10 seviri_m11 cris_npp cris-fsr_npp cris-fsr_n20 atms_npp atms_n20 hirs4_metop-b amsua_metop-b mhs_metop-b iasi_metop-b avhrr_metop-b avhrr_n18 avhrr_n19 avhrr_metop-a amsr2_gcom-w1 gmi_gpm saphir_meghat ahi_himawari8 abi_g16 abi_g17 amsua_metop-c mhs_metop-c iasi_metop-c avhrr_metop-c"
 
    diaglist[0]=listcnv
@@ -245,12 +241,16 @@ EOFdiag
          ncmd_max=$((ncmd < npe_node_max ? ncmd : npe_node_max))
          APRUNCFP_DIAG=$(eval echo $APRUNCFP)
          $APRUNCFP_DIAG $DATA/mp_diag.sh
-         export ERR=$?
-         export err=$ERR
-         $ERRSCRIPT || exit 3
+         export err=$?; err_chk
       fi
    fi
 
+   # Restrict diagnostic files containing rstprod data
+   rlist="conv_gps conv_ps conv_pw conv_q conv_sst conv_t conv_uv saphir"
+   for rtype in $rlist; do
+       ${CHGRP_CMD} *${rtype}*
+   done
+   
    # If requested, create diagnostic file tarballs
    if [ $DIAG_TARBALL = "YES" ]; then
       echo $(date) START tar diagnostic files >&2
@@ -262,9 +262,7 @@ EOFdiag
          fi
          if [ ${numfile[n]} -gt 0 ]; then
             tar $TAROPTS ${diagfile[n]} $(cat ${diaglist[n]})
-            export ERR=$?
-            export err=$ERR
-            $ERRSCRIPT || exit 4
+            export err=$?; err_chk
          fi
       done
 

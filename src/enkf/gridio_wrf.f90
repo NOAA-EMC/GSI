@@ -24,6 +24,11 @@ module gridio
   !   2017-05-12 Y. Wang and X. Wang - add more state variables for radar DA,
   !                                    (Johnson et al. 2015 MWR; Wang and Wang
   !                                    2017 MWR) POC: xuguang.wang@ou.edu
+  !   2021-02-08 CAPS(J. Park) 
+  !                   - add cliptracer to remove negative hydrometeors
+  !                     when updating analysis file.
+  !                   - add subroutine 'writewrfvar_native' to minimize
+  !                     interpolation error on wind analysis (A-C grid conversion)
   !
   ! attributes:
   !   language:  f95
@@ -37,7 +42,7 @@ module gridio
   use mpisetup, only: nproc
   use netcdf_io
   use params,   only: nlevs, cliptracers, datapath, arw, nmm, datestring, &
-                      pseudo_rh, nmm_restart
+                      pseudo_rh, nmm_restart, l_use_enkf_directZDA
   use mpeu_util, only: getindex
 
   implicit none
@@ -254,7 +259,7 @@ contains
        enddo
     endif
     ! read qnice
-    if ( qi_ind > 0 ) then
+    if ( qni_ind > 0 ) then
        varstrname = 'QNICE'
        call readwrfvar(filename, varstrname,                              &
                        vargrid(:,levels(qni_ind-1)+1:levels(qni_ind),nb,ne),nlevs)
@@ -752,15 +757,23 @@ contains
     allocate(enkf_field(npts, nlevs))
     if (u_ind > 0) then
        varstrname = 'U'
-       call readwrfvar(filename, varstrname, enkf_field, nlevs)
-       enkf_field = enkf_field + vargrid(:,levels(u_ind-1)+1:levels(u_ind),nb,ne)
-       call writewrfvar(filename, varstrname, enkf_field, nlevs)
+       if ( l_use_enkf_directZDA ) then ! add wind increment at native grid to reduce interpolation error
+          call writewrfvar_native(filename, varstrname, vargrid(:,levels(u_ind-1)+1:levels(u_ind),nb,ne), nlevs)
+       else
+          call readwrfvar(filename, varstrname, enkf_field, nlevs)
+          enkf_field = enkf_field + vargrid(:,levels(u_ind-1)+1:levels(u_ind),nb,ne)
+          call writewrfvar(filename, varstrname, enkf_field, nlevs)   
+       end if
     endif
     if (v_ind > 0) then
        varstrname = 'V'
-       call readwrfvar(filename, varstrname, enkf_field, nlevs)
-       enkf_field = enkf_field + vargrid(:,levels(v_ind-1)+1:levels(v_ind),nb,ne)
-       call writewrfvar(filename, varstrname, enkf_field, nlevs)
+       if ( l_use_enkf_directZDA ) then ! add wind increment at native grid to reduce interpolation error
+          call writewrfvar_native(filename, varstrname, vargrid(:,levels(v_ind-1)+1:levels(v_ind),nb,ne), nlevs)
+       else
+          call readwrfvar(filename, varstrname, enkf_field, nlevs)
+          enkf_field = enkf_field  + vargrid(:,levels(v_ind-1)+1:levels(v_ind),nb,ne)
+          call writewrfvar(filename, varstrname, enkf_field, nlevs)   
+       end if
     endif
 
     ! update CWM for WRF-NMM
@@ -783,6 +796,10 @@ contains
        varstrname = 'QCLOUD'
        call readwrfvar(filename, varstrname, enkf_field, nlevs)
        enkf_field = enkf_field + vargrid(:,levels(ql_ind-1)+1:levels(ql_ind),nb,ne)
+       if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
+           clip = tiny(enkf_field(1,1))
+           where (enkf_field < clip) enkf_field = clip
+       end if
        call writewrfvar(filename, varstrname, enkf_field, nlevs)
     endif
 
@@ -790,6 +807,10 @@ contains
        varstrname = 'QRAIN'
        call readwrfvar(filename, varstrname, enkf_field, nlevs)
        enkf_field = enkf_field + vargrid(:,levels(qr_ind-1)+1:levels(qr_ind),nb,ne)
+       if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
+           clip = tiny(enkf_field(1,1))
+           where (enkf_field < clip) enkf_field = clip
+       end if
        call writewrfvar(filename, varstrname, enkf_field, nlevs)
     endif
 
@@ -797,6 +818,10 @@ contains
        varstrname = 'QICE'
        call readwrfvar(filename, varstrname, enkf_field, nlevs)
        enkf_field = enkf_field + vargrid(:,levels(qi_ind-1)+1:levels(qi_ind),nb,ne)
+       if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
+           clip = tiny(enkf_field(1,1))
+           where (enkf_field < clip) enkf_field = clip
+       end if
        call writewrfvar(filename, varstrname, enkf_field, nlevs)
     endif
 
@@ -804,6 +829,10 @@ contains
        varstrname = 'QSNOW'
        call readwrfvar(filename, varstrname, enkf_field, nlevs)
        enkf_field = enkf_field + vargrid(:,levels(qs_ind-1)+1:levels(qs_ind),nb,ne)
+       if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
+           clip = tiny(enkf_field(1,1))
+           where (enkf_field < clip) enkf_field = clip
+       end if
        call writewrfvar(filename, varstrname, enkf_field, nlevs)
     endif
 
@@ -811,6 +840,10 @@ contains
        varstrname = 'QGRAUP'
        call readwrfvar(filename, varstrname, enkf_field, nlevs)
        enkf_field = enkf_field + vargrid(:,levels(qg_ind-1)+1:levels(qg_ind),nb,ne)
+       if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
+           clip = tiny(enkf_field(1,1))
+           where (enkf_field < clip) enkf_field = clip
+       end if
        call writewrfvar(filename, varstrname, enkf_field, nlevs)
     endif
 
@@ -832,6 +865,10 @@ contains
        varstrname = 'QNRAIN'
        call readwrfvar(filename, varstrname, enkf_field, nlevs)
        enkf_field = enkf_field + vargrid(:,levels(qnr_ind-1)+1:levels(qnr_ind),nb,ne)
+       if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
+           clip = tiny(enkf_field(1,1))
+           where (enkf_field < clip) enkf_field = clip
+       end if
        call writewrfvar(filename, varstrname, enkf_field, nlevs)
     endif
 
@@ -1250,6 +1287,127 @@ contains
     if(allocated(workgrid))       deallocate(workgrid)
 
   end subroutine writewrfvar
+
+  !======================================================================
+  ! writewrfvar_native: write EnKF-style field in WRF netcdf file; 
+  ! analysis increment is interpolated to the native variable grid
+  ! all checks for grid staggering are contained within this subroutine
+  ! CAPS(J. Park): modified from 'writewrfvar_native'
+  !                increments are added at native grid to minimize interpolation
+  !                errors from dot2cross
+  subroutine writewrfvar_native(filename, varname, grid, nlevs)
+    implicit none
+    character(len=500), intent(in) :: filename
+    character(len=12),  intent(in) :: varname
+    integer(i_kind), intent(in) :: nlevs
+    real(r_single),  dimension(npts,nlevs),  intent(in) :: grid    ! analysis increment
+
+    ! Define variables computed within subroutine
+    real, dimension(:,:,:), allocatable :: workgrid
+    real, dimension(:,:,:), allocatable :: vargrid_native   ! original variables at native grid
+    real, dimension(:,:,:), allocatable :: vargridinc_native ! analysis increment at native grid
+    integer :: xdim, ydim, zdim
+    integer :: xdim_native, ydim_native, zdim_native
+    integer :: xdim_local,  ydim_local,  zdim_local
+
+    ! Define variables requiredfor netcdf variable I/O
+    character(len=50) :: attstr
+    character(len=12) :: varstagger
+
+    ! Define counting variables
+    integer :: i, j, k
+    integer :: counth
+
+
+    xdim = dimensions%xdim
+    ydim = dimensions%ydim
+    zdim = dimensions%zdim
+
+    ! Allocate memory for local variable
+    allocate(workgrid(xdim,ydim,zdim))
+
+    xdim_native = xdim
+    ydim_native = ydim
+    zdim_native = zdim
+
+    if (arw) then
+       attstr = 'stagger'
+       call variableattribute_char(filename,varname,attstr,     &
+                  & varstagger)
+       !----------------------------------------------------------------------
+       ! If variable grid is staggered, assign array dimensions appropriately
+       if(varstagger(1:1) .eq. 'X') then
+          xdim_native = xdim + 1
+       else if(varstagger(1:1) .eq. 'Y') then
+          ydim_native = ydim + 1
+       else if(varstagger(1:1) .eq. 'Z') then
+          zdim_native = zdim + 1
+       end if ! if(varstagger(1:1) .eq. 'X')
+    endif
+
+    zdim_local = nlevs
+    if(nlevs == 1) then
+       zdim_native = 1
+    end if
+
+    ! Define local variable dimensions
+    xdim_local = xdim
+    ydim_local = ydim
+
+    ! read variables at native grid
+    if (allocated(vargrid_native)) deallocate(vargrid_native)
+    allocate(vargrid_native(xdim_native,ydim_native,zdim_native))
+
+    ! Ingest variable from external netcdf formatted file
+    call readnetcdfdata(filename,vargrid_native,varname,     &
+            & xdim_native,ydim_native,zdim_native)
+
+    !----------------------------------------------------------------------
+    ! Allocate memory local arrays (first check whether they are
+    ! already allocated)
+    if (allocated(vargridinc_native)) deallocate(vargridinc_native)
+    allocate(vargridinc_native(xdim_native,ydim_native,zdim_native))
+
+    !----------------------------------------------------------------------
+    ! Loop through vertical coordinate
+    do k = 1, zdim_local
+       ! Initialize counting variable
+       counth = 1
+
+       ! Loop through meridional horizontal coordinate
+       do j = 1, ydim
+          ! Loop through zonal horizontal coordinate
+          do i = 1, xdim
+             ! Assign values to local array
+             workgrid(i,j,k) = grid(counth,k)
+
+             counth = counth + 1
+          end do ! do i = 1, xdim
+       end do ! do j = 1, ydim
+    end do ! k = 1, zdim_local
+
+
+    ! Interpolate increments to native grid (i.e., from A-grid to
+    ! C-grid; if necessary); on input, workgrid is increments on
+    ! unstaggered grid; on output vargrid_native is increments on
+    ! model-native (i.e., staggered grid); vargrid_native is
+    ! unmodified first guess on native staggered grid
+    call dot2cross(xdim_local,ydim_local,zdim_local,xdim_native,    &
+            ydim_native,zdim_native,workgrid,vargridinc_native)
+
+    vargrid_native=vargrid_native+vargridinc_native  ! add Increment
+
+    !----------------------------------------------------------------------
+    ! Write analysis variable.
+    call writenetcdfdata(filename,vargrid_native,varname,          &
+             xdim_native,ydim_native,zdim_native)
+
+    ! Deallocate memory for local variables
+    if(allocated(vargrid_native)) deallocate(vargrid_native)
+    if(allocated(vargridinc_native)) deallocate(vargridinc_native)
+    if(allocated(workgrid))       deallocate(workgrid)
+
+  end subroutine writewrfvar_native
 
   !========================================================================
   ! read pressure information (pd, aeta1, aeta2, pl, pdtop from WRF-NMM file

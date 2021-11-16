@@ -22,7 +22,7 @@ export PROJECT=${PROJECT:-GDAS-T2O}
 #  JOB_QUEUE is used on wcoss only with the bjob -q flag.  It is 
 #  empty on other platforms.
 #
-export JOB_QUEUE=${JOB_QUEUE:-dev}
+export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
 
 #
 #  RAD_AREA is either glb (global) or rgn (regional)
@@ -56,11 +56,6 @@ export PLOT_ALL_REGIONS=${PLOT_ALL_REGIONS:-1}
 export PLOT_SUB_AVGS=${PLOT_SUB_AVGS:-1}
 
 #
-#  PLOT_HORIZ switches on/off plotting of horizontal data.  0=off, 1 = on.
-#
-export PLOT_HORIZ=${PLOT_HORIZ:-0}
-
-#
 #  PLOT_STATIC_IMGS switches on/off generation of static summary image plots.
 #     Image plotting is moving towards client browser drawn images and plotting
 #     scripts will eventually not "plot" images, but rather generate very small
@@ -79,22 +74,10 @@ export PLOT_STATIC_IMGS=${PLOT_STATIC_IMGS:-0}
 export USE_TM=${USE_TM:-tm12}
 
 #
-#  DO_ARCHIVE switches on archiving of extracted data files.  This is generally
-#    used for the operational data sets (GDAS, NDAS) and isn't normally necessary
-#    for parallels.  0 = off, 1 = on
-export DO_ARCHIVE=${DO_ARCHIVE:-0}
-export ARCHIVE_DIR=${ARCHIVE_DIR:-' '}
-
-#
-#  HPSS_DIR is the location for archived data on the hpss.  It will only
-#    be used if DO_ARCHIVE is set to on (1).
-export HPSS_DIR=${HPSS_DIR:-/NCEPDEV/hpssuser/g01/Edward.Safford/nbns/stats}
-
-#
 #  USE_STATIC_SATYPE switches on/off use of static satype list.  This is primarily
 #    intended for use with diagnotic file error reporting and isn't needed 
 #    for most parallels.  0 = off, 1 = on
-export USE_STATIC_SATYPE=${USE_STATIC_SATYPE:-0}
+export USE_STATIC_SATYPE=${USE_STATIC_SATYPE:-1}
 
 #
 #  DO_DIAG_RPT switches on/off the diagnostic error reporting.  This is check
@@ -103,26 +86,29 @@ export USE_STATIC_SATYPE=${USE_STATIC_SATYPE:-0}
 #    is desirable.  It is not normally necessary in parallels.  0 = off, 1 = on
 export DO_DIAG_RPT=${DO_DIAG_RPT:-0}
 
+
 #  DO_DATA_RPT switches on/off error checking and reporting of the penalty values
 #    by channel for each sat/instrument source.  This is a check primarily intended
 #    for use iwth the operational data sets (GDAS,NDAS) where detection and 
 #    reporting of drifting channel(s) on specific sat/instrument sources is 
 #    desirable.  It is not normally necesary to apply this to parallels.  0 = off, 1 = on
 export DO_DATA_RPT=${DO_DATA_RPT:-0}
-export MAIL_TO=${MAIL_TO:-' '}
-export MAIL_CC=${MAIL_CC:-' '}
 
-#
-#  RUN_ONLY_ON_DEV switches on/off the constraint to run only on the development machine.
-#  0 = prod or dev, 1 = dev only.
-#  
-export RUN_ONLY_ON_DEV=${RUN_ONLY_ON_DEV:-1}
+
+export MAIL_TO=${MAIL_TO:-'edward.safford@noaa.gov'}
+
+if [[ -e /u/${LOGNAME}/bin/get_cc_list.pl ]]; then
+      cc_list=`/u/${LOGNAME}/bin/get_cc_list.pl --nr ${RADMON_SUFFIX}_${RUN} --mon RadMon`
+   else
+      cc_list=""
+   fi
+export MAIL_CC=${MAIL_CC:=${cc_list}}
 
 #
 #  KEEPDATA switches on/off allowing the work directory to remain after data extraction.
 #  YES=keep working directory, NO=rm working directory.
 #
-export KEEPDATA=${KEEPDATA:-"YES"}
+export KEEPDATA=${KEEPDATA:-"NO"}
 
 #
 #  REGIONAL_RR flags the data source as a regional rapid refresh.  The output data files
@@ -134,7 +120,11 @@ export REGIONAL_RR=${REGIONAL_RR:-0}
 #  CYCLE_INTERVAL indicates the period of time between cycle runs for any given
 #  data source.  This is generally 6 hrs, but can be 3 or 1 hr for rapid refresh sources.
 #
-export CYCLE_INTERVAL=${CYCLE_INTERVAL:-6}
+if [[ ${RAD_AREA} = "rgn" ]]; then
+   export CYCLE_INTERVAL=${CYCLE_INTERVAL:-1}
+else
+   export CYCLE_INTERVAL=${CYCLE_INTERVAL:-6}
+fi
 
 #
 #  RUN_TRANSFER allows for an immediate invocation of the Transfer.sh script
@@ -142,4 +132,11 @@ export CYCLE_INTERVAL=${CYCLE_INTERVAL:-6}
 #
 #  0 = do not run transfer, 1 = run transfer
 #
-export RUN_TRANSFER=${RUN_TRANSFER:-0}
+export RUN_TRANSFER=${RUN_TRANSFER:-1}
+
+#
+#  CLEAN_TANKDIR orders automatic delete of data files in $TANKverf deleted
+#  if older than 40 days.
+#
+#  0 = do not clean TANKverf, 1 = clean TANKverf
+export CLEAN_TANKVERF=${CLEAN_TANKVERF:-1}

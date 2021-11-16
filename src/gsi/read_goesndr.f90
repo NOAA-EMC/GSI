@@ -513,6 +513,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
      end do read_loop
   end do read_subset
   call closbf(lnbufr)
+  close(lnbufr)
 
 
 ! If multiple tasks read input bufr file, allow each tasks to write out

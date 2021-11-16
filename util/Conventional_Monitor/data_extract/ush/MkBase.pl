@@ -6,6 +6,9 @@
 #    Arguments: 
 #       --dir     : Required string value containing  $TANKdir/$NET.
 #       --net     : Identifying name of data source (aka suffix)
+#       --typ     : Specific type of data to be processed (i.e. t120).
+#                   If not specified then all available data types
+#                   will be processed and written to the new base file.
 #       --run     : Run name, generally 'gdas' or 'gfs'.  
 #		    If not specified 'gdas' will be used.
 #-----------------------------------------------------------------------
@@ -14,9 +17,10 @@
    use warnings;
    use Getopt::Long;
    use Scalar::Util qw(looks_like_number);
+   use File::Copy qw(copy);
 
-   my %sums;
    my %hr_sums;
+   my %output;
 
    #---------------------------------------------------------
    #  subroutine trim
@@ -40,20 +44,19 @@
    #---------------------------------------------------------
    sub process_nobs_file {
 
-
       #-----------------------------------
       # check number of arguments passed.
       #  
       my $nargs = scalar(@_);
 
-      if( $nargs <= 0 || $nargs > 1 ){
+      if( $nargs <= 0 || $nargs > 2 ){
          print "error:  wrong number of args passed \n"; 
       }
       else {
-
          my $nobs_file = shift;
+         my $ptype     = shift;
+         
          my $hr = substr($nobs_file, -2);
-
          open(FH, '<', $nobs_file) or die $!;
 
          while(<FH>){
@@ -63,31 +66,27 @@
             my $subtype = trim( $line[1] );
             my $count   = trim( $line[2] );
 
-            #-------------------------------------------------------
+            #--------------------------------------------------------
             # insert into hash %sums using $type_$subtype as the key
             #
+            #    Note:  if we have a $ptype then only process a $key
+            #           that matches.  Otherwise process all $key 
+            #           values.
             my $key = $type . "_" . $subtype;
 
-            if( exists( $sums{$key} )){
-               push @{ $sums{$key} }, $count;
-            } 
-            else {
-               my @counts = [ $count ];
-               $sums{$key} = \@counts;
-            }
+            if( length($ptype) <= 0 || $key eq $ptype ) {
 
-            if( exists $hr_sums{$hr} && exists $hr_sums{$hr}{$key}) {
-               push @{ $hr_sums{$hr}{$key}}, $count;
+               if( exists $hr_sums{$hr} && exists $hr_sums{$hr}{$key}) {
+                  push @{ $hr_sums{$hr}{$key}}, $count;
+               }
+               else{ 
+                  my @hr_counts = [ $count ];
+                  $hr_sums{$hr}{$key} = \@hr_counts;
+               }
             }
-            else{ 
-               my @hr_counts = [ $count ];
-               $hr_sums{$hr}{$key} = \@hr_counts;
-            }
-
          }
          close(FH);
       }
-
    };
 
    #---------------------------------------------------------
@@ -99,23 +98,12 @@
    #---------------------------------------------------------
    sub calc_avgs {
 
-      print "--> calc_avgs \n";
-      my $dir = shift;
-      my $net = shift;
-      my $run = shift;
-
-#      my $key;
-      
-      my $filename = "${dir}/${net}/info/${run}_conmon_base.txt";
-      print "filename = $filename\n";
-      open(FH, '>', $filename) or die $!;
-
       foreach my $hr (sort keys %hr_sums) {
-
          foreach my $key (sort keys %{ $hr_sums{$hr} }) {
 
             my $total = 0;
             my $nrecs = 0;
+            my $avg   = 0;
 
             for my $count (@{ $hr_sums{$hr}{$key}}) {
                if( looks_like_number( $count )) {
@@ -123,8 +111,6 @@
                   $total = $total + $count;
                }
             }
-
-            my $avg = 0;
 
             if( $nrecs > 0 ) { 
                $avg = $total/$nrecs;
@@ -134,14 +120,68 @@
             }
 
             my $rounded = sprintf("%.2f", $avg);
-            print FH "${hr}, ${key}, ${rounded}\n";
+            if( exists $output{$hr} && exists $output{$hr}{$key}) {
+               push @{ $output{$hr}{$key}}, $rounded;
+            }
+            else{ 
+               $output{$hr}{$key} = $rounded;
+            }
+         }
+      }
+   }
+
+
+   #---------------------------------------------------------
+   #  subroutine write_output_file
+   #
+   #    Write contents of output hash to outfile
+   #---------------------------------------------------------
+   sub write_output_file {
+
+      my $basefile = shift;
+      open(FH, '>', $basefile) or die $!;
+
+      foreach my $hr (sort keys %output) {
+         foreach my $key (sort keys %{ $output{$hr} }) {
+            print FH "${hr}, ${key}, $output{$hr}{$key}\n";
          }
       }
 
       close( FH );
-      print "<-- calc_avgs \n";
    }
 
+
+   #---------------------------------------------------------
+   #  subroutine load_base_file
+   #
+   #    Load contents of current base file to output
+   #    hash.  
+   #
+   #    Do not load ptype records. 
+   #---------------------------------------------------------
+   sub load_base_file {
+      my $basefile = shift; 
+      my $ptype   = shift;
+
+      open(FH, '<', $basefile) or die $!;
+      while(<FH>){
+         my @spl = split(',', $_);
+ 
+         my $hr   = trim( $spl[0] );
+         my $type = trim( $spl[1] );
+         my $avg  = trim( $spl[2] ); 
+
+         if( $type ne $ptype ){
+            if( exists $output{$hr} && exists $output{$hr}{$type}) {
+               push @{ $output{$hr}{$type}}, $avg;
+            }
+            else{ 
+               $output{$hr}{$type} = $avg;
+            }
+         }
+      }
+      close( FH );
+   }
 
 
    ###------------------------------------------------------------------
@@ -153,13 +193,15 @@
    ###------------------------------------------------------------------
 
 
-   my $run  = 'gdas';
-   my $dir  = '';
-   my $net  = '';
-   my $err  = 0;
+   my $run   = 'gdas';
+   my $dir   = '';
+   my $net   = '';
+   my $ptype = '';
+   my $err   = 0;
 
    GetOptions( 'net:s' => \$net,
                'run:s' => \$run,
+               'typ:s' => \$ptype,
                'dir=s' => \$dir );
 
    if( length($net) == 0 ){
@@ -174,10 +216,24 @@
       exit $err
    }
 
-   print " net   = $net\n";
-   print " run   = $run\n";
-   print " dir   = $dir\n";
-    
+   if( length($run) == 0 ){
+      print "No run value supplied, using gdas\n";
+      $run = 'gdas';
+   }
+
+   print " net    = $net\n";
+   print " run    = $run\n";
+   print " ptype  = $ptype\n";
+   print " dir    = $dir\n";
+
+   my $basefile = "${dir}/${net}/info/${run}_conmon_base.txt";
+   my $oldbasefile = "$basefile.old";
+   copy $basefile, $oldbasefile;
+
+   if( length($ptype) != 0 ){
+      load_base_file( $basefile, $ptype );
+   }   
+ 
    my @alldirs;
    my $dirpath = $dir . '/' . $net;
    print "dirpath = $dirpath\n";
@@ -193,7 +249,6 @@
    closedir DIR;
 
    my @rundirs = grep { /$run/ } @alldirs;
-
    #-----------------------------------------------------------------------   
    #  If there are no $run.yyyymmdd subdirectories, then exit without 
    #    returning any date string.
@@ -226,7 +281,7 @@
    #
    my $exit_flag   = 0;
    my $found_cycle = 0;
-   my $cycle_ctr         = 0;
+   my $cycle_ctr   = 0;
 
    do {
       $idx = $idx -1;
@@ -234,7 +289,6 @@
 
       my @spl = split /\./, ${sortrun[$idx]};
       my $date = ${spl[1]};
-
 
       #---------------------------------------------
       #  use this loop over the hrs array to build
@@ -246,7 +300,7 @@
 
          my $cycle = $date . ${hrs[$hr_ctr]};
  
-         my $obs_file = "${dirpath}/${sortrun[$idx]}/${hrs[$hr_ctr]}/conmon/horz_hist/anl/nobs.anl.$cycle";
+         my $obs_file = "${dirpath}/${sortrun[$idx]}/${hrs[$hr_ctr]}/conmon/horz_hist/ges/nobs.ges.$cycle";
          my $comp_obs_file = $obs_file . '.gz';
 
          if( -e $comp_obs_file ) {
@@ -254,7 +308,7 @@
          }
 
          if( -e $obs_file ) {
-            process_nobs_file( $obs_file );
+            process_nobs_file( $obs_file, $ptype );
             system( "gzip", $obs_file );
          }
 
@@ -264,6 +318,9 @@
 
    } while $idx > 0 && $cycle_ctr < 240;
 
-   calc_avgs( $dir, $net, $run );
+
+   calc_avgs( );
+
+   write_output_file( $basefile );
 
    exit 0

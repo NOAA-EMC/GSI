@@ -94,9 +94,9 @@ find . -name '*.png' -exec cp -pf {} ${IMGNDIR}/horiz/ \;
 #   running).
 #
 
-#cd $tmpdir
-#cd ..
-#rm -rf $tmpdir
+cd $tmpdir
+cd ..
+rm -rf $tmpdir
 
 #cat ${LOADLQ}/plot_${RADMON_SUFFIX}_horiz* 
 
