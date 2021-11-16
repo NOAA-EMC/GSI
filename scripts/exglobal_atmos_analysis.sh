@@ -150,6 +150,8 @@ GMI1CRBF=${GMI1CRBF:-${COMIN_OBS}/${OPREFIX}gmi1cr.tm00.bufr_d${OSUFFIX}}
 SAPHIRBF=${SAPHIRBF:-${COMIN_OBS}/${OPREFIX}saphir.tm00.bufr_d${OSUFFIX}}
 SEVIRIBF=${SEVIRIBF:-${COMIN_OBS}/${OPREFIX}sevcsr.tm00.bufr_d${OSUFFIX}}
 AHIBF=${AHIBF:-${COMIN_OBS}/${OPREFIX}ahicsr.tm00.bufr_d${OSUFFIX}}
+#SSTVIIRS=${SSTVIIRS:-${COMIN_OBS}/${OPREFIX}sstvcw.tm00.bufr_d${OSUFFIX}}
+SSTVIIRS=/scratch1/NCEPDEV/global/glopara/dump/gdasx.${PDY}/$cyc/${OPREFIX}sstvcw.tm00.bufr_d${OSUFFIX}
 ABIBF=${ABIBF:-${COMIN_OBS}/${OPREFIX}gsrcsr.tm00.bufr_d${OSUFFIX}}
 CRISBF=${CRISBF:-${COMIN_OBS}/${OPREFIX}cris.tm00.bufr_d${OSUFFIX}}
 ESCRIS=${ESCRIS:-${COMIN_OBS}/${OPREFIX}escris.tm00.bufr_d${OSUFFIX}}
@@ -533,6 +535,7 @@ $NLN $B1AVHPM          avhpmbufr
 $NLN $AHIBF            ahibufr
 $NLN $ABIBF            abibufr
 $NLN $HDOB             hdobbufr
+$NLN $SSTVIIRS         sstviirs
 
 [[ $DONST = "YES" ]] && $NLN $NSSTBF nsstbufr
 
@@ -802,7 +805,7 @@ cat > gsiparm.anl << EOF
   $OBSQC
 /
 &OBS_INPUT
-  dmesh(1)=145.0,dmesh(2)=150.0,dmesh(3)=100.0,time_window_max=3.0,
+  dmesh(1)=145.0,dmesh(2)=150.0,dmesh(3)=100.0,dmesh(4)=888.0,time_window_max=3.0,
   $OBSINPUT
 /
 OBS_INPUT::
@@ -912,6 +915,8 @@ OBS_INPUT::
    amsuabufr      amsua       metop-c     amsua_metop-c       0.0     1     1
    mhsbufr        mhs         metop-c     mhs_metop-c         0.0     1     1
    iasibufr       iasi        metop-c     iasi_metop-c        0.0     1     1
+   sstviirs       viirs-m     npp         viirs-m_npp         0.0     1     0
+   sstviirs       viirs-m     j1          viirs-m_j1          0.0     1     0
 ::
 &SUPEROB_RADAR
   $SUPERRAD
