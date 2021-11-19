@@ -113,7 +113,7 @@ subroutine update_guess(sval,sbias)
   use mpimod, only: mype
   use constants, only: zero,one,fv,max_varname_length,qmin,qcmin,tgmin,&
                        r100,one_tenth,tiny_r_kind
-  use jfunc, only: iout_iter,bcoption,tsensible,clip_supersaturation
+  use jfunc, only: iout_iter,bcoption,tsensible,clip_supersaturation,superfact
   use gridmod, only: lat2,lon2,nsig,&
        regional,twodvar_regional,regional_ozone,&
        l_reg_update_hydro_delz
@@ -269,7 +269,7 @@ subroutine update_guess(sval,sbias)
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ptr3dges,istatus)
            if (trim(guess(ic))=='q') then
                call upd_positive_fldr3_(ptr3dges,ptr3dinc, qmin)
-               if(clip_supersaturation) ptr3dges(:,:,:) = min(ptr3dges(:,:,:),ges_qsat(:,:,:,it))
+               if(clip_supersaturation) ptr3dges(:,:,:) = min(ptr3dges(:,:,:),superfact*ges_qsat(:,:,:,it))
                cycle
            endif
            if (trim(guess(ic))=='oz') then

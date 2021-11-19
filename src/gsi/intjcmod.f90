@@ -71,7 +71,7 @@ subroutine intlimq(rval,sval,itbin)
 !
 !$$$
   use gridmod, only: nsig,lat1,lon1,istart,wgtfactlats
-  use jfunc, only: factqmin,factqmax
+  use jfunc, only: factqmin,factqmax,superfact
   use gsi_metguess_mod, only: gsi_metguess_bundle 
   use guess_grids, only: ges_qsat
   use mpimod, only: mype
@@ -116,8 +116,8 @@ subroutine intlimq(rval,sval,itbin)
                           /(ges_qsat(i,j,k,itbin)*ges_qsat(i,j,k,itbin))
 
 !          Upper constraint limit
-           else if (q > ges_qsat(i,j,k,itbin)) then
-              rq(i,j,k) = rq(i,j,k) + (factqmax*wgtfactlats(ii))*(q-ges_qsat(i,j,k,itbin))/ &
+           else if (q > superfact*ges_qsat(i,j,k,itbin)) then
+              rq(i,j,k) = rq(i,j,k) + (factqmax*wgtfactlats(ii))*(q-superfact*ges_qsat(i,j,k,itbin))/ &
                           (ges_qsat(i,j,k,itbin)*ges_qsat(i,j,k,itbin))
            
            end if

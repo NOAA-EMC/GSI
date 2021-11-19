@@ -165,7 +165,7 @@ subroutine prt_guess(sgrep)
   zloc(nvars+7)    = minval(ges_cwmr_it(2:lat1+1,2:lon1+1,1:nsig))
   zloc(nvars+8)    = minval(ges_cf_it(2:lat1+1,2:lon1+1,1:nsig))
   zloc(nvars+9)    = minval(ges_div_it(2:lat1+1,2:lon1+1,1:nsig))
-  zloc(nvars+10)    = minval(ges_vor_it(2:lat1+1,2:lon1+1,1:nsig))
+  zloc(nvars+10)   = minval(ges_vor_it(2:lat1+1,2:lon1+1,1:nsig))
   zloc(nvars+11)   = minval(ges_prsl  (2:lat1+1,2:lon1+1,1:nsig,ntsig))
   zloc(nvars+12)   = minval(ges_ps_it (2:lat1+1,2:lon1+1             ))
   zloc(nvars+13)   = minval(sfct      (2:lat1+1,2:lon1+1,       ntsfc))
@@ -178,7 +178,7 @@ subroutine prt_guess(sgrep)
   zloc(2*nvars+7)  = maxval(ges_cwmr_it(2:lat1+1,2:lon1+1,1:nsig))
   zloc(2*nvars+8)  = maxval(ges_cf_it(2:lat1+1,2:lon1+1,1:nsig))
   zloc(2*nvars+9)  = maxval(ges_div_it(2:lat1+1,2:lon1+1,1:nsig))
-  zloc(2*nvars+10)  = maxval(ges_vor_it(2:lat1+1,2:lon1+1,1:nsig))
+  zloc(2*nvars+10) = maxval(ges_vor_it(2:lat1+1,2:lon1+1,1:nsig))
   zloc(2*nvars+11) = maxval(ges_prsl  (2:lat1+1,2:lon1+1,1:nsig,ntsig))
   zloc(2*nvars+12) = maxval(ges_ps_it (2:lat1+1,2:lon1+1             ))
   zloc(2*nvars+13) = maxval(sfct      (2:lat1+1,2:lon1+1,       ntsfc))
@@ -188,8 +188,8 @@ subroutine prt_guess(sgrep)
 
 
 ! Gather contributions
-  call mpi_allgather(zloc,3*nvars+3,mpi_rtype, &
-                   & zall,3*nvars+3,mpi_rtype, mpi_comm_world,ierror)
+  call mpi_gather(zloc,3*nvars+3,mpi_rtype, &
+                   & zall,3*nvars+3,mpi_rtype,0, mpi_comm_world,ierror)
 
   if (mype==0) then
      zmin=zero

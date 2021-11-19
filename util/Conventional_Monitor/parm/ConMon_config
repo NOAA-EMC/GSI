@@ -74,8 +74,6 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
       export SUB="bsub"
       export COMPRESS=gzip
       export UNCOMPRESS="gunzip -f"
-      export PROJECT=${PROJECT:-GDAS-DEV}
-      export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
 
    elif [[ $MY_MACHINE = "wcoss_d" ]]; then
       shell=sh
@@ -106,8 +104,6 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
       export SUB="bsub"
       export COMPRESS=/usr/bin/gzip
       export UNCOMPRESS="/usr/bin/gunzip -f"
-      export PROJECT=${PROJECT:-GFS-DEV}
-      export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
  
    elif [[ $MY_MACHINE = "hera" ]]; then
       module use -a /apps/modules/modulefamilies/intel
@@ -123,11 +119,17 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
       export NDATE=/home/Edward.Safford/bin/ndate
       export COMPRESS=${COMPRESS:-gzip}
       export UNCOMPRESS=${UNCOMPRESS:-"gunzip -f"}
+
+   elif [[ $MY_MACHINE = "wcoss2" ]]; then
+      export COMPRESS=/usr/bin/gzip
+      export UNCOMPRESS="/usr/bin/gunzip -f"
    fi
 
    export Z="gz"
 
    export ACCOUNT=${ACCOUNT:-}
+   export PROJECT=
+   export JOB_QUEUE=
  
    export C_STMP=${C_STMP:-/gpfs/dell2/stmp}
    export C_STMP_USER=${C_STMP_USER:-${C_STMP}/${LOGNAME}}

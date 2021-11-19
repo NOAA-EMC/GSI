@@ -238,7 +238,6 @@ module constants
   real(r_kind),parameter::  ke2 = 0.00002_r_kind
   real(r_kind),parameter::  row = r1000
   real(r_kind),parameter::  rrow = one/row
-! real(r_kind),parameter::  qmin = 1.e-7_r_kind  !lower bound on ges_q
 
 ! Constant used to process ozone
   real(r_kind),parameter::  constoz = 604229.0_r_kind
