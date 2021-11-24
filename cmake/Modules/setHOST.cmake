@@ -30,15 +30,9 @@ macro( setHOST )
   if( NOT HOST-WCOSS_C )# don't overwrite if we are on luna 
     string(REGEX MATCH "slogin" HOST-WCOSS_C ${HOSTNAME}  )
   endif()
-  string(REGEX MATCH "clogin01" HOST-WCOSS2 ${HOSTNAME}  )
-  if( NOT HOST-WCOSS2 )# don't overwrite if we are on node 1
-     string(REGEX MATCH "clogin02" HOST-WCOSS2 ${HOSTNAME}  )
-  endif()
-  if( NOT HOST-WCOSS2 )# don't overwrite if we are on CACTUS
-     string(REGEX MATCH "dlogin01" HOST-WCOSS2 ${HOSTNAME}  )
-  endif()
-  if( NOT HOST-WCOSS2 )# don't overwrite if we are on node 1 or CACTUS
-     string(REGEX MATCH "dlogin02" HOST-WCOSS2 ${HOSTNAME}  )
+  string(REGEX MATCH "clogin" HOST-WCOSS2 ${HOSTNAME}  )
+  if( NOT HOST-WCOSS2 )# don't overwrite if we are on Cactus
+     string(REGEX MATCH "dlogin" HOST-WCOSS2 ${HOSTNAME}  )
   endif()
   string(REGEX MATCH "discover" HOST-Discover ${HOSTNAME} )
   string(REGEX MATCH "cheyenne" HOST-Cheyenne ${HOSTNAME}  )
