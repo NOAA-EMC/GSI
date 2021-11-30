@@ -171,8 +171,6 @@ public isazi_ang2           ! = 37 index of solar azimuth angle (degrees)
   real(r_kind)   , save ,allocatable,dimension(:,:) :: cloud_efr    ! effective radius of cloud type in CRTM
   real(r_kind)   , save ,allocatable,dimension(:)   :: cf           ! effective radius of cloud type in CRTM 
   real(r_kind)   , save ,allocatable,dimension(:)   :: hwp_guess    ! column total for each hydrometeor  
-
-  real(r_kind)   , save ,allocatable,dimension(:,:,:,:)  :: gesqsat ! qsat to calc rh for aero particle size estimate
   real(r_kind)   , save ,allocatable,dimension(:)  :: table,table2,tablew ! GFDL saturation water vapor pressure tables
   real(r_kind)   , save ,allocatable,dimension(:)  :: des2,desw           ! GFDL saturation water vapor presure
   real(r_kind)   , save ,allocatable,dimension(:)  :: lcloud4crtm_wk ! cloud info usage index for each channel
@@ -326,7 +324,6 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
   use radinfo, only: crtm_coeffs_path
   use radinfo, only: radjacindxs,radjacnames,jpch_rad,nusis,nuchan
   use aeroinfo, only: aerojacindxs
-  use guess_grids, only: ges_tsen,ges_prsl,nfldsig
   use gridmod, only: fv3_full_hydro
   use mpeu_util, only: getindex
   use constants, only: zero,max_varname_length
@@ -347,9 +344,9 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
   integer(i_kind), parameter :: length = 2621  ! lenth of GFL qsat table
 
 ! local variables
-  integer(i_kind) :: ier,ii,error_status,iderivative
+  integer(i_kind) :: ier,ii,error_status
   integer(i_kind) :: k, subset_start, subset_end
-  logical :: ice,Load_AerosolCoeff,Load_CloudCoeff
+  logical :: Load_AerosolCoeff,Load_CloudCoeff
   character(len=20),dimension(1) :: sensorlist
   integer(i_kind) :: indx,iii,icloud4crtm
 ! ...all "additional absorber" variables
@@ -840,16 +837,6 @@ endif
     endif ! nvege_type
  endif ! regional or IGBP
     
-! Calculate RH when aerosols are present and/or cloud-fraction used
- if (n_actual_aerosols_wk>0 .or. n_clouds_fwd_wk>0) then 
-    allocate(gesqsat(lat2,lon2,nsig,nfldsig))
-    ice=.true.
-    iderivative=0
-    do ii=1,nfldsig
-       call genqsat(gesqsat(1,1,1,ii),ges_tsen(1,1,1,ii),ges_prsl(1,1,1,ii),lat2,lon2,nsig,ice,iderivative)
-    end do
- endif
-
 ! Initial GFDL saturation water vapor pressure tables
   if (n_actual_aerosols_wk>0 .or. n_clouds_fwd_wk>0 .and. imp_physics==11) then
 
@@ -905,7 +892,6 @@ subroutine destroy_crtm
   if (error_status /= success) &
      write(6,*)myname_,':  ***ERROR*** error_status=',error_status
   if (n_actual_aerosols_wk>0 .or. n_clouds_fwd_wk>0) then  
-     deallocate(gesqsat)
      if (imp_physics==11) then
         deallocate(table)
         deallocate(table2)
@@ -1048,7 +1034,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use radinfo, only: nsigradjac
   use gsi_nstcouplermod, only: nst_gsi
   use guess_grids, only: ges_tsen,&
-      ges_prsl,ges_prsi,tropprs,dsfct,add_rtm_layers, &
+      ges_prsl,ges_prsi,ges_qsat,tropprs,dsfct,add_rtm_layers, &
       hrdifsig,nfldsig,hrdifsfc,nfldsfc,ntguessfc,isli2,sno2, &
       hrdifaer,nfldaer ! for separate aerosol input file
   use cloud_efr_mod, only: efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
@@ -1908,14 +1894,14 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
        end if ! lread_ext_aerosol
     end if ! n_actual_aerosols_wk > 0
     do k=1,nsig
-        qs(k) = (gesqsat(ix ,iy ,k,itsig )*w00+ &
-                 gesqsat(ixp,iy ,k,itsig )*w10+ &
-                 gesqsat(ix ,iyp,k,itsig )*w01+ &
-                 gesqsat(ixp,iyp,k,itsig )*w11)*dtsig + &
-                (gesqsat(ix ,iy ,k,itsigp)*w00+ &
-                 gesqsat(ixp,iy ,k,itsigp)*w10+ &
-                 gesqsat(ix ,iyp,k,itsigp)*w01+ &
-                 gesqsat(ixp,iyp,k,itsigp)*w11)*dtsigp
+        qs(k) = (ges_qsat(ix ,iy ,k,itsig )*w00+ &
+                 ges_qsat(ixp,iy ,k,itsig )*w10+ &
+                 ges_qsat(ix ,iyp,k,itsig )*w01+ &
+                 ges_qsat(ixp,iyp,k,itsig )*w11)*dtsig + &
+                (ges_qsat(ix ,iy ,k,itsigp)*w00+ &
+                 ges_qsat(ixp,iy ,k,itsigp)*w10+ &
+                 ges_qsat(ix ,iyp,k,itsigp)*w01+ &
+                 ges_qsat(ixp,iyp,k,itsigp)*w11)*dtsigp
         rh(k) = q(k)/qs(k)
     end do
   endif

@@ -37,7 +37,7 @@ subroutine compute_qvar3d
 !$$$
   use kinds, only: r_kind,i_kind,r_single
   use berror, only: dssv
-  use jfunc, only: varq,qoption,varcw,cwoption,clip_supersaturation
+  use jfunc, only: varq,qoption,varcw,cwoption,clip_supersaturation,superfact
   use derivsmod, only: qsatg,qgues
   use control_vectors, only: cvars3d
   use gridmod, only: lat2,lon2,nsig
@@ -94,7 +94,7 @@ subroutine compute_qvar3d
 ! Limit q to be >= qmin
               ges_q(i,j,k)=max(ges_q(i,j,k),qmin)
 ! Limit q to be <= ges_qsat
-              if(clip_supersaturation) ges_q(i,j,k)=min(ges_q(i,j,k),ges_qsat(i,j,k,it))
+              if(clip_supersaturation) ges_q(i,j,k)=min(ges_q(i,j,k),superfact*ges_qsat(i,j,k,it))
            end do
         end do
      end do
