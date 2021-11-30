@@ -26,7 +26,9 @@
    elsif( -d "/scratch1" ) {
       $machine = "hera";
    }
-   
+   elsif( -d "/lfs/h2" ) {
+      $machine = "wcoss2";
+   }
  
    print "$machine";
 

@@ -57,6 +57,10 @@ set -ax
    elif [[ $MY_MACHINE = "hera" ]]; then
       ${SUB} -A ${ACCOUNT} --ntasks=1 --time=00:20:00 \
 		-p service -J ${jobname} -o ${logfile} ${plot_hist}
+
+   elif [[ $MY_MACHINE = "wcoss2" ]]; then
+        $SUB -V -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -e ${logfile} -l walltime=30:00 -N ${jobname} \
+                -l select=1:mem=500M ${plot_hist}
    fi
 
 
@@ -78,6 +82,10 @@ set -ax
    elif [[ $MY_MACHINE = "hera" ]]; then
       ${SUB} -A ${ACCOUNT} --ntasks=1 --time=00:20:00 \
 		-p service -J ${jobname} -o ${logfile} ${plot_horz}
+
+   elif [[ $MY_MACHINE = "wcoss2" ]]; then
+        $SUB -V -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -e ${logfile} -l walltime=30:00 -N ${jobname} \
+                -l select=1:mem=500M ${plot_horz}
    fi
 
 
@@ -99,6 +107,10 @@ set -ax
    elif [[ $MY_MACHINE = "hera" ]]; then
       ${SUB} -A ${ACCOUNT} --ntasks=1 --time=00:20:00 \
 	     -p service -J ${jobname} -o ${logfile} ${plot_horz_uv}
+
+   elif [[ $MY_MACHINE = "wcoss2" ]]; then
+        $SUB -V -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -e ${logfile} -l walltime=30:00 -N ${jobname} \
+                -l select=1:mem=500M ${plot_horz_uv}
    fi
 
 

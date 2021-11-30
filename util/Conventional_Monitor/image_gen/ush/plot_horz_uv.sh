@@ -10,8 +10,6 @@ set -ax
    echo "--> plot_horz_uv.sh"
 
    rc=0
-   pdy=`echo $PDATE|cut -c1-8`
-   cyc=`echo $PDATE|cut -c9-10`
    hh_tankdir=${C_TANKDIR}/${RUN}.${PDY}/${CYC}/conmon/horz_hist
    export savedir=${hh_tankdir}
 
@@ -175,20 +173,14 @@ set -ax
          ${GRADS} -blc "run plothorz_${dtype}.gs"
 
 
-         outdir=${C_IMGNDIR}/pngs/horz/${CYC}
+         outdir=${C_IMGNDIR}/pngs/horz
          mkdir -p ${outdir}
         
          img_files=`ls *.png`
          for imgf in $img_files; do
             newf=`echo $imgf | sed -e "s/\./.${PDATE}./g"`
-            cp $imgf $newf
-            mv $newf ${C_IMGNDIR}/pngs/horz/.
+	    cp $imgf ${C_IMGNDIR}/pngs/horz/${newf}
          done
-
-         if [[ $CONMON_SUFFIX != "v16rt2" ]]; then
-            mv -f  *.png ${outdir}/.
-         fi
-
 
       done      ### dtype loop 
    done      ### type loop
