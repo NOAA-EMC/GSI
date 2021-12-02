@@ -150,8 +150,7 @@ GMI1CRBF=${GMI1CRBF:-${COMIN_OBS}/${OPREFIX}gmi1cr.tm00.bufr_d${OSUFFIX}}
 SAPHIRBF=${SAPHIRBF:-${COMIN_OBS}/${OPREFIX}saphir.tm00.bufr_d${OSUFFIX}}
 SEVIRIBF=${SEVIRIBF:-${COMIN_OBS}/${OPREFIX}sevcsr.tm00.bufr_d${OSUFFIX}}
 AHIBF=${AHIBF:-${COMIN_OBS}/${OPREFIX}ahicsr.tm00.bufr_d${OSUFFIX}}
-#SSTVIIRS=${SSTVIIRS:-${COMIN_OBS}/${OPREFIX}sstvcw.tm00.bufr_d${OSUFFIX}}
-SSTVIIRS=/scratch1/NCEPDEV/global/glopara/dump/gdasx.${PDY}/$cyc/${OPREFIX}sstvcw.tm00.bufr_d${OSUFFIX}
+SSTVIIRS=${SSTVIIRS:-${COMIN_OBS}/${OPREFIX}sstvcw.tm00.bufr_d${OSUFFIX}}
 ABIBF=${ABIBF:-${COMIN_OBS}/${OPREFIX}gsrcsr.tm00.bufr_d${OSUFFIX}}
 CRISBF=${CRISBF:-${COMIN_OBS}/${OPREFIX}cris.tm00.bufr_d${OSUFFIX}}
 ESCRIS=${ESCRIS:-${COMIN_OBS}/${OPREFIX}escris.tm00.bufr_d${OSUFFIX}}
@@ -805,7 +804,7 @@ cat > gsiparm.anl << EOF
   $OBSQC
 /
 &OBS_INPUT
-  dmesh(1)=145.0,dmesh(2)=150.0,dmesh(3)=100.0,dmesh(4)=888.0,time_window_max=3.0,
+  dmesh(1)=145.0,dmesh(2)=150.0,dmesh(3)=100.0,dmesh(4)=70.0,time_window_max=3.0,
   $OBSINPUT
 /
 OBS_INPUT::

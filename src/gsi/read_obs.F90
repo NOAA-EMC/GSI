@@ -755,6 +755,7 @@ subroutine read_obs(ndata,mype)
 
     use mrmsmod,only: l_mrms_sparse_netcdf
     use directDA_radaruse_mod, only: l_use_dbz_directDA
+    use gridmod, only: regional
 
     implicit none
 
@@ -1309,7 +1310,8 @@ subroutine read_obs(ndata,mype)
 
 !   Create full horizontal surface fields from local fields in guess_grids
     call getsfc(mype,mype_io_sfc,use_sfc,use_sfc_any)
-    call get_hsst(mype,mype_io_sfc)
+    if ( .not. regional )  call get_hsst(mype,mype_io_sfc)
+   
 
     if(mype == mype_io) call prt_guessfc2('sfcges2',use_sfc)
 

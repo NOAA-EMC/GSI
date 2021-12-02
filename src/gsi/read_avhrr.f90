@@ -196,7 +196,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   ich4          = ich_offset + 2
   r01 = 0.01_r_kind
 
-  if ( rmesh == 888 ) then
+  if ( rmesh == 888.0_r_kind ) then
      nmesh = 6
      allocate(amesh(nmesh),hsst_thd(0:nmesh))
 !
@@ -290,9 +290,6 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
      allocate( data_mesh(nele,itxmax) )
      allocate( nrec(itxmax) )
 
-!    write(*,'(a,a10,I8,F6.1,5I8)') 'read_avhrr,jsatid,imesh,amesh,ithin,itxmax,mype,mype_sub,mype_root : ', & 
-!                                trim(jsatid),imesh,amesh(imesh),ithin,itxmax,mype,mype_sub,mype_root
-
      if ( imesh == 1 ) then
         allocate( data_all(nele,itxmax) )
      endif
@@ -320,6 +317,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
            ksatid  = nint(hdr(9))                ! Extract satellite id from bufr file
            if(ksatid /= bufsat) cycle read_loop  ! If this sat is not the one we want, read next record
            if (hdr(10) <= real(cut_spot) .or. hdr(10) > real(ngac-cut_spot)) cycle read_loop! drop starting and ending pixels
+           if (hdr(13) /= zero ) cycle read_loop ! toss pixel with CLAVR partly cloud flag
 
            iskip = 0
            do k=1,nchanl
@@ -328,8 +326,6 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
               end if
            end do
            if(iskip >= nchanl)cycle read_loop
-
-           if (hdr(13) /= zero ) cycle read_loop ! toss pixel with CLAVR partly cloud flag
 
 !          Get lat/lon in degree          
            if (abs(hdr(7))>90.0_r_double .or. abs(hdr(8))>r360) cycle read_loop
@@ -367,6 +363,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
            endif
 
 !          Interpolate hsst(nlat,nlon) to obs.location
+           if ( rmesh == 888.0_r_kind ) then
            klon1=int(dlon); klat1=int(dlat)
            dx  =dlon-klon1; dy  =dlat-klat1
            dx1 =one-dx;         dy1 =one-dy
@@ -383,6 +380,8 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 !          Only process the obs. at the location where hsst is in the current processed range
 !
            if ( hsst_xy < hsst_thd(imesh-1) .or. hsst_xy >= hsst_thd(imesh) ) cycle read_loop
+
+           endif
 
 !          Extract date information.  If time outside window, skip this obs
            idate5(1) = nint(hdr(1))    !year
