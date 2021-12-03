@@ -131,7 +131,7 @@ case $machine in
 
    #  On Hera, there are no scrubbers to remove old contents from stmp* directories.
    #  After completion of regression tests, will remove the regression test subdirecories
-   export clean=".false."
+   export clean=".true."
    ;;
    Jet)
 
