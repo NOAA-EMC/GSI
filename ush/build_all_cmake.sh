@@ -61,7 +61,6 @@ else
 fi
 
 dir_modules=$dir_root/modulefiles
-dir_versions=$dir_root/versions
 if [ ! -d $dir_modules ]; then
     echo "modulefiles does not exist in $dir_modules"
     exit 10
@@ -84,7 +83,6 @@ elif [ $target = discover ]; then
     module load $dir_modules/modulefile.ProdGSI.$target
 elif [ $target = wcoss2 ]; then
     module purge
-    source $dir_versions/build.ver
     module use $dir_modules
     module load modulefile.ProdGSI.$target
     module list
