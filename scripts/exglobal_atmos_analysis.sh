@@ -617,7 +617,7 @@ if [ $GENDIAG = "YES" ] ; then
 	  rm -rf $DIAG_DIR
       fi
       npe_m1="$(($npe_gsi-1))"
-      for pe in {0..$npe_m1}; do
+      for pe in $(seq 0 $npe_m1); do
         pedir="dir."$(printf %04i $pe)
         mkdir -p $DIAG_DIR/$pedir
         $NLN $DIAG_DIR/$pedir $pedir
