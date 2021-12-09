@@ -16,7 +16,7 @@
    my $machine = `/usr/bin/perl get_hostname.pl`;
    my $my_machine="export MY_MACHINE=$machine";
 
-   if( $machine ne "hera" && $machine ne "wcoss" && 
+   if( $machine ne "hera" && $machine ne "wcoss" && $machine ne "wcoss2" &&
        $machine ne "wcoss_d" && $machine ne "cray" ) {
       die( "ERROR --- Unrecognized machine hostname, $machine.  Exiting now...\n" );
    }
@@ -60,6 +60,9 @@
    } 
    elsif( $machine eq "wcoss_d" ){
       $tankdir = "/gpfs/dell2/emc/modeling/noscrub/$user_name/nbns";
+   }
+   elsif( $machine eq "wcoss2" ){
+      $tankdir = "/lfs/h2/emc/da/noscrub/$user_name/nbns";
    }
    else {
       $tankdir = "/global/save/$user_name/nbns";
@@ -148,6 +151,10 @@
       $my_ptmp="export MY_PTMP=\${MY_PTMP:-/gpfs/dell2/ptmp/$user_name}";
       $my_stmp="export MY_STMP=\${MY_STMP:-/gpfs/dell2/stmp/$user_name}";
    }
+   elsif( $machine eq "wcoss2" ) {
+      $my_ptmp="export MY_PTMP=\${MY_PTMP:-/lfs/h2/emc/ptmp/$user_name}";
+      $my_stmp="export MY_STMP=\${MY_STMP:-/lfs/h2/emc/stmp/$user_name}";
+   }
    elsif( $machine eq "hera" ) {
       $ptmp = "/scratch2/NCEPDEV/stmp3/${user_name}";
       print "Please specify PTMP location.  This is used for temporary work space.\n";
@@ -185,8 +192,6 @@
       print "\n\n";
       sleep( 1 );
 
-#      $my_ptmp="export MY_PTMP=\${MY_PTMP:-/scratch2/NCEPDEV/stmp3/${user_name}}";
-#      $my_stmp="export MY_STMP=\${MY_STMP:-/scratch2/NCEPDEV/stmp1/${user_name}}";
    }
 
    #
@@ -306,7 +311,7 @@
    #
    #  project definition
    #
-   my $project = "GDAS-T2O";
+   my $project = "GDAS-DEV";
    my $my_project = "";
 
    if( $machine eq "hera" ) {
@@ -333,6 +338,9 @@
    #  job queue definition
    #
    my $job_queue = "dev_shared";
+   if( $machine eq "wcoss2" ) {
+      $job_queue = "dev";
+   }
    my $my_job_queue = "";
 
    if( $machine eq "hera" ) {
