@@ -23,7 +23,12 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
    export DO_DATA_RPT=${DO_DATA_RPT:-1}
 
    export MAIL_TO=${MAIL_TO:-"edward.safford@noaa.gov"}
-   export MAIL_CC=${MAIL_CC:=""}
+   if [[ -e /u/${LOGNAME}/bin/get_cc_list.pl ]]; then
+      cc_list=`/u/${LOGNAME}/bin/get_cc_list.pl --nr ${CONMON_SUFFIX}_${RUN} --mon ConMon`
+   else
+      cc_list=""
+   fi
+   export MAIL_CC=${MAIL_CC:=${cc_list}}
 
    #-----------------------------------------------------
    #   The grib2 flag indicates if the data files are in
@@ -35,7 +40,17 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
    # MY_CONMON should point to your working directory which contains the
    # top level directory to the ConMon package. 
    #
-   export MY_CONMON=${MY_CONMON:-/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/GSI/util/Conventional_Monitor}
+   export MY_CONMON=/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/GSI/util/Conventional_Monitor
+
+   
+   #---------------------------------------------------------------------
+   # The ConMon time and vert plots include 10 regions, some of which   
+   # include others.  This takes up an inordinate amount of server space.
+   # The CONMON_RESTRICT_PLOT_AREAS reduces the regions to Global, 
+   # N. America, S. America, Tropics, Europe, and Asia.
+   #
+   export CONMON_RESTRICT_PLOT_AREAS=1
+
 
    #---------------------------------------------------------------------------
    #  The CONMON_TANKDIR will be the location for the extracted data files and
@@ -43,9 +58,7 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
    #  and the succedding scripts will construct and use subdirectories under
    #  this location.
    #
-
-   export MY_TANKDIR=${MY_TANKDIR:-/u/Edward.Safford/nbns}
-   export CONMON_TANKDIR=$MY_TANKDIR
+   export CONMON_TANKDIR=/u/Edward.Safford/nbns
    export C_TANKverf=${C_TANKverf:-${CONMON_TANKDIR}}
 
    export C_TANKDIR=${CONMON_TANKDIR}/stats/${CONMON_SUFFIX}
@@ -132,7 +145,7 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
    #
    #  Number of cycles worth of image data to be retained in tankdir
    #
-   export NUM_IMG_CYCLES=${NUM_IMG_CYCLES:-20}
+   export NUM_IMG_CYCLES=${NUM_IMG_CYCLES:-4}
 
    #
    #  Web server resources include the sever name (WEB_SVR), the user name

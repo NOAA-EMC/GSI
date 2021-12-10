@@ -157,9 +157,9 @@
          # surface time series plots instead of time series.
          #
          my $ptype = "time";
-         if( $type_str =~ m/ps/   || 
+         if( $type_str !~ m/gps/  && ( $type_str =~ m/ps/   || 
              $type_str =~ m/q18/  || $type_str =~ m/t18/ ||
-             $type_str =~ m/uv28/ || $type_str =~ m/uv29/ ) {
+             $type_str =~ m/uv28/ || $type_str =~ m/uv29/ )) {
             $ptype = "surftime"; 
          }
 

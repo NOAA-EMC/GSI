@@ -28,12 +28,25 @@ function ps_time_count (args)
    say ixc
    say 'iyc=' iyc
 
-   iy=1
+   '!echo $CONMON_RESTRICT_PLOT_AREAS > rest.txt'
+   rest=read(rest.txt)
+   restrict=subwrd(rest,2)
+   say 'restrict=' restrict
 
+   iy=1
    while(iy <=iyc)
+
+*     In order to save space skip regions N. Hemisphere(2), S. Hemisphere(3), and Canada(6)
+      if ( restrict = 1 )
+         if ( iy = 2 | iy = 3 | iy = 5 | iy = 6 )
+            iy=iy+1
+            continue
+         endif
+      endif
 
       say 'iy=' iy
       '!rm -f area.txt'
+
       if( iy <10)
          '!cat ges_ps_stas.ctl |grep "region=  'iy' " > area.txt'
       else
@@ -47,7 +60,7 @@ function ps_time_count (args)
          area=substr(info,14,25)
       endif
       result=close(area.txt)
-*      say 'area = 'area
+      say 'area = 'area
       ix=1
    
       while(ix <=ixc)

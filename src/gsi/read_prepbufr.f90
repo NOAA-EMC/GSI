@@ -147,6 +147,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2019-12-05  mmorris - Update adjust_goescldobs to reject ALL clear cloud obs at night
 !
 !   2020-05-04  wu      - no rotate_wind for fv3_regional
+!   2020-09-05  CAPS(C. Tong) - add flag for new vadwind obs to assimilate around the analysis time only
 
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -183,7 +184,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use convinfo, only: id_drifter,id_ship
 
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
-  use obsmod, only: blacklst,offtime_data,bmiss,ext_sonde,time_offset
+  use obsmod, only: blacklst,offtime_data,bmiss,ext_sonde,time_offset, vad_near_analtime
   use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,ntail,taillist,idx_tail,npredt,predt, &
       aircraft_t_bc_ext,ntail_update,max_tail,nsort,itail_sort,idx_sort,timelist
   use converr,only: etabl
@@ -992,12 +993,16 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               !* thin new VAD in time level
               if(kx==224.and.newvad)then
                 icase=0
-                if(abs(hdr(4))>0.17_r_kind.and.abs(hdr(4))<0.32_r_kind) icase=1
-                if(abs(hdr(4))>0.67_r_kind.and.abs(hdr(4))<0.82_r_kind) icase=1
-                if(abs(hdr(4))>1.17_r_kind.and.abs(hdr(4))<1.32_r_kind) icase=1
-                if(abs(hdr(4))>1.67_r_kind.and.abs(hdr(4))<1.82_r_kind) icase=1
-                if(abs(hdr(4))>2.17_r_kind.and.abs(hdr(4))<2.62_r_kind) icase=1
-                if(abs(hdr(4))>2.67_r_kind.and.abs(hdr(4))<2.82_r_kind) icase=1
+                if ( vad_near_analtime ) then 
+                   if(abs(hdr(4))<0.25_r_kind) icase=1
+                else
+                   if(abs(hdr(4))>0.17_r_kind.and.abs(hdr(4))<0.32_r_kind) icase=1
+                   if(abs(hdr(4))>0.67_r_kind.and.abs(hdr(4))<0.82_r_kind) icase=1
+                   if(abs(hdr(4))>1.17_r_kind.and.abs(hdr(4))<1.32_r_kind) icase=1
+                   if(abs(hdr(4))>1.67_r_kind.and.abs(hdr(4))<1.82_r_kind) icase=1
+                   if(abs(hdr(4))>2.17_r_kind.and.abs(hdr(4))<2.62_r_kind) icase=1
+                   if(abs(hdr(4))>2.67_r_kind.and.abs(hdr(4))<2.82_r_kind) icase=1
+                endif
                 if(icase/=1) cycle
               end if
 

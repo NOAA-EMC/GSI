@@ -74,6 +74,7 @@ subroutine statsconv(mype,&
 !     i_vwnd10m- index in awork array holding vwnd10m info
 !     i_swcp   - index in awork array holding swcp info
 !     i_lwcp   - index in awork array holding lwcp info
+!     i_dbz    - index in awork array holding dbz info
 !     i_ref    - size of second dimension of awork array
 !     bwork    - array containing information for statistics
 !     awork    - array containing information for data counts and gross checks

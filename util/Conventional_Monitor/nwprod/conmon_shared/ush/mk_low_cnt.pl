@@ -144,9 +144,9 @@
      my $avg   = $bound;
 
      #--------------------------------------------
-     #  start with a gross check of 75% of average
+     #  start with a gross check of 65% of average
      #
-     $bound = $bound * 0.75;
+     $bound = $bound * 0.65;
 
      if( $nobs < $bound ) {
         print FILE "$key, $nobs, $bound, $avg\n";

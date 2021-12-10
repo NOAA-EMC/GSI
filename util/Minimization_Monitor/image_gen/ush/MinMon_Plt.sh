@@ -141,6 +141,9 @@ cyc=`echo $PDATE|cut -c9-10`
 echo TANKDIR = ${TANKDIR}
 
 gnorm_dir=${TANKDIR}/${RUN}.${pdy}/${cyc}/minmon
+if [[ ! -d ${gnorm_dir} ]]; then
+   gnorm_dir=${TANKDIR}/${RUN}.${pdy}
+fi
 
 gnorm_file=${gnorm_dir}/gnorm_data.txt
 
@@ -186,6 +189,10 @@ while [[ $cdate -le $edate ]]; do
    cyc=`echo $cdate | cut -c9-10`
 
    gnorm_dir=${TANKDIR}/${RUN}.${pdy}/${cyc}/minmon
+
+   if [[ ! -d ${gnorm_dir} ]]; then
+      gnorm_dir=${TANKDIR}/${RUN}.${pdy}
+   fi
 
    gnorms_file=${gnorm_dir}/${cdate}.gnorms.ieee_d
    local_gnorm=${cdate}.gnorms.ieee_d
@@ -359,6 +366,13 @@ fi
       $RSYNC -ave ssh --exclude *.ctl*  ./ \
         ${WEBUSER}@${WEBSERVER}:${WEBDIR}/$run_suffix/
    fi
+
+   if [[ ! -d ${MIN_IMGN_TANKDIR} ]]; then
+      mkdir -p ${MIN_IMGN_TANKDIR}
+   fi
+
+   cd ./tmp
+   cp *.png ${MIN_IMGN_TANKDIR}
 
 #--------------------------------------------------------------------
 #  Call nu_make_archive.sh to write archive files to hpss and
