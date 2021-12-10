@@ -294,7 +294,7 @@ contains
     !----------------------------------------------------------------------
     ! Allocate memory for variables computed within routine
 
-    if (ps_ind > 0) then
+    if (ps_ind > 0 .or. q_ind > 0 ) then !if q_ind > 0 qsat will be use
        allocate(workprsi(nx_res,ny_res,nlevsp1))
        allocate(pswork(nx_res,ny_res))
        fv3filename=trim(adjustl(filename))//"_dynvartracer"
@@ -309,7 +309,7 @@ contains
           workprsi(:,:,i)=workvar3d(:,:,i)*0.01_r_kind+workprsi(:,:,i+1)
        enddo
        pswork(:,:)=workprsi(:,:,1)
-
+       if(ps_ind >0 ) then
        nn = nn_tile0
        do j=1,ny_res
           do i=1,nx_res
@@ -317,6 +317,7 @@ contains
              vargrid(nn,levels(n3d)+ps_ind, nb,ne) =pswork(i,j)
           enddo
        enddo
+       endif
 
        do k=1,nlevs
        do j=1,ny_res
@@ -576,6 +577,11 @@ contains
           call read_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
           workvar3d=workvar3d+workinc3d
           call write_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+          do k=1,nlevs
+             if (nproc .eq. 0)                                               &
+                write(6,*) 'WRITEregional : T  ',                             &
+                  & k, minval(workvar3d(:,:,k)), maxval(workvar3d(:,:,k))
+          enddo
        else ! tv_ind >0
           do k=1,nlevs
              nn = nn_tile0
