@@ -559,7 +559,7 @@ subroutine generate_regular_grids(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt,p_
         a3jy(j,i)=min(max(1,a3jy(j,i)),nyout)
         a3dy(j,i)=max(zero,min(one,gya-a3jy(j,i)))
         a3dy1(j,i)=one-a3dy(j,i)
-        a3jyp(j,i)=min(nya,a3jy(j,i)+1)
+        a3jyp(j,i)=min(nyout,a3jy(j,i)+1)
      end do
   end do
 
@@ -1025,7 +1025,7 @@ subroutine definecoef_regular_grids(nx,ny,nxa_inout,nya_inout,grid_lon,grid_lont
         a3jy(j,i)=min(max(1,a3jy(j,i)),nyout)
         a3dy(j,i)=max(zero,min(one,gya-a3jy(j,i)))
         a3dy1(j,i)=one-a3dy(j,i)
-        a3jyp(j,i)=min(ny,a3jy(j,i)+1)
+        a3jyp(j,i)=min(nyout,a3jy(j,i)+1)
      end do
   end do
 
