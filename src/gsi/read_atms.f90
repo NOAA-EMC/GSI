@@ -37,6 +37,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !  2018-02-05  collard - get orbit height from BUFR file
 !  2018-04-19  eliu - allow data selection for precipitation-affected data 
 !  2018-05-21  j.jin  - added time-thinning, to replace thin4d
+!  2020-12-13  s.sieron - change from reading antenna to brightness temperature
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -479,10 +480,11 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
            solazi_save(iob)=bfr2bhdr(4) 
 
 !          Read data record.  Increment data counter
-!          TMBR is actually the antenna temperature for most microwave sounders but for
-!          ATMS it is stored in TMANT.
+!          Though TMBR is actually the antenna temperature for most microwave sounders,
+!          for ATMS, TMBR is brightness temperature. (Antenna temperature is in
+!          TMANT.) 
 !          ATMS is assumed not to come via EARS
-           call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMANT')
+           call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBR')
 
            bt_save(1:nchanl,iob) = data1b8(1:nchanl)
 
